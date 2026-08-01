@@ -89,7 +89,7 @@ from srmech.introspect.carrier_schema import (
     _CAPABILITY,
     _CARRIERS,
 )
-from srmech.amsc.cascade.cayley_dickson import (
+from srmech.cascade.cayley_dickson import (
     CD_COMPOSE_MAX_DIM,
     CD_MAX_DIM,
     CD_TURN_MAX_DIM,

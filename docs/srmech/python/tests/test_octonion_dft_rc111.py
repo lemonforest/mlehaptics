@@ -65,9 +65,9 @@ from pathlib import Path
 
 import pytest
 
-import srmech.amsc.cascade.hypercomplex_dft as hd
+import srmech.cascade.hypercomplex_dft as hd
 from srmech import _native
-from srmech.amsc.cascade import octonion_dft, quaternion_dft
+from srmech.cascade import octonion_dft, quaternion_dft
 from srmech.math.mat import Mat
 from srmech.qm import octonion as oct_mod
 from srmech.qm.octonion import (
@@ -474,7 +474,7 @@ def test_rosetta_buckets():
             fixture.read_text(encoding="utf-8").splitlines() if l.strip()]
     buckets = {r["defined_at"]: r["bucket"] for r in rows}
     assert buckets[
-        "srmech.amsc.cascade.hypercomplex_dft.octonion_dft"
+        "srmech.cascade.hypercomplex_dft.octonion_dft"
     ] == "c_dispatched"
     assert buckets["srmech.qm.octonion.octonion_exp"] == "c_dispatched"
     assert buckets["srmech.qm.octonion.octonion_twiddle"] == "c_dispatched"

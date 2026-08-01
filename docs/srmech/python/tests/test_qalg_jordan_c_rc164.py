@@ -41,8 +41,8 @@ import pytest
 
 from srmech import _native
 from srmech.math.qalg import Qalg
-from srmech.amsc.cascade import matrix_cascades as mc
-from srmech.amsc.cascade.matrix_cascades import jordan_chains_exact
+from srmech.cascade import matrix_cascades as mc
+from srmech.cascade.matrix_cascades import jordan_chains_exact
 
 
 def test_numpy_is_absent_so_this_runs_not_skips():
@@ -182,7 +182,7 @@ def _classification():
 
 def test_rosetta_row_is_c_dispatched():
     cls = _classification()
-    assert cls["srmech.amsc.cascade.matrix_cascades.jordan_chains_exact"] == \
+    assert cls["srmech.cascade.matrix_cascades.jordan_chains_exact"] == \
         "c_dispatched"
 
 

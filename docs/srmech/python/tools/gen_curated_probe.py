@@ -90,14 +90,14 @@ CENTRAL = [
     ("srmech.math.hdc.similarity", ((), dict(a=b"abc", b=b"abd")),
      "Normalised agreement (1 − 2·Hamming/D) between two BSC hypervectors, as an "
      "exact rational Q. +1 = identical, 0 = orthogonal, −1 = complementary."),
-    ("srmech.amsc.cascade.magnitude", ((), dict(x=-3.5)),
+    ("srmech.cascade.magnitude", ((), dict(x=-3.5)),
      "The Class-K real pin-slot magnitude |x| — the cascade-honest replacement "
      "for Python abs(): a sign-branch phase-boundary op, NOT a complex modulus "
      "(it rejects complex input by contract)."),
-    ("srmech.amsc.cascade.pin_slot_at_zero", ((), dict(x=-3.5)),
+    ("srmech.cascade.pin_slot_at_zero", ((), dict(x=-3.5)),
      "The Class-K pin-slot at zero: splits x into its sign (the pinned phase "
      "boundary, −1/0/+1) and its magnitude — the primitive |·| composes from."),
-    ("srmech.amsc.cascade.net_chirality", ((), dict(orientations=[1, -1, 1, 1])),
+    ("srmech.cascade.net_chirality", ((), dict(orientations=[1, -1, 1, 1])),
      "Class-C net chirality: the signed product/sum reduction of a sequence of "
      "per-step orientations into the one net which-way handedness."),
     # The auto-seed probes fold_marks with 'abc', which round-trips unchanged
@@ -178,7 +178,7 @@ def _worked_ns():
     from pathlib import Path as _Path
 
     import srmech.amsc.attested as _attested
-    from srmech.amsc.cascade import (
+    from srmech.cascade import (
         algebra_table, cd_basis_product, cd_carry, cd_conjugate, cd_correct,
         cd_couple_working, cd_mult, cd_navigate, cd_navmap,
         cd_navmap_is_signed_permutation, cd_norm_sq, cd_project, cd_promote,
@@ -219,7 +219,7 @@ def _worked_ns():
 WORKED = [
 
     # ── the integer core ──────────────────────────────────────────────
-    ("srmech.amsc.cascade.cd_basis_product", [
+    ("srmech.cascade.cd_basis_product", [
         ("1", "[cd_basis_product(64, i, 63) for i in (0, 21, 42, 63)]"),
         ("2", "[codon(i) for i in (0, 21, 42, 63)]"),
         ("3", "[codon(cd_basis_product(64, i, 63)[0]) for i in (0, 21, 42, 63)]"),
@@ -251,7 +251,7 @@ WORKED = [
      "involution T↔G / C↔A, and reversing the operands keeps the index and "
      "flips the sign."),
 
-    ("srmech.amsc.cascade.algebra_table", [
+    ("srmech.cascade.algebra_table", [
         ("1", "algebra_table(8) == octonion_mult_table()"),
         ("2", "algebra_table(4) == quaternion_mult_table()"),
         ("3", "algebra_table(8)[1][2]"),
@@ -290,7 +290,7 @@ WORKED = [
      "while one +1 flips e1² from −1 to +1 — and all eight γ-triples at "
      "dim 8 collapse to exactly TWO inertia answers, 𝕆 and split-𝕆."),
 
-    ("srmech.amsc.cascade.table_product", [
+    ("srmech.cascade.table_product", [
         ("1", "cd_mult([1,0,0,0,0,0,0,1], [1,0,0,0,0,0,0,-1])"),
         ("2", "table_product(O8, [1,0,0,0,0,0,0,1], [1,0,0,0,0,0,0,-1])"),
         ("3", "table_product(SPLIT8, [1,0,0,0,0,0,0,1], [1,0,0,0,0,0,0,-1])"),
@@ -320,7 +320,7 @@ WORKED = [
      "split-𝕆 — the table route agrees with the shipped product where both "
      "are defined and is the only route that can see the split answer."),
 
-    ("srmech.amsc.cascade.inertia_signature", [
+    ("srmech.cascade.inertia_signature", [
         ("1", "[(n, inertia_signature(t)['signature'], inertia_signature(t)['norm_signature'])"
               " for n, t in (('R', algebra_table(1)), ('C', algebra_table(2)),"
               " ('H', algebra_table(4)), ('O', O8), ('split-O', SPLIT8))]"),
@@ -355,7 +355,7 @@ WORKED = [
      "split-ℂ's n₋ = 0 sits right next to a genuine zero divisor."),
 
     # ── the element layer ─────────────────────────────────────────────
-    ("srmech.amsc.cascade.cd_mult", [
+    ("srmech.cascade.cd_mult", [
         ("1", "cd_mult([0,1,0,0,0,0,0,0], [0,0,1,0,0,0,0,0])"),
         ("2", "cd_mult([0,0,1,0,0,0,0,0], [0,1,0,0,0,0,0,0])"),
         ("3", "cd_mult(cd_mult([0,1,0,0,0,0,0,0], [0,0,1,0,0,0,0,0]),"
@@ -393,7 +393,7 @@ WORKED = [
      "(e1·e2)·e4 = −e1·(e2·e4) (grouping is content too, from 𝕆 up), and at "
      "dim 16 the same call returns all-zero for two elements of norm 2."),
 
-    ("srmech.amsc.cascade.cd_conjugate", [
+    ("srmech.cascade.cd_conjugate", [
         ("1", "cd_conjugate([0,1,0,0])"),
         ("2", "cd_mult([0,1,0,0], cd_conjugate([0,1,0,0]))"),
         ("3", "cd_conjugate(ZD['x'])"),
@@ -423,7 +423,7 @@ WORKED = [
      "inverse — the involution survives the Hurwitz wall even though "
      "invertibility does not."),
 
-    ("srmech.amsc.cascade.cd_norm_sq", [
+    ("srmech.cascade.cd_norm_sq", [
         ("1", "cd_norm_sq([1, -1])"),
         ("2", "cd_norm_sq([1, -1], gammas=[1])"),
         ("3", "table_product(algebra_table(2, gammas=[1]), [1, -1], [1, 1])"),
@@ -454,7 +454,7 @@ WORKED = [
      "N(x)N(y) visibly fails at dim 16 — 0 versus 4."),
 
     # ── the rung ladder ───────────────────────────────────────────────
-    ("srmech.amsc.cascade.cd_promote", [
+    ("srmech.cascade.cd_promote", [
         ("1", "cd_promote([0,1,0,0], 8)"),
         ("2", "cd_project(cd_promote([0,1,0,0], 8))"),
         ("3", "cd_mult(cd_promote([0,1,0,0], 8), cd_promote([0,0,1,0], 8))"
@@ -482,7 +482,7 @@ WORKED = [
      "Zero-padding up is a subalgebra embedding, not a reshape: i·j "
      "computed in ℍ and then promoted equals i·j computed in 𝕆, exactly."),
 
-    ("srmech.amsc.cascade.cd_project", [
+    ("srmech.cascade.cd_project", [
         ("1", "cd_project([1, 0, 0, 0])"),
         ("2", "cd_project(cd_project([1, 0, 0, 0]))"),
         ("3", "cd_project(cd_promote([0, 1, 0, 0], 8))"),
@@ -508,7 +508,7 @@ WORKED = [
      "cd_promote is exact, and truncation is not reachable."),
 
     # ── the Hurwitz wall ──────────────────────────────────────────────
-    ("srmech.amsc.cascade.sedenion_zero_divisor_witness", [
+    ("srmech.cascade.sedenion_zero_divisor_witness", [
         ("1", "{k: ZD[k] for k in ('dim','x_form','y_form','x_norm_sq',"
               "'y_norm_sq','product_is_zero')}"),
         ("2", "cd_mult(ZD['x'], ZD['y'])"),
@@ -536,7 +536,7 @@ WORKED = [
      "zero, and the same x is both the non-invertible left multiplier and "
      "the direction a sedenion register declines to navigate."),
 
-    ("srmech.amsc.cascade.left_mult_kernel", [
+    ("srmech.cascade.left_mult_kernel", [
         ("1", "len(left_mult_kernel(ZD['x'])), left_mult_kernel(ZD['x'])[0]"),
         ("2", "left_mult_kernel([1,0,0,0,0,0,0,1])"),
         ("3", "len(left_mult_kernel([1,0,0,0,0,0,0,1], table=SPLIT8))"),
@@ -567,7 +567,7 @@ WORKED = [
      "sedenion witness, empty for 1+e7 on 𝕆, and 4 again for that same "
      "1+e7 once the split-𝕆 table is named."),
 
-    ("srmech.amsc.cascade.left_mult_is_invertible", [
+    ("srmech.cascade.left_mult_is_invertible", [
         ("1", "left_mult_is_invertible([1,0,0,0,0,0,0,1])"),
         ("2", "left_mult_is_invertible([1,0,0,0,0,0,0,1], table=SPLIT8)"),
         ("3", "left_mult_is_invertible(ZD['x'])"),
@@ -599,7 +599,7 @@ WORKED = [
      "composition fails past dim 8 while addressing (signed-permutation "
      "navmaps) survives at 16, 32 and 64."),
 
-    ("srmech.amsc.cascade.is_division_algebra_dim", [
+    ("srmech.cascade.is_division_algebra_dim", [
         ("1", "[(d, is_division_algebra_dim(d)) for d in (1, 2, 4, 8, 16, 32, 64)]"),
         ("2", "left_mult_is_invertible(ZD['x'])"),
         ("3", "cd_navmap_is_signed_permutation(16)"),
@@ -629,7 +629,7 @@ WORKED = [
      "split algebras that break at dim 8."),
 
     # ── addressing (the h-genome carrier) ─────────────────────────────
-    ("srmech.amsc.cascade.cd_navmap", [
+    ("srmech.cascade.cd_navmap", [
         ("1", "len(cd_navmap(64, 63))"),
         ("2", "[cd_navmap(64, 63)[i] for i in (0, 21, 42, 63)]"),
         ("3", "sorted(v[0] for v in cd_navmap(64, 63).values()) == list(range(64))"),
@@ -659,7 +659,7 @@ WORKED = [
      "attested code's own Rumer involution, a bijection over all 64 codon "
      "slots, 32 of which carry a negative Class-C sign."),
 
-    ("srmech.amsc.cascade.cd_navigate", [
+    ("srmech.cascade.cd_navigate", [
         ("1", "cd_navigate(64, 63, [0, 21, 42, 63], [1, 1, 1, 1])"),
         ("2", "[codon(i) for i in (0, 21, 42, 63)]"),
         ("3", "[codon(i) for i in cd_navigate(64, 63, [0,21,42,63], [1,1,1,1])[0]]"),
@@ -689,7 +689,7 @@ WORKED = [
      "TTT/CCC/AAA/GGG map to GGG/AAA/CCC/TTT, and going round twice "
      "restores the slots while leaving every sign flipped."),
 
-    ("srmech.amsc.cascade.cd_navmap_is_signed_permutation", [
+    ("srmech.cascade.cd_navmap_is_signed_permutation", [
         ("1", "[(d, cd_navmap_is_signed_permutation(d)) for d in (2, 4, 8, 16, 32, 64)]"),
         ("2", "[(d, is_division_algebra_dim(d)) for d in (2, 4, 8, 16, 32, 64)]"),
         ("3", "left_mult_is_invertible(ZD['x'])"),
@@ -721,7 +721,7 @@ WORKED = [
      "— exactly the rungs where is_division_algebra_dim is False and the "
      "sedenion witness has no inverse."),
 
-    ("srmech.amsc.cascade.cd_register", [
+    ("srmech.cascade.cd_register", [
         ("1", "_reg1.working_block(), len(_reg1.carry_block())"),
         ("2", "_reg1.slots()"),
         ("3", "_reg1.navigate(63).slots()"),
@@ -760,7 +760,7 @@ WORKED = [
      "namespace='SEDENION' is byte-identical to the shipped "
      "sedenion_register while the default namespace is not."),
 
-    ("srmech.amsc.cascade.sedenion_register", [
+    ("srmech.cascade.sedenion_register", [
         ("1", "_sed1.slots()"),
         ("2", "_sed1.navigate(4).slots()"),
         ("3", "_sed1.is_navigable([0,0,0,0,1] + [0]*11)"),
@@ -793,7 +793,7 @@ WORKED = [
      "with namespace='SEDENION' materialises byte-identically to this."),
 
     # ── the two optional layers ───────────────────────────────────────
-    ("srmech.amsc.cascade.cd_couple_working", [
+    ("srmech.cascade.cd_couple_working", [
         ("1", "cd_couple_working([8.0, 2.0, 128.0], dim=8)"),
         ("2", "cd_uncouple_working(cd_couple_working([8.0, 2.0, 128.0], dim=8))"),
         ("3", "len(cd_couple_working([5.0], dim=2)), len(cd_couple_working([], dim=1))"),
@@ -824,7 +824,7 @@ WORKED = [
      "into one quaternion word and unbind exactly — and the cap is derived "
      "from the rung, so dim 16 still refuses an 8th stream."),
 
-    ("srmech.amsc.cascade.cd_uncouple_working", [
+    ("srmech.cascade.cd_uncouple_working", [
         ("1", "cd_couple_working([8.0, 2.0, 128.0], dim=8)"),
         ("2", "cd_uncouple_working(cd_couple_working([8.0, 2.0, 128.0], dim=8))"),
         ("3", "len(cd_uncouple_working(cd_couple_working([1.0]*7, dim=8)))"),
@@ -853,7 +853,7 @@ WORKED = [
      "redundancy counts come back from one quaternion word, and empty in is "
      "empty out."),
 
-    ("srmech.amsc.cascade.cd_carry", [
+    ("srmech.cascade.cd_carry", [
         ("1", "cd_carry([0, 1, 1, 1], n=3)"),
         ("2", "cd_correct(cd_carry([0, 1, 1, 1], n=3))"),
         ("3", "len(cd_carry([1]*11, n=4))"),
@@ -881,7 +881,7 @@ WORKED = [
      "4-bit dinucleotide root [0,1,1,1] = 'CG' encodes to 7 bits and decodes "
      "back, on an axis set by n and not by the register's dim."),
 
-    ("srmech.amsc.cascade.cd_correct", [
+    ("srmech.cascade.cd_correct", [
         ("1", "cd_carry([0, 1, 1, 1], n=3)"),
         ("2", "cd_correct([0, 0, 0, 1, 1, 1, 1])"),
         ("3", "cd_correct([0, 0, 0, 1, 0, 1, 1])"),
@@ -910,7 +910,7 @@ WORKED = [
      "swallowed."),
 
     # ── the continuous coupler ────────────────────────────────────────
-    ("srmech.amsc.cascade.hypercomplex_couple", [
+    ("srmech.cascade.hypercomplex_couple", [
         ("1", "hypercomplex_couple([8.0, 2.0, 128.0])"),
         ("2", "hypercomplex_couple(hypercomplex_couple([8.0, 2.0, 128.0]), sigma=-1)"),
         ("3", "[round(v, 12) for v in hypercomplex_couple([1.0, 1.0, 1.0])]"),
@@ -943,7 +943,7 @@ WORKED = [
      "coherence detector: [1,1,1] folds entirely onto it, [1,−1,1] does "
      "not."),
 
-    ("srmech.amsc.cascade.hypercomplex_exp", [
+    ("srmech.cascade.hypercomplex_exp", [
         ("1", "hypercomplex_exp(0.7853981633974483, 1)[:2]"),
         ("2", "[round(float(v), 12) for v in hypercomplex_exp(0.7853981633974483, 3)]"),
         ("3", "round(float(cd_norm_sq(list(hypercomplex_exp(0.7853981633974483, 7)))), 15)"),
@@ -977,7 +977,7 @@ WORKED = [
      "cd_mult returns −1."),
 
     # ── the generator ─────────────────────────────────────────────────
-    ("srmech.amsc.cascade.the_one", [
+    ("srmech.cascade.the_one", [
         ("1", "the_one(1, 1, 4)"),
         ("2", "the_one(1, 1, 4).partition, the_one(1, 1, 4).imag_dims,"
               " the_one(1, 1, 4).grammar_slots"),

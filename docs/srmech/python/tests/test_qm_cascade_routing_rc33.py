@@ -30,7 +30,7 @@ import random
 import pytest
 
 from srmech.math import rational as _srn
-from srmech.amsc.cascade.matrix_cascades import eigvals, eigvals_exact
+from srmech.cascade.matrix_cascades import eigvals, eigvals_exact
 from srmech.math.laplacian import hermitian_eigendecompose, mat_matmul
 from srmech.math.mat import Mat
 from srmech.qm import gauge, potentials, sm, single_particle as sp

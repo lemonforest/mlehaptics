@@ -19,8 +19,8 @@ import pytest
 
 from srmech import _native
 from srmech._native import HAS_NATIVE
-from srmech.amsc.cascade import cayley_dickson as cd
-from srmech.amsc.cascade.sedenion_register import SedenionRegister, NUM_SLOTS
+from srmech.cascade import cayley_dickson as cd
+from srmech.cascade.sedenion_register import SedenionRegister, NUM_SLOTS
 
 _SED_NATIVE = (
     HAS_NATIVE

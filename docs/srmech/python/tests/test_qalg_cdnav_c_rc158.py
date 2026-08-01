@@ -35,7 +35,7 @@ from pathlib import Path
 import pytest
 
 from srmech import _native
-from srmech.amsc.cascade import cayley_dickson as cd
+from srmech.cascade import cayley_dickson as cd
 
 
 def _force(has_native: bool, fn, *args, **kw):
@@ -177,5 +177,5 @@ def test_ledger_rows():
             for l in fixture.read_text(encoding="utf-8").splitlines() if l.strip()}
     for op in ("closure", "left_orbit", "min_generating_set",
                "sedenion_zero_divisor_witness"):
-        da = f"srmech.amsc.cascade.cayley_dickson.{op}"
+        da = f"srmech.cascade.cayley_dickson.{op}"
         assert rows.get(da) == "c_dispatched", (op, rows.get(da))

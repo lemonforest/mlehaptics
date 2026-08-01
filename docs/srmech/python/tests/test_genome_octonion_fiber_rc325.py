@@ -41,7 +41,7 @@ import pytest
 
 from srmech.biology import genome as G
 from srmech import _native
-from srmech.amsc.cascade.cayley_dickson import cd_mult
+from srmech.cascade.cayley_dickson import cd_mult
 from srmech.biology.genome import (
     ELEMENT_TYPE_KLEIN4, ELEMENT_TYPE_OCTONION, OCTONION_SECTORS, QUAD,
     FIBER_CAP_MARKER, OCT_FIBER_CAP_MARKER, GENOME_FORMAT_VERSION,

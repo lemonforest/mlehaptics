@@ -73,8 +73,8 @@ from srmech.math.q import Q                   # #845: exact-ℚ carrier (was Fra
 
 from srmech.math import rational as _srn
 
-from srmech.amsc.cascade import magnitude as _magnitude
-from srmech.amsc.cascade import best_rational_signed as _brs  # #845: signed float→ℚ snap
+from srmech.cascade import magnitude as _magnitude
+from srmech.cascade import best_rational_signed as _brs  # #845: signed float→ℚ snap
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
 from srmech.math.mat import Mat
 from srmech.math.laplacian import (
@@ -1763,7 +1763,7 @@ def quaternion_subalgebra_stabilizer(quaternion_index: int = 1) -> dict:
     surfaced under the separately-keyed ``framework_so4_reading`` field;
     framework-reading, NOT a derived theorem): this so(4) ⊂ g2 is a 6-dim
     **Lie subalgebra** (a continuous SYMMETRY of the octonions). It is
-    EXPLICITLY DISTINCT from the 6 ``srmech.amsc.cascade.atoms`` lean-ISA
+    EXPLICITLY DISTINCT from the 6 ``srmech.cascade.atoms`` lean-ISA
     operators (``pin_slot_at_zero``, ``reorient``, ``magnitude``,
     ``chiral_flip``, ``chiral_dual``, ``net_chirality``) — those are
     group-ELEMENT operations (0 of the 6 are Lie generators / one-parameter
@@ -1856,7 +1856,7 @@ def quaternion_subalgebra_stabilizer(quaternion_index: int = 1) -> dict:
         "framework_so4_reading": {
             "note": "framework-reading, not derived",
             "symmetry_surface": "so(4) = su(2) ⊕ su(2) ⊂ g2 (Lie subalgebra)",
-            "operator_surface": "srmech.amsc.cascade.atoms (6 lean-ISA ops)",
+            "operator_surface": "srmech.cascade.atoms (6 lean-ISA ops)",
             "six_equals_six_is_coincidence": True,
             "atoms_that_are_lie_generators": 0,
             "f215": (

@@ -1,4 +1,4 @@
-"""srmech.amsc.cascade.spectral_cascades — DFT / FFT + Kronecker as A-N cascades.
+"""srmech.cascade.spectral_cascades — DFT / FFT + Kronecker as A-N cascades.
 
 Per ``docs/srmech/notes/continuous_math_as_14_class_cascade.md``: the DFT, the
 FFT and the Kronecker product are not numpy primitives, they are compositions
@@ -176,7 +176,7 @@ def ifft(x: Sequence[complex]) -> List[complex]:
 def _int_components(m: Sequence[Sequence[complex]]) -> "tuple | None":
     """Exact integer ``(real, imag)`` component matrices for ``m``, or ``None``.
 
-    The 2-D peer of :func:`srmech.amsc.cascade.exact_dft._try_int_pairs`. Returns
+    The 2-D peer of :func:`srmech.cascade.exact_dft._try_int_pairs`. Returns
     ``None`` the moment any entry has a non-integral real or imaginary part, so a
     genuinely-continuous (float) operand falls straight through to the FPU matmul
     path and pays nothing for this probe.

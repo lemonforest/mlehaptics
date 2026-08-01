@@ -3,7 +3,7 @@
 Per [[feedback_prefer_config_driven_toml_classes]], the immutable accessor-shaped
 ``One`` (#887) is converted to a packaged ``[class]`` TOML consumed by
 ``srmech.dsl.make_class`` — the genome two-layer pattern (ship each accessor as a
-module-level flat op in ``srmech.amsc.cascade.one``, bind it in ``one.toml``).
+module-level flat op in ``srmech.cascade.one``, bind it in ``one.toml``).
 ``One`` needs NO new make_class directive (single ``one`` field; each method a
 one-bind cascade-op ref).
 
@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc.cascade import the_one
+from srmech.cascade import the_one
 from srmech.dsl import describe_class, list_classes, make_class
 
 
@@ -36,8 +36,8 @@ def test_one_is_a_shipped_class():
         "dim", "imag_dims", "partition", "plane_counts",
         "grammar_slots", "flat", "matrix", "scalar",
     }
-    assert d["methods"]["dim"]["op"] == "srmech.amsc.cascade.one.one_dim"
-    assert d["methods"]["scalar"]["op"] == "srmech.amsc.cascade.to_scalar"
+    assert d["methods"]["dim"]["op"] == "srmech.cascade.one.one_dim"
+    assert d["methods"]["scalar"]["op"] == "srmech.cascade.to_scalar"
 
 
 # ── DSL-class vs Python-One equivalence ──────────────────────────────────────
@@ -74,7 +74,7 @@ def test_dsl_class_matches_python_one(sigma, tn, td):
 # ── the flat-op accessor layer is itself faithful (the bound ops) ────────────
 
 def test_flat_op_accessors_match_property_accessors():
-    from srmech.amsc.cascade import one as one_mod
+    from srmech.cascade import one as one_mod
 
     o = the_one(+1, 5, 4)
     assert one_mod.one_dim(o) == o.dim

@@ -44,7 +44,7 @@ discriminators tell ``build_chain_from_toml`` which builder to invoke:
 
 The ``parallel`` discriminator (v0.6.0rc11; rc12 composability) is the
 chain face of the Klein-4 four-sector fan-out
-(:func:`srmech.amsc.cascade.parallel_sector_dispatch`): it runs the piped
+(:func:`srmech.cascade.parallel_sector_dispatch`): it runs the piped
 value through the ``parallel_body`` op across ≤4 chirality sectors. A
 special form like loop/fold/reduce, NOT a plain ``op`` (which is why
 ``op = "parallel_sector_dispatch"`` is rejected with a guided error

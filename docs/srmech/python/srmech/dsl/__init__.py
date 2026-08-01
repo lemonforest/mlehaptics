@@ -1,10 +1,10 @@
 """srmech.dsl — cascade DSL (v0.5.0rc8; task #235 / ADR-0002 Phase 2-v2).
 
 The fluent :func:`chain` builder composes the 11 cascade-catalog ops
-(``srmech.amsc.cascade.*``) + the loop / fold / reduce control-flow
+(``srmech.cascade.*``) + the loop / fold / reduce control-flow
 primitives into a single executable pipeline. The runner reads the TOML
 cascade-catalog descriptors at construction time and dispatches through
-the corresponding ``srmech.amsc.cascade.*`` Python entry points (which
+the corresponding ``srmech.cascade.*`` Python entry points (which
 themselves route to C peers when ``HAS_NATIVE`` is True).
 
 Per-stage events emit ``dsl.<chain_name>.stage.<N>`` lines to the

@@ -15,7 +15,7 @@ Design notes
   class. ``loop`` IS Class I (cyclic repetition); ``fold`` and
   ``reduce`` are Class M (cross-class bind: accumulator + element each
   step); ``parallel`` is Class C (the Klein-4 chirality-sector fan-out
-  of :func:`srmech.amsc.cascade.parallel_sector_dispatch`).
+  of :func:`srmech.cascade.parallel_sector_dispatch`).
 * **The combinator set is a CLOSED, FINITE kernel — the two-tier SSoT
   boundary.** ``then`` (apply) + ``loop`` + ``fold`` + ``reduce`` +
   ``parallel`` are the *five* control-flow special forms, matched 1:1 by
@@ -188,7 +188,7 @@ def make_parallel_stage(
     The ``parallel`` special form (v0.6.0rc11; rc12 composability). The
     piped value is run through ``body_fn`` across its ``n_sectors`` (≤ 4)
     Klein-4 chirality sectors via
-    :func:`srmech.amsc.cascade.parallel_sector_dispatch`. A GIL-releasing
+    :func:`srmech.cascade.parallel_sector_dispatch`. A GIL-releasing
     body (native / IO / numpy) lets the ≤4 sectors genuinely overlap.
 
     ``combine`` decides the stage's OUTPUT SHAPE (the rc12 §11.3 fix):
@@ -216,7 +216,7 @@ def make_parallel_stage(
         element; 8+ needs the order-3 triality, F220).
     combine
         Recombine for the sector results: a
-        :data:`srmech.amsc.cascade.COMBINE_REDUCERS` name (``"bundle"`` /
+        :data:`srmech.cascade.COMBINE_REDUCERS` name (``"bundle"`` /
         ``"mean"`` / ``"sector0"`` / ``"concat"``) or a callable → a single
         composable value; ``None`` → the per-sector list (terminal). Default
         ``"bundle"``.
@@ -246,9 +246,9 @@ def make_parallel_stage(
 
     def parallel_fn(input_value):
         # Lazy import (cycle-safe — mirrors _catalog.lookup_cascade_op):
-        # srmech.amsc.cascade pulls srmech.introspect which can pull
+        # srmech.cascade pulls srmech.introspect which can pull
         # srmech.dsl in some test configurations, so resolve at call time.
-        from srmech.amsc.cascade import parallel_sector_dispatch
+        from srmech.cascade import parallel_sector_dispatch
         result = parallel_sector_dispatch(
             body_fn, input_value, n_sectors=n_sectors, combine=combine,
         )

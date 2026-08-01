@@ -254,7 +254,7 @@ _ENCODING_HINT: Dict[str, str] = {
     ),
     "operator_name": (
         "dotted import path of a unary sequence->sequence srmech operator, "
-        'e.g. "srmech.amsc.cascade.chiral_flip"'
+        'e.g. "srmech.cascade.chiral_flip"'
     ),
 }
 
@@ -419,7 +419,7 @@ def compile_filter(pattern: Optional[str]) -> Optional[Callable[[str], bool]]:
     Patterns:
 
     * ``None`` (default) -> ``None`` (no filter).
-    * ``"srmech.amsc.cascade.*"`` -> matches the cascade sub-tree.
+    * ``"srmech.cascade.*"`` -> matches the cascade sub-tree.
     * ``"srmech.amsc.*"`` -> matches everything under AMSC.
     * A bare prefix without ``"*"`` -> exact-name match.
 
@@ -455,8 +455,8 @@ def _resolve_dotted_callable(name: str) -> Callable[..., Any]:
         )
 
     # Try the most-specific module prefix first, then back off.
-    # e.g. for "srmech.amsc.cascade.chiral_flip" we try
-    # importing "srmech.amsc.cascade" then attr "chiral_flip".
+    # e.g. for "srmech.cascade.chiral_flip" we try
+    # importing "srmech.cascade" then attr "chiral_flip".
     for split_idx in range(len(parts) - 1, 0, -1):
         mod_name = ".".join(parts[:split_idx])
         attr_path = parts[split_idx:]

@@ -1603,3 +1603,79 @@ srmech._native (data dir)" contrast INVERTED at the move and was rewritten true.
 eleven slices (rc366 → rc376). The census `test_the_end_state_floor_is_the_four_keepers` now asserts EQUALITY
 (`KEEPERS == _manifest_modules()`) rather than strict-superset — the completion condition A.5 documented, now
 reached.
+
+## Amendment N — the FINAL slice, the `cascade` SUBPACKAGE: fifteen modules `srmech/amsc/cascade/` → `srmech.cascade`, ADR-0010 execution FULLY COMPLETE (modules AND subpackages), v0.9.0rc377 (`#T1034`)
+
+Amendment M drained the last `srmech/amsc/*.py` MODULES to the four attestation keepers, but left one
+loose end it named explicitly: the `cascade` SUBPACKAGE, carried under A.2's separate `srmech.cascade.*`
+row (Status-of-adoption "verify"). This slice closes it. All fifteen `srmech/amsc/cascade/*.py` files
+`git mv` into the pre-existing top-level `srmech/cascade/` structure-home (created rc364 with its
+`catalogs/` subtree + the ADR-0002 chain-engine `compose.py`). `srmech.amsc` is now exactly its four
+keeper modules (`format` / `catalog` / `descriptor` / `gap_suggester`) + its two attestation subpackages
+(`adapters` / `attested`). ADR-0010 execution is now FULLY COMPLETE — modules AND subpackages.
+
+### N.1 The `compose` → `composites` rename — ADR B.1 rule-1's ONE sanctioned exception
+
+B.1 rule-1 is "a slice relocates a PARENT; it does not rename the LEAF". This slice is its single
+deliberate exception, and it is documented AS the exception rather than performed silently. A `compose.py`
+already lived in `srmech/cascade/` — the ADR-0002 chain ENGINE (`run_chain` / `parse_chain_spec`). The
+incoming `amsc/cascade/compose.py` is the DISJOINT lean-ISA COMPOSITES layer (`cyclic_gcd` /
+`best_rational_signed` / `kuramoto_step` / `autocorrelation`), whose own module docstring opens *"Cascade
+**composites** — iterative algorithms over the atoms"*. Two disjoint modules cannot share one leaf name,
+so the incoming one is renamed to `composites.py` (module `srmech.cascade.composites`). The leaf name is
+docstring-DERIVED (not invented), which is what makes it the minimal resolution: the module already called
+itself "composites". The incumbent `compose.py` is left untouched. Public surfaces are disjoint
+(`run_chain` vs `cyclic_gcd`), so no consumer is ambiguous. The C dispatch strings use FLAT op names
+(`srmech.amsc.cascade.cyclic_gcd`, never `...compose.cyclic_gcd`), so they took the plain amsc-drop; only
+the `[class]`-descriptor / Rosetta-ledger / `_c_claims` `defined_at` *module-qualifier* fields carry the
+`compose`→`composites` rename.
+
+### N.2 The flat-API `__init__` merge
+
+The rc364 top-level `__init__` (catalogs-loader package, deliberately import-free) is UNIONED with the
+incoming subpackage `__init__` (the flat op re-exports). This preserves the full flat surface every
+`from srmech.cascade import <op>` consumer AND the DSL flat resolver (`dsl/_catalog.py`'s
+`getattr(srmech.cascade, op_name)`) rely on. Load-bearing ORDERING is preserved: the `atoms` re-exports
+(`chiral_flip` / `hypercomplex_couple` / `magnitude`) precede the `cd_register` / `sedenion_register`
+imports, which do `from . import chiral_flip` at import time.
+
+### N.3 The C highest-risk edit — hardcoded `strncmp` length constants
+
+`c/src/srmech_make_class.c`'s vtable keys the moved `one.one_*` and `sedenion_register.sed_*` op families
+with `strncmp(op, "<prefix>", N)` on hardcoded prefix-length ints. The dotted prefix shortens by
+`len("amsc.") = 5`, so both the strings drop `amsc.` AND the ints DECREMENT by 5:
+`"srmech.cascade.one.one_"` **28 → 23**, `"srmech.cascade.sedenion_register.sed_"` **42 → 37** (with the
+paired `op + 42` → `op + 37`). A silent miss compiles but mis-dispatches; it is caught only by the native
+class-method parity tests, which pass (the platform wheel builds and `test_run_class_method_c_rc202.py` /
+`test_make_class_engine_c_rc201.py` are green with `HAS_NATIVE=True`).
+
+### N.4 The instrument set (all re-pinned in the SAME commit, MEASURED post-regen)
+
+- **Census** (`test_amsc_module_census_rc365.py` + manifest): `EXPECTED_N_SUBPACKAGES` **3 → 2**
+  (`cascade` dropped from `EXPECTED_SUBPACKAGES`, leaving `adapters` + `attested`); digest
+  `7536f292…` → **`91df88e7…`**. Module count stays **4** (the module arc completed at rc376). There is no
+  `LANDED_SUBPACKAGES` symbol — a subpackage move needs no LANDED entry.
+- **Op-name-set witness**: SET moves **75** op names `srmech.amsc.cascade.*` → `srmech.cascade.*`; digest
+  `e85eb71e…` → **`5ce22d65…`**; `EXPECTED_N` **stays 525**.
+- **Decode-aware prefix ratchet**: the `srmech.amsc.` population's LARGEST-yet drain, and the one that
+  EMPTIES it — cascade ops ARE carriers, so their back-index refs dominated the hoisted byte arrays.
+  carrier `(67, 97) → (0, 2)`; class `(0, 29) → (0, 0)`; tool_registry `(257, 0) → (69, 0)`; `_tool_docs`
+  `(252, 0) → (66, 0)`; responsion `(3, 0) → (0, 0)`; `_c_claims` `(58, 0) → (6, 0)`; `TOTAL_AS_TEXT`
+  **637 → 141**, `TOTAL_DECODED` **126 → 2**. The two non-vacuity proofs PIVOT to `srmech.cascade.` (the
+  new decode-only population: 95 carrier + 28 class refs), pinning `cascade == 95` beside `biology 99` /
+  `math 320` / `apokatastasis 13` / `music 13`. amsc's decoded population is DRAINED to 2 keeper residuals.
+- **Rosetta ledger**: the 75 moved cascade op rows repointed `exposed_as` amsc→cascade and `defined_at`
+  `compose`→`composites`; completeness + transitive + roots-single-source green.
+- **`test_run_class_method_c_rc202.py`** baked-op-ref scan: regex broadened `srmech\.amsc\.` →
+  `srmech\.(?:cascade|biology)\.` — amsc drained, so the amsc-only scan had gone blind.
+- **Regenerated** (`tools/regen_all.py --accept-seed-drift`): all 6 outputs content-equal + idempotent;
+  `regen --check` green. `SRMECH_ABI_VERSION` stays **10** (every cascade C symbol is capability-named and
+  UNCHANGED — a move renames Python paths, never C symbols).
+
+### N.5 ADR-0010 EXECUTION IS FULLY COMPLETE
+
+`srmech.amsc` is now exactly its four attestation keeper modules + its two attestation subpackages
+(`adapters` / `attested`). The module drain (71 modules, rc366 → rc376) and the subpackage drain (the
+`cascade` subpackage, rc377) are both DONE. ADR-0010 — the namespace declustering of `srmech` into
+field-named domains, structure-homes, provenance-only `amsc`, and cross-cutting `introspect` — is
+executed in full.

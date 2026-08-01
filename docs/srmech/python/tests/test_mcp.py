@@ -191,9 +191,9 @@ def test_required_keys_reference_real_properties() -> None:
 def test_filter_predicate_compiles_glob() -> None:
     """``compile_filter`` builds a callable that matches fnmatch
     patterns."""
-    pred = compile_filter("srmech.amsc.cascade.*")
+    pred = compile_filter("srmech.cascade.*")
     assert pred is not None
-    assert pred("srmech.amsc.cascade.chiral_flip")
+    assert pred("srmech.cascade.chiral_flip")
     assert not pred("srmech.amsc.format.sha256_bytes")
     assert compile_filter(None) is None
 
@@ -201,11 +201,11 @@ def test_filter_predicate_compiles_glob() -> None:
 def test_filter_reduces_exposed_tool_count() -> None:
     """``tool_entries_to_mcp_defs`` honours the filter predicate."""
     all_defs = list(tool_entries_to_mcp_defs())
-    pred = compile_filter("srmech.amsc.cascade.*")
+    pred = compile_filter("srmech.cascade.*")
     cascade_defs = list(tool_entries_to_mcp_defs(name_filter=pred))
     assert 0 < len(cascade_defs) < len(all_defs)
     for d in cascade_defs:
-        assert d["name"].startswith("srmech.amsc.cascade.")
+        assert d["name"].startswith("srmech.cascade.")
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -216,7 +216,7 @@ def test_filter_reduces_exposed_tool_count() -> None:
 def test_invoke_tool_chiral_flip_roundtrips() -> None:
     """A simple known tool round-trips through invoke_tool."""
     result = invoke_tool(
-        "srmech.amsc.cascade.chiral_flip",
+        "srmech.cascade.chiral_flip",
         {"seq": [1, 2, 3, 4]},
     )
     assert result == [4, 3, 2, 1]
@@ -408,19 +408,19 @@ def test_tools_list_returns_all_tools() -> None:
     tools = resp["result"]["tools"]
     assert len(tools) > 50
     names = {t["name"] for t in tools}
-    assert "srmech.amsc.cascade.chiral_flip" in names
+    assert "srmech.cascade.chiral_flip" in names
 
 
 def test_tools_list_honours_filter() -> None:
     """tools/list honours the constructor's name_filter."""
-    pred = compile_filter("srmech.amsc.cascade.*")
+    pred = compile_filter("srmech.cascade.*")
     srv = MCPServer(name_filter=pred)
     resp = srv.handle({
         "jsonrpc": "2.0", "id": 1, "method": "tools/list",
     })
     assert resp is not None
     tools = resp["result"]["tools"]
-    assert all(t["name"].startswith("srmech.amsc.cascade.") for t in tools)
+    assert all(t["name"].startswith("srmech.cascade.") for t in tools)
 
 
 def test_tools_call_invokes_tool_and_returns_attestation() -> None:
@@ -429,7 +429,7 @@ def test_tools_call_invokes_tool_and_returns_attestation() -> None:
     resp = srv.handle({
         "jsonrpc": "2.0", "id": 3, "method": "tools/call",
         "params": {
-            "name": "srmech.amsc.cascade.chiral_flip",
+            "name": "srmech.cascade.chiral_flip",
             "arguments": {"seq": [1, 2, 3]},
         },
     })
@@ -440,7 +440,7 @@ def test_tools_call_invokes_tool_and_returns_attestation() -> None:
     assert json.loads(result["content"][0]["text"]) == [3, 2, 1]
     att = result["attestation"]
     assert att["mpr_version"] == "1.0"
-    assert att["tool_name"] == "srmech.amsc.cascade.chiral_flip"
+    assert att["tool_name"] == "srmech.cascade.chiral_flip"
     assert att["parser_version"].startswith("srmech ")
     assert len(att["response_sha256"]) == 64
 
@@ -464,7 +464,7 @@ def test_tools_call_filtered_tool_returns_method_not_found() -> None:
     resp = srv.handle({
         "jsonrpc": "2.0", "id": 5, "method": "tools/call",
         "params": {
-            "name": "srmech.amsc.cascade.chiral_flip",
+            "name": "srmech.cascade.chiral_flip",
             "arguments": {"seq": [1, 2, 3]},
         },
     })
@@ -496,7 +496,7 @@ def test_tools_call_runtime_exception_returns_is_error_response() -> None:
     resp = srv.handle({
         "jsonrpc": "2.0", "id": 7, "method": "tools/call",
         "params": {
-            "name": "srmech.amsc.cascade.chiral_flip",
+            "name": "srmech.cascade.chiral_flip",
             "arguments": {"not_the_param_name": 123},
         },
     })
@@ -591,7 +591,7 @@ def test_stdio_subprocess_full_handshake() -> None:
         call_resp = _send_one_recv_one(p, {
             "jsonrpc": "2.0", "id": 3, "method": "tools/call",
             "params": {
-                "name": "srmech.amsc.cascade.chiral_flip",
+                "name": "srmech.cascade.chiral_flip",
                 "arguments": {"seq": [10, 20, 30]},
             },
         })
@@ -782,7 +782,7 @@ def test_bus_endpoint_invoke_proxies_through_bus(tmp_path) -> None:
         resp = srv.handle({
             "jsonrpc": "2.0", "id": 1, "method": "tools/call",
             "params": {
-                "name": "srmech.amsc.cascade.chiral_flip",
+                "name": "srmech.cascade.chiral_flip",
                 "arguments": {"seq": [1, 2]},
             },
         })
@@ -793,7 +793,7 @@ def test_bus_endpoint_invoke_proxies_through_bus(tmp_path) -> None:
         resp["result"]["content"][0]["text"]
     ) == ["pretend", "result"]
     assert len(invocations) == 1
-    assert invocations[0]["name"] == "srmech.amsc.cascade.chiral_flip"
+    assert invocations[0]["name"] == "srmech.cascade.chiral_flip"
     assert invocations[0]["arguments"] == {"seq": [1, 2]}
 
 
@@ -829,7 +829,7 @@ def test_cli_filter_flag_subprocess() -> None:
     """``srmech-mcp --filter`` only exposes matching tools end-to-end."""
     p = subprocess.Popen(
         [sys.executable, "-m", "srmech.mcp._cli",
-         "--filter", "srmech.amsc.cascade.*"],
+         "--filter", "srmech.cascade.*"],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -849,7 +849,7 @@ def test_cli_filter_flag_subprocess() -> None:
             "jsonrpc": "2.0", "id": 2, "method": "tools/list",
         })
         tools = list_resp["result"]["tools"]
-        assert all(t["name"].startswith("srmech.amsc.cascade.") for t in tools)
+        assert all(t["name"].startswith("srmech.cascade.") for t in tools)
     finally:
         if p.stdin is not None:
             p.stdin.close()
@@ -1652,7 +1652,7 @@ def test_invoke_jacobi_eigvals_nested_list_matrix() -> None:
     # Oracle = the substrate-native EXACT real-symmetric eigvals cascade
     # (``eigvals_exact``, numpy-free), NOT np.linalg.eigvalsh. (The closed form
     # of this tridiagonal is 2 ± √2, 2: {0.5858…, 2.0, 3.4142…}.)
-    from srmech.amsc.cascade.matrix_cascades import eigvals_exact
+    from srmech.cascade.matrix_cascades import eigvals_exact
 
     expected = sorted(eigvals_exact(matrix))
     assert len(expected) == 3
@@ -1962,7 +1962,7 @@ def _synth_value_for_type(type_string: str) -> Any:
         # chiral_dual is driven cleanly (was the old "callable"->"abs"
         # str-not-callable tolerated TypeError). The srmech-namespace
         # allow-list resolves it; chiral_flip is a real seq->seq operator.
-        "operator_name": "srmech.amsc.cascade.chiral_flip",
+        "operator_name": "srmech.cascade.chiral_flip",
         # rc16 — a SpectralHandle synths to a FRESHLY-MINTED, registered
         # by-reference id envelope so recompose/predict/truncate_sparse bind
         # + RESOLVE a genuine handle (any descriptor-hash mismatch vs the 2x2
@@ -2191,21 +2191,21 @@ def test_spectral_handle_or_bytes_discriminates() -> None:
 
 
 def test_operator_name_param_resolves_callable() -> None:
-    """``coerce_param('srmech.amsc.cascade.chiral_flip', 'operator_name')``
+    """``coerce_param('srmech.cascade.chiral_flip', 'operator_name')``
     returns a callable; ``invoke_tool`` drives chiral_dual end-to-end with
     NO TypeError (the rc15 over-advertisement is now honest); an unknown /
     out-of-namespace op name raises a clean error."""
     from srmech.mcp._coercion import coerce_param
 
-    fn = coerce_param("srmech.amsc.cascade.chiral_flip", "operator_name")
+    fn = coerce_param("srmech.cascade.chiral_flip", "operator_name")
     assert callable(fn)
 
     # End-to-end through invoke_tool: chiral_dual(chiral_flip, [1,2,3]) =
     # chiral_flip(chiral_flip(chiral_flip(x))) — three reversals net to ONE
     # reversal, so the result is the reversed sequence.
     res = invoke_tool(
-        "srmech.amsc.cascade.chiral_dual",
-        {"op": "srmech.amsc.cascade.chiral_flip", "x": [1.0, 2.0, 3.0]},
+        "srmech.cascade.chiral_dual",
+        {"op": "srmech.cascade.chiral_flip", "x": [1.0, 2.0, 3.0]},
     )
     assert list(res) == [3.0, 2.0, 1.0]
 

@@ -69,7 +69,7 @@ import pytest
 
 from srmech.biology import genome as _genome
 from srmech.biology import q8 as _q8
-from srmech.amsc.cascade.cayley_dickson import cd_basis_product
+from srmech.cascade.cayley_dickson import cd_basis_product
 from srmech.introspect.tool_schema import (
     LANE_INPUTS,
     LANES,
@@ -455,7 +455,7 @@ def test_granularity_labels_which_248_reading_it_is() -> None:
     counts (8,4,2) = ONE algebra at three widths. Same three numbers,
     different objects — a report that does not label which is which teaches
     the confusion, so the label is asserted here."""
-    from srmech.amsc.cascade.one import BLOCK_DIMS
+    from srmech.cascade.one import BLOCK_DIMS
 
     gran = describe()["lanes"]["granularity"]
     assert gran["reading"] == "one_algebra_three_widths"

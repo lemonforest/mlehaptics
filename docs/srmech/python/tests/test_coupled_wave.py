@@ -11,7 +11,7 @@ import math
 
 import pytest
 
-from srmech.amsc.cascade import coupled_wave, multiplex_streams
+from srmech.cascade import coupled_wave, multiplex_streams
 
 
 # ---- W17: coupled_wave -------------------------------------------------

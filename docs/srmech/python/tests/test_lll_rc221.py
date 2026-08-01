@@ -1,5 +1,5 @@
 """rc221 — the exact-ℚ LLL lattice-basis reduction op
-(``srmech.amsc.cascade.matrix_cascades.lll_reduce`` + the byte-identical C peer
+(``srmech.cascade.matrix_cascades.lll_reduce`` + the byte-identical C peer
 ``srmech_lll_reduce``): the classic Lenstra–Lenstra–Lovász (1982) reduction, the
 foundation for a future van Hoeij polynomial-factorization knapsack.
 
@@ -36,8 +36,8 @@ import pytest
 
 from srmech import introspect
 from srmech import _native
-from srmech.amsc.cascade import matrix_cascades as mc
-from srmech.amsc.cascade.matrix_cascades import lll_reduce
+from srmech.cascade import matrix_cascades as mc
+from srmech.cascade.matrix_cascades import lll_reduce
 
 
 # ── arm helpers ────────────────────────────────────────────────────────────────
@@ -322,7 +322,7 @@ def test_registration():
     schema = introspect.describe()
     assert schema["tools"]["total"] == 525
     from srmech.introspect.tool_schema import get_tool_schema
-    name = "srmech.amsc.cascade.matrix_cascades.lll_reduce"
+    name = "srmech.cascade.matrix_cascades.lll_reduce"
     entries = [t for t in get_tool_schema().tools if t.name == name]
     assert len(entries) == 1
     entry = entries[0]

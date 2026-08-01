@@ -30,8 +30,8 @@ import json
 import pytest
 
 from srmech import _native
-from srmech.amsc.cascade.one import the_one
-from srmech.amsc.cascade.sedenion_register import SedenionRegister
+from srmech.cascade.one import the_one
+from srmech.cascade.sedenion_register import SedenionRegister
 from srmech.dsl import make_class, run_class_method
 
 pytestmark = pytest.mark.skipif(
@@ -88,7 +88,7 @@ def test_class_descriptor_lookup_resolves_in_c():
 #
 # That gap is load-bearing rather than cosmetic. The four class TOMLs bake 29
 # DOTTED OP REFS into the C registry, all under `srmech.biology.genome.*` or
-# `srmech.amsc.cascade.*`. If those prefixes are ever renamed and the class
+# `srmech.cascade.*`. If those prefixes are ever renamed and the class
 # registry is not regenerated (or the .so not rebuilt), C keeps resolving
 # "One" to a descriptor whose op refs point at names that no longer exist,
 # `b"[class]" in got` still passes, and the PURE path keeps answering because
@@ -166,7 +166,7 @@ def test_every_dotted_op_ref_baked_into_c_still_resolves():
     """ADR-0010's PREREQUISITE, stated as a test.
 
     The op refs compiled into the C registry must name callables that exist.
-    A rename of `srmech.biology.genome.*` / `srmech.amsc.cascade.*` that updates
+    A rename of `srmech.biology.genome.*` / `srmech.cascade.*` that updates
     the Python surface but not this table leaves C dispatching to dead names;
     this is the assertion that goes red for it.
 
@@ -183,8 +183,14 @@ def test_every_dotted_op_ref_baked_into_c_still_resolves():
         # No trailing `.`: these refs appear in prose as well as in `op =`
         # values, so a greedy `[A-Za-z0-9_.]+` swallows sentence-ending periods
         # and invents refs like `srmech.biology.genome.` that never existed.
+        # The prefix tracks where ADR-0010 moved the class-descriptor op refs:
+        # the amsc-era ops now live under ``srmech.cascade.*`` (rc364/rc377 —
+        # One / SedenionRegister / Hurwitz bind cascade ops) and
+        # ``srmech.biology.*`` (rc375 — Genome). Was ``srmech\.amsc\.`` before
+        # the arc drained amsc; keeping it would make this scan go blind.
         refs.update(_re.findall(
-            r"srmech\.amsc\.[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)*", d["toml"]))
+            r"srmech\.(?:cascade|biology)\.[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)*",
+            d["toml"]))
     assert refs, "decoded no dotted op refs at all — the scan has gone blind"
 
     broken = []

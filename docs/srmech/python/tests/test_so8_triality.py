@@ -13,7 +13,7 @@ The six acceptance tests prove the construction is the genuine
 6. octonion convention attested + reproducible (same convention -> same tau).
 
 ALL deviations are reduced through the **scalar** Class K pin-slot
-magnitude (:func:`srmech.amsc.cascade.magnitude`) — NEVER Python ``abs()``
+magnitude (:func:`srmech.cascade.magnitude`) — NEVER Python ``abs()``
 per ``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]`` — by
 first reducing the matrix to a scalar Frobenius norm via the numpy-free
 Class-N :func:`srmech.math.laplacian.mat_norm`, then passing that Python
@@ -35,7 +35,7 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc.cascade import magnitude
+from srmech.cascade import magnitude
 from srmech.amsc.format import sha256_bytes
 from srmech.math.laplacian import mat_matmul, mat_norm
 from srmech.math.mat import Mat

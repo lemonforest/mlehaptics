@@ -62,7 +62,7 @@ def test_q_fraction_comparison_and_equality():
 
 # ── 3. migrated ops EMIT Q, still ACCEPT Fraction input ──────────────────────
 def test_cayley_dickson_emits_q_accepts_fraction():
-    from srmech.amsc.cascade import cayley_dickson as C
+    from srmech.cascade import cayley_dickson as C
     prod = C.cd_mult([1, 2, 3, 4], [4, 3, 2, 1])           # quaternion product
     assert all(isinstance(v, Q) for v in prod)
     n = C.cd_norm_sq([F(1, 2), F(1, 3), 0, 0])             # Fraction INPUT

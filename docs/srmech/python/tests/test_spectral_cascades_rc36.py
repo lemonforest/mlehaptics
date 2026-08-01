@@ -12,7 +12,7 @@ import random
 
 import pytest
 
-from srmech.amsc.cascade.spectral_cascades import dft, idft, kron
+from srmech.cascade.spectral_cascades import dft, idft, kron
 
 
 # --- numpy-free oracles ---------------------------------------------------------
@@ -115,7 +115,7 @@ def test_dft_no_libm_pi_in_call_graph():
     import ast
     import inspect
 
-    from srmech.amsc.cascade import spectral_cascades as sc
+    from srmech.cascade import spectral_cascades as sc
 
     tree = ast.parse(inspect.getsource(sc))
     bad = set()

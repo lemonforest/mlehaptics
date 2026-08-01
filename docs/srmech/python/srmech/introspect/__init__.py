@@ -592,7 +592,7 @@ def _maybe_auto_publish() -> None:
 # *** CONFLATION GUARD — READ THE `reading` KEY BEFORE COMPARING NUMBERS ***
 #
 # The slot counts below are 8 / 4 / 2, and srmech's
-# :data:`srmech.amsc.cascade.one.BLOCK_DIMS` is (2, 4, 8). SAME THREE NUMBERS,
+# :data:`srmech.cascade.one.BLOCK_DIMS` is (2, 4, 8). SAME THREE NUMBERS,
 # DIFFERENT OBJECTS:
 #
 #   * BLOCK_DIMS (2, 4, 8) = the real dims of THREE DIFFERENT ALGEBRAS,
@@ -615,7 +615,7 @@ _GRANULARITY: Dict[str, Any] = {
     "not_this_reading": {
         "name": "block_dims",
         "value": [2, 4, 8],
-        "symbol": "srmech.amsc.cascade.one.BLOCK_DIMS",
+        "symbol": "srmech.cascade.one.BLOCK_DIMS",
         "means": "the real dims of THREE algebras: C, H, O",
     },
     "collision_note": (
@@ -883,7 +883,7 @@ def describe() -> Dict[str, Any]:
     ``C_RL`` / ``C_RR`` do not.
 
     **The 2:4:8 collision is labelled IN THE PAYLOAD.** The slot counts (8, 4,
-    2) are ONE algebra at three widths; :data:`srmech.amsc.cascade.one.
+    2) are ONE algebra at three widths; :data:`srmech.cascade.one.
     BLOCK_DIMS` (2, 4, 8) are the real dims of THREE algebras (ℂ, ℍ, 𝕆). Same
     three numbers, different objects — ``granularity["reading"]`` and
     ``granularity["not_this_reading"]`` say which is which, because a reader of
@@ -1120,7 +1120,7 @@ def describe() -> Dict[str, Any]:
     # ceilings — ``holds_through`` is DERIVED from those rows below, so the two
     # facets cannot drift apart.
     try:
-        from ..amsc.cascade.cayley_dickson import (
+        from ..cascade.cayley_dickson import (
             CD_ADDRESS_VERIFIED_DIM as _CD_ADDR_VERIFIED,
             CD_COMPOSE_MAX_DIM as _CD_COMPOSE_MAX,
             CD_DENSE_MAX_DIM as _CD_DENSE_MAX,

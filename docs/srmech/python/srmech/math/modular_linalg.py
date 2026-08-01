@@ -246,7 +246,7 @@ def gf_nullspace(A, p: int) -> List[List[int]]:
     The list has exactly ``n_cols - rank(A)`` entries — empty iff ``A`` has
     full column rank. Every entry of every vector is in ``[0, p)``.
 
-    This is the SAME construction :func:`srmech.amsc.cascade.cayley_dickson.
+    This is the SAME construction :func:`srmech.cascade.cayley_dickson.
     left_mult_kernel` uses over exact ℚ (leading-1 RREF, free variables set to
     a unit column), taken over GF(p) instead — so the two are directly
     comparable on an integer system, which is what makes the cross-field
@@ -322,7 +322,7 @@ def gf_solve(A, b, p: int) -> Dict[str, object]:
     extra constraint changes no rank. Substituting it and dropping column 0
     removes that redundant row with it, which is why both ranks shift down by
     exactly one. Same system, same conclusion, different matrix; see
-    :mod:`srmech.amsc.cascade.cd_register` for the full statement.
+    :mod:`srmech.cascade.cd_register` for the full statement.
 
     The INVARIANT worth quoting is ``nullity(A) = log2(dim)`` — the homogeneous
     solutions are precisely the GF(2)-LINEAR functionals, so

@@ -38,7 +38,7 @@ A-N placement (per ``[[feedback_no_privileged_primitive_classes]]``):
 - ``triality_companions`` — **Class M** (the companion binders ``B``, ``C``).
 - ``triality_relation_residual`` — **Class K + Class C** (the Class K
   pin-slot magnitude on the Cartan-relation deviation via
-  :func:`srmech.amsc.cascade.magnitude`; **never** ``abs()`` per
+  :func:`srmech.cascade.magnitude`; **never** ``abs()`` per
   ``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]``).
 
 DETERMINISM: the companion solver is deterministic least-squares; the basis
@@ -75,7 +75,7 @@ from srmech.math.q import Q                    # #845: exact-ℚ solver carrier
 
 from srmech.math import rational as _srn
 
-from srmech.amsc.cascade import magnitude as _magnitude
+from srmech.cascade import magnitude as _magnitude
 from srmech.math.cyclic import mod_add as _mod_add
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
 from srmech.math.mat import Mat
@@ -102,7 +102,7 @@ _FRAME_ALIASES: Dict[str, str] = {
 #: Order-3 / Z2 numerical tolerances (matches the verified ~4e-14 residuals).
 _FIX_TOL = 1e-9
 
-#: The 6 order-2 "lean ISA" intrinsics of :mod:`srmech.amsc.cascade.atoms`
+#: The 6 order-2 "lean ISA" intrinsics of :mod:`srmech.cascade.atoms`
 #: (F208 / MS #20). Each is a primitive sign / orientation / handedness
 #: operation whose chirality action is an involution (order 2). They are the
 #: ATOMS of the lean A-N cascade ISA core; the order-3 triality is the 7th.
@@ -555,7 +555,7 @@ def triality_relation_residual(g_v, g_s, g_c) -> float:
     when ``(g_s, g_c)`` are the correct companions of ``g_v``. The per-pair
     norms accumulate into a Python float, which is then reduced through the
     **scalar** Class K pin-slot magnitude
-    (:func:`srmech.amsc.cascade.magnitude`, which raises on an ndarray, so
+    (:func:`srmech.cascade.magnitude`, which raises on an ndarray, so
     the scalar reduction happens FIRST) — the cascade-honest replacement for
     ``abs()`` per
     ``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]``.
@@ -639,7 +639,7 @@ def _triality_order_residuals() -> Tuple[float, float, float]:
     element of ``S3 = Out(Spin(8))``). Each Frobenius norm is reduced to a
     SCALAR float FIRST (the numpy-free ``mat_norm`` of the nested-list
     difference), then through the scalar Class K
-    :func:`srmech.amsc.cascade.magnitude` (which raises on an ndarray).
+    :func:`srmech.cascade.magnitude` (which raises on an ndarray).
     Numpy-free.
     """
     tau = triality_automorphism().tolist()
@@ -738,7 +738,7 @@ def lean_isa_seventh_primitive() -> dict:
     Presents the genuine order-3 **triality** operator
     (:func:`triality_automorphism`) as the **7th** primitive of the lean
     A-N cascade ISA core — making the chirality-complete core explicit:
-    **6 order-2** :mod:`srmech.amsc.cascade.atoms` **+ 1 order-3 triality
+    **6 order-2** :mod:`srmech.cascade.atoms` **+ 1 order-3 triality
     = 7**, the ONLY access to the 3rd chiral axis (F220 /
     R-RBS-LM-FINDING_220).
 
@@ -761,7 +761,7 @@ def lean_isa_seventh_primitive() -> dict:
       ``τ`` is EXACTLY 3 — ``‖τ³ − I‖ ≈ 0`` (residual ``~4e-14``), ``τ ≠ I``,
       ``τ² ≠ I`` — measured via the existing engine; AND the Lagrange
       arithmetic ``3 ∤ 8`` and ``3 | 3``. All residuals go through the scalar
-      Class K pin-slot :func:`srmech.amsc.cascade.magnitude`, **never**
+      Class K pin-slot :func:`srmech.cascade.magnitude`, **never**
       ``abs()`` (per
       ``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]``).
     - **FRAMEWORK-READING, NOT DERIVED** (the separately-keyed
@@ -796,7 +796,7 @@ def lean_isa_seventh_primitive() -> dict:
         A ``dict`` with keys:
 
         - ``order_two_atoms`` — the tuple of the 6 ``cascade.atoms`` names
-          (referencing :mod:`srmech.amsc.cascade.atoms`).
+          (referencing :mod:`srmech.cascade.atoms`).
         - ``order_three_primitive`` — ``"srmech.qm.triality.triality_automorphism"``
           (the 7th primitive; the order-3 ``τ``).
         - ``triality`` — the ``28×28`` order-3 automorphism ``τ`` :class:`Mat`
@@ -867,7 +867,7 @@ def lean_isa_seventh_primitive() -> dict:
         "attestation": attestation,
         "framework_chirality_complete_reading": {
             "note": "framework-reading, not derived",
-            "atoms_module": "srmech.amsc.cascade.atoms",
+            "atoms_module": "srmech.cascade.atoms",
             "atom_chirality_group": "Z2 × Z2 × Z2",
             "atom_chirality_group_order": _LEAN_ISA_ABELIAN_GROUP_ORDER,
             "atoms_commute_abelian": True,

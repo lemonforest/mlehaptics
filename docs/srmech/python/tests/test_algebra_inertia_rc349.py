@@ -46,10 +46,10 @@ import re
 import pytest
 
 from srmech import _native
-from srmech.amsc import cascade
+from srmech import cascade
 from srmech._native import HAS_NATIVE
-from srmech.amsc.cascade import cayley_dickson as cd
-from srmech.amsc.cascade import (
+from srmech.cascade import cayley_dickson as cd
+from srmech.cascade import (
     ASSOCIATIVE_ALGEBRA_DIMS,
     DIVISION_ALGEBRA_DIMS,
     cd_add,
@@ -57,7 +57,7 @@ from srmech.amsc.cascade import (
     cd_mult,
     cd_norm_sq,
 )
-from srmech.amsc.cascade.cayley_dickson import INERTIA_FORMS
+from srmech.cascade.cayley_dickson import INERTIA_FORMS
 from srmech.qm.octonion import octonion_mult_table
 from srmech.qm.quaternion import quaternion_mult_table
 

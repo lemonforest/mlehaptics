@@ -35,7 +35,7 @@ from __future__ import annotations
 from typing import List, Optional
 
 from srmech.math import rational as _srn
-from srmech.amsc.cascade import spectral_cascades as _sc
+from srmech.cascade import spectral_cascades as _sc
 
 OPERATION_NAME = "stft"
 CLASS_COMPOSITION = ("C", "A", "I", "K")

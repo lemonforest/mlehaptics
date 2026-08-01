@@ -73,7 +73,7 @@
 #include "srmech.h"
 
 #define INF_ONE_DIM  14u        /* the One's 1+3+7+3 = 14 flat rationals   */
-#define INF_ONE_TERMS 24u       /* DEFAULT_TERMS in srmech.amsc.cascade.one */
+#define INF_ONE_TERMS 24u       /* DEFAULT_TERMS in srmech.cascade.one */
 
 /* ------------------------------------------------------------------
  * Bump arena — forward-only carve, void*-aligned (the srmech_compose_run

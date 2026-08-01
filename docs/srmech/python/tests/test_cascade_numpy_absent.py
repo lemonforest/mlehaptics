@@ -11,7 +11,7 @@ numpy oracle and no numpy-marshalling native callback path left. The former
 ``test_chiral_dual_native_degrades_without_numpy`` (an obsolete numpy callback
 path, ``_try_native_chiral_dual``, that no longer exists) have been deleted.)
 """
-from srmech.amsc.cascade import compose as _compose
+from srmech.cascade import compose as _compose
 
 
 def _ref_autocorr(x):

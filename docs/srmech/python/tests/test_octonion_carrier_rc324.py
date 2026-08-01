@@ -42,7 +42,7 @@ from tests._native_gate import require_native
 from srmech import _native
 from srmech.biology import genome as G
 from srmech.math import octonion as O
-from srmech.amsc.cascade.cayley_dickson import cd_basis_product, cd_mult
+from srmech.cascade.cayley_dickson import cd_basis_product, cd_mult
 from srmech.biology.genome import (
     ELEMENT_TYPE_KLEIN4,
     ELEMENT_TYPE_OCTONION,

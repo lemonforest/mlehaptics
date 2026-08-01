@@ -526,7 +526,7 @@ def _try_cyclic(rel: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     invariants: the (1,3,7,3) A–N partition, the (0,1,3) plane-counts, and
     the n=1-is-σ-only prediction (θ inert at the ℂ rung). Accept only when
     all hold (the One's own self-consistency check)."""
-    from ..amsc.cascade import one as _one  # lazy
+    from ..cascade import one as _one  # lazy
 
     sigma = int(rel.get("sigma", 1))
     theta_num = int(rel.get("theta_num", rel.get("period", 0)))
@@ -914,7 +914,7 @@ def infer(relationship: Dict[str, Any]) -> Dict[str, Any]:
       are the OPERAND, never the verdict).
     * **cyclic** (``row="cyclic"`` / a ``sigma`` / ``theta_num`` / ``period`` /
       ``generator`` payload) — builds the One ``S(σ,θ)`` via
-      :func:`~srmech.amsc.cascade.one.the_one`; accepted iff the ``(1,3,7,3)``
+      :func:`~srmech.cascade.one.the_one`; accepted iff the ``(1,3,7,3)``
       partition + ``(0,1,3)`` plane-counts + ``n1_is_sigma_only`` invariants hold.
 
     Args:

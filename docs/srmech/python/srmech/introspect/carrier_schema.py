@@ -48,8 +48,8 @@ with no capability attached; non-commuting turn composition has been dead since
 dim 8. This block is the missing half. The measured ontology behind it lives in
 ``docs/srmech/notes/carrier_capability_ontology_rc339.py`` (generating code) and
 its NDJSON; the dimension ceilings are
-:data:`~srmech.amsc.cascade.cayley_dickson.CD_COMPOSE_MAX_DIM` and
-:data:`~srmech.amsc.cascade.cayley_dickson.CD_TURN_MAX_DIM`.
+:data:`~srmech.cascade.cayley_dickson.CD_COMPOSE_MAX_DIM` and
+:data:`~srmech.cascade.cayley_dickson.CD_TURN_MAX_DIM`.
 
 **The three capabilities.**
 
@@ -248,7 +248,7 @@ from ..math.carrier_ladder import _OP_CONTRACTS
 # rc343 (`#T972`) — CDRegister's per-carrier ceiling IS the addressing cap, read
 # from the one SSoT rather than re-typed here (cayley_dickson imports nothing
 # from this module, so there is no cycle).
-from ..amsc.cascade.cayley_dickson import CD_MAX_DIM as _CD_MAX_DIM
+from ..cascade.cayley_dickson import CD_MAX_DIM as _CD_MAX_DIM
 
 # rc241 (#839) — the generated per-carrier CONSTRUCTION example (the operand-side
 # peer of _tool_docs.py). Guarded so a stripped/missing module never breaks import.

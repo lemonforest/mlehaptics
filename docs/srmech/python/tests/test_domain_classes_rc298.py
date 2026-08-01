@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import srmech
 from srmech import dsl
-from srmech.amsc import cascade
+from srmech import cascade
 from srmech.introspect.carrier_schema import _CARRIERS
 from srmech.introspect import describe
 from srmech.introspect._domain_classes import (
@@ -79,7 +79,7 @@ def test_total_and_names_agree():
 # ──────────────────────────────────────────────────────────────────────
 
 def test_every_public_cascade_class_is_either_domain_or_declared_a_record():
-    """THE RATCHET. A new class exported from ``srmech.amsc.cascade`` is a
+    """THE RATCHET. A new class exported from ``srmech.cascade`` is a
     domain class by default; excluding it takes a deliberate, documented entry
     in ``NON_DOMAIN_RECORDS``. This fails when someone adds a class and neither
     outcome was chosen — which is exactly how `#936` happened."""
@@ -88,7 +88,7 @@ def test_every_public_cascade_class_is_either_domain_or_declared_a_record():
     reported = set(describe()["classes"]["names"])
     unaccounted = exported - reported - set(NON_DOMAIN_RECORDS)
     assert not unaccounted, (
-        f"{sorted(unaccounted)} are public classes on srmech.amsc.cascade but "
+        f"{sorted(unaccounted)} are public classes on srmech.cascade but "
         f"appear in neither describe()['classes'] nor NON_DOMAIN_RECORDS. "
         f"Decide which — a class that is neither is invisible to callers.")
 
@@ -99,7 +99,7 @@ def test_non_domain_records_are_real_exports_with_reasons():
     for name, reason in NON_DOMAIN_RECORDS.items():
         assert isinstance(getattr(cascade, name, None), type), (
             f"NON_DOMAIN_RECORDS names {name!r}, which is not a public class on "
-            f"srmech.amsc.cascade — stale exclusion")
+            f"srmech.cascade — stale exclusion")
         assert len(reason) > 20, f"{name!r} needs a real reason, got {reason!r}"
         assert name not in describe()["classes"]["names"]
 
@@ -166,7 +166,7 @@ def test_describe_reports_the_compiled_dimension_ceilings():
     rc339 (`#T967`) kept both numbers and moved them INSIDE the capability they
     bound. They were always addressing ceilings; nothing said so, which is how
     256 came to be read as a turn ceiling."""
-    from srmech.amsc.cascade.cayley_dickson import CD_DENSE_MAX_DIM, CD_MAX_DIM
+    from srmech.cascade.cayley_dickson import CD_DENSE_MAX_DIM, CD_MAX_DIM
 
     address = describe()["limits"]["capabilities"]["address"]
     assert address["max_dim"] == CD_MAX_DIM

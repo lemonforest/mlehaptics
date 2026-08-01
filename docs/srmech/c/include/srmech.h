@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc376"
-#define SRMECH_VERSION       "0.9.0rc376"
+#define SRMECH_VERSION_PRE   "rc377"
+#define SRMECH_VERSION       "0.9.0rc377"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -2028,7 +2028,7 @@ srmech_status_t srmech_dense_solve_f64_ws(
     size_t         ws_len);
 
 /* Exact cyclotomic-integer DFT (v0.7.5rc29, #928) — the native twin of
- * srmech.amsc.cascade.exact_dft. A power-of-two-length integer / Gaussian-
+ * srmech.cascade.exact_dft. A power-of-two-length integer / Gaussian-
  * integer signal transforms to the exact ℤ[ζ_N] spectrum by PURE INTEGER
  * add/subtract (ζ^{N/2} = -1 is a Class-K sign-flip, never abs/fabs); the
  * single FPU lift ζ → e^{-2πi/N} is on the Python side. re/im are length-N
@@ -2051,7 +2051,7 @@ srmech_status_t srmech_exact_dft_i64(
     int64_t        *out_im);
 
 /* Numeric complex128 FFT / IFFT (0.9.0rc139, #743/#747 Foundation F1) — the
- * numeric twin of srmech.amsc.cascade.spectral_cascades.fft/ifft that the
+ * numeric twin of srmech.cascade.spectral_cascades.fft/ifft that the
  * whole signal_processing fft-family dispatches to. In/out are INTERLEAVED
  * (re, im) length-2n double buffers (the Complex128 / Vec carrier layout, so
  * the dispatch is zero-copy). inverse != 0 applies the single 1/N scale
@@ -4525,14 +4525,14 @@ srmech_status_t srmech_bio_totp_decode_splice(
  * length N = 2^n - 1, parity bits at the power-of-two positions; the syndrome
  * IS the 1-indexed position of the single flipped bit (0 = clean). Distance 3
  * => corrects any single-bit error. Hamming(7,4) is the octonion's own Fano
- * plane (F441). Rosetta peer of srmech.amsc.cascade.hamming_* — attested
+ * plane (F441). Rosetta peer of srmech.cascade.hamming_* — attested
  * bit-exact by tests/test_cascade_hamming_parity.py.
  *
  * ABI-additive: new symbols + one macro, so SRMECH_ABI_VERSION stays 3.
  * ------------------------------------------------------------------ */
 
 /* Upper bound on the parity-bit count n (codeword 2^n - 1 <= 65535). Shared
- * with the Python surface (srmech.amsc.cascade.hamming.HAMMING_MAX_N). */
+ * with the Python surface (srmech.cascade.hamming.HAMMING_MAX_N). */
 #define SRMECH_HAMMING_MAX_N 16
 
 /* Encode k = (2^n - 1) - n data bits (each 0/1) into a 2^n-1-bit codeword.
@@ -4570,14 +4570,14 @@ srmech_status_t srmech_hamming_decode_correct(const uint8_t *codeword, size_t le
  * Cayley-Dickson algebra (the result index is i XOR j; the sign carries the
  * Fano/orientation structure). Computed by the same iterative doubling-step the
  * Python recursion uses, unrolled to a bounded loop (no recursion; JPL Rule 1).
- * Rosetta peer of srmech.amsc.cascade.cayley_dickson.cd_basis_product —
+ * Rosetta peer of srmech.cascade.cayley_dickson.cd_basis_product —
  * attested bit-exact by tests/test_cascade_cayley_dickson_parity.py.
  *
  * ABI-additive: a new symbol + two macros, so SRMECH_ABI_VERSION stays 3.
  * ------------------------------------------------------------------ */
 
 /* Hard ceiling on the algebra dimension (a power of two). Shared with the
- * Python surface (srmech.amsc.cascade.cayley_dickson.CD_MAX_DIM).
+ * Python surface (srmech.cascade.cayley_dickson.CD_MAX_DIM).
  *
  * rc298 (`#933`): 64 -> 256. The old 64 was a TOOLING bound that stopped the
  * rung sweep four doublings past the Hurwitz wall; PR #687 named it as the
@@ -4642,7 +4642,7 @@ srmech_status_t srmech_hamming_decode_correct(const uint8_t *codeword, size_t le
  * non-commuting turn composition died at dim 8. A permissive ceiling reported
  * without its capability implies a capability that does not exist. These two
  * macros are the missing halves; the Python peers are
- * srmech.amsc.cascade.cayley_dickson.CD_COMPOSE_MAX_DIM / CD_TURN_MAX_DIM and
+ * srmech.cascade.cayley_dickson.CD_COMPOSE_MAX_DIM / CD_TURN_MAX_DIM and
  * tests/test_carrier_capability_rc339.py pins the four in lockstep (ADR-0009:
  * the capability is the invariant, so a bare-C host reads the same ceilings).
  *
@@ -4739,7 +4739,7 @@ srmech_status_t srmech_cd_basis_product(int dim, int i, int j,
  * twist is a matrix algebra the Mat carrier already publishes. See
  * `[[feedback_negative_controls_for_carrier_claims_split_octonion_and_random_anticommutative]]`.
  *
- * Rosetta peers of srmech.amsc.cascade.{algebra_table, table_product}.
+ * Rosetta peers of srmech.cascade.{algebra_table, table_product}.
  * Additive symbols -> SRMECH_ABI_VERSION unchanged (stays 10).
  * ------------------------------------------------------------------ */
 
@@ -4781,7 +4781,7 @@ srmech_status_t srmech_algebra_table(int dim, const int *gammas,
  * spans, one left-multiplication cycle, the minimum spanning cardinality, and
  * the sedenion zero-divisor witness. Each COMPOSES srmech_cd_basis_product (it
  * does NOT re-implement the cocycle). Rosetta peers of
- * srmech.amsc.cascade.cayley_dickson.{closure,left_orbit,min_generating_set,
+ * srmech.cascade.cayley_dickson.{closure,left_orbit,min_generating_set,
  * sedenion_zero_divisor_witness}, attested BYTE-IDENTICAL by
  * tests/test_qalg_cdnav_c_rc158.py.
  *
@@ -4870,7 +4870,7 @@ srmech_status_t srmech_qi_norm_sq(const int64_t a[4], int64_t out[2]);
 
 /* ------------------------------------------------------------------
  * Sedenion-addressable hyper-loop ADDRESS LAYER (UPSTREAM §31 / F465 +
- * F468; Python srmech.amsc.cascade.sedenion_register). The navigation +
+ * F468; Python srmech.cascade.sedenion_register). The navigation +
  * reversibility-gate ops a C-only host needs to run "Siona's address
  * layer." The carry/correct EC half is the §30 srmech_hamming_* family.
  * Rosetta peer of SedenionRegister.{navmap,navigate,is_navigable},
@@ -4937,7 +4937,7 @@ srmech_status_t srmech_sed_slots(const int *in_slots, const int *in_signs,
  * rc297 (#934): the GENERAL N-slot Cayley-Dickson address layer — the same
  * navigation surface as the srmech_sedenion_* peers above, generalised from
  * the hard-coded 16 slots to any power-of-two dim in [1, SRMECH_CD_MAX_DIM].
- * The Python peer is srmech.amsc.cascade.cd_register (CDRegister).
+ * The Python peer is srmech.cascade.cd_register (CDRegister).
  *
  * WHY THIS IS SOUND ABOVE THE HURWITZ WALL (F1274 / F1275). Addressing does
  * not need the division property; it needs only that a basis product be a
@@ -5006,7 +5006,7 @@ srmech_status_t srmech_cd_navmap_is_signed_permutation(int dim, int *out_ok);
  * S16 (1,15,0), and split-O (5,3,0) -- NOT the (1,7,0) of O, which is the
  * control that proves the read is of the algebra rather than of the ladder.
  *
- * Rosetta peer of srmech.amsc.cascade.cayley_dickson.inertia_signature.
+ * Rosetta peer of srmech.cascade.cayley_dickson.inertia_signature.
  * Additive symbols -> SRMECH_ABI_VERSION unchanged.
  * ------------------------------------------------------------------ */
 
@@ -9067,7 +9067,7 @@ srmech_status_t srmech_rational_pow_uint_big(const srmech_bigint_t *base_num,
 /* ------------------------------------------------------------------ *
  * srmech_the_one — the S(sigma, theta) ADJOINT generator (rc138; #743).
  *
- * The C peer for srmech.amsc.cascade.one.the_one's exact-rational ADJOINT
+ * The C peer for srmech.cascade.one.the_one's exact-rational ADJOINT
  * (One.to_flat_rational — the w-INVARIANT 2pi-periodic base). COMPOSES the
  * exact-rational bignum series srmech_cos/sin_series_truncate_big with the fixed
  * Fano-plane block-tiling of the 1+3+7+3 = 14 Hurwitz ladder, producing the SAME
@@ -9105,7 +9105,7 @@ srmech_status_t srmech_the_one(int32_t sigma,
 /* ------------------------------------------------------------------ *
  * srmech_one_scalar / srmech_one_matrix — the One-family COMPUTE leaf ops
  * (0.9.0rc195; the make_class -> C arc, #887). C peers of the one.toml [class]
- * One accessor ops srmech.amsc.cascade.to_scalar / one_matrix: they COMPOSE
+ * One accessor ops srmech.cascade.to_scalar / one_matrix: they COMPOSE
  * srmech_the_one (regenerate the 14 exact adjoint rationals) then assemble
  * exactly like One.to_scalar / One.to_matrix, so a bare-C host runs the object
  * model's scalar / matrix methods with no per-method Python shell-out.
@@ -9383,7 +9383,7 @@ srmech_status_t srmech_poly_shift(const srmech_bigint_t *p_n,
 /* ------------------------------------------------------------------ *
  * srmech_factor_squarefree_primitive — EXACT integer-polynomial factorization
  * (Zassenhaus): the C peer of the Zassenhaus core of
- * srmech.amsc.cascade.matrix_cascades.factor_integer_poly (Qalg TAIL Batch 8).
+ * srmech.cascade.matrix_cascades.factor_integer_poly (Qalg TAIL Batch 8).
  *
  * Factors a SQUARE-FREE PRIMITIVE integer polynomial (coeffs low->high, content
  * 1, POSITIVE leading coefficient, deg >= 1) into its irreducible ℤ factors:
@@ -9449,7 +9449,7 @@ srmech_status_t srmech_factor_integer_poly(
 
 /* ------------------------------------------------------------------ *
  * srmech_lll_reduce — EXACT-ℚ LLL lattice-basis reduction (the C peer of
- * srmech.amsc.cascade.matrix_cascades.lll_reduce; the foundation for a future
+ * srmech.cascade.matrix_cascades.lll_reduce; the foundation for a future
  * van Hoeij polynomial-factorization knapsack). Classic Lenstra–Lenstra–Lovász
  * (1982): Gram–Schmidt orthogonalization in EXACT ℚ over srmech_bigint (μ_{i,j},
  * ‖b*_i‖² as num/den pairs), size reduction by exact nearest-integer rounding of
@@ -9794,7 +9794,7 @@ srmech_status_t srmech_riemann_theta_lattice(
  * Class-I cyclic reduction) PLUS the Class-K sign (-1)^{e.n}: a [A,B,C,e_mod,sign]
  * QUINTUPLE (g2) / [A1,A2,A3,C12,C13,C23,e_mod,sign] OCTUPLE (g3). The Python
  * marshaller accumulates sign*zeta_m^{e_mod} into the canonical cyclotomic lattice by
- * reusing the rc29 exact-DFT cyclotomic power basis (srmech.amsc.cascade.exact_dft) --
+ * reusing the rc29 exact-DFT cyclotomic power basis (srmech.cascade.exact_dft) --
  * byte-identical to the pure-Python theta_at. Caller-owned out[] (no malloc), like the
  * lattice peer; all exact integer, no float, no abs(). Additive symbols -> ABI
  * unchanged (stays 3).
@@ -11934,7 +11934,7 @@ srmech_status_t srmech_qmat_rref_crt(const srmech_bigint_t *a_n,
  * duplicated (the 1:1-mirror discipline forbids two copies of the same
  * algebra). BYTE-IDENTICAL to Python's Fraction (num, den) at ANY magnitude
  * (full bignum; no int64/Q61 ceiling). Rosetta peers of
- * srmech.amsc.cascade.cayley_dickson.{cd_basis, cd_conjugate, cd_add,
+ * srmech.cascade.cayley_dickson.{cd_basis, cd_conjugate, cd_add,
  * cd_norm_sq}, attested BYTE-IDENTICAL by tests/test_qalg_qvec_c_rc159.py.
  *
  *   cd_qbasis    : the unit vector e_i (1/1 at i, 0/1 elsewhere) — Class-A
@@ -12011,7 +12011,7 @@ srmech_status_t srmech_cd_qnorm_sq(const srmech_bigint_t *x_n,
  * `ws` (>= srmech_cd_qvec_ws_bound; each slot sums `dim` products — the same
  * accumulation profile as srmech_cd_qnorm_sq). BYTE-IDENTICAL reduced (num, den)
  * to Python's recursive cd_mult at any magnitude. Rosetta peer of
- * srmech.amsc.cascade.cayley_dickson.cd_mult; attested by
+ * srmech.cascade.cayley_dickson.cd_mult; attested by
  * tests/test_qalg_cdmult_c_rc160.py. Additive symbol -> ABI unchanged (3). */
 srmech_status_t srmech_cd_mult(const srmech_bigint_t *x_n,
                                const srmech_bigint_t *x_d,
@@ -12043,7 +12043,7 @@ srmech_status_t srmech_cd_mult(const srmech_bigint_t *x_n,
  * [1, SRMECH_ALGEBRA_TABLE_MAX_DIM]); SRMECH_ERR_OVERFLOW (arena or entry
  * too small -- never a silent wrap; the Python peer then routes to its
  * ceiling-free bignum path). Rosetta peer of
- * srmech.amsc.cascade.cayley_dickson.table_product. Additive symbols ->
+ * srmech.cascade.cayley_dickson.table_product. Additive symbols ->
  * SRMECH_ABI_VERSION unchanged (stays 10). */
 size_t srmech_algebra_table_product_ws_bound(size_t coeff_limbs, size_t dim);
 size_t srmech_algebra_table_product_entry_cap(size_t coeff_limbs, size_t dim);
@@ -12073,7 +12073,7 @@ srmech_status_t srmech_algebra_table_product(const int64_t *table, int dim,
  * >= srmech_faddeev_leverrier_entry_cap limbs. A too-small arena / entry cap ->
  * SRMECH_ERR_OVERFLOW (caller falls back to the byte-identical pure Python).
  * n in [1, SRMECH_FL_MAX_DIM]; n<1 or n>max -> SRMECH_ERR_BAD_INPUT. Rosetta peer
- * of srmech.amsc.cascade.matrix_cascades.char_poly (integer path); attested by
+ * of srmech.cascade.matrix_cascades.char_poly (integer path); attested by
  * tests/test_qalg_charpoly_c_rc161.py. Additive symbol -> ABI unchanged (3). */
 #define SRMECH_FL_MAX_DIM 256u
 size_t srmech_faddeev_leverrier_entry_cap(size_t coeff_limbs, size_t n);
@@ -12102,7 +12102,7 @@ srmech_status_t srmech_faddeev_leverrier(const srmech_bigint_t *a, int n,
  * cap / a subdivision beyond the bounded stack -> SRMECH_ERR_OVERFLOW (the caller
  * falls back to the byte-identical pure Python — the parity oracle). n in
  * [1, SRMECH_STURM_MAX_DIM]; n<1 or n>max -> SRMECH_ERR_BAD_INPUT. Rosetta peer of
- * srmech.amsc.cascade.matrix_cascades.eigvals_exact (real-root path); attested by
+ * srmech.cascade.matrix_cascades.eigvals_exact (real-root path); attested by
  * tests/test_qalg_eigvals_c_rc162.py. Additive symbol -> ABI unchanged (3). */
 #define SRMECH_STURM_MAX_DIM 256
 size_t srmech_sturm_isolate_entry_cap(size_t coeff_limbs, size_t n,
@@ -12782,7 +12782,7 @@ srmech_status_t srmech_octonion_dft(
 /* ------------------------------------------------------------------ *
  * srmech_phase_coherent — the LIGHTWEIGHT matched-filter PEAK READ over a
  * rung/mode ladder (0.9.0rc112; issue #1234 Item 1d, the F1000->F1001->
- * F1002 refinement). C peer of srmech.amsc.cascade.phase_coherent_peak.
+ * F1002 refinement). C peer of srmech.cascade.phase_coherent_peak.
  * This is the READ counterpart to the full srmech_quaternion_dft /
  * srmech_octonion_dft ENCODING transforms — kept API-DISTINCT from them.
  *

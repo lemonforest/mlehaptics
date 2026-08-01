@@ -1,4 +1,4 @@
-"""C/Python parity tests for srmech.amsc.cascade.best_rational_signed.
+"""C/Python parity tests for srmech.cascade.best_rational_signed.
 
 v0.4.5rc7 continues the v0.4.5rc1..rc6 cascade-catalog C-parity
 correction by retrofitting best_rational_signed (Class K ∘ Class N ∘
@@ -32,7 +32,7 @@ import random
 import pytest
 
 from srmech import _native
-from srmech.amsc import cascade
+from srmech import cascade
 from srmech._native import HAS_NATIVE
 
 

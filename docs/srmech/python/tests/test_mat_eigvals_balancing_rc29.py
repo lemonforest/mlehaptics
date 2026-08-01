@@ -31,8 +31,8 @@ import importlib.util
 
 import pytest
 
-from srmech.amsc.cascade import matrix_cascades
-from srmech.amsc.cascade.matrix_cascades import eigvals_exact
+from srmech.cascade import matrix_cascades
+from srmech.cascade.matrix_cascades import eigvals_exact
 from srmech.math.laplacian import (
     _balance_radix2,
     _modulus_c,

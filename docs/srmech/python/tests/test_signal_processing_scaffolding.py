@@ -116,7 +116,7 @@ def test_version_is_0_7_0rc10():
 
     Prior v0.7.0rc8 — MS #21 rc8 voxel: the Class-L circular autocorrelation
     primitive (the F290 §C un-flatten Wiener-Khinchin op) shipped CO-EQUAL
-    in Python AND C. ``srmech.amsc.cascade.autocorrelation(x)`` returns the
+    in Python AND C. ``srmech.cascade.autocorrelation(x)`` returns the
     circular autocorrelation r[k] = Σ_i x[i]·x[(i+k) mod n] (r[0] = Σ x² =
     energy) = Re(IFFT(|FFT(x)|²)) — the Wiener-Khinchin identity that makes
     it Class L. The Python wrapper uses the fast numpy FFT; the native peer
@@ -366,7 +366,7 @@ def test_version_is_0_7_0rc10():
     theta_i <- theta_i + dt*(omega_i + (K/n)*Σ_j sin(theta_j - theta_i));
     O(n²) sin-coupling native, libm sin like kepler.c; JPL-clean, no
     malloc/goto, ≥2 asserts) + the Python peer
-    srmech.amsc.cascade.kuramoto_step (dispatch-to-C when HAS_NATIVE,
+    srmech.cascade.kuramoto_step (dispatch-to-C when HAS_NATIVE,
     pure-Python fallback; libm-trig TOLERANCE parity, same coupling-sum
     index order). Honest cascade shape: Class I cyclic phase + sin coupling
     + sum-reduce + Class-C Euler add; NOT a new privileged primitive. No
@@ -403,7 +403,7 @@ def test_version_is_0_7_0rc10():
     177; ABI unchanged at 3 (additive symbol). Closes #771.
 
     Prior v0.6.0rc6 — MS #20 parallel-dispatch voxel (F233 / #778): pure-Python
-    srmech.amsc.cascade.parallel_sector_dispatch(body, x) — runs a cascade
+    srmech.cascade.parallel_sector_dispatch(body, x) — runs a cascade
     across its ≤4 Klein-4 chirality sectors (γ₅± × iω₇±) CONCURRENTLY on a
     ThreadPoolExecutor, capped at 4 (the order-3 triality is the only escape
     past 4, F220). Each sector reconstructs from its OWN sector-transformed
@@ -453,7 +453,7 @@ def test_version_is_0_7_0rc10():
     ToolEntry → describe() tool total 174 → 175. Pure-Python; ABI unchanged
     at 3; no abs() (Class K pin-slot). Closes #759.
 
-    Prior v0.6.0rc1 — MS #20 forward-arch voxel #751: srmech.amsc.cascade split
+    Prior v0.6.0rc1 — MS #20 forward-arch voxel #751: srmech.cascade split
     into a two-tier lean-ISA package — cascade.atoms.* (6 silicon-able 1:1
     intrinsics: pin_slot_at_zero, reorient, magnitude, chiral_flip,
     chiral_dual, net_chirality) vs cascade.compose.* (2 iterative algorithms:
@@ -601,8 +601,8 @@ def test_version_is_0_7_0rc10():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.9.0rc376", (
-        f"expected srmech.__version__ == '0.9.0rc376'; got "
+    assert srmech.__version__ == "0.9.0rc377", (
+        f"expected srmech.__version__ == '0.9.0rc377'; got "
         f"{srmech.__version__!r}"
     )
 

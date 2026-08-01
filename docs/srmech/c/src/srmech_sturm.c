@@ -1,7 +1,7 @@
 /*
  * srmech_sturm.c -- EXACT real-eigenvalue ISOLATION over srmech_bigint
  * (the C peer of the real-root path of
- * srmech.amsc.cascade.matrix_cascades.eigvals_exact; Qalg TAIL Batch 6).
+ * srmech.cascade.matrix_cascades.eigvals_exact; Qalg TAIL Batch 6).
  *
  * eigvals_exact is the exact ROOTS of the characteristic polynomial: the
  * eigenvalues of an integer matrix are ALGEBRAIC numbers, not transcendental,

@@ -52,10 +52,10 @@ from pathlib import Path
 
 import pytest
 
-import srmech.amsc.cascade.hypercomplex_dft as hd
+import srmech.cascade.hypercomplex_dft as hd
 from srmech import _native
-from srmech.amsc.cascade import quaternion_dft
-from srmech.amsc.cascade.spectral_cascades import fft as complex_fft
+from srmech.cascade import quaternion_dft
+from srmech.cascade.spectral_cascades import fft as complex_fft
 from srmech.math.mat import Mat
 from srmech.qm import quaternion as quat
 
@@ -331,7 +331,7 @@ def test_rosetta_bucket_is_c_dispatched():
             fixture.read_text(encoding="utf-8").splitlines() if l.strip()]
     buckets = {r["defined_at"]: r["bucket"] for r in rows}
     assert buckets[
-        "srmech.amsc.cascade.hypercomplex_dft.quaternion_dft"
+        "srmech.cascade.hypercomplex_dft.quaternion_dft"
     ] == "c_dispatched"
 
 

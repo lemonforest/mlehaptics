@@ -20,9 +20,9 @@ A hand-maintained roster is exactly what rots into the bug this module exists
 to fix, so the set is derived from two live sources:
 
   * the ``[class]`` TOML catalog          -> route ``"toml"``
-  * public classes in ``srmech.amsc.cascade.__all__``  -> route ``"python"``
+  * public classes in ``srmech.cascade.__all__``  -> route ``"python"``
 
-``srmech.amsc.cascade`` is the domain-object surface: ``One``,
+``srmech.cascade`` is the domain-object surface: ``One``,
 ``SedenionRegister`` and ``CDRegister`` all live there, and any future domain
 class lands there too. So a new domain class appears in ``describe()``
 AUTOMATICALLY. The only maintenance burden is the reverse direction — a value
@@ -39,7 +39,7 @@ from typing import Dict
 __all__ = ["NON_DOMAIN_RECORDS", "list_domain_classes"]
 
 
-#: Classes exported from ``srmech.amsc.cascade`` that are value RECORDS —
+#: Classes exported from ``srmech.cascade`` that are value RECORDS —
 #: components OF a domain object rather than domain objects themselves. Each
 #: entry carries the reason it is not a class in the capability sense.
 #:
@@ -85,7 +85,7 @@ def list_domain_classes() -> Dict[str, str]:
         pass
 
     try:
-        from ..amsc import cascade as _cascade
+        from .. import cascade as _cascade
         for name in getattr(_cascade, "__all__", ()):
             if name in NON_DOMAIN_RECORDS:
                 continue

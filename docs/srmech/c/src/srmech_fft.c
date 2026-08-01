@@ -12,7 +12,7 @@
  *     X[k] = Sum_n x[n] * e^{s*2*pi*i*k*n/N},   s = -1 forward / +1 inverse,
  *
  * with a single 1/N scale applied on the inverse (matching NumPy fft/ifft
- * and srmech.amsc.cascade.spectral_cascades.fft/ifft addend-for-addend).
+ * and srmech.cascade.spectral_cascades.fft/ifft addend-for-addend).
  *
  *   - Power-of-two N: the ITERATIVE (no-recursion, JPL Rule 1) radix-2
  *     Cooley-Tukey butterfly over a bit-reversed copy, twiddles from ONE

@@ -278,11 +278,11 @@ def _iter_signs(k: int) -> "List[Tuple[int, ...]]":
 def _cyclotomic_ring(m: int):
     """The exact ``ℤ[ζ_m]`` cyclotomic-ring reduction table + degree ``φ(m)``, REUSED
     from the rc29 exact-DFT engine
-    (:func:`srmech.amsc.cascade.exact_dft._cyclotomic_reduction`) — the SAME ring
+    (:func:`srmech.cascade.exact_dft._cyclotomic_reduction`) — the SAME ring
     representation the exact DFT runs on (``table[j]`` = ``ζ_m^j`` as an integer vector in
     the power basis ``{1, ζ, …, ζ^{φ(m)-1}}``, reduced by the cyclotomic polynomial
     ``Φ_m``). ``m ≥ 2``. Pure integer; no float, no hand-rolled root of unity."""
-    from ..amsc.cascade.exact_dft import _cyclotomic_reduction
+    from ..cascade.exact_dft import _cyclotomic_reduction
     return _cyclotomic_reduction(m)
 
 

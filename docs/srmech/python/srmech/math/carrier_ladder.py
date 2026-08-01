@@ -43,7 +43,7 @@ the Class-K pin-slot on the underlying carriers), no numpy / ``math``.
 
 The **Hurwitz (Cayley–Dickson) ladder** ℝ↪ℂ↪ℍ↪𝕆↪𝕊 has the same shape one
 level of algebra up; its promote / project ship next to the ``cd_*`` family as
-:func:`srmech.amsc.cascade.cd_promote` / :func:`srmech.amsc.cascade.cd_project`.
+:func:`srmech.cascade.cd_promote` / :func:`srmech.cascade.cd_project`.
 :func:`carrier_ladder_descriptor` maps ALL THREE ladders.
 
 **The per-op CARRIER CONTRACT** (rc120; issue #1254 / F1041): the descriptor's
@@ -358,26 +358,26 @@ _OP_CONTRACTS: Dict[str, Dict[str, Any]] = {
         "consumes": _SCALARS, "produces": _cd(4)},
     # ── Cayley–Dickson: generic cascade.cd_* (VARIADIC "any" rung) ────────────
     "cd_mult": {
-        "tool": "srmech.amsc.cascade.cd_mult",
+        "tool": "srmech.cascade.cd_mult",
         "consumes": _cd("any"), "produces": _cd("same")},
     "cd_conjugate": {
-        "tool": "srmech.amsc.cascade.cd_conjugate",
+        "tool": "srmech.cascade.cd_conjugate",
         "consumes": _cd("any"), "produces": _cd("same")},
     "cd_norm_sq": {
-        "tool": "srmech.amsc.cascade.cd_norm_sq",
+        "tool": "srmech.cascade.cd_norm_sq",
         "consumes": _cd("any"), "produces": {"ladder": None, "type": "Q"}},
     "left_mult_kernel": {
-        "tool": "srmech.amsc.cascade.left_mult_kernel",
+        "tool": "srmech.cascade.left_mult_kernel",
         "consumes": _cd("any"), "produces": {"ladder": None, "type": "list"}},
     "left_mult_is_invertible": {
-        "tool": "srmech.amsc.cascade.left_mult_is_invertible",
+        "tool": "srmech.cascade.left_mult_is_invertible",
         "consumes": _cd("any"), "produces": {"ladder": None, "type": "bool"}},
     # ── the Cayley–Dickson PROMOTE / PROJECT (variadic + rung-from-arg) ───────
     "cd_promote": {
-        "tool": "srmech.amsc.cascade.cd_promote",
+        "tool": "srmech.cascade.cd_promote",
         "consumes": _cd("any"), "produces": _cd("arg:dim")},
     "cd_project": {
-        "tool": "srmech.amsc.cascade.cd_project",
+        "tool": "srmech.cascade.cd_project",
         "consumes": _cd("any"), "produces": _cd("step_down")},
     # ── the ordinary variable ladder PROMOTE / PROJECT ────────────────────────
     "poly_promote": {
@@ -489,8 +489,8 @@ def carrier_ladder_descriptor() -> Dict[str, Any]:
                     "1": "(real)", "2": "i", "4": "j,k", "8": "e4..e7",
                     "16": "e8..e15",
                 },
-                "promote": "srmech.amsc.cascade.cd_promote",
-                "project": "srmech.amsc.cascade.cd_project",
+                "promote": "srmech.cascade.cd_promote",
+                "project": "srmech.cascade.cd_project",
             },
         },
         "ops": _op_contracts(),

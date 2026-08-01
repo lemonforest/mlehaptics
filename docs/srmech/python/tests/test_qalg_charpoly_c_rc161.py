@@ -37,8 +37,8 @@ from pathlib import Path
 import pytest
 
 from srmech import _native
-from srmech.amsc.cascade import matrix_cascades as mc
-from srmech.amsc.cascade.matrix_cascades import char_poly
+from srmech.cascade import matrix_cascades as mc
+from srmech.cascade.matrix_cascades import char_poly
 
 
 def _force(has_native: bool, fn, *args, **kw):
@@ -209,7 +209,7 @@ def test_rosetta_char_poly_is_c_dispatched():
                 continue
             r = json.loads(line)
             rows[r["defined_at"]] = r["bucket"]
-    assert rows["srmech.amsc.cascade.matrix_cascades.char_poly"] == "c_dispatched"
+    assert rows["srmech.cascade.matrix_cascades.char_poly"] == "c_dispatched"
 
 
 def test_char_poly_float_path_untouched():

@@ -23,7 +23,7 @@ import re
 import pathlib
 
 from srmech.math import laplacian
-from srmech.amsc.cascade.matrix_cascades import eigvals_exact
+from srmech.cascade.matrix_cascades import eigvals_exact
 from srmech.math.laplacian import _canonicalize_eigenvector_signs
 
 

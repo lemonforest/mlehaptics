@@ -21,7 +21,7 @@ The tests prove the invariant CERTIFICATE:
 6. ``srmech.introspect.describe()["tools"]["total"]`` matches the registry.
 
 ALL deviations are reduced through the **scalar** Class K pin-slot
-magnitude (:func:`srmech.amsc.cascade.magnitude`) — NEVER Python ``abs()``
+magnitude (:func:`srmech.cascade.magnitude`) — NEVER Python ``abs()``
 per ``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]`` — by
 first reducing a matrix / scalar deviation to a Python float, then passing
 it to ``magnitude`` (scalar-only; it raises on an array).
@@ -46,7 +46,7 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc.cascade import magnitude
+from srmech.cascade import magnitude
 from srmech.math.laplacian import mat_matmul, mat_norm
 from srmech.math.mat import Mat
 from srmech.qm import so8

@@ -1,4 +1,4 @@
-"""C/Python parity tests for srmech.amsc.cascade.chiral_flip.
+"""C/Python parity tests for srmech.cascade.chiral_flip.
 
 v0.4.5rc1 corrects the v0.4.3rc6 / v0.4.4rc1 carve-out that shipped
 cascade ops Python-only. This test confirms native + Python paths produce
@@ -16,7 +16,7 @@ import random
 import pytest
 
 from srmech import _native
-from srmech.amsc import cascade
+from srmech import cascade
 from srmech._native import HAS_NATIVE
 
 

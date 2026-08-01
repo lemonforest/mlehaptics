@@ -25,7 +25,7 @@ import contextlib
 import pytest
 
 from srmech import _native
-from srmech.amsc.cascade.sedenion_register import (
+from srmech.cascade.sedenion_register import (
     SedenionRegister, NUM_SLOTS,
     sed_navmap, sed_navigate, sed_is_navigable, sed_carry,
     sed_correct, sed_slots, sed_couple_working, sed_uncouple_working,
@@ -212,7 +212,7 @@ def test_address_leaves_are_standalone_ready_in_ledger():
                   / "rosetta_classification.ndjson").read_text(
                       encoding="utf-8").splitlines() if l.strip()
     }
-    base = "srmech.amsc.cascade.sedenion_register."
+    base = "srmech.cascade.sedenion_register."
     for leaf in ("sed_navmap", "sed_navigate", "sed_is_navigable", "sed_carry",
                  "sed_correct", "sed_couple_working", "sed_uncouple_working"):
         assert rows[base + leaf]["bucket"] == "composition_of_c"

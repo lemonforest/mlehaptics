@@ -193,7 +193,7 @@ def test_continuous_response_family_edges_present() -> None:
 def test_discrete_verified_rows_cover_the_f929_reducers() -> None:
     schema = _pure_responsion_schema()
     expected = {
-        "srmech.amsc.cascade.the_one|One",
+        "srmech.cascade.the_one|One",
         "srmech.biology.coupling.resonant_spectrum|Mat",
         "srmech.apokatastasis.gosper.gosper|Poly",
         "srmech.apokatastasis.zeilberger.zeilberger|BiPoly",

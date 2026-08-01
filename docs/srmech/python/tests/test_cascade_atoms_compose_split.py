@@ -1,16 +1,16 @@
 """Tests for the cascade.atoms / cascade.compose two-tier split.
 
 Per issue #751 (F208 / MS #20 forward-architecture). The single
-``srmech.amsc.cascade`` module is split into two tiers:
+``srmech.cascade`` module is split into two tiers:
 
-- :mod:`srmech.amsc.cascade.atoms` — the 6 silicon-able 1:1 ISA
+- :mod:`srmech.cascade.atoms` — the 6 silicon-able 1:1 ISA
   intrinsics (``pin_slot_at_zero``, ``reorient``, ``magnitude``,
   ``chiral_flip``, ``chiral_dual``, ``net_chirality``).
-- :mod:`srmech.amsc.cascade.compose` — the 2 iterative algorithms
+- :mod:`srmech.cascade.composites` — the 2 iterative algorithms
   (``cyclic_gcd``, ``best_rational_signed``) + the 2 module constants
   (``DEFAULT_MAX_DENOMINATOR``, ``DEFAULT_FINE_SCALE``).
 
-The flat ``srmech.amsc.cascade.<op>`` public surface must stay
+The flat ``srmech.cascade.<op>`` public surface must stay
 byte-identical (every flat name IS the same object as its submodule
 home), ``CASCADE_OPS`` unchanged, and ``srmech.introspect.describe()``
 must report 176 tools (174 at rc1 + 1 for the rc2 so(4) stabiliser voxel
@@ -20,9 +20,9 @@ This is a behaviour-preserving refactor.
 
 from __future__ import annotations
 
-import srmech.amsc.cascade as cascade
-import srmech.amsc.cascade.atoms as atoms_mod
-import srmech.amsc.cascade.compose as compose_mod
+import srmech.cascade as cascade
+import srmech.cascade.atoms as atoms_mod
+import srmech.cascade.composites as compose_mod
 
 
 # ----------------------------------------------------------------------
@@ -31,7 +31,7 @@ import srmech.amsc.cascade.compose as compose_mod
 
 
 def test_atoms_submodule_imports():
-    from srmech.amsc.cascade.atoms import (  # noqa: F401
+    from srmech.cascade.atoms import (  # noqa: F401
         pin_slot_at_zero,
         reorient,
         magnitude,
@@ -47,7 +47,7 @@ def test_atoms_submodule_imports():
 
 
 def test_compose_submodule_imports():
-    from srmech.amsc.cascade.compose import (  # noqa: F401
+    from srmech.cascade.composites import (  # noqa: F401
         cyclic_gcd,
         best_rational_signed,
         DEFAULT_MAX_DENOMINATOR,

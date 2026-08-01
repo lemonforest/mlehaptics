@@ -24,7 +24,7 @@ carrier. This carrier fixes exactly that:
   Machin-2π anchor :data:`~srmech.math.laplacian._EPH_TWO_PI` — no float, no
   re-quantise (see :func:`_exact_seam_fold`).
 * ``the_one`` cannot fix it: its 2π-periodic adjoint FOLDS the winding away (that is
-  what :func:`~srmech.amsc.cascade.one.separate_winding_curvature` reads); it never
+  what :func:`~srmech.cascade.one.separate_winding_curvature` reads); it never
   carries a truncated-Taylor VALUE across a seam.
 
 **The ``(value, frame)`` pair — the rc125 recoverable-fold analogue.** This carrier
@@ -50,7 +50,7 @@ byte-identical. When NOT aligned it carries the real residual — the non-zero
 ``residue_delta`` holonomy the transport could not remove (or a chirality mismatch)
 — so a genuinely different value is NEVER falsely reported aligned (the soundness
 direction). This is the metacycle-seam instance of the rc236
-:func:`~srmech.amsc.cascade.matrix_cascades.separate_frame_curvature` flatness flag:
+:func:`~srmech.cascade.matrix_cascades.separate_frame_curvature` flatness flag:
 ``is_flat`` (curvature vanishes) ↔ ``is_aligned`` (the transport is a pure winding
 turn, no residual holonomy).
 
@@ -61,7 +61,7 @@ is the EXACT-rational divmod over the Machin-2π anchor :data:`_EPH_TWO_PI` (Cla
 quotient-retained divmod over the exact Class-N 2π, the residue sign Class K/C — never
 ``abs()``); the reduction rides the c_dispatched Class-I ``rational._reduce_rational``
 (``srmech_bigint`` / ``cyclic.gcd``); the alignment residual + the transport count ride
-the c_dispatched Class-K :func:`~srmech.amsc.cascade.atoms.magnitude` (real ``|x|``,
+the c_dispatched Class-K :func:`~srmech.cascade.atoms.magnitude` (real ``|x|``,
 never an ALU ``abs()``). So a bare-C host reproduces every field.
 
 SSoT: rc125 ``RecoverableFold`` (the ``(lossy, exact_seed)`` pair pattern); rc207/rc215
@@ -277,7 +277,7 @@ def frame_carrier_compare(func: str,
         the residues coincide).
     """
     from srmech.math.rational import _reduce_rational
-    from srmech.amsc.cascade.atoms import magnitude
+    from .atoms import magnitude
 
     a = _framed(func, num_a, den_a, num_terms, sigma_a)
     b = _framed(func, num_b, den_b, num_terms, sigma_b)

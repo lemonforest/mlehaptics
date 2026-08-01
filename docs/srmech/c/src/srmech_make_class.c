@@ -476,8 +476,8 @@ static srmech_mval_t *mc_one_const(srmech_marshal_arena_t *a, const char *op)
     srmech_mval_t *lst; uint32_t i;
     assert(a != NULL && op != NULL);
     assert(a->cur <= a->end);
-    if (strcmp(op, "srmech.amsc.cascade.one.one_dim") == 0) { return mc_int(a, 14); }
-    if (strcmp(op, "srmech.amsc.cascade.one.one_grammar_slots") == 0) {
+    if (strcmp(op, "srmech.cascade.one.one_dim") == 0) { return mc_int(a, 14); }
+    if (strcmp(op, "srmech.cascade.one.one_grammar_slots") == 0) {
         lst = mc_list(a, 3u, 1);
         if (lst == NULL) { return NULL; }
         for (i = 0u; i < 3u; i++) {
@@ -486,13 +486,13 @@ static srmech_mval_t *mc_one_const(srmech_marshal_arena_t *a, const char *op)
         }
         return lst;
     }
-    if (strcmp(op, "srmech.amsc.cascade.one.one_imag_dims") == 0) {
+    if (strcmp(op, "srmech.cascade.one.one_imag_dims") == 0) {
         lst = mc_list(a, 3u, 1);
         for (i = 0u; lst != NULL && i < 3u; i++) { lst->items[i] = mc_int(a, TRIPLE[i]); }
-    } else if (strcmp(op, "srmech.amsc.cascade.one.one_partition") == 0) {
+    } else if (strcmp(op, "srmech.cascade.one.one_partition") == 0) {
         lst = mc_list(a, 4u, 1);
         for (i = 0u; lst != NULL && i < 4u; i++) { lst->items[i] = mc_int(a, PART[i]); }
-    } else if (strcmp(op, "srmech.amsc.cascade.one.one_plane_counts") == 0) {
+    } else if (strcmp(op, "srmech.cascade.one.one_plane_counts") == 0) {
         lst = mc_list(a, 3u, 1);
         for (i = 0u; lst != NULL && i < 3u; i++) { lst->items[i] = mc_int(a, PLANES[i]); }
     } else {
@@ -1521,20 +1521,20 @@ static srmech_mval_t *mc_vtable_call(srmech_marshal_arena_t *a, const char *op,
 {
     assert(a != NULL && op != NULL);
     assert(binds != NULL || nb == 0u);
-    if (strcmp(op, "srmech.amsc.cascade.one.one_matrix") == 0) {
+    if (strcmp(op, "srmech.cascade.one.one_matrix") == 0) {
         return mc_one_matrix(a, binds, nb);        /* rc331: the field-DICT thunk */
     }
-    if (strcmp(op, "srmech.amsc.cascade.one.one_flat_rational") == 0) {
+    if (strcmp(op, "srmech.cascade.one.one_flat_rational") == 0) {
         return mc_one_flat_rational(a, binds, nb); /* rc335: the bignum-emit thunk */
     }
-    if (strcmp(op, "srmech.amsc.cascade.to_scalar") == 0) {
+    if (strcmp(op, "srmech.cascade.to_scalar") == 0) {
         return mc_to_scalar(a, binds, nb, args);   /* rc335: the bignum-emit thunk */
     }
-    if (strncmp(op, "srmech.amsc.cascade.one.one_", 28) == 0) {
+    if (strncmp(op, "srmech.cascade.one.one_", 23) == 0) {
         return mc_one_const(a, op);
     }
-    if (strncmp(op, "srmech.amsc.cascade.sedenion_register.sed_", 42) == 0) {
-        return mc_vtable_sed(a, op + 42, binds, nb, args);
+    if (strncmp(op, "srmech.cascade.sedenion_register.sed_", 37) == 0) {
+        return mc_vtable_sed(a, op + 37, binds, nb, args);
     }
     if (strncmp(op, "srmech.biology.genome.", 22) == 0) {
         return mc_vtable_genome(a, op + 22, binds, nb, args);

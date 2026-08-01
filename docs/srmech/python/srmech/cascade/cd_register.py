@@ -1,6 +1,6 @@
 """The GENERAL N-slot Cayley–Dickson addressable RBS-HDC register (rc297; `#934`).
 
-srmech shipped exactly one addressable register — :class:`~srmech.amsc.cascade.
+srmech shipped exactly one addressable register — :class:`~srmech.cascade.
 sedenion_register.SedenionRegister`, hard-wired to the sedenion's 16 slots. Research
 that needed 32 slots therefore had to write its own, and correctly flagged that as a
 confound: *"a register I wrote could just be easier."* This module removes the
@@ -29,7 +29,7 @@ untouched::
 
 :func:`cd_navmap_is_signed_permutation` makes that premise **checkable at runtime**
 rather than assumed, and ``tests/test_cd_register_rc297.py`` enforces it against a
-full exact-rational :func:`~srmech.amsc.cascade.cayley_dickson.cd_mult` — so the
+full exact-rational :func:`~srmech.cascade.cayley_dickson.cd_mult` — so the
 property is a gate, not a comment.
 
 The sign is not a function of the labels, and that is the whole join
@@ -69,7 +69,7 @@ half-quoted table is not reproducible:
 This is why this module carries the sign explicitly — :func:`cd_navmap`
 returns ``(k, sign)`` per slot rather than an index alone, and the sign branch
 is a Class-K pin-slot composed with the Class-C
-:func:`~srmech.amsc.cascade.chiral_flip`. It is also why
+:func:`~srmech.cascade.chiral_flip`. It is also why
 :func:`~srmech.math.hdc.bind` — a component-wise XOR, the index lane with the
 sign channel absent — is commutative, associative and self-inverse at every
 width while Cayley–Dickson turn-composition is none of those above dim 4.
@@ -108,7 +108,7 @@ numpy-FREE, and no ``abs()``: storage routes through
 :func:`~srmech.signal_processing.mint_vector` + the Class-M
 :func:`~srmech.math.hdc.bind` / ``bundle`` / ``similarity`` cascades; the sign
 branch is an explicit **Class-K pin-slot** composed with a **Class-C**
-:func:`~srmech.amsc.cascade.chiral_flip`
+:func:`~srmech.cascade.chiral_flip`
 (``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]``).
 
 SSoT / provenance: UPSTREAM_NOTES §31; F465 / F468 (the 16-slot instrument);
@@ -147,13 +147,13 @@ WORKING_BLOCK_DIM = 8
 def _lazy_hdc():
     """Import the Class-M HDC byte ops on demand (numpy-free; defers the import
     so the module loads without touching signal_processing)."""
-    from ...math.hdc import bind, bundle, similarity
+    from ..math.hdc import bind, bundle, similarity
     return bind, bundle, similarity
 
 
 def _lazy_mint():
     """Import the RBS-HDC minter on demand (numpy-free cascade; deferred import)."""
-    from ...signal_processing import mint_vector
+    from ..signal_processing import mint_vector
     return mint_vector
 
 
@@ -264,7 +264,7 @@ def cd_navmap_is_signed_permutation(dim: int) -> bool:
     sign-domain property of the navmap *as computed by the*
     :func:`cd_basis_product` *cocycle*. It does not independently re-derive
     ``e_i·e_j`` from a full Cayley–Dickson multiplication — that cross-path check
-    (cocycle shortcut vs full :func:`~srmech.amsc.cascade.cayley_dickson.cd_mult`,
+    (cocycle shortcut vs full :func:`~srmech.cascade.cayley_dickson.cd_mult`,
     4096/4096 basis pairs at ``dim=64``) is enforced in
     ``tests/test_cd_register_rc297.py``.
 
@@ -303,7 +303,7 @@ def cd_couple_working(vals: Sequence[float], dim: int = WORKING_BLOCK_DIM) -> Li
     (the octonion sub-block; Hurwitz). dim 1 (ℝ) couples nothing — the degenerate
     base — so an empty ``vals`` returns ``[]`` and any value raises.
 
-    Composes :func:`~srmech.amsc.cascade.hypercomplex_couple` (``axis="diagonal"``,
+    Composes :func:`~srmech.cascade.hypercomplex_couple` (``axis="diagonal"``,
     the F436 coupling axis) — the reversible ``(σ, θ, μ)`` coupler whose octonion
     multiply already dispatches to the standalone-C
     ``srmech_hypercomplex_couple_q61``. Reversed exactly by
@@ -360,7 +360,7 @@ def cd_carry(overflow_bits: Sequence[int], n: int = 3) -> List[int]:
 
     The EC axis is INDEPENDENT of the register's ``dim``: the block size is set by
     ``n`` (parity-bit count; codeword ``2ⁿ−1``, data ``2ⁿ−1−n``), not by the slot
-    count. Composes :func:`~srmech.amsc.cascade.hamming_encode` (the
+    count. Composes :func:`~srmech.cascade.hamming_encode` (the
     ``srmech_hamming_encode`` C peer). Lean-ALU XOR; no float, no ``abs()``."""
     return hamming_encode(overflow_bits, n)
 
@@ -369,7 +369,7 @@ def cd_correct(codeword: Sequence[int]) -> Dict[str, Any]:
     """Locate + correct a single-bit error in an EC-block codeword and recover the
     carried payload — the EC/carry layer's read (rc301, `#T938`).
 
-    Composes :func:`~srmech.amsc.cascade.hamming_decode_correct` (the syndrome
+    Composes :func:`~srmech.cascade.hamming_decode_correct` (the syndrome
     dispatches to ``srmech_hamming_syndrome``). Returns
     ``{"data", "error_position", "corrected_codeword"}``. Single-error-correcting
     (minimum distance 3). Lean-ALU XOR; no float, no ``abs()``."""
@@ -378,7 +378,7 @@ def cd_correct(codeword: Sequence[int]) -> Dict[str, Any]:
 
 class CDRegister:
     """A general **N-slot** Cayley–Dickson addressable RBS-HDC register — the
-    :class:`~srmech.amsc.cascade.sedenion_register.SedenionRegister` generalised
+    :class:`~srmech.cascade.sedenion_register.SedenionRegister` generalised
     from 16 slots to ``dim`` slots (any power of two in ``[1, CD_MAX_DIM]``).
 
     Storage is content-keyed exactly as in the 16-slot register: :meth:`write`
@@ -397,7 +397,7 @@ class CDRegister:
     **carrier-arithmetic** surface is likewise always on: :meth:`element` /
     :meth:`norm` / :meth:`conjugate` / :meth:`multiply` / :meth:`add` read the
     signed-basis element ``Σ sign_i·e_i`` a register holds and DELEGATE to the
-    exact-``Q`` :mod:`~srmech.amsc.cascade.cayley_dickson` ops over it (the
+    exact-``Q`` :mod:`~srmech.cascade.cayley_dickson` ops over it (the
     method-form of ``cd_norm_sq`` / ``cd_conjugate`` / ``cd_mult`` / ``cd_add``,
     no new algebra). Two OPT layers are off by default:
     ``coupling=True`` adds the reversible working word (:meth:`couple_working` /
@@ -602,7 +602,7 @@ class CDRegister:
     def norm(self) -> Q:
         """The squared norm ``N(x) = Σ xᵢ²`` of the slot-held element, as an exact
         ``Q`` scalar (rc330, `#948`). Delegates to
-        :func:`~srmech.amsc.cascade.cayley_dickson.cd_norm_sq`. Since every occupied
+        :func:`~srmech.cascade.cayley_dickson.cd_norm_sq`. Since every occupied
         coefficient is ``±1``, this equals the number of occupied slots. Returns a
         ``Q``, not a register — a norm is a real scalar, not a CD element.
 
@@ -615,7 +615,7 @@ class CDRegister:
     def conjugate(self) -> Tuple[Q, ...]:
         """The Cayley–Dickson conjugate ``x̄`` of the slot-held element as a
         ``Q``-tuple (rc330, `#948`). Delegates to
-        :func:`~srmech.amsc.cascade.cayley_dickson.cd_conjugate` (negate the
+        :func:`~srmech.cascade.cayley_dickson.cd_conjugate` (negate the
         imaginary part; Class-K sign-flip, no ``abs()``). The conjugate of a
         signed-basis element is ALWAYS signed-basis — it only flips imaginary-slot
         signs — so this one *could* round-trip into a register; it is returned
@@ -625,7 +625,7 @@ class CDRegister:
     def multiply(self, other: "CDRegister") -> Tuple[Q, ...]:
         """The Cayley–Dickson product ``x·y`` of this register's slot-held element
         with ``other``'s, as a raw ``Q``-tuple CD element (rc330, `#948`).
-        Delegates to :func:`~srmech.amsc.cascade.cayley_dickson.cd_mult` (Class-M
+        Delegates to :func:`~srmech.cascade.cayley_dickson.cd_mult` (Class-M
         bind ∘ Class-C ∘ Class-K; no ``abs()``). ``other`` is another
         :class:`CDRegister` of the same ``dim`` (symmetric operands).
 
@@ -649,7 +649,7 @@ class CDRegister:
     def add(self, other: "CDRegister") -> Tuple[Q, ...]:
         """The component-wise sum ``x + y`` of this register's slot-held element
         with ``other``'s, as a ``Q``-tuple (rc330, `#948`). Delegates to
-        :func:`~srmech.amsc.cascade.cayley_dickson.cd_add`. ``other`` is another
+        :func:`~srmech.cascade.cayley_dickson.cd_add`. ``other`` is another
         :class:`CDRegister` of the same ``dim`` (symmetric operands). Returned as a
         ``Q``-tuple: co-occupied slots sum to ``±2`` / ``0``, off the signed-basis
         set a register can round-trip, so the raw carrier element is returned."""
@@ -733,7 +733,7 @@ def cd_register(dim: int, D: int = DEFAULT_D,
     pure signed-pointer addressing object.
 
     Generalises the 16-slot
-    :func:`~srmech.amsc.cascade.sedenion_register.sedenion_register` — the slot
+    :func:`~srmech.cascade.sedenion_register.sedenion_register` — the slot
     bound is the only difference; every sign and index rule is shared through
     :func:`cd_basis_product`. ``namespace="SEDENION"`` at ``dim=16`` reproduces the
     shipped register bit-exactly at every ``D`` (the faithfulness gate).

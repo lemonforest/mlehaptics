@@ -269,7 +269,7 @@ def test_thread_safety_smoke() -> None:
 def test_resolve_operator_name_accepts_srmech_op() -> None:
     """A dotted ``srmech.*`` unary seq->seq op name resolves to the real
     callable."""
-    fn = resolve_operator_name("srmech.amsc.cascade.chiral_flip")
+    fn = resolve_operator_name("srmech.cascade.chiral_flip")
     assert callable(fn)
     assert fn([1.0, 2.0, 3.0]) == [3.0, 2.0, 1.0]
 
@@ -291,17 +291,17 @@ def test_resolve_operator_name_rejects_reexported_stdlib() -> None:
 
 def test_resolve_operator_name_still_accepts_genuine_srmech_op() -> None:
     """The rc17 hardening does NOT regress a genuine in-namespace operator:
-    ``srmech.amsc.cascade.chiral_flip`` still resolves and round-trips.
+    ``srmech.cascade.chiral_flip`` still resolves and round-trips.
 
     Post-#751 two-tier split: ``chiral_flip`` now lives in the canonical
-    ``srmech.amsc.cascade.atoms`` submodule (re-exported flat from
-    ``srmech.amsc.cascade``), so its ``__module__`` is
-    ``srmech.amsc.cascade.atoms``. The rc17 contract is the ``srmech.*``
+    ``srmech.cascade.atoms`` submodule (re-exported flat from
+    ``srmech.cascade``), so its ``__module__`` is
+    ``srmech.cascade.atoms``. The rc17 contract is the ``srmech.*``
     PREFIX (necessary + the resolved-origin check), which the atoms home
     still satisfies — the flat name resolves and round-trips unchanged."""
-    fn = resolve_operator_name("srmech.amsc.cascade.chiral_flip")
+    fn = resolve_operator_name("srmech.cascade.chiral_flip")
     assert fn.__module__.startswith("srmech.")
-    assert fn.__module__ == "srmech.amsc.cascade.atoms"
+    assert fn.__module__ == "srmech.cascade.atoms"
     assert callable(fn)
     assert fn([1.0, 2.0, 3.0]) == [3.0, 2.0, 1.0]
 

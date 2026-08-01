@@ -107,7 +107,7 @@ def test_publish_no_file_when_off(fake_home):
 
 def test_emit_noop_when_not_publishing(fake_home):
     """Cascade ops called outside publish() must NOT write."""
-    from srmech.amsc.cascade import chiral_flip
+    from srmech.cascade import chiral_flip
     chiral_flip([1, 2, 3])
     assert not list(fake_home.glob("run-*.ndjson"))
 
@@ -162,7 +162,7 @@ def test_publish_reentrant_no_op(fake_home):
 
 def test_emit_inside_cascade_op(fake_home):
     """Calling ``cascade.chiral_flip`` inside publish() emits an event."""
-    from srmech.amsc.cascade import chiral_flip
+    from srmech.cascade import chiral_flip
     with publish() as handle:
         chiral_flip([1, 2, 3])
     events = [parse(L) for L in handle.file_path.read_bytes().splitlines() if L.strip()]
@@ -172,7 +172,7 @@ def test_emit_inside_cascade_op(fake_home):
 
 
 def test_emit_inside_pin_slot_at_zero(fake_home):
-    from srmech.amsc.cascade import pin_slot_at_zero
+    from srmech.cascade import pin_slot_at_zero
     with publish() as handle:
         pin_slot_at_zero(-3.5)
         pin_slot_at_zero(0.0)
@@ -503,7 +503,7 @@ def test_env_var_auto_publish(tmp_path):
         # Stub Path.home() via env to keep it portable.
         "import srmech;"
         "import srmech.introspect as I;"
-        "from srmech.amsc.cascade import chiral_flip;"
+        "from srmech.cascade import chiral_flip;"
         "chiral_flip([1,2,3]);"
         "w = I._writer.get_active_writer();"
         "print('FILE:' + str(w.file_path) if w else 'NOFILE');"

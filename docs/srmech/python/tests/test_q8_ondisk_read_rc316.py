@@ -36,7 +36,7 @@ import pytest
 
 from srmech import _native
 from srmech.biology import genome as G
-from srmech.amsc.cascade.one import the_one
+from srmech.cascade.one import the_one
 from srmech.math.hdc import klein4_from_one
 from srmech.math.hv import HV
 from srmech.biology.q8 import q8_from_one, q8_project_v4

@@ -1,7 +1,7 @@
 """The One — S(σ,θ) generator (v0.7.0rc49; #887).
 
 Tests the cascade-native, numpy-free, exact-rational generator
-``srmech.amsc.cascade.one.the_one`` that holds the entire 1+3+7+3 = 14
+``srmech.cascade.one.the_one`` that holds the entire 1+3+7+3 = 14
 A–N substrate as a single (σ, θ)-parameterised object.
 """
 
@@ -10,8 +10,8 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc.cascade import the_one, s_generator, One, Block
-from srmech.amsc.cascade import one as one_mod
+from srmech.cascade import the_one, s_generator, One, Block
+from srmech.cascade import one as one_mod
 from srmech.math.rational import cos_series_truncate, sin_series_truncate
 
 
@@ -332,7 +332,7 @@ def test_module_has_no_module_level_numpy_import():
     # FunctionDef/ClassDef and correctly excluded; docstrings aren't imports).
     import ast
 
-    src = importlib.util.find_spec("srmech.amsc.cascade.one").origin
+    src = importlib.util.find_spec("srmech.cascade.one").origin
     with open(src, encoding="utf-8") as fh:
         tree = ast.parse(fh.read())
     for node in tree.body:

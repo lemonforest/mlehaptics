@@ -77,7 +77,7 @@ def _close_seq(got, ref, tol=_TOL):
 
 
 # rc62: the rfft op rides the substrate-native FFT cascade
-# (srmech.amsc.cascade.spectral_cascades via _fft_carrier), value-faithful to
+# (srmech.cascade.spectral_cascades via _fft_carrier), value-faithful to
 # the DFT-by-definition rfft but not necessarily bit-identical — the cascade's
 # full-transform-then-slice rounds ~1 ULP. The Path-A-vs-Path-B cascade identity
 # stays exact (both ride the same cascade).

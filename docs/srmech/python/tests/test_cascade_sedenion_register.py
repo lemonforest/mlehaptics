@@ -1,7 +1,7 @@
 """Sedenion-addressable hyper-loop RBS-HDC instrument (UPSTREAM §31; F465 + F468).
 
 v0.7.4rc1 ships the sedenion box as an addressable RBS-HDC instrument —
-`srmech.amsc.cascade.SedenionRegister`. It is a pure composition of shipped
+`srmech.cascade.SedenionRegister`. It is a pure composition of shipped
 v0.7.3 primitives (no new algebra); the genuinely-new surface is the address↔CD
 `navigate` homomorphism + the `is_navigable` reversibility gate.
 
@@ -15,7 +15,7 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc.cascade import (
+from srmech.cascade import (
     SedenionRegister,
     sedenion_register,
     NUM_SLOTS,
@@ -23,7 +23,7 @@ from srmech.amsc.cascade import (
     EC_BLOCK,
     WORKING_WORD_CAP,
 )
-from srmech.amsc.cascade import cayley_dickson as cd
+from srmech.cascade import cayley_dickson as cd
 
 
 # ── constants + construction ──────────────────────────────────────────────────

@@ -1,10 +1,10 @@
 """Fluent cascade-composition builder for the v0.5.0rc8 DSL.
 
 The :class:`Chain` builder composes cascade-catalog ops
-(``srmech.amsc.cascade.*``) + control-flow primitives (loop / fold /
+(``srmech.cascade.*``) + control-flow primitives (loop / fold /
 reduce) into a single executable pipeline. The runner reads the TOML
 cascade-catalog descriptors at construction time and dispatches through
-the matching ``srmech.amsc.cascade`` Python entry points (which
+the matching ``srmech.cascade`` Python entry points (which
 themselves route to C peers when ``HAS_NATIVE`` is True).
 
 Per-stage events are emitted to the introspection bus when active
@@ -121,7 +121,7 @@ def _then_native_desc(op_name: str, kwargs: dict) -> Optional[dict]:
         stage[kk] = vv
     return stage
 
-# Introspection emit hook — same gating pattern as srmech.amsc.cascade.
+# Introspection emit hook — same gating pattern as srmech.cascade.
 # The DSL emits ``dsl.<chain_name>.stage.<N>`` / ``dsl.<chain_name>
 # .complete`` events when a publish context is active; otherwise the
 # hook is a zero-cost no-op (thread-local check first, then bail).
@@ -135,7 +135,7 @@ def _describe_shape(value: Any) -> str:
     """Best-effort shape descriptor for event payloads.
 
     Mirrors the cascade-emit shape contract used in
-    :mod:`srmech.amsc.cascade`. Returns a short string suitable for the
+    :mod:`srmech.cascade`. Returns a short string suitable for the
     ``input_shape`` / ``output_shape`` event fields — avoids
     serialising arbitrary numpy / list payloads through the wire.
     """
@@ -335,7 +335,7 @@ class Chain:
         The ``parallel`` special form (v0.6.0rc11; rc12 composability). The
         stage runs the piped value through the ``body`` op across
         ``n_sectors`` (≤ 4) Klein-4 sectors via
-        :func:`srmech.amsc.cascade.parallel_sector_dispatch`. A GIL-releasing
+        :func:`srmech.cascade.parallel_sector_dispatch`. A GIL-releasing
         body (native / IO / numpy) lets the ≤4 sectors genuinely overlap —
         the F233 4-thread speedup — instead of running serially. Reach for
         it when you have an independent cascade body to fan out rather than

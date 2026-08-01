@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc.cascade.one import One, separate_winding_curvature, the_one
+from srmech.cascade.one import One, separate_winding_curvature, the_one
 
 
 # ── fixed_frame = the w-INVARIANT adjoint (the unwound representative) ─────────

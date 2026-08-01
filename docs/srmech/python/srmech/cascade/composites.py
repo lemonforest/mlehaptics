@@ -1,18 +1,18 @@
 """Cascade **composites** — iterative algorithms over the atoms.
 
 The two cascade ops in this tier are iterative *algorithms* built over
-the silicon-able atoms in :mod:`srmech.amsc.cascade.atoms` — they are
+the silicon-able atoms in :mod:`srmech.cascade.atoms` — they are
 NOT single 1:1 ISA intrinsics (per F208 / MS #20 forward-architecture):
 
 - :func:`cyclic_gcd` — Euclid's algorithm (Class I; iterative remainder
   loop, delegating to ``srmech.math.cyclic.gcd``).
 - :func:`best_rational_signed` — the Class K ∘ N ∘ C continued-fraction
-  loop (sign-strip at the :func:`~srmech.amsc.cascade.atoms.pin_slot_at_zero`
+  loop (sign-strip at the :func:`~srmech.cascade.atoms.pin_slot_at_zero`
   atom, Class N best-rational anchor of the magnitude, then re-sign at the
-  :func:`~srmech.amsc.cascade.atoms.reorient` atom).
+  :func:`~srmech.cascade.atoms.reorient` atom).
 
 The 1:1 ISA intrinsics these compose over live in the sibling
-:mod:`srmech.amsc.cascade.atoms` module.
+:mod:`srmech.cascade.atoms` module.
 
 **No ``abs()``** anywhere — sign is handled as the canonical Class K
 pin-slot + Class C re-orientation per

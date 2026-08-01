@@ -3,7 +3,7 @@
 The signal_processing Path-A / Path-B reference ops (``fft`` / ``ifft`` /
 ``rfft``) accept ndarrays with NumPy's ``n=`` (zero-pad / truncate the
 transformed axis) and ``axis=`` semantics. The substrate-native FFT cascade
-``srmech.amsc.cascade.spectral_cascades.fft`` / ``.ifft`` is 1-D (Sequence ->
+``srmech.cascade.spectral_cascades.fft`` / ``.ifft`` is 1-D (Sequence ->
 List, radix-2 Cooley-Tukey with a ``dft`` fallback for non-power-of-2 N;
 exact-until-rotation).
 
@@ -27,7 +27,7 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from srmech.amsc.cascade import spectral_cascades as _sc
+from srmech.cascade import spectral_cascades as _sc
 
 
 def _is_nested(seq) -> bool:

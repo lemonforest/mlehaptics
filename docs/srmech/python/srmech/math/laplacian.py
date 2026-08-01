@@ -998,7 +998,7 @@ def _jacobi_eigvals_exact(matrix) -> "Vec":
 
     Validates ``matrix`` is SQUARE, **exact** (every entry an ``int`` /
     :class:`fractions.Fraction` / srmech ``Q``), and SYMMETRIC, then routes to
-    the exact-substrate cascade :func:`srmech.amsc.cascade.matrix_cascades.eigvals_exact`
+    the exact-substrate cascade :func:`srmech.cascade.matrix_cascades.eigvals_exact`
     (lazily imported here to avoid any circular-import risk). Returns the
     ascending eigenvalues **with multiplicity** as a 1-D :class:`Vec` — the same
     return contract as the float-Jacobi path.
@@ -1035,7 +1035,7 @@ def _jacobi_eigvals_exact(matrix) -> "Vec":
                     "eigvals_exact returns incompletely."
                 )
     # Lazy import (avoid a circular-import risk at module load).
-    from srmech.amsc.cascade.matrix_cascades import eigvals_exact
+    from srmech.cascade.matrix_cascades import eigvals_exact
     eigs = eigvals_exact(rows)  # ascending, with multiplicity (real spectrum)
     return Vec.from_sequence(eigs, is_complex=False)
 
@@ -2704,7 +2704,7 @@ def mat_eigvals(a: "Mat", *, max_sweeps: int = 500) -> List[complex]:
                 f"mat_eigvals failed to converge in {sweeps} QR sweeps "
                 f"(n={n}, remaining block m={m}); the input may be pathological "
                 f"for the float shifted-QR path — use the exact integer oracle "
-                f"srmech.amsc.cascade.matrix_cascades.eigvals_exact for certified roots"
+                f"srmech.cascade.matrix_cascades.eigvals_exact for certified roots"
             )
     return eigs
 
@@ -4216,7 +4216,7 @@ def _to_fraction(c) -> Q:
         # negative), which the bare Class-N best_rational rejects. Function-local
         # import — cascade/__init__ imports this module, so a top-level import
         # would cycle.
-        from srmech.amsc.cascade import best_rational_signed as _brs
+        from srmech.cascade import best_rational_signed as _brs
         return Q.from_pair(_brs(c, max_denominator=10 ** 12))
     return to_q(c)                                      # int / Fraction / Q / Rational — exact
 
@@ -4621,7 +4621,7 @@ def _recover_op_spectral(dim, edges, weights):
         # NEGATIVE for a near-zero mode — see the psd guard above): the SIGNED
         # Class-K∘N∘C cascade, since the bare Class-N best_rational rejects a
         # negative numerator. Function-local import to avoid the cascade cycle.
-        from srmech.amsc.cascade import best_rational_signed as _brs
+        from srmech.cascade import best_rational_signed as _brs
         zero_mode = _recover_mag(Q.from_pair(
             _brs(ev[0], max_denominator=10 ** 6))) < _RECOVER_TOL
         return (len(ev) == dim and psd and zero_mode), diag
@@ -4808,14 +4808,14 @@ def order_fingerprint(fiber_ids):
     non-uniform-component) per-node octonion.
 
     rc352 (`#T997`): the step multiplication is the SHIPPED
-    :func:`srmech.amsc.cascade.table_product`. This op previously carried its
+    :func:`srmech.cascade.table_product`. This op previously carried its
     own private dim-8-hardcoded triple loop (``_order_omul``) — a third copy of
     the table-driven product, kept only because no shipped op took a table. It
     is gone; the values are unchanged (exact integers, no mod, the same
     ``octonion_mult_table`` constants), and the step now rides the
     ``srmech_algebra_table_product`` C kernel."""
     from srmech.qm.so8 import octonion_mult_table
-    from srmech.amsc.cascade import table_product
+    from srmech.cascade import table_product
     table = octonion_mult_table()
     acc = [1, 0, 0, 0, 0, 0, 0, 0]
     for nid in fiber_ids:
@@ -5511,7 +5511,7 @@ def _eph_propagate_wound_py(rows, u, zr: float, zi: float, is_complex: bool):
     divmod the harvest's Wick factors folded with, per mode — quotient KEPT
     this time. The chirality readouts reuse the One's EXISTING gh#1276
     winding surface (never re-derived)."""
-    from srmech.amsc.cascade.one import (      # lazy: no import cycle
+    from srmech.cascade.one import (      # lazy: no import cycle
         _sigma_effective_from_triad, _spinor_sign_from_triad)
     n = len(rows)
     harvest, lam = _eph_propagate_eig_py(rows, u, zr, zi, is_complex)
@@ -5553,14 +5553,14 @@ def propagate_wound(L, u0, z) -> dict:
     * ``winding`` — ``w_k`` (whole ℤ, never ``% 2``): the metacycle turns;
     * ``theta`` — ``θ_k``: the epicycle phase; ``2π·w_k + θ_k`` reconstructs
       ``Im(z)·λ_k`` LOSSLESSLY on the fold grid (the
-      :meth:`~srmech.amsc.cascade.one.One.unwrapped_phase` reconstruction);
+      :meth:`~srmech.cascade.one.One.unwrapped_phase` reconstruction);
     * ``sigma_effective`` — the tower-graded chirality dial ``±1`` via the
       winding's divmod binary tower (the EXISTING
-      :meth:`~srmech.amsc.cascade.one.One.sigma_effective` readout — NOT the
+      :meth:`~srmech.cascade.one.One.sigma_effective` readout — NOT the
       melding bare ``w mod 2``: ``w=5`` (popcount 2) and ``w=7`` (popcount
       3) are DISTINGUISHED);
     * ``spinor_sign`` — the double-cover sign ``(−1)^{w_k}`` (the EXISTING
-      :meth:`~srmech.amsc.cascade.one.One.spinor_sign` readout — one full
+      :meth:`~srmech.cascade.one.One.spinor_sign` readout — one full
       winding flips the spinor, two restore it).
 
     Lift a mode into a full One with
@@ -7083,7 +7083,7 @@ def spectral_block_dispatch(
     Runs :func:`jacobi_eigvals` on each of ``blocks`` (1..4 real-symmetric
     matrices, each ``n_i ≤ MAX_NATIVE_NODES`` = 256) on its own thread of a
     4-worker pool — the threaded-Klein-4-streams pattern (F233; the same 4-way
-    fan-out as :func:`srmech.amsc.cascade.parallel_sector_dispatch`, but over
+    fan-out as :func:`srmech.cascade.parallel_sector_dispatch`, but over
     DISTINCT spectral blocks rather than chirality-transforms of one input).
     Four ≤256-node blocks reach **4 × 256 = 1024 nodes** within the native
     dense-eig bound. Each worker reads ONLY its own block (0 cross-thread

@@ -16,9 +16,9 @@ from fractions import Fraction
 import pytest
 
 from srmech import _native
-from srmech.amsc import cascade
+from srmech import cascade
 from srmech._native import HAS_NATIVE
-from srmech.amsc.cascade import cayley_dickson as cd
+from srmech.cascade import cayley_dickson as cd
 
 
 _CD_NATIVE = (

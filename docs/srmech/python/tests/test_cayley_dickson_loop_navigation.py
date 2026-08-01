@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc.cascade import cayley_dickson as cd
+from srmech.cascade import cayley_dickson as cd
 
 
 # ---- left_orbit ------------------------------------------------------------

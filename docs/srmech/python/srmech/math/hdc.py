@@ -1129,7 +1129,7 @@ def klein4_from_one(one, D: int):
     bridge here would be a sign of something invented.
 
     Args:
-        one: A :class:`~srmech.amsc.cascade.one.One` (read structurally: any
+        one: A :class:`~srmech.cascade.one.One` (read structurally: any
             object exposing ``.sigma``, ``.theta`` as a ``(num, den)`` pair, and
             ``.terms``).
         D: Vector dimension (positive). Free — nothing requires, and nothing

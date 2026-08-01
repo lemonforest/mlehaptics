@@ -837,8 +837,8 @@ _PHASE_MINTING = _native.SRMECH_PHASE_MINTING
 #:
 #: Programmatic form: :func:`srmech.introspect.describe`'s ``limits`` block;
 #: the dimension ceilings are
-#: :data:`~srmech.amsc.cascade.cayley_dickson.CD_TURN_MAX_DIM` (4) and
-#: :data:`~srmech.amsc.cascade.cayley_dickson.CD_COMPOSE_MAX_DIM` (8).
+#: :data:`~srmech.cascade.cayley_dickson.CD_TURN_MAX_DIM` (4) and
+#: :data:`~srmech.cascade.cayley_dickson.CD_COMPOSE_MAX_DIM` (8).
 #:
 #: Declared ``element_type`` enum for the §60 kernel header. ``0 = klein4`` (the
 #: genome-native 2-bit ``{0,1,2,3}`` symbol — siona's 8192-dim Klein-4 kernel). New
@@ -868,7 +868,7 @@ ELEMENT_TYPE_KLEIN4 = 0
 #: the commuting set, with **24 non-commuting pairs that still compose** and
 #: none that commute without composing. This is the only rung of the three that
 #: carries which-way AND folds it, and it is why
-#: :data:`~srmech.amsc.cascade.cayley_dickson.CD_TURN_MAX_DIM` is 4, not 8.
+#: :data:`~srmech.cascade.cayley_dickson.CD_TURN_MAX_DIM` is 4, not 8.
 #: address ✓ / compose ✓ / turn ✓ non-commuting.
 ELEMENT_TYPE_Q8 = 1
 #: §𝕆 (rc324) — the DISCRETE octonion Moufang loop ``{±e₀, …, ±e₇}`` element type: a
@@ -893,7 +893,7 @@ ELEMENT_TYPE_Q8 = 1
 #: composition BOTH still hold (𝕆 is the last division algebra, Hurwitz 1898),
 #: which is what the rung is for: reach the non-quaternionic units ``e₄..e₇``
 #: and address them exactly. address ✓ / compose ✓ (the ceiling —
-#: :data:`~srmech.amsc.cascade.cayley_dickson.CD_COMPOSE_MAX_DIM` = 8) / turn
+#: :data:`~srmech.cascade.cayley_dickson.CD_COMPOSE_MAX_DIM` = 8) / turn
 #: ABELIAN-ONLY.
 ELEMENT_TYPE_OCTONION = 2
 _ELEMENT_TYPE_NAMES = {ELEMENT_TYPE_KLEIN4: "klein4", ELEMENT_TYPE_Q8: "q8",
@@ -2444,11 +2444,11 @@ def quad_turn(turn, coupling, *, element_type=ELEMENT_TYPE_KLEIN4):
     ≤ 8) both survive there — the rung is worth having, which is exactly why quoting only its
     permissive ceiling would mislead. The programmatic form of this table is
     :func:`srmech.introspect.describe`'s ``limits`` block; the dimension ceilings are
-    :data:`~srmech.amsc.cascade.cayley_dickson.CD_TURN_MAX_DIM` (4) and
-    :data:`~srmech.amsc.cascade.cayley_dickson.CD_COMPOSE_MAX_DIM` (8).
+    :data:`~srmech.cascade.cayley_dickson.CD_TURN_MAX_DIM` (4) and
+    :data:`~srmech.cascade.cayley_dickson.CD_COMPOSE_MAX_DIM` (8).
 
     Class-M (bind) ∘ Class-C (the chirality the sectors carry). Each turn sits in the native
-    4-sector biaxial "+" (:func:`srmech.amsc.cascade.parallel_sector_dispatch`, CAP=4); that
+    4-sector biaxial "+" (:func:`srmech.cascade.parallel_sector_dispatch`, CAP=4); that
     dispatch and base-4 leaf addressing assemble at the chromosome level.
     """
     # The int enum is the HOT path (one type check + one compare per turn); the rc340

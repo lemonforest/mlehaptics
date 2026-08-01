@@ -1,6 +1,6 @@
 /*
  * srmech_lll.c — EXACT-ℚ LLL lattice-basis reduction (the C peer of
- * srmech.amsc.cascade.matrix_cascades.lll_reduce). Classic Lenstra–Lenstra–
+ * srmech.cascade.matrix_cascades.lll_reduce). Classic Lenstra–Lenstra–
  * Lovász (1982): an integer lattice basis → a reduced basis of the SAME lattice
  * (unimodular change of basis, det = ±1), size-reduced (|μ_{k,j}| ≤ 1/2) and
  * Lovász-satisfying (‖b*_k‖² ≥ (δ − μ²_{k,k−1})·‖b*_{k−1}‖²).

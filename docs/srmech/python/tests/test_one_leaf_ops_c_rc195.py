@@ -2,7 +2,7 @@
 
 The FIRST leaf-batch of the make_class → C arc. The one.toml / hurwitz.toml
 [class] descriptors bind accessor methods to the module-level flat ops in
-``srmech.amsc.cascade.one``; two of those are genuine COMPUTE leaves that
+``srmech.cascade.one``; two of those are genuine COMPUTE leaves that
 assemble the S(σ,θ) generator into a scalar / matrix, and rc195 ships their C
 peers so a bare-C host (no Python) runs One.scalar() / One.matrix() without
 shelling out per method:
@@ -29,10 +29,10 @@ import struct
 
 import pytest
 
-from srmech.amsc.cascade import the_one
-from srmech.amsc.cascade.one import to_scalar
+from srmech.cascade import the_one
+from srmech.cascade.one import to_scalar
 from srmech.math.rational import cos_series_truncate, sin_series_truncate
-from srmech.amsc.cascade.one import _chiral_scale, _reduce_rational
+from srmech.cascade.one import _chiral_scale, _reduce_rational
 from srmech import _native
 
 
@@ -218,7 +218,7 @@ def test_one_dict_roundtrip_contract():
     # flat rationals). blocks/spinor are pure derivations; winding is the separate
     # w-blind gh#1276 surface (NOT in the DICT).
     import json
-    from srmech.amsc.cascade.one import one_from_jsonable
+    from srmech.cascade.one import one_from_jsonable
     for sigma in _SIGMAS:
         for tn, td in _THETAS:
             o = the_one(sigma, tn, td)

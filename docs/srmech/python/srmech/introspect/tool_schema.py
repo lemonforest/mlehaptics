@@ -439,7 +439,7 @@ class ToolSchema:
         v0.6.0rc15 — the "find a tool in ≤1 call" surface. Exact full-name
         match wins (same as :meth:`lookup`). Otherwise the bare leaf
         (``"kuramoto_step"``) or any dotted suffix (``"cascade.kuramoto_step"``)
-        is matched against ``srmech.amsc.cascade.kuramoto_step``. Returns the
+        is matched against ``srmech.cascade.kuramoto_step``. Returns the
         single matching entry, or ``None`` when there is no match OR the name
         is AMBIGUOUS (resolves to >1 tool) — an ambiguous leaf is never
         silently resolved. Use :meth:`resolve_all` to enumerate the
@@ -3093,101 +3093,101 @@ def _register_primitive_class_tools() -> None:
             returns=R("Q", "Euclidean norm sqrt(a^2 + b^2) as an exact rational (Class-N Q carrier)"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.spectral_cascades.dft", owner="srmech", category="cascade",
+            name="srmech.cascade.spectral_cascades.dft", owner="srmech", category="cascade",
             summary="Discrete Fourier transform as the Antikythera epicycle-sum X_k = sum_n x_n * e^(-2pi*i*(k*n mod N)/N): Class I (cyclic index) + Class N (twiddle) + Class C (i-rotation) + Class M (bundle). Pure-Python O(N^2); substrate-native replacement for NumPy fft on a 1-D sequence.",
             parameters=(P("x", "list[complex]", True, "input samples"),
                         P("inverse", "bool", False, "keyword-only; conjugate twiddle + 1/N scale; default False")),
             returns=R("list[complex]", "DFT spectrum (or inverse)"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.spectral_cascades.idft", owner="srmech", category="cascade",
+            name="srmech.cascade.spectral_cascades.idft", owner="srmech", category="cascade",
             summary="Inverse DFT — dft() with the conjugate twiddle and a 1/N scale. Substrate-native replacement for NumPy ifft on a 1-D sequence.",
             parameters=(P("x", "list[complex]", True, "input spectrum"),),
             returns=R("list[complex]", "time-domain samples"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.spectral_cascades.fft", owner="srmech", category="cascade",
+            name="srmech.cascade.spectral_cascades.fft", owner="srmech", category="cascade",
             summary="Fast Fourier transform — the radix-2 Cooley-Tukey butterfly. Same value as dft() but O(N log N) when N is a power of two, adding Class J (radix N=2*(N/2) factorization) + Class K (butterfly recursion depth) on top of the DFT cascade. Falls back to direct dft() for non-power-of-2 N, so it is a drop-in for NumPy fft at ANY length.",
             parameters=(P("x", "list[complex]", True, "input samples"),
                         P("inverse", "bool", False, "keyword-only; conjugate twiddle + 1/N scale; default False")),
             returns=R("list[complex]", "FFT spectrum (or inverse)"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.spectral_cascades.ifft", owner="srmech", category="cascade",
+            name="srmech.cascade.spectral_cascades.ifft", owner="srmech", category="cascade",
             summary="Inverse FFT — fft() with the conjugate twiddle and a 1/N scale. Substrate-native replacement for NumPy ifft on a 1-D sequence.",
             parameters=(P("x", "list[complex]", True, "input spectrum"),),
             returns=R("list[complex]", "time-domain samples"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.spectral_cascades.kron", owner="srmech", category="cascade",
+            name="srmech.cascade.spectral_cascades.kron", owner="srmech", category="cascade",
             summary="Kronecker product A (x) B of two 2-D matrices: (A(x)B)[i*p+k, j*q+l] = A[i,j]*B[k,l] — Class I (mixed-radix index) + Class M (element products). Pure-Python; substrate-native replacement for the NumPy Kronecker product.",
             parameters=(P("a", "list[list[complex]]", True, "left matrix (list of rows)"),
                         P("b", "list[list[complex]]", True, "right matrix (list of rows)")),
             returns=R("list[list[complex]]", "Kronecker product block matrix"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.exact_dft.exact_dft", owner="srmech", category="cascade",
+            name="srmech.cascade.exact_dft.exact_dft", owner="srmech", category="cascade",
             summary="Exact cyclotomic-integer DFT of an integer / Gaussian-integer power-of-two signal: the twiddles e^(-2pi*i*j/N) are roots of unity (algebraic integers in Z[zeta_N]); for power-of-two N, zeta^(N/2) = -1 (a Class-K sign-flip) collapses the ring to the negacyclic integers Z[x]/(x^(N/2)+1), so the transform is PURE INTEGER add/subtract — no floats. Returns the exact spectrum (one integer (real_vec, imag_vec) pair of length N/2 per bin); call lift() for the single FPU rotation to complex. Class I (cyclic index) + Class K (zeta^(N/2)=-1 reduction) + Class M (integer bundle). Rides the native srmech_exact_dft_i64 int64 twin; arbitrary-precision magnitudes use the Python bignum path. Raises on non-integer / non-power-of-two input (use dft there).",
             parameters=(P("signal", "list[complex]", True, "integer / Gaussian-integer power-of-two-length sequence (integer-valued)"),
                         P("inverse", "bool", False, "keyword-only; conjugate exponent zeta^(-nk); default False")),
             returns=R("list[tuple[list[int], list[int]]]", "exact Z[zeta_N] integer spectrum (per-bin (real_vec, imag_vec))"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.exact_dft.exact_idft", owner="srmech", category="cascade",
+            name="srmech.cascade.exact_dft.exact_idft", owner="srmech", category="cascade",
             summary="Inverse exact cyclotomic-integer DFT — exact_dft() with the conjugate exponent zeta^(-nk). Unnormalised: the 1/N scale is a Class-N rational applied at lift() time (lift(exact_idft(x), scale=N)), keeping this core pure integer.",
             parameters=(P("signal", "list[complex]", True, "integer / Gaussian-integer power-of-two-length sequence (integer-valued)"),),
             returns=R("list[tuple[list[int], list[int]]]", "exact Z[zeta_N] integer inverse spectrum"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.exact_dft.lift", owner="srmech", category="cascade",
+            name="srmech.cascade.exact_dft.lift", owner="srmech", category="cascade",
             summary="The single FPU lift: rotate an exact Z[zeta_N] integer spectrum (from exact_dft) to complex at zeta_N = e^(-2pi*i/N). This is the ONLY place a float is produced — the projection from the exact discrete substrate to the continuous observable (floats are for the FPU lift, not the math). scale divides the result (use scale=N for a normalised inverse). Class C (i-rotation) over the Class-N substrate-native cexp.",
             parameters=(P("spectrum", "list[tuple[list[int], list[int]]]", True, "exact Z[zeta_N] integer spectrum from exact_dft / exact_idft"),
                         P("scale", "int", False, "keyword-only; divide the lifted result (scale=N normalises an inverse); default 1")),
             returns=R("list[complex]", "lifted complex spectrum / samples"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.matrix_cascades.qr", owner="srmech", category="cascade",
+            name="srmech.cascade.matrix_cascades.qr", owner="srmech", category="cascade",
             summary="Householder QR factorization A = Q*R: Q a product (Class M) of elementary reflectors H = I - beta*v*v^H, each Class K (sign-flip across a hyperplane) + Class M (outer-product bind) + Class N (1/(v^H v) scale, with the column norm a rational.sqrt). numpy as CONTAINER only — no NumPy QR in the call graph. mode='reduced' (default, matching NumPy QR) or 'complete'. QR is unique only up to signs; the invariants (Q*R=A, Q^H Q=I, R upper-triangular) hold to round-off.",
             parameters=(P("a", "Mat", True, "(m, n) real or complex 2-D matrix"),
                         P("mode", "str", False, "keyword-only; 'reduced' (default) or 'complete'")),
             returns=R("tuple[Mat, Mat]", "(Q, R): orthonormal-column Q + upper-triangular R"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.matrix_cascades.svd", owner="srmech", category="cascade",
+            name="srmech.cascade.matrix_cascades.svd", owner="srmech", category="cascade",
             summary="Singular value decomposition A = U*diag(s)*V^H via the Gram-matrix Hermitian eigendecomposition: Class L (eig of A^H A or A A^H, srmech's hermitian_eigendecompose) + Class N+K (s = sqrt(eigvals), via rational.sqrt) + Class M (U = A*V*Sigma^-1). numpy as CONTAINER only — no NumPy SVD. full_matrices=False (reduced form). Singular values match NumPy SVD to round-off for well-conditioned inputs (the Gram route squares the condition number); U/V unique only up to signs.",
             parameters=(P("a", "Mat", True, "(m, n) real or complex 2-D matrix"),
                         P("full_matrices", "bool", False, "keyword-only; only False (reduced form) is supplied")),
             returns=R("tuple[Mat, Vec, Mat]", "(U, s, Vh): singular vectors + descending singular values"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.matrix_cascades.lstsq", owner="srmech", category="cascade",
+            name="srmech.cascade.matrix_cascades.lstsq", owner="srmech", category="cascade",
             summary="Least-squares solution of A x = b (minimising ||A x - b||): {QR} factorization + Class M (the Qᴴ b product) + Class I (back-substitution = the ordered triangular solve). Overdetermined/square m>=n, full column rank; b a vector or stack of RHS. numpy as CONTAINER only — no NumPy lstsq. Matches NumPy lstsq(a,b)[0] to round-off.",
             parameters=(P("a", "Mat", True, "(m, n) coefficient matrix, m>=n"),
                         P("b", "Mat | Vec", True, "(m,) or (m, k) right-hand side(s)")),
             returns=R("Mat | Vec", "least-squares solution x, shape (n,) or (n, k)"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.matrix_cascades.einsum", owner="srmech", category="cascade",
+            name="srmech.cascade.matrix_cascades.einsum", owner="srmech", category="cascade",
             summary="Einstein-summation tensor contraction via the general index-iteration definition: Class B/D (the subscript spec is a typed index-pattern) + Class I (iterate over free + summed index tuples) + Class M (sum-of-products bundle). Handles any subscript string (matmul ij,jk->ik / trace ii-> / transpose ij->ji / dot i,i-> / outer i,j->ij / arbitrary contraction), implicit output supported. Value-faithful to the NumPy einsum.",
             parameters=(P("subscripts", "str", True, "einsum subscript string, e.g. 'ij,jk->ik'"),
                         P("operands", "tuple[Mat, ...]", False, "the input arrays (variadic)")),
             returns=R("Mat | Vec | complex | float | list", "the contracted tensor"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.matrix_cascades.eigvals", owner="srmech", category="cascade",
+            name="srmech.cascade.matrix_cascades.eigvals", owner="srmech", category="cascade",
             summary="Eigenvalues of a general (non-Hermitian) square matrix via the shifted-QR iteration: Class K (iterate-to-convergence asymptotic-DoF) + Class L (spectral content) + {QR} (per-step Householder factorization) + Class C (Wilkinson spectral shifts). Runs in complex arithmetic so complex eigenvalues of real matrices fall out directly. numpy as CONTAINER only — no NumPy eig/eigvals. Eigenvalues unique as a SET; the multiset matches NumPy eigvals to ~1e-12 for moderate sizes.",
             parameters=(P("a", "Mat", True, "(n, n) real or complex square matrix"),
                         P("max_sweeps", "int", False, "keyword-only; per-eigenvalue iteration cap factor (default 500)")),
             returns=R("Vec", "length-n complex eigenvalue array"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.matrix_cascades.char_poly", owner="srmech", category="cascade",
+            name="srmech.cascade.matrix_cascades.char_poly", owner="srmech", category="cascade",
             summary="Exact integer characteristic polynomial det(xI - A) via Faddeev-Leverrier. For an INTEGER matrix returns the EXACT integer coefficients (monic, high->low [1, c1, ..., cn]) in arbitrary-precision integer arithmetic — the exact ALGEBRAIC substrate of the eigenproblem: exact trace = -c1, exact determinant = (-1)^n*cn, all elementary symmetric functions of the spectrum, NO floating point. The eigenvalues are the ROOTS of this exact polynomial (extract them with eigvals_exact, which avoids the Wilkinson ill-conditioning of float root-finding by staying in exact arithmetic). Non-integer matrices fall back to a float Faddeev-Leverrier. Class L (algebraic content) + Class M (matrix-product/trace accumulate) + Class K (exact //k step division).",
             parameters=(P("a", "Mat", True, "(n, n) square matrix (integer entries → exact integer coefficients)"),),
             returns=R("list", "characteristic-polynomial coefficients, monic high→low [1, c1, ..., cn]"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.matrix_cascades.eigvals_exact", owner="srmech", category="cascade",
+            name="srmech.cascade.matrix_cascades.eigvals_exact", owner="srmech", category="cascade",
             summary="Exact eigenvalues of an integer matrix — the well-conditioned exact-until-rotation cascade (no Wilkinson ill-conditioning, because the eigenvalues are ALGEBRAIC and we never leave exact arithmetic). char_poly (exact integer) + Yun square-free factorization (exact multiplicities) + Sturm sign-sequence isolation (Class C sign-count at Class K interval boundaries) + rational bisection (Class N anchors → the algebraic asymptote), all in exact Fraction arithmetic, then ONE FPU lift. bits sets refinement precision; return_intervals=True yields the exact (lo, hi) rational isolating intervals (real-only path). Returns the real eigenvalues ascending WITH multiplicity. With include_complex=True the COMPLEX eigenvalues are also returned, EXACTLY ISOLATED: a float-QR candidate is certified as a unique root of the exact integer char-poly in a rational box by the argument-principle root-count (winding number in exact Fraction arithmetic — no float in the count), refined to bits, the float being the single terminal projection of the certified box center — distinct from the unconditioned float-QR spectrum of mat_eigvals it merely seeds. Returns all n eigenvalues (reals first ascending as float, then complex sorted by (re, im) as complex; conjugate pairs).",
             parameters=(P("a", "Mat", True, "(n, n) integer square matrix"),
                         P("bits", "int", False, "keyword-only; bisection refinement precision in bits (default 64)"),
@@ -3196,7 +3196,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("list", "real eigenvalues ascending with multiplicity (floats, or (lo, hi) exact-ℚ intervals); with include_complex=True, all n eigenvalues (reals as float then certified complex)"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.matrix_cascades.lll_reduce", owner="srmech", category="cascade",
+            name="srmech.cascade.matrix_cascades.lll_reduce", owner="srmech", category="cascade",
             summary="EXACT-ℚ LLL lattice-basis reduction — the classic Lenstra–Lenstra–Lovász (1982) reduction of an integer lattice basis, in exact rational arithmetic (no float anywhere), and the foundation for a future van Hoeij polynomial-factorization knapsack (the LLL recombination that supersedes the exponential Zassenhaus subset search in factor_integer_poly). Input basis is m integer row-vectors (length n) spanning a rank-m lattice; delta=(num, den) is the Lovász parameter in (1/4, 1] (default 3/4). Returns the LLL-reduced basis (m integer row-vectors): SAME lattice (a unimodular change of basis, det = ±1), size-reduced (|μ_{k,j}| ≤ 1/2 for j<k), Lovász-satisfying (‖b*_k‖² ≥ (δ − μ²_{k,k−1})·‖b*_{k−1}‖²), so the first vector is provably short. The engine is exact throughout: a Gram-matrix Gram–Schmidt orthogonalization over ℚ (μ, ‖b*‖² as exact Fraction / arbitrary-precision srmech_bigint rationals in the C peer), size reduction by exact nearest-integer rounding of μ (round(a/b) = floor((2a+b)/(2b)) — never a float rint, never abs: the |μ| ≤ 1/2 guard is a Class-K sign branch on 2·num vs den), and the Lovász swap decided on the exact ℚ inequality. Integer-in, integer-out; rotation-last-trivial (no projection). Class L (the lattice / Gram–Schmidt spectral content) ∘ Class K (the size-reduction sign pin-slots + the swap-sign boundary — never an ALU abs) ∘ Class N (the exact nearest-integer rational rounding) ∘ Class I (the ordered integer vector row operations). Native-dispatched (srmech_lll_reduce, byte-identical to the pure body — both exact). Raises on a degenerate (linearly dependent) basis or a delta outside (1/4, 1]. Canonical SSoT: A. K. Lenstra, H. W. Lenstra Jr., L. Lovász, 'Factoring polynomials with rational coefficients', Math. Ann. 261 (1982), 515–534; algorithm as in H. Cohen, A Course in Computational Algebraic Number Theory (1993), Algorithm 2.6.3.",
             parameters=(P("basis", "list", True, "a list of m integer row-vectors (each length n, arbitrary-precision ints) — an independent lattice basis"),
                         P("delta", "tuple[int, int]", False, "the Lovász parameter as an exact rational pair (num, den) in (1/4, 1]; default (3, 4)")),
@@ -7152,7 +7152,7 @@ def _register_primitive_class_tools() -> None:
         # Compositions of existing A–N primitives; no new C symbol.
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.cascade.pin_slot_at_zero", owner="srmech",
+            name="srmech.cascade.pin_slot_at_zero", owner="srmech",
             category="cascade",
             summary="Class K pin-slot at zero: split x into (orientation ∈ "
                     "{-1,0,+1}, magnitude ≥ 0). Sign-flip IS the canonical "
@@ -7162,7 +7162,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("tuple[int, float]", "(orientation, magnitude)"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.reorient", owner="srmech",
+            name="srmech.cascade.reorient", owner="srmech",
             category="cascade",
             summary="Class C cascade-orientation: re-apply a captured "
                     "orientation {-1,0,+1} to a value (negates iff "
@@ -7175,7 +7175,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("number", "value, negated iff orientation < 0"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.magnitude", owner="srmech",
+            name="srmech.cascade.magnitude", owner="srmech",
             category="cascade",
             summary="Absolute value |x| (magnitude) — Class K pin-slot at "
                     "zero, magnitude only (orientation discarded). The "
@@ -7185,7 +7185,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("float", "|x| as the Class K pin-slot magnitude"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.best_rational_signed", owner="srmech",
+            name="srmech.cascade.best_rational_signed", owner="srmech",
             category="cascade",
             summary="Class K ∘ N ∘ C: float → signed small-denominator "
                     "rational. Strip sign at the Class K pin-slot, find the "
@@ -7198,7 +7198,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("tuple[int, int]", "(signed_numerator, positive_denominator)"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.cyclic_gcd", owner="srmech",
+            name="srmech.cascade.cyclic_gcd", owner="srmech",
             category="cascade",
             summary="Class I cyclic gcd (delegates to srmech.math.cyclic.gcd). "
                     "The cascade-named alias for reaching the Class I primitive "
@@ -7213,7 +7213,7 @@ def _register_primitive_class_tools() -> None:
         # (composition_of_c). DSL chain contract: the piped value is `a`; the
         # operands (`b`/`k`/`n`) are bound stage kwargs.
         ToolEntry(
-            name="srmech.amsc.cascade.cyclic_mod_mul", owner="srmech",
+            name="srmech.cascade.cyclic_mod_mul", owner="srmech",
             category="cascade",
             summary="Modular multiply as a cascade stage — (a * b) mod n "
                     "(delegates to srmech.math.cyclic.mod_mul). The DSL-"
@@ -7228,7 +7228,7 @@ def _register_primitive_class_tools() -> None:
             smoke_test_hint={"a": "7", "b": "6", "n": "10"},
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.cyclic_mod_add", owner="srmech",
+            name="srmech.cascade.cyclic_mod_add", owner="srmech",
             category="cascade",
             summary="Modular addition as a cascade stage — (a + b) mod n "
                     "(delegates to srmech.math.cyclic.mod_add). The DSL-"
@@ -7243,7 +7243,7 @@ def _register_primitive_class_tools() -> None:
             smoke_test_hint={"a": "7", "b": "6", "n": "10"},
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.cyclic_mod_pow", owner="srmech",
+            name="srmech.cascade.cyclic_mod_pow", owner="srmech",
             category="cascade",
             summary="Modular exponentiation as a cascade stage — (a ** k) mod "
                     "n via square-and-multiply (delegates to "
@@ -7258,7 +7258,7 @@ def _register_primitive_class_tools() -> None:
             smoke_test_hint={"a": "3", "k": "4", "n": "10"},
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.cyclic_mod_inv", owner="srmech",
+            name="srmech.cascade.cyclic_mod_inv", owner="srmech",
             category="cascade",
             summary="Modular inverse as a cascade stage — a**-1 mod n via "
                     "extended Euclidean (delegates to "
@@ -7272,7 +7272,7 @@ def _register_primitive_class_tools() -> None:
             smoke_test_hint={"a": "3", "n": "7"},
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.cyclic_mod_mul_wide", owner="srmech",
+            name="srmech.cascade.cyclic_mod_mul_wide", owner="srmech",
             category="cascade",
             summary="Wide modular multiply as a cascade stage — (a * b) mod n "
                     "with NO uint64 cap (delegates to "
@@ -7289,7 +7289,7 @@ def _register_primitive_class_tools() -> None:
             smoke_test_hint={"a": "2**64", "b": "3", "n": "2**128"},
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.kuramoto_step", owner="srmech",
+            name="srmech.cascade.kuramoto_step", owner="srmech",
             category="cascade",
             summary="Advance N COUPLED OSCILLATORS one synchronization step "
                     "(the canonical Kuramoto model) — reach for this for "
@@ -7334,7 +7334,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("list[float]", "phases after one forward-Euler Kuramoto step"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.autocorrelation", owner="srmech",
+            name="srmech.cascade.autocorrelation", owner="srmech",
             category="cascade",
             summary="Class L CIRCULAR AUTOCORRELATION (Wiener-Khinchin) of a "
                     "real sequence — reach for this for the autocorrelation ↔ "
@@ -7366,7 +7366,7 @@ def _register_primitive_class_tools() -> None:
         # C peer srmech_quaternion_dft. octonion_dft remains the composite tier
         # over qm.octonion. Both numpy-free (rc125 #564).
         ToolEntry(
-            name="srmech.amsc.cascade.quaternion_dft", owner="srmech",
+            name="srmech.cascade.quaternion_dft", owner="srmech",
             category="cascade",
             summary="QUATERNION discrete Fourier transform (QDFT) — the native "
                     "transform for a Klein-4 object, GRADUATED first-class "
@@ -7403,7 +7403,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("list[list[float]]", "N quaternions (4-component lists)"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.octonion_dft", owner="srmech",
+            name="srmech.cascade.octonion_dft", owner="srmech",
             category="cascade",
             summary="OCTONION discrete Fourier transform (ODFT) — the (8:7) rung "
                     "above the QDFT, GRADUATED first-class (0.9.0rc111; #1234 "
@@ -7449,7 +7449,7 @@ def _register_primitive_class_tools() -> None:
         # quaternion_dft / octonion_dft ENCODING transforms above, deliberately
         # its OWN op (NOT a kwarg on the transforms). c_dispatched C peer.
         ToolEntry(
-            name="srmech.amsc.cascade.phase_coherent_peak", owner="srmech",
+            name="srmech.cascade.phase_coherent_peak", owner="srmech",
             category="cascade",
             summary="The LIGHTWEIGHT matched-filter PEAK READ over a rung/mode "
                     "ladder — the RBS-LM READ reduction, kept API-DISTINCT from "
@@ -7496,11 +7496,11 @@ def _register_primitive_class_tools() -> None:
         ),
         # Bidirectional (σ,θ,μ) hypercomplex coupler (v0.7.2rc1; #908, F436/F437).
         # Registered under its STABLE FLAT public name
-        # ``srmech.amsc.cascade.hypercomplex_couple``; the submodule-dotted
-        # ``srmech.amsc.cascade.hypercomplex_dft.hypercomplex_couple`` is the same
+        # ``srmech.cascade.hypercomplex_couple``; the submodule-dotted
+        # ``srmech.cascade.hypercomplex_dft.hypercomplex_couple`` is the same
         # object re-exported flat (exempt in test_tool_schema_coverage).
         ToolEntry(
-            name="srmech.amsc.cascade.hypercomplex_couple", owner="srmech",
+            name="srmech.cascade.hypercomplex_couple", owner="srmech",
             category="cascade",
             summary="Bidirectional (σ,θ,μ) hypercomplex coupler — bind ≥3 streams "
                     "into one quaternion/octonion + a JOINT coherence channel, and "
@@ -7540,10 +7540,10 @@ def _register_primitive_class_tools() -> None:
                       "8-component octonion"),
         ),
         # Literal exp(μθ) unit hypercomplex twiddle (v0.9.0rc10; F882, srmech #205).
-        # Registered FLAT as srmech.amsc.cascade.hypercomplex_exp; native C peer
+        # Registered FLAT as srmech.cascade.hypercomplex_exp; native C peer
         # srmech_hypercomplex_exp_q61 is byte-exact Q61 (test_hypercomplex_exp_rc10).
         ToolEntry(
-            name="srmech.amsc.cascade.hypercomplex_exp", owner="srmech",
+            name="srmech.cascade.hypercomplex_exp", owner="srmech",
             category="cascade",
             summary="Literal exp(μθ) = cos θ + μ·sin θ unit hypercomplex twiddle — the "
                     "GENUINE hypercomplex exponential as an exact Q61 8-tuple (F882, "
@@ -7571,7 +7571,7 @@ def _register_primitive_class_tools() -> None:
         # PAIR: pure-Python spec + JPL-clean srmech_hamming_* C peer, attested
         # bit-exact by tests/test_cascade_hamming_parity.py.
         ToolEntry(
-            name="srmech.amsc.cascade.hamming_encode", owner="srmech",
+            name="srmech.cascade.hamming_encode", owner="srmech",
             category="cascade",
             summary="Encode k = 2ⁿ−1−n data bits into a Hamming(2ⁿ−1, k) "
                     "single-error-correcting GF(2) codeword (#910 / §30). The "
@@ -7595,7 +7595,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("list[int]", "the 2ⁿ−1-bit codeword (0/1 list)"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.hamming_syndrome", owner="srmech",
+            name="srmech.cascade.hamming_syndrome", owner="srmech",
             category="cascade",
             summary="Compute the Hamming syndrome — the 1-indexed position of the "
                     "single flipped bit (0 = clean) (#910 / §30). Recompute each "
@@ -7609,7 +7609,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("int", "1-indexed flipped-bit position; 0 if the word is clean"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.hamming_decode_correct", owner="srmech",
+            name="srmech.cascade.hamming_decode_correct", owner="srmech",
             category="cascade",
             summary="Locate + correct any single-bit error and recover the data "
                     "payload (#910 / §30). Single-error-correcting (minimum distance "
@@ -7626,11 +7626,11 @@ def _register_primitive_class_tools() -> None:
         ),
         # Cayley–Dickson open-exterior boundary-demonstrator (v0.7.3rc1; #915 /
         # MFO §VII.6.23) — the deliberately NON-reversible object past the Hurwitz
-        # wall. Registered under STABLE flat names ``srmech.amsc.cascade.cd_*`` etc.;
+        # wall. Registered under STABLE flat names ``srmech.cascade.cd_*`` etc.;
         # the submodule-dotted ``cascade.cayley_dickson.*`` are the same objects
         # re-exported flat (exempt in test_tool_schema_coverage).
         ToolEntry(
-            name="srmech.amsc.cascade.cd_mult", owner="srmech",
+            name="srmech.cascade.cd_mult", owner="srmech",
             category="cascade",
             summary="Exact-rational Cayley–Dickson product of two equal-dimension "
                     "elements (#915 / MFO §VII.6.23). Generic ℝ→ℂ→ℍ→𝕆→𝕊(16)→… "
@@ -7648,7 +7648,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("tuple", "the product, a tuple of exact Q"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.cd_conjugate", owner="srmech",
+            name="srmech.cascade.cd_conjugate", owner="srmech",
             category="cascade",
             summary="Cayley–Dickson conjugation — negate the imaginary part (Class K "
                     "sign-flip, no abs()). Defined at EVERY rung: x·x̄ = N(x)·1 even "
@@ -7660,7 +7660,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("tuple", "the conjugate, a tuple of exact Q"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.cd_norm_sq", owner="srmech",
+            name="srmech.cascade.cd_norm_sq", owner="srmech",
             category="cascade",
             summary="The norm form N(x) = Re(x·x̄) of a Cayley–Dickson algebra "
                     "(exact rational; x·x̄ = N(x)·1 at every rung). GAMMAS DECLARES "
@@ -7694,7 +7694,7 @@ def _register_primitive_class_tools() -> None:
                            "declared SPLIT twist"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.cd_basis_product", owner="srmech",
+            name="srmech.cascade.cd_basis_product", owner="srmech",
             category="cascade",
             summary="The integer structural core — basis-unit cocycle e_i·e_j = "
                     "sign·e_index (the result index is i⊕j; the sign carries the Fano/"
@@ -7714,7 +7714,7 @@ def _register_primitive_class_tools() -> None:
         # structure-constant TABLE, never a declared dimension, so split algebras
         # and arbitrary tables answer honestly (split-𝕆 → (5,3,0), not (1,7,0)).
         ToolEntry(
-            name="srmech.amsc.cascade.inertia_signature", owner="srmech",
+            name="srmech.cascade.inertia_signature", owner="srmech",
             category="cascade",
             summary="Sylvester inertia of the TRACE form q(x) = Re(x·x), read off a "
                     "rank-3 structure-constant table, with the negative pivot "
@@ -7759,7 +7759,7 @@ def _register_primitive_class_tools() -> None:
         # IS the γ, pinned to −1; this exposes it per rung so the negative
         # controls (split-𝕆 / split-ℂ / split-ℍ) stop being hand-rolled.
         ToolEntry(
-            name="srmech.amsc.cascade.algebra_table", owner="srmech",
+            name="srmech.cascade.algebra_table", owner="srmech",
             category="cascade",
             summary="The rank-3 structure-constant TABLE of the GENERALISED "
                     "Cayley–Dickson algebra: (a1,a2)(b1,b2) = (a1·b1 + γ·conj(b2)·a2, "
@@ -7807,7 +7807,7 @@ def _register_primitive_class_tools() -> None:
         # shipped product took a table) and zero shipped; this is the one both
         # now route through.
         ToolEntry(
-            name="srmech.amsc.cascade.table_product", owner="srmech",
+            name="srmech.cascade.table_product", owner="srmech",
             category="cascade",
             summary="The product of two elements read off a STRUCTURE-CONSTANT "
                     "TABLE: (x·y)_k = Σ_ij table[i][j][k]·x_i·y_j — exact, "
@@ -7849,7 +7849,7 @@ def _register_primitive_class_tools() -> None:
         # negative controls — algebra_table(gammas=)'s split algebras, and a
         # wrong-quotient table — go through it unchanged.
         ToolEntry(
-            name="srmech.amsc.cascade.associator", owner="srmech",
+            name="srmech.cascade.associator", owner="srmech",
             category="cascade",
             summary="The ASSOCIATIVITY DEFECT (x·y)·z − x·(y·z), exact ℚ, any "
                     "rung, on the definite ladder (table=None → cd_mult) or on "
@@ -8045,7 +8045,7 @@ def _register_primitive_class_tools() -> None:
         # carrier restructuring (zero-pad up / trivial-check + drop down; no
         # numerical kernel) → non_compute.
         ToolEntry(
-            name="srmech.amsc.cascade.cd_promote", owner="srmech",
+            name="srmech.cascade.cd_promote", owner="srmech",
             category="cascade",
             summary="Promote a Cayley–Dickson element UP one-or-more rungs "
                     "ℝ↪ℂ↪ℍ↪𝕆↪𝕊 by the trivial SUBALGEBRA EMBEDDING (#1248 / "
@@ -8069,7 +8069,7 @@ def _register_primitive_class_tools() -> None:
                       "Q"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.cd_project", owner="srmech",
+            name="srmech.cascade.cd_project", owner="srmech",
             category="cascade",
             summary="Project a Cayley–Dickson element DOWN one doubling "
                     "(dim → dim/2) by REALIFYING IFF the higher "
@@ -8093,7 +8093,7 @@ def _register_primitive_class_tools() -> None:
                       "higher half is non-zero"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.sedenion_zero_divisor_witness", owner="srmech",
+            name="srmech.cascade.sedenion_zero_divisor_witness", owner="srmech",
             category="cascade",
             summary="Exhibit a concrete sedenion (dim 16) zero divisor: x, y both "
                     "nonzero with x·y = 0 — found from OUR OWN multiplication table "
@@ -8108,7 +8108,7 @@ def _register_primitive_class_tools() -> None:
                       "'product': all-zero, 'product_is_zero': True}"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.left_mult_kernel", owner="srmech",
+            name="srmech.cascade.left_mult_kernel", owner="srmech",
             category="cascade",
             summary="Exact-rational kernel basis of the map u ↦ x·u. NONEMPTY ⟺ x is "
                     "a left zero divisor ⟺ multiply-by-x is non-injective ⟺ no inverse "
@@ -8132,7 +8132,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("list", "kernel-basis vectors (Q tuples); empty if invertible"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.left_mult_is_invertible", owner="srmech",
+            name="srmech.cascade.left_mult_is_invertible", owner="srmech",
             category="cascade",
             summary="True iff u ↦ x·u is a bijection (a backward direction exists). "
                     "Always True for nonzero x at dims ≤ 8 ON THE DEFINITE LADDER; False "
@@ -8158,7 +8158,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("bool", "True iff multiply-by-x has a (two-sided) inverse map"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.is_division_algebra_dim", owner="srmech",
+            name="srmech.cascade.is_division_algebra_dim", owner="srmech",
             category="cascade",
             summary="True iff the dim-D Cayley–Dickson algebra is a normed division "
                     "algebra (Hurwitz 1898): the reversible interior is exactly dims "
@@ -8171,12 +8171,12 @@ def _register_primitive_class_tools() -> None:
         ),
         # Sedenion-addressable hyper-loop RBS-HDC instrument (v0.7.4rc1; UPSTREAM
         # §31 of PR #687; F465 + F468). Registered under the STABLE flat factory
-        # name ``srmech.amsc.cascade.sedenion_register``; the submodule-dotted
+        # name ``srmech.cascade.sedenion_register``; the submodule-dotted
         # ``cascade.sedenion_register.sedenion_register`` is the same object
         # re-exported flat (exempt in test_tool_schema_coverage). The class
         # SedenionRegister is not a module-level function (not coverage-walked).
         ToolEntry(
-            name="srmech.amsc.cascade.sedenion_register", owner="srmech",
+            name="srmech.cascade.sedenion_register", owner="srmech",
             category="cascade",
             summary="Construct a SedenionRegister — the sedenion (dim-16) ADDRESSABLE "
                     "RBS-HDC instrument (UPSTREAM §31; F465/F468). The sedenion box "
@@ -8214,7 +8214,7 @@ def _register_primitive_class_tools() -> None:
         # independent class, not an n=16 alias — it is the oracle the general
         # register's faithfulness is gated against.
         ToolEntry(
-            name="srmech.amsc.cascade.cd_register", owner="srmech",
+            name="srmech.cascade.cd_register", owner="srmech",
             category="cascade",
             summary="Construct a CDRegister — the GENERAL N-slot Cayley–Dickson "
                     "ADDRESSABLE RBS-HDC register (`#934`). The dim-16 "
@@ -8257,7 +8257,7 @@ def _register_primitive_class_tools() -> None:
                       ".carry/.correct (EC block)"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.cd_navmap", owner="srmech",
+            name="srmech.cascade.cd_navmap", owner="srmech",
             category="cascade",
             summary="The signed pointer-advance permutation for right-multiply-by-e_j "
                     "over dim slots: maps each slot i to (k, sign) where e_i·e_j = "
@@ -8274,7 +8274,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("dict", "{i: (dest, sign)} over all dim slots; sign in {+1,-1}"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.cd_navigate", owner="srmech",
+            name="srmech.cascade.cd_navigate", owner="srmech",
             category="cascade",
             summary="Route occupied (slot, sign) records through the ×e_j permutation "
                     "at dim slots, composing the CLASS-C signs: out_signs[m] = "
@@ -8293,7 +8293,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("tuple", "(out_slots, out_signs) — two lists, parallel to the input"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.cd_navmap_is_signed_permutation", owner="srmech",
+            name="srmech.cascade.cd_navmap_is_signed_permutation", owner="srmech",
             category="cascade",
             summary="THE STRUCTURAL INVARIANT ADDRESSING RIDES ON, checked rather than "
                     "assumed (F1274/F1275): for EVERY direction j in [0, dim), is "
@@ -8320,7 +8320,7 @@ def _register_primitive_class_tools() -> None:
         # (v0.9.0rc301; `#T938`) — the reversible working word (couple/uncouple) +
         # the Hamming EC block (carry/correct), ported from SedenionRegister onto
         # CDRegister as its dim-scaled generalisation. Registered under STABLE flat
-        # names ``srmech.amsc.cascade.cd_{couple_working,uncouple_working,carry,
+        # names ``srmech.cascade.cd_{couple_working,uncouple_working,carry,
         # correct}``; the submodule-dotted ``cascade.cd_register.*`` are the same
         # objects re-exported flat (exempt in test_tool_schema_coverage). These take
         # content-agnostic list/int args (MCP-coercible), UNLIKE the sed_* adapters'
@@ -8329,7 +8329,7 @@ def _register_primitive_class_tools() -> None:
         # ledger (they compose the C-backed hypercomplex_couple / hamming — no new C
         # symbol, ABI stays 8).
         ToolEntry(
-            name="srmech.amsc.cascade.cd_couple_working", owner="srmech",
+            name="srmech.cascade.cd_couple_working", owner="srmech",
             category="cascade",
             summary="Bind ≤ min(dim,8)−1 real streams into one REVERSIBLE working "
                     "word — THE canonical Class-M bind on the Cayley–Dickson register "
@@ -8358,7 +8358,7 @@ def _register_primitive_class_tools() -> None:
                       "streams) or 8-component octonion (4–7 streams); [] if empty"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.cd_uncouple_working", owner="srmech",
+            name="srmech.cascade.cd_uncouple_working", owner="srmech",
             category="cascade",
             summary="Recover the streams bound by cd_couple_working — the EXACT "
                     "inverse (the Class-M unbind; `#T938`). Applies the conjugate "
@@ -8379,7 +8379,7 @@ def _register_primitive_class_tools() -> None:
                       "empty"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.cd_carry", owner="srmech",
+            name="srmech.cascade.cd_carry", owner="srmech",
             category="cascade",
             summary="Encode overflow bits (past the reversible working set) into a "
                     "Hamming(2ⁿ−1) single-error-correcting GF(2) codeword — the "
@@ -8400,7 +8400,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("list[int]", "the 2ⁿ−1-bit codeword (0/1 list)"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.cd_correct", owner="srmech",
+            name="srmech.cascade.cd_correct", owner="srmech",
             category="cascade",
             summary="Locate + correct a single-bit error in an EC-block codeword and "
                     "recover the carried payload — the EC/carry layer's read (`#T938`). "
@@ -8423,7 +8423,7 @@ def _register_primitive_class_tools() -> None:
         # dotted ``cascade.compose.*`` exempt in coverage); bundle_with_ties is a
         # Class-M op registered under its real ``srmech.math.hdc.*`` name.
         ToolEntry(
-            name="srmech.amsc.cascade.signed_sum_squared", owner="srmech",
+            name="srmech.cascade.signed_sum_squared", owner="srmech",
             category="cascade",
             summary="Element-wise squared signed-sum across a stack of bit sources "
                     "— the coupling-score composite (UPSTREAM §1.2). Per position: "
@@ -8439,7 +8439,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("list[int]", "per-position squared signed-sum"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.top_k_by_score", owner="srmech",
+            name="srmech.cascade.top_k_by_score", owner="srmech",
             category="cascade",
             summary="Indices of the k highest- (or lowest-) scoring items — the "
                     "catalog selection composite (UPSTREAM §1.3). Class E (sorted-key "
@@ -8474,11 +8474,11 @@ def _register_primitive_class_tools() -> None:
         ),
         # The One — S(σ,θ), the single generator of the 1+3+7+3 = 14 substrate
         # (#887). Registered under its STABLE FLAT public name
-        # ``srmech.amsc.cascade.the_one``; the submodule-dotted
-        # ``srmech.amsc.cascade.one.the_one`` + its ``s_generator`` alias are the
+        # ``srmech.cascade.the_one``; the submodule-dotted
+        # ``srmech.cascade.one.the_one`` + its ``s_generator`` alias are the
         # same object re-exported flat (exempt in test_tool_schema_coverage).
         ToolEntry(
-            name="srmech.amsc.cascade.the_one", owner="srmech",
+            name="srmech.cascade.the_one", owner="srmech",
             category="cascade",
             summary="The One — S(σ,θ), the single generator of the 1+3+7+3 = 14 "
                     "substrate (#887). Builds the Hurwitz division-algebra ladder "
@@ -8513,7 +8513,7 @@ def _register_primitive_class_tools() -> None:
         # grading-collapse the audit hunts AND a precision hazard.
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.cascade.winding_fold", owner="srmech",
+            name="srmech.cascade.winding_fold", owner="srmech",
             category="cascade",
             summary="The 2π seam-fold as the DIVMOD it is: theta → (w, "
                     "theta_res) with theta = 2π·w + theta_res, the quotient "
@@ -8559,7 +8559,7 @@ def _register_primitive_class_tools() -> None:
         # the Machin-2π anchor _EPH_TWO_PI, feeding the exact series.
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.cascade.frame_carrier.frame_carrier",
+            name="srmech.cascade.frame_carrier.frame_carrier",
             owner="srmech", category="cascade",
             summary="The FRAME-CARRYING CARRIER: augment a 2π-periodic "
                     "truncated Taylor series (sin/cos_series_truncate) with "
@@ -8602,7 +8602,7 @@ def _register_primitive_class_tools() -> None:
                               "pairs"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.frame_carrier.frame_carrier_compare",
+            name="srmech.cascade.frame_carrier.frame_carrier_compare",
             owner="srmech", category="cascade",
             summary="Cross-seam compare of two frame-carrying carriers: "
                     "PARALLEL-TRANSPORT the frame, THEN compare, with the "
@@ -8646,7 +8646,7 @@ def _register_primitive_class_tools() -> None:
         # SAME SHAPE, INVERSE (MFO §VIII.31.11; spike-verified). Compositions
         # of Class C orientation + Class K sign; no new class, no C symbol.
         ToolEntry(
-            name="srmech.amsc.cascade.chiral_flip", owner="srmech",
+            name="srmech.cascade.chiral_flip", owner="srmech",
             category="cascade",
             summary="Class C orientation reversal: reverse a sequence's "
                     "traversal order (seq[::-1]). The value-level Class C "
@@ -8657,7 +8657,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("sequence", "orientation-reversed sequence (type preserved)"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.chiral_dual", owner="srmech",
+            name="srmech.cascade.chiral_dual", owner="srmech",
             category="cascade",
             summary="Class C ∘ op ∘ Class C: run an operator in the opposite "
                     "Class-C orientation. Conjugating any operator by "
@@ -8667,14 +8667,14 @@ def _register_primitive_class_tools() -> None:
                     + PUBLISH_OPT_IN_NOTE,
             parameters=(P("op", "operator_name", True,
                           "dotted NAME of a unary sequence→sequence operator "
-                          "(e.g. srmech.amsc.cascade.chiral_flip); resolved "
+                          "(e.g. srmech.cascade.chiral_flip); resolved "
                           "to its callable through the srmech-namespace "
                           "operator-name resolver"),
                         P("x", "sequence", True, "input sequence")),
             returns=R("sequence", "chiral_flip(op(chiral_flip(x)))"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.net_chirality", owner="srmech",
+            name="srmech.cascade.net_chirality", owner="srmech",
             category="cascade",
             summary="Class C net handedness of a cascade: product of per-op "
                     "orientations in {-1,0,+1} via composed reorient (no "
@@ -8690,7 +8690,7 @@ def _register_primitive_class_tools() -> None:
         # magnitude (no Python-only cascade capability; only the thread
         # fan-out is Python). C-orchestration parity tracked by issue #771.
         ToolEntry(
-            name="srmech.amsc.cascade.parallel_sector_dispatch", owner="srmech",
+            name="srmech.cascade.parallel_sector_dispatch", owner="srmech",
             category="cascade",
             summary="PARALLELISE a cascade body instead of running it "
                     "serially: fan one cascade `body` across its ≤4 Klein-4 "
@@ -8755,7 +8755,7 @@ def _register_primitive_class_tools() -> None:
                       "framework_thread_ladder_reading}"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.coupled.coupled_wave", owner="srmech",
+            name="srmech.cascade.coupled.coupled_wave", owner="srmech",
             category="cascade",
             summary="The coupled EM-quadrature DRIVE at phase theta — the "
                     "full-chirality (E, B) pair instead of a collapsed 1-bit "
@@ -8788,7 +8788,7 @@ def _register_primitive_class_tools() -> None:
                       "and (sign E, sign B) the Klein-4 sector"),
         ),
         ToolEntry(
-            name="srmech.amsc.cascade.coupled.multiplex_streams", owner="srmech",
+            name="srmech.cascade.coupled.multiplex_streams", owner="srmech",
             category="cascade",
             summary="Recombine N steering WAVES into one driver — the multiplex "
                     "(W18 / F573-F577). A 'stream' is a per-step real-valued "
@@ -9870,7 +9870,7 @@ def _register_qm_tools() -> None:
         # ────────────────────────────────────────────────────────────
         # srmech.qm.hurwitz — the octonion-native matrix realisation of
         # "the One" S(σ,θ) (#887); the qm-tier Rosetta peer of the
-        # numpy-free srmech.amsc.cascade.the_one. The Fano planes of each
+        # numpy-free srmech.cascade.the_one. The Fano planes of each
         # rotation are DERIVED from octonion_mult_table (not hardcoded), so
         # the 14×14 matrix agrees bit-for-bit with One.to_matrix.
         # ────────────────────────────────────────────────────────────
@@ -9880,7 +9880,7 @@ def _register_qm_tools() -> None:
             summary="The oriented Fano planes (a,b,sign) each Hurwitz block "
                     "(ℂ/ℍ/𝕆) turns by θ, DERIVED from octonion_mult_table — "
                     "0/1/3 planes (the octonion epicycle). Matches the "
-                    "hardcoded srmech.amsc.cascade.one.FANO_PLANES bit-for-bit "
+                    "hardcoded srmech.cascade.one.FANO_PLANES bit-for-bit "
                     "(the structure cross-derivation). Class A "
                     "(content-addressing the octonion convention). Scientific "
                     "tier (§22): numpy. Baez (2002) §2." + PUBLISH_OPT_IN_NOTE,
@@ -10424,7 +10424,7 @@ def _register_dsl_tools() -> None:
     NOTE on the import-cycle: this function builds *declarative*
     ``ToolEntry`` data only — it does NOT import ``srmech.dsl`` (whose
     ``_chain`` pulls ``srmech.introspect._writer`` and whose ``_catalog``
-    lazily pulls ``srmech.amsc.cascade``). The dotted-name targets are
+    lazily pulls ``srmech.cascade``). The dotted-name targets are
     resolved by :mod:`srmech.mcp._tools` at *invoke* time, not here, so
     registering at this module's import is cycle-free. ``warmup_all()``
     additionally imports ``srmech.dsl`` for manifest completeness; that

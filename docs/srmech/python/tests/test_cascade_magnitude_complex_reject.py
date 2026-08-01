@@ -27,8 +27,8 @@ remain in contract.
 """
 import pytest
 
-from srmech.amsc import cascade
-from srmech.amsc.cascade import atoms
+from srmech import cascade
+from srmech.cascade import atoms
 
 
 # ──────────────────────────────────────────────────────────────────────

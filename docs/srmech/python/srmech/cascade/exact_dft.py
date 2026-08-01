@@ -29,7 +29,7 @@ Public surface (v0.7.5rc29):
 - :func:`lift` — the single FPU lift ``ℤ[ζ_N] → ℂ`` (the *only* float producer).
 
 The public ops are also the **internal engine** behind
-:mod:`srmech.amsc.cascade.spectral_cascades` ``dft`` / ``fft``, which route an
+:mod:`srmech.cascade.spectral_cascades` ``dft`` / ``fft``, which route an
 all-integer power-of-two signal through :func:`_exact_transform`
 (exact-until-rotation) and keep the float ``cexp`` path only for genuinely
 floating-point signals or non-power-of-two lengths. General-``N``
@@ -312,7 +312,7 @@ def exact_dft(signal: Sequence, *, inverse: bool = False) -> ExactSpectrum:
     arbitrary-precision Python cyclotomic path.
 
     Raises ``ValueError`` for non-integral input (use
-    :func:`~srmech.amsc.cascade.spectral_cascades.dft` for float signals) or
+    :func:`~srmech.cascade.spectral_cascades.dft` for float signals) or
     ``N < 2``.
     """
     pairs = _try_int_pairs(signal)

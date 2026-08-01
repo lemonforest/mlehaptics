@@ -60,8 +60,8 @@ from pathlib import Path
 import pytest
 
 from srmech import _native
-from srmech.amsc.cascade import matrix_cascades as mc
-from srmech.amsc.cascade.matrix_cascades import factor_integer_poly
+from srmech.cascade import matrix_cascades as mc
+from srmech.cascade.matrix_cascades import factor_integer_poly
 
 
 def test_numpy_is_absent_so_this_runs_not_skips():
@@ -306,7 +306,7 @@ _LEDGER = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 def test_rosetta_row_is_c_dispatched():
     rows = {json.loads(l)["defined_at"]: json.loads(l)["bucket"]
             for l in _LEDGER.read_text(encoding="utf-8").splitlines() if l.strip()}
-    key = "srmech.amsc.cascade.matrix_cascades.factor_integer_poly"
+    key = "srmech.cascade.matrix_cascades.factor_integer_poly"
     assert rows[key] == "c_dispatched", (
         f"factor_integer_poly should be c_dispatched after rc165; got {rows[key]}")
 

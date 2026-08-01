@@ -129,14 +129,14 @@ ORIGINAL_N_MODULES = 75
 #: co-located with the .so it loads). Takes LANDED from 61 to 71 and the live amsc
 #: count from 14 to 4 == KEEPERS: the arc is DONE (conservation 4 + 71 == 75).
 EXPECTED_N_MODULES = 4
-EXPECTED_N_SUBPACKAGES = 3
+EXPECTED_N_SUBPACKAGES = 2
 
 #: sha256 over the NORMALISED manifest body — "\n".join(sorted entries) + "\n",
 #: UTF-8. Normalised rather than raw-file-bytes so a CRLF checkout cannot make
 #: the digest disagree between the Windows and Linux CI cells; that would be a
 #: platform artifact masquerading as a move (the rc361 rationale, verbatim).
 EXPECTED_CENSUS_SHA256 = (
-    "7536f292fd4d7f558def2c8173ec85034aaca2dabe2699163c1a74ab382da5cc")
+    "91df88e7a2659682e0fa6b400365cfa7f48a411fb78eddc9eb5f081c74a0371e")
 
 # ── the four keepers, and the A.2 move map (as DATA the test reads) ──────────
 
@@ -146,11 +146,13 @@ EXPECTED_CENSUS_SHA256 = (
 #: under introspect; A.2 is the authoritative correction and keeps it here.)
 KEEPERS = frozenset({"catalog", "descriptor", "format", "gap_suggester"})
 
-#: The three subpackages present at rc365. ``adapters`` + ``attested`` are the
-#: attestation subpackages and STAY; ``cascade`` is slated to move under A.2's
-#: ``srmech.cascade.*`` row (Status-of-adoption "verify"), so subpackages are
-#: down-only too.
-EXPECTED_SUBPACKAGES = frozenset({"adapters", "attested", "cascade"})
+#: The subpackages present after rc377. ``adapters`` + ``attested`` are the
+#: attestation subpackages and STAY (the arc's floor); ``cascade`` DEPARTED at
+#: rc377 (the FINAL slice) — its 15 modules folded into the top-level
+#: ``srmech.cascade`` structure-home under A.2's ``srmech.cascade.*`` row — so
+#: the subpackage set has drained 3 -> 2 (subpackages are down-only too, exactly
+#: like the module set: one may LEAVE, none may appear).
+EXPECTED_SUBPACKAGES = frozenset({"adapters", "attested"})
 ATTESTATION_SUBPACKAGES = frozenset({"adapters", "attested"})
 
 #: A.2's move map, per-destination COUNTS, quoted verbatim. rc376 (Amendment M)
@@ -414,7 +416,7 @@ def test_live_subpackages_are_a_subset_of_the_manifest() -> None:
     assert live <= committed, (
         f"a subpackage APPEARED in srmech/amsc not in the census: {added}. "
         f"The attestation subpackages are {sorted(ATTESTATION_SUBPACKAGES)}; "
-        f"'cascade' is slated to move to the top-level srmech.cascade namespace.")
+        f"'cascade' DEPARTED at rc377 to the top-level srmech.cascade namespace.")
 
 
 # ── 3. the departures respect A.2, and the keepers never leave ───────────────
@@ -623,8 +625,11 @@ def test_the_end_state_floor_is_the_four_keepers() -> None:
 
     ``amsc`` drained 75 modules -> 4. rc376 (Amendment M) landed the last ten
     non-keepers, so ``_live_modules()`` now EQUALS ``KEEPERS``. The module drain
-    is complete; the ``cascade`` subpackage remains under A.2's separate
-    subpackage row (``adapters`` + ``attested`` are the attestation keepers).
+    is complete; and rc377 (Amendment N, the FINAL slice) drained the last
+    non-attestation subpackage — ``cascade`` folded into the top-level
+    ``srmech.cascade`` structure-home — so the SUBPACKAGE set is now exactly the
+    two attestation keepers (``adapters`` + ``attested``). ADR-0010 execution is
+    FULLY COMPLETE: modules AND subpackages.
     """
     assert len(KEEPERS) == 4
     assert KEEPERS == _manifest_modules(), (

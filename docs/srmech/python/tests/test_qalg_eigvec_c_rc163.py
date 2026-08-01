@@ -41,8 +41,8 @@ import pytest
 
 from srmech import _native
 from srmech.math.qalg import Qalg
-from srmech.amsc.cascade import matrix_cascades as mc
-from srmech.amsc.cascade.matrix_cascades import (
+from srmech.cascade import matrix_cascades as mc
+from srmech.cascade.matrix_cascades import (
     eigvec_exact,
     eigvec_exact_float,
 )
@@ -245,8 +245,8 @@ def test_rosetta_rows_are_c_dispatched():
     fixture = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
     rows = {json.loads(l)["defined_at"]: json.loads(l)["bucket"]
             for l in fixture.read_text(encoding="utf-8").splitlines() if l.strip()}
-    for op in ("srmech.amsc.cascade.matrix_cascades.eigvec_exact",
-               "srmech.amsc.cascade.matrix_cascades.eigvec_exact_float"):
+    for op in ("srmech.cascade.matrix_cascades.eigvec_exact",
+               "srmech.cascade.matrix_cascades.eigvec_exact_float"):
         assert rows[op] == "c_dispatched", (op, rows.get(op))
 
 

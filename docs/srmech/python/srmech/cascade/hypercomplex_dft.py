@@ -56,7 +56,7 @@ length 8, the ``octonion_{left,right}_mult`` operators are consumed as the
 numpy-free :class:`srmech.math.mat.Mat` they now return, and the per-term
 matvec rides a numpy-free :class:`Mat`-column ``mat_matmul`` (the pattern
 ``qm.single_particle`` used in rc117) — never numpy ``@`` / ``dense_matvec``.
-``import srmech.amsc.cascade`` and every transform import + run numpy-absent.
+``import srmech.cascade`` and every transform import + run numpy-absent.
 
 Citations (verified PDFs —
 ``docs/srmech/notes/qdft_odft_citation_verification_863.md``; the QDFT anchor
@@ -140,7 +140,7 @@ _BRACKETINGS = ("left_associated", "right_associated")
 # sed_couple/sed_uncouple transitive-ratchet allowlist.
 from srmech.math.q import Q                               # #845: exact float→ℚ boundary
 from srmech.math.rational import _q61_fxmul               # Q61 fixed-point multiply
-from srmech.amsc.cascade.cayley_dickson import cd_basis_product as _cd_basis
+from .cayley_dickson import cd_basis_product as _cd_basis
 # (`_q61_int` is the module-local Q-int projector defined above.)
 
 
@@ -219,7 +219,7 @@ def hypercomplex_exp(theta: float, k_axes: int) -> Tuple["_Q", ...]:
     octonion imaginary axes — ``k_axes ∈ {1, 3, 7}`` selecting ``ℂ`` / ``ℍ`` /
     ``𝕆`` (the F882 *literal* QDFT / ODFT twiddle). The eight components are
     ``q[0] = cos θ``, ``q[1..k] = sin θ / √k`` (so ``|q| = 1``), ``q[k+1..7] =
-    0``. Feed them into :func:`~srmech.amsc.cascade.cd_mult` to rotate a
+    0``. Feed them into :func:`~srmech.cascade.cd_mult` to rotate a
     hypercomplex value **in the algebra** (then project once) — the "do the
     transform in ℍ/𝕆, then read out" that beats composing scalar ``phase_bind``
     ops on the projected carrier (F882: ℂ 0.78 = the spirit's ℍ rung; 𝕆/ODFT

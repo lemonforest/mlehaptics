@@ -15,7 +15,7 @@
  * (p, q) selects which Cayley-Dickson cross-term survives for unit operands,
  * possibly swapping the operands and flipping the sign via the conjugation.
  *
- * Rosetta peer of srmech.amsc.cascade.cayley_dickson.cd_basis_product —
+ * Rosetta peer of srmech.cascade.cayley_dickson.cd_basis_product —
  * attested bit-exact by tests/test_cascade_cayley_dickson_parity.py.
  *
  * JPL Power-of-Ten compliance:

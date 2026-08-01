@@ -14,7 +14,7 @@
  * position of the single flipped bit; 0 = clean. Distance 3 => corrects any
  * single-bit error. Hamming(7,4) is the octonion's own Fano plane (F441).
  *
- * Rosetta peer of srmech.amsc.cascade.hamming_* — attested bit-exact by
+ * Rosetta peer of srmech.cascade.hamming_* — attested bit-exact by
  * tests/test_cascade_hamming_parity.py.
  *
  * JPL Power-of-Ten compliance:

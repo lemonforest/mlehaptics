@@ -39,9 +39,9 @@ from pathlib import Path
 
 import pytest
 
-import srmech.amsc.cascade.hypercomplex_dft as hd
+import srmech.cascade.hypercomplex_dft as hd
 from srmech import _native
-from srmech.amsc.cascade import phase_coherent_peak, quaternion_dft
+from srmech.cascade import phase_coherent_peak, quaternion_dft
 from srmech.math.mat import Mat
 
 NR = 6
@@ -258,7 +258,7 @@ def test_tools_total_matches_live():
 def test_registered_under_flat_name():
     from srmech.introspect.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
-    assert "srmech.amsc.cascade.phase_coherent_peak" in names
+    assert "srmech.cascade.phase_coherent_peak" in names
 
 
 def test_rosetta_bucket_is_c_dispatched():
@@ -267,7 +267,7 @@ def test_rosetta_bucket_is_c_dispatched():
             fixture.read_text(encoding="utf-8").splitlines() if l.strip()]
     buckets = {r["defined_at"]: r["bucket"] for r in rows}
     assert buckets[
-        "srmech.amsc.cascade.hypercomplex_dft.phase_coherent_peak"
+        "srmech.cascade.hypercomplex_dft.phase_coherent_peak"
     ] == "c_dispatched"
 
 

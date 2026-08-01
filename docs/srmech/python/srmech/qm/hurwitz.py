@@ -1,7 +1,7 @@
 """Hurwitz generator ``S(σ,θ)`` — the octonion-native matrix realisation.
 
 The ``srmech.qm`` Rosetta peer of the numpy-free
-:func:`srmech.amsc.cascade.the_one` (#887). It builds the SAME ``14×14``
+:func:`srmech.cascade.the_one` (#887). It builds the SAME ``14×14``
 block-diagonal operator
 
 .. math::
@@ -13,7 +13,7 @@ where ``2+4+8`` is the **CARRIER** grouping of the 14 (by algebra). The
 cascade peer's ``1+3+7+3`` is the **OPERATOR** grouping of the *same* 14 (by
 role: three ``Im 𝔸ₙ`` blocks + three ``ℝ·1`` grammar anchors). They are the
 row-sums and the column-sums of one table, not rival totals — see the
-``Two partitions, one 14`` paragraph in :mod:`srmech.amsc.cascade.one`.
+``Two partitions, one 14`` paragraph in :mod:`srmech.cascade.one`.
 
 The module **derives** the Fano planes of each rotation ``R_n(θ)`` straight from
 :func:`srmech.qm.octonion.octonion_mult_table` — not from a hardcoded list —
@@ -42,7 +42,7 @@ primitive class.
 Scientific tier (§22): ``srmech.qm`` requires numpy; the matrix entries are
 ``{0, ±1, ±cos θ, ±sin θ}`` built from the exact-rational cascade ``cos``/
 ``sin`` (float-cast at the boundary), so they are bit-exactly the entries of
-:meth:`srmech.amsc.cascade.One.to_matrix`.
+:meth:`srmech.cascade.One.to_matrix`.
 
 Canonical SSoT:
 - Baez, J.C. (2002) *The Octonions*, Bull. Amer. Math. Soc. 39, 145-205
@@ -95,7 +95,7 @@ def hurwitz_planes() -> Tuple[Tuple[Tuple[int, int, int], ...], ...]:
     Returns a 3-tuple (one entry per ladder rung); each entry is the tuple
     of ``(a, b, sign)`` planes that block's rotation turns by θ — ``0 / 1 /
     3`` planes for ℂ / ℍ / 𝕆. These match
-    :data:`srmech.amsc.cascade.one.FANO_PLANES` bit-for-bit (the cascade form
+    :data:`srmech.cascade.one.FANO_PLANES` bit-for-bit (the cascade form
     hardcodes them; this reads them from the attested
     :func:`srmech.qm.octonion.octonion_mult_table`).
 

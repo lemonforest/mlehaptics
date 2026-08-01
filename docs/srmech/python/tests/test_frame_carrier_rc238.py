@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc.cascade.frame_carrier import (
+from srmech.cascade.frame_carrier import (
     frame_carrier,
     frame_carrier_compare,
 )
@@ -202,10 +202,10 @@ def test_registration_and_coverage():
 
     from srmech.introspect.tool_schema import get_tool_schema
     reg = {t.name for t in get_tool_schema().tools}
-    assert "srmech.amsc.cascade.frame_carrier.frame_carrier" in reg
-    assert "srmech.amsc.cascade.frame_carrier.frame_carrier_compare" in reg
+    assert "srmech.cascade.frame_carrier.frame_carrier" in reg
+    assert "srmech.cascade.frame_carrier.frame_carrier_compare" in reg
 
 
 def test_module_all_is_exactly_the_two_public_ops():
-    import srmech.amsc.cascade.frame_carrier as fc
+    import srmech.cascade.frame_carrier as fc
     assert set(fc.__all__) == {"frame_carrier", "frame_carrier_compare"}

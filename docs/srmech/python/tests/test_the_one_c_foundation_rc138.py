@@ -1,6 +1,6 @@
 """v0.9.0rc138 — FOUNDATION F3: the S(σ,θ) ADJOINT generator gets its C peer.
 
-The FLAGSHIP C:Python-parity backfill (#743). ``srmech.amsc.cascade.one.the_one``
+The FLAGSHIP C:Python-parity backfill (#743). ``srmech.cascade.one.the_one``
 built the octonion-epicycle ADJOINT (``One.to_flat_rational`` — the w-INVARIANT
 2π-periodic base) in pure Python with NO C peer, parked in the non-debt
 ``bignum_reference`` bucket. rc138 gives it ``srmech_the_one``: the exact-rational
@@ -23,8 +23,8 @@ import random
 
 import pytest
 
-from srmech.amsc.cascade import the_one
-from srmech.amsc.cascade.one import (
+from srmech.cascade import the_one
+from srmech.cascade.one import (
     to_scalar, _chiral_scale, _reduce_rational,
 )
 from srmech.math.rational import cos_series_truncate, sin_series_truncate

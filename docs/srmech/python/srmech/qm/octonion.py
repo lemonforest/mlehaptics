@@ -51,7 +51,7 @@ A-N placement (per ``[[feedback_no_privileged_primitive_classes]]``):
 - ``octonion_conjugate`` — **Class C** (chirality / orientation: conjugation
   flips the imaginary-axis sign).
 - ``octonion_norm`` — **Class K + Class C** (the Class K pin-slot magnitude
-  via ``srmech.amsc.cascade.magnitude`` composed with Class C sign-handling;
+  via ``srmech.cascade.magnitude`` composed with Class C sign-handling;
   **never** Python ``abs()`` per
   ``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]``).
 - ``octonion_exp`` / ``octonion_twiddle`` — **Class N** (Q61 cos/sin
@@ -80,7 +80,7 @@ from srmech.math.rational import sqrt as _rsqrt  # §22: scalar root via Class-N
 from typing import List, Sequence, Tuple
 
 from srmech import _native  # rc122: numpy-free native loop-op dispatch
-from srmech.amsc.cascade import magnitude as _magnitude
+from srmech.cascade import magnitude as _magnitude
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
 from srmech.math.mat import Mat  # rc122: numpy-free 2-D carrier for L_a / R_a
 
@@ -160,7 +160,7 @@ def _build_mult_table() -> Tuple[Tuple[Tuple[int, ...], ...], ...]:
     """Generate the ``(8, 8, 8)`` int8 structure-constant tensor (cached).
 
     rc10: built from the Cayley-Dickson basis cocycle ``e_i·e_j = sign·e_{i⊕j}``
-    via :func:`srmech.amsc.cascade.cd_basis_product` — the C primitive
+    via :func:`srmech.cascade.cd_basis_product` — the C primitive
     ``srmech_cd_basis_product`` when native is present, its pure-Python loop
     otherwise. Same fixed convention as the module docstring's generative rules
     (``_DOUBLING_RULE`` / ``_CONJ_RULE``); the int8 bytes are **identical** to the
@@ -173,7 +173,7 @@ def _build_mult_table() -> Tuple[Tuple[Tuple[int, ...], ...], ...]:
     memoised as an IMMUTABLE nested tuple; :func:`octonion_mult_table` hands
     callers a fresh mutable nested-list COPY so the cache can never be mutated.
     """
-    from srmech.amsc.cascade import cd_basis_product as _cd_basis_product
+    from srmech.cascade import cd_basis_product as _cd_basis_product
     table = [[[0] * _DIM for _ in range(_DIM)] for _ in range(_DIM)]
     for i in range(_DIM):
         for j in range(_DIM):
@@ -189,7 +189,7 @@ def octonion_mult_table() -> List[List[List[int]]]:
     convention (see module docstring). ``e_0`` is the identity;
     ``e_1^2 = ... = e_7^2 = -e_0``; the off-diagonal imaginary products
     anticommute. Built from the Cayley-Dickson basis cocycle
-    (:func:`srmech.amsc.cascade.cd_basis_product`; the native
+    (:func:`srmech.cascade.cd_basis_product`; the native
     ``srmech_cd_basis_product`` when present). The generation is memoised
     (:func:`_build_mult_table`); each call returns a fresh mutable copy (two
     calls are entry-identical but independent).
@@ -446,12 +446,12 @@ def octonion_norm(x: Sequence[float]) -> float:
     norm form is the indefinite ``(4, 4)`` one, and this function would report
     a positive number for a genuine null vector. That is not a latent bug here
     — this module cannot construct a split algebra — but it IS the same
-    substitution :func:`srmech.amsc.cascade.inertia_signature` exists to avoid.
+    substitution :func:`srmech.cascade.inertia_signature` exists to avoid.
     For a twist, use ``cd_norm_sq(x, gammas=…)`` or read ``Re(x·x̄)`` through
-    :func:`srmech.amsc.cascade.table_product`.
+    :func:`srmech.cascade.table_product`.
 
     The sum-of-squares is passed through the **scalar** Class K pin-slot
-    magnitude (:func:`srmech.amsc.cascade.magnitude` — the cascade-honest
+    magnitude (:func:`srmech.cascade.magnitude` — the cascade-honest
     replacement for ``abs()`` per
     ``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]``), then the
     Class-N ``rational.sqrt``. ``magnitude`` is SCALAR-ONLY, so the reduction
@@ -587,7 +587,7 @@ def octonion_exp(theta: float, mu="i") -> List[float]:
     Class-N cascade (``rational.{cos,sin}``; native ``srmech_{cos,sin}_q61``)
     projected to float ONCE; the exact-rational tier is
     :func:`octonion_exp_series_truncate`; the exact-Q61 equal-weight-axis
-    tier is :func:`srmech.amsc.cascade.hypercomplex_exp` (``k_axes=7``).
+    tier is :func:`srmech.cascade.hypercomplex_exp` (``k_axes=7``).
     Dispatches to the same-rc C peer ``srmech_octonion_exp`` (byte-exact
     pure fallback).
 

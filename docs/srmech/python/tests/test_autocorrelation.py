@@ -1,6 +1,6 @@
 """v0.7.0rc8 — the Class-L circular autocorrelation primitive + C parity.
 
-``srmech.amsc.cascade.autocorrelation(x)`` is the circular autocorrelation
+``srmech.cascade.autocorrelation(x)`` is the circular autocorrelation
 
     r[k] = Σ_i x[i] · x[(i + k) mod n],   r[0] = Σ x² = energy
 
@@ -29,8 +29,8 @@ import random
 import pytest
 
 from srmech import _native
-from srmech.amsc.cascade import autocorrelation
-from srmech.amsc.cascade.compose import _try_native_autocorrelation
+from srmech.cascade import autocorrelation
+from srmech.cascade.composites import _try_native_autocorrelation
 
 _RNG = random.Random(8087)
 

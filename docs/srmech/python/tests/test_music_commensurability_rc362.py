@@ -27,7 +27,7 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc.cascade.atoms import magnitude, pin_slot_at_zero
+from srmech.cascade.atoms import magnitude, pin_slot_at_zero
 from srmech.math.q import Q
 from srmech.math.qalg import Qalg
 from srmech import music
@@ -160,7 +160,7 @@ def test_magnitude_inherits_the_origin_fix_and_stays_type_preserving():
 def test_class_k_atoms_are_annotated_for_the_carriers_they_actually_accept():
     """DOC-1: both were annotated ``float``-only despite being type-preserving,
     which discouraged the exact-carrier use the ``abs()`` ban requires."""
-    from srmech.amsc.cascade import atoms
+    from srmech.cascade import atoms
     # ``from __future__ import annotations`` keeps these as source strings, so
     # the assertion is a containment check rather than an equality one.
     assert "Real" in atoms.pin_slot_at_zero.__annotations__["x"]

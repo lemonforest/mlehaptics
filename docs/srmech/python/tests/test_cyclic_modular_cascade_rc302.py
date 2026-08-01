@@ -25,7 +25,7 @@ import random
 import pytest
 
 from srmech.math import cyclic
-from srmech.amsc import cascade
+from srmech import cascade
 from srmech.introspect.tool_schema import get_tool_schema
 from srmech.dsl import chain, list_cascade_ops, run_toml_chain
 
@@ -169,11 +169,11 @@ def test_new_ops_are_registered_in_tool_schema():
     expected = {
         "srmech.math.cyclic.bigint_mul",
         "srmech.math.cyclic.mod_mul_wide",
-        "srmech.amsc.cascade.cyclic_mod_mul",
-        "srmech.amsc.cascade.cyclic_mod_add",
-        "srmech.amsc.cascade.cyclic_mod_pow",
-        "srmech.amsc.cascade.cyclic_mod_inv",
-        "srmech.amsc.cascade.cyclic_mod_mul_wide",
+        "srmech.cascade.cyclic_mod_mul",
+        "srmech.cascade.cyclic_mod_add",
+        "srmech.cascade.cyclic_mod_pow",
+        "srmech.cascade.cyclic_mod_inv",
+        "srmech.cascade.cyclic_mod_mul_wide",
     }
     assert expected <= names, f"missing: {expected - names}"
 
@@ -187,7 +187,7 @@ def test_summaries_carry_user_facing_aboutness():
     mp = by_name["srmech.math.cyclic.mod_pow"].summary.lower()
     assert "modular exponentiation" in mp and "square-and-multiply" in mp
     # magnitude: searchable "absolute value" + kept "class k pin-slot".
-    mag = by_name["srmech.amsc.cascade.magnitude"].summary.lower()
+    mag = by_name["srmech.cascade.magnitude"].summary.lower()
     assert "absolute value" in mag and "class k pin-slot" in mag
     # bignum multiply is discoverable by "bignum multiply".
     bm = by_name["srmech.math.cyclic.bigint_mul"].summary.lower()

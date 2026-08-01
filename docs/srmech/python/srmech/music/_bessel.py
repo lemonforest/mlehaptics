@@ -31,7 +31,7 @@ from __future__ import annotations
 
 from typing import Tuple
 
-from srmech.amsc.cascade.atoms import pin_slot_at_zero, reorient
+from srmech.cascade.atoms import pin_slot_at_zero, reorient
 from srmech.math.q import Q
 
 __all__ = ["bessel_j_fixed", "bessel_zero_fixed"]

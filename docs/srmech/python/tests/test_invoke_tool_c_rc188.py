@@ -54,7 +54,7 @@ _BATCH_CASES = [
     ("srmech.math.cyclic.mod_pow", {"a": 3, "k": 4, "n": 7}),
     ("srmech.math.cyclic.mod_inv", {"a": 3, "n": 7}),
     ("srmech.math.cyclic.three_cycle", {"value": 5}),
-    ("srmech.amsc.cascade.cyclic_gcd", {"a": 24, "b": 36}),
+    ("srmech.cascade.cyclic_gcd", {"a": 24, "b": 36}),
     ("srmech.math.primes.next_prime", {"n": 100}),
     # u -> bool
     ("srmech.math.primes.is_prime", {"n": 97}),

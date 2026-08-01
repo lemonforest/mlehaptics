@@ -39,7 +39,7 @@ import pytest
 
 from srmech import _native
 from srmech.biology import genome as G
-from srmech.amsc.cascade.one import the_one
+from srmech.cascade.one import the_one
 from srmech.biology.genome import (
     ELEMENT_TYPE_KLEIN4, ELEMENT_TYPE_OCTONION, ELEMENT_TYPE_Q8, FIBER_CAP_MARKER,
     OCT_FIBER_CAP_MARKER, OCTONION_SECTORS, QUAD, _cap_kind, chromosome,

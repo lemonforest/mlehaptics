@@ -76,7 +76,7 @@ def test_the_one_on_One_is_curved_the_F2_holonomy():
     F2 (separate_winding_curvature) decomposes as its curvature. The two faces
     of rc237 agree: the One's responsion is frame-DEPENDENT."""
     schema = _pure_responsion_schema()
-    edge = schema["srmech.amsc.cascade.the_one|One"][0]
+    edge = schema["srmech.cascade.the_one|One"][0]
     assert edge["carrier"] == "One"
     assert edge["curvature"] == "curved"
 
@@ -123,7 +123,7 @@ def test_rc236_grounds_the_flat_vs_curved_split():
     """The schema's flat/curved lift must agree with rc236's concrete is_flat on
     the same distinction: commuting/1×1/symmetric-commuting pairing → flat;
     non-commuting (σx, σz) → curved."""
-    from srmech.amsc.cascade.matrix_cascades import separate_frame_curvature
+    from srmech.cascade.matrix_cascades import separate_frame_curvature
 
     # non-commuting operator pairing → curved (is_flat False)
     sx, sz = [[0, 1], [1, 0]], [[1, 0], [0, -1]]

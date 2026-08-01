@@ -28,7 +28,7 @@
  * column k of P is a genuine witness. Sylvester's law of inertia is what makes
  * the answer independent of every pivot choice taken along the way.
  *
- * Rosetta peer of srmech.amsc.cascade.cayley_dickson.inertia_signature --
+ * Rosetta peer of srmech.cascade.cayley_dickson.inertia_signature --
  * attested bit-exact by tests/test_algebra_inertia_rc349.py.
  *
  * EXACTNESS + THE int64 CEILING. No float, no epsilon, no division except the

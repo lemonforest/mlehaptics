@@ -22,7 +22,7 @@ import array
 
 from srmech import _native
 from srmech.math import hdc
-from srmech.amsc.cascade import exact_dft as edft
+from srmech.cascade import exact_dft as edft
 
 
 # ---------------------------------------------------------------------------
