@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc377"
-#define SRMECH_VERSION       "0.9.0rc377"
+#define SRMECH_VERSION_PRE   "rc378"
+#define SRMECH_VERSION       "0.9.0rc378"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1102,6 +1102,27 @@ srmech_status_t srmech_mod_inv(uint64_t a, uint64_t n, uint64_t *out);
  * the residue class of value. Result is always in {0, 1, 2}; applying
  * it three times is the identity on each residue (period 3). */
 srmech_status_t srmech_three_cycle(uint64_t value, uint64_t *out);
+
+/* Class I ∘ K ∘ C — the smallest INTEGER vector on the same ray as the
+ * rational vector nums[i]/dens[i] (0.9.0rc378, task T1049; the keystone the
+ * chemistry stoichiometry domain consumes). Clears denominators by their LCM
+ * (Class I), strips the content = gcd of the entry magnitudes (Class I / K),
+ * then pins the FIRST NONZERO entry positive (Class K pin-slot ∘ Class C
+ * reorient — never abs()). Writes the primitive vector to out[0..n-1] and the
+ * signed content to *out_content, with content * primitive == the cleared
+ * integer vector L*v (the reduction is reversible). The all-zero vector maps
+ * to all zeros with *out_content = 0.
+ *
+ * Signed int64 FAST PATH: nums / dens are int64 and out is a caller-owned
+ * int64[n] (used as scratch, no malloc). Any entry == INT64_MIN, or any int64
+ * intermediate overflow, returns SRMECH_ERR_OVERFLOW so the caller can fall
+ * back to an arbitrary-precision path (the pure-Python body is byte-identical).
+ * n == 0 -> *out_content = 0, no writes. den == 0 -> SRMECH_ERR_BAD_INPUT.
+ * ABI-additive: a new symbol, so SRMECH_ABI_VERSION stays 10. */
+srmech_status_t srmech_primitive_integer_vector(const int64_t *nums,
+                                                const int64_t *dens, size_t n,
+                                                int64_t *out,
+                                                int64_t *out_content);
 
 /* ------------------------------------------------------------------ *
  * The One's WINDING surface (siona gh#1276; rc137) — exact INTEGER

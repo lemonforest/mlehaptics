@@ -1058,6 +1058,37 @@ def _register_primitive_class_tools() -> None:
             returns=R("int", "in [0, n)"),
             smoke_test_hint={"a": "2**64", "b": "3", "n": "2**128"},
         ),
+        ToolEntry(
+            name="srmech.math.cyclic.primitive_integer_vector", owner="srmech",
+            category="cyclic",
+            summary="The smallest INTEGER vector on the same ray as an exact "
+                    "ℚ-vector — the keystone for balancing a chemical reaction "
+                    "(the integer nullspace of the stoichiometric matrix). "
+                    "Takes a QMat row/column (what QMat.nullspace returns), a "
+                    "list of Q / int / Fraction, or a list of (num, den) pairs, "
+                    "and returns list[int]: clear denominators by their LCM "
+                    "(Class I), strip the content = gcd of the entry magnitudes "
+                    "(Class I / K), then pin the FIRST NONZERO entry positive "
+                    "(Class K pin-slot ∘ Class C reorient — the standard "
+                    "primitive-representative convention, never abs()). The "
+                    "all-zero vector maps to all zeros. with_content=True "
+                    "returns (content_signed, primitive) so content_signed * "
+                    "primitive reconstructs the denominator-cleared vector L·v "
+                    "(reversible). 1:1 C peer srmech_primitive_integer_vector "
+                    "(int64 fast path; native when present, the pure-Python "
+                    "bignum body the complete byte-identical alternative).",
+            parameters=(P("vec", "list", True,
+                          "the rational vector — over MCP a JSON list of "
+                          "(num, den) pairs or of ints; in-process also a QMat "
+                          "row/column or a list of Q / int / Fraction"),
+                        P("with_content", "bool", False,
+                          "when True return (content_signed, primitive) instead "
+                          "of just primitive (default False)")),
+            returns=R("list",
+                      "list[int] — the primitive integer vector (content 1, "
+                      "first nonzero entry positive); or (content_signed: int, "
+                      "primitive: list[int]) when with_content=True"),
+        ),
         # ────────────────────────────────────────────────────────────
         # Class I — modular linear algebra: GF(p) reduced row-echelon form
         # (rc44, rung 1 of the CRT-QMat re-fibration arc).

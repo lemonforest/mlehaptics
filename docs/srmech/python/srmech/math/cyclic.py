@@ -55,6 +55,7 @@ __all__ = [
     "bigint_mul",
     "mod_mul_wide",
     "three_cycle",
+    "primitive_integer_vector",
 ]
 
 
@@ -374,3 +375,245 @@ def mod_mul_wide(a: int, b: int, n: int) -> int:
             f"mod_mul_wide: a and b must be non-negative; got {a}, {b}"
         )
     return bigint_mul(a, b) % n
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Class I ∘ K ∘ C — the smallest integer vector on a rational vector's ray
+# (0.9.0rc378, `#T1049`). The keystone the chemistry domain (`#T1050`,
+# balancing a reaction = the integer nullspace of the stoichiometric matrix)
+# consumes: turn an exact ℚ-vector — e.g. a kernel column from
+# ``QMat.nullspace`` (:meth:`srmech.math.qmat.QMat.nullspace`) — into the
+# smallest integer vector pointing the SAME way, in the canonical
+# first-nonzero-positive orientation.
+# ──────────────────────────────────────────────────────────────────────────
+
+_INT64_MIN = -(1 << 63)
+_INT64_MAX = (1 << 63) - 1
+
+
+# Class-K magnitude branch (``x if x >= 0 else -x``), NEVER the ALU ``abs``.
+# Sign-flip IS the canonical Class-K pin-slot phase-boundary; this file's
+# ``gcd`` takes non-negative operands, so the magnitude is re-applied here as
+# a Class-K pin-slot ∘ Class-C reorient, matching ``_ipoly_primitive`` /
+# ``_primitive`` in the cascade package (per
+# ``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]``).
+def _pin_magnitude(x: int) -> int:
+    return x if x >= 0 else -x
+
+
+# Class-K pin-slot at zero → the orientation alone, in {-1, 0, +1}.
+def _pin_orientation(x: int) -> int:
+    if x > 0:
+        return 1
+    if x < 0:
+        return -1
+    return 0
+
+
+# Class-C reorient: re-apply a captured orientation (``-x`` for a negative
+# orientation, ``x`` otherwise). No ``abs()``; the sign is the pin-slot.
+def _reorient(x: int, orientation: int) -> int:
+    return -x if orientation < 0 else x
+
+
+def _lcm_uncapped(a: int, b: int) -> int:
+    """LCM of two POSITIVE ints via the Class-I gcd, with NO uint64 cap.
+
+    :func:`lcm` binds the fixed-64-bit ABI ``srmech_lcm`` and rejects operands
+    (or a result) beyond ``2⁶⁴-1``; a ℚ-vector cleared of denominators from an
+    exact ``QMat.nullspace`` grows bignum, so the vector op composes the
+    arbitrary-precision :func:`gcd` directly — the SAME "uncapped companion to
+    the capped scalar op" relationship :func:`mod_mul_wide` has to
+    :func:`mod_mul`. Both ``a`` and ``b`` must be ``> 0``.
+    """
+    return a // gcd(a, b) * b
+
+
+def _to_pairs(vec) -> "list[tuple[int, int]]":
+    """Coerce the accepted input shapes to a list of ``(num, den)`` int pairs
+    with every ``den > 0`` (a negative denominator's sign is folded into the
+    numerator as a Class-K pin-slot ∘ Class-C reorient, never ``abs()``).
+
+    Accepts a ``QMat`` row/column vector, a ``list``/``tuple`` of ``Q`` (or any
+    object exposing ``.numerator`` / ``.denominator`` — ``Q``, ``Fraction``,
+    plain ``int``), and a ``list``/``tuple`` of ``(num, den)`` pairs.
+    """
+    # Duck-typed QMat (avoid importing qmat → cyclic is imported by it).
+    if hasattr(vec, "n_rows") and hasattr(vec, "n_cols"):
+        n_rows, n_cols = vec.n_rows, vec.n_cols
+        if n_rows != 1 and n_cols != 1:
+            raise ValueError(
+                "primitive_integer_vector: a QMat input must be a row or column "
+                f"vector; got shape {(n_rows, n_cols)}"
+            )
+        entries = [entry for row in vec for entry in row]
+    elif isinstance(vec, (list, tuple)):
+        entries = list(vec)
+    else:
+        raise TypeError(
+            "primitive_integer_vector: input must be a QMat vector, a list of Q "
+            f"(or int / Fraction), or a list of (num, den) pairs; got "
+            f"{type(vec).__name__}"
+        )
+
+    pairs: "list[tuple[int, int]]" = []
+    for e in entries:
+        if isinstance(e, (tuple, list)):
+            if len(e) != 2:
+                raise ValueError(
+                    "primitive_integer_vector: a pair entry must be (num, den); "
+                    f"got a length-{len(e)} entry"
+                )
+            num, den = int(e[0]), int(e[1])
+        else:
+            enum = getattr(e, "numerator", None)
+            eden = getattr(e, "denominator", None)
+            if enum is None or eden is None:
+                raise TypeError(
+                    "primitive_integer_vector: each entry must be a Q / int / "
+                    "Fraction (with .numerator/.denominator) or a (num, den) "
+                    f"pair; got {type(e).__name__}"
+                )
+            num, den = int(enum), int(eden)
+        if den == 0:
+            raise ValueError(
+                "primitive_integer_vector: a zero denominator is not a rational"
+            )
+        if den < 0:                       # Class-K pin-slot ∘ Class-C reorient
+            num, den = _reorient(num, orientation=-1), _reorient(den, orientation=-1)
+        pairs.append((num, den))
+    return pairs
+
+
+def _primitive_integer_vector_pure(pairs):
+    """The complete, arbitrary-precision body: ``(cleared, content, primitive)``
+    where ``cleared[i] == content * primitive[i]`` and ``cleared`` is the
+    denominator-cleared integer vector ``L·v``."""
+    # Class-I: clear denominators by the LCM of the (positive) denominators.
+    denom_lcm = 1
+    for _num, den in pairs:
+        denom_lcm = _lcm_uncapped(denom_lcm, den)
+    cleared = [num * (denom_lcm // den) for num, den in pairs]
+
+    # Class-I: strip the content = gcd of the entry MAGNITUDES (Class-K).
+    content_mag = 0
+    for c in cleared:
+        content_mag = gcd(content_mag, _pin_magnitude(c))
+    if content_mag == 0:                          # the all-zero ray
+        return cleared, 0, [0 for _ in cleared]
+
+    # Class-K pin-slot ∘ Class-C reorient: first nonzero entry made positive.
+    orientation = 1
+    for c in cleared:
+        o = _pin_orientation(c)
+        if o != 0:
+            orientation = o
+            break
+    primitive = [_reorient(c // content_mag, orientation=orientation)
+                 for c in cleared]
+    content_signed = _reorient(content_mag, orientation=orientation)
+    return cleared, content_signed, primitive
+
+
+def primitive_integer_vector(vec, *, with_content: bool = False):
+    """The smallest integer vector on the same ray as an exact ℚ-vector.
+
+    Turns a rational vector — a ``QMat`` row/column (what
+    :meth:`srmech.math.qmat.QMat.nullspace` returns), a ``list`` of ``Q`` /
+    ``int`` / ``Fraction``, or a ``list`` of ``(num, den)`` pairs — into the
+    **primitive integer vector** (content 1) pointing the same way, in the
+    canonical convention that the **first nonzero entry is positive**. The
+    all-zero vector maps to all-zeros.
+
+    This is the keystone the chemistry domain (`#T1050`, balancing a reaction =
+    the integer nullspace of the stoichiometric matrix) consumes: a kernel
+    column over ℚ becomes the integer stoichiometric coefficients.
+
+    Algorithm — exact, integer-only, an A–N cascade with NO Python ``abs()``:
+
+    1. **Clear denominators** (Class I): multiply through by the LCM of the
+       denominators (composing the arbitrary-precision :func:`gcd`; see
+       :func:`_lcm_uncapped` for why the uint64-capped :func:`lcm` is not used).
+    2. **Strip content** (Class I): divide by the GCD of the entries'
+       magnitudes → content 1.
+    3. **Pin the sign** (Class K ∘ Class C): make the first nonzero entry
+       positive — the canonical primitive-representative. Sign handling is the
+       Class-K pin-slot + Class-C reorient, never ``abs()`` (per
+       ``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]``), mirroring
+       ``_ipoly_primitive`` / ``_primitive`` in :mod:`srmech.cascade`.
+
+    Args:
+        vec: the rational vector (``QMat`` vector, ``list[Q]`` / ``list[int]`` /
+            ``list[Fraction]``, or ``list[(num, den)]``).
+        with_content: when ``True``, return ``(content_signed, primitive)`` with
+            ``content_signed`` the signed integer such that
+            ``content_signed * primitive[i]`` reconstructs the
+            denominator-cleared integer vector ``L·v`` for every ``i`` (the
+            reduction is reversible). ``content_signed`` carries the orientation
+            so ``content_signed * primitive`` — not ``|content| * primitive`` —
+            is the cleared vector, exactly as ``_ipoly_primitive`` returns.
+
+    Returns:
+        ``list[int]`` (the primitive integer vector), or
+        ``(content_signed: int, primitive: list[int])`` when ``with_content``.
+
+    Raises:
+        TypeError: on an unsupported input shape / entry type.
+        ValueError: on a QMat that is not a vector, a malformed pair, or a zero
+            denominator.
+
+    Dispatches to the native ``srmech_primitive_integer_vector`` when every
+    entry fits the signed-int64 fast-path domain; the pure-Python body is the
+    complete, byte-identical arbitrary-precision alternative (and the parity
+    oracle) — a bignum entry, or an int64 intermediate overflow, takes it.
+    """
+    pairs = _to_pairs(vec)
+    if not pairs:
+        return (0, []) if with_content else []
+
+    native = _primitive_integer_vector_c(pairs)
+    if native is not None:
+        content_signed, primitive = native
+    else:
+        _cleared, content_signed, primitive = _primitive_integer_vector_pure(pairs)
+    return (content_signed, primitive) if with_content else primitive
+
+
+_INT64_MIN = -(1 << 63)
+_INT64_MAX = (1 << 63) - 1
+
+
+def _primitive_integer_vector_c(pairs):
+    """Native fast path over signed int64 num/den pairs → ``(content_signed,
+    primitive)`` or ``None`` when the native symbol is absent OR any entry /
+    intermediate leaves the int64 domain (the pure-Python body is the complete
+    bignum fallback). ``INT64_MIN`` is excluded so every internal negation is
+    representable."""
+    if not _native.has_native_primitive_integer_vector():
+        return None
+    n = len(pairs)
+    nums = [p[0] for p in pairs]
+    dens = [p[1] for p in pairs]
+    for v in nums:
+        if v <= _INT64_MIN or v > _INT64_MAX:
+            return None
+    for v in dens:
+        if v <= _INT64_MIN or v > _INT64_MAX:   # dens are already > 0 here
+            return None
+    num_arr = (ctypes.c_int64 * n)(*nums)
+    den_arr = (ctypes.c_int64 * n)(*dens)
+    out_arr = (ctypes.c_int64 * n)()
+    out_content = ctypes.c_int64(0)
+    rc = _native.LIB.srmech_primitive_integer_vector(
+        ctypes.cast(num_arr, ctypes.POINTER(ctypes.c_int64)),
+        ctypes.cast(den_arr, ctypes.POINTER(ctypes.c_int64)),
+        ctypes.c_size_t(n),
+        ctypes.cast(out_arr, ctypes.POINTER(ctypes.c_int64)),
+        ctypes.byref(out_content),
+    )
+    if rc == _native.SRMECH_ERR_OVERFLOW:
+        return None                              # bignum — pure path is exact
+    if rc != _native.SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_primitive_integer_vector returned non-OK status {rc}")
+    return int(out_content.value), [int(out_arr[i]) for i in range(n)]
