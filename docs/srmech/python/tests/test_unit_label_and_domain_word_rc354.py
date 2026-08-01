@@ -140,12 +140,23 @@ def test_the_row_determines_the_word_for_only_three_carriers():
     :func:`test_the_rc363_registrations_moved_only_the_denominator` asserts
     exactly that, including that the two content-bearing buckets below are
     untouched.
+
+    v0.9.0rc379 registered ``QMat`` (the exact-ℚ matrix carrier) and this went
+    28 → 29, by the same live-count rule. Its move is a THIRD kind, distinct
+    from both predecessors: QMat is the exact-ℚ peer of ``Mat`` — a
+    non-commuting matmul product with zero divisors — so its row determines the
+    ORIENTATION word UNAMBIGUOUSLY, and it JOINS the ``determined_unambiguous``
+    set (3 → 4), which ``Mat`` / ``octonion`` / ``quaternion`` already held.
+    So it raised both the denominator AND the unambiguous list, and both
+    assertions below move together; the ``none_of_the_four`` /
+    ``word_is_worst_case_only_for`` / ``undecidable`` content buckets are
+    untouched (QMat has no ``varies_with`` and a determinate word).
     """
     gap = _domain_word_gap()
     assert gap["verdict"].startswith("NOT DERIVABLE")
-    assert gap["of"] == 28
-    assert gap["determined_unambiguous"] == 3
-    assert gap["unambiguous"] == ["Mat", "octonion", "quaternion"]
+    assert gap["of"] == 29
+    assert gap["determined_unambiguous"] == 4
+    assert gap["unambiguous"] == ["Mat", "QMat", "octonion", "quaternion"]
     assert gap["word_returned_but_qualified"] == [
         "CDRegister", "HV", "SedenionRegister", "sedenion"]
     assert len(gap["by_verdict"]["undecidable"]) == 13
