@@ -1,6 +1,6 @@
 /*
  * srmech_genome.c — §41 genome persistence, the C mirror of
- * srmech.amsc.genome's disk save / load / catalog / append / window.
+ * srmech.biology.genome's disk save / load / catalog / append / window.
  *
  * A genome directory holds two files:
  *   <dir>/manifest.json   an MPRRecord (MPR v1) catalogue of the
@@ -38,7 +38,7 @@
  * genome_save and the O(1) append serialise in-call, so theirs stay on the
  * stack; genome_obtain_manifest hands the tree back to fifteen callers, so its
  * block is arena-carved (genome_rebuild_manifest_tree). The §41 rendering /
- * attestation constants are copied VERBATIM from srmech/amsc/genome.py
+ * attestation constants are copied VERBATIM from srmech/biology/genome.py
  * (_manifest_record).
  *
  * JPL Power-of-Ten compliance (held to the tests/test_jpl_audit.py ratchet):
@@ -261,7 +261,7 @@ typedef struct {
                                                      * "octonion" (wins over q8/klein4) */
 } genome_strings_t;
 
-/* §44 CAP-KIND classifier — the C mirror of srmech.amsc.genome._cap_kind. The
+/* §44 CAP-KIND classifier — the C mirror of srmech.biology.genome._cap_kind. The
  * FIRST byte of a `block` classifies it: return the marker byte (an int in
  * [0, 255]) iff it is one of the nine §44/§60/§89/§127/§128/§130/§131/§132 cap
  * markers (CHROM / GENE / REGULATORY / BOOLEAN / THRESHOLD / GRADED / KERNEL-
@@ -588,7 +588,7 @@ static srmech_json_value_t *genome_build_attest(srmech_json_builder_t *b,
     v[5] = srmech_json_new_string(b, s->parser_version,
                                   (uint32_t)strlen(s->parser_version));
     v[6] = srmech_json_new_string(b, s->rule_hash, (uint32_t)strlen(s->rule_hash));
-    v[7] = srmech_json_new_string(b, "srmech/amsc/genome.py", 21u);
+    v[7] = srmech_json_new_string(b, "srmech/biology/genome.py", 24u);
     v[8] = srmech_json_new_string(b, s->descr_hash, (uint32_t)strlen(s->descr_hash));
     return srmech_json_new_object(b, keys, v, 9u);
 }
@@ -766,7 +766,7 @@ static srmech_status_t genome_decode_label(const unsigned char *cap,
     return SRMECH_OK;
 }
 
-/* §44 CAP-PACK writer — the C mirror of srmech.amsc.genome._pack_cap. Build a
+/* §44 CAP-PACK writer — the C mirror of srmech.biology.genome._pack_cap. Build a
  * fixed-width `dim`-byte cap leaf `[marker] + label, NUL-padded to dim` into
  * `out` (capacity out_cap >= dim). `marker` (> 3) classifies the block; the
  * label (raw bytes, already UTF-8) must fit dim - 1 bytes (one marker byte +
@@ -792,7 +792,7 @@ static srmech_status_t genome_pack_cap(unsigned char marker,
     return SRMECH_OK;
 }
 
-/* rc196 — the CHROM boundary cap writer (mirror srmech.amsc.genome.telomere):
+/* rc196 — the CHROM boundary cap writer (mirror srmech.biology.genome.telomere):
  * `[SRMECH_GENOME_CHROM_CAP_MARKER] + label, NUL-padded to dim`. Byte-identical
  * to the bytes behind the Python telomere (which wraps them in HV(sectors=256)). */
 srmech_status_t srmech_genome_telomere(const unsigned char *label,
@@ -809,7 +809,7 @@ srmech_status_t srmech_genome_telomere(const unsigned char *label,
 }
 
 /* rc196 — the pure-integer genome shape planner (mirror
- * srmech.amsc.genome.encode_shape's arithmetic): leaves = ceil(n / 256),
+ * srmech.biology.genome.encode_shape's arithmetic): leaves = ceil(n / 256),
  * depth = ceil(log4(leaves)). Class-I/N integer only, no float, no abs. The
  * Python maps depth → shape label + builds the dict; here we compute the two
  * integers it needs (byte-identical). */
@@ -833,7 +833,7 @@ srmech_status_t srmech_genome_encode_shape(uint64_t n, uint64_t *leaves_out,
     return SRMECH_OK;
 }
 
-/* rc197 (#887) — the plain CHROMOSOME builder (mirror srmech.amsc.genome.chromosome's
+/* rc197 (#887) — the plain CHROMOSOME builder (mirror srmech.biology.genome.chromosome's
  * single-kernel plain path: no genes / kernel / active_count). Writes a leading CHROM
  * telomere cap over `label` (reusing the rc196 genome_pack_cap), then each of the
  * `n_leaves` leaves (each leaf_dim bytes, contiguous in `leaves`) coupled through
@@ -877,7 +877,7 @@ srmech_status_t srmech_genome_chromosome(const unsigned char *label,
     return SRMECH_OK;
 }
 
-/* rc197 (#887) — the plain RECALL (mirror srmech.amsc.genome.recall): walk the strand's
+/* rc197 (#887) — the plain RECALL (mirror srmech.biology.genome.recall): walk the strand's
  * `n_blocks` fixed-width leaf_dim-byte blocks, SKIP every cap (genome_cap_kind >= 0 — the
  * rc196 kind classifier), and re-bind each data turn through `coupling` via
  * srmech_klein4_bind (quad_turn is its own inverse) to recover the original leaf. The
@@ -922,7 +922,7 @@ srmech_status_t srmech_genome_recall(const unsigned char *strand,
  *
  * GENOME — assemble `n_kernels` labelled kernels into ONE strand: each kernel
  * becomes a CHROM-capped chromosome (via the rc197 srmech_genome_chromosome),
- * concatenated in kernel order. Mirror srmech.amsc.genome.genome(kernels, coupling)
+ * concatenated in kernel order. Mirror srmech.biology.genome.genome(kernels, coupling)
  * for the plain (single-gene-per-chromosome) path — the §44 chromosomes= multi-gene
  * form opens its own gene caps and stays in the pure Python.
  *   labels / label_lens : the n_kernels raw UTF-8 labels CONCATENATED (`labels`),
@@ -975,7 +975,7 @@ srmech_status_t srmech_genome_genome(const unsigned char *labels,
 }
 
 /* §95a/v13 (rc258, #1407) — the CENTROMERE cap writer (mirror
- * srmech.amsc.genome._pack_centromere): [0x58] + handle + NUL + R + R orientation votes,
+ * srmech.biology.genome._pack_centromere): [0x58] + handle + NUL + R + R orientation votes,
  * NUL-padded to dim. Each vote is the Klein-4 sector `orientation` (0..3); the R copies are
  * biology's α-satellite repeat-array. Byte-identical to the Python cap. No malloc/abs/float. */
 static srmech_status_t genome_pack_centromere(unsigned char orientation,
@@ -1021,7 +1021,7 @@ srmech_status_t srmech_genome_centromere(unsigned char orientation,
 }
 
 /* §95a/v13 — majority-decode the GLOBAL orientation from a centromere cap's α-satellite votes
- * (mirror srmech.amsc.genome._centromere_orientation): R at [nul+1], votes at [nul+2:nul+2+R];
+ * (mirror srmech.biology.genome._centromere_orientation): R at [nul+1], votes at [nul+2:nul+2+R];
  * a Class-K sector-occupancy count + argmax (ties toward the lowest sector — strict >). This is
  * klein4_triality_correct's 2-of-3 generalised to R. No abs, no float. */
 static srmech_status_t genome_centromere_orientation(const unsigned char *cap,
@@ -1135,7 +1135,7 @@ static srmech_status_t genome_mint_chromosome(const unsigned char *label,
 }
 
 /* §95a/v13 MINT — build a genome, the tooling PICKING each chromosome's shape (mirror
- * srmech.amsc.genome.mint / #1407). Same shape as srmech_genome_genome; genome_mint_chromosome
+ * srmech.biology.genome.mint / #1407). Same shape as srmech_genome_genome; genome_mint_chromosome
  * does the per-kernel plasmid-vs-centromere selection. BYTE-IDENTICAL to the Python mint(). */
 /* §101: the plain symbol keeps its exact ABI signature and forwards to the
  * _progress overload with a NULL tick (runs exactly as before rc275). */
@@ -1204,7 +1204,7 @@ srmech_status_t srmech_genome_mint_progress(const unsigned char *labels,
 }
 
 /* §95a/v13 CENTROMERE READ — recover a nuclear chromosome's orientation + p:q arm-ratio (mirror
- * srmech.amsc.genome.centromere_of). p = data turns before the 0x58 cap, q = after. */
+ * srmech.biology.genome.centromere_of). p = data turns before the 0x58 cap, q = after. */
 srmech_status_t srmech_genome_centromere_of(const unsigned char *strand,
                                             size_t n_blocks, uint32_t leaf_dim,
                                             unsigned char *orientation_out,
@@ -1540,7 +1540,7 @@ static uint64_t genome_get_u64_be(const unsigned char *cap, size_t base)
     return v;
 }
 
-/* §98/v15 CHROMATIN cap writer (rc268, #1422) — mirror srmech.amsc.genome._pack_chromatin:
+/* §98/v15 CHROMATIN cap writer (rc268, #1422) — mirror srmech.biology.genome._pack_chromatin:
  * [0x48] + handle + NUL + chromatin_type + num(u64 BE) + den(u64 BE), NUL-padded to dim. The
  * accessibility level num/den is a reduced non-negative rational in [0,1] (den >= 1, num <= den).
  * Byte-identical to the Python cap. No malloc/abs/float. */
@@ -1670,7 +1670,7 @@ srmech_status_t srmech_genome_chromatin_gated(
     return SRMECH_OK;
 }
 
-/* §98/v15 CHROMATIN READ (rc268) — the strand scan (mirror srmech.amsc.genome.chromatin_of).
+/* §98/v15 CHROMATIN READ (rc268) — the strand scan (mirror srmech.biology.genome.chromatin_of).
  * Walk n_blocks leaf_dim-byte blocks; on the FIRST interior 0x48 cap fill type/num/den + *at_out
  * (data turns before it: 0 = whole-chromosome, >0 = a stretch). No abs, no float, no mutation. */
 srmech_status_t srmech_genome_chromatin_of(const unsigned char *strand, size_t n_blocks,
@@ -1711,7 +1711,7 @@ srmech_status_t srmech_genome_chromatin_of(const unsigned char *strand, size_t n
 }
 
 /* PARTITION — recover every kernel from a multi-kernel strand (the inverse of
- * srmech_genome_genome). Mirror srmech.amsc.genome.partition(strand, coupling): walk
+ * srmech_genome_genome). Mirror srmech.biology.genome.partition(strand, coupling): walk
  * the strand's `n_blocks` fixed-width leaf_dim-byte blocks; a CHROM / kernel-telomere
  * / active-telomere cap OPENS a partition (its label read INLINE by genome_decode_
  * label); a gene / regulatory / boolean / threshold / graded / kernel-header cap is
@@ -1809,7 +1809,7 @@ static int genome_is_boundary_cap(const unsigned char *block, size_t len)
 
 /* §95.1d/v15 INTEGRATE (rc276, #891 / F1244 / G4) — splice a PROVIRUS chromosome
  * strand INTO a host genome strand at a chromosome boundary; mirror
- * srmech.amsc.genome.integrate. Scans the host's leaf_dim-byte blocks for
+ * srmech.biology.genome.integrate. Scans the host's leaf_dim-byte blocks for
  * boundary caps, resolves the insert LOCUS from `at`, and concatenates
  * host[:locus] + provirus + host[locus:] BYTE-IDENTICALLY (whole self-describing
  * blocks; the provirus turns are already coupled, so no re-coupling). This is
@@ -1938,7 +1938,7 @@ static srmech_status_t genome_mint_strand_orient(
 /* §100 GAP 1/v15 MINT-STRAND (rc277, #891-peer / F1249 / G5) — the stage-2 PROMOTE
  * primitive: splice a §95a interior CENTROMERE (0x58) into an ALREADY-PACKED strand at
  * the p:q arm-split, turning a Tier-1 PLASMID into a Tier-2 NUCLEAR chromosome (mirror
- * srmech.amsc.genome.mint_strand). Scans the strand's leaf_dim-byte DATA turns, resolves
+ * srmech.biology.genome.mint_strand). Scans the strand's leaf_dim-byte DATA turns, resolves
  * the metacentric split, content-addresses the global orientation (recall -> sha256 & 3)
  * when orientation_auto, writes the centromere cap, and concatenates
  * strand[:locus] + cap + strand[locus:] BYTE-IDENTICALLY (whole self-describing blocks,
@@ -2297,7 +2297,7 @@ srmech_status_t srmech_genome_telomere_tick(
 }
 
 /* §127/v7 (#726, rc329 §102 G7) — the ACTIVE-TELOMERE PACKER: build ONE §127 active
- * telomere cap (mirror srmech.amsc.genome._pack_active_telomere / active_telomere).
+ * telomere cap (mirror srmech.biology.genome._pack_active_telomere / active_telomere).
  * Layout: [0x74 marker] + label + NUL + count(uint64 BIG-ENDIAN), NUL-padded to
  * leaf_dim. The op⊗operand cap — a telomere that opens+governs a chromosome (the op)
  * carrying the exact non-negative Hayflick counter `count` INLINE (the operand). The
@@ -2346,7 +2346,7 @@ srmech_status_t srmech_genome_active_telomere(
 
 /* rc329 (§102 G7) — the MINT-PLAN read loop: for each kernel decide its chromosome
  * SHAPE (plasmid vs nuclear) and, for a nuclear kernel, its content-addressed global
- * orientation — the WHOLE read-loop of srmech.amsc.genome.mint_plan in C, so a bare-C
+ * orientation — the WHOLE read-loop of srmech.biology.genome.mint_plan in C, so a bare-C
  * host assembles the plan with no Python present (the c_host_parity_audit_rc273 §2 G7
  * exhibit: the per-step primitive was native but the assembling loop was not). It
  * BUILDS NOTHING — introspection only. Per kernel i:
@@ -2664,7 +2664,7 @@ static srmech_status_t genome_chromatin_gate_fires(
 }
 
 /* §98.1/G1 (rc274) — the COMPUTED accessibility (num, den) of ONE chromatin cap under cell_state
- * (mirror srmech.amsc.genome._chromatin_access). Decode the static (chromatin_type, num, den); read
+ * (mirror srmech.biology.genome._chromatin_access). Decode the static (chromatin_type, num, den); read
  * access_gate_type at den_end (guard den_end < leaf_dim, else NONE — the tight-leaf pad default);
  * NONE -> the static (num, den) (constitutive, constant in cell_state); a facultative gate ->
  * (num, den) if it FIRES under cell_state, else (0, 1) (silenced). Byte-identical to Python.
@@ -3183,7 +3183,7 @@ srmech_status_t srmech_genome_modulator_consistent(
  * buffer, in the canonical big-endian serialization (see srmech.h). The E4
  * inequality / E3 level constraints + satisfiability are computed by the
  * Python caller (the owed-C). Byte-identical to the pure Python
- * srmech.amsc.genome._serialize_bool_constraint(_modulator_constraint_bool_pure).
+ * srmech.biology.genome._serialize_bool_constraint(_modulator_constraint_bool_pure).
  * Caller-arena; malloc-free; no abs; a READ.
  * ========================================================================== */
 
@@ -5354,7 +5354,7 @@ srmech_status_t srmech_genome_replace(const char *dir, const char *label,
  * IS the region hash, so an import re-hashes the region and self-verifies. This
  * COMPOSES the §41 MPR surface — it is NOT a parallel attestation.
  *
- * Mirrors srmech.amsc.genome genome_export / genome_import.
+ * Mirrors srmech.biology.genome genome_export / genome_import.
  * ------------------------------------------------------------------ */
 
 /* The §43 .chr data_schema_id (== GENOME_CHR_SCHEMA_ID). */
@@ -5473,7 +5473,7 @@ static srmech_json_value_t *genome_chr_build_attest(srmech_json_builder_t *b,
     v[4] = genome_jstr(b, cs->region_sha);
     v[5] = genome_jstr(b, cs->parser_version);
     v[6] = genome_jstr(b, cs->rule_hash);
-    v[7] = genome_jstr(b, "srmech/amsc/genome.py");
+    v[7] = genome_jstr(b, "srmech/biology/genome.py");
     v[8] = genome_jstr(b, cs->descr_hash);
     return srmech_json_new_object(b, keys, v, 9u);
 }
@@ -6422,7 +6422,7 @@ srmech_status_t srmech_graph_kernel_decode(
 }
 
 /* rc278 (§102 / F1252 STAGE 1) — the §89/v6 UNIFORMLY-KLEIN-4 kernel HEADER leaf
- * (mirror srmech.amsc.genome._pack_kernel_header_klein4): base-4 BIG-ENDIAN
+ * (mirror srmech.biology.genome._pack_kernel_header_klein4): base-4 BIG-ENDIAN
  * (MSB-symbol first) `true_len` (uint64 -> 32 symbols) ++ `leaf_dim` (uint32 ->
  * 16) ++ element_type (uint8 -> 4; ELEMENT_TYPE_KLEIN4 == 0), Klein-4-zero-padded
  * to `dim`. Writes `dim` symbols {0,1,2,3}. No float, no abs, no goto/malloc. */
@@ -7378,7 +7378,7 @@ srmech_status_t srmech_genome_integrate_plasmids(
 #define SRMECH_GENOME_SC_HEADER_INTS 2u
 
 /* The karyotype INDEX chromosome — excluded from the scan (mirror
- * srmech.amsc.plasmid.VOCAB_LABEL). */
+ * srmech.biology.plasmid.VOCAB_LABEL). */
 #define SRMECH_GENOME_SC_VOCAB_LABEL "__vocab__"
 
 /* One count-table slot. `key` is global_id + 1 so 0 marks an EMPTY slot (id 0
@@ -8012,7 +8012,7 @@ size_t srmech_genome_section_counts_arena_bytes(size_t body_len, uint32_t n_chro
  *                           srmech_genome_integrate_plasmids discipline
  *                           (organize_promote_core + organize_append_section), with
  *                           the §101 MINTING/INTEGRATING heartbeat.
- * BYTE-IDENTICAL to the pure srmech.amsc.plasmid.add_plasmid strand + state. A global
+ * BYTE-IDENTICAL to the pure srmech.biology.plasmid.add_plasmid strand + state. A global
  * recursive_cut is NEVER run and no document is re-extracted; every plasmid section,
  * and the core when it did not change, stay byte-untouched. See srmech.h for the full
  * contract. Caller-arena; no malloc/goto/recursion/abs/float.
@@ -8542,7 +8542,7 @@ static srmech_status_t gap_organize(genome_arena_t *a, const char *dir,
 /* rc334 (§102 G7, #887) — the ADD-PLASMID whole-op orchestrator (doc: srmech.h).
  * CONSERVE (merge counts + srmech_genome_conserved_core) -> ORGANIZE (harvest + pack
  * the core off disk, then fold the organized strand). BYTE-IDENTICAL to the pure
- * srmech.amsc.plasmid.add_plasmid. No malloc/goto/recursion/abs/float. */
+ * srmech.biology.plasmid.add_plasmid. No malloc/goto/recursion/abs/float. */
 srmech_status_t srmech_genome_add_plasmid(
     const char *dir, const unsigned char *coupling, uint32_t leaf_dim, long k_in,
     const uint64_t *prior_ids, const uint64_t *prior_counts, size_t n_prior,
@@ -8693,7 +8693,7 @@ static srmech_status_t genome_find_plain_gene(const unsigned char *strand,
 /* rc281 — pack a PLAIN GENE cap carrying an exact copy number. `n == 1` is the DEFAULT
  * (present-once) and writes the PLAIN cap — byte-identical to a never-amplified gene, no
  * field spent; only `n >= 2` writes [0x47] + label + NUL + n(uint64 BE), NUL-padded to
- * dim. The C mirror of srmech.amsc.genome._pack_gene_cap_copy_number. */
+ * dim. The C mirror of srmech.biology.genome._pack_gene_cap_copy_number. */
 static srmech_status_t genome_pack_gene_copy_number(const unsigned char *label,
                                                     size_t label_len, uint64_t n,
                                                     uint32_t dim,
@@ -8800,7 +8800,7 @@ static int genome_is_gene_cap(const unsigned char *block, size_t len)
 }
 
 /* rc332 (§102 G7, #887) — the shared label -> chromatin-RANGE finder: the (start, end) BLOCK
- * indices of the TARGET chromosome in `strand`, mirroring srmech.amsc.genome._chrom_range.
+ * indices of the TARGET chromosome in `strand`, mirroring srmech.biology.genome._chrom_range.
  * A chromosome OPENS with a boundary cap (genome_is_boundary_cap); a well-formed strand opens
  * with one at block 0. When label_is_none the strand must carry EXACTLY ONE chromosome (else
  * the range is ambiguous — pass a label); else (label, label_len) picks the FIRST boundary whose
@@ -8847,7 +8847,7 @@ static srmech_status_t genome_label_range(
     return SRMECH_OK;
 }
 
-/* rc332 (§102 G7, #887) CONDENSE — the WHOLE placement decision of srmech.amsc.genome.condense
+/* rc332 (§102 G7, #887) CONDENSE — the WHOLE placement decision of srmech.biology.genome.condense
  * in C: resolve the target chromosome's range (genome_label_range) and, WITHIN it, the BLOCK
  * index at which the already-built chromatin cap (srmech_genome_chromatin, an existing C peer)
  * is spliced. `*insert_out` is that index; the caller (either the Python projection or a bare-C
@@ -8915,7 +8915,7 @@ srmech_status_t srmech_genome_condense(
 }
 
 /* rc332 (§102 G7, #887) DECONDENSE — the WHOLE cap-clear decision of
- * srmech.amsc.genome.decondense in C: per block, WHETHER it survives the clear (writes a
+ * srmech.biology.genome.decondense in C: per block, WHETHER it survives the clear (writes a
  * KEEP-MASK, one byte per block: 1 keep, 0 drop). The caller filters strand by the mask — the
  * trivial list/byte mechanics (the rc329 mint_plan pattern; the COMPUTATION is the per-block
  * decision, in C). Mirrors the pure body EXACTLY:
@@ -8991,7 +8991,7 @@ static srmech_status_t genome_genes_open(
     return genome_emit_u32(out, out_cap, pos, 0u);
 }
 
-/* The SHARED per-gene splitter — the whole body of srmech.amsc.genome.genes, over a byte
+/* The SHARED per-gene splitter — the whole body of srmech.biology.genome.genes, over a byte
  * buffer of §55/v3 dual-format blocks (fixed-width caps + legacy v2 or bit-packed data
  * turns). Mirrors the pure `genes` walk EXACTLY: a GENE cap (genome_is_gene_cap) opens a
  * gene (its inline label read back); EVERY other cap (genome_cap_kind >= 0) is SKIPPED —
@@ -9048,7 +9048,7 @@ static srmech_status_t genome_genes_split(
 }
 
 /* §98/v15 (rc333 §102 G7, #887) GENES — the IN-MEMORY per-gene split of
- * srmech.amsc.genome.genes in C (the KLEIN4 default; Q8/octonion in-memory strands take the
+ * srmech.biology.genome.genes in C (the KLEIN4 default; Q8/octonion in-memory strands take the
  * pure oracle since a DECODED strand carries no carrier marker). `strand` is n_blocks
  * fixed-width leaf_dim-byte blocks; the peer walks them and emits the shared genes structure.
  * BYTE-IDENTICAL to the pure genes. Caller-arena; no malloc/goto/recursion/abs/float. */
@@ -9207,7 +9207,7 @@ static srmech_status_t genome_express_fold_cap(const unsigned char *block, size_
     return SRMECH_OK;
 }
 
-/* The gene_express FILTER over ONE region — the whole body of srmech.amsc.genome.gene_express,
+/* The gene_express FILTER over ONE region — the whole body of srmech.biology.genome.gene_express,
  * emitting ONLY the EXPRESSED genes' (label, leaves) into the shared structure. Mirrors the pure
  * walk EXACTLY: a GENE cap sets cur_express = access_open AND genome_gene_cap_expresses(cap);
  * every OTHER cap goes to genome_express_fold_cap; a data block of an EXPRESSED gene is decoupled

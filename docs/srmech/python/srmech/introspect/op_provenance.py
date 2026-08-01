@@ -567,7 +567,7 @@ def lossy_projection_record(
 
     Args:
         op: the dotted op name being addressed (e.g.
-            ``"srmech.amsc.coupling.fold_encode"``).
+            ``"srmech.biology.coupling.fold_encode"``).
         inputs: the EXACT operand inputs keyed by name — canonicalised with the
             rc117 float-free canon (``Q`` / int / rational leaves ride as exact
             tags; a float leaf rides as its exact bit pattern and marks
@@ -721,7 +721,7 @@ def _heat_trace_family(inputs, canon_inputs, input_hashes, leaves_exact):
 
 
 def _resonant_runner(inputs, params):
-    from ..amsc import coupling as _coupling
+    from ..biology import coupling as _coupling
     return _coupling.resonant_spectrum(inputs["L"],
                                        orders=int(params["orders"]),
                                        max_den=int(params["max_den"]))
@@ -808,7 +808,7 @@ def _build_registry() -> Dict[str, _OpSpec]:
         tower_kind=_TOWER_EDGE,
         family_fn=_heat_trace_family,
     )
-    reg["srmech.amsc.coupling.resonant_spectrum"] = _OpSpec(
+    reg["srmech.biology.coupling.resonant_spectrum"] = _OpSpec(
         runner=_resonant_runner,
         input_keys=("L",),
         defaults={"orders": 2, "max_den": 64},

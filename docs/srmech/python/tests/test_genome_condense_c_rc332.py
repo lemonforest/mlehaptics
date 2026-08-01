@@ -29,7 +29,7 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc import genome as G
+from srmech.biology import genome as G
 from srmech.amsc import _native as _N
 from srmech.math.hdc import klein4_expand
 
@@ -285,8 +285,8 @@ def test_rc332_peers_declared_and_gap_closed():
     ceiling pin live in test_rosetta_transitive_standalone.py; this is a local coherence pin for
     THESE ops only — it does NOT re-pin the global ceiling to its rc332-era value.)"""
     rosetta = _load_rosetta()
-    assert rosetta._WHOLE_OP_C_PEER["srmech.amsc.genome.condense"] == "srmech_genome_condense"
-    assert rosetta._WHOLE_OP_C_PEER["srmech.amsc.genome.decondense"] == "srmech_genome_decondense"
-    assert "srmech.amsc.genome.condense" not in rosetta._KNOWN_GLUE_GAPS
-    assert "srmech.amsc.genome.decondense" not in rosetta._KNOWN_GLUE_GAPS
+    assert rosetta._WHOLE_OP_C_PEER["srmech.biology.genome.condense"] == "srmech_genome_condense"
+    assert rosetta._WHOLE_OP_C_PEER["srmech.biology.genome.decondense"] == "srmech_genome_decondense"
+    assert "srmech.biology.genome.condense" not in rosetta._KNOWN_GLUE_GAPS
+    assert "srmech.biology.genome.decondense" not in rosetta._KNOWN_GLUE_GAPS
     assert len(rosetta._KNOWN_GLUE_GAPS) == rosetta.CEIL_WIRE_GLUE_GAPS

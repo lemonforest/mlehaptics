@@ -12,7 +12,7 @@ from __future__ import annotations
 import pytest
 
 from srmech.math.tlv import TLV_PREFIX_BYTES, tlv_pack, tlv_unpack
-from srmech.amsc.genome import (
+from srmech.biology.genome import (
     CHROM_CAP_MARKER,
     GENE_CAP_MARKER,
     GENE_FRAME_TAG,

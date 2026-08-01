@@ -26,8 +26,8 @@ from pathlib import Path
 _PKG = Path(__file__).resolve().parents[1] / "python"
 sys.path.insert(0, str(_PKG))
 
-from srmech.amsc import genome as G          # noqa: E402
-from srmech.amsc import plasmid as PL        # noqa: E402
+from srmech.biology import genome as G          # noqa: E402
+from srmech.biology import plasmid as PL        # noqa: E402
 from srmech.amsc.hv import HV                # noqa: E402
 
 LEAF_DIM = 64

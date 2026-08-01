@@ -108,10 +108,10 @@ from pathlib import Path
 import pytest
 
 from srmech.amsc import _native
-from srmech.amsc import genome as G
+from srmech.biology import genome as G
 from srmech.math import hdc
-from srmech.amsc import plasmid as P
-from srmech.amsc.genome import GenomeBoundingError
+from srmech.biology import plasmid as P
+from srmech.biology.genome import GenomeBoundingError
 
 _DIM = 64
 

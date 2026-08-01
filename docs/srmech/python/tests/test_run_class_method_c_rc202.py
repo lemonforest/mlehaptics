@@ -87,7 +87,7 @@ def test_class_descriptor_lookup_resolves_in_c():
 # satisfies that, and would keep satisfying it if its CONTENT rotted entirely.
 #
 # That gap is load-bearing rather than cosmetic. The four class TOMLs bake 29
-# DOTTED OP REFS into the C registry, all under `srmech.amsc.genome.*` or
+# DOTTED OP REFS into the C registry, all under `srmech.biology.genome.*` or
 # `srmech.amsc.cascade.*`. If those prefixes are ever renamed and the class
 # registry is not regenerated (or the .so not rebuilt), C keeps resolving
 # "One" to a descriptor whose op refs point at names that no longer exist,
@@ -166,7 +166,7 @@ def test_every_dotted_op_ref_baked_into_c_still_resolves():
     """ADR-0010's PREREQUISITE, stated as a test.
 
     The op refs compiled into the C registry must name callables that exist.
-    A rename of `srmech.amsc.genome.*` / `srmech.amsc.cascade.*` that updates
+    A rename of `srmech.biology.genome.*` / `srmech.amsc.cascade.*` that updates
     the Python surface but not this table leaves C dispatching to dead names;
     this is the assertion that goes red for it.
 
@@ -182,7 +182,7 @@ def test_every_dotted_op_ref_baked_into_c_still_resolves():
         d = _native.class_descriptor_c(i)
         # No trailing `.`: these refs appear in prose as well as in `op =`
         # values, so a greedy `[A-Za-z0-9_.]+` swallows sentence-ending periods
-        # and invents refs like `srmech.amsc.genome.` that never existed.
+        # and invents refs like `srmech.biology.genome.` that never existed.
         refs.update(_re.findall(
             r"srmech\.amsc\.[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)*", d["toml"]))
     assert refs, "decoded no dotted op refs at all — the scan has gone blind"

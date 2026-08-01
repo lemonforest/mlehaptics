@@ -1007,8 +1007,8 @@ NON_COMPUTE_DEV_TOOLING_EXEMPT = frozenset({
     # canonical plasmid/nuclear output and never re-presents it, so these are a
     # justified dev affordance (the dsl.alias precedent). load_type_aliases_toml is
     # composes_c (it parses the TOML via the C srmech_toml), not dev_tooling.
-    "srmech.amsc.genome.set_type_aliases",
-    "srmech.amsc.genome.clear_type_aliases",
+    "srmech.biology.genome.set_type_aliases",
+    "srmech.biology.genome.clear_type_aliases",
     # rc183 HOST-GLUE annex (srmech.llm) — 3 LLM-agent affordances a bare-C host
     # never needs. HONEST-DEFAULT: classified dev_tooling pending a user decision
     # on whether to build a C Anthropic agent (a separate C-HTTPS/TLS Messages-API
@@ -1359,10 +1359,10 @@ COMPOSES_C_ZERO_REACH_PINNED = frozenset({
     "srmech.amsc.catalog.use_local_kernel",
     "srmech.amsc.compose.parse_chain_spec",
     "srmech.amsc.compose.resolve_chain",
-    "srmech.amsc.coupling.fold_encode",
-    "srmech.amsc.coupling.fold_identity",
-    "srmech.amsc.coupling.fractal_spectrum",
-    "srmech.amsc.coupling.from_bodies",
+    "srmech.biology.coupling.fold_encode",
+    "srmech.biology.coupling.fold_identity",
+    "srmech.biology.coupling.fractal_spectrum",
+    "srmech.biology.coupling.from_bodies",
     "srmech.amsc.descriptor.load_descriptor",
     "srmech.amsc.descriptor.render_template",
     "srmech.math.dispatch.infer",

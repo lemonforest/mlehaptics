@@ -2990,7 +2990,7 @@ srmech_status_t srmech_laplacian_recursive_cut(uint32_t                  n,
  * (cross/tot per node, streamed once from the same packed edge file), the
  * antimode histogram DECISION, a per-node nuclear/plasmid classify, and group
  * assembly — all in C, so a bare-C host builds the whole partition. Mirrors the
- * pure srmech.amsc.genome.genome_partition body BIT-FOR-BIT (ADR-0009: the two
+ * pure srmech.biology.genome.genome_partition body BIT-FOR-BIT (ADR-0009: the two
  * projections emit the SAME structure). NEVER abs — every value is non-negative.
  * ================================================================== */
 

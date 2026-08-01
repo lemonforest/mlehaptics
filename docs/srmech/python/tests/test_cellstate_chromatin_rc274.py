@@ -39,7 +39,7 @@ import tempfile
 
 import pytest
 
-from srmech.amsc import genome as G
+from srmech.biology import genome as G
 from srmech.amsc import _native
 
 # rc282 — make this tests/ directory importable when this module is collected

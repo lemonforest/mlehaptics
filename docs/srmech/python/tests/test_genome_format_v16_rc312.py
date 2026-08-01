@@ -3,8 +3,8 @@
 rc311 wired the Q₈ carrier into the GENOME as an ``element_type`` path but the on-disk
 WIRE still assumed 2-bit klein4 turns. rc312 migrates the format: a Q₈ (winding-bearing)
 genome can now be WRITTEN and READ from disk. The wire gains a SECOND data-turn packing —
-a Q₈ turn 3-bit-packs under :data:`~srmech.amsc.genome.Q8_PACKED_TURN_MARKER` (0x38) instead
-of the klein4 2-bit :data:`~srmech.amsc.genome.PACKED_TURN_MARKER` (0x51) — plus a manifest
+a Q₈ turn 3-bit-packs under :data:`~srmech.biology.genome.Q8_PACKED_TURN_MARKER` (0x38) instead
+of the klein4 2-bit :data:`~srmech.biology.genome.PACKED_TURN_MARKER` (0x51) — plus a manifest
 ``carrier`` field. klein4 keeps its 2-bit packer, so a klein4 body is BYTE-IDENTICAL to v15.
 
 This file is the SIX non-negotiable migration prove-gates. Every gate is numpy-free (the
@@ -31,8 +31,8 @@ import random
 import pytest
 
 from srmech.amsc import _native
-from srmech.amsc import genome as G
-from srmech.amsc.genome import (
+from srmech.biology import genome as G
+from srmech.biology.genome import (
     ELEMENT_TYPE_KLEIN4,
     ELEMENT_TYPE_Q8,
     GENOME_FORMAT_VERSION,
@@ -47,7 +47,7 @@ from srmech.amsc.genome import (
     upgrade_v15_to_v16,
 )
 from srmech.math.hv import HV
-from srmech.amsc.q8 import q8_project_v4
+from srmech.biology.q8 import q8_project_v4
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────

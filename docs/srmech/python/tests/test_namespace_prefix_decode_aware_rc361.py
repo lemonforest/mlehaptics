@@ -96,7 +96,7 @@ DOTTED prefix ``srmech.amsc.`` — a *module-path* population. What rc364 moved
 was *data files*, whose location is only ever written as a filesystem path with
 slashes (``srmech/amsc/_research/class_catalog/``), which this prefix does not
 match. And the descriptor BODIES are untouched: a ``[class]`` descriptor's
-``op = "srmech.amsc.genome.chromosome"`` names an op whose MODULE did not move,
+``op = "srmech.biology.genome.chromosome"`` names an op whose MODULE did not move,
 so all 40 decoded hits in the class registry survive by construction.
 
 The instrument is not broken — it measures exactly the population it names, and
@@ -266,11 +266,23 @@ CEIL_AMSC_PREFIX = {
     # (decoded amsc 202 -> 196, srmech.math. 314 -> 320, conserved); the bulk of
     # the roster (mat / vec / hv / q / …) are pure CARRIERS with no ToolEntry op,
     # so they never entered the decoded back-index. as-text drops 25 short cites.
-    "c/src/srmech_carrier_registry.c": (75, 196),
+    # as-text 75 -> 68 at rc375 (-7), decoded 196 -> 97 (-99). THE BIOLOGY bucket
+    # (coupling / genome / plasmid / q8 amsc->srmech.biology). UNLIKE rc374's pure
+    # carriers, GENOME OPS ARE OPERATORS and their back-index refs DO live in the
+    # four hoisted >4000-byte byte arrays: 99 genome / q8 / coupling op references
+    # move amsc->biology (decoded amsc 196 -> 97, srmech.biology. 0 -> 99, conserved;
+    # math / apokatastasis / music decoded all UNCHANGED at 320 / 13 / 13). This is
+    # the decoded POPULATION channel falling by the arc's second-largest single move.
+    # 7 short back-index citations drop on the as-text channel.
+    "c/src/srmech_carrier_registry.c": (68, 97),
     # TEXT 0 is TRUE, and true about the wrong thing. Every one of the four
     # baked [class] descriptors (`cls_desc_0..3`) is a decimal byte array, so a
     # grep has nothing to read. 37 DISTINCT dotted names live in there.
-    "c/src/srmech_class_registry.c": (0, 40),
+    # decoded 40 -> 29 at rc375 (-11), as-text UNCHANGED at 0. THE BIOLOGY bucket:
+    # the baked [class] Genome descriptor's op refs (op = "srmech.biology.genome.*")
+    # move amsc->biology inside the decimal byte arrays (decoded amsc 40 -> 29,
+    # srmech.biology. 0 -> 11, conserved). Still 100% invisible to a text grep.
+    "c/src/srmech_class_registry.c": (0, 29),
     # Overwhelmingly textual: the ToolEntry summaries are string literals. The 4
     # decoded hits are in its own hoisted long strings.
     #
@@ -284,7 +296,7 @@ CEIL_AMSC_PREFIX = {
     # as-text 1224 -> 1225 at rc363 (+1), decoded UNCHANGED at 4. ONE citation,
     # and it is a CORRECTION rather than a new reference: genome_register_attested's
     # `source` param example read 'srmech.genome.<name>' — a module path that has
-    # never existed (the module is srmech.amsc.genome). The rc363 prose op-ref
+    # never existed (the module is srmech.biology.genome). The rc363 prose op-ref
     # gate (tests/test_prose_oprefs_resolve_rc363.py) found it and it was fixed,
     # which necessarily moves this counter up by one. Ops named srmech.amsc.*
     # stayed 396; decoded flat everywhere.
@@ -350,7 +362,10 @@ CEIL_AMSC_PREFIX = {
     # as-text 576 -> 440 at rc374 (-136), decoded UNCHANGED at 0. The CARRIERS
     # batch: the moved carrier-family ops' ToolEntry name= citations + worked-
     # example imports + sibling-prose dotted refs repointed amsc->math.
-    "c/src/srmech_tool_registry.c": (440, 0),
+    # as-text 440 -> 282 at rc375 (-158), decoded UNCHANGED at 0. THE BIOLOGY bucket:
+    # the moved genome / q8 / coupling / plasmid ops' ToolEntry name= citations +
+    # worked-example imports + sibling-prose dotted refs repointed amsc->biology.
+    "c/src/srmech_tool_registry.c": (282, 0),
     # rc368 — THE FIRST MODULE MOVE TO MOVE THIS ARTIFACT (the new data point).
     # This was the CONTROL row through harmonics/naming: "no byte arrays, decoded
     # 0 is a real zero". It is still a real zero on the decoded channel, but the
@@ -371,7 +386,10 @@ CEIL_AMSC_PREFIX = {
     # batch: dispatch / laplacian / cyclic etc. ARE edge-OPERATOR names in the
     # responsion registry, so their generated source-of-truth comments repointed
     # amsc->math. decoded stays 0 (this registry carries no byte arrays).
-    "c/src/srmech_responsion_registry.c": (6, 0),
+    # as-text 6 -> 3 at rc375 (-3), decoded UNCHANGED at 0. THE BIOLOGY bucket:
+    # coupling / genome are edge-OPERATOR names in the responsion registry, so their
+    # generated source-of-truth comments repointed amsc->biology.
+    "c/src/srmech_responsion_registry.c": (3, 0),
     # CONTROL: generated .py, no embedded arrays. Their long integer runs were
     # inspected at rc361 and are worked-example OUTPUT VALUES (octonion basis
     # vectors, inertia signatures, index triples) — genuine numeric data, not a
@@ -413,7 +431,10 @@ CEIL_AMSC_PREFIX = {
     # as-text 562 -> 431 at rc374 (-131), decoded UNCHANGED at 0. The CARRIERS
     # batch, doc-pair partner of the tool registry: the moved carrier-family ops'
     # documentation repointed amsc->math.
-    "python/srmech/amsc/_tool_docs.py": (431, 0),
+    # as-text 431 -> 275 at rc375 (-156), decoded UNCHANGED at 0. THE BIOLOGY bucket,
+    # doc-pair partner of the tool registry: the moved genome / q8 / coupling /
+    # plasmid ops' documentation repointed amsc->biology.
+    "python/srmech/amsc/_tool_docs.py": (275, 0),
     # as-text 250 -> 248 at rc367 (-2), decoded UNCHANGED at 0. rc367 is the
     # FIRST module move to move THIS artifact — a departure from the harmonics
     # analog. _c_claims.py is the op -> C-symbol CLAIM manifest, keyed only for
@@ -459,7 +480,14 @@ CEIL_AMSC_PREFIX = {
     # exactly one moved carrier-family op is a c_dispatched leaf keyed here
     # (carrier_spectrum's srmech_carrier_spectrum), repointed amsc->math. The bulk
     # of the roster are pure carriers with no ToolEntry / C claim.
-    "python/srmech/amsc/_c_claims.py": (90, 0),
+    # as-text 90 -> 59 at rc375 (-31), decoded UNCHANGED at 0. THE BIOLOGY bucket:
+    # genome / q8 / coupling ARE heavily c_dispatched, so 31 op keys in this op->C-
+    # symbol CLAIM manifest (sourced from the Rosetta classification ledger)
+    # repointed amsc->biology. The C SYMBOLS (srmech_genome_* / srmech_q8_* /
+    # srmech_coupling_*) are capability-named and UNCHANGED — only the Python-side
+    # dotted keys moved (ABI stays 10). The MCP dispatch vtable (srmech_invoke.c)
+    # holds NO dotted op names for these, so it needed no repoint.
+    "python/srmech/amsc/_c_claims.py": (59, 0),
 }
 
 #: The generated-artifact totals, pinned so a per-file edit cannot quietly move
@@ -472,8 +500,8 @@ CEIL_AMSC_PREFIX = {
 #:
 #: as-text 2933 (rc361) -> 2943 (rc362, +10 = the 5 citations x 2 artifacts).
 #: decoded 577 (rc361)  ->  577 (rc362, FLAT — the population did not move).
-TOTAL_AS_TEXT = 1042   # rc373 1335 -> rc374 1042 (-293: the CARRIERS batch, 15 modules amsc->math; -136 tool_registry -131 _tool_docs -25 carrier -1 _c_claims)
-TOTAL_DECODED = 236    # rc373 242 -> rc374 236 (-6: POPULATION fell — 6 carrier-registry back-index refs for the moved carrier-family ops amsc->math)
+TOTAL_AS_TEXT = 687    # rc374 1042 -> rc375 687 (-355: the BIOLOGY bucket, 4 modules amsc->biology; -158 tool_registry -156 _tool_docs -31 _c_claims -7 carrier -3 responsion)
+TOTAL_DECODED = 126    # rc374 236 -> rc375 126 (-110: POPULATION fell — 99 carrier-registry + 11 class-registry back-index refs for the moved genome / q8 / coupling OPERATOR ops amsc->biology)
 
 
 def _counts(rel_path: str) -> "tuple[int, int]":
@@ -569,9 +597,10 @@ def test_the_decoder_sees_what_a_text_grep_cannot() -> None:
         "of this test, but it means the '100% invisible' example has changed — "
         "re-read the pins and this docstring.")
     joined = "\n".join(b for _, b in blobs)
-    assert joined.count(PREFIX) == 40, (
+    assert joined.count(PREFIX) == 29, (
         f"decoded {joined.count(PREFIX)} prefix hits in the class registry, "
-        f"expected 40. If this is 0, THE DECODER HAS STOPPED OBSERVING and "
+        f"expected 29 (rc375: the [class] Genome descriptor's 11 op refs moved "
+        f"amsc->biology, 40 -> 29). If this is 0, THE DECODER HAS STOPPED OBSERVING and "
         f"every assertion in this file is now vacuous — check whether the "
         f"generator changed its byte-array template (hex literals, a renamed "
         f"array, a different declaration).")
@@ -601,11 +630,13 @@ def test_the_decoder_sees_what_a_text_grep_cannot() -> None:
         f"docstring depended on that ordering.")
     # rc373: the A-N primitives batch moved ~298 amsc-decoded carrier refs to
     # srmech.math, so carrier amsc-decoded fell 500 -> 202 while class held 40.
-    # rc374: the carriers slice moved 6 more (202 -> 196); class still 40. The
-    # ratio is ~4.9x, no longer a full order of magnitude. The carrier registry
-    # is STILL the dominant amsc-decoded population; the factor stays 4x
-    # (196 >= 160) to state that honestly rather than assume 10x.
-    assert car_decoded >= 4 * max(
+    # rc374: the carriers slice moved 6 more (202 -> 196); class still 40.
+    # rc375: the BIOLOGY bucket moved 99 carrier-registry refs (196 -> 97) AND 11
+    # class-registry refs (40 -> 29) amsc->biology. The carrier registry is STILL
+    # the dominant amsc-decoded population (97 vs class's 29, ~3.3x), but the drop
+    # narrowed the ratio below 4x — the factor is lowered to 3x (97 >= 87) to state
+    # that honestly rather than assume a stale multiple.
+    assert car_decoded >= 3 * max(
         d for r, (_, d) in CEIL_AMSC_PREFIX.items()
         if r != "c/src/srmech_carrier_registry.c"), (
         "the carrier registry is no longer the dominant decoded population by "
@@ -669,9 +700,10 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     music = joined.count("srmech.music.")
     apokatastasis = joined.count("srmech.apokatastasis.")
     math = joined.count("srmech.math.")
-    assert amsc == 196, (
+    biology = joined.count("srmech.biology.")
+    assert amsc == 97, (
         f"the carrier registry's decoded amsc population is {amsc}, expected "
-        f"196 — re-read the pins before trusting anything else in this file.")
+        f"97 — re-read the pins before trusting anything else in this file.")
     assert music == 13, (
         f"expected 13 srmech.music op references inside the DECODED channel "
         f"(9 from the rc362 Q / Qalg ops.consumes back-index + 4 from the rc366 "
@@ -699,8 +731,20 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     assert math == 320, (
         f"expected 320 srmech.math op references inside the DECODED channel "
         f"(rc372 octonion 16 + rc373 A-N primitives 298 + rc374 carriers 6), found "
-        f"{math}. amsc fell 202 -> 196 by exactly these 6; if this is not 320 the "
-        f"population move is not conserved — re-measure.")
+        f"{math}. math is UNCHANGED at rc375 (the biology move touched no math op); "
+        f"if this is not 320 the population move is not conserved — re-measure.")
+    # rc375 — THE srmech.biology RECEIVING SIDE, the arc's SECOND-LARGEST positive
+    # population move (after rc373's 298) and the FOURTH receiving namespace pinned
+    # here. UNLIKE rc374's pure carriers, the biology bucket's genome / q8 / coupling
+    # ops ARE OPERATORS whose back-index refs live in these hoisted byte arrays: 99
+    # refs moved OUT of the amsc decoded count (196 -> 97) and INTO biology (0 -> 99)
+    # inside the same arrays. Conserved: -99 amsc = +99 biology. math / apokatastasis
+    # / music all held (320 / 13 / 13) — the biology move touched none of them.
+    assert biology == 99, (
+        f"expected 99 srmech.biology op references inside the DECODED channel "
+        f"(the rc375 biology bucket's genome / q8 / coupling carrier back-index), "
+        f"found {biology}. amsc fell 196 -> 97 by exactly these 99; if this is not "
+        f"99 the population move is not conserved — re-measure.")
 
     # THE COUNTERFACTUAL: had those music ops landed in the draining namespace,
     # the decoded channel would have seen every one of them.

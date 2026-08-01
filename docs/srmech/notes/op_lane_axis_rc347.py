@@ -96,7 +96,7 @@ def m1_index_is_xor() -> list:
     """``cd_basis_product`` index == i XOR j, at every CD rung; and the shipped
     ``q8_mult`` abelian projection. The INDEX lane as Z_2^n under XOR."""
     from srmech.amsc.cascade.cayley_dickson import cd_basis_product
-    from srmech.amsc.q8 import q8_mult
+    from srmech.biology.q8 import q8_mult
 
     rows = []
     for dim in (2, 4, 8, 16):
@@ -127,7 +127,7 @@ def m2_chirality_is_sign_only() -> list:
     """Two independent chirality operators over the 64 basis-product slots at
     dim 8, plus Q8. Both move signs; NEITHER moves an index."""
     from srmech.amsc.cascade.cayley_dickson import cd_basis_product
-    from srmech.amsc.q8 import q8_mult, q8_conjugate
+    from srmech.biology.q8 import q8_mult, q8_conjugate
 
     rows = []
 
@@ -322,7 +322,7 @@ def m5_cwf_field_adjudication(trials: int = 3000, seed: int = 11) -> dict:
       Lk  BOTH lanes, ALGEBRA          index -> sometimes.  The only mixer.
     """
     import random
-    from srmech.amsc import genome as gm
+    from srmech.biology import genome as gm
 
     rng = random.Random(seed)
     fields = ("lk_mod2", "lk_center_parity", "tw_mod2", "wr", "wr_mod2")
@@ -349,7 +349,7 @@ def m5_cwf_field_adjudication(trials: int = 3000, seed: int = 11) -> dict:
             counts[f]["sign_algebra"] += int(base[f] != a_sig[f])
             counts[f]["index_algebra"] += int(base[f] != a_rel[f])
             counts[f]["sign_geometry"] += int(base[f] != a_geo[f])
-    return {"trials": ran, "op": "srmech.amsc.genome.cwf_consistency_mod2",
+    return {"trials": ran, "op": "srmech.biology.genome.cwf_consistency_mod2",
             "fields": counts}
 
 
@@ -368,8 +368,8 @@ def m4_op_responses(trials: int = 400, seed: int = 5) -> list:
     verdict is only admissible as the verdict over the whole sweep.
     """
     import random
-    from srmech.amsc import q8 as q8m
-    from srmech.amsc import genome as gm
+    from srmech.biology import q8 as q8m
+    from srmech.biology import genome as gm
     from srmech.qm.quaternion import quaternion_cycle_holonomy
 
     rng = random.Random(seed)
@@ -382,22 +382,22 @@ def m4_op_responses(trials: int = 400, seed: int = 5) -> list:
     #: takes bare indices) is INADMISSIBLE: no measurement could contradict its
     #: lane, which is exactly the false green rc339's ``bounded_by`` shipped.
     algebra_ops = [
-        ("srmech.amsc.q8.q8_project_v4", lambda s: q8m.q8_project_v4(s)),
-        ("srmech.amsc.q8.q8_conjugate",
+        ("srmech.biology.q8.q8_project_v4", lambda s: q8m.q8_project_v4(s)),
+        ("srmech.biology.q8.q8_conjugate",
          lambda s: bytes(q8m.q8_conjugate(b) for b in s)),
-        ("srmech.amsc.q8.q8_mult",
+        ("srmech.biology.q8.q8_mult",
          lambda s: bytes(q8m.q8_mult(a, b) for a, b in zip(s, one))),
-        ("srmech.amsc.q8.q8_bind", lambda s: q8m.q8_bind(s, one)),
-        ("srmech.amsc.genome.genome_fiber_holonomy",
+        ("srmech.biology.q8.q8_bind", lambda s: q8m.q8_bind(s, one)),
+        ("srmech.biology.genome.genome_fiber_holonomy",
          lambda s: gm.genome_fiber_holonomy(s, leaf_dim=4)),
-        ("srmech.amsc.genome.codon_read", lambda s: gm.codon_read(s)),
+        ("srmech.biology.genome.codon_read", lambda s: gm.codon_read(s)),
     ]
 
     tally = {name: {"sign": 0, "index": 0, "trials": 0}
              for name, _ in algebra_ops}
     tally["srmech.qm.quaternion.quaternion_cycle_holonomy"] = {
         "sign": 0, "index": 0, "trials": 0}
-    tally["srmech.amsc.genome.cwf_consistency_mod2"] = {
+    tally["srmech.biology.genome.cwf_consistency_mod2"] = {
         "sign": 0, "index": 0, "trials": 0, "sign_geometry": 0}
 
     for _ in range(trials):
@@ -430,7 +430,7 @@ def m4_op_responses(trials: int = 400, seed: int = 5) -> list:
             return gm.cwf_consistency_mod2(
                 _EDGES, [_sq_gain(x) for x in gg], n=6, embedding=emb)
 
-        k = "srmech.amsc.genome.cwf_consistency_mod2"
+        k = "srmech.biology.genome.cwf_consistency_mod2"
         c0 = cwf(g, _EMB)
         tally[k]["trials"] += 1
         tally[k]["sign"] += int(cwf(gs, _EMB) != c0)
@@ -444,7 +444,7 @@ def m4_op_responses(trials: int = 400, seed: int = 5) -> list:
     # -- the geometry-input op ---------------------------------------------
     base_wr = gm.discrete_writhe(_EMB)
     rows.append({
-        "op": "srmech.amsc.genome.discrete_writhe",
+        "op": "srmech.biology.genome.discrete_writhe",
         "sign_response": gm.discrete_writhe(_reflect(_EMB)) != base_wr,
         "index_response": any(
             gm.discrete_writhe(_rescale(_EMB, nu, de)) != base_wr

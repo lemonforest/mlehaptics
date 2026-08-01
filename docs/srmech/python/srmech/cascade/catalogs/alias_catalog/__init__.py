@@ -28,7 +28,7 @@ both are naming:
     ``overtone_series``, …) as a config binding over the general ops.
 
 ``[genome.type_aliases]`` — VALUE aliasing (rc271,
-:func:`srmech.amsc.genome.load_type_aliases_toml`)
+:func:`srmech.biology.genome.load_type_aliases_toml`)
     A canonical→display mapping applied as a pure presentation layer over
     ``genome_census`` / ``genome_registry`` / ``genome_catalog`` output.
     ``genome_type_aliases_legacy.toml`` is the worked example and the documented

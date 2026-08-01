@@ -67,8 +67,8 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc import genome as _genome
-from srmech.amsc import q8 as _q8
+from srmech.biology import genome as _genome
+from srmech.biology import q8 as _q8
 from srmech.amsc.cascade.cayley_dickson import cd_basis_product
 from srmech.amsc.tool_schema import (
     LANE_INPUTS,
@@ -229,23 +229,23 @@ def _drivers():
     the harness applies; an op appears once per input it declares."""
     g = _genome
     return {
-        "srmech.amsc.q8.q8_project_v4": ("algebra", _q8.q8_project_v4),
-        "srmech.amsc.q8.q8_conjugate":
+        "srmech.biology.q8.q8_project_v4": ("algebra", _q8.q8_project_v4),
+        "srmech.biology.q8.q8_conjugate":
             ("algebra", lambda s: bytes(_q8.q8_conjugate(b) for b in s)),
-        "srmech.amsc.q8.q8_mult":
+        "srmech.biology.q8.q8_mult":
             ("algebra",
              lambda s: bytes(_q8.q8_mult(a, b) for a, b in zip(s, _ONE12))),
-        "srmech.amsc.q8.q8_bind": ("algebra", lambda s: _q8.q8_bind(s, _ONE12)),
-        "srmech.amsc.genome.genome_fiber_holonomy":
+        "srmech.biology.q8.q8_bind": ("algebra", lambda s: _q8.q8_bind(s, _ONE12)),
+        "srmech.biology.genome.genome_fiber_holonomy":
             ("algebra", lambda s: g.genome_fiber_holonomy(s, leaf_dim=4)),
-        "srmech.amsc.genome.codon_read": ("algebra", g.codon_read),
+        "srmech.biology.genome.codon_read": ("algebra", g.codon_read),
         "srmech.qm.quaternion.quaternion_cycle_holonomy":
             ("gains",
              lambda gg: quaternion_cycle_holonomy(
                  _EDGES, [_gain(x) for x in gg], n=6)),
-        "srmech.amsc.genome.cwf_consistency_mod2":
+        "srmech.biology.genome.cwf_consistency_mod2":
             ("gains+geometry", None),
-        "srmech.amsc.genome.discrete_writhe": ("geometry", g.discrete_writhe),
+        "srmech.biology.genome.discrete_writhe": ("geometry", g.discrete_writhe),
     }
 
 

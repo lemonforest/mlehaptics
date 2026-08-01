@@ -87,7 +87,7 @@ import sys
 
 from srmech.amsc.cascade.cayley_dickson import cd_basis, cd_mult
 from srmech.amsc.octonion import oct_mult
-from srmech.amsc.q8 import q8_mult
+from srmech.biology.q8 import q8_mult
 
 
 def klein4_mult(a: int, b: int) -> int:

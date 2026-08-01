@@ -19,8 +19,8 @@ import tempfile
 
 import pytest
 
-from srmech.amsc import genome as G
-from srmech.amsc.genome import GenomeBoundingError, GENOME_CHR_SCHEMA_ID
+from srmech.biology import genome as G
+from srmech.biology.genome import GenomeBoundingError, GENOME_CHR_SCHEMA_ID
 from srmech.amsc.format import MPRRecord, validate_mpr_record
 from srmech.math.hdc import klein4_expand
 

@@ -12,7 +12,7 @@
 
 ## Context
 
-`srmech.amsc` was named the **A**ttested **M**ulti-**S**ource **C**ollector/**C**atalog — the provenance/MPR framework. It has since accreted **76 top-level modules + 4 subpackages, 8.7 MB** (measured 2026-07-29; this line read "~70" as an estimate) of which — by the classification test below — **only 4 are attestation**, i.e. **95% of what lives in `amsc` is not `amsc`** (Amendment A.2). The accretion: the whole special-functions galaxy (`rational`, `elliptic_*`, `modular_forms_*`, `thetasum`, `riemann_theta`, `zeilberger`/`gosper`, `jacobi`), the carriers (`q`/`mat`/`vec`/`hv`), the 14 A–N primitives (`format`/`cyclic`/`laplacian`/`hdc`/…), the biology domain (`genome`/`plasmid`/`q8`), and the composition catalogs (`_research/{class,cascade}_catalog/`). The namespace no longer reads as its own map, and `import srmech.amsc.rational` misdescribes what `rational` is. The pressure is real and recurring — rc317 had to move `relative_writhe` out of `srmech.amsc.genome` to dodge the wire-format ratchet; that was the first small instance of this ADR.
+`srmech.amsc` was named the **A**ttested **M**ulti-**S**ource **C**ollector/**C**atalog — the provenance/MPR framework. It has since accreted **76 top-level modules + 4 subpackages, 8.7 MB** (measured 2026-07-29; this line read "~70" as an estimate) of which — by the classification test below — **only 4 are attestation**, i.e. **95% of what lives in `amsc` is not `amsc`** (Amendment A.2). The accretion: the whole special-functions galaxy (`rational`, `elliptic_*`, `modular_forms_*`, `thetasum`, `riemann_theta`, `zeilberger`/`gosper`, `jacobi`), the carriers (`q`/`mat`/`vec`/`hv`), the 14 A–N primitives (`format`/`cyclic`/`laplacian`/`hdc`/…), the biology domain (`genome`/`plasmid`/`q8`), and the composition catalogs (`_research/{class,cascade}_catalog/`). The namespace no longer reads as its own map, and `import srmech.amsc.rational` misdescribes what `rational` is. The pressure is real and recurring — rc317 had to move `relative_writhe` out of `srmech.biology.genome` to dodge the wire-format ratchet; that was the first small instance of this ADR.
 
 ## Decision — a domain-and-structure namespace
 
@@ -456,7 +456,7 @@ Flat on every per-artifact pair. The only regen delta in the tree was one line o
 **This ratchet counts a DOTTED prefix — a module-path population.** What this slice moved was *data
 files*, whose location is only ever written as a filesystem path with slashes, which the prefix does
 not match; and the descriptor BODIES are untouched, so a `[class]` descriptor's
-`op = "srmech.amsc.genome.chromosome"` still names an op whose module has not moved. All 40 decoded
+`op = "srmech.biology.genome.chromosome"` still names an op whose module has not moved. All 40 decoded
 hits in the class registry survive **by construction**.
 
 The instrument is correct about the population it names. **The wrong belief was this ADR's**: the body
@@ -890,7 +890,7 @@ the **3-surface** cost is the one to budget by default.
 ### F.4 A NEW ripple class — the first cross-namespace CONSUMER repoint
 
 Every prior slice moved a module whose amsc-sibling dependencies moved WITH it or were only cited in prose.
-op_provenance is the first to expose a **live consumer that stays behind**: `srmech/amsc/coupling.py`
+op_provenance is the first to expose a **live consumer that stays behind**: `srmech/biology/coupling.py`
 (`RecoverableFold.identity`) lazily imports `op_provenance` to compute its chain hash. Its relative
 `from . import op_provenance` (which resolved to the amsc sibling) had to become
 `from ..introspect import op_provenance` — an amsc module now reaching UP into `srmech.introspect`. This is
@@ -1400,3 +1400,89 @@ why the four audit tests are run explicitly.
   audit tests (`test_numpy_carrier_ratchet` / `test_cascade_numpy_absent` /
   `test_symmetric_eigh_canon_routing_rc67` / `test_associator_control_gf_solve_rc360`) PASS; census /
   op-name-set / decode-aware / rosetta / def_parity / no-stdlib-math green; `regen --check` up to date.
+
+## Amendment L — the TENTH slice, the BIOLOGY bucket: four modules → `srmech.biology`, the FIFTH new DOMAIN namespace opened AND drained in ONE rc, v0.9.0rc375 (`#T1034`)
+
+rc375 opens A.2's fifth destination, `srmech.biology`, and — the bucket being only four modules — DRAINS
+it in the same slice: `genome` / `plasmid` / `q8` / `coupling` all leave `srmech.amsc` for
+`srmech.biology`. It is the biological-substrate DOMAIN home (named by field, like `srmech.math` /
+`srmech.apokatastasis`; contrast the structure home `srmech.cascade`). `genome` is the **arc's single
+largest C surface** — many `c/src/srmech_genome_*.c` files plus extensive `srmech.h` prose — and this is
+the first slice to move a heavily-C-backed OPERATOR family.
+
+### L.1 The new-namespace SETUP — the same template (G.1 / I.2), with the census entry already fully named
+
+Three edits beyond a drop-in slice: create `srmech/biology/__init__.py` (domain docstring + `__all__ = []`,
+re-exports nothing — the Rosetta walk discovers ops through each submodule's own `__all__`); append
+`srmech.biology` to the Rosetta walk roots (`tests/rosetta_roots.py` + the single-source pin
+`_EXPECTED_ROOTS`, migrating it out of `_ADR0010_NEW_NAMESPACES` into `_ADR0010_EXISTING_DESTINATIONS`);
+and record the roster in the census move-map. `NAMED_DEPARTURES["srmech.biology"]` was ALREADY the fully
+named `{coupling, genome, plasmid, q8}` from the census mint (4 == the A.2 count of 4), so that entry needed
+only verification, not extension — the four just moved from "named but not landed" to `LANDED`. The
+nonexistent-package witness rotates OFF `srmech.biology` (now real) — it points at the still-absent
+`srmech.physics`.
+
+### L.2 GENOME OPS MOVE THE DECODED CHANNEL — the finding this slice was watched for
+
+rc374 (Amendment K) moved pure CARRIERS (operands with no ToolEntry op), so its decoded population fell by
+only 6. rc375 moves OPERATORS — `genome` / `q8` / `coupling` register ~86 ops, and their carrier back-index
+references DO live in the carrier registry's four hoisted >4000-byte byte arrays. **Measured post-regen:
+carrier-registry decoded `srmech.amsc.` 196 → 97 (−99), `srmech.biology.` 0 → 99 (+99, conserved); class
+registry decoded `srmech.amsc.` 40 → 29 (−11), `srmech.biology.` 11 (the baked `[class] Genome`
+descriptor's op refs).** `srmech.math.` / `srmech.apokatastasis.` / `srmech.music.` decoded all held
+(320 / 13 / 13) — the biology move touched none of them. A new `assert biology == 99` pins the receiving
+side (as `math` / `apokatastasis` / `music` are pinned); the non-vacuity dominance factor drops `4× → 3×`
+(carrier 97 vs class 29 ≈ 3.3×, no longer ≥ 4× after the 99-ref drain).
+
+### L.3 The eleven-form sweep — including one this slice HAD to find: the Rosetta ledger is `.ndjson`
+
+HIT: **[1]** dotted `srmech.amsc.{coupling,genome,plasmid,q8}` (742 refs across 154 files) · **[2]**
+`os.path.join(…, "amsc", "coupling.py")` (3 coupling source-readers) · **[3]** `from srmech.amsc import <m>`
+(115, incl. ONE multi-name `from srmech.amsc import coupling, _native` SPLIT into a biology line + an amsc
+line) · **[4]** the moved modules' relative up-reach `from . import _native` → `from ..amsc import _native`
+(14 sites in genome/coupling/plasmid; q8 needed none — it imports amsc keepers absolutely; the octonion
+precedent) and genome's `from srmech.amsc.q8 import` → relative `from .q8 import` (3); plasmid's intra-biology
+`from . import genome` / `from .genome import` STAY relative · **[5]** worked-examples ledger (regenerated
+native-absent, `native:false`) · **[6]** C comments (`srmech_genome.c` 33 dotted + 3 slash, `srmech.h`,
+`ROSETTA_LEDGER.md`, `JPL_AUDIT.md`) — the `srmech_genome_*` / `srmech_q8_*` / `srmech_coupling_*` C SYMBOLS
+are capability-named and DO NOT rename · **[7]** live notes/`srmech_research_notebook.md`/`rbs_lm_research`
+prose · **the SLASH descriptor-path form** — genome stamps `"collector_descriptor_path": "srmech/amsc/genome.py"`
+in two live attestation sites (→ `srmech/biology/genome.py`), with its `test_genome_attestation_rc304.py`
+assertion updated; the FROZEN `genome_v2_fixture/manifest.json` (parser_version rc113) is left as historical
+data · **the `.ndjson` Rosetta CLASSIFICATION ledger** (`tests/rosetta_classification.ndjson`, 90 rows × 2
+`exposed_as`/`defined_at` fields = 180 refs) — the surprise form: a `srmech.amsc.<m>`-dotted DATA file NOT
+in the `.py/.c/.md/.toml` sweep, and the SOURCE `gen_c_claims.py` reads to build `_c_claims.py`; leaving it
+stale would have left `_c_claims.py` regenerating amsc-named genome claim keys. NOT HIT (stated for the
+record): **[9]** `.github/workflows/srmech-ci.yml` — its only smoke import is `import srmech.qm`; it names
+none of the four · **[10]** dynamic `importlib.import_module(f"srmech.amsc.{name}")` — the genome/q8 C-audit
+tests DO use `spec_from_file_location`, but they load `test_rosetta_transitive_standalone.py`, NOT the moved
+module, so no dynamic module-path names any of the four.
+
+### L.4 The instrument set (all re-pinned in the SAME commit, MEASURED post-regen)
+
+- **Census**: **18 → 14 modules**; digest `ae5704ea…` → **`b7443cd0…`**; `LANDED` 57 → **61**; conservation
+  **`14 + 61 == 75`**; `NAMED_DEPARTURES["srmech.biology"]` already `{coupling, genome, plasmid, q8}`
+  (verified; 4 == A.2's count of 4). The `test_the_census_can_actually_fail` stand-in leaver rotates
+  `genome` → `compose` (genome having actually departed).
+- **Op-name-set witness**: **86** op names amsc→biology; digest `e79b79fb…` → **`e52e8d11…`**; `EXPECTED_N`
+  **stays 525** (a move, not an add).
+- **Decode-aware** (MEASURED post-regen): `srmech_carrier_registry.c` **(75, 196) → (68, 97)**;
+  `srmech_class_registry.c` **(0, 40) → (0, 29)**; `srmech_tool_registry.c` **(440, 0) → (282, 0)**;
+  `_tool_docs.py` **(431, 0) → (275, 0)**; `_c_claims.py` **(90, 0) → (59, 0)** (31 genome/q8/coupling
+  c_dispatched op keys repoint via the Rosetta ledger); `srmech_responsion_registry.c` **(6, 0) → (3, 0)**
+  (coupling/genome ARE edge-OPERATOR names here — contrast rc374, where no operator moved so responsion held);
+  **`TOTAL_AS_TEXT` 1042 → 687**, **`TOTAL_DECODED` 236 → 126**. Decoded population + the new `biology == 99`
+  pin per L.2.
+- **C surface / c_dispatched**: `genome` is the arc's largest C surface, yet every `srmech_genome_*` /
+  `srmech_q8_*` / `srmech_coupling_*` C SYMBOL is capability-named and UNCHANGED — **ABI stays 10**. The MCP
+  dispatch vtable `srmech_invoke.c` holds **NO** dotted Python op names for these (it dispatches by C symbol),
+  so it needed no repoint; only the Python-side dotted keys in `_c_claims.py` / the registries moved.
+- **Rosetta**: all moved op rows repointed amsc→biology in `rosetta_classification.ndjson`; `srmech.biology`
+  added as a walk root; completeness + transitive + roots-single-source green.
+- **Regenerated artifacts** (`tools/regen_all.py --accept-seed-drift`, native-absent — the moved genome/q8/
+  coupling ops' docstrings and the octonion/rational sibling-cites legitimately drifted): all 6 outputs
+  content-equal + idempotent (byte-identical across two passes); `regen --check` green.
+- **Verification** (numpy-absent WSL): 4/4 `import srmech.biology.<m>` succeed, 4/4 `srmech.amsc.<m>` raise
+  `ModuleNotFoundError`; `describe` total **525**; whole-suite `pytest --co -q` **0 ImportError**; the genome/q8
+  audit + dynamic-import tests PASS; census / op-name-set / decode-aware / rosetta / def_parity / no-stdlib-math
+  green; `regen --check` up to date.

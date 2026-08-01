@@ -278,7 +278,7 @@ srmech.amsc.hdc.polar_similarity
 srmech.amsc.hdc.polar_unbind
 srmech.amsc.laplacian.symmetric_eigendecompose
 srmech.amsc.laplacian.three_fold_eigvec_groups
-srmech.amsc.coupling.signed_sum_squared
+srmech.biology.coupling.signed_sum_squared
 srmech.music.harmonics.classify_chirality_harmonic
 srmech.amsc.compose.greedy_bipartite_alignment
 srmech.amsc.cascade.hypercomplex_couple

@@ -143,4 +143,15 @@ ROSETTA_ROOTS = (
     # H.2 apokatastasis over-count reassignment: GF(p) finite-field LA is a
     # general math primitive, not a modular-forms module, so it lands HERE.
     "srmech.math",
+    # v0.9.0rc375 — the ADR-0010 srmech.biology DOMAIN namespace (the biological
+    # substrate: genome persistence / gene-expression + the carriers it composes),
+    # landed by its ONLY slice: the whole 4-module roster genome / plasmid / q8 /
+    # coupling in one move (A.2's fifth destination, 4 modules). APPENDED
+    # (order-is-part-of-the-value). Like srmech.apokatastasis / srmech.math and
+    # UNLIKE the zero-op srmech.cascade, this root arrives carrying WALKED ops (the
+    # genome / q8 / coupling operator surface), so the walk MUST reach it in the
+    # SAME rc the modules move or the moves would read as deletions. genome is the
+    # arc's single largest C surface; its srmech_genome_* C symbols are
+    # capability-named and DO NOT rename, so the ABI stays 10.
+    "srmech.biology",
 )

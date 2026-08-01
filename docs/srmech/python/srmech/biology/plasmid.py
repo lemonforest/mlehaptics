@@ -1,4 +1,4 @@
-"""srmech.amsc.plasmid — F1252 / §102: the TWO-STAGE genome encode.
+"""srmech.biology.plasmid — F1252 / §102: the TWO-STAGE genome encode.
 
 **STAGE 1 (EXTRACT, rc278)** — :func:`plasmid_extract` / :func:`section_counts`: the
 plasmid-native sectional graph-L store. **STAGE 2 (ORGANIZE, rc279)** —
@@ -52,7 +52,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence
 
-from . import _native
+from ..amsc import _native
 from . import genome as _genome
 # Bare imports of the composed genome ledger ops (so the rosetta reachability walk
 # SEES that the plasmid surface reaches C-backed peers — a `_genome.op()` module-

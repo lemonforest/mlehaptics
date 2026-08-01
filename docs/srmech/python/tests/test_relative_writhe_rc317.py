@@ -1,7 +1,7 @@
 """rc317 — Fuller's Second-Theorem exact-rational RELATIVE WRITHE gates.
 
 ``srmech.math.rational.relative_writhe`` is the single-integral peer of the O(n²)
-:func:`~srmech.amsc.genome.discrete_writhe` double sum — a CERTIFIED TRUNCATION
+:func:`~srmech.biology.genome.discrete_writhe` double sum — a CERTIFIED TRUNCATION
 (exact rational + a stated ``remainder_bound``) of Fuller's
 ``Wr(C) − Wr(C0) = (1/2π) ∮ (t0×t)·d(t0+t)/(1+t0·t) ds``.
 
@@ -28,7 +28,7 @@ from srmech.amsc import _native
 from srmech.math.rational import (
     relative_writhe, _CLASSN_PLATFORM_DEN_BITS, _classn_working,
 )
-from srmech.amsc.genome import discrete_writhe, cwf_consistency_mod2
+from srmech.biology.genome import discrete_writhe, cwf_consistency_mod2
 
 
 # ── float ORACLE (copied from the verified fuller_second_spike.py) ──────────

@@ -122,25 +122,25 @@ def test_the_migrated_genome_explanations_are_curated(built):
     from srmech.amsc._tool_docs_curated import CURATED
 
     casualties = [
-        "srmech.amsc.genome.accessible",
-        "srmech.amsc.genome.amplify",
-        "srmech.amsc.genome.chromatin_of",
-        "srmech.amsc.genome.condense",
-        "srmech.amsc.genome.copy_number_of",
-        "srmech.amsc.genome.decondense",
-        "srmech.amsc.genome.genome_catalog",
-        "srmech.amsc.genome.genome_census",
-        "srmech.amsc.genome.genome_from_graph",
-        "srmech.amsc.genome.genome_partition",
-        "srmech.amsc.genome.genome_registry",
-        "srmech.amsc.genome.integrate",
-        "srmech.amsc.genome.mint_strand",
-        "srmech.amsc.genome.plasmid",
-        "srmech.amsc.plasmid.add_plasmid",
-        "srmech.amsc.plasmid.conserved_core",
-        "srmech.amsc.plasmid.genome_integrate_plasmids",
-        "srmech.amsc.plasmid.plasmid_extract",
-        "srmech.amsc.plasmid.section_counts",
+        "srmech.biology.genome.accessible",
+        "srmech.biology.genome.amplify",
+        "srmech.biology.genome.chromatin_of",
+        "srmech.biology.genome.condense",
+        "srmech.biology.genome.copy_number_of",
+        "srmech.biology.genome.decondense",
+        "srmech.biology.genome.genome_catalog",
+        "srmech.biology.genome.genome_census",
+        "srmech.biology.genome.genome_from_graph",
+        "srmech.biology.genome.genome_partition",
+        "srmech.biology.genome.genome_registry",
+        "srmech.biology.genome.integrate",
+        "srmech.biology.genome.mint_strand",
+        "srmech.biology.genome.plasmid",
+        "srmech.biology.plasmid.add_plasmid",
+        "srmech.biology.plasmid.conserved_core",
+        "srmech.biology.plasmid.genome_integrate_plasmids",
+        "srmech.biology.plasmid.plasmid_extract",
+        "srmech.biology.plasmid.section_counts",
         "srmech.math.text.glyph_stream",
     ]
     absent = [n for n in casualties if n not in CURATED]
@@ -173,7 +173,7 @@ def test_guard_catches_hand_editing_of_the_generated_file(gen, built):
     — and asserts the generator names it.
     """
     _docs, seed, curated = built
-    victim = "srmech.amsc.genome.accessible"
+    victim = "srmech.biology.genome.accessible"
     assert victim in seed, "fixture drifted: op is no longer registered"
 
     committed = gen.load_committed(GENERATED)
@@ -235,7 +235,7 @@ def test_guard_does_not_fire_on_new_curation_over_an_auto_seed(gen, built):
     flight.
     """
     _docs, seed, curated = built
-    victim = "srmech.amsc.genome.accessible"
+    victim = "srmech.biology.genome.accessible"
     assert victim in seed and victim in curated, "fixture drifted"
     assert "example" in seed[victim], "fixture drifted: op has no seed example"
 
@@ -284,17 +284,17 @@ def test_probe_merge_preserves_entries_it_did_not_probe():
     """``gen_curated_probe`` must not delete curation outside ``CENTRAL``."""
     probe = _load_tool("gen_curated_probe")
     existing = {
-        "srmech.amsc.genome.accessible": {"explanation": "four rcs of curation"},
+        "srmech.biology.genome.accessible": {"explanation": "four rcs of curation"},
         "srmech.math.cyclic.gcd": {"example": {"input": {"a": "12"}, "output": "6"}},
     }
     probed = {"srmech.math.cyclic.gcd": {"example": {"input": {"a": "9"}, "output": "3"}}}
 
     merged = probe.merge_curated(existing, probed)
-    assert "srmech.amsc.genome.accessible" in merged, (
+    assert "srmech.biology.genome.accessible" in merged, (
         "the probe dropped a curated entry its CENTRAL list does not mention "
         "— the rc291 #916 defect on the probe side"
     )
-    assert merged["srmech.amsc.genome.accessible"]["explanation"] == "four rcs of curation"
+    assert merged["srmech.biology.genome.accessible"]["explanation"] == "four rcs of curation"
     assert merged["srmech.math.cyclic.gcd"]["example"]["output"] == "3", (
         "a probed row must still win for the key it probed"
     )

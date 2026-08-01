@@ -6,8 +6,8 @@ that holds the sign lane in the SAME byte as the index lane —
 
     srmech.amsc.octonion.oct_mult   (octonion.py:139)  o = (sign<<3) | index
     srmech.amsc.octonion.oct_bind   (octonion.py:202)  the buffer form
-    srmech.amsc.q8.q8_mult          (q8.py:133)        o = (sign<<2) | index
-    srmech.amsc.q8.q8_bind          (q8.py:195)
+    srmech.biology.q8.q8_mult          (q8.py:133)        o = (sign<<2) | index
+    srmech.biology.q8.q8_bind          (q8.py:195)
 
 with C peers srmech_oct_mult / srmech_oct_bind / srmech_q8_mult / srmech_q8_bind.
 oct_mult's own docstring states the split exactly:
@@ -30,7 +30,7 @@ Exact integers / exact Q. No float, no numpy, no abs().
 import json
 
 from srmech.amsc.octonion import oct_mult
-from srmech.amsc.q8 import q8_mult
+from srmech.biology.q8 import q8_mult
 from srmech.amsc.cascade.cayley_dickson import cd_basis_product, cd_basis, cd_mult
 from srmech.amsc.q import Q
 

@@ -1491,7 +1491,7 @@ static srmech_mval_t *mc_vtable_sed(srmech_marshal_arena_t *a, const char *suf,
     return NULL;
 }
 
-/* Genome leaf sub-dispatch — `suf` is the op suffix after "srmech.amsc.genome.". */
+/* Genome leaf sub-dispatch — `suf` is the op suffix after "srmech.biology.genome.". */
 static srmech_mval_t *mc_vtable_genome(srmech_marshal_arena_t *a, const char *suf,
                                        const srmech_mval_t **binds, uint32_t nb,
                                        const srmech_mval_t *args)
@@ -1536,8 +1536,8 @@ static srmech_mval_t *mc_vtable_call(srmech_marshal_arena_t *a, const char *op,
     if (strncmp(op, "srmech.amsc.cascade.sedenion_register.sed_", 42) == 0) {
         return mc_vtable_sed(a, op + 42, binds, nb, args);
     }
-    if (strncmp(op, "srmech.amsc.genome.", 19) == 0) {
-        return mc_vtable_genome(a, op + 19, binds, nb, args);
+    if (strncmp(op, "srmech.biology.genome.", 22) == 0) {
+        return mc_vtable_genome(a, op + 22, binds, nb, args);
     }
     return NULL;
 }

@@ -1326,7 +1326,7 @@ def _bind(lib: ctypes.CDLL) -> None:
         lib.srmech_dense_matmul_complex.restype = ctypes.c_int
 
     # §75 (F928): the resonant-spectrum closure — the C twin of
-    # srmech.amsc.coupling.resonant_spectrum. A Class-L coupling composite over
+    # srmech.biology.coupling.resonant_spectrum. A Class-L coupling composite over
     # srmech_hermitian_eigendecompose_ws + srmech_best_rational + srmech_factor.
     # NEW symbols, hasattr-guarded (ABI stays 3) so a stale ABI-3 lib keeps the
     # rest of the native surface and the pure-Python op is the complete path.
@@ -3074,7 +3074,7 @@ def _bind(lib: ctypes.CDLL) -> None:
             lib.srmech_laplacian_recursive_cut.restype = ctypes.c_int
 
         # §100 G3 (rc321, task #904) — the WHOLE-OP GRAPH partition C peer of
-        # srmech.amsc.genome.genome_partition (the GRAPH op; NOT the strand-recovery
+        # srmech.biology.genome.genome_partition (the GRAPH op; NOT the strand-recovery
         # srmech_genome_partition). Composes recursive_cut + an exact-integer
         # participation read + the antimode DECISION + per-node classify + group
         # assembly, all in C. NEW symbols → own hasattr; ws_len is in BYTES.
@@ -3116,7 +3116,7 @@ def _bind(lib: ctypes.CDLL) -> None:
             lib.srmech_genome_graph_partition.restype = ctypes.c_int
 
         # §100 G2 (rc327, task #905) — GENOME FROM GRAPH: the WHOLE-OP C peer of
-        # srmech.amsc.genome.genome_from_graph. Composes srmech_genome_graph_partition
+        # srmech.biology.genome.genome_from_graph. Composes srmech_genome_graph_partition
         # -> per group an in-RAM induced-subgraph relabel -> srmech_graph_kernel_encode
         # -> the HV kernel BLOCK build -> srmech_genome_mint_strand (nuclear) -> strand
         # assembly. The partition read-out arrays are the SAME shape the G3 op writes
@@ -17248,7 +17248,7 @@ def has_native_genome_graph_partition() -> bool:
     assembly ALL in C, so a bare-C host builds the whole genome_partition. Before
     rc321 only recursive_cut was native and the participation/antimode/groups read
     was Python-only — exactly the §100 G3 parity gap. False on a no-C or pre-rc321
-    lib — the pure ``srmech.amsc.genome.genome_partition`` body is the complete
+    lib — the pure ``srmech.biology.genome.genome_partition`` body is the complete
     byte-parity oracle."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_genome_graph_partition")
@@ -17257,7 +17257,7 @@ def has_native_genome_graph_partition() -> bool:
 
 def genome_graph_partition_c(n, edges_path, work_dir, max_tome, n_bins, max_iters,
                              max_depth, paths_cap, progress=None):
-    """§100 G3 native dispatch for :func:`srmech.amsc.genome.genome_partition` (the
+    """§100 G3 native dispatch for :func:`srmech.biology.genome.genome_partition` (the
     GRAPH op). Runs the WHOLE partition in C: ``srmech_laplacian_recursive_cut`` over
     ``edges_path`` (a :func:`~srmech.math.laplacian.write_packed_graph` edge file),
     then the exact-integer participation, the antimode histogram DECISION, per-node
@@ -17367,7 +17367,7 @@ def has_native_genome_from_graph() -> bool:
     (srmech_genome_graph_partition -> per-group induced-subgraph relabel ->
     graph_kernel_encode -> the HV kernel blocks -> mint_strand -> strand assembly)
     end-to-end. False on a no-C or pre-rc327 lib — the pure
-    srmech.amsc.genome.genome_from_graph body is the complete byte-identical
+    srmech.biology.genome.genome_from_graph body is the complete byte-identical
     alternative + parity oracle."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_genome_from_graph")
@@ -17377,7 +17377,7 @@ def has_native_genome_from_graph() -> bool:
 def genome_from_graph_c(n, edges_path, work_dir, edge_list, weight_list,
                         charge_list, coupling, leaf_dim, max_tome, n_bins,
                         max_iters, max_depth, centromere_at, repeats, handle):
-    """§100 G2 native dispatch for :func:`srmech.amsc.genome.genome_from_graph`. Runs
+    """§100 G2 native dispatch for :func:`srmech.biology.genome.genome_from_graph`. Runs
     the WHOLE builder in C via ``srmech_genome_from_graph``:
     ``srmech_genome_graph_partition`` (the groups) -> per group an in-RAM induced-
     subgraph relabel -> ``srmech_graph_kernel_encode`` -> the HV kernel BLOCK build ->
@@ -17507,7 +17507,7 @@ def has_native_k_extreme_modes() -> bool:
     + bound (rc230+ lib): the bottom-k + top-k combinatorial-Laplacian modes run
     in C via power iteration + deflation streaming the packed edge file through
     the PAL (caller-arena, no node cap), so
-    :func:`srmech.amsc.coupling.resonant_spectrum_sparse` dispatches to the C
+    :func:`srmech.biology.coupling.resonant_spectrum_sparse` dispatches to the C
     twin. False on a no-C or pre-rc230 lib — the pure-Python streaming read is
     the complete alternative (issue #698)."""
     return bool(HAS_NATIVE and LIB is not None
@@ -18837,7 +18837,7 @@ def has_native_genome_plasmid_extract() -> bool:
     """True iff the §102/rc278 srmech_genome_plasmid_extract C orchestrator is
     loaded + bound: a bare-C host extracts ONE doc into ONE appended plasmid
     section end-to-end (graph_kernel_encode -> §89 KERNEL-region -> genome_append).
-    False on a no-C or pre-rc278 lib — the pure srmech.amsc.plasmid path
+    False on a no-C or pre-rc278 lib — the pure srmech.biology.plasmid path
     (_graph_kernel_encode + genome_append_kernel) is the complete byte-identical
     alternative + parity oracle."""
     return bool(HAS_NATIVE and LIB is not None
@@ -18905,7 +18905,7 @@ def has_native_genome_conserved_core() -> bool:
     """True iff the §102/rc279 srmech_genome_conserved_core C peer is loaded + bound:
     a bare-C host runs the stage-2 CONSERVE step (the section-count distribution ->
     the DERIVED antimode threshold k + the conserved core node set) end-to-end. False
-    on a no-C or pre-rc279 lib — the pure srmech.amsc.plasmid.conserved_core body is
+    on a no-C or pre-rc279 lib — the pure srmech.biology.plasmid.conserved_core body is
     the complete byte-identical alternative + parity oracle."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_genome_conserved_core"))
@@ -18954,7 +18954,7 @@ def has_native_genome_section_counts() -> bool:
     a bare-C host derives ``{global_id: n_sections}`` from a plasmid section store
     end-to-end — deriving the catalog ONCE and paging only each section's node_ids
     region (never its edges). False on a no-C or pre-rc280 lib — the pure
-    srmech.amsc.plasmid.section_counts body is the complete byte-identical
+    srmech.biology.plasmid.section_counts body is the complete byte-identical
     alternative + parity oracle."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_genome_section_counts"))
@@ -18964,7 +18964,7 @@ def has_native_genome_discrete_writhe() -> bool:
     """True iff the rc313 srmech_genome_discrete_writhe C peer is loaded + bound:
     a bare-C host computes the exact-INTEGER directional writhe of a supplied 3D
     rational embedding over the srmech_bigint determinant surface. False on a
-    no-C or pre-rc313 lib — the pure srmech.amsc.genome.discrete_writhe body is
+    no-C or pre-rc313 lib — the pure srmech.biology.genome.discrete_writhe body is
     the complete byte-identical alternative (integer determinants) + oracle."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_genome_discrete_writhe")
@@ -18975,7 +18975,7 @@ def has_native_genome_cwf_consistency_mod2() -> bool:
     """True iff the rc313 srmech_genome_cwf_consistency_mod2 whole-op C peer is
     loaded + bound: a bare-C host runs the WHOLE mod-2 CWF check (orchestrating
     the holonomy + discrete-writhe C ops). False on a no-C or pre-rc313 lib —
-    the pure srmech.amsc.genome.cwf_consistency_mod2 body (composing the two ops
+    the pure srmech.biology.genome.cwf_consistency_mod2 body (composing the two ops
     in Python) is the complete byte-identical alternative + oracle."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_genome_cwf_consistency_mod2")
@@ -19118,7 +19118,7 @@ def has_native_genome_integrate_plasmids() -> bool:
     loaded + bound: a bare-C host runs stage 2 (PROMOTE the conserved core via
     mint_strand, MERGE the retained plasmids via integrate) end-to-end, with the §101
     tick firing between whole chromosomes. False on a no-C or pre-rc279 lib — the pure
-    srmech.amsc.plasmid fold is the complete byte-identical alternative."""
+    srmech.biology.plasmid fold is the complete byte-identical alternative."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_genome_integrate_plasmids"))
 
@@ -19135,7 +19135,7 @@ def genome_integrate_plasmids_c(core, core_blocks, plasmids, plasmid_blocks,
     DECLINE so the pure fold runs. Byte-identical to the pure path."""
     if not has_native_genome_integrate_plasmids():
         return None
-    from .genome import _hv_from_block, CENTROMERE_DEFAULT_REPEATS
+    from ..biology.genome import _hv_from_block, CENTROMERE_DEFAULT_REPEATS
     try:
         dim = int(leaf_dim)
         one = bytes(coupling)
@@ -19189,7 +19189,7 @@ def has_native_genome_add_plasmid() -> bool:
     1 -> 0). A bare-C host runs one incremental add's CONSERVE + ORGANIZE half
     (merge counts -> conserved_core -> harvest+pack the core off disk -> fold the
     organized strand) end-to-end. False on a no-C or pre-rc334 lib — the pure
-    srmech.amsc.plasmid.add_plasmid body is the complete byte-identical alternative."""
+    srmech.biology.plasmid.add_plasmid body is the complete byte-identical alternative."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_genome_add_plasmid")
                 and hasattr(LIB, "srmech_genome_add_plasmid_scratch_bytes")
@@ -19215,7 +19215,7 @@ def genome_add_plasmid_c(store, coupling, leaf_dim, k_in, prior_counts, new_nid,
     section_count/core/k state — or ``None`` to DECLINE so the pure body runs."""
     if not has_native_genome_add_plasmid():
         return None
-    from .genome import _hv_from_block, CENTROMERE_DEFAULT_REPEATS
+    from ..biology.genome import _hv_from_block, CENTROMERE_DEFAULT_REPEATS
     try:
         dim = int(leaf_dim)
         one = bytes(coupling)
@@ -19371,7 +19371,7 @@ def genome_telomere_tick_c(cap: bytes, leaf_dim: int):
 
 def has_native_genome_encode_shape() -> bool:
     """True iff the rc196 srmech_genome_encode_shape C peer is loaded + bound.
-    False on a no-C or pre-rc196 lib — the pure ``srmech.amsc.genome.encode_shape``
+    False on a no-C or pre-rc196 lib — the pure ``srmech.biology.genome.encode_shape``
     integer body is the complete alternative (and the parity oracle)."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_genome_encode_shape"))
@@ -19402,7 +19402,7 @@ def has_native_genome_active_telomere() -> bool:
     """True iff the rc329 §127/G7 srmech_genome_active_telomere C peer is loaded +
     bound: a bare-C host packs ONE §127 active-telomere cap (the op⊗operand Hayflick
     cap) with no daughter-minting. False on a no-C or pre-rc329 lib — the pure
-    ``srmech.amsc.genome._pack_active_telomere`` body is the complete byte-identical
+    ``srmech.biology.genome._pack_active_telomere`` body is the complete byte-identical
     alternative + parity oracle."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_genome_active_telomere"))
@@ -19438,14 +19438,14 @@ def has_native_genome_mint_plan() -> bool:
     """True iff the rc329 §102/G7 srmech_genome_mint_plan C peer is loaded + bound: a
     bare-C host runs the WHOLE mint_plan read-loop (encode_shape + the content-address
     orientation per kernel) with no Python present. False on a no-C or pre-rc329 lib —
-    the pure ``srmech.amsc.genome.mint_plan`` body is the complete byte-identical
+    the pure ``srmech.biology.genome.mint_plan`` body is the complete byte-identical
     alternative + parity oracle."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_genome_mint_plan"))
 
 
 def genome_mint_plan_c(contents, leaf_counts):
-    """§102/G7 native dispatch for :func:`srmech.amsc.genome.mint_plan`. Runs the WHOLE
+    """§102/G7 native dispatch for :func:`srmech.biology.genome.mint_plan`. Runs the WHOLE
     read-loop in C via ``srmech_genome_mint_plan``: per kernel the F715 shape decision
     (``srmech_genome_encode_shape`` → plasmid vs nuclear) and, for a nuclear kernel, its
     content-addressed orientation (``sha256(content)[0] & 3``).
@@ -19475,7 +19475,7 @@ def genome_mint_plan_c(contents, leaf_counts):
 
 def has_native_genome_telomere() -> bool:
     """True iff the rc196 srmech_genome_telomere C peer is loaded + bound. False on
-    a no-C or pre-rc196 lib — the pure ``srmech.amsc.genome._pack_cap`` body is the
+    a no-C or pre-rc196 lib — the pure ``srmech.biology.genome._pack_cap`` body is the
     complete alternative (and the parity oracle)."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_genome_telomere"))
@@ -19504,7 +19504,7 @@ def genome_telomere_c(label, dim: int):
 
 def has_native_genome_chromosome() -> bool:
     """True iff the rc197 srmech_genome_chromosome C peer is loaded + bound. False
-    on a no-C or pre-rc197 lib — the pure ``srmech.amsc.genome.chromosome`` body is
+    on a no-C or pre-rc197 lib — the pure ``srmech.biology.genome.chromosome`` body is
     the complete alternative (and the parity oracle)."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_genome_chromosome"))
@@ -19540,7 +19540,7 @@ def genome_chromosome_c(label, coupling: bytes, leaves: bytes, n_leaves: int,
 
 def has_native_genome_recall() -> bool:
     """True iff the rc197 srmech_genome_recall C peer is loaded + bound. False on a
-    no-C or pre-rc197 lib — the pure ``srmech.amsc.genome.recall`` body is the
+    no-C or pre-rc197 lib — the pure ``srmech.biology.genome.recall`` body is the
     complete alternative (and the parity oracle)."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_genome_recall"))
@@ -19609,7 +19609,7 @@ def genome_recall_q8_c(strand: bytes, n_blocks: int, leaf_dim: int, coupling: by
 
 def has_native_genome_genome() -> bool:
     """True iff the rc198 srmech_genome_genome C peer is loaded + bound. False on a
-    no-C or pre-rc198 lib — the pure ``srmech.amsc.genome.genome`` body is the
+    no-C or pre-rc198 lib — the pure ``srmech.biology.genome.genome`` body is the
     complete alternative (and the parity oracle)."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_genome_genome"))
@@ -19654,7 +19654,7 @@ def genome_genome_c(labels, coupling: bytes, leaves: bytes, leaf_counts,
 
 def has_native_genome_mint() -> bool:
     """True iff the §95a/rc258 srmech_genome_mint C peer is loaded + bound. False on a
-    no-C or pre-rc258 lib — the pure ``srmech.amsc.genome.mint`` body is the complete
+    no-C or pre-rc258 lib — the pure ``srmech.biology.genome.mint`` body is the complete
     alternative (and the parity oracle)."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_genome_mint"))
@@ -19791,7 +19791,7 @@ def genome_centromere_of_c(strand_bytes: bytes, n_blocks: int, leaf_dim: int):
 def has_native_genome_amplify() -> bool:
     """True iff the §135/rc281 srmech_genome_amplify C peer is loaded + bound: a bare-C
     host can WRITE a gene's copy number. False on a no-C or pre-rc281 lib — the pure
-    srmech.amsc.genome.amplify body is the complete byte-identical alternative + the
+    srmech.biology.genome.amplify body is the complete byte-identical alternative + the
     parity oracle."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_genome_amplify"))
@@ -19830,7 +19830,7 @@ def genome_amplify_c(strand_bytes: bytes, n_blocks: int, leaf_dim: int,
 def has_native_genome_copy_number() -> bool:
     """True iff the §135/rc281 srmech_genome_copy_number C peer is loaded + bound: a
     bare-C host can READ a gene's copy number. False on a no-C or pre-rc281 lib — the
-    pure srmech.amsc.genome.copy_number_of body is the complete value-identical
+    pure srmech.biology.genome.copy_number_of body is the complete value-identical
     alternative + the parity oracle."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_genome_copy_number"))
@@ -20019,7 +20019,7 @@ def genome_chromatin_of_c(strand_bytes: bytes, n_blocks: int, leaf_dim: int):
 def has_native_genome_condense() -> bool:
     """True iff the rc332 §102/G7 srmech_genome_condense C peer is loaded + bound: a bare-C
     host resolves condense's chromatin-range + region -> insert index with no Python present.
-    False on a no-C or pre-rc332 lib — the pure ``srmech.amsc.genome.condense`` body (the
+    False on a no-C or pre-rc332 lib — the pure ``srmech.biology.genome.condense`` body (the
     _chrom_range + region resolution) is the complete byte-identical alternative + parity
     oracle."""
     return bool(HAS_NATIVE and LIB is not None
@@ -20027,7 +20027,7 @@ def has_native_genome_condense() -> bool:
 
 
 def genome_condense_c(strand_bytes: bytes, n_blocks: int, leaf_dim: int, label, region):
-    """§102/G7 native dispatch for :func:`srmech.amsc.genome.condense`: run the WHOLE placement
+    """§102/G7 native dispatch for :func:`srmech.biology.genome.condense`: run the WHOLE placement
     decision in C via ``srmech_genome_condense`` — the label -> chromatin-range find + the
     ``region`` resolution — and return the BLOCK INDEX at which the (already-native) chromatin
     cap is spliced, or ``None`` when the symbol is absent / an input is off the fast path / the
@@ -20072,14 +20072,14 @@ def genome_condense_c(strand_bytes: bytes, n_blocks: int, leaf_dim: int, label, 
 def has_native_genome_decondense() -> bool:
     """True iff the rc332 §102/G7 srmech_genome_decondense C peer is loaded + bound: a bare-C
     host computes decondense's per-block keep-mask with no Python present. False on a no-C or
-    pre-rc332 lib — the pure ``srmech.amsc.genome.decondense`` body is the complete byte-identical
+    pre-rc332 lib — the pure ``srmech.biology.genome.decondense`` body is the complete byte-identical
     alternative + parity oracle."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_genome_decondense"))
 
 
 def genome_decondense_c(strand_bytes: bytes, n_blocks: int, leaf_dim: int, label):
-    """§102/G7 native dispatch for :func:`srmech.amsc.genome.decondense`: run the WHOLE cap-clear
+    """§102/G7 native dispatch for :func:`srmech.biology.genome.decondense`: run the WHOLE cap-clear
     decision in C via ``srmech_genome_decondense`` and return the per-block KEEP-MASK as a list of
     ``bool`` (``True`` keep, ``False`` drop), or ``None`` when the symbol is absent / an input is
     off the fast path / the label-scope range-find declines, so the caller takes the pure body.
@@ -20133,14 +20133,14 @@ def _decode_genes(buf: bytes, leaf_dim: int):
 def has_native_genome_genes() -> bool:
     """True iff the rc333 §102/G7 srmech_genome_genes C peer is loaded + bound: a bare-C host
     recovers the IN-MEMORY per-gene (label, leaves) split with no Python present. False on a no-C
-    or pre-rc333 lib — the pure ``srmech.amsc.genome.genes`` walk is the complete byte-identical
+    or pre-rc333 lib — the pure ``srmech.biology.genome.genes`` walk is the complete byte-identical
     alternative + parity oracle."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_genome_genes"))
 
 
 def genome_genes_c(strand_bytes: bytes, n_blocks: int, leaf_dim: int, coupling: bytes):
-    """§102/G7 native dispatch for :func:`srmech.amsc.genome.genes` (the KLEIN4 default): run the
+    """§102/G7 native dispatch for :func:`srmech.biology.genome.genes` (the KLEIN4 default): run the
     WHOLE per-gene split in C via ``srmech_genome_genes`` and return
     ``[(label_str, [leaf_bytes, …]), …]`` (each ``leaf_bytes`` a ``leaf_dim``-byte recovered leaf
     the caller re-wraps into an ``HV``), or ``None`` when the symbol is absent / an input is off the
@@ -20170,7 +20170,7 @@ def has_native_genome_genome_genes() -> bool:
 
 
 def genome_genome_genes_c(dir_: str, label: str, coupling: bytes, leaf_dim: int):
-    """§102/G7 native dispatch for :func:`srmech.amsc.genome.genome_genes`: obtain the manifest,
+    """§102/G7 native dispatch for :func:`srmech.biology.genome.genome_genes`: obtain the manifest,
     page the ``label`` chromosome's region (cap-integrity checked), and run the per-gene split in C
     via ``srmech_genome_genome_genes``. Returns ``[(label_str, [leaf_bytes, …]), …]`` (empty list
     for a chromosome with NO gene caps — the caller then raises the "no inline GENE caps"
@@ -20212,7 +20212,7 @@ def has_native_genome_genes_expressed() -> bool:
 
 
 def genome_genes_expressed_c(dir_: str, cell_state: int, coupling: bytes, leaf_dim: int):
-    """§102/G7 native dispatch for :func:`srmech.amsc.genome.genome_genes_expressed`: walk the
+    """§102/G7 native dispatch for :func:`srmech.biology.genome.genome_genes_expressed`: walk the
     manifest, page ONLY the expressed communities' regions, filter each by gene_express, and collect
     ``[(label_str, [leaf_bytes, …]), …]`` in C via ``srmech_genome_genes_expressed``, or ``None``
     when the symbol is absent / the C declines — which as of rc342 (#T969) includes the C
@@ -20309,7 +20309,7 @@ def genome_chromatin_gated_c(chromatin_type, num, den, gate_blob, handle, dim: i
 
 def has_native_genome_partition() -> bool:
     """True iff the rc198 srmech_genome_partition C peer is loaded + bound. False on a
-    no-C or pre-rc198 lib — the pure ``srmech.amsc.genome.partition`` body is the
+    no-C or pre-rc198 lib — the pure ``srmech.biology.genome.partition`` body is the
     complete alternative (and the parity oracle)."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_genome_partition"))
@@ -20359,7 +20359,7 @@ def genome_partition_c(strand: bytes, n_blocks: int, leaf_dim: int, coupling: by
 
 def has_native_genome_integrate() -> bool:
     """True iff the §95.1d/rc276 srmech_genome_integrate C peer is loaded + bound.
-    False on a no-C or pre-rc276 lib — the pure ``srmech.amsc.genome.integrate`` body
+    False on a no-C or pre-rc276 lib — the pure ``srmech.biology.genome.integrate`` body
     is the complete alternative (and the parity oracle)."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_genome_integrate"))
@@ -20407,7 +20407,7 @@ def genome_integrate_c(host: bytes, host_blocks: int, host_leaf_dim: int,
 
 def has_native_genome_mint_strand() -> bool:
     """True iff the §100 GAP 1/rc277 srmech_genome_mint_strand C peer is loaded + bound.
-    False on a no-C or pre-rc277 lib — the pure ``srmech.amsc.genome.mint_strand`` body is
+    False on a no-C or pre-rc277 lib — the pure ``srmech.biology.genome.mint_strand`` body is
     the complete alternative (and the parity oracle)."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_genome_mint_strand"))

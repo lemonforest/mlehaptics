@@ -227,7 +227,7 @@ def _resonant_spectrum_native(L, orders: int, max_den: int):
     native lib / symbol, so the caller runs the pure-Python complete alternative.
     """
     import ctypes
-    from . import _native
+    from ..amsc import _native
     from ..math import primes as _primes
     from ..math.mat import Mat
 
@@ -609,7 +609,7 @@ def _kext_modes_file_native(n, path, k, max_iters):
     PAL streaming-read). Returns the same distinct ``(tension, eigvec)`` pair
     list the pure path returns, or ``None`` on any non-OK status."""
     import ctypes
-    from . import _native
+    from ..amsc import _native
 
     lib = _native.LIB
     kk = int(k)
@@ -633,7 +633,7 @@ def _kext_modes_file_native(n, path, k, max_iters):
 def _kext_from_edges(n, edges, weights, k, max_iters):
     """k-extreme pairs from an in-RAM edge list — native (write a temp packed
     file, stream it in C) else the pure-Python streaming read."""
-    from . import _native
+    from ..amsc import _native
 
     if _native.has_native_k_extreme_modes() and n >= 1:
         import os
@@ -658,7 +658,7 @@ def _kext_from_path(n, path, k, max_iters):
     """k-extreme pairs from a packed edge FILE — native streams it directly
     (edges never resident); the pure path reads it in (correct, not bounded —
     the fiedler_sparse_file precedent)."""
-    from . import _native
+    from ..amsc import _native
     from ..math import laplacian as _L
 
     if _native.has_native_k_extreme_modes():
@@ -1531,7 +1531,7 @@ class RecoverableFold:
             return None
         from ..introspect import op_provenance as _op  # rc117 canonical machinery (lazy)
         rec = _op.lossy_projection_record(
-            "srmech.amsc.coupling.fold_encode",
+            "srmech.biology.coupling.fold_encode",
             {"R": list(self._exact_seed_R.coeffs), "branches": int(self._branches)},
         )
         return rec["chain_sha256"]

@@ -2,7 +2,7 @@
 
 The discrete octonion Moufang loop ``{±e₀, …, ±e₇}`` as 4-bit bytes
 (:mod:`srmech.math.octonion`) is wired into the GENOME as a NEW ``element_type``
-path (:data:`~srmech.amsc.genome.ELEMENT_TYPE_OCTONION`) — the Cayley–Dickson rung
+path (:data:`~srmech.biology.genome.ELEMENT_TYPE_OCTONION`) — the Cayley–Dickson rung
 ABOVE Q₈, and it COEXISTS with the shipped klein4 (type 0) + Q₈ (type 1) paths,
 byte-untouched. 𝕆 is globally NON-associative, but each slot holds ONE signed basis
 unit and the Moufang loop has the INVERSE PROPERTY ``(x·y)·y⁻¹ = x``, so the
@@ -40,10 +40,10 @@ import pytest
 
 from tests._native_gate import require_native
 from srmech.amsc import _native
-from srmech.amsc import genome as G
+from srmech.biology import genome as G
 from srmech.math import octonion as O
 from srmech.amsc.cascade.cayley_dickson import cd_basis_product, cd_mult
-from srmech.amsc.genome import (
+from srmech.biology.genome import (
     ELEMENT_TYPE_KLEIN4,
     ELEMENT_TYPE_OCTONION,
     ELEMENT_TYPE_Q8,
@@ -58,7 +58,7 @@ from srmech.amsc.genome import (
 from srmech.math.hdc import klein4_bind
 from srmech.math.hv import HV
 from srmech.math.octonion import oct_bind, oct_conjugate, oct_mult
-from srmech.amsc.q8 import q8_bind
+from srmech.biology.q8 import q8_bind
 
 ALL16 = range(16)
 

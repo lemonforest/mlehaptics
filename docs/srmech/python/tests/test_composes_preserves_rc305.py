@@ -37,16 +37,16 @@ _SCHEMA = get_tool_schema()
 _BY_NAME = {t.name: t for t in _SCHEMA.tools}
 _NAMES = frozenset(_BY_NAME)
 
-_GENOME_FROM_GRAPH = "srmech.amsc.genome.genome_from_graph"
+_GENOME_FROM_GRAPH = "srmech.biology.genome.genome_from_graph"
 
 # The F1299 worked example — the ordered cascade genome_from_graph is built from
-# (call order), traced against srmech/amsc/genome.py::genome_from_graph.
+# (call order), traced against srmech/biology/genome.py::genome_from_graph.
 _EXPECTED_GENOME_COMPOSES = (
-    "srmech.amsc.genome.genome_partition",
-    "srmech.amsc.genome.graph_to_kernel",
-    "srmech.amsc.genome.mint_strand",
-    "srmech.amsc.genome.genome_save",
-    "srmech.amsc.genome.genome_census",
+    "srmech.biology.genome.genome_partition",
+    "srmech.biology.genome.graph_to_kernel",
+    "srmech.biology.genome.mint_strand",
+    "srmech.biology.genome.genome_save",
+    "srmech.biology.genome.genome_census",
 )
 
 

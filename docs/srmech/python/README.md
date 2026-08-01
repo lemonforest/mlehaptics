@@ -7,7 +7,7 @@
 3. **Runtime spectral decomposition** (`srmech.spectral`) — eigenbasis projection, HDC delta encoding, spectral prediction, prediction-error gating, sparse-truncate compression.
 4. **Dual-path signal-processing surface** (`srmech.signal_processing`) — 41 closed-form algebra ops (Path A) + an RBS-HDC bound-vector instrument at D=8192 (Path B), with a cascade dispatcher routing per call.
 5. **AMSC provenance framework** (`srmech.amsc.format`, `srmech.amsc.catalog`, `srmech.amsc.adapters`) — every ground-proof datum carries a mandatory attestation block (`source_doi`, `source_url`, `license`, `retrieved_at`, `response_sha256`, `parser_version`, `parser_rule_hash`, `collector_descriptor_path`, `collector_descriptor_hash`).
-6. **The genome storage format** (`srmech.amsc.genome`, `srmech.amsc.plasmid`) — srmech's own self-describing on-disk store (wire format **v15**): O(1) append, a catalog derived from the body rather than a stored table of contents, centromere / diploid / chromatin / gene structure read back out of the bytes, and a two-stage extract-then-organize encode that makes adding a document incremental.
+6. **The genome storage format** (`srmech.biology.genome`, `srmech.biology.plasmid`) — srmech's own self-describing on-disk store (wire format **v15**): O(1) append, a catalog derived from the body rather than a stored table of contents, centromere / diploid / chromatin / gene structure read back out of the bytes, and a two-stage extract-then-organize encode that makes adding a document incremental.
 
 > **⚠️ BREAKING at v0.9.0rc287 — text is segmented into glyph clusters, not words.** `srmech.math.text.tokenize` and `DEFAULT_STOPLIST` are **removed** and replaced by `glyph_stream`. There is no shim and no compatibility flag. Every stored vocabulary, co-occurrence edge store and text-derived genome built before rc287 contains word tokens and must be **re-encoded** — the container format is unchanged, its contents are not. See [the glyph stream](#srmechamsctext--the-glyph-stream-uax-29) below before upgrading.
 
@@ -327,7 +327,7 @@ The 1093/1093 bar is held by the scripting-coherency body and the compiled-coher
 
 `cooccurrence_edges(docs, *, window=2, vocab=None, vocab_size=None, directed=False)` and `cooccurrence_topk(docs, *, window=2, k=20, …)` build the weighted graph the Class-L Laplacian surface and the genome encoders read. They take documents that are already glyph streams, so the unit change propagates through every text-derived store — which is why re-encoding is mandatory rather than advisory.
 
-### `srmech.amsc.genome` / `srmech.amsc.plasmid` — the genome storage format
+### `srmech.biology.genome` / `srmech.biology.plasmid` — the genome storage format
 
 srmech's own on-disk store for coupled-turn content: a **self-describing** byte format (`turns.bin` + a head-only `manifest.json`) whose structure is read back out of the bytes rather than out of a sidecar table of contents. **Wire format v15.** The vocabulary is biology's because the structures are the ones biology already names — this is form-matching, not a claim about biochemistry.
 
@@ -358,7 +358,7 @@ This changes **strings, not bytes** — `cap_kind` is derived on read, never sto
 **To keep the old names, opt in to the value-alias layer** — a pure presentation transform over the canonical output. Storage, the C implementation and the format stay canonical; the alias never touches disk:
 
 ```python
-from srmech.amsc import genome as G
+from srmech.biology import genome as G
 G.set_type_aliases({"plasmid": "stick", "nuclear": "minted"})   # or any vocabulary
 G.clear_type_aliases()                                          # back to canonical
 G.load_type_aliases_toml(path)                                  # a [genome.type_aliases] table
@@ -370,7 +370,7 @@ G.load_type_aliases_toml(path)                                  # a [genome.type
 
 ```python
 import tempfile, pathlib
-from srmech.amsc import genome as G
+from srmech.biology import genome as G
 from srmech.amsc.cascade.one import the_one
 from srmech.math.hdc import klein4_expand, klein4_from_one
 
@@ -471,7 +471,7 @@ Two honest limits belong with that claim. First, the ratchet that pins it (`test
 **`k` is derived or honestly declined — never manufactured.** `conserved_core` measures the antimode of the section-count histogram. On a distribution with no clean gap it reports `k_source="declined"` with an empty core rather than inventing a threshold; an explicit `k` is reported as `"policy"`, a caller's stated choice, never as measured:
 
 ```python
-from srmech.amsc import plasmid as P
+from srmech.biology import plasmid as P
 
 planted = {i: 1 for i in range(20)}                # 20 periphery ids, seen once
 planted.update({100 + i: 12 for i in range(4)})    #  4 core ids, seen 12×
@@ -489,9 +489,9 @@ Measured on the full simplewiki corpus, stage 1 extracted **240,881 sections in 
 
 ADR-0003 commits srmech to running standalone on a C host with no Python present; ADR-0009 frames the two implementations as co-equal projections of one capability set. Neither is a claim that coverage is currently complete. It is not, and the shortfall is **enumerated in the test suite rather than described in prose**.
 
-`tests/test_rosetta_transitive_standalone.py` ratchets the **wire-format surface** — the ops that lay out srmech's own on-disk byte structures (`srmech.amsc.genome`, `srmech.amsc.plasmid`, and the out-of-core `laplacian.recursive_cut`), where "a bare-C host cannot run this" is load-bearing rather than theoretical. Each such op must either name a **whole-op C entry point** — machine-checked twice over, that the symbol is declared in `c/include/srmech.h` **and** that the op actually reaches it through its dispatch glue — or sit on a documented allowlist. Reaching a C *primitive* through a private helper is deliberately **not** sufficient; that is the weaker property the ratchet exists to reject.
+`tests/test_rosetta_transitive_standalone.py` ratchets the **wire-format surface** — the ops that lay out srmech's own on-disk byte structures (`srmech.biology.genome`, `srmech.biology.plasmid`, and the out-of-core `laplacian.recursive_cut`), where "a bare-C host cannot run this" is load-bearing rather than theoretical. Each such op must either name a **whole-op C entry point** — machine-checked twice over, that the symbol is declared in `c/include/srmech.h` **and** that the op actually reaches it through its dispatch glue — or sit on a documented allowlist. Reaching a C *primitive* through a private helper is deliberately **not** sufficient; that is the weaker property the ratchet exists to reject.
 
-The allowlist is pinned by `CEIL_WIRE_GLUE_GAPS`, and it is **down-only**: a test fails if the list grows. An entry leaves it only by landing a C entry point. As of v0.9.0rc334 that count is **0** — the **enumerated genome wire-glue gap list is empty**: every wire-format `composition_of_c` op on the `srmech.amsc.genome` / `srmech.amsc.plasmid` surface (plus the out-of-core `laplacian.recursive_cut`) now names a machine-checked whole-op C entry point a bare-C host reaches through its dispatch glue. This is the concrete ADR-0003 "genome must exist fully in C" closure for the wire-glue surface.
+The allowlist is pinned by `CEIL_WIRE_GLUE_GAPS`, and it is **down-only**: a test fails if the list grows. An entry leaves it only by landing a C entry point. As of v0.9.0rc334 that count is **0** — the **enumerated genome wire-glue gap list is empty**: every wire-format `composition_of_c` op on the `srmech.biology.genome` / `srmech.biology.plasmid` surface (plus the out-of-core `laplacian.recursive_cut`) now names a machine-checked whole-op C entry point a bare-C host reaches through its dispatch glue. This is the concrete ADR-0003 "genome must exist fully in C" closure for the wire-glue surface.
 
 The count walked steadily down as each op landed its own C entry point, never by an adjacent op landing one. **11 → 10** at v0.9.0rc284 (the out-of-core `laplacian.recursive_cut` driver earned `srmech_laplacian_recursive_cut`); **10 → 9** at rc321 and **9 → 8** at rc327 (the two graph builders `genome.genome_partition` and `genome.genome_from_graph` earned `srmech_genome_graph_partition` / `srmech_genome_from_graph` — the exact-integer participation + antimode + per-node classify + per-group `graph_to_kernel` → `mint_strand` loop + strand assembly, all in C, closing the §100 G-series ladder); **8 → 6** at rc329 (the two §2-G7 leaf ops `genome.active_telomere` and `genome.mint_plan` earned `srmech_genome_active_telomere` / `srmech_genome_mint_plan` — the op⊗operand Hayflick cap packer, factored out of the tick with no daughter-minting, and the read-only shape-plan loop, `encode_shape` + the content-address orientation per kernel); **6 → 4** at rc332 (the chromatin `genome.condense` and `genome.decondense` pair earned `srmech_genome_condense` / `srmech_genome_decondense` — the shared `label → chromatin-range` find + `region` resolution to the cap-splice insert index, and the inverse per-block keep-mask; the cap bytes were already compiled, so this lifted the Python-only `_chrom_range` + region resolution into C); **4 → 1** at rc333 (the **genes family** — `genome.genes`, `genome.genome_genes` and `genome.genome_genes_expressed` — earned `srmech_genome_genes` / `srmech_genome_genome_genes` / `srmech_genome_genes_expressed`, the per-gene `(label, leaves)` boundary-preserving read: the in-memory split, the on-disk page-region + split, and the demand-load plan-walk + region-page + `gene_express` collect, all in C); and **1 → 0** at rc334 (the last and hardest op, `plasmid.add_plasmid`, earned `srmech_genome_add_plasmid` — the incremental CONSERVE (merge the section-count accumulator + `srmech_genome_conserved_core`) + ORGANIZE (page every section off disk, decode + harvest the induced core subgraph, sum the per-`(u,v)` multiplicities in canonical order, pack it, then MINT the core + FOLD the retained plasmids), so a bare-C host runs one incremental add end-to-end). `recursive_cut` was the shared dead-end of the two graph builders, so closing it **unblocked** them without closing them — unblocking is not closing, and each still needed a C surface of its own; the ratchet is what keeps that distinction honest.
 

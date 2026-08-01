@@ -42,7 +42,7 @@ import pytest
 
 from tests._native_gate import require_native
 from srmech.amsc import _native
-from srmech.amsc import plasmid as P
+from srmech.biology import plasmid as P
 from srmech.math.hdc import klein4_expand
 
 _DIM = 64

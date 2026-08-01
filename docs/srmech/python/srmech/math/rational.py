@@ -2964,7 +2964,7 @@ def _scaled_integer_sqrt(y: int, M: int) -> int:
 # genome / plasmid — so it carries no wire-format C-host parity obligation):
 # the certified-truncation rational read of Wr(C) − Wr(C0), and the geometric
 # face of the SAME Z ↠ Z/2 obstruction the mod-2 CWF check reads through the
-# Q₈ center-parity (srmech.amsc.genome.cwf_consistency_mod2).
+# Q₈ center-parity (srmech.biology.genome.cwf_consistency_mod2).
 # =====================================================================
 
 # ── The Class-N DUAL-PRECISION CONTRACT (rc317 PILOT) ───────────────────────
@@ -3224,11 +3224,11 @@ def relative_writhe(embedding, reference, *, closed: bool = True,
                     precision=None) -> Dict[str, object]:
     """Fuller's Second-Theorem RELATIVE WRITHE ``Wr(C) − Wr(C0)`` as an EXACT
     RATIONAL certified truncation — the single-integral peer of the O(n²)
-    :func:`~srmech.amsc.genome.discrete_writhe` double sum, on the Class-N surface.
+    :func:`~srmech.biology.genome.discrete_writhe` double sum, on the Class-N surface.
 
     Given two closed polygonal curves as EXACT-RATIONAL 3D vertices (each
     coordinate an ``int`` / ``fractions.Fraction`` / ``(num, den)`` pair — the
-    same format :func:`~srmech.amsc.genome.discrete_writhe` accepts; floats
+    same format :func:`~srmech.biology.genome.discrete_writhe` accepts; floats
     rejected), with ``reference`` the base curve ``C0`` and ``embedding`` the
     deformed curve ``C``, this evaluates Fuller's single integral (F. Brock
     Fuller, *The Writhing Number of a Space Curve*, PNAS **68**(4):815-819, 1971,
@@ -3274,11 +3274,11 @@ def relative_writhe(embedding, reference, *, closed: bool = True,
     is degenerate under exact rationals; the honest flag is the near-antipodal
     band ``1 + t0·t < 2**−4``.) This is
     the SAME reduction ``Z ↠ Z/2`` (kernel 2Z) on a Z-valued 3D topological
-    invariant that :func:`~srmech.amsc.genome.cwf_consistency_mod2` reads through
+    invariant that :func:`~srmech.biology.genome.cwf_consistency_mod2` reads through
     the Q₈ center-parity (rc309): both are the SO(3)/SU(2) double cover, one seen
     as a writhe ±2 and one as a spinor sign. The argument is the classical
     double-cover identity; the INTEGER lift needs the O(n²)
-    :func:`~srmech.amsc.genome.discrete_writhe` double sum (or a proven
+    :func:`~srmech.biology.genome.discrete_writhe` double sum (or a proven
     antiparallel-free reference), which this op does not itself supply — hence
     DERIVED, not measured.
 

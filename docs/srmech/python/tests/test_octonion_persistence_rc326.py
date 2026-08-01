@@ -2,12 +2,12 @@
 migration.
 
 rc324 shipped the 𝕆 (octonion) genome carrier + the 4-bit codec
-(:func:`~srmech.amsc.genome._pack_turn_block_octonion`) and rc325 the 𝕆 fiber CAP, but BOTH
+(:func:`~srmech.biology.genome._pack_turn_block_octonion`) and rc325 the 𝕆 fiber CAP, but BOTH
 deferred octonion DATA-turn ON-DISK persistence: ``_disk_block`` packed only klein4 / Q₈ turns,
 so a genome FILE could not hold octonion DATA turns (only the fiber cap). rc326 closes that gap
 — the exact third stage the Q₈ path took (carrier rc310 -> channel rc311 -> on-disk rc312). The
 wire gains a THIRD data-turn packing: an octonion turn 4-bit-packs under
-:data:`~srmech.amsc.genome.OCTONION_PACKED_TURN_MARKER` (0x39), and the manifest ``carrier``
+:data:`~srmech.biology.genome.OCTONION_PACKED_TURN_MARKER` (0x39), and the manifest ``carrier``
 gains the ``"octonion"`` value. After rc326 the 𝕆 rung is END-TO-END: octonion turns persist to
 ``turns.bin`` and round-trip through a genome file.
 
@@ -41,8 +41,8 @@ from pathlib import Path
 import pytest
 
 from srmech.amsc import _native
-from srmech.amsc import genome as G
-from srmech.amsc.genome import (
+from srmech.biology import genome as G
+from srmech.biology.genome import (
     ELEMENT_TYPE_KLEIN4,
     ELEMENT_TYPE_OCTONION,
     ELEMENT_TYPE_Q8,

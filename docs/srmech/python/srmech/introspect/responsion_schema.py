@@ -124,7 +124,7 @@ _DISCRETE_VERIFIED: Tuple[Tuple[str, str, str, str], ...] = (
      "by its own structural invariants (partition + plane-counts + "
      "n1_is_sigma_only)"),
     ("spectral",
-     "srmech.amsc.coupling.resonant_spectrum", "Mat",
+     "srmech.biology.coupling.resonant_spectrum", "Mat",
      "the resonant eigenspectrum payload of the coupling Laplacian — the "
      "reduction EXISTS iff L is bit-exact real-symmetric (the spectral "
      "theorem's own hypothesis, rc224); the eigenvalues are the operand, "

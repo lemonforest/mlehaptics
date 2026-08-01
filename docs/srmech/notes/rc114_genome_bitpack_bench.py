@@ -31,7 +31,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "python"))
 
 from srmech.amsc import _native                                  # noqa: E402
-from srmech.amsc import genome as G                              # noqa: E402
+from srmech.biology import genome as G                              # noqa: E402
 from srmech.amsc.hdc import klein4_expand                        # noqa: E402
 
 DIM = 256          # one full tome (LEAF_CAP) — the issue's leaf width

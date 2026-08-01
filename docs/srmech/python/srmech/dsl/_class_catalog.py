@@ -9,7 +9,7 @@ A researcher authors a ``[class]`` TOML descriptor (fields + methods-as-cascade-
 op-refs) and this loader constructs a generic, class-aware :class:`CatalogClass`
 from it — **zero user Python, 100% declarative**. Each method ``binds`` to a
 shipped cascade op resolved by dotted srmech path (e.g.
-``srmech.amsc.genome.chromosome``); the genome surface's flat functions are the
+``srmech.biology.genome.chromosome``); the genome surface's flat functions are the
 primitives the methods compose. The genome/chromosome/telomere storage class
 ships as the built-in seed worked-instance
 (``srmech/cascade/catalogs/class_catalog/genome.toml``).
@@ -147,7 +147,7 @@ def load_class_catalog() -> Dict[str, Dict[str, Any]]:
 
 @lru_cache(maxsize=None)
 def _resolve_op(dotted: str) -> Callable:
-    """Resolve a dotted srmech path (e.g. ``srmech.amsc.genome.chromosome``) to
+    """Resolve a dotted srmech path (e.g. ``srmech.biology.genome.chromosome``) to
     its callable. Split on the last dot → ``import_module(parent)`` + getattr."""
     if "." not in dotted:
         raise ValueError(f"class method op must be a dotted path; got {dotted!r}")

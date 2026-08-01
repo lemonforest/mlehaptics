@@ -1,6 +1,6 @@
 # genetic_code - the Standard Genetic Code (NCBI translation table 1) as an
 # MPR-attested AMSC datum. The 64 -> 20(+stop) codon->amino-acid table read by
-# the codon read-layer (srmech.amsc.genome.codon_read / codon_frame_monodromy,
+# the codon read-layer (srmech.biology.genome.codon_read / codon_frame_monodromy,
 # rc314). Biology reads the genome in CODONS (triplets); that reading is a
 # PROCESS the ribosome imposes over the stored strand, not stored substrate --
 # so the table is attested reference data, never an inline invented dict.

@@ -24,8 +24,8 @@ import tempfile
 
 import pytest
 
-from srmech.amsc import genome as G
-from srmech.amsc.genome import GenomeBoundingError
+from srmech.biology import genome as G
+from srmech.biology.genome import GenomeBoundingError
 from srmech.math.hdc import klein4_expand
 
 DIM = 16

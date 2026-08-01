@@ -10,7 +10,7 @@ already guard it:
     dispatch for the shipped classes.
 
 The gap #930 names is one level in: each `[class]` method binds an OP by
-fully-qualified string (`op = "srmech.amsc.genome.encode_shape"`), and NOTHING
+fully-qualified string (`op = "srmech.biology.genome.encode_shape"`), and NOTHING
 asserted those strings still resolve. Rename the op and the TOML — hence the
 baked `.c` — keeps pointing at the old name: the idempotence test still passes
 (the `.c` matches the unchanged TOML), but the class binding is orphaned, so C

@@ -59,7 +59,7 @@ import pytest
 
 from srmech.amsc import _native
 from srmech.math import hdc
-from srmech.amsc import genome as G
+from srmech.biology import genome as G
 
 _DIM = 64
 _GATE = 0b10

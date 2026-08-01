@@ -20,7 +20,7 @@ from pathlib import Path
 import pytest
 
 from srmech.amsc import _native
-from srmech.amsc import genome as G
+from srmech.biology import genome as G
 from srmech.math.hdc import klein4_expand
 from srmech.amsc.format import MPRRecord, MPRValidationError, validate_mpr_record
 
@@ -160,7 +160,7 @@ def test_encoder_fields_stay_srmech_owned(tmp_path):
     _build(tmp_path / "g", attestation=_SIMPLEWIKI)
     att = _manifest_attestation(tmp_path / "g")
     assert att["parser_version"].startswith("srmech ")
-    assert att["collector_descriptor_path"] == "srmech/amsc/genome.py"
+    assert att["collector_descriptor_path"] == "srmech/biology/genome.py"
     assert len(att["parser_rule_hash"]) == 64
     assert len(att["collector_descriptor_hash"]) == 64
 

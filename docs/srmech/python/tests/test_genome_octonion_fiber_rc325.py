@@ -39,10 +39,10 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc import genome as G
+from srmech.biology import genome as G
 from srmech.amsc import _native
 from srmech.amsc.cascade.cayley_dickson import cd_mult
-from srmech.amsc.genome import (
+from srmech.biology.genome import (
     ELEMENT_TYPE_KLEIN4, ELEMENT_TYPE_OCTONION, OCTONION_SECTORS, QUAD,
     FIBER_CAP_MARKER, OCT_FIBER_CAP_MARKER, GENOME_FORMAT_VERSION,
     genome_octonion_holonomy, genome_octonion_associator,
@@ -326,4 +326,4 @@ def test_octonion_fiber_ops_are_public_and_registered():
     tools = {t.name for t in tool_schema.get_tool_schema().tools}
     for op in ("genome_octonion_holonomy", "genome_octonion_associator",
                "genome_add_octonion_fiber", "genome_read_octonion_fiber"):
-        assert f"srmech.amsc.genome.{op}" in tools
+        assert f"srmech.biology.genome.{op}" in tools

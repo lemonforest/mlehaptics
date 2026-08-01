@@ -1,6 +1,6 @@
 """v0.9.0rc280 (§102 / F1253) — the targeted ``section_counts`` read.
 
-rc278 shipped :func:`srmech.amsc.plasmid.section_counts` as the genome-native SSoT
+rc278 shipped :func:`srmech.biology.plasmid.section_counts` as the genome-native SSoT
 re-derivation of ``{global_id: n_sections}``. A downstream session then ran it over the
 full simplewiki store — **240,881 sections** — and measured ~0.33 s/section: about
 **22 HOURS**. They routed around it (rc279 made the free streamed accumulator the
@@ -49,8 +49,8 @@ import tempfile
 import pytest
 
 from srmech.amsc import _native
-from srmech.amsc import genome as G
-from srmech.amsc import plasmid as P
+from srmech.biology import genome as G
+from srmech.biology import plasmid as P
 from srmech.math.hdc import klein4_expand
 
 _DIM = 64                                           # >= 52 (the §89 kernel header)

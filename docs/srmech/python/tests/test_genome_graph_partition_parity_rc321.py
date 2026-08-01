@@ -17,7 +17,7 @@ edges, and the §101 cancel path.
 import pytest
 
 from srmech.amsc import _native
-from srmech.amsc import genome
+from srmech.biology import genome
 
 
 pytestmark = pytest.mark.skipif(

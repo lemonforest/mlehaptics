@@ -29,7 +29,7 @@ import pytest
 
 from tests._native_gate import require_native
 from srmech.amsc import _native
-from srmech.amsc import q8
+from srmech.biology import q8
 from srmech.amsc.cascade.cayley_dickson import cd_basis_product
 from srmech.math.hdc import klein4_bind
 
@@ -259,4 +259,4 @@ def test_tool_schema_entries_present():
     from srmech.amsc.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
     for op in ("q8_mult", "q8_conjugate", "q8_bind", "q8_project_v4"):
-        assert f"srmech.amsc.q8.{op}" in names
+        assert f"srmech.biology.q8.{op}" in names

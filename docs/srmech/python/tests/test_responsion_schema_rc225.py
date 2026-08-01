@@ -194,7 +194,7 @@ def test_discrete_verified_rows_cover_the_f929_reducers() -> None:
     schema = _pure_responsion_schema()
     expected = {
         "srmech.amsc.cascade.the_one|One",
-        "srmech.amsc.coupling.resonant_spectrum|Mat",
+        "srmech.biology.coupling.resonant_spectrum|Mat",
         "srmech.apokatastasis.gosper.gosper|Poly",
         "srmech.apokatastasis.zeilberger.zeilberger|BiPoly",
         "srmech.apokatastasis.wz_certificate.wz_certificate|BiPoly",

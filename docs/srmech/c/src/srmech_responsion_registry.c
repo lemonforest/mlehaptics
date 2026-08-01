@@ -48,14 +48,6 @@ const srmech_responsion_entry_t srmech_responsion_registry_table[] = {
         332u,
     },
     {
-        "srmech.amsc.coupling.resonant_spectrum|Mat",
-        "srmech.amsc.coupling.resonant_spectrum",
-        "Mat",
-        1u,
-        "[{\"answers_with\":\"the resonant eigenspectrum payload of the coupling Laplacian \\u2014 the reduction EXISTS iff L is bit-exact real-symmetric (the spectral theorem's own hypothesis, rc224); the eigenvalues are the operand, never the verdict\",\"carrier\":\"Mat\",\"curvature\":\"curved\",\"kind\":\"closed_form\",\"operator\":\"srmech.amsc.coupling.resonant_spectrum\",\"regime\":\"discrete_algebraic\",\"status\":\"verified\"}]",
-        402u,
-    },
-    {
         "srmech.apokatastasis.apagodu_zeilberger.apagodu_zeilberger|TriPoly",
         "srmech.apokatastasis.apagodu_zeilberger.apagodu_zeilberger",
         "TriPoly",
@@ -134,6 +126,14 @@ const srmech_responsion_entry_t srmech_responsion_registry_table[] = {
         1u,
         "[{\"answers_with\":\"the minimal-order creative-telescoping recurrence annihilating \\u03a3_k F(n,k)\",\"carrier\":\"BiPoly\",\"curvature\":\"flat\",\"kind\":\"closed_form\",\"operator\":\"srmech.apokatastasis.zeilberger.zeilberger\",\"regime\":\"discrete_algebraic\",\"status\":\"verified\"}]",
         264u,
+    },
+    {
+        "srmech.biology.coupling.resonant_spectrum|Mat",
+        "srmech.biology.coupling.resonant_spectrum",
+        "Mat",
+        1u,
+        "[{\"answers_with\":\"the resonant eigenspectrum payload of the coupling Laplacian \\u2014 the reduction EXISTS iff L is bit-exact real-symmetric (the spectral theorem's own hypothesis, rc224); the eigenvalues are the operand, never the verdict\",\"carrier\":\"Mat\",\"curvature\":\"curved\",\"kind\":\"closed_form\",\"operator\":\"srmech.biology.coupling.resonant_spectrum\",\"regime\":\"discrete_algebraic\",\"status\":\"verified\"}]",
+        405u,
     },
     {
         "srmech.math.dispatch.infer|BiPoly",

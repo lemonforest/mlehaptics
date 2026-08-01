@@ -81,7 +81,7 @@ def test_manifest_matches_a_fresh_extraction():
     # is worth a look, because a typo'd dispatch symbol can never resolve and
     # would pure-path forever in total silence.
     assert off_header == {
-        "srmech.amsc.coupling.resonant_spectrum_sparse": ["srmech_kext_"],
+        "srmech.biology.coupling.resonant_spectrum_sparse": ["srmech_kext_"],
     }, f"unexpected non-header srmech_* token(s): {off_header}"
 
 

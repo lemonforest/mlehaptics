@@ -61,9 +61,9 @@ from srmech.amsc.format import validate_mpr_record as _validate_mpr_record
 from srmech.math.hdc import klein4_bind as _klein4_bind
 from srmech.math.hdc import klein4_expand as _klein4_expand
 from srmech.math.hv import HV as _HV
-from srmech.amsc.q8 import q8_bind as _q8_bind
-from srmech.amsc.q8 import q8_conjugate as _q8_conjugate
-from srmech.amsc.q8 import q8_project_v4 as _q8_project_v4
+from .q8 import q8_bind as _q8_bind
+from .q8 import q8_conjugate as _q8_conjugate
+from .q8 import q8_project_v4 as _q8_project_v4
 from srmech.math.octonion import oct_bind as _oct_bind
 from srmech.math.octonion import oct_conjugate as _oct_conjugate
 from srmech.math.tlv import tlv_pack as _tlv_pack
@@ -230,7 +230,7 @@ KERNEL_TELOMERE_MARKER = 0x6B
 #: proceed/senesce decision), the **operand** is the count — and the count MODULATES
 #: that op (count>0 → a divide proceeds + decrements; count==0 → honest senescence).
 #: It is the SAME (operand, op) pattern as :mod:`srmech.introspect.op_provenance` ``carry``
-#: (value, operation) and :class:`srmech.amsc.coupling.RecoverableFold`
+#: (value, operation) and :class:`srmech.biology.coupling.RecoverableFold`
 #: (lossy_bundle, exact_seed_R) — the proven op-carrying carrier — but with an ACTIVE
 #: op, which is precisely what makes the chromosome GENUINELY op⊗operand (in #726 the
 #: plain telomere was a PASSIVE op-slot: swapping it left the leaves unchanged).
@@ -447,7 +447,7 @@ _CHROMATIN_GATE_NAMES = {CHROMATIN_GATE_NONE: "none", CHROMATIN_GATE_KLEIN4: "kl
 #: (the **operand**): same chromosome, different cell_state → different expressed gene
 #: subset. That inequality IS the theorem (parallel to rc127's count-modulates-divide) —
 #: the SAME (operand, op) pattern as :func:`srmech.introspect.op_provenance.carry`
-#: ``(value, operation)`` and :class:`srmech.amsc.coupling.RecoverableFold`
+#: ``(value, operation)`` and :class:`srmech.biology.coupling.RecoverableFold`
 #: ``(lossy_bundle, exact_seed_R)``, now with a CELL-STATE operand + an EXPRESSION operator.
 #:
 #: Layout (a fixed-width ``leaf_dim``-byte ``sectors=256`` cap leaf; §44 inline; the SAME
@@ -853,7 +853,7 @@ _PHASE_MINTING = _native.SRMECH_PHASE_MINTING
 #: turn abelian-only (vacuously — the carrier IS commutative).
 ELEMENT_TYPE_KLEIN4 = 0
 #: §Q8 (rc311) — the DISCRETE quaternion group ``Q₈ = {±1, ±i, ±j, ±k}`` element type: a
-#: 3-bit symbol ``(sign_bit << 2) | v4_coset`` (:mod:`srmech.amsc.q8`), the NON-abelian
+#: 3-bit symbol ``(sign_bit << 2) | v4_coset`` (:mod:`srmech.biology.q8`), the NON-abelian
 #: central extension ``1 → Z₂ → Q₈ → V4 → 1`` of the Klein-4 coset. Its coupling is the
 #: Q₈ group product (:func:`quad_turn` right-couple), non-involutive — decoupled by the
 #: Class-C conjugate (group inverse), NOT the XOR self-inverse. Data turns are ``sectors=8``
@@ -2142,8 +2142,14 @@ def genome_read_octonion_fiber(strand) -> Dict[str, object]:
 CODON_BASES = ("U", "C", "A", "G")
 
 #: The attested Standard Genetic Code datum (NCBI translation table 1). MPR-
-#: attested AMSC data — sibling to the other ``attested/`` catalogs.
-_GENETIC_CODE_DIR = Path(__file__).resolve().parent / "attested" / "genetic_code"
+#: attested AMSC data — sibling to the other ``attested/`` catalogs. The
+#: ``attested/`` subpackage STAYS in ``srmech.amsc`` (an attestation keeper) even
+#: though this module moved to ``srmech.biology`` at rc375, so reach back to the
+#: amsc sibling (``.../srmech/amsc/attested/genetic_code``), NOT this package's own
+#: parent — resolving relative to ``biology/`` would point at a nonexistent
+#: ``srmech/biology/attested/`` and break :func:`codon_read`.
+_GENETIC_CODE_DIR = (Path(__file__).resolve().parent.parent
+                     / "amsc" / "attested" / "genetic_code")
 
 
 def _parse_ncbi_field(source_response: str, key: str) -> str:
@@ -2197,7 +2203,7 @@ def _codon_symbols(strand):
 
     Accepts an ``HV`` (via ``tobytes``) or any 1-D int sequence (``bytes`` /
     ``bytearray`` / ``list`` / ``tuple``) of Q8 bytes; the
-    :func:`~srmech.amsc.q8.q8_project_v4` call does the element validation."""
+    :func:`~srmech.biology.q8.q8_project_v4` call does the element validation."""
     if hasattr(strand, "tobytes"):
         return strand.tobytes()
     return strand
@@ -2246,7 +2252,7 @@ def codon_read(strand, phase=0, *, with_indices=False, stop_at_stop=False):
     """Read a strand as CODONS (triplets) — the genetic-code amino-acid readout.
 
     A PURE READ: it stores nothing and changes no format. Biology reads 4 BASES
-    (not 8 signed states), so :func:`~srmech.amsc.q8.q8_project_v4` is applied
+    (not 8 signed states), so :func:`~srmech.biology.q8.q8_project_v4` is applied
     FIRST — the winding / center SIGN BIT must NOT leak into amino-acid identity
     (a Q8 strand with nonzero winding and its V4-projection yield BYTE-IDENTICAL
     codons; the winding-invariance gate). Then a 3-slot window slides from the
@@ -3389,7 +3395,7 @@ def active_telomere(label, count, dim=64):
     an op-slot only — swapping it leaves the leaves unchanged, #726).
 
     This is the SAME (operand, op) pattern as :func:`srmech.introspect.op_provenance.carry`
-    ``(value, operation)`` and :class:`srmech.amsc.coupling.RecoverableFold`
+    ``(value, operation)`` and :class:`srmech.biology.coupling.RecoverableFold`
     ``(lossy_bundle, exact_seed_R)`` — the proven op-carrying carrier — but with an
     ACTIVE op (the count changes how the operator works), which is the theorem #726
     asked for. It carries the DUALITY.md field/excitation duality LOCAL to the
@@ -4790,7 +4796,7 @@ def gene_express(strand, coupling, cell_state, *, element_type=ELEMENT_TYPE_KLEI
     MODULATED by the ``cell_state`` **operand** to gate a SELECTION over MANY genes — SAME
     DNA, DIFFERENT ``cell_state`` → DIFFERENT expressed subset. That inequality IS the
     theorem (the SAME (operand, op) pattern as :func:`srmech.introspect.op_provenance.carry` and
-    :class:`srmech.amsc.coupling.RecoverableFold`, now with a CELL-STATE operand + an
+    :class:`srmech.biology.coupling.RecoverableFold`, now with a CELL-STATE operand + an
     EXPRESSION operator).
 
     ⚠️ This is a READ — it NEVER MUTATES THE STRAND (biology does NOT rewrite DNA to
@@ -5129,7 +5135,7 @@ def _modulator_recover_native(strand, coupling, labels):
     ``srmech_genome_modulator_recover``): returns the floor dict, or ``None`` on any
     missing symbol / non-OK status / a label carrying a NUL (the blob delimiter) — the
     caller runs the pure path. Native is authoritative when present."""
-    from . import _native
+    from ..amsc import _native
     if not (_native.HAS_NATIVE and _native.LIB is not None
             and hasattr(_native.LIB, "srmech_genome_modulator_recover")):
         return None
@@ -5152,7 +5158,7 @@ def _modulator_consistent_native(strand, coupling, labels, candidate):
     or ``None`` on any missing symbol / non-OK status (e.g. an int64 threshold-sum
     OVERFLOW) / a candidate beyond the native uint64 domain / a NUL in a label — the
     caller runs the pure path. Native is authoritative when present."""
-    from . import _native
+    from ..amsc import _native
     if not (_native.HAS_NATIVE and _native.LIB is not None
             and hasattr(_native.LIB, "srmech_genome_modulator_consistent")):
         return None
@@ -5181,7 +5187,7 @@ def modulator_recover(strand, coupling, expressed_labels):
     expressed subset), so the exact cell_state is IRRECOVERABLE BY CONSTRUCTION — the
     only honest form is the ONE-SIDED FLOOR, the same recoverability discipline as
     :func:`srmech.introspect.op_provenance.op_provenance_hash`'s op_verdict EQUAL/UNKNOWN
-    contract, :class:`srmech.amsc.coupling.RecoverableFold`, and the #725 null:
+    contract, :class:`srmech.biology.coupling.RecoverableFold`, and the #725 null:
     **recover the EXACT complement we can PROVE, flag the rest UNKNOWN.**
 
     The floor (sharpened by the rc129 activator/repressor two-mask):
@@ -5483,7 +5489,7 @@ def _modulator_constraint_native(strand, coupling, labels):
     label with a NUL — the caller runs the pure path. Native is authoritative when
     present (the bytes are byte-identical to :func:`_serialize_bool_constraint` of the
     pure result)."""
-    from . import _native
+    from ..amsc import _native
     if not (_native.HAS_NATIVE and _native.LIB is not None
             and hasattr(_native.LIB, "srmech_genome_modulator_constraint")):
         return None
@@ -5754,7 +5760,7 @@ def _modulator_constraint_satisfies_native(constraint, candidate):
     boolean part; returns ``True``/``False`` or ``None`` on any missing symbol / non-OK
     status / out-of-uint64-domain candidate — the caller runs the pure boolean check
     (identical result)."""
-    from . import _native
+    from ..amsc import _native
     if not (_native.HAS_NATIVE and _native.LIB is not None
             and hasattr(_native.LIB, "srmech_genome_modulator_constraint_satisfies")):
         return None
@@ -6552,7 +6558,7 @@ def _telomere_tick_native(cap):
     ``cap`` (an active-telomere ``HV``) → ``(senescent, count_after, new_cap_bytes)``,
     or ``None`` on any missing symbol / non-OK status (the caller runs the pure path).
     Native is authoritative when present; the pure path is the complete alternative."""
-    from . import _native
+    from ..amsc import _native
     if not (_native.HAS_NATIVE and _native.LIB is not None
             and hasattr(_native.LIB, "srmech_genome_telomere_tick")):
         return None
@@ -6568,7 +6574,7 @@ def _gene_express_native(cap, cell_state):
     ``cell_state`` → ``True``/``False`` (does the gene express?), or ``None`` on any missing
     symbol / non-OK status (the caller runs the pure Class-I bitwise path). Native is
     authoritative when present; the pure path is the complete alternative."""
-    from . import _native
+    from ..amsc import _native
     if not (_native.HAS_NATIVE and _native.LIB is not None
             and hasattr(_native.LIB, "srmech_genome_gene_express")):
         return None
@@ -6586,7 +6592,7 @@ def _gene_level_native(cap, cell_state):
     dose-response rational), or ``None`` on any missing symbol / non-OK status (e.g. an int64
     dose-accumulate OVERFLOW → the caller runs the exact pure Class-N/I path). Native is
     authoritative when present; the pure path is the complete alternative."""
-    from . import _native
+    from ..amsc import _native
     if not (_native.HAS_NATIVE and _native.LIB is not None
             and hasattr(_native.LIB, "srmech_genome_gene_express_levels")):
         return None
@@ -6669,7 +6675,7 @@ def _graph_syms_to_ints(syms):
 def _graph_kernel_encode(vocab_size, edges, weights, ch, nid, ex):
     """Assemble the payload int stream + encode to Klein-4 syms (the C-peer
     boundary). Native ``srmech_graph_kernel_encode`` when loaded, else pure."""
-    from . import _native
+    from ..amsc import _native
     if _native.has_native_graph_kernel_codec():
         native = _native.graph_kernel_encode_c(vocab_size, edges, weights, ch, nid, ex)
         if native is not None:
@@ -6683,7 +6689,7 @@ def _graph_kernel_encode(vocab_size, edges, weights, ch, nid, ex):
 def _graph_kernel_decode(syms):
     """Decode Klein-4 syms -> the graph dict (the C-peer boundary). Native
     ``srmech_graph_kernel_decode`` when loaded, else pure."""
-    from . import _native
+    from ..amsc import _native
     if _native.has_native_graph_kernel_codec():
         native = _native.graph_kernel_decode_c(syms)
         if native is not None:
@@ -7540,7 +7546,7 @@ def telomere_tick(strand):
     ``N+1``-th refuses. THE op⊗operand DUALITY, made testable: op = the gating rule
     here, operand = the count, FUSED in the ONE cap — the SAME ``(operand, op)`` pattern
     as :func:`srmech.introspect.op_provenance.carry` and
-    :class:`srmech.amsc.coupling.RecoverableFold`, but with an ACTIVE op (the operand
+    :class:`srmech.biology.coupling.RecoverableFold`, but with an ACTIVE op (the operand
     changes how the operator works), which is precisely why the chromosome is now a
     GENUINE op⊗operand (in #726 a plain telomere was a passive op-slot).
 
@@ -7969,7 +7975,7 @@ def _unpack_turn_payload(payload: bytes, leaf_dim: int) -> bytes:
 
 # ─────────────────────────────────────────────────────────────────────────────
 # §55/§Q8/rc312 (format v16) — the 3-BIT Q₈ packed-turn codec. A Q₈ data turn
-# carries a 3-bit symbol (:mod:`srmech.amsc.q8`: ``(sign_bit << 2) | v4_coset``),
+# carries a 3-bit symbol (:mod:`srmech.biology.q8`: ``(sign_bit << 2) | v4_coset``),
 # so it needs 3 bits/symbol where the klein4 turn packs 2. The layout is MSB-FIRST
 # CONTIGUOUS: symbol ``i`` → bits ``[3i, 3i+3)`` of a big-endian bitstream (symbol
 # 0 in the highest bits, the sign/high bit of each symbol first); the unused LOW
@@ -8532,7 +8538,7 @@ def _manifest_record(data, *, attestation=None) -> _MPRRecord:
         "response_sha256": body_sha,
         "parser_version": parser_version,
         "parser_rule_hash": rule_hash,
-        "collector_descriptor_path": "srmech/amsc/genome.py",
+        "collector_descriptor_path": "srmech/biology/genome.py",
         "collector_descriptor_hash": descriptor_hash,
     }
     if attestation is not None:
@@ -9147,7 +9153,7 @@ def load_type_aliases_toml(path) -> Dict[str, str]:
     descriptor (rc364; :func:`srmech.dsl.resolve_alias_descriptor`), so the documented
     migration path works from a wheel install::
 
-        from srmech.amsc import genome
+        from srmech.biology import genome
         genome.load_type_aliases_toml("genome_type_aliases_legacy.toml")
 
     Before rc364 that exact line — printed in the descriptor's own header — raised
@@ -10975,7 +10981,7 @@ def _chr_record(data) -> _MPRRecord:
             "response_sha256": region_sha,
             "parser_version": parser_version,
             "parser_rule_hash": rule_hash,
-            "collector_descriptor_path": "srmech/amsc/genome.py",
+            "collector_descriptor_path": "srmech/biology/genome.py",
             "collector_descriptor_hash": descriptor_hash,
         },
         rendering={
@@ -11366,7 +11372,7 @@ def _chr_descriptor_toml(label, leaf_dim) -> str:
         f"UPSTREAM §43 .chr bundle)"
     )
     return (
-        "# Auto-generated by srmech.amsc.genome.genome_register_attested "
+        "# Auto-generated by srmech.biology.genome.genome_register_attested "
         "(UPSTREAM §43).\n"
         "# REGISTERS an already-MPR-attested chromosome .chr bundle with the AMSC\n"
         "# catalog; it does NOT mint a parallel attestation (F730 — the bundle's\n"

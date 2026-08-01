@@ -1,4 +1,4 @@
-"""Class K ∘ L signed-sum coupling score — ``srmech.amsc.coupling``.
+"""Class K ∘ L signed-sum coupling score — ``srmech.biology.coupling``.
 
 ``signed_sum_squared(sources)`` = per-element ``(Σ_sources (2·bit − 1))²``
 (v0.4.3rc3, UPSTREAM_NOTES §1.2). A composition of Class K (bipolar sign-
@@ -15,7 +15,7 @@ import random
 
 import pytest
 
-from srmech.amsc import coupling
+from srmech.biology import coupling
 from srmech.math.vec import Vec
 
 

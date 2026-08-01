@@ -327,15 +327,15 @@
 {"exposed_as": "srmech.amsc.cascade.exact_dft.exact_idft", "defined_at": "srmech.amsc.cascade.exact_dft.exact_idft", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.exact_dft.lift", "defined_at": "srmech.amsc.cascade.exact_dft.lift", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.compose.greedy_bipartite_alignment", "defined_at": "srmech.amsc.compose.greedy_bipartite_alignment", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.amsc.coupling.signed_sum_squared", "defined_at": "srmech.amsc.coupling.signed_sum_squared", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.amsc.coupling.resonant_spectrum", "defined_at": "srmech.amsc.coupling.resonant_spectrum", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.coupling.resonant_spectrum_sparse", "defined_at": "srmech.amsc.coupling.resonant_spectrum_sparse", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.coupling.from_bodies", "defined_at": "srmech.amsc.coupling.from_bodies", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.coupling.fractal_spectrum", "defined_at": "srmech.amsc.coupling.fractal_spectrum", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.coupling.fold_encode", "defined_at": "srmech.amsc.coupling.fold_encode", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.coupling.fold_spectrum", "defined_at": "srmech.amsc.coupling.fold_spectrum", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.coupling.fold_encode_recoverable", "defined_at": "srmech.amsc.coupling.fold_encode_recoverable", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.coupling.fold_identity", "defined_at": "srmech.amsc.coupling.fold_identity", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.biology.coupling.signed_sum_squared", "defined_at": "srmech.biology.coupling.signed_sum_squared", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.biology.coupling.resonant_spectrum", "defined_at": "srmech.biology.coupling.resonant_spectrum", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.biology.coupling.resonant_spectrum_sparse", "defined_at": "srmech.biology.coupling.resonant_spectrum_sparse", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.biology.coupling.from_bodies", "defined_at": "srmech.biology.coupling.from_bodies", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.biology.coupling.fractal_spectrum", "defined_at": "srmech.biology.coupling.fractal_spectrum", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.biology.coupling.fold_encode", "defined_at": "srmech.biology.coupling.fold_encode", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.biology.coupling.fold_spectrum", "defined_at": "srmech.biology.coupling.fold_spectrum", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.biology.coupling.fold_encode_recoverable", "defined_at": "srmech.biology.coupling.fold_encode_recoverable", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.biology.coupling.fold_identity", "defined_at": "srmech.biology.coupling.fold_identity", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.apokatastasis.gosper.gosper", "defined_at": "srmech.apokatastasis.gosper.gosper", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.apokatastasis.zeilberger.zeilberger", "defined_at": "srmech.apokatastasis.zeilberger.zeilberger", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.apokatastasis.wz_certificate.wz_certificate", "defined_at": "srmech.apokatastasis.wz_certificate.wz_certificate", "bucket": "c_dispatched"}
@@ -459,66 +459,66 @@
 {"exposed_as": "srmech.amsc.cascade.matrix_cascades.eig_exact", "defined_at": "srmech.amsc.cascade.matrix_cascades.eig_exact", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.cascade.matrix_cascades.jordan_chains_exact", "defined_at": "srmech.amsc.cascade.matrix_cascades.jordan_chains_exact", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.matrix_cascades.jordan_form_exact", "defined_at": "srmech.amsc.cascade.matrix_cascades.jordan_form_exact", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.amsc.genome.encode_shape", "defined_at": "srmech.amsc.genome.encode_shape", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.genome.quad_turn", "defined_at": "srmech.amsc.genome.quad_turn", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.amsc.genome.telomere", "defined_at": "srmech.amsc.genome.telomere", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.genome.chromosome", "defined_at": "srmech.amsc.genome.chromosome", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.amsc.genome.centromere", "defined_at": "srmech.amsc.genome.centromere", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.genome.centromere_of", "defined_at": "srmech.amsc.genome.centromere_of", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.amsc.genome.diploid", "defined_at": "srmech.amsc.genome.diploid", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.genome.recover_diploid", "defined_at": "srmech.amsc.genome.recover_diploid", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.genome.condense", "defined_at": "srmech.amsc.genome.condense", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.amsc.genome.decondense", "defined_at": "srmech.amsc.genome.decondense", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.amsc.genome.chromatin_of", "defined_at": "srmech.amsc.genome.chromatin_of", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.amsc.genome.accessible", "defined_at": "srmech.amsc.genome.accessible", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.amsc.genome.mint", "defined_at": "srmech.amsc.genome.mint", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.amsc.genome.mint_strand", "defined_at": "srmech.amsc.genome.mint_strand", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.genome.genome_partition", "defined_at": "srmech.amsc.genome.genome_partition", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.amsc.genome.genome_from_graph", "defined_at": "srmech.amsc.genome.genome_from_graph", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.amsc.genome.mint_plan", "defined_at": "srmech.amsc.genome.mint_plan", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.amsc.genome.integrate", "defined_at": "srmech.amsc.genome.integrate", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.genome.amplify", "defined_at": "srmech.amsc.genome.amplify", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.genome.copy_number_of", "defined_at": "srmech.amsc.genome.copy_number_of", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.genome.recall", "defined_at": "srmech.amsc.genome.recall", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.amsc.genome.genes", "defined_at": "srmech.amsc.genome.genes", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.amsc.genome.genome", "defined_at": "srmech.amsc.genome.genome", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.amsc.genome.plasmid", "defined_at": "srmech.amsc.genome.plasmid", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.amsc.genome.partition", "defined_at": "srmech.amsc.genome.partition", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.amsc.genome.genome_save", "defined_at": "srmech.amsc.genome.genome_save", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.genome.upgrade_v15_to_v16", "defined_at": "srmech.amsc.genome.upgrade_v15_to_v16", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.genome.genome_load", "defined_at": "srmech.amsc.genome.genome_load", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.genome.genome_catalog", "defined_at": "srmech.amsc.genome.genome_catalog", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.genome.genome_census", "defined_at": "srmech.amsc.genome.genome_census", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.genome.genome_content", "defined_at": "srmech.amsc.genome.genome_content", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.genome.genome_registry", "defined_at": "srmech.amsc.genome.genome_registry", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.genome.set_type_aliases", "defined_at": "srmech.amsc.genome.set_type_aliases", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
-{"exposed_as": "srmech.amsc.genome.clear_type_aliases", "defined_at": "srmech.amsc.genome.clear_type_aliases", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
-{"exposed_as": "srmech.amsc.genome.load_type_aliases_toml", "defined_at": "srmech.amsc.genome.load_type_aliases_toml", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.genome.genome_append", "defined_at": "srmech.amsc.genome.genome_append", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.genome.genome_window", "defined_at": "srmech.amsc.genome.genome_window", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.genome.genome_genes", "defined_at": "srmech.amsc.genome.genome_genes", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.amsc.genome.genome_remove", "defined_at": "srmech.amsc.genome.genome_remove", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.genome.genome_replace", "defined_at": "srmech.amsc.genome.genome_replace", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.genome.genome_export", "defined_at": "srmech.amsc.genome.genome_export", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.genome.genome_import", "defined_at": "srmech.amsc.genome.genome_import", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.genome.genome_explode", "defined_at": "srmech.amsc.genome.genome_explode", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.genome.genome_pack", "defined_at": "srmech.amsc.genome.genome_pack", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.genome.genome_register_attested", "defined_at": "srmech.amsc.genome.genome_register_attested", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.genome.kernel_pack", "defined_at": "srmech.amsc.genome.kernel_pack", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.genome.kernel_unpack", "defined_at": "srmech.amsc.genome.kernel_unpack", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.genome.graph_to_kernel", "defined_at": "srmech.amsc.genome.graph_to_kernel", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.genome.kernel_to_graph", "defined_at": "srmech.amsc.genome.kernel_to_graph", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.genome.genome_append_kernel", "defined_at": "srmech.amsc.genome.genome_append_kernel", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.genome.active_telomere", "defined_at": "srmech.amsc.genome.active_telomere", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.amsc.genome.telomere_tick", "defined_at": "srmech.amsc.genome.telomere_tick", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.genome.gene_express", "defined_at": "srmech.amsc.genome.gene_express", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.genome.gene_express_levels", "defined_at": "srmech.amsc.genome.gene_express_levels", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.genome.gene_express_plan", "defined_at": "srmech.amsc.genome.gene_express_plan", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.genome.genome_genes_expressed", "defined_at": "srmech.amsc.genome.genome_genes_expressed", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.amsc.genome.modulator_recover", "defined_at": "srmech.amsc.genome.modulator_recover", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.genome.modulator_consistent", "defined_at": "srmech.amsc.genome.modulator_consistent", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.genome.modulator_constraint", "defined_at": "srmech.amsc.genome.modulator_constraint", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.genome.modulator_constraint_satisfies", "defined_at": "srmech.amsc.genome.modulator_constraint_satisfies", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.biology.genome.encode_shape", "defined_at": "srmech.biology.genome.encode_shape", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.biology.genome.quad_turn", "defined_at": "srmech.biology.genome.quad_turn", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.biology.genome.telomere", "defined_at": "srmech.biology.genome.telomere", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.biology.genome.chromosome", "defined_at": "srmech.biology.genome.chromosome", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.biology.genome.centromere", "defined_at": "srmech.biology.genome.centromere", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.biology.genome.centromere_of", "defined_at": "srmech.biology.genome.centromere_of", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.biology.genome.diploid", "defined_at": "srmech.biology.genome.diploid", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.biology.genome.recover_diploid", "defined_at": "srmech.biology.genome.recover_diploid", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.biology.genome.condense", "defined_at": "srmech.biology.genome.condense", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.biology.genome.decondense", "defined_at": "srmech.biology.genome.decondense", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.biology.genome.chromatin_of", "defined_at": "srmech.biology.genome.chromatin_of", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.biology.genome.accessible", "defined_at": "srmech.biology.genome.accessible", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.biology.genome.mint", "defined_at": "srmech.biology.genome.mint", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.biology.genome.mint_strand", "defined_at": "srmech.biology.genome.mint_strand", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.biology.genome.genome_partition", "defined_at": "srmech.biology.genome.genome_partition", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.biology.genome.genome_from_graph", "defined_at": "srmech.biology.genome.genome_from_graph", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.biology.genome.mint_plan", "defined_at": "srmech.biology.genome.mint_plan", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.biology.genome.integrate", "defined_at": "srmech.biology.genome.integrate", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.biology.genome.amplify", "defined_at": "srmech.biology.genome.amplify", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.biology.genome.copy_number_of", "defined_at": "srmech.biology.genome.copy_number_of", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.biology.genome.recall", "defined_at": "srmech.biology.genome.recall", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.biology.genome.genes", "defined_at": "srmech.biology.genome.genes", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.biology.genome.genome", "defined_at": "srmech.biology.genome.genome", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.biology.genome.plasmid", "defined_at": "srmech.biology.genome.plasmid", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.biology.genome.partition", "defined_at": "srmech.biology.genome.partition", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.biology.genome.genome_save", "defined_at": "srmech.biology.genome.genome_save", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.biology.genome.upgrade_v15_to_v16", "defined_at": "srmech.biology.genome.upgrade_v15_to_v16", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.biology.genome.genome_load", "defined_at": "srmech.biology.genome.genome_load", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.biology.genome.genome_catalog", "defined_at": "srmech.biology.genome.genome_catalog", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.biology.genome.genome_census", "defined_at": "srmech.biology.genome.genome_census", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.biology.genome.genome_content", "defined_at": "srmech.biology.genome.genome_content", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.biology.genome.genome_registry", "defined_at": "srmech.biology.genome.genome_registry", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.biology.genome.set_type_aliases", "defined_at": "srmech.biology.genome.set_type_aliases", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
+{"exposed_as": "srmech.biology.genome.clear_type_aliases", "defined_at": "srmech.biology.genome.clear_type_aliases", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
+{"exposed_as": "srmech.biology.genome.load_type_aliases_toml", "defined_at": "srmech.biology.genome.load_type_aliases_toml", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.biology.genome.genome_append", "defined_at": "srmech.biology.genome.genome_append", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.biology.genome.genome_window", "defined_at": "srmech.biology.genome.genome_window", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.biology.genome.genome_genes", "defined_at": "srmech.biology.genome.genome_genes", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.biology.genome.genome_remove", "defined_at": "srmech.biology.genome.genome_remove", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.biology.genome.genome_replace", "defined_at": "srmech.biology.genome.genome_replace", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.biology.genome.genome_export", "defined_at": "srmech.biology.genome.genome_export", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.biology.genome.genome_import", "defined_at": "srmech.biology.genome.genome_import", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.biology.genome.genome_explode", "defined_at": "srmech.biology.genome.genome_explode", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.biology.genome.genome_pack", "defined_at": "srmech.biology.genome.genome_pack", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.biology.genome.genome_register_attested", "defined_at": "srmech.biology.genome.genome_register_attested", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.biology.genome.kernel_pack", "defined_at": "srmech.biology.genome.kernel_pack", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.biology.genome.kernel_unpack", "defined_at": "srmech.biology.genome.kernel_unpack", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.biology.genome.graph_to_kernel", "defined_at": "srmech.biology.genome.graph_to_kernel", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.biology.genome.kernel_to_graph", "defined_at": "srmech.biology.genome.kernel_to_graph", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.biology.genome.genome_append_kernel", "defined_at": "srmech.biology.genome.genome_append_kernel", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.biology.genome.active_telomere", "defined_at": "srmech.biology.genome.active_telomere", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.biology.genome.telomere_tick", "defined_at": "srmech.biology.genome.telomere_tick", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.biology.genome.gene_express", "defined_at": "srmech.biology.genome.gene_express", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.biology.genome.gene_express_levels", "defined_at": "srmech.biology.genome.gene_express_levels", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.biology.genome.gene_express_plan", "defined_at": "srmech.biology.genome.gene_express_plan", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.biology.genome.genome_genes_expressed", "defined_at": "srmech.biology.genome.genome_genes_expressed", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.biology.genome.modulator_recover", "defined_at": "srmech.biology.genome.modulator_recover", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.biology.genome.modulator_consistent", "defined_at": "srmech.biology.genome.modulator_consistent", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.biology.genome.modulator_constraint", "defined_at": "srmech.biology.genome.modulator_constraint", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.biology.genome.modulator_constraint_satisfies", "defined_at": "srmech.biology.genome.modulator_constraint_satisfies", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.math.laplacian.mat_norm", "defined_at": "srmech.math.laplacian.mat_norm", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.math.laplacian.mat_dot", "defined_at": "srmech.math.laplacian.mat_dot", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.math.laplacian.mat_matvec", "defined_at": "srmech.math.laplacian.mat_matvec", "bucket": "composition_of_c"}
@@ -709,11 +709,11 @@
 {"exposed_as": "srmech.profile_loader.reset_for_testing", "defined_at": "srmech.profile_loader.reset_for_testing", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
 {"exposed_as": "srmech.amsc.cascade.frame_carrier.frame_carrier", "defined_at": "srmech.amsc.cascade.frame_carrier.frame_carrier", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.cascade.frame_carrier.frame_carrier_compare", "defined_at": "srmech.amsc.cascade.frame_carrier.frame_carrier_compare", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.amsc.plasmid.plasmid_extract", "defined_at": "srmech.amsc.plasmid.plasmid_extract", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.amsc.plasmid.section_counts", "defined_at": "srmech.amsc.plasmid.section_counts", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.plasmid.conserved_core", "defined_at": "srmech.amsc.plasmid.conserved_core", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.plasmid.genome_integrate_plasmids", "defined_at": "srmech.amsc.plasmid.genome_integrate_plasmids", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.amsc.plasmid.add_plasmid", "defined_at": "srmech.amsc.plasmid.add_plasmid", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.biology.plasmid.plasmid_extract", "defined_at": "srmech.biology.plasmid.plasmid_extract", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.biology.plasmid.section_counts", "defined_at": "srmech.biology.plasmid.section_counts", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.biology.plasmid.conserved_core", "defined_at": "srmech.biology.plasmid.conserved_core", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.biology.plasmid.genome_integrate_plasmids", "defined_at": "srmech.biology.plasmid.genome_integrate_plasmids", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.biology.plasmid.add_plasmid", "defined_at": "srmech.biology.plasmid.add_plasmid", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.cascade.cd_register", "defined_at": "srmech.amsc.cascade.cd_register.cd_register", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.cascade.cd_navmap", "defined_at": "srmech.amsc.cascade.cd_register.cd_navmap", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.cd_navigate", "defined_at": "srmech.amsc.cascade.cd_register.cd_navigate", "bucket": "c_dispatched"}
@@ -722,26 +722,26 @@
 {"exposed_as": "srmech.amsc.cascade.cd_uncouple_working", "defined_at": "srmech.amsc.cascade.cd_register.cd_uncouple_working", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.cascade.cd_carry", "defined_at": "srmech.amsc.cascade.cd_register.cd_carry", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.cascade.cd_correct", "defined_at": "srmech.amsc.cascade.cd_register.cd_correct", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.amsc.q8.q8_mult", "defined_at": "srmech.amsc.q8.q8_mult", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.q8.q8_conjugate", "defined_at": "srmech.amsc.q8.q8_conjugate", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.q8.q8_bind", "defined_at": "srmech.amsc.q8.q8_bind", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.q8.q8_project_v4", "defined_at": "srmech.amsc.q8.q8_project_v4", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.q8.q8_from_one", "defined_at": "srmech.amsc.q8.q8_from_one", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.biology.q8.q8_mult", "defined_at": "srmech.biology.q8.q8_mult", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.biology.q8.q8_conjugate", "defined_at": "srmech.biology.q8.q8_conjugate", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.biology.q8.q8_bind", "defined_at": "srmech.biology.q8.q8_bind", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.biology.q8.q8_project_v4", "defined_at": "srmech.biology.q8.q8_project_v4", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.biology.q8.q8_from_one", "defined_at": "srmech.biology.q8.q8_from_one", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.math.octonion.oct_mult", "defined_at": "srmech.math.octonion.oct_mult", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.math.octonion.oct_conjugate", "defined_at": "srmech.math.octonion.oct_conjugate", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.math.octonion.oct_bind", "defined_at": "srmech.math.octonion.oct_bind", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.genome.discrete_writhe", "defined_at": "srmech.amsc.genome.discrete_writhe", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.genome.cwf_consistency_mod2", "defined_at": "srmech.amsc.genome.cwf_consistency_mod2", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.biology.genome.discrete_writhe", "defined_at": "srmech.biology.genome.discrete_writhe", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.biology.genome.cwf_consistency_mod2", "defined_at": "srmech.biology.genome.cwf_consistency_mod2", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.math.rational.relative_writhe", "defined_at": "srmech.math.rational.relative_writhe", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.amsc.genome.codon_read", "defined_at": "srmech.amsc.genome.codon_read", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.genome.codon_frame_monodromy", "defined_at": "srmech.amsc.genome.codon_frame_monodromy", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.genome.genome_fiber_holonomy", "defined_at": "srmech.amsc.genome.genome_fiber_holonomy", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.genome.genome_add_fiber", "defined_at": "srmech.amsc.genome.genome_add_fiber", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.genome.genome_read_fiber", "defined_at": "srmech.amsc.genome.genome_read_fiber", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.genome.genome_octonion_holonomy", "defined_at": "srmech.amsc.genome.genome_octonion_holonomy", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.genome.genome_octonion_associator", "defined_at": "srmech.amsc.genome.genome_octonion_associator", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.genome.genome_add_octonion_fiber", "defined_at": "srmech.amsc.genome.genome_add_octonion_fiber", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.genome.genome_read_octonion_fiber", "defined_at": "srmech.amsc.genome.genome_read_octonion_fiber", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.biology.genome.codon_read", "defined_at": "srmech.biology.genome.codon_read", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.biology.genome.codon_frame_monodromy", "defined_at": "srmech.biology.genome.codon_frame_monodromy", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.biology.genome.genome_fiber_holonomy", "defined_at": "srmech.biology.genome.genome_fiber_holonomy", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.biology.genome.genome_add_fiber", "defined_at": "srmech.biology.genome.genome_add_fiber", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.biology.genome.genome_read_fiber", "defined_at": "srmech.biology.genome.genome_read_fiber", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.biology.genome.genome_octonion_holonomy", "defined_at": "srmech.biology.genome.genome_octonion_holonomy", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.biology.genome.genome_octonion_associator", "defined_at": "srmech.biology.genome.genome_octonion_associator", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.biology.genome.genome_add_octonion_fiber", "defined_at": "srmech.biology.genome.genome_add_octonion_fiber", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.biology.genome.genome_read_octonion_fiber", "defined_at": "srmech.biology.genome.genome_read_octonion_fiber", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.music.spectrum_tier", "defined_at": "srmech.music._spectra.spectrum_tier", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.music.commensurability_verdict", "defined_at": "srmech.music._spectra.commensurability_verdict", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.music.common_period", "defined_at": "srmech.music._spectra.common_period", "bucket": "composition_of_c"}

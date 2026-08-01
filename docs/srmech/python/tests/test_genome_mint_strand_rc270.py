@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc import genome as G
+from srmech.biology import genome as G
 from srmech.amsc import _native
 from srmech.math.hdc import klein4_expand
 
@@ -246,7 +246,7 @@ def test_mint_strand_registered_and_total_matches_live():
     from srmech.amsc.tool_schema import get_tool_schema, warmup_all
     warmup_all()
     names = [t.name for t in get_tool_schema().tools]
-    assert "srmech.amsc.genome.mint_strand" in names
+    assert "srmech.biology.genome.mint_strand" in names
     assert len(names) == 525
     assert "mint_strand" in G.__all__
 
@@ -255,7 +255,7 @@ def test_mint_strand_tool_has_docs():
     from srmech.amsc.tool_schema import get_tool_schema, warmup_all
     warmup_all()
     entry = next(t for t in get_tool_schema().tools
-                 if t.name == "srmech.amsc.genome.mint_strand")
+                 if t.name == "srmech.biology.genome.mint_strand")
     assert entry.explanation and entry.explanation.strip()
     assert entry.example
     # rc340 (#T965): 6 -> 7 — the shared ET_PARAM (element_type) is now published on
