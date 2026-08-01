@@ -70,7 +70,7 @@ def test_cayley_dickson_emits_q_accepts_fraction():
 
 
 def test_dense_solve_and_schur_emit_q():
-    from srmech.amsc.laplacian import dense_solve, schur_complement, dense_laplacian
+    from srmech.math.laplacian import dense_solve, schur_complement, dense_laplacian
     X = dense_solve([[2, 0], [0, 4]], [[2], [8]], exact=True)
     assert all(isinstance(v, Q) for row in X for v in row)
     assert X == [[Q(1)], [Q(2)]]
@@ -79,7 +79,7 @@ def test_dense_solve_and_schur_emit_q():
 
 
 def test_cycle_holonomy_emits_q_accepts_fraction_charges():
-    from srmech.amsc.laplacian import cycle_holonomy
+    from srmech.math.laplacian import cycle_holonomy
     res = cycle_holonomy([(0, 1), (1, 2), (2, 0)], charges=[F(1, 3), 0, 0], n=3)
     assert all(isinstance(h, Q) for h in res["holonomies"])
     assert res["holonomies"] == [Q(1, 3)]
@@ -91,7 +91,7 @@ def test_negative_float_snaps_via_signed_cascade():
     # best_rational rejects a negative numerator (octonion structure constants
     # are {-1,0,+1}; charges/eigenvalues can be negative), so they route the
     # SIGNED Class-K∘N∘C best_rational_signed.
-    from srmech.amsc.laplacian import _to_fraction, cycle_holonomy
+    from srmech.math.laplacian import _to_fraction, cycle_holonomy
     assert _to_fraction(-0.25) == Q(-1, 4)
     res = cycle_holonomy([(0, 1), (1, 2), (2, 0)], charges=[-0.25, 0.0, 0.0], n=3)
     assert all(isinstance(h, Q) for h in res["holonomies"])

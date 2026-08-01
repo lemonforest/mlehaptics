@@ -105,12 +105,12 @@ From `CLAUDE.md` §1 + §2 and verified against the rbs_nn_research README §4. 
 | Class | Role at Level 1 | srmech module |
 |---|---|---|
 | A | Content-address mint (SHA-256 → bipolar) | `srmech.amsc.format.sha256_bytes` |
-| I | Cyclic-group shift `(ℤ/nℤ)*` | `srmech.amsc.cyclic` |
+| I | Cyclic-group shift `(ℤ/nℤ)*` | `srmech.math.cyclic` |
 | C | Cascade-orientation / chirality (composed via Class L signed-variant per Spike #47) | composed |
-| J | Prime-period orthogonality | `srmech.amsc.primes` |
-| L | Laplacian / spectral dual | `srmech.amsc.laplacian` |
-| M | XOR-bind, majority-bundle, Hamming-similarity (HDC core) | `srmech.amsc.hdc` |
-| N | Stern-Brocot rational anchor | `srmech.amsc.rational` |
+| J | Prime-period orthogonality | `srmech.math.primes` |
+| L | Laplacian / spectral dual | `srmech.math.laplacian` |
+| M | XOR-bind, majority-bundle, Hamming-similarity (HDC core) | `srmech.math.hdc` |
+| N | Stern-Brocot rational anchor | `srmech.math.rational` |
 
 Excitation-side ops (K rotate-overlay, M bundle-of-rotations averaging) compose from the same vocabulary; their FPU lift is at the cascade-composition layer, not because a new class is needed. Per `[[feedback_no_privileged_primitive_classes]]` and `mfo_spectral_research_notebook.md` line 759 ("zero class promotion across the three mechanisms; MAX-pool dissolved into Class K per Spike #197").
 

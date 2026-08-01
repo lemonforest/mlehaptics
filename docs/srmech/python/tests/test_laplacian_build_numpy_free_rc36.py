@@ -16,7 +16,7 @@ from __future__ import annotations
 import pytest
 
 from srmech.amsc import _native
-from srmech.amsc import laplacian as _lap
+from srmech.math import laplacian as _lap
 
 _EDGES = [(0, 1), (1, 2), (2, 3), (0, 3), (1, 3)]
 _WTS = [1.0, 2.0, 1.5, 0.5, 3.0]

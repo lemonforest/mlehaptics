@@ -47,7 +47,7 @@ import pytest
 
 from srmech.amsc import _native
 from srmech.amsc.carrier_schema import _CARRIERS
-from srmech.amsc.dispatch import _OPEN_HINTS
+from srmech.math.dispatch import _OPEN_HINTS
 from srmech.introspect.responsion_schema import (
     _CONTINUOUS_VERIFIED,
     _DISCRETE_VERIFIED,
@@ -169,7 +169,7 @@ def test_propagator_resolvent_laplace_dual_pair_on_one_edge() -> None:
     ride the SAME (laplacian.responsion, Mat) edge — the unity held, not
     split into two flat rows."""
     schema = _pure_responsion_schema()
-    edge = schema["srmech.amsc.laplacian.responsion|Mat"]
+    edge = schema["srmech.math.laplacian.responsion|Mat"]
     kinds = {r["kind"]: r for r in edge}
     assert set(kinds) == {"propagator", "resolvent"}
     for r in kinds.values():
@@ -182,11 +182,11 @@ def test_propagator_resolvent_laplace_dual_pair_on_one_edge() -> None:
 
 def test_continuous_response_family_edges_present() -> None:
     schema = _pure_responsion_schema()
-    assert ("srmech.amsc.laplacian.propagate|Mat" in schema)
-    trace = schema["srmech.amsc.laplacian.heat_trace|Mat"][0]
+    assert ("srmech.math.laplacian.propagate|Mat" in schema)
+    trace = schema["srmech.math.laplacian.heat_trace|Mat"][0]
     assert trace["kind"] == "trace"
     assert "Tr" in trace["answers_with"]
-    flux = schema["srmech.amsc.laplacian.ground_state_flux_response|Mat"][0]
+    flux = schema["srmech.math.laplacian.ground_state_flux_response|Mat"][0]
     assert flux["kind"] == "response_curve"
 
 
@@ -283,7 +283,7 @@ def test_registry_count_and_keys_round_trip() -> None:
 @_needs_native
 def test_registry_find_first_class_fields() -> None:
     schema = _pure_responsion_schema()
-    for probe in ("srmech.amsc.laplacian.responsion|Mat",
+    for probe in ("srmech.math.laplacian.responsion|Mat",
                   "srmech.apokatastasis.gosper.gosper|Poly",
                   f"{_INFER_OP}|EllRatio"):
         found = _native.responsion_registry_find_c(probe)

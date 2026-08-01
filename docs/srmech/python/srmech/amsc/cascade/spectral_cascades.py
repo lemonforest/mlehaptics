@@ -25,9 +25,9 @@ from __future__ import annotations
 
 from typing import List, Sequence
 
-from srmech.amsc.rational import cexp, pi_cascade_digits
+from srmech.math.rational import cexp, pi_cascade_digits
 from srmech.amsc.mat import Mat as _Mat
-from srmech.amsc.laplacian import mat_matmul as _mat_matmul
+from srmech.math.laplacian import mat_matmul as _mat_matmul
 
 from .exact_dft import _exact_transform
 
@@ -257,7 +257,7 @@ def kron(a: Sequence[Sequence[complex]],
     **Float (genuinely continuous) input** takes the OUTER-PRODUCT path — the
     ``(A⊗B)`` entries are the entries of the rank-1 matrix ``vec(A)·vec(B)ᵀ``
     re-laid into the block layout, so the Class-M element products ride the
-    c_dispatched :func:`srmech.amsc.laplacian.mat_matmul`
+    c_dispatched :func:`srmech.math.laplacian.mat_matmul`
     (``srmech_dense_matmul_complex``) — one single-term multiply per entry — and
     the block re-index ``out[i·mb+k][j·nb+l] = outer[i·na+j][k·nb+l]`` is exact
     integer glue. No exactness is claimed there: float in, FPU-tol out.

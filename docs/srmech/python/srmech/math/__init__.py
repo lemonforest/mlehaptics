@@ -46,7 +46,7 @@ slice is the general-algebra opener only.
 
 This module deliberately imports nothing: ``import srmech.math`` must stay free.
 The domain's callables live in submodules, each importing the carriers it needs
-(``srmech.amsc._native`` / ``srmech.amsc.cyclic`` / ``srmech.amsc.rational``)
+(``srmech.amsc._native`` / ``srmech.math.cyclic`` / ``srmech.math.rational``)
 directly.
 """
 

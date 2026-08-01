@@ -10,7 +10,8 @@ import random
 
 import pytest
 
-from srmech.amsc import _native, primes
+from srmech.amsc import _native
+from srmech.math import primes
 
 
 # ---------------------------------------------------------------------

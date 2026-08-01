@@ -34,7 +34,7 @@ def test_trace_theta_zero_sigma_minus():
 def test_trace_uses_the_same_catalog_cos():
     # The trig / asymptotic_calculus catalogs are the target test: trace is
     # correct iff their cos is. Re-derive from the catalog primitive directly.
-    from srmech.amsc.rational import cos_series_truncate, _reduce_rational
+    from srmech.math.rational import cos_series_truncate, _reduce_rational
     cn, cd = cos_series_truncate(1, 4, 24)
     expect = _reduce_rational((3 + 3) * cd + 8 * cn, cd)        # σ=+1
     assert to_scalar(the_one(1, 1, 4, terms=24), mode="trace") == expect

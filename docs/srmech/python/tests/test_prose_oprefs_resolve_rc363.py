@@ -38,11 +38,11 @@ A dotted path is **RESOLVABLE** iff, taking the LONGEST importable module prefix
 and walking the remaining segments with ``getattr``, every segment exists. So
 both of these count, and the gate deliberately does not distinguish them:
 
-* ``srmech.amsc.laplacian`` — a MODULE (135 occurrences tree-wide is the largest
+* ``srmech.math.laplacian`` — a MODULE (135 occurrences tree-wide is the largest
   single citation). A module path is a real reference: ADR-0010 moves modules,
   and a citation of a module that no longer exists is exactly as broken as a
   citation of an op that no longer exists.
-* ``srmech.amsc.laplacian.mat_matmul`` — a module attribute (an op, a class, a
+* ``srmech.math.laplacian.mat_matmul`` — a module attribute (an op, a class, a
   constant). Deep chains resolve too: ``srmech.amsc.qmat.QMat.rank`` walks the
   class.
 
@@ -56,7 +56,7 @@ Two extractions are **excluded by rule**, not by allowlist:
 
 What this gate cannot decide
 ============================
-* **It cannot tell a RIGHT path from a merely EXISTING one.** ``srmech.amsc.hdc``
+* **It cannot tell a RIGHT path from a merely EXISTING one.** ``srmech.math.hdc``
   resolves whether or not it is the module the sentence is about. Topicality is
   not decidable here — the same distinction the repo's issue-reference discipline
   draws for ``#NNNN``.
@@ -222,7 +222,7 @@ def test_the_filename_rule_is_exercised_not_theoretical() -> None:
         "cited")
     assert _normalise("srmech.h") is None
     assert _normalise("srmech.qm.*") == "srmech.qm"
-    assert _normalise("srmech.amsc.laplacian") == "srmech.amsc.laplacian"
+    assert _normalise("srmech.math.laplacian") == "srmech.math.laplacian"
 
 
 # ── 1. THE GATE ───────────────────────────────────────────────────────────────

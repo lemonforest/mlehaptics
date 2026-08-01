@@ -27,9 +27,9 @@ import tempfile
 import pytest
 
 from srmech.amsc import genome as G
-from srmech.amsc import laplacian as L
+from srmech.math import laplacian as L
 from srmech.amsc import _native
-from srmech.amsc.hdc import klein4_expand
+from srmech.math.hdc import klein4_expand
 
 _DIM = 64
 _PARTITIONING = _native.SRMECH_PHASE_PARTITIONING

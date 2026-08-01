@@ -18,7 +18,8 @@ import random
 
 import pytest
 
-from srmech.amsc import _native, cyclic
+from srmech.amsc import _native
+from srmech.math import cyclic
 
 
 # ---------------------------------------------------------------------

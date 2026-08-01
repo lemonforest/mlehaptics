@@ -23,7 +23,8 @@ from __future__ import annotations
 
 import random
 
-from srmech.amsc import laplacian, _native
+from srmech.amsc import _native
+from srmech.math import laplacian
 from srmech.introspect import naming
 
 

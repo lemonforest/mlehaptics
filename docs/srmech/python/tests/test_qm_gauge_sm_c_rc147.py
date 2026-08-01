@@ -47,7 +47,7 @@ import struct
 import pytest
 
 from srmech.amsc import _native
-from srmech.amsc.laplacian import mat_matmul, mat_norm
+from srmech.math.laplacian import mat_matmul, mat_norm
 from srmech.amsc.mat import Mat
 from srmech.qm import bell, gauge, potentials, single_particle, sm
 from srmech.qm.spin import pauli_matrices

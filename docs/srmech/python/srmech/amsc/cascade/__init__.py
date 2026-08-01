@@ -54,8 +54,8 @@ for sequence types the C ABI doesn't cover (strings, mixed-type lists, etc).
 **No new primitive class** — every callable is a *composition* of the
 existing 14-class A–N primitives (the vocabulary is intact per
 ``[[feedback_no_privileged_primitive_classes]]``). Class I
-(``srmech.amsc.cyclic.gcd``) and Class N
-(``srmech.amsc.rational.best_rational``) supply the cyclic / rational
+(``srmech.math.cyclic.gcd``) and Class N
+(``srmech.math.rational.best_rational``) supply the cyclic / rational
 anchor primitives; the cascades sequence them in Python (with inline
 Class K / Class C signed arithmetic) plus the dedicated cascade-op C
 symbols for the hot value-sequence cascades (``chiral_flip`` in
@@ -73,8 +73,8 @@ Canonical SSoT:
 - ``[[user_stance_epicycle_via_gear_plus_pin]]`` — sign-flip IS the Class K
   pin-slot phase-boundary.
 - Khinchin (1964), *Continued Fractions* — the Class N best-rational anchor
-  (via ``srmech.amsc.rational.best_rational``).
-- Euclid, *Elements* VII.1–2 — the Class I gcd (via ``srmech.amsc.cyclic.gcd``).
+  (via ``srmech.math.rational.best_rational``).
+- Euclid, *Elements* VII.1–2 — the Class I gcd (via ``srmech.math.cyclic.gcd``).
 """
 
 from __future__ import annotations
@@ -246,7 +246,7 @@ from .cd_register import (
 )
 
 # ── Class-L DSL re-export: schur_complement / Dirichlet-to-Neumann ─────
-# ``schur_complement`` lives canonically in ``srmech.amsc.laplacian`` (its
+# ``schur_complement`` lives canonically in ``srmech.math.laplacian`` (its
 # A–N home is Class L; the tool-schema entry is registered there). The DSL
 # chain runner resolves stage ops via ``getattr(srmech.amsc.cascade, name)``
 # (srmech.dsl._catalog.lookup_cascade_op), so the cascade-catalog descriptor
@@ -256,7 +256,7 @@ from .cd_register import (
 # contract, not a second cascade-native primitive). It is numpy-absent-safe
 # (exact-rational path), so this import keeps the rc30 numpy-free core intact.
 # See tests/test_schur_complement_dsl_stage.py.
-from ..laplacian import schur_complement  # noqa: F401  (DSL resolution alias)
+from ...math.laplacian import schur_complement  # noqa: F401  (DSL resolution alias)
 
 # ── Back-compat aliases (the precursor's call-site names) ──────────────
 # Existing cascade scripts in docs/unsolved-maths/ import these names from

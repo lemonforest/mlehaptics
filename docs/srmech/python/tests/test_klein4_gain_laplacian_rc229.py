@@ -28,7 +28,7 @@ from fractions import Fraction
 import pytest
 
 from srmech.amsc import _native
-from srmech.amsc.laplacian import (
+from srmech.math.laplacian import (
     klein4_gain_laplacian,
     klein4_relational_structure,
     cycle_holonomy,
@@ -44,7 +44,7 @@ from srmech.amsc.laplacian import (
     _normalize_gains_py,
     _validate_edges_weights_py,
 )
-import srmech.amsc.laplacian as _lap
+import srmech.math.laplacian as _lap
 
 _SECTORS = ("chi00", "chi01", "chi10", "chi11")
 
@@ -315,7 +315,7 @@ def test_registration_tool_schema_total_matches_live():
     names = {t.name for t in schema.tools}
     for op in ("klein4_gain_laplacian", "klein4_relational_structure",
                "cycle_holonomy"):
-        assert f"srmech.amsc.laplacian.{op}" in names, f"{op} ToolEntry missing"
+        assert f"srmech.math.laplacian.{op}" in names, f"{op} ToolEntry missing"
 
 
 def test_registration_native_helpers_present():

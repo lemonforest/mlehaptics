@@ -9,7 +9,7 @@
 5. **AMSC provenance framework** (`srmech.amsc.format`, `srmech.amsc.catalog`, `srmech.amsc.adapters`) — every ground-proof datum carries a mandatory attestation block (`source_doi`, `source_url`, `license`, `retrieved_at`, `response_sha256`, `parser_version`, `parser_rule_hash`, `collector_descriptor_path`, `collector_descriptor_hash`).
 6. **The genome storage format** (`srmech.amsc.genome`, `srmech.amsc.plasmid`) — srmech's own self-describing on-disk store (wire format **v15**): O(1) append, a catalog derived from the body rather than a stored table of contents, centromere / diploid / chromatin / gene structure read back out of the bytes, and a two-stage extract-then-organize encode that makes adding a document incremental.
 
-> **⚠️ BREAKING at v0.9.0rc287 — text is segmented into glyph clusters, not words.** `srmech.amsc.text.tokenize` and `DEFAULT_STOPLIST` are **removed** and replaced by `glyph_stream`. There is no shim and no compatibility flag. Every stored vocabulary, co-occurrence edge store and text-derived genome built before rc287 contains word tokens and must be **re-encoded** — the container format is unchanged, its contents are not. See [the glyph stream](#srmechamsctext--the-glyph-stream-uax-29) below before upgrading.
+> **⚠️ BREAKING at v0.9.0rc287 — text is segmented into glyph clusters, not words.** `srmech.math.text.tokenize` and `DEFAULT_STOPLIST` are **removed** and replaced by `glyph_stream`. There is no shim and no compatibility flag. Every stored vocabulary, co-occurrence edge store and text-derived genome built before rc287 contains word tokens and must be **re-encoded** — the container format is unchanged, its contents are not. See [the glyph stream](#srmechamsctext--the-glyph-stream-uax-29) below before upgrading.
 
 Implementation is JPL Power-of-Ten compliant on the C side; cibuildwheel matrix covers Linux / macOS / Windows × Python 3.10–3.14; a `py3-none-any` pure-Python wheel ships for Pyodide / WASM environments where the C surface can't load.
 
@@ -55,11 +55,11 @@ Every value srmech moves rides one of **six framework-owned carriers** instead o
 
 #### The lens — ALU all the way, FPU last-mile
 
-A cascade is integer arithmetic on the **ALU** (add / multiply / GCD / cross-multiply over big integers) right up to the edge, where a single `float()` "rotates" the held rational onto the **FPU** decimal axis. `Q` is what keeps the ALU stretch exact: `srmech.amsc.rational.{sin,cos,tan,atan,atan2,exp,log,sqrt,hypot}` return a `Q` (an exact `(num, den)`) instead of a bare `float`, so the value stays in the integer ALU and `float(q)` / `complex(z)` is the *one* last rotation, taken only at the display / carrier edge.
+A cascade is integer arithmetic on the **ALU** (add / multiply / GCD / cross-multiply over big integers) right up to the edge, where a single `float()` "rotates" the held rational onto the **FPU** decimal axis. `Q` is what keeps the ALU stretch exact: `srmech.math.rational.{sin,cos,tan,atan,atan2,exp,log,sqrt,hypot}` return a `Q` (an exact `(num, den)`) instead of a bare `float`, so the value stays in the integer ALU and `float(q)` / `complex(z)` is the *one* last rotation, taken only at the display / carrier edge.
 
-This split is load-bearing because the two halves have different reproducibility guarantees. **Integer-ALU is bit-reproducible and attestable** — the same `(num, den)` on every platform, content-addressable via `sha256_bytes`, no last-bit drift. **The FPU is where cross-platform last-bit divergence lives** (libm rounding, `-ffast-math`, x87-vs-SSE), so the framework spends as little of the cascade there as possible. The native Q61 C peers (`srmech_{sin,cos,atan,exp,log,sqrt}_q61`) carry the same exact integer-ALU result across the C boundary, byte-exact-verified against the Python `Q`. When the native library is loaded, `srmech.amsc.rational.{sin,cos,tan,atan,atan2,exp,log,sqrt}` **dispatch to those peers automatically** (the Python Q61 cascade computes the byte-identical value when it is not — a spy test asserts the live dispatch on every native CI cell). A **C-only host** reassembles the same exact rational from the peers plus the exported `SRMECH_Q61_ONE` / `SRMECH_Q61_LN2` / `SRMECH_Q61_HALF_PI` model constants — no Python required.
+This split is load-bearing because the two halves have different reproducibility guarantees. **Integer-ALU is bit-reproducible and attestable** — the same `(num, den)` on every platform, content-addressable via `sha256_bytes`, no last-bit drift. **The FPU is where cross-platform last-bit divergence lives** (libm rounding, `-ffast-math`, x87-vs-SSE), so the framework spends as little of the cascade there as possible. The native Q61 C peers (`srmech_{sin,cos,atan,exp,log,sqrt}_q61`) carry the same exact integer-ALU result across the C boundary, byte-exact-verified against the Python `Q`. When the native library is loaded, `srmech.math.rational.{sin,cos,tan,atan,atan2,exp,log,sqrt}` **dispatch to those peers automatically** (the Python Q61 cascade computes the byte-identical value when it is not — a spy test asserts the live dispatch on every native CI cell). A **C-only host** reassembles the same exact rational from the peers plus the exported `SRMECH_Q61_ONE` / `SRMECH_Q61_LN2` / `SRMECH_Q61_HALF_PI` model constants — no Python required.
 
-The collapse is a *genuine boundary*, not a no-op shim. Leaf physical-observable scalar ops (`srmech.qm.*`, `amsc/kepler.py`) and the iterative FPU kernels (`amsc/laplacian.py` Jacobi / QR / SVD / Fiedler, `signal_processing` taper/window helpers, the Kuramoto step) collapse to `float` at their edge **because they ARE the FPU** — an iterative numeric kernel that kept exact rationals would grow `num` / `den` unboundedly per sweep. Exact cascades keep `Q`; numeric kernels rotate at the boundary.
+The collapse is a *genuine boundary*, not a no-op shim. Leaf physical-observable scalar ops (`srmech.qm.*`, `amsc/kepler.py`) and the iterative FPU kernels (`math/laplacian.py` Jacobi / QR / SVD / Fiedler, `signal_processing` taper/window helpers, the Kuramoto step) collapse to `float` at their edge **because they ARE the FPU** — an iterative numeric kernel that kept exact rationals would grow `num` / `den` unboundedly per sweep. Exact cascades keep `Q`; numeric kernels rotate at the boundary.
 
 #### Why `Q` — the stay-rational discipline (F868)
 
@@ -71,7 +71,7 @@ Decompose a real signal onto a graph-Laplacian eigenbasis, take an HDC delta aga
 
 ```python
 from srmech import spectral
-from srmech.amsc import laplacian
+from srmech.math import laplacian
 
 # Substrate: cycle-graph Laplacian on 8 nodes, built (n, edges) -> Mat.
 # No numpy — the Mat carrier is the numpy-free array. Any Hermitian L works.
@@ -225,7 +225,7 @@ As of **v0.6.0** the catalog is a **two-tier lean-ISA split** (`#751`): `srmech.
 - `reorient(value, *, orientation)` — **Class C** orientation re-apply. *(C peer: v0.4.5rc4)*
 - `magnitude(x)` — **Class K** magnitude-only convenience. *(C peer: v0.4.5rc3)*
 - `best_rational_signed(x, *, max_denominator=100, fine_scale=1_000_000)` — **Class K ∘ N ∘ C** float → signed small-denominator rational (sign in the numerator). *(C peer: v0.4.5rc7 — delegates Class N stage to `srmech_best_rational`; banker's rounding via `llrint()`)*
-- `cyclic_gcd(a, b)` — **Class I** (delegates to `srmech.amsc.cyclic.gcd`). *(C peer: v0.4.5rc6 — delegates to Class I primitive `srmech_gcd`)*
+- `cyclic_gcd(a, b)` — **Class I** (delegates to `srmech.math.cyclic.gcd`). *(C peer: v0.4.5rc6 — delegates to Class I primitive `srmech_gcd`)*
 - `chiral_flip(seq)` — **Class C** orientation reversal (`seq[::-1]`). *(C peer: v0.4.5rc1)*
 - `chiral_dual(op, x)` — **Class C ∘ op ∘ Class C**: run an operator in the opposite Class-C orientation. The chiral dual of an A–N operator is *same spectral shape, inverted orientation* (magnitude preserved, phase flipped — spike-verified); it reduces to the bare Class K `−1` for the sign operators and is the identity for real-symmetric ones. *(C: `srmech_cascade_chiral_dual_f64`, v0.4.5rc8; higher-order, callback ABI)*
 - `net_chirality(orientations)` — **Class C** net handedness of a cascade (product of per-op orientations in `{-1,0,+1}`; `0` if any is neutral). *(C peer: v0.4.5rc5)*
@@ -261,7 +261,7 @@ with begin_cascade() as ctx:
 
 Path A and Path B produce bit-exact-equal outputs on substrate-natural inputs (D1 algebra-content identity); substrate-fingerprint divergence at D2 is expected and documented.
 
-### `srmech.amsc.text` — the glyph stream (UAX #29)
+### `srmech.math.text` — the glyph stream (UAX #29)
 
 The front door for text: it turns a string into the units that everything downstream counts, and those units are what a co-occurrence graph, and therefore a text-derived genome, is built out of. **As of v0.9.0rc287 the unit is the extended grapheme cluster — the glyph — not the word.**
 
@@ -288,7 +288,7 @@ The word decision carried four Latin-shaped assumptions — a 2-codepoint length
 A grapheme cluster is what a reader perceives as one character. It is the only unit well-defined in **every** script, which is exactly why it replaces the word here. Real output from this tree:
 
 ```python
-from srmech.amsc.text import glyph_stream
+from srmech.math.text import glyph_stream
 
 glyph_stream("语言是人类交流的工具")
 # ['语', '言', '是', '人', '类', '交', '流', '的', '工', '具']   → 10 glyphs, not 1 "word"
@@ -372,7 +372,7 @@ G.load_type_aliases_toml(path)                                  # a [genome.type
 import tempfile, pathlib
 from srmech.amsc import genome as G
 from srmech.amsc.cascade.one import the_one
-from srmech.amsc.hdc import klein4_expand, klein4_from_one
+from srmech.math.hdc import klein4_expand, klein4_from_one
 
 # rc290: the coupling is DERIVED from (sigma, theta, terms) — no magic seed.
 coupling = klein4_from_one(the_one(1, 1, 4), 64)

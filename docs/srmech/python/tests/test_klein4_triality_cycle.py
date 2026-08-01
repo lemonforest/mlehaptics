@@ -17,7 +17,7 @@ import random
 
 import pytest
 
-from srmech.amsc import hdc
+from srmech.math import hdc
 
 
 def _all_sectors():
@@ -94,4 +94,4 @@ def test_registered_in_tool_schema():
     from srmech.amsc.tool_schema import get_tool_schema
 
     names = {t.name for t in get_tool_schema()}
-    assert "srmech.amsc.hdc.klein4_triality_cycle" in names
+    assert "srmech.math.hdc.klein4_triality_cycle" in names

@@ -53,11 +53,11 @@ from srmech.introspect.op_provenance import (
     op_verdict,
     reproject,
 )
-from srmech.amsc.rational import best_rational, sin_series_truncate
+from srmech.math.rational import best_rational, sin_series_truncate
 
-SIN_OP = "srmech.amsc.rational.sin_series_truncate"
-BR_OP = "srmech.amsc.rational.best_rational"
-JAC_OP = "srmech.amsc.laplacian.jacobi_eigvals"
+SIN_OP = "srmech.math.rational.sin_series_truncate"
+BR_OP = "srmech.math.rational.best_rational"
+JAC_OP = "srmech.math.laplacian.jacobi_eigvals"
 
 # The P4 path-graph Laplacian — exact integer entries (a NAMED target).
 P4 = [[1, -1, 0, 0], [-1, 2, -1, 0], [0, -1, 2, -1], [0, 0, -1, 1]]
@@ -87,7 +87,7 @@ def test_coincidental_value_from_different_op_is_unknown():
     verdict EQUAL — different provenance, honestly UNKNOWN."""
     s1 = carry(SIN_OP, {"numerator": 0, "denominator": 1},
                {"num_terms": 3})
-    s2 = carry("srmech.amsc.rational.atan_series_truncate",
+    s2 = carry("srmech.math.rational.atan_series_truncate",
                {"numerator": 0, "denominator": 1}, {"num_terms": 3})
     assert s1["value"] == s2["value"] == (0, 1)      # values coincide
     assert op_verdict(s1, s2) == "UNKNOWN"           # never a false EQUAL
@@ -284,7 +284,7 @@ def test_bigint_leaves_are_tagged_and_hash_cleanly():
            "input_sha256": []}
     assert len(op_provenance_hash(rec)) == 64
     # heat_trace with an exact rational time: Fraction leaf stays exact.
-    c = carry("srmech.amsc.laplacian.heat_trace",
+    c = carry("srmech.math.laplacian.heat_trace",
               {"L": [[1, -1], [-1, 1]], "t": Fraction(1, 2)})
     assert c["provenance"]["leaves_exact"] is True
     assert c["inputs"]["t"] == {"__rational__": [1, 2]}
@@ -323,7 +323,7 @@ def test_python_c_hash_parity_on_identical_records():
     (indented, unsorted keys, a chain_sha256 cache to strip): the C peer
     parses ANY formatting and re-emits canonically."""
     _require_native()
-    record = {"op": "srmech.amsc.rational.sin_series_truncate",
+    record = {"op": "srmech.math.rational.sin_series_truncate",
               "params": {"num_terms": 3},
               "input_sha256": ["ab" * 32, "cd" * 32],
               "family": {"target_id": "sin(1/1)", "tower_kind": "interior"},

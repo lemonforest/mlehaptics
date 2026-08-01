@@ -18,7 +18,7 @@ This is the **bare-Python-tier sibling** of two existing ratchets:
 What this one guards is the **third tier**: bare-Python ``math.*`` / ``cmath.*``
 float transcendentals, ``math.pi`` / ``math.tau`` float constants, and fractional
 ``** <float>`` powers — the continuous-math that has an EXACT A-N cascade
-replacement in ``srmech.amsc.rational`` (``sin`` / ``cos`` / ``atan`` / ``atan2``
+replacement in ``srmech.math.rational`` (``sin`` / ``cos`` / ``atan`` / ``atan2``
 / ``exp`` / ``log`` / ``sqrt`` / ``hypot`` the Class-N rational primitives;
 ``pi_cascade_digits`` the Class-N π; integer ``**`` the exact power). Per the
 user's deepest principle — *"don't use floats for bit-exact math, that's what ints
@@ -42,7 +42,7 @@ added where a cascade belongs (the regression this guard forbids):
 
   * ``transcendental`` — a ``Call`` to ``math.{sin,cos,tan,exp,log,sqrt,hypot,
     atan,atan2,…}`` or ANY ``cmath.*``. Reduce by routing through the matching
-    ``srmech.amsc.rational`` cascade, then lower ``CEIL_TRANSCENDENTAL``.
+    ``srmech.math.rational`` cascade, then lower ``CEIL_TRANSCENDENTAL``.
   * ``math_const``    — an ``Attribute`` read of ``math.{pi,tau,e}``. Reduce by
     using ``pi_cascade_digits`` (the Class-N π), then lower ``CEIL_MATH_CONST``.
   * ``float_pow``     — a ``BinOp`` ``a ** <float-constant>`` (e.g. ``x ** 0.5``
@@ -85,7 +85,7 @@ from pathlib import Path
 SRMECH_PKG = Path(__file__).resolve().parent.parent / "srmech"
 
 # Float transcendentals with an exact A-N cascade replacement in
-# srmech.amsc.rational. (Integer ops — isqrt/gcd/comb/factorial/floor/ceil/trunc —
+# srmech.math.rational. (Integer ops — isqrt/gcd/comb/factorial/floor/ceil/trunc —
 # and IEEE/sign primitives — copysign/fabs/isfinite/isinf/isnan/ldexp/frexp — are
 # deliberately absent: see the module docstring's EXCLUDED list.)
 _TRANSCENDENTAL = frozenset({
@@ -171,7 +171,7 @@ def test_an_cascade_ledger_is_tight():
     """Each continuous-math category count equals its down-only ceiling.
 
     ABOVE ceiling → bare-Python continuous math was added where an A-N cascade
-    belongs (route it through ``srmech.amsc.rational`` / ``pi_cascade_digits``).
+    belongs (route it through ``srmech.math.rational`` / ``pi_cascade_digits``).
     BELOW ceiling → a site was reduced but the ceiling wasn't lowered — lower the
     matching ``CEIL_*`` to the new exact count.
     """

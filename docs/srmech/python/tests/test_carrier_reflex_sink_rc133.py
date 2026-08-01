@@ -17,7 +17,7 @@ Runs with numpy genuinely absent (it is part of the numpy-FREE surface it certif
 
 import builtins
 
-from srmech.amsc import laplacian as Lp
+from srmech.math import laplacian as Lp
 from srmech.amsc.mat import Mat
 from srmech.amsc.vec import Vec
 

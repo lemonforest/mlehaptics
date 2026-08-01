@@ -14,7 +14,7 @@ from __future__ import annotations
 import pytest
 
 from srmech.amsc import _native
-from srmech.amsc import text as T
+from srmech.math import text as T
 
 NATIVE = _native.has_native_text_cooccurrence_edges_directed()
 
@@ -67,7 +67,7 @@ def test_directed_must_be_bool():
 def test_registered_in_tool_schema():
     from srmech.amsc.tool_schema import get_tool_schema
     tool = next(t for t in get_tool_schema().tools
-                if t.name == "srmech.amsc.text.cooccurrence_edges")
+                if t.name == "srmech.math.text.cooccurrence_edges")
     assert any(p.name == "directed" for p in tool.parameters)
 
 

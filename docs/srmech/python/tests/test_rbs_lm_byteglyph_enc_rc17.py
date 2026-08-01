@@ -12,7 +12,7 @@ Covers the three shipped pieces + the behaviour-pin guarantee:
 numpy-free (the no-numpy-test discipline); deterministic (seeded ``klein4_expand``).
 """
 
-from srmech.amsc import hdc
+from srmech.math import hdc
 from srmech.rbs_lm import substrate as cs
 
 D = 96

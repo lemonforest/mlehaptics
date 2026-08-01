@@ -3,7 +3,7 @@
  * on the caller-arena srmech_bigint (the standalone-honor closure for the
  * exact-rational series).
  *
- * The Python `srmech.amsc.rational.{exp,sin,cos,log1p,atan}_series_truncate`
+ * The Python `srmech.math.rational.{exp,sin,cos,log1p,atan}_series_truncate`
  * + `rational_pow_uint` are exact-rational-IN -> exact-rational-OUT with NO
  * magnitude ceiling (CPython arbitrary-precision int). The int64/Q61 C peers
  * in srmech_rational.c cap at int64 (SRMECH_ERR_OVERFLOW past it), so a

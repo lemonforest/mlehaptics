@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc import rational
+from srmech.math import rational
 
 
 _CATALOG_PKG = "srmech.amsc.attested.cosmos_validation"

@@ -1,6 +1,6 @@
 """rc204 (gh#1324; F1167–F1169) — the spectral SPINE.
 
-`srmech.amsc.laplacian.spectral_spine` reads the DOMINANT eigenvector (largest
+`srmech.math.laplacian.spectral_spine` reads the DOMINANT eigenvector (largest
 λ) of a (signed) graph Laplacian: its top-|component| nodes are the structurally
 CENTRAL items — the dominant-mode read-out that completes the community/spine
 pair with the LOW-mode fiedler_vector / fiedler_sparse (2-way) +
@@ -21,9 +21,9 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc import laplacian as L
+from srmech.math import laplacian as L
 from srmech.amsc import _native
-from srmech.amsc.laplacian import (
+from srmech.math.laplacian import (
     signed_laplacian,
     symmetric_eigendecompose,
     _jacobi_eig_py,
@@ -191,8 +191,8 @@ def test_tool_schema_registration():
     from srmech.amsc.tool_schema import get_tool_schema, warmup_all
     warmup_all()
     names = {t.name for t in get_tool_schema().tools}
-    assert "srmech.amsc.laplacian.spectral_spine" in names
-    assert "srmech.amsc.laplacian.relational_structure" in names
+    assert "srmech.math.laplacian.spectral_spine" in names
+    assert "srmech.math.laplacian.relational_structure" in names
     assert len(get_tool_schema().tools) == 525
 
 
@@ -202,8 +202,8 @@ def test_rosetta_ledger_rows():
     fx = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
     rows = {json.loads(l)["defined_at"]: json.loads(l)["bucket"]
             for l in fx.read_text(encoding="utf-8").splitlines() if l.strip()}
-    assert rows["srmech.amsc.laplacian.spectral_spine"] == "c_dispatched"
-    assert rows["srmech.amsc.laplacian.relational_structure"] == "composition_of_c"
+    assert rows["srmech.math.laplacian.spectral_spine"] == "c_dispatched"
+    assert rows["srmech.math.laplacian.relational_structure"] == "composition_of_c"
 
 
 def test_exports_in_all():

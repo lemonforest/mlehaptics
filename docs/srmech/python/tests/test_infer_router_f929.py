@@ -1,4 +1,4 @@
-"""F929 — the OPEN/infer ROUTER (``srmech.amsc.dispatch.infer``).
+"""F929 — the OPEN/infer ROUTER (``srmech.math.dispatch.infer``).
 
 The meta-dispatcher that makes srmech's three shipped closed-form
 reduction-theory rows (cyclic / spectral / Σ) ONE callable. Given an arbitrary
@@ -31,7 +31,7 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc.dispatch import infer
+from srmech.math.dispatch import infer
 from srmech.amsc.poly import Poly
 from srmech.apokatastasis.zeilberger import BiPoly
 
@@ -270,7 +270,7 @@ def test_module_is_numpy_and_math_free():
     """The router source imports neither numpy nor math (the §2 discipline)."""
     import re
 
-    import srmech.amsc.dispatch as d
+    import srmech.math.dispatch as d
     src = d.__file__
     with open(src, "r", encoding="utf-8") as fh:
         text = fh.read()

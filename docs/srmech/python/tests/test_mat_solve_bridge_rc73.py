@@ -26,8 +26,8 @@ import textwrap
 
 import pytest
 
-from srmech.amsc.laplacian import mat_solve, mat_matmul, dense_solve, LAPLACIAN_OPS
-from srmech.amsc import laplacian as _lap
+from srmech.math.laplacian import mat_solve, mat_matmul, dense_solve, LAPLACIAN_OPS
+from srmech.math import laplacian as _lap
 from srmech.amsc.mat import Mat
 
 
@@ -145,8 +145,8 @@ def test_mat_solve_computes_numpy_free_native_and_fallback():
         """
         import sys
         from fractions import Fraction as F
-        from srmech.amsc.laplacian import mat_solve
-        from srmech.amsc import laplacian as lap
+        from srmech.math.laplacian import mat_solve
+        from srmech.math import laplacian as lap
         from srmech.amsc.mat import Mat
         assert "numpy" not in sys.modules, "import pulled numpy in"
 

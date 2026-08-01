@@ -39,7 +39,7 @@ import contextlib
 import pytest
 
 from srmech.amsc import _native
-from srmech.amsc.laplacian import mat_matmul, mat_norm, mat_svd
+from srmech.math.laplacian import mat_matmul, mat_norm, mat_svd
 from srmech.amsc.mat import Mat
 from srmech.qm import so8, triality
 

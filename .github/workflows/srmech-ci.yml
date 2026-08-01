@@ -679,7 +679,7 @@ jobs:
               register_attested_root, list_registered_roots,
           )
           # the Class-N cascade core must work numpy-free
-          from srmech.amsc import rational
+          from srmech.math import rational
           assert rational.best_rational(22, 7, 100) == (22, 7)
           # the srmech.qm SUBPACKAGE is fully numpy-free (#564): every submodule
           # imports + runs with numpy absent, over the Mat carrier + cascades.
@@ -716,13 +716,13 @@ jobs:
           _g2 = so8.g2_subalgebra()
           assert len(_g2) == 14 and type(_g2[0]).__name__ == 'Mat', 'so8 not numpy-free'
           _tau = triality.triality_automorphism()
-          from srmech.amsc.laplacian import mat_matmul, mat_norm
+          from srmech.math.laplacian import mat_matmul, mat_norm
           _t3 = mat_matmul(mat_matmul(_tau, _tau), _tau)
           _id = Mat.from_rows([[1.0 if i==j else 0.0 for j in range(28)] for i in range(28)])
           _d = Mat.from_rows([[_t3[i,j]-_id[i,j] for j in range(28)] for i in range(28)])
           assert _tau.shape == (28, 28) and mat_norm(_d) < 1e-9, 'triality tau^3 != I'
           # hdc loop family + hypercomplex_dft (rc125) are numpy-free too.
-          from srmech.amsc import hdc
+          from srmech.math import hdc
           assert type(hdc.loop_bind([1.0,0,0,0,0,0,0,0],[0,1.0,0,0,0,0,0,0])).__name__ == 'list', 'hdc loop not numpy-free'
           assert hdc.polar_random(8, seed=1).typecode == 'b', 'hdc polar not numpy-free'
           from srmech.amsc.cascade import quaternion_dft

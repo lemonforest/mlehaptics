@@ -64,14 +64,15 @@ from collections import OrderedDict
 from dataclasses import dataclass
 from typing import List, Optional
 
-from srmech.amsc import _native, rational
+from srmech.amsc import _native
+from srmech.math import rational
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
-from srmech.amsc.laplacian import mat_hermitian_eigendecompose, mat_matvec
+from srmech.math.laplacian import mat_hermitian_eigendecompose, mat_matvec
 from srmech.amsc.mat import Mat
 
-from ..amsc.hdc import bind as _hdc_bind
-from ..amsc.hdc import hamming as _hdc_hamming
-from ..amsc.hdc import similarity as _hdc_similarity
+from ..math.hdc import bind as _hdc_bind
+from ..math.hdc import hamming as _hdc_hamming
+from ..math.hdc import similarity as _hdc_similarity
 
 __all__ = [
     "SpectralHandle",
@@ -500,7 +501,7 @@ def similarity(
 ) -> "Q":
     """HDC similarity ``1 − 2·hamming(a, b) / D`` in ``[−1, 1]`` as the EXACT
     ``Q`` rational (v0.9.0 F868 stay-rational; ``(D−2·hamming)/D``, collapses to
-    a decimal only via ``float(s)``). Re-exports :func:`srmech.amsc.hdc.similarity`.
+    a decimal only via ``float(s)``). Re-exports :func:`srmech.math.hdc.similarity`.
 
     Class chain: Class M (HDC similarity per Kanerva 2009 §3.2). Direct on
     coefficient bytes per Spike #115 design / Spike #114 Option B.

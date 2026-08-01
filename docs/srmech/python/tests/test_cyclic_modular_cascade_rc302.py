@@ -8,7 +8,7 @@ arithmetic cascade (an LCG, a hash, the PCG64 step) could not be *declared* via
 suite pins:
 
 1. the five new cascade ops (cyclic_mod_mul/add/pow/inv/mul_wide) resolve, run,
-   and match the ``srmech.amsc.cyclic.*`` primitive they delegate to;
+   and match the ``srmech.math.cyclic.*`` primitive they delegate to;
 2. a TOML-DECLARED LCG cascade matches the hand-composed Python LCG;
 3. ``cyclic.mod_mul_wide`` == ``(a * b) % n`` at any width, does NOT weaken the
    uint64-capped ``mod_mul``, and reproduces the raw PCG64 128-bit LCG step;
@@ -24,7 +24,7 @@ import random
 
 import pytest
 
-from srmech.amsc import cyclic
+from srmech.math import cyclic
 from srmech.amsc import cascade
 from srmech.amsc.tool_schema import get_tool_schema
 from srmech.dsl import chain, list_cascade_ops, run_toml_chain
@@ -45,7 +45,7 @@ def test_modular_ops_are_in_the_cascade_catalog():
 
 
 def test_cascade_ops_delegate_to_the_cyclic_primitive():
-    # each cascade op is a thin delegation to srmech.amsc.cyclic.*
+    # each cascade op is a thin delegation to srmech.math.cyclic.*
     assert cascade.cyclic_mod_mul(7, 6, 10) == cyclic.mod_mul(7, 6, 10) == 2
     assert cascade.cyclic_mod_add(7, 6, 10) == cyclic.mod_add(7, 6, 10) == 3
     assert cascade.cyclic_mod_pow(3, 4, 10) == cyclic.mod_pow(3, 4, 10) == 1
@@ -167,8 +167,8 @@ def test_bigint_mul_rejects_bool():
 def test_new_ops_are_registered_in_tool_schema():
     names = {t.name for t in get_tool_schema().tools}
     expected = {
-        "srmech.amsc.cyclic.bigint_mul",
-        "srmech.amsc.cyclic.mod_mul_wide",
+        "srmech.math.cyclic.bigint_mul",
+        "srmech.math.cyclic.mod_mul_wide",
         "srmech.amsc.cascade.cyclic_mod_mul",
         "srmech.amsc.cascade.cyclic_mod_add",
         "srmech.amsc.cascade.cyclic_mod_pow",
@@ -181,14 +181,14 @@ def test_new_ops_are_registered_in_tool_schema():
 def test_summaries_carry_user_facing_aboutness():
     by_name = {t.name: t for t in get_tool_schema().tools}
     # mod_mul: the searchable phrase AND the implementation words are present.
-    mm = by_name["srmech.amsc.cyclic.mod_mul"].summary.lower()
+    mm = by_name["srmech.math.cyclic.mod_mul"].summary.lower()
     assert "modular multiply" in mm and "russian-peasant" in mm
     # mod_pow: searchable "modular exponentiation" + kept "square-and-multiply".
-    mp = by_name["srmech.amsc.cyclic.mod_pow"].summary.lower()
+    mp = by_name["srmech.math.cyclic.mod_pow"].summary.lower()
     assert "modular exponentiation" in mp and "square-and-multiply" in mp
     # magnitude: searchable "absolute value" + kept "class k pin-slot".
     mag = by_name["srmech.amsc.cascade.magnitude"].summary.lower()
     assert "absolute value" in mag and "class k pin-slot" in mag
     # bignum multiply is discoverable by "bignum multiply".
-    bm = by_name["srmech.amsc.cyclic.bigint_mul"].summary.lower()
+    bm = by_name["srmech.math.cyclic.bigint_mul"].summary.lower()
     assert "bignum multiply" in bm

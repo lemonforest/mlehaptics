@@ -21,7 +21,7 @@ import pytest
 
 from srmech.amsc import _native
 from srmech.amsc import genome as G
-from srmech.amsc.hdc import klein4_expand
+from srmech.math.hdc import klein4_expand
 from srmech.amsc.format import MPRRecord, MPRValidationError, validate_mpr_record
 
 _DIM = 64

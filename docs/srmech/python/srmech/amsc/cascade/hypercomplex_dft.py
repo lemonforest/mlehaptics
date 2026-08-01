@@ -81,12 +81,12 @@ from typing import List, Sequence, Tuple
 # Archimedes pi_cascade (`[[feedback_continuous_number_line_pedagogical_obstacle]]`).
 from srmech.amsc import _native
 from srmech.amsc.mat import Mat as _Mat
-from srmech.amsc import rational as _rational
+from srmech.math import rational as _rational
 from srmech.amsc.q import Q as _Q
-from srmech.amsc.rational import cos as _rcos
-from srmech.amsc.rational import pi_cascade_digits as _pi_cascade_digits
-from srmech.amsc.rational import sin as _rsin
-from srmech.amsc.rational import sqrt as _rsqrt
+from srmech.math.rational import cos as _rcos
+from srmech.math.rational import pi_cascade_digits as _pi_cascade_digits
+from srmech.math.rational import sin as _rsin
+from srmech.math.rational import sqrt as _rsqrt
 
 # 0.9.0rc10 (F882, srmech #205) — the LITERAL exp(μθ) twiddle in EXACT Q61.
 _Q61_ONE = _rational._Q61_ONE                          # 1.0 in Q61 (= 2**61)
@@ -139,7 +139,7 @@ _BRACKETINGS = ("left_associated", "right_associated")
 # no float boundary except the final projection. Closes the rc12
 # sed_couple/sed_uncouple transitive-ratchet allowlist.
 from srmech.amsc.q import Q                               # #845: exact float→ℚ boundary
-from srmech.amsc.rational import _q61_fxmul               # Q61 fixed-point multiply
+from srmech.math.rational import _q61_fxmul               # Q61 fixed-point multiply
 from srmech.amsc.cascade.cayley_dickson import cd_basis_product as _cd_basis
 # (`_q61_int` is the module-local Q-int projector defined above.)
 

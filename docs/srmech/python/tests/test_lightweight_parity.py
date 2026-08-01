@@ -9,7 +9,8 @@ import struct
 
 import pytest
 
-from srmech.amsc import _native, search, tlv
+from srmech.amsc import _native
+from srmech.math import search, tlv
 
 
 # ---------------------------------------------------------------------

@@ -132,7 +132,7 @@ def test_version_is_0_7_0rc10():
     the dim-8 octonion (Cayley-Dickson) product loop_bind + loop_conj / loop_inv /
     cross7 / g2_three_form to native ``srmech_loop_*_f64`` symbols — recursion-free
     (a fixed real→complex→quaternion→octonion call DAG), bit-exact with the Python
-    ``_loop_bind_raw``. ``srmech.amsc.hdc`` dispatches the five public ops to C for
+    ``_loop_bind_raw``. ``srmech.math.hdc`` dispatches the five public ops to C for
     the n==8 octonion; the HD block wrappers inherit native per-block for free. New
     symbols only ⟹ ABI stays 3 (additive); no new ToolEntry ⟹ ``describe()`` stays
     192. JPL Power-of-Ten clean (no recursion/malloc/goto; ≤60-line functions; ≥2
@@ -151,7 +151,7 @@ def test_version_is_0_7_0rc10():
 
     Prior v0.7.0rc5 — MS #21 rc5 voxel: the per-block HD Moufang-division family +
     the loop_inv/loop_conj HD footgun guard (F-§12.1 / §12.2). Adds to
-    ``srmech.amsc.hdc``: ``loop_conj_hd`` (the missing per-block conjugate atom),
+    ``srmech.math.hdc``: ``loop_conj_hd`` (the missing per-block conjugate atom),
     ``loop_inv_hd`` (per-block Moufang inverse), and ``loop_runbind_hd`` (per-block
     RIGHT-division b_k·conj(a_k) — peels the right factor for a left-fold sequence
     store; runbind recovers v to <1e-15). The single-element ``loop_inv`` /
@@ -162,7 +162,7 @@ def test_version_is_0_7_0rc10():
     C peer is the arc's transpile-to-C step).
 
     Prior v0.7.0rc4 — MS #21 rc4 voxel: the block-octonion HD tiling (#811) +
-    capacity-free vs Klein-4 (#812). Adds to ``srmech.amsc.hdc``: ``loop_bind_hd``
+    capacity-free vs Klein-4 (#812). Adds to ``srmech.math.hdc``: ``loop_bind_hd``
     = the direct sum ⊕ of 256 independent dim-8 octonion loop_binds (D=2048;
     block-DIAGONAL, no coupling — block err 0.0) and ``loop_unbind_hd`` = per-block
     Moufang left-division (recovers v to 2.9e-15 on unit blocks). Ground-truth
@@ -176,7 +176,7 @@ def test_version_is_0_7_0rc10():
     Prior v0.7.0rc3 — MS #21 rc3 voxel: the loop-bind family slots into the compose
     engine (#813). PROOF, no new surface: the octonion ops resolve dynamically as
     ``class="M", op="<name>"`` against ``DEFAULT_CLASS_REGISTRY`` (M →
-    ``srmech.amsc.hdc``), so ``loop_bind`` / ``loop_conj`` / ``loop_associator`` /
+    ``srmech.math.hdc``), so ``loop_bind`` / ``loop_conj`` / ``loop_associator`` /
     ``cross7`` / ``g2_three_form`` run through ``srmech.amsc.compose.run_chain``
     (the M∘C-with-K-residue cascade #813 describes; a multi-step ``@step[0]`` M∘C
     chain included). Test-only voxel: NO new ToolEntries (``describe()`` stays
@@ -186,7 +186,7 @@ def test_version_is_0_7_0rc10():
 
     Prior v0.7.0rc2 — MS #21 rc2 voxel: the 7-D cross product + the G₂ associative
     3-form, the gauge ARITHMETIC's companion invariants (#813 / F281). Adds to
-    ``srmech.amsc.hdc``: ``cross7(x,y) = Im(loop_bind(x,y))`` (M∘C) and
+    ``srmech.math.hdc``: ``cross7(x,y) = Im(loop_bind(x,y))`` (M∘C) and
     ``g2_three_form(x,y,z) = ⟨x, cross7(y,z)⟩`` ((M∘C)∘⟨·,·⟩) — ground-truth
     computed FROM the shipped loop_bind, so both agree with the rc1 bind by
     construction (no convention guess). The owned triality VERDICT lands as a
@@ -197,7 +197,7 @@ def test_version_is_0_7_0rc10():
 
     Prior v0.7.0rc1 — MS #21 loop-bind (Moufang) voxel: the k=7 gauge ARITHMETIC
     the triality SYMMETRY is blind to (#814 / F271). The first v0.7.0 voxel
-    ports the ``loop_bind_moufang.py`` research oracle into ``srmech.amsc.hdc``:
+    ports the ``loop_bind_moufang.py`` research oracle into ``srmech.math.hdc``:
     ``loop_bind`` (the octonion / Cayley-Dickson product), ``loop_conj``,
     ``loop_inv`` (the Moufang-division unbind), ``loop_left_op``/``loop_right_op``
     (the (4:3)|(3:4) L/R order-chirality), and ``loop_associator`` (the Class-K
@@ -262,7 +262,7 @@ def test_version_is_0_7_0rc10():
     total stays 179). NEVER a Python callback.
 
     Prior v0.6.0rc17 — MS #20 klein4-triality-cycle voxel (the A-arc's first code):
-    ``srmech.amsc.hdc.klein4_triality_cycle`` — the order-3 ``S₃ = Aut(V₄)``
+    ``srmech.math.hdc.klein4_triality_cycle`` — the order-3 ``S₃ = Aut(V₄)``
     generator cycling the three Klein-4 involutions ``iω₇(1) → γ₅(2) → CPT(3)``
     (identity fixed), the V₄-carrier image of the so(8) ``8v → 8s → 8c``
     triality (``srmech.qm.triality.triality_cycle``). The "third axis" (F182)
@@ -308,7 +308,7 @@ def test_version_is_0_7_0rc10():
     + Class-C/M pin).
 
     Prior v0.6.0rc13 — MS #20 klein4 sectors-flag voxel (§11.3 forward-ask):
-    the ``srmech.amsc.hdc.klein4_bind`` / ``klein4_bundle`` / ``klein4_similarity``
+    the ``srmech.math.hdc.klein4_bind`` / ``klein4_bundle`` / ``klein4_similarity``
     HDC ops get an optional ``sectors=`` / ``parallel=`` / ``mode=`` flag that
     fans the op across ≤4 concurrent lanes (default-ON when ``os.cpu_count() >=
     4``). TWO modes: ``mode="chunk"`` (default) data-parallel position-slices,
@@ -601,8 +601,8 @@ def test_version_is_0_7_0rc10():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.9.0rc372", (
-        f"expected srmech.__version__ == '0.9.0rc372'; got "
+    assert srmech.__version__ == "0.9.0rc373", (
+        f"expected srmech.__version__ == '0.9.0rc373'; got "
         f"{srmech.__version__!r}"
     )
 

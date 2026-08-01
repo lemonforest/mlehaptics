@@ -9,7 +9,7 @@ kind = "stage"
 purpose = "Class I modular inverse a**-1 mod n via extended Euclidean."
 description = """
 Cascade-namespace alias for the Class I modular inverse
-srmech.amsc.cyclic.mod_inv: the multiplicative inverse of `a` in Z/nZ via the
+srmech.math.cyclic.mod_inv: the multiplicative inverse of `a` in Z/nZ via the
 extended Euclidean algorithm — the un-do stage of a modular cascade (recovering
 a factor a multiply stage applied). Following the DSL chain contract the piped
 value is the first positional argument `a` and the modulus `n` is a bound stage
@@ -17,7 +17,7 @@ kwarg, so an inverse stage reads `.then("cyclic_mod_inv", n=MOD)`.
 
 Requires gcd(a, n) == 1 (raises ValueError otherwise) and n <= INT64_MAX on
 the C path; n >= 2. Thin delegation to the already-c_dispatched
-srmech.amsc.cyclic.mod_inv (routes to srmech_mod_inv); no native dispatch and
+srmech.math.cyclic.mod_inv (routes to srmech_mod_inv); no native dispatch and
 no new C symbol of its own (composition_of_c).
 """
 
@@ -31,15 +31,15 @@ requires_coprime = true
 dsl_stage = "data-first; op=\"cyclic_mod_inv\" with n=<modulus> bound"
 
 [cascade.native]
-status = "delegation (no dedicated cascade C symbol); the Class-I primitive srmech.amsc.cyclic.mod_inv dispatches to srmech_mod_inv"
+status = "delegation (no dedicated cascade C symbol); the Class-I primitive srmech.math.cyclic.mod_inv dispatches to srmech_mod_inv"
 abi_version = 8
 
 [cascade.delegates_to]
 class = "I"
 primitive_c_symbol = "srmech_mod_inv"
-primitive_python = "srmech.amsc.cyclic.mod_inv"
+primitive_python = "srmech.math.cyclic.mod_inv"
 rationale = """
-The Class I primitive srmech.amsc.cyclic.mod_inv owns the extended-Euclidean
+The Class I primitive srmech.math.cyclic.mod_inv owns the extended-Euclidean
 inverse and its native dispatch to srmech_mod_inv. The cascade wrapper exists
 to make the op DSL-declarable + tool_schema-discoverable. Rosetta:
 composition_of_c.
@@ -56,7 +56,7 @@ license = "MIT"
 parser_version = "srmech-cascade 0.9.0rc302"
 canonical_landings = [
   "§110 / #1460 — the Class-I modular family becomes DSL-declarable (rc302)",
-  "srmech.amsc.cyclic.mod_inv — the registered Class-I primitive home (c_dispatched via srmech_mod_inv)",
+  "srmech.math.cyclic.mod_inv — the registered Class-I primitive home (c_dispatched via srmech_mod_inv)",
   "cyclic_mod_mul.toml — the multiply stage this inverts",
   "user_stance_cross_substrate_cascade_matching_as_research_method — modular inversion as one 14-class cascade shape",
 ]

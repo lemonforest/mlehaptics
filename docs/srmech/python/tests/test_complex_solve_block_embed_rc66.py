@@ -27,7 +27,7 @@ import random
 import re
 import pathlib
 
-from srmech.amsc.laplacian import _dense_solve_complex
+from srmech.math.laplacian import _dense_solve_complex
 
 
 def _cmatmul(a, b):

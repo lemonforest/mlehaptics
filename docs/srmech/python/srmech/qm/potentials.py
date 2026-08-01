@@ -7,15 +7,15 @@ numpy-FREE (v0.7.5rc121, #564): the discretized radial Hamiltonian and the
 harmonic-oscillator ladder/Hamiltonian are held in the framework-native
 :class:`~srmech.amsc.mat.Mat` carrier. ``hydrogen_radial`` builds its
 real-symmetric tridiagonal Hamiltonian as a ``Mat`` and eigensolves it
-through the Class-L :func:`~srmech.amsc.laplacian.mat_hermitian_eigendecompose`
+through the Class-L :func:`~srmech.math.laplacian.mat_hermitian_eigendecompose`
 (native dense Jacobi, ``n`` up to 2048 as of rc120; pure-Python cascade
 fallback) — the radial grid ``r`` and the eigen-energies are plain Python
 lists, and since the Hamiltonian is real-symmetric the eigenvectors are
 returned as a **real** ``Mat`` (the value-preserving real part of the complex
 unitary). The ladder operator ``√n`` entries use the Class-N libm-free
-:func:`srmech.amsc.rational.sqrt`, and the oscillator Hamiltonian
+:func:`srmech.math.rational.sqrt`, and the oscillator Hamiltonian
 ``H = ω(a†a + ½I)`` is assembled through the Class-L
-:func:`~srmech.amsc.laplacian.mat_matmul` — **no numpy**.
+:func:`~srmech.math.laplacian.mat_matmul` — **no numpy**.
 
 Per ``[[user_stance_1d_collapse_to_loe_identity_not_action]]``: these
 operations couple the LoE-content to specific potential-shape substrates
@@ -28,8 +28,8 @@ from __future__ import annotations
 
 from typing import List, Tuple
 
-from srmech.amsc import rational as _srn
-from srmech.amsc.laplacian import mat_hermitian_eigendecompose, mat_matmul
+from srmech.math import rational as _srn
+from srmech.math.laplacian import mat_hermitian_eigendecompose, mat_matmul
 from srmech.amsc.mat import Mat
 
 

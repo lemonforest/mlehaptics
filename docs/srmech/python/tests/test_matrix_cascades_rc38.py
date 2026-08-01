@@ -21,7 +21,7 @@ import random
 import pytest
 
 from srmech.amsc.cascade.matrix_cascades import qr, svd
-from srmech.amsc.laplacian import hermitian_eigendecompose
+from srmech.math.laplacian import hermitian_eigendecompose
 
 _SHAPES = [(4, 4), (6, 3), (3, 6), (1, 1), (5, 2), (2, 5), (7, 7)]
 

@@ -39,7 +39,7 @@ Laplacian ``L`` as a *stored* (excitation-free) object:
 * the **resonances** are integer/prime ratios of the tensions: each adjacent
   nonzero-tension ratio is read with Class-N :func:`best_rational`, and the
   resulting denominator is prime-coordinate-factorised (Class-J
-  :func:`srmech.amsc.primes.factor` / :class:`srmech.amsc.qprime.Qprime`) —
+  :func:`srmech.math.primes.factor` / :class:`srmech.amsc.qprime.Qprime`) —
   a **small-prime / 2-adic** denominator is a resonance **LOCK** (the Laplace
   ladder), a **large-prime** denominator is **libration** (off-lock).
 
@@ -68,7 +68,7 @@ from __future__ import annotations
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from .q import Q  # rc100: the exact-ℚ scalar carrier (fractal_spectrum scale / |q|-meter)
-from .rational import sqrt as _rsqrt  # Class-N∘K integer-isqrt root (no libm / no float_pow)
+from ..math.rational import sqrt as _rsqrt  # Class-N∘K integer-isqrt root (no libm / no float_pow)
 from .vec import Vec  # rc129: the numpy-free 1-D carrier (restores .shape)
 
 
@@ -198,8 +198,8 @@ def _resonances_from_tensions(lam: List[float], max_den: int) -> List[Dict[str, 
     ``lam[-1]`` (the largest tension in the passed list), so a k-extreme list
     that includes the global-max tension floors the same way the full spectrum
     does. numpy-free; no ``abs()`` (signs are read by comparison, Class-K)."""
-    from . import primes as _primes
-    from . import rational as _rational
+    from ..math import primes as _primes
+    from ..math import rational as _rational
 
     resonances: List[Dict[str, object]] = []
     n = len(lam)
@@ -228,7 +228,7 @@ def _resonant_spectrum_native(L, orders: int, max_den: int):
     """
     import ctypes
     from . import _native
-    from . import primes as _primes
+    from ..math import primes as _primes
     from .mat import Mat
 
     lib = _native.LIB
@@ -333,7 +333,7 @@ def resonant_spectrum(
     Raises:
         ValueError: ``orders < 1`` or a non-square / empty ``L``.
     """
-    from . import laplacian as _L  # lazy: laplacian imports carriers (avoid cycle)
+    from ..math import laplacian as _L  # lazy: laplacian imports carriers (avoid cycle)
     from .mat import Mat
 
     if not isinstance(orders, int) or orders < 1:
@@ -638,7 +638,7 @@ def _kext_from_edges(n, edges, weights, k, max_iters):
     if _native.has_native_k_extreme_modes() and n >= 1:
         import os
         import tempfile
-        from . import laplacian as _L
+        from ..math import laplacian as _L
         fd, tmp = tempfile.mkstemp(suffix=".bin", prefix="srmech_kext_")
         os.close(fd)
         try:
@@ -659,7 +659,7 @@ def _kext_from_path(n, path, k, max_iters):
     (edges never resident); the pure path reads it in (correct, not bounded —
     the fiedler_sparse_file precedent)."""
     from . import _native
-    from . import laplacian as _L
+    from ..math import laplacian as _L
 
     if _native.has_native_k_extreme_modes():
         res = _kext_modes_file_native(n, path, k, max_iters)
@@ -764,7 +764,7 @@ def resonant_spectrum_sparse(
     if not isinstance(k, int) or k < 1:
         raise ValueError(f"resonant_spectrum_sparse: k must be an int >= 1; got {k!r}")
 
-    from . import laplacian as _L
+    from ..math import laplacian as _L
     from .mat import Mat
 
     if isinstance(edges_or_path, str):
@@ -895,7 +895,7 @@ def fractal_spectrum(R, branches, *, log_terms: int = 25) -> Dict[str, object]:
         ValueError: ``R`` not a Poly / coercible sequence, ``R.degree < 2``,
             ``R(0) ≠ 0``, ``R'(0) ≤ 1``, or ``branches < 2``.
     """
-    from . import rational as _rational  # best_rational (N) + log (N; = calculus.log)
+    from ..math import rational as _rational  # best_rational (N) + log (N; = calculus.log)
     from .poly import Poly               # exact-ℚ decimation polynomial carrier (lazy)
 
     # R may be a Poly OR an ascending-degree coefficient sequence — coerce the
@@ -1034,12 +1034,12 @@ def fold_encode(R, branches, *, dim, seed=0):
     This is the WRITE half of the "Q2 reader made LITERAL": the decimation map
     ``R`` (a :class:`~srmech.amsc.poly.Poly`, ``R(0)=0``) and the branch count
     are folded into a single Klein-4 bundle — a **role-filler record** in the
-    shape of :func:`srmech.amsc.hdc.cooccurrence_fold`'s holographic store. Each
+    shape of :func:`srmech.math.hdc.cooccurrence_fold`'s holographic store. Each
     coefficient slot ``c{i}`` (and the ``branches`` slot) gets a deterministic
-    **role** code (:func:`~srmech.amsc.hdc.klein4_role`, keyed by the slot
+    **role** code (:func:`~srmech.math.hdc.klein4_role`, keyed by the slot
     name); each distinct coefficient VALUE gets a deterministic **filler** code
     (seeded by its ``'num/den'`` token). The fold is the
-    :func:`~srmech.amsc.hdc.klein4_bundle` superposition of the role⊗value binds
+    :func:`~srmech.math.hdc.klein4_bundle` superposition of the role⊗value binds
     ``bind(role_slot, code_value)`` — one lossy Klein-4 hypervector holding the
     whole decimation.
 
@@ -1061,10 +1061,10 @@ def fold_encode(R, branches, *, dim, seed=0):
         seed: base seed for the deterministic role / value codes (default 0).
 
     Returns:
-        A fold store (JSON-native once its :class:`~srmech.amsc.hdc.HV` values are
-        serialised, exactly like :func:`~srmech.amsc.hdc.cooccurrence_fold`):
+        A fold store (JSON-native once its :class:`~srmech.math.hdc.HV` values are
+        serialised, exactly like :func:`~srmech.math.hdc.cooccurrence_fold`):
 
-        * ``"fold"`` — the single Klein-4 :class:`~srmech.amsc.hdc.HV` bundle
+        * ``"fold"`` — the single Klein-4 :class:`~srmech.math.hdc.HV` bundle
           (the lossy superposition of every role⊗value bind).
         * ``"roles"`` — ``{slot: HV}`` the deterministic per-slot role codes.
         * ``"codes"`` — ``{value_token: HV}`` the value codebook (the cleanup
@@ -1084,7 +1084,7 @@ def fold_encode(R, branches, *, dim, seed=0):
         ValueError: ``R`` not a Poly / coercible sequence, ``R.degree < 2``,
             ``branches < 2``, or ``dim < 1``.
     """
-    from . import hdc as _hdc                # klein4_role / bind / bundle (M)
+    from ..math import hdc as _hdc                # klein4_role / bind / bundle (M)
     from .poly import Poly                   # exact-ℚ decimation carrier (lazy)
 
     if not isinstance(R, Poly):
@@ -1153,7 +1153,7 @@ def fold_spectrum(fold, *, log_terms: int = 25,
     This is the READ half, and it is **NOT the exact inverse** of
     :func:`fold_encode` — it CANNOT be, because the fold is a LOSSY Klein-4
     superposition (F584). For each slot it binds the role back against the fold
-    (:func:`~srmech.amsc.hdc.klein4_unbundle` = self-inverse XOR) and cleans the
+    (:func:`~srmech.math.hdc.klein4_unbundle` = self-inverse XOR) and cleans the
     value-plus-crosstalk estimate up against the value codebook
     (``argmax_token similarity(unbundle, codes[token])`` — the cooccurrence_fold
     cleanup-memory pattern, ``klein4_similarity(bundles[a], codes[b])``). The
@@ -1185,7 +1185,7 @@ def fold_spectrum(fold, *, log_terms: int = 25,
 
     Args:
         fold: a fold store from :func:`fold_encode` (or the JSON-serialised
-            equivalent — the Klein-4 values may be :class:`~srmech.amsc.hdc.HV`
+            equivalent — the Klein-4 values may be :class:`~srmech.math.hdc.HV`
             OR plain uint8 lists; both ride the klein4 coercion).
         log_terms: the Class-N ``log`` series-truncation depth forwarded to
             :func:`fractal_spectrum` on a confident recovery (default 25).
@@ -1226,7 +1226,7 @@ def fold_spectrum(fold, *, log_terms: int = 25,
             log_terms=log_terms, margin_floor=margin_floor,
             capacity_mult=capacity_mult)
 
-    from . import hdc as _hdc                # klein4 bind / bundle / similarity
+    from ..math import hdc as _hdc                # klein4 bind / bundle / similarity
 
     if not isinstance(fold, dict):
         raise ValueError(
@@ -1510,7 +1510,7 @@ class RecoverableFold:
         for a pair built by :func:`fold_encode_recoverable`). The op_provenance
         one-sided EQUAL self-check ONE level up: presence-of-complement makes it
         decidable."""
-        from . import hdc as _hdc            # klein4_similarity (M)
+        from ..math import hdc as _hdc            # klein4_similarity (M)
         stored = self._lossy_bundle.get("fold")
         if stored is None or self._dim is None:
             return Q(0, 1)

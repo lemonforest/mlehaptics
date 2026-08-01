@@ -3,7 +3,7 @@
 Identity per Spike #117: HDC truncation IS a Class M (HDC bundle / majority
 across vectors) ∘ Class K (truncate_sparse / threshold projection on the
 result) composition. This composes directly with
-``srmech.amsc.hdc.bundle`` for the Class M side.
+``srmech.math.hdc.bundle`` for the Class M side.
 
 This is the Phase 2 anchor for HDC bundle truncation per the implementation
 plan §2; the Path A re-surface lives here, the B-native form is in
@@ -55,7 +55,7 @@ def op(
     bytes
         Bundled (and optionally truncated) vector.
     """
-    from srmech.amsc.hdc import bundle as hdc_bundle
+    from srmech.math.hdc import bundle as hdc_bundle
 
     # Class M side: HDC bundle.
     bundled = hdc_bundle(vectors)

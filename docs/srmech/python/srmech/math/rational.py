@@ -28,7 +28,7 @@ import ctypes
 import struct
 from typing import Dict, List, NamedTuple, Tuple, Union
 
-from . import _native
+from ..amsc import _native
 from . import cyclic as _cyclic
 
 __all__ = [
@@ -620,7 +620,7 @@ def _bigq_max_bits(*values: int) -> int:
 def _reduce_rational(num: int, den: int) -> Tuple[int, int]:
     """Reduce (num, den) to lowest terms with positive denominator.
 
-    The GCD rides the Class-I :func:`srmech.amsc.cyclic.gcd` (srmech-native, no
+    The GCD rides the Class-I :func:`srmech.math.cyclic.gcd` (srmech-native, no
     stdlib ``math.gcd``) — now uncapped, so the ~100-digit ``One``-scale
     numerators reduce exactly (native serves its uint64 domain, big-int Euclid
     beyond). 0.9.0rc167 (#765): at/above ``_BIGQ_MIN_BITS`` the whole reduce
@@ -1044,7 +1044,7 @@ def atan_series_truncate(numerator: int,
             f"atan_series_truncate: |p/q| must be ≤ 1 (Taylor radius of "
             f"convergence); got {numerator}/{denominator}. The exact-rational "
             f"series cannot range-reduce (π is irrational); for |x| > 1 use "
-            f"the range-reduced float projection srmech.amsc.rational.atan(x)."
+            f"the range-reduced float projection srmech.math.rational.atan(x)."
         )
     if numerator == 0:
         return (0, 1)
@@ -1105,7 +1105,7 @@ def jacobi_sncndn_series_truncate(
     This is the "rotation-last" exact-ℚ sibling of
     :func:`sin_series_truncate` / :func:`cos_series_truncate`: the whole body
     runs in the exact-rational fiber (Class N over Python bignum ints, reduced
-    by the Class-I :func:`srmech.amsc.cyclic.gcd`) with NO floating-point and
+    by the Class-I :func:`srmech.math.cyclic.gcd`) with NO floating-point and
     NO mid-body projection — ``float(sn_num/sn_den)`` etc. is the single
     terminal observer-frame rotation the caller applies at the display edge.
 
@@ -1457,7 +1457,7 @@ def _q(num: int, den: int):
     Class-N Euclidean GCD, so power-of-two denominators stay powers of two."""
     global _Q_CLS
     if _Q_CLS is None:
-        from .q import Q as _Q_imported
+        from ..amsc.q import Q as _Q_imported
         _Q_CLS = _Q_imported
     return _Q_CLS(num, den)
 
@@ -3299,7 +3299,7 @@ def relative_writhe(embedding, reference, *, closed: bool = True,
     Ships as ``composition_of_c`` (a composition of already-C-peered Class-N ops
     — √, π, best_rational — like ``q8_from_one``): NO new C symbol,
     ``SRMECH_ABI_VERSION`` stays 10. It lives on the Class-N surface
-    (``srmech.amsc.rational``), OFF the wire-format modules (genome / plasmid),
+    (``srmech.math.rational``), OFF the wire-format modules (genome / plasmid),
     so it carries no on-disk-format / bare-C-host parity obligation — the same
     off-wire ``composition_of_c`` status as ``cascade.cd_register``.
 

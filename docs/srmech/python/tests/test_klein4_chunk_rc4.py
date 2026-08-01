@@ -7,7 +7,7 @@ The LM-agnostic VSA cleanup-memory graduates from siona to srmech per UPSTREAM
 """
 import pytest
 
-from srmech.amsc import hdc
+from srmech.math import hdc
 from srmech.amsc.q import Q
 from srmech.amsc._native import HAS_NATIVE
 
@@ -93,7 +93,7 @@ def test_chunk_ops_public_and_counted():
 
 @pytest.mark.skipif(not HAS_NATIVE, reason="native lib absent")
 def test_chunk_resolve_native_matches_pure():
-    from srmech.amsc.hdc import (
+    from srmech.math.hdc import (
         _as_klein4_buf, _klein4_chunk_resolve_core, _klein4_chunk_resolve_native)
     vocab, keys, _, binds = _substrate(n=5)
     chunks = hdc.klein4_chunk_bundle(binds, 2)

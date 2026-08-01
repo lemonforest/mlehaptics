@@ -7,7 +7,7 @@
  * log1p/atan partial sums + rational_pow over the caller-arena srmech_bigint,
  * with NO int64 ceiling (the int64/Q61 peers in srmech_rational.c cap; these
  * *_big variants reach Python's unbounded exact (num, den)). The Python
- * srmech.amsc.rational.* is the byte-parity oracle (checked by the ctypes
+ * srmech.math.rational.* is the byte-parity oracle (checked by the ctypes
  * harness test_c_bignum_transcendentals_rc35.py); this smoke pins a handful
  * of worked closed-form cases INCLUDING a > 2^64 result.
  *
@@ -120,7 +120,7 @@ int main(void)
 
     /* >2^64 KEYSTONE: exp(7/3, N=30). The exact numerator is ~148 bits
      * (45 decimal digits) — past int64; the C bignum reproduces Python's
-     * exact (num, den). Values from srmech.amsc.rational.exp_series_truncate
+     * exact (num, den). Values from srmech.math.rational.exp_series_truncate
      * (the committed oracle). */
     check_series(srmech_exp_series_truncate_big, "7", "3", 30,
                  "234562913613891831711238053208463597460789469",

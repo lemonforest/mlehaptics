@@ -9,14 +9,14 @@ kind = "stage"
 purpose = "Class I modular addition (a + b) mod n — the increment stage of an LCG cascade."
 description = """
 Cascade-namespace alias for the Class I modular addition
-srmech.amsc.cyclic.mod_add: (a + b) mod n, overflow-safe. Following the DSL
+srmech.math.cyclic.mod_add: (a + b) mod n, overflow-safe. Following the DSL
 chain contract the piped value is the first positional argument `a` and the
 addend `b` + modulus `n` are bound stage kwargs, so an LCG increment stage
 reads `.then("cyclic_mod_add", b=INC, n=MOD)`. Chained after cyclic_mod_mul it
 IS one linear-congruential step: `state <- (MULT*state + INC) mod MOD`.
 
 Operands and modulus are bounded by uint64; n must be > 0. Thin delegation to
-the already-c_dispatched srmech.amsc.cyclic.mod_add (routes to srmech_mod_add);
+the already-c_dispatched srmech.math.cyclic.mod_add (routes to srmech_mod_add);
 no native dispatch and no new C symbol of its own (composition_of_c).
 """
 
@@ -30,15 +30,15 @@ requires_n_positive = true
 dsl_stage = "data-first; op=\"cyclic_mod_add\" with b=<addend> and n=<modulus> bound"
 
 [cascade.native]
-status = "delegation (no dedicated cascade C symbol); the Class-I primitive srmech.amsc.cyclic.mod_add dispatches to srmech_mod_add"
+status = "delegation (no dedicated cascade C symbol); the Class-I primitive srmech.math.cyclic.mod_add dispatches to srmech_mod_add"
 abi_version = 8
 
 [cascade.delegates_to]
 class = "I"
 primitive_c_symbol = "srmech_mod_add"
-primitive_python = "srmech.amsc.cyclic.mod_add"
+primitive_python = "srmech.math.cyclic.mod_add"
 rationale = """
-The Class I primitive srmech.amsc.cyclic.mod_add owns the modular sum and its
+The Class I primitive srmech.math.cyclic.mod_add owns the modular sum and its
 native dispatch to srmech_mod_add. The cascade wrapper exists to make the op
 DSL-declarable + tool_schema-discoverable. Rosetta: composition_of_c.
 """
@@ -54,7 +54,7 @@ license = "MIT"
 parser_version = "srmech-cascade 0.9.0rc302"
 canonical_landings = [
   "§110 / #1460 — the Class-I modular family becomes DSL-declarable (rc302)",
-  "srmech.amsc.cyclic.mod_add — the registered Class-I primitive home (c_dispatched via srmech_mod_add)",
+  "srmech.math.cyclic.mod_add — the registered Class-I primitive home (c_dispatched via srmech_mod_add)",
   "cyclic_mod_mul.toml — the multiply stage this composes into an LCG step",
   "user_stance_cross_substrate_cascade_matching_as_research_method — LCG as one 14-class cascade shape",
 ]

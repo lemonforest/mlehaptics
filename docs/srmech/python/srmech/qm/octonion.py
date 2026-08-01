@@ -76,7 +76,7 @@ from __future__ import annotations
 
 import ctypes
 import functools
-from srmech.amsc.rational import sqrt as _rsqrt  # §22: scalar root via Class-N
+from srmech.math.rational import sqrt as _rsqrt  # §22: scalar root via Class-N
 from typing import List, Sequence, Tuple
 
 from srmech.amsc import _native  # rc122: numpy-free native loop-op dispatch
@@ -86,12 +86,12 @@ from srmech.amsc.mat import Mat  # rc122: numpy-free 2-D carrier for L_a / R_a
 
 # rc111 (the ODFT twiddle family): the Class-N Q61 trig cascade + the exact
 # series-truncate tier — the same imports the rc109 qm.quaternion twiddle uses.
-from srmech.amsc import rational as _rational
-from srmech.amsc.rational import atan as _ratan
-from srmech.amsc.rational import cos as _rcos
-from srmech.amsc.rational import cos_series_truncate as _cos_series
-from srmech.amsc.rational import sin as _rsin
-from srmech.amsc.rational import sin_series_truncate as _sin_series
+from srmech.math import rational as _rational
+from srmech.math.rational import atan as _ratan
+from srmech.math.rational import cos as _rcos
+from srmech.math.rational import cos_series_truncate as _cos_series
+from srmech.math.rational import sin as _rsin
+from srmech.math.rational import sin_series_truncate as _sin_series
 
 #: Octonion dimension (the real normed division algebra ``O``).
 _DIM = 8
@@ -507,7 +507,7 @@ def _resolve_mu8(mu, op: str) -> List[float]:
     ``'e3'``, ``'e4'``..``'e7'``, ``'ijk'``, ``'diagonal'`` — exact table
     values) or a 4-/8-sequence pure-imaginary vector (a 4-sequence is an
     ℍ ⊂ 𝕆 axis, zero-extended), normalised via the Class-N
-    :func:`srmech.amsc.rational.sqrt` cascade (never libm)."""
+    :func:`srmech.math.rational.sqrt` cascade (never libm)."""
     if isinstance(mu, str):
         if mu in _MU_AXES:
             return list(_MU_AXES[mu])
@@ -626,8 +626,8 @@ def octonion_exp_series_truncate(
     :func:`srmech.qm.quaternion.quaternion_exp_series_truncate`).
 
     Composes the Class-N calculus series
-    :func:`srmech.amsc.rational.cos_series_truncate` /
-    :func:`srmech.amsc.rational.sin_series_truncate` (Taylor partial sums to
+    :func:`srmech.math.rational.cos_series_truncate` /
+    :func:`srmech.math.rational.sin_series_truncate` (Taylor partial sums to
     ``num_terms``, exact bignum ``(num, den)`` rationals) with an
     exactly-representable basis axis ``μ̂ = e_axis`` (``axis ∈ {1, …, 7}`` —
     the only unit octonion axes with exact rational components). Returns the

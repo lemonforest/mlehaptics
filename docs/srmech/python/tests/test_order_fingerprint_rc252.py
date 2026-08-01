@@ -10,7 +10,7 @@ lossy verifier, not a store). Supersedes the removed rc247 (which mod-reduced by
 """
 from __future__ import annotations
 
-from srmech.amsc import laplacian as L
+from srmech.math import laplacian as L
 
 
 def test_the_figure_eight_headline():
@@ -85,5 +85,5 @@ def test_recover_check_order_via_eulerian_walk():
 def test_registered_in_tool_schema():
     from srmech.amsc.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
-    assert "srmech.amsc.laplacian.order_fingerprint" in names
-    assert "srmech.amsc.laplacian.recover_check_order" in names
+    assert "srmech.math.laplacian.order_fingerprint" in names
+    assert "srmech.math.laplacian.recover_check_order" in names

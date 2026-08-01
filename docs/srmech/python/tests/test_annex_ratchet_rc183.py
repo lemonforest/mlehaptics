@@ -126,7 +126,7 @@ _ANNEX_DELTA = {"composes_c": 20, "host_glue": 1, "dev_tooling": 3}
 # rc205 (gh #1293): +1 composes_c — srmech.amsc.carrier_schema.carrier_schema (the
 # CARRIER introspection surface; dispatches to its C peer srmech_carrier_schema
 # over the compiled-in const registry). composes_c 117 -> 118; sum 176 -> 177.
-# rc217 (gh #1360): the 3 srmech.amsc.text COMPUTE kernels moved
+# rc217 (gh #1360): the 3 srmech.math.text COMPUTE kernels moved
 # non_compute/composes_c -> c_dispatched (they earned byte-identical
 # srmech_text_* C peers; the composes_c mis-classification was the
 # self-contained-kernel hiding spot). composes_c 118 -> 115; total 177 -> 174.

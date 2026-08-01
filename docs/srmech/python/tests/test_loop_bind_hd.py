@@ -23,8 +23,8 @@ import random
 
 import pytest
 
-from srmech.amsc.laplacian import mat_norm
-from srmech.amsc import hdc
+from srmech.math.laplacian import mat_norm
+from srmech.math import hdc
 
 BS = 8          # octonion block size = LOOP_DIM
 NB = 256        # canonical block count → D = 2048

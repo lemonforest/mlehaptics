@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import numbers
 
-from . import rational as _rational
+from ..math import rational as _rational
 
 __all__ = ["Complex128"]
 
@@ -183,7 +183,7 @@ class Complex128:
 
     def __abs__(self):
         """Modulus ``|z| = √(re² + im²)`` via the srmech Class-N
-        :func:`srmech.amsc.rational.sqrt` (not ``math.hypot``/``math.sqrt``).
+        :func:`srmech.math.rational.sqrt` (not ``math.hypot``/``math.sqrt``).
         Genuinely irrational → the exact-rational :class:`~srmech.amsc.q.Q` boundary
         (itself a :class:`numbers.Real`, so ``abs(z)`` is a Real, as the
         :class:`numbers.Complex` contract requires)."""

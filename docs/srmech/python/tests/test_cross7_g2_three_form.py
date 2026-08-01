@@ -27,7 +27,7 @@ import itertools
 import random
 
 from srmech.amsc.cascade import matrix_cascades as mc
-from srmech.amsc.hdc import (
+from srmech.math.hdc import (
     LOOP_DIM,
     cross7,
     g2_three_form,

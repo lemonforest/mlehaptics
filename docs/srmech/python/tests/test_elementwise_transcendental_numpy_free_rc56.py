@@ -23,8 +23,8 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc import laplacian as L
-from srmech.amsc.laplacian import elementwise_transcendental as et
+from srmech.math import laplacian as L
+from srmech.math.laplacian import elementwise_transcendental as et
 
 _TOL = 1e-9
 

@@ -47,7 +47,7 @@ from __future__ import annotations
 import pytest
 
 from srmech.amsc.cascade import magnitude
-from srmech.amsc.laplacian import mat_matmul, mat_norm
+from srmech.math.laplacian import mat_matmul, mat_norm
 from srmech.amsc.mat import Mat
 from srmech.qm import so8
 

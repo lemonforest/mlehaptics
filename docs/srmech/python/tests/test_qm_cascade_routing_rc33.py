@@ -4,14 +4,14 @@ v0.7.0rc33 routes the numpy-math calls in the QM layer through srmech's
 own A-N cascade primitives:
 
 - Hermitian eigendecomposition -> the Class-L primitive
-  ``srmech.amsc.laplacian.hermitian_eigendecompose`` (the generic so8 /
+  ``srmech.math.laplacian.hermitian_eigendecompose`` (the generic so8 /
   eigvalsh routing path). ``single_particle`` (rc117), ``gauge`` (rc119) and
   ``potentials`` (rc121) have since been flipped fully numpy-free onto the
   ``Mat`` carrier (``mat_hermitian_eigendecompose`` + the Class-N
   ``rational.cexp`` phase), so their cells below build inputs and assert WITHOUT
   numpy.
 - Standard-Model trig (``math.cos`` / ``math.sin`` / ``math.atan2``) ->
-  the substrate-native Class-N rational trig ``srmech.amsc.rational.*``
+  the substrate-native Class-N rational trig ``srmech.math.rational.*``
   (sm).
 
 numpy-FREE (#564): numpy is GONE from srmech. ``hermitian_eigendecompose``
@@ -29,9 +29,9 @@ import random
 
 import pytest
 
-from srmech.amsc import rational as _srn
+from srmech.math import rational as _srn
 from srmech.amsc.cascade.matrix_cascades import eigvals, eigvals_exact
-from srmech.amsc.laplacian import hermitian_eigendecompose, mat_matmul
+from srmech.math.laplacian import hermitian_eigendecompose, mat_matmul
 from srmech.amsc.mat import Mat
 from srmech.qm import gauge, potentials, sm, single_particle as sp
 
@@ -324,7 +324,7 @@ def test_ckm_matrix_matches_pre_change():
     itself numpy-free per the carrier-removal discipline).
     """
     import cmath
-    from srmech.amsc.laplacian import mat_matmul
+    from srmech.math.laplacian import mat_matmul
     th12, th13, th23, delta = 0.227, 0.003, 0.042, 1.20
     c12, s12 = math.cos(th12), math.sin(th12)
     c13, s13 = math.cos(th13), math.sin(th13)

@@ -1,8 +1,8 @@
 """v0.9.0rc287 — text→graph stage primitives (supersedes the rc43/rc50 line).
 
 The rc43 ``tokenize`` / ``cooccurrence_edges`` (shipped in
-``srmech.amsc.laplacian``) FAILED the RBS-LM §40 acceptance bar 3/3 (F722).
-rc50 moved them to a dedicated ingestion module ``srmech.amsc.text`` and fixed
+``srmech.math.laplacian``) FAILED the RBS-LM §40 acceptance bar 3/3 (F722).
+rc50 moved them to a dedicated ingestion module ``srmech.math.text`` and fixed
 all three. **rc287 replaced the unit itself**: the front door emits UAX #29
 grapheme clusters, not words.
 
@@ -36,8 +36,8 @@ import logging
 
 import pytest
 
-from srmech.amsc import laplacian, text
-from srmech.amsc.text import cooccurrence_edges, glyph_stream
+from srmech.math import laplacian, text
+from srmech.math.text import cooccurrence_edges, glyph_stream
 
 
 # ── glyph_stream — Class B/G Unicode text-segmentation ──────────────────────
@@ -139,7 +139,7 @@ def test_cooccurrence_no_silent_vocab_cap_by_default():
 
 def test_cooccurrence_cap_is_explicit_opt_in_and_logged(caplog):
     words = [f"w{i}" for i in range(1500)]
-    with caplog.at_level(logging.INFO, logger="srmech.amsc.text"):
+    with caplog.at_level(logging.INFO, logger="srmech.math.text"):
         n, _, _ = cooccurrence_edges(words, vocab_size=1000)
     assert n == 1000
     assert any("dropped" in r.message for r in caplog.records)  # the drop is LOGGED
@@ -202,7 +202,7 @@ def test_k1_round_trip_into_laplacian_eigvals():
     assert all(e >= -1e-9 for e in eigs)
 
 
-# ── registration: relocated to srmech.amsc.text (count 282 incl. rc51 dense_outer) ──
+# ── registration: relocated to srmech.math.text (count 282 incl. rc51 dense_outer) ──
 
 def test_ops_in_text_all_and_gone_from_laplacian():
     assert "glyph_stream" in text.__all__
@@ -221,8 +221,8 @@ def test_tool_entries_relocated_and_total_unchanged():
     from srmech import introspect
     from srmech.amsc.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
-    assert "srmech.amsc.text.glyph_stream" in names
-    assert "srmech.amsc.text.cooccurrence_edges" in names
-    assert "srmech.amsc.text.tokenize" not in names           # retired at rc287
-    assert "srmech.amsc.laplacian.tokenize" not in names      # relocated, not duplicated
+    assert "srmech.math.text.glyph_stream" in names
+    assert "srmech.math.text.cooccurrence_edges" in names
+    assert "srmech.math.text.tokenize" not in names           # retired at rc287
+    assert "srmech.math.laplacian.tokenize" not in names      # relocated, not duplicated
     assert introspect.describe()["tools"]["total"] == 525

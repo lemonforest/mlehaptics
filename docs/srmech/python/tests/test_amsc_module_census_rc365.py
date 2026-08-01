@@ -101,7 +101,11 @@ ORIGINAL_N_MODULES = 75
 #: reassignment: GF(p) finite-field LA is a general math primitive (its name only
 #: collides with "modular forms"), so it lands in ``srmech.math`` HERE, exactly
 #: as Amendment H.2 recorded it would when the math bucket drained.
-EXPECTED_N_MODULES = 43
+#: rc373 (the eighth slice, the A-N PRIMITIVES batch): 43 -> 33, the ten
+#: primitive modules cyclic / dispatch / hdc / laplacian / primes / rational /
+#: search / template / tlv / text departing to srmech.math (the bulk of the 14
+#: A-N primitives; the general carriers stay for the rc374 carriers slice).
+EXPECTED_N_MODULES = 33
 EXPECTED_N_SUBPACKAGES = 3
 
 #: sha256 over the NORMALISED manifest body — "\n".join(sorted entries) + "\n",
@@ -109,7 +113,7 @@ EXPECTED_N_SUBPACKAGES = 3
 #: the digest disagree between the Windows and Linux CI cells; that would be a
 #: platform artifact masquerading as a move (the rc361 rationale, verbatim).
 EXPECTED_CENSUS_SHA256 = (
-    "8f0361ea5390612b2ac37d8e7a4574b2ecdbfc0a3a565092d87b5c3e47748521")
+    "08c5199ffae333361c2082d37192f060181d08cc56685d94c367c6cbcb469167")
 
 # ── the four keepers, and the A.2 move map (as DATA the test reads) ──────────
 
@@ -187,7 +191,9 @@ NAMED_DEPARTURES = {
     # and land as later slices move them. ``modular_linalg`` is the H.2
     # apokatastasis over-count reassignment realised — it belongs to 𝔽_p linear
     # algebra, a general math primitive, NOT the modular-forms family.
-    "srmech.math": frozenset({"octonion", "kepler", "modular_linalg"}),
+    "srmech.math": frozenset({"octonion", "kepler", "modular_linalg",
+        "cyclic", "dispatch", "hdc", "laplacian", "primes", "rational",
+        "search", "template", "tlv", "text"}),
 }
 
 #: Modules that have COMPLETED their ADR-0010 departure — they have LEFT
@@ -227,7 +233,9 @@ LANDED = frozenset({"harmonics", "naming", "responsion_schema", "op_provenance",
                     "q_zeilberger", "quasimodular_forms_ring", "riemann_theta",
                     "riemann_theta_multisum", "thetasum", "unary_theta",
                     "wz_certificate", "zeilberger",
-                    "octonion", "kepler", "modular_linalg"})
+                    "octonion", "kepler", "modular_linalg",
+                    "cyclic", "dispatch", "hdc", "laplacian", "primes",
+                    "rational", "search", "template", "tlv", "text"})
 
 
 # ── readers ──────────────────────────────────────────────────────────────────
@@ -475,10 +483,10 @@ def test_the_census_can_actually_fail() -> None:
         "the digest helper disagrees with the pinned value — the injection "
         "proofs below would be measuring the wrong thing.")
 
-    # (1) a module leaves for a MAPPED destination (rational -> srmech.math):
+    # (1) a module leaves for a MAPPED destination (poly -> srmech.math):
     #     down-only stays GREEN (a departure is legal), and the digest CHANGES
     #     — the move is detected.
-    leaver = "rational"
+    leaver = "poly"
     assert leaver in allowed and leaver not in KEEPERS
     live1 = committed - {leaver}
     removed1 = _departures(committed, live1)

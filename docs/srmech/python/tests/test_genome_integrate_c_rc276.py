@@ -21,7 +21,7 @@ import pytest
 
 from srmech.amsc import genome as G
 from srmech.amsc import _native
-from srmech.amsc.hdc import klein4_expand
+from srmech.math.hdc import klein4_expand
 
 
 # ── builders (mirroring test_genome_integrate_rc262) ─────────────────────────

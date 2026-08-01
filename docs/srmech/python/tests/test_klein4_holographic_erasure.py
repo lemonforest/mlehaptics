@@ -19,7 +19,7 @@ import random
 
 import pytest
 
-from srmech.amsc import hdc as H
+from srmech.math import hdc as H
 
 
 def _v(seed=0, D=64):

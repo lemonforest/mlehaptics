@@ -1,4 +1,4 @@
-"""v0.7.1rc3 — ``srmech.amsc.laplacian.dense_solve`` (#897 §26).
+"""v0.7.1rc3 — ``srmech.math.laplacian.dense_solve`` (#897 §26).
 
 The reusable Class-L dense linear solve ``A · X = B`` the Schur-complement /
 DtN float path composes over. Tests two things:
@@ -20,8 +20,9 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc import _native, laplacian  # noqa: F401
-from srmech.amsc.laplacian import dense_solve, schur_complement
+from srmech.amsc import _native
+from srmech.math import laplacian  # noqa: F401
+from srmech.math.laplacian import dense_solve, schur_complement
 
 # Native available AND the additive rc3 symbol present (a stale ABI-3 lib
 # built before this rc lacks it — hasattr-guarded everywhere).

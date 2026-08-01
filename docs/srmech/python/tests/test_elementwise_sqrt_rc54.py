@@ -20,8 +20,8 @@ import math
 
 import pytest
 
-from srmech.amsc import laplacian
-from srmech.amsc.laplacian import elementwise_sqrt
+from srmech.math import laplacian
+from srmech.math.laplacian import elementwise_sqrt
 
 _TOL = 1e-9
 
@@ -63,7 +63,7 @@ def test_sqrt_in_all_and_laplacian_ops():
 def test_sqrt_tool_entry_registered():
     from srmech.amsc.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
-    assert "srmech.amsc.laplacian.elementwise_sqrt" in names
+    assert "srmech.math.laplacian.elementwise_sqrt" in names
 
 
 def test_no_np_sqrt_callsites_remain():
@@ -89,7 +89,7 @@ def test_potentials_ladder_still_correct():
     # Mat-entry against diag(0,1,2,3,4); no numpy (the op is numpy-free, so its
     # consumer-check must be too — feedback_test_for_numpy_free_module...).
     from srmech.qm.potentials import harmonic_oscillator_ladder
-    from srmech.amsc.laplacian import mat_matmul
+    from srmech.math.laplacian import mat_matmul
     a, a_dag = harmonic_oscillator_ladder(5)
     N = mat_matmul(a_dag, a)
     for i in range(5):

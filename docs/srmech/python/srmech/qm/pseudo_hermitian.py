@@ -52,7 +52,7 @@ from __future__ import annotations
 from typing import List, Sequence
 
 from srmech.amsc.mat import Mat
-from srmech.amsc.laplacian import (
+from srmech.math.laplacian import (
     mat_eigvals,
     mat_hermitian_eigendecompose,
     mat_matmul,

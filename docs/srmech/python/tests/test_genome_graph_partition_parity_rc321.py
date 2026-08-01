@@ -249,7 +249,7 @@ def test_progress_exception_propagates(tmp_path):
 def test_participation_ratios_are_reduced_and_bounded(tmp_path):
     """Every participation pair is an exact reduced rational in [0, 1]."""
     res = _run(tmp_path, "reduced", *_ring_of_cliques(4, 4), max_tome=2)
-    from srmech.amsc.cyclic import gcd as _gcd
+    from srmech.math.cyclic import gcd as _gcd
     for num, den in res["participation"]:
         assert den >= 1
         assert 0 <= num <= den

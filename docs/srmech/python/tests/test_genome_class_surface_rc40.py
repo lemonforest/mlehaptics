@@ -11,7 +11,7 @@ import json
 
 import pytest
 
-from srmech.amsc.hdc import klein4_expand
+from srmech.math.hdc import klein4_expand
 from srmech.dsl import describe_class, list_class_surface, run_class_method
 
 

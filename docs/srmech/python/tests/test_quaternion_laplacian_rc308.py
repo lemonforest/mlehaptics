@@ -30,7 +30,7 @@ import pytest
 
 from srmech.amsc import _native
 from srmech.amsc.mat import Mat
-from srmech.amsc.laplacian import (
+from srmech.math.laplacian import (
     quaternion_laplacian,
     hypercomplex_perspectives,
     dense_laplacian,
@@ -41,7 +41,7 @@ from srmech.amsc.laplacian import (
     _quaternion_laplacian_blocks,
     _validate_edges_weights_py,
 )
-import srmech.amsc.laplacian as _lap
+import srmech.math.laplacian as _lap
 from srmech.qm.quaternion import quaternion_left_mult, quaternion_conjugate
 
 
@@ -290,4 +290,4 @@ def test_registration_tool_schema_entries_present():
     warmup_all()
     names = {t.name for t in get_tool_schema().tools}
     for op in ("quaternion_laplacian", "hypercomplex_perspectives"):
-        assert f"srmech.amsc.laplacian.{op}" in names, f"{op} ToolEntry missing"
+        assert f"srmech.math.laplacian.{op}" in names, f"{op} ToolEntry missing"

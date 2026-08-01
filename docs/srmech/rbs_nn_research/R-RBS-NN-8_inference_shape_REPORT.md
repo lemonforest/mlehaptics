@@ -14,7 +14,7 @@
 |---|---|
 | internal sources | `R-RBS-NN-1` §4 (per-op Level placement); `R-RBS-NN-3b` §6 (4-class Level-1 transformer substitution); `R-RBS-NN-7` (D=8192 baseline + capacity) |
 | MFO source | `mfo_spectral_research_notebook.md` §VII.1.1 lines 668–684 (Level 1 ALU / Level 2 FPU two-level ontology) |
-| srmech infra | `srmech/amsc/hdc.py` (XOR, bundle, permute, similarity); `srmech/amsc/format.py:sha256_bytes` (with `_native.HAS_NATIVE` SHA-NI dispatch path) |
+| srmech infra | `srmech/math/hdc.py` (XOR, bundle, permute, similarity); `srmech/amsc/format.py:sha256_bytes` (with `_native.HAS_NATIVE` SHA-NI dispatch path) |
 | external ISA references (named; not MPR-attested) | Intel SDM (SHA-NI; SSE2; SSSE3; SSE4.2; AVX2; AVX-512); ARM Architecture Reference Manual (NEON; SHA crypto extensions); RISC-V Vector Extension v1.0 |
 | repo commit | `b6e69d97` at REPORT-write |
 

@@ -40,11 +40,11 @@ from typing import Sequence
 # :class:`Mat` — every kernel a pure-Python / ctypes-marshalled cascade, no
 # top-level numpy import and no lazy numpy proxy.
 
-from . import _native
-from . import format as _fmt          # Class A — sha256_bytes (native-dispatched)
-from .hv import HV
-from .mat import Mat
-from .q import Q
+from ..amsc import _native
+from ..amsc import format as _fmt          # Class A — sha256_bytes (native-dispatched)
+from ..amsc.hv import HV
+from ..amsc.mat import Mat
+from ..amsc.q import Q
 
 
 # Canonical HDC dimension default. Higher D = better noise tolerance;
@@ -3030,7 +3030,7 @@ def loop_inv(x):
     prior numpy-carrier ``dense_dot_real``); returns a ``list[float]``."""
     arr = _as_loop(x, "loop_inv")
     _reject_hd_block_misuse(arr, "loop_inv")
-    from srmech.amsc.laplacian import mat_dot  # numpy-free inner product
+    from srmech.math.laplacian import mat_dot  # numpy-free inner product
     nsq = mat_dot(arr, arr)
     assert nsq > 0.0, "loop_inv: zero vector has no inverse (Moufang division)"
     native = _try_native_loop_inv(arr)
@@ -3128,7 +3128,7 @@ def g2_three_form(x, y, z):
     native = _try_native_g2_three_form(xa, ya, za)
     if native is not None:
         return native
-    from srmech.amsc.laplacian import mat_dot  # numpy-free inner product
+    from srmech.math.laplacian import mat_dot  # numpy-free inner product
     yz = cross7(ya, za)
     return mat_dot(xa, yz)
 
@@ -3233,7 +3233,7 @@ def loop_inv_hd(x):
     native = _try_native_loop_inv_hd(a_)
     if native is not None:
         return native
-    from srmech.amsc.laplacian import mat_dot  # numpy-free inner product
+    from srmech.math.laplacian import mat_dot  # numpy-free inner product
     xb = _hd_blocks(a_)
     out = []
     for k in range(len(xb)):

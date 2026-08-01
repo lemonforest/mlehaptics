@@ -30,7 +30,7 @@ import ctypes
 from typing import List
 
 from srmech.amsc import _native
-from srmech.amsc import rational as _srn
+from srmech.math import rational as _srn
 
 from .viterbi import op as viterbi_op
 

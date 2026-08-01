@@ -85,13 +85,13 @@ from srmech.amsc import _native
 from srmech.amsc.cascade import magnitude as _magnitude
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
 from srmech.amsc.mat import Mat
-from srmech.amsc.rational import atan as _ratan
-from srmech.amsc.rational import cos as _rcos
-from srmech.amsc.rational import cos_series_truncate as _cos_series
-from srmech.amsc.rational import sin as _rsin
-from srmech.amsc.rational import sin_series_truncate as _sin_series
-from srmech.amsc.rational import sqrt as _rsqrt
-from srmech.amsc import rational as _rational
+from srmech.math.rational import atan as _ratan
+from srmech.math.rational import cos as _rcos
+from srmech.math.rational import cos_series_truncate as _cos_series
+from srmech.math.rational import sin as _rsin
+from srmech.math.rational import sin_series_truncate as _sin_series
+from srmech.math.rational import sqrt as _rsqrt
+from srmech.math import rational as _rational
 
 #: Quaternion dimension (the real normed division algebra ``ℍ``).
 _DIM = 4
@@ -266,7 +266,7 @@ def _resolve_mu4(mu, op: str) -> List[float]:
 
     Accepts a named axis ``'i'``/``'j'``/``'k'``/``'ijk'`` (exact table
     values) or a 4-sequence pure-imaginary vector, normalised via the Class-N
-    :func:`srmech.amsc.rational.sqrt` cascade (never libm)."""
+    :func:`srmech.math.rational.sqrt` cascade (never libm)."""
     if isinstance(mu, str):
         if mu in _MU_AXES:
             return list(_MU_AXES[mu])
@@ -435,7 +435,7 @@ def quaternion_norm(x: Sequence[float]) -> float:
     The sum-of-squares is reduced to a scalar float, passed through the Class K
     pin-slot magnitude (:func:`srmech.amsc.cascade.magnitude` — the
     cascade-honest ``abs()`` replacement), then the Class-N
-    :func:`srmech.amsc.rational.sqrt`. Mirrors
+    :func:`srmech.math.rational.sqrt`. Mirrors
     :func:`srmech.qm.octonion.octonion_norm` at dim 4.
 
     Args:
@@ -536,8 +536,8 @@ def quaternion_exp_series_truncate(
     convention).
 
     Composes the Class-N calculus series
-    :func:`srmech.amsc.rational.cos_series_truncate` /
-    :func:`srmech.amsc.rational.sin_series_truncate` (Taylor partial sums to
+    :func:`srmech.math.rational.cos_series_truncate` /
+    :func:`srmech.math.rational.sin_series_truncate` (Taylor partial sums to
     ``num_terms``, exact bignum ``(num, den)`` rationals) with an
     exactly-representable basis axis ``μ̂ = e_axis`` (``axis ∈ {1, 2, 3}`` =
     i/j/k — the only unit axes with exact rational components). Returns the
@@ -673,7 +673,7 @@ def quaternion_twiddle(j: int, k: int, n_points: int, *,
 # rc309 (#944 follow-on) — quaternion_cycle_holonomy: the k=2 discrete
 # holonomy channel over the quaternion units Q8 (the ℍ "which-way" /
 # Lk-analog reader). The NON-ABELIAN generalization of the abelian
-# srmech.amsc.laplacian.cycle_holonomy (Zaslavsky signed-graph switching)
+# srmech.math.laplacian.cycle_holonomy (Zaslavsky signed-graph switching)
 # to a non-commutative gain group.
 # =====================================================================
 
@@ -847,7 +847,7 @@ def quaternion_cycle_holonomy(
     discrete which-way / Lk-analog channel (rc309, #944 follow-on).
 
     The associative sibling of the abelian
-    :func:`srmech.amsc.laplacian.cycle_holonomy`. Each edge carries a UNIT
+    :func:`srmech.math.laplacian.cycle_holonomy`. Each edge carries a UNIT
     quaternion gain (drawn from ``Q₈ = {±1, ±i, ±j, ±k}`` or a continuous
     re-gauge of it). For each fundamental cycle the holonomy is the **ordered
     quaternion product** walked around it,

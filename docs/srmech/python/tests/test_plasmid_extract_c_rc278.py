@@ -34,8 +34,8 @@ import pytest
 from srmech.amsc import _native
 from srmech.amsc import genome as G
 from srmech.amsc import plasmid as P
-from srmech.amsc.hdc import klein4_expand
-from srmech.amsc.text import cooccurrence_topk
+from srmech.math.hdc import klein4_expand
+from srmech.math.text import cooccurrence_topk
 
 _DIM = 64                                           # >= 52 (the §89 kernel header)
 

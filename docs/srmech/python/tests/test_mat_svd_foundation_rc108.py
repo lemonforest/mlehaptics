@@ -28,7 +28,7 @@ import textwrap
 
 import pytest
 
-from srmech.amsc.laplacian import (
+from srmech.math.laplacian import (
     mat_svd,
     mat_matmul,
     mat_hermitian_eigendecompose,
@@ -148,7 +148,7 @@ def test_mat_svd_numpy_free_on_blocked_import():
                     raise ImportError("numpy blocked for the test")
                 return None
         sys.meta_path.insert(0, _Block())
-        from srmech.amsc.laplacian import mat_svd
+        from srmech.math.laplacian import mat_svd
         from srmech.amsc.mat import Mat
         assert "numpy" not in sys.modules, "import pulled numpy in"
         A = Mat.from_rows([[2.0, 0.0, 1.0], [0.0, 3.0, 0.0], [1.0, 0.0, 2.0]])

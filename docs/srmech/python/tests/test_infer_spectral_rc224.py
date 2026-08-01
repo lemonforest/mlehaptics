@@ -58,8 +58,8 @@ import struct
 import pytest
 
 from srmech.amsc import _native
-from srmech.amsc import laplacian as _L
-from srmech.amsc.dispatch import infer, _marshal_relationship
+from srmech.math import laplacian as _L
+from srmech.math.dispatch import infer, _marshal_relationship
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────

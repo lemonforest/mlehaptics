@@ -30,7 +30,7 @@ that a word-hashed / SHA-seeded Klein-4 vector (``klein4_random(seed=sha256(w))`
 orthogonality floor: ``cat``/``cats`` is then indistinguishable from ``cat``/``dog``
 (the SHA avalanche destroys morphology — high diffusion makes a good ADDRESS and
 disqualifies it as a REPRESENTATION). So the DEFAULT token backend here is the
-COMPOSED regime :func:`srmech.amsc.hdc.klein4_encode_bytes` (byte-position-bound
+COMPOSED regime :func:`srmech.math.hdc.klein4_encode_bytes` (byte-position-bound
 bundle), which restores morphology — ``cat``/``cats`` ≈ 0.66 while ``cat``/``dog``
 stays ≈ 0.25 — keeping the encoder on the structure-bearing side of the F1260
 axis. ``token_mode="address"`` is offered as the F1008 fast/orthogonal dual
@@ -54,7 +54,7 @@ from __future__ import annotations
 
 import re
 
-from srmech.amsc import hdc
+from srmech.math import hdc
 from srmech.amsc.hv import HV
 
 __all__ = [
@@ -118,7 +118,7 @@ def encode_aboutness(text, *, D, df=None, n_docs=None, name=None,
     This is the reusable grounding PRIMITIVE (F1008 recipe): encode an op's
     ``name`` + ``summary`` this way to build the retrieval index, and encode a
     user utterance the SAME way (``name=None``) to query it; the nearest tool by
-    :func:`srmech.amsc.hdc.klein4_similarity` is the grounded op.
+    :func:`srmech.math.hdc.klein4_similarity` is the grounded op.
 
     Args:
         text: the description / summary / utterance body. Its tokens are
@@ -137,9 +137,9 @@ def encode_aboutness(text, *, D, df=None, n_docs=None, name=None,
         name_bigram_weight: bigram repeat count for name tokens (default 2).
         func_frac: gate threshold as a fraction of ``n_docs`` (default 0.35).
         token_mode: per-token vector backend. ``"byteglyph"`` (default) =
-            :func:`~srmech.amsc.hdc.klein4_encode_bytes`, the STRUCTURE-BEARING
+            :func:`~srmech.math.hdc.klein4_encode_bytes`, the STRUCTURE-BEARING
             COMPOSED regime that preserves morphology (F1260). ``"address"`` =
-            :func:`~srmech.amsc.hdc.klein4_address`, the F1008 fast ADDRESSED
+            :func:`~srmech.math.hdc.klein4_address`, the F1008 fast ADDRESSED
             dual (orthogonal per token, NO morphology — not structure-bearing).
 
     Returns:
@@ -216,7 +216,7 @@ def ground_tool_schema(utterance, *, D=8192, k=3, token_mode="byteglyph"):
     name-leaf + summary is a document), encodes every tool with
     :func:`encode_aboutness` (name-weighted), encodes the ``utterance`` as a
     gated query, and returns the top-``k`` ``(tool_name, similarity)`` by
-    :func:`~srmech.amsc.hdc.klein4_similarity`, best first. This is the F1009
+    :func:`~srmech.math.hdc.klein4_similarity`, best first. This is the F1009
     "srmech-drive" grounding surface built on the encoder primitive — a helper,
     not a separate registered tool.
     """

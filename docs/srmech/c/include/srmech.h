@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc372"
-#define SRMECH_VERSION       "0.9.0rc372"
+#define SRMECH_VERSION_PRE   "rc373"
+#define SRMECH_VERSION       "0.9.0rc373"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -575,7 +575,7 @@ srmech_status_t srmech_cascade_net_chirality_i8(const int8_t *orientations,
  * Signature mirrors the Class I primitive exactly: uint64 inputs,
  * uint64 output via pointer, srmech_status_t returned. The cascade
  * Python ref (cascade.py:cyclic_gcd) is a thin pass-through to
- * srmech.amsc.cyclic.gcd which itself enforces non-negative uint64
+ * srmech.math.cyclic.gcd which itself enforces non-negative uint64
  * range — so the cascade C wrapper is intentionally uint64 too;
  * negative / out-of-range inputs are rejected at the Python dispatch
  * layer and never reach the C wrapper.
@@ -833,7 +833,7 @@ srmech_status_t srmech_cascade_kuramoto_step_general_f64(
 /* ------------------------------------------------------------------ *
  * Octonion "loop-bind" Moufang family (MS#21 v0.7.0rc7)
  *
- * C parity for srmech.amsc.hdc's dim-8 octonion (Cayley-Dickson)
+ * C parity for srmech.math.hdc's dim-8 octonion (Cayley-Dickson)
  * product loop_bind and companions. The carrier is the OCTONION: every
  * `n` argument MUST equal 8 (the dim where division still holds); other
  * dimensions return SRMECH_ERR_BAD_INPUT and the Python keeps its
@@ -1919,7 +1919,7 @@ srmech_status_t srmech_hermitian_eigendecompose_ws(
 
 /* ── the GENERAL (non-Hermitian) eigenvalue solver (v0.9.0rc299, `#918`) ──
  *
- * The whole-op C peer of `srmech.amsc.laplacian.mat_eigvals`. Until rc299 the
+ * The whole-op C peer of `srmech.math.laplacian.mat_eigvals`. Until rc299 the
  * C surface had three eigen-paths and none was general — srmech_jacobi_eigvals
  * (real symmetric), srmech_hermitian_eigendecompose_ws (complex Hermitian) and
  * the exact integer srmech_eigvec_exact / srmech_complex_isolate — while
@@ -2222,7 +2222,7 @@ srmech_status_t srmech_resonant_spectrum(
  * F1007) — a Class-L COMPOSITE over the existing kernels
  * (srmech_jacobi_eigvals / srmech_hermitian_eigendecompose_ws +
  * srmech_exp + srmech_graph_magnetic_laplacian), the C twin of
- * srmech.amsc.laplacian.heat_trace / .ground_state_flux_response.
+ * srmech.math.laplacian.heat_trace / .ground_state_flux_response.
  * Theta(t) = Tr(e^{-tL}) = sum_k exp(-t*lambda_k) IS a theta function of
  * the Laplacian (on a cycle, the Jacobi-theta family) — the
  * read-independent spectral summary. F1007: under magnetic flux the FULL
@@ -2302,7 +2302,7 @@ srmech_status_t srmech_ground_state_flux_response(
  * The spectral SPINE (0.9.0rc204; gh#1324 / F1167–F1169) — a Class-L
  * COMPOSITE over the existing kernels (srmech_graph_dense_adjacency +
  * srmech_hermitian_eigendecompose_ws), the C twin of
- * srmech.amsc.laplacian.spectral_spine. It completes the community/spine
+ * srmech.math.laplacian.spectral_spine. It completes the community/spine
  * PAIR srmech already ships: srmech_laplacian_fiedler_sparse /
  * srmech_three_fold_bands read the LOW modes (2-/3-way community split),
  * this reads the DOMINANT mode. The largest-eigenvalue eigenvector of a
@@ -2361,7 +2361,7 @@ srmech_status_t srmech_spectral_spine(
  * EPH — the complex-time Wick-rotation propagator (0.9.0rc136; siona
  * gh#1274) — a Class-L COMPOSITE over the existing kernels
  * (srmech_hermitian_eigendecompose_ws + srmech_exp + srmech_cos +
- * srmech_sin), the C twin of srmech.amsc.laplacian.propagate.
+ * srmech_sin), the C twin of srmech.math.laplacian.propagate.
  *
  * EPH = harvest = Propagate · excite: a propagator P = e^{-zL}
  * (operator) applied to an excitation u0 (operand) → the harvest H.
@@ -3082,7 +3082,7 @@ srmech_status_t srmech_dsl_toml_chain_to_json(
 /* ------------------------------------------------------------------ *
  * srmech_infer — the F929 OPEN/infer ROUTER (0.9.0rc176; the ORCHESTRATION->C
  * spine, batch 6; the CARRIER-FFI foundation). The C peer of
- * srmech.amsc.dispatch.infer — the META-dispatcher over srmech's shipped
+ * srmech.math.dispatch.infer — the META-dispatcher over srmech's shipped
  * closed-form reduction-theory rows. Given a STORED RELATIONSHIP marshalled as
  * JSON, DETECT which row its operand structure matches, DISPATCH the matching C
  * reducer, VERIFY the reducer's OWN contract, and emit the DECISION as a small
@@ -3284,7 +3284,7 @@ srmech_status_t srmech_best_rational_path(uint64_t  numerator,
  * Computes S_N(p/q) = sum_{k=0..N} (p/q)^k / k! and returns the result
  * reduced to lowest terms in (*out_num, *out_den). Pure integer
  * arithmetic; bounded num_terms ≤ 20 to keep N! within u64 (Python
- * fallback srmech.amsc.rational.exp_series_truncate handles larger N
+ * fallback srmech.math.rational.exp_series_truncate handles larger N
  * via arbitrary-precision int). Returns SRMECH_ERR_OVERFLOW if any
  * intermediate product (|p|^k, q^(N-k), N!/k!, their products, the sum
  * itself) would exceed range; the wrapper falls through to bignum
@@ -3315,7 +3315,7 @@ srmech_status_t srmech_exp_series_truncate(int64_t   x_num,
  *   - srmech_rational_pow_uint: (base_num/base_den)^exp reduced; exp ≤ 64
  *
  * Each returns SRMECH_ERR_OVERFLOW when any intermediate exceeds u64
- * range. Python wrappers (srmech.amsc.rational.rational_{add,mul,pow_uint})
+ * range. Python wrappers (srmech.math.rational.rational_{add,mul,pow_uint})
  * fall through to bignum on overflow. C library is usable standalone
  * for inputs that fit u64 per [[feedback_no_binding_layer_carveout]].
  */
@@ -3363,7 +3363,7 @@ srmech_status_t srmech_rational_pow_uint(int64_t   base_num,
  *
  * Bounded loop n ≤ SRMECH_CF_CONVERGENTS_MAX_N (256). Returns
  * SRMECH_ERR_OVERFLOW if any convergent exceeds int64; Python
- * srmech.amsc.rational.continued_fraction_convergents falls back to
+ * srmech.math.rational.continued_fraction_convergents falls back to
  * bignum at that point.
  *
  * Anchored to [[user_stance_pi_spectral_shape_scalar_invariant]] —
@@ -8950,7 +8950,7 @@ srmech_status_t srmech_pi_archimedes(uint32_t num_digits,
  * srmech_rational_pow_uint) cap at int64 and return SRMECH_ERR_OVERFLOW past
  * it, so a C-only host hit a magnitude ceiling the Python bignum path does
  * not. These *_big variants compute the SAME exact rational the Python
- * srmech.amsc.rational.{exp,sin,cos,log1p,atan}_series_truncate /
+ * srmech.math.rational.{exp,sin,cos,log1p,atan}_series_truncate /
  * rational_pow_uint compute, over caller-arena srmech_bigint (NO malloc), and
  * return it REDUCED to lowest terms with positive denominator — byte-identical
  * to Python's (num, den) at ANY magnitude.
@@ -9161,7 +9161,7 @@ srmech_status_t srmech_one_matrix(int32_t sigma,
 
 /* ------------------------------------------------------------------ *
  * srmech_jacobi — BIGNUM-EXACT Jacobi elliptic sn/cn/dn Maclaurin truncation
- * (the C peer of srmech.amsc.rational.jacobi_sncndn_series_truncate).
+ * (the C peer of srmech.math.rational.jacobi_sncndn_series_truncate).
  *
  * The "rotation-last" exact-ℚ sibling of srmech_sin/cos_series_truncate_big:
  * builds the Maclaurin coefficient sequences of the three Jacobi elliptic
@@ -13155,7 +13155,7 @@ srmech_status_t srmech_qm_su3_structure(double *out);
  * srmech_text — text → tokens → co-occurrence ingestion peers
  * (v0.9.0rc217; gh #1360)
  *
- * The C mirror of `srmech.amsc.text` — the §40/§52 text→graph leaves of
+ * The C mirror of `srmech.math.text` — the §40/§52 text→graph leaves of
  * the K1 presence-kernel chain `text → glyph_stream → cooccurrence_edges →
  * dense_laplacian`, plus the §52 streaming bounded top-K peer. The
  * corpus-linear hot loops (per-codepoint segmentation; windowed pair-count
@@ -13164,7 +13164,7 @@ srmech_status_t srmech_qm_su3_structure(double *out);
  * split precedent).
  *
  * BYTE-IDENTICAL parity contract: each op reproduces the pure-Python
- * `srmech.amsc.text` result EXACTLY (token stream, integer pair counts,
+ * `srmech.math.text` result EXACTLY (token stream, integer pair counts,
  * (-weight, index) tie-breaks, first-seen edge weights, lexicographic
  * edge order) — the correctness gate for the downstream Laplacian.
  *

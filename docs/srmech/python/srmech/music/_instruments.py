@@ -74,7 +74,7 @@ def _is_perfect_power(value: int, degree: int) -> bool:
 
 def _prime_divisors(n: int) -> List[int]:
     """The distinct primes dividing ``n`` (Class J), via the shipped factoriser."""
-    from srmech.amsc import primes as _primes
+    from srmech.math import primes as _primes
     return [p for p, _e in _primes.factor(n)]
 
 
@@ -85,7 +85,7 @@ def _q_is_square(q: "Q") -> bool:
     is no PUBLIC exact integer-square-root op — ``rational.sqrt`` returns a
     truncated ``Q`` at a declared precision, which cannot decide exactness.
     """
-    from srmech.amsc.rational import _integer_sqrt
+    from srmech.math.rational import _integer_sqrt
     num, den = q.numerator, q.denominator
     if num < 0:
         return False
@@ -300,7 +300,7 @@ def stiff_string_partials(inharmonicity, n_partials: int = 8) -> Dict[str, objec
         if _q_is_square(radicand):
             # The surd degenerates: the ratio IS rational. Emit it as such
             # rather than dressing it in a reducible quadratic "field".
-            from srmech.amsc.rational import _integer_sqrt
+            from srmech.math.rational import _integer_sqrt
             ratios.append(Q(_integer_sqrt(radicand.numerator),
                             _integer_sqrt(radicand.denominator)))
             continue

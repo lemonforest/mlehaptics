@@ -929,7 +929,7 @@ static int fac_reduce_mod_p(uint64_t *out, const srmech_bigint_t *f, int lf,
     return fp_trim(out, lf);
 }
 
-/* True iff n (< 2^32) is prime (trial division; matches srmech.amsc.primes). */
+/* True iff n (< 2^32) is prime (trial division; matches srmech.math.primes). */
 static int fac_is_prime(uint64_t n)
 {
     uint64_t d;

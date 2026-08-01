@@ -1,7 +1,7 @@
 """0.9.0rc29 — `mat_eigvals` Parlett–Reinsch RADIX-2 balancing pre-step.
 
 POLISH (no behavior bug). The float shifted-QR ``mat_eigvals``
-(``srmech/amsc/laplacian.py``, post-rc26 with EISPACK exceptional shifts) is
+(``srmech/math/laplacian.py``, post-rc26 with EISPACK exceptional shifts) is
 CORRECT but was UNBALANCED — a badly-scaled matrix (a lopsided row-norm vs
 col-norm split) loses accuracy in the QR iteration. rc29 adds
 ``_balance_radix2(H)``: an EXACT diagonal similarity ``D⁻¹·H·D`` with ``D`` a
@@ -33,7 +33,7 @@ import pytest
 
 from srmech.amsc.cascade import matrix_cascades
 from srmech.amsc.cascade.matrix_cascades import eigvals_exact
-from srmech.amsc.laplacian import (
+from srmech.math.laplacian import (
     _balance_radix2,
     _modulus_c,
     jacobi_eigvals,
@@ -179,7 +179,7 @@ def _eigvals_unbalanced(A):
     same shifted-QR with EISPACK exceptional shifts, so the ONLY difference vs
     `mat_eigvals` is the balancing. Used to show balancing strictly improves the
     badly-scaled spectrum."""
-    from srmech.amsc import laplacian as L
+    from srmech.math import laplacian as L
     M = Mat.from_rows(A)
     n = M.n_rows
     H = [[complex(M[i, j]) for j in range(n)] for i in range(n)]

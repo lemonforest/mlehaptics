@@ -34,7 +34,7 @@ from __future__ import annotations
 
 from typing import List
 
-from srmech.amsc import rational as _srn
+from srmech.math import rational as _srn
 
 OPERATION_NAME = "sinc_interp"
 CLASS_COMPOSITION = ("L", "K")
@@ -134,7 +134,7 @@ def op(signal, sample_indices, target_indices, *, D: int = 8192):
     # S[q][s] = sinc((t_q−t_s)/T) (composition_of_c, rc151 / B4d): mat_matvec
     # rides mat_matmul → srmech_dense_matmul_complex when native, else the
     # numpy-free triple-loop cascade. Within-tol (reldiff ≤ 1e-9), not byte-exact.
-    from srmech.amsc.laplacian import mat_matvec  # lazy: avoid import cycle
+    from srmech.math.laplacian import mat_matvec  # lazy: avoid import cycle
 
     kernel = [[_sinc((tq - ts) / T) for ts in t_s] for tq in t_q]
     out = list(mat_matvec(kernel, y))

@@ -186,7 +186,7 @@ _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 # (canonical JSON byte-identical to the pure path, sha256 hash-ratcheted); the
 # pure derivation is the complete fallback. NOT owed_orchestration (CEIL stays 0).
 # composes_c 117 -> 118; sum 176 -> 177.
-# rc217 (gh #1360): the 3 srmech.amsc.text ops (tokenize / cooccurrence_edges /
+# rc217 (gh #1360): the 3 srmech.math.text ops (tokenize / cooccurrence_edges /
 # cooccurrence_topk) were MIS-CLASSIFIED non_compute/composes_c — they are
 # genuine pure-Python COMPUTE kernels (the enwiki-encode hot loop) that reach
 # no ledger op, so the composes_c transitive walk could not see them (the

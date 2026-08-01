@@ -25,8 +25,8 @@ from srmech.amsc.cascade.frame_carrier import (
     frame_carrier,
     frame_carrier_compare,
 )
-from srmech.amsc.laplacian import _EPH_TWO_PI
-from srmech.amsc.rational import sin_series_truncate, cos_series_truncate
+from srmech.math.laplacian import _EPH_TWO_PI
+from srmech.math.rational import sin_series_truncate, cos_series_truncate
 
 # 2π and π as the EXACT Machin rationals the fold uses (den = 2^80). Building the
 # across-seam arguments from these keeps the whole test exact-rational.

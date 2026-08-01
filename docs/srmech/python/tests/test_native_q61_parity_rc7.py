@@ -17,7 +17,7 @@ import math
 
 import pytest
 
-from srmech.amsc import rational as R
+from srmech.math import rational as R
 from srmech.amsc import _native
 from srmech.amsc.q import Q
 

@@ -40,7 +40,7 @@ oracle and no ``.to_numpy()`` (per
 from __future__ import annotations
 
 from srmech.amsc.cascade import magnitude
-from srmech.amsc.laplacian import mat_matmul, mat_norm
+from srmech.math.laplacian import mat_matmul, mat_norm
 from srmech.amsc.mat import Mat
 from srmech.qm import triality
 from srmech.qm.triality import lean_isa_seventh_primitive

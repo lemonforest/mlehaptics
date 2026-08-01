@@ -12,7 +12,7 @@ from __future__ import annotations
 import pytest
 
 from srmech.amsc.mat import Mat
-from srmech.amsc.laplacian import mat_matmul, mat_hermitian_eigendecompose
+from srmech.math.laplacian import mat_matmul, mat_hermitian_eigendecompose
 from srmech.qm import pseudo_hermitian as ph
 
 

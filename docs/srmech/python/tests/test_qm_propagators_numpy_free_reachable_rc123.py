@@ -67,7 +67,7 @@ def test_propagators_imports_and_runs_numpy_free():
     proc = _run_numpy_free(
         """
         from srmech.qm import propagators as prop
-        from srmech.amsc.laplacian import mat_matmul, mat_norm
+        from srmech.math.laplacian import mat_matmul, mat_norm
         from srmech.amsc.mat import Mat
         from srmech.qm import relativistic as rel
 

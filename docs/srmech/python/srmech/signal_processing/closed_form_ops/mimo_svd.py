@@ -9,7 +9,7 @@ decomposition on the channel matrix substrate) operation. The SVD ``H = U S V^H`
 gives the closed-form precoder ``V`` and combiner ``U^H``.
 
 Carrier-removal #564 (rc109): numpy-FREE — the decomposition routes through the
-:func:`srmech.amsc.laplacian.mat_svd` Mat-carrier foundation (rc108): the right
+:func:`srmech.math.laplacian.mat_svd` Mat-carrier foundation (rc108): the right
 singular vectors are eigenvectors of the Hermitian PSD Gram ``AᴴA`` via the
 native-backed ``mat_hermitian_eigendecompose``, the singular values are
 ``√λ`` (Class-N ``rational.sqrt``), and the left vectors are
@@ -32,7 +32,7 @@ from __future__ import annotations
 
 from typing import List, Tuple
 
-from srmech.amsc.laplacian import mat_svd
+from srmech.math.laplacian import mat_svd
 from srmech.amsc.mat import Mat
 
 OPERATION_NAME = "mimo_svd"

@@ -182,8 +182,8 @@ def test_ops_back_index_known_relations() -> None:
     assert ("srmech.amsc.cascade.cd_mult"
             in schema["sedenion"]["ops"]["consumes"])
     # Token derivation: Mat flows through the dense-LA surface.
-    assert "srmech.amsc.laplacian.mat_matmul" in schema["Mat"]["ops"]["consumes"]
-    assert "srmech.amsc.laplacian.mat_matmul" in schema["Mat"]["ops"]["produces"]
+    assert "srmech.math.laplacian.mat_matmul" in schema["Mat"]["ops"]["consumes"]
+    assert "srmech.math.laplacian.mat_matmul" in schema["Mat"]["ops"]["produces"]
     # Word-boundary discipline: gosper takes Poly, NOT QPoly.
     assert ("srmech.apokatastasis.gosper.gosper"
             not in schema["QPoly"]["ops"]["consumes"])

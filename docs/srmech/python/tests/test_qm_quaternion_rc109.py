@@ -35,7 +35,7 @@ from fractions import Fraction
 import pytest
 
 from srmech.amsc import _native
-from srmech.amsc import hdc
+from srmech.math import hdc
 from srmech.amsc.mat import Mat
 from srmech.qm import octonion as octo
 from srmech.qm import quaternion as quat

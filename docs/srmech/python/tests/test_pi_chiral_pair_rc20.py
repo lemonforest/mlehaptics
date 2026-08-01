@@ -13,7 +13,7 @@ value, and (3) determinism. Numpy-free.
 """
 from __future__ import annotations
 
-from srmech.amsc.rational import pi_cascade_digits, pi_chudnovsky_digits
+from srmech.math.rational import pi_cascade_digits, pi_chudnovsky_digits
 
 # Canonical pi prefix (independently verifiable; first 20 fractional digits).
 _PI_PREFIX = "3.14159265358979323846"

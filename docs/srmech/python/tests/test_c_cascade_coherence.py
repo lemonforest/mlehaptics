@@ -31,11 +31,11 @@ import re
 
 import pytest
 
-import srmech.amsc.laplacian as _L
+import srmech.math.laplacian as _L
 
 # --- locate the shipped C library source (repo checkout only) ----------------
 
-#: ``.../docs/srmech/python/srmech/amsc/laplacian.py`` -> ``.../docs/srmech``
+#: ``.../docs/srmech/python/srmech/math/laplacian.py`` -> ``.../docs/srmech``
 _SRMECH_ROOT = pathlib.Path(_L.__file__).resolve().parents[3]
 _C_SRC = _SRMECH_ROOT / "c" / "src"
 _C_INCLUDE = _SRMECH_ROOT / "c" / "include"

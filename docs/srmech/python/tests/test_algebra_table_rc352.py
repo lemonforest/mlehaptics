@@ -468,7 +468,7 @@ def test_order_fingerprint_no_longer_carries_its_own_table_product():
     """``laplacian._order_omul`` was a third copy of the table-driven product,
     private, dim-8-hardcoded, one caller. It is gone; the op routes through the
     shipped ``table_product`` and the VALUES are unchanged."""
-    from srmech.amsc import laplacian as L
+    from srmech.math import laplacian as L
     assert not hasattr(L, "_order_omul")
     assert L.order_fingerprint([]) == [1, 0, 0, 0, 0, 0, 0, 0]
     assert L.order_fingerprint([0, 1, 0, 2, 0]) != L.order_fingerprint([0, 2, 0, 1, 0])

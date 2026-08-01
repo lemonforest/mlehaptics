@@ -38,7 +38,7 @@ numpy-free (stdlib-only test over the numpy-free spectral surface).
 from __future__ import annotations
 
 from srmech import spectral
-from srmech.amsc.laplacian import mat_matvec
+from srmech.math.laplacian import mat_matvec
 
 # The fixed inputs (DO NOT CHANGE — the pins below are keyed to these bytes).
 _L1 = [

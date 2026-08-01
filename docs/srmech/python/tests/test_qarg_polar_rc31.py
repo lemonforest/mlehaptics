@@ -4,7 +4,7 @@ complex carrier (F924 / UPSTREAM §74).
 ``Qi`` gains ``modulus()`` [Class K magnitude], ``arg()`` [Class C orientation],
 ``as_polar``, ``from_polar`` and ``from_complex`` — composing the exact-``Q``
 ``cos``/``sin``/``atan2``/``sqrt`` already shipped in
-``srmech.amsc.rational`` (re-exported by ``srmech.asymptotic_calculus``). This
+``srmech.math.rational`` (re-exported by ``srmech.asymptotic_calculus``). This
 closes the harmonic-ladder **Class C + Class K** open rungs: Class C recovers
 WHICH-WAY (the directed-edge phase sign), Class K recovers HOW-MUCH (the
 direction-blind modulus), both EXACTLY.
@@ -15,8 +15,8 @@ via the Class-N ``hypot`` cascade — never an ALU ``abs()``.
 """
 from fractions import Fraction
 
-import srmech.amsc.rational as ac
-import srmech.amsc.laplacian as lap
+import srmech.math.rational as ac
+import srmech.math.laplacian as lap
 from srmech.amsc.q import Q
 from srmech.amsc.qi import Qi
 

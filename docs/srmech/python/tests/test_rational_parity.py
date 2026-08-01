@@ -9,7 +9,8 @@ import random
 
 import pytest
 
-from srmech.amsc import _native, rational
+from srmech.amsc import _native
+from srmech.math import rational
 
 
 # ---------------------------------------------------------------------

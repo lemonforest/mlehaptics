@@ -19,9 +19,9 @@ import math
 
 import pytest
 
-from srmech.amsc import laplacian
+from srmech.math import laplacian
 from srmech.amsc.mat import Mat
-from srmech.amsc.laplacian import mat_outer, mat_outer
+from srmech.math.laplacian import mat_outer, mat_outer
 
 
 def _expected_outer(a, b):
@@ -106,8 +106,8 @@ def test_dense_outer_tool_entries_registered():
     from srmech.amsc.tool_schema import get_tool_schema
 
     names = {t.name for t in get_tool_schema().tools}
-    assert "srmech.amsc.laplacian.mat_outer" in names
-    assert "srmech.amsc.laplacian.mat_outer" in names
+    assert "srmech.math.laplacian.mat_outer" in names
+    assert "srmech.math.laplacian.mat_outer" in names
 
 
 # ── the routed qm callsites still compute correctly (numpy-free Mat) ──────────

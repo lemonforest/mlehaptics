@@ -1,6 +1,6 @@
 """rc165 — the §50 native Klein-4 co-occurrence fold matches the pure-Python fold.
 
-``srmech.amsc.hdc.cooccurrence_fold`` gained a native fast-path (the corpus-linear
+``srmech.math.hdc.cooccurrence_fold`` gained a native fast-path (the corpus-linear
 windowed accumulation in one C call, ``srmech_klein4_cooccurrence_fold``). This
 proves the native fold is bit-identical to the pure-Python loop it replaces — the
 resolved per-token bundles match exactly — so the holographic store built at
@@ -11,7 +11,8 @@ numpy-free (the hdc module is numpy-free; the test must be too).
 
 import pytest
 
-from srmech.amsc import _native, hdc
+from srmech.amsc import _native
+from srmech.math import hdc
 
 
 def _bundles_identical(a, b):

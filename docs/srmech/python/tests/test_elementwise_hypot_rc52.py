@@ -21,8 +21,8 @@ import math
 
 import pytest
 
-from srmech.amsc import laplacian
-from srmech.amsc.laplacian import elementwise_hypot
+from srmech.math import laplacian
+from srmech.math.laplacian import elementwise_hypot
 
 _TOL = 1e-9
 
@@ -75,7 +75,7 @@ def test_hypot_tool_entry_registered():
     from srmech.amsc.tool_schema import get_tool_schema
 
     names = {t.name for t in get_tool_schema().tools}
-    assert "srmech.amsc.laplacian.elementwise_hypot" in names
+    assert "srmech.math.laplacian.elementwise_hypot" in names
 
 
 def test_no_np_hypot_callsites_remain():

@@ -109,7 +109,7 @@ import pytest
 
 from srmech.amsc import _native
 from srmech.amsc import genome as G
-from srmech.amsc import hdc
+from srmech.math import hdc
 from srmech.amsc import plasmid as P
 from srmech.amsc.genome import GenomeBoundingError
 

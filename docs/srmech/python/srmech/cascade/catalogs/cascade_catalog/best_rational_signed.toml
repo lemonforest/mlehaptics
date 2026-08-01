@@ -13,7 +13,7 @@ Three-stage cascade composing the three sign-handling A–N classes:
   [[user_stance_epicycle_via_gear_plus_pin]]; the inline branch
   mirrors srmech_cascade_pin_slot_at_zero_f64 exactly).
 - Class N: best_rational anchors the non-negative magnitude (delegates
-  to the existing Class N primitive srmech.amsc.rational.best_rational
+  to the existing Class N primitive srmech.math.rational.best_rational
   / srmech_best_rational).
 - Class C: reorient re-applies the orientation to the numerator
   (mirrors srmech_cascade_reorient_i64 semantics; negate iff
@@ -61,7 +61,7 @@ class_c_stage = "inline reorient (negate numerator iff orientation < 0)"
 # BEARING Class N stage to the existing primitive symbol and inlines
 # the trivial Class K + Class C stages.
 class_n_primitive_c_symbol = "srmech_best_rational"
-class_n_python = "srmech.amsc.rational.best_rational"
+class_n_python = "srmech.math.rational.best_rational"
 class_k_inline = "if x > 0: (+1, x); elif x < 0: (-1, -x); else: (0, 0)"
 class_c_inline = "if orientation < 0: -nf else: nf"
 rationale = """
@@ -105,7 +105,7 @@ sub_dead_band = "|x| < 1e-12 -> (0, 1) via Class K _ZERO_BAND"
 negative_input = "negative x -> orientation = -1; Class N anchors |x|; Class C re-applies negation to numerator"
 boundary_half = "magnitude * fine_scale landing exactly on .5 -> banker's-rounded to the nearest even (libm-free C branch = Python round(); formerly llrint's FE_TONEAREST default)"
 invalid_kwargs = "max_denominator < 1 or fine_scale < 1 -> ValueError raised at Python dispatch layer; native path skipped"
-larger_than_int64_kwargs = "max_denominator or fine_scale > INT64_MAX -> native path skipped; Python bignum path handles via srmech.amsc.rational.best_rational"
+larger_than_int64_kwargs = "max_denominator or fine_scale > INT64_MAX -> native path skipped; Python bignum path handles via srmech.math.rational.best_rational"
 bool_kwargs = "isinstance(True, int) is True but type(True) is bool — native rejects via `type(x) is int` (bool subclass check); Python ref accepts (True coerces to 1, False to 0 which triggers the >= 1 guard)"
 
 [cascade.attestation]

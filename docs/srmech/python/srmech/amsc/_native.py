@@ -1362,7 +1362,7 @@ def _bind(lib: ctypes.CDLL) -> None:
     # Class-L composites over srmech_jacobi_eigvals /
     # srmech_hermitian_eigendecompose_ws + srmech_exp +
     # srmech_graph_magnetic_laplacian, the C twins of
-    # srmech.amsc.laplacian.heat_trace / .ground_state_flux_response.
+    # srmech.math.laplacian.heat_trace / .ground_state_flux_response.
     # NEW symbols, hasattr-guarded (ABI stays 3) so a stale ABI-3 lib keeps
     # the rest of the native surface and the pure-Python ops are the
     # complete alternative.
@@ -1423,7 +1423,7 @@ def _bind(lib: ctypes.CDLL) -> None:
     # structurally central items; the dominant-mode PAIR of the low-mode
     # fiedler_sparse / three_fold_bands community reads. A Class-L composite over
     # srmech_graph_dense_adjacency + srmech_hermitian_eigendecompose_ws, the C
-    # twin of srmech.amsc.laplacian.spectral_spine. NEW symbols, hasattr-guarded
+    # twin of srmech.math.laplacian.spectral_spine. NEW symbols, hasattr-guarded
     # (ABI stays 4) so a stale lib keeps the rest of the native surface and the
     # pure-Python op is the complete path.
     #   size_t srmech_spectral_spine_arena_bytes(uint32_t n)
@@ -1562,7 +1562,7 @@ def _bind(lib: ctypes.CDLL) -> None:
     # rc136 (siona gh#1274): the EPH complex-time Wick-rotation propagator
     # harvest = e^{-zL}·u0 — a Class-L composite over
     # srmech_hermitian_eigendecompose_ws + srmech_exp + srmech_cos +
-    # srmech_sin, the C twin of srmech.amsc.laplacian.propagate. NEW symbols,
+    # srmech_sin, the C twin of srmech.math.laplacian.propagate. NEW symbols,
     # hasattr-guarded (ABI stays 3) so a stale ABI-3 lib keeps the rest of the
     # native surface and the pure-Python op is the complete alternative.
     #   size_t srmech_eph_propagate_arena_bytes(uint32_t n, int is_complex)
@@ -1594,7 +1594,7 @@ def _bind(lib: ctypes.CDLL) -> None:
     # Chebyshev polynomial applied with MATVECS ONLY on the sparse signed
     # Laplacian of an edge list (no eigendecomposition → runs past the
     # n<=256 dense-eigensolve cap), the C twin of
-    # srmech.amsc.laplacian.propagate_sparse. NEW symbols, hasattr-guarded
+    # srmech.math.laplacian.propagate_sparse. NEW symbols, hasattr-guarded
     # (ABI stays 4) so a stale lib keeps the rest of the native surface
     # and the pure-Python op is the complete alternative.
     #   size_t srmech_eph_propagate_sparse_arena_bytes(uint32_t n,
@@ -1636,7 +1636,7 @@ def _bind(lib: ctypes.CDLL) -> None:
     # not perturb it) PLUS the per-mode winding readout the 2π seam-fold
     # used to discard: eigenvalues, metacycle winding w_k, epicycle residue
     # theta_k, tower-graded sigma_effective, double-cover spinor sign. The
-    # C twin of srmech.amsc.laplacian.propagate_wound. NEW symbols,
+    # C twin of srmech.math.laplacian.propagate_wound. NEW symbols,
     # hasattr-guarded (ABI stays 4) so a stale lib keeps the rest of the
     # native surface and the pure-Python op is the complete alternative.
     #   size_t srmech_eph_propagate_wound_arena_bytes(uint32_t n,
@@ -1678,7 +1678,7 @@ def _bind(lib: ctypes.CDLL) -> None:
     # srmech_eph_propagate); kind 1 = resolvent (zI - L)^{-1}·u0 (the
     # Laplace-transform dual, via the real 2n x 2n block embedding over
     # srmech_dense_solve_f64_ws). The C twin of
-    # srmech.amsc.laplacian.responsion. NEW symbols, hasattr-guarded (ABI
+    # srmech.math.laplacian.responsion. NEW symbols, hasattr-guarded (ABI
     # stays 4) so a stale lib keeps the rest of the native surface and the
     # pure-Python op is the complete alternative.
     #   size_t srmech_responsion_arena_bytes(uint32_t n, int is_complex,
@@ -2477,7 +2477,7 @@ def _bind(lib: ctypes.CDLL) -> None:
     #                                      uint64_t *out_den)
     # exp Taylor partial sum as exact rational, num_terms <= 20.
     # Returns SRMECH_ERR_OVERFLOW for inputs beyond u64 range; Python
-    # bignum fallback in srmech.amsc.rational.exp_series_truncate
+    # bignum fallback in srmech.math.rational.exp_series_truncate
     # handles unbounded N.
     lib.srmech_exp_series_truncate.argtypes = [
         ctypes.c_int64,
@@ -5069,7 +5069,7 @@ def _bind(lib: ctypes.CDLL) -> None:
     # ------------------------------------------------------------------
     # srmech_infer — the F929 OPEN/infer ROUTER (0.9.0rc176; the
     # ORCHESTRATION→C spine, batch 6; the CARRIER-FFI foundation). The C peer of
-    # srmech.amsc.dispatch.infer: parse a relationship JSON, detect the row from
+    # srmech.math.dispatch.infer: parse a relationship JSON, detect the row from
     # the marshalled operand (term_ratio_* → gosper; sigma → cyclic), dispatch +
     # verify the C reducer (srmech_the_one / srmech_gosper), and emit the
     # DECISION as a small JSON descriptor. Any other row / malformed operand /
@@ -5118,7 +5118,7 @@ def _bind(lib: ctypes.CDLL) -> None:
     # ------------------------------------------------------------------
     # Class N — ROTATION-LAST Chudnovsky π on srmech_bigint (0.9.0rc19).
     # The two srmech_pi_* symbols are the C-host peer of
-    # srmech.amsc.rational.pi_chudnovsky_digits — exact bigint body, ONE
+    # srmech.math.rational.pi_chudnovsky_digits — exact bigint body, ONE
     # terminal isqrt+division, byte-identical "3.<digits>". The underlying
     # srmech_bigint is carrier-internal (NO Python surface — not bound
     # here). NEW symbols → hasattr-guarded (a stale ABI-3 lib keeps the
@@ -5140,7 +5140,7 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_pi_chudnovsky.restype = ctypes.c_int
 
-    # rc157 (Qalg TAIL Batch 1b): srmech.amsc.rational.pi_cascade_digits — the
+    # rc157 (Qalg TAIL Batch 1b): srmech.math.rational.pi_cascade_digits — the
     # projects-EVERY-step Pfaff-Archimedes two-mean chiral pair, the WHOLE loop
     # (harmonic-mean divmod + geometric-mean isqrt over caller-arena
     # srmech_bigint) in C, byte-identical "3.<digits>" to the pure-Python oracle.
@@ -5252,7 +5252,7 @@ def _bind(lib: ctypes.CDLL) -> None:
         lib.srmech_bessel_j_fixed_big.restype = ctypes.c_int
 
     # Jacobi elliptic sn/cn/dn Maclaurin truncation C peer (the C twin of
-    # srmech.amsc.rational.jacobi_sncndn_series_truncate). Same caller-arena
+    # srmech.math.rational.jacobi_sncndn_series_truncate). Same caller-arena
     # srmech_bigint substrate as bigexp; two rational operands (u, m) in, three
     # rational outputs (sn, cn, dn). NEW symbols → hasattr-guarded; additive →
     # EXPECTED_ABI_VERSION stays 3.
@@ -6699,7 +6699,7 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_riemann_theta_multisum.restype = ctypes.c_int
 
-    # srmech_text_* — the C peers of the srmech.amsc.text §40/§52 text→graph
+    # srmech_text_* — the C peers of the srmech.math.text §40/§52 text→graph
     # ingestion ops (gh #1360; the enwiki-encode hot loop). All are
     # BYTE-IDENTICAL kernels over caller-arena buffers: the segmenter takes the
     # UAX #29 break table as a caller-provided input (rc287 — srmech vendors
@@ -8389,7 +8389,7 @@ def bio_totp_decode_splice_c(framed: bytes, dna: bytes,
 # ----------------------------------------------------------------------
 # v0.7.5rc2: scalar transcendental cascade wrappers — the Python-callable
 # face of the rc43-46 C cascade. The float-projection ops in
-# ``srmech.amsc.rational`` dispatch through these when ``has_native_trig()``.
+# ``srmech.math.rational`` dispatch through these when ``has_native_trig()``.
 # ----------------------------------------------------------------------
 
 def has_native_trig() -> bool:
@@ -8410,7 +8410,7 @@ def has_native_sqrt() -> bool:
 
 def has_native_pi_chudnovsky() -> bool:
     """True iff the rotation-last Chudnovsky π C symbols are loaded + bound
-    (0.9.0rc19+ lib): :func:`srmech.amsc.rational.pi_chudnovsky_digits`
+    (0.9.0rc19+ lib): :func:`srmech.math.rational.pi_chudnovsky_digits`
     dispatches to the exact-bigint native path. False on a no-C or pre-rc19
     lib — the pure-Python int-bignum body is the complete alternative (and the
     parity oracle); the two paths emit byte-identical ``"3.<digits>"``."""
@@ -8451,7 +8451,7 @@ def pi_chudnovsky_c(num_digits: int) -> "str | None":
 
 def has_native_pi_archimedes() -> bool:
     """True iff the projects-every-step Pfaff-Archimedes π C symbol is loaded +
-    bound (0.9.0rc157+ lib): :func:`srmech.amsc.rational.pi_cascade_digits`
+    bound (0.9.0rc157+ lib): :func:`srmech.math.rational.pi_cascade_digits`
     dispatches to the WHOLE two-mean chiral-pair loop in C. False on a no-C or
     pre-rc157 lib — the pure-Python fixed-point body is the complete alternative
     (and the parity oracle); the two paths emit byte-identical ``"3.<digits>"``."""
@@ -9443,7 +9443,7 @@ _BIGEXP_NATIVE_TERM_CAP = {
 def has_native_bigexp() -> bool:
     """True iff the rc35 bignum-exact transcendental series + the srmech_bigint
     decimal-marshal helpers are loaded + bound. False on a no-C or pre-rc35 lib
-    — the pure-Python bignum body in ``srmech.amsc.rational`` is the complete
+    — the pure-Python bignum body in ``srmech.math.rational`` is the complete
     alternative (and the parity oracle); both emit byte-identical ``(num,
     den)``."""
     if not (HAS_NATIVE and LIB is not None):
@@ -9517,7 +9517,7 @@ def has_native_bigint_isqrt() -> bool:
     """True iff the caller-arena srmech_bigint integer floor-sqrt C peer +
     the srmech_bigint decimal-marshal helpers are loaded + bound. False on a
     no-C lib — the pure-Python integer-Newton ``_py_isqrt`` in
-    ``srmech.amsc.rational`` is the complete alternative (floor √ is the UNIQUE
+    ``srmech.math.rational`` is the complete alternative (floor √ is the UNIQUE
     non-negative integer root, so both give the SAME int, byte-identical)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -9861,7 +9861,7 @@ def _bigexp_call(symbol: str, numerator: int, denominator: int,
     the pure-Python bignum oracle). A non-OK C status (other than absence)
     raises :class:`RuntimeError`. The operand/result rationals + the caller
     arena are all sized from the input magnitudes + ``num_terms`` so the bignum
-    path has NO ceiling (byte-identical to ``srmech.amsc.rational`` at any
+    path has NO ceiling (byte-identical to ``srmech.math.rational`` at any
     magnitude)."""
     if not has_native_bigexp() or not hasattr(LIB, symbol):
         return None
@@ -9951,7 +9951,7 @@ def bessel_j_fixed_c(order: int, numerator: int, denominator: int,
 def has_native_jacobi_sncndn() -> bool:
     """True iff the Jacobi elliptic sn/cn/dn C peer + the srmech_bigint decimal
     marshal helpers are loaded + bound. False on a no-C or pre-jacobi lib — the
-    pure-Python bignum body in ``srmech.amsc.rational`` is the complete
+    pure-Python bignum body in ``srmech.math.rational`` is the complete
     alternative (and the parity oracle); both emit byte-identical (sn, cn,
     dn)."""
     if not (HAS_NATIVE and LIB is not None):
@@ -9969,7 +9969,7 @@ def jacobi_sncndn_c(numerator: int, denominator: int,
     ``None`` when the native symbols are absent (caller falls through to the
     pure-Python bignum oracle). The operand/result rationals + the caller arena
     are all sized from the input magnitudes + ``num_terms`` so the bignum path
-    has NO ceiling (byte-identical to ``srmech.amsc.rational`` at any
+    has NO ceiling (byte-identical to ``srmech.math.rational`` at any
     magnitude)."""
     if not has_native_jacobi_sncndn():
         return None
@@ -13472,7 +13472,7 @@ def gosper_c(num_coeffs, den_coeffs):
 
 # ----------------------------------------------------------------------
 # rc176: srmech_infer — the F929 OPEN/infer ROUTER (the ORCHESTRATION→C spine,
-# batch 6; the CARRIER-FFI foundation). The Python srmech.amsc.dispatch.infer
+# batch 6; the CARRIER-FFI foundation). The Python srmech.math.dispatch.infer
 # marshals a clean-row relationship (cyclic / sigma-gosper) into JSON and routes
 # the DECISION through this; any other row / malformed operand / overflow falls to
 # the COMPLETE pure infer (the rc103 inform-don't-limit pattern). JSON in, a small
@@ -13493,7 +13493,7 @@ def has_native_infer() -> bool:
     """True iff the rc176 srmech_infer router + the reducers it composes
     (srmech_the_one / srmech_gosper) + the srmech_json parser + the bigint decimal
     marshal helper are loaded + bound. False on a no-C or pre-rc176 lib — the
-    pure-Python ``srmech.amsc.dispatch.infer`` body is the complete alternative
+    pure-Python ``srmech.math.dispatch.infer`` body is the complete alternative
     (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -16764,7 +16764,7 @@ def has_native_text_glyph_stream() -> bool:
     """True iff the rc287 srmech_text_glyph_stream C peer is loaded + bound:
     the UAX #29 per-codepoint grapheme-cluster segmentation loop runs in C
     (the enwiki-encode hot front). False on a no-C or pre-rc287 lib — the
-    pure-Python :func:`srmech.amsc.text.glyph_stream` body is the complete
+    pure-Python :func:`srmech.math.text.glyph_stream` body is the complete
     alternative (and the byte-identical parity oracle)."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_text_glyph_stream"))
@@ -16773,7 +16773,7 @@ def has_native_text_glyph_stream() -> bool:
 def has_native_text_fold_marks() -> bool:
     """True iff the rc293 srmech_text_fold_marks C peer is loaded + bound:
     the per-codepoint combining-mark fold runs in C. False on a no-C or
-    pre-rc293 lib — the pure-Python :func:`srmech.amsc.text.fold_marks` body
+    pre-rc293 lib — the pure-Python :func:`srmech.math.text.fold_marks` body
     is the complete alternative (and the byte-identical parity oracle),
     because BOTH projections read the same vendored table."""
     return bool(HAS_NATIVE and LIB is not None
@@ -16784,7 +16784,7 @@ def has_native_text_cooccurrence_edges() -> bool:
     """True iff the rc217 srmech_text_cooccurrence_edges C peer is loaded +
     bound: the §40 windowed pair-count accumulation + deterministic edge sort
     run in C. False on a no-C or pre-rc217 lib — the pure-Python
-    :func:`srmech.amsc.text.cooccurrence_edges` body is the complete
+    :func:`srmech.math.text.cooccurrence_edges` body is the complete
     alternative (and the byte-identical parity oracle)."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_text_cooccurrence_edges"))
@@ -16794,7 +16794,7 @@ def has_native_text_cooccurrence_edges_directed() -> bool:
     """True iff the rc248 srmech_text_cooccurrence_edges_directed C peer is
     loaded + bound: the directed=True (metric + charge) SUPERSET of the §40
     accumulation runs in C. False on a no-C or pre-rc248 lib — the pure-Python
-    :func:`srmech.amsc.text.cooccurrence_edges` directed branch is the complete
+    :func:`srmech.math.text.cooccurrence_edges` directed branch is the complete
     byte-identical alternative (#1390 item 1)."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_text_cooccurrence_edges_directed"))
@@ -16805,7 +16805,7 @@ def has_native_text_cooccurrence_topk() -> bool:
     its _extract read-out sibling are loaded + bound: the §52 bounded
     streaming encode (window pair accumulation + chunked merge/truncate +
     final top-K/edge read-out) runs in C. False on a no-C or pre-rc217 lib —
-    the pure-Python :func:`srmech.amsc.text.cooccurrence_topk` body is the
+    the pure-Python :func:`srmech.math.text.cooccurrence_topk` body is the
     complete alternative (and the byte-identical parity oracle)."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_text_cooccurrence_topk")
@@ -16861,7 +16861,7 @@ def has_native_spectral_recompose() -> bool:
 def has_native_klein4_fold() -> bool:
     """True iff the §50 native Klein-4 co-occurrence fold is loaded + bound
     (rc165+ lib): the corpus-linear windowed accumulation runs in C, so
-    :func:`srmech.amsc.hdc.cooccurrence_fold` builds the holographic store at
+    :func:`srmech.math.hdc.cooccurrence_fold` builds the holographic store at
     corpus scale (the §50.1 loopshelf/tome-leaf precondition). False on a no-C
     or pre-rc165 lib — the pure-Python fold is the complete alternative."""
     return bool(HAS_NATIVE and LIB is not None
@@ -16873,8 +16873,8 @@ def has_native_klein4_bind() -> bool:
     """True iff the Class-M klein4 CORE primitives — bind / bundle / similarity —
     are loaded + bound (UPSTREAM §53 / F818). The C (sector XOR-bind, per-bit
     majority-bundle, Hamming/sector similarity) ships in libsrmech and is
-    ctypes-bound; this gates the dispatch in :func:`srmech.amsc.hdc.klein4_bind`
-    / :func:`~srmech.amsc.hdc.klein4_bundle` / :func:`~srmech.amsc.hdc.klein4_similarity`.
+    ctypes-bound; this gates the dispatch in :func:`srmech.math.hdc.klein4_bind`
+    / :func:`~srmech.math.hdc.klein4_bundle` / :func:`~srmech.math.hdc.klein4_similarity`.
     The native path is ~100–1000× the pure-Python one at HDC dimension D≈10⁴, so a
     per-token HDC content-addressed walk (the F808 RBS-HDC recall) becomes viable
     as the live engine. False on a no-C lib — pure-Python is the complete
@@ -16893,7 +16893,7 @@ def has_native_klein4_triality_cycle() -> bool:
     of the so(8) 8v→8s→8c triality) — ships in libsrmech with the SAME forward /
     inverse 3-cycle tables as the pure-Python op, so the native path is
     bit-identical. Gates the dispatch in
-    :func:`srmech.amsc.hdc.klein4_triality_cycle`. False on a no-C lib — the
+    :func:`srmech.math.hdc.klein4_triality_cycle`. False on a no-C lib — the
     pure-Python relabel is the complete alternative."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_klein4_triality_cycle"))
@@ -16908,7 +16908,7 @@ def has_native_klein4_triality_cycle() -> bool:
 
 def has_native_hdc_bundle_with_ties() -> bool:
     """True iff the BSC ``srmech_hdc_bundle_with_ties`` (majority + tie surfaced,
-    any n_vectors) is loaded + bound (rc142). Gates :func:`srmech.amsc.hdc.
+    any n_vectors) is loaded + bound (rc142). Gates :func:`srmech.math.hdc.
     bundle_with_ties`; byte-identical to the pure fold. False on a no-C lib."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_hdc_bundle_with_ties"))
@@ -16917,16 +16917,16 @@ def has_native_hdc_bundle_with_ties() -> bool:
 def has_native_klein4_sector_flip() -> bool:
     """True iff the Klein-4 ``srmech_klein4_sector_flip`` (XOR-const chirality
     flip) is loaded + bound (rc142). Gates the dispatch in
-    :func:`~srmech.amsc.hdc.klein4_chirality_flip_gamma5` /
-    :func:`~srmech.amsc.hdc.klein4_chirality_flip_omega7` /
-    :func:`~srmech.amsc.hdc.klein4_cpt_mirror`. False on a no-C lib."""
+    :func:`~srmech.math.hdc.klein4_chirality_flip_gamma5` /
+    :func:`~srmech.math.hdc.klein4_chirality_flip_omega7` /
+    :func:`~srmech.math.hdc.klein4_cpt_mirror`. False on a no-C lib."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_klein4_sector_flip"))
 
 
 def has_native_klein4_sector_count() -> bool:
     """True iff the Klein-4 ``srmech_klein4_sector_count`` (per-sector occupancy)
-    is loaded + bound (rc142). Gates :func:`~srmech.amsc.hdc.klein4_sector_count`.
+    is loaded + bound (rc142). Gates :func:`~srmech.math.hdc.klein4_sector_count`.
     False on a no-C lib — the pure tally is the complete alternative."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_klein4_sector_count"))
@@ -16934,7 +16934,7 @@ def has_native_klein4_sector_count() -> bool:
 
 def has_native_klein4_holographic_encode() -> bool:
     """True iff ``srmech_klein4_holographic_encode`` (replica-major replication)
-    is loaded + bound (rc142). Gates :func:`~srmech.amsc.hdc.
+    is loaded + bound (rc142). Gates :func:`~srmech.math.hdc.
     klein4_holographic_encode`. False on a no-C lib."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_klein4_holographic_encode"))
@@ -16943,7 +16943,7 @@ def has_native_klein4_holographic_encode() -> bool:
 def has_native_klein4_holographic_decode() -> bool:
     """True iff ``srmech_klein4_holographic_decode`` (blind majority + known-
     erasure first-survivor) is loaded + bound (rc142). Gates
-    :func:`~srmech.amsc.hdc.klein4_holographic_decode`. False on a no-C lib."""
+    :func:`~srmech.math.hdc.klein4_holographic_decode`. False on a no-C lib."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_klein4_holographic_decode"))
 
@@ -16951,7 +16951,7 @@ def has_native_klein4_holographic_decode() -> bool:
 def has_native_klein4_triality_encode() -> bool:
     """True iff ``srmech_klein4_triality_encode`` (the order-3 orbit [v,Tv,T²v],
     composing the triality cycle) is loaded + bound (rc142). Gates
-    :func:`~srmech.amsc.hdc.klein4_triality_encode`. False on a no-C lib."""
+    :func:`~srmech.math.hdc.klein4_triality_encode`. False on a no-C lib."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_klein4_triality_encode"))
 
@@ -16959,7 +16959,7 @@ def has_native_klein4_triality_encode() -> bool:
 def has_native_klein4_triality_correct() -> bool:
     """True iff ``srmech_klein4_triality_correct`` (the 2-of-3 triality majority,
     composing the triality cycle) is loaded + bound (rc142). Gates
-    :func:`~srmech.amsc.hdc.klein4_triality_correct`. False on a no-C lib."""
+    :func:`~srmech.math.hdc.klein4_triality_correct`. False on a no-C lib."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_klein4_triality_correct"))
 
@@ -17059,8 +17059,8 @@ def has_native_arithmetic_encode() -> bool:
 def has_native_fiedler_sparse() -> bool:
     """True iff the §51 native sparse normalized-cut Fiedler is loaded + bound
     (rc166+ lib): the matvec power iteration runs in C (n unbounded, caller-
-    arena, no caps), so :func:`srmech.amsc.laplacian.fiedler_sparse` /
-    :func:`~srmech.amsc.laplacian.normalized_cut_bisect` partition a >256-node
+    arena, no caps), so :func:`srmech.math.laplacian.fiedler_sparse` /
+    :func:`~srmech.math.laplacian.normalized_cut_bisect` partition a >256-node
     graph past the dense-eigensolver wall (issue #1097). False on a no-C or
     pre-rc166 lib — the pure-Python cascade is the complete alternative."""
     return bool(HAS_NATIVE and LIB is not None
@@ -17071,7 +17071,7 @@ def has_native_spectral_spine() -> bool:
     """True iff the rc204 native spectral-spine composite is loaded + bound
     (gh#1324): the (signed) Laplacian build + dominant-eigenvector top-|component|
     selection runs in C (caller-arena, no malloc), so
-    :func:`srmech.amsc.laplacian.spectral_spine` dispatches to the C twin. False
+    :func:`srmech.math.laplacian.spectral_spine` dispatches to the C twin. False
     on a no-C or pre-rc204 lib — the pure-Python cascade (signed_laplacian +
     symmetric_eigendecompose + top-k) is the complete alternative."""
     return bool(HAS_NATIVE and LIB is not None
@@ -17083,7 +17083,7 @@ def has_native_klein4_gain_laplacian() -> bool:
     """True iff the rc229 V4-gain (Klein-4-sector) Laplacian builder C peer is
     loaded + bound (#687): the four real signed sector Laplacians
     L_chi = D̄ − χ(g_e)·A build in one C call, so
-    :func:`srmech.amsc.laplacian.klein4_gain_laplacian` dispatches to the C
+    :func:`srmech.math.laplacian.klein4_gain_laplacian` dispatches to the C
     twin. False on a no-C or pre-rc229 lib — the pure-Python cascade (four
     signed_laplacian builds on the χ-transformed weights) is the complete
     alternative."""
@@ -17094,7 +17094,7 @@ def has_native_klein4_gain_laplacian() -> bool:
 def has_native_cycle_holonomy() -> bool:
     """True iff the rc229 cycle_holonomy C peer is loaded + bound (#687): the
     exact int64-rational fundamental-cycle net charges (spanning forest → mod-1
-    cycle sums) run in C, so :func:`srmech.amsc.laplacian.cycle_holonomy`
+    cycle sums) run in C, so :func:`srmech.math.laplacian.cycle_holonomy`
     dispatches to the C twin. False on a no-C / pre-rc229 lib, or when a charge
     magnitude exceeds the int64 limit (the pure-Python exact Fraction path is
     the complete alternative)."""
@@ -17119,7 +17119,7 @@ def has_native_fiedler_sparse_file() -> bool:
     """True iff the §52 Part 2 native OUT-OF-CORE streaming Fiedler is loaded +
     bound (rc168+ lib): the matvec power iteration runs in C reading the
     adjacency from a packed edge FILE via the PAL — only the O(n) working
-    vectors are resident, so :func:`srmech.amsc.laplacian.fiedler_sparse_file`
+    vectors are resident, so :func:`srmech.math.laplacian.fiedler_sparse_file`
     partitions a graph whose edge list does not fit RAM (F793 low-RAM encode).
     False on a no-C or pre-rc168 lib — the pure-Python path (read the file in,
     run the in-RAM cascade) is the complete alternative (correct, not bounded)."""
@@ -17191,7 +17191,7 @@ def has_native_recursive_cut() -> bool:
 
 def recursive_cut_c(n, edges_path, work_dir, max_tome, max_iters, max_depth,
                     paths_cap, progress=None):
-    """§100 G1 native dispatch for :func:`srmech.amsc.laplacian.recursive_cut`.
+    """§100 G1 native dispatch for :func:`srmech.math.laplacian.recursive_cut`.
 
     Calls ``srmech_laplacian_recursive_cut``, which writes the tome files itself
     and reports each tome's path + node count. Returns
@@ -17259,7 +17259,7 @@ def genome_graph_partition_c(n, edges_path, work_dir, max_tome, n_bins, max_iter
                              max_depth, paths_cap, progress=None):
     """§100 G3 native dispatch for :func:`srmech.amsc.genome.genome_partition` (the
     GRAPH op). Runs the WHOLE partition in C: ``srmech_laplacian_recursive_cut`` over
-    ``edges_path`` (a :func:`~srmech.amsc.laplacian.write_packed_graph` edge file),
+    ``edges_path`` (a :func:`~srmech.math.laplacian.write_packed_graph` edge file),
     then the exact-integer participation, the antimode histogram DECISION, per-node
     classify and group assembly.
 
@@ -19315,7 +19315,7 @@ def has_native_eulerian() -> bool:
     """True iff the rc250 srmech_eulerian_walk C peer is loaded + bound: the
     #1390 item-3 Hierholzer Eulerian trail / circuit runs in C (integer nodes).
     False on a no-C or pre-rc250 lib — the pure
-    srmech.amsc.laplacian.eulerian_path / eulerian_circuit bodies are the
+    srmech.math.laplacian.eulerian_path / eulerian_circuit bodies are the
     complete byte-identical alternative + parity oracle."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_eulerian_walk"))

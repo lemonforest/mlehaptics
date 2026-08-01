@@ -43,7 +43,7 @@ import pytest
 from tests._native_gate import require_native
 from srmech.amsc import _native
 from srmech.amsc import plasmid as P
-from srmech.amsc.hdc import klein4_expand
+from srmech.math.hdc import klein4_expand
 
 _DIM = 64
 _OLD_STATIC_ARENA = 32 * 1024 * 1024        # the removed SRMECH_GENOME_SC_ARENA_BYTES

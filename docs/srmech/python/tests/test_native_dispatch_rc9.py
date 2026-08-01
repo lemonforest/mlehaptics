@@ -21,7 +21,7 @@ import pytest
 
 from srmech.amsc import _native
 from srmech.amsc import format as _format
-from srmech.amsc import rational as R
+from srmech.math import rational as R
 from srmech.amsc.q import Q
 
 native_trans = pytest.mark.skipif(

@@ -35,7 +35,7 @@ sys.path.insert(0, "docs/srmech/rbs_lm_research")
 
 torch.set_num_threads(16)
 
-from srmech.amsc.hdc import bind, bundle, similarity  # noqa: E402
+from srmech.math.hdc import bind, bundle, similarity  # noqa: E402
 from srmech.signal_processing.rbs_hdc_instrument import mint_vector  # noqa: E402
 
 # Pull the corpus + prompts from R-RBS-LM-14's runner

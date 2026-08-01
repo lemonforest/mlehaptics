@@ -17,7 +17,7 @@ from __future__ import annotations
 import pytest
 
 from srmech.amsc import _native
-from srmech.amsc import laplacian as _lap
+from srmech.math import laplacian as _lap
 
 _S = [[3.0, 1.0, 0.0], [1.0, 2.0, -1.0], [0.0, -1.0, 4.0]]
 # Oracle: srmech's OWN pure-Python Jacobi cascade (the substrate-native

@@ -18,7 +18,7 @@ Why these are banned:
     idiom is the CLAUDE.md STOP-list contaminant (a statistical-LM tell). The
     framework answer is the attested cascade surface: ``cooccurrence_topk`` /
     ``dense_laplacian`` for counts→edges, the Class-M resonator over ``M`` for
-    grounding (see ``srmech.amsc.text`` and the §57 ``rbs_lm.inference`` fix).
+    grounding (see ``srmech.math.text`` and the §57 ``rbs_lm.inference`` fix).
 
 This is **AST-based**: it flags real import statements, attribute access
 (``np.…``), and name references (``Counter(...)`` / ``defaultdict(...)``) — and

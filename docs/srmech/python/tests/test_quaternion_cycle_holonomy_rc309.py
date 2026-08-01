@@ -1,7 +1,7 @@
 """rc309 (#944 follow-on) — quaternion_cycle_holonomy: the k=2 discrete
 holonomy channel over the quaternion units Q8 (the ℍ which-way / Lk-analog
 reader). The NON-ABELIAN generalization of the abelian
-``srmech.amsc.laplacian.cycle_holonomy``.
+``srmech.math.laplacian.cycle_holonomy``.
 
 The load-bearing test is ``test_regauge_invariance_proof_gate`` — the rc309
 PROOF GATE. Only the *conjugacy class* of a non-abelian cycle product is

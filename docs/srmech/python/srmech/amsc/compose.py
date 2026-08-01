@@ -83,19 +83,19 @@ ENGINE_SCHEMA_VERSION: int = 1
 # Class → module mapping (Phase 1 §5).
 DEFAULT_CLASS_REGISTRY: Dict[str, str] = {
     "A": "srmech.amsc.format",
-    "B": "srmech.amsc.tlv",
+    "B": "srmech.math.tlv",
     "C": "srmech.amsc.format",
-    "D": "srmech.amsc.dispatch",
+    "D": "srmech.math.dispatch",
     "E": "srmech.amsc.catalog",
-    "F": "srmech.amsc.template",
-    "G": "srmech.amsc.search",
+    "F": "srmech.math.template",
+    "G": "srmech.math.search",
     "H": "srmech.amsc._native",
-    "I": "srmech.amsc.cyclic",
-    "J": "srmech.amsc.primes",
+    "I": "srmech.math.cyclic",
+    "J": "srmech.math.primes",
     "K": "srmech.math.kepler",
-    "L": "srmech.amsc.laplacian",
-    "M": "srmech.amsc.hdc",
-    "N": "srmech.amsc.rational",
+    "L": "srmech.math.laplacian",
+    "M": "srmech.math.hdc",
+    "N": "srmech.math.rational",
 }
 
 # Legal error-policy values.
@@ -573,7 +573,7 @@ def _resolve_args(
 
 _NATIVE_MISS = object()   # sentinel: C did NOT run (distinct from a None result)
 
-# The op names the C dispatch table covers — ALL Class N (srmech.amsc.rational).
+# The op names the C dispatch table covers — ALL Class N (srmech.math.rational).
 _RUN_C_OPS = frozenset({
     "pi_cascade_digits",
     "exp_series_truncate", "sin_series_truncate", "cos_series_truncate",
@@ -863,7 +863,7 @@ def greedy_bipartite_alignment(table_a, table_b, similarity_fn):
 
     A composition utility (greedy argmax + used-set), NOT an A–N primitive — it
     composes over whatever similarity the caller supplies (e.g.
-    :func:`srmech.amsc.hdc.similarity`); lives in the compose layer rather than
+    :func:`srmech.math.hdc.similarity`); lives in the compose layer rather than
     a class module for that reason.
     """
     # rc154 (BATCH B10, ``composition_of_c``): greedy argmax + used-set is a pure

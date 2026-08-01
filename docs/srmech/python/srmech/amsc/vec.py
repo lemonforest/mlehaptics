@@ -158,7 +158,7 @@ class Vec:
         numpy's own contraction. ``Vec·Vec`` (or a flat 1-D sequence) → a scalar
         inner product ``Σ aᵢ bᵢ``; ``Vec·Mat`` (row-vector · matrix) →
         :class:`Vec`. Format-preserving (rc130)."""
-        from . import laplacian as _L  # lazy (avoid import cycle)
+        from ..math import laplacian as _L  # lazy (avoid import cycle)
         from .mat import Mat, _is_matrix_like, _carrier_is_complex
         cplx = self._complex or _carrier_is_complex(other)
         if _is_matrix_like(other):
@@ -173,7 +173,7 @@ class Vec:
         """``B·v`` for a non-:class:`Vec` left operand: a 2-D sequence →
         ``M·v`` (a :class:`Vec`); a flat 1-D sequence → the scalar inner
         product. (``Mat·Vec`` is served by :meth:`Mat.__matmul__`.)"""
-        from . import laplacian as _L  # lazy (avoid import cycle)
+        from ..math import laplacian as _L  # lazy (avoid import cycle)
         from .mat import _is_matrix_like, _carrier_is_complex
         cplx = self._complex or _carrier_is_complex(other)
         if _is_matrix_like(other):

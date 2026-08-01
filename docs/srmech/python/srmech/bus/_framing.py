@@ -2,7 +2,7 @@
 
 Per spec rc1: 4-byte big-endian length prefix + payload bytes.
 Simpler than the 5-byte ``[tag][len BE-u32][value]`` format used by
-:mod:`srmech.amsc.tlv` (which is for tagged-record hashing) — the bus
+:mod:`srmech.math.tlv` (which is for tagged-record hashing) — the bus
 needs only framing-on-a-byte-stream, no tag dimension; the
 :class:`~srmech.bus._event.Event` carries the type discriminator in
 its JSON payload.
@@ -14,7 +14,7 @@ Framework reading: Class B (TLV / type-length-value framing)
 projected onto a byte-stream transport. The 4-byte big-endian length
 is the conventional wire-format byte order for tagged records;
 matches the length-field byte order in
-:func:`srmech.amsc.tlv.tlv_pack`.
+:func:`srmech.math.tlv.tlv_pack`.
 """
 
 from __future__ import annotations

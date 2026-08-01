@@ -45,7 +45,7 @@ import pytest
 from srmech.amsc.tool_schema import get_tool_schema
 from srmech.amsc.mat import Mat
 from srmech.amsc.vec import Vec
-from srmech.amsc import laplacian as L
+from srmech.math import laplacian as L
 from srmech.mcp import invoke_tool
 
 # Reuse the SAME synth harness the §10.1 every-tool smoke uses (single source of
@@ -365,7 +365,7 @@ def test_carrier_typed_params_accept_degenerate_forms_numpy_free():
     shapes (list-of-lists, tuple-of-rows, flat list, ``array.array``). numpy-free."""
     from array import array as _array
     from srmech.amsc.hv import HV
-    from srmech.amsc import hdc
+    from srmech.math import hdc
 
     # ── Mat-typed param (A): a Mat OR list-of-lists OR tuple-of-rows ──
     rows = [[2.0, 0.0], [0.0, 3.0]]
@@ -467,10 +467,10 @@ def test_immolation_is_itself_numpy_free():
         )
         # (b) a carrier-flipped op invoked via the wire path returns the carrier,
         #     and the observed type AGREES with the advertised type — numpy-absent.
-        entry = schema.lookup("srmech.amsc.laplacian.dense_solve")
+        entry = schema.lookup("srmech.math.laplacian.dense_solve")
         assert entry is not None
         raw = invoke_tool(
-            "srmech.amsc.laplacian.dense_solve",
+            "srmech.math.laplacian.dense_solve",
             {"A": [[2.0, 0.0], [0.0, 3.0]], "B": [[1.0, 0.0], [0.0, 1.0]]},
         )
         assert isinstance(raw, Mat)

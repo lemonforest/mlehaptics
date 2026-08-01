@@ -177,12 +177,12 @@ class QMat:
         (:meth:`Q.from_float` — no precision lost vs the float, possibly a large
         power-of-two denominator). A ``max_denominator`` instead SNAPS each entry
         to the best rational with denominator ≤ that bound (Class-N
-        :func:`srmech.amsc.rational.best_rational`), de-noising the float64
+        :func:`srmech.math.rational.best_rational`), de-noising the float64
         round-off (e.g. ``0.1 → 1/10``)."""
         if max_denominator is None:
             return cls.__new__(cls)._init_from(
                 _coerce_rows(rows, allow_float=True))
-        from . import rational as _rational
+        from ..math import rational as _rational
         snapped: List[List[Q]] = []
         n_cols = None
         for r in rows:
@@ -418,7 +418,7 @@ class QMat:
 
         1. **Reduce per prime.** For an odd prime ``p`` (``2 < p < 2**31``) reduce
            each entry ``num/den`` to ``(num * den^{-1}) mod p`` via the Class-I
-           :func:`srmech.amsc.cyclic.mod_inv`. A prime dividing ANY denominator is
+           :func:`srmech.math.cyclic.mod_inv`. A prime dividing ANY denominator is
            *skipped* (the modular image of that entry is undefined).
         2. **Eliminate (swell-free).** Run the bounded machine-int
            :func:`srmech.math.modular_linalg.gf_rref` over GF(p) -> the RREF mod
@@ -431,7 +431,7 @@ class QMat:
         4. **Combine + reconstruct once.** For each entry position
            :func:`srmech.math.modular_linalg.crt_combine` the per-prime residues
            -> a residue mod ``prod(good primes)``; then the Class-N
-           :func:`srmech.amsc.rational.rational_reconstruct` recovers the exact
+           :func:`srmech.math.rational.rational_reconstruct` recovers the exact
            ``Q`` entry.
         5. **Early termination (stabilization).** Keep adding good primes until the
            reconstructed rational matrix is IDENTICAL across two consecutive good-
@@ -759,10 +759,10 @@ def _use_crt(n_rows: int, n_cols: int, method: str) -> bool:
 def _gf_primes():
     """Yield distinct odd primes ``p`` with ``2 < p < 2**31`` (valid ``gf_rref``
     moduli), largest-first. Composes the Class-J primality test (via
-    :func:`srmech.amsc.primes.is_prime`) over the descending odd candidates — the
+    :func:`srmech.math.primes.is_prime`) over the descending odd candidates — the
     same primitive ``next_prime`` rides, walked downward to stay inside the field
     ceiling (``next_prime`` walks UP and would immediately exceed ``2**31``)."""
-    from . import primes as _primes
+    from ..math import primes as _primes
     cand = _GF_P_SEED
     if cand % 2 == 0:
         cand -= 1
@@ -777,7 +777,7 @@ def _entries_mod_p(rows, p: int):
     GF(p), or ``None`` if ``p`` divides any denominator (an *undefined* modular
     image — the prime must be skipped). Class-I ``mod_inv`` composition; the
     residues land in ``[0, p)``. Returns a list-of-lists of ``int`` residues."""
-    from . import cyclic as _cyclic
+    from ..math import cyclic as _cyclic
     out = []
     for r in rows:
         rr = []
@@ -844,7 +844,7 @@ def _rref_crt_rows(src_rows, n_rows: int, n_cols: int, n_cols_left: int):
     descending prime field, with the Class-N ``rational_reconstruct`` closing each
     entry; Class-K consensus + sign throughout. No float, no numpy, no ``math``."""
     from ..math import modular_linalg as _ml
-    from . import rational as _rational
+    from ..math import rational as _rational
 
     n_cells = n_rows * n_cols
     consensus = None                              # (rank, tuple(pivots))
@@ -949,8 +949,8 @@ def _det_mod_p(residues, n: int, p: int, _ml) -> int:
     (an integer ``±1`` flipped on each row swap, never an ALU ``abs()``). Returns
     the determinant residue in ``[0, p)`` (``0`` iff ``A`` is singular mod ``p``).
     Class-I modular arithmetic composing the cyclic-group primitives."""
-    from .cyclic import mod_inv as _mi
-    from .cyclic import mod_mul as _mm
+    from ..math.cyclic import mod_inv as _mi
+    from ..math.cyclic import mod_mul as _mm
     m = [[v % p for v in row] for row in residues]
     sign = 1                                       # Class-K pin-slot (±1)
     prod = 1
@@ -988,7 +988,7 @@ def _det_crt(src_rows, n: int):
     bounded memory. Returns the exact :class:`~srmech.amsc.q.Q`, or ``None`` if the
     prime field exhausts without stabilizing (not hit for a finite answer)."""
     from ..math import modular_linalg as _ml
-    from . import rational as _rational
+    from ..math import rational as _rational
 
     good_residues: List[int] = []
     good_moduli: List[int] = []

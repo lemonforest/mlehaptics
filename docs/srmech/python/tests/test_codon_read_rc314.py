@@ -28,7 +28,7 @@ from srmech.amsc.genome import (
     codon_frame_monodromy,
     codon_read,
 )
-from srmech.amsc.hdc import klein4_triality_cycle
+from srmech.math.hdc import klein4_triality_cycle
 from srmech.amsc.q8 import q8_project_v4
 
 # Base labelling of the read layer: coset 0->U/T, 1->C, 2->A, 3->G (CODON_BASES).

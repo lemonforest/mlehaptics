@@ -57,7 +57,8 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc import _native, hdc
+from srmech.amsc import _native
+from srmech.math import hdc
 from srmech.amsc import genome as G
 
 _DIM = 64

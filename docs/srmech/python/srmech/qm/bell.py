@@ -22,7 +22,7 @@ Class       Role in Bell-CHSH
 ==========  ==================================================================
 **L**       Pauli operator commutator algebra; Hermitian eigendecomposition
             for ``‖S₂‖`` (largest absolute eigenvalue). Uses
-            :func:`srmech.amsc.laplacian.hermitian_eigendecompose`.
+            :func:`srmech.math.laplacian.hermitian_eigendecompose`.
 **I**       Clifford-circuit phase factors. Tsirelson's optimal measurement
             angles factor through cyclic-group rotations of the 1-qubit
             Bloch sphere (π/4-rotations realising the √2 factor).
@@ -108,8 +108,8 @@ from __future__ import annotations
 
 from typing import Tuple
 
-from srmech.amsc.rational import sqrt as _rsqrt  # §22: scalar root via Class-N
-from srmech.amsc.laplacian import mat_hermitian_eigendecompose
+from srmech.math.rational import sqrt as _rsqrt  # §22: scalar root via Class-N
+from srmech.math.laplacian import mat_hermitian_eigendecompose
 from srmech.amsc.mat import Mat
 from srmech.qm.spin import pauli_matrices
 
@@ -262,7 +262,7 @@ def operator_norm(H) -> float:
 
     numpy-FREE (v0.7.5rc115) — accepts a :class:`~srmech.amsc.mat.Mat`, an
     ``ndarray``, or a list-of-rows. Computed via the unconditionally numpy-free
-    native :func:`srmech.amsc.laplacian.mat_hermitian_eigendecompose` (Class L
+    native :func:`srmech.math.laplacian.mat_hermitian_eigendecompose` (Class L
     primitive — native Jacobi C path + pure-Python fallback). For a Hermitian
     operator this equals the L²-induced operator norm ``‖H‖``.
 

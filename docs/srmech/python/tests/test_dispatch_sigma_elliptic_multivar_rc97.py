@@ -8,7 +8,7 @@ CONSTRUCTIVE reduction (the resonant_spectrum precedent). numpy-free.
 
 import pytest
 
-from srmech.amsc import dispatch
+from srmech.math import dispatch
 from srmech.apokatastasis.ellbase import EllMonomial as M, EllRatio
 from srmech.apokatastasis.elliptic_jackson import multivariate_elliptic_jackson
 

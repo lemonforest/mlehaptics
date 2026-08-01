@@ -281,7 +281,7 @@ def _lift_spectrum(spectrum: ExactSpectrum, n: int, *, scale: int = 1) -> List[c
     core above carries no float dependency (numpy-absent-safe; ``cexp`` /
     ``atan`` are pure-Python Class-N — and ``atan`` is C-dispatched — no numpy).
     """
-    from srmech.amsc.rational import cexp, atan as _atan
+    from srmech.math.rational import cexp, atan as _atan
 
     if not spectrum:
         return []

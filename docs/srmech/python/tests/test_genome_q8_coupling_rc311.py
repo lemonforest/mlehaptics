@@ -42,7 +42,7 @@ from srmech.amsc.genome import (
     recover_diploid,
     telomere,
 )
-from srmech.amsc.hdc import klein4_bind
+from srmech.math.hdc import klein4_bind
 from srmech.amsc.hv import HV
 from srmech.amsc.q8 import q8_bind, q8_conjugate, q8_mult, q8_project_v4
 

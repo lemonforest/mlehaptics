@@ -3,9 +3,9 @@
 Per ``docs/srmech/notes/continuous_math_as_14_class_cascade.md``: the matrix
 factorizations and solvers are not numpy-``linalg`` primitives, they are
 compositions of the 14 A-N class operations built on srmech's own roots
-(:func:`srmech.amsc.rational.sqrt` / :func:`~srmech.amsc.rational.hypot`) and
+(:func:`srmech.math.rational.sqrt` / :func:`~srmech.math.rational.hypot`) and
 its own Hermitian eigendecomposition
-(:func:`srmech.amsc.laplacian.hermitian_eigendecompose`, the cyclic-Jacobi
+(:func:`srmech.math.laplacian.hermitian_eigendecompose`, the cyclic-Jacobi
 Class-L cascade). numpy is **not used at all** — not as the decomposition
 engine and not as the array CONTAINER either. The containers are plain nested
 Python lists and the numpy-free :class:`~srmech.amsc.mat.Mat` carrier, which
@@ -18,7 +18,7 @@ family anywhere in the call graph.
   (**Class M**) of elementary orthogonal reflectors ``H = I − β v vᴴ``; each
   reflector is **Class K** (the sign-flip across a hyperplane) ∘ **Class M**
   (the outer-product ``v vᴴ`` bind) ∘ **Class N** (the ``2/(vᴴv)`` scale,
-  with the column norm a :func:`~srmech.amsc.rational.sqrt`). The Householder
+  with the column norm a :func:`~srmech.math.rational.sqrt`). The Householder
   phase choice ``α = −phase·‖x‖`` is the **Class K** pin-slot that avoids
   cancellation.
 - :func:`svd` — ``A = U·Σ·Vᴴ`` reached from the Hermitian eigendecomposition
@@ -51,7 +51,7 @@ from typing import Dict, List, Tuple
 
 # numpy-FREE (#564): the matrix factorisations operate on, and return, plain
 # nested Python lists (matrices) / flat lists (vectors / eigenvalues). The heavy
-# numpy-free engines live in :mod:`srmech.amsc.laplacian` over the
+# numpy-free engines live in :mod:`srmech.math.laplacian` over the
 # :class:`~srmech.amsc.mat.Mat` carrier (native-dispatched, no numpy): ``svd`` /
 # ``lstsq`` / ``eigvals`` delegate to ``mat_svd`` / ``mat_lstsq`` / ``mat_eigvals``;
 # ``qr`` is a list-based Householder; ``einsum`` is the nested-list
@@ -59,15 +59,15 @@ from typing import Dict, List, Tuple
 from srmech.amsc import _native as _native  # rc140: real QR/SVD C dispatch (F2)
 from srmech.amsc.mat import Mat as _Mat
 from srmech.amsc.vec import Vec as _Vec  # rc131: 1-D carrier for singular values / vector solutions / eigenvalues
-from srmech.amsc.laplacian import (
+from srmech.math.laplacian import (
     _cmax_component,  # rc285: exact magnitude proxy for the reflector's scaling
     mat_eigvals as _mat_eigvals,
     mat_lstsq as _mat_lstsq,
     mat_matmul as _mat_matmul,  # rc155: route the 2-operand contraction through C
     mat_svd as _mat_svd,
 )
-from srmech.amsc.rational import hypot as _rhypot
-from srmech.amsc.rational import sqrt as _rsqrt
+from srmech.math.rational import hypot as _rhypot
+from srmech.math.rational import sqrt as _rsqrt
 
 __all__ = ["qr", "svd", "lstsq", "einsum", "eigvals", "char_poly", "eigvals_exact",
            "eigvec_exact", "eigvec_exact_float", "factor_integer_poly", "lll_reduce",
@@ -127,7 +127,7 @@ def _real_of(nested):
 def _norm2(v: List[complex]) -> float:
     """Euclidean norm ‖v‖ = √(vᴴv) via the Class-N sqrt cascade — numpy-free.
     The sum-of-squares ``vᴴv = Σ|vᵢ|²`` is a Class-M self-bind; the root is
-    :func:`srmech.amsc.rational.sqrt` (no ``abs``, no numpy norm engine)."""
+    :func:`srmech.math.rational.sqrt` (no ``abs``, no numpy norm engine)."""
     sq = 0.0
     for vi in v:
         z = complex(vi)
@@ -247,7 +247,7 @@ def qr(a, *, mode: str = "reduced") -> Tuple["_Mat", "_Mat"]:
 def svd(a, *, full_matrices: bool = False) -> Tuple["_Mat", "_Vec", "_Mat"]:
     """Singular value decomposition ``A = U·diag(s)·Vᴴ`` (numpy-free).
 
-    Delegates to the Mat-carrier :func:`srmech.amsc.laplacian.mat_svd` (Gram
+    Delegates to the Mat-carrier :func:`srmech.math.laplacian.mat_svd` (Gram
     ``AᴴA`` Hermitian-eigen route, native-dispatched, numpy-free) and slices its
     full ``(m, m)`` / ``(n, n)`` factors down to the reduced form.
 
@@ -351,7 +351,7 @@ def lstsq(a, b):
     back-substituted ``R x = Qᵀ b`` (Golub & Van Loan §5.3.3), which does NOT
     square the condition number. **Complex** input, a rank-deficient ``R``
     (zero pivot), or a host with no native library falls back to the
-    Mat-carrier :func:`srmech.amsc.laplacian.mat_lstsq` normal equations
+    Mat-carrier :func:`srmech.math.laplacian.mat_lstsq` normal equations
     ``(AᴴA)⁻¹Aᴴb`` — the complete alternative and the parity oracle. (This
     paragraph read "delegates to ``mat_lstsq``" unconditionally until rc353;
     that predated the rc140 QR routing and was stale — the ``ToolEntry``
@@ -413,7 +413,7 @@ def lstsq(a, b):
 def _einsum_pair_via_matmul(labelsA, A, labelsB, B, outspec, sizes):
     """rc155: the TWO-operand contraction ``einsum(labelsA,labelsB->outspec)``
     re-expressed as a single dense matmul through the c_dispatched
-    :func:`srmech.amsc.laplacian.mat_matmul` (``srmech_dense_matmul_complex``),
+    :func:`srmech.math.laplacian.mat_matmul` (``srmech_dense_matmul_complex``),
     or ``None`` when the spec is not a clean pairwise contraction (a diagonal /
     single-operand sum / batch index → the caller falls back to the general
     index-iteration).
@@ -492,7 +492,7 @@ def einsum(subscripts: str, *operands):
 
     rc155 (BATCH B-residue): a clean TWO-operand contraction routes its Class-M
     sum-of-products bundle through the c_dispatched
-    :func:`srmech.amsc.laplacian.mat_matmul` (``srmech_dense_matmul_complex``,
+    :func:`srmech.math.laplacian.mat_matmul` (``srmech_dense_matmul_complex``,
     via :func:`_einsum_pair_via_matmul`) — so matmul / matvec / dot / outer /
     rank-n contraction ride the C matmul foundation (``composition_of_c``,
     within-tol). Single-operand specs (trace / transpose) and diagonals /
@@ -629,7 +629,7 @@ def _nd_set(o, idx: Tuple[int, ...], value) -> None:
 def eigvals(a, *, max_sweeps: int = 500) -> "_Vec":
     """Eigenvalue MULTISET of a general (non-Hermitian) square matrix (numpy-free).
 
-    Delegates to the Mat-carrier :func:`srmech.amsc.laplacian.mat_eigvals` — the
+    Delegates to the Mat-carrier :func:`srmech.math.laplacian.mat_eigvals` — the
     shifted-QR iteration (**Class K** iterate-to-convergence ∘ **Class L**
     spectral content ∘ ``{QR}`` Householder ∘ **Class C** Wilkinson shift) in
     plain ``complex`` lists, native-dispatched ``RQ`` recombination, no numpy.
@@ -1299,7 +1299,7 @@ def eigvals_exact(a, *, bits: int = 64, return_intervals: bool = False,
     ``complex`` is the single terminal projection of the certified box center (the
     exact-substrate object is the integer char-poly + the certified isolating box).
     This is exact isolation — qualitatively distinct from the unconditioned float-QR
-    spectrum of :func:`~srmech.amsc.laplacian.mat_eigvals` (which is not consulted
+    spectrum of :func:`~srmech.math.laplacian.mat_eigvals` (which is not consulted
     here at all). Conjugate symmetry holds (``a+bi`` with ``b>0`` pairs with
     ``a−bi``). Returns
     **all n** eigenvalues with multiplicity: the reals first (ascending, as
@@ -2147,7 +2147,7 @@ def _jordan_chains_native(a, lam):
 #      cofactor, and trial-divide f over ℤ; a clean division peels off a true
 #      irreducible factor.
 # All EXACT integer / Fraction arithmetic — no float, no ``math`` (gcd routes
-# through srmech.amsc.cyclic.gcd, sign-handled). Refs: D. E. Knuth, *TAOCP* Vol. 2
+# through srmech.math.cyclic.gcd, sign-handled). Refs: D. E. Knuth, *TAOCP* Vol. 2
 # §4.6.2 (factorisation of polynomials); J. von zur Gathen & J. Gerhen, *Modern
 # Computer Algebra*, ch. 15 (factoring over finite fields) + ch. 16 (Hensel lifting
 # + short-vector / Zassenhaus recombination).
@@ -2164,7 +2164,7 @@ def _ipoly_trim(p: List[int]) -> List[int]:
 def _int_gcd(a: int, b: int) -> int:
     """Sign-safe Class-I Euclidean gcd over ℤ (``cyclic.gcd`` takes magnitudes;
     sign is the Class-K pin-slot re-applied here, never an ALU ``abs``)."""
-    from srmech.amsc.cyclic import gcd as _cyclic_gcd
+    from srmech.math.cyclic import gcd as _cyclic_gcd
     return _cyclic_gcd(_mag(a), _mag(b))
 
 
@@ -2891,7 +2891,7 @@ def _factor_square_free_primitive(f: List[int], *, subset_cap: int = 18
             return native
 
     # 1. choose a prime p ∤ lead with f square-free mod p.
-    from srmech.amsc.primes import is_prime
+    from srmech.math.primes import is_prime
     lead = f[-1]
     prime = None
     cand = 3
@@ -3052,8 +3052,8 @@ def factor_integer_poly(coeffs):
        hang; every phase emits byte-identically.
 
     All EXACT integer / ``fractions.Fraction`` arithmetic — no float, no ``math``
-    module (gcd routes through ``srmech.amsc.cyclic.gcd``; primality through
-    ``srmech.amsc.primes.is_prime``). Refs: D. E. Knuth, *The Art of Computer
+    module (gcd routes through ``srmech.math.cyclic.gcd``; primality through
+    ``srmech.math.primes.is_prime``). Refs: D. E. Knuth, *The Art of Computer
     Programming* Vol. 2 §4.6.2; J. von zur Gathen & J. Gerhard, *Modern Computer
     Algebra*, ch. 15–16 (factoring over finite fields + Hensel lifting + Zassenhaus
     recombination).

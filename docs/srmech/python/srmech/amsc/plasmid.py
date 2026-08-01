@@ -58,7 +58,7 @@ from . import genome as _genome
 # SEES that the plasmid surface reaches C-backed peers — a `_genome.op()` module-
 # attribute call is opaque to the walker; a bare-name reference resolves).
 from .genome import genome_census, genome_window, kernel_unpack
-from .text import cooccurrence_topk
+from ..math.text import cooccurrence_topk
 
 __all__ = ["plasmid_extract", "section_counts", "conserved_core",
            "genome_integrate_plasmids", "add_plasmid", "SectionCountsCancelled"]
@@ -185,7 +185,7 @@ def plasmid_extract(docs, section_store, coupling, *, vocab=None, window=2, k=20
     """STAGE 1 EXTRACT — stream ``docs`` into APPEND-ONLY plasmid sections.
 
     Each document (a token sequence) becomes ONE Tier-1 plasmid chromosome: its
-    LOCAL window co-occurrence graph (:func:`srmech.amsc.text.cooccurrence_topk`,
+    LOCAL window co-occurrence graph (:func:`srmech.math.text.cooccurrence_topk`,
     ``window`` / top-``k`` / ``cap_slack``), encoded to a §89 KERNEL chromosome with
     GLOBAL node-ids (via the append-only ``vocab``), APPENDED to ``section_store``
     (a genome directory) in O(1). The first document SEEDS the store

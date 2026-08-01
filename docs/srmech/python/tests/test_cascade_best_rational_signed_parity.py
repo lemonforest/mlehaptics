@@ -79,7 +79,7 @@ def _python_ref(x, max_denominator=100, fine_scale=1_000_000):
     if num_pos == 0:
         return (0, 1)
     # Delegate to the actual Class N primitive (which is itself C-backed).
-    from srmech.amsc.rational import best_rational as _br
+    from srmech.math.rational import best_rational as _br
     nf, df = _br(num_pos, fine_scale, max_denominator)
     if orientation < 0:
         nf = -int(nf)

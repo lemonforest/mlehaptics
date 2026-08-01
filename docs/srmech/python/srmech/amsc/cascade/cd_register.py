@@ -70,7 +70,7 @@ This is why this module carries the sign explicitly — :func:`cd_navmap`
 returns ``(k, sign)`` per slot rather than an index alone, and the sign branch
 is a Class-K pin-slot composed with the Class-C
 :func:`~srmech.amsc.cascade.chiral_flip`. It is also why
-:func:`~srmech.amsc.hdc.bind` — a component-wise XOR, the index lane with the
+:func:`~srmech.math.hdc.bind` — a component-wise XOR, the index lane with the
 sign channel absent — is commutative, associative and self-inverse at every
 width while Cayley–Dickson turn-composition is none of those above dim 4.
 ``bind`` is the coboundary-free shadow of the same product.
@@ -106,7 +106,7 @@ fact — always sweep ``D``.
 
 numpy-FREE, and no ``abs()``: storage routes through
 :func:`~srmech.signal_processing.mint_vector` + the Class-M
-:func:`~srmech.amsc.hdc.bind` / ``bundle`` / ``similarity`` cascades; the sign
+:func:`~srmech.math.hdc.bind` / ``bundle`` / ``similarity`` cascades; the sign
 branch is an explicit **Class-K pin-slot** composed with a **Class-C**
 :func:`~srmech.amsc.cascade.chiral_flip`
 (``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]``).
@@ -147,7 +147,7 @@ WORKING_BLOCK_DIM = 8
 def _lazy_hdc():
     """Import the Class-M HDC byte ops on demand (numpy-free; defers the import
     so the module loads without touching signal_processing)."""
-    from ..hdc import bind, bundle, similarity
+    from ...math.hdc import bind, bundle, similarity
     return bind, bundle, similarity
 
 

@@ -60,7 +60,7 @@ Inherited verbatim from R-RBS-NN-1 §4.3 + §4.4:
 | Bipolar/integer weights | 1 | M (XOR-bind composition across input dim, accumulate via popcount-majority) | Bit-exact preservation; substrate-side; ALU |
 | Continuous-float weights | 2 | M (bundle-of-views averaging) | ~6.9% averaging cost per MFO §VII.1.3 line 741; FPU |
 
-**Operational reading**: each output dimension `z_j = ⟨w_j, x⟩` is structurally a **Class M similarity-comparison of input `x` against template `w_j` (the j-th row of `W`)**. In bipolar form, the similarity is `1 - 2·hamming(x, w_j)/d_in` — the same formula srmech uses (`srmech.amsc.hdc.similarity`). In float form, it is the conventional dot product, which structurally bundles `d_in` input contributions into a single scalar — Mechanism 2 of MFO §VII.1.3 (bundle averaging, the lossy form). The bias `b_j` is a Level-{1 if int, 2 if float} offset.
+**Operational reading**: each output dimension `z_j = ⟨w_j, x⟩` is structurally a **Class M similarity-comparison of input `x` against template `w_j` (the j-th row of `W`)**. In bipolar form, the similarity is `1 - 2·hamming(x, w_j)/d_in` — the same formula srmech uses (`srmech.math.hdc.similarity`). In float form, it is the conventional dot product, which structurally bundles `d_in` input contributions into a single scalar — Mechanism 2 of MFO §VII.1.3 (bundle averaging, the lossy form). The bias `b_j` is a Level-{1 if int, 2 if float} offset.
 
 **The MLP linear layer IS HDC similarity-against-templates**. Each row of `W` is a template; each output dim is the similarity of the input to that template. This is not a metaphor; the algebraic identity holds when weights are bipolar (`similarity(x, w_j) = 1 - 2·popcount(x XOR w_j)/d_in`).
 
@@ -204,13 +204,13 @@ D = 8192 bits
 
 **Finding 2 — Conventional MLP and BNN are the same cascade at different levels.** Per §4.1, the bipolar-weight + sign-activation MLP (the BNN literature since Courbariaux 2016) IS structurally the same `A ∘ (M ∘ K)^N` cascade as the float-weight + ReLU MLP. What differs is only level (Level 1 ALU vs Level 2 FPU) and cost (zero vs ~6.9% per layer). The framework places this ontologically: BNN is the Level-1 instantiation of the cascade conventional MLP runs at Level 2.
 
-**Finding 3 — The MLP linear layer is HDC similarity-against-templates** (§3.1, §6). Each row of `W` is a template; each output dimension is `similarity(input, template)`. In bipolar form this is bit-exact `1 - 2·popcount(x XOR w)/d_in` — the same formula `srmech.amsc.hdc.similarity` uses. This is not a metaphor; it is the algebraic identity.
+**Finding 3 — The MLP linear layer is HDC similarity-against-templates** (§3.1, §6). Each row of `W` is a template; each output dimension is `similarity(input, template)`. In bipolar form this is bit-exact `1 - 2·popcount(x XOR w)/d_in` — the same formula `srmech.math.hdc.similarity` uses. This is not a metaphor; it is the algebraic identity.
 
 **Finding 4 — Continuous activations are a precondition for gradient-descent trainability, not for expressivity.** Per §5. Universal approximation requires continuous activations only because Cybenko's proof technique requires them; expressivity in the Cover (1965) / boolean-function sense extends to sign-quantized activations. The framework's separation: training is Level-2 by construction (gradient descent IS bundle-of-trajectories per R-RBS-NN-1 §4.9); inference can be Level-1.
 
 **Finding 5 — The linear layer carries TWO Class M sub-ops at different mechanism levels.** Per §6: per-element multiply is Mechanism 1 (bind, exact), sum-across-input-dim is Mechanism 2 (bundle, lossy). The bundle is *intrinsic* to dot product (unavoidable); the float representation adds *representational* bundle cost on top. RBS-NN eliminates the representational part by going bipolar.
 
-**Finding 6 — Vanilla MLP at Level 1 is structurally available with committed srmech infrastructure.** Per §4.2: a fully Level-1 MLP needs Class A (R-RBS-NN-2), Class M similarity (`srmech.amsc.hdc.similarity`), and Class K threshold (composable from majority-bundle + sign). No new srmech infrastructure needed. R-RBS-NN-3b will test whether the same holds for transformer architectures.
+**Finding 6 — Vanilla MLP at Level 1 is structurally available with committed srmech infrastructure.** Per §4.2: a fully Level-1 MLP needs Class A (R-RBS-NN-2), Class M similarity (`srmech.math.hdc.similarity`), and Class K threshold (composable from majority-bundle + sign). No new srmech infrastructure needed. R-RBS-NN-3b will test whether the same holds for transformer architectures.
 
 ---
 

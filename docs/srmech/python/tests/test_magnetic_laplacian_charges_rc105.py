@@ -28,7 +28,7 @@ numpy-free; no ``abs()`` (Class-K sign-branch where a magnitude is read).
 import pytest
 
 from srmech.amsc import _native
-from srmech.amsc import laplacian as L
+from srmech.math import laplacian as L
 
 
 # ── helpers (no numpy, no abs()) ────────────────────────────────────────

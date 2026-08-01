@@ -20,7 +20,7 @@ import json
 import pytest
 
 import srmech.amsc.genome as G
-from srmech.amsc.hdc import klein4_expand
+from srmech.math.hdc import klein4_expand
 
 DIM = 64
 TOTAL = 24

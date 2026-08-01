@@ -1,7 +1,7 @@
 # Cascade catalog entry: schur_complement
 # v0.7.1rc2 — DSL wiring of the Class-L Schur-complement / Dirichlet-to-
 # Neumann boundary-reduction op (#897 §26; F412/F417/F419). The op itself
-# shipped in v0.7.1rc1 at srmech.amsc.laplacian.schur_complement; this
+# shipped in v0.7.1rc1 at srmech.math.laplacian.schur_complement; this
 # descriptor threads boundary_idx + exact through the chain contract so a
 # sector/loop/fold cascade can pipe a Laplacian into the boundary operator.
 
@@ -63,7 +63,7 @@ license = "MIT"
 parser_version = "srmech-cascade 0.7.1rc2"
 canonical_landings = [
   "#897 §26 — operator|operand fusion op (F412/F417/F419: 'where the breakthroughs live')",
-  "srmech.amsc.laplacian.schur_complement / dirichlet_to_neumann — the registered Class-L home (tool-schema entry lives there; this is the DSL chain-contract re-export)",
+  "srmech.math.laplacian.schur_complement / dirichlet_to_neumann — the registered Class-L home (tool-schema entry lives there; this is the DSL chain-contract re-export)",
   "MFO §VII.6.x (Class L graph-Laplacian boundary reduction; Poincaré–Steklov / Dirichlet-to-Neumann)",
   "feedback_own_work_is_primary_attestation — the committed re-runnable op is the primary attestation; Kron 1939 / Steklov secondary",
 ]

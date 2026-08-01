@@ -12,7 +12,7 @@ numpy-free.
 
 from srmech.apokatastasis.ellbase import EllMonomial as M, Theta, EllRatio as R, _X, _Q_SYM
 from srmech.apokatastasis.thetasum import _Y
-from srmech.amsc.dispatch import infer, _detect_row
+from srmech.math.dispatch import infer, _detect_row
 
 
 def _make_8w7():

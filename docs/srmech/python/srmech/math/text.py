@@ -4,7 +4,7 @@ The text→graph leaves of the RBS-LM **K1 presence-kernel** chain
 ``text → glyph_stream → cooccurrence_edges → dense_laplacian`` (UPSTREAM_NOTES
 §17 U1 / §40). Kept in a dedicated **ingestion** module — `glyph_stream` is not a spectral
 op and `cooccurrence_edges` is the Class-L *precursor* that produces what
-:func:`srmech.amsc.laplacian.dense_laplacian` consumes — so ``laplacian`` stays
+:func:`srmech.math.laplacian.dense_laplacian` consumes — so ``laplacian`` stays
 purely spectral (Class E/G ingestion vs Class-L spectral; §40 Option 1).
 
 **rc287 — the unit is the GLYPH CLUSTER, not the word (BREAKING).**
@@ -83,14 +83,14 @@ from array import array
 from functools import lru_cache
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
-from . import _native
-from . import _unicode_gb_tables as _gb
-from . import _unicode_fold_tables as _fold
+from ..amsc import _native
+from ..amsc import _unicode_gb_tables as _gb
+from ..amsc import _unicode_fold_tables as _fold
 
 __all__ = ["fold_marks", "glyph_stream", "cooccurrence_edges",
            "cooccurrence_topk"]
 
-_log = logging.getLogger("srmech.amsc.text")
+_log = logging.getLogger("srmech.math.text")
 
 #: uint32 domain guard for the native co-occurrence kernels (vocab ids /
 #: window / cap ride uint32 on the C side; anything beyond falls to pure).
@@ -641,7 +641,7 @@ def cooccurrence_edges(
 ]:
     """Build the weighted co-occurrence graph — the Class-L precursor (§40).
 
-    The tokens→edges step that feeds :func:`srmech.amsc.laplacian.dense_laplacian`.
+    The tokens→edges step that feeds :func:`srmech.math.laplacian.dense_laplacian`.
     Within a sliding ``window`` over each document (the window **resets at every
     document boundary** — co-occurrence never crosses one), counts each unordered
     co-occurring vocabulary pair ``(u, v)`` with ``u < v``.
@@ -674,7 +674,7 @@ def cooccurrence_edges(
         (== the ``directed=False`` weights, ``w_fwd + w_bwd``) and ``charge``
         (``w_fwd − w_bwd``, the direction the unordered fold discards — reversing
         the corpus flips ``charge`` exactly). ``metric`` + ``charge`` feed
-        :func:`srmech.amsc.laplacian.magnetic_laplacian` as ``weights`` +
+        :func:`srmech.math.laplacian.magnetic_laplacian` as ``weights`` +
         ``charges`` (the directed Hermitian L; #1390 item 1).
 
     Returns
@@ -944,10 +944,10 @@ def cooccurrence_topk(
 
     so the peak is ``O(vocab × k·cap_slack + chunk)`` — never the full edge count.
     It is the *explicit* bounded analog of the §50 holographic
-    :func:`srmech.amsc.hdc.cooccurrence_fold`, and the bounded ``(n, edges,
+    :func:`srmech.math.hdc.cooccurrence_fold`, and the bounded ``(n, edges,
     weights)`` triple it returns is a drop-in for
-    :func:`srmech.amsc.laplacian.fiedler_sparse` /
-    :func:`srmech.amsc.laplacian.normalized_cut_bisect` — so the whole
+    :func:`srmech.math.laplacian.fiedler_sparse` /
+    :func:`srmech.math.laplacian.normalized_cut_bisect` — so the whole
     spectral-clump ENCODE (tokens → bounded graph → recursive cut) stays bounded.
 
     HONESTY: when a node's realized degree never exceeds the cap it is **bit-exact**

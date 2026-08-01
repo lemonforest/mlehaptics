@@ -24,9 +24,9 @@ from __future__ import annotations
 import ctypes
 from typing import Tuple
 
-from srmech.amsc.rational import atan2 as _ratan2  # §22: Class-N rational trig, not libm
-from srmech.amsc.rational import cos as _rcos
-from srmech.amsc.rational import sin as _rsin
+from srmech.math.rational import atan2 as _ratan2  # §22: Class-N rational trig, not libm
+from srmech.math.rational import cos as _rcos
+from srmech.math.rational import sin as _rsin
 
 from ..amsc import _native
 

@@ -26,7 +26,8 @@ from operator import add
 
 import pytest
 
-from srmech.amsc import _native, hdc
+from srmech.amsc import _native
+from srmech.math import hdc
 
 
 # --------------------------------------------------------------- helpers
@@ -312,7 +313,7 @@ def test_registered_in_the_tool_schema():
 
     warmup_all()
     names = {t.name for t in get_tool_schema().tools}
-    assert "srmech.amsc.hdc.klein4_bundle_sector_scores" in names
+    assert "srmech.math.hdc.klein4_bundle_sector_scores" in names
 
 
 def test_name_does_not_say_resolve():
@@ -334,8 +335,8 @@ def test_array_typecode_is_not_read_as_the_Q_carrier():
     from srmech.amsc.carrier_schema import carrier_schema
 
     produces = carrier_schema()["Q"]["ops"]["produces"]
-    assert "srmech.amsc.hdc.klein4_bundle_sector_scores" not in produces, \
+    assert "srmech.math.hdc.klein4_bundle_sector_scores" not in produces, \
         "array('Q') is a stdlib uint64 typecode, not the exact-rational Q carrier"
     # The guard must be specific, not a blanket empty list.
-    assert "srmech.amsc.hdc.klein4_similarity" in produces, \
+    assert "srmech.math.hdc.klein4_similarity" in produces, \
         "ops that really do produce Q must still be listed"

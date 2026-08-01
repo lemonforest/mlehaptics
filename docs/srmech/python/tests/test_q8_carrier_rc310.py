@@ -31,7 +31,7 @@ from tests._native_gate import require_native
 from srmech.amsc import _native
 from srmech.amsc import q8
 from srmech.amsc.cascade.cayley_dickson import cd_basis_product
-from srmech.amsc.hdc import klein4_bind
+from srmech.math.hdc import klein4_bind
 
 ALL8 = range(8)
 

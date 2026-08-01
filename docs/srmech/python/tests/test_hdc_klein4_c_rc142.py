@@ -32,7 +32,7 @@ from array import array
 import pytest
 
 from srmech.amsc import _native
-from srmech.amsc import hdc
+from srmech.math import hdc
 
 
 # The 7 native gates B1 introduces (6 C symbols + the shared BSC bundle).
@@ -240,15 +240,15 @@ def test_rosetta_debt_dropped_by_nine():
             if l.strip()]
     cls = {r["defined_at"]: r["bucket"] for r in rows}
     ops = [
-        "srmech.amsc.hdc.bundle_with_ties",
-        "srmech.amsc.hdc.klein4_chirality_flip_gamma5",
-        "srmech.amsc.hdc.klein4_chirality_flip_omega7",
-        "srmech.amsc.hdc.klein4_cpt_mirror",
-        "srmech.amsc.hdc.klein4_sector_count",
-        "srmech.amsc.hdc.klein4_holographic_encode",
-        "srmech.amsc.hdc.klein4_holographic_decode",
-        "srmech.amsc.hdc.klein4_triality_encode",
-        "srmech.amsc.hdc.klein4_triality_correct",
+        "srmech.math.hdc.bundle_with_ties",
+        "srmech.math.hdc.klein4_chirality_flip_gamma5",
+        "srmech.math.hdc.klein4_chirality_flip_omega7",
+        "srmech.math.hdc.klein4_cpt_mirror",
+        "srmech.math.hdc.klein4_sector_count",
+        "srmech.math.hdc.klein4_holographic_encode",
+        "srmech.math.hdc.klein4_holographic_decode",
+        "srmech.math.hdc.klein4_triality_encode",
+        "srmech.math.hdc.klein4_triality_correct",
     ]
     for op in ops:
         assert cls.get(op) == "c_dispatched", f"{op} not c_dispatched: {cls.get(op)}"

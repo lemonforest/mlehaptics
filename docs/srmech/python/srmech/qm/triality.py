@@ -32,7 +32,7 @@ A-N placement (per ``[[feedback_no_privileged_primitive_classes]]``):
 
 - ``triality_automorphism`` / ``triality_cycle`` / ``triality_apply`` —
   **Class I** (cyclic: the order-3 element of ``S3 = Out(Spin(8))``; the
-  ``8v -> 8s -> 8c`` rep-permutation via :mod:`srmech.amsc.cyclic` mod-3).
+  ``8v -> 8s -> 8c`` rep-permutation via :mod:`srmech.math.cyclic` mod-3).
 - ``triality_swap`` — **Class C** (chirality: the ``Z2`` reflection of the
   Dynkin diagram).
 - ``triality_companions`` — **Class M** (the companion binders ``B``, ``C``).
@@ -48,9 +48,9 @@ subset / SVD nullspace. **No RNG** anywhere (the clean-MCP no-RNG mandate).
 rc123/rc124 (numpy-free, #564): the whole module flips off numpy onto the
 framework-native carriers. ``28×28`` / ``8×8`` matrices are
 :class:`srmech.amsc.mat.Mat` (the public surfaces return ``Mat``); the
-companion least-squares rides :func:`~srmech.amsc.laplacian.mat_lstsq`, the
-matmuls :func:`~srmech.amsc.laplacian.mat_matmul`, the norms
-:func:`~srmech.amsc.laplacian.mat_norm`, and the octonion table is consumed
+companion least-squares rides :func:`~srmech.math.laplacian.mat_lstsq`, the
+matmuls :func:`~srmech.math.laplacian.mat_matmul`, the norms
+:func:`~srmech.math.laplacian.mat_norm`, and the octonion table is consumed
 as a nested ``list`` (no ``.astype``).
 
 Canonical SSoT:
@@ -73,13 +73,13 @@ from typing import Dict, List, Sequence, Tuple
 
 from srmech.amsc.q import Q                    # #845: exact-ℚ solver carrier
 
-from srmech.amsc import rational as _srn
+from srmech.math import rational as _srn
 
 from srmech.amsc.cascade import magnitude as _magnitude
-from srmech.amsc.cyclic import mod_add as _mod_add
+from srmech.math.cyclic import mod_add as _mod_add
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
 from srmech.amsc.mat import Mat
-from srmech.amsc.laplacian import mat_matmul, mat_norm
+from srmech.math.laplacian import mat_matmul, mat_norm
 from srmech.qm.octonion import octonion_mult_table
 from srmech.qm.so8 import (
     _DIM,
@@ -440,7 +440,7 @@ def triality_cycle(frame: str) -> str:
     """The next frame in the order-3 rep-permutation ``8v -> 8s -> 8c -> 8v``.
 
     The Class-I cyclic step: the canonical frame index advances by one
-    modulo 3 via :func:`srmech.amsc.cyclic.mod_add`. Accepts ``'v'/'s'/'c'``
+    modulo 3 via :func:`srmech.math.cyclic.mod_add`. Accepts ``'v'/'s'/'c'``
     or ``'8v'/'8s'/'8c'``; returns the short canonical label.
 
     Class I (cyclic order-3 rep-permutation).

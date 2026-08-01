@@ -22,7 +22,7 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc import cyclic, primes
+from srmech.math import cyclic, primes
 from srmech.music import harmonics
 from srmech.amsc.q import Q
 from srmech.amsc.qprime import Qprime

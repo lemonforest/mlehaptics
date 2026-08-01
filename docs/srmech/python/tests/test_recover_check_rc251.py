@@ -10,7 +10,7 @@ are composition_of_c — pure compositions of shipped C-routed ops.
 """
 from __future__ import annotations
 
-from srmech.amsc import laplacian as L
+from srmech.math import laplacian as L
 
 
 def test_directed_cyclic_passes_and_carries_curvature():
@@ -80,9 +80,9 @@ def test_spectral_bounds_large_vocab():
 def test_registered_in_tool_schema():
     from srmech.amsc.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
-    assert "srmech.amsc.laplacian.recover_check" in names
-    assert "srmech.amsc.laplacian.recover_check_structural" in names
-    assert "srmech.amsc.laplacian.recover_check_spectral" in names
+    assert "srmech.math.laplacian.recover_check" in names
+    assert "srmech.math.laplacian.recover_check_structural" in names
+    assert "srmech.math.laplacian.recover_check_spectral" in names
 
 
 def test_no_abs_class_k_magnitude():

@@ -19,7 +19,7 @@ from array import array
 
 import pytest
 
-from srmech.amsc import hdc
+from srmech.math import hdc
 
 
 def _b(hv):

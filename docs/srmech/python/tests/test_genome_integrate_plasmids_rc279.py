@@ -49,7 +49,7 @@ import pytest
 from srmech.amsc import _native
 from srmech.amsc import genome as G
 from srmech.amsc import plasmid as P
-from srmech.amsc.hdc import klein4_expand
+from srmech.math.hdc import klein4_expand
 
 _DIM = 64                                           # >= 52 (the §89 kernel header)
 _CORE = ["alpha", "beta", "gamma", "delta"]         # the PLANTED conserved core

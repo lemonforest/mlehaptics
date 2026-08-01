@@ -193,7 +193,7 @@ def test_kernel_bridge_matmul_zero_copy():
     """The C carrier buffer feeds srmech_dense_matmul_complex ZERO-COPY (via
     srmech_mat_matmul_c128) and matches the pure Class-L mat_matmul byte-for-
     byte."""
-    from srmech.amsc import laplacian as L
+    from srmech.math import laplacian as L
     A = Mat.from_rows([[1 + 2j, 3 + 0j], [0 + 1j, 2 - 1j]])
     B = Mat.from_rows([[1 + 0j, 2 + 2j], [3 - 1j, 0 + 4j]])
     out = _native.mat_matmul_c128_c(A.buffer, B.buffer, 2, 2, 2)

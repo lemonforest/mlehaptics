@@ -11,9 +11,9 @@ and the corresponding ML estimator when ``R_x^{-1} = 0`` (improper prior).
 
 Carrier-removal #564 (rc102): numpy-FREE — the Class-L covariance inverse
 (``R_v^{-1}`` / ``R_x^{-1}``) and the normal-equation solve route through the
-native :func:`~srmech.amsc.laplacian.mat_solve` over the numpy-free
+native :func:`~srmech.math.laplacian.mat_solve` over the numpy-free
 :class:`~srmech.amsc.mat.Mat` carrier; ``A^T R_v^{-1}`` rides
-:func:`~srmech.amsc.laplacian.mat_matmul` and the ``A^T R_v^{-1} y`` /
+:func:`~srmech.math.laplacian.mat_matmul` and the ``A^T R_v^{-1} y`` /
 ``R_x^{-1} mu`` matvecs are pure-Python sums. No top-level ``import numpy``.
 
 Path B dual in Phase 6 (Path B eigendecomposition + threshold).
@@ -27,7 +27,7 @@ from __future__ import annotations
 
 from typing import List
 
-from srmech.amsc.laplacian import mat_matmul, mat_solve
+from srmech.math.laplacian import mat_matmul, mat_solve
 from srmech.amsc.mat import Mat
 
 OPERATION_NAME = "map_ml"

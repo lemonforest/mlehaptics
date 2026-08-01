@@ -23,7 +23,7 @@ from __future__ import annotations
 import ctypes
 from typing import List, Tuple
 
-from . import _native
+from ..amsc import _native
 from .cyclic import gcd as _gcd
 
 __all__ = [

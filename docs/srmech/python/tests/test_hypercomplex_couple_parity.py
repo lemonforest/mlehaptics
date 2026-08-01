@@ -35,7 +35,7 @@ from srmech.amsc.cascade.hypercomplex_dft import (
     _q61_int,
     _Q61_ONE,
 )
-from srmech.amsc.rational import cos as _rcos, sin as _rsin
+from srmech.math.rational import cos as _rcos, sin as _rsin
 
 _HAS_NATIVE_COUPLE = _native.has_native_hypercomplex_couple()
 _native_only = pytest.mark.skipif(
@@ -101,7 +101,7 @@ def test_couple_q61_matches_explicit_reference(streams, form):
     # explicit reference twiddle T = cos eff + sin eff·μ (Q61)
     cos = _q61_int(_rcos(eff))
     sin = _q61_int(_rsin(eff))
-    from srmech.amsc.rational import _q61_fxmul
+    from srmech.math.rational import _q61_fxmul
     tw = [cos] + [_q61_fxmul(sin, mu_q61[i]) for i in range(1, 8)]
     ref = _octo_mult_q61(tw, s_q61) if form == "left" else _octo_mult_q61(s_q61, tw)
     got = _couple_q61(s_q61, mu_q61, eff, form=form)
@@ -148,7 +148,7 @@ def test_native_couple_byte_identical_to_pure(streams, form):
     eff = 0.9
     cos = _q61_int(_rcos(eff))
     sin = _q61_int(_rsin(eff))
-    from srmech.amsc.rational import _q61_fxmul
+    from srmech.math.rational import _q61_fxmul
     tw = [cos] + [_q61_fxmul(sin, mu_q61[i]) for i in range(1, 8)]
     ref = _octo_mult_q61(tw, s_q61) if form == "left" else _octo_mult_q61(s_q61, tw)
     native = _native.hypercomplex_couple_q61_c(

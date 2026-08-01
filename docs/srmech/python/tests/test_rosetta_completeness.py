@@ -1314,7 +1314,7 @@ def test_non_compute_composes_c_is_transitively_reachable():
 # The reachability guard above has a structural blind spot: a SELF-CONTAINED
 # pure-Python COMPUTE KERNEL calls no other srmech op, so its transitive walk
 # reaches NOTHING — it cannot trip the not-ready-leaf assert no matter how much
-# compute it hides. That is exactly how the 3 srmech.amsc.text kernels
+# compute it hides. That is exactly how the 3 srmech.math.text kernels
 # (tokenize / cooccurrence_edges / cooccurrence_topk — the enwiki-encode hot
 # loop, a measured multi-DAY Python cost at corpus scale) sat mis-classified
 # as non_compute/composes_c while CEIL_PYTHON_ONLY_DEBT read 0.
@@ -1365,26 +1365,26 @@ COMPOSES_C_ZERO_REACH_PINNED = frozenset({
     "srmech.amsc.coupling.from_bodies",
     "srmech.amsc.descriptor.load_descriptor",
     "srmech.amsc.descriptor.render_template",
-    "srmech.amsc.dispatch.infer",
+    "srmech.math.dispatch.infer",
     "srmech.apokatastasis.ellbase.chirality_parity",
     "srmech.amsc.format.validate_mpr_record",
     "srmech.amsc.format.write_ndjson",
-    "srmech.amsc.hdc.klein4_project_axis",
-    "srmech.amsc.laplacian.write_packed_graph",
+    "srmech.math.hdc.klein4_project_axis",
+    "srmech.math.laplacian.write_packed_graph",
     # hypercomplex_perspectives (v0.9.0rc308, #944) — the quaternion_laplacian /
     # magnetic_laplacian eigenvector channel reader. A pure STRUCTURAL split: it
     # indexes an already-decomposed eigenvector Mat and copies each dim-block's
     # scalar/imaginary components into channel lists. It computes nothing and
     # calls no ledger op (only Mat.__getitem__ + complex()), so the AST walk
     # reaches zero — the write_packed_graph accessor precedent above.
-    "srmech.amsc.laplacian.hypercomplex_perspectives",
+    "srmech.math.laplacian.hypercomplex_perspectives",
     "srmech.apokatastasis.modular_forms_ring.modular_forms_ring",
     "srmech.introspect.op_provenance.family_verdict",
     "srmech.amsc.poly.poly_from_coeffs",
     "srmech.amsc.qbipoly.qbipoly_from_coeffs",
     "srmech.amsc.qpoly.qpoly_from_coeffs",
     "srmech.apokatastasis.quasimodular_forms_ring.quasimodular_forms_ring",
-    "srmech.amsc.tlv.tlv_unpack",
+    "srmech.math.tlv.tlv_unpack",
     "srmech.amsc.tool_schema.get_tool_schema",
     "srmech.amsc.tripoly.tripoly_from_coeffs",
     "srmech.apokatastasis.zeilberger.bipoly_from_coeffs",
@@ -1439,7 +1439,7 @@ def test_composes_c_zero_reach_rows_are_pinned():
     """Every ``composes_c`` row whose transitive walk reaches ZERO ledger ops
     is on the pinned allowlist above — so a self-contained pure-Python compute
     kernel can never again hide in ``composes_c`` unnoticed (the rc217
-    srmech.amsc.text lesson: the reachability guard only fires on rows that
+    srmech.math.text lesson: the reachability guard only fires on rows that
     REACH a not-ready leaf; a kernel that calls nothing reaches nothing).
     A stale entry (row moved bucket / gained a reached op / was removed) must
     leave the pin, so the set stays exact in both directions."""

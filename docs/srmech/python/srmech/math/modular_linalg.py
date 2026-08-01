@@ -13,8 +13,8 @@ field GF(p), in **bounded machine-int arithmetic only** (no fraction growth, no
 bignum — that bound is the whole point).
 
 :func:`gf_rref` is Class I: it composes the cyclic-group modular primitives
-:func:`srmech.amsc.cyclic.mod_inv` / :func:`~srmech.amsc.cyclic.mod_mul` /
-:func:`~srmech.amsc.cyclic.mod_add` over residues already reduced into ``[0, p)``.
+:func:`srmech.math.cyclic.mod_inv` / :func:`~srmech.math.cyclic.mod_mul` /
+:func:`~srmech.math.cyclic.mod_add` over residues already reduced into ``[0, p)``.
 Sign/zero handling is **Class K** — every decision is a compare-to-0 over those
 non-negative residues; there is no ``abs()`` anywhere, no float, no numpy, no
 ``math``.
@@ -29,7 +29,7 @@ exactly the int64 matrix that contrasts the dense-ℚ path's GB-scale arena.
 scope decision about fields — the rc44 C peer inverted a pivot by **Fermat**
 (``a**(p-2) mod p``) and its own comment gave the reason as "so ``a*b`` fits
 uint64 *and Fermat inversion is valid*". rc49 replaced that private power with
-the extended-Euclidean :func:`~srmech.amsc.cyclic.mod_inv`, which dissolved the
+the extended-Euclidean :func:`~srmech.math.cyclic.mod_inv`, which dissolved the
 Fermat half of the rationale; the bound was simply never revisited. Only the
 **ceiling** was ever justified by the arithmetic domain. GF(2) is a field, and
 :func:`gf_rref` is now defined on it: the pivot inverse is ``1⁻¹ = 1``, the row
@@ -65,9 +65,9 @@ import ctypes
 from typing import Dict, List
 
 from ..amsc import _native
-from ..amsc.cyclic import mod_add as _mod_add
-from ..amsc.cyclic import mod_inv as _mod_inv
-from ..amsc.cyclic import mod_mul as _mod_mul
+from .cyclic import mod_add as _mod_add
+from .cyclic import mod_inv as _mod_inv
+from .cyclic import mod_mul as _mod_mul
 
 __all__ = ["gf_rref", "gf_solve", "gf_nullspace", "crt_combine"]
 
@@ -451,7 +451,7 @@ def crt_combine(residues, moduli) -> Dict[str, int]:
     Iterative CRT (Garner's algorithm; cf. Knuth, *TAOCP* vol. 2, §4.3.2;
     von zur Gathen & Gerhard, *Modern Computer Algebra*, 3rd ed. 2013, §5.4),
     composing the Class-I cyclic-group primitives :func:`cyclic.mod_inv` /
-    :func:`~srmech.amsc.cyclic.mod_mul`. The combined modulus exceeds 64 bits
+    :func:`~srmech.math.cyclic.mod_mul`. The combined modulus exceeds 64 bits
     for ``k ≳ 3`` of the ~31-bit reduction primes, so the accumulator is
     **bignum** (Python ``int``, no ceiling); only the per-step inverse, taken
     modulo a single prime, stays inside ``uint64``. Sign/zero handling is

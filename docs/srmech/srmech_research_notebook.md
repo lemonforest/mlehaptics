@@ -436,7 +436,7 @@ This is the deepest answer to the unification question: srmech is not "the proje
 
 #### §3.5.1 The shipped Class-L surface IS the discrete Laplace–Beltrami operator (2026-07-18)
 
-The §3.5 slot is not only architectural — it is the *literal* shipped `srmech.amsc.laplacian` surface. `dense_laplacian(n, edges, weights=…)` and `fiedler_sparse` already accept **per-edge weights**, and a metric-derived weighting turns the combinatorial graph Laplacian into the discrete Laplace–Beltrami operator. This is an attested mathematical **FACT** — a convergence, not a framework-validation claim (the epistemic ceiling holds: form, not identity):
+The §3.5 slot is not only architectural — it is the *literal* shipped `srmech.math.laplacian` surface. `dense_laplacian(n, edges, weights=…)` and `fiedler_sparse` already accept **per-edge weights**, and a metric-derived weighting turns the combinatorial graph Laplacian into the discrete Laplace–Beltrami operator. This is an attested mathematical **FACT** — a convergence, not a framework-validation claim (the epistemic ceiling holds: form, not identity):
 
 - **Mesh (cotangent) form.** The cotangent-weighted Laplacian is the *standard* discrete LB on a triangulated manifold — edge weight `w_ij = ½(cot α_ij + cot β_ij)`, the two angles opposite edge `ij` (Pinkall & Polthier, *Computing Discrete Minimal Surfaces and Their Conjugates*, Experimental Mathematics 2(1):15–36, 1993; the Voronoi mass matrix is Meyer–Desbrun–Schröder–Barr 2003). **No trig library is needed:** for the two edge vectors `u, v` meeting at the opposite vertex, `cot θ = (u·v)/|u×v|` — dot over cross. In 2D this is *fully rational* in the vertex coordinates (Class-N exact; the signed-area sign is a Class-K pin-slot, never `abs()`); in 3D the only irrationality is a single algebraic `√` per triangle, `|u×v| = √(|u|²|v|²−(u·v)²) = 2·Area`, never a transcendental. Equivalently `cot γ = (b²+c²−a²)/(4·Area)` from the squared edge lengths.
 - **Point-cloud form.** A graph Laplacian with heat-kernel weights `w_ij = exp(−‖x_i−x_j‖²/(4t))` converges pointwise to Δ as `t→0, n→∞` (Belkin & Niyogi, *Laplacian Eigenmaps for Dimensionality Reduction and Data Representation*, Neural Computation 15(6):1373–1396, 2003; convergence-to-Δ in *Towards a Theoretical Foundation for Laplacian-Based Manifold Methods*, COLT 2005 / JCSS 74(8):1289–1308, 2008).
@@ -750,19 +750,19 @@ Task #217 Phase C1 (srmech v0.4.0) shipped every class with a native C surface (
 | # | Class | Operation | Canonical example | srmech module | Phase |
 |---|---|---|---|---|---|
 | A | content-addressing | hash bytes → fixed-length digest | SHA-256 (FIPS 180-4) over byte buffer | `srmech.amsc.format.sha256_bytes` | B3 |
-| B | tagged-tuple / TLV | byte-canonical record packing | `[u8 tag][u32 length BE][value]` | `srmech.amsc.tlv.tlv_pack` | C1 rc4 |
+| B | tagged-tuple / TLV | byte-canonical record packing | `[u8 tag][u32 length BE][value]` | `srmech.math.tlv.tlv_pack` | C1 rc4 |
 | C | streaming iteration | line-by-line tokenisation of a stream | NDJSON line iter with `lineno` callback | `srmech.amsc.format.read_ndjson` | B4 |
-| D | late-binding dispatch | multi-needle pattern match → tag | byte-pattern dispatcher | `srmech.amsc.dispatch.match` | C1 rc5 |
+| D | late-binding dispatch | multi-needle pattern match → tag | byte-pattern dispatcher | `srmech.math.dispatch.match` | C1 rc5 |
 | E | catalog / naming | sorted-key binary-search lookup | `(key, value)` registry | `srmech.amsc.naming.lookup` | C1 rc5 |
-| F | substitution / templating | `{key}` placeholder render | parameterised string interpolation | `srmech.amsc.template.render` | C1 rc5 |
-| G | discovery / search | byte-pattern find within haystack | `bytes.find(...)`-shaped operation | `srmech.amsc.search.byte_search` | C1 rc4 |
+| F | substitution / templating | `{key}` placeholder render | parameterised string interpolation | `srmech.math.template.render` | C1 rc5 |
+| G | discovery / search | byte-pattern find within haystack | `bytes.find(...)`-shaped operation | `srmech.math.search.byte_search` | C1 rc4 |
 | H | self-introspection | version / ABI / capability accessors | `srmech_version()` + `srmech_abi_version()` | (C meta) | C1 rc4 ack |
-| I | cyclic-group / modular | GCD, LCM, mod-add/mul/pow/inv on uint64 | `(Z/nZ)*` arithmetic | `srmech.amsc.cyclic.*` | C1 rc1 |
-| J | prime-factorisation / period | is_prime, factor, multiplicative order | trial-division + multiplicative order | `srmech.amsc.primes.*` | C1 rc3 |
+| I | cyclic-group / modular | GCD, LCM, mod-add/mul/pow/inv on uint64 | `(Z/nZ)*` arithmetic | `srmech.math.cyclic.*` | C1 rc1 |
+| J | prime-factorisation / period | is_prime, factor, multiplicative order | trial-division + multiplicative order | `srmech.math.primes.*` | C1 rc3 |
 | K | equation-of-centre / pin-slot | Kepler-shape continuous projection | `phi = atan2(i sin θ, d + i cos θ)`; Newton-Raphson on `M = E − e sin E`; Fourier ν − M | `srmech.math.kepler.*` | C1 rc7 |
-| L | graph Laplacian | adjacency / Laplacian / normalized Laplacian / Jacobi eigvals (pi-free) | spectral decomposition of `L = D − A` | `srmech.amsc.laplacian.*` | C1 rc2 |
-| M | HDC bind / bundle / permute / similarity | binary spatter codes (Kanerva 2009) | XOR bind + majority bundle + bit-rotate permute + Hamming-similarity | `srmech.amsc.hdc.*` | C1 rc8 |
-| N | rational-approximation | continued-fraction expansion + best p′/q′ under denominator bound | Stern-Brocot mediant convergents | `srmech.amsc.rational.*` | C1 rc6 |
+| L | graph Laplacian | adjacency / Laplacian / normalized Laplacian / Jacobi eigvals (pi-free) | spectral decomposition of `L = D − A` | `srmech.math.laplacian.*` | C1 rc2 |
+| M | HDC bind / bundle / permute / similarity | binary spatter codes (Kanerva 2009) | XOR bind + majority bundle + bit-rotate permute + Hamming-similarity | `srmech.math.hdc.*` | C1 rc8 |
+| N | rational-approximation | continued-fraction expansion + best p′/q′ under denominator bound | Stern-Brocot mediant convergents | `srmech.math.rational.*` | C1 rc6 |
 
 **Composable derived operations** (the 14 base classes compose; common composites are named below for cross-notebook reference):
 
@@ -809,16 +809,16 @@ Phase 2 (v0.4.1rc5) lands the broadening with full C + Python parity per `[[feed
 
 | Op | Surface | Canonical SSoT |
 |---|---|---|
-| `hermitian_eigendecompose(H) → (eigvals, V)` | `srmech.amsc.laplacian.hermitian_eigendecompose` + `srmech_hermitian_eigendecompose` | Golub & Van Loan, *Matrix Computations* (4th ed., 2013) §8.5 (Hermitian eigendecomposition via unitary Jacobi rotations) |
-| `dense_matvec_complex(M, v) → M @ v` | `srmech.amsc.laplacian.dense_matvec_complex` + `srmech_dense_matvec_complex` | Golub & Van Loan §1.1 (textbook matrix-vector multiplication) |
-| `elementwise_multiply_complex(a, b) → a * b` | `srmech.amsc.laplacian.elementwise_multiply_complex` + `srmech_elementwise_multiply_complex` | Pointwise complex algebra (no domain literature; included for completeness) |
-| `elementwise_transcendental(arr, op_name)` for `op_name ∈ {"exp", "cos", "sin", "log", "exp_i"}` | `srmech.amsc.laplacian.elementwise_transcendental` + `srmech_elementwise_transcendental` | ANSI C99 §7.12 libm; `exp_i(x) = exp(i·x)` realised as `cos + i·sin` over the real argument |
+| `hermitian_eigendecompose(H) → (eigvals, V)` | `srmech.math.laplacian.hermitian_eigendecompose` + `srmech_hermitian_eigendecompose` | Golub & Van Loan, *Matrix Computations* (4th ed., 2013) §8.5 (Hermitian eigendecomposition via unitary Jacobi rotations) |
+| `dense_matvec_complex(M, v) → M @ v` | `srmech.math.laplacian.dense_matvec_complex` + `srmech_dense_matvec_complex` | Golub & Van Loan §1.1 (textbook matrix-vector multiplication) |
+| `elementwise_multiply_complex(a, b) → a * b` | `srmech.math.laplacian.elementwise_multiply_complex` + `srmech_elementwise_multiply_complex` | Pointwise complex algebra (no domain literature; included for completeness) |
+| `elementwise_transcendental(arr, op_name)` for `op_name ∈ {"exp", "cos", "sin", "log", "exp_i"}` | `srmech.math.laplacian.elementwise_transcendental` + `srmech_elementwise_transcendental` | ANSI C99 §7.12 libm; `exp_i(x) = exp(i·x)` realised as `cos + i·sin` over the real argument |
 
 The C-side Hermitian eigendecomposition is **pi-free** per `[[user_stance_pi_as_projection]]`: the complex-Jacobi phase factor `e^(iφ) = γ/|γ|` is computed algebraically as `γ_re/|γ| + i·γ_im/|γ|` (no `atan2` call); the real-symmetric reduction inside each rotation uses the same `c, s` algebraic recipe as the existing `srmech_jacobi_eigvals`. The C path stays under the `n ≤ SRMECH_LAPLACIAN_MAX_NODES = 256` bound; larger systems fall back to `numpy.linalg.eigh`.
 
 The composition engine that consumes these ops via TOML chains lives at `srmech.amsc.compose` (Phase 2, same rc). The four Phase 1 worked-example chains plus the TDSE spike chain compose entirely against the broadened Class L surface; no new primitive class is referenced by any cosmos-catalog operator chain. Cross-references: ADR-0002 §3 (parent), Phase 1 schema doc (`docs/srmech/adr/0002-phase-1-operator-chain-schema.md`), Phase 1 report (`docs/srmech/notes/adr_0002_phase_1_dsl_design_2026-05-16.md`).
 
-**Update to §3.8.1 row L** (above table; cited here so the change-record is self-contained): Class L's operation column expands from "adjacency / Laplacian / normalized Laplacian / Jacobi eigvals (pi-free)" to "dense-matrix linear algebra: adjacency / Laplacian / normalized Laplacian / Jacobi eigvals (real symmetric) / Hermitian eigendecomposition / complex matvec / elementwise complex multiply / elementwise transcendentals (pi-free). Graph-Laplacian-specific ops are specialisations." The class's home module `srmech.amsc.laplacian` is unchanged; Phase rolls from C1 rc2 to C1 rc2 + ADR-0002 Phase 2 rc5.
+**Update to §3.8.1 row L** (above table; cited here so the change-record is self-contained): Class L's operation column expands from "adjacency / Laplacian / normalized Laplacian / Jacobi eigvals (pi-free)" to "dense-matrix linear algebra: adjacency / Laplacian / normalized Laplacian / Jacobi eigvals (real symmetric) / Hermitian eigendecomposition / complex matvec / elementwise complex multiply / elementwise transcendentals (pi-free). Graph-Laplacian-specific ops are specialisations." The class's home module `srmech.math.laplacian` is unchanged; Phase rolls from C1 rc2 to C1 rc2 + ADR-0002 Phase 2 rc5.
 
 ### §3.8.4 Genetic code as Class I + Class C composition at biological substrate (Spike #81, 2026-05-17)
 
@@ -5193,8 +5193,8 @@ The arc extended the **Reading-D scale ladder** (a cross-substrate `2ℓ+1` Clas
 ### §3.26.2 The two k=3 families are readout-vs-substrate-content — a program holds them as two different objects (R33.A)
 
 The framework carries **two** k=3 triads, and a program reproducing the substrate must represent them as *different kinds of object*:
-- the **Class-L spectral spine** — first three rungs `{1,3,5}` (the `2ℓ+1` SO(3) irrep dims). In srmech this is **`srmech.amsc.laplacian`** output: eigenspaces of a graph/sphere Laplacian, degeneracies read off the spectrum. It is **substrate-content** (the *what*).
-- the **B/H/N meta-cascade triad** — the `+3` of the `1+3+7+3` partition; in srmech these are first-class operators (B = TLV-framing `srmech.amsc` byte-canonical form; H = self-introspection; N = rational anchor `srmech.amsc.rational.best_rational`). The Born rule = **B∘H∘N** is a 3-step **readout** pipeline (continuous→discrete), the *how-observed-as-three*.
+- the **Class-L spectral spine** — first three rungs `{1,3,5}` (the `2ℓ+1` SO(3) irrep dims). In srmech this is **`srmech.math.laplacian`** output: eigenspaces of a graph/sphere Laplacian, degeneracies read off the spectrum. It is **substrate-content** (the *what*).
+- the **B/H/N meta-cascade triad** — the `+3` of the `1+3+7+3` partition; in srmech these are first-class operators (B = TLV-framing `srmech.amsc` byte-canonical form; H = self-introspection; N = rational anchor `srmech.math.rational.best_rational`). The Born rule = **B∘H∘N** is a 3-step **readout** pipeline (continuous→discrete), the *how-observed-as-three*.
 
 **Program-side takeaway:** `{1,3,5}` is data you compute from a Laplacian; B/H/N is a 3-call pipeline you *run* to discretize a continuous amplitude. "Every k=3 is a B/H/N readout" survives; "every k=3 is *generated* by B/H/N" is withdrawn (three generative sources — Class-L+K spectral / Class-I cyclic `ω³=1` / Hurwitz partition — share one B∘H∘N readout). Scope-guard: `1D_t` is a **k=1** object (the universal tick) read out via the 3-step pipeline, not a hidden k=3. unsolved-maths §11.9.26; MFO §VII.6.19.1.
 
@@ -5202,18 +5202,18 @@ The framework carries **two** k=3 triads, and a program reproducing the substrat
 
 The substrate skeleton is `1D_t + 3D_s + 7D_g = 11`; the operators are `1+3+7+3`, so **B/H/N is the `+3` sitting *outside* the 11 dimensions** — they are the **projection *from*** the manifold (the discarded fiber), not places *in* it. Only **H** is anchored (the discard of the `U(1)=S¹` Hopf fiber; Born=Hopf); the full `B/H/N ↔ {ℂ,ℍ,𝕆}` Hopf-fibration map (fiber dims `{1,3,7}`) is a flagged candidate, not asserted (unsolved-maths §11.9.27; MFO §VII.6.19.2).
 
-The **grammar** reason this matters for srmech (R35.A): the `1:3:7:3` cyclic language is **operation-primary** — it *enumerates named operators*, so B/H/N are first-class. The `11D` continuous/Hopf language is **geometry-primary** — the readout is *embedded* (projection = the bundle map `π`; measurement = the Born inner-product postulate), so the operators are structural and unnamed. **srmech is the operation-primary language by construction** — it ships A–N as callables; that is *precisely* why a program written in srmech makes the readout explicit where the geometry textbook leaves it implicit. Not apples-to-oranges (form-IS-function + bit-exact ⇒ same content, two grammars); the user's image is **apples to apple *trees*** — tree = continuous geometry, apples = discrete named operators, picking = the readout. Anchor: `U(1)` (geometry-primary `S¹`) vs `ℤ/nℤ` (operation-primary, **`srmech.amsc.cyclic`**), the same circle. unsolved-maths §11.9.28; MFO §VII.6.19.3.
+The **grammar** reason this matters for srmech (R35.A): the `1:3:7:3` cyclic language is **operation-primary** — it *enumerates named operators*, so B/H/N are first-class. The `11D` continuous/Hopf language is **geometry-primary** — the readout is *embedded* (projection = the bundle map `π`; measurement = the Born inner-product postulate), so the operators are structural and unnamed. **srmech is the operation-primary language by construction** — it ships A–N as callables; that is *precisely* why a program written in srmech makes the readout explicit where the geometry textbook leaves it implicit. Not apples-to-oranges (form-IS-function + bit-exact ⇒ same content, two grammars); the user's image is **apples to apple *trees*** — tree = continuous geometry, apples = discrete named operators, picking = the readout. Anchor: `U(1)` (geometry-primary `S¹`) vs `ℤ/nℤ` (operation-primary, **`srmech.math.cyclic`**), the same circle. unsolved-maths §11.9.28; MFO §VII.6.19.3.
 
 ### §3.26.4 The seed carries the tree (Class I) + the closed loop IS the fractal + the epistemic ceiling (R36.A + R37.A)
 
 The discrete↔continuous equivalence is a **generative recipe, not storage** — and that is directly how a program represents an unbounded continuous structure in finite bytes:
-- the discrete **apple** carries a finite **Class-I seed** (`srmech.amsc.cyclic`; the genetic code IS Class I cyclic-3, Spike #81) that *regenerates* the continuous **tree** — the rigorous attested backbone is the **L-system** (Lindenmayer 1968): a finite discrete grammar → tree geometry, bit-exact algae-L-system lengths = Fibonacci, ratio = φ, read back via **Class N** (`best_rational`; ties Spike #41 + the capsid §11.9.19). **A program speaks the substrate by storing the seed-grammar and running it**, not by storing the limit object.
+- the discrete **apple** carries a finite **Class-I seed** (`srmech.math.cyclic`; the genetic code IS Class I cyclic-3, Spike #81) that *regenerates* the continuous **tree** — the rigorous attested backbone is the **L-system** (Lindenmayer 1968): a finite discrete grammar → tree geometry, bit-exact algae-L-system lengths = Fibonacci, ratio = φ, read back via **Class N** (`best_rational`; ties Spike #41 + the capsid §11.9.19). **A program speaks the substrate by storing the seed-grammar and running it**, not by storing the limit object.
 - **the form-IS-function loop closes:** continuous tree —[B∘H∘N readout / "picking"]→ discrete apple + seed; discrete seed (Class I) —[germination]→ continuous tree. **Iterating the loop IS the substrate's fractal recursion** — an **IFS** (Hutchinson 1981) whose attractor is the fractal (bit-exact Cantor `log2/log3`, Sierpinski `log3/log2`). unsolved-maths §11.9.29–30; MFO §VII.6.19.4 + §VIII.7.1.
 - **the keystone LIMIT (R37.A)** that bounds every srmech cross-substrate cascade-match: matching cascades establishes **form-identity**, NEVER **substrate-identity** — because the observable `3D_s+1D_t` shadow **drops `7D_g`**, where the distinguishing substrate-content lives. So a program can prove "the orchard, the star forge, the petri dish, and 'just physics' all instantiate the same recursive-Hopf form," and can *never* decide which the universe *is*. This is **structural** substrate-blindness — the very property that *makes* cross-substrate matching work (it reads form, never substrate-content) — and the discipline on `[[user_stance_cross_substrate_cascade_matching_as_research_method]]`: a cascade-match is a form-claim, not a substrate-claim. MFO §VII.6.20 (keystone).
 
 ### §3.26.5 The Class-L spine is symmetry-group-relative — a program must compute degeneracy from the domain's symmetry group, not assume `{1,3,5}` (R38.A + R42.A)
 
-The `2ℓ+1` ladder + `{1,3,5}` triad are the **S²/SO(3) instance**, not universal. Class-L's universal content is "**Laplacian eigenspaces, degeneracy = irrep-dimension of the domain's symmetry group**." For a program: **`srmech.amsc.laplacian`** gives the eigenspaces, but the *degeneracy pattern* is the symmetry group's irrep dims —
+The `2ℓ+1` ladder + `{1,3,5}` triad are the **S²/SO(3) instance**, not universal. Class-L's universal content is "**Laplacian eigenspaces, degeneracy = irrep-dimension of the domain's symmetry group**." For a program: **`srmech.math.laplacian`** gives the eigenspaces, but the *degeneracy pattern* is the symmetry group's irrep dims —
 - a **2D drumhead/disk** (Dirichlet Laplacian, **O(2)**) → `{1,2,2,2,…}` (1D trivial at `m=0` + 2D per `m≥1`), ordered by Bessel zeros — first-three `{1,2,2}`, **not** `{1,3,5}` (R38.A; bit-exact `J_m(j_{m,n}r/a)·{cos,sin}mθ`);
 - a **sphere** (SO(3)) → `{1,3,5,7,…}`.
 
@@ -5766,7 +5766,7 @@ The organizing axis is therefore **reversible-rotation-into-a-fiber** (exact; on
 
 ## §3.39 The rc7 "Q carrier" flip — the five typed carriers, ALU-all-the-way / FPU-last-mile as substrate-self-recognition, and the per-transcendental A–N cascade reading
 
-The carrier-removal arc (§3.38, the numpy-zero `Mat`/`Vec`/`HV` work) left one hole: the *scalar* return of every transcendental — `sin`, `cos`, `exp`, `sqrt`, … — was still a bare `float`. A `float` is `best_rational` run with `max_d ≈ 2⁵²` and the provenance discarded (`[[feedback_continuous_number_line_pedagogical_obstacle]]`): a strictly *worse* copy of a rational the cascade already held exactly. v0.9.0rc7 closes the hole with **`Q`** (`srmech/amsc/q.py`), a reduced `(num, den)` integer pair that compares like a float (integer cross-multiply, F868 mechanism) and collapses to a decimal **only** at the display edge via `float(q)`. Every `srmech.amsc.rational.{sin,cos,tan,atan,atan2,exp,log,sqrt,hypot}` now returns a `Q`; native `Q61` C peers (`srmech_{sin,cos,atan,exp,log,sqrt}_q61`) are byte-exact with the pure cascade. This is read, not invented — the math already *was* exact-rational the whole way; the `float` was a carrier artifact, exactly as §3.38 found the Laplacian's "partial-loss" to be carrier-only.
+The carrier-removal arc (§3.38, the numpy-zero `Mat`/`Vec`/`HV` work) left one hole: the *scalar* return of every transcendental — `sin`, `cos`, `exp`, `sqrt`, … — was still a bare `float`. A `float` is `best_rational` run with `max_d ≈ 2⁵²` and the provenance discarded (`[[feedback_continuous_number_line_pedagogical_obstacle]]`): a strictly *worse* copy of a rational the cascade already held exactly. v0.9.0rc7 closes the hole with **`Q`** (`srmech/amsc/q.py`), a reduced `(num, den)` integer pair that compares like a float (integer cross-multiply, F868 mechanism) and collapses to a decimal **only** at the display edge via `float(q)`. Every `srmech.math.rational.{sin,cos,tan,atan,atan2,exp,log,sqrt,hypot}` now returns a `Q`; native `Q61` C peers (`srmech_{sin,cos,atan,exp,log,sqrt}_q61`) are byte-exact with the pure cascade. This is read, not invented — the math already *was* exact-rational the whole way; the `float` was a carrier artifact, exactly as §3.38 found the Laplacian's "partial-loss" to be carrier-only.
 
 ### §3.39.1 The five-carrier inventory — the substrate's typed surface
 
@@ -5788,7 +5788,7 @@ The organizing lens, read in the §3.38 fiber-vs-projection idiom: **the integer
 
 ### §3.39.3 Per-transcendental A–N cascade reading
 
-Each transcendental is a *named composition* of the 14 classes — the cascade-count now matches the cascade-shape, with no `abs()` and no early float-collapse (`[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]`). Read from the rc7 bodies in `amsc/rational.py`:
+Each transcendental is a *named composition* of the 14 classes — the cascade-count now matches the cascade-shape, with no `abs()` and no early float-collapse (`[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]`). Read from the rc7 bodies in `math/rational.py`:
 
 | Function | A–N cascade | what each stage is |
 |---|---|---|
@@ -5807,7 +5807,7 @@ The reading is not allegory: each stage is a literal call into the named class's
 
 The lens has a sharp boundary, and rc7 draws it honestly. **ALU-all-the-way governs exact / algebraic cascades; it does NOT govern iterative float numeric algorithms** — Jacobi, QR, SVD, Fiedler, Newton, Kuramoto. Those algorithms *are* the FPU: their rotations are genuinely **irrational** (a Jacobi rotation angle is an `atan` of a ratio of matrix entries; no closed rational form), so a `Q` carried *through* a sweep grows `num`/`den` unboundedly — each rotation multiplies denominators that never reduce. A 3×3 Jacobi sweep carrying exact `Q` **hung**; the same sweep collapsed to `float` ran in 1.4 ms. There, `sqrt`/`hypot` is a **float subroutine** that rotates to `float` at the *subroutine* boundary — not a no-op shim apologising for the FPU, but a *genuine* fiber→base projection taken at the right altitude, because the iterative kernel is itself the observable-FPU computation, not an exact cascade. (A second, subtler edge: those float subroutines must be **libm-faithful on the non-finite domain** the sweeps reach — a Jacobi rotation legitimately forms `1 + τ² = inf`, where `sqrt(inf) = inf` gives the correct degenerate angle, so `_fsqrt`/`_fhypot` guard the `±inf`/`nan` edges rather than inheriting the leaf `rational.sqrt`'s stay-rational *raise*.)
 
-So the decision rule (now the consumer-normalization rule across `qm/`, `amsc/kepler.py`, `amsc/laplacian.py`, `signal_processing/`, `amsc/cascade/`):
+So the decision rule (now the consumer-normalization rule across `qm/`, `amsc/kepler.py`, `math/laplacian.py`, `signal_processing/`, `amsc/cascade/`):
 
 > **Exact / algebraic cascade → keep `Q` (collapse only at the display edge).
 > Iterative or observable-FPU computation (Jacobi/QR/SVD/Fiedler/Newton/Kuramoto) → collapse to `float` at the kernel boundary.**
@@ -6077,7 +6077,7 @@ So `Δ₉` restricted to `Spin(8)` is the two inequivalent **half-spinors** `8_s
 
 ### §3.44.1 The real find (SOLID) — `best_rational` walks the CF/Stern-Brocot path and throws it away; emitting it is near-free
 
-`best_rational(num, den, max_d)` (Class-N, `srmech.amsc.rational`; C `srmech_best_rational`, `srmech_rational.c`) runs the **continued-fraction convergent recurrence** `h_k = a_k·h_{k-1} + h_{k-2}`, `k_k = a_k·k_{k-1} + k_{k-2}` with `a_k = ⌊p/q⌋`, keeping the last convergent whose denominator `k_k ≤ max_d`. The sequence of partial quotients `[a_0, a_1, …]` **IS** the compact continued fraction, which **IS** the run-length encoding of the Stern-Brocot L/R path to the approximant — precisely the user's "holonomy: how many `den` wraps `num`" at each level. The recurrence already computes every `a_k`; the op **keeps only `best_p / best_q` and discards the path.**
+`best_rational(num, den, max_d)` (Class-N, `srmech.math.rational`; C `srmech_best_rational`, `srmech_rational.c`) runs the **continued-fraction convergent recurrence** `h_k = a_k·h_{k-1} + h_{k-2}`, `k_k = a_k·k_{k-1} + k_{k-2}` with `a_k = ⌊p/q⌋`, keeping the last convergent whose denominator `k_k ≤ max_d`. The sequence of partial quotients `[a_0, a_1, …]` **IS** the compact continued fraction, which **IS** the run-length encoding of the Stern-Brocot L/R path to the approximant — precisely the user's "holonomy: how many `den` wraps `num`" at each level. The recurrence already computes every `a_k`; the op **keeps only `best_p / best_q` and discards the path.**
 
 So the user's holonomy intuition was **correct and already latent in the tool**: the path is sitting there computed-and-thrown-away. srmech already ships the *unbounded-exact* form — `continued_fraction(p, q)` (C `srmech_continued_fraction`) and `continued_fraction_convergents` (C `srmech_cf_convergents_int64`). What is genuinely *new* and non-redundant is the **`max_d`-bounded** walk with its landing convergent: `continued_fraction` expands the full exact ratio (and its int64 C peer can't take a bignum coordinate), whereas the bounded path is the prefix that lands *exactly* on the returned approximant and covers the bignum-fallback regime (`> u64`, per `[[project_class_n_precision_contract_migration_breaking_no_legacy]]`). Emitting it is one `append` per accepted convergent ≈ **free**. → **Shipping as rc336** (`best_rational_path` sibling op; keeps `best_rational`'s pinned 2-tuple contract intact; additive C peer `srmech_best_rational_path`, no ABI bump). This exposes the Class-N *holonomy* as a first-class output — the compact fingerprint of an approximation, not just its endpoint.
 
@@ -6189,7 +6189,7 @@ CKM unitarity    : 1.1699998969206036e-16
 ```python
 from srmech.qm.so8 import g2_subalgebra, so8_adjoint_basis
 from srmech.qm.triality import triality_automorphism
-from srmech.amsc.laplacian import mat_matmul, mat_norm
+from srmech.math.laplacian import mat_matmul, mat_norm
 
 g2, B = g2_subalgebra(), so8_adjoint_basis()
 print("dim g2 / so8   :", len(g2), len(B))
@@ -6290,7 +6290,7 @@ One rung **below** the float register sits the discrete byte carrier a Q8 genome
 ```python
 from srmech.amsc.q8 import q8_mult, q8_bind, q8_project_v4
 from srmech.math.octonion import oct_mult
-from srmech.amsc.hdc import klein4_bind
+from srmech.math.hdc import klein4_bind
 B = {b: i for i, b in enumerate("TCAG")}        # T:+1  C:+i  A:+j  G:+k
 
 acc = 0
@@ -6361,7 +6361,7 @@ The same subject at the **gravitational** rung: a body set becomes a coupling gr
 ```python
 from srmech.amsc.coupling import (from_bodies, resonant_spectrum,
                                   resonant_spectrum_sparse, fractal_spectrum)
-from srmech.amsc.laplacian import dense_laplacian
+from srmech.math.laplacian import dense_laplacian
 from srmech.amsc.poly import poly_from_coeffs
 
 n, edges, w = from_bodies([1.0, 4.704e-5, 2.528e-5, 7.804e-5, 5.667e-5],
@@ -6404,7 +6404,7 @@ open       : the full spectrum = the JULIA SET of the decim...
 Subject: the Metonic + Saros train, topology and tooth counts from Freeth 2021 (*Sci. Rep.* **11**:5821) as recorded in `docs/antikythera-maths/research/gear_database.py:404`.
 
 ```python
-from srmech.amsc.laplacian import (dense_laplacian, jacobi_eigvals,
+from srmech.math.laplacian import (dense_laplacian, jacobi_eigvals,
                                    signed_laplacian, spectral_spine)
 E = [(0,1),(1,2),(2,3),(3,4),(4,5),(5,6),(6,7),(7,8),(3,9),(9,10),(10,11)]
 AXLE = {0, 4, 6, 9}                    # shared arbors; the other 7 are gear MESHES
@@ -6427,7 +6427,7 @@ signed lam_min : 0.0
 The calendrical dials are the Class-N side of the same object:
 
 ```python
-from srmech.amsc.rational import (continued_fraction, best_rational,
+from srmech.math.rational import (continued_fraction, best_rational,
                                   continued_fraction_convergents)
 print("CF(235/19)     :", continued_fraction(235, 19))
 print("CF(940/76)     :", continued_fraction(940, 76))
@@ -6512,7 +6512,7 @@ Subject: the twelve pitch classes joined by the **circle of fifths** (`pc → pc
 ```python
 from srmech.spectral import (decompose, recompose, delta, similarity, predict,
                              prediction_error, truncate_sparse)
-from srmech.amsc.laplacian import dense_laplacian
+from srmech.math.laplacian import dense_laplacian
 
 FIFTHS = sorted({(min(i, (i + 7) % 12), max(i, (i + 7) % 12)) for i in range(12)})
 L = dense_laplacian(12, FIFTHS, [1.0] * len(FIFTHS))

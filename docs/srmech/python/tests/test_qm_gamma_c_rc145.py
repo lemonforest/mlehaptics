@@ -162,7 +162,7 @@ def test_pauli_clifford_residuals_exact_zero():
 def test_gamma5_involutive_and_anticommuting():
     """A second independent structural check the C-dispatched matmul must
     satisfy: γ₅² = I₄ EXACTLY and {γ₅, γ^μ} = 0 EXACTLY (numpy-free)."""
-    from srmech.amsc.laplacian import mat_matmul, mat_norm
+    from srmech.math.laplacian import mat_matmul, mat_norm
 
     g5 = R.gamma_5()
     i4 = R._eye4()

@@ -8,8 +8,8 @@ the frame first → cross-seam bit-exactness holds where the un-framed compare w
 only SOMETIMES exact").
 
 **The drift this fixes (why it is NOT a re-wrap of winding_fold / the_one).** The
-periodic Class-N series carriers :func:`~srmech.amsc.rational.sin_series_truncate`
-/ :func:`~srmech.amsc.rational.cos_series_truncate` truncate the RAW rational
+periodic Class-N series carriers :func:`~srmech.math.rational.sin_series_truncate`
+/ :func:`~srmech.math.rational.cos_series_truncate` truncate the RAW rational
 argument ``p/q`` **directly** — they do NOT fold it (their own docstring: "caller
 should reduce to [-π, π]"). So a truncated ``sin`` at ``θ`` and at ``θ + 2π`` gives
 two DIFFERENT exact rationals (the truncation is about the EXPANSION POINT, and the
@@ -21,7 +21,7 @@ carrier. This carrier fixes exactly that:
 * ``winding_fold`` cannot fix it: it returns a **float** residue (re-quantised to a
   ``2⁻⁴⁴`` grid), so it cannot feed the EXACT-rational series the exact residue the
   fix needs. The transport here is an EXACT-RATIONAL 2π divmod against the SAME
-  Machin-2π anchor :data:`~srmech.amsc.laplacian._EPH_TWO_PI` — no float, no
+  Machin-2π anchor :data:`~srmech.math.laplacian._EPH_TWO_PI` — no float, no
   re-quantise (see :func:`_exact_seam_fold`).
 * ``the_one`` cannot fix it: its 2π-periodic adjoint FOLDS the winding away (that is
   what :func:`~srmech.amsc.cascade.one.separate_winding_curvature` reads); it never
@@ -117,7 +117,7 @@ def _series(func: str, numerator: int, denominator: int,
     it on demand elsewhere too) — dispatches to
     ``srmech_{sin,cos}_series_truncate_big`` when native, exact bignum pure
     otherwise (byte-identical)."""
-    from srmech.amsc.rational import sin_series_truncate, cos_series_truncate
+    from srmech.math.rational import sin_series_truncate, cos_series_truncate
     if func == "sin":
         return sin_series_truncate(numerator, denominator, num_terms)
     return cos_series_truncate(numerator, denominator, num_terms)
@@ -128,8 +128,8 @@ def _exact_seam_fold(a_num: int, a_den: int) -> Tuple[int, Tuple[int, int]]:
     ``a_num/a_den = 2π·w + r_num/r_den`` and ``|r_num/r_den| ≤ π``.
 
     This is the exact-rational sibling of ``winding_fold`` /
-    :func:`~srmech.amsc.laplacian._eph_seam_fold` — the SAME divmod against the
-    SAME Machin-2π anchor :data:`~srmech.amsc.laplacian._EPH_TWO_PI`, but WITHOUT
+    :func:`~srmech.math.laplacian._eph_seam_fold` — the SAME divmod against the
+    SAME Machin-2π anchor :data:`~srmech.math.laplacian._EPH_TWO_PI`, but WITHOUT
     ``winding_fold``'s float residue and WITHOUT ``_eph_seam_fold``'s
     ``_EPH_FOLD_DEN`` re-quantisation. The residue stays an EXACT reduced
     rational, so it can feed the EXACT-rational series and two arguments a whole
@@ -140,8 +140,8 @@ def _exact_seam_fold(a_num: int, a_den: int) -> Tuple[int, Tuple[int, int]]:
     residue is a Class-K/C branch inside ``_eph_round_div`` (round-half-toward-+∞),
     never an ``abs()``. Reduction rides the c_dispatched Class-I ``_reduce_rational``.
     """
-    from srmech.amsc.laplacian import _EPH_TWO_PI, _eph_round_div
-    from srmech.amsc.rational import _reduce_rational
+    from srmech.math.laplacian import _EPH_TWO_PI, _eph_round_div
+    from srmech.math.rational import _reduce_rational
 
     # Normalise to a positive denominator so the round-div (den > 0) is well-posed
     # — a Class-K/C sign move, never abs().
@@ -160,7 +160,7 @@ def _framed(func: str, numerator: int, denominator: int,
             num_terms: int, sigma: int) -> Dict:
     """Build the frame-carrying carrier record (shared by both public ops)."""
     _validate(func, numerator, denominator, num_terms, sigma)
-    from srmech.amsc.rational import _reduce_rational
+    from srmech.math.rational import _reduce_rational
 
     arg = _reduce_rational(numerator, denominator)      # canonical (num, den>0)
     w, residue = _exact_seam_fold(arg[0], arg[1])
@@ -200,8 +200,8 @@ def frame_carrier(func: str,
     truncated Taylor series (rc238).
 
     Augments the raw Class-N periodic series carrier
-    (:func:`~srmech.amsc.rational.sin_series_truncate` /
-    :func:`~srmech.amsc.rational.cos_series_truncate`) with its local beat-frame
+    (:func:`~srmech.math.rational.sin_series_truncate` /
+    :func:`~srmech.math.rational.cos_series_truncate`) with its local beat-frame
     ``(σ, w)`` — the connection element the raw carrier LOSES across the 2π seam.
     The returned record is the ``(lossy value, exact frame)`` pair (the rc125
     recoverable-fold analogue): ``value`` is the raw series at the argument (exact
@@ -276,7 +276,7 @@ def frame_carrier_compare(func: str,
         ``residue_delta`` the reduced ``(num, den)`` holonomy residual (``(0, 1)`` iff
         the residues coincide).
     """
-    from srmech.amsc.rational import _reduce_rational
+    from srmech.math.rational import _reduce_rational
     from srmech.amsc.cascade.atoms import magnitude
 
     a = _framed(func, num_a, den_a, num_terms, sigma_a)

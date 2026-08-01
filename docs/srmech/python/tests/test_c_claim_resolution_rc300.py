@@ -115,7 +115,7 @@ def test_the_rc299_eigvals_claim_specifically_resolves():
     site could silently pure-path. `#918` had the parallel defect of
     ``CEIL_WIRE_GLUE_GAPS`` never having ``mat_eigvals`` in scope AT ALL, so
     naming it explicitly here is the guard against a repeat."""
-    key = "srmech.amsc.laplacian.mat_eigvals"
+    key = "srmech.math.laplacian.mat_eigvals"
     assert key in C_CLAIMS, f"{key} is not covered by the claim manifest"
     assert "srmech_mat_eigvals_ws" in C_CLAIMS[key]
     for sym in C_CLAIMS[key]:
@@ -155,7 +155,7 @@ def test_report_detects_a_hidden_symbol(monkeypatch):
         "hiding a claimed symbol did NOT make the report inconsistent — the "
         "check is not actually looking at the library"
     )
-    key = "srmech.amsc.laplacian.mat_eigvals"
+    key = "srmech.math.laplacian.mat_eigvals"
     assert key in report["unresolved"]
     assert hidden in report["unresolved"][key]
 
@@ -176,7 +176,7 @@ def test_describe_surfaces_the_inconsistency(monkeypatch):
 
     claims = srmech.describe()["c_claims"]
     assert claims["consistent"] is False
-    assert "srmech.amsc.laplacian.mat_eigvals" in claims["unresolved"]
+    assert "srmech.math.laplacian.mat_eigvals" in claims["unresolved"]
 
 
 # ── 4. the pure path must not be broken by any of this ────────────────────────

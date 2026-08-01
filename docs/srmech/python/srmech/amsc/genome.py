@@ -53,21 +53,21 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from srmech.amsc import _native
-from srmech.amsc.cyclic import gcd as _gcd
+from srmech.math.cyclic import gcd as _gcd
 from srmech.amsc.format import MPRRecord as _MPRRecord
 from srmech.amsc.format import read_ndjson as _read_ndjson
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
 from srmech.amsc.format import validate_mpr_record as _validate_mpr_record
-from srmech.amsc.hdc import klein4_bind as _klein4_bind
-from srmech.amsc.hdc import klein4_expand as _klein4_expand
+from srmech.math.hdc import klein4_bind as _klein4_bind
+from srmech.math.hdc import klein4_expand as _klein4_expand
 from srmech.amsc.hv import HV as _HV
 from srmech.amsc.q8 import q8_bind as _q8_bind
 from srmech.amsc.q8 import q8_conjugate as _q8_conjugate
 from srmech.amsc.q8 import q8_project_v4 as _q8_project_v4
 from srmech.math.octonion import oct_bind as _oct_bind
 from srmech.math.octonion import oct_conjugate as _oct_conjugate
-from srmech.amsc.tlv import tlv_pack as _tlv_pack
-from srmech.amsc.tlv import tlv_unpack as _tlv_unpack
+from srmech.math.tlv import tlv_pack as _tlv_pack
+from srmech.math.tlv import tlv_unpack as _tlv_unpack
 from srmech.version import __version__ as _SRMECH_VERSION
 
 __all__ = [
@@ -2124,7 +2124,7 @@ def genome_read_octonion_fiber(strand) -> Dict[str, object]:
 # THREE distinct order-3 objects are kept SEPARATE (do NOT conflate them):
 #   (a) the reading-frame phase  φ ∈ {0,1,2} — a genuine cyclic C3 (Class I),
 #       the ribosome's window offset; ADDED here.
-#   (b) klein4 triality (:func:`srmech.amsc.hdc.klein4_triality_cycle`) — the
+#   (b) klein4 triality (:func:`srmech.math.hdc.klein4_triality_cycle`) — the
 #       base-axis automorphism, the order-3 S3 generator relabelling the three
 #       non-identity cosets, already used for k=3 error-correction. NOT the frame.
 #   (c) the winding Lk (rc309 center-parity; :func:`cwf_consistency_mod2`) — lives
@@ -2257,7 +2257,7 @@ def codon_read(strand, phase=0, *, with_indices=False, stop_at_stop=False):
     ``transl_table=1``; :func:`_genetic_code_table`). ``'*'`` denotes a stop.
 
     The reading-frame phase is a genuine cyclic **C3** (Class I), DISTINCT from
-    :func:`~srmech.amsc.hdc.klein4_triality_cycle` (the base-axis automorphism)
+    :func:`~srmech.math.hdc.klein4_triality_cycle` (the base-axis automorphism)
     and from the winding ``Lk`` (:func:`cwf_consistency_mod2`; the Q8 sign bit).
 
     Class I (``q8_project_v4`` + the Z3 frame offset) ∘ Class E (the codon
@@ -2312,7 +2312,7 @@ def codon_frame_monodromy(strand):
 
     Going once around a circular strand shifts the reading frame ``φ → φ + L``
     (mod 3), where ``L`` is the number of base symbols. This returns ``L mod 3``
-    — a REAL Z3 invariant, DISTINCT from :func:`~srmech.amsc.hdc.klein4_triality_cycle`
+    — a REAL Z3 invariant, DISTINCT from :func:`~srmech.math.hdc.klein4_triality_cycle`
     (the base-axis automorphism) and from the winding ``Lk``
     (:func:`cwf_consistency_mod2`; the sign bit). When ``L mod 3 == 0`` the frame
     CLOSES on a clean loop (a circular ORF reads in one consistent frame);
@@ -2400,7 +2400,7 @@ def quad_turn(turn, coupling, *, element_type=ELEMENT_TYPE_KLEIN4):
     WITHOUT collapse, numpy-free. ``coupling`` is the shared invariant present in every
     turn — so a chromosome navigates across its turns through ``coupling`` and recovers any
     turn by re-binding it. ``turn`` / ``coupling`` are Klein-4 vectors (``sectors=4``, e.g.
-    from :func:`srmech.amsc.hdc.klein4_from_one`); returns the coupled turn.
+    from :func:`srmech.math.hdc.klein4_from_one`); returns the coupled turn.
 
     **Q8 (``element_type=ELEMENT_TYPE_Q8``, §Q8 / rc311).** The turn is RIGHT-coupled by the
     Q₈ group product — ``stored[i] = q8_mult(turn[i], one[i])`` per slot (:func:`q8_bind`).
@@ -7133,7 +7133,7 @@ def genome_partition(n, edges, weights=None, charges=None, *,
 
     Where :func:`mint_plan` decides a kernel's shape by LEAF-COUNT (≤4 → plasmid, ≥5 →
     nuclear), THIS finds the split from the graph's relational TOPOLOGY: it runs the
-    out-of-core spectral community partition (:func:`~srmech.amsc.laplacian.recursive_cut` —
+    out-of-core spectral community partition (:func:`~srmech.math.laplacian.recursive_cut` —
     peak RAM = the largest sub-graph, never the dense n×n structure), measures each node's
     degree-normalized **participation** (the fraction of its incident edge-mass that CROSSES
     a community boundary — HIGH = a community-bridging PLASMID/mobile accessory; LOW = a
@@ -7191,12 +7191,12 @@ def genome_partition(n, edges, weights=None, charges=None, *,
              "node_counts": {"nuclear": x, "plasmid": y},
              "work_dir"}
 
-    Composes the C-dispatched :func:`~srmech.amsc.laplacian.recursive_cut`
+    Composes the C-dispatched :func:`~srmech.math.laplacian.recursive_cut`
     (fiedler_sparse_file) with a thin PURE participation + antimode read (O(|E|) + O(n),
     exact integer, numpy-free, never ``abs()``) — native==pure holds because the whole read
     is deterministic over the native community assignment. Class L (spectral community) ∘
     Class N (the exact participation rational) ∘ Class K (the antimode boundary)."""
-    from srmech.amsc.laplacian import recursive_cut       # lazy — avoid import cycle
+    from srmech.math.laplacian import recursive_cut       # lazy — avoid import cycle
 
     edge_list, weight_list, _charge_list = _partition_validate_graph(
         n, edges, weights, charges)
@@ -7213,7 +7213,7 @@ def genome_partition(n, edges, weights=None, charges=None, *,
     # the pure recursive_cut(...) call below (which omits max_depth).
     if _native.has_native_genome_graph_partition():
         import os
-        from srmech.amsc.laplacian import write_packed_graph
+        from srmech.math.laplacian import write_packed_graph
         wd = work_dir if work_dir is not None else tempfile.mkdtemp(prefix="srmech_cut_")
         os.makedirs(wd, exist_ok=True)
         graph_path = os.path.join(wd, "graph.bin")
@@ -7429,7 +7429,7 @@ def genome_from_graph(n, edges, weights=None, charges=None, *, coupling,
     if (progress is None and element_type == ELEMENT_TYPE_KLEIN4
             and _native.has_native_genome_from_graph()):
         import os
-        from srmech.amsc.laplacian import write_packed_graph
+        from srmech.math.laplacian import write_packed_graph
         wd = tempfile.mkdtemp(prefix="srmech_fromgraph_")
         os.makedirs(wd, exist_ok=True)
         graph_path = os.path.join(wd, "graph.bin")

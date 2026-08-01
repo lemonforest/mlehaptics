@@ -11,7 +11,7 @@ NOT re-exported through ``srmech.music.__init__`` — the two senses never meet.
 
 The 14 A–N class operators do NOT carry uniform chirality. Per Finding 150
 (RBS-LM research subtree, 2026-05-28) they partition into a **1-2-3 harmonic**
-order — refining F132's Klein-4 4-sector structure (`srmech.amsc.hdc.klein4_*`)
+order — refining F132's Klein-4 4-sector structure (`srmech.math.hdc.klein4_*`)
 with a per-operator harmonic period:
 
 | Harmonic | Chirality behaviour                    | Operators        | n |
@@ -47,7 +47,7 @@ from __future__ import annotations
 
 from typing import Dict, List, Tuple
 
-from ..amsc import cyclic as _cyclic
+from ..math import cyclic as _cyclic
 from ..amsc.q import Q, to_q
 
 # F150 operator → chirality-harmonic partition (the 1-2-3 reading of the 14).
@@ -124,7 +124,7 @@ def _common_denominator(xs) -> int:
     whole vector becomes integers with nothing rounded away.
 
     Every ``Q`` is already reduced, so ``lcm(a, b) = a // gcd(a, b) * b`` over
-    ``cyclic.gcd`` (``srmech/amsc/cyclic.py:114``) is exact and never overflows
+    ``cyclic.gcd`` (``srmech/math/cyclic.py:114``) is exact and never overflows
     intermediate. For a vector of ``float``s every denominator is a power of two
     and this collapses to the largest of them.
     """
@@ -295,7 +295,7 @@ def classify_chirality_harmonic(hv, dc_threshold=0.5) -> int:
 #:     ``Qi.modulus()`` the Class-K magnitude (``√(re²+im²)``, never ``abs()``).
 #:     The magnetic-Laplacian read (θ_fwd+θ_rev=0, direction-blind modulus) is
 #:     the closure demonstration. Class M's harmonic-2 had already shipped as
-#:     ``srmech.amsc.hdc.klein4_*`` (F132).
+#:     ``srmech.math.hdc.klein4_*`` (F132).
 #:   - Harmonic 3 (J): CLOSED at 0.9.0rc32 (F923 / UPSTREAM §74, the CAPSTONE).
 #:     The exact prime-coordinate carrier ``srmech.amsc.qprime.Qprime`` ships the
 #:     Class-J multiplicative-period structure: multiply=add-exponents

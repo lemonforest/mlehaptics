@@ -390,7 +390,7 @@ def _is_numpy_import(line: str) -> bool:
 # qm/so8.py + qm/triality.py (the two remaining column-0 carriers of the
 # cluster) go numpy-free in one change (the EXACT-RREF / float Gram-Schmidt rank
 # + mat_svd nullspace DUAL fix in so8; mat_solve/mat_matmul companions in
-# triality), while amsc/hdc.py (a LAZY-proxy, not a column-0 carrier — the proxy
+# triality), while math/hdc.py (a LAZY-proxy, not a column-0 carrier — the proxy
 # is killed) and amsc/cascade/hypercomplex_dft.py (function-local numpy) also go
 # fully numpy-free. Removing so8 + triality from the column-0 list takes the
 # count 7 -> 5. The remaining 5 carriers are EXACTLY: mcp/_coercion.py,

@@ -24,7 +24,7 @@ import pytest
 
 import srmech.amsc._native as _native
 from srmech.amsc import genome as G
-from srmech.amsc.hdc import klein4_expand
+from srmech.math.hdc import klein4_expand
 
 pytestmark = pytest.mark.skipif(
     not _native.has_native_genome(),

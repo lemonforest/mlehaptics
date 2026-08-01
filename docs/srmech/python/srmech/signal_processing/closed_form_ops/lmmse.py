@@ -6,7 +6,7 @@ matrix-vector multiply on the joint observation-signal substrate) ∘ Class N
 for the linear estimator.
 
 Carrier-removal #564 (rc101): numpy-FREE — the Class-L gain solve routes through
-the native :func:`~srmech.amsc.laplacian.mat_solve` over the numpy-free
+the native :func:`~srmech.math.laplacian.mat_solve` over the numpy-free
 :class:`~srmech.amsc.mat.Mat` carrier, and the ``K·(y-mean_y)`` estimate is a
 pure-Python matvec. No top-level ``import numpy``.
 
@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from typing import List
 
-from srmech.amsc.laplacian import mat_solve
+from srmech.math.laplacian import mat_solve
 from srmech.amsc.mat import Mat
 
 OPERATION_NAME = "lmmse"

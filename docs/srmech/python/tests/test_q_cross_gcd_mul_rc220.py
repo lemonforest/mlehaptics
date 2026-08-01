@@ -45,7 +45,7 @@ import pytest
 
 from srmech.amsc import _native
 from srmech.amsc import q as _q_mod
-from srmech.amsc import rational as _rational
+from srmech.math import rational as _rational
 from srmech.amsc.q import Q, _coprime_product
 
 

@@ -10,8 +10,8 @@ policy that no longer exists and is actively misleading: ``pip install srmech``
 pulls **no** numpy, both pyprojects say so, the ``scientific = ["numpy"]`` extra
 was removed, and the package source contains **zero** live ``import numpy`` (the
 17 grep hits under ``srmech/`` are all prose saying there is none). The carriers
-are srmech-native — :class:`~srmech.amsc.hdc.Mat` / :class:`~srmech.amsc.coupling.Vec`
-/ :class:`~srmech.amsc.hdc.HV` — numpy-*shaped* in idiom, but not numpy, and
+are srmech-native — :class:`~srmech.math.hdc.Mat` / :class:`~srmech.amsc.coupling.Vec`
+/ :class:`~srmech.math.hdc.HV` — numpy-*shaped* in idiom, but not numpy, and
 dispatched to the native C surface through ctypes over plain Python lists.
 
 So this ratchet does **not** guard "how the carriers are used". It guards against
@@ -371,7 +371,7 @@ _UFUNC = re.compile(
 # mentions in matrix_cascades / tool_schema / triality (no genuine calls there)
 # reworded to "NumPy X". np.linalg. 61 -> 32. The genuine svd / matrix_rank /
 # inv / eig / eigh / solve / lstsq / pinv (sign/order-delicate, mostly qm/so8.py
-# + amsc/laplacian.py) are the rc63b/c sub-batches.
+# + math/laplacian.py) are the rc63b/c sub-batches.
 # rc63b (v0.7.5rc64): the 2 real `np.linalg.inv` covariance-inverse sites in
 # signal_processing/closed_form_ops/map_ml.py route onto the already-exported
 # `laplacian.dense_solve(M, np.eye(n))` (a unique, well-conditioned solve — the
@@ -406,7 +406,7 @@ _UFUNC = re.compile(
 # public-API op routed onto the numpy-free `mat_svd` Mat foundation — its
 # `np.linalg.svd` is gone, so linalg_fft 23 → 22.)
 # rc123/124/125 (#564 carrier removal): qm/so8.py, qm/triality.py,
-# amsc/hdc.py + amsc/cascade/hypercomplex_dft.py flip fully numpy-free. so8 was
+# math/hdc.py + amsc/cascade/hypercomplex_dft.py flip fully numpy-free. so8 was
 # the dominant numpy-as-accuracy holder (its ~13 np.linalg.{svd,matrix_rank}
 # sites): the rank COUNTS move to the EXACT rational RREF / float Gram-Schmidt
 # rank, and the nullspace/SVD GEOMETRY rides the numpy-free `mat_svd`; triality's
@@ -429,7 +429,7 @@ _UFUNC = re.compile(
 # to_numpy() bridge, no `np` module attribute. The executable numpy-MATH surface
 # this ratchet guards is therefore ZERO across all three categories. The
 # remaining `numpy.linalg.*` matches are TEXTUAL DOCSTRING mentions in
-# amsc/laplacian.py ("Matches the native-C / ``numpy.linalg.eigvalsh`` path to
+# math/laplacian.py ("Matches the native-C / ``numpy.linalg.eigvalsh`` path to
 # Jacobi round-off", "NOT ``numpy.linalg.eigvalsh``") — precise historical
 # cross-references in prose, NOT compute. matmul + ufunc are 0. The ratchet now
 # measures only docstring residue; the ceilings are pinned at the exact residual

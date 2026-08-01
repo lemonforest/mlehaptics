@@ -16,7 +16,7 @@ ALL deviations are reduced through the **scalar** Class K pin-slot
 magnitude (:func:`srmech.amsc.cascade.magnitude`) — NEVER Python ``abs()``
 per ``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]`` — by
 first reducing the matrix to a scalar Frobenius norm via the numpy-free
-Class-N :func:`srmech.amsc.laplacian.mat_norm`, then passing that Python
+Class-N :func:`srmech.math.laplacian.mat_norm`, then passing that Python
 float to ``magnitude`` (which is scalar-only; it raises on an array).
 
 Determinism: every basis extraction uses a deterministic rank-revealing
@@ -37,7 +37,7 @@ import pytest
 
 from srmech.amsc.cascade import magnitude
 from srmech.amsc.format import sha256_bytes
-from srmech.amsc.laplacian import mat_matmul, mat_norm
+from srmech.math.laplacian import mat_matmul, mat_norm
 from srmech.amsc.mat import Mat
 from srmech.qm import octonion, so8, triality
 
@@ -121,7 +121,7 @@ def _rank_float(columns: list) -> int:
     (``1e-6·σ_max``) counts the genuine rank: a same-span stack has its trailing
     singular values collapse to the floor while the leading 14 (resp. 21) stay
     O(1). Numpy-free."""
-    from srmech.amsc.laplacian import mat_svd
+    from srmech.math.laplacian import mat_svd
     rows = [[columns[c][r] for c in range(len(columns))]
             for r in range(len(columns[0]))]
     _, S, _ = mat_svd(Mat.from_rows(rows))

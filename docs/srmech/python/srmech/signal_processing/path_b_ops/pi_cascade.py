@@ -7,7 +7,7 @@ Spike #170 (RBS-HDC instrument as LoE-bearing substrate at D=8192) +
 ``[[user_stance_cascade_lives_on_circles]]`` (cascade composition of
 cyclic shifts produces unit-circle eigenvalues at machine ε).
 
-The underlying ``srmech.amsc.rational.pi_cascade_digits`` primitive
+The underlying ``srmech.math.rational.pi_cascade_digits`` primitive
 computes π via the **two-sided Pfaff–Archimedes chiral pair** (rc20):
 a *circumscribed* bound ``a`` falling ↓ to π (the harmonic mean,
 ``aₙ₊₁ = 2·aₙ·bₙ/(aₙ+bₙ)``) and an *inscribed* bound ``b`` rising ↑ to π
@@ -17,7 +17,7 @@ run with opposite orientation — and the bracket invariant ``b < π < a``
 holds at every step, so π is the midpoint ``(a + b)/2`` (the old naive
 linear single-bound hexagon-doubling form was removed in rc20). For the
 canonical exact-substrate π digit stream (bit-exact body, ONE terminal
-rotation) use ``srmech.amsc.rational.pi_chudnovsky_digits`` — the digit
+rotation) use ``srmech.math.rational.pi_chudnovsky_digits`` — the digit
 SSoT the chiral pair is cross-checked against.
 
 The Path B implementation lives on the **RBS-HDC bound-vector substrate
@@ -40,7 +40,7 @@ at D=8192**:
 
 3. **Class N rational** + **Class I cyclic** + **Class C cascade**
    underlying — Path B inherits these from the same
-   ``srmech.amsc.rational.pi_cascade_digits`` primitive that Path A
+   ``srmech.math.rational.pi_cascade_digits`` primitive that Path A
    uses. Per
    ``[[user_stance_identity_not_implementation_discipline]]``: both
    paths INSTANTIATE the same pi-cascade composition; the dispatcher
@@ -70,9 +70,9 @@ Canonical SSoT
   cascade composition preserves unit-circle eigenvalues.
 - ``[[user_stance_identity_not_implementation_discipline]]`` — Path A
   and Path B both instantiate the same algebra; D1 bit-exact.
-- Milestone #4 — underlying ``srmech.amsc.rational.pi_cascade_digits``
+- Milestone #4 — underlying ``srmech.math.rational.pi_cascade_digits``
   primitive (rc13 cap=1000; rc20 two-sided Pfaff–Archimedes chiral pair).
-- ``srmech.amsc.rational.pi_chudnovsky_digits`` — the canonical
+- ``srmech.math.rational.pi_chudnovsky_digits`` — the canonical
   exact-substrate π digit SSoT the chiral pair is cross-checked against
   (rc19).
 - Archimedes, *Measurement of a Circle* (c. 250 BCE), as reformulated by
@@ -83,7 +83,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from srmech.amsc.rational import pi_cascade_digits as _amsc_pi_cascade_digits
+from srmech.math.rational import pi_cascade_digits as _amsc_pi_cascade_digits
 
 from srmech.signal_processing.form_function_rotation import (
     compute_content_stride,
@@ -101,7 +101,7 @@ SSOT_CITATION = (
     "order D/gcd(k,D)); [[user_stance_pi_as_projection]] (pi "
     "cascade-emergent from integer-cyclic substrate); "
     "[[user_stance_cascade_lives_on_circles]] (Spike #24 bonus 9). "
-    "Underlying primitive: srmech.amsc.rational.pi_cascade_digits "
+    "Underlying primitive: srmech.math.rational.pi_cascade_digits "
     "(rc13 cap=1000, Milestone #4)."
 )
 
@@ -126,7 +126,7 @@ def _verify_path_b_substrate_identity(D: int) -> dict:
     Returns the (stride, cycle_order) pairs as a metadata dict for
     optional inspection by the benchmark.
     """
-    from srmech.amsc.cyclic import gcd
+    from srmech.math.cyclic import gcd
     pairs: dict = {}
     for k in _ARCHIMEDES_CASCADE_STRIDES:
         order = verify_rotation_class_n_cycle_order(k, D=D)
@@ -185,7 +185,7 @@ def op(
        that the cyclic-substrate algebra is well-defined on the
        RBS-HDC instrument.
     2. Compute the cascade content via the same underlying primitive
-       (``srmech.amsc.rational.pi_cascade_digits``) — both paths IS the
+       (``srmech.math.rational.pi_cascade_digits``) — both paths IS the
        same algebra, the dispatcher routes between substrates.
     3. Verify Class M HDC bind round-trip on the cascade content
        (Spike #176 T4) — the π content is HDC-bindable on the D=8192

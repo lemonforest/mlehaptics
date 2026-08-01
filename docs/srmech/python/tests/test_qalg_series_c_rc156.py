@@ -2,7 +2,7 @@
 ``srmech_bigint``-backed C path — ``bignum_reference → c_dispatched``.
 
 The 5 exact-rational Taylor oracles
-``srmech.amsc.rational.{exp,sin,cos,log1p,atan}_series_truncate`` now dispatch to
+``srmech.math.rational.{exp,sin,cos,log1p,atan}_series_truncate`` now dispatch to
 the caller-arena ``srmech_bigint`` C peers
 ``srmech_{exp,sin,cos,log1p,atan}_series_truncate_big`` (byte-identical ``(num,
 den)`` at ANY magnitude — no int64/Q61 ceiling), and ``srmech.qm.bell.
@@ -32,7 +32,7 @@ from pathlib import Path
 import pytest
 
 from srmech.amsc import _native
-from srmech.amsc import rational as R
+from srmech.math import rational as R
 from srmech.qm import bell
 
 
@@ -93,7 +93,7 @@ _SERIES_SEED = {
 #: ``|p|^k · q^(N−k) · (N!/k!)`` lands in ``(INT64_MAX, UINT64_MAX]``: it fits
 #: u64, so every ``exp_series_mul_u64`` overflow check passes, but it exceeds
 #: i64 — which is the in-contract "too big for the int64 tier, fall through to
-#: bignum" signal (``srmech/amsc/rational.py:505``). The old assert stated the
+#: bignum" signal (``srmech/math/rational.py:505``). The old assert stated the
 #: NEGATION of that supported outcome ABOVE the guard that returns it, so an
 #: asserts-live build called ``abort()`` on a supported input while NDEBUG
 #: returned the correct answer — one projection right, the other killing the
@@ -236,11 +236,11 @@ def test_ledger_rows_are_c_dispatched():
     rows = {json.loads(l)["defined_at"]: json.loads(l)["bucket"]
             for l in fixture.read_text(encoding="utf-8").splitlines() if l.strip()}
     for da in (
-        "srmech.amsc.rational.exp_series_truncate",
-        "srmech.amsc.rational.sin_series_truncate",
-        "srmech.amsc.rational.cos_series_truncate",
-        "srmech.amsc.rational.log1p_series_truncate",
-        "srmech.amsc.rational.atan_series_truncate",
+        "srmech.math.rational.exp_series_truncate",
+        "srmech.math.rational.sin_series_truncate",
+        "srmech.math.rational.cos_series_truncate",
+        "srmech.math.rational.log1p_series_truncate",
+        "srmech.math.rational.atan_series_truncate",
         "srmech.qm.bell.tsirelson_bound",
     ):
         assert rows.get(da) == "c_dispatched", (da, rows.get(da))
