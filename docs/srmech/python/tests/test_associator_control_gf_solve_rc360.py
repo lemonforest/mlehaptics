@@ -52,7 +52,7 @@ from srmech.amsc.cascade import (algebra_table, associator, cd_basis,
                                  cd_basis_product, cd_mult, inertia_signature,
                                  left_mult_kernel, table_product)
 from srmech.amsc.format import sha256_bytes
-from srmech.amsc.modular_linalg import gf_nullspace, gf_rref, gf_solve
+from srmech.math.modular_linalg import gf_nullspace, gf_rref, gf_solve
 from srmech.amsc.qmat import QMat
 
 _SRMECH = Path(__file__).resolve().parents[1] / "srmech"
@@ -573,11 +573,11 @@ def test_gf_solve_is_exported_and_classified():
     """A new public name in a module WITH ``__all__`` is invisible to the
     ledger walk unless it is listed — the trap this module's ``__all__`` sets.
     """
-    import srmech.amsc.modular_linalg as ml
+    import srmech.math.modular_linalg as ml
     assert "gf_solve" in ml.__all__ and "gf_nullspace" in ml.__all__
     ledger = (Path(__file__).resolve().parent
               / "rosetta_classification.ndjson").read_text(encoding="utf-8")
-    for name in ("srmech.amsc.modular_linalg.gf_solve",
-                 "srmech.amsc.modular_linalg.gf_nullspace",
+    for name in ("srmech.math.modular_linalg.gf_solve",
+                 "srmech.math.modular_linalg.gf_nullspace",
                  "srmech.amsc.cascade.cayley_dickson.associator"):
         assert f'"{name}"' in ledger, f"{name} has no Rosetta bucket"

@@ -50,7 +50,7 @@ from srmech.amsc.genome import (
     genome_add_fiber, genome_read_fiber,
     chromosome, recall, telomere, codon_read, _cap_kind, _hv_bytes,
 )
-from srmech.amsc.octonion import oct_bind, oct_mult
+from srmech.math.octonion import oct_bind, oct_mult
 from srmech.amsc.hv import HV
 
 

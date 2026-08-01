@@ -25,7 +25,7 @@ import random
 from fractions import Fraction
 
 from srmech.amsc import cyclic as _cyclic
-from srmech.amsc.modular_linalg import crt_combine, gf_rref
+from srmech.math.modular_linalg import crt_combine, gf_rref
 from srmech.amsc.primes import next_prime
 from srmech.amsc.rational import _py_isqrt, rational_reconstruct
 

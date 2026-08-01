@@ -421,7 +421,7 @@ class QMat:
            :func:`srmech.amsc.cyclic.mod_inv`. A prime dividing ANY denominator is
            *skipped* (the modular image of that entry is undefined).
         2. **Eliminate (swell-free).** Run the bounded machine-int
-           :func:`srmech.amsc.modular_linalg.gf_rref` over GF(p) -> the RREF mod
+           :func:`srmech.math.modular_linalg.gf_rref` over GF(p) -> the RREF mod
            ``p`` + its rank + pivot columns. No fraction growth, no bignum.
         3. **Consensus rank / unlucky-prime discard.** The true rank is the
            CONSENSUS = the maximum ``(rank, pivots)`` seen (a prime that drops a
@@ -429,7 +429,7 @@ class QMat:
            ``(rank, pivots)`` disagrees with the running consensus is an *unlucky
            prime* and is discarded from the CRT (the genuine ``p=7`` Franel drop).
         4. **Combine + reconstruct once.** For each entry position
-           :func:`srmech.amsc.modular_linalg.crt_combine` the per-prime residues
+           :func:`srmech.math.modular_linalg.crt_combine` the per-prime residues
            -> a residue mod ``prod(good primes)``; then the Class-N
            :func:`srmech.amsc.rational.rational_reconstruct` recovers the exact
            ``Q`` entry.
@@ -843,7 +843,7 @@ def _rref_crt_rows(src_rows, n_rows: int, n_cols: int, n_cols_left: int):
     answer). Composes the Class-I ``gf_rref`` / ``crt_combine`` over the Class-J
     descending prime field, with the Class-N ``rational_reconstruct`` closing each
     entry; Class-K consensus + sign throughout. No float, no numpy, no ``math``."""
-    from . import modular_linalg as _ml
+    from ..math import modular_linalg as _ml
     from . import rational as _rational
 
     n_cells = n_rows * n_cols
@@ -987,7 +987,7 @@ def _det_crt(src_rows, n: int):
     (:func:`rational_reconstruct`) — byte-identical to the dense determinant at
     bounded memory. Returns the exact :class:`~srmech.amsc.q.Q`, or ``None`` if the
     prime field exhausts without stabilizing (not hit for a finite answer)."""
-    from . import modular_linalg as _ml
+    from ..math import modular_linalg as _ml
     from . import rational as _rational
 
     good_residues: List[int] = []

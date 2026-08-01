@@ -62,7 +62,7 @@ from srmech.amsc.genome import (
     ELEMENT_TYPE_OCTONION,
     ELEMENT_TYPE_Q8,
 )
-from srmech.amsc.octonion import oct_mult
+from srmech.math.octonion import oct_mult
 from srmech.amsc.q8 import q8_mult
 from srmech.introspect import describe
 

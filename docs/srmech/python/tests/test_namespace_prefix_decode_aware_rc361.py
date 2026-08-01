@@ -244,7 +244,17 @@ CEIL_AMSC_PREFIX = {
     # decoded refs move amsc->apokatastasis (measured: apokatastasis decoded goes
     # 0 -> 13, amsc 529 -> 516), plus 45 as-text back-index / carrier-name
     # citations. Re-pinned DOWN in the same commit as the move.
-    "c/src/srmech_carrier_registry.c": (156, 516),
+    #
+    # as-text UNCHANGED at 156, decoded 516 -> 500 at rc372 (-16). THE srmech.math
+    # SLICE (octonion / kepler / modular_linalg -> srmech.math). This is the
+    # POPULATION channel again: octonion is a genome CARRIER op, and its 16
+    # oct_mult / oct_bind / oct_conjugate back-index references live in the four
+    # hoisted >4000-byte carrier-registry byte arrays (the decoded channel), NOT
+    # in the short as-text back-index strings — so decoded amsc goes 516 -> 500
+    # and srmech.math. rises 0 -> 16 (conserved). as-text stays 156 because the
+    # octonion carrier's SHORT back-index citations were already outside this
+    # artifact (its ToolEntry citations sit in the tool_registry / _tool_docs).
+    "c/src/srmech_carrier_registry.c": (156, 500),
     # TEXT 0 is TRUE, and true about the wrong thing. Every one of the four
     # baked [class] descriptors (`cls_desc_0..3`) is a decimal byte array, so a
     # grep has nothing to read. 37 DISTINCT dotted names live in there.
@@ -314,7 +324,14 @@ CEIL_AMSC_PREFIX = {
     # dotted refs repointed amsc->apokatastasis. decoded stays 4 (this artifact's 4
     # are its own hoisted strings; the moved family's carrier back-index lives in
     # the CARRIER registry, which is where the -13 decoded drop landed).
-    "c/src/srmech_tool_registry.c": (1151, 4),
+    #
+    # as-text 1151 -> 1111 at rc372 (-40), decoded UNCHANGED at 4. The srmech.math
+    # slice: the 10 moved ops' ToolEntry `name=` citations + their worked-example
+    # imports (`from srmech.math import kepler`, the `srmech.math.<m>.<op>` dotted
+    # refs) + sibling-prose dotted refs repointed amsc->math. decoded stays 4 (this
+    # artifact's 4 are its own hoisted strings; the octonion carrier back-index
+    # decoded drop landed in the CARRIER registry).
+    "c/src/srmech_tool_registry.c": (1111, 4),
     # rc368 — THE FIRST MODULE MOVE TO MOVE THIS ARTIFACT (the new data point).
     # This was the CONTROL row through harmonics/naming: "no byte arrays, decoded
     # 0 is a real zero". It is still a real zero on the decoded channel, but the
@@ -363,7 +380,11 @@ CEIL_AMSC_PREFIX = {
     # drain — the doc-pair partner of the tool registry: the 24 modules' op
     # documentation (ToolEntry names + sibling-prose dotted refs) repointed
     # amsc->apokatastasis.
-    "python/srmech/amsc/_tool_docs.py": (1133, 0),
+    # as-text 1133 -> 1093 at rc372 (-40), decoded UNCHANGED at 0. The srmech.math
+    # slice — the SAME 40 citations as the tool registry (this is the doc pair):
+    # the 10 moved ops' documentation (ToolEntry names + worked-example imports +
+    # sibling-prose dotted refs) repointed amsc->math.
+    "python/srmech/amsc/_tool_docs.py": (1093, 0),
     # as-text 250 -> 248 at rc367 (-2), decoded UNCHANGED at 0. rc367 is the
     # FIRST module move to move THIS artifact — a departure from the harmonics
     # analog. _c_claims.py is the op -> C-symbol CLAIM manifest, keyed only for
@@ -394,7 +415,14 @@ CEIL_AMSC_PREFIX = {
     # harmonic_maass / q_* / riemann_theta* / thetasum / unary_theta / wz_* /
     # zeilberger) each repointed amsc->apokatastasis. The C SYMBOLS are
     # capability-named and unchanged — only the Python-side dotted keys moved.
-    "python/srmech/amsc/_c_claims.py": (218, 0),
+    # as-text 218 -> 210 at rc372 (-8), decoded UNCHANGED at 0. The srmech.math
+    # slice: the moved ops' c_dispatched leaves — kepler's 3 (equation_of_centre /
+    # kepler_solve / pin_slot), octonion's 3 (oct_mult / oct_conjugate / oct_bind),
+    # modular_linalg's gf_rref (C_CLAIMS) + crt_combine (UNVERIFIABLE_CLAIMS) = 8
+    # keys — each repointed amsc->math. gf_solve / gf_nullspace are composition_of_c
+    # (no C claim), so they never had a key here. The C SYMBOLS are capability-named
+    # and unchanged — only the Python-side dotted keys moved.
+    "python/srmech/amsc/_c_claims.py": (210, 0),
 }
 
 #: The generated-artifact totals, pinned so a per-file edit cannot quietly move
@@ -407,8 +435,8 @@ CEIL_AMSC_PREFIX = {
 #:
 #: as-text 2933 (rc361) -> 2943 (rc362, +10 = the 5 citations x 2 artifacts).
 #: decoded 577 (rc361)  ->  577 (rc362, FLAT — the population did not move).
-TOTAL_AS_TEXT = 2699   # rc370 2901 -> rc371 2699 (-202: the WHOLE-FAMILY drain, 24 modules amsc->apokatastasis; -45 carrier + -50 tool_registry + -30 responsion + -49 _tool_docs + -28 _c_claims)
-TOTAL_DECODED = 560    # rc370 573 -> rc371 560 (-13: THE POPULATION FELL — 13 elliptic-carrier (ellbase/thetasum) op refs in the hoisted carrier-registry byte arrays moved amsc->apokatastasis; contrast rc370 where the single op's carrier refs were inline as-text)
+TOTAL_AS_TEXT = 2611   # rc371 2699 -> rc372 2611 (-88: the srmech.math slice, 3 modules amsc->math; -40 tool_registry + -40 _tool_docs + -8 _c_claims; carrier as-text flat, responsion/class flat)
+TOTAL_DECODED = 544    # rc371 560 -> rc372 544 (-16: THE POPULATION FELL — 16 octonion-carrier (oct_mult/oct_bind/oct_conjugate) op refs in the hoisted carrier-registry byte arrays moved amsc->math)
 
 
 def _counts(rel_path: str) -> "tuple[int, int]":
@@ -581,6 +609,15 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     ``srmech.apokatastasis.`` rose 0 -> **13**, conserving the count. amsc is now
     pinned at 516, apokatastasis at 13, music holds at 13; the music counterfactual
     (re-namespace all 13 music refs) lands at 529 = 516 + 13.
+
+    rc372 — A SECOND POSITIVE POPULATION MOVE, into a THIRD receiving namespace.
+    The srmech.math slice (octonion / kepler / modular_linalg) moved 16
+    octonion-CARRIER op references (oct_mult / oct_bind / oct_conjugate, which the
+    genome consumes) inside these hoisted byte arrays: decoded ``srmech.amsc.``
+    fell 516 -> **500** and ``srmech.math.`` rose 0 -> **16**, conserving the
+    count. amsc is now pinned at 500, math at 16, apokatastasis holds at 13, music
+    holds at 13; the music counterfactual (re-namespace all 13 music refs) lands
+    at 513 = 500 + 13.
     """
     car = _SR_ROOT / "c/src/srmech_carrier_registry.c"
     joined = "\n".join(b for _, b in decoded_blobs(car))
@@ -588,9 +625,10 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     amsc = joined.count(PREFIX)
     music = joined.count("srmech.music.")
     apokatastasis = joined.count("srmech.apokatastasis.")
-    assert amsc == 516, (
+    math = joined.count("srmech.math.")
+    assert amsc == 500, (
         f"the carrier registry's decoded amsc population is {amsc}, expected "
-        f"516 — re-read the pins before trusting anything else in this file.")
+        f"500 — re-read the pins before trusting anything else in this file.")
     assert music == 13, (
         f"expected 13 srmech.music op references inside the DECODED channel "
         f"(9 from the rc362 Q / Qalg ops.consumes back-index + 4 from the rc366 "
@@ -608,6 +646,15 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
         f"channel (the rc371 whole-family drain's carrier back-index), found "
         f"{apokatastasis}. amsc fell 529 -> 516 by exactly these 13; if this is "
         f"not 13 the population move is not conserved — re-measure.")
+    # rc372 — THE srmech.math RECEIVING SIDE, pinned like apokatastasis. The math
+    # slice moved 16 octonion-carrier op refs (oct_mult / oct_bind / oct_conjugate)
+    # OUT of the amsc decoded count (516 -> 500) and INTO math (0 -> 16) inside
+    # these hoisted byte arrays. Conserved: -16 amsc = +16 math.
+    assert math == 16, (
+        f"expected 16 srmech.math op references inside the DECODED channel "
+        f"(the rc372 octonion-carrier back-index), found {math}. amsc fell "
+        f"516 -> 500 by exactly these 16; if this is not 16 the population move "
+        f"is not conserved — re-measure.")
 
     # THE COUNTERFACTUAL: had those music ops landed in the draining namespace,
     # the decoded channel would have seen every one of them.

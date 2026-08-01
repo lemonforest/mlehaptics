@@ -1,7 +1,7 @@
 """§𝕆 / rc324 — the ELEMENT_TYPE_OCTONION genome carrier PROVE-GATES.
 
 The discrete octonion Moufang loop ``{±e₀, …, ±e₇}`` as 4-bit bytes
-(:mod:`srmech.amsc.octonion`) is wired into the GENOME as a NEW ``element_type``
+(:mod:`srmech.math.octonion`) is wired into the GENOME as a NEW ``element_type``
 path (:data:`~srmech.amsc.genome.ELEMENT_TYPE_OCTONION`) — the Cayley–Dickson rung
 ABOVE Q₈, and it COEXISTS with the shipped klein4 (type 0) + Q₈ (type 1) paths,
 byte-untouched. 𝕆 is globally NON-associative, but each slot holds ONE signed basis
@@ -41,7 +41,7 @@ import pytest
 from tests._native_gate import require_native
 from srmech.amsc import _native
 from srmech.amsc import genome as G
-from srmech.amsc import octonion as O
+from srmech.math import octonion as O
 from srmech.amsc.cascade.cayley_dickson import cd_basis_product, cd_mult
 from srmech.amsc.genome import (
     ELEMENT_TYPE_KLEIN4,
@@ -57,7 +57,7 @@ from srmech.amsc.genome import (
 )
 from srmech.amsc.hdc import klein4_bind
 from srmech.amsc.hv import HV
-from srmech.amsc.octonion import oct_bind, oct_conjugate, oct_mult
+from srmech.math.octonion import oct_bind, oct_conjugate, oct_mult
 from srmech.amsc.q8 import q8_bind
 
 ALL16 = range(16)
@@ -447,7 +447,7 @@ def test_tool_schema_entries_present():
     from srmech.amsc.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
     for op in ("oct_mult", "oct_conjugate", "oct_bind"):
-        assert f"srmech.amsc.octonion.{op}" in names
+        assert f"srmech.math.octonion.{op}" in names
 
 
 def test_element_type_registration():

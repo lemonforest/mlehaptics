@@ -2274,7 +2274,7 @@ def _bind(lib: ctypes.CDLL) -> None:
     # GF(p) reduced-row-echelon kernel (Class I modular linear algebra, rung 1 of
     # the CRT-QMat re-fibration arc). In-place over a caller-owned row-major int64
     # buffer; pivots + rank into caller buffers. NEW symbol — hasattr-guarded (ABI
-    # stays 3; the pure-Python srmech.amsc.modular_linalg.gf_rref is complete).
+    # stays 3; the pure-Python srmech.math.modular_linalg.gf_rref is complete).
     if hasattr(lib, "srmech_gf_rref"):
         lib.srmech_gf_rref.argtypes = [
             ctypes.POINTER(ctypes.c_int64),     # matrix (n_rows*n_cols, row-major)

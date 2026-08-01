@@ -132,4 +132,15 @@ ROSETTA_ROOTS = (
     # walk must reach it in the SAME rc the module moves or the move would read
     # as a deletion (a classified row whose live op vanished).
     "srmech.apokatastasis",
+    # v0.9.0rc372 — the ADR-0010 srmech.math DOMAIN namespace (the 14 A-N
+    # primitives + carriers + general math, A.2's SECOND-largest bucket at 22
+    # modules), landed by its FIRST slice: the general-algebra roster
+    # octonion / kepler / modular_linalg. APPENDED (order-is-part-of-the-value).
+    # Like srmech.apokatastasis (and unlike the zero-op srmech.cascade), this
+    # root enters carrying WALKED ops (10 names across the 3 modules — 7
+    # c_dispatched, 3 composition), so the walk MUST reach it in the SAME rc the
+    # modules move or the moves would read as deletions. modular_linalg is the
+    # H.2 apokatastasis over-count reassignment: GF(p) finite-field LA is a
+    # general math primitive, not a modular-forms module, so it lands HERE.
+    "srmech.math",
 )

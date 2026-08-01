@@ -23,11 +23,8 @@ gap_suggester
 genome
 hdc
 hv
-kepler
 laplacian
 mat
-modular_linalg
-octonion
 plasmid
 poly
 primes

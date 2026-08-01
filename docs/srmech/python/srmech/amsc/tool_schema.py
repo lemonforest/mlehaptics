@@ -1063,7 +1063,7 @@ def _register_primitive_class_tools() -> None:
         # (rc44, rung 1 of the CRT-QMat re-fibration arc).
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.modular_linalg.gf_rref", owner="srmech",
+            name="srmech.math.modular_linalg.gf_rref", owner="srmech",
             category="modular_linalg",
             summary="Reduced row-echelon form of an integer matrix over the finite "
                     "field GF(p) — Gaussian elimination over a prime field (cf. "
@@ -1105,7 +1105,7 @@ def _register_primitive_class_tools() -> None:
         # hand. Both are pure composition over the c_dispatched gf_rref.
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.modular_linalg.gf_solve", owner="srmech",
+            name="srmech.math.modular_linalg.gf_solve", owner="srmech",
             category="modular_linalg",
             summary="Solve A·x ≡ b (mod p) over GF(p) and return the FULL "
                     "solution set, not one vector: {'consistent': bool, "
@@ -1156,7 +1156,7 @@ def _register_primitive_class_tools() -> None:
                       "basis, ALWAYS returned), 'rank': int (rank(A))}"),
         ),
         ToolEntry(
-            name="srmech.amsc.modular_linalg.gf_nullspace", owner="srmech",
+            name="srmech.math.modular_linalg.gf_nullspace", owner="srmech",
             category="modular_linalg",
             summary="A basis of the kernel {x : A·x ≡ 0 (mod p)} over GF(p) — the "
                     "classical free-variable basis in ascending free-column order: "
@@ -1191,7 +1191,7 @@ def _register_primitive_class_tools() -> None:
         # arc). The per-prime-residues → one-residue-mod-product closer.
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.modular_linalg.crt_combine", owner="srmech",
+            name="srmech.math.modular_linalg.crt_combine", owner="srmech",
             category="modular_linalg",
             summary="Chinese-Remainder-combine per-prime residues into one residue "
                     "modulo the product of the primes — the CRT (cf. Knuth, *The "
@@ -3898,7 +3898,7 @@ def _register_primitive_class_tools() -> None:
         # Class K — equation-of-centre / pin-slot
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.kepler.pin_slot", owner="srmech", category="kepler",
+            name="srmech.math.kepler.pin_slot", owner="srmech", category="kepler",
             summary="Antikythera pin-and-slot transform: phi = atan2(i sin θ, "
                     "d + i cos θ). Continuous projection-shadow of Class I "
                     "cyclic-group upstream (Freeth 2021 Supp S9).",
@@ -3908,7 +3908,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("float", "follower angle phi (radians)"),
         ),
         ToolEntry(
-            name="srmech.amsc.kepler.kepler_solve", owner="srmech", category="kepler",
+            name="srmech.math.kepler.kepler_solve", owner="srmech", category="kepler",
             summary="Newton-Raphson on Kepler's equation M = E - e sin E. "
                     "Smith (1979) starter; converges in 4-6 iter for e < 0.5.",
             parameters=(P("M_rad", "float", True, "mean anomaly (radians)"),
@@ -3918,7 +3918,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("float", "eccentric anomaly E (radians)"),
         ),
         ToolEntry(
-            name="srmech.amsc.kepler.equation_of_centre", owner="srmech",
+            name="srmech.math.kepler.equation_of_centre", owner="srmech",
             category="kepler",
             summary="Fourier-series ν − M = Σ c_k e^k sin(k M) for k = 1..n_terms; "
                     "Brouwer & Clemence (1961) §3.2 coefficients up to k=6.",
@@ -8001,7 +8001,7 @@ def _register_primitive_class_tools() -> None:
         # fiber channel is a later rc). oct_mult's sign is the cd_basis_product
         # cocycle at dim 8 xored with the two center bits — never an abs().
         ToolEntry(
-            name="srmech.amsc.octonion.oct_mult", owner="srmech",
+            name="srmech.math.octonion.oct_mult", owner="srmech",
             category="octonion",
             summary="The octonion Moufang-loop product a·b of two 4-bit bytes "
                     "(o=(sign<<3)|index; 0=+e₀,…,7=+e₇,8=−e₀,…,15=−e₇). The "
@@ -8016,7 +8016,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("int", "the product a·b as an octonion byte in [0, 16)"),
         ),
         ToolEntry(
-            name="srmech.amsc.octonion.oct_conjugate", owner="srmech",
+            name="srmech.math.octonion.oct_conjugate", owner="srmech",
             category="octonion",
             summary="The octonion conjugate / loop inverse: conj(a)=a for the "
                     "real center (index 0, self-inverse), else a^8 (flip an "
@@ -8028,7 +8028,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("int", "conj(a) as an octonion byte in [0, 16)"),
         ),
         ToolEntry(
-            name="srmech.amsc.octonion.oct_bind", owner="srmech",
+            name="srmech.math.octonion.oct_bind", owner="srmech",
             category="octonion",
             summary="Elementwise octonion bind out[i]=oct_mult(turn[i], one[i]) "
                     "over two equal-length octonion byte buffers (the buffer form "

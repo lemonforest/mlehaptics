@@ -1091,3 +1091,123 @@ when the math bucket drains and re-homes those ~6 by name.
 - **Regenerated artifacts** (`tools/regen_all.py --accept-seed-drift`, content-equal + idempotent):
   `_tool_docs.py`, `_c_claims.py`, `srmech_tool_registry.c`, `srmech_carrier_registry.c`,
   `srmech_responsion_registry.c`; class registry byte-identical.
+
+## Amendment I — the FIRST `srmech.math` slice, and the SECOND newly-created DOMAIN namespace: the general-algebra roster `octonion` / `kepler` / `modular_linalg`, v0.9.0rc372 (`#T1034`)
+
+rc370–rc371 drained the whole `srmech.apokatastasis` special-functions domain. rc372 opens A.2's
+SECOND-largest destination, **`srmech.math`** (**22 modules**: the 14 A–N primitives + the general
+carriers + general math), with its **general-ALGEBRA roster** — the three modules whose mathematics is
+domain-neutral algebra rather than a special-functions family:
+`srmech/amsc/{octonion,kepler,modular_linalg}.py` → `srmech/math/`. Leaf names kept (B.1 rule 1);
+`describe()["tools"]["total"]` stays **525** (10 op names repoint, a move not an add);
+`SRMECH_ABI_VERSION` stays **10** (the C peer symbols `srmech_oct_*` / `srmech_kepler_*` /
+`srmech_equation_of_centre` / `srmech_pin_slot` / `srmech_gf_rref` / `srmech_crt_reconstruct` are
+capability-named, unchanged). The 10 ops: `octonion` 3 (`oct_mult` / `oct_conjugate` / `oct_bind`),
+`kepler` 3 (`pin_slot` / `kepler_solve` / `equation_of_centre`), `modular_linalg` 4 (`gf_rref` /
+`gf_solve` / `gf_nullspace` / `crt_combine`).
+
+**Deferred to the carriers slice (rc374): `carrier_ladder` / `carrier_spectrum` and the general-carrier
+row.** This slice is the general-algebra opener only, not the whole 22-module bucket; the carriers land
+in their own slice, exactly as H.2 anticipated for the ~5 general-carrier half of the over-count.
+
+### I.1 `modular_linalg` IS the H.2 apokatastasis over-count reassignment, realised
+
+Amendment H.2 recorded that A.2's `srmech.apokatastasis` count of 31 over-counts the real
+special-functions family by ~6, and that **`modular_linalg` (GF(p) finite-field linear algebra —
+Gaussian elimination / rank / nullspace over 𝔽_p) is a general math primitive whose name only collides
+with "modular forms"**, so it belongs in `srmech.math`, NOT the elliptic/modular-forms domain. H.2
+deliberately left it in `amsc` and stated the over-count "resolves when the math bucket drains and
+re-homes those ~6 by name". This slice does exactly the `modular_linalg` half of that. The ~5
+general-carrier half (`q` / `poly` / `qmat` / … kin) resolves at the carriers slice (rc374). The census
+records the resolution: `NAMED_DEPARTURES["srmech.math"] = {octonion, kepler, modular_linalg}`
+(subset-named, `3 <= 22`), and `ADR_A2_DESTINATION_COUNTS` is unchanged (math 22, apokatastasis 31 —
+apokatastasis stays subset-named at `25 <= 31`).
+
+### I.2 The NEW-NAMESPACE SETUP — the same three steps beyond a drop-in (G.1 template, G.2 rule)
+
+Per G.2's load-bearing planning input — **the root is NEVER pre-added, so every first-into-a-namespace
+slice pays the two-file root edit** — this slice performed it as mandatory setup, not a verify:
+
+1. **Created `srmech/math/__init__.py`** (domain docstring + `__all__ = []`); the ops live in their
+   submodules, discovered by the Rosetta `walk_packages`, not re-exported. The moved modules' relative
+   sibling imports up-reached: `kepler.py` `from . import _native` → `from ..amsc import _native`;
+   `modular_linalg.py` `from . import _native` + `from .cyclic import …` → `from ..amsc import _native`
+   + `from ..amsc.cyclic import …`. `octonion.py` already used absolute `from srmech.amsc import _native`
+   / `from srmech.amsc.hv import HV` (both keepers), so it needed no import rewrite — a case the
+   single-module rc370 slice did not exercise.
+2. **Appended `srmech.math`** to `tests/rosetta_roots.py` AND `_EXPECTED_ROOTS`, and migrated it
+   NEW→EXISTING in `test_rosetta_roots_single_source_rc361.py`'s `_ADR0010_*` tuples. The
+   nonexistent-package witness rotated off `srmech.external` (rc370's choice, still valid) onto
+   `srmech.physics` — a still-absent member of `_ADR0010_NEW_NAMESPACES`, so the witness does not
+   calcify on one name as the arc drains.
+3. **Named the subset in the census move-map** — `NAMED_DEPARTURES["srmech.math"]` = the 3-member
+   roster, with the `len(named) <= A.2 count` assertion (`3 <= 22`).
+
+### I.3 The ⚠️ SEVEN-form sweep, reaffirmed — a move is NOT a dotted-string sweep
+
+rc371 (residual red-fixes) proved a family move touches SEVEN reference forms, not one. This slice swept
+all seven for each of the 3 modules, `srmech.amsc.<m>` → `srmech.math.<m>` (and slash `srmech/amsc/<m>`
+→ `srmech/math/<m>`), EXCLUDING history (CHANGELOG, this ADR's own history, `.test_durations`) and the
+dated fossil research notes (`notes/*.py` / `*.ndjson` scratchpads and dated `*.md` — historical
+records, like ADR-history):
+
+- **(a) dotted** `srmech.amsc.<m>` across live source/tests/C — the bulk.
+- **(b) filesystem-path** `os.path.join(…,"amsc","<m>.py")` — **N/A this slice** (no source-reader test
+  names these 3 modules by path; measured, not assumed).
+- **(c) `from srmech.amsc import <m>`** — incl. the multi-module `from srmech.amsc import _native, kepler`
+  in `test_kepler_parity.py`, SPLIT (`_native` stays in amsc, `kepler` → `from srmech.math import
+  kepler`) — the case a blanket dotted sweep silently misses.
+- **(d) relative / lazy imports in KEEPER modules** — `qmat.py`'s two `from . import modular_linalg`
+  (a stays-in-amsc consumer of a MOVED module) → `from ..math import modular_linalg` (H.1 rule 3).
+- **(e) worked-examples ledger** — re-captured via `tools/run_worked_examples.py --only-stale` AFTER
+  regen (the merge source for `.example` is the GENERATED `_tool_docs.py`, so it MUST be regenerated
+  first — running the ledger before regen drops the 3 modules' snippets rather than renaming them; the
+  ledger stays `native: false`, `n == 439`, the 10 ops' entries renamed amsc→math with fresh
+  `src_sha256`).
+- **(f) C comments** — `c/include/srmech.h` carried NO dotted ref to these 3 (measured), so only the
+  version bump touches it; the sole hand C-comment site is the non-canonically-named peer
+  `c/src/srmech_crt_reconstruct.c` (crt_combine's C peer is NOT `srmech_modular_linalg.c`) — exactly
+  the "non-canonically-named peer" hazard rc371 flagged. The generated `srmech_tool_registry.c` /
+  `srmech_carrier_registry.c` regenerate.
+- **(g) notes prose with reproducible commands** — the live canonical `srmech_research_notebook.md`
+  (a table cell + a `from srmech.math.octonion import oct_mult` reproducible line) repointed. Dated
+  fossil notes deliberately left as historical record.
+
+**c_dispatched fan-out.** 7 of the 10 ops are `c_dispatched` (all 3 octonion, all 3 kepler,
+`modular_linalg.gf_rref`), each with one `_c_claims.py` key; `crt_combine` is a `c_dispatched` op reached
+through indirection (in `UNVERIFIABLE_CLAIMS`), so it also has a key — 8 `_c_claims.py` keys repoint
+amsc→math. `gf_solve` / `gf_nullspace` are `composition_of_c` (no C claim). **NONE of the 10 is in
+`c/src/srmech_invoke.c`** (grep-clean — the only `pin_slot` there is `cascade.pin_slot_at_zero`, a
+different op) → no MCP dispatch-spine repoint, confirming again that `c_dispatched` and `invoke.c`
+presence are independent.
+
+### I.4 Measured ripple (all re-pinned in the SAME commit as the move)
+
+- **Census**: **46 → 43** modules; digest `8175d999…` → **`8f0361ea…`**; `LANDED` gains the 3 (29 →
+  **32**); conservation **`43 + 32 == 75`** holds; `NAMED_DEPARTURES["srmech.math"]` = the 3-member
+  subset + its `<=` assertion.
+- **Op-name-set witness**: SET moves 10 names amsc→math; digest `f3373b2c…` → **`aa6d1f55…`**;
+  `EXPECTED_N` stays **525**.
+- **Decode-aware ratchet**: `srmech_carrier_registry.c` **(156, 516) → (156, 500)**;
+  `srmech_tool_registry.c` **(1151, 4) → (1111, 4)**; `_tool_docs.py` **(1133, 0) → (1093, 0)**;
+  `_c_claims.py` **(218, 0) → (210, 0)**; class / responsion registries **unchanged**; **`TOTAL_AS_TEXT`
+  2699 → 2611** (−88), **`TOTAL_DECODED` 560 → 544** (−16). **The decoded (population) channel FELL by
+  16** — `octonion` is a genome CARRIER op, so its `oct_mult` / `oct_bind` / `oct_conjugate` back-index
+  references live in the four hoisted >4000-byte carrier-registry byte arrays (like rc371's
+  ellbase/thetasum, unlike rc370's inline single op). The fifth decoded-population test re-pins
+  `amsc == 516 → 500`, ADDS a conserved receiving-side pin `math == 16` (−16 amsc = +16 math), and holds
+  `apokatastasis == 13` / `music == 13`.
+- **C surfaces**: `srmech.h` (version only — no dotted ref), `srmech_crt_reconstruct.c` (1 hand comment)
+  + the 2 regenerated registries. ABI stays 10; `srmech_invoke.c` grep-clean. **ZERO**
+  `srmech.amsc.{octonion,kepler,modular_linalg}` remain under `docs/srmech/c/` or in non-historical Python.
+- **Rosetta**: 10 ledger rows repointed (`exposed_as` + `defined_at`; buckets preserved — 7
+  `c_dispatched` + 3 `composition_of_c`); every moved op rosetta-visible under the NEW `srmech.math`
+  root (which is why I.2's root append is load-bearing).
+- **Regenerated artifacts** (`tools/regen_all.py --accept-seed-drift`, content-equal + idempotent):
+  `_tool_docs.py`, `_c_claims.py`, `srmech_tool_registry.c`, `srmech_carrier_registry.c`; responsion +
+  class registries byte-identical.
+- **Verification** (numpy-absent WSL): 3/3 `import srmech.math.<m>` succeed, 3/3 `srmech.amsc.<m>` raise
+  `ModuleNotFoundError`; whole-suite `pytest --co -q` collects **13034** tests with **0 ImportError**
+  (the gate that catches lazy/dynamic misses); census / op-name-set / decode-aware / rosetta
+  completeness+transitive+roots-single-source / def_parity / the 3 modules' own tests + the worked-example
+  execution gate all green; `regen --check` all six artifacts up to date.
