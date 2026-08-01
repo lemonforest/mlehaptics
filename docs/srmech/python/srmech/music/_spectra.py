@@ -67,8 +67,8 @@ from __future__ import annotations
 
 from typing import Dict, Iterable, List, Sequence, Tuple
 
-from srmech.amsc.q import Q
-from srmech.amsc.qalg import Qalg
+from srmech.math.q import Q
+from srmech.math.qalg import Qalg
 
 __all__ = ["spectrum_tier", "commensurability_verdict", "common_period"]
 

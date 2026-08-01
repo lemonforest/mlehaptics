@@ -5,7 +5,7 @@ The op that CLOSES the multivariate F929 reduction row: the double-sum
 generalization of :func:`srmech.apokatastasis.zeilberger.zeilberger`. Given a proper
 hypergeometric term ``F(n,j,k)`` by its THREE term ratios ``r_n = F(n+1,j,k)/
 F(n,j,k)``, ``r_j = F(n,j+1,k)/F(n,j,k)``, ``r_k = F(n,j,k+1)/F(n,j,k)`` (each a
-trivariate exact-``ℚ[n,j,k]`` :class:`~srmech.amsc.tripoly.TriPoly`), it returns the
+trivariate exact-``ℚ[n,j,k]`` :class:`~srmech.math.tripoly.TriPoly`), it returns the
 minimal-order linear recurrence with polynomial coefficients
 ``Σ_i a_i(n) f(n+i) = 0`` satisfied by the definite DOUBLE sum
 ``f(n) = Σ_{j,k} F(n,j,k)``, plus the two rational certificates.
@@ -33,9 +33,9 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc.poly import Poly
-from srmech.amsc.q import Q
-from srmech.amsc.tripoly import TriPoly
+from srmech.math.poly import Poly
+from srmech.math.q import Q
+from srmech.math.tripoly import TriPoly
 from srmech.apokatastasis.apagodu_zeilberger import apagodu_zeilberger
 
 

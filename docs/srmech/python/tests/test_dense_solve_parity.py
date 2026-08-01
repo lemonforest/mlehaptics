@@ -126,7 +126,7 @@ def test_dense_solve_float_matches_exact():
 def test_dense_solve_vector_rhs_shape():
     """A 1-D RHS yields a 1-D ``Vec`` carrier of the right length (rc131 carrier-
     format law — NOT a bare list); values match exact."""
-    from srmech.amsc.vec import Vec
+    from srmech.math.vec import Vec
     A = [[3.0, 1.0], [1.0, 2.0]]
     b = [9.0, 8.0]
     x = dense_solve(A, b)

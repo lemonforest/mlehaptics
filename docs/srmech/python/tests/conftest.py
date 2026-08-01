@@ -289,11 +289,11 @@ def _matches_token(raw: Any, token: str):
     """Does ``raw`` match ONE simple advertised type token (carrier-aware)?
     Returns ``True`` / ``False``, or ``None`` if the token is not assertable."""
     # Lazy import so conftest stays cheap and srmech-load-order clean.
-    from srmech.amsc.mat import Mat
-    from srmech.amsc.vec import Vec
-    from srmech.amsc.hv import HV
-    from srmech.amsc.q import Q
-    from srmech.amsc.complex128 import Complex128
+    from srmech.math.mat import Mat
+    from srmech.math.vec import Vec
+    from srmech.math.hv import HV
+    from srmech.math.q import Q
+    from srmech.math.complex128 import Complex128
 
     token = token.strip()
     if token == "...":
@@ -316,13 +316,13 @@ def _matches_token(raw: Any, token: str):
     # isinstance); Poly gets its own genuine check too (it was previously an
     # unassertable None-skip).
     if token.startswith("QBiPoly"):
-        from srmech.amsc.qbipoly import QBiPoly
+        from srmech.math.qbipoly import QBiPoly
         return isinstance(raw, QBiPoly)
     if token.startswith("QPoly"):
-        from srmech.amsc.qpoly import QPoly
+        from srmech.math.qpoly import QPoly
         return isinstance(raw, QPoly)
     if token.startswith("Poly"):
-        from srmech.amsc.poly import Poly
+        from srmech.math.poly import Poly
         return isinstance(raw, Poly)
     if token.startswith("Q"):
         return isinstance(raw, Q)

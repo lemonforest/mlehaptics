@@ -8,7 +8,7 @@ its own Hermitian eigendecomposition
 (:func:`srmech.math.laplacian.hermitian_eigendecompose`, the cyclic-Jacobi
 Class-L cascade). numpy is **not used at all** — not as the decomposition
 engine and not as the array CONTAINER either. The containers are plain nested
-Python lists and the numpy-free :class:`~srmech.amsc.mat.Mat` carrier, which
+Python lists and the numpy-free :class:`~srmech.math.mat.Mat` carrier, which
 is numpy-SHAPED (``@``, slicing, elementwise arithmetic) but srmech-native;
 the matmul / outer / slicing that form the Class-M bind layer are its own
 methods. There is no ``import numpy`` and no call into the NumPy ``linalg``
@@ -52,13 +52,13 @@ from typing import Dict, List, Tuple
 # numpy-FREE (#564): the matrix factorisations operate on, and return, plain
 # nested Python lists (matrices) / flat lists (vectors / eigenvalues). The heavy
 # numpy-free engines live in :mod:`srmech.math.laplacian` over the
-# :class:`~srmech.amsc.mat.Mat` carrier (native-dispatched, no numpy): ``svd`` /
+# :class:`~srmech.math.mat.Mat` carrier (native-dispatched, no numpy): ``svd`` /
 # ``lstsq`` / ``eigvals`` delegate to ``mat_svd`` / ``mat_lstsq`` / ``mat_eigvals``;
 # ``qr`` is a list-based Householder; ``einsum`` is the nested-list
 # index-iteration definition. There is NO ``import numpy`` anywhere here.
 from srmech.amsc import _native as _native  # rc140: real QR/SVD C dispatch (F2)
-from srmech.amsc.mat import Mat as _Mat
-from srmech.amsc.vec import Vec as _Vec  # rc131: 1-D carrier for singular values / vector solutions / eigenvalues
+from srmech.math.mat import Mat as _Mat
+from srmech.math.vec import Vec as _Vec  # rc131: 1-D carrier for singular values / vector solutions / eigenvalues
 from srmech.math.laplacian import (
     _cmax_component,  # rc285: exact magnitude proxy for the reflector's scaling
     mat_eigvals as _mat_eigvals,
@@ -152,7 +152,7 @@ def qr(a, *, mode: str = "reduced") -> Tuple["_Mat", "_Mat"]:
     Returns
     -------
     (Q, R)
-        A ``tuple`` of two numpy-free :class:`~srmech.amsc.mat.Mat` carriers
+        A ``tuple`` of two numpy-free :class:`~srmech.math.mat.Mat` carriers
         (rc131; ``.shape`` + ``m[i, j]`` + a native C interleaved-buffer wire
         form), NOT bare nested lists — a Mat IS a C dense buffer, a list is not.
         ``Q`` has orthonormal columns (``Qᴴ Q = I``), ``R`` is upper triangular;
@@ -264,8 +264,8 @@ def svd(a, *, full_matrices: bool = False) -> Tuple["_Mat", "_Vec", "_Mat"]:
     -------
     (U, s, Vh)
         A ``tuple`` of numpy-free carriers (rc131): ``U`` / ``Vh`` as
-        :class:`~srmech.amsc.mat.Mat` (``.shape`` + ``m[i, j]``) and the
-        DESCENDING singular values ``s`` as a 1-D :class:`~srmech.amsc.vec.Vec`
+        :class:`~srmech.math.mat.Mat` (``.shape`` + ``m[i, j]``) and the
+        DESCENDING singular values ``s`` as a 1-D :class:`~srmech.math.vec.Vec`
         (``.shape == (k,)`` + scalar ``v[i]``) — NOT bare lists (a Mat/Vec IS a C
         dense buffer, a list is not). ``U``/``Vh`` have orthonormal columns/rows
         and reconstruct ``A`` (value-faithful, not bit-identical, to NumPy — the
@@ -358,8 +358,8 @@ def lstsq(a, b):
     summary in ``tool_schema.py`` had the QR shape right all along.)
 
     Returns the solution ``x`` in the numpy-free **carrier** (rc131): a 1-D
-    :class:`~srmech.amsc.vec.Vec` for a vector ``b`` (``.shape == (n,)`` + scalar
-    ``v[i]``) or a :class:`~srmech.amsc.mat.Mat` for a matrix ``b`` (``.shape`` +
+    :class:`~srmech.math.vec.Vec` for a vector ``b`` (``.shape == (n,)`` + scalar
+    ``v[i]``) or a :class:`~srmech.math.mat.Mat` for a matrix ``b`` (``.shape`` +
     ``m[i, j]``) — NOT a bare list (a Mat/Vec IS a C dense buffer, a list is not).
     Matches ``NumPy lstsq(a, b)[0]`` to round-off for full-rank inputs. Real
     input with a real result yields a real carrier.
@@ -501,8 +501,8 @@ def einsum(subscripts: str, *operands):
     ``mat_dot`` reduction precedent) reaching no non-standalone leaf.
 
     Returns the numpy-free carrier matching the result rank (rc131): a 2-D result
-    is a :class:`~srmech.amsc.mat.Mat`, a 1-D result is a
-    :class:`~srmech.amsc.vec.Vec`, a rank-0 result is a plain ``float`` /
+    is a :class:`~srmech.math.mat.Mat`, a 1-D result is a
+    :class:`~srmech.math.vec.Vec`, a rank-0 result is a plain ``float`` /
     ``complex`` scalar; a genuine rank-3+ tensor stays a nested ``list`` (no
     higher-rank carrier exists). A Mat/Vec IS a C dense buffer; a list is not.
     """
@@ -635,7 +635,7 @@ def eigvals(a, *, max_sweeps: int = 500) -> "_Vec":
     plain ``complex`` lists, native-dispatched ``RQ`` recombination, no numpy.
 
     Returns the length-``n`` eigenvalue multiset as a 1-D complex
-    :class:`~srmech.amsc.vec.Vec` (rc131; ``.shape == (n,)`` + scalar ``v[i]``),
+    :class:`~srmech.math.vec.Vec` (rc131; ``.shape == (n,)`` + scalar ``v[i]``),
     NOT a bare ``list[complex]`` — a Vec IS a C dense buffer, a list is not. The
     eigenvalues are unique only as a SET; the multiset matches ``NumPy eigvals``
     to ~1e-9 for moderate sizes.
@@ -787,7 +787,7 @@ def separate_frame_curvature(a, b):
     exact "do these commute" question is only well-posed on the exact carrier.)
 
     Args:
-        a, b: two square operators of the SAME shape — a :class:`~srmech.amsc.mat.
+        a, b: two square operators of the SAME shape — a :class:`~srmech.math.mat.
             Mat` or a nested sequence (anything with ``.tolist()`` or a
             row-of-rows), coerced to ``Mat`` (auto-detecting complex entries).
 
@@ -847,14 +847,14 @@ def separate_frame_curvature(a, b):
 # rational bisection (Class N anchors → the algebraic asymptote) → one FPU lift —
 # the eigenvalues come out exact-to-arbitrary-precision and well-conditioned.
 
-from srmech.amsc.q import Q, to_q  # noqa: E402  (#845: exact-ℚ carrier, was Fraction)
+from srmech.math.q import Q, to_q  # noqa: E402  (#845: exact-ℚ carrier, was Fraction)
 
 
 def _FR(num, den=1):
-    """The exact-ℚ carrier factory (srmech :class:`~srmech.amsc.q.Q`; #845 — was
+    """The exact-ℚ carrier factory (srmech :class:`~srmech.math.q.Q`; #845 — was
     ``fractions.Fraction`` aliased ``_FR``). Kept as the module's rational factory
     so the root-isolation ``_FR(...)`` call-sites are unchanged: one-arg coerces an
-    int / float / ``Fraction`` / ``Q`` via :func:`~srmech.amsc.q.to_q` (``_FR(coeff)``
+    int / float / ``Fraction`` / ``Q`` via :func:`~srmech.math.q.to_q` (``_FR(coeff)``
     / ``_FR(x0)`` — the integer char-poly coeffs and box coords); two-arg builds the
     exact ``Q(num, den)`` (``_FR(1, 1 << bits)`` — the dyadic box widths). All root
     isolation stays EXACT-ℚ, no float in the box boundary."""
@@ -1426,7 +1426,7 @@ def _eigvec_exact_qalg(a, lam):
     for the public contract."""
     # Lazy import (avoid any circular-import risk at module load; mirrors the
     # laplacian.py exact route).
-    from srmech.amsc.qalg import Qalg
+    from srmech.math.qalg import Qalg
 
     if not isinstance(lam, Qalg):
         raise TypeError(
@@ -1543,7 +1543,7 @@ def _eigvec_exact_native(rows, lam):
     on a no-C / pre-rc163 lib, a COMPLEX matrix entry, an arena OVERFLOW, or a
     reducible ``m`` (all of which the pure oracle handles); returns ``[]`` when
     ``A − λI`` is non-singular (λ not an eigenvalue)."""
-    from srmech.amsc.qalg import Qalg
+    from srmech.math.qalg import Qalg
     if not _native.has_native_eigvec_exact():
         return None
     rows_ratio = []
@@ -1569,8 +1569,8 @@ def eigvec_exact(a, lam):
     """Exact EIGENVECTOR(S) of an integer/rational matrix via the null space of
     ``A − λI`` over the number field ℚ(λ) = ``Qalg`` (rotation-last rc-D).
 
-    ``a`` is an integer/rational square matrix (list-of-lists or :class:`~srmech.amsc.mat.Mat`);
-    ``lam`` is a :class:`~srmech.amsc.qalg.Qalg` — the eigenvalue, carrying its
+    ``a`` is an integer/rational square matrix (list-of-lists or :class:`~srmech.math.mat.Mat`);
+    ``lam`` is a :class:`~srmech.math.qalg.Qalg` — the eigenvalue, carrying its
     IRREDUCIBLE minimal polynomial ``m`` and (optionally) an embedding ``root``.
     For an eigenvalue that is a root of an irreducible integer polynomial ``m``,
     ℚ(λ) = ℚ[x]/(m) is a FIELD, so the eigenvector lives in the null space of
@@ -1601,7 +1601,7 @@ def eigvec_exact(a, lam):
     null space) ∘ **Class N** (the exact ``Q`` field arithmetic) ∘ **Class K**
     (the sign in subtraction / negation — never an ALU ``abs``).
     """
-    from srmech.amsc.qalg import Qalg
+    from srmech.math.qalg import Qalg
 
     if not isinstance(lam, Qalg):
         raise TypeError(
@@ -1708,7 +1708,7 @@ def _qalg_matrix_of(a, lam):
     """``(N = A − λI, A_qalg, n, one, zero)`` with ``Qalg`` entries over ``lam``'s
     field — the shared exact set-up for the Jordan machinery (mirrors the build at
     the top of :func:`_eigvec_exact_qalg`)."""
-    from srmech.amsc.qalg import Qalg
+    from srmech.math.qalg import Qalg
 
     if not isinstance(lam, Qalg):
         raise TypeError(
@@ -1895,7 +1895,7 @@ def jordan_chains_exact(a, lam):
     (rotation-last rc-G; closes the eigensolver for DEFECTIVE matrices).
 
     ``a`` is an integer/rational square matrix; ``lam`` is a
-    :class:`~srmech.amsc.qalg.Qalg` eigenvalue (over its IRREDUCIBLE minimal
+    :class:`~srmech.math.qalg.Qalg` eigenvalue (over its IRREDUCIBLE minimal
     polynomial ``m``, optionally carrying an embedding ``root``) of algebraic
     multiplicity μ. With ``N = A − λI``, the generalized eigenspace ``null(Nᵘ)``
     has dimension μ and ``N`` is nilpotent on it. The Jordan structure is read off
@@ -2096,7 +2096,7 @@ def _jordan_chains_native(a, lam):
     byte-identical pure ``_jordan_chains_build_pure`` — on a no-C / pre-rc164 lib, a
     COMPLEX matrix entry, ``n`` above the native cap, an arena OVERFLOW, or a
     reducible ``m`` (all of which the pure oracle handles)."""
-    from srmech.amsc.qalg import Qalg
+    from srmech.math.qalg import Qalg
     if not _native.has_native_jordan_chains():
         return None
     rows = a.tolist() if hasattr(a, "tolist") else [list(r) for r in a]
@@ -3308,7 +3308,7 @@ def eig_exact(a, *, bits: int = 64, project: bool = True):
     IRREDUCIBLE factors ``m_i``, each carrying its algebraic multiplicity) → for
     each ``m_i`` isolate ALL its roots (real via the Sturm cascade, complex via the
     rc-E argument-principle box subdivision) → each root ``λ`` becomes a
-    :class:`~srmech.amsc.qalg.Qalg` over ``m_i`` (its EXACT irreducible substrate,
+    :class:`~srmech.math.qalg.Qalg` over ``m_i`` (its EXACT irreducible substrate,
     embedded at the isolated float/complex root) → :func:`eigvec_exact` for the
     exact eigenvector(s) = the null space of ``A − λI`` over ℚ(λ).
 
@@ -3343,7 +3343,7 @@ def eig_exact(a, *, bits: int = 64, project: bool = True):
     ``project=True``, exact ``Qalg`` when ``project=False``.
 
     With ``project=False`` returns the EXACT objects for callers staying in the
-    field: each dict swaps ``value`` → ``value_qalg`` (a :class:`~srmech.amsc.qalg.Qalg`)
+    field: each dict swaps ``value`` → ``value_qalg`` (a :class:`~srmech.math.qalg.Qalg`)
     and ``vector`` → ``vectors_qalg`` (``list[list[Qalg]]``, the exact null-space
     basis), keeping ``min_poly`` + the multiplicities + ``defective`` +
     ``jordan_blocks`` + ``generalized_vectors`` (the latter as ``list[list[Qalg]]``).
@@ -3362,7 +3362,7 @@ def eig_exact(a, *, bits: int = 64, project: bool = True):
     substrate) ∘ **Class N** (the exact ℚ(λ) field arithmetic) ∘ **Class K** (the
     terminal float/complex projection — rotation-last).
     """
-    from srmech.amsc.qalg import Qalg
+    from srmech.math.qalg import Qalg
 
     # rc166 (Qalg TAIL Batch 9 — THE CAPSTONE): this turnkey eigensolver is a THIN
     # orchestration of ops that are ALL c_dispatched now — char_poly
@@ -3624,7 +3624,7 @@ def jordan_form_exact(a, *, bits: int = 64, project: bool = True):
     Returns ``{"blocks": list[(eigenvalue, size)], "P": n×n generalized-eigenvector
     matrix (columns), "J": the n×n Jordan matrix}``. With ``project=True`` (default)
     ``eigenvalue`` / ``P`` / ``J`` are float/``complex``; with ``project=False`` the
-    eigenvalues are exact :class:`~srmech.amsc.qalg.Qalg` and ``P`` / ``J`` are
+    eigenvalues are exact :class:`~srmech.math.qalg.Qalg` and ``P`` / ``J`` are
     ``list[list[Qalg]]`` (exact). The blocks are ordered to match ``P``'s columns
     and ``J``'s diagonal blocks (chain by chain, bottom→top within each chain), so
     column ``c`` of ``P`` is the generalized eigenvector whose Jordan position is
@@ -3642,7 +3642,7 @@ def jordan_form_exact(a, *, bits: int = 64, project: bool = True):
     substrate) ∘ **Class N** (the exact ℚ(λ) field arithmetic) ∘ **Class K** (the
     terminal float/complex projection — rotation-last).
     """
-    from srmech.amsc.qalg import Qalg
+    from srmech.math.qalg import Qalg
 
     # rc166 (Qalg TAIL Batch 9 — THE CAPSTONE): the exact Jordan form chains the
     # SAME c_dispatched pieces as eig_exact (char_poly → factor_integer_poly →

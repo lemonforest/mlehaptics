@@ -24,7 +24,7 @@ from __future__ import annotations
 from typing import List
 
 from srmech.math.laplacian import mat_hermitian_eigendecompose
-from srmech.amsc.mat import Mat
+from srmech.math.mat import Mat
 from srmech.math.rational import exp as _rexp  # Class-N exp cascade, not libm
 
 OPERATION_NAME = "heat_kernel"
@@ -48,7 +48,7 @@ def op(signal, laplacian, *, t: float = 1.0, D: int = 8192) -> List[complex]:
         ``(n,)`` real or complex node-domain state (a 1-D sequence / ndarray /
         anything with ``tolist()`` — coerced numpy-free).
     laplacian:
-        ``(n, n)`` Hermitian graph Laplacian (a :class:`~srmech.amsc.mat.Mat`,
+        ``(n, n)`` Hermitian graph Laplacian (a :class:`~srmech.math.mat.Mat`,
         nested sequence, or ``tolist()``-able).
     t:
         Diffusion time (larger ``t`` -> more smoothing). Default 1.0.

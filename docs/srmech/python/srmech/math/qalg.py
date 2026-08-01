@@ -1,6 +1,6 @@
-"""srmech.amsc.qalg — the framework-native EXACT number-field carrier (``Qalg``).
+"""srmech.math.qalg — the framework-native EXACT number-field carrier (``Qalg``).
 
-The generalisation of :class:`srmech.amsc.qi.Qi`. Where ``Qi`` carries an exact
+The generalisation of :class:`srmech.math.qi.Qi`. Where ``Qi`` carries an exact
 element of the ONE number field **ℚ[x]/(x²+1)** (the Gaussian rationals — exact
 ℂ over ℚ), ``Qalg`` carries an exact element of **ℚ[x]/(m(x))** for ANY monic
 irreducible ``m ∈ ℤ[x]`` — an exact element of the algebraic number field ℚ(α),

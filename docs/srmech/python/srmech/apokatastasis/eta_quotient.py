@@ -21,7 +21,7 @@ the q-valuation) times an EXACT INTEGER power series. ``EtaQuotient`` represents
 this object exactly: the integer power series (:meth:`q_series`) is numpy-free
 exact Python ``int`` (the coefficients grow — e.g. the Ramanujan τ — and are
 kept EXACT, no float, no int64 ceiling), the :attr:`weight` and
-:attr:`leading_power` are exact :class:`~srmech.amsc.q.Q` rationals.
+:attr:`leading_power` are exact :class:`~srmech.math.q.Q` rationals.
 
 THE TWO GRADINGS
 ================
@@ -35,7 +35,7 @@ TWO distinct gradings:
     SAME scale structure the elliptic carrier's ``qshift σ`` grades by); and
   * the **WEIGHT** ``k = ½ Σ_d r_d`` — the modular AUTOMORPHY covariance, the
     ``(cτ+d)^k`` degree of ``Q`` under ``τ → −1/τ`` (a half-integer in general,
-    so it is the natural home for the exact-:class:`~srmech.amsc.q.Q` weight axis,
+    so it is the natural home for the exact-:class:`~srmech.math.q.Q` weight axis,
     exactly as :class:`~srmech.apokatastasis.unary_theta.UnaryTheta` carries a
     half-integral weight).
 
@@ -65,7 +65,7 @@ G. Ligozat, *Courbes modulaires de genre 1*, Bull. SMF Mém. 43 (1975)). With
 
         ord_c = (N / 24) · Σ_{d|N} gcd(c, d)² · r_d / (gcd(c, N/c) · c · d)
 
-    an exact :class:`~srmech.amsc.q.Q`; and :meth:`is_holomorphic` =
+    an exact :class:`~srmech.math.q.Q`; and :meth:`is_holomorphic` =
     :meth:`is_modular` AND ``order_at_cusp(c) ≥ 0`` for every ``c | N`` (the
     Class-K sign branch, not ``abs()``).
 
@@ -120,7 +120,7 @@ from __future__ import annotations
 from typing import Dict, List, Mapping
 
 from ..math import cyclic as _cyclic
-from ..amsc.q import Q
+from ..math.q import Q
 
 __all__ = ["EtaQuotient", "eta_quotient"]
 
@@ -147,7 +147,7 @@ class EtaQuotient:
 
     — an operand carrier on the WEIGHT axis. Immutable. Holds the exponent vector
     ``{d: r_d}`` (each ``d ≥ 1`` int, each ``r_d`` nonzero int). The
-    :attr:`weight` ``= ½ Σ_d r_d`` (exact :class:`~srmech.amsc.q.Q`, the modular
+    :attr:`weight` ``= ½ Σ_d r_d`` (exact :class:`~srmech.math.q.Q`, the modular
     automorphy grade); the q-series (:meth:`q_series`) is exact-integer; the
     modularity decision (:meth:`is_modular`) is the exact-integer Ligozat
     criterion. See the module docstring for the keystones + the operand-side OPEN
@@ -196,14 +196,14 @@ class EtaQuotient:
     def weight(self) -> Q:
         """The modular WEIGHT ``k = ½ Σ_d r_d`` — the ``(cτ+d)^k`` automorphy
         covariance grade (a half-integer in general → exact
-        :class:`~srmech.amsc.q.Q`). THE WEIGHT AXIS."""
+        :class:`~srmech.math.q.Q`). THE WEIGHT AXIS."""
         return Q(sum(r for _d, r in self._exps), 2)
 
     @property
     def leading_power(self) -> Q:
         """The leading q-power ``(Σ_d d·r_d)/24`` — the q-valuation / order at the
         ∞ cusp (the fractional ``q``-power factored out so :meth:`q_series` returns
-        an INTEGER series). Exact :class:`~srmech.amsc.q.Q` (e.g. ``Q(1, 1)`` for
+        an INTEGER series). Exact :class:`~srmech.math.q.Q` (e.g. ``Q(1, 1)`` for
         η²⁴ and η²η²(11τ))."""
         return Q(sum(d * r for d, r in self._exps), 24)
 
@@ -293,7 +293,7 @@ class EtaQuotient:
 
             ord_c = (N / 24) · Σ_{d|N} gcd(c, d)² · r_d / (gcd(c, N/c) · c · d)
 
-        an exact :class:`~srmech.amsc.q.Q`. ``c`` must be a positive divisor of
+        an exact :class:`~srmech.math.q.Q`. ``c`` must be a positive divisor of
         ``N`` (a cusp representative) — rejected loudly otherwise (an honest
         boundary). Class-I ``cyclic.gcd``; exact rational accumulation; no float,
         no ``abs()``."""
@@ -317,7 +317,7 @@ class EtaQuotient:
         """True iff ``Q`` is a HOLOMORPHIC modular form on Γ₀(N): :meth:`is_modular`
         AND :meth:`order_at_cusp` ``(c) ≥ 0`` for EVERY positive divisor ``c | N``
         (every cusp). The non-negativity is a Class-K sign branch on the exact
-        :class:`~srmech.amsc.q.Q` order (the rational ``num/den`` with a positive
+        :class:`~srmech.math.q.Q` order (the rational ``num/den`` with a positive
         reduced denominator is ``≥ 0`` iff its numerator is ``≥ 0`` — an explicit
         sign test, never an ALU ``abs()``). Both keystones are holomorphic (every
         cusp order ``= 1 ≥ 0``)."""

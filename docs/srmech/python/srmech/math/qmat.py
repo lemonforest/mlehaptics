@@ -1,10 +1,10 @@
-"""srmech.amsc.qmat — the framework-native EXACT-rational matrix carrier (``QMat``).
+"""srmech.math.qmat — the framework-native EXACT-rational matrix carrier (``QMat``).
 
-The 2-D peer of the scalar exact carrier :class:`srmech.amsc.q.Q`, and the exact
-(bigint) cousin of the float64 :class:`srmech.amsc.mat.Mat`. Where ``Mat`` carries
+The 2-D peer of the scalar exact carrier :class:`srmech.math.q.Q`, and the exact
+(bigint) cousin of the float64 :class:`srmech.math.mat.Mat`. Where ``Mat`` carries
 a dense matrix over a flat ``array('d')`` (float64 — the display boundary for
 genuinely-irrational entries), ``QMat`` carries a dense matrix whose every entry
-is an exact :class:`~srmech.amsc.q.Q` rational — a reduced ``(num, den)`` integer
+is an exact :class:`~srmech.math.q.Q` rational — a reduced ``(num, den)`` integer
 pair, each integer a Python ``int`` (so **arbitrary precision, no magnitude
 ceiling**: an entry numerator or denominator may freely exceed ``2⁶⁴``, unlike
 the native int64 Q61 fixed-point path). It completes the array-carrier family the
@@ -57,7 +57,7 @@ def _native():
     to the pure-Python Gauss-Jordan body (the complete alternative + the parity
     oracle) otherwise. Imported lazily to avoid a bootstrap cycle."""
     try:
-        from . import _native as nat
+        from ..amsc import _native as nat
     except ImportError:
         return None
     return nat if nat.has_native_qmat() else None
@@ -79,7 +79,7 @@ def _qmat_from_flat(pairs, n_rows: int, n_cols: int) -> "QMat":
 
 
 def _to_q(value, *, allow_float: bool = False):
-    """Coerce ``value`` to an exact :class:`~srmech.amsc.q.Q`, or ``None`` if it
+    """Coerce ``value`` to an exact :class:`~srmech.math.q.Q`, or ``None`` if it
     is not an exact-rational-coercible entry (mirrors ``qi``/``qalg`` ``_to_q``).
 
     A ``float`` is REJECTED by default (returns ``None``) — a QMat entry must be
@@ -148,7 +148,7 @@ def _coerce_rows(rows, *, allow_float: bool = False) -> Tuple[Tuple[Q, ...], ...
 class QMat:
     """A numpy-free EXACT-rational dense matrix: a tuple-of-tuples of exact ``Q``
     + ``(n_rows, n_cols)``, immutable. The bigint exact peer of the float64
-    :class:`srmech.amsc.mat.Mat`. Collapses to a float64 ``Mat`` only via
+    :class:`srmech.math.mat.Mat`. Collapses to a float64 ``Mat`` only via
     :meth:`to_mat`. See the module docstring."""
 
     __slots__ = ("_rows", "n_rows", "n_cols")
@@ -163,7 +163,7 @@ class QMat:
     @classmethod
     def from_rows(cls, rows) -> "QMat":
         """Build a ``QMat`` from a nested sequence (the canonical constructor,
-        mirrors :meth:`srmech.amsc.mat.Mat.from_rows`). Each entry is coerced to
+        mirrors :meth:`srmech.math.mat.Mat.from_rows`). Each entry is coerced to
         an exact ``Q`` (``Q`` / ``int`` / ``(num, den)`` pair / ``Fraction``); a
         ``float`` is rejected — use :meth:`from_float_rows`."""
         return cls(rows)
@@ -182,7 +182,7 @@ class QMat:
         if max_denominator is None:
             return cls.__new__(cls)._init_from(
                 _coerce_rows(rows, allow_float=True))
-        from ..math import rational as _rational
+        from . import rational as _rational
         snapped: List[List[Q]] = []
         n_cols = None
         for r in rows:
@@ -215,7 +215,7 @@ class QMat:
 
     @classmethod
     def from_mat(cls, mat, *, max_denominator=None) -> "QMat":
-        """Lift a float64 :class:`srmech.amsc.mat.Mat` to an exact ``QMat`` (the
+        """Lift a float64 :class:`srmech.math.mat.Mat` to an exact ``QMat`` (the
         exact-promotion bridge). Rejects a COMPLEX ``Mat`` with a clear error —
         ``QMat`` is real-rational; a Gaussian-rational matrix would be a future
         ``QiMat``. ``max_denominator`` snaps the entries (see
@@ -282,7 +282,7 @@ class QMat:
 
     def to_lists(self) -> List[List[Q]]:
         """List-of-rows copy, each entry an exact ``Q`` (the numpy-free read-out;
-        the exact analogue of :meth:`srmech.amsc.mat.Mat.tolist`)."""
+        the exact analogue of :meth:`srmech.math.mat.Mat.tolist`)."""
         return [list(r) for r in self._rows]
 
     def __eq__(self, other) -> bool:
@@ -654,11 +654,11 @@ class QMat:
 
     # ── the boundary collapse — the ONE rotation (ALU → FPU) ────────────────
     def to_mat(self):
-        """Collapse to a float64 :class:`srmech.amsc.mat.Mat` — the single
+        """Collapse to a float64 :class:`srmech.math.mat.Mat` — the single
         ALU→FPU rotation / "rotation last" (the body stayed exact ``Q`` until
         here). This is the ONLY place ``float()`` appears in the carrier, the
-        exact analogue of :meth:`srmech.amsc.q.Q.__float__` /
-        :meth:`srmech.amsc.qalg.Qalg.to_complex` — the opt-in display boundary."""
+        exact analogue of :meth:`srmech.math.q.Q.__float__` /
+        :meth:`srmech.math.qalg.Qalg.to_complex` — the opt-in display boundary."""
         from .mat import Mat
         return Mat.from_rows(
             [[float(q) for q in r] for r in self._rows], is_complex=False)
@@ -762,7 +762,7 @@ def _gf_primes():
     :func:`srmech.math.primes.is_prime`) over the descending odd candidates — the
     same primitive ``next_prime`` rides, walked downward to stay inside the field
     ceiling (``next_prime`` walks UP and would immediately exceed ``2**31``)."""
-    from ..math import primes as _primes
+    from . import primes as _primes
     cand = _GF_P_SEED
     if cand % 2 == 0:
         cand -= 1
@@ -777,7 +777,7 @@ def _entries_mod_p(rows, p: int):
     GF(p), or ``None`` if ``p`` divides any denominator (an *undefined* modular
     image — the prime must be skipped). Class-I ``mod_inv`` composition; the
     residues land in ``[0, p)``. Returns a list-of-lists of ``int`` residues."""
-    from ..math import cyclic as _cyclic
+    from . import cyclic as _cyclic
     out = []
     for r in rows:
         rr = []
@@ -843,8 +843,8 @@ def _rref_crt_rows(src_rows, n_rows: int, n_cols: int, n_cols_left: int):
     answer). Composes the Class-I ``gf_rref`` / ``crt_combine`` over the Class-J
     descending prime field, with the Class-N ``rational_reconstruct`` closing each
     entry; Class-K consensus + sign throughout. No float, no numpy, no ``math``."""
-    from ..math import modular_linalg as _ml
-    from ..math import rational as _rational
+    from . import modular_linalg as _ml
+    from . import rational as _rational
 
     n_cells = n_rows * n_cols
     consensus = None                              # (rank, tuple(pivots))
@@ -949,8 +949,8 @@ def _det_mod_p(residues, n: int, p: int, _ml) -> int:
     (an integer ``±1`` flipped on each row swap, never an ALU ``abs()``). Returns
     the determinant residue in ``[0, p)`` (``0`` iff ``A`` is singular mod ``p``).
     Class-I modular arithmetic composing the cyclic-group primitives."""
-    from ..math.cyclic import mod_inv as _mi
-    from ..math.cyclic import mod_mul as _mm
+    from .cyclic import mod_inv as _mi
+    from .cyclic import mod_mul as _mm
     m = [[v % p for v in row] for row in residues]
     sign = 1                                       # Class-K pin-slot (±1)
     prod = 1
@@ -985,10 +985,10 @@ def _det_crt(src_rows, n: int):
     swell-free :func:`_det_mod_p`), CRT-combines the modular determinants
     (:func:`crt_combine`), and rational-reconstructs ONCE
     (:func:`rational_reconstruct`) — byte-identical to the dense determinant at
-    bounded memory. Returns the exact :class:`~srmech.amsc.q.Q`, or ``None`` if the
+    bounded memory. Returns the exact :class:`~srmech.math.q.Q`, or ``None`` if the
     prime field exhausts without stabilizing (not hit for a finite answer)."""
-    from ..math import modular_linalg as _ml
-    from ..math import rational as _rational
+    from . import modular_linalg as _ml
+    from . import rational as _rational
 
     good_residues: List[int] = []
     good_moduli: List[int] = []

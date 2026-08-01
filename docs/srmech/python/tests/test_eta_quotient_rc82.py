@@ -24,7 +24,7 @@ import tokenize
 import pytest
 
 from srmech.apokatastasis.eta_quotient import EtaQuotient, eta_quotient
-from srmech.amsc.q import Q
+from srmech.math.q import Q
 from srmech.amsc import _native
 
 

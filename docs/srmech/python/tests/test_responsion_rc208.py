@@ -394,7 +394,7 @@ def test_contracts():
 
 
 def test_return_carrier_is_complex_vec():
-    from srmech.amsc.vec import Vec
+    from srmech.math.vec import Vec
     x = L.responsion(_L2(), [1.0, 0.0], 5.0, kind="resolvent")
     assert isinstance(x, Vec)
     assert x.is_complex

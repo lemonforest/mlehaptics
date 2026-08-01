@@ -1457,7 +1457,7 @@ decrements it).
   2-D `Mat` carrier + down-only carrier ratchet.** The numpy-MATH sweep
   (rc53–rc68) is floored; what's left is numpy-as-CARRIER — 61 submodules still
   `import numpy` at module level (lazy submodule imports; the package imports
-  numpy-free). New `srmech.amsc.mat.Mat`: the 2-D peer of the `HV` carrier — a
+  numpy-free). New `srmech.math.mat.Mat`: the 2-D peer of the `HV` carrier — a
   dense matrix over a flat `array('d')`, **row-major, interleaved `(re,im)`**
   for complex (C99 `double _Complex` layout → `.buffer` directly ctypes-castable
   to the native dense kernels, no copy/no numpy on HAS_NATIVE). numpy-free at

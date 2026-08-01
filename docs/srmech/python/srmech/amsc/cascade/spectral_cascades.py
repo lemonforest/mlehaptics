@@ -26,7 +26,7 @@ from __future__ import annotations
 from typing import List, Sequence
 
 from srmech.math.rational import cexp, pi_cascade_digits
-from srmech.amsc.mat import Mat as _Mat
+from srmech.math.mat import Mat as _Mat
 from srmech.math.laplacian import mat_matmul as _mat_matmul
 
 from .exact_dft import _exact_transform

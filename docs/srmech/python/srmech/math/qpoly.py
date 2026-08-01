@@ -1,10 +1,10 @@
-"""srmech.amsc.qpoly — the framework-native EXACT q-shift CARRIER (``QPoly``): a
+"""srmech.math.qpoly — the framework-native EXACT q-shift CARRIER (``QPoly``): a
 Laurent polynomial in ``x = q**n`` whose coefficients are exact polynomials in
-``q`` (``ℚ[q]``). The q-analog of :class:`srmech.amsc.poly.Poly`, and the
+``q`` (``ℚ[q]``). The q-analog of :class:`srmech.math.poly.Poly`, and the
 foundation carrier of the q-hypergeometric F929 reduction row (q-Gosper →
 q-Zeilberger → q-WZ).
 
-Where :class:`~srmech.amsc.poly.Poly` carries a univariate polynomial over ℚ and
+Where :class:`~srmech.math.poly.Poly` carries a univariate polynomial over ℚ and
 the ordinary shift ``p(k) ↦ p(k+1)`` is its summation payload, ``QPoly`` carries
 the object q-summation operates on — a *Laurent* polynomial in the formal
 variable ``x = q**n`` over the ground ring ``ℚ[q]`` — and the load-bearing new
@@ -19,11 +19,11 @@ and its q-analogue," J. Comput. Appl. Math. 48 (1993) 91–111; textbook anchor
 Gasper & Rahman, *Basic Hypergeometric Series*) manipulates the q-shift on
 *polynomial* (q-)coefficients, and denominators in ``q`` enter ONLY at the
 undetermined-coefficient LINEAR SOLVE stage — which is handled by the exact-``ℚ``
-:class:`~srmech.amsc.qmat.QMat` Gauss-Jordan downstream, not by the carrier. So
+:class:`~srmech.math.qmat.QMat` Gauss-Jordan downstream, not by the carrier. So
 the minimal sufficient ground ring for the carrier algebra (``+``, ``−``, ``*``,
 the q-shift, the q-difference) is ``ℚ[q]``; carrying ``ℚ(q)`` here would be
 premature denominators with no caller. Each q-coefficient is therefore a
-:class:`~srmech.amsc.poly.Poly` over ℚ (a ``ℚ[q]`` element — exact bigint, no
+:class:`~srmech.math.poly.Poly` over ℚ (a ``ℚ[q]`` element — exact bigint, no
 magnitude ceiling), and ``QPoly`` reuses ``Poly``'s exact polynomial algebra for
 every q-coefficient operation (the ``Poly`` C peer ``srmech_poly_*`` accelerates
 those byte-identically).
@@ -50,7 +50,7 @@ arithmetic; :meth:`eval` substitutes an exact ``(q, x)`` to a single exact ``Q``
 ``qshift(1) − self``. Sign is the **Class-K** pin-slot via ``Poly`` / ``Q``
 sign-branches (never an ALU ``abs()``). The ONE place a ``float`` appears is
 :meth:`to_floats` — the terminal ALU→FPU rotation (the exact analogue of
-:meth:`srmech.amsc.poly.Poly.to_floats`). No ``math`` module, no numpy.
+:meth:`srmech.math.poly.Poly.to_floats`). No ``math`` module, no numpy.
 
 C peer: ``srmech_qpoly_*`` (``c/src/srmech_qpoly.c``) mirrors ``srmech_poly_*``'s
 add/sub/mul + the q-shift, over caller-arena bignum (no int64/Q61 ceiling). The
@@ -80,7 +80,7 @@ def _native():
     available and falls cleanly to the pure-Python body (the complete alternative
     + the parity oracle) otherwise. Imported lazily to avoid a bootstrap cycle."""
     try:
-        from . import _native as nat
+        from ..amsc import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_qpoly", None)
@@ -129,7 +129,7 @@ def _qp_canon(cells: Sequence[Poly], x_low: int) -> "Tuple[Tuple[Poly, ...], int
 class QPoly:
     """A numpy-free EXACT q-shift carrier: a Laurent polynomial in ``x = q**n``
     with exact ``ℚ[q]`` (``Poly``-in-``q``) coefficients, immutable. The q-analog
-    of :class:`srmech.amsc.poly.Poly`. The carrier ships with its q-algebra
+    of :class:`srmech.math.poly.Poly`. The carrier ships with its q-algebra
     (``+`` / ``−`` / ``*`` / :meth:`qshift` / :meth:`qdelta`), peer of
     ``Poly`` / ``BiPoly`` / ``TriPoly``. Collapses to floats only via
     :meth:`to_floats`. See the module docstring."""
@@ -526,7 +526,7 @@ class QPoly:
         float64 ``q``-coefficients (ascending q-degree) — the single ALU→FPU
         rotation / "rotation last" (the body stayed exact ``Poly`` until here). The
         ONLY place ``float()`` appears in the carrier (the exact analogue of
-        :meth:`srmech.amsc.poly.Poly.to_floats`). The zero polynomial → ``([], 0)``."""
+        :meth:`srmech.math.poly.Poly.to_floats`). The zero polynomial → ``([], 0)``."""
         return [c.to_floats() for c in self._c], self._lo
 
 

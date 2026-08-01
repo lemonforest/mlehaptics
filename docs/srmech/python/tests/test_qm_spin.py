@@ -1,7 +1,7 @@
 """Tests for srmech.qm.spin (Pauli matrices, Clifford algebra).
 
 numpy-FREE end to end (v0.7.5rc115, #564): ``pauli_matrices`` /
-``pauli_identity`` / ``pauli_spin_operator`` return :class:`~srmech.amsc.mat.Mat`,
+``pauli_identity`` / ``pauli_spin_operator`` return :class:`~srmech.math.mat.Mat`,
 and **these tests use no numpy** — the eigenvalue checks go through the
 framework's own Class-L numpy-free Hermitian eigendecomposition
 (:func:`srmech.math.laplacian.mat_hermitian_eigendecompose`), matrix products

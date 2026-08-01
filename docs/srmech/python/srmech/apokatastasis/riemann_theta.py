@@ -180,7 +180,7 @@ from __future__ import annotations
 
 from typing import Dict, List, Tuple
 
-from ..amsc.q import Q
+from ..math.q import Q
 from .unary_theta import UnaryTheta, unary_theta
 
 __all__ = ["RiemannTheta", "RiemannThetaG3", "RiemannThetaG4", "SchottkyFormG4",

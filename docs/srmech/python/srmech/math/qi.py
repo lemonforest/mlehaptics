@@ -1,9 +1,9 @@
-"""srmech.amsc.qi — the framework-native EXACT-complex scalar carrier (``Qi``).
+"""srmech.math.qi — the framework-native EXACT-complex scalar carrier (``Qi``).
 
-The exact cousin of :class:`srmech.amsc.complex128.Complex128`. Where
+The exact cousin of :class:`srmech.math.complex128.Complex128`. Where
 ``Complex128`` carries a **float** complex scalar (two ``float64``, the display
 boundary for genuinely-irrational complex values), ``Qi`` carries an **exact**
-Gaussian rational — ``Qi = (re: Q, im: Q)``, two exact :class:`srmech.amsc.q.Q`
+Gaussian rational — ``Qi = (re: Q, im: Q)``, two exact :class:`srmech.math.q.Q`
 rationals — the exact :class:`numbers.Complex` over ℚ. It completes the carrier
 family: ``Q`` is the exact real (``numbers.Rational``), ``Complex128`` the float
 complex, and ``Qi`` the **exact** complex that was the gap.
@@ -31,9 +31,9 @@ from __future__ import annotations
 
 import numbers
 
-from . import _native
-from ..math import rational as _rational
-from ..math.hdc import KLEIN4_STATES
+from ..amsc import _native
+from . import rational as _rational
+from .hdc import KLEIN4_STATES
 from .q import Q
 
 __all__ = ["Qi"]
@@ -43,7 +43,7 @@ _Q_ONE = Q(1, 1)
 
 
 def _to_q(value):
-    """Coerce ``value`` to an exact :class:`~srmech.amsc.q.Q`, or ``None`` if it
+    """Coerce ``value`` to an exact :class:`~srmech.math.q.Q`, or ``None`` if it
     is not an exact-rational-coercible scalar."""
     if isinstance(value, Q):
         return value
@@ -167,7 +167,7 @@ class Qi:
     def from_complex(cls, z) -> "Qi":
         """Lift a builtin Python ``complex`` (or real) into the EXACT carrier —
         each float component promoted to its exact rational via
-        :meth:`srmech.amsc.q.Q.from_float` (no precision lost vs the float). This
+        :meth:`srmech.math.q.Q.from_float` (no precision lost vs the float). This
         is the bridge that lets ``Mat`` / ``Vec`` complex entries (e.g. a
         :func:`srmech.math.laplacian.magnetic_laplacian` off-diagonal) be
         polar-read exactly — the entry point to directional spectral kernels."""

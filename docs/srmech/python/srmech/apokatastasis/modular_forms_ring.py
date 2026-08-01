@@ -42,7 +42,7 @@ returning the UNIQUE exact-ℚ polynomial representation ``{(a,b): c_{a,b}}`` �
 NOT a search): it builds the E₄/E₆ q-series (the rc83 :class:`~srmech.amsc.
 eisenstein.Eisenstein` carrier), forms the monomial columns by exact-ℚ q-series
 multiplication, solves the over-determined system with the exact-ℚ
-:class:`~srmech.amsc.qmat.QMat` RREF, and VERIFIES the solution reproduces ALL
+:class:`~srmech.math.qmat.QMat` RREF, and VERIFIES the solution reproduces ALL
 provided terms before returning it.
 
 THE REPRESENTABILITY CLOSURE (level 1) — and the LEVEL-AXIS honest-OPEN
@@ -114,8 +114,8 @@ from __future__ import annotations
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from .eisenstein import Eisenstein
-from ..amsc.q import Q
-from ..amsc.qmat import QMat
+from ..math.q import Q
+from ..math.qmat import QMat
 
 __all__ = [
     "ModularFormsRing",
@@ -143,7 +143,7 @@ def _native():
 
 
 def _to_q(x) -> Q:
-    """Coerce a q-series entry to an exact :class:`~srmech.amsc.q.Q` — accept an
+    """Coerce a q-series entry to an exact :class:`~srmech.math.q.Q` — accept an
     exact ``Q``, an ``int``, or a reduced ``(num, den)`` pair (a 2-element tuple OR
     list, so a JSON-RPC round-trip that turns tuples into lists still parses). A
     ``float`` is REJECTED (the carrier is exact-rational; a float must enter through
@@ -163,7 +163,7 @@ def _to_q(x) -> Q:
 
 
 def _qmul(a: Sequence[Q], b: Sequence[Q], n_terms: int) -> List[Q]:
-    """Exact-:class:`~srmech.amsc.q.Q` truncated q-series convolution to
+    """Exact-:class:`~srmech.math.q.Q` truncated q-series convolution to
     ``n_terms`` terms: ``(a·b)[n] = Σ_{i+j=n} a[i]·b[j]`` for ``n < n_terms``. All
     exact rational; no float, no numpy / ``math``."""
     out: List[Q] = [_Q_ZERO] * n_terms
@@ -232,7 +232,7 @@ class ModularFormsRing:
     # ── the monomial q-series columns (the basis matrix builder) ───────────────
     @staticmethod
     def _monomial_qseries(a: int, b: int, n_terms: int) -> List[Q]:
-        """The exact-:class:`~srmech.amsc.q.Q` q-series of the monomial
+        """The exact-:class:`~srmech.math.q.Q` q-series of the monomial
         ``E₄^a · E₆^b`` to ``n_terms`` terms — the rc83 Eisenstein carrier raised
         to integer powers by exact-ℚ truncated q-series multiplication. ``E₄⁰ E₆⁰``
         is the constant ``1`` (the weight-0 monomial). No float, no abs()."""
@@ -270,7 +270,7 @@ class ModularFormsRing:
         → the empty rep ``{}``). At least ``dim(k) + 2`` terms are required for the
         system to be well-posed AND verifiable (more terms is fine); too few raises
         ``ValueError``. ``n_terms`` (optional) caps the terms USED (default: all
-        provided). Exact over ℚ via :class:`~srmech.amsc.qmat.QMat` Gauss-Jordan;
+        provided). Exact over ℚ via :class:`~srmech.math.qmat.QMat` Gauss-Jordan;
         DISPATCHES to the native ``srmech_modular_forms_ring_represent`` C peer when
         loaded (compared element-for-element, never trusted); else the pure-Python
         :meth:`_represent_py` body (the COMPLETE alternative + the parity oracle).
@@ -312,7 +312,7 @@ class ModularFormsRing:
                       ) -> Optional[Dict[Tuple[int, int], Q]]:
         """The COMPLETE pure-Python ``represent`` (the parity oracle for the C
         peer): build the weight-``k`` monomial-basis matrix, solve the square
-        subsystem exactly over ℚ (:class:`~srmech.amsc.qmat.QMat`), and VERIFY the
+        subsystem exactly over ℚ (:class:`~srmech.math.qmat.QMat`), and VERIFY the
         solution against EVERY provided term. ``f`` is the coerced ``Q`` q-series,
         ``mono`` the weight-``k`` monomial basis. Returns ``{(a,b): Q}`` or
         ``None``. All exact rational; no float / numpy / ``math`` / ``abs``."""
@@ -460,7 +460,7 @@ class ModularForm:
         return dict(self._rep)
 
     def q_series(self, n_terms: int) -> List[Q]:
-        """Reconstruct the exact-:class:`~srmech.amsc.q.Q` q-series of this form to
+        """Reconstruct the exact-:class:`~srmech.math.q.Q` q-series of this form to
         ``n_terms`` terms from its rep: ``Σ_{a,b} c_{a,b}·(E₄^a E₆^b)``. Exact; no
         float, no abs()."""
         if not isinstance(n_terms, int) or n_terms < 1:

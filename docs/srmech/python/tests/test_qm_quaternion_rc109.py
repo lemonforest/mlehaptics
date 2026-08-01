@@ -36,7 +36,7 @@ import pytest
 
 from srmech.amsc import _native
 from srmech.math import hdc
-from srmech.amsc.mat import Mat
+from srmech.math.mat import Mat
 from srmech.qm import octonion as octo
 from srmech.qm import quaternion as quat
 from srmech.qm.quaternion import (

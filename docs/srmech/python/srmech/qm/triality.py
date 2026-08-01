@@ -47,7 +47,7 @@ subset / SVD nullspace. **No RNG** anywhere (the clean-MCP no-RNG mandate).
 
 rc123/rc124 (numpy-free, #564): the whole module flips off numpy onto the
 framework-native carriers. ``28×28`` / ``8×8`` matrices are
-:class:`srmech.amsc.mat.Mat` (the public surfaces return ``Mat``); the
+:class:`srmech.math.mat.Mat` (the public surfaces return ``Mat``); the
 companion least-squares rides :func:`~srmech.math.laplacian.mat_lstsq`, the
 matmuls :func:`~srmech.math.laplacian.mat_matmul`, the norms
 :func:`~srmech.math.laplacian.mat_norm`, and the octonion table is consumed
@@ -71,14 +71,14 @@ from __future__ import annotations
 import functools
 from typing import Dict, List, Sequence, Tuple
 
-from srmech.amsc.q import Q                    # #845: exact-ℚ solver carrier
+from srmech.math.q import Q                    # #845: exact-ℚ solver carrier
 
 from srmech.math import rational as _srn
 
 from srmech.amsc.cascade import magnitude as _magnitude
 from srmech.math.cyclic import mod_add as _mod_add
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
-from srmech.amsc.mat import Mat
+from srmech.math.mat import Mat
 from srmech.math.laplacian import mat_matmul, mat_norm
 from srmech.qm.octonion import octonion_mult_table
 from srmech.qm.so8 import (
@@ -236,7 +236,7 @@ def _exact_solve_normal_equations(g: List[List[int]], c: List[int],
 
     rc146 (BATCH B8b — ``composition_of_c`` standalone-C basis): this exact-ℚ
     RREF-with-free-columns-pinned solve is standalone-reproducible in a bare-C
-    host by the ``c_dispatched`` :func:`srmech.amsc.qmat.QMat.rref`
+    host by the ``c_dispatched`` :func:`srmech.math.qmat.QMat.rref`
     (``srmech_qmat_rref``, the exact-ℚ RREF C peer) over the same augmented
     ``[G | c]`` — VERIFIED to return BYTE-IDENTICAL companion maps to this
     routine. This sparse-Fraction path is kept as the fast one (the dense

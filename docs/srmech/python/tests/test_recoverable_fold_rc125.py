@@ -55,8 +55,8 @@ from srmech.amsc.coupling import (
     fold_spectrum,
     fractal_spectrum,
 )
-from srmech.amsc.poly import Poly
-from srmech.amsc.q import Q
+from srmech.math.poly import Poly
+from srmech.math.q import Q
 
 # The Sierpinski gasket decimation R(z)=z(5−4z): 4 bound pairs → capacity floor
 # 4·4 = 16, so dim=8 is BELOW it (the rc124 bare read fails there).

@@ -39,9 +39,9 @@ from srmech.amsc.cascade.cayley_dickson import (
     cd_mult,
     cd_norm_sq,
 )
-from srmech.amsc.complex128 import Complex128
-from srmech.amsc.q import Q
-from srmech.amsc.qi import Qi
+from srmech.math.complex128 import Complex128
+from srmech.math.q import Q
+from srmech.math.qi import Qi
 
 
 def test_numpy_is_absent_so_this_runs_not_skips():

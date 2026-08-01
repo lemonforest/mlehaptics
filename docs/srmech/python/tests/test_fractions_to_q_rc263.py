@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from fractions import Fraction as F
 
-from srmech.amsc.q import Q, to_q
+from srmech.math.q import Q, to_q
 
 
 # ── 1. to_q parity with one-arg Fraction ─────────────────────────────────────

@@ -29,7 +29,7 @@ import math
 import pytest
 
 from srmech.amsc import _native
-from srmech.amsc.mat import Mat
+from srmech.math.mat import Mat
 from srmech.math.laplacian import (
     quaternion_laplacian,
     hypercomplex_perspectives,

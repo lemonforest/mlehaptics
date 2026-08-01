@@ -5,7 +5,7 @@ the closer of the whole multivariate + q-hypergeometric reduction-theory arc).
 The q-analog of the §76 ``wz_certificate``. Given a proper q-hypergeometric term
 F(n,k) (the NORMALIZED q-summand of a terminating identity Σ_k F(n,k)=const) by its
 TWO bivariate-q term ratios r_n = F(n+1,k)/F(n,k) and r_k = F(n,k+1)/F(n,k) (each a
-:class:`~srmech.amsc.qbipoly.QBiPoly` over (X,Y)=(qⁿ,qᵏ)), ``q_wz_certificate``
+:class:`~srmech.math.qbipoly.QBiPoly` over (X,Y)=(qⁿ,qᵏ)), ``q_wz_certificate``
 PRODUCES + VERIFIES the q-WZ certificate R(X,Y) whose companion G=R·F makes the q-WZ
 equation F(n+1,k)−F(n,k)=G(n,k+1)−G(n,k) hold (G(n,k+1)=(σ_y R)·(σ_y F), σ_y:Y↦qY).
 
@@ -40,10 +40,10 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc.q import Q
-from srmech.amsc.poly import Poly
-from srmech.amsc.qpoly import QPoly
-from srmech.amsc.qbipoly import QBiPoly, _qb_pairs
+from srmech.math.q import Q
+from srmech.math.poly import Poly
+from srmech.math.qpoly import QPoly
+from srmech.math.qbipoly import QBiPoly, _qb_pairs
 from srmech.apokatastasis.q_wz_certificate import (
     q_wz_certificate, _verify_q_wz_equation_pure)
 

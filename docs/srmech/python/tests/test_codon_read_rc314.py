@@ -278,7 +278,7 @@ def test_short_and_empty_strands_read_empty():
 
 
 def test_hv_input_reads_the_same():
-    from srmech.amsc.hv import HV
+    from srmech.math.hv import HV
     s = _codons("ATGTGGTAA")
     hv = HV.from_sequence(bytes(s), sectors=4)
     assert codon_read(hv) == codon_read(s) == "MW*"

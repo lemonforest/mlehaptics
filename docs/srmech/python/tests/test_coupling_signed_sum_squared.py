@@ -16,7 +16,7 @@ import random
 import pytest
 
 from srmech.amsc import coupling
-from srmech.amsc.vec import Vec
+from srmech.math.vec import Vec
 
 
 def _ref_signed_sum_squared(sources):

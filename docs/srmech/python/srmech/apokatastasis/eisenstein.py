@@ -14,7 +14,7 @@ where ``B_k`` is the ``k``-th Bernoulli number (an exact rational, e.g.
 coefficients are rational in GENERAL — for ``k = 4, 6, 8, 10, 14`` the prefactor
 ``−2k/B_k`` happens to be an integer (240, −504, 480, −264, −24), but for
 ``k = 12`` it is ``65520/691`` and for ``k = 16`` it is ``16320/3617`` — so the
-carrier keeps EVERY coefficient as an exact :class:`~srmech.amsc.q.Q` rational,
+carrier keeps EVERY coefficient as an exact :class:`~srmech.math.q.Q` rational,
 never collapsing to a float (the whole reason the coefficients are ``Q`` not
 ``int``).
 
@@ -29,7 +29,7 @@ weight rung after the rc82 eta-quotient.
 THE TWO GRADINGS
 ================
 
-  * the **q-scale grading** — the exact-:class:`~srmech.amsc.q.Q` q-series is the
+  * the **q-scale grading** — the exact-:class:`~srmech.math.q.Q` q-series is the
     q-graded structure (the SAME scale structure the eta-quotient / elliptic
     carriers grade by); and
   * the **WEIGHT** ``k`` — the modular AUTOMORPHY covariance, the ``(cτ+d)^k``
@@ -55,7 +55,7 @@ PRODUCTS of these two — the carrier proves this on its own ladder:
 
         E_4³ − E_6² = 1728·Δ = 1728·η²⁴
 
-    — the q-series of ``E_4³ − E_6²`` (an exact-:class:`~srmech.amsc.q.Q`
+    — the q-series of ``E_4³ − E_6²`` (an exact-:class:`~srmech.math.q.Q`
     convolution; the constant term is 0, a CUSP form) equals ``1728`` times the
     Ramanujan discriminant ``Δ = η²⁴``, i.e. ``(E_4³ − E_6²)[n] = 1728·τ(n)``.
     Validated against the PUBLISHED rc82 carrier
@@ -115,7 +115,7 @@ from __future__ import annotations
 
 from typing import List
 
-from ..amsc.q import Q
+from ..math.q import Q
 
 __all__ = ["Eisenstein", "eisenstein"]
 
@@ -135,7 +135,7 @@ def _native():
 
 
 def _bernoulli(k: int) -> Q:
-    """The ``k``-th Bernoulli number ``B_k`` as an exact :class:`~srmech.amsc.q.Q`.
+    """The ``k``-th Bernoulli number ``B_k`` as an exact :class:`~srmech.math.q.Q`.
 
     Standard recurrence (the convention ``B_1 = −1/2``; only even ``k ≥ 0`` are
     used here, so the convention is immaterial): from
@@ -195,7 +195,7 @@ class Eisenstein:
 
     — an operand carrier on the WEIGHT axis. Immutable. Holds the even weight
     ``k ≥ 4``. The :attr:`weight` ``= Q(k)`` (exact); the q-series
-    (:meth:`q_series`) is exact-:class:`~srmech.amsc.q.Q` (rational in general —
+    (:meth:`q_series`) is exact-:class:`~srmech.math.q.Q` (rational in general —
     e.g. ``E_12`` has ``c_1 = 65520/691``); :meth:`is_modular` is ``True`` for
     every even ``k ≥ 4`` (the constructor gate). See the module docstring for the
     keystones (esp. the cross-rung ``E_4³ − E_6² = 1728·η²⁴``) + the honest-OPENs
@@ -234,7 +234,7 @@ class Eisenstein:
     def weight(self) -> Q:
         """The modular WEIGHT ``k`` — the ``(cτ+d)^k`` automorphy covariance grade
         (an EVEN INTEGER ``≥ 4`` for the level-1 holomorphic Eisenstein series →
-        exact :class:`~srmech.amsc.q.Q`). THE WEIGHT AXIS."""
+        exact :class:`~srmech.math.q.Q`). THE WEIGHT AXIS."""
         return Q(self._k, 1)
 
     @property
@@ -242,7 +242,7 @@ class Eisenstein:
         """The leading q-power: the constant term of ``E_k`` is ``1`` (``q^0``), so
         ``E_k`` is HOLOMORPHIC AND NON-VANISHING at the cusp ``∞`` — it is NOT a
         cusp form (contrast ``Δ = η²⁴``, leading power ``q^1``). Exact
-        :class:`~srmech.amsc.q.Q` ``Q(0, 1)``."""
+        :class:`~srmech.math.q.Q` ``Q(0, 1)``."""
         return Q(0, 1)
 
     @property
@@ -250,12 +250,12 @@ class Eisenstein:
         """The exact-rational normalization prefactor ``−2k / B_k`` (so
         ``c_n = prefactor·σ_{k−1}(n)``). Integer for ``k = 4, 6, 8, 10, 14`` (240,
         −504, 480, −264, −24); a genuine rational for ``k = 12`` (``65520/691``),
-        ``k = 16`` (``16320/3617``), … — an exact :class:`~srmech.amsc.q.Q`."""
+        ``k = 16`` (``16320/3617``), … — an exact :class:`~srmech.math.q.Q`."""
         return Q(-2 * self._k, 1) / _bernoulli(self._k)
 
     # ── the q-series (exact rational coefficients) ─────────────────────────────
     def q_series(self, n_terms: int) -> List[Q]:
-        """The exact-:class:`~srmech.amsc.q.Q` coefficient list
+        """The exact-:class:`~srmech.math.q.Q` coefficient list
         ``[c_0, c_1, …, c_{n_terms−1}]`` of
 
             E_k(τ) = 1 − (2k / B_k) · Σ_{n≥1} σ_{k−1}(n) qⁿ ,
@@ -281,7 +281,7 @@ class Eisenstein:
 
     def _q_series_py(self, n_terms: int) -> List[Q]:
         """The COMPLETE pure-Python ``q_series`` (the parity oracle for the C peer):
-        the exact-:class:`~srmech.amsc.q.Q` coefficients of
+        the exact-:class:`~srmech.math.q.Q` coefficients of
         ``1 − (2k/B_k)·Σ σ_{k−1}(n) qⁿ`` to ``n_terms`` terms. The prefactor
         ``−2k/B_k`` is computed ONCE (exact-``Q`` Bernoulli :func:`_bernoulli`);
         each ``c_n`` is ``prefactor · σ_{k−1}(n)`` (exact-int

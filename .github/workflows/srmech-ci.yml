@@ -690,7 +690,7 @@ jobs:
           assert verified and abs(primary) < 1e-13, (verified, primary)  # within-tol: chsh_pauli_combination_norm via C Hermitian eig (rc152), not exact-0
           # single_particle (rc117) is numpy-free: a tiny Hermitian Mat eigensolves
           # to a (n,1) real eigval Mat + complex unitary Mat, no numpy.
-          from srmech.amsc.mat import Mat
+          from srmech.math.mat import Mat
           _ev, _V = single_particle.tise_solve(
               Mat.from_rows([[2.0, 1j], [-1j, 3.0]], is_complex=True))
           assert type(_ev).__name__ == 'Mat' and _ev.shape == (2, 1), 'single_particle not numpy-free'

@@ -31,7 +31,7 @@ is a documented framework-reading (surfaced only under the framework field),
 NOT labelled bit-exact derived.
 
 rc123 (numpy-free, #564): this test is itself numpy-FREE —
-``lean_isa_seventh_primitive``'s ``triality`` is a :class:`srmech.amsc.mat.Mat`;
+``lean_isa_seventh_primitive``'s ``triality`` is a :class:`srmech.math.mat.Mat`;
 matmuls / norms route through ``mat_matmul`` / ``mat_norm`` with no numpy
 oracle and no ``.to_numpy()`` (per
 ``[[feedback_test_for_numpy_free_module_must_itself_be_numpy_free]]``).
@@ -41,7 +41,7 @@ from __future__ import annotations
 
 from srmech.amsc.cascade import magnitude
 from srmech.math.laplacian import mat_matmul, mat_norm
-from srmech.amsc.mat import Mat
+from srmech.math.mat import Mat
 from srmech.qm import triality
 from srmech.qm.triality import lean_isa_seventh_primitive
 

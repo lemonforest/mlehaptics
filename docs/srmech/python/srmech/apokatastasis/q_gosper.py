@@ -6,7 +6,7 @@ Where :func:`srmech.apokatastasis.gosper.gosper` decides whether an ordinary hyp
 term ``t(k)`` has a hypergeometric antidifference ``T(k)`` (``T(k+1) − T(k) =
 t(k)``, ``T(k+1)/T(k)`` rational in ``k``), the **q-Gosper** algorithm
 (T.H. Koornwinder, "On Zeilberger's algorithm and its q-analogue," J. Comput.
-Appl. Math. 48 (1993) 91–111 — the same paper :class:`~srmech.amsc.qpoly.QPoly`
+Appl. Math. 48 (1993) 91–111 — the same paper :class:`~srmech.math.qpoly.QPoly`
 cites; textbook anchor Gasper & Rahman, *Basic Hypergeometric Series*) decides the
 same for a **q-hypergeometric** term, whose term ratio is a rational function of
 ``x = qᵏ``:
@@ -15,7 +15,7 @@ same for a **q-hypergeometric** term, whose term ratio is a rational function of
 
 A q-hypergeometric term is fully described by that rational term ratio
 ``r(x) = num(x)/den(x)`` — two Laurent polynomials in ``x`` over ``ℚ[q]``, i.e.
-two :class:`~srmech.amsc.qpoly.QPoly`. This op takes that ratio and decides whether
+two :class:`~srmech.math.qpoly.QPoly`. This op takes that ratio and decides whether
 ``t(k)`` has a q-hypergeometric antidifference ``T(k)`` (``T(k+1) − T(k) = t(k)``,
 ``R(x) = T(k)/t(k)`` rational in ``x``):
 
@@ -30,7 +30,7 @@ two :class:`~srmech.amsc.qpoly.QPoly`. This op takes that ratio and decides whet
   3. solve the **q-Gosper equation** ``a(x)·y(qx) − b(q⁻¹x)·y(x) = c(x)`` for a
      Laurent polynomial ``y(x)`` of bounded x-degree, via undetermined coefficients
      — a small EXACT-``ℚ`` linear system (the q-coefficients cleared to ``ℚ``)
-     solved with the exact Gauss-Jordan :class:`~srmech.amsc.qmat.QMat`;
+     solved with the exact Gauss-Jordan :class:`~srmech.math.qmat.QMat`;
   4. if ``y`` exists, return the **rational certificate** ``R(x) = (b(q⁻¹x)·y(x)) /
      c(x)`` (the q-antidifference is ``T(k) = R(qᵏ)·t(k)``, so ``Σ t`` telescopes:
      ``Σ_{k=a}^{b} t(k) = T(b+1) − T(a)``); else ``None`` (no q-hypergeometric
@@ -44,7 +44,7 @@ caller checks ``Δ_q(R·t) = t`` exactly (over ``ℚ`` via :meth:`QPoly.eval`); 
 returned ``R`` is the certificate of record.
 
 The whole pipeline stays EXACT — every q-coefficient is an exact rational function
-of ``q`` (a reduced ``(num, den)`` pair of :class:`~srmech.amsc.poly.Poly` over ℚ,
+of ``q`` (a reduced ``(num, den)`` pair of :class:`~srmech.math.poly.Poly` over ℚ,
 bigint, no magnitude ceiling), every solve is exact Gauss-Jordan over ``ℚ``. There
 is NO float anywhere; sign is the **Class-K** pin-slot via the ``Q`` / ``Poly``
 sign-branch (never an ALU ``abs()``); no ``math`` module, no numpy. This is the
@@ -67,9 +67,9 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional, Tuple
 
-from ..amsc.poly import Poly
-from ..amsc.q import Q
-from ..amsc.qpoly import QPoly
+from ..math.poly import Poly
+from ..math.q import Q
+from ..math.qpoly import QPoly
 
 __all__ = ["q_gosper"]
 
@@ -88,7 +88,7 @@ _MAX_Y_DEGREE = 16
 # ── the exact ℚ(q) rational-function-in-q coefficient layer (Class-N over J) ────
 #
 # A q-Gosper coefficient is an exact rational function of ``q`` — a reduced
-# ``(num, den)`` pair of :class:`~srmech.amsc.poly.Poly` over ℚ. The carrier QPoly
+# ``(num, den)`` pair of :class:`~srmech.math.poly.Poly` over ℚ. The carrier QPoly
 # rides ``ℚ[q]`` (no denominators) because its own algebra never needs them; but
 # the q-Gosper x-polynomial GCD / long division need a FIELD for the x-coefficient
 # ring, and that field is ``ℚ(q)``. So this op carries each x-coefficient as a
@@ -99,7 +99,7 @@ _MAX_Y_DEGREE = 16
 
 class _Cq:
     """An exact rational function of ``q``: a reduced ``(num, den)`` pair of
-    :class:`~srmech.amsc.poly.Poly` over ℚ (``den`` monic, ``gcd(num, den) = 1``).
+    :class:`~srmech.math.poly.Poly` over ℚ (``den`` monic, ``gcd(num, den) = 1``).
     The x-coefficient ring of the q-Gosper algebra — a field over ``ℚ(q)``."""
 
     __slots__ = ("num", "den")
@@ -186,7 +186,7 @@ def _xp_trim(d: Dict[int, _Cq]) -> Dict[int, _Cq]:
 
 
 def _xp_from_qpoly(p: QPoly) -> Dict[int, _Cq]:
-    """A carrier :class:`~srmech.amsc.qpoly.QPoly` (Laurent in ``x`` over ``ℚ[q]``)
+    """A carrier :class:`~srmech.math.qpoly.QPoly` (Laurent in ``x`` over ``ℚ[q]``)
     → the working ``{x_exp: _Cq}`` form (the q-coefficients lifted to ``ℚ(q)`` over
     the unit denominator)."""
     out: Dict[int, _Cq] = {}
@@ -206,7 +206,7 @@ def _xp_qden(d: Dict[int, _Cq]) -> Poly:
 
 
 def _xp_to_qpoly(d: Dict[int, _Cq], clear_den: Poly = _POLY_ONE) -> QPoly:
-    """The working ``{x_exp: _Cq}`` form → a carrier :class:`~srmech.amsc.qpoly.QPoly`
+    """The working ``{x_exp: _Cq}`` form → a carrier :class:`~srmech.math.qpoly.QPoly`
     after multiplying through by ``clear_den`` (a ``ℚ[q]`` polynomial chosen so every
     resulting q-coefficient lands in ``ℚ[q]`` — the carrier's ground ring).
 
@@ -445,7 +445,7 @@ def _solve_exact_cq(cols: List[Dict[int, _Cq]], rhs: Dict[int, _Cq],
     exact Gauss-Jordan RREF over the field ``ℚ(q)``.
 
     The augmented matrix entries are :class:`_Cq` (exact rational functions in ``q``);
-    the elimination is the SAME Gauss-Jordan the exact-``ℚ`` :class:`~srmech.amsc.qmat.QMat`
+    the elimination is the SAME Gauss-Jordan the exact-``ℚ`` :class:`~srmech.math.qmat.QMat`
     runs — pivoting on a nonzero entry, scaling the pivot row by the pivot's inverse,
     clearing the column — one ring UP (``ℚ`` → ``ℚ(q)``). Each pivot / scale / clear is
     an exact ``_Cq`` op (built on the ``Poly``-over-``Q`` arithmetic + its C peer), so
@@ -485,7 +485,7 @@ def _rref_cq(aug: List[List[_Cq]], n_cols: int) -> Optional[List[_Cq]]:
     """Exact Gauss-Jordan RREF of the augmented ``ℚ(q)`` system ``aug`` (``n_cols``
     unknowns + a trailing RHS column) → the solution vector (``n_cols`` ``_Cq``, free
     slots ``0``), or ``None`` when inconsistent (a pivot in the RHS column). The exact
-    field analog of :meth:`~srmech.amsc.qmat.QMat.rref` (the leaf ``ℚ`` arithmetic
+    field analog of :meth:`~srmech.math.qmat.QMat.rref` (the leaf ``ℚ`` arithmetic
     lives inside each ``_Cq``)."""
     m = [list(r) for r in aug]
     n_rows = len(m)
@@ -536,7 +536,7 @@ def _native():
 
 
 def _coerce_qpoly(value) -> QPoly:
-    """Coerce a term-ratio operand to a :class:`~srmech.amsc.qpoly.QPoly`. A
+    """Coerce a term-ratio operand to a :class:`~srmech.math.qpoly.QPoly`. A
     ``QPoly`` passes through; a lower carrier (a ``Poly`` in ``q`` → an ``x**0``
     cell) or the nested-list form (``QPoly.from_coeffs`` — an ascending-x list of
     ``ℚ[q]`` cells) is lifted. A tuple is read as a list."""
@@ -560,7 +560,7 @@ def q_gosper(rn_num, rn_den) -> Optional[Dict[str, QPoly]]:
 
     ``rn_num`` and ``rn_den`` are the numerator / denominator of the
     q-hypergeometric **term ratio** ``t(k+1)/t(k) = r(qᵏ) = rn_num(x)/rn_den(x)`` —
-    each a :class:`~srmech.amsc.qpoly.QPoly` (a Laurent polynomial in ``x = qᵏ`` over
+    each a :class:`~srmech.math.qpoly.QPoly` (a Laurent polynomial in ``x = qᵏ`` over
     ``ℚ[q]``), or any value :func:`_coerce_qpoly` lifts (a ``Poly`` in ``q``, the
     nested-list ``QPoly`` form). The op decides whether ``t(k)`` has a
     q-hypergeometric antidifference ``T(k)`` (``T(k+1) − T(k) = t(k)``):
@@ -719,16 +719,16 @@ def _reduce_ratio(num: Dict[int, _Cq], den: Dict[int, _Cq]
 
 
 def _qg_pairs(p: QPoly) -> "Tuple[int, List[List[Tuple[int, int]]]]":
-    """A :class:`~srmech.amsc.qpoly.QPoly` → the ``(x_low, [[(num, den), …]_q]_x)``
+    """A :class:`~srmech.math.qpoly.QPoly` → the ``(x_low, [[(num, den), …]_q]_x)``
     bridge form the C peer consumes — the SAME form
-    :func:`srmech.amsc.qpoly._qp_pairs` emits."""
-    from ..amsc.qpoly import _qp_pairs
+    :func:`srmech.math.qpoly._qp_pairs` emits."""
+    from ..math.qpoly import _qp_pairs
     return _qp_pairs(p)
 
 
 def _qg_from_pairs(form) -> QPoly:
-    """Rebuild a :class:`~srmech.amsc.qpoly.QPoly` from the ``(x_low, [[(num, den),
+    """Rebuild a :class:`~srmech.math.qpoly.QPoly` from the ``(x_low, [[(num, den),
     …]_q]_x)`` bridge form (from the C peer; each leaf already reduced) — the SAME
-    form :func:`srmech.amsc.qpoly._qp_from_pairs` consumes."""
-    from ..amsc.qpoly import _qp_from_pairs
+    form :func:`srmech.math.qpoly._qp_from_pairs` consumes."""
+    from ..math.qpoly import _qp_from_pairs
     return _qp_from_pairs(form)

@@ -28,9 +28,9 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc.poly import Poly
-from srmech.amsc.q import Q
-from srmech.amsc.qpoly import QPoly
+from srmech.math.poly import Poly
+from srmech.math.q import Q
+from srmech.math.qpoly import QPoly
 from srmech.amsc import _native
 
 
@@ -324,7 +324,7 @@ def test_native_addsub_byte_identical():
                           x_low=-1)
     af, bf = _native._qp_pairs(a) if hasattr(_native, "_qp_pairs") else None, None
     # drive the C path directly via the bridge wrappers, compare to pure.
-    from srmech.amsc.qpoly import _qp_pairs, _qp_from_pairs
+    from srmech.math.qpoly import _qp_pairs, _qp_from_pairs
     cadd = _qp_from_pairs(_native.qpoly_addsub_c(_qp_pairs(a), _qp_pairs(b), False))
     csub = _qp_from_pairs(_native.qpoly_addsub_c(_qp_pairs(a), _qp_pairs(b), True))
     # pure path (force pure by oracle round-trip equality).
@@ -334,7 +334,7 @@ def test_native_addsub_byte_identical():
 
 @pytest.mark.skipif(not _HAS_C, reason="native srmech_qpoly_* peer absent")
 def test_native_mul_byte_identical():
-    from srmech.amsc.qpoly import _qp_pairs, _qp_from_pairs
+    from srmech.math.qpoly import _qp_pairs, _qp_from_pairs
     a = _bignum_qpoly()
     b = QPoly.from_coeffs([Poly.from_coeffs([Q(7, 3), Q(11, 5)]),
                            Poly.from_coeffs([Q(13, 2)])])
@@ -344,7 +344,7 @@ def test_native_mul_byte_identical():
 
 @pytest.mark.skipif(not _HAS_C, reason="native srmech_qpoly_* peer absent")
 def test_native_qshift_byte_identical():
-    from srmech.amsc.qpoly import _qp_pairs, _qp_from_pairs
+    from srmech.math.qpoly import _qp_pairs, _qp_from_pairs
     a = _bignum_qpoly()            # non-negative x-exponents only
     cshift = _qp_from_pairs(_native.qpoly_qshift_c(_qp_pairs(a), 3))
     assert cshift == _oracle_to_qp(_o_qshift(_qp_to_oracle(a), 3))

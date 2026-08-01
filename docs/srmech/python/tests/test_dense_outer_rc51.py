@@ -20,7 +20,7 @@ import math
 import pytest
 
 from srmech.math import laplacian
-from srmech.amsc.mat import Mat
+from srmech.math.mat import Mat
 from srmech.math.laplacian import mat_outer, mat_outer
 
 
@@ -113,7 +113,7 @@ def test_dense_outer_tool_entries_registered():
 # ── the routed qm callsites still compute correctly (numpy-free Mat) ──────────
 
 def test_propagators_momentum_tensor_routed():
-    from srmech.amsc.mat import Mat
+    from srmech.math.mat import Mat
     from srmech.qm.propagators import feynman_photon_propagator
     # general covariant gauge (ξ≠1) → the (1-ξ) kᵘkᵛ term is active. propagators
     # flipped numpy-free at rc123 (#564): the kᵘkᵛ outer product rides the
@@ -124,7 +124,7 @@ def test_propagators_momentum_tensor_routed():
 
 
 def test_single_particle_density_matrix_routed():
-    from srmech.amsc.mat import Mat
+    from srmech.math.mat import Mat
     from srmech.qm.single_particle import density_matrix
     s = 1.0 / math.sqrt(2.0)        # math in TEST code is fine
     psi = [complex(s, 0.0), complex(0.0, s)]

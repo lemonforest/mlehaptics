@@ -13,7 +13,7 @@ tighten to Σ|e| — under which ``is_zero`` would falsely return ``True`` here 
 """
 from srmech.amsc import ThetaSum
 from srmech.apokatastasis.ellbase import EllMonomial as M, Theta
-from srmech.amsc.q import Q
+from srmech.math.q import Q
 from srmech.apokatastasis.thetasum import _struct_theta_p, _STRUCT_MARGIN
 
 # The #693 discriminating witness: single variable x, one theta per term, exponent e=3

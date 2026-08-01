@@ -57,12 +57,12 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc.poly import Poly
+from srmech.math.poly import Poly
 from srmech.apokatastasis.zeilberger import BiPoly, bipoly_from_coeffs, zeilberger
-from srmech.amsc.tripoly import TriPoly, tripoly_from_coeffs
-from srmech.amsc.qpoly import QPoly
-from srmech.amsc.qbipoly import QBiPoly
-from srmech.amsc.carrier_ladder import (
+from srmech.math.tripoly import TriPoly, tripoly_from_coeffs
+from srmech.math.qpoly import QPoly
+from srmech.math.qbipoly import QBiPoly
+from srmech.math.carrier_ladder import (
     poly_promote, poly_project, qpoly_promote, qpoly_project,
     carrier_ladder_descriptor,
 )
@@ -296,7 +296,7 @@ def test_capstone_registry_built_bipoly_certified_recurrence():
                       {"rn_num": rn_num, "rn_den": rn_den,
                        "rk_num": rk_num, "rk_den": rk_den, "max_order": 4})
     assert res is not None and res["order"] == 1
-    from srmech.amsc.q import Q
+    from srmech.math.q import Q
     coeffs = res["coeffs"]
 
     def f(n):                                        # f(n) = Σ_k C(n,k) = 2ⁿ
@@ -321,7 +321,7 @@ def test_capstone_promoted_poly_feeds_zeilberger_univariate_as_bivariate():
     # rk_den = k + 1 as a bare Poly-in-k, promoted UP the ladder to a BiPoly.
     rk_den_poly = Poly.from_coeffs([1, 1])           # 1 + k
     rk_den_promoted = invoke_tool(
-        "srmech.amsc.carrier_ladder.poly_promote", {"p": rk_den_poly})
+        "srmech.math.carrier_ladder.poly_promote", {"p": rk_den_poly})
     assert isinstance(rk_den_promoted, BiPoly)
     res = zeilberger(rn_num, rn_den, rk_num, rk_den_promoted, max_order=4)
     assert res is not None and res["order"] == 1
@@ -337,7 +337,7 @@ def test_capstone_genuine_bipoly_project_naming_error_via_registry():
     b = invoke_tool("srmech.apokatastasis.zeilberger.bipoly_from_coeffs",
                     {"coeffs": [[1, 1], [-1]]})      # (1+n) - k
     with pytest.raises(ValueError) as ei:
-        invoke_tool("srmech.amsc.carrier_ladder.poly_project", {"p": b})
+        invoke_tool("srmech.math.carrier_ladder.poly_project", {"p": b})
     assert "'n' is the genuinely non-trivial variable" in str(ei.value)
 
 
@@ -345,7 +345,7 @@ def test_capstone_genuine_bipoly_project_naming_error_via_registry():
 
 def test_descriptor_shape_and_self_consistency():
     d = invoke_tool(
-        "srmech.amsc.carrier_ladder.carrier_ladder_descriptor", {})
+        "srmech.math.carrier_ladder.carrier_ladder_descriptor", {})
     assert d["carriers"]["Poly"] == {"ladder": "variable", "rung": 1}
     assert d["carriers"]["BiPoly"] == {"ladder": "variable", "rung": 2}
     assert d["carriers"]["TriPoly"] == {"ladder": "variable", "rung": 3}
@@ -380,11 +380,11 @@ def test_new_tool_entries_present_with_declared_types():
     expected = {
         "srmech.apokatastasis.zeilberger.bipoly_from_coeffs": (
             "zeilberger", {"coeffs": "list[list[int]]"}),
-        "srmech.amsc.tripoly.tripoly_from_coeffs": (
+        "srmech.math.tripoly.tripoly_from_coeffs": (
             "tripoly", {"coeffs": "list[list[list[int]]]"}),
-        "srmech.amsc.carrier_ladder.poly_promote": (
+        "srmech.math.carrier_ladder.poly_promote": (
             "carrier_ladder", {"p": "Poly | BiPoly", "n_vars": "int"}),
-        "srmech.amsc.carrier_ladder.poly_project": (
+        "srmech.math.carrier_ladder.poly_project": (
             "carrier_ladder", {"p": "BiPoly | TriPoly"}),
         # rc363 (ADR-0012 §3.1 C2): "QPoly" -> "QPoly | QBiPoly". The op has
         # ALWAYS returned an already-rung-2 QBiPoly unchanged — promote is
@@ -398,11 +398,11 @@ def test_new_tool_entries_present_with_declared_types():
         # (`qpoly_project` stays "QBiPoly": rung 2 is the only rung it can
         # descend FROM in a two-rung ladder, and the rc363 use-derivation
         # measures no accepted carrier on its boundary that contradicts it.)
-        "srmech.amsc.carrier_ladder.qpoly_promote": (
+        "srmech.math.carrier_ladder.qpoly_promote": (
             "carrier_ladder", {"p": "QPoly | QBiPoly", "n_vars": "int"}),
-        "srmech.amsc.carrier_ladder.qpoly_project": (
+        "srmech.math.carrier_ladder.qpoly_project": (
             "carrier_ladder", {"p": "QBiPoly"}),
-        "srmech.amsc.carrier_ladder.carrier_ladder_descriptor": (
+        "srmech.math.carrier_ladder.carrier_ladder_descriptor": (
             "carrier_ladder", {}),
         "srmech.amsc.cascade.cd_promote": (
             "cascade", {"x": "sequence", "dim": "int"}),
@@ -427,12 +427,12 @@ def test_rosetta_buckets_all_non_compute():
                       ledger.read_text(encoding="utf-8").splitlines() if l.strip())}
     for defined_at in (
         "srmech.apokatastasis.zeilberger.bipoly_from_coeffs",
-        "srmech.amsc.tripoly.tripoly_from_coeffs",
-        "srmech.amsc.carrier_ladder.poly_promote",
-        "srmech.amsc.carrier_ladder.poly_project",
-        "srmech.amsc.carrier_ladder.qpoly_promote",
-        "srmech.amsc.carrier_ladder.qpoly_project",
-        "srmech.amsc.carrier_ladder.carrier_ladder_descriptor",
+        "srmech.math.tripoly.tripoly_from_coeffs",
+        "srmech.math.carrier_ladder.poly_promote",
+        "srmech.math.carrier_ladder.poly_project",
+        "srmech.math.carrier_ladder.qpoly_promote",
+        "srmech.math.carrier_ladder.qpoly_project",
+        "srmech.math.carrier_ladder.carrier_ladder_descriptor",
         "srmech.amsc.cascade.cayley_dickson.cd_promote",
         "srmech.amsc.cascade.cayley_dickson.cd_project",
     ):
@@ -450,8 +450,8 @@ def test_new_param_types_are_coercible():
 
 def test_touched_modules_are_numpy_math_abs_free():
     import srmech.apokatastasis.zeilberger as Z
-    import srmech.amsc.tripoly as T
-    import srmech.amsc.carrier_ladder as CL
+    import srmech.math.tripoly as T
+    import srmech.math.carrier_ladder as CL
     import srmech.amsc.cascade.cayley_dickson as CD
     for mod in (Z, T, CL, CD):
         text = open(mod.__file__, encoding="utf-8").read()

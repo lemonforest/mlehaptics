@@ -29,8 +29,8 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc.poly import Poly
-from srmech.amsc.q import Q
+from srmech.math.poly import Poly
+from srmech.math.q import Q
 from srmech.apokatastasis.zeilberger import BiPoly
 from srmech.apokatastasis.wz_certificate import wz_certificate
 

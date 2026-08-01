@@ -10,7 +10,7 @@ with ``Q(10**40+1, 3**30)`` entries whose ``det`` is an 81-digit numerator over
 ``3**60`` (> 2**64) — is cross-checked Python == C == Fraction-oracle EXACTLY,
 proving no int64/Q61 ceiling.
 
-The pure path is forced by patching ``srmech.amsc.qmat._native`` to ``None`` for
+The pure path is forced by patching ``srmech.math.qmat._native`` to ``None`` for
 the pure run; the C path is exercised directly through the ``_native.qmat_*_c``
 marshallers. Both are compared to the Fraction oracle.
 """
@@ -20,9 +20,9 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc import qmat as _qmat_mod
-from srmech.amsc.q import Q
-from srmech.amsc.qmat import QMat
+from srmech.math import qmat as _qmat_mod
+from srmech.math.q import Q
+from srmech.math.qmat import QMat
 
 
 def _native():

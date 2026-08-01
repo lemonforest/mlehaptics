@@ -43,7 +43,7 @@ both of these count, and the gate deliberately does not distinguish them:
   and a citation of a module that no longer exists is exactly as broken as a
   citation of an op that no longer exists.
 * ``srmech.math.laplacian.mat_matmul`` — a module attribute (an op, a class, a
-  constant). Deep chains resolve too: ``srmech.amsc.qmat.QMat.rank`` walks the
+  constant). Deep chains resolve too: ``srmech.math.qmat.QMat.rank`` walks the
   class.
 
 Two extractions are **excluded by rule**, not by allowlist:

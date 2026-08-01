@@ -1,4 +1,4 @@
-"""srmech.amsc.carrier_spectrum — ``CarrierSpectrum``, the OPERAND-side dual of
+"""srmech.math.carrier_spectrum — ``CarrierSpectrum``, the OPERAND-side dual of
 ``the_one``: it reads a carrier element's HARMONIC OCCUPANCY under the shift-Laplacian
 and exposes the BLOCK STRUCTURE that makes the elliptic key-equation solve genuinely
 NON-brute-force (block-decomposed, not dense-in-disguise).
@@ -43,7 +43,7 @@ The elliptic Gosper / Zeilberger KEY EQUATION (Gasper–Schlosser Eq. 3.5; the
 
 a ``ℚ``-linear system for the unknown certificate ``Y`` expressed over a theta-product
 BASIS (``Y = Σ_i c_i · basis_i``, ``c_i ∈ ℚ``). The BRUTE FORCE is ONE dense
-:class:`~srmech.amsc.qmat.QMat` solve over the WHOLE basis. Because σ PRESERVES the
+:class:`~srmech.math.qmat.QMat` solve over the WHOLE basis. Because σ PRESERVES the
 p-character block (the verified Channel-2 lever) and multiply-by-``A`` / multiply-by-
 ``B(x/q)`` each SHIFT the block by a FIXED amount, the key-equation operator
 ``L(Y) = A·σ(Y) − B(x/q)·Y`` maps an input block ``g`` to a SINGLE output block:
@@ -69,7 +69,7 @@ the disjoint blocks.
 Everything is EXACT over the modified-theta algebra: ``ℚ`` coefficients + integer
 exponents; sign is the **Class-K** pin-slot via the ``Q`` / ``EllMonomial`` sign-branch,
 NEVER an ALU ``abs()``; no ``math`` module, no numpy, no float (the linear-algebra is the
-exact-``ℚ`` :class:`~srmech.amsc.qmat.QMat` Gauss-Jordan).
+exact-``ℚ`` :class:`~srmech.math.qmat.QMat` Gauss-Jordan).
 
 Reference (the harmonic-shape framing; MPM-verified at build — the actual arXiv PDF
 extracted, equation numbers confirmed): Hjalmar Rosengren, "Elliptic Hypergeometric
@@ -316,7 +316,7 @@ def _term_coords(ts: ThetaSum) -> "Tuple[Dict[CoordKey, Q], Dict[CoordKey, Block
 def _solve_linear_exact(rows: "List[List[Q]]", rhsvec: "List[Q]",
                         n_cols: int) -> "Optional[List[Q]]":
     """Solve the exact-``ℚ`` linear system ``rows · c = rhsvec`` for ``c`` (length
-    ``n_cols``) via the :class:`~srmech.amsc.qmat.QMat` Gauss-Jordan RREF of the augmented
+    ``n_cols``) via the :class:`~srmech.math.qmat.QMat` Gauss-Jordan RREF of the augmented
     matrix ``[rows | rhsvec]``. Returns the solution (free variables pinned to 0), or
     ``None`` if inconsistent. EXACT — no float."""
     from .qmat import QMat
@@ -475,7 +475,7 @@ def _native():
     falls cleanly to the pure-Python body (the complete alternative + the parity oracle).
     Imported lazily to avoid a bootstrap cycle."""
     try:
-        from . import _native as nat
+        from ..amsc import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_carrier_spectrum", None)

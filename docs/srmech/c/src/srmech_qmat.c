@@ -1,13 +1,13 @@
 /*
  * srmech_qmat.c — EXACT-RATIONAL dense matrix over srmech_bigint (the C peer of
- * srmech.amsc.qmat.QMat; the exact ℚ-linear-algebra carrier the §76 gosper
+ * srmech.math.qmat.QMat; the exact ℚ-linear-algebra carrier the §76 gosper
  * undetermined-coefficient solve needs in C).
  *
  * A matrix is carried ROW-MAJOR as two parallel caller-owned arrays of
  * srmech_bigint: nums[r*ncols + c] / dens[r*ncols + c] is the exact-rational
  * entry at (r, c) (dens > 0, gcd(|nums|, dens) == 1; the zero entry is 0/1).
  * Every op below computes the SAME exact rational entries the Python
- * srmech.amsc.qmat.QMat computes — exact Gauss-Jordan over ℚ on the shared
+ * srmech.math.qmat.QMat computes — exact Gauss-Jordan over ℚ on the shared
  * _rref_augmented kernel (the same elimination, over plain Q) — over
  * caller-arena srmech_bigint (NO malloc, JPL Rule 3), reduced to lowest terms
  * with positive denominator. Byte-identical to Python's (num, den) at ANY

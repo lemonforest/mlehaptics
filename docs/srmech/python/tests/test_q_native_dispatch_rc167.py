@@ -47,11 +47,11 @@ import pytest
 
 from srmech.amsc import _native
 from srmech.math import cyclic as _cyclic
-from srmech.amsc import qprime as _qprime_mod
+from srmech.math import qprime as _qprime_mod
 from srmech.math import rational as _rational
-from srmech.amsc.q import Q
-from srmech.amsc.qalg import Qalg
-from srmech.amsc.qprime import Qprime
+from srmech.math.q import Q
+from srmech.math.qalg import Qalg
+from srmech.math.qprime import Qprime
 
 _HAS_BIGQ = _native.has_native_bigq()
 

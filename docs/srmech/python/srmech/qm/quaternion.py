@@ -44,7 +44,7 @@ EXACTNESS CONVENTION (the three tiers, stated once for the transforms):
   equal-weight-axis twiddle; this module does not duplicate it.
 - **float64 boundary** — :func:`quaternion_exp` / :func:`quaternion_twiddle`
   return ``list[float]`` and the mult operators return a float64
-  :class:`~srmech.amsc.mat.Mat`, the SAME boundary every ``qm.*`` op uses
+  :class:`~srmech.math.mat.Mat`, the SAME boundary every ``qm.*`` op uses
   (trig via the Q61 cascade — ``rational.{cos,sin}`` / the native
   ``srmech_{cos,sin}_q61`` — projected to float ONCE; π enters as the
   Class-N ``4·atan(1)`` cascade, never ``math.pi``).
@@ -84,7 +84,7 @@ from typing import List, Sequence, Tuple
 from srmech.amsc import _native
 from srmech.amsc.cascade import magnitude as _magnitude
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
-from srmech.amsc.mat import Mat
+from srmech.math.mat import Mat
 from srmech.math.rational import atan as _ratan
 from srmech.math.rational import cos as _rcos
 from srmech.math.rational import cos_series_truncate as _cos_series

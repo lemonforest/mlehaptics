@@ -136,7 +136,7 @@ from typing import Dict, Iterable, List, Mapping, Tuple
 
 from ..amsc import _native as _nat
 from .ellbase import EllMonomial, EllRatio, Theta, _P, _X, _coerce_q
-from ..amsc.q import Q
+from ..math.q import Q
 
 __all__ = ["ThetaSum"]
 
@@ -894,7 +894,7 @@ def _net_period_multiplier_exps(thetas: "Tuple[Theta, ...]") -> "Tuple[Tuple[str
     # classify by the exponent monomial only (the ℚ coefficient is independence-blind).
     # NOTE: this returns the FULL multiplier monomial, INCLUDING the nome ``p`` (and, on a
     # shifted carrier, the base ``q``) and any elliptic-parameter exponents. That full
-    # monomial is what :func:`~srmech.amsc.carrier_spectrum._block_of_thetas` needs — its
+    # monomial is what :func:`~srmech.math.carrier_spectrum._block_of_thetas` needs — its
     # ``p``-coordinate IS the Class-L *p-character* block label (carrier_spectrum strips only
     # ``q``). The ``is_zero`` FAST-PATH bucketing must NOT split on those unit coordinates —
     # it uses :func:`_quasi_period_class_key` (below), which keeps only the ``x``/``y``
@@ -1106,7 +1106,7 @@ class ThetaSum:
     @property
     def weight(self) -> Q:
         """The modular WEIGHT on the operand ladder — **0** (exact
-        :class:`~srmech.amsc.q.Q`). ``ThetaSum`` is the additive carrier of a
+        :class:`~srmech.math.q.Q`). ``ThetaSum`` is the additive carrier of a
         BALANCED (genuine-elliptic) theta rational function: the creative-
         telescoping residual it holds is a weight-0 elliptic object on
         ``ℂ*/⟨p⟩`` (a sum of balanced theta-quotients over a common balanced

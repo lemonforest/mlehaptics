@@ -46,7 +46,7 @@ MEASURED at rc362, on this branch:
 
 The +10 is 5 citations × the 2 artifacts that carry op DOCUMENTATION. All five
 sit in the nine music ops' worked examples, and four of them are the same
-line — ``from srmech.amsc.q import Q`` — because ``Q`` IS the operand carrier
+line — ``from srmech.math.q import Q`` — because ``Q`` IS the operand carrier
 those ops take. The fifth is ``from srmech.math.rational import best_rational``
 in ``commensurability_verdict``, which exists to SHOW the sibling op that
 silently converts an inharmonic spectrum into a harmonic one. These are import
@@ -259,7 +259,14 @@ CEIL_AMSC_PREFIX = {
     # again: hdc / laplacian / cyclic / rational etc. carrier back-index refs in
     # the four hoisted byte arrays move amsc->math (decoded amsc 500 -> 202,
     # srmech.math. 16 -> 314, conserved). as-text drops 56 short back-index cites.
-    "c/src/srmech_carrier_registry.c": (100, 202),
+    # as-text 100 -> 75 at rc374 (-25), decoded 202 -> 196 (-6). THE CARRIERS batch
+    # (15 modules amsc->math — the math bucket's last slice). Only 6 carrier-family
+    # OP back-index refs (the poly / qpoly / qbipoly / tripoly / carrier_ladder /
+    # carrier_spectrum ops) live in the hoisted byte arrays and move amsc->math
+    # (decoded amsc 202 -> 196, srmech.math. 314 -> 320, conserved); the bulk of
+    # the roster (mat / vec / hv / q / …) are pure CARRIERS with no ToolEntry op,
+    # so they never entered the decoded back-index. as-text drops 25 short cites.
+    "c/src/srmech_carrier_registry.c": (75, 196),
     # TEXT 0 is TRUE, and true about the wrong thing. Every one of the four
     # baked [class] descriptors (`cls_desc_0..3`) is a decimal byte array, so a
     # grep has nothing to read. 37 DISTINCT dotted names live in there.
@@ -269,7 +276,7 @@ CEIL_AMSC_PREFIX = {
     #
     # as-text 1219 -> 1224 at rc362 (+5), decoded UNCHANGED at 4. CITATION, not
     # population: the nine srmech.music ops' worked examples import their own
-    # operand carrier (`from srmech.amsc.q import Q`, x4) and the sibling op the
+    # operand carrier (`from srmech.math.q import Q`, x4) and the sibling op the
     # explanation warns against (`from srmech.math.rational import
     # best_rational`, x1). Ops named srmech.amsc.* stayed 396. Verified against
     # the pre-branch commit: this artifact read exactly 1219 there.
@@ -340,7 +347,10 @@ CEIL_AMSC_PREFIX = {
     # batch: the 10 moved modules ToolEntry name= citations + worked-example
     # imports + sibling-prose dotted refs repointed amsc->math; the 4 hoisted
     # decoded refs were to moved-module ops and left too.
-    "c/src/srmech_tool_registry.c": (576, 0),
+    # as-text 576 -> 440 at rc374 (-136), decoded UNCHANGED at 0. The CARRIERS
+    # batch: the moved carrier-family ops' ToolEntry name= citations + worked-
+    # example imports + sibling-prose dotted refs repointed amsc->math.
+    "c/src/srmech_tool_registry.c": (440, 0),
     # rc368 — THE FIRST MODULE MOVE TO MOVE THIS ARTIFACT (the new data point).
     # This was the CONTROL row through harmonics/naming: "no byte arrays, decoded
     # 0 is a real zero". It is still a real zero on the decoded channel, but the
@@ -400,7 +410,10 @@ CEIL_AMSC_PREFIX = {
     # as-text 1093 -> 562 at rc373 (-531), decoded UNCHANGED at 0. The A-N
     # primitives batch, doc-pair partner of the tool registry: the 10 modules op
     # documentation repointed amsc->math.
-    "python/srmech/amsc/_tool_docs.py": (562, 0),
+    # as-text 562 -> 431 at rc374 (-131), decoded UNCHANGED at 0. The CARRIERS
+    # batch, doc-pair partner of the tool registry: the moved carrier-family ops'
+    # documentation repointed amsc->math.
+    "python/srmech/amsc/_tool_docs.py": (431, 0),
     # as-text 250 -> 248 at rc367 (-2), decoded UNCHANGED at 0. rc367 is the
     # FIRST module move to move THIS artifact — a departure from the harmonics
     # analog. _c_claims.py is the op -> C-symbol CLAIM manifest, keyed only for
@@ -442,7 +455,11 @@ CEIL_AMSC_PREFIX = {
     # primitives batch: the moved modules c_dispatched leaves (cyclic / hdc /
     # laplacian / primes / rational / search / template / tlv / text / dispatch
     # op keys) repointed amsc->math. The C SYMBOLS are capability-named, unchanged.
-    "python/srmech/amsc/_c_claims.py": (91, 0),
+    # as-text 91 -> 90 at rc374 (-1), decoded UNCHANGED at 0. The CARRIERS batch:
+    # exactly one moved carrier-family op is a c_dispatched leaf keyed here
+    # (carrier_spectrum's srmech_carrier_spectrum), repointed amsc->math. The bulk
+    # of the roster are pure carriers with no ToolEntry / C claim.
+    "python/srmech/amsc/_c_claims.py": (90, 0),
 }
 
 #: The generated-artifact totals, pinned so a per-file edit cannot quietly move
@@ -455,8 +472,8 @@ CEIL_AMSC_PREFIX = {
 #:
 #: as-text 2933 (rc361) -> 2943 (rc362, +10 = the 5 citations x 2 artifacts).
 #: decoded 577 (rc361)  ->  577 (rc362, FLAT — the population did not move).
-TOTAL_AS_TEXT = 1335   # rc372 2611 -> rc373 1335 (-1276: the A-N primitives batch, 10 modules amsc->math; -535 tool_registry -531 _tool_docs -119 _c_claims -56 carrier -35 responsion)
-TOTAL_DECODED = 242    # rc372 544 -> rc373 242 (-302: POPULATION fell — 298 carrier-registry back-index refs amsc->math + 4 tool_registry hoisted refs to moved-module ops)
+TOTAL_AS_TEXT = 1042   # rc373 1335 -> rc374 1042 (-293: the CARRIERS batch, 15 modules amsc->math; -136 tool_registry -131 _tool_docs -25 carrier -1 _c_claims)
+TOTAL_DECODED = 236    # rc373 242 -> rc374 236 (-6: POPULATION fell — 6 carrier-registry back-index refs for the moved carrier-family ops amsc->math)
 
 
 def _counts(rel_path: str) -> "tuple[int, int]":
@@ -583,10 +600,11 @@ def test_the_decoder_sees_what_a_text_grep_cannot() -> None:
         f"successful and leaves the majority behind' claim in this file's "
         f"docstring depended on that ordering.")
     # rc373: the A-N primitives batch moved ~298 amsc-decoded carrier refs to
-    # srmech.math, so carrier amsc-decoded fell 500 -> 202 while class held 40 —
-    # the ratio is now ~5x, no longer a full order of magnitude. The carrier
-    # registry is STILL the dominant amsc-decoded population; the factor is
-    # lowered to 4x (202 >= 160) to state that honestly rather than assume 10x.
+    # srmech.math, so carrier amsc-decoded fell 500 -> 202 while class held 40.
+    # rc374: the carriers slice moved 6 more (202 -> 196); class still 40. The
+    # ratio is ~4.9x, no longer a full order of magnitude. The carrier registry
+    # is STILL the dominant amsc-decoded population; the factor stays 4x
+    # (196 >= 160) to state that honestly rather than assume 10x.
     assert car_decoded >= 4 * max(
         d for r, (_, d) in CEIL_AMSC_PREFIX.items()
         if r != "c/src/srmech_carrier_registry.c"), (
@@ -651,9 +669,9 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     music = joined.count("srmech.music.")
     apokatastasis = joined.count("srmech.apokatastasis.")
     math = joined.count("srmech.math.")
-    assert amsc == 202, (
+    assert amsc == 196, (
         f"the carrier registry's decoded amsc population is {amsc}, expected "
-        f"202 — re-read the pins before trusting anything else in this file.")
+        f"196 — re-read the pins before trusting anything else in this file.")
     assert music == 13, (
         f"expected 13 srmech.music op references inside the DECODED channel "
         f"(9 from the rc362 Q / Qalg ops.consumes back-index + 4 from the rc366 "
@@ -675,11 +693,14 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # slice moved 16 octonion-carrier op refs (oct_mult / oct_bind / oct_conjugate)
     # OUT of the amsc decoded count (516 -> 500) and INTO math (0 -> 16) inside
     # these hoisted byte arrays. Conserved: -16 amsc = +16 math.
-    assert math == 314, (
-        f"expected 314 srmech.math op references inside the DECODED channel "
-        f"(rc372 octonion 16 + rc373 A-N primitives 298), found {math}. amsc fell "
-        f"500 -> 202 by exactly these 298; if this is not 314 the population move "
-        f"is not conserved — re-measure.")
+    # rc374 — the CARRIERS slice moved 6 more carrier-family op refs OUT of the
+    # amsc decoded count (202 -> 196) and INTO math (314 -> 320) inside these
+    # hoisted byte arrays. Conserved: -6 amsc = +6 math.
+    assert math == 320, (
+        f"expected 320 srmech.math op references inside the DECODED channel "
+        f"(rc372 octonion 16 + rc373 A-N primitives 298 + rc374 carriers 6), found "
+        f"{math}. amsc fell 202 -> 196 by exactly these 6; if this is not 320 the "
+        f"population move is not conserved — re-measure.")
 
     # THE COUNTERFACTUAL: had those music ops landed in the draining namespace,
     # the decoded channel would have seen every one of them.

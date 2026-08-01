@@ -43,9 +43,9 @@ import itertools
 import pytest
 
 from srmech.music.harmonics import _spectral_scores, classify_chirality_harmonic
-from srmech.amsc.mat import Mat
-from srmech.amsc.q import Q
-from srmech.amsc.vec import Vec
+from srmech.math.mat import Mat
+from srmech.math.q import Q
+from srmech.math.vec import Vec
 
 
 # ── the three reproduced defect families ──────────────────────────────────

@@ -47,8 +47,8 @@ import tokenize
 import pytest
 
 from srmech.amsc import coupling
-from srmech.amsc.poly import Poly
-from srmech.amsc.q import Q
+from srmech.math.poly import Poly
+from srmech.math.q import Q
 
 # A dim comfortably above the HDC bundle-capacity floor (4·n_pairs; the gasket
 # has 4 bound pairs → floor 16) for confident recovery; and a degenerate dim

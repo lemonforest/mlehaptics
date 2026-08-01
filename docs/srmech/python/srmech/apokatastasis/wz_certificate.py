@@ -55,7 +55,7 @@ not WZ-summable / the identity is not a constant sum).
 
 The whole pipeline stays EXACT over ``ℚ`` — every polynomial is a
 :class:`~srmech.apokatastasis.zeilberger.BiPoly` (each coefficient a
-:class:`~srmech.amsc.poly.Poly` over the bigint :class:`~srmech.amsc.q.Q`, no
+:class:`~srmech.math.poly.Poly` over the bigint :class:`~srmech.math.q.Q`, no
 magnitude ceiling), the verify a coefficient-by-coefficient compare. There is NO
 float anywhere; sign is the **Class-K** pin-slot via the ``Q`` sign-branch (never
 an ALU ``abs()``); no ``math`` module, no numpy. This is the **Σ-row closer** of
@@ -78,8 +78,8 @@ from __future__ import annotations
 
 from typing import Dict, Optional
 
-from ..amsc.poly import Poly
-from ..amsc.q import Q
+from ..math.poly import Poly
+from ..math.q import Q
 from .zeilberger import BiPoly, zeilberger
 
 __all__ = ["wz_certificate"]
@@ -112,7 +112,7 @@ def wz_certificate(rn_num, rn_den, rk_num, rk_den) -> Optional[Dict[str, object]
     ``r_n(n,k) = F(n+1,k)/F(n,k)``; ``rk_num`` / ``rk_den`` likewise for the
     ``k``-term-ratio ``r_k(n,k) = F(n,k+1)/F(n,k)``. Each is a
     :class:`~srmech.apokatastasis.zeilberger.BiPoly` (exact-``ℚ[n,k]``), or a
-    :class:`~srmech.amsc.poly.Poly` (read as a polynomial in ``k`` alone), or an
+    :class:`~srmech.math.poly.Poly` (read as a polynomial in ``k`` alone), or an
     ascending-``k``-degree coefficient sequence. ``F`` must be the NORMALIZED
     summand of a constant identity (``Σ_k F(n,k)`` independent of ``n``).
 

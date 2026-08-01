@@ -67,7 +67,7 @@ from srmech.amsc.genome import (
     _packed_payload_len_octonion,
     _unpack_turn_payload_octonion,
 )
-from srmech.amsc.hv import HV
+from srmech.math.hv import HV
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────

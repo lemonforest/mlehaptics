@@ -62,8 +62,8 @@ def test_real_core_numpy_absent():
     ``{0, 0.690983, 1.909830, 3.0, 3.690983}`` (Spielman, Spectral Graph
     Theory, path-graph eigenpairs)."""
     # numpy is absent: there is NO laplacian.np attribute.
-    from srmech.amsc.mat import Mat
-    from srmech.amsc.vec import Vec
+    from srmech.math.mat import Mat
+    from srmech.math.vec import Vec
     assert not hasattr(L, "np")
 
     edges = _ref_path_graph_laplacian(5)
@@ -91,8 +91,8 @@ def test_scientific_tier_ops_run_without_numpy():
     (The old ``test_scientific_tier_raises_clean_without_numpy`` asserted a
     ``_require_np`` ImportError guard; that guard was deleted with numpy, so
     this now pins the inverse contract: the ops succeed numpy-free.)"""
-    from srmech.amsc.mat import Mat
-    from srmech.amsc.vec import Vec
+    from srmech.math.mat import Mat
+    from srmech.math.vec import Vec
     w, V = L.hermitian_eigendecompose([[1.0, 0.0], [0.0, 1.0]])
     assert isinstance(w, Vec) and list(w) == [1.0, 1.0]   # rc129: Vec eigenvalues
     assert isinstance(V, Mat) and V.shape == (2, 2)        # rc129: Mat eigenvectors
@@ -113,7 +113,7 @@ def test_hermitian_eigendecompose_degenerate_numpy_free():
     embedding columns at the same eigenvalue for an independent reconstruction.
     Pin: a unitary basis + exact reconstruction ``V·diag(λ)·Vᴴ = H`` on three
     degenerate complex-Hermitian matrices, numpy-free."""
-    from srmech.amsc.mat import Mat
+    from srmech.math.mat import Mat
 
     cases = [
         [[1.0, 0.0], [0.0, 1.0]],                       # identity: λ = {1, 1}

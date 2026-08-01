@@ -36,7 +36,7 @@ import pytest
 from srmech.amsc import _native
 from srmech.math import dispatch
 from srmech.math.dispatch import infer, _marshal_relationship
-from srmech.amsc.poly import Poly
+from srmech.math.poly import Poly
 from srmech.apokatastasis.zeilberger import BiPoly
 
 

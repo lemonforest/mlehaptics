@@ -32,7 +32,7 @@ from fractions import Fraction
 import pytest
 
 from srmech.math.dispatch import infer
-from srmech.amsc.poly import Poly
+from srmech.math.poly import Poly
 from srmech.apokatastasis.zeilberger import BiPoly
 
 
@@ -283,10 +283,10 @@ def test_module_is_numpy_and_math_free():
 
 
 # ── rc58: the two post-§76 Σ sub-rows now auto-join the dispatch table ────────
-from srmech.amsc.tripoly import TriPoly
-from srmech.amsc.qpoly import QPoly
-from srmech.amsc.qbipoly import QBiPoly
-from srmech.amsc.q import Q
+from srmech.math.tripoly import TriPoly
+from srmech.math.qpoly import QPoly
+from srmech.math.qbipoly import QBiPoly
+from srmech.math.q import Q
 
 
 def _tp(d):

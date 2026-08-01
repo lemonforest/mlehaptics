@@ -26,7 +26,7 @@ import pytest
 
 from srmech.amsc import _native
 from srmech.math import hdc
-from srmech.amsc.q import Q
+from srmech.math.q import Q
 
 
 _POLAR_NATIVE = _native.HAS_NATIVE and hasattr(_native.LIB, "srmech_polar_bind")

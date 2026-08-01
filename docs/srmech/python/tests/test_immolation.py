@@ -43,8 +43,8 @@ from typing import Any
 import pytest
 
 from srmech.amsc.tool_schema import get_tool_schema
-from srmech.amsc.mat import Mat
-from srmech.amsc.vec import Vec
+from srmech.math.mat import Mat
+from srmech.math.vec import Vec
 from srmech.math import laplacian as L
 from srmech.mcp import invoke_tool
 
@@ -364,7 +364,7 @@ def test_carrier_typed_params_accept_degenerate_forms_numpy_free():
     the advertised ``Mat`` / ``Vec`` / ``HV`` param genuinely ACCEPTS the looser
     shapes (list-of-lists, tuple-of-rows, flat list, ``array.array``). numpy-free."""
     from array import array as _array
-    from srmech.amsc.hv import HV
+    from srmech.math.hv import HV
     from srmech.math import hdc
 
     # ── Mat-typed param (A): a Mat OR list-of-lists OR tuple-of-rows ──

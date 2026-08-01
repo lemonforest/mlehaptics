@@ -4,7 +4,7 @@
 ``tool_schema`` exposes the **ops** (the verbs — the A–N operator vocabulary)
 richly; this module exposes the **carrier TYPES** (the nouns — the operand
 vocabulary) the ops consume and produce. Before rc205 a consumer discovering
-the carriers had to scrape :func:`srmech.amsc.carrier_ladder.
+the carriers had to scrape :func:`srmech.math.carrier_ladder.
 carrier_ladder_descriptor` (ladder/rung ints + ``adds_variable``) with no
 human-readable description per carrier, so introspection could not say *what a
 ``TriPoly`` IS* beyond "rung 3" (the Siona / RBS-LM self-hosting finding —
@@ -158,7 +158,7 @@ The ``ops`` back-index is **DERIVED, never hand-maintained**: it unions
 
 * a word-boundary token scan of every registered ToolEntry's declared
   ``parameters[].type`` / ``returns.type`` strings (the tool_schema SSoT), and
-* the rc120 per-op CARRIER CONTRACT (:data:`srmech.amsc.carrier_ladder.
+* the rc120 per-op CARRIER CONTRACT (:data:`srmech.math.carrier_ladder.
   _OP_CONTRACTS`) resolved through the ladder rung → carrier-name map (so the
   Cayley–Dickson ops — whose ToolEntry type strings say ``list[float]`` — still
   index under ``quaternion`` / ``octonion`` / ``sedenion``).
@@ -244,7 +244,7 @@ import json
 import re
 from typing import Any, Dict, List, Optional
 
-from .carrier_ladder import _OP_CONTRACTS
+from ..math.carrier_ladder import _OP_CONTRACTS
 # rc343 (`#T972`) — CDRegister's per-carrier ceiling IS the addressing cap, read
 # from the one SSoT rather than re-typed here (cayley_dickson imports nothing
 # from this module, so there is no cycle).

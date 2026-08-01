@@ -28,7 +28,7 @@ import pytest
 
 from srmech.amsc import ThetaSum
 from srmech.apokatastasis.ellbase import EllMonomial, Theta
-from srmech.amsc.q import Q
+from srmech.math.q import Q
 from srmech.apokatastasis.thetasum import _NONZERO, _ZERO, _decide_thetasum
 from srmech.amsc import _native
 

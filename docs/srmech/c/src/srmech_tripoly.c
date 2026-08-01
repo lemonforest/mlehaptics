@@ -1,6 +1,6 @@
 /*
  * srmech_tripoly.c — EXACT-RATIONAL TRIVARIATE polynomial over srmech_bigint
- * (the C peer of srmech.amsc.tripoly.TriPoly; the multivariate "sums of sums"
+ * (the C peer of srmech.math.tripoly.TriPoly; the multivariate "sums of sums"
  * creative-telescoping foundation, the 3-variable sibling of the BiPoly the
  * srmech_zeilberger orchestration carries internally).
  *

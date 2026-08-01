@@ -15,7 +15,7 @@ import pytest
 
 from srmech.math import rational as _srn
 from srmech.math.laplacian import mat_hermitian_eigendecompose, mat_matmul
-from srmech.amsc.mat import Mat
+from srmech.math.mat import Mat
 from srmech.qm import potentials, single_particle
 
 

@@ -1,7 +1,7 @@
 """Tests for srmech.qm.sm (electroweak, Higgs, Yukawa, CKM).
 
 numpy-FREE (v0.7.5rc116, #564): ``ckm_matrix`` returns a numpy-free
-:class:`~srmech.amsc.mat.Mat`; these tests use no numpy — unitarity is
+:class:`~srmech.math.mat.Mat`; these tests use no numpy — unitarity is
 checked via the native :func:`~srmech.math.laplacian.mat_matmul` and direct
 ``Mat``-entry comparison (numpy is not a validation reference per
 ``[[feedback_test_for_numpy_free_module_must_itself_be_numpy_free]]``).

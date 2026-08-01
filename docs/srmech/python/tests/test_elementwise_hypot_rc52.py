@@ -28,7 +28,7 @@ _TOL = 1e-9
 
 
 def test_hypot_close_to_stdlib():
-    from srmech.amsc.vec import Vec
+    from srmech.math.vec import Vec
     a = [3.0, -5.0, 0.0, 1.5, 8.0]
     b = [4.0, 12.0, 7.0, 2.0, 15.0]
     out = elementwise_hypot(a, b)

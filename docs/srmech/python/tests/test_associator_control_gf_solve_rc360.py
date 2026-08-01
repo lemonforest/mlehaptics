@@ -53,7 +53,7 @@ from srmech.amsc.cascade import (algebra_table, associator, cd_basis,
                                  left_mult_kernel, table_product)
 from srmech.amsc.format import sha256_bytes
 from srmech.math.modular_linalg import gf_nullspace, gf_rref, gf_solve
-from srmech.amsc.qmat import QMat
+from srmech.math.qmat import QMat
 
 _SRMECH = Path(__file__).resolve().parents[1] / "srmech"
 

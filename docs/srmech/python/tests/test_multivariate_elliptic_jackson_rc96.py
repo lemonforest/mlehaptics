@@ -12,7 +12,7 @@ import itertools
 import pytest
 
 from srmech.apokatastasis.ellbase import EllMonomial as M
-from srmech.amsc.q import Q
+from srmech.math.q import Q
 from srmech.apokatastasis.elliptic_jackson import multivariate_elliptic_jackson
 
 _TRUNC = 24

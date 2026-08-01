@@ -32,7 +32,7 @@ import pytest
 
 from srmech.amsc import _native
 from srmech.apokatastasis.ellbase import EllMonomial as M, Theta
-from srmech.amsc.q import Q
+from srmech.math.q import Q
 from srmech.apokatastasis.thetasum import (ThetaSum, _ZERO, _UNKNOWN, _decide_thetasum,
                                   _z5_theta_constant_zero, _leaf_prime_set,
                                   _lift_prime_terms, _pair_reduce_component, _Z5_SYM)

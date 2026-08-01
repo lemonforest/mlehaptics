@@ -51,7 +51,7 @@ def test_numpy_free_branch_dispatches_and_is_correct():
     returns the ascending eigenvalues as a numpy-free 1-D ``Vec`` (``.shape`` +
     scalar ``v[i]``) — via the native list-marshal when ``HAS_NATIVE``, else
     srmech's pure-Python Jacobi cascade. Either way: no numpy, correct."""
-    from srmech.amsc.vec import Vec
+    from srmech.math.vec import Vec
     assert not hasattr(_lap, "np")     # numpy is gone, not merely monkeypatched
     ev = _lap.jacobi_eigvals([row[:] for row in _S], 100, 1e-12)
     assert isinstance(ev, Vec) and ev.shape == (3,)   # rc129: Vec eigenvalues

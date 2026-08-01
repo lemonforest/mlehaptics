@@ -93,7 +93,7 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # is a thin composition over its constructor — exempt exactly like the
     # sha256_hex / sha256_raw constructor-companion helpers above. Classified
     # ``composition_of_c`` in rosetta_classification.ndjson.
-    "srmech.amsc.q.to_q",
+    "srmech.math.q.to_q",
     # ellbase.elliptic_lagrange_basis (v0.9.0rc66) — the degree-d elliptic Lagrange
     # interpolation basis, a CARRIER FOUNDATION peer of the EllMonomial / Theta /
     # EllRatio carriers (which are classes, not walked here). Like those carriers it

@@ -68,8 +68,8 @@ def _rand_int_sym(n, seed, complex_=False):
 
 def test_hermitian_eig_real_symmetric_parity():
     """Eigenvalues match the exact ``eigvals_exact`` oracle; H reconstructs."""
-    from srmech.amsc.mat import Mat
-    from srmech.amsc.vec import Vec
+    from srmech.math.mat import Mat
+    from srmech.math.vec import Vec
     H = _rand_int_sym(6, seed=1)
     n = len(H)
     ev_ref = sorted(eigvals_exact(H))

@@ -46,7 +46,7 @@ from srmech.amsc.genome import (
     genome_add_fiber, genome_add_octonion_fiber, genome_load, genome_read_fiber,
     genome_read_octonion_fiber, genome_save, telomere,
 )
-from srmech.amsc.hv import HV
+from srmech.math.hv import HV
 from srmech.amsc.q8 import q8_from_one
 
 #: 32, not 16 — an 𝕆 fiber cap 4-bit-packs its holonomy, so `[0x4F] + label + NUL + n_holo`

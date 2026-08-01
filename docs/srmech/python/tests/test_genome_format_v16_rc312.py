@@ -46,7 +46,7 @@ from srmech.amsc.genome import (
     recall,
     upgrade_v15_to_v16,
 )
-from srmech.amsc.hv import HV
+from srmech.math.hv import HV
 from srmech.amsc.q8 import q8_project_v4
 
 

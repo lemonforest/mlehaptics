@@ -26,7 +26,7 @@ import pytest
 from srmech.apokatastasis.unary_theta import (
     Character, UnaryTheta, unary_theta, _kronecker_minus12,
 )
-from srmech.amsc.q import Q
+from srmech.math.q import Q
 from srmech.amsc import _native
 
 

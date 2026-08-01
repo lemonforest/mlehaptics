@@ -6,7 +6,7 @@ Where :func:`srmech.apokatastasis.q_gosper.q_gosper` decides INDEFINITE q-summat
 single q-hypergeometric term in ``k`` (its term ratio a rational function of ``x =
 q**k``), the **q-Zeilberger** algorithm (T.H. Koornwinder, "On Zeilberger's algorithm
 and its q-analogue," J. Comput. Appl. Math. 48 (1993) 91–111 — the same paper the
-:class:`~srmech.amsc.qpoly.QPoly` carrier and :func:`~srmech.apokatastasis.q_gosper.q_gosper`
+:class:`~srmech.math.qpoly.QPoly` carrier and :func:`~srmech.apokatastasis.q_gosper.q_gosper`
 cite; textbook anchor Gasper & Rahman, *Basic Hypergeometric Series*) handles a
 DEFINITE q-sum ``f(n) = Σ_k F(n,k)`` of a *proper q-hypergeometric term* ``F(n,k)``
 and produces the **linear q-recurrence with ℚ[q**n] coefficients**
@@ -23,11 +23,11 @@ Input — the **two bivariate-q term ratios** of ``F``, each a rational function
   * ``r_n(X, Y) = F(n+1,k) / F(n,k)``   (the ``rn_num`` / ``rn_den`` operands)
   * ``r_k(X, Y) = F(n,k+1) / F(n,k)``   (the ``rk_num`` / ``rk_den`` operands)
 
-each given as two :class:`~srmech.amsc.qbipoly.QBiPoly` (exact bivariate-``ℚ[q]`` in
+each given as two :class:`~srmech.math.qbipoly.QBiPoly` (exact bivariate-``ℚ[q]`` in
 ``(X, Y)`` — a polynomial in ``Y = q**k`` whose coefficients are
-:class:`~srmech.amsc.qpoly.QPoly` in ``X = q**n``). A plain
-:class:`~srmech.amsc.qpoly.QPoly` (a polynomial in ``Y`` alone, no ``X``), a
-:class:`~srmech.amsc.poly.Poly` in ``q`` (a scalar), or an ascending-``Y``-degree
+:class:`~srmech.math.qpoly.QPoly` in ``X = q**n``). A plain
+:class:`~srmech.math.qpoly.QPoly` (a polynomial in ``Y`` alone, no ``X``), a
+:class:`~srmech.math.poly.Poly` in ``q`` (a scalar), or an ascending-``Y``-degree
 ``QPoly`` sequence is coerced.
 
 Method — **q-creative telescoping** (the rational-certificate form, the q-analog of
@@ -53,7 +53,7 @@ Zeilberger's), for ``L = 0, 1, 2, …, max_order``:
 
 The whole pipeline stays EXACT over ``ℚ(q)`` — every q-coefficient is an exact
 rational function of ``q`` (the rc55 ``_Cq``: a reduced ``(num, den)`` pair of
-:class:`~srmech.amsc.poly.Poly` over ℚ, bigint, no magnitude ceiling), every solve is
+:class:`~srmech.math.poly.Poly` over ℚ, bigint, no magnitude ceiling), every solve is
 exact Gauss-Jordan over ``ℚ(q)``. There is NO float anywhere; sign is the **Class-K**
 pin-slot via the ``Q`` / ``Poly`` sign-branch (never an ALU ``abs()``); no ``math``
 module, no numpy. This op PARAMETRIZES the rc55 q-Gosper engine (it imports and
@@ -77,10 +77,10 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional, Tuple
 
-from ..amsc.poly import Poly
-from ..amsc.q import Q
-from ..amsc.qpoly import QPoly
-from ..amsc.qbipoly import QBiPoly
+from ..math.poly import Poly
+from ..math.q import Q
+from ..math.qpoly import QPoly
+from ..math.qbipoly import QBiPoly
 # Reuse the rc55 q-Gosper engine's exact-ℚ(q) field layer (the ``_Cq`` rational-
 # function-in-q field) — the parametrization payoff: q-Zeilberger does NOT re-derive
 # the ℚ(q) coefficient arithmetic the q-Gosper undetermined-coefficient solve runs on.
@@ -116,7 +116,7 @@ def _native():
 
 
 def _qb_to_xy(b: QBiPoly) -> Dict[Tuple[int, int], _Cq]:
-    """A :class:`~srmech.amsc.qbipoly.QBiPoly` → the working ``{(x_exp, y_exp):
+    """A :class:`~srmech.math.qbipoly.QBiPoly` → the working ``{(x_exp, y_exp):
     _Cq}`` form (the q-coefficients lifted to ``ℚ(q)`` over the unit denominator)."""
     out: Dict[Tuple[int, int], _Cq] = {}
     for yd, cell in enumerate(b.terms):
@@ -189,9 +189,9 @@ def q_zeilberger(rn_num, rn_den, rk_num, rk_den, max_order: int = 6
     ``rn_num`` / ``rn_den`` are the numerator / denominator of the n-term-ratio
     ``r_n(X,Y) = F(n+1,k)/F(n,k)``; ``rk_num`` / ``rk_den`` likewise for the
     k-term-ratio ``r_k(X,Y) = F(n,k+1)/F(n,k)``. Each is a
-    :class:`~srmech.amsc.qbipoly.QBiPoly` (exact bivariate-``ℚ[q]`` in ``(X,Y)``), or
-    a :class:`~srmech.amsc.qpoly.QPoly` (read as a polynomial in ``Y`` alone), a
-    :class:`~srmech.amsc.poly.Poly` in ``q`` (a scalar), or an ascending-``Y``-degree
+    :class:`~srmech.math.qbipoly.QBiPoly` (exact bivariate-``ℚ[q]`` in ``(X,Y)``), or
+    a :class:`~srmech.math.qpoly.QPoly` (read as a polynomial in ``Y`` alone), a
+    :class:`~srmech.math.poly.Poly` in ``q`` (a scalar), or an ascending-``Y``-degree
     ``QPoly`` sequence.
 
     Returns the minimal-order q-recurrence ``{"order": L, "coeffs": [QPoly_in_X, …],
@@ -437,7 +437,7 @@ def _clear_with(c: _Cq, shared_den: Poly) -> Poly:
 def _x_cleared_to_qbipoly(x_cells: List[Poly], xk_deg: int, xn_lo: int,
                           xn_span: int) -> QBiPoly:
     """Pack the cleared (``ℚ[q]``) certificate-coefficient vector (Y-major, then X)
-    into a :class:`~srmech.amsc.qbipoly.QBiPoly` ``x(X,Y)``."""
+    into a :class:`~srmech.math.qbipoly.QBiPoly` ``x(X,Y)``."""
     terms: List[QPoly] = []
     for dk in range(xk_deg + 1):
         run = x_cells[dk * xn_span:(dk + 1) * xn_span]
@@ -625,24 +625,24 @@ def _rref_homogeneous(rows: List[List[_Cq]], n_cols: int) -> List[List[_Cq]]:
 # ── the C bridge wire form ─────────────────────────────────────────────────────
 
 def _qb_pairs(b: QBiPoly):
-    """A :class:`~srmech.amsc.qbipoly.QBiPoly` → the ``(y_xlow[], rows)`` bridge form
+    """A :class:`~srmech.math.qbipoly.QBiPoly` → the ``(y_xlow[], rows)`` bridge form
     the C peer consumes (the SAME per-Y-cell QPoly row form
-    :func:`srmech.amsc.qbipoly._qb_pairs` emits)."""
-    from ..amsc.qbipoly import _qb_pairs as _f
+    :func:`srmech.math.qbipoly._qb_pairs` emits)."""
+    from ..math.qbipoly import _qb_pairs as _f
     return _f(b)
 
 
 def _qb_from_pairs(form) -> QBiPoly:
-    """Rebuild a :class:`~srmech.amsc.qbipoly.QBiPoly` from the ``(y_xlow[], rows)``
+    """Rebuild a :class:`~srmech.math.qbipoly.QBiPoly` from the ``(y_xlow[], rows)``
     bridge form (from the C peer; each leaf already reduced)."""
     y_xlow, rows = form
-    from ..amsc.qpoly import _qp_from_pairs
+    from ..math.qpoly import _qp_from_pairs
     cells = [_qp_from_pairs((lo, run)) for lo, run in zip(y_xlow, rows)]
     return QBiPoly(cells)
 
 
 def _qg_from_pairs(form) -> QPoly:
-    """Rebuild a :class:`~srmech.amsc.qpoly.QPoly` (an ``a_j(X)`` recurrence
+    """Rebuild a :class:`~srmech.math.qpoly.QPoly` (an ``a_j(X)`` recurrence
     coefficient) from the ``(x_low, rows)`` bridge form (from the C peer)."""
-    from ..amsc.qpoly import _qp_from_pairs
+    from ..math.qpoly import _qp_from_pairs
     return _qp_from_pairs(form)

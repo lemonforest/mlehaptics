@@ -43,7 +43,7 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc.q import Q
+from srmech.math.q import Q
 from srmech.amsc.cascade import cayley_dickson as cd
 from srmech.amsc.cascade.cd_register import CDRegister, cd_couple_working
 from srmech.amsc.cascade.sedenion_register import SedenionRegister

@@ -58,7 +58,7 @@ def test_pseudo_hermitian_imports_and_runs_numpy_free():
     proc = _run_numpy_free(
         """
         from srmech.qm import pseudo_hermitian as ph
-        from srmech.amsc.mat import Mat
+        from srmech.math.mat import Mat
 
         I3 = Mat.from_rows(
             [[1.0 if i == j else 0.0 for j in range(3)] for i in range(3)],

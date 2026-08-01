@@ -27,9 +27,9 @@ from array import array
 import pytest
 
 from srmech.amsc import _native
-from srmech.amsc.complex128 import Complex128
-from srmech.amsc.mat import Mat
-from srmech.amsc.vec import Vec
+from srmech.math.complex128 import Complex128
+from srmech.math.mat import Mat
+from srmech.math.vec import Vec
 
 _NATIVE = _native.has_native_carriers()
 requires_native = pytest.mark.skipif(

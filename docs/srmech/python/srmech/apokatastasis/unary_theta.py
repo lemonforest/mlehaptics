@@ -1,8 +1,8 @@
 """srmech.apokatastasis.unary_theta — ``UnaryTheta``, the first WEIGHT-GRADED carrier.
 
-The operand ladder so far — :class:`~srmech.amsc.q.Q` (an exact scalar),
-:class:`~srmech.amsc.poly.Poly` (an ordinary polynomial), the q-level
-:class:`~srmech.amsc.qpoly.QPoly`, the elliptic
+The operand ladder so far — :class:`~srmech.math.q.Q` (an exact scalar),
+:class:`~srmech.math.poly.Poly` (an ordinary polynomial), the q-level
+:class:`~srmech.math.qpoly.QPoly`, the elliptic
 :class:`~srmech.apokatastasis.ellbase.EllRatio` / :class:`~srmech.apokatastasis.thetasum.ThetaSum`
 — is entirely **weight-0**: every carrier holds a modular OBJECT of weight 0
 (a rational function, a balanced theta-quotient). That is a real ceiling. The
@@ -54,7 +54,7 @@ theta are integers (a sum of ``χ(n)·n^j`` terms, each an exact ``int``), so th
 carrier is exact-integer all the way (no float, no ``math``, no numpy). The sign
 of the character is the **Class-K** pin-slot via an explicit ``±1`` branch, never
 an ALU ``abs()``. The one rational that appears is the WEIGHT itself (``Q(1, 2) +
-j``), an exact :class:`~srmech.amsc.q.Q` — the weight axis is rational by nature
+j``), an exact :class:`~srmech.math.q.Q` — the weight axis is rational by nature
 (half-integral), so it is the natural home for the carrier's grade.
 
 The C peer ``srmech_unary_theta`` (rc70) mirrors the integer q-series + the
@@ -69,7 +69,7 @@ from __future__ import annotations
 
 from typing import Callable, Dict, List, Sequence, Tuple, Union
 
-from ..amsc.q import Q
+from ..math.q import Q
 
 __all__ = ["Character", "UnaryTheta", "theta_coefficients", "unary_theta"]
 
@@ -350,7 +350,7 @@ class UnaryTheta:
 
     @property
     def weight(self) -> Q:
-        """The half-integral WEIGHT ``= 1/2 + j`` (exact :class:`~srmech.amsc.q.Q`)
+        """The half-integral WEIGHT ``= 1/2 + j`` (exact :class:`~srmech.math.q.Q`)
         — THE WEIGHT AXIS. ``j = 0`` ⇒ weight 1/2 (a Jacobi theta like θ₃); ``j =
         1`` ⇒ weight 3/2 (a shadow like g₃); ``j = 2`` ⇒ weight 5/2; …"""
         return _Q_HALF + self._j
@@ -359,7 +359,7 @@ class UnaryTheta:
     def leading_power(self) -> Q:
         """The minimal raw exponent ``(a·n² + b·n)/D`` over the support — the
         fractional ``q``-power factored out so :meth:`q_series` returns an INTEGER
-        series. Exact :class:`~srmech.amsc.q.Q` (e.g. ``Q(1, 24)`` for g₃, ``Q(0,
+        series. Exact :class:`~srmech.math.q.Q` (e.g. ``Q(1, 24)`` for g₃, ``Q(0,
         1)`` for θ₃). Computed over the contributing ``n`` (``χ(n) ≠ 0``) only."""
         return Q(self._min_raw_num(), self._D)
 

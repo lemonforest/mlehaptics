@@ -25,7 +25,7 @@ from srmech.apokatastasis.ellbase import (
     half_shift_response, chirality_parity, beat_relation_residue,
     _half_shift_response_py, _half_shift_response_c, _normalize_half_axis,
 )
-from srmech.amsc.q import Q
+from srmech.math.q import Q
 from srmech.amsc import _native
 from srmech.amsc.tool_schema import get_tool_schema
 

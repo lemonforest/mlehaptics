@@ -68,7 +68,7 @@ import pytest
 import srmech.amsc.cascade.hypercomplex_dft as hd
 from srmech.amsc import _native
 from srmech.amsc.cascade import octonion_dft, quaternion_dft
-from srmech.amsc.mat import Mat
+from srmech.math.mat import Mat
 from srmech.qm import octonion as oct_mod
 from srmech.qm.octonion import (
     octonion_conjugate,

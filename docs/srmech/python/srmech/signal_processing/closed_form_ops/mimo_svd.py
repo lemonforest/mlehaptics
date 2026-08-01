@@ -33,7 +33,7 @@ from __future__ import annotations
 from typing import List, Tuple
 
 from srmech.math.laplacian import mat_svd
-from srmech.amsc.mat import Mat
+from srmech.math.mat import Mat
 
 OPERATION_NAME = "mimo_svd"
 CLASS_COMPOSITION = ("L",)

@@ -40,7 +40,7 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc.carrier_ladder import carrier_ladder_descriptor
+from srmech.math.carrier_ladder import carrier_ladder_descriptor
 from srmech.amsc.tool_schema import get_tool_schema
 from srmech.amsc.cascade import cd_promote
 from srmech.qm.octonion import octonion_conjugate
@@ -250,7 +250,7 @@ def test_producers_declare_the_rung_they_emit():
 
 def test_ops_view_reachable_via_the_registry():
     d = invoke_tool(
-        "srmech.amsc.carrier_ladder.carrier_ladder_descriptor", {})
+        "srmech.math.carrier_ladder.carrier_ladder_descriptor", {})
     assert "ops" in d
     assert d["ops"]["octonion_conjugate"]["consumes"]["rung"] == 8
 
@@ -283,7 +283,7 @@ def test_ops_view_is_mutation_safe():
 # ── (5) hygiene: numpy-free / math-free / abs()-free source ───────────────────
 
 def test_carrier_ladder_module_is_numpy_math_abs_free():
-    import srmech.amsc.carrier_ladder as CL
+    import srmech.math.carrier_ladder as CL
     text = open(CL.__file__, encoding="utf-8").read()
     assert "import numpy" not in text
     assert "import math" not in text

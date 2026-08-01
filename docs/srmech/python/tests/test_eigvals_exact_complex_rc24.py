@@ -20,7 +20,7 @@ from __future__ import annotations
 import cmath
 import math
 from fractions import Fraction as F
-from srmech.amsc.q import Q  # #845: exact eigenvalue intervals are Q now, not Fraction
+from srmech.math.q import Q  # #845: exact eigenvalue intervals are Q now, not Fraction
 
 import pytest
 
@@ -29,7 +29,7 @@ from srmech.amsc.cascade.matrix_cascades import (
     eigvals_exact,
 )
 from srmech.math.laplacian import mat_eigvals
-from srmech.amsc.mat import Mat
+from srmech.math.mat import Mat
 
 
 # ── helpers ─────────────────────────────────────────────────────────────────────

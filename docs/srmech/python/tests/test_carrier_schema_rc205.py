@@ -45,7 +45,7 @@ from pathlib import Path
 import pytest
 
 from srmech.amsc import _native
-from srmech.amsc.carrier_ladder import carrier_ladder_descriptor
+from srmech.math.carrier_ladder import carrier_ladder_descriptor
 from srmech.amsc.carrier_schema import (
     _CARRIERS,
     _LADDER_RUNG_CARRIERS,
@@ -171,7 +171,7 @@ def test_ops_back_index_known_relations() -> None:
     assert "srmech.apokatastasis.gosper.gosper" in schema["Poly"]["ops"]["consumes"]
     assert ("srmech.apokatastasis.apagodu_zeilberger.apagodu_zeilberger"
             in schema["TriPoly"]["ops"]["consumes"])
-    assert ("srmech.amsc.tripoly.tripoly_from_coeffs"
+    assert ("srmech.math.tripoly.tripoly_from_coeffs"
             in schema["TriPoly"]["ops"]["produces"])
     # The rc120 contract union: the CD ops' ToolEntry types say list[float] /
     # HV, but the contract indexes them under the rung carriers.

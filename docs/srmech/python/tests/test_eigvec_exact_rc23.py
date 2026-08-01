@@ -37,8 +37,8 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc.q import Q
-from srmech.amsc.qalg import Qalg
+from srmech.math.q import Q
+from srmech.math.qalg import Qalg
 from srmech.amsc.cascade.matrix_cascades import (
     eigvec_exact,
     eigvec_exact_float,

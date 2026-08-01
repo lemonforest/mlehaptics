@@ -8,7 +8,7 @@ cascade at four scales in quantum substrate; Spike #128.1 ships the
 framework-internal validation as runnable code.
 
 numpy-FREE end to end (v0.7.5rc115, #564): ``chsh_pauli_combination`` /
-``chsh_operator`` return :class:`~srmech.amsc.mat.Mat`; ``operator_norm`` is
+``chsh_operator`` return :class:`~srmech.math.mat.Mat`; ``operator_norm`` is
 polymorphic. **These tests use no numpy** — eigenvalues come from the
 framework's own Class-L numpy-free Hermitian eigendecomposition
 (:func:`srmech.math.laplacian.mat_hermitian_eigendecompose`), the Kronecker
@@ -48,7 +48,7 @@ import pytest
 
 from srmech.amsc.cascade.spectral_cascades import kron as _kron_cascade
 from srmech.math.laplacian import mat_hermitian_eigendecompose
-from srmech.amsc.mat import Mat
+from srmech.math.mat import Mat
 from srmech.math.rational import sqrt as _rsqrt
 from srmech.qm import bell, spin
 

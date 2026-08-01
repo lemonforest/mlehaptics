@@ -100,7 +100,7 @@ import os  # §52 Part 2: disk-backed work queue + tome files for the out-of-cor
 import struct  # §52 Part 2: pack/unpack the on-disk edge records for the out-of-core Fiedler
 import tempfile  # §52 Part 2: default scratch dir for recursive_cut
 from array import array  # §564: numpy-free 2-D Mat carrier buffer (interleaved-complex)
-from srmech.amsc.q import Q, to_q  # §26: exact-rational interior solve (Class-N), no float
+from srmech.math.q import Q, to_q  # §26: exact-rational interior solve (Class-N), no float
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 from srmech.math.rational import sqrt as _rsqrt  # §22: scalar root via Class-N, not libm
@@ -118,7 +118,7 @@ from srmech.math.rational import atan_series_truncate as _atan_series  # rc136 E
 
 
 # 0.9.0rc7 (stay-rational, F868): ``rational.sqrt`` / ``rational.hypot`` now
-# return an exact :class:`~srmech.amsc.q.Q`. That is right for EXACT contexts,
+# return an exact :class:`~srmech.math.q.Q`. That is right for EXACT contexts,
 # but the iterative dense-linear-algebra kernels below — the Jacobi eigen-sweep,
 # Householder QR, the Gram-SVD, the Fiedler power-iteration, the complex √ — are
 # genuinely **FPU float algorithms**: their rotations are irrational and they
@@ -169,8 +169,8 @@ def _fhypot(a, b) -> float:
 from srmech.math.rational import atan as _atan_pi
 _PI = 4.0 * float(_atan_pi(1.0))
 
-from ..amsc.mat import Mat  # §564: the numpy-free 2-D carrier the mat_* engine returns
-from ..amsc.vec import Vec  # rc129: the numpy-free 1-D carrier (vectors / eigenvalues)
+from .mat import Mat  # §564: the numpy-free 2-D carrier the mat_* engine returns
+from .vec import Vec  # rc129: the numpy-free 1-D carrier (vectors / eigenvalues)
 
 from ..amsc import _native
 
@@ -262,7 +262,7 @@ def three_fold_eigvec_groups(L) -> dict:
     3-cycle) per F150 §6.1 — the order-3 reading of the Class-L spectrum. When
     ``n`` is not divisible by 3 the remainder rows go to the later bands so
     ``|low| <= |mid| <= |high|``. Returns ``{"low", "mid", "high"}`` each an
-    ``(n, k)`` real :class:`~srmech.amsc.mat.Mat` of the eigenvector COLUMNS in
+    ``(n, k)`` real :class:`~srmech.math.mat.Mat` of the eigenvector COLUMNS in
     that band (rc129; ``.shape`` + ``m[i, j]``, NOT a bare nested list); the
     chirality-aware companion to :func:`symmetric_eigendecompose`.
 
@@ -590,7 +590,7 @@ def dense_adjacency(
     Self-loops add ``2*w`` to the diagonal (standard graph-theory
     convention). Parallel edges accumulate weights additively.
 
-    Numpy-free (rc129): returns a real :class:`~srmech.amsc.mat.Mat` (``.shape``
+    Numpy-free (rc129): returns a real :class:`~srmech.math.mat.Mat` (``.shape``
     + ``m[i, j]`` + a native C interleaved-buffer wire form), NOT a bare
     ``list[list[float]]`` — the native list-marshal path when ``HAS_NATIVE`` and
     ``n ≤ 256``, else srmech's own pure-Python build.
@@ -614,7 +614,7 @@ def dense_laplacian(
     connected graph the smallest eigenvalue is 0 with multiplicity 1
     (Fiedler vector spans the complement).
 
-    Numpy-free (rc129): returns a real :class:`~srmech.amsc.mat.Mat` (``.shape``
+    Numpy-free (rc129): returns a real :class:`~srmech.math.mat.Mat` (``.shape``
     + ``m[i, j]`` + a native C wire form), NOT a bare ``list[list[float]]``.
     """
     if _can_dispatch_native(n):  # UPSTREAM §38: numpy-free native list-marshal
@@ -635,7 +635,7 @@ def normalized_laplacian(
     Isolated vertices (degree 0) have diagonal entry 0 by convention
     (not 1; the ``I`` term only applies where ``D > 0``).
 
-    Numpy-free (rc129): returns a real :class:`~srmech.amsc.mat.Mat` (``.shape``
+    Numpy-free (rc129): returns a real :class:`~srmech.math.mat.Mat` (``.shape``
     + ``m[i, j]`` + a native C wire form), NOT a bare ``list[list[float]]``.
     """
     if _can_dispatch_native(n):  # UPSTREAM §38: numpy-free native list-marshal
@@ -773,7 +773,7 @@ def mass_normalized_laplacian(
     Attested scoping SSoT: ``docs/srmech/notes/laplace_beltrami_scoping.md``
     (task #888) — LB is a *weighting* of the Class-L Laplacian, not a new member.
 
-    Returns an ``n×n`` real :class:`~srmech.amsc.mat.Mat` (``.shape`` +
+    Returns an ``n×n`` real :class:`~srmech.math.mat.Mat` (``.shape`` +
     ``m[i, j]``, NOT a bare ``list[list[float]]``).
     """
     kind_code = _MASS_NORM_KINDS.get(kind)
@@ -1068,9 +1068,9 @@ def jacobi_eigvals(
     ``matrix`` is **not** modified by the wrapper — the native path marshals into
     a fresh ctypes buffer; the pure-Python cascade copies its rows.
 
-    Numpy-free (rc129): the input is a :class:`~srmech.amsc.mat.Mat` /
+    Numpy-free (rc129): the input is a :class:`~srmech.math.mat.Mat` /
     ``list[list[float]]`` (or any nested sequence) and the return is a 1-D
-    :class:`~srmech.amsc.vec.Vec` of the ascending eigenvalues (``.shape == (n,)``
+    :class:`~srmech.math.vec.Vec` of the ascending eigenvalues (``.shape == (n,)``
     + scalar ``v[i]``), NOT a bare ``list[float]``. When ``HAS_NATIVE`` and
     ``n ≤ 256`` the numpy-free list-marshal native path runs; else srmech's own
     pure-Python Jacobi cascade.
@@ -1092,7 +1092,7 @@ def jacobi_eigvals(
       Faddeev–LeVerrier → Yun square-free → Sturm isolation → ``Q``
       bisection — until the single terminal float lift (the rotation-last
       "exact-substrate-achievable" case). The return is the same contract as
-      the float path: a 1-D :class:`~srmech.amsc.vec.Vec` of ``n`` ascending
+      the float path: a 1-D :class:`~srmech.math.vec.Vec` of ``n`` ascending
       eigenvalues, **with multiplicity**.
     """
     if exact:
@@ -1241,8 +1241,8 @@ def dense_solve(A, B, *, exact: bool = False):
     Gauss–Jordan with partial pivoting, the Class-K magnitude pivot — a sign
     branch, not ``abs()``; else srmech's own exact Q fallback coerced to
     float). The float ``X`` is returned in the numpy-free **carrier** (rc131):
-    a :class:`~srmech.amsc.mat.Mat` for a matrix RHS (``.shape`` + ``m[i, j]``)
-    or a 1-D :class:`~srmech.amsc.vec.Vec` for a vector RHS (``.shape == (n,)``
+    a :class:`~srmech.math.mat.Mat` for a matrix RHS (``.shape`` + ``m[i, j]``)
+    or a 1-D :class:`~srmech.math.vec.Vec` for a vector RHS (``.shape == (n,)``
     + scalar ``v[i]``), NOT a bare ``list`` — a list has no honest C
     representation, a Mat/Vec is a contiguous double buffer. A complex system
     rides the real 2n×2n block embedding inside :func:`mat_solve`, so the carrier
@@ -1356,7 +1356,7 @@ def schur_complement(L, boundary_idx: Sequence[int], *, exact: bool = False):
     never a float reciprocal) and ``S`` is returned as ``list[list[Q]]``.
     With ``exact=False`` (the default) the float realization rides the numpy-free
     Mat engine (:func:`dense_solve` → :func:`mat_solve`) and ``S`` is returned in
-    the numpy-free **carrier** — a ``|∂|×|∂|`` :class:`~srmech.amsc.mat.Mat`
+    the numpy-free **carrier** — a ``|∂|×|∂|`` :class:`~srmech.math.mat.Mat`
     (rc131; ``.shape`` + ``m[i, j]``), NOT a bare ``list`` (a Mat IS a C dense
     buffer, a list is not). Canonical SSoT: Zhang, *The Schur Complement and Its
     Applications* (2005) §0; the DtN map is textbook (Golub & Van Loan §3.2).
@@ -1364,7 +1364,7 @@ def schur_complement(L, boundary_idx: Sequence[int], *, exact: bool = False):
     Parameters
     ----------
     L : matrix, ``n×n``
-        A :class:`~srmech.amsc.mat.Mat` or ``list[list]`` — a symmetric
+        A :class:`~srmech.math.mat.Mat` or ``list[list]`` — a symmetric
         positive-semidefinite operator (a graph Laplacian from
         :func:`dense_laplacian`, or any SPD matrix).
     boundary_idx : sequence[int]
@@ -1376,7 +1376,7 @@ def schur_complement(L, boundary_idx: Sequence[int], *, exact: bool = False):
     Returns
     -------
     S : ``|∂|×|∂|`` boundary effective operator
-        a real :class:`~srmech.amsc.mat.Mat` (float path) or
+        a real :class:`~srmech.math.mat.Mat` (float path) or
         ``list[list[Q]]`` (exact path).
 
     Raises
@@ -1454,7 +1454,7 @@ def dirichlet_to_neumann(L, boundary_idx: Sequence[int], *, exact: bool = False)
     (DtN) map ``S = L_∂∂ − L_∂i · L_ii⁻¹ · L_i∂`` (UPSTREAM §26; #897). Given
     boundary values, ``S`` returns the boundary normal-derivative of their
     harmonic extension into the interior. Returns the same carrier as
-    :func:`schur_complement`: a real :class:`~srmech.amsc.mat.Mat` (float path)
+    :func:`schur_complement`: a real :class:`~srmech.math.mat.Mat` (float path)
     or ``list[list[Q]]`` (``exact=True``)."""
     return schur_complement(L, boundary_idx, exact=exact)
 
@@ -1479,9 +1479,9 @@ def hermitian_eigendecompose(H):
     Returns
     -------
     (eigvals, V)
-        ``eigvals`` is a length-``n`` real :class:`~srmech.amsc.vec.Vec` of
+        ``eigvals`` is a length-``n`` real :class:`~srmech.math.vec.Vec` of
         eigenvalues in ascending order (``.shape == (n,)`` + scalar ``v[i]``).
-        ``V`` is an ``n×n`` complex :class:`~srmech.amsc.mat.Mat` — the unitary
+        ``V`` is an ``n×n`` complex :class:`~srmech.math.mat.Mat` — the unitary
         matrix whose COLUMNS are the corresponding eigenvectors (``V[i, j]``).
 
     Numpy-free (rc129): delegates to the Mat engine
@@ -1517,7 +1517,7 @@ def _canonicalize_eigenvector_signs(V):
     there is **no** ``abs()`` and **no** float square root. ``V`` is a nested
     ``list`` (columns = eigenvectors) — the **internal** sign-pin worked on by
     :func:`symmetric_eigendecompose` before it wraps the result in a real
-    :class:`~srmech.amsc.mat.Mat`; the result is the (possibly modified) nested
+    :class:`~srmech.math.mat.Mat`; the result is the (possibly modified) nested
     list. (Within a degenerate eigenspace the larger ``U(k)`` basis freedom is
     solver-chosen and reconstruction-invariant; this pins only the per-column
     ``Z₂``.)
@@ -1643,9 +1643,9 @@ def symmetric_eigendecompose(
     Returns
     -------
     (eigvals, V)
-        ``eigvals`` is a length-``n`` real :class:`~srmech.amsc.vec.Vec` of
+        ``eigvals`` is a length-``n`` real :class:`~srmech.math.vec.Vec` of
         eigenvalues in ascending order (``.shape == (n,)`` + scalar ``v[i]``).
-        ``V`` is an ``n×n`` **real** :class:`~srmech.amsc.mat.Mat` whose COLUMNS
+        ``V`` is an ``n×n`` **real** :class:`~srmech.math.mat.Mat` whose COLUMNS
         are the corresponding eigenvectors (``V[i, j]``).
 
     Class L. Canonical SSoT: Golub & Van Loan, *Matrix Computations*
@@ -1733,7 +1733,7 @@ def _mat_from_interleaved_cbuf(cbuf, n_rows: int, n_cols: int, *, want_complex: 
     """Wrap an interleaved ``(re, im)`` ctypes buffer back into a ``Mat``
     (numpy-free). ``want_complex`` keeps the interleaved layout; otherwise the
     real parts (every even slot) form a real ``Mat``."""
-    from ..amsc.mat import Mat  # numpy-free carrier; local import keeps load-order clean
+    from .mat import Mat  # numpy-free carrier; local import keeps load-order clean
     if want_complex:
         return Mat(array("d", cbuf), n_rows, n_cols, is_complex=True)
     n = n_rows * n_cols
@@ -1742,7 +1742,7 @@ def _mat_from_interleaved_cbuf(cbuf, n_rows: int, n_cols: int, *, want_complex: 
 
 def mat_matmul(a: "Mat", b: "Mat") -> "Mat":
     """Numpy-free dense matrix multiply ``A·B`` over the
-    :class:`~srmech.amsc.mat.Mat` carrier — the 2-D ``@`` replacement for the
+    :class:`~srmech.math.mat.Mat` carrier — the 2-D ``@`` replacement for the
     numpy-CARRIER removal arc (#564, foundation #2).
 
     ``A`` ``(m, k)`` · ``B`` ``(k, n)`` → ``Mat`` ``(m, n)``. The ``Mat`` buffer
@@ -1762,7 +1762,7 @@ def mat_matmul(a: "Mat", b: "Mat") -> "Mat":
     Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
     Hopkins, 2013) §1.1 (textbook matrix multiplication).
     """
-    from ..amsc.mat import Mat
+    from .mat import Mat
     assert isinstance(a, Mat) and isinstance(b, Mat), (
         "mat_matmul operands must be Mat (the numpy-free 2-D carrier)"
     )
@@ -1809,7 +1809,7 @@ def mat_matmul(a: "Mat", b: "Mat") -> "Mat":
 
 def mat_solve(a: "Mat", b: "Mat") -> "Mat":
     """Numpy-free dense linear solve ``A·X = B`` over the
-    :class:`~srmech.amsc.mat.Mat` carrier — bridge primitive #2 of the
+    :class:`~srmech.math.mat.Mat` carrier — bridge primitive #2 of the
     numpy-CARRIER removal arc (#564), the peer of :func:`mat_matmul`.
 
     ``A`` ``(n, n)`` real `Mat` · solves for ``X`` ``(n, w)`` given ``B``
@@ -1837,7 +1837,7 @@ def mat_solve(a: "Mat", b: "Mat") -> "Mat":
     Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
     Hopkins, 2013) §3.4 (Gaussian elimination with partial pivoting).
     """
-    from ..amsc.mat import Mat
+    from .mat import Mat
     assert isinstance(a, Mat) and isinstance(b, Mat), (
         "mat_solve operands must be Mat (the numpy-free 2-D carrier)"
     )
@@ -1905,7 +1905,7 @@ def _mat_solve_complex(a: "Mat", b: "Mat") -> "Mat":
     NumPy's complex solve to ~1e-9 for a well-conditioned ``A`` (the
     signal-subspace projections esprit/the matrix-heavy DSP ops feed it).
     """
-    from ..amsc.mat import Mat
+    from .mat import Mat
     n = a.n_rows
     if n == 0:
         raise ValueError("mat_solve: A must be a non-empty square matrix")
@@ -1941,7 +1941,7 @@ def _mat_solve_complex(a: "Mat", b: "Mat") -> "Mat":
 
 def mat_lstsq(a: "Mat", b: "Mat") -> "Mat":
     """Numpy-free least-squares solution of ``A·X ≈ B`` (minimising
-    ``‖A·X − B‖``) over the :class:`~srmech.amsc.mat.Mat` carrier — the
+    ``‖A·X − B‖``) over the :class:`~srmech.math.mat.Mat` carrier — the
     Mat-return peer of ``matrix_cascades.lstsq`` (rc96, carrier-removal #564).
 
     Overdetermined / square ``A`` ``(m, n)`` with ``m ≥ n`` (full column rank).
@@ -1961,7 +1961,7 @@ def mat_lstsq(a: "Mat", b: "Mat") -> "Mat":
     Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
     Hopkins, 2013) §5.3 (normal-equations least squares).
     """
-    from ..amsc.mat import Mat
+    from .mat import Mat
     assert isinstance(a, Mat) and isinstance(b, Mat), (
         "mat_lstsq operands must be Mat (the numpy-free 2-D carrier)"
     )
@@ -1997,7 +1997,7 @@ def _hermitian_eig_py(h: "Mat") -> Tuple["Mat", "Mat"]:
     eigenspace). Returns ``(eigvals (n, 1) real Mat, eigvecs (n, n) complex
     Mat)``.
     """
-    from ..amsc.mat import Mat
+    from .mat import Mat
     n = h.n_rows
     if not h.is_complex:
         evals, V = _jacobi_eig_py(h.tolist())
@@ -2069,7 +2069,7 @@ def _hermitian_eig_py(h: "Mat") -> Tuple["Mat", "Mat"]:
 
 def mat_hermitian_eigendecompose(h: "Mat") -> Tuple["Mat", "Mat"]:
     """Numpy-free Hermitian eigendecomposition ``H = V·diag(λ)·Vᴴ`` over the
-    :class:`~srmech.amsc.mat.Mat` carrier — bridge primitive **#3** (the last) of
+    :class:`~srmech.math.mat.Mat` carrier — bridge primitive **#3** (the last) of
     the numpy-CARRIER removal arc (#564), completing the family with
     :func:`mat_matmul` (#1) and :func:`mat_solve` (#2).
 
@@ -2108,7 +2108,7 @@ def mat_hermitian_eigendecompose(h: "Mat") -> Tuple["Mat", "Mat"]:
     Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
     Hopkins, 2013) §8.5 (Hermitian eigenproblem via unitary Jacobi rotations).
     """
-    from ..amsc.mat import Mat
+    from .mat import Mat
     assert isinstance(h, Mat), (
         "mat_hermitian_eigendecompose operand must be Mat (numpy-free 2-D carrier)"
     )
@@ -2475,7 +2475,7 @@ def _mat_eigvals_native(H: List[List[complex]], n: int, max_sweeps: int):
 
 def mat_eigvals(a: "Mat", *, max_sweeps: int = 500) -> List[complex]:
     """Eigenvalue MULTISET of a general (non-Hermitian) square matrix over the
-    :class:`~srmech.amsc.mat.Mat` carrier — foundation op #4 of the numpy-CARRIER
+    :class:`~srmech.math.mat.Mat` carrier — foundation op #4 of the numpy-CARRIER
     removal arc (#564), the numpy-free peer of ``matrix_cascades.eigvals``.
 
     The shifted-QR iteration — **Class K** (iterate-to-convergence asymptotic-DoF)
@@ -2556,7 +2556,7 @@ def mat_eigvals(a: "Mat", *, max_sweeps: int = 500) -> List[complex]:
     Reinsch, "Balancing a matrix for calculation of eigenvalues and
     eigenvectors", *Numer. Math.* **13** (1969) 293–304.
     """
-    from ..amsc.mat import Mat
+    from .mat import Mat
     assert isinstance(a, Mat), (
         "mat_eigvals operand must be Mat (the numpy-free 2-D carrier)"
     )
@@ -2711,7 +2711,7 @@ def mat_eigvals(a: "Mat", *, max_sweeps: int = 500) -> List[complex]:
 
 def mat_svd(a: "Mat") -> Tuple["Mat", List[float], "Mat"]:
     """Numpy-free **full** singular-value decomposition ``A = U·diag(S)·Vᴴ`` over
-    the :class:`~srmech.amsc.mat.Mat` carrier — foundation op **#5** of the
+    the :class:`~srmech.math.mat.Mat` carrier — foundation op **#5** of the
     numpy-CARRIER removal arc (#564), composed from the native-backed
     :func:`mat_matmul` + :func:`mat_hermitian_eigendecompose` trio (plus a
     pure-Python orthonormal completion), so it is **unconditionally numpy-free**.
@@ -2751,7 +2751,7 @@ def mat_svd(a: "Mat") -> Tuple["Mat", List[float], "Mat"]:
     Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
     Hopkins, 2013) §8.6 (SVD) + §5.4 (the AᴴA eigen-route and its conditioning).
     """
-    from ..amsc.mat import Mat
+    from .mat import Mat
     assert isinstance(a, Mat), (
         "mat_svd operand must be Mat (the numpy-free 2-D carrier)"
     )
@@ -2846,7 +2846,7 @@ def _iter_mat_scalars(v):
     """Yield plain ``float`` / ``complex`` scalars from a :class:`Mat` / :class:`HV`
     / flat sequence (row-major, flattened) — numpy-FREE. The single coercion the
     Mat-carrier norm / dot reductions share."""
-    from ..amsc.mat import Mat
+    from .mat import Mat
     if isinstance(v, Mat):
         buf = v.buffer
         if v.is_complex:
@@ -3059,8 +3059,8 @@ def elementwise_multiply_complex(a, b):
 
     Equal-shape inputs (numpy-free — no broadcasting; the callers pass
     equal-length operands). Preserves input rank: a :class:`Mat` / 2-D ``a`` →
-    a complex :class:`~srmech.amsc.mat.Mat` out; a :class:`Vec` / 1-D flat ``a``
-    → a complex :class:`~srmech.amsc.vec.Vec` out (rc129 — NOT a bare
+    a complex :class:`~srmech.math.mat.Mat` out; a :class:`Vec` / 1-D flat ``a``
+    → a complex :class:`~srmech.math.vec.Vec` out (rc129 — NOT a bare
     ``list[complex]``). The shape is read off ``a``."""
     a_mat = _ew_is_matrix(a)
     shape = _ew_mat_shape(a) if a_mat else None
@@ -3179,8 +3179,8 @@ def elementwise_transcendental(arr, op_name: str):
     Returns
     -------
     out
-        Rank-preserving (rc129): a :class:`~srmech.amsc.mat.Mat` for a 2-D
-        input, a :class:`~srmech.amsc.vec.Vec` for a 1-D input (NOT a bare
+        Rank-preserving (rc129): a :class:`~srmech.math.mat.Mat` for a 2-D
+        input, a :class:`~srmech.math.vec.Vec` for a 1-D input (NOT a bare
         list). Complex carrier for ``"exp_i"`` (or complex input), real
         otherwise.
 
@@ -3259,8 +3259,8 @@ def elementwise_hypot(a, b):
     Returns
     -------
     out
-        Rank-preserving (rc129): a real :class:`~srmech.amsc.mat.Mat` for a 2-D
-        ``a``, a real :class:`~srmech.amsc.vec.Vec` for a 1-D ``a`` — ``√(aᵢ² +
+        Rank-preserving (rc129): a real :class:`~srmech.math.mat.Mat` for a 2-D
+        ``a``, a real :class:`~srmech.math.vec.Vec` for a 1-D ``a`` — ``√(aᵢ² +
         bᵢ²)`` (NOT a bare ``list[float]``). The shape is read off ``a``.
 
     Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
@@ -3300,8 +3300,8 @@ def elementwise_sqrt(arr):
     Returns
     -------
     out
-        Rank-preserving (rc129): a real :class:`~srmech.amsc.mat.Mat` for a 2-D
-        input, a real :class:`~srmech.amsc.vec.Vec` for a 1-D input — ``√arrᵢ``
+        Rank-preserving (rc129): a real :class:`~srmech.math.mat.Mat` for a 2-D
+        input, a real :class:`~srmech.math.vec.Vec` for a 1-D input — ``√arrᵢ``
         (NOT a bare ``list[float]``).
 
     Raises
@@ -3385,7 +3385,7 @@ def signed_laplacian(
     edges (Kunegis, J. et al. (2010) "Spectral Analysis of Signed
     Graphs", SDM 2010).
 
-    Returns an ``n×n`` real-symmetric :class:`~srmech.amsc.mat.Mat` (rc129;
+    Returns an ``n×n`` real-symmetric :class:`~srmech.math.mat.Mat` (rc129;
     ``.shape`` + ``m[i, j]``, NOT a bare ``list[list[float]]``); pair with
     :func:`symmetric_eigendecompose` or :func:`fiedler_vector` for the
     signed navigation embedding.
@@ -3628,7 +3628,7 @@ def magnetic_laplacian(
     dispatch to the standalone-C ``srmech_graph_magnetic_laplacian`` (the
     same Q61 trig cascade → bit-identical; pure Python is the complete
     no-native alternative). Returns an ``n×n`` Hermitian complex
-    :class:`~srmech.amsc.mat.Mat` (``.shape`` + ``m[i, j]``, NOT a bare
+    :class:`~srmech.math.mat.Mat` (``.shape`` + ``m[i, j]``, NOT a bare
     ``list[list[complex]]``).
     """
     if charges is not None:
@@ -3851,7 +3851,7 @@ def quaternion_laplacian(
 
     Returns:
         The ``4n×4n`` real-symmetric quaternion gain Laplacian as a
-        :class:`~srmech.amsc.mat.Mat` (``.shape == (4n, 4n)``, real layout).
+        :class:`~srmech.math.mat.Mat` (``.shape == (4n, 4n)``, real layout).
 
     Raises:
         ValueError: bad ``n`` / out-of-range endpoint / weights-length mismatch
@@ -3874,7 +3874,7 @@ def hypercomplex_perspectives(eigvecs: "Mat", dim: int = 4) -> Dict:
     the latent dim-2 read of :func:`magnetic_laplacian` (``dim=2``, ℂ,
     ``2 = 1 + 1``).
 
-    ``eigvecs`` is the ``(N×M)`` eigenvector :class:`~srmech.amsc.mat.Mat` whose
+    ``eigvecs`` is the ``(N×M)`` eigenvector :class:`~srmech.math.mat.Mat` whose
     COLUMNS are eigenvectors (the second return of
     :func:`mat_hermitian_eigendecompose`). ``dim`` is the number of real
     components per hypercomplex unit:
@@ -4115,7 +4115,7 @@ def klein4_gain_laplacian(
     -------
     dict[str, Mat]
         ``{"chi00", "chi01", "chi10", "chi11"}`` → the four ``n×n`` real-
-        symmetric PSD sector Laplacians (numpy-free :class:`~srmech.amsc.mat.Mat`).
+        symmetric PSD sector Laplacians (numpy-free :class:`~srmech.math.mat.Mat`).
 
     Dispatches to the standalone-C ``srmech_graph_klein4_gain_laplacian`` (all
     four sectors in one call) when ``HAS_NATIVE``; else four
@@ -4204,7 +4204,7 @@ def klein4_relational_structure(
 
 
 def _to_fraction(c) -> Q:
-    """Coerce a charge (turns) to an exact :class:`~srmech.amsc.q.Q` (#845: the
+    """Coerce a charge (turns) to an exact :class:`~srmech.math.q.Q` (#845: the
     exact-ℚ carrier, was ``fractions.Fraction``). Accepts an ``int`` / a
     ``numbers.Rational`` carrier (a srmech ``Q``, a stdlib ``fractions.Fraction``)
     exactly; a ``float`` is projected to denominator ≤ 10¹² via the Class-N
@@ -4849,14 +4849,14 @@ def heat_trace(L, t):
 
     Args:
         L: an ``(n, n)`` Laplacian — real-symmetric OR complex-Hermitian
-            (:class:`~srmech.amsc.mat.Mat` / list-of-rows / ndarray-like).
+            (:class:`~srmech.math.mat.Mat` / list-of-rows / ndarray-like).
             Dispatches real → :func:`jacobi_eigvals`, complex →
             :func:`hermitian_eigendecompose` (the same forms the eigensolve
             ops accept; symmetry/Hermiticity is the caller's responsibility,
             their contract).
         t: a single diffusion time (a real scalar → returns a ``float``) OR a
             sequence of times (→ returns a real
-            :class:`~srmech.amsc.vec.Vec`, one Θ per t). Multi-t is the cheap
+            :class:`~srmech.math.vec.Vec`, one Θ per t). Multi-t is the cheap
             generalization: ONE eigensolve serves every t. Each t must be a
             finite real (the usual heat-trace domain is ``t ≥ 0``; a negative
             t is accepted — Θ is a finite sum either way).
@@ -4985,7 +4985,7 @@ def ground_state_flux_response(
         weights: optional per-edge magnitudes (default 1.0 each).
         fluxes: a single total flux Φ in TURNS (a real scalar → returns a
             ``float``) OR a sequence of fluxes (→ returns a real
-            :class:`~srmech.amsc.vec.Vec`, one λ_min per Φ).
+            :class:`~srmech.math.vec.Vec`, one λ_min per Φ).
         charges: optional per-edge charge PATTERN, parallel to ``edges``
             (validated ``len(charges) == len(edges)``) — the rc105 chiral
             surface, composable as-is: each edge ``k`` gets charge
@@ -5324,11 +5324,11 @@ def propagate(L, u0, z) -> "Vec":
 
     Args:
         L: an ``(n, n)`` real-symmetric OR complex-Hermitian Laplacian /
-            operator (:class:`~srmech.amsc.mat.Mat` / list-of-rows /
+            operator (:class:`~srmech.math.mat.Mat` / list-of-rows /
             ndarray-like). Symmetry / Hermiticity is the caller's
             responsibility (the eigensolve ops' contract).
         u0: the excitation vector (length ``n``, real or complex;
-            :class:`~srmech.amsc.vec.Vec` / list). Content-neutral (Class-M
+            :class:`~srmech.math.vec.Vec` / list). Content-neutral (Class-M
             grounding) — the seed the propagator acts on.
         z: the complex time ``z = Re(z) + i·Im(z)`` (a Python ``complex`` or a
             ``[re, im]`` pair). ``arg(z)`` is the coherence dial; build the
@@ -5336,7 +5336,7 @@ def propagate(L, u0, z) -> "Vec":
 
     Returns:
         the harvest ``e^{-zL}·u0`` — a length-``n`` complex
-        :class:`~srmech.amsc.vec.Vec` (the coherent / partial part is
+        :class:`~srmech.math.vec.Vec` (the coherent / partial part is
         genuinely complex). An empty ``L`` (n = 0) gives the empty harvest.
 
     Native (rc136): dispatches to the composite C peer ``srmech_eph_propagate``
@@ -5771,7 +5771,7 @@ def responsion(L, u0, z, *, kind: str = "propagator") -> "Vec":
 
     Args:
         L: an ``(n, n)`` real-symmetric OR complex-Hermitian operator
-            (:class:`~srmech.amsc.mat.Mat` / list-of-rows / ndarray-like),
+            (:class:`~srmech.math.mat.Mat` / list-of-rows / ndarray-like),
             exactly as :func:`propagate`.
         u0: the excitation vector (length ``n``, real or complex) — the
             seed the response acts on.
@@ -5783,7 +5783,7 @@ def responsion(L, u0, z, *, kind: str = "propagator") -> "Vec":
             or ``"resolvent"`` (the new Laplace-dual member).
 
     Returns:
-        the response — a length-``n`` complex :class:`~srmech.amsc.vec.Vec`
+        the response — a length-``n`` complex :class:`~srmech.math.vec.Vec`
         (the :func:`propagate` return contract). An empty ``L`` (n = 0)
         gives the empty response.
 
@@ -6157,7 +6157,7 @@ def propagate_sparse(
     -------
     Vec
         The harvest ``e^{-zL}·u0`` — a length-``n`` complex
-        :class:`~srmech.amsc.vec.Vec` (the :func:`propagate` return
+        :class:`~srmech.math.vec.Vec` (the :func:`propagate` return
         contract). ``n = 0`` gives the empty harvest.
 
     Native (rc206): dispatches to the standalone-C
@@ -6211,7 +6211,7 @@ def fiedler_vector(matrix) -> "Vec":
     :func:`signed_laplacian` / :func:`dense_laplacian`).
 
     Numpy-free (rc129): returns the λ₂ eigenvector as a 1-D
-    :class:`~srmech.amsc.vec.Vec` (``.shape == (n,)`` + scalar ``v[i]``;
+    :class:`~srmech.math.vec.Vec` (``.shape == (n,)`` + scalar ``v[i]``;
     ``complex`` carrier for a Hermitian input, ``float`` for a real one), NOT a
     bare ``list``. For ``n < 2`` there is no second eigenvector; raises
     ``ValueError``.
@@ -7091,9 +7091,9 @@ def spectral_block_dispatch(
     wall-clock overlap depends on the native GIL-release / free-threaded build.
 
     Class L (graph-spectral eigendecomposition) over the 4-rung parallel
-    dispatch. Numpy-free (rc129): a block may be a :class:`~srmech.amsc.mat.Mat`,
+    dispatch. Numpy-free (rc129): a block may be a :class:`~srmech.math.mat.Mat`,
     a ``list[list[float]]`` (numpy-absent) or an ``ndarray``; per-block
-    eigenvalues are returned as a 1-D :class:`~srmech.amsc.vec.Vec` (``.shape ==
+    eigenvalues are returned as a 1-D :class:`~srmech.math.vec.Vec` (``.shape ==
     (n_i,)``), the combined spectrum as a single ``Vec`` — NOT bare lists.
 
     Parameters

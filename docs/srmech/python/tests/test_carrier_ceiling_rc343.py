@@ -95,8 +95,8 @@ from srmech.amsc.cascade.cayley_dickson import (
     CD_TURN_MAX_DIM,
     cd_basis_product,
 )
-from srmech.amsc.mat import Mat
-from srmech.amsc.poly import Poly
+from srmech.math.mat import Mat
+from srmech.math.poly import Poly
 from srmech.introspect import describe
 
 #: The three capability axes (same set the rc339 ratchet walks).

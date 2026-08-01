@@ -21,7 +21,7 @@ Determinism + numpy-free (v0.7.5rc113)
 The encode helpers compose the Klein-4 sector algebra of
 :mod:`srmech.math.hdc` (``klein4_expand`` / ``klein4_bind`` / ``klein4_bundle``
 / the fractional-agreement ``klein4_similarity``) over the framework-native
-:class:`~srmech.amsc.hv.HV` carrier — **numpy-free end-to-end** (#564). numpy
+:class:`~srmech.math.hv.HV` carrier — **numpy-free end-to-end** (#564). numpy
 was only ever an *incidental* deterministic source here (the per-token vector
 seed + the memory subsample + the infer sampler), never a correctness oracle,
 so as of rc113 those three sites run on the stdlib ``random.Random`` stream and

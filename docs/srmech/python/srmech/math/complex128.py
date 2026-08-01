@@ -1,7 +1,7 @@
-"""srmech.amsc.complex128 — the framework-native double-precision complex scalar
+"""srmech.math.complex128 — the framework-native double-precision complex scalar
 carrier (``Complex128``).
 
-The complex sibling of :class:`srmech.amsc.q.Q`. Where ``Q`` carries an **exact**
+The complex sibling of :class:`srmech.math.q.Q`. Where ``Q`` carries an **exact**
 real scalar (a reduced ``(num, den)`` rational that collapses to a decimal only
 at ``float(q)``), ``Complex128`` carries a **float** complex scalar — the
 display-boundary type for values that are genuinely complex *and* irrational
@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import numbers
 
-from ..math import rational as _rational
+from . import rational as _rational
 
 __all__ = ["Complex128"]
 
@@ -184,7 +184,7 @@ class Complex128:
     def __abs__(self):
         """Modulus ``|z| = √(re² + im²)`` via the srmech Class-N
         :func:`srmech.math.rational.sqrt` (not ``math.hypot``/``math.sqrt``).
-        Genuinely irrational → the exact-rational :class:`~srmech.amsc.q.Q` boundary
+        Genuinely irrational → the exact-rational :class:`~srmech.math.q.Q` boundary
         (itself a :class:`numbers.Real`, so ``abs(z)`` is a Real, as the
         :class:`numbers.Complex` contract requires)."""
         return _rational.sqrt(self.norm_sq())

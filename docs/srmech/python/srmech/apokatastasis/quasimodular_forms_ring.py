@@ -42,7 +42,7 @@ i.e. the SAME normalized-Eisenstein formula ``E_k = 1 − (2k/B_k)·Σ σ_{k−1
 at ``k = 2`` (the prefactor ``−2·2 / B_2 = −4 / (1/6) = −24`` is the von
 Staudt–Clausen ``B_2 = 1/6``, computed here by the SAME Bernoulli cascade as the
 modular ``E_k`` — :func:`~srmech.apokatastasis.eisenstein._bernoulli`, NOT a magic ``−24``).
-:func:`eisenstein_e2` returns its exact-:class:`~srmech.amsc.q.Q` q-series
+:func:`eisenstein_e2` returns its exact-:class:`~srmech.math.q.Q` q-series
 ``[1, −24, −72, −96, −168, …]``. ``Eisenstein(2)`` stays REJECTED (the modular
 carrier's ``k ≥ 4`` contract is intact); ``E_2`` enters ONLY through the
 quasimodular path here, the honest separation of objects.
@@ -83,7 +83,7 @@ solution reproduces ALL provided terms, and returns the UNIQUE exact-ℚ polynom
 representation ``{(a, b, c): c_{a,b,c}}`` — or ``None`` when no such representation
 exists. The construction/solve IS the decision: it builds the ``E_2/E_4/E_6``
 q-series, forms the monomial columns by exact-ℚ truncated q-series multiplication,
-solves with the exact-ℚ :class:`~srmech.amsc.qmat.QMat` Gauss-Jordan, and VERIFIES.
+solves with the exact-ℚ :class:`~srmech.math.qmat.QMat` Gauss-Jordan, and VERIFIES.
 
 THE OPERAND BOUNDARIES (the honest OPENs — named, not faked)
 ===========================================================
@@ -131,8 +131,8 @@ from __future__ import annotations
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from .eisenstein import Eisenstein, _bernoulli, _divisor_power_sum
-from ..amsc.q import Q
-from ..amsc.qmat import QMat
+from ..math.q import Q
+from ..math.qmat import QMat
 
 __all__ = [
     "QuasiModularFormsRing",
@@ -174,7 +174,7 @@ def _native_eis():
 
 
 def eisenstein_e2(n_terms: int) -> List[Q]:
-    """The exact-:class:`~srmech.amsc.q.Q` q-series of the WEIGHT-2 QUASIMODULAR
+    """The exact-:class:`~srmech.math.q.Q` q-series of the WEIGHT-2 QUASIMODULAR
     Eisenstein generator
 
         E_2(τ) = 1 − 24 · Σ_{n≥1} σ_1(n) qⁿ ,   σ_1(n) = Σ_{d|n} d ,
@@ -206,7 +206,7 @@ def eisenstein_e2(n_terms: int) -> List[Q]:
 
 def _eisenstein_e2_py(n_terms: int) -> List[Q]:
     """The COMPLETE pure-Python ``eisenstein_e2`` (the parity oracle for the C
-    peer): the exact-:class:`~srmech.amsc.q.Q` coefficients of
+    peer): the exact-:class:`~srmech.math.q.Q` coefficients of
     ``E_2 = 1 − (2·2/B_2)·Σ σ_1(n) qⁿ`` to ``n_terms`` terms. The prefactor
     ``−4/B_2`` is computed ONCE (exact-``Q`` Bernoulli — the SAME cascade as the
     modular ``E_k``); each ``c_n`` is ``prefactor · σ_1(n)`` (exact-int
@@ -220,7 +220,7 @@ def _eisenstein_e2_py(n_terms: int) -> List[Q]:
 
 
 def _to_q(x) -> Q:
-    """Coerce a q-series entry to an exact :class:`~srmech.amsc.q.Q` — accept an
+    """Coerce a q-series entry to an exact :class:`~srmech.math.q.Q` — accept an
     exact ``Q``, an ``int``, or a reduced ``(num, den)`` pair (a 2-element tuple OR
     list, so a JSON-RPC round-trip that turns tuples into lists still parses). A
     ``float`` is REJECTED (the carrier is exact-rational; a float must enter through
@@ -240,7 +240,7 @@ def _to_q(x) -> Q:
 
 
 def _qmul(a: Sequence[Q], b: Sequence[Q], n_terms: int) -> List[Q]:
-    """Exact-:class:`~srmech.amsc.q.Q` truncated q-series convolution to
+    """Exact-:class:`~srmech.math.q.Q` truncated q-series convolution to
     ``n_terms`` terms: ``(a·b)[n] = Σ_{i+j=n} a[i]·b[j]`` for ``n < n_terms``. All
     exact rational; no float, no numpy / ``math``."""
     out: List[Q] = [_Q_ZERO] * n_terms
@@ -311,7 +311,7 @@ class QuasiModularFormsRing:
     # ── the monomial q-series columns (the basis matrix builder) ───────────────
     @staticmethod
     def _monomial_qseries(a: int, b: int, c: int, n_terms: int) -> List[Q]:
-        """The exact-:class:`~srmech.amsc.q.Q` q-series of the monomial
+        """The exact-:class:`~srmech.math.q.Q` q-series of the monomial
         ``E_2^a · E_4^b · E_6^c`` to ``n_terms`` terms — the ``E_2``
         (:func:`eisenstein_e2`) / rc83 ``E_4``,``E_6`` carriers raised to integer
         powers by exact-ℚ truncated q-series multiplication. ``E_2⁰ E_4⁰ E_6⁰`` is
@@ -353,7 +353,7 @@ class QuasiModularFormsRing:
         → the empty rep ``{}``). At least ``dim(k) + 2`` terms are required for the
         system to be well-posed AND verifiable (more terms is fine); too few raises
         ``ValueError``. ``n_terms`` (optional) caps the terms USED (default: all
-        provided). Exact over ℚ via :class:`~srmech.amsc.qmat.QMat` Gauss-Jordan;
+        provided). Exact over ℚ via :class:`~srmech.math.qmat.QMat` Gauss-Jordan;
         DISPATCHES to the native ``srmech_quasimodular_forms_ring_represent`` C peer
         when loaded (compared element-for-element, never trusted); else the
         pure-Python :meth:`_represent_py` body (the COMPLETE alternative + the
@@ -394,7 +394,7 @@ class QuasiModularFormsRing:
                       ) -> Optional[Dict[Tuple[int, int, int], Q]]:
         """The COMPLETE pure-Python ``represent`` (the parity oracle for the C
         peer): build the weight-``k`` monomial-basis matrix, solve the square
-        subsystem exactly over ℚ (:class:`~srmech.amsc.qmat.QMat`), and VERIFY the
+        subsystem exactly over ℚ (:class:`~srmech.math.qmat.QMat`), and VERIFY the
         solution against EVERY provided term. ``f`` is the coerced ``Q`` q-series,
         ``mono`` the weight-``k`` monomial basis. Returns ``{(a,b,c): Q}`` or
         ``None``. All exact rational; no float / numpy / ``math`` / ``abs``."""
@@ -535,7 +535,7 @@ class QuasiModularForm:
         return dict(self._rep)
 
     def q_series(self, n_terms: int) -> List[Q]:
-        """Reconstruct the exact-:class:`~srmech.amsc.q.Q` q-series of this form to
+        """Reconstruct the exact-:class:`~srmech.math.q.Q` q-series of this form to
         ``n_terms`` terms from its rep: ``Σ_{a,b,c} c_{a,b,c}·(E_2^a E_4^b E_6^c)``.
         Exact; no float, no abs()."""
         if not isinstance(n_terms, int) or n_terms < 1:

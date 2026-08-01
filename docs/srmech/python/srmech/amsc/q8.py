@@ -65,7 +65,7 @@ import json as _json
 from typing import List, Sequence, Tuple
 
 from srmech.amsc import _native
-from srmech.amsc.hv import HV as _HV
+from srmech.math.hv import HV as _HV
 
 #: The Q8 alphabet size (3 bits: 2 for the V4 coset, 1 for the center sign).
 _Q8_N = 8

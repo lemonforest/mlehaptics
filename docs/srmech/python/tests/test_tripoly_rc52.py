@@ -33,8 +33,8 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc.q import Q
-from srmech.amsc.tripoly import TriPoly
+from srmech.math.q import Q
+from srmech.math.tripoly import TriPoly
 
 
 # ── a tiny sparse-monomial Fraction oracle (independent reimplementation) ──────

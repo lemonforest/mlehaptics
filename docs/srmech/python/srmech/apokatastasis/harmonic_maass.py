@@ -64,7 +64,7 @@ THE HOLOMORPHIC MOCK PART CARRIER (``MockQSeries``)
 
 The holomorphic part ``f⁺`` is held by a THIN q-series carrier
 :class:`MockQSeries`: a leading rational ``q``-power (an exact
-:class:`~srmech.amsc.q.Q`) + a finite GENERATING RULE that emits exact integer
+:class:`~srmech.math.q.Q`) + a finite GENERATING RULE that emits exact integer
 coefficients to any depth ``N``. Two rule kinds:
 
   * ``eulerian_f`` — the Ramanujan order-3 Eulerian rule
@@ -74,7 +74,7 @@ coefficients to any depth ``N``. Two rule kinds:
     a BOUNDED exact computation to any depth. This is the depth-bounded rule for
     the keystone — equality of two such pairs is decided to a requested depth.
   * ``qpoly`` — a finite closed-form mock part given as an exact-``ℚ``
-    :class:`~srmech.amsc.qpoly.QPoly`-style coefficient list (a truncation that IS
+    :class:`~srmech.math.qpoly.QPoly`-style coefficient list (a truncation that IS
     the whole object). Equality of two ``qpoly`` mock parts is EXACT.
 
 A general mock part with NO finite generating rule (no Eulerian rule, no closed
@@ -103,7 +103,7 @@ from __future__ import annotations
 
 from typing import List, Optional, Sequence, Tuple, Union
 
-from ..amsc.q import Q
+from ..math.q import Q
 from .unary_theta import UnaryTheta
 
 __all__ = ["MockQSeries", "HarmonicMaass", "harmonic_maass"]
@@ -262,7 +262,7 @@ class MockQSeries:
     def from_qpoly(cls, coeffs: "Sequence[Tuple[int, int]]",
                    leading: "Q | int" = 0) -> "MockQSeries":
         """A finite closed-form mock part: an exact-``ℚ`` coefficient list
-        ``[(num, den), …]`` (or a list of :class:`~srmech.amsc.q.Q`) starting at
+        ``[(num, den), …]`` (or a list of :class:`~srmech.math.q.Q`) starting at
         the optional ``leading`` ``q``-power. Equality of two such parts is EXACT
         (the truncation IS the whole object)."""
         lead = leading if isinstance(leading, Q) else Q(int(leading), 1)
@@ -277,7 +277,7 @@ class MockQSeries:
     @property
     def leading_power(self) -> Q:
         """The leading ``q``-power factored out so :meth:`q_series` starts at the
-        constant term (exact :class:`~srmech.amsc.q.Q`)."""
+        constant term (exact :class:`~srmech.math.q.Q`)."""
         return self._leading
 
     @property
@@ -289,7 +289,7 @@ class MockQSeries:
 
     def q_series(self, N: int) -> "List[Q]":
         """The exact coefficient list ``[c_0, …, c_N]`` (after the leading-power
-        factor-out) to order ``N`` inclusive, as exact :class:`~srmech.amsc.q.Q`.
+        factor-out) to order ``N`` inclusive, as exact :class:`~srmech.math.q.Q`.
         For the Eulerian rule the coefficients are integers (returned as ``Q``); for
         a ``qpoly`` rule the stored exact-``ℚ`` list is padded / truncated to ``N``.
         No float, no ``abs()`` (the Class-K pin-slot carries any sign)."""
@@ -368,7 +368,7 @@ class HarmonicMaass:
         >>> hm.weight                          # Q(1, 2)  == 2 − 3/2
         >>> hm.xi() is g3                       # True (ξ of the pair is its shadow)
 
-    - :attr:`weight` ``= 2 − shadow.weight`` (exact :class:`~srmech.amsc.q.Q`).
+    - :attr:`weight` ``= 2 − shadow.weight`` (exact :class:`~srmech.math.q.Q`).
     - :attr:`hol` / :attr:`holomorphic_part` — the mock part :class:`MockQSeries`.
     - :attr:`shadow` — the weight-``(2−k)`` :class:`~srmech.apokatastasis.unary_theta.UnaryTheta`.
     - :meth:`xi` — the shadow map ``ξ_k`` (Prop. 3.2): returns the shadow (the
@@ -414,7 +414,7 @@ class HarmonicMaass:
     @property
     def weight(self) -> Q:
         """The half-integral WEIGHT ``k = 2 − shadow.weight`` (exact
-        :class:`~srmech.amsc.q.Q`). The shadow map ``ξ_k`` lowers weight ``k`` to
+        :class:`~srmech.math.q.Q`). The shadow map ``ξ_k`` lowers weight ``k`` to
         ``2 − k`` (Bruinier–Funke Prop. 3.2), so the form's weight is ``2`` minus
         the shadow's. For the #9 keystone: ``2 − 3/2 = 1/2``."""
         return _Q_TWO - self._shadow.weight
@@ -431,7 +431,7 @@ class HarmonicMaass:
     # ── the exact q-series of each channel ────────────────────────────────────
     def hol_q_series(self, N: int) -> "List[Q]":
         """The holomorphic part's exact coefficient list to order ``N`` (after its
-        leading-power factor-out) — exact :class:`~srmech.amsc.q.Q`. For the #9
+        leading-power factor-out) — exact :class:`~srmech.math.q.Q`. For the #9
         keystone (``eulerian_f``) these are the integer ``f(q)`` coefficients
         ``[1, 1, −2, 3, −3, …]`` (returned as ``Q``)."""
         return self._hol.q_series(N)

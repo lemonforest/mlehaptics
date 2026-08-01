@@ -39,7 +39,7 @@ import pytest
 
 from srmech.amsc import genome as G
 from srmech.amsc import tool_schema as TS
-from srmech.amsc.hv import HV
+from srmech.math.hv import HV
 
 
 # ──────────────────────────────────────────────────────────────────────

@@ -110,7 +110,7 @@ from typing import Tuple
 
 from srmech.math.rational import sqrt as _rsqrt  # §22: scalar root via Class-N
 from srmech.math.laplacian import mat_hermitian_eigendecompose
-from srmech.amsc.mat import Mat
+from srmech.math.mat import Mat
 from srmech.qm.spin import pauli_matrices
 
 
@@ -260,7 +260,7 @@ def chsh_operator() -> "Mat":
 def operator_norm(H) -> float:
     """Operator (spectral) norm of a Hermitian matrix: ``max_i |λ_i|``.
 
-    numpy-FREE (v0.7.5rc115) — accepts a :class:`~srmech.amsc.mat.Mat`, an
+    numpy-FREE (v0.7.5rc115) — accepts a :class:`~srmech.math.mat.Mat`, an
     ``ndarray``, or a list-of-rows. Computed via the unconditionally numpy-free
     native :func:`srmech.math.laplacian.mat_hermitian_eigendecompose` (Class L
     primitive — native Jacobi C path + pure-Python fallback). For a Hermitian

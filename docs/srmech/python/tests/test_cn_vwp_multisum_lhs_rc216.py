@@ -44,7 +44,7 @@ from srmech.apokatastasis.elliptic_jackson import (
     _max_thetas_per_side,
     _num_partitions,
 )
-from srmech.amsc.q import Q
+from srmech.math.q import Q
 from srmech.apokatastasis.thetasum import ThetaSum
 
 

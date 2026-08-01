@@ -29,9 +29,9 @@ Input — the **three term ratios** of ``F``, each a rational function of
   * ``r_k(n,j,k) = F(n,j,k+1) / F(n,j,k)``   (the ``rk_num`` / ``rk_den`` operands)
 
 each given as two *trivariate* exact-``ℚ[n,j,k]`` polynomials — a
-:class:`~srmech.amsc.tripoly.TriPoly` (which this op exists FOR), or any value
-:meth:`~srmech.amsc.tripoly.TriPoly._as_tripoly` coerces (a :class:`BiPoly` in
-``(n,k)``, a :class:`~srmech.amsc.poly.Poly` in ``k``, a scalar). This MIRRORS the
+:class:`~srmech.math.tripoly.TriPoly` (which this op exists FOR), or any value
+:meth:`~srmech.math.tripoly.TriPoly._as_tripoly` coerces (a :class:`BiPoly` in
+``(n,k)``, a :class:`~srmech.math.poly.Poly` in ``k``, a scalar). This MIRRORS the
 ``zeilberger`` two-ratio (``r_n`` / ``r_k``) encoding, extended to the third
 direction (``r_j``).
 
@@ -51,15 +51,15 @@ ansatz LHS already carries). Multiply the whole identity through to a single com
 denominator — a polynomial identity in ``ℚ[n,j,k]``, LINEAR in the unknown
 ``{a_i(n) coeffs} ∪ {x_j(n,j,k) coeffs} ∪ {x_k(n,j,k) coeffs}`` — and match every
 ``n^p·j^q·k^r`` monomial. That is one HOMOGENEOUS exact-``ℚ`` linear system (solved
-with the exact Gauss-Jordan :class:`~srmech.amsc.qmat.QMat`). The first ``L`` with a
+with the exact Gauss-Jordan :class:`~srmech.math.qmat.QMat`). The first ``L`` with a
 kernel vector whose ``a``-block is nonzero is the minimal recurrence; summing the
 telescoping identity over all ``j,k`` (natural boundaries: ``R_j·F`` / ``R_k·F``
 vanish at the summation limits) collapses the right-hand side and yields
 ``Σ_i a_i(n) f(n+i) = 0``.
 
 The whole pipeline stays EXACT over ``ℚ`` — every polynomial is built on the
-bigint :class:`~srmech.amsc.q.Q` / :class:`~srmech.amsc.poly.Poly` /
-:class:`~srmech.apokatastasis.zeilberger.BiPoly` / :class:`~srmech.amsc.tripoly.TriPoly`
+bigint :class:`~srmech.math.q.Q` / :class:`~srmech.math.poly.Poly` /
+:class:`~srmech.apokatastasis.zeilberger.BiPoly` / :class:`~srmech.math.tripoly.TriPoly`
 carriers (no magnitude ceiling), every solve is exact Gauss-Jordan over ``ℚ``.
 There is NO float anywhere; sign is the **Class-K** pin-slot via the ``Q``
 sign-branch (never an ALU ``abs()``); no ``math`` module, no numpy.
@@ -85,9 +85,9 @@ from __future__ import annotations
 import os
 from typing import Dict, List, Optional, Tuple
 
-from ..amsc.poly import Poly
-from ..amsc.q import Q
-from ..amsc.tripoly import TriPoly
+from ..math.poly import Poly
+from ..math.q import Q
+from ..math.tripoly import TriPoly
 
 __all__ = ["apagodu_zeilberger"]
 
@@ -123,10 +123,10 @@ def _native():
 
 
 def _coerce_tri(value) -> TriPoly:
-    """Coerce a term-ratio operand to a :class:`~srmech.amsc.tripoly.TriPoly`. A
+    """Coerce a term-ratio operand to a :class:`~srmech.math.tripoly.TriPoly`. A
     ``TriPoly`` passes through; a ``BiPoly`` in ``(n,k)`` / a ``Poly`` in ``k`` / an
     exact scalar / a coercible block sequence is lifted (the
-    :meth:`~srmech.amsc.tripoly.TriPoly._as_tripoly` regime)."""
+    :meth:`~srmech.math.tripoly.TriPoly._as_tripoly` regime)."""
     if isinstance(value, TriPoly):
         return value
     lifted = TriPoly.zero()._as_tripoly(value)
@@ -148,7 +148,7 @@ def apagodu_zeilberger(rn_num, rn_den, rj_num, rj_den, rk_num, rk_den,
     ``r_n(n,j,k) = F(n+1,j,k)/F(n,j,k)``; ``rj_num`` / ``rj_den`` the ``j``-ratio
     ``r_j = F(n,j+1,k)/F(n,j,k)``; ``rk_num`` / ``rk_den`` the ``k``-ratio
     ``r_k = F(n,j,k+1)/F(n,j,k)``. Each is a
-    :class:`~srmech.amsc.tripoly.TriPoly` (exact-``ℚ[n,j,k]``), or any
+    :class:`~srmech.math.tripoly.TriPoly` (exact-``ℚ[n,j,k]``), or any
     TriPoly-coercible value (a ``BiPoly`` in ``(n,k)``, a ``Poly`` in ``k``, a
     scalar).
 
@@ -221,7 +221,7 @@ def _apagodu_pure(rn_n: TriPoly, rn_d: TriPoly, rj_n: TriPoly, rj_d: TriPoly,
 
 def _rho(rn_n: TriPoly, rn_d: TriPoly, i: int) -> Tuple[TriPoly, TriPoly]:
     """``ρ_i(n,j,k) = F(n+i,j,k)/F(n,j,k) = Π_{t=0}^{i-1} r_n(n+t,j,k)`` as a
-    ``(num, den)`` pair of :class:`~srmech.amsc.tripoly.TriPoly`. ``ρ_0 = 1``."""
+    ``(num, den)`` pair of :class:`~srmech.math.tripoly.TriPoly`. ``ρ_0 = 1``."""
     num = _TP_ONE
     den = _TP_ONE
     for t in range(i):
@@ -273,7 +273,7 @@ def _solve_parametrized(rn_d, rhos, den_p, rj_n, rj_d, rk_n, rk_d, order,
     with a nonzero ``a``-block yields the recurrence + the two certificate
     numerators ``x_j`` / ``x_k`` (the rationals ``R_j = x_j/D_P`` / ``R_k =
     x_k/D_P``)."""
-    from ..amsc.qmat import QMat
+    from ..math.qmat import QMat
 
     dp_j1 = den_p.shift_j(1)                       # D_P(n, j+1, k)
     dp_k1 = den_p.shift_k(1)                       # D_P(n, j, k+1)
@@ -371,7 +371,7 @@ def _jk_monomials(jk_deg: int) -> List[Tuple[int, int, int]]:
 
 def _x_to_tripoly(x_coeffs: List[Q], jk_mons: List[Tuple[int, int, int]]) -> TriPoly:
     """Pack a flat certificate-numerator coefficient vector (one ``Q`` per
-    ``jk_mons`` exponent) into a :class:`~srmech.amsc.tripoly.TriPoly`."""
+    ``jk_mons`` exponent) into a :class:`~srmech.math.tripoly.TriPoly`."""
     terms = {}
     for q, (dn, dj, dk) in zip(x_coeffs, jk_mons):
         if q != 0:
@@ -428,9 +428,9 @@ def _kernel_rref(QMat, rows):
     """The exact-ℚ RREF of the homogeneous Apagodu–Zeilberger system, byte-identical
     whichever path runs. Auto-by-size: a large system (cell count past the threshold
     — the order-≥2 double-sum matrices that hit the dense Hadamard-envelope arena)
-    reduces through the bounded-memory :meth:`~srmech.amsc.qmat.QMat.rref_crt` (CRT
+    reduces through the bounded-memory :meth:`~srmech.math.qmat.QMat.rref_crt` (CRT
     re-fibration); a tiny system stays on the faster dense
-    :meth:`~srmech.amsc.qmat.QMat.rref`. Returns the RREF as a list-of-rows of
+    :meth:`~srmech.math.qmat.QMat.rref`. Returns the RREF as a list-of-rows of
     ``Q``."""
     m = QMat.from_rows([list(r) for r in rows])
     use_crt = m.n_rows * m.n_cols > _CRT_KERNEL_CELL_THRESHOLD
@@ -484,10 +484,10 @@ def _homogeneous_kernel(QMat, rows, n_unknowns, a_block):
 # ── the wire form for the C bridge (mirror tripoly._tri_pairs) ─────────────────
 
 def _tri_pairs(t: TriPoly) -> List[List[List[Tuple[int, int]]]]:
-    """A :class:`~srmech.amsc.tripoly.TriPoly` → the nested
+    """A :class:`~srmech.math.tripoly.TriPoly` → the nested
     ``[[[(num, den), …]_n]_k]_j`` bridge form (j-major, then k, then ascending-n
     ``Poly`` coefficients) the C peer consumes — the SAME form
-    :func:`srmech.amsc.tripoly._tri_pairs` emits."""
+    :func:`srmech.math.tripoly._tri_pairs` emits."""
     out: List[List[List[Tuple[int, int]]]] = []
     for bib in t.blocks:
         kgrid: List[List[Tuple[int, int]]] = []
@@ -498,8 +498,8 @@ def _tri_pairs(t: TriPoly) -> List[List[List[Tuple[int, int]]]]:
 
 
 def _tri_from_pairs(blocks) -> TriPoly:
-    """Rebuild a :class:`~srmech.amsc.tripoly.TriPoly` from the nested
+    """Rebuild a :class:`~srmech.math.tripoly.TriPoly` from the nested
     ``[[[(num, den), …]_n]_k]_j`` bridge form (from the C peer; each leaf already
-    reduced) — the SAME form :func:`srmech.amsc.tripoly._tri_from_pairs` consumes."""
-    from ..amsc.tripoly import _tri_from_pairs as _tfp
+    reduced) — the SAME form :func:`srmech.math.tripoly._tri_from_pairs` consumes."""
+    from ..math.tripoly import _tri_from_pairs as _tfp
     return _tfp(blocks)

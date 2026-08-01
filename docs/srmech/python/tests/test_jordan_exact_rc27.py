@@ -32,7 +32,7 @@ from srmech.amsc.cascade.matrix_cascades import (
     jordan_chains_exact,
     jordan_form_exact,
 )
-from srmech.amsc.qalg import Qalg
+from srmech.math.qalg import Qalg
 
 
 def test_numpy_is_absent_so_this_runs_not_skips():

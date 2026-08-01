@@ -12,7 +12,7 @@ oracle), not numpy. The DtN-property and area-law invariants are checked with th
 exact Class-L ``dense_solve`` + stdlib list arithmetic.
 """
 from fractions import Fraction
-from srmech.amsc.q import Q  # #845: outputs are now Q, not Fraction
+from srmech.math.q import Q  # #845: outputs are now Q, not Fraction
 
 import pytest
 
@@ -58,7 +58,7 @@ def test_float_path_matches_exact() -> None:
     """The default float path equals the exact-Fraction reference (numpy-free:
     the EXACT path is the oracle, not numpy). The float ``S`` returns in the
     numpy-free ``Mat`` carrier (rc131 carrier-format law), NOT a bare list."""
-    from srmech.amsc.mat import Mat
+    from srmech.math.mat import Mat
     L = dense_laplacian(*PATH4)
     S = schur_complement(L, [0, 3])  # default: numpy-free Mat carrier
     assert isinstance(S, Mat) and S.shape == (2, 2)

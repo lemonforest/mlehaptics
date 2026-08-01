@@ -39,7 +39,7 @@ What it attests (each a bit-exact, exact-rational witness):
   associativity-free statement of §VII.6.23.4 ("anything past and unobserved is
   lost") — exact-rational, no float, no ``abs()``.
 
-**Exact-rational, numpy-free.** Every component is a :class:`srmech.amsc.q.Q`
+**Exact-rational, numpy-free.** Every component is a :class:`srmech.math.q.Q`
 (#845: srmech's C-native exact-rational carrier, not stdlib ``fractions``);
 the construction needs only ``+``, ``−``, ``×`` and the Class-K sign-flip (never
 ``abs()`` — sign is the Class-K pin-slot per
@@ -91,7 +91,7 @@ from srmech.amsc.cascade.atoms import (      # Class-K pin-slot / Class-C reorie
     reorient as _reorient,
 )
 from srmech.math.cyclic import gcd as _gcd   # Class-I gcd (native); NOT stdlib math
-from srmech.amsc.q import Q, to_q            # #845: the CD element carrier is Q
+from srmech.math.q import Q, to_q            # #845: the CD element carrier is Q
 
 from srmech.amsc import _native  # rc10: native srmech_cd_basis_product dispatch
 
@@ -158,7 +158,7 @@ CD_COMPOSE_MAX_DIM = 8
 #: **SCOPE (rc343, `#T972`) — this is a CD fact, not a universal one.** rc339
 #: published this number in ``describe()["limits"]`` with no carrier attached,
 #: and as a GLOBAL statement it is false: any ASSOCIATIVE carrier keeps folding
-#: non-commuting turns at any dim. srmech's own :class:`~srmech.amsc.mat.Mat`
+#: non-commuting turns at any dim. srmech's own :class:`~srmech.math.mat.Mat`
 #: (product ``mat_matmul``) was MEASURED over the matrix units of ``M_n(ℝ)`` at
 #: 81/81 turn-composing pairs for ``n=3`` (algebra dim 9), 42 of them
 #: non-commuting, and 256/256 for ``n=4`` (dim 16), 108 non-commuting — both
@@ -254,11 +254,11 @@ def _is_pow2(n: int) -> bool:
 
 
 def _coerce_frac(x: Any) -> Q:
-    """Coerce one scalar to an exact :class:`~srmech.amsc.q.Q` — the CD element
+    """Coerce one scalar to an exact :class:`~srmech.math.q.Q` — the CD element
     carrier (#845: srmech's C-native exact rational, not stdlib ``fractions``).
     A ``Q`` passes through unchanged; every other exact-rational scalar (``int`` /
     ``float`` / a stdlib ``fractions.Fraction`` / another ``as_integer_ratio``-able
-    carrier / a ``(num, den)`` pair) rides :func:`srmech.amsc.q.to_q`, so the
+    carrier / a ``(num, den)`` pair) rides :func:`srmech.math.q.to_q`, so the
     ``hypercomplex_exp`` Q-twiddle and a plain ``Fraction`` both feed straight into
     ``cd_mult``. (``float`` becomes its EXACT ratio via ``to_q`` → ``Q.from_float``
     — byte-identical to the old ``Fraction(float)``.)"""
@@ -470,7 +470,7 @@ def is_division_algebra_dim(dim: int) -> bool:
 # ──────────────────────────────────────────────────────────────────────
 # The Hurwitz (Cayley–Dickson) conversion LADDER (rc116; #1248 / F1038):
 # promote / project between adjacent rungs ℝ ↪ ℂ ↪ ℍ ↪ 𝕆 ↪ 𝕊 …, the algebra-
-# one-level-up analog of the srmech.amsc.carrier_ladder variable ladder.
+# one-level-up analog of the srmech.math.carrier_ladder variable ladder.
 #
 # PROMOTE is the SUBALGEBRA EMBEDDING — zero-pad the higher (imaginary-doubling)
 # half, so ``x ↦ (x, 0)``; the element is unchanged, it merely gains higher
@@ -832,7 +832,7 @@ def table_product(table: Any, x: Sequence[Any], y: Sequence[Any]
             ``(num, den)``).
 
     Returns:
-        A ``dim``-tuple of exact :class:`~srmech.amsc.q.Q` — the same carrier
+        A ``dim``-tuple of exact :class:`~srmech.math.q.Q` — the same carrier
         :func:`cd_mult` returns, so the two are directly comparable.
 
     Raises:
@@ -916,7 +916,7 @@ def associator(x: Sequence[Any], y: Sequence[Any], z: Sequence[Any],
             definite Cayley–Dickson ladder ℝ→ℂ→ℍ→𝕆→𝕊…
 
     Returns:
-        A ``dim``-tuple of exact :class:`~srmech.amsc.q.Q`.
+        A ``dim``-tuple of exact :class:`~srmech.math.q.Q`.
 
     Raises:
         ValueError: operands of unequal length; a non-power-of-two length when
@@ -1206,7 +1206,7 @@ def left_mult_matrix(x: Sequence[Any], table: Any = None) -> List[List[Q]]:
     contraction is a **carrier op** (:func:`srmech.math.laplacian.mat_matmul` /
     ``mat_matvec``) rather than an operator to reach for — numpy is a carrier,
     never the math engine, and ``L(x)`` here is a nested list of exact
-    :class:`~srmech.amsc.q.Q`, which no numpy dtype can hold without rounding.
+    :class:`~srmech.math.q.Q`, which no numpy dtype can hold without rounding.
     """
     x = _as_elem(x)
     n = len(x)

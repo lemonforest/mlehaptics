@@ -27,8 +27,8 @@ from dataclasses import dataclass, field
 from typing import List, Mapping, Sequence
 
 from srmech.math import hdc, rational
-from srmech.amsc.hv import HV
-from srmech.amsc.q import Q
+from srmech.math.hv import HV
+from srmech.math.q import Q
 
 from . import substrate as cs
 
@@ -75,7 +75,7 @@ class CoherenceReadout:
     classify a recall step COHERENT / BRANCH / STOP without re-probing ``M``:
 
     * ``candidates_topk`` / ``raw_sims_topk`` — the top-k atoms + their RAW
-      ``klein4_similarity`` scores (exact :class:`~srmech.amsc.q.Q`), sorted
+      ``klein4_similarity`` scores (exact :class:`~srmech.math.q.Q`), sorted
       descending by the exact rational (Class-K pin-slot compare — never a
       ``float`` sort key on the decision path).
     * ``noise_floor`` — the principled, attested floor (``Q(1, 4)`` chance

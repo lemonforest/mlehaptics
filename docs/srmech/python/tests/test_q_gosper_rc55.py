@@ -28,8 +28,8 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc.q import Q
-from srmech.amsc.qpoly import QPoly
+from srmech.math.q import Q
+from srmech.math.qpoly import QPoly
 from srmech.apokatastasis.q_gosper import q_gosper
 
 
@@ -185,7 +185,7 @@ def test_certificate_is_one_over_q_minus_one():
 def test_coercion_forms_accepted():
     """The term-ratio operands accept a ``Poly``-in-q and the nested-list ℚ[q] form,
     not just ``QPoly`` handles — value-identical to the explicit QPoly."""
-    from srmech.amsc.poly import Poly
+    from srmech.math.poly import Poly
     # r=2: a Poly-in-q [2] (a constant) as numerator, [1] as denominator.
     a = q_gosper(Poly.from_coeffs([2]), Poly.from_coeffs([1]))
     b = q_gosper(QPoly.from_dict({(0, 0): Q(2, 1)}), QPoly.one())

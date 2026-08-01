@@ -42,9 +42,9 @@ from typing import Sequence
 
 from ..amsc import _native
 from ..amsc import format as _fmt          # Class A — sha256_bytes (native-dispatched)
-from ..amsc.hv import HV
-from ..amsc.mat import Mat
-from ..amsc.q import Q
+from .hv import HV
+from .mat import Mat
+from .q import Q
 
 
 # Canonical HDC dimension default. Higher D = better noise tolerance;
@@ -293,7 +293,7 @@ def hamming(a: bytes, b: bytes) -> int:
 
 
 def similarity(a: bytes, b: bytes) -> "Q":
-    """Normalized BSC similarity in ``[-1, 1]`` as the EXACT :class:`~srmech.amsc.q.Q`.
+    """Normalized BSC similarity in ``[-1, 1]`` as the EXACT :class:`~srmech.math.q.Q`.
 
     ``similarity(a, b) = 1 - 2 * hamming(a, b) / D = (D - 2*hamming) / D`` where
     ``D = 8 * len(a)`` — both integers, so the return is the exact ``Q`` carrier:
@@ -535,7 +535,7 @@ def polar_bundle(*vectors):
 
 
 def polar_similarity(a, b, skip_zero: bool = True) -> "Q":
-    """Polar match-fraction similarity — exact rational :class:`~srmech.amsc.q.Q`.
+    """Polar match-fraction similarity — exact rational :class:`~srmech.math.q.Q`.
 
     ``skip_zero=True`` (default): match-fraction over only the positions where
     **both** vectors are non-zero (0 = "no information", excluded). Returns the
@@ -571,7 +571,7 @@ def polar_similarity(a, b, skip_zero: bool = True) -> "Q":
 
 def polar_density(v) -> "Q":
     """Fraction of non-zero (informative) positions — exact rational
-    :class:`~srmech.amsc.q.Q`.
+    :class:`~srmech.math.q.Q`.
 
     ``Q(1, 1)`` = fully bipolar (no dead-band); lower = more positions resting in
     the Class-K dead-band / uncertain state. The density is exactly
@@ -1937,7 +1937,7 @@ def _klein4_match_count_core(a, b):
 
 def klein4_similarity(a, b, *, sectors=None, parallel=None, mode="chunk") -> "Q":
     """Klein-4 similarity: fraction of positions where ``a == b`` (0 = orthogonal,
-    1 = identical) — the exact rational :class:`~srmech.amsc.q.Q`. All four
+    1 = identical) — the exact rational :class:`~srmech.math.q.Q`. All four
     states are informative — there is no skip state.
 
     The similarity is exactly ``matches / D`` with both integers, so the return

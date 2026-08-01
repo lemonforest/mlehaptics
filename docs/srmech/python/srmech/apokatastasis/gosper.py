@@ -11,25 +11,25 @@ in hand the sum telescopes: ``Σ_{k=a}^{b} t(k) = T(b+1) − T(a)``.
 
 A hypergeometric term is fully described by its **term ratio**
 ``t(k+1)/t(k) = num(k)/den(k)`` (two exact-rational polynomials in ``ℚ[k]``).
-This op takes that ratio — the two :class:`~srmech.amsc.poly.Poly` operands — and:
+This op takes that ratio — the two :class:`~srmech.math.poly.Poly` operands — and:
 
   1. reduces ``r = num/den`` (strip the common polynomial factor);
   2. puts ``r`` in **Gosper–Petkovšek normal form** ``r(k) = (a(k)/b(k)) ·
      (c(k+1)/c(k))`` with ``gcd(a(k), b(k+h)) = 1`` for every integer ``h ≥ 0``,
      by peeling ``g = gcd(a(k), b(k+h))`` at each ``h`` in the
-     :meth:`~srmech.amsc.poly.Poly.dispersion` set (Class-N over Class-J: exact
+     :meth:`~srmech.math.poly.Poly.dispersion` set (Class-N over Class-J: exact
      ``ℚ[k]`` GCD / long division / dispersion shift);
   3. solves the **Gosper equation** ``a(k)·x(k+1) − b(k−1)·x(k) = c(k)`` for a
      polynomial ``x`` of bounded degree — the classic Gosper degree bound from
      the degrees + leading coefficients of ``a(k) ± b(k−1)`` — via undetermined
      coefficients: a small EXACT-ℚ linear system solved with the exact
-     Gauss-Jordan :class:`~srmech.amsc.qmat.QMat` (C-accelerated as of rc40);
+     Gauss-Jordan :class:`~srmech.math.qmat.QMat` (C-accelerated as of rc40);
   4. if ``x`` exists, returns the **rational certificate** ``R(k) = b(k−1)·x(k) /
      c(k)`` (the antidifference is ``T(k) = R(k)·t(k)``); else returns ``None``
      (no hypergeometric closed form — e.g. the harmonic ``t(k) = 1/k``).
 
 The whole pipeline stays EXACT over ``ℚ`` — every polynomial is a
-:class:`~srmech.amsc.poly.Poly` (two bigint :class:`~srmech.amsc.q.Q` integers per
+:class:`~srmech.math.poly.Poly` (two bigint :class:`~srmech.math.q.Q` integers per
 coefficient, no magnitude ceiling), every solve is exact Gauss-Jordan over ``ℚ``.
 There is NO float anywhere; sign is the **Class-K** pin-slot via ``Q`` sign-branch
 (never an ALU ``abs()``); no ``math`` module, no numpy. This is the **Σ-row** of
@@ -51,8 +51,8 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional, Sequence, Tuple
 
-from ..amsc.poly import Poly
-from ..amsc.q import Q
+from ..math.poly import Poly
+from ..math.q import Q
 
 __all__ = ["gosper"]
 
@@ -74,7 +74,7 @@ def _native():
 
 
 def _as_poly(value) -> Poly:
-    """Coerce a ``gosper`` operand to a :class:`~srmech.amsc.poly.Poly` (a ``Poly``
+    """Coerce a ``gosper`` operand to a :class:`~srmech.math.poly.Poly` (a ``Poly``
     passes through; an ascending-degree coefficient sequence is wrapped via
     :meth:`Poly.from_coeffs`)."""
     if isinstance(value, Poly):
@@ -92,7 +92,7 @@ def gosper(num, den) -> Optional[Dict[str, Poly]]:
 
     ``num`` and ``den`` are the numerator / denominator of the hypergeometric
     **term ratio** ``t(k+1)/t(k) = num(k)/den(k)`` — each a
-    :class:`~srmech.amsc.poly.Poly` (or an ascending-degree coefficient sequence
+    :class:`~srmech.math.poly.Poly` (or an ascending-degree coefficient sequence
     coerced to one). The op decides whether ``t(k)`` has a hypergeometric
     antidifference ``T(k)`` (a term with ``T(k+1) − T(k) = t(k)``):
 
@@ -160,7 +160,7 @@ def _gosper_petkovsek_form(a: Poly, b: Poly) -> Tuple[Poly, Poly, Poly]:
     integer ``h ≥ 0``.
 
     Peels the common factor at each non-negative integer shift in the
-    :meth:`~srmech.amsc.poly.Poly.dispersion` set: for ``h`` with ``g(k) =
+    :meth:`~srmech.math.poly.Poly.dispersion` set: for ``h`` with ``g(k) =
     gcd(a(k), b(k+h))`` non-constant, divide ``g(k)`` out of ``a``, divide
     ``g(k−h)`` out of ``b``, and accumulate ``c ·= Π_{j=1}^{h} g(k−j)`` (the
     Petkovšek bookkeeping that keeps ``r`` invariant). Exact over ``ℚ[k]``."""
@@ -242,10 +242,10 @@ def _solve_exact(aug_rows: Sequence[Sequence[Q]], n_cols: int) -> Optional[Poly]
     """Solve the (possibly over-determined) exact-ℚ linear system whose augmented
     ``[A | c]`` rows are ``aug_rows`` (the last column the RHS), over ``n_cols``
     unknowns. Routes the elimination through the exact Gauss-Jordan RREF of the
-    :class:`~srmech.amsc.qmat.QMat` (C-accelerated when present): a free column →
+    :class:`~srmech.math.qmat.QMat` (C-accelerated when present): a free column →
     ``0`` (any choice is valid), a pivot in the RHS column → inconsistent →
     ``None``. Returns the solution as an ascending-degree ``Poly`` ``x``."""
-    from ..amsc.qmat import QMat
+    from ..math.qmat import QMat
     if not aug_rows:
         return Poly.zero()
     rref = QMat.from_rows([list(r) for r in aug_rows]).rref()

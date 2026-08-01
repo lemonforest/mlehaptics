@@ -1,8 +1,8 @@
 """0.9.0rc34 — the exact-rational matrix carrier ``QMat`` (the bigint peer of Mat).
 
 ``QMat`` is the 2-D exact carrier: a dense matrix whose every entry is an exact
-:class:`~srmech.amsc.q.Q` rational (a reduced ``(num, den)`` of Python ``int`` =
-arbitrary precision). It is to :class:`srmech.amsc.mat.Mat` what ``Q`` is to a
+:class:`~srmech.math.q.Q` rational (a reduced ``(num, den)`` of Python ``int`` =
+arbitrary precision). It is to :class:`srmech.math.mat.Mat` what ``Q`` is to a
 float scalar — exact dense linear algebra over ℚ with **no magnitude ceiling**.
 
 This ratchet proves:
@@ -35,8 +35,8 @@ from fractions import Fraction
 import pytest
 
 from srmech.amsc import QMat
-from srmech.amsc.mat import Mat
-from srmech.amsc.q import Q
+from srmech.math.mat import Mat
+from srmech.math.q import Q
 
 
 def test_numpy_is_absent_so_this_runs_not_skips():

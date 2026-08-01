@@ -32,7 +32,7 @@ from srmech.amsc import _native
 from srmech.amsc import compose, coupling
 from srmech.math import hdc, laplacian
 from srmech.music import harmonics
-from srmech.amsc.q import Q
+from srmech.math.q import Q
 
 _I8P = ctypes.POINTER(ctypes.c_int8)
 

@@ -9,7 +9,7 @@ Where :func:`srmech.apokatastasis.q_gosper.q_gosper` does INDEFINITE q-summation
 ``q_wz_certificate`` **PROVES a terminating q-hypergeometric identity** — it produces
 AND verifies the *q-WZ certificate* of a constant q-sum ``Σ_k F(n,k) = const``
 (T.H. Koornwinder, "On Zeilberger's algorithm and its q-analogue," J. Comput. Appl.
-Math. 48 (1993) 91–111 — the same paper :class:`~srmech.amsc.qpoly.QPoly` /
+Math. 48 (1993) 91–111 — the same paper :class:`~srmech.math.qpoly.QPoly` /
 :func:`~srmech.apokatastasis.q_gosper.q_gosper` / :func:`~srmech.apokatastasis.q_zeilberger.q_zeilberger`
 cite; the q-WZ pair method anchor is H. Wilf & D. Zeilberger, "An algorithmic proof
 theory for hypergeometric (ordinary and q) multisum/integral identities," Invent.
@@ -30,7 +30,7 @@ where ``G(n,k+1) = (σ_y R)·(σ_y F)`` and ``σ_y : Y ↦ q·Y`` is the q-shift
 
 Input — the two **term ratios** of the proper q-hypergeometric term ``F``, each a
 rational function of ``(X, Y) = (qⁿ, qᵏ)`` given by a numerator / denominator pair of
-:class:`~srmech.amsc.qbipoly.QBiPoly` (exact-``ℚ[q]`` bivariate in ``(X,Y)`` — the
+:class:`~srmech.math.qbipoly.QBiPoly` (exact-``ℚ[q]`` bivariate in ``(X,Y)`` — the
 SAME operands :func:`~srmech.apokatastasis.q_zeilberger.q_zeilberger` takes):
 
   * ``r_n(X,Y) = F(n+1,k) / F(n,k)``   (the ``rn_num`` / ``rn_den`` operands)
@@ -72,8 +72,8 @@ a q-WZ certificate exists AND the q-WZ equation verifies, else ``None`` (the ter
 not q-WZ-summable / the identity is not a constant q-sum).
 
 The whole pipeline stays EXACT over ``ℚ[q]`` — every polynomial is a
-:class:`~srmech.amsc.qbipoly.QBiPoly` (each coefficient a
-:class:`~srmech.amsc.qpoly.QPoly` over the bigint :class:`~srmech.amsc.poly.Poly`, no
+:class:`~srmech.math.qbipoly.QBiPoly` (each coefficient a
+:class:`~srmech.math.qpoly.QPoly` over the bigint :class:`~srmech.math.poly.Poly`, no
 magnitude ceiling), the verify a coefficient-by-coefficient compare. There is NO
 float anywhere; sign is the **Class-K** pin-slot via the ``Q`` / ``Poly`` sign-branch
 (never an ALU ``abs()``); no ``math`` module, no numpy. This is the **q-row CLOSER**
@@ -96,10 +96,10 @@ from __future__ import annotations
 
 from typing import Dict, Optional
 
-from ..amsc.poly import Poly
-from ..amsc.q import Q
-from ..amsc.qpoly import QPoly
-from ..amsc.qbipoly import QBiPoly
+from ..math.poly import Poly
+from ..math.q import Q
+from ..math.qpoly import QPoly
+from ..math.qbipoly import QBiPoly
 from .q_zeilberger import q_zeilberger
 
 __all__ = ["q_wz_certificate"]
@@ -122,9 +122,9 @@ def _native():
 
 def _qb_pairs(b: QBiPoly):
     """A ``QBiPoly`` → the ``(y_xlow[], rows)`` bridge form the C peer consumes — the
-    SAME per-Y-cell QPoly-row form :func:`srmech.amsc.qbipoly._qb_pairs` emits (the
+    SAME per-Y-cell QPoly-row form :func:`srmech.math.qbipoly._qb_pairs` emits (the
     bridge the q-Zeilberger peer also uses)."""
-    from ..amsc.qbipoly import _qb_pairs as _f
+    from ..math.qbipoly import _qb_pairs as _f
     return _f(b)
 
 
@@ -134,9 +134,9 @@ def q_wz_certificate(rn_num, rn_den, rk_num, rk_den) -> Optional[Dict[str, objec
     ``rn_num`` / ``rn_den`` are the numerator / denominator of the ``n``-term-ratio
     ``r_n(X,Y) = F(n+1,k)/F(n,k)`` (``X = qⁿ``, ``Y = qᵏ``); ``rk_num`` / ``rk_den``
     likewise for the ``k``-term-ratio ``r_k(X,Y) = F(n,k+1)/F(n,k)``. Each is a
-    :class:`~srmech.amsc.qbipoly.QBiPoly` (exact bivariate-``ℚ[q]`` in ``(X,Y)``), or a
-    :class:`~srmech.amsc.qpoly.QPoly` (read as a polynomial in ``Y = qᵏ`` alone), a
-    :class:`~srmech.amsc.poly.Poly` in ``q`` (a scalar), or an ascending-``Y``-degree
+    :class:`~srmech.math.qbipoly.QBiPoly` (exact bivariate-``ℚ[q]`` in ``(X,Y)``), or a
+    :class:`~srmech.math.qpoly.QPoly` (read as a polynomial in ``Y = qᵏ`` alone), a
+    :class:`~srmech.math.poly.Poly` in ``q`` (a scalar), or an ascending-``Y``-degree
     ``QPoly`` sequence. ``F`` must be the NORMALIZED q-summand of a constant identity
     (``Σ_k F(n,k)`` independent of ``n``).
 

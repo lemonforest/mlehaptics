@@ -8,7 +8,7 @@ The LM-agnostic VSA cleanup-memory graduates from siona to srmech per UPSTREAM
 import pytest
 
 from srmech.math import hdc
-from srmech.amsc.q import Q
+from srmech.math.q import Q
 from srmech.amsc._native import HAS_NATIVE
 
 

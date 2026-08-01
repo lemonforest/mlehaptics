@@ -1,15 +1,15 @@
-"""srmech.amsc.qbipoly — the framework-native EXACT bivariate-q CARRIER
+"""srmech.math.qbipoly — the framework-native EXACT bivariate-q CARRIER
 (``QBiPoly``): a polynomial in ``Y = q**k`` whose coefficients are
-:class:`~srmech.amsc.qpoly.QPoly` in ``X = q**n`` (themselves Laurent in ``X`` over
+:class:`~srmech.math.qpoly.QPoly` in ``X = q**n`` (themselves Laurent in ``X`` over
 ``ℚ[q]``). The q-analog of :class:`~srmech.apokatastasis.zeilberger.BiPoly`, and the working
 substrate the q-Zeilberger creative-telescoping recurrence-finder (rc56) rides.
 
 Where :class:`~srmech.apokatastasis.zeilberger.BiPoly` carries a bivariate polynomial in the
 *ordinary* shift variables ``(n, k)`` — a polynomial in ``k`` whose coefficients are
-:class:`~srmech.amsc.poly.Poly` in ``n``, with the ordinary shifts ``n ↦ n+1`` /
+:class:`~srmech.math.poly.Poly` in ``n``, with the ordinary shifts ``n ↦ n+1`` /
 ``k ↦ k+1`` as its summation payload — ``QBiPoly`` carries the object q-summation
 operates on, one ring up: a polynomial in ``Y = q**k`` whose coefficients are
-:class:`~srmech.amsc.qpoly.QPoly` in ``X = q**n`` over the ground ring ``ℚ[q]``, and
+:class:`~srmech.math.qpoly.QPoly` in ``X = q**n`` over the ground ring ``ℚ[q]``, and
 the load-bearing operations are the two **q-shifts**
 
   * ``σ_x : X ↦ q·X``   (``F(q**n, q**k) ↦ F(q**(n+1), q**k)``, the n-direction
@@ -26,7 +26,7 @@ is σ_y). The q-coefficient field denominators in ``q`` enter ONLY at the
 undetermined-coefficient LINEAR SOLVE stage (handled over the field ``ℚ(q)`` by the
 rc55 q-Gosper solve internals, NOT by the carrier), so the minimal sufficient ground
 ring for the carrier algebra (``+``, ``−``, ``*``, the two q-shifts) is ``ℚ[q]`` —
-each cell a :class:`~srmech.amsc.qpoly.QPoly` over ``ℚ[q]``.
+each cell a :class:`~srmech.math.qpoly.QPoly` over ``ℚ[q]``.
 
 Representation (mirrors :class:`~srmech.apokatastasis.zeilberger.BiPoly`): a list of
 ``QPoly``-in-``X``, indexed by ``Y``-degree. ``terms[d]`` is the coefficient of
@@ -73,7 +73,7 @@ def _qb_trim(cells: Sequence[QPoly]) -> Tuple[QPoly, ...]:
 
 class QBiPoly:
     """An exact bivariate-q polynomial in ``(X, Y) = (q**n, q**k)`` — a polynomial in
-    ``Y = q**k`` whose coefficients are :class:`~srmech.amsc.qpoly.QPoly` in ``X =
+    ``Y = q**k`` whose coefficients are :class:`~srmech.math.qpoly.QPoly` in ``X =
     q**n`` (Laurent over ``ℚ[q]``). Immutable, trimmed of trailing-zero ``Y``-cells
     (the zero polynomial is the empty term list). The q-analog of
     :class:`~srmech.apokatastasis.zeilberger.BiPoly`; the exact substrate the q-Zeilberger
@@ -132,10 +132,10 @@ class QBiPoly:
     @classmethod
     def coerce(cls, value) -> "QBiPoly":
         """Coerce a ``q_zeilberger`` term-ratio operand to a ``QBiPoly``. A
-        ``QBiPoly`` passes through; a :class:`~srmech.amsc.qpoly.QPoly` is read as a
+        ``QBiPoly`` passes through; a :class:`~srmech.math.qpoly.QPoly` is read as a
         polynomial in ``Y = q**k`` (the no-``X`` case — the common acceptance form,
         the q-analog of ``BiPoly.coerce`` reading a ``Poly`` as a polynomial in
-        ``k``); a :class:`~srmech.amsc.poly.Poly` in ``q`` is the constant ``ℚ[q]``
+        ``k``); a :class:`~srmech.math.poly.Poly` in ``q`` is the constant ``ℚ[q]``
         scalar (a single ``Y**0 · X**0`` cell); an ascending-``Y``-degree sequence
         whose entries are themselves ``QPoly``-in-``X`` (or ``QPoly``-coercible cells)
         is wrapped term-by-term."""
@@ -268,7 +268,7 @@ def _qb_pairs(b: "QBiPoly") -> "Tuple[List[int], List[List[List[Tuple[int, int]]
     """A ``QBiPoly`` → the ``(y_xlow[], [[[(num, den), …]_q]_x]_Y)`` bridge form the
     C peer consumes: a per-``Y``-cell ``x_low`` list plus a ``Y``-ascending list, each
     entry the ``QPoly`` x-row of ascending-``q`` ``(num, den)`` runs (the SAME per-cell
-    row form :func:`srmech.amsc.qpoly._qp_pairs` emits). The zero cell rides as
+    row form :func:`srmech.math.qpoly._qp_pairs` emits). The zero cell rides as
     ``x_low = 0`` with an empty x-row."""
     y_xlow: List[int] = []
     rows: List[List[List[Tuple[int, int]]]] = []
@@ -291,7 +291,7 @@ def qbipoly_from_coeffs(coeffs) -> QBiPoly:
     constructor ToolEntry (rc113; issue #1239 / F1027 / UPSTREAM §85).
     ``coeffs[d]`` is the ``Y**d`` coefficient (``Y = q**k``), itself an
     **ascending-x** list (``X = q**n``) whose entries follow the
-    :func:`srmech.amsc.qpoly.qpoly_from_coeffs` cell grammar:
+    :func:`srmech.math.qpoly.qpoly_from_coeffs` cell grammar:
 
     - an ``int`` — a constant-in-``q`` coefficient;
     - a ``list`` of ints — the **ascending-q-degree** coefficient

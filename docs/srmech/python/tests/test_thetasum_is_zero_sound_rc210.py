@@ -34,7 +34,7 @@ from fractions import Fraction
 
 from srmech.amsc import ThetaSum
 from srmech.apokatastasis.ellbase import EllMonomial as M, Theta
-from srmech.amsc.q import Q
+from srmech.math.q import Q
 from srmech.apokatastasis.thetasum import (
     _NONZERO, _UNKNOWN, _ZERO, _Q_ZERO,
     _decide_thetasum, _struct_pexp_mul, _struct_theta_p, _term_char_v,

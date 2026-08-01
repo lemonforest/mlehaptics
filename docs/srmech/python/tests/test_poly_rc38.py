@@ -23,8 +23,8 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc.poly import Poly
-from srmech.amsc.q import Q
+from srmech.math.poly import Poly
+from srmech.math.q import Q
 
 
 # ── a tiny Fraction-list polynomial oracle (independent reimplementation) ──────

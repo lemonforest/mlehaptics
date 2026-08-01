@@ -1,6 +1,6 @@
 /*
  * srmech_carrier_spectrum.c -- the OPERAND-side dual of the_one (the C peer of
- * srmech.amsc.carrier_spectrum.carrier_spectrum). A 1:1 STRUCTURAL MIRROR of the
+ * srmech.math.carrier_spectrum.carrier_spectrum). A 1:1 STRUCTURAL MIRROR of the
  * pure-Python CHANNEL READ -- the harmonic occupancy of a carrier element under the
  * shift-Laplacian, in two orthogonal channels:
  *

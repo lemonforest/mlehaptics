@@ -32,7 +32,7 @@ from srmech.apokatastasis.harmonic_maass import (
     MockQSeries, HarmonicMaass, harmonic_maass, _eulerian_f_coeffs,
 )
 from srmech.apokatastasis.unary_theta import unary_theta
-from srmech.amsc.q import Q
+from srmech.math.q import Q
 from srmech.amsc import _native
 
 

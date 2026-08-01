@@ -39,7 +39,7 @@ from srmech.math.laplacian import (
     jacobi_eigvals,
     mat_eigvals,
 )
-from srmech.amsc.mat import Mat
+from srmech.math.mat import Mat
 
 _TOL = 1e-9
 

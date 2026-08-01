@@ -21,8 +21,8 @@ Input — the **two term ratios** of ``F``, each a rational function of ``(n,k)`
   * ``r_k(n,k) = F(n,k+1) / F(n,k)``   (the ``rk_num`` / ``rk_den`` operands)
 
 each given as two *bivariate* exact-``ℚ[n,k]`` polynomials — see :class:`BiPoly`
-below (a polynomial in ``k`` whose coefficients are :class:`~srmech.amsc.poly.Poly`
-in ``n``). A plain :class:`~srmech.amsc.poly.Poly` (a polynomial in ``k`` only, no
+below (a polynomial in ``k`` whose coefficients are :class:`~srmech.math.poly.Poly`
+in ``n``). A plain :class:`~srmech.math.poly.Poly` (a polynomial in ``k`` only, no
 ``n``) or an ascending-degree coefficient sequence is coerced.
 
 Method — **creative telescoping** (the rational-certificate form), for
@@ -36,7 +36,7 @@ Method — **creative telescoping** (the rational-certificate form), for
      P(n,k)``. Running the Gosper–Petkovšek machinery with the ``a_j(n)`` carried
      as additional unknowns makes the Gosper equation LINEAR in
      ``{a_j(n) coeffs} ∪ {certificate-poly coeffs}`` — one exact-``ℚ`` linear
-     system (solved with the exact Gauss-Jordan :class:`~srmech.amsc.qmat.QMat`).
+     system (solved with the exact Gauss-Jordan :class:`~srmech.math.qmat.QMat`).
   3. The first ``L`` with a nonzero solution gives the recurrence coefficients
      ``a_j(n)`` and the rational certificate ``R(n,k)`` (the Gosper certificate of
      ``T``): ``Σ_j a_j(n) F(n+j,k) = G(n,k+1) − G(n,k)`` with ``G = R·F``. Summing
@@ -44,7 +44,7 @@ Method — **creative telescoping** (the rational-certificate form), for
      ``Σ_j a_j(n) f(n+j) = 0``.
 
 The whole pipeline stays EXACT over ``ℚ`` — every polynomial is built on the
-bigint :class:`~srmech.amsc.q.Q` / :class:`~srmech.amsc.poly.Poly` carriers (no
+bigint :class:`~srmech.math.q.Q` / :class:`~srmech.math.poly.Poly` carriers (no
 magnitude ceiling), every solve is exact Gauss-Jordan over ``ℚ``. There is NO
 float anywhere; sign is the **Class-K** pin-slot via the ``Q`` sign-branch (never
 an ALU ``abs()``); no ``math`` module, no numpy.
@@ -63,8 +63,8 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional, Sequence, Tuple
 
-from ..amsc.poly import Poly
-from ..amsc.q import Q
+from ..math.poly import Poly
+from ..math.q import Q
 
 __all__ = ["zeilberger", "BiPoly", "bipoly_from_coeffs"]
 
@@ -95,7 +95,7 @@ def _native():
 
 class BiPoly:
     """An exact-ℚ bivariate polynomial in ``(n, k)`` — a polynomial in ``k`` whose
-    coefficients are :class:`~srmech.amsc.poly.Poly` in ``n``. Immutable, trimmed
+    coefficients are :class:`~srmech.math.poly.Poly` in ``n``. Immutable, trimmed
     of trailing-zero ``k``-coefficients (the zero polynomial is the empty term
     list). The exact substrate the Zeilberger term-ratio ``r_n(n,k)`` / ``r_k(n,k)``
     operands ride. No float, no ``abs()`` (Class-K sign), no ``math`` / numpy."""
@@ -139,7 +139,7 @@ class BiPoly:
     @classmethod
     def coerce(cls, value) -> "BiPoly":
         """Coerce a ``zeilberger`` term-ratio operand to a ``BiPoly``. A ``BiPoly``
-        passes through; a :class:`~srmech.amsc.poly.Poly` is read as a polynomial
+        passes through; a :class:`~srmech.math.poly.Poly` is read as a polynomial
         in ``k`` (the no-``n`` case — the common acceptance form); an
         ascending-``k``-degree sequence whose entries are themselves
         ``Poly``-in-``n`` (or coefficient sequences) is wrapped term-by-term."""
@@ -221,7 +221,7 @@ class BiPoly:
 
     def shift_n(self, h: int) -> "BiPoly":
         """``BiPoly(n, k) → BiPoly(n+h, k)`` — shift every Poly-in-n coefficient by
-        ``+h`` (the :meth:`srmech.amsc.poly.Poly.shift` dispersion over ``n``)."""
+        ``+h`` (the :meth:`srmech.math.poly.Poly.shift` dispersion over ``n``)."""
         return BiPoly._wrap(_bi_trim([c.shift(Q(h, 1)) for c in self._t]))
 
     def shift_k(self, h: int) -> "BiPoly":
@@ -261,7 +261,7 @@ def zeilberger(rn_num, rn_den, rk_num, rk_den, max_order: int = 6
     ``rn_num`` / ``rn_den`` are the numerator / denominator of the ``n``-term-ratio
     ``r_n(n,k) = F(n+1,k)/F(n,k)``; ``rk_num`` / ``rk_den`` likewise for the
     ``k``-term-ratio ``r_k(n,k) = F(n,k+1)/F(n,k)``. Each is a :class:`BiPoly`
-    (exact-``ℚ[n,k]``), or a :class:`~srmech.amsc.poly.Poly` (read as a polynomial
+    (exact-``ℚ[n,k]``), or a :class:`~srmech.math.poly.Poly` (read as a polynomial
     in ``k`` alone), or an ascending-``k``-degree coefficient sequence.
 
     Returns the minimal-order recurrence ``{"order": L, "coeffs": [Poly_in_n, …],
@@ -404,7 +404,7 @@ def _solve_parametrized(rho_common: List[BiPoly], den_p: BiPoly,
     numerator ``x(n,k)``. A nonzero kernel vector yields the recurrence + the
     rational certificate ``R(n,k) = x(n,k) / D_P(n,k)`` (times the Gosper b/c
     bookkeeping, folded in below)."""
-    from ..amsc.qmat import QMat
+    from ..math.qmat import QMat
 
     # The Gosper-in-k relation, written over the common denominator D_P:
     #   T(n,k+1) − T(n,k) summed telescopes ⇒ we need x(n,k) with
@@ -581,8 +581,8 @@ def _kernel_rref(QMat, rows):
     whichever path runs. Auto-by-size: a large system (cell count past the
     threshold — the order-2/order-3 creative-telescoping matrices that hit the
     dense Hadamard-envelope arena) reduces through the bounded-memory
-    :meth:`~srmech.amsc.qmat.QMat.rref_crt` (CRT re-fibration); a tiny system stays
-    on the faster dense :meth:`~srmech.amsc.qmat.QMat.rref`. Returns the RREF as a
+    :meth:`~srmech.math.qmat.QMat.rref_crt` (CRT re-fibration); a tiny system stays
+    on the faster dense :meth:`~srmech.math.qmat.QMat.rref`. Returns the RREF as a
     list-of-rows of ``Q`` (the form ``_homogeneous_kernel`` consumes)."""
     m = QMat.from_rows([list(r) for r in rows])
     use_crt = m.n_rows * m.n_cols > _CRT_KERNEL_CELL_THRESHOLD
@@ -596,7 +596,7 @@ def _homogeneous_kernel(QMat, rows, n_unknowns, a_block):
     recurrence (a kernel vector with zero ``a``-block is a spurious certificate-only
     solution). Returns ``(a_coeffs, x_coeffs)`` as exact ``Q`` lists, or ``None``
     when the only kernel vectors have a zero ``a``-block (no recurrence at this
-    order). Uses the exact Gauss-Jordan RREF of :class:`~srmech.amsc.qmat.QMat`."""
+    order). Uses the exact Gauss-Jordan RREF of :class:`~srmech.math.qmat.QMat`."""
     if not rows:
         return None
     rref = _kernel_rref(QMat, rows)
@@ -641,7 +641,7 @@ def bipoly_from_coeffs(coeffs) -> BiPoly:
     ``k``-ascending list of INTEGER-LEAF ``n``-coefficient lists — the
     PROSE-SIDE constructor ToolEntry (rc116; issue #1248 / F1038).
     ``coeffs[d]`` is the coefficient of ``k**d`` and is itself an
-    **ascending-``n``-degree** integer list (a :class:`~srmech.amsc.poly.Poly`
+    **ascending-``n``-degree** integer list (a :class:`~srmech.math.poly.Poly`
     in ``n``): ``bipoly_from_coeffs([[1, 1], [-1]])`` is ``(1 + n) − k``
     (``k**0`` coeff ``1 + n``, ``k**1`` coeff ``−1``) — the ordinary-row
     term-ratio building blocks the ``zeilberger`` / ``wz_certificate`` ops
@@ -667,7 +667,7 @@ def bipoly_from_coeffs(coeffs) -> BiPoly:
     Ints only (a ``bool`` / ``float`` / ``str`` leaf is an honest
     ``TypeError`` — the exact-``ℚ`` prose discipline; integers are exact). No
     float, no ``abs()``, no numpy / ``math``."""
-    from ..amsc.poly import _prose_int
+    from ..math.poly import _prose_int
     if isinstance(coeffs, tuple):
         coeffs = list(coeffs)
     if not isinstance(coeffs, list):

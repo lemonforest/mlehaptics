@@ -12,7 +12,7 @@ import re
 import tokenize
 
 from srmech.apokatastasis.ellbase import EllMonomial as M, Theta, EllRatio as R, _modified_theta_trunc
-from srmech.amsc.q import Q
+from srmech.math.q import Q
 
 _VALS = {"q": Q(2, 1), "p": Q(1, 9), "a": Q(3, 5), "b": Q(4, 7)}
 _N = 60

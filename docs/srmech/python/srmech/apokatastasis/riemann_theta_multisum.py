@@ -91,7 +91,7 @@ from __future__ import annotations
 from typing import List, Sequence, Tuple
 
 from .ellbase import EllMonomial
-from ..amsc.q import Q
+from ..math.q import Q
 
 __all__ = ["riemann_theta_multisum_lhs", "multivariate_riemann_theta_sum",
            "ThetaBracket", "ThetaBracketSum"]

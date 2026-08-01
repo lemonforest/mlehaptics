@@ -76,7 +76,7 @@ from __future__ import annotations
 from typing import Dict, List, Optional, Tuple
 
 from .ellbase import EllMonomial, EllRatio, Theta, _Q_SYM, _X
-from ..amsc.q import Q
+from ..math.q import Q
 from .thetasum import _Y
 
 __all__ = ["elliptic_recurrence_8w7"]

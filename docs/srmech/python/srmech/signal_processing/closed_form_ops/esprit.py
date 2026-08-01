@@ -28,7 +28,7 @@ from srmech.math.laplacian import (
     mat_lstsq,
     mat_eigvals,
 )
-from srmech.amsc.mat import Mat
+from srmech.math.mat import Mat
 
 OPERATION_NAME = "esprit"
 CLASS_COMPOSITION = ("L", "K")
@@ -47,7 +47,7 @@ def op(R, *, n_sources: int, D: int = 8192) -> List[complex]:
     ----------
     R:
         ``(M, M)`` Hermitian covariance matrix from a uniform linear array
-        (ULA) of M elements (a :class:`~srmech.amsc.mat.Mat`, a nested
+        (ULA) of M elements (a :class:`~srmech.math.mat.Mat`, a nested
         sequence, or anything with a ``tolist()`` — coerced numpy-free).
     n_sources:
         Number of sources (subspace dimension).

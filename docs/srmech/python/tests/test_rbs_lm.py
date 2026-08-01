@@ -12,7 +12,7 @@ gate (the STOP-list contaminant). So these tests assert full-vocab candidates +
 greedy resonator grounding rather than bigram-legality.
 
 numpy-free (v0.7.5rc113, #564): the encode path returns the framework-native
-``srmech.amsc.hv.HV`` carrier and the substrate runs with numpy absent, so these
+``srmech.math.hv.HV`` carrier and the substrate runs with numpy absent, so these
 assertions are HV-native (``len`` / ``.tolist`` / ``==``) rather than ndarray
 (``.shape`` / ``np.array_equal``). The structural properties under test
 (determinism, the XOR-sector relationship, self-similarity == 1.0, bigram-
@@ -24,7 +24,7 @@ from __future__ import annotations
 import pytest
 
 from srmech.math import hdc
-from srmech.amsc.q import Q
+from srmech.math.q import Q
 from srmech.rbs_lm import (
     CoherenceReadout,
     ContextSubstrate,

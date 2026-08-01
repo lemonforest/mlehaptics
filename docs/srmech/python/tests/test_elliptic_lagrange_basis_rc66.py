@@ -18,7 +18,7 @@ import pytest
 from srmech.apokatastasis.ellbase import (EllMonomial as M, Theta, EllRatio as R, _X, _P,
                                  elliptic_lagrange_basis)
 from srmech.apokatastasis.thetasum import _Y
-from srmech.amsc.q import Q
+from srmech.math.q import Q
 
 _x = M.symbol(_X)
 _y = M.symbol(_Y)

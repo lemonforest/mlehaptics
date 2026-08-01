@@ -21,7 +21,7 @@ to name them. **Measured on the rc362 tree, before this rc's fixes: 33 modules
 had at least one carrier token in a raise text, and 16 of the 33 were flagged.**
 Inspection of all 16 found most were not defects at all:
 
-* ``srmech.amsc.tripoly`` flagged ``BiPoly`` / ``Poly`` / ``Q`` because the
+* ``srmech.math.tripoly`` flagged ``BiPoly`` / ``Poly`` / ``Q`` because the
   *constructor* raises on them, while the registered op takes raw coefficients;
 * ``srmech.introspect.op_provenance`` flagged ``Mat`` / ``Q`` / ``Vec`` from prose in a
   raise that explains what is NOT provenance-tracked;

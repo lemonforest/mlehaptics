@@ -59,7 +59,7 @@ from srmech.apokatastasis.elliptic_jackson_an import (
     _verify_an_reduction,
     _VERIFY_MAX_COMPOSITIONS,
 )
-from srmech.amsc.q import Q
+from srmech.math.q import Q
 from srmech.apokatastasis.thetasum import ThetaSum
 
 

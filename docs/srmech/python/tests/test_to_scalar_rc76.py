@@ -46,7 +46,7 @@ def test_sqnorm_is_exact_integer_pair():
     sq = to_scalar(the_one(1, 1, 3, terms=24), mode="sqnorm")
     # v0.9.0: to_scalar returns the exact Q scalar-rational carrier (the raw
     # (num, den) integer pair is recoverable). Float never enters.
-    from srmech.amsc.q import Q
+    from srmech.math.q import Q
     assert isinstance(sq, Q)
     num, den = sq                       # Q unpacks to the exact int pair
     assert isinstance(num, int) and isinstance(den, int)

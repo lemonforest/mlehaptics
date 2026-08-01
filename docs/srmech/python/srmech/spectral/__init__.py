@@ -68,7 +68,7 @@ from srmech.amsc import _native
 from srmech.math import rational
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
 from srmech.math.laplacian import mat_hermitian_eigendecompose, mat_matvec
-from srmech.amsc.mat import Mat
+from srmech.math.mat import Mat
 
 from ..math.hdc import bind as _hdc_bind
 from ..math.hdc import hamming as _hdc_hamming

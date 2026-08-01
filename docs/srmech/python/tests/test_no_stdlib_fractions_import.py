@@ -1,7 +1,7 @@
 """No-stdlib-``fractions`` ratchet (v0.9.0rc263, #845).
 
 srmech carries its exact rationals in its OWN C-native carrier
-:class:`srmech.amsc.q.Q` — a reduced ``(num, den)`` integer pair whose reduce /
+:class:`srmech.math.q.Q` — a reduced ``(num, den)`` integer pair whose reduce /
 multiply ride the native ``srmech_rational_*`` / ``srmech_bigint`` symbols. It
 therefore borrows **nothing** from the stdlib ``fractions`` module: rc263 purged
 the last residue (the Cayley–Dickson element carrier, the exact-LA
@@ -198,7 +198,7 @@ def test_no_stdlib_fractions_import_anywhere_in_source():
     assert not violations, (
         "srmech imports the stdlib `fractions` module for its own math — it must "
         "not (#845). Carry the exact rational in srmech's own `Q` carrier "
-        "(`from srmech.amsc.q import Q, to_q`); a stdlib Fraction is still "
+        "(`from srmech.math.q import Q, to_q`); a stdlib Fraction is still "
         "accepted on INPUT via the numeric protocol, never imported:\n  "
         + "\n  ".join(violations)
     )
@@ -236,7 +236,7 @@ def test_no_unnamed_fractions_import_under_tests_and_tools():
         "a file under tests/ or tools/ imports the stdlib `fractions` module "
         "without a named allowance (#845 / #870, scope extended rc352).\n"
         "If srmech's own `Q` should be carrying this rational, use it "
-        "(`from srmech.amsc.q import Q, to_q`).\n"
+        "(`from srmech.math.q import Q, to_q`).\n"
         "If the STDLIB type is the point — an independent oracle that must not "
         "share the carrier under test, or a fixture proving srmech ACCEPTS the "
         "foreign type on input — add the file to _ALLOWED_SUPPORTING with the "
