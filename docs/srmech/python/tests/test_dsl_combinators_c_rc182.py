@@ -28,7 +28,7 @@ import math
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.dsl import chain, run_toml_chain
 from srmech.dsl._chain import _NATIVE_MISS
 from srmech.dsl._toml_chain import (

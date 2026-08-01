@@ -24,7 +24,7 @@ import contextlib
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.amsc.cascade.sedenion_register import (
     SedenionRegister, NUM_SLOTS,
     sed_navmap, sed_navigate, sed_is_navigable, sed_carry,

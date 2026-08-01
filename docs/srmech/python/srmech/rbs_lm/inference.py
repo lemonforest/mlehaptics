@@ -153,7 +153,7 @@ class RBSLMInferenceSubstrate:
         ``substrate.enc_mode`` selects the word encoder: ``"byteglyph"``
         (default — the C1 byte/glyph LM object, F916) or ``"wordhash"`` (the
         prior whole-word sha256 atom; pin it to reproduce pre-rc17 numerics)."""
-        from srmech.amsc._native import HAS_NATIVE, NATIVE_ABI_VERSION
+        from srmech._native import HAS_NATIVE, NATIVE_ABI_VERSION
         from srmech import __version__ as SRMECH_VERSION
 
         sub = params["substrate"]

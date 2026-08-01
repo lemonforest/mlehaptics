@@ -1,6 +1,6 @@
 """rc201b — the make_class HEAVY-carrier vtable + state-route machinery in C.
 
-srmech_make_class_run (bound as srmech.amsc._native.make_class_run_c) is the C
+srmech_make_class_run (bound as srmech._native.make_class_run_c) is the C
 peer of the compute half of srmech.dsl._class_catalog.CatalogClass. rc201 proved
 the plain + returns="self" spine; rc201b wires the HEAVY leaves + the remaining
 state-route machinery and proves each method dispatches BYTE-IDENTICAL to the
@@ -32,7 +32,7 @@ import json
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.amsc.cascade.sedenion_register import SedenionRegister
 from srmech.dsl import make_class
 from srmech.dsl._class_catalog import CLASS_CATALOG_DIR

@@ -44,7 +44,7 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc.carrier_schema import _CAPABILITY, _CARRIERS, carrier_schema
+from srmech.introspect.carrier_schema import _CAPABILITY, _CARRIERS, carrier_schema
 from srmech.amsc.cascade.cayley_dickson import (
     ASSOCIATIVE_ALGEBRA_DIMS,
     CD_ADDRESS_VERIFIED_DIM,

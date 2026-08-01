@@ -212,7 +212,7 @@ def test_native_matches_pure_when_present():
     """When the native srmech_wz_verify is loaded, its VERIFY decision is identical
     to the pure-Python bivariate-ℚ compare (the parity oracle), on the genuine
     certificate AND on a deliberately-wrong one. Skip-clean when no native lib."""
-    from srmech.amsc import _native as nat
+    from srmech import _native as nat
     from srmech.apokatastasis.wz_certificate import _verify_wz_equation_pure
     if not nat.has_native_wz_verify():
         pytest.skip("native srmech_wz_verify not present in this environment")

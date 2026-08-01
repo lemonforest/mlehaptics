@@ -219,7 +219,7 @@ def test_ops_in_text_all_and_gone_from_laplacian():
 
 def test_tool_entries_relocated_and_total_unchanged():
     from srmech import introspect
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
     assert "srmech.math.text.glyph_stream" in names
     assert "srmech.math.text.cooccurrence_edges" in names

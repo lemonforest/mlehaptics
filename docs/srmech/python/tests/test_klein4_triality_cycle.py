@@ -91,7 +91,7 @@ def test_so8_triality_cycle_is_also_order_three():
 
 
 def test_registered_in_tool_schema():
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
 
     names = {t.name for t in get_tool_schema()}
     assert "srmech.math.hdc.klein4_triality_cycle" in names

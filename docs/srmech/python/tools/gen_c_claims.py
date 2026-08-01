@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate ``srmech/amsc/_c_claims.py`` — the op -> C-symbol claim manifest.
+"""Generate ``srmech/introspect/_c_claims.py`` — the op -> C-symbol claim manifest.
 
 rc300 (`#T938`). The Rosetta ledger classifies 263 ops ``c_dispatched``: "routes
 to a ``srmech_*`` C symbol". That is a CLAIM about the loaded library, and until
@@ -23,7 +23,7 @@ actually names it rather than to every op transitively above it):
 
   * start at the ledger op;
   * follow only private helpers in the SAME module, ``*_c`` shims, and the
-    ``has_native_*`` predicates in ``srmech.amsc._native`` (the canonical
+    ``has_native_*`` predicates in ``srmech._native`` (the canonical
     convention, and the bridge used by the lazy
     ``getattr(nat, "has_native_x", None)`` probe idiom);
   * collect every ``srmech_*`` token appearing as a bytecode name or string
@@ -72,7 +72,7 @@ _OUT = _PY_ROOT / "srmech" / "amsc" / "_c_claims.py"
 
 _SYM = re.compile(r"^srmech_[A-Za-z0-9_]{2,}$")
 _HASNAT = re.compile(r"^has_native_[A-Za-z0-9_]+$")
-_NATIVE_MOD = "srmech.amsc._native"
+_NATIVE_MOD = "srmech._native"
 
 
 def _header_symbols() -> set:
@@ -217,7 +217,7 @@ adds symbols ABI-additively ("new symbols only, so SRMECH_ABI_VERSION stays N"),
 so a stale-but-ABI-{abi} library is a REACHABLE state with a correct pure
 fallback and a silently false classification.
 
-Consumed by :func:`srmech.amsc._native.c_claim_report` and surfaced as
+Consumed by :func:`srmech._native.c_claim_report` and surfaced as
 ``srmech.describe()["c_claims"]``. Regenerate with::
 
     python3 tools/regen_all.py            # from docs/srmech/python

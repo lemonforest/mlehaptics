@@ -36,7 +36,7 @@ import json
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.mcp._coercion import coerce_param, serialise_native
 
 _needs_native = pytest.mark.skipif(

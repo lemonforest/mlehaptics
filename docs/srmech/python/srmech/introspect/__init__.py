@@ -724,7 +724,7 @@ def describe() -> Dict[str, Any]:
 
     The "what is srmech?" root — the **self-recognition ROOT surface**
     of the v0.5.0 substrate-self-recognition arc. Calls
-    :func:`srmech.amsc.tool_schema.warmup_all` first so the counts are
+    :func:`srmech.introspect.tool_schema.warmup_all` first so the counts are
     complete no matter how srmech was entered, then groups the
     registered tool-schema by ``entry.category`` and folds in the
     native-dispatch status.
@@ -956,7 +956,7 @@ def describe() -> Dict[str, Any]:
     ``bounded_by``.
 
     ``bounded_by`` names a MECHANISM, from the closed
-    :data:`srmech.amsc.carrier_schema.CEILING_MECHANISMS` vocabulary, and the
+    :data:`srmech.introspect.carrier_schema.CEILING_MECHANISMS` vocabulary, and the
     admission rule is that it must be measurable SEPARATELY from the
     capability's own ``means``. rc339 gave ``turn`` ``bounded_by:
     "associativity"`` — but ``means`` DEFINES turn as ``x·(y·z) == (x·y)·z``,
@@ -1032,13 +1032,13 @@ def describe() -> Dict[str, Any]:
     was right for the rc it describes.) ``tools`` are the verbs and
     ``carriers`` the nouns; reporting one without the other described half a
     package. Per-carrier detail stays in
-    :func:`srmech.amsc.carrier_schema.carrier_schema`.
+    :func:`srmech.introspect.carrier_schema.carrier_schema`.
     """
     # Lazy imports: this module is imported during ``srmech.__init__``
     # BEFORE ``warmup_all`` / ``srmech.amsc`` are fully wired, so a
     # module-level import of these would be premature (import cycle).
-    from ..amsc import _native
-    from ..amsc.tool_schema import (
+    from .. import _native
+    from ..introspect.tool_schema import (
         TOOL_SCHEMA_VERSION,
         get_tool_schema,
         warmup_all,
@@ -1078,7 +1078,7 @@ def describe() -> Dict[str, Any]:
     # ceilings that bind. Each carrier now carries its capability row; the names
     # are recoverable as sorted(carriers["capabilities"]).
     try:
-        from ..amsc.carrier_schema import (
+        from ..introspect.carrier_schema import (
             _CAPABILITY, _CARRIERS, _domain_word_gap)
         _carrier_caps = {n: dict(_CAPABILITY[n]) for n in sorted(_CARRIERS)}
         # DERIVED from the rows just built — no second registry build, and no
@@ -1259,7 +1259,7 @@ def describe() -> Dict[str, Any]:
         for _src in _row["reads"]:
             _by_input[_src] = _by_input.get(_src, 0) + 1
     try:
-        from ..amsc.tool_schema import LANES as _LANES, LANE_INPUTS as _LANE_IN
+        from ..introspect.tool_schema import LANES as _LANES, LANE_INPUTS as _LANE_IN
         _lane_defs = dict(_LANES)
         _lane_inputs = dict(_LANE_IN)
     except Exception:  # pragma: no cover
@@ -1352,7 +1352,7 @@ def describe() -> Dict[str, Any]:
         # Carriers (rc298 `#936`; capability-tagged rc339 `#T967`) — the operand
         # nouns to `tools`' verbs, each with what it can DO. `capabilities` is
         # keyed by carrier name, so sorted(...) recovers the old name list. Full
-        # per-carrier detail via srmech.amsc.carrier_schema.carrier_schema().
+        # per-carrier detail via srmech.introspect.carrier_schema.carrier_schema().
         # `domain_word_gap` (rc354, F1336) is a NULL shipped AS a null: a
         # four-word MAGNITUDE / PHASE / ORIENTATION / PATH vocabulary was
         # proposed for picking a carrier by what a domain needs, and the
@@ -1388,9 +1388,11 @@ def native_status() -> Dict[str, Any]:
     this install?" A bare ``pip install srmech`` ships
     ``libsrmech.{so,dll,dylib}`` inside ``srmech/_native/``; this confirms
     it loaded, ABI-matched the Python shim, and is actually dispatched to
-    (vs. the pure-numpy fallback). NB the native shim lives at
-    ``srmech.amsc._native`` — NOT ``srmech._native``, which is the data
-    directory that merely *holds* the binary. Exposed top-level as
+    (vs. the pure-numpy fallback). NB since rc376 (ADR-0010) the ctypes shim
+    IS ``srmech/_native/__init__.py`` and the compiled binary sits beside it
+    in the SAME ``srmech/_native/`` package — shim and ``.so`` now co-locate
+    (before rc376 the shim was ``srmech.amsc._native`` while
+    ``srmech/_native/`` was a bare data directory). Exposed top-level as
     ``srmech.native_status()`` (and as ``describe()['native']``) so it is
     discoverable from ``dir(srmech)`` — the post-rc18 replacement for the
     old ``_native.HAS_NATIVE`` poke in the TestPyPI-before-PyPI discipline
@@ -1406,7 +1408,7 @@ def native_status() -> Dict[str, Any]:
         really run); on mismatch/failure it is False, ``load_error`` carries
         the reason, and srmech transparently uses the pure-Python fallback.
     """
-    from ..amsc import _native
+    from .. import _native
 
     return {
         "has_native": bool(_native.HAS_NATIVE),

@@ -42,7 +42,7 @@ C peer: ``srmech_gosper`` (``c/src/srmech_gosper.c``) orchestrates the SAME
 existing C kernels — ``srmech_poly_gcd`` / ``srmech_poly_divmod`` /
 ``srmech_poly_shift`` / ``srmech_poly_mul`` + ``srmech_qmat_solve`` (the exact-ℚ
 linear solve) — into one caller-arena, JPL-clean symbol. ``gosper`` routes through
-it when ``HAS_NATIVE`` (:func:`srmech.amsc._native.has_native_gosper`); the
+it when ``HAS_NATIVE`` (:func:`srmech._native.has_native_gosper`); the
 pure-Python body here is the COMPLETE alternative (and the byte-identical parity
 oracle): both emit the same reduced ``(num, den)`` certificate at any magnitude.
 """
@@ -66,7 +66,7 @@ def _native():
     falls cleanly to the pure-Python body (the complete alternative + the parity
     oracle) otherwise. Imported lazily to avoid a bootstrap cycle."""
     try:
-        from ..amsc import _native as nat
+        from .. import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_gosper", None)

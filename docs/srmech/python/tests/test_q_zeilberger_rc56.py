@@ -242,7 +242,7 @@ def test_coercion_forms_agree():
 def test_native_equals_pure_byte_identical():
     """The native C peer (the canonical k-free q-geometric case) is byte-identical to
     the pure-Python path. Skips cleanly when no native lib is present."""
-    from srmech.amsc import _native
+    from srmech import _native
     if not _native.has_native_q_zeilberger():
         pytest.skip("no native srmech_q_zeilberger (pure-Python path is the oracle)")
     import srmech.apokatastasis.q_zeilberger as QZ

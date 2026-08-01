@@ -46,7 +46,7 @@ from math import comb
 import pytest
 
 from tests._native_gate import require_native
-from srmech.amsc import _native
+from srmech import _native
 from srmech.amsc.cascade import matrix_cascades as mc
 from srmech.amsc.cascade.matrix_cascades import factor_integer_poly, lll_reduce
 

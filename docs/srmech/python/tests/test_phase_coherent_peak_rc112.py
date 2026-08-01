@@ -40,7 +40,7 @@ from pathlib import Path
 import pytest
 
 import srmech.amsc.cascade.hypercomplex_dft as hd
-from srmech.amsc import _native
+from srmech import _native
 from srmech.amsc.cascade import phase_coherent_peak, quaternion_dft
 from srmech.math.mat import Mat
 
@@ -256,7 +256,7 @@ def test_tools_total_matches_live():
 
 
 def test_registered_under_flat_name():
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
     assert "srmech.amsc.cascade.phase_coherent_peak" in names
 

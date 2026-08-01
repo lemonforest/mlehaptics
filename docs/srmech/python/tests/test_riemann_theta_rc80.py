@@ -51,7 +51,7 @@ if _TESTS_DIR not in _sys.path:
 from conftest import riemann_theta_force_pure
 
 from srmech.apokatastasis.riemann_theta import RiemannTheta, RiemannThetaG3, RiemannThetaG4
-from srmech.amsc import _native
+from srmech import _native
 
 
 # the trivial even genus-4 theta-constant (the one that collapses), reused below

@@ -402,7 +402,7 @@ def test_entry_point_unknown_type_rejected() -> None:
 def test_tool_schema_extension_loaded_at_activation(tmp_path: Path) -> None:
     """When a profile declares [profile.tool_schema].extension_file,
     the loader reads the TOML at activation time and registers each
-    [[tools]] block into srmech.amsc.tool_schema with the profile's
+    [[tools]] block into srmech.introspect.tool_schema with the profile's
     name as the owner.
 
     Synthesises a minimal package on disk with both descriptor +
@@ -410,7 +410,7 @@ def test_tool_schema_extension_loaded_at_activation(tmp_path: Path) -> None:
     """
     import sys as _sys
     import importlib
-    from srmech.amsc import tool_schema as ts
+    from srmech.introspect import tool_schema as ts
     from srmech.profile_loader import Profile
 
     # Build the fake package.
@@ -465,7 +465,7 @@ def test_tool_schema_extension_loaded_at_activation(tmp_path: Path) -> None:
         assert fakets_tools[0].owner == "fakets"
     finally:
         # Always unregister so test ordering is stable.
-        from srmech.amsc.tool_schema import unregister_profile_tools
+        from srmech.introspect.tool_schema import unregister_profile_tools
         unregister_profile_tools("fakets")
         _sys.path.remove(str(tmp_path))
         _sys.modules.pop("fake_ts_pkg", None)

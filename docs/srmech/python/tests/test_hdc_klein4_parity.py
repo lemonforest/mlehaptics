@@ -23,7 +23,7 @@ import random
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math import hdc
 from srmech.math.q import Q
 

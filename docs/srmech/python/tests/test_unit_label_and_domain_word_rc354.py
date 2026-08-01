@@ -23,7 +23,7 @@ from itertools import combinations
 import pytest
 
 import srmech
-from srmech.amsc.carrier_schema import (
+from srmech.introspect.carrier_schema import (
     DOMAIN_WORD_VERDICTS, _domain_word, _domain_word_gap)
 from srmech.amsc.cascade.cayley_dickson import cd_basis_product
 

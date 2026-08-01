@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """gen_tool_docs.py — GENERATE the introspection docs floor (rc240, #T838).
 
-Emits ``srmech/amsc/_tool_docs.py`` — a generated literal module holding
+Emits ``srmech/introspect/_tool_docs.py`` — a generated literal module holding
 ``TOOL_DOCS: dict[name -> {"explanation": str, "example": dict}]`` — the
 auto-seeded EXPLANATION (from each op's docstring) + EXAMPLE (executed where
 safe, else an honest signature usage-snippet) for every registered tool.
@@ -222,11 +222,11 @@ def build_docs() -> Tuple[Dict[str, Dict[str, Any]], Dict[str, Dict[str, Any]],
     if str(python_dir) not in sys.path:
         sys.path.insert(0, str(python_dir))
     import srmech  # noqa: F401
-    from srmech.amsc.tool_schema import get_tool_schema, warmup_all
+    from srmech.introspect.tool_schema import get_tool_schema, warmup_all
     warmup_all()
 
     try:
-        from srmech.amsc._tool_docs_curated import CURATED
+        from srmech.introspect._tool_docs_curated import CURATED
     except Exception:
         CURATED = {}
 
@@ -405,7 +405,7 @@ def main() -> None:
         for name in sorted(lost):
             print(f"    {name}: {', '.join(lost[name])}", file=sys.stderr)
         print("  If this is hand-written curation (the usual cause): move it "
-              "into srmech/amsc/_tool_docs_curated.py, which IS merged over "
+              "into srmech/introspect/_tool_docs_curated.py, which IS merged over "
               "the auto-seed and therefore survives.", file=sys.stderr)
         print("  If a docstring legitimately changed and the old seed is "
               "simply stale: re-run with --accept-seed-drift.", file=sys.stderr)

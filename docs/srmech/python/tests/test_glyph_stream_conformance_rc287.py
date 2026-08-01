@@ -23,8 +23,8 @@ import os
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc import _unicode_gb_tables as gbt
+from srmech import _native
+from srmech.math import _unicode_gb_tables as gbt
 from srmech.math import text as T
 
 DATA = os.path.join(os.path.dirname(__file__), "data")

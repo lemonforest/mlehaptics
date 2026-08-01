@@ -3,7 +3,7 @@
 Tests the four public operations (``dense_adjacency``,
 ``dense_laplacian``, ``normalized_laplacian``, ``jacobi_eigvals``)
 against hand-computed reference values. When
-``srmech.amsc._native.HAS_NATIVE`` is ``True``, the native ↔ fallback
+``srmech._native.HAS_NATIVE`` is ``True``, the native ↔ fallback
 parity sweep runs (toggling the flag to force the pure-Python fallback
 path and comparing outputs to ~1e-12 tolerance).
 
@@ -21,7 +21,7 @@ import random
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math import laplacian
 
 

@@ -10,7 +10,7 @@ compared them to each other**:
   the thing an MCP client validates a call against;
 * ``ToolEntry.example["input"]`` — the dict a reader copies to make that call.
 
-``srmech/amsc/tool_schema.py:28`` declares the contract in one line::
+``srmech/introspect/tool_schema.py:28`` declares the contract in one line::
 
     "input":  {"data": "b'abc'"},
 
@@ -35,7 +35,7 @@ invalid under their own live inputSchema** — 36.8% of all 513 srmech tools.
 REACH — THIS SHIPS
 ==================
 The same dicts are compiled into ``docs/srmech/c/src/srmech_tool_registry.c``
-(383 ``"input":`` literals) and live in ``srmech/amsc/_tool_docs.py`` inside the
+(383 ``"input":`` literals) and live in ``srmech/introspect/_tool_docs.py`` inside the
 wheel, so they reach users through ``describe()``, the MCP tool list and the
 compiled-in C registry — the same three surfaces the ref-notation arc measured.
 
@@ -76,7 +76,7 @@ from __future__ import annotations
 
 from typing import Dict, List, Tuple
 
-from srmech.amsc.tool_schema import get_tool_schema, warmup_all
+from srmech.introspect.tool_schema import get_tool_schema, warmup_all
 from srmech.mcp._tools import tool_entry_to_mcp_def
 
 warmup_all()
@@ -251,7 +251,7 @@ def test_example_input_keys_are_real_parameters_down_only_ceiling() -> None:
 
     assert not regressions, (
         "example['input'] key mismatch went UP — fix the example, never the "
-        "ceiling. The contract is srmech/amsc/tool_schema.py:28: 'input' is a "
+        "ceiling. The contract is srmech/introspect/tool_schema.py:28: 'input' is a "
         "kwargs map whose keys are parameter names.\n  "
         + "\n  ".join(regressions)
     )

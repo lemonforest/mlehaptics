@@ -37,7 +37,7 @@ import pytest
 from srmech.apokatastasis.riemann_theta import (RiemannTheta, RiemannThetaG3,
                                        _accumulate_phase_lattice, _cyclotomic_ring,
                                        _theta_at_validate)
-from srmech.amsc import _native
+from srmech import _native
 import srmech.introspect as introspect
 
 

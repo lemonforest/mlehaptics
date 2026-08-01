@@ -41,8 +41,8 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc._c_claims import (
+from srmech import _native
+from srmech.introspect._c_claims import (
     C_CLAIMS,
     UNVERIFIABLE_CEILING,
     UNVERIFIABLE_CLAIMS,
@@ -70,7 +70,7 @@ def test_manifest_matches_a_fresh_extraction():
     claims, unverifiable, off_header = gen.extract()
 
     assert claims == dict(C_CLAIMS), (
-        "srmech/amsc/_c_claims.py is STALE — the live dispatch surface no longer "
+        "srmech/introspect/_c_claims.py is STALE — the live dispatch surface no longer "
         "matches the committed manifest. Rerun: python3 tools/gen_c_claims.py"
     )
     assert unverifiable == UNVERIFIABLE_CLAIMS, (
@@ -220,7 +220,7 @@ def test_c_claims_module_imports_without_a_library():
 
     It ships in the pure wheel too, so an import-time dependency on the native
     shim's loaded state would break that wheel."""
-    import srmech.amsc._c_claims as mod
+    import srmech.introspect._c_claims as mod
 
     assert isinstance(mod.C_CLAIMS, dict) and mod.C_CLAIMS
     assert all(isinstance(v, tuple) and v for v in mod.C_CLAIMS.values())

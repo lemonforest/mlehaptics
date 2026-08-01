@@ -38,8 +38,8 @@ from pathlib import Path
 from srmech import introspect
 from srmech.biology import coupling as C
 from srmech.math import laplacian as L
-from srmech.amsc import _native
-from srmech.amsc.tool_schema import get_tool_schema, warmup_all
+from srmech import _native
+from srmech.introspect.tool_schema import get_tool_schema, warmup_all
 
 warmup_all()
 

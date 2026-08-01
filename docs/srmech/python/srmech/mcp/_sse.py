@@ -333,7 +333,7 @@ def serve_http_sse(
     # methods and DEFERS tools/call (the pure path here keeps the full
     # invoke_tool, so the default background=True server is unchanged).
     if not background and server is None and name == "srmech-mcp":
-        from ..amsc import _native
+        from .. import _native
 
         if _native.has_native_mcp_sse():
             rc = _native.mcp_serve_http_sse_c(host, port)

@@ -45,8 +45,8 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc.carrier_schema import _CARRIERS
+from srmech import _native
+from srmech.introspect.carrier_schema import _CARRIERS
 from srmech.math.dispatch import _OPEN_HINTS
 from srmech.introspect.responsion_schema import (
     _CONTINUOUS_VERIFIED,
@@ -56,7 +56,7 @@ from srmech.introspect.responsion_schema import (
     _pure_responsion_schema,
     responsion_schema,
 )
-from srmech.amsc.tool_schema import get_tool_schema, warmup_all
+from srmech.introspect.tool_schema import get_tool_schema, warmup_all
 
 warmup_all()
 
@@ -131,7 +131,7 @@ def test_operator_refs_resolve_in_tool_schema() -> None:
 
 
 def test_carrier_refs_resolve_in_carrier_schema() -> None:
-    from srmech.amsc.carrier_schema import carrier_schema
+    from srmech.introspect.carrier_schema import carrier_schema
 
     carriers = set(carrier_schema())
     assert carriers == set(_CARRIERS)

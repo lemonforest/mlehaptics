@@ -303,7 +303,7 @@ def _hash_native(record_min: Dict[str, Any]) -> Optional[str]:
     bytes to ``srmech_op_provenance_hash`` (parse → canonical rewrite →
     ``srmech_sha256_hex``). Returns the 64-hex digest, or ``None`` on any
     missing symbol / non-OK status (caller runs the pure path)."""
-    from ..amsc import _native
+    from .. import _native
     if not (
         _native.HAS_NATIVE
         and _native.LIB is not None
@@ -376,7 +376,7 @@ def op_provenance_hash(record: Dict[str, Any]) -> str:
 def _native_lib(*symbols: str):
     """Return the native LIB iff HAS_NATIVE and every named rc171 symbol is
     bound (a stale ABI-3 lib missing them → ``None`` → pure path)."""
-    from ..amsc import _native
+    from .. import _native
     if not (_native.HAS_NATIVE and _native.LIB is not None):
         return None
     lib = _native.LIB
@@ -403,7 +403,7 @@ def _verdict_native(r1: Dict[str, Any], r2: Dict[str, Any]) -> Optional[str]:
     if lib is None or j1 is None or j2 is None:
         return None
     import ctypes
-    from ..amsc import _native
+    from .. import _native
     ws_bytes = int(lib.srmech_op_verdict_arena_bytes(
         ctypes.c_size_t(len(j1)), ctypes.c_size_t(len(j2))))
     ws = (ctypes.c_char * ws_bytes)()
@@ -426,7 +426,7 @@ def _family_verdict_native(r1: Dict[str, Any],
     if lib is None or j1 is None or j2 is None:
         return None
     import ctypes
-    from ..amsc import _native
+    from .. import _native
     ws_bytes = int(lib.srmech_family_verdict_arena_bytes(
         ctypes.c_size_t(len(j1)), ctypes.c_size_t(len(j2))))
     ws = (ctypes.c_char * ws_bytes)()
@@ -452,7 +452,7 @@ def _carry_record_native(op: str, canon_inputs: Dict[str, Any],
     if lib is None or ij is None or pj is None or fj is None or rj is None:
         return None
     import ctypes
-    from ..amsc import _native
+    from .. import _native
     ob = op.encode("utf-8")
     ws_bytes = int(lib.srmech_op_carry_arena_bytes(
         ctypes.c_size_t(len(ij)), ctypes.c_size_t(len(pj)),
@@ -479,7 +479,7 @@ def _lossy_record_native(op: str, canon_inputs: Dict[str, Any],
     if lib is None or ij is None:
         return None
     import ctypes
-    from ..amsc import _native
+    from .. import _native
     ob = op.encode("utf-8")
     pk = projection_kind.encode("utf-8")
     ws_bytes = int(lib.srmech_lossy_projection_record_arena_bytes(
@@ -506,7 +506,7 @@ def _reproject_verify_native(record: Dict[str, Any],
     if lib is None or rj is None or ij is None:
         return None
     import ctypes
-    from ..amsc import _native
+    from .. import _native
     ws_bytes = int(lib.srmech_op_reproject_arena_bytes(
         ctypes.c_size_t(len(rj)), ctypes.c_size_t(len(ij))))
     ws = (ctypes.c_char * ws_bytes)()

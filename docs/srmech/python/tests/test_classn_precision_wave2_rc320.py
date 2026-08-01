@@ -42,7 +42,7 @@ from fractions import Fraction
 import pytest
 
 from tests._native_gate import require_native
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math import rational as R
 from srmech.math.rational import (
     cos, sin, tan, atan, atan2, exp, log, _classn_working,

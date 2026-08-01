@@ -619,7 +619,7 @@ def test_describe_shape_never_raises():
 def test_native_status():
     """``srmech.native_status()`` is the discoverable native-dispatch check.
 
-    The post-rc18 replacement for poking ``srmech.amsc._native.HAS_NATIVE``
+    The post-rc18 replacement for poking ``srmech._native.HAS_NATIVE``
     in the TestPyPI-before-PyPI verification recipe (issue #733): a single
     top-level call, surfaced where ``dir(srmech)`` finds it, returning a
     fixed-shape dict that mirrors ``describe()['native']``.
@@ -663,7 +663,7 @@ def test_native_status():
     assert status["expected_abi"] == 10
 
     # Agrees with describe()['native'] on the shared fields (single source
-    # of truth: both read srmech.amsc._native).
+    # of truth: both read srmech._native).
     native = srmech.introspect.describe()["native"]
     assert status["has_native"] == native["has_native"]
     assert status["abi_version"] == native["abi_version"]

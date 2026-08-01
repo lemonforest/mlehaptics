@@ -18,7 +18,7 @@ single node, empty), plus the ``path=`` save + census round-trip.
 """
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.biology import genome
 
 

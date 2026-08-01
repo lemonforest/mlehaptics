@@ -24,7 +24,7 @@ Framework reading: this loader is Class E (catalog enumeration) ∘
 Class F (template-style descriptor render) composed against the on-disk
 descriptor set. The cache-once-then-reuse pattern (via
 :func:`functools.lru_cache`) mirrors the existing
-:mod:`srmech.amsc.tool_schema` discipline.
+:mod:`srmech.introspect.tool_schema` discipline.
 """
 
 from __future__ import annotations

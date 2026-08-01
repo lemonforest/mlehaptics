@@ -208,7 +208,7 @@ def test_native_matches_pure_when_present():
     """When the native srmech_q_gosper is loaded, its certificate is byte-identical
     to the pure-Python body (the parity oracle) on the constant-ratio (native-scope)
     cases. Skip-clean when no native lib."""
-    from srmech.amsc import _native as nat
+    from srmech import _native as nat
     from srmech.apokatastasis.q_gosper import _q_gosper_pure, _coerce_qpoly
     if not nat.has_native_q_gosper():
         pytest.skip("native srmech_q_gosper not present in this environment")

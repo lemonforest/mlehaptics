@@ -36,7 +36,7 @@ read).
 import cmath
 import math
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math import laplacian as L
 from srmech.math.rational import cos_series_truncate
 
@@ -338,7 +338,7 @@ def test_contracts():
 
 def test_registration_and_count():
     import srmech
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
     assert "srmech.math.laplacian.propagate" in names
     assert "srmech.math.laplacian.eph_harvest" in names

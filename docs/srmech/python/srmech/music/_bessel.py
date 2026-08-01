@@ -126,7 +126,7 @@ def bessel_j_fixed(order: int,
     # why the sign lives in the orientation). Returns None when the symbol is
     # absent, and the pure-Python body below is then the complete alternative
     # AND the parity oracle.
-    from srmech.amsc import _native
+    from srmech import _native
     native = _native.bessel_j_fixed_c(order, arg_magnitude, denominator,
                                       scale_bits)
     if native is not None:

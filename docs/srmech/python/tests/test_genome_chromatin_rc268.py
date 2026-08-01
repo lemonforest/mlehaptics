@@ -21,7 +21,7 @@ from __future__ import annotations
 import pytest
 
 from srmech.biology import genome as G
-from srmech.amsc import _native as _N
+from srmech import _native as _N
 from srmech.math.hdc import klein4_expand
 
 
@@ -286,7 +286,7 @@ def test_native_chromatin_of_equals_pure():
                    dict(state=(2, 7), region=4), dict(state=True, region=0)]:
         cond = G.condense(chrom, coupling=one, **kwargs)
         native = G.chromatin_of(cond, one)
-        import srmech.amsc._native as NN
+        import srmech._native as NN
         saved = NN.has_native_genome_chromatin_of
         NN.has_native_genome_chromatin_of = lambda: False
         try:

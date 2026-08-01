@@ -38,7 +38,7 @@ import time
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 
 _HAS_GCD = bool(
     _native.HAS_NATIVE and _native.LIB is not None

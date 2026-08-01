@@ -177,7 +177,7 @@ def test_version_is_0_7_0rc10():
     engine (#813). PROOF, no new surface: the octonion ops resolve dynamically as
     ``class="M", op="<name>"`` against ``DEFAULT_CLASS_REGISTRY`` (M →
     ``srmech.math.hdc``), so ``loop_bind`` / ``loop_conj`` / ``loop_associator`` /
-    ``cross7`` / ``g2_three_form`` run through ``srmech.amsc.compose.run_chain``
+    ``cross7`` / ``g2_three_form`` run through ``srmech.cascade.compose.run_chain``
     (the M∘C-with-K-residue cascade #813 describes; a multi-step ``@step[0]`` M∘C
     chain included). Test-only voxel: NO new ToolEntries (``describe()`` stays
     187), NO new class, ABI stays 3 (pure-Python). The shipped cascade-catalog
@@ -601,8 +601,8 @@ def test_version_is_0_7_0rc10():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.9.0rc375", (
-        f"expected srmech.__version__ == '0.9.0rc375'; got "
+    assert srmech.__version__ == "0.9.0rc376", (
+        f"expected srmech.__version__ == '0.9.0rc376'; got "
         f"{srmech.__version__!r}"
     )
 

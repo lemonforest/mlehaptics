@@ -42,7 +42,7 @@ from srmech.apokatastasis.quasimodular_forms_ring import (
 from srmech.apokatastasis.modular_forms_ring import modular_forms_ring_represent
 from srmech.apokatastasis.eisenstein import Eisenstein, eisenstein
 from srmech.math.q import Q
-from srmech.amsc import _native
+from srmech import _native
 
 
 # ── exact-Q q-series helpers (local; no carrier re-use for the oracle) ─────────
@@ -317,7 +317,7 @@ def test_represent_is_a_tool_entry_total_matches_live():
     analog of the Σ-row reducers, one generator up from rc84) → it IS a registered
     ToolEntry, taking the shipped tool count 341 → 342. eisenstein_e2 + the bare
     constructor + weight_monomials/dim are NOT ToolEntries."""
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     shipped = [t for t in get_tool_schema().tools if not t.name.startswith("test.")]
     assert len(shipped) == 525
     names = {t.name for t in shipped}

@@ -216,7 +216,7 @@ def test_non_dict_method_spec_rejected():
 # ── tool-schema registration ──
 
 def test_tool_entry_registered():
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
 
     names = {t.name for t in get_tool_schema().tools}
     assert "srmech.dsl.generate_class_descriptor" in names

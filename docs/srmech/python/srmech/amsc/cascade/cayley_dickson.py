@@ -93,7 +93,7 @@ from srmech.amsc.cascade.atoms import (      # Class-K pin-slot / Class-C reorie
 from srmech.math.cyclic import gcd as _gcd   # Class-I gcd (native); NOT stdlib math
 from srmech.math.q import Q, to_q            # #845: the CD element carrier is Q
 
-from srmech.amsc import _native  # rc10: native srmech_cd_basis_product dispatch
+from srmech import _native  # rc10: native srmech_cd_basis_product dispatch
 
 #: Hard ceiling on the algebra dimension (the C peer shares this bound —
 #: ``SRMECH_CD_MAX_DIM``). dim must be a power of two ``≤`` this.
@@ -163,7 +163,7 @@ CD_COMPOSE_MAX_DIM = 8
 #: 81/81 turn-composing pairs for ``n=3`` (algebra dim 9), 42 of them
 #: non-commuting, and 256/256 for ``n=4`` (dim 16), 108 non-commuting — both
 #: above 4. The ceiling is therefore **PER-CARRIER**: each capability row in
-#: :mod:`srmech.amsc.carrier_schema` publishes its own ``max_dim`` /
+#: :mod:`srmech.introspect.carrier_schema` publishes its own ``max_dim`` /
 #: ``bounded_by``, and the ``limits`` row carries ``family`` =
 #: ``"cayley_dickson"`` plus a derived ``exceeded_by``.
 #:
@@ -632,7 +632,7 @@ def cd_basis_product(dim: int, i: int, j: int) -> Tuple[int, int]:
 # argument was MEASURED and is dead: the whole 8-member γ-family at dim 8 is
 # sign-cocycle-degenerate in the same 344/512 way (see :data:`CD_TURN_MAX_DIM`),
 # and the associative twists are matrix algebras
-# :mod:`srmech.amsc.carrier_schema` already publishes ``Mat`` for.
+# :mod:`srmech.introspect.carrier_schema` already publishes ``Mat`` for.
 #
 # WHY IT IS NOT A ``twist=`` PARAMETER ON ``cd_mult`` / ``cd_basis_product``:
 # those two are ABI-exported and content-addressed. ``cd_basis_product`` is a C

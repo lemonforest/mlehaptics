@@ -71,7 +71,7 @@ the n-shift dispersion) + ``srmech_qmat_rref`` (the parametrized exact-``ℚ`` s
 — into one caller-arena, JPL-clean symbol that ACCELERATES the canonical low-order
 case (order ≤ 1, the textbook double-sum identities). ``apagodu_zeilberger`` routes
 through it when ``HAS_NATIVE``
-(:func:`srmech.amsc._native.has_native_apagodu_zeilberger`) and the C reports a
+(:func:`srmech._native.has_native_apagodu_zeilberger`) and the C reports a
 positive (recurrence-found) result; a ``has=0`` C result is NOT trusted as a
 definitive "no recurrence" (the C caps its ansatz order below an unbounded search),
 so it falls through to the COMPLETE pure-Python body here — the full-coverage
@@ -115,7 +115,7 @@ def _native():
     alternative + the parity oracle) otherwise. Imported lazily to avoid a bootstrap
     cycle."""
     try:
-        from ..amsc import _native as nat
+        from .. import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_apagodu_zeilberger", None)

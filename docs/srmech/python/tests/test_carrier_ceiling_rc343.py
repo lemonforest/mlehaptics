@@ -84,7 +84,7 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc.carrier_schema import (
+from srmech.introspect.carrier_schema import (
     CEILING_MECHANISMS,
     _CAPABILITY,
     _CARRIERS,

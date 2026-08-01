@@ -114,8 +114,8 @@ from typing import List, Set, Tuple
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # noqa: E402
 
-from srmech.amsc.carrier_schema import _CARRIERS  # noqa: E402
-from srmech.amsc.tool_schema import get_tool_schema, warmup_all  # noqa: E402
+from srmech.introspect.carrier_schema import _CARRIERS  # noqa: E402
+from srmech.introspect.tool_schema import get_tool_schema, warmup_all  # noqa: E402
 
 from coercion_boundary import _identifiers, boundary_for  # noqa: E402
 
@@ -214,7 +214,7 @@ def test_declared_types_name_every_accepted_and_raise_named_carrier() -> None:
         "these ops accept a carrier their own coercion raise text names and "
         "their declared parameters[].type does NOT:\n  " + "\n  ".join(bad)
         + "\nWiden the declared type to the honest union in "
-          "srmech/amsc/tool_schema.py, add the new type string to "
+          "srmech/introspect/tool_schema.py, add the new type string to "
           "srmech.mcp._coercion._PARAM_COERCERS (usually mapping to the SAME "
           "coercer the one-carrier key uses — the wire behaviour does not "
           "change, the declaration catches up), keep srmech.mcp._tools."

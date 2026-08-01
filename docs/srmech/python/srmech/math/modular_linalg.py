@@ -54,7 +54,7 @@ than a relabelling — see ``cascade/cd_register.py``.
 C peer: ``srmech_gf_rref`` (``c/src/srmech_modular_linalg.c``) — an in-place
 int64/uint64 GF(p) RREF, caller-arena (no malloc), JPL-clean. :func:`gf_rref`
 routes through it when ``HAS_NATIVE``
-(:func:`srmech.amsc._native.has_native_gf_rref`); the pure-Python body here is the
+(:func:`srmech._native.has_native_gf_rref`); the pure-Python body here is the
 COMPLETE alternative (and the byte-identical parity oracle): both emit the same
 reduced matrix + rank + pivot list at every shape.
 """
@@ -64,7 +64,7 @@ from __future__ import annotations
 import ctypes
 from typing import Dict, List
 
-from ..amsc import _native
+from .. import _native
 from .cyclic import mod_add as _mod_add
 from .cyclic import mod_inv as _mod_inv
 from .cyclic import mod_mul as _mod_mul

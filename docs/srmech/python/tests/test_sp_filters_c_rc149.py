@@ -32,7 +32,7 @@ import random
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.signal_processing.closed_form_ops import allpass, fir, iir, matched_filter
 from srmech.signal_processing.path_b_ops import matched_filter as matched_filter_b
 

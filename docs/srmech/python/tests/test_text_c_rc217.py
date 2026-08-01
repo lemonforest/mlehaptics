@@ -35,8 +35,8 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc import _unicode_gb_tables as gbt
+from srmech import _native
+from srmech.math import _unicode_gb_tables as gbt
 from srmech.math import text as T
 
 
@@ -339,7 +339,7 @@ def test_native_path_actually_dispatches(monkeypatch):
 
 
 def test_tool_schema_entries_exist():
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
     for op in ("glyph_stream", "cooccurrence_edges", "cooccurrence_topk"):
         assert f"srmech.math.text.{op}" in names

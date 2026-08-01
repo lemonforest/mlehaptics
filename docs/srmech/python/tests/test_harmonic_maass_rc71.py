@@ -33,7 +33,7 @@ from srmech.apokatastasis.harmonic_maass import (
 )
 from srmech.apokatastasis.unary_theta import unary_theta
 from srmech.math.q import Q
-from srmech.amsc import _native
+from srmech import _native
 
 
 # the keystone anchors, reused across the gates
@@ -260,7 +260,7 @@ def test_harmonic_maass_source_is_numpy_math_abs_free():
 
 # ── the ToolEntry registration + the running count ───────────────────────────
 def test_harmonic_maass_tool_entry_registered():
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
     assert "srmech.apokatastasis.harmonic_maass.harmonic_maass" in names
 
@@ -269,7 +269,7 @@ def test_introspect_tools_total_matches_live_rc71():
     """The canonical shipped tool count after the rc71 ``harmonic_maass`` op
     (339 → 340). Counted over the SHIPPED surface only (excluding any ``test.``-
     namespaced injections other tests leak), so the invariant is order-independent."""
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     shipped = [t for t in get_tool_schema().tools if not t.name.startswith("test.")]
     assert len(shipped) == 525
     names = {t.name for t in shipped}

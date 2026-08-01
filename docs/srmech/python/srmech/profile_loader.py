@@ -715,7 +715,7 @@ class Profile:
     def _load_tool_schema_extension(self) -> None:
         """If ``[profile.tool_schema].extension_file`` is declared,
         locate the TOML inside the profile's package and register every
-        ``[[tools]]`` entry into ``srmech.amsc.tool_schema`` with
+        ``[[tools]]`` entry into ``srmech.introspect.tool_schema`` with
         ``owner = self.name``.
 
         Wired in v0.3.1rc2 after the chess-spectral simple-profile POC
@@ -748,7 +748,7 @@ class Profile:
             )
 
         # Delegate to the canonical loader.
-        from .amsc.tool_schema import (
+        from .introspect.tool_schema import (
             load_extension_file,
             register_profile_tools,
         )

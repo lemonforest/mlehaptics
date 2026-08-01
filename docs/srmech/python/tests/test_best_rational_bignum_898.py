@@ -23,7 +23,7 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math import rational
 
 _U64 = 0xFFFF_FFFF_FFFF_FFFF

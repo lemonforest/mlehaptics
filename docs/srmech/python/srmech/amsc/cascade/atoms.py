@@ -32,7 +32,7 @@ from __future__ import annotations
 import ctypes
 from typing import Tuple, TypeVar
 
-from srmech.amsc import _native
+from srmech import _native
 
 #: v0.9.0rc362 (`#T1041`, DOC-1) — the real domain of the Class-K sign-split.
 #: :func:`pin_slot_at_zero` / :func:`magnitude` are **type-preserving over any

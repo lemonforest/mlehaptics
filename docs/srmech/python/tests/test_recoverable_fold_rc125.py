@@ -303,7 +303,7 @@ def test_tools_total_matches_live():
 
 
 def test_new_ops_registered_fold_identity_exempt():
-    from srmech.amsc import tool_schema
+    from srmech.introspect import tool_schema
     from srmech.mcp._coercion import has_coercer
 
     schema = tool_schema.get_tool_schema()

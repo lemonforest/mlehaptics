@@ -34,7 +34,7 @@ import tokenize
 import pytest
 
 from srmech.apokatastasis.riemann_theta import RiemannTheta, RiemannThetaG3
-from srmech.amsc import _native
+from srmech import _native
 
 
 def _t000() -> RiemannThetaG3:

@@ -24,7 +24,7 @@ detect and go green unconditionally — reproducing the exact failure mode
 
 TO CHANGE THE NAME SET DELIBERATELY, two edits are required, in the same commit:
   1. rewrite the manifest:
-       python -c "from srmech.amsc.tool_schema import get_tool_schema; \
+       python -c "from srmech.introspect.tool_schema import get_tool_schema; \
                   ns=sorted(e.name for e in get_tool_schema().tools); \
                   open('tests/registered_op_names.txt','w',encoding='utf-8', \
                        newline='\\n').write('\\n'.join(ns)+'\\n')"
@@ -38,7 +38,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from srmech.amsc.format import sha256_bytes
-from srmech.amsc.tool_schema import get_tool_schema
+from srmech.introspect.tool_schema import get_tool_schema
 
 MANIFEST = Path(__file__).resolve().parent / "registered_op_names.txt"
 
@@ -52,7 +52,7 @@ EXPECTED_N = 525
 #: the digest disagree between the Windows and Linux CI cells; that would be a
 #: platform artifact masquerading as a rename.
 EXPECTED_NAME_SET_SHA256 = (
-    "e52e8d119a3ba70ab63efcf2b67883c32ef5b79bf7cde0f5a05a6dff7792babc")
+    "e85eb71eeab737075f6258a9c18c4a53e818b5f9b35d72e5f8d39c9f30487f03")
 
 
 def _live_names() -> list[str]:

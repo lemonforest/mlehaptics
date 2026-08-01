@@ -1,6 +1,6 @@
 """rc202 — run_class_method -> C: the STATELESS one-shot, proven vs the pure surface.
 
-srmech_run_class_method (bound as srmech.amsc._native.run_class_method_c) is the C
+srmech_run_class_method (bound as srmech._native.run_class_method_c) is the C
 peer of srmech.dsl._class_surface.run_class_method — the FINAL owed_orchestration
 row (its discharge takes CEIL_NON_COMPUTE_OWED 1 -> 0, the everything-to-C program
 complete). A bare-C host RESOLVES a class NAME to its packaged [class] descriptor
@@ -29,7 +29,7 @@ import json
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.amsc.cascade.one import the_one
 from srmech.amsc.cascade.sedenion_register import SedenionRegister
 from srmech.dsl import make_class, run_class_method

@@ -19,7 +19,7 @@ import array
 
 import pytest
 
-import srmech.amsc._native as _native
+import srmech._native as _native
 from srmech.math.hdc import (
     klein4_expand,
     klein4_bundle,

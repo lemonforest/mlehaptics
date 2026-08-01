@@ -79,7 +79,7 @@ from typing import List, Sequence, Tuple
 
 # §22: scalar root + trig via the Class-N rational cascade, not libm; π from the
 # Archimedes pi_cascade (`[[feedback_continuous_number_line_pedagogical_obstacle]]`).
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math.mat import Mat as _Mat
 from srmech.math import rational as _rational
 from srmech.math.q import Q as _Q

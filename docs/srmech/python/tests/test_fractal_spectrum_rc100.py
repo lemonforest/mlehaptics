@@ -150,7 +150,7 @@ def test_rejects_uncoercible_R():
 # (e) the op is REGISTERED (tool schema; tools.total == 381)
 # ─────────────────────────────────────────────────────────────────────
 def test_registered_in_tool_schema():
-    from srmech.amsc import tool_schema
+    from srmech.introspect import tool_schema
 
     schema = tool_schema.get_tool_schema()
     entry = schema.lookup("srmech.biology.coupling.fractal_spectrum")

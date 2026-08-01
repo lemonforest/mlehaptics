@@ -1,7 +1,7 @@
 /*
  * srmech_meta.c — version + ABI accessors for the runtime ctypes shim.
  *
- * The Python `srmech.amsc._native` loader calls `srmech_abi_version()`
+ * The Python `srmech._native` loader calls `srmech_abi_version()`
  * at load time and compares against EXPECTED_ABI_VERSION. A mismatch
  * causes HAS_NATIVE to stay False; the Python fallback path runs
  * unchanged.

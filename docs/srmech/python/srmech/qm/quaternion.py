@@ -81,7 +81,7 @@ import ctypes
 import functools
 from typing import List, Sequence, Tuple
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.amsc.cascade import magnitude as _magnitude
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
 from srmech.math.mat import Mat

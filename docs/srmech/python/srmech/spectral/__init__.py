@@ -64,7 +64,7 @@ from collections import OrderedDict
 from dataclasses import dataclass
 from typing import List, Optional
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math import rational
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
 from srmech.math.laplacian import mat_hermitian_eigendecompose, mat_matvec

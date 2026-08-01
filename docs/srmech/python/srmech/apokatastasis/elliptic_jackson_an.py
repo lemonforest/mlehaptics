@@ -391,7 +391,7 @@ def _an_vwp_multisum_lhs_c(zz, aa, qq: EllMonomial, N: int):
     lexicographic composition order, summed here identically to the pure path
     via :meth:`ThetaSum.from_ellratio` + ``+``), or ``None`` when the native
     symbols are absent (the caller uses the pure result)."""
-    from ..amsc import _native as _nat
+    from .. import _native as _nat
     from .ellbase import _P, _ellratio_from_form, _mono_to_form
     from .thetasum import ThetaSum
     if not _nat.has_native_an_vwp_multisum_lhs():
@@ -418,7 +418,7 @@ def _multivariate_elliptic_jackson_an_c(zz, aa, qq: EllMonomial,
     ``srmech_multivariate_elliptic_jackson_an`` C peer → the single
     :class:`EllRatio`, or ``None`` when the native symbols are absent (the caller
     falls to :func:`_multivariate_elliptic_jackson_an_py`)."""
-    from ..amsc import _native as _nat
+    from .. import _native as _nat
     from .ellbase import _P, _ellratio_from_form, _mono_to_form
     if not _nat.has_native_multivariate_elliptic_jackson_an():
         return None

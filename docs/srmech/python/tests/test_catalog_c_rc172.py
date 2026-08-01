@@ -29,7 +29,7 @@ import json
 import pytest
 
 from tests._native_gate import require_native
-from srmech.amsc import _native
+from srmech import _native
 from srmech.amsc import catalog
 
 NATIVE = _native.HAS_NATIVE and _native.LIB is not None

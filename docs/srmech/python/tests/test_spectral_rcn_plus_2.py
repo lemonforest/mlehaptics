@@ -383,7 +383,7 @@ class TestShipGuard:
         assert callable(truncate_sparse)
 
     def test_tool_schema_registers_three(self):
-        from srmech.amsc.tool_schema import get_tool_schema
+        from srmech.introspect.tool_schema import get_tool_schema
         schema = get_tool_schema()
         names = {t.name for t in schema.tools}
         assert "srmech.spectral.predict" in names

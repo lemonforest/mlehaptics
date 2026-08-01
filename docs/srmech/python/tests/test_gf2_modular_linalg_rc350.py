@@ -48,7 +48,7 @@ import time
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math import modular_linalg as ml
 from srmech.math.cyclic import mod_inv
 from srmech.amsc.cascade.cayley_dickson import (

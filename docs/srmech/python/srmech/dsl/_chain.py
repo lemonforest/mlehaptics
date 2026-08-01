@@ -431,7 +431,7 @@ class Chain:
         -binary-body whether it is C-backed; a non-C leaf / non-C fold body /
         unsupported carrier returns non-OK → pure (rc103 inform-don't-limit).
         """
-        from srmech.amsc import _native
+        from srmech import _native
         if not (_native.HAS_NATIVE and _native.LIB is not None):
             return _NATIVE_MISS
         lib = _native.LIB

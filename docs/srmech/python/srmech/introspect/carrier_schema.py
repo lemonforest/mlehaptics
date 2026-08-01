@@ -1,5 +1,5 @@
-"""srmech.amsc.carrier_schema — the CARRIER (operand) introspection surface
-(rc205; gh #1293) — the noun-side DUAL of :mod:`srmech.amsc.tool_schema`.
+"""srmech.introspect.carrier_schema — the CARRIER (operand) introspection surface
+(rc205; gh #1293) — the noun-side DUAL of :mod:`srmech.introspect.tool_schema`.
 
 ``tool_schema`` exposes the **ops** (the verbs — the A–N operator vocabulary)
 richly; this module exposes the **carrier TYPES** (the nouns — the operand
@@ -248,7 +248,7 @@ from ..math.carrier_ladder import _OP_CONTRACTS
 # rc343 (`#T972`) — CDRegister's per-carrier ceiling IS the addressing cap, read
 # from the one SSoT rather than re-typed here (cayley_dickson imports nothing
 # from this module, so there is no cycle).
-from .cascade.cayley_dickson import CD_MAX_DIM as _CD_MAX_DIM
+from ..amsc.cascade.cayley_dickson import CD_MAX_DIM as _CD_MAX_DIM
 
 # rc241 (#839) — the generated per-carrier CONSTRUCTION example (the operand-side
 # peer of _tool_docs.py). Guarded so a stripped/missing module never breaks import.
@@ -932,7 +932,7 @@ def _native_carrier_schema() -> Optional[Dict[str, Dict[str, Any]]]:
     dict, or ``None`` when the native peer is unavailable / returns non-OK
     (caller falls back to the pure path)."""
     try:
-        from . import _native
+        from .. import _native
     except Exception:  # pragma: no cover — defensive; _native always imports
         return None
     raw = _native.carrier_schema_json_c()

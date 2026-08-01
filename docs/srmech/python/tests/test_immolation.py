@@ -42,7 +42,7 @@ from typing import Any
 
 import pytest
 
-from srmech.amsc.tool_schema import get_tool_schema
+from srmech.introspect.tool_schema import get_tool_schema
 from srmech.math.mat import Mat
 from srmech.math.vec import Vec
 from srmech.math import laplacian as L

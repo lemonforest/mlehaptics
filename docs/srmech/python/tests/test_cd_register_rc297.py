@@ -39,7 +39,8 @@ import inspect
 
 import pytest
 
-from srmech.amsc import cascade, _native
+from srmech.amsc import cascade
+from srmech import _native
 from srmech.amsc.cascade.cayley_dickson import CD_MAX_DIM
 
 # NOTE: ``srmech.amsc.cascade.cd_register`` names BOTH the module and the factory

@@ -36,7 +36,7 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.amsc.cascade import cayley_dickson as cd
 from srmech.math import rational as _rational
 from srmech.qm import octonion as octo

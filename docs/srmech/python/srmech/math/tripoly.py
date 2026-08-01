@@ -44,7 +44,7 @@ ToolEntry — it ships with its algebra, like every srmech carrier, but does not
 to ``describe()["tools"]["total"]``. The C peer ``srmech_tripoly_*`` (add / sub /
 mul + ``ws_bound``) mirrors the ``srmech_poly_*`` arena/overflow discipline over
 caller-arena bignum (OVERFLOW-not-wrap); ``TriPoly`` routes its add/sub/mul through
-it when ``HAS_NATIVE`` (:func:`srmech.amsc._native.has_native_tripoly`), with the
+it when ``HAS_NATIVE`` (:func:`srmech._native.has_native_tripoly`), with the
 pure-Python body here the COMPLETE alternative (and the byte-identical parity
 oracle). The shift / difference operators are pure-Python compositions over the
 native-accelerated add/sub/mul (mirroring how ``Poly.shift`` rides ``poly_mul`` /
@@ -71,7 +71,7 @@ def _native():
     falls cleanly to the pure-Python body (the complete alternative + the parity
     oracle) otherwise. Imported lazily to avoid a bootstrap cycle."""
     try:
-        from ..amsc import _native as nat
+        from .. import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_tripoly", None)

@@ -679,8 +679,8 @@ CEIL_BIGNUM_REFERENCE = 0
 # a pure filter/sort/project, consistent with the already-composes_c
 # get_attested_dataset / get_attested_descriptor). The 2 chain-runner-dependent
 # catalog ops (list_catalog_chains / run_catalog_chain) stay owed — the
-# amsc.compose chain-runner is not in C yet (rc173+). 15 → 9.
-# rc173 (2026-07-07): the amsc.compose chain-runner PARSE half earned C — the
+# cascade.compose chain-runner is not in C yet (rc173+). 15 → 9.
+# rc173 (2026-07-07): the cascade.compose chain-runner PARSE half earned C — the
 # 2 parse ops moved owed_orchestration → composes_c (parse_chain_spec →
 # srmech_chain_spec_parse; parse_catalog_chains → srmech_chain_catalog_parse;
 # JSON-in / normalized-canonical-JSON-out, args re-attached from the original
@@ -691,7 +691,7 @@ CEIL_BIGNUM_REFERENCE = 0
 # bounded cascade atoms; confirmed run_chain invokes any of the 14 class
 # modules by name). The 2 catalog dependents (list_catalog_chains /
 # run_catalog_chain) also stay owed until the run loop lands. 9 → 7.
-# rc174 (2026-07-07): the amsc.compose chain-runner RUN LOOP earned C — the
+# rc174 (2026-07-07): the cascade.compose chain-runner RUN LOOP earned C — the
 # 2 run ops moved owed_orchestration → composes_c. srmech_chain_run RUNS a
 # validated chain end-to-end in C to byte-identical OUTPUT: it resolves each
 # step's @row/@input/@step[N] arg references + dispatches the BOUNDED Class-N
@@ -931,11 +931,11 @@ NON_COMPUTE_DEV_TOOLING_EXEMPT = frozenset({
     "srmech.amsc.gap_suggester.register_classifier",
     "srmech.amsc.gap_suggester.register_probes",
     "srmech.amsc.gap_suggester.suggest_gap_collections",
-    "srmech.amsc.tool_schema.load_extension_file",
-    "srmech.amsc.tool_schema.register_profile_tools",
-    "srmech.amsc.tool_schema.register_tool",
-    "srmech.amsc.tool_schema.unregister_profile_tools",
-    "srmech.amsc.tool_schema.warmup_all",
+    "srmech.introspect.tool_schema.load_extension_file",
+    "srmech.introspect.tool_schema.register_profile_tools",
+    "srmech.introspect.tool_schema.register_tool",
+    "srmech.introspect.tool_schema.unregister_profile_tools",
+    "srmech.introspect.tool_schema.warmup_all",
     "srmech.signal_processing.cascade_dispatcher.begin_cascade",
     "srmech.signal_processing.cascade_dispatcher.current_cascade",
     "srmech.signal_processing.cascade_dispatcher.dispatch",
@@ -1357,8 +1357,8 @@ COMPOSES_C_ZERO_REACH_PINNED = frozenset({
     "srmech.amsc.cascade.sedenion_register.sedenion_register",
     "srmech.amsc.catalog.list_registered_roots",
     "srmech.amsc.catalog.use_local_kernel",
-    "srmech.amsc.compose.parse_chain_spec",
-    "srmech.amsc.compose.resolve_chain",
+    "srmech.cascade.compose.parse_chain_spec",
+    "srmech.cascade.compose.resolve_chain",
     "srmech.biology.coupling.fold_encode",
     "srmech.biology.coupling.fold_identity",
     "srmech.biology.coupling.fractal_spectrum",
@@ -1385,7 +1385,7 @@ COMPOSES_C_ZERO_REACH_PINNED = frozenset({
     "srmech.math.qpoly.qpoly_from_coeffs",
     "srmech.apokatastasis.quasimodular_forms_ring.quasimodular_forms_ring",
     "srmech.math.tlv.tlv_unpack",
-    "srmech.amsc.tool_schema.get_tool_schema",
+    "srmech.introspect.tool_schema.get_tool_schema",
     "srmech.math.tripoly.tripoly_from_coeffs",
     "srmech.apokatastasis.zeilberger.bipoly_from_coeffs",
     "srmech.bus._server.serve",

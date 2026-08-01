@@ -28,7 +28,7 @@ import math
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math.mat import Mat
 from srmech.math.laplacian import (
     quaternion_laplacian,
@@ -286,7 +286,7 @@ def test_registration_all_and_laplacian_ops():
 
 
 def test_registration_tool_schema_entries_present():
-    from srmech.amsc.tool_schema import get_tool_schema, warmup_all
+    from srmech.introspect.tool_schema import get_tool_schema, warmup_all
     warmup_all()
     names = {t.name for t in get_tool_schema().tools}
     for op in ("quaternion_laplacian", "hypercomplex_perspectives"):

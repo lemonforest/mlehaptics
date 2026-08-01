@@ -12,7 +12,7 @@ a future op forces the summaries to be updated (or CI fails) rather than letting
 the LLM-facing surface silently fall behind the runner.
 """
 from srmech.dsl import list_cascade_ops
-from srmech.amsc.tool_schema import get_tool_schema
+from srmech.introspect.tool_schema import get_tool_schema
 
 
 def _dsl_summaries():
@@ -32,7 +32,7 @@ def test_list_catalog_ops_summary_names_every_live_op():
     assert not missing, (
         "srmech.dsl.list_catalog_ops summary omits live cascade ops "
         f"{missing} — update the op list in "
-        "srmech.amsc.tool_schema._register_dsl_tools so the LLM-facing "
+        "srmech.introspect.tool_schema._register_dsl_tools so the LLM-facing "
         "description stays in lockstep with the runner."
     )
 

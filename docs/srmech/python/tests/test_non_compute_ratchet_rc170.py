@@ -65,12 +65,12 @@ _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 # list_attested_sources classified composes_c directly, consistent with the
 # already-composes_c get_attested_dataset / get_attested_descriptor) → moved
 # owed_orchestration → composes_c (owed 15→9, composes_c 70→76; sum stays 114).
-# rc173: the amsc.compose chain-runner PARSE half — parse_chain_spec +
+# rc173: the cascade.compose chain-runner PARSE half — parse_chain_spec +
 # parse_catalog_chains earned C peers (srmech_chain_spec_parse /
 # srmech_chain_catalog_parse) → moved owed_orchestration → composes_c
 # (owed 9→7, composes_c 76→78; sum stays 114). resolve_chain / run_chain stay
 # owed (arbitrary-op FFI over the live object graph → rc174).
-# rc174: the amsc.compose chain-runner RUN LOOP — resolve_chain + run_chain
+# rc174: the cascade.compose chain-runner RUN LOOP — resolve_chain + run_chain
 # earned a C peer (srmech_chain_run runs the whole shipped apparatus — pi /
 # series / Friedmann — end-to-end in C to byte-identical OUTPUT; the pure path
 # runs any out-of-table op / non-raise policy / @catalog ref) → moved

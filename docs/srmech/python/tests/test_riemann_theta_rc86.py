@@ -45,7 +45,7 @@ import pytest
 
 from srmech.apokatastasis.riemann_theta import (RiemannTheta, RiemannThetaG3, RiemannThetaG4,
                                        RiemannThetaG5)
-from srmech.amsc import _native
+from srmech import _native
 
 
 # the trivial even genus-5 theta-constant (the one that collapses), reused below

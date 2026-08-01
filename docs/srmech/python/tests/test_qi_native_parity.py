@@ -16,7 +16,7 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math.q import Q
 from srmech.math.qi import Qi
 

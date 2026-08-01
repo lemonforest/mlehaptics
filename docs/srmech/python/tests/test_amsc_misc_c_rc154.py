@@ -28,8 +28,8 @@ from array import array
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc import compose
+from srmech import _native
+from srmech.cascade import compose
 from srmech.biology import coupling
 from srmech.math import hdc, laplacian
 from srmech.music import harmonics

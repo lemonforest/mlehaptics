@@ -142,7 +142,7 @@ def test_native_hd_symbol_wired_when_native():
     # when the native lib is loaded it MUST export the rc11 batch symbol (the
     # build wires srmech_loop_bind_hd_f64); _try_native_loop_bind_hd then drives
     # loop_bind_hd. On a pure-Python build there is no symbol and that is fine.
-    from srmech.amsc import _native
+    from srmech import _native
     if _native.HAS_NATIVE and _native.LIB is not None:
         assert hasattr(_native.LIB, "srmech_loop_bind_hd_f64")
 

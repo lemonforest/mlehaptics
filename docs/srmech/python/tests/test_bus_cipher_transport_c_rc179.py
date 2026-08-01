@@ -41,7 +41,7 @@ import os
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 import srmech.bus._bio_totp as bt
 
 WIN = bt.DEFAULT_WINDOW_NS

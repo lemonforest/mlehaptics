@@ -40,7 +40,7 @@ from typing import Sequence
 # :class:`Mat` — every kernel a pure-Python / ctypes-marshalled cascade, no
 # top-level numpy import and no lazy numpy proxy.
 
-from ..amsc import _native
+from .. import _native
 from ..amsc import format as _fmt          # Class A — sha256_bytes (native-dispatched)
 from .hv import HV
 from .mat import Mat

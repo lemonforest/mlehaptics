@@ -267,7 +267,7 @@ def test_native_equals_pure_verify():
     identical to the pure-Python bivariate-ℚ[q] compare (the parity oracle) — on the
     genuine certificate AND a deliberately-wrong one (the C peer is the COMPLETE verify
     mirror, degree-bounded). Skip-clean when no native lib."""
-    from srmech.amsc import _native as nat
+    from srmech import _native as nat
     if not nat.has_native_q_wz_verify():
         pytest.skip("native srmech_q_wz_verify not present (pure path is the oracle)")
 

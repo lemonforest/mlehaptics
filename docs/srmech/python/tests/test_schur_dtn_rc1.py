@@ -137,7 +137,7 @@ def test_validation_errors() -> None:
 
 def test_registered_in_tool_schema() -> None:
     """Both names carry a ToolEntry (the tool-schema coverage ratchet)."""
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
 
     schema = get_tool_schema()
     assert schema.lookup("srmech.math.laplacian.schur_complement") is not None

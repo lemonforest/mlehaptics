@@ -24,7 +24,7 @@ import math
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math.rational import (
     relative_writhe, _CLASSN_PLATFORM_DEN_BITS, _classn_working,
 )

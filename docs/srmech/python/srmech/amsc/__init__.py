@@ -168,10 +168,12 @@ from ..apokatastasis.quasimodular_forms_ring import (
     quasimodular_forms_ring,
     quasimodular_represent,
 )
-# v0.3.0 — tool_schema introspection (Task #198) registers srmech's
-# own AMSC tools at import time. Profile-contributed tools register
-# later, at profile-activation time via profile_loader.
-from . import tool_schema  # noqa: F401  (side effect: register tools)
+# rc376 (ADR-0010 Amendment M) — ``tool_schema`` MOVED to
+# :mod:`srmech.introspect.tool_schema`. Its import-time tool registration now
+# fires from :func:`srmech.introspect.tool_schema.warmup_all`, called at the
+# end of ``srmech/__init__.py`` — so importing ``srmech.amsc`` (which runs the
+# parent ``srmech`` init first) still yields a fully-registered schema, and
+# amsc no longer imports a module it does not own.
 
 __all__ = [
     # format

@@ -24,7 +24,7 @@ import random
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.qm import quaternion as Q
 
 # ── The eight Q8 unit quaternions (scalar-first (w, x, y, z)) ─────────────────
@@ -307,7 +307,7 @@ def test_registration_ratchet():
 
 
 def test_tool_schema_entry_present():
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
     assert "srmech.qm.quaternion.quaternion_cycle_holonomy" in names
     assert "srmech.qm.quaternion.quaternion_conjugate" in names

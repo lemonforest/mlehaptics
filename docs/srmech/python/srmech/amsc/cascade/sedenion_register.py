@@ -71,7 +71,7 @@ from .cayley_dickson import (
 )
 from .hamming import hamming_encode, hamming_decode_correct
 from . import chiral_flip
-from srmech.amsc import _native  # rc199: native srmech_sed* address-algebra dispatch
+from srmech import _native  # rc199: native srmech_sed* address-algebra dispatch
 
 #: The sedenion is the 16-slot address space (the open-exterior box, §VII.6.23).
 NUM_SLOTS = 16

@@ -124,7 +124,7 @@ def test_bignum_gcd_matches_fraction_oracle():
 # ── Python == C gcd parity (native present only) ──────────────────────────────
 def _native_poly():
     try:
-        from srmech.amsc import _native
+        from srmech import _native
     except ImportError:
         return None
     if not getattr(_native, "has_native_poly_gcd", lambda: False)():

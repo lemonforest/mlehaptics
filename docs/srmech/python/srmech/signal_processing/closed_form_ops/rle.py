@@ -18,7 +18,7 @@ from __future__ import annotations
 import ctypes
 from typing import List, Tuple
 
-from srmech.amsc import _native
+from srmech import _native
 
 OPERATION_NAME = "rle"
 CLASS_COMPOSITION = ("B", "G")

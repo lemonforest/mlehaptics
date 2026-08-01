@@ -24,7 +24,7 @@ import json
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.amsc.cascade.one import DEFAULT_TERMS, the_one
 from srmech.dsl._class_catalog import CLASS_CATALOG_DIR
 from srmech.mcp._coercion import serialise_native

@@ -106,7 +106,7 @@ def test_n1_lambda0_term_is_one():
 #        when absent ───────────────────────────────────────────────────────────────────
 @pytest.mark.parametrize("n,N", [(1, 1), (2, 1), (2, 2)])
 def test_native_matches_pure(n, N):
-    from srmech.amsc import _native as _nat
+    from srmech import _native as _nat
     a, b, c, d, x, q = _syms()
     pure = _cn_lhs_thetasum(a, b, c, d, x, q, N, n)
     native = _cn_vwp_multisum_lhs_c(a, b, c, d, x, q, N, n)
@@ -150,7 +150,7 @@ def test_registration():
     assert "cn_vwp_multisum_lhs" in ej.__all__
     schema = introspect.describe()
     assert schema["tools"]["total"] == 525
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
     assert "srmech.apokatastasis.elliptic_jackson.cn_vwp_multisum_lhs" in names
     entry = next(t for t in get_tool_schema().tools

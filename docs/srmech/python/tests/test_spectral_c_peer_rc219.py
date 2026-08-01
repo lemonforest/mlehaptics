@@ -36,7 +36,7 @@ from pathlib import Path
 import pytest
 
 from srmech import spectral
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math.laplacian import mat_matvec
 from srmech.math.mat import Mat
 from srmech.spectral import (

@@ -41,7 +41,8 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc import ThetaSum, _native
+from srmech.amsc import ThetaSum
+from srmech import _native
 from srmech.apokatastasis.ellbase import EllMonomial as M, Theta
 from srmech.math.q import Q
 from srmech.apokatastasis.thetasum import (

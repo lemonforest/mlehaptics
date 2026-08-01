@@ -2,7 +2,7 @@
 """Code-generator for ``c/src/srmech_tool_registry.c`` (0.9.0rc184).
 
 The C MCP-server FOUNDATION GATE: emit the ~403-entry
-``srmech.amsc.tool_schema`` registry as a ``const`` C data table so a
+``srmech.introspect.tool_schema`` registry as a ``const`` C data table so a
 bare-C host (no Python) can produce the tool registry DATA and the
 canonical ``tool_schema_sha256`` attestation with no interpreter.
 
@@ -33,7 +33,7 @@ Regenerate (rc346, `#T975` — DO NOT run this script by hand)::
 
     python3 tools/regen_all.py          # from docs/srmech/python
 
-This generator EMBEDS the prose in ``srmech/amsc/_tool_docs.py``, which
+This generator EMBEDS the prose in ``srmech/introspect/_tool_docs.py``, which
 ``gen_tool_docs.py`` writes, so running it first leaves the table stale
 against the very docs it contains — measured at 14 bytes propagating
 827380 -> 827394. It also wrote to STDOUT, so a bare invocation with no
@@ -155,7 +155,7 @@ def generate() -> str:
     python_dir = here.parent.parent.parent / "python"
     sys.path.insert(0, str(python_dir))
     import srmech  # noqa: F401  (import side effects: warmup)
-    from srmech.amsc.tool_schema import get_tool_schema, warmup_all
+    from srmech.introspect.tool_schema import get_tool_schema, warmup_all
 
     warmup_all()
     schema = get_tool_schema()
@@ -257,7 +257,7 @@ def generate() -> str:
     w(" * ORDER this file depends on. rc346 left it stale on purpose to keep its")
     w(" * own zero-delta signal clean; rc347 already moves these bytes.")
     w(" *")
-    w(" * Source of truth: srmech.amsc.tool_schema (warmup_all() registry).")
+    w(" * Source of truth: srmech.introspect.tool_schema (warmup_all() registry).")
     w(" * The 0.9.0rc184 C MCP-server FOUNDATION GATE — the tool registry as a")
     w(" * const data table (JPL-clean: const arrays, no dynamic init, no malloc).")
     w(" * The accessors + the canonical serialiser live in srmech_tool_schema.c.")
@@ -279,7 +279,7 @@ def generate() -> str:
     w("#pragma warning(disable : 4125)")
     w("#endif")
     w("")
-    w("/* tool_schema_version (srmech.amsc.tool_schema.TOOL_SCHEMA_VERSION). */")
+    w("/* tool_schema_version (srmech.introspect.tool_schema.TOOL_SCHEMA_VERSION). */")
     w("const char srmech_tool_schema_version_str[] = "
       f"{c_string_literal(schema.tool_schema_version)};")
     w("")

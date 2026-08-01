@@ -70,7 +70,7 @@ def _published_census():
     the same table. Parsing ONE of them rather than re-typing the numbers here
     is what makes this a drift gate: a change to either side fails.
     """
-    text = (_SRMECH / "amsc/carrier_schema.py").read_text(encoding="utf-8")
+    text = (_SRMECH / "introspect/carrier_schema.py").read_text(encoding="utf-8")
     rows = re.findall(r"^\s*(\d+) \|.*?\|\s*(\d+)/(\d+)\s+\d+%\s*$",
                       text, re.MULTILINE)
     census = {int(d): (int(n), int(t)) for d, n, t in rows}

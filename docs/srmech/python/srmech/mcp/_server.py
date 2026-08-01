@@ -104,7 +104,7 @@ def build_attestation(
 
     ``retrieved_at`` defaults to the current UTC time; a caller (e.g. the
     rc186 C-peer byte-parity test) may pin it to make the block
-    reproducible. The C peer ``srmech.amsc._native.mcp_build_attestation_c``
+    reproducible. The C peer ``srmech._native.mcp_build_attestation_c``
     produces the byte-identical JSON for the same pinned timestamp.
     """
     parser_version = f"srmech {_srmech_version}"
@@ -264,7 +264,7 @@ class MCPServer:
                 or self._invoke is not invoke_tool):
             return _PURE_FALLBACK
         try:
-            from ..amsc import _native
+            from .. import _native
         except Exception:  # pragma: no cover — defensive; _native always imports
             return _PURE_FALLBACK
         result = _native.mcp_handle_c(
@@ -298,7 +298,7 @@ class MCPServer:
                 or self._invoke is not invoke_tool):
             return None
         try:
-            from ..amsc import _native
+            from .. import _native
         except Exception:  # pragma: no cover — defensive; _native always imports
             return None
         dispatched, text = _native.invoke_tool_c(name, arguments)

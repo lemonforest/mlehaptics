@@ -11,7 +11,7 @@ import pytest
 
 from srmech.math import hdc
 from srmech.math.q import Q
-from srmech.amsc._native import HAS_NATIVE
+from srmech._native import HAS_NATIVE
 
 
 def _circ_dist(df: float) -> float:

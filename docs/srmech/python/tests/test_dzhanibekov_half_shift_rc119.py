@@ -26,8 +26,8 @@ from srmech.apokatastasis.ellbase import (
     _half_shift_response_py, _half_shift_response_c, _normalize_half_axis,
 )
 from srmech.math.q import Q
-from srmech.amsc import _native
-from srmech.amsc.tool_schema import get_tool_schema
+from srmech import _native
+from srmech.introspect.tool_schema import get_tool_schema
 
 ONE = Q(1, 1)
 M_ONE = M.one()

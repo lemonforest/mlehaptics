@@ -88,7 +88,7 @@ from typing import Dict, List, Optional, Set, Tuple
 
 import pytest
 
-from srmech.amsc.tool_schema import get_tool_schema, warmup_all
+from srmech.introspect.tool_schema import get_tool_schema, warmup_all
 
 warmup_all()
 

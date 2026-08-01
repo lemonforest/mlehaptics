@@ -8,7 +8,7 @@ real work in ONE call, so an LLM can author a TOML cascade spec AND run
 it atomically.
 
 The two ToolEntries registered in
-:func:`srmech.amsc.tool_schema._register_dsl_tools` resolve (via the
+:func:`srmech.introspect.tool_schema._register_dsl_tools` resolve (via the
 dotted-name walk in :mod:`srmech.mcp._tools`) to:
 
 * :func:`run_toml_chain` — ``srmech.dsl.run_toml_chain`` — parse an

@@ -51,7 +51,7 @@ from __future__ import annotations
 import ctypes
 from typing import Any, Dict, List, Sequence
 
-from srmech.amsc import _native  # rc11: native srmech_hamming_* dispatch
+from srmech import _native  # rc11: native srmech_hamming_* dispatch
 
 #: Upper bound on the parity-bit count ``n`` (codeword ``2ⁿ−1`` ≤ 65535). The C
 #: peer shares this ceiling so the two surfaces accept the same domain.

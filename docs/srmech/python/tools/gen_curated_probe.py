@@ -22,7 +22,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import srmech  # noqa: F401,E402
-from srmech.amsc.tool_schema import warmup_all  # noqa: E402
+from srmech.introspect.tool_schema import warmup_all  # noqa: E402
 warmup_all()
 
 _EDGES = [(0, 1), (1, 2), (2, 0), (2, 3)]
@@ -1126,7 +1126,7 @@ def main():
     # curated entries (the genome / plasmid / text explanations) are not in it
     # and a wholesale rewrite would delete every one of them.
     try:
-        from srmech.amsc._tool_docs_curated import CURATED as _existing
+        from srmech.introspect._tool_docs_curated import CURATED as _existing
     except Exception:  # noqa: BLE001 — first run / syntactically broken file
         _existing = {}
     merged = merge_curated(_existing, out)
@@ -1151,7 +1151,7 @@ def main():
                      f"{json.dumps(merged[name], sort_keys=True, ensure_ascii=False)},")
     lines.append("}")
     lines.append("")
-    dest = Path(__file__).resolve().parent.parent / "srmech" / "amsc" / "_tool_docs_curated.py"
+    dest = Path(__file__).resolve().parent.parent / "srmech" / "introspect" / "_tool_docs_curated.py"
     dest.write_text("\n".join(lines), encoding="utf-8", newline="\n")
     print(f"\nwrote {dest} — {len(merged)} curated entries "
           f"({len(out)} refreshed by this probe, {len(preserved)} preserved)")

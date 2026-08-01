@@ -66,7 +66,7 @@ from pathlib import Path
 import pytest
 
 import srmech.amsc.cascade.hypercomplex_dft as hd
-from srmech.amsc import _native
+from srmech import _native
 from srmech.amsc.cascade import octonion_dft, quaternion_dft
 from srmech.math.mat import Mat
 from srmech.qm import octonion as oct_mod
@@ -489,7 +489,7 @@ def test_rosetta_buckets():
 
 
 def test_octonion_twiddle_family_tool_entries_registered():
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     schema = get_tool_schema()
     for name in (
         "srmech.qm.octonion.octonion_exp",

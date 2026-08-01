@@ -133,7 +133,7 @@ from .cayley_dickson import (
 )
 from .hamming import hamming_encode, hamming_decode_correct
 from . import chiral_flip
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math.q import Q
 
 #: Default hypervector width (bits) — the RBS-HDC associative-register dimension.

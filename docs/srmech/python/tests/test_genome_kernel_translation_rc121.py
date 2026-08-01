@@ -37,7 +37,7 @@ import random
 import pytest
 
 from srmech.biology import genome as G
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math.hv import HV
 
 # The DoD dimensions — a multiple (256/8192/65536), the classic non-multiple

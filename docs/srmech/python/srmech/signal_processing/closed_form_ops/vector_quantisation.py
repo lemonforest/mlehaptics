@@ -26,7 +26,7 @@ from __future__ import annotations
 import ctypes
 from typing import List
 
-from srmech.amsc import _native
+from srmech import _native
 
 OPERATION_NAME = "vector_quantisation"
 CLASS_COMPOSITION = ("E", "M", "B")

@@ -1,4 +1,4 @@
-"""rc174 — the amsc.compose LINEAR CHAIN-RUNNER RUN LOOP → C parity.
+"""rc174 — the cascade.compose LINEAR CHAIN-RUNNER RUN LOOP → C parity.
 
 The ORCHESTRATION→C spine, batch 4: ``resolve_chain`` + ``run_chain`` earned a
 C peer (``srmech_chain_run``). It RUNS a validated ``[[catalog.operator_chain]]``
@@ -28,8 +28,9 @@ import sys
 
 import pytest
 
-from srmech.amsc import catalog, compose
-from srmech.amsc.compose import (
+from srmech.amsc import catalog
+from srmech.cascade import compose
+from srmech.cascade.compose import (
     _NATIVE_MISS,
     _run_chain_native,
     parse_chain_spec,

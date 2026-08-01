@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.biology import genome as G
 from srmech.amsc.cascade.one import the_one
 from srmech.math.hdc import klein4_from_one

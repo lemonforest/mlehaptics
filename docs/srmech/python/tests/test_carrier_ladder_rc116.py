@@ -356,7 +356,7 @@ def test_descriptor_shape_and_self_consistency():
         ladder = d["ladders"][spec["ladder"]]
         assert ladder["rungs"][name] == spec["rung"]
     # the three ladders name a real promote / project op dotted-path
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     schema = get_tool_schema()
     for ladder in d["ladders"].values():
         assert schema.lookup(ladder["promote"]) is not None
@@ -375,7 +375,7 @@ def test_tools_total_matches_live():
 
 
 def test_new_tool_entries_present_with_declared_types():
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     schema = get_tool_schema()
     expected = {
         "srmech.apokatastasis.zeilberger.bipoly_from_coeffs": (

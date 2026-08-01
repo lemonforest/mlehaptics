@@ -29,7 +29,7 @@ import random
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.amsc.cascade import matrix_cascades as mc
 
 HAS_QR = _native.has_native_qr_f64()

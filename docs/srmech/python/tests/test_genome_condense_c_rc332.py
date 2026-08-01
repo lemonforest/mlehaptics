@@ -30,7 +30,7 @@ from pathlib import Path
 import pytest
 
 from srmech.biology import genome as G
-from srmech.amsc import _native as _N
+from srmech import _native as _N
 from srmech.math.hdc import klein4_expand
 
 

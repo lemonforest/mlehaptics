@@ -107,7 +107,7 @@ def op(signal, *, mu: float = 0.0, D: int = 8192):
     # correlation is a Toeplitz matvec through the c_dispatched
     # srmech_dense_matmul_complex; otherwise the complete numpy-free pure cascade.
     # The matmul path is within-tol (reldiff ≤ 1e-9), not byte-identical.
-    from srmech.amsc import _native
+    from srmech import _native
     from srmech.signal_processing import _dsp_cascades as _dsp
 
     if (

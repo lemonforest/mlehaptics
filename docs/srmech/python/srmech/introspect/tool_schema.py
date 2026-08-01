@@ -193,7 +193,7 @@ class ToolSchemaValidationError(ToolSchemaError):
 
 #: The closed lane vocabulary. Not free text — an unknown lane is a
 #: registration error, exactly as an unknown ``bounded_by`` is in rc343's
-#: :data:`srmech.amsc.carrier_schema.CEILING_MECHANISMS`.
+#: :data:`srmech.introspect.carrier_schema.CEILING_MECHANISMS`.
 LANES: Dict[str, str] = {
     "index": (
         "reads the XOR address only: the output moves under an index relabel "
@@ -625,7 +625,7 @@ def _native_tool_schema_view() -> Optional[Dict[str, Any]]:
     """The rc185 C ``srmech_tool_schema_view`` output parsed to a dict, or
     ``None`` when the native peer is unavailable / returns non-OK."""
     try:
-        from . import _native
+        from .. import _native
     except Exception:  # pragma: no cover — defensive; _native always imports
         return None
     raw = _native.tool_schema_view_c()
@@ -899,7 +899,7 @@ def _register_amsc_tools() -> None:
         ),
         # ADR-0002 Phase 2 — composition engine surfaces.
         ToolEntry(
-            name="srmech.amsc.compose.parse_chain_spec", owner="srmech",
+            name="srmech.cascade.compose.parse_chain_spec", owner="srmech",
             category="compose",
             summary="Parse and validate one [[catalog.operator_chain]] "
                     "entry into a ChainSpec.",
@@ -908,7 +908,7 @@ def _register_amsc_tools() -> None:
             returns=ToolReturn(type="ChainSpec", shape=""),
         ),
         ToolEntry(
-            name="srmech.amsc.compose.parse_catalog_chains", owner="srmech",
+            name="srmech.cascade.compose.parse_catalog_chains", owner="srmech",
             category="compose",
             summary="Parse all [[catalog.operator_chain]] entries from a "
                     "catalog descriptor TOML dict. Requires "
@@ -917,7 +917,7 @@ def _register_amsc_tools() -> None:
             returns=ToolReturn(type="list[ChainSpec]", shape=""),
         ),
         ToolEntry(
-            name="srmech.amsc.compose.resolve_chain", owner="srmech",
+            name="srmech.cascade.compose.resolve_chain", owner="srmech",
             category="compose",
             summary="Resolve a ChainSpec to a callable by binding each "
                     "step's class.op against the registry. Raises "
@@ -929,7 +929,7 @@ def _register_amsc_tools() -> None:
             returns=ToolReturn(type="Callable", shape="run(row, **inputs)"),
         ),
         ToolEntry(
-            name="srmech.amsc.compose.run_chain", owner="srmech",
+            name="srmech.cascade.compose.run_chain", owner="srmech",
             category="compose",
             summary="Top-level executor: resolve a ChainSpec and run its "
                     "linear pipeline. Returns the final step's output.",
@@ -2800,7 +2800,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("dict", "{spine: list[int], communities: [list[int], "
                               "list[int]], coherence: float}"),
         ),
-        # NOTE: srmech.amsc.compose.greedy_bipartite_alignment (§2.2) is NOT
+        # NOTE: srmech.cascade.compose.greedy_bipartite_alignment (§2.2) is NOT
         # registered — it takes a Python `similarity_fn` callable that cannot
         # cross the JSON-RPC boundary, so it is not an MCP tool. It is exempt
         # in tests/test_tool_schema_coverage.py::_EXEMPT_FUNCTION_NAMES.
@@ -2825,7 +2825,7 @@ def _register_primitive_class_tools() -> None:
 
         # ────────────────────────────────────────────────────────────
         # Class H — self-introspection (already shipped via srmech_version /
-        # srmech_abi_version in srmech.amsc._native; no public Python wrapper
+        # srmech_abi_version in srmech._native; no public Python wrapper
         # to register here).
         # ────────────────────────────────────────────────────────────
 
@@ -5629,7 +5629,7 @@ def _register_primitive_class_tools() -> None:
         # what a TriPoly IS beyond "rung 3".
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.carrier_schema.carrier_schema",
+            name="srmech.introspect.carrier_schema.carrier_schema",
             owner="srmech", category="carrier_schema",
             summary="The CARRIER (operand) introspection registry (gh "
                     "#1293) — the noun-side DUAL of tool_schema: per "
@@ -10429,7 +10429,7 @@ def _register_dsl_tools() -> None:
     registering at this module's import is cycle-free. ``warmup_all()``
     additionally imports ``srmech.dsl`` for manifest completeness; that
     import is also cycle-free (verified — neither ``srmech.dsl`` nor
-    ``srmech.introspect`` imports ``srmech.amsc.tool_schema`` at module
+    ``srmech.introspect`` imports ``srmech.introspect.tool_schema`` at module
     load).
     """
     rc12 = " (v0.5.0rc12 — DSL surface voxel)."
@@ -11119,9 +11119,9 @@ def warmup_all() -> None:
     ``srmech.amsc`` (this module's package) and ``srmech.qm`` register
     their tools at *this* module's import time via the
     ``_register_*_tools()`` calls below, so they are always present once
-    ``srmech.amsc.tool_schema`` is imported. The submodules listed here
+    ``srmech.introspect.tool_schema`` is imported. The submodules listed here
     are the ones whose registration is NOT transitively guaranteed by
-    importing ``srmech.amsc.tool_schema``:
+    importing ``srmech.introspect.tool_schema``:
 
     * ``srmech.bus`` fires ``srmech.bus._tool_schema._register_bus_tools``
       (the rc9 orphan — bus tools were silently missing from the
@@ -11136,7 +11136,7 @@ def warmup_all() -> None:
       no cycle), but importing the module keeps the manifest complete
       and confirms the package is importable. The import is cycle-free:
       neither ``srmech.dsl`` nor ``srmech.introspect`` imports
-      ``srmech.amsc.tool_schema`` at module load (``srmech.dsl._catalog``
+      ``srmech.introspect.tool_schema`` at module load (``srmech.dsl._catalog``
       only references it in a docstring; ``srmech.introspect`` imports it
       lazily inside ``describe()``).
     """

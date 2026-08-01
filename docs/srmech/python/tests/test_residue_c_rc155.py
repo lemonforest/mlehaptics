@@ -24,7 +24,7 @@ import random
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 
 
 # ── VALUE ORACLES (hold on any host; no native symbol required) ────────────

@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.biology import genome as G
 from srmech.math import hdc
 
@@ -85,7 +85,7 @@ def test_edges_weights_mismatch_raises():
 
 
 def test_registered_in_tool_schema():
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
     assert "srmech.biology.genome.graph_to_kernel" in names
     assert "srmech.biology.genome.kernel_to_graph" in names
@@ -109,7 +109,7 @@ def test_native_equals_pure_codec():
         (4, [(i % 4, (i + 1) % 4) for i in range(9)], [i + 1 for i in range(9)],
             [(-1) ** i * (i + 1) for i in range(9)], [9, 8, 7, 6], [1, 2, 3]),
     ]
-    import srmech.amsc._native as N
+    import srmech._native as N
     orig = N.has_native_graph_kernel_codec
     for vs, edges, weights, charges, node_ids, extras in cases:
         strand_n, ns_n = G.graph_to_kernel(vs, edges, weights, charges,

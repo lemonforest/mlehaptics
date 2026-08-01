@@ -31,7 +31,8 @@ import ctypes
 
 import pytest
 
-from srmech.amsc import _native, cascade
+from srmech import _native
+from srmech.amsc import cascade
 from srmech.amsc.cascade.cayley_dickson import (
     ALGEBRA_NAMES,
     CD_DENSE_MAX_DIM,

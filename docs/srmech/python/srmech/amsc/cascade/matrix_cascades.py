@@ -56,7 +56,7 @@ from typing import Dict, List, Tuple
 # ``lstsq`` / ``eigvals`` delegate to ``mat_svd`` / ``mat_lstsq`` / ``mat_eigvals``;
 # ``qr`` is a list-based Householder; ``einsum`` is the nested-list
 # index-iteration definition. There is NO ``import numpy`` anywhere here.
-from srmech.amsc import _native as _native  # rc140: real QR/SVD C dispatch (F2)
+from srmech import _native as _native  # rc140: real QR/SVD C dispatch (F2)
 from srmech.math.mat import Mat as _Mat
 from srmech.math.vec import Vec as _Vec  # rc131: 1-D carrier for singular values / vector solutions / eigenvalues
 from srmech.math.laplacian import (

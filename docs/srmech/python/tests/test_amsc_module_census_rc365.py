@@ -110,8 +110,9 @@ ORIGINAL_N_MODULES = 75
 #: qprime / poly / qpoly / qbipoly / tripoly / complex128 / carrier_ladder /
 #: carrier_spectrum departing to srmech.math. This DRAINS the math bucket: with
 #: this slice srmech.math holds all 28 of its A.2 members (see the H.2 over-count
-#: reconciliation at ADR_A2_DESTINATION_COUNTS below). carrier_schema STAYS in
-#: amsc (it is the introspect surface, not a carrier).
+#: reconciliation at ADR_A2_DESTINATION_COUNTS below). carrier_schema is the
+#: introspect SURFACE (not a carrier), so rc376 (Amendment M) MOVES it to
+#: srmech.introspect with the rest of the introspect core — it is NOT a keeper.
 #: rc375 (the tenth slice, the BIOLOGY bucket — opens AND drains srmech.biology in
 #: ONE slice, the roster being small enough): 18 -> 14, the four biology modules
 #: coupling / genome / plasmid / q8 departing to srmech.biology (the biology
@@ -119,7 +120,15 @@ ORIGINAL_N_MODULES = 75
 #: (many srmech_genome_* peers); those C symbols are capability-named and DO NOT
 #: rename, so the ABI stays 10. Takes LANDED from 57 to 61 and the live amsc count
 #: from 18 to 14 (conservation 14 + 61 == 75).
-EXPECTED_N_MODULES = 14
+#: rc376 (the ELEVENTH and FINAL slice — the introspect/native CORE): 14 -> 4,
+#: the ten remaining non-keeper modules departing in ONE slice: tool_schema /
+#: _tool_docs / _tool_docs_curated / _carrier_examples / _c_claims / carrier_schema
+#: -> srmech.introspect; _unicode_fold_tables / _unicode_gb_tables -> srmech.math
+#: (their SOLE consumer is srmech/math/text.py); compose -> srmech.cascade; and
+#: _native realized as the srmech._native PACKAGE (_native.py -> _native/__init__.py,
+#: co-located with the .so it loads). Takes LANDED from 61 to 71 and the live amsc
+#: count from 14 to 4 == KEEPERS: the arc is DONE (conservation 4 + 71 == 75).
+EXPECTED_N_MODULES = 4
 EXPECTED_N_SUBPACKAGES = 3
 
 #: sha256 over the NORMALISED manifest body — "\n".join(sorted entries) + "\n",
@@ -127,7 +136,7 @@ EXPECTED_N_SUBPACKAGES = 3
 #: the digest disagree between the Windows and Linux CI cells; that would be a
 #: platform artifact masquerading as a move (the rc361 rationale, verbatim).
 EXPECTED_CENSUS_SHA256 = (
-    "b7443cd00a388f24b2d212ee8ac9cb6b1c669a94fd8d70d2d8f16dbe8eb0a8fe")
+    "7536f292fd4d7f558def2c8173ec85034aaca2dabe2699163c1a74ab382da5cc")
 
 # ── the four keepers, and the A.2 move map (as DATA the test reads) ──────────
 
@@ -144,12 +153,15 @@ KEEPERS = frozenset({"catalog", "descriptor", "format", "gap_suggester"})
 EXPECTED_SUBPACKAGES = frozenset({"adapters", "attested", "cascade"})
 ATTESTATION_SUBPACKAGES = frozenset({"adapters", "attested"})
 
-#: A.2's move map, per-destination COUNTS, quoted verbatim. These sum to 74; the
-#: tree has 75. The residual 1 is A.2's OWN acknowledged classification gap (its
-#: heading reads "73 of 75 classified"). The census does not depend on resolving
-#: it — the departure allowlist below is derived from the authoritative fact that
-#: only 4 modules keep, so all 71 non-keepers are permitted to leave regardless
-#: of which bucket A.2 finally lands each in.
+#: A.2's move map, per-destination COUNTS, quoted verbatim. rc376 (Amendment M)
+#: CLOSES A.2's original "73 of 75" gap to 75/75: the two Unicode grapheme/fold
+#: tables A.2 left unclassified belong to srmech.math (their SOLE consumer is
+#: srmech/math/text.py), so introspect drops 10 -> 9 and math gains 28 -> 30, a
+#: net +1 that lands the table's sum at 75 == the tree's original count. (Before
+#: rc376 these summed to 74 with a residual 1 — A.2's own acknowledged gap.) The
+#: census does not depend on the gap being closed — the departure allowlist below
+#: is derived from the authoritative fact that only 4 modules keep, so all 71
+#: non-keepers are permitted to leave regardless of which bucket A.2 lands each in.
 #: rc374 OVER-COUNT RECONCILIATION (ADR-0010 Amendment H.2, realised in full at
 #: Amendment K). A.2's published split gave apokatastasis 31 and srmech.math 22.
 #: But the real special-functions family is only 25 modules (the elliptic /
@@ -164,8 +176,8 @@ ATTESTATION_SUBPACKAGES = frozenset({"adapters", "attested"})
 #: real population (28) visible against the corrected count.
 ADR_A2_DESTINATION_COUNTS = {
     "srmech.apokatastasis": 25,   # elliptic / modular / theta / q-series (H.2-corrected from 31)
-    "srmech.math": 28,            # A-N primitives + carriers + general math (H.2-corrected from 22)
-    "srmech.introspect": 10,      # + responsion_schema (the cross-cutting meta)
+    "srmech.math": 30,            # A-N primitives + carriers + general math + the 2 unicode tables (rc376 +2)
+    "srmech.introspect": 9,       # tool_schema/_tool_docs*/carrier_schema/_c_claims/_carrier_examples + naming/op_provenance/responsion_schema (rc376 10 -> 9: unicode tables reassigned to math)
     "srmech.amsc": 4,             # KEEPS — the attestation framework
     "srmech.biology": 4,          # genome / plasmid / q8 / coupling
     "srmech.cascade": 1,          # compose
@@ -185,7 +197,8 @@ NAMED_DEPARTURES = {
     "srmech.music": frozenset({"harmonics"}),
     "srmech._native": frozenset({"_native"}),
     "srmech.introspect": frozenset({
-        "tool_schema", "_tool_docs", "carrier_schema",
+        "tool_schema", "_tool_docs", "_tool_docs_curated", "_carrier_examples",
+        "_c_claims", "carrier_schema",
         "op_provenance", "naming", "responsion_schema"}),
     # rc370 — the elliptic domain's first named member. rc371 — the WHOLE-FAMILY
     # drain names the other 24, so this bucket is the full 25-module elliptic /
@@ -219,7 +232,8 @@ NAMED_DEPARTURES = {
         "search", "template", "tlv", "text",
         "mat", "vec", "hv", "q", "qmat", "qi", "qalg", "qprime", "poly",
         "qpoly", "qbipoly", "tripoly", "complex128", "carrier_ladder",
-        "carrier_spectrum"}),
+        "carrier_spectrum",
+        "_unicode_fold_tables", "_unicode_gb_tables"}),
 }
 
 #: Modules that have COMPLETED their ADR-0010 departure — they have LEFT
@@ -277,7 +291,11 @@ LANDED = frozenset({"harmonics", "naming", "responsion_schema", "op_provenance",
                     "mat", "vec", "hv", "q", "qmat", "qi", "qalg", "qprime",
                     "poly", "qpoly", "qbipoly", "tripoly", "complex128",
                     "carrier_ladder", "carrier_spectrum",
-                    "coupling", "genome", "plasmid", "q8"})
+                    "coupling", "genome", "plasmid", "q8",
+                    "tool_schema", "_tool_docs", "_tool_docs_curated",
+                    "_carrier_examples", "_c_claims", "carrier_schema",
+                    "compose", "_native",
+                    "_unicode_fold_tables", "_unicode_gb_tables"})
 
 
 # ── readers ──────────────────────────────────────────────────────────────────
@@ -473,11 +491,12 @@ def test_the_move_map_matches_A2_where_A2_is_authoritative() -> None:
         ADR_A2_DESTINATION_COUNTS["srmech.math"]
     # the keeps count is the keeper set
     assert ADR_A2_DESTINATION_COUNTS["srmech.amsc"] == len(KEEPERS)
-    # A.2's table sums to 74; the ORIGINAL tree had 75 (its own "73 of 75" gap,
-    # documented). The gap is stated against the FIXED baseline, not the draining
-    # live count — otherwise it would falsely move by 1 on every slice.
-    assert sum(ADR_A2_DESTINATION_COUNTS.values()) == 74
-    assert ORIGINAL_N_MODULES - sum(ADR_A2_DESTINATION_COUNTS.values()) == 1
+    # rc376 (Amendment M) closed A.2's "73 of 75" gap to 75/75: the table now
+    # sums to the ORIGINAL tree's 75 (the two Unicode tables were reassigned from
+    # an unclassified slot to srmech.math, their real consumer). The gap is stated
+    # against the FIXED baseline, so it is now exactly 0.
+    assert sum(ADR_A2_DESTINATION_COUNTS.values()) == 75
+    assert ORIGINAL_N_MODULES - sum(ADR_A2_DESTINATION_COUNTS.values()) == 0
 
 
 def test_the_drain_is_conserved_and_landed_is_a_real_record() -> None:
@@ -527,20 +546,26 @@ def test_the_census_can_actually_fail() -> None:
         "the digest helper disagrees with the pinned value — the injection "
         "proofs below would be measuring the wrong thing.")
 
-    # (1) a module leaves for a MAPPED destination (compose -> srmech.cascade):
-    #     down-only stays GREEN (a departure is legal), and the digest CHANGES
-    #     — the move is detected. (Was ``poly`` until rc374 then ``genome`` until
-    #     rc375, each retired as a stand-in once it actually departed — genome to
-    #     srmech.biology this slice; ``compose`` is the remaining still-present
-    #     non-keeper A.2 maps, to srmech.cascade.)
+    # (1) a module leaves for a MAPPED destination. The MODULE arc is COMPLETE at
+    #     rc376 — the manifest now holds only the four keepers, so ``allowed``
+    #     (committed − KEEPERS) is EMPTY and there is no longer a real non-keeper to
+    #     retire as the stand-in (``poly`` -> ``genome`` -> ``compose`` were the
+    #     successive stand-ins, each retired when it actually departed; ``compose``
+    #     departed THIS slice, to srmech.cascade). So the injection runs on a
+    #     HYPOTHETICAL pre-completion population: add ``compose`` back (a real LANDED
+    #     module A.2 maps to srmech.cascade), then remove it. down-only stays GREEN
+    #     (a departure is legal) and the digest CHANGES — the move is detected.
     leaver = "compose"
-    assert leaver in allowed and leaver not in KEEPERS
-    live1 = committed - {leaver}
-    removed1 = _departures(committed, live1)
-    assert _down_only_ok(committed, live1)                 # subset holds
-    assert _all_departures_mapped(removed1, allowed)       # move-map green
+    assert leaver in LANDED and leaver not in KEEPERS
+    hypo = committed | {leaver}          # a pre-completion population that still had it
+    hypo_allowed = hypo - KEEPERS
+    assert leaver in hypo_allowed
+    live1 = hypo - {leaver}              # == committed (the completed floor)
+    removed1 = _departures(hypo, live1)
+    assert _down_only_ok(hypo, live1)                      # subset holds
+    assert _all_departures_mapped(removed1, hypo_allowed)  # move-map green
     assert _keepers_intact(removed1)                       # keeper green
-    assert _digest_of(live1, subs) != EXPECTED_CENSUS_SHA256, (
+    assert _digest_of(live1, subs) != _digest_of(hypo, subs), (
         "a module left but the digest did not change — the move would be "
         "invisible, which is the exact blindness this census exists to remove.")
 
@@ -594,14 +619,14 @@ def test_the_manifest_is_not_codegen_emitted() -> None:
 # ── 6. the end state, documented ─────────────────────────────────────────────
 
 def test_the_end_state_floor_is_the_four_keepers() -> None:
-    """The ratchet's floor, stated so a later reader knows when the arc is DONE.
+    """The ratchet's floor, REACHED at rc376: the module arc is DONE.
 
-    ``amsc`` drains 75 modules -> 4. The arc is COMPLETE when ``_live_modules()``
-    equals ``KEEPERS`` (and only the two attestation subpackages remain). This is
-    documentary, not a live assertion of completion — the drain is monotone, not
-    instantaneous.
+    ``amsc`` drained 75 modules -> 4. rc376 (Amendment M) landed the last ten
+    non-keepers, so ``_live_modules()`` now EQUALS ``KEEPERS``. The module drain
+    is complete; the ``cascade`` subpackage remains under A.2's separate
+    subpackage row (``adapters`` + ``attested`` are the attestation keepers).
     """
     assert len(KEEPERS) == 4
-    assert KEEPERS < _manifest_modules(), (
-        "the keepers are the floor; the committed population must be a strict "
-        "superset of them until the arc completes.")
+    assert KEEPERS == _manifest_modules(), (
+        "ADR-0010 is COMPLETE at rc376: the committed module population has "
+        "drained to exactly the four attestation keepers.")

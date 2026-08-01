@@ -2,7 +2,7 @@
 """Code-generator for ``c/src/srmech_carrier_registry.c`` (0.9.0rc205).
 
 The CARRIER (operand) introspection registry — gh #1293: emit the
-``srmech.amsc.carrier_schema`` per-carrier metadata (name / description /
+``srmech.introspect.carrier_schema`` per-carrier metadata (name / description /
 ladder / rung / variables / the rc339 CAPABILITY block / the DERIVED ops
 back-index) as a ``const`` C data
 table so a bare-C host (no Python) produces the carrier registry DATA and the
@@ -145,7 +145,7 @@ def generate() -> str:
     here = Path(__file__).resolve()
     python_dir = here.parent.parent.parent / "python"
     sys.path.insert(0, str(python_dir))
-    from srmech.amsc.carrier_schema import _pure_carrier_schema
+    from srmech.introspect.carrier_schema import _pure_carrier_schema
 
     schema = _pure_carrier_schema()
     # Byte-order name sort == CPython json.dumps(sort_keys=True) top-level
@@ -181,7 +181,7 @@ def generate() -> str:
     w(" * ORDER this file depends on. rc346 left it stale on purpose to keep its")
     w(" * own zero-delta signal clean; rc347 already moves these bytes.")
     w(" *")
-    w(" * Source of truth: srmech.amsc.carrier_schema._pure_carrier_schema()")
+    w(" * Source of truth: srmech.introspect.carrier_schema._pure_carrier_schema()")
     w(" * (the authored per-carrier metadata + the DERIVED ops back-index).")
     w(" * The 0.9.0rc205 CARRIER (operand) introspection registry (gh #1293)")
     w(" * as a const data table (JPL-clean: const arrays, no dynamic init,")

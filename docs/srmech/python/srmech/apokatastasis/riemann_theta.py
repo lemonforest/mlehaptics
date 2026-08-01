@@ -228,7 +228,7 @@ def _native():
     body (the complete alternative + the parity oracle). Imported lazily to avoid a
     bootstrap cycle."""
     try:
-        from ..amsc import _native as nat
+        from .. import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_riemann_theta", None)
@@ -379,7 +379,7 @@ def _cyc_mul(a: "Tuple[int, ...]", b: "Tuple[int, ...]", m: int) -> "Tuple[int, 
     body is the complete fallback). Else the pure-Python :func:`_cyc_mul_py`."""
     table, _deg = _cyclotomic_ring(m)
     try:
-        from ..amsc import _native as nat
+        from .. import _native as nat
         fn = getattr(nat, "riemann_theta_cyc_mul_c", None)
         if fn is not None:
             got = fn(a, b, table, m)
@@ -624,7 +624,7 @@ def _native_gate():
     (the complete alternative + the parity oracle). Imported lazily to avoid a
     bootstrap cycle."""
     try:
-        from ..amsc import _native as nat
+        from .. import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_riemann_theta_gate", None)
@@ -2644,7 +2644,7 @@ def _native_g3():
     falls cleanly to the pure-Python body (the complete alternative + the parity
     oracle). Imported lazily to avoid a bootstrap cycle."""
     try:
-        from ..amsc import _native as nat
+        from .. import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_riemann_theta_g3", None)
@@ -2658,7 +2658,7 @@ def _native_g3_chi18():
     lattice to C when available and falls cleanly to the pure-Python body (the complete
     alternative + the parity oracle). Imported lazily to avoid a bootstrap cycle."""
     try:
-        from ..amsc import _native as nat
+        from .. import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_riemann_theta_g3_chi18", None)
@@ -2673,7 +2673,7 @@ def _native_g3_goepel():
     present) to C when available and falls cleanly to the pure-Python body (the complete
     alternative + the parity oracle). Imported lazily to avoid a bootstrap cycle."""
     try:
-        from ..amsc import _native as nat
+        from .. import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_riemann_theta_g3_goepel", None)
@@ -2687,7 +2687,7 @@ def _native_g4():
     available and falls cleanly to the pure-Python body (the complete alternative + the
     parity oracle). Imported lazily to avoid a bootstrap cycle."""
     try:
-        from ..amsc import _native as nat
+        from .. import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_riemann_theta_g4", None)
@@ -2703,7 +2703,7 @@ def _native_g4_schottky():
     cleanly to the pure-Python body (the complete alternative + the parity oracle).
     Imported lazily to avoid a bootstrap cycle."""
     try:
-        from ..amsc import _native as nat
+        from .. import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_riemann_theta_g4_schottky", None)
@@ -2718,7 +2718,7 @@ def _native_g4_sp8():
     cleanly to the pure-Python body (the complete alternative + the parity oracle).
     Imported lazily to avoid a bootstrap cycle."""
     try:
-        from ..amsc import _native as nat
+        from .. import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_riemann_theta_g4_sp8", None)
@@ -2733,7 +2733,7 @@ def _native_g4_goepel():
     present) to C when available and falls cleanly to the pure-Python body (the complete
     alternative + the parity oracle). Imported lazily to avoid a bootstrap cycle."""
     try:
-        from ..amsc import _native as nat
+        from .. import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_riemann_theta_g4_goepel", None)
@@ -2747,7 +2747,7 @@ def _native_g5():
     to C when available and falls cleanly to the pure-Python body (the complete
     alternative + the parity oracle). Imported lazily to avoid a bootstrap cycle."""
     try:
-        from ..amsc import _native as nat
+        from .. import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_riemann_theta_g5", None)

@@ -18,7 +18,7 @@ import hashlib
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.amsc.format import sha256_batch, sha256_bytes
 
 # Lengths that hit every FIPS padding boundary: 0/1/2-block transitions

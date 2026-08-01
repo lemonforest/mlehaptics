@@ -266,7 +266,7 @@ def test_native_matches_pure_when_present():
     for this degree-2 system swells past the ceiling → it declines), so this pins the
     value-equivalence of the dispatch either way — fast (the iterable r_n depends only
     on j, so its exact-ℚ system is small)."""
-    from srmech.amsc import _native as nat
+    from srmech import _native as nat
     from srmech.apokatastasis.apagodu_zeilberger import _apagodu_pure, _coerce_tri
     if not nat.has_native_apagodu_zeilberger():
         pytest.skip("native srmech_apagodu_zeilberger not present in this environment")
@@ -290,7 +290,7 @@ def test_native_c_peer_executes_and_matches_pure():
     the pure-Python body — the proof the C path RUNS (not merely declines). Opt-in
     (the dense exact-ℚ RREF arena is large + slow); skip-clean when no native lib OR
     when the C declines the system (a low-memory environment)."""
-    from srmech.amsc import _native as nat
+    from srmech import _native as nat
     from srmech.apokatastasis.apagodu_zeilberger import _apagodu_pure, _coerce_tri, _tri_pairs
     if not nat.has_native_apagodu_zeilberger():
         pytest.skip("native srmech_apagodu_zeilberger not present in this environment")

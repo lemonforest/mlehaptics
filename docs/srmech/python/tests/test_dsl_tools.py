@@ -29,7 +29,7 @@ import re
 import pytest
 
 import srmech  # noqa: F401
-from srmech.amsc.tool_schema import get_tool_schema, warmup_all
+from srmech.introspect.tool_schema import get_tool_schema, warmup_all
 from srmech.mcp._tools import invoke_tool, tool_entry_to_mcp_def
 
 #: Anthropic / MCP property-key grammar (anchored) — same as test_mcp.py.

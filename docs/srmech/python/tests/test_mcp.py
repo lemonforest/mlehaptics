@@ -28,7 +28,7 @@ import pytest
 import srmech.bus  # noqa: F401 — import side-effect
 
 import srmech
-from srmech.amsc.tool_schema import get_tool_schema, warmup_all
+from srmech.introspect.tool_schema import get_tool_schema, warmup_all
 from srmech.mcp import (
     MCP_PROTOCOL_VERSION,
     MCPError,
@@ -864,14 +864,14 @@ def test_cli_filter_flag_subprocess() -> None:
 #
 # Regression tests for the discoverability gap caught 2026-05-28: the
 # MCP wrapper at ``srmech.mcp._tools`` only imported
-# ``srmech.amsc.tool_schema`` and never triggered the side-effect
+# ``srmech.introspect.tool_schema`` and never triggered the side-effect
 # imports of ``srmech.bus._tool_schema`` (which registers the bus
 # tools) — so the bus discovery + decode surfaces and the introspect
 # read surfaces were silently missing from the LLM-facing catalog.
 #
 # The fix: side-effect imports at the top of ``srmech.mcp._tools``
 # plus two new ``register_tool`` calls in each of
-# ``srmech.amsc.tool_schema._register_introspect_tools`` and
+# ``srmech.introspect.tool_schema._register_introspect_tools`` and
 # ``srmech.bus._tool_schema._register_bus_tools``.
 #
 # These five tests lock the fix in — they all assert via
@@ -893,7 +893,7 @@ def _names_after_mcp_import() -> set:
     # import isn't optimised away by a linter; same pattern as the
     # production code.
     from srmech.mcp import _tools  # noqa: F401 — side effect under test
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     schema = get_tool_schema()
     return {e.name for e in schema.tools}
 
@@ -972,7 +972,7 @@ def test_bus_by_name_in_tool_schema_via_mcp_import() -> None:
 
 def test_mcp_import_chain_does_not_loop() -> None:
     """``srmech.mcp._tools`` import must not trigger a circular
-    import via ``srmech.bus`` -> ``srmech.amsc.tool_schema`` ->
+    import via ``srmech.bus`` -> ``srmech.introspect.tool_schema`` ->
     ``srmech.bus`` (the cycle the fix was careful to avoid)."""
     # If a cycle existed, this import would raise ImportError or
     # AttributeError on first import in a fresh interpreter. The
@@ -981,7 +981,7 @@ def test_mcp_import_chain_does_not_loop() -> None:
     # that the side-effect imports complete cleanly and the expected
     # tools are present.
     from srmech.mcp import _tools  # noqa: F401
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     schema = get_tool_schema()
     # The full v0.5.0rc9 discoverability set is present in one shot.
     required = {
@@ -1018,7 +1018,7 @@ def test_warmup_all_populates_registry() -> None:
     bus + introspect tools are present in the tool schema regardless of
     entry-path. Closes the orphan-registration bug class (rc9 bus miss).
     """
-    from srmech.amsc.tool_schema import get_tool_schema, warmup_all
+    from srmech.introspect.tool_schema import get_tool_schema, warmup_all
 
     warmup_all()  # idempotent
     names = {e.name for e in get_tool_schema().tools}
@@ -1043,7 +1043,7 @@ def test_describe_shape() -> None:
     """``srmech.introspect.describe()`` returns the self-shape dict with
     all expected keys; the counts are internally consistent and agree
     with the live tool schema."""
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     from srmech.introspect import describe
 
     d = describe()
@@ -1113,7 +1113,7 @@ def test_describe_registered_as_tool() -> None:
     (so MCP / Anthropic consumers can call the self-recognition root),
     with no parameters (keeps the property-key ratchet trivially happy).
     """
-    from srmech.amsc.tool_schema import get_tool_schema, warmup_all
+    from srmech.introspect.tool_schema import get_tool_schema, warmup_all
 
     warmup_all()
     entry = get_tool_schema().lookup("srmech.introspect.describe")

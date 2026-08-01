@@ -389,7 +389,7 @@ def test_introspect_tools_total_matches_live():
 
 def test_tool_entry_registered():
     """The new op is a registered ToolEntry in the qm.so8 category."""
-    from srmech.amsc import tool_schema
+    from srmech.introspect import tool_schema
 
     schema = tool_schema.get_tool_schema()
     name = "srmech.qm.so8.quaternion_subalgebra_stabilizer"

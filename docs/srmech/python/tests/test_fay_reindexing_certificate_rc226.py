@@ -37,7 +37,7 @@ from __future__ import annotations
 import pytest
 
 from tests._native_gate import require_native
-from srmech.amsc import _native
+from srmech import _native
 from srmech.apokatastasis import riemann_theta as rt
 from srmech.apokatastasis.riemann_theta import RiemannTheta
 

@@ -37,7 +37,7 @@ from srmech.apokatastasis.modular_forms_ring import (
 from srmech.apokatastasis.eisenstein import Eisenstein
 from srmech.apokatastasis.eta_quotient import EtaQuotient
 from srmech.math.q import Q
-from srmech.amsc import _native
+from srmech import _native
 
 
 # ── exact-Q q-series helpers (local, no carrier re-use for the oracle) ─────────
@@ -283,7 +283,7 @@ def test_represent_is_a_tool_entry_total_matches_live():
     which took the shipped tool count 340 → 341 at rc84 (now 342 with the rc89
     quasimodular reducer). The bare carrier constructor + weight_monomials/dim are
     NOT ToolEntries."""
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     shipped = [t for t in get_tool_schema().tools if not t.name.startswith("test.")]
     assert len(shipped) == 525
     names = {t.name for t in shipped}

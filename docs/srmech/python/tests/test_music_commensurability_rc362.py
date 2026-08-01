@@ -481,7 +481,7 @@ def test_bessel_c_peer_is_bit_identical_to_the_python_body():
     the native lib is absent this degrades to a pure-Python self-check that
     still exercises the whole body.
     """
-    from srmech.amsc import _native
+    from srmech import _native
     from srmech.music import _bessel
 
     cases = [(order, p, q, sb)

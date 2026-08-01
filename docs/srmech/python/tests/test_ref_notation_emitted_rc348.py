@@ -322,7 +322,7 @@ CEIL_BARE_REFS_EMITTED = {
     #   the finding "𝕆 measured to have no frame-free invariant" and the
     #   summary's is the BUILD TASK that shipped quaternion_cycle_holonomy —
     #   the same LOCAL task, no GitHub object. Fixed upstream at
-    #   srmech/amsc/tool_schema.py:9682 (one character, `#944` -> `#T944`),
+    #   srmech/introspect/tool_schema.py:9682 (one character, `#944` -> `#T944`),
     #   then regenerated. HEAD carried THREE copies of this false link across
     #   the two shipped artifacts; it now carries none.
     #   DRAINED 72, every one of them auto-seed carry-through that left with
@@ -344,8 +344,8 @@ CEIL_BARE_REFS_EMITTED = {
     #   move together, and here they moved by exactly -68 each (the rc346
     #   measurement: bytes injected into _tool_docs.py propagate exactly into
     #   srmech_tool_registry.c).
-    "python/srmech/amsc/_tool_docs.py": 7,
-    "python/srmech/amsc/_c_claims.py": 0,
+    "python/srmech/introspect/_tool_docs.py": 7,
+    "python/srmech/introspect/_c_claims.py": 0,
     # rc358 (`#T1022`): 130 -> 129. The SAME shape as the rc353 `#944` note
     # above, and the second instance of it — so treat it as the pattern, not
     # the exception. `#914` rode here as pre-convention residual because the

@@ -9,7 +9,7 @@ complementing Class I (modular arithmetic):
   ``(Z/nZ)*`` (smallest ``k > 0`` with ``a^k ≡ 1 mod n``).
 
 Each operation dispatches to the native C implementation when
-``srmech.amsc._native`` loaded successfully (``HAS_NATIVE = True``)
+``srmech._native`` loaded successfully (``HAS_NATIVE = True``)
 and falls back to a pure-Python implementation otherwise. Both paths
 produce byte-exact identical results — pinned by
 ``tests/test_primes_parity.py``.
@@ -23,7 +23,7 @@ from __future__ import annotations
 import ctypes
 from typing import List, Tuple
 
-from ..amsc import _native
+from .. import _native
 from .cyclic import gcd as _gcd
 
 __all__ = [

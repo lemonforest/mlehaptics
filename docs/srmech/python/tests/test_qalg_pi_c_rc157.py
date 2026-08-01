@@ -30,7 +30,7 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math import rational as R
 from srmech.signal_processing.closed_form_ops import pi_cascade as _cf_pi
 from srmech.signal_processing.path_b_ops import pi_cascade as _pb_pi

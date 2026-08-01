@@ -26,9 +26,9 @@ import unicodedata
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math import text as T
-from srmech.amsc import _unicode_fold_tables as fdt
+from srmech.math import _unicode_fold_tables as fdt
 
 
 # ── the naming argument, as an executable claim ───────────────────────────
@@ -259,7 +259,7 @@ def test_the_c_peer_is_actually_REACHABLE_not_merely_exported():
 
 
 def test_registered_in_the_tool_schema():
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     entry = next((t for t in get_tool_schema().tools
                   if t.name == "srmech.math.text.fold_marks"), None)
     assert entry is not None, "fold_marks is not registered"

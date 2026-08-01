@@ -25,7 +25,7 @@ import math
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math import laplacian as _lap
 from srmech.math.laplacian import (
     LAPLACIAN_OPS,
@@ -277,7 +277,7 @@ def test_registration_all_and_laplacian_ops():
 
 
 def test_registration_tool_schema():
-    from srmech.amsc.tool_schema import get_tool_schema, warmup_all
+    from srmech.introspect.tool_schema import get_tool_schema, warmup_all
     warmup_all()
     schema = get_tool_schema()
     assert len(schema.tools) == 525
@@ -288,7 +288,7 @@ def test_registration_tool_schema():
 
 def test_c_claims_manifest_names_the_symbols():
     """The c_dispatched claim resolves to the real C symbols (rc300 manifest)."""
-    from srmech.amsc._c_claims import C_CLAIMS
+    from srmech.introspect._c_claims import C_CLAIMS
     assert C_CLAIMS["srmech.math.laplacian.mass_normalized_laplacian"] == (
         "srmech_graph_mass_normalized_laplacian",)
     assert C_CLAIMS["srmech.math.laplacian.cotangent_weights"] == (

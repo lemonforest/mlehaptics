@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.biology import genome as G
 from srmech.math.hdc import klein4_expand
 from srmech.amsc.format import MPRRecord, MPRValidationError, validate_mpr_record

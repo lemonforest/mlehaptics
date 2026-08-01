@@ -87,7 +87,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from srmech.math import hdc as _M
-from srmech.amsc import _native
+from srmech import _native
 # Route the mint hash through format.sha256_raw so it picks up the native C
 # SHA-256 dispatch transparently (CLAUDE.md: no raw hashlib.sha256 callsites);
 # sha256_raw(x) is bit-identical to hashlib.sha256(x).digest() (raw 32 bytes).

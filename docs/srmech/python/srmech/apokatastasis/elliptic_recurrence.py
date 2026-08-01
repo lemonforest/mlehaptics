@@ -311,7 +311,7 @@ def _native():
     cleanly to the pure-Python body (the complete alternative + the parity oracle).
     Imported lazily to avoid a bootstrap cycle."""
     try:
-        from ..amsc import _native as nat
+        from .. import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_elliptic_recurrence_8w7", None)

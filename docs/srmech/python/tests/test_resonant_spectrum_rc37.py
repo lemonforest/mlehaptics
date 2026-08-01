@@ -20,7 +20,7 @@ import ctypes
 import pytest
 
 from srmech.biology import coupling
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math import laplacian as La
 from srmech.math.mat import Mat
 from srmech.math.vec import Vec

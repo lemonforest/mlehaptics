@@ -144,7 +144,7 @@ def test_cascade_ops_includes_chirality():
 
 
 def test_chirality_ops_have_tool_entries():
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     schema = get_tool_schema()
     for op in ("chiral_flip", "chiral_dual", "net_chirality"):
         assert schema.lookup(f"srmech.amsc.cascade.{op}") is not None

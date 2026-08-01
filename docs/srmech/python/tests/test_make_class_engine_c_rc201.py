@@ -1,6 +1,6 @@
 """rc201 — the make_class OBJECT-MODEL ENGINE in C, proven vs the pure CatalogClass.
 
-srmech_make_class_run (bound as srmech.amsc._native.make_class_run_c) is the C
+srmech_make_class_run (bound as srmech._native.make_class_run_c) is the C
 peer of the compute half of srmech.dsl._class_catalog.CatalogClass: a bare-C host
 constructs a DSL [class] instance from its packaged TOML descriptor + a field-
 state map and RUNS its declared methods natively. This proves the rc201 ENGINE
@@ -24,7 +24,7 @@ import json
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.amsc.cascade.one import the_one
 from srmech.amsc.cascade.sedenion_register import SedenionRegister
 from srmech.dsl import make_class

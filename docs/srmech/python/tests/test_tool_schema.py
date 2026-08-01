@@ -1,4 +1,4 @@
-"""Unit tests for srmech.amsc.tool_schema (Task #198)."""
+"""Unit tests for srmech.introspect.tool_schema (Task #198)."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc import tool_schema as ts
-from srmech.amsc.tool_schema import (
+from srmech.introspect import tool_schema as ts
+from srmech.introspect.tool_schema import (
     TOOL_SCHEMA_VERSION,
     ToolEntry,
     ToolParameter,

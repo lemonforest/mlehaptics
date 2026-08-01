@@ -1011,7 +1011,7 @@ def test_handler_exception_still_propagates_to_client(unique_name):
 def test_native_bus_symbols_present():
     """rc2 adds five public bus C symbols + one helper. Verify the
     Python ctypes binding picked them up when HAS_NATIVE is True."""
-    from srmech.amsc import _native
+    from srmech import _native
     if not _native.HAS_NATIVE:
         pytest.skip("native not loaded; nothing to verify")
     assert _native.NATIVE_ABI_VERSION == 10, (
@@ -1034,7 +1034,7 @@ def test_native_bus_symbols_present():
 def test_bus_handler_callback_typedef_constructible():
     """The CFUNCTYPE trampoline must be constructible (matches the
     C-side srmech_bus_handler_callback_t typedef wire format)."""
-    from srmech.amsc import _native
+    from srmech import _native
     cb_type = _native.BUS_HANDLER_CALLBACK
     assert cb_type is not None
     # Build a no-op trampoline to confirm CFUNCTYPE accepts the shape.
@@ -1051,7 +1051,7 @@ def test_abi_version_is_7():
     v0.9.0rc242 ABI bump: 4 → 5 (the C progress / introspection callback +
     the new srmech_progress_cb_t dispatch-observer typedef, #840).
     """
-    from srmech.amsc import _native
+    from srmech import _native
     assert _native.EXPECTED_ABI_VERSION == 10, (
         f"EXPECTED_ABI_VERSION should be 10; got "
         f"{_native.EXPECTED_ABI_VERSION}"
@@ -1432,7 +1432,7 @@ def test_decode_splice_registered_as_tool_entry():
     """decode_splice must be registered as a srmech ToolEntry on
     `import srmech.bus`."""
     import srmech.bus  # noqa: F401 — ensure registration fires
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     schema = get_tool_schema()
     entry = schema.lookup("srmech.bus.decode_splice")
     assert entry is not None, "srmech.bus.decode_splice not registered"

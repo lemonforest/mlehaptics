@@ -69,7 +69,7 @@ def op(signal, template, *, mode: str = "full", D: int = 8192):
     # _dsp.correlate cascade. Both coerce to 1-D lists (ValueError on nested/2-D
     # / empty input) and return a list; the matmul path is within-tol (not
     # byte-identical).
-    from srmech.amsc import _native
+    from srmech import _native
 
     if (
         _native.HAS_NATIVE

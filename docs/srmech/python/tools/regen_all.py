@@ -129,7 +129,7 @@ def regen_sequential(accept_seed_drift: bool = False
     The subprocess boundary is load-bearing and was found by demonstration,
     not by design. The first version of this runner rendered all six in one
     process, and it silently reproduced the exact defect it exists to
-    prevent: ``srmech.amsc.tool_schema`` merges ``TOOL_DOCS`` into every
+    prevent: ``srmech.introspect.tool_schema`` merges ``TOOL_DOCS`` into every
     ``ToolEntry`` at IMPORT time, so writing ``_tool_docs.py`` part-way
     through a run does not reach a module already imported. ``gen_tool_docs``
     wrote correct new docs, and ``gen_tool_registry`` — running microseconds
@@ -208,7 +208,7 @@ def warn_if_native_is_stale() -> bool:
     native library, which is the normal pure / Pyodide state and not a defect.
     """
     try:
-        from srmech.amsc import _native
+        from srmech import _native
     except Exception:                                  # pragma: no cover
         return False
     if not getattr(_native, "HAS_NATIVE", False):
