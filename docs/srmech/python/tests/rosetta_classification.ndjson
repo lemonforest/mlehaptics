@@ -63,6 +63,7 @@
 {"exposed_as": "srmech.math.cyclic.mod_mul", "defined_at": "srmech.math.cyclic.mod_mul", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.math.cyclic.mod_mul_wide", "defined_at": "srmech.math.cyclic.mod_mul_wide", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.math.cyclic.mod_pow", "defined_at": "srmech.math.cyclic.mod_pow", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.math.cyclic.primitive_integer_vector", "defined_at": "srmech.math.cyclic.primitive_integer_vector", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.math.cyclic.three_cycle", "defined_at": "srmech.math.cyclic.three_cycle", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.descriptor_hash", "defined_at": "srmech.amsc.descriptor.descriptor_hash", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.math.dispatch.match", "defined_at": "srmech.math.dispatch.match", "bucket": "c_dispatched"}

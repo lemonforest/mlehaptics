@@ -724,6 +724,22 @@ def _bind(lib: ctypes.CDLL) -> None:
     ]
     lib.srmech_mod_inv.restype = ctypes.c_int
 
+    # rc378 (`#T1049`): int srmech_primitive_integer_vector(const int64_t *nums,
+    #   const int64_t *dens, size_t n, int64_t *out, int64_t *out_content) — the
+    #   smallest integer vector on a rational vector's ray (Class I ∘ K ∘ C).
+    #   NEW symbol — hasattr-guarded (ABI stays 10; the pure-Python
+    #   srmech.math.cyclic.primitive_integer_vector body is the complete,
+    #   byte-identical arbitrary-precision alternative).
+    if hasattr(lib, "srmech_primitive_integer_vector"):
+        lib.srmech_primitive_integer_vector.argtypes = [
+            ctypes.POINTER(ctypes.c_int64),     # nums[n]
+            ctypes.POINTER(ctypes.c_int64),     # dens[n]
+            ctypes.c_size_t,                    # n
+            ctypes.POINTER(ctypes.c_int64),     # out[n] (primitive, + scratch)
+            ctypes.POINTER(ctypes.c_int64),     # out_content (signed)
+        ]
+        lib.srmech_primitive_integer_vector.restype = ctypes.c_int
+
     # ------------------------------------------------------------------
     # The One's WINDING surface (siona gh#1276; rc137) — exact INTEGER
     # readouts of the winding triad the SO->Spin double cover carries.
@@ -17704,6 +17720,16 @@ def has_native_gf_rref() -> bool:
     the complete, byte-identical alternative (and the parity oracle)."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_gf_rref"))
+
+
+def has_native_primitive_integer_vector() -> bool:
+    """True iff the rc378 srmech_primitive_integer_vector int64 fast-path kernel
+    (`#T1049`) is loaded + bound. False on a no-C / pre-rc378 lib — the
+    pure-Python ``srmech.math.cyclic.primitive_integer_vector`` body
+    (arbitrary precision) is the complete, byte-identical alternative (and the
+    parity oracle)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_primitive_integer_vector"))
 
 
 def has_native_crt_combine() -> bool:

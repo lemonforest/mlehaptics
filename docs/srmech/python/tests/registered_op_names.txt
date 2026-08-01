@@ -233,6 +233,7 @@ srmech.math.cyclic.mod_inv
 srmech.math.cyclic.mod_mul
 srmech.math.cyclic.mod_mul_wide
 srmech.math.cyclic.mod_pow
+srmech.math.cyclic.primitive_integer_vector
 srmech.math.cyclic.three_cycle
 srmech.math.dispatch.infer
 srmech.math.dispatch.match

@@ -1,4 +1,4 @@
-{"n": 439, "native": false, "python": "3.10", "record": "meta"}
+{"n": 440, "native": false, "python": "3.10", "record": "meta"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.amsc.catalog.get_attested_dataset", "problems": [], "src_sha256": "58d42a7869396586ee1363c377b8b1abf02bf5febea9d695f6aa4e49b8e26a99", "statements": 9, "status": "ok"}
 {"markers_fired": [{"exc": "ValueError", "line": 20}], "n_markers": 1, "name": "srmech.amsc.catalog.list_attested_sources", "problems": [], "src_sha256": "986c4bccd23f665bd00f8d91187777f98acfd091cbc9a95550c36560c3546452", "statements": 9, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.amsc.catalog.list_catalog_chains", "problems": [], "src_sha256": "80aee0a39a7344378b831ef74cb41d64bce16527865a2f790c433220b1390bac", "statements": 7, "status": "ok"}
@@ -181,6 +181,7 @@
 {"markers_fired": [], "n_markers": 0, "name": "srmech.math.cyclic.mod_mul", "problems": [], "src_sha256": "5492d1d298b2381e4fa037d01a1ed135858f3116bfe3fa5d9e2cb94a3c9605a6", "statements": 6, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.math.cyclic.mod_mul_wide", "problems": [], "src_sha256": "87cfdff416999646792b78f6eeb617372c29521ef8de9be628fd3f434e6a8a5a", "statements": 6, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.math.cyclic.mod_pow", "problems": [], "src_sha256": "0cf8ab95b54ff221f67259f451888f3315c16b5d467b0508e20dedaabc54a472", "statements": 5, "status": "ok"}
+{"markers_fired": [], "n_markers": 0, "name": "srmech.math.cyclic.primitive_integer_vector", "problems": [], "src_sha256": "db1a0d4479e41a879b409e0de3c3cc4f43acaf0b3c53f80b5327f7c7fcdf6f2c", "statements": 10, "status": "ok"}
 {"markers_fired": [{"exc": "ValueError", "line": 9}], "n_markers": 1, "name": "srmech.math.cyclic.three_cycle", "problems": [], "src_sha256": "f56dcc29ea2753ac95b7fb08ef7c01ad7852ba83d4a3849987101220476efb77", "statements": 6, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.math.dispatch.infer", "problems": [{"detail": "cannot import name 'coupling' from 'srmech.amsc' (/mnt/d/GitHub/mlehaptics/.claude/worktrees/agent-a2d9203a296581b21/docs/srmech/python/srmech/amsc/__init__.py)", "expected": null, "got": "ImportError", "kind": "unexpected_raise", "line": 8}], "src_sha256": "fb97e0916f665ca2a6df65f8d038104a5c948d0f8cb1534bbbdd26b15985333c", "statements": 3, "status": "unexpected_raise"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.math.dispatch.match", "problems": [], "src_sha256": "883b1b27e9e9f1bc59881467f5832323d50976fab7f09452d6e296c3e0f992f7", "statements": 10, "status": "ok"}

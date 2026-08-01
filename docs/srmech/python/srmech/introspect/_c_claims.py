@@ -414,6 +414,7 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
     'srmech.math.cyclic.mod_inv': ('srmech_mod_inv',),
     'srmech.math.cyclic.mod_mul': ('srmech_mod_mul',),
     'srmech.math.cyclic.mod_pow': ('srmech_mod_pow',),
+    'srmech.math.cyclic.primitive_integer_vector': ('srmech_primitive_integer_vector',),
     'srmech.math.cyclic.three_cycle': ('srmech_three_cycle',),
     'srmech.math.dispatch.match': ('srmech_dispatch_match',),
     'srmech.math.dispatch.mirror_pattern': ('srmech_mirror_pattern',),
