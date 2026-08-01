@@ -46,8 +46,8 @@ import os
 import pytest
 
 from srmech.amsc import _native
-from srmech.amsc import riemann_theta as rt
-from srmech.amsc.riemann_theta import (RiemannTheta, RiemannThetaG3,
+from srmech.apokatastasis import riemann_theta as rt
+from srmech.apokatastasis.riemann_theta import (RiemannTheta, RiemannThetaG3,
                                        RiemannThetaG4, RiemannThetaG5)
 
 FULL = os.environ.get("SRMECH_THETA_SPARSE_FULL", "") == "1"

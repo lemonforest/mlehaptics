@@ -1,10 +1,10 @@
-"""srmech.amsc.elliptic_jackson_an — the eq-6 Aₙ REDUCER: the closed-form
+"""srmech.apokatastasis.elliptic_jackson_an — the eq-6 Aₙ REDUCER: the closed-form
 evaluator + per-call PROOF for the type-A (root-system Aₙ) elliptic Jackson
 summation — the elliptic analogue of Milne's Aₙ Jackson summation.
 
 This is the Aₙ member of the multivariable elliptic reduction row — the sibling the
 shipped Cₙ row's own ``_OPEN_HINTS`` named as its next frontier. Where the Cₙ
-elliptic Jackson summation (:mod:`srmech.amsc.elliptic_jackson`, Rosengren
+elliptic Jackson summation (:mod:`srmech.apokatastasis.elliptic_jackson`, Rosengren
 arXiv:math/0101073 Thm 2.1) sums over the PARTITIONS ``Λ_{nN}`` with a type-C
 very-well-poised summand, the Aₙ summation sums over the SIMPLEX — the
 COMPOSITIONS ``y₁, …, yₙ ≥ 0`` with ``y₁ + … + yₙ = N`` — with the type-A
@@ -143,7 +143,7 @@ def multivariate_elliptic_jackson_an(z, a, q, N: int, *, verify: bool = False):
     """Reduce the type-A (root-system Aₙ) elliptic Jackson summation — the elliptic
     analogue of Milne's Aₙ Jackson summation (Rosengren arXiv:math/0305379, Eq. 6) —
     to its closed-form theta-quotient, returned as an exact
-    :class:`~srmech.amsc.ellbase.EllRatio`:
+    :class:`~srmech.apokatastasis.ellbase.EllRatio`:
 
         ∏_{j=1}^{n+1} (w/aⱼ)_N / [ ∏_{j=1}^{n} (w·zⱼ)_N · (q)_N ],
         (u)_k = ∏_{i=0}^{k-1} θ(u·qⁱ),   w = z₁⋯zₙ·a₁⋯a_{n+1}.
@@ -170,7 +170,7 @@ def multivariate_elliptic_jackson_an(z, a, q, N: int, *, verify: bool = False):
         {"closed_form": <EllRatio>, "verified": True | False | None}
 
     The proof is EXACT (not numeric): it builds the LHS simplex sum SYMBOLICALLY as
-    a :class:`~srmech.amsc.thetasum.ThetaSum` (:func:`an_vwp_multisum_lhs`), subtracts
+    a :class:`~srmech.apokatastasis.thetasum.ThetaSum` (:func:`an_vwp_multisum_lhs`), subtracts
     this constructive closed form, and decides ``.is_zero`` — the rc98/rc99 COMPLETE
     multi-variable elliptic decision. ``verified`` is ``True`` when the residual is
     provably ``≡ 0`` (the closed form EQUALS the sum), ``False`` if not (the check
@@ -194,7 +194,7 @@ def an_vwp_multisum_lhs(z, a, q, N: int):
     """Build the LEFT-hand side of the Aₙ elliptic Jackson summation (Rosengren
     arXiv:math/0305379, Eq. 6) — the n-fold sum over the SIMPLEX (the compositions
     ``y₁, …, yₙ ≥ 0`` with ``y₁ + … + yₙ = N``) — SYMBOLICALLY, as an exact
-    :class:`~srmech.amsc.thetasum.ThetaSum` (the ADDITIVE theta carrier):
+    :class:`~srmech.apokatastasis.thetasum.ThetaSum` (the ADDITIVE theta carrier):
 
         Σ_{|y| = N}  Δ(z·q^y)/Δ(z)
             · ∏_{k=1}^{n} ∏_{j=1}^{n+1} (aⱼ·zₖ)_{yₖ}
@@ -210,9 +210,9 @@ def an_vwp_multisum_lhs(z, a, q, N: int):
     (the rc216 Cₙ precedent).
 
     ``z`` (length ``n``) / ``a`` (length ``n+1``) are lists of
-    :class:`~srmech.amsc.ellbase.EllMonomial`, ``q`` an ``EllMonomial``, ``N ≥ 1``
+    :class:`~srmech.apokatastasis.ellbase.EllMonomial`, ``q`` an ``EllMonomial``, ``N ≥ 1``
     an int. Raises ``TypeError`` / ``ValueError`` on a malformed operand. Each
-    composition's summand is an :class:`~srmech.amsc.ellbase.EllRatio`
+    composition's summand is an :class:`~srmech.apokatastasis.ellbase.EllRatio`
     (theta-quotient); the compositions are summed into one exact ``ThetaSum`` in
     ascending lexicographic order. No float, no numpy, no ``math``. NOTE the
     term-count is ``C(N+n−1, n−1)`` — the build cost grows combinatorially, and
@@ -277,7 +277,7 @@ def _an_compositions(N: int, n: int):
 
 def _an_lhs_thetasum(zz, aa, qq: EllMonomial, N: int):
     """Build the LHS of Rosengren math/0305379 Eq. 6 — the Aₙ simplex sum —
-    SYMBOLICALLY as an exact :class:`~srmech.amsc.thetasum.ThetaSum`. Each
+    SYMBOLICALLY as an exact :class:`~srmech.apokatastasis.thetasum.ThetaSum`. Each
     theta-Pochhammer ``(u)_k = ∏_{i=0}^{k-1} θ(u·qⁱ)`` is a PRODUCT of
     :class:`Theta` factors; the Vandermonde monomial part ``∏_{j<k} q^{yⱼ}``
     is the :class:`EllRatio` prefactor (sign = Class-K via the ``EllMonomial``
@@ -386,12 +386,12 @@ def _an_marshal_syms(zz, aa, qq: EllMonomial):
 def _an_vwp_multisum_lhs_c(zz, aa, qq: EllMonomial, N: int):
     """Dispatch the Aₙ simplex-sum LHS construction to the native
     ``srmech_an_vwp_multisum_lhs`` C peer → the ``C(N+n−1, n−1)``-term
-    :class:`~srmech.amsc.thetasum.ThetaSum` (each term an :class:`EllRatio` the
+    :class:`~srmech.apokatastasis.thetasum.ThetaSum` (each term an :class:`EllRatio` the
     C peer builds byte-exact to the pure carrier, in the same ascending
     lexicographic composition order, summed here identically to the pure path
     via :meth:`ThetaSum.from_ellratio` + ``+``), or ``None`` when the native
     symbols are absent (the caller uses the pure result)."""
-    from . import _native as _nat
+    from ..amsc import _native as _nat
     from .ellbase import _P, _ellratio_from_form, _mono_to_form
     from .thetasum import ThetaSum
     if not _nat.has_native_an_vwp_multisum_lhs():
@@ -418,7 +418,7 @@ def _multivariate_elliptic_jackson_an_c(zz, aa, qq: EllMonomial,
     ``srmech_multivariate_elliptic_jackson_an`` C peer → the single
     :class:`EllRatio`, or ``None`` when the native symbols are absent (the caller
     falls to :func:`_multivariate_elliptic_jackson_an_py`)."""
-    from . import _native as _nat
+    from ..amsc import _native as _nat
     from .ellbase import _P, _ellratio_from_form, _mono_to_form
     if not _nat.has_native_multivariate_elliptic_jackson_an():
         return None

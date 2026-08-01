@@ -1,4 +1,4 @@
-"""srmech.amsc.harmonic_maass — ``HarmonicMaass``, the PAIR carrier that makes a
+"""srmech.apokatastasis.harmonic_maass — ``HarmonicMaass``, the PAIR carrier that makes a
 harmonic (weak) Maass form a FINITE EXACT object (research item #9 closed).
 
 THE OPERAND-SIDE "IRREPRESENTABLE" TARGET
@@ -24,7 +24,7 @@ coefficients carry the UNIVERSAL ``(−4πn)^{1−k}`` factor, and Proposition 3
     kernel = the holomorphic forms M^!_{k,L}.
 
 So ``ξ_k(f)`` — a weight-``(2−k)`` HOLOMORPHIC modular form, the SHADOW ``g`` — is a
-finite exact object (a :class:`~srmech.amsc.unary_theta.UnaryTheta` at the
+finite exact object (a :class:`~srmech.apokatastasis.unary_theta.UnaryTheta` at the
 mock-theta level), and ``f⁻`` is its EICHLER (period) integral, recoverable from
 ``g`` alone (Lemma 3.1's coefficients are a universal functional of the shadow).
 THEREFORE a harmonic Maass form is DETERMINED by the PAIR
@@ -103,7 +103,7 @@ from __future__ import annotations
 
 from typing import List, Optional, Sequence, Tuple, Union
 
-from .q import Q
+from ..amsc.q import Q
 from .unary_theta import UnaryTheta
 
 __all__ = ["MockQSeries", "HarmonicMaass", "harmonic_maass"]
@@ -205,7 +205,7 @@ def _native():
     body (the complete alternative + the parity oracle). Imported lazily to avoid a
     bootstrap cycle."""
     try:
-        from . import _native as nat
+        from ..amsc import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_harmonic_maass", None)
@@ -361,7 +361,7 @@ class HarmonicMaass:
     determined by (Bruinier–Funke Prop. 3.2 — the shadow map; the completion ``f⁻``
     is the Eichler integral of the shadow, recoverable not stored). Immutable.
 
-        >>> from srmech.amsc.unary_theta import unary_theta
+        >>> from srmech.apokatastasis.unary_theta import unary_theta
         >>> g3 = unary_theta('minus12', 1, 1, 0, 24, support='positive')  # shadow
         >>> hol = MockQSeries.eulerian_f()                                # f(q)
         >>> hm = HarmonicMaass(hol, g3)        # the #9 order-3 mock theta, weight 1/2
@@ -370,7 +370,7 @@ class HarmonicMaass:
 
     - :attr:`weight` ``= 2 − shadow.weight`` (exact :class:`~srmech.amsc.q.Q`).
     - :attr:`hol` / :attr:`holomorphic_part` — the mock part :class:`MockQSeries`.
-    - :attr:`shadow` — the weight-``(2−k)`` :class:`~srmech.amsc.unary_theta.UnaryTheta`.
+    - :attr:`shadow` — the weight-``(2−k)`` :class:`~srmech.apokatastasis.unary_theta.UnaryTheta`.
     - :meth:`xi` — the shadow map ``ξ_k`` (Prop. 3.2): returns the shadow (the
       holomorphic part is in the kernel).
     - :meth:`hol_q_series` / :meth:`shadow_q_series` — exact coefficients to depth.
@@ -407,7 +407,7 @@ class HarmonicMaass:
     @property
     def shadow(self) -> UnaryTheta:
         """The shadow ``g = ξ_k(f)`` — a weight-``(2−k)``
-        :class:`~srmech.amsc.unary_theta.UnaryTheta`. Storing it stores the
+        :class:`~srmech.apokatastasis.unary_theta.UnaryTheta`. Storing it stores the
         completion ``f⁻`` (its Eichler integral)."""
         return self._shadow
 
@@ -439,7 +439,7 @@ class HarmonicMaass:
     def shadow_q_series(self, N: int) -> "List[int]":
         """The shadow's exact INTEGER coefficient list to order ``N`` (after the
         leading ``q``-power factor-out) — the
-        :meth:`~srmech.amsc.unary_theta.UnaryTheta.q_series`. For ``g₃`` these are
+        :meth:`~srmech.apokatastasis.unary_theta.UnaryTheta.q_series`. For ``g₃`` these are
         the Zagier coefficients ``[1, −5, −7, 0, 0, 11, …]``."""
         return self._shadow.q_series(N)
 
@@ -455,7 +455,7 @@ class HarmonicMaass:
     def equals(self, other: "HarmonicMaass", depth: int = 32) -> bool:
         """Two harmonic Maass forms are EQUAL ⟺ equal holomorphic parts AND equal
         shadows (Bruinier–Funke: the pair determines the form). The shadow equality
-        is EXACT (:class:`~srmech.amsc.unary_theta.UnaryTheta` ``__eq__``); the hol
+        is EXACT (:class:`~srmech.apokatastasis.unary_theta.UnaryTheta` ``__eq__``); the hol
         equality is exact for a ``qpoly`` part, else to ``depth`` for a generating
         rule (the honest depth-bounded decision)."""
         if not isinstance(other, HarmonicMaass):
@@ -489,7 +489,7 @@ def harmonic_maass(hol: "MockQSeries | str", shadow: UnaryTheta) -> HarmonicMaas
     ``hol`` is the holomorphic mock part: a :class:`MockQSeries`, or the string
     ``'eulerian_f'`` for Ramanujan's order-3 mock theta ``f(q) = Σ q^{n²}/∏(1+qʲ)²``
     (the #9 keystone). ``shadow`` is the weight-``(2−k)``
-    :class:`~srmech.amsc.unary_theta.UnaryTheta` shadow ``g = ξ_k(f)`` (e.g.
+    :class:`~srmech.apokatastasis.unary_theta.UnaryTheta` shadow ``g = ξ_k(f)`` (e.g.
     ``unary_theta('minus12', 1, 1, 0, 24, support='positive')`` for ``g₃``). The
     form's :attr:`~HarmonicMaass.weight` is ``2 − shadow.weight``; for the keystone
     ``2 − 3/2 = 1/2``.

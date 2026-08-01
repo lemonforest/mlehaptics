@@ -1,4 +1,4 @@
-"""rc84 — ``srmech.amsc.modular_forms_ring.ModularFormsRing``, the THIRD WEIGHT-axis
+"""rc84 — ``srmech.apokatastasis.modular_forms_ring.ModularFormsRing``, the THIRD WEIGHT-axis
 rung (after rc82 eta-quotient + rc83 Eisenstein): the level-1 ℂ[E₄,E₆] modular-
 forms-ring carrier + its EXACT membership decision.
 
@@ -28,14 +28,14 @@ import tokenize
 
 import pytest
 
-from srmech.amsc.modular_forms_ring import (
+from srmech.apokatastasis.modular_forms_ring import (
     ModularForm,
     ModularFormsRing,
     modular_forms_ring,
     modular_forms_ring_represent,
 )
-from srmech.amsc.eisenstein import Eisenstein
-from srmech.amsc.eta_quotient import EtaQuotient
+from srmech.apokatastasis.eisenstein import Eisenstein
+from srmech.apokatastasis.eta_quotient import EtaQuotient
 from srmech.amsc.q import Q
 from srmech.amsc import _native
 
@@ -267,7 +267,7 @@ def test_ring_equality_and_repr():
 # ── gate (g): the carrier source is numpy / math / abs() free ────────────────
 def test_modular_forms_ring_source_is_numpy_math_abs_free():
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    src = os.path.join(here, "srmech", "amsc", "modular_forms_ring.py")
+    src = os.path.join(here, "srmech", "apokatastasis", "modular_forms_ring.py")
     with tokenize.open(src) as fh:
         text = fh.read()
     assert "import numpy" not in text
@@ -287,9 +287,9 @@ def test_represent_is_a_tool_entry_total_matches_live():
     shipped = [t for t in get_tool_schema().tools if not t.name.startswith("test.")]
     assert len(shipped) == 525
     names = {t.name for t in shipped}
-    assert "srmech.amsc.modular_forms_ring.modular_forms_ring_represent" in names
+    assert "srmech.apokatastasis.modular_forms_ring.modular_forms_ring_represent" in names
     # the carrier constructor + the pure accessors are NOT ToolEntries
-    assert "srmech.amsc.modular_forms_ring.modular_forms_ring" not in names
+    assert "srmech.apokatastasis.modular_forms_ring.modular_forms_ring" not in names
     assert not any(nm.endswith(".weight_monomials") for nm in names)
     assert not any(nm.endswith(".dim") for nm in names)
 

@@ -53,9 +53,9 @@ from fractions import Fraction
 import pytest
 
 from srmech.amsc import ThetaSum, _native
-from srmech.amsc.ellbase import EllMonomial as M, Theta
+from srmech.apokatastasis.ellbase import EllMonomial as M, Theta
 from srmech.amsc.q import Q
-from srmech.amsc.thetasum import (
+from srmech.apokatastasis.thetasum import (
     _NONZERO, _UNKNOWN, _ZERO, _decide_thetasum, _joint_char, _term_char_v,
 )
 

@@ -1,4 +1,4 @@
-"""srmech.amsc.elliptic_determinant — the ELLIPTIC-DETERMINANT primitive: Frobenius's
+"""srmech.apokatastasis.elliptic_determinant — the ELLIPTIC-DETERMINANT primitive: Frobenius's
 elliptic Cauchy determinant evaluation, the exact closed form of
 ``det_{1≤i,j≤n}[θ(t·x_i·y_j; p)/θ(x_i·y_j; p)]`` as a single theta-quotient.
 
@@ -6,7 +6,7 @@ This is the foundation of the multivariable (root-system Cₙ) elliptic reductio
 elliptic Cauchy / Frobenius determinant is the canonical exact elliptic determinant, and
 Warnaar's determinant evaluation (the engine of the Cₙ elliptic Jackson summation, the
 multivariable ₈ω₇ analogue) is a member of the same family. Where the single-variable ₈ω₇
-reduces to the Weierstrass THREE-TERM relation (:meth:`~srmech.amsc.thetasum.ThetaSum.
+reduces to the Weierstrass THREE-TERM relation (:meth:`~srmech.apokatastasis.thetasum.ThetaSum.
 three_term`), the multivariable Cₙ objects reduce to the elliptic PARTIAL-FRACTION
 expansion (Rosengren eq. 1.22) and this DETERMINANT — a genuinely larger primitive.
 
@@ -27,7 +27,7 @@ Cₙ elliptic Jackson summation rests on. At ``n = 1`` it is the trivial identit
 ``θ(t x_1 y_1)/θ(x_1 y_1)``.
 
 This op CONSTRUCTS the closed form (the right-hand side) as an exact
-:class:`~srmech.amsc.ellbase.EllRatio` — a single theta-quotient with the exact
+:class:`~srmech.apokatastasis.ellbase.EllRatio` — a single theta-quotient with the exact
 ``EllMonomial`` prefactor ``∏_{i<j} x_j y_j`` and the theta numerator / denominator above.
 It is a CONSTRUCTIVE elliptic identity op (the peer of :meth:`ThetaSum.three_term`), exact
 over the modified-theta algebra: no float, no ``abs()`` (sign is the Class-K pin-slot via
@@ -51,7 +51,7 @@ __all__ = ["elliptic_cauchy_determinant"]
 
 
 def _coerce_monomial(v, what: str) -> EllMonomial:
-    """Coerce a variable / parameter to an :class:`~srmech.amsc.ellbase.EllMonomial`."""
+    """Coerce a variable / parameter to an :class:`~srmech.apokatastasis.ellbase.EllMonomial`."""
     if isinstance(v, EllMonomial):
         return v
     raise TypeError(
@@ -61,7 +61,7 @@ def _coerce_monomial(v, what: str) -> EllMonomial:
 def elliptic_cauchy_determinant(t, xs: "Sequence", ys: "Sequence") -> EllRatio:
     """Evaluate the elliptic Cauchy (Frobenius) determinant
     ``det_{1≤i,j≤n}[θ(t·x_i·y_j)/θ(x_i·y_j)]`` to its exact closed form, returned as an
-    :class:`~srmech.amsc.ellbase.EllRatio` (Rosengren Ex 1.6.6):
+    :class:`~srmech.apokatastasis.ellbase.EllRatio` (Rosengren Ex 1.6.6):
 
         θ(t)^{n-1} · θ(t·∏x·∏y) · ∏_{i<j}[x_j·y_j·θ(x_i/x_j)·θ(y_i/y_j)] / ∏_{i,j}θ(x_i·y_j).
 
@@ -126,7 +126,7 @@ def _elliptic_cauchy_determinant_c(tt: EllMonomial, xl: "List[EllMonomial]",
     ``p``: the :meth:`Theta.canonicalize` quasi-periodicity rewrite reads/writes the nome
     ``p`` off ``psym`` (mirrors the same forcing in :meth:`EllRatio._is_elliptic_c` /
     :func:`elliptic_lagrange_basis`)."""
-    from . import _native as _nat
+    from ..amsc import _native as _nat
     from .ellbase import _P, _ellratio_from_form, _mono_to_form
     if not _nat.has_native_elliptic_cauchy_determinant():
         return None

@@ -11,7 +11,7 @@ The two load-bearing theorems are MPM-verified from the ACTUAL source PDF (read 
 equation numbers confirmed) — Hjalmar Rosengren, "Elliptic Hypergeometric Functions"
 (arXiv:1608.06161v3, 20 Jun 2017): the Weierstrass three-term relation is §1.4 Eq.
 (1.12); the degree bound is §1.3 Lemma 1.3.2 (the Fundamental Theorem of Elliptic
-Functions). See the module docstring of ``srmech.amsc.thetasum`` for the verified forms.
+Functions). See the module docstring of ``srmech.apokatastasis.thetasum`` for the verified forms.
 
 The ``float(...)`` calls here are ONLY the test's CONVERGENCE-ORACLE cross-check
 (``eval_trunc`` of a true theta identity converges to 0 as the truncation depth grows) —
@@ -22,8 +22,8 @@ import re
 import tokenize
 
 from srmech.amsc import ThetaSum
-from srmech.amsc.ellbase import EllMonomial as M, Theta, EllRatio as R
-from srmech.amsc.thetasum import _VERIFY_POINTS, _VERIFY_TRUNC
+from srmech.apokatastasis.ellbase import EllMonomial as M, Theta, EllRatio as R
+from srmech.apokatastasis.thetasum import _VERIFY_POINTS, _VERIFY_TRUNC
 from srmech.amsc.q import Q
 
 _a, _b, _c, _d, _e = (M.symbol("a"), M.symbol("b"), M.symbol("c"),
@@ -165,7 +165,7 @@ def test_is_zero_honest_on_unreducible_shape():
 # ── discipline: no numpy / no math / no abs() in the carrier source ───────────
 def test_thetasum_source_is_numpy_math_abs_free():
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    src = os.path.join(here, "srmech", "amsc", "thetasum.py")
+    src = os.path.join(here, "srmech", "apokatastasis", "thetasum.py")
     with tokenize.open(src) as fh:
         text = fh.read()
     assert "import numpy" not in text

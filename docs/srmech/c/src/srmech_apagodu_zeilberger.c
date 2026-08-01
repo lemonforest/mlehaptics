@@ -2,7 +2,7 @@
  * srmech_apagodu_zeilberger.c -- the Apagodu-Zeilberger multivariate "sums of
  * sums" creative-telescoping recurrence-finder (the rc53 op that CLOSES the
  * multivariate F929 reduction row). The C peer of
- * srmech.amsc.apagodu_zeilberger.apagodu_zeilberger.
+ * srmech.apokatastasis.apagodu_zeilberger.apagodu_zeilberger.
  *
  * Input: a proper hypergeometric term F(n,j,k) given by its THREE term ratios
  *   r_n(n,j,k) = F(n+1,j,k)/F(n,j,k) = rn_num/rn_den

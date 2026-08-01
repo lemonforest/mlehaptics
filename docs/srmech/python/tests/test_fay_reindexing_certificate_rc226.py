@@ -38,8 +38,8 @@ import pytest
 
 from tests._native_gate import require_native
 from srmech.amsc import _native
-from srmech.amsc import riemann_theta as rt
-from srmech.amsc.riemann_theta import RiemannTheta
+from srmech.apokatastasis import riemann_theta as rt
+from srmech.apokatastasis.riemann_theta import RiemannTheta
 
 # the addition_holds pair roster (the rc73 gate's own list): the duplication
 # collapse plus the genuine a != b pairs

@@ -2,8 +2,8 @@
 reduction ENGINE of the multivariable (root-system Cₙ) elliptic reduction row.
 
 Where the single-variable ₈ω₇ reduces to the Weierstrass THREE-TERM relation
-(:meth:`~srmech.amsc.thetasum.ThetaSum.three_term`), the multivariable Cₙ objects — the
-elliptic Cauchy / Frobenius determinant (:func:`~srmech.amsc.elliptic_determinant.
+(:meth:`~srmech.apokatastasis.thetasum.ThetaSum.three_term`), the multivariable Cₙ objects — the
+elliptic Cauchy / Frobenius determinant (:func:`~srmech.apokatastasis.elliptic_determinant.
 elliptic_cauchy_determinant`), Warnaar's Lemma 2.2, and the Cₙ elliptic Jackson summation —
 all reduce to THIS: the elliptic partial-fraction expansion (Rosengren, "Elliptic
 Hypergeometric Functions," arXiv:1608.06161v3, Eq. 1.22).
@@ -27,7 +27,7 @@ and it is the reduction engine "using (1.22)" that Exercise 1.6.6 (Frobenius's d
 and Warnaar's Cₙ summation rest on.
 
 This op CONSTRUCTS the right-hand side — the partial-fraction expansion of the left-hand
-product ``∏_k θ(x/z_k)/θ(x/y_k)`` — as an exact :class:`~srmech.amsc.thetasum.ThetaSum`
+product ``∏_k θ(x/z_k)/θ(x/y_k)`` — as an exact :class:`~srmech.apokatastasis.thetasum.ThetaSum`
 (a sum of ``n`` theta-quotient terms). It is a CONSTRUCTIVE elliptic identity op (the
 multivariable peer of :meth:`ThetaSum.three_term`), exact over the modified-theta algebra:
 no float, no ``abs()`` (sign is the Class-K pin-slot via the ``Q`` / ``EllMonomial``
@@ -44,8 +44,8 @@ from __future__ import annotations
 
 from typing import List, Sequence
 
-from ..amsc.ellbase import EllMonomial, EllRatio, Theta
-from ..amsc.thetasum import ThetaSum
+from .ellbase import EllMonomial, EllRatio, Theta
+from .thetasum import ThetaSum
 
 __all__ = ["elliptic_partial_fraction"]
 
@@ -59,7 +59,7 @@ def _coerce_monomial(v, what: str) -> EllMonomial:
 
 def elliptic_partial_fraction(x, zs: "Sequence", ys: "Sequence") -> ThetaSum:
     """Expand the elliptic product ``∏_{k=1}^n θ(x/z_k)/θ(x/y_k)`` into its partial-fraction
-    sum (Rosengren Eq. 1.22), returned as an exact :class:`~srmech.amsc.thetasum.ThetaSum`:
+    sum (Rosengren Eq. 1.22), returned as an exact :class:`~srmech.apokatastasis.thetasum.ThetaSum`:
 
         1/θ(Y/Z) · Σ_j [∏_k θ(y_j/z_k) / ∏_{k≠j}θ(y_j/y_k)] · [θ(x·Y/(y_j·Z)) / θ(x/y_j)],
 
@@ -129,9 +129,9 @@ def _elliptic_partial_fraction_c(xx: EllMonomial, zl: "List[EllMonomial]",
     when the native symbols are absent (the caller uses the pure result). The interned
     symbol universe MUST include ``p``: the :meth:`Theta.canonicalize` quasi-periodicity
     rewrite reads/writes the nome ``p`` off ``psym`` (mirrors the forcing in
-    :func:`~srmech.amsc.elliptic_determinant._elliptic_cauchy_determinant_c`)."""
+    :func:`~srmech.apokatastasis.elliptic_determinant._elliptic_cauchy_determinant_c`)."""
     from ..amsc import _native as _nat
-    from ..amsc.ellbase import _P, _ellratio_from_form, _mono_to_form
+    from .ellbase import _P, _ellratio_from_form, _mono_to_form
     if not _nat.has_native_elliptic_partial_fraction():
         return None
     n = len(zl)

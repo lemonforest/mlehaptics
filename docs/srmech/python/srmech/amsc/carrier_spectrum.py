@@ -13,12 +13,12 @@ first-class object (construct / inspect / operate), NOT a diagnostic dict.
 THE TWO CHANNELS OF A CARRIER ELEMENT
 =====================================
 
-A carrier element ``r`` is an :class:`~srmech.amsc.ellbase.EllRatio`
+A carrier element ``r`` is an :class:`~srmech.apokatastasis.ellbase.EllRatio`
 ``prefactor(monomial) · ∏(num θ) / ∏(den θ)``, and it splits EXACTLY into two
 ORTHOGONAL channels under the two carrier shifts:
 
 **Channel 1 — Cyclic (Class I): the σ-eigenspectrum.**  The summation shift
-``σ = qshift`` (``x ↦ q·x``, :meth:`~srmech.amsc.ellbase.EllRatio.qshift`) is DIAGONAL on
+``σ = qshift`` (``x ↦ q·x``, :meth:`~srmech.apokatastasis.ellbase.EllRatio.qshift`) is DIAGONAL on
 monomials: ``σ(x^k) = q^k·x^k`` (qshift raises the prefactor's ``q``-exponent by exactly
 ``k``, leaving the ``x``-exponent fixed). So the ``x``-exponents present in a carrier
 element are the σ-eigen-occupancy, each with eigenvalue ``q^k``; ``k = 0`` is the kernel
@@ -28,7 +28,7 @@ cyclic (Class-I) coordinate — the rotation axis.
 **Channel 2 — Quasi-periodic (Class L): the p-character blocks.**  Each ``θ`` belongs to
 a p-character class — the net multiplier monomial the theta-product acquires under the
 PERIOD shift ``x ↦ p·x`` (the rc62 ``ThetaSum`` quasi-periodicity grouping, Rosengren
-Eq. 1.6, via :meth:`~srmech.amsc.ellbase.Theta.canonicalize`). The σ-INVARIANT block
+Eq. 1.6, via :meth:`~srmech.apokatastasis.ellbase.Theta.canonicalize`). The σ-INVARIANT block
 label is that p-character with the ``q``-coordinate STRIPPED: σ traverses ONLY the
 ``q``-coordinate (Channel 1) and PRESERVES the block (Channel 2) — the channels are
 orthogonal. This is the quasi-periodic (Class-L) coordinate — the harmonic shape.
@@ -77,7 +77,7 @@ Functions" (arXiv:1608.06161v3 [math.CA]), §1.3 (factorization of elliptic func
 Lemma 1.3.2 — the period-annulus pole/zero count that bounds each block's degree) +
 §1.4 Eq. (1.12) (the Weierstrass three-term relation the ``ThetaSum`` block-reduction
 runs); the elliptic indefinite-summation key equation is Gasper–Schlosser
-(arXiv:math/0505215), cited by :mod:`srmech.amsc.elliptic_gosper`.
+(arXiv:math/0505215), cited by :mod:`srmech.apokatastasis.elliptic_gosper`.
 
 C peer (same-rc, the everything-mirrors never-split discipline): ``srmech_carrier_spectrum``
 (``c/src/srmech_carrier_spectrum.c``) mirrors the channel read + the block-grouped
@@ -92,9 +92,9 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional, Tuple
 
-from .ellbase import EllMonomial, EllRatio, Theta, _P, _Q_SYM, _X
+from ..apokatastasis.ellbase import EllMonomial, EllRatio, Theta, _P, _Q_SYM, _X
 from .q import Q
-from .thetasum import ThetaSum, _net_period_multiplier_exps
+from ..apokatastasis.thetasum import ThetaSum, _net_period_multiplier_exps
 
 __all__ = ["CarrierSpectrum", "carrier_spectrum"]
 
@@ -117,9 +117,9 @@ def _strip_q(key: BlockLabel) -> BlockLabel:
 
 def _block_of_thetas(thetas: "Tuple[Theta, ...]") -> BlockLabel:
     """The σ-INVARIANT p-character BLOCK LABEL of a theta-product: the
-    :func:`~srmech.amsc.thetasum._net_period_multiplier_exps` quasi-periodicity-class
+    :func:`~srmech.apokatastasis.thetasum._net_period_multiplier_exps` quasi-periodicity-class
     monomial (the net multiplier under ``x ↦ p·x`` and ``y ↦ p·y``, Rosengren Eq. 1.6,
-    via :meth:`~srmech.amsc.ellbase.Theta.canonicalize`) with the ``q``-coordinate
+    via :meth:`~srmech.apokatastasis.ellbase.Theta.canonicalize`) with the ``q``-coordinate
     STRIPPED. σ preserves this label (verified); multiply-by-a-product SHIFTS it
     additively. EXACT — integer exponents only, no float."""
     return _strip_q(_net_period_multiplier_exps(tuple(thetas)))
@@ -132,7 +132,7 @@ class CarrierSpectrum:
     solve that the harmonic shape unlocks. Immutable; a first-class carrier object (not a
     diagnostic dict).
 
-    Construct from a carrier element (an :class:`~srmech.amsc.ellbase.EllRatio`):
+    Construct from a carrier element (an :class:`~srmech.apokatastasis.ellbase.EllRatio`):
 
         >>> cs = CarrierSpectrum(rk)            # rk an EllRatio (the ₈ω₇ term ratio)
         >>> cs.cyclic                           # {x-exp k: 'q**k'} — the σ-eigenspectrum
@@ -195,9 +195,9 @@ class CarrierSpectrum:
         coefficient vector ``Y = [c_0, …]`` over a theta-product ``basis`` — GENUINELY
         BLOCK-DECOMPOSED (per-p-character-block ``QMat`` solves), NOT one dense solve.
 
-        ``rhs`` is the right-hand side as a :class:`~srmech.amsc.thetasum.ThetaSum`.
+        ``rhs`` is the right-hand side as a :class:`~srmech.apokatastasis.thetasum.ThetaSum`.
         ``a`` / ``b_xq`` are the multiplicative theta-product factors ``A`` and ``B(x/q)``
-        (each an :class:`~srmech.amsc.ellbase.EllRatio`); default to the carrier element's
+        (each an :class:`~srmech.apokatastasis.ellbase.EllRatio`); default to the carrier element's
         own GP peel (so ``A = self.element``, ``B(x/q) = 1``) when omitted — pass the real
         peel for a genuine certificate solve. ``basis`` is the list of theta-product
         candidate certificate numerators (each a tuple of :class:`Theta`); default = the
@@ -483,8 +483,8 @@ def _native():
 
 
 def _ratio_to_form(r: EllRatio) -> "Dict[str, object]":
-    """An :class:`~srmech.amsc.ellbase.EllRatio` → the bridge form the C peer consumes (the
-    same convention as :func:`srmech.amsc.elliptic_gosper._ratio_to_form`: the exact-``ℚ``
+    """An :class:`~srmech.apokatastasis.ellbase.EllRatio` → the bridge form the C peer consumes (the
+    same convention as :func:`srmech.apokatastasis.elliptic_gosper._ratio_to_form`: the exact-``ℚ``
     prefactor + numerator / denominator theta-argument monomial triples). Pure integer
     exponents + exact-``ℚ`` coefficients — no float."""
     def _mono(m: EllMonomial):
@@ -519,7 +519,7 @@ def carrier_spectrum(r) -> "Optional[Dict[str, object]]":
     orthogonal channels, and expose the block structure that makes the elliptic
     key-equation solve genuinely block-decomposed (non-brute-force).
 
-    ``r`` is a carrier element — an :class:`~srmech.amsc.ellbase.EllRatio` (a theta-quotient
+    ``r`` is a carrier element — an :class:`~srmech.apokatastasis.ellbase.EllRatio` (a theta-quotient
     over an exact-``ℚ`` monomial prefactor; an ``EllMonomial`` / ``Theta`` the carrier lifts
     is lifted). Returns ``{'cyclic': {x-exp k: 'q**k'}, 'blocks': {block: [theta-arg maps]},
     'n_blocks': …, 'spectrum': CarrierSpectrum}``:

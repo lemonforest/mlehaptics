@@ -130,48 +130,48 @@ _DISCRETE_VERIFIED: Tuple[Tuple[str, str, str, str], ...] = (
      "theorem's own hypothesis, rc224); the eigenvalues are the operand, "
      "never the verdict"),
     ("sigma",
-     "srmech.amsc.gosper.gosper", "Poly",
+     "srmech.apokatastasis.gosper.gosper", "Poly",
      "the Gosper rational-certificate antidifference — the indefinite "
      "hypergeometric closed form (a non-None certificate IS the "
      "verification)"),
     ("sigma",
-     "srmech.amsc.zeilberger.zeilberger", "BiPoly",
+     "srmech.apokatastasis.zeilberger.zeilberger", "BiPoly",
      "the minimal-order creative-telescoping recurrence annihilating "
      "Σ_k F(n,k)"),
     ("sigma",
-     "srmech.amsc.wz_certificate.wz_certificate", "BiPoly",
+     "srmech.apokatastasis.wz_certificate.wz_certificate", "BiPoly",
      "the WZ identity PROOF certificate R(n,k) (accepted only when its own "
      "verified flag is True)"),
     ("sigma_multivar",
-     "srmech.amsc.apagodu_zeilberger.apagodu_zeilberger", "TriPoly",
+     "srmech.apokatastasis.apagodu_zeilberger.apagodu_zeilberger", "TriPoly",
      "the minimal-order annihilating recurrence for the 'sums of sums' "
      "Σ_{j,k} F(n,j,k) (Apagodu–Zeilberger creative telescoping)"),
     ("sigma_q",
-     "srmech.amsc.q_gosper.q_gosper", "QPoly",
+     "srmech.apokatastasis.q_gosper.q_gosper", "QPoly",
      "the q-Gosper rational q-antidifference certificate — the indefinite "
      "q-hypergeometric closed form"),
     ("sigma_q",
-     "srmech.amsc.q_zeilberger.q_zeilberger", "QBiPoly",
+     "srmech.apokatastasis.q_zeilberger.q_zeilberger", "QBiPoly",
      "the minimal-order q-creative-telescoping recurrence annihilating the "
      "definite q-sum"),
     ("sigma_q",
-     "srmech.amsc.q_wz_certificate.q_wz_certificate", "QBiPoly",
+     "srmech.apokatastasis.q_wz_certificate.q_wz_certificate", "QBiPoly",
      "the q-WZ identity PROOF certificate (accepted only when its own "
      "verified flag is True)"),
     ("sigma_elliptic",
-     "srmech.amsc.elliptic_wz_certificate.elliptic_wz_certificate",
+     "srmech.apokatastasis.elliptic_wz_certificate.elliptic_wz_certificate",
      "EllRatio",
      "the elliptic-WZ connection-coefficient PROOF of the very-well-poised "
      "₈ω₇ / ₁₀E₉ Frenkel–Turaev summation, closed form cf(n) (verified via "
      "the exact ThetaSum.is_zero decision)"),
     ("sigma_elliptic_multivar",
-     "srmech.amsc.elliptic_jackson.multivariate_elliptic_jackson",
+     "srmech.apokatastasis.elliptic_jackson.multivariate_elliptic_jackson",
      "EllMonomial",
      "the closed-form theta-quotient product of the balanced Cₙ elliptic "
      "Jackson n-fold sum (Rosengren Thm 2.1; per-call proof when in-budget, "
      "build-verified constructive form beyond the feasibility cap)"),
     ("sigma_elliptic_an",
-     "srmech.amsc.elliptic_jackson_an.multivariate_elliptic_jackson_an",
+     "srmech.apokatastasis.elliptic_jackson_an.multivariate_elliptic_jackson_an",
      "EllMonomial",
      "the closed-form theta-quotient of the Aₙ (type-A / Milne) elliptic "
      "Jackson simplex sum (Rosengren math/0305379 Eq. 6; per-call proof when "

@@ -234,7 +234,17 @@ CEIL_AMSC_PREFIX = {
     # harmonics move, whose refs DID live in the hoisted arrays). This is a real
     # drain of the citation channel; the population channel did not move because
     # this op was never in it.
-    "c/src/srmech_carrier_registry.c": (201, 529),
+    #
+    # as-text 201 -> 156 at rc371 (-45), decoded 529 -> 516 (-13). THE WHOLE-FAMILY
+    # drain (the 24 remaining elliptic / modular / theta / q-series modules ->
+    # srmech.apokatastasis). This is the POPULATION channel falling HARD — unlike
+    # rc370's single elliptic_partial_fraction (whose carrier refs were inline
+    # as-text), this family includes ellbase / thetasum, the elliptic CARRIER
+    # bases whose op refs DO live in the four hoisted >4000-byte byte arrays. 13
+    # decoded refs move amsc->apokatastasis (measured: apokatastasis decoded goes
+    # 0 -> 13, amsc 529 -> 516), plus 45 as-text back-index / carrier-name
+    # citations. Re-pinned DOWN in the same commit as the move.
+    "c/src/srmech_carrier_registry.c": (156, 516),
     # TEXT 0 is TRUE, and true about the wrong thing. Every one of the four
     # baked [class] descriptors (`cls_desc_0..3`) is a decimal byte array, so a
     # grep has nothing to read. 37 DISTINCT dotted names live in there.
@@ -297,8 +307,14 @@ CEIL_AMSC_PREFIX = {
     # / an_vwp_multisum_lhs) name it in the SLASH form
     # (srmech/apokatastasis/elliptic_partial_fraction.py:60), which the dotted
     # prefix does not match; and its own explanation's carrier ref
-    # (srmech.amsc.thetasum.ThetaSum) stays amsc. decoded stays 4.
-    "c/src/srmech_tool_registry.c": (1201, 4),
+    # (thetasum.ThetaSum) was still amsc at rc370. decoded stays 4.
+    #
+    # as-text 1201 -> 1151 at rc371 (-50), decoded UNCHANGED at 4. THE WHOLE-FAMILY
+    # drain: the 24 modules' ToolEntry `name=` citations + their sibling-prose
+    # dotted refs repointed amsc->apokatastasis. decoded stays 4 (this artifact's 4
+    # are its own hoisted strings; the moved family's carrier back-index lives in
+    # the CARRIER registry, which is where the -13 decoded drop landed).
+    "c/src/srmech_tool_registry.c": (1151, 4),
     # rc368 — THE FIRST MODULE MOVE TO MOVE THIS ARTIFACT (the new data point).
     # This was the CONTROL row through harmonics/naming: "no byte arrays, decoded
     # 0 is a real zero". It is still a real zero on the decoded channel, but the
@@ -309,7 +325,13 @@ CEIL_AMSC_PREFIX = {
     # 72 -> 71 (-1), decoded UNCHANGED at 0. The 71 residual are the edge-OPERATOR
     # names (zeilberger / dispatch / coupling / laplacian / cascade / ...), whose
     # modules did NOT move — a rename of the schema op does not touch them.
-    "c/src/srmech_responsion_registry.c": (71, 0),
+    #
+    # as-text 71 -> 41 at rc371 (-30), decoded UNCHANGED at 0. THE WHOLE-FAMILY
+    # drain: the 24 modules ARE edge-OPERATOR names in the responsion registry
+    # (zeilberger / q_zeilberger / gosper / thetasum / ellbase / eisenstein / ...),
+    # so the generated source-of-truth comments for those operators repointed
+    # amsc->apokatastasis. decoded stays 0 (this registry carries no byte arrays).
+    "c/src/srmech_responsion_registry.c": (41, 0),
     # CONTROL: generated .py, no embedded arrays. Their long integer runs were
     # inspected at rc361 and are worked-example OUTPUT VALUES (octonion basis
     # vectors, inertia signatures, index triples) — genuine numeric data, not a
@@ -337,7 +359,11 @@ CEIL_AMSC_PREFIX = {
     # elliptic_partial_fraction slice — the SAME single ToolEntry `name=` citation
     # as the tool registry (this is the doc pair), repointed amsc->apokatastasis;
     # the slash-form SIBLINGS refs do not match the dotted prefix.
-    "python/srmech/amsc/_tool_docs.py": (1182, 0),
+    # as-text 1182 -> 1133 at rc371 (-49), decoded UNCHANGED at 0. THE WHOLE-FAMILY
+    # drain — the doc-pair partner of the tool registry: the 24 modules' op
+    # documentation (ToolEntry names + sibling-prose dotted refs) repointed
+    # amsc->apokatastasis.
+    "python/srmech/amsc/_tool_docs.py": (1133, 0),
     # as-text 250 -> 248 at rc367 (-2), decoded UNCHANGED at 0. rc367 is the
     # FIRST module move to move THIS artifact — a departure from the harmonics
     # analog. _c_claims.py is the op -> C-symbol CLAIM manifest, keyed only for
@@ -362,7 +388,13 @@ CEIL_AMSC_PREFIX = {
     # srmech_elliptic_partial_fraction + a real ctypes binding), so it has exactly
     # ONE key here, repointed amsc->apokatastasis. The C SYMBOL is capability-named
     # and unchanged — only the Python-side dotted key moved.
-    "python/srmech/amsc/_c_claims.py": (246, 0),
+    # as-text 246 -> 218 at rc371 (-28), decoded UNCHANGED at 0. THE WHOLE-FAMILY
+    # drain: the family's c_dispatched leaves (the 27 op keys across the 24 modules
+    # — apagodu_zeilberger / eisenstein / ellbase / elliptic_* / gosper /
+    # harmonic_maass / q_* / riemann_theta* / thetasum / unary_theta / wz_* /
+    # zeilberger) each repointed amsc->apokatastasis. The C SYMBOLS are
+    # capability-named and unchanged — only the Python-side dotted keys moved.
+    "python/srmech/amsc/_c_claims.py": (218, 0),
 }
 
 #: The generated-artifact totals, pinned so a per-file edit cannot quietly move
@@ -375,8 +407,8 @@ CEIL_AMSC_PREFIX = {
 #:
 #: as-text 2933 (rc361) -> 2943 (rc362, +10 = the 5 citations x 2 artifacts).
 #: decoded 577 (rc361)  ->  577 (rc362, FLAT — the population did not move).
-TOTAL_AS_TEXT = 2901   # rc369 2906 -> rc370 2901 (-5: elliptic_partial_fraction amsc->apokatastasis; -2 carrier back-index, -1 tool name, -1 _tool_docs name, -1 _c_claims c_dispatched key)
-TOTAL_DECODED = 573    # rc369 573 -> rc370 573 (FLAT: elliptic_partial_fraction's carrier refs are INLINE as-text JSON, not the hoisted decoded byte arrays, so the population channel did not move)
+TOTAL_AS_TEXT = 2699   # rc370 2901 -> rc371 2699 (-202: the WHOLE-FAMILY drain, 24 modules amsc->apokatastasis; -45 carrier + -50 tool_registry + -30 responsion + -49 _tool_docs + -28 _c_claims)
+TOTAL_DECODED = 560    # rc370 573 -> rc371 560 (-13: THE POPULATION FELL — 13 elliptic-carrier (ellbase/thetasum) op refs in the hoisted carrier-registry byte arrays moved amsc->apokatastasis; contrast rc370 where the single op's carrier refs were inline as-text)
 
 
 def _counts(rel_path: str) -> "tuple[int, int]":
@@ -540,23 +572,42 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     inside these hoisted byte arrays. The decoded ``srmech.amsc.`` population
     fell 533 -> **529** and ``srmech.music.`` rose 9 -> **13**, by exactly those
     four — a genuine population move tracked by the decoded channel, not a
-    re-namespacing thought experiment. The pins below now read 529 / 13; the
-    counterfactual (re-namespace all 13 music refs) still lands at 542.
+    re-namespacing thought experiment. The pins read 529 / 13 through rc370.
+
+    rc371 — THE LARGEST POSITIVE MOVE SO FAR, AND THE RECEIVING SIDE IS NOW PINNED
+    TOO. The whole-family drain (24 modules -> srmech.apokatastasis) moved 13
+    elliptic-carrier op references (ellbase / thetasum and kin) inside these
+    hoisted byte arrays: decoded ``srmech.amsc.`` fell 529 -> **516** and
+    ``srmech.apokatastasis.`` rose 0 -> **13**, conserving the count. amsc is now
+    pinned at 516, apokatastasis at 13, music holds at 13; the music counterfactual
+    (re-namespace all 13 music refs) lands at 529 = 516 + 13.
     """
     car = _SR_ROOT / "c/src/srmech_carrier_registry.c"
     joined = "\n".join(b for _, b in decoded_blobs(car))
 
     amsc = joined.count(PREFIX)
     music = joined.count("srmech.music.")
-    assert amsc == 529, (
+    apokatastasis = joined.count("srmech.apokatastasis.")
+    assert amsc == 516, (
         f"the carrier registry's decoded amsc population is {amsc}, expected "
-        f"529 — re-read the pins before trusting anything else in this file.")
+        f"516 — re-read the pins before trusting anything else in this file.")
     assert music == 13, (
         f"expected 13 srmech.music op references inside the DECODED channel "
         f"(9 from the rc362 Q / Qalg ops.consumes back-index + 4 from the rc366 "
         f"harmonics module move), found {music}. If this is 0 the natural "
         f"experiment below is inert and this test proves nothing — re-measure "
         f"and pick a live example.")
+    # rc371 — THE POSITIVE POPULATION MOVE, on the SAME (decoded) channel. The
+    # whole-family drain moved 13 elliptic-carrier op refs (ellbase / thetasum and
+    # kin) OUT of the amsc decoded count (529 -> 516) and INTO apokatastasis
+    # (0 -> 13) inside these hoisted byte arrays. This pins the receiving side so a
+    # future regression that dropped an op from the walk (rather than moving it)
+    # would show apokatastasis falling without amsc rising.
+    assert apokatastasis == 13, (
+        f"expected 13 srmech.apokatastasis op references inside the DECODED "
+        f"channel (the rc371 whole-family drain's carrier back-index), found "
+        f"{apokatastasis}. amsc fell 529 -> 516 by exactly these 13; if this is "
+        f"not 13 the population move is not conserved — re-measure.")
 
     # THE COUNTERFACTUAL: had those music ops landed in the draining namespace,
     # the decoded channel would have seen every one of them.

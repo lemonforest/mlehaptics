@@ -1,7 +1,7 @@
 /*
  * srmech_thetasum_interp.c -- the C peer of the ThetaSum SOUND structural
  * CERTIFICATE recursion (rc210 -- the is_zero soundness rebuild). A 1:1 mirror of
- * the consumer BOOL of the pure-Python srmech.amsc.thetasum._decide_struct:
+ * the consumer BOOL of the pure-Python srmech.apokatastasis.thetasum._decide_struct:
  * *out_is_zero = 1 IFF the cleared numerator is CERTIFICATE-PROVEN identically
  * zero; 0 = "not proven" (a proven-nonzero object or an honest decline -- the
  * bool deliberately does not distinguish them; the sound contract is True-only).

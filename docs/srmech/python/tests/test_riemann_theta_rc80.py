@@ -1,4 +1,4 @@
-"""rc80 — ``srmech.amsc.riemann_theta.RiemannThetaG4``, the NEXT RUNG of the GENUS axis
+"""rc80 — ``srmech.apokatastasis.riemann_theta.RiemannThetaG4``, the NEXT RUNG of the GENUS axis
 (the SCHOTTKY FRONTIER).
 
 The genus-4 Riemann theta-CONSTANT, exact-integer
@@ -50,7 +50,7 @@ if _TESTS_DIR not in _sys.path:
     _sys.path.insert(0, _TESTS_DIR)
 from conftest import riemann_theta_force_pure
 
-from srmech.amsc.riemann_theta import RiemannTheta, RiemannThetaG3, RiemannThetaG4
+from srmech.apokatastasis.riemann_theta import RiemannTheta, RiemannThetaG3, RiemannThetaG4
 from srmech.amsc import _native
 
 
@@ -385,7 +385,7 @@ def test_equality_and_hash():
 # ── gate (h): the carrier source is numpy / math / abs() free ────────────────
 def test_riemann_theta_source_is_numpy_math_abs_free():
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    src = os.path.join(here, "srmech", "amsc", "riemann_theta.py")
+    src = os.path.join(here, "srmech", "apokatastasis", "riemann_theta.py")
     with tokenize.open(src) as fh:
         text = fh.read()
     assert "import numpy" not in text

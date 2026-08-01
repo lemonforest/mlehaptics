@@ -1,18 +1,18 @@
-"""srmech.amsc.elliptic_zeilberger — the ELLIPTIC Σ-row CREATIVE-TELESCOPING op: the
+"""srmech.apokatastasis.elliptic_zeilberger — the ELLIPTIC Σ-row CREATIVE-TELESCOPING op: the
 Frenkel–Turaev ₈ω₇ order-1 recurrence ``f(n+1) = ρ(n)·f(n)`` PLUS an EXACT
 connection-coefficient certificate that PROVES it (the ``ThetaSum.is_zero`` decision,
 NOT a numerical convergence gate).
 
-This is the genuine elliptic analogue of :func:`~srmech.amsc.zeilberger.zeilberger` /
-:func:`~srmech.amsc.q_zeilberger.q_zeilberger`, the third rung of the elliptic Σ-row
-after :func:`~srmech.amsc.elliptic_gosper.elliptic_gosper` (indefinite, rc65) and
-:func:`~srmech.amsc.elliptic_recurrence.elliptic_recurrence_8w7` (the order-1 recurrence
+This is the genuine elliptic analogue of :func:`~srmech.apokatastasis.zeilberger.zeilberger` /
+:func:`~srmech.apokatastasis.q_zeilberger.q_zeilberger`, the third rung of the elliptic Σ-row
+after :func:`~srmech.apokatastasis.elliptic_gosper.elliptic_gosper` (indefinite, rc65) and
+:func:`~srmech.apokatastasis.elliptic_recurrence.elliptic_recurrence_8w7` (the order-1 recurrence
 FINDER, rc68 — whose verification GATE was a 1e-9 numerical convergence check). Where
 ``elliptic_recurrence_8w7`` only checked ``ρ(n)`` against the closed product form
 numerically, **this op replaces that gate with an EXACT proof**: it constructs the
 Weierstrass-three-term connection-coefficient certificate that is the inductive step of
 the Frenkel–Turaev summation proof and decides it ``≡ 0`` in the exact additive theta
-carrier :class:`~srmech.amsc.thetasum.ThetaSum` (the rc62 ``is_zero``: quasi-periodicity
+carrier :class:`~srmech.apokatastasis.thetasum.ThetaSum` (the rc62 ``is_zero``: quasi-periodicity
 grouping + the exact three-term reduction — never a converging ``eval_trunc`` witness).
 
 ────────────────────────────────────────────────────────────────────────────────────
@@ -60,7 +60,7 @@ and Theorem 2.3.1, the Frenkel–Turaev ₈ω₇ summation]. The ₈ω₇ balanc
 a²qⁿ⁺¹`` (Theorem 2.3.1); the closed product form of ``f(n)`` and the elementary-symmetric
 construction of ``ρ`` are Warnaar, *Constr. Approx.* 18 (2002) 479–502, Corollary 2.2
 (the rc68 reference). The recognition / decomposition / ρ construction are reused from
-:mod:`srmech.amsc.elliptic_recurrence`.
+:mod:`srmech.apokatastasis.elliptic_recurrence`.
 
 Exact over the modified-theta algebra (no float on the decision path; sign is the
 **Class-K** pin-slot via the ``Q`` / ``EllMonomial`` sign-branch, never an ALU ``abs()``;
@@ -78,7 +78,7 @@ from .ellbase import EllMonomial, Theta, _X
 from .elliptic_recurrence import (
     _build_rho, _coerce_ratio, _decompose_8w7, _rho_to_result, _ratio_to_form,
 )
-from .q import Q
+from ..amsc.q import Q
 from .thetasum import ThetaSum
 
 __all__ = ["elliptic_zeilberger"]
@@ -93,7 +93,7 @@ _K = "K"
 
 def _pm(mid: EllMonomial, half: EllMonomial) -> "list":
     """The ±-pair ``θ(mid·half^±) = θ(mid·half)·θ(mid/half)`` as its two
-    :class:`~srmech.amsc.ellbase.Theta` factors (midpoint ``mid``, half ``half``)."""
+    :class:`~srmech.apokatastasis.ellbase.Theta` factors (midpoint ``mid``, half ``half``)."""
     return [Theta(mid * half), Theta(mid * half.inv())]
 
 
@@ -101,7 +101,7 @@ def _connection_split_certificate(a: EllMonomial, b: EllMonomial,
                                   c: EllMonomial) -> ThetaSum:
     """Build the EXACT connection-coefficient inductive-step certificate (Rosengren's
     cleared three-term split, the identity Eq. 2.13 + Eq. 2.14 reduce to) as a
-    certificate-shaped :class:`~srmech.amsc.thetasum.ThetaSum` whose :meth:`ThetaSum.
+    certificate-shaped :class:`~srmech.apokatastasis.thetasum.ThetaSum` whose :meth:`ThetaSum.
     is_zero` is ``True``. With ``N = qⁿ``, ``K = qᵏ``, theta variable ``x = _X`` and the
     connection parameters ``a, b, c`` (the ₈ω₇'s decomposed base + two free params):
 
@@ -132,7 +132,7 @@ def _native():
     and bound, else ``None`` (so the op dispatches to C when available and falls cleanly
     to the pure-Python body). Imported lazily to avoid a bootstrap cycle."""
     try:
-        from . import _native as nat
+        from ..amsc import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_elliptic_zeilberger", None)
@@ -145,13 +145,13 @@ def elliptic_zeilberger(r) -> Optional[Dict[str, object]]:
     certificate proving it.
 
     ``r`` is the ₈ω₇ summand's **term ratio** ``t(n+1)/t(n) = r(x)`` (an
-    :class:`~srmech.amsc.ellbase.EllRatio`: the very-well-poised core over five Pochhammer
-    pairs with balancing ``bcde = a²qⁿ⁺¹`` — see :func:`~srmech.amsc.elliptic_recurrence.
+    :class:`~srmech.apokatastasis.ellbase.EllRatio`: the very-well-poised core over five Pochhammer
+    pairs with balancing ``bcde = a²qⁿ⁺¹`` — see :func:`~srmech.apokatastasis.elliptic_recurrence.
     elliptic_recurrence_8w7`). The op RECOGNIZES the ₈ω₇, DECOMPOSES it into ``a`` + the
     three free params ``[b, c, d]``, CONSTRUCTS ``ρ`` (the elementary-symmetric closed-form
     ratio, Warnaar Cor 2.2), and CERTIFIES the recurrence by deciding the connection-
     coefficient inductive-step identity (Rosengren Eq. 2.12–2.14 → Eq. 1.12) ``≡ 0`` in the
-    exact :class:`~srmech.amsc.thetasum.ThetaSum` carrier (the EXACT gate, replacing rc68's
+    exact :class:`~srmech.apokatastasis.thetasum.ThetaSum` carrier (the EXACT gate, replacing rc68's
     1e-9 numerical check):
 
     - if ``r`` is a canonical ₈ω₇ AND the certificate is exactly ``≡ 0``, returns

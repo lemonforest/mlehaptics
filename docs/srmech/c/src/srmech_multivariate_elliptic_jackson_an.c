@@ -1,6 +1,6 @@
 /*
  * srmech_multivariate_elliptic_jackson_an.c -- the 1:1 native C peer of
- * srmech.amsc.elliptic_jackson_an.multivariate_elliptic_jackson_an (rc227),
+ * srmech.apokatastasis.elliptic_jackson_an.multivariate_elliptic_jackson_an (rc227),
  * the eq-6 An elliptic Jackson summation reducer: the type-A member of the
  * multivariable (root-system) elliptic reduction row.
  *

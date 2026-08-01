@@ -30,7 +30,7 @@ import tokenize
 
 import pytest
 
-from srmech.amsc.riemann_theta import RiemannTheta
+from srmech.apokatastasis.riemann_theta import RiemannTheta
 from srmech.amsc import _native
 
 
@@ -321,7 +321,7 @@ def test_pure_python_alone_passes_new_gates(pure_riemann_theta):
 # ── gate (E): the carrier source is numpy / math / abs() free ────────────────
 def test_riemann_theta_source_is_numpy_math_abs_free():
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    src = os.path.join(here, "srmech", "amsc", "riemann_theta.py")
+    src = os.path.join(here, "srmech", "apokatastasis", "riemann_theta.py")
     with tokenize.open(src) as fh:
         text = fh.read()
     assert "import numpy" not in text
@@ -396,7 +396,7 @@ def test_kexp_composes_consistently_all_genera():
     {ζ₈⁰,ζ₈⁴}), and (2) folding the mod-2 characteristic-shift sign θ[ε+2δ]=(−1)^{p·b}θ[ε]
     into kexp so the returned (reduced characteristic, kexp) COMPOSES. This test was a
     strict-xfail recording the LATENT bug; the fix makes it PASS (marker removed)."""
-    from srmech.amsc.riemann_theta import RiemannThetaG3, RiemannThetaG4
+    from srmech.apokatastasis.riemann_theta import RiemannThetaG3, RiemannThetaG4
 
     # genus 2 — Sp(4,ℤ): the canonical Urot·T11 witness lives here
     g2_gens = list(_gens().values())

@@ -8,7 +8,7 @@ exact-ℚ sample points (the 1/θ(Y/Z) factor is load-bearing). numpy-free.
 
 import pytest
 
-from srmech.amsc.ellbase import EllMonomial as M, Theta
+from srmech.apokatastasis.ellbase import EllMonomial as M, Theta
 from srmech.amsc.q import Q
 from srmech.apokatastasis.elliptic_partial_fraction import elliptic_partial_fraction
 

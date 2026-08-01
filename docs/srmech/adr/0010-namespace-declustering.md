@@ -1015,3 +1015,79 @@ the cost to budget for that bucket by default (vs. 3 for a plain peer-carrying o
   cross-namespace CONSUMER repoint this slice (unlike rc369's `coupling.py`): nothing outside the module and
   its own test imports the function (grep-verified), so G.2's "grep BOTH directions" check came back clean
   on the consumer side.
+
+## Amendment H — the SIXTH slice, and the LARGEST: the WHOLE `srmech.apokatastasis` family drains in ONE rc (24 modules), v0.9.0rc371 (`#T1034`)
+
+rc370 (Amendment G) opened `srmech.apokatastasis` with a single op. rc371 moves the **entire remaining
+elliptic / modular / theta / q-series family — 24 modules in one slice** — completing the domain: `apagodu_
+zeilberger`, `eisenstein`, `ellbase`, `elliptic_determinant`, `elliptic_gosper`, `elliptic_jackson`,
+`elliptic_jackson_an`, `elliptic_recurrence`, `elliptic_wz_certificate`, `elliptic_zeilberger`, `eta_quotient`,
+`gosper`, `harmonic_maass`, `modular_forms_ring`, `q_gosper`, `q_wz_certificate`, `q_zeilberger`,
+`quasimodular_forms_ring`, `riemann_theta`, `riemann_theta_multisum`, `thetasum`, `unary_theta`,
+`wz_certificate`, `zeilberger`. Leaf names kept (B.1 rule 1); `describe()["tools"]["total"]` stays **525**
+(27 op names repoint, a move not an add); `SRMECH_ABI_VERSION` stays **10**.
+
+### H.1 The reusable lesson for a FAMILY-scale move: intra-family imports stay RELATIVE
+
+This is the load-bearing rule that a single-module slice never exercised and the pending `srmech.math` bucket
+will need. The 24 modules import each other densely. Because they ALL move together into ONE package, a moved
+module's `from .thetasum import …` remains a VALID sibling import and MUST NOT be rewritten to `..amsc.`. The
+per-import discriminator is exactly **"did the target move too?"**:
+
+- target is IN the roster (moved) → **keep `from .<sibling>`** (measured this slice: **34** kept relative);
+- target STAYS in amsc (a keeper/carrier: `poly` / `q` / `qmat` / `qpoly` / `qbipoly` / `tripoly` / `cyclic` /
+  `cascade` / `_native`) → repoint `from .<x>` / `from . import <x>` → **`from ..amsc.<x>`** (measured: **88**
+  cross-namespace up-reach imports);
+- a STAYS-in-amsc file importing a MOVED module → repoint `from .<roster>` → **`from ..apokatastasis.<roster>`**
+  (measured: **16** external-consumer repoints — `amsc/__init__.py` ×6 re-exports, `dispatch.py` ×6,
+  `carrier_spectrum.py` ×2, `carrier_ladder.py` ×1, `tripoly.py` ×1).
+
+**And a family move must re-examine EARLIER slices that up-reached into the family.** rc370's
+`elliptic_partial_fraction` (already in apokatastasis) reached its carriers via `from ..amsc.ellbase` /
+`from ..amsc.thetasum`; both move now, so those two up-reach imports were repointed back DOWN to sibling form
+`from .ellbase` / `from .thetasum` (its `from ..amsc import _native` stays). Getting the direction right per
+import is the single highest-risk part of a family-scale declustering.
+
+### H.2 The FINDING — A.2's `srmech.apokatastasis` count of 31 OVER-counts the real family by ~6
+
+The real special-functions family is **25** modules (rc370's `elliptic_partial_fraction` + these 24). A.2's
+decision table (`ADR_A2_DESTINATION_COUNTS["srmech.apokatastasis"]`) counts **31 (41%)**. The ~6 over-count is
+A.2 lumping, by name-similarity, modules that are NOT modular-forms:
+
+- **`modular_linalg`** — GF(p) FINITE-FIELD linear algebra (Gaussian elimination / rank / nullspace over
+  𝔽_p), a general math primitive that belongs in the future `srmech.math` bucket, NOT the elliptic/modular-forms
+  domain. Its name collides with "modular forms" but the mathematics is unrelated. It deliberately STAYS in
+  `amsc` this slice and is explicitly EXCLUDED from the roster.
+- **~5 general carriers** (the `q` / `poly` / `qmat` / `qpoly` / `qbipoly` / `tripoly` family and kin) that the
+  elliptic ops CONSUME but which are domain-neutral carriers → also the `srmech.math` bucket.
+
+**Decision: `ADR_A2_DESTINATION_COUNTS["srmech.apokatastasis"]` is kept UNCHANGED at 31**, and the census stays
+SUBSET-named (`NAMED_DEPARTURES["srmech.apokatastasis"]` = the 25-member family, `25 <= 31`). Reassigning the
+~6 to `srmech.math` is the **math bucket's** slice, not this one — doing it here would fabricate a
+classification the elliptic slice has no authority over, and would also collide with the still-live
+carriers/`modular_linalg` that have not moved. The over-count is recorded here as the finding; it resolves
+when the math bucket drains and re-homes those ~6 by name.
+
+### H.3 Measured ripple (all re-pinned in the SAME commit as the move)
+
+- **Census**: **70 → 46** modules; digest `e801322a…` → **`8175d999…`**; `LANDED` gains the 24 (5 → **29**);
+  conservation **`46 + 29 == 75`** holds; `NAMED_DEPARTURES["srmech.apokatastasis"]` 1 → **25** members.
+- **Op-name-set witness**: SET moves 27 names; digest `02698ab9…` → **`f3373b2c…`**; `EXPECTED_N` stays **525**.
+- **Decode-aware ratchet**: carrier `(201,529) → (156,516)`; tool_registry `(1201,4) → (1151,4)`; responsion
+  `(71,0) → (41,0)`; `_tool_docs` `(1182,0) → (1133,0)`; `_c_claims` `(246,0) → (218,0)`; **`TOTAL_AS_TEXT`
+  2901 → 2699** (−202), **`TOTAL_DECODED` 573 → 560** (−13). **The decoded (population) channel FELL for the
+  first time on this bucket, by 13** — this family carries `ellbase` / `thetasum`, whose op references live in
+  the four hoisted >4000-byte carrier-registry byte arrays (unlike rc370's inline-as-text single op). The fifth
+  test's hard pins re-pin `amsc == 529 → 516`, ADD a conserved receiving-side pin `apokatastasis == 13`
+  (−13 amsc = +13 apokatastasis), and hold `music == 13`.
+- **C surfaces**: **33** C files repointed (30 hand — `srmech.h`, `srmech_ellbase_internal.h`, and 28
+  `srmech_<op>.c` peer comment blocks incl. the cross-cutting `srmech_infer.c` / `srmech_elliptic_lagrange.c` /
+  `srmech_an_vwp_multisum_lhs.c` / `srmech_cn_vwp_multisum_lhs.c` / `srmech_q_wz_verify.c` / `srmech_wz.c` /
+  `srmech_thetasum_interp.c` — plus the 3 regenerated registries). C symbols capability-named, unchanged; ABI
+  stays 10. `srmech_invoke.c` grep-clean (no roster refs) → no dispatch-spine repoint. **ZERO**
+  `srmech.amsc.<roster>` remain under `docs/srmech/c/`.
+- **Rosetta**: 33 ledger rows repointed (`exposed_as` + `defined_at`, buckets preserved); completeness +
+  transitive + roots-single-source all green under the `srmech.apokatastasis` root.
+- **Regenerated artifacts** (`tools/regen_all.py --accept-seed-drift`, content-equal + idempotent):
+  `_tool_docs.py`, `_c_claims.py`, `srmech_tool_registry.c`, `srmech_carrier_registry.c`,
+  `srmech_responsion_registry.c`; class registry byte-identical.

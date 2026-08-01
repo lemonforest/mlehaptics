@@ -1,6 +1,6 @@
 /*
  * srmech_thetasum.c -- the C peer of the ThetaSum ADDITIVE theta-function
- * carrier (srmech.amsc.thetasum.ThetaSum), the foundation under GENUINE elliptic
+ * carrier (srmech.apokatastasis.thetasum.ThetaSum), the foundation under GENUINE elliptic
  * creative telescoping. A 1:1 STRUCTURAL MIRROR of the pure-Python is_zero -- the
  * EXACT Weierstrass three-term reduction partitioned by quasi-periodicity class
  * (Rosengren, arXiv:1608.06161v3 §1.4 Eq. 1.12 + §1.3 Lemma 1.3.2). This is NOT a

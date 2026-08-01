@@ -11,7 +11,7 @@ import os
 import re
 import tokenize
 
-from srmech.amsc.ellbase import EllMonomial as M, Theta, EllRatio as R, _modified_theta_trunc
+from srmech.apokatastasis.ellbase import EllMonomial as M, Theta, EllRatio as R, _modified_theta_trunc
 from srmech.amsc.q import Q
 
 _VALS = {"q": Q(2, 1), "p": Q(1, 9), "a": Q(3, 5), "b": Q(4, 7)}
@@ -90,7 +90,7 @@ def test_modified_theta_trunc_quasiperiodicity():
 # ── discipline: no numpy / no math / no abs() in the carrier source ───────────
 def test_ellbase_source_is_numpy_math_abs_free():
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    src = os.path.join(here, "srmech", "amsc", "ellbase.py")
+    src = os.path.join(here, "srmech", "apokatastasis", "ellbase.py")
     with tokenize.open(src) as fh:
         text = fh.read()
     assert "import numpy" not in text

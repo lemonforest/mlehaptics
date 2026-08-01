@@ -195,16 +195,16 @@ def test_discrete_verified_rows_cover_the_f929_reducers() -> None:
     expected = {
         "srmech.amsc.cascade.the_one|One",
         "srmech.amsc.coupling.resonant_spectrum|Mat",
-        "srmech.amsc.gosper.gosper|Poly",
-        "srmech.amsc.zeilberger.zeilberger|BiPoly",
-        "srmech.amsc.wz_certificate.wz_certificate|BiPoly",
-        "srmech.amsc.apagodu_zeilberger.apagodu_zeilberger|TriPoly",
-        "srmech.amsc.q_gosper.q_gosper|QPoly",
-        "srmech.amsc.q_zeilberger.q_zeilberger|QBiPoly",
-        "srmech.amsc.q_wz_certificate.q_wz_certificate|QBiPoly",
-        "srmech.amsc.elliptic_wz_certificate.elliptic_wz_certificate"
+        "srmech.apokatastasis.gosper.gosper|Poly",
+        "srmech.apokatastasis.zeilberger.zeilberger|BiPoly",
+        "srmech.apokatastasis.wz_certificate.wz_certificate|BiPoly",
+        "srmech.apokatastasis.apagodu_zeilberger.apagodu_zeilberger|TriPoly",
+        "srmech.apokatastasis.q_gosper.q_gosper|QPoly",
+        "srmech.apokatastasis.q_zeilberger.q_zeilberger|QBiPoly",
+        "srmech.apokatastasis.q_wz_certificate.q_wz_certificate|QBiPoly",
+        "srmech.apokatastasis.elliptic_wz_certificate.elliptic_wz_certificate"
         "|EllRatio",
-        "srmech.amsc.elliptic_jackson.multivariate_elliptic_jackson"
+        "srmech.apokatastasis.elliptic_jackson.multivariate_elliptic_jackson"
         "|EllMonomial",
     }
     assert expected <= set(schema)
@@ -284,7 +284,7 @@ def test_registry_count_and_keys_round_trip() -> None:
 def test_registry_find_first_class_fields() -> None:
     schema = _pure_responsion_schema()
     for probe in ("srmech.amsc.laplacian.responsion|Mat",
-                  "srmech.amsc.gosper.gosper|Poly",
+                  "srmech.apokatastasis.gosper.gosper|Poly",
                   f"{_INFER_OP}|EllRatio"):
         found = _native.responsion_registry_find_c(probe)
         assert found is not None

@@ -1,7 +1,7 @@
 /*
  * srmech_zeilberger.c -- Zeilberger's creative telescoping (the SECOND public op
  * of the section 76 "telescope" Sigma-row closed-form prover, F929). The C peer
- * of srmech.amsc.zeilberger.zeilberger.
+ * of srmech.apokatastasis.zeilberger.zeilberger.
  *
  * Input: a proper hypergeometric term F(n,k) given by its TWO term ratios
  *   r_n(n,k) = F(n+1,k)/F(n,k) = rn_num(n,k)/rn_den(n,k)

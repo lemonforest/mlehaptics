@@ -168,8 +168,8 @@ def test_ladder_rungs_agree_with_carrier_ladder_descriptor() -> None:
 
 def test_ops_back_index_known_relations() -> None:
     schema = _pure_carrier_schema()
-    assert "srmech.amsc.gosper.gosper" in schema["Poly"]["ops"]["consumes"]
-    assert ("srmech.amsc.apagodu_zeilberger.apagodu_zeilberger"
+    assert "srmech.apokatastasis.gosper.gosper" in schema["Poly"]["ops"]["consumes"]
+    assert ("srmech.apokatastasis.apagodu_zeilberger.apagodu_zeilberger"
             in schema["TriPoly"]["ops"]["consumes"])
     assert ("srmech.amsc.tripoly.tripoly_from_coeffs"
             in schema["TriPoly"]["ops"]["produces"])
@@ -185,7 +185,7 @@ def test_ops_back_index_known_relations() -> None:
     assert "srmech.amsc.laplacian.mat_matmul" in schema["Mat"]["ops"]["consumes"]
     assert "srmech.amsc.laplacian.mat_matmul" in schema["Mat"]["ops"]["produces"]
     # Word-boundary discipline: gosper takes Poly, NOT QPoly.
-    assert ("srmech.amsc.gosper.gosper"
+    assert ("srmech.apokatastasis.gosper.gosper"
             not in schema["QPoly"]["ops"]["consumes"])
 
 

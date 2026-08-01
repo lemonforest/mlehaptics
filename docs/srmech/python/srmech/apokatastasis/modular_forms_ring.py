@@ -1,4 +1,4 @@
-"""srmech.amsc.modular_forms_ring — ``ModularFormsRing``, the level-1 ℂ[E₄,E₆]
+"""srmech.apokatastasis.modular_forms_ring — ``ModularFormsRing``, the level-1 ℂ[E₄,E₆]
 modular-forms-ring carrier + its EXACT membership decision (the THIRD WEIGHT-axis
 rung, after rc82 eta-quotient + rc83 Eisenstein).
 
@@ -63,9 +63,9 @@ Shurman, *A First Course in Modular Forms*, GTM 228 (2005), §3.5–3.6). So a
 GENUINELY higher-level form (a weight-``k`` form on ``Γ₀(N)``, ``N > 1``, that is
 NOT also a level-1 form) correctly returns ``None`` here — it lies OUTSIDE this
 carrier's ring. That is the BOUNDARY, not a bug: it is the dual of the
-eta-quotient proper-subspace OPEN (:class:`~srmech.amsc.eta_quotient.EtaQuotient`)
+eta-quotient proper-subspace OPEN (:class:`~srmech.apokatastasis.eta_quotient.EtaQuotient`)
 and the genus-axis Schottky membership OPEN
-(:class:`~srmech.amsc.riemann_theta.SchottkyFormG4`) — but note the polarity:
+(:class:`~srmech.apokatastasis.riemann_theta.SchottkyFormG4`) — but note the polarity:
 here level-1 is a CLOSURE (everything in-ring is representable), and the OPEN is
 ONLY the level axis (the next-theory is ``M_*(Γ₀(N))`` with its extra
 generators), NOT built here.
@@ -114,8 +114,8 @@ from __future__ import annotations
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from .eisenstein import Eisenstein
-from .q import Q
-from .qmat import QMat
+from ..amsc.q import Q
+from ..amsc.qmat import QMat
 
 __all__ = [
     "ModularFormsRing",
@@ -135,7 +135,7 @@ def _native():
     complete alternative + the parity oracle). Imported lazily to avoid a
     bootstrap cycle."""
     try:
-        from . import _native as nat
+        from ..amsc import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_modular_forms_ring", None)

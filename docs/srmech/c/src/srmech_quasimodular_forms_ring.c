@@ -1,7 +1,7 @@
 /*
  * srmech_quasimodular_forms_ring.c — the EXACT-rational level-1 C[E2,E4,E6]
  * QUASIMODULAR-forms-ring MEMBERSHIP DECISION (the C peer of
- * srmech.amsc.quasimodular_forms_ring.QuasiModularFormsRing.represent; the FOURTH
+ * srmech.apokatastasis.quasimodular_forms_ring.QuasiModularFormsRing.represent; the FOURTH
  * rung of the WEIGHT axis, after the rc82 eta-quotient + rc83 Eisenstein + rc84
  * ModularFormsRing C[E4,E6]).
  *

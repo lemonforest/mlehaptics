@@ -1,10 +1,10 @@
 """srmech.amsc.qbipoly — the framework-native EXACT bivariate-q CARRIER
 (``QBiPoly``): a polynomial in ``Y = q**k`` whose coefficients are
 :class:`~srmech.amsc.qpoly.QPoly` in ``X = q**n`` (themselves Laurent in ``X`` over
-``ℚ[q]``). The q-analog of :class:`~srmech.amsc.zeilberger.BiPoly`, and the working
+``ℚ[q]``). The q-analog of :class:`~srmech.apokatastasis.zeilberger.BiPoly`, and the working
 substrate the q-Zeilberger creative-telescoping recurrence-finder (rc56) rides.
 
-Where :class:`~srmech.amsc.zeilberger.BiPoly` carries a bivariate polynomial in the
+Where :class:`~srmech.apokatastasis.zeilberger.BiPoly` carries a bivariate polynomial in the
 *ordinary* shift variables ``(n, k)`` — a polynomial in ``k`` whose coefficients are
 :class:`~srmech.amsc.poly.Poly` in ``n``, with the ordinary shifts ``n ↦ n+1`` /
 ``k ↦ k+1`` as its summation payload — ``QBiPoly`` carries the object q-summation
@@ -28,7 +28,7 @@ rc55 q-Gosper solve internals, NOT by the carrier), so the minimal sufficient gr
 ring for the carrier algebra (``+``, ``−``, ``*``, the two q-shifts) is ``ℚ[q]`` —
 each cell a :class:`~srmech.amsc.qpoly.QPoly` over ``ℚ[q]``.
 
-Representation (mirrors :class:`~srmech.amsc.zeilberger.BiPoly`): a list of
+Representation (mirrors :class:`~srmech.apokatastasis.zeilberger.BiPoly`): a list of
 ``QPoly``-in-``X``, indexed by ``Y``-degree. ``terms[d]`` is the coefficient of
 ``Y**d`` and is itself a ``QPoly`` (Laurent in ``X = q**n`` over ``ℚ[q]``). Trailing
 zero ``QPoly`` cells are trimmed, so the zero ``QBiPoly`` is the empty list and the
@@ -76,7 +76,7 @@ class QBiPoly:
     ``Y = q**k`` whose coefficients are :class:`~srmech.amsc.qpoly.QPoly` in ``X =
     q**n`` (Laurent over ``ℚ[q]``). Immutable, trimmed of trailing-zero ``Y``-cells
     (the zero polynomial is the empty term list). The q-analog of
-    :class:`~srmech.amsc.zeilberger.BiPoly`; the exact substrate the q-Zeilberger
+    :class:`~srmech.apokatastasis.zeilberger.BiPoly`; the exact substrate the q-Zeilberger
     term-ratio ``r_n(X,Y)`` / ``r_k(X,Y)`` operands ride. No float, no ``abs()``
     (Class-K sign), no ``math`` / numpy. See the module docstring."""
 

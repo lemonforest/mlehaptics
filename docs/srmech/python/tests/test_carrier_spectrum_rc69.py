@@ -21,8 +21,8 @@ import tokenize
 
 import pytest
 
-from srmech.amsc.ellbase import EllMonomial as M, Theta, EllRatio as R, _X, _Q_SYM
-from srmech.amsc.thetasum import ThetaSum, _Y, _net_period_multiplier_exps
+from srmech.apokatastasis.ellbase import EllMonomial as M, Theta, EllRatio as R, _X, _Q_SYM
+from srmech.apokatastasis.thetasum import ThetaSum, _Y, _net_period_multiplier_exps
 from srmech.amsc.q import Q
 from srmech.amsc import carrier_spectrum as csmod
 from srmech.amsc.carrier_spectrum import CarrierSpectrum, carrier_spectrum

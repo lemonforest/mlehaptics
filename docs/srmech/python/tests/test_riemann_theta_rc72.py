@@ -1,4 +1,4 @@
-"""rc72 — ``srmech.amsc.riemann_theta.RiemannTheta``, the FIRST RUNG of the GENUS axis.
+"""rc72 — ``srmech.apokatastasis.riemann_theta.RiemannTheta``, the FIRST RUNG of the GENUS axis.
 
 The genus-2 Riemann theta-CONSTANT, exact-integer ``(A, B, C)`` exponent lattice in
 the quarter-nome base (the cross-term ``C`` carries the genus-2 denominator-4
@@ -29,8 +29,8 @@ import tokenize
 
 import pytest
 
-from srmech.amsc.riemann_theta import RiemannTheta
-from srmech.amsc.unary_theta import unary_theta
+from srmech.apokatastasis.riemann_theta import RiemannTheta
+from srmech.apokatastasis.unary_theta import unary_theta
 from srmech.amsc import _native
 
 
@@ -242,7 +242,7 @@ def test_equality_and_hash():
 # ── gate (f): the carrier source is numpy / math / abs() free ────────────────
 def test_riemann_theta_source_is_numpy_math_abs_free():
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    src = os.path.join(here, "srmech", "amsc", "riemann_theta.py")
+    src = os.path.join(here, "srmech", "apokatastasis", "riemann_theta.py")
     with tokenize.open(src) as fh:
         text = fh.read()
     assert "import numpy" not in text

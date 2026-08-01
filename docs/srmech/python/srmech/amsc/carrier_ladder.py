@@ -70,7 +70,7 @@ from .poly import Poly
 from .qbipoly import QBiPoly
 from .qpoly import QPoly
 from .tripoly import TriPoly
-from .zeilberger import BiPoly
+from ..apokatastasis.zeilberger import BiPoly
 
 __all__ = [
     "poly_promote",
@@ -104,7 +104,7 @@ def poly_promote(p: Any, n_vars: Optional[int] = None) -> Any:
     F1038).
 
     ``p`` is a :class:`~srmech.amsc.poly.Poly` (rung 1, a polynomial in ``k``),
-    a :class:`~srmech.amsc.zeilberger.BiPoly` (rung 2, in ``(n,k)``), or a
+    a :class:`~srmech.apokatastasis.zeilberger.BiPoly` (rung 2, in ``(n,k)``), or a
     :class:`~srmech.amsc.tripoly.TriPoly` (rung 3, in ``(n,j,k)``). ``n_vars``
     is the TARGET rung (1, 2, or 3); it must be ≥ the current rung. When
     ``n_vars is None`` the default is one rung up. When ``n_vars`` equals the
@@ -395,7 +395,7 @@ _OP_CONTRACTS: Dict[str, Dict[str, Any]] = {
         "consumes": _varq("any"), "produces": _varq("step_down")},
     # ── the PROSE-SIDE constructors (produce a FIXED rung from raw ints) ──────
     "bipoly_from_coeffs": {
-        "tool": "srmech.amsc.zeilberger.bipoly_from_coeffs",
+        "tool": "srmech.apokatastasis.zeilberger.bipoly_from_coeffs",
         "consumes": {"ladder": None, "type": "list[list[int]]"},
         "produces": _var(2)},
     "tripoly_from_coeffs": {

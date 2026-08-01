@@ -10,8 +10,8 @@ form — else an honest OPEN. Non-compute orchestration (no new ToolEntry / C pe
 numpy-free.
 """
 
-from srmech.amsc.ellbase import EllMonomial as M, Theta, EllRatio as R, _X, _Q_SYM
-from srmech.amsc.thetasum import _Y
+from srmech.apokatastasis.ellbase import EllMonomial as M, Theta, EllRatio as R, _X, _Q_SYM
+from srmech.apokatastasis.thetasum import _Y
 from srmech.amsc.dispatch import infer, _detect_row
 
 

@@ -1,6 +1,6 @@
 /*
  * srmech_unary_theta.c — the EXACT-INTEGER q-series of a UNARY THETA SERIES
- * (the C peer of srmech.amsc.unary_theta.UnaryTheta; the first WEIGHT-GRADED
+ * (the C peer of srmech.apokatastasis.unary_theta.UnaryTheta; the first WEIGHT-GRADED
  * operand carrier).
  *
  * A unary theta series is
@@ -17,7 +17,7 @@
  * e = 0 .. N, where E(n) = (a*n^2 + b*n - lead_num)/D is the reduced exponent
  * (lead_num = the minimum raw exponent numerator over the contributing n). Each
  * out[e] is a full srmech_bigint (no int64 ceiling: n^j is bignum) and is
- * byte-identical to the Python srmech.amsc.unary_theta.UnaryTheta q-series.
+ * byte-identical to the Python srmech.apokatastasis.unary_theta.UnaryTheta q-series.
  *
  * Anchors (the build gates):
  *   theta3: modulus=1 chi={1}, j=0, a=1,b=0,D=1, support=all

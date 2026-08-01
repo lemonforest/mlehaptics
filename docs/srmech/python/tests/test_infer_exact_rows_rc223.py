@@ -62,8 +62,8 @@ from srmech.amsc.q import Q
 from srmech.amsc.qpoly import QPoly
 from srmech.amsc.qbipoly import QBiPoly
 from srmech.amsc.tripoly import TriPoly
-from srmech.amsc.ellbase import EllMonomial as M, Theta, EllRatio as R, _X, _Q_SYM
-from srmech.amsc.thetasum import _Y
+from srmech.apokatastasis.ellbase import EllMonomial as M, Theta, EllRatio as R, _X, _Q_SYM
+from srmech.apokatastasis.thetasum import _Y
 
 
 # ── fixtures: sigma_multivar ──────────────────────────────────────────────────

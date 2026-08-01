@@ -1,6 +1,6 @@
 /*
  * srmech_elliptic_lagrange.c -- the 1:1 native C peer of
- * srmech.amsc.ellbase.elliptic_lagrange_basis (rc66, shipped Python-only;
+ * srmech.apokatastasis.ellbase.elliptic_lagrange_basis (rc66, shipped Python-only;
  * its C mirror is owed by the everything-mirrors same-rc discipline -> rc67).
  *
  * A C-MIRROR PARITY build (NOT a new algorithm): it reproduces the EXISTING,

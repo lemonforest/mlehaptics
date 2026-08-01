@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc370"
-#define SRMECH_VERSION       "0.9.0rc370"
+#define SRMECH_VERSION_PRE   "rc371"
+#define SRMECH_VERSION       "0.9.0rc371"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -9510,7 +9510,7 @@ srmech_status_t srmech_lll_gso_normsq(
 
 /* ------------------------------------------------------------------ *
  * srmech_unary_theta — the EXACT-INTEGER q-series of a UNARY THETA SERIES (the
- * C peer of srmech.amsc.unary_theta.UnaryTheta; the first WEIGHT-GRADED operand
+ * C peer of srmech.apokatastasis.unary_theta.UnaryTheta; the first WEIGHT-GRADED operand
  * carrier). A unary theta is g(tau) = SUM_{n in support} chi(n)*n^j*q^{(a*n^2+
  * b*n)/D}; its WEIGHT is 1/2 + j (that rational lives in the Python Q carrier —
  * the C computes only the integer q-series). This op returns the EXACT INTEGER
@@ -9540,7 +9540,7 @@ srmech_status_t srmech_unary_theta_q_series(
 
 /* ------------------------------------------------------------------ *
  * srmech_eta_quotient — the EXACT-INTEGER q-series of a DEDEKIND-ETA QUOTIENT
- * (the C peer of srmech.amsc.eta_quotient.EtaQuotient; a WEIGHT-axis operand
+ * (the C peer of srmech.apokatastasis.eta_quotient.EtaQuotient; a WEIGHT-axis operand
  * carrier). Q(tau) = PROD_{d|N} eta(d tau)^{r_d} = q^{(SUM_d d r_d)/24} *
  * PROD_d PROD_{m>=1}(1 - q^{dm})^{r_d}. This op returns the EXACT INTEGER
  * coefficients out[e] (e = 0..n_terms-1) of the power series AFTER the leading
@@ -9572,7 +9572,7 @@ srmech_status_t srmech_eta_quotient_qseries(
 
 /* ------------------------------------------------------------------ *
  * srmech_eisenstein — the EXACT-RATIONAL q-series of a normalized EISENSTEIN
- * SERIES E_k (the C peer of srmech.amsc.eisenstein.Eisenstein; the SECOND rung
+ * SERIES E_k (the C peer of srmech.apokatastasis.eisenstein.Eisenstein; the SECOND rung
  * of the WEIGHT axis, after the rc82 eta-quotient). For even weight k >= 4,
  *     E_k(tau) = 1 - (2k / B_k) * SUM_{n>=1} sigma_{k-1}(n) q^n,
  * with B_k the k-th Bernoulli number (an EXACT RATIONAL: B_4=-1/30, B_6=1/42,
@@ -9604,7 +9604,7 @@ size_t srmech_eisenstein_ws_bound(size_t coeff_limbs, size_t k);
  * the modular E_k; k=2 is the QUASIMODULAR E_2 branch (E_2 = 1 - 24 SUM sigma_1(n)
  * q^n; same formula at k=2, pref -4/B_2 = -24 — the modularity DECISION stays
  * Python-side: the Eisenstein(k) carrier still rejects k=2, E_2 enters only via
- * srmech.amsc.quasimodular_forms_ring). SRMECH_ERR_BAD_INPUT on n_terms<1 / k<2 /
+ * srmech.apokatastasis.quasimodular_forms_ring). SRMECH_ERR_BAD_INPUT on n_terms<1 / k<2 /
  * k odd / a NULL pointer; SRMECH_ERR_OVERFLOW if a coefficient or the arena is too
  * small. */
 srmech_status_t srmech_eisenstein_qseries(
@@ -9614,7 +9614,7 @@ srmech_status_t srmech_eisenstein_qseries(
 /* ------------------------------------------------------------------ *
  * srmech_modular_forms_ring_represent — the EXACT-rational level-1 C[E4,E6]
  * MODULAR-FORMS-RING MEMBERSHIP DECISION (the C peer of
- * srmech.amsc.modular_forms_ring.ModularFormsRing.represent; the THIRD rung of the
+ * srmech.apokatastasis.modular_forms_ring.ModularFormsRing.represent; the THIRD rung of the
  * WEIGHT axis, after the rc82 eta-quotient + rc83 Eisenstein). The structure
  * theorem M_*(SL2(Z)) = C[E4,E6] made executable: every level-1 weight-k modular
  * form is a UNIQUE exact-Q polynomial in E4,E6. Given a claimed weight-k q-series
@@ -9662,7 +9662,7 @@ srmech_status_t srmech_modular_forms_ring_represent(
 /* ------------------------------------------------------------------ *
  * srmech_quasimodular_forms_ring_represent — the EXACT-rational level-1 C[E2,E4,E6]
  * QUASIMODULAR-forms-ring MEMBERSHIP DECISION (the C peer of
- * srmech.amsc.quasimodular_forms_ring.QuasiModularFormsRing.represent; the FOURTH
+ * srmech.apokatastasis.quasimodular_forms_ring.QuasiModularFormsRing.represent; the FOURTH
  * rung of the WEIGHT axis, after the rc82 eta-quotient + rc83 Eisenstein + rc84
  * ModularFormsRing). Kaneko-Zagier M~_*(SL2(Z)) = C[E2,E4,E6] made executable:
  * every level-1 weight-k quasimodular form is a UNIQUE exact-Q polynomial in
@@ -9713,7 +9713,7 @@ srmech_status_t srmech_quasimodular_forms_ring_represent(
 /* ------------------------------------------------------------------ *
  * srmech_harmonic_maass — the EXACT-INTEGER q-series of the HOLOMORPHIC mock part
  * of a HARMONIC (weak) MAASS form (the C peer of
- * srmech.amsc.harmonic_maass.HarmonicMaass / MockQSeries; the PAIR carrier that
+ * srmech.apokatastasis.harmonic_maass.HarmonicMaass / MockQSeries; the PAIR carrier that
  * makes research item #9 a finite exact object). A harmonic Maass form f of
  * weight k is determined by the pair (f+ holomorphic mock part, g = xi_k(f)
  * shadow); the non-holomorphic completion f- is the Eichler integral of the
@@ -9749,7 +9749,7 @@ srmech_status_t srmech_harmonic_maass_hol_q_series(
 /* ------------------------------------------------------------------ *
  * srmech_riemann_theta — the EXACT-INTEGER (A, B, C) EXPONENT LATTICE of a
  * GENUS-2 RIEMANN THETA-CONSTANT (the C peer of
- * srmech.amsc.riemann_theta.RiemannTheta; the FIRST RUNG of the GENUS axis). The
+ * srmech.apokatastasis.riemann_theta.RiemannTheta; the FIRST RUNG of the GENUS axis). The
  * genus-2 theta-constant theta[ep'; e](0|Omega) (Grushevsky arXiv:1009.0369 eq.1;
  * Eilers arXiv:1707.08855 eq.1.2; binary characteristic [ep1,ep2; e1,e2], bits in
  * {0,1}) is a lattice sum over n in Z^2 of (-1)^{e.n} q1^{m1^2} q2^{m2^2}
@@ -9909,7 +9909,7 @@ srmech_status_t srmech_riemann_theta_eta_char(
 
 /* ------------------------------------------------------------------ *
  * rc75 (NEXT GENUS RUNG): the GENUS-3 EXACT-INTEGER EXPONENT LATTICE — the C peer
- * of srmech.amsc.riemann_theta.RiemannThetaG3, the genus-3 analog of the rc72
+ * of srmech.apokatastasis.riemann_theta.RiemannThetaG3, the genus-3 analog of the rc72
  * genus-2 peer. The genus-3 theta-constant theta[ep'; e](0|Omega) (Grushevsky
  * arXiv:1009.0369 eq.1, the g=3 specialization; binary characteristic
  * [ep1,ep2,ep3; e1,e2,e3], six bits in {0,1}) is a lattice sum over n in Z^3 of
@@ -9942,7 +9942,7 @@ srmech_status_t srmech_riemann_theta_g3_lattice(
 
 /* ------------------------------------------------------------------ *
  * rc80 (NEXT GENUS RUNG, the SCHOTTKY FRONTIER): the GENUS-4 EXACT-INTEGER EXPONENT
- * LATTICE — the C peer of srmech.amsc.riemann_theta.RiemannThetaG4, the genus-4 analog
+ * LATTICE — the C peer of srmech.apokatastasis.riemann_theta.RiemannThetaG4, the genus-4 analog
  * of the rc75 genus-3 peer. The genus-4 theta-constant theta[ep'; e](0|Omega)
  * (Grushevsky arXiv:1009.0369 eq.1, the g=4 specialization; binary characteristic
  * [ep1,ep2,ep3,ep4; e1,e2,e3,e4], eight bits in {0,1}) is a lattice sum over n in Z^4 of
@@ -9979,7 +9979,7 @@ srmech_status_t srmech_riemann_theta_g4_lattice(
 
 /* ------------------------------------------------------------------ *
  * rc86 (NEXT GENUS RUNG, PAST the SCHOTTKY FRONTIER): the GENUS-5 EXACT-INTEGER EXPONENT
- * LATTICE -- the C peer of srmech.amsc.riemann_theta.RiemannThetaG5, the genus-5 analog
+ * LATTICE -- the C peer of srmech.apokatastasis.riemann_theta.RiemannThetaG5, the genus-5 analog
  * of the rc80 genus-4 peer. The genus-5 theta-constant theta[ep'; e](0|Omega) (binary
  * characteristic [ep1..ep5; e1..e5], ten bits in {0,1}) is a lattice sum over n in Z^5;
  * cleared to the quarter-nome base a term is prod_i Q_i^{A_i} prod_{i<j} Q_ij^{C_ij}
@@ -10014,7 +10014,7 @@ srmech_status_t srmech_riemann_theta_g5_lattice(
 /* ------------------------------------------------------------------ *
  * rc81 (the GENUS-4 CAPSTONE): the SCHOTTKY FORM J = theta^4(E8+E8) - theta^4(E16)
  * representation-number COUNTER -- the C peer of
- * srmech.amsc.riemann_theta.SchottkyFormG4._count_gram_py.
+ * srmech.apokatastasis.riemann_theta.SchottkyFormG4._count_gram_py.
  *
  * The Schottky form J (weight-8 degree-4 level-1 Siegel CUSP form whose vanishing cuts
  * the genus-4 Jacobian locus = the Schottky problem's g=4 solution; Schottky 1888, Igusa
@@ -10066,7 +10066,7 @@ srmech_status_t srmech_riemann_theta_g4_schottky_shell(
 /* ------------------------------------------------------------------ *
  * rc76: IGUSA'S chi_18 — the EXACT product of the 36 even genus-3 theta-nulls (the
  * genus-3 hyperelliptic / vanishing-theta-null structure as an exact formal q-series).
- * The C peer of srmech.amsc.riemann_theta.RiemannThetaG3.chi18_leading_part.
+ * The C peer of srmech.apokatastasis.riemann_theta.RiemannThetaG3.chi18_leading_part.
  *
  * chi_18 in S_18(Gamma_3) is the weight-18 degree-3 Siegel cusp form DEFINED AS THE
  * PRODUCT OF ALL 36 EVEN THETA-CONSTANTS (each theta-null weight 1/2 -> 36*1/2 = 18;
@@ -10093,7 +10093,7 @@ srmech_status_t srmech_riemann_theta_g3_chi18(
  * rc77: the genus-3 Sp(6,Z) modular TRANSFORMATION on the characteristics + the
  * genus-3 two-argument ADDITION theorem (the g=2->g=3 parametric extension of the
  * rc73 Sp(4,Z) transform + addition). The C peers of
- * srmech.amsc.riemann_theta.RiemannThetaG3.{transform,addition_*}.
+ * srmech.apokatastasis.riemann_theta.RiemannThetaG3.{transform,addition_*}.
  *
  * (A) srmech_riemann_theta_g3_sp6_char -- the EXACT integer Sp(6,Z) characteristic
  *     action ep' |-> D ep' - C ep + diag(C D^T), ep |-> -B ep' + A ep + diag(A B^T)
@@ -10128,7 +10128,7 @@ srmech_status_t srmech_riemann_theta_g3_eighth_lattice(
 
 /* ------------------------------------------------------------------ *
  * rc78: the genus-3 GÖPEL / FROBENIUS quadratic theta-null SYZYGY gate — the C peer of
- * srmech.amsc.riemann_theta.RiemannThetaG3.goepel_holds.
+ * srmech.apokatastasis.riemann_theta.RiemannThetaG3.goepel_holds.
  *
  * The genus-3 GÖPEL/FROBENIUS quadratic relation among the even theta-NULLS (the
  * genus-3 analog of the genus-2 rc74 Göpel syzygy) — a 4-PAIR / 8-NULL same-Omega
@@ -10160,7 +10160,7 @@ srmech_status_t srmech_riemann_theta_g3_goepel(
  * genus-4 two-argument ADDITION theorem + the genus-4 universal GOEPEL relation gate
  * (the g=3->g=4 parametric extension of the rc77/rc78 genus-3 peers — closes the
  * genus-ladder modular-action gap so the g1->g4 ladder is uniform). The C peers of
- * srmech.amsc.riemann_theta.RiemannThetaG4.{transform, addition_*, goepel_holds}.
+ * srmech.apokatastasis.riemann_theta.RiemannThetaG4.{transform, addition_*, goepel_holds}.
  * DLMF 21.5.9 / 21.6.8 hold for general genus g; here 4x4 blocks / 4-vectors over an
  * 8x8 symplectic gamma (64 int64 A,B,C,D row-major). Caller-owned out[] / caller arena;
  * no malloc. Additive symbols -> ABI unchanged (stays 3). */
@@ -10207,7 +10207,7 @@ srmech_status_t srmech_riemann_theta_g4_goepel(
  * rc107: the generic SPARSE SAFE-SUPPORT GATE DECISION kernel — the ONE C peer of
  * ALL the genus-axis theta identity/distinctness gates (g in {2..5}: the
  * duplication / addition / Goepel *_holds gates and the *_is_distinct_* gates of
- * srmech.amsc.riemann_theta.{RiemannTheta, RiemannThetaG3, RiemannThetaG4,
+ * srmech.apokatastasis.riemann_theta.{RiemannTheta, RiemannThetaG3, RiemannThetaG4,
  * RiemannThetaG5} — the #707 dive's SAFE-REGION PUSH-DOWN, Deliverable B1).
  *
  * Every gate compares two signed sums of theta-lattice PRODUCTS only on the safe
@@ -10259,7 +10259,7 @@ srmech_status_t srmech_riemann_theta_gate_decide(
 /* ------------------------------------------------------------------ *
  * rc226: srmech_riemann_theta_fay_certificate — the C peer of the genus-2
  * Fay/KP RE-INDEXING CERTIFICATE
- * (srmech.amsc.riemann_theta.RiemannTheta.fay_reindexing_certificate), which
+ * (srmech.apokatastasis.riemann_theta.RiemannTheta.fay_reindexing_certificate), which
  * upgrades the rc73 addition_holds SAFE-REGION boolean into an explicit,
  * EVERY-ORDER witness for the genus-2 theta addition / Fay-Hirota-shadow
  * bilinear identity (DLMF 21.6.8, z=0) via the re-indexing bijection
@@ -10489,7 +10489,7 @@ srmech_status_t srmech_qpoly_qshift(const srmech_bigint_t *a_n,
  * srmech_q_gosper — the q-analog of Gosper's indefinite hypergeometric
  * summation (the FIRST public op of the q-hypergeometric F929 reduction row,
  * the q-analog of the §76 srmech_gosper). The C peer of
- * srmech.amsc.q_gosper.q_gosper.
+ * srmech.apokatastasis.q_gosper.q_gosper.
  *
  * Input: a q-hypergeometric term given by its TERM RATIO t(k+1)/t(k) = r(x) =
  * num(x)/den(x) as two Laurent polynomials in x = q^k over Q[q] (two QPoly),
@@ -10555,7 +10555,7 @@ srmech_status_t srmech_q_gosper(const srmech_bigint_t *num_n,
  * srmech_elliptic_gosper — the ELLIPTIC analog of Gosper's indefinite
  * hypergeometric summation (the FIRST engine op of the ELLIPTIC F929 reduction
  * row, the top of the base-axis degeneration tower elliptic -> q -> ordinary). The
- * C peer of srmech.amsc.elliptic_gosper.elliptic_gosper.
+ * C peer of srmech.apokatastasis.elliptic_gosper.elliptic_gosper.
  *
  * Input: an elliptic-hypergeometric term given by its TERM RATIO t(n+1)/t(n) = r(x)
  * (x = q^n) as a FULL EllRatio -- a theta-quotient prod theta(a x;p)/prod theta(b x;p)
@@ -10625,7 +10625,7 @@ srmech_status_t srmech_elliptic_gosper(size_t n_syms, int xsym, int psym, int qs
 
 /* ------------------------------------------------------------------ *
  * srmech_thetasum_is_zero — the C peer of the ThetaSum ADDITIVE theta-function
- * carrier's is_zero (srmech.amsc.thetasum.ThetaSum.is_zero), the load-bearing
+ * carrier's is_zero (srmech.apokatastasis.thetasum.ThetaSum.is_zero), the load-bearing
  * EXACT decision under GENUINE elliptic creative telescoping. A 1:1 STRUCTURAL
  * MIRROR of the pure-Python Weierstrass three-term reduction partitioned by
  * quasi-periodicity class (Rosengren arXiv:1608.06161v3 §1.4 Eq. 1.12 + §1.3
@@ -10671,7 +10671,7 @@ srmech_status_t srmech_thetasum_is_zero(size_t n_syms, int xsym, int ysym, int p
  * srmech_thetasum_is_zero_interpolation — the C peer of the ThetaSum SOUND
  * structural CERTIFICATE recursion (REBUILT in rc210 — the is_zero soundness
  * stop-the-line fix). A 1:1 mirror of the consumer BOOL of the pure-Python
- * srmech.amsc.thetasum._decide_struct (ThetaSum._is_zero_interpolation):
+ * srmech.apokatastasis.thetasum._decide_struct (ThetaSum._is_zero_interpolation):
  * *out_is_zero = 1 IFF the cleared numerator is CERTIFICATE-PROVEN identically
  * zero; 0 = "not proven" (a proven-nonzero object or an honest decline — the
  * sound contract is True-only, so a 0 is never a nonzero CLAIM).
@@ -10767,7 +10767,7 @@ srmech_status_t srmech_thetasum_is_zero_interpolation_parallel(
 
 /* ------------------------------------------------------------------ *
  * srmech_ellratio_is_elliptic — the C peer of the EllRatio carrier's is_elliptic
- * (srmech.amsc.ellbase.EllRatio.is_elliptic), the load-bearing BALANCING / very-
+ * (srmech.apokatastasis.ellbase.EllRatio.is_elliptic), the load-bearing BALANCING / very-
  * well-poised predicate the elliptic reducers consult before attempting a closed
  * form. A 1:1 STRUCTURAL MIRROR of the pure-Python decision
  *
@@ -10818,7 +10818,7 @@ srmech_status_t srmech_ellratio_is_elliptic(size_t n_syms, int xsym, int psym,
 
 /* ------------------------------------------------------------------ *
  * srmech_ellratio_half_shift_response — the C peer of the EllRatio-carrier op
- * srmech.amsc.ellbase.half_shift_response (rc119; the #712 Dzhanibekov reader). A
+ * srmech.apokatastasis.ellbase.half_shift_response (rc119; the #712 Dzhanibekov reader). A
  * C-MIRROR PARITY build: the multiplier EQUALS the pure-Python EllMonomial byte-
  * for-byte. Reads the EXACT monomial multiplier the carrier acquires under a HALF-
  * period translation of the torque-free torus (the harmonic⊗subharmonic cascade,
@@ -10853,7 +10853,7 @@ srmech_status_t srmech_ellratio_half_shift_response(
 
 /* ------------------------------------------------------------------ *
  * srmech_elliptic_lagrange_basis — the C peer of the EllRatio-carrier op
- * srmech.amsc.ellbase.elliptic_lagrange_basis (rc66, shipped Python-only; its C
+ * srmech.apokatastasis.ellbase.elliptic_lagrange_basis (rc66, shipped Python-only; its C
  * mirror is owed by the everything-mirrors same-rc discipline -> rc67). A
  * C-MIRROR PARITY build (NOT a new algorithm): it reproduces the EXISTING,
  * already-shipped pure-Python carrier byte-for-byte.
@@ -10920,7 +10920,7 @@ srmech_status_t srmech_elliptic_lagrange_basis(size_t n_syms, int varsym, int ps
 
 /* ------------------------------------------------------------------ *
  * srmech_elliptic_cauchy_determinant — the C peer of the EllRatio-carrier op
- * srmech.amsc.elliptic_determinant.elliptic_cauchy_determinant (rc94), the
+ * srmech.apokatastasis.elliptic_determinant.elliptic_cauchy_determinant (rc94), the
  * ELLIPTIC-DETERMINANT primitive (foundation of the multivariable Cn elliptic
  * reduction row). A C-MIRROR PARITY build (NOT a new algorithm): it constructs
  * the EXACT closed form the pure-Python op builds, byte-for-byte.
@@ -11132,7 +11132,7 @@ srmech_status_t srmech_multivariate_elliptic_jackson(size_t n_syms, int psym, si
 
 /* ------------------------------------------------------------------ *
  * srmech_cn_vwp_multisum_lhs — the C peer of the ThetaSum-returning op
- * srmech.amsc.elliptic_jackson.cn_vwp_multisum_lhs (rc216), the SYMBOLIC Cn
+ * srmech.apokatastasis.elliptic_jackson.cn_vwp_multisum_lhs (rc216), the SYMBOLIC Cn
  * very-well-poised (VWP) elliptic multisum LHS builder: the exact per-partition
  * theta-quotient TERMS of the LEFT-hand side of the Cn elliptic Jackson
  * summation (Hjalmar Rosengren, "A proof of a multivariable elliptic summation
@@ -11221,7 +11221,7 @@ srmech_status_t srmech_cn_vwp_multisum_lhs(size_t n_syms, int psym, size_t N,
 
 /* ------------------------------------------------------------------ *
  * srmech_multivariate_elliptic_jackson_an — the C peer of the EllRatio-carrier
- * op srmech.amsc.elliptic_jackson_an.multivariate_elliptic_jackson_an (rc227),
+ * op srmech.apokatastasis.elliptic_jackson_an.multivariate_elliptic_jackson_an (rc227),
  * the eq-6 An elliptic Jackson summation reducer: the type-A member of the
  * multivariable (root-system) elliptic reduction row. A C-MIRROR PARITY build
  * (NOT a new algorithm): it constructs the EXACT closed form the pure-Python op
@@ -11282,7 +11282,7 @@ srmech_status_t srmech_multivariate_elliptic_jackson_an(
 
 /* ------------------------------------------------------------------ *
  * srmech_an_vwp_multisum_lhs — the C peer of the ThetaSum-returning op
- * srmech.amsc.elliptic_jackson_an.an_vwp_multisum_lhs (rc227), the SYMBOLIC An
+ * srmech.apokatastasis.elliptic_jackson_an.an_vwp_multisum_lhs (rc227), the SYMBOLIC An
  * elliptic multisum LHS builder: the exact per-composition theta-quotient
  * TERMS of the LEFT-hand side of the An (type-A / Milne) elliptic Jackson
  * summation (Rosengren arXiv:math/0305379v1, Eq. 6), over the SIMPLEX
@@ -11348,7 +11348,7 @@ srmech_status_t srmech_an_vwp_multisum_lhs(
 
 /* ------------------------------------------------------------------ *
  * srmech_riemann_theta_multisum — the C peer of the ThetaBracketSum-returning
- * ops srmech.amsc.riemann_theta_multisum.{riemann_theta_multisum_lhs,
+ * ops srmech.apokatastasis.riemann_theta_multisum.{riemann_theta_multisum_lhs,
  * multivariate_riemann_theta_sum} (rc232): the HIGHER-GENUS (genus-g Riemann
  * theta) multisum reduction-row builders. It constructs, byte-for-byte, the
  * bracket-product MONOMIALS of the LEFT-hand side (the n+1-term multisum, side 0)
@@ -11387,7 +11387,7 @@ srmech_status_t srmech_riemann_theta_multisum(
 /* ------------------------------------------------------------------ *
  * srmech_elliptic_recurrence_8w7 — the ELLIPTIC Sigma-row ORDER-1 RECURRENCE op for the
  * Frenkel–Turaev ₈ω₇ summation. The C peer of
- * srmech.amsc.elliptic_recurrence.elliptic_recurrence_8w7 — a 1:1 STRUCTURAL MIRROR of
+ * srmech.apokatastasis.elliptic_recurrence.elliptic_recurrence_8w7 — a 1:1 STRUCTURAL MIRROR of
  * the pure-Python recognize-decompose-construct pipeline (NOT a coefficient nullspace
  * solve, which is provably dead for the elliptic case; the anti-brute-force discipline).
  *
@@ -11462,7 +11462,7 @@ srmech_status_t srmech_elliptic_recurrence_8w7(size_t n_syms, int xsym, int psym
 /* ------------------------------------------------------------------ *
  * srmech_elliptic_zeilberger — the ELLIPTIC Sigma-row CREATIVE-TELESCOPING op for the
  * Frenkel-Turaev 8w7 summation (the C peer of
- * srmech.amsc.elliptic_zeilberger.elliptic_zeilberger). The order-1 recurrence
+ * srmech.apokatastasis.elliptic_zeilberger.elliptic_zeilberger). The order-1 recurrence
  * f(n+1) = rho(n)*f(n) PLUS an EXACT connection-coefficient certificate that PROVES it
  * (the ThetaSum.is_zero decision, NOT rc68's 1e-9 numerical convergence gate).
  *
@@ -11506,7 +11506,7 @@ srmech_status_t srmech_elliptic_zeilberger(size_t n_syms, int xsym, int psym, in
 /* ------------------------------------------------------------------ *
  * srmech_elliptic_wz_certificate — the ELLIPTIC Sigma-row IDENTITY-PROOF op for the
  * Frenkel-Turaev 8w7 SUMMATION (the C peer of
- * srmech.amsc.elliptic_wz_certificate.elliptic_wz_certificate). Where
+ * srmech.apokatastasis.elliptic_wz_certificate.elliptic_wz_certificate). Where
  * srmech_elliptic_zeilberger proves the order-1 RECURRENCE f(n+1) = rho(n)*f(n), this op
  * proves the full SUMMATION IDENTITY sum_{k=0}^n F(n,k) = cf(n) -- the elliptic analogue
  * of srmech_wz_certificate (the Sec.76 ordinary/q identity-proof rung). The DISTINCT
@@ -11610,7 +11610,7 @@ srmech_status_t srmech_carrier_spectrum(size_t n_syms, int xsym, int psym,
 /* ------------------------------------------------------------------ *
  * srmech_q_zeilberger — the q-analog of Zeilberger's creative telescoping (the
  * SECOND public op of the q-hypergeometric F929 reduction row, the q-analog of
- * srmech_zeilberger). The C peer of srmech.amsc.q_zeilberger.q_zeilberger.
+ * srmech_zeilberger). The C peer of srmech.apokatastasis.q_zeilberger.q_zeilberger.
  *
  * Input: a proper q-hypergeometric term F(n,k) by its TWO bivariate-q term ratios
  * over (X, Y) = (q^n, q^k):
@@ -11677,7 +11677,7 @@ srmech_status_t srmech_q_zeilberger(
 /* ------------------------------------------------------------------ *
  * srmech_q_wz_verify — the q-analog of the Wilf-Zeilberger VERIFY primitive (the
  * THIRD and FINAL public op of the q-hypergeometric F929 reduction row, the q-row
- * CLOSER). The C peer of the VERIFY half of srmech.amsc.q_wz_certificate.
+ * CLOSER). The C peer of the VERIFY half of srmech.apokatastasis.q_wz_certificate.
  *
  * CHECKS that a candidate q-WZ certificate R(X,Y) = Xn/Xd satisfies the q-WZ equation
  * for the proper q-hypergeometric term F(n,k) given by its two bivariate-q term
@@ -12293,7 +12293,7 @@ srmech_status_t srmech_gosper(const srmech_bigint_t *num_n,
 /* ------------------------------------------------------------------ *
  * srmech_zeilberger -- Zeilberger's creative telescoping (the SECOND
  * public op of the section 76 "telescope" Sigma-row closed-form prover,
- * F929). The C peer of srmech.amsc.zeilberger.zeilberger.
+ * F929). The C peer of srmech.apokatastasis.zeilberger.zeilberger.
  *
  * Input: a proper hypergeometric term F(n,k) given by its TWO term ratios
  *   r_n(n,k) = F(n+1,k)/F(n,k) = rn_num(n,k)/rn_den(n,k)
@@ -12357,7 +12357,7 @@ srmech_status_t srmech_zeilberger(
  * srmech_wz_verify -- the Wilf-Zeilberger VERIFY primitive (the THIRD
  * and FINAL public op of the section 76 "telescope" Sigma-row closed-form
  * prover, F929). The COMPLETE C mirror of the VERIFY half of
- * srmech.amsc.wz_certificate.wz_certificate.
+ * srmech.apokatastasis.wz_certificate.wz_certificate.
  *
  * Given a proper hypergeometric term F(n,k) by its two term ratios
  *   r_n(n,k) = An/Ad = rn_num/rn_den
@@ -12415,7 +12415,7 @@ srmech_status_t srmech_wz_verify(
  * srmech_apagodu_zeilberger -- the Apagodu-Zeilberger multivariate "sums
  * of sums" creative-telescoping recurrence-finder (the rc53 op that CLOSES
  * the multivariate F929 reduction row). The C peer of
- * srmech.amsc.apagodu_zeilberger.apagodu_zeilberger.
+ * srmech.apokatastasis.apagodu_zeilberger.apagodu_zeilberger.
  *
  * Input: a proper hypergeometric term F(n,j,k) given by its THREE term ratios
  *   r_n(n,j,k) = F(n+1,j,k)/F(n,j,k) = rn_num/rn_den

@@ -33,7 +33,7 @@ import pytest
 
 from srmech.amsc.dispatch import infer
 from srmech.amsc.poly import Poly
-from srmech.amsc.zeilberger import BiPoly
+from srmech.apokatastasis.zeilberger import BiPoly
 
 
 # ── the canonical Σ-row term-ratios for Σ_k C(n,k) = 2ⁿ ──────────────────────

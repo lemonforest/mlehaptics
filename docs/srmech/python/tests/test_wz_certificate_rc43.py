@@ -31,8 +31,8 @@ import pytest
 
 from srmech.amsc.poly import Poly
 from srmech.amsc.q import Q
-from srmech.amsc.zeilberger import BiPoly
-from srmech.amsc.wz_certificate import wz_certificate
+from srmech.apokatastasis.zeilberger import BiPoly
+from srmech.apokatastasis.wz_certificate import wz_certificate
 
 
 # ── helpers (Fraction + Q only; no numpy, no math) ────────────────────────────
@@ -213,7 +213,7 @@ def test_native_matches_pure_when_present():
     to the pure-Python bivariate-ℚ compare (the parity oracle), on the genuine
     certificate AND on a deliberately-wrong one. Skip-clean when no native lib."""
     from srmech.amsc import _native as nat
-    from srmech.amsc.wz_certificate import _verify_wz_equation_pure
+    from srmech.apokatastasis.wz_certificate import _verify_wz_equation_pure
     if not nat.has_native_wz_verify():
         pytest.skip("native srmech_wz_verify not present in this environment")
 

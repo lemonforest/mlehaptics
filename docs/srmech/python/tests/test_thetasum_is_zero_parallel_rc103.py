@@ -34,7 +34,7 @@ import random
 import pytest
 
 from srmech.amsc import ThetaSum
-from srmech.amsc.ellbase import EllMonomial as M, Theta, EllRatio as R
+from srmech.apokatastasis.ellbase import EllMonomial as M, Theta, EllRatio as R
 from srmech.amsc.q import Q
 from srmech.amsc import _native
 

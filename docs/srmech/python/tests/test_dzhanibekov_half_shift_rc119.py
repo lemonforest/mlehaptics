@@ -20,7 +20,7 @@ EXACT numbers; the probes are cited as the oracle throughout.
 
 import pytest
 
-from srmech.amsc.ellbase import (
+from srmech.apokatastasis.ellbase import (
     EllMonomial as M, Theta, EllRatio as R,
     half_shift_response, chirality_parity, beat_relation_residue,
     _half_shift_response_py, _half_shift_response_c, _normalize_half_axis,
@@ -259,4 +259,4 @@ def test_tools_total_matches_live():
 def test_three_ops_registered():
     names = {t.name for t in get_tool_schema().tools}
     for op in ("half_shift_response", "chirality_parity", "beat_relation_residue"):
-        assert f"srmech.amsc.ellbase.{op}" in names, op
+        assert f"srmech.apokatastasis.ellbase.{op}" in names, op

@@ -1,20 +1,20 @@
-"""srmech.amsc.q_wz_certificate — the q-analog of the Wilf–Zeilberger pair method
+"""srmech.apokatastasis.q_wz_certificate — the q-analog of the Wilf–Zeilberger pair method
 (the THIRD and FINAL public op of the q-hypergeometric F929 reduction row, the
 q-analog of the §76 ``wz_certificate``). It CLOSES the q-row (q_gosper →
 q_zeilberger → q_wz_certificate) AND the whole multivariate + q-hypergeometric
 reduction-theory arc.
 
-Where :func:`srmech.amsc.q_gosper.q_gosper` does INDEFINITE q-summation and
-:func:`srmech.amsc.q_zeilberger.q_zeilberger` FINDS the definite-q-sum recurrence,
+Where :func:`srmech.apokatastasis.q_gosper.q_gosper` does INDEFINITE q-summation and
+:func:`srmech.apokatastasis.q_zeilberger.q_zeilberger` FINDS the definite-q-sum recurrence,
 ``q_wz_certificate`` **PROVES a terminating q-hypergeometric identity** — it produces
 AND verifies the *q-WZ certificate* of a constant q-sum ``Σ_k F(n,k) = const``
 (T.H. Koornwinder, "On Zeilberger's algorithm and its q-analogue," J. Comput. Appl.
 Math. 48 (1993) 91–111 — the same paper :class:`~srmech.amsc.qpoly.QPoly` /
-:func:`~srmech.amsc.q_gosper.q_gosper` / :func:`~srmech.amsc.q_zeilberger.q_zeilberger`
+:func:`~srmech.apokatastasis.q_gosper.q_gosper` / :func:`~srmech.apokatastasis.q_zeilberger.q_zeilberger`
 cite; the q-WZ pair method anchor is H. Wilf & D. Zeilberger, "An algorithmic proof
 theory for hypergeometric (ordinary and q) multisum/integral identities," Invent.
 Math. 108 (1992) 575–633; textbook anchor Gasper & Rahman, *Basic Hypergeometric
-Series*). It is the q-analog of the ordinary :func:`srmech.amsc.wz_certificate.
+Series*). It is the q-analog of the ordinary :func:`srmech.apokatastasis.wz_certificate.
 wz_certificate`.
 
 The q-WZ method is **q-Zeilberger specialized to the forced n-recurrence**
@@ -31,7 +31,7 @@ where ``G(n,k+1) = (σ_y R)·(σ_y F)`` and ``σ_y : Y ↦ q·Y`` is the q-shift
 Input — the two **term ratios** of the proper q-hypergeometric term ``F``, each a
 rational function of ``(X, Y) = (qⁿ, qᵏ)`` given by a numerator / denominator pair of
 :class:`~srmech.amsc.qbipoly.QBiPoly` (exact-``ℚ[q]`` bivariate in ``(X,Y)`` — the
-SAME operands :func:`~srmech.amsc.q_zeilberger.q_zeilberger` takes):
+SAME operands :func:`~srmech.apokatastasis.q_zeilberger.q_zeilberger` takes):
 
   * ``r_n(X,Y) = F(n+1,k) / F(n,k)``   (the ``rn_num`` / ``rn_den`` operands)
   * ``r_k(X,Y) = F(n,k+1) / F(n,k)``   (the ``rk_num`` / ``rk_den`` operands)
@@ -40,7 +40,7 @@ The op does BOTH halves of the q-WZ method:
 
   1. **FIND** the certificate ``R(X,Y)`` (a rational function, as a ``QBiPoly``
      num/den pair). This is q-Gosper-in-``k`` applied to ``F(n+1,k) − F(n,k)``, i.e.
-     EXACTLY what :func:`~srmech.amsc.q_zeilberger.q_zeilberger` produces at the
+     EXACTLY what :func:`~srmech.apokatastasis.q_zeilberger.q_zeilberger` produces at the
      forced recurrence ``[−1, +1]`` — so the FIND step reuses the rc56 q-creative-
      telescoping machinery (``q_zeilberger`` with ``max_order=1``; the order-1
      q-recurrence of ``F`` IS ``f(n+1) − f(n) = 0`` precisely when the identity q-sum
@@ -96,10 +96,10 @@ from __future__ import annotations
 
 from typing import Dict, Optional
 
-from .poly import Poly
-from .q import Q
-from .qpoly import QPoly
-from .qbipoly import QBiPoly
+from ..amsc.poly import Poly
+from ..amsc.q import Q
+from ..amsc.qpoly import QPoly
+from ..amsc.qbipoly import QBiPoly
 from .q_zeilberger import q_zeilberger
 
 __all__ = ["q_wz_certificate"]
@@ -113,7 +113,7 @@ def _native():
     and falls cleanly to the pure-Python check (the complete alternative + the parity
     oracle) otherwise. Imported lazily to avoid a bootstrap cycle."""
     try:
-        from . import _native as nat
+        from ..amsc import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_q_wz_verify", None)
@@ -124,7 +124,7 @@ def _qb_pairs(b: QBiPoly):
     """A ``QBiPoly`` → the ``(y_xlow[], rows)`` bridge form the C peer consumes — the
     SAME per-Y-cell QPoly-row form :func:`srmech.amsc.qbipoly._qb_pairs` emits (the
     bridge the q-Zeilberger peer also uses)."""
-    from .qbipoly import _qb_pairs as _f
+    from ..amsc.qbipoly import _qb_pairs as _f
     return _f(b)
 
 
@@ -141,7 +141,7 @@ def q_wz_certificate(rn_num, rn_den, rk_num, rk_den) -> Optional[Dict[str, objec
     (``Σ_k F(n,k)`` independent of ``n``).
 
     FINDs the q-WZ certificate ``R(X,Y)`` (q-Gosper-in-``k`` of ``F(n+1,k)−F(n,k)`` =
-    :func:`~srmech.amsc.q_zeilberger.q_zeilberger` at the forced recurrence
+    :func:`~srmech.apokatastasis.q_zeilberger.q_zeilberger` at the forced recurrence
     ``[−1,+1]``) and VERIFIES the q-WZ equation ``F(n+1,k)−F(n,k) = G(n,k+1)−G(n,k)``
     (``G = R·F``, ``G(n,k+1) = (σ_y R)·(σ_y F)``) as an EXACT bivariate rational-
     function identity — no solve, no order bound.

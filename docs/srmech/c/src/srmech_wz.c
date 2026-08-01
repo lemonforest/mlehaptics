@@ -1,7 +1,7 @@
 /*
  * srmech_wz.c -- the Wilf-Zeilberger VERIFY primitive (the THIRD and FINAL public
  * op of the section 76 "telescope" Sigma-row closed-form prover, F929). The C peer
- * of the VERIFY half of srmech.amsc.wz_certificate.wz_certificate.
+ * of the VERIFY half of srmech.apokatastasis.wz_certificate.wz_certificate.
  *
  * srmech_wz_verify CHECKS that a candidate WZ certificate R(n,k) = Xn/Xd satisfies
  * the WZ equation for the proper hypergeometric term F(n,k) given by its two term

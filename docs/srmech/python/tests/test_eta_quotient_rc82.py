@@ -1,4 +1,4 @@
-"""rc82 — ``srmech.amsc.eta_quotient.EtaQuotient``, a WEIGHT-axis operand carrier.
+"""rc82 — ``srmech.apokatastasis.eta_quotient.EtaQuotient``, a WEIGHT-axis operand carrier.
 
 The build gates (the no-shell proof; construction IS the answer, no search):
 
@@ -23,7 +23,7 @@ import tokenize
 
 import pytest
 
-from srmech.amsc.eta_quotient import EtaQuotient, eta_quotient
+from srmech.apokatastasis.eta_quotient import EtaQuotient, eta_quotient
 from srmech.amsc.q import Q
 from srmech.amsc import _native
 
@@ -221,7 +221,7 @@ def test_construction_rejects_bad_inputs():
 # ── gate (f): the carrier source is numpy / math / abs() free ────────────────
 def test_eta_quotient_source_is_numpy_math_abs_free():
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    src = os.path.join(here, "srmech", "amsc", "eta_quotient.py")
+    src = os.path.join(here, "srmech", "apokatastasis", "eta_quotient.py")
     with tokenize.open(src) as fh:
         text = fh.read()
     assert "import numpy" not in text

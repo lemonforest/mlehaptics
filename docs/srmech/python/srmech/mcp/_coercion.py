@@ -271,14 +271,14 @@ def _to_bipoly(value: Any, *, param: str = "") -> Any:
 
     A ``BiPoly`` is a polynomial in ``k`` whose coefficients are
     :class:`~srmech.amsc.poly.Poly` in ``n``. The op's coercion
-    (:meth:`srmech.amsc.zeilberger.BiPoly.coerce`) accepts: a ``BiPoly`` (passes
+    (:meth:`srmech.apokatastasis.zeilberger.BiPoly.coerce`) accepts: a ``BiPoly`` (passes
     through); a ``Poly`` (read as a polynomial in ``k`` alone); or a
     ``k``-ascending list whose entries are each a Poly-in-n (an ``n``-coefficient
     list). So the honest, minimal coercer hands the natural nested list through —
     a JSON ``[[a, b], [c]]`` rides as k-slot 0 = Poly-in-n ``[a, b]``, k-slot 1 =
     ``[c]`` — and lets ``BiPoly.coerce`` build the carrier (never a float; a
     coefficient must be exact). A ``BiPoly`` / ``Poly`` / tuple passes naturally."""
-    from srmech.amsc.zeilberger import BiPoly  # exact-ℚ bivariate carrier; lazy
+    from srmech.apokatastasis.zeilberger import BiPoly  # exact-ℚ bivariate carrier; lazy
     from srmech.amsc.poly import Poly
     if isinstance(value, (BiPoly, Poly)):
         return value
@@ -292,14 +292,14 @@ def _to_tripoly(value: Any, *, param: str = "") -> Any:
     ``apagodu_zeilberger`` trivariate term-ratio operands).
 
     A ``TriPoly`` is a polynomial in ``ℚ[n,j,k]`` — a ``j``-ascending tuple of
-    :class:`~srmech.amsc.zeilberger.BiPoly` in ``(n,k)``. The op's coercion
+    :class:`~srmech.apokatastasis.zeilberger.BiPoly` in ``(n,k)``. The op's coercion
     (:meth:`srmech.amsc.tripoly.TriPoly._as_tripoly`) accepts a ``TriPoly`` (passes
     through), a lower carrier (``BiPoly`` in ``(n,k)`` / ``Poly`` in ``k``), or the
     natural nested list. So the honest, minimal coercer hands the value through
     (tuple→list) and lets the op build the carrier (never a float; a coefficient
     must be exact). A ``TriPoly`` / ``BiPoly`` / ``Poly`` / tuple passes naturally."""
     from srmech.amsc.tripoly import TriPoly  # exact-ℚ trivariate carrier; lazy
-    from srmech.amsc.zeilberger import BiPoly
+    from srmech.apokatastasis.zeilberger import BiPoly
     from srmech.amsc.poly import Poly
     if isinstance(value, (TriPoly, BiPoly, Poly)):
         return value
@@ -314,7 +314,7 @@ def _to_qpoly(value: Any, *, param: str = "") -> Any:
 
     A ``QPoly`` is a Laurent polynomial in ``x = qⁿ`` over ``ℚ[q]`` — an
     ascending-x sequence of :class:`~srmech.amsc.poly.Poly`-in-``q`` cells. The op's
-    coercion (:func:`srmech.amsc.q_gosper._coerce_qpoly`) accepts a ``QPoly`` (passes
+    coercion (:func:`srmech.apokatastasis.q_gosper._coerce_qpoly`) accepts a ``QPoly`` (passes
     through), a lower carrier (a ``Poly`` in ``q`` → an ``x**0`` cell), or the
     natural nested-list form (an ascending-x list of ``ℚ[q]`` coefficient cells). So
     the honest, minimal coercer hands the value through (tuple→list) and lets the op
@@ -400,7 +400,7 @@ def _to_poly_or_bipoly(value: Any, *, param: str = "") -> Any:
     rung (a ``Poly``) so a from-scratch caller can promote a coefficient list.
     Never a float (a coefficient must be exact)."""
     from srmech.amsc.poly import Poly
-    from srmech.amsc.zeilberger import BiPoly
+    from srmech.apokatastasis.zeilberger import BiPoly
     from srmech.amsc.tripoly import TriPoly
     if isinstance(value, (Poly, BiPoly, TriPoly)):
         return value
@@ -413,7 +413,7 @@ def _to_bipoly_or_tripoly(value: Any, *, param: str = "") -> Any:
     ordinary-ladder carrier passes straight through; a bare nested list is
     built into a ``BiPoly``. Never a float (a coefficient must be exact)."""
     from srmech.amsc.poly import Poly
-    from srmech.amsc.zeilberger import BiPoly
+    from srmech.apokatastasis.zeilberger import BiPoly
     from srmech.amsc.tripoly import TriPoly
     if isinstance(value, (Poly, BiPoly, TriPoly)):
         return value
@@ -506,7 +506,7 @@ def _to_ellratio(value: Any, *, param: str = "") -> Any:
 
     An ``EllRatio`` is a theta-quotient ``∏θ(αx;p)/∏θ(βx;p)`` over an exact-``ℚ``
     monomial prefactor. The op's coercion
-    (:func:`srmech.amsc.elliptic_gosper._coerce_ratio`) accepts an ``EllRatio``
+    (:func:`srmech.apokatastasis.elliptic_gosper._coerce_ratio`) accepts an ``EllRatio``
     (passes through) or a lower carrier (an ``EllMonomial`` → a pure-monomial ratio;
     a ``Theta`` → a single numerator theta). For a JSON caller the natural minimal
     operand is a single exact-``ℚ`` SCALAR (the elliptic-geometric constant ratio
@@ -514,7 +514,7 @@ def _to_ellratio(value: Any, *, param: str = "") -> Any:
     builds the scalar ``EllRatio.monomial(EllMonomial.scalar(z))``. An ``EllRatio`` /
     ``EllMonomial`` / ``Theta`` passes through (never a float; a coefficient must be
     exact)."""
-    from srmech.amsc.ellbase import EllMonomial, EllRatio, Theta  # exact carrier; lazy
+    from srmech.apokatastasis.ellbase import EllMonomial, EllRatio, Theta  # exact carrier; lazy
     from srmech.amsc.q import Q
     if isinstance(value, (EllRatio, EllMonomial, Theta)):
         return value
@@ -549,7 +549,7 @@ def _to_ellmonomial(value: Any, *, param: str = "") -> Any:
 
     An ``EllMonomial`` passes through unchanged. Never a float — a coefficient must
     be exact."""
-    from srmech.amsc.ellbase import EllMonomial  # exact carrier; lazy
+    from srmech.apokatastasis.ellbase import EllMonomial  # exact carrier; lazy
     from srmech.amsc.q import Q
     if isinstance(value, EllMonomial):
         return value
@@ -670,13 +670,13 @@ def _to_mock_q_series(value: Any, *, param: str = "") -> Any:
 
     A ``MockQSeries`` is the holomorphic part ``f⁺`` of a harmonic Maass form (a
     leading ``q``-power + a finite generating rule). The op
-    (:func:`srmech.amsc.harmonic_maass.harmonic_maass`) accepts the STRING
+    (:func:`srmech.apokatastasis.harmonic_maass.harmonic_maass`) accepts the STRING
     ``'eulerian_f'`` (Ramanujan's order-3 ``f(q)``, the #9 keystone) directly, so
     for a JSON caller the natural minimal operand is that string — passed through.
     A coefficient list (a JSON array of ``[num, den]`` pairs, or ints) builds a
     closed-form ``qpoly`` mock part; a ``MockQSeries`` passes through (never a
     float; a coefficient must be exact)."""
-    from srmech.amsc.harmonic_maass import MockQSeries  # exact carrier; lazy
+    from srmech.apokatastasis.harmonic_maass import MockQSeries  # exact carrier; lazy
     if isinstance(value, MockQSeries):
         return value
     if isinstance(value, str):
@@ -704,7 +704,7 @@ def _to_unary_theta(value: Any, *, param: str = "") -> Any:
     ``'minus12'``) builds ``unary_theta('minus12', 1, 1, 0, 24, support='positive')``
     (Zagier, Astérisque 326, p. 150, the #9 mock-theta shadow). A
     ``UnaryTheta`` passes through unchanged."""
-    from srmech.amsc.unary_theta import UnaryTheta, unary_theta  # exact carrier; lazy
+    from srmech.apokatastasis.unary_theta import UnaryTheta, unary_theta  # exact carrier; lazy
     if isinstance(value, UnaryTheta):
         return value
     if isinstance(value, str) and value in ("g3", "g_3", "minus12", "(-12/.)"):

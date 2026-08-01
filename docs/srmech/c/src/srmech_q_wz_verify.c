@@ -1,7 +1,7 @@
 /*
  * srmech_q_wz_verify.c -- the q-analog of the Wilf-Zeilberger VERIFY primitive (the
  * THIRD and FINAL public op of the q-hypergeometric F929 reduction row, the q-row
- * CLOSER). The C peer of the VERIFY half of srmech.amsc.q_wz_certificate.
+ * CLOSER). The C peer of the VERIFY half of srmech.apokatastasis.q_wz_certificate.
  *
  * srmech_q_wz_verify CHECKS that a candidate q-WZ certificate R(X,Y) = Xn/Xd satisfies
  * the q-WZ equation for the proper q-hypergeometric term F(n,k) given by its two

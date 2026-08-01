@@ -58,7 +58,7 @@ from pathlib import Path
 import pytest
 
 from srmech.amsc.poly import Poly
-from srmech.amsc.zeilberger import BiPoly, bipoly_from_coeffs, zeilberger
+from srmech.apokatastasis.zeilberger import BiPoly, bipoly_from_coeffs, zeilberger
 from srmech.amsc.tripoly import TriPoly, tripoly_from_coeffs
 from srmech.amsc.qpoly import QPoly
 from srmech.amsc.qbipoly import QBiPoly
@@ -288,11 +288,11 @@ def test_capstone_registry_built_bipoly_certified_recurrence():
     actual sum (never trusting the engine)."""
     lists = _ratios_binomial_lists()
     rn_num, rn_den, rk_num, rk_den = (
-        invoke_tool("srmech.amsc.zeilberger.bipoly_from_coeffs", {"coeffs": c})
+        invoke_tool("srmech.apokatastasis.zeilberger.bipoly_from_coeffs", {"coeffs": c})
         for c in lists)
     for op in (rn_num, rn_den, rk_num, rk_den):
         assert isinstance(op, BiPoly)
-    res = invoke_tool("srmech.amsc.zeilberger.zeilberger",
+    res = invoke_tool("srmech.apokatastasis.zeilberger.zeilberger",
                       {"rn_num": rn_num, "rn_den": rn_den,
                        "rk_num": rk_num, "rk_den": rk_den, "max_order": 4})
     assert res is not None and res["order"] == 1
@@ -334,7 +334,7 @@ def test_capstone_promoted_poly_feeds_zeilberger_univariate_as_bivariate():
 def test_capstone_genuine_bipoly_project_naming_error_via_registry():
     """THE LADDER's honest side: a genuinely-2-variable BiPoly cannot project to
     a Poly — VIA the registry, the naming coherency error names n."""
-    b = invoke_tool("srmech.amsc.zeilberger.bipoly_from_coeffs",
+    b = invoke_tool("srmech.apokatastasis.zeilberger.bipoly_from_coeffs",
                     {"coeffs": [[1, 1], [-1]]})      # (1+n) - k
     with pytest.raises(ValueError) as ei:
         invoke_tool("srmech.amsc.carrier_ladder.poly_project", {"p": b})
@@ -378,7 +378,7 @@ def test_new_tool_entries_present_with_declared_types():
     from srmech.amsc.tool_schema import get_tool_schema
     schema = get_tool_schema()
     expected = {
-        "srmech.amsc.zeilberger.bipoly_from_coeffs": (
+        "srmech.apokatastasis.zeilberger.bipoly_from_coeffs": (
             "zeilberger", {"coeffs": "list[list[int]]"}),
         "srmech.amsc.tripoly.tripoly_from_coeffs": (
             "tripoly", {"coeffs": "list[list[list[int]]]"}),
@@ -426,7 +426,7 @@ def test_rosetta_buckets_all_non_compute():
             for r in (json.loads(l) for l in
                       ledger.read_text(encoding="utf-8").splitlines() if l.strip())}
     for defined_at in (
-        "srmech.amsc.zeilberger.bipoly_from_coeffs",
+        "srmech.apokatastasis.zeilberger.bipoly_from_coeffs",
         "srmech.amsc.tripoly.tripoly_from_coeffs",
         "srmech.amsc.carrier_ladder.poly_promote",
         "srmech.amsc.carrier_ladder.poly_project",
@@ -449,7 +449,7 @@ def test_new_param_types_are_coercible():
 # ── (8) hygiene: numpy-free / math-free / abs()-free sources ─────────────────
 
 def test_touched_modules_are_numpy_math_abs_free():
-    import srmech.amsc.zeilberger as Z
+    import srmech.apokatastasis.zeilberger as Z
     import srmech.amsc.tripoly as T
     import srmech.amsc.carrier_ladder as CL
     import srmech.amsc.cascade.cayley_dickson as CD

@@ -10,9 +10,9 @@ import itertools
 
 import pytest
 
-from srmech.amsc.ellbase import EllMonomial as M, Theta
+from srmech.apokatastasis.ellbase import EllMonomial as M, Theta
 from srmech.amsc.q import Q
-from srmech.amsc.elliptic_determinant import elliptic_cauchy_determinant
+from srmech.apokatastasis.elliptic_determinant import elliptic_cauchy_determinant
 
 _TRUNC = 20
 _VALS_BASE = {"p": Q(1, 19), "t": Q(4, 7)}

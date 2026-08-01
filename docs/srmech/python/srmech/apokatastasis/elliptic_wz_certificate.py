@@ -1,15 +1,15 @@
-"""srmech.amsc.elliptic_wz_certificate — the ELLIPTIC Σ-row IDENTITY-PROOF op: proves the
+"""srmech.apokatastasis.elliptic_wz_certificate — the ELLIPTIC Σ-row IDENTITY-PROOF op: proves the
 Frenkel–Turaev ₈ω₇ SUMMATION IDENTITY ``Σ_k F(n,k) = cf(n)`` exactly and returns the
 closed form ``cf(n)``.
 
 The capstone rung of the elliptic Σ-row, after
-:func:`~srmech.amsc.elliptic_gosper.elliptic_gosper` (indefinite, rc65),
-:func:`~srmech.amsc.elliptic_recurrence.elliptic_recurrence_8w7` (the order-1 recurrence
-FINDER, rc68) and :func:`~srmech.amsc.elliptic_zeilberger.elliptic_zeilberger` (the
+:func:`~srmech.apokatastasis.elliptic_gosper.elliptic_gosper` (indefinite, rc65),
+:func:`~srmech.apokatastasis.elliptic_recurrence.elliptic_recurrence_8w7` (the order-1 recurrence
+FINDER, rc68) and :func:`~srmech.apokatastasis.elliptic_zeilberger.elliptic_zeilberger` (the
 recurrence + EXACT connection-coefficient certificate, rc90). Where ``elliptic_zeilberger``
 proves the RECURRENCE ``f(n+1) = ρ(n)·f(n)``, this op proves the full SUMMATION IDENTITY
 ``Σ_{k=0}^{n} F(n,k) = cf(n)`` — the elliptic analogue of
-:func:`~srmech.amsc.wz_certificate.wz_certificate` (the §76 ordinary/q identity-proof rung,
+:func:`~srmech.apokatastasis.wz_certificate.wz_certificate` (the §76 ordinary/q identity-proof rung,
 the Wilf–Zeilberger pair method). Its distinct OUTPUT is the **closed form** ``cf(n)`` — the
 evaluation of the sum — where ``elliptic_zeilberger`` returns only the recurrence ratio ``ρ``.
 
@@ -31,8 +31,8 @@ identity ``P(n): Σ_{k=0}^n F(n,k) = cf(n)`` follows from
     the order-1 recurrence whose EXACT certificate is the connection-coefficient
     inductive-step identity (Rosengren §2.3 Eq. 2.12–2.14 reduce to §1.4 Eq. 1.12, the
     Weierstrass three-term relation), decided ``≡ 0`` in the additive theta carrier via
-    :meth:`~srmech.amsc.thetasum.ThetaSum.is_zero` — the SAME exact certificate
-    ``elliptic_zeilberger`` builds (:func:`~srmech.amsc.elliptic_zeilberger.
+    :meth:`~srmech.apokatastasis.thetasum.ThetaSum.is_zero` — the SAME exact certificate
+    ``elliptic_zeilberger`` builds (:func:`~srmech.apokatastasis.elliptic_zeilberger.
     _connection_split_certificate`, the cleared ±-pair split, perfect-square monomial
     midpoints, no float, no converging witness).
 
@@ -48,8 +48,8 @@ Reference (MPM-verified at build by reading the actual source PDF): Hjalmar Rose
 Eq. (1.12), §2.3 Eqs. (2.12)–(2.15) (Theorem 2.3.1, the Frenkel–Turaev ₈ω₇ summation). The
 closed product form + the elementary-symmetric ``ρ`` are also Warnaar, *Constr. Approx.* 18
 (2002) 479–502, Corollary 2.2. The recognition / decomposition and the connection-
-coefficient certificate are reused from :mod:`srmech.amsc.elliptic_recurrence` /
-:mod:`srmech.amsc.elliptic_zeilberger`.
+coefficient certificate are reused from :mod:`srmech.apokatastasis.elliptic_recurrence` /
+:mod:`srmech.apokatastasis.elliptic_zeilberger`.
 
 Exact over the modified-theta algebra (no float on the decision path; sign is the
 **Class-K** pin-slot via the ``Q`` / ``EllMonomial`` sign-branch, never an ALU ``abs()``;
@@ -95,7 +95,7 @@ def _native():
     present and bound, else ``None`` (so the op dispatches to C when available and falls
     cleanly to the pure-Python body). Imported lazily to avoid a bootstrap cycle."""
     try:
-        from . import _native as nat
+        from ..amsc import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_elliptic_wz_certificate", None)
@@ -107,13 +107,13 @@ def elliptic_wz_certificate(r) -> Optional[Dict[str, object]]:
     ``Σ_{k=0}^n F(n,k) = cf(n)`` exactly and returns the closed form ``cf(n)``.
 
     ``r`` is the ₈ω₇ summand's **term ratio** ``t(n+1)/t(n) = r(x)`` (an
-    :class:`~srmech.amsc.ellbase.EllRatio`; see
-    :func:`~srmech.amsc.elliptic_recurrence.elliptic_recurrence_8w7`). The op RECOGNIZES the
+    :class:`~srmech.apokatastasis.ellbase.EllRatio`; see
+    :func:`~srmech.apokatastasis.elliptic_recurrence.elliptic_recurrence_8w7`). The op RECOGNIZES the
     ₈ω₇, builds the closed form ``cf(n)`` (Warnaar Cor 2.2 / Rosengren Thm 2.3.1), and proves
     the summation identity by the connection-coefficient induction — BASE CASE (the
     terminating ``(q^{-n})_k`` factor gives ``Σ_{k=0}^0 F(0,k) = 1 = cf(0)``) + the EXACT
     inductive-step certificate (the cleared connection-coefficient split, decided ``≡ 0`` via
-    :meth:`~srmech.amsc.thetasum.ThetaSum.is_zero`):
+    :meth:`~srmech.apokatastasis.thetasum.ThetaSum.is_zero`):
 
     - if ``r`` is a canonical ₈ω₇ AND the inductive-step certificate is exactly ``≡ 0``,
       returns ``{'identity': '…', 'closed_form': {'num': […], 'den': […]}, 'certificate':
