@@ -1,8 +1,8 @@
-"""srmech.amsc.thetasum — ``ThetaSum``, the ADDITIVE theta-function CARRIER that
+"""srmech.apokatastasis.thetasum — ``ThetaSum``, the ADDITIVE theta-function CARRIER that
 unblocks GENUINE elliptic creative telescoping (the foundation under a rebuilt
 ``elliptic_gosper`` / ``elliptic_zeilberger`` / ``elliptic_wz_certificate``).
 
-Where :class:`~srmech.amsc.ellbase.EllRatio` (rc60) carries a single
+Where :class:`~srmech.apokatastasis.ellbase.EllRatio` (rc60) carries a single
 MULTIPLICATIVE theta-quotient ``prefactor · ∏(num θ) / ∏(den θ)``, it is NOT
 additively closed: theta-quotients do not add or subtract within the carrier
 (``θ(a) + θ(b)`` is not a theta-quotient). Genuine creative telescoping's residual
@@ -99,7 +99,7 @@ so completeness on the True side was RETIRED, not repaired.
 
   2. FAST PATH — GROUP the numerator's terms by QUASI-PERIODICITY CLASS (the net
      multiplier monomial under ``x ↦ p·x`` and ``y ↦ p·y``; Rosengren Eq. 1.6 via
-     :meth:`~srmech.amsc.ellbase.Theta.canonicalize`; different classes are linearly
+     :meth:`~srmech.apokatastasis.ellbase.Theta.canonicalize`; different classes are linearly
      independent over ``ℚ(q,p)``) and REDUCE each class by the EXACT Weierstrass
      three-term relation (theorem (1) below): ``±``-pairs ``θ(α·β^±) = θ(αβ)θ(α/β)``
      recovered by the exact midpoint / geometric-mean test, driven to a canonical
@@ -134,9 +134,9 @@ from __future__ import annotations
 from itertools import combinations
 from typing import Dict, Iterable, List, Mapping, Tuple
 
-from . import _native as _nat
+from ..amsc import _native as _nat
 from .ellbase import EllMonomial, EllRatio, Theta, _P, _X, _coerce_q
-from .q import Q
+from ..amsc.q import Q
 
 __all__ = ["ThetaSum"]
 
@@ -875,7 +875,7 @@ def _net_period_multiplier_exps(thetas: "Tuple[Theta, ...]") -> "Tuple[Tuple[str
     """The QUASI-PERIODICITY CLASS key of a theta-product: the net multiplier monomial
     the product ``∏ θ(z_i; p)`` acquires under the period shifts ``x ↦ p·x`` AND
     ``y ↦ p·y`` (Rosengren Eq. 1.6, applied through
-    :meth:`~srmech.amsc.ellbase.Theta.canonicalize`). Two theta-products of DIFFERENT
+    :meth:`~srmech.apokatastasis.ellbase.Theta.canonicalize`). Two theta-products of DIFFERENT
     key transform by different multipliers under the period lattice, hence are linearly
     independent over ``ℚ(q,p)``. Returned as a sorted exponent tuple (the dict key),
     coefficient-free (a ``ℚ`` scalar multiplier never breaks the independence; only the
@@ -934,7 +934,7 @@ def _quasi_period_class_key(thetas: "Tuple[Theta, ...]"
 def _canonical_theta_key(thetas: "Tuple[Theta, ...]"
                          ) -> "Tuple[Tuple[Tuple[str, int], ...], ...]":
     """The CANONICAL theta-multiset key of a theta-product (after
-    :meth:`~srmech.amsc.ellbase.Theta.canonicalize` on each factor): a sorted tuple of
+    :meth:`~srmech.apokatastasis.ellbase.Theta.canonicalize` on each factor): a sorted tuple of
     canonical theta-argument exponent tuples. Two terms with the same key are the SAME
     product up to a monomial prefactor → they combine exactly in the carrier (their
     prefactor coefficients add). The canonicalization prefactors are folded by the
@@ -965,7 +965,7 @@ def _canonicalize_term(pref: EllMonomial, thetas: "Tuple[Theta, ...]") -> _Term:
 class ThetaSum:
     """A numpy-free EXACT cleared rational theta-function: a ``ℚ(q,p)``-linear SUM of
     theta-products over a single theta-product denominator — the ADDITIVE layer over
-    :class:`~srmech.amsc.ellbase.Theta` / :class:`~srmech.amsc.ellbase.EllRatio` that
+    :class:`~srmech.apokatastasis.ellbase.Theta` / :class:`~srmech.apokatastasis.ellbase.EllRatio` that
     GENUINE elliptic creative telescoping needs (theta-quotients are not additively
     closed). Immutable.
 
@@ -1068,7 +1068,7 @@ class ThetaSum:
 
     @classmethod
     def from_ellratio(cls, r: EllRatio) -> "ThetaSum":
-        """Lift a single-term :class:`~srmech.amsc.ellbase.EllRatio`
+        """Lift a single-term :class:`~srmech.apokatastasis.ellbase.EllRatio`
         ``prefactor · ∏(num θ) / ∏(den θ)`` to the equivalent ``ThetaSum`` (one
         numerator term over the den theta-product). The zero ratio → :meth:`zero`."""
         if not isinstance(r, EllRatio):
@@ -1111,9 +1111,9 @@ class ThetaSum:
         telescoping residual it holds is a weight-0 elliptic object on
         ``ℂ*/⟨p⟩`` (a sum of balanced theta-quotients over a common balanced
         denominator), so its grade is 0 — like every carrier below
-        :class:`srmech.amsc.unary_theta.UnaryTheta`, the ladder before the weight
+        :class:`srmech.apokatastasis.unary_theta.UnaryTheta`, the ladder before the weight
         axis was introduced. Constant (the carrier represents balanced data); the
-        weight axis is :attr:`srmech.amsc.unary_theta.UnaryTheta.weight`."""
+        weight axis is :attr:`srmech.apokatastasis.unary_theta.UnaryTheta.weight`."""
         return Q(0, 1)
 
     # ── additive algebra (common denominator → sum / subtract numerators) ────
@@ -1253,7 +1253,7 @@ class ThetaSum:
         (1) CLEAR → the denominator theta-product is a nonzero elliptic function, so
         ``self == 0 ⟺ numerator ≡ 0``; the empty / fully-cancelled numerator is
         ``≡ 0`` with no work [Z1]. (2) the ±-pair FAST PATH: group by quasi-periodicity
-        class (Rosengren Eq. 1.6 via :meth:`~srmech.amsc.ellbase.Theta.canonicalize`)
+        class (Rosengren Eq. 1.6 via :meth:`~srmech.apokatastasis.ellbase.Theta.canonicalize`)
         and reduce each class by the EXACT Weierstrass three-term relation (Rosengren
         §1.4 Eq. 1.12, MPM-verified — module docstring) to a canonical additive normal
         form; every class empty ⇒ proven zero [Z2]. (3) the CERTIFICATE RECURSION:
@@ -1358,7 +1358,7 @@ class ThetaSum:
         caller falls to :meth:`_is_zero_py`). The cleared numerator terms are marshalled
         over an interned symbol table (the distinct symbols across every term prefactor +
         canonical theta argument, sorted by NAME so the C dense exponent vector
-        reproduces the :meth:`~srmech.amsc.ellbase.EllMonomial._sort_key` tuple order)."""
+        reproduces the :meth:`~srmech.apokatastasis.ellbase.EllMonomial._sort_key` tuple order)."""
         if not _nat.has_native_thetasum():
             return None
         # the interned symbol universe = every symbol on a prefactor or a theta arg.
@@ -1403,7 +1403,7 @@ class ThetaSum:
         thetasum C peers consume — ``(n_syms, xsym, ysym, psym, term_nthetas,
         monomials)`` — or ``None`` when the numerator is empty. The symbol universe is
         every symbol on a prefactor or a theta argument, sorted by NAME so the C dense
-        exponent vector reproduces :meth:`~srmech.amsc.ellbase.EllMonomial._sort_key`."""
+        exponent vector reproduces :meth:`~srmech.apokatastasis.ellbase.EllMonomial._sort_key`."""
         if not self._terms:
             return None
         syms: "set" = set()

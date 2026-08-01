@@ -12,9 +12,9 @@ This test pins the CURRENT (correct) behavior on the explicit witness, so a futu
 tighten to Σ|e| — under which ``is_zero`` would falsely return ``True`` here — fails loudly.
 """
 from srmech.amsc import ThetaSum
-from srmech.amsc.ellbase import EllMonomial as M, Theta
+from srmech.apokatastasis.ellbase import EllMonomial as M, Theta
 from srmech.amsc.q import Q
-from srmech.amsc.thetasum import _struct_theta_p, _STRUCT_MARGIN
+from srmech.apokatastasis.thetasum import _struct_theta_p, _STRUCT_MARGIN
 
 # The #693 discriminating witness: single variable x, one theta per term, exponent e=3
 # (per-term Σ|e|=3 ⇒ k_ABS=5; Σe²=9 ⇒ k_SQ=11). Its true p-adic order is 6, in the gap (5,11].

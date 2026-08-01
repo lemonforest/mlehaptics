@@ -1,4 +1,4 @@
-"""rc83 — ``srmech.amsc.eisenstein.Eisenstein``, the SECOND WEIGHT-axis carrier.
+"""rc83 — ``srmech.apokatastasis.eisenstein.Eisenstein``, the SECOND WEIGHT-axis carrier.
 
 The build gates (the no-shell proof; construction IS the answer, no search):
 
@@ -23,8 +23,8 @@ import tokenize
 
 import pytest
 
-from srmech.amsc.eisenstein import Eisenstein, eisenstein
-from srmech.amsc.eta_quotient import EtaQuotient
+from srmech.apokatastasis.eisenstein import Eisenstein, eisenstein
+from srmech.apokatastasis.eta_quotient import EtaQuotient
 from srmech.amsc.q import Q
 from srmech.amsc import _native
 
@@ -201,7 +201,7 @@ def test_equality_and_prefactor():
 # ── gate (h): the carrier source is numpy / math / abs() free ────────────────
 def test_eisenstein_source_is_numpy_math_abs_free():
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    src = os.path.join(here, "srmech", "amsc", "eisenstein.py")
+    src = os.path.join(here, "srmech", "apokatastasis", "eisenstein.py")
     with tokenize.open(src) as fh:
         text = fh.read()
     assert "import numpy" not in text

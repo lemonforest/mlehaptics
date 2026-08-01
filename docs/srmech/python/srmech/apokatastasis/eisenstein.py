@@ -1,4 +1,4 @@
-"""srmech.amsc.eisenstein — ``Eisenstein``, a WEIGHT-axis operand carrier.
+"""srmech.apokatastasis.eisenstein — ``Eisenstein``, a WEIGHT-axis operand carrier.
 
 THE OBJECT
 ==========
@@ -21,9 +21,9 @@ never collapsing to a float (the whole reason the coefficients are ``Q`` not
 ``Eisenstein`` is a STRUCTURAL-CONSTRUCT carrier: the q-series + the weight + the
 leading power are COMPUTED from ``k`` exactly (Bernoulli recurrence + divisor
 power sum), NOT a solve. It is the peer of
-:class:`~srmech.amsc.eta_quotient.EtaQuotient` /
-:class:`~srmech.amsc.unary_theta.UnaryTheta` /
-:class:`~srmech.amsc.riemann_theta.RiemannTheta` on the WEIGHT axis — the SECOND
+:class:`~srmech.apokatastasis.eta_quotient.EtaQuotient` /
+:class:`~srmech.apokatastasis.unary_theta.UnaryTheta` /
+:class:`~srmech.apokatastasis.riemann_theta.RiemannTheta` on the WEIGHT axis — the SECOND
 weight rung after the rc82 eta-quotient.
 
 THE TWO GRADINGS
@@ -59,7 +59,7 @@ PRODUCTS of these two — the carrier proves this on its own ladder:
     convolution; the constant term is 0, a CUSP form) equals ``1728`` times the
     Ramanujan discriminant ``Δ = η²⁴``, i.e. ``(E_4³ − E_6²)[n] = 1728·τ(n)``.
     Validated against the PUBLISHED rc82 carrier
-    :class:`~srmech.amsc.eta_quotient.EtaQuotient` ``({1: 24})`` — the carrier
+    :class:`~srmech.apokatastasis.eta_quotient.EtaQuotient` ``({1: 24})`` — the carrier
     ladder validates itself.
 
 The rc84 ring rung will build the polynomial-in-(E_4, E_6) decomposition ON this
@@ -86,8 +86,8 @@ Both are the operand-side dual of the genus-axis Schottky / eta-quotient-subspac
 OPENs: the level-1 even-``k`` Eisenstein series is REPRESENTABLE here exactly;
 the quasimodular ``E_2`` and the higher-level ``E_{k,χ}`` are NAMED-OPEN beyond
 this carrier (a representable family with an irrepresentable enlargement, dual to
-the :class:`~srmech.amsc.eta_quotient.EtaQuotient` proper-subspace OPEN and the
-:class:`~srmech.amsc.riemann_theta.SchottkyFormG4` membership-decision OPEN).
+the :class:`~srmech.apokatastasis.eta_quotient.EtaQuotient` proper-subspace OPEN and the
+:class:`~srmech.apokatastasis.riemann_theta.SchottkyFormG4` membership-decision OPEN).
 
 # OPEN: E_2 is QUASIMODULAR, not modular (M_2(SL₂(ℤ)) = {0}); named, not built —
 #       the next-theory is the quasimodular ring ℂ[E_2, E_4, E_6].
@@ -115,7 +115,7 @@ from __future__ import annotations
 
 from typing import List
 
-from .q import Q
+from ..amsc.q import Q
 
 __all__ = ["Eisenstein", "eisenstein"]
 
@@ -127,7 +127,7 @@ def _native():
     body (the complete alternative + the parity oracle). Imported lazily to avoid
     a bootstrap cycle."""
     try:
-        from . import _native as nat
+        from ..amsc import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_eisenstein", None)
@@ -300,7 +300,7 @@ class Eisenstein:
         modular form on ``SL₂(ℤ)`` (it generates the ring ``ℂ[E_4, E_6]``).
         Trivially true given the constructor gate (which rejects ``k = 2`` —
         QUASIMODULAR, the honest boundary — and odd ``k`` / ``k < 4``); kept for
-        carrier-idiom symmetry with :meth:`~srmech.amsc.eta_quotient.EtaQuotient.is_modular`
+        carrier-idiom symmetry with :meth:`~srmech.apokatastasis.eta_quotient.EtaQuotient.is_modular`
         and to ANCHOR the ``k = 2`` honest-OPEN at the constructor."""
         return True
 
@@ -342,7 +342,7 @@ def eisenstein(k: int) -> Eisenstein:
     - ``eisenstein(12).q_series(2)[1]`` → ``Q(65520, 691)`` (the genuine rational
       coefficient — the whole reason coefficients are ``Q`` not ``int``);
     - the CROSS-RUNG: ``E_4³ − E_6² = 1728·Δ = 1728·η²⁴`` (validated against the
-      published rc82 :class:`~srmech.amsc.eta_quotient.EtaQuotient` ``({1: 24})``).
+      published rc82 :class:`~srmech.apokatastasis.eta_quotient.EtaQuotient` ``({1: 24})``).
 
     ``k = 2`` is REJECTED as the QUASIMODULAR boundary (``E_2`` is not modular);
     odd ``k`` and ``k < 4`` are rejected. Exact-rational q-series; exact-``Q``

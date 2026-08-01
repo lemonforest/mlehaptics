@@ -1,4 +1,4 @@
-"""rc70 — ``srmech.amsc.unary_theta.UnaryTheta``, the FIRST WEIGHT-GRADED carrier.
+"""rc70 — ``srmech.apokatastasis.unary_theta.UnaryTheta``, the FIRST WEIGHT-GRADED carrier.
 
 The build gates (the no-shell proof):
 
@@ -23,7 +23,7 @@ import tokenize
 
 import pytest
 
-from srmech.amsc.unary_theta import (
+from srmech.apokatastasis.unary_theta import (
     Character, UnaryTheta, unary_theta, _kronecker_minus12,
 )
 from srmech.amsc.q import Q
@@ -193,7 +193,7 @@ def test_pure_python_oracle_matches_targets_without_native():
 
 # ── the existing carriers are now weight-annotated (weight-0) ─────────────────
 def test_ellratio_weight_balanced_is_zero():
-    from srmech.amsc.ellbase import EllRatio, EllMonomial, Theta
+    from srmech.apokatastasis.ellbase import EllRatio, EllMonomial, Theta
     a = EllMonomial.symbol("a")
     b = EllMonomial.symbol("b")
     balanced = EllRatio(num=(Theta(a),), den=(Theta(b),))
@@ -204,8 +204,8 @@ def test_ellratio_weight_balanced_is_zero():
 
 
 def test_thetasum_weight_is_zero():
-    from srmech.amsc.ellbase import EllMonomial, Theta
-    from srmech.amsc.thetasum import ThetaSum
+    from srmech.apokatastasis.ellbase import EllMonomial, Theta
+    from srmech.apokatastasis.thetasum import ThetaSum
     a = EllMonomial.symbol("a")
     ts = ThetaSum(terms=[(Q(1, 1), EllMonomial.one(), (Theta(a),))])
     assert ts.weight == Q(0, 1)
@@ -233,7 +233,7 @@ def test_character_trivial_and_table():
 # ── gate (e): the carrier source is numpy / math / abs() free ────────────────
 def test_unary_theta_source_is_numpy_math_abs_free():
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    src = os.path.join(here, "srmech", "amsc", "unary_theta.py")
+    src = os.path.join(here, "srmech", "apokatastasis", "unary_theta.py")
     with tokenize.open(src) as fh:
         text = fh.read()
     assert "import numpy" not in text
@@ -246,7 +246,7 @@ def test_unary_theta_source_is_numpy_math_abs_free():
 def test_unary_theta_tool_entry_registered():
     from srmech.amsc.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
-    assert "srmech.amsc.unary_theta.unary_theta" in names
+    assert "srmech.apokatastasis.unary_theta.unary_theta" in names
 
 
 def test_introspect_tools_total_matches_live():
@@ -261,5 +261,5 @@ def test_introspect_tools_total_matches_live():
     shipped = [t for t in get_tool_schema().tools if not t.name.startswith("test.")]
     assert len(shipped) == 525
     names = {t.name for t in shipped}
-    assert "srmech.amsc.unary_theta.unary_theta" in names
-    assert "srmech.amsc.harmonic_maass.harmonic_maass" in names
+    assert "srmech.apokatastasis.unary_theta.unary_theta" in names
+    assert "srmech.apokatastasis.harmonic_maass.harmonic_maass" in names

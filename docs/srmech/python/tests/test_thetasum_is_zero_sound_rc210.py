@@ -19,7 +19,7 @@ certified provably-NONZERO objects as zero through two unsound devices —
       (a duplicate node under-counts the interpolation).
 
 rc210 replaced the True side WHOLESALE with the sound certificate recursion
-(``srmech.amsc.thetasum._decide_struct``): True ⟺ Z1 exact cancellation / Z2
+(``srmech.apokatastasis.thetasum._decide_struct``): True ⟺ Z1 exact cancellation / Z2
 Weierstrass ±-pair reduction to the empty normal form / Z3s all character
 components proven zero / Z4 per-character interpolation at D+1 distinct nodes.
 There is NO numeric band anywhere on the True side; False = "not proven".
@@ -33,9 +33,9 @@ families are committed below (computational-provenance discipline).
 from fractions import Fraction
 
 from srmech.amsc import ThetaSum
-from srmech.amsc.ellbase import EllMonomial as M, Theta
+from srmech.apokatastasis.ellbase import EllMonomial as M, Theta
 from srmech.amsc.q import Q
-from srmech.amsc.thetasum import (
+from srmech.apokatastasis.thetasum import (
     _NONZERO, _UNKNOWN, _ZERO, _Q_ZERO,
     _decide_thetasum, _struct_pexp_mul, _struct_theta_p, _term_char_v,
 )

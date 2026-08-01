@@ -1,7 +1,7 @@
 /*
  * srmech_modular_forms_ring.c — the EXACT-rational level-1 ℂ[E₄,E₆] modular-
  * forms-ring MEMBERSHIP DECISION (the C peer of
- * srmech.amsc.modular_forms_ring.ModularFormsRing.represent; the THIRD rung of the
+ * srmech.apokatastasis.modular_forms_ring.ModularFormsRing.represent; the THIRD rung of the
  * WEIGHT axis, after the rc82 eta-quotient + rc83 Eisenstein).
  *
  * THE STRUCTURE THEOREM, MADE EXECUTABLE

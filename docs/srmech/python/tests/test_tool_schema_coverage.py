@@ -101,7 +101,7 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # engine ops — elliptic_gosper etc. — ARE registered); exempt exactly like the
     # other carrier-foundation surface. C peer owed (everything-mirrors); classified
     # `bignum_reference` in rosetta_classification.ndjson.
-    "srmech.amsc.ellbase.elliptic_lagrange_basis",
+    "srmech.apokatastasis.ellbase.elliptic_lagrange_basis",
     # eta_quotient.eta_quotient (v0.9.0rc82) — the public constructor of the
     # WEIGHT-axis EtaQuotient CARRIER (Q(τ) = ∏_d η(dτ)^{r_d}), a peer of the
     # UnaryTheta / RiemannTheta / EllRatio / ThetaSum carriers (which are classes,
@@ -111,7 +111,7 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # elliptic_lagrange_basis carrier-foundation surface above. C peer
     # srmech_eta_quotient_qseries; classified `c_dispatched` in
     # rosetta_classification.ndjson.
-    "srmech.amsc.eta_quotient.eta_quotient",
+    "srmech.apokatastasis.eta_quotient.eta_quotient",
     # eisenstein.eisenstein (v0.9.0rc83) — the public constructor of the SECOND
     # WEIGHT-axis carrier Eisenstein (E_k(τ) = 1 − (2k/B_k)·Σ σ_{k−1}(n) qⁿ), a peer
     # of the EtaQuotient / UnaryTheta / RiemannTheta / ThetaSum carriers (which are
@@ -121,7 +121,7 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # 340), exactly like the eta_quotient / elliptic_lagrange_basis carrier surfaces
     # above. C peer srmech_eisenstein_qseries; classified `c_dispatched` in
     # rosetta_classification.ndjson.
-    "srmech.amsc.eisenstein.eisenstein",
+    "srmech.apokatastasis.eisenstein.eisenstein",
     # modular_forms_ring.modular_forms_ring (v0.9.0rc84) — the public CONSTRUCTOR of
     # the stateless level-1 ℂ[E₄,E₆] ModularFormsRing CARRIER (the THIRD WEIGHT-axis
     # rung). It returns the carrier (whose weight_monomials/dim are pure accessors,
@@ -131,7 +131,7 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # carrier's REDUCER, modular_forms_ring_represent, IS a registered ToolEntry (the
     # WEIGHT-axis analog of the Σ-row gosper/zeilberger/wz_certificate reducers) —
     # only the bare constructor is exempt.
-    "srmech.amsc.modular_forms_ring.modular_forms_ring",
+    "srmech.apokatastasis.modular_forms_ring.modular_forms_ring",
     # quasimodular_forms_ring.quasimodular_forms_ring (v0.9.0rc89) — the public
     # CONSTRUCTOR of the stateless level-1 ℂ[E₂,E₄,E₆] QuasiModularFormsRing CARRIER
     # (the FOURTH WEIGHT-axis rung). It returns the carrier (whose weight_monomials/
@@ -141,7 +141,7 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # carrier's REDUCER, quasimodular_represent, IS a registered ToolEntry
     # (the WEIGHT-axis analog of the Σ-row reducers, one generator up from rc84) —
     # only the bare constructor + the E₂ series fn are exempt.
-    "srmech.amsc.quasimodular_forms_ring.quasimodular_forms_ring",
+    "srmech.apokatastasis.quasimodular_forms_ring.quasimodular_forms_ring",
     # quasimodular_forms_ring.eisenstein_e2 (v0.9.0rc89) — the WEIGHT-2 QUASIMODULAR
     # generator E₂ = 1 − 24·Σσ₁(n)qⁿ as an exact-ℚ q-series fn. A CARRIER-FOUNDATION
     # surface (the E₂ series the quasimodular ring is built on; the rc83 Eisenstein
@@ -149,7 +149,7 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # user-facing engine ToolEntry, exempt exactly like the carrier q-series surfaces.
     # C peer srmech_eisenstein_qseries (k=2 quasimodular branch); classified
     # `c_dispatched` in rosetta_classification.ndjson.
-    "srmech.amsc.quasimodular_forms_ring.eisenstein_e2",
+    "srmech.apokatastasis.quasimodular_forms_ring.eisenstein_e2",
     # cascade.* — back-compat aliases of canonical names already registered
     # (the precursor's call-site names; see srmech.amsc.cascade).
     "srmech.amsc.cascade.class_k_pin_slot_at_zero",  # = pin_slot_at_zero

@@ -41,7 +41,7 @@ from srmech.amsc import dispatch
 from srmech.amsc.dispatch import infer, _marshal_relationship
 from srmech.amsc.poly import Poly
 from srmech.amsc.q import Q
-from srmech.amsc.zeilberger import BiPoly
+from srmech.apokatastasis.zeilberger import BiPoly
 
 _BIG = 10 ** 25   # a coefficient beyond int64 — the bignum decimal-string transport
 

@@ -24,13 +24,13 @@ import array  # noqa: E402
 from fractions import Fraction  # noqa: E402
 from srmech.amsc import Poly, TriPoly, ThetaSum  # noqa: E402
 from srmech.amsc.carrier_ladder import BiPoly, QPoly, QBiPoly  # noqa: E402
-from srmech.amsc.apagodu_zeilberger import Q  # noqa: E402
+from srmech.apokatastasis.apagodu_zeilberger import Q  # noqa: E402
 from srmech.amsc.hdc import Mat, HV  # noqa: E402
 from srmech.amsc.coupling import Vec  # noqa: E402
 from srmech.amsc.carrier_spectrum import CarrierSpectrum, EllMonomial, EllRatio  # noqa: E402
-from srmech.amsc.ellbase import Theta  # noqa: E402  (rc363: the elliptic ATOM)
-from srmech.amsc.riemann_theta_multisum import ThetaBracketSum  # noqa: E402
-from srmech.amsc.harmonic_maass import MockQSeries, UnaryTheta, HarmonicMaass  # noqa: E402
+from srmech.apokatastasis.ellbase import Theta  # noqa: E402  (rc363: the elliptic ATOM)
+from srmech.apokatastasis.riemann_theta_multisum import ThetaBracketSum  # noqa: E402
+from srmech.apokatastasis.harmonic_maass import MockQSeries, UnaryTheta, HarmonicMaass  # noqa: E402
 from srmech.amsc import laplacian as _lap  # noqa: E402
 from srmech.amsc import hdc as _hdc  # noqa: E402
 from srmech.amsc.cascade import the_one, sedenion_register, cd_register  # noqa: E402

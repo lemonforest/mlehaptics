@@ -1,6 +1,6 @@
 /*
  * srmech_ellbase.c -- the 1:1 native C peer of the ELLIPTIC carrier family
- * srmech.amsc.ellbase (EllMonomial / Theta / EllRatio), the rc59/rc60 carriers
+ * srmech.apokatastasis.ellbase (EllMonomial / Theta / EllRatio), the rc59/rc60 carriers
  * the GENUINE elliptic creative-telescoping engine manipulates. A C-MIRROR
  * PARITY build (NOT a new algorithm): the C decision reproduces the pure-Python
  * carrier methods byte-for-byte.

@@ -1,7 +1,7 @@
 /*
  * srmech_elliptic_zeilberger.c -- the ELLIPTIC Sigma-row CREATIVE-TELESCOPING op for the
  * Frenkel-Turaev 8w7 summation (the C peer of
- * srmech.amsc.elliptic_zeilberger.elliptic_zeilberger). The order-1 recurrence
+ * srmech.apokatastasis.elliptic_zeilberger.elliptic_zeilberger). The order-1 recurrence
  * f(n+1) = rho(n)*f(n) PLUS an EXACT connection-coefficient certificate that PROVES it
  * (the ThetaSum.is_zero decision, NOT rc68's 1e-9 numerical convergence gate).
  *

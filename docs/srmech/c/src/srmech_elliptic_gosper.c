@@ -2,7 +2,7 @@
  * srmech_elliptic_gosper.c -- the ELLIPTIC analog of Gosper's indefinite
  * hypergeometric summation (the FIRST engine op of the ELLIPTIC F929 reduction
  * row, the top of the base-axis degeneration tower elliptic -> q -> ordinary). The
- * GENUINE C peer of srmech.amsc.elliptic_gosper.elliptic_gosper -- a 1:1 STRUCTURAL
+ * GENUINE C peer of srmech.apokatastasis.elliptic_gosper.elliptic_gosper -- a 1:1 STRUCTURAL
  * MIRROR of the pure-Python decompose-and-compute pipeline (peel-coboundary +
  * Weierstrass three-term key-equation y-solve + exact ThetaSum.is_zero verifier),
  * NOT the rc61 bounded geometric-constant shell.

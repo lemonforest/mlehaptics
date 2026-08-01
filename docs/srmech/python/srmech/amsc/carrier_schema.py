@@ -172,7 +172,7 @@ Scope: the registry covers the carriers ON the public op surface — every
 srmech carrier type a registered ToolEntry consumes or produces, plus the
 three promote/project ladders' rungs. Internal exact representations no
 public op surfaces (``QMat`` at ``srmech/amsc/qmat.py:148`` / the
-genus-``RiemannTheta`` family at ``srmech/amsc/riemann_theta.py``) join when
+genus-``RiemannTheta`` family at ``srmech/apokatastasis/riemann_theta.py``) join when
 an op surfaces them (the drift ratchet in
 ``tests/test_carrier_schema_rc205.py`` forces the addition).
 

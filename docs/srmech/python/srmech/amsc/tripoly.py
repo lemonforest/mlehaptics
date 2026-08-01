@@ -2,7 +2,7 @@
 carrier (``TriPoly``), the foundation of the multivariate "sums of sums" creative-
 telescoping row (the rc53 ``apagodu_zeilberger`` op consumes it).
 
-The 3-variable sibling of the bivariate :class:`srmech.amsc.zeilberger.BiPoly`.
+The 3-variable sibling of the bivariate :class:`srmech.apokatastasis.zeilberger.BiPoly`.
 Where ``BiPoly`` carries an exact-``ℚ[n,k]`` polynomial (a polynomial in the
 summation variable ``k`` whose coefficients are :class:`~srmech.amsc.poly.Poly`
 in the free variable ``n``), ``TriPoly`` carries an exact-``ℚ[n,j,k]`` polynomial
@@ -11,7 +11,7 @@ in the free/recurrence variable ``n`` and **two** summation variables ``j`` and
 
 Representation (BiPoly's pattern recursed exactly one level). ``BiPoly`` is a
 ``k``-ascending tuple of ``Poly``-in-``n``; ``TriPoly`` is a **``j``-ascending
-tuple of** :class:`~srmech.amsc.zeilberger.BiPoly` **in ``(n,k)``** — ``blocks[d]``
+tuple of** :class:`~srmech.apokatastasis.zeilberger.BiPoly` **in ``(n,k)``** — ``blocks[d]``
 is the coefficient of ``j**d`` and is itself a ``BiPoly`` over ``ℚ[n,k]``.
 Trailing-zero (high-``j``-degree) ``BiPoly`` coefficients are trimmed, so the zero
 ``TriPoly`` is the empty block list and the ``j``-degree is ``len(blocks) - 1``
@@ -57,7 +57,7 @@ from typing import List, Sequence, Tuple
 
 from .poly import Poly
 from .q import Q
-from .zeilberger import BiPoly
+from ..apokatastasis.zeilberger import BiPoly
 
 __all__ = ["TriPoly", "tripoly_from_coeffs"]
 
@@ -88,7 +88,7 @@ def _tri_trim(cells: Sequence[BiPoly]) -> Tuple[BiPoly, ...]:
 
 
 def _as_biblock(value) -> BiPoly:
-    """Coerce one ``j``-degree block to a :class:`~srmech.amsc.zeilberger.BiPoly`
+    """Coerce one ``j``-degree block to a :class:`~srmech.apokatastasis.zeilberger.BiPoly`
     in ``(n,k)``. A ``BiPoly`` passes through; a :class:`~srmech.amsc.poly.Poly`
     is read as a polynomial in ``k`` alone (per ``BiPoly.coerce``); anything else
     is handed to ``BiPoly.coerce`` (a ``k``-ascending sequence of ``Poly``-in-n)."""
@@ -131,7 +131,7 @@ def _tri_from_pairs(blocks) -> "TriPoly":
 class TriPoly:
     """A numpy-free EXACT-rational TRIVARIATE polynomial over ``ℚ`` in the free
     variable ``n`` and two summation variables ``j``, ``k``: a trimmed tuple of
-    :class:`~srmech.amsc.zeilberger.BiPoly` in ``(n,k)`` indexed by ``j``-degree,
+    :class:`~srmech.apokatastasis.zeilberger.BiPoly` in ``(n,k)`` indexed by ``j``-degree,
     immutable. The 3-variable sibling of ``BiPoly`` and the foundation of the
     rc53 ``apagodu_zeilberger`` op. See the module docstring."""
 
@@ -153,7 +153,7 @@ class TriPoly:
     def from_coeffs(cls, blocks) -> "TriPoly":
         """Build a ``TriPoly`` from a ``j``-ascending sequence of ``j``-degree
         blocks (the canonical constructor). Each block is coerced to a
-        :class:`~srmech.amsc.zeilberger.BiPoly` in ``(n,k)`` — a ``BiPoly`` passes
+        :class:`~srmech.apokatastasis.zeilberger.BiPoly` in ``(n,k)`` — a ``BiPoly`` passes
         through, a :class:`~srmech.amsc.poly.Poly` is read as a polynomial in ``k``
         alone, a ``k``-ascending coefficient sequence is wrapped term-by-term."""
         return cls(blocks)
@@ -524,7 +524,7 @@ class TriPoly:
 
 # ── exact BiPoly evaluation (Horner in k over Poly-in-n, then Horner in n) ─────
 def _bipoly_eval(bib: BiPoly, qn: Q, qk: Q) -> Q:
-    """Evaluate a :class:`~srmech.amsc.zeilberger.BiPoly` at ``(n, k) = (qn, qk)``
+    """Evaluate a :class:`~srmech.apokatastasis.zeilberger.BiPoly` at ``(n, k) = (qn, qk)``
     by exact Horner in ``k`` over its ``Poly``-in-``n`` coefficients (each evaluated
     by exact Horner in ``n``). Exact ``Q``; the zero ``BiPoly`` → ``Q(0)``. Kept
     module-level (BiPoly carries no scalar (n,k)-eval of its own)."""
@@ -569,7 +569,7 @@ def tripoly_from_coeffs(coeffs) -> "TriPoly":
     ``j``-ascending list of ``k``-ascending lists of INTEGER-LEAF
     ``n``-coefficient lists — the PROSE-SIDE constructor ToolEntry (rc116;
     issue #1248 / F1038). ``coeffs[dj]`` is the ``j**dj`` block (a
-    :class:`~srmech.amsc.zeilberger.BiPoly` in ``(n,k)``); ``coeffs[dj][dk]``
+    :class:`~srmech.apokatastasis.zeilberger.BiPoly` in ``(n,k)``); ``coeffs[dj][dk]``
     is that block's ``k**dk`` coefficient, an ascending-``n``-degree integer
     list (a :class:`~srmech.amsc.poly.Poly` in ``n``). So
     ``tripoly_from_coeffs([[[0, 1]], [[1]]])`` is ``n + j`` (``j**0`` block =
@@ -582,7 +582,7 @@ def tripoly_from_coeffs(coeffs) -> "TriPoly":
     PRODUCED from the registry, so the double-sum row could not be built by
     prose. This closes that gap (the ``bipoly_from_coeffs`` grammar recursed
     exactly one level — each ``j``-block follows the
-    :func:`srmech.amsc.zeilberger.bipoly_from_coeffs` cell grammar). A
+    :func:`srmech.apokatastasis.zeilberger.bipoly_from_coeffs` cell grammar). A
     **non_compute BUILDER** (the ``coupling.from_bodies`` /
     ``text.cooccurrence_edges`` precedent): it constructs an operand; every
     computation lives in the ops that consume it.

@@ -1,11 +1,11 @@
-"""srmech.amsc.riemann_theta — ``RiemannTheta``, the FIRST RUNG of the GENUS axis.
+"""srmech.apokatastasis.riemann_theta — ``RiemannTheta``, the FIRST RUNG of the GENUS axis.
 
 THE NEW AXIS
 ============
 
 The operand carrier ladder so far is graded by a SINGLE elliptic torus: the
-elliptic / theta carriers (:class:`~srmech.amsc.ellbase.EllRatio`,
-:class:`~srmech.amsc.thetasum.ThetaSum`, :class:`~srmech.amsc.unary_theta.UnaryTheta`)
+elliptic / theta carriers (:class:`~srmech.apokatastasis.ellbase.EllRatio`,
+:class:`~srmech.apokatastasis.thetasum.ThetaSum`, :class:`~srmech.apokatastasis.unary_theta.UnaryTheta`)
 all live on a genus-1 curve (one period τ, the upper-half-plane ``H₁``). That is a
 real ceiling: a genus-2 abelian variety — the Jacobian of a genus-2 curve — carries
 a theta function of TWO complex variables over a 2×2 Riemann matrix ``Ω ∈ H₂`` (the
@@ -180,7 +180,7 @@ from __future__ import annotations
 
 from typing import Dict, List, Tuple
 
-from .q import Q
+from ..amsc.q import Q
 from .unary_theta import UnaryTheta, unary_theta
 
 __all__ = ["RiemannTheta", "RiemannThetaG3", "RiemannThetaG4", "SchottkyFormG4",
@@ -228,7 +228,7 @@ def _native():
     body (the complete alternative + the parity oracle). Imported lazily to avoid a
     bootstrap cycle."""
     try:
-        from . import _native as nat
+        from ..amsc import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_riemann_theta", None)
@@ -282,7 +282,7 @@ def _cyclotomic_ring(m: int):
     representation the exact DFT runs on (``table[j]`` = ``ζ_m^j`` as an integer vector in
     the power basis ``{1, ζ, …, ζ^{φ(m)-1}}``, reduced by the cyclotomic polynomial
     ``Φ_m``). ``m ≥ 2``. Pure integer; no float, no hand-rolled root of unity."""
-    from .cascade.exact_dft import _cyclotomic_reduction
+    from ..amsc.cascade.exact_dft import _cyclotomic_reduction
     return _cyclotomic_reduction(m)
 
 
@@ -379,7 +379,7 @@ def _cyc_mul(a: "Tuple[int, ...]", b: "Tuple[int, ...]", m: int) -> "Tuple[int, 
     body is the complete fallback). Else the pure-Python :func:`_cyc_mul_py`."""
     table, _deg = _cyclotomic_ring(m)
     try:
-        from . import _native as nat
+        from ..amsc import _native as nat
         fn = getattr(nat, "riemann_theta_cyc_mul_c", None)
         if fn is not None:
             got = fn(a, b, table, m)
@@ -624,7 +624,7 @@ def _native_gate():
     (the complete alternative + the parity oracle). Imported lazily to avoid a
     bootstrap cycle."""
     try:
-        from . import _native as nat
+        from ..amsc import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_riemann_theta_gate", None)
@@ -952,7 +952,7 @@ class RiemannTheta:
         ``n₂ = 0`` (drop the second lattice direction). For the trivial even
         characteristic ``[0,0; 0,0]`` the surviving slice is
         ``Σ_{n₁ ∈ ℤ} q₁^{n₁²}`` = the genus-1 Jacobi theta ``θ₃`` — returned as the
-        rc70 :class:`~srmech.amsc.unary_theta.UnaryTheta`
+        rc70 :class:`~srmech.apokatastasis.unary_theta.UnaryTheta`
         ``unary_theta('trivial', j=0, a=1, b=0, D=1, support='all')`` (so the collapse
         is BIT-EXACT vs the existing rung; see the build gate). Only the trivial even
         characteristic ``[0,0; 0,0]`` collapses to ``θ₃``; any other characteristic
@@ -2644,7 +2644,7 @@ def _native_g3():
     falls cleanly to the pure-Python body (the complete alternative + the parity
     oracle). Imported lazily to avoid a bootstrap cycle."""
     try:
-        from . import _native as nat
+        from ..amsc import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_riemann_theta_g3", None)
@@ -2658,7 +2658,7 @@ def _native_g3_chi18():
     lattice to C when available and falls cleanly to the pure-Python body (the complete
     alternative + the parity oracle). Imported lazily to avoid a bootstrap cycle."""
     try:
-        from . import _native as nat
+        from ..amsc import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_riemann_theta_g3_chi18", None)
@@ -2673,7 +2673,7 @@ def _native_g3_goepel():
     present) to C when available and falls cleanly to the pure-Python body (the complete
     alternative + the parity oracle). Imported lazily to avoid a bootstrap cycle."""
     try:
-        from . import _native as nat
+        from ..amsc import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_riemann_theta_g3_goepel", None)
@@ -2687,7 +2687,7 @@ def _native_g4():
     available and falls cleanly to the pure-Python body (the complete alternative + the
     parity oracle). Imported lazily to avoid a bootstrap cycle."""
     try:
-        from . import _native as nat
+        from ..amsc import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_riemann_theta_g4", None)
@@ -2703,7 +2703,7 @@ def _native_g4_schottky():
     cleanly to the pure-Python body (the complete alternative + the parity oracle).
     Imported lazily to avoid a bootstrap cycle."""
     try:
-        from . import _native as nat
+        from ..amsc import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_riemann_theta_g4_schottky", None)
@@ -2718,7 +2718,7 @@ def _native_g4_sp8():
     cleanly to the pure-Python body (the complete alternative + the parity oracle).
     Imported lazily to avoid a bootstrap cycle."""
     try:
-        from . import _native as nat
+        from ..amsc import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_riemann_theta_g4_sp8", None)
@@ -2733,7 +2733,7 @@ def _native_g4_goepel():
     present) to C when available and falls cleanly to the pure-Python body (the complete
     alternative + the parity oracle). Imported lazily to avoid a bootstrap cycle."""
     try:
-        from . import _native as nat
+        from ..amsc import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_riemann_theta_g4_goepel", None)
@@ -2747,7 +2747,7 @@ def _native_g5():
     to C when available and falls cleanly to the pure-Python body (the complete
     alternative + the parity oracle). Imported lazily to avoid a bootstrap cycle."""
     try:
-        from . import _native as nat
+        from ..amsc import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_riemann_theta_g5", None)

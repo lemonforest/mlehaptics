@@ -26,10 +26,10 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from srmech.amsc.ellbase import EllMonomial as E
+from srmech.apokatastasis.ellbase import EllMonomial as E
 from srmech.amsc.q import Q
-from srmech.amsc import riemann_theta_multisum as R
-from srmech.amsc.riemann_theta_multisum import (
+from srmech.apokatastasis import riemann_theta_multisum as R
+from srmech.apokatastasis.riemann_theta_multisum import (
     ThetaBracket, ThetaBracketSum, riemann_theta_multisum_lhs,
     multivariate_riemann_theta_sum,
 )
@@ -145,8 +145,8 @@ def test_registration_and_coverage():
     # name check via the raw tool schema
     from srmech.amsc.tool_schema import get_tool_schema
     reg = {t.name for t in get_tool_schema().tools}
-    assert "srmech.amsc.riemann_theta_multisum.multivariate_riemann_theta_sum" in reg
-    assert "srmech.amsc.riemann_theta_multisum.riemann_theta_multisum_lhs" in reg
+    assert "srmech.apokatastasis.riemann_theta_multisum.multivariate_riemann_theta_sum" in reg
+    assert "srmech.apokatastasis.riemann_theta_multisum.riemann_theta_multisum_lhs" in reg
     assert set(R.__all__) == {
         "riemann_theta_multisum_lhs", "multivariate_riemann_theta_sum",
         "ThetaBracket", "ThetaBracketSum"}
@@ -158,7 +158,7 @@ def test_rosetta_rows_present():
     rows = {json.loads(l)["defined_at"]: json.loads(l)["bucket"]
             for l in fixture.read_text(encoding="utf-8").splitlines() if l.strip()}
     for op in ("multivariate_riemann_theta_sum", "riemann_theta_multisum_lhs"):
-        key = f"srmech.amsc.riemann_theta_multisum.{op}"
+        key = f"srmech.apokatastasis.riemann_theta_multisum.{op}"
         assert rows.get(key) == "c_dispatched", f"{key} not classified c_dispatched"
 
 

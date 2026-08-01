@@ -1362,7 +1362,7 @@ def fold_spectrum(fold, *, log_terms: int = 25,
 # following the field–excitation recoverability principle: a lossy projection
 # is recoverable iff you attach the exact complement it dropped.
 #
-# The shape MIRRORS srmech.amsc.harmonic_maass.HarmonicMaass(hol, shadow) —
+# The shape MIRRORS srmech.apokatastasis.harmonic_maass.HarmonicMaass(hol, shadow) —
 # the (holomorphic-part, shadow) pair where "storing the shadow IS storing the
 # completion" (the completion f⁻ is the Eichler integral of the stored shadow,
 # recoverable not stored). Here the pair is (lossy_bundle, exact_seed_R) where
@@ -1377,7 +1377,7 @@ def fold_spectrum(fold, *, log_terms: int = 25,
 
 class RecoverableFold:
     """A generated HDC fold PAIRED with the exact complement that recovers it —
-    the RECOVERABILITY analogue of :class:`~srmech.amsc.harmonic_maass.HarmonicMaass`
+    the RECOVERABILITY analogue of :class:`~srmech.apokatastasis.harmonic_maass.HarmonicMaass`
     ``(hol, shadow)`` (rc71; task #723). Immutable.
 
     A rc124 :func:`fold_encode` bundle is a LOSSY Klein-4 superposition —

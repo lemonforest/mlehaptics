@@ -1,4 +1,4 @@
-"""srmech.amsc.eta_quotient — ``EtaQuotient``, a WEIGHT-axis operand carrier.
+"""srmech.apokatastasis.eta_quotient — ``EtaQuotient``, a WEIGHT-axis operand carrier.
 
 THE OBJECT
 ==========
@@ -27,8 +27,8 @@ THE TWO GRADINGS
 ================
 
 This carrier lives on the **WEIGHT axis** (peer of
-:class:`~srmech.amsc.unary_theta.UnaryTheta` / the harmonic-Maass +
-:class:`~srmech.amsc.riemann_theta.RiemannTheta` genus carriers), and it carries
+:class:`~srmech.apokatastasis.unary_theta.UnaryTheta` / the harmonic-Maass +
+:class:`~srmech.apokatastasis.riemann_theta.RiemannTheta` genus carriers), and it carries
 TWO distinct gradings:
 
   * the **q-scale grading** — the exact q-series is the q-graded structure (the
@@ -36,7 +36,7 @@ TWO distinct gradings:
   * the **WEIGHT** ``k = ½ Σ_d r_d`` — the modular AUTOMORPHY covariance, the
     ``(cτ+d)^k`` degree of ``Q`` under ``τ → −1/τ`` (a half-integer in general,
     so it is the natural home for the exact-:class:`~srmech.amsc.q.Q` weight axis,
-    exactly as :class:`~srmech.amsc.unary_theta.UnaryTheta` carries a
+    exactly as :class:`~srmech.apokatastasis.unary_theta.UnaryTheta` carries a
     half-integral weight).
 
 THE EXACT MODULARITY DECISION (Ligozat; the carrier's CORE)
@@ -91,7 +91,7 @@ Adv. Math. 272 (2015) — the eta-quotients span only certain spaces). So decidi
 vectors with no finite closed cutter in general — the operand-IRREPRESENTABLE
 boundary, dual to the genus-axis Schottky membership decision (a representable
 FORM whose Jacobian-membership DECISION is irrepresentable; the
-:class:`~srmech.amsc.riemann_theta.SchottkyFormG4` precedent). This carrier does
+:class:`~srmech.apokatastasis.riemann_theta.SchottkyFormG4` precedent). This carrier does
 NOT build a general "is-eta-quotient" solver — it represents an eta-quotient + and
 decides the modularity OF a given exponent vector.
 
@@ -119,8 +119,8 @@ from __future__ import annotations
 
 from typing import Dict, List, Mapping
 
-from . import cyclic as _cyclic
-from .q import Q
+from ..amsc import cyclic as _cyclic
+from ..amsc.q import Q
 
 __all__ = ["EtaQuotient", "eta_quotient"]
 
@@ -132,7 +132,7 @@ def _native():
     Python body (the complete alternative + the parity oracle). Imported lazily to
     avoid a bootstrap cycle."""
     try:
-        from . import _native as nat
+        from ..amsc import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_eta_quotient", None)

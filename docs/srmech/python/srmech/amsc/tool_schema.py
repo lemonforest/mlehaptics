@@ -5015,7 +5015,7 @@ def _register_primitive_class_tools() -> None:
         # exact-ℚ[k] Poly substrate; 1:1 C peer srmech_gosper.
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.gosper.gosper", owner="srmech",
+            name="srmech.apokatastasis.gosper.gosper", owner="srmech",
             category="gosper",
             summary="Gosper's indefinite hypergeometric summation (Gosper 1978, "
                     "PNAS 75(1):40–42; Petkovšek–Wilf–Zeilberger *A=B* 1996, "
@@ -5051,7 +5051,7 @@ def _register_primitive_class_tools() -> None:
         # srmech_zeilberger.
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.zeilberger.zeilberger", owner="srmech",
+            name="srmech.apokatastasis.zeilberger.zeilberger", owner="srmech",
             category="zeilberger",
             summary="Zeilberger's creative telescoping (Zeilberger 1990, Discrete "
                     "Math. 80(2):207–211; 1991, J. Symbolic Computation 11(3):195–"
@@ -5099,7 +5099,7 @@ def _register_primitive_class_tools() -> None:
         # COMPLETE verify mirror (degree-bounded, no order cap).
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.wz_certificate.wz_certificate", owner="srmech",
+            name="srmech.apokatastasis.wz_certificate.wz_certificate", owner="srmech",
             category="wz_certificate",
             summary="The Wilf–Zeilberger pair method (Wilf & Zeilberger 1990, "
                     "*Rational functions certify combinatorial identities*, J. Amer. "
@@ -5146,7 +5146,7 @@ def _register_primitive_class_tools() -> None:
         # srmech_modular_forms_ring_represent (dispatches to srmech_qmat_solve).
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.modular_forms_ring.modular_forms_ring_represent",
+            name="srmech.apokatastasis.modular_forms_ring.modular_forms_ring_represent",
             owner="srmech", category="modular_forms_ring",
             summary="The level-1 modular-forms-ring MEMBERSHIP DECISION — the "
                     "structure theorem M_*(SL₂(ℤ)) = ℂ[E₄,E₆] made executable "
@@ -5203,7 +5203,7 @@ def _register_primitive_class_tools() -> None:
         # srmech_quasimodular_forms_ring_represent (dispatches to srmech_qmat_solve).
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.quasimodular_forms_ring."
+            name="srmech.apokatastasis.quasimodular_forms_ring."
                  "quasimodular_represent",
             owner="srmech", category="quasimodular_forms_ring",
             summary="The level-1 QUASIMODULAR-forms-ring MEMBERSHIP DECISION — the "
@@ -5260,7 +5260,7 @@ def _register_primitive_class_tools() -> None:
         # srmech_apagodu_zeilberger (accelerates the order ≤ 1 textbook case).
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.apagodu_zeilberger.apagodu_zeilberger",
+            name="srmech.apokatastasis.apagodu_zeilberger.apagodu_zeilberger",
             owner="srmech", category="apagodu_zeilberger",
             summary="The Apagodu–Zeilberger multivariate 'sums of sums' creative "
                     "telescoping (M. Apagodu & D. Zeilberger, 'Multi-variable "
@@ -5438,7 +5438,7 @@ def _register_primitive_class_tools() -> None:
         # the from_bodies / cooccurrence_edges precedent).
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.zeilberger.bipoly_from_coeffs", owner="srmech",
+            name="srmech.apokatastasis.zeilberger.bipoly_from_coeffs", owner="srmech",
             category="zeilberger",
             summary="PROSE-SIDE carrier constructor (#1248 / F1038; the ORPHAN "
                     "FIX): build the exact-ℚ[n,k] bivariate carrier BiPoly "
@@ -5543,7 +5543,7 @@ def _register_primitive_class_tools() -> None:
                       "the projected carrier one rung down (raises a NAMING "
                       "coherency error if the dropped variable is non-trivial)"),
             smoke_test_hint={
-                "p": "srmech.amsc.zeilberger.BiPoly.from_k_poly("
+                "p": "srmech.apokatastasis.zeilberger.BiPoly.from_k_poly("
                      "srmech.amsc.poly.Poly.from_coeffs([1, 1]))"},
         ),
         ToolEntry(
@@ -5943,7 +5943,7 @@ def _register_primitive_class_tools() -> None:
         # QPoly ℚ[q]-carrier (Laurent in x=qᵏ); 1:1 C peer srmech_q_gosper.
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.q_gosper.q_gosper", owner="srmech",
+            name="srmech.apokatastasis.q_gosper.q_gosper", owner="srmech",
             category="q_gosper",
             summary="The q-analog of Gosper's indefinite hypergeometric summation "
                     "(T.H. Koornwinder, 'On Zeilberger's algorithm and its "
@@ -5987,7 +5987,7 @@ def _register_primitive_class_tools() -> None:
         # parametrizes the rc55 q-Gosper ℚ(q) solve. 1:1 C peer srmech_q_zeilberger.
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.q_zeilberger.q_zeilberger", owner="srmech",
+            name="srmech.apokatastasis.q_zeilberger.q_zeilberger", owner="srmech",
             category="q_zeilberger",
             summary="The q-analog of Zeilberger's creative telescoping (T.H. "
                     "Koornwinder, 'On Zeilberger's algorithm and its q-analogue', J. "
@@ -6041,7 +6041,7 @@ def _register_primitive_class_tools() -> None:
         # is the COMPLETE verify mirror (degree-bounded, no order cap).
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.q_wz_certificate.q_wz_certificate", owner="srmech",
+            name="srmech.apokatastasis.q_wz_certificate.q_wz_certificate", owner="srmech",
             category="q_wz_certificate",
             summary="The q-analog of the Wilf–Zeilberger pair method (T.H. "
                     "Koornwinder, 'On Zeilberger's algorithm and its q-analogue', J. "
@@ -6099,7 +6099,7 @@ def _register_primitive_class_tools() -> None:
         # srmech_elliptic_gosper.
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.elliptic_gosper.elliptic_gosper", owner="srmech",
+            name="srmech.apokatastasis.elliptic_gosper.elliptic_gosper", owner="srmech",
             category="elliptic_gosper",
             summary="The ELLIPTIC analog of Gosper's indefinite hypergeometric "
                     "summation (George Gasper & Michael Schlosser, 'Summation, "
@@ -6158,7 +6158,7 @@ def _register_primitive_class_tools() -> None:
         # thin structural readers (non_compute). In-repo SSoT: the #712 probes.
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.ellbase.half_shift_response", owner="srmech",
+            name="srmech.apokatastasis.ellbase.half_shift_response", owner="srmech",
             category="ellbase",
             summary="The exact monomial MULTIPLIER an EllRatio theta-quotient carrier "
                     "acquires under a HALF-period translation of the torque-free "
@@ -6200,7 +6200,7 @@ def _register_primitive_class_tools() -> None:
                       "not a bare monomial)"),
         ),
         ToolEntry(
-            name="srmech.amsc.ellbase.chirality_parity", owner="srmech",
+            name="srmech.apokatastasis.ellbase.chirality_parity", owner="srmech",
             category="ellbase",
             summary="The CHIRALITY parity of an EllRatio theta-quotient carrier under "
                     "the #712 harmonic⊗subharmonic reading: 'even' (a HARMONIC reader "
@@ -6225,7 +6225,7 @@ def _register_primitive_class_tools() -> None:
                       "(subharmonic; needs 4K / the pair)"),
         ),
         ToolEntry(
-            name="srmech.amsc.ellbase.beat_relation_residue", owner="srmech",
+            name="srmech.apokatastasis.ellbase.beat_relation_residue", owner="srmech",
             category="ellbase",
             summary="The exact BEAT-RELATION residue of an EllRatio written on the "
                     "HARMONIC (x) frame: the nome-axis (period-shift var↦p·var) "
@@ -6257,7 +6257,7 @@ def _register_primitive_class_tools() -> None:
         # 1:1 C peer srmech_elliptic_recurrence_8w7.
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.elliptic_recurrence.elliptic_recurrence_8w7",
+            name="srmech.apokatastasis.elliptic_recurrence.elliptic_recurrence_8w7",
             owner="srmech", category="elliptic_recurrence",
             summary="The ELLIPTIC Σ-row ORDER-1 RECURRENCE op for the Frenkel–"
                     "Turaev ₈ω₇ summation (S. Ole Warnaar, 'Summation and "
@@ -6313,7 +6313,7 @@ def _register_primitive_class_tools() -> None:
         # (the order-1 finder). 1:1 C peer srmech_elliptic_zeilberger.
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.elliptic_zeilberger.elliptic_zeilberger",
+            name="srmech.apokatastasis.elliptic_zeilberger.elliptic_zeilberger",
             owner="srmech", category="elliptic_zeilberger",
             summary="The ELLIPTIC Σ-row CREATIVE-TELESCOPING op for the Frenkel–"
                     "Turaev ₈ω₇ summation — the order-1 recurrence f(n+1)=ρ(n)·"
@@ -6378,7 +6378,7 @@ def _register_primitive_class_tools() -> None:
         # srmech_elliptic_wz_certificate (same certificate decision).
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.elliptic_wz_certificate.elliptic_wz_certificate",
+            name="srmech.apokatastasis.elliptic_wz_certificate.elliptic_wz_certificate",
             owner="srmech", category="elliptic_wz_certificate",
             summary="The ELLIPTIC Σ-row IDENTITY-PROOF op for the Frenkel–Turaev "
                     "₈ω₇ SUMMATION — proves Σ_{k=0}^n F(n,k)=cf(n) EXACTLY and "
@@ -6440,7 +6440,7 @@ def _register_primitive_class_tools() -> None:
         # peer srmech_elliptic_cauchy_determinant.
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.elliptic_determinant.elliptic_cauchy_determinant",
+            name="srmech.apokatastasis.elliptic_determinant.elliptic_cauchy_determinant",
             owner="srmech", category="elliptic_determinant",
             summary="The ELLIPTIC-DETERMINANT primitive — Frobenius's elliptic Cauchy "
                     "DETERMINANT evaluation, the exact closed form of "
@@ -6550,7 +6550,7 @@ def _register_primitive_class_tools() -> None:
         # srmech_multivariate_elliptic_jackson.
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.elliptic_jackson.multivariate_elliptic_jackson",
+            name="srmech.apokatastasis.elliptic_jackson.multivariate_elliptic_jackson",
             owner="srmech", category="elliptic_jackson",
             summary="The MULTIVARIABLE ELLIPTIC JACKSON summation — the eq-5 Cₙ REDUCER, "
                     "the CAPSTONE of the multivariable (root-system Cₙ) elliptic reduction "
@@ -6609,7 +6609,7 @@ def _register_primitive_class_tools() -> None:
         # srmech_cn_vwp_multisum_lhs (the rc95 multi-term wire form).
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.elliptic_jackson.cn_vwp_multisum_lhs",
+            name="srmech.apokatastasis.elliptic_jackson.cn_vwp_multisum_lhs",
             owner="srmech", category="elliptic_jackson",
             summary="The SYMBOLIC Cₙ VERY-WELL-POISED (VWP) elliptic multisum LHS "
                     "builder — the LEFT-hand side of the Cₙ elliptic Jackson summation "
@@ -6671,7 +6671,7 @@ def _register_primitive_class_tools() -> None:
         # srmech_multivariate_elliptic_jackson_an.
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.elliptic_jackson_an.multivariate_elliptic_jackson_an",
+            name="srmech.apokatastasis.elliptic_jackson_an.multivariate_elliptic_jackson_an",
             owner="srmech", category="elliptic_jackson_an",
             summary="The Aₙ (type-A) MULTIVARIABLE ELLIPTIC JACKSON summation reducer — "
                     "the elliptic analogue of Milne's Aₙ Jackson summation (Hjalmar "
@@ -6734,7 +6734,7 @@ def _register_primitive_class_tools() -> None:
         # peer srmech_an_vwp_multisum_lhs (the rc216 multi-term wire form).
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.elliptic_jackson_an.an_vwp_multisum_lhs",
+            name="srmech.apokatastasis.elliptic_jackson_an.an_vwp_multisum_lhs",
             owner="srmech", category="elliptic_jackson_an",
             summary="The SYMBOLIC Aₙ elliptic multisum LHS builder — the LEFT-hand "
                     "side of the Aₙ (type-A / Milne) elliptic Jackson summation "
@@ -6791,7 +6791,7 @@ def _register_primitive_class_tools() -> None:
         # (the rc216/rc227 precedent). 1:1 C peer srmech_riemann_theta_multisum.
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.riemann_theta_multisum.multivariate_riemann_theta_sum",
+            name="srmech.apokatastasis.riemann_theta_multisum.multivariate_riemann_theta_sum",
             owner="srmech", category="riemann_theta_multisum",
             summary="The HIGHER-GENUS (genus-g Riemann theta) THETA MULTISUM reducer "
                     "— the genus-axis lift of the elliptic (genus-1) Aₙ/Cₙ Jackson "
@@ -6846,7 +6846,7 @@ def _register_primitive_class_tools() -> None:
         # IS the per-call proof. 1:1 C peer srmech_riemann_theta_multisum.
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.riemann_theta_multisum.riemann_theta_multisum_lhs",
+            name="srmech.apokatastasis.riemann_theta_multisum.riemann_theta_multisum_lhs",
             owner="srmech", category="riemann_theta_multisum",
             summary="The SYMBOLIC higher-genus theta-multisum LHS builder — the "
                     "LEFT-hand side of Spiridonov's multiparameter summation formula "
@@ -6992,14 +6992,14 @@ def _register_primitive_class_tools() -> None:
                       "for inspect / solve_key_equation)}"),
         ),
         # ────────────────────────────────────────────────────────────
-        # rc70: the FIRST WEIGHT-GRADED carrier (srmech.amsc.unary_theta). The
+        # rc70: the FIRST WEIGHT-GRADED carrier (srmech.apokatastasis.unary_theta). The
         # operand ladder (Q / Poly / QPoly / EllRatio / ThetaSum) was entirely
         # WEIGHT-0; unary_theta augments it with a WEIGHT axis (= 1/2 + poly-
         # degree j), making the harmonic-Maass / mock-theta SHADOW representable
         # in-carrier (research item #9). 1:1 C peer srmech_unary_theta.
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.unary_theta.unary_theta",
+            name="srmech.apokatastasis.unary_theta.unary_theta",
             owner="srmech", category="unary_theta",
             summary="Construct a UNARY THETA SERIES g(τ) = Σ_{n∈support} χ(n)·"
                     "n^j·q^{(a·n²+b·n)/D} — the FIRST WEIGHT-GRADED operand "
@@ -7053,7 +7053,7 @@ def _register_primitive_class_tools() -> None:
         # routes to it) — no new C symbol; the mirror already ships.
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.unary_theta.theta_coefficients",
+            name="srmech.apokatastasis.unary_theta.theta_coefficients",
             owner="srmech", category="unary_theta",
             summary="READ a UnaryTheta's exact integer q-expansion — the FIRST "
                     "registered CONSUMER of the UnaryTheta carrier (#1239 / "
@@ -7092,7 +7092,7 @@ def _register_primitive_class_tools() -> None:
         ),
         # ────────────────────────────────────────────────────────────
         # rc71: the HARMONIC (weak) MAASS form PAIR carrier
-        # (srmech.amsc.harmonic_maass). A harmonic Maass form f of weight k is
+        # (srmech.apokatastasis.harmonic_maass). A harmonic Maass form f of weight k is
         # determined by the pair (f⁺ holomorphic mock part, g = ξ_k(f) shadow);
         # the non-holomorphic completion f⁻ is the Eichler integral of the shadow,
         # recoverable not stored (Bruinier–Funke Prop. 3.2). Closes research item
@@ -7101,7 +7101,7 @@ def _register_primitive_class_tools() -> None:
         # srmech_harmonic_maass (the holomorphic Eulerian f(q) q-series).
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.harmonic_maass.harmonic_maass",
+            name="srmech.apokatastasis.harmonic_maass.harmonic_maass",
             owner="srmech", category="harmonic_maass",
             summary="Construct a HARMONIC (weak) MAASS form as the FINITE EXACT "
                     "PAIR (hol holomorphic mock part, shadow g = ξ_k(f)) it is "

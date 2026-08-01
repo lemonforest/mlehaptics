@@ -34,7 +34,7 @@ import tokenize
 
 import pytest
 
-from srmech.amsc.riemann_theta import (RiemannTheta, RiemannThetaG3,
+from srmech.apokatastasis.riemann_theta import (RiemannTheta, RiemannThetaG3,
                                        _accumulate_phase_lattice, _cyclotomic_ring,
                                        _theta_at_validate)
 from srmech.amsc import _native
@@ -263,7 +263,7 @@ def test_theta_at_source_is_numpy_math_abs_float_free():
     ``abs()`` call, no ``float(`` in the carrier (the (−1)^{ε·n} sign is the Class-K
     pin-slot; the phase is an exact Class-I cyclic exponent over the cyclotomic ring)."""
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    src = os.path.join(here, "srmech", "amsc", "riemann_theta.py")
+    src = os.path.join(here, "srmech", "apokatastasis", "riemann_theta.py")
     with tokenize.open(src) as fh:
         text = fh.read()
     assert "import numpy" not in text

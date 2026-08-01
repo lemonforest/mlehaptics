@@ -1,8 +1,8 @@
-"""srmech.amsc.q_gosper — the q-analog of Gosper's indefinite hypergeometric
+"""srmech.apokatastasis.q_gosper — the q-analog of Gosper's indefinite hypergeometric
 summation (the FIRST public op of the q-hypergeometric F929 reduction row, the
 q-analog of the §76 ``gosper``).
 
-Where :func:`srmech.amsc.gosper.gosper` decides whether an ordinary hypergeometric
+Where :func:`srmech.apokatastasis.gosper.gosper` decides whether an ordinary hypergeometric
 term ``t(k)`` has a hypergeometric antidifference ``T(k)`` (``T(k+1) − T(k) =
 t(k)``, ``T(k+1)/T(k)`` rational in ``k``), the **q-Gosper** algorithm
 (T.H. Koornwinder, "On Zeilberger's algorithm and its q-analogue," J. Comput.
@@ -67,9 +67,9 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional, Tuple
 
-from .poly import Poly
-from .q import Q
-from .qpoly import QPoly
+from ..amsc.poly import Poly
+from ..amsc.q import Q
+from ..amsc.qpoly import QPoly
 
 __all__ = ["q_gosper"]
 
@@ -528,7 +528,7 @@ def _native():
     falls cleanly to the pure-Python body (the complete alternative + the parity
     oracle) otherwise. Imported lazily to avoid a bootstrap cycle."""
     try:
-        from . import _native as nat
+        from ..amsc import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_q_gosper", None)
@@ -644,7 +644,7 @@ def _canonicalize_cert(num_qp: QPoly, den_qp: QPoly) -> Dict[str, QPoly]:
     integer coefficients), and pin the sign so the LOWEST nonzero ``den`` coefficient
     is positive (the Class-K sign pin — never an ALU ``abs()``). Multiplying num and
     den by the same rational is a unit on ``R``, so the rational is unchanged."""
-    from . import cyclic
+    from ..amsc import cyclic
     pairs: List[Tuple[int, int]] = []
     for qp in (num_qp, den_qp):
         for cell in qp.cells:
@@ -722,7 +722,7 @@ def _qg_pairs(p: QPoly) -> "Tuple[int, List[List[Tuple[int, int]]]]":
     """A :class:`~srmech.amsc.qpoly.QPoly` → the ``(x_low, [[(num, den), …]_q]_x)``
     bridge form the C peer consumes — the SAME form
     :func:`srmech.amsc.qpoly._qp_pairs` emits."""
-    from .qpoly import _qp_pairs
+    from ..amsc.qpoly import _qp_pairs
     return _qp_pairs(p)
 
 
@@ -730,5 +730,5 @@ def _qg_from_pairs(form) -> QPoly:
     """Rebuild a :class:`~srmech.amsc.qpoly.QPoly` from the ``(x_low, [[(num, den),
     …]_q]_x)`` bridge form (from the C peer; each leaf already reduced) — the SAME
     form :func:`srmech.amsc.qpoly._qp_from_pairs` consumes."""
-    from .qpoly import _qp_from_pairs
+    from ..amsc.qpoly import _qp_from_pairs
     return _qp_from_pairs(form)

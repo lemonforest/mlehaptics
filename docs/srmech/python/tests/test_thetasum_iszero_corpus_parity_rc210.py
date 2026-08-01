@@ -27,9 +27,9 @@ import os
 import pytest
 
 from srmech.amsc import ThetaSum
-from srmech.amsc.ellbase import EllMonomial, Theta
+from srmech.apokatastasis.ellbase import EllMonomial, Theta
 from srmech.amsc.q import Q
-from srmech.amsc.thetasum import _NONZERO, _ZERO, _decide_thetasum
+from srmech.apokatastasis.thetasum import _NONZERO, _ZERO, _decide_thetasum
 from srmech.amsc import _native
 
 _NDJ = os.path.join(os.path.dirname(__file__), "data",

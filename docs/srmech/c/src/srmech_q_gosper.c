@@ -1,7 +1,7 @@
 /*
  * srmech_q_gosper.c -- the q-analog of Gosper's indefinite hypergeometric
  * summation (the FIRST public op of the q-hypergeometric F929 reduction row). The
- * C peer of srmech.amsc.q_gosper.q_gosper.
+ * C peer of srmech.apokatastasis.q_gosper.q_gosper.
  *
  * Input: the q-hypergeometric TERM RATIO t(k+1)/t(k) = r(x) = num(x)/den(x) as two
  * Laurent polynomials in x = q^k over Q[q] (two QPoly), each in the bridge wire

@@ -44,7 +44,7 @@ from srmech.amsc.q import Q
 from srmech.amsc.poly import Poly
 from srmech.amsc.qpoly import QPoly
 from srmech.amsc.qbipoly import QBiPoly, _qb_pairs
-from srmech.amsc.q_wz_certificate import (
+from srmech.apokatastasis.q_wz_certificate import (
     q_wz_certificate, _verify_q_wz_equation_pure)
 
 
@@ -298,6 +298,6 @@ def test_no_numpy_no_math_imported():
     names neither."""
     import sys
     assert "numpy" not in sys.modules or sys.modules["numpy"] is None
-    import srmech.amsc.q_wz_certificate as QWZ
+    import srmech.apokatastasis.q_wz_certificate as QWZ
     text = open(QWZ.__file__, encoding="utf-8").read()
     assert "import numpy" not in text and "import math" not in text

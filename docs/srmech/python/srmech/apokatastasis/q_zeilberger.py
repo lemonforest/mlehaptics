@@ -1,12 +1,12 @@
-"""srmech.amsc.q_zeilberger — the q-analog of Zeilberger's creative telescoping (the
+"""srmech.apokatastasis.q_zeilberger — the q-analog of Zeilberger's creative telescoping (the
 SECOND public op of the q-hypergeometric F929 reduction row, the q-analog of the §76
 ``zeilberger``).
 
-Where :func:`srmech.amsc.q_gosper.q_gosper` decides INDEFINITE q-summation of a
+Where :func:`srmech.apokatastasis.q_gosper.q_gosper` decides INDEFINITE q-summation of a
 single q-hypergeometric term in ``k`` (its term ratio a rational function of ``x =
 q**k``), the **q-Zeilberger** algorithm (T.H. Koornwinder, "On Zeilberger's algorithm
 and its q-analogue," J. Comput. Appl. Math. 48 (1993) 91–111 — the same paper the
-:class:`~srmech.amsc.qpoly.QPoly` carrier and :func:`~srmech.amsc.q_gosper.q_gosper`
+:class:`~srmech.amsc.qpoly.QPoly` carrier and :func:`~srmech.apokatastasis.q_gosper.q_gosper`
 cite; textbook anchor Gasper & Rahman, *Basic Hypergeometric Series*) handles a
 DEFINITE q-sum ``f(n) = Σ_k F(n,k)`` of a *proper q-hypergeometric term* ``F(n,k)``
 and produces the **linear q-recurrence with ℚ[q**n] coefficients**
@@ -43,7 +43,7 @@ Zeilberger's), for ``L = 0, 1, 2, …, max_order``:
      telescoping with the ``a_j(X)`` carried as additional unknowns makes the
      q-Gosper equation LINEAR in ``{a_j(X) coeffs} ∪ {certificate-poly coeffs}`` —
      one exact-``ℚ(q)`` linear system (solved with the SAME exact Gauss-Jordan over
-     the field ``ℚ(q)`` the rc55 q-Gosper carries: :func:`srmech.amsc.q_gosper.
+     the field ``ℚ(q)`` the rc55 q-Gosper carries: :func:`srmech.apokatastasis.q_gosper.
      _rref_cq`, the ``_Cq`` rational-function-in-``q`` field layer).
   3. The first ``L`` with a nonzero solution gives the recurrence coefficients
      ``a_j(X)`` and the rational certificate ``R(X,Y) = x(X,Y)/D_P(X,Y)`` (the
@@ -77,10 +77,10 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional, Tuple
 
-from .poly import Poly
-from .q import Q
-from .qpoly import QPoly
-from .qbipoly import QBiPoly
+from ..amsc.poly import Poly
+from ..amsc.q import Q
+from ..amsc.qpoly import QPoly
+from ..amsc.qbipoly import QBiPoly
 # Reuse the rc55 q-Gosper engine's exact-ℚ(q) field layer (the ``_Cq`` rational-
 # function-in-q field) — the parametrization payoff: q-Zeilberger does NOT re-derive
 # the ℚ(q) coefficient arithmetic the q-Gosper undetermined-coefficient solve runs on.
@@ -100,7 +100,7 @@ def _native():
     available and falls cleanly to the pure-Python body (the complete alternative +
     the parity oracle) otherwise. Imported lazily to avoid a bootstrap cycle."""
     try:
-        from . import _native as nat
+        from ..amsc import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_q_zeilberger", None)
@@ -628,7 +628,7 @@ def _qb_pairs(b: QBiPoly):
     """A :class:`~srmech.amsc.qbipoly.QBiPoly` → the ``(y_xlow[], rows)`` bridge form
     the C peer consumes (the SAME per-Y-cell QPoly row form
     :func:`srmech.amsc.qbipoly._qb_pairs` emits)."""
-    from .qbipoly import _qb_pairs as _f
+    from ..amsc.qbipoly import _qb_pairs as _f
     return _f(b)
 
 
@@ -636,7 +636,7 @@ def _qb_from_pairs(form) -> QBiPoly:
     """Rebuild a :class:`~srmech.amsc.qbipoly.QBiPoly` from the ``(y_xlow[], rows)``
     bridge form (from the C peer; each leaf already reduced)."""
     y_xlow, rows = form
-    from .qpoly import _qp_from_pairs
+    from ..amsc.qpoly import _qp_from_pairs
     cells = [_qp_from_pairs((lo, run)) for lo, run in zip(y_xlow, rows)]
     return QBiPoly(cells)
 
@@ -644,5 +644,5 @@ def _qb_from_pairs(form) -> QBiPoly:
 def _qg_from_pairs(form) -> QPoly:
     """Rebuild a :class:`~srmech.amsc.qpoly.QPoly` (an ``a_j(X)`` recurrence
     coefficient) from the ``(x_low, rows)`` bridge form (from the C peer)."""
-    from .qpoly import _qp_from_pairs
+    from ..amsc.qpoly import _qp_from_pairs
     return _qp_from_pairs(form)

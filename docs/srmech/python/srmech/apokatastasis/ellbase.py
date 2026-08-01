@@ -1,4 +1,4 @@
-"""srmech.amsc.ellbase — the EXACT theta-factor FOUNDATION (``EllMonomial`` +
+"""srmech.apokatastasis.ellbase — the EXACT theta-factor FOUNDATION (``EllMonomial`` +
 ``Theta``) of the ELLIPTIC F929 reduction row, the top of the base-axis
 degeneration tower ``elliptic → q → ordinary``.
 
@@ -58,7 +58,7 @@ from __future__ import annotations
 
 from typing import Dict, Iterable, List, Mapping, Tuple
 
-from .q import Q
+from ..amsc.q import Q
 
 __all__ = ["EllMonomial", "Theta", "EllRatio", "elliptic_lagrange_basis",
            "half_shift_response", "chirality_parity", "beat_relation_residue"]
@@ -529,7 +529,7 @@ class EllRatio:
         theta-quotient (equal numerator/denominator theta count — the
         very-well-poised / elliptic case :meth:`is_elliptic` gates on) is a genuine
         elliptic function on ``ℂ*/⟨p⟩``, hence **weight 0** (the ladder before
-        :class:`srmech.amsc.unary_theta.UnaryTheta` is entirely weight-0). The
+        :class:`srmech.apokatastasis.unary_theta.UnaryTheta` is entirely weight-0). The
         weight axis is the new grade the unary-theta carrier introduces: ``θ(z;p)``
         carries weight ``1/2`` per factor, so a ratio with ``#num − #den`` net theta
         factors has weight ``(#num − #den)/2``; a balanced ratio is weight 0.
@@ -642,7 +642,7 @@ class EllRatio:
         over an interned symbol table (the distinct symbols across the prefactor + every
         theta argument, sorted by NAME so the C dense exponent vector reproduces the
         :meth:`EllMonomial._sort_key` tuple order)."""
-        from . import _native as _nat
+        from ..amsc import _native as _nat
         if not _nat.has_native_ellratio():
             return None
         if self.is_zero:
@@ -866,7 +866,7 @@ def _elliptic_lagrange_basis_c(points: "List[EllMonomial]",
     ``varsym`` and the :meth:`Theta.canonicalize` quasi-periodicity rewrite reads/writes
     ``p`` off ``psym`` — without those slots the C would silently mis-build (mirrors the
     same forcing in :meth:`EllRatio._is_elliptic_c`)."""
-    from . import _native as _nat
+    from ..amsc import _native as _nat
     if not _nat.has_native_elliptic_lagrange_basis():
         return None
     pts = list(points)
@@ -946,7 +946,7 @@ def _half_shift_response_c(ratio: EllRatio, a: str, var: str) -> "EllMonomial | 
     symbols are absent (the caller falls to :func:`_half_shift_response_py`). The
     interned symbol universe MUST include ``var`` AND ``p`` (the shift + the theta-canon
     read/write those slots — mirrors :meth:`EllRatio._is_elliptic_c`)."""
-    from . import _native as _nat
+    from ..amsc import _native as _nat
     if not _nat.has_native_ellratio_half_shift():
         return None
     syms = {var, _P}

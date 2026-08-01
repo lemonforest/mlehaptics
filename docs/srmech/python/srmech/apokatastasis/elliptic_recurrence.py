@@ -1,18 +1,18 @@
-"""srmech.amsc.elliptic_recurrence — the ELLIPTIC Σ-row ORDER-1 RECURRENCE op for the
+"""srmech.apokatastasis.elliptic_recurrence — the ELLIPTIC Σ-row ORDER-1 RECURRENCE op for the
 Frenkel–Turaev ₈ω₇ summation, a STRUCTURAL (beat-decomposition) finder that builds the
 order-1 recurrence coefficient ``ρ(n)`` from the elementary symmetric functions of the
 free parameters — NOT a coefficient nullspace solve (which is provably dead for the
 elliptic case; the anti-brute-force discipline).
 
-This is the recurrence-finder rung that sits between :func:`~srmech.amsc.elliptic_gosper.
+This is the recurrence-finder rung that sits between :func:`~srmech.apokatastasis.elliptic_gosper.
 elliptic_gosper` (the indefinite-summation antidifference, rc65) and a future
 elliptic-WZ proof op, specialised to the very-well-poised ₈ω₇ keystone. Where
-:func:`~srmech.amsc.zeilberger.zeilberger` / :func:`~srmech.amsc.q_zeilberger.q_zeilberger`
+:func:`~srmech.apokatastasis.zeilberger.zeilberger` / :func:`~srmech.apokatastasis.q_zeilberger.q_zeilberger`
 find the recurrence ``f(n+1) = ρ(n)·f(n)`` for an ordinary / q-hypergeometric DEFINITE
 sum by creative telescoping over a polynomial / Laurent carrier, the elliptic
 ₈ω₇ recurrence is read off STRUCTURALLY from the term-ratio's very-well-poised shape:
 
-    f(n) = the ₈ω₇ sum  ⟹  f(n+1)/f(n) = ρ(n),   an :class:`~srmech.amsc.ellbase.EllRatio`
+    f(n) = the ₈ω₇ sum  ⟹  f(n+1)/f(n) = ρ(n),   an :class:`~srmech.apokatastasis.ellbase.EllRatio`
     in ``y = qⁿ`` (the recurrence axis), the order-1 recurrence ``[a0, a1] = [-ρ, 1]``.
 
 The Frenkel–Turaev ₈ω₇ summation (Warnaar, *Constr. Approx.* 18 (2002) 479–502,
@@ -49,10 +49,10 @@ hypergeometric series," *Constructive Approximation* 18 (2002), no. 4, 479–502
 product form above; the very-well-poised balancing condition ``bcde = a²q^{n+1}`` is the
 ₈ω₇ structure this op recognizes. (The summand's very-well-poised core
 ``θ(aq²ˣ)θ(aqˣ)/[θ(aq²ˣ⁻¹)θ(q)]`` and the theta-Pochhammer carrier are
-:mod:`srmech.amsc.ellbase`.)
+:mod:`srmech.apokatastasis.ellbase`.)
 
 Exact over the modified-theta algebra (no float in the carrier; the verification GATE
-uses the carrier's own truncated-theta eval :meth:`~srmech.amsc.ellbase.EllRatio.
+uses the carrier's own truncated-theta eval :meth:`~srmech.apokatastasis.ellbase.EllRatio.
 eval_trunc`, an exact-ℚ truncated product — NOT a standalone numeric theta). Sign is the
 **Class-K** pin-slot via the ``Q`` / ``EllMonomial`` sign-branch (the ``|e| == 2``
 very-well-poised detection is a ``e == 2 or e == -2`` Class-K branch, never an ALU
@@ -76,7 +76,7 @@ from __future__ import annotations
 from typing import Dict, List, Optional, Tuple
 
 from .ellbase import EllMonomial, EllRatio, Theta, _Q_SYM, _X
-from .q import Q
+from ..amsc.q import Q
 from .thetasum import _Y
 
 __all__ = ["elliptic_recurrence_8w7"]
@@ -104,7 +104,7 @@ _GATE_TOL_DEN = 1_000_000_000          # 1e-9 as an exact ℚ (no float threshol
 
 
 def _coerce_ratio(value) -> EllRatio:
-    """Coerce the ₈ω₇ term-ratio operand to an :class:`~srmech.amsc.ellbase.EllRatio`.
+    """Coerce the ₈ω₇ term-ratio operand to an :class:`~srmech.apokatastasis.ellbase.EllRatio`.
     An ``EllRatio`` passes through; an ``EllMonomial`` / ``Theta`` the carrier lifts is
     lifted (though a genuine ₈ω₇ ratio always arrives as a full theta-quotient)."""
     if isinstance(value, EllRatio):
@@ -236,7 +236,7 @@ def _verifies_recurrence(rho: EllRatio) -> bool:
     """The VERIFICATION GATE: ``ρ(n)`` (evaluated at ``y = qⁿ`` via the carrier's truncated
     theta) equals the actual ₈ω₇ sum's ``f(n+1)/f(n)`` (the closed product form) to
     ``< 1e-9`` for every ``n`` in :data:`_GATE_N`. The gate uses the carrier's OWN exact-ℚ
-    theta eval (:meth:`~srmech.amsc.ellbase.EllRatio.eval_trunc`), never a standalone
+    theta eval (:meth:`~srmech.apokatastasis.ellbase.EllRatio.eval_trunc`), never a standalone
     numeric theta. A ρ that fails the gate is NOT trusted (the no-hallucination standard:
     the construction is only accepted as the recurrence after it is verified to BE the
     recurrence)."""
@@ -257,11 +257,11 @@ def _verifies_recurrence(rho: EllRatio) -> bool:
 
 
 def _ratio_to_form(r: EllRatio) -> Dict[str, object]:
-    """An :class:`~srmech.amsc.ellbase.EllRatio` → the bridge form the C peer consumes:
+    """An :class:`~srmech.apokatastasis.ellbase.EllRatio` → the bridge form the C peer consumes:
     the exact-``ℚ`` prefactor ``(coeff_num, coeff_den, [(sym, exp), …])`` plus the
     numerator / denominator theta-argument exponent maps (each the same triple). Pure
     integer exponents + exact-``ℚ`` coefficients — no float. (Same convention as
-    :func:`srmech.amsc.elliptic_gosper._ratio_to_form`.)"""
+    :func:`srmech.apokatastasis.elliptic_gosper._ratio_to_form`.)"""
     def _mono(m: EllMonomial):
         return (m.coeff.numerator, m.coeff.denominator, sorted(m.exps.items()))
 
@@ -273,7 +273,7 @@ def _ratio_to_form(r: EllRatio) -> Dict[str, object]:
 
 
 def _form_to_ratio(form) -> EllRatio:
-    """Rebuild an :class:`~srmech.amsc.ellbase.EllRatio` from the bridge form (from the C
+    """Rebuild an :class:`~srmech.apokatastasis.ellbase.EllRatio` from the bridge form (from the C
     peer)."""
     def _mono(triple) -> EllMonomial:
         cn, cd, exps = triple
@@ -311,7 +311,7 @@ def _native():
     cleanly to the pure-Python body (the complete alternative + the parity oracle).
     Imported lazily to avoid a bootstrap cycle."""
     try:
-        from . import _native as nat
+        from ..amsc import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_elliptic_recurrence_8w7", None)
@@ -326,7 +326,7 @@ def elliptic_recurrence_8w7(r) -> Optional[Dict[str, object]]:
     STRUCTURAL (beat-decomposition) finder.
 
     ``r`` is the ₈ω₇ summand's **term ratio** ``t(n+1)/t(n) = r(x)`` (``x = qⁿ``) — an
-    :class:`~srmech.amsc.ellbase.EllRatio`: the very-well-poised core
+    :class:`~srmech.apokatastasis.ellbase.EllRatio`: the very-well-poised core
     ``θ(aq²x²)θ(ax)/[θ(ax²)θ(qx)]`` over five Pochhammer pairs ``θ(ux)/θ(aqx/u)`` with the
     ₈ω₇ balancing ``bcde = a²q^{n+1}`` (an ``EllMonomial`` / ``Theta`` the carrier lifts is
     lifted). The op RECOGNIZES the ₈ω₇ structure, DECOMPOSES it into ``a`` plus the three

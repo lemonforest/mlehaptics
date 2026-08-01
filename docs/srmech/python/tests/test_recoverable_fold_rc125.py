@@ -8,7 +8,7 @@ read, exact WHEN the fold has capacity, honest-``unrecovered`` below the
 the exact complement (the generating decimation ``R``) — the field–excitation
 recoverability principle: a lossy projection is recoverable iff you attach the
 exact complement it dropped. The pair MIRRORS
-``srmech.amsc.harmonic_maass.HarmonicMaass(hol, shadow)`` (rc71):
+``srmech.apokatastasis.harmonic_maass.HarmonicMaass(hol, shadow)`` (rc71):
 ``lossy_bundle ↔ hol``, ``exact_seed_R ↔ shadow`` — "storing R IS storing the
 recovery" (as "storing the shadow IS storing the completion").
 

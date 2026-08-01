@@ -1,9 +1,9 @@
-"""srmech.amsc.unary_theta — ``UnaryTheta``, the first WEIGHT-GRADED carrier.
+"""srmech.apokatastasis.unary_theta — ``UnaryTheta``, the first WEIGHT-GRADED carrier.
 
 The operand ladder so far — :class:`~srmech.amsc.q.Q` (an exact scalar),
 :class:`~srmech.amsc.poly.Poly` (an ordinary polynomial), the q-level
 :class:`~srmech.amsc.qpoly.QPoly`, the elliptic
-:class:`~srmech.amsc.ellbase.EllRatio` / :class:`~srmech.amsc.thetasum.ThetaSum`
+:class:`~srmech.apokatastasis.ellbase.EllRatio` / :class:`~srmech.apokatastasis.thetasum.ThetaSum`
 — is entirely **weight-0**: every carrier holds a modular OBJECT of weight 0
 (a rational function, a balanced theta-quotient). That is a real ceiling. The
 harmonic-Maass / mock-theta program (research item #9) needs weight-graded
@@ -69,7 +69,7 @@ from __future__ import annotations
 
 from typing import Callable, Dict, List, Sequence, Tuple, Union
 
-from .q import Q
+from ..amsc.q import Q
 
 __all__ = ["Character", "UnaryTheta", "theta_coefficients", "unary_theta"]
 
@@ -284,7 +284,7 @@ def _native():
     falls cleanly to the pure-Python body (the complete alternative + the parity
     oracle). Imported lazily to avoid a bootstrap cycle."""
     try:
-        from . import _native as nat
+        from ..amsc import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_unary_theta", None)

@@ -336,16 +336,16 @@
 {"exposed_as": "srmech.amsc.coupling.fold_spectrum", "defined_at": "srmech.amsc.coupling.fold_spectrum", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.coupling.fold_encode_recoverable", "defined_at": "srmech.amsc.coupling.fold_encode_recoverable", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.coupling.fold_identity", "defined_at": "srmech.amsc.coupling.fold_identity", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.gosper.gosper", "defined_at": "srmech.amsc.gosper.gosper", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.zeilberger.zeilberger", "defined_at": "srmech.amsc.zeilberger.zeilberger", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.wz_certificate.wz_certificate", "defined_at": "srmech.amsc.wz_certificate.wz_certificate", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.apagodu_zeilberger.apagodu_zeilberger", "defined_at": "srmech.amsc.apagodu_zeilberger.apagodu_zeilberger", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.apokatastasis.gosper.gosper", "defined_at": "srmech.apokatastasis.gosper.gosper", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.apokatastasis.zeilberger.zeilberger", "defined_at": "srmech.apokatastasis.zeilberger.zeilberger", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.apokatastasis.wz_certificate.wz_certificate", "defined_at": "srmech.apokatastasis.wz_certificate.wz_certificate", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.apokatastasis.apagodu_zeilberger.apagodu_zeilberger", "defined_at": "srmech.apokatastasis.apagodu_zeilberger.apagodu_zeilberger", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.poly.poly_from_coeffs", "defined_at": "srmech.amsc.poly.poly_from_coeffs", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.qpoly.qpoly_from_coeffs", "defined_at": "srmech.amsc.qpoly.qpoly_from_coeffs", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.qbipoly.qbipoly_from_coeffs", "defined_at": "srmech.amsc.qbipoly.qbipoly_from_coeffs", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.q_gosper.q_gosper", "defined_at": "srmech.amsc.q_gosper.q_gosper", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.q_zeilberger.q_zeilberger", "defined_at": "srmech.amsc.q_zeilberger.q_zeilberger", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.q_wz_certificate.q_wz_certificate", "defined_at": "srmech.amsc.q_wz_certificate.q_wz_certificate", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.apokatastasis.q_gosper.q_gosper", "defined_at": "srmech.apokatastasis.q_gosper.q_gosper", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.apokatastasis.q_zeilberger.q_zeilberger", "defined_at": "srmech.apokatastasis.q_zeilberger.q_zeilberger", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.apokatastasis.q_wz_certificate.q_wz_certificate", "defined_at": "srmech.apokatastasis.q_wz_certificate.q_wz_certificate", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.dispatch.infer", "defined_at": "srmech.amsc.dispatch.infer", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.music.harmonics.classify_chirality_harmonic", "defined_at": "srmech.music.harmonics.classify_chirality_harmonic", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.hdc.bundle_with_ties", "defined_at": "srmech.amsc.hdc.bundle_with_ties", "bucket": "c_dispatched"}
@@ -533,33 +533,33 @@
 {"exposed_as": "srmech.amsc.modular_linalg.gf_nullspace", "defined_at": "srmech.amsc.modular_linalg.gf_nullspace", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.modular_linalg.crt_combine", "defined_at": "srmech.amsc.modular_linalg.crt_combine", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.rational.rational_reconstruct", "defined_at": "srmech.amsc.rational.rational_reconstruct", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.elliptic_gosper.elliptic_gosper", "defined_at": "srmech.amsc.elliptic_gosper.elliptic_gosper", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.ellbase.elliptic_lagrange_basis", "defined_at": "srmech.amsc.ellbase.elliptic_lagrange_basis", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.ellbase.half_shift_response", "defined_at": "srmech.amsc.ellbase.half_shift_response", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.ellbase.chirality_parity", "defined_at": "srmech.amsc.ellbase.chirality_parity", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.ellbase.beat_relation_residue", "defined_at": "srmech.amsc.ellbase.beat_relation_residue", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.elliptic_recurrence.elliptic_recurrence_8w7", "defined_at": "srmech.amsc.elliptic_recurrence.elliptic_recurrence_8w7", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.apokatastasis.elliptic_gosper.elliptic_gosper", "defined_at": "srmech.apokatastasis.elliptic_gosper.elliptic_gosper", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.apokatastasis.ellbase.elliptic_lagrange_basis", "defined_at": "srmech.apokatastasis.ellbase.elliptic_lagrange_basis", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.apokatastasis.ellbase.half_shift_response", "defined_at": "srmech.apokatastasis.ellbase.half_shift_response", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.apokatastasis.ellbase.chirality_parity", "defined_at": "srmech.apokatastasis.ellbase.chirality_parity", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.apokatastasis.ellbase.beat_relation_residue", "defined_at": "srmech.apokatastasis.ellbase.beat_relation_residue", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.apokatastasis.elliptic_recurrence.elliptic_recurrence_8w7", "defined_at": "srmech.apokatastasis.elliptic_recurrence.elliptic_recurrence_8w7", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.carrier_spectrum.carrier_spectrum", "defined_at": "srmech.amsc.carrier_spectrum.carrier_spectrum", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.unary_theta.unary_theta", "defined_at": "srmech.amsc.unary_theta.unary_theta", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.unary_theta.theta_coefficients", "defined_at": "srmech.amsc.unary_theta.theta_coefficients", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.harmonic_maass.harmonic_maass", "defined_at": "srmech.amsc.harmonic_maass.harmonic_maass", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.eta_quotient.eta_quotient", "defined_at": "srmech.amsc.eta_quotient.eta_quotient", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.eisenstein.eisenstein", "defined_at": "srmech.amsc.eisenstein.eisenstein", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.modular_forms_ring.modular_forms_ring", "defined_at": "srmech.amsc.modular_forms_ring.modular_forms_ring", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.modular_forms_ring.modular_forms_ring_represent", "defined_at": "srmech.amsc.modular_forms_ring.modular_forms_ring_represent", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.quasimodular_forms_ring.quasimodular_forms_ring", "defined_at": "srmech.amsc.quasimodular_forms_ring.quasimodular_forms_ring", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.quasimodular_forms_ring.quasimodular_represent", "defined_at": "srmech.amsc.quasimodular_forms_ring.quasimodular_represent", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.quasimodular_forms_ring.eisenstein_e2", "defined_at": "srmech.amsc.quasimodular_forms_ring.eisenstein_e2", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.elliptic_zeilberger.elliptic_zeilberger", "defined_at": "srmech.amsc.elliptic_zeilberger.elliptic_zeilberger", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.elliptic_wz_certificate.elliptic_wz_certificate", "defined_at": "srmech.amsc.elliptic_wz_certificate.elliptic_wz_certificate", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.elliptic_determinant.elliptic_cauchy_determinant", "defined_at": "srmech.amsc.elliptic_determinant.elliptic_cauchy_determinant", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.apokatastasis.unary_theta.unary_theta", "defined_at": "srmech.apokatastasis.unary_theta.unary_theta", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.apokatastasis.unary_theta.theta_coefficients", "defined_at": "srmech.apokatastasis.unary_theta.theta_coefficients", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.apokatastasis.harmonic_maass.harmonic_maass", "defined_at": "srmech.apokatastasis.harmonic_maass.harmonic_maass", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.apokatastasis.eta_quotient.eta_quotient", "defined_at": "srmech.apokatastasis.eta_quotient.eta_quotient", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.apokatastasis.eisenstein.eisenstein", "defined_at": "srmech.apokatastasis.eisenstein.eisenstein", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.apokatastasis.modular_forms_ring.modular_forms_ring", "defined_at": "srmech.apokatastasis.modular_forms_ring.modular_forms_ring", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.apokatastasis.modular_forms_ring.modular_forms_ring_represent", "defined_at": "srmech.apokatastasis.modular_forms_ring.modular_forms_ring_represent", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.apokatastasis.quasimodular_forms_ring.quasimodular_forms_ring", "defined_at": "srmech.apokatastasis.quasimodular_forms_ring.quasimodular_forms_ring", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.apokatastasis.quasimodular_forms_ring.quasimodular_represent", "defined_at": "srmech.apokatastasis.quasimodular_forms_ring.quasimodular_represent", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.apokatastasis.quasimodular_forms_ring.eisenstein_e2", "defined_at": "srmech.apokatastasis.quasimodular_forms_ring.eisenstein_e2", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.apokatastasis.elliptic_zeilberger.elliptic_zeilberger", "defined_at": "srmech.apokatastasis.elliptic_zeilberger.elliptic_zeilberger", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.apokatastasis.elliptic_wz_certificate.elliptic_wz_certificate", "defined_at": "srmech.apokatastasis.elliptic_wz_certificate.elliptic_wz_certificate", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.apokatastasis.elliptic_determinant.elliptic_cauchy_determinant", "defined_at": "srmech.apokatastasis.elliptic_determinant.elliptic_cauchy_determinant", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.apokatastasis.elliptic_partial_fraction.elliptic_partial_fraction", "defined_at": "srmech.apokatastasis.elliptic_partial_fraction.elliptic_partial_fraction", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.elliptic_jackson.multivariate_elliptic_jackson", "defined_at": "srmech.amsc.elliptic_jackson.multivariate_elliptic_jackson", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.elliptic_jackson.cn_vwp_multisum_lhs", "defined_at": "srmech.amsc.elliptic_jackson.cn_vwp_multisum_lhs", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.elliptic_jackson_an.multivariate_elliptic_jackson_an", "defined_at": "srmech.amsc.elliptic_jackson_an.multivariate_elliptic_jackson_an", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.elliptic_jackson_an.an_vwp_multisum_lhs", "defined_at": "srmech.amsc.elliptic_jackson_an.an_vwp_multisum_lhs", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.riemann_theta_multisum.multivariate_riemann_theta_sum", "defined_at": "srmech.amsc.riemann_theta_multisum.multivariate_riemann_theta_sum", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.riemann_theta_multisum.riemann_theta_multisum_lhs", "defined_at": "srmech.amsc.riemann_theta_multisum.riemann_theta_multisum_lhs", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.apokatastasis.elliptic_jackson.multivariate_elliptic_jackson", "defined_at": "srmech.apokatastasis.elliptic_jackson.multivariate_elliptic_jackson", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.apokatastasis.elliptic_jackson.cn_vwp_multisum_lhs", "defined_at": "srmech.apokatastasis.elliptic_jackson.cn_vwp_multisum_lhs", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.apokatastasis.elliptic_jackson_an.multivariate_elliptic_jackson_an", "defined_at": "srmech.apokatastasis.elliptic_jackson_an.multivariate_elliptic_jackson_an", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.apokatastasis.elliptic_jackson_an.an_vwp_multisum_lhs", "defined_at": "srmech.apokatastasis.elliptic_jackson_an.an_vwp_multisum_lhs", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.apokatastasis.riemann_theta_multisum.multivariate_riemann_theta_sum", "defined_at": "srmech.apokatastasis.riemann_theta_multisum.multivariate_riemann_theta_sum", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.apokatastasis.riemann_theta_multisum.riemann_theta_multisum_lhs", "defined_at": "srmech.apokatastasis.riemann_theta_multisum.riemann_theta_multisum_lhs", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.heat_trace", "defined_at": "srmech.amsc.laplacian.heat_trace", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.ground_state_flux_response", "defined_at": "srmech.amsc.laplacian.ground_state_flux_response", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.propagate", "defined_at": "srmech.amsc.laplacian.propagate", "bucket": "c_dispatched"}
@@ -589,7 +589,7 @@
 {"exposed_as": "srmech.qm.quaternion.quaternion_exp_series_truncate", "defined_at": "srmech.qm.quaternion.quaternion_exp_series_truncate", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.quaternion.quaternion_twiddle", "defined_at": "srmech.qm.quaternion.quaternion_twiddle", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.qm.quaternion.quaternion_cycle_holonomy", "defined_at": "srmech.qm.quaternion.quaternion_cycle_holonomy", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.zeilberger.bipoly_from_coeffs", "defined_at": "srmech.amsc.zeilberger.bipoly_from_coeffs", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.apokatastasis.zeilberger.bipoly_from_coeffs", "defined_at": "srmech.apokatastasis.zeilberger.bipoly_from_coeffs", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.tripoly.tripoly_from_coeffs", "defined_at": "srmech.amsc.tripoly.tripoly_from_coeffs", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.carrier_ladder.poly_promote", "defined_at": "srmech.amsc.carrier_ladder.poly_promote", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.carrier_ladder.poly_project", "defined_at": "srmech.amsc.carrier_ladder.poly_project", "bucket": "non_compute", "non_compute_kind": "composes_c"}

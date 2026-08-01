@@ -317,7 +317,7 @@ def _try_sigma(rel: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     and is accepted only when it returns a (non-None) rational certificate.
     Returns the reduced dict, or ``None`` to fall through to OPEN."""
     if all(k in rel for k in _SIGMA_KEYS):
-        from . import wz_certificate as _wz  # lazy: avoids import cycle
+        from ..apokatastasis import wz_certificate as _wz  # lazy: avoids import cycle
         cert = _wz.wz_certificate(rel["rn_num"], rel["rn_den"],
                                   rel["rk_num"], rel["rk_den"])
         # VERIFY: trust ONLY the reducer's own verification flag (anti-
@@ -327,7 +327,7 @@ def _try_sigma(rel: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         return None  # not WZ-summable / not verified → honest OPEN
     # Indefinite hypergeometric summation (Gosper) — a single term-ratio.
     if all(k in rel for k in _SIGMA_GOSPER_KEYS):
-        from . import gosper as _g  # lazy
+        from ..apokatastasis import gosper as _g  # lazy
         r = _g.gosper(rel["term_ratio_num"], rel["term_ratio_den"])
         if r is not None:  # a (non-None) certificate IS the verification here
             return _reduced("sigma", "gosper", r)
@@ -342,7 +342,7 @@ def _try_sigma_multivar(rel: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     it to annihilate ``Σ_{j,k} F(n,j,k)`` via the exact-ℚ QMat solve — the same
     'a (non-None) certificate is the proof' contract as gosper/zeilberger).
     Returns the reduced dict, or ``None`` to fall through to OPEN."""
-    from . import apagodu_zeilberger as _az  # lazy: avoids import cycle
+    from ..apokatastasis import apagodu_zeilberger as _az  # lazy: avoids import cycle
     rec = _az.apagodu_zeilberger(rel["rn_num"], rel["rn_den"],
                                  rel["rj_num"], rel["rj_den"],
                                  rel["rk_num"], rel["rk_den"])
@@ -359,14 +359,14 @@ def _try_sigma_q(rel: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     ``q_gosper`` (accepted iff it returns a rational q-antidifference cert).
     Returns the reduced dict, or ``None`` to fall through to OPEN."""
     if all(k in rel for k in _SIGMA_Q_KEYS):
-        from . import q_wz_certificate as _qwz  # lazy
+        from ..apokatastasis import q_wz_certificate as _qwz  # lazy
         cert = _qwz.q_wz_certificate(rel["qrn_num"], rel["qrn_den"],
                                      rel["qrk_num"], rel["qrk_den"])
         if cert is not None and cert.get("verified") is True:
             return _reduced("sigma_q", "q_wz_certificate", cert)
         return None  # not q-WZ / not verified → honest OPEN
     if all(k in rel for k in _SIGMA_Q_GOSPER_KEYS):
-        from . import q_gosper as _qg  # lazy
+        from ..apokatastasis import q_gosper as _qg  # lazy
         r = _qg.q_gosper(rel["q_term_ratio_num"], rel["q_term_ratio_den"])
         if r is not None:  # a (non-None) q-certificate IS the verification here
             return _reduced("sigma_q", "q_gosper", r)
@@ -383,7 +383,7 @@ def _try_sigma_elliptic(rel: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     anti-hallucination gate as the ordinary / q ``wz_certificate``). The reduced
     payload carries the closed form ``cf(n)``. Returns the reduced dict, or
     ``None`` to fall through to OPEN."""
-    from . import elliptic_wz_certificate as _ewz  # lazy: avoids import cycle
+    from ..apokatastasis import elliptic_wz_certificate as _ewz  # lazy: avoids import cycle
     cert = _ewz.elliptic_wz_certificate(rel["elliptic_term_ratio"])
     # VERIFY: trust ONLY the reducer's own verification flag (anti-hallucination —
     # the connection-coefficient induction certificate's ``verified`` is True only
@@ -398,7 +398,7 @@ def _try_sigma_elliptic_multivar(rel: Dict[str, Any]) -> Optional[Dict[str, Any]
     root-system rank above the ₈ω₇. The eight balanced Cₙ VWP parameters
     ``a, b, c, d, x, q`` (:class:`EllMonomial` or a symbol-name string) + the partition
     ceiling ``N`` + the rank ``n`` route to
-    :func:`~srmech.amsc.elliptic_jackson.multivariate_elliptic_jackson`, which reduces the
+    :func:`~srmech.apokatastasis.elliptic_jackson.multivariate_elliptic_jackson`, which reduces the
     n-fold Cₙ sum to its closed-form theta-quotient product (Rosengren Thm 2.1).
 
     rc101 — a CONSTRUCTIVE→VERIFIED reducer: the router calls the op's ``verify=True`` path,
@@ -413,8 +413,8 @@ def _try_sigma_elliptic_multivar(rel: Dict[str, Any]) -> Optional[Dict[str, Any]
     raise, and the caller routes to OPEN. The F929 anti-hallucination discipline: the router
     never claims ``reducible: True`` without either a per-call proof (``verified=True``) or the
     build-verified constructive closed form (``verified=None``)."""
-    from . import elliptic_jackson as _ej  # lazy: avoids import cycle
-    from .ellbase import EllMonomial as _M
+    from ..apokatastasis import elliptic_jackson as _ej  # lazy: avoids import cycle
+    from ..apokatastasis.ellbase import EllMonomial as _M
 
     def _mono(v: Any) -> "Any":
         if isinstance(v, _M):
@@ -444,7 +444,7 @@ def _try_sigma_elliptic_an(rel: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     z-vector (``z``, length ``n``), the a-vector (``a_vec``, length ``n + 1``;
     entries :class:`EllMonomial` / symbol-name strings / ints), the base ``q`` and
     the simplex ceiling ``N`` — routes to
-    :func:`~srmech.amsc.elliptic_jackson_an.multivariate_elliptic_jackson_an` with
+    :func:`~srmech.apokatastasis.elliptic_jackson_an.multivariate_elliptic_jackson_an` with
     ``verify=True``, which CONSTRUCTS the closed-form theta-quotient (Rosengren
     math/0305379 Eq. 6, the elliptic analogue of Milne's Aₙ Jackson summation) AND
     PROVES it per call — building the symbolic LHS simplex sum and deciding
@@ -457,8 +457,8 @@ def _try_sigma_elliptic_an(rel: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     routes to OPEN. Malformed params (``N < 1`` / a length mismatch /
     non-coercible entries) raise, and the caller routes to OPEN — the same F929
     anti-hallucination gate as the Cₙ multivar row."""
-    from . import elliptic_jackson_an as _eja  # lazy: avoids import cycle
-    from .ellbase import EllMonomial as _M
+    from ..apokatastasis import elliptic_jackson_an as _eja  # lazy: avoids import cycle
+    from ..apokatastasis.ellbase import EllMonomial as _M
 
     def _mono(v: Any) -> "Any":
         if isinstance(v, _M):
@@ -649,7 +649,7 @@ def _marshal_relationship(rel: Dict[str, Any]) -> Optional[Tuple[str, int]]:
     # wz_verify in its zeilberger-scale arena; _finish_native rebuilds via
     # _try_sigma (which routes the 4-key case to wz_certificate).
     if row == "sigma" and all(k in rel for k in _SIGMA_KEYS):
-        from .zeilberger import BiPoly
+        from ..apokatastasis.zeilberger import BiPoly
 
         def _bp(v: Any) -> "list":
             b = BiPoly.coerce(v)
@@ -669,7 +669,7 @@ def _marshal_relationship(rel: Dict[str, Any]) -> Optional[Tuple[str, int]]:
     # (declined past the infer ceiling → the pure CRT path decides);
     # _finish_native rebuilds via _try_sigma_multivar.
     if row == "sigma_multivar":
-        from .apagodu_zeilberger import _coerce_tri, _tri_pairs
+        from ..apokatastasis.apagodu_zeilberger import _coerce_tri, _tri_pairs
 
         def _tri(v: Any) -> "list":
             return [[[[str(n), str(d)] for (n, d) in run] for run in kgrid]
@@ -715,7 +715,7 @@ def _marshal_relationship(rel: Dict[str, Any]) -> Optional[Tuple[str, int]]:
             return (json.dumps({"row": "sigma_q", **payload}),
                     _qb_deg(list(payload.values())))
         if all(k in rel for k in _SIGMA_Q_GOSPER_KEYS):
-            from .q_gosper import _coerce_qpoly
+            from ..apokatastasis.q_gosper import _coerce_qpoly
             from .qpoly import _qp_pairs
 
             def _qp(v: Any) -> "list":
@@ -735,7 +735,7 @@ def _marshal_relationship(rel: Dict[str, Any]) -> Optional[Tuple[str, int]]:
     # srmech_elliptic_wz_certificate; _finish_native rebuilds via
     # _try_sigma_elliptic.
     if row == "sigma_elliptic":
-        from .elliptic_recurrence import _coerce_ratio, _ratio_to_form
+        from ..apokatastasis.elliptic_recurrence import _coerce_ratio, _ratio_to_form
 
         form = _ratio_to_form(_coerce_ratio(rel["elliptic_term_ratio"]))
         monos = ([form["prefactor"]] + list(form["num"]) + list(form["den"]))
@@ -866,31 +866,31 @@ def infer(relationship: Dict[str, Any]) -> Dict[str, Any]:
 
     * **Σ** (``row="sigma"`` / a hypergeometric sum) — the four bivariate
       term-ratios ``rn_num`` / ``rn_den`` / ``rk_num`` / ``rk_den`` of a definite
-      sum ``Σ_k F(n,k)`` route to :func:`~srmech.amsc.wz_certificate.wz_certificate`
+      sum ``Σ_k F(n,k)`` route to :func:`~srmech.apokatastasis.wz_certificate.wz_certificate`
       (the identity PROOF; accepted iff its ``verified`` flag is True). A single
       indefinite term-ratio ``term_ratio_num`` / ``term_ratio_den`` routes to
-      :func:`~srmech.amsc.gosper.gosper` (accepted iff it returns a certificate).
+      :func:`~srmech.apokatastasis.gosper.gosper` (accepted iff it returns a certificate).
     * **Σ multivariate** (``row="sigma_multivar"``) — the SIX ``(n,j,k)`` TriPoly
       term-ratios (``rn_*`` / ``rj_*`` / ``rk_*``) of a "sums of sums"
       ``Σ_{j,k} F(n,j,k)`` route to
-      :func:`~srmech.amsc.apagodu_zeilberger.apagodu_zeilberger` (accepted iff it
+      :func:`~srmech.apokatastasis.apagodu_zeilberger.apagodu_zeilberger` (accepted iff it
       finds a minimal-order annihilating recurrence).
     * **Σ q-hypergeometric** (``row="sigma_q"``) — a definite q-sum's four
       QBiPoly q-term-ratios (``qrn_*`` / ``qrk_*``) route to
-      :func:`~srmech.amsc.q_wz_certificate.q_wz_certificate` (accepted iff its
+      :func:`~srmech.apokatastasis.q_wz_certificate.q_wz_certificate` (accepted iff its
       ``verified`` flag is True); an indefinite QPoly q-term-ratio
-      (``q_term_ratio_*``) routes to :func:`~srmech.amsc.q_gosper.q_gosper`.
+      (``q_term_ratio_*``) routes to :func:`~srmech.apokatastasis.q_gosper.q_gosper`.
     * **Σ elliptic-hypergeometric** (``row="sigma_elliptic"``) — the top of the
       base-axis tower (ordinary → q → elliptic). The Frenkel–Turaev ₈ω₇ / ₁₀E₉
       term-ratio (an ``EllRatio`` under ``elliptic_term_ratio``) routes to
-      :func:`~srmech.amsc.elliptic_wz_certificate.elliptic_wz_certificate` (the
+      :func:`~srmech.apokatastasis.elliptic_wz_certificate.elliptic_wz_certificate` (the
       identity PROOF; accepted iff its ``verified`` flag is True, and the reduced
       payload carries the closed form ``cf(n)``).
     * **Σ multivariate elliptic** (``row="sigma_elliptic_multivar"`` / the eight
       ``a`` / ``b`` / ``c`` / ``d`` / ``x`` / ``q`` / ``N`` / ``n`` keys) — the
       capstone one root-system rank above the ₈ω₇: the balanced Cₙ elliptic Jackson
       summation routes to
-      :func:`~srmech.amsc.elliptic_jackson.multivariate_elliptic_jackson` with
+      :func:`~srmech.apokatastasis.elliptic_jackson.multivariate_elliptic_jackson` with
       ``verify=True``, which CONSTRUCTS the closed-form theta-quotient product (Rosengren
       Thm 2.1) AND (rc101) PROVES it per call — building the symbolic LHS n-fold sum and
       deciding ``(LHS − closed).is_zero`` via the rc98/rc99 complete multi-variable elliptic
@@ -901,7 +901,7 @@ def infer(relationship: Dict[str, Any]) -> Dict[str, Any]:
       ``a_vec`` / ``q`` / ``N`` keys) — the type-A sibling of the Cₙ capstone: the Aₙ
       (Milne) elliptic Jackson summation over the simplex ``y₁+…+yₙ = N`` (Rosengren
       math/0305379 Eq. 6) routes to
-      :func:`~srmech.amsc.elliptic_jackson_an.multivariate_elliptic_jackson_an` with
+      :func:`~srmech.apokatastasis.elliptic_jackson_an.multivariate_elliptic_jackson_an` with
       ``verify=True`` (the balancing ``w = ∏zⱼ·∏aⱼ`` is computed inside the op). The
       same surfaced-``verified`` / False-routes-to-OPEN contract as the Cₙ row.
     * **spectral** (``row="spectral"`` / a graph payload) — an ``edges`` list

@@ -333,7 +333,7 @@ static srmech_status_t inf_gosper(const srmech_json_value_t *root, inf_bump_t *b
 /* ------------------------------------------------------------------
  * SIGMA-DEFINITE row (wz_certificate) — rc192, the #796 payoff. Consumes the
  * rc191 PUBLIC srmech_carrier_read_bipoly reader for the four (n,k) BiPoly
- * term-ratios, then reproduces srmech.amsc.wz_certificate.wz_certificate in C:
+ * term-ratios, then reproduces srmech.apokatastasis.wz_certificate.wz_certificate in C:
  *   FIND  — srmech_zeilberger at max_order=1 (the forced f(n+1)-f(n)=0
  *           recurrence); accept only its WZ shape a_0(n)+a_1(n)=0 with a_0,a_1
  *           NONZERO constants in n.

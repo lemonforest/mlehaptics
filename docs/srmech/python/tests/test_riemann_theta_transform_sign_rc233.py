@@ -29,7 +29,7 @@ import itertools
 
 import pytest
 
-from srmech.amsc.riemann_theta import (
+from srmech.apokatastasis.riemann_theta import (
     RiemannTheta, RiemannThetaG3, RiemannThetaG4)
 
 

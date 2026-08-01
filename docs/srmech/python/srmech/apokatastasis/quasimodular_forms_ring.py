@@ -1,4 +1,4 @@
-"""srmech.amsc.quasimodular_forms_ring — ``QuasiModularFormsRing``, the level-1
+"""srmech.apokatastasis.quasimodular_forms_ring — ``QuasiModularFormsRing``, the level-1
 ℂ[E₂,E₄,E₆] QUASIMODULAR-forms-ring carrier + its EXACT membership decision (the
 FOURTH WEIGHT-axis rung, after rc82 eta-quotient + rc83 Eisenstein + rc84
 ``ModularFormsRing`` ℂ[E₄,E₆]).
@@ -6,7 +6,7 @@ FOURTH WEIGHT-axis rung, after rc82 eta-quotient + rc83 Eisenstein + rc84
 THE OBJECT — the quasimodular ring, one generator up
 ====================================================
 
-The rc83 :class:`~srmech.amsc.eisenstein.Eisenstein` carrier REJECTS ``k = 2`` and
+The rc83 :class:`~srmech.apokatastasis.eisenstein.Eisenstein` carrier REJECTS ``k = 2`` and
 NAMES this theory in its own docstring: ``E_2`` is NOT a modular form (the
 weight-2 space ``M_2(SL₂(ℤ)) = {0}``; ``E_2`` picks up a non-holomorphic anomaly
 under ``τ → −1/τ``: ``E_2(−1/τ) = τ²E_2(τ) + 12τ/(2πi)``). The smallest ring that
@@ -25,7 +25,7 @@ combination of the weight-``k`` monomials
 
     E_2^a · E_4^b · E_6^c   with   2a + 4b + 6c = k,   a, b, c ≥ 0.
 
-This carrier is the rc84 :class:`~srmech.amsc.modular_forms_ring.ModularFormsRing`
+This carrier is the rc84 :class:`~srmech.apokatastasis.modular_forms_ring.ModularFormsRing`
 pattern mirrored ONE GENERATOR up: ``ModularFormsRing`` is exactly the ``a = 0``
 subring (no ``E_2`` factor), so ``ℂ[E_4, E_6] ⊂ ℂ[E_2, E_4, E_6]`` and the
 quasimodular ring genuinely EXTENDS the modular one — e.g. ``E_2²`` (weight 4) is a
@@ -41,7 +41,7 @@ E_2 — the weight-2 quasimodular generator
 i.e. the SAME normalized-Eisenstein formula ``E_k = 1 − (2k/B_k)·Σ σ_{k−1}(n) qⁿ``
 at ``k = 2`` (the prefactor ``−2·2 / B_2 = −4 / (1/6) = −24`` is the von
 Staudt–Clausen ``B_2 = 1/6``, computed here by the SAME Bernoulli cascade as the
-modular ``E_k`` — :func:`~srmech.amsc.eisenstein._bernoulli`, NOT a magic ``−24``).
+modular ``E_k`` — :func:`~srmech.apokatastasis.eisenstein._bernoulli`, NOT a magic ``−24``).
 :func:`eisenstein_e2` returns its exact-:class:`~srmech.amsc.q.Q` q-series
 ``[1, −24, −72, −96, −168, …]``. ``Eisenstein(2)`` stays REJECTED (the modular
 carrier's ``k ≥ 4`` contract is intact); ``E_2`` enters ONLY through the
@@ -131,8 +131,8 @@ from __future__ import annotations
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from .eisenstein import Eisenstein, _bernoulli, _divisor_power_sum
-from .q import Q
-from .qmat import QMat
+from ..amsc.q import Q
+from ..amsc.qmat import QMat
 
 __all__ = [
     "QuasiModularFormsRing",
@@ -153,7 +153,7 @@ def _native():
     complete alternative + the parity oracle). Imported lazily to avoid a
     bootstrap cycle."""
     try:
-        from . import _native as nat
+        from ..amsc import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_quasimodular_forms_ring", None)
@@ -166,7 +166,7 @@ def _native_eis():
     :func:`eisenstein_e2` dispatches the exact-rational E_2 q-series to C when
     available and falls cleanly to the pure-Python body. Imported lazily."""
     try:
-        from . import _native as nat
+        from ..amsc import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_eisenstein", None)
@@ -183,7 +183,7 @@ def eisenstein_e2(n_terms: int) -> List[Q]:
     and ``c_n = −24·σ_1(n)`` (so ``eisenstein_e2(5) = [1, −24, −72, −96, −168]``).
     The prefactor is the SAME normalized-Eisenstein ``−2k/B_k`` at ``k = 2``
     (``−4 / B_2 = −4 / (1/6) = −24``; the von Staudt–Clausen ``B_2 = 1/6`` is
-    computed by the SAME Bernoulli cascade :func:`~srmech.amsc.eisenstein._bernoulli`
+    computed by the SAME Bernoulli cascade :func:`~srmech.apokatastasis.eisenstein._bernoulli`
     as the modular ``E_k`` — NOT a magic literal). ``E_2`` is NOT a modular form
     (``M_2(SL₂(ℤ)) = {0}``); it is the QUASIMODULAR generator, so it lives here and
     NOT on the rc83 ``Eisenstein(k)`` carrier (which keeps its ``k ≥ 4`` contract
@@ -210,7 +210,7 @@ def _eisenstein_e2_py(n_terms: int) -> List[Q]:
     ``E_2 = 1 − (2·2/B_2)·Σ σ_1(n) qⁿ`` to ``n_terms`` terms. The prefactor
     ``−4/B_2`` is computed ONCE (exact-``Q`` Bernoulli — the SAME cascade as the
     modular ``E_k``); each ``c_n`` is ``prefactor · σ_1(n)`` (exact-int
-    :func:`~srmech.amsc.eisenstein._divisor_power_sum`). All exact rational; no
+    :func:`~srmech.apokatastasis.eisenstein._divisor_power_sum`). All exact rational; no
     float / numpy / ``math`` / ``abs``."""
     pref = Q(-2 * 2, 1) / _bernoulli(2)            # −4 / (1/6) = −24, attested
     coeffs: List[Q] = [_Q_ONE]

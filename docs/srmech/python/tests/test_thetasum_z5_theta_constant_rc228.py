@@ -31,9 +31,9 @@ import time
 import pytest
 
 from srmech.amsc import _native
-from srmech.amsc.ellbase import EllMonomial as M, Theta
+from srmech.apokatastasis.ellbase import EllMonomial as M, Theta
 from srmech.amsc.q import Q
-from srmech.amsc.thetasum import (ThetaSum, _ZERO, _UNKNOWN, _decide_thetasum,
+from srmech.apokatastasis.thetasum import (ThetaSum, _ZERO, _UNKNOWN, _decide_thetasum,
                                   _z5_theta_constant_zero, _leaf_prime_set,
                                   _lift_prime_terms, _pair_reduce_component, _Z5_SYM)
 
@@ -197,7 +197,7 @@ def test_an_3_3_residue_is_honest_false():
     The verify at (3, 3) stays the honest capped ``None`` (the cap is UNCHANGED at 6
     compositions: no in-budget certificate closes this leaf), and Z5 declines the
     leaf FAST (no hang) — the safe ``is_zero = False`` direction."""
-    from srmech.amsc.elliptic_jackson_an import (multivariate_elliptic_jackson_an,
+    from srmech.apokatastasis.elliptic_jackson_an import (multivariate_elliptic_jackson_an,
                                                  _VERIFY_MAX_COMPOSITIONS)
     assert _VERIFY_MAX_COMPOSITIONS == 6         # cap unchanged: the (3,3) leaf is unreached
     z = [M.symbol(f"z{i + 1}") for i in range(3)]

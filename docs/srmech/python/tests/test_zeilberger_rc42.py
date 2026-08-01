@@ -28,7 +28,7 @@ import pytest
 
 from srmech.amsc.poly import Poly
 from srmech.amsc.q import Q
-from srmech.amsc.zeilberger import BiPoly, zeilberger
+from srmech.apokatastasis.zeilberger import BiPoly, zeilberger
 
 
 # ── helpers (Fraction + Q only; no numpy, no math) ────────────────────────────
@@ -224,7 +224,7 @@ def test_native_matches_pure_when_present():
     """When the native srmech_zeilberger is loaded, its recurrence is identical to
     the pure-Python body (the parity oracle). Skip-clean when no native lib."""
     from srmech.amsc import _native as nat
-    from srmech.amsc.zeilberger import _zeilberger_pure
+    from srmech.apokatastasis.zeilberger import _zeilberger_pure
     if not nat.has_native_zeilberger():
         pytest.skip("native srmech_zeilberger not present in this environment")
 

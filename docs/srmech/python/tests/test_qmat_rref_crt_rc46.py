@@ -23,7 +23,7 @@ import random
 from srmech.amsc.poly import Poly
 from srmech.amsc.q import Q
 from srmech.amsc.qmat import QMat
-from srmech.amsc.zeilberger import (BiPoly, _ansatz_n_degree, _ansatz_x_degree,
+from srmech.apokatastasis.zeilberger import (BiPoly, _ansatz_n_degree, _ansatz_x_degree,
                                     _assemble_rows, _bi_exact_div, _rho)
 
 

@@ -1,7 +1,7 @@
-"""srmech.amsc.zeilberger — Zeilberger's creative telescoping (the SECOND public
+"""srmech.apokatastasis.zeilberger — Zeilberger's creative telescoping (the SECOND public
 op of the §76 "telescope" Σ-row closed-form prover, F929).
 
-Where :func:`srmech.amsc.gosper.gosper` decides INDEFINITE summation of a single
+Where :func:`srmech.apokatastasis.gosper.gosper` decides INDEFINITE summation of a single
 hypergeometric term in ``k``, Zeilberger's algorithm (D. Zeilberger, "The method
 of creative telescoping", J. Symbolic Computation 11(3):195–204, 1991; "A fast
 algorithm for proving terminating hypergeometric identities", Discrete Math.
@@ -63,8 +63,8 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional, Sequence, Tuple
 
-from .poly import Poly
-from .q import Q
+from ..amsc.poly import Poly
+from ..amsc.q import Q
 
 __all__ = ["zeilberger", "BiPoly", "bipoly_from_coeffs"]
 
@@ -78,7 +78,7 @@ def _native():
     available and falls cleanly to the pure-Python body (the complete alternative
     + the parity oracle) otherwise. Imported lazily to avoid a bootstrap cycle."""
     try:
-        from . import _native as nat
+        from ..amsc import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_zeilberger", None)
@@ -404,7 +404,7 @@ def _solve_parametrized(rho_common: List[BiPoly], den_p: BiPoly,
     numerator ``x(n,k)``. A nonzero kernel vector yields the recurrence + the
     rational certificate ``R(n,k) = x(n,k) / D_P(n,k)`` (times the Gosper b/c
     bookkeeping, folded in below)."""
-    from .qmat import QMat
+    from ..amsc.qmat import QMat
 
     # The Gosper-in-k relation, written over the common denominator D_P:
     #   T(n,k+1) − T(n,k) summed telescopes ⇒ we need x(n,k) with
@@ -667,7 +667,7 @@ def bipoly_from_coeffs(coeffs) -> BiPoly:
     Ints only (a ``bool`` / ``float`` / ``str`` leaf is an honest
     ``TypeError`` — the exact-``ℚ`` prose discipline; integers are exact). No
     float, no ``abs()``, no numpy / ``math``."""
-    from .poly import _prose_int
+    from ..amsc.poly import _prose_int
     if isinstance(coeffs, tuple):
         coeffs = list(coeffs)
     if not isinstance(coeffs, list):

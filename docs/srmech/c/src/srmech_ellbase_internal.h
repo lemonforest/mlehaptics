@@ -1,6 +1,6 @@
 /*
  * srmech_ellbase_internal.h -- the SHARED exact-Q monomial + theta-canon kernels
- * of the elliptic carrier family (srmech.amsc.ellbase: EllMonomial / Theta /
+ * of the elliptic carrier family (srmech.apokatastasis.ellbase: EllMonomial / Theta /
  * EllRatio), promoted out of srmech_thetasum.c (rc63) so the ThetaSum is_zero
  * decision AND the EllRatio is_elliptic decision share ONE copy of each kernel
  * (the 1:1-mirror discipline forbids two copies of the same algebra).

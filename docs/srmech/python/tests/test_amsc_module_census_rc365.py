@@ -91,7 +91,13 @@ ORIGINAL_N_MODULES = 75
 #: ``srmech.introspect`` (see ``LANDED`` below). rc370 (the fifth slice, and the
 #: FIRST into a newly-created namespace): 71 -> 70, the ``elliptic_partial_fraction``
 #: departure to ``srmech.apokatastasis`` (the elliptic domain's first module).
-EXPECTED_N_MODULES = 70
+#: rc371 (the sixth slice, the WHOLE-FAMILY drain): 70 -> 46, the 24 remaining
+#: elliptic / modular / theta / q-series modules departing to
+#: ``srmech.apokatastasis`` in ONE slice — completing the 25-module bucket (the
+#: rc370 ``elliptic_partial_fraction`` + these 24). NOTE ``modular_linalg`` is
+#: GF(p) finite-field LA (a future ``srmech.math`` module), NOT modular forms, and
+#: deliberately STAYS in ``amsc``.
+EXPECTED_N_MODULES = 46
 EXPECTED_N_SUBPACKAGES = 3
 
 #: sha256 over the NORMALISED manifest body — "\n".join(sorted entries) + "\n",
@@ -99,7 +105,7 @@ EXPECTED_N_SUBPACKAGES = 3
 #: the digest disagree between the Windows and Linux CI cells; that would be a
 #: platform artifact masquerading as a move (the rc361 rationale, verbatim).
 EXPECTED_CENSUS_SHA256 = (
-    "e801322acb5186a7a59e8be01d0ca31baff3f5c24682000c8ae694c687060d96")
+    "8175d999e89578d2dddae782895b323235b0a3c96b45ccee625bed7bce69f555")
 
 # ── the four keepers, and the A.2 move map (as DATA the test reads) ──────────
 
@@ -147,11 +153,23 @@ NAMED_DEPARTURES = {
     "srmech.introspect": frozenset({
         "tool_schema", "_tool_docs", "carrier_schema",
         "op_provenance", "naming", "responsion_schema"}),
-    # rc370 — the elliptic domain's first named member. Like ``srmech.introspect``
-    # this is a SUBSET-named bucket: A.2 counts 31 for apokatastasis (41%), and
-    # only the one module that has actually moved is named here; the other 30 are
-    # covered by the departure allowlist and land as later slices move them.
-    "srmech.apokatastasis": frozenset({"elliptic_partial_fraction"}),
+    # rc370 — the elliptic domain's first named member. rc371 — the WHOLE-FAMILY
+    # drain names the other 24, so this bucket is now the full 25-module elliptic
+    # / modular / theta / q-series family. It STAYS a SUBSET-named bucket relative
+    # to A.2's published count of 31 (25 <= 31): A.2's 31 OVER-counts the real
+    # special-functions family by ~6 — it lumped ``modular_linalg`` (GF(p)
+    # finite-field LA → a future ``srmech.math`` module, NOT modular forms) plus
+    # ~5 general carriers by name-similarity. Those ~6 are NOT reassigned here (the
+    # math bucket's slice owns that); see ADR-0010 Amendment H for the finding.
+    "srmech.apokatastasis": frozenset({
+        "elliptic_partial_fraction",
+        "apagodu_zeilberger", "eisenstein", "ellbase", "elliptic_determinant",
+        "elliptic_gosper", "elliptic_jackson", "elliptic_jackson_an",
+        "elliptic_recurrence", "elliptic_wz_certificate", "elliptic_zeilberger",
+        "eta_quotient", "gosper", "harmonic_maass", "modular_forms_ring",
+        "q_gosper", "q_wz_certificate", "q_zeilberger", "quasimodular_forms_ring",
+        "riemann_theta", "riemann_theta_multisum", "thetasum", "unary_theta",
+        "wz_certificate", "zeilberger"}),
 }
 
 #: Modules that have COMPLETED their ADR-0010 departure — they have LEFT
@@ -172,8 +190,21 @@ NAMED_DEPARTURES = {
 #: rc369: the ``op_provenance`` slice (amsc -> srmech.introspect), the fourth.
 #: rc370: the ``elliptic_partial_fraction`` slice (amsc -> srmech.apokatastasis),
 #: the fifth — and the first departure to a namespace CREATED by the same slice.
+#: rc371: the WHOLE-FAMILY drain — the 24 remaining elliptic / modular / theta /
+#: q-series modules land in srmech.apokatastasis in one slice (the sixth), taking
+#: LANDED from 5 to 29 and the live amsc count from 70 to 46 (conservation
+#: 46 + 29 == 75).
 LANDED = frozenset({"harmonics", "naming", "responsion_schema", "op_provenance",
-                    "elliptic_partial_fraction"})
+                    "elliptic_partial_fraction",
+                    "apagodu_zeilberger", "eisenstein", "ellbase",
+                    "elliptic_determinant", "elliptic_gosper", "elliptic_jackson",
+                    "elliptic_jackson_an", "elliptic_recurrence",
+                    "elliptic_wz_certificate", "elliptic_zeilberger",
+                    "eta_quotient", "gosper", "harmonic_maass",
+                    "modular_forms_ring", "q_gosper", "q_wz_certificate",
+                    "q_zeilberger", "quasimodular_forms_ring", "riemann_theta",
+                    "riemann_theta_multisum", "thetasum", "unary_theta",
+                    "wz_certificate", "zeilberger"})
 
 
 # ── readers ──────────────────────────────────────────────────────────────────

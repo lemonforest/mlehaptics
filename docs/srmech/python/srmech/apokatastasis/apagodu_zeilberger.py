@@ -1,8 +1,8 @@
-"""srmech.amsc.apagodu_zeilberger — the Apagodu–Zeilberger multivariate "sums of
+"""srmech.apokatastasis.apagodu_zeilberger — the Apagodu–Zeilberger multivariate "sums of
 sums" creative-telescoping recurrence-finder (the rc53 op that CLOSES the
 multivariate F929 reduction row).
 
-Where :func:`srmech.amsc.zeilberger.zeilberger` finds the linear recurrence of a
+Where :func:`srmech.apokatastasis.zeilberger.zeilberger` finds the linear recurrence of a
 SINGLE definite sum ``f(n) = Σ_k F(n,k)``, the Apagodu–Zeilberger algorithm
 (M. Apagodu & D. Zeilberger, "Multi-variable Zeilberger and Almkvist–Zeilberger
 algorithms and the sharpening of Wilf–Zeilberger theory", Adv. Appl. Math. 37(2),
@@ -59,7 +59,7 @@ vanish at the summation limits) collapses the right-hand side and yields
 
 The whole pipeline stays EXACT over ``ℚ`` — every polynomial is built on the
 bigint :class:`~srmech.amsc.q.Q` / :class:`~srmech.amsc.poly.Poly` /
-:class:`~srmech.amsc.zeilberger.BiPoly` / :class:`~srmech.amsc.tripoly.TriPoly`
+:class:`~srmech.apokatastasis.zeilberger.BiPoly` / :class:`~srmech.amsc.tripoly.TriPoly`
 carriers (no magnitude ceiling), every solve is exact Gauss-Jordan over ``ℚ``.
 There is NO float anywhere; sign is the **Class-K** pin-slot via the ``Q``
 sign-branch (never an ALU ``abs()``); no ``math`` module, no numpy.
@@ -85,9 +85,9 @@ from __future__ import annotations
 import os
 from typing import Dict, List, Optional, Tuple
 
-from .poly import Poly
-from .q import Q
-from .tripoly import TriPoly
+from ..amsc.poly import Poly
+from ..amsc.q import Q
+from ..amsc.tripoly import TriPoly
 
 __all__ = ["apagodu_zeilberger"]
 
@@ -115,7 +115,7 @@ def _native():
     alternative + the parity oracle) otherwise. Imported lazily to avoid a bootstrap
     cycle."""
     try:
-        from . import _native as nat
+        from ..amsc import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_apagodu_zeilberger", None)
@@ -273,7 +273,7 @@ def _solve_parametrized(rn_d, rhos, den_p, rj_n, rj_d, rk_n, rk_d, order,
     with a nonzero ``a``-block yields the recurrence + the two certificate
     numerators ``x_j`` / ``x_k`` (the rationals ``R_j = x_j/D_P`` / ``R_k =
     x_k/D_P``)."""
-    from .qmat import QMat
+    from ..amsc.qmat import QMat
 
     dp_j1 = den_p.shift_j(1)                       # D_P(n, j+1, k)
     dp_k1 = den_p.shift_k(1)                       # D_P(n, j, k+1)
@@ -501,5 +501,5 @@ def _tri_from_pairs(blocks) -> TriPoly:
     """Rebuild a :class:`~srmech.amsc.tripoly.TriPoly` from the nested
     ``[[[(num, den), …]_n]_k]_j`` bridge form (from the C peer; each leaf already
     reduced) — the SAME form :func:`srmech.amsc.tripoly._tri_from_pairs` consumes."""
-    from .tripoly import _tri_from_pairs as _tfp
+    from ..amsc.tripoly import _tri_from_pairs as _tfp
     return _tfp(blocks)

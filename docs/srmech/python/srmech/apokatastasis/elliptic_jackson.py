@@ -1,9 +1,9 @@
-"""srmech.amsc.elliptic_jackson — the eq-5 Cₙ REDUCER: the closed-form
+"""srmech.apokatastasis.elliptic_jackson — the eq-5 Cₙ REDUCER: the closed-form
 evaluator for the multivariable (root-system Cₙ) elliptic Jackson summation.
 
 This is the capstone of the multivariable elliptic reduction row. Where the single-variable
 ₈ω₇ elliptic Jackson summation reduces to a scalar theta-quotient (the Frenkel–Turaev sum,
-:func:`~srmech.amsc.elliptic_wz_certificate.elliptic_wz_certificate`), the Cₙ (root-system)
+:func:`~srmech.apokatastasis.elliptic_wz_certificate.elliptic_wz_certificate`), the Cₙ (root-system)
 elliptic Jackson summation reduces an n-FOLD sum over partitions to a theta-quotient product
 — and it does so via the elliptic partial-fraction expansion
 (:func:`~srmech.apokatastasis.elliptic_partial_fraction.elliptic_partial_fraction`, Rosengren Eq 1.22)
@@ -30,7 +30,7 @@ on ``N`` via Warnaar's Lemma 2.2 (the Cₙ binary-sum evaluation, ``a²q^{3-n} =
 is itself a determinant evaluation reducing through the elliptic partial-fraction expansion.
 
 This op CONSTRUCTS the closed-form right-hand side — the reduced theta-quotient product — as
-an exact :class:`~srmech.amsc.ellbase.EllRatio`. It is the Cₙ member of the elliptic Σ-row of
+an exact :class:`~srmech.apokatastasis.ellbase.EllRatio`. It is the Cₙ member of the elliptic Σ-row of
 the F929 dispatch table (peer of the ₈ω₇ reducer one root-system rank up), exact over the
 modified-theta algebra: no float, no ``abs()`` (sign is the Class-K pin-slot via the ``Q`` /
 ``EllMonomial`` sign-branch), no ``math`` / numpy. The parameters ``(a, b, c, d, x, q, N, n)``
@@ -100,7 +100,7 @@ def multivariate_elliptic_jackson(a, b, c, d, x, q, N: int, n: int, *,
                                   verify: bool = False):
     """Reduce the balanced Cₙ elliptic Jackson summation (Rosengren Thm 2.1, Eq 5) to its
     closed-form theta-quotient product, returned as an exact
-    :class:`~srmech.amsc.ellbase.EllRatio`:
+    :class:`~srmech.apokatastasis.ellbase.EllRatio`:
 
         (aq, aq/bc, aq/bd, aq/cd; q, x)_{Nⁿ} / (aq/b, aq/c, aq/d, aq/bcd; q, x)_{Nⁿ},
         (u; q, x)_{Nⁿ} = ∏_{j=1}^n ∏_{i=0}^{N-1} θ(u·x^{1-j}·qⁱ).
@@ -126,7 +126,7 @@ def multivariate_elliptic_jackson(a, b, c, d, x, q, N: int, n: int, *,
         {"closed_form": <EllRatio>, "verified": True | False | None}
 
     The proof is EXACT (not numeric): it builds the LHS n-fold Cₙ very-well-poised sum over
-    the partitions ``Λ_{nN}`` SYMBOLICALLY as a :class:`~srmech.amsc.thetasum.ThetaSum`,
+    the partitions ``Λ_{nN}`` SYMBOLICALLY as a :class:`~srmech.apokatastasis.thetasum.ThetaSum`,
     subtracts this constructive closed form, and calls ``.is_zero`` — the rc98/rc99 COMPLETE
     multi-variable elliptic decision (structural elliptic interpolation). ``verified`` is
     ``True`` when the residual is provably ``≡ 0`` (the closed form EQUALS the sum), ``False``
@@ -166,7 +166,7 @@ def cn_vwp_multisum_lhs(a, b, c, d, x, q, N: int, n: int):
     """Build the LEFT-hand side of the Cₙ elliptic Jackson summation — the n-fold Cₙ
     very-well-poised (VWP) elliptic sum over the partitions
     ``Λ_{nN} = {N ≥ λ₁ ≥ … ≥ λₙ ≥ 0}`` — SYMBOLICALLY, as an exact
-    :class:`~srmech.amsc.thetasum.ThetaSum` (the ADDITIVE theta carrier):
+    :class:`~srmech.apokatastasis.thetasum.ThetaSum` (the ADDITIVE theta carrier):
 
         Σ_{λ∈Λ_{nN}} ∏_{i=1}^n [θ(a·x^{2(1-i)}·q^{2λᵢ})/θ(a·x^{2(1-i)}) · q^{λᵢ}x^{2(i-1)λᵢ}]
             · ∏_{1≤i<j≤n} [θ(x^{j-i}q^{λᵢ-λⱼ})/θ(x^{j-i})
@@ -184,10 +184,10 @@ def cn_vwp_multisum_lhs(a, b, c, d, x, q, N: int, n: int):
     the two and deciding ``.is_zero`` is exactly the rc101 per-call proof, now exposed as
     first-class ops on both sides of the identity.
 
-    ``a, b, c, d, x, q`` are :class:`~srmech.amsc.ellbase.EllMonomial` parameters and
+    ``a, b, c, d, x, q`` are :class:`~srmech.apokatastasis.ellbase.EllMonomial` parameters and
     ``N`` (partition ceiling) / ``n`` (rank) are positive ints. Raises ``TypeError`` on a
     non-EllMonomial parameter and ``ValueError`` if ``N < 1`` or ``n < 1``. Each
-    partition's summand is an :class:`~srmech.amsc.ellbase.EllRatio` (theta-quotient; the
+    partition's summand is an :class:`~srmech.apokatastasis.ellbase.EllRatio` (theta-quotient; the
     per-term monomial prefactor ``∏ᵢ q^{λᵢ}·x^{2(i-1)λᵢ}`` carries sign in the Class-K
     ``EllMonomial`` coeff branch, never ``abs()``); the partitions are summed into one
     exact ``ThetaSum``. No float, no numpy, no ``math``. NOTE the term-count is
@@ -238,14 +238,14 @@ def _cn_vwp_multisum_lhs_c(aa: EllMonomial, bb: EllMonomial, cc: EllMonomial,
                            N: int, n: int):
     """Dispatch the Cₙ VWP multisum LHS construction to the native
     ``srmech_cn_vwp_multisum_lhs`` C peer → the ``C(N+n, n)``-term
-    :class:`~srmech.amsc.thetasum.ThetaSum` (each term an :class:`EllRatio` the C peer
+    :class:`~srmech.apokatastasis.thetasum.ThetaSum` (each term an :class:`EllRatio` the C peer
     builds byte-exact to the pure carrier, in the same lexicographic partition order,
     summed here identically to the pure path via :meth:`ThetaSum.from_ellratio` + ``+``),
     or ``None`` when the native symbols are absent (the caller uses the pure result).
     The interned symbol universe MUST include ``p``: the :meth:`Theta.canonicalize`
     quasi-periodicity rewrite reads/writes the nome ``p`` off ``psym`` (mirrors the same
     forcing in :func:`_multivariate_elliptic_jackson_c`)."""
-    from . import _native as _nat
+    from ..amsc import _native as _nat
     from .ellbase import _P, _ellratio_from_form, _mono_to_form
     from .thetasum import ThetaSum
     if not _nat.has_native_cn_vwp_multisum_lhs():
@@ -293,7 +293,7 @@ def _cn_lhs_thetasum(aa: EllMonomial, bb: EllMonomial, cc: EllMonomial, dd: EllM
                      xx: EllMonomial, qq: EllMonomial, N: int, n: int):
     """Build the LHS of Rosengren Thm 2.1 — the n-fold Cₙ very-well-poised elliptic sum over
     the partitions ``Λ_{nN} = {N ≥ λ₁ ≥ … ≥ λₙ ≥ 0}`` — SYMBOLICALLY as an exact
-    :class:`~srmech.amsc.thetasum.ThetaSum` (the ADDITIVE theta carrier). This is the exact
+    :class:`~srmech.apokatastasis.thetasum.ThetaSum` (the ADDITIVE theta carrier). This is the exact
     symbolic twin of the NUMERIC ``_cn_sum`` oracle in
     ``tests/test_multivariate_elliptic_jackson_rc96.py`` (same summand structure, built over
     the modified-theta algebra instead of an ℚ eval): each theta-Pochhammer
@@ -406,8 +406,8 @@ def _multivariate_elliptic_jackson_c(aa: EllMonomial, bb: EllMonomial, cc: EllMo
     :func:`_multivariate_elliptic_jackson_py`). The interned symbol universe MUST include
     ``p``: the :meth:`Theta.canonicalize` quasi-periodicity rewrite reads/writes the nome
     ``p`` off ``psym`` (mirrors the same forcing in
-    :func:`~srmech.amsc.elliptic_determinant._elliptic_cauchy_determinant_c`)."""
-    from . import _native as _nat
+    :func:`~srmech.apokatastasis.elliptic_determinant._elliptic_cauchy_determinant_c`)."""
+    from ..amsc import _native as _nat
     from .ellbase import _P, _ellratio_from_form, _mono_to_form
     if not _nat.has_native_multivariate_elliptic_jackson():
         return None

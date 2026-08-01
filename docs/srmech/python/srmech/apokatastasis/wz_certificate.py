@@ -1,8 +1,8 @@
-"""srmech.amsc.wz_certificate — the Wilf–Zeilberger pair method (the THIRD and
+"""srmech.apokatastasis.wz_certificate — the Wilf–Zeilberger pair method (the THIRD and
 FINAL public op of the §76 "telescope" Σ-row closed-form prover, F929).
 
-Where :func:`srmech.amsc.gosper.gosper` does INDEFINITE summation and
-:func:`srmech.amsc.zeilberger.zeilberger` FINDS the definite-sum recurrence,
+Where :func:`srmech.apokatastasis.gosper.gosper` does INDEFINITE summation and
+:func:`srmech.apokatastasis.zeilberger.zeilberger` FINDS the definite-sum recurrence,
 ``wz_certificate`` **PROVES a hypergeometric identity** — it produces AND
 verifies the *WZ certificate* of a terminating identity ``Σ_k F(n,k) = const``
 (Wilf & Zeilberger, "Rational functions certify combinatorial identities",
@@ -19,7 +19,7 @@ normalized summand ``F(n,k)`` of an identity ``Σ_k F(n,k) = const`` satisfies
 
 Input — the two **term ratios** of the proper hypergeometric term ``F``, each a
 rational function of ``(n,k)`` given by a numerator / denominator pair of
-:class:`~srmech.amsc.zeilberger.BiPoly` (exact-``ℚ[n,k]``):
+:class:`~srmech.apokatastasis.zeilberger.BiPoly` (exact-``ℚ[n,k]``):
 
   * ``r_n(n,k) = F(n+1,k) / F(n,k)``   (the ``rn_num`` / ``rn_den`` operands)
   * ``r_k(n,k) = F(n,k+1) / F(n,k)``   (the ``rk_num`` / ``rk_den`` operands)
@@ -28,7 +28,7 @@ The op does BOTH halves of the WZ method:
 
   1. **FIND** the certificate ``R(n,k)`` (a rational function, as a ``BiPoly``
      num/den pair). This is Gosper-in-``k`` applied to ``F(n+1,k) − F(n,k)``, i.e.
-     EXACTLY what :func:`~srmech.amsc.zeilberger.zeilberger` produces at the
+     EXACTLY what :func:`~srmech.apokatastasis.zeilberger.zeilberger` produces at the
      forced recurrence ``[−1, +1]`` — so the FIND step reuses the rc42 creative-
      telescoping machinery (``zeilberger`` with ``max_order=1``; the order-1
      recurrence of ``F`` IS ``f(n+1) − f(n) = 0`` precisely when the identity sum
@@ -54,7 +54,7 @@ a WZ certificate exists AND the WZ equation verifies, else ``None`` (the term is
 not WZ-summable / the identity is not a constant sum).
 
 The whole pipeline stays EXACT over ``ℚ`` — every polynomial is a
-:class:`~srmech.amsc.zeilberger.BiPoly` (each coefficient a
+:class:`~srmech.apokatastasis.zeilberger.BiPoly` (each coefficient a
 :class:`~srmech.amsc.poly.Poly` over the bigint :class:`~srmech.amsc.q.Q`, no
 magnitude ceiling), the verify a coefficient-by-coefficient compare. There is NO
 float anywhere; sign is the **Class-K** pin-slot via the ``Q`` sign-branch (never
@@ -78,8 +78,8 @@ from __future__ import annotations
 
 from typing import Dict, Optional
 
-from .poly import Poly
-from .q import Q
+from ..amsc.poly import Poly
+from ..amsc.q import Q
 from .zeilberger import BiPoly, zeilberger
 
 __all__ = ["wz_certificate"]
@@ -91,7 +91,7 @@ def _native():
     and falls cleanly to the pure-Python check (the complete alternative + the
     parity oracle) otherwise. Imported lazily to avoid a bootstrap cycle."""
     try:
-        from . import _native as nat
+        from ..amsc import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_wz_verify", None)
@@ -111,13 +111,13 @@ def wz_certificate(rn_num, rn_den, rk_num, rk_den) -> Optional[Dict[str, object]
     ``rn_num`` / ``rn_den`` are the numerator / denominator of the ``n``-term-ratio
     ``r_n(n,k) = F(n+1,k)/F(n,k)``; ``rk_num`` / ``rk_den`` likewise for the
     ``k``-term-ratio ``r_k(n,k) = F(n,k+1)/F(n,k)``. Each is a
-    :class:`~srmech.amsc.zeilberger.BiPoly` (exact-``ℚ[n,k]``), or a
+    :class:`~srmech.apokatastasis.zeilberger.BiPoly` (exact-``ℚ[n,k]``), or a
     :class:`~srmech.amsc.poly.Poly` (read as a polynomial in ``k`` alone), or an
     ascending-``k``-degree coefficient sequence. ``F`` must be the NORMALIZED
     summand of a constant identity (``Σ_k F(n,k)`` independent of ``n``).
 
     FINDs the WZ certificate ``R(n,k)`` (Gosper-in-``k`` of ``F(n+1,k)−F(n,k)`` =
-    :func:`~srmech.amsc.zeilberger.zeilberger` at the forced recurrence ``[−1,+1]``)
+    :func:`~srmech.apokatastasis.zeilberger.zeilberger` at the forced recurrence ``[−1,+1]``)
     and VERIFIES the WZ equation ``F(n+1,k)−F(n,k) = G(n,k+1)−G(n,k)`` (``G=R·F``)
     as an EXACT bivariate rational-function identity — no solve, no order bound.
 

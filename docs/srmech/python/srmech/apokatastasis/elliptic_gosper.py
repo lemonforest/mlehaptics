@@ -1,13 +1,13 @@
-"""srmech.amsc.elliptic_gosper — the ELLIPTIC analog of Gosper's indefinite
+"""srmech.apokatastasis.elliptic_gosper — the ELLIPTIC analog of Gosper's indefinite
 hypergeometric summation (the FIRST engine op of the ELLIPTIC F929 reduction row,
 the top of the base-axis degeneration tower ``elliptic → q → ordinary``).
 
-Where :func:`srmech.amsc.gosper.gosper` decides whether an ordinary
+Where :func:`srmech.apokatastasis.gosper.gosper` decides whether an ordinary
 hypergeometric term ``t(k)`` has a hypergeometric antidifference and
-:func:`srmech.amsc.q_gosper.q_gosper` decides the same for a q-hypergeometric term
+:func:`srmech.apokatastasis.q_gosper.q_gosper` decides the same for a q-hypergeometric term
 (term-ratio rational in ``x = qᵏ``), the **elliptic Gosper** algorithm decides it
 for a **theta-hypergeometric** (elliptic-hypergeometric) term, whose term-ratio
-``r(x) = t(n+1)/t(n)`` is an :class:`~srmech.amsc.ellbase.EllRatio` — a ratio of
+``r(x) = t(n+1)/t(n)`` is an :class:`~srmech.apokatastasis.ellbase.EllRatio` — a ratio of
 modified-theta products ``∏θ(αx;p)/∏θ(βx;p)`` over an exact-``ℚ`` monomial
 prefactor (``x = qⁿ``; the summation shift ``σ : x ↦ q·x``):
 
@@ -16,7 +16,7 @@ prefactor (``x = qⁿ``; the summation shift ``σ : x ↦ q·x``):
 This op takes that term-ratio and decides whether ``t(n)`` has an
 elliptic-hypergeometric **antidifference** ``T(n) = R(x)·t(n)`` (so ``T(n+1) −
 T(n) = t(n)`` and the sum telescopes: ``Σ_{n=a}^{b} t(n) = T(b+1) − T(a)``), where
-``R(x)`` is itself an :class:`~srmech.amsc.ellbase.EllRatio` (a theta-quotient)
+``R(x)`` is itself an :class:`~srmech.apokatastasis.ellbase.EllRatio` (a theta-quotient)
 satisfying the **elliptic Gosper equation**
 
     R(qx)·r(x) − R(x) = 1                  (R(qx) = R.qshift())
@@ -38,15 +38,15 @@ Reference (MPM-verified at build — the actual arXiv PDF extracted, authors + t
     (very-well-poised) condition that gates the row is Gasper–Schlosser Eq. (2.4):
     ``a₁a₂…a_{r+1} = (b₁…b_r)q`` makes ``g(x) = z·∏θ(a_kqˣ;p)/θ(b_kqˣ;p)`` an
     elliptic (doubly-periodic) function — exactly the
-    :meth:`~srmech.amsc.ellbase.EllRatio.is_elliptic` predicate (``g`` invariant
+    :meth:`~srmech.apokatastasis.ellbase.EllRatio.is_elliptic` predicate (``g`` invariant
     under the period shift ``x ↦ p·x``). Secondary anchor (already cited by
-    :mod:`srmech.amsc.ellbase`): S. O. Warnaar, *Constr. Approx.* 18 (2002)
+    :mod:`srmech.apokatastasis.ellbase`): S. O. Warnaar, *Constr. Approx.* 18 (2002)
     479–502; keystone identity = the Frenkel–Turaev ₁₀E₉ sum.
 
 The algorithm is a STRUCTURAL decompose-and-compute (NOT an enumerate-and-test
 guess), exact over the modified-theta algebra (no float in the carrier; the additive
-Gosper equation is decided by the additive :class:`~srmech.amsc.thetasum.ThetaSum`
-carrier's exact-symbolic :attr:`~srmech.amsc.thetasum.ThetaSum.is_zero` — quasi-
+Gosper equation is decided by the additive :class:`~srmech.apokatastasis.thetasum.ThetaSum`
+carrier's exact-symbolic :attr:`~srmech.apokatastasis.thetasum.ThetaSum.is_zero` — quasi-
 periodicity grouping + the Weierstrass three-term reduction + the Fundamental-Theorem-
 of-Elliptic-Functions degree bound — since theta-quotients form a multiplicative
 group but are NOT additively closed, so the additive ``−`` of the Gosper equation
@@ -77,7 +77,7 @@ lives in ``ThetaSum``, never a converging-eval witness):
      closes ``R(qx)·r − R == 1`` (a Class-K sign / Class-C chirality resolution — the
      SHAPE is determined by the GP factoring; only the endianness is free; NOT an
      enumerate-and-test family). The **Gosper equation is VERIFIED EXACTLY** via
-     :attr:`~srmech.amsc.thetasum.ThetaSum.is_zero` (structural, never a converging
+     :attr:`~srmech.apokatastasis.thetasum.ThetaSum.is_zero` (structural, never a converging
      eval; the same no-hallucination standard as the §76 ``gosper`` / ``zeilberger`` /
      ``wz_certificate`` ops). A verified certificate is returned; otherwise ``None``.
 
@@ -108,7 +108,7 @@ from __future__ import annotations
 from typing import Dict, List, Optional, Tuple
 
 from .ellbase import EllMonomial, EllRatio, Theta, _Q_SYM, _X
-from .q import Q
+from ..amsc.q import Q
 from .thetasum import ThetaSum
 
 __all__ = ["elliptic_gosper"]
@@ -123,7 +123,7 @@ def _native():
     available and falls cleanly to the pure-Python body (the complete alternative +
     the parity oracle) otherwise. Imported lazily to avoid a bootstrap cycle."""
     try:
-        from . import _native as nat
+        from ..amsc import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_elliptic_gosper", None)
@@ -131,7 +131,7 @@ def _native():
 
 
 def _coerce_ratio(value) -> EllRatio:
-    """Coerce the term-ratio operand to an :class:`~srmech.amsc.ellbase.EllRatio`.
+    """Coerce the term-ratio operand to an :class:`~srmech.apokatastasis.ellbase.EllRatio`.
     An ``EllRatio`` passes through; an ``EllMonomial`` (a pure-monomial ratio) /
     a ``Theta`` (a single numerator theta) is lifted."""
     if isinstance(value, EllRatio):
@@ -150,8 +150,8 @@ def _coerce_ratio(value) -> EllRatio:
 
 def _verifies_gosper_equation(cert: EllRatio, r: EllRatio) -> bool:
     """Decide ``R(qx)·r(x) − R(x) = 1`` (the elliptic Gosper equation) EXACTLY via the
-    ADDITIVE :class:`~srmech.amsc.thetasum.ThetaSum` carrier's structural
-    :attr:`~srmech.amsc.thetasum.ThetaSum.is_zero` — quasi-periodicity grouping + the
+    ADDITIVE :class:`~srmech.apokatastasis.thetasum.ThetaSum` carrier's structural
+    :attr:`~srmech.apokatastasis.thetasum.ThetaSum.is_zero` — quasi-periodicity grouping + the
     Weierstrass three-term reduction + the Fundamental-Theorem-of-Elliptic-Functions
     degree bound, **never a converging-eval witness**. The theta-quotient
     :class:`EllRatio` is multiplicatively but NOT additively closed, so the additive
@@ -270,7 +270,7 @@ def _solve_certificate(a: EllRatio, b: EllRatio, c: EllRatio,
 
 
 def _ratio_to_form(r: EllRatio) -> Dict[str, object]:
-    """An :class:`~srmech.amsc.ellbase.EllRatio` → the bridge form the C peer
+    """An :class:`~srmech.apokatastasis.ellbase.EllRatio` → the bridge form the C peer
     consumes: the exact-``ℚ`` prefactor ``(coeff_num, coeff_den, [(sym, exp), …])``
     plus the numerator / denominator theta-argument exponent maps (each
     ``[(coeff_num, coeff_den, [(sym, exp), …]), …]``). Pure integer exponents +
@@ -287,7 +287,7 @@ def _ratio_to_form(r: EllRatio) -> Dict[str, object]:
 
 
 def _form_to_ratio(form) -> EllRatio:
-    """Rebuild an :class:`~srmech.amsc.ellbase.EllRatio` from the bridge form (from
+    """Rebuild an :class:`~srmech.apokatastasis.ellbase.EllRatio` from the bridge form (from
     the C peer)."""
     def _mono(triple) -> EllMonomial:
         cn, cd, exps = triple
@@ -322,7 +322,7 @@ def elliptic_gosper(r) -> Optional[Dict[str, object]]:
     modified-theta algebra (``x = qⁿ``; the FIRST engine op of the ELLIPTIC F929 row).
 
     ``r`` is the elliptic-hypergeometric **term ratio** ``t(n+1)/t(n) = r(x)`` — an
-    :class:`~srmech.amsc.ellbase.EllRatio` (a theta-quotient ``∏θ(αx;p)/∏θ(βx;p)``
+    :class:`~srmech.apokatastasis.ellbase.EllRatio` (a theta-quotient ``∏θ(αx;p)/∏θ(βx;p)``
     over an exact-``ℚ`` monomial prefactor), or an ``EllMonomial`` / ``Theta`` the
     carrier lifts. The op decides whether ``t(n)`` has an elliptic-hypergeometric
     antidifference ``T(n) = R(x)·t(n)`` (``T(n+1) − T(n) = t(n)``):
@@ -338,7 +338,7 @@ def elliptic_gosper(r) -> Optional[Dict[str, object]]:
       ``None``.
 
     Exact over the modified-theta algebra; the additive Gosper equation is decided
-    structurally via the additive :attr:`~srmech.amsc.thetasum.ThetaSum.is_zero`
+    structurally via the additive :attr:`~srmech.apokatastasis.thetasum.ThetaSum.is_zero`
     (the theta-quotient :class:`EllRatio` is multiplicatively but not additively
     closed, so the residual is formed in ``ThetaSum`` — never a converging-eval
     witness). No float, no ``abs()`` (Class-K sign), no ``math`` / numpy. See the

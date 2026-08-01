@@ -217,7 +217,7 @@ def _franel_order2_rows():
     homogeneous system — the real 484x154 system. Reuses the rc46 test's builder
     path via the ``zeilberger`` internals."""
     from srmech.amsc.poly import Poly
-    from srmech.amsc.zeilberger import (BiPoly, _ansatz_n_degree,
+    from srmech.apokatastasis.zeilberger import (BiPoly, _ansatz_n_degree,
                                         _ansatz_x_degree, _assemble_rows,
                                         _bi_exact_div, _rho)
 

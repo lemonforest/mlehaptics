@@ -98,14 +98,14 @@ from .tripoly import TriPoly
 # identities EXACTLY by the elliptic degree bound (quasi-periodicity grouping + the
 # Fundamental Theorem of Elliptic Functions). A carrier, not a ToolEntry, mirrors
 # EllRatio / QMat / Poly / TriPoly.
-from .thetasum import ThetaSum
+from ..apokatastasis.thetasum import ThetaSum
 # rc72 — the exact genus-2 Riemann theta-CONSTANT carrier RiemannTheta, the FIRST
 # RUNG of the GENUS axis. The elliptic/theta carriers (EllRatio/ThetaSum/UnaryTheta)
 # all live on a genus-1 torus; RiemannTheta augments the ladder with a genus axis
 # (the exact-integer (A,B,C) exponent lattice over the quarter-nome base, the
 # cross-term C carrying the genus-2 denominator-4 clearing). A carrier, not a
 # ToolEntry, mirrors ThetaSum / EllRatio / QMat / Poly. C peer srmech_riemann_theta.
-from .riemann_theta import RiemannTheta
+from ..apokatastasis.riemann_theta import RiemannTheta
 # rc82 — the exact Dedekind-ETA-QUOTIENT carrier EtaQuotient, a WEIGHT-axis operand
 # carrier. Q(τ) = ∏_d η(dτ)^{r_d} as an EXACT q-series modular object: the integer
 # q-series + the half-integral weight are COMPUTED from the exponents exactly, and
@@ -114,7 +114,7 @@ from .riemann_theta import RiemannTheta
 # eta-quotient?" (a proper subspace; no finite cutter) — dual of the Schottky
 # membership decision. A carrier, not a ToolEntry, mirrors UnaryTheta / RiemannTheta /
 # ThetaSum. C peer srmech_eta_quotient_qseries.
-from .eta_quotient import EtaQuotient
+from ..apokatastasis.eta_quotient import EtaQuotient
 # rc83 — the exact-RATIONAL EISENSTEIN-SERIES carrier Eisenstein, the SECOND rung
 # of the WEIGHT axis (after rc82 eta-quotient). E_k(τ) = 1 − (2k/B_k)·Σ σ_{k−1}(n) qⁿ
 # as an EXACT-Q q-series modular form: the rational q-series (e.g. E₁₂ has c₁ =
@@ -125,7 +125,7 @@ from .eta_quotient import EtaQuotient
 # level>1 (E_{k,χ}) — dual of the eta-quotient-subspace / Schottky OPENs. A
 # carrier, not a ToolEntry, mirrors EtaQuotient / UnaryTheta / RiemannTheta /
 # ThetaSum. C peer srmech_eisenstein_qseries.
-from .eisenstein import Eisenstein
+from ..apokatastasis.eisenstein import Eisenstein
 # rc84 — the level-1 ℂ[E₄,E₆] MODULAR-FORMS-RING carrier ModularFormsRing (the
 # THIRD WEIGHT-axis rung, after rc82 eta-quotient + rc83 Eisenstein) + its exact
 # MEMBERSHIP DECISION. The structure theorem M_*(SL₂(ℤ)) = ℂ[E₄,E₆] made
@@ -139,7 +139,7 @@ from .eisenstein import Eisenstein
 # weight_monomials/dim and the carrier constructor are pure accessors (NOT
 # ToolEntries). C peer srmech_modular_forms_ring_represent (dispatches to the
 # existing srmech_qmat_solve).
-from .modular_forms_ring import (
+from ..apokatastasis.modular_forms_ring import (
     ModularForm,
     ModularFormsRing,
     modular_forms_ring,
@@ -161,7 +161,7 @@ from .modular_forms_ring import (
 # WEIGHT-axis analog of the Σ-row reducers); eisenstein_e2 + weight_monomials/dim +
 # the carrier constructor are pure accessors (NOT ToolEntries). C peer
 # srmech_quasimodular_forms_ring_represent (dispatches to srmech_qmat_solve).
-from .quasimodular_forms_ring import (
+from ..apokatastasis.quasimodular_forms_ring import (
     QuasiModularForm,
     QuasiModularFormsRing,
     eisenstein_e2,

@@ -26,8 +26,8 @@ import pytest
 
 from srmech import introspect
 from srmech.amsc.dispatch import infer
-from srmech.amsc.ellbase import EllMonomial as M, EllRatio
-from srmech.amsc.elliptic_jackson import (
+from srmech.apokatastasis.ellbase import EllMonomial as M, EllRatio
+from srmech.apokatastasis.elliptic_jackson import (
     multivariate_elliptic_jackson,
     _verify_cn_reduction,
     _num_partitions,
@@ -93,8 +93,8 @@ def _verify_or_informed_skip(a, b, c, d, x, q, N, n):
     math wherever the declared arena genuinely fits — a ≥19 GB host), and a SKIP is not a
     PASS (it renders as SKIPPED with the RAM cost, the ``verified is True`` assertion is
     untouched). The runner simply KNOWS what it can and cannot hold."""
-    from srmech.amsc.elliptic_jackson import _cn_lhs_thetasum
-    from srmech.amsc.thetasum import ThetaSum
+    from srmech.apokatastasis.elliptic_jackson import _cn_lhs_thetasum
+    from srmech.apokatastasis.thetasum import ThetaSum
     closed = multivariate_elliptic_jackson(a, b, c, d, x, q, N, n)      # cheap constructive
     residual = _cn_lhs_thetasum(a, b, c, d, x, q, N, n) - ThetaSum.from_ellratio(closed)
     est = residual.is_zero_ws_estimate_bytes() or 0
@@ -254,8 +254,8 @@ def test_is_zero_ws_estimate_bytes_informs_without_allocating():
     ``is_zero`` interpolation arena in bytes, computed WITHOUT allocating it (reuses the
     rc102 C sizer; no new C op). An edge / memory-constrained caller queries this to know
     what is and is not holdable — the op itself is NEVER capped by it."""
-    from srmech.amsc.ellbase import Theta
-    from srmech.amsc.thetasum import ThetaSum
+    from srmech.apokatastasis.ellbase import Theta
+    from srmech.apokatastasis.thetasum import ThetaSum
 
     xm = M.symbol("x")
     ts = ThetaSum(terms=((Q(1, 1), M.one(), (Theta(xm ** 4), Theta(xm.inv() ** 4))),))

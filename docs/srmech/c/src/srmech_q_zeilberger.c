@@ -1,7 +1,7 @@
 /*
  * srmech_q_zeilberger.c -- the q-analog of Zeilberger's creative telescoping (the
  * SECOND public op of the q-hypergeometric F929 reduction row). The C peer of
- * srmech.amsc.q_zeilberger.q_zeilberger.
+ * srmech.apokatastasis.q_zeilberger.q_zeilberger.
  *
  * Input: a proper q-hypergeometric term F(n,k) given by its TWO bivariate-q term
  * ratios over (X, Y) = (q^n, q^k):

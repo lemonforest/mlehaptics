@@ -1,6 +1,6 @@
 /*
  * srmech_riemann_theta_multisum.c -- the 1:1 native C peer of
- * srmech.amsc.riemann_theta_multisum.{riemann_theta_multisum_lhs,
+ * srmech.apokatastasis.riemann_theta_multisum.{riemann_theta_multisum_lhs,
  * multivariate_riemann_theta_sum} (rc232), the HIGHER-GENUS (genus-g Riemann
  * theta) multisum reduction-row builders: the exact ThetaBracketSum construction
  * of the LEFT-hand side (the n+1-term multisum) and the closed-form RIGHT-hand

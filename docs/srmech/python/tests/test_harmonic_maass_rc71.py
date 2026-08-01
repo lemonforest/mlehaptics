@@ -1,4 +1,4 @@
-"""rc71 — ``srmech.amsc.harmonic_maass.HarmonicMaass``, the PAIR carrier that makes
+"""rc71 — ``srmech.apokatastasis.harmonic_maass.HarmonicMaass``, the PAIR carrier that makes
 a harmonic (weak) Maass form a FINITE EXACT object (research item #9 closed).
 
 A harmonic Maass form f of weight k is determined by the pair (f⁺ holomorphic mock
@@ -28,10 +28,10 @@ import tokenize
 
 import pytest
 
-from srmech.amsc.harmonic_maass import (
+from srmech.apokatastasis.harmonic_maass import (
     MockQSeries, HarmonicMaass, harmonic_maass, _eulerian_f_coeffs,
 )
-from srmech.amsc.unary_theta import unary_theta
+from srmech.apokatastasis.unary_theta import unary_theta
 from srmech.amsc.q import Q
 from srmech.amsc import _native
 
@@ -249,7 +249,7 @@ def test_construction_rejects_bad_types():
 # ── gate 8: the carrier source is numpy / math / abs() / float free ──────────
 def test_harmonic_maass_source_is_numpy_math_abs_free():
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    src = os.path.join(here, "srmech", "amsc", "harmonic_maass.py")
+    src = os.path.join(here, "srmech", "apokatastasis", "harmonic_maass.py")
     with tokenize.open(src) as fh:
         text = fh.read()
     assert "import numpy" not in text
@@ -262,7 +262,7 @@ def test_harmonic_maass_source_is_numpy_math_abs_free():
 def test_harmonic_maass_tool_entry_registered():
     from srmech.amsc.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
-    assert "srmech.amsc.harmonic_maass.harmonic_maass" in names
+    assert "srmech.apokatastasis.harmonic_maass.harmonic_maass" in names
 
 
 def test_introspect_tools_total_matches_live_rc71():
@@ -273,4 +273,4 @@ def test_introspect_tools_total_matches_live_rc71():
     shipped = [t for t in get_tool_schema().tools if not t.name.startswith("test.")]
     assert len(shipped) == 525
     names = {t.name for t in shipped}
-    assert "srmech.amsc.harmonic_maass.harmonic_maass" in names
+    assert "srmech.apokatastasis.harmonic_maass.harmonic_maass" in names

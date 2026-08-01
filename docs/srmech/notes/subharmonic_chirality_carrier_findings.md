@@ -1,7 +1,7 @@
 # Subharmonic / chirality structure in the elliptic-theta carrier — verified findings
 
 > **Research note (2026-06-25).** Carrier-verified facts about how the elliptic-theta
-> carrier (`srmech.amsc.ellbase` / `thetasum`) already encodes the overtone/undertone
+> carrier (`srmech.apokatastasis.ellbase` / `thetasum`) already encodes the overtone/undertone
 > (harmonic/subharmonic) = chirality structure. Every claim below is checked by an exact
 > gate in the carrier (no float, no eval) — the test that produced it is given so it is
 > reproducible. Companion to the elliptic F929 reduction row + the order-tower work.
@@ -83,9 +83,9 @@ the doubled rung as the irreducible, genuinely-non-summable residue).
 
 All checks ran numpy-free against the source tree:
 `PYTHONPATH=docs/srmech/python python -c "..."` using
-`srmech.amsc.ellbase` (EllMonomial/Theta/EllRatio), `srmech.amsc.thetasum`
+`srmech.apokatastasis.ellbase` (EllMonomial/Theta/EllRatio), `srmech.apokatastasis.thetasum`
 (`_recover_pairs`/`_reduce_class`/`_monomial_sqrt`), and
-`srmech.amsc.elliptic_gosper` (`_x_param`/`_peel_coboundary`). See the elliptic
+`srmech.apokatastasis.elliptic_gosper` (`_x_param`/`_peel_coboundary`). See the elliptic
 F929-row work for the exact term-ratio constructions.
 
 *Durable cross-links: user memory `project_subharmonic_chirality_collapse_thread`,

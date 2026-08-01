@@ -38,8 +38,8 @@ at rc364, which landed a namespace carrying only descriptors and ZERO callables)
 
 This module deliberately imports nothing: ``import srmech.apokatastasis`` must
 stay free. The domain's callables live in submodules (``elliptic_partial_
-fraction`` today), each importing the carriers it needs (``srmech.amsc.ellbase``
-/ ``srmech.amsc.thetasum``) directly.
+fraction`` today), each importing the carriers it needs (``srmech.apokatastasis.ellbase``
+/ ``srmech.apokatastasis.thetasum``) directly.
 """
 
 from __future__ import annotations

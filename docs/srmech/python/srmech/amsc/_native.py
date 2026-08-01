@@ -6425,7 +6425,7 @@ def _bind(lib: ctypes.CDLL) -> None:
         lib.srmech_ellratio_half_shift_response.restype = ctypes.c_int
 
     # rc67: srmech_elliptic_lagrange_basis — the C peer of the EllRatio-carrier op
-    # srmech.amsc.ellbase.elliptic_lagrange_basis (rc66, Python-only; C mirror owed
+    # srmech.apokatastasis.ellbase.elliptic_lagrange_basis (rc66, Python-only; C mirror owed
     # by the everything-mirrors same-rc discipline). The k point monomials ride as
     # flat (coeff_num/coeff_den) srmech_bigint arrays + the flat int32 exponent rows;
     # the multiplier as a single monomial; the k basis EllRatios come back as the
@@ -6458,7 +6458,7 @@ def _bind(lib: ctypes.CDLL) -> None:
         lib.srmech_elliptic_lagrange_basis.restype = ctypes.c_int
 
     # rc94: srmech_elliptic_cauchy_determinant — the C peer of the EllRatio-carrier op
-    # srmech.amsc.elliptic_determinant.elliptic_cauchy_determinant (Frobenius's elliptic
+    # srmech.apokatastasis.elliptic_determinant.elliptic_cauchy_determinant (Frobenius's elliptic
     # Cauchy determinant, the foundation of the multivariable Cₙ elliptic reduction row).
     # The parameter t + the n x-monomials + the n y-monomials ride as flat
     # (coeff_num/coeff_den) srmech_bigint arrays + the flat int32 exponent rows; the single
@@ -6529,7 +6529,7 @@ def _bind(lib: ctypes.CDLL) -> None:
         lib.srmech_elliptic_partial_fraction.restype = ctypes.c_int
 
     # rc96: srmech_multivariate_elliptic_jackson — the C peer of the EllRatio-carrier op
-    # srmech.amsc.elliptic_jackson.multivariate_elliptic_jackson (the eq-5 Cₙ
+    # srmech.apokatastasis.elliptic_jackson.multivariate_elliptic_jackson (the eq-5 Cₙ
     # elliptic Jackson summation reducer, the capstone of the multivariable Cₙ elliptic
     # reduction row). The parameters a, b, c, d + the base variables x, q ride as
     # (coeff_num/coeff_den) srmech_bigint pairs + their flat int32 exponent rows; the two
@@ -6567,7 +6567,7 @@ def _bind(lib: ctypes.CDLL) -> None:
         lib.srmech_multivariate_elliptic_jackson.restype = ctypes.c_int
 
     # rc216: srmech_cn_vwp_multisum_lhs — the C peer of the ThetaSum-returning op
-    # srmech.amsc.elliptic_jackson.cn_vwp_multisum_lhs (the symbolic Cₙ very-well-poised
+    # srmech.apokatastasis.elliptic_jackson.cn_vwp_multisum_lhs (the symbolic Cₙ very-well-poised
     # elliptic multisum LHS builder — the rc96 test oracle → rc101 symbolic-verify engine
     # promoted public). The parameters a, b, c, d + the base variables x, q ride as
     # (coeff_num/coeff_den) srmech_bigint pairs + their flat int32 exponent rows; N
@@ -6610,7 +6610,7 @@ def _bind(lib: ctypes.CDLL) -> None:
 
     # rc227: srmech_multivariate_elliptic_jackson_an — the C peer of the
     # EllRatio-carrier op
-    # srmech.amsc.elliptic_jackson_an.multivariate_elliptic_jackson_an (the eq-6
+    # srmech.apokatastasis.elliptic_jackson_an.multivariate_elliptic_jackson_an (the eq-6
     # Aₙ elliptic Jackson summation reducer — the type-A member of the
     # multivariable elliptic reduction row; Rosengren arXiv:math/0305379 Eq. 6).
     # The VARIABLE-ARITY parameter vectors ride as parallel bigint arrays + flat
@@ -6645,7 +6645,7 @@ def _bind(lib: ctypes.CDLL) -> None:
         lib.srmech_multivariate_elliptic_jackson_an.restype = ctypes.c_int
 
     # rc227: srmech_an_vwp_multisum_lhs — the C peer of the ThetaSum-returning
-    # op srmech.amsc.elliptic_jackson_an.an_vwp_multisum_lhs (the symbolic Aₙ
+    # op srmech.apokatastasis.elliptic_jackson_an.an_vwp_multisum_lhs (the symbolic Aₙ
     # elliptic multisum LHS builder over the SIMPLEX y₁+…+yₙ = N). The
     # C(N+n−1, n−1) TERM EllRatios come back as the rc216 multi-term ROW stream
     # in the ascending lexicographic composition order (the Python side sums
@@ -6678,7 +6678,7 @@ def _bind(lib: ctypes.CDLL) -> None:
         lib.srmech_an_vwp_multisum_lhs.restype = ctypes.c_int
 
     # rc232: srmech_riemann_theta_multisum — the C peer of the ThetaBracketSum-
-    # returning ops srmech.amsc.riemann_theta_multisum.{riemann_theta_multisum_lhs,
+    # returning ops srmech.apokatastasis.riemann_theta_multisum.{riemann_theta_multisum_lhs,
     # multivariate_riemann_theta_sum} (the HIGHER-GENUS Spiridonov theta multisum
     # LHS / RHS builders). Self-contained int32/int64 wire (the coeffs are ±1 and
     # the genus-g odd-theta arguments are small integer exponent rows) — no bigint
@@ -6859,7 +6859,7 @@ def _bind(lib: ctypes.CDLL) -> None:
 
     # rc68: srmech_elliptic_recurrence_8w7 — the ELLIPTIC Σ-row ORDER-1 RECURRENCE op for
     # the Frenkel–Turaev ₈ω₇ summation. The C peer of
-    # srmech.amsc.elliptic_recurrence.elliptic_recurrence_8w7. The term-ratio rides as the
+    # srmech.apokatastasis.elliptic_recurrence.elliptic_recurrence_8w7. The term-ratio rides as the
     # FULL EllRatio wire form (the interned symbol-table dimension + the x/p/q/y interned
     # indices + the num/den theta counts + the flat exact-Q coeff arrays + the flat int32
     # exponent rows, like srmech_elliptic_gosper but with the added y index for the
@@ -6896,7 +6896,7 @@ def _bind(lib: ctypes.CDLL) -> None:
 
     # rc90: srmech_elliptic_zeilberger — the ELLIPTIC Σ-row CREATIVE-TELESCOPING op for
     # the Frenkel–Turaev ₈ω₇ summation. The C peer of
-    # srmech.amsc.elliptic_zeilberger.elliptic_zeilberger. The term-ratio rides as the
+    # srmech.apokatastasis.elliptic_zeilberger.elliptic_zeilberger. The term-ratio rides as the
     # SAME full EllRatio wire form srmech_elliptic_recurrence_8w7 parses (the interned
     # symbol-table dimension + the x/p/q/y interned indices + the num/den theta counts +
     # the flat exact-Q coeff arrays + the flat int32 exponent rows), PLUS the two extra
@@ -6928,7 +6928,7 @@ def _bind(lib: ctypes.CDLL) -> None:
 
     # rc91: srmech_elliptic_wz_certificate — the ELLIPTIC Σ-row IDENTITY-PROOF op for the
     # Frenkel–Turaev ₈ω₇ SUMMATION. The C peer of
-    # srmech.amsc.elliptic_wz_certificate.elliptic_wz_certificate. IDENTICAL wire shape to
+    # srmech.apokatastasis.elliptic_wz_certificate.elliptic_wz_certificate. IDENTICAL wire shape to
     # srmech_elliptic_zeilberger (the full EllRatio + the nsym/ksym certificate index
     # symbols N = qⁿ, K = qᵏ); the proof reduces to the SAME connection-coefficient split
     # certificate decided via srmech_thetasum_is_zero, so the peer returns only *out_has
@@ -7082,7 +7082,7 @@ def _bind(lib: ctypes.CDLL) -> None:
 
     # rc43: srmech_wz_verify — the Wilf-Zeilberger VERIFY primitive (the §76 telescope
     # Sigma-row's THIRD/FINAL public op). The COMPLETE C mirror of the verify half of
-    # srmech.amsc.wz_certificate: an EXACT bivariate-Q rational-function identity check
+    # srmech.apokatastasis.wz_certificate: an EXACT bivariate-Q rational-function identity check
     # (bounded only by input DEGREE, not by any order — unlike the rc42 order-<=1 peer).
     # The six bivariate inputs (r_n num/den, r_k num/den, cert num/den) ride as flat
     # (num, den) coefficient arrays + per-k length arrays + the k-degree count, the same
@@ -7110,7 +7110,7 @@ def _bind(lib: ctypes.CDLL) -> None:
 
     # rc57: srmech_q_wz_verify — the q-analog of the Wilf-Zeilberger VERIFY primitive
     # (the THIRD/FINAL public op of the q-hypergeometric F929 row, the q-row CLOSER).
-    # The COMPLETE C mirror of the verify half of srmech.amsc.q_wz_certificate: an EXACT
+    # The COMPLETE C mirror of the verify half of srmech.apokatastasis.q_wz_certificate: an EXACT
     # bivariate-Q[q] rational-function identity check (bounded only by input DEGREE, not
     # by any order — unlike the rc56 q_zeilberger order-<=1 peer). The six bivariate-q
     # inputs (r_n num/den, r_k num/den, cert num/den) ride the SAME QBiPoly bridge as
@@ -11035,7 +11035,7 @@ def poly_shift_c(p_coeffs, h):
 
 # ----------------------------------------------------------------------
 # rc70: the EXACT-INTEGER UNARY THETA q-series C peer (srmech_unary_theta) — the
-# first WEIGHT-GRADED carrier. The Python srmech.amsc.unary_theta.UnaryTheta
+# first WEIGHT-GRADED carrier. The Python srmech.apokatastasis.unary_theta.UnaryTheta
 # routes its q_series through this when has_native_unary_theta(); the pure-Python
 # body is the COMPLETE alternative (and the parity oracle) — both emit
 # byte-identical exact integer coefficients at any magnitude (n^j is full bignum,
@@ -11064,7 +11064,7 @@ def _int_isqrt(x: int) -> int:
 def has_native_unary_theta() -> bool:
     """True iff the rc70 ``srmech_unary_theta_q_series`` peer + the
     ``srmech_bigint`` decimal-marshal helpers are loaded + bound. False on a
-    no-C / pre-rc70 lib — the pure-Python ``srmech.amsc.unary_theta.UnaryTheta``
+    no-C / pre-rc70 lib — the pure-Python ``srmech.apokatastasis.unary_theta.UnaryTheta``
     body is the complete alternative (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -11120,7 +11120,7 @@ def unary_theta_q_series_c(modulus, chi_table, j, a, b, D, support, N):
 
 # ----------------------------------------------------------------------
 # rc82: the EXACT-INTEGER ETA-QUOTIENT q-series C peer (srmech_eta_quotient) — a
-# WEIGHT-axis carrier. The Python srmech.amsc.eta_quotient.EtaQuotient routes its
+# WEIGHT-axis carrier. The Python srmech.apokatastasis.eta_quotient.EtaQuotient routes its
 # q_series through this when has_native_eta_quotient(); the pure-Python body is
 # the COMPLETE alternative (and the parity oracle) — both emit byte-identical
 # exact integer coefficients at any magnitude (the coefficients grow, e.g. the
@@ -11131,7 +11131,7 @@ def unary_theta_q_series_c(modulus, chi_table, j, a, b, D, support, N):
 def has_native_eta_quotient() -> bool:
     """True iff the rc82 ``srmech_eta_quotient_qseries`` peer + the
     ``srmech_bigint`` decimal-marshal helpers are loaded + bound. False on a
-    no-C / pre-rc82 lib — the pure-Python ``srmech.amsc.eta_quotient.EtaQuotient``
+    no-C / pre-rc82 lib — the pure-Python ``srmech.apokatastasis.eta_quotient.EtaQuotient``
     body is the complete alternative (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -11192,7 +11192,7 @@ def eta_quotient_qseries_c(ds, rs, n_terms):
 # ----------------------------------------------------------------------
 # rc83: the EXACT-RATIONAL EISENSTEIN-SERIES q-series C peer (srmech_eisenstein) —
 # the SECOND WEIGHT-axis carrier (after rc82 eta-quotient). The Python
-# srmech.amsc.eisenstein.Eisenstein routes its q_series through this when
+# srmech.apokatastasis.eisenstein.Eisenstein routes its q_series through this when
 # has_native_eisenstein(); the pure-Python body is the COMPLETE alternative (and
 # the parity oracle) — both emit byte-identical REDUCED (num, den) coefficients at
 # any magnitude (the genuine rational case k=12 → 65520/691 is covered, NOT just
@@ -11203,7 +11203,7 @@ def eta_quotient_qseries_c(ds, rs, n_terms):
 def has_native_eisenstein() -> bool:
     """True iff the rc83 ``srmech_eisenstein_qseries`` peer + the ``srmech_bigint``
     decimal-marshal helpers are loaded + bound. False on a no-C / pre-rc83 lib —
-    the pure-Python ``srmech.amsc.eisenstein.Eisenstein`` body is the complete
+    the pure-Python ``srmech.apokatastasis.eisenstein.Eisenstein`` body is the complete
     alternative (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -11258,7 +11258,7 @@ def eisenstein_e2_qseries_c(n_terms):
     ``E₂ = 1 − 24·Σ σ₁(n) qⁿ`` (``(1, 1)`` is the constant term, ``(−24, 1)`` the
     q¹ coefficient), or ``None`` if the native symbols are absent. Routes through the
     rc83 ``srmech_eisenstein_qseries`` C peer at ``k = 2`` (its quasimodular
-    branch); the rc89 ``srmech.amsc.quasimodular_forms_ring.eisenstein_e2`` carrier
+    branch); the rc89 ``srmech.apokatastasis.quasimodular_forms_ring.eisenstein_e2`` carrier
     dispatches here. ``E₂`` is the QUASIMODULAR generator — the modular ``Eisenstein``
     carrier still rejects ``k = 2``; this is a separate object."""
     if not has_native_eisenstein():
@@ -11292,7 +11292,7 @@ def eisenstein_e2_qseries_c(n_terms):
 # ----------------------------------------------------------------------
 # rc84: the level-1 ℂ[E₄,E₆] MODULAR-FORMS-RING membership-decision C peer
 # (srmech_modular_forms_ring_represent) — the THIRD WEIGHT-axis rung. The Python
-# srmech.amsc.modular_forms_ring.ModularFormsRing.represent routes its membership
+# srmech.apokatastasis.modular_forms_ring.ModularFormsRing.represent routes its membership
 # solve through this when has_native_modular_forms_ring(); the pure-Python body is
 # the COMPLETE alternative (and the parity oracle) — both emit the byte-identical
 # reduced rep {(a,b): (num, den)} / None. Unlike the carrier q-series peers
@@ -11314,7 +11314,7 @@ def has_native_modular_forms_ring() -> bool:
     ws/entry-cap sizers + the ``srmech_bigint`` decimal-marshal helpers are loaded
     + bound (it composes the rc83 ``srmech_eisenstein`` + the rc40 ``srmech_qmat``
     peers, both required). False on a no-C / pre-rc84 lib — the pure-Python
-    ``srmech.amsc.modular_forms_ring.ModularFormsRing.represent`` body is the
+    ``srmech.apokatastasis.modular_forms_ring.ModularFormsRing.represent`` body is the
     complete alternative (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -11370,7 +11370,7 @@ def modular_forms_ring_represent_c(f_pairs, k):
 # ----------------------------------------------------------------------
 # rc89: the level-1 ℂ[E₂,E₄,E₆] QUASIMODULAR-FORMS-RING membership-decision C peer
 # (srmech_quasimodular_forms_ring_represent) — the FOURTH WEIGHT-axis rung. The
-# Python srmech.amsc.quasimodular_forms_ring.QuasiModularFormsRing.represent routes
+# Python srmech.apokatastasis.quasimodular_forms_ring.QuasiModularFormsRing.represent routes
 # its membership solve through this when has_native_quasimodular_forms_ring(); the
 # pure-Python body is the COMPLETE alternative (and the parity oracle) — both emit
 # the byte-identical reduced rep {(a,b,c): (num, den)} / None. A genuine REDUCER (a
@@ -11391,7 +11391,7 @@ def has_native_quasimodular_forms_ring() -> bool:
     ws/entry-cap sizers + the ``srmech_bigint`` decimal-marshal helpers are loaded
     + bound (it composes the rc83 ``srmech_eisenstein`` — k=2 quasimodular branch
     for E₂ — + the rc40 ``srmech_qmat`` peers, both required). False on a no-C /
-    pre-rc89 lib — the pure-Python ``srmech.amsc.quasimodular_forms_ring.
+    pre-rc89 lib — the pure-Python ``srmech.apokatastasis.quasimodular_forms_ring.
     QuasiModularFormsRing.represent`` body is the complete alternative (and the
     parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
@@ -11460,7 +11460,7 @@ def quasimodular_forms_ring_represent_c(f_pairs, k):
 # rc71: the EXACT-INTEGER HOLOMORPHIC mock-part q-series C peer
 # (srmech_harmonic_maass) — the HarmonicMaass / MockQSeries PAIR carrier that
 # makes research item #9 a finite exact object. The Python
-# srmech.amsc.harmonic_maass.MockQSeries routes its Eulerian f(q) q_series through
+# srmech.apokatastasis.harmonic_maass.MockQSeries routes its Eulerian f(q) q_series through
 # this when has_native_harmonic_maass(); the pure-Python body is the COMPLETE
 # alternative (and the parity oracle) — both emit byte-identical exact integer
 # coefficients at any magnitude.
@@ -11470,7 +11470,7 @@ def quasimodular_forms_ring_represent_c(f_pairs, k):
 def has_native_harmonic_maass() -> bool:
     """True iff the rc71 ``srmech_harmonic_maass_hol_q_series`` peer + the
     ``srmech_bigint`` decimal-marshal helpers are loaded + bound. False on a
-    no-C / pre-rc71 lib — the pure-Python ``srmech.amsc.harmonic_maass`` body is
+    no-C / pre-rc71 lib — the pure-Python ``srmech.apokatastasis.harmonic_maass`` body is
     the complete alternative (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -11510,7 +11510,7 @@ def harmonic_maass_eulerian_c(N):
 # ----------------------------------------------------------------------
 # rc72: the EXACT-INTEGER (A,B,C) EXPONENT LATTICE of a GENUS-2 RIEMANN
 # THETA-CONSTANT C peer (srmech_riemann_theta) — the FIRST RUNG of the GENUS axis.
-# The Python srmech.amsc.riemann_theta.RiemannTheta routes its .lattice() through
+# The Python srmech.apokatastasis.riemann_theta.RiemannTheta routes its .lattice() through
 # this when has_native_riemann_theta(); the pure-Python body is the COMPLETE
 # alternative (and the parity oracle) — both accumulate the [A,B,C,sign] quadruples
 # into the byte-identical canonical {(A,B,C): coeff} lattice.
@@ -11520,7 +11520,7 @@ def harmonic_maass_eulerian_c(N):
 def has_native_riemann_theta() -> bool:
     """True iff the rc72 ``srmech_riemann_theta_lattice`` peer + its count helper
     are loaded + bound. False on a no-C / pre-rc72 lib — the pure-Python
-    ``srmech.amsc.riemann_theta.RiemannTheta`` body is the complete alternative (and
+    ``srmech.apokatastasis.riemann_theta.RiemannTheta`` body is the complete alternative (and
     the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -11564,7 +11564,7 @@ def riemann_theta_lattice_c(ep1, ep2, e1, e2, box):
 # ----------------------------------------------------------------------
 # rc73: the SECOND GENUS RUNG — the Sp(4,Z) characteristic TRANSFORMATION + the
 # EIGHTH-nome lattice (the addition gate). The Python
-# srmech.amsc.riemann_theta.RiemannTheta routes .transform() / the addition gate
+# srmech.apokatastasis.riemann_theta.RiemannTheta routes .transform() / the addition gate
 # through these when the symbols are loaded; the pure-Python bodies are the
 # COMPLETE alternatives (and the parity oracles).
 # ----------------------------------------------------------------------
@@ -11657,7 +11657,7 @@ def riemann_theta_eighth_lattice_c(s1, s2, e1, e2, at_two_omega, box):
 # ----------------------------------------------------------------------
 # rc74: the GENUS-AXIS CAPSTONE — the Eilers genus-2 ETA-MAP (branch-point index
 # set → characteristic; arXiv:1707.08855, eq 4.4). The Python
-# srmech.amsc.riemann_theta.RiemannTheta routes .branch_set_characteristic()
+# srmech.apokatastasis.riemann_theta.RiemannTheta routes .branch_set_characteristic()
 # through this when the symbol is loaded; the pure-Python body is the COMPLETE
 # alternative (and the parity oracle). Pure GF(2) / mod-2 algebra — exact integer.
 # ----------------------------------------------------------------------
@@ -11699,7 +11699,7 @@ def riemann_theta_eta_char_c(indices):
 # ----------------------------------------------------------------------
 # rc75: the NEXT GENUS RUNG — the GENUS-3 EXACT-INTEGER EXPONENT LATTICE C peer
 # (srmech_riemann_theta_g3). The Python
-# srmech.amsc.riemann_theta.RiemannThetaG3 routes its .lattice() through this when
+# srmech.apokatastasis.riemann_theta.RiemannThetaG3 routes its .lattice() through this when
 # has_native_riemann_theta_g3(); the pure-Python body is the COMPLETE alternative
 # (and the parity oracle) — both accumulate the [A1,A2,A3,C12,C13,C23,sign] septuples
 # into the byte-identical canonical {(A1,A2,A3,C12,C13,C23): coeff} lattice.
@@ -11709,7 +11709,7 @@ def riemann_theta_eta_char_c(indices):
 def has_native_riemann_theta_g3() -> bool:
     """True iff the rc75 ``srmech_riemann_theta_g3_lattice`` peer + its count helper
     are loaded + bound. False on a no-C / pre-rc75 lib — the pure-Python
-    ``srmech.amsc.riemann_theta.RiemannThetaG3`` body is the complete alternative (and
+    ``srmech.apokatastasis.riemann_theta.RiemannThetaG3`` body is the complete alternative (and
     the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -11763,7 +11763,7 @@ def riemann_theta_g3_lattice_c(ep1, ep2, ep3, e1, e2, e3, box):
 def has_native_riemann_theta_g4() -> bool:
     """True iff the rc80 ``srmech_riemann_theta_g4_lattice`` peer + its count helper are
     loaded + bound. False on a no-C / pre-rc80 lib — the pure-Python
-    ``srmech.amsc.riemann_theta.RiemannThetaG4`` body is the complete alternative (and
+    ``srmech.apokatastasis.riemann_theta.RiemannThetaG4`` body is the complete alternative (and
     the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -11821,7 +11821,7 @@ def riemann_theta_g4_lattice_c(ep1, ep2, ep3, ep4, e1, e2, e3, e4, box):
 def has_native_riemann_theta_g5() -> bool:
     """True iff the rc86 ``srmech_riemann_theta_g5_lattice`` peer + its count helper are
     loaded + bound. False on a no-C / pre-rc86 lib — the pure-Python
-    ``srmech.amsc.riemann_theta.RiemannThetaG5`` body is the complete alternative (and
+    ``srmech.apokatastasis.riemann_theta.RiemannThetaG5`` body is the complete alternative (and
     the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -11884,7 +11884,7 @@ def riemann_theta_g5_lattice_c(ep1, ep2, ep3, ep4, ep5, e1, e2, e3, e4, e5, box)
 def has_native_riemann_theta_at() -> bool:
     """True iff the rc87 ``srmech_riemann_theta_at`` peer + its count helper are loaded
     + bound. False on a no-C / pre-rc87 lib — the pure-Python
-    ``srmech.amsc.riemann_theta.RiemannTheta.theta_at`` body is the complete
+    ``srmech.apokatastasis.riemann_theta.RiemannTheta.theta_at`` body is the complete
     alternative (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -11930,7 +11930,7 @@ def riemann_theta_at_c(ep1, ep2, e1, e2, z1, z2, m, box):
 def has_native_riemann_theta_g3_at() -> bool:
     """True iff the rc87 ``srmech_riemann_theta_g3_at`` peer + its count helper are
     loaded + bound. False on a no-C / pre-rc87 lib — the pure-Python
-    ``srmech.amsc.riemann_theta.RiemannThetaG3.theta_at`` body is the complete
+    ``srmech.apokatastasis.riemann_theta.RiemannThetaG3.theta_at`` body is the complete
     alternative (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -11977,7 +11977,7 @@ def riemann_theta_g3_at_c(ep1, ep2, ep3, e1, e2, e3, z1, z2, z3, m, box):
 
 def has_native_riemann_theta_cyc_mul() -> bool:
     """True iff the rc88 ``srmech_riemann_theta_cyc_mul`` peer is loaded + bound. False on
-    a no-C / pre-rc88 lib — the pure-Python ``srmech.amsc.riemann_theta._cyc_mul_py`` body
+    a no-C / pre-rc88 lib — the pure-Python ``srmech.apokatastasis.riemann_theta._cyc_mul_py`` body
     is the complete alternative (and the parity oracle + bignum fallback)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -12030,7 +12030,7 @@ def riemann_theta_cyc_mul_c(a, b, table, m):
 def has_native_riemann_theta_g4_schottky() -> bool:
     """True iff the rc81 ``srmech_riemann_theta_g4_schottky_count`` peer + its arena helper
     are loaded + bound. False on a no-C / pre-rc81 lib — the pure-Python
-    ``srmech.amsc.riemann_theta.SchottkyFormG4._count_gram_py`` body is the complete
+    ``srmech.apokatastasis.riemann_theta.SchottkyFormG4._count_gram_py`` body is the complete
     alternative (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -12083,7 +12083,7 @@ def riemann_theta_g4_schottky_count_c(vecs, gram_off):
 def has_native_riemann_theta_g4_schottky_shell() -> bool:
     """True iff the rc81 ``srmech_riemann_theta_g4_schottky_shell`` peer + its size helper
     are loaded + bound. False on a no-C / pre-rc81 lib — the pure-Python
-    ``srmech.amsc.riemann_theta.SchottkyFormG4._full_shell_grams_py`` body is the complete
+    ``srmech.apokatastasis.riemann_theta.SchottkyFormG4._full_shell_grams_py`` body is the complete
     alternative (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -12148,7 +12148,7 @@ def riemann_theta_g4_schottky_shell_c(vecs, genus):
 def has_native_riemann_theta_g3_chi18() -> bool:
     """True iff the rc76 ``srmech_riemann_theta_g3_chi18`` peer + its count helper are
     loaded + bound. False on a no-C / pre-rc76 lib — the pure-Python
-    ``srmech.amsc.riemann_theta.RiemannThetaG3.chi18_leading_part`` body is the complete
+    ``srmech.apokatastasis.riemann_theta.RiemannThetaG3.chi18_leading_part`` body is the complete
     alternative (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -12192,7 +12192,7 @@ def riemann_theta_g3_chi18_c(box):
 # ----------------------------------------------------------------------
 # rc77: the genus-3 Sp(6,Z) characteristic TRANSFORMATION + the genus-3 EIGHTH-nome
 # lattice (the addition gate) — the g=2->g=3 parametric extension of the rc73 peers.
-# The Python srmech.amsc.riemann_theta.RiemannThetaG3.{transform,addition_*} route
+# The Python srmech.apokatastasis.riemann_theta.RiemannThetaG3.{transform,addition_*} route
 # through these when the symbols are loaded; the pure-Python bodies are the COMPLETE
 # alternatives (and the parity oracles).
 # ----------------------------------------------------------------------
@@ -12336,7 +12336,7 @@ def riemann_theta_g3_goepel_c(box):
 # rc85: the genus-4 Sp(8,ℤ) characteristic TRANSFORMATION + the genus-4 EIGHTH-nome
 # lattice (the addition gate) + the genus-4 Göpel relation gate — the g=3->g=4
 # parametric extension of the rc77/rc78 genus-3 peers. The Python
-# srmech.amsc.riemann_theta.RiemannThetaG4.{transform,addition_*,goepel_holds} route
+# srmech.apokatastasis.riemann_theta.RiemannThetaG4.{transform,addition_*,goepel_holds} route
 # through these when the symbols are loaded; the pure-Python bodies are the COMPLETE
 # alternatives (and the parity oracles).
 # ----------------------------------------------------------------------
@@ -12475,7 +12475,7 @@ def has_native_riemann_theta_gate() -> bool:
     """True iff the rc107 ``srmech_riemann_theta_gate_decide`` peer (the generic
     SPARSE SAFE-SUPPORT gate decision kernel for ALL the genus-axis theta gates,
     g ∈ {2..5}) + its count helper are loaded + bound. False on a no-C / pre-rc107
-    lib — the pure sparse gate bodies in ``srmech.amsc.riemann_theta`` are the
+    lib — the pure sparse gate bodies in ``srmech.apokatastasis.riemann_theta`` are the
     complete alternative (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -12542,7 +12542,7 @@ def has_native_riemann_theta_fay() -> bool:
     parallelogram identity + the bounded window bijection illustration + the
     FULL exact beyond-safe-region witness coefficients) is loaded + bound.
     False on a no-C / pre-rc226 lib — the pure-Python certificate bodies in
-    ``srmech.amsc.riemann_theta.RiemannTheta`` are the complete alternative
+    ``srmech.apokatastasis.riemann_theta.RiemannTheta`` are the complete alternative
     (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -13397,7 +13397,7 @@ def qmat_rref_crt_arena_bytes(a_pairs, n_rows, n_cols):
 
 # ----------------------------------------------------------------------
 # rc41: srmech_gosper — Gosper's indefinite hypergeometric summation (the §76
-# telescope Sigma-row's first public op). The Python srmech.amsc.gosper.gosper
+# telescope Sigma-row's first public op). The Python srmech.apokatastasis.gosper.gosper
 # routes through this when has_native_gosper(); the pure-Python body is the
 # COMPLETE alternative (and the parity oracle) — both emit the same reduced
 # (num, den) certificate at any magnitude. The marshalling reuses the qmat /
@@ -13416,7 +13416,7 @@ _GOSPER_SYMS = (
 def has_native_gosper() -> bool:
     """True iff the rc41 srmech_gosper op + its ws/out-cap sizers + the
     srmech_bigint decimal-marshal helpers are loaded + bound. False on a no-C or
-    pre-rc41 lib — the pure-Python ``srmech.amsc.gosper.gosper`` body is the
+    pre-rc41 lib — the pure-Python ``srmech.apokatastasis.gosper.gosper`` body is the
     complete alternative (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -13705,7 +13705,7 @@ def infer_c(rel_json: str, max_terms: int = 4):
 
 # ----------------------------------------------------------------------
 # rc55: srmech_q_gosper — the q-analog of Gosper (the FIRST public op of the
-# q-hypergeometric F929 row). The Python srmech.amsc.q_gosper.q_gosper routes a
+# q-hypergeometric F929 row). The Python srmech.apokatastasis.q_gosper.q_gosper routes a
 # POSITIVE (certificate-found) C result through this; a has=0 / error falls to the
 # complete pure-Python path (the parity oracle + full-coverage decider). The two
 # QPoly term-ratio operands + the certificate ride the QPoly (x_low, rows) bridge
@@ -13725,7 +13725,7 @@ _Q_GOSPER_SYMS = (
 def has_native_q_gosper() -> bool:
     """True iff the rc55 srmech_q_gosper op + its ws/out-cap sizers + the
     srmech_bigint decimal-marshal helpers are loaded + bound. False on a no-C or
-    pre-rc55 lib — the pure-Python ``srmech.amsc.q_gosper.q_gosper`` body is the
+    pre-rc55 lib — the pure-Python ``srmech.apokatastasis.q_gosper.q_gosper`` body is the
     complete alternative (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -13790,7 +13790,7 @@ def q_gosper_c(num_form, den_form):
 
 # ----------------------------------------------------------------------
 # rc61: srmech_elliptic_gosper — the ELLIPTIC analog of Gosper (the FIRST engine op
-# of the ELLIPTIC F929 row). The Python srmech.amsc.elliptic_gosper.elliptic_gosper
+# of the ELLIPTIC F929 row). The Python srmech.apokatastasis.elliptic_gosper.elliptic_gosper
 # routes a POSITIVE (certificate-found) C result through this AND re-verifies it in
 # exact ℚ before trusting it; a has=0 / error falls to the complete pure-Python path
 # (the parity oracle + full-coverage decider). The term-ratio EllRatio rides as its
@@ -13811,14 +13811,14 @@ _ELLIPTIC_GOSPER_SYMS = (
 # the interned-symbol-table convention MUST match EllRatio._is_elliptic_c: x / p / q are
 # force-included even when the canonical form carries none, because the C peel / qshift /
 # pshift INTRODUCE q- and p-powers keyed off the x-exponent (without the slots the C
-# shifts would be silent no-ops). _X='x', _P='p', _Q_SYM='q' (srmech.amsc.ellbase).
+# shifts would be silent no-ops). _X='x', _P='p', _Q_SYM='q' (srmech.apokatastasis.ellbase).
 _EG_FORCE_SYMS = ("p", "q", "x")
 
 
 def has_native_elliptic_gosper() -> bool:
     """True iff the srmech_elliptic_gosper op + its ws/out-cap sizers + the srmech_bigint
     decimal-marshal helpers are loaded + bound. False on a no-C or pre-op lib — the
-    pure-Python ``srmech.amsc.elliptic_gosper.elliptic_gosper`` body is the complete
+    pure-Python ``srmech.apokatastasis.elliptic_gosper.elliptic_gosper`` body is the complete
     alternative (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -13831,7 +13831,7 @@ def elliptic_gosper_c(ratio_form):
     """Native GENUINE elliptic-Gosper certificate for the term-ratio EllRatio
     ``ratio_form`` → ``(has_solution, cert_form)`` (``cert_form`` the EllRatio bridge
     form), or ``None`` if the native symbols are absent. ``ratio_form`` is the dict
-    :func:`srmech.amsc.elliptic_gosper._ratio_to_form` emits (``prefactor`` =
+    :func:`srmech.apokatastasis.elliptic_gosper._ratio_to_form` emits (``prefactor`` =
     ``(coeff_num, coeff_den, [(sym, exp), …])``; ``num`` / ``den`` = theta-argument
     monomial triples). The native peer runs the genuine peel-coboundary + Weierstrass
     key-equation solve + exact ThetaSum.is_zero verify; it declines an input outside the
@@ -13934,7 +13934,7 @@ def elliptic_gosper_c(ratio_form):
 
 # ----------------------------------------------------------------------
 # rc68: srmech_elliptic_recurrence_8w7 — the C peer of the ELLIPTIC Σ-row ORDER-1
-# RECURRENCE op srmech.amsc.elliptic_recurrence.elliptic_recurrence_8w7 for the
+# RECURRENCE op srmech.apokatastasis.elliptic_recurrence.elliptic_recurrence_8w7 for the
 # Frenkel–Turaev ₈ω₇ summation. The term-ratio EllRatio marshals over the same wire
 # convention as elliptic_gosper (the interned symbol table + the x/p/q/y indices + the
 # num/den theta counts + the flat coeff arrays + the flat exps rows), with the recurrence
@@ -13961,7 +13961,7 @@ def has_native_elliptic_recurrence_8w7() -> bool:
     """True iff the rc68 srmech_elliptic_recurrence_8w7 op + its ws/out-cap sizers + the
     srmech_bigint decimal-marshal helpers are loaded + bound. False on a no-C or pre-rc68
     lib — the pure-Python
-    ``srmech.amsc.elliptic_recurrence.elliptic_recurrence_8w7`` body is the complete
+    ``srmech.apokatastasis.elliptic_recurrence.elliptic_recurrence_8w7`` body is the complete
     alternative (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -13974,7 +13974,7 @@ def elliptic_recurrence_8w7_c(ratio_form):
     """Native ₈ω₇ order-1 recurrence coefficient ρ for the term-ratio EllRatio
     ``ratio_form`` → ``(has_recurrence, rho_form)`` (``rho_form`` the EllRatio bridge
     form), or ``None`` if the native symbols are absent. ``ratio_form`` is the dict
-    :func:`srmech.amsc.elliptic_recurrence._ratio_to_form` emits (``prefactor`` =
+    :func:`srmech.apokatastasis.elliptic_recurrence._ratio_to_form` emits (``prefactor`` =
     ``(coeff_num, coeff_den, [(sym, exp), …])``; ``num`` / ``den`` = theta-argument
     monomial triples). The native peer runs the genuine recognize-decompose-construct
     pipeline; it declines an input that is NOT a canonical ₈ω₇ (``has_recurrence`` False →
@@ -14076,7 +14076,7 @@ def elliptic_recurrence_8w7_c(ratio_form):
 
 # ----------------------------------------------------------------------
 # rc90: srmech_elliptic_zeilberger — the C peer of the ELLIPTIC Σ-row CREATIVE-
-# TELESCOPING op srmech.amsc.elliptic_zeilberger.elliptic_zeilberger for the Frenkel–
+# TELESCOPING op srmech.apokatastasis.elliptic_zeilberger.elliptic_zeilberger for the Frenkel–
 # Turaev ₈ω₇ summation. The term-ratio marshals over the same wire convention as
 # elliptic_recurrence_8w7 (the interned symbol table + the x/p/q/y indices + the num/den
 # theta counts + the flat coeff arrays + the flat exps rows) PLUS the two extra interned
@@ -14105,7 +14105,7 @@ _EZ_FORCE_SYMS = ("K", "N", "p", "q", "x", "y")
 def has_native_elliptic_zeilberger() -> bool:
     """True iff the rc90 srmech_elliptic_zeilberger op + its ws sizer + the srmech_bigint
     decimal-marshal helpers are loaded + bound. False on a no-C or pre-rc90 lib — the
-    pure-Python ``srmech.amsc.elliptic_zeilberger.elliptic_zeilberger`` body is the complete
+    pure-Python ``srmech.apokatastasis.elliptic_zeilberger.elliptic_zeilberger`` body is the complete
     alternative (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -14118,7 +14118,7 @@ def elliptic_zeilberger_c(ratio_form):
     """Native ₈ω₇ CREATIVE-TELESCOPING verdict for the term-ratio EllRatio ``ratio_form``
     → ``(has, None)`` (``has`` True iff the native peer recognizes the ₈ω₇ AND the
     connection-coefficient certificate decides ≡ 0), or ``None`` if the native symbols are
-    absent. ``ratio_form`` is the dict :func:`srmech.amsc.elliptic_recurrence._ratio_to_form`
+    absent. ``ratio_form`` is the dict :func:`srmech.apokatastasis.elliptic_recurrence._ratio_to_form`
     emits (``prefactor`` = ``(coeff_num, coeff_den, [(sym, exp), …])``; ``num`` / ``den`` =
     theta-argument monomial triples). The peer builds the certificate (the cleared ±-pair
     split) over the additive theta carrier and routes the decision to srmech_thetasum_is_zero;
@@ -14193,7 +14193,7 @@ def elliptic_zeilberger_c(ratio_form):
 
 # ----------------------------------------------------------------------
 # rc91: srmech_elliptic_wz_certificate — the C peer of the ELLIPTIC Σ-row IDENTITY-PROOF
-# op srmech.amsc.elliptic_wz_certificate.elliptic_wz_certificate for the Frenkel–Turaev
+# op srmech.apokatastasis.elliptic_wz_certificate.elliptic_wz_certificate for the Frenkel–Turaev
 # ₈ω₇ SUMMATION. IDENTICAL marshalling to elliptic_zeilberger (the full EllRatio wire +
 # the certificate's recurrence index symbols N = qⁿ, K = qᵏ); the summation proof reduces
 # to the SAME connection-coefficient split certificate decided via srmech_thetasum_is_zero,
@@ -14220,7 +14220,7 @@ _EWZ_FORCE_SYMS = ("K", "N", "p", "q", "x", "y")
 def has_native_elliptic_wz_certificate() -> bool:
     """True iff the rc91 srmech_elliptic_wz_certificate op + its ws sizer + the srmech_bigint
     decimal-marshal helpers are loaded + bound. False on a no-C or pre-rc91 lib — the
-    pure-Python ``srmech.amsc.elliptic_wz_certificate.elliptic_wz_certificate`` body is the
+    pure-Python ``srmech.apokatastasis.elliptic_wz_certificate.elliptic_wz_certificate`` body is the
     complete alternative (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -14233,7 +14233,7 @@ def elliptic_wz_certificate_c(ratio_form):
     """Native ₈ω₇ SUMMATION-identity verdict for the term-ratio EllRatio ``ratio_form``
     → ``(has, None)`` (``has`` True iff the native peer recognizes the ₈ω₇ AND the
     connection-coefficient certificate decides ≡ 0), or ``None`` if the native symbols are
-    absent. ``ratio_form`` is the dict :func:`srmech.amsc.elliptic_recurrence._ratio_to_form`
+    absent. ``ratio_form`` is the dict :func:`srmech.apokatastasis.elliptic_recurrence._ratio_to_form`
     emits (``prefactor`` = ``(coeff_num, coeff_den, [(sym, exp), …])``; ``num`` / ``den`` =
     theta-argument monomial triples). The peer builds the certificate (the cleared ±-pair
     split) over the additive theta carrier and routes the decision to srmech_thetasum_is_zero;
@@ -14430,7 +14430,7 @@ def carrier_spectrum_c(ratio_form):
 # ----------------------------------------------------------------------
 # rc63: srmech_thetasum_is_zero — the C peer of the ThetaSum carrier's is_zero (the
 # load-bearing EXACT Weierstrass three-term + quasi-periodicity decision). The Python
-# srmech.amsc.thetasum.ThetaSum.is_zero marshals its cleared numerator terms (each a
+# srmech.apokatastasis.thetasum.ThetaSum.is_zero marshals its cleared numerator terms (each a
 # prefactor EllMonomial + a tuple of canonical Theta) over an interned symbol table
 # and routes the DECISION through this; the pure-Python body is the COMPLETE
 # alternative + the parity oracle. The C verdict EQUALS the Python verdict byte-for-
@@ -14449,7 +14449,7 @@ _THETASUM_SYMS = (
 def has_native_thetasum() -> bool:
     """True iff the rc63 srmech_thetasum_is_zero op + its ws sizer + the srmech_bigint
     decimal-marshal helpers are loaded + bound. False on a no-C or pre-rc63 lib — the
-    pure-Python ``srmech.amsc.thetasum.ThetaSum.is_zero`` body is the complete
+    pure-Python ``srmech.apokatastasis.thetasum.ThetaSum.is_zero`` body is the complete
     alternative (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -14527,7 +14527,7 @@ def thetasum_is_zero_c(n_syms, xsym, ysym, psym, term_nthetas, monomials):
 # ThetaSum SOUND structural CERTIFICATE recursion (the rc210 is_zero soundness
 # rebuild; the pre-rc210 "COMPLETE" band/mixed-character decision certified
 # provably-NONZERO objects as zero and was replaced). The C bool is the 1:1 mirror
-# of srmech.amsc.thetasum.ThetaSum._is_zero_interpolation: True ⟺ certificate-
+# of srmech.apokatastasis.thetasum.ThetaSum._is_zero_interpolation: True ⟺ certificate-
 # proven zero, False = "not proven" (never a nonzero CLAIM); the pure Python is
 # the parity oracle (the committed corpus suite pins native == pure). When the
 # caller arena / coefficient cap is outgrown the C peer returns
@@ -14889,7 +14889,7 @@ def thetasum_is_zero_interpolation_parallel_c(
 # ----------------------------------------------------------------------
 # rc64: srmech_ellratio_is_elliptic — the C peer of the EllRatio carrier's
 # is_elliptic (the BALANCING / very-well-poised predicate = pshift() == self).
-# srmech.amsc.ellbase.EllRatio.is_elliptic dispatches a positive result through
+# srmech.apokatastasis.ellbase.EllRatio.is_elliptic dispatches a positive result through
 # here; an absent peer falls to the complete pure-Python body (the parity oracle).
 # Shares the srmech_bigint decimal-marshal helpers with the thetasum peer.
 # ----------------------------------------------------------------------
@@ -14905,7 +14905,7 @@ _ELLRATIO_SYMS = (
 def has_native_ellratio() -> bool:
     """True iff the rc64 srmech_ellratio_is_elliptic op + its ws sizer + the
     srmech_bigint decimal-marshal helpers are loaded + bound. False on a no-C or
-    pre-rc64 lib — the pure-Python ``srmech.amsc.ellbase.EllRatio.is_elliptic`` body
+    pre-rc64 lib — the pure-Python ``srmech.apokatastasis.ellbase.EllRatio.is_elliptic`` body
     is the complete alternative (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -14981,7 +14981,7 @@ def ellratio_is_elliptic_c(n_syms, xsym, psym, n_num, n_den, monomials):
 def has_native_ellratio_half_shift() -> bool:
     """True iff the rc119 srmech_ellratio_half_shift_response op + its ws sizer + the
     srmech_bigint decimal-marshal helpers are loaded + bound. False on a no-C or
-    pre-rc119 lib — the pure-Python ``srmech.amsc.ellbase.half_shift_response`` body is
+    pre-rc119 lib — the pure-Python ``srmech.apokatastasis.ellbase.half_shift_response`` body is
     the complete alternative (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -15050,10 +15050,10 @@ def ellratio_half_shift_response_c(n_syms, varsym, psym, axis, n_num, n_den, mon
 
 # ----------------------------------------------------------------------
 # rc67: srmech_elliptic_lagrange_basis — the C peer of the EllRatio-carrier op
-# srmech.amsc.ellbase.elliptic_lagrange_basis (rc66, shipped Python-only; its C
+# srmech.apokatastasis.ellbase.elliptic_lagrange_basis (rc66, shipped Python-only; its C
 # mirror is owed by the everything-mirrors same-rc discipline). A C-MIRROR PARITY
 # build: the k basis EllRatios come back byte-exact equal to the pure-Python op.
-# srmech.amsc.ellbase.elliptic_lagrange_basis dispatches through here when the peer
+# srmech.apokatastasis.ellbase.elliptic_lagrange_basis dispatches through here when the peer
 # is loaded; the pure-Python body is the complete alternative + the parity oracle.
 # Shares the srmech_bigint decimal-marshal helpers (in _ELLRATIO_SYMS) with the
 # ellratio / thetasum peers.
@@ -15063,7 +15063,7 @@ def ellratio_half_shift_response_c(n_syms, varsym, psym, axis, n_num, n_den, mon
 def has_native_elliptic_lagrange_basis() -> bool:
     """True iff the rc67 srmech_elliptic_lagrange_basis op + its ws sizer + the
     srmech_bigint decimal-marshal helpers are loaded + bound. False on a no-C or
-    pre-rc67 lib — the pure-Python ``srmech.amsc.ellbase.elliptic_lagrange_basis``
+    pre-rc67 lib — the pure-Python ``srmech.apokatastasis.ellbase.elliptic_lagrange_basis``
     body is the complete alternative (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -15193,10 +15193,10 @@ def elliptic_lagrange_basis_c(n_syms, varsym, psym, k, point_monos, mult_mono):
 
 # ----------------------------------------------------------------------
 # rc94: srmech_elliptic_cauchy_determinant — the C peer of the EllRatio-carrier op
-# srmech.amsc.elliptic_determinant.elliptic_cauchy_determinant (Frobenius's elliptic
+# srmech.apokatastasis.elliptic_determinant.elliptic_cauchy_determinant (Frobenius's elliptic
 # Cauchy determinant; the foundation of the multivariable Cₙ elliptic reduction row). A
 # C-MIRROR PARITY build: the single closed-form EllRatio comes back byte-exact equal to the
-# pure-Python op. srmech.amsc.elliptic_determinant.elliptic_cauchy_determinant dispatches
+# pure-Python op. srmech.apokatastasis.elliptic_determinant.elliptic_cauchy_determinant dispatches
 # through here when the peer is loaded; the pure-Python body is the complete alternative +
 # the parity oracle. Shares the srmech_bigint decimal-marshal helpers (in _ELLRATIO_SYMS)
 # with the ellratio / lagrange peers.
@@ -15207,7 +15207,7 @@ def has_native_elliptic_cauchy_determinant() -> bool:
     """True iff the rc94 srmech_elliptic_cauchy_determinant op + its ws sizer + the
     srmech_bigint decimal-marshal helpers are loaded + bound. False on a no-C or
     pre-rc94 lib — the pure-Python
-    ``srmech.amsc.elliptic_determinant.elliptic_cauchy_determinant`` body is the complete
+    ``srmech.apokatastasis.elliptic_determinant.elliptic_cauchy_determinant`` body is the complete
     alternative (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -15500,11 +15500,11 @@ def elliptic_partial_fraction_c(n_syms, psym, n, x_mono, z_monos, y_monos):
 
 # ----------------------------------------------------------------------
 # rc96: srmech_multivariate_elliptic_jackson — the C peer of the EllRatio-carrier op
-# srmech.amsc.elliptic_jackson.multivariate_elliptic_jackson (the eq-5 Cₙ
+# srmech.apokatastasis.elliptic_jackson.multivariate_elliptic_jackson (the eq-5 Cₙ
 # elliptic Jackson summation reducer; the capstone of the multivariable Cₙ elliptic
 # reduction row). A C-MIRROR PARITY build: the single closed-form EllRatio comes back
 # byte-exact equal to the pure-Python op.
-# srmech.amsc.elliptic_jackson.multivariate_elliptic_jackson dispatches through
+# srmech.apokatastasis.elliptic_jackson.multivariate_elliptic_jackson dispatches through
 # here when the peer is loaded (and trusts it only after it == the pure EllRatio); the
 # pure-Python body is the complete alternative + the parity oracle. Shares the srmech_bigint
 # decimal-marshal helpers (in _ELLRATIO_SYMS) with the ellratio / lagrange peers.
@@ -15515,7 +15515,7 @@ def has_native_multivariate_elliptic_jackson() -> bool:
     """True iff the rc96 srmech_multivariate_elliptic_jackson op + its ws sizer + the
     srmech_bigint decimal-marshal helpers are loaded + bound. False on a no-C or
     pre-rc96 lib — the pure-Python
-    ``srmech.amsc.elliptic_jackson.multivariate_elliptic_jackson`` body is the
+    ``srmech.apokatastasis.elliptic_jackson.multivariate_elliptic_jackson`` body is the
     complete alternative (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -15632,13 +15632,13 @@ def multivariate_elliptic_jackson_c(n_syms, psym, N, n, a_mono, b_mono, c_mono, 
 
 # ----------------------------------------------------------------------
 # rc216: srmech_cn_vwp_multisum_lhs — the C peer of the ThetaSum-returning op
-# srmech.amsc.elliptic_jackson.cn_vwp_multisum_lhs (the symbolic Cₙ very-well-poised
+# srmech.apokatastasis.elliptic_jackson.cn_vwp_multisum_lhs (the symbolic Cₙ very-well-poised
 # elliptic multisum LHS builder: the LEFT-hand side of the Cₙ elliptic Jackson summation,
 # Rosengren arXiv:math/0101073v1 Thm 2.1 Eq 5, as an exact ThetaSum — the rc96 test
 # oracle → rc101 symbolic-verify engine promoted public). A C-MIRROR PARITY build: the
 # C(N+n, n) per-partition TERM EllRatios come back byte-exact equal to the pure-Python
 # builder's terms in the same lexicographic partition order, and the Python side sums
-# them into the ThetaSum. srmech.amsc.elliptic_jackson.cn_vwp_multisum_lhs dispatches
+# them into the ThetaSum. srmech.apokatastasis.elliptic_jackson.cn_vwp_multisum_lhs dispatches
 # through here when the peer is loaded, trusting the native ThetaSum only after it `==`
 # the pure ThetaSum; the pure-Python body is the complete alternative + oracle. Shares
 # the srmech_bigint decimal-marshal helpers (in _ELLRATIO_SYMS) with the ellratio /
@@ -15650,7 +15650,7 @@ def has_native_cn_vwp_multisum_lhs() -> bool:
     """True iff the rc216 srmech_cn_vwp_multisum_lhs op + its ws sizer + the
     srmech_bigint decimal-marshal helpers are loaded + bound. False on a no-C or
     pre-rc216 lib — the pure-Python
-    ``srmech.amsc.elliptic_jackson.cn_vwp_multisum_lhs`` body is the complete
+    ``srmech.apokatastasis.elliptic_jackson.cn_vwp_multisum_lhs`` body is the complete
     alternative (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -15775,7 +15775,7 @@ def cn_vwp_multisum_lhs_c(n_syms, psym, N, n, a_mono, b_mono, c_mono, d_mono,
 # ----------------------------------------------------------------------
 # rc227: srmech_multivariate_elliptic_jackson_an + srmech_an_vwp_multisum_lhs —
 # the C peers of the Aₙ (type-A / Milne) elliptic Jackson reduction row
-# (srmech.amsc.elliptic_jackson_an; Rosengren arXiv:math/0305379 Eq. 6). A
+# (srmech.apokatastasis.elliptic_jackson_an; Rosengren arXiv:math/0305379 Eq. 6). A
 # C-MIRROR PARITY build: the RHS peer returns the single closed-form EllRatio
 # byte-exact equal to the pure-Python op; the LHS peer returns the
 # C(N+n−1, n−1) per-composition TERM EllRatios byte-exact equal to the pure
@@ -15793,7 +15793,7 @@ def has_native_multivariate_elliptic_jackson_an() -> bool:
     """True iff the rc227 srmech_multivariate_elliptic_jackson_an op + its ws
     sizer + the srmech_bigint decimal-marshal helpers are loaded + bound. False
     on a no-C or pre-rc227 lib — the pure-Python
-    ``srmech.amsc.elliptic_jackson_an.multivariate_elliptic_jackson_an`` body is
+    ``srmech.apokatastasis.elliptic_jackson_an.multivariate_elliptic_jackson_an`` body is
     the complete alternative (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -15809,7 +15809,7 @@ def has_native_an_vwp_multisum_lhs() -> bool:
     """True iff the rc227 srmech_an_vwp_multisum_lhs op + its ws sizer + the
     srmech_bigint decimal-marshal helpers are loaded + bound. False on a no-C or
     pre-rc227 lib — the pure-Python
-    ``srmech.amsc.elliptic_jackson_an.an_vwp_multisum_lhs`` body is the complete
+    ``srmech.apokatastasis.elliptic_jackson_an.an_vwp_multisum_lhs`` body is the complete
     alternative (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -16052,7 +16052,7 @@ def an_vwp_multisum_lhs_c(n_syms, psym, N, n, z_monos, a_monos, q_mono,
 def has_native_riemann_theta_multisum() -> bool:
     """True iff the rc232 srmech_riemann_theta_multisum symbol is loaded + bound.
     False on a no-C or pre-rc232 lib — the pure-Python
-    ``srmech.amsc.riemann_theta_multisum`` bodies are the complete alternative (and
+    ``srmech.apokatastasis.riemann_theta_multisum`` bodies are the complete alternative (and
     the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -16114,7 +16114,7 @@ def riemann_theta_multisum_c(n_syms, n, side, z_rows, pt_rows):
 
 # ----------------------------------------------------------------------
 # rc42: srmech_zeilberger — Zeilberger's creative telescoping (the §76 telescope
-# Sigma-row's SECOND public op). The Python srmech.amsc.zeilberger.zeilberger
+# Sigma-row's SECOND public op). The Python srmech.apokatastasis.zeilberger.zeilberger
 # routes a POSITIVE (recurrence-found) C result through this; a has=0 / error
 # falls to the complete pure-Python path (the parity oracle + full-coverage
 # decider). The four bivariate ratios + the recurrence/certificate ride the same
@@ -16130,7 +16130,7 @@ _ZEILBERGER_SYMS = (
 def has_native_zeilberger() -> bool:
     """True iff the rc42 srmech_zeilberger op + its ws/out-cap sizers are loaded +
     bound. False on a no-C or pre-rc42 lib — the pure-Python
-    ``srmech.amsc.zeilberger.zeilberger`` body is the complete alternative (and the
+    ``srmech.apokatastasis.zeilberger.zeilberger`` body is the complete alternative (and the
     parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -16239,7 +16239,7 @@ def zeilberger_c(rn_num, rn_den, rk_num, rk_den, max_order):
 # ----------------------------------------------------------------------
 # rc56: srmech_q_zeilberger — the q-analog of Zeilberger's creative telescoping (the
 # SECOND public op of the q-hypergeometric F929 row). The Python
-# srmech.amsc.q_zeilberger.q_zeilberger routes a POSITIVE (recurrence-found) C result
+# srmech.apokatastasis.q_zeilberger.q_zeilberger routes a POSITIVE (recurrence-found) C result
 # through this; a has=0 / error falls to the complete pure-Python path (the parity
 # oracle + full-coverage decider). The four QBiPoly term ratios + the recurrence
 # coeffs + the certificate ride the QBiPoly bridge form: a per-Y-cell x_low[] +
@@ -16260,7 +16260,7 @@ _Q_ZEILBERGER_SYMS = (
 def has_native_q_zeilberger() -> bool:
     """True iff the rc56 srmech_q_zeilberger op + its ws/out-cap sizers + the
     srmech_bigint decimal-marshal helpers are loaded + bound. False on a no-C or
-    pre-rc56 lib — the pure-Python ``srmech.amsc.q_zeilberger.q_zeilberger`` body is
+    pre-rc56 lib — the pure-Python ``srmech.apokatastasis.q_zeilberger.q_zeilberger`` body is
     the complete alternative (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -16410,7 +16410,7 @@ def q_zeilberger_c(rn_num, rn_den, rk_num, rk_den, max_order):
 # ----------------------------------------------------------------------
 # rc53: srmech_apagodu_zeilberger — the Apagodu-Zeilberger multivariate "sums of
 # sums" creative telescoping (CLOSES the multivariate F929 row). The Python
-# srmech.amsc.apagodu_zeilberger.apagodu_zeilberger routes a POSITIVE
+# srmech.apokatastasis.apagodu_zeilberger.apagodu_zeilberger routes a POSITIVE
 # (recurrence-found) C result through this; a has=0 / error falls to the complete
 # pure-Python path (the parity oracle + full-coverage decider). The three TRIVARIATE
 # ratios + the recurrence + the two certificates ride the nested-bridge (j,k)-cell
@@ -16426,7 +16426,7 @@ _APAGODU_SYMS = (
 def has_native_apagodu_zeilberger() -> bool:
     """True iff the rc53 srmech_apagodu_zeilberger op + its ws/out-cap sizers are
     loaded + bound. False on a no-C or pre-rc53 lib — the pure-Python
-    ``srmech.amsc.apagodu_zeilberger.apagodu_zeilberger`` body is the complete
+    ``srmech.apokatastasis.apagodu_zeilberger.apagodu_zeilberger`` body is the complete
     alternative (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -16594,7 +16594,7 @@ def apagodu_zeilberger_c(rn_num, rn_den, rj_num, rj_den, rk_num, rk_den, max_ord
 
 # ----------------------------------------------------------------------
 # rc43: srmech_wz_verify — the Wilf-Zeilberger VERIFY primitive (the §76 telescope
-# Sigma-row's THIRD/FINAL public op). The Python srmech.amsc.wz_certificate routes
+# Sigma-row's THIRD/FINAL public op). The Python srmech.apokatastasis.wz_certificate routes
 # its VERIFY half through this when has_native_wz_verify(); the pure-Python
 # bivariate-Q polynomial compare is the COMPLETE alternative (and the parity oracle)
 # — both decide the SAME exact rational-function identity. The six bivariate operands
@@ -16612,7 +16612,7 @@ _WZ_SYMS = (
 def has_native_wz_verify() -> bool:
     """True iff the rc43 srmech_wz_verify op + its ws/out-cap sizers are loaded +
     bound. False on a no-C or pre-rc43 lib — the pure-Python
-    ``srmech.amsc.wz_certificate`` verify body is the complete alternative (and the
+    ``srmech.apokatastasis.wz_certificate`` verify body is the complete alternative (and the
     parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -16676,7 +16676,7 @@ def wz_verify_c(rn_num, rn_den, rk_num, rk_den, cert_num, cert_den):
 # ----------------------------------------------------------------------
 # rc57: srmech_q_wz_verify — the q-analog of the Wilf-Zeilberger VERIFY primitive (the
 # §76 q-hypergeometric F929 row's THIRD/FINAL public op, the q-row CLOSER). The Python
-# srmech.amsc.q_wz_certificate routes its VERIFY half through this when
+# srmech.apokatastasis.q_wz_certificate routes its VERIFY half through this when
 # has_native_q_wz_verify(); the pure-Python bivariate-Q[q] polynomial compare is the
 # COMPLETE alternative (and the parity oracle) — both decide the SAME exact rational-
 # function identity. The six bivariate-q operands ride the SAME QBiPoly coefficient
@@ -16696,7 +16696,7 @@ _Q_WZ_SYMS = (
 def has_native_q_wz_verify() -> bool:
     """True iff the rc57 srmech_q_wz_verify op + its ws/out-cap sizers + the
     srmech_bigint decimal-marshal helpers are loaded + bound. False on a no-C or
-    pre-rc57 lib — the pure-Python ``srmech.amsc.q_wz_certificate`` verify body is the
+    pre-rc57 lib — the pure-Python ``srmech.apokatastasis.q_wz_certificate`` verify body is the
     complete alternative (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False

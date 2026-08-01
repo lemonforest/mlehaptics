@@ -42,9 +42,9 @@ from fractions import Fraction
 import pytest
 
 from srmech.amsc import ThetaSum, _native
-from srmech.amsc.ellbase import EllMonomial as M, Theta
+from srmech.apokatastasis.ellbase import EllMonomial as M, Theta
 from srmech.amsc.q import Q
-from srmech.amsc.thetasum import (
+from srmech.apokatastasis.thetasum import (
     _NONZERO, _UNKNOWN, _ZERO, _decide_thetasum, _leaf_prime_set,
     _z5_theta_constant_zero, _z6_theta_constant_zero,
 )
@@ -269,7 +269,7 @@ def test_an_3_3_residue_stays_honest_false_with_z6():
     (Z6 does not close the (3,3) leaf, so no in-budget certificate justifies raising it),
     and the (3,3) reduction stays the honest ``verified = None`` (too large to decide
     in-budget) — the safe ``is_zero`` direction."""
-    from srmech.amsc.elliptic_jackson_an import (multivariate_elliptic_jackson_an,
+    from srmech.apokatastasis.elliptic_jackson_an import (multivariate_elliptic_jackson_an,
                                                  _VERIFY_MAX_COMPOSITIONS)
     assert _VERIFY_MAX_COMPOSITIONS == 6                  # cap unmoved: Z6 does not reach it
     z = [M.symbol(f"z{i + 1}") for i in range(3)]
@@ -284,8 +284,8 @@ def _capture_an_3_3_leaf():
     primes {2,5,29,71}), by instrumenting :func:`_decide_struct` to raise on that leaf. The
     recursion consumes all 8 variables (z1..z3, a1..a4, q) via Z4 interpolation before the
     leaf appears, so this is a genuine — if slow — extraction of the #695/#833 residue."""
-    from srmech.amsc import thetasum as _ts
-    from srmech.amsc.elliptic_jackson_an import (multivariate_elliptic_jackson_an,
+    from srmech.apokatastasis import thetasum as _ts
+    from srmech.apokatastasis.elliptic_jackson_an import (multivariate_elliptic_jackson_an,
                                                  _an_lhs_thetasum)
 
     captured = {}

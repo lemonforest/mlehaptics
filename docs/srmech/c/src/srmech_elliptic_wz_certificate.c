@@ -1,7 +1,7 @@
 /*
  * srmech_elliptic_wz_certificate.c -- the ELLIPTIC Sigma-row IDENTITY-PROOF op for the
  * Frenkel-Turaev 8w7 SUMMATION (the C peer of
- * srmech.amsc.elliptic_wz_certificate.elliptic_wz_certificate). Where
+ * srmech.apokatastasis.elliptic_wz_certificate.elliptic_wz_certificate). Where
  * srmech_elliptic_zeilberger proves the order-1 RECURRENCE f(n+1) = rho(n)*f(n), this op
  * proves the full SUMMATION IDENTITY sum_{k=0}^n F(n,k) = cf(n) -- the elliptic analogue
  * of srmech_wz_certificate (the Sec.76 ordinary/q identity-proof rung). Its DISTINCT

@@ -11,8 +11,8 @@ failure and falls back to `_is_zero_py` (the complete parity oracle); (2) the na
 coefficient-limb provisioning gets intermediate-growth headroom. numpy-free.
 """
 
-from srmech.amsc.ellbase import EllMonomial as M, Theta, EllRatio as R, _X, _Q_SYM
-from srmech.amsc.thetasum import ThetaSum, _Y
+from srmech.apokatastasis.ellbase import EllMonomial as M, Theta, EllRatio as R, _X, _Q_SYM
+from srmech.apokatastasis.thetasum import ThetaSum, _Y
 
 
 def _big_cross_variable_cert():

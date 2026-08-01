@@ -40,7 +40,7 @@ from srmech.amsc.q import Q
 from srmech.amsc.poly import Poly
 from srmech.amsc.qpoly import QPoly
 from srmech.amsc.qbipoly import QBiPoly
-from srmech.amsc.q_zeilberger import q_zeilberger
+from srmech.apokatastasis.q_zeilberger import q_zeilberger
 
 
 # ── carrier-build helpers (Q / Poly / QPoly / QBiPoly only; no numpy, no math) ──
@@ -138,9 +138,9 @@ def test_case1_certificate_q_wz_relation_holds():
     """The returned certificate x(X,Y) satisfies the q-WZ relation
     ``Σ_j a_j(X) F(n+j,k) = Δ_q(R·F)`` exactly (the cleared bivariate-q identity is
     zero) — the relation the rc57 q-WZ proof op verifies."""
-    from srmech.amsc.q_zeilberger import (
+    from srmech.apokatastasis.q_zeilberger import (
         _qb_to_xy, _rho, _xy_mul, _xy_exact_div, _xy_qshift_y, _xy_add)
-    from srmech.amsc.q_gosper import _Cq
+    from srmech.apokatastasis.q_gosper import _Cq
 
     rn_num, rn_den, rk_num, rk_den = _q_binomial_theorem_ratios()
     res = q_zeilberger(rn_num, rn_den, rk_num, rk_den, max_order=3)
@@ -245,7 +245,7 @@ def test_native_equals_pure_byte_identical():
     from srmech.amsc import _native
     if not _native.has_native_q_zeilberger():
         pytest.skip("no native srmech_q_zeilberger (pure-Python path is the oracle)")
-    import srmech.amsc.q_zeilberger as QZ
+    import srmech.apokatastasis.q_zeilberger as QZ
 
     rn = QBiPoly.from_x_qpoly(_x_pow(1))             # X
     one = QBiPoly.one()
@@ -274,7 +274,7 @@ def test_no_numpy_no_math_imported():
     assert "numpy" not in sys.modules or sys.modules["numpy"] is None
     # `math` may be imported transitively by pytest internals, but never by srmech
     # source — assert the q_zeilberger module itself names neither.
-    import srmech.amsc.q_zeilberger as QZ
+    import srmech.apokatastasis.q_zeilberger as QZ
     import srmech.amsc.qbipoly as QB
     src = QZ.__file__
     text = open(src, encoding="utf-8").read()

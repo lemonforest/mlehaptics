@@ -45,8 +45,8 @@ import pytest
 
 from srmech import introspect
 from srmech.amsc.dispatch import _OPEN_HINTS, infer
-from srmech.amsc.ellbase import EllMonomial as M, EllRatio
-from srmech.amsc.elliptic_jackson_an import (
+from srmech.apokatastasis.ellbase import EllMonomial as M, EllRatio
+from srmech.apokatastasis.elliptic_jackson_an import (
     an_vwp_multisum_lhs,
     multivariate_elliptic_jackson_an,
     _an_lhs_thetasum,
@@ -60,7 +60,7 @@ from srmech.amsc.elliptic_jackson_an import (
     _VERIFY_MAX_COMPOSITIONS,
 )
 from srmech.amsc.q import Q
-from srmech.amsc.thetasum import ThetaSum
+from srmech.apokatastasis.thetasum import ThetaSum
 
 
 def _operand(n):
@@ -314,26 +314,26 @@ def test_open_hints_updated_on_both_rows():
 
 # ── (8) registration: ToolEntry ×2 + tools.total == 418 + Rosetta rows + __all__ ────────
 def test_registration():
-    import srmech.amsc.elliptic_jackson_an as eja
+    import srmech.apokatastasis.elliptic_jackson_an as eja
     assert "multivariate_elliptic_jackson_an" in eja.__all__
     assert "an_vwp_multisum_lhs" in eja.__all__
     schema = introspect.describe()
     assert schema["tools"]["total"] == 525
     from srmech.amsc.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
-    assert ("srmech.amsc.elliptic_jackson_an.multivariate_elliptic_jackson_an"
+    assert ("srmech.apokatastasis.elliptic_jackson_an.multivariate_elliptic_jackson_an"
             in names)
-    assert "srmech.amsc.elliptic_jackson_an.an_vwp_multisum_lhs" in names
-    for nm in ("srmech.amsc.elliptic_jackson_an.multivariate_elliptic_jackson_an",
-               "srmech.amsc.elliptic_jackson_an.an_vwp_multisum_lhs"):
+    assert "srmech.apokatastasis.elliptic_jackson_an.an_vwp_multisum_lhs" in names
+    for nm in ("srmech.apokatastasis.elliptic_jackson_an.multivariate_elliptic_jackson_an",
+               "srmech.apokatastasis.elliptic_jackson_an.an_vwp_multisum_lhs"):
         entry = next(t for t in get_tool_schema().tools if t.name == nm)
         assert "0305379" in entry.summary              # the MPM-verified keystone
     # the Rosetta ledger rows (the #928 everything-mirrors ratchet feed)
     ndjson = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
     rows = [json.loads(line) for line in
             ndjson.read_text(encoding="utf-8").splitlines() if line.strip()]
-    for nm in ("srmech.amsc.elliptic_jackson_an.multivariate_elliptic_jackson_an",
-               "srmech.amsc.elliptic_jackson_an.an_vwp_multisum_lhs"):
+    for nm in ("srmech.apokatastasis.elliptic_jackson_an.multivariate_elliptic_jackson_an",
+               "srmech.apokatastasis.elliptic_jackson_an.an_vwp_multisum_lhs"):
         mine = [r for r in rows if r["exposed_as"] == nm]
         assert len(mine) == 1 and mine[0]["bucket"] == "c_dispatched"
 
@@ -343,7 +343,7 @@ def test_registration():
 def test_responsion_edges():
     from srmech.introspect.responsion_schema import responsion_schema
     schema = responsion_schema()
-    v_key = ("srmech.amsc.elliptic_jackson_an.multivariate_elliptic_jackson_an"
+    v_key = ("srmech.apokatastasis.elliptic_jackson_an.multivariate_elliptic_jackson_an"
              "|EllMonomial")
     assert v_key in schema
     assert any(r["kind"] == "closed_form" and r["status"] == "verified"

@@ -170,7 +170,7 @@ def test_the_conjunct_selects_a_real_population() -> None:
     )
     # The exhibits that motivated the clause must be inside the selection.
     for name in ("srmech.music.spectrum_tier",
-                 "srmech.amsc.elliptic_gosper.elliptic_gosper"):
+                 "srmech.apokatastasis.elliptic_gosper.elliptic_gosper"):
         row = [r for r in rows if r[0] == name]
         assert row and row[0][2], (
             f"{name} is not selected by the conjunct — the gate cannot decide "

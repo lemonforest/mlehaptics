@@ -27,11 +27,6 @@ from typing import Dict, Tuple
 
 #: ``defined_at`` -> the C symbols that op's own dispatch path names.
 C_CLAIMS: Dict[str, Tuple[str, ...]] = {
-    'srmech.amsc.apagodu_zeilberger.apagodu_zeilberger': (
-        'srmech_apagodu_zeilberger',
-        'srmech_apagodu_zeilberger_out_cap',
-        'srmech_apagodu_zeilberger_ws_bound',
-    ),
     'srmech.amsc.carrier_spectrum.carrier_spectrum': (
         'srmech_carrier_spectrum',
         'srmech_carrier_spectrum_ws_bound',
@@ -232,52 +227,6 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
     'srmech.amsc.cyclic.three_cycle': ('srmech_three_cycle',),
     'srmech.amsc.dispatch.match': ('srmech_dispatch_match',),
     'srmech.amsc.dispatch.mirror_pattern': ('srmech_mirror_pattern',),
-    'srmech.amsc.ellbase.elliptic_lagrange_basis': (
-        'srmech_elliptic_lagrange_basis',
-        'srmech_elliptic_lagrange_basis_ws_bound',
-    ),
-    'srmech.amsc.ellbase.half_shift_response': (
-        'srmech_ellratio_half_shift_response',
-        'srmech_ellratio_ws_bound',
-    ),
-    'srmech.amsc.elliptic_determinant.elliptic_cauchy_determinant': (
-        'srmech_elliptic_cauchy_determinant',
-        'srmech_elliptic_cauchy_determinant_ws_bound',
-    ),
-    'srmech.amsc.elliptic_gosper.elliptic_gosper': (
-        'srmech_elliptic_gosper',
-        'srmech_elliptic_gosper_out_cap',
-        'srmech_elliptic_gosper_ws_bound',
-    ),
-    'srmech.amsc.elliptic_jackson.cn_vwp_multisum_lhs': (
-        'srmech_cn_vwp_multisum_lhs',
-        'srmech_cn_vwp_multisum_lhs_ws_bound',
-    ),
-    'srmech.amsc.elliptic_jackson.multivariate_elliptic_jackson': (
-        'srmech_multivariate_elliptic_jackson',
-        'srmech_multivariate_elliptic_jackson_ws_bound',
-    ),
-    'srmech.amsc.elliptic_jackson_an.an_vwp_multisum_lhs': (
-        'srmech_an_vwp_multisum_lhs',
-        'srmech_an_vwp_multisum_lhs_ws_bound',
-    ),
-    'srmech.amsc.elliptic_jackson_an.multivariate_elliptic_jackson_an': (
-        'srmech_multivariate_elliptic_jackson_an',
-        'srmech_multivariate_elliptic_jackson_an_ws_bound',
-    ),
-    'srmech.amsc.elliptic_recurrence.elliptic_recurrence_8w7': (
-        'srmech_elliptic_recurrence_8w7',
-        'srmech_elliptic_recurrence_8w7_out_cap',
-        'srmech_elliptic_recurrence_8w7_ws_bound',
-    ),
-    'srmech.amsc.elliptic_wz_certificate.elliptic_wz_certificate': (
-        'srmech_elliptic_wz_certificate',
-        'srmech_elliptic_wz_certificate_ws_bound',
-    ),
-    'srmech.amsc.elliptic_zeilberger.elliptic_zeilberger': (
-        'srmech_elliptic_zeilberger',
-        'srmech_elliptic_zeilberger_ws_bound',
-    ),
     'srmech.amsc.format.read_ndjson': ('srmech_ndjson_iter',),
     'srmech.amsc.format.sha256_batch': ('srmech_sha256_batch',),
     'srmech.amsc.format.sha256_bytes': (
@@ -359,11 +308,6 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
         'srmech_genome_save',
         'srmech_genome_telomere_tick',
         'srmech_json_write_ws',
-    ),
-    'srmech.amsc.gosper.gosper': (
-        'srmech_gosper',
-        'srmech_gosper_out_cap',
-        'srmech_gosper_ws_bound',
     ),
     'srmech.amsc.hdc.bind': ('srmech_hdc_bind',),
     'srmech.amsc.hdc.bundle': ('srmech_hdc_bundle',),
@@ -506,27 +450,6 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
     'srmech.amsc.q8.q8_conjugate': ('srmech_q8_conjugate',),
     'srmech.amsc.q8.q8_mult': ('srmech_q8_mult',),
     'srmech.amsc.q8.q8_project_v4': ('srmech_q8_project_v4',),
-    'srmech.amsc.q_gosper.q_gosper': (
-        'srmech_q_gosper',
-        'srmech_q_gosper_out_cap',
-        'srmech_q_gosper_ws_bound',
-    ),
-    'srmech.amsc.q_wz_certificate.q_wz_certificate': (
-        'srmech_q_wz_verify',
-        'srmech_q_wz_verify_out_cap',
-        'srmech_q_wz_verify_ws_bound',
-    ),
-    'srmech.amsc.q_zeilberger.q_zeilberger': (
-        'srmech_q_zeilberger',
-        'srmech_q_zeilberger_out_cap',
-        'srmech_q_zeilberger_ws_bound',
-    ),
-    'srmech.amsc.quasimodular_forms_ring.eisenstein_e2': (
-        'srmech_eisenstein_qseries',
-        'srmech_eisenstein_ws_bound',
-        'srmech_qmat_rref',
-        'srmech_quasimodular_forms_ring_represent',
-    ),
     'srmech.amsc.rational.atan': (
         'srmech_atan_q61',
         'srmech_bigint_divmod',
@@ -678,8 +601,6 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
         'srmech_sin_q61',
         'srmech_sqrt_q61',
     ),
-    'srmech.amsc.riemann_theta_multisum.multivariate_riemann_theta_sum': ('srmech_riemann_theta_multisum',),
-    'srmech.amsc.riemann_theta_multisum.riemann_theta_multisum_lhs': ('srmech_riemann_theta_multisum',),
     'srmech.amsc.search.byte_search': ('srmech_byte_search',),
     'srmech.amsc.search.byte_search_backward': ('srmech_byte_search_backward',),
     'srmech.amsc.template.render': ('srmech_template_render',),
@@ -694,19 +615,98 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
     'srmech.amsc.text.fold_marks': ('srmech_text_fold_marks',),
     'srmech.amsc.text.glyph_stream': ('srmech_text_glyph_stream',),
     'srmech.amsc.tlv.tlv_pack': ('srmech_tlv_pack',),
-    'srmech.amsc.wz_certificate.wz_certificate': (
-        'srmech_wz_verify',
-        'srmech_wz_verify_out_cap',
-        'srmech_wz_verify_ws_bound',
+    'srmech.apokatastasis.apagodu_zeilberger.apagodu_zeilberger': (
+        'srmech_apagodu_zeilberger',
+        'srmech_apagodu_zeilberger_out_cap',
+        'srmech_apagodu_zeilberger_ws_bound',
     ),
-    'srmech.amsc.zeilberger.zeilberger': (
-        'srmech_zeilberger',
-        'srmech_zeilberger_out_cap',
-        'srmech_zeilberger_ws_bound',
+    'srmech.apokatastasis.ellbase.elliptic_lagrange_basis': (
+        'srmech_elliptic_lagrange_basis',
+        'srmech_elliptic_lagrange_basis_ws_bound',
+    ),
+    'srmech.apokatastasis.ellbase.half_shift_response': (
+        'srmech_ellratio_half_shift_response',
+        'srmech_ellratio_ws_bound',
+    ),
+    'srmech.apokatastasis.elliptic_determinant.elliptic_cauchy_determinant': (
+        'srmech_elliptic_cauchy_determinant',
+        'srmech_elliptic_cauchy_determinant_ws_bound',
+    ),
+    'srmech.apokatastasis.elliptic_gosper.elliptic_gosper': (
+        'srmech_elliptic_gosper',
+        'srmech_elliptic_gosper_out_cap',
+        'srmech_elliptic_gosper_ws_bound',
+    ),
+    'srmech.apokatastasis.elliptic_jackson.cn_vwp_multisum_lhs': (
+        'srmech_cn_vwp_multisum_lhs',
+        'srmech_cn_vwp_multisum_lhs_ws_bound',
+    ),
+    'srmech.apokatastasis.elliptic_jackson.multivariate_elliptic_jackson': (
+        'srmech_multivariate_elliptic_jackson',
+        'srmech_multivariate_elliptic_jackson_ws_bound',
+    ),
+    'srmech.apokatastasis.elliptic_jackson_an.an_vwp_multisum_lhs': (
+        'srmech_an_vwp_multisum_lhs',
+        'srmech_an_vwp_multisum_lhs_ws_bound',
+    ),
+    'srmech.apokatastasis.elliptic_jackson_an.multivariate_elliptic_jackson_an': (
+        'srmech_multivariate_elliptic_jackson_an',
+        'srmech_multivariate_elliptic_jackson_an_ws_bound',
     ),
     'srmech.apokatastasis.elliptic_partial_fraction.elliptic_partial_fraction': (
         'srmech_elliptic_partial_fraction',
         'srmech_elliptic_partial_fraction_ws_bound',
+    ),
+    'srmech.apokatastasis.elliptic_recurrence.elliptic_recurrence_8w7': (
+        'srmech_elliptic_recurrence_8w7',
+        'srmech_elliptic_recurrence_8w7_out_cap',
+        'srmech_elliptic_recurrence_8w7_ws_bound',
+    ),
+    'srmech.apokatastasis.elliptic_wz_certificate.elliptic_wz_certificate': (
+        'srmech_elliptic_wz_certificate',
+        'srmech_elliptic_wz_certificate_ws_bound',
+    ),
+    'srmech.apokatastasis.elliptic_zeilberger.elliptic_zeilberger': (
+        'srmech_elliptic_zeilberger',
+        'srmech_elliptic_zeilberger_ws_bound',
+    ),
+    'srmech.apokatastasis.gosper.gosper': (
+        'srmech_gosper',
+        'srmech_gosper_out_cap',
+        'srmech_gosper_ws_bound',
+    ),
+    'srmech.apokatastasis.q_gosper.q_gosper': (
+        'srmech_q_gosper',
+        'srmech_q_gosper_out_cap',
+        'srmech_q_gosper_ws_bound',
+    ),
+    'srmech.apokatastasis.q_wz_certificate.q_wz_certificate': (
+        'srmech_q_wz_verify',
+        'srmech_q_wz_verify_out_cap',
+        'srmech_q_wz_verify_ws_bound',
+    ),
+    'srmech.apokatastasis.q_zeilberger.q_zeilberger': (
+        'srmech_q_zeilberger',
+        'srmech_q_zeilberger_out_cap',
+        'srmech_q_zeilberger_ws_bound',
+    ),
+    'srmech.apokatastasis.quasimodular_forms_ring.eisenstein_e2': (
+        'srmech_eisenstein_qseries',
+        'srmech_eisenstein_ws_bound',
+        'srmech_qmat_rref',
+        'srmech_quasimodular_forms_ring_represent',
+    ),
+    'srmech.apokatastasis.riemann_theta_multisum.multivariate_riemann_theta_sum': ('srmech_riemann_theta_multisum',),
+    'srmech.apokatastasis.riemann_theta_multisum.riemann_theta_multisum_lhs': ('srmech_riemann_theta_multisum',),
+    'srmech.apokatastasis.wz_certificate.wz_certificate': (
+        'srmech_wz_verify',
+        'srmech_wz_verify_out_cap',
+        'srmech_wz_verify_ws_bound',
+    ),
+    'srmech.apokatastasis.zeilberger.zeilberger': (
+        'srmech_zeilberger',
+        'srmech_zeilberger_out_cap',
+        'srmech_zeilberger_ws_bound',
     ),
     'srmech.introspect.naming.lookup': ('srmech_catalog_lookup',),
     'srmech.introspect.naming.reverse_order': ('srmech_reverse_order',),
@@ -780,21 +780,21 @@ UNVERIFIABLE_CLAIMS: Tuple[str, ...] = (
     'srmech.amsc.cascade.matrix_cascades.eigvec_exact_float',
     'srmech.amsc.cascade.one.one_matrix',
     'srmech.amsc.descriptor.descriptor_hash',
-    'srmech.amsc.eisenstein.eisenstein',
-    'srmech.amsc.eta_quotient.eta_quotient',
     'srmech.amsc.format.sha256_hex',
     'srmech.amsc.format.sha256_raw',
-    'srmech.amsc.harmonic_maass.harmonic_maass',
     'srmech.amsc.hdc.polar_density',
     'srmech.amsc.laplacian.dense_solve',
     'srmech.amsc.laplacian.elementwise_multiply_complex',
     'srmech.amsc.laplacian.hermitian_eigendecompose',
-    'srmech.amsc.modular_forms_ring.modular_forms_ring_represent',
     'srmech.amsc.modular_linalg.crt_combine',
-    'srmech.amsc.quasimodular_forms_ring.quasimodular_represent',
     'srmech.amsc.rational.rational_reconstruct',
-    'srmech.amsc.unary_theta.theta_coefficients',
-    'srmech.amsc.unary_theta.unary_theta',
+    'srmech.apokatastasis.eisenstein.eisenstein',
+    'srmech.apokatastasis.eta_quotient.eta_quotient',
+    'srmech.apokatastasis.harmonic_maass.harmonic_maass',
+    'srmech.apokatastasis.modular_forms_ring.modular_forms_ring_represent',
+    'srmech.apokatastasis.quasimodular_forms_ring.quasimodular_represent',
+    'srmech.apokatastasis.unary_theta.theta_coefficients',
+    'srmech.apokatastasis.unary_theta.unary_theta',
     'srmech.qm.bell.operator_norm',
     'srmech.qm.bell.tsirelson_bound',
 )

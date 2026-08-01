@@ -1,8 +1,8 @@
-"""srmech.amsc.riemann_theta_multisum — the HIGHER-GENUS theta-multisum reduction
+"""srmech.apokatastasis.riemann_theta_multisum — the HIGHER-GENUS theta-multisum reduction
 row: the genus-``g`` Riemann-theta analogue of the elliptic (genus-1) reduction row.
 
-Where the elliptic Jackson rows (:mod:`srmech.amsc.elliptic_jackson` Cₙ,
-:mod:`srmech.amsc.elliptic_jackson_an` Aₙ) sum over the GENUS-1 modified theta
+Where the elliptic Jackson rows (:mod:`srmech.apokatastasis.elliptic_jackson` Cₙ,
+:mod:`srmech.apokatastasis.elliptic_jackson_an` Aₙ) sum over the GENUS-1 modified theta
 ``θ(x; p)`` on a single torus, this row lifts the reduction one RUNG UP THE GENUS
 AXIS — a multiparameter summation formula whose summand is built from the
 **genus-``g`` Riemann theta function on a compact Riemann surface of arbitrary
@@ -57,9 +57,9 @@ WHAT THIS ROW BUILDS (exact, following the Aₙ rc227 pattern)
 * :class:`ThetaBracket` — the genus-``g`` odd-theta CARRIER: the operand vocabulary
   of this row. ``[u]`` is antisymmetric (``[-u] = -[u]`` — the pure Class-K sign,
   no monomial prefactor, UNLIKE the genus-1 ``θ(z⁻¹) = −z⁻¹·θ(z)``), so it is NOT the
-  multiplicative :class:`~srmech.amsc.ellbase.Theta`; it is a NEW additive-argument
+  multiplicative :class:`~srmech.apokatastasis.ellbase.Theta`; it is a NEW additive-argument
   odd symbol. The additive argument ``u`` is carried MULTIPLICATIVELY by an
-  :class:`~srmech.amsc.ellbase.EllMonomial` (the free ℤ-lattice over the point/vector
+  :class:`~srmech.apokatastasis.ellbase.EllMonomial` (the free ℤ-lattice over the point/vector
   symbols: ``z_k + v(a,b)`` ↔ the monomial ``Z_k · P_a⁻¹ · P_b``, so additive ``+`` ↔
   multiplicative ``·`` and negation ``−u`` ↔ ``.inv()``); a bracket PRODUCT is a
   signed multiset of canonical arguments. A :class:`ThetaBracketSum` is the free
@@ -91,7 +91,7 @@ from __future__ import annotations
 from typing import List, Sequence, Tuple
 
 from .ellbase import EllMonomial
-from .q import Q
+from ..amsc.q import Q
 
 __all__ = ["riemann_theta_multisum_lhs", "multivariate_riemann_theta_sum",
            "ThetaBracket", "ThetaBracketSum"]
@@ -115,9 +115,9 @@ def _odd(arg: EllMonomial) -> "Tuple[Q, EllMonomial]":
     """Canonicalize a genus-``g`` odd-theta argument: return ``(sign, u0)`` with
     ``[arg] = sign · [u0]``, where ``u0`` is the orientation-fixed representative of the
     antisymmetry pair ``{arg, arg⁻¹}`` (``[-u] = -[u]``, Spiridonov math/0408366 the
-    line after Eq. ab-int). Picks the LOWER :meth:`~srmech.amsc.ellbase.EllMonomial._sort_key`
+    line after Eq. ab-int). Picks the LOWER :meth:`~srmech.apokatastasis.ellbase.EllMonomial._sort_key`
     of ``{arg, arg⁻¹}`` (the same orientation convention as
-    :meth:`~srmech.amsc.ellbase.Theta.canonicalize`, minus the quasi-periodicity — a pure
+    :meth:`~srmech.apokatastasis.ellbase.Theta.canonicalize`, minus the quasi-periodicity — a pure
     Class-K ``±1`` sign, NEVER ``abs()``). A UNIT argument (``u = 0``) is the zero bracket
     ``[0] = 0`` (returned as ``sign = Q(0)``)."""
     if arg.is_zero:
@@ -134,10 +134,10 @@ def _odd(arg: EllMonomial) -> "Tuple[Q, EllMonomial]":
 
 class ThetaBracket:
     """A single genus-``g`` odd Riemann theta ``[u]`` (:func:`_odd`-canonicalized). The
-    argument ``u`` is an :class:`~srmech.amsc.ellbase.EllMonomial` (the additive genus-``g``
+    argument ``u`` is an :class:`~srmech.apokatastasis.ellbase.EllMonomial` (the additive genus-``g``
     argument carried multiplicatively). Immutable; ``==`` / hashing are on the canonical
     argument. This is the atom of the higher-genus reduction row's operand vocabulary —
-    the genus-axis peer of :class:`~srmech.amsc.ellbase.Theta`, but odd (pure ``±1``
+    the genus-axis peer of :class:`~srmech.apokatastasis.ellbase.Theta`, but odd (pure ``±1``
     antisymmetry, no monomial prefactor)."""
 
     __slots__ = ("_u",)
@@ -164,7 +164,7 @@ class ThetaBracketSum:
     argument exponents); sign is the Class-K pin-slot, never ``abs()``.
 
     This is the ADDITIVE carrier the Spiridonov higher-genus multisum identity lives in —
-    the genus-axis peer of :class:`~srmech.amsc.thetasum.ThetaSum`. The identity's exact
+    the genus-axis peer of :class:`~srmech.apokatastasis.thetasum.ThetaSum`. The identity's exact
     proof is a TELESCOPING cancellation in THIS free algebra (each bracket product acts as a
     commuting monomial), so :meth:`is_zero` is exact free-monomial cancellation — no
     transcendental theta evaluation is required (the telescoping is a ring identity).
@@ -253,7 +253,7 @@ class ThetaBracketSum:
     @property
     def is_zero(self) -> bool:
         """True iff this is identically the empty sum — the EXACT free-monomial
-        cancellation decision (the peer of :meth:`~srmech.amsc.thetasum.ThetaSum.is_zero`,
+        cancellation decision (the peer of :meth:`~srmech.apokatastasis.thetasum.ThetaSum.is_zero`,
         but trivial here: the higher-genus identity is a telescoping ring identity, so the
         residual cancels combinatorially with no theta transcendence)."""
         return not self._terms
@@ -304,7 +304,7 @@ def _l_bracket(z: EllMonomial, a: EllMonomial, b: EllMonomial,
 
 def _coerce_operand(z, points, op: str):
     """Validate + coerce the multisum operand: ``z`` a sequence of ``n+1``
-    :class:`~srmech.amsc.ellbase.EllMonomial` (the vectors ``z_0,…,z_n``); ``points`` a
+    :class:`~srmech.apokatastasis.ellbase.EllMonomial` (the vectors ``z_0,…,z_n``); ``points`` a
     sequence of ``n+1`` 4-tuples ``(a_k, b_k, c_k, d_k)`` of ``EllMonomial`` (the points on
     ``S``). Returns ``(zz, pts, n)`` with ``n`` the summation ceiling (``len(z) − 1 ≥ 0``)."""
     if isinstance(z, EllMonomial) or not isinstance(z, (list, tuple)):
@@ -343,7 +343,7 @@ def riemann_theta_multisum_lhs(z, points):
     ``h_j = [z_j+v(a_j,c_j), z_j+v(b_j,d_j), v(c_j,b_j), v(a_j,d_j)]`` — SYMBOLICALLY, as an
     exact :class:`ThetaBracketSum` over the genus-``g`` odd-theta algebra.
 
-    ``z`` is the length-``n+1`` list of :class:`~srmech.amsc.ellbase.EllMonomial` vectors
+    ``z`` is the length-``n+1`` list of :class:`~srmech.apokatastasis.ellbase.EllMonomial` vectors
     ``(z_0,…,z_n)`` (``n = len(z) − 1``); ``points`` the length-``n+1`` list of 4-tuples
     ``(a_k, b_k, c_k, d_k)`` of ``EllMonomial`` (distinct points on ``S``). Raises
     ``TypeError`` / ``ValueError`` on a malformed operand. By Eq. ``sum`` this EQUALS the
@@ -388,7 +388,7 @@ def multivariate_riemann_theta_sum(z, points, *, verify: bool = False):
       − ∏_{k=0}^n [z_k+v(a_k,c_k), z_k+v(b_k,d_k), v(c_k,b_k), v(a_k,d_k)]     ( = ∏ g_k − ∏ h_k )
 
     returned as an exact :class:`ThetaBracketSum`. ``z`` is the length-``n+1`` list of
-    :class:`~srmech.amsc.ellbase.EllMonomial` vectors ``(z_0,…,z_n)`` (``n = len(z) − 1``);
+    :class:`~srmech.apokatastasis.ellbase.EllMonomial` vectors ``(z_0,…,z_n)`` (``n = len(z) − 1``);
     ``points`` the length-``n+1`` list of 4-tuples ``(a_k, b_k, c_k, d_k)`` of ``EllMonomial``
     (distinct points on ``S``). Raises ``TypeError`` / ``ValueError`` on a malformed operand.
     This is the genus-``g`` member of the reduction row (the genus-axis lift of the Aₙ / Cₙ
@@ -503,7 +503,7 @@ def _telescoping_rational_oracle(g_vals: "Sequence[Q]", h_vals: "Sequence[Q]") -
 def _marshal(zz, pts):
     """The interned symbol universe for the C peers: every distinct point/vector symbol
     across ``z`` and ``points``, sorted by NAME (so the C dense exponent vector reproduces
-    the Python :meth:`~srmech.amsc.ellbase.EllMonomial._sort_key` order). Returns
+    the Python :meth:`~srmech.apokatastasis.ellbase.EllMonomial._sort_key` order). Returns
     ``(sym_list, idx)``."""
     syms: "set" = set()
     for u in zz:
@@ -534,7 +534,7 @@ def _multisum_c(zz, pts, n: int, side: int) -> "ThetaBracketSum | None":
     ``z`` / point EllMonomials over the interned symbol table to dense integer exponent rows
     and rebuilds the returned bracket-product monomials into an exact :class:`ThetaBracketSum`
     (byte-exact to the pure carrier). Returns ``None`` when the native symbols are absent."""
-    from . import _native as _nat
+    from ..amsc import _native as _nat
     hn = getattr(_nat, "has_native_riemann_theta_multisum", None)
     if hn is None or not hn():
         return None

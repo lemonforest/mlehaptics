@@ -1,4 +1,4 @@
-"""srmech.amsc.gosper — Gosper's indefinite hypergeometric summation (the FIRST
+"""srmech.apokatastasis.gosper — Gosper's indefinite hypergeometric summation (the FIRST
 public op of the §76 "telescope" Σ-row closed-form prover, F929).
 
 Gosper's algorithm (R. W. Gosper, "Decision procedure for indefinite
@@ -51,8 +51,8 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional, Sequence, Tuple
 
-from .poly import Poly
-from .q import Q
+from ..amsc.poly import Poly
+from ..amsc.q import Q
 
 __all__ = ["gosper"]
 
@@ -66,7 +66,7 @@ def _native():
     falls cleanly to the pure-Python body (the complete alternative + the parity
     oracle) otherwise. Imported lazily to avoid a bootstrap cycle."""
     try:
-        from . import _native as nat
+        from ..amsc import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_gosper", None)
@@ -245,7 +245,7 @@ def _solve_exact(aug_rows: Sequence[Sequence[Q]], n_cols: int) -> Optional[Poly]
     :class:`~srmech.amsc.qmat.QMat` (C-accelerated when present): a free column →
     ``0`` (any choice is valid), a pivot in the RHS column → inconsistent →
     ``None``. Returns the solution as an ascending-degree ``Poly`` ``x``."""
-    from .qmat import QMat
+    from ..amsc.qmat import QMat
     if not aug_rows:
         return Poly.zero()
     rref = QMat.from_rows([list(r) for r in aug_rows]).rref()
