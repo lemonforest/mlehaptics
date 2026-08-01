@@ -1,6 +1,6 @@
 /*
  * srmech_multivariate_elliptic_jackson.c -- the 1:1 native C peer of
- * srmech.amsc.multivariate_elliptic_jackson.multivariate_elliptic_jackson
+ * srmech.apokatastasis.elliptic_jackson.multivariate_elliptic_jackson
  * (rc96), the eq-5 Cn elliptic Jackson summation reducer: the CAPSTONE of the
  * multivariable (root-system Cn) elliptic reduction row.
  *

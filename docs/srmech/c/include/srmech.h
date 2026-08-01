@@ -11057,7 +11057,7 @@ srmech_status_t srmech_elliptic_partial_fraction(size_t n_syms, int psym, size_t
 
 /* ------------------------------------------------------------------ *
  * srmech_multivariate_elliptic_jackson — the C peer of the EllRatio-carrier op
- * srmech.amsc.multivariate_elliptic_jackson.multivariate_elliptic_jackson (rc96),
+ * srmech.apokatastasis.elliptic_jackson.multivariate_elliptic_jackson (rc96),
  * the eq-5 Cn elliptic Jackson summation reducer (the CAPSTONE of the
  * multivariable (root-system Cn) elliptic reduction row). A C-MIRROR PARITY
  * build (NOT a new algorithm): it constructs the EXACT closed form the pure-
