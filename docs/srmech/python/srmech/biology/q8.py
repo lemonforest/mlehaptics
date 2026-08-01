@@ -22,7 +22,7 @@ The product of two signed basis units factors through the extension,
 where ``F[x_a][x_b]`` is the cocycle sign bit — ``1`` iff the Cayley–Dickson
 basis product ``e_{x_a}·e_{x_b}`` carries the ``−1`` sign. ``F`` is the dim-4
 restriction of the SAME cocycle
-:func:`srmech.amsc.cascade.cayley_dickson.cd_basis_product` computes (this
+:func:`srmech.cascade.cayley_dickson.cd_basis_product` computes (this
 module DERIVES ``F`` from it — no hand-entered magic table), so ``q8_mult``
 reproduces genuine ``Q₈``: NON-abelian (``q8_mult(1,2)=3`` but
 ``q8_mult(2,1)=7``), ``i² = j² = k² = 4`` (``−1``), associative over all
@@ -77,14 +77,14 @@ def _build_f_table() -> Tuple[Tuple[int, ...], ...]:
 
     ``F[x_a][x_b] = 1`` iff the Cayley–Dickson basis product
     ``e_{x_a} · e_{x_b}`` carries the ``−1`` sign — DERIVED from
-    :func:`srmech.amsc.cascade.cayley_dickson.cd_basis_product` at ``dim=4``
+    :func:`srmech.cascade.cayley_dickson.cd_basis_product` at ``dim=4``
     (the SAME generative cocycle ``qm.quaternion`` builds its structure table
     from), so there is no hand-entered constant to drift. The result index is
     always ``x_a ⊕ x_b`` (the ``V4`` XOR), which this module relies on for the
     abelian projection; the sign is the only non-trivial content, and it is
     exactly ``F``.
     """
-    from srmech.amsc.cascade.cayley_dickson import cd_basis_product
+    from srmech.cascade.cayley_dickson import cd_basis_product
     table: List[Tuple[int, ...]] = []
     for xa in range(4):
         row: List[int] = []
@@ -304,7 +304,7 @@ def q8_from_one(one, D: int) -> "_HV":
     sign chirality) ∘ Class M (the byte bind). NO ``abs()``.
 
     Args:
-        one: A :class:`~srmech.amsc.cascade.one.One` (read structurally: any object
+        one: A :class:`~srmech.cascade.one.One` (read structurally: any object
             exposing ``.sigma``, ``.theta`` as a ``(num, den)`` pair, and ``.terms``).
         D: Vector dimension (positive). Free — nothing requires, and nothing gains
             from, divisibility by 14 (see :func:`~srmech.math.hdc.klein4_sector_frame`).

@@ -119,12 +119,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Tuple
 
-from ...math.rational import (
+from ..math.rational import (
     cos_series_truncate,
     sin_series_truncate,
     _reduce_rational,
 )
-from ...math.q import Q
+from ..math.q import Q
 
 # ──────────────────────────────────────────────────────────────────────
 # Substrate constants — BOTH partitions of the same 14, named once.
@@ -374,7 +374,7 @@ def _winding_native():
     amsc-package circular import); honours the ``HAS_NATIVE`` toggle the parity
     tests flip.
     """
-    from ... import _native
+    from .. import _native
     if _native.HAS_NATIVE and _native.LIB is not None:
         return _native
     return None
@@ -910,7 +910,7 @@ def _the_one_native_flat(sigma: int, theta_num: int, theta_den: int,
     Lazy import (keeps ``one.py``'s import graph unchanged + dodges any
     amsc-package circular import); honours the ``HAS_NATIVE`` toggle the parity
     tests flip (``the_one_c`` re-checks it via ``has_native_the_one``)."""
-    from ... import _native
+    from .. import _native
     fn = getattr(_native, "the_one_c", None)
     if fn is None:
         return None
@@ -1097,7 +1097,7 @@ def _one_scalar_native(one: "One", mode: str, index):
     to the pure path. Lazy import (keeps ``one.py``'s import graph unchanged +
     honours the ``HAS_NATIVE`` toggle the parity tests flip via
     ``one_scalar_c`` → ``has_native_one_scalar``)."""
-    from ... import _native
+    from .. import _native
     fn = getattr(_native, "one_scalar_c", None)
     if fn is None:
         return None
@@ -1127,7 +1127,7 @@ def to_scalar(one: "One",
     (``[[feedback_no_numpy_rosetta_peer_continuous_float_error_collecting]]``).
 
     This is bindable as a TOML-class method op
-    (``op = "srmech.amsc.cascade.to_scalar"``) so a class can chain
+    (``op = "srmech.cascade.to_scalar"``) so a class can chain
     matrix-math → scalar output (the genome-update class-from-TOML way).
 
     Parameters
@@ -1244,7 +1244,7 @@ def separate_winding_curvature(one: "One") -> dict:
 
     ``is_flat`` is the EXACT (byte-sound) flatness certificate: True iff EVERY
     winding component vanishes by its **Class-K magnitude**
-    (:func:`srmech.amsc.cascade.atoms.magnitude`, real ``|x|`` — never an ALU
+    (:func:`srmech.cascade.atoms.magnitude`, real ``|x|`` — never an ALU
     ``abs()``; ``int`` in → exact ``int`` out). A wound One (any ``w_k ≠ 0``) is
     NOT flat: the winding contributes a genuine holonomy the unwound rep lacks —
     and ``fixed_frame`` is provably identical to the unwound ``the_one(σ,θ,…,
@@ -1262,7 +1262,7 @@ def separate_winding_curvature(one: "One") -> dict:
     ``[[user_stance_bit_exact_is_local_flatness_of_connection_seams_are_holonomy]]``
     (the metacycle seam IS the holonomy).
     """
-    from srmech.amsc.cascade.atoms import magnitude as _magnitude
+    from .atoms import magnitude as _magnitude
 
     if not isinstance(one, One):
         raise TypeError(

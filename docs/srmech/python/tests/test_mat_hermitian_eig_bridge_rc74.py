@@ -36,7 +36,7 @@ import pytest
 from srmech.math.laplacian import mat_hermitian_eigendecompose, LAPLACIAN_OPS
 from srmech.math import laplacian as _lap
 from srmech.math.mat import Mat
-from srmech.amsc.cascade.matrix_cascades import eigvals_exact
+from srmech.cascade.matrix_cascades import eigvals_exact
 
 
 # ── numpy-free correctness helpers (no numpy in the asserts themselves) ──

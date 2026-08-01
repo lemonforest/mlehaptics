@@ -23,14 +23,14 @@ import math
 
 import pytest
 
-from srmech.amsc.cascade.exact_dft import (
+from srmech.cascade.exact_dft import (
     _exact_dft_core,
     _exact_transform,
     _is_pow2,
     _lift_spectrum,
     _try_int_pairs,
 )
-from srmech.amsc.cascade.spectral_cascades import dft, fft, idft, ifft
+from srmech.cascade.spectral_cascades import dft, fft, idft, ifft
 
 POW2 = [2, 4, 8, 16, 32, 64]
 

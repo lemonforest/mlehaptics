@@ -38,7 +38,7 @@ from srmech.biology.genome import (
     quad_turn, chromosome, codon_read, cwf_consistency_mod2, _cap_kind, _hv_bytes,
 )
 from srmech.biology.q8 import q8_from_one, q8_bind, q8_project_v4
-from srmech.amsc.cascade.one import the_one
+from srmech.cascade.one import the_one
 from srmech.math.hv import HV
 
 

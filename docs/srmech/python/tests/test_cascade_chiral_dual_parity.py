@@ -1,4 +1,4 @@
-"""Parity tests for ``srmech.amsc.cascade.chiral_dual``.
+"""Parity tests for ``srmech.cascade.chiral_dual``.
 
 v0.4.5rc8 — the LAST cascade op in the C-parity + TOML retrofit arc
 and the ONLY higher-order one.
@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import random
 
-from srmech.amsc.cascade import chiral_dual, chiral_flip
+from srmech.cascade import chiral_dual, chiral_flip
 
 
 # ---------------------------------------------------------------------

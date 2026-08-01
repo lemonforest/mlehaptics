@@ -725,7 +725,7 @@ jobs:
           from srmech.math import hdc
           assert type(hdc.loop_bind([1.0,0,0,0,0,0,0,0],[0,1.0,0,0,0,0,0,0])).__name__ == 'list', 'hdc loop not numpy-free'
           assert hdc.polar_random(8, seed=1).typecode == 'b', 'hdc polar not numpy-free'
-          from srmech.amsc.cascade import quaternion_dft
+          from srmech.cascade import quaternion_dft
           assert len(quaternion_dft([[1.0,0,0,0]])) == 1, 'hypercomplex_dft not numpy-free'
           # propagators (rc123) is numpy-free: the Feynman propagators are built
           # over the numpy-free Mat carrier (scalar -> complex, the 4x4 numerators
@@ -752,7 +752,7 @@ jobs:
           assert type(_S).__name__ == 'Mat' and type(_W).__name__ == 'Mat' and _W.shape == (2, 2), 'ica_jade not numpy-free'
           # #564: numpy is GONE — there is no [scientific] tier and no numpy export
           # boundary. The_one generates the 14 substrate as a real Mat (no to_numpy).
-          from srmech.amsc.cascade.one import the_one
+          from srmech.cascade.one import the_one
           _G = the_one(1, 0, 1).to_matrix()
           assert type(_G).__name__ == 'Mat' and _G.shape == (14, 14), 'the_one not numpy-free'
           # COMPREHENSIVE registry walk (#564 / rc127): prove the SHIPPED WHEEL

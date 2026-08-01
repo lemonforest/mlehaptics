@@ -572,7 +572,7 @@ static const mcp_kv_t MCP_ENCODING_HINT[] = {
      "base64-encoded bytes"},
     {"operator_name",
      "dotted import path of a unary sequence->sequence srmech operator, "
-     "e.g. \"srmech.amsc.cascade.chiral_flip\""}
+     "e.g. \"srmech.cascade.chiral_flip\""}
 };
 
 /* Bounded linear scan of a static kv table; NULL when the key is absent. */

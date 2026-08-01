@@ -57,14 +57,14 @@ if os.path.dirname(os.path.dirname(os.path.abspath(srmech.__file__))) != _PKG_RO
         f"srmech from {srmech.__file__}. A shadowed install would verify the "
         f"wrong artifact.")
 
-from srmech.amsc.cascade.cayley_dickson import (  # noqa: E402
+from srmech.cascade.cayley_dickson import (  # noqa: E402
     CD_DIMS,
     CD_MAX_DIM,
     cd_basis,
     cd_basis_product,
     cd_mult,
 )
-from srmech.amsc.cascade.cd_register import (  # noqa: E402
+from srmech.cascade.cd_register import (  # noqa: E402
     cd_navmap,
     cd_navmap_is_signed_permutation,
 )

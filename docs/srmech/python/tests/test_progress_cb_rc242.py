@@ -30,7 +30,7 @@ from srmech import _native
 # A proven batch-1 C-dispatchable tool (Class-C net handedness; cf.
 # test_invoke_tool_cascade_atoms_c_rc231): an int8-range plain-int LIST in,
 # one int out — always dispatches in C.
-_OP = "srmech.amsc.cascade.net_chirality"
+_OP = "srmech.cascade.net_chirality"
 _ARGS = {"orientations": [1, -1, -1]}
 
 

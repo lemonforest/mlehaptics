@@ -39,16 +39,16 @@ import inspect
 
 import pytest
 
-from srmech.amsc import cascade
+from srmech import cascade
 from srmech import _native
-from srmech.amsc.cascade.cayley_dickson import CD_MAX_DIM
+from srmech.cascade.cayley_dickson import CD_MAX_DIM
 
-# NOTE: ``srmech.amsc.cascade.cd_register`` names BOTH the module and the factory
+# NOTE: ``srmech.cascade.cd_register`` names BOTH the module and the factory
 # function, and the cascade __init__ re-export shadows the module attribute — so
-# ``from srmech.amsc.cascade import cd_register`` yields the FUNCTION. This is the
+# ``from srmech.cascade import cd_register`` yields the FUNCTION. This is the
 # established shipped pattern (``sedenion_register`` is identical), so it is
 # followed rather than broken here; the module object is fetched explicitly.
-cd_register_mod = importlib.import_module("srmech.amsc.cascade.cd_register")
+cd_register_mod = importlib.import_module("srmech.cascade.cd_register")
 
 # Powers of two srmech builds tables for. 1 and 2 are degenerate (no imaginary
 # direction to navigate) but must still satisfy the structural invariant.

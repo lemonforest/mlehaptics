@@ -1,7 +1,7 @@
 """0.9.0rc25 — `factor_integer_poly` + the turnkey `eig_exact` (rotation-last rc-F).
 
 rc-F closes the exact eigensolver into a one-call API. Two new ops in
-``srmech/amsc/cascade/matrix_cascades.py``:
+``srmech/cascade/matrix_cascades.py``:
 
 1. **`factor_integer_poly(coeffs)`** — factor an integer polynomial into its
    IRREDUCIBLE factors over ℚ (Zassenhaus: content/primitive split → Yun
@@ -29,7 +29,7 @@ import math
 
 import pytest
 
-from srmech.amsc.cascade.matrix_cascades import (
+from srmech.cascade.matrix_cascades import (
     eig_exact,
     eigvals_exact,
     factor_integer_poly,

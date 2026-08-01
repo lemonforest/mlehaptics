@@ -366,7 +366,7 @@ def _to_qbipoly(value: Any, *, param: str = "") -> Any:
 
 
 def _to_one(value: Any, *, param: str = "") -> Any:
-    """Coerce a JSON value to a :class:`~srmech.amsc.cascade.one.One` for a
+    """Coerce a JSON value to a :class:`~srmech.cascade.one.One` for a
     ``One``-typed param (rc290 ``hdc.klein4_from_one``).
 
     The One's canonical JSON-native form is the DICT its own
@@ -381,7 +381,7 @@ def _to_one(value: Any, *, param: str = "") -> Any:
     receives a float), so a float theta component is rejected rather than
     silently truncated.
     """
-    from srmech.amsc.cascade.one import One, one_from_jsonable  # lazy
+    from srmech.cascade.one import One, one_from_jsonable  # lazy
     if isinstance(value, One):
         return value
     if not isinstance(value, dict):

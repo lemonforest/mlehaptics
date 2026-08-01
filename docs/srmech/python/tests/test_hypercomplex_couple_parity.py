@@ -26,8 +26,8 @@ import importlib.util
 import pytest
 
 from srmech import _native
-from srmech.amsc.cascade import hypercomplex_dft as _hc
-from srmech.amsc.cascade.hypercomplex_dft import (
+from srmech.cascade import hypercomplex_dft as _hc
+from srmech.cascade.hypercomplex_dft import (
     hypercomplex_couple,
     _couple_q61,
     _octo_mult_q61,

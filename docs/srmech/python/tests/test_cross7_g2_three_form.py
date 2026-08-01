@@ -26,7 +26,7 @@ never abs() (``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]``).
 import itertools
 import random
 
-from srmech.amsc.cascade import matrix_cascades as mc
+from srmech.cascade import matrix_cascades as mc
 from srmech.math.hdc import (
     LOOP_DIM,
     cross7,

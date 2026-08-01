@@ -37,7 +37,7 @@ from pathlib import Path
 import pytest
 
 from srmech import _native
-from srmech.amsc.cascade import cayley_dickson as cd
+from srmech.cascade import cayley_dickson as cd
 from srmech.math import rational as _rational
 from srmech.qm import octonion as octo
 from srmech.qm import quaternion as quat
@@ -284,10 +284,10 @@ def test_ledger_rows():
     fixture = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
     rows = {json.loads(l)["defined_at"]: json.loads(l)["bucket"]
             for l in fixture.read_text(encoding="utf-8").splitlines() if l.strip()}
-    assert rows.get("srmech.amsc.cascade.cayley_dickson.cd_mult") == "c_dispatched"
+    assert rows.get("srmech.cascade.cayley_dickson.cd_mult") == "c_dispatched"
     for da in (
-        "srmech.amsc.cascade.cayley_dickson.left_mult_matrix",
-        "srmech.amsc.cascade.cayley_dickson.left_mult_kernel",
+        "srmech.cascade.cayley_dickson.left_mult_matrix",
+        "srmech.cascade.cayley_dickson.left_mult_kernel",
         "srmech.qm.octonion.octonion_exp_series_truncate",
         "srmech.qm.quaternion.quaternion_exp_series_truncate",
     ):

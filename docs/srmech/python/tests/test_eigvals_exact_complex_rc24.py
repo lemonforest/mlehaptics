@@ -24,7 +24,7 @@ from srmech.math.q import Q  # #845: exact eigenvalue intervals are Q now, not F
 
 import pytest
 
-from srmech.amsc.cascade.matrix_cascades import (
+from srmech.cascade.matrix_cascades import (
     _count_roots_in_box,
     eigvals_exact,
 )

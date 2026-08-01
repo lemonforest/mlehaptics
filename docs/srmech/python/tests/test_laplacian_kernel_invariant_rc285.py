@@ -59,8 +59,8 @@ import itertools
 
 import pytest
 
-from srmech.amsc.cascade.matrix_cascades import eigvals as cascade_eigvals
-from srmech.amsc.cascade.matrix_cascades import qr as cascade_qr
+from srmech.cascade.matrix_cascades import eigvals as cascade_eigvals
+from srmech.cascade.matrix_cascades import qr as cascade_qr
 from srmech.math.laplacian import (
     _MAT_EIG_DEFLATE_TOL,
     _PI,

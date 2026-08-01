@@ -7,7 +7,7 @@ Three pure-composition additions, all numpy-free:
 """
 import pytest
 
-from srmech.amsc.cascade import signed_sum_squared, top_k_by_score
+from srmech.cascade import signed_sum_squared, top_k_by_score
 from srmech.math import hdc
 
 

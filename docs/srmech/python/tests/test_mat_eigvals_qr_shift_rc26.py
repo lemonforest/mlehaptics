@@ -28,7 +28,7 @@ import importlib.util
 
 import pytest
 
-from srmech.amsc.cascade.matrix_cascades import eigvals_exact
+from srmech.cascade.matrix_cascades import eigvals_exact
 from srmech.math.laplacian import jacobi_eigvals, mat_eigvals
 from srmech.math.mat import Mat
 

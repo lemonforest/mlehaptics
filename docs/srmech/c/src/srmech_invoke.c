@@ -368,7 +368,7 @@ static srmech_status_t iv_call_uN(const char *nm, uint64_t x0, uint64_t x1,
     if (argc == 2u && strcmp(nm, "srmech.math.cyclic.gcd") == 0) {
         return srmech_gcd(x0, x1, r);
     }
-    if (argc == 2u && strcmp(nm, "srmech.amsc.cascade.cyclic_gcd") == 0) {
+    if (argc == 2u && strcmp(nm, "srmech.cascade.cyclic_gcd") == 0) {
         return srmech_cascade_cyclic_gcd_u64(x0, x1, r);
     }
     if (argc == 2u && strcmp(nm, "srmech.math.cyclic.lcm") == 0) {
@@ -1319,7 +1319,7 @@ static srmech_status_t iv_shape_magnitude(const srmech_tool_entry_t *e,
     assert(e != NULL && argv != NULL && a != NULL && out != NULL);
     assert(argc >= 1u);
     if (argc != 1u || argv[0] == NULL
-        || strcmp(e->name, "srmech.amsc.cascade.magnitude") != 0) {
+        || strcmp(e->name, "srmech.cascade.magnitude") != 0) {
         return SRMECH_ERR_NOT_IMPL;
     }
     if (argv[0]->kind != SRMECH_MVAL_FLOAT) { return SRMECH_ERR_NOT_IMPL; }
@@ -1341,7 +1341,7 @@ static srmech_status_t iv_shape_pin_slot(const srmech_tool_entry_t *e,
     assert(e != NULL && argv != NULL && a != NULL && out != NULL);
     assert(argc >= 1u);
     if (argc != 1u || argv[0] == NULL
-        || strcmp(e->name, "srmech.amsc.cascade.pin_slot_at_zero") != 0) {
+        || strcmp(e->name, "srmech.cascade.pin_slot_at_zero") != 0) {
         return SRMECH_ERR_NOT_IMPL;
     }
     if (argv[0]->kind != SRMECH_MVAL_FLOAT) { return SRMECH_ERR_NOT_IMPL; }
@@ -1372,7 +1372,7 @@ static srmech_status_t iv_shape_net_chirality(const srmech_tool_entry_t *e,
     assert(e != NULL && argv != NULL && a != NULL && out != NULL);
     assert(argc >= 1u);
     if (argc != 1u || argv[0] == NULL
-        || strcmp(e->name, "srmech.amsc.cascade.net_chirality") != 0) {
+        || strcmp(e->name, "srmech.cascade.net_chirality") != 0) {
         return SRMECH_ERR_NOT_IMPL;
     }
     v = argv[0];
@@ -1411,7 +1411,7 @@ static const iv_vtable_row_t IV_VTABLE[] = {
     { "srmech.math.cyclic.mod_pow",          iv_shape_uN_to_u },
     { "srmech.math.cyclic.mod_inv",          iv_shape_uN_to_u },
     { "srmech.math.cyclic.three_cycle",      iv_shape_uN_to_u },
-    { "srmech.amsc.cascade.cyclic_gcd",      iv_shape_uN_to_u },
+    { "srmech.cascade.cyclic_gcd",      iv_shape_uN_to_u },
     { "srmech.math.primes.next_prime",       iv_shape_uN_to_u },
     { "srmech.math.primes.is_prime",         iv_shape_u_to_bool },
     { "srmech.math.rational.best_rational",  iv_shape_u_to_pair },
@@ -1443,9 +1443,9 @@ static const iv_vtable_row_t IV_VTABLE[] = {
     { "srmech.math.laplacian.mat_matvec",    iv_shape_mat_matvec },
     { "srmech.math.laplacian.mat_outer",     iv_shape_mat_outer },
     /* rc231 CASCADE-ATOM BATCH (#810) — scalar Class-K / Class-C atoms */
-    { "srmech.amsc.cascade.magnitude",       iv_shape_magnitude },
-    { "srmech.amsc.cascade.pin_slot_at_zero", iv_shape_pin_slot },
-    { "srmech.amsc.cascade.net_chirality",   iv_shape_net_chirality },
+    { "srmech.cascade.magnitude",       iv_shape_magnitude },
+    { "srmech.cascade.pin_slot_at_zero", iv_shape_pin_slot },
+    { "srmech.cascade.net_chirality",   iv_shape_net_chirality },
 };
 
 static iv_thunk_t iv_vtable_lookup(const char *name)

@@ -5,7 +5,7 @@
 # and NOT a srmech.dsl runnable chain. The Klein-4 ops it composes
 # (klein4_triality_cycle + the three chirality flips) are KERNEL-tier ops in
 # srmech.math.hdc — deliberately NOT registered in the srmech.dsl cascade
-# catalog (which resolves ops via srmech.amsc.cascade). Per the rc16 two-tier
+# catalog (which resolves ops via srmech.cascade). Per the rc16 two-tier
 # SSoT boundary, a primitive relabel like the triality cycle stays in the
 # hardcoded kernel; THIS file is the worked *instance* that composes those
 # kernel ops into a concrete cascade. It is verified in Python against the real

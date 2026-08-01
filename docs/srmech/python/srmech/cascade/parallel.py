@@ -13,8 +13,8 @@ conjugated by its Klein-4 stream-transform ``T_s`` — the **sector dual**::
     sector_dual(body, s, x) = inv_T_s( body( T_s(x) ) )
 
 The two independent axes are the γ₅ axis (orientation reversal,
-:func:`srmech.amsc.cascade.atoms.chiral_flip`) and the iω₇ axis (a Class-C
-per-element sign-flip, :func:`srmech.amsc.cascade.atoms.reorient` with
+:func:`srmech.cascade.atoms.chiral_flip`) and the iω₇ axis (a Class-C
+per-element sign-flip, :func:`srmech.cascade.atoms.reorient` with
 orientation ``-1``). They COMMUTE — together they generate the Klein-4
 group ``Z₂ × Z₂`` (γ₅± × iω₇±), so each ``T_s`` is its own inverse
 (``inv_T_s == T_s``, an involution):
@@ -28,7 +28,7 @@ sector      (γ₅, iω₇)    stream-transform ``T_s``      srmech atom (Class 
 3           (−, −)       both flips / CPT mirror       ``chiral_flip`` ∘ ``reorient(·, orientation=-1)``
 ==========  ===========  ============================  ========================
 
-Sector 2's dual is **exactly** :func:`srmech.amsc.cascade.chiral_dual`
+Sector 2's dual is **exactly** :func:`srmech.cascade.chiral_dual`
 (``chiral_flip(body(chiral_flip(x)))``) — F233's confirmed 2-rung object —
 and this module asserts that bit-exact equality inline (the F232↔F233 tie).
 
@@ -63,11 +63,11 @@ distinguishing them. The distinct-count is a direct readout:
 FULL C/PYTHON PARITY DISCIPLINE (critical). This voxel adds a Python
 *orchestration* layer ONLY. The sector *math* composes **exclusively**
 already-C-parity'd primitives:
-:func:`srmech.amsc.cascade.atoms.chiral_flip` (Class C),
-:func:`srmech.amsc.cascade.atoms.reorient` (Class C),
-:func:`srmech.amsc.cascade.atoms.chiral_dual` (Class C∘op∘C),
-:func:`srmech.amsc.cascade.atoms.net_chirality` (Class C), and
-:func:`srmech.amsc.cascade.atoms.magnitude` (Class K). **No cascade
+:func:`srmech.cascade.atoms.chiral_flip` (Class C),
+:func:`srmech.cascade.atoms.reorient` (Class C),
+:func:`srmech.cascade.atoms.chiral_dual` (Class C∘op∘C),
+:func:`srmech.cascade.atoms.net_chirality` (Class C), and
+:func:`srmech.cascade.atoms.magnitude` (Class K). **No cascade
 capability is introduced that exists only in Python** — only the thread
 fan-out is Python here. The **C-orchestration parity is tracked by issue
 #771** (kept open): a native 4-sector dispatch surface so ``srmech`` does
@@ -93,8 +93,8 @@ defeating the F233 speedup; pass ``verify=True`` for the opt-in runtime
 cross-check.
 
 **No ``abs()``** anywhere — residual / magnitude via
-:func:`srmech.amsc.cascade.atoms.magnitude`; handedness via
-:func:`srmech.amsc.cascade.atoms.net_chirality` (Class C / K discipline per
+:func:`srmech.cascade.atoms.magnitude`; handedness via
+:func:`srmech.cascade.atoms.net_chirality` (Class C / K discipline per
 ``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]``).
 
 COMPOSABILITY (rc12 §11.3). By default the dispatch returns the rich
@@ -159,10 +159,10 @@ def _reorient_each(orientation: int, seq: Sequence) -> List:
     """Class-C per-element ``reorient`` over a sequence (the iω₇ axis).
 
     The iω₇ stream-transform is a per-register sign-flip — Class C
-    :func:`srmech.amsc.cascade.atoms.reorient` applied element-wise with the
+    :func:`srmech.cascade.atoms.reorient` applied element-wise with the
     supplied orientation. With ``orientation = -1`` this is the iω₇ flip; it
     is an involution (``reorient(reorient(v, orientation=-1), orientation=-1) == v``) and commutes
-    with :func:`srmech.amsc.cascade.atoms.chiral_flip` (the γ₅ reversal), so
+    with :func:`srmech.cascade.atoms.chiral_flip` (the γ₅ reversal), so
     the two generate the Klein-4 group. **No ``abs()``** — the sign is the
     canonical Class C re-orientation.
     """
@@ -207,7 +207,7 @@ def _sector_dual(body: Callable, sector: int, x: Sequence) -> Any:
     ``T_s`` is the Klein-4 stream-transform; since each ``T_s`` is an
     involution, ``inv_T_s == T_s`` and we apply :func:`_stream_transform`
     on both ends. For ``sector == 2`` (γ₅-only) this is **exactly**
-    :func:`srmech.amsc.cascade.atoms.chiral_dual` (the F232 object) — the
+    :func:`srmech.cascade.atoms.chiral_dual` (the F232 object) — the
     public dispatcher asserts that bit-exact equality.
     """
     inner = body(_stream_transform(sector, x))
@@ -355,7 +355,7 @@ def parallel_sector_dispatch(
     - sector 0 ``(+,+)`` — identity;
     - sector 1 ``(+,−)`` — iω₇-flip (Class-C ``reorient(·, orientation=-1)`` per element);
     - sector 2 ``(−,+)`` — γ₅-flip (``chiral_flip`` reversal); its dual is
-      **exactly** :func:`srmech.amsc.cascade.chiral_dual` (asserted);
+      **exactly** :func:`srmech.cascade.chiral_dual` (asserted);
     - sector 3 ``(−,−)`` — both / CPT mirror.
 
     CAP AT 4 (F220): ``n_sectors`` is hard-capped at 4. Klein-4 = ``Z₂ × Z₂``

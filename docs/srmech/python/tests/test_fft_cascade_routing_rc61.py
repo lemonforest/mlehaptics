@@ -4,7 +4,7 @@ The numpy-removal loop's `linalg_fft` batch: the 15 one-dimensional
 `np.fft.fft(x)` / `np.fft.ifft(x)` callsites across signal_processing
 (cross_spectral, ofdm, spectral_subtraction, multitaper, stft, wiener,
 path_b/wiener) now route onto the value-faithful
-`srmech.amsc.cascade.spectral_cascades.fft` / `.ifft` cascade
+`srmech.cascade.spectral_cascades.fft` / `.ifft` cascade
 (radix-2 Cooley-Tukey with a dft fallback for non-power-of-2 N —
 exact-until-rotation). The cascade returns plain `list[complex]` now
 (numpy GONE); the routed ops likewise return numpy-free lists.
@@ -35,7 +35,7 @@ import pathlib
 
 import pytest
 
-from srmech.amsc.cascade import spectral_cascades as _sc
+from srmech.cascade import spectral_cascades as _sc
 
 
 # ---------------------------------------------------------------------------

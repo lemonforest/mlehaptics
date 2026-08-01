@@ -125,24 +125,35 @@ def test_the_loader_constants_point_at_the_new_home() -> None:
             f"catalogs' has stopped being true of one of them.")
 
 
-def test_the_new_namespace_imports_and_stays_free() -> None:
-    """``srmech.cascade`` is importable and costs nothing to import.
+def test_the_new_namespace_imports_and_exposes_the_flat_cascade_api() -> None:
+    """``srmech.cascade`` imports cleanly and re-exports the flat cascade API.
 
-    The loaders reach the descriptors by PATH, so the package needs no imports of
-    its own. Keeping it empty is what lets ``import srmech.cascade`` stay free as
-    later slices move ``compose`` / ``atoms`` in beside ``catalogs/``.
+    ⚠️ rc377 (`#T1034`, ADR-0010) is the slice this test's rc364 form anticipated.
+    At rc364 the namespace held ONLY ``catalogs/`` (descriptors reached by PATH),
+    so its ``__init__`` was empty and this test asserted it *stayed* empty "as
+    later slices move ``compose`` / ``atoms`` in beside ``catalogs/``". rc377 IS
+    that slice: ``srmech/amsc/cascade/`` (the lean-ISA atoms + composites tier)
+    moved here, so the namespace is now the composition layer's CODE home, not a
+    catalogs-only shell. Its ``__init__`` re-exports the flat API EAGERLY — exactly
+    as ``srmech.amsc.cascade`` did before the move — so ``import srmech.cascade``
+    costs what ``import srmech.amsc.cascade`` always did. The move PRESERVES the
+    import cost; it does not add one. (The old "stays empty / costs nothing"
+    invariant was a property of the transitional catalogs-only state and is
+    correctly retired here, not weakened.)
     """
-    import srmech.cascade
+    import srmech.cascade as cascade
     import srmech.cascade.catalogs
 
-    assert srmech.cascade.__all__ == []
-    src = (_PKG / "cascade" / "__init__.py").read_text(encoding="utf-8")
-    offenders = [ln for ln in src.splitlines()
-                 if ln.startswith(("import ", "from ")) and "__future__" not in ln]
-    assert offenders == [], (
-        f"srmech/cascade/__init__.py has grown import(s): {offenders}. The "
-        f"namespace holds descriptors, not code; an import here is paid by every "
-        f"consumer of the package.")
+    # The two tiers now resolve as submodules, and the flat re-exports are live.
+    assert cascade.__all__, (
+        "srmech/cascade/__init__.py no longer re-exports the flat cascade API. "
+        "rc377 moved the atoms + composites tier in, so __all__ must be non-empty "
+        "— an empty __all__ now means the move dropped the public surface.")
+    for name in ("atoms", "composites", "pin_slot_at_zero", "cyclic_gcd",
+                 "autocorrelation", "kuramoto_step"):
+        assert hasattr(cascade, name), (
+            f"srmech.cascade.{name} is not exposed — the rc377 atoms/composites "
+            f"move did not carry the full flat surface across.")
 
 
 # ── 2. the wheel defect ─────────────────────────────────────────────────────

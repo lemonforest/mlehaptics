@@ -1,6 +1,5 @@
 adapters/
 attested/
-cascade/
 catalog
 descriptor
 format

@@ -39,7 +39,7 @@ import pytest
 
 from srmech.math.q import Q
 from srmech.math.qalg import Qalg
-from srmech.amsc.cascade.matrix_cascades import (
+from srmech.cascade.matrix_cascades import (
     eigvec_exact,
     eigvec_exact_float,
     eigvals_exact,

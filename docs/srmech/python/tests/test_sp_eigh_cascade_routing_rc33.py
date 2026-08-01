@@ -23,7 +23,7 @@ import cmath
 import math
 import random
 
-from srmech.amsc.cascade.matrix_cascades import eigvals, eigvals_exact
+from srmech.cascade.matrix_cascades import eigvals, eigvals_exact
 from srmech.math.laplacian import hermitian_eigendecompose
 from srmech.signal_processing.closed_form_ops import (
     esprit,

@@ -1,4 +1,4 @@
-"""srmech.amsc.cascade.matrix_cascades — QR / SVD / lstsq / einsum / eig as A-N cascades.
+"""srmech.cascade.matrix_cascades — QR / SVD / lstsq / einsum / eig as A-N cascades.
 
 Per ``docs/srmech/notes/continuous_math_as_14_class_cascade.md``: the matrix
 factorizations and solvers are not numpy-``linalg`` primitives, they are
@@ -771,7 +771,7 @@ def separate_frame_curvature(a, b):
          "is_flat":     bool}  # curvature is EXACTLY the zero carrier ⇔ [A,B]=0
 
     ``is_flat`` is the EXACT (byte-sound) flatness certificate: every stored double
-    of the curvature carrier has **Class-K magnitude** (:func:`srmech.amsc.cascade.
+    of the curvature carrier has **Class-K magnitude** (:func:`srmech.cascade.
     atoms.magnitude`, real ``|x|`` — never an ALU ``abs()``, and — unlike a squared
     Frobenius norm — with no underflow-to-zero hazard) exactly ``0.0``. So
     ``is_flat is True`` is a THEOREM about the computed curvature carrier: it is
@@ -810,7 +810,7 @@ def separate_frame_curvature(a, b):
     and Spinors* §2 (the geometric product = metric ⊕ wedge); the framework
     ``[[user_stance_bit_exact_is_local_flatness_of_connection_seams_are_holonomy]]``.
     """
-    from srmech.amsc.cascade.atoms import magnitude as _magnitude
+    from .atoms import magnitude as _magnitude
 
     A = a if isinstance(a, _Mat) else _Mat.from_rows(
         a.tolist() if hasattr(a, "tolist") else a)

@@ -27,7 +27,7 @@ import random
 import pytest
 
 from srmech import _native
-from srmech.amsc.cascade import spectral_cascades as sc
+from srmech.cascade import spectral_cascades as sc
 
 HAS_FFT_C128 = _native.has_native_fft_c128()
 

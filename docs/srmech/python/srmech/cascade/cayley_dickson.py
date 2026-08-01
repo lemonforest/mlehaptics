@@ -1,8 +1,8 @@
 """Cayley–Dickson construction — the **open-exterior boundary-demonstrator**
 (#915 / MFO §VII.6.23; the far side of the Hurwitz wall).
 
-``the_one`` (:mod:`srmech.amsc.cascade.one`) and ``hypercomplex_couple``
-(:mod:`srmech.amsc.cascade.hypercomplex_dft`) live entirely in the **reversible
+``the_one`` (:mod:`srmech.cascade.one`) and ``hypercomplex_couple``
+(:mod:`srmech.cascade.hypercomplex_dft`) live entirely in the **reversible
 interior** ℝ/ℂ/ℍ/𝕆 (dims 1, 2, 4, 8) — the normed division algebras, where
 ``multiply by x`` is a bijection you can run forward *and* backward. That ceiling
 is not an omission; it **is** the physics claim (Hurwitz 1898: 1, 2, 4, 8 are the
@@ -86,7 +86,7 @@ import ctypes
 from itertools import combinations
 from typing import Any, Dict, List, Sequence, Set, Tuple
 
-from srmech.amsc.cascade.atoms import (      # Class-K pin-slot / Class-C reorient
+from .atoms import (      # Class-K pin-slot / Class-C reorient
     pin_slot_at_zero as _pin_slot_at_zero,
     reorient as _reorient,
 )
@@ -1398,7 +1398,7 @@ def left_mult_is_invertible(x: Sequence[Any], table: Any = None) -> bool:
 # random-anticommutative control has aba_nonzero = 0 while failing flexibility
 # outright. Only the linearised identity decides. The three rungs after the
 # first already had instruments in this tree
-# (:func:`srmech.amsc.cascade.cd_basis_product` commuting-pair counts;
+# (:func:`srmech.cascade.cd_basis_product` commuting-pair counts;
 # ``hdc.loop_associator`` / ``genome_octonion_associator``;
 # :func:`sedenion_zero_divisor_witness` / :func:`left_mult_is_invertible`).
 # The FIRST rung had none. This is it.

@@ -47,8 +47,8 @@ import pytest
 
 from tests._native_gate import require_native
 from srmech import _native
-from srmech.amsc.cascade import matrix_cascades as mc
-from srmech.amsc.cascade.matrix_cascades import factor_integer_poly, lll_reduce
+from srmech.cascade import matrix_cascades as mc
+from srmech.cascade.matrix_cascades import factor_integer_poly, lll_reduce
 
 
 def test_numpy_is_absent_so_this_runs_not_skips():

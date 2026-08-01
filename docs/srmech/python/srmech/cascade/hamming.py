@@ -4,7 +4,7 @@ sedenion front-loader (#910 / §30; findings F442 + F449).
 The "front-loader" is **CARRY ∘ COUPLE**:
 
 * **COUPLE** — bind ≤7 streams reversibly into an octonion — is native
-  (:func:`srmech.amsc.cascade.hypercomplex_couple`, §29 / #908). It is capped
+  (:func:`srmech.cascade.hypercomplex_couple`, §29 / #908). It is capped
   at 𝕆 by Hurwitz: 7 reversible imaginary slots.
 * **CARRY** — hold *more than 7* data items + locate/correct an error in one
   structure, reversible **past** 𝕆 — needs the sedenion's CODE structure

@@ -18,7 +18,7 @@ import random
 
 import pytest
 
-from srmech.amsc.cascade.matrix_cascades import char_poly, eigvals, einsum, lstsq
+from srmech.cascade.matrix_cascades import char_poly, eigvals, einsum, lstsq
 
 
 # ── numpy-free list helpers ────────────────────────────────────────────
@@ -274,7 +274,7 @@ def test_no_abs_no_nplinalg_eig():
     import ast
     import inspect
 
-    from srmech.amsc.cascade import matrix_cascades as mc
+    from srmech.cascade import matrix_cascades as mc
 
     tree = ast.parse(inspect.getsource(mc))
     assert not [

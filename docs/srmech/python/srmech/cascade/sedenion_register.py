@@ -33,13 +33,13 @@ Composes (no new primitive class):
 
 - :func:`srmech.math.hdc.bind` / ``bundle`` / ``similarity`` — Class **M** register
   read/write (associative superposition; storage capacity is ``D``-bounded).
-- :func:`srmech.amsc.cascade.hypercomplex_couple` — the ≤7 reversible working word
+- :func:`srmech.cascade.hypercomplex_couple` — the ≤7 reversible working word
   (Class **M** ∘ **C** ∘ **N**; §29).
-- :func:`srmech.amsc.cascade.hamming_encode` / ``hamming_decode_correct`` — the
+- :func:`srmech.cascade.hamming_encode` / ``hamming_decode_correct`` — the
   EC/carry block (Class **B** ∘ **I** ∘ **A**; §30).
-- :func:`srmech.amsc.cascade.cayley_dickson.cd_basis_product` /
+- :func:`srmech.cascade.cayley_dickson.cd_basis_product` /
   ``left_mult_is_invertible`` — the 16-slot address algebra + the navigability gate.
-- :func:`srmech.amsc.cascade.chiral_flip` — the Class **C** sign on a hypervector
+- :func:`srmech.cascade.chiral_flip` — the Class **C** sign on a hypervector
   (never ``abs()`` / negate).
 
 Two distinct boundaries, kept distinct (F465): the register's **associative**
@@ -88,13 +88,13 @@ WORKING_WORD_CAP = 7
 def _lazy_hdc():
     """Import the Class-M HDC byte ops on demand (numpy-free; defers the import
     so the module loads without touching signal_processing)."""
-    from ...math.hdc import bind, bundle, similarity
+    from ..math.hdc import bind, bundle, similarity
     return bind, bundle, similarity
 
 
 def _lazy_mint():
     """Import the RBS-HDC minter on demand (numpy-free cascade; deferred import)."""
-    from ...signal_processing import mint_vector
+    from ..signal_processing import mint_vector
     return mint_vector
 
 

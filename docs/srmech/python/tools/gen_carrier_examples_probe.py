@@ -33,7 +33,7 @@ from srmech.apokatastasis.riemann_theta_multisum import ThetaBracketSum  # noqa:
 from srmech.apokatastasis.harmonic_maass import MockQSeries, UnaryTheta, HarmonicMaass  # noqa: E402
 from srmech.math import laplacian as _lap  # noqa: E402
 from srmech.math import hdc as _hdc  # noqa: E402
-from srmech.amsc.cascade import the_one, sedenion_register, cd_register  # noqa: E402
+from srmech.cascade import the_one, sedenion_register, cd_register  # noqa: E402
 
 _NS = dict(globals())
 _NS.update(dict(array=array, Fraction=Fraction, Q=Q, Poly=Poly, BiPoly=BiPoly,

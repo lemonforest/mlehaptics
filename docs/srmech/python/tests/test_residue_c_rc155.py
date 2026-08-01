@@ -101,7 +101,7 @@ def test_kron_value_oracle_byte_exact():
     assertion compares on ℤ via :func:`_eq_exact` — ``complex(g) == complex(w)``
     is the float-blind comparison this ratchet shipped with through rc343.
     """
-    from srmech.amsc.cascade.spectral_cascades import kron
+    from srmech.cascade.spectral_cascades import kron
     for label, a, b in _kron_exactness_cases():
         got = kron(a, b)
         want = _kron_ref(a, b)
@@ -117,7 +117,7 @@ def test_kron_significand_invariant_is_not_operand_scale():
     Both halves are asserted so a regression that reintroduces a float path
     cannot pass by being merely small-magnitude-correct.
     """
-    from srmech.amsc.cascade.spectral_cascades import kron
+    from srmech.cascade.spectral_cascades import kron
 
     def significand_bits(n):
         n = -n if n < 0 else n              # Class-K sign branch, never abs()
@@ -151,7 +151,7 @@ def test_kron_significand_invariant_is_not_operand_scale():
 def test_kron_integer_input_returns_exact_int_not_float():
     """All-real integer input comes back as exact Python ``int`` (unbounded), so
     the exactness survives the RETURN VALUE and not just the internal cascade."""
-    from srmech.amsc.cascade.spectral_cascades import kron
+    from srmech.cascade.spectral_cascades import kron
     out = kron([[3, 4]], [[3002399751580331]])
     assert all(isinstance(v, int) for row in out for v in row), out
     assert out[0][0] == 2 ** 53 + 1
@@ -218,7 +218,7 @@ def _flat(x):
 
 
 def test_einsum_value_oracle():
-    from srmech.amsc.cascade.matrix_cascades import einsum
+    from srmech.cascade.matrix_cascades import einsum
     rs = random.Random(155)
 
     def rnd(*shape, cplx=False):

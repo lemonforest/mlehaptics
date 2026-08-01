@@ -2,7 +2,7 @@
  * srmech_parallel.c — C-orchestration parity for the rc6 Python
  * Klein-4 four-sector PARALLEL cascade dispatch (#771; MS#20 rc7).
  *
- * The C peer for srmech.amsc.cascade.parallel.parallel_sector_dispatch.
+ * The C peer for srmech.cascade.parallel.parallel_sector_dispatch.
  * Runs ONE caller-supplied cascade `body` across its ≤4 Klein-4
  * chirality sectors and writes the four sector duals. This closes the
  * C/Python parity gap rc6 left open: under srmech's full-parity

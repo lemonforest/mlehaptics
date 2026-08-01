@@ -66,7 +66,7 @@ from srmech.math.carrier_ladder import (
     poly_promote, poly_project, qpoly_promote, qpoly_project,
     carrier_ladder_descriptor,
 )
-from srmech.amsc.cascade import cd_promote, cd_project, cd_mult
+from srmech.cascade import cd_promote, cd_project, cd_mult
 from srmech.mcp import invoke_tool
 
 
@@ -404,9 +404,9 @@ def test_new_tool_entries_present_with_declared_types():
             "carrier_ladder", {"p": "QBiPoly"}),
         "srmech.math.carrier_ladder.carrier_ladder_descriptor": (
             "carrier_ladder", {}),
-        "srmech.amsc.cascade.cd_promote": (
+        "srmech.cascade.cd_promote": (
             "cascade", {"x": "sequence", "dim": "int"}),
-        "srmech.amsc.cascade.cd_project": ("cascade", {"x": "sequence"}),
+        "srmech.cascade.cd_project": ("cascade", {"x": "sequence"}),
     }
     for name, (category, params) in expected.items():
         entry = schema.lookup(name)
@@ -433,8 +433,8 @@ def test_rosetta_buckets_all_non_compute():
         "srmech.math.carrier_ladder.qpoly_promote",
         "srmech.math.carrier_ladder.qpoly_project",
         "srmech.math.carrier_ladder.carrier_ladder_descriptor",
-        "srmech.amsc.cascade.cayley_dickson.cd_promote",
-        "srmech.amsc.cascade.cayley_dickson.cd_project",
+        "srmech.cascade.cayley_dickson.cd_promote",
+        "srmech.cascade.cayley_dickson.cd_project",
     ):
         assert rows.get(defined_at) == "non_compute", defined_at
 
@@ -452,7 +452,7 @@ def test_touched_modules_are_numpy_math_abs_free():
     import srmech.apokatastasis.zeilberger as Z
     import srmech.math.tripoly as T
     import srmech.math.carrier_ladder as CL
-    import srmech.amsc.cascade.cayley_dickson as CD
+    import srmech.cascade.cayley_dickson as CD
     for mod in (Z, T, CL, CD):
         text = open(mod.__file__, encoding="utf-8").read()
         assert "import numpy" not in text

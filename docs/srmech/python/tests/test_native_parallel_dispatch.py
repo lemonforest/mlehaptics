@@ -1,7 +1,7 @@
 """C/Python parity for the Klein-4 four-sector PARALLEL dispatch (#771).
 
 The gap-closer for srmech MS#20 rc7: rc6 added a Python-only 4-sector
-parallel cascade dispatch (``srmech.amsc.cascade.parallel_sector_dispatch``);
+parallel cascade dispatch (``srmech.cascade.parallel_sector_dispatch``);
 under srmech's full-parity commitment the C library must do the same four-
 sector dispatch NATIVELY (so srmech runs on a microcontroller with no host
 Python). This module proves the C dispatch's four sector results equal
@@ -30,7 +30,7 @@ from __future__ import annotations
 import pytest
 
 from srmech import _native
-from srmech.amsc.cascade import (
+from srmech.cascade import (
     chiral_dual,
     parallel_sector_dispatch,
 )

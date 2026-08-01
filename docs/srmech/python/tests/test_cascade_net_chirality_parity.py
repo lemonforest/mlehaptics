@@ -1,4 +1,4 @@
-"""C/Python parity tests for srmech.amsc.cascade.net_chirality.
+"""C/Python parity tests for srmech.cascade.net_chirality.
 
 v0.4.5rc5 continues the v0.4.5rc1 + rc2 + rc3 + rc4 cascade-catalog
 C-parity correction by retrofitting net_chirality (Class C net handedness
@@ -38,7 +38,7 @@ import random
 import pytest
 
 from srmech import _native
-from srmech.amsc import cascade
+from srmech import cascade
 from srmech._native import HAS_NATIVE
 
 

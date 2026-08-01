@@ -3,7 +3,7 @@ numpy-FREE (#564).
 
 The carrier-removal arc flips the octonion connected component together:
 ``math/hdc.py`` (the Moufang loop-bind family) → ``qm/octonion.py`` →
-{``qm/so8.py``, ``qm/triality.py``, ``amsc/cascade/hypercomplex_dft.py``}. After
+{``qm/so8.py``, ``qm/triality.py``, ``cascade/hypercomplex_dft.py``}. After
 the flip EVERY module imports AND runs with numpy genuinely absent.
 
 Proving this needs a SUBPROCESS that blocks numpy at ``sys.meta_path`` BEFORE
@@ -149,7 +149,7 @@ def test_hypercomplex_dft_imports_and_runs_numpy_free():
     """``amsc.cascade.hypercomplex_dft`` imports + QDFT / coupler run numpy-absent."""
     proc = _run_numpy_free(
         """
-        from srmech.amsc.cascade import quaternion_dft, octonion_dft, hypercomplex_couple
+        from srmech.cascade import quaternion_dft, octonion_dft, hypercomplex_couple
         X = quaternion_dft([[1.0, 0, 0, 0], [0, 1.0, 0, 0]])
         assert len(X) == 2 and len(X[0]) == 4, X
         # forward then inverse round-trips (both Z2 axes).

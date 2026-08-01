@@ -118,7 +118,7 @@ def test_notifications_initialized_no_response() -> None:
 @_needs_native
 def test_tools_call_defers() -> None:
     kind, resp = _c({"jsonrpc": "2.0", "id": 3, "method": "tools/call",
-                     "params": {"name": "srmech.amsc.cascade.chiral_flip",
+                     "params": {"name": "srmech.cascade.chiral_flip",
                                 "arguments": {"seq": [1, 2, 3]}}})
     assert kind == _native.MCP_KIND_DEFER_CALL
     assert resp is None
@@ -168,7 +168,7 @@ def test_missing_method_is_invalid_request() -> None:
 @_needs_native
 def test_build_attestation_c_byte_identical_to_python() -> None:
     ra = "2026-07-08T12:34:56Z"
-    tn = "srmech.amsc.cascade.chiral_flip"
+    tn = "srmech.cascade.chiral_flip"
     txt = "[3, 2, 1]"
     py = build_attestation(tool_name=tn, result_text=txt, retrieved_at=ra)
     py_bytes = json.dumps(py, separators=(",", ":")).encode("utf-8")
@@ -305,7 +305,7 @@ def test_handle_tools_call_still_attests() -> None:
     so it still returns the full content + attestation envelope."""
     srv = MCPServer()
     resp = srv.handle({"jsonrpc": "2.0", "id": 3, "method": "tools/call",
-                       "params": {"name": "srmech.amsc.cascade.chiral_flip",
+                       "params": {"name": "srmech.cascade.chiral_flip",
                                   "arguments": {"seq": [1, 2, 3]}}})
     assert resp["result"]["isError"] is False
     assert json.loads(resp["result"]["content"][0]["text"]) == [3, 2, 1]

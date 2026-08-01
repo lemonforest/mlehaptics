@@ -6,7 +6,7 @@ conversion (per ``[[feedback_prefer_config_driven_toml_classes]]``): the rc137
 extensions exist exactly so this rich domain object converts with NO hand-coded
 Python class. The packaged ``sedenion_register.toml`` ([class] SedenionRegister)
 binds its methods to the flat cascade-op adapters in
-``srmech.amsc.cascade.sedenion_register`` (each rehydrates a transient register
+``srmech.cascade.sedenion_register`` (each rehydrates a transient register
 from the declarative D/codebook/slots fields + delegates — no logic duplication).
 
 Pins the DSL [class] byte-identical to the hand-coded :class:`SedenionRegister`
@@ -17,7 +17,7 @@ across every method, plus the declarative state routing: ``write`` → ``mutates
 
 from __future__ import annotations
 
-from srmech.amsc.cascade.sedenion_register import SedenionRegister
+from srmech.cascade.sedenion_register import SedenionRegister
 from srmech.dsl import describe_class, make_class
 
 _D = 8192

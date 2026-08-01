@@ -151,98 +151,98 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # `c_dispatched` in rosetta_classification.ndjson.
     "srmech.apokatastasis.quasimodular_forms_ring.eisenstein_e2",
     # cascade.* — back-compat aliases of canonical names already registered
-    # (the precursor's call-site names; see srmech.amsc.cascade).
-    "srmech.amsc.cascade.class_k_pin_slot_at_zero",  # = pin_slot_at_zero
-    "srmech.amsc.cascade.class_c_reorient",          # = reorient
-    "srmech.amsc.cascade.best_rat_signed",           # = best_rational_signed
+    # (the precursor's call-site names; see srmech.cascade).
+    "srmech.cascade.class_k_pin_slot_at_zero",  # = pin_slot_at_zero
+    "srmech.cascade.class_c_reorient",          # = reorient
+    "srmech.cascade.best_rat_signed",           # = best_rational_signed
     # cascade.atoms.* / cascade.compose.* — the two-tier split (#751 / F208).
     # These submodules are the new canonical *homes* of the cascade ops, but
     # the tool-schema registers each op under its STABLE flat public name
-    # ``srmech.amsc.cascade.<op>`` (introspection stability per #751) — which
+    # ``srmech.cascade.<op>`` (introspection stability per #751) — which
     # IS registered. The submodule-dotted names are the same objects re-
     # exported flat, so they are exempt here exactly like the aliases above.
-    "srmech.amsc.cascade.atoms.pin_slot_at_zero",
-    "srmech.amsc.cascade.atoms.reorient",
-    "srmech.amsc.cascade.atoms.magnitude",
-    "srmech.amsc.cascade.atoms.chiral_flip",
-    "srmech.amsc.cascade.atoms.chiral_dual",
-    "srmech.amsc.cascade.atoms.net_chirality",
-    "srmech.amsc.cascade.compose.cyclic_gcd",
+    "srmech.cascade.atoms.pin_slot_at_zero",
+    "srmech.cascade.atoms.reorient",
+    "srmech.cascade.atoms.magnitude",
+    "srmech.cascade.atoms.chiral_flip",
+    "srmech.cascade.atoms.chiral_dual",
+    "srmech.cascade.atoms.net_chirality",
+    "srmech.cascade.composites.cyclic_gcd",
     # cascade.compose.cyclic_mod_* (rc302; §110/§112) — the Class-I modular
     # family's cascade ops, registered under their STABLE flat public names
-    # ``srmech.amsc.cascade.cyclic_mod_{mul,add,pow,inv,mul_wide}`` (which ARE
+    # ``srmech.cascade.cyclic_mod_{mul,add,pow,inv,mul_wide}`` (which ARE
     # registered); the submodule-dotted names below are the SAME objects
     # re-exported flat, exempt exactly like cyclic_gcd above.
-    "srmech.amsc.cascade.compose.cyclic_mod_mul",
-    "srmech.amsc.cascade.compose.cyclic_mod_add",
-    "srmech.amsc.cascade.compose.cyclic_mod_pow",
-    "srmech.amsc.cascade.compose.cyclic_mod_inv",
-    "srmech.amsc.cascade.compose.cyclic_mod_mul_wide",
-    "srmech.amsc.cascade.compose.best_rational_signed",
-    "srmech.amsc.cascade.compose.kuramoto_step",
+    "srmech.cascade.composites.cyclic_mod_mul",
+    "srmech.cascade.composites.cyclic_mod_add",
+    "srmech.cascade.composites.cyclic_mod_pow",
+    "srmech.cascade.composites.cyclic_mod_inv",
+    "srmech.cascade.composites.cyclic_mod_mul_wide",
+    "srmech.cascade.composites.best_rational_signed",
+    "srmech.cascade.composites.kuramoto_step",
     # cascade.compose.autocorrelation (v0.7.0rc8) — the Class-L circular
     # autocorrelation, registered under its flat public name
-    # ``srmech.amsc.cascade.autocorrelation`` (which IS registered); the
+    # ``srmech.cascade.autocorrelation`` (which IS registered); the
     # submodule-dotted name is the same object re-exported flat, exempt
     # exactly like cyclic_gcd / kuramoto_step above.
-    "srmech.amsc.cascade.compose.autocorrelation",
+    "srmech.cascade.composites.autocorrelation",
     # cascade.cayley_dickson.{cd_promote,cd_project} (rc116; #1248) — the
     # Hurwitz-ladder carrier conversions, registered under their flat public
-    # names ``srmech.amsc.cascade.cd_promote`` / ``cd_project`` (which ARE
+    # names ``srmech.cascade.cd_promote`` / ``cd_project`` (which ARE
     # registered); the submodule-dotted names are the same objects re-exported
     # flat, exempt exactly like the atoms/compose entries above.
-    "srmech.amsc.cascade.cayley_dickson.cd_promote",
-    "srmech.amsc.cascade.cayley_dickson.cd_project",
+    "srmech.cascade.cayley_dickson.cd_promote",
+    "srmech.cascade.cayley_dickson.cd_project",
     # cascade.compose.{signed_sum_squared,top_k_by_score} (v0.7.4rc2; PR #687
-    # §1.2/§1.3). Registered under their flat ``srmech.amsc.cascade.*`` names
+    # §1.2/§1.3). Registered under their flat ``srmech.cascade.*`` names
     # (which ARE registered); the submodule-dotted names are the same objects
     # re-exported flat, exempt exactly like cyclic_gcd / autocorrelation above.
-    "srmech.amsc.cascade.compose.signed_sum_squared",
-    "srmech.amsc.cascade.compose.top_k_by_score",
+    "srmech.cascade.composites.signed_sum_squared",
+    "srmech.cascade.composites.top_k_by_score",
     # cascade.hypercomplex_dft.* — the quaternion/octonion DFT composites
     # (v0.7.0rc31 / #863). Registered under their STABLE flat public names
-    # ``srmech.amsc.cascade.quaternion_dft`` / ``octonion_dft`` (which ARE
+    # ``srmech.cascade.quaternion_dft`` / ``octonion_dft`` (which ARE
     # registered); the submodule-dotted names are the same objects re-exported
     # flat, exempt exactly like autocorrelation above.
-    "srmech.amsc.cascade.hypercomplex_dft.quaternion_dft",
-    "srmech.amsc.cascade.hypercomplex_dft.octonion_dft",
+    "srmech.cascade.hypercomplex_dft.quaternion_dft",
+    "srmech.cascade.hypercomplex_dft.octonion_dft",
     # cascade.hypercomplex_dft.phase_coherent_peak (v0.9.0rc112 / #1234 Item 1d).
     # The lightweight matched-filter PEAK READ (the READ counterpart to the full
     # DFT transforms). Registered under its STABLE flat public name
-    # ``srmech.amsc.cascade.phase_coherent_peak`` (which IS registered); the
+    # ``srmech.cascade.phase_coherent_peak`` (which IS registered); the
     # submodule-dotted name is the same object re-exported flat, exempt exactly
     # like the quaternion_dft / octonion_dft peers above.
-    "srmech.amsc.cascade.hypercomplex_dft.phase_coherent_peak",
+    "srmech.cascade.hypercomplex_dft.phase_coherent_peak",
     # cascade.hypercomplex_dft.hypercomplex_couple (v0.7.2rc1 / #908). Registered
-    # under its STABLE flat public name ``srmech.amsc.cascade.hypercomplex_couple``
+    # under its STABLE flat public name ``srmech.cascade.hypercomplex_couple``
     # (which IS registered); the submodule-dotted name is the same object
     # re-exported flat, exempt exactly like the DFT peers above.
-    "srmech.amsc.cascade.hypercomplex_dft.hypercomplex_couple",
+    "srmech.cascade.hypercomplex_dft.hypercomplex_couple",
     # cascade.hypercomplex_dft.hypercomplex_exp (v0.9.0rc10 / F882, srmech #205).
     # The literal exp(μθ) hypercomplex twiddle. Registered under its STABLE flat
-    # public name ``srmech.amsc.cascade.hypercomplex_exp`` (which IS registered);
+    # public name ``srmech.cascade.hypercomplex_exp`` (which IS registered);
     # the submodule-dotted name is the same object re-exported flat.
-    "srmech.amsc.cascade.hypercomplex_dft.hypercomplex_exp",
+    "srmech.cascade.hypercomplex_dft.hypercomplex_exp",
     # cascade.hamming.* — the Hamming/GF(2) block-code family (v0.7.2rc2 / #910
     # §30). Registered under their STABLE flat public names
-    # ``srmech.amsc.cascade.hamming_{encode,syndrome,decode_correct}`` (which ARE
+    # ``srmech.cascade.hamming_{encode,syndrome,decode_correct}`` (which ARE
     # registered); the submodule-dotted names are the same objects re-exported
     # flat, exempt exactly like the hypercomplex_dft peers above.
-    "srmech.amsc.cascade.hamming.hamming_encode",
-    "srmech.amsc.cascade.hamming.hamming_syndrome",
-    "srmech.amsc.cascade.hamming.hamming_decode_correct",
+    "srmech.cascade.hamming.hamming_encode",
+    "srmech.cascade.hamming.hamming_syndrome",
+    "srmech.cascade.hamming.hamming_decode_correct",
     # cascade.parallel.* — the Klein-4 four-sector dispatch (v0.6.0rc6 / F233).
     # Registered under its STABLE flat public name
-    # ``srmech.amsc.cascade.parallel_sector_dispatch`` (which IS registered);
+    # ``srmech.cascade.parallel_sector_dispatch`` (which IS registered);
     # the submodule-dotted name is the same object re-exported flat, exempt
     # exactly like the atoms/compose submodule ops above.
-    "srmech.amsc.cascade.parallel.parallel_sector_dispatch",
+    "srmech.cascade.parallel.parallel_sector_dispatch",
     # cascade.parallel.sectorize (v0.6.0rc12) — a thin convenience wrapper
     # that runs `parallel_sector_dispatch` with a recombine and returns the
     # `combined` value (a unary nesting callable). It exposes NO capability
     # beyond `parallel_sector_dispatch` (which IS registered) — it is sugar
     # for nesting, exempt exactly like the helpers that wrap a primary entry.
-    "srmech.amsc.cascade.parallel.sectorize",
+    "srmech.cascade.parallel.sectorize",
     # compose.greedy_bipartite_alignment (v0.7.0rc12 / §2.2) — takes a Python
     # `similarity_fn` callable that cannot cross the JSON-RPC boundary, so it
     # is NOT an MCP tool (no coercer for an arbitrary callable param). It is a
@@ -261,12 +261,12 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # only the carrier-param verdict is exempt.
     "srmech.biology.coupling.fold_identity",
     # cascade.one.* — "the One" S(σ,θ) generator (#887). Registered under its
-    # STABLE FLAT public name ``srmech.amsc.cascade.the_one`` (which IS
+    # STABLE FLAT public name ``srmech.cascade.the_one`` (which IS
     # registered); ``one.the_one`` is the same object re-exported flat, and
     # ``one.s_generator`` is the S(σ,θ) formula-name alias — exempt exactly
     # like the hypercomplex_dft / parallel re-exports above.
-    "srmech.amsc.cascade.one.the_one",
-    "srmech.amsc.cascade.one.s_generator",
+    "srmech.cascade.one.the_one",
+    "srmech.cascade.one.s_generator",
     # cascade.one.to_scalar (v0.7.5rc76, #564) — the matrix/vector→scalar export
     # of the exact One: takes a structured ``One`` object (no MCP coercer for a
     # One param, so it cannot cross the JSON-RPC boundary) → NOT an MCP tool,
@@ -274,8 +274,8 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # alignment above). It is a public, tested ``c_dispatched`` exact-rational
     # projection (its cos comes from the rc138 srmech_the_one adjoint peer),
     # reachable via Python AND dotted-path TOML-class binding
-    # (op = "srmech.amsc.cascade.to_scalar"), not via the MCP tool list.
-    "srmech.amsc.cascade.one.to_scalar",
+    # (op = "srmech.cascade.to_scalar"), not via the MCP tool list.
+    "srmech.cascade.one.to_scalar",
     # cascade.one.one_* (v0.7.5rc138, #564 / [[feedback_prefer_config_driven_toml_classes]])
     # — the flat cascade-op accessor layer that the packaged ``one.toml``
     # ([class] One) binds its methods to (the genome two-layer pattern: ship each
@@ -283,13 +283,13 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # ``One`` object → no MCP coercer for a One param, reachable ONLY via the
     # make_class class surface, NOT the MCP tool list — exempt exactly like
     # ``one.to_scalar`` above.
-    "srmech.amsc.cascade.one.one_dim",
-    "srmech.amsc.cascade.one.one_imag_dims",
-    "srmech.amsc.cascade.one.one_partition",
-    "srmech.amsc.cascade.one.one_plane_counts",
-    "srmech.amsc.cascade.one.one_grammar_slots",
-    "srmech.amsc.cascade.one.one_flat_rational",
-    "srmech.amsc.cascade.one.one_matrix",
+    "srmech.cascade.one.one_dim",
+    "srmech.cascade.one.one_imag_dims",
+    "srmech.cascade.one.one_partition",
+    "srmech.cascade.one.one_plane_counts",
+    "srmech.cascade.one.one_grammar_slots",
+    "srmech.cascade.one.one_flat_rational",
+    "srmech.cascade.one.one_matrix",
     # cascade.one.one_from_jsonable (v0.9.0rc195, #818 make_class→C arc) — the One
     # carrier's canonical-DICT reconstruction CONSTRUCTOR (the deserialisation
     # inverse of the private ``One._to_jsonable`` serialiser): takes the plain
@@ -299,7 +299,7 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # carrier constructor / marshalling plumbing, NOT a user-facing engine
     # ToolEntry — exempt exactly like the modular_forms_ring / eisenstein carrier
     # constructors and the ``one.one_*`` accessors above.
-    "srmech.amsc.cascade.one.one_from_jsonable",
+    "srmech.cascade.one.one_from_jsonable",
     # cascade.one.winding_tower (v0.9.0rc137, gh#1276) — the divmod-recursive
     # binary-tower chirality grading of a WHOLE winding ``w`` (the (ℤ/2)^d
     # Cayley–Dickson doubling coordinate; the anti-collapse of ``w mod 2``). A
@@ -308,15 +308,15 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # exactly like the ``one.to_scalar`` / ``one.one_*`` accessors above.
     # Dispatches to the same-rc BYTE-IDENTICAL C peer ``srmech_winding_tower``
     # (classified ``c_dispatched`` in the Rosetta ledger).
-    "srmech.amsc.cascade.one.winding_tower",
+    "srmech.cascade.one.winding_tower",
     # cascade.one.winding_fold (v0.9.0rc215, the #741 divmod audit F-2) — the
     # public 2π seam-fold divmod theta → (w, theta_res). Registered under its
-    # STABLE FLAT public name ``srmech.amsc.cascade.winding_fold`` (the
+    # STABLE FLAT public name ``srmech.cascade.winding_fold`` (the
     # ToolEntry); ``one.winding_fold`` is the same object at its defining
     # module — exempt exactly like ``one.the_one`` above. Dispatches to the
     # rc207 C peer ``srmech_winding_fold`` (``c_dispatched`` in the Rosetta
     # ledger).
-    "srmech.amsc.cascade.one.winding_fold",
+    "srmech.cascade.one.winding_fold",
     # cascade.sedenion_register.sed_* (v0.7.5rc140, #564 / PR #687 §31 /
     # [[feedback_prefer_config_driven_toml_classes]]) — the flat cascade-op
     # adapter layer that the packaged ``sedenion_register.toml`` ([class]
@@ -326,86 +326,86 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # structured ``slots``/``codebook``/``D`` args → no MCP coercer, reachable ONLY
     # via the make_class class surface, NOT the MCP tool list — exempt exactly like
     # the ``one.one_*`` accessors above.
-    "srmech.amsc.cascade.sedenion_register.sed_write",
-    "srmech.amsc.cascade.sedenion_register.sed_materialize",
-    "srmech.amsc.cascade.sedenion_register.sed_read_unbind",
-    "srmech.amsc.cascade.sedenion_register.sed_clean",
-    "srmech.amsc.cascade.sedenion_register.sed_slots",
-    "srmech.amsc.cascade.sedenion_register.sed_couple_working",
-    "srmech.amsc.cascade.sedenion_register.sed_uncouple_working",
-    "srmech.amsc.cascade.sedenion_register.sed_carry",
-    "srmech.amsc.cascade.sedenion_register.sed_correct",
-    "srmech.amsc.cascade.sedenion_register.sed_navmap",
-    "srmech.amsc.cascade.sedenion_register.sed_navigate",
-    "srmech.amsc.cascade.sedenion_register.sed_is_navigable",
+    "srmech.cascade.sedenion_register.sed_write",
+    "srmech.cascade.sedenion_register.sed_materialize",
+    "srmech.cascade.sedenion_register.sed_read_unbind",
+    "srmech.cascade.sedenion_register.sed_clean",
+    "srmech.cascade.sedenion_register.sed_slots",
+    "srmech.cascade.sedenion_register.sed_couple_working",
+    "srmech.cascade.sedenion_register.sed_uncouple_working",
+    "srmech.cascade.sedenion_register.sed_carry",
+    "srmech.cascade.sedenion_register.sed_correct",
+    "srmech.cascade.sedenion_register.sed_navmap",
+    "srmech.cascade.sedenion_register.sed_navigate",
+    "srmech.cascade.sedenion_register.sed_is_navigable",
     # cascade.cd_register.* (v0.9.0rc297, `#934`) — the GENERAL N-slot
     # Cayley–Dickson register. The discoverable surface is registered under
-    # STABLE flat names ``srmech.amsc.cascade.{cd_register,cd_navmap,cd_navigate,
+    # STABLE flat names ``srmech.cascade.{cd_register,cd_navmap,cd_navigate,
     # cd_navmap_is_signed_permutation}`` (which ARE registered); the
     # submodule-dotted names below are the SAME objects re-exported flat —
     # exempt exactly like the cayley_dickson.* re-exports below and the
     # sedenion_register.* ones above.
-    "srmech.amsc.cascade.cd_register.cd_register",
-    "srmech.amsc.cascade.cd_register.cd_navmap",
-    "srmech.amsc.cascade.cd_register.cd_navigate",
-    "srmech.amsc.cascade.cd_register.cd_navmap_is_signed_permutation",
+    "srmech.cascade.cd_register.cd_register",
+    "srmech.cascade.cd_register.cd_navmap",
+    "srmech.cascade.cd_register.cd_navigate",
+    "srmech.cascade.cd_register.cd_navmap_is_signed_permutation",
     # cascade.cd_register.cd_{couple_working,uncouple_working,carry,correct}
     # (v0.9.0rc301, `#938`) — the two OPT layers (reversible working word + Hamming
     # EC block) ported onto the general register as pure functions. The discoverable
-    # surface is registered under the STABLE flat names ``srmech.amsc.cascade.cd_*``
+    # surface is registered under the STABLE flat names ``srmech.cascade.cd_*``
     # (which ARE registered); the submodule-dotted names below are the SAME objects
     # re-exported flat — exempt exactly like cd_navmap / cd_navigate above.
-    "srmech.amsc.cascade.cd_register.cd_couple_working",
-    "srmech.amsc.cascade.cd_register.cd_uncouple_working",
-    "srmech.amsc.cascade.cd_register.cd_carry",
-    "srmech.amsc.cascade.cd_register.cd_correct",
+    "srmech.cascade.cd_register.cd_couple_working",
+    "srmech.cascade.cd_register.cd_uncouple_working",
+    "srmech.cascade.cd_register.cd_carry",
+    "srmech.cascade.cd_register.cd_correct",
     # cascade.cayley_dickson.* — the open-exterior boundary-demonstrator
     # (v0.7.3rc1 / #915 / MFO §VII.6.23). The discoverable surface is registered
-    # under STABLE flat names ``srmech.amsc.cascade.{cd_mult,cd_conjugate,
+    # under STABLE flat names ``srmech.cascade.{cd_mult,cd_conjugate,
     # cd_norm_sq,cd_basis_product,sedenion_zero_divisor_witness,left_mult_kernel,
     # left_mult_is_invertible,is_division_algebra_dim}`` (which ARE registered);
     # the submodule-dotted names are the same objects re-exported flat, and the
     # building-block helpers (cd_add / cd_basis / left_mult_matrix) are sugar
     # around registered entries — exempt exactly like the one.* re-exports above.
-    "srmech.amsc.cascade.cayley_dickson.cd_mult",
-    "srmech.amsc.cascade.cayley_dickson.cd_conjugate",
-    "srmech.amsc.cascade.cayley_dickson.cd_add",
-    "srmech.amsc.cascade.cayley_dickson.cd_norm_sq",
-    "srmech.amsc.cascade.cayley_dickson.cd_basis",
-    "srmech.amsc.cascade.cayley_dickson.cd_basis_product",
-    "srmech.amsc.cascade.cayley_dickson.is_division_algebra_dim",
-    "srmech.amsc.cascade.cayley_dickson.sedenion_zero_divisor_witness",
-    "srmech.amsc.cascade.cayley_dickson.left_mult_matrix",
-    "srmech.amsc.cascade.cayley_dickson.left_mult_kernel",
-    "srmech.amsc.cascade.cayley_dickson.left_mult_is_invertible",
+    "srmech.cascade.cayley_dickson.cd_mult",
+    "srmech.cascade.cayley_dickson.cd_conjugate",
+    "srmech.cascade.cayley_dickson.cd_add",
+    "srmech.cascade.cayley_dickson.cd_norm_sq",
+    "srmech.cascade.cayley_dickson.cd_basis",
+    "srmech.cascade.cayley_dickson.cd_basis_product",
+    "srmech.cascade.cayley_dickson.is_division_algebra_dim",
+    "srmech.cascade.cayley_dickson.sedenion_zero_divisor_witness",
+    "srmech.cascade.cayley_dickson.left_mult_matrix",
+    "srmech.cascade.cayley_dickson.left_mult_kernel",
+    "srmech.cascade.cayley_dickson.left_mult_is_invertible",
     # rc349 (`#T987`): the ℝ→ℂ rung instrument, registered under the flat name
-    # ``srmech.amsc.cascade.inertia_signature``; this is the same object.
-    "srmech.amsc.cascade.cayley_dickson.inertia_signature",
+    # ``srmech.cascade.inertia_signature``; this is the same object.
+    "srmech.cascade.cayley_dickson.inertia_signature",
     # rc352 (`#T997`): the γ-parameterised control constructor + its
     # table-driven product, registered under the flat names
-    # ``srmech.amsc.cascade.{algebra_table,table_product}``; same objects.
-    "srmech.amsc.cascade.cayley_dickson.algebra_table",
-    "srmech.amsc.cascade.cayley_dickson.table_product",
+    # ``srmech.cascade.{algebra_table,table_product}``; same objects.
+    "srmech.cascade.cayley_dickson.algebra_table",
+    "srmech.cascade.cayley_dickson.table_product",
     # rc360 (`#T1032`): the associativity DEFECT, registered under the flat name
-    # ``srmech.amsc.cascade.associator``; same object, exempt exactly like
+    # ``srmech.cascade.associator``; same object, exempt exactly like
     # algebra_table / table_product directly above.
-    "srmech.amsc.cascade.cayley_dickson.associator",
+    "srmech.cascade.cayley_dickson.associator",
     # cayley_dickson loop-navigation helpers (v0.7.5rc1; W15 / RBS-LM bugfix
     # wishlist) — closure / left_orbit / min_generating_set are the
     # combinatorial layer built entirely on the registered ``cd_basis_product``
     # cocycle (the loop analogues of the cyclic-group orbit machinery). Sugar
     # around a registered entry — exempt exactly like cd_add / cd_basis /
     # left_mult_matrix above.
-    "srmech.amsc.cascade.cayley_dickson.closure",
-    "srmech.amsc.cascade.cayley_dickson.left_orbit",
-    "srmech.amsc.cascade.cayley_dickson.min_generating_set",
+    "srmech.cascade.cayley_dickson.closure",
+    "srmech.cascade.cayley_dickson.left_orbit",
+    "srmech.cascade.cayley_dickson.min_generating_set",
     # cascade.sedenion_register.* — the sedenion-addressable RBS-HDC instrument
     # (v0.7.4rc1 / #687 §31 / F465 / F468). The factory is registered under the
-    # STABLE flat name ``srmech.amsc.cascade.sedenion_register`` (which IS
+    # STABLE flat name ``srmech.cascade.sedenion_register`` (which IS
     # registered); the submodule-dotted name is the same object re-exported flat.
     # ``SedenionRegister`` is a class (not coverage-walked). Exempt exactly like
     # the cayley_dickson re-exports above.
-    "srmech.amsc.cascade.sedenion_register.sedenion_register",
+    "srmech.cascade.sedenion_register.sedenion_register",
     # matrix_cascades.eigvec_exact / eigvec_exact_float (v0.9.0rc23 — rc-D exact
     # eigenvectors). These RETURN ``Qalg`` components (the exact ℚ(α) number-field
     # carrier), which is NOT MCP-serializable — exactly like the ``Qalg`` carrier
@@ -415,8 +415,8 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # rationale as ``one.to_scalar`` / ``greedy_bipartite_alignment`` above. The
     # exact eigenVALUES (``eigvals_exact`` / ``char_poly``) ARE registered (they
     # return list/float); only the eigenVECTOR ops (Qalg return) are exempt.
-    "srmech.amsc.cascade.matrix_cascades.eigvec_exact",
-    "srmech.amsc.cascade.matrix_cascades.eigvec_exact_float",
+    "srmech.cascade.matrix_cascades.eigvec_exact",
+    "srmech.cascade.matrix_cascades.eigvec_exact_float",
     # matrix_cascades.factor_integer_poly / eig_exact (v0.9.0rc25 — rc-F). Exempt on
     # the SAME "package-level exact algebra, returns non-JSON-RPC types" rationale as
     # the eigvec ops above. ``eig_exact`` returns dicts carrying ``complex`` /
@@ -425,8 +425,8 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # arbitrary-precision factorisation oracle, ``bignum_reference`` in the Rosetta
     # ledger). Both are reachable via Python, not the MCP tool list, exactly like the
     # ``Qalg`` carrier itself is not registered.
-    "srmech.amsc.cascade.matrix_cascades.factor_integer_poly",
-    "srmech.amsc.cascade.matrix_cascades.eig_exact",
+    "srmech.cascade.matrix_cascades.factor_integer_poly",
+    "srmech.cascade.matrix_cascades.eig_exact",
     # matrix_cascades.jordan_chains_exact / jordan_form_exact (v0.9.0rc27 — rc-G,
     # exact generalized eigenvectors / Jordan canonical form). Exempt on the SAME
     # "package-level exact algebra, returns non-JSON-RPC types" rationale as the
@@ -434,8 +434,8 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # ``jordan_form_exact`` returns dicts carrying ``Qalg`` / ``complex`` P, J and
     # block eigenvalues (``project=False`` is all ``Qalg``). Both reachable via
     # Python, not the MCP tool list, exactly like the ``Qalg`` carrier itself.
-    "srmech.amsc.cascade.matrix_cascades.jordan_chains_exact",
-    "srmech.amsc.cascade.matrix_cascades.jordan_form_exact",
+    "srmech.cascade.matrix_cascades.jordan_chains_exact",
+    "srmech.cascade.matrix_cascades.jordan_form_exact",
     # matrix_cascades.separate_frame_curvature (v0.9.0rc236 — #834, the connection/
     # curvature decomposition of a product A·B into its fixed-frame (½{A,B} metric)
     # ⊕ curvature (½[A,B] holonomy) parts + the exact is_flat vanishing flag).
@@ -443,7 +443,7 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # bool — a STRUCTURED / carrier return that cannot cross the JSON-RPC boundary,
     # exactly like ``eig_exact`` / ``jordan_form_exact`` return dicts carrying
     # ``Qalg`` / ``complex``. Reachable via Python, not the MCP tool list.
-    "srmech.amsc.cascade.matrix_cascades.separate_frame_curvature",
+    "srmech.cascade.matrix_cascades.separate_frame_curvature",
     # cascade.one.separate_winding_curvature (v0.9.0rc237 — F2, the ``the_one``
     # WINDING instance of rc236's separate_frame_curvature). Takes a structured
     # ``One`` object (no MCP coercer for a One param) AND returns a dict carrying
@@ -451,7 +451,7 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # STRUCTURED / carrier return that cannot cross the JSON-RPC boundary,
     # exactly like ``one.to_scalar`` / ``matrix_cascades.separate_frame_curvature``
     # above. Reachable via Python (and the One method), not the MCP tool list.
-    "srmech.amsc.cascade.one.separate_winding_curvature",
+    "srmech.cascade.one.separate_winding_curvature",
 })
 
 

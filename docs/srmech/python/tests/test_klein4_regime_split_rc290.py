@@ -35,7 +35,7 @@ import pytest
 
 from srmech import _native
 from srmech.math import hdc
-from srmech.amsc.cascade.one import the_one
+from srmech.cascade.one import the_one
 
 D = 64
 

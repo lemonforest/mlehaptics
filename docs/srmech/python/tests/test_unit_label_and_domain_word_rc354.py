@@ -25,7 +25,7 @@ import pytest
 import srmech
 from srmech.introspect.carrier_schema import (
     DOMAIN_WORD_VERDICTS, _domain_word, _domain_word_gap)
-from srmech.amsc.cascade.cayley_dickson import cd_basis_product
+from srmech.cascade.cayley_dickson import cd_basis_product
 
 
 # ── PART A: the unit-label cube ───────────────────────────────────────────

@@ -1,4 +1,4 @@
-"""C/Python parity tests for srmech.amsc.cascade.cyclic_gcd.
+"""C/Python parity tests for srmech.cascade.cyclic_gcd.
 
 v0.4.5rc6 continues the v0.4.5rc1..rc5 cascade-catalog C-parity
 correction by retrofitting cyclic_gcd (Class I cyclic-group gcd) with a
@@ -32,7 +32,7 @@ import random
 import pytest
 
 from srmech import _native
-from srmech.amsc import cascade
+from srmech import cascade
 from srmech._native import HAS_NATIVE
 
 

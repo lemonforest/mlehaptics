@@ -25,8 +25,8 @@ import json
 import pytest
 
 from srmech import _native
-from srmech.amsc.cascade.one import the_one
-from srmech.amsc.cascade.sedenion_register import SedenionRegister
+from srmech.cascade.one import the_one
+from srmech.cascade.sedenion_register import SedenionRegister
 from srmech.dsl import make_class
 from srmech.dsl._class_catalog import CLASS_CATALOG_DIR, CatalogClass
 

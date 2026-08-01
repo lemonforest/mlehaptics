@@ -24,7 +24,7 @@ import re
 
 import pytest
 
-from srmech.amsc.cascade import matrix_cascades as mc
+from srmech.cascade import matrix_cascades as mc
 from srmech.math.laplacian import hermitian_eigendecompose
 
 

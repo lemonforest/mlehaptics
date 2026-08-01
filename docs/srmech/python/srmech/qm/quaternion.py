@@ -40,7 +40,7 @@ EXACTNESS CONVENTION (the three tiers, stated once for the transforms):
   caller either supplies a rational approximant of the angle (e.g. via
   ``best_rational`` over the π cascade) or crosses to the float tier below.
 - **exact / fixed-width Q61** — the already-shipped
-  :func:`srmech.amsc.cascade.hypercomplex_exp` (``k_axes=3`` = ℍ) is the Q61
+  :func:`srmech.cascade.hypercomplex_exp` (``k_axes=3`` = ℍ) is the Q61
   equal-weight-axis twiddle; this module does not duplicate it.
 - **float64 boundary** — :func:`quaternion_exp` / :func:`quaternion_twiddle`
   return ``list[float]`` and the mult operators return a float64
@@ -57,7 +57,7 @@ A-N placement (per ``[[feedback_no_privileged_primitive_classes]]``):
   (Clifford / HDC binding; ``L_{e_i}``/``R_{e_i}`` are antisymmetric).
 - ``quaternion_conjugate`` — **Class C** (chirality / orientation).
 - ``quaternion_norm`` — **Class K + Class C** (pin-slot magnitude via
-  ``srmech.amsc.cascade.magnitude``; **never** Python ``abs()``).
+  ``srmech.cascade.magnitude``; **never** Python ``abs()``).
 - ``quaternion_exp`` / ``quaternion_twiddle`` — **Class N** (Q61 cos/sin
   cascade) ∘ **Class C** (the ±μ orientation) ∘ **Class I** (the cyclic
   ``jk mod N`` twiddle index reduction).
@@ -82,7 +82,7 @@ import functools
 from typing import List, Sequence, Tuple
 
 from srmech import _native
-from srmech.amsc.cascade import magnitude as _magnitude
+from srmech.cascade import magnitude as _magnitude
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
 from srmech.math.mat import Mat
 from srmech.math.rational import atan as _ratan
@@ -135,13 +135,13 @@ def _build_mult_table() -> Tuple[Tuple[Tuple[int, ...], ...], ...]:
     """Generate the ``(4, 4, 4)`` int8 structure-constant tensor (cached).
 
     Built from the Cayley-Dickson basis cocycle ``e_i·e_j = sign·e_{i⊕j}`` via
-    :func:`srmech.amsc.cascade.cd_basis_product` at ``dim=4`` — the SAME
+    :func:`srmech.cascade.cd_basis_product` at ``dim=4`` — the SAME
     generative call the octonion table uses at ``dim=8``, so the quaternion
     table IS the octonion table restricted to ``{e0..e3}`` by construction
     (the octonion-consistency gate re-verifies it). Memoised as an immutable
     nested tuple; :func:`quaternion_mult_table` hands out mutable copies.
     """
-    from srmech.amsc.cascade import cd_basis_product as _cd_basis_product
+    from srmech.cascade import cd_basis_product as _cd_basis_product
     table = [[[0] * _DIM for _ in range(_DIM)] for _ in range(_DIM)]
     for i in range(_DIM):
         for j in range(_DIM):
@@ -433,7 +433,7 @@ def quaternion_norm(x: Sequence[float]) -> float:
     :func:`srmech.qm.octonion.octonion_norm`, same scope.
 
     The sum-of-squares is reduced to a scalar float, passed through the Class K
-    pin-slot magnitude (:func:`srmech.amsc.cascade.magnitude` — the
+    pin-slot magnitude (:func:`srmech.cascade.magnitude` — the
     cascade-honest ``abs()`` replacement), then the Class-N
     :func:`srmech.math.rational.sqrt`. Mirrors
     :func:`srmech.qm.octonion.octonion_norm` at dim 4.
@@ -498,7 +498,7 @@ def quaternion_exp(theta: float, mu="i") -> List[float]:
     (``rational.{cos,sin}``; native ``srmech_{cos,sin}_q61``) projected to
     float ONCE; the exact-rational tier is
     :func:`quaternion_exp_series_truncate`; the exact-Q61 equal-weight-axis
-    tier is :func:`srmech.amsc.cascade.hypercomplex_exp` (``k_axes=3``).
+    tier is :func:`srmech.cascade.hypercomplex_exp` (``k_axes=3``).
     Dispatches to the same-rc C peer ``srmech_quaternion_exp`` (byte-exact
     pure fallback).
 

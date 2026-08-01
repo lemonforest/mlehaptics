@@ -1,4 +1,4 @@
-"""C/Python parity tests for srmech.amsc.cascade.pin_slot_at_zero.
+"""C/Python parity tests for srmech.cascade.pin_slot_at_zero.
 
 v0.4.5rc2 continues the v0.4.5rc1 cascade-catalog C-parity correction
 by retrofitting pin_slot_at_zero (Class K) with both a native C symbol
@@ -16,7 +16,7 @@ import math
 import pytest
 
 from srmech import _native
-from srmech.amsc import cascade
+from srmech import cascade
 from srmech._native import HAS_NATIVE
 
 

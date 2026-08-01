@@ -15,7 +15,7 @@ The design (proven by the #948 Thread-A prototype and enforced here):
     ``x = Σ_{i occupied} sign_i·e_i`` (coefficients in ``{-1, 0, +1}``). The KEY
     is ORTHOGONAL — the carrier reads only ``(index, sign)`` via ``slots()``.
   * Each method DELEGATES to the already-C-backed exact-``Q``
-    :mod:`~srmech.amsc.cascade.cayley_dickson` ops — no new algebra, no new C
+    :mod:`~srmech.cascade.cayley_dickson` ops — no new algebra, no new C
     symbol, no ToolEntry (``composition_of_c``, exactly like ``couple_working``
     is the method-form of ``cd_couple_working``). So the gate is EXACT parity vs
     calling ``cd_norm_sq`` / ``cd_conjugate`` / ``cd_mult`` / ``cd_add`` directly.
@@ -44,9 +44,9 @@ from __future__ import annotations
 import pytest
 
 from srmech.math.q import Q
-from srmech.amsc.cascade import cayley_dickson as cd
-from srmech.amsc.cascade.cd_register import CDRegister, cd_couple_working
-from srmech.amsc.cascade.sedenion_register import SedenionRegister
+from srmech.cascade import cayley_dickson as cd
+from srmech.cascade.cd_register import CDRegister, cd_couple_working
+from srmech.cascade.sedenion_register import SedenionRegister
 
 # The rungs the carrier surface is proven exact on (2 ℂ / 4 ℍ / 8 𝕆 / 16 𝕊).
 CARRIER_RUNGS = (2, 4, 8, 16)
@@ -214,7 +214,7 @@ def test_dim16_couple_working_raises_on_the_sedenion_slots():
     it RAISES. It is a DIFFERENT operation from a per-rung carrier multiply; the
     carrier multiply rides cd_mult, which the previous test showed is defined on
     exactly the pair couple_working cannot even accept."""
-    from srmech.amsc.cascade.cd_register import _working_cap
+    from srmech.cascade.cd_register import _working_cap
     assert _working_cap(16) == 7                          # NOT 15
 
     # via the module function (the prototype's probe)

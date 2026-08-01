@@ -279,7 +279,14 @@ CEIL_AMSC_PREFIX = {
     # back-index citation here repointed; decoded 97 holds because compose /
     # carrier_schema are NOT carrier ops in the four hoisted byte arrays (the carrier
     # registry now carries 1 srmech.introspect. decoded ref in their place).
-    "c/src/srmech_carrier_registry.c": (67, 97),
+    # as-text 67 -> 0 at rc377 (-67), decoded 97 -> 2 (-95). THE CASCADE SUBPACKAGE
+    # (the FINAL slice): the 15 cascade modules folded amsc->srmech.cascade. cascade
+    # ops (one / cayley_dickson / sedenion_register / cd_register / hypercomplex_dft /
+    # matrix_cascades / …) ARE carriers, so their back-index refs dominate this
+    # artifact's hoisted byte arrays: 95 refs move amsc->cascade (decoded amsc 97 -> 2,
+    # srmech.cascade. 0 -> 95, conserved), and all 67 short as-text back-index cites
+    # repoint too. amsc's decoded population is now DRAINED to its 2 keeper residuals.
+    "c/src/srmech_carrier_registry.c": (0, 2),
     # TEXT 0 is TRUE, and true about the wrong thing. Every one of the four
     # baked [class] descriptors (`cls_desc_0..3`) is a decimal byte array, so a
     # grep has nothing to read. 37 DISTINCT dotted names live in there.
@@ -287,7 +294,13 @@ CEIL_AMSC_PREFIX = {
     # the baked [class] Genome descriptor's op refs (op = "srmech.biology.genome.*")
     # move amsc->biology inside the decimal byte arrays (decoded amsc 40 -> 29,
     # srmech.biology. 0 -> 11, conserved). Still 100% invisible to a text grep.
-    "c/src/srmech_class_registry.c": (0, 29),
+    # decoded 29 -> 0 at rc377 (-29), as-text UNCHANGED at 0. THE CASCADE SUBPACKAGE:
+    # the baked [class] One / SedenionRegister descriptors' op refs (op =
+    # "srmech.cascade.one.*" / "srmech.cascade.sedenion_register.*") move amsc->cascade
+    # inside the decimal byte arrays (decoded amsc 29 -> 0, srmech.cascade. 0 -> 28).
+    # The class registry's amsc decoded population is now ZERO — the arc is COMPLETE;
+    # the decode-only non-vacuity demonstration below rides srmech.cascade. from here.
+    "c/src/srmech_class_registry.c": (0, 0),
     # Overwhelmingly textual: the ToolEntry summaries are string literals. The 4
     # decoded hits are in its own hoisted long strings.
     #
@@ -375,7 +388,13 @@ CEIL_AMSC_PREFIX = {
     # ~20 sibling-prose / worked-example dotted refs to the moved introspect-core
     # modules (tool_schema / _tool_docs / _native / carrier_schema) repointed
     # amsc->{cascade, introspect, srmech}. decoded stays 0 (this artifact carries none).
-    "c/src/srmech_tool_registry.c": (257, 0),
+    # as-text 257 -> 69 at rc377 (-188), decoded UNCHANGED at 0. THE CASCADE SUBPACKAGE:
+    # the 75 cascade ops' ToolEntry name= citations + worked-example imports +
+    # sibling-prose dotted refs repointed amsc->cascade. decoded stays 0 (this
+    # artifact carries no cascade back-index byte arrays — those live in the carrier
+    # registry). The 69 residual as-text amsc cites are keeper-op documentation
+    # (format.sha256_bytes and kin) that legitimately still name srmech.amsc.
+    "c/src/srmech_tool_registry.c": (69, 0),
     # rc368 — THE FIRST MODULE MOVE TO MOVE THIS ARTIFACT (the new data point).
     # This was the CONTROL row through harmonics/naming: "no byte arrays, decoded
     # 0 is a real zero". It is still a real zero on the decoded channel, but the
@@ -399,7 +418,12 @@ CEIL_AMSC_PREFIX = {
     # as-text 6 -> 3 at rc375 (-3), decoded UNCHANGED at 0. THE BIOLOGY bucket:
     # coupling / genome are edge-OPERATOR names in the responsion registry, so their
     # generated source-of-truth comments repointed amsc->biology.
-    "c/src/srmech_responsion_registry.c": (3, 0),
+    # as-text 3 -> 0 at rc377 (-3), decoded UNCHANGED at 0. THE CASCADE SUBPACKAGE:
+    # `cascade` IS an edge-OPERATOR name in the responsion registry (chiral_flip /
+    # net_chirality / … are cascade ops), so the generated source-of-truth comments
+    # `Source of truth: srmech.cascade.<...>` repointed amsc->cascade — draining the
+    # last amsc as-text residual here to 0.
+    "c/src/srmech_responsion_registry.c": (0, 0),
     # CONTROL: generated .py, no embedded arrays. Their long integer runs were
     # inspected at rc361 and are worked-example OUTPUT VALUES (octonion basis
     # vectors, inertia signatures, index triples) — genuine numeric data, not a
@@ -448,7 +472,11 @@ CEIL_AMSC_PREFIX = {
     # CORE, doc-pair partner of the tool registry: the same compose / carrier_schema
     # ToolEntry documentation + sibling-prose dotted refs to the moved introspect-core
     # modules repointed amsc->{cascade, introspect}.
-    "python/srmech/introspect/_tool_docs.py": (252, 0),
+    # as-text 252 -> 66 at rc377 (-186), decoded UNCHANGED at 0. THE CASCADE SUBPACKAGE,
+    # doc-pair partner of the tool registry: the same 75 cascade ops' documentation
+    # (ToolEntry names + worked-example imports + sibling-prose dotted refs) repointed
+    # amsc->cascade. decoded stays 0. The 66 residual as-text are keeper-op docs.
+    "python/srmech/introspect/_tool_docs.py": (66, 0),
     # as-text 250 -> 248 at rc367 (-2), decoded UNCHANGED at 0. rc367 is the
     # FIRST module move to move THIS artifact — a departure from the harmonics
     # analog. _c_claims.py is the op -> C-symbol CLAIM manifest, keyed only for
@@ -505,7 +533,13 @@ CEIL_AMSC_PREFIX = {
     # CORE: exactly one moved op is a c_dispatched leaf keyed here — carrier_schema's
     # srmech_carrier_schema — repointed amsc->introspect (the compose chain-runner ops
     # are composes_c, not c_dispatched leaves, so they were never keyed in this manifest).
-    "python/srmech/introspect/_c_claims.py": (58, 0),
+    # as-text 58 -> 6 at rc377 (-52), decoded UNCHANGED at 0. THE CASCADE SUBPACKAGE:
+    # the cascade ops that are c_dispatched leaves (cyclic_gcd / best_rational_signed /
+    # autocorrelation / kuramoto_step / the cd_* / one_* / sed_* / hamming_* / dft
+    # families) had their op->C-symbol claim keys repointed amsc->cascade (sourced
+    # from the Rosetta ledger). The C SYMBOLS are capability-named and UNCHANGED —
+    # only the Python-side dotted keys moved (ABI stays 10).
+    "python/srmech/introspect/_c_claims.py": (6, 0),
 }
 
 #: The generated-artifact totals, pinned so a per-file edit cannot quietly move
@@ -518,8 +552,8 @@ CEIL_AMSC_PREFIX = {
 #:
 #: as-text 2933 (rc361) -> 2943 (rc362, +10 = the 5 citations x 2 artifacts).
 #: decoded 577 (rc361)  ->  577 (rc362, FLAT — the population did not move).
-TOTAL_AS_TEXT = 637    # rc375 687 -> rc376 637 (-50: the INTROSPECT/NATIVE core — compose->cascade (4 ops) + carrier_schema->introspect (1 op) + the introspect-core modules' sibling/prose cites; -25 tool_registry -23 _tool_docs -1 _c_claims -1 carrier; responsion + class UNCHANGED)
-TOTAL_DECODED = 126    # rc375 126 -> rc376 126 (UNCHANGED: no moved op had a back-index ref in a hoisted byte array — compose/carrier_schema are not carrier ops; the introspect-core infra modules register no ops at all)
+TOTAL_AS_TEXT = 141    # rc376 637 -> rc377 141 (-496: THE CASCADE SUBPACKAGE, the FINAL slice — the 75 cascade ops' ToolEntry/doc citations repoint amsc->cascade across the tool_registry (-188) + _tool_docs (-186) + carrier (-67) + _c_claims (-52) + responsion (-3); class UNCHANGED at 0. The residual 141 are keeper-op docs that legitimately still name srmech.amsc.)
+TOTAL_DECODED = 2      # rc376 126 -> rc377 2 (-124: THE CASCADE SUBPACKAGE — cascade ops ARE carriers, so 95 carrier back-index refs + 29 class descriptor refs move amsc->cascade in the hoisted byte arrays. amsc's decoded population is now DRAINED to 2 keeper residuals — ADR-0010 execution is COMPLETE)
 
 
 def _counts(rel_path: str) -> "tuple[int, int]":
@@ -615,10 +649,16 @@ def test_the_decoder_sees_what_a_text_grep_cannot() -> None:
         "of this test, but it means the '100% invisible' example has changed — "
         "re-read the pins and this docstring.")
     joined = "\n".join(b for _, b in blobs)
-    assert joined.count(PREFIX) == 29, (
-        f"decoded {joined.count(PREFIX)} prefix hits in the class registry, "
-        f"expected 29 (rc375: the [class] Genome descriptor's 11 op refs moved "
-        f"amsc->biology, 40 -> 29). If this is 0, THE DECODER HAS STOPPED OBSERVING and "
+    # rc377: amsc's class-registry decoded population DRAINED to 0 (the cascade
+    # subpackage — the last [class] descriptor op refs under amsc — folded into
+    # srmech.cascade). The decode-only demonstration now rides srmech.cascade.:
+    # 100% invisible to a text grep here (all four [class] descriptors are decimal
+    # byte arrays) yet it decodes to 28.
+    assert joined.count("srmech.cascade.") == 28, (
+        f"decoded {joined.count('srmech.cascade.')} srmech.cascade. hits in the "
+        f"class registry, expected 28 (rc377: the [class] One / SedenionRegister "
+        f"op refs moved amsc->cascade — this is where the class registry's "
+        f"decode-only population now lives). If this is 0, THE DECODER HAS STOPPED OBSERVING and "
         f"every assertion in this file is now vacuous — check whether the "
         f"generator changed its byte-array template (hex literals, a renamed "
         f"array, a different declaration).")
@@ -630,7 +670,7 @@ def test_the_decoder_sees_what_a_text_grep_cannot() -> None:
         "cls_desc_0", "cls_desc_1", "cls_desc_2", "cls_desc_3"}
 
     # (b) a name that ONLY the decoder can see
-    witness = "srmech.amsc.cascade.one.one_matrix"
+    witness = "srmech.cascade.one.one_matrix"
     assert witness in joined, (
         f"the witness name {witness!r} is no longer in the decoded payload; "
         f"pick another from the decoded blobs and update this test.")
@@ -719,9 +759,10 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     apokatastasis = joined.count("srmech.apokatastasis.")
     math = joined.count("srmech.math.")
     biology = joined.count("srmech.biology.")
-    assert amsc == 97, (
+    assert amsc == 2, (
         f"the carrier registry's decoded amsc population is {amsc}, expected "
-        f"97 — re-read the pins before trusting anything else in this file.")
+        f"2 — the cascade subpackage drained it 97 -> 2 at rc377 (ADR-0010 "
+        f"execution COMPLETE); re-read the pins before trusting anything else.")
     assert music == 13, (
         f"expected 13 srmech.music op references inside the DECODED channel "
         f"(9 from the rc362 Q / Qalg ops.consumes back-index + 4 from the rc366 "
@@ -763,6 +804,18 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
         f"(the rc375 biology bucket's genome / q8 / coupling carrier back-index), "
         f"found {biology}. amsc fell 196 -> 97 by exactly these 99; if this is not "
         f"99 the population move is not conserved — re-measure.")
+    # rc377 — THE srmech.cascade RECEIVING SIDE, the arc's FINAL and largest-carrier
+    # population move. The 15 cascade modules folded amsc->srmech.cascade; their
+    # carrier back-index refs (one / cayley_dickson / sedenion_register / cd_register
+    # / hypercomplex_dft / matrix_cascades op refs) live in these hoisted byte
+    # arrays: 95 refs moved OUT of the amsc decoded count (97 -> 2) and INTO cascade
+    # (0 -> 95). amsc is now DRAINED to its 2 keeper residuals — ADR-0010 COMPLETE.
+    cascade = joined.count("srmech.cascade.")
+    assert cascade == 95, (
+        f"expected 95 srmech.cascade op references inside the DECODED channel "
+        f"(the rc377 cascade subpackage's carrier back-index), found {cascade}. "
+        f"amsc fell 97 -> 2 by exactly these 95; if this is not 95 the population "
+        f"move is not conserved — re-measure.")
 
     # THE COUNTERFACTUAL: had those music ops landed in the draining namespace,
     # the decoded channel would have seen every one of them.

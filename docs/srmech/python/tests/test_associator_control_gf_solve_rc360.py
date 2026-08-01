@@ -48,7 +48,7 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc.cascade import (algebra_table, associator, cd_basis,
+from srmech.cascade import (algebra_table, associator, cd_basis,
                                  cd_basis_product, cd_mult, inertia_signature,
                                  left_mult_kernel, table_product)
 from srmech.amsc.format import sha256_bytes
@@ -579,5 +579,5 @@ def test_gf_solve_is_exported_and_classified():
               / "rosetta_classification.ndjson").read_text(encoding="utf-8")
     for name in ("srmech.math.modular_linalg.gf_solve",
                  "srmech.math.modular_linalg.gf_nullspace",
-                 "srmech.amsc.cascade.cayley_dickson.associator"):
+                 "srmech.cascade.cayley_dickson.associator"):
         assert f'"{name}"' in ledger, f"{name} has no Rosetta bucket"

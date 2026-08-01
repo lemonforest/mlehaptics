@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc.cascade import (
+from srmech.cascade import (
     chiral_flip,
     parallel_sector_dispatch,
     sectorize,

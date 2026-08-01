@@ -12,7 +12,7 @@ numpy-FREE end to end (v0.7.5rc115, #564): ``chsh_pauli_combination`` /
 polymorphic. **These tests use no numpy** — eigenvalues come from the
 framework's own Class-L numpy-free Hermitian eigendecomposition
 (:func:`srmech.math.laplacian.mat_hermitian_eigendecompose`), the Kronecker
-binds from the :func:`srmech.amsc.cascade.spectral_cascades.kron` cascade, the
+binds from the :func:`srmech.cascade.spectral_cascades.kron` cascade, the
 ``1/√2`` phase from the Class-N :func:`srmech.math.rational.sqrt`, and every
 matrix check is a direct ``Mat``-entry comparison. A test for a numpy-free
 module must itself run with numpy genuinely absent — there is no ``.to_numpy()``
@@ -46,7 +46,7 @@ import math
 
 import pytest
 
-from srmech.amsc.cascade.spectral_cascades import kron as _kron_cascade
+from srmech.cascade.spectral_cascades import kron as _kron_cascade
 from srmech.math.laplacian import mat_hermitian_eigendecompose
 from srmech.math.mat import Mat
 from srmech.math.rational import sqrt as _rsqrt

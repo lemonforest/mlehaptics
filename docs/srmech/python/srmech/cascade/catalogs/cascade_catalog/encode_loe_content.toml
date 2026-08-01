@@ -7,7 +7,7 @@
 # already works (self-sim 1.000, vs-unrelated −0.007); this is the cheapest,
 # highest-leverage of the §17 catalog→kernel→DSL unification asks: it makes the
 # text→instrument step nameable in a chain without re-exporting the op into
-# `srmech.amsc.cascade`.
+# `srmech.cascade`.
 
 [cascade]
 name = "encode_loe_content"

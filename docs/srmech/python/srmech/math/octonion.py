@@ -25,7 +25,7 @@ extension, one Cayley–Dickson rung up::
 with ``x = o & 7`` the basis index, ``s = o >> 3`` the center sign, and
 ``F[x_a][x_b] = 1`` iff the Cayley–Dickson basis product ``e_{x_a} · e_{x_b}``
 carries the ``−1`` sign — the SAME generative cocycle
-:func:`srmech.amsc.cascade.cayley_dickson.cd_basis_product` computes at
+:func:`srmech.cascade.cayley_dickson.cd_basis_product` computes at
 ``dim=8`` (this module DERIVES ``F`` from it — no hand-entered magic table, so
 it cannot drift from the octonion algebra it claims). The result index is
 ALWAYS ``x_a ⊕ x_b`` (the Fano ⊕-structure); the sign carries the orientation.
@@ -81,14 +81,14 @@ def _build_sign_table() -> Tuple[Tuple[int, ...], ...]:
 
     ``F[x_a][x_b] = 1`` iff the basis product ``e_{x_a} · e_{x_b}`` carries the
     ``−1`` sign — DERIVED from
-    :func:`srmech.amsc.cascade.cayley_dickson.cd_basis_product` at ``dim=8``
+    :func:`srmech.cascade.cayley_dickson.cd_basis_product` at ``dim=8``
     (the SAME generative cocycle ``qm.octonion`` builds its structure from), so
     there is no hand-entered constant to drift. The result index is always
     ``x_a ⊕ x_b`` (the Fano ⊕-structure), which this module relies on for the
     index lane; the sign is the only non-trivial content, and it is exactly
     ``F``. The ``dim=4`` restriction of THIS table is exactly Q₈'s ``F``.
     """
-    from srmech.amsc.cascade.cayley_dickson import cd_basis_product
+    from srmech.cascade.cayley_dickson import cd_basis_product
     table: List[Tuple[int, ...]] = []
     for xa in range(_OCT_DIM):
         row: List[int] = []
@@ -181,7 +181,7 @@ def oct_conjugate(a: int) -> int:
     ``oct_mult(a, oct_conjugate(a)) == 0`` for every ``a`` (and, by the Moufang
     inverse property, on the left too). Class C (chirality / orientation); a
     plain sign-bit flip (no ``abs()``), the discrete mirror of
-    :func:`srmech.amsc.cascade.cayley_dickson.cd_conjugate`. Dispatches to the
+    :func:`srmech.cascade.cayley_dickson.cd_conjugate`. Dispatches to the
     same-rc C peer ``srmech_oct_conjugate`` (byte-exact pure fallback).
 
     Args:

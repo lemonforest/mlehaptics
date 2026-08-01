@@ -208,7 +208,7 @@ _UFUNC = re.compile(
 # faithful than a float FFT (which rounds every butterfly). This is the FIRST
 # exact cascade and a correction to rc27's "round-off-faithful is fine" framing
 # for the integer case. It adds NO numpy, NO public surface (private engine
-# srmech.amsc.cascade.exact_dft), so all three ceilings (linalg_fft/matmul/ufunc)
+# srmech.cascade.exact_dft), so all three ceilings (linalg_fft/matmul/ufunc)
 # AND the rosetta python_only_debt debt bucket are untouched. Exposing the
 # exact ℤ[ζ_N] spectrum as a public op belongs with its C twin (a follow-up).
 #
@@ -331,7 +331,7 @@ _UFUNC = re.compile(
 # `np.fft.fft(x)` / `np.fft.ifft(x)` callsites in signal_processing
 # (cross_spectral ×4, ofdm ×2, spectral_subtraction ×2, multitaper ×1,
 # stft ×2, wiener ×2, path_b/wiener ×2) route onto the value-faithful
-# `srmech.amsc.cascade.spectral_cascades.fft` / `.ifft` cascade (radix-2
+# `srmech.cascade.spectral_cascades.fft` / `.ifft` cascade (radix-2
 # Cooley-Tukey + dft fallback for non-power-of-2 N; exact-until-rotation,
 # verified == numpy across real+complex N=2..100), wrapped `np.asarray(...)`
 # so the result stays an ndarray carrier. The DSP-op INVARIANTS (coherence,
@@ -406,7 +406,7 @@ _UFUNC = re.compile(
 # public-API op routed onto the numpy-free `mat_svd` Mat foundation — its
 # `np.linalg.svd` is gone, so linalg_fft 23 → 22.)
 # rc123/124/125 (#564 carrier removal): qm/so8.py, qm/triality.py,
-# math/hdc.py + amsc/cascade/hypercomplex_dft.py flip fully numpy-free. so8 was
+# math/hdc.py + cascade/hypercomplex_dft.py flip fully numpy-free. so8 was
 # the dominant numpy-as-accuracy holder (its ~13 np.linalg.{svd,matrix_rank}
 # sites): the rank COUNTS move to the EXACT rational RREF / float Gram-Schmidt
 # rank, and the nullspace/SVD GEOMETRY rides the numpy-free `mat_svd`; triality's

@@ -58,14 +58,14 @@ A-N placement (per ``[[feedback_no_privileged_primitive_classes]]``):
 - ``sedenion_holonomy_conjecture`` — **Class D** (pattern-detect: the
   derivation-residual search + the ``spin(9) ∩ Der(𝕊)`` intersection) ∘
   **Class L** (the exact-ℚ rank / nullspace) ∘ **Class K** (the residual
-  magnitude via :func:`srmech.amsc.cascade.magnitude`; **never** ``abs()``).
+  magnitude via :func:`srmech.cascade.magnitude`; **never** ``abs()``).
 
 DETERMINISM: every construction is a fixed integer / dyadic build off the
 attested octonion table + the Cayley-Dickson cocycle — **no RNG, no scipy,
 no numpy**. All ranks are EXACT over ℚ (:func:`_q_rank`); all residuals are
 exact-integer reduced to a scalar Frobenius norm through the Class-N
 :func:`srmech.math.laplacian.mat_norm` then the scalar Class-K
-:func:`srmech.amsc.cascade.magnitude` (never ``abs()``).
+:func:`srmech.cascade.magnitude` (never ``abs()``).
 
 Canonical SSoT:
 
@@ -88,8 +88,8 @@ from array import array
 from typing import Dict, List, Sequence, Tuple
 
 from srmech.math.q import Q                      # exact-ℚ rank carrier
-from srmech.amsc.cascade import magnitude as _magnitude
-from srmech.amsc.cascade.cayley_dickson import cd_basis_product as _cd_basis_product
+from srmech.cascade import magnitude as _magnitude
+from srmech.cascade.cayley_dickson import cd_basis_product as _cd_basis_product
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
 from srmech.math.laplacian import mat_norm
 from srmech.math.mat import Mat
@@ -699,7 +699,7 @@ def spin8_in_spin9_branching() -> dict:
 @functools.lru_cache(maxsize=1)
 def _sedenion_cocycle() -> Tuple[Tuple[Tuple[int, int], ...], ...]:
     """The sedenion basis cocycle ``e_i · e_j = SGN·e_IDX`` as a ``16x16`` grid
-    of ``(index, sign)`` pairs, from :func:`srmech.amsc.cascade.cayley_dickson.cd_basis_product`
+    of ``(index, sign)`` pairs, from :func:`srmech.cascade.cayley_dickson.cd_basis_product`
     — the SAME Cayley-Dickson convention as the octonion table (so the first
     ``O``-block of ``𝕊`` IS the octonions the ``Γ`` / ``g₂`` are built from)."""
     return tuple(
@@ -822,7 +822,7 @@ def sedenion_holonomy_conjecture() -> dict:
     THE CONJECTURE. The non-associativity of ``O`` is measured by the
     associator ``[a, b, c] = (ab)c − a(bc)``, whose infinitesimal symmetry
     algebra is ``g₂ = Der(O)`` (dim 14). The next Cayley-Dickson rung ``𝕊``
-    (:mod:`srmech.amsc.cascade.cayley_dickson`) has real dimension 16 — the
+    (:mod:`srmech.cascade.cayley_dickson`) has real dimension 16 — the
     SAME as the ``Spin(9)`` spinor ``Δ₉`` (both are ``O ⊕ O``). Does the
     associator's ``g₂`` "curvature" show up at ``𝕊`` as a holonomy valued in
     ``Spin(9)``?
@@ -861,8 +861,8 @@ def sedenion_holonomy_conjecture() -> dict:
     reappears as the SAME ``g₂ ⊂ Spin(9)`` holonomy it already was on ``O``.
     The dimension coincidence ``16 = 16`` is a shared carrier, not a shared
     symmetry. (References: the shipped ``O``-side no-frame-free-invariant
-    result and :mod:`srmech.amsc.cascade.cayley_dickson`'s ``𝕆``-reversible /
-    ``𝕊``-not tower + :func:`~srmech.amsc.cascade.cayley_dickson.sedenion_zero_divisor_witness`.)
+    result and :mod:`srmech.cascade.cayley_dickson`'s ``𝕆``-reversible /
+    ``𝕊``-not tower + :func:`~srmech.cascade.cayley_dickson.sedenion_zero_divisor_witness`.)
 
     Class D (the derivation-residual detection + the intersection) ∘ Class L
     (the exact-ℚ rank / nullspace) ∘ Class K (the residual magnitude; never

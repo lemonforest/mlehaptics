@@ -1,10 +1,10 @@
 /*
- * srmech_cascade.c — cascade-catalog C peers for srmech.amsc.cascade.
+ * srmech_cascade.c — cascade-catalog C peers for srmech.cascade.
  *
  * v0.4.5rc1: corrects the v0.4.3rc6 / v0.4.4rc1 carve-out that shipped
- * `srmech.amsc.cascade` as a Python-only module with no C symbols and
+ * `srmech.cascade` as a Python-only module with no C symbols and
  * no TOML descriptors. This file is the first of an in-flight series
- * of cascade-op C peers (one per srmech.amsc.cascade callable) that
+ * of cascade-op C peers (one per srmech.cascade callable) that
  * restore full C/Python parity per the project's no-binding-layer-
  * carveout discipline.
  *
@@ -236,7 +236,7 @@ srmech_status_t srmech_cascade_magnitude_f64(double  x,
  * fixed-width two's-complement (Python ints are arbitrary precision so
  * `-(-9223372036854775808)` is well-defined Python-side, but the i64
  * ABI is fixed-width). Callers MUST NOT pass INT64_MIN here; the
- * Python dispatch in srmech.amsc.cascade guards this by falling back
+ * Python dispatch in srmech.cascade guards this by falling back
  * to the Python path for INT64_MIN inputs.
  */
 srmech_status_t srmech_cascade_reorient_i64(int8_t   orientation,

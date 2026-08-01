@@ -959,7 +959,7 @@ srmech_status_t srmech_qmat_nullspace(const srmech_bigint_t *a_n,
  * arithmetic is NOT duplicated (the 1:1-mirror discipline forbids two copies
  * of one algebra). Byte-identical to Python's fractions.Fraction (num, den)
  * at any magnitude. Rosetta peers of
- * srmech.amsc.cascade.cayley_dickson.{cd_basis, cd_conjugate, cd_add,
+ * srmech.cascade.cayley_dickson.{cd_basis, cd_conjugate, cd_add,
  * cd_norm_sq}. JPL-clean: caller arena (no malloc), <=60-line funcs, >=2
  * asserts, no goto/recursion/abs/libm.
  * ==================================================================== */
@@ -1115,7 +1115,7 @@ srmech_status_t srmech_cd_qnorm_sq(const srmech_bigint_t *x_n,
  * BYTE-IDENTICAL (reduced num/den) to Python's recursive _mult at ANY
  * sedenion+ magnitude (bilinearity: the recursion and the cocycle-sum
  * are the same rational, both reduced to canonical Fraction form).
- * Rosetta peer of srmech.amsc.cascade.cayley_dickson.cd_mult; the 1-D
+ * Rosetta peer of srmech.cascade.cayley_dickson.cd_mult; the 1-D
  * accumulation profile (each output slot sums exactly `dim` products)
  * matches srmech_cd_qnorm_sq, so it shares srmech_cd_qvec_ws_bound /
  * srmech_cd_qvec_entry_cap sizing. JPL-clean: caller arena (no malloc),

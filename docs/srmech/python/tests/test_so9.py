@@ -18,7 +18,7 @@ bit-exact and numpy-free:
 6. Tower consistency — ``so(9) ⊃ so(8)`` (the ``E_{pq}`` with ``p, q ≤ 7``).
 
 ALL deviations are reduced through the **scalar** Class K pin-slot magnitude
-(:func:`srmech.amsc.cascade.magnitude`) — NEVER Python ``abs()`` per
+(:func:`srmech.cascade.magnitude`) — NEVER Python ``abs()`` per
 ``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]`` — by first
 reducing the matrix to a scalar Frobenius norm via the numpy-free Class-N
 :func:`srmech.math.laplacian.mat_norm`. numpy-FREE (per
@@ -29,7 +29,7 @@ rational :func:`srmech.qm.so9._q_rank`.
 
 from __future__ import annotations
 
-from srmech.amsc.cascade import magnitude
+from srmech.cascade import magnitude
 from srmech.math.laplacian import mat_matmul, mat_norm
 from srmech.math.mat import Mat
 from srmech.qm import so9

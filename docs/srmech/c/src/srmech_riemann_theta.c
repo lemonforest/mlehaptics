@@ -213,7 +213,7 @@ srmech_status_t srmech_riemann_theta_lattice(
  * one [A, B, C, e_mod, sign] QUINTUPLE per lattice point |n_i| <= box, row-major
  * (n1,n2); the Python marshaller accumulates sign * zeta_m^{e_mod} into the canonical
  * {(A,B,C): cyclotomic-coeff} lattice by looking each zeta_m^{e_mod} up in the REUSED
- * exact-DFT cyclotomic power basis (srmech.amsc.cascade.exact_dft) -- byte-identical to
+ * exact-DFT cyclotomic power basis (srmech.cascade.exact_dft) -- byte-identical to
  * the pure-Python theta_at. Caller-owned out[] (no malloc), like the lattice peer.
  * Additive symbols -> ABI unchanged (stays 3). */
 

@@ -2,7 +2,7 @@
  * srmech_cd_register.c — the GENERAL N-slot Cayley–Dickson address layer in C.
  *
  * Standalone-complete C peer of the general-rung addressable register
- * (Python srmech.amsc.cascade.cd_register): the same navigation surface
+ * (Python srmech.cascade.cd_register): the same navigation surface
  * srmech_sedenion.c provides at the hard-coded 16 slots, generalised to any
  * power-of-two dim in [1, SRMECH_CD_MAX_DIM].
  *

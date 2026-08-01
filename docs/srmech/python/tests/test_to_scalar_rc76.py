@@ -15,8 +15,8 @@ catalogs validate — those catalogs are this scalar's target test.
 
 import pytest
 
-from srmech.amsc.cascade import the_one, to_scalar
-from srmech.amsc.cascade.one import One
+from srmech.cascade import the_one, to_scalar
+from srmech.cascade.one import One
 
 
 # ── trace: Tr G(σ,θ) = 3 + 3σ + 8σ·cos θ (the rotation character) ──────
@@ -136,8 +136,8 @@ def test_non_one_rejected():
 # ── bindable for a TOML class (the genome class-from-TOML chaining) ────
 
 def test_to_scalar_is_importable_by_dotted_path():
-    # The op a [class.method] can bind: op = "srmech.amsc.cascade.to_scalar".
+    # The op a [class.method] can bind: op = "srmech.cascade.to_scalar".
     import importlib
-    mod = importlib.import_module("srmech.amsc.cascade")
+    mod = importlib.import_module("srmech.cascade")
     fn = getattr(mod, "to_scalar")
     assert fn(the_one(1, 0, 1), mode="trace") == (14, 1)

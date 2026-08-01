@@ -28,7 +28,7 @@ import srmech
 
 # A column-0 (module-level) numpy IMPORT STATEMENT — not arbitrary prose that
 # merely begins with the words "import numpy". The naive ``startswith("import
-# numpy")`` over-counted a docstring line in ``amsc/cascade/one.py`` ("import
+# numpy")`` over-counted a docstring line in ``cascade/one.py`` ("import
 # numpy lazily (the [scientific] tier…") even though the_one is numpy-FREE at
 # import (its only numpy is a LAZY ``require_numpy`` inside ``to_numpy`` /
 # ``to_matrix``). This regex matches only a real statement: ``import numpy`` /
@@ -256,7 +256,7 @@ def _is_numpy_import(line: str) -> bool:
 # loops. Drops `import numpy as np` + the `_dct` np.asarray wrapper; encode returns
 # list-of-list-of-lists, decode returns a 2-D list (were ndarrays). Math ledger
 # untouched (the DCT was already cascade-routed). 19 -> 18.
-# rc112: ratchet-ACCURACY fix — `amsc/cascade/one.py` (the_one) was a FALSE
+# rc112: ratchet-ACCURACY fix — `cascade/one.py` (the_one) was a FALSE
 # POSITIVE: the_one is numpy-FREE at import (its only numpy is a LAZY
 # `require_numpy` inside `to_numpy`/`to_matrix`), but a docstring line wrapping to
 # "import numpy lazily (the…" at column 0 tripped the naive `startswith` scan. The
@@ -391,7 +391,7 @@ def _is_numpy_import(line: str) -> bool:
 # cluster) go numpy-free in one change (the EXACT-RREF / float Gram-Schmidt rank
 # + mat_svd nullspace DUAL fix in so8; mat_solve/mat_matmul companions in
 # triality), while math/hdc.py (a LAZY-proxy, not a column-0 carrier — the proxy
-# is killed) and amsc/cascade/hypercomplex_dft.py (function-local numpy) also go
+# is killed) and cascade/hypercomplex_dft.py (function-local numpy) also go
 # fully numpy-free. Removing so8 + triality from the column-0 list takes the
 # count 7 -> 5. The remaining 5 carriers are EXACTLY: mcp/_coercion.py,
 # qm/propagators.py, qm/pseudo_hermitian.py,

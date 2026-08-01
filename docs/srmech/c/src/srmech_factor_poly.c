@@ -1,6 +1,6 @@
 /*
  * srmech_factor_poly.c — EXACT integer-polynomial factorization (Zassenhaus):
- * the C peer of srmech.amsc.cascade.matrix_cascades.factor_integer_poly
+ * the C peer of srmech.cascade.matrix_cascades.factor_integer_poly
  * (Qalg TAIL Batch 8). Factors an integer polynomial into its irreducible
  * factors over ℚ (Gauss's lemma: factoring over ℚ ≡ factoring over ℤ).
  *

@@ -2,7 +2,7 @@
 
 The first np.linalg.* sub-rc of the numpy-removal sweep. The substrate-native
 matrix-decomposition cascades (shipped rc38/rc39 in
-``srmech.amsc.cascade.matrix_cascades``) match the canonical decompositions
+``srmech.cascade.matrix_cascades``) match the canonical decompositions
 value-for-value: ``qr`` to round-off up to per-column SIGN, ``eigvals`` as a
 MULTISET. rc63a routes the genuine callsites whose downstream consumption is
 invariant to exactly those ambiguities:
@@ -35,7 +35,7 @@ import pathlib
 
 import pytest
 
-from srmech.amsc.cascade import matrix_cascades as mc
+from srmech.cascade import matrix_cascades as mc
 
 
 # ---------------------------------------------------------------------------

@@ -8,7 +8,7 @@ triality = 7**, the only access to the 3rd chiral axis.
 
 The tests prove the certificate:
 
-1. the 6 order-2 atoms are named + reference ``srmech.amsc.cascade.atoms``.
+1. the 6 order-2 atoms are named + reference ``srmech.cascade.atoms``.
 2. the order-3 7th primitive is the triality automorphism, with the order
    of ``τ`` EXACTLY 3 BIT-EXACT (``‖τ³ − I‖ ≈ 0``, ``τ ≠ I``, ``τ² ≠ I``).
 3. the F220 ``|G| = 8`` / no-order-3 / Lagrange (``3 ∤ 8``) certificate +
@@ -21,7 +21,7 @@ The tests prove the certificate:
    total after the rc6 parallel_sector_dispatch +1 ToolEntry).
 
 ALL deviations are reduced through the **scalar** Class K pin-slot magnitude
-(:func:`srmech.amsc.cascade.magnitude`) — NEVER Python ``abs()`` per
+(:func:`srmech.cascade.magnitude`) — NEVER Python ``abs()`` per
 ``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]``.
 
 HONESTY SPLIT (mirrors the so8 ``an_embedding`` discipline): the order of
@@ -39,7 +39,7 @@ oracle and no ``.to_numpy()`` (per
 
 from __future__ import annotations
 
-from srmech.amsc.cascade import magnitude
+from srmech.cascade import magnitude
 from srmech.math.laplacian import mat_matmul, mat_norm
 from srmech.math.mat import Mat
 from srmech.qm import triality
@@ -95,15 +95,15 @@ def test_six_order_two_atoms_are_named():
 
 
 def test_atom_names_reference_cascade_atoms_module():
-    """Each named atom is a real callable in srmech.amsc.cascade.atoms."""
-    from srmech.amsc.cascade import atoms as cascade_atoms
+    """Each named atom is a real callable in srmech.cascade.atoms."""
+    from srmech.cascade import atoms as cascade_atoms
 
     for name in lean_isa_seventh_primitive()["order_two_atoms"]:
         assert hasattr(cascade_atoms, name)
         assert callable(getattr(cascade_atoms, name))
     # The framework reading points at the atoms module by name.
     reading = lean_isa_seventh_primitive()["framework_chirality_complete_reading"]
-    assert reading["atoms_module"] == "srmech.amsc.cascade.atoms"
+    assert reading["atoms_module"] == "srmech.cascade.atoms"
 
 
 # ----------------------------------------------------------------------

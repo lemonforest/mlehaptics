@@ -14,7 +14,7 @@ sign/orientation/handedness operation, not an iterative algorithm:
 
 The iterative algorithms built *over* these atoms (Euclid's
 ``cyclic_gcd``, the continued-fraction ``best_rational_signed`` loop)
-live in the sibling :mod:`srmech.amsc.cascade.compose` module.
+live in the sibling :mod:`srmech.cascade.composites` module.
 
 **No ``abs()``** anywhere — sign is handled as the canonical Class K
 pin-slot + Class C re-orientation per

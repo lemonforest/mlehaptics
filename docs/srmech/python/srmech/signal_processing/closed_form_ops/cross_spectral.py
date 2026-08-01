@@ -33,7 +33,7 @@ from __future__ import annotations
 from typing import Optional, Tuple
 
 from srmech.math import rational as _srn
-from srmech.amsc.cascade import spectral_cascades as _sc
+from srmech.cascade import spectral_cascades as _sc
 from srmech.signal_processing import _fft_carrier as _fc
 
 OPERATION_NAME = "cross_spectral"

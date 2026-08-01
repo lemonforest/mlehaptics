@@ -119,7 +119,7 @@ __all__ = ["responsion_schema"]
 
 _DISCRETE_VERIFIED: Tuple[Tuple[str, str, str, str], ...] = (
     ("cyclic",
-     "srmech.amsc.cascade.the_one", "One",
+     "srmech.cascade.the_one", "One",
      "the One S(σ,θ) — the (1,3,7,3)-partition Klein-4 generator, verified "
      "by its own structural invariants (partition + plane-counts + "
      "n1_is_sigma_only)"),

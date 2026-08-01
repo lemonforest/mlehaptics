@@ -306,7 +306,7 @@ def resolve_operator_name(name: str) -> Callable[..., Any]:
     op such as a binary or scalar op raises a ``TypeError`` there, NOT a
     ``ValueError`` — so we keep the namespace allow-list as the up-front
     guard and let the smoke synth a genuine unary op,
-    ``srmech.amsc.cascade.chiral_flip``.)
+    ``srmech.cascade.chiral_flip``.)
 
     SAFETY (v0.5.0rc17 hardening): the ``srmech.*`` name PREFIX is necessary
     but NOT sufficient. ``_resolve_dotted_callable`` walks attributes, so a

@@ -179,7 +179,7 @@ def test_ops_back_index_known_relations() -> None:
             in schema["octonion"]["ops"]["consumes"])
     assert ("srmech.qm.quaternion.quaternion_twiddle"
             in schema["quaternion"]["ops"]["produces"])
-    assert ("srmech.amsc.cascade.cd_mult"
+    assert ("srmech.cascade.cd_mult"
             in schema["sedenion"]["ops"]["consumes"])
     # Token derivation: Mat flows through the dense-LA surface.
     assert "srmech.math.laplacian.mat_matmul" in schema["Mat"]["ops"]["consumes"]

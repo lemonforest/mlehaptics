@@ -4,7 +4,7 @@ Reads the packaged TOML descriptors under
 ``srmech/cascade/catalogs/cascade_catalog/`` — PLUS any external dirs a user
 registers via ``SRMECH_CASCADE_PATH`` / :func:`register_catalog_dir` (the
 bring-your-own cascade-TOML surface, F289 D2) — and resolves each op-name to
-its Python entry point: a shipped :mod:`srmech.amsc.cascade` callable (routes
+its Python entry point: a shipped :mod:`srmech.cascade` callable (routes
 to a C peer when ``HAS_NATIVE``), or, for a user ``[composite]`` descriptor, a
 unary stage that runs its pure-TOML sub-chain (no Python required).
 
@@ -17,7 +17,7 @@ op-name (that raises at load).
 The descriptors carry ``[cascade].name`` (the canonical op name) plus
 optional ``[cascade.native]`` C symbol names + ``[cascade.delegates_to]``
 metadata. The DSL runner consults the *name* only — the Python entry
-point in :mod:`srmech.amsc.cascade` handles the C-dispatch routing
+point in :mod:`srmech.cascade` handles the C-dispatch routing
 internally, so the DSL doesn't reach into that machinery.
 
 Framework reading: this loader is Class E (catalog enumeration) ∘
@@ -94,7 +94,7 @@ def register_catalog_dir(path: Any) -> None:
     ``SRMECH_CASCADE_PATH`` env-var (os.pathsep-separated dirs) is the zero-API
     equivalent. A user descriptor may be a PURE-TOML **composite** (a
     ``[composite]`` body whose ``[[composite.stage]]`` array is a chain of named
-    ops — no Python) or a primitive (needs a matching ``srmech.amsc.cascade``
+    ops — no Python) or a primitive (needs a matching ``srmech.cascade``
     callable). A user op-name may NOT shadow a shipped one.
     """
     p = Path(path)
@@ -238,7 +238,7 @@ def _validate_composite(
 
 
 def lookup_cascade_op(op_name: str) -> Callable:
-    """Resolve ``op_name`` to its Python entry point in :mod:`srmech.amsc.cascade`.
+    """Resolve ``op_name`` to its Python entry point in :mod:`srmech.cascade`.
 
     The descriptor declares the canonical name; the cascade module
     exposes a Python callable of the same name (which routes through
@@ -254,7 +254,7 @@ def lookup_cascade_op(op_name: str) -> Callable:
     Returns
     -------
     callable
-        The resolved cascade op: a shipped ``srmech.amsc.cascade`` callable,
+        The resolved cascade op: a shipped ``srmech.cascade`` callable,
         or — for a user ``[composite]`` descriptor — a unary stage that runs
         the composite's pure-TOML sub-chain (F289 D2 BYO).
 
@@ -263,7 +263,7 @@ def lookup_cascade_op(op_name: str) -> Callable:
     ValueError
         If ``op_name`` is not present in any catalog descriptor.
     RuntimeError
-        If a (non-composite) descriptor exists but :mod:`srmech.amsc.cascade`
+        If a (non-composite) descriptor exists but :mod:`srmech.cascade`
         does not expose a matching Python callable (an install integrity
         failure).
     """
@@ -280,7 +280,7 @@ def lookup_cascade_op(op_name: str) -> Callable:
         return _make_composite_runner(op_name, desc)
     # §17 U2: a descriptor may name a DOTTED entry point — `[cascade].op =
     # "srmech.signal_processing.encode_loe_content"` — so an EXISTING op that
-    # lives outside `srmech.amsc.cascade` (e.g. a text→instrument encoder) is
+    # lives outside `srmech.cascade` (e.g. a text→instrument encoder) is
     # DSL-registrable without re-exporting it. Mirrors the rc39 class-catalog's
     # dotted-path method resolution; lets a catalog's text rows get a one-line
     # kernel chain (`[[stage]] op="encode_loe_content"`).
@@ -297,15 +297,15 @@ def lookup_cascade_op(op_name: str) -> Callable:
             )
         return fn
     # Local import to avoid an import cycle at module-load time —
-    # srmech.amsc.cascade imports srmech.introspect which imports
+    # srmech.cascade imports srmech.introspect which imports
     # srmech.dsl in some test configurations.
-    from srmech.amsc import cascade as _cascade
+    from srmech import cascade as _cascade
 
     fn = getattr(_cascade, op_name, None)
     if fn is None or not callable(fn):
         raise RuntimeError(
             f"cascade-catalog has descriptor for {op_name!r} but "
-            f"srmech.amsc.cascade does not expose a matching callable "
+            f"srmech.cascade does not expose a matching callable "
             f"(install integrity failure)"
         )
     return fn

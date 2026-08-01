@@ -2,7 +2,7 @@
 
 rc-G closes the LAST documented eigensolver gap: exact generalized eigenvectors
 (Jordan chains) for DEFECTIVE (non-diagonalizable) matrices. Three new ops in
-``srmech/amsc/cascade/matrix_cascades.py``:
+``srmech/cascade/matrix_cascades.py``:
 
 1. **`jordan_chains_exact(a, lam)`** — the Jordan structure for an eigenvalue λ
    (a ``Qalg`` over its irreducible min-poly): the chains (each a list of ``Qalg``
@@ -26,7 +26,7 @@ import importlib.util
 
 import pytest
 
-from srmech.amsc.cascade.matrix_cascades import (
+from srmech.cascade.matrix_cascades import (
     eig_exact,
     eigvals_exact,
     jordan_chains_exact,

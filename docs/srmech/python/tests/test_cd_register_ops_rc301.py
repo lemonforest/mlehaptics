@@ -33,12 +33,12 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc import cascade
-from srmech.amsc.cascade import (
+from srmech import cascade
+from srmech.cascade import (
     cd_couple_working, cd_uncouple_working, cd_carry, cd_correct,
 )
-from srmech.amsc.cascade.sedenion_register import SedenionRegister
-from srmech.amsc.cascade.cayley_dickson import CD_MAX_DIM
+from srmech.cascade.sedenion_register import SedenionRegister
+from srmech.cascade.cayley_dickson import CD_MAX_DIM
 
 # Every rung srmech builds tables for. dim 1 (ℝ) is the empty-coupling boundary.
 RUNGS = (1, 2, 4, 8, 16, 32, 64, 128, 256)

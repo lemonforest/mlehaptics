@@ -26,7 +26,7 @@ import pytest
 
 from srmech import _native
 from srmech.math.q import Q
-from srmech.amsc.cascade import hypercomplex_exp, cd_mult
+from srmech.cascade import hypercomplex_exp, cd_mult
 
 
 _K_AXES = (1, 3, 7)               # ℂ / ℍ / 𝕆

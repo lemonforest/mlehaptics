@@ -281,7 +281,7 @@ _NDJSON_LINE_CB = ctypes.CFUNCTYPE(
 #       const double *in, size_t n, double *out, void *user_data);
 #
 # Exposed at module scope (not inside _bind) so the Python dispatch in
-# srmech.amsc.cascade can construct callback instances without reaching
+# srmech.cascade can construct callback instances without reaching
 # into the library-binding closure.
 CASCADE_OP_CALLBACK_F64 = ctypes.CFUNCTYPE(
     ctypes.c_int,                            # srmech_status_t return
@@ -8626,7 +8626,7 @@ def has_native_cd_qvec() -> bool:
     """True iff the rc159 CD exact-ℚ vector kernels + the srmech_bigint
     decimal-marshal helpers are loaded + bound. False on a no-C or pre-rc159
     lib — the pure-Python Fraction body in
-    ``srmech.amsc.cascade.cayley_dickson`` is the complete alternative (and the
+    ``srmech.cascade.cayley_dickson`` is the complete alternative (and the
     parity oracle); both emit byte-identical exact (num, den)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -8719,7 +8719,7 @@ def has_native_cd_mult() -> bool:
     """True iff the rc160 CD exact-ℚ PRODUCT kernel is loaded (plus the Qvec
     sizing + srmech_bigint decimal-marshal helpers it shares). False on a no-C
     or pre-rc160 lib — the pure-Python recursive ``_mult`` in
-    ``srmech.amsc.cascade.cayley_dickson`` is the complete, byte-identical
+    ``srmech.cascade.cayley_dickson`` is the complete, byte-identical
     alternative (and the parity oracle)."""
     return has_native_cd_qvec() and (
         LIB is not None and hasattr(LIB, "srmech_cd_mult"))
@@ -8788,7 +8788,7 @@ def has_native_algebra_table_product() -> bool:
     """True iff the rc352 TABLE-DRIVEN exact-ℚ product kernel is loaded (plus
     the srmech_bigint decimal-marshal helpers it shares with cd_mult). False on
     a no-C or pre-rc352 lib — the pure-Python accumulation in
-    ``srmech.amsc.cascade.cayley_dickson.table_product`` is the complete,
+    ``srmech.cascade.cayley_dickson.table_product`` is the complete,
     byte-identical alternative (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -8839,7 +8839,7 @@ def has_native_char_poly() -> bool:
     """True iff the rc161 Faddeev–LeVerrier exact-integer char-poly kernel is
     loaded (plus the srmech_bigint decimal-marshal helpers it shares). False on a
     no-C or pre-rc161 lib — the pure-Python ``_char_poly_int`` in
-    ``srmech.amsc.cascade.matrix_cascades`` is the complete, byte-identical
+    ``srmech.cascade.matrix_cascades`` is the complete, byte-identical
     alternative (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -8890,7 +8890,7 @@ def has_native_sturm_isolate() -> bool:
     """True iff the rc162 Sturm real-eigenvalue isolation kernel is loaded (plus
     the srmech_bigint decimal-marshal helpers it shares). False on a no-C /
     pre-rc162 lib — the pure-Python ``_square_free_factors`` + ``_isolate_real_roots``
-    in ``srmech.amsc.cascade.matrix_cascades`` are the complete, byte-identical
+    in ``srmech.cascade.matrix_cascades`` are the complete, byte-identical
     alternative (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -9007,7 +9007,7 @@ def has_native_eigvec_exact() -> bool:
     """True iff the rc163 Qalg number-field eigenvector kernel + the srmech_bigint
     decimal-marshal helpers are loaded. False on a no-C / pre-rc163 lib — the
     pure-Python ``_eigvec_exact_qalg`` (Qalg-field Gaussian elimination) in
-    ``srmech.amsc.cascade.matrix_cascades`` is the complete, byte-identical
+    ``srmech.cascade.matrix_cascades`` is the complete, byte-identical
     alternative (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -9089,7 +9089,7 @@ def has_native_jordan_chains() -> bool:
     """True iff the rc164 Qalg number-field Jordan-chain kernel + the
     srmech_bigint decimal-marshal helpers are loaded. False on a no-C / pre-rc164
     lib — the pure-Python ``_jordan_chains_build_pure`` in
-    ``srmech.amsc.cascade.matrix_cascades`` is the complete, byte-identical
+    ``srmech.cascade.matrix_cascades`` is the complete, byte-identical
     alternative (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -9180,7 +9180,7 @@ def has_native_factor_squarefree_primitive() -> bool:
     """True iff the rc165 Zassenhaus integer-polynomial factorizer + the
     srmech_bigint decimal-marshal helpers are loaded. False on a no-C / pre-rc165
     lib — the pure-Python ``_factor_square_free_primitive`` in
-    ``srmech.amsc.cascade.matrix_cascades`` is the complete, byte-identical
+    ``srmech.cascade.matrix_cascades`` is the complete, byte-identical
     alternative (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -9251,7 +9251,7 @@ def has_native_factor_integer_poly() -> bool:
     """True iff the FULL factor_integer_poly composite (rc165 deferral 2) + the
     srmech_bigint decimal-marshal helpers are loaded. False on a no-C / core-only
     rc165 lib — the Python orchestration in
-    ``srmech.amsc.cascade.matrix_cascades.factor_integer_poly`` is the complete,
+    ``srmech.cascade.matrix_cascades.factor_integer_poly`` is the complete,
     byte-identical alternative (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -9349,7 +9349,7 @@ def _intvec_blank_array(n, cap):
 def has_native_lll() -> bool:
     """True iff the rc221 exact-ℚ LLL lattice-reduction kernel is loaded + bound.
     False on a no-C / pre-rc221 lib — the pure-Python ``_lll_reduce_pure`` in
-    ``srmech.amsc.cascade.matrix_cascades`` is the complete, byte-identical
+    ``srmech.cascade.matrix_cascades`` is the complete, byte-identical
     alternative (and the parity oracle): both run the SAME classical LLL over
     EXACT rationals, so the reduced integer basis is identical."""
     if not (HAS_NATIVE and LIB is not None):
@@ -10031,7 +10031,7 @@ def jacobi_sncndn_c(numerator: int, denominator: int,
 def has_native_fft_c128() -> bool:
     """True iff the rc139 numeric complex128 FFT C peer (``srmech_fft_c128`` +
     ``srmech_fft_c128_ws_bound``) is loaded + bound. False on a no-C or
-    pre-rc139 lib — the pure-Python ``srmech.amsc.cascade.spectral_cascades``
+    pre-rc139 lib — the pure-Python ``srmech.cascade.spectral_cascades``
     cascade is the complete alternative (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -10613,7 +10613,7 @@ def mat_roundtrip_c(rows_data, is_cplx):
 
 # ----------------------------------------------------------------------
 # rc138 (#743): the S(sigma, theta) ADJOINT generator C peer (srmech_the_one).
-# The Python srmech.amsc.cascade.one.the_one dispatches its exact-rational
+# The Python srmech.cascade.one.the_one dispatches its exact-rational
 # ADJOINT (the 14 One.to_flat_rational entries) through this when
 # has_native_the_one(); the pure-Python bignum tiling is the COMPLETE
 # alternative (and the parity oracle) — both emit byte-identical exact (num, den)
@@ -10628,7 +10628,7 @@ _THE_ONE_DIM = 14
 def has_native_the_one() -> bool:
     """True iff the rc138 srmech_the_one adjoint C peer + the srmech_bigint
     decimal-marshal helpers are loaded + bound. False on a no-C or pre-rc138 lib
-    — the pure-Python adjoint tiling in ``srmech.amsc.cascade.one`` is the
+    — the pure-Python adjoint tiling in ``srmech.cascade.one`` is the
     complete alternative (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -10646,7 +10646,7 @@ def the_one_c(sigma: int, theta_num: int, theta_den: int,
     the native symbols are absent (caller falls through to the pure-Python bignum
     oracle). Theta + the 14 output carriers + the arena are sized from the input
     magnitudes + ``num_terms`` so the bignum path has NO ceiling (byte-identical
-    to ``srmech.amsc.cascade.one`` at any magnitude)."""
+    to ``srmech.cascade.one`` at any magnitude)."""
     if not has_native_the_one():
         return None
     tn_digits = len(str(theta_num).lstrip("-"))
@@ -10708,7 +10708,7 @@ _ONE_SCALAR_MODES = {"trace": 0, "sqnorm": 1, "component": 2}
 def has_native_one_scalar() -> bool:
     """True iff the rc195 srmech_one_scalar C peer + the srmech_the_one foundation
     it composes are loaded + bound. False on a no-C or pre-rc195 lib — the pure
-    ``srmech.amsc.cascade.one.to_scalar`` body is the complete alternative (and the
+    ``srmech.cascade.one.to_scalar`` body is the complete alternative (and the
     parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -18029,7 +18029,7 @@ def sedenion_navigate_c(j: int, in_slots, in_signs):
 # ── rc297 (`#934`): the GENERAL N-slot Cayley–Dickson address layer. The same
 #    navigation surface as the sedenion_* peers above, generalised from the
 #    hard-coded 16 slots to any power-of-two dim in [1, CD_MAX_DIM]. Python peer:
-#    srmech.amsc.cascade.cd_register. ──
+#    srmech.cascade.cd_register. ──
 
 def has_native_cd_navmap() -> bool:
     """True iff the rc297 srmech_cd_navmap C peer is loaded + bound."""

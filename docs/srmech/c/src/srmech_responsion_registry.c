@@ -40,14 +40,6 @@
  * canonical JSON key order the hash-ratchet compares against). */
 const srmech_responsion_entry_t srmech_responsion_registry_table[] = {
     {
-        "srmech.amsc.cascade.the_one|One",
-        "srmech.amsc.cascade.the_one",
-        "One",
-        1u,
-        "[{\"answers_with\":\"the One S(\\u03c3,\\u03b8) \\u2014 the (1,3,7,3)-partition Klein-4 generator, verified by its own structural invariants (partition + plane-counts + n1_is_sigma_only)\",\"carrier\":\"One\",\"curvature\":\"curved\",\"kind\":\"closed_form\",\"operator\":\"srmech.amsc.cascade.the_one\",\"regime\":\"discrete_algebraic\",\"status\":\"verified\"}]",
-        332u,
-    },
-    {
         "srmech.apokatastasis.apagodu_zeilberger.apagodu_zeilberger|TriPoly",
         "srmech.apokatastasis.apagodu_zeilberger.apagodu_zeilberger",
         "TriPoly",
@@ -134,6 +126,14 @@ const srmech_responsion_entry_t srmech_responsion_registry_table[] = {
         1u,
         "[{\"answers_with\":\"the resonant eigenspectrum payload of the coupling Laplacian \\u2014 the reduction EXISTS iff L is bit-exact real-symmetric (the spectral theorem's own hypothesis, rc224); the eigenvalues are the operand, never the verdict\",\"carrier\":\"Mat\",\"curvature\":\"curved\",\"kind\":\"closed_form\",\"operator\":\"srmech.biology.coupling.resonant_spectrum\",\"regime\":\"discrete_algebraic\",\"status\":\"verified\"}]",
         405u,
+    },
+    {
+        "srmech.cascade.the_one|One",
+        "srmech.cascade.the_one",
+        "One",
+        1u,
+        "[{\"answers_with\":\"the One S(\\u03c3,\\u03b8) \\u2014 the (1,3,7,3)-partition Klein-4 generator, verified by its own structural invariants (partition + plane-counts + n1_is_sigma_only)\",\"carrier\":\"One\",\"curvature\":\"curved\",\"kind\":\"closed_form\",\"operator\":\"srmech.cascade.the_one\",\"regime\":\"discrete_algebraic\",\"status\":\"verified\"}]",
+        327u,
     },
     {
         "srmech.math.dispatch.infer|BiPoly",

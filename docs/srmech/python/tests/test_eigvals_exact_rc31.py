@@ -18,7 +18,7 @@ import math
 
 import pytest
 
-from srmech.amsc.cascade.matrix_cascades import char_poly, eigvals_exact
+from srmech.cascade.matrix_cascades import char_poly, eigvals_exact
 
 
 # --- numpy-free oracle helpers --------------------------------------------------

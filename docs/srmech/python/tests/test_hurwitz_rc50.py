@@ -1,11 +1,11 @@
 """qm.hurwitz — the Hurwitz Fano-plane cross-derivation + the Hurwitz [class].
 
 History: rc50 shipped qm.hurwitz.hurwitz_matrix, a numpy 14×14 float builder
-that DUPLICATED srmech.amsc.cascade.One.to_matrix (both float-cast the SAME
+that DUPLICATED srmech.cascade.One.to_matrix (both float-cast the SAME
 exact cascade the_one). rc75 (#564) DISSOLVED that numpy-Rosetta-peer: there
 was never supposed to be a continuous-float peer (float SUMS error every op).
 The Hurwitz operator is now declared the class-from-TOML way (`Hurwitz` [class],
-method `generate` binding the EXACT op srmech.amsc.cascade.the_one); the float
+method `generate` binding the EXACT op srmech.cascade.the_one); the float
 14×14 is the opt-in lossy One.to_matrix export, never a separate named op.
 
 What survives in srmech.qm.hurwitz: `hurwitz_planes` — the GENUINE
@@ -19,14 +19,14 @@ rc123 (#564): qm.octonion + qm.hurwitz are now numpy-FREE, so the
 planes-derivation tests run numpy-absent (the prior numpy skip is dropped).
 """
 
-from srmech.amsc.cascade.one import FANO_PLANES
+from srmech.cascade.one import FANO_PLANES
 
 
 # ── the Hurwitz [class] over the EXACT the_one (numpy-free, zero Python) ──
 
 def test_hurwitz_class_is_the_exact_the_one():
     from srmech.dsl import make_class
-    from srmech.amsc.cascade import the_one
+    from srmech.cascade import the_one
 
     Hurwitz = make_class("Hurwitz")
     one_via_class = Hurwitz().generate(sigma=1, theta_num=1, theta_den=4, terms=24)

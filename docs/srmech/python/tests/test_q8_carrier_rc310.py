@@ -5,7 +5,7 @@ The load-bearing proofs:
 
 - ``test_q8_is_genuine_q8_vs_cd_basis_product`` — the Q8 product byte-table IS
   the signed-basis multiplication of the shipped Cayley–Dickson cocycle
-  ``srmech.amsc.cascade.cayley_dickson.cd_basis_product`` at dim 4 (non-abelian,
+  ``srmech.cascade.cayley_dickson.cd_basis_product`` at dim 4 (non-abelian,
   i²=j²=k²=−1, associative over all 8×8×8).
 - ``test_pi_homomorphism_differential_contract`` — the abelian projection is
   EXACT: ``(q8_mult(a,b) & 3) == ((a&3) ^ (b&3))`` for all a,b, i.e. ``V4 = q&3``
@@ -30,7 +30,7 @@ import pytest
 from tests._native_gate import require_native
 from srmech import _native
 from srmech.biology import q8
-from srmech.amsc.cascade.cayley_dickson import cd_basis_product
+from srmech.cascade.cayley_dickson import cd_basis_product
 from srmech.math.hdc import klein4_bind
 
 ALL8 = range(8)
