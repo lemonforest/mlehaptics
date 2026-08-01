@@ -39,7 +39,7 @@ lane, and it is free. It does NOT pin the ``±``. Ask the sharp version: is
 the sign a COBOUNDARY? I.e. does some per-index ``t: {0..dim-1} → GF(2)``
 exist with ``t(i) + t(j) + t(i⊕j) = ε(i, j)``, where ``ε`` is 0 for ``+1``
 and 1 for ``-1``? Solved through the shipped
-:func:`~srmech.amsc.modular_linalg.gf_rref` over GF(2), one row per ordered
+:func:`~srmech.math.modular_linalg.gf_rref` over GF(2), one row per ordered
 basis pair, columns ``t(0..dim-1)``::
 
     dim                     2     4     8    16     32     64

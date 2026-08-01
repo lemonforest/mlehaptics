@@ -36,7 +36,7 @@ op can find them. The GF(2) solve finds **all 168** of them, exactly.
 
 SUBJECT DISCIPLINE
 ==================
-The subject of every test here is the SHIPPED ``srmech.amsc.modular_linalg
+The subject of every test here is the SHIPPED ``srmech.math.modular_linalg
 .gf_rref`` (native-dispatched when ``HAS_NATIVE``). The two hand-rolled
 reference implementations are named ``*_oracle`` and are never the subject.
 """
@@ -49,7 +49,7 @@ import time
 import pytest
 
 from srmech.amsc import _native
-from srmech.amsc import modular_linalg as ml
+from srmech.math import modular_linalg as ml
 from srmech.amsc.cyclic import mod_inv
 from srmech.amsc.cascade.cayley_dickson import (
     CD_DIMS,
@@ -58,7 +58,7 @@ from srmech.amsc.cascade.cayley_dickson import (
     left_mult_is_invertible,
     sedenion_zero_divisor_witness,
 )
-from srmech.amsc.modular_linalg import gf_rref
+from srmech.math.modular_linalg import gf_rref
 
 
 # ──────────────────────────────────────────────────────────────────────────

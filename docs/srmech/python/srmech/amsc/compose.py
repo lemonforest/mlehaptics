@@ -92,7 +92,7 @@ DEFAULT_CLASS_REGISTRY: Dict[str, str] = {
     "H": "srmech.amsc._native",
     "I": "srmech.amsc.cyclic",
     "J": "srmech.amsc.primes",
-    "K": "srmech.amsc.kepler",
+    "K": "srmech.math.kepler",
     "L": "srmech.amsc.laplacian",
     "M": "srmech.amsc.hdc",
     "N": "srmech.amsc.rational",

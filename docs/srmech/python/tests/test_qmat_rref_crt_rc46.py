@@ -96,7 +96,7 @@ def test_rref_crt_unlucky_prime_consensus_direct():
     prime, large or small. Here we drive the GF(p) reduction at p=7 (the canonical
     unlucky prime) and confirm it drops rank vs the consensus, i.e. would be
     discarded."""
-    from srmech.amsc import modular_linalg as ml
+    from srmech.math import modular_linalg as ml
     from srmech.amsc.qmat import _entries_mod_p, _key_dominates
 
     m = QMat.from_rows([[3, 1], [2, 3]])           # det = 7 ⇒ singular mod 7

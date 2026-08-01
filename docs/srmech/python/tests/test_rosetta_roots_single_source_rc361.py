@@ -91,15 +91,25 @@ _EXPECTED_ROOTS = (
     # slice. Widening for a package that does not exist is what rc361 refused;
     # this is the opposite case.
     "srmech.apokatastasis",
+    # v0.9.0rc372 — ``srmech.math`` APPENDED. The two-file edit again: the
+    # general-algebra / A-N-primitive domain LANDED its first slice this rc
+    # (``octonion`` / ``kepler`` / ``modular_linalg``), so the package now EXISTS
+    # and the walk must reach its 10 ops. Like ``srmech.apokatastasis`` and
+    # UNLIKE the zero-op ``srmech.cascade``, this root arrives carrying walked
+    # rows (7 ``c_dispatched`` + 3 ``composition_of_c``). The domain is only
+    # PARTIALLY drained (3 of 22 modules), but package existence is binary — so
+    # the root is added on the FIRST module, per the rc370 rule below.
+    "srmech.math",
 )
 
 #: ADR-0010's destination namespaces that DO NOT EXIST YET.
 #:
 #: Read off the ADR's own namespace table and its per-destination count table.
-#: ``srmech.math`` is now the largest single destination that has NOT begun to
-#: land (22 modules) and, like the rest of these, is absent from the walk roots.
+#: ``srmech.physics`` / ``srmech.biology`` are now the destinations that have NOT
+#: begun to land, and, like ``srmech.external``, are absent from the walk roots.
 #: (``srmech.apokatastasis`` — A.2's largest at 31 — LEFT this tuple at rc370;
-#: see the note below.)
+#: ``srmech.math`` — A.2's second-largest at 22 — LEFT it at rc372; see the notes
+#: below.)
 #:
 #: ⚠️ ``srmech.music`` LEFT THIS TUPLE at v0.9.0rc362 and moved to
 #: ``_ADR0010_EXISTING_DESTINATIONS`` below. It is the FIRST of ADR-0010's new
@@ -114,10 +124,14 @@ _EXPECTED_ROOTS = (
 #: is only PARTIALLY drained (1 of 31 modules), but package EXISTENCE is binary —
 #: once one module lands, the root exists and the walk must reach it — so the
 #: root migrates to ``_ADR0010_EXISTING_DESTINATIONS`` on the FIRST module, not
-#: the last. Five namespaces became four; ``srmech.math`` (22 modules) is now the
-#: largest that has not begun to land.
+#: the last.
+#: ⚠️ ``srmech.math`` LEFT THIS TUPLE at v0.9.0rc372, by that same route: its
+#: first slice (``octonion`` / ``kepler`` / ``modular_linalg``) landed the
+#: package. The domain is only PARTIALLY drained (3 of 22 modules), but package
+#: existence is binary, so the root migrates on the FIRST slice. Four namespaces
+#: became three; ``srmech.physics`` / ``srmech.biology`` / ``srmech.external``
+#: are what remain absent.
 _ADR0010_NEW_NAMESPACES = (
-    "srmech.math",
     "srmech.physics",
     "srmech.biology",
     "srmech.external",
@@ -145,9 +159,14 @@ _ADR0010_NEW_NAMESPACES = (
 #: first DOMAIN-with-a-registered-op to land (contrast cascade's zero-op
 #: structure slice), so it arrives carrying exactly one ``c_dispatched`` ledger
 #: row; see the note at ``_EXPECTED_ROOTS``.
+#:
+#: v0.9.0rc372 — ``srmech.math`` joins them by the same route. Its first slice
+#: (``octonion`` / ``kepler`` / ``modular_linalg``) arrives carrying 10 walked
+#: rows (7 ``c_dispatched`` + 3 ``composition_of_c``); see ``_EXPECTED_ROOTS``.
 _ADR0010_EXISTING_DESTINATIONS = ("srmech.amsc", "srmech.introspect",
                                   "srmech.dsl", "srmech.music",
-                                  "srmech.cascade", "srmech.apokatastasis")
+                                  "srmech.cascade", "srmech.apokatastasis",
+                                  "srmech.math")
 
 #: Detects a spelled-out copy of the root tuple: the quoted literal every copy
 #: ended with. Measured at rc361 — this token appeared in EXACTLY the four known
@@ -353,12 +372,14 @@ def test_a_root_naming_a_nonexistent_package_is_silently_skipped() -> None:
 
     import conftest
     saved = conftest._ROSETTA_ROOTS
-    # ⚠️ v0.9.0rc370 — the example moved off ``srmech.apokatastasis``, which
-    # became a REAL root this rc (its first module landed). ``srmech.external``
-    # is still in ``_ADR0010_NEW_NAMESPACES`` and genuinely does not exist, so it
-    # is the correct still-nonexistent witness for the ImportError-swallow.
+    # ⚠️ v0.9.0rc372 — the witness points at ``srmech.physics``, still in
+    # ``_ADR0010_NEW_NAMESPACES`` and genuinely without a package dir. (rc370
+    # used ``srmech.external`` — also still absent and still valid; rotated here
+    # to a different not-yet-landed namespace so the witness does not calcify on
+    # one name as the arc drains. Any member of ``_ADR0010_NEW_NAMESPACES`` is a
+    # correct still-nonexistent witness for the ImportError-swallow.)
     try:
-        conftest._ROSETTA_ROOTS = saved + ("srmech.external",)
+        conftest._ROSETTA_ROOTS = saved + ("srmech.physics",)
         widened = rosetta_live_objects()
     finally:
         conftest._ROSETTA_ROOTS = saved

@@ -19,7 +19,7 @@
  *                                  the half-GCD (Wang) extended-Euclidean
  *                                  recurrence over srmech_bigint.
  *
- * Byte-identical to the pure-Python srmech.amsc.modular_linalg.crt_combine /
+ * Byte-identical to the pure-Python srmech.math.modular_linalg.crt_combine /
  * srmech.amsc.rational.rational_reconstruct (their parity oracle). Both run over
  * the caller-arena srmech_bigint -- caller-owned out limbs, caller-arena scratch,
  * NO malloc. Sign is Class-K: an explicit sign-branch, never abs().

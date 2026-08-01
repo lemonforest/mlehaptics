@@ -606,7 +606,7 @@ def kuramoto_step(
     arc hand-rolled in Python (F141 / F231 / R-95 / F234) — now with a
     native C peer (``srmech_cascade_kuramoto_step_f64``) so srmech runs the
     Kuramoto step with **NO host Python** (the full-parity commitment). The
-    O(n²) sin-coupling runs natively (libm sin, as ``srmech.amsc.kepler``
+    O(n²) sin-coupling runs natively (libm sin, as ``srmech.math.kepler``
     does upstream).
 
     HONEST CASCADE SHAPE. This is a *composition* of existing class

@@ -64,8 +64,8 @@ from srmech.amsc.hv import HV as _HV
 from srmech.amsc.q8 import q8_bind as _q8_bind
 from srmech.amsc.q8 import q8_conjugate as _q8_conjugate
 from srmech.amsc.q8 import q8_project_v4 as _q8_project_v4
-from srmech.amsc.octonion import oct_bind as _oct_bind
-from srmech.amsc.octonion import oct_conjugate as _oct_conjugate
+from srmech.math.octonion import oct_bind as _oct_bind
+from srmech.math.octonion import oct_conjugate as _oct_conjugate
 from srmech.amsc.tlv import tlv_pack as _tlv_pack
 from srmech.amsc.tlv import tlv_unpack as _tlv_unpack
 from srmech.version import __version__ as _SRMECH_VERSION
@@ -872,7 +872,7 @@ ELEMENT_TYPE_KLEIN4 = 0
 #: address ✓ / compose ✓ / turn ✓ non-commuting.
 ELEMENT_TYPE_Q8 = 1
 #: §𝕆 (rc324) — the DISCRETE octonion Moufang loop ``{±e₀, …, ±e₇}`` element type: a
-#: 4-bit symbol ``(sign_bit << 3) | index`` (:mod:`srmech.amsc.octonion`), the Cayley–
+#: 4-bit symbol ``(sign_bit << 3) | index`` (:mod:`srmech.math.octonion`), the Cayley–
 #: Dickson rung ABOVE :data:`ELEMENT_TYPE_Q8`. Its coupling is the octonion loop product
 #: (:func:`quad_turn` right-couple), non-involutive — decoupled by the Class-C conjugate
 #: (loop inverse) via the Moufang inverse property, NOT the XOR self-inverse. Data turns
@@ -1910,8 +1910,8 @@ def genome_octonion_holonomy(turns, leaf_dim=None):
 
     Folds the ordered per-slot octonion product of the coupled turns along the strand:
     ``acc[s] = oct_mult(...oct_mult(oct_mult(0, turns[0][s]), turns[1][s])...,
-    turns[n-1][s])`` (identity ``+e₀`` == byte 0), REUSING :func:`~srmech.amsc.octonion.oct_mult`
-    (via :func:`~srmech.amsc.octonion.oct_bind`) — NOT a reimplemented product. Because 𝕆 is
+    turns[n-1][s])`` (identity ``+e₀`` == byte 0), REUSING :func:`~srmech.math.octonion.oct_mult`
+    (via :func:`~srmech.math.octonion.oct_bind`) — NOT a reimplemented product. Because 𝕆 is
     NON-commutative AND NON-associative, REORDERING the turns CHANGES the result — the fiber
     the winding-INVARIANT per-turn coupled store (:func:`_oct_couple`) cannot carry. Class-M
     (octonion bind) ordered fold; no ``abs()`` — the sign is a group ⊕-bit.
@@ -8038,7 +8038,7 @@ def _unpack_turn_payload_q8(payload: bytes, leaf_dim: int) -> bytes:
 
 # ─────────────────────────────────────────────────────────────────────────────
 # §𝕆/rc324 — the 4-BIT octonion packed-turn codec. An octonion data turn carries
-# a 4-bit symbol (:mod:`srmech.amsc.octonion`: ``(sign_bit << 3) | index``), so it
+# a 4-bit symbol (:mod:`srmech.math.octonion`: ``(sign_bit << 3) | index``), so it
 # needs 4 bits/symbol where the Q₈ turn packs 3 and the klein4 turn packs 2. Same
 # MSB-FIRST CONTIGUOUS layout as the Q₈ codec (symbol ``i`` → bits ``[4i, 4i+4)`` of
 # a big-endian bitstream, symbol 0 in the highest bits; the unused LOW bits of a

@@ -759,7 +759,7 @@ Task #217 Phase C1 (srmech v0.4.0) shipped every class with a native C surface (
 | H | self-introspection | version / ABI / capability accessors | `srmech_version()` + `srmech_abi_version()` | (C meta) | C1 rc4 ack |
 | I | cyclic-group / modular | GCD, LCM, mod-add/mul/pow/inv on uint64 | `(Z/nZ)*` arithmetic | `srmech.amsc.cyclic.*` | C1 rc1 |
 | J | prime-factorisation / period | is_prime, factor, multiplicative order | trial-division + multiplicative order | `srmech.amsc.primes.*` | C1 rc3 |
-| K | equation-of-centre / pin-slot | Kepler-shape continuous projection | `phi = atan2(i sin θ, d + i cos θ)`; Newton-Raphson on `M = E − e sin E`; Fourier ν − M | `srmech.amsc.kepler.*` | C1 rc7 |
+| K | equation-of-centre / pin-slot | Kepler-shape continuous projection | `phi = atan2(i sin θ, d + i cos θ)`; Newton-Raphson on `M = E − e sin E`; Fourier ν − M | `srmech.math.kepler.*` | C1 rc7 |
 | L | graph Laplacian | adjacency / Laplacian / normalized Laplacian / Jacobi eigvals (pi-free) | spectral decomposition of `L = D − A` | `srmech.amsc.laplacian.*` | C1 rc2 |
 | M | HDC bind / bundle / permute / similarity | binary spatter codes (Kanerva 2009) | XOR bind + majority bundle + bit-rotate permute + Hamming-similarity | `srmech.amsc.hdc.*` | C1 rc8 |
 | N | rational-approximation | continued-fraction expansion + best p′/q′ under denominator bound | Stern-Brocot mediant convergents | `srmech.amsc.rational.*` | C1 rc6 |
@@ -6289,7 +6289,7 @@ One rung **below** the float register sits the discrete byte carrier a Q8 genome
 
 ```python
 from srmech.amsc.q8 import q8_mult, q8_bind, q8_project_v4
-from srmech.amsc.octonion import oct_mult
+from srmech.math.octonion import oct_mult
 from srmech.amsc.hdc import klein4_bind
 B = {b: i for i, b in enumerate("TCAG")}        # T:+1  C:+i  A:+j  G:+k
 

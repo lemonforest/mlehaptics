@@ -1,4 +1,4 @@
-"""srmech.amsc.modular_linalg — Class I modular linear algebra over GF(p).
+"""srmech.math.modular_linalg — Class I modular linear algebra over GF(p).
 
 The swell-free core of the CRT-QMat re-fibration arc (srmech 0.9.0rc44, rung 1).
 The exact-ℚ :class:`~srmech.amsc.qmat.QMat` Gauss-Jordan (rc40) reserves a
@@ -64,10 +64,10 @@ from __future__ import annotations
 import ctypes
 from typing import Dict, List
 
-from . import _native
-from .cyclic import mod_add as _mod_add
-from .cyclic import mod_inv as _mod_inv
-from .cyclic import mod_mul as _mod_mul
+from ..amsc import _native
+from ..amsc.cyclic import mod_add as _mod_add
+from ..amsc.cyclic import mod_inv as _mod_inv
+from ..amsc.cyclic import mod_mul as _mod_mul
 
 __all__ = ["gf_rref", "gf_solve", "gf_nullspace", "crt_combine"]
 

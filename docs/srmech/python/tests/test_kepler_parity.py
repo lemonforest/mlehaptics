@@ -18,7 +18,8 @@ import random
 
 import pytest
 
-from srmech.amsc import _native, kepler
+from srmech.amsc import _native
+from srmech.math import kepler
 
 
 # ----------------------------------------------------------------------
