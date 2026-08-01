@@ -11236,7 +11236,7 @@ def _register_chemistry_tools() -> None:
                     "Lectures on Chemical Reaction Networks (Univ. of Wisconsin "
                     "MRC, 1979/1980). Class L Laplacian o Class J rank; "
                     "composition_of_c; exact-Q, numpy-free, no abs().",
-            parameters=(P("reactions", "Sequence[tuple[complex, complex]]", True,
+            parameters=(P("reactions", "Sequence[tuple[dict[str,int], dict[str,int]]]", True,
                           "an iterable of (reactant, product) pairs; each complex "
                           "is an {species: coeff} dict ({\"A\": 2} for 2A), a bare "
                           "species-name str (coeff 1), or the zero complex "

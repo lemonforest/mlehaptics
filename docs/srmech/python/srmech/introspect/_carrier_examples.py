@@ -23,6 +23,7 @@ CARRIER_EXAMPLES: Dict[str, Dict[str, Any]] = {
     "Poly": {"construct": "Poly([Q(1), Q(2), Q(3)])", "yields": "Poly(degree=2, exact-rational)"},
     "Q": {"construct": "Q(3, 4)", "yields": "Q(3, 4)"},
     "QBiPoly": {"construct": "QBiPoly([QPoly([Poly([Q(1)])])])", "yields": "QBiPoly(y_degree=0, exact bivariate-ℚ[q] in (X,Y))"},
+    "QMat": {"construct": "QMat([[Q(2), Q(0), Q(2)], [Q(0), Q(2), Q(1)]])", "yields": "QMat(2x3, exact-rational)"},
     "QPoly": {"construct": "QPoly([Poly([Q(1)]), Poly([Q(1)])], x_low=0)", "yields": "QPoly(x_low=0, x_high=1, q_degree=0, exact ℚ[q])"},
     "Qalg": {"construct": "Qalg.alpha([-2, 0, 1])  # a root of x**2 - 2, carried EXACTLY", "yields": "Qalg(degree=2, coords=(Q(0, 1), Q(1, 1)), m=x**2-2); (α*α).as_rational() == Q(2, 1) and α.is_rational() is False"},
     "SedenionRegister": {"construct": "sedenion_register(D=256)"},

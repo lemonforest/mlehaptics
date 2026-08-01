@@ -3126,7 +3126,7 @@ static const srmech_tool_param_t ts_params_524[] = {
     { "N", "QMat | Sequence[Sequence[int | Q]]", 1, "the stoichiometric matrix (rows = species, columns = reactions) as a QMat or a nested int/Q sequence" },
 };
 static const srmech_tool_param_t ts_params_525[] = {
-    { "reactions", "Sequence[tuple[complex, complex]]", 1, "an iterable of (reactant, product) pairs; each complex is an {species: coeff} dict ({\"A\": 2} for 2A), a bare species-name str (coeff 1), or the zero complex (\"\"/\"0\"/None for the empty complex in a synthesis/degradation step)" },
+    { "reactions", "Sequence[tuple[dict[str,int], dict[str,int]]]", 1, "an iterable of (reactant, product) pairs; each complex is an {species: coeff} dict ({\"A\": 2} for 2A), a bare species-name str (coeff 1), or the zero complex (\"\"/\"0\"/None for the empty complex in a synthesis/degradation step)" },
     { "with_components", "bool", 0, "return the full breakdown dict instead of the bare integer; default False" },
 };
 static const srmech_tool_param_t ts_params_526[] = {

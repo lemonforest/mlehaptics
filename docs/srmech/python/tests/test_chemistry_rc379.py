@@ -256,3 +256,33 @@ def test_ops_registered_in_tool_schema():
 def test_describe_total_is_530():
     import srmech
     assert srmech.describe()["tools"]["total"] == 530
+
+
+# ──────────────────────────────────────────────────────────────────────
+# MCP param-coercion round-trip (JSON example -> coercer -> op)
+# ──────────────────────────────────────────────────────────────────────
+
+def test_mcp_coercers_roundtrip_into_each_op():
+    """The three math ops must be genuinely MCP/Anthropic-callable: a
+    JSON-serializable payload for each param type coerces into the exact Python
+    the op expects. Pins the coercer keys AND that the coerced value runs."""
+    from srmech.mcp._coercion import coerce_param
+
+    # balance_reaction `species`: a JSON list of formula strings
+    sp = coerce_param(["H2", "O2", "H2O"], "Sequence[str | dict[str,int]] | QMat")
+    assert balance_reaction(sp) == [2, 1, -2]
+
+    # conservation_laws `N`: JSON nested ints, and [num, den] exact-Q pairs
+    N = coerce_param([[-1, 1, 1], [-1, 1, 0], [1, -1, -1], [0, 0, 1]],
+                     "QMat | Sequence[Sequence[int | Q]]")
+    assert len(conservation_laws(N)) == 2
+    Nq = coerce_param([[[1, 1], [-1, 1]], [[-1, 1], [1, 1]]],
+                      "QMat | Sequence[Sequence[int | Q]]")
+    assert conservation_laws(Nq) == [[1, 1]]
+
+    # deficiency `reactions`: JSON [reactant, product] complex-dict pairs
+    rx = coerce_param([[{"A": 2}, {"A": 1, "B": 1}],
+                       [{"A": 1, "B": 1}, {"B": 2}],
+                       [{"B": 2}, {"A": 2}]],
+                      "Sequence[tuple[dict[str,int], dict[str,int]]]")
+    assert deficiency(rx) == 1
