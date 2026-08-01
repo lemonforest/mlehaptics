@@ -317,7 +317,7 @@ def _try_sigma(rel: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     and is accepted only when it returns a (non-None) rational certificate.
     Returns the reduced dict, or ``None`` to fall through to OPEN."""
     if all(k in rel for k in _SIGMA_KEYS):
-        from . import wz_certificate as _wz  # lazy: avoids import cycle
+        from ..apokatastasis import wz_certificate as _wz  # lazy: avoids import cycle
         cert = _wz.wz_certificate(rel["rn_num"], rel["rn_den"],
                                   rel["rk_num"], rel["rk_den"])
         # VERIFY: trust ONLY the reducer's own verification flag (anti-
@@ -327,7 +327,7 @@ def _try_sigma(rel: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         return None  # not WZ-summable / not verified → honest OPEN
     # Indefinite hypergeometric summation (Gosper) — a single term-ratio.
     if all(k in rel for k in _SIGMA_GOSPER_KEYS):
-        from . import gosper as _g  # lazy
+        from ..apokatastasis import gosper as _g  # lazy
         r = _g.gosper(rel["term_ratio_num"], rel["term_ratio_den"])
         if r is not None:  # a (non-None) certificate IS the verification here
             return _reduced("sigma", "gosper", r)
@@ -342,7 +342,7 @@ def _try_sigma_multivar(rel: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     it to annihilate ``Σ_{j,k} F(n,j,k)`` via the exact-ℚ QMat solve — the same
     'a (non-None) certificate is the proof' contract as gosper/zeilberger).
     Returns the reduced dict, or ``None`` to fall through to OPEN."""
-    from . import apagodu_zeilberger as _az  # lazy: avoids import cycle
+    from ..apokatastasis import apagodu_zeilberger as _az  # lazy: avoids import cycle
     rec = _az.apagodu_zeilberger(rel["rn_num"], rel["rn_den"],
                                  rel["rj_num"], rel["rj_den"],
                                  rel["rk_num"], rel["rk_den"])
@@ -359,14 +359,14 @@ def _try_sigma_q(rel: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     ``q_gosper`` (accepted iff it returns a rational q-antidifference cert).
     Returns the reduced dict, or ``None`` to fall through to OPEN."""
     if all(k in rel for k in _SIGMA_Q_KEYS):
-        from . import q_wz_certificate as _qwz  # lazy
+        from ..apokatastasis import q_wz_certificate as _qwz  # lazy
         cert = _qwz.q_wz_certificate(rel["qrn_num"], rel["qrn_den"],
                                      rel["qrk_num"], rel["qrk_den"])
         if cert is not None and cert.get("verified") is True:
             return _reduced("sigma_q", "q_wz_certificate", cert)
         return None  # not q-WZ / not verified → honest OPEN
     if all(k in rel for k in _SIGMA_Q_GOSPER_KEYS):
-        from . import q_gosper as _qg  # lazy
+        from ..apokatastasis import q_gosper as _qg  # lazy
         r = _qg.q_gosper(rel["q_term_ratio_num"], rel["q_term_ratio_den"])
         if r is not None:  # a (non-None) q-certificate IS the verification here
             return _reduced("sigma_q", "q_gosper", r)
@@ -383,7 +383,7 @@ def _try_sigma_elliptic(rel: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     anti-hallucination gate as the ordinary / q ``wz_certificate``). The reduced
     payload carries the closed form ``cf(n)``. Returns the reduced dict, or
     ``None`` to fall through to OPEN."""
-    from . import elliptic_wz_certificate as _ewz  # lazy: avoids import cycle
+    from ..apokatastasis import elliptic_wz_certificate as _ewz  # lazy: avoids import cycle
     cert = _ewz.elliptic_wz_certificate(rel["elliptic_term_ratio"])
     # VERIFY: trust ONLY the reducer's own verification flag (anti-hallucination —
     # the connection-coefficient induction certificate's ``verified`` is True only
@@ -413,7 +413,7 @@ def _try_sigma_elliptic_multivar(rel: Dict[str, Any]) -> Optional[Dict[str, Any]
     raise, and the caller routes to OPEN. The F929 anti-hallucination discipline: the router
     never claims ``reducible: True`` without either a per-call proof (``verified=True``) or the
     build-verified constructive closed form (``verified=None``)."""
-    from . import elliptic_jackson as _ej  # lazy: avoids import cycle
+    from ..apokatastasis import elliptic_jackson as _ej  # lazy: avoids import cycle
     from ..apokatastasis.ellbase import EllMonomial as _M
 
     def _mono(v: Any) -> "Any":
@@ -457,7 +457,7 @@ def _try_sigma_elliptic_an(rel: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     routes to OPEN. Malformed params (``N < 1`` / a length mismatch /
     non-coercible entries) raise, and the caller routes to OPEN — the same F929
     anti-hallucination gate as the Cₙ multivar row."""
-    from . import elliptic_jackson_an as _eja  # lazy: avoids import cycle
+    from ..apokatastasis import elliptic_jackson_an as _eja  # lazy: avoids import cycle
     from ..apokatastasis.ellbase import EllMonomial as _M
 
     def _mono(v: Any) -> "Any":
