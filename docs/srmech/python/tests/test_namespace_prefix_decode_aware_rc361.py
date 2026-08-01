@@ -340,7 +340,7 @@ CEIL_AMSC_PREFIX = {
     # batch: the 10 moved modules ToolEntry name= citations + worked-example
     # imports + sibling-prose dotted refs repointed amsc->math; the 4 hoisted
     # decoded refs were to moved-module ops and left too.
-    "c/src/srmech_tool_registry.c": (577, 0),
+    "c/src/srmech_tool_registry.c": (576, 0),
     # rc368 — THE FIRST MODULE MOVE TO MOVE THIS ARTIFACT (the new data point).
     # This was the CONTROL row through harmonics/naming: "no byte arrays, decoded
     # 0 is a real zero". It is still a real zero on the decoded channel, but the
@@ -455,7 +455,7 @@ CEIL_AMSC_PREFIX = {
 #:
 #: as-text 2933 (rc361) -> 2943 (rc362, +10 = the 5 citations x 2 artifacts).
 #: decoded 577 (rc361)  ->  577 (rc362, FLAT — the population did not move).
-TOTAL_AS_TEXT = 1336   # rc372 2611 -> rc373 1336 (-1275: the A-N primitives batch, 10 modules amsc->math; -534 tool_registry -531 _tool_docs -119 _c_claims -56 carrier -35 responsion)
+TOTAL_AS_TEXT = 1335   # rc372 2611 -> rc373 1335 (-1276: the A-N primitives batch, 10 modules amsc->math; -535 tool_registry -531 _tool_docs -119 _c_claims -56 carrier -35 responsion)
 TOTAL_DECODED = 242    # rc372 544 -> rc373 242 (-302: POPULATION fell — 298 carrier-registry back-index refs amsc->math + 4 tool_registry hoisted refs to moved-module ops)
 
 
