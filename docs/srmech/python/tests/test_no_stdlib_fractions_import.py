@@ -109,6 +109,7 @@ _ALLOWED_SUPPORTING = {
     "tests/test_op_provenance_rc117.py": _ORACLE,
     "tests/test_poly_rc38.py": _INTERCHANGE,
     "tests/test_poly_rc39.py": _INTERCHANGE,
+    "tests/test_primitive_integer_vector_rc378.py": _INTERCHANGE,
     "tests/test_q_cross_gcd_mul_rc211.py": _INTERCHANGE,
     "tests/test_q_cross_gcd_mul_rc220.py": _INTERCHANGE,
     "tests/test_q_gosper_rc55.py": _INTERCHANGE,
