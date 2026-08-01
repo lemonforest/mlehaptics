@@ -1,4 +1,12 @@
-"""Tests for the cascade.atoms / cascade.compose two-tier split.
+"""Tests for the cascade.atoms / cascade.composites two-tier split.
+
+⚠️ rc377 (`#T1034`, ADR-0010) renamed the composites tier from ``compose`` to
+``composites`` on the move out of ``srmech.amsc.cascade``: a ``compose.py`` (the
+ADR-0002 chain ENGINE — ``run_chain`` / ``parse_chain_spec``) already lived in
+``srmech.cascade``, so the lean-ISA composites had to take a distinct name. The
+two are different modules and must not collapse — ``cascade.composites`` is the
+atoms+composites tier this file exercises; ``cascade.compose`` is the chain
+engine.
 
 Per issue #751 (F208 / MS #20 forward-architecture). The single
 ``srmech.cascade`` module is split into two tiers:
@@ -87,11 +95,15 @@ def test_back_compat_aliases_unchanged():
 
 def test_submodules_exposed_as_attributes():
     assert cascade.atoms is atoms_mod
-    assert cascade.compose is compose_mod
+    assert cascade.composites is compose_mod
+    # the chain ENGINE is a DISTINCT module (rc377 rename) — never composites
+    import srmech.cascade.compose as chain_engine
+    assert cascade.compose is chain_engine
+    assert cascade.compose is not compose_mod
 
 
-def test_atom_in_compose_is_same_object():
-    # compose imports the atoms it builds over from .atoms — they must be
+def test_atom_in_composites_is_same_object():
+    # composites imports the atoms it builds over from .atoms — they must be
     # the exact same objects, not copies.
     assert compose_mod.pin_slot_at_zero is atoms_mod.pin_slot_at_zero
     assert compose_mod.reorient is atoms_mod.reorient
