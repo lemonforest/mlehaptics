@@ -308,7 +308,7 @@ jobs:
           # no such directory (it is gitignored build output); this makes the cell
           # correct rather than merely lucky, and the assertion two steps down
           # still fires if anything recreates it.
-          rm -rf srmech/_native
+          rm -f srmech/_native/*.so srmech/_native/*.dll srmech/_native/*.dylib srmech/_native/*.dll.a srmech/_native/*.lib srmech/_native/*.pyd  # rc376: keep the shim __init__.py; drop only binaries
           mv pyproject.toml pyproject.toml.platform
           cp pyproject-pure.toml pyproject.toml
           trap 'mv pyproject.toml.platform pyproject.toml' EXIT
@@ -510,7 +510,7 @@ jobs:
         # `[dev]` extra and collection sees exactly the shards' environment.
         run: |
           set -euo pipefail
-          rm -rf srmech/_native
+          rm -f srmech/_native/*.so srmech/_native/*.dll srmech/_native/*.dylib srmech/_native/*.dll.a srmech/_native/*.lib srmech/_native/*.pyd  # rc376: keep the shim __init__.py; drop only binaries
           mv pyproject.toml pyproject.toml.platform
           cp pyproject-pure.toml pyproject.toml
           trap 'mv pyproject.toml.platform pyproject.toml' EXIT
@@ -937,7 +937,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           # No stale hand-placed library may pre-empt the installed one.
-          rm -rf srmech/_native
+          rm -f srmech/_native/*.so srmech/_native/*.dll srmech/_native/*.dylib srmech/_native/*.dll.a srmech/_native/*.lib srmech/_native/*.pyd  # rc376: keep the shim __init__.py; drop only binaries
           python -m pip install -e ".[dev]" --config-settings=cmake.build-type=Debug
 
       - name: Verify the asserts really ARE live
