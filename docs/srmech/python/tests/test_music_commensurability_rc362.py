@@ -296,7 +296,7 @@ def test_the_class_n_fallback_really_does_convert_inharmonic_to_harmonic():
     FALSE period. The convergent denominators diverge monotonically and never
     close, which is the tell.
     """
-    from srmech.amsc.rational import best_rational, continued_fraction
+    from srmech.math.rational import best_rational, continued_fraction
 
     # A rational target LOCKS: the same answer at every ceiling. This is the
     # control that proves the instrument can return something else.

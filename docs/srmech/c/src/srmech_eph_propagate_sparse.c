@@ -10,7 +10,7 @@
  * cap. NO eigendecomposition, NO dense e^{-zL} is ever formed.
  *
  * The operator is the SIGNED graph Laplacian read straight off the edge
- * list (the srmech.amsc.laplacian.signed_laplacian convention):
+ * list (the srmech.math.laplacian.signed_laplacian convention):
  *     (L v)[i] = deg[i]·v[i] − Σ_{(i,j) edge} w_ij·v[j]
  * with deg[i] = Σ_incident |w| (a Class-K sign BRANCH, never fabs) and
  * self-loops skipped (they cancel in D̄ − A). Duplicate edges are read

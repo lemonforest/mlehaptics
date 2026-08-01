@@ -29,7 +29,8 @@ from array import array
 import pytest
 
 from srmech.amsc import _native
-from srmech.amsc import compose, coupling, hdc, laplacian
+from srmech.amsc import compose, coupling
+from srmech.math import hdc, laplacian
 from srmech.music import harmonics
 from srmech.amsc.q import Q
 

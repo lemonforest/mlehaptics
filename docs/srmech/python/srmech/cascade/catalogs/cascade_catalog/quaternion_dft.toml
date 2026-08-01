@@ -83,7 +83,7 @@ abi_note = "rc110 adds srmech_quaternion_dft as a NEW exported symbol (additive)
 # The rc109 qm.quaternion foundation this graduated op stands on (#1234 Item 1a).
 multiply_atom = "srmech.qm.quaternion.quaternion_left_mult / quaternion_right_mult (the 4×4 L_q/R_q operators; C peers srmech_quaternion_{left,right}_mult)"
 twiddle = "srmech.qm.quaternion.quaternion_twiddle — exp(σ·μ·2πjk/N) with exact Class-I jk mod N + Class-N π/trig cascade (C peer srmech_quaternion_twiddle); exact-rational tier quaternion_exp_series_truncate"
-radix_split_atom = "srmech.amsc.primes.factor + srmech.amsc.cyclic (the algebra-agnostic Cooley-Tukey reindex — the future-work FFT factorisation rung)"
+radix_split_atom = "srmech.math.primes.factor + srmech.math.cyclic (the algebra-agnostic Cooley-Tukey reindex — the future-work FFT factorisation rung)"
 
 [cascade.graduation]
 tier = "graduated (0.9.0rc110; #1234 Item 1b) — first-class native C/Python primitive"

@@ -5,8 +5,8 @@ eigendecomposition (and ica_jade's atan2/cos/sin) onto srmech's own A-N cascade
 primitives in the four closed-form ops ``esprit`` / ``heat_kernel`` /
 ``ica_jade`` / ``music``:
 
-- Routing A: eigh -> ``srmech.amsc.laplacian.hermitian_eigendecompose``
-- Routing B: arctan2/cos/sin -> ``srmech.amsc.rational.atan2/cos/sin``
+- Routing A: eigh -> ``srmech.math.laplacian.hermitian_eigendecompose``
+- Routing B: arctan2/cos/sin -> ``srmech.math.rational.atan2/cos/sin``
 
 numpy-FREE (#564): numpy is GONE from srmech. ``hermitian_eigendecompose``
 returns plain Python lists, and the four closed-form ops consume / return plain
@@ -24,7 +24,7 @@ import math
 import random
 
 from srmech.amsc.cascade.matrix_cascades import eigvals, eigvals_exact
-from srmech.amsc.laplacian import hermitian_eigendecompose
+from srmech.math.laplacian import hermitian_eigendecompose
 from srmech.signal_processing.closed_form_ops import (
     esprit,
     heat_kernel,
@@ -115,13 +115,13 @@ def test_hermitian_eig_complex_hermitian_parity():
 
 
 # ---------------------------------------------------------------------------
-# Routing B — ica_jade trig parity (srmech.amsc.rational vs libm)
+# Routing B — ica_jade trig parity (srmech.math.rational vs libm)
 # ---------------------------------------------------------------------------
 
 
 def test_rational_trig_parity_with_libm():
     """The Class-N trig used by ica_jade matches libm to its documented bound."""
-    from srmech.amsc import rational as _srn
+    from srmech.math import rational as _srn
 
     # 13 points over [-1.5, 1.5] (numpy-free linspace).
     thetas = [-1.5 + 3.0 * i / 12 for i in range(13)]

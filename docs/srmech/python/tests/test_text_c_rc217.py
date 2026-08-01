@@ -1,4 +1,4 @@
-"""rc217 (gh #1360) + rc287 — BYTE-IDENTICAL C peers for `srmech.amsc.text`.
+"""rc217 (gh #1360) + rc287 — BYTE-IDENTICAL C peers for `srmech.math.text`.
 
 The §40/§52 text→graph ingestion ops shipped rc50/§52 as pure-Python kernels
 with NO C peer — the enwiki comprehended-encode's dominant cost ran in Python
@@ -37,7 +37,7 @@ import pytest
 
 from srmech.amsc import _native
 from srmech.amsc import _unicode_gb_tables as gbt
-from srmech.amsc import text as T
+from srmech.math import text as T
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -297,7 +297,7 @@ def test_rosetta_rows_are_c_dispatched():
     rows = {json.loads(l)["defined_at"]: json.loads(l)
             for l in _LEDGER.read_text(encoding="utf-8").splitlines() if l.strip()}
     for op in ("glyph_stream", "cooccurrence_edges", "cooccurrence_topk"):
-        row = rows[f"srmech.amsc.text.{op}"]
+        row = rows[f"srmech.math.text.{op}"]
         assert row["bucket"] == "c_dispatched", row
         assert "non_compute_kind" not in row, row
 
@@ -342,5 +342,5 @@ def test_tool_schema_entries_exist():
     from srmech.amsc.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
     for op in ("glyph_stream", "cooccurrence_edges", "cooccurrence_topk"):
-        assert f"srmech.amsc.text.{op}" in names
-    assert "srmech.amsc.text.tokenize" not in names        # retired at rc287
+        assert f"srmech.math.text.{op}" in names
+    assert "srmech.math.text.tokenize" not in names        # retired at rc287

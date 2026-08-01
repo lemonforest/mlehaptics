@@ -29,9 +29,9 @@ import random
 
 import pytest
 
-from srmech.amsc.laplacian import mat_norm
-from srmech.amsc import hdc
-from srmech.amsc.hdc import LOOP_DIM
+from srmech.math.laplacian import mat_norm
+from srmech.math import hdc
+from srmech.math.hdc import LOOP_DIM
 
 NB = 64  # blocks; D = NB * 8 = 512 (an HD width, > one octonion)
 

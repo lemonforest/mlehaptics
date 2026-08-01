@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc.tlv import TLV_PREFIX_BYTES, tlv_pack, tlv_unpack
+from srmech.math.tlv import TLV_PREFIX_BYTES, tlv_pack, tlv_unpack
 from srmech.amsc.genome import (
     CHROM_CAP_MARKER,
     GENE_CAP_MARKER,
@@ -21,7 +21,7 @@ from srmech.amsc.genome import (
     recall,
     telomere,
 )
-from srmech.amsc.hdc import klein4_expand
+from srmech.math.hdc import klein4_expand
 
 
 # ── tlv_unpack: the inverse reader ────────────────────────────────────────

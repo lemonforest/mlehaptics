@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc.hdc import klein4_expand
+from srmech.math.hdc import klein4_expand
 from srmech.dsl import (
     get_class_descriptor,
     list_classes,

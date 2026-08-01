@@ -34,7 +34,7 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from srmech.amsc import rational as _srn
+from srmech.math import rational as _srn
 from srmech.amsc.cascade import spectral_cascades as _sc
 
 OPERATION_NAME = "stft"
@@ -55,7 +55,7 @@ def _ccos(a):
     """Elementwise substrate-native cosine (Class-N rational cascade), numpy-free.
 
     Replaces ``np.cos`` on the Hann-window angle array — routes each angle
-    through ``srmech.amsc.rational.cos`` (pi-free range reduction); no ``np.cos``
+    through ``srmech.math.rational.cos`` (pi-free range reduction); no ``np.cos``
     / ``math.cos`` in the call graph. ``rational.cos`` returns an exact ``Q``;
     the window is a real FPU windowing array that multiplies the complex frame
     samples, so collapse to ``float`` here (the last-mile rotate — ``Q × complex``

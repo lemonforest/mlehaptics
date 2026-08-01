@@ -4,7 +4,7 @@
 # This is a CONTINUUM-TIER worked instance, NOT a cascade-catalog op-descriptor
 # and NOT a srmech.dsl runnable chain. The Klein-4 ops it composes
 # (klein4_triality_cycle + the three chirality flips) are KERNEL-tier ops in
-# srmech.amsc.hdc — deliberately NOT registered in the srmech.dsl cascade
+# srmech.math.hdc — deliberately NOT registered in the srmech.dsl cascade
 # catalog (which resolves ops via srmech.amsc.cascade). Per the rc16 two-tier
 # SSoT boundary, a primitive relabel like the triality cycle stays in the
 # hardcoded kernel; THIS file is the worked *instance* that composes those
@@ -19,7 +19,7 @@
 name = "triality_s3_klein4"
 carrier = "V4 = Z2 x Z2 — the Klein-4 sector alphabet {0,1,2,3}, state = g5_bit*2 + iw7_bit, group op = XOR"
 automorphism_group = "Aut(V4) = S3 (the 6 permutations of the three non-identity elements {1,2,3}, identity 0 fixed)"
-purpose = "Demonstrate that srmech.amsc.hdc.klein4_triality_cycle is the order-3 generator of Aut(V4)=S3 — the 'third axis' (F182) beyond the three order-2 chirality flips — via the automorphism conjugation relation, composed bit-exactly from the kernel hdc ops."
+purpose = "Demonstrate that srmech.math.hdc.klein4_triality_cycle is the order-3 generator of Aut(V4)=S3 — the 'third axis' (F182) beyond the three order-2 chirality flips — via the automorphism conjugation relation, composed bit-exactly from the kernel hdc ops."
 
 # Aut(V4) = S3 — the 6 relabels of the non-identity elements {1,2,3} (0 fixed).
 # srmech exposes ONLY the order-3 generator (T, T^2); the three transposition-
@@ -54,22 +54,22 @@ cycle = [
 closure = "Applying T three times returns each flip to itself (T^3 = id): iw7 -> g5 -> cpt -> iw7. This IS the order-3 cycling F182 asked for — NOT a fourth order-2 chirality."
 
 [worked_instance.composes]
-# The kernel ops this instance sequences (all srmech.amsc.hdc; co-equal C
+# The kernel ops this instance sequences (all srmech.math.hdc; co-equal C
 # peers exist for bind/bundle/similarity + triality_cycle as of rc18).
-triality_cycle = "srmech.amsc.hdc.klein4_triality_cycle — Class I order-3 relabel; C peer srmech_klein4_triality_cycle (rc18)"
-flip_omega7 = "srmech.amsc.hdc.klein4_chirality_flip_omega7 — XOR 1 (Class C/K involution)"
-flip_gamma5 = "srmech.amsc.hdc.klein4_chirality_flip_gamma5 — XOR 2 (Class C/K involution)"
-cpt_mirror = "srmech.amsc.hdc.klein4_cpt_mirror — XOR 3 (Class C/K involution)"
+triality_cycle = "srmech.math.hdc.klein4_triality_cycle — Class I order-3 relabel; C peer srmech_klein4_triality_cycle (rc18)"
+flip_omega7 = "srmech.math.hdc.klein4_chirality_flip_omega7 — XOR 1 (Class C/K involution)"
+flip_gamma5 = "srmech.math.hdc.klein4_chirality_flip_gamma5 — XOR 2 (Class C/K involution)"
+cpt_mirror = "srmech.math.hdc.klein4_cpt_mirror — XOR 3 (Class C/K involution)"
 
 # Machine-readable op table (logical-name -> dotted srmech path) — consumed by
 # the SSoT coherence ratchet (tests/test_ssot_coherence_scan.py), which resolves
 # every path to a real callable. The prose [worked_instance.composes] above is
 # the human-readable companion; this is the scannable form.
 [worked_instance.ops]
-triality_cycle = "srmech.amsc.hdc.klein4_triality_cycle"
-flip_omega7 = "srmech.amsc.hdc.klein4_chirality_flip_omega7"
-flip_gamma5 = "srmech.amsc.hdc.klein4_chirality_flip_gamma5"
-cpt_mirror = "srmech.amsc.hdc.klein4_cpt_mirror"
+triality_cycle = "srmech.math.hdc.klein4_triality_cycle"
+flip_omega7 = "srmech.math.hdc.klein4_chirality_flip_omega7"
+flip_gamma5 = "srmech.math.hdc.klein4_chirality_flip_gamma5"
+cpt_mirror = "srmech.math.hdc.klein4_cpt_mirror"
 
 [worked_instance.attestation]
 author = "Steven Kirkland"

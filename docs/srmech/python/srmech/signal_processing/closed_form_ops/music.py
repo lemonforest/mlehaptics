@@ -13,8 +13,8 @@ Path B dual in Phase 6 (Path B correlation eigendecomposition).
 
 Carrier-removal #564 (rc99): numpy-FREE — the eigendecomposition + noise-subspace
 projection route through the native Mat-carrier foundation
-(:func:`~srmech.amsc.laplacian.mat_hermitian_eigendecompose` +
-:func:`~srmech.amsc.laplacian.mat_matmul`), so MUSIC runs with numpy genuinely
+(:func:`~srmech.math.laplacian.mat_hermitian_eigendecompose` +
+:func:`~srmech.math.laplacian.mat_matmul`), so MUSIC runs with numpy genuinely
 absent. No top-level ``import numpy``.
 
 Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Schmidt
@@ -25,7 +25,7 @@ from __future__ import annotations
 
 from typing import List
 
-from srmech.amsc.laplacian import mat_hermitian_eigendecompose, mat_matmul
+from srmech.math.laplacian import mat_hermitian_eigendecompose, mat_matmul
 from srmech.amsc.mat import Mat
 
 OPERATION_NAME = "music"

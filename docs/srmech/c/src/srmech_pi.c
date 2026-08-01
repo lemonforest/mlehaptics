@@ -1,7 +1,7 @@
 /*
  * srmech_pi.c — the ROTATION-LAST Chudnovsky π operator on srmech_bigint
  * (0.9.0rc19; the C-host peer of pi_chudnovsky_digits in
- * srmech/amsc/rational.py).
+ * srmech/math/rational.py).
  *
  * The canonical srmech cascade shape: keep the body BIT-EXACT (integer
  * add / sub / mul / floor-divmod on the exact srmech_bigint substrate) and

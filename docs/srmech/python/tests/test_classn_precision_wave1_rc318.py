@@ -1,10 +1,10 @@
 """rc318 — Class-N precision-contract migration WAVE 1 prove-gates.
 
 ``precision_bits`` → ``precision``: a PURE keyword RENAME on three Class-N ops
-(:func:`~srmech.amsc.rational.sqrt` / :func:`~srmech.amsc.rational.hypot` /
-:func:`~srmech.amsc.rational.pi_cascade_digits`), plus the generalization of the
+(:func:`~srmech.math.rational.sqrt` / :func:`~srmech.math.rational.hypot` /
+:func:`~srmech.math.rational.pi_cascade_digits`), plus the generalization of the
 rc317 dual-precision pilot helper ``_classn_precision`` into the KIND-
-parametrized :func:`~srmech.amsc.rational._classn_working`. BREAKING, NO legacy
+parametrized :func:`~srmech.math.rational._classn_working`. BREAKING, NO legacy
 ``precision_bits`` alias.
 
 Gates
@@ -27,8 +27,8 @@ numpy-free (no numpy import anywhere in the call graph).
 import pytest
 
 from srmech.amsc import _native
-from srmech.amsc import rational as R
-from srmech.amsc.rational import (
+from srmech.math import rational as R
+from srmech.math.rational import (
     sqrt, hypot, pi_cascade_digits, relative_writhe,
     _classn_working, _CLASSN_PLATFORM_DEN_BITS,
 )

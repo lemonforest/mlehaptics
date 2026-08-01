@@ -1,6 +1,6 @@
 """rc320 — Class-N precision-contract migration WAVE 2 prove-gates.
 
-The seven Q61 float-projection ops (:func:`~srmech.amsc.rational.cos` / ``sin`` /
+The seven Q61 float-projection ops (:func:`~srmech.math.rational.cos` / ``sin`` /
 ``tan`` / ``atan`` / ``atan2`` / ``exp`` / ``log``) trade their DEAD ``terms``
 keyword for a LIVE ``precision``:
 
@@ -43,8 +43,8 @@ import pytest
 
 from tests._native_gate import require_native
 from srmech.amsc import _native
-from srmech.amsc import rational as R
-from srmech.amsc.rational import (
+from srmech.math import rational as R
+from srmech.math.rational import (
     cos, sin, tan, atan, atan2, exp, log, _classn_working,
 )
 

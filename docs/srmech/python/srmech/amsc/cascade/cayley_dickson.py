@@ -90,7 +90,7 @@ from srmech.amsc.cascade.atoms import (      # Class-K pin-slot / Class-C reorie
     pin_slot_at_zero as _pin_slot_at_zero,
     reorient as _reorient,
 )
-from srmech.amsc.cyclic import gcd as _gcd   # Class-I gcd (native); NOT stdlib math
+from srmech.math.cyclic import gcd as _gcd   # Class-I gcd (native); NOT stdlib math
 from srmech.amsc.q import Q, to_q            # #845: the CD element carrier is Q
 
 from srmech.amsc import _native  # rc10: native srmech_cd_basis_product dispatch
@@ -810,7 +810,7 @@ def table_product(table: Any, x: Sequence[Any], y: Sequence[Any]
     :func:`algebra_table`, ``octonion_mult_table()``, or a random table with no
     algebraic structure at all. **Two table-driven products already existed in
     this tree and neither shipped** (a private dim-8-hardcoded loop in
-    :mod:`srmech.amsc.laplacian` with one caller, and a test-local oracle that
+    :mod:`srmech.math.laplacian` with one caller, and a test-local oracle that
     existed *because* no shipped product took a table); this is the one both
     now route through.
 
@@ -1203,7 +1203,7 @@ def left_mult_matrix(x: Sequence[Any], table: Any = None) -> List[List[Q]]:
 
     The contraction is written out as an exact-ℚ sum, NOT as a matmul: this
     module is numpy-free by construction (see the module docstring), and matrix
-    contraction is a **carrier op** (:func:`srmech.amsc.laplacian.mat_matmul` /
+    contraction is a **carrier op** (:func:`srmech.math.laplacian.mat_matmul` /
     ``mat_matvec``) rather than an operator to reach for — numpy is a carrier,
     never the math engine, and ``L(x)`` here is a nested list of exact
     :class:`~srmech.amsc.q.Q`, which no numpy dtype can hold without rounding.
@@ -1791,7 +1791,7 @@ def inertia_signature(table: Any) -> Dict[str, Any]:
     to 𝕆 — while being 0/200 associative, 0/200 alternative and 0/200
     composition.** The op reads the inertia of the trace form and nothing else.
     For the off-diagonal structure use the complementary instruments already in
-    this tree: ``srmech.amsc.hdc.loop_associator`` / ``g2_three_form``,
+    this tree: ``srmech.math.hdc.loop_associator`` / ``g2_three_form``,
     ``srmech.amsc.genome.genome_octonion_associator``, and
     :func:`left_mult_is_invertible`.
 

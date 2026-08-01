@@ -28,7 +28,7 @@ from srmech.amsc.cascade.matrix_cascades import (
     _count_roots_in_box,
     eigvals_exact,
 )
-from srmech.amsc.laplacian import mat_eigvals
+from srmech.math.laplacian import mat_eigvals
 from srmech.amsc.mat import Mat
 
 

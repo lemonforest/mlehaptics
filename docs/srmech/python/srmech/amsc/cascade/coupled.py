@@ -27,8 +27,8 @@ from __future__ import annotations
 
 from typing import Dict, Sequence, Tuple
 
-from srmech.amsc.rational import sin as _sin, cos as _cos
-from srmech.amsc import hdc as _hdc
+from srmech.math.rational import sin as _sin, cos as _cos
+from srmech.math import hdc as _hdc
 from srmech.amsc.format import sha256_bytes as _sha256
 
 from .atoms import magnitude as _magnitude, pin_slot_at_zero

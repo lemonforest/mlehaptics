@@ -53,7 +53,7 @@ from srmech.signal_processing import (
     mint_vector,
     verify_rotation_class_n_cycle_order,
 )
-from srmech.amsc import hdc as _M
+from srmech.math import hdc as _M
 
 
 # ──────────────────────────────────────────────────────────────────────

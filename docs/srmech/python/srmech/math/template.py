@@ -34,7 +34,7 @@ from __future__ import annotations
 import ctypes
 from typing import Mapping
 
-from . import _native
+from ..amsc import _native
 
 __all__ = ["render"]
 

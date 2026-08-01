@@ -25,7 +25,7 @@ Why a carrier and not a bare ``(num, den)`` tuple or a Python ``float``:
   keeps the value attestable, instead of inviting a lossy ``float`` divide.
 
 Everything stays exact: reduction rides the Class-N
-:func:`srmech.amsc.rational._reduce_rational` (Euclidean GCD over big ints, no
+:func:`srmech.math.rational._reduce_rational` (Euclidean GCD over big ints, no
 stdlib ``math``); arithmetic rides Class-N ``rational_add`` / ``rational_mul`` /
 ``rational_div``. ``(num, den)`` is always recoverable — ``q.numerator`` /
 ``q.denominator`` or unpacking ``num, den = q``.
@@ -80,8 +80,8 @@ import numbers
 from typing import Tuple
 
 from . import _native
-from . import cyclic as _cyclic
-from . import rational as _rational
+from ..math import cyclic as _cyclic
+from ..math import rational as _rational
 
 __all__ = ["Q", "to_q"]
 
@@ -158,7 +158,7 @@ def _cross_reduce(a_num: int, a_den: int, b_num: int, b_den: int):
     ``g2 = gcd(|b_num|, a_den)`` off the anti-diagonal. Requires positive
     denominators. Returns the four cross-reduced parts (signs stay on the
     numerators; dividing by a positive gcd of the magnitude is exact). The
-    gcds ride the Class-I :func:`srmech.amsc.cyclic.gcd` on Class-K
+    gcds ride the Class-I :func:`srmech.math.cyclic.gcd` on Class-K
     sign-branch magnitudes (never an ALU ``abs()``)."""
     # Class-K magnitude via EXPLICIT sign-branches, never an ALU abs().
     a_mag = a_num if a_num >= 0 else -a_num
@@ -177,7 +177,7 @@ def _cross_reduce(a_num: int, a_den: int, b_num: int, b_den: int):
 def _coprime_product(x: int, y: int) -> int:
     """``x · y`` for the cross-reduced (proven-coprime-product) fast path —
     0.9.0rc220 (#786, closing the rc212 honest-note follow-up). At/above the
-    measured :data:`srmech.amsc.rational._BIGQ_MIN_BITS` threshold the product
+    measured :data:`srmech.math.rational._BIGQ_MIN_BITS` threshold the product
     rides srmech's OWN caller-arena C bignum via :func:`_native.bigint_mul_c`
     (the RAW ``srmech_bigint_mul`` / rc168 Karatsuba product — NO fused gcd;
     the fused ``bigq_mul_c``'s product-scale reduce is exactly the work
@@ -202,7 +202,7 @@ def _coprime_product(x: int, y: int) -> int:
 def _mul_cross_reduced(a: Tuple[int, int], b: Tuple[int, int]) -> Tuple[int, int]:
     """Cross-gcd-first rational multiply over ARBITRARY house-form pairs
     (possibly unreduced, e.g. a raw ``(6, 4)`` tuple operand): cross-reduce,
-    then the full :func:`~srmech.amsc.rational.rational_mul` reduce — for an
+    then the full :func:`~srmech.math.rational.rational_mul` reduce — for an
     unreduced input the cross gcds alone do not reach lowest terms, so the
     final reduce stays. BYTE-IDENTICAL to ``rational_mul(a, b)`` (dividing
     shared factors out early never changes the value; the final reduce
@@ -470,7 +470,7 @@ class Q:
     def __pow__(self, exp):
         """Exact rational power for an INTEGER exponent — the EXACT rational
         ``(num/den)**exp``, staying in the integer ALU (rides the Class-N
-        :func:`~srmech.amsc.rational.rational_pow_uint`, native-dispatched). An
+        :func:`~srmech.math.rational.rational_pow_uint`, native-dispatched). An
         integer-valued exponent may be an ``int`` OR an integer-valued rational
         (``Q(2, 1)``). A genuinely non-integer exponent (a rational with
         denominator > 1, or a float) leaves the rationals, so it collapses to the

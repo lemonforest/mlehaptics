@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc import hdc
+from srmech.math import hdc
 from srmech.amsc.q import Q
 from srmech.rbs_lm import (
     CoherenceReadout,

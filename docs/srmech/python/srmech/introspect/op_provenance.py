@@ -33,7 +33,7 @@ The provenance RECORD (hashed via the MPRRecord-style canonical byte image,
 .. code-block:: python
 
     {
-      "op": "srmech.amsc.rational.sin_series_truncate",   # dotted op name
+      "op": "srmech.math.rational.sin_series_truncate",   # dotted op name
       "params": {...},          # ALL params, canonicalised (floats hex-tagged)
       "input_sha256": [...],    # per-input canonical-image hashes, sorted-key order
       "family": {"target_id": "sin(1/1)", "tower_kind": "interior"} | None,
@@ -684,24 +684,24 @@ def _matrix_family(label: str):
 
 
 def _jacobi_runner(inputs, params):
-    from ..amsc import laplacian as _L
+    from ..math import laplacian as _L
     return _L.jacobi_eigvals(inputs["matrix"],
                              max_sweeps=int(params["max_sweeps"]),
                              tolerance=float(params["tolerance"]))
 
 
 def _symmetric_runner(inputs, params):
-    from ..amsc import laplacian as _L
+    from ..math import laplacian as _L
     return _L.symmetric_eigendecompose(inputs["matrix"])
 
 
 def _hermitian_runner(inputs, params):
-    from ..amsc import laplacian as _L
+    from ..math import laplacian as _L
     return _L.hermitian_eigendecompose(inputs["matrix"])
 
 
 def _heat_trace_runner(inputs, params):
-    from ..amsc import laplacian as _L
+    from ..math import laplacian as _L
     t = inputs["t"]
     if not isinstance(t, (int, float, list, tuple)):
         # An exact rational time (Fraction / Q) is the PINNED input; the
@@ -736,7 +736,7 @@ def _resonant_family(inputs, canon_inputs, input_hashes, leaves_exact):
 
 
 def _best_rational_runner(inputs, params):
-    from ..amsc import rational as _rational
+    from ..math import rational as _rational
     return _rational.best_rational(int(inputs["numerator"]),
                                    int(inputs["denominator"]),
                                    int(params["max_denominator"]))
@@ -750,13 +750,13 @@ def _best_rational_family(inputs, canon_inputs, input_hashes, leaves_exact):
 
 
 def _build_registry() -> Dict[str, _OpSpec]:
-    from ..amsc import rational as _rational
+    from ..math import rational as _rational
     reg: Dict[str, _OpSpec] = {}
     # Class-N series-truncate family — the INTERIOR (Taylor additive) towers.
     # rung = num_terms (the truncation order).
     for label in ("sin", "cos", "exp", "log1p", "atan"):
         fn = getattr(_rational, f"{label}_series_truncate")
-        reg[f"srmech.amsc.rational.{label}_series_truncate"] = _OpSpec(
+        reg[f"srmech.math.rational.{label}_series_truncate"] = _OpSpec(
             runner=_series_runner(fn),
             input_keys=("numerator", "denominator"),
             defaults={},
@@ -766,7 +766,7 @@ def _build_registry() -> Dict[str, _OpSpec]:
         )
     # Class-N best_rational — the EDGE (continued-fraction) tower; rung =
     # max_denominator (the CF convergent ceiling).
-    reg["srmech.amsc.rational.best_rational"] = _OpSpec(
+    reg["srmech.math.rational.best_rational"] = _OpSpec(
         runner=_best_rational_runner,
         input_keys=("numerator", "denominator"),
         defaults={},
@@ -776,7 +776,7 @@ def _build_registry() -> Dict[str, _OpSpec]:
     )
     # Class-L float64 frontier — EDGE towers (the Jacobi rung COMPOSES
     # Givens rotations; a multiplicative approach, not an additive one).
-    reg["srmech.amsc.laplacian.jacobi_eigvals"] = _OpSpec(
+    reg["srmech.math.laplacian.jacobi_eigvals"] = _OpSpec(
         runner=_jacobi_runner,
         input_keys=("matrix",),
         defaults={"max_sweeps": 100, "tolerance": 1e-12},
@@ -784,7 +784,7 @@ def _build_registry() -> Dict[str, _OpSpec]:
         tower_kind=_TOWER_EDGE,
         family_fn=_matrix_family("eigvals"),
     )
-    reg["srmech.amsc.laplacian.symmetric_eigendecompose"] = _OpSpec(
+    reg["srmech.math.laplacian.symmetric_eigendecompose"] = _OpSpec(
         runner=_symmetric_runner,
         input_keys=("matrix",),
         defaults={},
@@ -792,7 +792,7 @@ def _build_registry() -> Dict[str, _OpSpec]:
         tower_kind=_TOWER_EDGE,
         family_fn=_matrix_family("eigensystem"),
     )
-    reg["srmech.amsc.laplacian.hermitian_eigendecompose"] = _OpSpec(
+    reg["srmech.math.laplacian.hermitian_eigendecompose"] = _OpSpec(
         runner=_hermitian_runner,
         input_keys=("matrix",),
         defaults={},
@@ -800,7 +800,7 @@ def _build_registry() -> Dict[str, _OpSpec]:
         tower_kind=_TOWER_EDGE,
         family_fn=_matrix_family("eigensystem"),
     )
-    reg["srmech.amsc.laplacian.heat_trace"] = _OpSpec(
+    reg["srmech.math.laplacian.heat_trace"] = _OpSpec(
         runner=_heat_trace_runner,
         input_keys=("L", "t"),
         defaults={},
@@ -864,8 +864,8 @@ def carry(
 
     Args:
         op: the registered dotted op name (e.g.
-            ``"srmech.amsc.rational.sin_series_truncate"``,
-            ``"srmech.amsc.laplacian.jacobi_eigvals"``). Unknown ops raise
+            ``"srmech.math.rational.sin_series_truncate"``,
+            ``"srmech.math.laplacian.jacobi_eigvals"``). Unknown ops raise
             ``ValueError`` naming the registered set — only registered
             operations carry (the registry IS the contract).
         inputs: the op's pinned operand inputs, keyed by name (the series

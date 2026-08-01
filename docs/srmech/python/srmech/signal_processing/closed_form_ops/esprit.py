@@ -11,8 +11,8 @@ angles) composition.
 Path B dual in Phase 6 (Path B generalised eigendecomposition).
 
 Carrier-removal #564 (rc98): numpy-FREE — the three matrix steps route through
-the native Mat-carrier foundation (:func:`~srmech.amsc.laplacian.mat_hermitian_eigendecompose`
-+ :func:`~srmech.amsc.laplacian.mat_lstsq` + :func:`~srmech.amsc.laplacian.mat_eigvals`),
+the native Mat-carrier foundation (:func:`~srmech.math.laplacian.mat_hermitian_eigendecompose`
++ :func:`~srmech.math.laplacian.mat_lstsq` + :func:`~srmech.math.laplacian.mat_eigvals`),
 so esprit runs with numpy genuinely absent. No top-level ``import numpy``.
 
 Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Roy &
@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from typing import List
 
-from srmech.amsc.laplacian import (
+from srmech.math.laplacian import (
     mat_hermitian_eigendecompose,
     mat_lstsq,
     mat_eigvals,

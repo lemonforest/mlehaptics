@@ -35,7 +35,7 @@
 #   of Numbers* (4th ed., Oxford, 1965; 1st edition 1938). §10.6-§10.7
 #   establish the best-rational property of continued-fraction
 #   convergents. Used as the canonical SSoT for the convergent
-#   identity used by `srmech.amsc.rational.continued_fraction_convergents`.
+#   identity used by `srmech.math.rational.continued_fraction_convergents`.
 # - Archimedes, *Measurement of a Circle* (c. 250 BCE). The hexagon-
 #   doubling cascade algorithm. Anchored in any history-of-mathematics
 #   reference (e.g. Heath 1897 *Works of Archimedes*).

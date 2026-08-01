@@ -191,7 +191,7 @@ def _full_convolve_matmul(a_lst, b_lst):
         [(a_lst[i - k] if 0 <= i - k < na else 0) for k in range(nb)]
         for i in range(rows)
     ]
-    from srmech.amsc.laplacian import mat_matvec  # lazy: avoid import cycle
+    from srmech.math.laplacian import mat_matvec  # lazy: avoid import cycle
 
     return list(mat_matvec(toeplitz, list(b_lst)))
 

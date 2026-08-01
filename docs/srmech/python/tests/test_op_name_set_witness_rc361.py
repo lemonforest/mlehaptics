@@ -4,9 +4,10 @@ WHY THIS EXISTS. ADR-0010 declustering moves ~73 modules between top-level
 namespaces. Before rc361 the tree had **no gate that detects a rename**. It had
 54 test files / 60 assertions pinning the op COUNT, and a count is the wrong
 quantity: a rename relocates names and leaves cardinality untouched. Measured
-2026-07-29 by simulating this ADR's own example move
-(`srmech.amsc.rational` -> `srmech.math.rational`): 28 of 516 dotted names
-relocate, the total stays **516**, and every one of those 60 pins stays GREEN.
+2026-07-29 by simulating this ADR's own example move (``rational`` from
+``srmech.amsc`` to ``srmech.math`` — the move rc373 has since actually made):
+28 of 516 dotted names relocate, the total stays **516**, and every one of those
+60 pins stays GREEN.
 
 That is an **EMPTY** null about the pins, not a defect — `len(...)` measures
 cardinality and measures it correctly. It is a real gap about the arc. This file
@@ -51,7 +52,7 @@ EXPECTED_N = 525
 #: the digest disagree between the Windows and Linux CI cells; that would be a
 #: platform artifact masquerading as a rename.
 EXPECTED_NAME_SET_SHA256 = (
-    "aa6d1f5557c08f2635cb467c07ff827a40eaf20e087f6d119238ee1b58f2b348")
+    "102245328629c4b081829a73dcd7e9cf87f25159d637669ebeda638f03deb981")
 
 
 def _live_names() -> list[str]:
@@ -121,12 +122,12 @@ def test_the_witness_can_actually_fail_on_a_rename() -> None:
     """
     pinned = _manifest_names()
     renamed = sorted(
-        ["srmech.math.rational" + n[len("srmech.amsc.rational"):]
-         if n.startswith("srmech.amsc.rational") else n
+        ["srmech.zzzns.rational" + n[len("srmech.math.rational"):]
+         if n.startswith("srmech.math.rational") else n
          for n in pinned])
 
     assert len(renamed) == len(pinned), "the simulation must preserve cardinality"
-    moved = sum(1 for n in pinned if n.startswith("srmech.amsc.rational"))
+    moved = sum(1 for n in pinned if n.startswith("srmech.math.rational"))
     assert moved > 0, "the simulated prefix matches nothing — probe is inert"
 
     # (a) the SET witness sees it

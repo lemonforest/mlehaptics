@@ -64,7 +64,7 @@ The user's vocabulary maps to **Class A `mint_vector`** at Level 1; composition 
 
 The entire MLP composes from **{A, M, K}** — no new classes. Findings:
 - **conventional MLP and binary-NN are the same cascade at different levels** — the bipolar-weight + sign-activation BNN (Courbariaux 2016 lineage) is structurally the same `A ∘ (M ∘ K)^N` as the float-weight + ReLU MLP; what differs is only level (L1 ALU vs L2 FPU) and cost (zero vs ~6.9%/layer).
-- the **linear layer IS HDC similarity-against-templates** — each row of `W` is a template, each output = `similarity(input, template)`; in bipolar form the bit-exact `1 − 2·popcount(x XOR w)/d_in` is the identical formula `srmech.amsc.hdc.similarity` uses (algebraic identity, not metaphor).
+- the **linear layer IS HDC similarity-against-templates** — each row of `W` is a template, each output = `similarity(input, template)`; in bipolar form the bit-exact `1 − 2·popcount(x XOR w)/d_in` is the identical formula `srmech.math.hdc.similarity` uses (algebraic identity, not metaphor).
 - **continuous activations are a precondition for gradient-descent *trainability*, not for *expressivity*** (Cybenko's proof technique needs them; Cover-1965 boolean expressivity extends to sign-quantized). Training is Level-2 by construction (gradient descent IS bundle-of-trajectories); inference can be Level-1.
 - the linear layer carries **two Class-M sub-ops**: per-element multiply = Mechanism-1 bind (exact); sum-across-input-dim = Mechanism-2 bundle (lossy). The bundle is intrinsic to dot-product; the float representation adds *representational* bundle cost on top, which bipolar form eliminates.
 

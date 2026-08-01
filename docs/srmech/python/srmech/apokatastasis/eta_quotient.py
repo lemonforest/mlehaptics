@@ -119,7 +119,7 @@ from __future__ import annotations
 
 from typing import Dict, List, Mapping
 
-from ..amsc import cyclic as _cyclic
+from ..math import cyclic as _cyclic
 from ..amsc.q import Q
 
 __all__ = ["EtaQuotient", "eta_quotient"]

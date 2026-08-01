@@ -8,7 +8,7 @@ without the word-atomic English/whitespace privilege.
 """
 import pytest
 
-from srmech.amsc import hdc
+from srmech.math import hdc
 from srmech.amsc.q import Q
 
 D = 4096
@@ -59,7 +59,7 @@ def test_str_is_utf8_encoded():
 
 def test_pos_key_namespaced_off_bytes():
     # _klein4_pos_key(i) must not collide with byte_vec(i) for small i (seeds 0..255)
-    from srmech.amsc.hdc import _klein4_pos_key
+    from srmech.math.hdc import _klein4_pos_key
     for i in range(5):
         pk = _klein4_pos_key(2000, i)
         bv = hdc.klein4_expand(2000, i)
@@ -67,7 +67,7 @@ def test_pos_key_namespaced_off_bytes():
 
 
 def test_pos_key_deterministic():
-    from srmech.amsc.hdc import _klein4_pos_key
+    from srmech.math.hdc import _klein4_pos_key
     assert bytes(_klein4_pos_key(800, 3).buffer) == bytes(_klein4_pos_key(800, 3).buffer)
 
 
@@ -83,7 +83,7 @@ def test_encode_rejects_bad_args():
 
 
 def test_pos_key_rejects_bad_args():
-    from srmech.amsc.hdc import _klein4_pos_key
+    from srmech.math.hdc import _klein4_pos_key
     with pytest.raises(ValueError):
         _klein4_pos_key(0, 0)                       # D <= 0
     with pytest.raises(ValueError):

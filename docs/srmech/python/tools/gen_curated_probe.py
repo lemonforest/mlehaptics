@@ -35,11 +35,11 @@ def _resolve(name):
     return getattr(importlib.import_module(mod), attr)
 
 
-_DL = _resolve("srmech.amsc.laplacian.dense_laplacian")(n=4, edges=_EDGES, weights=_W)
+_DL = _resolve("srmech.math.laplacian.dense_laplacian")(n=4, edges=_EDGES, weights=_W)
 
 # (tool name, (args tuple, kwargs dict), curated explanation or None=use docstring)
 CENTRAL = [
-    ("srmech.amsc.laplacian.dense_laplacian", ((), dict(n=4, edges=_EDGES, weights=_W)),
+    ("srmech.math.laplacian.dense_laplacian", ((), dict(n=4, edges=_EDGES, weights=_W)),
      "Combinatorial graph Laplacian L = D − A of a weighted undirected graph "
      "(n nodes, edges + per-edge weights) as a dense Mat — the foundation the "
      "Class-L spectral readers (fiedler / spine / eigvals) run on. F1216: the "
@@ -47,17 +47,17 @@ CENTRAL = [
      "directional, GROWS with knowledge — the genome / disk); the Class-M "
      "Klein-4/HDC bundle is the transient working-memory read, bridged by the "
      "reversible spectral basis-change (eigen / Walsh-Hadamard)."),
-    ("srmech.amsc.laplacian.jacobi_eigvals", ((_DL,), {}),
+    ("srmech.math.laplacian.jacobi_eigvals", ((_DL,), {}),
      "Ascending eigenvalues of a symmetric Mat via cyclic Jacobi rotations "
      "(no numpy). On a graph Laplacian: λ0 = 0 for a connected graph; λ1 (the "
      "Fiedler value) measures algebraic connectivity."),
-    ("srmech.amsc.laplacian.fiedler_vector", ((_DL,), {}),
+    ("srmech.math.laplacian.fiedler_vector", ((_DL,), {}),
      "Eigenvector of the second-smallest Laplacian eigenvalue (λ1). Its sign "
      "per node gives the natural 2-way spectral cut of the graph."),
-    ("srmech.amsc.laplacian.three_fold_eigvec_groups", ((_DL,), {}),
+    ("srmech.math.laplacian.three_fold_eigvec_groups", ((_DL,), {}),
      "3-way spectral partition from the sign pattern across the low eigenvectors "
      "(the k=3 community read; complements fiedler's 2-way and spine's centrality)."),
-    ("srmech.amsc.laplacian.spectral_spine", ((), dict(edges=_EDGES, weights=_W, k=3)),
+    ("srmech.math.laplacian.spectral_spine", ((), dict(edges=_EDGES, weights=_W, k=3)),
      "The structurally-central 'spine': top-|component| nodes of the dominant-"
      "eigenvalue eigenvector — the centrality axis, complementing the community "
      "readers (fiedler 2-way / three_fold 3-way)."),
@@ -67,27 +67,27 @@ CENTRAL = [
     # applies WORKED last, so a stale CENTRAL row for the same op is dead
     # weight that still prints "OK", which is exactly how an author comes to
     # edit the copy that does not ship.
-    ("srmech.amsc.cyclic.gcd", ((), dict(a=12, b=18)), None),
-    ("srmech.amsc.cyclic.mod_pow", ((), dict(a=7, k=13, n=11)),
+    ("srmech.math.cyclic.gcd", ((), dict(a=12, b=18)), None),
+    ("srmech.math.cyclic.mod_pow", ((), dict(a=7, k=13, n=11)),
      "Modular exponentiation a^k mod n by square-and-multiply (Class-I cyclic "
      "group). Exact; the Fermat/RSA-style fast power on ℤ/n."),
-    ("srmech.amsc.rational.best_rational", ((), dict(numerator=314159, denominator=100000, max_denominator=100)),
+    ("srmech.math.rational.best_rational", ((), dict(numerator=314159, denominator=100000, max_denominator=100)),
      "Best rational p/q with q ≤ max_denominator approximating numerator/"
      "denominator (Class-N small-denominator anchor via continued fractions). "
      "Takes an INTEGER numerator/denominator pair, never a float."),
-    ("srmech.amsc.primes.is_prime", ((), dict(n=97)),
+    ("srmech.math.primes.is_prime", ((), dict(n=97)),
      "Deterministic primality test (Class-J). True iff n is prime."),
     ("srmech.amsc.format.sha256_bytes", ((), dict(data=b"abc")), None),
-    ("srmech.amsc.hdc.bind", ((), dict(a=b"abc", b=b"abc")),
+    ("srmech.math.hdc.bind", ((), dict(a=b"abc", b=b"abc")),
      "Component-wise XOR of two binary-spatter-code (BSC) hypervectors — the "
      "Class-M bind that ties a role to a filler; self-inverse (bind(x,x)=0). "
      "F1216: Class-M / HDC = WORKING MEMORY / active context (fuzzy, composable, "
      "BOUNDED ~24-bind span, gracefully decays) — a transient read of the "
      "Class-L Laplacian long-term store, never the store itself."),
-    ("srmech.amsc.hdc.bundle", ((), dict(vectors=[b"abc", b"abd", b"abe"])),
+    ("srmech.math.hdc.bundle", ((), dict(vectors=[b"abc", b"abd", b"abe"])),
      "Majority-rule superposition of several BSC hypervectors into one that is "
      "similar to each input — the Class-M bundle (the set/record former)."),
-    ("srmech.amsc.hdc.similarity", ((), dict(a=b"abc", b=b"abd")),
+    ("srmech.math.hdc.similarity", ((), dict(a=b"abc", b=b"abd")),
      "Normalised agreement (1 − 2·Hamming/D) between two BSC hypervectors, as an "
      "exact rational Q. +1 = identical, 0 = orthogonal, −1 = complementary."),
     ("srmech.amsc.cascade.magnitude", ((), dict(x=-3.5)),
@@ -104,7 +104,7 @@ CENTRAL = [
     # and so demonstrates nothing. Probe it with the Devanagari case instead:
     # the virama and the vowel sign are BOTH marks, which is the whole reason
     # the op is fold_marks and not fold_accents.
-    ("srmech.amsc.text.fold_marks", ((), dict(text="क्षि")),
+    ("srmech.math.text.fold_marks", ((), dict(text="क्षि")),
      "Drop combining marks by Unicode CATEGORY — Mn/Mc/Me and nothing else "
      "(Class B/G text-framing; §106/F1258; rc293). The name is the contract: a "
      "VIRAMA is a mark, not an accent, so `fold_accents` would have been wrong "

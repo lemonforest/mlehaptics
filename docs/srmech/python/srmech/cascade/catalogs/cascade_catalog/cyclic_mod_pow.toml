@@ -9,7 +9,7 @@ kind = "stage"
 purpose = "Class I modular exponentiation (a ** k) mod n via square-and-multiply."
 description = """
 Cascade-namespace alias for the Class I modular power
-srmech.amsc.cyclic.mod_pow: (a ** k) mod n via square-and-multiply. Following
+srmech.math.cyclic.mod_pow: (a ** k) mod n via square-and-multiply. Following
 the DSL chain contract the piped value is the first positional argument `a`
 (the base) and the exponent `k` + modulus `n` are bound stage kwargs, so a
 multiplicative-hash / modular-power stage reads
@@ -17,7 +17,7 @@ multiplicative-hash / modular-power stage reads
 
 Operands and modulus are bounded by uint64; n must be > 0 (returns 0 for
 n == 1). Thin delegation to the already-c_dispatched
-srmech.amsc.cyclic.mod_pow (routes to srmech_mod_pow); no native dispatch and
+srmech.math.cyclic.mod_pow (routes to srmech_mod_pow); no native dispatch and
 no new C symbol of its own (composition_of_c).
 """
 
@@ -31,15 +31,15 @@ requires_n_positive = true
 dsl_stage = "data-first; op=\"cyclic_mod_pow\" with k=<exponent> and n=<modulus> bound"
 
 [cascade.native]
-status = "delegation (no dedicated cascade C symbol); the Class-I primitive srmech.amsc.cyclic.mod_pow dispatches to srmech_mod_pow"
+status = "delegation (no dedicated cascade C symbol); the Class-I primitive srmech.math.cyclic.mod_pow dispatches to srmech_mod_pow"
 abi_version = 8
 
 [cascade.delegates_to]
 class = "I"
 primitive_c_symbol = "srmech_mod_pow"
-primitive_python = "srmech.amsc.cyclic.mod_pow"
+primitive_python = "srmech.math.cyclic.mod_pow"
 rationale = """
-The Class I primitive srmech.amsc.cyclic.mod_pow owns the square-and-multiply
+The Class I primitive srmech.math.cyclic.mod_pow owns the square-and-multiply
 loop and its native dispatch to srmech_mod_pow. The cascade wrapper exists to
 make the op DSL-declarable + tool_schema-discoverable. Rosetta:
 composition_of_c.
@@ -56,7 +56,7 @@ license = "MIT"
 parser_version = "srmech-cascade 0.9.0rc302"
 canonical_landings = [
   "§110 / #1460 — the Class-I modular family becomes DSL-declarable (rc302)",
-  "srmech.amsc.cyclic.mod_pow — the registered Class-I primitive home (c_dispatched via srmech_mod_pow)",
+  "srmech.math.cyclic.mod_pow — the registered Class-I primitive home (c_dispatched via srmech_mod_pow)",
   "cyclic_mod_mul.toml — the Class-I cascade-catalog peer",
   "user_stance_cross_substrate_cascade_matching_as_research_method — modular exponentiation as one 14-class cascade shape",
 ]

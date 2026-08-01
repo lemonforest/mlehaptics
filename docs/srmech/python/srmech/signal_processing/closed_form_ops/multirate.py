@@ -36,7 +36,7 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from srmech.amsc import rational as _srn
+from srmech.math import rational as _srn
 from srmech.signal_processing import _dsp_cascades as _dsp
 
 OPERATION_NAME = "multirate"

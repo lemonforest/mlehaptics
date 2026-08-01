@@ -34,7 +34,7 @@ import pytest
 from srmech.amsc import _native
 from srmech.amsc import genome
 from srmech.amsc.format import MPRRecord, validate_mpr_record
-from srmech.amsc.hdc import klein4_expand
+from srmech.math.hdc import klein4_expand
 
 
 # ── shared fixtures: a 3-chromosome genome strand ────────────────────────────

@@ -115,11 +115,11 @@ RECYCLE_EVERY = 64
 SLOW_ALLOWLIST: Dict[str, Tuple[float, str]] = {
     "srmech.qm.so8.an_embedding": (240.0, "22.5 s measured: g2 = Der(O) branching"),
     "srmech.qm.so8.so7_subalgebra": (240.0, "31.3 s measured: so(7) branching"),
-    "srmech.amsc.laplacian.recover_check": (240.0, "106 s measured: dense recover"),
-    "srmech.amsc.laplacian.recover_check_spectral": (300.0, "244 s measured"),
-    "srmech.amsc.laplacian.recover_check_structural": (240.0, "33 s measured"),
-    "srmech.amsc.laplacian.three_fold_eigvec_groups": (240.0, "dense eigvec pass"),
-    "srmech.amsc.primes.is_prime": (300.0, "206 s on the PURE trial-division "
+    "srmech.math.laplacian.recover_check": (240.0, "106 s measured: dense recover"),
+    "srmech.math.laplacian.recover_check_spectral": (300.0, "244 s measured"),
+    "srmech.math.laplacian.recover_check_structural": (240.0, "33 s measured"),
+    "srmech.math.laplacian.three_fold_eigvec_groups": (240.0, "dense eigvec pass"),
+    "srmech.math.primes.is_prime": (300.0, "206 s on the PURE trial-division "
                                            "path for Mersenne M61; fast in C"),
 }
 

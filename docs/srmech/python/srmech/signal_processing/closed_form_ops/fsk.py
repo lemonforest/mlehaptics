@@ -35,7 +35,7 @@ from __future__ import annotations
 
 from typing import List
 
-from srmech.amsc import rational as _srn
+from srmech.math import rational as _srn
 
 OPERATION_NAME = "fsk"
 CLASS_COMPOSITION = ("N", "I")
@@ -116,7 +116,7 @@ def op(
         # (NOT an abs()); the argmax is a Class-K decision. NUMERIC within-tol
         # (native == pure to reldiff ≤ 1e-9 — the complex matmul may FMA-fuse
         # ~1 ULP, so NOT byte-identical).
-        from srmech.amsc.laplacian import mat_matvec  # lazy: avoid import cycle
+        from srmech.math.laplacian import mat_matvec  # lazy: avoid import cycle
 
         signal = [complex(z) for z in _as_list(symbols)]
         n_syms = len(signal) // n

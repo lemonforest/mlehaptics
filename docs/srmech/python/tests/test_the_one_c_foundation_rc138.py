@@ -27,7 +27,7 @@ from srmech.amsc.cascade import the_one
 from srmech.amsc.cascade.one import (
     to_scalar, _chiral_scale, _reduce_rational,
 )
-from srmech.amsc.rational import cos_series_truncate, sin_series_truncate
+from srmech.math.rational import cos_series_truncate, sin_series_truncate
 from srmech.amsc import _native
 
 

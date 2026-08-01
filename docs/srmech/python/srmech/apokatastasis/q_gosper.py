@@ -644,7 +644,7 @@ def _canonicalize_cert(num_qp: QPoly, den_qp: QPoly) -> Dict[str, QPoly]:
     integer coefficients), and pin the sign so the LOWEST nonzero ``den`` coefficient
     is positive (the Class-K sign pin — never an ALU ``abs()``). Multiplying num and
     den by the same rational is a unit on ``R``, so the rational is unchanged."""
-    from ..amsc import cyclic
+    from ..math import cyclic
     pairs: List[Tuple[int, int]] = []
     for qp in (num_qp, den_qp):
         for cell in qp.cells:

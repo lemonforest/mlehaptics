@@ -1,7 +1,7 @@
 /* srmech_infer.c — the F929 OPEN/infer ROUTER in C (0.9.0rc176; the
  * ORCHESTRATION->C spine, batch 6; the CARRIER-FFI foundation).
  *
- * The C peer of srmech.amsc.dispatch.infer — the META-dispatcher over srmech's
+ * The C peer of srmech.math.dispatch.infer — the META-dispatcher over srmech's
  * shipped closed-form reduction-theory rows (F929: the 14 A-N classes ARE a
  * DISPATCH TABLE over reduction theories humans already built). Given a STORED
  * RELATIONSHIP marshalled as JSON, DETECT which row its operand structure

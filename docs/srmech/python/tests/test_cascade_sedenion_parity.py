@@ -66,7 +66,7 @@ def _c_is_navigable(int_vec):
 
 
 def _clear_denominators(x):
-    from srmech.amsc.cyclic import gcd
+    from srmech.math.cyclic import gcd
     den = 1
     for v in x:
         den = den * v.denominator // gcd(den, v.denominator)

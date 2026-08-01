@@ -11,7 +11,7 @@ numpy-free ([[feedback_test_for_numpy_free_module_must_itself_be_numpy_free]]).
 
 from array import array
 
-from srmech.amsc import hdc
+from srmech.math import hdc
 
 
 def _codes(seed, n):

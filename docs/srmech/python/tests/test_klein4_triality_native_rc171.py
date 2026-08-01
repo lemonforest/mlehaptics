@@ -13,7 +13,7 @@ from array import array
 
 import pytest
 
-from srmech.amsc import hdc
+from srmech.math import hdc
 from srmech.amsc import _native
 
 

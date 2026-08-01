@@ -336,7 +336,7 @@ def _period_multiplier(rows) -> int:
     """The integer ``k`` such that ``k·T₀`` is the common period — ``lcm`` of
     the reduced ratio denominators (Class-I). A partial at ``p/q`` completes a
     whole number of cycles in ``k·T₀`` exactly when ``q | k``."""
-    from srmech.amsc import cyclic as _cyclic
+    from srmech.math import cyclic as _cyclic
     k = 1
     for r in rows:
         k = _cyclic.lcm(k, _as_q(r["value"]).denominator)

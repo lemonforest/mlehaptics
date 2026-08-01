@@ -40,7 +40,7 @@ from typing import Sequence
 
 sys.path.insert(0, "docs/srmech/python")
 
-from srmech.amsc.hdc import bind, bundle, similarity  # noqa: E402
+from srmech.math.hdc import bind, bundle, similarity  # noqa: E402
 from srmech.signal_processing.rbs_hdc_instrument import (  # noqa: E402
     D_DEFAULT,
     mint_vector,

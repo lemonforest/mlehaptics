@@ -2,7 +2,7 @@
 
 The documented ``srmech.asymptotic_calculus.*`` import path (CLAUDE.md §2)
 had no importable module — the continuous-calculus primitives live in
-:mod:`srmech.amsc.rational` (Class N) + the
+:mod:`srmech.math.rational` (Class N) + the
 ``srmech/amsc/attested/asymptotic_calculus/`` catalog. rc26 ships thin
 re-export modules so the advertised path resolves; this test pins the
 re-export identity (same callables, not copies) and that the surface is
@@ -12,7 +12,7 @@ import importlib
 
 import srmech.asymptotic_calculus as ac
 import srmech.trigonometry as trig
-from srmech.amsc import rational as R
+from srmech.math import rational as R
 
 
 def test_asymptotic_calculus_imports():

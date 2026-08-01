@@ -71,12 +71,12 @@ REPORTs land in this directory as `R-RBS-NN-{n}_{slug}_REPORT.md`.
 
 | Standing | Location | Role in RBS-NN |
 |---|---|---|
-| Class M HDC bind/bundle/similarity | `srmech/amsc/hdc.py` | Core binding op — bit-exact XOR-bind, majority-bundle, Hamming-similarity |
+| Class M HDC bind/bundle/similarity | `srmech/math/hdc.py` | Core binding op — bit-exact XOR-bind, majority-bundle, Hamming-similarity |
 | Class A content-mint | `srmech.amsc.format.sha256_bytes` | Token → content-address; substrate-locus |
-| Class I cyclic bind | `srmech/amsc/cyclic.py` | Position binding via `(ℤ/nℤ)*` shift |
-| Class J primes | `srmech/amsc/primes.py` | Orthogonality / non-collision basis |
-| Class L Laplacian | `srmech/amsc/laplacian.py` | Spectral structure across the binding graph |
-| Class N rational anchor | `srmech/amsc/rational.py` | Discrete↔continuous bridge (Stern-Brocot) |
+| Class I cyclic bind | `srmech/math/cyclic.py` | Position binding via `(ℤ/nℤ)*` shift |
+| Class J primes | `srmech/math/primes.py` | Orthogonality / non-collision basis |
+| Class L Laplacian | `srmech/math/laplacian.py` | Spectral structure across the binding graph |
+| Class N rational anchor | `srmech/math/rational.py` | Discrete↔continuous bridge (Stern-Brocot) |
 | RBS-HDC instrument prototype | `srmech/signal_processing/rbs_hdc_instrument.py` (Spike #170) | 10/10 strict-spec invariants verified at D=8192 |
 | 256K ALU-native packing | ephemerides notebook §1.4 + v0.1.0 notes | Capacity proof at 52-body / 3.3 GB compression |
 | AMSC catalog schema | `docs/unsolved-maths/biplanar_chromatic_number/descriptor.toml` | 6-section TOML template + MPR v1 attestation |

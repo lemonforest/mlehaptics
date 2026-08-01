@@ -25,7 +25,7 @@ import random
 import re
 import pathlib
 
-from srmech.amsc.laplacian import dense_solve
+from srmech.math.laplacian import dense_solve
 
 
 def _matmul(a, b):

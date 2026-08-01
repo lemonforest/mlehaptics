@@ -14,7 +14,7 @@ Per `[[feedback_upstream_srmech_fixes_as_research_notes]]`.
 
 ### Observation
 
-srmech canonical storage form is **binary {0,1} bytes** (`srmech.amsc.hdc` — `bind` is byte-XOR, `bundle` is bitwise majority with odd-N constraint, `similarity` returns float in [-1, +1] via `1 - 2·hamming(a,b)/D`).
+srmech canonical storage form is **binary {0,1} bytes** (`srmech.math.hdc` — `bind` is byte-XOR, `bundle` is bitwise majority with odd-N constraint, `similarity` returns float in [-1, +1] via `1 - 2·hamming(a,b)/D`).
 
 The atomic ops {bind / bundle / similarity} are **algebraically isomorphic** to their bipolar {-1, +1} counterparts under the standard map `x → 2x − 1`:
 

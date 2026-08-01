@@ -9,7 +9,8 @@ in srmech.amsc.*.
 """
 import pytest
 
-from srmech.amsc import dispatch, search, cyclic, laplacian, compose
+from srmech.amsc import compose
+from srmech.math import dispatch, search, cyclic, laplacian
 from srmech.introspect import naming
 from srmech.music import harmonics
 
@@ -111,7 +112,7 @@ def test_verdict_three_is_unreachable_when_three_does_not_divide_n():
     verdict 3 needs `three > mirror`. This is not an edge case: it covers
     hdc.DEFAULT_HDC_BYTES and every Cayley-Dickson dim srmech ships.
     """
-    from srmech.amsc import hdc
+    from srmech.math import hdc
     assert hdc.DEFAULT_HDC_BYTES % 3 == 2, (
         "the flagship HDC width is no longer 2 mod 3 — re-derive this bound")
     for n in (8, 16, 32, 64, 128):

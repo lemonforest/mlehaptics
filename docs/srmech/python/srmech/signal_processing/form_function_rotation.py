@@ -86,9 +86,9 @@ from __future__ import annotations
 
 from typing import Iterable, Tuple
 
-from srmech.amsc import hdc as _M
-from srmech.amsc import cyclic as _I
-from srmech.amsc import rational as _srn
+from srmech.math import hdc as _M
+from srmech.math import cyclic as _I
+from srmech.math import rational as _srn
 # Route the content-stride hash through format.sha256_raw for native C dispatch
 # (CLAUDE.md: no raw hashlib.sha256); bit-identical to hashlib.sha256().digest().
 from srmech.amsc.format import sha256_raw as _sha256_raw

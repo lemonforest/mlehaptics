@@ -103,18 +103,18 @@ from array import array  # §564: numpy-free 2-D Mat carrier buffer (interleaved
 from srmech.amsc.q import Q, to_q  # §26: exact-rational interior solve (Class-N), no float
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
-from srmech.amsc.rational import sqrt as _rsqrt  # §22: scalar root via Class-N, not libm
-from srmech.amsc.rational import hypot as _rhypot  # Class-N |z| magnitude, not libm
-from srmech.amsc.rational import exp as _rexp  # Class-N exp cascade, not libm
-from srmech.amsc.rational import cos as _rcos  # Class-N cos cascade, not libm
-from srmech.amsc.rational import sin as _rsin  # Class-N sin cascade, not libm
-from srmech.amsc.rational import log as _rlog  # Class-N log cascade, not libm
-from srmech.amsc.rational import atan2 as _ratan2  # Class-N atan2 cascade, not libm
-from srmech.amsc.rational import complex_exp as _rcomplex_exp  # Class-N e^z, not libm
-from srmech.amsc.rational import exp_series_truncate as _exp_series  # rc136 EPH: Class-N exp
-from srmech.amsc.rational import cos_series_truncate as _cos_series  # rc136 EPH: Class-N cos
-from srmech.amsc.rational import sin_series_truncate as _sin_series  # rc136 EPH: Class-N sin
-from srmech.amsc.rational import atan_series_truncate as _atan_series  # rc136 EPH: Machin-2π
+from srmech.math.rational import sqrt as _rsqrt  # §22: scalar root via Class-N, not libm
+from srmech.math.rational import hypot as _rhypot  # Class-N |z| magnitude, not libm
+from srmech.math.rational import exp as _rexp  # Class-N exp cascade, not libm
+from srmech.math.rational import cos as _rcos  # Class-N cos cascade, not libm
+from srmech.math.rational import sin as _rsin  # Class-N sin cascade, not libm
+from srmech.math.rational import log as _rlog  # Class-N log cascade, not libm
+from srmech.math.rational import atan2 as _ratan2  # Class-N atan2 cascade, not libm
+from srmech.math.rational import complex_exp as _rcomplex_exp  # Class-N e^z, not libm
+from srmech.math.rational import exp_series_truncate as _exp_series  # rc136 EPH: Class-N exp
+from srmech.math.rational import cos_series_truncate as _cos_series  # rc136 EPH: Class-N cos
+from srmech.math.rational import sin_series_truncate as _sin_series  # rc136 EPH: Class-N sin
+from srmech.math.rational import atan_series_truncate as _atan_series  # rc136 EPH: Machin-2π
 
 
 # 0.9.0rc7 (stay-rational, F868): ``rational.sqrt`` / ``rational.hypot`` now
@@ -166,13 +166,13 @@ def _fhypot(a, b) -> float:
 # §564/rc13: numpy-free AND math-free π — 4·atan(1) via the Class-N atan
 # cascade (c_dispatched; NO stdlib math.pi, NO np.pi), projected to float once
 # at import (the ×4 is an exact power of two, so 4·atan(1) == math.pi bit-for-bit).
-from srmech.amsc.rational import atan as _atan_pi
+from srmech.math.rational import atan as _atan_pi
 _PI = 4.0 * float(_atan_pi(1.0))
 
-from .mat import Mat  # §564: the numpy-free 2-D carrier the mat_* engine returns
-from .vec import Vec  # rc129: the numpy-free 1-D carrier (vectors / eigenvalues)
+from ..amsc.mat import Mat  # §564: the numpy-free 2-D carrier the mat_* engine returns
+from ..amsc.vec import Vec  # rc129: the numpy-free 1-D carrier (vectors / eigenvalues)
 
-from . import _native
+from ..amsc import _native
 
 # §101 (rc275) progress-event mirrors — shared by the pure + native tick paths so
 # the emitted dict is byte-identical across them (the C↔Python parity contract).
@@ -1733,7 +1733,7 @@ def _mat_from_interleaved_cbuf(cbuf, n_rows: int, n_cols: int, *, want_complex: 
     """Wrap an interleaved ``(re, im)`` ctypes buffer back into a ``Mat``
     (numpy-free). ``want_complex`` keeps the interleaved layout; otherwise the
     real parts (every even slot) form a real ``Mat``."""
-    from .mat import Mat  # numpy-free carrier; local import keeps load-order clean
+    from ..amsc.mat import Mat  # numpy-free carrier; local import keeps load-order clean
     if want_complex:
         return Mat(array("d", cbuf), n_rows, n_cols, is_complex=True)
     n = n_rows * n_cols
@@ -1762,7 +1762,7 @@ def mat_matmul(a: "Mat", b: "Mat") -> "Mat":
     Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
     Hopkins, 2013) §1.1 (textbook matrix multiplication).
     """
-    from .mat import Mat
+    from ..amsc.mat import Mat
     assert isinstance(a, Mat) and isinstance(b, Mat), (
         "mat_matmul operands must be Mat (the numpy-free 2-D carrier)"
     )
@@ -1837,7 +1837,7 @@ def mat_solve(a: "Mat", b: "Mat") -> "Mat":
     Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
     Hopkins, 2013) §3.4 (Gaussian elimination with partial pivoting).
     """
-    from .mat import Mat
+    from ..amsc.mat import Mat
     assert isinstance(a, Mat) and isinstance(b, Mat), (
         "mat_solve operands must be Mat (the numpy-free 2-D carrier)"
     )
@@ -1905,7 +1905,7 @@ def _mat_solve_complex(a: "Mat", b: "Mat") -> "Mat":
     NumPy's complex solve to ~1e-9 for a well-conditioned ``A`` (the
     signal-subspace projections esprit/the matrix-heavy DSP ops feed it).
     """
-    from .mat import Mat
+    from ..amsc.mat import Mat
     n = a.n_rows
     if n == 0:
         raise ValueError("mat_solve: A must be a non-empty square matrix")
@@ -1961,7 +1961,7 @@ def mat_lstsq(a: "Mat", b: "Mat") -> "Mat":
     Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
     Hopkins, 2013) §5.3 (normal-equations least squares).
     """
-    from .mat import Mat
+    from ..amsc.mat import Mat
     assert isinstance(a, Mat) and isinstance(b, Mat), (
         "mat_lstsq operands must be Mat (the numpy-free 2-D carrier)"
     )
@@ -1997,7 +1997,7 @@ def _hermitian_eig_py(h: "Mat") -> Tuple["Mat", "Mat"]:
     eigenspace). Returns ``(eigvals (n, 1) real Mat, eigvecs (n, n) complex
     Mat)``.
     """
-    from .mat import Mat
+    from ..amsc.mat import Mat
     n = h.n_rows
     if not h.is_complex:
         evals, V = _jacobi_eig_py(h.tolist())
@@ -2108,7 +2108,7 @@ def mat_hermitian_eigendecompose(h: "Mat") -> Tuple["Mat", "Mat"]:
     Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
     Hopkins, 2013) §8.5 (Hermitian eigenproblem via unitary Jacobi rotations).
     """
-    from .mat import Mat
+    from ..amsc.mat import Mat
     assert isinstance(h, Mat), (
         "mat_hermitian_eigendecompose operand must be Mat (numpy-free 2-D carrier)"
     )
@@ -2173,7 +2173,7 @@ def _modulus_c(z: complex) -> float:
 
 def _complex_sqrt_local(w: complex) -> complex:
     """Principal complex square root via the Class-N real cascades
-    (:func:`srmech.amsc.rational.hypot` + ``sqrt``) — no ``cmath.sqrt``. The
+    (:func:`srmech.math.rational.hypot` + ``sqrt``) — no ``cmath.sqrt``. The
     laplacian-local twin of ``matrix_cascades._complex_sqrt``, redefined here so
     :func:`mat_eigvals` needs **no** import from ``matrix_cascades`` (which
     imports THIS module — that would be a circular import). For ``w = a + i·b``,
@@ -2556,7 +2556,7 @@ def mat_eigvals(a: "Mat", *, max_sweeps: int = 500) -> List[complex]:
     Reinsch, "Balancing a matrix for calculation of eigenvalues and
     eigenvectors", *Numer. Math.* **13** (1969) 293–304.
     """
-    from .mat import Mat
+    from ..amsc.mat import Mat
     assert isinstance(a, Mat), (
         "mat_eigvals operand must be Mat (the numpy-free 2-D carrier)"
     )
@@ -2751,7 +2751,7 @@ def mat_svd(a: "Mat") -> Tuple["Mat", List[float], "Mat"]:
     Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
     Hopkins, 2013) §8.6 (SVD) + §5.4 (the AᴴA eigen-route and its conditioning).
     """
-    from .mat import Mat
+    from ..amsc.mat import Mat
     assert isinstance(a, Mat), (
         "mat_svd operand must be Mat (the numpy-free 2-D carrier)"
     )
@@ -2846,7 +2846,7 @@ def _iter_mat_scalars(v):
     """Yield plain ``float`` / ``complex`` scalars from a :class:`Mat` / :class:`HV`
     / flat sequence (row-major, flattened) — numpy-FREE. The single coercion the
     Mat-carrier norm / dot reductions share."""
-    from .mat import Mat
+    from ..amsc.mat import Mat
     if isinstance(v, Mat):
         buf = v.buffer
         if v.is_complex:
@@ -2873,7 +2873,7 @@ def mat_norm(x) -> float:
     flat real/complex sequence (vector 2-norm). Sums ``|xᵢ|²`` over a pure-Python
     reduction — for complex ``z`` the squared modulus is ``z.real² + z.imag²``
     (NO ``abs()``, NO ``math.hypot``) — then takes the libm-free **Class-N**
-    :func:`srmech.amsc.rational.sqrt` root. Value-faithful to the NumPy 2-norm /
+    :func:`srmech.math.rational.sqrt` root. Value-faithful to the NumPy 2-norm /
     Frobenius norm to round-off (~1 ULP); empty → ``0.0``.
 
     **Class N** (``rational.sqrt`` root) ∘ **Class M** (the ``Σ|xᵢ|²`` self-bind).
@@ -3108,7 +3108,7 @@ def _real_transcendental_loop(flat_real: list, op_name: str) -> list:
     The pure-Python / no-native fallback for :func:`elementwise_transcendental`.
     ``flat_real`` is a flat ``list`` of real scalars; returns a flat
     ``list[float]``. Every element runs the libm-free
-    :mod:`srmech.amsc.rational` cascade.
+    :mod:`srmech.math.rational` cascade.
     """
     flat = [float(x) for x in flat_real]
     if op_name == "log" and flat and min(flat) <= 0.0:
@@ -3242,8 +3242,8 @@ def elementwise_hypot(a, b):
     SHAPE-POLYMORPHIC (rc129).
 
     The numpy-free magnitude op the DSP modules' ``|z| = √(re² + im²)`` sites
-    route through. Each element runs :func:`srmech.amsc.rational.hypot` (Class M
-    sum-of-squares ∘ Class N∘K :func:`~srmech.amsc.rational.sqrt`; native
+    route through. Each element runs :func:`srmech.math.rational.hypot` (Class M
+    sum-of-squares ∘ Class N∘K :func:`~srmech.math.rational.sqrt`; native
     ``srmech_rational_sqrt``-dispatched) — the math is the libm-free cascade.
 
     Round-off-faithful to numpy's hypot (the rational sqrt is floor-projected vs
@@ -3284,7 +3284,7 @@ def elementwise_sqrt(arr):
 
     The numpy-free square-root op for non-negative real arrays — the companion
     to :func:`elementwise_hypot`. Each element runs
-    :func:`srmech.amsc.rational.sqrt` (Class-N∘K integer-``isqrt`` cascade;
+    :func:`srmech.math.rational.sqrt` (Class-N∘K integer-``isqrt`` cascade;
     native ``srmech_rational_sqrt``-dispatched) — the math is the libm-free cascade.
 
     Round-off-faithful to numpy's sqrt (the rational sqrt is floor-projected vs
@@ -4869,7 +4869,7 @@ def heat_trace(L, t):
     Exp convention (stated per the transcendental discipline): ``heat_trace``
     is a float64-carrier Class-L composite like the existing eigensolve ops —
     the eigensolve is the FPU float algorithm, and the exp is the Class-N Q61
-    cascade (:func:`srmech.amsc.rational.exp` pure / ``srmech_exp`` native —
+    cascade (:func:`srmech.math.rational.exp` pure / ``srmech_exp`` native —
     libm-free) applied at the spectral-summary boundary. Θ is a spectral
     SUMMARY, not an exact decision — no float transcendental sits on any
     exact decision path.
@@ -6461,7 +6461,7 @@ def _fiedler_sparse_py(
     B = I + D^-1/2 W D^-1/2 implicitly, deflate the √deg (λ₀) mode each step,
     power-iterate, stop on sign-stability. No ``abs()``: the max-magnitude
     rescale reads the Class-K magnitude-SQUARE (pin-slot-free) then takes one
-    Class-N root; √deg / D^-1/2 are Class-N :func:`~srmech.amsc.rational.sqrt`.
+    Class-N root; √deg / D^-1/2 are Class-N :func:`~srmech.math.rational.sqrt`.
     """
     if n < 2:
         return [0.0] * n
@@ -6774,7 +6774,7 @@ def fiedler_sparse_file(
     :func:`write_packed_graph`) via the PAL. Only the O(n) working vectors live
     in RAM, so a low-RAM target can partition a graph whose edge list exceeds
     RAM — the low-RAM ENCODE for graph **partition** (composes §52.1
-    :func:`~srmech.amsc.text.cooccurrence_topk` for the bounded edge SET). The
+    :func:`~srmech.math.text.cooccurrence_topk` for the bounded edge SET). The
     recursive out-of-core driver feeds sub-graph chunks through this.
 
     Dispatches to the standalone-C ``srmech_laplacian_fiedler_sparse_file`` when
@@ -6930,7 +6930,7 @@ def recursive_cut(
     whole structure.
 
     The bounded graph (e.g. the ``(n, edges, weights)`` from §52.1
-    :func:`~srmech.amsc.text.cooccurrence_topk`) is written to a packed file
+    :func:`~srmech.math.text.cooccurrence_topk`) is written to a packed file
     (:func:`write_packed_graph`); a **disk-backed work queue** of node-set files drives
     the recursion. Each step streams its sub-graph's induced edges (relabelled
     ``0..|S|-1``) to a temp file, runs the rc168 :func:`fiedler_sparse_file` (only

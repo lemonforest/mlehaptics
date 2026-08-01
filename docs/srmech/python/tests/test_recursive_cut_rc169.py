@@ -16,7 +16,7 @@ import tempfile
 
 import pytest
 
-from srmech.amsc import laplacian as L
+from srmech.math import laplacian as L
 
 
 def _clique(off, k):

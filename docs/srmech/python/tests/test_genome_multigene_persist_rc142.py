@@ -24,7 +24,7 @@ from srmech.amsc.genome import (
     chromosome,
     genes,
 )
-from srmech.amsc.hdc import klein4_expand
+from srmech.math.hdc import klein4_expand
 
 
 def _one(seed=1, dim=64):

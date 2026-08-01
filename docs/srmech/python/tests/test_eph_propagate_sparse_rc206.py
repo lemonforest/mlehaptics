@@ -35,7 +35,7 @@ import cmath
 import math
 
 from srmech.amsc import _native
-from srmech.amsc import laplacian as L
+from srmech.math import laplacian as L
 
 
 # ── helpers (no numpy) ──────────────────────────────────────────────────
@@ -394,7 +394,7 @@ def test_registration_and_count():
     import srmech
     from srmech.amsc.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
-    assert "srmech.amsc.laplacian.propagate_sparse" in names
+    assert "srmech.math.laplacian.propagate_sparse" in names
     assert len(get_tool_schema().tools) == 525
     assert srmech.describe()["tools"]["total"] == 525
     assert "propagate_sparse" in L.LAPLACIAN_OPS

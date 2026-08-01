@@ -318,7 +318,7 @@ _WIRE_FORMAT_MODULES = ("srmech.amsc.genome", "srmech.amsc.plasmid")
 #: so it is a wire-format orchestrator even though it sits in ``laplacian``. Its
 #: in-memory siblings there (``mat_norm``, ``normalized_cut_bisect``, …) are pure
 #: carrier math and stay out of scope.
-_WIRE_FORMAT_EXTRA = frozenset({"srmech.amsc.laplacian.recursive_cut"})
+_WIRE_FORMAT_EXTRA = frozenset({"srmech.math.laplacian.recursive_cut"})
 
 # ── (a) the VERIFIED whole-op C peers ────────────────────────────────────────
 #: ``defined_at`` -> the single C entry point that performs the WHOLE operation.
@@ -380,7 +380,7 @@ _WHOLE_OP_C_PEER = {
     # whole op IS that one C call, so it is trivially C-runnable.
     "srmech.amsc.genome.quad_turn":        "srmech_klein4_bind",
     "srmech.amsc.genome.recall":           "srmech_genome_recall",
-    "srmech.amsc.laplacian.recursive_cut":
+    "srmech.math.laplacian.recursive_cut":
         "srmech_laplacian_recursive_cut",                                 # rc284
     "srmech.amsc.plasmid.genome_integrate_plasmids":
         "srmech_genome_integrate_plasmids",                               # rc279
@@ -649,8 +649,8 @@ def test_ratchet_catches_a_new_un_c_reachable_wire_op():
         "the wire-format ratchet did NOT flag a new un-C-reachable genome op — the "
         "check has degraded to a no-op")
     # …and a NON-wire op (pure carrier math) is correctly left alone.
-    cls["srmech.amsc.laplacian.mat_norm"] = "composition_of_c"
-    assert "srmech.amsc.laplacian.mat_norm" not in _unaccounted(
+    cls["srmech.math.laplacian.mat_norm"] = "composition_of_c"
+    assert "srmech.math.laplacian.mat_norm" not in _unaccounted(
         cls, _WHOLE_OP_C_PEER, _KNOWN_GLUE_GAPS), (
         "the ratchet over-reached into pure carrier math — scope creep")
 

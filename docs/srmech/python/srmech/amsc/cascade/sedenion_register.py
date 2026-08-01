@@ -13,7 +13,7 @@ named slots ``e0..e15``:
   a Hamming GF(2) code (:func:`hamming_encode`; the §30 CARRY half).
 
 The instrument runs **HDC ops instead of ALU** — random-access-by-name
-(:func:`~srmech.amsc.hdc.bind` + nearest-codebook clean), a reversible coupler
+(:func:`~srmech.math.hdc.bind` + nearest-codebook clean), a reversible coupler
 working word, a GF(2) carry block — getting associative superposition
 **classically** (no quantum cost).
 
@@ -31,7 +31,7 @@ operational hyper-loop's horizon IS the Hurwitz wall.
 
 Composes (no new primitive class):
 
-- :func:`srmech.amsc.hdc.bind` / ``bundle`` / ``similarity`` — Class **M** register
+- :func:`srmech.math.hdc.bind` / ``bundle`` / ``similarity`` — Class **M** register
   read/write (associative superposition; storage capacity is ``D``-bounded).
 - :func:`srmech.amsc.cascade.hypercomplex_couple` — the ≤7 reversible working word
   (Class **M** ∘ **C** ∘ **N**; §29).
@@ -49,7 +49,7 @@ set (≤7, the coupler). Real-coefficient EC stays out (the §30 GF(2)-only fenc
 numpy-FREE (#564): the WHOLE instrument is numpy-free. The minter + HDC storage
 (:meth:`write` / :meth:`read` / :meth:`materialize`) route through
 :func:`srmech.signal_processing.mint_vector` + the Class-M
-:func:`srmech.amsc.hdc.bind` / ``bundle`` / ``similarity`` cascades; the ≤7
+:func:`srmech.math.hdc.bind` / ``bundle`` / ``similarity`` cascades; the ≤7
 working word (:meth:`couple_working`) routes through
 :func:`hypercomplex_couple`; :meth:`navigate` / :meth:`is_navigable` /
 :meth:`carry` / :meth:`correct` are pure address-algebra. Nothing imports numpy.
@@ -88,7 +88,7 @@ WORKING_WORD_CAP = 7
 def _lazy_hdc():
     """Import the Class-M HDC byte ops on demand (numpy-free; defers the import
     so the module loads without touching signal_processing)."""
-    from ..hdc import bind, bundle, similarity
+    from ...math.hdc import bind, bundle, similarity
     return bind, bundle, similarity
 
 

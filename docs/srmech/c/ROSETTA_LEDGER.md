@@ -525,7 +525,7 @@ decrements it).
   c_dispatched `klein4_bind`, with a content-address cap from `sha256_bytes`) —
   no debt-bucket growth. ABI 3; numpy not required.
 - **rc43 (done) — text→graph stage primitives (RBS-LM UPSTREAM §17 U1; #855
-  R3 U1).** `srmech.amsc.laplacian.tokenize(text, *, stopwords=, min_len=,
+  R3 U1).** `srmech.math.laplacian.tokenize(text, *, stopwords=, min_len=,
   pattern=)` (Class B/G text-segmentation) + `cooccurrence_edges(tokens, *,
   window=, vocab_size=) -> (n, edges, weights)` (Class-L precursor) — the only
   links between raw text and the already-shipped `dense_laplacian`. The K1
@@ -599,7 +599,7 @@ decrements it).
   leaves shipped in `laplacian` but failed §40 on Unicode (ASCII `\w+` truncated
   café→caf, dropped Cyrillic/CJK) / silent `vocab_size=1000` cap (the F708
   pre-encode quantization bug as a default) / no document-boundary window reset.
-  rc50 **relocates** them to a dedicated ingestion module `srmech.amsc.text`
+  rc50 **relocates** them to a dedicated ingestion module `srmech.math.text`
   (laplacian stays purely spectral) and fixes all three: Unicode-aware
   (`unicodedata` L/M + casefold), full vocab by default (cap = explicit logged
   opt-in), `docs: Sequence[Sequence[str]]` so the window resets per document.
@@ -841,7 +841,7 @@ decrements it).
   spine foundations gating the qm/so8/spectral consumer-flips (rc115+). A workflow
   ground-truthed the remaining 15 carriers + caught the trap: `dense_norm`/`dense_dot_*`
   are numpy CARRIERS (np.ascontiguousarray/iscomplexobj) that RAISE numpy-absent (rc70
-  runnable≠loadable). Add to `amsc/laplacian.py` (+`__all__`×2): `mat_norm` = √(Σ|xᵢ|²)
+  runnable≠loadable). Add to `math/laplacian.py` (+`__all__`×2): `mat_norm` = √(Σ|xᵢ|²)
   pure-Python (complex |z|²=re²+im², no abs/hypot) ∘ Class-N rational.sqrt; `mat_dot_real`
   /`mat_dot_complex` = plain bilinear Σaᵢbᵢ (matches numpy a·b, NOT vdot) over a shared
   `_iter_mat_scalars` (Mat interleaved-complex / HV / sequence). Value-faithful to dense_*/
@@ -1566,7 +1566,7 @@ decrements it).
   "NumPy X". **numpy-math ratchet linalg_fft 61 → 32.** No rosetta / ToolEntry
   change (describe tools.total stays 285). ABI 3. rc63b/c: the delicate svd /
   matrix_rank / inv / eig / eigh / solve / lstsq / pinv (mostly qm/so8.py +
-  amsc/laplacian.py), with sign/order handling per callsite.
+  math/laplacian.py), with sign/order handling per callsite.
 - **rc62 (done) — DRAIN the np.fft.* family (linalg_fft decrement).** New
   `signal_processing/_fft_carrier.py` lifts the 1-D `spectral_cascades` fft/ifft
   to NumPy's ndarray + n= (zero-pad / truncate) + axis= contract (NumPy a

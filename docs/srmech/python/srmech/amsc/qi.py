@@ -22,7 +22,7 @@ Everything stays exact: ``+`` / ``-`` / ``*`` / ``/`` are the Gaussian-rational
 identities over the Class-N ``Q`` arithmetic — ``(a+bi)(c+di) = (ac-bd)+(ad+bc)i``
 (Class M bilinear bind ∘ Class C cross-term order), division through the real
 norm ``c²+d²`` (Class N). ``complex(qi)`` is the one boundary collapse back to the
-builtin; ``abs(qi)`` rides the Class-N :func:`srmech.amsc.rational.sqrt`
+builtin; ``abs(qi)`` rides the Class-N :func:`srmech.math.rational.sqrt`
 (exact ``Q`` when the squared modulus is a perfect rational square, else the
 stay-rational boundary). No ``math`` module, no numpy.
 """
@@ -32,8 +32,8 @@ from __future__ import annotations
 import numbers
 
 from . import _native
-from . import rational as _rational
-from .hdc import KLEIN4_STATES
+from ..math import rational as _rational
+from ..math.hdc import KLEIN4_STATES
 from .q import Q
 
 __all__ = ["Qi"]
@@ -151,7 +151,7 @@ class Qi:
     def from_polar(cls, r, theta) -> "Qi":
         """Reconstruct a ``Qi`` from a polar pair ``(r, θ)`` — the inverse of
         :meth:`as_polar`. ``z = r·(cos θ + i·sin θ)`` rebuilt through the exact
-        Class-N :func:`srmech.amsc.rational.cos` / :func:`~srmech.amsc.rational.sin`
+        Class-N :func:`srmech.math.rational.cos` / :func:`~srmech.math.rational.sin`
         series (each returns an exact ``Q``), so the re/im stay exact ``Q``
         (``r·cos θ`` / ``r·sin θ`` over the Class-N ``Q`` arithmetic). ``r`` is the
         **Class-K** magnitude, ``θ`` the **Class-C** orientation; no new
@@ -169,7 +169,7 @@ class Qi:
         each float component promoted to its exact rational via
         :meth:`srmech.amsc.q.Q.from_float` (no precision lost vs the float). This
         is the bridge that lets ``Mat`` / ``Vec`` complex entries (e.g. a
-        :func:`srmech.amsc.laplacian.magnetic_laplacian` off-diagonal) be
+        :func:`srmech.math.laplacian.magnetic_laplacian` off-diagonal) be
         polar-read exactly — the entry point to directional spectral kernels."""
         zc = complex(z)
         return cls(Q.from_float(zc.real), Q.from_float(zc.imag))
@@ -364,7 +364,7 @@ class Qi:
     def modulus(self) -> Q:
         """``r = |z|`` exact — the **Class-K** magnitude, the ``√`` of the
         carrier's OWN exact :meth:`norm_sq` (``re² + im²``) via the Class-N
-        :func:`srmech.amsc.rational.sqrt`. A perfect-square modulus is exact
+        :func:`srmech.math.rational.sqrt`. A perfect-square modulus is exact
         (``3+4i`` → ``5``), else the stay-rational ``Q`` boundary. Never an ALU
         ``abs()`` — the sign/magnitude split is the Class-K pin-slot. (Alias of
         the :class:`numbers.Complex` ``__abs__``, named for the polar call-site;
@@ -375,7 +375,7 @@ class Qi:
         """``θ = arg(z) = atan2(im, re)`` exact ``Q`` — the **Class-C**
         orientation (which-way / direction). The quadrant logic is Class-C
         direction over the Class-K sign of each component (handled inside the
-        Class-N :func:`srmech.amsc.rational.atan2` by explicit sign-branch, never
+        Class-N :func:`srmech.math.rational.atan2` by explicit sign-branch, never
         an ALU ``abs()``). ``θ ∈ (−π, π]``. (This closes the harmonic-ladder
         **Class-C** open rung — F924.)"""
         return _rational.atan2(self._im, self._re)
@@ -387,7 +387,7 @@ class Qi:
 
     def __abs__(self):
         """Modulus ``|z| = √(re² + im²)`` via the srmech Class-N
-        :func:`srmech.amsc.rational.sqrt` over the EXACT squared modulus — an
+        :func:`srmech.math.rational.sqrt` over the EXACT squared modulus — an
         exact ``Q`` when ``|z|²`` is a perfect rational square (e.g. ``3+4i`` →
         ``5``), else the stay-rational ``Q`` boundary. A ``Q`` IS a
         :class:`numbers.Real`, so ``abs(z)`` is a Real as the

@@ -11,7 +11,7 @@ klein4_compose native C peer (srmech_klein4_compose).
 numpy-free; deterministic (seeded ``klein4_expand``).
 """
 
-from srmech.amsc import hdc
+from srmech.math import hdc
 from srmech.rbs_lm import substrate as cs
 
 D = 96

@@ -71,13 +71,13 @@ from typing import Dict, List, Sequence, Tuple
 
 from srmech.amsc.q import Q                   # #845: exact-ℚ carrier (was Fraction)
 
-from srmech.amsc import rational as _srn
+from srmech.math import rational as _srn
 
 from srmech.amsc.cascade import magnitude as _magnitude
 from srmech.amsc.cascade import best_rational_signed as _brs  # #845: signed float→ℚ snap
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
 from srmech.amsc.mat import Mat
-from srmech.amsc.laplacian import (
+from srmech.math.laplacian import (
     mat_hermitian_eigendecompose,
     mat_matmul,
     mat_norm,
@@ -184,7 +184,7 @@ def _matmul(a: Sequence[Sequence[Number]], b: Sequence[Sequence[Number]]):
 
 def _matmul_c(a: Sequence[Sequence[Number]], b: Sequence[Sequence[Number]]):
     """``A·B`` routed through the ``c_dispatched``
-    :func:`~srmech.amsc.laplacian.mat_matmul` (``srmech_dense_matmul_complex``) —
+    :func:`~srmech.math.laplacian.mat_matmul` (``srmech_dense_matmul_complex``) —
     the compute step the EXACT g2 / so8 derivation cascade composes so the
     integer generators are built of C kernels (rc146 ``composition_of_c``). The
     ``g2`` / so8 derivations are EXACT-INTEGER ``{-1, 0, +1}`` combinations, whose

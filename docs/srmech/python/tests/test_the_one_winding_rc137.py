@@ -26,7 +26,7 @@ import pytest
 
 from srmech.amsc.cascade import the_one, One, winding_tower
 from srmech.amsc.cascade import one as one_mod
-from srmech.amsc.rational import cos_series_truncate, sin_series_truncate
+from srmech.math.rational import cos_series_truncate, sin_series_truncate
 
 
 # ── (i) the SPINOR state shows the winding — the (−1)^w double cover ───────────

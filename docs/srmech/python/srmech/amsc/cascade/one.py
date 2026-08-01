@@ -119,7 +119,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Tuple
 
-from ..rational import (
+from ...math.rational import (
     cos_series_truncate,
     sin_series_truncate,
     _reduce_rational,
@@ -443,7 +443,7 @@ def winding_fold(theta: float) -> Tuple[int, float]:
     mod-should-be-divmod audit's F-2 finding — the fold existed natively as
     ``srmech_winding_fold`` and pure as the laplacian ``_eph_seam_fold`` since
     rc207/gh#1276, but was reachable only through
-    :func:`~srmech.amsc.laplacian.propagate_wound`; this is the same fold as a
+    :func:`~srmech.math.laplacian.propagate_wound`; this is the same fold as a
     first-class public op).
 
     ``w = round(theta/2π)`` (round-half-toward-+∞) is the **metacycle
@@ -461,14 +461,14 @@ def winding_fold(theta: float) -> Tuple[int, float]:
     period is **Class I** (cyclic reduction) with the quotient retained; the
     2π enters as the exact **Class-N** cascade constant (the Machin-2π
     rational pure / the Q61 2/π quarter-turn grid native — the SAME constants
-    :func:`~srmech.amsc.laplacian.propagate` folds with, no forked 2π); the
+    :func:`~srmech.math.laplacian.propagate` folds with, no forked 2π); the
     residue sign is **Class K/C** (an explicit branch, never ``abs()``).
 
     Dispatch: the native C peer ``srmech_winding_fold`` (rc207; the exact
     Q61 2/π machinery ``srmech_cos``/``srmech_sin`` fold with) when
     ``HAS_NATIVE`` and the angle is inside its ``|theta| < 2^55`` domain;
     otherwise the COMPLETE pure alternative — the laplacian
-    :func:`~srmech.amsc.laplacian._eph_seam_fold` exact-rational Machin-2π
+    :func:`~srmech.math.laplacian._eph_seam_fold` exact-rational Machin-2π
     divmod (arbitrary-precision, any finite float; the same fold
     ``propagate_wound``'s pure path runs). Native == pure: ``w`` exact-integer
     equal, ``theta_res`` equal to the fold grids' common resolution (the two
@@ -521,7 +521,7 @@ def winding_fold(theta: float) -> Tuple[int, float]:
     # the COMPLETE pure alternative — the SAME Machin-2π divmod
     # propagate_wound's pure path runs (lazy import: laplacian imports
     # cascade.one lazily for the wound readouts, so this must be lazy too).
-    from srmech.amsc.laplacian import _eph_seam_fold, _EPH_FOLD_DEN
+    from srmech.math.laplacian import _eph_seam_fold, _EPH_FOLD_DEN
     w, qn = _eph_seam_fold(f)
     return w, qn / _EPH_FOLD_DEN
 

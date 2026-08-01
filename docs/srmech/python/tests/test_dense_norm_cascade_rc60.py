@@ -1,6 +1,6 @@
 """rc60 — the mat_norm cascade (the Euclidean / Frobenius norm decrement).
 
-``srmech.amsc.laplacian.mat_norm`` replaces the default 2-norm /
+``srmech.math.laplacian.mat_norm`` replaces the default 2-norm /
 Frobenius-norm callsites across the QM self-consistency residuals and the
 signal-processing taper normalisations. It is Class N (the rational sqrt) of
 the Class M self-bind ``sum |x|^2`` (via ``dense_dot_complex`` / the real
@@ -19,7 +19,7 @@ import random
 
 import pytest
 
-from srmech.amsc.laplacian import mat_norm
+from srmech.math.laplacian import mat_norm
 
 
 # ---------------------------------------------------------------------
@@ -98,7 +98,7 @@ def test_mat_norm_normalisation_roundtrip():
 
 
 def test_mat_norm_in_public_surface():
-    from srmech.amsc import laplacian
+    from srmech.math import laplacian
     assert "mat_norm" in laplacian.__all__
     assert "mat_norm" in laplacian.LAPLACIAN_OPS
 

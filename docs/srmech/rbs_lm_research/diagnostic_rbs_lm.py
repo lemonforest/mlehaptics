@@ -34,7 +34,7 @@ from transformers import GPT2LMHeadModel, GPT2Tokenizer
 sys.path.insert(0, "docs/srmech/python")
 sys.path.insert(0, "docs/srmech/rbs_lm_research")
 
-from srmech.amsc.hdc import permute  # noqa: E402
+from srmech.math.hdc import permute  # noqa: E402
 from rbs_lm_encoder import (  # noqa: E402
     CONTEXT_WINDOW,
     D,

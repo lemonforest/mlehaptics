@@ -36,7 +36,7 @@ from pathlib import Path
 import pytest
 
 from srmech.amsc import genome as G
-from srmech.amsc.hdc import klein4_expand
+from srmech.math.hdc import klein4_expand
 
 # ── the committed v2 fixture (written VERBATIM by the rc113 code path) ───────
 #

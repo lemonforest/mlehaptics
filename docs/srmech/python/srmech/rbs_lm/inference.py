@@ -26,7 +26,7 @@ import random
 from dataclasses import dataclass, field
 from typing import List, Mapping, Sequence
 
-from srmech.amsc import hdc, rational
+from srmech.math import hdc, rational
 from srmech.amsc.hv import HV
 from srmech.amsc.q import Q
 

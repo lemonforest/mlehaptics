@@ -1211,3 +1211,111 @@ presence are independent.
   (the gate that catches lazy/dynamic misses); census / op-name-set / decode-aware / rosetta
   completeness+transitive+roots-single-source / def_parity / the 3 modules' own tests + the worked-example
   execution gate all green; `regen --check` all six artifacts up to date.
+
+## Amendment J — the EIGHTH slice, the A–N PRIMITIVES batch: ten modules → `srmech.math`, the LARGEST fan-out so far, v0.9.0rc373 (`#T1034`)
+
+rc372 (Amendment I) CREATED `srmech.math` and opened it with the general-algebra roster. rc373 drains
+the **bulk of the 14 A–N primitives** into it in one slice — the ten modules
+`srmech/amsc/{cyclic,dispatch,hdc,laplacian,primes,rational,search,template,tlv,text}.py` →
+`srmech/math/`. Leaf names kept (B.1 rule 1); `describe()["tools"]["total"]` stays **525** (166 op names
+repoint amsc→math — a move, not an add); `SRMECH_ABI_VERSION` stays **10** (every `srmech_*` C symbol is
+capability-named, unchanged). By op fan-out this is the largest slice of the arc: `laplacian` alone
+carries ~56 ops and `hdc` ~57, and the sweep touched **~449 files**.
+
+**Deferred to the carriers slice (rc374): the general carriers** (`q` / `poly` / `qmat` / `qi` /
+`qalg` / `qprime` / `qbipoly` / `qpoly` / `tripoly` / `complex128` / `mat` / `vec` / `hv` /
+`carrier_ladder` / `carrier_spectrum` and kin). This slice is the A–N-primitives batch, NOT the whole
+22-module `srmech.math` bucket. The carriers are the natural next unit because so many of them are the
+KEEPER modules the primitives up-reach to (a mover importing a carrier is an up-reach today; when the
+carriers move, those become intra-`srmech.math` sibling imports).
+
+### J.1 NO new-namespace setup — this is a PURE module-move slice
+
+Unlike Amendment G (opened `srmech.apokatastasis`) and Amendment I (opened `srmech.math`), rc373 creates
+NO namespace: `srmech.math` already exists, its `__init__.py` is already written, and its root is already
+in `tests/rosetta_roots.py` + `_EXPECTED_ROOTS` (migrated NEW→EXISTING at rc372). So the G.2 root-setup
+cost is ZERO here. The only census-side edit is to **EXTEND** `NAMED_DEPARTURES["srmech.math"]` from the
+3-member rc372 subset to **13 members** (adding the 10), holding the `len(named) <= 22` assertion
+(`13 <= 22`); `ADR_A2_DESTINATION_COUNTS` is unchanged. This is the shape every remaining slice into an
+already-open namespace follows.
+
+### J.2 The mixed-import-direction lesson, generalized — `dispatch.py` is the worst case
+
+A module that moves must have each of its relative imports repointed by the DESTINATION of the target,
+not by a blanket rule. `dispatch.py` is the sharpest instance in the arc: of its single-dot relative
+imports, **9 up-reached to `..amsc`** (`_native`, `q` ×2, `coupling`, `mat`, `cascade.one`, `poly`,
+`qbipoly`, `qpoly` — all amsc KEEPERS), **1 stayed intra-batch relative** (`from . import laplacian` —
+`laplacian` is ALSO in this batch, so both land as `srmech.math` siblings and `.` stays correct), and its
+**14 `from ..apokatastasis import …` imports were byte-unchanged** (already two-level; `..apokatastasis`
+resolves to `srmech.apokatastasis` from `srmech.amsc.dispatch` and `srmech.math.dispatch` identically).
+The same three-way discrimination governs every mover and every keeper that imports one:
+
+1. **mover imports an amsc KEEPER** → up-reach: `from . import _native` → `from ..amsc import _native`
+   (all 10 movers do this for `_native`; `text` also for `_unicode_*`, `hdc` for `format`/`hv`/`mat`/`q`).
+2. **mover imports ANOTHER mover (intra-batch)** → stays relative: `primes.py` `from .cyclic import gcd`,
+   `rational.py` `from . import cyclic`, `dispatch.py` `from . import laplacian` — all left untouched.
+3. **KEEPER imports a mover** → repoint DOWN-and-OVER by the keeper's depth: `amsc/*.py`
+   `from . import <m>` / `from .<m> import` → `from ..math…` (`q` / `qmat` / `coupling` / `mat` / `vec` /
+   `poly` / `qi` / `qprime` / `complex128` / `plasmid`); `amsc/cascade/*.py` `from ..<m>` →
+   `from ...math.<m>` (`cd_register` / `sedenion_register` / `one` / `cascade.__init__`); sibling
+   subpackages `from ..amsc[.<m>]` → `from ..math[.<m>]` (`music` / `spectral` / `introspect` /
+   `apokatastasis` / `qm` / `signal_processing` / `rbs_lm`). An already-in-`srmech.math` file that
+   imported a NEW mover flips the other way: `math/modular_linalg.py` `from ..amsc.cyclic import …` →
+   `from .cyclic import …`.
+
+The reusable lesson: a family move is decided per-import by *where does the OTHER end land*, and a
+blanket `amsc`→`math` string sweep gets (2) and (3) wrong. The whole-suite `pytest --co -q` (0 ImportError
+over 13034 tests) is the catch-all that proves every one of the four families was resolved, because a
+lazy/dynamic import a static grep misses still fails collection.
+
+### J.3 The SEVEN-form sweep across ~449 files
+
+Same seven forms as I.3, at 10× the fan-out, EXCLUDING history (CHANGELOG, this ADR's history,
+`.test_durations`, dated `notes/*` fossils and `*.bin`/`*.npy` binaries): (a) dotted `srmech.amsc.<m>` —
+the bulk; (b) filesystem-`os.path.join` path — N/A (measured); (c) `from srmech.amsc import <m>` —
+including the many MIXED multi-name imports (`compose, coupling, hdc, laplacian`; `_native, rational`;
+`cyclic, dispatch, search, _native`; …) each SPLIT keepers-stay / movers-repoint; (d) relative/lazy
+imports in KEEPERS and sibling subpackages — the four families of J.2; (e) worked-examples ledger
+re-captured AFTER regen (native-absent, so `native: false` is preserved); (f) C comments —
+`srmech_loopbind.c` / `srmech_pi.c` / `srmech_pi_archimedes.c` hand comments repointed
+`srmech/amsc/{hdc,rational}.py` → `srmech/math/…`; `srmech.h` version-only; generated registries
+regenerate; (g) live `srmech_research_notebook.md` reproducible commands. **ZERO**
+`srmech.amsc.{the 10}` remain under `docs/srmech/c/` or in non-historical Python.
+
+### J.4 Measured ripple (all re-pinned in the SAME commit)
+
+- **Census**: **43 → 33** modules; digest `8f0361ea…` → **`08c5199f…`**; `LANDED` 32 → **42**;
+  conservation **`33 + 42 == 75`** holds; `NAMED_DEPARTURES["srmech.math"]` extended to 13 members
+  (`13 <= 22`). The non-vacuity injection's example leaver moved `rational` → `poly` (rational left the
+  census).
+- **Op-name-set witness**: SET moves **166** names amsc→math (`srmech.math.*` 10 → **176**,
+  `srmech.amsc.*` → **181**); digest `aa6d1f55…` → **`10224532…`**; `EXPECTED_N` stays **525**. The
+  rename simulation — which the dotted sweep had collapsed into an identity — was repointed onto a live
+  prefix (`srmech.math.rational` → the absent `srmech.zzzns.rational`) so it still fires.
+- **Decode-aware ratchet** (MEASURED post-regen): `srmech_carrier_registry.c` **(156, 500) → (100, 202)**;
+  `srmech_tool_registry.c` **(1111, 4) → (577, 0)**; `_tool_docs.py` **(1093, 0) → (562, 0)**;
+  `_c_claims.py` **(210, 0) → (91, 0)**; `srmech_responsion_registry.c` **(41, 0) → (6, 0)**; class
+  registry **(0, 40) unchanged**; **`TOTAL_AS_TEXT` 2611 → 1336** (−1275), **`TOTAL_DECODED` 544 → 242**
+  (−302). The decoded (POPULATION) channel fell hard: carrier-registry decoded `srmech.amsc.` **500 →
+  202** while `srmech.math.` rose **16 → 314** (conserved +298 — the hdc/laplacian/cyclic/rational carrier
+  back-index refs in the four hoisted byte arrays), plus 4 tool-registry hoisted refs. `apokatastasis ==
+  13` / `music == 13` hold. The `test_the_decoder_sees_what_a_text_grep_cannot` non-vacuity factor
+  `car_decoded >= 10 * max(other)` was lowered to **`>= 4 *`** WITH the reason recorded: carrier
+  amsc-decoded (202) vs class (40) is now ~5×, no longer a full order of magnitude — the natural
+  consequence of draining amsc-referencing ops out of the registry, still leaving carrier the dominant
+  amsc-decoded population.
+- **C surfaces**: 3 hand C-comment sites repointed (`srmech_loopbind.c`, `srmech_pi.c`,
+  `srmech_pi_archimedes.c`); `srmech.h` version-only; `srmech_invoke.c` grep-clean for the movers; ABI
+  stays 10. `_c_claims.py` / `_native.py` regenerate — many of the 10 modules carry `c_dispatched` ops
+  (`cyclic`, `hdc`, `laplacian`, `primes`, `rational`, `search`, `template`, `tlv`, `text`, `dispatch`),
+  all keyed amsc→math; the C SYMBOLS are capability-named and unchanged.
+- **Rosetta**: all 166 moved op rows repointed; buckets preserved; every moved op rosetta-visible under
+  `srmech.math`; completeness + transitive + roots-single-source green.
+- **Regenerated artifacts** (`tools/regen_all.py --accept-seed-drift`, native-absent, content-equal +
+  idempotent): `_tool_docs.py`, `_c_claims.py`, `srmech_tool_registry.c`, `srmech_carrier_registry.c`,
+  `srmech_responsion_registry.c`; class registry byte-identical.
+- **Verification** (numpy-absent WSL): 10/10 `import srmech.math.<m>` succeed, 10/10 `srmech.amsc.<m>`
+  raise `ModuleNotFoundError`; `describe` total **525**; whole-suite `pytest --co -q` collects **13034**
+  with **0 ImportError**; census / op-name-set / decode-aware / rosetta
+  completeness+transitive+roots-single-source / def_parity / no-stdlib-math (the `..math` relative import
+  is exempt, guard gates on `node.level == 0`) all green; `regen --check` up to date.

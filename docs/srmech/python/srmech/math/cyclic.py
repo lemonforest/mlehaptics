@@ -43,7 +43,7 @@ from __future__ import annotations
 
 import ctypes
 
-from . import _native
+from ..amsc import _native
 
 __all__ = [
     "gcd",

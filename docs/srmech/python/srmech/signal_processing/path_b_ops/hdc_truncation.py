@@ -100,7 +100,7 @@ def op(
         Bundled (and optionally truncated) vector. D1 algebra-identical
         to :func:`srmech.signal_processing.closed_form_ops.hdc_truncation.op`.
     """
-    from srmech.amsc.hdc import bundle as hdc_bundle
+    from srmech.math.hdc import bundle as hdc_bundle
 
     # Class M side: HDC bundle is Path B-native (Phase 3 surface).
     bundled = hdc_bundle(vectors)

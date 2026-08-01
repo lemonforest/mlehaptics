@@ -21,7 +21,7 @@ ALL deviations are reduced through the **scalar** Class K pin-slot magnitude
 (:func:`srmech.amsc.cascade.magnitude`) — NEVER Python ``abs()`` per
 ``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]`` — by first
 reducing the matrix to a scalar Frobenius norm via the numpy-free Class-N
-:func:`srmech.amsc.laplacian.mat_norm`. numpy-FREE (per
+:func:`srmech.math.laplacian.mat_norm`. numpy-FREE (per
 ``[[feedback_test_for_numpy_free_module_must_itself_be_numpy_free]]``): the
 so9 surfaces return :class:`srmech.amsc.mat.Mat`; ranks ride the EXACT
 rational :func:`srmech.qm.so9._q_rank`.
@@ -30,7 +30,7 @@ rational :func:`srmech.qm.so9._q_rank`.
 from __future__ import annotations
 
 from srmech.amsc.cascade import magnitude
-from srmech.amsc.laplacian import mat_matmul, mat_norm
+from srmech.math.laplacian import mat_matmul, mat_norm
 from srmech.amsc.mat import Mat
 from srmech.qm import so9
 

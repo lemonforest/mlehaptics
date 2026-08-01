@@ -34,8 +34,8 @@ from __future__ import annotations
 from typing import List, Optional, Tuple
 
 from srmech.amsc import _native as _native
-from srmech.amsc import rational as _srn
-from srmech.amsc.laplacian import mat_hermitian_eigendecompose
+from srmech.math import rational as _srn
+from srmech.math.laplacian import mat_hermitian_eigendecompose
 from srmech.amsc.mat import Mat
 
 OPERATION_NAME = "ica_jade"

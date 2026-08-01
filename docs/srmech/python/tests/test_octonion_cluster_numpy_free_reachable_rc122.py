@@ -2,7 +2,7 @@
 numpy-FREE (#564).
 
 The carrier-removal arc flips the octonion connected component together:
-``amsc/hdc.py`` (the Moufang loop-bind family) → ``qm/octonion.py`` →
+``math/hdc.py`` (the Moufang loop-bind family) → ``qm/octonion.py`` →
 {``qm/so8.py``, ``qm/triality.py``, ``amsc/cascade/hypercomplex_dft.py``}. After
 the flip EVERY module imports AND runs with numpy genuinely absent.
 
@@ -101,7 +101,7 @@ def test_triality_imports_and_runs_numpy_free():
     proc = _run_numpy_free(
         """
         from srmech.qm import triality
-        from srmech.amsc.laplacian import mat_matmul, mat_norm
+        from srmech.math.laplacian import mat_matmul, mat_norm
         from srmech.amsc.mat import Mat
         tau = triality.triality_automorphism()
         assert type(tau).__name__ == "Mat" and tau.shape == (28, 28)
@@ -122,7 +122,7 @@ def test_hdc_loop_family_imports_and_runs_numpy_free():
     """``amsc.hdc`` imports + the loop / polar families run numpy-absent."""
     proc = _run_numpy_free(
         """
-        from srmech.amsc import hdc
+        from srmech.math import hdc
         c = hdc.loop_bind([1.0, 2, 3, 4, 5, 6, 7, 8], [8.0, 7, 6, 5, 4, 3, 2, 1])
         assert isinstance(c, list) and len(c) == 8, type(c)
         L = hdc.loop_left_op([1.0, 0, 0, 0, 0, 0, 0, 0])

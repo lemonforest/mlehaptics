@@ -19,7 +19,8 @@ import ctypes
 
 import pytest
 
-from srmech.amsc import coupling, laplacian as La, _native
+from srmech.amsc import coupling, _native
+from srmech.math import laplacian as La
 from srmech.amsc.mat import Mat
 from srmech.amsc.vec import Vec
 

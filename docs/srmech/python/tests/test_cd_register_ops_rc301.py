@@ -278,7 +278,7 @@ def test_navigate_propagates_the_opt_flags():
 def _proof_M():
     """M: is ``couple_working`` an HDC bind? Relate it to the shipped ``hdc.bind``
     family precisely."""
-    from srmech.amsc import hdc
+    from srmech.math import hdc
     # (a) couple_working is a reversible BIND: couple then uncouple recovers.
     vals = [0.3, -0.7, 0.1, 0.9, -0.2, 0.5, -0.4]
     word = cd_couple_working(vals, 8)
@@ -340,7 +340,7 @@ def _proof_N():
 def _proof_L():
     """L (the FALSIFIER): a BARE register stores a Laplacian spectrum; the
     eigendecomposition stays in Mat. L fits as STORAGE, not OPERATION."""
-    from srmech.amsc.laplacian import dense_laplacian, jacobi_eigvals
+    from srmech.math.laplacian import dense_laplacian, jacobi_eigvals
     # the L OPERATION lives in Mat/laplacian — a path-graph Laplacian's eigenvalues
     lap = dense_laplacian(4, [(0, 1), (1, 2), (2, 3)])
     eig = jacobi_eigvals(lap)

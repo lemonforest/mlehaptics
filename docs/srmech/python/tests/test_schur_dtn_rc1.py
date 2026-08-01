@@ -16,7 +16,7 @@ from srmech.amsc.q import Q  # #845: outputs are now Q, not Fraction
 
 import pytest
 
-from srmech.amsc.laplacian import (
+from srmech.math.laplacian import (
     dense_laplacian,
     schur_complement,
     dirichlet_to_neumann,
@@ -140,5 +140,5 @@ def test_registered_in_tool_schema() -> None:
     from srmech.amsc.tool_schema import get_tool_schema
 
     schema = get_tool_schema()
-    assert schema.lookup("srmech.amsc.laplacian.schur_complement") is not None
-    assert schema.lookup("srmech.amsc.laplacian.dirichlet_to_neumann") is not None
+    assert schema.lookup("srmech.math.laplacian.schur_complement") is not None
+    assert schema.lookup("srmech.math.laplacian.dirichlet_to_neumann") is not None

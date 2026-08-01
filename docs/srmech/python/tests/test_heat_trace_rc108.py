@@ -35,8 +35,8 @@ import ctypes
 import pytest
 
 from srmech.amsc import _native
-from srmech.amsc import laplacian as L
-from srmech.amsc import rational as R
+from srmech.math import laplacian as L
+from srmech.math import rational as R
 
 
 # ── helpers (no numpy, no abs()) ────────────────────────────────────────
@@ -390,8 +390,8 @@ def test_registered_in_tool_schema():
 
     schema = tool_schema.get_tool_schema()
     for name in (
-        "srmech.amsc.laplacian.heat_trace",
-        "srmech.amsc.laplacian.ground_state_flux_response",
+        "srmech.math.laplacian.heat_trace",
+        "srmech.math.laplacian.ground_state_flux_response",
     ):
         entry = schema.lookup(name)
         assert entry is not None

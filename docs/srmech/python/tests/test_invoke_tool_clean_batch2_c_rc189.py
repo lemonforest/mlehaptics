@@ -52,39 +52,39 @@ def _b64(bs: bytes) -> str:
 # byte-for-byte reference.
 _BATCH2_CASES = [
     # (pair, pair) -> pair
-    ("srmech.amsc.rational.rational_add", {"a": [1, 2], "b": [1, 3]}),
-    ("srmech.amsc.rational.rational_add", {"a": [-1, 2], "b": [1, 2]}),   # -> [0, 1]
-    ("srmech.amsc.rational.rational_mul", {"a": [2, 3], "b": [3, 4]}),
-    ("srmech.amsc.rational.rational_div", {"a": [1, 2], "b": [3, 4]}),
+    ("srmech.math.rational.rational_add", {"a": [1, 2], "b": [1, 3]}),
+    ("srmech.math.rational.rational_add", {"a": [-1, 2], "b": [1, 2]}),   # -> [0, 1]
+    ("srmech.math.rational.rational_mul", {"a": [2, 3], "b": [3, 4]}),
+    ("srmech.math.rational.rational_div", {"a": [1, 2], "b": [3, 4]}),
     # (pair, int) -> pair
-    ("srmech.amsc.rational.rational_pow_uint", {"base": [2, 3], "exp": 4}),
-    ("srmech.amsc.rational.rational_pow_uint", {"base": [-2, 3], "exp": 3}),
+    ("srmech.math.rational.rational_pow_uint", {"base": [2, 3], "exp": 4}),
+    ("srmech.math.rational.rational_pow_uint", {"base": [-2, 3], "exp": 3}),
     # (int, int) -> list[int]
-    ("srmech.amsc.rational.continued_fraction",
+    ("srmech.math.rational.continued_fraction",
      {"numerator": 415, "denominator": 93}),
-    ("srmech.amsc.rational.continued_fraction",
+    ("srmech.math.rational.continued_fraction",
      {"numerator": 0, "denominator": 5}),               # -> [0]
     # list[int] -> list[(int, int)]
-    ("srmech.amsc.rational.continued_fraction_convergents",
+    ("srmech.math.rational.continued_fraction_convergents",
      {"coef_list": [3, 7, 15, 1, 292]}),
-    ("srmech.amsc.rational.continued_fraction_convergents",
+    ("srmech.math.rational.continued_fraction_convergents",
      {"coef_list": [-3, 7]}),                            # negative a_0 is allowed
     # (int, int, int) -> int
-    ("srmech.amsc.primes.cyclic_period", {"a": 2, "n": 7, "max_k": 100}),
-    ("srmech.amsc.primes.cyclic_period", {"a": 3, "n": 7}),   # max_k default = n
+    ("srmech.math.primes.cyclic_period", {"a": 2, "n": 7, "max_k": 100}),
+    ("srmech.math.primes.cyclic_period", {"a": 3, "n": 7}),   # max_k default = n
     # Sequence[bytes] -> bytes
-    ("srmech.amsc.hdc.bundle",
+    ("srmech.math.hdc.bundle",
      {"vectors": [_b64(bytes([1, 2, 3])), _b64(bytes([1, 3, 3])), _b64(bytes([7, 2, 3]))]}),
-    ("srmech.amsc.hdc.bundle", {"vectors": [_b64(bytes([9, 9]))]}),  # single vector (odd)
+    ("srmech.math.hdc.bundle", {"vectors": [_b64(bytes([9, 9]))]}),  # single vector (odd)
     # list[bytes] -> list[str]
     ("srmech.amsc.format.sha256_batch", {"datas": [_b64(b"abc"), _b64(b"")]}),
     ("srmech.amsc.format.sha256_batch", {"datas": []}),               # -> []
     # (bytes, list[(bytes, int)]) -> (bool, int)
-    ("srmech.amsc.dispatch.match",
+    ("srmech.math.dispatch.match",
      {"input_bytes": _b64(b"hello world"), "rules": [[_b64(b"xyz"), 7], [_b64(b"wor"), 9]]}),
-    ("srmech.amsc.dispatch.match",
+    ("srmech.math.dispatch.match",
      {"input_bytes": _b64(b"abc"), "rules": [[_b64(b"zzz"), 1]]}),     # no match -> [false, 0]
-    ("srmech.amsc.dispatch.match",
+    ("srmech.math.dispatch.match",
      {"input_bytes": _b64(b"abc"), "rules": []}),                      # empty rules -> [false, 0]
     # (bytes, list[(bytes, bytes)]) -> bytes | null
     ("srmech.introspect.naming.lookup",
@@ -92,12 +92,12 @@ _BATCH2_CASES = [
     ("srmech.introspect.naming.lookup",
      {"key": _b64(b"zz"), "pairs": [[_b64(b"k1"), _b64(b"v1")]]}),     # miss -> null
     # (bytes, Mapping[bytes, bytes]) -> bytes
-    ("srmech.amsc.template.render",
+    ("srmech.math.template.render",
      {"template_bytes": _b64(b"hi {name}!"), "mapping": {_b64(b"name"): _b64(b"bob")}}),
-    ("srmech.amsc.template.render",
+    ("srmech.math.template.render",
      {"template_bytes": _b64(b"{b}{a}"),
       "mapping": {_b64(b"a"): _b64(b"1"), _b64(b"b"): _b64(b"2")}}),   # unsorted keys -> sorted pack
-    ("srmech.amsc.template.render",
+    ("srmech.math.template.render",
      {"template_bytes": _b64(b"plain, no braces"), "mapping": {}}),    # empty mapping -> verbatim
 ]
 
@@ -127,34 +127,34 @@ def test_batch2_covers_twelve_distinct_tools() -> None:
 # complete fallback. Each replicates a place the Python wrapper raises OR uses
 # the bignum path OR returns a value the int64 carrier can't hold.
 _DEFER_CASES = [
-    ("srmech.amsc.rational.rational_add", {"a": [1, 0], "b": [1, 3]}),    # den<=0 -> ValueError
-    ("srmech.amsc.rational.rational_div", {"a": [1, 2], "b": [0, 4]}),    # /0 rational
-    ("srmech.amsc.rational.rational_add",
+    ("srmech.math.rational.rational_add", {"a": [1, 0], "b": [1, 3]}),    # den<=0 -> ValueError
+    ("srmech.math.rational.rational_div", {"a": [1, 2], "b": [0, 4]}),    # /0 rational
+    ("srmech.math.rational.rational_add",
      {"a": [(1 << 62), 1], "b": [(1 << 62), 1]}),                        # overflow -> bignum
-    ("srmech.amsc.rational.rational_mul",
+    ("srmech.math.rational.rational_mul",
      {"a": [(1 << 62), 1], "b": [(1 << 62), 1]}),                        # overflow -> bignum
-    ("srmech.amsc.rational.rational_pow_uint", {"base": [2, 3], "exp": 0}),    # ->(1,1) pure
-    ("srmech.amsc.rational.rational_pow_uint", {"base": [2, 3], "exp": 100}),  # >64 -> bignum
-    ("srmech.amsc.rational.rational_pow_uint", {"base": [2, 3], "exp": -1}),   # <0 -> ValueError
-    ("srmech.amsc.rational.continued_fraction", {"numerator": 5, "denominator": 0}),  # ValueError
-    ("srmech.amsc.rational.continued_fraction_convergents", {"coef_list": []}),        # ValueError
-    ("srmech.amsc.rational.continued_fraction_convergents", {"coef_list": [3, -1]}),   # a_k<=0
-    ("srmech.amsc.primes.cyclic_period", {"a": 2, "n": 1}),              # n<2 -> ValueError
-    ("srmech.amsc.primes.cyclic_period", {"a": 2, "n": 4}),              # gcd!=1 -> ValueError
-    ("srmech.amsc.primes.cyclic_period", {"a": 2, "n": 7, "max_k": 1}),  # period>max_k -> Overflow
-    ("srmech.amsc.hdc.bundle", {"vectors": [_b64(b"ab"), _b64(b"cd")]}), # even count -> ValueError
-    ("srmech.amsc.hdc.bundle",
+    ("srmech.math.rational.rational_pow_uint", {"base": [2, 3], "exp": 0}),    # ->(1,1) pure
+    ("srmech.math.rational.rational_pow_uint", {"base": [2, 3], "exp": 100}),  # >64 -> bignum
+    ("srmech.math.rational.rational_pow_uint", {"base": [2, 3], "exp": -1}),   # <0 -> ValueError
+    ("srmech.math.rational.continued_fraction", {"numerator": 5, "denominator": 0}),  # ValueError
+    ("srmech.math.rational.continued_fraction_convergents", {"coef_list": []}),        # ValueError
+    ("srmech.math.rational.continued_fraction_convergents", {"coef_list": [3, -1]}),   # a_k<=0
+    ("srmech.math.primes.cyclic_period", {"a": 2, "n": 1}),              # n<2 -> ValueError
+    ("srmech.math.primes.cyclic_period", {"a": 2, "n": 4}),              # gcd!=1 -> ValueError
+    ("srmech.math.primes.cyclic_period", {"a": 2, "n": 7, "max_k": 1}),  # period>max_k -> Overflow
+    ("srmech.math.hdc.bundle", {"vectors": [_b64(b"ab"), _b64(b"cd")]}), # even count -> ValueError
+    ("srmech.math.hdc.bundle",
      {"vectors": [_b64(b"ab"), _b64(b"c"), _b64(b"de")]}),               # len mismatch -> ValueError
-    ("srmech.amsc.dispatch.match",
+    ("srmech.math.dispatch.match",
      {"input_bytes": _b64(b"x"), "rules": [[_b64(b"x"), (1 << 40)]]}),   # tag > u32 -> defer
-    ("srmech.amsc.template.render",
+    ("srmech.math.template.render",
      {"template_bytes": _b64(b"{zzz}"), "mapping": {_b64(b"name"): _b64(b"bob")}}),  # unknown key
-    ("srmech.amsc.template.render",
+    ("srmech.math.template.render",
      {"template_bytes": _b64(b"{x}"), "mapping": {}}),                  # empty map + placeholder -> unknown key
     # shared-surface misses (mirroring rc188's contract)
     ("no.such.tool", {"x": 1}),                                          # unregistered
-    ("srmech.amsc.rational.rational_add", {"a": [1, 2], "b": [1, 3], "z": 1}),  # extra arg
-    ("srmech.amsc.rational.rational_add", {"a": [1, 2]}),                # missing required arg
+    ("srmech.math.rational.rational_add", {"a": [1, 2], "b": [1, 3], "z": 1}),  # extra arg
+    ("srmech.math.rational.rational_add", {"a": [1, 2]}),                # missing required arg
 ]
 
 
@@ -192,9 +192,9 @@ def test_helper_degrades_without_native() -> None:
     """With the C peer present, a batch-2 tool dispatches; absent, it defers."""
     if _native.has_native_invoke():
         assert _native.invoke_tool_c(
-            "srmech.amsc.rational.continued_fraction",
+            "srmech.math.rational.continued_fraction",
             {"numerator": 7, "denominator": 3}) == (True, "[2, 3]")
     else:
         assert _native.invoke_tool_c(
-            "srmech.amsc.rational.continued_fraction",
+            "srmech.math.rational.continued_fraction",
             {"numerator": 7, "denominator": 3}) == (False, None)

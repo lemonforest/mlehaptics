@@ -6,7 +6,7 @@ from a Taylor-series truncation, not a float — the continuous number line is
 a projection (``[[feedback_continuous_number_line_pedagogical_obstacle]]``);
 "continuous" trig is computed as a Class-N rational cascade.
 
-Implementations live in :mod:`srmech.amsc.rational`; see
+Implementations live in :mod:`srmech.math.rational`; see
 :mod:`srmech.calculus` (formerly ``srmech.asymptotic_calculus``, still a
 back-compat alias) for the full continuous-calculus surface (transcendentals
 + exp/roots + rational arithmetic + Class-N anchors + π).
@@ -27,7 +27,7 @@ Two layers:
 """
 from __future__ import annotations
 
-from srmech.amsc.rational import (
+from srmech.math.rational import (
     sin_series_truncate,
     cos_series_truncate,
     atan_series_truncate,

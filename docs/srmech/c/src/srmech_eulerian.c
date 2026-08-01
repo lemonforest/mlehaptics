@@ -2,7 +2,7 @@
  * srmech_eulerian.c — #1390 item 3: the Hierholzer walk-reconstruction the
  * directed Class-L genome store recovers a sequence with. A node-agnostic
  * Eulerian trail / circuit over a DIRECTED edge multiset, integer nodes
- * [0, n_nodes). Byte-identical to the pure srmech.amsc.laplacian.eulerian_path
+ * [0, n_nodes). Byte-identical to the pure srmech.math.laplacian.eulerian_path
  * / eulerian_circuit: the SAME feasibility test (degree balance + full-edge-
  * consumption connectivity — infeasible => out_feasible = 0, the pure `None`)
  * AND the SAME deterministic order (adjacency filled in edge order, consumed

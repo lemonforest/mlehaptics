@@ -28,7 +28,7 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc.hdc import KLEIN4_STATES
+from srmech.math.hdc import KLEIN4_STATES
 from srmech.amsc.q import Q
 from srmech.amsc.qi import Qi
 

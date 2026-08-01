@@ -27,7 +27,8 @@ import ctypes
 import random
 from array import array
 
-from srmech.amsc import _native, hdc, format as amsc_format
+from srmech.amsc import _native, format as amsc_format
+from srmech.math import hdc
 from srmech.amsc.hv import HV
 
 

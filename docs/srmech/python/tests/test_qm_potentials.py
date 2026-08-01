@@ -13,8 +13,8 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc import rational as _srn
-from srmech.amsc.laplacian import mat_hermitian_eigendecompose, mat_matmul
+from srmech.math import rational as _srn
+from srmech.math.laplacian import mat_hermitian_eigendecompose, mat_matmul
 from srmech.amsc.mat import Mat
 from srmech.qm import potentials, single_particle
 

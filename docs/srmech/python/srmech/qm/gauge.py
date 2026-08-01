@@ -10,12 +10,12 @@ path-segment holonomy, Wilson loop) are held in the framework-native
 the numpy-free Pauli 2×2 ``Mat`` blocks
 (:func:`srmech.qm.spin.pauli_matrices`), the Gell-Mann matrices from exact
 small-integer ``Mat`` (with the λ⁸ ``1/√3`` normaliser via the Class-N
-:func:`srmech.amsc.rational.sqrt`). Every matrix product routes through the
-Class-L :func:`~srmech.amsc.laplacian.mat_matmul`, residual norms through
-:func:`~srmech.amsc.laplacian.mat_norm`, and the path-segment holonomy
+:func:`srmech.math.rational.sqrt`). Every matrix product routes through the
+Class-L :func:`~srmech.math.laplacian.mat_matmul`, residual norms through
+:func:`~srmech.math.laplacian.mat_norm`, and the path-segment holonomy
 ``exp(i g A^a T^a)`` through the Class-L
-:func:`~srmech.amsc.laplacian.mat_hermitian_eigendecompose`
-(``V·diag(e^{iλ})·Vᴴ`` with the Class-N :func:`srmech.amsc.rational.cexp`
+:func:`~srmech.math.laplacian.mat_hermitian_eigendecompose`
+(``V·diag(e^{iλ})·Vᴴ`` with the Class-N :func:`srmech.math.rational.cexp`
 Euler phase) — **no numpy**. The structure constants ``f^{abc}`` are plain
 nested Python lists (rank-3; ``Mat`` is 2-D only).
 
@@ -52,8 +52,8 @@ import ctypes
 from typing import List, Sequence, Tuple
 
 from srmech.amsc import _native
-from srmech.amsc import rational as _srn
-from srmech.amsc.laplacian import (
+from srmech.math import rational as _srn
+from srmech.math.laplacian import (
     mat_hermitian_eigendecompose,
     mat_matmul,
     mat_norm,

@@ -42,7 +42,7 @@ from fractions import Fraction
 import pytest
 
 from srmech.amsc import _native
-from srmech.amsc import laplacian as L
+from srmech.math import laplacian as L
 from srmech.amsc.cascade import winding_fold
 
 

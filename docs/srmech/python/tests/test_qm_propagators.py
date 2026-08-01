@@ -15,7 +15,7 @@ import math
 
 import pytest
 
-from srmech.amsc.laplacian import mat_matmul, mat_norm
+from srmech.math.laplacian import mat_matmul, mat_norm
 from srmech.amsc.mat import Mat
 from srmech.qm import propagators as prop
 from srmech.qm import relativistic as rel

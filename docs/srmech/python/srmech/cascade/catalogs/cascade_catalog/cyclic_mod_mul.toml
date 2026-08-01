@@ -10,7 +10,7 @@ kind = "stage"
 purpose = "Class I modular multiply (a * b) mod n — the multiply stage of an LCG cascade."
 description = """
 Cascade-namespace alias for the Class I modular multiply
-srmech.amsc.cyclic.mod_mul: (a * b) mod n, overflow-safe via russian-peasant
+srmech.math.cyclic.mod_mul: (a * b) mod n, overflow-safe via russian-peasant
 doubling in C. Following the DSL chain contract the piped value is the first
 positional argument `a` and the multiplier `b` + modulus `n` are bound stage
 kwargs, so an LCG multiply stage reads
@@ -23,7 +23,7 @@ the primitive binds); use cyclic_mod_mul_wide for a > 64-bit modulus (the
 PCG64 128-bit step). n must be > 0.
 
 This is NOT a new primitive: it is a thin delegation to the already-
-c_dispatched srmech.amsc.cyclic.mod_mul (which routes to srmech_mod_mul), so
+c_dispatched srmech.math.cyclic.mod_mul (which routes to srmech_mod_mul), so
 it adds no native dispatch and no new C symbol — the cascade-catalog / DSL-
 registration layer only (composition_of_c).
 """
@@ -43,16 +43,16 @@ dsl_stage = "data-first; op=\"cyclic_mod_mul\" with b=<multiplier> and n=<modulu
 # No dedicated cascade C symbol: the op delegates straight to the Class-I
 # primitive's own native dispatch (srmech_mod_mul). composition_of_c — reaches
 # C through cyclic.mod_mul, not a cascade-namespace wrapper.
-status = "delegation (no dedicated cascade C symbol); the Class-I primitive srmech.amsc.cyclic.mod_mul dispatches to srmech_mod_mul"
+status = "delegation (no dedicated cascade C symbol); the Class-I primitive srmech.math.cyclic.mod_mul dispatches to srmech_mod_mul"
 abi_version = 8
 
 [cascade.delegates_to]
 class = "I"
 primitive_c_symbol = "srmech_mod_mul"
-primitive_python = "srmech.amsc.cyclic.mod_mul"
+primitive_python = "srmech.math.cyclic.mod_mul"
 rationale = """
 The cascade op carries no math of its own — the Class I primitive
-srmech.amsc.cyclic.mod_mul owns the russian-peasant modular product and its
+srmech.math.cyclic.mod_mul owns the russian-peasant modular product and its
 native dispatch to srmech_mod_mul. The cascade wrapper exists so the op is
 DECLARABLE in a DSL chain / make_class descriptor and DISCOVERABLE in the
 tool_schema by the words a caller searches ("modular multiply"). Rosetta
@@ -70,7 +70,7 @@ license = "MIT"
 parser_version = "srmech-cascade 0.9.0rc302"
 canonical_landings = [
   "§110 / #1460 — the Class-I modular family becomes DSL-declarable (rc302)",
-  "srmech.amsc.cyclic.mod_mul — the registered Class-I primitive home (c_dispatched via srmech_mod_mul)",
+  "srmech.math.cyclic.mod_mul — the registered Class-I primitive home (c_dispatched via srmech_mod_mul)",
   "cyclic_gcd.toml — the Class-I cascade-catalog model this follows",
   "user_stance_cross_substrate_cascade_matching_as_research_method — a modular cascade (LCG) is one 14-class cascade shape",
 ]

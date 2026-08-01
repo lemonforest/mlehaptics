@@ -47,7 +47,7 @@ MEASURED at rc362, on this branch:
 The +10 is 5 citations × the 2 artifacts that carry op DOCUMENTATION. All five
 sit in the nine music ops' worked examples, and four of them are the same
 line — ``from srmech.amsc.q import Q`` — because ``Q`` IS the operand carrier
-those ops take. The fifth is ``from srmech.amsc.rational import best_rational``
+those ops take. The fifth is ``from srmech.math.rational import best_rational``
 in ``commensurability_verdict``, which exists to SHOW the sibling op that
 silently converts an inharmonic spectrum into a harmonic one. These are import
 statements in code that ``test_worked_examples_execute_rc354`` actually RUNS —
@@ -171,7 +171,7 @@ import codegen_manifest as cm  # noqa: E402
 from c_byte_arrays import decoded_blobs, octal_escaped_name_chars  # noqa: E402
 
 #: The namespace the ADR drains. Trailing dot on purpose: it counts MEMBER
-#: references (``srmech.amsc.rational``), not the bare package name, so the four
+#: references (``srmech.math.rational``), not the bare package name, so the four
 #: modules ``amsc`` keeps are the floor this can honestly fall to — not zero.
 PREFIX = "srmech.amsc."
 
@@ -254,7 +254,12 @@ CEIL_AMSC_PREFIX = {
     # and srmech.math. rises 0 -> 16 (conserved). as-text stays 156 because the
     # octonion carrier's SHORT back-index citations were already outside this
     # artifact (its ToolEntry citations sit in the tool_registry / _tool_docs).
-    "c/src/srmech_carrier_registry.c": (156, 500),
+    # as-text 156 -> 100 at rc373 (-56), decoded 500 -> 202 (-298). THE A-N
+    # PRIMITIVES batch (10 modules amsc->math). The decoded POPULATION channel
+    # again: hdc / laplacian / cyclic / rational etc. carrier back-index refs in
+    # the four hoisted byte arrays move amsc->math (decoded amsc 500 -> 202,
+    # srmech.math. 16 -> 314, conserved). as-text drops 56 short back-index cites.
+    "c/src/srmech_carrier_registry.c": (100, 202),
     # TEXT 0 is TRUE, and true about the wrong thing. Every one of the four
     # baked [class] descriptors (`cls_desc_0..3`) is a decimal byte array, so a
     # grep has nothing to read. 37 DISTINCT dotted names live in there.
@@ -265,7 +270,7 @@ CEIL_AMSC_PREFIX = {
     # as-text 1219 -> 1224 at rc362 (+5), decoded UNCHANGED at 4. CITATION, not
     # population: the nine srmech.music ops' worked examples import their own
     # operand carrier (`from srmech.amsc.q import Q`, x4) and the sibling op the
-    # explanation warns against (`from srmech.amsc.rational import
+    # explanation warns against (`from srmech.math.rational import
     # best_rational`, x1). Ops named srmech.amsc.* stayed 396. Verified against
     # the pre-branch commit: this artifact read exactly 1219 there.
     #
@@ -331,7 +336,11 @@ CEIL_AMSC_PREFIX = {
     # refs) + sibling-prose dotted refs repointed amsc->math. decoded stays 4 (this
     # artifact's 4 are its own hoisted strings; the octonion carrier back-index
     # decoded drop landed in the CARRIER registry).
-    "c/src/srmech_tool_registry.c": (1111, 4),
+    # as-text 1111 -> 577 at rc373 (-534), decoded 4 -> 0 (-4). The A-N primitives
+    # batch: the 10 moved modules ToolEntry name= citations + worked-example
+    # imports + sibling-prose dotted refs repointed amsc->math; the 4 hoisted
+    # decoded refs were to moved-module ops and left too.
+    "c/src/srmech_tool_registry.c": (577, 0),
     # rc368 — THE FIRST MODULE MOVE TO MOVE THIS ARTIFACT (the new data point).
     # This was the CONTROL row through harmonics/naming: "no byte arrays, decoded
     # 0 is a real zero". It is still a real zero on the decoded channel, but the
@@ -348,7 +357,11 @@ CEIL_AMSC_PREFIX = {
     # (zeilberger / q_zeilberger / gosper / thetasum / ellbase / eisenstein / ...),
     # so the generated source-of-truth comments for those operators repointed
     # amsc->apokatastasis. decoded stays 0 (this registry carries no byte arrays).
-    "c/src/srmech_responsion_registry.c": (41, 0),
+    # as-text 41 -> 6 at rc373 (-35), decoded UNCHANGED at 0. The A-N primitives
+    # batch: dispatch / laplacian / cyclic etc. ARE edge-OPERATOR names in the
+    # responsion registry, so their generated source-of-truth comments repointed
+    # amsc->math. decoded stays 0 (this registry carries no byte arrays).
+    "c/src/srmech_responsion_registry.c": (6, 0),
     # CONTROL: generated .py, no embedded arrays. Their long integer runs were
     # inspected at rc361 and are worked-example OUTPUT VALUES (octonion basis
     # vectors, inertia signatures, index triples) — genuine numeric data, not a
@@ -384,7 +397,10 @@ CEIL_AMSC_PREFIX = {
     # slice — the SAME 40 citations as the tool registry (this is the doc pair):
     # the 10 moved ops' documentation (ToolEntry names + worked-example imports +
     # sibling-prose dotted refs) repointed amsc->math.
-    "python/srmech/amsc/_tool_docs.py": (1093, 0),
+    # as-text 1093 -> 562 at rc373 (-531), decoded UNCHANGED at 0. The A-N
+    # primitives batch, doc-pair partner of the tool registry: the 10 modules op
+    # documentation repointed amsc->math.
+    "python/srmech/amsc/_tool_docs.py": (562, 0),
     # as-text 250 -> 248 at rc367 (-2), decoded UNCHANGED at 0. rc367 is the
     # FIRST module move to move THIS artifact — a departure from the harmonics
     # analog. _c_claims.py is the op -> C-symbol CLAIM manifest, keyed only for
@@ -422,7 +438,11 @@ CEIL_AMSC_PREFIX = {
     # keys — each repointed amsc->math. gf_solve / gf_nullspace are composition_of_c
     # (no C claim), so they never had a key here. The C SYMBOLS are capability-named
     # and unchanged — only the Python-side dotted keys moved.
-    "python/srmech/amsc/_c_claims.py": (210, 0),
+    # as-text 210 -> 91 at rc373 (-119), decoded UNCHANGED at 0. The A-N
+    # primitives batch: the moved modules c_dispatched leaves (cyclic / hdc /
+    # laplacian / primes / rational / search / template / tlv / text / dispatch
+    # op keys) repointed amsc->math. The C SYMBOLS are capability-named, unchanged.
+    "python/srmech/amsc/_c_claims.py": (91, 0),
 }
 
 #: The generated-artifact totals, pinned so a per-file edit cannot quietly move
@@ -435,8 +455,8 @@ CEIL_AMSC_PREFIX = {
 #:
 #: as-text 2933 (rc361) -> 2943 (rc362, +10 = the 5 citations x 2 artifacts).
 #: decoded 577 (rc361)  ->  577 (rc362, FLAT — the population did not move).
-TOTAL_AS_TEXT = 2611   # rc371 2699 -> rc372 2611 (-88: the srmech.math slice, 3 modules amsc->math; -40 tool_registry + -40 _tool_docs + -8 _c_claims; carrier as-text flat, responsion/class flat)
-TOTAL_DECODED = 544    # rc371 560 -> rc372 544 (-16: THE POPULATION FELL — 16 octonion-carrier (oct_mult/oct_bind/oct_conjugate) op refs in the hoisted carrier-registry byte arrays moved amsc->math)
+TOTAL_AS_TEXT = 1336   # rc372 2611 -> rc373 1336 (-1275: the A-N primitives batch, 10 modules amsc->math; -534 tool_registry -531 _tool_docs -119 _c_claims -56 carrier -35 responsion)
+TOTAL_DECODED = 242    # rc372 544 -> rc373 242 (-302: POPULATION fell — 298 carrier-registry back-index refs amsc->math + 4 tool_registry hoisted refs to moved-module ops)
 
 
 def _counts(rel_path: str) -> "tuple[int, int]":
@@ -562,7 +582,12 @@ def test_the_decoder_sees_what_a_text_grep_cannot() -> None:
         f"(text {car_text}, decoded {car_decoded}). The 'a textual sweep looks "
         f"successful and leaves the majority behind' claim in this file's "
         f"docstring depended on that ordering.")
-    assert car_decoded >= 10 * max(
+    # rc373: the A-N primitives batch moved ~298 amsc-decoded carrier refs to
+    # srmech.math, so carrier amsc-decoded fell 500 -> 202 while class held 40 —
+    # the ratio is now ~5x, no longer a full order of magnitude. The carrier
+    # registry is STILL the dominant amsc-decoded population; the factor is
+    # lowered to 4x (202 >= 160) to state that honestly rather than assume 10x.
+    assert car_decoded >= 4 * max(
         d for r, (_, d) in CEIL_AMSC_PREFIX.items()
         if r != "c/src/srmech_carrier_registry.c"), (
         "the carrier registry is no longer the dominant decoded population by "
@@ -626,9 +651,9 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     music = joined.count("srmech.music.")
     apokatastasis = joined.count("srmech.apokatastasis.")
     math = joined.count("srmech.math.")
-    assert amsc == 500, (
+    assert amsc == 202, (
         f"the carrier registry's decoded amsc population is {amsc}, expected "
-        f"500 — re-read the pins before trusting anything else in this file.")
+        f"202 — re-read the pins before trusting anything else in this file.")
     assert music == 13, (
         f"expected 13 srmech.music op references inside the DECODED channel "
         f"(9 from the rc362 Q / Qalg ops.consumes back-index + 4 from the rc366 "
@@ -650,10 +675,10 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # slice moved 16 octonion-carrier op refs (oct_mult / oct_bind / oct_conjugate)
     # OUT of the amsc decoded count (516 -> 500) and INTO math (0 -> 16) inside
     # these hoisted byte arrays. Conserved: -16 amsc = +16 math.
-    assert math == 16, (
-        f"expected 16 srmech.math op references inside the DECODED channel "
-        f"(the rc372 octonion-carrier back-index), found {math}. amsc fell "
-        f"516 -> 500 by exactly these 16; if this is not 16 the population move "
+    assert math == 314, (
+        f"expected 314 srmech.math op references inside the DECODED channel "
+        f"(rc372 octonion 16 + rc373 A-N primitives 298), found {math}. amsc fell "
+        f"500 -> 202 by exactly these 298; if this is not 314 the population move "
         f"is not conserved — re-measure.")
 
     # THE COUNTERFACTUAL: had those music ops landed in the draining namespace,

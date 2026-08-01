@@ -44,7 +44,7 @@ from pathlib import Path
 import pytest
 
 from srmech import introspect
-from srmech.amsc.dispatch import _OPEN_HINTS, infer
+from srmech.math.dispatch import _OPEN_HINTS, infer
 from srmech.apokatastasis.ellbase import EllMonomial as M, EllRatio
 from srmech.apokatastasis.elliptic_jackson_an import (
     an_vwp_multisum_lhs,
@@ -348,7 +348,7 @@ def test_responsion_edges():
     assert v_key in schema
     assert any(r["kind"] == "closed_form" and r["status"] == "verified"
                for r in schema[v_key])
-    open_key = "srmech.amsc.dispatch.infer|EllMonomial"
+    open_key = "srmech.math.dispatch.infer|EllMonomial"
     assert open_key in schema
     answers = [r["answers_with"] for r in schema[open_key]
                if r.get("status") == "open"]

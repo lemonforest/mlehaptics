@@ -37,10 +37,10 @@ Canonical SSoT:
 
 from __future__ import annotations
 
-from srmech.amsc.laplacian import mat_matmul, mat_norm
+from srmech.math.laplacian import mat_matmul, mat_norm
 from srmech.amsc.mat import Mat
 
-from srmech.amsc import rational as _srn
+from srmech.math import rational as _srn
 
 
 # ----------------------------------------------------------------------

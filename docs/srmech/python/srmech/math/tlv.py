@@ -26,7 +26,7 @@ from __future__ import annotations
 import ctypes
 import struct
 
-from . import _native
+from ..amsc import _native
 
 __all__ = [
     "tlv_pack",

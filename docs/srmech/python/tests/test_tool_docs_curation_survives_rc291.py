@@ -141,7 +141,7 @@ def test_the_migrated_genome_explanations_are_curated(built):
         "srmech.amsc.plasmid.genome_integrate_plasmids",
         "srmech.amsc.plasmid.plasmid_extract",
         "srmech.amsc.plasmid.section_counts",
-        "srmech.amsc.text.glyph_stream",
+        "srmech.math.text.glyph_stream",
     ]
     absent = [n for n in casualties if n not in CURATED]
     assert not absent, (
@@ -262,7 +262,7 @@ def test_guard_still_fires_when_curation_covers_the_hand_edited_field(gen, built
     ``CURATED`` has an entry for that same tool and field.
     """
     _docs, seed, curated = built
-    victim = "srmech.amsc.laplacian.dense_laplacian"
+    victim = "srmech.math.laplacian.dense_laplacian"
     assert victim in curated and "example" in curated[victim], "fixture drifted"
 
     committed = {victim: {"example": {"output": "hand-written straight into "
@@ -285,9 +285,9 @@ def test_probe_merge_preserves_entries_it_did_not_probe():
     probe = _load_tool("gen_curated_probe")
     existing = {
         "srmech.amsc.genome.accessible": {"explanation": "four rcs of curation"},
-        "srmech.amsc.cyclic.gcd": {"example": {"input": {"a": "12"}, "output": "6"}},
+        "srmech.math.cyclic.gcd": {"example": {"input": {"a": "12"}, "output": "6"}},
     }
-    probed = {"srmech.amsc.cyclic.gcd": {"example": {"input": {"a": "9"}, "output": "3"}}}
+    probed = {"srmech.math.cyclic.gcd": {"example": {"input": {"a": "9"}, "output": "3"}}}
 
     merged = probe.merge_curated(existing, probed)
     assert "srmech.amsc.genome.accessible" in merged, (
@@ -295,7 +295,7 @@ def test_probe_merge_preserves_entries_it_did_not_probe():
         "— the rc291 #916 defect on the probe side"
     )
     assert merged["srmech.amsc.genome.accessible"]["explanation"] == "four rcs of curation"
-    assert merged["srmech.amsc.cyclic.gcd"]["example"]["output"] == "3", (
+    assert merged["srmech.math.cyclic.gcd"]["example"]["output"] == "3", (
         "a probed row must still win for the key it probed"
     )
 

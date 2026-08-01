@@ -557,7 +557,7 @@ def test_tool_schema_categories_match_module_structure():
     """Sanity-check that categories track the module they belong to."""
     schema = get_tool_schema()
     for t in schema.tools:
-        # name is e.g. 'srmech.amsc.cyclic.gcd' or 'srmech.qm.spin.pauli_matrices'
+        # name is e.g. 'srmech.math.cyclic.gcd' or 'srmech.qm.spin.pauli_matrices'
         parts = t.name.split(".")
         # category is a free-form taxonomy hint; just ensure it's a
         # plausible match for one of the path components or a known

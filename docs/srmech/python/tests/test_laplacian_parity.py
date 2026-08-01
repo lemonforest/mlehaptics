@@ -21,7 +21,8 @@ import random
 
 import pytest
 
-from srmech.amsc import _native, laplacian
+from srmech.amsc import _native
+from srmech.math import laplacian
 
 
 # ---------------------------------------------------------------------

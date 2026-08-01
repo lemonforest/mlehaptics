@@ -1,6 +1,6 @@
 """rc35 — the BIGNUM-EXACT Class-N transcendental Taylor truncations in C.
 
-The exact-rational series in ``srmech.amsc.rational``
+The exact-rational series in ``srmech.math.rational``
 (``{exp,sin,cos,log1p,atan}_series_truncate`` + ``rational_pow_uint``) are
 exact-rational-IN → exact-rational-OUT with NO magnitude ceiling (CPython
 arbitrary-precision ``int``). The original int64/Q61 C peers
@@ -23,7 +23,7 @@ absent — but it MUST run + pass when the native lib is loaded.
 from __future__ import annotations
 
 from srmech.amsc import _native
-from srmech.amsc import rational
+from srmech.math import rational
 
 import pytest
 
@@ -40,7 +40,7 @@ pytestmark = pytest.mark.skipif(
     not _native.has_native_bigexp(),
     reason=(
         "native srmech bignum-exact transcendentals (rc35 *_big symbols) not "
-        "loaded; the pure-Python bignum path in srmech.amsc.rational is the "
+        "loaded; the pure-Python bignum path in srmech.math.rational is the "
         "only path (and is itself the parity oracle this test would check "
         "against). Skipped — never xfailed."
     ),

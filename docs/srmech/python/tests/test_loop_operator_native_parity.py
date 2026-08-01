@@ -21,10 +21,10 @@ import random
 
 import pytest
 
-from srmech.amsc.laplacian import mat_norm
+from srmech.math.laplacian import mat_norm
 from srmech.amsc.mat import Mat
-from srmech.amsc import hdc
-from srmech.amsc.hdc import LOOP_DIM
+from srmech.math import hdc
+from srmech.math.hdc import LOOP_DIM
 
 
 def _require_native(symbol):

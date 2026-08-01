@@ -30,7 +30,7 @@ reproduces genuine ``Q₈``: NON-abelian (``q8_mult(1,2)=3`` but
 ``(a·b) & 3 == (a&3) ⊕ (b&3)`` for all ``a,b`` (the F380/R21 homomorphism,
 and why the future Q₈-genome sequence-read is backward-faithful).
 
-Relationship to :func:`srmech.amsc.hdc.klein4_bind`: ``klein4_bind`` is the
+Relationship to :func:`srmech.math.hdc.klein4_bind`: ``klein4_bind`` is the
 abelian ``V4`` XOR binder (the HDC value algebra); ``q8_mult`` is its
 NON-abelian central extension. ``q8_project_v4`` is exactly the homomorphism
 that collapses this module onto that one — ``π(q8_mult(a, b)) ==
@@ -269,7 +269,7 @@ def q8_project_v4(q: Sequence[int]) -> bytes:
 
 def q8_from_one(one, D: int) -> "_HV":
     """**ONE-OCT** — the ``One``'s Q₈ coupling projection: the Q₈ analogue of
-    :func:`srmech.amsc.hdc.klein4_from_one` (§Q8 completeness / rc315).
+    :func:`srmech.math.hdc.klein4_from_one` (§Q8 completeness / rc315).
 
     Mints the ``sectors=8`` (OCT) coupling ``one`` of leaf dimension ``D`` — a
     Q₈-valued coupling ``bytes ∈ {0..7}`` — so a downstream caller can build a
@@ -279,7 +279,7 @@ def q8_from_one(one, D: int) -> "_HV":
     integers (``sigma`` / ``theta=(num, den)`` / ``terms``):
 
     1. **The V4 coset plane** (bits ``0..1``, ``q & 3``) — EXACTLY
-       :func:`~srmech.amsc.hdc.klein4_from_one`'s output on the same ``one``. This is
+       :func:`~srmech.math.hdc.klein4_from_one`'s output on the same ``one``. This is
        the BACKWARD-FAITHFUL bridge, guaranteed BY CONSTRUCTION::
 
            q8_project_v4(q8_from_one(one, D)) == klein4_from_one(one, D)
@@ -287,7 +287,7 @@ def q8_from_one(one, D: int) -> "_HV":
        — the F380 / R21 homomorphism ``π: Q₈ → V4`` composed with the minter, so a
        Q₈ genome's V4 shadow is byte-identical to the Klein-4 genome it extends.
     2. **The Z₂ sign plane** (bit ``2``, ``q >> 2``) — a DOMAIN-SEPARATED Class-A
-       address of the SAME ``One`` (:func:`~srmech.amsc.hdc.klein4_address` over a
+       address of the SAME ``One`` (:func:`~srmech.math.hdc.klein4_address` over a
        ``{"q8_sign": 1, …}`` preimage), taken as bit 0 per slot. So the sign is a
        DECLARED function of substrate parameters (not an undeclared draw), and the
        coupling is genuinely non-abelian (a real Q₈ ``one``, not a degenerate
@@ -307,7 +307,7 @@ def q8_from_one(one, D: int) -> "_HV":
         one: A :class:`~srmech.amsc.cascade.one.One` (read structurally: any object
             exposing ``.sigma``, ``.theta`` as a ``(num, den)`` pair, and ``.terms``).
         D: Vector dimension (positive). Free — nothing requires, and nothing gains
-            from, divisibility by 14 (see :func:`~srmech.amsc.hdc.klein4_sector_frame`).
+            from, divisibility by 14 (see :func:`~srmech.math.hdc.klein4_sector_frame`).
 
     Returns:
         The OCT coupling ``one`` as an ``HV`` of ``sectors=8`` (bytes ``0..7``).
@@ -322,7 +322,7 @@ def q8_from_one(one, D: int) -> "_HV":
         raise ValueError("q8.q8_from_one: D must be positive")
     # Lazy import (the same discipline _build_f_table uses for cd_basis_product): keeps
     # q8 importable before hdc is, and avoids any package-init ordering surprise.
-    from srmech.amsc.hdc import klein4_address, klein4_from_one
+    from srmech.math.hdc import klein4_address, klein4_from_one
     # Plane 1 — the V4 coset plane IS klein4_from_one's output (backward-faithful by
     # construction; klein4_from_one also validates .sigma/.theta/.terms + theta_den != 0).
     v4 = klein4_from_one(one, D)                       # sectors=4 HV, cosets 0..3

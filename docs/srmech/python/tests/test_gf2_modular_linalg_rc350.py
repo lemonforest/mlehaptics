@@ -50,7 +50,7 @@ import pytest
 
 from srmech.amsc import _native
 from srmech.math import modular_linalg as ml
-from srmech.amsc.cyclic import mod_inv
+from srmech.math.cyclic import mod_inv
 from srmech.amsc.cascade.cayley_dickson import (
     CD_DIMS,
     cd_basis_product,

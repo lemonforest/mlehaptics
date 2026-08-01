@@ -12,7 +12,7 @@ import pytest
 
 from srmech.amsc.cascade import the_one, s_generator, One, Block
 from srmech.amsc.cascade import one as one_mod
-from srmech.amsc.rational import cos_series_truncate, sin_series_truncate
+from srmech.math.rational import cos_series_truncate, sin_series_truncate
 
 
 # ── structure: the 1+3+7+3 = 14 partition ─────────────────────────────

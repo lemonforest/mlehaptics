@@ -33,7 +33,8 @@ import json
 
 import pytest
 
-from srmech.amsc import _native, hdc
+from srmech.amsc import _native
+from srmech.math import hdc
 from srmech.amsc.cascade.one import the_one
 
 D = 64
@@ -125,7 +126,7 @@ def test_klein4_random_is_gone_entirely_rc292():
     assert "klein4_random" not in hdc.__all__
     # No silent re-export anywhere on the public surface.
     from srmech.amsc import tool_schema
-    assert all(e.name != "srmech.amsc.hdc.klein4_random"
+    assert all(e.name != "srmech.math.hdc.klein4_random"
                for e in tool_schema.get_tool_schema().tools)
     # The documented replacement composition works and is genuinely per-run.
     import os

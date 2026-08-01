@@ -19,7 +19,7 @@ from pathlib import Path
 
 sys.path.insert(0, "docs/srmech/python")
 
-from srmech.amsc.hdc import bind, similarity  # noqa: E402
+from srmech.math.hdc import bind, similarity  # noqa: E402
 from srmech.signal_processing.rbs_hdc_instrument import mint_vector  # noqa: E402
 
 

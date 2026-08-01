@@ -86,7 +86,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence, Tuple
 
-from srmech.amsc import hdc as _M
+from srmech.math import hdc as _M
 from srmech.amsc import _native
 # Route the mint hash through format.sha256_raw so it picks up the native C
 # SHA-256 dispatch transparently (CLAUDE.md: no raw hashlib.sha256 callsites);
@@ -1145,7 +1145,7 @@ class RBSHDCInstrument:
     def similarity(self, a: bytes, b: bytes) -> "_M.Q":
         """Class M similarity in [-1, 1], the EXACT rational ``(D-2*hamming)/D``.
 
-        Delegates to :func:`srmech.amsc.hdc.similarity`, which is stay-rational
+        Delegates to :func:`srmech.math.hdc.similarity`, which is stay-rational
         (F868): the value is two ints the whole way and collapses to a decimal
         only at the display boundary (``float(s)``)."""
         # v0.4.6rc2 — introspection emit at the Class M similarity boundary.

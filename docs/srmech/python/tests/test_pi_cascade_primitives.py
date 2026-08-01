@@ -19,8 +19,8 @@ import inspect
 
 import pytest
 
-from srmech.amsc import rational
-from srmech.amsc.rational import (
+from srmech.math import rational
+from srmech.math.rational import (
     continued_fraction_convergents,
     pi_cascade_digits,
 )

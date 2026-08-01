@@ -15,7 +15,7 @@ from __future__ import annotations
 import pytest
 
 from srmech.amsc import genome
-from srmech.amsc.hdc import klein4_expand
+from srmech.math.hdc import klein4_expand
 
 
 # ── encode_shape — the criterion (F715) ──────────────────────────────────────

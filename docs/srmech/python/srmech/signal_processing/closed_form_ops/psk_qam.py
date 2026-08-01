@@ -39,7 +39,7 @@ from __future__ import annotations
 
 from typing import List
 
-from srmech.amsc import rational as _srn
+from srmech.math import rational as _srn
 
 OPERATION_NAME = "psk_qam"
 CLASS_COMPOSITION = ("I", "K")

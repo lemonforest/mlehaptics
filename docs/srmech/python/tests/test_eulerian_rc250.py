@@ -13,7 +13,7 @@ from __future__ import annotations
 import pytest
 
 from srmech.amsc import _native
-from srmech.amsc import laplacian as L
+from srmech.math import laplacian as L
 
 NATIVE = _native.has_native_eulerian()
 
@@ -81,8 +81,8 @@ def test_start_ignored_for_path():
 def test_registered_in_tool_schema():
     from srmech.amsc.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
-    assert "srmech.amsc.laplacian.eulerian_path" in names
-    assert "srmech.amsc.laplacian.eulerian_circuit" in names
+    assert "srmech.math.laplacian.eulerian_path" in names
+    assert "srmech.math.laplacian.eulerian_circuit" in names
 
 
 def test_non_integer_nodes_pure_path():

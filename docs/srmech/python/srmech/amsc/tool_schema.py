@@ -987,27 +987,27 @@ def _register_primitive_class_tools() -> None:
         # Class I — cyclic-group / modular arithmetic
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.cyclic.gcd", owner="srmech", category="cyclic",
+            name="srmech.math.cyclic.gcd", owner="srmech", category="cyclic",
             summary="Greatest common divisor of two non-negative integers.",
             parameters=(P("a", "int", True), P("b", "int", True)),
             returns=R("int", "≥ 0"),
         ),
         ToolEntry(
-            name="srmech.amsc.cyclic.lcm", owner="srmech", category="cyclic",
+            name="srmech.math.cyclic.lcm", owner="srmech", category="cyclic",
             summary="Least common multiple of two non-negative integers; "
                     "0 when either input is 0.",
             parameters=(P("a", "int", True), P("b", "int", True)),
             returns=R("int", "≥ 0"),
         ),
         ToolEntry(
-            name="srmech.amsc.cyclic.mod_add", owner="srmech", category="cyclic",
+            name="srmech.math.cyclic.mod_add", owner="srmech", category="cyclic",
             summary="(a + b) mod n — overflow-safe modular addition.",
             parameters=(P("a", "int", True), P("b", "int", True),
                         P("n", "int", True, "modulus > 0")),
             returns=R("int", "in [0, n)"),
         ),
         ToolEntry(
-            name="srmech.amsc.cyclic.mod_mul", owner="srmech", category="cyclic",
+            name="srmech.math.cyclic.mod_mul", owner="srmech", category="cyclic",
             summary="Modular multiply — (a * b) mod n — overflow-safe via "
                     "russian-peasant doubling; portable across platforms "
                     "without __int128. Capped at uint64; use mod_mul_wide for "
@@ -1017,7 +1017,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("int", "in [0, n)"),
         ),
         ToolEntry(
-            name="srmech.amsc.cyclic.mod_pow", owner="srmech", category="cyclic",
+            name="srmech.math.cyclic.mod_pow", owner="srmech", category="cyclic",
             summary="Modular exponentiation — (a ** k) mod n — via "
                     "square-and-multiply. Bounded by uint64.",
             parameters=(P("a", "int", True), P("k", "int", True),
@@ -1025,14 +1025,14 @@ def _register_primitive_class_tools() -> None:
             returns=R("int", "in [0, n)"),
         ),
         ToolEntry(
-            name="srmech.amsc.cyclic.mod_inv", owner="srmech", category="cyclic",
+            name="srmech.math.cyclic.mod_inv", owner="srmech", category="cyclic",
             summary="Modular inverse of a in Z/nZ via extended Euclidean. "
                     "Requires gcd(a, n) == 1 and n ≤ INT64_MAX.",
             parameters=(P("a", "int", True), P("n", "int", True)),
             returns=R("int", "in [1, n)"),
         ),
         ToolEntry(
-            name="srmech.amsc.cyclic.bigint_mul", owner="srmech", category="cyclic",
+            name="srmech.math.cyclic.bigint_mul", owner="srmech", category="cyclic",
             summary="Bignum multiply — the uncapped integer product a * b "
                     "(arbitrary precision) on srmech's own C bignum "
                     "(srmech_bigint_mul); the building block a > 64-bit "
@@ -1044,7 +1044,7 @@ def _register_primitive_class_tools() -> None:
             smoke_test_hint={"a": "6", "b": "7"},
         ),
         ToolEntry(
-            name="srmech.amsc.cyclic.mod_mul_wide", owner="srmech",
+            name="srmech.math.cyclic.mod_mul_wide", owner="srmech",
             category="cyclic",
             summary="Wide modular multiply — (a * b) mod n with NO uint64 cap "
                     "(the 128-bit-capable modular multiply). Routes the "
@@ -1226,7 +1226,7 @@ def _register_primitive_class_tools() -> None:
         # Class L — graph Laplacian
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.laplacian.dense_adjacency", owner="srmech",
+            name="srmech.math.laplacian.dense_adjacency", owner="srmech",
             category="laplacian",
             summary="Build the dense adjacency matrix from an edge list. "
                     "Self-loops add 2w to the diagonal (standard convention).",
@@ -1237,7 +1237,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("Mat", "n × n dense matrix (numpy-free 2-D carrier)"),
         ),
         # §40 (rc50): the text→graph stage primitives — the K1 chain's missing
-        # front, in srmech.amsc.text (ingestion module; laplacian stays purely
+        # front, in srmech.math.text (ingestion module; laplacian stays purely
         # spectral). `glyph_stream → cooccurrence_edges → dense_laplacian → …`
         # authorable end-to-end; retires the hand-rolled Counter() idiom. The
         # rc43 versions FAILED the §40 acceptance bar 3/3 (ASCII tokenize /
@@ -1257,7 +1257,7 @@ def _register_primitive_class_tools() -> None:
         # vendored (UCD 16.0.0) on the ADR-0003 argument - a bare-C host has no
         # unicodedata - and BOTH projections read it, so they cannot diverge.
         ToolEntry(
-            name="srmech.amsc.text.fold_marks", owner="srmech",
+            name="srmech.math.text.fold_marks", owner="srmech",
             category="text",
             summary="Drop combining marks by Unicode CATEGORY - Mn/Mc/Me and "
                     "nothing else (Class B/G text-framing; §106/F1258; "
@@ -1285,7 +1285,7 @@ def _register_primitive_class_tools() -> None:
                              "their base"),
         ),
         ToolEntry(
-            name="srmech.amsc.text.glyph_stream", owner="srmech",
+            name="srmech.math.text.glyph_stream", owner="srmech",
             category="text",
             summary="Segment text into UAX #29 EXTENDED GRAPHEME CLUSTERS — the "
                     "language-agnostic glyph stream (Class B/G "
@@ -1313,7 +1313,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("list[str]", "the UAX #29 grapheme-cluster stream"),
         ),
         ToolEntry(
-            name="srmech.amsc.text.cooccurrence_edges", owner="srmech",
+            name="srmech.math.text.cooccurrence_edges", owner="srmech",
             category="text",
             summary="Weighted co-occurrence graph from documents (Class-L "
                     "precursor; §40): slide a window over EACH document (resets "
@@ -1347,7 +1347,7 @@ def _register_primitive_class_tools() -> None:
         # cooccurrence_edges — for building the spectral-clump graph on an edge
         # device (encode trades RAM for chunked streaming).
         ToolEntry(
-            name="srmech.amsc.text.cooccurrence_topk", owner="srmech",
+            name="srmech.math.text.cooccurrence_topk", owner="srmech",
             category="text",
             summary="Streaming / bounded top-K co-occurrence — the LOW-RAM "
                     "ENCODE peer of cooccurrence_edges (§52/F793). Streams docs "
@@ -1376,7 +1376,7 @@ def _register_primitive_class_tools() -> None:
                       "per-token top-K view"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.dense_laplacian", owner="srmech",
+            name="srmech.math.laplacian.dense_laplacian", owner="srmech",
             category="laplacian",
             summary="Graph Laplacian L = D - A. Native C dispatch when "
                     "n ≤ 256; numpy fallback otherwise.",
@@ -1394,7 +1394,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("Mat", "n × n symmetric matrix (numpy-free 2-D carrier)"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.normalized_laplacian", owner="srmech",
+            name="srmech.math.laplacian.normalized_laplacian", owner="srmech",
             category="laplacian",
             summary="Symmetric normalized Laplacian L_sym = I - D^{-1/2} A D^{-1/2}. "
                     "Isolated vertices have diagonal entry 0.",
@@ -1413,7 +1413,7 @@ def _register_primitive_class_tools() -> None:
         # metric / discrete LB); cotangent_weights emits the LB stiffness
         # edge weights that feed dense_laplacian. Both are c_dispatched.
         ToolEntry(
-            name="srmech.amsc.laplacian.mass_normalized_laplacian", owner="srmech",
+            name="srmech.math.laplacian.mass_normalized_laplacian", owner="srmech",
             category="laplacian",
             summary="Mass-normalized (Laplace–Beltrami α-family) Laplacian: "
                     "M^{-1/2}(D-W)M^{-1/2} (kind='symmetric', PSD) or "
@@ -1432,7 +1432,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("Mat", "n × n real mass-normalized Laplacian (numpy-free Mat)"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.cotangent_weights", owner="srmech",
+            name="srmech.math.laplacian.cotangent_weights", owner="srmech",
             category="laplacian",
             summary="Cotangent-weight Laplacian weights — the discrete "
                     "Laplace–Beltrami edge weights on a triangulated manifold "
@@ -1456,7 +1456,7 @@ def _register_primitive_class_tools() -> None:
         # existing native symmetric/hermitian solvers; the standalone-C
         # builder peers are the tracked next voxel.
         ToolEntry(
-            name="srmech.amsc.laplacian.signed_laplacian", owner="srmech",
+            name="srmech.math.laplacian.signed_laplacian", owner="srmech",
             category="laplacian",
             summary="Signed graph Laplacian L = D̄ − A (real-symmetric, PSD); "
                     "off-diagonal weights may be negative. Signed degree "
@@ -1470,7 +1470,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("Mat", "n × n real-symmetric PSD signed Laplacian (numpy-free Mat)"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.magnetic_laplacian", owner="srmech",
+            name="srmech.math.laplacian.magnetic_laplacian", owner="srmech",
             category="laplacian",
             summary="Magnetic (Hermitian) Laplacian of a DIRECTED graph "
                     "(#797 op (b)): direction encoded as phase "
@@ -1502,7 +1502,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("Mat", "n × n complex Hermitian matrix (numpy-free Mat)"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.quaternion_laplacian", owner="srmech",
+            name="srmech.math.laplacian.quaternion_laplacian", owner="srmech",
             category="laplacian",
             summary="Quaternion (ℍ) gain Laplacian — the ASSOCIATIVE dim-4 rung "
                     "of magnetic_laplacian (the ℂ dim-2 complex-unit-gain "
@@ -1534,7 +1534,7 @@ def _register_primitive_class_tools() -> None:
                       "(numpy-free Mat)"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.hypercomplex_perspectives",
+            name="srmech.math.laplacian.hypercomplex_perspectives",
             owner="srmech", category="laplacian",
             summary="Split each eigenvector into a scalar channel e0 + (dim−1) "
                     "imaginary phase channels — the hypercomplex reader for "
@@ -1564,7 +1564,7 @@ def _register_primitive_class_tools() -> None:
         # cycle_holonomy (ODD channel; C peer srmech_graph_cycle_holonomy).
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.laplacian.klein4_gain_laplacian", owner="srmech",
+            name="srmech.math.laplacian.klein4_gain_laplacian", owner="srmech",
             category="laplacian",
             summary="The V₄-gain (Klein-4-sector) Laplacian (#687): the "
                     "EVEN-channel fuller partner of magnetic_laplacian. Each "
@@ -1597,7 +1597,7 @@ def _register_primitive_class_tools() -> None:
                       "real-symmetric PSD sector Laplacians"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.klein4_relational_structure",
+            name="srmech.math.laplacian.klein4_relational_structure",
             owner="srmech", category="laplacian",
             summary="The joint EVEN-channel read-out of a V₄-gain relational "
                     "graph (#687): per-sector spectral tensions (λ_min = "
@@ -1621,7 +1621,7 @@ def _register_primitive_class_tools() -> None:
                       "{sector: λ₂}, 'sector_asymmetry': |Δ tension χ10,χ01|}"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.cycle_holonomy", owner="srmech",
+            name="srmech.math.laplacian.cycle_holonomy", owner="srmech",
             category="laplacian",
             summary="The cycle holonomies of a gain graph (#687): the ODD "
                     "channel the (Hermitian/signed) SPECTRUM provably cannot "
@@ -1656,7 +1656,7 @@ def _register_primitive_class_tools() -> None:
                       "'cycle_edges': list[(u,v)], 'balanced': bool}"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.eulerian_path", owner="srmech",
+            name="srmech.math.laplacian.eulerian_path", owner="srmech",
             category="laplacian",
             summary="The Eulerian TRAIL of a DIRECTED edge multiset (#1390 item "
                     "3): the ordered node walk that consumes every edge exactly "
@@ -1682,7 +1682,7 @@ def _register_primitive_class_tools() -> None:
                       "no single Eulerian trail exists"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.eulerian_circuit", owner="srmech",
+            name="srmech.math.laplacian.eulerian_circuit", owner="srmech",
             category="laplacian",
             summary="The Eulerian CIRCUIT of a DIRECTED edge multiset (#1390 "
                     "item 3): as eulerian_path but REQUIRES a closed circuit "
@@ -1703,7 +1703,7 @@ def _register_primitive_class_tools() -> None:
                       "not balanced + connected"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.recover_check", owner="srmech",
+            name="srmech.math.laplacian.recover_check", owner="srmech",
             category="laplacian",
             summary="The packaged round-trip integrity check of a stored "
                     "directed Class-L graph (#1390 item 4): the FOUR faculties a "
@@ -1734,7 +1734,7 @@ def _register_primitive_class_tools() -> None:
                       "n_cycles, holonomy_nonzero, verdict}, diagnostics}"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.recover_check_structural", owner="srmech",
+            name="srmech.math.laplacian.recover_check_structural", owner="srmech",
             category="laplacian",
             summary="The O(edges) integrity faculties only — operand (edges "
                     "present / valid) + a SAMPLED curvature read (a cheap "
@@ -1754,7 +1754,7 @@ def _register_primitive_class_tools() -> None:
                       "{operand, directed, curvature_sampled_nonzero, ok_structural}"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.recover_check_spectral", owner="srmech",
+            name="srmech.math.laplacian.recover_check_spectral", owner="srmech",
             category="laplacian",
             summary="The op + responsion (spectral) integrity faculties on a "
                     "BOUNDED principal submatrix — the first min(vocab_size, "
@@ -1773,7 +1773,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("dict", "{op, responsion, dim, diagnostics}"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.order_fingerprint", owner="srmech",
+            name="srmech.math.laplacian.order_fingerprint", owner="srmech",
             category="laplacian",
             summary="The path-ORDERED octonion product along a walk — an "
                     "order-sensitive fingerprint of the fiber, 8 ints, "
@@ -1793,7 +1793,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("list", "the 8-int order fingerprint (length-independent)"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.recover_check_order", owner="srmech",
+            name="srmech.math.laplacian.recover_check_order", owner="srmech",
             category="laplacian",
             summary="PASS (True) iff a recovered fiber reproduces the stored "
                     "order fingerprint (#1390 item 4b) — the order-integrity "
@@ -1815,7 +1815,7 @@ def _register_primitive_class_tools() -> None:
         # C peers srmech_heat_trace / srmech_ground_state_flux_response.
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.laplacian.heat_trace", owner="srmech",
+            name="srmech.math.laplacian.heat_trace", owner="srmech",
             category="laplacian",
             summary="The spectral theta / heat trace Θ(t) = Tr(e^{−tL}) = "
                     "Σₖ e^{−t·λₖ} of a Laplacian — a theta function of L (on "
@@ -1843,7 +1843,7 @@ def _register_primitive_class_tools() -> None:
                                      "Vec (one Θ per t) for a sequence"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.ground_state_flux_response",
+            name="srmech.math.laplacian.ground_state_flux_response",
             owner="srmech",
             category="laplacian",
             summary="λ_min(Φ) — the magnetic ground state as a function of "
@@ -1884,7 +1884,7 @@ def _register_primitive_class_tools() -> None:
         # composites with the 1:1 C peer srmech_eph_propagate.
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.laplacian.propagate", owner="srmech",
+            name="srmech.math.laplacian.propagate", owner="srmech",
             category="laplacian",
             summary="EPH — the complex-time Wick-rotation propagator "
                     "harvest = e^{−zL}·u0 (siona gh#1274). The thermal "
@@ -1925,7 +1925,7 @@ def _register_primitive_class_tools() -> None:
                              "complex)"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.eph_harvest", owner="srmech",
+            name="srmech.math.laplacian.eph_harvest", owner="srmech",
             category="laplacian",
             summary="The EPH cascade read (siona gh#1274) — excite → "
                     "propagate → Born-rule harvest-rank the reaction center. "
@@ -1960,7 +1960,7 @@ def _register_primitive_class_tools() -> None:
         # peer srmech_eph_propagate_sparse.
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.laplacian.propagate_sparse", owner="srmech",
+            name="srmech.math.laplacian.propagate_sparse", owner="srmech",
             category="laplacian",
             summary="EPH SPARSE — the sparse-scaled propagator harvest = "
                     "e^{−zL}·u0 (siona gh#1274 item 1c, the corpus-scale "
@@ -2022,7 +2022,7 @@ def _register_primitive_class_tools() -> None:
         # C peer srmech_eph_propagate_wound.
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.laplacian.propagate_wound", owner="srmech",
+            name="srmech.math.laplacian.propagate_wound", owner="srmech",
             category="laplacian",
             summary="EPH WOUND — propagate with the 2π seam-fold's DIVMOD "
                     "quotient KEPT (siona gh#1276; the #741 mod-should-be-"
@@ -2082,7 +2082,7 @@ def _register_primitive_class_tools() -> None:
         # the 1:1 C peer srmech_responsion.
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.laplacian.responsion", owner="srmech",
+            name="srmech.math.laplacian.responsion", owner="srmech",
             category="laplacian",
             summary="RESPONSION — the response-function family of a "
                     "generator L acting on an excitation u0 (F1186: the "
@@ -2134,7 +2134,7 @@ def _register_primitive_class_tools() -> None:
                              "propagate return contract)"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.fiedler_vector", owner="srmech",
+            name="srmech.math.laplacian.fiedler_vector", owner="srmech",
             category="laplacian",
             summary="The Fiedler navigation embedding: eigenvector of the "
                     "second-smallest eigenvalue (λ₂) of a Laplacian. "
@@ -2148,7 +2148,7 @@ def _register_primitive_class_tools() -> None:
         # the n-unbounded peer of fiedler_vector. Native standalone-C matvec
         # power iteration; breaks the n≤256 dense-eig wall for graph partition.
         ToolEntry(
-            name="srmech.amsc.laplacian.fiedler_sparse", owner="srmech",
+            name="srmech.math.laplacian.fiedler_sparse", owner="srmech",
             category="laplacian",
             summary="Sparse / iterative normalized-cut Fiedler vector — the "
                     "n-unbounded peer of fiedler_vector (issue #1097, §51). "
@@ -2169,7 +2169,7 @@ def _register_primitive_class_tools() -> None:
                              "1-D carrier)"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.normalized_cut_bisect", owner="srmech",
+            name="srmech.math.laplacian.normalized_cut_bisect", owner="srmech",
             category="laplacian",
             summary="Sparse normalized-cut bisection: split the nodes by the "
                     "sign of fiedler_sparse (issue #1097, §51). Returns "
@@ -2189,7 +2189,7 @@ def _register_primitive_class_tools() -> None:
         # file, and the partition streams it — so the partition's RAM is bounded
         # the way the edge set is, for a fully low-RAM corpus-scale encode.
         ToolEntry(
-            name="srmech.amsc.laplacian.write_packed_graph", owner="srmech",
+            name="srmech.math.laplacian.write_packed_graph", owner="srmech",
             category="laplacian",
             summary="Write a packed binary edge file for the out-of-core "
                     "streaming Fiedler (§52 Part 2, F793) — one 16-byte record "
@@ -2206,7 +2206,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("int", "number of edge records written"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.fiedler_sparse_file", owner="srmech",
+            name="srmech.math.laplacian.fiedler_sparse_file", owner="srmech",
             category="laplacian",
             summary="Out-of-core sparse normalized-cut Fiedler — the streaming "
                     "peer of fiedler_sparse that reads its adjacency from a packed "
@@ -2228,7 +2228,7 @@ def _register_primitive_class_tools() -> None:
                              "1-D carrier)"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.recursive_cut", owner="srmech",
+            name="srmech.math.laplacian.recursive_cut", owner="srmech",
             category="laplacian",
             summary="Out-of-core recursive spectral partition into community "
                     "TOMES (§52 Part 2, F793) — the same recursion as bisecting "
@@ -2258,7 +2258,7 @@ def _register_primitive_class_tools() -> None:
                       "partition (tomes = node-id lists; tome_paths on disk)"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.jacobi_eigvals", owner="srmech",
+            name="srmech.math.laplacian.jacobi_eigvals", owner="srmech",
             category="laplacian",
             summary="Symmetric Jacobi eigendecomposition; pi-free closed-form "
                     "c/s computation. Native C dispatch when n ≤ 256.",
@@ -2271,7 +2271,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("Vec", "n eigenvalues ascending (numpy-free 1-D carrier)"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.spectral_block_dispatch", owner="srmech",
+            name="srmech.math.laplacian.spectral_block_dispatch", owner="srmech",
             category="laplacian",
             summary="The 1024-node 4-sector spectral one-call (RBS-LM Ask-3; "
                     "F233 4-rung): eigendecompose ≤4 dense symmetric blocks "
@@ -2296,7 +2296,7 @@ def _register_primitive_class_tools() -> None:
         # size cap, rc158 standalone-complete honor); exact-rational Fraction
         # Gauss–Jordan numpy-absent / exact=True. Golub & Van Loan §3.
         ToolEntry(
-            name="srmech.amsc.laplacian.dense_solve", owner="srmech",
+            name="srmech.math.laplacian.dense_solve", owner="srmech",
             category="laplacian",
             summary="Class-L dense linear solve A·X = B (A n×n; B/X n×w matrix "
                     "or length-n vector). The reusable solve schur_complement "
@@ -2317,7 +2317,7 @@ def _register_primitive_class_tools() -> None:
         # SSoT: Zhang, *The Schur Complement and Its Applications* (2005) §0;
         # Golub & Van Loan §3.2.
         ToolEntry(
-            name="srmech.amsc.laplacian.schur_complement", owner="srmech",
+            name="srmech.math.laplacian.schur_complement", owner="srmech",
             category="laplacian",
             summary="Class-L Schur complement / discrete Dirichlet-to-Neumann "
                     "map S = L_∂∂ − L_∂i·L_ii⁻¹·L_i∂ (the bulk integrated out; "
@@ -2335,7 +2335,7 @@ def _register_primitive_class_tools() -> None:
                       "|∂| × |∂| boundary effective operator (DtN map)"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.dirichlet_to_neumann", owner="srmech",
+            name="srmech.math.laplacian.dirichlet_to_neumann", owner="srmech",
             category="laplacian",
             summary="Alias for schur_complement — the discrete "
                     "Dirichlet-to-Neumann map: boundary values ⟹ the boundary "
@@ -2356,7 +2356,7 @@ def _register_primitive_class_tools() -> None:
         # into Class L (no new class promoted). Canonical SSoT: Golub &
         # Van Loan §1.1 / §8.5; ANSI C99 §7.12 libm; Sakurai §2.1.5.
         ToolEntry(
-            name="srmech.amsc.laplacian.hermitian_eigendecompose",
+            name="srmech.math.laplacian.hermitian_eigendecompose",
             owner="srmech", category="laplacian",
             summary="Hermitian eigendecomposition H = V diag(eigvals) V^H "
                     "via complex-Jacobi rotations. Native C dispatch when "
@@ -2368,7 +2368,7 @@ def _register_primitive_class_tools() -> None:
                       "(eigvals_ascending Vec, V_unitary complex Mat)"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.symmetric_eigendecompose",
+            name="srmech.math.laplacian.symmetric_eigendecompose",
             owner="srmech", category="laplacian",
             summary="Real-symmetric eigendecomposition L = V diag(eigvals) "
                     "Vᵀ via NumPy eigh. Real-input specialisation of "
@@ -2381,7 +2381,7 @@ def _register_primitive_class_tools() -> None:
                       "(eigvals_ascending Vec, V_orthogonal real Mat)"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.mat_matmul",
+            name="srmech.math.laplacian.mat_matmul",
             owner="srmech", category="laplacian",
             summary="Numpy-FREE dense matrix multiply A times B over the Mat "
                     "carrier (carrier-removal #564): Mat.buffer feeds the native "
@@ -2393,7 +2393,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("Mat", "m × n Mat (complex iff either input is)"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.mat_solve",
+            name="srmech.math.laplacian.mat_solve",
             owner="srmech", category="laplacian",
             summary="Numpy-FREE dense linear solve A·X = B over the Mat carrier "
                     "(carrier-removal #564): real Mat.buffers feed the native "
@@ -2406,7 +2406,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("Mat", "n × w Mat solution X (complex iff inputs are)"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.mat_lstsq",
+            name="srmech.math.laplacian.mat_lstsq",
             owner="srmech", category="laplacian",
             summary="Numpy-FREE least-squares A·X ≈ B over the Mat carrier "
                     "(carrier-removal #564): the normal equations "
@@ -2419,7 +2419,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("Mat", "n × w Mat solution X (complex iff inputs are)"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.mat_hermitian_eigendecompose",
+            name="srmech.math.laplacian.mat_hermitian_eigendecompose",
             owner="srmech", category="laplacian",
             summary="Numpy-FREE Hermitian eigendecomposition H = V diag(λ) V^H "
                     "over the Mat carrier (carrier-removal #564, bridge #3): "
@@ -2434,7 +2434,7 @@ def _register_primitive_class_tools() -> None:
                       "complex unitary Mat)"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.mat_eigvals",
+            name="srmech.math.laplacian.mat_eigvals",
             owner="srmech", category="laplacian",
             summary="Numpy-FREE eigenvalue multiset of a general (non-Hermitian) "
                     "square matrix over the Mat carrier (carrier-removal #564, "
@@ -2456,7 +2456,7 @@ def _register_primitive_class_tools() -> None:
                       "length-n eigenvalue multiset (unique only as a set)"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.mat_svd",
+            name="srmech.math.laplacian.mat_svd",
             owner="srmech", category="laplacian",
             summary="Numpy-FREE FULL singular-value decomposition A = U diag(S) "
                     "V^H over the Mat carrier (carrier-removal #564, foundation "
@@ -2475,7 +2475,7 @@ def _register_primitive_class_tools() -> None:
                       "Vh (n,n) complex Mat) matching full_matrices=True"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.mat_norm",
+            name="srmech.math.laplacian.mat_norm",
             owner="srmech", category="laplacian",
             summary="numpy-FREE Euclidean (2-norm) / Frobenius norm sqrt(sum "
                     "|x_i|^2) → float over the Mat / HV carrier: Class N (rational "
@@ -2487,7 +2487,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("float", "sqrt(sum |x_i|^2)"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.mat_dot",
+            name="srmech.math.laplacian.mat_dot",
             owner="srmech", category="laplacian",
             summary="numpy-FREE dtype-polymorphic bilinear inner product sum "
                     "a_i b_i over the Mat / Vec / HV carriers: float for real "
@@ -2500,7 +2500,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("float", "scalar sum a_i b_i (complex when either operand is complex)"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.mat_matvec",
+            name="srmech.math.laplacian.mat_matvec",
             owner="srmech", category="laplacian",
             summary="numpy-FREE dtype-polymorphic dense matrix-vector product "
                     "M times v over the Mat / Vec carriers (complex iff either "
@@ -2512,7 +2512,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("Vec", "length-rows Vec (complex iff either input is)"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.mat_outer",
+            name="srmech.math.laplacian.mat_outer",
             owner="srmech", category="laplacian",
             summary="numpy-FREE dtype-polymorphic outer product a-tensor-b -> "
                     "out[i,j]=a_i b_j over the Mat / Vec carriers (complex iff "
@@ -2524,7 +2524,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("Mat", "m x n a_i b_j (complex iff either input is)"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.elementwise_multiply_complex",
+            name="srmech.math.laplacian.elementwise_multiply_complex",
             owner="srmech", category="laplacian",
             summary="Elementwise complex multiplication a * b (equal-shape; "
                     "shape-polymorphic — Mat in → Mat out, Vec in → Vec out).",
@@ -2533,7 +2533,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("Mat", "Mat (2-D in) or Vec (1-D in), complex; rank-preserving"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.elementwise_transcendental",
+            name="srmech.math.laplacian.elementwise_transcendental",
             owner="srmech", category="laplacian",
             summary="Array-vectorised transcendental: exp / cos / sin / "
                     "log over real input, or exp_i(x) = exp(1j*x) "
@@ -2546,7 +2546,7 @@ def _register_primitive_class_tools() -> None:
                       "Mat/Vec (rank-preserving); complex for exp_i/complex input"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.elementwise_hypot",
+            name="srmech.math.laplacian.elementwise_hypot",
             owner="srmech", category="laplacian",
             summary="Array Euclidean magnitude sqrt(a_i^2 + b_i^2) via the "
                     "Class-N hypot cascade (per-element rational.hypot; native "
@@ -2558,7 +2558,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("Mat", "Mat/Vec sqrt(a_i^2 + b_i^2) (rank-preserving real carrier)"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.elementwise_sqrt",
+            name="srmech.math.laplacian.elementwise_sqrt",
             owner="srmech", category="laplacian",
             summary="Array element-wise sqrt(arr_i) via the Class-N rational "
                     "sqrt cascade (per-element rational.sqrt; native "
@@ -2575,20 +2575,20 @@ def _register_primitive_class_tools() -> None:
         # Class J — prime-factorisation / period
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.primes.is_prime", owner="srmech", category="primes",
+            name="srmech.math.primes.is_prime", owner="srmech", category="primes",
             summary="Trial-division primality test for n ≤ 2**64. False for n < 2.",
             parameters=(P("n", "int", True),),
             returns=R("bool", ""),
         ),
         ToolEntry(
-            name="srmech.amsc.primes.factor", owner="srmech", category="primes",
+            name="srmech.math.primes.factor", owner="srmech", category="primes",
             summary="Prime factorisation by trial division. Returns ascending "
                     "(prime, exponent) pairs. n < 2 returns empty list.",
             parameters=(P("n", "int", True),),
             returns=R("list[tuple[int, int]]", "[(prime, exponent), ...]"),
         ),
         ToolEntry(
-            name="srmech.amsc.primes.cyclic_period", owner="srmech", category="primes",
+            name="srmech.math.primes.cyclic_period", owner="srmech", category="primes",
             summary="Multiplicative order of a in (Z/nZ)*: smallest k > 0 "
                     "with a^k ≡ 1 (mod n). Requires gcd(a mod n, n) == 1.",
             parameters=(P("a", "int", True), P("n", "int", True),
@@ -2596,7 +2596,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("int", "≥ 1"),
         ),
         ToolEntry(
-            name="srmech.amsc.primes.next_prime", owner="srmech", category="primes",
+            name="srmech.math.primes.next_prime", owner="srmech", category="primes",
             summary="The prime successor (Class J): the smallest prime strictly "
                     "greater than n. Trial-division primality (cf. Crandall & "
                     "Pomerance, *Prime Numbers: A Computational Perspective*, 2nd "
@@ -2613,7 +2613,7 @@ def _register_primitive_class_tools() -> None:
         # Class B — tagged-tuple TLV
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.tlv.tlv_pack", owner="srmech", category="tlv",
+            name="srmech.math.tlv.tlv_pack", owner="srmech", category="tlv",
             summary="Pack (tag, value) into [u8 tag][u32 length BE][value] "
                     "byte-canonical form. Wire-format-specific big-endian length.",
             parameters=(P("tag", "int", True, "0..255"),
@@ -2621,7 +2621,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("bytes", "5 + len(value) bytes"),
         ),
         ToolEntry(
-            name="srmech.amsc.tlv.tlv_unpack", owner="srmech", category="tlv",
+            name="srmech.math.tlv.tlv_unpack", owner="srmech", category="tlv",
             summary="Read one TLV frame back out — the inverse of tlv_pack (Class B). Reads the [u8 tag][u32 length BE][value] frame beginning at offset and returns (tag, value, next_offset); feed next_offset back in to walk a concatenation of frames. Exact round-trip with tlv_pack: tlv_unpack(tlv_pack(t, v)) == (t, v, 5 + len(v)). Raises on a truncated prefix or a claimed length that runs past the end of the buffer — never returns partial data.",
             parameters=(P("buffer", "bytes", True, "the byte buffer holding one or more TLV frames"),
                         P("offset", "int", False, "where the frame begins (default 0); pass the returned next_offset to read the following frame")),
@@ -2632,7 +2632,7 @@ def _register_primitive_class_tools() -> None:
         # Class G — discovery / search
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.search.byte_search", owner="srmech", category="search",
+            name="srmech.math.search.byte_search", owner="srmech", category="search",
             summary="Find first occurrence of `needle` in `haystack`; "
                     "matches Python's `bytes.find(b'')` (empty needle ⇒ 0).",
             parameters=(P("haystack", "bytes", True), P("needle", "bytes", True)),
@@ -2643,7 +2643,7 @@ def _register_primitive_class_tools() -> None:
         # Class D — late-binding dispatch
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.dispatch.match", owner="srmech", category="dispatch",
+            name="srmech.math.dispatch.match", owner="srmech", category="dispatch",
             summary="Multi-needle byte-pattern dispatcher. Returns first matching "
                     "rule's tag, or None on no match.",
             parameters=(P("input_bytes", "bytes", True),
@@ -2704,7 +2704,7 @@ def _register_primitive_class_tools() -> None:
                              "(8/16/32/64)"),
         ),
         ToolEntry(
-            name="srmech.amsc.dispatch.mirror_pattern", owner="srmech",
+            name="srmech.math.dispatch.mirror_pattern", owner="srmech",
             category="dispatch",
             summary="Harmonic-2 chiral mirror of a dispatch pattern (F150): the "
                     "byte-reversed needle; period-2 involution. Companion to match.",
@@ -2720,7 +2720,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("list", "order-reversed pairs"),
         ),
         ToolEntry(
-            name="srmech.amsc.search.byte_search_backward", owner="srmech",
+            name="srmech.math.search.byte_search_backward", owner="srmech",
             category="search",
             summary="Harmonic-2 chiral mirror of byte_search (F150): offset of the "
                     "LAST occurrence of `needle` in `haystack`, or None.",
@@ -2728,14 +2728,14 @@ def _register_primitive_class_tools() -> None:
             returns=R("Optional[int]", "offset of last match or None"),
         ),
         ToolEntry(
-            name="srmech.amsc.cyclic.three_cycle", owner="srmech", category="cyclic",
+            name="srmech.math.cyclic.three_cycle", owner="srmech", category="cyclic",
             summary="Harmonic-3 Z/3 cyclic shift (F150): (value+1)%3 on {0,1,2}; "
                     "period-3 order-3 generator. Companion to the modular ops.",
             parameters=(P("value", "int", True, "any non-negative int; read mod 3"),),
             returns=R("int", "(value + 1) % 3"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.three_fold_eigvec_groups", owner="srmech",
+            name="srmech.math.laplacian.three_fold_eigvec_groups", owner="srmech",
             category="laplacian",
             summary="Harmonic-3 three-fold spectral reading (F150): partition the "
                     "eigenvectors of a real-symmetric Laplacian into low/mid/high.",
@@ -2750,7 +2750,7 @@ def _register_primitive_class_tools() -> None:
         # srmech_spectral_spine.
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.laplacian.spectral_spine", owner="srmech",
+            name="srmech.math.laplacian.spectral_spine", owner="srmech",
             category="laplacian",
             summary="The spectral SPINE of a relational graph: the top-|component| "
                     "nodes of the DOMINANT (largest-λ) eigenvector of the (signed) "
@@ -2779,7 +2779,7 @@ def _register_primitive_class_tools() -> None:
                                    "|component| of the dominant eigenvector"),
         ),
         ToolEntry(
-            name="srmech.amsc.laplacian.relational_structure", owner="srmech",
+            name="srmech.math.laplacian.relational_structure", owner="srmech",
             category="laplacian",
             summary="The full spectral structure of a relational graph in ONE "
                     "call: {spine, communities, coherence} from a single "
@@ -2809,7 +2809,7 @@ def _register_primitive_class_tools() -> None:
         # Class F — substitution / templating
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.template.render", owner="srmech", category="template",
+            name="srmech.math.template.render", owner="srmech", category="template",
             summary="Render a template with {key} placeholders. Plain bytes "
                     "pass through; unknown key raises ValueError.",
             # rc13 drift fix: the param is `mapping` (the bytes->bytes
@@ -2833,7 +2833,7 @@ def _register_primitive_class_tools() -> None:
         # Class N — rational-approximation
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.rational.continued_fraction", owner="srmech",
+            name="srmech.math.rational.continued_fraction", owner="srmech",
             category="rational",
             summary="Simple continued-fraction expansion of p/q = [a_0; a_1, ...] "
                     "via Euclidean recurrence.",
@@ -2842,7 +2842,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("list[int]", "ascending CF terms"),
         ),
         ToolEntry(
-            name="srmech.amsc.rational.best_rational", owner="srmech",
+            name="srmech.math.rational.best_rational", owner="srmech",
             category="rational",
             summary="Best rational p'/q' with q' ≤ max_denominator approximating "
                     "p/q via continued-fraction convergents (Stern-Brocot path). "
@@ -2872,7 +2872,7 @@ def _register_primitive_class_tools() -> None:
         # CRT-QMat re-fibration arc). The residue→bounded-p/q closer.
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.rational.rational_reconstruct", owner="srmech",
+            name="srmech.math.rational.rational_reconstruct", owner="srmech",
             category="rational",
             summary="Recover the rational p/q congruent to a residue modulo M — "
                     "rational reconstruction (cf. Wang 1981, *An improved Monte "
@@ -2905,7 +2905,7 @@ def _register_primitive_class_tools() -> None:
                       "bounds"),
         ),
         ToolEntry(
-            name="srmech.amsc.rational.exp_series_truncate", owner="srmech",
+            name="srmech.math.rational.exp_series_truncate", owner="srmech",
             category="rational",
             summary="Exp Taylor partial sum S_N(p/q) = Σ_{k=0..N} (p/q)^k / k! as "
                     "exact rational via Class N rational + Class J integer factorial "
@@ -2917,7 +2917,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("tuple[int, int]", "(out_num, out_den) of S_N reduced to lowest terms"),
         ),
         ToolEntry(
-            name="srmech.amsc.rational.rational_add", owner="srmech",
+            name="srmech.math.rational.rational_add", owner="srmech",
             category="rational",
             summary="Add two rationals (a_num, a_den) + (b_num, b_den) and "
                     "return reduced (p, q). Pure integer arithmetic; Python "
@@ -2927,7 +2927,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("tuple[int, int]", "(out_num, out_den) reduced"),
         ),
         ToolEntry(
-            name="srmech.amsc.rational.rational_mul", owner="srmech",
+            name="srmech.math.rational.rational_mul", owner="srmech",
             category="rational",
             summary="Multiply two rationals (a_num, a_den) * (b_num, b_den) and "
                     "return reduced (p, q). Pure integer arithmetic; Python "
@@ -2937,7 +2937,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("tuple[int, int]", "(out_num, out_den) reduced"),
         ),
         ToolEntry(
-            name="srmech.amsc.rational.rational_div", owner="srmech",
+            name="srmech.math.rational.rational_div", owner="srmech",
             category="rational",
             summary="Divide two rationals (a_num, a_den) / (b_num, b_den) and "
                     "return reduced (p, q). Pure integer arithmetic; raises "
@@ -2947,7 +2947,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("tuple[int, int]", "(out_num, out_den) reduced"),
         ),
         ToolEntry(
-            name="srmech.amsc.rational.rational_pow_uint", owner="srmech",
+            name="srmech.math.rational.rational_pow_uint", owner="srmech",
             category="rational",
             summary="Raise rational (base_num, base_den) to non-negative integer "
                     "exponent. Pure integer arithmetic; Python bignum-capable; "
@@ -2957,7 +2957,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("tuple[int, int]", "(out_num, out_den) reduced"),
         ),
         ToolEntry(
-            name="srmech.amsc.rational.sin_series_truncate", owner="srmech",
+            name="srmech.math.rational.sin_series_truncate", owner="srmech",
             category="rational",
             summary="Sin Taylor partial sum sin(p/q) = Σ (-1)^k (p/q)^(2k+1) / (2k+1)! as exact rational. Class N + Class J + Class I (sign) composition; Python bignum-capable.",
             parameters=(P("numerator", "int", True, "p of x = p/q"),
@@ -2966,7 +2966,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("tuple[int, int]", "(out_num, out_den) reduced"),
         ),
         ToolEntry(
-            name="srmech.amsc.rational.cos_series_truncate", owner="srmech",
+            name="srmech.math.rational.cos_series_truncate", owner="srmech",
             category="rational",
             summary="Cos Taylor partial sum cos(p/q) = Σ (-1)^k (p/q)^(2k) / (2k)! as exact rational. Class N + Class J + Class I (sign) composition; Python bignum-capable.",
             parameters=(P("numerator", "int", True, "p of x = p/q"),
@@ -2975,7 +2975,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("tuple[int, int]", "(out_num, out_den) reduced"),
         ),
         ToolEntry(
-            name="srmech.amsc.rational.log1p_series_truncate", owner="srmech",
+            name="srmech.math.rational.log1p_series_truncate", owner="srmech",
             category="rational",
             summary="log(1+x) Taylor partial sum Σ (-1)^(k+1) x^k / k for |x|<1 as exact rational. Class N + Class I composition; Python bignum-capable.",
             parameters=(P("numerator", "int", True, "p of x = p/q (|p/q| < 1 for convergence)"),
@@ -2984,7 +2984,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("tuple[int, int]", "(out_num, out_den) reduced"),
         ),
         ToolEntry(
-            name="srmech.amsc.rational.atan_series_truncate", owner="srmech",
+            name="srmech.math.rational.atan_series_truncate", owner="srmech",
             category="rational",
             summary="atan(x) Taylor partial sum Σ (-1)^k x^(2k+1) / (2k+1) for |x|<=1 as exact rational. Class N + Class I composition; Python bignum-capable.",
             parameters=(P("numerator", "int", True, "p of x = p/q (|p/q| <= 1 typical)"),
@@ -2993,7 +2993,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("tuple[int, int]", "(out_num, out_den) reduced"),
         ),
         ToolEntry(
-            name="srmech.amsc.rational.jacobi_sncndn_series_truncate",
+            name="srmech.math.rational.jacobi_sncndn_series_truncate",
             owner="srmech", category="rational",
             summary="Jacobi elliptic sn/cn/dn Maclaurin partial sums at u=p/q, modulus m=m_p/m_q, as a triple of exact rationals. Coeffs from the coupled ODE sn'=cn*dn, cn'=-sn*dn, dn'=-m*sn*cn (Abramowitz & Stegun §16.4). Rotation-last exact-Q sibling of sin/cos_series_truncate: sn^2+cn^2=1 and dn^2+m*sn^2=1 hold exactly; m=0 -> sin/cos, m=1 -> tanh/sech. Class N + Class J + Class I (sign) composition; native C peer srmech_jacobi_sncndn; Python bignum-capable.",
             parameters=(P("numerator", "int", True, "p of u = p/q"),
@@ -3005,7 +3005,7 @@ def _register_primitive_class_tools() -> None:
                       "((sn_num, sn_den), (cn_num, cn_den), (dn_num, dn_den)) reduced"),
         ),
         ToolEntry(
-            name="srmech.amsc.rational.relative_writhe", owner="srmech", category="rational",
+            name="srmech.math.rational.relative_writhe", owner="srmech", category="rational",
             summary="rc317 (#1308) — Fuller's Second-Theorem exact-rational RELATIVE WRITHE Wr(C)-Wr(C0), the single-integral peer of the O(n^2) discrete_writhe double sum. Given two closed polygonal curves as EXACT-RATIONAL 3D vertices (int / Fraction / (num,den) per coord; floats rejected), reference=C0 (base) and embedding=C (deformed), it evaluates Fuller's single integral (1/2pi) oint (t0 x t).d(t0+t)/(1+t0.t) ds over the closed polygon, t0/t the central-difference UNIT tangents. CERTIFIED TRUNCATION, NOT the exact writhe: the true relative writhe is generically TRANSCENDENTAL (the pi normalisation + irrational unit-tangent lengths), so it returns an EXACT rational + a STATED remainder_bound on |value-true| — a Class-N best_rational anchor across the writhe's inharmonic responsion seam (F1308). DUAL-PRECISION contract (rc317 PILOT): precision=None -> PLATFORM-BOUNDED (value's num/den ride a native int64 word; the fast hardware-last-mile read; FLOAT-FREE, a bounded rational); precision=P int -> SRMECH-NATIVE BIGINT lengthed by P (remainder_bound ~ 2^-P tightening MONOTONICALLY; the bigint num/den lengthen with P). The +/-2 obstruction (antipodal_events flags the near-antipodal band 1+t0.t < 2^-4; for TRUE unit tangents 1+t0.t in [0,2], =0 only at the exact measure-zero antipode, so the literal <=0 the float spike reads via FP rounding is degenerate under exact rationals) IS the SAME Z->>Z/2 (kernel 2Z) reduction cwf_consistency_mod2 reads via the Q8 center-parity — the SO(3)/SU(2) double cover, a writhe +/-2 vs a spinor sign (DERIVED/argued; the integer lift needs the O(n^2) discrete_writhe). Class N (rational sqrt / pi-cascade / best_rational) . Class K (sign-branch magnitudes + antipodal pole detection, never abs()) . Class I (cyclic wrap); float NOWHERE (atan2 excluded — it projects to float; atan_series_truncate's angle reformulation is a different discretisation). composition_of_c (sqrt/pi/best_rational are C-backed): NO new C symbol, ABI stays 10, GENOME_FORMAT_VERSION stays 16 (a pure geometry READ). CAD-ban-clear: closed-form on the integer ALU, NOT mesh/FEA/GPU. Cites F. Brock Fuller PNAS 68(4):815-819 (1971, doi 10.1073/pnas.68.4.815, PMC389050) + PNAS 75(8):3557-3561 (1978, doi 10.1073/pnas.75.8.3557, PMC392823), both OA.",
             parameters=(P("embedding", "list", True, "the deformed curve C — vertices [(x,y,z), ...]; each coordinate an int / fractions.Fraction / (num,den) integer pair (exact rational — floats rejected)"),
                         P("reference", "list", True, "the base curve C0 — SAME vertex count as embedding (Fuller's integral pairs t0_i with t_i by index)"),
@@ -3014,35 +3014,35 @@ def _register_primitive_class_tools() -> None:
             returns=R("dict", "{value:(num,den) the relative writhe in turns, remainder_bound:(num,den) stated bound on |value-true|, mode:'platform'|'bigint', precision:int effective bits, antipodal_events:int (steps in the near-antipodal band, the +/-2-obstruction flag), min_one_plus_dot:(num,den) the closest antiparallel approach}"),
         ),
         ToolEntry(
-            name="srmech.amsc.rational.cos", owner="srmech", category="rational",
+            name="srmech.math.rational.cos", owner="srmech", category="rational",
             summary="cos(x) (radians) via the Class-N rational cascade: range-reduce into [-π, π] with the π-cascade rational, cos Taylor partial sum, returning the EXACT rational Q (the integer-ALU value; float(q) projects to the FPU at the display edge). Substrate-native replacement for math.cos / np.cos (no math.cos in the call graph); float(q) matches libm to ~1e-15.",
             parameters=(P("x", "float", True, "angle in radians"),
                         P("precision", "int", False, "None (default) = the Q61 fast path, byte-identical to prior rcs; P>=1 = the exact-rational reference at P fractional bits, error < 2**-P (keyword-only)")),
             returns=R("Q", "cos(x) as an exact rational (Class-N Q carrier); float(q) projects at the display edge"),
         ),
         ToolEntry(
-            name="srmech.amsc.rational.sin", owner="srmech", category="rational",
+            name="srmech.math.rational.sin", owner="srmech", category="rational",
             summary="sin(x) (radians) via the Class-N rational cascade (π-cascade range reduction + sin Taylor, returned as an EXACT rational Q). Substrate-native replacement for math.sin / np.sin; float(q) matches libm to ~1e-15.",
             parameters=(P("x", "float", True, "angle in radians"),
                         P("precision", "int", False, "None (default) = the Q61 fast path, byte-identical to prior rcs; P>=1 = the exact-rational reference at P fractional bits, error < 2**-P (keyword-only)")),
             returns=R("Q", "sin(x) as an exact rational (Class-N Q carrier)"),
         ),
         ToolEntry(
-            name="srmech.amsc.rational.tan", owner="srmech", category="rational",
+            name="srmech.math.rational.tan", owner="srmech", category="rational",
             summary="tan(x) = sin(x)/cos(x) via the Class-N rational cascade (raises if cos(x) == 0). Substrate-native replacement for math.tan / np.tan.",
             parameters=(P("x", "float", True, "angle in radians"),
                         P("precision", "int", False, "None (default) = the Q61 fast path, byte-identical to prior rcs; P>=1 = the exact-rational reference at P fractional bits, error < 2**-P (keyword-only)")),
             returns=R("Q", "tan(x) = sin/cos as an exact rational (Class-N Q carrier)"),
         ),
         ToolEntry(
-            name="srmech.amsc.rational.atan", owner="srmech", category="rational",
+            name="srmech.math.rational.atan", owner="srmech", category="rational",
             summary="atan(x) via the Class-N atan cascade with three-band argument reduction (√2∓1 edges → every series argument |·|<=√2−1; Class-K magnitude, no abs()). Substrate-native replacement for math.atan / np.arctan; machine-ε accurate.",
             parameters=(P("x", "float", True, "argument"),
                         P("precision", "int", False, "None (default) = the Q61 fast path, byte-identical to prior rcs; P>=1 = the exact-rational reference at P fractional bits, error < 2**-P (keyword-only)")),
             returns=R("Q", "atan(x) as an exact rational (Class-N Q carrier) in (-π/2, π/2)"),
         ),
         ToolEntry(
-            name="srmech.amsc.rational.atan2", owner="srmech", category="rational",
+            name="srmech.math.rational.atan2", owner="srmech", category="rational",
             summary="atan2(y, x) via the Class-N atan cascade with full quadrant logic. Substrate-native replacement for math.atan2 / np.arctan2; machine-ε accurate.",
             parameters=(P("y", "float", True, "ordinate"),
                         P("x", "float", True, "abscissa"),
@@ -3050,42 +3050,42 @@ def _register_primitive_class_tools() -> None:
             returns=R("Q", "atan2(y, x) as an exact rational (Class-N Q carrier) in (-π, π]"),
         ),
         ToolEntry(
-            name="srmech.amsc.rational.exp", owner="srmech", category="rational",
+            name="srmech.math.rational.exp", owner="srmech", category="rational",
             summary="e^x (real) via the Q61 Class-N exp cascade with Cody-Waite ln2 reduction (x = n*ln2 + r, |r| <= ln2/2; exp(r) the Q61 integer Taylor, 2^n folded in as an EXACT power-of-two scale → an exact rational Q, no float-collapsed recombine and no DBL_MAX overflow gate). Bit-exact with the native peer srmech_exp_q61; dispatches to C when available. Substrate-native replacement for math.exp / np.exp (real).",
             parameters=(P("x", "float", True, "real exponent"),
                         P("precision", "int", False, "None (default) = the Q61 fast path, byte-identical to prior rcs; P>=1 = the exact-rational reference at P fractional bits, error < 2**-P (keyword-only)")),
             returns=R("Q", "e^x as an exact rational (Class-N Q carrier) from the Q61 cascade"),
         ),
         ToolEntry(
-            name="srmech.amsc.rational.log", owner="srmech", category="rational",
+            name="srmech.math.rational.log", owner="srmech", category="rational",
             summary="ln(x) (natural log, x > 0) via the Q61 Class-N atanh cascade: x = m*2^e read from the bit pattern, m folded into [1/sqrt2, sqrt2), log(m) = 2*atanh((m-1)/(m+1)) the Q61 series, e*ln2 recombined exactly in the Q61 model → an exact rational Q. Bit-exact with the native peer srmech_log_q61; dispatches to C when available. Domain: x <= 0 raises ValueError (log 0 = -Inf is not a rational); non-finite raises. Substrate-native replacement for math.log / np.log (real).",
             parameters=(P("x", "float", True, "argument, x > 0"),
                         P("precision", "int", False, "None (default) = the Q61 fast path, byte-identical to prior rcs; P>=1 = the exact-rational reference at P fractional bits, error < 2**-P (keyword-only)")),
             returns=R("Q", "ln(x) as an exact rational (Class-N Q carrier) from the Q61 cascade"),
         ),
         ToolEntry(
-            name="srmech.amsc.rational.cexp", owner="srmech", category="rational",
+            name="srmech.math.rational.cexp", owner="srmech", category="rational",
             summary="e^(i*theta) = cos(theta) + i*sin(theta) via the Class-N cascade (Euler). Class-N trig composed with Class-C imaginary-unit rotation — the DFT twiddle factor and the quantum time-evolution phase. Substrate-native replacement for np.exp / cmath.exp of 1j*theta.",
             parameters=(P("theta", "float", True, "phase angle in radians"),
                         P("precision", "int", False, "None (default) = the Q61 fast path, byte-identical to prior rcs; P>=1 = the exact-rational reference at P fractional bits, error < 2**-P (keyword-only)")),
             returns=R("complex", "e^(i*theta) on the unit circle"),
         ),
         ToolEntry(
-            name="srmech.amsc.rational.complex_exp", owner="srmech", category="rational",
+            name="srmech.math.rational.complex_exp", owner="srmech", category="rational",
             summary="e^z for complex z = e^(z.real)*(cos(z.imag) + i*sin(z.imag)) via the Class-N cascade. Class-N exp + trig composed with Class-C i-rotation. Substrate-native replacement for np.exp / cmath.exp on a complex argument.",
             parameters=(P("z", "complex", True, "complex exponent"),
                         P("precision", "int", False, "None (default) = the Q61 fast path, byte-identical to prior rcs; P>=1 = the exact-rational reference at P fractional bits, error < 2**-P (keyword-only)")),
             returns=R("complex", "e^z projected from the exact rational"),
         ),
         ToolEntry(
-            name="srmech.amsc.rational.sqrt", owner="srmech", category="rational",
+            name="srmech.math.rational.sqrt", owner="srmech", category="rational",
             summary="sqrt(x) for x >= 0 via the Class-N rational sqrt cascade — IEEE-bit x = M*2^e, root = isqrt(M << 2K) (K=27), projected by 2^(e/2 - K). Bit-exact with the native peer srmech_rational_sqrt; dispatches to C. precision=N selects the higher-precision bignum reference (as_integer_ratio + scaled floor-isqrt). No math.sqrt / np.sqrt in the call graph; negative x raises a domain error.",
             parameters=(P("x", "float", True, "radicand, x >= 0"),
                         P("precision", "int", False, "higher-precision bignum reference (keyword-only); default None = C-bit-exact K=27 cascade")),
             returns=R("Q", "sqrt(x) as an exact rational (Class-N Q carrier) from the integer root"),
         ),
         ToolEntry(
-            name="srmech.amsc.rational.hypot", owner="srmech", category="rational",
+            name="srmech.math.rational.hypot", owner="srmech", category="rational",
             summary="hypot(a, b) = sqrt(a^2 + b^2) via the Class-N sqrt cascade — Class-M sum-of-squares bind composed with the Class-N sqrt. Substrate-native replacement for math.hypot / np.hypot (the complex modulus |z| = hypot(z.real, z.imag)).",
             parameters=(P("a", "float", True, "first leg"),
                         P("b", "float", True, "second leg"),
@@ -3203,7 +3203,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("list", "the LLL-reduced basis: m integer row-vectors (same lattice, size-reduced, Lovász-satisfying)"),
         ),
         ToolEntry(
-            name="srmech.amsc.rational.continued_fraction_convergents",
+            name="srmech.math.rational.continued_fraction_convergents",
             owner="srmech",
             category="rational",
             summary="Produce the convergent ladder [(h_0, k_0), ...] from a continued-fraction coefficient list via the canonical CF recurrence. Anchors `[[user_stance_pi_spectral_shape_scalar_invariant]]` — the convergent ladder IS π's substrate identity. Canonical SSoT: Hardy & Wright *Theory of Numbers* §10.6 (best-rational property) + Khinchin *Continued Fractions* §10 (canonical π CF).",
@@ -3213,7 +3213,7 @@ def _register_primitive_class_tools() -> None:
                       "convergent ladder (h_k, k_k) per CF coefficient"),
         ),
         ToolEntry(
-            name="srmech.amsc.rational.pi_cascade_digits",
+            name="srmech.math.rational.pi_cascade_digits",
             owner="srmech",
             category="rational",
             summary="Stream decimal digits of π via integer-cyclic geometric cascade (Archimedes hexagon-doubling with integer-floor √ via math.isqrt at fixed precision). Returns '3.141592...' as a string without invoking math.pi anywhere in the call graph (AST-verified discipline gate per `[[user_stance_pi_spectral_shape_scalar_invariant]]`; Spike #32 / PR #460). rc13 cap-expansion (Task #248): num_digits up to 1000 with auto-scaled cascade depth + precision. Canonical SSoT: Archimedes *Measurement of a Circle* (c. 250 BCE) for the algorithm; Khinchin *Continued Fractions* §10 for canonical π reference.",
@@ -3225,7 +3225,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("str", "'3.{num_digits}' decimal expansion of π"),
         ),
         ToolEntry(
-            name="srmech.amsc.rational.pi_chudnovsky_digits",
+            name="srmech.math.rational.pi_chudnovsky_digits",
             owner="srmech",
             category="rational",
             summary="Stream decimal digits of π via the ROTATION-LAST Chudnovsky series — the canonical srmech cascade shape: the body stays bit-exact (exact integer add/sub/mul/floor-divmod accumulating the Chudnovsky linear series on arbitrary-precision integers — the caller-arena srmech_bigint in C), and the SINGLE continuous/frame projection ('rotation') happens ONCE, terminally, as one isqrt(10005·one²) followed by one division and a base-10 render. NO float, NO math, NO per-term square root — the opposite of pi_cascade_digits (Archimedes), which projects every step. ~14.18 digits land per term. Native C path srmech_pi_chudnovsky when present (byte-identical to the pure-Python bignum oracle; C==Python validated at 1000 + 10000 digits); pure Python is the complete fallback + the parity oracle. Returns '3.141592...' as a string. Canonical SSoT: D. V. & G. V. Chudnovsky, 'Approximations and complex multiplication according to Ramanujan' (1988).",
@@ -3931,7 +3931,7 @@ def _register_primitive_class_tools() -> None:
         # Class M — HDC binary spatter codes
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.hdc.bind", owner="srmech", category="hdc",
+            name="srmech.math.hdc.bind", owner="srmech", category="hdc",
             summary="HDC bind: component-wise XOR of two BSC vectors. "
                     "Commutative, associative, self-inverse.",
             parameters=(P("a", "bytes", True), P("b", "bytes", True,
@@ -3939,7 +3939,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("bytes", "bound vector"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.bundle", owner="srmech", category="hdc",
+            name="srmech.math.hdc.bundle", owner="srmech", category="hdc",
             summary="HDC bundle: bitwise majority across an odd number of vectors "
                     "(BSC convention). Even counts rejected.",
             parameters=(P("vectors", "Sequence[bytes]", True,
@@ -3947,7 +3947,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("bytes", "bundled vector"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.permute", owner="srmech", category="hdc",
+            name="srmech.math.hdc.permute", owner="srmech", category="hdc",
             summary="HDC permute: cyclic bit-rotation by rotate_bits. Preserves "
                     "popcount; involutive with -rotate_bits.",
             parameters=(P("a", "bytes", True),
@@ -3955,7 +3955,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("bytes", "rotated vector"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.similarity", owner="srmech", category="hdc",
+            name="srmech.math.hdc.similarity", owner="srmech", category="hdc",
             summary="HDC similarity: 1 − 2 hamming(a, b)/D ∈ [−1, 1] as the EXACT "
                     "Q rational (v0.9.0 F868 stay-rational; (D−2·hamming)/D, "
                     "collapses to a decimal only via float(s)). +1 identical, 0 "
@@ -3964,7 +3964,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("Q", "exact rational (D−2·hamming)/D in [-1, 1]"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.hamming", owner="srmech", category="hdc",
+            name="srmech.math.hdc.hamming", owner="srmech", category="hdc",
             summary="HDC bit-Hamming distance: the RAW INTEGER count of differing "
                     "bits between two BSC byte vectors (UPSTREAM §61; F868). "
                     "similarity = 1 − 2·hamming/(8·len(a)). The float-free, "
@@ -3980,7 +3980,7 @@ def _register_primitive_class_tools() -> None:
         # hypervectors; 0 is the dead-band the pin-slot rejects.
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.hdc.polar_random", owner="srmech", category="hdc",
+            name="srmech.math.hdc.polar_random", owner="srmech", category="hdc",
             summary="Random polar hypervector: int8 array of D elements in "
                     "{-1, 0, +1} (the 3-state Class-M variant alphabet). "
                     "Pass an integer `seed` for a DETERMINISTIC vector "
@@ -3997,7 +3997,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("array", "int8 in {-1,0,+1}"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.polar_bind", owner="srmech", category="hdc",
+            name="srmech.math.hdc.polar_bind", owner="srmech", category="hdc",
             summary="Polar bind: element-wise sign-product with 0 absorbing "
                     "(0·x = 0). Commutative, associative; self-inverse on ±1.",
             parameters=(P("a", "HV", True, "int8 {-1,0,+1}"),
@@ -4005,7 +4005,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("array", "int8 {-1,0,+1}"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.polar_unbind", owner="srmech", category="hdc",
+            name="srmech.math.hdc.polar_unbind", owner="srmech", category="hdc",
             summary="Polar unbind (= sign-product). Recovers b from "
                     "bind(a,b) where a≠0; 0 is destructive.",
             parameters=(P("c", "HV", True, "int8 {-1,0,+1}"),
@@ -4013,7 +4013,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("array", "int8 {-1,0,+1}"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.polar_bundle", owner="srmech", category="hdc",
+            name="srmech.math.hdc.polar_bundle", owner="srmech", category="hdc",
             summary="Polar bundle: per-position sticky majority "
                     "(sign of the sum); exact ties resolve to 0. No "
                     "odd-count restriction.",
@@ -4022,7 +4022,7 @@ def _register_primitive_class_tools() -> None:
             # ``vectors`` (NOT ``*vectors`` — the ``*`` sigil is illegal in
             # an Anthropic input_schema property key
             # ``^[a-zA-Z0-9_.-]{1,64}$``). Sequence type matches the
-            # sibling ``srmech.amsc.hdc.bundle`` convention; the dispatcher
+            # sibling ``srmech.math.hdc.bundle`` convention; the dispatcher
             # (``srmech.mcp._tools.invoke_tool``) unpacks it positionally.
             parameters=(P("vectors", "Sequence[HV]", True,
                           "one or more int8 {-1,0,+1} vectors of equal "
@@ -4030,7 +4030,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("array", "int8 {-1,0,+1}"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.polar_similarity", owner="srmech", category="hdc",
+            name="srmech.math.hdc.polar_similarity", owner="srmech", category="hdc",
             summary="Polar match-fraction in [0,1] as the EXACT Q rational "
                     "(v0.9.0 F868 stay-rational; collapses to a decimal only via "
                     "float(s)). skip_zero=True (default) counts only jointly "
@@ -4040,7 +4040,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("Q", "exact rational matches/informative in [0, 1]"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.polar_density", owner="srmech", category="hdc",
+            name="srmech.math.hdc.polar_density", owner="srmech", category="hdc",
             summary="Fraction of non-zero (informative) positions in [0,1] as the "
                     "EXACT Q rational (v0.9.0 F868); 1.0 = fully bipolar, lower = "
                     "more dead-band. Collapses to a decimal only via float(d).",
@@ -4048,7 +4048,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("Q", "exact rational nonzero/n in [0, 1]"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.polar_from_real", owner="srmech", category="hdc",
+            name="srmech.math.hdc.polar_from_real", owner="srmech", category="hdc",
             summary="Bridge real data to a polar HDC vector via sign_quantise "
                     "(Class-K threshold projection); dead_band>0 maps the "
                     "near-threshold zone to 0.",
@@ -4068,7 +4068,7 @@ def _register_primitive_class_tools() -> None:
         # both "magic number" and "content address" is what let a DRAWN value
         # be mistaken for a DERIVED one. Four ops; the regime is declared.
         ToolEntry(
-            name="srmech.amsc.hdc.klein4_expand", owner="srmech", category="hdc",
+            name="srmech.math.hdc.klein4_expand", owner="srmech", category="hdc",
             summary="EXPAND regime — deterministically expand an integer seed "
                     "to a Klein-4 hypervector (D elements in {0,1,2,3}, the "
                     "rank-2 Class-M alphabet). CRITERION: REPRODUCIBILITY — "
@@ -4089,7 +4089,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("HV", "uint8 in {0,1,2,3}"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.klein4_address", owner="srmech", category="hdc",
+            name="srmech.math.hdc.klein4_address", owner="srmech", category="hdc",
             summary="ADDRESSED regime — the Class-A content address of "
                     "`content` as a Klein-4 hypervector. Two-stage counter-mode "
                     "SHA-256: h = sha256(content), then sha256(h|i) for "
@@ -4115,7 +4115,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("HV", "uint8 in {0,1,2,3}"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.klein4_role", owner="srmech", category="hdc",
+            name="srmech.math.hdc.klein4_role", owner="srmech", category="hdc",
             summary="ROLE regime — the binding key for a NAMED SLOT (the role "
                     "half of a role-filler bind). The role name is folded to a "
                     "32-bit seed by the FNV-1a token hash under `base`, then "
@@ -4136,7 +4136,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("HV", "uint8 in {0,1,2,3}"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.klein4_sector_frame", owner="srmech",
+            name="srmech.math.hdc.klein4_sector_frame", owner="srmech",
             category="hdc",
             summary="The (1,3,7,3) SECTOR FRAME of dimension D — the "
                     "substrate's own period-14 Klein-4 position structure. "
@@ -4160,7 +4160,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("HV", "uint8 in {0,1,2,3}"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.klein4_from_one", owner="srmech",
+            name="srmech.math.hdc.klein4_from_one", owner="srmech",
             category="hdc",
             summary="ONE-A14 — the One's Klein-4 COUPLING projection. Class-A "
                     "address of the One's canonical (σ, θ, terms) serialisation, "
@@ -4189,7 +4189,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("HV", "uint8 in {0,1,2,3}"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.klein4_bind", owner="srmech", category="hdc",
+            name="srmech.math.hdc.klein4_bind", owner="srmech", category="hdc",
             summary="Klein-4 bind: component-wise (F₂)²-XOR. Commutative, "
                     "associative, self-inverse; identity 0. rc13 sectors=/"
                     "parallel=/mode= fans it across ≤4 concurrent lanes "
@@ -4207,14 +4207,14 @@ def _register_primitive_class_tools() -> None:
             returns=R("HV", "uint8 {0,1,2,3}"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.klein4_unbind", owner="srmech", category="hdc",
+            name="srmech.math.hdc.klein4_unbind", owner="srmech", category="hdc",
             summary="Klein-4 unbind (= self-inverse XOR): recovers b from "
                     "bind(a,b).",
             parameters=(P("c", "HV", True), P("a", "HV", True)),
             returns=R("HV", "uint8 {0,1,2,3}"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.klein4_unbundle", owner="srmech", category="hdc",
+            name="srmech.math.hdc.klein4_unbundle", owner="srmech", category="hdc",
             summary="Klein-4 unbundle: recover a bound value from a bundle "
                     "(superposition) by binding the key back (= unbind on the "
                     "bundle). Exact for a single bound pair; inside a multi-pair "
@@ -4225,7 +4225,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("HV", "uint8 {0,1,2,3}"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.klein4_bundle", owner="srmech", category="hdc",
+            name="srmech.math.hdc.klein4_bundle", owner="srmech", category="hdc",
             summary="Klein-4 bundle: per-bit majority on each of the 2 bits "
                     "independently; accepts any count n>=1 (even or odd); "
                     "exact ties (only possible for even n) → 0 for that bit. "
@@ -4248,7 +4248,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("HV", "uint8 {0,1,2,3}"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.klein4_phase_key", owner="srmech", category="hdc",
+            name="srmech.math.hdc.klein4_phase_key", owner="srmech", category="hdc",
             summary="Continuous-phase Klein-4 key (UPSTREAM §59; F861): the V4 "
                     "code `elem` (default 2 = γ₅) on a `width`-wide circular "
                     "slot-window starting at round(frac·D) mod D, identity (0) "
@@ -4265,7 +4265,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("HV", "uint8 {0,1,2,3}"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.klein4_phase_bind", owner="srmech", category="hdc",
+            name="srmech.math.hdc.klein4_phase_bind", owner="srmech", category="hdc",
             summary="Bind a continuous phase into a Klein-4 vector (UPSTREAM §59): "
                     "klein4_bind(hv, klein4_phase_key(len(hv), frac, …)). "
                     "Reversible (same phase twice = identity); σ-mirror (±φ "
@@ -4283,7 +4283,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("HV", "uint8 {0,1,2,3}"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.klein4_chunk_bundle", owner="srmech", category="hdc",
+            name="srmech.math.hdc.klein4_chunk_bundle", owner="srmech", category="hdc",
             summary="Build a CAPACITY-BOUNDED chunk-set (UPSTREAM §58; F837): "
                     "split a list of (bound) vectors into consecutive groups of "
                     "≤ `capacity` and klein4_bundle each. Returns a list of HV "
@@ -4298,7 +4298,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("list[HV]", "≤ ceil(len(vectors)/capacity) bundle chunks"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.klein4_chunk_resolve", owner="srmech", category="hdc",
+            name="srmech.math.hdc.klein4_chunk_resolve", owner="srmech", category="hdc",
             summary="Max-resonance read over a capacity-bounded chunk-set "
                     "(UPSTREAM §58; F837): for each candidate, the MAX over "
                     "chunks of klein4_similarity(klein4_bind(chunk, key), "
@@ -4316,7 +4316,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("list[Q]", "per-candidate max-resonance score"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.klein4_encode_bytes", owner="srmech", category="hdc",
+            name="srmech.math.hdc.klein4_encode_bytes", owner="srmech", category="hdc",
             summary="Byte-composed Klein-4 vector (UPSTREAM §60; F864): a bundle "
                     "of POSITION-BOUND per-byte random vectors — byte b → "
                     "klein4_expand(D, b) (the 256-byte vocab), bound with "
@@ -4330,7 +4330,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("HV", "uint8 {0,1,2,3}"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.klein4_compose", owner="srmech", category="hdc",
+            name="srmech.math.hdc.klein4_compose", owner="srmech", category="hdc",
             summary="Scale-invariant role-filler compositor (F900/F901; the "
                     "byte/glyph LM 'C1'): bundle_i( klein4_bind(part_i, "
                     "klein4_pos_key(D, i)) ) over ARBITRARY pre-composed HV "
@@ -4348,7 +4348,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("HV", "uint8 {0,1,2,3}"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.klein4_similarity", owner="srmech", category="hdc",
+            name="srmech.math.hdc.klein4_similarity", owner="srmech", category="hdc",
             summary="Klein-4 similarity: fraction of positions where a==b in "
                     "[0,1] (1 identical, 0 orthogonal). v0.9.0 (F868 stay-"
                     "rational): returns the EXACT Q rational matches/D (compares "
@@ -4366,7 +4366,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("Q", "exact rational matches/D in [0, 1]"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.klein4_match_count", owner="srmech", category="hdc",
+            name="srmech.math.hdc.klein4_match_count", owner="srmech", category="hdc",
             summary="Klein-4 match count: the RAW INTEGER number of positions "
                     "where a==b (UPSTREAM §61; F868). klein4_similarity = "
                     "match_count / len(a). This is the float-free, blow-up-free "
@@ -4383,7 +4383,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("int", "count of matching positions in [0, len(a)]"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.klein4_bundle_accumulate", owner="srmech",
+            name="srmech.math.hdc.klein4_bundle_accumulate", owner="srmech",
             category="hdc",
             summary="STREAMING klein4_bundle (UPSTREAM §50): fold ONE Klein-4 "
                     "vector into a fixed-width (1+2*D uint32) per-coordinate tally, "
@@ -4398,7 +4398,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("array('I')", "the (1+2*D) uint32 accumulator"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.klein4_bundle_resolve", owner="srmech",
+            name="srmech.math.hdc.klein4_bundle_resolve", owner="srmech",
             category="hdc",
             summary="Resolve a klein4_bundle_accumulate accumulator to the bundled "
                     "Klein-4 vector — strict per-bit majority over n=acc[0] folded "
@@ -4410,7 +4410,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("HV", "uint8 {0,1,2,3}"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.klein4_bundle_sector_scores", owner="srmech",
+            name="srmech.math.hdc.klein4_bundle_sector_scores", owner="srmech",
             category="hdc",
             summary="NON-COLLAPSING read of a klein4_bundle_accumulate "
                     "accumulator (§102/F1265): all FOUR sector scores per "
@@ -4429,7 +4429,7 @@ def _register_primitive_class_tools() -> None:
                       "coordinate i (bit0 = s & 1, bit1 = (s >> 1) & 1)"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.cooccurrence_fold", owner="srmech",
+            name="srmech.math.hdc.cooccurrence_fold", owner="srmech",
             category="hdc",
             summary="Holographic co-occurrence store (UPSTREAM §50) — the DUAL of "
                     "the explicit-edge §17-U1 cooccurrence_edges. Folds every "
@@ -4448,27 +4448,27 @@ def _register_primitive_class_tools() -> None:
                       "'vocab': [token, ...], 'n_tokens': int}"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.klein4_chirality_flip_gamma5", owner="srmech",
+            name="srmech.math.hdc.klein4_chirality_flip_gamma5", owner="srmech",
             category="hdc",
             summary="Flip the γ₅ chirality axis (XOR with sector mask 2).",
             parameters=(P("v", "HV", True, "uint8 {0,1,2,3}"),),
             returns=R("HV", "uint8 {0,1,2,3}"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.klein4_chirality_flip_omega7", owner="srmech",
+            name="srmech.math.hdc.klein4_chirality_flip_omega7", owner="srmech",
             category="hdc",
             summary="Flip the iω₇ chirality axis (XOR with sector mask 1).",
             parameters=(P("v", "HV", True, "uint8 {0,1,2,3}"),),
             returns=R("HV", "uint8 {0,1,2,3}"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.klein4_cpt_mirror", owner="srmech", category="hdc",
+            name="srmech.math.hdc.klein4_cpt_mirror", owner="srmech", category="hdc",
             summary="CPT mirror: flip BOTH chirality axes (XOR with 3).",
             parameters=(P("v", "HV", True, "uint8 {0,1,2,3}"),),
             returns=R("HV", "uint8 {0,1,2,3}"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.klein4_project_axis", owner="srmech",
+            name="srmech.math.hdc.klein4_project_axis", owner="srmech",
             category="hdc",
             summary="Project a Klein-4 store onto ONE chirality axis → bipolar "
                     "{-1,+1} (the F350/F354 asymptotic-DoF render): the 2-DoF "
@@ -4484,7 +4484,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("list", "bipolar {-1,+1}, one per element"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.klein4_triality_cycle", owner="srmech",
+            name="srmech.math.hdc.klein4_triality_cycle", owner="srmech",
             category="hdc",
             summary="Order-3 S₃=Aut(V₄) triality cycle of the three Klein-4 "
                     "involutions (iω₇→γ₅→CPT, identity fixed); the V₄-carrier "
@@ -4496,7 +4496,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("HV", "uint8 {0,1,2,3}"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.klein4_sector_count", owner="srmech", category="hdc",
+            name="srmech.math.hdc.klein4_sector_count", owner="srmech", category="hdc",
             summary="Per-sector occupancy [n0,n1,n2,n3] — chirality-sector "
                     "distribution attestation.",
             parameters=(P("v", "HV", True, "uint8 {0,1,2,3}"),),
@@ -4505,7 +4505,7 @@ def _register_primitive_class_tools() -> None:
         # #797 op (a2): holographic erasure code (rc27; F353 substitute).
         # The order-2 store is k=2-DETECT; this adds k=3-CORRECT with no Z3.
         ToolEntry(
-            name="srmech.amsc.hdc.klein4_holographic_encode", owner="srmech",
+            name="srmech.math.hdc.klein4_holographic_encode", owner="srmech",
             category="hdc",
             summary="Holographic erasure-encode a Klein-4 store into `replicas` "
                     "copies (#797 op (a2), F353): any one replica-subregion "
@@ -4516,7 +4516,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("HV", "uint8 store of length len(v)*replicas"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.klein4_holographic_decode", owner="srmech",
+            name="srmech.math.hdc.klein4_holographic_decode", owner="srmech",
             category="hdc",
             summary="Reconstruct a Klein-4 store from a holographic erasure "
                     "encoding. erased=mask → first-surviving-replica (exact up "
@@ -4532,7 +4532,7 @@ def _register_primitive_class_tools() -> None:
         # The k=2-DETECT order-2 store gains k=3-CORRECT from the order-3 triality
         # orbit — the EXPLICIT path (op (a2) is the measured no-Z3 substitute).
         ToolEntry(
-            name="srmech.amsc.hdc.klein4_triality_encode", owner="srmech",
+            name="srmech.math.hdc.klein4_triality_encode", owner="srmech",
             category="hdc",
             summary="Encode a Klein-4 store as its order-3 triality orbit "
                     "[v,T(v),T²(v)] (#797 op (a1), F359): the third block T²v is "
@@ -4542,7 +4542,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("HV", "uint8 store of length len(v)*3 = [v|T(v)|T²(v)]"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.klein4_triality_correct", owner="srmech",
+            name="srmech.math.hdc.klein4_triality_correct", owner="srmech",
             category="hdc",
             summary="Correct a Klein-4 store via the order-3 triality 2-of-3 "
                     "majority (#797 op (a1), F359): invert the triality to the "
@@ -4558,7 +4558,7 @@ def _register_primitive_class_tools() -> None:
         # M∘C with a Class-K associator residue; NO new class. Baez 2002.
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.hdc.loop_bind", owner="srmech", category="hdc",
+            name="srmech.math.hdc.loop_bind", owner="srmech", category="hdc",
             summary="The loop bind (Moufang) = the octonion / Cayley-Dickson "
                     "product. Non-commutative + non-associative ⟹ (ab)c≠a(bc): "
                     "the k=7 gauge ARITHMETIC triality is blind to (F271). M∘C "
@@ -4570,35 +4570,35 @@ def _register_primitive_class_tools() -> None:
             returns=R("list[float]", "the product x·y, same length"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.loop_conj", owner="srmech", category="hdc",
+            name="srmech.math.hdc.loop_conj", owner="srmech", category="hdc",
             summary="Octonion conjugate x̄ — negate the imaginary part, keep the "
                     "real anchor x[0]. The Class-C flip powering the unbind.",
             parameters=(P("x", "HV", True, "power-of-two vector"),),
             returns=R("list[float]", "conjugate, same length"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.loop_inv", owner="srmech", category="hdc",
+            name="srmech.math.hdc.loop_inv", owner="srmech", category="hdc",
             summary="Moufang inverse x⁻¹ = x̄/⟨x,x⟩ — the unbind key; "
                     "loop_bind(x, loop_inv(x))=e₀. Class-K norm² gate, no abs().",
             parameters=(P("x", "HV", True, "nonzero power-of-two vector"),),
             returns=R("list[float]", "inverse, same length"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.loop_left_op", owner="srmech", category="hdc",
+            name="srmech.math.hdc.loop_left_op", owner="srmech", category="hdc",
             summary="Left-multiplication operator L_a(x)=a·x (the (4:3) "
                     "ordering) as a dim×dim matrix. L_a≠R_a≠R_aᵀ.",
             parameters=(P("a", "HV", True, "power-of-two vector"),),
             returns=R("Mat", "dim×dim matrix"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.loop_right_op", owner="srmech", category="hdc",
+            name="srmech.math.hdc.loop_right_op", owner="srmech", category="hdc",
             summary="Right-multiplication operator R_a(x)=x·a (the (3:4) mirror "
                     "ordering) as a dim×dim matrix.",
             parameters=(P("a", "HV", True, "power-of-two vector"),),
             returns=R("Mat", "dim×dim matrix"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.loop_associator", owner="srmech", category="hdc",
+            name="srmech.math.hdc.loop_associator", owner="srmech", category="hdc",
             summary="(a·b)·c − a·(b·c) = the Class-K associator RESIDUE of the "
                     "loop bind (zero on a Fano line, nonzero off it = the "
                     "(4:3)|(3:4) boundary). =−([L_a,R_b]·c-style residue).",
@@ -4614,7 +4614,7 @@ def _register_primitive_class_tools() -> None:
         # Ground-truth derived FROM the shipped loop_bind (F281). No new class.
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.hdc.cross7", owner="srmech", category="hdc",
+            name="srmech.math.hdc.cross7", owner="srmech", category="hdc",
             summary="The 7-D cross product x×y = Im(loop_bind(x,y)) (drop the e₀ "
                     "real anchor). Antisymmetric; for imaginary x,y = ½(xy−yx). "
                     "M (bind) ∘ C (imaginary-part ordering). Identity "
@@ -4626,7 +4626,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("list[float]", "x×y, same length (e₀ component zero)"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.g2_three_form", owner="srmech", category="hdc",
+            name="srmech.math.hdc.g2_three_form", owner="srmech", category="hdc",
             summary="The associative calibration 3-form φ(x,y,z)=⟨x, cross7(y,z)⟩ "
                     "=⟨x, Im(y·z)⟩. Fully antisymmetric; nonzero ±1 on exactly the "
                     "7 Fano associative 3-planes, 0 on the other 28 triples. "
@@ -4643,7 +4643,7 @@ def _register_primitive_class_tools() -> None:
         # NB dim-8 loop_binds; block-diagonal; capacity-free vs Klein-4 (#812).
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.hdc.loop_bind_hd", owner="srmech", category="hdc",
+            name="srmech.math.hdc.loop_bind_hd", owner="srmech", category="hdc",
             summary="Block-octonion HD bind: D=NB·8 hypervector bound block-wise "
                     "by the octonion loop_bind = the direct sum ⊕ of NB independent "
                     "dim-8 Moufang binds (block-diagonal, no coupling). Carries "
@@ -4657,7 +4657,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("list[float]", "the block-wise product, same length"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.loop_unbind_hd", owner="srmech", category="hdc",
+            name="srmech.math.hdc.loop_unbind_hd", owner="srmech", category="hdc",
             summary="HD unbind: per-block Moufang left-division conj(a_k)·b_k. "
                     "Recovers v from loop_bind_hd(a, v) for unit-per-block a "
                     "(conj(a)·(a·v)=v by alternativity). Class-K clean; no abs(). "
@@ -4669,7 +4669,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("list[float]", "the unbound vector, same length"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.loop_conj_hd", owner="srmech", category="hdc",
+            name="srmech.math.hdc.loop_conj_hd", owner="srmech", category="hdc",
             summary="Per-block HD octonion conjugate: the direct sum ⊕ of NB "
                     "dim-8 loop_conjs — THE missing atom under loop_bind_hd / "
                     "loop_unbind_hd. The single-element loop_conj is global and "
@@ -4681,7 +4681,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("list[float]", "the per-block conjugate, same length"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.loop_inv_hd", owner="srmech", category="hdc",
+            name="srmech.math.hdc.loop_inv_hd", owner="srmech", category="hdc",
             summary="Per-block HD Moufang inverse: the direct sum ⊕ of NB dim-8 "
                     "loop_invs (x̄_k/⟨x_k,x_k⟩ per block) — the per-block unbind "
                     "key. The single-element loop_inv is global and silently "
@@ -4693,7 +4693,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("list[float]", "the per-block inverse, same length"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.loop_runbind_hd", owner="srmech", category="hdc",
+            name="srmech.math.hdc.loop_runbind_hd", owner="srmech", category="hdc",
             summary="HD RIGHT-unbind: per-block Moufang right-division "
                     "b_k·conj(a_k). Where loop_unbind_hd peels the LEFT factor, "
                     "this peels the RIGHT — recovers v from loop_bind_hd(v, a) "
@@ -5754,7 +5754,7 @@ def _register_primitive_class_tools() -> None:
                     "name-keyed registry — the genome op-log / DSL "
                     "run_toml_chain model). numpy-free; no abs().",
             parameters=(P("op", "str", True,
-                          "registered dotted op name (e.g. 'srmech.amsc."
+                          "registered dotted op name (e.g. 'srmech.math."
                           "rational.sin_series_truncate')"),
                         P("inputs", "dict", True,
                           "pinned operand inputs keyed by name (series ops: "
@@ -6893,7 +6893,7 @@ def _register_primitive_class_tools() -> None:
         # srmech_infer C symbol). The capstone of the dispatch table (F929).
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.dispatch.infer", owner="srmech",
+            name="srmech.math.dispatch.infer", owner="srmech",
             category="dispatch",
             summary="The F929 OPEN/infer ROUTER — the meta-dispatcher over "
                     "srmech's three shipped closed-form reduction-theory rows "
@@ -7200,7 +7200,7 @@ def _register_primitive_class_tools() -> None:
         ToolEntry(
             name="srmech.amsc.cascade.cyclic_gcd", owner="srmech",
             category="cascade",
-            summary="Class I cyclic gcd (delegates to srmech.amsc.cyclic.gcd). "
+            summary="Class I cyclic gcd (delegates to srmech.math.cyclic.gcd). "
                     "The cascade-named alias for reaching the Class I primitive "
                     "instead of math.gcd." + PUBLISH_OPT_IN_NOTE,
             parameters=(P("a", "int", True), P("b", "int", True)),
@@ -7216,7 +7216,7 @@ def _register_primitive_class_tools() -> None:
             name="srmech.amsc.cascade.cyclic_mod_mul", owner="srmech",
             category="cascade",
             summary="Modular multiply as a cascade stage — (a * b) mod n "
-                    "(delegates to srmech.amsc.cyclic.mod_mul). The DSL-"
+                    "(delegates to srmech.math.cyclic.mod_mul). The DSL-"
                     "declarable multiply stage of an LCG cascade: pipe the "
                     "state as `a`, bind `b`=multiplier and `n`=modulus. Capped "
                     "at uint64 (use cyclic_mod_mul_wide for a wider modulus)."
@@ -7231,7 +7231,7 @@ def _register_primitive_class_tools() -> None:
             name="srmech.amsc.cascade.cyclic_mod_add", owner="srmech",
             category="cascade",
             summary="Modular addition as a cascade stage — (a + b) mod n "
-                    "(delegates to srmech.amsc.cyclic.mod_add). The DSL-"
+                    "(delegates to srmech.math.cyclic.mod_add). The DSL-"
                     "declarable increment stage of an LCG cascade: pipe the "
                     "state as `a`, bind `b`=increment and `n`=modulus. Chained "
                     "after cyclic_mod_mul it IS one linear-congruential step."
@@ -7247,7 +7247,7 @@ def _register_primitive_class_tools() -> None:
             category="cascade",
             summary="Modular exponentiation as a cascade stage — (a ** k) mod "
                     "n via square-and-multiply (delegates to "
-                    "srmech.amsc.cyclic.mod_pow). The DSL-declarable power "
+                    "srmech.math.cyclic.mod_pow). The DSL-declarable power "
                     "stage of a multiplicative-hash / modular-power cascade: "
                     "pipe the base as `a`, bind `k`=exponent and `n`=modulus."
                     + PUBLISH_OPT_IN_NOTE,
@@ -7262,7 +7262,7 @@ def _register_primitive_class_tools() -> None:
             category="cascade",
             summary="Modular inverse as a cascade stage — a**-1 mod n via "
                     "extended Euclidean (delegates to "
-                    "srmech.amsc.cyclic.mod_inv). The DSL-declarable un-do "
+                    "srmech.math.cyclic.mod_inv). The DSL-declarable un-do "
                     "stage of a modular cascade: pipe the value as `a`, bind "
                     "`n`=modulus. Requires gcd(a, n) == 1 and n <= INT64_MAX."
                     + PUBLISH_OPT_IN_NOTE,
@@ -7276,7 +7276,7 @@ def _register_primitive_class_tools() -> None:
             category="cascade",
             summary="Wide modular multiply as a cascade stage — (a * b) mod n "
                     "with NO uint64 cap (delegates to "
-                    "srmech.amsc.cyclic.mod_mul_wide). The DSL-declarable "
+                    "srmech.math.cyclic.mod_mul_wide). The DSL-declarable "
                     "multiply-and-reduce half of a 128-bit LCG (the raw PCG64 "
                     "step at n = 2**128): pipe the state as `a`, bind "
                     "`b`=multiplier and `n`=modulus, any width. The product "
@@ -8421,7 +8421,7 @@ def _register_primitive_class_tools() -> None:
         # §1.2 / §1.3 / rbs_nn Note 1) — pure compositions, no new primitive class.
         # The two compose ops register under flat ``cascade.*`` names (submodule-
         # dotted ``cascade.compose.*`` exempt in coverage); bundle_with_ties is a
-        # Class-M op registered under its real ``srmech.amsc.hdc.*`` name.
+        # Class-M op registered under its real ``srmech.math.hdc.*`` name.
         ToolEntry(
             name="srmech.amsc.cascade.signed_sum_squared", owner="srmech",
             category="cascade",
@@ -8455,7 +8455,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("list[int]", "k indices, best-first"),
         ),
         ToolEntry(
-            name="srmech.amsc.hdc.bundle_with_ties", owner="srmech",
+            name="srmech.math.hdc.bundle_with_ties", owner="srmech",
             category="hdc",
             summary="Bitwise majority across ANY number of BSC vectors, with the tie "
                     "state surfaced (UPSTREAM rbs_nn Note 1). Unlike bundle (odd N "
@@ -10007,7 +10007,7 @@ def _register_qm_tools() -> None:
             category="qm.triality",
             summary="The next frame in the order-3 rep-permutation "
                     "8v → 8s → 8c → 8v (Class-I mod-3 cyclic step via "
-                    "srmech.amsc.cyclic.mod_add). Raises on an unknown frame. "
+                    "srmech.math.cyclic.mod_add). Raises on an unknown frame. "
                     "Baez (2002) §2.4.",
             parameters=(P("frame", "str", True, "8v/8s/8c frame label"),),
             returns=R("str", "next frame in 8v → 8s → 8c"),

@@ -63,7 +63,7 @@ The schema's whole job is to hold that the reduce-back and the
 response-function are the discrete and continuous faces of ONE responsion:
 
 * ``discrete_algebraic`` — the **F929 reduce-back rows**
-  (:mod:`srmech.amsc.dispatch`): each row is a responsion (operand → verified
+  (:mod:`srmech.math.dispatch`): each row is a responsion (operand → verified
   closed form, or diverge = OPEN). The verified edges map each shipped
   reducer to its operand carrier (gosper⊗Poly, zeilberger/wz_certificate⊗
   BiPoly, apagodu_zeilberger⊗TriPoly, q_gosper⊗QPoly, q_zeilberger/
@@ -72,7 +72,7 @@ response-function are the discrete and continuous faces of ONE responsion:
   multivariate_elliptic_jackson_an⊗EllMonomial (rc227), resonant_spectrum⊗Mat,
   the_one⊗One). The OPEN edges are the rows' honest residues: the ``infer``
   router on each row's operand carrier, ``answers_with`` taken VERBATIM from
-  :data:`srmech.amsc.dispatch._OPEN_HINTS` (the router's own
+  :data:`srmech.math.dispatch._OPEN_HINTS` (the router's own
   candidate-next-theory hint — the F934 honest sustain; never a fabricated
   reduction). Editing a hint Python-side changes the canonical payload, so
   the hash-ratchet forces the C table to follow — the schema stays pinned to
@@ -188,7 +188,7 @@ _DISCRETE_VERIFIED: Tuple[Tuple[str, str, str, str], ...] = (
 # _OPEN_HINTS[None] residue ("no row matched") has no operand carrier and so
 # no edge — it stays the router's own return, documented here honestly.
 
-_INFER_OP = "srmech.amsc.dispatch.infer"
+_INFER_OP = "srmech.math.dispatch.infer"
 
 _ROW_OPEN_CARRIER: Tuple[Tuple[str, str], ...] = (
     ("cyclic", "One"),
@@ -211,20 +211,20 @@ _ROW_OPEN_CARRIER: Tuple[Tuple[str, str], ...] = (
 # domain) — on the ONE edge: the two-regimes-of-one-responsion unity, held.
 
 _CONTINUOUS_VERIFIED: Tuple[Tuple[str, str, str, str], ...] = (
-    ("srmech.amsc.laplacian.responsion", "Mat", "propagator",
+    ("srmech.math.laplacian.responsion", "Mat", "propagator",
      "e^{−zL}·u0 — the time-domain member (arg(z) the coherence dial: real "
      "→ thermal, imaginary → coherent, between → partial)"),
-    ("srmech.amsc.laplacian.responsion", "Mat", "resolvent",
+    ("srmech.math.laplacian.responsion", "Mat", "resolvent",
      "(zI−L)^{-1}·u0 — the frequency/energy-domain Green's function, the "
      "LAPLACE TRANSFORM of the propagator (per eigenmode e^{−z·λ} ⟷ "
      "1/(z−λ)); poles at spec(L)"),
-    ("srmech.amsc.laplacian.propagate", "Mat", "propagator",
+    ("srmech.math.laplacian.propagate", "Mat", "propagator",
      "e^{−zL}·u0 — the named EPH surface (responsion kind='propagator' "
      "subsumes it as its time-domain member)"),
-    ("srmech.amsc.laplacian.heat_trace", "Mat", "trace",
+    ("srmech.math.laplacian.heat_trace", "Mat", "trace",
      "Θ(t) = Tr(e^{−tL}) = Σₖ e^{−t·λₖ} — the read-independent spectral "
      "summary (the trace of the propagator)"),
-    ("srmech.amsc.laplacian.ground_state_flux_response", "Mat",
+    ("srmech.math.laplacian.ground_state_flux_response", "Mat",
      "response_curve",
      "λ_min(Φ) — the magnetic ground state as a function of flux (the F1007 "
      "flux shadow), over the magnetic-Laplacian Mat built internally from "
@@ -335,7 +335,7 @@ def _pure_responsion_schema() -> Dict[str, List[Dict[str, Any]]]:
     responsion relation derived from the F929 dispatch rows (verified
     reducers + the VERBATIM _OPEN_HINTS residues) and the response-function
     ops. Fresh (mutation-safe) structures each call; refs validated."""
-    from ..amsc.dispatch import _OPEN_HINTS
+    from ..math.dispatch import _OPEN_HINTS
 
     edges: Dict[str, List[Dict[str, Any]]] = {}
 

@@ -25,7 +25,7 @@ sign-branch). Run from ``docs/srmech/python`` with ``PYTHONPATH=$(pwd)``.
 import pytest
 
 from srmech import introspect
-from srmech.amsc.dispatch import infer
+from srmech.math.dispatch import infer
 from srmech.apokatastasis.ellbase import EllMonomial as M, EllRatio
 from srmech.apokatastasis.elliptic_jackson import (
     multivariate_elliptic_jackson,

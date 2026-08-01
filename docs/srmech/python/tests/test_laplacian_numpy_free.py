@@ -10,7 +10,7 @@ import pathlib
 
 import pytest
 
-import srmech.amsc.laplacian as L
+import srmech.math.laplacian as L
 
 
 # --- the srmech Jacobi cascade == the numpy/native eigenvalue path -----------
@@ -177,7 +177,7 @@ def test_no_abs_calls_anywhere_in_srmech():
 def test_no_math_sqrt_hypot_anywhere_in_srmech():
     """RATCHET (v0.7.0rc40): no ``math.sqrt`` / ``math.hypot`` CALL exists in any
     srmech source file. The ``math`` module's scalar roots have an exact Class-N
-    srmech peer (``srmech.amsc.rational.sqrt`` / ``.hypot``) — route scalar roots
+    srmech peer (``srmech.math.rational.sqrt`` / ``.hypot``) — route scalar roots
     through the cascade, not libm (the §22 "never use numpy/libm math when srmech
     can cascade" discipline; cf. the rc32 abs-sweep / rc33 numpy-math-sweep).
     ``cmath.sqrt`` (genuine complex root, no rational peer) and ``np.sqrt`` on a
@@ -201,7 +201,7 @@ def test_no_math_sqrt_hypot_anywhere_in_srmech():
                 offenders.append(f"{path.name}:{node.lineno} math.{node.func.attr}(")
     assert not offenders, (
         "math.sqrt / math.hypot calls found in srmech — route scalar roots through "
-        "srmech.amsc.rational.{sqrt,hypot} (the Class-N cascade), not libm:\n  "
+        "srmech.math.rational.{sqrt,hypot} (the Class-N cascade), not libm:\n  "
         + "\n  ".join(offenders)
     )
 
@@ -221,7 +221,7 @@ def test_no_math_trig_pi_anywhere_in_srmech():
     """RATCHET (v0.7.0rc41): no ``math.{sin,cos,tan,atan,atan2,exp,pi,tau}``
     reference (call OR bare constant) exists in any srmech source file. The
     libm trig / π family each has an exact Class-N srmech peer
-    (``srmech.amsc.rational.{sin,cos,tan,atan,atan2,exp}`` + the
+    (``srmech.math.rational.{sin,cos,tan,atan,atan2,exp}`` + the
     ``pi_cascade``) — route continuous trig / π through the cascade, not libm
     (the §22 "never use numpy/libm math when srmech can cascade" discipline;
     cf. the rc40 ``math.sqrt`` sweep). The "continuous" number line is a
@@ -248,6 +248,6 @@ def test_no_math_trig_pi_anywhere_in_srmech():
                 offenders.append(f"{path.name}:{node.lineno} math.{node.attr}")
     assert not offenders, (
         "math trig / π references found in srmech — route continuous trig / π "
-        "through srmech.amsc.rational.{sin,cos,tan,atan,atan2,exp} + the "
+        "through srmech.math.rational.{sin,cos,tan,atan,atan2,exp} + the "
         "pi_cascade (the Class-N cascade), not libm:\n  " + "\n  ".join(offenders)
     )

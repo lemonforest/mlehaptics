@@ -31,7 +31,7 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc import rational
+from srmech.math import rational
 from srmech.amsc.format import read_ndjson
 
 

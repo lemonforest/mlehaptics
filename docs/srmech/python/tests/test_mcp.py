@@ -133,7 +133,7 @@ def test_tool_entry_to_mcp_def_known_shape() -> None:
 # Property-key validity ratchet (v0.5.0rc10)
 #
 # BUG 1 (found by a LIVE Anthropic API test of the rc9 adapter, NOT by
-# the mocks): ``srmech.amsc.hdc.polar_bundle`` / ``klein4_bundle`` were
+# the mocks): ``srmech.math.hdc.polar_bundle`` / ``klein4_bundle`` were
 # registered with the param name ``*vectors`` — the Python varargs sigil
 # leaked into the ToolParameter NAME, so the MCP/Anthropic input_schema
 # carried a property KEY ``*vectors``. Anthropic rejected the WHOLE
@@ -271,7 +271,7 @@ def test_invoke_tool_polar_bundle_variadic_dispatches() -> None:
 
     This is the test that would have caught BUG 2.
     """
-    from srmech.amsc import hdc
+    from srmech.math import hdc
     from srmech.mcp._tools import MCPToolError
 
     # JSON arrays decode to Python lists; emulate that wire form (numpy-free:
@@ -280,7 +280,7 @@ def test_invoke_tool_polar_bundle_variadic_dispatches() -> None:
     vectors = [hdc.polar_random(16, seed=11 + i).tolist() for i in range(3)]
     try:
         result = invoke_tool(
-            "srmech.amsc.hdc.polar_bundle", {"vectors": vectors}
+            "srmech.math.hdc.polar_bundle", {"vectors": vectors}
         )
     except (TypeError, MCPToolError) as exc:  # pragma: no cover
         pytest.fail(f"variadic dispatch broke: {type(exc).__name__}: {exc}")
@@ -296,7 +296,7 @@ def test_invoke_tool_polar_bundle_variadic_dispatches() -> None:
 def test_invoke_tool_klein4_bundle_variadic_dispatches() -> None:
     """``hdc.klein4_bundle`` (a ``*vectors`` variadic) invokes cleanly
     through ``invoke_tool``. Companion to the polar test for BUG 2."""
-    from srmech.amsc import hdc
+    from srmech.math import hdc
     from srmech.mcp._tools import MCPToolError
 
     # numpy-free wire form: seeded klein4 vectors, ``.tolist()``'d off the HV
@@ -304,7 +304,7 @@ def test_invoke_tool_klein4_bundle_variadic_dispatches() -> None:
     vectors = [hdc.klein4_expand(16, 11 + i).tolist() for i in range(3)]
     try:
         result = invoke_tool(
-            "srmech.amsc.hdc.klein4_bundle", {"vectors": vectors}
+            "srmech.math.hdc.klein4_bundle", {"vectors": vectors}
         )
     except (TypeError, MCPToolError) as exc:  # pragma: no cover
         pytest.fail(f"variadic dispatch broke: {type(exc).__name__}: {exc}")
@@ -319,11 +319,11 @@ def test_invoke_tool_variadic_tolerates_legacy_sigil_key() -> None:
     """Belt-and-braces: a caller that still sends the historical
     sigil-prefixed key (``*vectors``) is tolerated (the dispatcher
     falls back to it), so no in-flight client breaks on the rename."""
-    from srmech.amsc import hdc
+    from srmech.math import hdc
 
     vectors = [hdc.polar_random(8, seed=7 + i).tolist() for i in range(3)]
     result = invoke_tool(
-        "srmech.amsc.hdc.polar_bundle", {"*vectors": vectors}
+        "srmech.math.hdc.polar_bundle", {"*vectors": vectors}
     )
     res = list(result)
     assert len(res) == 8
@@ -1213,7 +1213,7 @@ def test_klein4_expand_seed_reproducible() -> None:
     ``seed=`` to ``klein4_random``, which fixed the capability and created
     F1259's defect — an op named 'random' that was not. The deterministic
     regime is now ``klein4_expand`` and the wire path targets it."""
-    from srmech.amsc import hdc
+    from srmech.math import hdc
 
     # Direct: identical vectors for the same seed (numpy-free — compare the
     # plain-list contents of the HV carrier).
@@ -1223,8 +1223,8 @@ def test_klein4_expand_seed_reproducible() -> None:
     assert set(a) <= {0, 1, 2, 3}
 
     # Through invoke_tool twice (the wire path): also identical.
-    r1 = list(invoke_tool("srmech.amsc.hdc.klein4_expand", {"D": 8, "seed": 42}))
-    r2 = list(invoke_tool("srmech.amsc.hdc.klein4_expand", {"D": 8, "seed": 42}))
+    r1 = list(invoke_tool("srmech.math.hdc.klein4_expand", {"D": 8, "seed": 42}))
+    r2 = list(invoke_tool("srmech.math.hdc.klein4_expand", {"D": 8, "seed": 42}))
     assert r1 == r2
     # And invoke_tool agrees bit-exactly with the direct seeded call.
     assert r1 == a
@@ -1238,15 +1238,15 @@ def test_polar_random_seed_reproducible() -> None:
     """Companion to klein4: ``hdc.polar_random(seed=...)`` is deterministic
     directly and through ``invoke_tool`` (the second ``*_random`` op fixed
     for BUG A)."""
-    from srmech.amsc import hdc
+    from srmech.math import hdc
 
     a = list(hdc.polar_random(8, seed=7))
     b = list(hdc.polar_random(8, seed=7))
     assert a == b
     assert set(a) <= {-1, 0, 1}
 
-    r1 = list(invoke_tool("srmech.amsc.hdc.polar_random", {"D": 8, "seed": 7}))
-    r2 = list(invoke_tool("srmech.amsc.hdc.polar_random", {"D": 8, "seed": 7}))
+    r1 = list(invoke_tool("srmech.math.hdc.polar_random", {"D": 8, "seed": 7}))
+    r2 = list(invoke_tool("srmech.math.hdc.polar_random", {"D": 8, "seed": 7}))
     assert r1 == r2
     assert r1 == a
 
@@ -1263,7 +1263,7 @@ def test_random_ops_rng_takes_precedence_over_seed() -> None:
     `[[feedback_test_for_numpy_free_module_must_itself_be_numpy_free]]`)."""
     import random
 
-    from srmech.amsc import hdc
+    from srmech.math import hdc
 
     # rng= path still works (back-compat) — stdlib Random.
     p = hdc.polar_random(8, rng=random.Random(0))
@@ -1290,8 +1290,8 @@ def test_random_ops_schema_drops_unserialisable_rng() -> None:
     rc290: ``klein4_random`` left this set — it is the STOCHASTIC regime and
     has no ``seed`` to advertise. ``klein4_expand`` took its place."""
     schema = get_tool_schema()
-    for name in ("srmech.amsc.hdc.klein4_expand",
-                 "srmech.amsc.hdc.polar_random"):
+    for name in ("srmech.math.hdc.klein4_expand",
+                 "srmech.math.hdc.polar_random"):
         entry = schema.lookup(name)
         assert entry is not None, f"{name} not registered"
         param_names = {p.name for p in entry.parameters}
@@ -1311,18 +1311,18 @@ def test_klein4_random_is_not_registered_rc292() -> None:
     ``rng=`` parameter the schema was hiding. Hiding a parameter from one
     projection is not removing a defect — it is removing the evidence.
     """
-    assert get_tool_schema().lookup("srmech.amsc.hdc.klein4_random") is None
+    assert get_tool_schema().lookup("srmech.math.hdc.klein4_random") is None
 
 
 def test_klein4_regime_ops_are_registered_and_invokable() -> None:
     """rc290 — every regime op, the (1,3,7,3) frame and ONE-A14 are
     registered and callable over the MCP / Anthropic wire path."""
     schema = get_tool_schema()
-    for name in ("srmech.amsc.hdc.klein4_expand",
-                 "srmech.amsc.hdc.klein4_address",
-                 "srmech.amsc.hdc.klein4_role",
-                 "srmech.amsc.hdc.klein4_sector_frame",
-                 "srmech.amsc.hdc.klein4_from_one"):
+    for name in ("srmech.math.hdc.klein4_expand",
+                 "srmech.math.hdc.klein4_address",
+                 "srmech.math.hdc.klein4_role",
+                 "srmech.math.hdc.klein4_sector_frame",
+                 "srmech.math.hdc.klein4_from_one"):
         assert schema.lookup(name) is not None, f"{name} not registered"
 
     # ADDRESSED: same content -> same vector over the wire; different content
@@ -1330,25 +1330,25 @@ def test_klein4_regime_ops_are_registered_and_invokable() -> None:
     # documented base64 wire form.
     cat = base64.b64encode(b"cat").decode("ascii")
     dog = base64.b64encode(b"dog").decode("ascii")
-    a = list(invoke_tool("srmech.amsc.hdc.klein4_address",
+    a = list(invoke_tool("srmech.math.hdc.klein4_address",
                          {"D": 16, "content": cat}))
-    b = list(invoke_tool("srmech.amsc.hdc.klein4_address",
+    b = list(invoke_tool("srmech.math.hdc.klein4_address",
                          {"D": 16, "content": cat}))
     assert a == b and set(a) <= {0, 1, 2, 3}
-    assert a != list(invoke_tool("srmech.amsc.hdc.klein4_address",
+    assert a != list(invoke_tool("srmech.math.hdc.klein4_address",
                                  {"D": 16, "content": dog}))
 
     # ROLE: distinct role names give distinct keys; `base` re-namespaces.
-    r1 = list(invoke_tool("srmech.amsc.hdc.klein4_role",
+    r1 = list(invoke_tool("srmech.math.hdc.klein4_role",
                           {"D": 32, "role": "subject"}))
-    r2 = list(invoke_tool("srmech.amsc.hdc.klein4_role",
+    r2 = list(invoke_tool("srmech.math.hdc.klein4_role",
                           {"D": 32, "role": "object"}))
-    r3 = list(invoke_tool("srmech.amsc.hdc.klein4_role",
+    r3 = list(invoke_tool("srmech.math.hdc.klein4_role",
                           {"D": 32, "role": "subject", "base": 7}))
     assert r1 != r2 and r1 != r3
 
     # The (1,3,7,3) frame is period-14 at ANY D (no 14-divisibility needed).
-    f = list(invoke_tool("srmech.amsc.hdc.klein4_sector_frame", {"D": 30}))
+    f = list(invoke_tool("srmech.math.hdc.klein4_sector_frame", {"D": 30}))
     assert f[:14] == f[14:28]
     assert f[:14] == [1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3]
 
@@ -1371,11 +1371,11 @@ def test_naming_lookup_callable_via_invoke_tool() -> None:
 
 
 def test_template_render_callable_via_invoke_tool() -> None:
-    """``srmech.amsc.template.render`` is callable through ``invoke_tool``
+    """``srmech.math.template.render`` is callable through ``invoke_tool``
     with the real ``mapping`` param — the second schema/signature drift the
     rc13 ratchet surfaced (the schema declared ``substitutions``)."""
     result = invoke_tool(
-        "srmech.amsc.template.render",
+        "srmech.math.template.render",
         {"template_bytes": b"hi {n}", "mapping": {b"n": b"there"}},
     )
     assert result == b"hi there"
@@ -1608,7 +1608,7 @@ def test_invoke_template_render_base64_mapping() -> None:
     import base64
 
     raw = invoke_tool(
-        "srmech.amsc.template.render",
+        "srmech.math.template.render",
         {"template_bytes": _b64(b"Class {x}"), "mapping": {_b64(b"x"): _b64(b"A")}},
     )
     assert raw == b"Class A"
@@ -1626,7 +1626,7 @@ def test_invoke_hdc_bind_base64_roundtrips() -> None:
     a = bytes([1, 2, 3, 4])
     b = bytes([5, 6, 7, 8])
     raw = invoke_tool(
-        "srmech.amsc.hdc.bind", {"a": _b64(a), "b": _b64(b)}
+        "srmech.math.hdc.bind", {"a": _b64(a), "b": _b64(b)}
     )
     assert raw == bytes(x ^ y for x, y in zip(a, b))
     text = serialise_result(raw)
@@ -1645,7 +1645,7 @@ def test_invoke_jacobi_eigvals_nested_list_matrix() -> None:
         [0.0, -1.0, 2.0],
     ]
     raw = invoke_tool(
-        "srmech.amsc.laplacian.jacobi_eigvals", {"matrix": matrix}
+        "srmech.math.laplacian.jacobi_eigvals", {"matrix": matrix}
     )
     vals = sorted(raw)
     assert len(vals) == 3
@@ -1679,7 +1679,7 @@ def test_invoke_dispatch_match_base64_rules() -> None:
     """``dispatch.match`` with base64 input + [base64, int] rules returns
     a serialisable result (the (matched, tag) tuple -> JSON list)."""
     raw = invoke_tool(
-        "srmech.amsc.dispatch.match",
+        "srmech.math.dispatch.match",
         {"input_bytes": _b64(b"hello"), "rules": [[_b64(b"he"), 1], [_b64(b"xyz"), 2]]},
     )
     _assert_json_serialisable(raw)
@@ -1691,10 +1691,10 @@ def test_invoke_klein4_expand_seed_reproducible_rc14_path() -> None:
     retargets it from ``klein4_random(seed=)`` to ``klein4_expand`` — the
     same MT19937 stream under the name that describes it."""
     r1 = serialise_result(
-        invoke_tool("srmech.amsc.hdc.klein4_expand", {"D": 8, "seed": 42})
+        invoke_tool("srmech.math.hdc.klein4_expand", {"D": 8, "seed": 42})
     )
     r2 = serialise_result(
-        invoke_tool("srmech.amsc.hdc.klein4_expand", {"D": 8, "seed": 42})
+        invoke_tool("srmech.math.hdc.klein4_expand", {"D": 8, "seed": 42})
     )
     assert r1 == r2
     assert set(json.loads(r1)) <= {0, 1, 2, 3}
@@ -1723,7 +1723,7 @@ def test_schema_renders_encoding_hints() -> None:
     assert "base64" in p["description"]
 
     # np.ndarray -> array + nested-array hint.
-    p = _prop("srmech.amsc.laplacian.jacobi_eigvals", "matrix")
+    p = _prop("srmech.math.laplacian.jacobi_eigvals", "matrix")
     assert p["type"] == "array"
     assert "nested JSON array" in p["description"]
 
@@ -1733,12 +1733,12 @@ def test_schema_renders_encoding_hints() -> None:
     assert "real, imaginary" in p["description"]
 
     # Mapping[bytes, bytes] -> object + base64 key/value hint.
-    p = _prop("srmech.amsc.template.render", "mapping")
+    p = _prop("srmech.math.template.render", "mapping")
     assert p["type"] == "object"
     assert "base64" in p["description"]
 
     # list[tuple[bytes, int]] -> array + [base64, integer] hint.
-    p = _prop("srmech.amsc.dispatch.match", "rules")
+    p = _prop("srmech.math.dispatch.match", "rules")
     assert p["type"] == "array"
     assert "base64" in p["description"]
 

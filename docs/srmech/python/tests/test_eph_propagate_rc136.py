@@ -37,8 +37,8 @@ import cmath
 import math
 
 from srmech.amsc import _native
-from srmech.amsc import laplacian as L
-from srmech.amsc.rational import cos_series_truncate
+from srmech.math import laplacian as L
+from srmech.math.rational import cos_series_truncate
 
 
 # ── helpers (no numpy, no abs()) ────────────────────────────────────────
@@ -340,8 +340,8 @@ def test_registration_and_count():
     import srmech
     from srmech.amsc.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
-    assert "srmech.amsc.laplacian.propagate" in names
-    assert "srmech.amsc.laplacian.eph_harvest" in names
+    assert "srmech.math.laplacian.propagate" in names
+    assert "srmech.math.laplacian.eph_harvest" in names
     assert len(get_tool_schema().tools) == 525
     assert srmech.describe()["tools"]["total"] == 525
     assert "propagate" in L.LAPLACIAN_OPS

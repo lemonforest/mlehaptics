@@ -6,9 +6,9 @@ canonical relativistic QM / QFT literature.
 numpy-FREE (v0.7.5rc118, #564): the γ-matrices and derived 4×4 operators are
 held in the framework-native :class:`~srmech.amsc.mat.Mat` carrier (assembled
 from the numpy-free Pauli 2×2 ``Mat`` blocks), every matrix product routes
-through the Class-L :func:`~srmech.amsc.laplacian.mat_matmul`, residual norms
-through :func:`~srmech.amsc.laplacian.mat_norm`, and the Klein-Gordon
-dispersion through the Class-N :func:`srmech.amsc.rational.sqrt` — **no numpy**.
+through the Class-L :func:`~srmech.math.laplacian.mat_matmul`, residual norms
+through :func:`~srmech.math.laplacian.mat_norm`, and the Klein-Gordon
+dispersion through the Class-N :func:`srmech.math.rational.sqrt` — **no numpy**.
 4-momenta are plain Python sequences of floats.
 
 Metric convention: **mostly-minus** ``η^{μν} = diag(+1, -1, -1, -1)``
@@ -43,8 +43,8 @@ import ctypes
 from typing import Sequence, Tuple
 
 from srmech.amsc import _native
-from srmech.amsc import rational as _srn
-from srmech.amsc.laplacian import mat_matmul, mat_norm
+from srmech.math import rational as _srn
+from srmech.math.laplacian import mat_matmul, mat_norm
 from srmech.amsc.mat import Mat
 from srmech.qm.spin import pauli_matrices, pauli_identity
 

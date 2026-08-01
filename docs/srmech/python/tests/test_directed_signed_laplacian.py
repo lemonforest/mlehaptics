@@ -19,7 +19,7 @@ Hermitian eigendecompose for the magnetic Laplacian) — never numpy LAPACK.
 """
 import pytest
 
-from srmech.amsc import laplacian as L
+from srmech.math import laplacian as L
 
 
 # ── matrix helpers (no numpy; rc129 Mat-carrier aware) ──────────────────

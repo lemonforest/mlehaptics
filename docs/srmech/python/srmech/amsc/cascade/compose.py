@@ -5,7 +5,7 @@ the silicon-able atoms in :mod:`srmech.amsc.cascade.atoms` — they are
 NOT single 1:1 ISA intrinsics (per F208 / MS #20 forward-architecture):
 
 - :func:`cyclic_gcd` — Euclid's algorithm (Class I; iterative remainder
-  loop, delegating to ``srmech.amsc.cyclic.gcd``).
+  loop, delegating to ``srmech.math.cyclic.gcd``).
 - :func:`best_rational_signed` — the Class K ∘ N ∘ C continued-fraction
   loop (sign-strip at the :func:`~srmech.amsc.cascade.atoms.pin_slot_at_zero`
   atom, Class N best-rational anchor of the magnitude, then re-sign at the
@@ -32,14 +32,14 @@ import ctypes
 from typing import List, Sequence, Tuple
 
 from srmech.amsc import _native
-from srmech.amsc.cyclic import gcd as _cyclic_gcd
-from srmech.amsc.cyclic import mod_add as _cyclic_mod_add
-from srmech.amsc.cyclic import mod_mul as _cyclic_mod_mul
-from srmech.amsc.cyclic import mod_pow as _cyclic_mod_pow
-from srmech.amsc.cyclic import mod_inv as _cyclic_mod_inv
-from srmech.amsc.cyclic import mod_mul_wide as _cyclic_mod_mul_wide
-from srmech.amsc.rational import best_rational as _best_rational
-from srmech.amsc.rational import sin as _rsin  # §22: Class-N rational trig, not libm
+from srmech.math.cyclic import gcd as _cyclic_gcd
+from srmech.math.cyclic import mod_add as _cyclic_mod_add
+from srmech.math.cyclic import mod_mul as _cyclic_mod_mul
+from srmech.math.cyclic import mod_pow as _cyclic_mod_pow
+from srmech.math.cyclic import mod_inv as _cyclic_mod_inv
+from srmech.math.cyclic import mod_mul_wide as _cyclic_mod_mul_wide
+from srmech.math.rational import best_rational as _best_rational
+from srmech.math.rational import sin as _rsin  # §22: Class-N rational trig, not libm
 
 from .atoms import pin_slot_at_zero, reorient, _ZERO_BAND
 
@@ -60,7 +60,7 @@ from srmech.introspect._event import describe_shape as _shape
 DEFAULT_MAX_DENOMINATOR = 100
 
 #: Default fine-scaling factor turning a float magnitude into the integer
-#: pair ``srmech.amsc.rational.best_rational`` consumes.
+#: pair ``srmech.math.rational.best_rational`` consumes.
 DEFAULT_FINE_SCALE = 1_000_000
 
 
@@ -151,7 +151,7 @@ def best_rational_signed(
 
     The full cross-domain anchor cascade: strip the sign at the Class K
     pin-slot, find the Class N best-rational of the non-negative magnitude
-    (via ``srmech.amsc.rational.best_rational``, which takes an integer pair),
+    (via ``srmech.math.rational.best_rational``, which takes an integer pair),
     then re-apply the sign as Class C. No ``abs()``; the sign lives in the
     Class K / Class C pair end-to-end.
 
@@ -222,7 +222,7 @@ def _try_native_cyclic_gcd(a, b):
     dispatch through the cascade-namespace symbol (not the Class I
     primitive directly) so the cascade-catalog naming stays uniform per
     the v0.4.5rc6 directive *"delegate to A-N C peers; cascade-level C
-    wrapper + TOML"*. The Python ``srmech.amsc.cyclic.gcd`` reaches the
+    wrapper + TOML"*. The Python ``srmech.math.cyclic.gcd`` reaches the
     same C primitive through its OWN ctypes binding — both surfaces
     coexist in libsrmech.
 
@@ -232,7 +232,7 @@ def _try_native_cyclic_gcd(a, b):
     dispatch through native — bool is rejected by ``type(x) is int``,
     and negatives / out-of-uint64 bigints fall through to the Python
     fallback which itself raises ``ValueError`` (mirroring the Python
-    ref ``srmech.amsc.cyclic.gcd`` behaviour exactly).
+    ref ``srmech.math.cyclic.gcd`` behaviour exactly).
     """
     if not (_native.HAS_NATIVE and _native.LIB is not None):
         return None
@@ -261,7 +261,7 @@ def _try_native_cyclic_gcd(a, b):
 
 
 def cyclic_gcd(a: int, b: int) -> int:
-    """Class I cyclic gcd. Delegates to ``srmech.amsc.cyclic.gcd``.
+    """Class I cyclic gcd. Delegates to ``srmech.math.cyclic.gcd``.
 
     A cascade-named alias so number-theoretic cascades reach for the Class I
     primitive by its cascade name rather than ``math.gcd``. The cascade-
@@ -271,7 +271,7 @@ def cyclic_gcd(a: int, b: int) -> int:
     v0.4.5rc6: dispatches through the native cascade-namespace wrapper
     ``srmech_cascade_cyclic_gcd_u64`` when ``HAS_NATIVE`` is True, both
     inputs are pure Python ``int`` (not bool) in the uint64 range
-    ``[0, 2**64 - 1]``. Falls back to the Python ``srmech.amsc.cyclic.gcd``
+    ``[0, 2**64 - 1]``. Falls back to the Python ``srmech.math.cyclic.gcd``
     path for bool, negative, and out-of-uint64 inputs — which itself
     raises ``ValueError`` for negative / oversized inputs, preserving the
     pre-rc6 public API exactly. The cascade wrapper is a pure-delegation
@@ -289,7 +289,7 @@ def cyclic_gcd(a: int, b: int) -> int:
         ``0`` (the gcd identity); ``gcd(a, 0)`` is ``a``.
 
     Raises:
-        ValueError: forwarded from ``srmech.amsc.cyclic.gcd`` for negative
+        ValueError: forwarded from ``srmech.math.cyclic.gcd`` for negative
             inputs or inputs exceeding the uint64 parity surface.
     """
     if _is_pub(): _emit("cascade.cyclic_gcd", class_="I", input_shape=f"{_shape(a)}+{_shape(b)}")
@@ -304,7 +304,7 @@ def cyclic_gcd(a: int, b: int) -> int:
 # arithmetic cascade (an LCG, a hash, the PCG64 step) can be DECLARED via the
 # DSL — `chain().then("cyclic_mod_mul", b=MULT, n=MOD)` — and DISCOVERED in the
 # tool_schema, not only hand-composed in Python. Each is a THIN delegation to
-# the already-``c_dispatched`` `srmech.amsc.cyclic.*` primitive (which routes to
+# the already-``c_dispatched`` `srmech.math.cyclic.*` primitive (which routes to
 # its own `srmech_mod_*` C symbol); these wrappers add NO native dispatch and
 # NO new C symbol — they are the cascade-catalog / DSL-registration layer
 # (`composition_of_c`). Following the DSL chain contract, the piped value is the
@@ -315,7 +315,7 @@ def cyclic_gcd(a: int, b: int) -> int:
 
 def cyclic_mod_mul(a: int, b: int, n: int) -> int:
     """Class I modular multiply ``(a * b) mod n`` (delegates to
-    ``srmech.amsc.cyclic.mod_mul``).
+    ``srmech.math.cyclic.mod_mul``).
 
     The cascade-named alias for the Class-I modular multiply so a modular
     cascade (e.g. an LCG step ``mod_mul`` ∘ ``mod_add``) can be declared in the
@@ -337,7 +337,7 @@ def cyclic_mod_mul(a: int, b: int, n: int) -> int:
 
 def cyclic_mod_add(a: int, b: int, n: int) -> int:
     """Class I modular addition ``(a + b) mod n`` (delegates to
-    ``srmech.amsc.cyclic.mod_add``).
+    ``srmech.math.cyclic.mod_add``).
 
     The cascade-named alias for the Class-I modular addition — the
     increment stage of an LCG cascade. Operands and modulus are bounded by
@@ -357,7 +357,7 @@ def cyclic_mod_add(a: int, b: int, n: int) -> int:
 
 def cyclic_mod_pow(a: int, k: int, n: int) -> int:
     """Class I modular exponentiation ``(a ** k) mod n`` via
-    square-and-multiply (delegates to ``srmech.amsc.cyclic.mod_pow``).
+    square-and-multiply (delegates to ``srmech.math.cyclic.mod_pow``).
 
     The cascade-named alias for the Class-I modular power — the core of a
     modular-exponentiation cascade (multiplicative hashing, RSA-style
@@ -378,7 +378,7 @@ def cyclic_mod_pow(a: int, k: int, n: int) -> int:
 
 def cyclic_mod_inv(a: int, n: int) -> int:
     """Class I modular inverse of ``a`` in ``Z/nZ`` via extended Euclidean
-    (delegates to ``srmech.amsc.cyclic.mod_inv``).
+    (delegates to ``srmech.math.cyclic.mod_inv``).
 
     The cascade-named alias for the Class-I modular inverse — the un-do stage
     of a modular cascade (recovering a multiplicative factor). Requires
@@ -398,7 +398,7 @@ def cyclic_mod_inv(a: int, n: int) -> int:
 
 def cyclic_mod_mul_wide(a: int, b: int, n: int) -> int:
     """Class I **uncapped** modular multiply ``(a * b) mod n`` (delegates to
-    ``srmech.amsc.cyclic.mod_mul_wide``).
+    ``srmech.math.cyclic.mod_mul_wide``).
 
     The cascade-named alias for the 128-bit-capable modular multiply — the
     multiply-and-reduce half of a wide LCG (the raw PCG64 step at

@@ -3,7 +3,7 @@
  * family (MS#21 v0.7.0; the dim-8 octonion product + companions).
  *
  * Closes the C/Python parity gap for the loop-bind family the MS#21 arc
- * hand-rolled in Python (srmech/amsc/hdc.py): the octonion
+ * hand-rolled in Python (srmech/math/hdc.py): the octonion
  * (Cayley-Dickson, dim 8) product loop_bind, the conjugate loop_conj,
  * the Moufang inverse loop_inv, the 7-D cross product
  * cross7 = Im(loop_bind), and the G2 associative calibration 3-form
@@ -13,7 +13,7 @@
  * loop_bind / loop_conj, which dispatch to the symbols here.
  *
  * THE PRODUCT. An octonion is a pair of quaternions (a, b); the
- * Cayley-Dickson product, matching srmech.amsc.hdc._loop_bind_raw:
+ * Cayley-Dickson product, matching srmech.math.hdc._loop_bind_raw:
  *
  *     (a, b)(c, d) = (a c - conj(d) b,  d a + b conj(c))
  *

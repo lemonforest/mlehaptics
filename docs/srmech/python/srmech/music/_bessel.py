@@ -192,7 +192,7 @@ def _pi_exact(scale_bits: int) -> "Q":
     """π as an exact rational at (a little more than) the declared scale, via
     the shipped Chudnovsky digit cascade. The digits are integers; the only
     thing that happens here is placing the decimal point exactly."""
-    from srmech.amsc import rational as _rational
+    from srmech.math import rational as _rational
     # ~0.302 decimal digits per bit; ask for a comfortable margin.
     digits = (scale_bits * 4) // 10 + 12
     text = _rational.pi_chudnovsky_digits(digits).replace(".", "")

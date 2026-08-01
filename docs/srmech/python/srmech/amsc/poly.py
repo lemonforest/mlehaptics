@@ -209,10 +209,10 @@ class Poly:
         enters). ``max_denominator is None`` promotes each float to its EXACT
         ratio (:meth:`srmech.amsc.q.Q.from_float`); a ``max_denominator`` instead
         SNAPS each coefficient to the best rational with denominator at or below
-        that bound (Class-N :func:`srmech.amsc.rational.best_rational`)."""
+        that bound (Class-N :func:`srmech.math.rational.best_rational`)."""
         if max_denominator is None:
             return cls([Q.from_float(float(x)) for x in seq])
-        from . import rational as _rational
+        from ..math import rational as _rational
         out: List[Q] = []
         for x in seq:
             exact = Q.from_float(float(x))

@@ -117,9 +117,9 @@ def test_manifest_only_writes_only_manifest(tmp_path):
 def test_filter_narrows_tool_list(tmp_path):
     from srmech.mcp._tools import compile_filter
 
-    m = build_manifest(name_filter=compile_filter("srmech.amsc.cyclic.*"))
+    m = build_manifest(name_filter=compile_filter("srmech.math.cyclic.*"))
     names = {t["name"] for t in m["tools"]}
-    assert names and all(n.startswith("srmech.amsc.cyclic.") for n in names)
+    assert names and all(n.startswith("srmech.math.cyclic.") for n in names)
     assert len(names) < len(list(tool_entries_to_mcp_defs()))
 
 

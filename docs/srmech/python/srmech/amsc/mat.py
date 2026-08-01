@@ -237,7 +237,7 @@ class Mat:
         numpy's own contraction. ``Mat·Mat`` → :class:`Mat`; ``Mat·Vec`` (or a
         flat 1-D sequence) → :class:`~srmech.amsc.vec.Vec`. Format-preserving
         (rc130): real ⊗ real → real carrier, complex anywhere → complex carrier."""
-        from . import laplacian as _L  # lazy: laplacian imports Mat (avoid cycle)
+        from ..math import laplacian as _L  # lazy: laplacian imports Mat (avoid cycle)
         cplx = self._complex or _carrier_is_complex(other)
         if _is_matrix_like(other):
             B = other if isinstance(other, Mat) else Mat.from_rows(
@@ -250,7 +250,7 @@ class Mat:
         """``other·A`` for a non-:class:`Mat` left operand (a left-side flat
         sequence / :class:`~srmech.amsc.vec.Vec` → ``Vec·Mat``; a left-side
         2-D sequence → ``M·A``). Routes onto the Class-L cascade."""
-        from . import laplacian as _L  # lazy (avoid cycle)
+        from ..math import laplacian as _L  # lazy (avoid cycle)
         cplx = self._complex or _carrier_is_complex(other)
         if _is_matrix_like(other):
             A = other if isinstance(other, Mat) else Mat.from_rows(

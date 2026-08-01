@@ -54,7 +54,7 @@ def test_trace_read_is_flat_even_on_mat():
     the trace responsion is FLAT even on the NON-commutative Mat operator
     carrier — the one Mat edge that is flat."""
     schema = _pure_responsion_schema()
-    trace = schema["srmech.amsc.laplacian.heat_trace|Mat"][0]
+    trace = schema["srmech.math.laplacian.heat_trace|Mat"][0]
     assert trace["kind"] == "trace"
     assert trace["curvature"] == "flat"
 
@@ -66,7 +66,7 @@ def test_heat_trace_is_the_only_flat_mat_edge():
     schema = _pure_responsion_schema()
     flat_mat = [(k, r["kind"]) for k, v in schema.items() for r in v
                 if r["carrier"] == "Mat" and r["curvature"] == "flat"]
-    assert flat_mat == [("srmech.amsc.laplacian.heat_trace|Mat", "trace")]
+    assert flat_mat == [("srmech.math.laplacian.heat_trace|Mat", "trace")]
 
 
 # ── the CURVED pairings (frame-dependent holonomy) ───────────────────────────
@@ -85,14 +85,14 @@ def test_propagator_and_resolvent_are_curved():
     """The Laplace-dual pair e^{−zL}·u0 / (zI−L)^{-1}·u0 carry the coherence-dial
     phase (the frame) → CURVED."""
     schema = _pure_responsion_schema()
-    for r in schema["srmech.amsc.laplacian.responsion|Mat"]:
+    for r in schema["srmech.math.laplacian.responsion|Mat"]:
         assert r["kind"] in ("propagator", "resolvent")
         assert r["curvature"] == "curved"
 
 
 def test_flux_response_curve_is_curved():
     schema = _pure_responsion_schema()
-    flux = schema["srmech.amsc.laplacian.ground_state_flux_response|Mat"][0]
+    flux = schema["srmech.math.laplacian.ground_state_flux_response|Mat"][0]
     assert flux["curvature"] == "curved"        # the flux gauge is the frame
 
 
@@ -100,9 +100,9 @@ def test_open_sustain_on_operator_carrier_is_curved():
     """The honest-OPEN residues on the non-commutative operator carriers (Mat /
     One) are curved; on the commutative carriers they are flat."""
     schema = _pure_responsion_schema()
-    assert schema["srmech.amsc.dispatch.infer|Mat"][0]["curvature"] == "curved"
-    assert schema["srmech.amsc.dispatch.infer|One"][0]["curvature"] == "curved"
-    assert schema["srmech.amsc.dispatch.infer|EllRatio"][0]["curvature"] == "flat"
+    assert schema["srmech.math.dispatch.infer|Mat"][0]["curvature"] == "curved"
+    assert schema["srmech.math.dispatch.infer|One"][0]["curvature"] == "curved"
+    assert schema["srmech.math.dispatch.infer|EllRatio"][0]["curvature"] == "flat"
 
 
 # ── the classifier is a pure (carrier, kind) function ────────────────────────

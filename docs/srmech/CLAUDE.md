@@ -152,7 +152,7 @@ beyond a single-file read.
 The carrier-removal arc, done one-rc-per-module, **left a duplication
 debt**: it was meant to be *numpy-spirited* (one dtype-transparent
 carrier op per operation), but each flip *added* a kernel. The
-`srmech.amsc.laplacian` Class-L surface ended up with the same op in
+`srmech.math.laplacian` Class-L surface ended up with the same op in
 two-to-four forms. The consolidation hard-removes the redundancy down
 to one dtype-polymorphic `mat_*` op each (user 2026-06-13: "we messed
 up big time with numpy-removal inflation … fix this pollution"; **hard
@@ -356,7 +356,7 @@ signed-metric / Wick-rotation operation located by Spike #24
 bonus 8 and narrowed by bonus 9 was **dissolved into Class L
 as a signed-Laplacian-variant sub-operation** per
 `[[feedback_no_privileged_primitive_classes]]`. **The signed-Laplacian
-op SHIPPED** — `signed_laplacian` at `srmech/amsc/laplacian.py:3279`
+op SHIPPED** — `signed_laplacian` at `srmech/math/laplacian.py:3279`
 (real symmetric PSD, Class-K magnitude degree; Kunegis et al. SDM 2010),
 with `magnetic_laplacian` at `:3458` as the Hermitian directed / chiral
 peer (per-edge `charges=` mode; Lieb & Loss, *Duke Math. J.* **71**

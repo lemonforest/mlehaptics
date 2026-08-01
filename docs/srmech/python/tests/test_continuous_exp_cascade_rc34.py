@@ -11,7 +11,7 @@ import math
 
 import pytest
 
-from srmech.amsc import rational as R
+from srmech.math import rational as R
 
 
 def test_real_exp_matches_libm():

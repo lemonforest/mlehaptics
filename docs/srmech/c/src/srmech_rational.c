@@ -54,7 +54,7 @@
 
 /* exp_series_truncate bound: 20! = 2.4e18 < UINT64_MAX = 1.8e19. At
  * num_terms=21 the factorial overflows u64 (21! = 5.1e19). Python
- * srmech.amsc.rational.exp_series_truncate handles larger N via bignum. */
+ * srmech.math.rational.exp_series_truncate handles larger N via bignum. */
 #define SRMECH_EXP_SERIES_MAX_TERMS 20
 
 /* Helper — Euclidean GCD on uint64. Used by exp_series_truncate for the
@@ -420,7 +420,7 @@ static void exp_series_reduce(int64_t   sum_num,
  * Final result reduced by gcd(|sum_num|, sum_den).
  *
  * Bounded to num_terms ≤ 20 (20! fits u64). Python wrapper falls back
- * to bignum (srmech.amsc.rational.exp_series_truncate) when inputs
+ * to bignum (srmech.math.rational.exp_series_truncate) when inputs
  * exceed this bound or any intermediate overflows. Per
  * [[feedback_no_binding_layer_carveout]] the C library is usable
  * STANDALONE — no Python required for catalog-row-shaped inputs.

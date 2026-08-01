@@ -24,7 +24,7 @@ exact integers, never lifting to a float.)
 prime an actual prime, every exponent a positive int (zero exponents are NOT
 stored — an absent prime IS exponent 0). ``Qprime(1)`` is the EMPTY vector (the
 multiplicative identity). Construction is via the Class-J
-:func:`srmech.amsc.primes.factor`; reconstruction (:meth:`to_int`) is
+:func:`srmech.math.primes.factor`; reconstruction (:meth:`to_int`) is
 ``∏ pᵉ``.
 
 **The exact operations (composes Class J + Class I, no new C).**
@@ -32,9 +32,9 @@ multiplicative identity). Construction is via the Class-J
 * ``*`` [Class J] — multiply = ADD exponents elementwise. Equal to
   ``factor(a·b)`` by the FTA (the headline lens).
 * :meth:`gcd` — elementwise MIN over the shared primes. Equal to
-  :func:`srmech.amsc.cyclic.gcd` (Class I) on the reconstructed ints.
+  :func:`srmech.math.cyclic.gcd` (Class I) on the reconstructed ints.
 * :meth:`lcm` — elementwise MAX over the prime union. Equal to
-  :func:`srmech.amsc.cyclic.lcm` (Class I).
+  :func:`srmech.math.cyclic.lcm` (Class I).
 * :meth:`similarity` — the EXACT shared-factor overlap: the cosine of the two
   exponent vectors, **squared**, as an exact :class:`~srmech.amsc.q.Q`
   (``Q(dot², ‖a‖²·‖b‖²)``). 0 for a coprime pair (disjoint support).
@@ -42,7 +42,7 @@ multiplicative identity). Construction is via the Class-J
 * :meth:`period` [Class J period structure] — the multiplicative order
   ``ord_modulus(self.to_int())`` (smallest ``k > 0`` with ``nᵏ ≡ 1 mod m``),
   the "repeating-decimal period of ``1/m`` in base ``n``" lens. Routes through
-  the Class-J :func:`srmech.amsc.primes.cyclic_period`; the order is defined
+  the Class-J :func:`srmech.math.primes.cyclic_period`; the order is defined
   only when ``gcd(n, modulus) == 1`` (raises a clear ``ValueError`` otherwise).
 
 It is a CARRIER (a single-class module, ``__all__ = ["Qprime"]``, ``Q``-based),
@@ -62,8 +62,8 @@ from __future__ import annotations
 
 from typing import Dict
 
-from . import cyclic as _cyclic
-from . import primes as _primes
+from ..math import cyclic as _cyclic
+from ..math import primes as _primes
 from .q import Q
 
 __all__ = ["Qprime"]
@@ -79,7 +79,7 @@ class Qprime:
 
     def __init__(self, n: int) -> None:
         """Construct from a positive int ``n ≥ 1`` via the Class-J
-        :func:`srmech.amsc.primes.factor`. Raises ``ValueError`` for ``n < 1``
+        :func:`srmech.math.primes.factor`. Raises ``ValueError`` for ``n < 1``
         (0 and negatives have no prime-coordinate vector); ``TypeError`` for a
         non-int (``bool`` excluded)."""
         if isinstance(n, bool) or not isinstance(n, int):
@@ -187,7 +187,7 @@ class Qprime:
     # ── Class I: gcd = elementwise MIN over the shared support ───────────────
     def gcd(self, other: "Qprime") -> "Qprime":
         """Elementwise MIN over the SHARED primes — the greatest common divisor
-        in prime-coordinates. Equals :func:`srmech.amsc.cyclic.gcd` (Class I) on
+        in prime-coordinates. Equals :func:`srmech.math.cyclic.gcd` (Class I) on
         the reconstructed ints. A prime absent from either side is exponent 0
         there, so MIN drops it (only the shared support survives)."""
         if not isinstance(other, Qprime):
@@ -202,7 +202,7 @@ class Qprime:
     # ── Class I: lcm = elementwise MAX over the prime UNION ──────────────────
     def lcm(self, other: "Qprime") -> "Qprime":
         """Elementwise MAX over the prime UNION — the least common multiple in
-        prime-coordinates. Equals :func:`srmech.amsc.cyclic.lcm` (Class I) on the
+        prime-coordinates. Equals :func:`srmech.math.cyclic.lcm` (Class I) on the
         reconstructed ints. Every prime in either support survives at its larger
         exponent."""
         if not isinstance(other, Qprime):
@@ -249,7 +249,7 @@ class Qprime:
         This is the "period of the repeating expansion of ``1/modulus`` in base
         ``n``" lens (``ord₇(10) == 6`` ⇔ ``1/7 = 0.142857…`` has period 6).
 
-        Routes through the Class-J :func:`srmech.amsc.primes.cyclic_period`. The
+        Routes through the Class-J :func:`srmech.math.primes.cyclic_period`. The
         order is defined ONLY when ``gcd(n, modulus) == 1`` (``n`` a unit in
         ``(ℤ/modulusℤ)*``) and ``modulus >= 2``; both are checked there and raise
         a clear ``ValueError`` otherwise."""

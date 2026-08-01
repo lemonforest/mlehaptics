@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc.hdc import (
+from srmech.math.hdc import (
     HV,
     klein4_chirality_flip_gamma5,
     klein4_chirality_flip_omega7,
@@ -108,4 +108,4 @@ def test_tool_entry_registered():
     from srmech.amsc.tool_schema import get_tool_schema
 
     names = {t.name for t in get_tool_schema().tools}
-    assert "srmech.amsc.hdc.klein4_project_axis" in names
+    assert "srmech.math.hdc.klein4_project_axis" in names

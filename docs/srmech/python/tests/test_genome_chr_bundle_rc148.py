@@ -22,7 +22,7 @@ import pytest
 from srmech.amsc import genome as G
 from srmech.amsc.genome import GenomeBoundingError, GENOME_CHR_SCHEMA_ID
 from srmech.amsc.format import MPRRecord, validate_mpr_record
-from srmech.amsc.hdc import klein4_expand
+from srmech.math.hdc import klein4_expand
 
 DIM = 16
 

@@ -1,7 +1,7 @@
 """v0.7.1rc2 — ``schur_complement`` is a data-first DSL chain stage.
 
 #897 §26: the Class-L Schur-complement / Dirichlet-to-Neumann op shipped in
-v0.7.1rc1 at ``srmech.amsc.laplacian.schur_complement`` but was not reachable
+v0.7.1rc1 at ``srmech.math.laplacian.schur_complement`` but was not reachable
 from the chain DSL — the chain runner resolves stage ops via
 ``getattr(srmech.amsc.cascade, name)`` and the op lived only on the laplacian
 module. rc2 wires it: the op is re-exported flat onto ``srmech.amsc.cascade``
@@ -20,7 +20,8 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc import cascade, laplacian
+from srmech.amsc import cascade
+from srmech.math import laplacian
 from srmech.dsl import (
     Chain,
     get_descriptor,

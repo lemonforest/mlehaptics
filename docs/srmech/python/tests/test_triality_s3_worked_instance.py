@@ -5,7 +5,7 @@ The continuum-tier worked instance
 that ``klein4_triality_cycle`` (T) is the order-3 generator of Aut(V4) = S3,
 via the automorphism conjugation ``T . XOR_a . T^-1 = XOR_{T(a)}`` (T cyclically
 permutes the three order-2 chirality flips iw7 -> g5 -> cpt). The klein4 ops are
-kernel-tier (srmech.amsc.hdc) and deliberately NOT in the srmech.dsl cascade
+kernel-tier (srmech.math.hdc) and deliberately NOT in the srmech.dsl cascade
 catalog, so this instance is verified HERE in Python against the real ops
 (rather than via run_toml_chain). This test IS the worked instance's executable
 attestation — the TOML's documented claims are checked against the ops.
@@ -20,7 +20,7 @@ import sys
 from pathlib import Path
 
 import srmech
-from srmech.amsc import hdc
+from srmech.math import hdc
 
 if sys.version_info >= (3, 11):
     import tomllib as _toml

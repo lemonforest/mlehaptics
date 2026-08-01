@@ -6,8 +6,8 @@ canonical physics literature.
 numpy-FREE (v0.7.5rc117, #564): the working matrices are held in the
 framework-native :class:`~srmech.amsc.mat.Mat` carrier and every
 linear-algebra step routes through the Class-L ``mat_*`` family
-(:func:`~srmech.amsc.laplacian.mat_matmul` and
-:func:`~srmech.amsc.laplacian.mat_hermitian_eigendecompose`, native dense
+(:func:`~srmech.math.laplacian.mat_matmul` and
+:func:`~srmech.math.laplacian.mat_hermitian_eigendecompose`, native dense
 kernels with a pure-Python cascade fallback) — **no numpy**. State vectors
 are plain Python sequences of ``complex`` (``Mat`` is 2-D only); the
 per-mode time-evolution phase ``e^{-iλt}`` is the substrate-native Class-N
@@ -22,8 +22,8 @@ from __future__ import annotations
 
 from typing import List, Sequence, Tuple
 
-from srmech.amsc import rational as _srn
-from srmech.amsc.laplacian import mat_hermitian_eigendecompose, mat_matmul
+from srmech.math import rational as _srn
+from srmech.math.laplacian import mat_hermitian_eigendecompose, mat_matmul
 from srmech.amsc.mat import Mat
 
 

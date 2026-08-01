@@ -14,7 +14,7 @@
  * without slicing the 8x8 octonion operators.
  *
  * THE PRODUCT. Same fixed Cayley-Dickson convention as srmech_loopbind.c
- * (matching srmech.amsc.hdc._loop_bind_raw and qm.octonion):
+ * (matching srmech.math.hdc._loop_bind_raw and qm.octonion):
  *
  *     (a, b)(c, d) = (a c - conj(d) b,  d a + b conj(c))
  *

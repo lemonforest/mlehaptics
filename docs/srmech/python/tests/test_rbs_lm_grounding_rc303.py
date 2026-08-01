@@ -12,7 +12,8 @@ numpy-free (the whole rbs_lm encode path is the framework-native HV surface).
 
 import pytest
 
-from srmech.amsc import hdc, tool_schema as ts
+from srmech.amsc import tool_schema as ts
+from srmech.math import hdc
 from srmech.rbs_lm import encode_aboutness, ground_tool_schema
 from srmech.rbs_lm.grounding import _aboutness_tokens, _doc_frequencies
 

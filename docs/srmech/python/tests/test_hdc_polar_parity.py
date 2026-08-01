@@ -3,7 +3,7 @@
 The polar variant (v0.4.3rc1) is rank-1 Class M with an *absorbing* zero
 (Class M ∘ Class K): int8 hypervectors over {-1, 0, +1}, bind = multiplicative
 sign-product (0 absorbing), bundle = sticky majority (ties → 0). See
-``srmech.amsc.hdc.polar_*`` + UPSTREAM_NOTES §5.
+``srmech.math.hdc.polar_*`` + UPSTREAM_NOTES §5.
 
 Two tiers:
   - Algebraic-property tests on the substrate reference — always run.
@@ -25,7 +25,7 @@ from array import array
 import pytest
 
 from srmech.amsc import _native
-from srmech.amsc import hdc
+from srmech.math import hdc
 from srmech.amsc.q import Q
 
 

@@ -64,7 +64,7 @@ DETERMINISM: every construction is a fixed integer / dyadic build off the
 attested octonion table + the Cayley-Dickson cocycle — **no RNG, no scipy,
 no numpy**. All ranks are EXACT over ℚ (:func:`_q_rank`); all residuals are
 exact-integer reduced to a scalar Frobenius norm through the Class-N
-:func:`srmech.amsc.laplacian.mat_norm` then the scalar Class-K
+:func:`srmech.math.laplacian.mat_norm` then the scalar Class-K
 :func:`srmech.amsc.cascade.magnitude` (never ``abs()``).
 
 Canonical SSoT:
@@ -91,7 +91,7 @@ from srmech.amsc.q import Q                      # exact-ℚ rank carrier
 from srmech.amsc.cascade import magnitude as _magnitude
 from srmech.amsc.cascade.cayley_dickson import cd_basis_product as _cd_basis_product
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
-from srmech.amsc.laplacian import mat_norm
+from srmech.math.laplacian import mat_norm
 from srmech.amsc.mat import Mat
 from srmech.qm.octonion import octonion_left_mult
 from srmech.qm.so8 import g2_subalgebra
