@@ -50,9 +50,15 @@ def _math_violations(path: Path):
             for alias in node.names:
                 if alias.name == "math" or alias.name.startswith("math."):
                     out.append(f"{rel}:{node.lineno}: import {alias.name}")
-        # `from math import ...`
+        # `from math import ...` — ONLY the absolute stdlib import (`node.level == 0`).
+        # A relative `from ..math import X` / `from .math import X` (`node.level > 0`)
+        # is the INTERNAL ``srmech.math`` namespace (ADR-0010), NOT the stdlib module —
+        # the AST records both with ``node.module == "math"``, so the level is the
+        # only discriminator. (rc372 created ``srmech.math``; without this the guard
+        # false-flags every relative import of a srmech.math submodule.)
         elif isinstance(node, ast.ImportFrom):
-            if node.module == "math" or (node.module or "").startswith("math."):
+            if node.level == 0 and (
+                node.module == "math" or (node.module or "").startswith("math.")):
                 names = ", ".join(a.name for a in node.names)
                 out.append(f"{rel}:{node.lineno}: from {node.module} import {names}")
         # executable `math.<attr>` (base is the bare name `math`)
