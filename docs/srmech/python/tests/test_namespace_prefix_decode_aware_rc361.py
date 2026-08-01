@@ -222,7 +222,19 @@ CEIL_AMSC_PREFIX = {
     # time — exactly the event this ratchet exists to force onto the record.
     # Re-pinned DOWN in the same commit as the move so the gain cannot be given
     # back.
-    "c/src/srmech_carrier_registry.c": (203, 529),
+    #
+    # as-text 203 -> 201 at rc370 (-2), decoded UNCHANGED at 529. The
+    # elliptic_partial_fraction slice (srmech.amsc.elliptic_partial_fraction ->
+    # srmech.apokatastasis.elliptic_partial_fraction). The op is a CARRIER op —
+    # it is named in the EllMonomial `consumes` and ThetaSum `produces`
+    # back-indexes — but for those two SMALL carriers the JSON is an INLINE
+    # string literal (as-text), NOT one of the four hoisted >4000-byte byte
+    # arrays (cs_lstr_0..3, the decoded channel). So the move drops 2 as-text and
+    # ZERO decoded, and the decoded amsc population stays 529 (contrast the rc366
+    # harmonics move, whose refs DID live in the hoisted arrays). This is a real
+    # drain of the citation channel; the population channel did not move because
+    # this op was never in it.
+    "c/src/srmech_carrier_registry.c": (201, 529),
     # TEXT 0 is TRUE, and true about the wrong thing. Every one of the four
     # baked [class] descriptors (`cls_desc_0..3`) is a decimal byte array, so a
     # grep has nothing to read. 37 DISTINCT dotted names live in there.
@@ -277,7 +289,16 @@ CEIL_AMSC_PREFIX = {
     # op_provenance cross-references — 14 amsc. citations in all, rewritten
     # amsc->introspect. decoded stays 4 (op_provenance is not a carrier op; the 4
     # are this artifact's own hoisted strings, untouched by the move).
-    "c/src/srmech_tool_registry.c": (1202, 4),
+    #
+    # as-text 1202 -> 1201 at rc370 (-1), decoded UNCHANGED at 4. The
+    # elliptic_partial_fraction slice — exactly ONE as-text here: the op's single
+    # ToolEntry `name=` citation, repointed amsc->apokatastasis. The SIBLINGS
+    # refs in the three neighbouring ops (elliptic_determinant / cn_vwp_multisum_lhs
+    # / an_vwp_multisum_lhs) name it in the SLASH form
+    # (srmech/apokatastasis/elliptic_partial_fraction.py:60), which the dotted
+    # prefix does not match; and its own explanation's carrier ref
+    # (srmech.amsc.thetasum.ThetaSum) stays amsc. decoded stays 4.
+    "c/src/srmech_tool_registry.c": (1201, 4),
     # rc368 — THE FIRST MODULE MOVE TO MOVE THIS ARTIFACT (the new data point).
     # This was the CONTROL row through harmonics/naming: "no byte arrays, decoded
     # 0 is a real zero". It is still a real zero on the decoded channel, but the
@@ -312,7 +333,11 @@ CEIL_AMSC_PREFIX = {
     # op_provenance slice — the SAME 14 citations as the tool registry (this is
     # the doc pair): the 6 ToolEntry names, their worked-example imports, and the
     # sibling-prose refs — all amsc->introspect.
-    "python/srmech/amsc/_tool_docs.py": (1183, 0),
+    # as-text 1183 -> 1182 at rc370 (-1), decoded UNCHANGED at 0. The
+    # elliptic_partial_fraction slice — the SAME single ToolEntry `name=` citation
+    # as the tool registry (this is the doc pair), repointed amsc->apokatastasis;
+    # the slash-form SIBLINGS refs do not match the dotted prefix.
+    "python/srmech/amsc/_tool_docs.py": (1182, 0),
     # as-text 250 -> 248 at rc367 (-2), decoded UNCHANGED at 0. rc367 is the
     # FIRST module move to move THIS artifact — a departure from the harmonics
     # analog. _c_claims.py is the op -> C-symbol CLAIM manifest, keyed only for
@@ -332,7 +357,12 @@ CEIL_AMSC_PREFIX = {
     # SIBLINGS (carry / op_verdict / family_verdict / reproject /
     # lossy_projection_record) are non_compute/composes_c and never appeared here.
     # The C SYMBOLS are unchanged — only the Python-side dotted key repointed.
-    "python/srmech/amsc/_c_claims.py": (247, 0),
+    # as-text 247 -> 246 at rc370 (-1), decoded UNCHANGED at 0. Same shape as
+    # rc367/rc369: elliptic_partial_fraction IS a `c_dispatched` leaf (C peer
+    # srmech_elliptic_partial_fraction + a real ctypes binding), so it has exactly
+    # ONE key here, repointed amsc->apokatastasis. The C SYMBOL is capability-named
+    # and unchanged — only the Python-side dotted key moved.
+    "python/srmech/amsc/_c_claims.py": (246, 0),
 }
 
 #: The generated-artifact totals, pinned so a per-file edit cannot quietly move
@@ -345,8 +375,8 @@ CEIL_AMSC_PREFIX = {
 #:
 #: as-text 2933 (rc361) -> 2943 (rc362, +10 = the 5 citations x 2 artifacts).
 #: decoded 577 (rc361)  ->  577 (rc362, FLAT — the population did not move).
-TOTAL_AS_TEXT = 2906   # rc368 2935 -> rc369 2906 (-29: op_provenance amsc->introspect; -14 tool, -14 _tool_docs, -1 _c_claims op_provenance_hash key)
-TOTAL_DECODED = 573    # rc368 573 -> rc369 573 (FLAT: op_provenance is not a carrier op, so no decoded byte-array refs moved)
+TOTAL_AS_TEXT = 2901   # rc369 2906 -> rc370 2901 (-5: elliptic_partial_fraction amsc->apokatastasis; -2 carrier back-index, -1 tool name, -1 _tool_docs name, -1 _c_claims c_dispatched key)
+TOTAL_DECODED = 573    # rc369 573 -> rc370 573 (FLAT: elliptic_partial_fraction's carrier refs are INLINE as-text JSON, not the hoisted decoded byte arrays, so the population channel did not move)
 
 
 def _counts(rel_path: str) -> "tuple[int, int]":

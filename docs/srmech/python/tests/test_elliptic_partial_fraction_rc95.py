@@ -10,7 +10,7 @@ import pytest
 
 from srmech.amsc.ellbase import EllMonomial as M, Theta
 from srmech.amsc.q import Q
-from srmech.amsc.elliptic_partial_fraction import elliptic_partial_fraction
+from srmech.apokatastasis.elliptic_partial_fraction import elliptic_partial_fraction
 
 _TRUNC = 20
 _ZV = [Q(2, 3), Q(5, 4), Q(9, 8), Q(7, 11)]

@@ -6,7 +6,7 @@ This is the capstone of the multivariable elliptic reduction row. Where the sing
 :func:`~srmech.amsc.elliptic_wz_certificate.elliptic_wz_certificate`), the Cₙ (root-system)
 elliptic Jackson summation reduces an n-FOLD sum over partitions to a theta-quotient product
 — and it does so via the elliptic partial-fraction expansion
-(:func:`~srmech.amsc.elliptic_partial_fraction.elliptic_partial_fraction`, Rosengren Eq 1.22)
+(:func:`~srmech.apokatastasis.elliptic_partial_fraction.elliptic_partial_fraction`, Rosengren Eq 1.22)
 and Warnaar's determinant / Lemma 2.2 as the inductive engine.
 
 ────────────────────────────────────────────────────────────────────────────────────

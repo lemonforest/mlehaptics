@@ -6493,7 +6493,7 @@ def _bind(lib: ctypes.CDLL) -> None:
         lib.srmech_elliptic_cauchy_determinant.restype = ctypes.c_int
 
     # rc95: srmech_elliptic_partial_fraction — the C peer of the ThetaSum-returning op
-    # srmech.amsc.elliptic_partial_fraction.elliptic_partial_fraction (the elliptic
+    # srmech.apokatastasis.elliptic_partial_fraction.elliptic_partial_fraction (the elliptic
     # partial-fraction expansion, the reduction engine of the multivariable Cₙ elliptic
     # row). The variable x + the n z-monomials + the n y-monomials ride as flat
     # (coeff_num/coeff_den) srmech_bigint arrays + the flat int32 exponent rows; the n
@@ -15343,11 +15343,11 @@ def elliptic_cauchy_determinant_c(n_syms, psym, n, t_mono, x_monos, y_monos):
 
 # ----------------------------------------------------------------------
 # rc95: srmech_elliptic_partial_fraction — the C peer of the ThetaSum-returning op
-# srmech.amsc.elliptic_partial_fraction.elliptic_partial_fraction (the elliptic
+# srmech.apokatastasis.elliptic_partial_fraction.elliptic_partial_fraction (the elliptic
 # partial-fraction expansion; the reduction engine of the multivariable Cₙ elliptic
 # reduction row). A C-MIRROR PARITY build: the n TERM EllRatios come back byte-exact
 # equal to the pure-Python op's terms, and the Python side sums them into the
-# ThetaSum. srmech.amsc.elliptic_partial_fraction.elliptic_partial_fraction dispatches
+# ThetaSum. srmech.apokatastasis.elliptic_partial_fraction.elliptic_partial_fraction dispatches
 # through here when the peer is loaded, trusting the native ThetaSum only after it
 # `==` the pure ThetaSum; the pure-Python body is the complete alternative + oracle.
 # Shares the srmech_bigint decimal-marshal helpers (in _ELLRATIO_SYMS) with the
@@ -15359,7 +15359,7 @@ def has_native_elliptic_partial_fraction() -> bool:
     """True iff the rc95 srmech_elliptic_partial_fraction op + its ws sizer + the
     srmech_bigint decimal-marshal helpers are loaded + bound. False on a no-C or
     pre-rc95 lib — the pure-Python
-    ``srmech.amsc.elliptic_partial_fraction.elliptic_partial_fraction`` body is the
+    ``srmech.apokatastasis.elliptic_partial_fraction.elliptic_partial_fraction`` body is the
     complete alternative (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False

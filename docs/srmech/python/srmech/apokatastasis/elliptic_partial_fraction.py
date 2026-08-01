@@ -1,4 +1,4 @@
-"""srmech.amsc.elliptic_partial_fraction — the ELLIPTIC PARTIAL-FRACTION expansion, the
+"""srmech.apokatastasis.elliptic_partial_fraction — the ELLIPTIC PARTIAL-FRACTION expansion, the
 reduction ENGINE of the multivariable (root-system Cₙ) elliptic reduction row.
 
 Where the single-variable ₈ω₇ reduces to the Weierstrass THREE-TERM relation
@@ -44,8 +44,8 @@ from __future__ import annotations
 
 from typing import List, Sequence
 
-from .ellbase import EllMonomial, EllRatio, Theta
-from .thetasum import ThetaSum
+from ..amsc.ellbase import EllMonomial, EllRatio, Theta
+from ..amsc.thetasum import ThetaSum
 
 __all__ = ["elliptic_partial_fraction"]
 
@@ -130,8 +130,8 @@ def _elliptic_partial_fraction_c(xx: EllMonomial, zl: "List[EllMonomial]",
     symbol universe MUST include ``p``: the :meth:`Theta.canonicalize` quasi-periodicity
     rewrite reads/writes the nome ``p`` off ``psym`` (mirrors the forcing in
     :func:`~srmech.amsc.elliptic_determinant._elliptic_cauchy_determinant_c`)."""
-    from . import _native as _nat
-    from .ellbase import _P, _ellratio_from_form, _mono_to_form
+    from ..amsc import _native as _nat
+    from ..amsc.ellbase import _P, _ellratio_from_form, _mono_to_form
     if not _nat.has_native_elliptic_partial_fraction():
         return None
     n = len(zl)

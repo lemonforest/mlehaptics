@@ -82,31 +82,44 @@ _EXPECTED_ROOTS = (
     # zero that can go red when a later slice moves ops in, whereas a missing
     # root would let those ops arrive silently outside the denominator.
     "srmech.cascade",
+    # v0.9.0rc370 — ``srmech.apokatastasis`` APPENDED. The two-file edit again,
+    # for the reason the assertion below asks for: the elliptic domain LANDED
+    # its first module (``elliptic_partial_fraction``) this rc, so the package
+    # now EXISTS and the walk must reach it. UNLIKE ``srmech.cascade``, this root
+    # adds ONE ledger row (a ``c_dispatched`` op), because it is the first
+    # DOMAIN-with-a-registered-op to land — contrast the structure-only cascade
+    # slice. Widening for a package that does not exist is what rc361 refused;
+    # this is the opposite case.
+    "srmech.apokatastasis",
 )
 
 #: ADR-0010's destination namespaces that DO NOT EXIST YET.
 #:
 #: Read off the ADR's own namespace table and its per-destination count table.
-#: ``srmech.apokatastasis`` is the largest single destination (31 modules, 41%
-#: of the moves) and, like the rest of these, is absent from the walk roots.
+#: ``srmech.math`` is now the largest single destination that has NOT begun to
+#: land (22 modules) and, like the rest of these, is absent from the walk roots.
+#: (``srmech.apokatastasis`` — A.2's largest at 31 — LEFT this tuple at rc370;
+#: see the note below.)
 #:
 #: ⚠️ ``srmech.music`` LEFT THIS TUPLE at v0.9.0rc362 and moved to
 #: ``_ADR0010_EXISTING_DESTINATIONS`` below. It is the FIRST of ADR-0010's new
 #: namespaces to land, so it is no longer a member of the "does not exist yet"
 #: class — leaving it here would have made the gap claim false in the one
-#: direction that matters, asserting a blindness the tree no longer has. The
-#: gap itself is undiminished: six namespaces still do not exist, and
-#: ``srmech.apokatastasis`` (41% of the moves) is still the largest of them.
+#: direction that matters, asserting a blindness the tree no longer has.
 #: ⚠️ ``srmech.cascade`` LEFT THIS TUPLE at v0.9.0rc364, by the same one route:
-#: the arc's first execution slice landed it. Six namespaces became five. The
-#: gap is still substantial — ``srmech.apokatastasis`` (31 modules, 41% of the
-#: moves) has not landed — but it is no longer true that the walk names none of
-#: ADR-0010's structure homes.
+#: the arc's first execution slice landed it. Six namespaces became five.
+#: ⚠️ ``srmech.apokatastasis`` LEFT THIS TUPLE at v0.9.0rc370, by that same
+#: route: its first module-moving slice (``elliptic_partial_fraction``) landed
+#: the package, so it is no longer a "does not exist yet" namespace. The domain
+#: is only PARTIALLY drained (1 of 31 modules), but package EXISTENCE is binary —
+#: once one module lands, the root exists and the walk must reach it — so the
+#: root migrates to ``_ADR0010_EXISTING_DESTINATIONS`` on the FIRST module, not
+#: the last. Five namespaces became four; ``srmech.math`` (22 modules) is now the
+#: largest that has not begun to land.
 _ADR0010_NEW_NAMESPACES = (
     "srmech.math",
     "srmech.physics",
     "srmech.biology",
-    "srmech.apokatastasis",
     "srmech.external",
 )
 
@@ -127,9 +140,14 @@ _ADR0010_NEW_NAMESPACES = (
 #: v0.9.0rc364 — ``srmech.cascade`` joins them by the same route. It is the
 #: first STRUCTURE home (as opposed to a domain) to land, and the first to
 #: arrive carrying zero ops; see the note at ``_EXPECTED_ROOTS``.
+#:
+#: v0.9.0rc370 — ``srmech.apokatastasis`` joins them by the same route. It is the
+#: first DOMAIN-with-a-registered-op to land (contrast cascade's zero-op
+#: structure slice), so it arrives carrying exactly one ``c_dispatched`` ledger
+#: row; see the note at ``_EXPECTED_ROOTS``.
 _ADR0010_EXISTING_DESTINATIONS = ("srmech.amsc", "srmech.introspect",
                                   "srmech.dsl", "srmech.music",
-                                  "srmech.cascade")
+                                  "srmech.cascade", "srmech.apokatastasis")
 
 #: Detects a spelled-out copy of the root tuple: the quoted literal every copy
 #: ended with. Measured at rc361 — this token appeared in EXACTLY the four known
@@ -335,8 +353,12 @@ def test_a_root_naming_a_nonexistent_package_is_silently_skipped() -> None:
 
     import conftest
     saved = conftest._ROSETTA_ROOTS
+    # ⚠️ v0.9.0rc370 — the example moved off ``srmech.apokatastasis``, which
+    # became a REAL root this rc (its first module landed). ``srmech.external``
+    # is still in ``_ADR0010_NEW_NAMESPACES`` and genuinely does not exist, so it
+    # is the correct still-nonexistent witness for the ImportError-swallow.
     try:
-        conftest._ROSETTA_ROOTS = saved + ("srmech.apokatastasis",)
+        conftest._ROSETTA_ROOTS = saved + ("srmech.external",)
         widened = rosetta_live_objects()
     finally:
         conftest._ROSETTA_ROOTS = saved

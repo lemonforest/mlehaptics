@@ -116,7 +116,6 @@ srmech.amsc.elliptic_jackson.cn_vwp_multisum_lhs
 srmech.amsc.elliptic_jackson.multivariate_elliptic_jackson
 srmech.amsc.elliptic_jackson_an.an_vwp_multisum_lhs
 srmech.amsc.elliptic_jackson_an.multivariate_elliptic_jackson_an
-srmech.amsc.elliptic_partial_fraction.elliptic_partial_fraction
 srmech.amsc.elliptic_recurrence.elliptic_recurrence_8w7
 srmech.amsc.elliptic_wz_certificate.elliptic_wz_certificate
 srmech.amsc.elliptic_zeilberger.elliptic_zeilberger
@@ -383,6 +382,7 @@ srmech.amsc.unary_theta.unary_theta
 srmech.amsc.wz_certificate.wz_certificate
 srmech.amsc.zeilberger.bipoly_from_coeffs
 srmech.amsc.zeilberger.zeilberger
+srmech.apokatastasis.elliptic_partial_fraction.elliptic_partial_fraction
 srmech.bus.by_name
 srmech.bus.decode_splice
 srmech.bus.list_endpoints

@@ -122,4 +122,14 @@ ROSETTA_ROOTS = (
     # denominator with no root edit — which is the sequencing this file asks
     # for, done at the earliest honest moment rather than the latest.
     "srmech.cascade",
+    # v0.9.0rc370 — the ADR-0010 srmech.apokatastasis DOMAIN namespace (the
+    # elliptic / modular / theta / q-series row, A.2's LARGEST bucket at 31
+    # modules / 41%), landed by its first module-moving slice
+    # (elliptic_partial_fraction). APPENDED, per the order-is-part-of-the-value
+    # note. Unlike srmech.cascade (rc364, zero ops), this root enters carrying
+    # ONE walked op — the first DOMAIN-with-a-registered-op to land — so the
+    # ledger denominator grows by exactly one c_dispatched row this rc, and the
+    # walk must reach it in the SAME rc the module moves or the move would read
+    # as a deletion (a classified row whose live op vanished).
+    "srmech.apokatastasis",
 )

@@ -900,3 +900,118 @@ the moved module's imports of its old siblings, AND its old siblings' imports of
 relative import in a STAYING consumer is a runtime `ImportError`, not a silent comment. Verified: the
 `coupling → op_provenance` lazy import re-derives the shipped gasket-fold address `f8a09890b9e8…` unchanged
 after the move.
+
+## Amendment G — the FIFTH module-moving slice, and the FIRST into a newly-created DOMAIN namespace: `elliptic_partial_fraction` → `srmech.apokatastasis`, v0.9.0rc370 (`#T1034`)
+
+rc366–rc369 all moved modules into namespaces that ALREADY EXISTED (`srmech.music` created at rc362,
+`srmech.introspect` a long-standing root). rc370 moves **`srmech/amsc/elliptic_partial_fraction.py` →
+`srmech/apokatastasis/elliptic_partial_fraction.py`** — the elliptic partial-fraction expansion (Rosengren
+Eq. 1.22, the reduction ENGINE of the multivariable Cₙ elliptic reduction row), a single `c_dispatched` op —
+and in doing so **CREATES `srmech.apokatastasis`**, A.2's LARGEST destination (**31 modules, 41 %**: the
+elliptic / modular / theta / q-series domain). It is therefore the arc's **first DOMAIN-with-a-registered-op
+move** and the template for the remaining 30 members of that bucket. Leaf name `elliptic_partial_fraction`
+kept (B.1 rule 1). `describe()["tools"]["total"]` stays **525**; `SRMECH_ABI_VERSION` stays **10**.
+
+The contrast that makes it a distinct milestone: rc364 (`srmech.cascade`) ALSO created a namespace, but that
+one carried only TOML descriptors and **zero callables** — a structure-only slice that added zero ledger
+rows. rc370 is the first created namespace to arrive **carrying a walked op**, so it exercises every
+new-namespace wiring path a structure slice does not.
+
+### G.1 The NEW-NAMESPACE SETUP — three steps beyond a drop-in slice (the template)
+
+A drop-in move into an existing namespace (rc366–rc369) is: move the file, repoint the citations, re-pin the
+three instruments. Creating the namespace adds THREE steps, and every remaining slice into a not-yet-created
+namespace (`math` 22, `physics`, `biology` 4, `external`) follows them:
+
+1. **Create the package `__init__.py`.** `srmech/apokatastasis/__init__.py` = a domain docstring +
+   `__all__ = []`. The op is NOT re-exported at package level — it lives in its submodule
+   (`srmech.apokatastasis.elliptic_partial_fraction`) and the Rosetta walk discovers it via
+   `pkgutil.walk_packages` reading the SUBMODULE's own `__all__` (the same shape `srmech.music` uses for its
+   `harmonics` sibling). The moved module's lazy sibling imports become up-reaches: `from .ellbase` /
+   `from .thetasum` / `from . import _native` → `from ..amsc.<sibling>` (the rc369 pattern).
+2. **Append the Rosetta walk root** — `srmech.apokatastasis` added to `tests/rosetta_roots.py` AND
+   `_EXPECTED_ROOTS` (the two-file edit music/cascade established), plus migrate it NEW→EXISTING in
+   `test_rosetta_roots_single_source_rc361.py`'s `_ADR0010_*` tuples.
+3. **Name the subset in the census move-map** — `NAMED_DEPARTURES["srmech.apokatastasis"] =
+   {"elliptic_partial_fraction"}`, a SUBSET-named bucket (1 of 31, like `srmech.introspect`), with the
+   `len(named) <= A.2 count` assertion added. `LANDED <= a2_named` REQUIRES the module be named here before
+   it can be recorded landed.
+
+### G.2 ⚠️ The "root already listed — no edit expected" prediction was WRONG
+
+The build brief stated `srmech.apokatastasis` was already in the Rosetta roots tuple and only needed
+VERIFYING. It was NOT: line 109 of `test_rosetta_roots_single_source_rc361.py` had it in
+`_ADR0010_NEW_NAMESPACES` — the "does-not-exist-yet" list — NOT in `ROSETTA_ROOTS` / `_EXPECTED_ROOTS`. This
+is not a nit: a module moving into a namespace makes the package EXIST, and if the root is not added in the
+SAME rc, `pkgutil.walk_packages` never reaches the op, `rosetta_live_objects()` drops it, and the ledger
+fires its STALE assertion (a classified row whose live op vanished) — the signature of a DELETION, not a
+move (the exact hazard `tests/rosetta_roots.py` was single-sourced to prevent). The correct action was the
+full music/cascade two-file root edit + NEW→EXISTING migration, done in the move commit. A knock-on: the
+`test_a_root_naming_a_nonexistent_package_is_silently_skipped` witness used `srmech.apokatastasis` as its
+"nonexistent package" example — now real — so it was switched to `srmech.external` (still in
+`_ADR0010_NEW_NAMESPACES`). **Planning input for the remaining new-namespace slices: the root is NEVER
+pre-added (rc361's rule), so EVERY first-into-a-namespace slice pays the two-file root edit — treat it as
+mandatory setup, not a verify.**
+
+### G.3 The op IS `c_dispatched` (rc367/rc369 shape) + the C fan-out is FOUR surfaces
+
+`elliptic_partial_fraction` is a `c_dispatched` leaf: dedicated C peer `srmech_elliptic_partial_fraction.c`
+(symbols `srmech_elliptic_partial_fraction` + `srmech_elliptic_partial_fraction_ws_bound`), a real ctypes
+binding, a `c_dispatched` rosetta bucket, one `_c_claims.py` key (repointed amsc→apokatastasis, draining that
+pin **247 → 246**). It is **not** in `c/src/srmech_invoke.c` (grep-verified) → no MCP dispatch repoint
+(confirming the rc369 lesson that `c_dispatched` and `invoke.c` presence are independent). The dotted path is
+cited across **FOUR** C surfaces, all repointed amsc→apokatastasis:
+
+| # | C surface | Kind | How repointed |
+|---|-----------|------|---------------|
+| 1 | `c/include/srmech.h` | hand-authored doc comment (×1) | direct edit (NOT ratcheted) |
+| 2 | `c/src/srmech_elliptic_partial_fraction.c` | hand-authored C peer, doc comment (×1) | direct edit |
+| 3 | `c/src/srmech_tool_registry.c` | GENERATED tool table | via `regen_all` |
+| 4 | `c/src/srmech_carrier_registry.c` | GENERATED carrier table | via `regen_all` |
+
+This is the **first C-fan-out to include the CARRIER registry (#4)**: `elliptic_partial_fraction` is a carrier
+op (named in the `EllMonomial` `consumes` + `ThetaSum` `produces` back-indexes). So the C-cost model gains a
+fourth shape — a peer-carrying CARRIER op costs **4** surfaces (peer comment + `srmech.h` + tool registry +
+carrier registry). The `apokatastasis` bucket is dominated by carrier ops over the theta algebra, so **4** is
+the cost to budget for that bucket by default (vs. 3 for a plain peer-carrying op, 5 for a schema module).
+
+### G.4 The measured ripple — the THREE-instrument set, all re-pinned in the move commit (per C.4)
+
+- **Census**: `elliptic_partial_fraction` dropped, **71 → 70 modules**; digest **`ae010cc1…` →
+  `e801322a…`**; `LANDED` gains `elliptic_partial_fraction` (now 5 members); conservation **`70 + 5 == 75`**
+  holds; `NAMED_DEPARTURES` gains the `srmech.apokatastasis` subset key + its `<=` assertion.
+- **Op-name-set witness**: SET moves ONE name amsc→apokatastasis; digest **`79f1ddfc…` → `02698ab9…`**;
+  `EXPECTED_N` **stays 525**. (The name re-sorts from the `amsc.*` block into the `apokatastasis.*` block —
+  `registered_op_names.txt` regenerated.)
+- **Decode-aware prefix ratchet**: `srmech_carrier_registry.c` **(203, 529) → (201, 529)**;
+  `srmech_tool_registry.c` **(1202, 4) → (1201, 4)**; `_tool_docs.py` **(1183, 0) → (1182, 0)**;
+  `_c_claims.py` **(247, 0) → (246, 0)**; class / responsion registries **unchanged**; **`TOTAL_AS_TEXT`
+  2906 → 2901** (−5), **`TOTAL_DECODED` 573 → 573** (FLAT); the fifth decoded-population test
+  (`amsc == 529`, `music == 13`) **untouched**.
+  - **⚠️ Finding — a carrier op that does NOT move the decoded (population) channel.** rc366 harmonics was a
+    carrier op and its refs lived in the hoisted >4000-byte byte arrays (`cs_lstr_0..3`, the decoded
+    channel), so it dropped decoded 533→529. `elliptic_partial_fraction` is ALSO a carrier op, but the
+    `EllMonomial` / `ThetaSum` carrier JSON is small enough to sit as an INLINE string literal (the as-text
+    channel), NOT in the hoisted arrays — so it drops **2 as-text and 0 decoded** on the carrier registry.
+    "Carrier op" therefore does NOT imply "moves the decoded channel"; the discriminator is whether the
+    carrier's JSON exceeds the generator's hoist threshold. This is why the fifth-test hard pins are
+    unchanged despite this being a carrier move.
+- **Rosetta ledger** (`rosetta_classification.ndjson`): 1 row repoints `exposed_as` + `defined_at`
+  amsc→apokatastasis; bucket stays `c_dispatched`; the op stays rosetta-visible under the NEW
+  `srmech.apokatastasis` root (which is why G.2's root append is load-bearing).
+- **Regenerated artifacts** (`tools/regen_all.py --accept-seed-drift`, content-equality + idempotent):
+  `_tool_docs.py`, `_c_claims.py`, `srmech_tool_registry.c`, `srmech_carrier_registry.c`; responsion + class
+  registries verified byte-identical. (The seed-drift accept was required because the moved module's docstring
+  self-path and the curated slash-form sibling refs are curation seeds that legitimately changed — the drift
+  set was exactly the 4 elliptic-row tools whose curated text names `elliptic_partial_fraction`.)
+- **Source + curated citations**: 1 ToolEntry `name=`; the moved module's own docstring self-path + its 4
+  lazy sibling imports (`ellbase` ×2 / `thetasum` / `_native`); the curated docs for `elliptic_partial_
+  fraction`'s own entry (dotted key + slash self-ref) + the slash SIBLINGS refs in the three neighbouring
+  entries (`elliptic_cauchy_determinant`, `cn_vwp_multisum_lhs`, `an_vwp_multisum_lhs`); `_native.py`'s four
+  source-of-truth comments; `elliptic_jackson.py`'s docstring `:func:` ref; the two hand-written C comments
+  (G.3). Verified ZERO `srmech.amsc.elliptic_partial_fraction` remain under `docs/srmech/c/` or in
+  non-historical Python.
+- **Consuming tests**: one live-import repoint (`test_elliptic_partial_fraction_rc95.py`). No
+  cross-namespace CONSUMER repoint this slice (unlike rc369's `coupling.py`): nothing outside the module and
+  its own test imports the function (grep-verified), so G.2's "grep BOTH directions" check came back clean
+  on the consumer side.
