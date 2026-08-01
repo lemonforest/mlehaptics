@@ -740,6 +740,29 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_primitive_integer_vector.restype = ctypes.c_int
 
+    # rc379 (`#T1050`): the chemistry domain's chemical-formula tokenizer.
+    #   size_t srmech_parse_formula_ws_bound(size_t len);
+    #   int srmech_parse_formula(const char *s, size_t len, void *ws,
+    #       size_t ws_len, char *out_syms, int64_t *out_counts, size_t out_cap,
+    #       size_t *out_n);
+    # NEW symbols — hasattr-guarded (ABI stays 10; the pure-Python
+    # srmech.chemistry.formula.parse_formula body is the byte-identical peer).
+    if hasattr(lib, "srmech_parse_formula_ws_bound"):
+        lib.srmech_parse_formula_ws_bound.argtypes = [ctypes.c_size_t]
+        lib.srmech_parse_formula_ws_bound.restype = ctypes.c_size_t
+    if hasattr(lib, "srmech_parse_formula"):
+        lib.srmech_parse_formula.argtypes = [
+            ctypes.c_char_p,                    # s (formula bytes)
+            ctypes.c_size_t,                    # len
+            ctypes.c_void_p,                    # ws arena
+            ctypes.c_size_t,                    # ws_len
+            ctypes.POINTER(ctypes.c_char),      # out_syms (out_cap * 8 bytes)
+            ctypes.POINTER(ctypes.c_int64),     # out_counts[out_cap]
+            ctypes.c_size_t,                    # out_cap
+            ctypes.POINTER(ctypes.c_size_t),    # out_n
+        ]
+        lib.srmech_parse_formula.restype = ctypes.c_int
+
     # ------------------------------------------------------------------
     # The One's WINDING surface (siona gh#1276; rc137) — exact INTEGER
     # readouts of the winding triad the SO->Spin double cover carries.
@@ -17730,6 +17753,16 @@ def has_native_primitive_integer_vector() -> bool:
     parity oracle)."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_primitive_integer_vector"))
+
+
+def has_native_parse_formula() -> bool:
+    """True iff the rc379 srmech_parse_formula tokenizer (`#T1050`) is loaded +
+    bound. False on a no-C / pre-rc379 lib — the pure-Python
+    ``srmech.chemistry.formula.parse_formula`` body is the complete,
+    byte-identical alternative (and the parity oracle)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_parse_formula")
+                and hasattr(LIB, "srmech_parse_formula_ws_bound"))
 
 
 def has_native_crt_combine() -> bool:

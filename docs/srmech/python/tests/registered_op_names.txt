@@ -199,6 +199,10 @@ srmech.cascade.table_product
 srmech.cascade.the_one
 srmech.cascade.top_k_by_score
 srmech.cascade.winding_fold
+srmech.chemistry.balance_reaction
+srmech.chemistry.conservation_laws
+srmech.chemistry.deficiency
+srmech.chemistry.parse_formula
 srmech.dsl.describe_class
 srmech.dsl.generate_class_descriptor
 srmech.dsl.list_catalog_ops

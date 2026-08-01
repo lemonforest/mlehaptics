@@ -413,6 +413,20 @@ _CARRIERS: Dict[str, Dict[str, Any]] = {
             "eigenvector read-outs."),
         "ladder": None, "rung": None, "variables": [],
     },
+    "QMat": {
+        "description": (
+            "Numpy-free EXACT-ℚ dense matrix: a tuple-of-tuples of reduced Q "
+            "entries + (n_rows, n_cols), immutable — the bigint-exact peer of "
+            "the float64 Mat (Q is to float as QMat is to Mat). THE exact "
+            "linear-algebra operand: its .nullspace / .rank / .rref / .solve / "
+            ".det run the exact Gauss–Jordan over ℚ (bigint, no float, no "
+            "tolerance), and it is what the srmech.chemistry reaction ops ride "
+            "— balance_reaction reduces a QMat kernel column to integer "
+            "stoichiometric coefficients, conservation_laws reads its "
+            "left-nullspace, deficiency reads QMat.rank. Collapses to a float64 "
+            "Mat only via .to_mat (the terminal ALU→FPU read-out)."),
+        "ladder": None, "rung": None, "variables": [],
+    },
     "HV": {
         "description": (
             "Numpy-free Klein-4 hypervector: an array('B') sector buffer + "
@@ -714,6 +728,11 @@ _CAPABILITY: Dict[str, Dict[str, Any]] = {
     # worst-case verdict, and Mat's verdicts do not improve with dim: they keep
     # holding.)
     "Mat": _cap("mat_matmul (@)", _CAP_ZERO_DIVISORS, _CAP_NON_COMMUTING, False),
+    # QMat is the exact-ℚ peer of Mat: SAME algebra product (@ = matmul,
+    # associative + non-commutative), SAME zero divisors (any singular pair,
+    # exact over ℚ), and the SAME absence of a dimensional wall — matmul is
+    # associative at every dim, so its turns keep folding as far as you build.
+    "QMat": _cap("QMat matmul (@)", _CAP_ZERO_DIVISORS, _CAP_NON_COMMUTING, False),
     # Vec has no closed non-commutative product — `@` is the dot and leaves the
     # carrier (Vec × Vec → scalar). Its closed op is the elementwise Hadamard
     # product: commutative, associative, and full of zero divisors (any two

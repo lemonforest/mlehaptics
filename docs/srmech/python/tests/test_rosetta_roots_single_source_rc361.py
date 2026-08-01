@@ -110,6 +110,15 @@ _EXPECTED_ROOTS = (
     # of 4 modules). genome is the arc's single largest C surface; the
     # srmech_genome_* C symbols are capability-named and DO NOT rename (ABI 10).
     "srmech.biology",
+    # v0.9.0rc379 (`#T1050`) — srmech.chemistry APPENDED. The two-file
+    # edit again, but for a NEW domain rather than an ADR-0010 move: the
+    # chemistry namespace is BORN here (reaction networks as exact-integer
+    # linear algebra), not migrated from an existing module. Because it is
+    # not an ADR-0010 destination it is deliberately absent from both
+    # _ADR0010_NEW_NAMESPACES and _ADR0010_EXISTING_DESTINATIONS below; the
+    # blindness test asserts the ADR destinations are present and tolerates
+    # extra roots, so a non-ADR domain root is correct here and there.
+    "srmech.chemistry",
 )
 
 #: ADR-0010's destination namespaces that DO NOT EXIST YET.

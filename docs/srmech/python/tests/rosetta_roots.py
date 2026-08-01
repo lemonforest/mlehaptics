@@ -154,4 +154,13 @@ ROSETTA_ROOTS = (
     # arc's single largest C surface; its srmech_genome_* C symbols are
     # capability-named and DO NOT rename, so the ABI stays 10.
     "srmech.biology",
+    # v0.9.0rc379 (`#T1050`) — the srmech.chemistry DOMAIN namespace
+    # (reaction networks as exact-integer linear algebra). NOT an ADR-0010
+    # declustering destination — a BRAND-NEW domain born here, not migrated — so
+    # it is absent from both ADR-0010 tuples in
+    # test_rosetta_roots_single_source_rc361.py (the blindness test asserts ADR
+    # destinations are present; extra roots are fine). It arrives carrying FOUR
+    # walked rows: 3 composition_of_c (balance_reaction / conservation_laws /
+    # deficiency) + 1 c_dispatched (parse_formula, backed by srmech_parse_formula).
+    "srmech.chemistry",
 )

@@ -752,3 +752,7 @@
 {"exposed_as": "srmech.music.membrane_partials", "defined_at": "srmech.music._instruments.membrane_partials", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.music.bessel_j_fixed", "defined_at": "srmech.music._bessel.bessel_j_fixed", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.music.bessel_zero_fixed", "defined_at": "srmech.music._bessel.bessel_zero_fixed", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.chemistry.balance_reaction", "defined_at": "srmech.chemistry.reactions.balance_reaction", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.chemistry.conservation_laws", "defined_at": "srmech.chemistry.reactions.conservation_laws", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.chemistry.deficiency", "defined_at": "srmech.chemistry.reactions.deficiency", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.chemistry.parse_formula", "defined_at": "srmech.chemistry.formula.parse_formula", "bucket": "c_dispatched"}

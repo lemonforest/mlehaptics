@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc378"
-#define SRMECH_VERSION       "0.9.0rc378"
+#define SRMECH_VERSION_PRE   "rc379"
+#define SRMECH_VERSION       "0.9.0rc379"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1123,6 +1123,38 @@ srmech_status_t srmech_primitive_integer_vector(const int64_t *nums,
                                                 const int64_t *dens, size_t n,
                                                 int64_t *out,
                                                 int64_t *out_content);
+
+/* ------------------------------------------------------------------ *
+ * The CHEMISTRY domain (0.9.0rc379, task T1050) — reaction networks as
+ * exact-integer linear algebra. The three math ops (balance_reaction /
+ * conservation_laws / deficiency) COMPOSE the already-C-backed QMat / graph
+ * Laplacian / srmech_primitive_integer_vector surface (no new kernel).
+ * srmech_parse_formula is the one genuinely new capability: a Class F/G
+ * chemical-formula tokenizer. ABI-additive — SRMECH_ABI_VERSION stays 10.
+ * ------------------------------------------------------------------ */
+
+/* Max element-symbol bytes INCLUDING the NUL terminator (real symbols are
+ * <= 3 chars); the fixed stride of the parse_formula output symbol buffer. */
+#define SRMECH_ELEM_SYM_CAP 8u
+
+/* Minimum ws_len BYTES for srmech_parse_formula given a formula of `len` bytes
+ * (raw tokens + a group-start index stack; len+1 entries each). */
+size_t srmech_parse_formula_ws_bound(size_t len);
+
+/* Parse a chemical formula string into DISTINCT element counts (Class F/G; the
+ * C twin of srmech.chemistry.formula.parse_formula). Handles multi-letter
+ * symbols ([A-Z][a-z]*), implicit/explicit ASCII-digit counts, and NESTED '('
+ * ... ')' groups with a trailing multiplier ("Ca3(PO4)2" -> Ca:3, P:2, O:8).
+ * out_syms is out_cap * SRMECH_ELEM_SYM_CAP bytes (NUL-terminated symbols at
+ * that stride); out_counts is int64[out_cap]; *out_n is the distinct-element
+ * count. out_cap = len+1 is always sufficient. Returns SRMECH_OK,
+ * SRMECH_ERR_BAD_INPUT (malformed / empty / unexpected byte / unbalanced
+ * parens), or SRMECH_ERR_OVERFLOW (ws/out capacity or count overflow -> the
+ * caller falls to the byte-identical pure-Python body). */
+srmech_status_t srmech_parse_formula(const char *s, size_t len, void *ws,
+                                     size_t ws_len, char *out_syms,
+                                     int64_t *out_counts, size_t out_cap,
+                                     size_t *out_n);
 
 /* ------------------------------------------------------------------ *
  * The One's WINDING surface (siona gh#1276; rc137) — exact INTEGER

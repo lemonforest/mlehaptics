@@ -45,14 +45,14 @@ MANIFEST = Path(__file__).resolve().parent / "registered_op_names.txt"
 #: Registered public-callable count at rc361. Pinned here only so the failure
 #: message can say "516 -> 517" instead of dumping 516 lines; the SET below is
 #: the actual contract.
-EXPECTED_N = 526
+EXPECTED_N = 530
 
 #: sha256 over the NORMALISED manifest body — "\n".join(sorted names) + "\n",
 #: UTF-8. Normalised rather than raw-file-bytes so a CRLF checkout cannot make
 #: the digest disagree between the Windows and Linux CI cells; that would be a
 #: platform artifact masquerading as a rename.
 EXPECTED_NAME_SET_SHA256 = (
-    "bcf52ee27e546063cadea3159cec988e51c833d6290d448ecfa7115eba4725e3")
+    "a5b78111880ea4a15152091c3bb13dbb944455a3178b2a327b133efcaa112830")
 
 
 def _live_names() -> list[str]:

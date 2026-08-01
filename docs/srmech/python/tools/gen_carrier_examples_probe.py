@@ -31,6 +31,7 @@ from srmech.math.carrier_spectrum import CarrierSpectrum, EllMonomial, EllRatio 
 from srmech.apokatastasis.ellbase import Theta  # noqa: E402  (rc363: the elliptic ATOM)
 from srmech.apokatastasis.riemann_theta_multisum import ThetaBracketSum  # noqa: E402
 from srmech.apokatastasis.harmonic_maass import MockQSeries, UnaryTheta, HarmonicMaass  # noqa: E402
+from srmech.math.qmat import QMat  # noqa: E402  (rc379: the exact-ℚ matrix carrier)
 from srmech.math import laplacian as _lap  # noqa: E402
 from srmech.math import hdc as _hdc  # noqa: E402
 from srmech.cascade import the_one, sedenion_register, cd_register  # noqa: E402
@@ -38,6 +39,7 @@ from srmech.cascade import the_one, sedenion_register, cd_register  # noqa: E402
 _NS = dict(globals())
 _NS.update(dict(array=array, Fraction=Fraction, Q=Q, Poly=Poly, BiPoly=BiPoly,
                 TriPoly=TriPoly, QPoly=QPoly, QBiPoly=QBiPoly, Mat=Mat, Vec=Vec,
+                QMat=QMat,
                 HV=HV, EllMonomial=EllMonomial, EllRatio=EllRatio,
                 ThetaSum=ThetaSum, ThetaBracketSum=ThetaBracketSum,
                 Theta=Theta, CarrierSpectrum=CarrierSpectrum,
@@ -62,6 +64,10 @@ _CONSTRUCT = {
     "Q": "Q(3, 4)",
     "Mat": "dense_laplacian(4, [(0, 1), (1, 2), (2, 0), (2, 3)], [1.0, 1.0, 1.0, 1.0])",
     "Vec": "fiedler_vector(dense_laplacian(4, [(0,1),(1,2),(2,0),(2,3)], [1.0]*4))",
+    # rc379: the exact-ℚ matrix carrier. The element×species matrix of
+    # H2 + O2 -> H2O (rows H, O; columns H2, O2, H2O) — the operand
+    # srmech.chemistry.balance_reaction takes the integer nullspace of.
+    "QMat": "QMat([[Q(2), Q(0), Q(2)], [Q(0), Q(2), Q(1)]])",
     "HV": "hdc.klein4_bind(hdc.HV(array.array('B', [1,2,3,0])), hdc.HV(array.array('B', [3,2,1,0])))",
     "EllMonomial": "EllMonomial(Q(1), {'q': 2})",
     # rc363 (`#T1046`): the elliptic ATOM, registered when the C3 use-derivation

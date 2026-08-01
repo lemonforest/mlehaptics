@@ -1030,6 +1030,61 @@ def _to_uint32_acc(value: Any, *, param: str = "") -> Any:
     )
 
 
+def _to_species(value: Any, *, param: str = "") -> Any:
+    """``srmech.chemistry.balance_reaction`` ``species`` (v0.9.0rc379).
+
+    A list whose entries are formula strings (``"H2O"``) and/or
+    ``{element: count}`` dicts — both JSON-native — or a live element×species
+    ``QMat`` (in-process only; JSON cannot carry it by value). A live QMat passes
+    through; a list is returned as-is, because the op parses the formula strings
+    and reads the count dicts itself."""
+    from srmech.math.qmat import QMat  # exact-ℚ matrix carrier; lazy
+    if isinstance(value, QMat):
+        return value
+    if isinstance(value, (list, tuple)):
+        return list(value)
+    return value
+
+
+def _to_qmat_rows(value: Any, *, param: str = "") -> Any:
+    """``srmech.chemistry.conservation_laws`` ``N`` (v0.9.0rc379).
+
+    The species×reaction stoichiometric matrix: a live ``QMat`` (pass-through),
+    or a nested sequence whose entries are bare JSON ints or the canonical
+    ``[numerator, denominator]`` exact-``Q`` pair (the same encoding
+    :func:`serialise_native` emits). Rebuilds each ``[num, den]`` leaf to a
+    ``Q`` and returns the nested int/``Q`` rows the op feeds straight to
+    ``QMat``."""
+    from srmech.math.q import Q       # exact-ℚ carrier; lazy
+    from srmech.math.qmat import QMat
+    if isinstance(value, QMat):
+        return value
+    rows = []
+    for row in value:
+        out = []
+        for x in row:
+            if (isinstance(x, (list, tuple)) and len(x) == 2
+                    and isinstance(x[0], int) and not isinstance(x[0], bool)
+                    and isinstance(x[1], int) and not isinstance(x[1], bool)
+                    and x[1] != 0):
+                out.append(Q(int(x[0]), int(x[1])))
+            else:
+                out.append(x)
+        rows.append(out)
+    return rows
+
+
+def _to_reactions(value: Any, *, param: str = "") -> Any:
+    """``srmech.chemistry.deficiency`` ``reactions`` (v0.9.0rc379).
+
+    A list of ``(reactant, product)`` pairs; over JSON each pair rides as a
+    2-element list and each complex as a ``{species: coeff}`` dict (or a bare
+    species-name str, or ``null`` for the zero complex). Rebuild each pair as a
+    tuple so the op's ``reactant, product = rxn`` unpacking is unambiguous; the
+    op normalizes the complexes itself."""
+    return [tuple(pair) for pair in value]
+
+
 #: Declared-type-string -> inbound coercer. Pass-through (``_identity``)
 #: entries are JSON-native or opaque-handle types that ``invoke_tool``
 #: cannot meaningfully coerce — they are listed EXPLICITLY (not defaulted)
@@ -1072,6 +1127,14 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     # advertise a bare Q and the first to need it. See _to_q on why a float is
     # passed through rather than rationalised.
     "Q": _to_q,
+    # 0.9.0rc379 (`#T1050`): the srmech.chemistry reaction-network ops. Their
+    # operands ride JSON as formula strings / {element:count} dicts, nested
+    # int/[num,den] stoichiometric rows, and (reactant, product) complex-dict
+    # pairs; the coercers rebuild the exact-Q leaves and the pair tuples, and a
+    # live QMat passes through (in-process only). See srmech/chemistry/.
+    "Sequence[str | dict[str,int]] | QMat": _to_species,        # balance_reaction species
+    "QMat | Sequence[Sequence[int | Q]]": _to_qmat_rows,        # conservation_laws N
+    "Sequence[tuple[dict[str,int], dict[str,int]]]": _to_reactions,  # deficiency reactions
     "EllRatio": _to_ellratio,  # 0.9.0rc61: exact modified-theta-quotient carrier (elliptic_gosper term ratio)
     # 0.9.0rc363: the same coercer, under the honest union name. _to_ellratio has
     # accepted (EllRatio, EllMonomial, Theta) since rc61 — five ops declared only
