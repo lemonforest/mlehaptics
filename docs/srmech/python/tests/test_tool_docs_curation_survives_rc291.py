@@ -47,7 +47,7 @@ import pytest
 
 PY_ROOT = Path(__file__).resolve().parent.parent
 TOOLS = PY_ROOT / "tools"
-GENERATED = PY_ROOT / "srmech" / "amsc" / "_tool_docs.py"
+GENERATED = PY_ROOT / "srmech" / "introspect" / "_tool_docs.py"
 
 
 def _load_tool(name: str):
