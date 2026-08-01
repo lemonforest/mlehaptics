@@ -13,7 +13,7 @@
  * const data table (JPL-clean: const arrays, no dynamic init, no malloc).
  * The accessors + the canonical serialiser live in srmech_tool_schema.c.
  *
- * Entries: 526. tool_schema_version: 1.0.
+ * Entries: 530. tool_schema_version: 1.0.
  */
 
 #include "srmech.h"
@@ -3119,15 +3119,29 @@ static const srmech_tool_param_t ts_params_522[] = {
     { "newton_steps", "int", 0, "Newton refinements after the McMahon start, [1, 64]; default 8" },
 };
 static const srmech_tool_param_t ts_params_523[] = {
+    { "species", "Sequence[str | dict[str,int]] | QMat", 1, "the reaction's species: a list of formula strings (\"H2O\") and/or {element: count} dicts (mixable), or a raw element x species QMat (rows = elements, columns = species)" },
+    { "all_balances", "bool", 0, "when the kernel dimension is > 1, return every primitive basis vector instead of raising; default False" },
+};
+static const srmech_tool_param_t ts_params_524[] = {
+    { "N", "QMat | Sequence[Sequence[int | Q]]", 1, "the stoichiometric matrix (rows = species, columns = reactions) as a QMat or a nested int/Q sequence" },
+};
+static const srmech_tool_param_t ts_params_525[] = {
+    { "reactions", "Sequence[tuple[complex, complex]]", 1, "an iterable of (reactant, product) pairs; each complex is an {species: coeff} dict ({\"A\": 2} for 2A), a bare species-name str (coeff 1), or the zero complex (\"\"/\"0\"/None for the empty complex in a synthesis/degradation step)" },
+    { "with_components", "bool", 0, "return the full breakdown dict instead of the bare integer; default False" },
+};
+static const srmech_tool_param_t ts_params_526[] = {
+    { "formula", "str", 1, "the formula string; element = [A-Z][a-z]*, count = a run of ASCII digits (default 1), groups nest with ( ... ) and an optional trailing count" },
+};
+static const srmech_tool_param_t ts_params_527[] = {
     { "framed", "bytes", 1, "Frame body (nonce[16] || ciphertext) \342\200\224 the unwrapped TLV payload." },
     { "dna", "bytes", 1, "32+ byte pre-shared Bio-TOTP secret. Pass ZERO_DNA (b'\\x00'*32) for herd-immunity / public mode (same code path; deterministic ciphertext recoverable by anyone)." },
     { "window_ns", "int", 0, "Optional time-window override in nanoseconds (default 250_000_000 = 250 ms; env-var ``SRMECH_BUS_TOTP_WINDOW_NS`` honoured)." },
     { "time_ns", "int", 0, "Optional explicit wall-clock override (defaults to time.time_ns()). Useful for replaying historical captures." },
 };
-static const srmech_tool_param_t ts_params_524[] = {
+static const srmech_tool_param_t ts_params_528[] = {
     { "cleanup_dead", "bool", 0, "When True (default), registration files for endpoints with no live server are removed from disk as a side effect." },
 };
-static const srmech_tool_param_t ts_params_525[] = {
+static const srmech_tool_param_t ts_params_529[] = {
     { "name", "str", 1, "Endpoint name (matches the name passed to `srmech.bus.serve(name, ...)`)." },
 };
 
@@ -12601,11 +12615,83 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
     },
     { /* 523 */
+        "srmech.chemistry.balance_reaction",
+        "srmech",
+        "chemistry",
+        "Balance a chemical reaction -> signed primitive integer coefficients. A balanced reaction is a vector v in the kernel of the ELEMENT x SPECIES matrix A (element conservation A.v = 0); each exact-Q kernel column is reduced to the smallest integer vector on its ray by the rc378 primitive_integer_vector keystone, canonical sign = first nonzero entry positive. Read reactant vs product from the SIGN: a NEGATIVE coefficient is a product. ['H2','O2','H2O'] -> [2, 1, -2] (2 H2 + O2 -> 2 H2O). Accepts formula strings, {element: count} dicts, or a raw element x species QMat, interchangeably. Raises on an UNBALANCEABLE reaction (trivial kernel); an UNDERDETERMINED reaction (kernel dim > 1) raises unless all_balances=True, which returns every independent balance. Class L nullspace o Class I/K/C keystone; composition_of_c; exact-Q, numpy-free, no abs().",
+        ts_params_523, 2u,
+        "list",
+        "list[int] \342\200\224 the signed primitive coefficients (kernel dim 1, the usual case); or list[list[int]] (one primitive vector per independent balance) when all_balances=True",
+        1,
+        NULL,
+        "{\"output\":\"H2 + O2 -> H2O    : [2, 1, -2]\\npropane           : [1, 5, -3, -4]\\nethane (gcd)      : [2, 7, -4, -6]\\ndict input        : [2, 1, -2]\",\"why\":\"The signed stoichiometric coefficients fall straight out of the element-composition nullspace, first-nonzero pinned positive: 2 H2 + O2 -> 2 H2O (H2O negative = product), propane balances to [1,5,-3,-4], the ethane column needs the gcd stripped to reach the primitive [2,7,-4,-6], and formula strings and {element:count} dicts give the identical answer.\",\"worked\":\"from srmech.chemistry import balance_reaction\\n# Read reactant vs product from the SIGN: a negative coefficient is\\n# a product. Species may be formula strings or {element:count} dicts.\\nprint(\\\"H2 + O2 -> H2O    :\\\", balance_reaction([\\\"H2\\\", \\\"O2\\\", \\\"H2O\\\"]))\\nprint(\\\"propane           :\\\", balance_reaction([\\\"C3H8\\\", \\\"O2\\\", \\\"CO2\\\", \\\"H2O\\\"]))\\nprint(\\\"ethane (gcd)      :\\\", balance_reaction([\\\"C2H6\\\", \\\"O2\\\", \\\"CO2\\\", \\\"H2O\\\"]))\\nprint(\\\"dict input        :\\\", balance_reaction([{\\\"H\\\": 2}, {\\\"O\\\": 2}, {\\\"H\\\": 2, \\\"O\\\": 1}]))\"}",
+        NULL,
+        "WHAT - balances a chemical reaction and RETURNS the signed primitive integer coefficients. A balanced reaction is a vector v in the kernel of the ELEMENT x SPECIES matrix A (element conservation A.v = 0); each exact-Q kernel column is reduced to the smallest integer vector on its ray by the primitive_integer_vector keystone, first nonzero pinned positive. The SIGN carries direction - a negative coefficient is a product. Accepts formula strings, {element:count} dicts, or a raw element x species QMat interchangeably; exact-Q, numpy-free, no abs(). WHEN - reach for it to balance a reaction (combustion, redox, synthesis) from its species alone. An UNBALANCEABLE set (trivial kernel) raises; an UNDERDETERMINED set (kernel dim > 1) raises unless you pass all_balances=True to get every independent balance. SIBLINGS - it composes QMat.nullspace (the exact-Q kernel) with srmech.math.cyclic.primitive_integer_vector (the integer reduction), so do NOT hand-roll a float nullspace and round to integers - that is the exact mistake the keystone exists to prevent. conservation_laws is its transpose-in-role peer (SPECIES x REACTION, not element x species); parse_formula is the input tokenizer it calls on a formula string.",
+        NULL, 0u,
+        NULL, 0u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 524 */
+        "srmech.chemistry.conservation_laws",
+        "srmech",
+        "chemistry",
+        "The conserved moieties of a reaction network \342\200\224 an integer basis of the LEFT-nullspace of the stoichiometric matrix N (every gamma with gamma^T N = 0: a combination of species whose total is invariant under every reaction, i.e. mass / charge / moiety conservation). Computed as N.T.nullspace() with each kernel column reduced by the primitive_integer_vector keystone. N is the SPECIES x REACTION matrix of a NETWORK (rows = species, columns = reactions; entry = net change) \342\200\224 the transpose-in-role of balance_reaction's element x species matrix. For Michaelis-Menten E + S <-> ES -> E + P this returns two laws (total enzyme E + ES, and a substrate-matter moiety). Class L left-nullspace o Class I keystone; composition_of_c; exact-Q, numpy-free, no abs().",
+        ts_params_524, 1u,
+        "list",
+        "list[list[int]] \342\200\224 one primitive integer conservation vector per left-nullspace basis element (length = number of species each); empty when N has full row rank (no conserved moiety)",
+        1,
+        NULL,
+        "{\"output\":\"laws: [[1, 0, 1, 0], [1, -1, 0, -1]]\\ngamma^T N = [0, 0, 0]\\ngamma^T N = [0, 0, 0]\",\"why\":\"Michaelis-Menten E + S <-> ES -> E + P returns two conserved moieties - total enzyme (E + ES) and a substrate-matter combination - and each returned gamma satisfies gamma^T N = 0 exactly, so the conservation is verified, not asserted.\",\"worked\":\"from srmech.chemistry import conservation_laws\\n# Michaelis-Menten E + S <-> ES -> E + P. N is SPECIES x REACTION\\n# (rows E, S, ES, P; columns R1, R2, R3; entry = net change).\\nN = [[-1, 1, 1], [-1, 1, 0], [1, -1, -1], [0, 0, 1]]\\nlaws = conservation_laws(N)\\nprint(\\\"laws:\\\", laws)\\nfor g in laws:\\n    print(\\\"gamma^T N =\\\", [sum(g[i] * N[i][j] for i in range(4)) for j in range(3)])\"}",
+        NULL,
+        "WHAT - COMPUTES the conserved moieties of a reaction network: an integer basis of the LEFT-nullspace of the stoichiometric matrix N (every gamma with gamma^T N = 0 - a combination of species whose total is invariant under every reaction, i.e. mass / charge / moiety conservation). It is N.T.nullspace() with each kernel column reduced by the primitive_integer_vector keystone; exact-Q, numpy-free, no abs(). WHEN - reach for it to find what a network keeps fixed: total enzyme, total phosphate, a charge balance. It RETURNS the empty list when N has full row rank (no conserved moiety). SIBLINGS - do NOT confuse its matrix with balance_reaction: N here is SPECIES x REACTION (rows = species, columns = reactions), the transpose-in-role of the ELEMENT x SPECIES matrix - conflating them is the #1 correctness trap this domain guards against. It shares the QMat.nullspace + primitive_integer_vector composition with balance_reaction, so do not re-derive denominator-clearing beside it; deficiency consumes the same stoichiometric N to compute rank(N) = s.",
+        NULL, 0u,
+        NULL, 0u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 525 */
+        "srmech.chemistry.deficiency",
+        "srmech",
+        "chemistry",
+        "The Feinberg deficiency delta of a chemical reaction network: delta = n - l - s = rank(L_complex) - rank(N), where n = number of distinct complexes, l = number of linkage classes (connected components of the complex graph), and s = rank(N) = dimension of the stoichiometric subspace. delta is a NON-NEGATIVE integer fixed by network topology alone (independent of rate constants). rank(L_complex) = n - l is the exact rank of the combinatorial graph Laplacian of the complex graph (a graph Laplacian has rank = vertices - components); rank(N) is the Class-J QMat.rank. A -> B has delta 0; 2A -> A+B -> 2B -> 2A has delta 1. Definitional and stated self-contained; standard reference M. Feinberg, Foundations of Chemical Reaction Network Theory (Springer, Applied Mathematical Sciences 202, 2019) and the open-access Lectures on Chemical Reaction Networks (Univ. of Wisconsin MRC, 1979/1980). Class L Laplacian o Class J rank; composition_of_c; exact-Q, numpy-free, no abs().",
+        ts_params_525, 2u,
+        "int",
+        "the deficiency delta (default); or {'deficiency', 'n_complexes', 'n_linkage_classes', 'rank_stoichiometric'} when with_components=True",
+        1,
+        NULL,
+        "{\"output\":\"A <-> B     : {'deficiency': 0, 'n_complexes': 2, 'n_linkage_classes': 1, 'rank_stoichiometric': 1}\\n2A/A+B/2B   : {'deficiency': 1, 'n_complexes': 3, 'n_linkage_classes': 1, 'rank_stoichiometric': 1}\\ndelta only  : 1\",\"why\":\"The isomerization A <-> B has deficiency 0 (n=2, l=1, s=1) and the classic 2A -> A+B -> 2B -> 2A network has deficiency 1 (n=3, l=1, s=1); with_components exposes the n / l / s breakdown, and the bare call returns just the integer delta.\",\"worked\":\"from srmech.chemistry import deficiency\\n# delta = n - l - s = rank(L_complex) - rank(N): n distinct complexes,\\n# l linkage classes (components of the complex graph), s = rank(N).\\nprint(\\\"A <-> B     :\\\", deficiency([({\\\"A\\\": 1}, {\\\"B\\\": 1})], with_components=True))\\ntri = [({\\\"A\\\": 2}, {\\\"A\\\": 1, \\\"B\\\": 1}), ({\\\"A\\\": 1, \\\"B\\\": 1}, {\\\"B\\\": 2}), ({\\\"B\\\": 2}, {\\\"A\\\": 2})]\\nprint(\\\"2A/A+B/2B   :\\\", deficiency(tri, with_components=True))\\nprint(\\\"delta only  :\\\", deficiency(tri))\"}",
+        NULL,
+        "WHAT - COMPUTES the Feinberg deficiency delta = n - l - s = rank(L_complex) - rank(N) of a reaction network: n distinct complexes, l linkage classes (connected components of the complex graph), s = rank(N) = dimension of the stoichiometric subspace. delta is a non-negative integer fixed by network topology alone (independent of rate constants). rank(L_complex) = n - l is the exact rank of the combinatorial graph Laplacian of the complex graph; rank(N) is the Class-J QMat.rank. WHEN - reach for it to read a network structural invariant: the Feinberg deficiency-zero and deficiency-one theorems constrain the steady states of many mass-action networks from delta alone. Pass with_components=True for the n / l / s breakdown. Standard reference: M. Feinberg, Foundations of Chemical Reaction Network Theory (Springer AMS 202, 2019). SIBLINGS - it composes dense_laplacian (Class L) with QMat.rank (Class J); do NOT hand-roll a connected-components count for l - the graph Laplacian rank IS n - l, exactly. conservation_laws reads the same stoichiometric N from the other side (its left-nullspace), and rank(N) here is that matrix rank.",
+        NULL, 0u,
+        NULL, 0u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 526 */
+        "srmech.chemistry.parse_formula",
+        "srmech",
+        "chemistry",
+        "Parse a chemical formula string into an {element: count} dict \342\200\224 the ergonomic input balance_reaction accepts. Handles multi-letter element symbols (\"Ca\", \"Cl\"), implicit and explicit ASCII-digit counts (\"O\" -> 1, \"O2\" -> 2), and arbitrarily NESTED parenthesised groups with a trailing multiplier (\"Ca3(PO4)2\" -> {Ca:3, P:2, O:8}; \"(OH)2\" -> {O:2, H:2}). DEFERS (raises, never silently mis-parses) hydrate dots, charges, and isotope/bracket syntax (out of `#T1050` scope). Class F/G (Render / byte-search): a bounded placeholder scan, the srmech_template_render family. Dispatches to the JPL-clean caller-arena C twin srmech_parse_formula (the pure-Python body is the byte-identical fallback and parity oracle); c_dispatched.",
+        ts_params_526, 1u,
+        "dict",
+        "{element: count} \342\200\224 element symbol -> total count; repeated occurrences accumulate",
+        1,
+        NULL,
+        "{\"output\":\"Ca3(PO4)2 : {'Ca': 3, 'P': 2, 'O': 8}\\n(OH)2     : {'O': 2, 'H': 2}\\nH2O       : {'H': 2, 'O': 1}\\nC12H22O11 : {'C': 12, 'H': 22, 'O': 11}\",\"why\":\"Nested parenthesised groups distribute their multiplier (Ca3(PO4)2 -> P:2, O:8), multi-letter symbols and implicit counts parse correctly (H2O -> H:2, O:1), and repeated occurrences accumulate - the ergonomic input balance_reaction accepts.\",\"worked\":\"from srmech.chemistry import parse_formula\\n# Multi-letter symbols, implicit/explicit counts, nested groups.\\nprint(\\\"Ca3(PO4)2 :\\\", parse_formula(\\\"Ca3(PO4)2\\\"))\\nprint(\\\"(OH)2     :\\\", parse_formula(\\\"(OH)2\\\"))\\nprint(\\\"H2O       :\\\", parse_formula(\\\"H2O\\\"))\\nprint(\\\"C12H22O11 :\\\", parse_formula(\\\"C12H22O11\\\"))\"}",
+        NULL,
+        "WHAT - parses a chemical formula string and RETURNS an {element:count} dict. Handles multi-letter element symbols (Ca, Cl), implicit and explicit ASCII-digit counts (O -> 1, O2 -> 2), and arbitrarily NESTED parenthesised groups with a trailing multiplier (Ca3(PO4)2 -> {Ca:3, P:2, O:8}); repeated occurrences accumulate. It is Class F/G (a bounded placeholder/byte scan, the srmech_template_render family) and dispatches to the JPL-clean C twin srmech_parse_formula, with the pure-Python explicit-stack body as the byte-identical fallback and parity oracle. WHEN - reach for it to turn a formula string into the dict balance_reaction consumes, INSTEAD OF hand-writing a regex: it gets nested parentheses, multi-letter symbols and implicit counts right, and it DEFERS (raises on, never silently mis-parses) hydrate dots, charges and isotope/bracket syntax that a naive regex would corrupt. SIBLINGS - balance_reaction calls it on each formula-string species, so you rarely call it directly; it is a parser, not a math op, so unlike balance_reaction / conservation_laws / deficiency it carries a dedicated C kernel rather than composing the QMat surface.",
+        NULL, 0u,
+        NULL, 0u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 527 */
         "srmech.bus.decode_splice",
         "srmech",
         "bus",
         "Decode one frame of a UTLP Bio-TOTP bus channel (Claim 255 alignment) given the per-channel DNA secret. Pure function (no side effects); suitable for LLM / agent introspection of mid-stream traffic. Returns (plaintext, used_time_ns); the plaintext is the original JSON-encoded bus Event and the used_time_ns is the candidate time-bucket value that successfully decoded (the current bucket or \302\2611 bucket for clock-skew tolerance). Cipher: AES-128-CTR when ``pip install srmech[crypto]`` extra is installed (UTLP-exact path); HMAC-SHA-256 counter-mode keystream by default (stdlib-only, structurally equivalent for the defensive-scope threat model). Key derivation rolls every 250 ms (WINDOW_NS=250_000_000; configurable via ``SRMECH_BUS_TOTP_WINDOW_NS`` env var); the receiver tolerates \302\2611 window for clock skew. Frame layout: [nonce:16][ciphertext]; nonce = sender_id_u64 || channel_id_u32 || packet_seq_u32. Pass ZERO_DNA (b'\\x00'*32) for herd-immunity / public mode. v0.5.0rc7 (Bio-TOTP wire format; UTLP Claim 255).",
-        ts_params_523, 4u,
+        ts_params_527, 4u,
         "tuple[bytes, int]",
         "(plaintext, used_time_ns) \342\200\224 JSON-encoded bus Event bytes, and the candidate time value that decoded successfully.",
         1,
@@ -12618,12 +12704,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 524 */
+    { /* 528 */
         "srmech.bus.list_endpoints",
         "srmech",
         "bus",
         "Enumerate currently-running srmech.bus endpoints owned by the current user by scanning the `~/.srmech/bus-*.sock` (POSIX) / `~/.srmech/bus-*.txt` (Windows) registry directory. Best-effort liveness check per endpoint (POSIX: UDS connect probe; Windows: TCP loopback connect or WaitNamedPipeW probe). Side effect (when `cleanup_dead=True`, the default): registration files for endpoints whose server is no longer accepting connections are removed from disk on read. Returns `[]` on Pyodide / WASM (no socket support). Sorted alphabetically by endpoint name. v0.5.0rc9 (MCP / catalog discoverability; backing function shipped since v0.5.0rc1).",
-        ts_params_524, 1u,
+        ts_params_528, 1u,
         "list[Endpoint]",
         "Each Endpoint is a frozen dataclass: name (str), path (pathlib.Path), transport ('uds' POSIX / 'pipe' or 'tcp' Windows), alive (bool), pid (Optional[int], currently always None \342\200\224 reserved for a future rc that records owner PID in the registry file).",
         1,
@@ -12636,12 +12722,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 525 */
+    { /* 529 */
         "srmech.bus.by_name",
         "srmech",
         "bus",
         "Look up one srmech.bus endpoint by name. Same registry scan as `srmech.bus.list_endpoints` but returns just the matching record (or `None` if no endpoint of that name is registered for the current user). Does NOT auto-clean dead-endpoint registration files (the caller may want to inspect a dead endpoint's record). Returns `None` on Pyodide / WASM. v0.5.0rc9 (MCP / catalog discoverability; backing function shipped since v0.5.0rc1).",
-        ts_params_525, 1u,
+        ts_params_529, 1u,
         "Endpoint | None",
         "Frozen dataclass with name (str), path (pathlib.Path), transport ('uds' / 'pipe' / 'tcp'), alive (bool), pid (Optional[int]). `None` when no matching endpoint is registered.",
         1,

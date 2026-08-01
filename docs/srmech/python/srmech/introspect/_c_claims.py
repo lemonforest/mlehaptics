@@ -389,6 +389,10 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
         'srmech_fft_c128',
         'srmech_fft_c128_ws_bound',
     ),
+    'srmech.chemistry.formula.parse_formula': (
+        'srmech_parse_formula',
+        'srmech_parse_formula_ws_bound',
+    ),
     'srmech.introspect.naming.lookup': ('srmech_catalog_lookup',),
     'srmech.introspect.naming.reverse_order': ('srmech_reverse_order',),
     'srmech.introspect.op_provenance.op_provenance_hash': (

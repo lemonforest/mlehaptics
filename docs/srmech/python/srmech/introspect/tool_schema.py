@@ -11140,6 +11140,143 @@ def _register_music_tools() -> None:
         register_tool(e)
 
 
+def _register_chemistry_tools() -> None:
+    """Register the ``srmech.chemistry`` domain (v0.9.0rc379, `#T1050`).
+
+    Reaction networks as exact-integer linear algebra: balance a reaction, read
+    its conserved moieties, compute its Feinberg deficiency, and tokenize a
+    formula. The three math ops COMPOSE the already-C-backed carrier surface
+    (``QMat`` nullspace / rank, the graph Laplacian, and the rc378
+    ``primitive_integer_vector`` keystone) → ``composition_of_c``, no new kernel.
+    ``parse_formula`` is the one genuinely new capability and carries a dedicated
+    C twin ``srmech_parse_formula`` → ``c_dispatched``. Declarative ToolEntry
+    data only — no ``srmech.chemistry`` import here, so no import cycle.
+
+    ⚠️ TWO DIFFERENT MATRICES: ``balance_reaction`` builds ELEMENT × SPECIES;
+    ``conservation_laws`` / ``deficiency`` build SPECIES × REACTION.
+    """
+    P = ToolParameter
+    R = ToolReturn
+    entries = [
+        ToolEntry(
+            name="srmech.chemistry.balance_reaction", owner="srmech",
+            category="chemistry",
+            summary="Balance a chemical reaction -> signed primitive integer "
+                    "coefficients. A balanced reaction is a vector v in the "
+                    "kernel of the ELEMENT x SPECIES matrix A (element "
+                    "conservation A.v = 0); each exact-Q kernel column is reduced "
+                    "to the smallest integer vector on its ray by the rc378 "
+                    "primitive_integer_vector keystone, canonical sign = first "
+                    "nonzero entry positive. Read reactant vs product from the "
+                    "SIGN: a NEGATIVE coefficient is a product. "
+                    "['H2','O2','H2O'] -> [2, 1, -2] (2 H2 + O2 -> 2 H2O). "
+                    "Accepts formula strings, {element: count} dicts, or a raw "
+                    "element x species QMat, interchangeably. Raises on an "
+                    "UNBALANCEABLE reaction (trivial kernel); an UNDERDETERMINED "
+                    "reaction (kernel dim > 1) raises unless all_balances=True, "
+                    "which returns every independent balance. Class L nullspace o "
+                    "Class I/K/C keystone; composition_of_c; exact-Q, numpy-free, "
+                    "no abs().",
+            parameters=(P("species", "Sequence[str | dict[str,int]] | QMat", True,
+                          "the reaction's species: a list of formula strings "
+                          "(\"H2O\") and/or {element: count} dicts (mixable), or a "
+                          "raw element x species QMat (rows = elements, columns = "
+                          "species)"),
+                        P("all_balances", "bool", False,
+                          "when the kernel dimension is > 1, return every "
+                          "primitive basis vector instead of raising; default "
+                          "False")),
+            returns=R("list", "list[int] — the signed primitive coefficients "
+                              "(kernel dim 1, the usual case); or list[list[int]] "
+                              "(one primitive vector per independent balance) when "
+                              "all_balances=True"),
+        ),
+        ToolEntry(
+            name="srmech.chemistry.conservation_laws", owner="srmech",
+            category="chemistry",
+            summary="The conserved moieties of a reaction network — an integer "
+                    "basis of the LEFT-nullspace of the stoichiometric matrix N "
+                    "(every gamma with gamma^T N = 0: a combination of species "
+                    "whose total is invariant under every reaction, i.e. mass / "
+                    "charge / moiety conservation). Computed as N.T.nullspace() "
+                    "with each kernel column reduced by the "
+                    "primitive_integer_vector keystone. N is the SPECIES x "
+                    "REACTION matrix of a NETWORK (rows = species, columns = "
+                    "reactions; entry = net change) — the transpose-in-role of "
+                    "balance_reaction's element x species matrix. For "
+                    "Michaelis-Menten E + S <-> ES -> E + P this returns two "
+                    "laws (total enzyme E + ES, and a substrate-matter moiety). "
+                    "Class L left-nullspace o Class I keystone; composition_of_c; "
+                    "exact-Q, numpy-free, no abs().",
+            parameters=(P("N", "QMat | Sequence[Sequence[int | Q]]", True,
+                          "the stoichiometric matrix (rows = species, columns = "
+                          "reactions) as a QMat or a nested int/Q sequence"),),
+            returns=R("list", "list[list[int]] — one primitive integer "
+                              "conservation vector per left-nullspace basis "
+                              "element (length = number of species each); empty "
+                              "when N has full row rank (no conserved moiety)"),
+        ),
+        ToolEntry(
+            name="srmech.chemistry.deficiency", owner="srmech",
+            category="chemistry",
+            summary="The Feinberg deficiency delta of a chemical reaction "
+                    "network: delta = n - l - s = rank(L_complex) - rank(N), "
+                    "where n = number of distinct complexes, l = number of "
+                    "linkage classes (connected components of the complex graph), "
+                    "and s = rank(N) = dimension of the stoichiometric subspace. "
+                    "delta is a NON-NEGATIVE integer fixed by network topology "
+                    "alone (independent of rate constants). rank(L_complex) = "
+                    "n - l is the exact rank of the combinatorial graph Laplacian "
+                    "of the complex graph (a graph Laplacian has rank = vertices "
+                    "- components); rank(N) is the Class-J QMat.rank. A -> B has "
+                    "delta 0; 2A -> A+B -> 2B -> 2A has delta 1. Definitional and "
+                    "stated self-contained; standard reference M. Feinberg, "
+                    "Foundations of Chemical Reaction Network Theory (Springer, "
+                    "Applied Mathematical Sciences 202, 2019) and the open-access "
+                    "Lectures on Chemical Reaction Networks (Univ. of Wisconsin "
+                    "MRC, 1979/1980). Class L Laplacian o Class J rank; "
+                    "composition_of_c; exact-Q, numpy-free, no abs().",
+            parameters=(P("reactions", "Sequence[tuple[complex, complex]]", True,
+                          "an iterable of (reactant, product) pairs; each complex "
+                          "is an {species: coeff} dict ({\"A\": 2} for 2A), a bare "
+                          "species-name str (coeff 1), or the zero complex "
+                          "(\"\"/\"0\"/None for the empty complex in a "
+                          "synthesis/degradation step)"),
+                        P("with_components", "bool", False,
+                          "return the full breakdown dict instead of the bare "
+                          "integer; default False")),
+            returns=R("int", "the deficiency delta (default); or {'deficiency', "
+                             "'n_complexes', 'n_linkage_classes', "
+                             "'rank_stoichiometric'} when with_components=True"),
+        ),
+        ToolEntry(
+            name="srmech.chemistry.parse_formula", owner="srmech",
+            category="chemistry",
+            summary="Parse a chemical formula string into an {element: count} "
+                    "dict — the ergonomic input balance_reaction accepts. Handles "
+                    "multi-letter element symbols (\"Ca\", \"Cl\"), implicit and "
+                    "explicit ASCII-digit counts (\"O\" -> 1, \"O2\" -> 2), and "
+                    "arbitrarily NESTED parenthesised groups with a trailing "
+                    "multiplier (\"Ca3(PO4)2\" -> {Ca:3, P:2, O:8}; \"(OH)2\" -> "
+                    "{O:2, H:2}). DEFERS (raises, never silently mis-parses) "
+                    "hydrate dots, charges, and isotope/bracket syntax "
+                    "(out of `#T1050` scope). Class F/G (Render / byte-search): a "
+                    "bounded placeholder scan, the srmech_template_render family. "
+                    "Dispatches to the JPL-clean caller-arena C twin "
+                    "srmech_parse_formula (the pure-Python body is the "
+                    "byte-identical fallback and parity oracle); c_dispatched.",
+            parameters=(P("formula", "str", True,
+                          "the formula string; element = [A-Z][a-z]*, count = a "
+                          "run of ASCII digits (default 1), groups nest with "
+                          "( ... ) and an optional trailing count"),),
+            returns=R("dict", "{element: count} — element symbol -> total count; "
+                              "repeated occurrences accumulate"),
+        ),
+    ]
+    for e in entries:
+        register_tool(e)
+
+
 def warmup_all() -> None:
     """Import every srmech submodule that registers ToolEntries, so the
     registry is fully populated no matter how srmech was entered (library,
@@ -11191,6 +11328,7 @@ _register_introspect_tools()
 _register_dsl_tools()
 _register_rbs_lm_tools()
 _register_music_tools()
+_register_chemistry_tools()
 
 
 __all__ = [
