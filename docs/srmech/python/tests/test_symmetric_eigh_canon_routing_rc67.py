@@ -150,7 +150,7 @@ def test_no_residual_np_linalg_eigh_in_symmetric_eigendecompose():
     to hermitian_eigendecompose."""
     import srmech
 
-    src = (pathlib.Path(srmech.__file__).parent / "amsc" / "laplacian.py").read_text(
+    src = (pathlib.Path(srmech.__file__).parent / "math" / "laplacian.py").read_text(
         encoding="utf-8"
     )
     # isolate the symmetric_eigendecompose function body
