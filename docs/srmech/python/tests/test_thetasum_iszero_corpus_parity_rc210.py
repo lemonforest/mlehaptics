@@ -30,7 +30,7 @@ from srmech.amsc import ThetaSum
 from srmech.apokatastasis.ellbase import EllMonomial, Theta
 from srmech.math.q import Q
 from srmech.apokatastasis.thetasum import _NONZERO, _ZERO, _decide_thetasum
-from srmech.amsc import _native
+from srmech import _native
 
 _NDJ = os.path.join(os.path.dirname(__file__), "data",
                     "thetasum_iszero_corpus_rc210.ndjson")

@@ -134,7 +134,7 @@ from __future__ import annotations
 from itertools import combinations
 from typing import Dict, Iterable, List, Mapping, Tuple
 
-from ..amsc import _native as _nat
+from .. import _native as _nat
 from .ellbase import EllMonomial, EllRatio, Theta, _P, _X, _coerce_q
 from ..math.q import Q
 

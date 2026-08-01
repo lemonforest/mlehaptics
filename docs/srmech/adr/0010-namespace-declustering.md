@@ -1486,3 +1486,120 @@ module, so no dynamic module-path names any of the four.
   `ModuleNotFoundError`; `describe` total **525**; whole-suite `pytest --co -q` **0 ImportError**; the genome/q8
   audit + dynamic-import tests PASS; census / op-name-set / decode-aware / rosetta / def_parity / no-stdlib-math
   green; `regen --check` up to date.
+
+## Amendment M — the ELEVENTH and FINAL slice, the introspect/native CORE: ten modules leave, `amsc` drains to its four keepers, ADR-0010 execution COMPLETE, v0.9.0rc376 (`#T1034`)
+
+rc376 moves the **last ten non-keeper modules** out of `srmech.amsc` in one slice, taking the live population
+to exactly the four attestation keepers (`format` / `catalog` / `descriptor` / `gap_suggester`). **The module
+arc is DONE.** The ten split three ways: the six introspection-core modules `tool_schema` / `_tool_docs` /
+`_tool_docs_curated` / `_carrier_examples` / `_c_claims` / `carrier_schema` → `srmech.introspect`; the two
+Unicode tables `_unicode_fold_tables` / `_unicode_gb_tables` → `srmech.math` (their SOLE consumer is
+`srmech/math/text.py`); `compose` → `srmech.cascade`; and `_native` **realized as the `srmech._native`
+PACKAGE** (see M.1). It is the arc's largest single fan-out: `_native` alone is imported by ~347 absolute
+`from srmech.amsc import _native` sites plus ~24 relative ones, and the whole slice touched **520 files**.
+
+### M.1 The `_native` REALIZATION — `_native.py` → `_native/__init__.py`, shim and `.so` co-located
+
+`srmech/_native/` already existed as a bare directory that the platform build installs `libsrmech.{so,dll,dylib}`
+into. rc376 makes it a real package: `git mv srmech/amsc/_native.py srmech/_native/__init__.py`, so the ctypes
+shim and the binary it loads now co-locate in one `srmech/_native/` package. The loader (`_find_library`,
+strategies 1–3) is UNCHANGED and works from the new location — both projections verified: the numpy-absent
+source cell loads `HAS_NATIVE=False` (pure), and a fresh venv with the installed **platform wheel** loads
+`HAS_NATIVE=True`, `ABI=10`, `LIB` bound, `describe` total 525, from `.../srmech/_native/__init__.py`.
+
+⚠️ **The MANDATORY packaging fix.** `pyproject-pure.toml` (hatchling) previously excluded the WHOLE
+`srmech/_native/*` + `**` tree — correct while the shim lived in `amsc/` and `_native/` held only the binary,
+but after the realization that would DROP the shim from the pure wheel and break every pure install. The
+excludes are NARROWED to BINARIES ONLY (`*.so` / `*.dll` / `*.dylib` / `*.dll.a` / `*.lib` / `*.pyd`) in both
+the wheel and sdist targets, so `srmech/_native/*.py` SHIPS. `pyproject.toml` (scikit-build-core) needed NO
+change — `wheel.packages=["srmech"]` copies the new `__init__.py`, CMake installs the `.so` into the same dir.
+**Both wheels build-verified:** the pure `py3-none-any` wheel contains `srmech/_native/__init__.py` and ZERO
+binaries; the platform `cp310…linux_x86_64` wheel contains BOTH `srmech/_native/__init__.py` AND
+`srmech/_native/libsrmech.so`.
+
+### M.2 THE COUNT AMENDMENT — A.2's "73 of 75" classification gap CLOSED to 75/75
+
+Through Amendment L the A.2 destination table summed to 74 against the tree's 75 — A.2's own acknowledged
+residual 1. rc376 resolves it: the two Unicode tables A.2 left unclassified belong to `srmech.math` (their sole
+consumer is `math/text.py`), so `ADR_A2_DESTINATION_COUNTS` moves `srmech.introspect` **10 → 9** and
+`srmech.math` **28 → 30** (net **+1**), the table now sums to **75 == the original tree**, and the census
+assertions flip `sum(...)==74 → ==75` and `ORIGINAL_N − sum == 1 → == 0`. The introspect bucket is truly 9,
+not 10: its nine members are the six moved this slice (`tool_schema`, `_tool_docs`, `_tool_docs_curated`,
+`_carrier_examples`, `_c_claims`, `carrier_schema`) plus the already-landed `naming` / `op_provenance` /
+`responsion_schema`. The census comment that read "carrier_schema STAYS in amsc" was a STALE DEFECT — it is the
+introspect SURFACE, not a carrier, and introspect (NAMED_DEPARTURES + this ADR) is authoritative; corrected.
+
+### M.3 The `compose` COLLISION pre-emption (stated so it is not rediscovered as a bug)
+
+There are TWO `compose.py`. **This slice moves `srmech/amsc/compose.py`** — the ADR-0002 chain engine
+(`run_chain` / `resolve_chain` / `parse_chain_spec` / `parse_catalog_chains`) — to `srmech/cascade/compose.py`
+(a clean landing: `srmech/cascade/` had no `compose.py`). **`srmech/amsc/cascade/compose.py` is a DIFFERENT
+module** (a separate future slice) and was NOT touched; `amsc/cascade/__init__.py`'s `from . import compose` /
+`from .compose import` refer to THAT module and correctly STAY. The dotted-prefix sweeps target
+`srmech.amsc.compose` (which never matches `srmech.amsc.cascade.compose`), so the collision cannot be tripped
+by a mechanical replace.
+
+### M.4 The sweep — the forms this slice actually hit, and two the move-plan under-specified
+
+HIT: **[1]** dotted `srmech.amsc.<m>` across live source/tests/C/tools/`.github` · **[2]** slash
+`amsc/<m>` filesystem paths (incl. the codegen output paths + `load_committed`) · **[3]**
+`from srmech.amsc import <m>` **absolute member-imports — 381 of them, 347 being `_native`** — plus six
+distinct MULTI-module forms (`from srmech.amsc import _native, cascade`, `… _native, format as …`,
+`… ThetaSum, _native`, `… catalog, compose`, …) each SPLIT so the keeper stays in `amsc` and the mover
+repoints · **[4]** relative up-reach inside `amsc` keepers/subpackages — `catalog.py` / `format.py`
+`from . import _native` → `from .. import _native`, `catalog.py` `from . import compose` →
+`from ..cascade import compose`, `cascade/one.py` `from .. import _native` → `from ... import _native`, and the
+moved files' own per-new-home imports (`tool_schema`/`carrier_schema` `from . import _native` → `from ..`,
+`carrier_schema`'s `.cascade.cayley_dickson` → `..amsc.cascade.cayley_dickson`, `_native`'s `._c_claims` →
+`..introspect._c_claims`) · **[5]** worked-examples ledger (regenerated native-absent, `native:false`) ·
+**[6]** C comments (`srmech_meta.c` `_native` loader, `srmech_infer.c` `srmech._native.gosper_c`,
+`srmech_compose*.c`, `srmech_carrier_schema.c`, `srmech.h`, `README.md`) — the C SYMBOLS are capability-named
+and DO NOT rename · **[7]** `.github/workflows/srmech-ci.yml` (both the standalone `from … import _native`
+lines AND the three embedded `python -c "…"` one-liners a line-start sweep misses) · the `.ndjson` Rosetta
+ledger (13 rows: tool_schema ×7, compose ×5, carrier_schema ×1). NOT explicitly in the move-plan but FOUND and
+fixed: the **codegen generator OUTPUT paths** (`codegen_manifest.GENERATORS` `gen_tool_docs` /
+`gen_c_claims` outputs, the `gen_curated_probe` / `gen_carrier_examples_probe` / `gen_unicode_*`
+`os.path.join(…, "amsc", …)` write paths) — left stale, `regen_all` would have re-emitted the moved files back
+into `amsc`. `srmech/__init__.py`'s `warmup_all` import repointed `.amsc.tool_schema` → `.introspect.tool_schema`
+and `amsc/__init__.py`'s side-effect `from . import tool_schema` was removed (registration now fires from the
+`srmech.__init__` end via `warmup_all()`). The `native_status()` docstring's "srmech.amsc._native (shim) vs
+srmech._native (data dir)" contrast INVERTED at the move and was rewritten true.
+
+### M.5 The instrument set (all re-pinned in the SAME commit, MEASURED post-regen)
+
+- **Census**: **14 → 4 modules** (== the four keepers; the module arc is COMPLETE, `KEEPERS ==
+  _manifest_modules()`); digest `b7443cd0…` → **`7536f292…`**; `LANDED` 61 → **71**; conservation
+  **`4 + 71 == 75`**. `NAMED_DEPARTURES` gains the six introspect-core modules + the two Unicode tables;
+  `ADR_A2_DESTINATION_COUNTS` introspect 10→9 / math 28→30 (M.2). The `test_the_census_can_actually_fail`
+  stand-in leaver now runs on a HYPOTHETICAL pre-completion population (add `compose` back, then remove it) —
+  the manifest holds only keepers, so there is no real non-keeper left to retire as the stand-in.
+- **Op-name-set witness**: **5** op names amsc→ (`compose.*` → `srmech.cascade` ×4, `carrier_schema` →
+  `srmech.introspect` ×1); digest `e52e8d11…` → **`e85eb71e…`**; `EXPECTED_N` **stays 525** (a rename, not an add).
+- **Decode-aware** — **the AS-TEXT channel only; DECODED is FLAT at 126** (no moved op had a back-index ref in
+  a hoisted byte array — `compose`/`carrier_schema` are not carrier ops, and the six introspect-core infra
+  modules register no ops). `srmech_carrier_registry.c` **(68, 97) → (67, 97)**; `srmech_tool_registry.c`
+  **(282, 0) → (257, 0)**; `_tool_docs.py` **(275, 0) → (252, 0)**; `_c_claims.py` **(59, 0) → (58, 0)**;
+  class + responsion registries UNCHANGED. **`TOTAL_AS_TEXT` 687 → 637** (−50), **`TOTAL_DECODED` 126 → 126**.
+  The pinned population asserts (`amsc 97` / `math 320` / `biology 99` / `apokatastasis 13` / `music 13` /
+  class-decoded 29) all HELD — this slice moved no operator whose refs live in the decoded channel.
+- **C surface / ABI**: no C SYMBOL renamed (`srmech_compose*` / `srmech_carrier_schema` / the `_native` ctypes
+  bindings are all capability-named); only Python-side dotted keys moved. **ABI stays 10.**
+- **Rosetta**: the 13 moved op rows repointed amsc→{introspect, cascade} in `rosetta_classification.ndjson`;
+  completeness + transitive + roots-single-source green.
+- **Regenerated artifacts** (`tools/regen_all.py`, native-absent): `introspect/_tool_docs.py` rewrote (the moved
+  op keys); all 6 outputs content-equal + idempotent (byte-identical across two passes); `regen --check` green.
+- **Verification** (numpy-absent WSL): all 4 moved-destination imports succeed; 6/6 `srmech.amsc.<m>` raise
+  `ModuleNotFoundError`; `describe` total **525** in BOTH the pure cell and the installed-platform-wheel native
+  cell (`HAS_NATIVE=True`, ABI 10); whole-suite `pytest --co -q` **13034 tests, 0 ImportError**; the audit /
+  dynamic tests (codegen_manifest, tool_schema, carrier_schema, compose, chain-runner, unicode, text, introspect
+  / native_status) PASS (283 passed, 39 native-path skips); census / op-name-set / decode-aware / rosetta
+  (completeness + transitive + roots-single-source) / def_parity / no-stdlib-math green; `regen --check` up to date.
+
+### M.6 ADR-0010 EXECUTION IS COMPLETE
+
+`srmech.amsc` now holds exactly its four attestation keepers (`format` / `catalog` / `descriptor` /
+`gap_suggester`) plus the two attestation subpackages (`adapters` / `attested`) and the `cascade` subpackage
+(A.2's separate subpackage row, a distinct future concern). The 71-module drain that A.2 planned is DONE across
+eleven slices (rc366 → rc376). The census `test_the_end_state_floor_is_the_four_keepers` now asserts EQUALITY
+(`KEEPERS == _manifest_modules()`) rather than strict-superset — the completion condition A.5 documented, now
+reached.

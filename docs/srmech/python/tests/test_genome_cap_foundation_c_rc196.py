@@ -24,7 +24,7 @@ from __future__ import annotations
 import pytest
 
 from srmech.biology import genome
-from srmech.amsc import _native
+from srmech import _native
 
 
 _NS = ([1, 2, 3, 255, 256, 257, 512, 1023, 1024, 1025, 4095, 4096, 4097, 5000,

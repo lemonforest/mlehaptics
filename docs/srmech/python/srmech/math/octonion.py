@@ -64,7 +64,7 @@ import ctypes
 import functools
 from typing import List, Sequence, Tuple
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math.hv import HV as _HV  # noqa: F401  (parity with q8; carrier HV type)
 
 #: The octonion loop alphabet size (4 bits: 3 for the e₀..e₇ index, 1 for the

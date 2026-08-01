@@ -8,7 +8,7 @@
  * ORDER this file depends on. rc346 left it stale on purpose to keep its
  * own zero-delta signal clean; rc347 already moves these bytes.
  *
- * Source of truth: srmech.amsc.carrier_schema._pure_carrier_schema()
+ * Source of truth: srmech.introspect.carrier_schema._pure_carrier_schema()
  * (the authored per-carrier metadata + the DERIVED ops back-index).
  * The 0.9.0rc205 CARRIER (operand) introspection registry (gh #1293)
  * as a const data table (JPL-clean: const arrays, no dynamic init,

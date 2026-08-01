@@ -95,7 +95,7 @@ def _native():
     present and bound, else ``None`` (so the op dispatches to C when available and falls
     cleanly to the pure-Python body). Imported lazily to avoid a bootstrap cycle."""
     try:
-        from ..amsc import _native as nat
+        from .. import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_elliptic_wz_certificate", None)

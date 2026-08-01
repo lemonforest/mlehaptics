@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc375"
-#define SRMECH_VERSION       "0.9.0rc375"
+#define SRMECH_VERSION_PRE   "rc376"
+#define SRMECH_VERSION       "0.9.0rc376"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -2897,13 +2897,13 @@ srmech_status_t srmech_catalog_attestation_audit(
     void *ws, size_t ws_len, char *out, size_t out_cap, size_t *out_len);
 
 /* ------------------------------------------------------------------ *
- * amsc.compose LINEAR CHAIN-RUNNER — PARSE + VALIDATE (0.9.0rc173; the
+ * cascade.compose LINEAR CHAIN-RUNNER — PARSE + VALIDATE (0.9.0rc173; the
  * ORCHESTRATION→C spine, batch 3). A bare-C host parses + validates an
  * operator-chain descriptor's `[[catalog.operator_chain]]` blocks with
  * these peers, each COMPOSING the srmech_json parser / builder / canonical
  * writer — NO new parser, NO new math. They back the Python ops
- *   srmech.amsc.compose.parse_chain_spec     -> srmech_chain_spec_parse
- *   srmech.amsc.compose.parse_catalog_chains -> srmech_chain_catalog_parse
+ *   srmech.cascade.compose.parse_chain_spec     -> srmech_chain_spec_parse
+ *   srmech.cascade.compose.parse_catalog_chains -> srmech_chain_catalog_parse
  *
  * SCOPE (honest split): PARSE + VALIDATE only. The RUN loop (resolve_chain /
  * run_chain) is NOT here — it dispatches ARBITRARY srmech ops (heterogeneous
@@ -2944,11 +2944,11 @@ srmech_status_t srmech_chain_catalog_parse(
     void *ws, size_t ws_len, char *out, size_t out_cap, size_t *out_len);
 
 /* ------------------------------------------------------------------ *
- * amsc.compose LINEAR CHAIN-RUNNER — the RUN LOOP (0.9.0rc174; the
+ * cascade.compose LINEAR CHAIN-RUNNER — the RUN LOOP (0.9.0rc174; the
  * ORCHESTRATION→C spine, batch 4; srmech_compose_run.c).
  *
  * srmech_chain_run RUNS a validated `[[catalog.operator_chain]]` end-to-end in
- * C to BYTE-IDENTICAL OUTPUT, backing srmech.amsc.compose.run_chain /
+ * C to BYTE-IDENTICAL OUTPUT, backing srmech.cascade.compose.run_chain /
  * resolve_chain (whose Python closure over the live object graph is NOT
  * mirrored — parity is on the final VALUE, not the closure).
  *
@@ -5212,7 +5212,7 @@ srmech_json_value_t *srmech_json_new_object(srmech_json_builder_t *b,
 /* ------------------------------------------------------------------
  * Tool-schema registry (0.9.0rc184; the C MCP-server FOUNDATION GATE).
  *
- * The ~403-entry srmech.amsc.tool_schema `_REGISTRY` (every public
+ * The ~403-entry srmech.introspect.tool_schema `_REGISTRY` (every public
  * callable surface: name / owner / category / summary / typed params /
  * returns / mcp_callable) crystallised as a `const` data table so a
  * bare-C host (no Python) can produce the tool registry DATA + the
@@ -5314,7 +5314,7 @@ srmech_status_t srmech_tool_schema_to_json(char *buf, size_t buf_len,
 /* ------------------------------------------------------------------
  * Tool-schema PROJECTION ops (0.9.0rc185; the HOST-GLUE tier over the
  * rc184 const registry table). The C peers of
- *   srmech.amsc.tool_schema.get_tool_schema  / .tool_schema_view
+ *   srmech.introspect.tool_schema.get_tool_schema  / .tool_schema_view
  *   srmech.mcp.tool_entries_to_mcp_defs
  * so a bare-C host produces the SAME projections a Python host does.
  *
@@ -12977,7 +12977,7 @@ srmech_status_t srmech_mat_matmul_c128(const srmech_mat_t *a,
  * assembler live in srmech_carrier_schema.c.
  *
  * srmech_carrier_schema emits bytes BYTE-IDENTICAL to CPython
- *   json.dumps(srmech.amsc.carrier_schema._pure_carrier_schema(),
+ *   json.dumps(srmech.introspect.carrier_schema._pure_carrier_schema(),
  *              sort_keys=True, separators=(",", ":"))
  * (each per-carrier entry payload is baked pre-canonical; rows are in
  * byte-sorted name order == the sort_keys key order, so the assembler is

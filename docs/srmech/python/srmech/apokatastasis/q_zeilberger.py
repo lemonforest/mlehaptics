@@ -66,7 +66,7 @@ C peer: ``srmech_q_zeilberger`` (``c/src/srmech_q_zeilberger.c``) mirrors
 ``srmech_qpoly_*`` q-shift algebra + an exact-``ℚ(q)`` undetermined-coefficient solve
 riding ``srmech_qmat_rref``) into one caller-arena, JPL-clean symbol that ACCELERATES
 the canonical low-order case (**order ≤ 1**, the textbook q-identities). It routes
-through it when ``HAS_NATIVE`` (:func:`srmech.amsc._native.has_native_q_zeilberger`)
+through it when ``HAS_NATIVE`` (:func:`srmech._native.has_native_q_zeilberger`)
 and the C reports a positive (recurrence-found) result; a ``has=0`` C result is NOT
 trusted as a definitive "no recurrence" (the C caps its ansatz order below an
 unbounded search), so it falls through to the COMPLETE pure-Python body here — the
@@ -100,7 +100,7 @@ def _native():
     available and falls cleanly to the pure-Python body (the complete alternative +
     the parity oracle) otherwise. Imported lazily to avoid a bootstrap cycle."""
     try:
-        from ..amsc import _native as nat
+        from .. import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_q_zeilberger", None)

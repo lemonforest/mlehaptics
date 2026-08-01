@@ -45,7 +45,7 @@ import os
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 
 #: Set ONLY by the ``fallback (pure-Python, no native)`` job in
 #: ``.github/workflows/srmech-ci.yml``. Read once, at import, so a test cannot flip it

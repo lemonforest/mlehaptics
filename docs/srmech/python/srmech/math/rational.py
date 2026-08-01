@@ -28,7 +28,7 @@ import ctypes
 import struct
 from typing import Dict, List, NamedTuple, Tuple, Union
 
-from ..amsc import _native
+from .. import _native
 from . import cyclic as _cyclic
 
 __all__ = [

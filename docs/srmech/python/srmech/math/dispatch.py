@@ -26,7 +26,7 @@ import ctypes
 import json
 from typing import Any, Dict, Iterable, Optional, Tuple
 
-from ..amsc import _native
+from .. import _native
 
 __all__ = ["match", "mirror_pattern", "infer"]
 

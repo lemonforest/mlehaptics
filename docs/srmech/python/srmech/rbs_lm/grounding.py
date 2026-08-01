@@ -220,7 +220,7 @@ def ground_tool_schema(utterance, *, D=8192, k=3, token_mode="byteglyph"):
     "srmech-drive" grounding surface built on the encoder primitive — a helper,
     not a separate registered tool.
     """
-    from srmech.amsc import tool_schema as ts
+    from srmech.introspect import tool_schema as ts
 
     tools = ts.get_tool_schema().tools
     docs = [_aboutness_tokens(t.name.split(".")[-1]) + _aboutness_tokens(t.summary)

@@ -27,7 +27,7 @@ from srmech.math.qmat import QMat
 
 def _native():
     try:
-        from srmech.amsc import _native as nat
+        from srmech import _native as nat
     except ImportError:
         return None
     if not getattr(nat, "has_native_qmat", lambda: False)():

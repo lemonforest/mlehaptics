@@ -181,7 +181,7 @@ def test_balancing_w_is_computed_product():
 # ── (5) native == pure parity (both ops), clean decline when absent ─────────────────────
 @pytest.mark.parametrize("n,N", [(1, 1), (2, 1), (2, 2), (3, 1)])
 def test_native_matches_pure_lhs(n, N):
-    from srmech.amsc import _native as _nat
+    from srmech import _native as _nat
     z, a, q = _operand(n)
     zz, aa = tuple(z), tuple(a)
     pure = _an_lhs_thetasum(zz, aa, q, N)
@@ -196,7 +196,7 @@ def test_native_matches_pure_lhs(n, N):
 
 @pytest.mark.parametrize("n,N", [(1, 1), (2, 1), (2, 2), (3, 1)])
 def test_native_matches_pure_rhs(n, N):
-    from srmech.amsc import _native as _nat
+    from srmech import _native as _nat
     z, a, q = _operand(n)
     zz, aa = tuple(z), tuple(a)
     pure = _multivariate_elliptic_jackson_an_py(zz, aa, q, N)
@@ -319,7 +319,7 @@ def test_registration():
     assert "an_vwp_multisum_lhs" in eja.__all__
     schema = introspect.describe()
     assert schema["tools"]["total"] == 525
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
     assert ("srmech.apokatastasis.elliptic_jackson_an.multivariate_elliptic_jackson_an"
             in names)

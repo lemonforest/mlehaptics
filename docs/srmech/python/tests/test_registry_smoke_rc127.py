@@ -21,7 +21,7 @@ import importlib
 import types
 
 from srmech import dsl
-from srmech.amsc import tool_schema as ts
+from srmech.introspect import tool_schema as ts
 from srmech.introspect import describe
 
 

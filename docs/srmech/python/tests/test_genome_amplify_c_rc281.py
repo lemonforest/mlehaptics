@@ -25,7 +25,7 @@ from __future__ import annotations
 import pytest
 
 from srmech.biology import genome as G
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math.hdc import klein4_expand
 
 # leaf_dims wide enough for the label + NUL + the 8-byte field, and one (32) that is

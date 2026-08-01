@@ -31,7 +31,7 @@ import pytest
 
 from srmech.apokatastasis.riemann_theta import RiemannTheta
 from srmech.apokatastasis.unary_theta import unary_theta
-from srmech.amsc import _native
+from srmech import _native
 
 
 # the trivial even theta-constant (the one that collapses to θ₃), reused below

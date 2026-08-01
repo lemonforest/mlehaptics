@@ -22,7 +22,7 @@ absent — but it MUST run + pass when the native lib is loaded.
 
 from __future__ import annotations
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math import rational
 
 import pytest

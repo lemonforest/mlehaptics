@@ -18,7 +18,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "srmech"
-version = "0.9.0rc375"
+version = "0.9.0rc376"
 # IMPORTANT: PyPI's "Summary" metadata field has a HARD 512-character
 # limit. The upload endpoint silently rejects oversize metadata
 # ("could not comply" with no useful detail bubbled into the publish
@@ -124,14 +124,23 @@ Changelog = "https://github.com/lemonforest/mlehaptics/blob/main/docs/srmech/pyt
 
 [tool.hatch.build.targets.wheel]
 packages = ["srmech"]
-# Exclude any _native/ directory if it leaked in from a prior build.
-# Hatchling's `exclude` must be an array of glob strings — *not* a
-# table. (The earlier table form `"...\_native/*" = true` broke
-# ephemerides-spectral's v0.3.1 publish workflow; cargo-culting it
-# avoids the same trap.)
+# rc376 (ADR-0010 Amendment M): ``_native.py`` became the
+# ``srmech/_native/__init__.py`` PACKAGE — the ctypes shim now lives IN the
+# ``_native/`` directory, co-located with the ``.so``/.dll it loads. The pure
+# ``py3-none-any`` wheel MUST ship that shim (dropping it breaks every install),
+# so exclude ONLY the compiled BINARIES here — never ``*.py``. (Previously this
+# excluded the whole ``srmech/_native/*`` + ``**`` tree, correct while the shim
+# lived in ``amsc/`` and ``_native/`` held only the binary.)
+# Hatchling's `exclude` must be an array of glob strings — *not* a table. (The
+# earlier table form `"...\_native/*" = true` broke ephemerides-spectral's
+# v0.3.1 publish workflow; cargo-culting it avoids the same trap.)
 exclude = [
-    "srmech/_native/*",
-    "srmech/_native/**",
+    "srmech/_native/*.so",
+    "srmech/_native/*.dll",
+    "srmech/_native/*.dylib",
+    "srmech/_native/*.dll.a",
+    "srmech/_native/*.lib",
+    "srmech/_native/*.pyd",
 ]
 
 [tool.hatch.build.targets.sdist]
@@ -146,7 +155,13 @@ include = [
 exclude = [
     "**/__pycache__",
     "**/*.pyc",
-    "srmech/_native/**",
+    # rc376: keep srmech/_native/__init__.py in the sdist; drop only binaries.
+    "srmech/_native/*.so",
+    "srmech/_native/*.dll",
+    "srmech/_native/*.dylib",
+    "srmech/_native/*.dll.a",
+    "srmech/_native/*.lib",
+    "srmech/_native/*.pyd",
 ]
 
 # ─────────────────────────────────────────────────────────────────

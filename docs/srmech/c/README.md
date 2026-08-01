@@ -12,7 +12,7 @@ uses. Same monorepo, same quality bar.
 The full **14-class A–N C-parity primitive vocabulary** is implemented
 in native C and ships in every platform wheel as
 `libsrmech.{so,dll,dylib}`. The Python package binds it through a
-ctypes shim (`srmech.amsc._native`) and falls back to a complete
+ctypes shim (`srmech._native`) and falls back to a complete
 pure-Python implementation of every API surface when no native
 library is present (Pyodide / WASM, or any environment where the
 shared library can't load). srmech is at **v0.6.0rc9**; this is no

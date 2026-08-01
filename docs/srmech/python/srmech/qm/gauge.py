@@ -51,7 +51,7 @@ from __future__ import annotations
 import ctypes
 from typing import List, Sequence, Tuple
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math import rational as _srn
 from srmech.math.laplacian import (
     mat_hermitian_eigendecompose,

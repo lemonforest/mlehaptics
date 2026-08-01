@@ -38,8 +38,8 @@ import pytest
 #: pure cell too) rather than calling into the built library.
 _SR_C_ROOT = Path(__file__).resolve().parents[2] / "c"
 
-from srmech.amsc import _native
-from srmech.amsc.tool_schema import (
+from srmech import _native
+from srmech.introspect.tool_schema import (
     ToolEntry,
     ToolParameter,
     ToolReturn,

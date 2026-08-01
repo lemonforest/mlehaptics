@@ -33,7 +33,7 @@ from __future__ import annotations
 
 from typing import List, Optional, Tuple
 
-from srmech.amsc import _native as _native
+from srmech import _native as _native
 from srmech.math import rational as _srn
 from srmech.math.laplacian import mat_hermitian_eigendecompose
 from srmech.math.mat import Mat

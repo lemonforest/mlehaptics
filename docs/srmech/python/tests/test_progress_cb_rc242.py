@@ -25,7 +25,7 @@ import json
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 
 # A proven batch-1 C-dispatchable tool (Class-C net handedness; cf.
 # test_invoke_tool_cascade_atoms_c_rc231): an int8-range plain-int LIST in,
@@ -46,7 +46,7 @@ def _expected_event_json() -> str:
     """The event the C emit must produce, computed from the tool registry's
     OWN category for ``_OP`` (single source of truth: the C const table is
     generated from this Python registry, so the categories agree)."""
-    from srmech.amsc import tool_schema as ts
+    from srmech.introspect import tool_schema as ts
 
     tools = ts.get_tool_schema().to_jsonable()["tools"]
     entry = next(t for t in tools if t["name"] == _OP)

@@ -45,7 +45,7 @@ import os
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.apokatastasis import riemann_theta as rt
 from srmech.apokatastasis.riemann_theta import (RiemannTheta, RiemannThetaG3,
                                        RiemannThetaG4, RiemannThetaG5)

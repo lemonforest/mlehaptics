@@ -36,7 +36,7 @@ from typing import Iterator, List, Tuple
 import pytest
 
 import srmech
-from srmech.amsc import _native
+from srmech import _native
 from srmech.mcp import MCP_PROTOCOL_VERSION, MCPServer
 
 _needs_native = pytest.mark.skipif(

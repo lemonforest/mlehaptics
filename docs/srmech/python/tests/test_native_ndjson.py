@@ -18,7 +18,8 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc import _native, format as srfmt
+from srmech import _native
+from srmech.amsc import format as srfmt
 
 
 pytestmark = pytest.mark.skipif(

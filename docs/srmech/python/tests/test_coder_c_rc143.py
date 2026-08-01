@@ -28,7 +28,7 @@ import random
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.signal_processing.closed_form_ops import huffman as cf_huffman
 from srmech.signal_processing.closed_form_ops import rle as cf_rle
 from srmech.signal_processing.closed_form_ops import sign_quantise as cf_sign

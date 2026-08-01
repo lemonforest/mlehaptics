@@ -53,7 +53,7 @@ from pathlib import Path
 import pytest
 
 import srmech.amsc.cascade.hypercomplex_dft as hd
-from srmech.amsc import _native
+from srmech import _native
 from srmech.amsc.cascade import quaternion_dft
 from srmech.amsc.cascade.spectral_cascades import fft as complex_fft
 from srmech.math.mat import Mat

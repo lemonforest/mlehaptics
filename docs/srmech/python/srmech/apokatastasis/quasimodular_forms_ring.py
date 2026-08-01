@@ -153,7 +153,7 @@ def _native():
     complete alternative + the parity oracle). Imported lazily to avoid a
     bootstrap cycle."""
     try:
-        from ..amsc import _native as nat
+        from .. import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_quasimodular_forms_ring", None)
@@ -166,7 +166,7 @@ def _native_eis():
     :func:`eisenstein_e2` dispatches the exact-rational E_2 q-series to C when
     available and falls cleanly to the pure-Python body. Imported lazily."""
     try:
-        from ..amsc import _native as nat
+        from .. import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_eisenstein", None)

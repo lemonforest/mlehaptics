@@ -82,7 +82,7 @@ def _tool_schema_hash() -> str:
     via :func:`srmech.amsc.format.sha256_bytes` — the AMSC attestation
     hash. Routes native dispatch; no new ``hashlib.sha256`` call."""
     from ..amsc.format import sha256_bytes
-    from ..amsc.tool_schema import get_tool_schema
+    from ..introspect.tool_schema import get_tool_schema
 
     schema = get_tool_schema()
     payload = json.dumps(
@@ -188,7 +188,7 @@ def build_manifest(
         "server_type must be 'uv' or 'python'"
     )
     from ..version import __version__ as srmech_version
-    from ..amsc.tool_schema import get_tool_schema
+    from ..introspect.tool_schema import get_tool_schema
 
     defs = _advertised_tool_defs(name_filter=name_filter)
 

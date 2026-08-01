@@ -200,7 +200,7 @@ def test_registration_and_coverage():
     schema = introspect.describe()
     assert schema["tools"]["total"] == 525
 
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     reg = {t.name for t in get_tool_schema().tools}
     assert "srmech.amsc.cascade.frame_carrier.frame_carrier" in reg
     assert "srmech.amsc.cascade.frame_carrier.frame_carrier_compare" in reg

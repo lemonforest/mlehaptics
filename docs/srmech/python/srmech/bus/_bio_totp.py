@@ -92,7 +92,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Optional, Tuple
 
-from ..amsc import _native
+from .. import _native
 from ..amsc.format import sha256_bytes
 
 #: int64 range guard — the native Bio-TOTP C peer takes ``int64_t`` time /

@@ -52,7 +52,7 @@ import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math.cyclic import gcd as _gcd
 from srmech.amsc.format import MPRRecord as _MPRRecord
 from srmech.amsc.format import read_ndjson as _read_ndjson
@@ -5135,7 +5135,7 @@ def _modulator_recover_native(strand, coupling, labels):
     ``srmech_genome_modulator_recover``): returns the floor dict, or ``None`` on any
     missing symbol / non-OK status / a label carrying a NUL (the blob delimiter) — the
     caller runs the pure path. Native is authoritative when present."""
-    from ..amsc import _native
+    from .. import _native
     if not (_native.HAS_NATIVE and _native.LIB is not None
             and hasattr(_native.LIB, "srmech_genome_modulator_recover")):
         return None
@@ -5158,7 +5158,7 @@ def _modulator_consistent_native(strand, coupling, labels, candidate):
     or ``None`` on any missing symbol / non-OK status (e.g. an int64 threshold-sum
     OVERFLOW) / a candidate beyond the native uint64 domain / a NUL in a label — the
     caller runs the pure path. Native is authoritative when present."""
-    from ..amsc import _native
+    from .. import _native
     if not (_native.HAS_NATIVE and _native.LIB is not None
             and hasattr(_native.LIB, "srmech_genome_modulator_consistent")):
         return None
@@ -5489,7 +5489,7 @@ def _modulator_constraint_native(strand, coupling, labels):
     label with a NUL — the caller runs the pure path. Native is authoritative when
     present (the bytes are byte-identical to :func:`_serialize_bool_constraint` of the
     pure result)."""
-    from ..amsc import _native
+    from .. import _native
     if not (_native.HAS_NATIVE and _native.LIB is not None
             and hasattr(_native.LIB, "srmech_genome_modulator_constraint")):
         return None
@@ -5760,7 +5760,7 @@ def _modulator_constraint_satisfies_native(constraint, candidate):
     boolean part; returns ``True``/``False`` or ``None`` on any missing symbol / non-OK
     status / out-of-uint64-domain candidate — the caller runs the pure boolean check
     (identical result)."""
-    from ..amsc import _native
+    from .. import _native
     if not (_native.HAS_NATIVE and _native.LIB is not None
             and hasattr(_native.LIB, "srmech_genome_modulator_constraint_satisfies")):
         return None
@@ -6558,7 +6558,7 @@ def _telomere_tick_native(cap):
     ``cap`` (an active-telomere ``HV``) → ``(senescent, count_after, new_cap_bytes)``,
     or ``None`` on any missing symbol / non-OK status (the caller runs the pure path).
     Native is authoritative when present; the pure path is the complete alternative."""
-    from ..amsc import _native
+    from .. import _native
     if not (_native.HAS_NATIVE and _native.LIB is not None
             and hasattr(_native.LIB, "srmech_genome_telomere_tick")):
         return None
@@ -6574,7 +6574,7 @@ def _gene_express_native(cap, cell_state):
     ``cell_state`` → ``True``/``False`` (does the gene express?), or ``None`` on any missing
     symbol / non-OK status (the caller runs the pure Class-I bitwise path). Native is
     authoritative when present; the pure path is the complete alternative."""
-    from ..amsc import _native
+    from .. import _native
     if not (_native.HAS_NATIVE and _native.LIB is not None
             and hasattr(_native.LIB, "srmech_genome_gene_express")):
         return None
@@ -6592,7 +6592,7 @@ def _gene_level_native(cap, cell_state):
     dose-response rational), or ``None`` on any missing symbol / non-OK status (e.g. an int64
     dose-accumulate OVERFLOW → the caller runs the exact pure Class-N/I path). Native is
     authoritative when present; the pure path is the complete alternative."""
-    from ..amsc import _native
+    from .. import _native
     if not (_native.HAS_NATIVE and _native.LIB is not None
             and hasattr(_native.LIB, "srmech_genome_gene_express_levels")):
         return None
@@ -6675,7 +6675,7 @@ def _graph_syms_to_ints(syms):
 def _graph_kernel_encode(vocab_size, edges, weights, ch, nid, ex):
     """Assemble the payload int stream + encode to Klein-4 syms (the C-peer
     boundary). Native ``srmech_graph_kernel_encode`` when loaded, else pure."""
-    from ..amsc import _native
+    from .. import _native
     if _native.has_native_graph_kernel_codec():
         native = _native.graph_kernel_encode_c(vocab_size, edges, weights, ch, nid, ex)
         if native is not None:
@@ -6689,7 +6689,7 @@ def _graph_kernel_encode(vocab_size, edges, weights, ch, nid, ex):
 def _graph_kernel_decode(syms):
     """Decode Klein-4 syms -> the graph dict (the C-peer boundary). Native
     ``srmech_graph_kernel_decode`` when loaded, else pure."""
-    from ..amsc import _native
+    from .. import _native
     if _native.has_native_graph_kernel_codec():
         native = _native.graph_kernel_decode_c(syms)
         if native is not None:
@@ -7083,7 +7083,7 @@ def _reduce_pair(num, den):
 
 def _assemble_graph_partition(n, n_bins, work_dir, gg):
     """Assemble the §100 GAP 2 partition return dict from the native
-    :func:`~srmech.amsc._native.genome_graph_partition_c` read-out ``gg`` — the EXACT
+    :func:`~srmech._native.genome_graph_partition_c` read-out ``gg`` — the EXACT
     SAME dict the pure body produces (ADR-0009 byte-parity), including the §101 cancel
     shape. ``communities`` is rebuilt from the per-node community ids (ascending, so a
     community's node list is sorted — identical to the pure ``[sorted(t) for t in

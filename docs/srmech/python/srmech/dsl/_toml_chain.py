@@ -95,7 +95,7 @@ def _toml_loads_native(spec: str) -> "Any":
     native is absent.
     """
     try:
-        from srmech.amsc import _native
+        from srmech import _native
     except Exception:
         return None
     if not (_native.HAS_NATIVE and _native.LIB is not None):

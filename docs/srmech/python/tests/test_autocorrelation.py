@@ -28,7 +28,7 @@ import random
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.amsc.cascade import autocorrelation
 from srmech.amsc.cascade.compose import _try_native_autocorrelation
 

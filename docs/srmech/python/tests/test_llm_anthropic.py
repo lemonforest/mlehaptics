@@ -27,7 +27,7 @@ import pytest
 # MCP adapter sees in production. Same pattern as test_mcp.py.
 import srmech.bus  # noqa: F401 — import side-effect
 
-from srmech.amsc.tool_schema import get_tool_schema
+from srmech.introspect.tool_schema import get_tool_schema
 from srmech.llm import anthropic_agent as aa
 from srmech.llm.anthropic_agent import (
     ANTHROPIC_TOOL_NAME_MAX_LEN,

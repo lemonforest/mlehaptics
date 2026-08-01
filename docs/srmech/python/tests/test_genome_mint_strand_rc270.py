@@ -23,7 +23,7 @@ from __future__ import annotations
 import pytest
 
 from srmech.biology import genome as G
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math.hdc import klein4_expand
 
 _DIM = 64
@@ -243,7 +243,7 @@ def test_unminted_strand_is_never_mutated():
 # ── 7. registration ─────────────────────────────────────────────────────────
 
 def test_mint_strand_registered_and_total_matches_live():
-    from srmech.amsc.tool_schema import get_tool_schema, warmup_all
+    from srmech.introspect.tool_schema import get_tool_schema, warmup_all
     warmup_all()
     names = [t.name for t in get_tool_schema().tools]
     assert "srmech.biology.genome.mint_strand" in names
@@ -252,7 +252,7 @@ def test_mint_strand_registered_and_total_matches_live():
 
 
 def test_mint_strand_tool_has_docs():
-    from srmech.amsc.tool_schema import get_tool_schema, warmup_all
+    from srmech.introspect.tool_schema import get_tool_schema, warmup_all
     warmup_all()
     entry = next(t for t in get_tool_schema().tools
                  if t.name == "srmech.biology.genome.mint_strand")

@@ -1,15 +1,15 @@
 """Coverage audit: every public callable in srmech.amsc.* and srmech.qm.*
 has a registered tool-schema entry.
 
-Task #220 — every operation surfaces via ``srmech.amsc.tool_schema`` so an
+Task #220 — every operation surfaces via ``srmech.introspect.tool_schema`` so an
 LLM consumer can discover the full callable surface without reading the
 implementation. This test is the ratchet that keeps the tool-schema
 extension in sync with the operations layer.
 
 Exempt modules (intentionally not surfaced via tool-schema):
 
-- ``srmech.amsc.tool_schema`` — the schema-API itself.
-- ``srmech.amsc._native`` — ctypes shim (covered indirectly via
+- ``srmech.introspect.tool_schema`` — the schema-API itself.
+- ``srmech._native`` — ctypes shim (covered indirectly via
   ``srmech.amsc.format.sha256_bytes`` and ``read_ndjson``).
 - ``srmech.amsc.gap_suggester`` — profile-loader internals; not a
   primitive operation.
@@ -34,13 +34,13 @@ import pytest
 
 import srmech.amsc
 import srmech.qm
-from srmech.amsc.tool_schema import get_tool_schema
+from srmech.introspect.tool_schema import get_tool_schema
 
 
 # Modules / submodule prefixes intentionally not audited.
 _EXEMPT_MODULE_PREFIXES = (
-    "srmech.amsc.tool_schema",
-    "srmech.amsc._native",
+    "srmech.introspect.tool_schema",
+    "srmech._native",
     "srmech.amsc.gap_suggester",
     "srmech.amsc.adapters",
     "srmech.amsc.attested",
@@ -246,9 +246,9 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # compose.greedy_bipartite_alignment (v0.7.0rc12 / §2.2) — takes a Python
     # `similarity_fn` callable that cannot cross the JSON-RPC boundary, so it
     # is NOT an MCP tool (no coercer for an arbitrary callable param). It is a
-    # public, tested composition utility surfaced via srmech.amsc.compose, not
+    # public, tested composition utility surfaced via srmech.cascade.compose, not
     # via MCP — exempt from tool-schema coverage on the callable-arg rationale.
-    "srmech.amsc.compose.greedy_bipartite_alignment",
+    "srmech.cascade.compose.greedy_bipartite_alignment",
     # coupling.fold_identity (0.9.0rc125 / task #723) — the RECOVERABLE-FOLD
     # identity verdict (EQUAL / NOT_EQUAL / UNKNOWN). Both operands are
     # in-process RecoverableFold pair CARRIERS (a lossy bundle dict + the exact
@@ -526,7 +526,7 @@ def test_tool_schema_owner_is_srmech_for_builtins():
 def test_tool_schema_view_is_jsonable():
     """The view dict is JSON-serialisable round-trip clean."""
     import json
-    from srmech.amsc.tool_schema import tool_schema_view
+    from srmech.introspect.tool_schema import tool_schema_view
 
     view = tool_schema_view()
     s = json.dumps(view, sort_keys=True)

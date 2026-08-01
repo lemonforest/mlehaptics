@@ -21,7 +21,7 @@ import math
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.dsl import chain
 from srmech.dsl._chain import _NATIVE_MISS, _desc_to_value, _value_to_desc
 

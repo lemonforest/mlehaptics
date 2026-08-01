@@ -37,7 +37,7 @@ import pathlib
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.biology import genome as G
 from srmech.amsc.cascade.one import the_one
 from srmech.biology.genome import (

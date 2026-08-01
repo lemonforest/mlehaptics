@@ -5,7 +5,7 @@ asserts byte-exact agreement when both are available. The parity
 discipline mirrors ``test_native_sha256.py`` / ``test_native_ndjson.py``
 from Task #201 Phase B3/B4.
 
-When ``srmech.amsc._native.HAS_NATIVE`` is ``True``, every test runs
+When ``srmech._native.HAS_NATIVE`` is ``True``, every test runs
 twice (once with the public dispatching surface, once with a
 temporarily-disabled native flag forcing the fallback path) and the
 two outputs are compared.
@@ -18,7 +18,7 @@ import random
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math import cyclic
 
 

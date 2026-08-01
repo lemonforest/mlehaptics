@@ -18,7 +18,7 @@ This proves it at n = 300 > 256 (the old cap). Per
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math import laplacian as L
 from srmech.math.mat import Mat
 

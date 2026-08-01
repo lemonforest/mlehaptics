@@ -45,7 +45,7 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math import cyclic as _cyclic
 from srmech.math import qprime as _qprime_mod
 from srmech.math import rational as _rational

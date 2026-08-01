@@ -284,7 +284,7 @@ def test_the_one_alias_carries_winding():
 # to force each path and compare, the same discipline test_cyclic_parity uses.
 
 import random                                            # noqa: E402
-from srmech.amsc import _native                          # noqa: E402
+from srmech import _native                          # noqa: E402
 
 
 @pytest.mark.skipif(not _native.HAS_NATIVE, reason="native lib not loaded")

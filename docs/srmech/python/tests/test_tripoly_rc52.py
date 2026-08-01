@@ -390,7 +390,7 @@ def test_to_floats_is_the_only_float():
 # ── Python == C parity (native present only; byte-identical) ───────────────────
 def _native_tripoly():
     try:
-        from srmech.amsc import _native
+        from srmech import _native
     except ImportError:
         return None
     if not getattr(_native, "has_native_tripoly", lambda: False)():

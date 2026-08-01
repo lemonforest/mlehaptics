@@ -31,7 +31,7 @@ from __future__ import annotations
 
 import numbers
 
-from ..amsc import _native
+from .. import _native
 from . import rational as _rational
 from .hdc import KLEIN4_STATES
 from .q import Q

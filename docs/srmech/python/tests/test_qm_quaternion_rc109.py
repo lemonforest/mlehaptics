@@ -34,7 +34,7 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math import hdc
 from srmech.math.mat import Mat
 from srmech.qm import octonion as octo
@@ -484,7 +484,7 @@ def test_tools_total_matches_live():
 
 
 def test_quaternion_tool_entries_registered():
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
     for op in ("quaternion_mult_table", "quaternion_table_attestation",
                "quaternion_left_mult", "quaternion_right_mult",

@@ -128,7 +128,7 @@ def test_telescoping_rational_oracle(n):
 # ── (6) C ↔ pure parity (skips cleanly when the native lib is absent) ────────────
 @pytest.mark.parametrize("n", [0, 1, 2, 3, 4])
 def test_native_parity(n):
-    from srmech.amsc import _native as nat
+    from srmech import _native as nat
     if not nat.has_native_riemann_theta_multisum():
         pytest.skip("native srmech_riemann_theta_multisum not loaded")
     z, pts = _make(n)
@@ -143,7 +143,7 @@ def test_registration_and_coverage():
     schema = introspect.describe()
     assert schema["tools"]["total"] == 525
     # name check via the raw tool schema
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     reg = {t.name for t in get_tool_schema().tools}
     assert "srmech.apokatastasis.riemann_theta_multisum.multivariate_riemann_theta_sum" in reg
     assert "srmech.apokatastasis.riemann_theta_multisum.riemann_theta_multisum_lhs" in reg

@@ -24,7 +24,7 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.amsc import descriptor as desc_mod
 from srmech.amsc import catalog as cat_mod
 from srmech.amsc.adapters import _base as adapter_base

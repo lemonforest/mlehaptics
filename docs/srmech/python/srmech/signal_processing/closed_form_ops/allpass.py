@@ -96,7 +96,7 @@ def op(signal, a, *, b=None, order: int = 1, D: int = 8192):
     # c_dispatched (rc149 / B4b): the recursive difference equation dispatches to
     # srmech_iir_lfilter_f64; the pure direct-form-I reference is the complete
     # numpy-free fallback.
-    from srmech.amsc import _native
+    from srmech import _native
 
     native = _native.iir_lfilter_f64_c(b_coef, a_coef, sig)
     if native is not None:

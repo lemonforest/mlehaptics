@@ -44,15 +44,15 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math.carrier_ladder import carrier_ladder_descriptor
-from srmech.amsc.carrier_schema import (
+from srmech.introspect.carrier_schema import (
     _CARRIERS,
     _LADDER_RUNG_CARRIERS,
     _pure_carrier_schema,
     carrier_schema,
 )
-from srmech.amsc.tool_schema import get_tool_schema, warmup_all
+from srmech.introspect.tool_schema import get_tool_schema, warmup_all
 
 from coercion_boundary import NON_CARRIER_CLASSES
 
@@ -294,7 +294,7 @@ def test_generated_table_holds_every_carrier() -> None:
 
 def test_tool_entry_registered_and_total_matches_live() -> None:
     schema = get_tool_schema()
-    entry = schema.lookup("srmech.amsc.carrier_schema.carrier_schema")
+    entry = schema.lookup("srmech.introspect.carrier_schema.carrier_schema")
     assert entry is not None
     assert entry.category == "carrier_schema"
     assert "DUAL of tool_schema" in entry.summary
@@ -306,7 +306,7 @@ def test_rosetta_row_is_composes_c() -> None:
     rows = [json.loads(l) for l in
             fixture.read_text(encoding="utf-8").splitlines() if l.strip()]
     row = [r for r in rows
-           if r["defined_at"] == "srmech.amsc.carrier_schema.carrier_schema"]
+           if r["defined_at"] == "srmech.introspect.carrier_schema.carrier_schema"]
     assert len(row) == 1
     assert row[0]["bucket"] == "non_compute"
     assert row[0]["non_compute_kind"] == "composes_c"
@@ -333,7 +333,7 @@ def test_every_tool_type_carrier_token_is_registered() -> None:
     assert not unknown, (
         f"ToolEntry type strings name types absent from the carrier registry "
         f"and the non-carrier allowlist: {sorted(unknown)} — add each to "
-        f"srmech.amsc.carrier_schema._CARRIERS (with a genuine description) "
+        f"srmech.introspect.carrier_schema._CARRIERS (with a genuine description) "
         f"or, if it is NOT an operand carrier, to "
         f"_NON_CARRIER_TYPE_TOKENS here (with justification)"
     )

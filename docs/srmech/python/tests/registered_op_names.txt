@@ -1,4 +1,3 @@
-srmech.amsc.carrier_schema.carrier_schema
 srmech.amsc.cascade.algebra_table
 srmech.amsc.cascade.associator
 srmech.amsc.cascade.autocorrelation
@@ -75,10 +74,6 @@ srmech.amsc.catalog.list_attested_sources
 srmech.amsc.catalog.list_catalog_chains
 srmech.amsc.catalog.register_attested_root
 srmech.amsc.catalog.run_catalog_chain
-srmech.amsc.compose.parse_catalog_chains
-srmech.amsc.compose.parse_chain_spec
-srmech.amsc.compose.resolve_chain
-srmech.amsc.compose.run_chain
 srmech.amsc.descriptor.descriptor_hash
 srmech.amsc.format.read_ndjson
 srmech.amsc.format.sha256_batch
@@ -200,6 +195,10 @@ srmech.biology.q8.q8_project_v4
 srmech.bus.by_name
 srmech.bus.decode_splice
 srmech.bus.list_endpoints
+srmech.cascade.compose.parse_catalog_chains
+srmech.cascade.compose.parse_chain_spec
+srmech.cascade.compose.resolve_chain
+srmech.cascade.compose.run_chain
 srmech.dsl.describe_class
 srmech.dsl.generate_class_descriptor
 srmech.dsl.list_catalog_ops
@@ -207,6 +206,7 @@ srmech.dsl.list_class_surface
 srmech.dsl.list_ops
 srmech.dsl.run_toml_chain
 srmech.introspect.by_pid
+srmech.introspect.carrier_schema.carrier_schema
 srmech.introspect.describe
 srmech.introspect.list
 srmech.introspect.naming.lookup

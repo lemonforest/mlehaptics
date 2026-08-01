@@ -42,7 +42,7 @@ import pytest
 
 from srmech.apokatastasis.riemann_theta import (RiemannTheta, RiemannThetaG3,
                                        _cyc_mul, _cyc_mul_py, _cyclotomic_ring)
-from srmech.amsc import _native
+from srmech import _native
 import srmech.introspect as introspect
 
 

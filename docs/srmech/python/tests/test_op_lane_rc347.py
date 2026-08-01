@@ -70,7 +70,7 @@ import pytest
 from srmech.biology import genome as _genome
 from srmech.biology import q8 as _q8
 from srmech.amsc.cascade.cayley_dickson import cd_basis_product
-from srmech.amsc.tool_schema import (
+from srmech.introspect.tool_schema import (
     LANE_INPUTS,
     LANES,
     ToolEntry,

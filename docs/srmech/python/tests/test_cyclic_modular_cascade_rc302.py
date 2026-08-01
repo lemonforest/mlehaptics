@@ -26,7 +26,7 @@ import pytest
 
 from srmech.math import cyclic
 from srmech.amsc import cascade
-from srmech.amsc.tool_schema import get_tool_schema
+from srmech.introspect.tool_schema import get_tool_schema
 from srmech.dsl import chain, list_cascade_ops, run_toml_chain
 
 

@@ -133,7 +133,7 @@ class Vec:
     # (srmech_vec_*) when HAS_NATIVE, over the SAME array('d') buffer zero-copy;
     # the pure-Python bodies are the COMPLETE alternative + the byte-exact oracle.
     def _native_unary(self, kind: str):
-        from ..amsc import _native  # lazy: _native has no Vec dependency
+        from .. import _native  # lazy: _native has no Vec dependency
         out = _native.vec_unary_c(self._buf, self._n, self._complex, kind)
         if out is None:
             return None
@@ -211,7 +211,7 @@ class Vec:
         or a scalar (C scalar broadcast). Returns a :class:`Vec` or ``None``
         (reflected sub/div, sequence coercion, cross-rank fall to the pure
         :meth:`_elementwise`). ``kind`` in {"add","sub","mul"}."""
-        from ..amsc import _native  # lazy
+        from .. import _native  # lazy
         if isinstance(other, Vec) and other._n == self._n:
             res = _native.vec_binary_c(self._buf, self._complex, other._buf,
                                        other._complex, self._n, kind)

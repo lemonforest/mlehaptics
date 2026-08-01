@@ -642,7 +642,7 @@ class EllRatio:
         over an interned symbol table (the distinct symbols across the prefactor + every
         theta argument, sorted by NAME so the C dense exponent vector reproduces the
         :meth:`EllMonomial._sort_key` tuple order)."""
-        from ..amsc import _native as _nat
+        from .. import _native as _nat
         if not _nat.has_native_ellratio():
             return None
         if self.is_zero:
@@ -866,7 +866,7 @@ def _elliptic_lagrange_basis_c(points: "List[EllMonomial]",
     ``varsym`` and the :meth:`Theta.canonicalize` quasi-periodicity rewrite reads/writes
     ``p`` off ``psym`` — without those slots the C would silently mis-build (mirrors the
     same forcing in :meth:`EllRatio._is_elliptic_c`)."""
-    from ..amsc import _native as _nat
+    from .. import _native as _nat
     if not _nat.has_native_elliptic_lagrange_basis():
         return None
     pts = list(points)
@@ -946,7 +946,7 @@ def _half_shift_response_c(ratio: EllRatio, a: str, var: str) -> "EllMonomial | 
     symbols are absent (the caller falls to :func:`_half_shift_response_py`). The
     interned symbol universe MUST include ``var`` AND ``p`` (the shift + the theta-canon
     read/write those slots — mirrors :meth:`EllRatio._is_elliptic_c`)."""
-    from ..amsc import _native as _nat
+    from .. import _native as _nat
     if not _nat.has_native_ellratio_half_shift():
         return None
     syms = {var, _P}

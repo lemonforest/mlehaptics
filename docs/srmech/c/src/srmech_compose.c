@@ -1,4 +1,4 @@
-/* srmech_compose.c — the amsc.compose LINEAR CHAIN-RUNNER parse + validate
+/* srmech_compose.c — the cascade.compose LINEAR CHAIN-RUNNER parse + validate
  * foundation in C (0.9.0rc173; the ORCHESTRATION→C spine, batch 3).
  *
  * A bare-C host (no Python) reads an operator-chain descriptor and must
@@ -6,8 +6,8 @@
  * run them. These two peers do exactly that, COMPOSING the existing
  * srmech_json parser / builder / canonical writer — NO new parser, NO new
  * math. They back the Python ops
- *   srmech.amsc.compose.parse_chain_spec     -> srmech_chain_spec_parse
- *   srmech.amsc.compose.parse_catalog_chains -> srmech_chain_catalog_parse
+ *   srmech.cascade.compose.parse_chain_spec     -> srmech_chain_spec_parse
+ *   srmech.cascade.compose.parse_catalog_chains -> srmech_chain_catalog_parse
  *
  * SCOPE (honest split, rc173): PARSE + VALIDATE only. The chain RUN loop
  * (resolve_chain / run_chain) is NOT here — it dispatches ARBITRARY srmech

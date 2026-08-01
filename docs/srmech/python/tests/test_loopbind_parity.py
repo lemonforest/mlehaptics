@@ -24,7 +24,7 @@ import random
 import pytest
 
 from srmech.math.laplacian import mat_dot, mat_norm
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math import hdc
 
 _HAS_C = (

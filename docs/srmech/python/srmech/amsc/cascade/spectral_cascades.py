@@ -56,7 +56,7 @@ def _native_fft(samples: List[complex], inverse: bool) -> "List[complex] | None"
     substrate, where an FPU-tol numeric transform IS the value (radix-2 for a
     power-of-two length, Bluestein chirp-z for arbitrary / prime length)."""
     try:
-        from srmech.amsc import _native
+        from srmech import _native
     except Exception:
         return None
     return _native.fft_c128_c(samples, inverse)

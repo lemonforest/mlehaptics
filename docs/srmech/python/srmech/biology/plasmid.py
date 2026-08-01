@@ -52,7 +52,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence
 
-from ..amsc import _native
+from .. import _native
 from . import genome as _genome
 # Bare imports of the composed genome ledger ops (so the rosetta reachability walk
 # SEES that the plasmid surface reaches C-backed peers — a `_genome.op()` module-

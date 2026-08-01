@@ -89,7 +89,7 @@ DEFAULT_CLASS_REGISTRY: Dict[str, str] = {
     "E": "srmech.amsc.catalog",
     "F": "srmech.math.template",
     "G": "srmech.math.search",
-    "H": "srmech.amsc._native",
+    "H": "srmech._native",
     "I": "srmech.math.cyclic",
     "J": "srmech.math.primes",
     "K": "srmech.math.kepler",
@@ -214,7 +214,7 @@ def _walk_args(args: Any, fn: Callable[[str], None]) -> None:
 def _compose_lib(*symbols: str):
     """Return the native LIB iff HAS_NATIVE and every named rc173 symbol is
     bound (a stale ABI-3 lib missing them → ``None`` → the pure path)."""
-    from . import _native
+    from .. import _native
     if not (_native.HAS_NATIVE and _native.LIB is not None):
         return None
     lib = _native.LIB
@@ -251,7 +251,7 @@ def _call_compose_native(lib, arena_sym: str, call_sym: str,
     """Run one caller-arena compose peer (arena-size → call → canonical JSON
     string) or ``None`` on any non-OK status. Shared by both parse ops."""
     import ctypes
-    from . import _native
+    from .. import _native
     ws_bytes = int(getattr(lib, arena_sym)(len(payload)))
     ws = (ctypes.c_char * ws_bytes)()
     out_cap = 2 * len(payload) + 8192
@@ -503,7 +503,7 @@ def _resolve_catalog_reference(path: str) -> Any:
         raise ValueError(f"@catalog path {path!r} malformed")
     row_key = m.group(1)
     field_path = m.group(2)
-    from . import catalog as _catalog
+    from ..amsc import catalog as _catalog
     sources = _catalog.list_attested_sources().get("sources", [])
     for source in sources:
         ds = _catalog.get_attested_dataset(source["key"])
@@ -687,7 +687,7 @@ def _run_chain_native(
     lib = _compose_lib("srmech_chain_run", "srmech_chain_run_arena_bytes")
     if lib is None:
         return _NATIVE_MISS
-    from . import _native
+    from .. import _native
     import ctypes
     if not _run_ints_fit_i64(spec, row, inputs or {}):
         return _NATIVE_MISS

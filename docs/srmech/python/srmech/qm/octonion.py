@@ -79,7 +79,7 @@ import functools
 from srmech.math.rational import sqrt as _rsqrt  # §22: scalar root via Class-N
 from typing import List, Sequence, Tuple
 
-from srmech.amsc import _native  # rc122: numpy-free native loop-op dispatch
+from srmech import _native  # rc122: numpy-free native loop-op dispatch
 from srmech.amsc.cascade import magnitude as _magnitude
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
 from srmech.math.mat import Mat  # rc122: numpy-free 2-D carrier for L_a / R_a

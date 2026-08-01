@@ -274,7 +274,12 @@ CEIL_AMSC_PREFIX = {
     # math / apokatastasis / music decoded all UNCHANGED at 320 / 13 / 13). This is
     # the decoded POPULATION channel falling by the arc's second-largest single move.
     # 7 short back-index citations drop on the as-text channel.
-    "c/src/srmech_carrier_registry.c": (68, 97),
+    # as-text 68 -> 67 at rc376 (-1), decoded UNCHANGED at 97. THE INTROSPECT/NATIVE
+    # CORE (final slice): carrier_schema moved amsc->introspect and its ONE as-text
+    # back-index citation here repointed; decoded 97 holds because compose /
+    # carrier_schema are NOT carrier ops in the four hoisted byte arrays (the carrier
+    # registry now carries 1 srmech.introspect. decoded ref in their place).
+    "c/src/srmech_carrier_registry.c": (67, 97),
     # TEXT 0 is TRUE, and true about the wrong thing. Every one of the four
     # baked [class] descriptors (`cls_desc_0..3`) is a decimal byte array, so a
     # grep has nothing to read. 37 DISTINCT dotted names live in there.
@@ -365,7 +370,12 @@ CEIL_AMSC_PREFIX = {
     # as-text 440 -> 282 at rc375 (-158), decoded UNCHANGED at 0. THE BIOLOGY bucket:
     # the moved genome / q8 / coupling / plasmid ops' ToolEntry name= citations +
     # worked-example imports + sibling-prose dotted refs repointed amsc->biology.
-    "c/src/srmech_tool_registry.c": (282, 0),
+    # as-text 282 -> 257 at rc376 (-25), decoded UNCHANGED at 0. THE INTROSPECT/NATIVE
+    # CORE: the 4 compose ToolEntry name= citations + the carrier_schema citation +
+    # ~20 sibling-prose / worked-example dotted refs to the moved introspect-core
+    # modules (tool_schema / _tool_docs / _native / carrier_schema) repointed
+    # amsc->{cascade, introspect, srmech}. decoded stays 0 (this artifact carries none).
+    "c/src/srmech_tool_registry.c": (257, 0),
     # rc368 — THE FIRST MODULE MOVE TO MOVE THIS ARTIFACT (the new data point).
     # This was the CONTROL row through harmonics/naming: "no byte arrays, decoded
     # 0 is a real zero". It is still a real zero on the decoded channel, but the
@@ -434,7 +444,11 @@ CEIL_AMSC_PREFIX = {
     # as-text 431 -> 275 at rc375 (-156), decoded UNCHANGED at 0. THE BIOLOGY bucket,
     # doc-pair partner of the tool registry: the moved genome / q8 / coupling /
     # plasmid ops' documentation repointed amsc->biology.
-    "python/srmech/amsc/_tool_docs.py": (275, 0),
+    # as-text 275 -> 252 at rc376 (-23), decoded UNCHANGED at 0. THE INTROSPECT/NATIVE
+    # CORE, doc-pair partner of the tool registry: the same compose / carrier_schema
+    # ToolEntry documentation + sibling-prose dotted refs to the moved introspect-core
+    # modules repointed amsc->{cascade, introspect}.
+    "python/srmech/introspect/_tool_docs.py": (252, 0),
     # as-text 250 -> 248 at rc367 (-2), decoded UNCHANGED at 0. rc367 is the
     # FIRST module move to move THIS artifact — a departure from the harmonics
     # analog. _c_claims.py is the op -> C-symbol CLAIM manifest, keyed only for
@@ -487,7 +501,11 @@ CEIL_AMSC_PREFIX = {
     # srmech_coupling_*) are capability-named and UNCHANGED — only the Python-side
     # dotted keys moved (ABI stays 10). The MCP dispatch vtable (srmech_invoke.c)
     # holds NO dotted op names for these, so it needed no repoint.
-    "python/srmech/amsc/_c_claims.py": (59, 0),
+    # as-text 59 -> 58 at rc376 (-1), decoded UNCHANGED at 0. THE INTROSPECT/NATIVE
+    # CORE: exactly one moved op is a c_dispatched leaf keyed here — carrier_schema's
+    # srmech_carrier_schema — repointed amsc->introspect (the compose chain-runner ops
+    # are composes_c, not c_dispatched leaves, so they were never keyed in this manifest).
+    "python/srmech/introspect/_c_claims.py": (58, 0),
 }
 
 #: The generated-artifact totals, pinned so a per-file edit cannot quietly move
@@ -500,8 +518,8 @@ CEIL_AMSC_PREFIX = {
 #:
 #: as-text 2933 (rc361) -> 2943 (rc362, +10 = the 5 citations x 2 artifacts).
 #: decoded 577 (rc361)  ->  577 (rc362, FLAT — the population did not move).
-TOTAL_AS_TEXT = 687    # rc374 1042 -> rc375 687 (-355: the BIOLOGY bucket, 4 modules amsc->biology; -158 tool_registry -156 _tool_docs -31 _c_claims -7 carrier -3 responsion)
-TOTAL_DECODED = 126    # rc374 236 -> rc375 126 (-110: POPULATION fell — 99 carrier-registry + 11 class-registry back-index refs for the moved genome / q8 / coupling OPERATOR ops amsc->biology)
+TOTAL_AS_TEXT = 637    # rc375 687 -> rc376 637 (-50: the INTROSPECT/NATIVE core — compose->cascade (4 ops) + carrier_schema->introspect (1 op) + the introspect-core modules' sibling/prose cites; -25 tool_registry -23 _tool_docs -1 _c_claims -1 carrier; responsion + class UNCHANGED)
+TOTAL_DECODED = 126    # rc375 126 -> rc376 126 (UNCHANGED: no moved op had a back-index ref in a hoisted byte array — compose/carrier_schema are not carrier ops; the introspect-core infra modules register no ops at all)
 
 
 def _counts(rel_path: str) -> "tuple[int, int]":

@@ -1,4 +1,4 @@
-"""Convert :class:`srmech.amsc.tool_schema.ToolEntry` -> MCP tool defs.
+"""Convert :class:`srmech.introspect.tool_schema.ToolEntry` -> MCP tool defs.
 
 The MCP tool definition shape (per the spec)::
 
@@ -44,7 +44,7 @@ import json
 import re
 from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple
 
-from ..amsc.tool_schema import (
+from ..introspect.tool_schema import (
     ToolEntry,
     ToolParameter,
     get_tool_schema,
@@ -57,7 +57,7 @@ from ._coercion import coerce_param, serialise_native
 # ensure every downstream tool_schema registration fired before any MCP
 # consumer queried the registry. Those are now funnelled through the
 # single canonical entry-point ``warmup_all()`` (in
-# ``srmech.amsc.tool_schema``) — same effect (registry fully populated
+# ``srmech.introspect.tool_schema``) — same effect (registry fully populated
 # before ``get_tool_schema()``), but the warmup list is now maintained
 # in ONE place. ``srmech.__init__`` already calls ``warmup_all()`` at
 # import; calling it again here is idempotent and keeps the MCP wrapper
@@ -399,7 +399,7 @@ def _native_mcp_defs() -> Optional[List[Dict[str, Any]]]:
     list of MCP tool-def dicts, or ``None`` when the native peer is
     unavailable / returns non-OK (caller uses the pure per-entry path)."""
     try:
-        from ..amsc import _native
+        from .. import _native
     except Exception:  # pragma: no cover — defensive; _native always imports
         return None
     raw = _native.tool_entries_to_mcp_defs_c()

@@ -28,7 +28,7 @@ import pytest
 
 from srmech.biology import genome as G
 from srmech.math import laplacian as L
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math.hdc import klein4_expand
 
 _DIM = 64
@@ -268,7 +268,7 @@ def test_native_trampoline_exception_does_not_crash_and_reraises():
 # ── 7. Callable-not-a-wire-param guard ────────────────────────────────────────
 
 def test_progress_is_never_a_tool_wire_param():
-    from srmech.amsc.tool_schema import get_tool_schema, warmup_all
+    from srmech.introspect.tool_schema import get_tool_schema, warmup_all
     warmup_all()
     for t in get_tool_schema().tools:
         names = [p.name for p in (t.parameters or ())]

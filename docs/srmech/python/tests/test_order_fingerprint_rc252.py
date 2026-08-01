@@ -83,7 +83,7 @@ def test_recover_check_order_via_eulerian_walk():
 
 
 def test_registered_in_tool_schema():
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
     assert "srmech.math.laplacian.order_fingerprint" in names
     assert "srmech.math.laplacian.recover_check_order" in names

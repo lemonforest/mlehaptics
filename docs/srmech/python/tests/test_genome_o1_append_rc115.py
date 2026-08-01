@@ -31,7 +31,7 @@ from pathlib import Path
 import pytest
 
 from srmech.biology import genome as G
-from srmech.amsc import _native
+from srmech import _native
 from srmech.amsc.format import sha256_bytes
 from srmech.math.hdc import klein4_expand
 

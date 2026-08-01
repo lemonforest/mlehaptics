@@ -30,7 +30,7 @@ import time
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.apokatastasis.ellbase import EllMonomial as M, Theta
 from srmech.math.q import Q
 from srmech.apokatastasis.thetasum import (ThetaSum, _ZERO, _UNKNOWN, _decide_thetasum,

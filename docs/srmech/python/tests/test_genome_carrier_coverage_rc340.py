@@ -38,7 +38,7 @@ from collections import Counter
 import pytest
 
 from srmech.biology import genome as G
-from srmech.amsc import tool_schema as TS
+from srmech.introspect import tool_schema as TS
 from srmech.math.hv import HV
 
 
@@ -111,7 +111,7 @@ def _accepts_python(name, obj):
 def _mcp_parameters():
     """``{op_short_name: {param names}}`` for every registered genome tool entry.
 
-    Reads :func:`~srmech.amsc.tool_schema.tool_schema_view` deliberately — that is the
+    Reads :func:`~srmech.introspect.tool_schema.tool_schema_view` deliberately — that is the
     view the MCP adapter serves, and when the native peer is loaded it is produced by
     the C const table (``srmech_tool_registry.c``). So this ALSO catches the rc340
     trap where a Python-side schema edit lands but the generated C registry is not

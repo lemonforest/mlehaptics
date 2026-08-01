@@ -1392,7 +1392,7 @@ static srmech_status_t inf_emit(char *out, size_t out_cap, size_t *out_len,
  * relationship whose largest operand carries `max_terms` coefficients (the
  * gosper term-ratio degree; 1 for cyclic). The gosper ws grows super-linearly in
  * the DEGREE, so the arena is sized on the ACTUAL coefficient count, NOT on
- * rel_len (bytes) — exactly as srmech.amsc._native.gosper_c sizes ws from
+ * rel_len (bytes) — exactly as srmech._native.gosper_c sizes ws from
  * max(n_num, n_den). A generous static over-approximation; too small ->
  * OVERFLOW -> the pure path. No malloc; the caller owns the arena. */
 size_t srmech_infer_arena_bytes(size_t rel_len, size_t max_terms)

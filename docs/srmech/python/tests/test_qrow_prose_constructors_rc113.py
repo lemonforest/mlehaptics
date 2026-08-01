@@ -392,7 +392,7 @@ def test_theta_coefficients_native_equals_pure_byte_identical(monkeypatch):
     rc70 ``srmech_unary_theta`` C peer when present — assert the dispatched
     read equals the FORCED-pure read byte-identically (ints, ``==``). Skips
     cleanly when no native lib is present (the pure path is the oracle)."""
-    from srmech.amsc import _native
+    from srmech import _native
     probe = getattr(_native, "has_native_unary_theta", None)
     if probe is None or not probe():
         pytest.skip("no native srmech_unary_theta (pure-Python path is the oracle)")
@@ -414,7 +414,7 @@ def test_tools_total_matches_live():
 
 
 def test_new_tool_entries_present_with_declared_types():
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     schema = get_tool_schema()
     expected = {
         "srmech.math.poly.poly_from_coeffs": ("poly", {"coeffs": "list[int]"}),

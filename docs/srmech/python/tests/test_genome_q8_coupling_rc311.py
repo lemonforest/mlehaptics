@@ -28,7 +28,7 @@ import random
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.biology import genome as G
 from srmech.biology.genome import (
     ELEMENT_TYPE_KLEIN4,

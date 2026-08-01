@@ -27,7 +27,7 @@ import io
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 
 _cli_main = importlib.import_module("srmech.cli.main")
 

@@ -291,7 +291,7 @@ def test_hv_input_reads_the_same():
 # ─────────────────────────────────────────────────────────────────────────
 
 def test_native_equals_pure_codon_read():
-    from srmech.amsc import _native
+    from srmech import _native
     from srmech.biology.genome import (
         _codon_native_ready, _codon_read_native, _codon_read_pure,
         _genetic_code_table,
@@ -312,7 +312,7 @@ def test_native_equals_pure_codon_read():
 
 
 def test_native_equals_pure_frame_monodromy():
-    from srmech.amsc import _native
+    from srmech import _native
     from srmech.biology.genome import _codon_native_ready, codon_frame_monodromy
     if not _codon_native_ready("srmech_genome_codon_frame_monodromy"):
         pytest.skip("native srmech_genome_codon_frame_monodromy not loaded")

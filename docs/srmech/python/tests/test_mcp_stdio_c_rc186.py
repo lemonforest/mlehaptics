@@ -32,7 +32,7 @@ import threading
 import pytest
 
 import srmech
-from srmech.amsc import _native
+from srmech import _native
 from srmech.mcp import MCP_PROTOCOL_VERSION, MCPServer
 from srmech.mcp._server import build_attestation
 from srmech.mcp._tools import tool_entries_to_mcp_defs

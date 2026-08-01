@@ -86,7 +86,7 @@ check, bounded only by input degree (NOT by any order; unlike the rc56 q-Zeilber
 order-≤1 peer this is a full mirror). It composes a compact exact-``ℚ[q]`` q-poly /
 QBiPoly toolkit over caller-arena ``srmech_bigint`` into one JPL-clean symbol.
 ``q_wz_certificate``'s verify routes through it when ``HAS_NATIVE``
-(:func:`srmech.amsc._native.has_native_q_wz_verify`); the pure-Python verify here is
+(:func:`srmech._native.has_native_q_wz_verify`); the pure-Python verify here is
 the COMPLETE alternative (and the byte-identical parity oracle). The FIND step
 composes the existing ``srmech_q_zeilberger`` machinery (native-accelerated when
 present, pure-Python the complete decider).
@@ -113,7 +113,7 @@ def _native():
     and falls cleanly to the pure-Python check (the complete alternative + the parity
     oracle) otherwise. Imported lazily to avoid a bootstrap cycle."""
     try:
-        from ..amsc import _native as nat
+        from .. import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_q_wz_verify", None)

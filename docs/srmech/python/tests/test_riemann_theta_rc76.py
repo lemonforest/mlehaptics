@@ -38,7 +38,7 @@ import tokenize
 import pytest
 
 from srmech.apokatastasis.riemann_theta import RiemannTheta, RiemannThetaG3
-from srmech.amsc import _native
+from srmech import _native
 
 
 THETA3_Q20 = [1, 2, 0, 0, 2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0]

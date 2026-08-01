@@ -27,7 +27,7 @@ from srmech.apokatastasis.unary_theta import (
     Character, UnaryTheta, unary_theta, _kronecker_minus12,
 )
 from srmech.math.q import Q
-from srmech.amsc import _native
+from srmech import _native
 
 
 # the two anchors, reused across the gates
@@ -244,7 +244,7 @@ def test_unary_theta_source_is_numpy_math_abs_free():
 
 # ── the ToolEntry registration + the running count ───────────────────────────
 def test_unary_theta_tool_entry_registered():
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
     assert "srmech.apokatastasis.unary_theta.unary_theta" in names
 
@@ -257,7 +257,7 @@ def test_introspect_tools_total_matches_live():
     that they do not (cleanly) remove, so the raw ``describe()`` total drifts up by
     those leaks depending on test order. We exclude the ``test.``-namespaced
     injections (the shipped surface is what this invariant is about)."""
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     shipped = [t for t in get_tool_schema().tools if not t.name.startswith("test.")]
     assert len(shipped) == 525
     names = {t.name for t in shipped}

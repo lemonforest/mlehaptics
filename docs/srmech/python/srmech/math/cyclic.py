@@ -2,7 +2,7 @@
 
 Public Python surface for the six load-bearing modular-arithmetic
 operations that underlie cyclic-cascade composition. Each operation
-dispatches to the native C implementation when ``srmech.amsc._native``
+dispatches to the native C implementation when ``srmech._native``
 loaded successfully (``HAS_NATIVE = True``) and falls back to a
 pure-Python implementation otherwise. Both paths produce byte-exact
 identical results — pinned by ``tests/test_cyclic_parity.py``.
@@ -43,7 +43,7 @@ from __future__ import annotations
 
 import ctypes
 
-from ..amsc import _native
+from .. import _native
 
 __all__ = [
     "gcd",

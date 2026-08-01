@@ -22,7 +22,7 @@ from __future__ import annotations
 import srmech
 from srmech import dsl
 from srmech.amsc import cascade
-from srmech.amsc.carrier_schema import _CARRIERS
+from srmech.introspect.carrier_schema import _CARRIERS
 from srmech.introspect import describe
 from srmech.introspect._domain_classes import (
     NON_DOMAIN_RECORDS,

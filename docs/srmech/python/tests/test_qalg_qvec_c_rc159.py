@@ -36,7 +36,7 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.amsc.cascade import cayley_dickson as cd
 
 

@@ -33,7 +33,8 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc import catalog, compose
+from srmech.amsc import catalog
+from srmech.cascade import compose
 
 # Is the rc175 native chain-orchestration bound? (A stale ABI-3 lib / pure wheel
 # / numpy-absent-but-no-.so env keeps the pure path — parity still holds.)

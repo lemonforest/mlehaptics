@@ -41,7 +41,7 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math import laplacian as L
 from srmech.amsc.cascade import winding_fold
 
@@ -322,7 +322,7 @@ def test_pure_path_contracts_match():
 def test_registration_and_count():
     import srmech
     from srmech.amsc import cascade
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     schema = get_tool_schema()
     names = {t.name for t in schema.tools}
     assert "srmech.amsc.cascade.winding_fold" in names

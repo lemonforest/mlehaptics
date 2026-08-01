@@ -60,7 +60,7 @@ pure held BY CONSTRUCTION with nothing vendored. UAX #29 forecloses that:
 ``unicodedata`` exposes no grapheme-break property, no ``Extended_Pictographic``
 (GB11) and no ``InCB`` (GB9c), so the real choice is vendored-vs-ABSENT, and
 absent means broken emoji and broken Indic. srmech therefore vendors ONE
-attested table (:mod:`srmech.amsc._unicode_gb_tables`, UCD 16.0.0) that both
+attested table (:mod:`srmech.math._unicode_gb_tables`, UCD 16.0.0) that both
 coherency projections load; byte-identity is now pinned by **test**
 (``test_unicode_gb_tables_attested.py``) rather than by construction, and
 upstream drift is caught by ``c/tools/gen_unicode_gb_tables.py --verify``.
@@ -83,9 +83,9 @@ from array import array
 from functools import lru_cache
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
-from ..amsc import _native
-from ..amsc import _unicode_gb_tables as _gb
-from ..amsc import _unicode_fold_tables as _fold
+from .. import _native
+from ..math import _unicode_gb_tables as _gb
+from ..math import _unicode_fold_tables as _fold
 
 __all__ = ["fold_marks", "glyph_stream", "cooccurrence_edges",
            "cooccurrence_topk"]

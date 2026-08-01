@@ -52,7 +52,7 @@ import re
 
 import pytest
 
-from srmech.amsc import _unicode_gb_tables as gbt
+from srmech.math import _unicode_gb_tables as gbt
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))            # docs/srmech

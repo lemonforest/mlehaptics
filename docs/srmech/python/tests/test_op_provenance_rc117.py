@@ -296,7 +296,7 @@ def _native_hash(record_bytes: bytes):
     """Call the C peer directly on raw record bytes; None when no native."""
     import ctypes
 
-    from srmech.amsc import _native
+    from srmech import _native
     if not (_native.HAS_NATIVE and _native.LIB is not None
             and hasattr(_native.LIB, "srmech_op_provenance_hash")
             and hasattr(_native.LIB, "srmech_op_provenance_hash_arena_bytes")):
@@ -312,7 +312,7 @@ def _native_hash(record_bytes: bytes):
 
 
 def _require_native():
-    from srmech.amsc import _native
+    from srmech import _native
     if not (_native.HAS_NATIVE and _native.LIB is not None
             and hasattr(_native.LIB, "srmech_op_provenance_hash")):
         pytest.skip("native srmech_op_provenance_hash not available")
@@ -379,7 +379,7 @@ def test_tools_total_matches_live():
 
 
 def test_new_tool_entries_present_with_declared_types():
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     schema = get_tool_schema()
     expected = {
         "srmech.introspect.op_provenance.carry": (

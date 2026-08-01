@@ -33,7 +33,7 @@ import tokenize
 import pytest
 
 from srmech.apokatastasis.riemann_theta import RiemannThetaG4, SchottkyFormG4
-from srmech.amsc import _native
+from srmech import _native
 
 
 # the famous genus-4 first-difference representation counts (exact, verified at build)

@@ -279,7 +279,7 @@ def test_introspect_tools_total_matches_live():
 
 def test_tool_entry_registered():
     """The new op is a registered ToolEntry in the qm.triality category."""
-    from srmech.amsc import tool_schema
+    from srmech.introspect import tool_schema
 
     schema = tool_schema.get_tool_schema()
     name = "srmech.qm.triality.lean_isa_seventh_primitive"

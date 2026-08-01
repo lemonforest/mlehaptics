@@ -1,6 +1,6 @@
 """srmech.mcp — Model Context Protocol server adapter (v0.5.0rc6).
 
-Exposes :mod:`srmech.amsc.tool_schema` ``ToolEntry`` registrations
+Exposes :mod:`srmech.introspect.tool_schema` ``ToolEntry`` registrations
 (~150, ~87 user-direction-stated baseline) to MCP-aware LLM clients
 (Claude Code, Cline, Continue, …) as MCP tools. Per user direction
 2026-05-28: user is on the Claude Code Max plan (no Anthropic

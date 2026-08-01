@@ -1,4 +1,4 @@
-"""rc173 — the amsc.compose LINEAR CHAIN-RUNNER PARSE+VALIDATE → C parity.
+"""rc173 — the cascade.compose LINEAR CHAIN-RUNNER PARSE+VALIDATE → C parity.
 
 The ORCHESTRATION→C spine, batch 3: ``parse_chain_spec`` +
 ``parse_catalog_chains`` earned C peers (``srmech_chain_spec_parse`` /
@@ -28,7 +28,7 @@ if sys.version_info >= (3, 11):
 else:  # pragma: no cover
     import tomli as tomllib  # type: ignore
 
-from srmech.amsc import compose
+from srmech.cascade import compose
 
 _ATTESTED = Path(__file__).resolve().parent.parent / "srmech" / "amsc" / "attested"
 

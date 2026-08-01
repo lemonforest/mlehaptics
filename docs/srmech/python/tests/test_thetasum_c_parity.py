@@ -24,7 +24,7 @@ import pytest
 from srmech.amsc import ThetaSum
 from srmech.apokatastasis.ellbase import EllMonomial as M, Theta, EllRatio as R
 from srmech.math.q import Q
-from srmech.amsc import _native
+from srmech import _native
 
 _A, _B, _C, _D, _E = (M.symbol("a"), M.symbol("b"), M.symbol("c"),
                       M.symbol("d"), M.symbol("e"))

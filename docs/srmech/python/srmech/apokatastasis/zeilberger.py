@@ -54,7 +54,7 @@ SAME existing C kernels — the ``srmech_poly_*`` algebra (the bivariate handlin
 rides ``srmech_poly_mul`` / ``srmech_poly_add`` / ``srmech_poly_shift`` over ``n``)
 + ``srmech_qmat_rref`` (the parametrized exact-``ℚ`` solve) — into one
 caller-arena, JPL-clean symbol. ``zeilberger`` routes through it when
-``HAS_NATIVE`` (:func:`srmech.amsc._native.has_native_zeilberger`); the
+``HAS_NATIVE`` (:func:`srmech._native.has_native_zeilberger`); the
 pure-Python body here is the COMPLETE alternative (and the byte-identical parity
 oracle): both emit the same recurrence + certificate at any magnitude.
 """
@@ -78,7 +78,7 @@ def _native():
     available and falls cleanly to the pure-Python body (the complete alternative
     + the parity oracle) otherwise. Imported lazily to avoid a bootstrap cycle."""
     try:
-        from ..amsc import _native as nat
+        from .. import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_zeilberger", None)

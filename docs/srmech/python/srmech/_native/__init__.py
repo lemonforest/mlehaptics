@@ -4924,7 +4924,7 @@ def _bind(lib: ctypes.CDLL) -> None:
         lib.srmech_catalog_attestation_audit_arena_bytes.restype = ctypes.c_size_t
 
     # ------------------------------------------------------------------
-    # amsc.compose LINEAR CHAIN-RUNNER parse + validate (0.9.0rc173; the
+    # cascade.compose LINEAR CHAIN-RUNNER parse + validate (0.9.0rc173; the
     # ORCHESTRATION→C spine, batch 3). Each takes JSON (the Python dict,
     # json.dumps'd) + a caller arena, writes normalized-spec canonical JSON.
     #   int srmech_chain_spec_parse(chain_json, chain_len, ws, ws_len,
@@ -4956,7 +4956,7 @@ def _bind(lib: ctypes.CDLL) -> None:
         lib.srmech_chain_catalog_parse_arena_bytes.restype = ctypes.c_size_t
 
     # ------------------------------------------------------------------
-    # amsc.compose LINEAR CHAIN-RUNNER RUN LOOP (0.9.0rc174; the
+    # cascade.compose LINEAR CHAIN-RUNNER RUN LOOP (0.9.0rc174; the
     # ORCHESTRATION→C spine, batch 4). Runs a validated chain end-to-end in C
     # to byte-identical OUTPUT; marshals the final value back as a canonical
     # value descriptor. chain_json = the full chain dict; ctx_json = {"row":..,
@@ -7422,7 +7422,7 @@ def tool_registry_find_name_c(name: str) -> "str | None":
 
 # ----------------------------------------------------------------------
 # rc185 — the tool-schema PROJECTION ops (the C MCP-server HOST-GLUE
-# tier). C peers of srmech.amsc.tool_schema.get_tool_schema /
+# tier). C peers of srmech.introspect.tool_schema.get_tool_schema /
 # .tool_schema_view + srmech.mcp.tool_entries_to_mcp_defs. Each is a
 # two-pass (NULL-buffer size query, then fill) projection over the rc184
 # const table; returns raw bytes or ``None`` (stale / no-C host → pure).
@@ -7487,7 +7487,7 @@ def tool_entries_to_mcp_defs_c() -> "bytes | None":
 # per-carrier metadata (name / description / ladder / rung / variables /
 # the DERIVED ops back-index) + the canonical carrier-schema JSON from the
 # compiled-in srmech_carrier_registry const table, byte-identical to the
-# Python SSoT (srmech.amsc.carrier_schema._pure_carrier_schema). These
+# Python SSoT (srmech.introspect.carrier_schema._pure_carrier_schema). These
 # helpers exercise that surface from Python (the dispatch path + the
 # hash-ratchet + accessor round-trip tests).
 # ----------------------------------------------------------------------
@@ -8250,7 +8250,7 @@ def sha256_hex_c(data: bytes) -> str:
     """
     if not HAS_NATIVE or LIB is None:
         raise RuntimeError(
-            "srmech.amsc._native.sha256_hex_c called but HAS_NATIVE is False; "
+            "srmech._native.sha256_hex_c called but HAS_NATIVE is False; "
             "use srmech.amsc.format.sha256_bytes (which dispatches correctly)"
         )
     out = ctypes.create_string_buffer(65)  # 64 hex chars + NUL
@@ -18261,7 +18261,7 @@ def sha256_batch_c(datas: "list[bytes]") -> "list[str]":
     """
     if not HAS_NATIVE or LIB is None or not hasattr(LIB, "srmech_sha256_batch"):
         raise RuntimeError(
-            "srmech.amsc._native.sha256_batch_c called but the native "
+            "srmech._native.sha256_batch_c called but the native "
             "srmech_sha256_batch symbol is unavailable; use "
             "srmech.amsc.format.sha256_batch (which dispatches correctly)"
         )
@@ -18307,7 +18307,7 @@ def sha256_shani_c(data: bytes) -> str:
     """
     if not HAS_NATIVE or LIB is None or not hasattr(LIB, "srmech_sha256_shani"):
         raise RuntimeError(
-            "srmech.amsc._native.sha256_shani_c called but the native "
+            "srmech._native.sha256_shani_c called but the native "
             "srmech_sha256_shani symbol is unavailable; use "
             "srmech.amsc.format.sha256_bytes (which dispatches correctly)"
         )
@@ -18384,7 +18384,7 @@ def ndjson_lines_c(path: str) -> list[tuple[int, bytes]]:
     """
     if not HAS_NATIVE or LIB is None:
         raise RuntimeError(
-            "srmech.amsc._native.ndjson_lines_c called but HAS_NATIVE "
+            "srmech._native.ndjson_lines_c called but HAS_NATIVE "
             "is False; use srmech.amsc.format.read_ndjson (which "
             "dispatches correctly)"
         )
@@ -18456,7 +18456,7 @@ def cascade_parallel_sector_dispatch_c(body, x, n_sectors: int = 4) -> list:
     """
     if not HAS_NATIVE or LIB is None:
         raise RuntimeError(
-            "srmech.amsc._native.cascade_parallel_sector_dispatch_c called "
+            "srmech._native.cascade_parallel_sector_dispatch_c called "
             "but HAS_NATIVE is False"
         )
     if not hasattr(LIB, "srmech_cascade_parallel_sector_dispatch"):
@@ -20991,7 +20991,7 @@ def genome_pack_c(loose_dir: str, dest: str, coupling: bytes) -> None:
 def c_claim_report() -> "dict":
     """Check every ``c_dispatched`` claim against the LOADED library.
 
-    Resolves each C symbol named in :data:`srmech.amsc._c_claims.C_CLAIMS`
+    Resolves each C symbol named in :data:`srmech.introspect._c_claims.C_CLAIMS`
     against the library this process actually loaded, so a partial or stale
     build becomes a named, enumerable inconsistency instead of a silent
     fallback to the pure path.
@@ -21013,7 +21013,7 @@ def c_claim_report() -> "dict":
     That is not a vacuous pass being dressed up as a real one — ``native``
     False is reported alongside it, and the ops legitimately run pure.
     """
-    from ._c_claims import C_CLAIMS, UNVERIFIABLE_CLAIMS
+    from ..introspect._c_claims import C_CLAIMS, UNVERIFIABLE_CLAIMS
 
     if not (HAS_NATIVE and LIB is not None):
         return {

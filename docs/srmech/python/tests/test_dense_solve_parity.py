@@ -20,7 +20,7 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math import laplacian  # noqa: F401
 from srmech.math.laplacian import dense_solve, schur_complement
 

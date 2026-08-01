@@ -31,7 +31,7 @@ import pytest
 from srmech.math.poly import Poly
 from srmech.math.q import Q
 from srmech.math.qpoly import QPoly
-from srmech.amsc import _native
+from srmech import _native
 
 
 # ── an independent {(e, d): Fraction} q-polynomial oracle ─────────────────────

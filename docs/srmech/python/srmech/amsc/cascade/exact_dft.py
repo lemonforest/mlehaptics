@@ -194,7 +194,7 @@ def _exact_dft_core_native(re: List[int], im: List[int], n: int,
     Magnitude is a Class-K sign-branch read, never ``abs``.
     """
     try:
-        from srmech.amsc import _native
+        from srmech import _native
     except Exception:
         return None
     if not getattr(_native, "HAS_NATIVE", False):

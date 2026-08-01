@@ -14,7 +14,7 @@ silent drift in either cascade fails here.
 
 from __future__ import annotations
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math.rational import pi_cascade_digits, pi_chudnovsky_digits
 
 import pytest

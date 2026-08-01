@@ -90,8 +90,8 @@ from typing import Dict, List, Set, Tuple
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # noqa: E402
 
-from srmech.amsc.carrier_schema import _CARRIERS, _pure_carrier_schema  # noqa: E402
-from srmech.amsc.tool_schema import get_tool_schema, warmup_all  # noqa: E402
+from srmech.introspect.carrier_schema import _CARRIERS, _pure_carrier_schema  # noqa: E402
+from srmech.introspect.tool_schema import get_tool_schema, warmup_all  # noqa: E402
 
 from coercion_boundary import (  # noqa: E402
     NON_CARRIER_CLASSES,
@@ -170,7 +170,7 @@ def test_every_used_carrier_is_registered() -> None:
         "these srmech classes are CONSUMED or PRODUCED by registered ops and "
         "have no carrier_schema row:\n  "
         + "\n  ".join(f"{n} <- {ops}" for n, ops in unknown)
-        + "\nAdd each to srmech.amsc.carrier_schema._CARRIERS (with a genuine "
+        + "\nAdd each to srmech.introspect.carrier_schema._CARRIERS (with a genuine "
           "description, a _CAPABILITY row and a construction example in "
           "tools/gen_carrier_examples_probe.py), then regenerate with "
           "tools/regen_all.py. If it is NOT a mathematical operand — a handle, "

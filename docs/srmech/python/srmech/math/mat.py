@@ -198,7 +198,7 @@ class Mat:
     # the SAME array('d') buffer zero-copy; the pure-Python bodies below are the
     # COMPLETE alternative (numpy-absent / no-C hosts) and the byte-exact oracle.
     def _native_unary(self, kind: str):
-        from ..amsc import _native  # lazy: _native has no Mat dependency
+        from .. import _native  # lazy: _native has no Mat dependency
         res = _native.mat_unary_c(self._buf, self.n_rows, self.n_cols,
                                   self._complex, kind)
         if res is None:
@@ -295,7 +295,7 @@ class Mat:
         broadcast). Returns a :class:`Mat` or ``None`` (all other operands —
         reflected sub/div, 2-D-sequence coercion, cross-rank — fall to the pure
         :meth:`_elementwise`). ``kind`` in {"add","sub","mul"}."""
-        from ..amsc import _native  # lazy
+        from .. import _native  # lazy
         if isinstance(other, Mat) and other.shape == self.shape:
             res = _native.mat_binary_c(self._buf, self._complex, other._buf,
                                        other._complex, self.n_rows,

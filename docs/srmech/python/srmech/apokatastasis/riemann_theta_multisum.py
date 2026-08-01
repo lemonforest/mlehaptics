@@ -534,7 +534,7 @@ def _multisum_c(zz, pts, n: int, side: int) -> "ThetaBracketSum | None":
     ``z`` / point EllMonomials over the interned symbol table to dense integer exponent rows
     and rebuilds the returned bracket-product monomials into an exact :class:`ThetaBracketSum`
     (byte-exact to the pure carrier). Returns ``None`` when the native symbols are absent."""
-    from ..amsc import _native as _nat
+    from .. import _native as _nat
     hn = getattr(_nat, "has_native_riemann_theta_multisum", None)
     if hn is None or not hn():
         return None

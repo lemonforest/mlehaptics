@@ -14,8 +14,9 @@ import random
 
 import pytest
 
-from srmech.amsc import _native, cascade
-from srmech.amsc._native import HAS_NATIVE
+from srmech import _native
+from srmech.amsc import cascade
+from srmech._native import HAS_NATIVE
 
 
 _HAMMING_NATIVE = (

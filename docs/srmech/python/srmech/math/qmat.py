@@ -57,7 +57,7 @@ def _native():
     to the pure-Python Gauss-Jordan body (the complete alternative + the parity
     oracle) otherwise. Imported lazily to avoid a bootstrap cycle."""
     try:
-        from ..amsc import _native as nat
+        from .. import _native as nat
     except ImportError:
         return None
     return nat if nat.has_native_qmat() else None

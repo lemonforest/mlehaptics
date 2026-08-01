@@ -23,7 +23,7 @@ ping / shutdown; tools/call routes to the still-owed ``invoke_tool``
 tool-execution path, and its per-request dispatch flows through
 :meth:`MCPServer.handle`, which itself routes the lifecycle + discovery
 methods to the native ``srmech_mcp_handle`` (byte-identical) when running
-the default server. See :mod:`srmech.amsc._native` ``mcp_handle_c`` /
+the default server. See :mod:`srmech._native` ``mcp_handle_c`` /
 ``srmech.mcp._server.MCPServer._native_dispatch``.
 """
 

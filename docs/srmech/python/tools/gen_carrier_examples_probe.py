@@ -16,7 +16,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import srmech  # noqa: F401,E402
-from srmech.amsc.tool_schema import warmup_all  # noqa: E402
+from srmech.introspect.tool_schema import warmup_all  # noqa: E402
 warmup_all()
 
 # a namespace of the imports the construction expressions use
@@ -185,7 +185,7 @@ def main():
                      f"{json.dumps(out[name], sort_keys=True, ensure_ascii=False)},")
     lines.append("}")
     lines.append("")
-    dest = Path(__file__).resolve().parent.parent / "srmech" / "amsc" / "_carrier_examples.py"
+    dest = Path(__file__).resolve().parent.parent / "srmech" / "introspect" / "_carrier_examples.py"
     dest.write_text("\n".join(lines), encoding="utf-8", newline="\n")
     print(f"\nwrote {dest} — {len(out)} carrier examples "
           f"({sum(1 for v in out.values() if 'yields' in v)} executed)")

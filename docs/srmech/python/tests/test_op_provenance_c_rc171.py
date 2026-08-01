@@ -29,7 +29,7 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.introspect import op_provenance as op
 
 _HAS_NATIVE = _native.HAS_NATIVE and _native.LIB is not None

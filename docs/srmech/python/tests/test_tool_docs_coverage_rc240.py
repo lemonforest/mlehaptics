@@ -15,7 +15,7 @@ numpy-free (imports only srmech + stdlib), per the numpy-absent CI cell.
 
 from __future__ import annotations
 
-from srmech.amsc.tool_schema import get_tool_schema, warmup_all
+from srmech.introspect.tool_schema import get_tool_schema, warmup_all
 
 warmup_all()
 
@@ -54,7 +54,7 @@ def test_every_srmech_tool_has_explanation() -> None:
                if not (t.explanation and t.explanation.strip())]
     assert not missing, (
         f"{len(missing)} srmech tools have no explanation (rc240 #838 floor is "
-        f"100%); regenerate srmech/amsc/_tool_docs.py via tools/gen_tool_docs.py: "
+        f"100%); regenerate srmech/introspect/_tool_docs.py via tools/gen_tool_docs.py: "
         f"{missing[:5]}"
     )
 
@@ -135,7 +135,7 @@ def test_curated_keys_are_all_registered() -> None:
     typo'd key would be silently dropped by the generator (the merge is keyed
     on the registered tool name, not the callable path)."""
     try:
-        from srmech.amsc._tool_docs_curated import CURATED
+        from srmech.introspect._tool_docs_curated import CURATED
     except Exception:  # noqa: BLE001
         CURATED = {}
     names = {t.name for t in get_tool_schema().tools}
@@ -149,13 +149,13 @@ def test_every_carrier_has_construction_example() -> None:
     """rc241 (#839): every registered CARRIER exposes a construction example
     (how to build/obtain it) — the operand-side peer of the tool floor. A new
     carrier that ships without one fails here."""
-    from srmech.amsc.carrier_schema import carrier_schema
+    from srmech.introspect.carrier_schema import carrier_schema
 
     sch = carrier_schema()
     missing = [name for name, c in sch.items() if not c.get("example")]
     assert not missing, (
         f"{len(missing)} carriers have no construction example (rc241 floor is "
-        f"100%); regenerate srmech/amsc/_carrier_examples.py: {missing[:5]}"
+        f"100%); regenerate srmech/introspect/_carrier_examples.py: {missing[:5]}"
     )
 
 
@@ -198,7 +198,7 @@ def _probe_module():
 def test_curated_carrier_examples_are_preserved_by_regeneration() -> None:
     """Every hand-authored `_CURATED` row survives a regeneration BYTE-IDENTICAL,
     and the shipped file agrees with a fresh build (the idempotence half)."""
-    from srmech.amsc._carrier_examples import CARRIER_EXAMPLES
+    from srmech.introspect._carrier_examples import CARRIER_EXAMPLES
 
     probe = _probe_module()
     assert probe._CURATED, (
@@ -208,7 +208,7 @@ def test_curated_carrier_examples_are_preserved_by_regeneration() -> None:
 
     built = probe.build_examples(quiet=True)
     assert built == CARRIER_EXAMPLES, (
-        "srmech/amsc/_carrier_examples.py is out of date — re-run "
+        "srmech/introspect/_carrier_examples.py is out of date — re-run "
         "`python3 tools/gen_carrier_examples_probe.py`")
 
     for name, row in probe._CURATED.items():
@@ -244,7 +244,7 @@ def test_the_curated_qalg_row_still_carries_its_witness() -> None:
     """The reason the Qalg row is curated rather than derived: its `yields` is a
     MEASUREMENT (an exact-arithmetic witness), not a repr. A derived row would
     print `Qalg(degree=2, ...)` and lose both facts."""
-    from srmech.amsc._carrier_examples import CARRIER_EXAMPLES
+    from srmech.introspect._carrier_examples import CARRIER_EXAMPLES
 
     yields = CARRIER_EXAMPLES["Qalg"]["yields"]
     assert "as_rational() == Q(2, 1)" in yields, (

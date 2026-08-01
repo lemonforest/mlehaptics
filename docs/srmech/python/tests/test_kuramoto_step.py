@@ -17,7 +17,7 @@ import math
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.amsc.cascade import kuramoto_step
 
 
@@ -131,7 +131,7 @@ def test_native_shim_direct():
 
 
 def test_tool_entry_registered():
-    from srmech.amsc import tool_schema
+    from srmech.introspect import tool_schema
 
     schema = tool_schema.get_tool_schema()
     name = "srmech.amsc.cascade.kuramoto_step"

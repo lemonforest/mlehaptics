@@ -1,4 +1,4 @@
-/* srmech_compose_run.c — the amsc.compose LINEAR CHAIN-RUNNER *RUN LOOP* in C
+/* srmech_compose_run.c — the cascade.compose LINEAR CHAIN-RUNNER *RUN LOOP* in C
  * (0.9.0rc174; the ORCHESTRATION→C spine, batch 4).
  *
  * rc173 put the PARSE half (parse_chain_spec / parse_catalog_chains) in C. The

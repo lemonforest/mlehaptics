@@ -43,7 +43,7 @@ The new-namespace template (rc370's ``srmech.apokatastasis`` / rc372's
 
 This module deliberately imports nothing: ``import srmech.biology`` must stay
 free. The domain's callables live in submodules, each importing the carriers it
-needs (``srmech.amsc._native`` / ``srmech.math.*`` / its intra-biology siblings)
+needs (``srmech._native`` / ``srmech.math.*`` / its intra-biology siblings)
 directly.
 """
 

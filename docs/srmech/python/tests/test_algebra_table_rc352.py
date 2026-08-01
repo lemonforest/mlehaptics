@@ -44,7 +44,8 @@ import random
 
 import pytest
 
-from srmech.amsc import _native, cascade
+from srmech import _native
+from srmech.amsc import cascade
 from srmech.amsc.cascade import cayley_dickson as cd
 from srmech.math.q import Q
 from srmech.qm.octonion import octonion_mult_table
@@ -481,7 +482,7 @@ def test_order_fingerprint_no_longer_carries_its_own_table_product():
 # ── registration ────────────────────────────────────────────────────────────
 
 def test_registered_in_the_tool_schema_and_reachable_flat():
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
     assert "srmech.amsc.cascade.algebra_table" in names
     assert "srmech.amsc.cascade.table_product" in names

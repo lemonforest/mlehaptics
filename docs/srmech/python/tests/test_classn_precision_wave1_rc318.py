@@ -26,7 +26,7 @@ numpy-free (no numpy import anywhere in the call graph).
 """
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math import rational as R
 from srmech.math.rational import (
     sqrt, hypot, pi_cascade_digits, relative_writhe,

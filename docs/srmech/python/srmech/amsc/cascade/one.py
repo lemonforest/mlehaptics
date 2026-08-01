@@ -374,7 +374,7 @@ def _winding_native():
     amsc-package circular import); honours the ``HAS_NATIVE`` toggle the parity
     tests flip.
     """
-    from .. import _native
+    from ... import _native
     if _native.HAS_NATIVE and _native.LIB is not None:
         return _native
     return None
@@ -910,7 +910,7 @@ def _the_one_native_flat(sigma: int, theta_num: int, theta_den: int,
     Lazy import (keeps ``one.py``'s import graph unchanged + dodges any
     amsc-package circular import); honours the ``HAS_NATIVE`` toggle the parity
     tests flip (``the_one_c`` re-checks it via ``has_native_the_one``)."""
-    from .. import _native
+    from ... import _native
     fn = getattr(_native, "the_one_c", None)
     if fn is None:
         return None
@@ -1097,7 +1097,7 @@ def _one_scalar_native(one: "One", mode: str, index):
     to the pure path. Lazy import (keeps ``one.py``'s import graph unchanged +
     honours the ``HAS_NATIVE`` toggle the parity tests flip via
     ``one_scalar_c`` → ``has_native_one_scalar``)."""
-    from .. import _native
+    from ... import _native
     fn = getattr(_native, "one_scalar_c", None)
     if fn is None:
         return None

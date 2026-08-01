@@ -26,7 +26,7 @@ from operator import add
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math import hdc
 
 
@@ -309,7 +309,7 @@ def test_lift_is_dimension_specific():
 # ------------------------------------------------------------ registration
 
 def test_registered_in_the_tool_schema():
-    from srmech.amsc.tool_schema import get_tool_schema, warmup_all
+    from srmech.introspect.tool_schema import get_tool_schema, warmup_all
 
     warmup_all()
     names = {t.name for t in get_tool_schema().tools}
@@ -332,7 +332,7 @@ def test_array_typecode_is_not_read_as_the_Q_carrier():
     filed this op under ``Q.produces``. It produces no Q. Latent before rc295
     only because no registered ToolEntry type carried ``array('Q')``.
     """
-    from srmech.amsc.carrier_schema import carrier_schema
+    from srmech.introspect.carrier_schema import carrier_schema
 
     produces = carrier_schema()["Q"]["ops"]["produces"]
     assert "srmech.math.hdc.klein4_bundle_sector_scores" not in produces, \

@@ -26,7 +26,7 @@ from array import array
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math.complex128 import Complex128
 from srmech.math.mat import Mat
 from srmech.math.vec import Vec

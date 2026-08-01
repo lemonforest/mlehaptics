@@ -393,7 +393,7 @@ def riemann_theta_force_pure(mp: "pytest.MonkeyPatch") -> List[str]:
 
     Returns the (initially empty) list the sentinel appends to — after the
     pure-path work, assert it is still empty (``assert hits == []``)."""
-    from srmech.amsc import _native as _n
+    from srmech import _native as _n
 
     hits: List[str] = []
 
@@ -790,7 +790,7 @@ class BodyReadProbe:
         attributed to one or the other. ``force_pure`` pins the pure path, since the C
         path reads the same bytes by construction but does so through its own fopen,
         invisible to a Python seam."""
-        from srmech.amsc import _native
+        from srmech import _native
 
         orig_open = _G._open_body_ro
         orig_catalog = _G._catalog_data

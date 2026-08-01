@@ -113,7 +113,7 @@ def op(
     except TypeError as exc:  # nested sequence -> not 1-D
         raise ValueError("iir expects a 1-D real signal") from exc
 
-    from srmech.amsc import _native
+    from srmech import _native
 
     if biquad_sections is not None:
         # Cascade of second-order sections (sosfilt): apply each in turn, each

@@ -145,7 +145,7 @@ def test_zero_ratio_is_none():
 
 # ── (d) Python==C parity (the certificate decision) ─────────────────────────────────
 def _has_native():
-    from srmech.amsc import _native
+    from srmech import _native
     return _native.has_native_elliptic_zeilberger()
 
 
@@ -156,7 +156,7 @@ def test_python_equals_c_verdict():
     """Drive the C peer on the canonical ₈ω₇ and a non-₈ω₇; the native verdict must match
     the op (the C recognizes + decides the certificate ≡ 0; do NOT trust it blindly — the
     op re-decides cert.is_zero in exact ℚ before returning)."""
-    from srmech.amsc import _native
+    from srmech import _native
     rk = _make_8w7()
     got = _native.elliptic_zeilberger_c(er._ratio_to_form(rk))
     assert got is not None
@@ -186,6 +186,6 @@ def test_source_is_numpy_math_abs_free():
 
 # ── the ToolEntry is registered ─────────────────────────────────────────────────────
 def test_tool_entry_registered():
-    from srmech.amsc import tool_schema
+    from srmech.introspect import tool_schema
     names = {t.name for t in tool_schema.get_tool_schema().tools}
     assert "srmech.apokatastasis.elliptic_zeilberger.elliptic_zeilberger" in names

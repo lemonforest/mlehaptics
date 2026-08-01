@@ -22,7 +22,7 @@ from __future__ import annotations
 import pytest
 
 from srmech.math import laplacian as L
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math.laplacian import (
     signed_laplacian,
     symmetric_eigendecompose,
@@ -188,7 +188,7 @@ def test_no_abs_in_source():
 
 # ── 5. registration + Rosetta ledger ──────────────────────────────────────────
 def test_tool_schema_registration():
-    from srmech.amsc.tool_schema import get_tool_schema, warmup_all
+    from srmech.introspect.tool_schema import get_tool_schema, warmup_all
     warmup_all()
     names = {t.name for t in get_tool_schema().tools}
     assert "srmech.math.laplacian.spectral_spine" in names

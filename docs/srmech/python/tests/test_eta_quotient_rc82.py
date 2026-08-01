@@ -25,7 +25,7 @@ import pytest
 
 from srmech.apokatastasis.eta_quotient import EtaQuotient, eta_quotient
 from srmech.math.q import Q
-from srmech.amsc import _native
+from srmech import _native
 
 
 # the verified oracle (hardcoded known coefficients — NOT the carrier itself)
@@ -234,7 +234,7 @@ def test_eta_quotient_source_is_numpy_math_abs_free():
 def test_eta_quotient_is_a_carrier_no_tool_entry():
     """EtaQuotient is a CARRIER (like Poly / RiemannTheta) → it registers NO
     ToolEntry, so the shipped tool count is UNCHANGED at 342."""
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     shipped = [t for t in get_tool_schema().tools if not t.name.startswith("test.")]
     assert len(shipped) == 525
     names = {t.name for t in shipped}

@@ -79,7 +79,7 @@ from __future__ import annotations
 import numbers
 from typing import Tuple
 
-from ..amsc import _native
+from .. import _native
 from . import cyclic as _cyclic
 from . import rational as _rational
 

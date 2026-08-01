@@ -21,7 +21,7 @@ from __future__ import annotations
 import ctypes
 from typing import Tuple
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math.laplacian import mat_matmul, mat_norm
 from srmech.math.mat import Mat
 

@@ -16,7 +16,7 @@ import zipfile
 from pathlib import Path
 
 import srmech
-from srmech.amsc.tool_schema import get_tool_schema
+from srmech.introspect.tool_schema import get_tool_schema
 from srmech.cli.main import main as cli_main
 from srmech.mcp._mcpb import build_manifest, pack_mcpb
 from srmech.mcp._tools import tool_entries_to_mcp_defs

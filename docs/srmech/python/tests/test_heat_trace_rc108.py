@@ -34,7 +34,7 @@ import ctypes
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math import laplacian as L
 from srmech.math import rational as R
 
@@ -386,7 +386,7 @@ def test_empty_spectrum_gives_zero_theta():
 
 
 def test_registered_in_tool_schema():
-    from srmech.amsc import tool_schema
+    from srmech.introspect import tool_schema
 
     schema = tool_schema.get_tool_schema()
     for name in (

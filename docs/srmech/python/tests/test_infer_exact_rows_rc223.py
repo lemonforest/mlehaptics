@@ -54,7 +54,7 @@ import os
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math import dispatch
 from srmech.math.dispatch import infer, _marshal_relationship
 from srmech.math.poly import Poly

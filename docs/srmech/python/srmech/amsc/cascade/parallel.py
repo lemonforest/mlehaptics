@@ -80,7 +80,7 @@ TRUE-PARALLEL NOTE. The ≤4 sectors are dispatched on a
 ``CDLL`` releases the GIL per native call, reentrant per rc5 / #772) lets the
 threads **genuinely overlap**; a CPU-bound **pure-Python** body is correct
 but GIL-serialized (Python 3.13 free-threading lifts that). The C-native peer
-(:func:`srmech.amsc._native.cascade_parallel_sector_dispatch_c`, #771) drives
+(:func:`srmech._native.cascade_parallel_sector_dispatch_c`, #771) drives
 ONE ``n_sectors=N`` threaded C dispatch with the same overlap behaviour.
 
 This module makes **no** timing / speedup *assertion* (timing tests are

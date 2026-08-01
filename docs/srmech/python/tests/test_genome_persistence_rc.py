@@ -31,7 +31,7 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.biology import genome
 from srmech.amsc.format import MPRRecord, validate_mpr_record
 from srmech.math.hdc import klein4_expand

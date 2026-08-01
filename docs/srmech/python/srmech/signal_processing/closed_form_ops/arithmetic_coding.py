@@ -19,7 +19,7 @@ from __future__ import annotations
 import ctypes
 from typing import Dict, List, Optional, Tuple
 
-from srmech.amsc import _native
+from srmech import _native
 
 OPERATION_NAME = "arithmetic_coding"
 CLASS_COMPOSITION = ("N",)

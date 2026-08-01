@@ -121,7 +121,7 @@ jobs:
         shell: bash
         continue-on-error: true
         run: |
-          python -c "from srmech.amsc import _native; \
+          python -c "from srmech import _native; \
             s=_native.native_status() if hasattr(_native,'native_status') else {}; \
             print('HAS_NATIVE', _native.HAS_NATIVE); \
             print('SHA-NI host:', _native.has_shani())"
@@ -308,7 +308,7 @@ jobs:
           # no such directory (it is gitignored build output); this makes the cell
           # correct rather than merely lucky, and the assertion two steps down
           # still fires if anything recreates it.
-          rm -rf srmech/_native
+          rm -f srmech/_native/*.so srmech/_native/*.dll srmech/_native/*.dylib srmech/_native/*.dll.a srmech/_native/*.lib srmech/_native/*.pyd  # rc376: keep the shim __init__.py; drop only binaries
           mv pyproject.toml pyproject.toml.platform
           cp pyproject-pure.toml pyproject.toml
           trap 'mv pyproject.toml.platform pyproject.toml' EXIT
@@ -320,7 +320,7 @@ jobs:
         shell: bash
         run: |
           python3 -c "
-          from srmech.amsc import _native
+          from srmech import _native
           assert _native.HAS_NATIVE is False, (
               f'expected HAS_NATIVE=False from a hatchling install, got '
               f'{_native.HAS_NATIVE!r} — a native library leaked in and this cell is '
@@ -510,7 +510,7 @@ jobs:
         # `[dev]` extra and collection sees exactly the shards' environment.
         run: |
           set -euo pipefail
-          rm -rf srmech/_native
+          rm -f srmech/_native/*.so srmech/_native/*.dll srmech/_native/*.dylib srmech/_native/*.dll.a srmech/_native/*.lib srmech/_native/*.pyd  # rc376: keep the shim __init__.py; drop only binaries
           mv pyproject.toml pyproject.toml.platform
           cp pyproject-pure.toml pyproject.toml
           trap 'mv pyproject.toml.platform pyproject.toml' EXIT
@@ -761,7 +761,7 @@ jobs:
           # module was omitted from the wheel (packaging gap), or a class that
           # fails to describe, fails HERE on the real install rather than silently.
           import importlib
-          from srmech.amsc import tool_schema as _ts
+          from srmech.introspect import tool_schema as _ts
           from srmech.introspect import describe as _describe
           from srmech import dsl as _dsl
           _tools = _ts.tool_schema_view()['tools']
@@ -937,7 +937,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           # No stale hand-placed library may pre-empt the installed one.
-          rm -rf srmech/_native
+          rm -f srmech/_native/*.so srmech/_native/*.dll srmech/_native/*.dylib srmech/_native/*.dll.a srmech/_native/*.lib srmech/_native/*.pyd  # rc376: keep the shim __init__.py; drop only binaries
           python -m pip install -e ".[dev]" --config-settings=cmake.build-type=Debug
 
       - name: Verify the asserts really ARE live
@@ -952,9 +952,9 @@ jobs:
         # failure of this cell legible in one read rather than a mystery, so it
         # stays even now that the install produces only one library.
         run: |
-          LIB=$(python -c "from srmech.amsc import _native; print(_native._find_library())")
+          LIB=$(python -c "from srmech import _native; print(_native._find_library())")
           echo "resolved library: $LIB"
-          python -c "from srmech.amsc import _native; assert _native.HAS_NATIVE, 'no native library loaded — this cell cannot trip a C assert'; print('HAS_NATIVE', _native.HAS_NATIVE)"
+          python -c "from srmech import _native; assert _native.HAS_NATIVE, 'no native library loaded — this cell cannot trip a C assert'; print('HAS_NATIVE', _native.HAS_NATIVE)"
           nm -u "$LIB" | grep -q __assert_fail \
             || { echo "::error::$LIB has NO __assert_fail reference — it was built with NDEBUG and every assert was stripped. This cell would pass without testing anything."; exit 1; }
           echo "OK: asserts are live in the library that actually loads."

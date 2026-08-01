@@ -190,7 +190,7 @@ def src_sha256(example: Dict[str, Any]) -> str:
 def collect() -> List[Dict[str, Any]]:
     """Every srmech tool carrying a ``worked`` snippet, from the LIVE schema."""
     sys.path.insert(0, str(PY_ROOT))
-    from srmech.amsc.tool_schema import get_tool_schema, warmup_all
+    from srmech.introspect.tool_schema import get_tool_schema, warmup_all
     warmup_all()
     out = []
     for t in get_tool_schema().tools:
@@ -217,7 +217,7 @@ sys.path.insert(0, {py_root!r})
 # executes with sys.stdout swapped for a throwaway buffer.
 _CHAN = sys.stdout
 import srmech  # one import, reused for every job
-from srmech.amsc import _native
+from srmech import _native
 
 # Run from a NEUTRAL directory, never the package root. A snippet that reads
 # ``open('srmech/amsc/attested/.../row.ndjson')`` succeeds from

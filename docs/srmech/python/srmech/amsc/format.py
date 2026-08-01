@@ -271,7 +271,7 @@ def read_ndjson(path: Path) -> Iterator[MPRRecord]:
     with the pure-Python path is pinned by
     ``tests/test_native_ndjson.py``.
     """
-    from . import _native
+    from .. import _native
     if _native.HAS_NATIVE:
         # Native path: C reads + tokenises, Python parses JSON.
         try:
@@ -385,10 +385,10 @@ def sha256_bytes(data: bytes) -> str:
     ``attest()`` step to fingerprint upstream response bytes.
 
     Task #201 Phase B3 — dispatches to the native C implementation
-    (``srmech.amsc._native.sha256_hex_c``) when the shared library
+    (``srmech._native.sha256_hex_c``) when the shared library
     is available, otherwise uses stdlib ``hashlib``. v0.7.0rc18 (F292
     graft #3) prefers the SHA-NI single-stream peer
-    (``srmech.amsc._native.sha256_shani_c``) when the rc18 symbol is
+    (``srmech._native.sha256_shani_c``) when the rc18 symbol is
     present — on hosts that carry the Intel SHA Extensions this runs the
     SHA-NI kernel, and on hosts without it the symbol runs the scalar path
     *inside the C call*, so every dispatch arm is byte-identical (all
@@ -406,7 +406,7 @@ def sha256_bytes(data: bytes) -> str:
     # Lazy import to keep srmech.amsc.format importable on platforms
     # where _native fails to load — the module always exposes a
     # HAS_NATIVE flag, even when the .so is absent.
-    from . import _native
+    from .. import _native
     if _native.HAS_NATIVE:
         if (getattr(_native, "LIB", None) is not None
                 and hasattr(_native.LIB, "srmech_sha256_shani")):
@@ -426,7 +426,7 @@ def sha256_batch(datas: "list[bytes]") -> "list[str]":
     upstream response bytes at once), not a new content-address shape.
 
     v0.7.0rc10 (F292 graft #1) — dispatches to the native **N-way SIMD**
-    peer (``srmech.amsc._native.sha256_batch_c``; AVX2 8-way / SSE2 4-way
+    peer (``srmech._native.sha256_batch_c``; AVX2 8-way / SSE2 4-way
     on x86, scalar elsewhere) when the shared library carries the rc10
     symbol, otherwise a stdlib ``hashlib`` loop. The two paths are
     byte-identical (pinned by ``tests/test_sha256_batch.py``).
@@ -437,7 +437,7 @@ def sha256_batch(datas: "list[bytes]") -> "list[str]":
     Returns:
         ``list[str]`` of 64-char lowercase hex digests, one per input.
     """
-    from . import _native
+    from .. import _native
     if (_native.HAS_NATIVE and getattr(_native, "LIB", None) is not None
             and hasattr(_native.LIB, "srmech_sha256_batch")):
         return _native.sha256_batch_c(list(datas))

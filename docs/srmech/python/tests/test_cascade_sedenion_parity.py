@@ -17,8 +17,8 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc._native import HAS_NATIVE
+from srmech import _native
+from srmech._native import HAS_NATIVE
 from srmech.amsc.cascade import cayley_dickson as cd
 from srmech.amsc.cascade.sedenion_register import SedenionRegister, NUM_SLOTS
 

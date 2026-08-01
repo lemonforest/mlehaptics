@@ -33,7 +33,7 @@ import base64
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.mcp._server import MCPServer, build_attestation
 from srmech.mcp._tools import invoke_tool, serialise_result
 

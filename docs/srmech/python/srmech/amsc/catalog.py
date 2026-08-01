@@ -81,7 +81,7 @@ from .format import MPRRecord, read_ndjson
 def _catalog_lib(*symbols: str):
     """Return the native LIB iff HAS_NATIVE and every named rc172 symbol is
     bound (a stale ABI-3 lib missing them → ``None`` → pure path)."""
-    from . import _native
+    from .. import _native
     if not (_native.HAS_NATIVE and _native.LIB is not None):
         return None
     lib = _native.LIB
@@ -106,7 +106,7 @@ def _registered_roots_native(
     if lib is None:
         return None
     import ctypes
-    from . import _native
+    from .. import _native
     rp = root_path.encode("utf-8")
     rs = root_source.encode("utf-8")
     ext = json.dumps(ext_pairs, ensure_ascii=False).encode("utf-8")
@@ -136,7 +136,7 @@ def _local_kernel_state_native(
     if lib is None:
         return None
     import ctypes
-    from . import _native
+    from .. import _native
     ps = json.dumps(per_source, ensure_ascii=False).encode("utf-8")
     pb = _opt_bytes(path)
     ab = _opt_bytes(adapter_class)
@@ -169,7 +169,7 @@ def _use_local_kernel_native(
     if lib is None:
         return None
     import ctypes
-    from . import _native
+    from .. import _native
     pb = _opt_bytes(resolved)
     ab = _opt_bytes(adapter_class)
     pl = len(pb) if pb is not None else 0
@@ -199,7 +199,7 @@ def _attestation_audit_native(
     if lib is None:
         return None
     import ctypes
-    from . import _native
+    from .. import _native
     try:
         nd = ndjson.read_bytes()
     except OSError:
@@ -1221,13 +1221,13 @@ def _catalog_toml_dict(source_key: str) -> tuple[Descriptor, Dict[str, Any]]:
 def _load_catalog_chains(source_key: str) -> List[Any]:
     """Parse all ``[[catalog.operator_chain]]`` entries from a descriptor.
 
-    Returns a list of :class:`srmech.amsc.compose.ChainSpec`. Empty
+    Returns a list of :class:`srmech.cascade.compose.ChainSpec`. Empty
     list when the descriptor declares no chains. Raises
     ``ChainSpecError`` on a malformed declaration.
     """
     _descriptor, toml_dict = _catalog_toml_dict(source_key)
     # Lazy import to avoid circular bootstrap.
-    from . import compose as _compose
+    from ..cascade import compose as _compose
     return _compose.parse_catalog_chains(toml_dict)
 
 
@@ -1265,7 +1265,7 @@ def _list_catalog_chains_native(
     if lib is None:
         return None
     import ctypes
-    from . import _native
+    from .. import _native
     payload_obj = {
         "chain_schema_version": catalog.get("chain_schema_version"),
         "operator_chain": chains_raw,
@@ -1298,7 +1298,7 @@ def _run_catalog_chain_native(
     ``_RUN_NATIVE_MISS`` (→ pure). Mirrors the rc174 chain-run eligibility
     (all-Class-N, "raise"-policy, referenced ints fit int64); anything else →
     MISS so the pure path runs the chain over the live object graph."""
-    from . import compose as _compose
+    from ..cascade import compose as _compose
     if not (_compose._chain_c_eligible(spec)
             and _compose._run_ints_fit_i64(spec, row, inputs or {})):
         return _RUN_NATIVE_MISS
@@ -1307,7 +1307,7 @@ def _run_catalog_chain_native(
     if lib is None:
         return _RUN_NATIVE_MISS
     import ctypes
-    from . import _native
+    from .. import _native
     # Serialise the WHOLE catalog's chains so the C find-by-name genuinely
     # resolves the named chain among its peers (asymptotic_calculus has 5).
     payload_obj = {
@@ -1368,7 +1368,7 @@ def list_catalog_chains(source_key: str) -> Dict[str, Any]:
     native = _list_catalog_chains_native(source_key, toml_dict)
     if native is not None:
         return native
-    from . import compose as _compose
+    from ..cascade import compose as _compose
     chains = _compose.parse_catalog_chains(toml_dict)
     return {
         "ok": True,
@@ -1447,7 +1447,7 @@ def run_catalog_chain(
     native = _run_catalog_chain_native(chains, chain_name, spec, row, inputs or {})
     if native is not _RUN_NATIVE_MISS:
         return native
-    from . import compose as _compose
+    from ..cascade import compose as _compose
     return _compose.run_chain(spec, row=row, inputs=inputs or {})
 
 

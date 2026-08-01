@@ -149,7 +149,7 @@ def op(
     # srmech_dense_matmul_complex (_dsp.convolve_matmul); otherwise the complete
     # numpy-free pure cascade. Both return a list; the matmul path is within-tol
     # (not byte-identical).
-    from srmech.amsc import _native
+    from srmech import _native
 
     _convolve = (
         _dsp.convolve_matmul

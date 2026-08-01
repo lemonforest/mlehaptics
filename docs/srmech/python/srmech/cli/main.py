@@ -202,7 +202,7 @@ def _native_dispatch(argv_list: List[str]) -> Optional[tuple]:
     pure argparse then emits byte-identical help/version/error text + exit code).
     """
     try:
-        from srmech.amsc import _native
+        from srmech import _native
     except Exception:  # pragma: no cover — _native always imports
         return None
     parsed = _native.cli_parse_c(argv_list)

@@ -28,7 +28,7 @@ from srmech.math.rational import atan2 as _ratan2  # §22: Class-N rational trig
 from srmech.math.rational import cos as _rcos
 from srmech.math.rational import sin as _rsin
 
-from ..amsc import _native
+from .. import _native
 
 
 # Mirror of SRMECH_KEPLER_EOC_MAX_TERMS in srmech.h. Coefficients verified

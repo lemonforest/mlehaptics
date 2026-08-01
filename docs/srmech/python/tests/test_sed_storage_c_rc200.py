@@ -25,7 +25,7 @@ import contextlib
 import json
 from pathlib import Path
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.signal_processing import mint_vector
 from srmech.signal_processing._paths import D_MIN
 from srmech.amsc.cascade.sedenion_register import (

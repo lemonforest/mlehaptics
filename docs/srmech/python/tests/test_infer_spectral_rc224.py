@@ -57,7 +57,7 @@ import struct
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math import laplacian as _L
 from srmech.math.dispatch import infer, _marshal_relationship
 

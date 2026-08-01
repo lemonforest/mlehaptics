@@ -172,7 +172,7 @@ _PI = 4.0 * float(_atan_pi(1.0))
 from .mat import Mat  # §564: the numpy-free 2-D carrier the mat_* engine returns
 from .vec import Vec  # rc129: the numpy-free 1-D carrier (vectors / eigenvalues)
 
-from ..amsc import _native
+from .. import _native
 
 # §101 (rc275) progress-event mirrors — shared by the pure + native tick paths so
 # the emitted dict is byte-identical across them (the C↔Python parity contract).

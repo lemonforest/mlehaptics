@@ -44,7 +44,7 @@ import tokenize
 import pytest
 
 from srmech.apokatastasis.riemann_theta import RiemannThetaG3
-from srmech.amsc import _native
+from srmech import _native
 
 
 def _is_even_g3(ch) -> bool:

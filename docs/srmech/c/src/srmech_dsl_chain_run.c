@@ -1,7 +1,7 @@
 /* srmech_dsl_chain_run.c — the srmech.dsl Chain RUN-LOOP in C
  * (0.9.0rc182; ANNEX Batch B pt2; COMPLETES the DSL chain interpreter).
  *
- * The DSL `Chain.run` is a SIBLING interpreter to the amsc.compose chain-runner
+ * The DSL `Chain.run` is a SIBLING interpreter to the cascade.compose chain-runner
  * (srmech_compose_run.c / srmech_chain_run) — it VALUE-THREADS: each stage's
  * output feeds the next stage's input, with NO @row/@input/@step references (the
  * compose runner resolves those; this one does not). It runs the LEAN cascade

@@ -20,7 +20,7 @@ Per [[feedback_c_must_be_standalone_complete_no_python_fallback]]. numpy-free.
 
 import array
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math import hdc
 from srmech.amsc.cascade import exact_dft as edft
 

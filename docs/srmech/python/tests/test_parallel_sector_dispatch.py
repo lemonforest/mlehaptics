@@ -281,7 +281,7 @@ def test_introspect_tools_total_matches_live():
 
 
 def test_tool_entry_registered():
-    from srmech.amsc import tool_schema
+    from srmech.introspect import tool_schema
 
     schema = tool_schema.get_tool_schema()
     name = "srmech.amsc.cascade.parallel_sector_dispatch"

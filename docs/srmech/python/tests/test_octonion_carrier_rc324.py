@@ -39,7 +39,7 @@ import random
 import pytest
 
 from tests._native_gate import require_native
-from srmech.amsc import _native
+from srmech import _native
 from srmech.biology import genome as G
 from srmech.math import octonion as O
 from srmech.amsc.cascade.cayley_dickson import cd_basis_product, cd_mult
@@ -444,7 +444,7 @@ def test_registration_ratchet():
 
 
 def test_tool_schema_entries_present():
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
     for op in ("oct_mult", "oct_conjugate", "oct_bind"):
         assert f"srmech.math.octonion.{op}" in names

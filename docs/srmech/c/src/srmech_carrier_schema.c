@@ -9,7 +9,7 @@
  * c/tools/gen_carrier_registry.py). This file provides the public
  * accessors declared in srmech.h and the whole-schema assembler
  * `srmech_carrier_schema`, whose output is BYTE-IDENTICAL to CPython
- *   json.dumps(srmech.amsc.carrier_schema._pure_carrier_schema(),
+ *   json.dumps(srmech.introspect.carrier_schema._pure_carrier_schema(),
  *              sort_keys=True, separators=(",", ":"))
  * — each per-carrier entry payload is baked in the table as its
  * already-canonical compact-ASCII JSON fragment, and the table rows are in

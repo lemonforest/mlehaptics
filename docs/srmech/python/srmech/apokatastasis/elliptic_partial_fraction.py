@@ -130,7 +130,7 @@ def _elliptic_partial_fraction_c(xx: EllMonomial, zl: "List[EllMonomial]",
     symbol universe MUST include ``p``: the :meth:`Theta.canonicalize` quasi-periodicity
     rewrite reads/writes the nome ``p`` off ``psym`` (mirrors the forcing in
     :func:`~srmech.apokatastasis.elliptic_determinant._elliptic_cauchy_determinant_c`)."""
-    from ..amsc import _native as _nat
+    from .. import _native as _nat
     from .ellbase import _P, _ellratio_from_form, _mono_to_form
     if not _nat.has_native_elliptic_partial_fraction():
         return None

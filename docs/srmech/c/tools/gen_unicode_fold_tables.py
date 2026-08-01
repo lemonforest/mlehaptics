@@ -4,7 +4,7 @@
 One generator, two coherency projections (ADR-0009). It emits BOTH:
 
   * ``c/src/srmech_unicode_fold_tables.h``        — the compiled projection's
-  * ``python/srmech/amsc/_unicode_fold_tables.py`` — the scripting projection's
+  * ``python/srmech/math/_unicode_fold_tables.py`` — the scripting projection's
 
 from ONE upstream source, so the two are byte-identical by construction rather
 than by discipline. ``tests/test_unicode_fold_tables_attested.py`` pins that.
@@ -486,7 +486,7 @@ def main(argv=None):
     here = os.path.dirname(os.path.abspath(__file__))
     root = os.path.dirname(os.path.dirname(here))          # docs/srmech
     c_path = os.path.join(root, "c", "src", "srmech_unicode_fold_tables.h")
-    py_path = os.path.join(root, "python", "srmech", "amsc",
+    py_path = os.path.join(root, "python", "srmech", "math",
                            "_unicode_fold_tables.py")
 
     fetch = args.ucd_dir is None

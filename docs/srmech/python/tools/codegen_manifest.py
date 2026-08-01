@@ -78,13 +78,13 @@ SR_ROOT = PY_ROOT.parent
 # are named here so an edge can be declared against whichever one the
 # generator actually touches.
 
-R_TOOL_DOCS = "tool_docs"                  # srmech/amsc/_tool_docs.py
-R_TOOL_DOCS_CURATED = "tool_docs_curated"  # srmech/amsc/_tool_docs_curated.py
-R_CARRIER_EXAMPLES = "carrier_examples"    # srmech/amsc/_carrier_examples.py
+R_TOOL_DOCS = "tool_docs"                  # srmech/introspect/_tool_docs.py
+R_TOOL_DOCS_CURATED = "tool_docs_curated"  # srmech/introspect/_tool_docs_curated.py
+R_CARRIER_EXAMPLES = "carrier_examples"    # srmech/introspect/_carrier_examples.py
 R_TOOL_SCHEMA = "tool_schema"              # live get_tool_schema()
 R_CARRIER_SCHEMA = "carrier_schema"        # live _pure_carrier_schema()
 R_RESPONSION_SCHEMA = "responsion_schema"  # live _pure_responsion_schema()
-R_C_CLAIMS = "c_claims"                    # srmech/amsc/_c_claims.py
+R_C_CLAIMS = "c_claims"                    # srmech/introspect/_c_claims.py
 R_ROSETTA_LEDGER = "rosetta_ledger"        # tests/rosetta_classification.ndjson
 R_C_HEADER = "c_header"                    # c/include/srmech.h
 R_CLASS_TOML = "class_catalog_toml"        # cascade/catalogs/class_catalog/*.toml
@@ -158,7 +158,7 @@ GENERATORS: Tuple[Generator, ...] = (
     Generator(
         name="gen_tool_docs",
         script="python/tools/gen_tool_docs.py",
-        output="python/srmech/amsc/_tool_docs.py",
+        output="python/srmech/introspect/_tool_docs.py",
         consumes=(R_TOOL_DOCS_CURATED, R_TOOL_SCHEMA),
         produces=(R_TOOL_DOCS,),
         render="_render_tool_docs",
@@ -167,7 +167,7 @@ GENERATORS: Tuple[Generator, ...] = (
     Generator(
         name="gen_c_claims",
         script="python/tools/gen_c_claims.py",
-        output="python/srmech/amsc/_c_claims.py",
+        output="python/srmech/introspect/_c_claims.py",
         consumes=(R_ROSETTA_LEDGER, R_C_HEADER),
         produces=(R_C_CLAIMS,),
         render="_render_c_claims",
@@ -220,7 +220,7 @@ EXCLUDED: Dict[str, str] = {
         "VENDORED UPSTREAM DATA, NON-HERMETIC. Fetches the Unicode character "
         "database over the network (urllib.request.urlopen) and emits both "
         "c/src/srmech_unicode_fold_tables.h and "
-        "python/srmech/amsc/_unicode_fold_tables.py from that one source. It "
+        "python/srmech/math/_unicode_fold_tables.py from that one source. It "
         "imports no srmech module and reads nothing this graph produces, so "
         "no tool-surface change can stale it. Running it in a dev loop or in "
         "CI would make both non-deterministic and network-dependent for zero "
@@ -278,7 +278,7 @@ def _render_tool_docs(mod, *, accept_seed_drift: bool = False) -> str:
     """
     docs, seed, curated = mod.build_docs()
     lost = mod.unrederivable_fields(
-        mod.load_committed(SR_ROOT / "python/srmech/amsc/_tool_docs.py"),
+        mod.load_committed(SR_ROOT / "python/srmech/introspect/_tool_docs.py"),
         seed, curated)
     if lost and not accept_seed_drift:
         n = sum(len(v) for v in lost.values())
@@ -296,7 +296,7 @@ def _render_c_claims(mod, **_kw) -> str:
     """``gen_c_claims`` output text (its ``main()`` writes the same string)."""
     import importlib
     claims, unverifiable, _off_header = mod.extract()
-    native_mod = importlib.import_module("srmech.amsc._native")
+    native_mod = importlib.import_module("srmech._native")
     abi = getattr(native_mod, "EXPECTED_ABI_VERSION", 0)
     return mod.render(claims, unverifiable, abi)
 

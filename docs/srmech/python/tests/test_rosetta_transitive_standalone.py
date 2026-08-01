@@ -517,7 +517,7 @@ def _glue_c_symbols(fn, hops=2):
     is never buried deeper than a thin wrapper), collects the ``_native`` dispatcher
     names, and reads each dispatcher's own source for the C symbol it calls.
     """
-    from srmech.amsc import _native
+    from srmech import _native
     names, frontier, seen = set(_dispatcher_names(fn)), [fn], set()
     for _ in range(hops):
         nxt = []

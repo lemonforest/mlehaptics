@@ -45,7 +45,7 @@ own machinery).
 import cmath
 import ctypes
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math import laplacian as L
 
 
@@ -403,7 +403,7 @@ def test_return_carrier_is_complex_vec():
 
 def test_registration_and_count():
     import srmech
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
     assert "srmech.math.laplacian.responsion" in names
     assert len(get_tool_schema().tools) == 525

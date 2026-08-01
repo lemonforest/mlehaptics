@@ -31,7 +31,7 @@ from __future__ import annotations
 import ctypes
 from typing import List, Sequence, Tuple
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math.cyclic import gcd as _cyclic_gcd
 from srmech.math.cyclic import mod_add as _cyclic_mod_add
 from srmech.math.cyclic import mod_mul as _cyclic_mod_mul

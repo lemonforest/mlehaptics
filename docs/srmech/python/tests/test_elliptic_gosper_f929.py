@@ -201,6 +201,6 @@ def test_elliptic_gosper_source_is_numpy_math_abs_free():
 
 # ── the ToolEntry is registered + invocable ───────────────────────────────────
 def test_tool_entry_registered():
-    from srmech.amsc import tool_schema
+    from srmech.introspect import tool_schema
     names = {t.name for t in tool_schema.get_tool_schema().tools}
     assert "srmech.apokatastasis.elliptic_gosper.elliptic_gosper" in names

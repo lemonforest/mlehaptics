@@ -39,7 +39,7 @@ import contextlib
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.qm import relativistic as R
 from srmech.qm import spin as S
 

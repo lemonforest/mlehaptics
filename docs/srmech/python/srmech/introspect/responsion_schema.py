@@ -3,9 +3,9 @@ surface (rc225; user design 2026-07-12) — the k=3 completion of the
 introspection triad.
 
 srmech is the **Stored-RELATIONSHIP Mechanism** — yet until rc225 only two of
-its three faces were introspectable: :mod:`srmech.amsc.tool_schema` exposes
+its three faces were introspectable: :mod:`srmech.introspect.tool_schema` exposes
 the OPS (the verbs — the A–N operator vocabulary) and
-:mod:`srmech.amsc.carrier_schema` (rc205) exposes the OPERANDS (the nouns —
+:mod:`srmech.introspect.carrier_schema` (rc205) exposes the OPERANDS (the nouns —
 the carrier vocabulary). The relationships — the thing the mechanism is named
 for — had no introspection face. ``responsion_schema`` is that face.
 
@@ -308,8 +308,8 @@ def _validate_refs(edges: Dict[str, List[Dict[str, Any]]]) -> None:
     """Every responsion's ``operator`` must be a registered tool_schema key
     and its ``carrier`` a carrier registry key — the k=3 edge binds the k=2
     nodes; a dangling ref is a bug and raises (never ships silently)."""
-    from ..amsc.carrier_schema import _CARRIERS
-    from ..amsc.tool_schema import get_tool_schema, warmup_all
+    from ..introspect.carrier_schema import _CARRIERS
+    from ..introspect.tool_schema import get_tool_schema, warmup_all
 
     warmup_all()
     tools = {t.name for t in get_tool_schema().tools}
@@ -380,7 +380,7 @@ def _native_responsion_schema() -> Optional[Dict[str, List[Dict[str, Any]]]]:
     dict, or ``None`` when the native peer is unavailable / returns non-OK
     (caller falls back to the pure path)."""
     try:
-        from ..amsc import _native
+        from .. import _native
     except Exception:  # pragma: no cover — defensive; _native always imports
         return None
     raw = _native.responsion_schema_json_c()
@@ -403,7 +403,7 @@ def responsion_schema() -> Dict[str, List[Dict[str, Any]]]:
     ``srmech_responsion_registry`` const table — VALUE-identical to the pure
     path (byte-identical in canonical form; the sha256 hash-ratchet in tests
     locks the two). Otherwise the pure path derives it live."""
-    from ..amsc.tool_schema import _REGISTRY
+    from ..introspect.tool_schema import _REGISTRY
 
     if not any(e.owner != "srmech" for e in _REGISTRY.values()):
         native = _native_responsion_schema()

@@ -94,7 +94,7 @@ introspect = _introspect
 # v0.5.0rc19 — top-level native-dispatch status (issue #733). The
 # discoverable one-call check that ``libsrmech`` is loaded + ABI-matched
 # + actually dispatching (vs. the pure-Python fallback). The native shim
-# lives at ``srmech.amsc._native``; this surfaces it where ``dir(srmech)``
+# lives at ``srmech._native``; this surfaces it where ``dir(srmech)``
 # finds it. Equivalent to ``describe()['native']`` plus expected-ABI +
 # dispatching + load-error fields.
 native_status = _introspect.native_status
@@ -116,9 +116,9 @@ describe = _introspect.describe
 # permanently closing the orphan-registration bug class (the rc9 bus
 # miss). Placed at the END of package init (after ``__version__`` /
 # profile loader / introspect are all set up) so the
-# ``from .amsc.tool_schema import warmup_all`` import — which fully
+# ``from .introspect.tool_schema import warmup_all`` import — which fully
 # initialises ``srmech.amsc`` — sees a complete core ``srmech``
 # namespace and cannot trip an import cycle.
-from .amsc.tool_schema import warmup_all  # noqa: E402
+from .introspect.tool_schema import warmup_all  # noqa: E402
 
 warmup_all()

@@ -1,17 +1,7 @@
-_c_claims
-_carrier_examples
-_native
-_tool_docs
-_tool_docs_curated
-_unicode_fold_tables
-_unicode_gb_tables
 adapters/
 attested/
-carrier_schema
 cascade/
 catalog
-compose
 descriptor
 format
 gap_suggester
-tool_schema

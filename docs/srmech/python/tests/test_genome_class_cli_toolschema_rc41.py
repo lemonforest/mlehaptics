@@ -13,7 +13,7 @@ import json
 from contextlib import redirect_stdout
 
 from srmech import introspect
-from srmech.amsc.tool_schema import get_tool_schema
+from srmech.introspect.tool_schema import get_tool_schema
 from srmech.cli.main import main as cli_main
 
 

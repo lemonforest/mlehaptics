@@ -35,7 +35,7 @@ from pathlib import Path
 import pytest
 
 from srmech import introspect
-from srmech.amsc import _native
+from srmech import _native
 from srmech.amsc.cascade import matrix_cascades as mc
 from srmech.amsc.cascade.matrix_cascades import lll_reduce
 
@@ -321,7 +321,7 @@ def test_registration():
     assert "lll_reduce" in mc.__all__
     schema = introspect.describe()
     assert schema["tools"]["total"] == 525
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     name = "srmech.amsc.cascade.matrix_cascades.lll_reduce"
     entries = [t for t in get_tool_schema().tools if t.name == name]
     assert len(entries) == 1

@@ -29,8 +29,9 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc import _native, cascade
-from srmech.amsc._native import HAS_NATIVE
+from srmech import _native
+from srmech.amsc import cascade
+from srmech._native import HAS_NATIVE
 
 
 SKIP_IF_NO_NATIVE = pytest.mark.skipif(

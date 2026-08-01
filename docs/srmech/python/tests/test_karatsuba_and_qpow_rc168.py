@@ -34,7 +34,7 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math.q import Q
 
 _HAS_KARA = bool(

@@ -29,7 +29,7 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.amsc.cascade import (
     chiral_dual,
     parallel_sector_dispatch,

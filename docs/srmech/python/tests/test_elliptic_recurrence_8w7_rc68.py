@@ -161,7 +161,7 @@ def test_zero_ratio_is_none():
 
 # ── (c) Python==C byte-exact parity on the ρ EllRatio output ─────────────────────────
 def _has_native():
-    from srmech.amsc import _native
+    from srmech import _native
     return _native.has_native_elliptic_recurrence_8w7()
 
 
@@ -171,7 +171,7 @@ def _has_native():
 def test_python_equals_c_byte_exact():
     """Drive BOTH the C and pure-Python paths on the canonical ₈ω₇ and compare the ρ
     EllRatio element-for-element (do NOT trust the C — the rc67 hardening lesson)."""
-    from srmech.amsc import _native
+    from srmech import _native
     rk = _make_8w7()
     form = er._ratio_to_form(rk)
     c_got = _native.elliptic_recurrence_8w7_c(form)
@@ -220,6 +220,6 @@ def test_source_is_numpy_math_abs_free():
 
 # ── the ToolEntry is registered + invocable ─────────────────────────────────────────
 def test_tool_entry_registered():
-    from srmech.amsc import tool_schema
+    from srmech.introspect import tool_schema
     names = {t.name for t in tool_schema.get_tool_schema().tools}
     assert "srmech.apokatastasis.elliptic_recurrence.elliptic_recurrence_8w7" in names

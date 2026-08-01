@@ -29,7 +29,7 @@ import sys
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math import qmat as _qmat
 from srmech.math.q import Q
 from srmech.math.qmat import QMat

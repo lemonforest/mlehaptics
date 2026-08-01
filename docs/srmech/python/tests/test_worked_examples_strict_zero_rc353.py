@@ -54,7 +54,7 @@ import re
 
 import pytest
 
-from srmech.amsc.tool_schema import get_tool_schema, warmup_all
+from srmech.introspect.tool_schema import get_tool_schema, warmup_all
 
 warmup_all()
 
@@ -128,7 +128,7 @@ def test_no_example_is_a_type_stencil() -> None:
     assert not bad, (
         f"{len(bad)} examples are type stencils (contain {_STENCIL!r}). "
         f"Replace with a WORKED call carrying real argument values, author it "
-        f"in srmech/amsc/_tool_docs_curated.py, then run tools/regen_all.py:"
+        f"in srmech/introspect/_tool_docs_curated.py, then run tools/regen_all.py:"
         f"\n  {_fmt(bad)}"
     )
 

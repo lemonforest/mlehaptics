@@ -31,7 +31,7 @@ from pathlib import Path
 import pytest
 
 from srmech.biology import genome as G
-from srmech.amsc import _native
+from srmech import _native
 from srmech.biology.genome import (
     ELEMENT_TYPE_Q8, FIBER_CAP_MARKER, GENOME_FORMAT_VERSION,
     genome_fiber_holonomy, genome_add_fiber, genome_read_fiber,
@@ -265,7 +265,7 @@ def test_fiber_ops_are_public_and_registered():
     for name in ("genome_fiber_holonomy", "genome_add_fiber", "genome_read_fiber",
                  "FIBER_CAP_MARKER"):
         assert name in G.__all__
-    from srmech.amsc import tool_schema
+    from srmech.introspect import tool_schema
     tools = {t.name for t in tool_schema.get_tool_schema().tools}
     for op in ("genome_fiber_holonomy", "genome_add_fiber", "genome_read_fiber"):
         assert f"srmech.biology.genome.{op}" in tools

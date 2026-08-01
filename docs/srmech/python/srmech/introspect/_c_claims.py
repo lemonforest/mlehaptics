@@ -13,7 +13,7 @@ adds symbols ABI-additively ("new symbols only, so SRMECH_ABI_VERSION stays N"),
 so a stale-but-ABI-10 library is a REACHABLE state with a correct pure
 fallback and a silently false classification.
 
-Consumed by :func:`srmech.amsc._native.c_claim_report` and surfaced as
+Consumed by :func:`srmech._native.c_claim_report` and surfaced as
 ``srmech.describe()["c_claims"]``. Regenerate with::
 
     python3 tools/regen_all.py            # from docs/srmech/python

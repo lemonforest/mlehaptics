@@ -31,7 +31,7 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.math import rational as R
 from srmech.qm import bell
 
