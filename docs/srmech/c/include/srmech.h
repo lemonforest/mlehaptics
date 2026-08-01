@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc369"
-#define SRMECH_VERSION       "0.9.0rc369"
+#define SRMECH_VERSION_PRE   "rc370"
+#define SRMECH_VERSION       "0.9.0rc370"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -10989,7 +10989,7 @@ srmech_status_t srmech_elliptic_cauchy_determinant(size_t n_syms, int psym, size
 
 /* ------------------------------------------------------------------ *
  * srmech_elliptic_partial_fraction — the C peer of the ThetaSum-returning op
- * srmech.amsc.elliptic_partial_fraction.elliptic_partial_fraction (rc95), the
+ * srmech.apokatastasis.elliptic_partial_fraction.elliptic_partial_fraction (rc95), the
  * ELLIPTIC PARTIAL-FRACTION expansion (the reduction ENGINE of the multivariable
  * Cn elliptic reduction row). A C-MIRROR PARITY build (NOT a new algorithm): it
  * constructs the EXACT n theta-quotient TERMS the pure-Python op builds, byte-for-

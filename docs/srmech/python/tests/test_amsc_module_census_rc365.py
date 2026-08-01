@@ -88,8 +88,10 @@ ORIGINAL_N_MODULES = 75
 #: 73, the ``naming`` departure to ``srmech.introspect``. rc368 (the third
 #: slice): 73 -> 72, the ``responsion_schema`` departure to ``srmech.introspect``.
 #: rc369 (the fourth slice): 72 -> 71, the ``op_provenance`` departure to
-#: ``srmech.introspect`` (see ``LANDED`` below).
-EXPECTED_N_MODULES = 71
+#: ``srmech.introspect`` (see ``LANDED`` below). rc370 (the fifth slice, and the
+#: FIRST into a newly-created namespace): 71 -> 70, the ``elliptic_partial_fraction``
+#: departure to ``srmech.apokatastasis`` (the elliptic domain's first module).
+EXPECTED_N_MODULES = 70
 EXPECTED_N_SUBPACKAGES = 3
 
 #: sha256 over the NORMALISED manifest body — "\n".join(sorted entries) + "\n",
@@ -97,7 +99,7 @@ EXPECTED_N_SUBPACKAGES = 3
 #: the digest disagree between the Windows and Linux CI cells; that would be a
 #: platform artifact masquerading as a move (the rc361 rationale, verbatim).
 EXPECTED_CENSUS_SHA256 = (
-    "ae010cc1d011d223322a1dac6bbcbf77b025f6cb6ebf03994f52b99bbaefadf1")
+    "e801322acb5186a7a59e8be01d0ca31baff3f5c24682000c8ae694c687060d96")
 
 # ── the four keepers, and the A.2 move map (as DATA the test reads) ──────────
 
@@ -145,6 +147,11 @@ NAMED_DEPARTURES = {
     "srmech.introspect": frozenset({
         "tool_schema", "_tool_docs", "carrier_schema",
         "op_provenance", "naming", "responsion_schema"}),
+    # rc370 — the elliptic domain's first named member. Like ``srmech.introspect``
+    # this is a SUBSET-named bucket: A.2 counts 31 for apokatastasis (41%), and
+    # only the one module that has actually moved is named here; the other 30 are
+    # covered by the departure allowlist and land as later slices move them.
+    "srmech.apokatastasis": frozenset({"elliptic_partial_fraction"}),
 }
 
 #: Modules that have COMPLETED their ADR-0010 departure — they have LEFT
@@ -163,7 +170,10 @@ NAMED_DEPARTURES = {
 #: rc367: the ``naming`` slice (amsc -> srmech.introspect), the second entry.
 #: rc368: the ``responsion_schema`` slice (amsc -> srmech.introspect), the third.
 #: rc369: the ``op_provenance`` slice (amsc -> srmech.introspect), the fourth.
-LANDED = frozenset({"harmonics", "naming", "responsion_schema", "op_provenance"})
+#: rc370: the ``elliptic_partial_fraction`` slice (amsc -> srmech.apokatastasis),
+#: the fifth — and the first departure to a namespace CREATED by the same slice.
+LANDED = frozenset({"harmonics", "naming", "responsion_schema", "op_provenance",
+                    "elliptic_partial_fraction"})
 
 
 # ── readers ──────────────────────────────────────────────────────────────────
@@ -349,6 +359,9 @@ def test_the_move_map_matches_A2_where_A2_is_authoritative() -> None:
     # introspect names a subset of its count (the rest are unnamed by A.2)
     assert len(NAMED_DEPARTURES["srmech.introspect"]) <= \
         ADR_A2_DESTINATION_COUNTS["srmech.introspect"]
+    # apokatastasis (rc370) is subset-named the same way: 1 of 31 has landed.
+    assert len(NAMED_DEPARTURES["srmech.apokatastasis"]) <= \
+        ADR_A2_DESTINATION_COUNTS["srmech.apokatastasis"]
     # the keeps count is the keeper set
     assert ADR_A2_DESTINATION_COUNTS["srmech.amsc"] == len(KEEPERS)
     # A.2's table sums to 74; the ORIGINAL tree had 75 (its own "73 of 75" gap,

@@ -265,10 +265,6 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
         'srmech_multivariate_elliptic_jackson_an',
         'srmech_multivariate_elliptic_jackson_an_ws_bound',
     ),
-    'srmech.amsc.elliptic_partial_fraction.elliptic_partial_fraction': (
-        'srmech_elliptic_partial_fraction',
-        'srmech_elliptic_partial_fraction_ws_bound',
-    ),
     'srmech.amsc.elliptic_recurrence.elliptic_recurrence_8w7': (
         'srmech_elliptic_recurrence_8w7',
         'srmech_elliptic_recurrence_8w7_out_cap',
@@ -707,6 +703,10 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
         'srmech_zeilberger',
         'srmech_zeilberger_out_cap',
         'srmech_zeilberger_ws_bound',
+    ),
+    'srmech.apokatastasis.elliptic_partial_fraction.elliptic_partial_fraction': (
+        'srmech_elliptic_partial_fraction',
+        'srmech_elliptic_partial_fraction_ws_bound',
     ),
     'srmech.introspect.naming.lookup': ('srmech_catalog_lookup',),
     'srmech.introspect.naming.reverse_order': ('srmech_reverse_order',),

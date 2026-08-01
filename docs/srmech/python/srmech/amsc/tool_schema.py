@@ -6499,7 +6499,7 @@ def _register_primitive_class_tools() -> None:
         # quotient terms). 1:1 C peer srmech_elliptic_partial_fraction.
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.elliptic_partial_fraction.elliptic_partial_fraction",
+            name="srmech.apokatastasis.elliptic_partial_fraction.elliptic_partial_fraction",
             owner="srmech", category="elliptic_partial_fraction",
             summary="The ELLIPTIC PARTIAL-FRACTION expansion — the reduction ENGINE of "
                     "the multivariable (root-system Cₙ) elliptic reduction row (Hjalmar "

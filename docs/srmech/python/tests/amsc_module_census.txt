@@ -25,7 +25,6 @@ elliptic_determinant
 elliptic_gosper
 elliptic_jackson
 elliptic_jackson_an
-elliptic_partial_fraction
 elliptic_recurrence
 elliptic_wz_certificate
 elliptic_zeilberger
