@@ -32,7 +32,7 @@ from __future__ import annotations
 from typing import Tuple
 
 from srmech.amsc.cascade.atoms import pin_slot_at_zero, reorient
-from srmech.amsc.q import Q
+from srmech.math.q import Q
 
 __all__ = ["bessel_j_fixed", "bessel_zero_fixed"]
 
@@ -232,7 +232,7 @@ def bessel_zero_fixed(order: int,
     Returns:
         ``(num, den)`` on the declared ``2^-scale_bits`` grid. ``den`` is a
         power of two ``2**k`` with ``k <= scale_bits``, NOT unconditionally
-        ``2**scale_bits``: the value is an exact :class:`~srmech.amsc.q.Q` and
+        ``2**scale_bits``: the value is an exact :class:`~srmech.math.q.Q` and
         therefore comes back REDUCED, so an even numerator cancels powers of
         two out of the denominator. Measured — ``bessel_zero_fixed(0, 1,
         scale_bits=64)`` returns ``(5545150200591220465, 2305843009213693952)``

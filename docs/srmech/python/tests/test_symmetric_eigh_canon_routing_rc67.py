@@ -82,8 +82,8 @@ def _cases():
 
 def test_symmetric_eigendecompose_real_and_reconstructs_incl_degenerate():
     """Real float V, ascending eigvals == eigvals_exact, exact reconstruction."""
-    from srmech.amsc.mat import Mat
-    from srmech.amsc.vec import Vec
+    from srmech.math.mat import Mat
+    from srmech.math.vec import Vec
     for label, L in _cases():
         n = len(L)
         w, V = laplacian.symmetric_eigendecompose(L)

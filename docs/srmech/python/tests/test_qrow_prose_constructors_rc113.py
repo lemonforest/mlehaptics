@@ -75,9 +75,9 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc.poly import Poly, poly_from_coeffs
-from srmech.amsc.qpoly import QPoly, qpoly_from_coeffs
-from srmech.amsc.qbipoly import QBiPoly, qbipoly_from_coeffs
+from srmech.math.poly import Poly, poly_from_coeffs
+from srmech.math.qpoly import QPoly, qpoly_from_coeffs
+from srmech.math.qbipoly import QBiPoly, qbipoly_from_coeffs
 from srmech.apokatastasis.unary_theta import UnaryTheta, theta_coefficients, unary_theta
 from srmech.mcp import invoke_tool
 
@@ -261,7 +261,7 @@ def test_capstone_q_binomial_certified_recurrence_via_registry():
     lists = _q_binomial_operand_lists()
     # step 1: prose-side construction through the REGISTRY (the tool entries).
     rn_num, rn_den, rk_num, rk_den = (
-        invoke_tool("srmech.amsc.qbipoly.qbipoly_from_coeffs", {"coeffs": c})
+        invoke_tool("srmech.math.qbipoly.qbipoly_from_coeffs", {"coeffs": c})
         for c in lists)
     # step 2: the returned carriers chain — the result register — into the
     # q-row engine, also through the REGISTRY.
@@ -294,8 +294,8 @@ def test_capstone_euler_q_exponential_honest_open_via_registry():
     q-hypergeometric antidifference — Σ_k 1/(q;q)_k = 1/(q;q)_∞ (Euler), a
     genuine q-series; the q-analog of the rc41 gosper harmonic→None acceptance
     case. The pipeline answers the honest OPEN: q_gosper → None."""
-    num = invoke_tool("srmech.amsc.qpoly.qpoly_from_coeffs", {"coeffs": [1]})
-    den = invoke_tool("srmech.amsc.qpoly.qpoly_from_coeffs",
+    num = invoke_tool("srmech.math.qpoly.qpoly_from_coeffs", {"coeffs": [1]})
+    den = invoke_tool("srmech.math.qpoly.qpoly_from_coeffs",
                       {"coeffs": [1, [0, -1]]})       # 1 − q·x
     assert isinstance(num, QPoly) and isinstance(den, QPoly)
     res = invoke_tool("srmech.apokatastasis.q_gosper.q_gosper",
@@ -311,9 +311,9 @@ def test_mock_theta_term_ratio_constructs_and_round_trips_via_registry():
     t(k+1)/t(k) = q·x²/(1+q·x)² (x = qᵏ). Both sides constructed VIA the
     registry from INTEGER LEAVES and round-tripped exactly against the
     in-process carrier algebra ((1+qx)² computed as a genuine QPoly square)."""
-    num = invoke_tool("srmech.amsc.qpoly.qpoly_from_coeffs",
+    num = invoke_tool("srmech.math.qpoly.qpoly_from_coeffs",
                       {"coeffs": [0, 0, [0, 1]]})     # q·x²
-    den = invoke_tool("srmech.amsc.qpoly.qpoly_from_coeffs",
+    den = invoke_tool("srmech.math.qpoly.qpoly_from_coeffs",
                       {"coeffs": [1, [0, 2], [0, 0, 1]]})  # 1 + 2qx + q²x²
     # num == q·x² built in-process
     assert num == QPoly.from_q_poly(Poly.monomial(1), 2)
@@ -417,10 +417,10 @@ def test_new_tool_entries_present_with_declared_types():
     from srmech.amsc.tool_schema import get_tool_schema
     schema = get_tool_schema()
     expected = {
-        "srmech.amsc.poly.poly_from_coeffs": ("poly", {"coeffs": "list[int]"}),
-        "srmech.amsc.qpoly.qpoly_from_coeffs": (
+        "srmech.math.poly.poly_from_coeffs": ("poly", {"coeffs": "list[int]"}),
+        "srmech.math.qpoly.qpoly_from_coeffs": (
             "qpoly", {"coeffs": "list", "x_low": "int"}),
-        "srmech.amsc.qbipoly.qbipoly_from_coeffs": (
+        "srmech.math.qbipoly.qbipoly_from_coeffs": (
             "qbipoly", {"coeffs": "list[list[int]]"}),
         "srmech.apokatastasis.unary_theta.theta_coefficients": (
             "unary_theta", {"theta": "UnaryTheta", "n_max": "int"}),
@@ -442,9 +442,9 @@ def test_rosetta_buckets_builders_non_compute_reader_c_dispatched():
     rows = {r["defined_at"]: r["bucket"]
             for r in (json.loads(l) for l in
                       ledger.read_text(encoding="utf-8").splitlines() if l.strip())}
-    assert rows["srmech.amsc.poly.poly_from_coeffs"] == "non_compute"
-    assert rows["srmech.amsc.qpoly.qpoly_from_coeffs"] == "non_compute"
-    assert rows["srmech.amsc.qbipoly.qbipoly_from_coeffs"] == "non_compute"
+    assert rows["srmech.math.poly.poly_from_coeffs"] == "non_compute"
+    assert rows["srmech.math.qpoly.qpoly_from_coeffs"] == "non_compute"
+    assert rows["srmech.math.qbipoly.qbipoly_from_coeffs"] == "non_compute"
     assert rows["srmech.apokatastasis.unary_theta.theta_coefficients"] == "c_dispatched"
 
 
@@ -465,9 +465,9 @@ def test_mcp_wire_types_are_coercible_and_arrays():
 # ── (8) hygiene: numpy-free / math-free / abs()-free sources ─────────────────
 
 def test_touched_modules_are_numpy_math_abs_free():
-    import srmech.amsc.poly as P
-    import srmech.amsc.qpoly as QP
-    import srmech.amsc.qbipoly as QB
+    import srmech.math.poly as P
+    import srmech.math.qpoly as QP
+    import srmech.math.qbipoly as QB
     import srmech.apokatastasis.unary_theta as UT
     for mod in (P, QP, QB, UT):
         text = open(mod.__file__, encoding="utf-8").read()

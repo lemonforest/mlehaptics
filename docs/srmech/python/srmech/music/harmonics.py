@@ -41,14 +41,14 @@ symmetry signature, generalising the surface-form token-name classifier
 Pure-Python (numpy-free, #564); no new C surface (harmonic classification is
 framework-level composition over the existing A–N primitives). Class-L
 (spectral) read of the chirality structure, carried on the **exact Class-N
-rational** :class:`~srmech.amsc.q.Q` since rc354 — see `_spectral_scores`.
+rational** :class:`~srmech.math.q.Q` since rc354 — see `_spectral_scores`.
 """
 from __future__ import annotations
 
 from typing import Dict, List, Tuple
 
 from ..math import cyclic as _cyclic
-from ..amsc.q import Q, to_q
+from ..math.q import Q, to_q
 
 # F150 operator → chirality-harmonic partition (the 1-2-3 reading of the 14).
 HARMONIC_1: Tuple[str, ...] = ("A", "B", "F", "H", "N")
@@ -100,9 +100,9 @@ _Q_ZERO = Q(0)
 def _flat_scalars(hv) -> List:
     """Flatten a ``Vec`` / ``Mat`` / nested-or-flat sequence to plain scalars.
 
-    A :class:`~srmech.amsc.mat.Mat` iterates ROW-WISE (``mat.py:192`` yields
+    A :class:`~srmech.math.mat.Mat` iterates ROW-WISE (``mat.py:192`` yields
     lists), so a rank-2 carrier has to be descended one level; a
-    :class:`~srmech.amsc.vec.Vec` (``vec.py:127``) already yields scalars.
+    :class:`~srmech.math.vec.Vec` (``vec.py:127``) already yields scalars.
     Numpy-free; ``.tolist()`` is a carrier convert, not an ndarray hop.
 
     rc354 defect note: before this helper existed the module read ``[float(v)
@@ -203,7 +203,7 @@ def _spectral_scores(hv) -> Tuple[Q, Q, Q]:
       closed-form function of ``n mod 3`` and not a measurement of x.
 
     **rc354 — the scores are exact Class-N rationals, not floats.** Each input
-    element is promoted to the exact :class:`~srmech.amsc.q.Q` of its own value
+    element is promoted to the exact :class:`~srmech.math.q.Q` of its own value
     (``to_q``: a float's ``as_integer_ratio`` is EXACT, so nothing is
     approximated on the way in), and each score comes back as a ``Q``. Call
     ``float(score)`` for a rendering. Every magnitude is an EXPLICIT Class-K
@@ -218,10 +218,10 @@ def classify_chirality_harmonic(hv, dc_threshold=0.5) -> int:
     """Classify an encoded hypervector into chirality-harmonic 1/2/3 by its
     spectral symmetry signature (F150 §6.2).
 
-    ``hv`` may be a :class:`~srmech.amsc.vec.Vec` / :class:`~srmech.amsc.mat.Mat`
+    ``hv`` may be a :class:`~srmech.math.vec.Vec` / :class:`~srmech.math.mat.Mat`
     / any flat or nested ``Sequence`` (rc129; the ``Mat`` path is real as of
     rc354 — see :func:`_flat_scalars`). ``dc_threshold`` accepts an ``int``, a
-    ``float`` or an exact :class:`~srmech.amsc.q.Q`; a float is promoted by its
+    ``float`` or an exact :class:`~srmech.math.q.Q`; a float is promoted by its
     EXACT ``as_integer_ratio`` (the 0.5 default is exactly ``Q(1, 2)``), so the
     comparison at the boundary is decided in the rationals, never in binary.
 
@@ -297,7 +297,7 @@ def classify_chirality_harmonic(hv, dc_threshold=0.5) -> int:
 #:     the closure demonstration. Class M's harmonic-2 had already shipped as
 #:     ``srmech.math.hdc.klein4_*`` (F132).
 #:   - Harmonic 3 (J): CLOSED at 0.9.0rc32 (F923 / UPSTREAM §74, the CAPSTONE).
-#:     The exact prime-coordinate carrier ``srmech.amsc.qprime.Qprime`` ships the
+#:     The exact prime-coordinate carrier ``srmech.math.qprime.Qprime`` ships the
 #:     Class-J multiplicative-period structure: multiply=add-exponents
 #:     (==``factor(a·b)``), gcd=min, lcm=max, exact cosine² similarity, and the
 #:     multiplicative-order ``Qprime.period(m)`` (the 1/m repeating-period lens,

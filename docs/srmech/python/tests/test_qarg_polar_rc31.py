@@ -17,8 +17,8 @@ from fractions import Fraction
 
 import srmech.math.rational as ac
 import srmech.math.laplacian as lap
-from srmech.amsc.q import Q
-from srmech.amsc.qi import Qi
+from srmech.math.q import Q
+from srmech.math.qi import Qi
 
 
 # ── helpers (float projection for COMPARISON only; never an algebraic abs) ──

@@ -7,8 +7,8 @@ remains is numpy as a **carrier**: a module-level (column-0) ``import numpy``
 means that submodule cannot be loaded on a numpy-free install. The package
 already imports numpy-free (these are lazy submodule imports — you only pay them
 when you ``from srmech.qm import so8`` etc.); the carrier arc drives each such
-module onto the framework-native carriers (:class:`srmech.amsc.hv.HV` 1-D /
-:class:`srmech.amsc.mat.Mat` 2-D + the native ctypes dense kernels) so the math
+module onto the framework-native carriers (:class:`srmech.math.hv.HV` 1-D /
+:class:`srmech.math.mat.Mat` 2-D + the native ctypes dense kernels) so the math
 runs with **no numpy present at all**.
 
 This ratchet counts files under ``srmech/`` carrying a top-level ``import
@@ -489,8 +489,8 @@ def test_numpy_carrier_count_is_at_ceiling():
 def test_mat_carrier_is_itself_numpy_free():
     """The new 2-D carrier must NOT carry a top-level numpy import (else it would
     bump the very ratchet it exists to drive down)."""
-    src = (_srmech_root() / "amsc" / "mat.py").read_text(encoding="utf-8")
+    src = (_srmech_root() / "math" / "mat.py").read_text(encoding="utf-8")
     for line in src.splitlines():
         assert not _is_numpy_import(line), (
-            "srmech.amsc.mat must stay numpy-free at import (lazy bridge only)"
+            "srmech.math.mat must stay numpy-free at import (lazy bridge only)"
         )

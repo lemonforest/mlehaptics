@@ -5328,7 +5328,7 @@ def _register_primitive_class_tools() -> None:
         # wz_certificate / q_gosper / q_zeilberger / q_wz_certificate.
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.poly.poly_from_coeffs", owner="srmech",
+            name="srmech.math.poly.poly_from_coeffs", owner="srmech",
             category="poly",
             summary="PROSE-SIDE carrier constructor (#1239 / F1027 / UPSTREAM "
                     "§85): build the exact-ℚ polynomial carrier Poly from an "
@@ -5355,7 +5355,7 @@ def _register_primitive_class_tools() -> None:
             smoke_test_hint={"coeffs": "[0, 1]"},
         ),
         ToolEntry(
-            name="srmech.amsc.qpoly.qpoly_from_coeffs", owner="srmech",
+            name="srmech.math.qpoly.qpoly_from_coeffs", owner="srmech",
             category="qpoly",
             summary="PROSE-SIDE carrier constructor (#1239 / F1027 / UPSTREAM "
                     "§85): build the exact ℚ[q] q-shift carrier QPoly (Laurent "
@@ -5389,7 +5389,7 @@ def _register_primitive_class_tools() -> None:
             smoke_test_hint={"coeffs": "[0, 1]"},
         ),
         ToolEntry(
-            name="srmech.amsc.qbipoly.qbipoly_from_coeffs", owner="srmech",
+            name="srmech.math.qbipoly.qbipoly_from_coeffs", owner="srmech",
             category="qbipoly",
             summary="PROSE-SIDE carrier constructor (#1239 / F1027 / UPSTREAM "
                     "§85): build the exact bivariate-q carrier QBiPoly (a "
@@ -5467,7 +5467,7 @@ def _register_primitive_class_tools() -> None:
             smoke_test_hint={"coeffs": "[[1, 1], [-1]]"},
         ),
         ToolEntry(
-            name="srmech.amsc.tripoly.tripoly_from_coeffs", owner="srmech",
+            name="srmech.math.tripoly.tripoly_from_coeffs", owner="srmech",
             category="tripoly",
             summary="PROSE-SIDE carrier constructor (#1248 / F1038; the ORPHAN "
                     "FIX): build the exact-ℚ[n,j,k] trivariate carrier TriPoly "
@@ -5493,7 +5493,7 @@ def _register_primitive_class_tools() -> None:
             smoke_test_hint={"coeffs": "[[[0, 1]], [[1]]]"},
         ),
         ToolEntry(
-            name="srmech.amsc.carrier_ladder.poly_promote", owner="srmech",
+            name="srmech.math.carrier_ladder.poly_promote", owner="srmech",
             category="carrier_ladder",
             summary="Promote an ordinary-ladder carrier UP the variable ladder "
                     "Poly(k) → BiPoly(n,k) → TriPoly(n,j,k) by the TRIVIAL "
@@ -5518,10 +5518,10 @@ def _register_primitive_class_tools() -> None:
             returns=R("BiPoly | TriPoly",
                       "the promoted carrier one-or-more rungs up (or the input "
                       "unchanged when n_vars == the current rung)"),
-            smoke_test_hint={"p": "srmech.amsc.poly.Poly.from_coeffs([1, 1])"},
+            smoke_test_hint={"p": "srmech.math.poly.Poly.from_coeffs([1, 1])"},
         ),
         ToolEntry(
-            name="srmech.amsc.carrier_ladder.poly_project", owner="srmech",
+            name="srmech.math.carrier_ladder.poly_project", owner="srmech",
             category="carrier_ladder",
             summary="Project an ordinary-ladder carrier DOWN one rung TriPoly → "
                     "BiPoly → Poly — the inverse of poly_promote (#1248 / "
@@ -5544,10 +5544,10 @@ def _register_primitive_class_tools() -> None:
                       "coherency error if the dropped variable is non-trivial)"),
             smoke_test_hint={
                 "p": "srmech.apokatastasis.zeilberger.BiPoly.from_k_poly("
-                     "srmech.amsc.poly.Poly.from_coeffs([1, 1]))"},
+                     "srmech.math.poly.Poly.from_coeffs([1, 1]))"},
         ),
         ToolEntry(
-            name="srmech.amsc.carrier_ladder.qpoly_promote", owner="srmech",
+            name="srmech.math.carrier_ladder.qpoly_promote", owner="srmech",
             category="carrier_ladder",
             summary="Promote a q-ladder carrier UP the variable ladder "
                     "QPoly(x=qⁿ) → QBiPoly(X=qⁿ, Y=qᵏ) by the trivial embedding "
@@ -5566,10 +5566,10 @@ def _register_primitive_class_tools() -> None:
             returns=R("QBiPoly",
                       "the promoted q-carrier one rung up (or the input "
                       "unchanged when n_vars == the current rung)"),
-            smoke_test_hint={"p": "srmech.amsc.qpoly.QPoly.from_coeffs([0, 1])"},
+            smoke_test_hint={"p": "srmech.math.qpoly.QPoly.from_coeffs([0, 1])"},
         ),
         ToolEntry(
-            name="srmech.amsc.carrier_ladder.qpoly_project", owner="srmech",
+            name="srmech.math.carrier_ladder.qpoly_project", owner="srmech",
             category="carrier_ladder",
             summary="Project a q-ladder carrier DOWN one rung QBiPoly → QPoly — "
                     "the inverse of qpoly_promote (#1248 / F1038). Drops the "
@@ -5587,11 +5587,11 @@ def _register_primitive_class_tools() -> None:
                       "the projected q-carrier one rung down (raises a NAMING "
                       "coherency error if the dropped variable Y is non-trivial)"),
             smoke_test_hint={
-                "p": "srmech.amsc.qbipoly.QBiPoly.from_x_qpoly("
-                     "srmech.amsc.qpoly.QPoly.from_coeffs([0, 1]))"},
+                "p": "srmech.math.qbipoly.QBiPoly.from_x_qpoly("
+                     "srmech.math.qpoly.QPoly.from_coeffs([0, 1]))"},
         ),
         ToolEntry(
-            name="srmech.amsc.carrier_ladder.carrier_ladder_descriptor",
+            name="srmech.math.carrier_ladder.carrier_ladder_descriptor",
             owner="srmech", category="carrier_ladder",
             summary="The declarative CARRIER-LADDER coherency map (#1248 / "
                     "F1038; rc120 #1254 / F1041 adds the per-op contract) — a "
@@ -6946,7 +6946,7 @@ def _register_primitive_class_tools() -> None:
         # genuinely block-decomposed. 1:1 C peer srmech_carrier_spectrum.
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.carrier_spectrum.carrier_spectrum",
+            name="srmech.math.carrier_spectrum.carrier_spectrum",
             owner="srmech", category="carrier_spectrum",
             summary="The OPERAND-side dual of the_one (S(σ,θ) is the OPERATOR "
                     "generator — its shape IS the A–N verbs; carrier_spectrum is "
@@ -8041,7 +8041,7 @@ def _register_primitive_class_tools() -> None:
         ),
         # rc116 (#1248 / F1038): the Hurwitz rung of the CARRIER CONVERSION
         # LADDER — promote / project between ℝ↪ℂ↪ℍ↪𝕆↪𝕊, the algebra-one-level-up
-        # analog of the srmech.amsc.carrier_ladder variable ladder. Pure
+        # analog of the srmech.math.carrier_ladder variable ladder. Pure
         # carrier restructuring (zero-pad up / trivial-check + drop down; no
         # numerical kernel) → non_compute.
         ToolEntry(

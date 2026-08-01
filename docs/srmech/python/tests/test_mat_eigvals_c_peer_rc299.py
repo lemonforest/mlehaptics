@@ -36,7 +36,7 @@ from tests._native_gate import require_native
 from srmech.amsc import _native
 from srmech.math import laplacian as LP
 from srmech.math.laplacian import dense_laplacian, mat_eigvals
-from srmech.amsc.mat import Mat
+from srmech.math.mat import Mat
 
 
 HAVE_C = (

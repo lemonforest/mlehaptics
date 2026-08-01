@@ -4,7 +4,7 @@ Per ``[[feedback_science_is_ssot_not_project]]``: each operation cites
 canonical physics literature.
 
 numpy-FREE (v0.7.5rc117, #564): the working matrices are held in the
-framework-native :class:`~srmech.amsc.mat.Mat` carrier and every
+framework-native :class:`~srmech.math.mat.Mat` carrier and every
 linear-algebra step routes through the Class-L ``mat_*`` family
 (:func:`~srmech.math.laplacian.mat_matmul` and
 :func:`~srmech.math.laplacian.mat_hermitian_eigendecompose`, native dense
@@ -24,7 +24,7 @@ from typing import List, Sequence, Tuple
 
 from srmech.math import rational as _srn
 from srmech.math.laplacian import mat_hermitian_eigendecompose, mat_matmul
-from srmech.amsc.mat import Mat
+from srmech.math.mat import Mat
 
 
 # ----------------------------------------------------------------------

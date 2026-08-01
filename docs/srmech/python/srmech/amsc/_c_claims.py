@@ -27,10 +27,6 @@ from typing import Dict, Tuple
 
 #: ``defined_at`` -> the C symbols that op's own dispatch path names.
 C_CLAIMS: Dict[str, Tuple[str, ...]] = {
-    'srmech.amsc.carrier_spectrum.carrier_spectrum': (
-        'srmech_carrier_spectrum',
-        'srmech_carrier_spectrum_ws_bound',
-    ),
     'srmech.amsc.cascade.atoms.chiral_flip': (
         'srmech_cascade_chiral_flip_f64',
         'srmech_cascade_chiral_flip_i64',
@@ -398,6 +394,10 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
     'srmech.introspect.op_provenance.op_provenance_hash': (
         'srmech_op_provenance_hash',
         'srmech_op_provenance_hash_arena_bytes',
+    ),
+    'srmech.math.carrier_spectrum.carrier_spectrum': (
+        'srmech_carrier_spectrum',
+        'srmech_carrier_spectrum_ws_bound',
     ),
     'srmech.math.cyclic.bigint_mul': (
         'srmech_bigint_mul',

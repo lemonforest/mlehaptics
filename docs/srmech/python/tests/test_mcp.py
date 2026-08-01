@@ -352,7 +352,7 @@ def test_serialise_result_matrices_and_lists() -> None:
     ``serialise_result`` renders a ``Mat`` via ``.tolist()`` and a nested
     list straight to JSON text — the wire form is identical to what the old
     ndarray ``tolist()`` fallback produced."""
-    from srmech.amsc.mat import Mat
+    from srmech.math.mat import Mat
 
     # A Mat (numpy-free dense matrix) is .tolist()'d to nested JSON arrays.
     out = serialise_result(Mat.from_rows([[1.0, 2.0, 3.0]]))
@@ -1485,7 +1485,7 @@ def test_coercion_roundtrips_scalar_leaf_types() -> None:
     returns that nested list UNCHANGED. Complex matrices serialise as
     ``[re, im]`` leaves and rebuild via the explicit
     ``complex_pairs_to_ndarray`` (now returning a ``list[complex]``)."""
-    from srmech.amsc.mat import Mat
+    from srmech.math.mat import Mat
     from srmech.mcp._coercion import (
         coerce_param,
         complex_pairs_to_ndarray,
@@ -1528,7 +1528,7 @@ def test_serialise_native_emits_json_serialisable() -> None:
     The matrix carrier is ``Mat`` (``.tolist()``'d, complex entries → ``[re,
     im]`` leaves); scalars are plain Python ``int`` / ``float`` / ``complex``;
     containers (tuple / list / dict, incl. bytes keys) recurse."""
-    from srmech.amsc.mat import Mat
+    from srmech.math.mat import Mat
     from srmech.mcp._coercion import serialise_native
 
     samples: List[Any] = [

@@ -24,8 +24,8 @@ Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Van Veen
 from __future__ import annotations
 
 from srmech.math.laplacian import mat_matvec as _mat_matvec
-from srmech.amsc.mat import Mat as _Mat
-from srmech.amsc.vec import Vec as _Vec
+from srmech.math.mat import Mat as _Mat
+from srmech.math.vec import Vec as _Vec
 
 OPERATION_NAME = "beamforming_fixed"
 CLASS_COMPOSITION = ("L", "N")

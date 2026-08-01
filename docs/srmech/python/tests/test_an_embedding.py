@@ -30,7 +30,7 @@ Determinism: every basis extraction uses a deterministic SVD / Gram-Schmidt /
 eig (no RNG), so the build is reproducible and byte-identical across calls.
 
 rc123 (numpy-free, #564): this test is itself numpy-FREE — ``an_embedding``
-returns :class:`srmech.amsc.mat.Mat` (the ``weights`` a nested ``list``);
+returns :class:`srmech.math.mat.Mat` (the ``weights`` a nested ``list``);
 matmuls / norms route through ``mat_matmul`` / ``mat_norm``, span ranks
 through the float-tolerant :func:`srmech.qm.so8._rank_float`, with no numpy
 oracle and no ``.to_numpy()`` (per
@@ -43,7 +43,7 @@ import pytest
 
 from srmech.amsc.cascade import magnitude
 from srmech.math.laplacian import mat_matmul, mat_norm
-from srmech.amsc.mat import Mat
+from srmech.math.mat import Mat
 from srmech.qm import so8
 from srmech.qm.so8 import an_embedding
 

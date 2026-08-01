@@ -1,7 +1,7 @@
 """srmech.math.modular_linalg — Class I modular linear algebra over GF(p).
 
 The swell-free core of the CRT-QMat re-fibration arc (srmech 0.9.0rc44, rung 1).
-The exact-ℚ :class:`~srmech.amsc.qmat.QMat` Gauss-Jordan (rc40) reserves a
+The exact-ℚ :class:`~srmech.math.qmat.QMat` Gauss-Jordan (rc40) reserves a
 malloc-free arena sized by the **Hadamard worst-case fraction envelope** — on the
 order-2 Franel Zeilberger system that is ~1.5 GB for a 17-bit answer (a ~369:1
 over-reservation), because exact-rational elimination grows the numerators and

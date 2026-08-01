@@ -1319,3 +1319,84 @@ regenerate; (g) live `srmech_research_notebook.md` reproducible commands. **ZERO
   with **0 ImportError**; census / op-name-set / decode-aware / rosetta
   completeness+transitive+roots-single-source / def_parity / no-stdlib-math (the `..math` relative import
   is exempt, guard gates on `node.level == 0`) all green; `regen --check` up to date.
+
+## Amendment K — the NINTH slice, the CARRIERS batch: fifteen modules → `srmech.math`, DRAINING the math bucket, v0.9.0rc374 (`#T1034`)
+
+The math bucket's LAST slice. rc372 opened `srmech.math` (general-algebra), rc373 drained the ten A–N
+primitives; this slice moves the fifteen general CARRIERS — `mat` / `vec` / `hv` / `q` / `qmat` / `qi` /
+`qalg` / `qprime` / `poly` / `qpoly` / `qbipoly` / `tripoly` / `complex128` / `carrier_ladder` /
+`carrier_spectrum` — `srmech/amsc/*.py` → `srmech/math/*.py`. Leaf names kept (B.1 rule 1).
+`describe()["tools"]["total"]` stays **525** (10 carrier-family op names repoint amsc→math — a move, not
+an add; the bulk of the roster are pure carriers with **no** ToolEntry op); `SRMECH_ABI_VERSION` stays
+**10**. `carrier_schema` is NOT in this batch — it is the introspection surface (the noun-side dual of
+`tool_schema`) and STAYS in `amsc`. **With this slice the math bucket is FULLY DRAINED**: `srmech.math`
+holds all 28 of its A.2 members.
+
+### The H.2 over-count reconciliation, CLOSED IN FULL
+
+A.2 published `srmech.apokatastasis` = 31 and `srmech.math` = 22. Amendment H.2 found the real
+special-functions family is only 25 — A.2's 31 OVER-counted it by 6, having lumped in `modular_linalg`
+(GF(p) LA, reassigned to `srmech.math` at rc372) plus 5 of the general carriers. This slice realises the
+carrier half, so the reconciliation is booked in the census: `ADR_A2_DESTINATION_COUNTS["srmech.math"]`
+**22 → 28** and `["srmech.apokatastasis"]` **31 → 25**. The **sum is unchanged** (`28 + 25 == 22 + 31 ==
+53`), so `sum(ADR_A2_DESTINATION_COUNTS.values()) == 74` still holds and the "73 of 75" gap is preserved.
+Both buckets are now FULLY named (math `28 == 28`, apokatastasis `25 == 25`) — no longer subset-named.
+
+### The mixed-import surgery (every carrier imports several siblings)
+
+Carriers import each other heavily. The three-way discrimination governed every file: **moved files**
+(the 15) — `from ..math import <sib>` collapsed to `from .<sib>` (the rc372/rc373 math modules `laplacian`
+/ `rational` / `cyclic` / `primes` / `modular_linalg` / `hdc` are now siblings), intra-batch roster
+siblings (`from .vec` / `from .q` / `from .poly` / …) stayed relative, `from . import _native` up-reached
+to `from ..amsc import _native`, `from ..apokatastasis…` left byte-unchanged. **KEEPERS** — `amsc/__init__.py`
+(the `Qalg` / `Qprime` / `QMat` / `Poly` / `TriPoly` re-exports, repointed `from .<m>` → `from ..math.<m>`
+so `from srmech.amsc import Qalg` still resolves), `coupling.py`, `carrier_schema.py`, `amsc/cascade/one.py`
+(`from ..q` → `from ...math.q`). **Pre-existing math consumers** `dispatch.py` / `hdc.py` / `laplacian.py`
+/ `rational.py` `from ..amsc.<m>` → `from .<m>`. **Sibling subpackages** `apokatastasis/*` + `music/harmonics.py`
+`from ..amsc.<m>` → `from ..math.<m>`.
+
+### The eleven-form sweep — which forms this batch actually hit
+
+HIT: [1] dotted; [3] `from srmech.amsc import <m>` (6 single-name test imports; no multi-name line mixed a
+carrier with a keeper); [4] relative/lazy (above); [5] worked-examples ledger (native-absent recapture
+after regen); [6] C comments (`srmech.h` + `ROSETTA_LEDGER.md` + `srmech_poly.c` / `srmech_qmat*.c` /
+`srmech_qpoly.c` / `srmech_tripoly.c` / `srmech_carrier_spectrum.c` + two `test_srmech_qmat*.c`); **[9] the
+CI workflow YAML** `.github/workflows/srmech-ci.yml` line 693 `from srmech.amsc.mat import Mat` (a
+smoke-import step outside `docs/srmech/**` that no repo gate catches); **[11] two pathlib/`os.path.join`
+source-readers** (`test_carrier_spectrum_rc69.py`, `test_numpy_carrier_ratchet.py`) → `"math"`. NOT hit
+(measured, stated for the record): **[10] dynamic `importlib`** — the audit tests' dynamic tuples name
+only `srmech.math.{cyclic,primes,rational}` / `srmech.amsc.format` / `cascade.*`, none a carrier; **[8]
+split-string** — the two lines ending `srmech.amsc.` continue with `carrier_schema` / `eisenstein`,
+neither a carrier. Forms 9/10/11 are the RUNTIME-ONLY sites — the workflow YAML is outside every gate's
+scope, and the dynamic/pathlib sites are invisible to collect-only (they fail only at runtime), which is
+why the four audit tests are run explicitly.
+
+### The instrument set (all re-pinned in the SAME commit)
+
+- **Census**: **33 → 18 modules**; digest `08c5199f…` → **`ae5704ea…`**; `LANDED` 42 → **57**; conservation
+  **`18 + 57 == 75`**; `NAMED_DEPARTURES["srmech.math"]` 13 → **28** (fully named); over-count
+  reconciliation above.
+- **Op-name-set witness**: 10 carrier-family op names amsc→math; digest `10224532…` → **`e79b79fb…`**;
+  `EXPECTED_N` **stays 525**.
+- **Decode-aware** (MEASURED post-regen): `srmech_carrier_registry.c` **(100, 202) → (75, 196)**;
+  `srmech_tool_registry.c` **(576, 0) → (440, 0)**; `_tool_docs.py` **(562, 0) → (431, 0)**; `_c_claims.py`
+  **(91, 0) → (90, 0)**; `srmech_responsion_registry.c` **(6, 0) UNCHANGED** (no OPERATOR moved — carriers
+  are operands, so the responsion edge-operator source-of-truth comments do not move); class **(0, 40)
+  unchanged**; **`TOTAL_AS_TEXT` 1335 → 1042**, **`TOTAL_DECODED` 242 → 236**. Decoded population: carrier
+  amsc **202 → 196**, `srmech.math.` **314 → 320** (conserved −6/+6 — the 6 carrier-family OP back-index
+  refs; the pure carriers `mat`/`vec`/`hv`/`q`/… never entered the back-index). `apokatastasis == 13` /
+  `music == 13` hold; the non-vacuity factor stays `>= 4 *` (196 ≥ 160).
+- **C surfaces / c_dispatched**: no OPERATOR moved, so `srmech_responsion_registry.c` + `srmech_invoke.c`
+  are unchanged; `srmech.h` version-only; ABI stays **10** (every `srmech_*` C symbol capability-named). The
+  carrier-family c_dispatched ops (`carrier_spectrum` → `srmech_carrier_spectrum`, the `qmat_*` / `poly_*`
+  peers) regenerate their `_c_claims.py` / registry keys amsc→math; the C symbols are unchanged.
+- **Rosetta**: all moved carrier-family op rows repointed; buckets preserved; completeness + transitive +
+  roots-single-source green.
+- **Regenerated artifacts** (`tools/regen_all.py`, native-absent, content-equal + idempotent): `_tool_docs.py`,
+  `_c_claims.py`, `srmech_tool_registry.c`, `srmech_carrier_registry.c`; responsion + class registries
+  byte-identical; `regen --check` green.
+- **Verification** (numpy-absent WSL): 15/15 `import srmech.math.<m>` succeed, 15/15 `srmech.amsc.<m>` raise
+  `ModuleNotFoundError`; `describe` total **525**; whole-suite `pytest --co -q` **0 ImportError**; the four
+  audit tests (`test_numpy_carrier_ratchet` / `test_cascade_numpy_absent` /
+  `test_symmetric_eigh_canon_routing_rc67` / `test_associator_control_gf_solve_rc360`) PASS; census /
+  op-name-set / decode-aware / rosetta / def_parity / no-stdlib-math green; `regen --check` up to date.

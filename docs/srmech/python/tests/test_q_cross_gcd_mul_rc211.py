@@ -41,9 +41,9 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc import q as _q_mod
+from srmech.math import q as _q_mod
 from srmech.math import rational as _rational
-from srmech.amsc.q import Q, _mul_cross_reduced
+from srmech.math.q import Q, _mul_cross_reduced
 
 
 def test_numpy_is_absent_so_this_runs_not_skips():

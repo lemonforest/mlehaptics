@@ -236,7 +236,7 @@ def test_theta_is_indexed_as_a_consumed_carrier() -> None:
     schema = _pure_carrier_schema()
     consumes = schema["Theta"]["ops"]["consumes"]
     for op in ("srmech.apokatastasis.elliptic_gosper.elliptic_gosper",
-               "srmech.amsc.carrier_spectrum.carrier_spectrum"):
+               "srmech.math.carrier_spectrum.carrier_spectrum"):
         assert op in consumes, (
             f"Theta.ops.consumes does not name {op} — the declared type strings "
             f"and the registry row have drifted apart again")

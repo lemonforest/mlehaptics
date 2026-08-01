@@ -96,7 +96,7 @@ def test_classify_chirality_harmonic_block_repeated_three_times_is_h3():
 
 def test_three_fold_score_is_a_forced_zero_when_three_does_not_divide_n():
     """Not a measurement of x: a closed-form function of n mod 3."""
-    from srmech.amsc.q import Q
+    from srmech.math.q import Q
     for n in (1, 2, 4, 5, 7, 8, 16, 32, 64, 127, 128):
         for trial in range(12):
             x = [((trial * 7919 + i * 104729) % 11) - 5 for i in range(n)]
@@ -129,7 +129,7 @@ def test_three_fold_score_detects_block_repeats_not_period_three():
     9 | n; otherwise it scores exactly 1/2 and classifies as harmonic 2. A
     period-3 detector would return 3 for all of them.
     """
-    from srmech.amsc.q import Q
+    from srmech.math.q import Q
     for m in range(1, 31):
         x = [2, -1, -1] * m
         n = 3 * m
@@ -153,7 +153,7 @@ def test_three_fold_score_is_one_exactly_for_a_block_repeated_three_times():
     block of length n/3 repeated three times (equivalently, x is invariant
     under rotation by n/3). Zero mismatches against that predicate."""
     import itertools
-    from srmech.amsc.q import Q
+    from srmech.math.q import Q
     for n, alphabet in ((3, (-1, 0, 1, 2)), (6, (-1, 0, 1))):
         k = n // 3
         for x in itertools.product(alphabet, repeat=n):

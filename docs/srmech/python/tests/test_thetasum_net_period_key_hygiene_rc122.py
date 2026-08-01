@@ -30,13 +30,13 @@ Two guarantees are tested here:
 
   * NON-REGRESSION — :func:`_net_period_multiplier_exps` still returns the FULL monomial
     (its ``p``-coordinate is the Class-L p-character block label
-    :func:`~srmech.amsc.carrier_spectrum._block_of_thetas` needs); only the fast-path
+    :func:`~srmech.math.carrier_spectrum._block_of_thetas` needs); only the fast-path
     CONSUMER was repointed.
 """
 
 from srmech.amsc import ThetaSum
 from srmech.apokatastasis.ellbase import EllMonomial as M, Theta, EllRatio as R
-from srmech.amsc.q import Q
+from srmech.math.q import Q
 from srmech.apokatastasis.thetasum import (
     _net_period_multiplier_exps, _quasi_period_class_key, _class_is_zero,
     _recover_pairs, _Y,

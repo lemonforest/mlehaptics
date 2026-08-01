@@ -25,7 +25,7 @@ is_elliptic (not a silent Python fallback)."""
 import pytest
 
 from srmech.apokatastasis.ellbase import EllMonomial as M, Theta, EllRatio as R
-from srmech.amsc.q import Q
+from srmech.math.q import Q
 from srmech.amsc import _native
 
 _A, _B, _C = M.symbol("a"), M.symbol("b"), M.symbol("c")

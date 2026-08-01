@@ -85,7 +85,7 @@ from typing import Any, Callable, Dict, List, Tuple
 
 # numpy-FREE (#564): the wire form for a former ``np.ndarray`` param/return is a
 # plain nested JSON ``list`` (the numpy-free ops consume/return plain Python
-# lists / :class:`srmech.amsc.mat.Mat` / :class:`srmech.amsc.hv.HV` / ``complex``
+# lists / :class:`srmech.math.mat.Mat` / :class:`srmech.math.hv.HV` / ``complex``
 # now). No ``import numpy`` here — this was the LAST top-level numpy carrier.
 
 # ``binascii.Error`` is what ``base64.b64decode(validate=True)`` raises on
@@ -187,7 +187,7 @@ def _to_ndarray(value: Any, *, param: str = "") -> list:
 
 
 def _to_mat(value: Any, *, param: str = "") -> Any:
-    """Coerce a nested JSON list-of-rows to a real :class:`srmech.amsc.mat.Mat`
+    """Coerce a nested JSON list-of-rows to a real :class:`srmech.math.mat.Mat`
     (the numpy-free 2-D carrier; v0.7.5rc72 ``mat_matmul`` bridge). A value
     already a ``Mat`` passes through unchanged.
 
@@ -196,7 +196,7 @@ def _to_mat(value: Any, *, param: str = "") -> Any:
     a length-2 complex vector, so the generic JSON path never guesses imaginary
     parts); genuine-complex ``Mat`` work rides the in-process / by-reference
     handle path, not the JSON MCP path."""
-    from srmech.amsc.mat import Mat  # numpy-free carrier; lazy to avoid a cycle
+    from srmech.math.mat import Mat  # numpy-free carrier; lazy to avoid a cycle
     if isinstance(value, Mat):
         return value
     if not isinstance(value, (list, tuple)):
@@ -218,7 +218,7 @@ def _to_vec(value: Any, *, param: str = "") -> Any:
     Python structure (a ``list``) and lets the op's own acceptance handle the
     final carrier — never wraps numpy. A value already a ``Vec`` (an in-process
     caller) passes through unchanged."""
-    from srmech.amsc.vec import Vec  # numpy-free 1-D carrier; lazy to avoid a cycle
+    from srmech.math.vec import Vec  # numpy-free 1-D carrier; lazy to avoid a cycle
     if isinstance(value, Vec):
         return value
     if isinstance(value, tuple):
@@ -238,7 +238,7 @@ def _to_hv(value: Any, *, param: str = "") -> Any:
     minimal coercer produces the flat Python structure (a ``list``) and lets the
     op's own acceptance build the final ``HV`` / ``array('B')`` / ``list[float]``.
     A value already an ``HV`` (an in-process caller) passes through unchanged."""
-    from srmech.amsc.hv import HV  # numpy-free hypervector carrier; lazy
+    from srmech.math.hv import HV  # numpy-free hypervector carrier; lazy
     if isinstance(value, HV):
         return value
     if isinstance(value, tuple):
@@ -250,14 +250,14 @@ def _to_poly(value: Any, *, param: str = "") -> Any:
     """Coerce a JSON value to the **natural ascending-degree coefficient form** for
     a ``Poly``-typed param (rc41 ``gosper`` term-ratio operands).
 
-    The op's ``Poly`` acceptance (:meth:`srmech.amsc.poly.Poly.from_coeffs`) is
+    The op's ``Poly`` acceptance (:meth:`srmech.math.poly.Poly.from_coeffs`) is
     AGNOSTIC about input: it iterates a coefficient sequence where each entry is
     an exact-rational coefficient — an ``int``, or a ``[num, den]`` integer pair
     (a 2-list JSON carries naturally). So the honest, minimal coercer produces the
     flat Python list and lets ``Poly.from_coeffs`` build the carrier — never a
     float (a Poly coefficient must be exact). A value already a ``Poly`` (an
     in-process caller) passes through unchanged."""
-    from srmech.amsc.poly import Poly  # exact-ℚ polynomial carrier; lazy
+    from srmech.math.poly import Poly  # exact-ℚ polynomial carrier; lazy
     if isinstance(value, Poly):
         return value
     if isinstance(value, tuple):
@@ -270,7 +270,7 @@ def _to_bipoly(value: Any, *, param: str = "") -> Any:
     ``zeilberger`` bivariate term-ratio operands).
 
     A ``BiPoly`` is a polynomial in ``k`` whose coefficients are
-    :class:`~srmech.amsc.poly.Poly` in ``n``. The op's coercion
+    :class:`~srmech.math.poly.Poly` in ``n``. The op's coercion
     (:meth:`srmech.apokatastasis.zeilberger.BiPoly.coerce`) accepts: a ``BiPoly`` (passes
     through); a ``Poly`` (read as a polynomial in ``k`` alone); or a
     ``k``-ascending list whose entries are each a Poly-in-n (an ``n``-coefficient
@@ -279,7 +279,7 @@ def _to_bipoly(value: Any, *, param: str = "") -> Any:
     ``[c]`` — and lets ``BiPoly.coerce`` build the carrier (never a float; a
     coefficient must be exact). A ``BiPoly`` / ``Poly`` / tuple passes naturally."""
     from srmech.apokatastasis.zeilberger import BiPoly  # exact-ℚ bivariate carrier; lazy
-    from srmech.amsc.poly import Poly
+    from srmech.math.poly import Poly
     if isinstance(value, (BiPoly, Poly)):
         return value
     if isinstance(value, tuple):
@@ -293,14 +293,14 @@ def _to_tripoly(value: Any, *, param: str = "") -> Any:
 
     A ``TriPoly`` is a polynomial in ``ℚ[n,j,k]`` — a ``j``-ascending tuple of
     :class:`~srmech.apokatastasis.zeilberger.BiPoly` in ``(n,k)``. The op's coercion
-    (:meth:`srmech.amsc.tripoly.TriPoly._as_tripoly`) accepts a ``TriPoly`` (passes
+    (:meth:`srmech.math.tripoly.TriPoly._as_tripoly`) accepts a ``TriPoly`` (passes
     through), a lower carrier (``BiPoly`` in ``(n,k)`` / ``Poly`` in ``k``), or the
     natural nested list. So the honest, minimal coercer hands the value through
     (tuple→list) and lets the op build the carrier (never a float; a coefficient
     must be exact). A ``TriPoly`` / ``BiPoly`` / ``Poly`` / tuple passes naturally."""
-    from srmech.amsc.tripoly import TriPoly  # exact-ℚ trivariate carrier; lazy
+    from srmech.math.tripoly import TriPoly  # exact-ℚ trivariate carrier; lazy
     from srmech.apokatastasis.zeilberger import BiPoly
-    from srmech.amsc.poly import Poly
+    from srmech.math.poly import Poly
     if isinstance(value, (TriPoly, BiPoly, Poly)):
         return value
     if isinstance(value, tuple):
@@ -313,15 +313,15 @@ def _to_qpoly(value: Any, *, param: str = "") -> Any:
     ``q_gosper`` q-hypergeometric term-ratio operands).
 
     A ``QPoly`` is a Laurent polynomial in ``x = qⁿ`` over ``ℚ[q]`` — an
-    ascending-x sequence of :class:`~srmech.amsc.poly.Poly`-in-``q`` cells. The op's
+    ascending-x sequence of :class:`~srmech.math.poly.Poly`-in-``q`` cells. The op's
     coercion (:func:`srmech.apokatastasis.q_gosper._coerce_qpoly`) accepts a ``QPoly`` (passes
     through), a lower carrier (a ``Poly`` in ``q`` → an ``x**0`` cell), or the
     natural nested-list form (an ascending-x list of ``ℚ[q]`` coefficient cells). So
     the honest, minimal coercer hands the value through (tuple→list) and lets the op
     build the carrier (never a float; a coefficient must be exact). A ``QPoly`` /
     ``Poly`` / tuple passes naturally."""
-    from srmech.amsc.qpoly import QPoly  # exact-ℚ[q] q-shift carrier; lazy
-    from srmech.amsc.poly import Poly
+    from srmech.math.qpoly import QPoly  # exact-ℚ[q] q-shift carrier; lazy
+    from srmech.math.poly import Poly
     if isinstance(value, (QPoly, Poly)):
         return value
     if isinstance(value, tuple):
@@ -347,17 +347,17 @@ def _to_qbipoly(value: Any, *, param: str = "") -> Any:
     ``q_zeilberger`` bivariate-q term-ratio operands).
 
     A ``QBiPoly`` is the q-analog of ``BiPoly`` — a polynomial in ``Y = qᵏ`` whose
-    coefficients are :class:`~srmech.amsc.qpoly.QPoly` in ``X = qⁿ`` (over ``ℚ[q]``).
-    The op's coercion (:meth:`srmech.amsc.qbipoly.QBiPoly.coerce`) accepts a
+    coefficients are :class:`~srmech.math.qpoly.QPoly` in ``X = qⁿ`` (over ``ℚ[q]``).
+    The op's coercion (:meth:`srmech.math.qbipoly.QBiPoly.coerce`) accepts a
     ``QBiPoly`` (passes through), a ``QPoly`` (read as a polynomial in ``Y`` alone), a
     ``Poly`` in ``q`` (a scalar), or the natural nested-``Y``-degree list whose entries
     are each a ``QPoly``-in-``X`` (or QPoly-coercible cell). So the honest, minimal
     coercer hands the value through (tuple→list) and lets the op build the carrier
     (never a float; a coefficient must be exact). A ``QBiPoly`` / ``QPoly`` / ``Poly``
     / tuple passes naturally."""
-    from srmech.amsc.qbipoly import QBiPoly  # exact bivariate-ℚ[q] carrier; lazy
-    from srmech.amsc.qpoly import QPoly
-    from srmech.amsc.poly import Poly
+    from srmech.math.qbipoly import QBiPoly  # exact bivariate-ℚ[q] carrier; lazy
+    from srmech.math.qpoly import QPoly
+    from srmech.math.poly import Poly
     if isinstance(value, (QBiPoly, QPoly, Poly)):
         return value
     if isinstance(value, tuple):
@@ -399,9 +399,9 @@ def _to_poly_or_bipoly(value: Any, *, param: str = "") -> Any:
     ``TriPoly`` passes straight through; a bare list is built into the lowest
     rung (a ``Poly``) so a from-scratch caller can promote a coefficient list.
     Never a float (a coefficient must be exact)."""
-    from srmech.amsc.poly import Poly
+    from srmech.math.poly import Poly
     from srmech.apokatastasis.zeilberger import BiPoly
-    from srmech.amsc.tripoly import TriPoly
+    from srmech.math.tripoly import TriPoly
     if isinstance(value, (Poly, BiPoly, TriPoly)):
         return value
     return _to_poly(value, param=param)
@@ -412,9 +412,9 @@ def _to_bipoly_or_tripoly(value: Any, *, param: str = "") -> Any:
     TriPoly``; rc116 ``carrier_ladder.poly_project``). An already-built
     ordinary-ladder carrier passes straight through; a bare nested list is
     built into a ``BiPoly``. Never a float (a coefficient must be exact)."""
-    from srmech.amsc.poly import Poly
+    from srmech.math.poly import Poly
     from srmech.apokatastasis.zeilberger import BiPoly
-    from srmech.amsc.tripoly import TriPoly
+    from srmech.math.tripoly import TriPoly
     if isinstance(value, (Poly, BiPoly, TriPoly)):
         return value
     return _to_bipoly(value, param=param)
@@ -442,7 +442,7 @@ def _to_q(value: Any, *, param: str = "") -> Any:
     distinction ``stiff_string_partials`` exists to expose), and manufacturing an
     exact rational here would defeat the refusal at the one layer the caller
     cannot see. Let the op raise its own explanatory ``TypeError``."""
-    from srmech.amsc.q import Q  # exact-ℚ carrier; lazy (no import cost when unused)
+    from srmech.math.q import Q  # exact-ℚ carrier; lazy (no import cost when unused)
     if isinstance(value, Q):
         return value
     if isinstance(value, bool):
@@ -515,7 +515,7 @@ def _to_ellratio(value: Any, *, param: str = "") -> Any:
     ``EllMonomial`` / ``Theta`` passes through (never a float; a coefficient must be
     exact)."""
     from srmech.apokatastasis.ellbase import EllMonomial, EllRatio, Theta  # exact carrier; lazy
-    from srmech.amsc.q import Q
+    from srmech.math.q import Q
     if isinstance(value, (EllRatio, EllMonomial, Theta)):
         return value
     if isinstance(value, bool):
@@ -550,7 +550,7 @@ def _to_ellmonomial(value: Any, *, param: str = "") -> Any:
     An ``EllMonomial`` passes through unchanged. Never a float — a coefficient must
     be exact."""
     from srmech.apokatastasis.ellbase import EllMonomial  # exact carrier; lazy
-    from srmech.amsc.q import Q
+    from srmech.math.q import Q
     if isinstance(value, EllMonomial):
         return value
     if isinstance(value, bool):
@@ -638,7 +638,7 @@ def _seq_int_or_pair(value: Any, *, param: str = "") -> List[Any]:
 
 def _seq_charge(value: Any, *, param: str = "") -> List[Any]:
     """``list[int | Q | float]`` (rc231; ``cycle_holonomy`` per-edge ``charges`` in
-    turns) -> list of int / float / srmech :class:`~srmech.amsc.q.Q`.
+    turns) -> list of int / float / srmech :class:`~srmech.math.q.Q`.
 
     A charge is an exact ``int`` / ``Q`` (turns) or a ``float`` (projected to a
     rational by the op). JSON has no rational, so an exact rational charge rides as a
@@ -647,7 +647,7 @@ def _seq_charge(value: Any, *, param: str = "") -> List[Any]:
     carrier, was ``fractions.Fraction``); a bare JSON int / float passes through (the
     op's ``_to_fraction`` accepts both). ``None`` is handled by
     :func:`coerce_param`'s null-passthrough (the all-zero / balanced default)."""
-    from srmech.amsc.q import Q
+    from srmech.math.q import Q
     if not isinstance(value, (list, tuple)):
         raise ValueError(
             f"expected a list of charges (int / float / [num, den]) for param "
@@ -1250,7 +1250,7 @@ def serialise_native(value: Any) -> Any:
     value.
 
     * ``bytes`` -> base64 ``str``
-    * :class:`srmech.amsc.mat.Mat` -> nested list (complex -> ``[re, im]`` leaves)
+    * :class:`srmech.math.mat.Mat` -> nested list (complex -> ``[re, im]`` leaves)
     * ``complex`` -> ``[re, im]``
     * tuples / lists / sets -> list (recursed)
     * dicts -> dict (values recursed; keys base64'd if bytes)
@@ -1290,24 +1290,24 @@ def serialise_native(value: Any) -> Any:
     # (never a lossy float, never a bare repr string). Keyed by TYPE, unambiguous
     # with complex's [re, im] (which is keyed by the declared `complex` param type
     # on the inbound side).
-    from srmech.amsc.q import Q as _Q
+    from srmech.math.q import Q as _Q
     if isinstance(value, _Q):
         return [value.numerator, value.denominator]
     # srmech HV handle (numpy-free Klein-4 carrier, v0.7.0rc29) -> list[int].
     # The core ops return HV; cross JSON-RPC by value as a plain integer list.
-    from srmech.amsc.hv import HV as _HV
+    from srmech.math.hv import HV as _HV
     if isinstance(value, _HV):
         return value.tolist()
     # srmech Mat (numpy-free 2-D carrier, v0.7.5rc72) -> nested list. A complex
     # Mat serialises each entry as a ``[re, im]`` leaf via the recursion on the
     # nested list (Mat.tolist() yields a list[list[complex]]).
-    from srmech.amsc.mat import Mat as _Mat
+    from srmech.math.mat import Mat as _Mat
     if isinstance(value, _Mat):
         return serialise_native(value.tolist())
     # srmech Vec (numpy-free 1-D carrier, rc129) -> flat list. A complex Vec
     # serialises each entry as a ``[re, im]`` leaf via the recursion (Vec.tolist()
     # yields a flat list[float] / list[complex]). The 1-D peer of the Mat branch.
-    from srmech.amsc.vec import Vec as _Vec
+    from srmech.math.vec import Vec as _Vec
     if isinstance(value, _Vec):
         return serialise_native(value.tolist())
     # stdlib array.array -> flat list (rc295). The §50 accumulator family is the

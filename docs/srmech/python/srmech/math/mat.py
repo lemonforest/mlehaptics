@@ -1,6 +1,6 @@
-"""srmech.amsc.mat — the framework-native 2-D matrix carrier (numpy-free).
+"""srmech.math.mat — the framework-native 2-D matrix carrier (numpy-free).
 
-The 2-D peer of :class:`srmech.amsc.hv.HV`. Where ``HV`` carries a 1-D
+The 2-D peer of :class:`srmech.math.hv.HV`. Where ``HV`` carries a 1-D
 hypervector over ``array('B')``, :class:`Mat` carries a dense 2-D matrix over a
 flat ``array('d')`` — the carrier the numpy-using ``qm`` / ``signal_processing``
 modules hold their working matrices in *once they are converted off numpy*
@@ -149,7 +149,7 @@ class Mat:
         bails to ``np.asarray(m.tolist())``):
 
         * ``m[i, j]`` → a PLAIN ``float`` / ``complex`` scalar (negatives OK);
-        * ``m[i]`` (single int) → row ``i`` as a :class:`~srmech.amsc.vec.Vec`;
+        * ``m[i]`` (single int) → row ``i`` as a :class:`~srmech.math.vec.Vec`;
         * ``m[a:b]`` (row slice) → a :class:`Mat`;
         * ``m[i, c:d]`` → that row's column-slice as a :class:`Vec`;
         * ``m[a:b, j]`` — a column, incl. ``m[:, j]`` — → a :class:`Vec`;
@@ -198,7 +198,7 @@ class Mat:
     # the SAME array('d') buffer zero-copy; the pure-Python bodies below are the
     # COMPLETE alternative (numpy-absent / no-C hosts) and the byte-exact oracle.
     def _native_unary(self, kind: str):
-        from . import _native  # lazy: _native has no Mat dependency
+        from ..amsc import _native  # lazy: _native has no Mat dependency
         res = _native.mat_unary_c(self._buf, self.n_rows, self.n_cols,
                                   self._complex, kind)
         if res is None:
@@ -235,9 +235,9 @@ class Mat:
         """``A·B`` — the numpy ``@`` matmul idiom, routed onto the srmech Class-L
         cascade (``laplacian.mat_matmul`` / ``mat_matvec``), **never**
         numpy's own contraction. ``Mat·Mat`` → :class:`Mat`; ``Mat·Vec`` (or a
-        flat 1-D sequence) → :class:`~srmech.amsc.vec.Vec`. Format-preserving
+        flat 1-D sequence) → :class:`~srmech.math.vec.Vec`. Format-preserving
         (rc130): real ⊗ real → real carrier, complex anywhere → complex carrier."""
-        from ..math import laplacian as _L  # lazy: laplacian imports Mat (avoid cycle)
+        from . import laplacian as _L  # lazy: laplacian imports Mat (avoid cycle)
         cplx = self._complex or _carrier_is_complex(other)
         if _is_matrix_like(other):
             B = other if isinstance(other, Mat) else Mat.from_rows(
@@ -248,9 +248,9 @@ class Mat:
 
     def __rmatmul__(self, other):
         """``other·A`` for a non-:class:`Mat` left operand (a left-side flat
-        sequence / :class:`~srmech.amsc.vec.Vec` → ``Vec·Mat``; a left-side
+        sequence / :class:`~srmech.math.vec.Vec` → ``Vec·Mat``; a left-side
         2-D sequence → ``M·A``). Routes onto the Class-L cascade."""
-        from ..math import laplacian as _L  # lazy (avoid cycle)
+        from . import laplacian as _L  # lazy (avoid cycle)
         cplx = self._complex or _carrier_is_complex(other)
         if _is_matrix_like(other):
             A = other if isinstance(other, Mat) else Mat.from_rows(
@@ -295,7 +295,7 @@ class Mat:
         broadcast). Returns a :class:`Mat` or ``None`` (all other operands —
         reflected sub/div, 2-D-sequence coercion, cross-rank — fall to the pure
         :meth:`_elementwise`). ``kind`` in {"add","sub","mul"}."""
-        from . import _native  # lazy
+        from ..amsc import _native  # lazy
         if isinstance(other, Mat) and other.shape == self.shape:
             res = _native.mat_binary_c(self._buf, self._complex, other._buf,
                                        other._complex, self.n_rows,

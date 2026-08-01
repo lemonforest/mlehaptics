@@ -1431,7 +1431,7 @@ def _q61_to_double(q61: int) -> float:
     two-step ``(double)q61 / (double)SRMECH_TRIG_ONE`` cast exactly).
 
     This is the OLD display-boundary collapse. As of 0.9.0rc7 the public
-    transcendentals stay rational (:class:`~srmech.amsc.q.Q`) and only collapse
+    transcendentals stay rational (:class:`~srmech.math.q.Q`) and only collapse
     when the caller asks (``float(q)``); this helper is retained for the
     internal float-reduction arithmetic (Cody-Waite ``r``, atan band edges)
     where a transient double is legitimate, never as the public return.
@@ -1452,12 +1452,12 @@ _Q_CLS = None
 
 
 def _q(num: int, den: int):
-    """Build a :class:`~srmech.amsc.q.Q` from an exact ``(num, den)`` integer
+    """Build a :class:`~srmech.math.q.Q` from an exact ``(num, den)`` integer
     pair (deferred import — ``q`` imports this module). The Q reducer rides the
     Class-N Euclidean GCD, so power-of-two denominators stay powers of two."""
     global _Q_CLS
     if _Q_CLS is None:
-        from ..amsc.q import Q as _Q_imported
+        from .q import Q as _Q_imported
         _Q_CLS = _Q_imported
     return _Q_CLS(num, den)
 
@@ -1837,7 +1837,7 @@ def _atan2_reference(y: float, x: float, precision: int) -> "Q":
 
 
 def cos(x: float, *, precision: int | None = None) -> "Q":
-    """``cos(x)`` (radians) → an EXACT :class:`~srmech.amsc.q.Q`.
+    """``cos(x)`` (radians) → an EXACT :class:`~srmech.math.q.Q`.
 
     ``precision=None`` (default) → the Q61 fixed-point cascade: the exact
     rational ``v / 2**61``, BYTE-IDENTICAL to the native peer and to every prior
@@ -1867,7 +1867,7 @@ def cos(x: float, *, precision: int | None = None) -> "Q":
 
 
 def sin(x: float, *, precision: int | None = None) -> "Q":
-    """``sin(x)`` (radians) → an EXACT :class:`~srmech.amsc.q.Q`.
+    """``sin(x)`` (radians) → an EXACT :class:`~srmech.math.q.Q`.
 
     ``precision=None`` (default) → the Q61 stay-rational peer of :func:`cos`
     (byte-identical to every prior rc). ``precision=P`` → the EXACT-rational
@@ -1890,7 +1890,7 @@ def sin(x: float, *, precision: int | None = None) -> "Q":
 
 
 def tan(x: float, *, precision: int | None = None) -> "Q":
-    """``tan(x) = sin(x) / cos(x)`` → an EXACT :class:`~srmech.amsc.q.Q`.
+    """``tan(x) = sin(x) / cos(x)`` → an EXACT :class:`~srmech.math.q.Q`.
 
     ``precision=None`` (default) → the exact ``Q`` quotient of the Q61 ``sin`` /
     ``cos`` (byte-identical to every prior rc; no native ``srmech_tan``).
@@ -1909,7 +1909,7 @@ def tan(x: float, *, precision: int | None = None) -> "Q":
 
 
 def atan(x: float, *, precision: int | None = None) -> "Q":
-    """``atan(x)`` → an EXACT :class:`~srmech.amsc.q.Q`.
+    """``atan(x)`` → an EXACT :class:`~srmech.math.q.Q`.
 
     ``precision=None`` (default) → the Q61 three-band Class-N cascade,
     byte-identical to every prior rc. Class-K magnitude (never ``abs()`` of the
@@ -1933,7 +1933,7 @@ def atan(x: float, *, precision: int | None = None) -> "Q":
 
 
 def atan2(y: float, x: float, *, precision: int | None = None) -> "Q":
-    """``atan2(y, x)`` → an EXACT :class:`~srmech.amsc.q.Q`.
+    """``atan2(y, x)`` → an EXACT :class:`~srmech.math.q.Q`.
 
     ``precision=None`` (default) → the Q61 atan cascade with quadrant logic,
     byte-identical to every prior rc. The quadrant limits (``±π/2``, ``±π/4``,
@@ -2029,7 +2029,7 @@ def _q_log_core(t: int) -> int:
 
 
 def exp(x: float, *, precision: int | None = None) -> "Q":
-    """``e^x`` → an EXACT :class:`~srmech.amsc.q.Q`.
+    """``e^x`` → an EXACT :class:`~srmech.math.q.Q`.
 
     ``precision=None`` (default) → the Q61 Class-N exp cascade with Cody-Waite
     ln2 reduction, BYTE-IDENTICAL to every prior rc: ``x = n·ln2 + r`` with
@@ -2063,7 +2063,7 @@ def exp(x: float, *, precision: int | None = None) -> "Q":
 
 
 def log(x: float, *, precision: int | None = None) -> "Q":
-    """``ln(x)`` (natural log, x > 0) → an EXACT :class:`~srmech.amsc.q.Q`.
+    """``ln(x)`` (natural log, x > 0) → an EXACT :class:`~srmech.math.q.Q`.
 
     ``precision=None`` (default) → the Q61 Class-N atanh cascade, BYTE-IDENTICAL
     to every prior rc: ``x = m·2^e`` read EXACTLY from the bit pattern, ``m``
@@ -2206,10 +2206,10 @@ def _sqrt_relative_k(num: int, den: int, k: int) -> int:
 
 
 def sqrt(x, *, precision: int = None) -> "Q":
-    """``√x`` (x ≥ 0) → an EXACT :class:`~srmech.amsc.q.Q` via the Class-N
+    """``√x`` (x ≥ 0) → an EXACT :class:`~srmech.math.q.Q` via the Class-N
     rational sqrt cascade.
 
-    ``x`` may be a ``float`` OR a :class:`~srmech.amsc.q.Q` (rc7 — stays
+    ``x`` may be a ``float`` OR a :class:`~srmech.math.q.Q` (rc7 — stays
     rational through :func:`hypot` and the complex modulus). Default
     (``precision=None``): the IEEE-bit ``M·2^e`` decomposition with
     ``root = isqrt(M << 2K)`` (K=27) scaled by the EXACT ``2^(e/2−K)`` — the
@@ -2262,7 +2262,7 @@ def sqrt(x, *, precision: int = None) -> "Q":
 
 
 def hypot(a: float, b: float, *, precision: int = None) -> "Q":
-    """``hypot(a, b) = √(a² + b²)`` → an EXACT :class:`~srmech.amsc.q.Q`.
+    """``hypot(a, b) = √(a² + b²)`` → an EXACT :class:`~srmech.math.q.Q`.
 
     **Class M** (the sum-of-squares bind) ∘ **Class N∘K** (:func:`sqrt`). rc7
     stay-rational: ``a² + b²`` is formed as an EXACT rational (each float's
@@ -3140,7 +3140,7 @@ def _rw_coord_to_pair(v) -> Tuple[int, int]:
 
 
 def _rw_points(seq) -> list:
-    """Coerce a curve to a list of exact-rational :class:`~srmech.amsc.q.Q`
+    """Coerce a curve to a list of exact-rational :class:`~srmech.math.q.Q`
     3-tuples via :func:`_rw_coord_to_pair` (floats rejected — the writhe is
     exact-rational, no FPU lift)."""
     pts = []

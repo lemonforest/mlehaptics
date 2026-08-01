@@ -317,7 +317,7 @@ def _proof_M():
 def _proof_N():
     """N: a CDRegister over the exact-rational Q carrier is a coherent addressable
     rational store."""
-    from srmech.amsc.q import Q
+    from srmech.math.q import Q
     rats = {0: Q(1, 3), 1: Q(-2, 7), 2: Q(5, 11), 3: Q(22, 7)}
     keys = {slot: f"{q.as_pair()[0]}/{q.as_pair()[1]}" for slot, q in rats.items()}
     r = cascade.cd_register(8, D=8192)                      # bare: addressing only

@@ -18,7 +18,7 @@ from array import array
 import pytest
 
 from srmech.amsc import _native
-from srmech.amsc.mat import Mat
+from srmech.math.mat import Mat
 from srmech.math.laplacian import (
     MAX_NATIVE_HERMITIAN_NODES,
     mat_hermitian_eigendecompose,

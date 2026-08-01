@@ -6,7 +6,7 @@ The tower-traversal companion of :mod:`srmech.qm.so8` /
 **36-dim** adjoint (``36 = C(9, 2)``) and its **16-dim real spinor**
 ``Δ₉`` acts on ``O ⊕ O = R^16`` — the ``Spin(9)`` isotropy group of the
 octonionic projective plane. This module builds, all bit-exact and
-numpy-free on the framework-native :class:`~srmech.amsc.mat.Mat` carrier:
+numpy-free on the framework-native :class:`~srmech.math.mat.Mat` carrier:
 
 1. **so(9) adjoint** — the 36 antisymmetric ``9x9`` ``E_{pq}`` generators
    (the vector / defining representation); rank exactly 36 (EXACT over ℚ,
@@ -87,12 +87,12 @@ import functools
 from array import array
 from typing import Dict, List, Sequence, Tuple
 
-from srmech.amsc.q import Q                      # exact-ℚ rank carrier
+from srmech.math.q import Q                      # exact-ℚ rank carrier
 from srmech.amsc.cascade import magnitude as _magnitude
 from srmech.amsc.cascade.cayley_dickson import cd_basis_product as _cd_basis_product
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
 from srmech.math.laplacian import mat_norm
-from srmech.amsc.mat import Mat
+from srmech.math.mat import Mat
 from srmech.qm.octonion import octonion_left_mult
 from srmech.qm.so8 import g2_subalgebra
 
@@ -219,7 +219,7 @@ def _q_rank(rows: Sequence[Sequence[int]]) -> int:
 
     The numpy-free, float-free rank: every entry this module forms is an
     exact integer (the generators) or an exact dyadic (``¼[Γ, Γ]`` scaled
-    back to integer for ranking), so a :class:`~srmech.amsc.q.Q` Gaussian
+    back to integer for ranking), so a :class:`~srmech.math.q.Q` Gaussian
     elimination is exact and the rank is the pivot count — the same discipline
     as :func:`srmech.qm.so8._rank_exact`, but taking integer ROWS directly (no
     float snap needed; these entries ARE exact). Rank is scale-invariant, so a

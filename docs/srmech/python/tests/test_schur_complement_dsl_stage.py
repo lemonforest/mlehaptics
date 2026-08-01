@@ -112,7 +112,7 @@ def test_schur_then_stage_float_path():
     # (§564; dense_solve rides mat_solve). It returns the numpy-free Mat carrier
     # (rc131 carrier-format law); verify against the exact-Fraction path
     # element-wise via Mat indexing, NO numpy.
-    from srmech.amsc.mat import Mat
+    from srmech.math.mat import Mat
     ch = Chain("dtn-f").then("schur_complement", boundary_idx=[0, 3])
     S = ch.run([[float(x) for x in row] for row in _PATH4_L])
     assert isinstance(S, Mat) and S.shape == (2, 2)

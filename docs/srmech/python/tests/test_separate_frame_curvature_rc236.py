@@ -13,7 +13,7 @@ curvature IS the true ½[A,B]: commuting → curvature EXACTLY the zero carrier 
 from __future__ import annotations
 
 from srmech.amsc.cascade.matrix_cascades import separate_frame_curvature
-from srmech.amsc.mat import Mat
+from srmech.math.mat import Mat
 
 
 # ── the Pauli operators (Gaussian integers {0, ±1, ±i} — exactly representable) ─

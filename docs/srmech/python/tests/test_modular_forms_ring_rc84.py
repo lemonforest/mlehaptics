@@ -36,7 +36,7 @@ from srmech.apokatastasis.modular_forms_ring import (
 )
 from srmech.apokatastasis.eisenstein import Eisenstein
 from srmech.apokatastasis.eta_quotient import EtaQuotient
-from srmech.amsc.q import Q
+from srmech.math.q import Q
 from srmech.amsc import _native
 
 

@@ -25,7 +25,7 @@ import pytest
 
 from srmech.apokatastasis.eisenstein import Eisenstein, eisenstein
 from srmech.apokatastasis.eta_quotient import EtaQuotient
-from srmech.amsc.q import Q
+from srmech.math.q import Q
 from srmech.amsc import _native
 
 

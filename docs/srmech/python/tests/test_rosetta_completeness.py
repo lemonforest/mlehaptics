@@ -927,7 +927,7 @@ CEIL_NON_COMPUTE_OWED = 0
 # (with the same justification burden); a control-logic op does NOT belong here —
 # it is owed_orchestration and counts against CEIL_NON_COMPUTE_OWED instead.
 NON_COMPUTE_DEV_TOOLING_EXEMPT = frozenset({
-    "srmech.amsc.carrier_ladder.carrier_ladder_descriptor",
+    "srmech.math.carrier_ladder.carrier_ladder_descriptor",
     "srmech.amsc.gap_suggester.register_classifier",
     "srmech.amsc.gap_suggester.register_probes",
     "srmech.amsc.gap_suggester.suggest_gap_collections",
@@ -1328,10 +1328,10 @@ def test_non_compute_composes_c_is_transitively_reachable():
 # extending this allowlist, i.e. answering "is this really not a compute
 # kernel?" at classification time — the question text.py never got asked.
 COMPOSES_C_ZERO_REACH_PINNED = frozenset({
-    "srmech.amsc.carrier_ladder.poly_project",
-    "srmech.amsc.carrier_ladder.poly_promote",
-    "srmech.amsc.carrier_ladder.qpoly_project",
-    "srmech.amsc.carrier_ladder.qpoly_promote",
+    "srmech.math.carrier_ladder.poly_project",
+    "srmech.math.carrier_ladder.poly_promote",
+    "srmech.math.carrier_ladder.qpoly_project",
+    "srmech.math.carrier_ladder.qpoly_promote",
     # cd_project / cd_promote LEFT the zero-reach set in 0.9.0rc263 (#845): they
     # now build the CD element carrier ``Q`` (was a pure-Python ``Fraction(0)``
     # pad), and ``Q``'s constructor reaches the c_dispatched rational-reduce
@@ -1380,13 +1380,13 @@ COMPOSES_C_ZERO_REACH_PINNED = frozenset({
     "srmech.math.laplacian.hypercomplex_perspectives",
     "srmech.apokatastasis.modular_forms_ring.modular_forms_ring",
     "srmech.introspect.op_provenance.family_verdict",
-    "srmech.amsc.poly.poly_from_coeffs",
-    "srmech.amsc.qbipoly.qbipoly_from_coeffs",
-    "srmech.amsc.qpoly.qpoly_from_coeffs",
+    "srmech.math.poly.poly_from_coeffs",
+    "srmech.math.qbipoly.qbipoly_from_coeffs",
+    "srmech.math.qpoly.qpoly_from_coeffs",
     "srmech.apokatastasis.quasimodular_forms_ring.quasimodular_forms_ring",
     "srmech.math.tlv.tlv_unpack",
     "srmech.amsc.tool_schema.get_tool_schema",
-    "srmech.amsc.tripoly.tripoly_from_coeffs",
+    "srmech.math.tripoly.tripoly_from_coeffs",
     "srmech.apokatastasis.zeilberger.bipoly_from_coeffs",
     "srmech.bus._server.serve",
     "srmech.cli.bus.add_arguments",

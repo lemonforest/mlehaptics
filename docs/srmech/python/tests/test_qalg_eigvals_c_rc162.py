@@ -36,7 +36,7 @@ from __future__ import annotations
 import json
 import random
 from fractions import Fraction
-from srmech.amsc.q import Q  # #845: outputs are now Q, not Fraction
+from srmech.math.q import Q  # #845: outputs are now Q, not Fraction
 from pathlib import Path
 
 import pytest

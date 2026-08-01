@@ -23,7 +23,7 @@ ALL deviations are reduced through the **scalar** Class K pin-slot magnitude
 reducing the matrix to a scalar Frobenius norm via the numpy-free Class-N
 :func:`srmech.math.laplacian.mat_norm`. numpy-FREE (per
 ``[[feedback_test_for_numpy_free_module_must_itself_be_numpy_free]]``): the
-so9 surfaces return :class:`srmech.amsc.mat.Mat`; ranks ride the EXACT
+so9 surfaces return :class:`srmech.math.mat.Mat`; ranks ride the EXACT
 rational :func:`srmech.qm.so9._q_rank`.
 """
 
@@ -31,7 +31,7 @@ from __future__ import annotations
 
 from srmech.amsc.cascade import magnitude
 from srmech.math.laplacian import mat_matmul, mat_norm
-from srmech.amsc.mat import Mat
+from srmech.math.mat import Mat
 from srmech.qm import so9
 
 _TOL = 1e-12

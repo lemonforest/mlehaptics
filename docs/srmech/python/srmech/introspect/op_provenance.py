@@ -99,7 +99,7 @@ from __future__ import annotations
 import json
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from srmech.amsc.q import Q  # #845: exact-ℚ carrier (was fractions.Fraction)
+from srmech.math.q import Q  # #845: exact-ℚ carrier (was fractions.Fraction)
 
 from ..amsc.format import sha256_bytes
 

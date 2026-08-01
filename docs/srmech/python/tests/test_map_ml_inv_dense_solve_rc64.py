@@ -18,7 +18,7 @@ rank count on a rank-deficient matrix.)
 
 from __future__ import annotations
 
-from srmech.amsc.q import Q  # #845: dense_solve exact returns Q
+from srmech.math.q import Q  # #845: dense_solve exact returns Q
 
 import math
 import random
@@ -60,7 +60,7 @@ def test_dense_solve_inverse_satisfies_defining_identity():
         # rc131 carrier-format law: a matrix RHS yields the Mat carrier, NOT a
         # bare list — flatten via .tolist() (carrier convert, not numpy) for the
         # pure-list matmul cross-check.
-        from srmech.amsc.mat import Mat
+        from srmech.math.mat import Mat
         assert isinstance(inv_cascade, Mat) and len(inv_cascade) == n
         prod = _matmul(m, inv_cascade.tolist())
         for i in range(n):

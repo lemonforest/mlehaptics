@@ -56,7 +56,7 @@ from srmech.amsc.genome import (
     telomere,
 )
 from srmech.math.hdc import klein4_bind
-from srmech.amsc.hv import HV
+from srmech.math.hv import HV
 from srmech.math.octonion import oct_bind, oct_conjugate, oct_mult
 from srmech.amsc.q8 import q8_bind
 

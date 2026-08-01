@@ -41,7 +41,7 @@ from srmech.apokatastasis.quasimodular_forms_ring import (
 )
 from srmech.apokatastasis.modular_forms_ring import modular_forms_ring_represent
 from srmech.apokatastasis.eisenstein import Eisenstein, eisenstein
-from srmech.amsc.q import Q
+from srmech.math.q import Q
 from srmech.amsc import _native
 
 

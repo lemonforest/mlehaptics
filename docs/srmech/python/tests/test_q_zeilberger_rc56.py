@@ -4,9 +4,9 @@
 The SECOND public op of the q-hypergeometric F929 reduction row (the q-analog of the
 §76 ``zeilberger``). Given a proper q-hypergeometric term F(n,k) by its two
 bivariate-q term ratios ``r_n = F(n+1,k)/F(n,k)`` and ``r_k = F(n,k+1)/F(n,k)`` (each
-a :class:`~srmech.amsc.qbipoly.QBiPoly` over ``(X, Y) = (qⁿ, qᵏ)``), it returns the
+a :class:`~srmech.math.qbipoly.QBiPoly` over ``(X, Y) = (qⁿ, qᵏ)``), it returns the
 minimal-order linear q-recurrence ``Σ_j a_j(qⁿ)·f(n+j) = 0`` for ``f(n) = Σ_k
-F(n,k)`` (each ``a_j`` an exact :class:`~srmech.amsc.qpoly.QPoly` in ``X = qⁿ``) plus
+F(n,k)`` (each ``a_j`` an exact :class:`~srmech.math.qpoly.QPoly` in ``X = qⁿ``) plus
 the q-Gosper certificate, or ``None`` when no recurrence of order ≤ max_order exists.
 
 This test is numpy-FREE and math-FREE (no ``import numpy`` / ``import math``): it uses
@@ -36,10 +36,10 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc.q import Q
-from srmech.amsc.poly import Poly
-from srmech.amsc.qpoly import QPoly
-from srmech.amsc.qbipoly import QBiPoly
+from srmech.math.q import Q
+from srmech.math.poly import Poly
+from srmech.math.qpoly import QPoly
+from srmech.math.qbipoly import QBiPoly
 from srmech.apokatastasis.q_zeilberger import q_zeilberger
 
 
@@ -275,7 +275,7 @@ def test_no_numpy_no_math_imported():
     # `math` may be imported transitively by pytest internals, but never by srmech
     # source — assert the q_zeilberger module itself names neither.
     import srmech.apokatastasis.q_zeilberger as QZ
-    import srmech.amsc.qbipoly as QB
+    import srmech.math.qbipoly as QB
     src = QZ.__file__
     text = open(src, encoding="utf-8").read()
     assert "import numpy" not in text and "import math" not in text

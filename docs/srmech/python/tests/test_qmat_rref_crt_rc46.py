@@ -20,9 +20,9 @@ from __future__ import annotations
 
 import random
 
-from srmech.amsc.poly import Poly
-from srmech.amsc.q import Q
-from srmech.amsc.qmat import QMat
+from srmech.math.poly import Poly
+from srmech.math.q import Q
+from srmech.math.qmat import QMat
 from srmech.apokatastasis.zeilberger import (BiPoly, _ansatz_n_degree, _ansatz_x_degree,
                                     _assemble_rows, _bi_exact_div, _rho)
 
@@ -97,7 +97,7 @@ def test_rref_crt_unlucky_prime_consensus_direct():
     unlucky prime) and confirm it drops rank vs the consensus, i.e. would be
     discarded."""
     from srmech.math import modular_linalg as ml
-    from srmech.amsc.qmat import _entries_mod_p, _key_dominates
+    from srmech.math.qmat import _entries_mod_p, _key_dominates
 
     m = QMat.from_rows([[3, 1], [2, 3]])           # det = 7 ⇒ singular mod 7
     # A large lucky prime: full rank, pivots [0, 1].

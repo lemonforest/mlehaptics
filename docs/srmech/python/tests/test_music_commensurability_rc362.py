@@ -28,8 +28,8 @@ from pathlib import Path
 import pytest
 
 from srmech.amsc.cascade.atoms import magnitude, pin_slot_at_zero
-from srmech.amsc.q import Q
-from srmech.amsc.qalg import Qalg
+from srmech.math.q import Q
+from srmech.math.qalg import Qalg
 from srmech import music
 
 _HERE = Path(__file__).resolve().parent

@@ -30,7 +30,7 @@ import tokenize
 
 from srmech.apokatastasis.ellbase import EllMonomial as M, Theta, EllRatio as R, _X, _Q_SYM
 from srmech.apokatastasis.elliptic_gosper import elliptic_gosper
-from srmech.amsc.q import Q
+from srmech.math.q import Q
 
 _A, _B = M.symbol("a"), M.symbol("b")
 _x = M.symbol(_X)

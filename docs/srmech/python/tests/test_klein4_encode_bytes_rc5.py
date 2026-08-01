@@ -9,7 +9,7 @@ without the word-atomic English/whitespace privilege.
 import pytest
 
 from srmech.math import hdc
-from srmech.amsc.q import Q
+from srmech.math.q import Q
 
 D = 4096
 

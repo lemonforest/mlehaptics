@@ -26,8 +26,8 @@ from __future__ import annotations
 
 from typing import Dict, List, Sequence, Tuple
 
-from srmech.amsc.q import Q
-from srmech.amsc.qalg import Qalg
+from srmech.math.q import Q
+from srmech.math.qalg import Qalg
 
 __all__ = ["bell_partials", "equal_temperament_partials",
            "stiff_string_partials", "membrane_partials"]

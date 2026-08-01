@@ -105,7 +105,14 @@ ORIGINAL_N_MODULES = 75
 #: primitive modules cyclic / dispatch / hdc / laplacian / primes / rational /
 #: search / template / tlv / text departing to srmech.math (the bulk of the 14
 #: A-N primitives; the general carriers stay for the rc374 carriers slice).
-EXPECTED_N_MODULES = 33
+#: rc374 (the ninth slice, the CARRIERS batch — the math bucket's LAST slice):
+#: 33 -> 18, the fifteen carrier modules mat / vec / hv / q / qmat / qi / qalg /
+#: qprime / poly / qpoly / qbipoly / tripoly / complex128 / carrier_ladder /
+#: carrier_spectrum departing to srmech.math. This DRAINS the math bucket: with
+#: this slice srmech.math holds all 28 of its A.2 members (see the H.2 over-count
+#: reconciliation at ADR_A2_DESTINATION_COUNTS below). carrier_schema STAYS in
+#: amsc (it is the introspect surface, not a carrier).
+EXPECTED_N_MODULES = 18
 EXPECTED_N_SUBPACKAGES = 3
 
 #: sha256 over the NORMALISED manifest body — "\n".join(sorted entries) + "\n",
@@ -113,7 +120,7 @@ EXPECTED_N_SUBPACKAGES = 3
 #: the digest disagree between the Windows and Linux CI cells; that would be a
 #: platform artifact masquerading as a move (the rc361 rationale, verbatim).
 EXPECTED_CENSUS_SHA256 = (
-    "08c5199ffae333361c2082d37192f060181d08cc56685d94c367c6cbcb469167")
+    "ae5704eabe0728ec11a031e8e380e822262f858d39f822fe69617309a584fb83")
 
 # ── the four keepers, and the A.2 move map (as DATA the test reads) ──────────
 
@@ -136,9 +143,21 @@ ATTESTATION_SUBPACKAGES = frozenset({"adapters", "attested"})
 #: it — the departure allowlist below is derived from the authoritative fact that
 #: only 4 modules keep, so all 71 non-keepers are permitted to leave regardless
 #: of which bucket A.2 finally lands each in.
+#: rc374 OVER-COUNT RECONCILIATION (ADR-0010 Amendment H.2, realised in full at
+#: Amendment K). A.2's published split gave apokatastasis 31 and srmech.math 22.
+#: But the real special-functions family is only 25 modules (the elliptic /
+#: modular / theta / q-series galaxy); A.2's 31 OVER-counted it by 6, having
+#: lumped in — by name-similarity — ``modular_linalg`` (GF(p) finite-field LA, a
+#: general math primitive that only collides with "modular forms") plus 5 of the
+#: general carriers. Those 6 belong to srmech.math, so the correct counts are
+#: apokatastasis 25 and srmech.math 28 (22 + 6). The SUM is unchanged
+#: (28 + 25 == 22 + 31 == 53), so the table still sums to 74 and the "73 of 75"
+#: gap is preserved. This is booked HERE, in the same slice that drains the last
+#: of srmech.math's members, because the carriers slice is what makes math's
+#: real population (28) visible against the corrected count.
 ADR_A2_DESTINATION_COUNTS = {
-    "srmech.apokatastasis": 31,   # elliptic / modular / theta / q-series — 41%
-    "srmech.math": 22,            # A-N primitives + carriers + general math
+    "srmech.apokatastasis": 25,   # elliptic / modular / theta / q-series (H.2-corrected from 31)
+    "srmech.math": 28,            # A-N primitives + carriers + general math (H.2-corrected from 22)
     "srmech.introspect": 10,      # + responsion_schema (the cross-cutting meta)
     "srmech.amsc": 4,             # KEEPS — the attestation framework
     "srmech.biology": 4,          # genome / plasmid / q8 / coupling
@@ -162,18 +181,15 @@ NAMED_DEPARTURES = {
         "tool_schema", "_tool_docs", "carrier_schema",
         "op_provenance", "naming", "responsion_schema"}),
     # rc370 — the elliptic domain's first named member. rc371 — the WHOLE-FAMILY
-    # drain names the other 24, so this bucket is now the full 25-module elliptic
-    # / modular / theta / q-series family. It STAYS a SUBSET-named bucket relative
-    # to A.2's published count of 31 (25 <= 31): A.2's 31 OVER-counts the real
-    # special-functions family by ~6 — it lumped ``modular_linalg`` (GF(p)
-    # finite-field LA → a future ``srmech.math`` module, NOT modular forms) plus
-    # ~5 general carriers by name-similarity. Those ~6 are NOT reassigned here (the
-    # math bucket's slice owns that); see ADR-0010 Amendment H for the finding.
-    # rc372 UPDATE: the math bucket's FIRST slice has now landed, and it took
-    # ``modular_linalg`` (see ``srmech.math`` below) — so the H.2 over-count is
-    # PARTIALLY resolved (the ``modular_linalg`` half; the ~5 general-carrier half
-    # resolves when the carriers slice drains at rc374). apokatastasis STAYS
-    # subset-named at 25 <= 31.
+    # drain names the other 24, so this bucket is the full 25-module elliptic /
+    # modular / theta / q-series family. rc374 CLOSES the H.2 over-count: A.2's
+    # published 31 OVER-counted this family by 6 (it lumped ``modular_linalg`` +
+    # 5 general carriers in by name-similarity). Those 6 are now realised as
+    # srmech.math members (``modular_linalg`` at rc372, the 5 carriers within the
+    # rc374 carrier slice), and ADR_A2_DESTINATION_COUNTS["srmech.apokatastasis"]
+    # is corrected 31 -> 25 to match. So this bucket is now FULLY named: 25
+    # members == the corrected count of 25 (no longer a subset). See ADR-0010
+    # Amendment H (the finding) + Amendment K (the reconciliation).
     "srmech.apokatastasis": frozenset({
         "elliptic_partial_fraction",
         "apagodu_zeilberger", "eisenstein", "ellbase", "elliptic_determinant",
@@ -183,17 +199,20 @@ NAMED_DEPARTURES = {
         "q_gosper", "q_wz_certificate", "q_zeilberger", "quasimodular_forms_ring",
         "riemann_theta", "riemann_theta_multisum", "thetasum", "unary_theta",
         "wz_certificate", "zeilberger"}),
-    # rc372 — the general-algebra / A-N-primitive domain's FIRST named members.
-    # Like ``srmech.introspect`` / ``srmech.apokatastasis`` this is a SUBSET-named
-    # bucket: A.2 counts 22 for ``srmech.math``, and only the 3 modules that have
-    # actually moved this slice are named; the other 19 (the rest of the A-N
-    # primitives + the general carriers) are covered by the departure allowlist
-    # and land as later slices move them. ``modular_linalg`` is the H.2
-    # apokatastasis over-count reassignment realised — it belongs to 𝔽_p linear
-    # algebra, a general math primitive, NOT the modular-forms family.
+    # rc372 opened this bucket (octonion / kepler / modular_linalg); rc373 added
+    # the ten A-N primitives; rc374 (this slice) adds the fifteen CARRIERS and
+    # DRAINS the bucket. It is now FULLY named: 28 members == the H.2-corrected
+    # A.2 count of 28 (see ADR_A2_DESTINATION_COUNTS above). ``modular_linalg``
+    # was the H.2 apokatastasis over-count reassignment (𝔽_p linear algebra, a
+    # general math primitive, NOT modular forms); the 15 carriers here are the
+    # other half of that over-count — the general Mat/Vec/HV/Q/… carriers A.2
+    # had lumped into apokatastasis's 31 by name-similarity.
     "srmech.math": frozenset({"octonion", "kepler", "modular_linalg",
         "cyclic", "dispatch", "hdc", "laplacian", "primes", "rational",
-        "search", "template", "tlv", "text"}),
+        "search", "template", "tlv", "text",
+        "mat", "vec", "hv", "q", "qmat", "qi", "qalg", "qprime", "poly",
+        "qpoly", "qbipoly", "tripoly", "complex128", "carrier_ladder",
+        "carrier_spectrum"}),
 }
 
 #: Modules that have COMPLETED their ADR-0010 departure — they have LEFT
@@ -222,6 +241,14 @@ NAMED_DEPARTURES = {
 #: lands in srmech.math (the seventh slice, the first into that namespace), taking
 #: LANDED from 29 to 32 and the live amsc count from 46 to 43 (conservation
 #: 43 + 32 == 75).
+#: rc373: the ten A-N primitives (cyclic / dispatch / hdc / laplacian / primes /
+#: rational / search / template / tlv / text) land in srmech.math, taking LANDED
+#: from 32 to 42 and the live amsc count from 43 to 33 (conservation 33 + 42 == 75).
+#: rc374: the fifteen CARRIERS (mat / vec / hv / q / qmat / qi / qalg / qprime /
+#: poly / qpoly / qbipoly / tripoly / complex128 / carrier_ladder /
+#: carrier_spectrum) land in srmech.math — the math bucket's LAST slice, taking
+#: LANDED from 42 to 57 and the live amsc count from 33 to 18 (conservation
+#: 18 + 57 == 75).
 LANDED = frozenset({"harmonics", "naming", "responsion_schema", "op_provenance",
                     "elliptic_partial_fraction",
                     "apagodu_zeilberger", "eisenstein", "ellbase",
@@ -235,7 +262,10 @@ LANDED = frozenset({"harmonics", "naming", "responsion_schema", "op_provenance",
                     "wz_certificate", "zeilberger",
                     "octonion", "kepler", "modular_linalg",
                     "cyclic", "dispatch", "hdc", "laplacian", "primes",
-                    "rational", "search", "template", "tlv", "text"})
+                    "rational", "search", "template", "tlv", "text",
+                    "mat", "vec", "hv", "q", "qmat", "qi", "qalg", "qprime",
+                    "poly", "qpoly", "qbipoly", "tripoly", "complex128",
+                    "carrier_ladder", "carrier_spectrum"})
 
 
 # ── readers ──────────────────────────────────────────────────────────────────
@@ -421,10 +451,12 @@ def test_the_move_map_matches_A2_where_A2_is_authoritative() -> None:
     # introspect names a subset of its count (the rest are unnamed by A.2)
     assert len(NAMED_DEPARTURES["srmech.introspect"]) <= \
         ADR_A2_DESTINATION_COUNTS["srmech.introspect"]
-    # apokatastasis (rc370) is subset-named the same way: 1 of 31 has landed.
+    # apokatastasis is now FULLY named (rc371 landed all 25; rc374 corrected the
+    # count 31 -> 25 per H.2), so this is an equality, still expressed as <=.
     assert len(NAMED_DEPARTURES["srmech.apokatastasis"]) <= \
         ADR_A2_DESTINATION_COUNTS["srmech.apokatastasis"]
-    # math (rc372) is subset-named the same way: 3 of 22 have landed.
+    # math is now FULLY named too: rc374 drains the last of it (28 named == the
+    # H.2-corrected count of 28). The math bucket is DONE.
     assert len(NAMED_DEPARTURES["srmech.math"]) <= \
         ADR_A2_DESTINATION_COUNTS["srmech.math"]
     # the keeps count is the keeper set
@@ -483,10 +515,11 @@ def test_the_census_can_actually_fail() -> None:
         "the digest helper disagrees with the pinned value — the injection "
         "proofs below would be measuring the wrong thing.")
 
-    # (1) a module leaves for a MAPPED destination (poly -> srmech.math):
+    # (1) a module leaves for a MAPPED destination (genome -> srmech.biology):
     #     down-only stays GREEN (a departure is legal), and the digest CHANGES
-    #     — the move is detected.
-    leaver = "poly"
+    #     — the move is detected. (Was ``poly`` until rc374, when poly departed to
+    #     srmech.math and could no longer stand in for a still-present leaver.)
+    leaver = "genome"
     assert leaver in allowed and leaver not in KEEPERS
     live1 = committed - {leaver}
     removed1 = _departures(committed, live1)

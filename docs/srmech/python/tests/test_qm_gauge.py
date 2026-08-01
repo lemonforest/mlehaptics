@@ -14,7 +14,7 @@ from __future__ import annotations
 import pytest
 
 from srmech.math.laplacian import mat_matmul
-from srmech.amsc.mat import Mat
+from srmech.math.mat import Mat
 from srmech.qm import gauge
 
 

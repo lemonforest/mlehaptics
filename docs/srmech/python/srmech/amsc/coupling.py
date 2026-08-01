@@ -11,7 +11,7 @@ bit-arrays → a coupling-strength score).
 fractal) DUAL** of ``resonant_spectrum``. Where ``resonant_spectrum(L)`` reads a
 symmetric Laplacian's FLAT eigenspectrum (one eigensolve), ``fractal_spectrum``
 reads a self-similar lattice's **SPECTRAL-DECIMATION** structure: the spectrum is
-the ITERATED PREIMAGE of the renormalization :class:`~srmech.amsc.poly.Poly`
+the ITERATED PREIMAGE of the renormalization :class:`~srmech.math.poly.Poly`
 ``R`` (the decimation map), NOT a flat list. Grounded on the Sierpinski gasket
 — on the NORMALIZED Laplacian the decimation is exactly ``R(z)=z(5−4z)``
 (measured; Rammal 1984 / Fukushima–Shima 1992). It reads the exact scale
@@ -39,7 +39,7 @@ Laplacian ``L`` as a *stored* (excitation-free) object:
 * the **resonances** are integer/prime ratios of the tensions: each adjacent
   nonzero-tension ratio is read with Class-N :func:`best_rational`, and the
   resulting denominator is prime-coordinate-factorised (Class-J
-  :func:`srmech.math.primes.factor` / :class:`srmech.amsc.qprime.Qprime`) —
+  :func:`srmech.math.primes.factor` / :class:`srmech.math.qprime.Qprime`) —
   a **small-prime / 2-adic** denominator is a resonance **LOCK** (the Laplace
   ladder), a **large-prime** denominator is **libration** (off-lock).
 
@@ -67,9 +67,9 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional, Sequence, Tuple
 
-from .q import Q  # rc100: the exact-ℚ scalar carrier (fractal_spectrum scale / |q|-meter)
+from ..math.q import Q  # rc100: the exact-ℚ scalar carrier (fractal_spectrum scale / |q|-meter)
 from ..math.rational import sqrt as _rsqrt  # Class-N∘K integer-isqrt root (no libm / no float_pow)
-from .vec import Vec  # rc129: the numpy-free 1-D carrier (restores .shape)
+from ..math.vec import Vec  # rc129: the numpy-free 1-D carrier (restores .shape)
 
 
 def signed_sum_squared(sources: Sequence) -> "Vec":
@@ -80,7 +80,7 @@ def signed_sum_squared(sources: Sequence) -> "Vec":
             holding bits in ``{0, 1}``.
 
     Returns:
-        A real :class:`~srmech.amsc.vec.Vec` (same length as each source;
+        A real :class:`~srmech.math.vec.Vec` (same length as each source;
         ``.shape == (n,)`` + scalar ``v[i]``) — per position,
         ``(Σ_sources (2·bit − 1))²`` — the squared signed-sum, i.e. the
         Class-L magnitude-square of the Class-K bipolar-projected sum.
@@ -229,7 +229,7 @@ def _resonant_spectrum_native(L, orders: int, max_den: int):
     import ctypes
     from . import _native
     from ..math import primes as _primes
-    from .mat import Mat
+    from ..math.mat import Mat
 
     lib = _native.LIB
     if (not _native.HAS_NATIVE or lib is None
@@ -295,7 +295,7 @@ def resonant_spectrum(
 
     Args:
         L: an ``(n, n)`` real-symmetric coupling Laplacian — a
-            :class:`~srmech.amsc.mat.Mat` (or list-of-rows / ndarray-like). The
+            :class:`~srmech.math.mat.Mat` (or list-of-rows / ndarray-like). The
             stored ("dark") object before any excitation.
         orders: how many force-orders to materialise — ``[L¹, …, Lᵒ]`` (default
             2: the force ``L`` and the biharmonic forces-of-forces ``L²``).
@@ -307,11 +307,11 @@ def resonant_spectrum(
     Returns:
         A dict with:
 
-        * ``"tensions"`` — a real :class:`~srmech.amsc.vec.Vec` of eigenvalues
+        * ``"tensions"`` — a real :class:`~srmech.math.vec.Vec` of eigenvalues
           ASCENDING (the stored "dark" tension spectrum; no excitation).
-        * ``"modes"`` — an ``n×n`` real :class:`~srmech.amsc.mat.Mat` whose
+        * ``"modes"`` — an ``n×n`` real :class:`~srmech.math.mat.Mat` whose
           COLUMNS are the eigenvectors (the excitation modes).
-        * ``"force_orders"`` — a list of ``orders`` :class:`~srmech.amsc.mat.Mat`
+        * ``"force_orders"`` — a list of ``orders`` :class:`~srmech.math.mat.Mat`
           ``[L, L², …, Lᵒ]``; ``Lᵏ = V·diag(Λᵏ)·Vᵀ`` reconstructed from the ONE
           eigensolve (Λ raised to ``k`` in the eigenbasis), never repeated
           ``L``-matmuls.
@@ -334,7 +334,7 @@ def resonant_spectrum(
         ValueError: ``orders < 1`` or a non-square / empty ``L``.
     """
     from ..math import laplacian as _L  # lazy: laplacian imports carriers (avoid cycle)
-    from .mat import Mat
+    from ..math.mat import Mat
 
     if not isinstance(orders, int) or orders < 1:
         raise ValueError(f"resonant_spectrum: orders must be an int >= 1; got {orders!r}")
@@ -743,9 +743,9 @@ def resonant_spectrum_sparse(
         A dict of the SAME shape :func:`resonant_spectrum` returns, restricted to
         the ``k`` extreme modes:
 
-        * ``"tensions"`` — a real :class:`~srmech.amsc.vec.Vec` of the extreme
+        * ``"tensions"`` — a real :class:`~srmech.math.vec.Vec` of the extreme
           eigenvalues ASCENDING (the k lowest ++ k highest, sorted, distinct).
-        * ``"modes"`` — an ``n × m`` real :class:`~srmech.amsc.mat.Mat` whose
+        * ``"modes"`` — an ``n × m`` real :class:`~srmech.math.mat.Mat` whose
           COLUMNS are the corresponding extreme eigenvectors (``m`` = number of
           tensions returned).
         * ``"resonances"`` — the adjacent-tension lock/libration list (the SAME
@@ -765,7 +765,7 @@ def resonant_spectrum_sparse(
         raise ValueError(f"resonant_spectrum_sparse: k must be an int >= 1; got {k!r}")
 
     from ..math import laplacian as _L
-    from .mat import Mat
+    from ..math.mat import Mat
 
     if isinstance(edges_or_path, str):
         path = edges_or_path
@@ -839,7 +839,7 @@ def fractal_spectrum(R, branches, *, log_terms: int = 25) -> Dict[str, object]:
     Where :func:`resonant_spectrum` reads a symmetric Laplacian's FLAT
     eigenspectrum (one eigensolve), ``fractal_spectrum`` reads a self-similar
     lattice's **SPECTRAL-DECIMATION** structure: the spectrum is the ITERATED
-    PREIMAGE of the renormalization map ``R`` (a decimation :class:`~srmech.amsc.poly.Poly`
+    PREIMAGE of the renormalization map ``R`` (a decimation :class:`~srmech.math.poly.Poly`
     with a fixed point at the trivial eigenvalue, ``R(0)=0``), NOT a flat list.
 
     Grounded on the Sierpinski gasket: on the NORMALIZED Laplacian the decimation
@@ -848,9 +848,9 @@ def fractal_spectrum(R, branches, *, log_terms: int = 25) -> Dict[str, object]:
     restatement; the paywalled DOIs are motivation-only).
 
     Args:
-        R: the spectral-decimation map — a :class:`~srmech.amsc.poly.Poly` (or an
+        R: the spectral-decimation map — a :class:`~srmech.math.poly.Poly` (or an
             ascending-degree coefficient sequence, coerced with
-            :meth:`~srmech.amsc.poly.Poly.from_coeffs`). Must be degree ``≥ 2``
+            :meth:`~srmech.math.poly.Poly.from_coeffs`). Must be degree ``≥ 2``
             with ``R(0) = 0`` and ``R'(0) > 1``.
         branches: the number of self-similar copies (an int ``≥ 2``).
         log_terms: INERT since rc320 (kept for back-compat; a follow-up rc
@@ -896,7 +896,7 @@ def fractal_spectrum(R, branches, *, log_terms: int = 25) -> Dict[str, object]:
             ``R(0) ≠ 0``, ``R'(0) ≤ 1``, or ``branches < 2``.
     """
     from ..math import rational as _rational  # best_rational (N) + log (N; = calculus.log)
-    from .poly import Poly               # exact-ℚ decimation polynomial carrier (lazy)
+    from ..math.poly import Poly               # exact-ℚ decimation polynomial carrier (lazy)
 
     # R may be a Poly OR an ascending-degree coefficient sequence — coerce the
     # latter (the ToolEntry/MCP surface can hand a coeff list; the "Poly" coercer
@@ -1032,7 +1032,7 @@ def fold_encode(R, branches, *, dim, seed=0):
     EXACT / total FORWARD direction of the #697 bidirectional translation.
 
     This is the WRITE half of the "Q2 reader made LITERAL": the decimation map
-    ``R`` (a :class:`~srmech.amsc.poly.Poly`, ``R(0)=0``) and the branch count
+    ``R`` (a :class:`~srmech.math.poly.Poly`, ``R(0)=0``) and the branch count
     are folded into a single Klein-4 bundle — a **role-filler record** in the
     shape of :func:`srmech.math.hdc.cooccurrence_fold`'s holographic store. Each
     coefficient slot ``c{i}`` (and the ``branches`` slot) gets a deterministic
@@ -1050,9 +1050,9 @@ def fold_encode(R, branches, *, dim, seed=0):
     similarity read, NOT an exact inverse (the HDC asymmetry, F584).
 
     Args:
-        R: the spectral-decimation map — a :class:`~srmech.amsc.poly.Poly` (or an
+        R: the spectral-decimation map — a :class:`~srmech.math.poly.Poly` (or an
             ascending-degree coefficient sequence coerced with
-            :meth:`~srmech.amsc.poly.Poly.from_coeffs`). Degree ``>= 2``.
+            :meth:`~srmech.math.poly.Poly.from_coeffs`). Degree ``>= 2``.
         branches: the number of self-similar copies (an int ``>= 2``).
         dim: the Klein-4 width ``D`` of the fold (one uint8 per coordinate). For a
             confident round-trip pick ``dim`` comfortably above
@@ -1085,7 +1085,7 @@ def fold_encode(R, branches, *, dim, seed=0):
             ``branches < 2``, or ``dim < 1``.
     """
     from ..math import hdc as _hdc                # klein4_role / bind / bundle (M)
-    from .poly import Poly                   # exact-ℚ decimation carrier (lazy)
+    from ..math.poly import Poly                   # exact-ℚ decimation carrier (lazy)
 
     if not isinstance(R, Poly):
         try:
@@ -1333,7 +1333,7 @@ def fold_spectrum(fold, *, log_terms: int = 25,
 
     # ── Confident recovery: rebuild R + branches, run the SAME fractal_spectrum
     # orchestration → the identical spectral-decimation dict. ────────────────
-    from .poly import Poly
+    from ..math.poly import Poly
 
     coeffs = [_fold_parse_token(recovered_tok[s]) for s in coeff_slots]
     R = Poly.from_coeffs(coeffs)
@@ -1393,7 +1393,7 @@ class RecoverableFold:
     - :attr:`lossy_bundle` ↔ ``hol`` — the PRIMARY / lossy projected part (the
       rc124 fold store dict).
     - :attr:`exact_seed_R` ↔ ``shadow`` — the EXACT COMPLEMENT (the decimation
-      :class:`~srmech.amsc.poly.Poly`) whose presence makes the pair fully
+      :class:`~srmech.math.poly.Poly`) whose presence makes the pair fully
       recoverable/decidable. ``None`` for a bare/"found" fold (a real-corpus
       ``cooccurrence_fold`` with no generator) — then recovery falls back to the
       rc124 similarity read (honest ``unrecovered`` below the floor preserved).
@@ -1411,7 +1411,7 @@ class RecoverableFold:
                 "RecoverableFold(lossy_bundle, exact_seed_R): lossy_bundle must "
                 "be a fold-store dict from fold_encode; got "
                 f"{type(lossy_bundle).__name__}")
-        from .poly import Poly                # exact-ℚ decimation carrier (lazy)
+        from ..math.poly import Poly                # exact-ℚ decimation carrier (lazy)
         if exact_seed_R is not None:
             if not isinstance(exact_seed_R, Poly):
                 try:
@@ -1443,7 +1443,7 @@ class RecoverableFold:
 
     @property
     def exact_seed_R(self):
-        """The exact generating decimation :class:`~srmech.amsc.poly.Poly` ``R``
+        """The exact generating decimation :class:`~srmech.math.poly.Poly` ``R``
         (the EXACT COMPLEMENT; ↔ ``HarmonicMaass.shadow``), or ``None`` for a
         bare fold. Storing it IS storing the recovery."""
         return self._exact_seed_R
@@ -1559,9 +1559,9 @@ def fold_encode_recoverable(R, branches, *, dim, seed=0) -> "RecoverableFold":
     fold-store dict); this is the additive recoverable path.
 
     Args:
-        R: the spectral-decimation map — a :class:`~srmech.amsc.poly.Poly` (or an
+        R: the spectral-decimation map — a :class:`~srmech.math.poly.Poly` (or an
             ascending-degree coefficient sequence coerced with
-            :meth:`~srmech.amsc.poly.Poly.from_coeffs`). Degree ``>= 2``.
+            :meth:`~srmech.math.poly.Poly.from_coeffs`). Degree ``>= 2``.
         branches: the number of self-similar copies (an int ``>= 2``).
         dim: the Klein-4 width ``D`` of the lossy bundle (``>= 1``). Recovery is
             exact at ANY dim (the seed is carried); dim only affects the LOSSY
@@ -1578,7 +1578,7 @@ def fold_encode_recoverable(R, branches, *, dim, seed=0) -> "RecoverableFold":
         ValueError: ``R`` not a Poly / coercible sequence, ``R.degree < 2``,
             ``branches < 2``, or ``dim < 1`` (surfaced by :func:`fold_encode`).
     """
-    from .poly import Poly                    # exact-ℚ decimation carrier (lazy)
+    from ..math.poly import Poly                    # exact-ℚ decimation carrier (lazy)
     if not isinstance(R, Poly):
         try:
             R = Poly.from_coeffs(R)

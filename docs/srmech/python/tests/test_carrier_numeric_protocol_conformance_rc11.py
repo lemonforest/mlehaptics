@@ -27,8 +27,8 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc.q import Q
-from srmech.amsc.complex128 import Complex128
+from srmech.math.q import Q
+from srmech.math.complex128 import Complex128
 
 
 # A grid of reduced + unreduced (num, den), spanning signs / zero / integers.

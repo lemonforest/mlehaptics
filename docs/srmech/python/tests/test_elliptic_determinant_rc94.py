@@ -11,7 +11,7 @@ import itertools
 import pytest
 
 from srmech.apokatastasis.ellbase import EllMonomial as M, Theta
-from srmech.amsc.q import Q
+from srmech.math.q import Q
 from srmech.apokatastasis.elliptic_determinant import elliptic_cauchy_determinant
 
 _TRUNC = 20

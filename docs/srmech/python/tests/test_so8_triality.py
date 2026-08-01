@@ -24,7 +24,7 @@ greedy column subset / SVD nullspace (no RNG), so the killer test is
 reproducible.
 
 rc123 (numpy-free, #564): this test is itself numpy-FREE — the so(8)/triality
-surfaces return :class:`srmech.amsc.mat.Mat`; the rank checks ride the EXACT
+surfaces return :class:`srmech.math.mat.Mat`; the rank checks ride the EXACT
 rational :func:`srmech.qm.so8._rank_exact`, the matmuls / norms the numpy-free
 ``mat_matmul`` / ``mat_norm``, and the nullspace dim the cascade SVD
 (:func:`srmech.qm.so8._svd_nullspace`). No numpy oracle, no ``.to_numpy()``
@@ -38,7 +38,7 @@ import pytest
 from srmech.amsc.cascade import magnitude
 from srmech.amsc.format import sha256_bytes
 from srmech.math.laplacian import mat_matmul, mat_norm
-from srmech.amsc.mat import Mat
+from srmech.math.mat import Mat
 from srmech.qm import octonion, so8, triality
 
 _TOL = 1e-9

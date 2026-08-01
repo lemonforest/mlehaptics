@@ -67,30 +67,30 @@ from .format import (
 # The exact number-field carrier Qalg = ℚ[x]/(m) — the generalisation of the
 # Gaussian-rational Qi (= Qalg over x²+1). Exact-substrate algebraic numbers
 # (rotation-last roadmap rc-C). A carrier, not a ToolEntry (mirrors Qi).
-from .qalg import Qalg
+from ..math.qalg import Qalg
 # The exact prime-coordinate carrier Qprime — a positive int as its exponent
 # vector {prime: exponent} of n = ∏ pᵉ (FTA). The Class-J exact carrier
 # (multiply=add-exponents, gcd=min, lcm=max, multiplicative-order period); the
 # F923 / §74 capstone that closes the last harmonic-ladder rung. A carrier, not
 # a ToolEntry (mirrors Qi / Qalg).
-from .qprime import Qprime
+from ..math.qprime import Qprime
 # The exact-rational matrix carrier QMat — the bigint peer of the float64 Mat
 # (exact dense linear algebra over ℚ, no magnitude ceiling). A carrier, not a
 # ToolEntry, mirrors Qi / Qalg / Qprime.
-from .qmat import QMat
+from ..math.qmat import QMat
 # The exact-rational polynomial carrier Poly — the 1-D polynomial peer of QMat
 # (exact univariate algebra over ℚ: long division, monic GCD, dispersion shift,
 # Horner eval; no magnitude ceiling). The FOUNDATION carrier of the §76 telescope
 # Σ-row prover (rc39+). A carrier, not a ToolEntry, mirrors Qi / Qalg / Qprime /
 # QMat.
-from .poly import Poly
+from ..math.poly import Poly
 # The exact-rational TRIVARIATE polynomial carrier TriPoly — the 3-variable
 # sibling of BiPoly (exact ℚ[n,j,k]: the free variable n + two summation
 # variables j, k, with shift_n/shift_j/shift_k + delta_j/delta_k difference
 # operators). The foundation of the multivariate "sums of sums" creative-
 # telescoping row (the rc53 apagodu_zeilberger op consumes it). A carrier, not a
 # ToolEntry, mirrors Poly / QMat / Qi / Qalg / Qprime.
-from .tripoly import TriPoly
+from ..math.tripoly import TriPoly
 # The exact ADDITIVE theta-function carrier ThetaSum — a ℚ(q,p)-linear SUM of
 # theta-products over a single theta-product denominator. The additive layer over
 # the multiplicative EllRatio (rc60) that GENUINE elliptic creative telescoping

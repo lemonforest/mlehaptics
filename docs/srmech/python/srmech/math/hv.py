@@ -1,4 +1,4 @@
-"""srmech.amsc.hv — the framework-native hypervector carrier (numpy-free).
+"""srmech.math.hv — the framework-native hypervector carrier (numpy-free).
 
 The §22 / §22b boundary-type lever (UPSTREAM_NOTES, RBS-LM research subtree):
 the core A-N primitive vocabulary returns an :class:`HV` handle over a stdlib

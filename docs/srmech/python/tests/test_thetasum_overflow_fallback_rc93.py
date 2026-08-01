@@ -43,7 +43,7 @@ def _big_cross_variable_cert():
         num.append(th(a * X * Yv * qp(k1 + k2)))
         den.append(th(X * Yv.inv()))
         den.append(th(a * X * Yv * q))
-        from srmech.amsc.q import Q
+        from srmech.math.q import Q
         pref = M.scalar(Q((-1) ** ((k1 + k2) % 2), 1)) * qp(k2)
         return R(pref, num=num, den=den)
 

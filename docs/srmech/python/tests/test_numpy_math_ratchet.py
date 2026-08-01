@@ -55,7 +55,7 @@ and it is not rare — it is the usual case:
   docstrings**, describing a matrix contraction. Acting on the message instead
   of the source nearly added a numpy-backed carrier call to a module that
   imports no numpy — which would have been a real regression, since the matrix
-  in question is a nested list of exact :class:`~srmech.amsc.q.Q` and no numpy
+  in question is a nested list of exact :class:`~srmech.math.q.Q` and no numpy
   dtype holds a ``Q`` without rounding.
 * Measured at rc352, **every one of the remaining live hits is prose**: the two
   ``linalg_fft`` counts are ``laplacian.py:450`` / ``:1057``, both docstring

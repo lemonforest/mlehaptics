@@ -40,7 +40,7 @@ from pathlib import Path
 import pytest
 
 from srmech.amsc import _native
-from srmech.amsc.qalg import Qalg
+from srmech.math.qalg import Qalg
 from srmech.amsc.cascade import matrix_cascades as mc
 from srmech.amsc.cascade.matrix_cascades import (
     eigvec_exact,

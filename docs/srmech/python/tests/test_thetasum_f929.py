@@ -24,7 +24,7 @@ import tokenize
 from srmech.amsc import ThetaSum
 from srmech.apokatastasis.ellbase import EllMonomial as M, Theta, EllRatio as R
 from srmech.apokatastasis.thetasum import _VERIFY_POINTS, _VERIFY_TRUNC
-from srmech.amsc.q import Q
+from srmech.math.q import Q
 
 _a, _b, _c, _d, _e = (M.symbol("a"), M.symbol("b"), M.symbol("c"),
                       M.symbol("d"), M.symbol("e"))

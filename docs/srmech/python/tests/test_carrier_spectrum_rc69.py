@@ -23,9 +23,9 @@ import pytest
 
 from srmech.apokatastasis.ellbase import EllMonomial as M, Theta, EllRatio as R, _X, _Q_SYM
 from srmech.apokatastasis.thetasum import ThetaSum, _Y, _net_period_multiplier_exps
-from srmech.amsc.q import Q
-from srmech.amsc import carrier_spectrum as csmod
-from srmech.amsc.carrier_spectrum import CarrierSpectrum, carrier_spectrum
+from srmech.math.q import Q
+from srmech.math import carrier_spectrum as csmod
+from srmech.math.carrier_spectrum import CarrierSpectrum, carrier_spectrum
 
 
 def _make_8w7():
@@ -196,7 +196,7 @@ def test_python_equals_c_spectrum():
 # ── discipline: no numpy / math / abs() in the op source ────────────────────────────
 def test_source_is_numpy_math_abs_free():
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    src = os.path.join(here, "srmech", "amsc", "carrier_spectrum.py")
+    src = os.path.join(here, "srmech", "math", "carrier_spectrum.py")
     with tokenize.open(src) as fh:
         text = fh.read()
     assert "import numpy" not in text
@@ -208,4 +208,4 @@ def test_source_is_numpy_math_abs_free():
 def test_tool_entry_registered():
     from srmech.amsc import tool_schema
     names = {t.name for t in tool_schema.get_tool_schema().tools}
-    assert "srmech.amsc.carrier_spectrum.carrier_spectrum" in names
+    assert "srmech.math.carrier_spectrum.carrier_spectrum" in names

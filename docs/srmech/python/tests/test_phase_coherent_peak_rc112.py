@@ -42,7 +42,7 @@ import pytest
 import srmech.amsc.cascade.hypercomplex_dft as hd
 from srmech.amsc import _native
 from srmech.amsc.cascade import phase_coherent_peak, quaternion_dft
-from srmech.amsc.mat import Mat
+from srmech.math.mat import Mat
 
 NR = 6
 

@@ -5,7 +5,7 @@ both; chess-spectral / ephemerides-spectral are downstream consumers.
 
 numpy-FREE (v0.7.5rc121, #564): the discretized radial Hamiltonian and the
 harmonic-oscillator ladder/Hamiltonian are held in the framework-native
-:class:`~srmech.amsc.mat.Mat` carrier. ``hydrogen_radial`` builds its
+:class:`~srmech.math.mat.Mat` carrier. ``hydrogen_radial`` builds its
 real-symmetric tridiagonal Hamiltonian as a ``Mat`` and eigensolves it
 through the Class-L :func:`~srmech.math.laplacian.mat_hermitian_eigendecompose`
 (native dense Jacobi, ``n`` up to 2048 as of rc120; pure-Python cascade
@@ -30,7 +30,7 @@ from typing import List, Tuple
 
 from srmech.math import rational as _srn
 from srmech.math.laplacian import mat_hermitian_eigendecompose, mat_matmul
-from srmech.amsc.mat import Mat
+from srmech.math.mat import Mat
 
 
 # ----------------------------------------------------------------------

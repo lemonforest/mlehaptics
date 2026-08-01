@@ -56,7 +56,7 @@ import srmech.amsc.cascade.hypercomplex_dft as hd
 from srmech.amsc import _native
 from srmech.amsc.cascade import quaternion_dft
 from srmech.amsc.cascade.spectral_cascades import fft as complex_fft
-from srmech.amsc.mat import Mat
+from srmech.math.mat import Mat
 from srmech.qm import quaternion as quat
 
 FORMS = ("left", "right")

@@ -15,7 +15,7 @@ from array import array
 
 import pytest
 
-from srmech.amsc.mat import Mat
+from srmech.math.mat import Mat
 
 
 def test_from_rows_real_shape_and_access():

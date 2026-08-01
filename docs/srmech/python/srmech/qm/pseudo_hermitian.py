@@ -28,7 +28,7 @@ PT-symmetric Hamiltonians have real spectra and admit an η of the form
 η = C P (with C the "C operator").
 
 **Carrier (v0.7.5rc124, #564):** numpy-free. Matrices are the framework-native
-2-D :class:`srmech.amsc.mat.Mat`; state vectors are plain ``complex`` lists
+2-D :class:`srmech.math.mat.Mat`; state vectors are plain ``complex`` lists
 (``Mat`` is 2-D only). Every linear-algebra step routes through the Class-L
 ``mat_*`` family — ``mat_matmul`` for the matvec/sandwich/Gram contractions,
 ``mat_eigvals`` for the spectrum, ``mat_solve`` for the (well-conditioned HPD)
@@ -51,7 +51,7 @@ from __future__ import annotations
 
 from typing import List, Sequence
 
-from srmech.amsc.mat import Mat
+from srmech.math.mat import Mat
 from srmech.math.laplacian import (
     mat_eigvals,
     mat_hermitian_eigendecompose,

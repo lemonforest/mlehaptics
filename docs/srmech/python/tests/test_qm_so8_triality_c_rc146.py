@@ -40,7 +40,7 @@ import pytest
 
 from srmech.amsc import _native
 from srmech.math.laplacian import mat_matmul, mat_norm, mat_svd
-from srmech.amsc.mat import Mat
+from srmech.math.mat import Mat
 from srmech.qm import so8, triality
 
 

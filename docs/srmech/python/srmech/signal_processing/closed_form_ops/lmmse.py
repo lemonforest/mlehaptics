@@ -7,7 +7,7 @@ for the linear estimator.
 
 Carrier-removal #564 (rc101): numpy-FREE — the Class-L gain solve routes through
 the native :func:`~srmech.math.laplacian.mat_solve` over the numpy-free
-:class:`~srmech.amsc.mat.Mat` carrier, and the ``K·(y-mean_y)`` estimate is a
+:class:`~srmech.math.mat.Mat` carrier, and the ``K·(y-mean_y)`` estimate is a
 pure-Python matvec. No top-level ``import numpy``.
 
 Path B dual in Phase 6 (Path B covariance bound-vector).
@@ -21,7 +21,7 @@ from __future__ import annotations
 from typing import List
 
 from srmech.math.laplacian import mat_solve
-from srmech.amsc.mat import Mat
+from srmech.math.mat import Mat
 
 OPERATION_NAME = "lmmse"
 CLASS_COMPOSITION = ("L", "N")

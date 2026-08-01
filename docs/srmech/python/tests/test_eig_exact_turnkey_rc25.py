@@ -310,7 +310,7 @@ def test_self_validation_and_cross_check_eigvals():
 def test_eig_exact_project_false_returns_qalg():
     """``project=False`` hands back the EXACT Qalg eigenvalue + Qalg eigenvector
     basis (for callers staying in the field)."""
-    from srmech.amsc.qalg import Qalg
+    from srmech.math.qalg import Qalg
     res = eig_exact([[2, 1], [1, 2]], project=False)
     assert len(res) == 2
     for e in res:

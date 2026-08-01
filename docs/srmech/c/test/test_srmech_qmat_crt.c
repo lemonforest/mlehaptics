@@ -2,7 +2,7 @@
  * test_srmech_qmat_crt.c -- standalone C smoke for srmech_qmat_rref_crt (the rc48
  * CLOSER of the CRT-QMat re-fibration arc). Proves a C-ONLY host (no Python)
  * computes the exact-Q RREF via the single CRT symbol, byte-identical to what
- * srmech.amsc.qmat.QMat.rref_crt computes -- over a caller-arena sized from
+ * srmech.math.qmat.QMat.rref_crt computes -- over a caller-arena sized from
  * srmech_qmat_rref_crt_ws_bound (the answer-Hadamard good-prime budget, NOT the
  * dense Hadamard envelope).
  *

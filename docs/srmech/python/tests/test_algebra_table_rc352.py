@@ -46,7 +46,7 @@ import pytest
 
 from srmech.amsc import _native, cascade
 from srmech.amsc.cascade import cayley_dickson as cd
-from srmech.amsc.q import Q
+from srmech.math.q import Q
 from srmech.qm.octonion import octonion_mult_table
 from srmech.qm.quaternion import quaternion_mult_table
 

@@ -1,7 +1,7 @@
-"""srmech.amsc.qprime — the framework-native EXACT prime-coordinate carrier (``Qprime``).
+"""srmech.math.qprime — the framework-native EXACT prime-coordinate carrier (``Qprime``).
 
-The Class-J peer of the exact-carrier family. Where :class:`srmech.amsc.qi.Qi`
-carries an exact Gaussian rational and :class:`srmech.amsc.qalg.Qalg` an exact
+The Class-J peer of the exact-carrier family. Where :class:`srmech.math.qi.Qi`
+carries an exact Gaussian rational and :class:`srmech.math.qalg.Qalg` an exact
 algebraic-number-field element, ``Qprime`` carries a positive integer in its
 **prime-coordinate** representation — the exponent vector
 ``{p₁: e₁, p₂: e₂, …}`` of the fundamental theorem of arithmetic
@@ -36,7 +36,7 @@ multiplicative identity). Construction is via the Class-J
 * :meth:`lcm` — elementwise MAX over the prime union. Equal to
   :func:`srmech.math.cyclic.lcm` (Class I).
 * :meth:`similarity` — the EXACT shared-factor overlap: the cosine of the two
-  exponent vectors, **squared**, as an exact :class:`~srmech.amsc.q.Q`
+  exponent vectors, **squared**, as an exact :class:`~srmech.math.q.Q`
   (``Q(dot², ‖a‖²·‖b‖²)``). 0 for a coprime pair (disjoint support).
   Float only at the display boundary.
 * :meth:`period` [Class J period structure] — the multiplicative order
@@ -62,8 +62,8 @@ from __future__ import annotations
 
 from typing import Dict
 
-from ..math import cyclic as _cyclic
-from ..math import primes as _primes
+from . import cyclic as _cyclic
+from . import primes as _primes
 from .q import Q
 
 __all__ = ["Qprime"]
@@ -216,7 +216,7 @@ class Qprime:
     # ── exact shared-factor overlap (cosine²) ────────────────────────────────
     def similarity(self, other: "Qprime") -> Q:
         """The EXACT shared-factor overlap — the cosine of the two exponent
-        vectors, **squared**, as an exact :class:`~srmech.amsc.q.Q`:
+        vectors, **squared**, as an exact :class:`~srmech.math.q.Q`:
         ``Q(dot², ‖a‖²·‖b‖²)``. The dot product / squared norms are over
         the integer exponents, so the result is an exact rational; only at the
         display boundary (``float(...)``) does it become a decimal. A coprime

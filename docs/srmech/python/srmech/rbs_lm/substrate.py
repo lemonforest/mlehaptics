@@ -29,7 +29,7 @@ from array import array
 
 from srmech.amsc import _native, format as amsc_format
 from srmech.math import hdc
-from srmech.amsc.hv import HV
+from srmech.math.hv import HV
 
 
 # ---------------------------------------------------------------------------

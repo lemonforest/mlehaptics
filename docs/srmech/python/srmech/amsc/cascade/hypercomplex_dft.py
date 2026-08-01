@@ -53,7 +53,7 @@ norm/conjugate route through Class K+C, never an ALU absolute value.
 **Numpy-free (rc125, #564).** The whole module runs with **zero numpy** —
 the octonion samples / twiddles / accumulators are plain ``list[float]`` of
 length 8, the ``octonion_{left,right}_mult`` operators are consumed as the
-numpy-free :class:`srmech.amsc.mat.Mat` they now return, and the per-term
+numpy-free :class:`srmech.math.mat.Mat` they now return, and the per-term
 matvec rides a numpy-free :class:`Mat`-column ``mat_matmul`` (the pattern
 ``qm.single_particle`` used in rc117) — never numpy ``@`` / ``dense_matvec``.
 ``import srmech.amsc.cascade`` and every transform import + run numpy-absent.
@@ -80,9 +80,9 @@ from typing import List, Sequence, Tuple
 # §22: scalar root + trig via the Class-N rational cascade, not libm; π from the
 # Archimedes pi_cascade (`[[feedback_continuous_number_line_pedagogical_obstacle]]`).
 from srmech.amsc import _native
-from srmech.amsc.mat import Mat as _Mat
+from srmech.math.mat import Mat as _Mat
 from srmech.math import rational as _rational
-from srmech.amsc.q import Q as _Q
+from srmech.math.q import Q as _Q
 from srmech.math.rational import cos as _rcos
 from srmech.math.rational import pi_cascade_digits as _pi_cascade_digits
 from srmech.math.rational import sin as _rsin
@@ -138,7 +138,7 @@ _BRACKETINGS = ("left_associated", "right_associated")
 # byte-exact reproducible by a C-only host (`srmech_hypercomplex_couple_q61`) —
 # no float boundary except the final projection. Closes the rc12
 # sed_couple/sed_uncouple transitive-ratchet allowlist.
-from srmech.amsc.q import Q                               # #845: exact float→ℚ boundary
+from srmech.math.q import Q                               # #845: exact float→ℚ boundary
 from srmech.math.rational import _q61_fxmul               # Q61 fixed-point multiply
 from srmech.amsc.cascade.cayley_dickson import cd_basis_product as _cd_basis
 # (`_q61_int` is the module-local Q-int projector defined above.)
@@ -213,7 +213,7 @@ def _couple_q61(streams_q61: Sequence[int], mu_q61: Sequence[int],
 
 def hypercomplex_exp(theta: float, k_axes: int) -> Tuple["_Q", ...]:
     """The unit hypercomplex exponential ``exp(μθ) = cos θ + μ·sin θ`` as an
-    8-tuple of EXACT :class:`~srmech.amsc.q.Q` (Q61, denominator ``2**61``).
+    8-tuple of EXACT :class:`~srmech.math.q.Q` (Q61, denominator ``2**61``).
 
     ``μ`` is the EQUAL-WEIGHT UNIT pure-imaginary over the first ``k_axes``
     octonion imaginary axes — ``k_axes ∈ {1, 3, 7}`` selecting ``ℂ`` / ``ℍ`` /

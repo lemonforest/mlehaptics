@@ -82,7 +82,7 @@ from typing import List, Sequence, Tuple
 from srmech.amsc import _native  # rc122: numpy-free native loop-op dispatch
 from srmech.amsc.cascade import magnitude as _magnitude
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
-from srmech.amsc.mat import Mat  # rc122: numpy-free 2-D carrier for L_a / R_a
+from srmech.math.mat import Mat  # rc122: numpy-free 2-D carrier for L_a / R_a
 
 # rc111 (the ODFT twiddle family): the Class-N Q61 trig cascade + the exact
 # series-truncate tier — the same imports the rc109 qm.quaternion twiddle uses.

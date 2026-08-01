@@ -1,10 +1,10 @@
-"""srmech.amsc.poly — the framework-native EXACT-rational polynomial carrier (``Poly``).
+"""srmech.math.poly — the framework-native EXACT-rational polynomial carrier (``Poly``).
 
 The 1-D *polynomial* peer of the exact-matrix carrier
-:class:`srmech.amsc.qmat.QMat` and the exact-scalar carrier
-:class:`srmech.amsc.q.Q`. Where ``Q`` carries one exact rational and ``QMat`` a
+:class:`srmech.math.qmat.QMat` and the exact-scalar carrier
+:class:`srmech.math.q.Q`. Where ``Q`` carries one exact rational and ``QMat`` a
 dense grid of them, ``Poly`` carries a univariate polynomial over ℚ — a finite
-sequence of exact :class:`~srmech.amsc.q.Q` coefficients in **ascending degree**
+sequence of exact :class:`~srmech.math.q.Q` coefficients in **ascending degree**
 (``coeffs[i]`` is the coefficient of ``x**i``). Each coefficient is a reduced
 ``(num, den)`` integer pair over Python ``int`` bigint, so there is **no
 magnitude ceiling**: a coefficient numerator or denominator may freely exceed
@@ -57,7 +57,7 @@ Sign in the GCD / leading-coefficient normalization is the **Class-K** pin-slot
 via an explicit ``Q`` sign-branch (the ``Q`` reduced denominator is positive, so
 the numerator carries the sign), never an ALU ``abs()``. There is exactly ONE
 place a ``float`` appears — :meth:`to_floats`, the terminal ALU→FPU rotation
-(like :meth:`srmech.amsc.qmat.QMat.to_mat` / :meth:`srmech.amsc.q.Q.__float__`).
+(like :meth:`srmech.math.qmat.QMat.to_mat` / :meth:`srmech.math.q.Q.__float__`).
 No ``math`` module, no numpy; a future ``QiPoly`` would carry Gaussian-rational
 (``Qi``) coefficients.
 """
@@ -80,7 +80,7 @@ def _native():
     falls cleanly to the pure-Python body (the complete alternative + the
     parity oracle) otherwise. Imported lazily to avoid a bootstrap cycle."""
     try:
-        from . import _native as nat
+        from ..amsc import _native as nat
     except ImportError:
         return None
     return nat if nat.has_native_poly() else None
@@ -98,7 +98,7 @@ def _from_pairs(pairs) -> Tuple[Q, ...]:
 
 
 def _to_q(value):
-    """Coerce ``value`` to an exact :class:`~srmech.amsc.q.Q`, or ``None`` if it
+    """Coerce ``value`` to an exact :class:`~srmech.math.q.Q`, or ``None`` if it
     is not an exact-rational-coercible coefficient (mirrors ``qmat._to_q``).
 
     A ``float`` is REJECTED (returns ``None``) — a ``Poly`` coefficient must be
@@ -138,7 +138,7 @@ def _trim(coeffs: Sequence[Q]) -> Tuple[Q, ...]:
 class Poly:
     """A numpy-free EXACT-rational univariate polynomial over ℚ: a trimmed tuple
     of exact ``Q`` coefficients in ascending degree, immutable. The polynomial
-    peer of :class:`srmech.amsc.qmat.QMat`. Collapses to a list of float64 only
+    peer of :class:`srmech.math.qmat.QMat`. Collapses to a list of float64 only
     via :meth:`to_floats`. See the module docstring."""
 
     __slots__ = ("_c",)
@@ -207,12 +207,12 @@ class Poly:
         """Lift an ascending-degree sequence of FLOATS into the exact carrier —
         the explicit float→rational boundary (the one place a float legitimately
         enters). ``max_denominator is None`` promotes each float to its EXACT
-        ratio (:meth:`srmech.amsc.q.Q.from_float`); a ``max_denominator`` instead
+        ratio (:meth:`srmech.math.q.Q.from_float`); a ``max_denominator`` instead
         SNAPS each coefficient to the best rational with denominator at or below
         that bound (Class-N :func:`srmech.math.rational.best_rational`)."""
         if max_denominator is None:
             return cls([Q.from_float(float(x)) for x in seq])
-        from ..math import rational as _rational
+        from . import rational as _rational
         out: List[Q] = []
         for x in seq:
             exact = Q.from_float(float(x))
@@ -589,8 +589,8 @@ class Poly:
         """Collapse to a list of float64 coefficients (ascending degree) — the
         single ALU→FPU rotation / "rotation last" (the body stayed exact ``Q``
         until here). This is the ONLY place ``float()`` appears in the carrier,
-        the exact analogue of :meth:`srmech.amsc.qmat.QMat.to_mat` /
-        :meth:`srmech.amsc.q.Q.__float__` — the opt-in display boundary. The zero
+        the exact analogue of :meth:`srmech.math.qmat.QMat.to_mat` /
+        :meth:`srmech.math.q.Q.__float__` — the opt-in display boundary. The zero
         polynomial returns an empty list."""
         return [float(c) for c in self._c]
 

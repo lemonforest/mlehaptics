@@ -1,10 +1,10 @@
-"""srmech.amsc.tripoly — the framework-native EXACT-rational TRIVARIATE polynomial
+"""srmech.math.tripoly — the framework-native EXACT-rational TRIVARIATE polynomial
 carrier (``TriPoly``), the foundation of the multivariate "sums of sums" creative-
 telescoping row (the rc53 ``apagodu_zeilberger`` op consumes it).
 
 The 3-variable sibling of the bivariate :class:`srmech.apokatastasis.zeilberger.BiPoly`.
 Where ``BiPoly`` carries an exact-``ℚ[n,k]`` polynomial (a polynomial in the
-summation variable ``k`` whose coefficients are :class:`~srmech.amsc.poly.Poly`
+summation variable ``k`` whose coefficients are :class:`~srmech.math.poly.Poly`
 in the free variable ``n``), ``TriPoly`` carries an exact-``ℚ[n,j,k]`` polynomial
 in the free/recurrence variable ``n`` and **two** summation variables ``j`` and
 ``k`` — the substrate a double definite sum ``f(n) = Σ_j Σ_k F(n,j,k)`` rides.
@@ -71,7 +71,7 @@ def _native():
     falls cleanly to the pure-Python body (the complete alternative + the parity
     oracle) otherwise. Imported lazily to avoid a bootstrap cycle."""
     try:
-        from . import _native as nat
+        from ..amsc import _native as nat
     except ImportError:
         return None
     probe = getattr(nat, "has_native_tripoly", None)
@@ -89,7 +89,7 @@ def _tri_trim(cells: Sequence[BiPoly]) -> Tuple[BiPoly, ...]:
 
 def _as_biblock(value) -> BiPoly:
     """Coerce one ``j``-degree block to a :class:`~srmech.apokatastasis.zeilberger.BiPoly`
-    in ``(n,k)``. A ``BiPoly`` passes through; a :class:`~srmech.amsc.poly.Poly`
+    in ``(n,k)``. A ``BiPoly`` passes through; a :class:`~srmech.math.poly.Poly`
     is read as a polynomial in ``k`` alone (per ``BiPoly.coerce``); anything else
     is handed to ``BiPoly.coerce`` (a ``k``-ascending sequence of ``Poly``-in-n)."""
     if isinstance(value, BiPoly):
@@ -154,7 +154,7 @@ class TriPoly:
         """Build a ``TriPoly`` from a ``j``-ascending sequence of ``j``-degree
         blocks (the canonical constructor). Each block is coerced to a
         :class:`~srmech.apokatastasis.zeilberger.BiPoly` in ``(n,k)`` — a ``BiPoly`` passes
-        through, a :class:`~srmech.amsc.poly.Poly` is read as a polynomial in ``k``
+        through, a :class:`~srmech.math.poly.Poly` is read as a polynomial in ``k``
         alone, a ``k``-ascending coefficient sequence is wrapped term-by-term."""
         return cls(blocks)
 
@@ -511,7 +511,7 @@ class TriPoly:
         """Collapse to a nested ``[[[float, …]_n]_k]_j`` list — the single ALU→FPU
         rotation / "rotation last" (the body stayed exact ``Q`` until here). This
         is the ONLY place ``float()`` appears in the carrier, the exact analogue of
-        :meth:`srmech.amsc.poly.Poly.to_floats` / :meth:`srmech.amsc.qmat.QMat.to_mat`
+        :meth:`srmech.math.poly.Poly.to_floats` / :meth:`srmech.math.qmat.QMat.to_mat`
         — the opt-in display boundary. The zero polynomial returns an empty list."""
         out = []
         for bib in self._b:
@@ -538,7 +538,7 @@ def _bipoly_eval(bib: BiPoly, qn: Q, qk: Q) -> Q:
 
 # ── exact-rational coercion (mirrors poly._to_q) ──────────────────────────────
 def _to_q(value):
-    """Coerce ``value`` to an exact :class:`~srmech.amsc.q.Q`, or ``None`` if it is
+    """Coerce ``value`` to an exact :class:`~srmech.math.q.Q`, or ``None`` if it is
     not an exact-rational-coercible scalar (mirrors ``poly._to_q``). A ``float`` is
     REJECTED (returns ``None``) — a ``TriPoly`` coefficient must be exact."""
     if isinstance(value, Q):
@@ -571,7 +571,7 @@ def tripoly_from_coeffs(coeffs) -> "TriPoly":
     issue #1248 / F1038). ``coeffs[dj]`` is the ``j**dj`` block (a
     :class:`~srmech.apokatastasis.zeilberger.BiPoly` in ``(n,k)``); ``coeffs[dj][dk]``
     is that block's ``k**dk`` coefficient, an ascending-``n``-degree integer
-    list (a :class:`~srmech.amsc.poly.Poly` in ``n``). So
+    list (a :class:`~srmech.math.poly.Poly` in ``n``). So
     ``tripoly_from_coeffs([[[0, 1]], [[1]]])`` is ``n + j`` (``j**0`` block =
     the BiPoly ``n``, ``j**1`` block = the BiPoly ``1``) — the multivariate
     "sums-of-sums" term-ratio building blocks the ``apagodu_zeilberger`` op

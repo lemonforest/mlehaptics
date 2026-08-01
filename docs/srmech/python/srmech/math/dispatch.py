@@ -422,7 +422,7 @@ def _try_sigma_elliptic_multivar(rel: Dict[str, Any]) -> Optional[Dict[str, Any]
         if isinstance(v, str):
             return _M.symbol(v)             # the natural symbol-name operand
         if isinstance(v, int):
-            from ..amsc.q import Q
+            from .q import Q
             return _M.scalar(Q(v, 1))       # a constant parameter
         raise TypeError("Cₙ Jackson parameter must be an EllMonomial / symbol name / int")
 
@@ -466,7 +466,7 @@ def _try_sigma_elliptic_an(rel: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         if isinstance(v, str):
             return _M.symbol(v)             # the natural symbol-name operand
         if isinstance(v, int):
-            from ..amsc.q import Q
+            from .q import Q
             return _M.scalar(Q(v, 1))       # a constant parameter
         raise TypeError("Aₙ Jackson parameter must be an EllMonomial / symbol name / int")
 
@@ -502,7 +502,7 @@ def _try_spectral(rel: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     verdict)."""
     from ..amsc import coupling as _c  # lazy
     from . import laplacian as _L
-    from ..amsc.mat import Mat
+    from .mat import Mat
 
     L = _build_laplacian(rel, _L, Mat)
     if L is None:
@@ -633,7 +633,7 @@ def _marshal_relationship(rel: Dict[str, Any]) -> Optional[Tuple[str, int]]:
                             "theta_num": str(theta_num),
                             "theta_den": str(theta_den)}), 1)
     if row == "sigma" and all(k in rel for k in _SIGMA_GOSPER_ROW_KEYS):
-        from ..amsc.poly import Poly
+        from .poly import Poly
 
         def _pairs(v: Any) -> "list":
             p = v if isinstance(v, Poly) else Poly.from_coeffs(v)
@@ -703,7 +703,7 @@ def _marshal_relationship(rel: Dict[str, Any]) -> Optional[Tuple[str, int]]:
             return deg
 
         if all(k in rel for k in _SIGMA_Q_KEYS):
-            from ..amsc.qbipoly import QBiPoly, _qb_pairs
+            from .qbipoly import QBiPoly, _qb_pairs
 
             def _qb(v: Any) -> "list":
                 y_xlow, rows = _qb_pairs(QBiPoly.coerce(v))
@@ -716,7 +716,7 @@ def _marshal_relationship(rel: Dict[str, Any]) -> Optional[Tuple[str, int]]:
                     _qb_deg(list(payload.values())))
         if all(k in rel for k in _SIGMA_Q_GOSPER_KEYS):
             from ..apokatastasis.q_gosper import _coerce_qpoly
-            from ..amsc.qpoly import _qp_pairs
+            from .qpoly import _qp_pairs
 
             def _qp(v: Any) -> "list":
                 lo, rows = _qp_pairs(_coerce_qpoly(v))

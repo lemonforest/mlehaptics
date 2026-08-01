@@ -60,7 +60,7 @@ from srmech.amsc.format import sha256_bytes as _sha256_bytes
 from srmech.amsc.format import validate_mpr_record as _validate_mpr_record
 from srmech.math.hdc import klein4_bind as _klein4_bind
 from srmech.math.hdc import klein4_expand as _klein4_expand
-from srmech.amsc.hv import HV as _HV
+from srmech.math.hv import HV as _HV
 from srmech.amsc.q8 import q8_bind as _q8_bind
 from srmech.amsc.q8 import q8_conjugate as _q8_conjugate
 from srmech.amsc.q8 import q8_project_v4 as _q8_project_v4

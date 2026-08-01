@@ -14,7 +14,7 @@ eigendecomposition).
 rc126 (#564): this is the **last** ``srmech.signal_processing`` numpy CARRIER —
 flipped numpy-FREE so the whole subpackage imports + runs with numpy genuinely
 absent. The covariance eigendecomposition routes through the numpy-free
-``mat_hermitian_eigendecompose`` over the :class:`~srmech.amsc.mat.Mat` carrier
+``mat_hermitian_eigendecompose`` over the :class:`~srmech.math.mat.Mat` carrier
 (NOT the carrier ``hermitian_eigendecompose`` / ``dense_matmul_real`` /
 ``elementwise_sqrt``, which RAISE numpy-absent); the whitening / cumulant /
 Givens-rotation linear algebra are explicit numpy-free loops over plain Python
@@ -36,7 +36,7 @@ from typing import List, Optional, Tuple
 from srmech.amsc import _native as _native
 from srmech.math import rational as _srn
 from srmech.math.laplacian import mat_hermitian_eigendecompose
-from srmech.amsc.mat import Mat
+from srmech.math.mat import Mat
 
 OPERATION_NAME = "ica_jade"
 CLASS_COMPOSITION = ("L", "K")
@@ -171,7 +171,7 @@ def op(
     tuple
         ``(S, W)`` where ``S`` is the recovered sources ``(n_samples, k)``
         and ``W`` is the unmixing matrix ``(k, n_features)`` — both
-        :class:`~srmech.amsc.mat.Mat` (rc126: numpy-free).
+        :class:`~srmech.math.mat.Mat` (rc126: numpy-free).
     """
     rows = [[float(v) for v in row] for row in X]
     n = len(rows)

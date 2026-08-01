@@ -1,4 +1,4 @@
-"""srmech.amsc.carrier_ladder — the CARRIER CONVERSION LADDER (rc116; issue
+"""srmech.math.carrier_ladder — the CARRIER CONVERSION LADDER (rc116; issue
 #1248 / F1038): promote / project between adjacent rungs of the exact-``ℚ``
 polynomial carriers, plus the declarative coherency map a driver reads to
 auto-route a carrier UP to a higher-rung consumer.
@@ -103,9 +103,9 @@ def poly_promote(p: Any, n_vars: Optional[int] = None) -> Any:
     BiPoly(n,k) → TriPoly(n,j,k)`` by the *trivial embedding* (rc116; #1248 /
     F1038).
 
-    ``p`` is a :class:`~srmech.amsc.poly.Poly` (rung 1, a polynomial in ``k``),
+    ``p`` is a :class:`~srmech.math.poly.Poly` (rung 1, a polynomial in ``k``),
     a :class:`~srmech.apokatastasis.zeilberger.BiPoly` (rung 2, in ``(n,k)``), or a
-    :class:`~srmech.amsc.tripoly.TriPoly` (rung 3, in ``(n,j,k)``). ``n_vars``
+    :class:`~srmech.math.tripoly.TriPoly` (rung 3, in ``(n,j,k)``). ``n_vars``
     is the TARGET rung (1, 2, or 3); it must be ≥ the current rung. When
     ``n_vars is None`` the default is one rung up. When ``n_vars`` equals the
     current rung the input is returned unchanged (TOTAL — promote is defined for
@@ -192,8 +192,8 @@ def qpoly_promote(p: Any, n_vars: Optional[int] = None) -> Any:
     """Promote a q-ladder carrier UP the variable ladder ``QPoly(x=qⁿ) →
     QBiPoly(X=qⁿ, Y=qᵏ)`` by the trivial embedding (rc116; #1248 / F1038).
 
-    ``p`` is a :class:`~srmech.amsc.qpoly.QPoly` (rung 1) or a
-    :class:`~srmech.amsc.qbipoly.QBiPoly` (rung 2). ``n_vars`` is the TARGET
+    ``p`` is a :class:`~srmech.math.qpoly.QPoly` (rung 1) or a
+    :class:`~srmech.math.qbipoly.QBiPoly` (rung 2). ``n_vars`` is the TARGET
     rung (1 or 2; default one rung up). ``QPoly ↪ QBiPoly`` adds the degree-0
     variable ``Y = qᵏ`` (:meth:`QBiPoly.from_x_qpoly` — a single ``Y**0``
     cell). TOTAL; the q-analog of :func:`poly_promote`. Its inverse is
@@ -381,17 +381,17 @@ _OP_CONTRACTS: Dict[str, Dict[str, Any]] = {
         "consumes": _cd("any"), "produces": _cd("step_down")},
     # ── the ordinary variable ladder PROMOTE / PROJECT ────────────────────────
     "poly_promote": {
-        "tool": "srmech.amsc.carrier_ladder.poly_promote",
+        "tool": "srmech.math.carrier_ladder.poly_promote",
         "consumes": _var("any"), "produces": _var("arg:n_vars")},
     "poly_project": {
-        "tool": "srmech.amsc.carrier_ladder.poly_project",
+        "tool": "srmech.math.carrier_ladder.poly_project",
         "consumes": _var("any"), "produces": _var("step_down")},
     # ── the q variable ladder PROMOTE / PROJECT ───────────────────────────────
     "qpoly_promote": {
-        "tool": "srmech.amsc.carrier_ladder.qpoly_promote",
+        "tool": "srmech.math.carrier_ladder.qpoly_promote",
         "consumes": _varq("any"), "produces": _varq("arg:n_vars")},
     "qpoly_project": {
-        "tool": "srmech.amsc.carrier_ladder.qpoly_project",
+        "tool": "srmech.math.carrier_ladder.qpoly_project",
         "consumes": _varq("any"), "produces": _varq("step_down")},
     # ── the PROSE-SIDE constructors (produce a FIXED rung from raw ints) ──────
     "bipoly_from_coeffs": {
@@ -399,15 +399,15 @@ _OP_CONTRACTS: Dict[str, Dict[str, Any]] = {
         "consumes": {"ladder": None, "type": "list[list[int]]"},
         "produces": _var(2)},
     "tripoly_from_coeffs": {
-        "tool": "srmech.amsc.tripoly.tripoly_from_coeffs",
+        "tool": "srmech.math.tripoly.tripoly_from_coeffs",
         "consumes": {"ladder": None, "type": "list[list[list[int]]]"},
         "produces": _var(3)},
     "qpoly_from_coeffs": {
-        "tool": "srmech.amsc.qpoly.qpoly_from_coeffs",
+        "tool": "srmech.math.qpoly.qpoly_from_coeffs",
         "consumes": {"ladder": None, "type": "list"},
         "produces": _varq(1)},
     "qbipoly_from_coeffs": {
-        "tool": "srmech.amsc.qbipoly.qbipoly_from_coeffs",
+        "tool": "srmech.math.qbipoly.qbipoly_from_coeffs",
         "consumes": {"ladder": None, "type": "list"},
         "produces": _varq(2)},
 }
@@ -473,14 +473,14 @@ def carrier_ladder_descriptor() -> Dict[str, Any]:
                 "rungs": {"Poly": 1, "BiPoly": 2, "TriPoly": 3},
                 # the variable each rung ADDS going up (rung 1 is the base var k)
                 "adds_variable": {"1": "k", "2": "n", "3": "j"},
-                "promote": "srmech.amsc.carrier_ladder.poly_promote",
-                "project": "srmech.amsc.carrier_ladder.poly_project",
+                "promote": "srmech.math.carrier_ladder.poly_promote",
+                "project": "srmech.math.carrier_ladder.poly_project",
             },
             "variable_q": {
                 "rungs": {"QPoly": 1, "QBiPoly": 2},
                 "adds_variable": {"1": "x=qⁿ", "2": "Y=qᵏ"},
-                "promote": "srmech.amsc.carrier_ladder.qpoly_promote",
-                "project": "srmech.amsc.carrier_ladder.qpoly_project",
+                "promote": "srmech.math.carrier_ladder.qpoly_promote",
+                "project": "srmech.math.carrier_ladder.qpoly_project",
             },
             "cayley_dickson": {
                 # keyed by algebra DIMENSION (the cd_promote `dim` target)

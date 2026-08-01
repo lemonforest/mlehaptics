@@ -43,7 +43,7 @@ import pytest
 
 from srmech.amsc import ThetaSum, _native
 from srmech.apokatastasis.ellbase import EllMonomial as M, Theta
-from srmech.amsc.q import Q
+from srmech.math.q import Q
 from srmech.apokatastasis.thetasum import (
     _NONZERO, _UNKNOWN, _ZERO, _decide_thetasum, _leaf_prime_set,
     _z5_theta_constant_zero, _z6_theta_constant_zero,

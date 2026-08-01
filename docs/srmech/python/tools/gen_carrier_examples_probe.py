@@ -23,11 +23,11 @@ warmup_all()
 import array  # noqa: E402
 from fractions import Fraction  # noqa: E402
 from srmech.amsc import Poly, TriPoly, ThetaSum  # noqa: E402
-from srmech.amsc.carrier_ladder import BiPoly, QPoly, QBiPoly  # noqa: E402
+from srmech.math.carrier_ladder import BiPoly, QPoly, QBiPoly  # noqa: E402
 from srmech.apokatastasis.apagodu_zeilberger import Q  # noqa: E402
 from srmech.math.hdc import Mat, HV  # noqa: E402
 from srmech.amsc.coupling import Vec  # noqa: E402
-from srmech.amsc.carrier_spectrum import CarrierSpectrum, EllMonomial, EllRatio  # noqa: E402
+from srmech.math.carrier_spectrum import CarrierSpectrum, EllMonomial, EllRatio  # noqa: E402
 from srmech.apokatastasis.ellbase import Theta  # noqa: E402  (rc363: the elliptic ATOM)
 from srmech.apokatastasis.riemann_theta_multisum import ThetaBracketSum  # noqa: E402
 from srmech.apokatastasis.harmonic_maass import MockQSeries, UnaryTheta, HarmonicMaass  # noqa: E402

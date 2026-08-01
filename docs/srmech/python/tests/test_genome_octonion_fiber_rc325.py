@@ -51,7 +51,7 @@ from srmech.amsc.genome import (
     chromosome, recall, telomere, codon_read, _cap_kind, _hv_bytes,
 )
 from srmech.math.octonion import oct_bind, oct_mult
-from srmech.amsc.hv import HV
+from srmech.math.hv import HV
 
 
 # leaf_dim ≥ 24 so the default "octonion" (8-char) label + 4-bit-packed holonomy fits

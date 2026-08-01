@@ -78,7 +78,7 @@ from .ellbase import EllMonomial, Theta, _X
 from .elliptic_recurrence import (
     _build_rho, _coerce_ratio, _decompose_8w7, _rho_to_result, _ratio_to_form,
 )
-from ..amsc.q import Q
+from ..math.q import Q
 from .thetasum import ThetaSum
 
 __all__ = ["elliptic_zeilberger"]

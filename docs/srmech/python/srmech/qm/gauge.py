@@ -6,7 +6,7 @@ canonical gauge-theory literature.
 numpy-FREE (v0.7.5rc119, #564): the SU(2)/SU(3) generators, the eight
 Gell-Mann matrices, and every derived operator (connection, Casimir,
 path-segment holonomy, Wilson loop) are held in the framework-native
-:class:`~srmech.amsc.mat.Mat` carrier — the SU(2) generators are built from
+:class:`~srmech.math.mat.Mat` carrier — the SU(2) generators are built from
 the numpy-free Pauli 2×2 ``Mat`` blocks
 (:func:`srmech.qm.spin.pauli_matrices`), the Gell-Mann matrices from exact
 small-integer ``Mat`` (with the λ⁸ ``1/√3`` normaliser via the Class-N
@@ -58,7 +58,7 @@ from srmech.math.laplacian import (
     mat_matmul,
     mat_norm,
 )
-from srmech.amsc.mat import Mat
+from srmech.math.mat import Mat
 from srmech.qm.spin import pauli_matrices
 
 

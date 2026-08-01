@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc373"
-#define SRMECH_VERSION       "0.9.0rc373"
+#define SRMECH_VERSION_PRE   "rc374"
+#define SRMECH_VERSION       "0.9.0rc374"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -4840,7 +4840,7 @@ srmech_status_t srmech_cd_zero_divisor_witness(int *out_i, int *out_j,
 
 /* ------------------------------------------------------------------
  * Qi — the EXACT-complex (Gaussian-rational) carrier C-host peer (0.9.0rc15;
- * Python srmech.amsc.qi.Qi). A Qi value is FOUR int64 limbs
+ * Python srmech.math.qi.Qi). A Qi value is FOUR int64 limbs
  * {re_num, re_den, im_num, im_den} (denominators positive, fit int64). Lets a
  * C-only host do exact `re + im·i` arithmetic over ℚ in one call per op, the
  * named A–N cascade composed from the Class-N srmech_rational_* ops:
@@ -9258,7 +9258,7 @@ srmech_status_t srmech_rational_reconstruct(const srmech_bigint_t *residue,
 
 /* ------------------------------------------------------------------ *
  * srmech_poly — EXACT-RATIONAL univariate polynomial over srmech_bigint
- * (the C peer of srmech.amsc.poly.Poly; the §76 telescope Sigma-row prover's
+ * (the C peer of srmech.math.poly.Poly; the §76 telescope Sigma-row prover's
  * foundation carrier).
  *
  * A polynomial is two parallel caller-owned srmech_bigint arrays in ASCENDING
@@ -9266,7 +9266,7 @@ srmech_status_t srmech_rational_reconstruct(const srmech_bigint_t *residue,
  * 0, gcd(|nums[i]|, dens[i]) == 1; zero coefficient = 0/1). `n` is the
  * coefficient count; the CANONICAL form trims trailing-zero (high-degree)
  * coefficients, so the zero polynomial has n == 0. Each op computes the SAME
- * exact rational coefficients srmech.amsc.poly.Poly computes (Class-N rational
+ * exact rational coefficients srmech.math.poly.Poly computes (Class-N rational
  * arithmetic over Class-J reduction), over caller-arena srmech_bigint (NO
  * malloc), reduced to lowest terms — byte-identical to Python at ANY magnitude
  * (full bignum; no int64/Q61 ceiling).
@@ -10289,7 +10289,7 @@ srmech_status_t srmech_riemann_theta_fay_certificate(
 
 /* ------------------------------------------------------------------ *
  * srmech_tripoly — EXACT-RATIONAL TRIVARIATE polynomial over srmech_bigint (the
- * C peer of srmech.amsc.tripoly.TriPoly; the multivariate "sums of sums"
+ * C peer of srmech.math.tripoly.TriPoly; the multivariate "sums of sums"
  * creative-telescoping foundation, the 3-variable sibling of BiPoly).
  *
  * A TriPoly is an exact-Q polynomial in the free variable n and two summation
@@ -10303,7 +10303,7 @@ srmech_status_t srmech_riemann_theta_fay_certificate(
  * nums[..]/dens[..] is the exact rational of n^dn (dens > 0, gcd(|nums|, dens)
  * == 1; zero coefficient = 0/1).
  *
- * Each op computes the SAME exact rational coefficients srmech.amsc.tripoly.
+ * Each op computes the SAME exact rational coefficients srmech.math.tripoly.
  * TriPoly computes (Class-N rational arithmetic over Class-J reduction), over
  * caller-arena srmech_bigint (NO malloc), reduced to lowest terms with positive
  * denominator. Byte-identical to Python at ANY magnitude (full bignum; no
@@ -10379,7 +10379,7 @@ srmech_status_t srmech_tripoly_mul(const srmech_bigint_t *a_n,
 
 /* ------------------------------------------------------------------ *
  * srmech_qpoly — EXACT q-shift CARRIER over srmech_bigint (the C peer of
- * srmech.amsc.qpoly.QPoly; the q-hypergeometric F929 reduction-row foundation,
+ * srmech.math.qpoly.QPoly; the q-hypergeometric F929 reduction-row foundation,
  * the q-analog of srmech_poly).
  *
  * A QPoly is a LAURENT polynomial in x = q^n whose coefficients are exact
@@ -10395,7 +10395,7 @@ srmech_status_t srmech_tripoly_mul(const srmech_bigint_t *a_n,
  * srmech_tripoly's concatenated-cell + nlen[] layout, one dimension lighter — a
  * single x-row, not a (j,k) grid.)
  *
- * Each op computes the SAME exact rational coefficients srmech.amsc.qpoly.QPoly
+ * Each op computes the SAME exact rational coefficients srmech.math.qpoly.QPoly
  * computes (Class-N rational arithmetic over Class-J reduction), over caller-arena
  * srmech_bigint (NO malloc), reduced to lowest terms — byte-identical to Python at
  * ANY magnitude (full bignum; no int64/Q61 ceiling).
@@ -11551,7 +11551,7 @@ srmech_status_t srmech_elliptic_wz_certificate(size_t n_syms, int xsym, int psym
 
 /* ------------------------------------------------------------------ *
  * srmech_carrier_spectrum — the OPERAND-side dual of the_one (the C peer of
- * srmech.amsc.carrier_spectrum.carrier_spectrum). A 1:1 STRUCTURAL MIRROR of the
+ * srmech.math.carrier_spectrum.carrier_spectrum). A 1:1 STRUCTURAL MIRROR of the
  * pure-Python CHANNEL READ: the harmonic occupancy of a carrier element under the
  * shift-Laplacian, in two orthogonal channels.
  *
@@ -11746,13 +11746,13 @@ srmech_status_t srmech_q_wz_verify(
 
 /* ------------------------------------------------------------------ *
  * srmech_qmat — EXACT-RATIONAL dense matrix over srmech_bigint (the C peer of
- * srmech.amsc.qmat.QMat; the exact-ℚ linear-algebra carrier the §76 gosper
+ * srmech.math.qmat.QMat; the exact-ℚ linear-algebra carrier the §76 gosper
  * undetermined-coefficient solve needs in C).
  *
  * A matrix is two parallel caller-owned srmech_bigint arrays, ROW-MAJOR:
  * nums[r*ncols + c] / dens[r*ncols + c] is the exact-rational entry at (r, c)
  * (dens > 0, gcd(|nums|, dens) == 1; zero entry = 0/1). Each op computes the
- * SAME exact rational entries srmech.amsc.qmat.QMat computes — exact Gauss-Jordan
+ * SAME exact rational entries srmech.math.qmat.QMat computes — exact Gauss-Jordan
  * over ℚ on the shared _rref_augmented kernel — over caller-arena srmech_bigint
  * (NO malloc), reduced to lowest terms with positive denominator. Byte-identical
  * to Python's (num, den) at ANY magnitude (full bignum; no int64/Q61 ceiling).
@@ -11861,7 +11861,7 @@ srmech_status_t srmech_qmat_nullspace(const srmech_bigint_t *a_n,
  * Orchestrates the four already-C-backed rungs (srmech_gf_rref / srmech_crt_combine
  * / srmech_rational_reconstruct / srmech_is_prime) into the full bounded-memory
  * exact-Q solve a bare-C host can call with ONE call. BYTE-IDENTICAL to the
- * pure-Python srmech.amsc.qmat.QMat.rref_crt: descending odd primes from 2**31-2,
+ * pure-Python srmech.math.qmat.QMat.rref_crt: descending odd primes from 2**31-2,
  * skip a prime dividing any denominator, gf_rref per prime over GF(p), unlucky-
  * prime rank-consensus (max (rank, pivots) dominates; a strictly higher-rank prime
  * RESTARTS the CRT), crt_combine per cell, rational_reconstruct with the default

@@ -29,7 +29,7 @@ import tokenize
 import pytest
 
 from srmech.apokatastasis.ellbase import EllMonomial as M, Theta, EllRatio as R, _X, _Q_SYM
-from srmech.amsc.q import Q
+from srmech.math.q import Q
 from srmech.apokatastasis.thetasum import ThetaSum, _Y
 from srmech.apokatastasis import elliptic_recurrence as er
 from srmech.apokatastasis.elliptic_recurrence import elliptic_recurrence_8w7

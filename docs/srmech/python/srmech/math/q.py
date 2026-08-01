@@ -1,7 +1,7 @@
-"""srmech.amsc.q — the framework-native exact-rational scalar carrier (``Q``).
+"""srmech.math.q — the framework-native exact-rational scalar carrier (``Q``).
 
-The scalar peer of the array carriers :class:`srmech.amsc.mat.Mat` (2-D),
-:class:`srmech.amsc.vec.Vec` (1-D) and :class:`srmech.amsc.hv.HV` (hypervector).
+The scalar peer of the array carriers :class:`srmech.math.mat.Mat` (2-D),
+:class:`srmech.math.vec.Vec` (1-D) and :class:`srmech.math.hv.HV` (hypervector).
 Where those carry collections of numbers, ``Q`` carries **one** exact rational —
 a reduced ``(num, den)`` integer pair — and behaves like a float in comparisons
 while *never* collapsing to one until you explicitly ask (``float(q)``).
@@ -79,9 +79,9 @@ from __future__ import annotations
 import numbers
 from typing import Tuple
 
-from . import _native
-from ..math import cyclic as _cyclic
-from ..math import rational as _rational
+from ..amsc import _native
+from . import cyclic as _cyclic
+from . import rational as _rational
 
 __all__ = ["Q", "to_q"]
 

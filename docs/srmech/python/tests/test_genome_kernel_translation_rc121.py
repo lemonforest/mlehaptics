@@ -38,7 +38,7 @@ import pytest
 
 from srmech.amsc import genome as G
 from srmech.amsc import _native
-from srmech.amsc.hv import HV
+from srmech.math.hv import HV
 
 # The DoD dimensions — a multiple (256/8192/65536), the classic non-multiple
 # (1000), and one MB-scale kernel (1,000,000 Klein-4 symbols, non-multiple).

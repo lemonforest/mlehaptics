@@ -82,7 +82,7 @@ _DELETED = {
         "_klein4_chirality_duals",
         "_klein4_similarity_native",
     ),
-    "srmech.amsc.mat": ("_flat_index",),  # Mat method (checked on the class below)
+    "srmech.math.mat": ("_flat_index",),  # Mat method (checked on the class below)
     "srmech.qm.so8": ("_mat_rows",),
     "srmech.math.rational": (
         "_principal_angle_anchor",
@@ -117,7 +117,7 @@ def test_deleted_symbol_is_gone(mod_name, sym):
 
 def test_mat_flat_index_method_gone():
     """``Mat._flat_index`` was a dead method — gone from the class."""
-    from srmech.amsc.mat import Mat
+    from srmech.math.mat import Mat
     assert not hasattr(Mat, "_flat_index")
 
 

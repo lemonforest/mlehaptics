@@ -4,7 +4,7 @@ Per ``[[feedback_science_is_ssot_not_project]]``: each operation cites
 canonical relativistic QM / QFT literature.
 
 numpy-FREE (v0.7.5rc118, #564): the γ-matrices and derived 4×4 operators are
-held in the framework-native :class:`~srmech.amsc.mat.Mat` carrier (assembled
+held in the framework-native :class:`~srmech.math.mat.Mat` carrier (assembled
 from the numpy-free Pauli 2×2 ``Mat`` blocks), every matrix product routes
 through the Class-L :func:`~srmech.math.laplacian.mat_matmul`, residual norms
 through :func:`~srmech.math.laplacian.mat_norm`, and the Klein-Gordon
@@ -45,7 +45,7 @@ from typing import Sequence, Tuple
 from srmech.amsc import _native
 from srmech.math import rational as _srn
 from srmech.math.laplacian import mat_matmul, mat_norm
-from srmech.amsc.mat import Mat
+from srmech.math.mat import Mat
 from srmech.qm.spin import pauli_matrices, pauli_identity
 
 

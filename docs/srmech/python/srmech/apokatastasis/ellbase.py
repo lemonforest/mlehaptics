@@ -2,8 +2,8 @@
 ``Theta``) of the ELLIPTIC F929 reduction row, the top of the base-axis
 degeneration tower ``elliptic → q → ordinary``.
 
-Where :class:`~srmech.amsc.poly.Poly` carries an ordinary polynomial (the
-``q → 1`` ground) and :class:`~srmech.amsc.qpoly.QPoly` carries a Laurent
+Where :class:`~srmech.math.poly.Poly` carries an ordinary polynomial (the
+``q → 1`` ground) and :class:`~srmech.math.qpoly.QPoly` carries a Laurent
 polynomial in ``x = q**n`` (the ``p → 0`` / basic-hypergeometric ground), the
 ELLIPTIC level — Frenkel–Turaev's ₁₀E₉, Spiridonov's elliptic hypergeometric
 series; Warnaar, *Constr. Approx.* 18 (2002) 479–502 — carries term-ratios built
@@ -58,7 +58,7 @@ from __future__ import annotations
 
 from typing import Dict, Iterable, List, Mapping, Tuple
 
-from ..amsc.q import Q
+from ..math.q import Q
 
 __all__ = ["EllMonomial", "Theta", "EllRatio", "elliptic_lagrange_basis",
            "half_shift_response", "chirality_parity", "beat_relation_residue"]
@@ -534,7 +534,7 @@ class EllRatio:
         carries weight ``1/2`` per factor, so a ratio with ``#num − #den`` net theta
         factors has weight ``(#num − #den)/2``; a balanced ratio is weight 0.
 
-        Returns the exact :class:`~srmech.amsc.q.Q` net weight ``(len(num) −
+        Returns the exact :class:`~srmech.math.q.Q` net weight ``(len(num) −
         len(den)) / 2`` (``Q(0)`` for the balanced / elliptic case)."""
         return Q(len(self._num) - len(self._den), 2)
 

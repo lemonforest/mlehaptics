@@ -36,7 +36,7 @@ import math
 
 import pytest
 
-from srmech.amsc.q import Q
+from srmech.math.q import Q
 from srmech.math.rational import (
     _SQRT_Q_K,
     _sqrt_rational,

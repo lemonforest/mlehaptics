@@ -206,7 +206,7 @@ def test_proof6c_holonomy_sees_what_the_spectrum_cannot():
 # ── native == pure parity ───────────────────────────────────────────────
 def test_klein4_native_equals_pure():
     """The C peer builds byte-identical sector Laplacians to the pure cascade."""
-    from srmech.amsc.mat import Mat
+    from srmech.math.mat import Mat
     el, wl = _validate_edges_weights_py(_N, _EDGES, _WEIGHTS)
     gl = _normalize_gains_py(_GAINS, len(el))
     pure = _klein4_gain_laplacian_py(_N, el, wl, gl)

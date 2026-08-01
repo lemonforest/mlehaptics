@@ -3791,7 +3791,7 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.c_void_p, ctypes.c_size_t]
         lib.srmech_bigint_isqrt.restype = ctypes.c_int
     # 0.9.0rc167 (#765 foundation): bind the srmech_bigint ARITHMETIC core so
-    # the Python-side exact-ℚ scalar carrier (srmech.amsc.q.Q → rational_*)
+    # the Python-side exact-ℚ scalar carrier (srmech.math.q.Q → rational_*)
     # can run its BIG-operand num/den arithmetic on srmech's OWN C bignum
     # (self-hosting: CPython int becomes the below-threshold / no-native
     # fallback). All four are EXISTING C symbols (rc19+ bigint substrate) —
@@ -6103,7 +6103,7 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_tripoly_mul.restype = ctypes.c_int
     # rc40: the EXACT-RATIONAL matrix carrier C peer (srmech_qmat_*) — the exact
-    # ℚ-linear-algebra peer of srmech.amsc.qmat.QMat (the §76 gosper exact solve
+    # ℚ-linear-algebra peer of srmech.math.qmat.QMat (the §76 gosper exact solve
     # foundation). Each op takes ROW-MAJOR parallel _SrmechBigint entry arrays.
     #   size_t srmech_qmat_ws_bound(coeff_limbs, n_rows, total_cols)
     #   size_t srmech_qmat_entry_cap(coeff_limbs, n_rows, total_cols)
@@ -6956,7 +6956,7 @@ def _bind(lib: ctypes.CDLL) -> None:
         lib.srmech_elliptic_wz_certificate.restype = ctypes.c_int
 
     # rc69: srmech_carrier_spectrum — the OPERAND-side dual of the_one (the C peer of
-    # srmech.amsc.carrier_spectrum.carrier_spectrum). The carrier element rides as the
+    # srmech.math.carrier_spectrum.carrier_spectrum). The carrier element rides as the
     # SAME full EllRatio wire form srmech_elliptic_recurrence_8w7 parses (n_syms + the
     # x/p/q/y interned indices + the num/den theta counts + the flat exact-Q coeff arrays
     # + the flat int32 exponent rows). The channel READ comes back as the distinct
@@ -8911,7 +8911,7 @@ def sturm_isolate_c(cp, bits):
     ``_isolate_real_roots`` oracle). BYTE-IDENTICAL to that oracle: the same monic
     factors, the same Sturm chain, the same deterministic subdivision -> the same
     reduced-``Fraction`` endpoints."""
-    from srmech.amsc.q import Q as _Fr  # #845: exact-ℚ interval carrier (was Fraction)
+    from srmech.math.q import Q as _Fr  # #845: exact-ℚ interval carrier (was Fraction)
     if not has_native_sturm_isolate():
         return None
     n = len(cp) - 1
@@ -8969,7 +8969,7 @@ def complex_isolate_c(cp, bits):
     pure ``_isolate_complex_roots_upper`` oracle). STRUCTURALLY-IDENTICAL to that
     oracle: the same box subdivision, the same argument-principle counts, the same
     refined-center Fractions."""
-    from srmech.amsc.q import Q as _Fr  # #845: exact-ℚ interval carrier (was Fraction)
+    from srmech.math.q import Q as _Fr  # #845: exact-ℚ interval carrier (was Fraction)
     if not has_native_complex_isolate():
         return None
     n = len(cp) - 1
@@ -9553,7 +9553,7 @@ def bigint_isqrt_c(n: int) -> int:
 # ─────────────────────────────────────────────────────────────────────────
 # 0.9.0rc167 — #765 FOUNDATION: the big-ℚ srmech_bigint composites.
 #
-# The exact-ℚ scalar carrier (srmech.amsc.q.Q) rides the Class-N rational_*
+# The exact-ℚ scalar carrier (srmech.math.q.Q) rides the Class-N rational_*
 # ops; their BIG-operand branches (beyond the u64 scalar C fast path) ran on
 # CPython int — in particular the reduce-gcd rode cyclic.gcd's pure-Python
 # Euclid loop. These composites run the WHOLE big-ℚ op (cross-multiplies +
@@ -10800,7 +10800,7 @@ def one_matrix_c(sigma: int, theta_num: int, theta_den: int,
 
 # ----------------------------------------------------------------------
 # rc38: the EXACT-RATIONAL polynomial carrier C peer (srmech_poly_*). The
-# Python srmech.amsc.poly.Poly routes its add/sub/mul/divmod/gcd/eval/shift
+# Python srmech.math.poly.Poly routes its add/sub/mul/divmod/gcd/eval/shift
 # through these when has_native_poly(); the pure-Python body is the COMPLETE
 # alternative (and the parity oracle) — both emit byte-identical exact (num,
 # den) coefficients at any magnitude. The marshalling builds parallel
@@ -10819,7 +10819,7 @@ _POLY_SYMS = (
 def has_native_poly() -> bool:
     """True iff the rc38 srmech_poly_* ops + the srmech_bigint decimal-marshal
     helpers are loaded + bound. False on a no-C or pre-rc38 lib — the
-    pure-Python ``srmech.amsc.poly.Poly`` body is the complete alternative (and
+    pure-Python ``srmech.math.poly.Poly`` body is the complete alternative (and
     the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -12639,7 +12639,7 @@ def poly_gcd_c(a_coeffs, b_coeffs):
 
 # ----------------------------------------------------------------------
 # rc54: the EXACT q-shift CARRIER C peer (srmech_qpoly_*). The Python
-# srmech.amsc.qpoly.QPoly routes its add/sub/mul + the q-shift through these when
+# srmech.math.qpoly.QPoly routes its add/sub/mul + the q-shift through these when
 # has_native_qpoly(); the pure-Python body is the COMPLETE alternative (and the
 # parity oracle) — both emit byte-identical exact (num, den) q-coefficients at any
 # magnitude. The Python bridge form of a QPoly is (x_low, [[(num,den)…]_q]_x): the
@@ -12661,7 +12661,7 @@ _QPOLY_SYMS = (
 def has_native_qpoly() -> bool:
     """True iff the rc54 srmech_qpoly_* ops + the srmech_bigint decimal-marshal
     helpers are loaded + bound. False on a no-C or pre-rc54 lib — the pure-Python
-    ``srmech.amsc.qpoly.QPoly`` body is the complete alternative (and the parity
+    ``srmech.math.qpoly.QPoly`` body is the complete alternative (and the parity
     oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -12878,7 +12878,7 @@ def qpoly_qshift_c(a_form, s):
 
 # ----------------------------------------------------------------------
 # rc52: the EXACT-RATIONAL TRIVARIATE polynomial carrier C peer
-# (srmech_tripoly_*). The Python srmech.amsc.tripoly.TriPoly routes its
+# (srmech_tripoly_*). The Python srmech.math.tripoly.TriPoly routes its
 # add/sub/mul through these when has_native_tripoly(); the pure-Python body is
 # the COMPLETE alternative (and the parity oracle) — both emit byte-identical
 # exact (num, den) coefficients at any magnitude.
@@ -12901,7 +12901,7 @@ _TRIPOLY_SYMS = (
 def has_native_tripoly() -> bool:
     """True iff the rc52 srmech_tripoly_* ops + the srmech_bigint decimal-marshal
     helpers are loaded + bound. False on a no-C or pre-rc52 lib — the pure-Python
-    ``srmech.amsc.tripoly.TriPoly`` body is the complete alternative (and the
+    ``srmech.math.tripoly.TriPoly`` body is the complete alternative (and the
     parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -13103,7 +13103,7 @@ def tripoly_mul_c(a_grid, b_grid):
 
 # ----------------------------------------------------------------------
 # rc40: the EXACT-RATIONAL matrix carrier C peer (srmech_qmat_*). The Python
-# srmech.amsc.qmat.QMat routes its rref/rank/det/inverse/solve/nullspace through
+# srmech.math.qmat.QMat routes its rref/rank/det/inverse/solve/nullspace through
 # these when has_native_qmat(); the pure-Python Gauss-Jordan body is the COMPLETE
 # alternative (and the parity oracle) — both emit byte-identical exact (num, den)
 # entries at any magnitude. The marshalling builds ROW-MAJOR parallel
@@ -13123,7 +13123,7 @@ _QMAT_SYMS = (
 def has_native_qmat() -> bool:
     """True iff the rc40 srmech_qmat_* ops + the srmech_bigint decimal-marshal
     helpers are loaded + bound. False on a no-C or pre-rc40 lib — the pure-Python
-    ``srmech.amsc.qmat.QMat`` Gauss-Jordan body is the complete alternative (and
+    ``srmech.math.qmat.QMat`` Gauss-Jordan body is the complete alternative (and
     the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -14324,7 +14324,7 @@ _CS_FORCE_SYMS = ("p", "q", "x", "y")
 def has_native_carrier_spectrum() -> bool:
     """True iff the rc69 srmech_carrier_spectrum op + its ws sizer are loaded + bound.
     False on a no-C or pre-rc69 lib — the pure-Python
-    ``srmech.amsc.carrier_spectrum.CarrierSpectrum`` channel read is the complete
+    ``srmech.math.carrier_spectrum.CarrierSpectrum`` channel read is the complete
     alternative (and the parity oracle)."""
     if not (HAS_NATIVE and LIB is not None):
         return False
@@ -14336,7 +14336,7 @@ def has_native_carrier_spectrum() -> bool:
 def carrier_spectrum_c(ratio_form):
     """Native channel read of the carrier element ``ratio_form`` →
     ``(cyclic, blocks)`` or ``None`` if the native symbols are absent. ``ratio_form`` is
-    the dict :func:`srmech.amsc.carrier_spectrum._ratio_to_form` emits (``prefactor`` =
+    the dict :func:`srmech.math.carrier_spectrum._ratio_to_form` emits (``prefactor`` =
     ``(coeff_num, coeff_den, [(sym, exp), …])``; ``num`` / ``den`` = theta-argument
     monomial triples). ``cyclic`` = ``{x-exponent k: 'q**k'}`` (the σ-eigenspectrum);
     ``blocks`` = ``{block-label tuple: [[theta-arg exponent dict], …]}`` (the σ-invariant

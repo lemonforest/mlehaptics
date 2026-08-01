@@ -22,7 +22,7 @@ import random
 from srmech.amsc import ThetaSum
 from srmech.apokatastasis.ellbase import EllMonomial as M, Theta, EllRatio as R
 from srmech.apokatastasis.thetasum import _Y, _VERIFY_POINTS, _VERIFY_TRUNC
-from srmech.amsc.q import Q
+from srmech.math.q import Q
 
 _A, _B, _C, _D = M.symbol("a"), M.symbol("b"), M.symbol("c"), M.symbol("d")
 _X = M.symbol("x")

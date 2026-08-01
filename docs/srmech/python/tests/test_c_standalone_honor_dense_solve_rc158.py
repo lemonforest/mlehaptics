@@ -20,7 +20,7 @@ import pytest
 
 from srmech.amsc import _native
 from srmech.math import laplacian as L
-from srmech.amsc.mat import Mat
+from srmech.math.mat import Mat
 
 
 def _force_pure(fn):

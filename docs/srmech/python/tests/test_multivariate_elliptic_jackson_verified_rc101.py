@@ -33,7 +33,7 @@ from srmech.apokatastasis.elliptic_jackson import (
     _num_partitions,
     _VERIFY_MAX_PARTITIONS,
 )
-from srmech.amsc.q import Q
+from srmech.math.q import Q
 
 
 def _syms():

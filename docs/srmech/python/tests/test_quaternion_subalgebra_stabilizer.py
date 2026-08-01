@@ -30,7 +30,7 @@ Determinism: every basis extraction is a deterministic SVD / Gram-Schmidt
 (no RNG), so the certificate is reproducible.
 
 rc123 (numpy-free, #564): this test is itself numpy-FREE —
-``quaternion_subalgebra_stabilizer`` returns :class:`srmech.amsc.mat.Mat`
+``quaternion_subalgebra_stabilizer`` returns :class:`srmech.math.mat.Mat`
 (the ``killing_spectrum`` a sorted ``list``); norms / matmuls route through
 ``mat_norm`` / ``mat_matmul``, span ranks through the float-tolerant
 :func:`srmech.qm.so8._rank_float`, with no numpy oracle and no ``.to_numpy()``
@@ -48,7 +48,7 @@ import pytest
 
 from srmech.amsc.cascade import magnitude
 from srmech.math.laplacian import mat_matmul, mat_norm
-from srmech.amsc.mat import Mat
+from srmech.math.mat import Mat
 from srmech.qm import so8
 
 _TOL = 1e-9

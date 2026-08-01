@@ -27,7 +27,7 @@ _TOL = 1e-9
 
 
 def test_sqrt_close_to_stdlib():
-    from srmech.amsc.vec import Vec
+    from srmech.math.vec import Vec
     a = [2.0, 3.0, 5.0, 7.5, 10.0, 0.0]
     out = elementwise_sqrt(a)
     assert isinstance(out, Vec)                  # rc129: 1-D input → Vec carrier

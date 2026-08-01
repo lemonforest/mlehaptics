@@ -4,7 +4,7 @@ Per ``[[feedback_science_is_ssot_not_project]]``: each propagator cites
 canonical QFT literature.
 
 numpy-FREE (v0.7.5rc123, #564): the 4×4 propagator numerators are held in
-the framework-native :class:`~srmech.amsc.mat.Mat` carrier (consumed straight
+the framework-native :class:`~srmech.math.mat.Mat` carrier (consumed straight
 from the numpy-free :mod:`srmech.qm.relativistic` producers ``minkowski_metric``
 / ``dirac_operator_momentum_space``), the ``k^μ k^ν`` outer product routes
 through the Class-L :func:`~srmech.math.laplacian.mat_matmul` (column·row), the
@@ -44,7 +44,7 @@ from __future__ import annotations
 from typing import Optional, Sequence
 
 from srmech.math.laplacian import mat_matmul
-from srmech.amsc.mat import Mat
+from srmech.math.mat import Mat
 from srmech.qm.relativistic import (
     dirac_operator_momentum_space,
     four_momentum_squared,

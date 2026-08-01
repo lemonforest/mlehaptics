@@ -33,7 +33,7 @@ def _dec(q):
 def test_cascade_import_is_numpy_free():
     """The hypercomplex_dft module is numpy-FREE (rc125 #564): the DFT
     composites carry their octonion vectors as ``list[float]`` and the
-    octonion-rep operators as the numpy-free :class:`srmech.amsc.mat.Mat`, so
+    octonion-rep operators as the numpy-free :class:`srmech.math.mat.Mat`, so
     the module source has ZERO numpy — no top-level import, no ``np.`` callsite,
     no lazy proxy."""
     import inspect

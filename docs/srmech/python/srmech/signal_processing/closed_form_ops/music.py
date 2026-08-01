@@ -26,7 +26,7 @@ from __future__ import annotations
 from typing import List
 
 from srmech.math.laplacian import mat_hermitian_eigendecompose, mat_matmul
-from srmech.amsc.mat import Mat
+from srmech.math.mat import Mat
 
 OPERATION_NAME = "music"
 CLASS_COMPOSITION = ("L", "K")
@@ -50,7 +50,7 @@ def op(
     Parameters
     ----------
     R:
-        ``(M, M)`` Hermitian covariance matrix (a :class:`~srmech.amsc.mat.Mat`,
+        ``(M, M)`` Hermitian covariance matrix (a :class:`~srmech.math.mat.Mat`,
         a nested sequence, or anything with ``tolist()`` — coerced numpy-free).
     steering_vectors:
         ``(M, K)`` candidate array-manifold vectors (one per angle bin).

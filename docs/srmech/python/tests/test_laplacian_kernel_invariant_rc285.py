@@ -81,7 +81,7 @@ from srmech.math.laplacian import (
     mat_matmul,
     symmetric_eigendecompose,
 )
-from srmech.amsc.mat import Mat
+from srmech.math.mat import Mat
 from srmech.math.rational import cos as _q_cos
 
 # FPU tolerance for a float eigensolve. NOT loosened for any solver: the

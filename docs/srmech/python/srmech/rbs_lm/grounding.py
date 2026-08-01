@@ -55,7 +55,7 @@ from __future__ import annotations
 import re
 
 from srmech.math import hdc
-from srmech.amsc.hv import HV
+from srmech.math.hv import HV
 
 __all__ = [
     "encode_aboutness",

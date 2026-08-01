@@ -39,7 +39,7 @@ import pytest
 
 from srmech.amsc import genome as G
 from srmech.amsc import _native
-from srmech.amsc.hv import HV
+from srmech.math.hv import HV
 
 
 def _one(dim=64):

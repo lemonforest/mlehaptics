@@ -23,7 +23,7 @@ from typing import Tuple
 
 from srmech.amsc import _native
 from srmech.math.laplacian import mat_matmul, mat_norm
-from srmech.amsc.mat import Mat
+from srmech.math.mat import Mat
 
 
 # Canonical −i: a TRUE-ZERO real part (+0.0). The literal ``-1j`` carries
@@ -58,7 +58,7 @@ def pauli_matrices() -> Tuple["Mat", "Mat", "Mat"]:
     """Return the three Pauli matrices ``(σ_x, σ_y, σ_z)``.
 
     numpy-FREE (v0.7.5rc115, #564) — each is an **exact** 2×2 complex
-    Hermitian :class:`~srmech.amsc.mat.Mat` with entries in ``{0, ±1, ±i}``
+    Hermitian :class:`~srmech.math.mat.Mat` with entries in ``{0, ±1, ±i}``
     (no float approximation; entries are plain Python ``complex`` scalars).
 
     rc212 (#755): dispatches to the standalone-C constant emitter

@@ -11,8 +11,8 @@ carrier ratchet.
 
 Why these are banned:
   * **numpy** — srmech is numpy-FREE (the rc69–rc134 carrier-removal arc). Every
-    numpy idiom has a framework-native carrier (:class:`srmech.amsc.hv.HV` /
-    :class:`srmech.amsc.mat.Mat` + the native dense kernels, ``rational.*`` for
+    numpy idiom has a framework-native carrier (:class:`srmech.math.hv.HV` /
+    :class:`srmech.math.mat.Mat` + the native dense kernels, ``rational.*`` for
     transcendentals). A new ``import numpy`` / ``np.`` reverses that work.
   * **Counter / defaultdict** — the hand-rolled ``Counter()`` co-occurrence
     idiom is the CLAUDE.md STOP-list contaminant (a statistical-LM tell). The

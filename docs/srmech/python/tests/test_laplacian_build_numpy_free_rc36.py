@@ -82,7 +82,7 @@ def test_numpy_free_build_dispatches_and_is_correct():
     """Post-#564 the public builders are numpy-free by default; rc129 each
     returns a numpy-free ``Mat`` (``.shape`` + ``m[i, j]``) — native list-marshal
     when HAS_NATIVE, else pure Python — matching the hand-computed matrix."""
-    from srmech.amsc.mat import Mat
+    from srmech.math.mat import Mat
     assert not hasattr(_lap, "np")     # numpy is gone, not merely monkeypatched
     for fn, pub in _FNS.items():
         out = pub(_N, _EDGES, _WTS)

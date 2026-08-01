@@ -124,7 +124,7 @@ from ...math.rational import (
     sin_series_truncate,
     _reduce_rational,
 )
-from ..q import Q
+from ...math.q import Q
 
 # ──────────────────────────────────────────────────────────────────────
 # Substrate constants — BOTH partitions of the same 14, named once.
@@ -680,7 +680,7 @@ class One:
 
     def to_matrix(self) -> "Mat":
         """The 14×14 block-diagonal operator ``G(σ,θ)`` as a numpy-free
-        :class:`~srmech.amsc.mat.Mat` (real).
+        :class:`~srmech.math.mat.Mat` (real).
 
         ``G`` is ``⨁_n (1 ⊕ σ R_n(θ))`` — the identity on each ``ℝ·1`` axis
         and ``σ`` times the octonion-native rotation ``R_n(θ)`` on each
@@ -691,7 +691,7 @@ class One:
         imaginary part). This is the matrix the qm-peer
         :mod:`srmech.qm.hurwitz` must agree with (the Rosetta parity).
         """
-        from srmech.amsc.mat import Mat
+        from srmech.math.mat import Mat
 
         # cos θ / sin θ recovered from the stored ADJOINT (σ·cos at
         # ``blocks[1].imag[0]``, σ·sin at ``blocks[1].imag[1]`` — the ℍ Fano
@@ -1355,7 +1355,7 @@ def one_flat_rational(one: "One") -> Tuple[Tuple[int, int], ...]:
 
 
 def one_matrix(one: "One"):
-    """Flat-op accessor — the 14×14 numpy-free :class:`~srmech.amsc.mat.Mat`
+    """Flat-op accessor — the 14×14 numpy-free :class:`~srmech.math.mat.Mat`
     operator ``G(σ,θ)``. See :meth:`One.to_matrix`."""
     return one.to_matrix()
 

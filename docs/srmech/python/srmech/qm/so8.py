@@ -35,7 +35,7 @@ dependency, lazily imported with a fallback elsewhere, so ``srmech.qm`` must
 import cleanly on a scipy-less / Pyodide install.)
 
 rc123 (numpy-free, #564): the whole module flips off numpy onto the
-framework-native carriers. 2-D matrices are :class:`srmech.amsc.mat.Mat`
+framework-native carriers. 2-D matrices are :class:`srmech.math.mat.Mat`
 (the public surfaces return ``Mat``); the heavy linear algebra routes through
 the unconditionally-numpy-free ``mat_*`` family (:func:`mat_matmul`,
 :func:`mat_svd`, :func:`mat_hermitian_eigendecompose`) and pure-Python
@@ -69,14 +69,14 @@ from __future__ import annotations
 import functools
 from typing import Dict, List, Sequence, Tuple
 
-from srmech.amsc.q import Q                   # #845: exact-ℚ carrier (was Fraction)
+from srmech.math.q import Q                   # #845: exact-ℚ carrier (was Fraction)
 
 from srmech.math import rational as _srn
 
 from srmech.amsc.cascade import magnitude as _magnitude
 from srmech.amsc.cascade import best_rational_signed as _brs  # #845: signed float→ℚ snap
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
-from srmech.amsc.mat import Mat
+from srmech.math.mat import Mat
 from srmech.math.laplacian import (
     mat_hermitian_eigendecompose,
     mat_matmul,

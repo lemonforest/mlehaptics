@@ -102,7 +102,7 @@ def test_triality_imports_and_runs_numpy_free():
         """
         from srmech.qm import triality
         from srmech.math.laplacian import mat_matmul, mat_norm
-        from srmech.amsc.mat import Mat
+        from srmech.math.mat import Mat
         tau = triality.triality_automorphism()
         assert type(tau).__name__ == "Mat" and tau.shape == (28, 28)
         t3 = mat_matmul(mat_matmul(tau, tau), tau)

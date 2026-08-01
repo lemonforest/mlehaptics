@@ -27,7 +27,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from srmech.apokatastasis.ellbase import EllMonomial as E
-from srmech.amsc.q import Q
+from srmech.math.q import Q
 from srmech.apokatastasis import riemann_theta_multisum as R
 from srmech.apokatastasis.riemann_theta_multisum import (
     ThetaBracket, ThetaBracketSum, riemann_theta_multisum_lhs,

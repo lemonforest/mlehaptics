@@ -39,7 +39,7 @@ from srmech.amsc.genome import (
 )
 from srmech.amsc.q8 import q8_from_one, q8_bind, q8_project_v4
 from srmech.amsc.cascade.one import the_one
-from srmech.amsc.hv import HV
+from srmech.math.hv import HV
 
 
 _LD = 16

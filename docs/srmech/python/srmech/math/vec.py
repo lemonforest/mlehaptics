@@ -1,6 +1,6 @@
-"""srmech.amsc.vec — the framework-native 1-D vector carrier (numpy-free).
+"""srmech.math.vec — the framework-native 1-D vector carrier (numpy-free).
 
-The 1-D peer of :class:`srmech.amsc.mat.Mat`. Where :class:`Mat` carries a dense
+The 1-D peer of :class:`srmech.math.mat.Mat`. Where :class:`Mat` carries a dense
 2-D matrix over a flat ``array('d')``, :class:`Vec` carries a dense 1-D vector
 over the same flat ``array('d')`` buffer — the carrier the numpy-free Class-L
 ops (``fiedler_vector`` / ``dense_matvec_*`` / ``jacobi_eigvals`` eigenvalues /
@@ -133,7 +133,7 @@ class Vec:
     # (srmech_vec_*) when HAS_NATIVE, over the SAME array('d') buffer zero-copy;
     # the pure-Python bodies are the COMPLETE alternative + the byte-exact oracle.
     def _native_unary(self, kind: str):
-        from . import _native  # lazy: _native has no Vec dependency
+        from ..amsc import _native  # lazy: _native has no Vec dependency
         out = _native.vec_unary_c(self._buf, self._n, self._complex, kind)
         if out is None:
             return None
@@ -158,7 +158,7 @@ class Vec:
         numpy's own contraction. ``Vec·Vec`` (or a flat 1-D sequence) → a scalar
         inner product ``Σ aᵢ bᵢ``; ``Vec·Mat`` (row-vector · matrix) →
         :class:`Vec`. Format-preserving (rc130)."""
-        from ..math import laplacian as _L  # lazy (avoid import cycle)
+        from . import laplacian as _L  # lazy (avoid import cycle)
         from .mat import Mat, _is_matrix_like, _carrier_is_complex
         cplx = self._complex or _carrier_is_complex(other)
         if _is_matrix_like(other):
@@ -173,7 +173,7 @@ class Vec:
         """``B·v`` for a non-:class:`Vec` left operand: a 2-D sequence →
         ``M·v`` (a :class:`Vec`); a flat 1-D sequence → the scalar inner
         product. (``Mat·Vec`` is served by :meth:`Mat.__matmul__`.)"""
-        from ..math import laplacian as _L  # lazy (avoid import cycle)
+        from . import laplacian as _L  # lazy (avoid import cycle)
         from .mat import _is_matrix_like, _carrier_is_complex
         cplx = self._complex or _carrier_is_complex(other)
         if _is_matrix_like(other):
@@ -211,7 +211,7 @@ class Vec:
         or a scalar (C scalar broadcast). Returns a :class:`Vec` or ``None``
         (reflected sub/div, sequence coercion, cross-rank fall to the pure
         :meth:`_elementwise`). ``kind`` in {"add","sub","mul"}."""
-        from . import _native  # lazy
+        from ..amsc import _native  # lazy
         if isinstance(other, Vec) and other._n == self._n:
             res = _native.vec_binary_c(self._buf, self._complex, other._buf,
                                        other._complex, self._n, kind)

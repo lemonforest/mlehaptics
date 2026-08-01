@@ -25,9 +25,9 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc.q import Q
-from srmech.amsc.qalg import Qalg
-from srmech.amsc.qi import Qi
+from srmech.math.q import Q
+from srmech.math.qalg import Qalg
+from srmech.math.qi import Qi
 
 
 def test_numpy_is_absent_so_this_runs_not_skips():
