@@ -58,8 +58,8 @@ from srmech.cascade import (
     cd_norm_sq,
 )
 from srmech.cascade.cayley_dickson import INERTIA_FORMS
-from srmech.qm.octonion import octonion_mult_table
-from srmech.qm.quaternion import quaternion_mult_table
+from srmech.physics.qm.octonion import octonion_mult_table
+from srmech.physics.qm.quaternion import quaternion_mult_table
 
 
 _INERTIA_NATIVE = (

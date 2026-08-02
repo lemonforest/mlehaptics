@@ -314,47 +314,47 @@ def _varq(rung: Any) -> Dict[str, Any]:
 _OP_CONTRACTS: Dict[str, Dict[str, Any]] = {
     # ── Cayley–Dickson: qm.octonion (FIXED rung 8) ────────────────────────────
     "octonion_conjugate": {
-        "tool": "srmech.qm.octonion.octonion_conjugate",
+        "tool": "srmech.physics.qm.octonion.octonion_conjugate",
         "consumes": _cd(8), "produces": _cd(8)},
     "octonion_norm": {
-        "tool": "srmech.qm.octonion.octonion_norm",
+        "tool": "srmech.physics.qm.octonion.octonion_norm",
         "consumes": _cd(8), "produces": _FLOAT},
     "octonion_left_mult": {
-        "tool": "srmech.qm.octonion.octonion_left_mult",
+        "tool": "srmech.physics.qm.octonion.octonion_left_mult",
         "consumes": _cd(8), "produces": _MAT},
     "octonion_right_mult": {
-        "tool": "srmech.qm.octonion.octonion_right_mult",
+        "tool": "srmech.physics.qm.octonion.octonion_right_mult",
         "consumes": _cd(8), "produces": _MAT},
     "octonion_exp": {
-        "tool": "srmech.qm.octonion.octonion_exp",
+        "tool": "srmech.physics.qm.octonion.octonion_exp",
         "consumes": _SCALARS, "produces": _cd(8)},
     "octonion_exp_series_truncate": {
-        "tool": "srmech.qm.octonion.octonion_exp_series_truncate",
+        "tool": "srmech.physics.qm.octonion.octonion_exp_series_truncate",
         "consumes": _SCALARS, "produces": _cd(8)},
     "octonion_twiddle": {
-        "tool": "srmech.qm.octonion.octonion_twiddle",
+        "tool": "srmech.physics.qm.octonion.octonion_twiddle",
         "consumes": _SCALARS, "produces": _cd(8)},
     # ── Cayley–Dickson: qm.quaternion (FIXED rung 4) ──────────────────────────
     "quaternion_conjugate": {
-        "tool": "srmech.qm.quaternion.quaternion_conjugate",
+        "tool": "srmech.physics.qm.quaternion.quaternion_conjugate",
         "consumes": _cd(4), "produces": _cd(4)},
     "quaternion_norm": {
-        "tool": "srmech.qm.quaternion.quaternion_norm",
+        "tool": "srmech.physics.qm.quaternion.quaternion_norm",
         "consumes": _cd(4), "produces": _FLOAT},
     "quaternion_left_mult": {
-        "tool": "srmech.qm.quaternion.quaternion_left_mult",
+        "tool": "srmech.physics.qm.quaternion.quaternion_left_mult",
         "consumes": _cd(4), "produces": _MAT},
     "quaternion_right_mult": {
-        "tool": "srmech.qm.quaternion.quaternion_right_mult",
+        "tool": "srmech.physics.qm.quaternion.quaternion_right_mult",
         "consumes": _cd(4), "produces": _MAT},
     "quaternion_exp": {
-        "tool": "srmech.qm.quaternion.quaternion_exp",
+        "tool": "srmech.physics.qm.quaternion.quaternion_exp",
         "consumes": _SCALARS, "produces": _cd(4)},
     "quaternion_exp_series_truncate": {
-        "tool": "srmech.qm.quaternion.quaternion_exp_series_truncate",
+        "tool": "srmech.physics.qm.quaternion.quaternion_exp_series_truncate",
         "consumes": _SCALARS, "produces": _cd(4)},
     "quaternion_twiddle": {
-        "tool": "srmech.qm.quaternion.quaternion_twiddle",
+        "tool": "srmech.physics.qm.quaternion.quaternion_twiddle",
         "consumes": _SCALARS, "produces": _cd(4)},
     # ── Cayley–Dickson: generic cascade.cd_* (VARIADIC "any" rung) ────────────
     "cd_mult": {

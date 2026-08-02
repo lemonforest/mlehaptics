@@ -1,4 +1,4 @@
-"""Tests for srmech.qm.sm (electroweak, Higgs, Yukawa, CKM).
+"""Tests for srmech.physics.qm.sm (electroweak, Higgs, Yukawa, CKM).
 
 numpy-FREE (v0.7.5rc116, #564): ``ckm_matrix`` returns a numpy-free
 :class:`~srmech.math.mat.Mat`; these tests use no numpy — unitarity is
@@ -14,7 +14,7 @@ import math
 import pytest
 
 from srmech.math.laplacian import mat_matmul
-from srmech.qm import sm
+from srmech.physics.qm import sm
 
 
 def _max_dev_from_identity(m) -> float:

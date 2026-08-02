@@ -1,6 +1,6 @@
 """Q8 — the DISCRETE quaternion group ``Q₈ = {±1, ±i, ±j, ±k}`` as 3-bit
 bytes (0.9.0rc310): the discrete peer of the CONTINUOUS ``ℍ`` surface in
-:mod:`srmech.qm.quaternion`. Where ``qm.quaternion`` carries float64
+:mod:`srmech.physics.qm.quaternion`. Where ``qm.quaternion`` carries float64
 quaternions (the 4×4 ``L_q``/``R_q`` operators, the ``exp(μθ)`` twiddle),
 this module carries a Q₈ element in a single ``uint8`` and multiplies it in
 pure INTEGER bit-arithmetic — no floats, so no FMA / FP-contraction concern.
@@ -174,7 +174,7 @@ def q8_conjugate(a: int) -> int:
     ``q8_mult(a, q8_conjugate(a)) == 0`` for every ``a`` (and likewise on the
     left). Class C (chirality / orientation); a plain sign-bit flip (no
     ``abs()``), the discrete mirror of
-    :func:`srmech.qm.quaternion.quaternion_conjugate`. Dispatches to the
+    :func:`srmech.physics.qm.quaternion.quaternion_conjugate`. Dispatches to the
     same-rc C peer ``srmech_q8_conjugate`` (byte-exact pure fallback).
 
     Args:

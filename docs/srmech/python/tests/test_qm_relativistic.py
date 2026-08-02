@@ -1,4 +1,4 @@
-"""Tests for srmech.qm.relativistic (Dirac γ-matrices, Weyl, Majorana, KG).
+"""Tests for srmech.physics.qm.relativistic (Dirac γ-matrices, Weyl, Majorana, KG).
 
 numpy-FREE (v0.7.5rc118, #564): the γ-matrices and derived 4×4 operators are
 numpy-free :class:`~srmech.math.mat.Mat`; these tests use **no numpy** — every
@@ -15,7 +15,7 @@ import pytest
 
 from srmech.math.laplacian import mat_matmul, mat_norm, mat_solve
 from srmech.math.mat import Mat
-from srmech.qm import relativistic as rel
+from srmech.physics.qm import relativistic as rel
 
 
 # ----------------------------------------------------------------------

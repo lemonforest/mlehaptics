@@ -3,7 +3,7 @@
 # "the One" S(σ,θ) under its Hurwitz name, declared the class-from-TOML way
 # (srmech.dsl.make_class) — a method that BINDS the EXACT, numpy-free cascade
 # generator srmech.cascade.the_one. There was never supposed to be a numpy
-# Rosetta-peer: the old hand-coded srmech.qm.hurwitz.hurwitz_matrix was a float
+# Rosetta-peer: the old hand-coded srmech.physics.qm.hurwitz.hurwitz_matrix was a float
 # duplicate of One.to_matrix (np.zeros, cos/sin float-divided — continuous-float
 # math that SUMS error every op, not correct-for-science). This TOML class is the
 # correct realization: zero Python, no numpy, the exact (num,den) One; the float

@@ -69,8 +69,8 @@ import srmech.cascade.hypercomplex_dft as hd
 from srmech import _native
 from srmech.cascade import octonion_dft, quaternion_dft
 from srmech.math.mat import Mat
-from srmech.qm import octonion as oct_mod
-from srmech.qm.octonion import (
+from srmech.physics.qm import octonion as oct_mod
+from srmech.physics.qm.octonion import (
     octonion_conjugate,
     octonion_exp,
     octonion_exp_series_truncate,
@@ -476,15 +476,15 @@ def test_rosetta_buckets():
     assert buckets[
         "srmech.cascade.hypercomplex_dft.octonion_dft"
     ] == "c_dispatched"
-    assert buckets["srmech.qm.octonion.octonion_exp"] == "c_dispatched"
-    assert buckets["srmech.qm.octonion.octonion_twiddle"] == "c_dispatched"
+    assert buckets["srmech.physics.qm.octonion.octonion_exp"] == "c_dispatched"
+    assert buckets["srmech.physics.qm.octonion.octonion_twiddle"] == "c_dispatched"
     # rc160 (Qalg TAIL Batch 4): octonion_exp_series_truncate LEFT
     # bignum_reference — it only packs the already-c_dispatched
     # rational.{cos,sin}_series_truncate into the Euler-formula 8-tuple, so it is
     # a composition_of_c (the compute already reaches C; the parked-oracle label
     # was the last thing to correct).
     assert buckets[
-        "srmech.qm.octonion.octonion_exp_series_truncate"
+        "srmech.physics.qm.octonion.octonion_exp_series_truncate"
     ] == "composition_of_c"
 
 
@@ -492,9 +492,9 @@ def test_octonion_twiddle_family_tool_entries_registered():
     from srmech.introspect.tool_schema import get_tool_schema
     schema = get_tool_schema()
     for name in (
-        "srmech.qm.octonion.octonion_exp",
-        "srmech.qm.octonion.octonion_exp_series_truncate",
-        "srmech.qm.octonion.octonion_twiddle",
+        "srmech.physics.qm.octonion.octonion_exp",
+        "srmech.physics.qm.octonion.octonion_exp_series_truncate",
+        "srmech.physics.qm.octonion.octonion_twiddle",
     ):
         entry = schema.lookup(name)
         assert entry is not None

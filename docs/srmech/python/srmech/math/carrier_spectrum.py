@@ -3,7 +3,7 @@
 and exposes the BLOCK STRUCTURE that makes the elliptic key-equation solve genuinely
 NON-brute-force (block-decomposed, not dense-in-disguise).
 
-Where :func:`srmech.qm.so8`'s ``the_one`` ``S(σ, θ)`` is the OPERATOR generator — its
+Where :func:`srmech.physics.qm.so8`'s ``the_one`` ``S(σ, θ)`` is the OPERATOR generator — its
 shape IS the A–N verbs (the algebra side) — ``CarrierSpectrum`` is the OPERAND object:
 its shape is the carrier's Class-L shift-Laplacian eigenbasis (the module / excitation
 side). Operator ↔ operand = algebra ↔ module = field ↔ excitation (the duality the

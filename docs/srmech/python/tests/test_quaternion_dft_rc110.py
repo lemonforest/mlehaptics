@@ -57,7 +57,7 @@ from srmech import _native
 from srmech.cascade import quaternion_dft
 from srmech.cascade.spectral_cascades import fft as complex_fft
 from srmech.math.mat import Mat
-from srmech.qm import quaternion as quat
+from srmech.physics.qm import quaternion as quat
 
 FORMS = ("left", "right")
 NS = (1, 2, 3, 5, 7, 8, 12, 16)          # incl. non-powers-of-2 (3, 5, 7, 12)

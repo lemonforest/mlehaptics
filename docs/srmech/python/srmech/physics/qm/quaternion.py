@@ -13,13 +13,13 @@ ships the two foundation pieces the QDFT/ODFT cascades stand on:
 1. First-class ``quaternion_left_mult`` / ``quaternion_right_mult`` — the
    4×4 real matrix representations ``L_q`` (``x → q·x``) and ``R_q``
    (``x → x·q``) — so the QDFT needn't slice the top-left 4×4 block of the
-   8×8 octonion matrix (:mod:`srmech.qm.octonion`).
+   8×8 octonion matrix (:mod:`srmech.physics.qm.octonion`).
 2. The hypercomplex twiddle ``exp(μθ) = cos θ·1 + sin θ·μ̂`` for a UNIT pure
    imaginary ``μ̂`` (the quaternion Euler formula), shaped so the QDFT twiddle
    factors ``exp(μ·2πjk/N)`` fall out naturally (:func:`quaternion_twiddle`).
 
 FIXED CONVENTION — the SAME Cayley-Dickson doubling that fixes
-:mod:`srmech.qm.octonion` (``ℝ → ℂ → ℍ → 𝕆``):
+:mod:`srmech.physics.qm.octonion` (``ℝ → ℂ → ℍ → 𝕆``):
 
 - doubling rule:  ``(a, b) * (c, d) = (a*c - conj(d)*b, d*a + b*conj(c))``
 - conjugation:    ``conj((a, b)) = (conj(a), -b)``; ``conj(scalar) = scalar``
@@ -196,7 +196,7 @@ def quaternion_table_attestation() -> dict:
     convention IS the provenance, so ``response_sha256`` content-addresses
     the table's 64 int8 bytes via :func:`srmech.amsc.format.sha256_bytes`
     (Class A; no new ``hashlib.sha256``). Same shape and citation chain as
-    :func:`srmech.qm.octonion.octonion_table_attestation` — ℍ needs no new
+    :func:`srmech.physics.qm.octonion.octonion_table_attestation` — ℍ needs no new
     external source (Baez (2002) §1 covers the quaternions and the ladder).
 
     Returns:
@@ -206,7 +206,7 @@ def quaternion_table_attestation() -> dict:
     response_sha256 = _sha256_bytes(_table_int8_bytes())
     parser_rule_hash = _sha256_bytes(_DOUBLING_RULE + b"\n" + _CONJ_RULE)
     descriptor_hash = _sha256_bytes(
-        b"srmech/qm/quaternion.py::cayley_dickson_from_C"
+        b"srmech/physics/qm/quaternion.py::cayley_dickson_from_C"
     )
     return {
         "mpr_version": "1.0",
@@ -227,7 +227,7 @@ def quaternion_table_attestation() -> dict:
             "response_sha256": response_sha256,
             "parser_version": "srmech 0.9.0",
             "parser_rule_hash": parser_rule_hash,
-            "collector_descriptor_path": "srmech/qm/quaternion.py",
+            "collector_descriptor_path": "srmech/physics/qm/quaternion.py",
             "collector_descriptor_hash": descriptor_hash,
         },
         "rendering": {
@@ -397,7 +397,7 @@ def quaternion_conjugate(x: Sequence[float]) -> List[float]:
     Flips the sign of the three imaginary axes (the scalar axis is fixed).
     For a UNIT twiddle it is the inverse: ``conj(exp(μθ)) = exp(−μθ)`` — the
     inverse-QDFT twiddle. Class C (chirality / orientation); a plain sign
-    flip (no ``abs()``), mirroring :func:`srmech.qm.octonion.octonion_conjugate`.
+    flip (no ``abs()``), mirroring :func:`srmech.physics.qm.octonion.octonion_conjugate`.
     Dispatches to the same-rc C peer ``srmech_quaternion_conjugate`` (byte-exact
     pure fallback otherwise).
 
@@ -430,13 +430,13 @@ def quaternion_norm(x: Sequence[float]) -> float:
     for a genuine null vector. Not a latent bug here — this module cannot
     construct a split algebra — but for a twist use
     ``cd_norm_sq(x, gammas=…)``. Peer of
-    :func:`srmech.qm.octonion.octonion_norm`, same scope.
+    :func:`srmech.physics.qm.octonion.octonion_norm`, same scope.
 
     The sum-of-squares is reduced to a scalar float, passed through the Class K
     pin-slot magnitude (:func:`srmech.cascade.magnitude` — the
     cascade-honest ``abs()`` replacement), then the Class-N
     :func:`srmech.math.rational.sqrt`. Mirrors
-    :func:`srmech.qm.octonion.octonion_norm` at dim 4.
+    :func:`srmech.physics.qm.octonion.octonion_norm` at dim 4.
 
     Args:
         x: A 4-vector quaternion.

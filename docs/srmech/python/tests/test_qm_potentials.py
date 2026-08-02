@@ -1,4 +1,4 @@
-"""Tests for srmech.qm.potentials (hydrogen radial, harmonic oscillator) — numpy-FREE.
+"""Tests for srmech.physics.qm.potentials (hydrogen radial, harmonic oscillator) — numpy-FREE.
 
 potentials flipped numpy-free onto the ``Mat`` carrier at rc121 (#564): the
 ladder/Hamiltonian are ``Mat``, ``hydrogen_radial`` returns ``(list, list, Mat)``.
@@ -16,7 +16,7 @@ import pytest
 from srmech.math import rational as _srn
 from srmech.math.laplacian import mat_hermitian_eigendecompose, mat_matmul
 from srmech.math.mat import Mat
-from srmech.qm import potentials, single_particle
+from srmech.physics.qm import potentials, single_particle
 
 
 def _mat_sub(a: "Mat", b: "Mat") -> "Mat":

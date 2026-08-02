@@ -715,7 +715,7 @@ def algebra_table(dim: int, gammas: Any = None) -> List[List[List[int]]]:
     Cayley–Dickson algebra — the CONTROL constructor (rc352, `#T997`).
 
     ``table[i][j][k]`` is the coefficient of ``e_k`` in ``e_i·e_j`` — the exact
-    shape :func:`srmech.qm.octonion.octonion_mult_table` returns and
+    shape :func:`srmech.physics.qm.octonion.octonion_mult_table` returns and
     :func:`inertia_signature` reads. The table is MONOMIAL by construction
     (``e_i·e_j = ±e_{i⊕j}``), so ``dim²`` of the ``dim³`` cells are nonzero.
 
@@ -1042,7 +1042,7 @@ def cd_cycle_holonomy(x: Sequence[Any], y: Sequence[Any], z: Sequence[Any],
                       table: Any = None) -> Dict[str, Any]:
     """The loop-holonomy accumulated around a **3-cycle** of Cayley–Dickson
     edges — the general-dim, any-rung peer of
-    :func:`srmech.qm.quaternion.quaternion_cycle_holonomy` (rc380, `#T1055`).
+    :func:`srmech.physics.qm.quaternion.quaternion_cycle_holonomy` (rc380, `#T1055`).
 
     A directed triangle ``0 →ˣ 1 →ʸ 2 →ᶻ 0`` carries a CD gain on each edge; the
     holonomy is the ordered product walked around the loop back to base. Where
@@ -1608,8 +1608,8 @@ def _structure_table(table: Any) -> List[List[List[int]]]:
     """Validate + normalise a rank-3 structure-constant table to nested ints.
 
     ``table[i][j][k]`` is the coefficient of ``e_k`` in ``e_i·e_j`` — the SAME
-    shape :func:`srmech.qm.octonion.octonion_mult_table` and
-    :func:`srmech.qm.quaternion.quaternion_mult_table` already return. The
+    shape :func:`srmech.physics.qm.octonion.octonion_mult_table` and
+    :func:`srmech.physics.qm.quaternion.quaternion_mult_table` already return. The
     dimension is ``len(table)``; NOTHING else supplies it.
     """
     rows = [list(r) for r in table]
@@ -1887,8 +1887,8 @@ def inertia_signature(table: Any) -> Dict[str, Any]:
     **It reads the TABLE, never a declared dimension, and never a coordinate
     shortcut.** The input is the rank-3 structure-constant tensor
     ``table[i][j][k] = `` the coefficient of ``e_k`` in ``e_i·e_j`` — the exact
-    shape :func:`srmech.qm.octonion.octonion_mult_table` and
-    :func:`srmech.qm.quaternion.quaternion_mult_table` already return. The
+    shape :func:`srmech.physics.qm.octonion.octonion_mult_table` and
+    :func:`srmech.physics.qm.quaternion.quaternion_mult_table` already return. The
     dimension is ``len(table)``; nothing consults ``CD_DIMS``,
     ``DIVISION_ALGEBRA_DIMS`` or any imaginary-dimension constant. In
     particular ``Re(x·x)`` is summed **from the structure constants**, never as

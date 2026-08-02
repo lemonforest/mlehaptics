@@ -92,7 +92,17 @@ per-annex row accounting and the issue history.
 #: op is attributed to. Append; do not reshuffle.
 ROSETTA_ROOTS = (
     "srmech.amsc",
-    "srmech.qm",
+    # v0.9.0rc381 (`#T1052`) — RENAMED IN PLACE from "srmech.qm". The ADR-0010
+    # physics slice moved the whole qm subpackage under the new srmech.physics
+    # DOMAIN (srmech.qm.X -> srmech.physics.qm.X). This is the one root that is a
+    # RENAME, not an append: qm was one of the three original compute roots, so
+    # its successor keeps that position (the walk recurses srmech.physics ->
+    # srmech.physics.qm -> its submodules). srmech.qm survives only as a
+    # deprecation alias and is deliberately NOT a walk root — walking it too
+    # would double-count every qm op. See the physics-domain landing note in
+    # test_rosetta_roots_single_source_rc361.py (srmech.physics migrates
+    # _ADR0010_NEW_NAMESPACES -> _ADR0010_EXISTING_DESTINATIONS this rc).
+    "srmech.physics",
     "srmech.signal_processing",
     "srmech.bus",
     "srmech.dsl",

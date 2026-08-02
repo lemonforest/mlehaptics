@@ -36,12 +36,12 @@ norm/conjugate route through Class K+C, never an ALU absolute value.
 **GRADUATION (0.9.0rc110 + rc111; #1234 Items 1b/1c, re-raise of #863):**
 
 - :func:`quaternion_dft` **GRADUATED at rc110** — a first-class op over the
-  rc109 ``srmech.qm.quaternion`` foundation (the 4×4 ``L_q``/``R_q``
+  rc109 ``srmech.physics.qm.quaternion`` foundation (the 4×4 ``L_q``/``R_q``
   operators + ``quaternion_twiddle``, no longer the sliced 8×8 octonion
   embedding) with the whole-transform C peer ``srmech_quaternion_dft``
   (byte-exact composed fallback).
 - :func:`octonion_dft` **GRADUATED at rc111** — first-class over the
-  ``srmech.qm.octonion`` foundation (the 8×8 ``L_a``/``R_a`` operators +
+  ``srmech.physics.qm.octonion`` foundation (the 8×8 ``L_a``/``R_a`` operators +
   the rc111 ``octonion_twiddle``) with the whole-transform C peer
   ``srmech_octonion_dft`` covering ALL THREE forms (left / right /
   two_sided; byte-exact composed fallback). The 𝕆 non-associativity makes
@@ -126,7 +126,7 @@ _BRACKETINGS = ("left_associated", "right_associated")
 
 
 # (rc111: the float `_twiddle8` helper GRADUATED into
-# ``srmech.qm.octonion.octonion_exp`` / ``octonion_twiddle`` — the ODFT
+# ``srmech.physics.qm.octonion.octonion_exp`` / ``octonion_twiddle`` — the ODFT
 # twiddle now rides the Q61-cascade qm.octonion foundation, not a local
 # float helper.)
 
@@ -418,7 +418,7 @@ def _odft_composed(xs: List[List[float]], form: str, bracketing: str,
     row-dot left-to-right → per-summand term → accumulate over m → one final
     scale; the two-sided form applies the DECLARED bracketing order), so the
     two paths are byte-exact — the parity contract, not a tolerance."""
-    from srmech.qm.octonion import (
+    from srmech.physics.qm.octonion import (
         _twiddle_resolved,
         octonion_left_mult,
         octonion_right_mult,
@@ -509,7 +509,7 @@ def _resolve_mu4_qdft(mu_axis) -> List[float]:
     equal-weight ``(i+j+k)/√3`` coupling axis, F436), a 4-sequence
     pure-imaginary vector (normalised via the Class-N sqrt cascade), or an
     ℍ-valued 8-sequence (``e4..e7 == 0``)."""
-    from srmech.qm import quaternion as _quat
+    from srmech.physics.qm import quaternion as _quat
     if isinstance(mu_axis, str):
         name = "ijk" if mu_axis == "diagonal" else mu_axis
         if name in _quat._MU_AXES:
@@ -582,7 +582,7 @@ def _qdft_composed(xs: List[List[float]], left: bool, inverse: bool,
     Float-op order MIRRORS the C peer exactly (twiddle → operator matrix →
     row-dot left-to-right → accumulate over n → one final scale), so the two
     paths are byte-exact — the parity contract, not a tolerance."""
-    from srmech.qm.quaternion import (
+    from srmech.physics.qm.quaternion import (
         _twiddle_resolved,
         quaternion_left_mult,
         quaternion_right_mult,
@@ -819,7 +819,7 @@ def octonion_dft(
             "two-sided octonion_dft inverse is open under non-associativity "
             "(F378); only the one-sided forms round-trip"
         )
-    from srmech.qm import octonion as _oct
+    from srmech.physics.qm import octonion as _oct
     if isinstance(x, _Mat):
         if x.is_complex:
             raise ValueError(

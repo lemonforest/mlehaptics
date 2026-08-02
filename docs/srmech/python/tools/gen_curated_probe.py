@@ -187,8 +187,8 @@ def _worked_ns():
         left_mult_is_invertible, left_mult_kernel, sedenion_register,
         sedenion_zero_divisor_witness, table_product, the_one,
     )
-    from srmech.qm.octonion import octonion_mult_table
-    from srmech.qm.quaternion import quaternion_mult_table
+    from srmech.physics.qm.octonion import octonion_mult_table
+    from srmech.physics.qm.quaternion import quaternion_mult_table
 
     gc_path = _Path(_attested.__file__).parent / "genetic_code" / "row.ndjson"
     gc = None

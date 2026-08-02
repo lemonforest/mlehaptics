@@ -1,5 +1,5 @@
 /*
- * srmech_octonion.c — C parity for the srmech.qm.octonion ODFT twiddle
+ * srmech_octonion.c — C parity for the srmech.physics.qm.octonion ODFT twiddle
  * family + the whole-transform OCTONION DFT (0.9.0rc111; issue #1234
  * Item 1c, re-raise of #863): srmech_octonion_exp / srmech_octonion_twiddle
  * (the dim-8 mirror of the rc109 srmech_quaternion_{exp,twiddle}) and

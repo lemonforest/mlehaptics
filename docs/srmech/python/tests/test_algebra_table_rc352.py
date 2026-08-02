@@ -48,8 +48,8 @@ from srmech import _native
 from srmech import cascade
 from srmech.cascade import cayley_dickson as cd
 from srmech.math.q import Q
-from srmech.qm.octonion import octonion_mult_table
-from srmech.qm.quaternion import quaternion_mult_table
+from srmech.physics.qm.octonion import octonion_mult_table
+from srmech.physics.qm.quaternion import quaternion_mult_table
 
 from tests._native_gate import require_native
 
@@ -377,8 +377,8 @@ def test_the_norm_docstring_names_its_scope():
     assert "SCOPE" in doc or "DECLARES WHICH ALGEBRA" in doc
     assert "null vector" in doc
     assert "gammas" in doc
-    for fn in (__import__("srmech.qm.octonion", fromlist=["x"]).octonion_norm,
-               __import__("srmech.qm.quaternion", fromlist=["x"]).quaternion_norm):
+    for fn in (__import__("srmech.physics.qm.octonion", fromlist=["x"]).octonion_norm,
+               __import__("srmech.physics.qm.quaternion", fromlist=["x"]).quaternion_norm):
         assert "SCOPE" in fn.__doc__, fn.__name__
 
 

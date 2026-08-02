@@ -43,7 +43,7 @@ R30 **final-refined** (substrate notebook §5): 11D-quantum-language and 14 = 1+
 
 ## §2 Use srmech for all maths + spectral-encoding tasks
 
-**`srmech`** = **Stored-Relationship Mechanism**. PyPI; [srmech.net](https://srmech.net) forwards to repo. THE framework-research tool — use it instead of bare Python math wherever possible. Current release v0.4.0 ships full **14-class C-parity primitive vocabulary** (A-N) + canonical **QM/QFT/SM operations layer** at `srmech.qm.*` (single_particle / spin / potentials / relativistic / propagators / pseudo_hermitian / gauge / sm).
+**`srmech`** = **Stored-Relationship Mechanism**. PyPI; [srmech.net](https://srmech.net) forwards to repo. THE framework-research tool — use it instead of bare Python math wherever possible. v0.4.0 shipped the full **14-class C-parity primitive vocabulary** (A-N) + the canonical **QM/QFT/SM operations layer** (single_particle / spin / potentials / relativistic / propagators / pseudo_hermitian / gauge / sm / octonion / quaternion / so8 / so9 / triality / hurwitz). **As of v0.9.0rc381 (ADR-0010 physics slice) that layer lives at `srmech.physics.qm.*`** — the whole `qm` subpackage moved under the new `srmech.physics` domain; `srmech.qm.*` still works for one release as a `DeprecationWarning`-emitting alias, so prefer `srmech.physics.qm.*` in new code.
 
 ### AMSC framework + MPM discipline (load-bearing across all spectral-research arcs)
 
@@ -111,7 +111,7 @@ Per `[[feedback_srmech_amsc_catalog_pitfalls]]` — 6 mandatory TOML sections; `
 
 ### Config-driven TOML class discipline (load-bearing)
 
-Per `[[feedback_prefer_config_driven_toml_classes]]` (user direction 2026-06-13) — **PREFER config-driven `[class]` TOML (`srmech.dsl.make_class`) over hand-coding srmech domain classes.** When a domain object is a cascade-of-the-14 composition (state + cascade-op-chain methods), declare it as a `[class]` TOML descriptor; the qm/hurwitz + genome treatment is the model. Carriers (`Mat`/`Vec`/`HV`), `srmech.bus`, adapters, and the `srmech.qm.*` physics op-families STAY Python. **Verified conversion cost:** follow the genome two-layer pattern (ship each method as a flat cascade op → bind in TOML); the `make_class` contract is one-op-per-method + a single `appends`/`sets` field, so dict/multi-field-state classes need a contract extension first (`SedenionRegister` is HARD, not a freebie; immutable accessor-shaped classes like `One` are cleaner first targets). Prove every conversion with a DSL-class-vs-Python equivalence test.
+Per `[[feedback_prefer_config_driven_toml_classes]]` (user direction 2026-06-13) — **PREFER config-driven `[class]` TOML (`srmech.dsl.make_class`) over hand-coding srmech domain classes.** When a domain object is a cascade-of-the-14 composition (state + cascade-op-chain methods), declare it as a `[class]` TOML descriptor; the qm/hurwitz + genome treatment is the model. Carriers (`Mat`/`Vec`/`HV`), `srmech.bus`, adapters, and the `srmech.physics.qm.*` physics op-families STAY Python. **Verified conversion cost:** follow the genome two-layer pattern (ship each method as a flat cascade op → bind in TOML); the `make_class` contract is one-op-per-method + a single `appends`/`sets` field, so dict/multi-field-state classes need a contract extension first (`SedenionRegister` is HARD, not a freebie; immutable accessor-shaped classes like `One` are cleaner first targets). Prove every conversion with a DSL-class-vs-Python equivalence test.
 
 ---
 

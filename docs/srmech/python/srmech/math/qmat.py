@@ -31,7 +31,7 @@ the Class-N ``Q`` arithmetic; ``@`` is the exact bilinear contraction; the
 headline linear algebra — :meth:`rref` / :meth:`rank` / :meth:`det` /
 :meth:`inverse` / :meth:`solve` / :meth:`nullspace` — is exact Gauss-Jordan over
 ℚ on a shared :func:`_rref_augmented` kernel (the same elimination as
-``srmech.qm.triality`` and ``matrix_cascades._qalg_rref``, but over plain ``Q``).
+``srmech.physics.qm.triality`` and ``matrix_cascades._qalg_rref``, but over plain ``Q``).
 Sign in pivoting / determinant is the **Class-K** pin-slot via an explicit ``Q``
 sign-branch, never an ALU ``abs()``. There is exactly ONE place a ``float``
 appears — :meth:`to_mat`, the terminal ALU→FPU rotation that lifts to a float64

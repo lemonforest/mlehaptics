@@ -1,7 +1,7 @@
 """klein4_triality_cycle — the order-3 S₃ = Aut(V₄) generator (v0.6.0rc17).
 
 The V₄-carrier image of the so(8) triality ``8v → 8s → 8c``
-(:func:`srmech.qm.triality.triality_cycle`): the three non-identity Klein-4
+(:func:`srmech.physics.qm.triality.triality_cycle`): the three non-identity Klein-4
 involutions cycle ``iω₇(1) → γ₅(2) → CPT(3) → iω₇(1)``, identity(0) fixed.
 Order 3 (``T∘T∘T = id``, ``T² = T⁻¹``). Class I — a pure uint8 relabel, no
 sign / no ``abs()``. This is the "third axis" (F182) that the three order-2
@@ -85,7 +85,7 @@ def test_rejects_out_of_range():
 
 def test_so8_triality_cycle_is_also_order_three():
     # the V₄-carrier op mirrors the so(8) rep-cycle's order-3 structure
-    from srmech.qm.triality import triality_cycle
+    from srmech.physics.qm.triality import triality_cycle
 
     assert triality_cycle(triality_cycle(triality_cycle("v"))) == "v"
 

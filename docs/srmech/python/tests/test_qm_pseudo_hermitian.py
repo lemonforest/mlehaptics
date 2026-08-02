@@ -1,4 +1,4 @@
-"""Tests for srmech.qm.pseudo_hermitian (η-deformed inner product framework).
+"""Tests for srmech.physics.qm.pseudo_hermitian (η-deformed inner product framework).
 
 numpy-FREE (v0.7.5rc124, #564): matrices are the framework-native
 :class:`srmech.math.mat.Mat`, vectors are plain ``complex`` lists, and the
@@ -13,7 +13,7 @@ import pytest
 
 from srmech.math.mat import Mat
 from srmech.math.laplacian import mat_matmul, mat_hermitian_eigendecompose
-from srmech.qm import pseudo_hermitian as ph
+from srmech.physics.qm import pseudo_hermitian as ph
 
 
 def _identity(n: int) -> "Mat":

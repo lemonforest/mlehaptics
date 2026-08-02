@@ -1,7 +1,7 @@
 """The so(9)/Spin(9) rung — one Cayley-Dickson step above so(8)/triality.
 
-The tower-traversal companion of :mod:`srmech.qm.so8` /
-:mod:`srmech.qm.triality` (v0.9.0rc323, task #945). Where so(8) is the
+The tower-traversal companion of :mod:`srmech.physics.qm.so8` /
+:mod:`srmech.physics.qm.triality` (v0.9.0rc323, task #945). Where so(8) is the
 28-dim adjoint acting on the octonions ``O`` (dim 8), ``so(9)`` is the
 **36-dim** adjoint (``36 = C(9, 2)``) and its **16-dim real spinor**
 ``Δ₉`` acts on ``O ⊕ O = R^16`` — the ``Spin(9)`` isotropy group of the
@@ -13,7 +13,7 @@ numpy-free on the framework-native :class:`~srmech.math.mat.Mat` carrier:
    :func:`_q_rank`).
 2. **The 16-dim real spinor** ``Δ₉`` — 9 real symmetric ``16x16`` Clifford
    generators ``Γ_a`` built from the octonion left-multiplications
-   (:func:`srmech.qm.octonion.octonion_left_mult`), satisfying
+   (:func:`srmech.physics.qm.octonion.octonion_left_mult`), satisfying
    ``{Γ_a, Γ_b} = 2 δ_{ab} I`` (Clifford, exact-integer); the 36 spin(9)
    generators ``Σ_{ab} = ¼[Γ_a, Γ_b]`` are antisymmetric ``16x16``, rank 36,
    and obey the SAME ``so(9)`` structure constants as the ``E_{pq}``.
@@ -30,7 +30,7 @@ the octonion / Clifford / Spin(9) parent facts are cited to Baez (2002);
 the specific 9-Γ construction, the rank-36, the Clifford relation, and the
 ``16 = 8_s ⊕ 8_c`` branching are this module's own bit-exact self-attesting
 COMPUTATION (DERIVED — the arithmetic is shown), NOT a transcription. The
-honesty split follows :func:`srmech.qm.so8.an_embedding`.
+honesty split follows :func:`srmech.physics.qm.so8.an_embedding`.
 
 **The associator ↔ Spin(9)-holonomy conjecture** (research;
 :func:`sedenion_holonomy_conjecture`) is tiered HONESTLY, respecting the
@@ -93,8 +93,8 @@ from srmech.cascade.cayley_dickson import cd_basis_product as _cd_basis_product
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
 from srmech.math.laplacian import mat_norm
 from srmech.math.mat import Mat
-from srmech.qm.octonion import octonion_left_mult
-from srmech.qm.so8 import g2_subalgebra
+from srmech.physics.qm.octonion import octonion_left_mult
+from srmech.physics.qm.so8 import g2_subalgebra
 
 # ── dimensions (the numbers the whole rung turns on) ──────────────────────
 _DIM9 = 9                     #: so(9) acts on R^9 (the vector rep).
@@ -115,7 +115,7 @@ _TOL = 1e-12
 
 #: A FIXED ISO timestamp for the self-attestations (deterministic on purpose,
 #: NOT ``datetime.now()`` — the attestation of a GENERATED structure must be
-#: reproducible; mirrors :data:`srmech.qm.so8._AN_RETRIEVED_AT`).
+#: reproducible; mirrors :data:`srmech.physics.qm.so8._AN_RETRIEVED_AT`).
 _RETRIEVED_AT = "2026-07-24T00:00:00Z"
 
 #: The generative rules whose bytes are the ``parser_rule_hash`` provenance.
@@ -221,7 +221,7 @@ def _q_rank(rows: Sequence[Sequence[int]]) -> int:
     exact integer (the generators) or an exact dyadic (``¼[Γ, Γ]`` scaled
     back to integer for ranking), so a :class:`~srmech.math.q.Q` Gaussian
     elimination is exact and the rank is the pivot count — the same discipline
-    as :func:`srmech.qm.so8._rank_exact`, but taking integer ROWS directly (no
+    as :func:`srmech.physics.qm.so8._rank_exact`, but taking integer ROWS directly (no
     float snap needed; these entries ARE exact). Rank is scale-invariant, so a
     dyadic generator is ranked via its integer ``×4`` form.
     """
@@ -258,7 +258,7 @@ def _flatten(m: Sequence[Sequence[int]]) -> List[int]:
 def _gen_bytes(mats: Sequence[Sequence[Sequence[int]]]) -> bytes:
     """Concatenated float64 bytes of integer matrices (Class A content
     address; the same row-major IEEE-754 little-endian layout
-    :func:`srmech.qm.so8._gen_bytes` produces)."""
+    :func:`srmech.physics.qm.so8._gen_bytes` produces)."""
     out = bytearray()
     for m in mats:
         buf = array("d", (float(x) for row in m for x in row))
@@ -273,7 +273,7 @@ def _gen_bytes(mats: Sequence[Sequence[Sequence[int]]]) -> bytes:
 def _lmat(i: int) -> List[List[int]]:
     """The ``8x8`` octonion left-multiplication ``L_{e_i}`` as an integer
     nested list (entries in ``{−1, 0, +1}``; ``L_{e_0} = I``). Built from the
-    attested :func:`srmech.qm.octonion.octonion_left_mult` — the SAME
+    attested :func:`srmech.physics.qm.octonion.octonion_left_mult` — the SAME
     Cayley-Dickson-from-H convention the whole so(8) engine uses.
     """
     e_i = [1 if k == i else 0 for k in range(_DIM8)]
@@ -346,7 +346,7 @@ def so9_adjoint_basis() -> Tuple[Mat, ...]:
 
     ``dim so(9) = C(9, 2) = 36``; the rank of the 36 ``E_{pq}`` is verified
     EXACTLY 36 over ℚ (:func:`_q_rank`). This is the rung above
-    :func:`srmech.qm.so8.so8_adjoint_basis` (dim 28 = ``C(8, 2)``): so(9)
+    :func:`srmech.physics.qm.so8.so8_adjoint_basis` (dim 28 = ``C(8, 2)``): so(9)
     contains so(8) as the ``E_{pq}`` with ``p, q <= 7``.
 
     Class M (the antisymmetric-matrix binders of the vector rep).
@@ -387,7 +387,7 @@ def spin9_gamma_matrices() -> Tuple[Mat, ...]:
     2^⌊9/2⌋ = 16``); it acts on ``O ⊕ O = R^16``. The 9 generators are
 
     - ``Γ_a = [[0, L_{e_a}], [L_{e_a}^T, 0]]`` for ``a = 0..7`` (built from the
-      octonion left-multiplications :func:`srmech.qm.octonion.octonion_left_mult`),
+      octonion left-multiplications :func:`srmech.physics.qm.octonion.octonion_left_mult`),
     - ``Γ_8 = diag(I_8, −I_8)`` (the chirality operator),
 
     and they satisfy the Clifford relation ``{Γ_a, Γ_b} = 2 δ_{ab} I_16``
@@ -513,7 +513,7 @@ def _branching_attestation(gammas, s4, extra: Dict[str, object]) -> Dict[str, ob
     (Class A content-address over the Γ + Σ float64 bytes)."""
     response_sha256 = _sha256_bytes(_gen_bytes(list(gammas) + list(s4)))
     parser_rule_hash = _sha256_bytes(_BRANCHING_RULE)
-    descriptor_hash = _sha256_bytes(b"srmech/qm/so9.py::spin8_in_spin9_branching")
+    descriptor_hash = _sha256_bytes(b"srmech/physics/qm/so9.py::spin8_in_spin9_branching")
     return {
         "mpr_version": "1.0",
         "data": dict(extra),
@@ -526,7 +526,7 @@ def _branching_attestation(gammas, s4, extra: Dict[str, object]) -> Dict[str, ob
             "response_sha256": response_sha256,
             "parser_version": "srmech 0.9.0",
             "parser_rule_hash": parser_rule_hash,
-            "collector_descriptor_path": "srmech/qm/so9.py",
+            "collector_descriptor_path": "srmech/physics/qm/so9.py",
             "collector_descriptor_hash": descriptor_hash,
         },
         "rendering": {
@@ -642,7 +642,7 @@ def spin8_in_spin9_branching() -> dict:
     The full ``8_s ≇ 8_c`` inequivalence is the recognized representation-theory
     fact (Baez 2002); the distinct-action witness is this op's bit-exact
     support. This is the spinor-side face of the same ``8_v / 8_s / 8_c``
-    triality the so(8) engine (:mod:`srmech.qm.triality`) reads on the vector
+    triality the so(8) engine (:mod:`srmech.physics.qm.triality`) reads on the vector
     side: ``8_v`` is the ``so(9)`` vector rep restricted to Spin(8), ``8_s`` /
     ``8_c`` are the two halves of ``Δ₉`` here.
 
@@ -782,7 +782,7 @@ def _conjecture_attestation(extra: Dict[str, object]) -> Dict[str, object]:
     content-address over the 36 spin(9) generators + 14 g₂-diagonals)."""
     response_sha256 = _sha256_bytes(_gen_bytes(_s4_int() + _g2_diag_int()))
     parser_rule_hash = _sha256_bytes(_CONJECTURE_RULE)
-    descriptor_hash = _sha256_bytes(b"srmech/qm/so9.py::sedenion_holonomy_conjecture")
+    descriptor_hash = _sha256_bytes(b"srmech/physics/qm/so9.py::sedenion_holonomy_conjecture")
     return {
         "mpr_version": "1.0",
         "data": dict(extra),
@@ -795,7 +795,7 @@ def _conjecture_attestation(extra: Dict[str, object]) -> Dict[str, object]:
             "response_sha256": response_sha256,
             "parser_version": "srmech 0.9.0",
             "parser_rule_hash": parser_rule_hash,
-            "collector_descriptor_path": "srmech/qm/so9.py",
+            "collector_descriptor_path": "srmech/physics/qm/so9.py",
             "collector_descriptor_hash": descriptor_hash,
         },
         "rendering": {

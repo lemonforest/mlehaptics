@@ -33,7 +33,7 @@ from srmech.math.hdc import (
     g2_three_form,
     loop_bind,
 )
-from srmech.qm.so8 import _rank_exact
+from srmech.physics.qm.so8 import _rank_exact
 
 DIM = 8
 SEED = 12345

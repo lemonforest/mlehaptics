@@ -1,5 +1,5 @@
 """rc310 — the DISCRETE quaternion group Q8 = {±1, ±i, ±j, ±k} as 3-bit bytes:
-the discrete peer of the continuous ℍ surface (``srmech.qm.quaternion``).
+the discrete peer of the continuous ℍ surface (``srmech.physics.qm.quaternion``).
 
 The load-bearing proofs:
 

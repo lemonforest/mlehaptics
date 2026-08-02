@@ -51,8 +51,12 @@ EXPECTED_N = 532
 #: UTF-8. Normalised rather than raw-file-bytes so a CRLF checkout cannot make
 #: the digest disagree between the Windows and Linux CI cells; that would be a
 #: platform artifact masquerading as a rename.
+# v0.9.0rc381 (`#T1052`) — regenerated for the ADR-0010 physics rename: the 99
+# ``srmech.qm.*`` op names became ``srmech.physics.qm.*`` (the qm subpackage moved
+# under the new srmech.physics domain). EXPECTED_N stays 532 — a pure rename, the
+# exact SAME-COUNT set change no count-pin can see and this witness exists to catch.
 EXPECTED_NAME_SET_SHA256 = (
-    "6a2151f177ee03b2cea8f564a9ee0254f772f285edff9b68a5483bcf4ab336ab")
+    "346c851b745f47f821c77594787460160dc534b7be420d56e4e9dff9102d6942")
 
 
 def _live_names() -> list[str]:

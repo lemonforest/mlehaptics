@@ -5,7 +5,7 @@ canonical QFT literature.
 
 numpy-FREE (v0.7.5rc123, #564): the 4×4 propagator numerators are held in
 the framework-native :class:`~srmech.math.mat.Mat` carrier (consumed straight
-from the numpy-free :mod:`srmech.qm.relativistic` producers ``minkowski_metric``
+from the numpy-free :mod:`srmech.physics.qm.relativistic` producers ``minkowski_metric``
 / ``dirac_operator_momentum_space``), the ``k^μ k^ν`` outer product routes
 through the Class-L :func:`~srmech.math.laplacian.mat_matmul` (column·row), the
 scalar Minkowski contraction ``k² = kᵀ η k`` is a numpy-free double-sum fold,
@@ -45,7 +45,7 @@ from typing import Optional, Sequence
 
 from srmech.math.laplacian import mat_matmul
 from srmech.math.mat import Mat
-from srmech.qm.relativistic import (
+from srmech.physics.qm.relativistic import (
     dirac_operator_momentum_space,
     four_momentum_squared,
     minkowski_metric,

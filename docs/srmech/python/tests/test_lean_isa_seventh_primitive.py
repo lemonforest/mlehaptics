@@ -1,7 +1,7 @@
 """Bit-exact acceptance tests for the lean-ISA seventh-primitive voxel.
 
 Per issue #761 (srmech MS#20 / F220 / R-RBS-LM-FINDING_220). The new
-``srmech.qm.triality.lean_isa_seventh_primitive`` presents the order-3
+``srmech.physics.qm.triality.lean_isa_seventh_primitive`` presents the order-3
 **triality** operator as the 7th lean-ISA primitive — making the
 chirality-complete A-N core explicit: **6 order-2 cascade.atoms + 1 order-3
 triality = 7**, the only access to the 3rd chiral axis.
@@ -42,8 +42,8 @@ from __future__ import annotations
 from srmech.cascade import magnitude
 from srmech.math.laplacian import mat_matmul, mat_norm
 from srmech.math.mat import Mat
-from srmech.qm import triality
-from srmech.qm.triality import lean_isa_seventh_primitive
+from srmech.physics.qm import triality
+from srmech.physics.qm.triality import lean_isa_seventh_primitive
 
 _TOL = 1e-9
 _BIT_EXACT = 1e-10
@@ -116,7 +116,7 @@ def test_seventh_primitive_is_triality_automorphism():
     result = lean_isa_seventh_primitive()
     assert (
         result["order_three_primitive"]
-        == "srmech.qm.triality.triality_automorphism"
+        == "srmech.physics.qm.triality.triality_automorphism"
     )
     tau = result["triality"]
     assert tau.shape == (28, 28)
@@ -282,7 +282,7 @@ def test_tool_entry_registered():
     from srmech.introspect import tool_schema
 
     schema = tool_schema.get_tool_schema()
-    name = "srmech.qm.triality.lean_isa_seventh_primitive"
+    name = "srmech.physics.qm.triality.lean_isa_seventh_primitive"
     entry = schema.lookup(name)
     assert entry is not None
     assert entry.name == name

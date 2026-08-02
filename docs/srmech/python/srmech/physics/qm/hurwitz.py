@@ -1,6 +1,6 @@
 """Hurwitz generator ``S(σ,θ)`` — the octonion-native matrix realisation.
 
-The ``srmech.qm`` Rosetta peer of the numpy-free
+The ``srmech.physics.qm`` Rosetta peer of the numpy-free
 :func:`srmech.cascade.the_one` (#887). It builds the SAME ``14×14``
 block-diagonal operator
 
@@ -16,7 +16,7 @@ row-sums and the column-sums of one table, not rival totals — see the
 ``Two partitions, one 14`` paragraph in :mod:`srmech.cascade.one`.
 
 The module **derives** the Fano planes of each rotation ``R_n(θ)`` straight from
-:func:`srmech.qm.octonion.octonion_mult_table` — not from a hardcoded list —
+:func:`srmech.physics.qm.octonion.octonion_mult_table` — not from a hardcoded list —
 so the agreement with the cascade form is a genuine cross-derivation (the
 two substrate-native languages, continuous-Hopf matrix vs discrete-cyclic
 cascade, computing the same object two ways), not a restatement.
@@ -39,7 +39,7 @@ N** exact-rational Taylor partials; ``σ`` is **Class K** sign ∘ **Class C**
 apply (never ``abs()``); the ``⨁`` over ``n`` is **Class I**. No new
 primitive class.
 
-Scientific tier (§22): ``srmech.qm`` requires numpy; the matrix entries are
+Scientific tier (§22): ``srmech.physics.qm`` requires numpy; the matrix entries are
 ``{0, ±1, ±cos θ, ±sin θ}`` built from the exact-rational cascade ``cos``/
 ``sin`` (float-cast at the boundary), so they are bit-exactly the entries of
 :meth:`srmech.cascade.One.to_matrix`.
@@ -54,7 +54,7 @@ from __future__ import annotations
 
 from typing import List, Tuple
 
-from srmech.qm.octonion import octonion_mult_table
+from srmech.physics.qm.octonion import octonion_mult_table
 
 #: The substrate dimension — 2+4+8 (carrier grouping, by algebra) =
 #: 1+3+7+3 (operator grouping, by role) = 14.
@@ -97,7 +97,7 @@ def hurwitz_planes() -> Tuple[Tuple[Tuple[int, int, int], ...], ...]:
     3`` planes for ℂ / ℍ / 𝕆. These match
     :data:`srmech.cascade.one.FANO_PLANES` bit-for-bit (the cascade form
     hardcodes them; this reads them from the attested
-    :func:`srmech.qm.octonion.octonion_mult_table`).
+    :func:`srmech.physics.qm.octonion.octonion_mult_table`).
 
     Class A (content-addressing): the planes ARE the octonion convention.
 

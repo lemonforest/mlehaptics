@@ -1,4 +1,4 @@
-"""rc33 cascade-routing parity tests for the srmech.qm.* layer.
+"""rc33 cascade-routing parity tests for the srmech.physics.qm.* layer.
 
 v0.7.0rc33 routes the numpy-math calls in the QM layer through srmech's
 own A-N cascade primitives:
@@ -33,7 +33,7 @@ from srmech.math import rational as _srn
 from srmech.cascade.matrix_cascades import eigvals, eigvals_exact
 from srmech.math.laplacian import hermitian_eigendecompose, mat_matmul
 from srmech.math.mat import Mat
-from srmech.qm import gauge, potentials, sm, single_particle as sp
+from srmech.physics.qm import gauge, potentials, sm, single_particle as sp
 
 
 # ----------------------------------------------------------------------

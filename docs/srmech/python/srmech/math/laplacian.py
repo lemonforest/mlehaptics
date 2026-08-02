@@ -3685,11 +3685,11 @@ def magnetic_laplacian(
 #     a multiple of 4. Callers dedupe by taking every 4th eigenvalue.
 #
 # CLASS: **Class L** (graph spectral) composing **Class-M** atoms
-# (:func:`srmech.qm.quaternion.quaternion_left_mult` is the Clifford / HDC
+# (:func:`srmech.physics.qm.quaternion.quaternion_left_mult` is the Clifford / HDC
 # bind); the gain conjugate is **Class C**
-# (:func:`srmech.qm.quaternion.quaternion_conjugate`) and the gain
+# (:func:`srmech.physics.qm.quaternion.quaternion_conjugate`) and the gain
 # normalisation is **Class K + Class C**
-# (:func:`srmech.qm.quaternion.quaternion_norm` — an exact-rational 4-vector
+# (:func:`srmech.physics.qm.quaternion.quaternion_norm` — an exact-rational 4-vector
 # hypot, NEVER an ALU ``abs()``; the 2-arg complex ``_modulus_c`` cannot take a
 # 4-vector, and the scalar cascade ``magnitude`` raises on a vector). Attested
 # SSoT (DERIVED-from-open-premises; the complex-unit-gain framing generalises
@@ -3716,11 +3716,11 @@ def _resolve_quaternion_gains(
     undirected control: ``L(e0) = I₄``, so the build collapses to
     ``½·(dense graph Laplacian) ⊗ I₄``). A supplied gain is normalised to
     ``Sp(1)`` via the **Class-K + Class-C**
-    :func:`srmech.qm.quaternion.quaternion_norm` (exact-rational 4-vector hypot,
+    :func:`srmech.physics.qm.quaternion.quaternion_norm` (exact-rational 4-vector hypot,
     never ``abs()``); a zero-norm gain raises. Resolved ONCE per public call so
     the assembly consumes identical floats.
     """
-    from srmech.qm.quaternion import quaternion_norm as _qnorm
+    from srmech.physics.qm.quaternion import quaternion_norm as _qnorm
     if gains is None:
         return [list(_QUATERNION_IDENTITY_GAIN) for _ in el]
     gl = [[float(c) for c in g] for g in gains]
@@ -3755,12 +3755,12 @@ def _quaternion_laplacian_blocks(
     term (the matrix is EXACTLY symmetric, no float asymmetry). Each endpoint's
     diagonal block gains ``(w/2)·I₄``; the accumulated ``deg[r]·I₄`` mirrors
     :func:`magnetic_laplacian`'s per-edge ``w/2`` magnitude scale.
-    ``L(g)`` = :func:`srmech.qm.quaternion.quaternion_left_mult` (Class-M bind,
-    native-dispatched); ``conj`` = :func:`srmech.qm.quaternion.quaternion_conjugate`
+    ``L(g)`` = :func:`srmech.physics.qm.quaternion.quaternion_left_mult` (Class-M bind,
+    native-dispatched); ``conj`` = :func:`srmech.physics.qm.quaternion.quaternion_conjugate`
     (Class C).
     """
-    from srmech.qm.quaternion import quaternion_left_mult as _qlm
-    from srmech.qm.quaternion import quaternion_conjugate as _qconj
+    from srmech.physics.qm.quaternion import quaternion_left_mult as _qlm
+    from srmech.physics.qm.quaternion import quaternion_conjugate as _qconj
     d = _QUATERNION_DIM
     dim = d * n
     L = [[0.0] * dim for _ in range(dim)]
@@ -3802,7 +3802,7 @@ def quaternion_laplacian(
     Each edge ``(u, v)`` carries a unit-quaternion **gain** ``g ∈ Sp(1)``; the
     ``4n×4n`` **real-symmetric** matrix is assembled block-wise from the 4×4
     real left-multiplication rep ``L(g)``
-    (:func:`srmech.qm.quaternion.quaternion_left_mult`):
+    (:func:`srmech.physics.qm.quaternion.quaternion_left_mult`):
 
     * off-diagonal block ``(u, v) = −(w/2)·L(g)`` and
       ``(v, u) = −(w/2)·L(conj g) = −(w/2)·L(g)ᵀ`` (Hermitian-analogue —
@@ -3829,7 +3829,7 @@ def quaternion_laplacian(
     ``gains=None`` (default) puts the identity gain ``e0`` on every edge — the
     undirected control ``½·(dense graph Laplacian) ⊗ I₄``. A supplied gain is
     normalised to ``Sp(1)`` via the Class-K+Class-C
-    :func:`srmech.qm.quaternion.quaternion_norm` (never ``abs()``).
+    :func:`srmech.physics.qm.quaternion.quaternion_norm` (never ``abs()``).
 
     Numpy-free; **Class L** composing **Class-M** ``quaternion_left_mult`` atoms
     (native-dispatched to ``srmech_quaternion_left_mult``; ``conj`` is Class C).
@@ -4804,7 +4804,7 @@ def order_fingerprint(fiber_ids):
     F1229 / F1231; the ℍ/𝕆 grade of the walk). It CATCHES a graph-preserving
     reorder the op / operand / responsion / ℂ-curvature faculties are blind to
     (F1079 / F1230). A VERIFIER (lossy by pigeonhole), NEVER a store. Composes
-    the C-routed ``srmech.qm.so8.octonion_mult_table`` with a generic (non-basis,
+    the C-routed ``srmech.physics.qm.so8.octonion_mult_table`` with a generic (non-basis,
     non-uniform-component) per-node octonion.
 
     rc352 (`#T997`): the step multiplication is the SHIPPED
@@ -4814,7 +4814,7 @@ def order_fingerprint(fiber_ids):
     is gone; the values are unchanged (exact integers, no mod, the same
     ``octonion_mult_table`` constants), and the step now rides the
     ``srmech_algebra_table_product`` C kernel."""
-    from srmech.qm.so8 import octonion_mult_table
+    from srmech.physics.qm.so8 import octonion_mult_table
     from srmech.cascade import table_product
     table = octonion_mult_table()
     acc = [1, 0, 0, 0, 0, 0, 0, 0]

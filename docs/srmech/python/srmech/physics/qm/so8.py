@@ -1,9 +1,9 @@
 """The 28-generator ``so(8)`` adjoint, partitioned ``14 + 7 + 7``.
 
-The middle layer of the ``srmech.qm`` so(8)/Spin(8) triality engine
+The middle layer of the ``srmech.physics.qm`` so(8)/Spin(8) triality engine
 (v0.5.0rc17). ``so(8)`` is the 28-dimensional Lie algebra of ``8x8`` real
 antisymmetric matrices. Built from the octonion multiplication table
-(:mod:`srmech.qm.octonion`), it splits as a vector space into
+(:mod:`srmech.physics.qm.octonion`), it splits as a vector space into
 
 - ``14 = g2 = Der(O)`` — the Lie subalgebra of octonion derivations
   ``D_{a,b} = [L_a, L_b] + [R_a, R_b] + [L_a, R_b]`` (Schafer 1966); and
@@ -12,7 +12,7 @@ antisymmetric matrices. Built from the octonion multiplication table
 
 This ``14`` is exactly the ``1 + 3 + 7 + 3 = 14`` A-N partition: the
 triality automorphism's fixed subalgebra ``Fix(tau) = g2`` (the
-``D4 --(Z3 fold)--> G2`` theorem; see :mod:`srmech.qm.triality`).
+``D4 --(Z3 fold)--> G2`` theorem; see :mod:`srmech.physics.qm.triality`).
 
 Per ``[[feedback_science_is_ssot_not_project]]``: each operation cites the
 canonical literature, **not** a project instantiation.
@@ -31,7 +31,7 @@ independent-column walk in fixed order — the pivoted-QR equivalent,
 **no scipy**); the ``21``-dim ``so(7)`` basis is an SVD nullspace. **No
 RNG** anywhere — the clean-MCP no-RNG mandate, and so the ``Fix(tau) = g2``
 killer test is reproducible. (``srmech`` treats scipy as an OPTIONAL
-dependency, lazily imported with a fallback elsewhere, so ``srmech.qm`` must
+dependency, lazily imported with a fallback elsewhere, so ``srmech.physics.qm`` must
 import cleanly on a scipy-less / Pyodide install.)
 
 rc123 (numpy-free, #564): the whole module flips off numpy onto the
@@ -83,7 +83,7 @@ from srmech.math.laplacian import (
     mat_norm,
     mat_svd,
 )
-from srmech.qm.octonion import (
+from srmech.physics.qm.octonion import (
     octonion_left_mult,
     octonion_mult_table,
     octonion_right_mult,
@@ -110,7 +110,7 @@ _DIM_TRIPLET = 3
 #: A FIXED ISO timestamp for the ``an_embedding`` self-attestation.
 #: Deterministic on purpose (NOT ``datetime.now()``) so the MCP surface is
 #: reproducible — the attestation of a GENERATED structure must not change
-#: between calls (mirrors :data:`srmech.qm.octonion._RETRIEVED_AT`).
+#: between calls (mirrors :data:`srmech.physics.qm.octonion._RETRIEVED_AT`).
 _AN_RETRIEVED_AT = "2026-05-30T00:00:00Z"
 
 #: The single generative rule whose bytes are the ``parser_rule_hash``
@@ -481,7 +481,7 @@ def _derivation(a: List[float], b: List[float]) -> List[List[float]]:
     ``D_{a,b} = [L_a, L_b] + [R_a, R_b] + [L_a, R_b]`` (Schafer 1966). Each
     ``D_{a,b}`` is antisymmetric and obeys the Leibniz rule
     ``D(xy) = D(x) y + x D(y)``, so it lies in ``g2 = Der(O) subset so(8)``.
-    Internal helper (reused by :mod:`srmech.qm.triality`).
+    Internal helper (reused by :mod:`srmech.physics.qm.triality`).
 
     rc123 (numpy-free): ``octonion_{left,right}_mult`` return a :class:`Mat`;
     consume their rows directly via ``.tolist()`` (no numpy bridge).
@@ -555,7 +555,7 @@ def _deterministic_rank_subset(
     residual norm against the span of the already-kept columns exceeds the
     rank tolerance). This is the numpy-free equivalent of a rank-revealing
     pivoted QR — **no RNG and no scipy** (scipy is an optional dependency
-    in srmech, lazily imported with a fallback; ``srmech.qm`` must import on
+    in srmech, lazily imported with a fallback; ``srmech.physics.qm`` must import on
     a scipy-less / Pyodide install). The total rank is verified EXACTLY via
     the rational :func:`_rank_exact` (no float-tolerance drift).
     """
@@ -687,7 +687,7 @@ def _build_so7() -> Tuple[Tuple[Tuple[float, ...], ...], ...]:
     """Cached read-only ``so(7)`` basis (SVD nullspace of ``S_B - I``)."""
     # Imported here to keep the module DAG acyclic at import time
     # (octonion <- so8 <- triality): so7 needs the triality companion map.
-    from srmech.qm.triality import triality_swap
+    from srmech.physics.qm.triality import triality_swap
 
     swap = triality_swap()                      # 28×28 Mat (rc123)
     return _freeze(_fixed_space_matrices(swap.tolist(), _DIM_SO7))
@@ -697,7 +697,7 @@ def so7_subalgebra() -> Tuple[Mat, ...]:
     """The 21-dim ``so(7)`` fixed space of the ``Z2`` swap (``D4 -> B3`` fold).
 
     ``so(7) = ker(S_B - I)`` where ``S_B`` is the companion involution (see
-    :func:`srmech.qm.triality.triality_swap`). Returned as a deterministic
+    :func:`srmech.physics.qm.triality.triality_swap`). Returned as a deterministic
     SVD-nullspace basis of 21 antisymmetric ``8x8`` generators (re-expressed
     from the ``E_{pq}`` frame back to matrices).
 
@@ -1064,7 +1064,7 @@ def _an_attestation(generators: List[List[List[float]]], k: int) -> Dict[str, ob
     response_sha256 = _sha256_bytes(_gen_bytes(generators))
     parser_rule_hash = _sha256_bytes(_AN_PARSER_RULE)
     descriptor_hash = _sha256_bytes(
-        b"srmech/qm/so8.py::an_embedding::su3_3_3bar"
+        b"srmech/physics/qm/so8.py::an_embedding::su3_3_3bar"
     )
     return {
         "mpr_version": "1.0",
@@ -1090,7 +1090,7 @@ def _an_attestation(generators: List[List[List[float]]], k: int) -> Dict[str, ob
             "response_sha256": response_sha256,
             "parser_version": "srmech 0.5.0",
             "parser_rule_hash": parser_rule_hash,
-            "collector_descriptor_path": "srmech/qm/so8.py",
+            "collector_descriptor_path": "srmech/physics/qm/so8.py",
             "collector_descriptor_hash": descriptor_hash,
         },
         "rendering": {
@@ -1206,7 +1206,7 @@ def an_embedding(imaginary_unit: int = 1) -> dict:
     su(2)``, whose commutant is 2). Supporting evidence: in a
     Killing-orthonormalised basis the structure constants are TOTALLY
     ANTISYMMETRIC. (A raw adjoint-Casimir-vs-``f^{abc}`` comparison to
-    :func:`srmech.qm.gauge.su3_structure_constants` is deliberately NOT used:
+    :func:`srmech.physics.qm.gauge.su3_structure_constants` is deliberately NOT used:
     the candidate's adjoint-Casimir eigenvalue is basis-dependent and its
     normalisation differs from the gauge Gell-Mann convention, the
     Casimir/Killing ratio is tautologically 1 for any algebra, and the two
@@ -1603,7 +1603,7 @@ def _so4_attestation(
     response_sha256 = _sha256_bytes(_gen_bytes(generators))
     parser_rule_hash = _sha256_bytes(_SO4_PARSER_RULE)
     descriptor_hash = _sha256_bytes(
-        b"srmech/qm/so8.py::quaternion_subalgebra_stabiliser::so4_su2_su2"
+        b"srmech/physics/qm/so8.py::quaternion_subalgebra_stabiliser::so4_su2_su2"
     )
     return {
         "mpr_version": "1.0",
@@ -1629,7 +1629,7 @@ def _so4_attestation(
             "response_sha256": response_sha256,
             "parser_version": "srmech 0.6.0",
             "parser_rule_hash": parser_rule_hash,
-            "collector_descriptor_path": "srmech/qm/so8.py",
+            "collector_descriptor_path": "srmech/physics/qm/so8.py",
             "collector_descriptor_hash": descriptor_hash,
         },
         "rendering": {
@@ -1648,7 +1648,7 @@ def _so4_attestation(
 
 
 #: The 7 Fano lines indexed 1..7 — the 7 quaternion subalgebras H ⊂ O.
-#: Identical to :data:`srmech.qm.octonion._FANO_LINES`; re-declared here so
+#: Identical to :data:`srmech.physics.qm.octonion._FANO_LINES`; re-declared here so
 #: the so(4) builder picks an H deterministically by a 1-based index.
 _FANO_LINES_SO4: Tuple[Tuple[int, int, int], ...] = (
     (1, 2, 3), (1, 4, 5), (1, 6, 7),
@@ -1720,7 +1720,7 @@ def quaternion_subalgebra_stabilizer(quaternion_index: int = 1) -> dict:
     The ℍ-reading SIBLING of :func:`an_embedding` (the su(3) ⊕ 3 ⊕ 3bar
     ℂ-reading of the same ``g2 = Der(O)``). A quaternion subalgebra
     ``H ⊂ O`` is ``span(e_0, e_a, e_b, e_c)`` for a Fano line ``(a, b, c)``
-    (:data:`srmech.qm.octonion._FANO_LINES`); the derivations ``D in g2``
+    (:data:`srmech.physics.qm.octonion._FANO_LINES`); the derivations ``D in g2``
     that map ``H`` back into ``H`` — equivalently map the 4-dim orthogonal
     complement ``H^⊥`` into itself — form EXACTLY the 6-dim
     ``so(4) = su(2) ⊕ su(2)`` (F215). The result is returned with the

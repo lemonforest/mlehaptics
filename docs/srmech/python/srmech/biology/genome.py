@@ -1161,7 +1161,7 @@ MOBIUS_CAP = LEAF_CAP * QUAD
 # =====================================================================
 # rc313 — the exact-rational discrete writhe + the mod-2 CWF check.
 # The physical-topology peer of the intrinsic mod-2 center-parity
-# holonomy (srmech.qm.quaternion.quaternion_cycle_holonomy, rc309).
+# holonomy (srmech.physics.qm.quaternion.quaternion_cycle_holonomy, rc309).
 # =====================================================================
 
 def _dw_as_rational(v) -> Tuple[int, int]:
@@ -1392,7 +1392,7 @@ def _cwf_compute_pure(edge_list, gains, nn, embedding, closed):
     """Pure-Python composition — Lk from quaternion_cycle_holonomy, Tw from the
     Q8 sign accumulation, Wr from discrete_writhe. Returns the raw 6-tuple
     ``(center_parity, lk_mod2, tw_mod2, wr_pair, wr_mod2, consistent)``."""
-    from srmech.qm.quaternion import quaternion_cycle_holonomy as _qch
+    from srmech.physics.qm.quaternion import quaternion_cycle_holonomy as _qch
     holo = _qch(edge_list, gains, n=nn)
     if holo["n_cycles"] != 1:
         raise ValueError(
@@ -1489,7 +1489,7 @@ def cwf_consistency_mod2(edges, gains, *, n: "int | None" = None,
 
     * **Lk** — the intrinsic mod-2 center-parity holonomy (rc309): the
       ``center_parity`` of the strand's single fundamental cycle from
-      :func:`srmech.qm.quaternion.quaternion_cycle_holonomy` over the Q₈
+      :func:`srmech.physics.qm.quaternion.quaternion_cycle_holonomy` over the Q₈
       gains. ``center_parity == −1`` (the ``{−1}`` spinor class) → ``Lk ≡ 1``;
       ``+1`` (``{1}``) → ``Lk ≡ 0``; ``0`` (the pure-imaginary class) → the
       holonomy is NON-central and mod-2 ``Lk`` is UNDEFINED (flagged).

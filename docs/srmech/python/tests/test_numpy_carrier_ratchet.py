@@ -6,7 +6,7 @@ The numpy-MATH sweep (#928, rc53–rc68) drove the `np.linalg` / `np.fft` / matm
 remains is numpy as a **carrier**: a module-level (column-0) ``import numpy``
 means that submodule cannot be loaded on a numpy-free install. The package
 already imports numpy-free (these are lazy submodule imports — you only pay them
-when you ``from srmech.qm import so8`` etc.); the carrier arc drives each such
+when you ``from srmech.physics.qm import so8`` etc.); the carrier arc drives each such
 module onto the framework-native carriers (:class:`srmech.math.hv.HV` 1-D /
 :class:`srmech.math.mat.Mat` 2-D + the native ctypes dense kernels) so the math
 runs with **no numpy present at all**.
@@ -286,7 +286,7 @@ def _is_numpy_import(line: str) -> bool:
 # `kron` cascade, `chsh_pauli_combination_norm` uses the EXACT integer
 # `eigvals_exact` (residual exactly 0), and `operator_norm`/`chsh_operator_norm`
 # go through the unconditionally-numpy-free `mat_hermitian_eigendecompose`. The
-# eager `_require_numpy("srmech.qm")` subpackage gate in `qm/__init__.py` is
+# eager `_require_numpy("srmech.physics.qm")` subpackage gate in `qm/__init__.py` is
 # relaxed to LAZY per-submodule `__getattr__` (the rc71 signal_processing
 # precedent) so spin/bell import numpy-absent while the not-yet-flipped qm
 # modules still surface the actionable [scientific] hint. test_qm_spin.py +
@@ -412,7 +412,7 @@ def _is_numpy_import(line: str) -> bool:
 # carriers are EXACTLY: mcp/_coercion.py, qm/pseudo_hermitian.py,
 # signal_processing/closed_form_ops/ica_jade.py, spectral/__init__.py. 5 -> 4.
 # rc124 (#564): qm/pseudo_hermitian.py (η-pseudo-Hermitian / PT-symmetric
-# framework) flips numpy-free — the LAST qm carrier, so `srmech.qm` is now fully
+# framework) flips numpy-free — the LAST qm carrier, so `srmech.physics.qm` is now fully
 # numpy-free. Matrices ride the Mat carrier, vectors are plain complex lists; the
 # η = (V V†)⁻¹ construction needs the general non-Hermitian eigenVECTORS, each
 # computed as the null vector of `O − λI` (deterministic Gaussian elimination,

@@ -5,7 +5,7 @@ The 5 exact-rational Taylor oracles
 ``srmech.math.rational.{exp,sin,cos,log1p,atan}_series_truncate`` now dispatch to
 the caller-arena ``srmech_bigint`` C peers
 ``srmech_{exp,sin,cos,log1p,atan}_series_truncate_big`` (byte-identical ``(num,
-den)`` at ANY magnitude — no int64/Q61 ceiling), and ``srmech.qm.bell.
+den)`` at ANY magnitude — no int64/Q61 ceiling), and ``srmech.physics.qm.bell.
 tsirelson_bound`` (2√2) reaches C because ``rational.sqrt``'s precision integer-
 sqrt path (``_integer_sqrt`` for ``n >= 2**128``) now dispatches to
 ``srmech_bigint_isqrt``.
@@ -33,7 +33,7 @@ import pytest
 
 from srmech import _native
 from srmech.math import rational as R
-from srmech.qm import bell
+from srmech.physics.qm import bell
 
 
 # (name, fn, max_terms) for the 5 series ops.
@@ -241,6 +241,6 @@ def test_ledger_rows_are_c_dispatched():
         "srmech.math.rational.cos_series_truncate",
         "srmech.math.rational.log1p_series_truncate",
         "srmech.math.rational.atan_series_truncate",
-        "srmech.qm.bell.tsirelson_bound",
+        "srmech.physics.qm.bell.tsirelson_bound",
     ):
         assert rows.get(da) == "c_dispatched", (da, rows.get(da))

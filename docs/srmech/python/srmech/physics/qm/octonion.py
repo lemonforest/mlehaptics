@@ -1,6 +1,6 @@
 """Octonion algebra: the Cayley-Dickson-from-H multiplication table + L/R binders.
 
-The foundational layer of the ``srmech.qm`` so(8)/Spin(8) triality engine
+The foundational layer of the ``srmech.physics.qm`` so(8)/Spin(8) triality engine
 (v0.5.0rc17). Octonions are the 8-dimensional real normed division algebra
 ``O`` obtained by doubling the quaternions ``H``; their multiplication
 fixes a sign convention that, once chosen, IS the provenance of every
@@ -256,7 +256,7 @@ def octonion_table_attestation() -> dict:
     response_sha256 = _sha256_bytes(_table_int8_bytes())
     parser_rule_hash = _sha256_bytes(_DOUBLING_RULE + b"\n" + _CONJ_RULE)
     descriptor_hash = _sha256_bytes(
-        b"srmech/qm/octonion.py::cayley_dickson_from_H"
+        b"srmech/physics/qm/octonion.py::cayley_dickson_from_H"
     )
     return {
         "mpr_version": "1.0",
@@ -276,7 +276,7 @@ def octonion_table_attestation() -> dict:
             "response_sha256": response_sha256,
             "parser_version": "srmech 0.5.0",
             "parser_rule_hash": parser_rule_hash,
-            "collector_descriptor_path": "srmech/qm/octonion.py",
+            "collector_descriptor_path": "srmech/physics/qm/octonion.py",
             "collector_descriptor_hash": descriptor_hash,
         },
         "rendering": {
@@ -570,7 +570,7 @@ def _exp_resolved(theta: float, mu: List[float]) -> List[float]:
 def octonion_exp(theta: float, mu="i") -> List[float]:
     """The octonion Euler formula ``exp(μθ) = cos θ·1 + sin θ·μ̂`` — the ODFT
     twiddle at the float64 boundary (0.9.0rc111; the dim-8 mirror of
-    :func:`srmech.qm.quaternion.quaternion_exp`).
+    :func:`srmech.physics.qm.quaternion.quaternion_exp`).
 
     ``μ̂`` is a UNIT pure imaginary (``μ̂² = −1``), so ``exp(μθ)`` is a UNIT
     octonion living in the commutative subalgebra ``ℝ[μ̂] ≅ ℂ`` — which is
@@ -623,7 +623,7 @@ def octonion_exp_series_truncate(
 ) -> Tuple[Tuple[int, int], ...]:
     """EXACT-rational ``exp(e_axis·θ)`` for a RATIONAL angle ``θ = p/q`` — the
     series-truncate tier of the ODFT twiddle (the dim-8 mirror of
-    :func:`srmech.qm.quaternion.quaternion_exp_series_truncate`).
+    :func:`srmech.physics.qm.quaternion.quaternion_exp_series_truncate`).
 
     Composes the Class-N calculus series
     :func:`srmech.math.rational.cos_series_truncate` /
@@ -714,7 +714,7 @@ def octonion_twiddle(j: int, k: int, n_points: int, *,
     """The ODFT twiddle factor ``exp(σ·μ·2πjk/N)`` — the DFT-facing form of
     :func:`octonion_exp`, with π and the index reduction handled natively
     (0.9.0rc111; the dim-8 mirror of
-    :func:`srmech.qm.quaternion.quaternion_twiddle`).
+    :func:`srmech.physics.qm.quaternion.quaternion_twiddle`).
 
     The angle is ``σ·2π·((j·k) mod N)/N``: the index product is reduced in
     the cyclic group Z_N FIRST (Class I — exact, and the reduction keeps the

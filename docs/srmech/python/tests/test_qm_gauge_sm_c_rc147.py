@@ -49,8 +49,8 @@ import pytest
 from srmech import _native
 from srmech.math.laplacian import mat_matmul, mat_norm
 from srmech.math.mat import Mat
-from srmech.qm import bell, gauge, potentials, single_particle, sm
-from srmech.qm.spin import pauli_matrices
+from srmech.physics.qm import bell, gauge, potentials, single_particle, sm
+from srmech.physics.qm.spin import pauli_matrices
 
 
 requires_native = pytest.mark.skipif(

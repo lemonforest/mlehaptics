@@ -111,7 +111,7 @@ from typing import Tuple
 from srmech.math.rational import sqrt as _rsqrt  # §22: scalar root via Class-N
 from srmech.math.laplacian import mat_hermitian_eigendecompose
 from srmech.math.mat import Mat
-from srmech.qm.spin import pauli_matrices
+from srmech.physics.qm.spin import pauli_matrices
 
 
 # ---------------------------------------------------------------------------
@@ -155,7 +155,7 @@ def _kron(a, b):
     rc147 (BATCH B8c — ``composition_of_c``): this is a LOCAL private
     index-addressing helper (inlined so the ``chsh`` ops compose ONLY the
     ``c_dispatched`` matrix carrier ops + this Class-I mixed-radix helper — the
-    same ``composition_of_c`` shape as :func:`srmech.qm.so8.an_embedding`'s local
+    same ``composition_of_c`` shape as :func:`srmech.physics.qm.so8.an_embedding`'s local
     ``_kron`` — and NOT the public ``python_only_debt``
     ``spectral_cascades.kron`` op). Pure index-addressing + Class-M products; a
     bare-C host reproduces it trivially (no float reduction to reorder)."""

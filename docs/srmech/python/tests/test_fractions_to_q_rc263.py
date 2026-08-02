@@ -95,7 +95,7 @@ def test_negative_float_snaps_via_signed_cascade():
     assert _to_fraction(-0.25) == Q(-1, 4)
     res = cycle_holonomy([(0, 1), (1, 2), (2, 0)], charges=[-0.25, 0.0, 0.0], n=3)
     assert all(isinstance(h, Q) for h in res["holonomies"])
-    from srmech.qm.so8 import _rank_exact, g2_subalgebra
+    from srmech.physics.qm.so8 import _rank_exact, g2_subalgebra
     assert _rank_exact([[-4, 2], [1, -1], [0, 3]]) == 2   # negative coords
     assert len(g2_subalgebra()) == 14                     # the CI capstone path
 

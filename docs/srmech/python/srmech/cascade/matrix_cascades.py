@@ -752,7 +752,7 @@ def separate_frame_curvature(a, b):
       transports frame-INDEPENDENTLY (it is what both orderings AGREE on).
     * **curvature**   = ``½(A·B − B·A)`` — the ANTISYMMETRIC part (the COMMUTATOR
       ``[A,B]`` halved) = the HOLONOMY / responsion residue = the geometric-phase
-      wedge the frame picks up per beat. This is the ``srmech.qm.single_particle.
+      wedge the frame picks up per beat. This is the ``srmech.physics.qm.single_particle.
       commutator`` scaled by ½ — but the NEW object is the *decomposition* plus
       the exact vanishing flag, not the bare commutator.
 

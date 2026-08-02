@@ -79,7 +79,7 @@ from srmech.introspect.tool_schema import (
     warmup_all,
 )
 from srmech.introspect import describe
-from srmech.qm.quaternion import quaternion_cycle_holonomy
+from srmech.physics.qm.quaternion import quaternion_cycle_holonomy
 
 # ── the lane projections on a Q8 byte (srmech's layout, not this file's) ──
 # q8_project_v4 IS `q & 3`; q8_mult documents `s = q >> 2`.
@@ -239,7 +239,7 @@ def _drivers():
         "srmech.biology.genome.genome_fiber_holonomy":
             ("algebra", lambda s: g.genome_fiber_holonomy(s, leaf_dim=4)),
         "srmech.biology.genome.codon_read": ("algebra", g.codon_read),
-        "srmech.qm.quaternion.quaternion_cycle_holonomy":
+        "srmech.physics.qm.quaternion.quaternion_cycle_holonomy":
             ("gains",
              lambda gg: quaternion_cycle_holonomy(
                  _EDGES, [_gain(x) for x in gg], n=6)),

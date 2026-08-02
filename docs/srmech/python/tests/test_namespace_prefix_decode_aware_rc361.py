@@ -820,6 +820,29 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
         f"(the rc377 move's 95 + rc380's 2 new loop-defect ops), found {cascade}. "
         f"The rc377 amsc->cascade move conserved 95 (amsc 97 -> 2); rc380 grew it by "
         f"2. If this is not 97, re-measure.")
+    # rc381 (`#T1052`) — THE srmech.physics.qm RECEIVING SIDE, pinned like biology
+    # / cascade. UNLIKE every drain above, this move did NOT come out of the amsc
+    # population — the qm subpackage was never under amsc. It is a whole-subpackage
+    # RENAME (srmech.qm -> srmech.physics.qm), so 154 qm carrier back-index refs
+    # (the octonion / quaternion / so8 / triality / gauge / sm op names the
+    # genome + carriers consume) simply changed prefix in place inside these
+    # hoisted byte arrays: srmech.qm. 154 -> 0, srmech.physics.qm. 0 -> 154, and
+    # the amsc / math / biology / cascade / music / apokatastasis decoded counts
+    # ALL held (this move touched none of them). Pinning the receiving side guards
+    # against a regression that dropped a qm op from the walk (which would show
+    # physics.qm falling with no matching rise elsewhere).
+    physics_qm = joined.count("srmech.physics.qm.")
+    assert physics_qm == 154, (
+        f"expected 154 srmech.physics.qm op references inside the DECODED channel "
+        f"(the rc381 qm-subpackage rename's carrier back-index — octonion / "
+        f"quaternion / so8 / triality / gauge / sm op names), found {physics_qm}. "
+        f"srmech.qm. fell to 0 by exactly these 154; if this is not 154 the rename "
+        f"is not conserved — re-measure. (This is a RENAME, not an amsc drain, so "
+        f"no amsc pin moves.)")
+    assert joined.count("srmech.qm.") == 0, (
+        f"the OLD srmech.qm. prefix still has "
+        f"{joined.count('srmech.qm.')} decoded references — the rc381 rename left "
+        f"stale qm names in the carrier back-index. Re-run tools/regen_all.py.")
 
     # THE COUNTERFACTUAL: had those music ops landed in the draining namespace,
     # the decoded channel would have seen every one of them.

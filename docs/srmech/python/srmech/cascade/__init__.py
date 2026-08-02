@@ -179,7 +179,7 @@ from .hamming import (
 # epicycle). Numpy-free at import (the e^{Îθ} = cos+Î·sin is built from the
 # Class-N rational series); float realisations (.to_numpy / .to_matrix) are
 # the opt-in scientific tier. The qm-matrix Rosetta peer lives in
-# srmech.qm.hurwitz.
+# srmech.physics.qm.hurwitz.
 from .one import (
     Block,
     One,

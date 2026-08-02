@@ -40,7 +40,7 @@ def test_raw_exact_no_mod():
     # sharing no code with the shipped op), which is exactly what it must be;
     # it is labelled as one so a later reader cannot mistake it for a second
     # implementation the package owns.
-    from srmech.qm.so8 import octonion_mult_table
+    from srmech.physics.qm.so8 import octonion_mult_table
     C = octonion_mult_table()
 
     def _order_fingerprint_oracle(fiber):

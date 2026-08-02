@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc380"
-#define SRMECH_VERSION       "0.9.0rc380"
+#define SRMECH_VERSION_PRE   "rc381"
+#define SRMECH_VERSION       "0.9.0rc381"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -12550,7 +12550,7 @@ srmech_status_t srmech_apagodu_zeilberger(
 /* ------------------------------------------------------------------ *
  * srmech_quaternion — the 4x4 quaternion multiplication operators + the
  * hypercomplex exp(mu*theta) twiddle (0.9.0rc109; issue #1234 Item 1a,
- * re-raise of #863 BX-5/6/7). C peers of srmech.qm.quaternion — the
+ * re-raise of #863 BX-5/6/7). C peers of srmech.physics.qm.quaternion — the
  * QDFT/ODFT foundation. WHY: Q8/{+-1} ~= Z2xZ2 = Klein-4 (F380 / the
  * in-repo R21 proof), so a quaternion FT's coefficient algebra (H)
  * matches a Klein-4 object's value algebra; these peers let a C-only
@@ -12585,7 +12585,7 @@ srmech_status_t srmech_quaternion_right_mult(
  * no abs()). For a UNIT quaternion conj IS the inverse (x . conj(x) = |x|^2 = 1),
  * so conj(exp(mu*theta)) = exp(-mu*theta) — the inverse-QDFT twiddle, and the
  * reversed-edge gain in the cycle-holonomy walk. `n` must be 4; `out` MAY alias
- * `x` (in-place negation is safe). C peer of srmech.qm.quaternion.quaternion_conjugate
+ * `x` (in-place negation is safe). C peer of srmech.physics.qm.quaternion.quaternion_conjugate
  * (byte-exact). Errors: SRMECH_ERR_NULL_ARG; SRMECH_ERR_BAD_INPUT (n != 4).
  * Additive symbol -> SRMECH_ABI_VERSION stays 10. */
 srmech_status_t srmech_quaternion_conjugate(
@@ -12763,7 +12763,7 @@ srmech_status_t srmech_genome_octonion_holonomy(const uint8_t *turns,
 /* ------------------------------------------------------------------ *
  * srmech_octonion — the ODFT twiddle family + the whole-transform
  * OCTONION DFT (0.9.0rc111; issue #1234 Item 1c, re-raise of #863).
- * C peers of srmech.qm.octonion's rc111 twiddle family and the
+ * C peers of srmech.physics.qm.octonion's rc111 twiddle family and the
  * graduated cascade.octonion_dft. WHY THE BRACKETING IS AN ARGUMENT
  * (F378): octonion multiplication is NON-ASSOCIATIVE, so "the ODFT" is
  * not unique until its bracketing convention is DECLARED — a different

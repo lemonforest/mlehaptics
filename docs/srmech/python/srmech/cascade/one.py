@@ -71,10 +71,10 @@ imaginary unit ``e_{2ⁿ-1}``) and turns each **Fano-triple plane through
 so the *single* θ-turn spins **three planes at once in 𝕆** (the ``1`` fixed
 axis + ``3×2`` rotated split of the 7). The planes + orientations come from
 the fixed Cayley–Dickson-from-ℍ Fano lines (Baez 2002 §2;
-``srmech.qm.octonion``): ℍ's ``{1,2,3}`` → plane ``(e₁,e₂)``; 𝕆's
+``srmech.physics.qm.octonion``): ℍ's ``{1,2,3}`` → plane ``(e₁,e₂)``; 𝕆's
 ``{1,6,7},{2,5,7},{3,4,7}`` through ``Î₃=e₇`` → planes
 ``(e₁,e₆),(e₂,e₅),(e₃,e₄)`` (the first with reversed orientation,
-``e₁e₆=-e₇``). The matrix realisation lives in :mod:`srmech.qm.hurwitz`,
+``e₁e₆=-e₇``). The matrix realisation lives in :mod:`srmech.physics.qm.hurwitz`,
 which *derives* the same planes from ``octonion_mult_table`` — the bit-exact
 Rosetta peer of this cascade form.
 
@@ -167,12 +167,12 @@ GRAMMAR_SLOTS: Tuple[str, str, str] = ("B", "H", "N")
 #: each algebra 𝔸ₙ. Each ``(a, b, sign)`` means the imaginary units ``e_a``,
 #: ``e_b`` (1-based; ``e_a → imag index a-1``) span a 2-plane that the
 #: conjugation turns by θ, with ``e_a·e_b = sign·Î_n``. From the fixed
-#: Cayley–Dickson-from-ℍ Fano lines (Baez 2002 §2; ``srmech.qm.octonion``):
+#: Cayley–Dickson-from-ℍ Fano lines (Baez 2002 §2; ``srmech.physics.qm.octonion``):
 #:   ℂ (axis e₁): none — Im is 1-D, only σ.
 #:   ℍ (axis e₃): line {1,2,3} → (1,2,+1)                     — 1 plane.
 #:   𝕆 (axis e₇): lines {1,6,7},{2,5,7},{3,4,7}
 #:                → (1,6,−1),(2,5,+1),(3,4,+1)                — 3 planes.
-#: ``srmech.qm.hurwitz`` derives this same tuple from ``octonion_mult_table``
+#: ``srmech.physics.qm.hurwitz`` derives this same tuple from ``octonion_mult_table``
 #: (the bit-exact Rosetta cross-check).
 FANO_PLANES: Tuple[Tuple[Tuple[int, int, int], ...], ...] = (
     (),                                          # n=1  ℂ
@@ -689,7 +689,7 @@ class One:
         imaginary ``e₁``) reproduces :meth:`to_flat_rational`. For 𝕆 this is
         a genuine **3-plane** rotation (eigenvalues ``{1, e^{±iθ}×3}`` on the
         imaginary part). This is the matrix the qm-peer
-        :mod:`srmech.qm.hurwitz` must agree with (the Rosetta parity).
+        :mod:`srmech.physics.qm.hurwitz` must agree with (the Rosetta parity).
         """
         from srmech.math.mat import Mat
 

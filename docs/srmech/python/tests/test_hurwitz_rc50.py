@@ -8,7 +8,7 @@ The Hurwitz operator is now declared the class-from-TOML way (`Hurwitz` [class],
 method `generate` binding the EXACT op srmech.cascade.the_one); the float
 14×14 is the opt-in lossy One.to_matrix export, never a separate named op.
 
-What survives in srmech.qm.hurwitz: `hurwitz_planes` — the GENUINE
+What survives in srmech.physics.qm.hurwitz: `hurwitz_planes` — the GENUINE
 cross-derivation of the oriented Fano planes from octonion_mult_table (not a
 float restatement; an exact integer-tuple structure read from the attested
 table). hurwitz.py is now numpy-free at the top level (carrier ratchet
@@ -46,7 +46,7 @@ def test_hurwitz_class_registered_in_catalog():
 def test_hurwitz_matrix_op_dissolved():
     # The numpy float duplicate is gone (the dissolution); only the exact peers
     # remain (the_one / One.to_matrix as the opt-in float export).
-    import srmech.qm.hurwitz as h
+    import srmech.physics.qm.hurwitz as h
     assert not hasattr(h, "hurwitz_matrix")
     assert h.__all__ == ["hurwitz_planes"]
 
@@ -56,7 +56,7 @@ def test_hurwitz_matrix_op_dissolved():
 #  numpy-absent — the prior ``importorskip("numpy")`` is dropped.)
 
 def test_hurwitz_planes_derived_from_octonion_table():
-    from srmech.qm.hurwitz import hurwitz_planes
+    from srmech.physics.qm.hurwitz import hurwitz_planes
     planes = hurwitz_planes()
     # ℂ: none; ℍ: {1,2,3} → (1,2,+1); 𝕆: the 3 Fano triples through e₇.
     assert planes == ((), ((1, 2, 1),), ((1, 6, -1), (2, 5, 1), (3, 4, 1)))
@@ -64,7 +64,7 @@ def test_hurwitz_planes_derived_from_octonion_table():
 
 
 def test_cascade_fano_planes_match_table_derived_bit_exact():
-    from srmech.qm.hurwitz import hurwitz_planes
+    from srmech.physics.qm.hurwitz import hurwitz_planes
     # The cascade form HARDCODES FANO_PLANES; the qm op DERIVES them from
     # octonion_mult_table. They must be identical (the structure cross-derivation).
     assert FANO_PLANES == hurwitz_planes()

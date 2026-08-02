@@ -105,7 +105,7 @@ def test_construct_eta_still_pseudo_hermitian():
     η = (V·Vᴴ)⁻¹ solve routes through ``mat_solve`` (not ``_dense_solve_complex``);
     the operator + oracle are numpy-free here too."""
     from srmech.math.mat import Mat
-    from srmech.qm.pseudo_hermitian import (
+    from srmech.physics.qm.pseudo_hermitian import (
         construct_eta_from_eigendecomposition,
         is_pseudo_hermitian,
     )
@@ -129,7 +129,7 @@ def test_no_residual_np_linalg_inv_in_pseudo_hermitian():
     import srmech
 
     src = (
-        pathlib.Path(srmech.__file__).parent / "qm" / "pseudo_hermitian.py"
+        pathlib.Path(srmech.__file__).parent / "physics" / "qm" / "pseudo_hermitian.py"
     ).read_text(encoding="utf-8")
     assert not re.search(r"\b(?:np|numpy)\.linalg\.inv\s*\(", src)
     assert "mat_solve(" in src
