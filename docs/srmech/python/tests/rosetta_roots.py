@@ -97,9 +97,11 @@ ROSETTA_ROOTS = (
     # DOMAIN (srmech.qm.X -> srmech.physics.qm.X). This is the one root that is a
     # RENAME, not an append: qm was one of the three original compute roots, so
     # its successor keeps that position (the walk recurses srmech.physics ->
-    # srmech.physics.qm -> its submodules). srmech.qm survives only as a
-    # deprecation alias and is deliberately NOT a walk root — walking it too
-    # would double-count every qm op. See the physics-domain landing note in
+    # srmech.physics.qm -> its submodules). srmech.qm was REMOVED in v0.9.0rc382
+    # (`#T1056`, clean break — no alias; the rc381 deprecation shim was against
+    # the no-legacy-path discipline), and was never a walk root regardless
+    # (walking it too would have double-counted every qm op). See the
+    # physics-domain landing note in
     # test_rosetta_roots_single_source_rc361.py (srmech.physics migrates
     # _ADR0010_NEW_NAMESPACES -> _ADR0010_EXISTING_DESTINATIONS this rc).
     "srmech.physics",

@@ -17,12 +17,15 @@ one mechanism, the domain-vs-structure distinction ADR-0010 draws
 **This slice (rc381) opens the namespace with the whole ``qm`` subpackage**
 (single_particle / spin / bell / potentials / relativistic / propagators /
 pseudo_hermitian / gauge / sm / octonion / quaternion / hurwitz / so8 / so9 /
-triality). Because ``srmech.qm`` has been a public API since v0.4.0, the break
-is SOFT for one release: ``srmech.qm`` survives as a DEPRECATION ALIAS that
-re-exports ``srmech.physics.qm`` and warns (``srmech/qm/__init__.py``). The
-alias will be removed in a future release. The qm C peers (``srmech_octonion_*``
-/ ``srmech_quaternion_*`` / the so8/triality/gauge/sm kernels) are
-capability-named and DO NOT rename — the ABI stays 10.
+triality). The break is a HARD, CLEAN break (no legacy path): rc381 first
+shipped ``srmech.qm`` as a one-release deprecation alias, but that shim was
+against this project's no-legacy-path discipline, so ``srmech.qm`` was REMOVED
+in v0.9.0rc382 (`#T1056`) — the alias only ever reached TestPyPI (rcN), never a
+clean production PyPI tag, so no production user was ever offered it. Import from
+``srmech.physics.qm``; ``import srmech.qm`` now raises ``ModuleNotFoundError``.
+The qm C peers (``srmech_octonion_*`` / ``srmech_quaternion_*`` / the
+so8/triality/gauge/sm kernels) are capability-named and DO NOT rename — the ABI
+stays 10.
 
 The new-namespace / subpackage-move template (rc370's ``srmech.apokatastasis`` /
 rc372's ``srmech.math`` / rc375's ``srmech.biology`` / rc377's
