@@ -159,6 +159,6 @@ def test_no_np_linalg_eig_call_in_so8():
     """so8 no longer CALLS numpy eig (only _real_skew_eig); the helper is wired."""
     import srmech
 
-    src = (pathlib.Path(srmech.__file__).parent / "qm" / "so8.py").read_text(encoding="utf-8")
+    src = (pathlib.Path(srmech.__file__).parent / "physics" / "qm" / "so8.py").read_text(encoding="utf-8")
     assert not re.search(r"\bnp\.linalg\.eig\s*\(", src)
     assert src.count("_real_skew_eig(") >= 3  # def + 2 call sites

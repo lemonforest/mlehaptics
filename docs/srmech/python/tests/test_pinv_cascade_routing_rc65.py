@@ -101,7 +101,7 @@ def test_no_residual_np_linalg_pinv_call_in_so8():
     import srmech
 
     src = (
-        pathlib.Path(srmech.__file__).parent / "qm" / "so8.py"
+        pathlib.Path(srmech.__file__).parent / "physics" / "qm" / "so8.py"
     ).read_text(encoding="utf-8")
     assert not re.search(r"\b(?:np|numpy)\.linalg\.pinv\s*\(", src)
     assert "_pinv(" in src

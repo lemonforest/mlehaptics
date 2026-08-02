@@ -129,7 +129,7 @@ def test_no_residual_np_linalg_inv_in_pseudo_hermitian():
     import srmech
 
     src = (
-        pathlib.Path(srmech.__file__).parent / "qm" / "pseudo_hermitian.py"
+        pathlib.Path(srmech.__file__).parent / "physics" / "qm" / "pseudo_hermitian.py"
     ).read_text(encoding="utf-8")
     assert not re.search(r"\b(?:np|numpy)\.linalg\.inv\s*\(", src)
     assert "mat_solve(" in src

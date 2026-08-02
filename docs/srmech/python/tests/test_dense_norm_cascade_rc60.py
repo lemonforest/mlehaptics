@@ -108,8 +108,8 @@ def test_routed_qm_modules_carry_no_linalg_norm_token():
     pat = re.compile(r"\b(?:np|numpy)\.linalg\.norm\b")
     base = pathlib.Path(__import__("srmech").__file__).parent
     routed = [
-        "qm/gauge.py", "qm/pseudo_hermitian.py", "qm/relativistic.py",
-        "qm/sm.py", "qm/so8.py", "qm/spin.py", "qm/triality.py",
+        "physics/qm/gauge.py", "physics/qm/pseudo_hermitian.py", "physics/qm/relativistic.py",
+        "physics/qm/sm.py", "physics/qm/so8.py", "physics/qm/spin.py", "physics/qm/triality.py",
         "signal_processing/closed_form_ops/multitaper.py",
     ]
     for rel in routed:
