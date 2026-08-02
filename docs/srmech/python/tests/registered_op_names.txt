@@ -130,9 +130,11 @@ srmech.cascade.autocorrelation
 srmech.cascade.best_rational_signed
 srmech.cascade.cd_basis_product
 srmech.cascade.cd_carry
+srmech.cascade.cd_commutator
 srmech.cascade.cd_conjugate
 srmech.cascade.cd_correct
 srmech.cascade.cd_couple_working
+srmech.cascade.cd_cycle_holonomy
 srmech.cascade.cd_mult
 srmech.cascade.cd_navigate
 srmech.cascade.cd_navmap

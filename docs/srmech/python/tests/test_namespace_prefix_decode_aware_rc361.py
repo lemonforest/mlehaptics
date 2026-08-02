@@ -810,12 +810,16 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # / hypercomplex_dft / matrix_cascades op refs) live in these hoisted byte
     # arrays: 95 refs moved OUT of the amsc decoded count (97 -> 2) and INTO cascade
     # (0 -> 95). amsc is now DRAINED to its 2 keeper residuals — ADR-0010 COMPLETE.
+    # rc380 (`#T1055`) then ADDED two NEW cascade ops (cd_commutator + cd_cycle_holonomy,
+    # the CD loop-defect ladder), so the live cascade decoded population is the rc377
+    # move's 95 + rc380's 2 = 97. The move-conservation (95) stays a fact about the
+    # move; this pin measures the LIVE count, which grows when new cascade ops land.
     cascade = joined.count("srmech.cascade.")
-    assert cascade == 95, (
-        f"expected 95 srmech.cascade op references inside the DECODED channel "
-        f"(the rc377 cascade subpackage's carrier back-index), found {cascade}. "
-        f"amsc fell 97 -> 2 by exactly these 95; if this is not 95 the population "
-        f"move is not conserved — re-measure.")
+    assert cascade == 97, (
+        f"expected 97 srmech.cascade op references inside the DECODED channel "
+        f"(the rc377 move's 95 + rc380's 2 new loop-defect ops), found {cascade}. "
+        f"The rc377 amsc->cascade move conserved 95 (amsc 97 -> 2); rc380 grew it by "
+        f"2. If this is not 97, re-measure.")
 
     # THE COUNTERFACTUAL: had those music ops landed in the draining namespace,
     # the decoded channel would have seen every one of them.
