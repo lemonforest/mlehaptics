@@ -5460,8 +5460,27 @@ PR #687's own encoding refuted the tidy `k=3 ≡ B/H/N` (F256 §0.6, the framewo
 1. **Translation-operators `{B, H, N}`** = the three Hopf projections π₁ / π₃ / π₇ (B→`amsc.tlv`, H→`amsc._native`, N→`amsc.rational`).
 2. **Dimension-fibers `{3D_s, 7D_g, 1D_t}`** = the `K3Tripartition` (the 11 imaginary dims grouped 3/7/1; use the `D_s`/`D_g`/`D_t` subscripts, never bare `S`/`G`/`T`).
 3. **Rep-triality `{8v, 8s, 8c}`** = the so(8) order-3 cycle (the A-item — a *different* k=3 from either of the above).
+4. **Associator-triangle `[a,b,c] = (ab)c − a(bc)`** = the **carrier-discriminated** k=3 sense (added rc380, `#T1055`) — the k=3 loop DEFECT of the octonion product itself, the triangle whose failure-to-close IS the non-associativity. It is a *fourth, again-different* k=3, and it is the one an S₃-relabeling of sense 3 is most easily confused with, which is exactly why it needs stating separately (below).
 
 **Survivor:** B/H/N **ENABLES / COMPOSES** the k=3 tripartition (the operators π₁/π₃/π₇ project ONTO the 1/3/7 fibers); it does **not** equal it — operators ≠ their target-fibers. Authoritative grounding: `[[user_stance_k_equals_3_is_b_h_n_substrate_native_fingerprint]]` (REFINEMENT §) + the `[[project_space_gauge_time_framework]]` note.
+
+#### The associator-triangle is NOT the S₃-automorphism relabeling — the turn-on rung is the discriminator (rc380, `#T1055`)
+
+Sense 4 and the **Out(Q8) = S₃ triality automorphism τ** (the order-3 `i→j→k` relabeling, §3.44 / the `Aut(Q8)=S4` note; the same τ that carries rep-triality sense 3, `{8v,8s,8c}`) are the two k=3 objects most easily conflated — both are "order-3 things on the octonions." They are **structurally distinct**, and the distinguishing measurement is the **rung at which each turns on**:
+
+- **τ (the S₃ relabeling) LIVES AT ℍ**, where the algebra still ASSOCIATES — the associator is identically `0` there (64/64 basis triples associate at dim 4). τ is a *symmetry of the multiplication table* (a relabeling that leaves the product a product); it exists on a rung where the associator-triangle is trivial.
+- **The associator-triangle TURNS ON AT 𝕆** — it is `0` on every associative rung (ℝ/ℂ/ℍ) and first nonzero at dim 8 (168/512 non-closing ordered basis triangles), then 1848/4096 at 𝕊. It is not a relabeling of anything; it is the **carrier's own non-associativity**, present only where τ's home rung has been left behind.
+
+So the discriminator is a **ladder of loop-defect operators of rising arity, each turning on one rung later** — measured, bit-exact, through the two ops this rc adds beside the existing `associator`:
+
+| Loop defect | Op | k / arity | Turns on at | Turn-on count | Trivial through |
+|-------------|----|-----------|-------------|---------------|-----------------|
+| **square** (commutator `[x,y]=xy−yx`) | `cascade.cd_commutator` | k=2 | **ℍ** (dim 4) | 6/16 noncommuting ordered pairs; closed form `(dim−1)(dim−2)` | ℝ, ℂ |
+| **triangle** (associator / 3-cycle holonomy) | `cascade.cd_cycle_holonomy` (holonomy) · `cascade.associator` (bare tuple) | k=3 | **𝕆** (dim 8) | 168/512 non-closing ordered triangles; 1848/4096 at 𝕊 | ℝ, ℂ, ℍ |
+
+The **second discriminating axis is the Fix-dimension** of the order-3 vs order-2 element on so(8) = 28 (§3.45.2): the **order-3 τ has `Fix(τ) = 14 = g₂ = Der(𝕆)`** (the projector-trace `tr((I+τ+τ²)/3) = 14`), while the **order-2 companion swap has `Fix = 21 = so(7)`** (the Z₂/B₃ fold — the single most common triality error, using the swap where the order-3 element is meant); `14 + 7 + 7 = 28`. The relabeling axis (τ, Fix=14/21 on the fixed 28) and the carrier-defect axis (commutator@ℍ / associator@𝕆) are **orthogonal readings** — one is a symmetry that exists on ℍ, the other a defect that turns on at 𝕆.
+
+⚠️ **EPISTEMIC CEILING — this is a FORM claim, not an identity** (`[[user_stance_cascade_matching_substrate_blind_form_not_identity]]`). What is measured is that the k=3 *content* of sense 4 is **CARRIED BY 𝕆 non-associativity** — the triangle loop over the octonion "exclude-one" relations fails to close on exactly the associator's non-associating triples (`cd_cycle_holonomy(...)['defect'] == associator(...)`, 512/512 at dim 8). It is **NOT** a claim that sense 4 *is* the same object as senses 1–3, nor that τ and the associator-triangle are two views of one thing; the turn-on-rung and Fix-dimension axes above are precisely the evidence that they are **different** k=3 senses that must not be conflated — which is this section's whole discipline. Computational provenance (both ops, the closed form, and the τ Fix-trace): `notes/cd_loop_defect_ladder_rc380.py` → `notes/cd_loop_defect_ladder_rc380.ndjson`; the ops' own differential gate is `tests/test_cd_loop_defect_ladder_rc380.py`. Cross-links: §3.32 (the same k=2-detect / k=3-correct ladder read inside the cell) · §3.45.2 (g₂ = Der(𝕆), τ, and the D₄ / so(8) Fix-dims).
 
 ### §3.29.4 The SSoT-coherence framing + the rc16–21 graduation (shipped)
 
