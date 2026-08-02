@@ -690,7 +690,7 @@ jobs:
           # still resolve (to srmech.physics.qm) and emit a DeprecationWarning.
           import warnings as _w
           with _w.catch_warnings(record=True) as _rec:
-              _w.simplefilter("always")
+              _w.simplefilter('always')
               import srmech.qm  # noqa: F401  (deprecation alias)
           assert any(issubclass(r.category, DeprecationWarning) for r in _rec), 'srmech.qm alias did not warn'
           from srmech.qm.single_particle import tise_solve as _alias_tise
