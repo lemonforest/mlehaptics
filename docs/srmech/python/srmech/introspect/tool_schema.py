@@ -7922,6 +7922,106 @@ def _register_primitive_class_tools() -> None:
             returns=R("tuple", "dim-tuple of exact Q — the all-zero tuple iff "
                                "the ordered triple (x, y, z) associates"),
         ),
+        # rc380 (`#T1055`): the k=2 SQUARE-LOOP peer of the associator. The
+        # Cayley–Dickson property-loss ladder is a ladder of loop defects of
+        # rising arity, each turning on one rung later: commutator @ ℍ,
+        # associator @ 𝕆. The commutator had no named home and was re-derived
+        # inline; this is it. Same composition_of_c treatment as associator.
+        ToolEntry(
+            name="srmech.cascade.cd_commutator", owner="srmech",
+            category="cascade",
+            summary="The COMMUTATIVITY DEFECT x·y − y·x, exact ℚ, any rung, on "
+                    "the definite ladder (table=None → cd_mult) or on ANY algebra "
+                    "a structure table names (table= → table_product): a split "
+                    "γ-twist from algebra_table (the STRUCTURED negative control), "
+                    "or a hand-built table. The zero tuple ⟺ the ordered pair "
+                    "commutes. THE k=2 SQUARE-LOOP SIBLING of the associator (its "
+                    "k=3 triangle): the two are the first rungs of the "
+                    "Cayley–Dickson property-loss ladder, each turning on one rung "
+                    "LATER — the commutator turns on at ℍ (6/16 noncommuting "
+                    "ordered basis pairs, while the associator is still 0 there), "
+                    "the closed form being (dim−1)(dim−2): 0/1 at ℝ, 0/4 at ℂ, "
+                    "6/16 at ℍ, 42/64 at 𝕆, 210/256 at 𝕊 — MEASURED through it, "
+                    "the named home for computing those counts, so do NOT "
+                    "hand-roll cd_mult(x,y) − cd_mult(y,x) beside a measurement "
+                    "again. SIBLINGS: cd_mult / table_product are the two products "
+                    "it composes; associator is the k=3 rung up. Exact end to end "
+                    "— no float, no epsilon, no abs(). NO new C symbol: the "
+                    "commutator IS the composition, so a dedicated kernel would "
+                    "only re-spell a·b twice — composition_of_c over the "
+                    "c_dispatched srmech_cd_mult / srmech_algebra_table_product. "
+                    "Class C (operand-order which-way) ∘ M ∘ K. SSoT: Baez, *The "
+                    "Octonions*, Bull. AMS 39 (2002) 145–205, arXiv:math/0105155."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("x", "sequence", True,
+                  "the left element — exact-rational components (int / Q / "
+                  "Fraction / float → its EXACT ratio / (num, den)); with "
+                  "table=None the length is a power of two ≤ CD_MAX_DIM=256"),
+                P("y", "sequence", True, "the right element, same length"),
+                P("table", "list[list[list[int]]] | None", False,
+                  "an optional dim × dim × dim structure-constant tensor "
+                  "(algebra_table — including its gammas= split controls — or "
+                  "any table table_product reads); None — the default — is the "
+                  "definite Cayley–Dickson ladder ℝ→ℂ→ℍ→𝕆→𝕊…"),
+            ),
+            returns=R("tuple", "dim-tuple of exact Q — the all-zero tuple iff "
+                               "the ordered pair (x, y) commutes"),
+        ),
+        # rc380 (`#T1055`): the general-dim, any-rung 3-CYCLE EDGE-HOLONOMY —
+        # the CD peer qm.quaternion.quaternion_cycle_holonomy (ℍ-only) had no
+        # generalisation to. The loop-holonomy walked around a triangle of CD
+        # edge-gains; on an associative rung the walk is bracketing-free (closes),
+        # at 𝕆 the two bracketings disagree = the holonomy the triangle carries.
+        # composition_of_c matching its home neighbour associator.
+        ToolEntry(
+            name="srmech.cascade.cd_cycle_holonomy", owner="srmech",
+            category="cascade",
+            summary="The loop-holonomy accumulated around a 3-CYCLE of "
+                    "Cayley–Dickson edges — the general-dim, any-rung peer of "
+                    "qm.quaternion.quaternion_cycle_holonomy (which lives at ℍ, "
+                    "where the walk is bracketing-free and never has to choose). A "
+                    "directed triangle 0→ˣ1→ʸ2→ᶻ0 carries a CD gain per edge; the "
+                    "holonomy is the ordered product walked back to base. Where "
+                    "the algebra ASSOCIATES (ℝ/ℂ/ℍ) that walk is one value — the "
+                    "loop CLOSES regardless of bracketing; past the Hurwitz wall "
+                    "at 𝕆 the two bracketings disagree and THAT is the holonomy. "
+                    "So it walks both ways: holonomy_left=(x·y)·z, "
+                    "holonomy_right=x·(y·z), defect=left−right (= associator(x,y,z)), "
+                    "closed=(defect==0). closed is a RUNG property, not a "
+                    "gains property: every triangle closes on an associative rung, "
+                    "and at 𝕆 the basis triangles fail to close on exactly the "
+                    "non-associating triples (168/512 at 𝕆, 1848/4096 at 𝕊). This "
+                    "is the k=3 loop defect made a holonomy; associator is the "
+                    "same defect as a bare tuple, cd_commutator is the k=2 "
+                    "square-loop one rung below. ⚠️ EPISTEMIC CEILING: this reads "
+                    "the FORM of the 3-cycle holonomy (the ordered walk + whether "
+                    "it closes); it does NOT do the ℍ-only SU(2) conjugacy-class "
+                    "read (a unit-quaternion scalar-part invariant the general "
+                    "rung has no analogue of). Exact end to end — no float, no "
+                    "epsilon, no abs(). NO new C symbol — composition_of_c over "
+                    "the c_dispatched srmech_cd_mult / srmech_algebra_table_product. "
+                    "Class M ∘ C (loop orientation) ∘ K. SSoT: Schafer (1966) "
+                    "§III.1; Baez, *The Octonions*, Bull. AMS 39 (2002) 145–205, "
+                    "arXiv:math/0105155." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("x", "sequence", True,
+                  "the first directed edge-gain (0→1) — exact-rational components "
+                  "(int / Q / Fraction / float → its EXACT ratio / (num, den)); "
+                  "with table=None the length is a power of two ≤ CD_MAX_DIM=256"),
+                P("y", "sequence", True, "the second edge-gain (1→2), same length"),
+                P("z", "sequence", True, "the third edge-gain (2→0), same length"),
+                P("table", "list[list[list[int]]] | None", False,
+                  "an optional dim × dim × dim structure-constant tensor "
+                  "(algebra_table — including its gammas= split controls — or "
+                  "any table table_product reads); None — the default — is the "
+                  "definite Cayley–Dickson ladder ℝ→ℂ→ℍ→𝕆→𝕊…"),
+            ),
+            returns=R("dict", "{dim, holonomy_left, holonomy_right, defect (each "
+                              "a dim-tuple of exact Q), closed (bool — the loop is "
+                              "bracketing-independent ⟺ the defect vanishes; "
+                              "always True on an associative rung)}"),
+        ),
         # rc310: the DISCRETE quaternion group Q8 = {+-1,+-i,+-j,+-k} as 3-bit
         # bytes — the discrete peer of the continuous ℍ surface (qm.quaternion).
         # The cascade-faithful Q8-genome foundation (ADDITIVE; no genome wiring).

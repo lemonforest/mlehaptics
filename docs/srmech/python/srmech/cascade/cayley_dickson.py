@@ -959,6 +959,184 @@ def associator(x: Sequence[Any], y: Sequence[Any], z: Sequence[Any],
     return tuple(a - b for a, b in zip(left, right))
 
 
+def cd_commutator(x: Sequence[Any], y: Sequence[Any],
+                  table: Any = None) -> Tuple[Q, ...]:
+    """``x·y − y·x`` — the COMMUTATIVITY DEFECT, exact ℚ, any rung (rc380,
+    `#T1055`).
+
+    The k=2 "square-loop" sibling of :func:`associator` (the k=3 triangle loop):
+    the two are the first two rungs of the Cayley–Dickson property-loss ladder,
+    each a loop-defect that turns on one rung LATER than the last. The zero tuple
+    ⟺ the ordered pair ``(x, y)`` commutes. It turns on at ℍ — the associator
+    still 0 there — which is exactly what makes the two ops a ladder and not a
+    restatement::
+
+        dim  1 (ℝ):   0 / 1        noncommuting ordered basis pairs
+        dim  2 (ℂ):   0 / 4
+        dim  4 (ℍ):   6 / 16       ← turn-on rung
+        dim  8 (𝕆):  42 / 64
+        dim 16 (𝕊): 210 / 256
+
+    — the closed form is ``(dim − 1)(dim − 2)`` (e₀ commutes with everything and
+    each unit commutes with itself; every other distinct imaginary pair
+    anticommutes, so ``[eᵢ, eⱼ] = 2·eᵢ·eⱼ ≠ 0``). MEASURED through this op on the
+    definite ladder; it is the named home for computing those counts, not a mover
+    of them.
+
+    Args:
+        x, y: equal-length elements. With ``table=None`` the length must be a
+            power of two ``≤ CD_MAX_DIM`` (the definite ladder, via
+            :func:`cd_mult`); with a ``table`` the length must be ``len(table)``
+            (via :func:`table_product`). Every exact-rational scalar
+            :func:`cd_mult` accepts is accepted here.
+        table: an optional rank-3 structure-constant tensor —
+            :func:`algebra_table` (the definite ladder, or a split γ-twist when
+            ``gammas=`` is given: the STRUCTURED negative control), or any table
+            :func:`table_product` reads. ``None`` — the default — is the definite
+            Cayley–Dickson ladder ℝ→ℂ→ℍ→𝕆→𝕊…
+
+    Returns:
+        A ``dim``-tuple of exact :class:`~srmech.math.q.Q` — the all-zero tuple
+        iff the ordered pair ``(x, y)`` commutes.
+
+    Raises:
+        ValueError: operands of unequal length; a non-power-of-two length when
+            ``table is None``; a ``table`` whose dim disagrees with the operands.
+
+    Note:
+        Exact end to end — no float, no epsilon, no ``abs()``. Two routes, both
+        already C-backed: ``table=None`` composes ``srmech_cd_mult``, a ``table``
+        composes ``srmech_algebra_table_product``. NO new C symbol — the
+        commutator IS the composition, so a dedicated kernel would only re-spell
+        ``a·b`` twice (``composition_of_c``, exactly as :func:`associator`).
+        Class C (operand-order which-way) ∘ M (bilinear bind) ∘ K (sign-flip
+        difference; no ``abs()``).
+
+    Canonical SSoT:
+    - Baez, J.C. (2002), *The Octonions*, Bull. AMS **39** 145–205,
+      arXiv:math/0105155, §2 — the Cayley–Dickson ladder and where
+      commutativity (ℂ→ℍ) and associativity (ℍ→𝕆) are each lost.
+    """
+    ex = tuple(_coerce_frac(v) for v in x)
+    ey = tuple(_coerce_frac(v) for v in y)
+    if len(ex) != len(ey):
+        raise ValueError(
+            f"cd_commutator: the two operands must share dimension; got "
+            f"{len(ex)} and {len(ey)}")
+    if table is None:
+        ex, ey = _as_elem(ex), _as_elem(ey)
+        left = cd_mult(ex, ey)
+        right = cd_mult(ey, ex)
+    else:
+        tbl = _structure_table(table)
+        if len(tbl) != len(ex):
+            raise ValueError(
+                f"cd_commutator: the table is dim {len(tbl)}; got operands of "
+                f"length {len(ex)}")
+        left = table_product(tbl, ex, ey)
+        right = table_product(tbl, ey, ex)
+    return tuple(a - b for a, b in zip(left, right))
+
+
+def cd_cycle_holonomy(x: Sequence[Any], y: Sequence[Any], z: Sequence[Any],
+                      table: Any = None) -> Dict[str, Any]:
+    """The loop-holonomy accumulated around a **3-cycle** of Cayley–Dickson
+    edges — the general-dim, any-rung peer of
+    :func:`srmech.qm.quaternion.quaternion_cycle_holonomy` (rc380, `#T1055`).
+
+    A directed triangle ``0 →ˣ 1 →ʸ 2 →ᶻ 0`` carries a CD gain on each edge; the
+    holonomy is the ordered product walked around the loop back to base. Where
+    the algebra is ASSOCIATIVE (ℝ / ℂ / ℍ) that walk is a single well-defined
+    value — the loop CLOSES independently of how the three edges are bracketed —
+    so the quaternion peer, which lives at ℍ, never has to choose. Past the
+    Hurwitz wall at 𝕆 it does: the two bracketings of the same walk disagree, and
+    that disagreement IS the holonomy the triangle now carries. So this op walks
+    the loop BOTH ways and returns the pair plus their defect::
+
+        holonomy_left  = (x·y)·z     the left-nested walk around the triangle
+        holonomy_right = x·(y·z)     the right-nested walk
+        defect         = holonomy_left − holonomy_right   ( = associator(x,y,z) )
+        closed         = (defect is the all-zero tuple)
+
+    ``closed`` is the turn-on read, and it is a property of the RUNG, not of the
+    particular gains: on an associative rung EVERY triangle closes, and at 𝕆 the
+    basis triangles fail to close on exactly the non-associating triples
+    (168 / 512 at 𝕆, 1848 / 4096 at 𝕊). This is the k=3 loop defect made a
+    holonomy; :func:`associator` is the same defect as a bare trilinear tuple,
+    :func:`cd_commutator` is the k=2 square-loop one rung below.
+
+    ⚠️ EPISTEMIC CEILING (`[[user_stance_cascade_matching_substrate_blind_form_not_identity]]`):
+    this reads the FORM of a 3-cycle holonomy over the CD carrier — the ordered
+    triangle walk and whether it closes. It does not classify the holonomy into
+    SU(2)-style conjugacy classes the way the ℍ-only quaternion peer can (that
+    read is a scalar-part level set special to unit quaternions); the general CD
+    rung has no single such invariant, so only the bracketing-defect / ``closed``
+    read is claimed here.
+
+    Args:
+        x, y, z: the three directed edge-gains, equal-length elements. With
+            ``table=None`` the length must be a power of two ``≤ CD_MAX_DIM`` (the
+            definite ladder, via :func:`cd_mult`); with a ``table`` the length
+            must be ``len(table)`` (via :func:`table_product`). Every
+            exact-rational scalar :func:`cd_mult` accepts is accepted here.
+        table: an optional rank-3 structure-constant tensor —
+            :func:`algebra_table` (the definite ladder, or a split γ-twist), or
+            any table :func:`table_product` reads. ``None`` — the default — is
+            the definite Cayley–Dickson ladder ℝ→ℂ→ℍ→𝕆→𝕊…
+
+    Returns:
+        ``dict`` with ``dim`` (int), ``holonomy_left`` / ``holonomy_right`` /
+        ``defect`` (each a ``dim``-tuple of exact :class:`~srmech.math.q.Q`), and
+        ``closed`` (bool — the loop is bracketing-independent ⟺ the defect
+        vanishes; always ``True`` on an associative rung).
+
+    Raises:
+        ValueError: operands of unequal length; a non-power-of-two length when
+            ``table is None``; a ``table`` whose dim disagrees with the operands.
+
+    Note:
+        Exact end to end — no float, no epsilon, no ``abs()``. Both walks compose
+        the same C-backed products :func:`associator` uses (``srmech_cd_mult`` /
+        ``srmech_algebra_table_product``); NO new C symbol (``composition_of_c``).
+        Class M (bilinear bind) ∘ C (loop orientation) ∘ K (sign-flip defect; no
+        ``abs()``).
+
+    Canonical SSoT:
+    - Schafer, R.D. (1966), *An Introduction to Nonassociative Algebras*, §III.1
+      — the associator as the trilinear defect measuring departure from
+      associativity.
+    - Baez, J.C. (2002), *The Octonions*, Bull. AMS **39** 145–205,
+      arXiv:math/0105155, §1–§2 — associativity is lost only at ℍ→𝕆.
+    """
+    ex = tuple(_coerce_frac(v) for v in x)
+    ey = tuple(_coerce_frac(v) for v in y)
+    ez = tuple(_coerce_frac(v) for v in z)
+    if not (len(ex) == len(ey) == len(ez)):
+        raise ValueError(
+            f"cd_cycle_holonomy: the three edge-gains must share dimension; got "
+            f"{len(ex)}, {len(ey)} and {len(ez)}")
+    if table is None:
+        ex, ey, ez = _as_elem(ex), _as_elem(ey), _as_elem(ez)
+        left = cd_mult(cd_mult(ex, ey), ez)
+        right = cd_mult(ex, cd_mult(ey, ez))
+    else:
+        tbl = _structure_table(table)
+        if len(tbl) != len(ex):
+            raise ValueError(
+                f"cd_cycle_holonomy: the table is dim {len(tbl)}; got operands "
+                f"of length {len(ex)}")
+        left = table_product(tbl, table_product(tbl, ex, ey), ez)
+        right = table_product(tbl, ex, table_product(tbl, ey, ez))
+    defect = tuple(a - b for a, b in zip(left, right))
+    return {
+        "dim": len(ex),
+        "holonomy_left": tuple(left),
+        "holonomy_right": tuple(right),
+        "defect": defect,
+        "closed": all(v == 0 for v in defect),
+    }
+
+
 # ──────────────────────────────────────────────────────────────────────
 # Loop navigation — the combinatorial layer over the basis cocycle.
 #

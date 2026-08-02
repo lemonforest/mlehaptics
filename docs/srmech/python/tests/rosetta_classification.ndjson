@@ -9,6 +9,8 @@
 {"exposed_as": "srmech.cascade.algebra_table", "defined_at": "srmech.cascade.cayley_dickson.algebra_table", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.cascade.table_product", "defined_at": "srmech.cascade.cayley_dickson.table_product", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.cascade.associator", "defined_at": "srmech.cascade.cayley_dickson.associator", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.cascade.cd_commutator", "defined_at": "srmech.cascade.cayley_dickson.cd_commutator", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.cascade.cd_cycle_holonomy", "defined_at": "srmech.cascade.cayley_dickson.cd_cycle_holonomy", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.cascade.inertia_signature", "defined_at": "srmech.cascade.cayley_dickson.inertia_signature", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.cascade.left_mult_is_invertible", "defined_at": "srmech.cascade.cayley_dickson.left_mult_is_invertible", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.cascade.left_mult_kernel", "defined_at": "srmech.cascade.cayley_dickson.left_mult_kernel", "bucket": "composition_of_c"}

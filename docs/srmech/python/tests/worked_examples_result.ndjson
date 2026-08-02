@@ -1,4 +1,4 @@
-{"n": 444, "native": false, "python": "3.10", "record": "meta"}
+{"n": 446, "native": false, "python": "3.10", "record": "meta"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.amsc.catalog.get_attested_dataset", "problems": [], "src_sha256": "58d42a7869396586ee1363c377b8b1abf02bf5febea9d695f6aa4e49b8e26a99", "statements": 9, "status": "ok"}
 {"markers_fired": [{"exc": "ValueError", "line": 20}], "n_markers": 1, "name": "srmech.amsc.catalog.list_attested_sources", "problems": [], "src_sha256": "986c4bccd23f665bd00f8d91187777f98acfd091cbc9a95550c36560c3546452", "statements": 9, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.amsc.catalog.list_catalog_chains", "problems": [], "src_sha256": "80aee0a39a7344378b831ef74cb41d64bce16527865a2f790c433220b1390bac", "statements": 7, "status": "ok"}
@@ -100,6 +100,8 @@
 {"markers_fired": [], "n_markers": 0, "name": "srmech.cascade.associator", "problems": [], "src_sha256": "f647117018ca2bccfb40ddc5a254a7a58fcd98ab2877a3b9b934610455e5998c", "statements": 10, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.cascade.autocorrelation", "problems": [{"detail": "name 'autocorrelation' is not defined", "expected": null, "got": "NameError", "kind": "unexpected_raise", "line": 6}], "src_sha256": "9ee6a0b7cdfc506b8f532ec876d78964711ef8eeba6bcc65b822dd82ac7c204b", "statements": 3, "status": "unexpected_raise"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.cascade.best_rational_signed", "problems": [], "src_sha256": "d99dd85cb4affdfa27ece5b3edf97218c04d7a441166818798017b81bd494a53", "statements": 11, "status": "ok"}
+{"markers_fired": [], "n_markers": 0, "name": "srmech.cascade.cd_commutator", "problems": [], "src_sha256": "52b9c571268d513bd630fc69f0f233dd97dee918ae1a27cb3f6b846b797f3270", "statements": 7, "status": "ok"}
+{"markers_fired": [], "n_markers": 0, "name": "srmech.cascade.cd_cycle_holonomy", "problems": [], "src_sha256": "ae43ca4168ec6d3c963edec5502b0f3ecdc04c25582575449bd1a55a8ee53cab", "statements": 5, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.cascade.chiral_dual", "problems": [], "src_sha256": "ba82a5099e30a24179d90e0e831babc09b237dac1e827ae347b118e7f0c8fc3f", "statements": 12, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.cascade.chiral_flip", "problems": [], "src_sha256": "c33108e68fbae5463c1980bd037c4bfd2eca163438b7c329c3042c79a3648e1d", "statements": 9, "status": "ok"}
 {"markers_fired": [], "n_markers": 1, "name": "srmech.cascade.compose.parse_catalog_chains", "problems": [{"detail": "[Errno 2] No such file or directory: 'srmech/amsc/attested/cosmos_validation/descriptor.toml'", "expected": null, "got": "FileNotFoundError", "kind": "unexpected_raise", "line": 7}], "src_sha256": "4b7613eb23fd97dbd386af9b2f5116ba2f96f1f4f6a16f33ba6ba45bf494386c", "statements": 3, "status": "unexpected_raise"}
