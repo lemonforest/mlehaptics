@@ -7924,8 +7924,8 @@ def _register_primitive_class_tools() -> None:
         ),
         # rc380 (`#T1055`): the k=2 SQUARE-LOOP peer of the associator. The
         # Cayley–Dickson property-loss ladder is a ladder of loop defects of
-        # rising arity, each turning on one rung later: commutator @ ℍ,
-        # associator @ 𝕆. The commutator had no named home and was re-derived
+        # rising arity, each turning on one rung later: commutator at ℍ,
+        # associator at 𝕆. The commutator had no named home and was re-derived
         # inline; this is it. Same composition_of_c treatment as associator.
         ToolEntry(
             name="srmech.cascade.cd_commutator", owner="srmech",
