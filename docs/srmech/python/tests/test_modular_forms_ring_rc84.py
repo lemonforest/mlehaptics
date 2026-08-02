@@ -285,7 +285,7 @@ def test_represent_is_a_tool_entry_total_matches_live():
     NOT ToolEntries."""
     from srmech.introspect.tool_schema import get_tool_schema
     shipped = [t for t in get_tool_schema().tools if not t.name.startswith("test.")]
-    assert len(shipped) == 530
+    assert len(shipped) == 532
     names = {t.name for t in shipped}
     assert "srmech.apokatastasis.modular_forms_ring.modular_forms_ring_represent" in names
     # the carrier constructor + the pure accessors are NOT ToolEntries
