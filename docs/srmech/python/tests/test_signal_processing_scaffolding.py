@@ -212,7 +212,7 @@ def test_version_is_0_7_0rc10():
     graduation entry, and the full pedantic-C + test + pure-wheel CI matrix
     re-verifies the 0.6.0 build before the production tag. The arc: the
     ``cascade.atoms`` / ``cascade.compose`` two-tier lean-ISA split (#751); the
-    ``srmech.qm.so8`` / ``srmech.qm.triality`` engine (28-dim adjoint + order-3
+    ``srmech.physics.qm.so8`` / ``srmech.physics.qm.triality`` engine (28-dim adjoint + order-3
     outer automorphism + ``Fix(tau)=g₂=14`` + ``quaternion_subalgebra_stabilizer``
     + ``lean_isa_seventh_primitive``); the reentrant C core (#772); the Klein-4
     four-sector ``parallel_sector_dispatch`` (+ C peer) made chainable; the
@@ -265,7 +265,7 @@ def test_version_is_0_7_0rc10():
     ``srmech.math.hdc.klein4_triality_cycle`` — the order-3 ``S₃ = Aut(V₄)``
     generator cycling the three Klein-4 involutions ``iω₇(1) → γ₅(2) → CPT(3)``
     (identity fixed), the V₄-carrier image of the so(8) ``8v → 8s → 8c``
-    triality (``srmech.qm.triality.triality_cycle``). The "third axis" (F182)
+    triality (``srmech.physics.qm.triality.triality_cycle``). The "third axis" (F182)
     the three order-2 flips cannot reach — order-3 cycling, NOT a fourth
     order-2 chirality. Class I; pure uint8 relabel (no sign / no ``abs()``);
     ``T∘T∘T = id``, ``T² = T⁻¹``. Pure-Python (co-equal C peer is rc18); +1
@@ -434,7 +434,7 @@ def test_version_is_0_7_0rc10():
     verified already correct as of rc18 — W5/W6b/W6c.) Closes #738.
 
     Prior v0.6.0rc3 — MS #20 forward-arch voxel #761 (F220): the order-3 triality
-    surfaced as the 7th lean-ISA primitive — srmech.qm.triality.
+    surfaced as the 7th lean-ISA primitive — srmech.physics.qm.triality.
     lean_isa_seventh_primitive(). The chirality-complete A–N core = 6 order-2
     cascade.atoms + 1 order-3 triality (triality_automorphism, τ³=I) = 7 — the
     only access to the 3rd chiral axis. BIT-EXACT certificate: τ has order
@@ -445,7 +445,7 @@ def test_version_is_0_7_0rc10():
     175 → 176. Pure-Python; ABI unchanged at 3; no abs() (Class K pin-slot,
     scalar cascade.magnitude). Closes #761.
 
-    Prior v0.6.0rc2 — MS #20 forward-arch voxel #759: new srmech.qm.so8 op
+    Prior v0.6.0rc2 — MS #20 forward-arch voxel #759: new srmech.physics.qm.so8 op
     quaternion_subalgebra_stabilizer() — the bit-exact 6-dim so(4)=su(2)⊕su(2)
     G₂-stabiliser of a quaternion ℍ⊂𝕆 (the ℍ-reading sibling of an_embedding;
     F215). Keeps the Lie SYMMETRY surface (so(4)⊂g₂) distinct from the
@@ -486,7 +486,7 @@ def test_version_is_0_7_0rc10():
     (Prior rc21 — the su(3) ⊕ 3 ⊕ 3bar Lie decomposition of g2 = Der(O)
     (issue #744, wishlist).
 
-    Added a new pure-Python qm operator ``srmech.qm.so8.an_embedding`` that
+    Added a new pure-Python qm operator ``srmech.physics.qm.so8.an_embedding`` that
     exposes the bit-exact su(3)-module structure of the 14 g2 = Der(O)
     generators: the Lie-algebra branching 14 = 8 + 3 + 3bar (su(3) adjoint +
     fundamental + antifundamental; the 7-dim octonion-vector branches
@@ -529,7 +529,7 @@ def test_version_is_0_7_0rc10():
     Prior rc18 — the downstream-wishlist + hygiene + perf CLEANUP rc.
 
     Carries the rc17 SO(8) TRIALITY voxel forward with the deterministic
-    constant-returning ``srmech.qm.{octonion,so8,triality}`` builders now
+    constant-returning ``srmech.physics.qm.{octonion,so8,triality}`` builders now
     module-level cached (the public surfaces return DEFENSIVE COPIES, so the
     six bit-exact acceptance tests pass identically). Doc/accuracy fixes for
     the downstream RBS-LM wishlist (``sha256_bytes`` returns the hex digest;
@@ -537,7 +537,7 @@ def test_version_is_0_7_0rc10():
     radians; ``_native.ABI_VERSION`` back-compat alias; cosmos references).
     Pure-Python; ABI stays 3. (The rc17 SO(8) TRIALITY voxel — three new
     qm-layer surfaces
-    (``srmech.qm.octonion`` / ``srmech.qm.so8`` / ``srmech.qm.triality``)
+    (``srmech.physics.qm.octonion`` / ``srmech.physics.qm.so8`` / ``srmech.physics.qm.triality``)
     expose the octonion Cayley-Dickson-from-H table, the 28-generator
     ``so(8)`` adjoint (14 g2 + 7 L + 7 R), and the ``28x28`` order-3 outer
     automorphism ``tau`` with ``Fix(tau) = g2`` (dim 14 = the A-N
@@ -601,8 +601,8 @@ def test_version_is_0_7_0rc10():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.9.0rc380", (
-        f"expected srmech.__version__ == '0.9.0rc380'; got "
+    assert srmech.__version__ == "0.9.0rc381", (
+        f"expected srmech.__version__ == '0.9.0rc381'; got "
         f"{srmech.__version__!r}"
     )
 
