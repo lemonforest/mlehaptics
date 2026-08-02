@@ -51,8 +51,10 @@ beyond a single-file read.
   Pyodide / WASM environments.
 - The **canonical QM/QFT/SM operations layer** at `srmech.physics.qm.*`
   (moved there from `srmech.qm.*` by the ADR-0010 physics slice,
-  v0.9.0rc381; `srmech.qm.*` still resolves for one release as a
-  `DeprecationWarning` alias)
+  v0.9.0rc381; the old `srmech.qm.*` path was REMOVED in v0.9.0rc382 —
+  a clean break, no alias, per the no-legacy-path discipline — so
+  `import srmech.qm` now raises `ModuleNotFoundError`; use
+  `srmech.physics.qm.*`)
   (Task #217 Phase C1 rc9-rc11) — single_particle (TDSE/TISE/Heisenberg
   /commutator/density-matrix/Liouville-vN), spin (Pauli + Cl(0,3)),
   potentials (hydrogen radial + harmonic oscillator), relativistic

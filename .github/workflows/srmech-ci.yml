@@ -685,16 +685,13 @@ jobs:
           # imports + runs with numpy absent, over the Mat carrier + cascades.
           import srmech.physics.qm  # noqa: F401  (subpackage import must NOT require numpy)
           from srmech.physics.qm import spin, bell, single_particle, relativistic, gauge, potentials
-          # rc381 (`#T1052`): srmech.qm survives one release as a DEPRECATION
-          # ALIAS — both `import srmech.qm` and `from srmech.qm.<sub> import ...`
-          # still resolve (to srmech.physics.qm) and emit a DeprecationWarning.
-          import warnings as _w
-          with _w.catch_warnings(record=True) as _rec:
-              _w.simplefilter('always')
-              import srmech.qm  # noqa: F401  (deprecation alias)
-          assert any(issubclass(r.category, DeprecationWarning) for r in _rec), 'srmech.qm alias did not warn'
-          from srmech.qm.single_particle import tise_solve as _alias_tise
-          assert _alias_tise is single_particle.tise_solve, 'srmech.qm alias submodule mismatch'
+          # rc382 (`#T1056`): srmech.qm was REMOVED — the ADR-0010 physics slice is a HARD
+          # break (no legacy path). The old dotted path must now fail cleanly.
+          try:
+              import srmech.qm  # noqa: F401
+              raise AssertionError('srmech.qm should be gone in rc382 (clean break, no alias)')
+          except ModuleNotFoundError:
+              pass
           assert type(spin.pauli_matrices()[0]).__name__ == 'Mat', 'spin not numpy-free'
           verified, primary, _ = bell.verify_chsh()
           assert verified and abs(primary) < 1e-13, (verified, primary)  # within-tol: chsh_pauli_combination_norm via C Hermitian eig (rc152), not exact-0

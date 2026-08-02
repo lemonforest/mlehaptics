@@ -66,7 +66,9 @@ _EXPECTED_ROOTS = (
     # DOMAIN (srmech.qm.X -> srmech.physics.qm.X, a whole-subpackage move rather
     # than a flat batch). This is the ONE root that is a rename, not an append:
     # qm was an original compute root, so its successor keeps that slot and the
-    # walk recurses srmech.physics -> srmech.physics.qm. srmech.physics leaves
+    # walk recurses srmech.physics -> srmech.physics.qm. (srmech.qm's rc381
+    # deprecation alias was REMOVED in v0.9.0rc382, `#T1056` — clean break, no
+    # legacy path; it was never a walk root regardless.) srmech.physics leaves
     # _ADR0010_NEW_NAMESPACES for _ADR0010_EXISTING_DESTINATIONS this rc (below),
     # which is the ONLY route out of test_the_roots_are_blind_to_ADR0010s_new_namespaces.
     "srmech.physics",
