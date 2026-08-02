@@ -61,7 +61,15 @@ _CANONICAL_REL = "python/tests/rosetta_roots.py"
 #: invisibility ``tests/rosetta_roots.py`` was collapsed to prevent.
 _EXPECTED_ROOTS = (
     "srmech.amsc",
-    "srmech.qm",
+    # v0.9.0rc381 (`#T1052`) — RENAMED IN PLACE from "srmech.qm". The ADR-0010
+    # physics slice moved the whole qm subpackage under the new srmech.physics
+    # DOMAIN (srmech.qm.X -> srmech.physics.qm.X, a whole-subpackage move rather
+    # than a flat batch). This is the ONE root that is a rename, not an append:
+    # qm was an original compute root, so its successor keeps that slot and the
+    # walk recurses srmech.physics -> srmech.physics.qm. srmech.physics leaves
+    # _ADR0010_NEW_NAMESPACES for _ADR0010_EXISTING_DESTINATIONS this rc (below),
+    # which is the ONLY route out of test_the_roots_are_blind_to_ADR0010s_new_namespaces.
+    "srmech.physics",
     "srmech.signal_processing",
     "srmech.bus",
     "srmech.dsl",
@@ -156,8 +164,14 @@ _EXPECTED_ROOTS = (
 #: slice, but the migration rule is unchanged (package existence is binary; the root
 #: migrates the moment ANY module lands). Three namespaces became two;
 #: ``srmech.physics`` / ``srmech.external`` are what remain absent.
+#: ⚠️ ``srmech.physics`` LEFT THIS TUPLE at v0.9.0rc381 (`#T1052`), by that same
+#: route: the ADR-0010 physics slice moved the whole ``qm`` subpackage under it
+#: (``srmech.qm`` -> ``srmech.physics.qm``), so the package now EXISTS and the
+#: walk reaches it (``srmech.physics`` is the walk root, recursing into ``qm``).
+#: Two namespaces became ONE. ``srmech.external`` is the last ADR-0010
+#: destination that has not begun to land — so ``len(_ADR0010_NEW_NAMESPACES)``
+#: is now the tamper-proof "arc-complete when 0" oracle (asserted below).
 _ADR0010_NEW_NAMESPACES = (
-    "srmech.physics",
     "srmech.external",
 )
 
@@ -191,10 +205,46 @@ _ADR0010_NEW_NAMESPACES = (
 #: v0.9.0rc375 — ``srmech.biology`` joins them by the same route. Its ONLY slice
 #: (genome / plasmid / q8 / coupling — the whole 4-module roster) arrives carrying
 #: the genome / q8 / coupling operator surface; see ``_EXPECTED_ROOTS``.
+#:
+#: v0.9.0rc381 (`#T1052`) — ``srmech.physics`` joins them by the same route. Its
+#: slice moved the whole ``qm`` subpackage under it (``srmech.qm`` ->
+#: ``srmech.physics.qm``); the walk root is the DOMAIN ``srmech.physics``, which
+#: recurses into ``qm`` and its 15 submodules. This is the LAST ADR-0010 DOMAIN
+#: to land; only the ``srmech.external`` structure home remains unlanded.
 _ADR0010_EXISTING_DESTINATIONS = ("srmech.amsc", "srmech.introspect",
                                   "srmech.dsl", "srmech.music",
                                   "srmech.cascade", "srmech.apokatastasis",
-                                  "srmech.math", "srmech.biology")
+                                  "srmech.math", "srmech.biology",
+                                  "srmech.physics")
+
+#: ⚠️ THE UNION-PIN (rc381, `#T1052`). The FIXED full set of ADR-0010 destination
+#: namespaces. Every ADR-0010 target is either still-unlanded
+#: (``_ADR0010_NEW_NAMESPACES``) or landed (``_ADR0010_EXISTING_DESTINATIONS``),
+#: and the two are disjoint — so their UNION must equal this constant AT EVERY rc,
+#: forever. Pinning the union (not just each half) closes a hole the two tuples
+#: had on their own: before rc381 a name silently DELETED from
+#: ``_ADR0010_NEW_NAMESPACES`` — rather than moved to the EXISTING tuple — still
+#: passed green (``test_the_roots_are_blind_...`` only checks NEW names are ABSENT
+#: from the roots, which a deleted name trivially is). The union pin makes a name
+#: able to move ONLY NEW->EXISTING; it can never leave the accounting. Derived
+#: from ADR-0010's own namespace table (``docs/srmech/adr/0010-namespace-declustering.md``),
+#: the ten destinations are: the SIX that were NEW namespaces at the arc's start
+#: and have since landed — music / cascade / apokatastasis / math / biology /
+#: physics — plus the THREE pre-existing destinations already serving as roots —
+#: amsc / introspect / dsl — plus the ONE still-unlanded structure home, external.
+#: This is a CONSTANT: edit it only if ADR-0010 itself gains or drops a
+#: destination namespace, never as a side effect of a move.
+_ADR0010_ALL_NAMESPACES = frozenset(
+    _ADR0010_NEW_NAMESPACES) | frozenset(_ADR0010_EXISTING_DESTINATIONS)
+
+#: The pinned value the union must equal at every rc. A move edits the two source
+#: tuples in lockstep and this stays put; a DELETION (name vanishes from NEW
+#: without arriving in EXISTING) shrinks the union and fails the pin below.
+_ADR0010_ALL_NAMESPACES_PINNED = frozenset({
+    "srmech.amsc", "srmech.introspect", "srmech.dsl", "srmech.music",
+    "srmech.cascade", "srmech.apokatastasis", "srmech.math", "srmech.biology",
+    "srmech.physics", "srmech.external",
+})
 
 #: Detects a spelled-out copy of the root tuple: the quoted literal every copy
 #: ended with. Measured at rc361 — this token appeared in EXACTLY the four known
@@ -385,6 +435,85 @@ def test_the_roots_are_blind_to_ADR0010s_new_namespaces() -> None:
         "and that correction is part of the finding.")
 
 
+def test_the_ADR0010_namespace_accounting_is_closed() -> None:
+    """⚠️ THE UNION-PIN RATCHET (rc381, `#T1052`). A name may move NEW->EXISTING;
+    it can never leave the accounting.
+
+    The two ADR-0010 tuples partition the destination namespaces into
+    not-yet-landed and landed. On their own, each is blind to a specific silent
+    error: ``test_the_roots_are_blind_...`` checks that NEW names are ABSENT from
+    the roots and that EXISTING names are PRESENT, but a name simply DELETED from
+    ``_ADR0010_NEW_NAMESPACES`` — instead of being moved to the EXISTING tuple —
+    is trivially absent from the roots and so passes green while its landing goes
+    unrecorded. This closes that hole three ways:
+
+      1. the two tuples are DISJOINT (a name is landed xor unlanded, never both);
+      2. their UNION equals the fixed full ADR-0010 destination set — so a name
+         cannot vanish from the accounting, only migrate within it;
+      3. neither tuple has an internal duplicate.
+
+    The fixed set is a CONSTANT read off ADR-0010's own namespace table; it moves
+    only if the ADR itself gains or drops a destination, never as a side effect
+    of a module move.
+    """
+    new = set(_ADR0010_NEW_NAMESPACES)
+    existing = set(_ADR0010_EXISTING_DESTINATIONS)
+
+    assert len(new) == len(_ADR0010_NEW_NAMESPACES), "duplicate in NEW tuple"
+    assert len(existing) == len(_ADR0010_EXISTING_DESTINATIONS), (
+        "duplicate in EXISTING tuple")
+
+    overlap = new & existing
+    assert not overlap, (
+        f"a namespace is in BOTH ADR-0010 tuples: {sorted(overlap)}. A "
+        "destination is either still-unlanded (NEW) or landed (EXISTING), never "
+        "both — moving one means DELETING it from NEW in the same edit that "
+        "APPENDS it to EXISTING.")
+
+    assert _ADR0010_ALL_NAMESPACES == _ADR0010_ALL_NAMESPACES_PINNED, (
+        "the ADR-0010 destination accounting changed.\n"
+        f"  NEW  ∪ EXISTING = {sorted(_ADR0010_ALL_NAMESPACES)}\n"
+        f"  pinned          = {sorted(_ADR0010_ALL_NAMESPACES_PINNED)}\n"
+        f"  missing from the union: "
+        f"{sorted(_ADR0010_ALL_NAMESPACES_PINNED - _ADR0010_ALL_NAMESPACES)}\n"
+        f"  extra in the union:     "
+        f"{sorted(_ADR0010_ALL_NAMESPACES - _ADR0010_ALL_NAMESPACES_PINNED)}\n"
+        "A move edits NEW and EXISTING in lockstep and this union stays put. If a "
+        "name went MISSING, it was deleted from NEW without being appended to "
+        "EXISTING — restore the accounting. Change the PINNED set only if "
+        "ADR-0010 itself added or removed a destination namespace.")
+
+
+def test_the_new_namespace_count_is_the_arc_complete_oracle() -> None:
+    """⚠️ ``len(_ADR0010_NEW_NAMESPACES)`` == outstanding ADR-0010 destinations.
+
+    Because the union is pinned (test above), the count of NEW namespaces is a
+    tamper-proof measure of what the arc has left to land: every NEW name is a
+    real, still-unlanded destination, and the arc is COMPLETE exactly when this
+    reaches 0. It cannot be gamed by deleting a name (the union pin catches that)
+    nor by adding a spurious one (each NEW name is asserted genuinely absent from
+    both the landed tuple and the walk roots).
+
+    At rc381 the physics slice landed the LAST DOMAIN, leaving one structure home
+    (``srmech.external``) unlanded — so the oracle reads 1.
+    """
+    outstanding = len(_ADR0010_NEW_NAMESPACES)
+    assert outstanding == 1, (
+        f"the ADR-0010 arc has {outstanding} destination namespace(s) still "
+        f"unlanded: {sorted(_ADR0010_NEW_NAMESPACES)}. At rc381 exactly one "
+        "remains (srmech.external). When a slice lands one, MIGRATE it "
+        "NEW->EXISTING (never delete it) and lower this count; the arc is "
+        "COMPLETE when it reaches 0.")
+
+    for ns in _ADR0010_NEW_NAMESPACES:
+        assert ns not in _ADR0010_EXISTING_DESTINATIONS, (
+            f"{ns} is listed as unlanded but also as a landed destination")
+        assert ns not in ROSETTA_ROOTS, (
+            f"{ns} is listed as unlanded but is already a walk root — an "
+            "unlanded namespace must not be walked (a root naming a nonexistent "
+            "package is silently skipped; see the next test).")
+
+
 def test_a_root_naming_a_nonexistent_package_is_silently_skipped() -> None:
     """⚠️ The mechanism behind the gap, proven rather than asserted from memory.
 
@@ -400,14 +529,15 @@ def test_a_root_naming_a_nonexistent_package_is_silently_skipped() -> None:
 
     import conftest
     saved = conftest._ROSETTA_ROOTS
-    # ⚠️ v0.9.0rc372 — the witness points at ``srmech.physics``, still in
-    # ``_ADR0010_NEW_NAMESPACES`` and genuinely without a package dir. (rc370
-    # used ``srmech.external`` — also still absent and still valid; rotated here
-    # to a different not-yet-landed namespace so the witness does not calcify on
-    # one name as the arc drains. Any member of ``_ADR0010_NEW_NAMESPACES`` is a
-    # correct still-nonexistent witness for the ImportError-swallow.)
+    # ⚠️ v0.9.0rc381 (`#T1052`) — the witness points at ``srmech.external``, the
+    # LAST member of ``_ADR0010_NEW_NAMESPACES`` and genuinely without a package
+    # dir. (rc372 used ``srmech.physics`` — valid then, but the physics slice
+    # LANDED it this rc, so it is no longer a still-nonexistent witness; rotated
+    # back to ``srmech.external``, which rc370 already used. Any member of
+    # ``_ADR0010_NEW_NAMESPACES`` is a correct still-nonexistent witness for the
+    # ImportError-swallow — and there is now exactly one left.)
     try:
-        conftest._ROSETTA_ROOTS = saved + ("srmech.physics",)
+        conftest._ROSETTA_ROOTS = saved + ("srmech.external",)
         widened = rosetta_live_objects()
     finally:
         conftest._ROSETTA_ROOTS = saved

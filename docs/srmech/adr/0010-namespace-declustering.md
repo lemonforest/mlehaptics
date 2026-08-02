@@ -146,6 +146,16 @@ the precision migration" — that migration is **complete** (the Class-N precisi
 rc318/319/320), and the class-registry prerequisite above landed in rc359. The execution arc is
 tracked as `#T1034`. This ADR is the reference for it.
 
+**MACHINE SOURCE OF TRUTH for what is outstanding (rc381, `#T1052`).** The set of ADR-0010 destination
+namespaces that have NOT yet landed is `_ADR0010_NEW_NAMESPACES` in
+`python/tests/test_rosetta_roots_single_source_rc361.py`. It is pinned against the fixed full
+destination set (the union-pin ratchet, same file), so a name may move NEW → EXISTING but can never
+silently disappear, and `len(_ADR0010_NEW_NAMESPACES)` is the tamper-proof **"arc-complete when 0"**
+oracle. As of **v0.9.0rc381** — the physics slice, which relocated the whole `qm` subpackage to
+`srmech.physics.qm` (the LAST DOMAIN to land) — that set holds exactly one name: **`srmech.external`**
+(the structure home). When it drains to zero, ADR-0010 execution is complete. Prose here may lag; that
+constant does not.
+
 ---
 
 ## Amendment A — the executable research record (2026-07-29, `#T1034`)
