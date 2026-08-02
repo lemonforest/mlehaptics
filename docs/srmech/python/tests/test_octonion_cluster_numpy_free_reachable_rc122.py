@@ -60,7 +60,7 @@ def test_octonion_imports_and_runs_numpy_free():
     """``qm.octonion`` imports + the table / L-mult / norm run numpy-absent."""
     proc = _run_numpy_free(
         """
-        from srmech.qm import octonion
+        from srmech.physics.qm import octonion
         tbl = octonion.octonion_mult_table()
         assert isinstance(tbl, list) and tbl[1][2][3] == 1, tbl[1][2][3]
         L = octonion.octonion_left_mult([1.0, 0, 0, 0, 0, 0, 0, 0])
@@ -80,7 +80,7 @@ def test_so8_imports_and_runs_numpy_free():
     """``qm.so8`` imports + g2 / so8-adjoint / an_embedding run numpy-absent."""
     proc = _run_numpy_free(
         """
-        from srmech.qm import so8
+        from srmech.physics.qm import so8
         g2 = so8.g2_subalgebra()
         assert len(g2) == 14 and type(g2[0]).__name__ == "Mat", len(g2)
         adj = so8.so8_adjoint_basis()
@@ -100,7 +100,7 @@ def test_triality_imports_and_runs_numpy_free():
     """``qm.triality`` imports + the order-3 tau / companions run numpy-absent."""
     proc = _run_numpy_free(
         """
-        from srmech.qm import triality
+        from srmech.physics.qm import triality
         from srmech.math.laplacian import mat_matmul, mat_norm
         from srmech.math.mat import Mat
         tau = triality.triality_automorphism()

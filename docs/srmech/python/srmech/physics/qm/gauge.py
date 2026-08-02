@@ -8,7 +8,7 @@ Gell-Mann matrices, and every derived operator (connection, Casimir,
 path-segment holonomy, Wilson loop) are held in the framework-native
 :class:`~srmech.math.mat.Mat` carrier — the SU(2) generators are built from
 the numpy-free Pauli 2×2 ``Mat`` blocks
-(:func:`srmech.qm.spin.pauli_matrices`), the Gell-Mann matrices from exact
+(:func:`srmech.physics.qm.spin.pauli_matrices`), the Gell-Mann matrices from exact
 small-integer ``Mat`` (with the λ⁸ ``1/√3`` normaliser via the Class-N
 :func:`srmech.math.rational.sqrt`). Every matrix product routes through the
 Class-L :func:`~srmech.math.laplacian.mat_matmul`, residual norms through
@@ -59,7 +59,7 @@ from srmech.math.laplacian import (
     mat_norm,
 )
 from srmech.math.mat import Mat
-from srmech.qm.spin import pauli_matrices
+from srmech.physics.qm.spin import pauli_matrices
 
 
 # Canonical −i: a TRUE-ZERO real part (+0.0). The literal ``-1j`` carries

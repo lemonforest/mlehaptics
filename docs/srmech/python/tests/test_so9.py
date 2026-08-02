@@ -1,7 +1,7 @@
 """Bit-exact acceptance tests for the so(9)/Spin(9) rung (rc323, task #945).
 
 One Cayley-Dickson step above the so(8)/triality voxel
-(:mod:`srmech.qm.so8` / :mod:`srmech.qm.triality`). The tests prove, all
+(:mod:`srmech.physics.qm.so8` / :mod:`srmech.physics.qm.triality`). The tests prove, all
 bit-exact and numpy-free:
 
 1. ``so(9)`` adjoint (vector rep) — 36 antisymmetric ``9x9``, rank exactly 36.
@@ -24,7 +24,7 @@ reducing the matrix to a scalar Frobenius norm via the numpy-free Class-N
 :func:`srmech.math.laplacian.mat_norm`. numpy-FREE (per
 ``[[feedback_test_for_numpy_free_module_must_itself_be_numpy_free]]``): the
 so9 surfaces return :class:`srmech.math.mat.Mat`; ranks ride the EXACT
-rational :func:`srmech.qm.so9._q_rank`.
+rational :func:`srmech.physics.qm.so9._q_rank`.
 """
 
 from __future__ import annotations
@@ -32,7 +32,7 @@ from __future__ import annotations
 from srmech.cascade import magnitude
 from srmech.math.laplacian import mat_matmul, mat_norm
 from srmech.math.mat import Mat
-from srmech.qm import so9
+from srmech.physics.qm import so9
 
 _TOL = 1e-12
 

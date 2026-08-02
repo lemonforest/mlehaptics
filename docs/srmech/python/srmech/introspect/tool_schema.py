@@ -8126,7 +8126,7 @@ def _register_primitive_class_tools() -> None:
         ),
         # rc324: the DISCRETE octonion Moufang loop {±e₀..±e₇} as 4-bit bytes —
         # the Cayley–Dickson rung ABOVE Q8 (the byte-exact carrier peer of the
-        # float srmech.qm.octonion ODFT). The genome's 𝕆 element-type carrier
+        # float srmech.physics.qm.octonion ODFT). The genome's 𝕆 element-type carrier
         # (ELEMENT_TYPE_OCTONION): stores the FULL octonion (indices 0..7, incl.
         # the non-quaternionic 4..7). ADDITIVE; carrier only (the associator /
         # fiber channel is a later rc). oct_mult's sign is the cd_basis_product
@@ -8853,7 +8853,7 @@ def _register_primitive_class_tools() -> None:
                     "slots [0,1,2,3] (cyclic-order-4 TIMING, distinct from the "
                     "order-2×order-2 Klein-4 IDENTITY). Hard-capped at 4 — "
                     "Klein-4 has no order-4+ element; 8+ needs the order-3 "
-                    "triality (srmech.qm.triality, F220), NOT done here. "
+                    "triality (srmech.physics.qm.triality, F220), NOT done here. "
                     "Usefulness collapse-lattice 4/2/2/1 (bi-axial→4 distinct; "
                     "iω₇-sym→2; γ₅-sym→2; bi-sym→1). No abs() (Class K "
                     "magnitude / Class C net_chirality). The thread-count ladder "
@@ -9113,7 +9113,7 @@ def _register_qm_tools() -> None:
     """Register tool entries for the canonical QM/QFT/SM operations layer
     (Task #217 Phase C1 / Task #220).
 
-    Covers `srmech.qm.*` — single-particle / spin / potentials / relativistic /
+    Covers `srmech.physics.qm.*` — single-particle / spin / potentials / relativistic /
     propagators / pseudo_hermitian / gauge / sm. Each entry cites the
     operation's canonical physics SSoT in its summary per
     ``[[feedback_science_is_ssot_not_project]]``.
@@ -9123,10 +9123,10 @@ def _register_qm_tools() -> None:
 
     entries: List[ToolEntry] = [
         # ────────────────────────────────────────────────────────────
-        # srmech.qm.single_particle
+        # srmech.physics.qm.single_particle
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.qm.single_particle.tdse_evolve", owner="srmech",
+            name="srmech.physics.qm.single_particle.tdse_evolve", owner="srmech",
             category="qm.single_particle",
             summary="Closed-form TDSE evolution ψ(t) = V·diag(exp(-iλt))·V^H ψ(0) "
                     "via Hermitian eigenbasis. Schrödinger (1926); Sakurai §2.1.5.",
@@ -9136,7 +9136,7 @@ def _register_qm_tools() -> None:
             returns=R("list[complex]", "(n,) complex"),
         ),
         ToolEntry(
-            name="srmech.qm.single_particle.tise_solve", owner="srmech",
+            name="srmech.physics.qm.single_particle.tise_solve", owner="srmech",
             category="qm.single_particle",
             summary="Time-Independent Schrödinger H ψ_n = E_n ψ_n. "
                     "Schrödinger (1926); Sakurai §2.1.3.",
@@ -9145,14 +9145,14 @@ def _register_qm_tools() -> None:
                       "(eigenvalues, eigenvectors)"),
         ),
         ToolEntry(
-            name="srmech.qm.single_particle.commutator", owner="srmech",
+            name="srmech.physics.qm.single_particle.commutator", owner="srmech",
             category="qm.single_particle",
             summary="Operator commutator [A, B] = AB − BA. Sakurai §1.4.",
             parameters=(P("A", "Mat", True), P("B", "Mat", True)),
             returns=R("Mat", "(n, n)"),
         ),
         ToolEntry(
-            name="srmech.qm.single_particle.heisenberg_evolve", owner="srmech",
+            name="srmech.physics.qm.single_particle.heisenberg_evolve", owner="srmech",
             category="qm.single_particle",
             summary="Heisenberg-picture operator evolution A_H(t) = U†(t) A U(t). "
                     "Heisenberg (1925); Sakurai §2.2.",
@@ -9161,7 +9161,7 @@ def _register_qm_tools() -> None:
             returns=R("Mat", "(n, n) complex"),
         ),
         ToolEntry(
-            name="srmech.qm.single_particle.lattice_momentum", owner="srmech",
+            name="srmech.physics.qm.single_particle.lattice_momentum", owner="srmech",
             category="qm.single_particle",
             summary="Lattice momentum p̂ = -i ∂_x via central-difference; "
                     "Hermitian. Sakurai §1.6; Wilson (1974).",
@@ -9170,7 +9170,7 @@ def _register_qm_tools() -> None:
             returns=R("Mat", "(n, n) Hermitian complex"),
         ),
         ToolEntry(
-            name="srmech.qm.single_particle.density_matrix", owner="srmech",
+            name="srmech.physics.qm.single_particle.density_matrix", owner="srmech",
             category="qm.single_particle",
             summary="Pure-state density matrix ρ = |ψ⟩⟨ψ|. "
                     "von Neumann (1932); Sakurai §3.4.",
@@ -9178,7 +9178,7 @@ def _register_qm_tools() -> None:
             returns=R("Mat", "(n, n) Hermitian PSD"),
         ),
         ToolEntry(
-            name="srmech.qm.single_particle.liouville_evolve", owner="srmech",
+            name="srmech.physics.qm.single_particle.liouville_evolve", owner="srmech",
             category="qm.single_particle",
             summary="Liouville-von Neumann ρ(t) = U(t) ρ(0) U†(t). "
                     "von Neumann (1932); Sakurai §3.4.2.",
@@ -9188,10 +9188,10 @@ def _register_qm_tools() -> None:
         ),
 
         # ────────────────────────────────────────────────────────────
-        # srmech.qm.spin
+        # srmech.physics.qm.spin
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.qm.spin.pauli_matrices", owner="srmech", category="qm.spin",
+            name="srmech.physics.qm.spin.pauli_matrices", owner="srmech", category="qm.spin",
             summary="Pauli matrices σ_x, σ_y, σ_z. Cl(0,3) Clifford generators. "
                     "Pauli (1927); Sakurai §3.2.",
             parameters=(),
@@ -9199,13 +9199,13 @@ def _register_qm_tools() -> None:
                       "each 2×2 Hermitian"),
         ),
         ToolEntry(
-            name="srmech.qm.spin.pauli_identity", owner="srmech", category="qm.spin",
+            name="srmech.physics.qm.spin.pauli_identity", owner="srmech", category="qm.spin",
             summary="2×2 identity (Cl(0,3) scalar).",
             parameters=(),
             returns=R("Mat", "2×2 identity"),
         ),
         ToolEntry(
-            name="srmech.qm.spin.pauli_clifford_residuals", owner="srmech",
+            name="srmech.physics.qm.spin.pauli_clifford_residuals", owner="srmech",
             category="qm.spin",
             summary="Numerical residuals for {σ_i, σ_j} = 2 δ_ij I and "
                     "[σ_i, σ_j] = 2i ε_ijk σ_k. Sakurai §3.2.",
@@ -9214,7 +9214,7 @@ def _register_qm_tools() -> None:
                       "(max_anticomm_dev, max_comm_dev)"),
         ),
         ToolEntry(
-            name="srmech.qm.spin.pauli_spin_operator", owner="srmech",
+            name="srmech.physics.qm.spin.pauli_spin_operator", owner="srmech",
             category="qm.spin",
             summary="Spin-½ projection S_n = (1/2) σ · n̂ for arbitrary axis. "
                     "Sakurai §3.2 eq 3.2.51.",
@@ -9223,13 +9223,13 @@ def _register_qm_tools() -> None:
         ),
 
         # ────────────────────────────────────────────────────────────
-        # srmech.qm.bell — Bell-CHSH + Tsirelson bound 2√2 bit-exact
+        # srmech.physics.qm.bell — Bell-CHSH + Tsirelson bound 2√2 bit-exact
         # identity signature (Spike #128.1, Class L ∘ I ∘ M ∘ C ∘ A).
         # Per [[user_stance_bell_inequality_as_canonical_identity_signature]]:
         # framework's strongest single identity-not-implementation signature.
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.qm.bell.chsh_pauli_combination", owner="srmech",
+            name="srmech.physics.qm.bell.chsh_pauli_combination", owner="srmech",
             category="qm.bell",
             summary="σ_x ⊗ σ_x + σ_z ⊗ σ_z as 4×4 Hermitian. Closed-form "
                     "spectrum {+2, 0, 0, −2}. Bell (1964); Sakurai §3.10.",
@@ -9237,7 +9237,7 @@ def _register_qm_tools() -> None:
             returns=R("Mat", "(4, 4) Hermitian complex"),
         ),
         ToolEntry(
-            name="srmech.qm.bell.chsh_operator", owner="srmech",
+            name="srmech.physics.qm.bell.chsh_operator", owner="srmech",
             category="qm.bell",
             summary="Tsirelson-optimal CHSH operator B_CHSH = A_0⊗B_0 + "
                     "A_0⊗B_1 + A_1⊗B_0 − A_1⊗B_1 with A_0=σ_z, A_1=σ_x, "
@@ -9246,7 +9246,7 @@ def _register_qm_tools() -> None:
             returns=R("Mat", "(4, 4) Hermitian complex"),
         ),
         ToolEntry(
-            name="srmech.qm.bell.operator_norm", owner="srmech",
+            name="srmech.physics.qm.bell.operator_norm", owner="srmech",
             category="qm.bell",
             summary="Spectral norm max|λ_i| of a Hermitian matrix via Class L "
                     "hermitian_eigendecompose. Golub & Van Loan §8.5.",
@@ -9254,7 +9254,7 @@ def _register_qm_tools() -> None:
             returns=R("float", "largest absolute eigenvalue"),
         ),
         ToolEntry(
-            name="srmech.qm.bell.chsh_pauli_combination_norm", owner="srmech",
+            name="srmech.physics.qm.bell.chsh_pauli_combination_norm", owner="srmech",
             category="qm.bell",
             summary="‖σ_x ⊗ σ_x + σ_z ⊗ σ_z‖ = 2 bit-exact (integer "
                     "eigenvalue spectrum). Bell (1964).",
@@ -9262,7 +9262,7 @@ def _register_qm_tools() -> None:
             returns=R("float", "exactly 2.0"),
         ),
         ToolEntry(
-            name="srmech.qm.bell.chsh_operator_norm", owner="srmech",
+            name="srmech.physics.qm.bell.chsh_operator_norm", owner="srmech",
             category="qm.bell",
             summary="‖B_CHSH‖ = 2√2 bit-exact Tsirelson bound. Cirel'son "
                     "(1980); Peres §6.3.",
@@ -9270,7 +9270,7 @@ def _register_qm_tools() -> None:
             returns=R("float", "≈ 2.8284271247461903"),
         ),
         ToolEntry(
-            name="srmech.qm.bell.tsirelson_bound", owner="srmech",
+            name="srmech.physics.qm.bell.tsirelson_bound", owner="srmech",
             category="qm.bell",
             summary="Framework-asserted Tsirelson constant 2√2. "
                     "Cirel'son (1980) *Lett. Math. Phys.* 4, 93.",
@@ -9278,7 +9278,7 @@ def _register_qm_tools() -> None:
             returns=R("float", "2 · sqrt(2)"),
         ),
         ToolEntry(
-            name="srmech.qm.bell.classical_chsh_bound", owner="srmech",
+            name="srmech.physics.qm.bell.classical_chsh_bound", owner="srmech",
             category="qm.bell",
             summary="Classical (Bell) CHSH upper bound = 2. Bell (1964); "
                     "CHSH (1969).",
@@ -9286,7 +9286,7 @@ def _register_qm_tools() -> None:
             returns=R("float", "2.0"),
         ),
         ToolEntry(
-            name="srmech.qm.bell.verify_chsh", owner="srmech",
+            name="srmech.physics.qm.bell.verify_chsh", owner="srmech",
             category="qm.bell",
             summary="Bit-exact verification of both Bell-CHSH identities: "
                     "‖σ_x⊗σ_x + σ_z⊗σ_z‖=2 and ‖B_CHSH‖=2√2. Framework's "
@@ -9297,10 +9297,10 @@ def _register_qm_tools() -> None:
         ),
 
         # ────────────────────────────────────────────────────────────
-        # srmech.qm.potentials
+        # srmech.physics.qm.potentials
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.qm.potentials.hydrogen_radial", owner="srmech",
+            name="srmech.physics.qm.potentials.hydrogen_radial", owner="srmech",
             category="qm.potentials",
             summary="Hydrogen-atom radial Schrödinger eigenstates via finite-"
                     "difference. Bohr (1913); Sakurai §3.7.",
@@ -9311,7 +9311,7 @@ def _register_qm_tools() -> None:
                       "(r, energies, eigenvectors)"),
         ),
         ToolEntry(
-            name="srmech.qm.potentials.harmonic_oscillator_ladder", owner="srmech",
+            name="srmech.physics.qm.potentials.harmonic_oscillator_ladder", owner="srmech",
             category="qm.potentials",
             summary="Ladder operators (a, a†) truncated at n_dim. "
                     "Heisenberg (1925); Sakurai §2.3.",
@@ -9320,7 +9320,7 @@ def _register_qm_tools() -> None:
             returns=R("tuple[Mat, Mat]", "(a, a†)"),
         ),
         ToolEntry(
-            name="srmech.qm.potentials.harmonic_oscillator_hamiltonian",
+            name="srmech.physics.qm.potentials.harmonic_oscillator_hamiltonian",
             owner="srmech", category="qm.potentials",
             summary="Harmonic-oscillator Hamiltonian H = ℏω (a†a + 1/2). "
                     "Sakurai §2.3.",
@@ -9329,10 +9329,10 @@ def _register_qm_tools() -> None:
         ),
 
         # ────────────────────────────────────────────────────────────
-        # srmech.qm.relativistic
+        # srmech.physics.qm.relativistic
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.qm.relativistic.minkowski_metric", owner="srmech",
+            name="srmech.physics.qm.relativistic.minkowski_metric", owner="srmech",
             category="qm.relativistic",
             summary="Mostly-minus Minkowski metric η^{μν} = diag(+1, -1, -1, -1). "
                     "Peskin-Schroeder §3.1.",
@@ -9340,7 +9340,7 @@ def _register_qm_tools() -> None:
             returns=R("Mat", "(4, 4)"),
         ),
         ToolEntry(
-            name="srmech.qm.relativistic.gamma_matrices", owner="srmech",
+            name="srmech.physics.qm.relativistic.gamma_matrices", owner="srmech",
             category="qm.relativistic",
             summary="Dirac γ-matrices in the Dirac (standard) representation. "
                     "Cl(1,3) generators. Dirac (1928); Peskin-Schroeder §3.2.",
@@ -9348,7 +9348,7 @@ def _register_qm_tools() -> None:
             returns=R("tuple[Mat, ...]", "four 4×4 complex"),
         ),
         ToolEntry(
-            name="srmech.qm.relativistic.gamma_5", owner="srmech",
+            name="srmech.physics.qm.relativistic.gamma_5", owner="srmech",
             category="qm.relativistic",
             summary="γ_5 = i γ^0 γ^1 γ^2 γ^3 — chirality matrix. "
                     "Peskin-Schroeder §3.4.",
@@ -9356,7 +9356,7 @@ def _register_qm_tools() -> None:
             returns=R("Mat", "4×4 Hermitian"),
         ),
         ToolEntry(
-            name="srmech.qm.relativistic.clifford_residuals", owner="srmech",
+            name="srmech.physics.qm.relativistic.clifford_residuals", owner="srmech",
             category="qm.relativistic",
             summary="Numerical residuals for {γ^μ, γ^ν} = 2 η^{μν} I, γ_5² = I, "
                     "and {γ_5, γ^μ} = 0. Peskin-Schroeder §3.2.",
@@ -9364,7 +9364,7 @@ def _register_qm_tools() -> None:
             returns=R("tuple[float, float, float]", "all ~1e-14"),
         ),
         ToolEntry(
-            name="srmech.qm.relativistic.weyl_left_projector", owner="srmech",
+            name="srmech.physics.qm.relativistic.weyl_left_projector", owner="srmech",
             category="qm.relativistic",
             summary="Left-chirality projector P_L = (I − γ_5)/2. "
                     "Peskin-Schroeder §3.4.",
@@ -9372,7 +9372,7 @@ def _register_qm_tools() -> None:
             returns=R("Mat", "4×4 idempotent"),
         ),
         ToolEntry(
-            name="srmech.qm.relativistic.weyl_right_projector", owner="srmech",
+            name="srmech.physics.qm.relativistic.weyl_right_projector", owner="srmech",
             category="qm.relativistic",
             summary="Right-chirality projector P_R = (I + γ_5)/2. "
                     "Peskin-Schroeder §3.4.",
@@ -9380,7 +9380,7 @@ def _register_qm_tools() -> None:
             returns=R("Mat", "4×4 idempotent"),
         ),
         ToolEntry(
-            name="srmech.qm.relativistic.charge_conjugation_matrix", owner="srmech",
+            name="srmech.physics.qm.relativistic.charge_conjugation_matrix", owner="srmech",
             category="qm.relativistic",
             summary="Charge-conjugation matrix C = i γ^2 γ^0. "
                     "Majorana (1937); Peskin-Schroeder eq A.27.",
@@ -9388,7 +9388,7 @@ def _register_qm_tools() -> None:
             returns=R("Mat", "4×4 complex"),
         ),
         ToolEntry(
-            name="srmech.qm.relativistic.dirac_operator_momentum_space",
+            name="srmech.physics.qm.relativistic.dirac_operator_momentum_space",
             owner="srmech", category="qm.relativistic",
             summary="Dirac operator (γ^μ k_μ − m I_4) in momentum space. "
                     "Dirac (1928); Peskin-Schroeder §3.2.",
@@ -9397,7 +9397,7 @@ def _register_qm_tools() -> None:
             returns=R("Mat", "4×4 complex"),
         ),
         ToolEntry(
-            name="srmech.qm.relativistic.klein_gordon_dispersion",
+            name="srmech.physics.qm.relativistic.klein_gordon_dispersion",
             owner="srmech", category="qm.relativistic",
             summary="Klein-Gordon dispersion E = +√(|k|² + m²). "
                     "Klein/Gordon (1926); Peskin-Schroeder §2.3.",
@@ -9406,7 +9406,7 @@ def _register_qm_tools() -> None:
             returns=R("float", "positive on-shell energy"),
         ),
         ToolEntry(
-            name="srmech.qm.relativistic.four_momentum_squared", owner="srmech",
+            name="srmech.physics.qm.relativistic.four_momentum_squared", owner="srmech",
             category="qm.relativistic",
             summary="Lorentz-invariant k² = k_μ k^μ (mostly-minus convention).",
             parameters=(P("k", "Vec", True, "4-vector"),),
@@ -9414,10 +9414,10 @@ def _register_qm_tools() -> None:
         ),
 
         # ────────────────────────────────────────────────────────────
-        # srmech.qm.propagators
+        # srmech.physics.qm.propagators
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.qm.propagators.feynman_scalar_propagator",
+            name="srmech.physics.qm.propagators.feynman_scalar_propagator",
             owner="srmech", category="qm.propagators",
             summary="Scalar Feynman propagator G_F(k²) = i / (k² − m² + iε). "
                     "Feynman (1949); Peskin-Schroeder §4.2.",
@@ -9427,7 +9427,7 @@ def _register_qm_tools() -> None:
             returns=R("complex", ""),
         ),
         ToolEntry(
-            name="srmech.qm.propagators.feynman_fermion_propagator",
+            name="srmech.physics.qm.propagators.feynman_fermion_propagator",
             owner="srmech", category="qm.propagators",
             summary="Fermion Feynman propagator S_F(k) = i(γ^μ k_μ + m) / "
                     "(k² − m² + iε). Peskin-Schroeder §4.7.",
@@ -9437,7 +9437,7 @@ def _register_qm_tools() -> None:
             returns=R("Mat", "4×4 complex"),
         ),
         ToolEntry(
-            name="srmech.qm.propagators.feynman_photon_propagator",
+            name="srmech.physics.qm.propagators.feynman_photon_propagator",
             owner="srmech", category="qm.propagators",
             summary="Photon Feynman propagator D^{μν}(k) = -i g^{μν}/k² (Feynman "
                     "gauge); ξ-gauge with explicit k. Peskin-Schroeder §4.8.",
@@ -9448,7 +9448,7 @@ def _register_qm_tools() -> None:
             returns=R("Mat", "4×4 complex"),
         ),
         ToolEntry(
-            name="srmech.qm.propagators.feynman_massive_vector_propagator",
+            name="srmech.physics.qm.propagators.feynman_massive_vector_propagator",
             owner="srmech", category="qm.propagators",
             summary="Massive vector propagator D^{μν}(k) = -i (g^{μν} − k^μ k^ν/m²) "
                     "/ (k² − m² + iε). Peskin-Schroeder §20.1.",
@@ -9459,10 +9459,10 @@ def _register_qm_tools() -> None:
         ),
 
         # ────────────────────────────────────────────────────────────
-        # srmech.qm.pseudo_hermitian
+        # srmech.physics.qm.pseudo_hermitian
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.qm.pseudo_hermitian.inner_product_eta", owner="srmech",
+            name="srmech.physics.qm.pseudo_hermitian.inner_product_eta", owner="srmech",
             category="qm.pseudo_hermitian",
             summary="η-deformed inner product ⟨a|b⟩_η = a^† η b. "
                     "Mostafazadeh (2002).",
@@ -9471,7 +9471,7 @@ def _register_qm_tools() -> None:
             returns=R("complex", ""),
         ),
         ToolEntry(
-            name="srmech.qm.pseudo_hermitian.expectation_eta", owner="srmech",
+            name="srmech.physics.qm.pseudo_hermitian.expectation_eta", owner="srmech",
             category="qm.pseudo_hermitian",
             summary="η-expectation ⟨O⟩_η = ⟨ψ|η O|ψ⟩ / ⟨ψ|η|ψ⟩. "
                     "Mostafazadeh (2002).",
@@ -9480,7 +9480,7 @@ def _register_qm_tools() -> None:
             returns=R("complex", ""),
         ),
         ToolEntry(
-            name="srmech.qm.pseudo_hermitian.is_pseudo_hermitian", owner="srmech",
+            name="srmech.physics.qm.pseudo_hermitian.is_pseudo_hermitian", owner="srmech",
             category="qm.pseudo_hermitian",
             summary="Check O† η = η O (η-pseudo-Hermiticity). "
                     "Mostafazadeh (2002).",
@@ -9489,7 +9489,7 @@ def _register_qm_tools() -> None:
             returns=R("bool", ""),
         ),
         ToolEntry(
-            name="srmech.qm.pseudo_hermitian.construct_eta_from_eigendecomposition",
+            name="srmech.physics.qm.pseudo_hermitian.construct_eta_from_eigendecomposition",
             owner="srmech", category="qm.pseudo_hermitian",
             summary="Construct positive η = (V V†)^{-1} from O's eigendecomposition "
                     "so that O is η-pseudo-Hermitian. Mostafazadeh (2002).",
@@ -9498,7 +9498,7 @@ def _register_qm_tools() -> None:
             returns=R("Mat", "Hermitian η"),
         ),
         ToolEntry(
-            name="srmech.qm.pseudo_hermitian.pseudo_hermitian_eigenvalues_real",
+            name="srmech.physics.qm.pseudo_hermitian.pseudo_hermitian_eigenvalues_real",
             owner="srmech", category="qm.pseudo_hermitian",
             summary="Verify η-pseudo-Hermitian O has real eigenvalues (Mostafazadeh "
                     "theorem). Bender-Boettcher (1998); Mostafazadeh (2002).",
@@ -9508,24 +9508,24 @@ def _register_qm_tools() -> None:
         ),
 
         # ────────────────────────────────────────────────────────────
-        # srmech.qm.gauge
+        # srmech.physics.qm.gauge
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.qm.gauge.su2_generators", owner="srmech", category="qm.gauge",
+            name="srmech.physics.qm.gauge.su2_generators", owner="srmech", category="qm.gauge",
             summary="SU(2) fundamental generators T^a = σ^a/2. "
                     "Peskin-Schroeder §15.1.",
             parameters=(),
             returns=R("tuple[Mat, Mat, Mat]", "three 2×2"),
         ),
         ToolEntry(
-            name="srmech.qm.gauge.su2_structure_constants", owner="srmech",
+            name="srmech.physics.qm.gauge.su2_structure_constants", owner="srmech",
             category="qm.gauge",
             summary="Levi-Civita ε^{abc} — SU(2) structure constants.",
             parameters=(),
             returns=R("list[list[list[float]]]", "(3, 3, 3) real"),
         ),
         ToolEntry(
-            name="srmech.qm.gauge.su3_gell_mann_matrices", owner="srmech",
+            name="srmech.physics.qm.gauge.su3_gell_mann_matrices", owner="srmech",
             category="qm.gauge",
             summary="Eight Gell-Mann matrices λ^1..λ^8 (Hermitian traceless 3×3). "
                     "Gell-Mann (1962).",
@@ -9533,13 +9533,13 @@ def _register_qm_tools() -> None:
             returns=R("tuple[Mat, ...]", "eight 3×3"),
         ),
         ToolEntry(
-            name="srmech.qm.gauge.su3_generators", owner="srmech", category="qm.gauge",
+            name="srmech.physics.qm.gauge.su3_generators", owner="srmech", category="qm.gauge",
             summary="SU(3) fundamental generators T^a = λ^a/2.",
             parameters=(),
             returns=R("tuple[Mat, ...]", "eight 3×3"),
         ),
         ToolEntry(
-            name="srmech.qm.gauge.su3_structure_constants", owner="srmech",
+            name="srmech.physics.qm.gauge.su3_structure_constants", owner="srmech",
             category="qm.gauge",
             summary="SU(3) totally-antisymmetric f^{abc} (Gell-Mann). "
                     "Peskin-Schroeder eq 17.34.",
@@ -9547,7 +9547,7 @@ def _register_qm_tools() -> None:
             returns=R("list[list[list[float]]]", "(8, 8, 8) real"),
         ),
         ToolEntry(
-            name="srmech.qm.gauge.lie_algebra_residual", owner="srmech",
+            name="srmech.physics.qm.gauge.lie_algebra_residual", owner="srmech",
             category="qm.gauge",
             summary="Max Frobenius violation of [T^a, T^b] = i f^{abc} T^c. "
                     "Peskin-Schroeder §15.1.",
@@ -9556,14 +9556,14 @@ def _register_qm_tools() -> None:
             returns=R("float", ""),
         ),
         ToolEntry(
-            name="srmech.qm.gauge.casimir_operator", owner="srmech",
+            name="srmech.physics.qm.gauge.casimir_operator", owner="srmech",
             category="qm.gauge",
             summary="Quadratic Casimir C_2 = T^a T^a (sum). Peskin-Schroeder §15.4.",
             parameters=(P("generators", "tuple[Mat, ...]", True),),
             returns=R("Mat", "= C_2(R) · I by Schur"),
         ),
         ToolEntry(
-            name="srmech.qm.gauge.casimir_eigenvalue", owner="srmech",
+            name="srmech.physics.qm.gauge.casimir_eigenvalue", owner="srmech",
             category="qm.gauge",
             summary="Scalar Casimir eigenvalue C_2(R) for irreducible rep. "
                     "Fundamental: 3/4 (SU(2)), 4/3 (SU(3)).",
@@ -9571,7 +9571,7 @@ def _register_qm_tools() -> None:
             returns=R("float", "≥ 0"),
         ),
         ToolEntry(
-            name="srmech.qm.gauge.gauge_connection_matrix", owner="srmech",
+            name="srmech.physics.qm.gauge.gauge_connection_matrix", owner="srmech",
             category="qm.gauge",
             summary="Lie-algebra connection A = A^a T^a (Hermitian).",
             parameters=(P("A_components", "Vec", True),
@@ -9579,7 +9579,7 @@ def _register_qm_tools() -> None:
             returns=R("Mat", ""),
         ),
         ToolEntry(
-            name="srmech.qm.gauge.gauge_path_segment", owner="srmech",
+            name="srmech.physics.qm.gauge.gauge_path_segment", owner="srmech",
             category="qm.gauge",
             summary="Path-segment holonomy U = exp(i g A^a T^a) via Hermitian "
                     "eigendecomp (no scipy). Wilson (1974); Peskin-Schroeder §15.3.",
@@ -9589,7 +9589,7 @@ def _register_qm_tools() -> None:
             returns=R("Mat", "unitary"),
         ),
         ToolEntry(
-            name="srmech.qm.gauge.wilson_loop_from_segments", owner="srmech",
+            name="srmech.physics.qm.gauge.wilson_loop_from_segments", owner="srmech",
             category="qm.gauge",
             summary="Discrete Wilson loop U(C) = ∏_k exp(i g A_k^a T^a) in path "
                     "order. Wilson (1974).",
@@ -9601,10 +9601,10 @@ def _register_qm_tools() -> None:
         ),
 
         # ────────────────────────────────────────────────────────────
-        # srmech.qm.sm
+        # srmech.physics.qm.sm
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.qm.sm.higgs_potential", owner="srmech", category="qm.sm",
+            name="srmech.physics.qm.sm.higgs_potential", owner="srmech", category="qm.sm",
             summary="Mexican-hat V(φ) = -μ²|φ|² + λ|φ|⁴. Higgs (1964); "
                     "Peskin-Schroeder §20.1.",
             parameters=(P("phi", "complex", True),
@@ -9613,7 +9613,7 @@ def _register_qm_tools() -> None:
             returns=R("float", ""),
         ),
         ToolEntry(
-            name="srmech.qm.sm.higgs_vev", owner="srmech", category="qm.sm",
+            name="srmech.physics.qm.sm.higgs_vev", owner="srmech", category="qm.sm",
             summary="Higgs vacuum expectation value v = √(μ²/(2λ)). "
                     "Peskin-Schroeder §20.1.",
             parameters=(P("mu_squared", "float", True),
@@ -9621,7 +9621,7 @@ def _register_qm_tools() -> None:
             returns=R("float", "> 0"),
         ),
         ToolEntry(
-            name="srmech.qm.sm.weak_mixing_angle", owner="srmech", category="qm.sm",
+            name="srmech.physics.qm.sm.weak_mixing_angle", owner="srmech", category="qm.sm",
             summary="Weinberg mixing angle θ_W = atan(g'/g). Weinberg (1967); "
                     "Peskin-Schroeder §20.2. Returns the angle in RADIANS "
                     "(not sin²θ_W, not degrees).",
@@ -9630,20 +9630,20 @@ def _register_qm_tools() -> None:
             returns=R("float", "radians"),
         ),
         ToolEntry(
-            name="srmech.qm.sm.w_boson_mass", owner="srmech", category="qm.sm",
+            name="srmech.physics.qm.sm.w_boson_mass", owner="srmech", category="qm.sm",
             summary="W boson mass M_W = g v / 2. Peskin-Schroeder §20.2.",
             parameters=(P("g", "float", True), P("vev", "float", True)),
             returns=R("float", "> 0"),
         ),
         ToolEntry(
-            name="srmech.qm.sm.z_boson_mass", owner="srmech", category="qm.sm",
+            name="srmech.physics.qm.sm.z_boson_mass", owner="srmech", category="qm.sm",
             summary="Z boson mass M_Z = v √(g² + g'²) / 2. Peskin-Schroeder §20.2.",
             parameters=(P("g", "float", True), P("g_prime", "float", True),
                         P("vev", "float", True)),
             returns=R("float", "> 0"),
         ),
         ToolEntry(
-            name="srmech.qm.sm.weinberg_relation_residual", owner="srmech",
+            name="srmech.physics.qm.sm.weinberg_relation_residual", owner="srmech",
             category="qm.sm",
             summary="Verify |M_W − M_Z cos θ_W| (tree-level identity). "
                     "Peskin-Schroeder §20.2.",
@@ -9652,14 +9652,14 @@ def _register_qm_tools() -> None:
             returns=R("float", "~0"),
         ),
         ToolEntry(
-            name="srmech.qm.sm.electroweak_summary", owner="srmech", category="qm.sm",
+            name="srmech.physics.qm.sm.electroweak_summary", owner="srmech", category="qm.sm",
             summary="Bundle M_W, M_Z, θ_W, sin/cos, Weinberg residual in one dict.",
             parameters=(P("g", "float", True), P("g_prime", "float", True),
                         P("vev", "float", True)),
             returns=R("dict[str, float]", ""),
         ),
         ToolEntry(
-            name="srmech.qm.sm.fermion_mass_from_yukawa", owner="srmech",
+            name="srmech.physics.qm.sm.fermion_mass_from_yukawa", owner="srmech",
             category="qm.sm",
             summary="Fermion mass m_f = y_f v / √2 from Yukawa coupling. "
                     "Peskin-Schroeder §20.2.",
@@ -9667,7 +9667,7 @@ def _register_qm_tools() -> None:
             returns=R("float", ""),
         ),
         ToolEntry(
-            name="srmech.qm.sm.ckm_matrix", owner="srmech", category="qm.sm",
+            name="srmech.physics.qm.sm.ckm_matrix", owner="srmech", category="qm.sm",
             summary="CKM quark-mixing matrix (Chau-Keung parameterization). "
                     "Cabibbo (1963); Kobayashi-Maskawa (1973); PDG §12.1.",
             parameters=(P("theta_12", "float", True), P("theta_13", "float", True),
@@ -9676,7 +9676,7 @@ def _register_qm_tools() -> None:
             returns=R("Mat", "3×3 unitary"),
         ),
         ToolEntry(
-            name="srmech.qm.sm.ckm_unitarity_residual", owner="srmech",
+            name="srmech.physics.qm.sm.ckm_unitarity_residual", owner="srmech",
             category="qm.sm",
             summary="Frobenius norm of V V† − I. PDG §12.1.",
             parameters=(P("V", "Mat", True),),
@@ -9684,13 +9684,13 @@ def _register_qm_tools() -> None:
         ),
 
         # ────────────────────────────────────────────────────────────
-        # srmech.qm.octonion — the MPR-attested Cayley-Dickson-from-H
+        # srmech.physics.qm.octonion — the MPR-attested Cayley-Dickson-from-H
         # octonion algebra (foundational layer of the so(8)/triality
         # engine, v0.5.0rc17). Class A (table + attestation), Class M
         # (L/R binders), Class C (conjugate), Class K∘C (norm, no abs()).
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.qm.octonion.octonion_mult_table", owner="srmech",
+            name="srmech.physics.qm.octonion.octonion_mult_table", owner="srmech",
             category="qm.octonion",
             summary="The (8,8,8) int8 structure-constant tensor C with "
                     "e_i·e_j = Σ_k C[i,j,k] e_k (fixed Cayley-Dickson-from-H "
@@ -9699,7 +9699,7 @@ def _register_qm_tools() -> None:
             returns=R("list[list[list[int]]]", "(8,8,8) int8 structure constants"),
         ),
         ToolEntry(
-            name="srmech.qm.octonion.octonion_table_attestation",
+            name="srmech.physics.qm.octonion.octonion_table_attestation",
             owner="srmech", category="qm.octonion",
             summary="MPR v1 self-attestation dict for the structure-constant "
                     "table; response_sha256 content-addresses the int8 table "
@@ -9709,7 +9709,7 @@ def _register_qm_tools() -> None:
             returns=R("dict", "MPR v1 attestation block"),
         ),
         ToolEntry(
-            name="srmech.qm.octonion.octonion_left_mult", owner="srmech",
+            name="srmech.physics.qm.octonion.octonion_left_mult", owner="srmech",
             category="qm.octonion",
             summary="Left-multiplication matrix L_a (x → a·x) as 8×8 real; "
                     "L_{e_i} (i≥1) is antisymmetric ∈ so(8). Class M "
@@ -9718,7 +9718,7 @@ def _register_qm_tools() -> None:
             returns=R("Mat", "8×8 L_a"),
         ),
         ToolEntry(
-            name="srmech.qm.octonion.octonion_right_mult", owner="srmech",
+            name="srmech.physics.qm.octonion.octonion_right_mult", owner="srmech",
             category="qm.octonion",
             summary="Right-multiplication matrix R_a (x → x·a) as 8×8 real; "
                     "R_{e_i} (i≥1) is antisymmetric ∈ so(8). Class M "
@@ -9727,7 +9727,7 @@ def _register_qm_tools() -> None:
             returns=R("Mat", "8×8 R_a"),
         ),
         ToolEntry(
-            name="srmech.qm.octonion.octonion_conjugate", owner="srmech",
+            name="srmech.physics.qm.octonion.octonion_conjugate", owner="srmech",
             category="qm.octonion",
             summary="Octonion conjugate conj(x) = (x_0, -x_1, …, -x_7); flips "
                     "the imaginary-axis signs. Class C (orientation). "
@@ -9736,7 +9736,7 @@ def _register_qm_tools() -> None:
             returns=R("list[float]", "8-vector"),
         ),
         ToolEntry(
-            name="srmech.qm.octonion.octonion_norm", owner="srmech",
+            name="srmech.physics.qm.octonion.octonion_norm", owner="srmech",
             category="qm.octonion",
             summary="Octonion norm √(Σ x_i²) via the scalar Class K pin-slot "
                     "magnitude (cascade.magnitude) then sqrt — never abs(). "
@@ -9748,7 +9748,7 @@ def _register_qm_tools() -> None:
         # the dim-8 mirror of the rc109 qm.quaternion foundation. Same-rc C
         # peers srmech_octonion_{exp,twiddle}.
         ToolEntry(
-            name="srmech.qm.octonion.octonion_exp", owner="srmech",
+            name="srmech.physics.qm.octonion.octonion_exp", owner="srmech",
             category="qm.octonion",
             summary="The octonion Euler formula exp(μθ) = cos θ·1 + sin θ·μ̂ "
                     "for a UNIT pure imaginary μ̂ (μ̂²=−1) — the ODFT twiddle at "
@@ -9773,7 +9773,7 @@ def _register_qm_tools() -> None:
                       "unit octonion [cos θ, sin θ·μ̂₁, …, sin θ·μ̂₇]"),
         ),
         ToolEntry(
-            name="srmech.qm.octonion.octonion_exp_series_truncate",
+            name="srmech.physics.qm.octonion.octonion_exp_series_truncate",
             owner="srmech", category="qm.octonion",
             summary="EXACT-rational exp(e_axis·θ) for a RATIONAL angle θ=p/q — "
                     "the series-truncate tier of the ODFT twiddle (the dim-8 "
@@ -9796,7 +9796,7 @@ def _register_qm_tools() -> None:
                       "axis, (0,1) elsewhere"),
         ),
         ToolEntry(
-            name="srmech.qm.octonion.octonion_twiddle", owner="srmech",
+            name="srmech.physics.qm.octonion.octonion_twiddle", owner="srmech",
             category="qm.octonion",
             summary="The ODFT twiddle factor exp(σ·μ·2πjk/N) — the DFT-facing "
                     "octonion_exp (the dim-8 quaternion_twiddle mirror). The "
@@ -9819,7 +9819,7 @@ def _register_qm_tools() -> None:
         ),
 
         # ────────────────────────────────────────────────────────────
-        # srmech.qm.quaternion — the QDFT/ODFT foundation (0.9.0rc109;
+        # srmech.physics.qm.quaternion — the QDFT/ODFT foundation (0.9.0rc109;
         # #1234 Item 1a, re-raise of #863 BX-5/6/7; F380 / the R21 proof:
         # Q₈/{±1} ≅ Z₂×Z₂ = Klein-4, so ℍ is a Klein-4 object's native
         # coefficient algebra). ℍ = the dim-4 rung of the SAME Cayley-
@@ -9828,7 +9828,7 @@ def _register_qm_tools() -> None:
         # srmech_quaternion_{left_mult,right_mult,exp,twiddle}.
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.qm.quaternion.quaternion_mult_table", owner="srmech",
+            name="srmech.physics.qm.quaternion.quaternion_mult_table", owner="srmech",
             category="qm.quaternion",
             summary="The (4,4,4) int8 structure-constant tensor C of ℍ with "
                     "e_i·e_j = Σ_k C[i,j,k] e_k (the SAME fixed Cayley-Dickson "
@@ -9839,7 +9839,7 @@ def _register_qm_tools() -> None:
             returns=R("list[list[list[int]]]", "(4,4,4) int8 structure constants"),
         ),
         ToolEntry(
-            name="srmech.qm.quaternion.quaternion_table_attestation",
+            name="srmech.physics.qm.quaternion.quaternion_table_attestation",
             owner="srmech", category="qm.quaternion",
             summary="MPR v1 self-attestation dict for the ℍ structure-constant "
                     "table; response_sha256 content-addresses the 64 int8 table "
@@ -9849,7 +9849,7 @@ def _register_qm_tools() -> None:
             returns=R("dict", "MPR v1 attestation block"),
         ),
         ToolEntry(
-            name="srmech.qm.quaternion.quaternion_left_mult", owner="srmech",
+            name="srmech.physics.qm.quaternion.quaternion_left_mult", owner="srmech",
             category="qm.quaternion",
             summary="Left-multiplication matrix L_q (x → q·x) as 4×4 real; "
                     "L_{e_i} (i≥1) is antisymmetric; L(pq)=L(p)L(q) and "
@@ -9861,7 +9861,7 @@ def _register_qm_tools() -> None:
             returns=R("Mat", "4×4 L_q"),
         ),
         ToolEntry(
-            name="srmech.qm.quaternion.quaternion_right_mult", owner="srmech",
+            name="srmech.physics.qm.quaternion.quaternion_right_mult", owner="srmech",
             category="qm.quaternion",
             summary="Right-multiplication matrix R_q (x → x·q) as 4×4 real; "
                     "the ANTI-homomorphism R(pq)=R(q)R(p) (ℍ non-commutative "
@@ -9872,7 +9872,7 @@ def _register_qm_tools() -> None:
             returns=R("Mat", "4×4 R_q"),
         ),
         ToolEntry(
-            name="srmech.qm.quaternion.quaternion_conjugate", owner="srmech",
+            name="srmech.physics.qm.quaternion.quaternion_conjugate", owner="srmech",
             category="qm.quaternion",
             summary="Quaternion conjugate conj(x) = (x_0, -x_1, -x_2, -x_3); "
                     "for a unit twiddle it is the inverse (conj(exp(μθ)) = "
@@ -9883,7 +9883,7 @@ def _register_qm_tools() -> None:
             returns=R("list[float]", "4-vector"),
         ),
         ToolEntry(
-            name="srmech.qm.quaternion.quaternion_norm", owner="srmech",
+            name="srmech.physics.qm.quaternion.quaternion_norm", owner="srmech",
             category="qm.quaternion",
             summary="Quaternion norm √(Σ x_i²) via the scalar Class K pin-slot "
                     "magnitude (cascade.magnitude) then sqrt — never abs(). "
@@ -9892,7 +9892,7 @@ def _register_qm_tools() -> None:
             returns=R("float", "≥ 0; Class K+C, never abs()"),
         ),
         ToolEntry(
-            name="srmech.qm.quaternion.quaternion_exp", owner="srmech",
+            name="srmech.physics.qm.quaternion.quaternion_exp", owner="srmech",
             category="qm.quaternion",
             summary="The quaternion Euler formula exp(μθ) = cos θ·1 + sin θ·μ̂ "
                     "for a UNIT pure imaginary μ̂ (μ̂²=−1) — the QDFT twiddle at "
@@ -9913,7 +9913,7 @@ def _register_qm_tools() -> None:
                       "unit quaternion [cos θ, sin θ·μ̂₁, sin θ·μ̂₂, sin θ·μ̂₃]"),
         ),
         ToolEntry(
-            name="srmech.qm.quaternion.quaternion_exp_series_truncate",
+            name="srmech.physics.qm.quaternion.quaternion_exp_series_truncate",
             owner="srmech", category="qm.quaternion",
             summary="EXACT-rational exp(e_axis·θ) for a RATIONAL angle θ=p/q — "
                     "the series-truncate tier of the twiddle (the exactness "
@@ -9936,7 +9936,7 @@ def _register_qm_tools() -> None:
                       "axis, (0,1) elsewhere"),
         ),
         ToolEntry(
-            name="srmech.qm.quaternion.quaternion_twiddle", owner="srmech",
+            name="srmech.physics.qm.quaternion.quaternion_twiddle", owner="srmech",
             category="qm.quaternion",
             summary="The QDFT twiddle factor exp(σ·μ·2πjk/N) — the DFT-facing "
                     "quaternion_exp. The index product is reduced in Z_N FIRST "
@@ -9958,7 +9958,7 @@ def _register_qm_tools() -> None:
             returns=R("list[float]", "the unit-quaternion twiddle (4 components)"),
         ),
         ToolEntry(
-            name="srmech.qm.quaternion.quaternion_cycle_holonomy",
+            name="srmech.physics.qm.quaternion.quaternion_cycle_holonomy",
             owner="srmech", category="qm.quaternion",
             summary="The NON-ABELIAN cycle holonomies of a quaternion gain "
                     "graph (#T944 follow-on) — the k=2 discrete which-way / "
@@ -9999,14 +9999,14 @@ def _register_qm_tools() -> None:
         ),
 
         # ────────────────────────────────────────────────────────────
-        # srmech.qm.hurwitz — the octonion-native matrix realisation of
+        # srmech.physics.qm.hurwitz — the octonion-native matrix realisation of
         # "the One" S(σ,θ) (#887); the qm-tier Rosetta peer of the
         # numpy-free srmech.cascade.the_one. The Fano planes of each
         # rotation are DERIVED from octonion_mult_table (not hardcoded), so
         # the 14×14 matrix agrees bit-for-bit with One.to_matrix.
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.qm.hurwitz.hurwitz_planes", owner="srmech",
+            name="srmech.physics.qm.hurwitz.hurwitz_planes", owner="srmech",
             category="qm.hurwitz",
             summary="The oriented Fano planes (a,b,sign) each Hurwitz block "
                     "(ℂ/ℍ/𝕆) turns by θ, DERIVED from octonion_mult_table — "
@@ -10021,12 +10021,12 @@ def _register_qm_tools() -> None:
         ),
 
         # ────────────────────────────────────────────────────────────
-        # srmech.qm.so8 — the 28-generator so(8) adjoint, partitioned
+        # srmech.physics.qm.so8 — the 28-generator so(8) adjoint, partitioned
         # 14 (g2 = Der O) + 7 (L-type) + 7 (R-type). The 14 = the A-N
         # 1+3+7+3 partition. Class M (g2 + L/R binders); Class C (so7).
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.qm.so8.so8_adjoint_basis", owner="srmech",
+            name="srmech.physics.qm.so8.so8_adjoint_basis", owner="srmech",
             category="qm.so8",
             summary="The 28 antisymmetric 8×8 so(8) generators in partitioned "
                     "order 14 (g2 = Der O) + 7 (L-type L_{e_i}) + 7 (R-type "
@@ -10036,7 +10036,7 @@ def _register_qm_tools() -> None:
                       "28 antisymmetric 8×8, partitioned 14+7+7"),
         ),
         ToolEntry(
-            name="srmech.qm.so8.g2_subalgebra", owner="srmech",
+            name="srmech.physics.qm.so8.g2_subalgebra", owner="srmech",
             category="qm.so8",
             summary="The 14 octonion derivations Der(O) = g2 (deterministic "
                     "rank-revealing numpy subset of the 21 D_{e_i,e_j}; rank "
@@ -10046,7 +10046,7 @@ def _register_qm_tools() -> None:
             returns=R("tuple[Mat, ...]", "14 derivations (antisym 8×8)"),
         ),
         ToolEntry(
-            name="srmech.qm.so8.so7_subalgebra", owner="srmech",
+            name="srmech.physics.qm.so8.so7_subalgebra", owner="srmech",
             category="qm.so8",
             summary="The 21-dim so(7) fixed space ker(S_B − I) (D4 → B3 Z2 "
                     "fold), as antisymmetric 8×8 generators (deterministic "
@@ -10055,7 +10055,7 @@ def _register_qm_tools() -> None:
             returns=R("tuple[Mat, ...]", "21 generators (antisym 8×8)"),
         ),
         ToolEntry(
-            name="srmech.qm.so8.an_embedding", owner="srmech",
+            name="srmech.physics.qm.so8.an_embedding", owner="srmech",
             category="qm.so8",
             summary="The bit-exact su(3) ⊕ 3 ⊕ 3bar Lie decomposition of the "
                     "14 g2 = Der(O) generators (the su(3) adjoint 8 + the "
@@ -10078,7 +10078,7 @@ def _register_qm_tools() -> None:
                       "attestation}"),
         ),
         ToolEntry(
-            name="srmech.qm.so8.quaternion_subalgebra_stabilizer",
+            name="srmech.physics.qm.so8.quaternion_subalgebra_stabilizer",
             owner="srmech",
             category="qm.so8",
             summary="The bit-exact 6-dim so(4) = su(2) ⊕ su(2) subalgebra of "
@@ -10109,13 +10109,13 @@ def _register_qm_tools() -> None:
         ),
 
         # ────────────────────────────────────────────────────────────
-        # srmech.qm.triality — the Spin(8) triality engine. The 28×28
+        # srmech.physics.qm.triality — the Spin(8) triality engine. The 28×28
         # order-3 outer automorphism τ = S_B·S_C (Fix(τ) = g2 = 14),
         # the Z2 swap, Cartan companions + residual. Class I (cyclic),
         # Class C (swap), Class M (companions), Class K∘C (residual).
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.qm.triality.triality_automorphism", owner="srmech",
+            name="srmech.physics.qm.triality.triality_automorphism", owner="srmech",
             category="qm.triality",
             summary="The 28×28 order-3 outer automorphism τ = S_B·S_C "
                     "(product of the two companion involutions); τ³ = I, "
@@ -10125,7 +10125,7 @@ def _register_qm_tools() -> None:
             returns=R("Mat", "28×28 τ, τ³ = I"),
         ),
         ToolEntry(
-            name="srmech.qm.triality.triality_swap", owner="srmech",
+            name="srmech.physics.qm.triality.triality_swap", owner="srmech",
             category="qm.triality",
             summary="The 28×28 Z2 companion involution S_B; S_B² = I, "
                     "Fix(S_B) = so(7) dim 21 (D4 →Z2 B3). With τ generates "
@@ -10134,7 +10134,7 @@ def _register_qm_tools() -> None:
             returns=R("Mat", "28×28 Z2 involution"),
         ),
         ToolEntry(
-            name="srmech.qm.triality.triality_cycle", owner="srmech",
+            name="srmech.physics.qm.triality.triality_cycle", owner="srmech",
             category="qm.triality",
             summary="The next frame in the order-3 rep-permutation "
                     "8v → 8s → 8c → 8v (Class-I mod-3 cyclic step via "
@@ -10144,7 +10144,7 @@ def _register_qm_tools() -> None:
             returns=R("str", "next frame in 8v → 8s → 8c"),
         ),
         ToolEntry(
-            name="srmech.qm.triality.triality_apply", owner="srmech",
+            name="srmech.physics.qm.triality.triality_apply", owner="srmech",
             category="qm.triality",
             summary="Carry an 8-vector between irrep frames per the cycle "
                     "distance (Class I frame-transport ∘ Class M companions). "
@@ -10156,7 +10156,7 @@ def _register_qm_tools() -> None:
             returns=R("list[float]", "8-vector in to_frame"),
         ),
         ToolEntry(
-            name="srmech.qm.triality.triality_companions", owner="srmech",
+            name="srmech.physics.qm.triality.triality_companions", owner="srmech",
             category="qm.triality",
             summary="The (g_s, g_c) companions solving Cartan's relation "
                     "g_v(x·y) = g_s(x)·y + x·g_c(y) by deterministic "
@@ -10166,7 +10166,7 @@ def _register_qm_tools() -> None:
             returns=R("tuple[Mat, ...]", "(g_s, g_c) companions"),
         ),
         ToolEntry(
-            name="srmech.qm.triality.triality_relation_residual",
+            name="srmech.physics.qm.triality.triality_relation_residual",
             owner="srmech", category="qm.triality",
             summary="Scalar Cartan-relation deviation Σ_ij ‖g_v(e_i·e_j) − "
                     "g_s(e_i)·e_j − e_i·g_c(e_j)‖ via the scalar Class K "
@@ -10178,7 +10178,7 @@ def _register_qm_tools() -> None:
             returns=R("float", "0 when the Cartan relation holds"),
         ),
         ToolEntry(
-            name="srmech.qm.triality.lean_isa_seventh_primitive",
+            name="srmech.physics.qm.triality.lean_isa_seventh_primitive",
             owner="srmech", category="qm.triality",
             summary="The order-3 triality as the 7th lean-ISA primitive, "
                     "completing the chirality-complete A-N core: 6 order-2 "
@@ -10206,7 +10206,7 @@ def _register_qm_tools() -> None:
         ),
 
         # ────────────────────────────────────────────────────────────
-        # srmech.qm.so9 — the so(9)/Spin(9) rung one Cayley-Dickson step
+        # srmech.physics.qm.so9 — the so(9)/Spin(9) rung one Cayley-Dickson step
         # above so(8): the 36-dim so(9) adjoint, the 16-dim real spinor
         # Δ₉ (9 octonion-built Clifford Γ), the Spin(8) ⊂ Spin(9)
         # branching 16 = 8_s ⊕ 8_c, and the honest tiered associator ↔
@@ -10214,7 +10214,7 @@ def _register_qm_tools() -> None:
         # (Clifford binders); Class C (chiral split); Class D∘L∘K (conj).
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.qm.so9.so9_adjoint_basis", owner="srmech",
+            name="srmech.physics.qm.so9.so9_adjoint_basis", owner="srmech",
             category="qm.so9",
             summary="The 36 antisymmetric 9×9 so(9) generators E_{pq} (the "
                     "vector / defining rep; dim so(9) = C(9,2) = 36), rank "
@@ -10225,7 +10225,7 @@ def _register_qm_tools() -> None:
             returns=R("tuple[Mat, ...]", "36 antisymmetric 9×9 spanning so(9)"),
         ),
         ToolEntry(
-            name="srmech.qm.so9.spin9_gamma_matrices", owner="srmech",
+            name="srmech.physics.qm.so9.spin9_gamma_matrices", owner="srmech",
             category="qm.so9",
             summary="The 9 real symmetric 16×16 Clifford generators Γ_a of the "
                     "16-dim real spinor Δ₉ of Spin(9): Γ_a = [[0, L_{e_a}], "
@@ -10239,7 +10239,7 @@ def _register_qm_tools() -> None:
                       "9 real symmetric 16×16 with {Γ_a,Γ_b}=2δ_ab I"),
         ),
         ToolEntry(
-            name="srmech.qm.so9.spin9_spinor_generators", owner="srmech",
+            name="srmech.physics.qm.so9.spin9_spinor_generators", owner="srmech",
             category="qm.so9",
             summary="The 36 spin(9) generators Σ_{ab} = ¼[Γ_a,Γ_b] in the 16-dim "
                     "real spinor Δ₉ (antisymmetric 16×16, dyadic entries). Rank "
@@ -10252,7 +10252,7 @@ def _register_qm_tools() -> None:
                       "36 antisymmetric 16×16 spanning spin(9) in Δ₉"),
         ),
         ToolEntry(
-            name="srmech.qm.so9.spin8_in_spin9_branching", owner="srmech",
+            name="srmech.physics.qm.so9.spin8_in_spin9_branching", owner="srmech",
             category="qm.so9",
             summary="The bit-exact Spin(8) ⊂ Spin(9) embedding + the 16 = 8_s ⊕ "
                     "8_c spinor branching. The 28 Σ_{ab} (a,b≤7) are all "
@@ -10277,7 +10277,7 @@ def _register_qm_tools() -> None:
                       "attestation}"),
         ),
         ToolEntry(
-            name="srmech.qm.so9.sedenion_holonomy_conjecture", owner="srmech",
+            name="srmech.physics.qm.so9.sedenion_holonomy_conjecture", owner="srmech",
             category="qm.so9",
             summary="HONEST tiered test (verdict PARTIAL): does the octonion "
                     "associator curvature (g₂ = Der O) reappear as a Spin(9) "
@@ -11384,7 +11384,7 @@ def warmup_all() -> None:
     voxels add their registration import — replaces scattered side-effect
     imports. Closes the orphan-registration bug class (v0.5.0rc9 bus miss).
 
-    ``srmech.amsc`` (this module's package) and ``srmech.qm`` register
+    ``srmech.amsc`` (this module's package) and ``srmech.physics.qm`` register
     their tools at *this* module's import time via the
     ``_register_*_tools()`` calls below, so they are always present once
     ``srmech.introspect.tool_schema`` is imported. The submodules listed here

@@ -39,8 +39,8 @@ import pytest
 from srmech import _native
 from srmech.cascade import cayley_dickson as cd
 from srmech.math import rational as _rational
-from srmech.qm import octonion as octo
-from srmech.qm import quaternion as quat
+from srmech.physics.qm import octonion as octo
+from srmech.physics.qm import quaternion as quat
 
 
 def _force(has_native: bool, fn, *args, **kw):
@@ -288,7 +288,7 @@ def test_ledger_rows():
     for da in (
         "srmech.cascade.cayley_dickson.left_mult_matrix",
         "srmech.cascade.cayley_dickson.left_mult_kernel",
-        "srmech.qm.octonion.octonion_exp_series_truncate",
-        "srmech.qm.quaternion.quaternion_exp_series_truncate",
+        "srmech.physics.qm.octonion.octonion_exp_series_truncate",
+        "srmech.physics.qm.quaternion.quaternion_exp_series_truncate",
     ):
         assert rows.get(da) == "composition_of_c", (da, rows.get(da))

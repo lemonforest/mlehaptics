@@ -1,5 +1,5 @@
 /*
- * srmech_quaternion.c — C parity for srmech.qm.quaternion (0.9.0rc109;
+ * srmech_quaternion.c — C parity for srmech.physics.qm.quaternion (0.9.0rc109;
  * issue #1234 Item 1a, re-raise of #863 BX-5/6/7): the 4x4 left/right
  * quaternion multiplication operators + the hypercomplex exp(mu*theta)
  * twiddle — the QDFT/ODFT foundation. 0.9.0rc110 (#1234 Item 1b) adds

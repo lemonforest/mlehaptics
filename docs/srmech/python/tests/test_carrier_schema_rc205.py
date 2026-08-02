@@ -175,9 +175,9 @@ def test_ops_back_index_known_relations() -> None:
             in schema["TriPoly"]["ops"]["produces"])
     # The rc120 contract union: the CD ops' ToolEntry types say list[float] /
     # HV, but the contract indexes them under the rung carriers.
-    assert ("srmech.qm.octonion.octonion_conjugate"
+    assert ("srmech.physics.qm.octonion.octonion_conjugate"
             in schema["octonion"]["ops"]["consumes"])
-    assert ("srmech.qm.quaternion.quaternion_twiddle"
+    assert ("srmech.physics.qm.quaternion.quaternion_twiddle"
             in schema["quaternion"]["ops"]["produces"])
     assert ("srmech.cascade.cd_mult"
             in schema["sedenion"]["ops"]["consumes"])

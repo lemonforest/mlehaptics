@@ -1,4 +1,4 @@
-"""Tests for srmech.qm.bell — Bell-CHSH + Tsirelson bound 2√2 bit-exact.
+"""Tests for srmech.physics.qm.bell — Bell-CHSH + Tsirelson bound 2√2 bit-exact.
 
 Per ``[[user_stance_bell_inequality_as_canonical_identity_signature]]``:
 this module's bit-exact identity verification is the framework's strongest
@@ -50,7 +50,7 @@ from srmech.cascade.spectral_cascades import kron as _kron_cascade
 from srmech.math.laplacian import mat_hermitian_eigendecompose
 from srmech.math.mat import Mat
 from srmech.math.rational import sqrt as _rsqrt
-from srmech.qm import bell, spin
+from srmech.physics.qm import bell, spin
 
 
 # ---------------------------------------------------------------------------
@@ -346,12 +346,12 @@ def test_operator_norm_rejects_non_2d():
 
 
 # =========================================================================
-# Cross-check with srmech.qm.spin Pauli matrices.
+# Cross-check with srmech.physics.qm.spin Pauli matrices.
 # =========================================================================
 
 
 def test_chsh_pauli_combination_uses_canonical_pauli_matrices():
-    """The CHSH combination uses :func:`srmech.qm.spin.pauli_matrices`.
+    """The CHSH combination uses :func:`srmech.physics.qm.spin.pauli_matrices`.
 
     Cross-references the canonical SSoT (Pauli 1927) for the underlying
     matrices, per ``[[feedback_science_is_ssot_not_project]]`` — rebuilt here
@@ -365,7 +365,7 @@ def test_chsh_pauli_combination_uses_canonical_pauli_matrices():
 
 
 def test_chsh_operator_uses_canonical_pauli_matrices():
-    """The full CHSH operator uses :func:`srmech.qm.spin.pauli_matrices`."""
+    """The full CHSH operator uses :func:`srmech.physics.qm.spin.pauli_matrices`."""
     sigma_x, _sy, sigma_z = spin.pauli_matrices()
     inv_sqrt2 = 1.0 / float(_rsqrt(2.0))  # Class-N root → float (scales a complex Mat)
     A0, A1 = sigma_z, sigma_x

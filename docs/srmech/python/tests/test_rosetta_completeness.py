@@ -9,7 +9,7 @@ libm ratchet that went 23 -> 0): the ``python_only_debt`` and
 
 How it works:
   1. Enumerate the live public-op surface (every public callable defined in
-     ``srmech.amsc`` / ``srmech.qm`` / ``srmech.signal_processing``), keyed by
+     ``srmech.amsc`` / ``srmech.physics.qm`` / ``srmech.signal_processing``), keyed by
      its canonical ``defined_at`` = ``<module>.<qualname>`` (re-export-stable).
   2. Load the committed classification (``rosetta_classification.ndjson``) — one
      of six buckets per op (see ROSETTA_LEDGER.md §"The classification").
@@ -1403,7 +1403,7 @@ COMPOSES_C_ZERO_REACH_PINNED = frozenset({
     "srmech.dsl._chain.chain",
     "srmech.mcp._sse.serve_http_sse",
     "srmech.mcp._stdio.serve_stdio",
-    "srmech.qm.bell.classical_chsh_bound",
+    "srmech.physics.qm.bell.classical_chsh_bound",
     "srmech.signal_processing.closed_form_ops.polyphase.decompose",
     # rc218 PARITY-COMPLETENESS annex — 4 justified zero-reach introspect rows:
     # native_status is a pure read-out of the _native module's load state (HAS_

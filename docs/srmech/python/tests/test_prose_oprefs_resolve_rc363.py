@@ -51,7 +51,7 @@ Two extractions are **excluded by rule**, not by allowlist:
 * **A filename.** ``srmech.h`` is the C public header, cited 24 times, and is not
   a Python path at all. A two-segment path whose tail is a known source/artifact
   extension is a filename.
-* **A wildcard tail.** ``srmech.qm.*`` is a family reference; it is truncated at
+* **A wildcard tail.** ``srmech.physics.qm.*`` is a family reference; it is truncated at
   the ``*`` and the remaining module prefix is what gets resolved.
 
 What this gate cannot decide
@@ -93,7 +93,7 @@ from srmech.introspect.tool_schema import get_tool_schema, warmup_all
 warmup_all()
 
 #: A dotted path rooted at ``srmech``. ``*`` is admitted as a segment so a family
-#: reference (``srmech.qm.*``) is CAPTURED and then truncated, rather than
+#: reference (``srmech.physics.qm.*``) is CAPTURED and then truncated, rather than
 #: silently splitting into a shorter path that happens to resolve.
 _DOTTED = re.compile(r"\bsrmech(?:\.(?:\*|[A-Za-z_][A-Za-z0-9_]*))+")
 
@@ -221,7 +221,7 @@ def test_the_filename_rule_is_exercised_not_theoretical() -> None:
         "no longer exercised; drop it or find why the C header stopped being "
         "cited")
     assert _normalise("srmech.h") is None
-    assert _normalise("srmech.qm.*") == "srmech.qm"
+    assert _normalise("srmech.physics.qm.*") == "srmech.physics.qm"
     assert _normalise("srmech.math.laplacian") == "srmech.math.laplacian"
 
 

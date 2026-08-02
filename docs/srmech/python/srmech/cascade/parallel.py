@@ -46,8 +46,8 @@ decisive invariant this module asserts.
 CAP AT 4 (F220). Klein-4 = ``Z₂ × Z₂`` has order 4 and **no order-4+
 element** (every non-identity sector is an involution), so the dispatch is
 hard-capped at 4 sectors. Going past 4 requires the genuinely **order-3
-triality** (:func:`srmech.qm.triality.lean_isa_seventh_primitive` /
-:mod:`srmech.qm.triality`) — the only access to the 3rd chiral axis (F220);
+triality** (:func:`srmech.physics.qm.triality.lean_isa_seventh_primitive` /
+:mod:`srmech.physics.qm.triality`) — the only access to the 3rd chiral axis (F220);
 that is **NOT** implemented here.
 
 USEFULNESS COLLAPSE-LATTICE (F233 §2.4). Two sectors collapse (give the
@@ -360,7 +360,7 @@ def parallel_sector_dispatch(
 
     CAP AT 4 (F220): ``n_sectors`` is hard-capped at 4. Klein-4 = ``Z₂ × Z₂``
     has no order-4+ element, so 8+ sectors need the genuinely order-3
-    **triality** (:func:`srmech.qm.triality.lean_isa_seventh_primitive`) —
+    **triality** (:func:`srmech.physics.qm.triality.lean_isa_seventh_primitive`) —
     NOT implemented here. ``n_sectors > 4`` raises ``ValueError``.
 
     Composes ONLY already-C-parity'd atoms (``chiral_flip`` / ``reorient`` /
@@ -440,7 +440,7 @@ def parallel_sector_dispatch(
             f"parallel_sector_dispatch: n_sectors capped at "
             f"{KLEIN4_SECTOR_CAP} (Klein-4 has no order-4+ element); "
             f"got {n_sectors}. Going past 4 requires the order-3 triality "
-            f"(srmech.qm.triality.lean_isa_seventh_primitive), per F220 — "
+            f"(srmech.physics.qm.triality.lean_isa_seventh_primitive), per F220 — "
             f"NOT implemented here."
         )
 
@@ -561,7 +561,7 @@ def parallel_sector_dispatch(
         "sector_cap": KLEIN4_SECTOR_CAP,
         "n_sectors": n_sectors,
         "klein4_has_no_order_4_plus_element": True,
-        "beyond_4_needs": "srmech.qm.triality.lean_isa_seventh_primitive",
+        "beyond_4_needs": "srmech.physics.qm.triality.lean_isa_seventh_primitive",
         "beyond_4_is_order_3_triality": True,
         "triality_not_implemented_here": True,
     }

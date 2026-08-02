@@ -40,8 +40,8 @@ import contextlib
 import pytest
 
 from srmech import _native
-from srmech.qm import relativistic as R
-from srmech.qm import spin as S
+from srmech.physics.qm import relativistic as R
+from srmech.physics.qm import spin as S
 
 
 requires_native = pytest.mark.skipif(

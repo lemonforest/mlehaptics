@@ -83,7 +83,7 @@ _DELETED = {
         "_klein4_similarity_native",
     ),
     "srmech.math.mat": ("_flat_index",),  # Mat method (checked on the class below)
-    "srmech.qm.so8": ("_mat_rows",),
+    "srmech.physics.qm.so8": ("_mat_rows",),
     "srmech.math.rational": (
         "_principal_angle_anchor",
         "_q_scale2",

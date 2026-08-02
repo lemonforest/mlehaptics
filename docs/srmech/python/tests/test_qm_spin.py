@@ -1,4 +1,4 @@
-"""Tests for srmech.qm.spin (Pauli matrices, Clifford algebra).
+"""Tests for srmech.physics.qm.spin (Pauli matrices, Clifford algebra).
 
 numpy-FREE end to end (v0.7.5rc115, #564): ``pauli_matrices`` /
 ``pauli_identity`` / ``pauli_spin_operator`` return :class:`~srmech.math.mat.Mat`,
@@ -17,7 +17,7 @@ from __future__ import annotations
 import pytest
 
 from srmech.math.laplacian import mat_hermitian_eigendecompose, mat_matmul
-from srmech.qm import spin
+from srmech.physics.qm import spin
 
 
 # ---------------------------------------------------------------------------

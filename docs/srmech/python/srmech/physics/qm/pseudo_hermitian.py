@@ -201,7 +201,7 @@ def _null_vector(rows: List[List[complex]], n: int) -> List[complex]:
     :func:`mat_hermitian_eigendecompose` = ``srmech_hermitian_eigendecompose_ws``),
     so a bare-C host reproduces this null-space with **no extra kernel** — the
     same SVD/Gram-eig null-space pattern the so(8) subalgebra builders
-    (:func:`srmech.qm.so8._svd_nullspace`) use, per
+    (:func:`srmech.physics.qm.so8._svd_nullspace`) use, per
     ``[[feedback_cascade_svd_nullspace_accuracy_not_route_matrix_rank]]``. This
     replaces the former hand-rolled float Gaussian-elimination RREF (a Python-only
     kernel with no C twin). Ascending eigenvalues ⇒ column 0 of the eigenvector

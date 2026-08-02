@@ -1,4 +1,4 @@
-"""Tests for srmech.qm.single_particle.
+"""Tests for srmech.physics.qm.single_particle.
 
 numpy-FREE (v0.7.5rc117, #564): the single-particle ops hold their working
 matrices in :class:`~srmech.math.mat.Mat` and return ``Mat`` / plain
@@ -17,7 +17,7 @@ import pytest
 from srmech.math import rational as _srn
 from srmech.math.laplacian import mat_matmul, mat_norm
 from srmech.math.mat import Mat
-from srmech.qm import single_particle as sp
+from srmech.physics.qm import single_particle as sp
 
 
 # ----------------------------------------------------------------------

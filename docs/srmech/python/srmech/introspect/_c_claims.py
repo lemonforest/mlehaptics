@@ -723,30 +723,30 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
         'srmech_bessel_j_fixed_big',
         'srmech_bessel_j_fixed_ws_bound',
     ),
-    'srmech.qm.gauge.su2_structure_constants': ('srmech_qm_su2_structure',),
-    'srmech.qm.gauge.su3_gell_mann_matrices': ('srmech_qm_gell_mann',),
-    'srmech.qm.gauge.su3_structure_constants': ('srmech_qm_su3_structure',),
-    'srmech.qm.octonion.octonion_exp': ('srmech_octonion_exp',),
-    'srmech.qm.octonion.octonion_twiddle': (
+    'srmech.physics.qm.gauge.su2_structure_constants': ('srmech_qm_su2_structure',),
+    'srmech.physics.qm.gauge.su3_gell_mann_matrices': ('srmech_qm_gell_mann',),
+    'srmech.physics.qm.gauge.su3_structure_constants': ('srmech_qm_su3_structure',),
+    'srmech.physics.qm.octonion.octonion_exp': ('srmech_octonion_exp',),
+    'srmech.physics.qm.octonion.octonion_twiddle': (
         'srmech_octonion_exp',
         'srmech_octonion_twiddle',
     ),
-    'srmech.qm.quaternion.quaternion_conjugate': ('srmech_quaternion_conjugate',),
-    'srmech.qm.quaternion.quaternion_cycle_holonomy': (
+    'srmech.physics.qm.quaternion.quaternion_conjugate': ('srmech_quaternion_conjugate',),
+    'srmech.physics.qm.quaternion.quaternion_cycle_holonomy': (
         'srmech_quaternion_cycle_holonomy',
         'srmech_quaternion_cycle_holonomy_arena_bytes',
     ),
-    'srmech.qm.quaternion.quaternion_exp': ('srmech_quaternion_exp',),
-    'srmech.qm.quaternion.quaternion_left_mult': ('srmech_quaternion_left_mult',),
-    'srmech.qm.quaternion.quaternion_right_mult': ('srmech_quaternion_right_mult',),
-    'srmech.qm.quaternion.quaternion_twiddle': (
+    'srmech.physics.qm.quaternion.quaternion_exp': ('srmech_quaternion_exp',),
+    'srmech.physics.qm.quaternion.quaternion_left_mult': ('srmech_quaternion_left_mult',),
+    'srmech.physics.qm.quaternion.quaternion_right_mult': ('srmech_quaternion_right_mult',),
+    'srmech.physics.qm.quaternion.quaternion_twiddle': (
         'srmech_quaternion_exp',
         'srmech_quaternion_twiddle',
     ),
-    'srmech.qm.relativistic.gamma_matrices': ('srmech_qm_dirac_gamma',),
-    'srmech.qm.relativistic.minkowski_metric': ('srmech_qm_minkowski_metric',),
-    'srmech.qm.spin.pauli_identity': ('srmech_qm_pauli',),
-    'srmech.qm.spin.pauli_matrices': ('srmech_qm_pauli',),
+    'srmech.physics.qm.relativistic.gamma_matrices': ('srmech_qm_dirac_gamma',),
+    'srmech.physics.qm.relativistic.minkowski_metric': ('srmech_qm_minkowski_metric',),
+    'srmech.physics.qm.spin.pauli_identity': ('srmech_qm_pauli',),
+    'srmech.physics.qm.spin.pauli_matrices': ('srmech_qm_pauli',),
     'srmech.rbs_lm.substrate.encode_word_byteglyph': ('srmech_rbs_lm_encode_word',),
     'srmech.rbs_lm.substrate.encode_word_k4': ('srmech_rbs_lm_encode_word',),
     'srmech.signal_processing.closed_form_ops.allpass.op': ('srmech_iir_lfilter_f64',),
@@ -800,8 +800,8 @@ UNVERIFIABLE_CLAIMS: Tuple[str, ...] = (
     'srmech.math.laplacian.hermitian_eigendecompose',
     'srmech.math.modular_linalg.crt_combine',
     'srmech.math.rational.rational_reconstruct',
-    'srmech.qm.bell.operator_norm',
-    'srmech.qm.bell.tsirelson_bound',
+    'srmech.physics.qm.bell.operator_norm',
+    'srmech.physics.qm.bell.tsirelson_bound',
 )
 
 #: Down-only ratchet on ``len(UNVERIFIABLE_CLAIMS)``. Lower it when an op gains a

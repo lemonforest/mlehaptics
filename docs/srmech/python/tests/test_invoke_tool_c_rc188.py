@@ -135,7 +135,7 @@ def test_batch_covers_twenty_distinct_tools() -> None:
 # Cases the C spine must DEFER (return (False, None)) — the pure path is the
 # complete fallback (never a wrong answer). Each pairs with the pure behaviour.
 _DEFER_CASES = [
-    ("srmech.qm.bell.tsirelson_bound", {}),                  # float, no C kernel
+    ("srmech.physics.qm.bell.tsirelson_bound", {}),                  # float, no C kernel
     ("srmech.math.laplacian.mat_eigvals", {"m": [[1, 0], [0, 2]]}),  # Mat carrier, no C thunk (rc190 dispatches mat_matmul/matvec/outer, not eigvals)
     ("no.such.tool", {"x": 1}),                              # unregistered
     ("srmech.math.cyclic.gcd", {"a": 12, "b": 8, "z": 1}),   # extra arg
@@ -197,7 +197,7 @@ def test_mcp_handle_call_result_and_defer() -> None:
     assert text_f == b"[[2, 3], [3, 2], [5, 1]]"
     # a non-batch tool -> DEFER_CALL (the Python host runs pure invoke_tool)
     req_d = json.dumps({"jsonrpc": "2.0", "id": 3, "method": "tools/call",
-                        "params": {"name": "srmech.qm.bell.tsirelson_bound",
+                        "params": {"name": "srmech.physics.qm.bell.tsirelson_bound",
                                    "arguments": {}}}).encode("utf-8")
     assert _native.mcp_handle_c(req_d) == (_native.MCP_KIND_DEFER_CALL, None)
 

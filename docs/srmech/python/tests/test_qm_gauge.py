@@ -1,4 +1,4 @@
-"""Tests for srmech.qm.gauge (Yang-Mills, Casimirs, Wilson loops).
+"""Tests for srmech.physics.qm.gauge (Yang-Mills, Casimirs, Wilson loops).
 
 numpy-FREE (v0.7.5rc119, #564): gauge flipped onto the framework-native
 ``Mat`` carrier, so this test runs with numpy GENUINELY ABSENT — there is no
@@ -15,7 +15,7 @@ import pytest
 
 from srmech.math.laplacian import mat_matmul
 from srmech.math.mat import Mat
-from srmech.qm import gauge
+from srmech.physics.qm import gauge
 
 
 # ----------------------------------------------------------------------

@@ -1,10 +1,10 @@
 """Bit-exact acceptance tests for the quaternion-subalgebra stabiliser voxel.
 
 Per issue #759 (srmech MS#20 / F215). The new
-``srmech.qm.so8.quaternion_subalgebra_stabilizer`` exposes the 6-dim
+``srmech.physics.qm.so8.quaternion_subalgebra_stabilizer`` exposes the 6-dim
 ``so(4) = su(2) ⊕ su(2)`` subalgebra of ``g2 = Der(O)`` that stabilises a
 quaternion subalgebra ``H ⊂ O`` — the ℍ-reading SIBLING of
-``srmech.qm.so8.an_embedding`` (the su(3) ⊕ 3 ⊕ 3bar ℂ-reading).
+``srmech.physics.qm.so8.an_embedding`` (the su(3) ⊕ 3 ⊕ 3bar ℂ-reading).
 
 The tests prove the invariant CERTIFICATE:
 
@@ -33,7 +33,7 @@ rc123 (numpy-free, #564): this test is itself numpy-FREE —
 ``quaternion_subalgebra_stabilizer`` returns :class:`srmech.math.mat.Mat`
 (the ``killing_spectrum`` a sorted ``list``); norms / matmuls route through
 ``mat_norm`` / ``mat_matmul``, span ranks through the float-tolerant
-:func:`srmech.qm.so8._rank_float`, with no numpy oracle and no ``.to_numpy()``
+:func:`srmech.physics.qm.so8._rank_float`, with no numpy oracle and no ``.to_numpy()``
 (per ``[[feedback_test_for_numpy_free_module_must_itself_be_numpy_free]]``).
 
 F215 (surfaced under the separately-keyed ``framework_so4_reading``): this
@@ -49,7 +49,7 @@ import pytest
 from srmech.cascade import magnitude
 from srmech.math.laplacian import mat_matmul, mat_norm
 from srmech.math.mat import Mat
-from srmech.qm import so8
+from srmech.physics.qm import so8
 
 _TOL = 1e-9
 _BIT_EXACT = 1e-10
@@ -392,7 +392,7 @@ def test_tool_entry_registered():
     from srmech.introspect import tool_schema
 
     schema = tool_schema.get_tool_schema()
-    name = "srmech.qm.so8.quaternion_subalgebra_stabilizer"
+    name = "srmech.physics.qm.so8.quaternion_subalgebra_stabilizer"
     entry = schema.lookup(name)
     assert entry is not None
     assert entry.name == name

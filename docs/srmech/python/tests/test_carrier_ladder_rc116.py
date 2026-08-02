@@ -236,8 +236,8 @@ def test_cd_promote_matches_octonion_quaternion_convention():
     cocycle: (a) cd_mult on promoted quaternions == cd_promote of the quaternion
     product; (b) octonion_left_mult on cd_promote(q₄,8) has quaternion_left_mult
     as its top-left 4×4 block (the rc109 octonion-restriction pattern)."""
-    from srmech.qm import octonion as octo
-    from srmech.qm.quaternion import quaternion_left_mult, quaternion_right_mult
+    from srmech.physics.qm import octonion as octo
+    from srmech.physics.qm.quaternion import quaternion_left_mult, quaternion_right_mult
 
     a4 = [Fraction(1), Fraction(2), Fraction(-1), Fraction(3)]
     b4 = [Fraction(2), Fraction(-3), Fraction(1), Fraction(-2)]

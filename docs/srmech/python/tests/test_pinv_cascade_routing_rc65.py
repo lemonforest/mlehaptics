@@ -1,7 +1,7 @@
 """rc65 — so8 Killing-form pseudoinverse → cascade SVD reconstruct.
 
 The numpy-removal ``linalg_fft`` sweep's next single-site decrement. The lone
-``np.linalg.pinv`` call in ``srmech/qm/so8.py`` (the ``_killing_form``
+``np.linalg.pinv`` call in ``srmech/physics/qm/so8.py`` (the ``_killing_form``
 structure-constant least-squares solve) routes onto a ``_pinv`` helper that
 reconstructs the Moore-Penrose pseudoinverse from the cascade SVD::
 
@@ -28,7 +28,7 @@ import random
 import re
 import pathlib
 
-from srmech.qm import so8
+from srmech.physics.qm import so8
 
 
 def _matmul(a, b):

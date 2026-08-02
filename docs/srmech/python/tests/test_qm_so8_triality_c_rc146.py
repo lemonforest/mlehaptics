@@ -41,7 +41,7 @@ import pytest
 from srmech import _native
 from srmech.math.laplacian import mat_matmul, mat_norm, mat_svd
 from srmech.math.mat import Mat
-from srmech.qm import so8, triality
+from srmech.physics.qm import so8, triality
 
 
 requires_native = pytest.mark.skipif(

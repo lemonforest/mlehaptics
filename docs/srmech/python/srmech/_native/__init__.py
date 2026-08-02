@@ -17146,7 +17146,7 @@ def has_native_quaternion_cycle_holonomy() -> bool:
     """True iff the rc309 NON-ABELIAN quaternion_cycle_holonomy C peer is loaded
     + bound (#944 follow-on): the ordered quaternion cycle product + SU(2)
     conjugacy-class read run in C, so
-    :func:`srmech.qm.quaternion.quaternion_cycle_holonomy` dispatches to the C
+    :func:`srmech.physics.qm.quaternion.quaternion_cycle_holonomy` dispatches to the C
     twin (byte-exact with the pure-Python mirror). False on a no-C / pre-rc309
     lib — the pure-Python quaternion cascade is the complete alternative."""
     return bool(HAS_NATIVE and LIB is not None

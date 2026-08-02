@@ -1,130 +1,59 @@
-"""srmech.qm — canonical QM/QFT/SM operations layer.
+"""``srmech.qm`` — DEPRECATION ALIAS for :mod:`srmech.physics.qm`.
 
-Per ``[[feedback_science_is_ssot_not_project]]``: each operation is
-sourced from canonical physics literature, **not** from any project
-instantiation. Chess-spectral / ephemerides-spectral / antikythera-spectral
-become *substrate-consumers* of these primitives, not their authors.
+ADR-0010 (*namespace declustering*) moved the QM/QFT/SM operations layer under
+the new ``srmech.physics`` domain (v0.9.0rc381, `#T1052`): every
+``srmech.qm.<sub>`` is now ``srmech.physics.qm.<sub>``. Because ``srmech.qm``
+has been a public API since v0.4.0, the break is SOFT for one release — this
+module keeps the old dotted path importable by re-exporting the real subpackage
+and aliasing each submodule into :data:`sys.modules`, so BOTH forms still work::
 
-Per ``[[user_stance_1d_collapse_to_loe_identity_not_action]]``: these
-operations are the **substrate-coupling operations** that uncompress
-LoE-content into event-stream. The 1D_t Laws-content (per MFO §VII.1.2)
-is content; these are how content becomes events. Each operation
-dissolves into the 14-class primitive vocabulary per
-``[[feedback_no_privileged_primitive_classes]]``:
+    import srmech.qm                              # -> srmech.physics.qm
+    from srmech.qm.single_particle import tise_solve
 
-- **TDSE / TISE / Heisenberg / Liouville-vN** — Class L (spectral evolution)
-- **Lattice momentum ``p̂`` + the general ``[A, B]`` commutator** — Class C
-  (central-difference lattice gradient) ∘ Class L (commutator). NOTE: no
-  position operator ``x̂`` ships, so ``[x̂, p̂]`` is **not** composable from
-  this surface. On a periodic lattice it would not equal ``iħ·I`` anyway —
-  ``x̂`` is not single-valued on the ring — so it needs its own fenced
-  operator, not a naive diagonal.
-- **Pauli matrices** — Class M (Clifford binding via Cl(0,3))
-- **Hydrogen radial** — Class L (radial-Laplacian eigendecomp)
-- **Harmonic oscillator** — Class M (HDC binding for a, a†)
+Both emit a :class:`DeprecationWarning`. **The alias will be removed in a future
+release** — repoint imports to ``srmech.physics.qm``.
 
-Submodules:
-
-- :mod:`srmech.qm.single_particle` — TDSE, TISE, Heisenberg, commutator,
-  density matrix, Liouville-vN, lattice momentum.
-- :mod:`srmech.qm.spin` — Pauli matrices, Clifford-algebra checks.
-- :mod:`srmech.qm.bell` — Bell-CHSH inequality + Tsirelson bound ``2√2``
-  as bit-exact framework identity (Class L ∘ I ∘ M ∘ C ∘ A cascade).
-  Per ``[[user_stance_bell_inequality_as_canonical_identity_signature]]``:
-  the framework's strongest single identity-not-implementation signature.
-- :mod:`srmech.qm.potentials` — Hydrogen radial, harmonic-oscillator
-  ladder operators.
-- :mod:`srmech.qm.relativistic` — Dirac γ-matrices (Cl(1,3)), Klein-
-  Gordon, Weyl projectors, charge conjugation (Majorana).
-- :mod:`srmech.qm.propagators` — Feynman propagators (scalar / fermion /
-  photon / massive vector).
-- :mod:`srmech.qm.pseudo_hermitian` — η-deformed inner product, PT-
-  symmetric QM framework (Bender-Boettcher / Mostafazadeh).
-- :mod:`srmech.qm.gauge` — Yang-Mills generators (SU(2), SU(3) Gell-Mann),
-  structure constants, Casimirs, Wilson-loop holonomy.
-- :mod:`srmech.qm.sm` — Electroweak unification, Higgs mechanism, Yukawa
-  fermion masses, CKM matrix.
-- :mod:`srmech.qm.quaternion` — the QDFT/ODFT foundation (#1234 Item 1a /
-  #863, F380): the 4×4 ``L_q`` / ``R_q`` quaternion multiplication
-  operators (ℍ = the dim-4 Cayley-Dickson rung, so ``Q₈/{±1} ≅ Klein-4``)
-  + the hypercomplex ``exp(μθ)`` twiddle (Euler formula; series-truncate
-  exact tier + the float64 boundary) + the DFT twiddle ``exp(σμ2πjk/N)``.
-- :mod:`srmech.qm.octonion` — the MPR-attested Cayley-Dickson-from-H
-  octonion multiplication table + ``L_a`` / ``R_a`` binders, conjugate,
-  norm (Class K ∘ C, never ``abs()``).
-- :mod:`srmech.qm.so8` — the 28-generator ``so(8)`` adjoint partitioned
-  ``14 (g2 = Der O) + 7 (L-type) + 7 (R-type)``; ``g2_subalgebra`` (the 14),
-  ``so7_subalgebra`` (the 21; ``D4 -> B3`` fold).
-- :mod:`srmech.qm.triality` — the Spin(8) triality engine: the ``28×28``
-  order-3 outer automorphism ``τ = S_B ∘ S_C`` (``τ³ = I``,
-  ``Fix(τ) = g2`` dim 14 = the A-N ``1+3+7+3`` partition), the ``Z2`` swap,
-  Cartan companions + residual.
-- :mod:`srmech.qm.so9` — the so(9)/Spin(9) rung one Cayley-Dickson step
-  above so(8): the 36-dim ``so(9)`` adjoint, the 16-dim real spinor ``Δ₉``
-  (9 octonion-built Clifford ``Γ`` matrices), the ``Spin(8) ⊂ Spin(9)``
-  branching ``16 = 8_s ⊕ 8_c``, and the honest tiered associator ↔
-  Spin(9)-holonomy conjecture at the sedenion (``𝕊``) rung.
-
-Canonical SSoT:
-
-- Sakurai, J.J. (2017) *Modern Quantum Mechanics* (3rd ed.), Cambridge.
-- Cohen-Tannoudji, C., Diu, B., Laloë, F. (1977/1991) *Quantum Mechanics*
-  (Vols. I-II), Wiley.
-- Griffiths, D.J. (2017) *Introduction to Quantum Mechanics* (2nd ed.),
-  Cambridge.
-- Schrödinger, E. (1926) *Annalen der Physik* 79, 361-376 / 489-527.
-- Heisenberg, W. (1925) *Zeitschrift für Physik* 33, 879-893.
-- Pauli, W. (1927) *Zeitschrift für Physik* 43, 601-623.
-- von Neumann, J. (1932) *Mathematische Grundlagen der Quantenmechanik*,
-  Springer.
-- Bohr, N. (1913) *Philosophical Magazine* 26, 1-25 / 476-502.
+Implementation note. The ``qm`` subpackage is fully numpy-free (#564), so the
+eager import of every submodule here is safe on a numpy-absent install (no
+``[scientific]`` gate is bypassed). Registering the submodules in
+``sys.modules`` under this package's dotted names is what makes
+``from srmech.qm.<sub> import ...`` resolve to the moved module rather than
+raising ``ModuleNotFoundError`` for a directory that no longer holds those
+files.
 """
 
-# Scientific tier: numpy is optional as of v0.7.0 (the cascade core is numpy-
-# free). The qm submodules are flipping numpy-free one-by-one (#564 carrier arc:
-# rc115 spin/bell, rc116+ the rest). Rather than an EAGER subpackage-wide
-# `_require_numpy("srmech.qm")` gate (which would block the already-numpy-free
-# modules from importing on a numpy-absent install — the rc70 runnable≠loadable
-# trap / [[feedback_carrier_ratchet_misses_require_numpy_subpackage_gates]]),
-# each submodule is loaded LAZILY on first access (the rc71 signal_processing
-# precedent): a flipped module imports numpy-free; an as-yet-numpy module still
-# surfaces the actionable [scientific] hint (not a bare numpy ImportError).
+from __future__ import annotations
 
-import importlib
+import importlib as _importlib
+import sys as _sys
+import warnings as _warnings
 
-__all__ = [
-    "bell",
-    "gauge",
-    "hurwitz",
-    "octonion",
-    "potentials",
-    "propagators",
-    "pseudo_hermitian",
-    "quaternion",
-    "relativistic",
-    "single_particle",
-    "sm",
-    "so8",
-    "so9",
-    "spin",
-    "triality",
-]
+_MOVED_MSG = (
+    "srmech.qm moved to srmech.physics.qm in v0.9.0rc381; the alias will be "
+    "removed in a future release"
+)
 
-_SUBMODULES = frozenset(__all__)
+_warnings.warn(_MOVED_MSG, DeprecationWarning, stacklevel=2)
+
+# The real subpackage. Importing it also imports srmech.physics (its parent).
+_target = _importlib.import_module("srmech.physics.qm")
+
+#: Re-export the moved subpackage's public submodule list verbatim.
+__all__ = list(_target.__all__)
+
+# Alias every submodule under this package's dotted path so that both
+# ``import srmech.qm.<sub>`` and ``from srmech.qm.<sub> import ...`` resolve to
+# the moved module object. Eager (not lazy) because the register-in-sys.modules
+# step is what the from-import machinery consults, and qm is numpy-free.
+for _sub_name in __all__:
+    _mod = _importlib.import_module(f"srmech.physics.qm.{_sub_name}")
+    _sys.modules[f"{__name__}.{_sub_name}"] = _mod
+    globals()[_sub_name] = _mod
 
 
-def __getattr__(name):
-    """Lazily import a qm submodule on first attribute access (PEP 562).
-
-    The whole ``srmech.qm`` subpackage is numpy-free (#564), so this is a plain
-    lazy import — no ``[scientific]`` gate.
-    """
-    if name in _SUBMODULES:
-        mod = importlib.import_module(f"{__name__}.{name}")
-        globals()[name] = mod
-        return mod
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+def __getattr__(name):  # PEP 562 — delegate any other attribute to the target.
+    return getattr(_target, name)
 
 
 def __dir__():
-    return sorted(set(globals()) | _SUBMODULES)
+    return sorted(set(globals()) | set(__all__))

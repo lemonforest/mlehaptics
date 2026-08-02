@@ -113,8 +113,8 @@ RECYCLE_EVERY = 64
 #: measured-slow snippets, each with its reason. "slow" is a RECORDED decision
 #: with a number attached, never a silently raised global timeout.
 SLOW_ALLOWLIST: Dict[str, Tuple[float, str]] = {
-    "srmech.qm.so8.an_embedding": (240.0, "22.5 s measured: g2 = Der(O) branching"),
-    "srmech.qm.so8.so7_subalgebra": (240.0, "31.3 s measured: so(7) branching"),
+    "srmech.physics.qm.so8.an_embedding": (240.0, "22.5 s measured: g2 = Der(O) branching"),
+    "srmech.physics.qm.so8.so7_subalgebra": (240.0, "31.3 s measured: so(7) branching"),
     "srmech.math.laplacian.recover_check": (240.0, "106 s measured: dense recover"),
     "srmech.math.laplacian.recover_check_spectral": (300.0, "244 s measured"),
     "srmech.math.laplacian.recover_check_structural": (240.0, "33 s measured"),

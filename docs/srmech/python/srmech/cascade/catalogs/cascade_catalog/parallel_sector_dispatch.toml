@@ -78,7 +78,7 @@ sector2_is_chiral_dual = "sector 2 (γ₅-only) == cascade.chiral_dual bit-exact
 independence = "each sector reads ONLY its own T_s(x) (0 cross-thread reads) => parallel == serial bit-for-bit (order-free)"
 
 [cascade.boundary_cases]
-cap_at_4 = "n_sectors > 4 -> ValueError (Klein-4 = Z₂×Z₂ has no order-4+ element; 8+ needs the genuinely order-3 triality, srmech.qm.triality.lean_isa_seventh_primitive, F220)"
+cap_at_4 = "n_sectors > 4 -> ValueError (Klein-4 = Z₂×Z₂ has no order-4+ element; 8+ needs the genuinely order-3 triality, srmech.physics.qm.triality.lean_isa_seventh_primitive, F220)"
 n_sectors_lower = "n_sectors < 1 (or a bool) -> ValueError"
 concurrency = "GIL-releasing / native / IO / numpy body -> the ≤4 sectors overlap (~4×); CPU-bound pure-Python body -> GIL-serialised (correct, not faster); Python 3.13 free-threading lifts the latter"
 verify_kwarg = "verify=True re-runs the serial cross-check (parallel==serial + sector2==chiral_dual) at runtime; default verify=False reports those as structural guarantees of the 4-way independence (rc8: NOT recomputed per call — that doubled the body invocations into a 2.6–7.7× slowdown)"

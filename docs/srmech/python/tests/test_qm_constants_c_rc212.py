@@ -42,9 +42,9 @@ import struct
 import pytest
 
 from srmech import _native
-from srmech.qm import gauge as G
-from srmech.qm import relativistic as R
-from srmech.qm import spin as S
+from srmech.physics.qm import gauge as G
+from srmech.physics.qm import relativistic as R
+from srmech.physics.qm import spin as S
 
 
 _QM_CONST_SYMBOLS = (

@@ -43,7 +43,7 @@ import pytest
 from srmech.math.carrier_ladder import carrier_ladder_descriptor
 from srmech.introspect.tool_schema import get_tool_schema
 from srmech.cascade import cd_promote
-from srmech.qm.octonion import octonion_conjugate
+from srmech.physics.qm.octonion import octonion_conjugate
 from srmech.mcp import invoke_tool
 
 

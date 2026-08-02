@@ -28,7 +28,7 @@ import random
 import re
 import pathlib
 
-from srmech.qm.so8 import _real_skew_eig
+from srmech.physics.qm.so8 import _real_skew_eig
 
 
 def _matmul(a, b):

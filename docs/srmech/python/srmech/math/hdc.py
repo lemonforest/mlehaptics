@@ -2327,7 +2327,7 @@ def klein4_triality_cycle(v, *, inverse=False):
     """Cycle the three Klein-4 chirality involutions — the order-3 S₃ generator.
 
     The V₄-carrier image of the so(8) triality ``8v → 8s → 8c`` (see
-    :func:`srmech.qm.triality.triality_cycle`): the three non-identity
+    :func:`srmech.physics.qm.triality.triality_cycle`): the three non-identity
     involutions cycle ``iω₇(1) → γ₅(2) → CPT(3) → iω₇(1)``, with identity(0)
     fixed. This is the order-3 generator of ``Aut(V₄) = S₃`` — the "third axis"
     (F182) that the three order-2 flips (:func:`klein4_chirality_flip_gamma5` /

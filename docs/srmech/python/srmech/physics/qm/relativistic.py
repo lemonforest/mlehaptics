@@ -46,7 +46,7 @@ from srmech import _native
 from srmech.math import rational as _srn
 from srmech.math.laplacian import mat_matmul, mat_norm
 from srmech.math.mat import Mat
-from srmech.qm.spin import pauli_matrices, pauli_identity
+from srmech.physics.qm.spin import pauli_matrices, pauli_identity
 
 
 # ----------------------------------------------------------------------

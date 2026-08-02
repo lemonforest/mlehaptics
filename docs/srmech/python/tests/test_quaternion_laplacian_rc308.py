@@ -42,7 +42,7 @@ from srmech.math.laplacian import (
     _validate_edges_weights_py,
 )
 import srmech.math.laplacian as _lap
-from srmech.qm.quaternion import quaternion_left_mult, quaternion_conjugate
+from srmech.physics.qm.quaternion import quaternion_left_mult, quaternion_conjugate
 
 
 # A fixed non-trivial ℍ-gain graph (3 nodes, 3 edges = one triangle; mixed

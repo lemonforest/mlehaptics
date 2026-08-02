@@ -1666,7 +1666,7 @@ def test_invoke_higgs_potential_complex_phi() -> None:
     """``qm.sm.higgs_potential`` with phi=[re, im] returns a real float;
     the result is JSON-serialisable."""
     raw = invoke_tool(
-        "srmech.qm.sm.higgs_potential",
+        "srmech.physics.qm.sm.higgs_potential",
         {"phi": [1.0, 0.5], "mu_squared": 2.0, "lam": 1.0},
     )
     # V = -mu^2 |phi|^2 + lam |phi|^4; |phi|^2 = 1.25.
@@ -1728,7 +1728,7 @@ def test_schema_renders_encoding_hints() -> None:
     assert "nested JSON array" in p["description"]
 
     # complex -> array + [real, imaginary] hint.
-    p = _prop("srmech.qm.sm.higgs_potential", "phi")
+    p = _prop("srmech.physics.qm.sm.higgs_potential", "phi")
     assert p["type"] == "array"
     assert "real, imaginary" in p["description"]
 

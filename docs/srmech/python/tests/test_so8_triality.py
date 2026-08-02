@@ -25,9 +25,9 @@ reproducible.
 
 rc123 (numpy-free, #564): this test is itself numpy-FREE — the so(8)/triality
 surfaces return :class:`srmech.math.mat.Mat`; the rank checks ride the EXACT
-rational :func:`srmech.qm.so8._rank_exact`, the matmuls / norms the numpy-free
+rational :func:`srmech.physics.qm.so8._rank_exact`, the matmuls / norms the numpy-free
 ``mat_matmul`` / ``mat_norm``, and the nullspace dim the cascade SVD
-(:func:`srmech.qm.so8._svd_nullspace`). No numpy oracle, no ``.to_numpy()``
+(:func:`srmech.physics.qm.so8._svd_nullspace`). No numpy oracle, no ``.to_numpy()``
 (per ``[[feedback_test_for_numpy_free_module_must_itself_be_numpy_free]]``).
 """
 
@@ -39,7 +39,7 @@ from srmech.cascade import magnitude
 from srmech.amsc.format import sha256_bytes
 from srmech.math.laplacian import mat_matmul, mat_norm
 from srmech.math.mat import Mat
-from srmech.qm import octonion, so8, triality
+from srmech.physics.qm import octonion, so8, triality
 
 _TOL = 1e-9
 
@@ -90,7 +90,7 @@ def _coords_of(generators) -> list:
 
 def _nullspace_dim(operator: Mat) -> int:
     """Dimension of ``ker(operator - I)`` as ``n − rank(operator − I)``, with the
-    rank taken EXACTLY over ℚ (:func:`srmech.qm.so8._rank_exact`) — robust to
+    rank taken EXACTLY over ℚ (:func:`srmech.physics.qm.so8._rank_exact`) — robust to
     the cascade-SVD small-σ floor that a float-tolerance count would trip on
     (per ``[[feedback_cascade_svd_nullspace_accuracy_not_route_matrix_rank]]``).
     Numpy-free."""
@@ -164,7 +164,7 @@ def test_killer_fix_tau_is_g2_dim14():
     * ``rank([g2_basis | ker(tau - I)]) == 14`` (the stacked rank does not
       grow — the two 14-dim spaces are the SAME space).
 
-    The rank checks are EXACT over ℚ (:func:`srmech.qm.so8._rank_exact`),
+    The rank checks are EXACT over ℚ (:func:`srmech.physics.qm.so8._rank_exact`),
     NOT a cascade-SVD tolerance count. Plus a bidirectional projection
     residual: ``g2 ⊆ Fix`` AND ``Fix ⊆ g2`` (each direction's max projection
     residual < 1e-12).

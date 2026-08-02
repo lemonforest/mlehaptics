@@ -1,6 +1,6 @@
 """The Spin(8) triality engine: the order-3 outer automorphism + companions.
 
-The top layer of the ``srmech.qm`` so(8)/Spin(8) triality engine
+The top layer of the ``srmech.physics.qm`` so(8)/Spin(8) triality engine
 (v0.5.0rc17). ``Spin(8)`` is the unique simple Lie group whose Dynkin
 diagram (``D4``) has an order-3 symmetry: its outer-automorphism group is
 ``Out(Spin(8)) = S3``, permuting the three inequivalent 8-dimensional
@@ -80,8 +80,8 @@ from srmech.math.cyclic import mod_add as _mod_add
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
 from srmech.math.mat import Mat
 from srmech.math.laplacian import mat_matmul, mat_norm
-from srmech.qm.octonion import octonion_mult_table
-from srmech.qm.so8 import (
+from srmech.physics.qm.octonion import octonion_mult_table
+from srmech.physics.qm.so8 import (
     _DIM,
     _DIM_G2,
     _DIM_SO8,
@@ -130,7 +130,7 @@ _CHIRALITY_COMPLETE_CORE = 7
 #: A FIXED ISO timestamp for the seventh-primitive self-attestation.
 #: Deterministic on purpose (NOT ``datetime.now()``) so the MCP surface is
 #: reproducible — the attestation of a GENERATED structure must not change
-#: between calls (mirrors :data:`srmech.qm.so8._AN_RETRIEVED_AT`).
+#: between calls (mirrors :data:`srmech.physics.qm.so8._AN_RETRIEVED_AT`).
 _SEVENTH_RETRIEVED_AT = "2026-05-30T00:00:00Z"
 
 #: The single generative rule whose bytes are the ``parser_rule_hash``
@@ -676,12 +676,12 @@ def _seventh_attestation(
     ``Out(Spin(8)) = S3`` PARENT FACTS ONLY — the chirality-complete-7
     reading (6 order-2 atoms + 1 order-3 triality) is the F220 framework
     finding, NOT a cited result. Mirrors
-    :func:`srmech.qm.so8._an_attestation` / ``_so4_attestation`` in form.
+    :func:`srmech.physics.qm.so8._an_attestation` / ``_so4_attestation`` in form.
     """
     response_sha256 = _sha256_bytes(_tau_float_bytes())
     parser_rule_hash = _sha256_bytes(_SEVENTH_PARSER_RULE)
     descriptor_hash = _sha256_bytes(
-        b"srmech/qm/triality.py::lean_isa_seventh_primitive::"
+        b"srmech/physics/qm/triality.py::lean_isa_seventh_primitive::"
         b"chirality_complete_core"
     )
     return {
@@ -709,7 +709,7 @@ def _seventh_attestation(
             "response_sha256": response_sha256,
             "parser_version": "srmech 0.6.0",
             "parser_rule_hash": parser_rule_hash,
-            "collector_descriptor_path": "srmech/qm/triality.py",
+            "collector_descriptor_path": "srmech/physics/qm/triality.py",
             "collector_descriptor_hash": descriptor_hash,
         },
         "rendering": {
@@ -754,7 +754,7 @@ def lean_isa_seventh_primitive() -> dict:
     triality ``τ`` (``τ³ = I``) is **UNREACHABLE** from the order-2 atoms —
     it is the 7th, chirality-completing primitive.
 
-    HONESTY SPLIT (the :func:`srmech.qm.so8.an_embedding` discipline —
+    HONESTY SPLIT (the :func:`srmech.physics.qm.so8.an_embedding` discipline —
     bit-exact self-computed vs framework-reading kept strictly separate):
 
     - **BIT-EXACT SELF-COMPUTED** (the ``certificate`` field): the order of
@@ -797,7 +797,7 @@ def lean_isa_seventh_primitive() -> dict:
 
         - ``order_two_atoms`` — the tuple of the 6 ``cascade.atoms`` names
           (referencing :mod:`srmech.cascade.atoms`).
-        - ``order_three_primitive`` — ``"srmech.qm.triality.triality_automorphism"``
+        - ``order_three_primitive`` — ``"srmech.physics.qm.triality.triality_automorphism"``
           (the 7th primitive; the order-3 ``τ``).
         - ``triality`` — the ``28×28`` order-3 automorphism ``τ`` :class:`Mat`
           (``τ³ = I``; a fresh copy from :func:`triality_automorphism`).
@@ -861,7 +861,7 @@ def lean_isa_seventh_primitive() -> dict:
 
     return {
         "order_two_atoms": _LEAN_ISA_ATOMS,
-        "order_three_primitive": "srmech.qm.triality.triality_automorphism",
+        "order_three_primitive": "srmech.physics.qm.triality.triality_automorphism",
         "triality": triality_automorphism(),
         "certificate": certificate,
         "attestation": attestation,

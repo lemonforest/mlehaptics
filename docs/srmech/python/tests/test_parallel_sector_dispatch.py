@@ -211,7 +211,7 @@ def test_cap_certificate():
     assert cap["beyond_4_is_order_3_triality"] is True
     assert cap["triality_not_implemented_here"] is True
     assert cap["beyond_4_needs"] == (
-        "srmech.qm.triality.lean_isa_seventh_primitive"
+        "srmech.physics.qm.triality.lean_isa_seventh_primitive"
     )
 
 

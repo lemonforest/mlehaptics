@@ -1,8 +1,8 @@
-"""Tests for srmech.qm.propagators (Feynman propagators) — numpy-FREE (#564).
+"""Tests for srmech.physics.qm.propagators (Feynman propagators) — numpy-FREE (#564).
 
 propagators flipped numpy-free at v0.7.5rc123: the 4×4 propagator numerators are
 held in the framework-native :class:`~srmech.math.mat.Mat` carrier (consumed
-straight from the numpy-free :mod:`srmech.qm.relativistic` producers), so these
+straight from the numpy-free :mod:`srmech.physics.qm.relativistic` producers), so these
 tests assert the canonical propagator identities directly via ``Mat``-entry /
 ``mat_matmul`` / plain ``complex`` arithmetic — **no numpy, no ``.to_numpy()``**
 oracle. The two relativistic-producer calls that previously bridged
@@ -17,8 +17,8 @@ import pytest
 
 from srmech.math.laplacian import mat_matmul, mat_norm
 from srmech.math.mat import Mat
-from srmech.qm import propagators as prop
-from srmech.qm import relativistic as rel
+from srmech.physics.qm import propagators as prop
+from srmech.physics.qm import relativistic as rel
 
 
 # ----------------------------------------------------------------------

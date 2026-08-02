@@ -105,7 +105,7 @@ def test_construct_eta_still_pseudo_hermitian():
     η = (V·Vᴴ)⁻¹ solve routes through ``mat_solve`` (not ``_dense_solve_complex``);
     the operator + oracle are numpy-free here too."""
     from srmech.math.mat import Mat
-    from srmech.qm.pseudo_hermitian import (
+    from srmech.physics.qm.pseudo_hermitian import (
         construct_eta_from_eigendecomposition,
         is_pseudo_hermitian,
     )

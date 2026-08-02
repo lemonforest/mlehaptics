@@ -88,7 +88,7 @@ def test_potentials_ladder_still_correct():
     # the number operator N = a†a is the native `mat_matmul`, checked by direct
     # Mat-entry against diag(0,1,2,3,4); no numpy (the op is numpy-free, so its
     # consumer-check must be too — feedback_test_for_numpy_free_module...).
-    from srmech.qm.potentials import harmonic_oscillator_ladder
+    from srmech.physics.qm.potentials import harmonic_oscillator_ladder
     from srmech.math.laplacian import mat_matmul
     a, a_dag = harmonic_oscillator_ladder(5)
     N = mat_matmul(a_dag, a)
@@ -100,6 +100,6 @@ def test_potentials_ladder_still_correct():
 def test_relativistic_dispersion_still_correct():
     # E = √(|k|² + m²) via rational.sqrt; 3-4-5 → √(9+16)=5 at m=4, k=(3,0,0).
     # relativistic is numpy-free (rc118) — the 3-momentum is a plain float list.
-    from srmech.qm.relativistic import klein_gordon_dispersion
+    from srmech.physics.qm.relativistic import klein_gordon_dispersion
     e = klein_gordon_dispersion([3.0, 0.0, 0.0], 4.0)
     assert abs(e - 5.0) < 1e-9

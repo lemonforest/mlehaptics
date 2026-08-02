@@ -1,7 +1,7 @@
 """Octonion — the DISCRETE octonion Moufang loop ``{±e₀, ±e₁, …, ±e₇}`` as
 4-bit bytes (0.9.0rc324): the Cayley–Dickson rung ABOVE the Q₈ group
 (:mod:`srmech.biology.q8`), the byte-exact discrete peer of the CONTINUOUS ``𝕆``
-surface in :mod:`srmech.qm.octonion` (the float64 ODFT twiddle). Where
+surface in :mod:`srmech.physics.qm.octonion` (the float64 ODFT twiddle). Where
 ``qm.octonion`` carries float64 octonions, this module carries one signed basis
 unit in a single ``uint8`` and multiplies it in pure INTEGER bit-arithmetic —
 no floats, so no FMA / FP-contraction concern.

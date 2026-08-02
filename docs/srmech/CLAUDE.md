@@ -49,7 +49,10 @@ beyond a single-file read.
   has both a native C surface (`libsrmech.{so,dll,dylib}`) and a
   Python wrapper (`srmech.amsc.<class>`); pure-Python fallback for
   Pyodide / WASM environments.
-- The **canonical QM/QFT/SM operations layer** at `srmech.qm.*`
+- The **canonical QM/QFT/SM operations layer** at `srmech.physics.qm.*`
+  (moved there from `srmech.qm.*` by the ADR-0010 physics slice,
+  v0.9.0rc381; `srmech.qm.*` still resolves for one release as a
+  `DeprecationWarning` alias)
   (Task #217 Phase C1 rc9-rc11) — single_particle (TDSE/TISE/Heisenberg
   /commutator/density-matrix/Liouville-vN), spin (Pauli + Cl(0,3)),
   potentials (hydrogen radial + harmonic oscillator), relativistic
@@ -62,7 +65,7 @@ beyond a single-file read.
   `[[feedback_science_is_ssot_not_project]]`.
 - **Tool-schema introspection** at `srmech.amsc.tool_schema` —
   ~87 ToolEntry registrations covering every public callable in
-  `srmech.amsc.*` and `srmech.qm.*` with canonical-SSoT-cited
+  `srmech.amsc.*` and `srmech.physics.qm.*` with canonical-SSoT-cited
   summaries (Task #217 Phase C1 rc12 / Tasks #219 + #220).
 - The dependency surface that downstream spectral-research
   packages (`ephemerides-spectral` today; more later) register
@@ -287,7 +290,7 @@ declare it as a `[class]` TOML descriptor consumed by
 `srmech.dsl.make_class` / `register_class_dir` (descriptors live
 under `srmech/cascade/catalogs/class_catalog/`; the seeds are
 `genome.toml` + `hurwitz.toml`). The `Mat`/`Vec`/`HV` carriers,
-`srmech.bus`, the `adapters/`, and the `srmech.qm.*` physics
+`srmech.bus`, the `adapters/`, and the `srmech.physics.qm.*` physics
 op-families STAY hand-coded Python. **Conversion follows the genome
 two-layer pattern** — ship each method as a flat cascade op, then
 bind it in the TOML; the `make_class` contract is one-op-per-method
