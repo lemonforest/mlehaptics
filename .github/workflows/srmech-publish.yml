@@ -393,6 +393,19 @@ jobs:
         with:
           repository-url: https://test.pypi.org/legacy/
           packages-dir: dist
+          # rc384 (`#T1061`): attempt 1 can PARTIALLY upload (N of the matrix)
+          # before a transient failure. skip-existing lets the retry finish the
+          # rest instead of 400-ing on the files attempt 1 already landed.
+          skip-existing: true
+
+      # rc384 (`#T1061`): attempt 1 also writes `dist/*.publish.attestation` as a
+      # side effect; if it dies mid-run those files persist, and the retry's
+      # attestation generation aborts with "distributions already have publish
+      # attestations" — a RED on an otherwise-recoverable partial upload. Clear
+      # them so the retry regenerates cleanly. Gated on the attempt-1 failure.
+      - name: Clear stale publish attestations before the TestPyPI retry
+        if: steps.tpypi_1.outcome == 'failure'
+        run: rm -f dist/*.publish.attestation
 
       # `outcome` is the pre-continue-on-error result, so this fires only on a
       # genuine attempt-1 failure. When the routing `if` above skips attempt 1
@@ -404,6 +417,8 @@ jobs:
         with:
           repository-url: https://test.pypi.org/legacy/
           packages-dir: dist
+          # Skip the files attempt 1 already landed; upload only the remainder.
+          skip-existing: true
 
       # Deliberately SINGLE-SHOT — no retry on the production leg. Clean releases
       # are rare and human-gated, so a failure here should surface to a human
