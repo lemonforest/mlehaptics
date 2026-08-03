@@ -1,4 +1,4 @@
-{"n": 449, "native": false, "python": "3.14", "record": "meta"}
+{"n": 451, "native": false, "python": "3.10", "record": "meta"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.amsc.catalog.get_attested_dataset", "problems": [], "src_sha256": "58d42a7869396586ee1363c377b8b1abf02bf5febea9d695f6aa4e49b8e26a99", "statements": 9, "status": "ok"}
 {"markers_fired": [{"exc": "ValueError", "line": 20}], "n_markers": 1, "name": "srmech.amsc.catalog.list_attested_sources", "problems": [], "src_sha256": "986c4bccd23f665bd00f8d91187777f98acfd091cbc9a95550c36560c3546452", "statements": 9, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.amsc.catalog.list_catalog_chains", "problems": [], "src_sha256": "80aee0a39a7344378b831ef74cb41d64bce16527865a2f790c433220b1390bac", "statements": 7, "status": "ok"}
@@ -404,9 +404,11 @@
 {"markers_fired": [], "n_markers": 0, "name": "srmech.physics.qm.quaternion.quaternion_exp", "problems": [], "src_sha256": "ccd242398b121c2a986d717fad9b669e8b92f8903b0c56528f8e0f64acad6c45", "statements": 15, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.physics.qm.quaternion.quaternion_exp_series_truncate", "problems": [], "src_sha256": "4fa437f5c51c301bc29b5754bdad66d21361383c47d96251d16023225fca458f", "statements": 8, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.physics.qm.quaternion.quaternion_left_mult", "problems": [], "src_sha256": "e459f250bed4cfc900dc90cbe3163c5066e3e25628fa4bc0143de0fdcd4f96ee", "statements": 16, "status": "ok"}
+{"markers_fired": [], "n_markers": 0, "name": "srmech.physics.qm.quaternion.quaternion_log", "problems": [], "src_sha256": "61e5d646c17afad9fdf5def586ddfc1c895311c583a69dd0246aa51be855860e", "statements": 8, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.physics.qm.quaternion.quaternion_mult_table", "problems": [], "src_sha256": "872de9aab9d47a4eec0aebb04beb43e721ea83e713d7cf5492b4a2cfe6b7d749", "statements": 12, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.physics.qm.quaternion.quaternion_norm", "problems": [], "src_sha256": "70df0c8962525c1a9c9f8aadcd0649836fd6dc3759ca35fa5cba87fbb637e3a8", "statements": 12, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.physics.qm.quaternion.quaternion_right_mult", "problems": [], "src_sha256": "dbc7e87421e1b5f42af70c4c164fd4c64d9799aec5f3212ff9d2573c04cb2d91", "statements": 14, "status": "ok"}
+{"markers_fired": [], "n_markers": 0, "name": "srmech.physics.qm.quaternion.quaternion_slerp", "problems": [], "src_sha256": "1b776ffe5e66a5742f251e28fc748e190e85178a2ae7b1f2ef424c95dbef227e", "statements": 9, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.physics.qm.quaternion.quaternion_table_attestation", "problems": [], "src_sha256": "ff10e35dbdf10d523fde2b5a475cf63802c5d5d0b2d0a132644a2ced661e891e", "statements": 11, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.physics.qm.quaternion.quaternion_twiddle", "problems": [], "src_sha256": "f0590e769c8bfa8c26d857c23293bc03812c2f6460db8d362f6248375f9750f9", "statements": 10, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.physics.qm.sm.ckm_matrix", "problems": [], "src_sha256": "d86207bf0617e3a382d3e73658c157490e3c4f56bfb78792ff248b453aa1c6d7", "statements": 7, "status": "ok"}
