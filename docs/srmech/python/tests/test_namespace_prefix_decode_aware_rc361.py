@@ -811,15 +811,17 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # arrays: 95 refs moved OUT of the amsc decoded count (97 -> 2) and INTO cascade
     # (0 -> 95). amsc is now DRAINED to its 2 keeper residuals — ADR-0010 COMPLETE.
     # rc380 (`#T1055`) then ADDED two NEW cascade ops (cd_commutator + cd_cycle_holonomy,
-    # the CD loop-defect ladder), so the live cascade decoded population is the rc377
-    # move's 95 + rc380's 2 = 97. The move-conservation (95) stays a fact about the
-    # move; this pin measures the LIVE count, which grows when new cascade ops land.
+    # the CD loop-defect ladder), and rc383 (`#T1054`) one more (defect_ladder, the
+    # rung-indexed property-loss ladder + projector), so the live cascade decoded
+    # population is the rc377 move's 95 + rc380's 2 + rc383's 1 = 98. The
+    # move-conservation (95) stays a fact about the move; this pin measures the LIVE
+    # count, which grows when new cascade ops land.
     cascade = joined.count("srmech.cascade.")
-    assert cascade == 97, (
-        f"expected 97 srmech.cascade op references inside the DECODED channel "
-        f"(the rc377 move's 95 + rc380's 2 new loop-defect ops), found {cascade}. "
-        f"The rc377 amsc->cascade move conserved 95 (amsc 97 -> 2); rc380 grew it by "
-        f"2. If this is not 97, re-measure.")
+    assert cascade == 98, (
+        f"expected 98 srmech.cascade op references inside the DECODED channel "
+        f"(the rc377 move's 95 + rc380's 2 loop-defect ops + rc383's defect_ladder), "
+        f"found {cascade}. The rc377 amsc->cascade move conserved 95 (amsc 97 -> 2); "
+        f"rc380 grew it by 2, rc383 by 1. If this is not 98, re-measure.")
     # rc381 (`#T1052`) — THE srmech.physics.qm RECEIVING SIDE, pinned like biology
     # / cascade. UNLIKE every drain above, this move did NOT come out of the amsc
     # population — the qm subpackage was never under amsc. It is a whole-subpackage

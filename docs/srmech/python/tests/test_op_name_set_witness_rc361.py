@@ -45,7 +45,7 @@ MANIFEST = Path(__file__).resolve().parent / "registered_op_names.txt"
 #: Registered public-callable count at rc361. Pinned here only so the failure
 #: message can say "516 -> 517" instead of dumping 516 lines; the SET below is
 #: the actual contract.
-EXPECTED_N = 532
+EXPECTED_N = 533
 
 #: sha256 over the NORMALISED manifest body — "\n".join(sorted names) + "\n",
 #: UTF-8. Normalised rather than raw-file-bytes so a CRLF checkout cannot make
@@ -53,10 +53,12 @@ EXPECTED_N = 532
 #: platform artifact masquerading as a rename.
 # v0.9.0rc381 (`#T1052`) — regenerated for the ADR-0010 physics rename: the 99
 # ``srmech.qm.*`` op names became ``srmech.physics.qm.*`` (the qm subpackage moved
-# under the new srmech.physics domain). EXPECTED_N stays 532 — a pure rename, the
+# under the new srmech.physics domain). EXPECTED_N stayed 532 — a pure rename, the
 # exact SAME-COUNT set change no count-pin can see and this witness exists to catch.
+# v0.9.0rc383 (`#T1054`) — one genuinely NEW op: srmech.cascade.defect_ladder (the
+# rung-indexed property-loss ladder + per-rung projector). 532 -> 533, digest below.
 EXPECTED_NAME_SET_SHA256 = (
-    "346c851b745f47f821c77594787460160dc534b7be420d56e4e9dff9102d6942")
+    "f918e778d23d02f85be284b141b35bed6f128207d6b4eb015e005475ab15dfa7")
 
 
 def _live_names() -> list[str]:

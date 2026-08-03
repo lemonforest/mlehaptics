@@ -225,6 +225,7 @@ from .cayley_dickson import (
     associator,
     cd_commutator,
     cd_cycle_holonomy,
+    defect_ladder,
 )
 # Sedenion-addressable hyper-loop RBS-HDC instrument (v0.7.4rc1; UPSTREAM §31 of
 # PR #687; F465 + F468). The sedenion box made into an addressable instrument:
@@ -382,6 +383,8 @@ __all__ = [
     # The k=2 / k=3 loop-defect ladder — commutator + 3-cycle holonomy (rc380; `#T1055`)
     "cd_commutator",
     "cd_cycle_holonomy",
+    # The RUNG-indexed property-loss ladder + per-rung projector (rc383; `#T1054`)
+    "defect_ladder",
     # Sedenion-addressable RBS-HDC instrument (v0.7.4rc1; UPSTREAM §31; F465/F468)
     "SedenionRegister",
     "sedenion_register",

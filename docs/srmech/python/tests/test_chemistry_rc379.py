@@ -253,9 +253,9 @@ def test_ops_registered_in_tool_schema():
         assert op in names, op
 
 
-def test_describe_total_is_532():
+def test_describe_total_is_533():
     import srmech
-    assert srmech.describe()["tools"]["total"] == 532
+    assert srmech.describe()["tools"]["total"] == 533
 
 
 # ──────────────────────────────────────────────────────────────────────
