@@ -8478,6 +8478,64 @@ def _register_primitive_class_tools() -> None:
                         P("one", "bytes", True, "right operand, same length")),
             returns=R("bytes", "the elementwise product, length len(turn)"),
         ),
+        # rc388 (`#T963`): the ℍ-TORSOR of a seam coset. A quaternion subalgebra
+        # H = {±e₀..±e₃} of 𝕆 and its set-complement — the seam coset T = H·e
+        # (the 8 signed bytes {±e₄..±e₇}) — form a PRINCIPAL right torsor: T has
+        # no distinguished identity but H acts on it simply-transitively. act IS
+        # oct_mult(t, g); div is oct_mult(t₁^8, t₂). BOTH ride the c_dispatched
+        # srmech_oct_mult (+ one Class-C XOR for div); NO new C symbol, ABI stays
+        # 10 — composition_of_c, like cd_three_form's neighbour associator.
+        ToolEntry(
+            name="srmech.math.octonion.oct_torsor_act", owner="srmech",
+            category="octonion",
+            summary="The RIGHT torsor action t <| g of the quaternion group H on "
+                    "a seam coset T = H·e — literally the loop product "
+                    "oct_mult(t, g). A quaternion subalgebra H = {±e₀..±e₃} and "
+                    "its set-complement T = {±e₄..±e₇} (the coset H·e for any seam "
+                    "unit e) make T a PRINCIPAL right torsor: right-multiplying a "
+                    "seam element t∈T by a group element g∈H lands back in T (the "
+                    "index lane (t&7)^(g&7) keeps bit 2 set) and the action is "
+                    "simply transitive (oct_torsor_div inverts it uniquely, orbit "
+                    "histogram {1: 1792} over the 28 seams). R_g equals L_{conj g} "
+                    "on T (1792/1792). The torsor is the 4-index coset (8 signed "
+                    "bytes), NOT the strict 3-index set (H-stable only 1008/1344). "
+                    "Class M∘I (the oct_mult peer). NO new C symbol: it rides the "
+                    "c_dispatched srmech_oct_mult (composition_of_c).",
+            parameters=(P("t", "int", True,
+                          "the seam element acted on — an octonion byte in "
+                          "[0, 16); a torsor element t∈T in the reading"),
+                        P("g", "int", True,
+                          "the group element acting on the right — an octonion "
+                          "byte in [0, 16); a quaternion element g∈H in the "
+                          "reading")),
+            returns=R("int", "t <| g = oct_mult(t, g) as an octonion byte in "
+                             "[0, 16)"),
+        ),
+        ToolEntry(
+            name="srmech.math.octonion.oct_torsor_div", owner="srmech",
+            category="octonion",
+            summary="The RIGHT torsor division: the UNIQUE group element g∈H with "
+                    "oct_torsor_act(t1, g) == t2, computed as oct_mult(t1^8, t2). "
+                    "Because the seam coset T = H·e is a principal right torsor "
+                    "for the quaternion group H, every ordered pair (t1, t2) of "
+                    "seam elements has exactly one g∈H carrying t1 to t2 (1792/1792 "
+                    "solve, histogram {1: 1792}). By the Moufang left-inverse "
+                    "property that g is conj(t1)·t2; on T every element is an "
+                    "IMAGINARY unit (idx = t1&7 ∈ {4,5,6,7} ≠ 0, verified 224/224) "
+                    "so conj(t1) is the branch-free sign flip t1^8 — which is why "
+                    "the op is one Class-C XOR into the product (10 integer ops), "
+                    "not a branching oct_conjugate (11). The result lands in H "
+                    "((t1&7)^(t2&7) clears bit 2). Class C∘M. NO new C symbol: it "
+                    "rides the c_dispatched srmech_oct_mult after one XOR "
+                    "(composition_of_c). Raises if idx(t1)==0.",
+            parameters=(P("t1", "int", True,
+                          "the source seam element — an octonion byte in [0, 16) "
+                          "with a NON-zero index (t1&7 != 0), an imaginary unit"),
+                        P("t2", "int", True,
+                          "the target seam element — an octonion byte in [0, 16)")),
+            returns=R("int", "the unique g∈H with oct_torsor_act(t1, g) == t2, as "
+                             "an octonion byte in [0, 16)"),
+        ),
         # rc116 (#1248 / F1038): the Hurwitz rung of the CARRIER CONVERSION
         # LADDER — promote / project between ℝ↪ℂ↪ℍ↪𝕆↪𝕊, the algebra-one-level-up
         # analog of the srmech.math.carrier_ladder variable ladder. Pure

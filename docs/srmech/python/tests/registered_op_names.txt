@@ -373,6 +373,8 @@ srmech.math.modular_linalg.gf_solve
 srmech.math.octonion.oct_bind
 srmech.math.octonion.oct_conjugate
 srmech.math.octonion.oct_mult
+srmech.math.octonion.oct_torsor_act
+srmech.math.octonion.oct_torsor_div
 srmech.math.poly.poly_from_coeffs
 srmech.math.primes.cyclic_period
 srmech.math.primes.factor

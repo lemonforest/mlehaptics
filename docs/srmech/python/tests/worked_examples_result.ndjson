@@ -1,4 +1,4 @@
-{"n": 454, "native": true, "python": "3.10", "record": "meta"}
+{"n": 456, "native": false, "python": "3.10", "record": "meta"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.amsc.catalog.get_attested_dataset", "problems": [], "src_sha256": "58d42a7869396586ee1363c377b8b1abf02bf5febea9d695f6aa4e49b8e26a99", "statements": 9, "status": "ok"}
 {"markers_fired": [{"exc": "ValueError", "line": 20}], "n_markers": 1, "name": "srmech.amsc.catalog.list_attested_sources", "problems": [], "src_sha256": "986c4bccd23f665bd00f8d91187777f98acfd091cbc9a95550c36560c3546452", "statements": 9, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.amsc.catalog.list_catalog_chains", "problems": [], "src_sha256": "80aee0a39a7344378b831ef74cb41d64bce16527865a2f790c433220b1390bac", "statements": 7, "status": "ok"}
@@ -321,6 +321,8 @@
 {"markers_fired": [], "n_markers": 0, "name": "srmech.math.octonion.oct_bind", "problems": [], "src_sha256": "ab65a513c86e39fe04d1a4d0d32ef029881c335a30c99a4cdc2e11ba1c23e8b9", "statements": 13, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.math.octonion.oct_conjugate", "problems": [], "src_sha256": "7c8016b64992b16633e26327a69f5e4aa1283ee7d217678e46ece44f183ab35f", "statements": 7, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.math.octonion.oct_mult", "problems": [], "src_sha256": "2af85c76ab122bb202bf2a0ea0af084dfa5cd0b5d5183959aa89fab47718d19e", "statements": 10, "status": "ok"}
+{"markers_fired": [], "n_markers": 0, "name": "srmech.math.octonion.oct_torsor_act", "problems": [], "src_sha256": "8ee503cca2cb2bf2106c5793f7470088c256b71f03f1432ce151e623bcad21fd", "statements": 7, "status": "ok"}
+{"markers_fired": [{"exc": "ValueError", "line": 23}], "n_markers": 1, "name": "srmech.math.octonion.oct_torsor_div", "problems": [], "src_sha256": "8f021501cefd1b4e23a07d425647e2f32d923b3c4667c113c737557f59b155f6", "statements": 9, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.math.primes.cyclic_period", "problems": [{"detail": "cyclic_period(47, 235): gcd != 1; a not in (Z/nZ)*", "expected": null, "got": "ValueError", "kind": "unexpected_raise", "line": 12}], "src_sha256": "d48f022b8ce6065fd69a4b33918d46be248a049520a99407157b061fa04d87e6", "statements": 8, "status": "unexpected_raise"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.math.primes.factor", "problems": [], "src_sha256": "f7928c0c8956591014ac4be915bda4d44d3d7080df27d4dd538e9d099d19e4cb", "statements": 8, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.math.primes.is_prime", "problems": [], "src_sha256": "caa84da7772977c665f18d7fefd02f4894d7889eff93ff7ebc6f4e2ba11858a9", "statements": 4, "status": "ok"}

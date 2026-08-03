@@ -6916,6 +6916,41 @@ Ties to §3.46.4 (the shadow-mechanism: whether the 3-cycle closes ⟺ whether t
 
 **Cross-references.** §3.29.3 (the k=3 loop-defect ladder + the declared-parallel ⊗ projector instrument — the viola/fingerboard instance and its open provocations this section closes into a synthesis) · §3.41 / §3.41.6 (the octonion Laplacian has no frame-free spectrum; `octonion_frame_read` + the 168 seam-confinement) · §3.42 (the substrate self-encoding tetrad — the constitutive `1+3` the alphabet gauge sits below) · §3.43 (the 𝕊 rung — Der stays g₂; nothing new appears above 𝕆) · §3.45.6 (the three Hurwitz ceilings that are different numbers) · §3.45.7 / §5.2 (Music theory IS cyclic-group theory: ℤ₁₂ / D₁₂ / Tonnetz — the 12-EDO peer of this section's ℤ/7 letter layer). Memory: `[[user_stance_observation_is_a_shadow_irrep_under_perspective_shift]]` (the organizing lens), `[[user_stance_cascade_matching_substrate_blind_form_not_identity]]`, `[[feedback_cross_substrate_transfers_the_algorithm_not_the_constant]]`, `[[project_h_genome_is_fibrated_hurwitz_tower]]`. Ontology landing: MFO §VII (time-as-shadow; substrate-vs-excitation).
 
+### §3.47 The seam coset is an ℍ-torsor — 3+4 is the structure, 3+1+3 is a seam artifact (`#T963`; MEASURED, shipped rc388)
+
+The octonion product `oct_mult` (§3.46) reads as a **group action** once you commit a quaternion subalgebra. Take `H = {±e₀..±e₃}` (a Fano line's `{e0}∪±L`, 8 signed bytes) and its **set-complement** — the seam coset `T = H·e = {±e₄..±e₇}`. `T` has no distinguished identity, yet `H` acts on it **simply transitively**: `T` is a **principal right ℍ-torsor**. Two ops ship this (`srmech.math.octonion.oct_torsor_act` / `oct_torsor_div`, `composition_of_c`, **no new C symbol** — both ride the c_dispatched `srmech_oct_mult`; `SRMECH_ABI_VERSION` stays 10):
+
+| op | definition | class | integer ops | what it is |
+|----|------------|-------|-------------|------------|
+| `oct_torsor_act(t, g)` | `oct_mult(t, g)` | M ∘ I | 9 | the RIGHT action `t <| g` |
+| `oct_torsor_div(t1, t2)` | `oct_mult(t1 ^ 8, t2)` | C ∘ M | 10 | the unique `g` with `t1 <| g == t2` |
+
+The `^8` in `div` **IS** `oct_conjugate` on `T` because every seam byte is imaginary (`idx(t) = t&7 ∈ {4,5,6,7} ≠ 0`, verified **224/224**) — that precondition is exactly what makes `div` 10 ops, not the 11 of a branching conjugate; `div` asserts it and refuses the real center `e0`.
+
+**The load-bearing correction: the torsor is the 4-index coset, NOT the strict 3-index set.** Enumerated over the **28 seams** (7 Fano lines × 4 complement generators; only **7 distinct** `(H,T)` since `T` is always `H`'s complement — so the 1792 counts below are honestly **448 × 4**):
+
+| torsor candidate | H-stability | verdict |
+|------------------|-------------|---------|
+| **4-index coset `H·e`** (8 signed bytes) | **1792/1792** | closes — the torsor |
+| strict 3-index set (drop the generator `e`) | **1008/1344** | LEAKS — a seam artifact |
+
+First escape of the 3-index set: `L=(1,2,3), e=4, g=+e₁, t=+e₅ → byte 4 = +e₄` — it escapes to **the seam unit `e₄` itself**, which the strict set `{e₅,e₆,e₇}` excludes. (The shipped RIGHT action is `oct_mult(t,g) = e₅·e₁ = +e₄`; the ephemeral brief's `−e₄`/byte 12 is the *reversed* order `e₁·e₅` — a convention slip, not a different fact.) **So 3+4 is the structure of 𝕆 = ℍ ⊕ ℍ·e; 3+1+3 manufactures a seam artifact.**
+
+**The ratchet pins BOTH the law AND the defect** (a closure-only pin misses a false green — the *wrong* composition order still lands in `T` **14336/14336** while being the wrong element):
+
+| identity | count |
+|----------|-------|
+| action law `(t<|g)<|h == t<|(h·g)` | **14336/14336** ✓ |
+| naive `t<|(g·h)` (convention flip) | **8960/14336** ✗ |
+| `R_g == L_{conj g}` on `T` | 1792/1792 |
+| `oct_torsor_act == oct_mult` (all pairs) | 256/256 |
+
+**Composition is native to the 𝕆 rung** (matching `#1514`: **turns → ℍ, composition → 𝕆**). The action law needs an **associative group**: sampled as signed-basis torsor triples it holds **200/200** at dim 8, and a quaternion-group torsor keeps holding **200/200** even embedded at dim 16 (the group's associativity carries it); it degrades only when the group itself is pushed up to the non-associative 𝕆 (dim-16 group = 𝕆, 136/200). ⚠️ **Honest note:** the ephemeral brief's clean "0/200 at dim 16" is **not reproducible** through the shipped `cd_mult` — no natural construction gives an all-fail — so it is replaced here by the reproducible structure (the associative-group requirement), per `[[feedback_computational_provenance_discipline]]`. And the phrase "seam-independent W" is **LABELLED tautological** — `pack_word` never reads a seam, so seam-independence is true by construction, not a finding.
+
+**Provenance.** `notes/oct_torsor_rc388.py` → `.ndjson` (6 findings, all through the shipped ops; no `abs()` — sign is the Class-K pin bit `b>>3` re-applied by a Class-C XOR; no stdlib `fractions`). Differential gate: `tests/test_oct_torsor_rc388.py` (the 4-point ratchet + the 3-index/4-index correction + the pure-vs-c_dispatched byte-identity oracle).
+
+**Cross-references.** §3.46 (the octonion carrier + the associator's 168 seam-confinement `T` rests on) · §3.41.6 (`{e0..e3}` fully coherent, every leak seam-crossing) · §3.45.6 (the three Hurwitz ceilings that are different numbers — turns/composition/addressing). Memory: `[[user_stance_cascade_matching_substrate_blind_form_not_identity]]` (FORM, not identity), `[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]`, `[[project_h_genome_is_fibrated_hurwitz_tower]]`.
+
 ---
 
 ## §4 Open research questions

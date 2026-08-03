@@ -741,6 +741,8 @@
 {"exposed_as": "srmech.math.octonion.oct_mult", "defined_at": "srmech.math.octonion.oct_mult", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.math.octonion.oct_conjugate", "defined_at": "srmech.math.octonion.oct_conjugate", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.math.octonion.oct_bind", "defined_at": "srmech.math.octonion.oct_bind", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.math.octonion.oct_torsor_act", "defined_at": "srmech.math.octonion.oct_torsor_act", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.math.octonion.oct_torsor_div", "defined_at": "srmech.math.octonion.oct_torsor_div", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.biology.genome.discrete_writhe", "defined_at": "srmech.biology.genome.discrete_writhe", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.biology.genome.cwf_consistency_mod2", "defined_at": "srmech.biology.genome.cwf_consistency_mod2", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.math.rational.relative_writhe", "defined_at": "srmech.math.rational.relative_writhe", "bucket": "composition_of_c"}
