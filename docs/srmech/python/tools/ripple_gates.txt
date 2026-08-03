@@ -50,9 +50,15 @@ tests/test_mcp.py::test_schema_signature_alignment_no_drift
 # -- regen-all idempotence / codegen graph -----------------------------------
 tests/test_regen_all_rc346.py
 
-# -- worked-example family (BOTH: strict-zero AND executed ledger) -----------
+# -- worked-example family (strict-zero AND executed ledger AND the
+#    example["input"]-vs-inputSchema cross-check). The input-schema sibling
+#    (rc355, `#T993`) pins that every ToolEntry.example["input"] is a valid
+#    kwargs map against its own rendered inputSchema -- a new op with a
+#    mistyped/misnamed example key trips it. It caught rc388 only via the full
+#    suite; it belongs on the fast surface. Pure-Python, sub-second. ----------
 tests/test_worked_examples_strict_zero_rc353.py
 tests/test_worked_examples_execute_rc354.py
+tests/test_tool_example_input_schema_rc355.py
 
 # -- count-pin describe()["tools"]["total"] (cheap representatives) -----------
 tests/test_registry_smoke_rc127.py

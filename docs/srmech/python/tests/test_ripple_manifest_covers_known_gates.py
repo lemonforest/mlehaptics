@@ -69,9 +69,13 @@ FROZEN_KNOWN_GATES = frozenset({
     "tests/test_mcp.py::test_schema_signature_alignment_no_drift",
     # -- regen-all idempotence / codegen graph --------------------------------
     "tests/test_regen_all_rc346.py",
-    # -- worked-example family (BOTH: strict-zero AND executed ledger) --------
+    # -- worked-example family (strict-zero AND executed ledger AND the
+    #    example["input"]-vs-inputSchema cross-check, rc355 `#T993`: every
+    #    ToolEntry.example["input"] must be a valid kwargs map against its own
+    #    rendered inputSchema. Caught rc388 only via the full suite. ----------
     "tests/test_worked_examples_strict_zero_rc353.py",
     "tests/test_worked_examples_execute_rc354.py",
+    "tests/test_tool_example_input_schema_rc355.py",
     # -- count-pin describe()["tools"]["total"] -------------------------------
     "tests/test_registry_smoke_rc127.py",
     # -- class-TOML op-ref guard (#T930 -- the third generated C table) -------
