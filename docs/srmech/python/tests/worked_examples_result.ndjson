@@ -1,4 +1,4 @@
-{"n": 446, "native": false, "python": "3.10", "record": "meta"}
+{"n": 447, "native": false, "python": "3.14", "record": "meta"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.amsc.catalog.get_attested_dataset", "problems": [], "src_sha256": "58d42a7869396586ee1363c377b8b1abf02bf5febea9d695f6aa4e49b8e26a99", "statements": 9, "status": "ok"}
 {"markers_fired": [{"exc": "ValueError", "line": 20}], "n_markers": 1, "name": "srmech.amsc.catalog.list_attested_sources", "problems": [], "src_sha256": "986c4bccd23f665bd00f8d91187777f98acfd091cbc9a95550c36560c3546452", "statements": 9, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.amsc.catalog.list_catalog_chains", "problems": [], "src_sha256": "80aee0a39a7344378b831ef74cb41d64bce16527865a2f790c433220b1390bac", "statements": 7, "status": "ok"}
@@ -116,6 +116,7 @@
 {"markers_fired": [{"exc": "ValueError", "line": 8}], "n_markers": 1, "name": "srmech.cascade.cyclic_mod_mul", "problems": [], "src_sha256": "06651b50e036cfa2bac92c05e772e702d36d508ebad88e184d0ab80453aa48a3", "statements": 9, "status": "ok"}
 {"markers_fired": [{"exc": "ValueError", "line": 7}], "n_markers": 1, "name": "srmech.cascade.cyclic_mod_mul_wide", "problems": [], "src_sha256": "bf58fc0b6188ede6cb5d7574deb5e7c29211834d1a65d3e360f01e455a071538", "statements": 5, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.cascade.cyclic_mod_pow", "problems": [], "src_sha256": "2fb74b49d678a288a8325dd979bc07d82b65a862845b5b2f0616d43fc6364123", "statements": 5, "status": "ok"}
+{"markers_fired": [], "n_markers": 0, "name": "srmech.cascade.defect_ladder", "problems": [], "src_sha256": "e9bdcdaff6ed2bb9784c76fcc428b66cb61b2c12c9ce524107df8edafb675826", "statements": 10, "status": "ok"}
 {"markers_fired": [{"exc": "ValueError", "line": 20}], "n_markers": 1, "name": "srmech.cascade.exact_dft.exact_dft", "problems": [], "src_sha256": "948ba26aaeb72b66e4fc9729d28cb973b06e5c01d332524fa8fdcee661de96b0", "statements": 17, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.cascade.exact_dft.exact_idft", "problems": [{"detail": "name 'exact_idft' is not defined", "expected": null, "got": "NameError", "kind": "unexpected_raise", "line": 4}], "src_sha256": "f22ca46c6a97d5ec38d9cae883b5d88277622a883eef4d4df2f4ef988ac8fd39", "statements": 1, "status": "unexpected_raise"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.cascade.exact_dft.lift", "problems": [{"detail": "name 'exact_dft' is not defined", "expected": null, "got": "NameError", "kind": "unexpected_raise", "line": 5}], "src_sha256": "2cb5ce002be82e68ced74ff4dc8df2685fede1721657a81029cac82639aae735", "statements": 3, "status": "unexpected_raise"}

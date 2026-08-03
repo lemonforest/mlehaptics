@@ -252,7 +252,7 @@ def test_no_abs_call_in_op_functions():
 def test_tools_total_matches_live():
     """phase_coherent_peak is a NEW public op → +1 ToolEntry (362 → 363)."""
     from srmech import introspect
-    assert introspect.describe()["tools"]["total"] == 532
+    assert introspect.describe()["tools"]["total"] == 533
 
 
 def test_registered_under_flat_name():

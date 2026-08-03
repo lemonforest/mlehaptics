@@ -1137,6 +1137,191 @@ def cd_cycle_holonomy(x: Sequence[Any], y: Sequence[Any], z: Sequence[Any],
     }
 
 
+#: The Cayley–Dickson property-loss ladder, RUNG-indexed (rc383, `#T1054`).
+#: Maps each loop-defect NAME :func:`defect_ladder` returns to the CD doubling
+#: rung at which the corresponding property first turns off — each one rung
+#: LATER than the last. ``None`` is the FLOOR (``flexibility`` — ``[x,y,x]`` is
+#: structurally zero at every rung, so it never turns on). Read by
+#: :func:`_defect_admitted`, the per-rung projector mask.
+#:
+#: NOTE the rung is the CD DOUBLING DEPTH (``dim.bit_length() - 1``): ℝ=0, ℂ=1,
+#: ℍ=2, 𝕆=3, 𝕊=4. The ``left_alternator`` turn-on at rung 4 (𝕊) is **not
+#: basis-visible** — see :func:`defect_ladder`'s docstring for the seam-crossing
+#: crux.
+_DEFECT_TURN_ON_RUNG: Dict[str, Any] = {
+    "commutator": 2,        # COMMUTATIVITY lost at ℍ (rung 2)
+    "associator": 3,        # ASSOCIATIVITY lost at 𝕆 (rung 3)
+    "left_alternator": 4,   # ALTERNATIVITY + ZERO-DIVISORS lost at 𝕊 (rung 4)
+    "flexibility": None,    # FLOOR — [x,y,x] = 0 never turns on
+}
+
+
+def _defect_admitted(name: str, rung: int) -> bool:
+    """Is the named loop-defect STRUCTURALLY meaningful at this CD ``rung``? —
+    the per-rung projector mask behind :func:`defect_ladder`.
+
+    A defect is admitted iff it turns on at or below ``rung``
+    (:data:`_DEFECT_TURN_ON_RUNG`). The FLOOR (``flexibility``, turn-on
+    ``None``) is NEVER admitted — it is structurally zero at every rung, so it
+    is never part of the "meaningful subset" the projector returns. Pure
+    integer comparison; no ``abs()``.
+    """
+    turn_on = _DEFECT_TURN_ON_RUNG[name]
+    return turn_on is not None and rung >= turn_on
+
+
+def defect_ladder(x: Sequence[Any], y: Sequence[Any], z: Sequence[Any],
+                  table: Any = None) -> Dict[str, Any]:
+    """The Cayley–Dickson property-loss ladder read as ONE parallel pass plus a
+    per-rung PROJECTOR (rc383, `#T1054`) — the composition that names, in a
+    single call over the SAME three inputs, which algebraic property each rung of
+    ℝ→ℂ→ℍ→𝕆→𝕊… has already lost, and returns ONLY the loop-defects that are
+    MEANINGFUL at the operands' rung.
+
+    The property loss is **RUNG-indexed, not arity-indexed**: each defect turns
+    on exactly one doubling LATER than the last, and each is a loop of a
+    different order measured in parallel here::
+
+        property lost         turn-on rung   this op's field        basis-visible?
+        TOTAL ORDER           1  (ℂ)         — (admits flag only)   n/a (metric)
+        COMMUTATIVITY         2  (ℍ)         commutator   [x,y]     yes
+        ASSOCIATIVITY         3  (𝕆)         associator   [x,y,z]   yes
+        ALTERNATIVITY /       4  (𝕊)         left_alternator [x,x,y] NO — seam-only
+          ZERO-DIVISORS
+        FLEXIBILITY (floor)   never          flexibility  [x,y,x]≡0 —
+
+    **The parallel read + projector.** Every rung's defect is computed on the
+    one call — :func:`cd_commutator` ``[x,y]``, :func:`associator` ``[x,y,z]``,
+    the left alternator ``[x,x,y]`` and the flexibility floor ``[x,y,x]``, plus
+    the :func:`cd_cycle_holonomy` closed-read — so the whole ladder is present at
+    once (the "declared parallel eq-set"). The ``rung_admits`` mask and the
+    ``projected`` view are the PROJECTOR: given the operands' rung they select
+    the subset of defects that can be structurally nonzero there, masking the
+    ones that are zero by rung alone. This is the general instrument —
+    *declared-parallel-state ⊗ projector-excitation → the rung-meaningful
+    subset* — with the CD rung playing the projector; see the srmech notebook
+    §3.29 for the QM-measurement / genome-chromatin / music-fingerboard peers
+    that instantiate the SAME instrument-FORM in other domains.
+
+    **RUNG 4 IS NOT BASIS-VISIBLE — the 𝕊 seam-crossing crux.** Alternativity
+    and the zero-divisors both first fail at the sedenions (dim 16, rung 4), but
+    NOT on any single basis triple: over the ordered basis the alternator
+    ``[e_i, e_i, e_j]`` is identically zero at 𝕊 just as it is at 𝕆, so a
+    basis-only probe FALSELY reports 𝕊 as alternative. The failure needs
+    DOUBLING-SEAM-CROSSING inputs — an element spanning both halves of the last
+    doubling, e.g. ``a = e1 + e10``: then ``[a, a, e4] = 2·e15 ≠ 0`` and
+    ``(e1 + e10)(e4 − e15) = 0`` (a genuine zero divisor). So to see rung 4
+    turn on you must FEED the op a seam-crosser (pass ``x = y = e1 + e10``,
+    ``z = e4``); the returned ``associator`` field then carries ``2·e15`` and
+    ``rung_admits["alt_zero_div@4"]`` is ``True``. Zero-divisor / composition
+    loss is the cleaner NAME for this rung than "alternativity"; the two arrive
+    together at the same seam.
+
+    **Arity-4 was REFUTED.** A conjectured arity-4 "square-loop" holonomy does
+    NOT open a fifth, arity-indexed rung: it turns on at 𝕆 (rung 3) with the
+    same 1848/4096 count as the associator and is INHERITED from it, not a new
+    property. The ladder is rung-indexed; there is no arity-4 rung.
+
+    ⚠️ EPISTEMIC CEILING — FORM, not identity
+    (`[[user_stance_cascade_matching_substrate_blind_form_not_identity]]`). The
+    ``k=3`` here is the **arity-3 associator** of the Hurwitz/Cayley–Dickson
+    construction. It MUST NOT be fused with CLAUDE.md's substrate signature
+    "every catalogued k=3 is a B/H/N language-translation event" — those are
+    DIFFERENT k=3's. This op reads the FORM of the loop-defect ladder over the
+    CD carrier; it makes no claim that the CD k=3 and the substrate k=3 are the
+    same object. Cross-substrate reading transfers the ALGORITHM (the
+    parallel-declared ⊗ projector instrument), never the constant.
+
+    Args:
+        x, y, z: equal-length elements. With ``table=None`` the length must be a
+            power of two ``≤ CD_MAX_DIM`` (the definite ladder, via
+            :func:`cd_mult`); with a ``table`` the length must be
+            ``len(table)``. Every exact-rational scalar :func:`cd_mult` accepts
+            is accepted here.
+        table: an optional rank-3 structure-constant tensor —
+            :func:`algebra_table` (the definite ladder, or a split γ-twist:
+            the STRUCTURED negative control), or any table :func:`table_product`
+            reads. ``None`` — the default — is the definite Cayley–Dickson
+            ladder ℝ→ℂ→ℍ→𝕆→𝕊…
+
+    Returns:
+        ``dict`` with:
+
+        * ``dim`` (int) and ``rung`` (int, the CD doubling depth
+          ``dim.bit_length() - 1``) and ``algebra`` (the human rung name);
+        * ``defects`` — the four loop-defect tuples in ONE call
+          (``commutator`` ``[x,y]``, ``associator`` ``[x,y,z]``,
+          ``left_alternator`` ``[x,x,y]``, ``flexibility`` ``[x,y,x]``), each a
+          ``dim``-tuple of exact :class:`~srmech.math.q.Q`;
+        * ``nonzero`` — ``{name: bool}``, whether each defect is nonzero for
+          THESE operands;
+        * ``holonomy_closed`` (bool) — the :func:`cd_cycle_holonomy` ``closed``
+          read of the ``x → y → z`` triangle;
+        * ``rung_admits`` — the STRUCTURAL projector mask
+          ``{"order@1", "commutativity@2", "associativity@3",
+          "alt_zero_div@4"}`` → bool, purely a function of the rung;
+        * ``projected`` — the projector VIEW: only the ``defects`` that are
+          rung-admitted (structurally able to be nonzero at this rung), i.e.
+          "the values meaningful to the projection space".
+
+    Raises:
+        ValueError: operands of unequal length; a non-power-of-two length when
+            ``table is None``; a ``table`` whose dim disagrees with the operands
+            (surfaced by the composed :func:`cd_commutator` / :func:`associator`
+            / :func:`cd_cycle_holonomy`).
+
+    Note:
+        Exact end to end — no float, no epsilon, no ``abs()`` (sign is the
+        Class-K pin-slot; operand-order which-way is Class C). ``composition_of_c``:
+        it composes the already-C-backed :func:`associator`,
+        :func:`cd_commutator` and :func:`cd_cycle_holonomy` (which in turn ride
+        ``srmech_cd_mult`` / ``srmech_algebra_table_product``); NO new C symbol,
+        so ``SRMECH_ABI_VERSION`` is unchanged. Class M (bilinear bind) ∘ C
+        (operand-order / loop orientation) ∘ K (sign-flip defect).
+
+    Canonical SSoT:
+    - Schafer, R.D. (1966), *An Introduction to Nonassociative Algebras*, §III.1
+      — the associator ``(x, y, z)`` and the alternative laws; flexibility as
+      the identity ``(x, y, x) = 0`` that survives every rung.
+    - Baez, J.C. (2002), *The Octonions*, Bull. AMS **39** 145–205,
+      arXiv:math/0105155, §1–§2 — commutativity lost at ℂ→ℍ, associativity at
+      ℍ→𝕆, alternativity + the division property at 𝕆→𝕊.
+    """
+    dim = len(x)
+    rung = dim.bit_length() - 1
+    comm = cd_commutator(x, y, table=table)
+    assoc = associator(x, y, z, table=table)
+    flex = associator(x, y, x, table=table)          # flexibility FLOOR [x,y,x]
+    left_alt = associator(x, x, y, table=table)       # left alternator [x,x,y]
+    holo = cd_cycle_holonomy(x, y, z, table=table)
+    defects = {
+        "commutator": comm,
+        "associator": assoc,
+        "flexibility": flex,
+        "left_alternator": left_alt,
+    }
+    nonzero = {k: not all(v == 0 for v in t) for k, t in defects.items()}
+    rung_admits = {
+        "order@1": rung >= 1,
+        "commutativity@2": rung >= 2,
+        "associativity@3": rung >= 3,
+        "alt_zero_div@4": rung >= 4,
+    }
+    # PROJECTOR: keep only the defects meaningful at this rung (mask the ones
+    # structurally zero by rung alone; the flexibility floor is never admitted).
+    projected = {k: defects[k] for k in defects if _defect_admitted(k, rung)}
+    return {
+        "dim": dim,
+        "rung": rung,
+        "algebra": ALGEBRA_NAMES.get(dim, f"(dim {dim})"),
+        "defects": defects,
+        "nonzero": nonzero,
+        "holonomy_closed": holo["closed"],
+        "rung_admits": rung_admits,
+        "projected": projected,
+    }
+
+
 # ──────────────────────────────────────────────────────────────────────
 # Loop navigation — the combinatorial layer over the basis cocycle.
 #

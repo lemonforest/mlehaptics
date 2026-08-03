@@ -158,6 +158,7 @@ srmech.cascade.cyclic_mod_inv
 srmech.cascade.cyclic_mod_mul
 srmech.cascade.cyclic_mod_mul_wide
 srmech.cascade.cyclic_mod_pow
+srmech.cascade.defect_ladder
 srmech.cascade.exact_dft.exact_dft
 srmech.cascade.exact_dft.exact_idft
 srmech.cascade.exact_dft.lift

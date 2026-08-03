@@ -8022,6 +8022,67 @@ def _register_primitive_class_tools() -> None:
                               "bracketing-independent ⟺ the defect vanishes; "
                               "always True on an associative rung)}"),
         ),
+        # rc383 (`#T1054`): the whole property-loss LADDER read in one pass + a
+        # per-rung PROJECTOR. Composes associator / cd_commutator /
+        # cd_cycle_holonomy over the SAME three inputs and returns only the
+        # loop-defects meaningful at the operands' rung. The CD instance of the
+        # cross-substrate "declared-parallel-state ⊗ projector-excitation →
+        # rung-meaningful subset" instrument (QM measurement / genome chromatin /
+        # music fingerboard are the domain peers in notebook §3.29).
+        ToolEntry(
+            name="srmech.cascade.defect_ladder", owner="srmech",
+            category="cascade",
+            summary="The Cayley–Dickson PROPERTY-LOSS LADDER read as ONE parallel "
+                    "pass + a per-rung PROJECTOR, exact ℚ, any rung, on the "
+                    "definite ladder (table=None → cd_mult) or on ANY algebra a "
+                    "structure table names (table= → table_product). The loss is "
+                    "RUNG-indexed, not arity-indexed — each loop-defect turns on "
+                    "one doubling LATER: TOTAL ORDER at ℂ (rung 1, a metric fact, "
+                    "admits-flag only), COMMUTATIVITY at ℍ (rung 2, [x,y]), "
+                    "ASSOCIATIVITY at 𝕆 (rung 3, [x,y,z]), ALTERNATIVITY + "
+                    "ZERO-DIVISORS at 𝕊 (rung 4, [x,x,y]); FLEXIBILITY [x,y,x] is "
+                    "the FLOOR that never turns on. Returns the four defect tuples "
+                    "in ONE call (commutator / associator / left_alternator / "
+                    "flexibility), their nonzero flags, holonomy_closed, the "
+                    "STRUCTURAL rung_admits mask, and a 'projected' view = only the "
+                    "rung-admitted defects (the values meaningful to the projection "
+                    "space). ⚠️ RUNG 4 IS NOT BASIS-VISIBLE: over the ordered basis "
+                    "[e_i,e_i,e_j]=0 at 𝕊 exactly as at 𝕆, so a basis-only probe "
+                    "falsely reports 𝕊 as alternative; the failure needs "
+                    "DOUBLING-SEAM-CROSSING inputs (a=e1+e10: [a,a,e4]=2·e15; "
+                    "(e1+e10)(e4−e15)=0). Arity-4 'square-loop' holonomy REFUTED "
+                    "(it turns on at 𝕆, inherited from the associator, not a fifth "
+                    "rung). ⚠️ EPISTEMIC CEILING: this k=3 is the arity-3 "
+                    "Cayley–Dickson associator; it is FORM, not identity — do NOT "
+                    "fuse it with the substrate B/H/N k=3 signature (different "
+                    "k=3's; the reading transfers the algorithm, never the "
+                    "constant). Exact end to end — no float, no epsilon, no abs(). "
+                    "NO new C symbol: composition_of_c over the c_dispatched "
+                    "associator / cd_commutator / cd_cycle_holonomy (themselves "
+                    "srmech_cd_mult / srmech_algebra_table_product). Class M ∘ C ∘ "
+                    "K. SSoT: Schafer (1966) §III.1; Baez, *The Octonions*, Bull. "
+                    "AMS 39 (2002) 145–205, arXiv:math/0105155." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("x", "sequence", True,
+                  "the left / self element — exact-rational components (int / Q / "
+                  "Fraction / float → its EXACT ratio / (num, den)); with "
+                  "table=None the length is a power of two ≤ CD_MAX_DIM=256. Pass a "
+                  "SEAM-CROSSING x (e.g. e1+e10) with x=y to see rung 4 turn on."),
+                P("y", "sequence", True, "the middle element, same length"),
+                P("z", "sequence", True, "the right element, same length"),
+                P("table", "list[list[list[int]]] | None", False,
+                  "an optional dim × dim × dim structure-constant tensor "
+                  "(algebra_table — including its gammas= split controls — or "
+                  "any table table_product reads); None — the default — is the "
+                  "definite Cayley–Dickson ladder ℝ→ℂ→ℍ→𝕆→𝕊…"),
+            ),
+            returns=R("dict", "{dim, rung (CD doubling depth), algebra, defects "
+                              "(commutator / associator / flexibility / "
+                              "left_alternator — each a dim-tuple of exact Q), "
+                              "nonzero (per-defect bool), holonomy_closed (bool), "
+                              "rung_admits (structural projector mask), projected "
+                              "(only the rung-admitted defects)}"),
+        ),
         # rc310: the DISCRETE quaternion group Q8 = {+-1,+-i,+-j,+-k} as 3-bit
         # bytes — the discrete peer of the continuous ℍ surface (qm.quaternion).
         # The cascade-faithful Q8-genome foundation (ADDITIVE; no genome wiring).
