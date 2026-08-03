@@ -6692,7 +6692,9 @@ The three sets are strictly nested (A ⊂ B ⊂ C), which is why (A) alone was n
 
 ---
 
-## §3.46 CAPSTONE — music is Cayley–Dickson carrier architecture; the octonion Hurwitz wall is the coherence ceiling, read four independent ways (the shadow-irrep synthesis) (2026-08-03; `#T1058` / `#T1059` / `#T1060`; MEASURED + CONJECTURE, tiered)
+## §3.46 CAPSTONE — music is Cayley–Dickson carrier architecture; the octonion Hurwitz wall is the coherence ceiling, read four independent ways (the shadow-irrep synthesis) (2026-08-03; `#T1058` / `#T1059` / `#T1060` / `#T1062`; MEASURED + CONJECTURE, tiered)
+
+> **§3.46.11 (2026-08-03) closes the "symphony-of-symphonies" thread** with a MEASURED find + an honest self-refutation: the two triple-product regroupings `(ab)c` and `a(bc)` share the **scalar** G₂ 3-form φ + norm N — NOT the vector Hopf base, which LEAKS (the earlier vector-base guess is refuted). The shadow is the scalar invariant. `#T1062` queues the exact-ℚ `cd_three_form` (Re scalar twin of the shipped `associator`; no new C symbol; consistency oracle already converged).
 
 This section weaves one connective thesis out of arcs already in the tree (§3.29.3, §3.41, §3.42, §3.43, §3.45.6, §3.45.7, §5.2 / §3.45.7), and it is deliberately **a notebook synthesis, NOT a manufactured op** — the arc's own finding is that nothing here needs a new wheel symbol; it needs the shipped surface read *whole*. Every load-bearing number below is reproduced THROUGH a shipped rc384 op in the committed provenance script `notes/music_shadow_irrep_synthesis_rc384.py` → `notes/music_shadow_irrep_synthesis_rc384.ndjson` (10 records, run against 0.9.0rc384).
 
@@ -6789,6 +6791,102 @@ The deepest disambiguation the arc supplies, and it canonizes the load-bearing p
 
 **The flat hypercube is exact on the index lane and wrong on the sign lane, exactly where the algebra anticommutes** — the fraction of anticommuting off-diagonal basis pairs is `(dim−1)/2·dim → ½` as dim grows (`notes/unit_label_cube_rc354.py`, finding **F1336**). The invariant that survives any relabeling is the **Fano-incidence `φ = det₃` over F₂** (support **168**, basis-free, with the degree-2 shadow `q(x) = ε(x,x)`) together with **flexibility** (the floor of the defect ladder, §3.29.3). One consequence for CLAUDE.md §1's two co-valid groupings: the **cube-basis** decomposition `2 + 4 + 8` (by *algebra*, the carrier) is **not** the A–N `1 + 3 + 7 + 3` (by *role*, the operator) — the note-alphabet's ℤ/7 is an index-lane gauge; the coherence ceiling is a sign-lane fact.
 
+### §3.46.11 The Re/Im split of the octonion triple product — the shadow is the SCALAR, not the vector base (`#T1062`; MEASURED find + honest REFUTATION)
+
+The section's closing move, and the one that resolves the user's "symphony-of-symphonies vs symphonies-of-symphony" idea — *a relationship-of-three that is itself `ab:bc:ca`-shaped*. It also **corrects an earlier guess of this arc**, which is itself the finding. Every number below is reproduced THROUGH a shipped op in `notes/symphony_reim_split_rc385.py` → `notes/symphony_reim_split_rc385.ndjson` (19 records, run against 0.9.0rc384). Exact ℚ throughout; **no `abs()`** — a magnitude is only ever a Class-N Euclidean *squared* norm (a sum of squares, `cd_norm_sq` / `⟨v,v⟩`), a sign only ever a Class-K pin (equality against the negation, or a product-of-signs test).
+
+**The two regroupings ARE the two symphonies.** A triple product of three carriers can be nested two ways, and they are the user's two objects:
+
+| Nesting | The user's name | What it is |
+|---|---|---|
+| `(ab)c` | **symphony-of-symphonies** | bind the pair first, then bind the third to the result |
+| `a(bc)` | **symphonies-of-symphony** | bind the third pair first, then bind `a` to it |
+
+Below 𝕆 these are equal (ℍ associates); at 𝕆 they **differ by exactly the associator** `[a,b,c] = (ab)c − a(bc)`. The user's question is the right one: *is there a single shadow-irrep that describes BOTH?* There is — but it is **not** where this arc first guessed.
+
+#### The refutation, stated first (it IS the finding)
+
+The earlier reading of this arc guessed the shared shadow was the **vector** quaternionic-Hopf base (the `base_H` / `base_R` of `octonion_frame_read`, §3.46.6 reading 4). **Measured — that guess is REFUTED.** Over 19 generic octonion triples (both Hopf halves nonzero), the Hopf base is regrouping-invariant on **0 of 19** for `base_H` and **0 of 19** for `base_R`; worse, `base_R` even **flips sign on 11 of 19** while the total norm is preserved. The base LEAKS. The shadow relocates **from the vector base to the SCALAR**: what `(ab)c` and `a(bc)` genuinely share is the **G₂ associative 3-form φ = Re(triple product)** together with the **norm N** — both regrouping-safe — while the associator is the pure-**imaginary** regrouping-defect.
+
+| Candidate shadow | Op | Regrouping-invariant? | Measured |
+|---|---|---|---|
+| scalar `Re((ab)c)` = φ | `cd_mult`∘`cd_conjugate`∘Re | **YES** | `Re((ab)c)==Re(a(bc))` **19/19** generic; `Re(associator)==0` **343/343** imaginary basis |
+| norm `N` | `cd_norm_sq` | **YES** (composition algebra) | `N((ab)c)==N(a(bc))` **19/19** generic |
+| vector base `base_H` | `octonion_frame_read` | **NO** | invariant **0/19** |
+| vector base `base_R` | `octonion_frame_read` | **NO** | invariant **0/19**; sign-flips **11/19** at equal norm |
+
+**Why the base moves — and why the instrument COULD have said otherwise.** A coordinate census of the associator over all 512 ordered basis triples: 344 associate; of the 168 nonzero associators, **72 land in the base-half `{e₁,e₂,e₃}`, 96 in the seam `{e₄..e₇}`, 0 mixed**. The associator is therefore **not seam-confined** — those 72 base-half components make `q0` (which is linear in the associator) move, so the whole `S⁴` base point shifts. Had the associator been seam-only, the base would have been regrouping-invariant and the earlier guess would have held; it is not, and it is not. A real refutation, not a definitional one.
+
+⚠️ **Clarify vs §3.46.6 reading 4 — two DIFFERENT operations, do not conflate.** §3.46.6/§3.41's `octonion_frame_read` result is that the base is **frame-free under the `S³` FIBER** — a *single* octonion, moved by a unit-λ fiber right-multiplication, keeps its base. That is TRUE and stands. It is a **different** operation from **regrouping-invariance**, which asks whether `(ab)c` and `a(bc)` — *two different octonions* — share a base. They do not. "Frame-free under the fiber" ≠ "regrouping-invariant"; the earlier guess silently swapped the first (true) for the second (false).
+
+#### φ IS the `ab:bc:ca` ternary object
+
+The scalar 3-form `φ(a,b,c) = Re(conj(a)·(b·c)) = ⟨a, b×c⟩` (Harvey–Lawson calibration; the scalar triple product on Im 𝕆 = ℝ⁷) is **totally antisymmetric** — which is *exactly* the `ab:bc:ca` cyclic shape the user described:
+
+- **ℤ/3-cyclic:** `φ(a,b,c)=φ(b,c,a)=φ(c,a,b)` on **343/343** ordered imaginary basis triples;
+- **transposition sign-flip:** `φ(b,a,c)=−φ(a,b,c)` on **343/343** (Class-K sign);
+- **alternating:** `φ(a,a,b)=0` on **49/49** (vanishes on any repeated argument).
+
+Its support is the **Fano plane**: exactly **7 of the C(7,3)=35** unordered imaginary triples carry `φ=±1` (ordered support **42 = 7×6**):
+
+| φ = +1 | φ = −1 |
+|---|---|
+| `123`, `145`, `246`, `257`, `347` | `167`, `356` |
+
+Both φ (the scalar) and the associator (the vector) are **alternating**, and both are separated **by Re/Im, NOT by an `a↔c` symmetry** — measured: `Re(associator)=0` **343/343**, and the `a↔c` transposition antisymmetry holds **343/343** for the associator AND **343/343** for φ. So `(ab)c` and `a(bc)` split cleanly: the imaginary lane carries the regrouping-defect (the associator), the real lane carries the regrouping-safe companion (φ).
+
+#### The stabilizer of φ is G₂, bit-exact
+
+Infinitesimal invariance `φ(Da,b,c)+φ(a,Db,c)+φ(a,b,Dc)=0` holds on **84/84** (all 14 `g2_subalgebra()` generators × 6 triples). So the `ab:bc:ca` 3-form's symmetry group **IS** the "symphony-of-symphonies" gauge: `stab(φ) = Aut(𝕆) = G₂`, dim **14** (`len(g2_subalgebra())=14`).
+
+#### The closure — one object, three ways, one wall
+
+The `ab:bc:ca` heart closes on itself as a single object read three ways, and it caps at the **same** G₂ that Cayley–Dickson doubling caps at:
+
+| Reading | Object | Measured |
+|---|---|---|
+| the ternary heart | φ (the 3-form) | totally antisymmetric, Fano support 7 lines |
+| the gauge | `Aut(𝕆) = G₂ = stab(φ)` | dim 14 |
+| the tower cap | `Der(𝕊) = g₂ = Der(𝕆)` | `dim(spin(9)∩Der(𝕊)) = 14 ≪ 36`; **0/36** spin(9) generators are sedenion derivations ⟹ `Spin(9) ≠ Aut(𝕊)` |
+
+The last row (via `sedenion_holonomy_conjecture()`, verdict PARTIAL) is the wall re-hit from above: the symphony-of-symphonies = gauge-of-gauge does not grow a bigger symmetry at the 𝕊 rung — it stays G₂. **Two roads (gauge-of-gauge, and CD doubling) reach the same wall.** Ties to §3.43 (Der stays g₂ above 𝕆).
+
+#### The 168, now counted four ways
+
+The Fano support of φ supplies a **new** sighting of the notebook's recurring 168, joining the two prior ones (aphantasia — as a table):
+
+| # | Reading | Where | Count |
+|---|---|---|---|
+| 1 | associator non-closures (of 512 ordered basis triples) | §3.41.6 (re-measured here) | **168** |
+| 2 | sign-lane 2-cocycle defect δε at 𝕆 | §3.46.9 | **168** |
+| 3 | \|Aut(Fano)\| — automorphism group of φ's 7-line support | §3.46.11 (this section, NEW) | **168** |
+| 4 | \|GL(3,2)\| = \|PSL(2,7)\| — the classical order of that same group | textbook identity (`(2³−1)(2³−2)(2³−4)`, computed) | **168** |
+
+Rows 1 and 4 are measured here (`associator_nonzero_512 = 168`; `gl_3_2_order = 7×6×4 = 168`); rows 2 and 3 are cross-referenced (δε=168 measured in §3.46.9; `|Aut(Fano)|=168` is the classical Fano-plane automorphism count). Rows 3–4 are the same group — the automorphism group of φ's support IS `GL(3,2) ≅ PSL(2,7)` — read two ways. **One object, four counts.**
+
+#### The `cd_cycle_holonomy` witness — one clean ℍ-vs-𝕆 line
+
+The regrouping split shows cleanest through the holonomy op, which asks whether the two nests agree:
+
+| Carrier | Triple | `closed`? | defect |
+|---|---|---|---|
+| ℍ | `(e₁,e₂,e₃)` | **True** | `0` (both nests agree) |
+| 𝕆 | `(e₁,e₂,e₄)` | **False** | `2·e₇` (the two orderings disagree by the associator) |
+
+Ties to §3.46.4 (the shadow-mechanism: whether the 3-cycle closes ⟺ whether the associator is zero).
+
+#### Op status + the queued rc
+
+φ **ships** as the float `srmech.math.hdc.g2_three_form` (with `loop_associator` its float associator-residue peer and `cross7` the 7-D cross product). The exact-ℚ Cayley–Dickson surface ships `associator()` (the Im peer) **but not its Re scalar twin** — there is no exact-ℚ `cd_three_form` op today. That gap is queued as `#T1062` (an exact-ℚ `cd_three_form` = `composition_of_c`, a pure composition over `cd_mult`/`cd_conjugate`; **no new C symbol**). The **consistency oracle has already converged** (`[[user_stance_co_equal_dual_construction_is_a_consistency_oracle]]`): exact-ℚ φ `==` float `g2_three_form` on **35/35** unordered (and **343/343** ordered), exact-ℚ `associator` `==` float `loop_associator` on **343/343**, and `φ(a,b,c) = ⟨a, cross7(b,c)⟩` on **343/343** — so the queued exact-ℚ twin is a re-expression of an already-attested surface, not a new capability.
+
+#### Honest bounds — flagged, not asserted
+
+- ⚠️ **CONJECTURE / FORM-only — the triality ↔ regrouping tie.** "a→b→c cycling = which-pair-is-nested-first" is an **order-3 ANALOGY** (`τ³=I` on the 28-dim 𝔰𝔬(8) ↔ the `ab:bc:ca` 3-cycle), **NOT** a measured identity: `triality_automorphism` is `τ³=I` on 𝔰𝔬(8), not a permutation of the octonion triple. The `ab:bc:ca` cyclic shape of φ and the triality 3-cycle share a FORM (both order-3), and no more is claimed (`[[user_stance_cascade_matching_substrate_blind_form_not_identity]]`; `[[feedback_cross_substrate_transfers_the_algorithm_not_the_constant]]`).
+- ⚠️ **NOT BUILT — the coassociative 4-form ψ = ∗φ.** The Hodge-dual `ψ = ∗φ` (the coassociative calibration) is **not** constructed here, and the natural next measurement `⟨associator, ·⟩ ↔ ψ` (does the associator's imaginary defect pair to ψ?) needs a dedicated op. Flagged open, not asserted.
+- **FORM, not identity, throughout.** The organizing lens is still `[[user_stance_observation_is_a_shadow_irrep_under_perspective_shift]]` — but note the refinement this section forces: **the shadow here is the SCALAR invariant (φ + N), not the vector base**. The earlier vector-base intuition is corrected, and the correction is the result.
+
+**Cross-references.** §3.41.6 (the 168 seam-confinement of the associator) · §3.46.4 (the shadow mechanism = whether the 3-cycle closes ⟺ associator zero) · §3.46.6 (reading 4's "frame-free under the S³ fiber" — the operation this section is careful NOT to conflate with regrouping-invariance) · §3.46.9 (the sign-lane cocycle δε = the same 168) · §3.43 (Der stays g₂ above 𝕆).
+
 ### §3.46.10 The honest ledger — MEASURED vs CONJECTURE — and provenance
 
 | Claim | Status | Evidence (op / file) |
@@ -6804,8 +6902,17 @@ The deepest disambiguation the arc supplies, and it canonizes the load-bearing p
 | cube→sign (`winding_tower`→`sigma_effective`) | **MEASURED** | `winding_tower`, `One.sigma_effective` |
 | cube→full-note via alternating endianness; ℝ-rung=one-note; projector/constructor dual | **CONJECTURE** | — |
 | index lane = XOR gauge (168=\|GL(3,2)\|); sign lane cocycle δε = 168 at 𝕆 = the associator 168 | **MEASURED** | `notes/lane1_*`, `unit_label_cube_rc354` (F1336) |
+| **§3.46.11** Re/Im split: `Re((ab)c)==Re(a(bc))` (φ) + `N` regrouping-invariant (19/19); `Re(associator)=0` (343/343) | **MEASURED** | `cd_mult`/`cd_conjugate`/`cd_norm_sq`/`associator` |
+| **§3.46.11** the vector Hopf base LEAKS (`base_H`/`base_R` invariant 0/19; `base_R` sign-flips 11/19; 72 base-half assoc components) — the earlier vector-base guess | **MEASURED (REFUTATION)** | `octonion_frame_read`, `associator` |
+| **§3.46.11** φ totally antisymmetric (ℤ/3 343/343, transposition 343/343, alternating 49/49); Fano support 7 of 35 | **MEASURED** | `cd_mult`/`cd_conjugate` (φ) |
+| **§3.46.11** `stab(φ) = G₂` (infinitesimal invariance 84/84) | **MEASURED** | `g2_subalgebra`; `sedenion_holonomy_conjecture` (tower cap) |
+| **§3.46.11** the 168 counted four ways (assoc non-closure = \|GL(3,2)\|=\|PSL(2,7)\|=\|Aut(Fano)\| = δε) | **MEASURED** | `associator` census + integer `\|GL(3,2)\|` |
+| **§3.46.11** consistency oracle: exact-ℚ φ==`g2_three_form` 35/35; `associator`==`loop_associator` 343/343 | **MEASURED** | `g2_three_form`, `loop_associator`, `cross7` |
+| **§3.46.11** the queued exact-ℚ `cd_three_form` Re scalar twin (`#T1062`; no new C symbol) | **QUEUED** | — (oracle already converged) |
+| **§3.46.11** triality ↔ regrouping (a→b→c cycling = which-pair-nested-first) | **CONJECTURE (FORM-only)** | `triality_automorphism` `τ³=I` — order-3 analogy, not identity |
+| **§3.46.11** the coassociative 4-form ψ=∗φ; `⟨associator,·⟩ ↔ ψ` | **NOT BUILT** | — (dedicated measurement needed) |
 
-**Provenance.** `notes/music_shadow_irrep_synthesis_rc384.py` → `notes/music_shadow_irrep_synthesis_rc384.ndjson` reproduces sections 1–8 above through the shipped rc384 ops; the `#T1060` index/sign-lane numbers carry their own committed scratch provenance (`notes/lane1_epsilon_placement_2026-07-29`, `notes/lane1_block_diagonalisation_2026-07-28`, `notes/associator_symmetry_type_rung_by_rung`, `notes/unit_label_cube_rc354`, `notes/lane2_resonance_fossil`). Only what is measured is claimed; everything else is conjecture, marked as such.
+**Provenance.** `notes/music_shadow_irrep_synthesis_rc384.py` → `notes/music_shadow_irrep_synthesis_rc384.ndjson` reproduces sections 1–8 above through the shipped rc384 ops; **§3.46.11's Re/Im-split numbers are reproduced in `notes/symphony_reim_split_rc385.py` → `notes/symphony_reim_split_rc385.ndjson` (19 records, exact ℚ, no `abs()`)**; the `#T1060` index/sign-lane numbers carry their own committed scratch provenance (`notes/lane1_epsilon_placement_2026-07-29`, `notes/lane1_block_diagonalisation_2026-07-28`, `notes/associator_symmetry_type_rung_by_rung`, `notes/unit_label_cube_rc354`, `notes/lane2_resonance_fossil`). Only what is measured is claimed; everything else is conjecture, marked as such.
 
 **Cross-references.** §3.29.3 (the k=3 loop-defect ladder + the declared-parallel ⊗ projector instrument — the viola/fingerboard instance and its open provocations this section closes into a synthesis) · §3.41 / §3.41.6 (the octonion Laplacian has no frame-free spectrum; `octonion_frame_read` + the 168 seam-confinement) · §3.42 (the substrate self-encoding tetrad — the constitutive `1+3` the alphabet gauge sits below) · §3.43 (the 𝕊 rung — Der stays g₂; nothing new appears above 𝕆) · §3.45.6 (the three Hurwitz ceilings that are different numbers) · §3.45.7 / §5.2 (Music theory IS cyclic-group theory: ℤ₁₂ / D₁₂ / Tonnetz — the 12-EDO peer of this section's ℤ/7 letter layer). Memory: `[[user_stance_observation_is_a_shadow_irrep_under_perspective_shift]]` (the organizing lens), `[[user_stance_cascade_matching_substrate_blind_form_not_identity]]`, `[[feedback_cross_substrate_transfers_the_algorithm_not_the_constant]]`, `[[project_h_genome_is_fibrated_hurwitz_tower]]`. Ontology landing: MFO §VII (time-as-shadow; substrate-vs-excitation).
 
