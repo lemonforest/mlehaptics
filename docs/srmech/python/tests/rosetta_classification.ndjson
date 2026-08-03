@@ -12,6 +12,7 @@
 {"exposed_as": "srmech.cascade.cd_commutator", "defined_at": "srmech.cascade.cayley_dickson.cd_commutator", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.cascade.cd_cycle_holonomy", "defined_at": "srmech.cascade.cayley_dickson.cd_cycle_holonomy", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.cascade.defect_ladder", "defined_at": "srmech.cascade.cayley_dickson.defect_ladder", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.cascade.octonion_frame_read", "defined_at": "srmech.cascade.cayley_dickson.octonion_frame_read", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.cascade.inertia_signature", "defined_at": "srmech.cascade.cayley_dickson.inertia_signature", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.cascade.left_mult_is_invertible", "defined_at": "srmech.cascade.cayley_dickson.left_mult_is_invertible", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.cascade.left_mult_kernel", "defined_at": "srmech.cascade.cayley_dickson.left_mult_kernel", "bucket": "composition_of_c"}
@@ -125,6 +126,7 @@
 {"exposed_as": "srmech.math.laplacian.mass_normalized_laplacian", "defined_at": "srmech.math.laplacian.mass_normalized_laplacian", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.math.laplacian.cotangent_weights", "defined_at": "srmech.math.laplacian.cotangent_weights", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.math.laplacian.quaternion_laplacian", "defined_at": "srmech.math.laplacian.quaternion_laplacian", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.math.laplacian.octonion_laplacian", "defined_at": "srmech.math.laplacian.octonion_laplacian", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.math.laplacian.hypercomplex_perspectives", "defined_at": "srmech.math.laplacian.hypercomplex_perspectives", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.introspect.naming.lookup", "defined_at": "srmech.introspect.naming.lookup", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.introspect.naming.reverse_order", "defined_at": "srmech.introspect.naming.reverse_order", "bucket": "c_dispatched"}

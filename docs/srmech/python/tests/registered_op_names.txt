@@ -185,6 +185,7 @@ srmech.cascade.matrix_cascades.qr
 srmech.cascade.matrix_cascades.svd
 srmech.cascade.net_chirality
 srmech.cascade.octonion_dft
+srmech.cascade.octonion_frame_read
 srmech.cascade.parallel_sector_dispatch
 srmech.cascade.phase_coherent_peak
 srmech.cascade.pin_slot_at_zero
@@ -342,6 +343,7 @@ srmech.math.laplacian.mat_solve
 srmech.math.laplacian.mat_svd
 srmech.math.laplacian.normalized_cut_bisect
 srmech.math.laplacian.normalized_laplacian
+srmech.math.laplacian.octonion_laplacian
 srmech.math.laplacian.order_fingerprint
 srmech.math.laplacian.propagate
 srmech.math.laplacian.propagate_sparse

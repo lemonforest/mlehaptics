@@ -45,7 +45,7 @@ MANIFEST = Path(__file__).resolve().parent / "registered_op_names.txt"
 #: Registered public-callable count at rc361. Pinned here only so the failure
 #: message can say "516 -> 517" instead of dumping 516 lines; the SET below is
 #: the actual contract.
-EXPECTED_N = 533
+EXPECTED_N = 535
 
 #: sha256 over the NORMALISED manifest body — "\n".join(sorted names) + "\n",
 #: UTF-8. Normalised rather than raw-file-bytes so a CRLF checkout cannot make
@@ -57,8 +57,12 @@ EXPECTED_N = 533
 # exact SAME-COUNT set change no count-pin can see and this witness exists to catch.
 # v0.9.0rc383 (`#T1054`) — one genuinely NEW op: srmech.cascade.defect_ladder (the
 # rung-indexed property-loss ladder + per-rung projector). 532 -> 533, digest below.
+# v0.9.0rc384 (`#T957`) — two genuinely NEW ops: srmech.cascade.octonion_frame_read
+# (the 𝕆 frame-committed quaternionic-Hopf coherence read) and
+# srmech.math.laplacian.octonion_laplacian (the 𝕆 gain Laplacian measuring the
+# frame-committed coherence ceiling). 533 -> 535, digest below.
 EXPECTED_NAME_SET_SHA256 = (
-    "f918e778d23d02f85be284b141b35bed6f128207d6b4eb015e005475ab15dfa7")
+    "a6dca880e13e8492110e6aae90408641a04a12aa6b37d29559819e57b3193685")
 
 
 def _live_names() -> list[str]:

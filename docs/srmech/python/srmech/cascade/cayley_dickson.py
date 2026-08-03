@@ -1322,6 +1322,174 @@ def defect_ladder(x: Sequence[Any], y: Sequence[Any], z: Sequence[Any],
     }
 
 
+#: The Cayley–Dickson doubling seam for the octonions — ``ℓ = e₄``. The default
+#: splitting unit of :func:`octonion_frame_read`: 𝕆 = ℍ ⊕ ℍℓ with the ℍ base
+#: ``{e₀, e₁, e₂, e₃}`` and the seam half ``{e₄, e₅, e₆, e₇}``.
+OCTONION_FRAME_SEAM = 4
+
+
+def octonion_frame_read(x: Sequence[Any], *, frame: int = 4) -> Dict[str, Any]:
+    """Read an octonion on a COMMITTED frame as a frame-free quaternionic-Hopf
+    base ⊕ an ℍ-valued writhe — the FRAME-COMMITTED coherence read of 𝕆 (rc384,
+    `#T957`).
+
+    §3.41 measured that 𝕆 has "no FRAME-FREE invariant" (F1301/F1302) — but that
+    is an **ℝ-SCALAR** question asked of a rung whose coherence is **ℍ-shaped**.
+    MEASURED (this op's generating script,
+    ``docs/srmech/notes/octonion_frame_read_rc384.py``): ``{e₀, e₁, e₂, e₃}`` is
+    a genuine ℍ subalgebra of 𝕆 and is FULLY coherent — ``0`` of its ``64``
+    ordered basis-triple associators is nonzero — while ALL ``168`` of the
+    octonion's nonzero associators (of ``512`` ordered basis triples) CROSS the
+    doubling seam ``ℍℓ = {e₄, e₅, e₆, e₇}`` (``0`` non-seam nonzero). So 𝕆's
+    coherence is **frame-COMMITTED**: pick the splitting unit ``ℓ = e₄`` and
+    ``𝕆 = ℍ ⊕ ℍℓ`` splits into a coherent ℍ base and the seam that carries every
+    non-closure. The geometry is the **quaternionic Hopf fibration**
+    ``S³ ↪ S⁷ ↠ S⁴`` — read 𝕆 = ``(q₀, q₁) ∈ ℍ²`` as a point of the frame-free
+    base ``ℍP¹ ≅ S⁴`` plus the ``S³`` fiber it sits over.
+
+    **The split.** With the default frame ``ℓ = e₄``, ``q₀ = x[:4]`` is the ℍ
+    part and ``q₁ = x[4:]`` the ℍℓ (seam) part.
+
+    **The Hopf base — the coherent note, frame-FREE UNDER THE FIBER.** The
+    quaternionic Hopf map sends ``(q₀, q₁)`` to the point of ``S⁴ ⊂ ℍ ⊕ ℝ``::
+
+        base_H = 2·q₀·conj(q₁)         (4 comps, the ℍ off-diagonal)
+        base_R = |q₀|² − |q₁|²          (1 scalar, the ℝ diagonal)
+
+    Under the ``S³`` fiber — right-multiplication of BOTH halves by a UNIT
+    quaternion ``λ`` (``|λ|² = 1``), ``(q₀, q₁) → (q₀·λ, q₁·λ)`` — the base is
+    UNCHANGED (``2·(q₀λ)·conj(q₁λ) = 2·q₀·|λ|²·conj(q₁) = base_H``, using ℍ
+    associativity and ``λ·conj(λ) = |λ|²``; likewise ``base_R``). That invariance
+    IS the coherent note that survives once a frame is committed. It is
+    NON-TAUTOLOGICAL: a NON-fiber move (e.g. right-multiplying only ``q₀``) DOES
+    change the base — the instrument can return otherwise. The base lies on the
+    radius-``|x|²`` four-sphere: ``|base_H|² + base_R² == norm_sq²`` exactly
+    (``norm_sq = |q₀|² + |q₁|² = |x|²``).
+
+    **The writhe — the S³ fiber DOF.** ``writhe`` is the fiber generator ``q₁``:
+    its unit direction ``q₁/√|q₁|²`` is the ``S³`` fiber coordinate (relative to
+    the "``q₁`` real-positive" section), carried UN-NORMALISED so the read stays
+    exact-ℚ (normalisation would need a square root). Unlike the base, the writhe
+    is EQUIVARIANT — it changes under the fiber (``q₁ → q₁·λ``) — which is exactly
+    what makes it the fiber DOF rather than part of the invariant. The canonical
+    fiber-FIXED representative is ``(canonical_affine, 1)`` where
+    ``canonical_affine = q₀·q₁⁻¹`` (``q₁⁻¹ = conj(q₁)/|q₁|²``, exact-ℚ) — the
+    inhomogeneous ``ℍP¹`` coordinate, itself frame-free-under-fiber. When
+    ``q₁ == 0`` the fiber is degenerate (the ``ℍP¹`` point at infinity,
+    ``base_R = +norm_sq``): ``writhe`` and ``canonical_affine`` are ``None``.
+
+    ⚠️ **EPISTEMIC CEILING — this is the ℍ-shaped FRAME-COMMITTED read; it does
+    NOT contradict §3.41.** §3.41's "no frame-free invariant" (F1301/F1302) is
+    the **ℝ-SCALAR** statement, and it stands: there is no frame-free ℝ-scalar
+    that is also a *gauge*-invariant — the companion :func:`octonion_laplacian`
+    MEASURES that the octonion gain-Laplacian spectrum is NOT gauge-invariant at
+    𝕆 (deviation ``~0.1``, versus ℍ's ``~1e-15`` Sp(1)-invariance). This op reads
+    a DIFFERENT thing: the coherence that survives ONCE A FRAME IS COMMITTED
+    (pick ``ℓ = e₄``), which is ℍ-VALUED, not an ℝ-scalar, and frame-free only
+    UNDER THE FIBER, not under an arbitrary gauge. FORM, not identity
+    (`[[user_stance_cascade_matching_substrate_blind_form_not_identity]]`) — the
+    quaternionic-Hopf ``S³/S⁴`` split is the FORM of 𝕆's frame-committed
+    coherence; the op makes no claim that this ``S³`` and any other substrate's
+    fiber are the same object.
+
+    Args:
+        x: An 8-vector octonion. Every exact-rational scalar :func:`cd_mult`
+            accepts (``Q`` / ``int`` / ``float`` / ``Fraction`` / ``(num, den)``)
+            is accepted; coerced to exact :class:`~srmech.math.q.Q`.
+        frame: The splitting-unit index ``ℓ = e_frame``. Only the Cayley–Dickson
+            doubling seam ``e₄`` (= ``dim // 2``) is well-posed on the standard
+            basis: ``e₁, e₂, e₃`` live INSIDE the ℍ base and ``e₅, e₆, e₇ =
+            e_{1,2,3}·e₄`` are not independent seam generators, so no other single
+            basis unit gives a clean ``ℍ ⊕ ℍℓ`` split of the standard-basis
+            octonion. Any ``frame != 4`` raises ``ValueError``.
+
+    Returns:
+        A ``dict`` with:
+
+        * ``frame`` (int, ``4``) and ``dim`` (int, ``8``);
+        * ``q0`` / ``q1`` — the ℍ base half and the ℍℓ seam half, each a
+          4-tuple of exact :class:`~srmech.math.q.Q`;
+        * ``base_H`` (4 ``Q``) and ``base_R`` (``Q``) — the quaternionic-Hopf
+          base, FRAME-FREE UNDER THE FIBER (the coherent note);
+        * ``norm_sq`` (``Q``) — ``|q₀|² + |q₁|² = |x|²``; the base lies on the
+          radius-``norm_sq`` ``S⁴`` (``|base_H|² + base_R² == norm_sq²``);
+        * ``writhe`` (4 ``Q`` or ``None``) — the ``S³`` fiber generator ``q₁``,
+          equivariant (changes under the fiber); ``None`` iff ``q₁ == 0``;
+        * ``writhe_norm_sq`` (``Q``) — ``|q₁|²``, the exact scale (unit fiber =
+          ``writhe / √writhe_norm_sq``);
+        * ``canonical_affine`` (4 ``Q`` or ``None``) — ``q₀·q₁⁻¹``, the
+          fiber-FIXED ``ℍP¹`` inhomogeneous coordinate; ``None`` iff ``q₁ == 0``.
+
+    Raises:
+        ValueError: ``x`` is not an 8-vector; ``frame != 4``.
+
+    Note:
+        Exact end to end — no float, no epsilon, no ``abs()`` (the ``base_R``
+        sign is the Class-K pin-slot difference; the conjugation is Class C).
+        ``composition_of_c``: it composes the already-C-backed :func:`cd_mult`
+        (``srmech_cd_mult``), :func:`cd_conjugate` (``srmech_cd_qconjugate``) and
+        :func:`cd_norm_sq`; NO new C symbol, so ``SRMECH_ABI_VERSION`` is
+        unchanged. Class M (bilinear bind) ∘ C (conjugation / which-way) ∘ K
+        (sign-flip difference).
+
+    Canonical SSoT:
+    - Baez, J.C. (2002), *The Octonions*, Bull. AMS **39** 145–205,
+      arXiv:math/0105155, §2 — the Cayley–Dickson doubling ``𝕆 = ℍ ⊕ ℍℓ``, the
+      octonion norm form, and the bimodule structure; §2.3 the associator whose
+      seam-confinement (0/64 on the ℍ base, 168/168 seam-crossing) this op reads.
+    - The quaternionic Hopf fibration ``S³ ↪ S⁷ ↠ S⁴`` (``ℍP¹ ≅ S⁴``) — the
+      geometry of the ``(q₀, q₁) ∈ ℍ²`` doubling coordinate.
+    """
+    ex = _as_elem(tuple(_coerce_frac(v) for v in x))
+    dim = len(ex)
+    if dim != 8:
+        raise ValueError(
+            f"octonion_frame_read: x must be an 8-vector octonion; got "
+            f"length {dim}")
+    if frame != dim // 2:
+        raise ValueError(
+            f"octonion_frame_read: frame={frame} is not the Cayley–Dickson "
+            f"doubling seam e{dim // 2}. Only ℓ = e{dim // 2} is well-posed on "
+            f"the standard basis — e1/e2/e3 lie inside the ℍ base and "
+            f"e5/e6/e7 = e_{{1,2,3}}·e4 are not independent seam generators, so "
+            f"no other single basis unit splits 𝕆 = ℍ ⊕ ℍℓ cleanly.")
+    half = dim // 2
+    q0 = ex[:half]
+    q1 = ex[half:]
+    # The quaternionic Hopf base — frame-free UNDER the S³ fiber (the coherent
+    # note). base_H is the ℍ off-diagonal 2·q₀·conj(q₁); base_R the ℝ diagonal
+    # |q₀|² − |q₁|² (Class-K pin-slot difference; NO abs()).
+    base_H = tuple(Q(2, 1) * c for c in cd_mult(q0, cd_conjugate(q1)))
+    n0 = cd_norm_sq(q0)
+    n1 = cd_norm_sq(q1)
+    base_R = n0 - n1
+    norm_sq = n0 + n1
+    # The S³ fiber generator (the writhe). Un-normalised to stay exact-ℚ; the
+    # canonical fiber-fixed representative right-divides by q₁ (→ (q₀·q₁⁻¹, 1)).
+    if all(v == 0 for v in q1):
+        writhe: Any = None
+        writhe_norm_sq = Q(0, 1)
+        canonical_affine: Any = None
+    else:
+        writhe = q1
+        writhe_norm_sq = n1
+        inv1 = Q(1, 1) / writhe_norm_sq             # 1/|q₁|² (exact ℚ)
+        q1_inv = tuple(c * inv1 for c in cd_conjugate(q1))
+        canonical_affine = cd_mult(q0, q1_inv)
+    return {
+        "frame": frame,
+        "dim": dim,
+        "q0": q0,
+        "q1": q1,
+        "base_H": base_H,
+        "base_R": base_R,
+        "norm_sq": norm_sq,
+        "writhe": writhe,
+        "writhe_norm_sq": writhe_norm_sq,
+        "canonical_affine": canonical_affine,
+    }
+
+
 # ──────────────────────────────────────────────────────────────────────
 # Loop navigation — the combinatorial layer over the basis cocycle.
 #
