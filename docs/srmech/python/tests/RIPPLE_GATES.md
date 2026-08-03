@@ -77,6 +77,8 @@ mirror):
 | JPL audit | `test_jpl_audit` | C Power-of-Ten ratchet (any C-touching op) |
 | version pin | `test_signal_processing_scaffolding` | the single hard version-literal gate |
 | non_compute / annex | `test_non_compute_ratchet_rc170`, `test_annex_ratchet_rc177`, `test_annex_ratchet_rc183` | the non_compute / annex classification ratchets |
+| stdlib-fractions ban | `test_no_stdlib_fractions_import` | a new op-rc's **new test file** reaching for stdlib `fractions` (#845 / #870) — cost rc386 a full CI-red round because the runner omitted it. Pure-Python, sub-second |
+| decode-aware population pin | `test_namespace_prefix_decode_aware_rc361` | a new **cascade op** bumps the `srmech.cascade` DECODED-channel population (the ratchet's population half, invisible to a text grep). rc387 had to run it manually (100 → 102). Pure-Python (reads regen'd artifacts + decodes their byte arrays), ~seconds; no native `.so` |
 
 ### Note on the count-pin blast radius
 

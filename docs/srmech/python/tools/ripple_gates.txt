@@ -75,3 +75,16 @@ tests/test_signal_processing_scaffolding.py
 tests/test_non_compute_ratchet_rc170.py
 tests/test_annex_ratchet_rc177.py
 tests/test_annex_ratchet_rc183.py
+
+# -- stdlib-fractions ban (new test files) -----------------------------------
+#    A new op-rc's new TEST FILE that reaches for stdlib `fractions` trips this
+#    (#845 / #870). It cost rc386 a full CI-red round because the runner did not
+#    include it. Pure-Python, sub-second.
+tests/test_no_stdlib_fractions_import.py
+
+# -- decode-aware namespace population pin ------------------------------------
+#    Adding a cascade op bumps the `srmech.cascade` DECODED-channel population
+#    (the ratchet's population half, invisible to a text grep). rc387 had to run
+#    this MANUALLY (it bumped the count 100 -> 102). Pure-Python (reads the
+#    regen'd artifacts + decodes their byte arrays), ~seconds; no native .so.
+tests/test_namespace_prefix_decode_aware_rc361.py

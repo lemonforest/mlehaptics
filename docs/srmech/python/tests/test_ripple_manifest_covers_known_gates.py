@@ -86,6 +86,15 @@ FROZEN_KNOWN_GATES = frozenset({
     "tests/test_non_compute_ratchet_rc170.py",
     "tests/test_annex_ratchet_rc177.py",
     "tests/test_annex_ratchet_rc183.py",
+    # -- stdlib-fractions ban (new test files, #845 / #870): a new op-rc's new
+    #    TEST FILE reaching for stdlib `fractions` trips this. It reds a fresh
+    #    CI round (rc386) if the runner omits it. Pure-Python, whole file. ------
+    "tests/test_no_stdlib_fractions_import.py",
+    # -- decode-aware namespace population pin (rc361, `#T1034`): a new cascade
+    #    op bumps the `srmech.cascade` DECODED-channel population (rc387 ran it
+    #    by hand at 100 -> 102). Invisible to a text grep; the manifest's only
+    #    population-of-namespace gate. Pure-Python, whole file. -----------------
+    "tests/test_namespace_prefix_decode_aware_rc361.py",
 })
 
 
