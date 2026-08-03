@@ -841,14 +841,21 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # ALL held (this move touched none of them). Pinning the receiving side guards
     # against a regression that dropped a qm op from the walk (which would show
     # physics.qm falling with no matching rise elsewhere).
+    # rc385 (`#T1048`) — two genuinely NEW physics.qm ops: quaternion_log (the
+    # INVERSE of quaternion_exp) + quaternion_slerp (the exp/log S³ geodesic).
+    # 154 -> 159: quaternion_log contributes 2 decoded references, quaternion_slerp
+    # 3 (each op's back-index name + its HV-typed carrier slots — log has one HV
+    # param, slerp two), so +5. No amsc pin moves (this is a genuine physics.qm
+    # POPULATION add, tracked by the decoded channel exactly as designed).
     physics_qm = joined.count("srmech.physics.qm.")
-    assert physics_qm == 154, (
-        f"expected 154 srmech.physics.qm op references inside the DECODED channel "
+    assert physics_qm == 159, (
+        f"expected 159 srmech.physics.qm op references inside the DECODED channel "
         f"(the rc381 qm-subpackage rename's carrier back-index — octonion / "
-        f"quaternion / so8 / triality / gauge / sm op names), found {physics_qm}. "
-        f"srmech.qm. fell to 0 by exactly these 154; if this is not 154 the rename "
-        f"is not conserved — re-measure. (This is a RENAME, not an amsc drain, so "
-        f"no amsc pin moves.)")
+        f"quaternion / so8 / triality / gauge / sm op names — plus rc385's "
+        f"quaternion_log (+2) / quaternion_slerp (+3)), found {physics_qm}. "
+        f"srmech.qm. fell to 0 by exactly the original 154; if this is not 159 the "
+        f"population is not conserved — re-measure. (This is a physics.qm add, not "
+        f"an amsc drain, so no amsc pin moves.)")
     assert joined.count("srmech.qm.") == 0, (
         f"the OLD srmech.qm. prefix still has "
         f"{joined.count('srmech.qm.')} decoded references — the rc381 rename left "

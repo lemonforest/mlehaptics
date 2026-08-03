@@ -25,6 +25,106 @@ from __future__ import annotations
 from typing import Any, Dict
 
 CURATED: Dict[str, Dict[str, Any]] = {
+    # rc385 (#T1048) — the ℍ log/slerp pair. Outputs below are REAL captures from
+    # a WSL2 numpy-absent (pure-path) run; the c_dispatched path is byte-identical.
+    'srmech.physics.qm.quaternion.quaternion_log': {
+        'example': {
+            'output': (
+                'log(q1)      = [0.0, 0.6435011087932843, 0.0, 0.0]\n'
+                'exp(log(q1)) = [0.8, 0.5999999999999999, 0.0, 0.0]\n'
+                'log([1,0,0,0]) = [0.0, 0.0, 0.0, 0.0]'
+            ),
+            'why': (
+                'log(q1) recovers the pure-imaginary tangent [0, theta*mu_hat] of the '
+                'unit quaternion q1=[4/5,3/5,0,0] (theta = atan(3/4) about the i axis); '
+                'exp(log(q1)) round-trips to q1 at the float64 boundary; and the '
+                'pure-real q=+-1 hits the Class-K pin-slot, returning the zero tangent.'
+            ),
+            'worked': (
+                'from srmech.physics.qm.quaternion import quaternion_log, quaternion_exp\n'
+                'from srmech.math.q import Q\n'
+                '\n'
+                '# q1 = [4/5, 3/5, 0, 0] is an EXACT unit (16/25 + 9/25 == 1). log is the\n'
+                '# INVERSE of quaternion_exp: the pure-imag tangent [0, theta*mu_hat],\n'
+                '# theta = atan2(||v||, w) = atan(3/4), axis mu_hat = i.\n'
+                'q1 = [Q(4, 5), Q(3, 5), 0, 0]\n'
+                'lg = quaternion_log(q1)\n'
+                'print("log(q1)      =", lg)\n'
+                'back = quaternion_exp(lg[1], "i")            # exp(theta*i) round-trips to q1\n'
+                'print("exp(log(q1)) =", back)\n'
+                'print("log([1,0,0,0]) =", quaternion_log([1.0, 0.0, 0.0, 0.0]))  # Class-K pin-slot'
+            ),
+        },
+        'explanation': (
+            "WHAT: the unit-quaternion log map -- the exact INVERSE of quaternion_exp "
+            "and the bi-invariant Lie logarithm of S3 = Sp(1) = SU(2). For a unit "
+            "q = [w, v] it returns the pure-imaginary tangent [0, theta*mu_hat], where "
+            "||v|| is the Class-K magnitude of the vector part, theta = atan2(||v||, w) "
+            "in [0, pi], and mu_hat = v/||v||; the pure-real q = +-1 is the Class-K "
+            "pin-slot at zero (the zero tangent, no preferred axis). "
+            "WHEN: reach for it whenever you need the geodesic distance or direction "
+            "between two orientations -- quaternion means and blends, the "
+            "velocity-Jacobian of a rotation, the Chasles-screw log-map. What you would "
+            "otherwise WRONGLY hand-roll: a component-wise lerp-plus-renormalise (which "
+            "is NOT constant-angular-velocity and drifts off the geodesic), or a libm "
+            "atan2/sqrt (which breaks the exact-Q / byte-exact-C parity this op holds by "
+            "riding the Class-N Q61 atan2/sqrt cascades with the quadrant done in integer "
+            "space -- no abs(), no libm). "
+            "SIBLINGS: log is the exact inverse of quaternion_exp and consumes "
+            "quaternion_conjugate for the pure-imaginary orientation; do not re-derive "
+            "either. quaternion_slerp is the 3-op cascade q0.exp(t.log(conj(q0).q1)) built "
+            "directly on this op, and it peers the H spectral surface (quaternion_laplacian "
+            "/ hypercomplex_perspectives)."
+        ),
+    },
+    'srmech.physics.qm.quaternion.quaternion_slerp': {
+        'example': {
+            'output': (
+                'slerp t=0   = [1.0, 0.0, 0.0, 0.0]\n'
+                'slerp t=1/2 = [0.9486832980505138, 0.3162277660168379, 0.0, 0.0]\n'
+                'slerp t=1   = [0.8, 0.5999999999999999, 0.0, 0.0]\n'
+                'midpoint on unit sphere: True'
+            ),
+            'why': (
+                'slerp walks the S3 geodesic from q0 to q1 at CONSTANT angular velocity: '
+                't=0 returns q0 exactly, t=1 returns q1 (to the float64 boundary), and the '
+                't=1/2 midpoint is the half-angle rotation, still exactly on the unit sphere.'
+            ),
+            'worked': (
+                'from srmech.physics.qm.quaternion import quaternion_slerp\n'
+                'from srmech.math.q import Q\n'
+                '\n'
+                '# slerp is the S^3 geodesic q0.exp(t.log(conj(q0).q1)). Interpolate from\n'
+                '# the identity to q1 = [4/5, 3/5, 0, 0] (a rotation of atan(3/4) about i).\n'
+                'q0 = [1, 0, 0, 0]\n'
+                'q1 = [Q(4, 5), Q(3, 5), 0, 0]\n'
+                'print("slerp t=0   =", quaternion_slerp(q0, q1, 0))          # -> q0 EXACTLY\n'
+                'print("slerp t=1/2 =", quaternion_slerp(q0, q1, Q(1, 2)))    # geodesic midpoint\n'
+                'print("slerp t=1   =", quaternion_slerp(q0, q1, 1))          # -> q1 (to float)\n'
+                'sh = quaternion_slerp(q0, q1, Q(1, 2))\n'
+                'print("midpoint on unit sphere:", abs(sum(c * c for c in sh) - 1.0) < 1e-12)'
+            ),
+        },
+        'explanation': (
+            "WHAT: spherical linear interpolation -- the shortest-arc, "
+            "constant-angular-velocity geodesic on the unit-quaternion 3-sphere, "
+            "slerp(q0, q1, t) = q0 . exp(t . log(conj(q0) . q1)). r = conj(q0).q1 is the "
+            "relative rotation, log(r) = theta.mu_hat its tangent, t.log(r) walks a "
+            "fraction t of the arc, and the left-multiply by q0 carries the walk back to "
+            "base; endpoints are exact (t=0 -> q0) and float-tight (t=1 -> q1). "
+            "WHEN: reach for it to blend orientations -- camera / limb / keyframe attitude "
+            "paths, an orientation mean, any smooth rotation sweep. What you would "
+            "otherwise WRONGLY hand-roll: a component-wise lerp-plus-renormalise (the "
+            "'nlerp' shortcut), which speeds up and slows down across the arc instead of "
+            "holding constant angular velocity, and which is NOT the geodesic. "
+            "SIBLINGS: slerp is a pure 3-op cascade over the shipped H ops -- "
+            "quaternion_conjugate (Class C) then the Cayley-Dickson Hamilton product "
+            "(Class M) then quaternion_log (the rc385 inverse of quaternion_exp) then "
+            "quaternion_exp; do not re-implement any of those four. t outside [0, 1] "
+            "extrapolates along the same geodesic. Peers the H spectral surface "
+            "(quaternion_laplacian / hypercomplex_perspectives)."
+        ),
+    },
     "srmech.chemistry.balance_reaction": {"example": {"output": "H2 + O2 -> H2O    : [2, 1, -2]\npropane           : [1, 5, -3, -4]\nethane (gcd)      : [2, 7, -4, -6]\ndict input        : [2, 1, -2]", "why": "The signed stoichiometric coefficients fall straight out of the element-composition nullspace, first-nonzero pinned positive: 2 H2 + O2 -> 2 H2O (H2O negative = product), propane balances to [1,5,-3,-4], the ethane column needs the gcd stripped to reach the primitive [2,7,-4,-6], and formula strings and {element:count} dicts give the identical answer.", "worked": "from srmech.chemistry import balance_reaction\n# Read reactant vs product from the SIGN: a negative coefficient is\n# a product. Species may be formula strings or {element:count} dicts.\nprint(\"H2 + O2 -> H2O    :\", balance_reaction([\"H2\", \"O2\", \"H2O\"]))\nprint(\"propane           :\", balance_reaction([\"C3H8\", \"O2\", \"CO2\", \"H2O\"]))\nprint(\"ethane (gcd)      :\", balance_reaction([\"C2H6\", \"O2\", \"CO2\", \"H2O\"]))\nprint(\"dict input        :\", balance_reaction([{\"H\": 2}, {\"O\": 2}, {\"H\": 2, \"O\": 1}]))"}, "explanation": "WHAT - balances a chemical reaction and RETURNS the signed primitive integer coefficients. A balanced reaction is a vector v in the kernel of the ELEMENT x SPECIES matrix A (element conservation A.v = 0); each exact-Q kernel column is reduced to the smallest integer vector on its ray by the primitive_integer_vector keystone, first nonzero pinned positive. The SIGN carries direction - a negative coefficient is a product. Accepts formula strings, {element:count} dicts, or a raw element x species QMat interchangeably; exact-Q, numpy-free, no abs(). WHEN - reach for it to balance a reaction (combustion, redox, synthesis) from its species alone. An UNBALANCEABLE set (trivial kernel) raises; an UNDERDETERMINED set (kernel dim > 1) raises unless you pass all_balances=True to get every independent balance. SIBLINGS - it composes QMat.nullspace (the exact-Q kernel) with srmech.math.cyclic.primitive_integer_vector (the integer reduction), so do NOT hand-roll a float nullspace and round to integers - that is the exact mistake the keystone exists to prevent. conservation_laws is its transpose-in-role peer (SPECIES x REACTION, not element x species); parse_formula is the input tokenizer it calls on a formula string."},
     "srmech.chemistry.conservation_laws": {"example": {"output": "laws: [[1, 0, 1, 0], [1, -1, 0, -1]]\ngamma^T N = [0, 0, 0]\ngamma^T N = [0, 0, 0]", "why": "Michaelis-Menten E + S <-> ES -> E + P returns two conserved moieties - total enzyme (E + ES) and a substrate-matter combination - and each returned gamma satisfies gamma^T N = 0 exactly, so the conservation is verified, not asserted.", "worked": "from srmech.chemistry import conservation_laws\n# Michaelis-Menten E + S <-> ES -> E + P. N is SPECIES x REACTION\n# (rows E, S, ES, P; columns R1, R2, R3; entry = net change).\nN = [[-1, 1, 1], [-1, 1, 0], [1, -1, -1], [0, 0, 1]]\nlaws = conservation_laws(N)\nprint(\"laws:\", laws)\nfor g in laws:\n    print(\"gamma^T N =\", [sum(g[i] * N[i][j] for i in range(4)) for j in range(3)])"}, "explanation": "WHAT - COMPUTES the conserved moieties of a reaction network: an integer basis of the LEFT-nullspace of the stoichiometric matrix N (every gamma with gamma^T N = 0 - a combination of species whose total is invariant under every reaction, i.e. mass / charge / moiety conservation). It is N.T.nullspace() with each kernel column reduced by the primitive_integer_vector keystone; exact-Q, numpy-free, no abs(). WHEN - reach for it to find what a network keeps fixed: total enzyme, total phosphate, a charge balance. It RETURNS the empty list when N has full row rank (no conserved moiety). SIBLINGS - do NOT confuse its matrix with balance_reaction: N here is SPECIES x REACTION (rows = species, columns = reactions), the transpose-in-role of the ELEMENT x SPECIES matrix - conflating them is the #1 correctness trap this domain guards against. It shares the QMat.nullspace + primitive_integer_vector composition with balance_reaction, so do not re-derive denominator-clearing beside it; deficiency consumes the same stoichiometric N to compute rank(N) = s."},
     "srmech.chemistry.deficiency": {"example": {"output": "A <-> B     : {'deficiency': 0, 'n_complexes': 2, 'n_linkage_classes': 1, 'rank_stoichiometric': 1}\n2A/A+B/2B   : {'deficiency': 1, 'n_complexes': 3, 'n_linkage_classes': 1, 'rank_stoichiometric': 1}\ndelta only  : 1", "why": "The isomerization A <-> B has deficiency 0 (n=2, l=1, s=1) and the classic 2A -> A+B -> 2B -> 2A network has deficiency 1 (n=3, l=1, s=1); with_components exposes the n / l / s breakdown, and the bare call returns just the integer delta.", "worked": "from srmech.chemistry import deficiency\n# delta = n - l - s = rank(L_complex) - rank(N): n distinct complexes,\n# l linkage classes (components of the complex graph), s = rank(N).\nprint(\"A <-> B     :\", deficiency([({\"A\": 1}, {\"B\": 1})], with_components=True))\ntri = [({\"A\": 2}, {\"A\": 1, \"B\": 1}), ({\"A\": 1, \"B\": 1}, {\"B\": 2}), ({\"B\": 2}, {\"A\": 2})]\nprint(\"2A/A+B/2B   :\", deficiency(tri, with_components=True))\nprint(\"delta only  :\", deficiency(tri))"}, "explanation": "WHAT - COMPUTES the Feinberg deficiency delta = n - l - s = rank(L_complex) - rank(N) of a reaction network: n distinct complexes, l linkage classes (connected components of the complex graph), s = rank(N) = dimension of the stoichiometric subspace. delta is a non-negative integer fixed by network topology alone (independent of rate constants). rank(L_complex) = n - l is the exact rank of the combinatorial graph Laplacian of the complex graph; rank(N) is the Class-J QMat.rank. WHEN - reach for it to read a network structural invariant: the Feinberg deficiency-zero and deficiency-one theorems constrain the steady states of many mass-action networks from delta alone. Pass with_components=True for the n / l / s breakdown. Standard reference: M. Feinberg, Foundations of Chemical Reaction Network Theory (Springer AMS 202, 2019). SIBLINGS - it composes dense_laplacian (Class L) with QMat.rank (Class J); do NOT hand-roll a connected-components count for l - the graph Laplacian rank IS n - l, exactly. conservation_laws reads the same stoichiometric N from the other side (its left-nullspace), and rank(N) here is that matrix rank."},

@@ -10060,6 +10060,47 @@ def _register_qm_tools() -> None:
                       "unit quaternion [cos θ, sin θ·μ̂₁, sin θ·μ̂₂, sin θ·μ̂₃]"),
         ),
         ToolEntry(
+            name="srmech.physics.qm.quaternion.quaternion_log", owner="srmech",
+            category="qm.quaternion",
+            summary="The INVERSE of quaternion_exp — the unit-quaternion log "
+                    "map. For q=[w,v] returns the tangent [0, θ·v̂] with ‖v‖ the "
+                    "Class-K magnitude of v, θ=atan2(‖v‖,w)∈[0,π] and v̂=v/‖v‖, "
+                    "so exp(log(q))==q for unit q (the tangent quaternion_slerp "
+                    "rides). The pure-real branch (‖v‖==0, q=±1) is the Class-K "
+                    "pin-slot at zero: the zero tangent [0,0,0,0]. ‖v‖ = the "
+                    "Class-N rational sqrt of a sum-of-squares (never abs()); θ "
+                    "= the Class-N rational atan2 (Q61 atan cascade, quadrant in "
+                    "exact rational space, projected once — no libm). Class K∘N∘C. "
+                    "Same-rc C peer srmech_quaternion_log (byte-exact).",
+            parameters=(P("q", "HV", True, "4-vector quaternion (typically unit)"),),
+            returns=R("list[float]",
+                      "pure-imaginary log [0, θ·v̂₁, θ·v̂₂, θ·v̂₃]"),
+        ),
+        ToolEntry(
+            name="srmech.physics.qm.quaternion.quaternion_slerp", owner="srmech",
+            category="qm.quaternion",
+            summary="Shortest-arc geodesic interpolation on the unit-quaternion "
+                    "S³ — slerp(q0,q1,t) = q0·exp(t·log(conj(q0)·q1)). The "
+                    "exp/log form: r=conj(q0)·q1 is the relative rotation, "
+                    "log(r)=θ·μ̂ its tangent, t·log(r) walks a fraction t, the "
+                    "left-mult by q0 carries it back to base. Endpoints "
+                    "slerp(·,·,0)=q0 and (for unit q0/q1) slerp(·,·,1)=q1; the "
+                    "log(r)=0 branch (q1=±q0) is the Class-K pin-slot exp(0)=1 → "
+                    "q0. A pure composition of the shipped ℍ ops: "
+                    "quaternion_conjugate (C) ∘ the Cayley-Dickson Hamilton "
+                    "product (M) ∘ quaternion_log (K∘N) ∘ quaternion_exp (N∘C); "
+                    "no abs(), no libm. Same-rc C peer srmech_quaternion_slerp "
+                    "(byte-exact).",
+            parameters=(
+                P("q0", "HV", True, "start quaternion (typically unit)"),
+                P("q1", "HV", True, "end quaternion (typically unit)"),
+                P("t", "float", True,
+                  "interpolation parameter (0→q0, 1→q1); outside [0,1] "
+                  "extrapolates along the geodesic"),
+            ),
+            returns=R("list[float]", "the interpolated quaternion"),
+        ),
+        ToolEntry(
             name="srmech.physics.qm.quaternion.quaternion_exp_series_truncate",
             owner="srmech", category="qm.quaternion",
             summary="EXACT-rational exp(e_axis·θ) for a RATIONAL angle θ=p/q — "

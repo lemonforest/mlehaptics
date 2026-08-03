@@ -86,6 +86,7 @@ from srmech.cascade import magnitude as _magnitude
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
 from srmech.math.mat import Mat
 from srmech.math.rational import atan as _ratan
+from srmech.math.rational import atan2 as _ratan2
 from srmech.math.rational import cos as _rcos
 from srmech.math.rational import cos_series_truncate as _cos_series
 from srmech.math.rational import sin as _rsin
@@ -525,6 +526,174 @@ def quaternion_exp(theta: float, mu="i") -> List[float]:
     return _exp_resolved(th, mu_hat)
 
 
+# =====================================================================
+# rc385 (#T1048) — the ℍ log/slerp pair: the INVERSE of the exp twiddle
+# (quaternion_log) and the exp/log geodesic interpolation (quaternion_slerp).
+# The clean continuation of the hypercomplex arc (rc308 quaternion_laplacian,
+# rc384 octonion_frame_read). Both carry byte-exact same-rc C peers.
+# =====================================================================
+
+
+def _try_native_log(q: List[float]) -> List[float]:
+    """Dispatch ``log(q)`` to ``srmech_quaternion_log`` (the rc385 C peer),
+    returning the 4-vector ``list[float]`` — or ``None`` for the pure path.
+    ctypes-only (no numpy)."""
+    if not _native_ready("srmech_quaternion_log"):
+        return None
+    Arr = ctypes.c_double * _DIM
+    c_q = Arr(*(float(v) for v in q))
+    c_out = Arr()
+    rc = _native.LIB.srmech_quaternion_log(
+        ctypes.cast(c_q, _DBLP), ctypes.c_size_t(_DIM), ctypes.cast(c_out, _DBLP)
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    return [float(c_out[i]) for i in range(_DIM)]
+
+
+def quaternion_log(q: Sequence[float]) -> List[float]:
+    """The INVERSE of :func:`quaternion_exp` — the unit-quaternion log map.
+
+    For a UNIT quaternion ``q = [w, v]`` (``v`` the 3-vector imaginary part)
+    returns the tangent-space element ``[0, θ·v̂]`` where ``‖v‖`` is the Class-K
+    magnitude of ``v``, ``θ = atan2(‖v‖, w) ∈ [0, π]`` and ``v̂ = v/‖v‖``. This
+    is the pure-imaginary log the :func:`quaternion_slerp` geodesic rides:
+    ``exp(quaternion_log(q)) == q`` for a unit ``q``. The pure-real branch
+    (``‖v‖ == 0``, i.e. ``q = ±1``) is the **Class-K pin-slot at zero**: the
+    zero tangent ``[0, 0, 0, 0]`` (the ‖v‖→0 limit — no preferred axis, taken
+    as the zero-imaginary limit).
+
+    ``‖v‖`` is the Class-N :func:`srmech.math.rational.sqrt` of a manifest
+    sum-of-squares (Class-K magnitude via :func:`srmech.cascade.magnitude`;
+    never ``abs()``); ``θ`` is the Class-N :func:`srmech.math.rational.atan2`
+    (the Q61 atan cascade with the quadrant handled in exact rational space,
+    projected to float ONCE — no libm ``atan2``). Dispatches to the same-rc C
+    peer ``srmech_quaternion_log`` (byte-exact pure fallback otherwise). Class K
+    (‖v‖ + the pin-slot) ∘ Class N (sqrt + atan2) ∘ Class C (the v̂ orientation).
+
+    Args:
+        q: A 4-vector quaternion (typically unit).
+
+    Returns:
+        The pure-imaginary log ``[0, θ·v̂₁, θ·v̂₂, θ·v̂₃]`` as a ``list[float]``.
+
+    Raises:
+        ValueError: if ``q`` is not a 4-vector.
+    """
+    q = _as_quaternion(q, "quaternion_log")
+    native = _try_native_log(q)
+    if native is not None:
+        return native
+    w = q[0]
+    # ‖v‖² is a sum of squares — manifestly ≥ 0, so the Class-K pin-slot at zero
+    # is a plain ``== 0.0`` compare, never an ``abs()``.
+    norm_sq = q[1] * q[1] + q[2] * q[2] + q[3] * q[3]
+    if norm_sq == 0.0:                              # Class-K pin-slot at zero
+        return [0.0, 0.0, 0.0, 0.0]
+    nv = float(_rsqrt(_magnitude(norm_sq)))         # Class-K magnitude ∘ Class-N sqrt
+    theta = float(_ratan2(nv, w))                   # Class-N atan2 (Q61 quadrant)
+    return [0.0, theta * q[1] / nv, theta * q[2] / nv, theta * q[3] / nv]
+
+
+def _quat_mul_cd(x: List[float], y: List[float]) -> List[float]:
+    """Hamilton product ``x · y`` byte-exact with the C ``srmech_quat__mul4`` —
+    the Cayley-Dickson complex-pair formula ``(a, b)(c, d) = (a c − conj(d) b,
+    d a + b conj(c))`` replicating the native float-op ORDER limb-for-limb
+    (Class M bind ∘ Class C orientation via the CD conjugates; no ``abs()``).
+
+    Distinct from :func:`_quat_mul` (the ``L_a``-table row-dot the holonomy path
+    uses, which is byte-exact with a DIFFERENT C helper). A GENERAL product sums
+    four signed terms, so the association order is load-bearing: the slerp
+    cascade dispatches to ``srmech_quat__mul4``, so its pure mirror must reduce
+    in that same order."""
+    def _mul2(p0, p1, q0, q1):                       # srmech_quat__mul2
+        return (p0 * q0 - q1 * p1, q1 * p0 + p1 * q0)
+    dconj0, dconj1 = y[2], -y[3]
+    cconj0, cconj1 = y[0], -y[1]
+    ac0, ac1 = _mul2(x[0], x[1], y[0], y[1])         # a c
+    db0, db1 = _mul2(dconj0, dconj1, x[2], x[3])     # conj(d) b
+    da0, da1 = _mul2(y[2], y[3], x[0], x[1])         # d a
+    bc0, bc1 = _mul2(x[2], x[3], cconj0, cconj1)     # b conj(c)
+    return [ac0 - db0, ac1 - db1, da0 + bc0, da1 + bc1]
+
+
+def _exp_pure_imag(tw: List[float]) -> List[float]:
+    """``exp([0, v])`` for a PURE-imaginary quaternion ``tw = [0, v₁, v₂, v₃]``
+    — angle ``‖v‖`` (Class-N sqrt of the Class-K sum of squares), axis ``v/‖v‖``
+    resolved inside :func:`quaternion_exp`; the ``‖v‖ → 0`` pin-slot is
+    ``exp(0) =`` identity. Byte-exact with the C ``srmech_quat__exp_pure``
+    mirror (same float-op order)."""
+    tn_sq = tw[1] * tw[1] + tw[2] * tw[2] + tw[3] * tw[3]
+    if tn_sq == 0.0:                                # Class-K pin-slot: exp(0)=1
+        return [1.0, 0.0, 0.0, 0.0]
+    tnorm = float(_rsqrt(_magnitude(tn_sq)))        # ‖v‖  (Class K ∘ N)
+    return quaternion_exp(tnorm, [0.0, tw[1], tw[2], tw[3]])
+
+
+def _try_native_slerp(q0: List[float], q1: List[float], t: float) -> List[float]:
+    """Dispatch ``slerp(q0, q1, t)`` to ``srmech_quaternion_slerp`` (the rc385
+    C peer), returning the 4-vector ``list[float]`` — or ``None`` for the pure
+    path. ctypes-only (no numpy)."""
+    if not _native_ready("srmech_quaternion_slerp"):
+        return None
+    Arr = ctypes.c_double * _DIM
+    c_q0 = Arr(*(float(v) for v in q0))
+    c_q1 = Arr(*(float(v) for v in q1))
+    c_out = Arr()
+    rc = _native.LIB.srmech_quaternion_slerp(
+        ctypes.cast(c_q0, _DBLP), ctypes.cast(c_q1, _DBLP), ctypes.c_double(t),
+        ctypes.c_size_t(_DIM), ctypes.cast(c_out, _DBLP)
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    return [float(c_out[i]) for i in range(_DIM)]
+
+
+def quaternion_slerp(q0: Sequence[float], q1: Sequence[float],
+                     t: float) -> List[float]:
+    """Shortest-arc geodesic interpolation on the unit-quaternion S³ —
+    ``slerp(q0, q1, t) = q0 · exp(t · log(conj(q0)·q1))``.
+
+    The exp/log SO(3)-geodesic form: ``r = conj(q0)·q1`` is the relative
+    rotation, ``log(r) = θ·μ̂`` its tangent (axis μ̂, angle θ), ``t·log(r)``
+    walks a fraction ``t`` along it, and the left-multiply by ``q0`` carries the
+    walk back to base. Endpoints: ``slerp(q0, q1, 0) = q0`` and, for UNIT
+    ``q0``/``q1``, ``slerp(q0, q1, 1) = q1``. The degenerate ``log(r) = 0``
+    branch (``q1 = ±q0``, a pure-real ``r``) is the Class-K pin-slot ``exp(0) =
+    1`` and returns ``q0``.
+
+    A pure composition of the shipped ℍ ops: :func:`quaternion_conjugate`
+    (Class C) ∘ the Cayley-Dickson Hamilton product (Class M, byte-exact with
+    ``srmech_quat__mul4``) ∘ :func:`quaternion_log` (rc385, Class K∘N) ∘
+    :func:`quaternion_exp` (Class N∘C). Dispatches to the same-rc C peer
+    ``srmech_quaternion_slerp`` (byte-exact pure fallback); no ``abs()``, no libm.
+
+    Args:
+        q0: The start quaternion (typically unit).
+        q1: The end quaternion (typically unit).
+        t: The interpolation parameter (``0 → q0``, ``1 → q1``); any finite
+            float (``t`` outside ``[0, 1]`` extrapolates along the geodesic).
+
+    Returns:
+        The interpolated quaternion as a ``list[float]``.
+
+    Raises:
+        ValueError: if ``q0`` or ``q1`` is not a 4-vector.
+    """
+    q0 = _as_quaternion(q0, "quaternion_slerp")
+    q1 = _as_quaternion(q1, "quaternion_slerp")
+    t = float(t)
+    native = _try_native_slerp(q0, q1, t)
+    if native is not None:
+        return native
+    c0 = quaternion_conjugate(q0)                    # Class C
+    r = _quat_mul_cd(c0, q1)                          # Class M (CD Hamilton product)
+    lg = quaternion_log(r)                            # [0, θ·μ̂]
+    tw = [0.0, t * lg[1], t * lg[2], t * lg[3]]       # t · log(r)
+    e = _exp_pure_imag(tw)                            # exp(t · log(r))
+    return _quat_mul_cd(q0, e)                        # q0 · exp(...)
+
+
 def quaternion_exp_series_truncate(
     theta_num: int,
     theta_den: int,
@@ -959,9 +1128,11 @@ __all__ = [
     "quaternion_exp",
     "quaternion_exp_series_truncate",
     "quaternion_left_mult",
+    "quaternion_log",
     "quaternion_mult_table",
     "quaternion_norm",
     "quaternion_right_mult",
+    "quaternion_slerp",
     "quaternion_table_attestation",
     "quaternion_twiddle",
 ]

@@ -738,7 +738,9 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
     ),
     'srmech.physics.qm.quaternion.quaternion_exp': ('srmech_quaternion_exp',),
     'srmech.physics.qm.quaternion.quaternion_left_mult': ('srmech_quaternion_left_mult',),
+    'srmech.physics.qm.quaternion.quaternion_log': ('srmech_quaternion_log',),
     'srmech.physics.qm.quaternion.quaternion_right_mult': ('srmech_quaternion_right_mult',),
+    'srmech.physics.qm.quaternion.quaternion_slerp': ('srmech_quaternion_slerp',),
     'srmech.physics.qm.quaternion.quaternion_twiddle': (
         'srmech_quaternion_exp',
         'srmech_quaternion_twiddle',

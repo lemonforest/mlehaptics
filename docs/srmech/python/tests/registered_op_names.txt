@@ -472,9 +472,11 @@ srmech.physics.qm.quaternion.quaternion_cycle_holonomy
 srmech.physics.qm.quaternion.quaternion_exp
 srmech.physics.qm.quaternion.quaternion_exp_series_truncate
 srmech.physics.qm.quaternion.quaternion_left_mult
+srmech.physics.qm.quaternion.quaternion_log
 srmech.physics.qm.quaternion.quaternion_mult_table
 srmech.physics.qm.quaternion.quaternion_norm
 srmech.physics.qm.quaternion.quaternion_right_mult
+srmech.physics.qm.quaternion.quaternion_slerp
 srmech.physics.qm.quaternion.quaternion_table_attestation
 srmech.physics.qm.quaternion.quaternion_twiddle
 srmech.physics.qm.relativistic.charge_conjugation_matrix

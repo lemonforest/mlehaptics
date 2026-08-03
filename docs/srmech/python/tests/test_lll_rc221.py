@@ -320,7 +320,7 @@ def test_delta_one_terminates_and_reduces(arm):
 def test_registration():
     assert "lll_reduce" in mc.__all__
     schema = introspect.describe()
-    assert schema["tools"]["total"] == 535
+    assert schema["tools"]["total"] == 537
     from srmech.introspect.tool_schema import get_tool_schema
     name = "srmech.cascade.matrix_cascades.lll_reduce"
     entries = [t for t in get_tool_schema().tools if t.name == name]
