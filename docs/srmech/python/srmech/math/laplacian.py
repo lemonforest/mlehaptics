@@ -188,6 +188,7 @@ __all__ = [
     "klein4_gain_laplacian",
     "klein4_relational_structure",
     "quaternion_laplacian",
+    "octonion_laplacian",
     "hypercomplex_perspectives",
     "cycle_holonomy",
     "eulerian_path",
@@ -3863,6 +3864,231 @@ def quaternion_laplacian(
     return Mat.from_rows(rows, is_complex=False)
 
 
+# =====================================================================
+# rc384 (`#T957`) — the 𝕆 (NON-associative) sibling of quaternion_laplacian:
+# the OCTONION gain Laplacian, the Class-L instrument that MEASURES 𝕆's
+# frame-committed coherence CEILING by a shipped op.
+# =====================================================================
+#
+# octonion_laplacian is the ℍ→𝕆 rung of quaternion_laplacian: an 8n×8n
+# REAL-SYMMETRIC matrix whose (u, v) block is the 8×8 real left-multiplication
+# rep L(g_uv) of a unit-octonion gain, with the (v, u) block L(conj g_uv) ==
+# L(g_uv)ᵀ (symmetric BY CONSTRUCTION — MEASURED max|L(conj g)−L(g)ᵀ| = 0, a
+# composition-algebra fact that survives to 𝕆). But the TWO spectral facts that
+# held at ℍ DO NOT survive the doubling seam — and that failure IS the point:
+#
+#   * GAUGE INVARIANCE FAILS. A node-wise unit-octonion gauge s_u maps
+#     g_uv → s_u·g_uv·conj(s_v); at ℍ (associative) that conjugates the matrix
+#     by the ORTHOGONAL block-diagonal diag(L(s_u)) because L(s·g) == L(s)·L(g),
+#     so the spectrum is fixed (~1e-15). At 𝕆 L is NOT a homomorphism —
+#     L(s·g) ≠ L(s)·L(g) in general (non-associativity) — so the gauge move does
+#     NOT conjugate the matrix orthogonally and the spectrum MOVES. MEASURED
+#     (octonion_frame_read_rc384.py): a triangle deviates ~0.21, a 4-cycle ~0.06,
+#     versus the shipped quaternion_laplacian's ~1e-15 Sp(1)-invariance on the
+#     same experiment. This is §3.41's "no frame-free invariant" (F1301/F1302)
+#     made operational: there is no gauge-invariant scalar spectrum at 𝕆.
+#   * NO ×8 DEGENERACY THEOREM. ℍ's ×4 degeneracy is a THEOREM (associativity →
+#     left/right multiplication COMMUTE → the left-built matrix commutes with the
+#     fixed right action). 𝕆 is non-associative, left and right multiplication do
+#     NOT commute, so NO multiplicity theorem holds — callers must NOT dedupe by
+#     taking every 8th eigenvalue (the single-edge ×8 blocks are trivial rank
+#     structure, not a spectral degeneracy).
+#
+# The frame-COMMITTED coherence that DOES survive at 𝕆 is not spectral — it is
+# the ℍ-valued quaternionic-Hopf base read by
+# :func:`srmech.cascade.octonion_frame_read` (frame-free UNDER the S³ fiber).
+# The two ops together ARE the ceiling: the frame-read recovers the coherent
+# note; this Laplacian MEASURES that it does NOT lift to a gauge-invariant
+# spectrum. FORM, not identity.
+#
+# CLASS: **Class L** (graph spectral) composing **Class-M** atoms
+# (:func:`srmech.physics.qm.octonion.octonion_left_mult`); the gain conjugate is
+# **Class C** (:func:`srmech.physics.qm.octonion.octonion_conjugate`) and the
+# gain normalisation is **Class K + Class C**
+# (:func:`srmech.physics.qm.octonion.octonion_norm` — an exact 8-vector hypot,
+# NEVER an ALU ``abs()``). Attested SSoT (DERIVED — the complex-unit-gain framing
+# two Cayley–Dickson rungs up): N. Reff, "Spectral Properties of Complex Unit
+# Gain Graphs", Linear Algebra Appl. 436 (2012) 3165–3176 (arXiv:1110.4554); the
+# 𝕆 gain algebra + the associator seam-confinement are Baez, J.C. (2002) *The
+# Octonions* (arXiv:math/0105155) §2. The op composes SHIPPED atoms only —
+# ``octonion_left_mult`` → ``srmech_loop_left_op_f64`` and
+# ``mat_hermitian_eigendecompose`` → ``srmech_hermitian_eigendecompose_ws`` — so
+# a bare-C host assembles the matrix and eigendecomposes (honest C parity; no new
+# C symbol, ABI stays 10).
+
+_OCTONION_DIM = 8
+_OCTONION_IDENTITY_GAIN: Tuple[float, ...] = (1.0, 0.0, 0.0, 0.0,
+                                              0.0, 0.0, 0.0, 0.0)
+
+
+def _resolve_octonion_gains(
+    el: List[Tuple[int, int]],
+    gains: Optional[Iterable[Sequence[float]]],
+) -> List[List[float]]:
+    """Resolve ``gains`` to one UNIT octonion (8-vector) per edge.
+
+    ``gains=None`` → the identity gain ``e0`` on every edge (``L(e0) = I₈``, so
+    the build collapses to ``½·(dense graph Laplacian) ⊗ I₈``). A supplied gain
+    is normalised to the unit sphere via the **Class-K + Class-C**
+    :func:`srmech.physics.qm.octonion.octonion_norm` (exact 8-vector hypot, never
+    ``abs()``); a zero-norm gain raises. Resolved ONCE per public call so the
+    assembly consumes identical floats.
+    """
+    from srmech.physics.qm.octonion import octonion_norm as _onorm
+    if gains is None:
+        return [list(_OCTONION_IDENTITY_GAIN) for _ in el]
+    gl = [[float(c) for c in g] for g in gains]
+    if len(gl) != len(el):
+        raise ValueError(f"gains length {len(gl)} != n_edges {len(el)}")
+    out: List[List[float]] = []
+    for k, g in enumerate(gl):
+        if len(g) != _OCTONION_DIM:
+            raise ValueError(
+                f"gain {k} must be an 8-vector octonion; got length {len(g)}")
+        nrm = _onorm(g)
+        if nrm == 0.0:
+            raise ValueError(f"gain {k} must be a non-zero octonion")
+        inv = 1.0 / nrm
+        out.append([c * inv for c in g])
+    return out
+
+
+def _octonion_laplacian_blocks(
+    n: int,
+    el: List[Tuple[int, int]],
+    wl: List[float],
+    gl: List[List[float]],
+) -> List[List[float]]:
+    """Assemble the ``8n×8n`` real-symmetric octonion gain Laplacian as a nested
+    ``list[list[float]]`` (numpy-free).
+
+    Per edge ``k = (u, v, w, g)`` (``g`` an already-unit octonion): the
+    ``(u, v)`` block accumulates ``−(w/2)·L(g)``, the ``(v, u)`` block
+    ``−(w/2)·L(conj g)`` — and ``L(conj g) == L(g)ᵀ`` for the octonion norm form
+    (MEASURED exact), so the matrix is EXACTLY symmetric term by term. Each
+    endpoint's diagonal block gains ``(w/2)·I₈``. ``L(g)`` =
+    :func:`srmech.physics.qm.octonion.octonion_left_mult` (Class-M bind,
+    native-dispatched); ``conj`` =
+    :func:`srmech.physics.qm.octonion.octonion_conjugate` (Class C).
+    """
+    from srmech.physics.qm.octonion import octonion_left_mult as _olm
+    from srmech.physics.qm.octonion import octonion_conjugate as _oconj
+    d = _OCTONION_DIM
+    dim = d * n
+    L = [[0.0] * dim for _ in range(dim)]
+    deg = [0.0] * n
+    for (u, v), w, g in zip(el, wl, gl):
+        u = int(u)
+        v = int(v)
+        hw = 0.5 * float(w)
+        deg[u] += hw
+        deg[v] += hw
+        if u == v:
+            continue  # self-loop: no off-diagonal block; the degree carries it
+        lg = _olm(g).tolist()               # 8×8 real: x → g·x
+        lgc = _olm(_oconj(g)).tolist()      # 8×8 real: x → conj(g)·x  (== lgᵀ)
+        bu = d * u
+        bv = d * v
+        for a in range(d):
+            for b in range(d):
+                L[bu + a][bv + b] += -(hw * lg[a][b])
+                L[bv + a][bu + b] += -(hw * lgc[a][b])
+    for r in range(n):
+        base = d * r
+        dval = deg[r]
+        for a in range(d):
+            L[base + a][base + a] += dval
+    return L
+
+
+def octonion_laplacian(
+    n: int,
+    edges: Iterable[Tuple[int, int]],
+    weights: Optional[Iterable[float]] = None,
+    *,
+    gains: Optional[Iterable[Sequence[float]]] = None,
+) -> "Mat":
+    """Octonion (𝕆) gain Laplacian of a graph — the NON-ASSOCIATIVE dim-8 rung of
+    :func:`quaternion_laplacian` (the ℍ dim-4 gain Laplacian) and the shipped
+    instrument for measuring 𝕆's frame-committed coherence CEILING (rc384,
+    `#T957`).
+
+    Each edge ``(u, v)`` carries a unit-octonion **gain** ``g``; the ``8n×8n``
+    **real-symmetric** matrix is assembled block-wise from the 8×8 real
+    left-multiplication rep ``L(g)``
+    (:func:`srmech.physics.qm.octonion.octonion_left_mult`):
+
+    * off-diagonal block ``(u, v) = −(w/2)·L(g)`` and
+      ``(v, u) = −(w/2)·L(conj g) = −(w/2)·L(g)ᵀ`` (real-SYMMETRIC by
+      construction — ``L(conj g) == L(g)ᵀ`` for the octonion norm form, MEASURED
+      exact; this composition-algebra fact survives to 𝕆);
+    * diagonal block ``(r, r) = (Σ_incident w/2)·I₈`` — the magnitude degree.
+
+    Feed the result to :func:`mat_hermitian_eigendecompose` (a real-symmetric
+    ``Mat`` is a Hermitian ``Mat``).
+
+    ⚠️ **THE CEILING — the ℍ spectral facts DO NOT survive the seam.** This op
+    exists to MEASURE that, not to hide it:
+
+    * **Gauge invariance FAILS at 𝕆.** A node-wise unit-octonion gauge (mapping
+      ``g_uv → s_u·g_uv·conj(s_v)``) leaves the ℍ spectrum fixed (~1e-15) because
+      ``L`` is a homomorphism there (associativity). At 𝕆 ``L`` is NOT a
+      homomorphism — ``L(s·g) ≠ L(s)·L(g)`` (non-associativity) — so the gauge
+      move does not conjugate the matrix orthogonally and the **spectrum MOVES**.
+      MEASURED (``docs/srmech/notes/octonion_frame_read_rc384.py``): triangle
+      deviation ``~0.21``, 4-cycle ``~0.06``, versus the shipped
+      :func:`quaternion_laplacian`'s ``~1e-15`` on the same experiment. This is
+      §3.41's "no frame-free invariant" (F1301/F1302) made operational.
+    * **No ×8 degeneracy THEOREM.** ℍ's ×4 degeneracy is forced by
+      associativity; 𝕆 is non-associative (left/right multiplication do not
+      commute), so no multiplicity theorem holds. **Do NOT dedupe** by taking
+      every 8th eigenvalue.
+
+    The frame-committed coherence that DOES survive at 𝕆 is the ℍ-valued
+    quaternionic-Hopf base of :func:`srmech.cascade.octonion_frame_read`
+    (frame-free UNDER the S³ fiber, exact-ℚ). The two ops together are the
+    ceiling: the frame-read recovers the coherent note, this Laplacian measures
+    that it does not lift to a gauge-invariant spectrum. FORM, not identity
+    (`[[user_stance_cascade_matching_substrate_blind_form_not_identity]]`).
+
+    ``gains=None`` (default) puts the identity gain ``e0`` on every edge — the
+    undirected control ``½·(dense graph Laplacian) ⊗ I₈``. A supplied gain is
+    normalised via the Class-K+Class-C
+    :func:`srmech.physics.qm.octonion.octonion_norm` (never ``abs()``).
+
+    Numpy-free; **Class L** composing **Class-M**
+    :func:`srmech.physics.qm.octonion.octonion_left_mult` atoms
+    (native-dispatched to ``srmech_loop_left_op_f64``; ``conj`` is Class C). No
+    new C symbol — a bare-C host assembles this matrix and eigendecomposes it
+    (ABI stays 10). Attested SSoT (DERIVED, gain-graph framing two Cayley–Dickson
+    rungs up): N. Reff, "Spectral Properties of Complex Unit Gain Graphs", Linear
+    Algebra Appl. 436 (2012) 3165–3176 (arXiv:1110.4554); the 𝕆 gain algebra +
+    the associator seam-confinement are Baez, J.C. (2002) *The Octonions*
+    (arXiv:math/0105155) §2.
+
+    Args:
+        n: Node count (non-negative int).
+        edges: Iterable of ``(u, v)`` endpoint pairs (``0 ≤ u, v < n``).
+        weights: Optional per-edge magnitudes (default all ``1.0``); length must
+            match ``edges``.
+        gains: Optional per-edge unit octonions (8-vectors) parallel to
+            ``edges``; default the identity gain ``e0`` on every edge. Each is
+            normalised to the unit sphere.
+
+    Returns:
+        The ``8n×8n`` real-symmetric octonion gain Laplacian as a
+        :class:`~srmech.math.mat.Mat` (``.shape == (8n, 8n)``, real layout).
+
+    Raises:
+        ValueError: bad ``n`` / out-of-range endpoint / weights-length mismatch
+            / gains-length mismatch / a non-8-vector or zero-norm gain.
+    """
+    el, wl = _validate_edges_weights_py(n, edges, weights)
+    gl = _resolve_octonion_gains(el, gains)
+    rows = _octonion_laplacian_blocks(n, el, wl, gl)
+    return Mat.from_rows(rows, is_complex=False)
+
+
 #: The hypercomplex channel names, ``e0`` (scalar) + the imaginary axes.
 _HYPERCOMPLEX_CHANNELS: Tuple[str, ...] = ("e0", "e1", "e2", "e3")
 
@@ -7188,6 +7414,7 @@ LAPLACIAN_OPS: Tuple[str, ...] = (
     "signed_laplacian",
     "magnetic_laplacian",
     "quaternion_laplacian",
+    "octonion_laplacian",
     "hypercomplex_perspectives",
     "klein4_gain_laplacian",
     "klein4_relational_structure",

@@ -787,11 +787,16 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # rc374 — the CARRIERS slice moved 6 more carrier-family op refs OUT of the
     # amsc decoded count (202 -> 196) and INTO math (314 -> 320) inside these
     # hoisted byte arrays. Conserved: -6 amsc = +6 math.
-    assert math == 320, (
-        f"expected 320 srmech.math op references inside the DECODED channel "
-        f"(rc372 octonion 16 + rc373 A-N primitives 298 + rc374 carriers 6), found "
-        f"{math}. math is UNCHANGED at rc375 (the biology move touched no math op); "
-        f"if this is not 320 the population move is not conserved — re-measure.")
+    # rc384 (`#T957`) then ADDED one NEW srmech.math op — octonion_laplacian (the 𝕆
+    # gain Laplacian) — whose carrier back-index refs land 3× in these arrays, the
+    # SAME per-op count as its sibling quaternion_laplacian / magnetic_laplacian. So
+    # the live srmech.math decoded population is 320 + 3 = 323. This is a NEW-op
+    # growth, not a move, so no amsc pin shifts.
+    assert math == 323, (
+        f"expected 323 srmech.math op references inside the DECODED channel "
+        f"(rc372 octonion 16 + rc373 A-N primitives 298 + rc374 carriers 6 + rc384 "
+        f"octonion_laplacian 3), found {math}. If this is not 323 the population is "
+        f"not conserved — re-measure.")
     # rc375 — THE srmech.biology RECEIVING SIDE, the arc's SECOND-LARGEST positive
     # population move (after rc373's 298) and the FOURTH receiving namespace pinned
     # here. UNLIKE rc374's pure carriers, the biology bucket's genome / q8 / coupling
@@ -815,13 +820,16 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # rung-indexed property-loss ladder + projector), so the live cascade decoded
     # population is the rc377 move's 95 + rc380's 2 + rc383's 1 = 98. The
     # move-conservation (95) stays a fact about the move; this pin measures the LIVE
-    # count, which grows when new cascade ops land.
+    # count, which grows when new cascade ops land. rc384 (`#T957`) added one more —
+    # octonion_frame_read (the 𝕆 frame-committed Hopf coherence read), +1 — so the
+    # live cascade decoded population is 95 + 2 + 1 + 1 = 99.
     cascade = joined.count("srmech.cascade.")
-    assert cascade == 98, (
-        f"expected 98 srmech.cascade op references inside the DECODED channel "
-        f"(the rc377 move's 95 + rc380's 2 loop-defect ops + rc383's defect_ladder), "
-        f"found {cascade}. The rc377 amsc->cascade move conserved 95 (amsc 97 -> 2); "
-        f"rc380 grew it by 2, rc383 by 1. If this is not 98, re-measure.")
+    assert cascade == 99, (
+        f"expected 99 srmech.cascade op references inside the DECODED channel "
+        f"(the rc377 move's 95 + rc380's 2 loop-defect ops + rc383's defect_ladder + "
+        f"rc384's octonion_frame_read), found {cascade}. The rc377 amsc->cascade move "
+        f"conserved 95 (amsc 97 -> 2); rc380 grew it by 2, rc383 by 1, rc384 by 1. If "
+        f"this is not 99, re-measure.")
     # rc381 (`#T1052`) — THE srmech.physics.qm RECEIVING SIDE, pinned like biology
     # / cascade. UNLIKE every drain above, this move did NOT come out of the amsc
     # population — the qm subpackage was never under amsc. It is a whole-subpackage

@@ -1565,6 +1565,44 @@ def _register_primitive_class_tools() -> None:
                       "(numpy-free Mat)"),
         ),
         ToolEntry(
+            name="srmech.math.laplacian.octonion_laplacian", owner="srmech",
+            category="laplacian",
+            summary="Octonion (𝕆) gain Laplacian — the NON-ASSOCIATIVE dim-8 "
+                    "rung of quaternion_laplacian, the shipped instrument that "
+                    "MEASURES 𝕆's frame-committed coherence CEILING. An 8n×8n "
+                    "REAL-SYMMETRIC matrix whose (u,v) block is the 8×8 real "
+                    "left-mult rep L(g) of a unit-octonion gain g, (v,u) block "
+                    "L(conj g)=L(g)ᵀ (symmetric by construction — MEASURED exact, "
+                    "a composition-algebra fact that survives to 𝕆), diagonal "
+                    "block (Σ w/2)·I₈. Feed to mat_hermitian_eigendecompose. ⚠️ "
+                    "THE CEILING — the ℍ spectral facts DO NOT survive the "
+                    "doubling seam: GAUGE INVARIANCE FAILS (at 𝕆 L is not a "
+                    "homomorphism, L(s·g)≠L(s)·L(g), so the node-wise "
+                    "unit-octonion gauge MOVES the spectrum — MEASURED triangle "
+                    "~0.21 / 4-cycle ~0.06 vs quaternion_laplacian's ~1e-15 "
+                    "Sp(1)-invariance; this is §3.41's 'no frame-free invariant' "
+                    "made operational), and there is NO ×8 degeneracy theorem "
+                    "(non-associativity ⇒ left/right mult do not commute — do "
+                    "NOT dedupe). The coherence that DOES survive is the ℍ-valued "
+                    "quaternionic-Hopf base of cascade.octonion_frame_read "
+                    "(frame-free UNDER the S³ fiber). FORM, not identity. "
+                    "gains=None → identity gain (½·dense-L ⊗ I₈). Class L "
+                    "composing Class-M octonion_left_mult (srmech_loop_left_op_f64); "
+                    "no new C symbol. DERIVED: Reff (2012) LAA 436, 3165–3176 "
+                    "(arXiv:1110.4554) two Cayley–Dickson rungs up; 𝕆 per Baez "
+                    "(2002) arXiv:math/0105155 §2.",
+            parameters=(P("n", "int", True),
+                        P("edges", "list[tuple[int, int]]", True),
+                        P("weights", "Optional[list[float]]", False),
+                        P("gains", "Optional[list[list[float]]]", False,
+                          "per-edge unit octonions (8-vectors) parallel to "
+                          "edges; default identity gain e0; normalised to the "
+                          "unit sphere via octonion_norm")),
+            returns=R("Mat",
+                      "8n × 8n real-symmetric octonion gain Laplacian "
+                      "(numpy-free Mat)"),
+        ),
+        ToolEntry(
             name="srmech.math.laplacian.hypercomplex_perspectives",
             owner="srmech", category="laplacian",
             summary="Split each eigenvector into a scalar channel e0 + (dim−1) "
@@ -8082,6 +8120,54 @@ def _register_primitive_class_tools() -> None:
                               "nonzero (per-defect bool), holonomy_closed (bool), "
                               "rung_admits (structural projector mask), projected "
                               "(only the rung-admitted defects)}"),
+        ),
+        ToolEntry(
+            name="srmech.cascade.octonion_frame_read", owner="srmech",
+            category="cascade",
+            summary="Read an octonion on a COMMITTED frame as a frame-free "
+                    "quaternionic-Hopf base ⊕ an ℍ-valued writhe — the "
+                    "FRAME-COMMITTED coherence read of 𝕆, exact ℚ. §3.41 measured "
+                    "'no frame-FREE invariant' (F1301/F1302), but that is the "
+                    "ℝ-SCALAR question asked of a rung whose coherence is "
+                    "ℍ-shaped: MEASURED, {e0,e1,e2,e3} is a genuine ℍ subalgebra "
+                    "of 𝕆 and is FULLY coherent (0/64 basis-triple associators "
+                    "nonzero) while ALL 168 of 𝕆's nonzero associators (of 512) "
+                    "CROSS the doubling seam ℍℓ={e4..e7} (0 non-seam). So pick "
+                    "ℓ=e4 and 𝕆=ℍ⊕ℍℓ splits (q0=x[:4], q1=x[4:]); the geometry "
+                    "is the quaternionic Hopf fibration S³↪S⁷↠S⁴. base_H="
+                    "2·q0·conj(q1) (ℍ) and base_R=|q0|²−|q1|² (ℝ) are the Hopf "
+                    "base — UNCHANGED under the S³ fiber (both halves right-mult "
+                    "by a UNIT quaternion λ), the coherent note; a NON-fiber move "
+                    "changes them (non-tautological). The base lies on the "
+                    "radius-|x|² four-sphere (|base_H|²+base_R²==norm_sq² exact). "
+                    "writhe=q1 is the S³ fiber generator (EQUIVARIANT — carries "
+                    "the fiber DOF), None iff q1=0; canonical_affine=q0·q1⁻¹ is "
+                    "the fiber-fixed ℍP¹ coordinate. ⚠️ EPISTEMIC CEILING: this "
+                    "is the ℍ-shaped FRAME-COMMITTED read; it does NOT contradict "
+                    "§3.41 — the companion octonion_laplacian measures that the "
+                    "spectrum is NOT gauge-invariant at 𝕆 (~0.1 vs ℍ ~1e-15). "
+                    "FORM, not identity. Exact end to end — no float, no abs(). "
+                    "NO new C symbol: composition_of_c over c_dispatched cd_mult "
+                    "/ cd_conjugate / cd_norm_sq. Class M ∘ C ∘ K. SSoT: Baez, "
+                    "*The Octonions*, Bull. AMS 39 (2002) 145–205, "
+                    "arXiv:math/0105155 §2." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("x", "sequence", True,
+                  "an 8-vector octonion — exact-rational components (int / Q / "
+                  "Fraction / float → its EXACT ratio / (num, den))."),
+                P("frame", "int", False,
+                  "the splitting-unit index ℓ=e_frame (keyword-only); only the "
+                  "Cayley–Dickson doubling seam e4 (=dim//2) is well-posed on "
+                  "the standard basis, so frame defaults to 4 and any other "
+                  "value raises."),
+            ),
+            returns=R("dict", "{frame, dim, q0, q1 (the ℍ base + ℍℓ seam "
+                              "halves), base_H (4 Q) + base_R (Q) — the "
+                              "frame-free-under-fiber Hopf base, norm_sq (Q) = "
+                              "|x|², writhe (4 Q or None) — the equivariant S³ "
+                              "fiber generator, writhe_norm_sq (Q), "
+                              "canonical_affine (4 Q or None) — the fiber-fixed "
+                              "ℍP¹ coordinate}"),
         ),
         # rc310: the DISCRETE quaternion group Q8 = {+-1,+-i,+-j,+-k} as 3-bit
         # bytes — the discrete peer of the continuous ℍ surface (qm.quaternion).
