@@ -6692,6 +6692,125 @@ The three sets are strictly nested (A ⊂ B ⊂ C), which is why (A) alone was n
 
 ---
 
+## §3.46 CAPSTONE — music is Cayley–Dickson carrier architecture; the octonion Hurwitz wall is the coherence ceiling, read four independent ways (the shadow-irrep synthesis) (2026-08-03; `#T1058` / `#T1059` / `#T1060`; MEASURED + CONJECTURE, tiered)
+
+This section weaves one connective thesis out of arcs already in the tree (§3.29.3, §3.41, §3.42, §3.43, §3.45.6, §3.45.7, §5.2 / §3.45.7), and it is deliberately **a notebook synthesis, NOT a manufactured op** — the arc's own finding is that nothing here needs a new wheel symbol; it needs the shipped surface read *whole*. Every load-bearing number below is reproduced THROUGH a shipped rc384 op in the committed provenance script `notes/music_shadow_irrep_synthesis_rc384.py` → `notes/music_shadow_irrep_synthesis_rc384.ndjson` (10 records, run against 0.9.0rc384).
+
+**The thesis.** Music is **carrier** architecture that maps onto the Cayley–Dickson tower. One 1-D ℝ-string sounds **one atomic note** (the ℝ rung); *many 1-D strings at once* — a chord, a symphony — is the CD-tower **automorphism gauge**; the "coherent note" that gauge projects is the **frame-free invariant**; and the **octonion Hurwitz wall is the coherence ceiling**. The organizing lens is `[[user_stance_observation_is_a_shadow_irrep_under_perspective_shift]]`: **every observation is a shadow-irrep** — a projection of a relational object into a chosen coherency. The invariant is shadow-free; below 𝕆 a canonical shadow exists; **at 𝕆 there is no canonical shadow**, and that single fact is what the four independent readings of §3.46.6 all measure.
+
+⚠️ **EPISTEMIC CEILING — FORM, not identity, throughout** (`[[user_stance_cascade_matching_substrate_blind_form_not_identity]]`). "Symphony / note / coherent" is a music **reading** laid on real algebra; what transfers cross-substrate is the **algorithm, never the constant** (`[[feedback_cross_substrate_transfers_the_algorithm_not_the_constant]]`). The CD ladder's k=3 here is the **arity-3 associator** (the 3-cycle triangle); it **MUST NOT** be fused with the B/H/N substrate k=3 of §3.29.3 — that section's whole discipline is that the k=3 senses are different. Only what is measured is claimed; every conjecture is flagged as such.
+
+### §3.46.1 The dictionary — the map, stated once
+
+| Music object | Cayley–Dickson carrier | What is measured | Reproduced in |
+|---|---|---|---|
+| one 1-D ℝ-string → one atomic pitch | the **ℝ rung** | (definitional) | §3.46.8 |
+| the note-alphabet **A…G** | **ℤ/7** | circle of fifths = a cyclic generator | §3.46.2 |
+| fifth ⟷ fourth under read-reversal | the Class-C sign lane | interval inversion, 4+3=7 | §3.46.3 |
+| a chord / symphony (many strings at once) | the **automorphism gauge** Aut(𝔸) | Aut(ℍ)=SO(3) vs Aut(𝕆)=G₂=14 | §3.46.5 |
+| the "coherent note" you hear | the **gauge-invariant** (frame-free) datum | ℍ Sp(1)-invariant; 𝕆 has no frame-free scalar | §3.46.5–6 |
+| the ceiling on coherence | the **octonion Hurwitz wall** | the associativity break, read four ways | §3.46.6 |
+
+### §3.46.2 The note-alphabet IS ℤ/7; the circle of fifths is its generator (`#T1058`; MEASURED)
+
+The seven letters index **ℤ/7** (A=1 … G=7 — the abelian alphabet). The **circle of fifths** F·C·G·D·A·E·B is a single 7-cycle stepping **+4 mod 7**; the reproduce-through-op run walks it exactly: `cyclic_mod_add(6, 4, 7) = 3` (F→C), and the full cycle `["F","C","G","D","A","E","B"]` returns from the op. The fourths cycle (the reverse read) steps **+3 mod 7**.
+
+- **The odd modulus FORCES the split.** `7/2 = 3.5` has no integer half, so the octave cannot be bisected; the two coprime generators an odd modulus admits are +4 (the fifth) and +3 (the fourth), and **`gcd(4, 7) = gcd(3, 7) = 1`** — both generate all of ℤ/7 (measured). `4 + 3 = 7` is the octave, the **conserved quantity** (the Lk-analog).
+- **The user's "−3 if left bigger, +4 if right bigger" IS `+4 mod 7`** in balanced-residue form: `(−3) mod 7 = 4`, so the wrap face (−3) and the no-wrap face (+4) are the *same* ℤ/7 step (measured: `plus4 == minus3` across all residues).
+- **Where the asymmetry lives.** The abelian ℤ/7 alphabet carries **no** chirality; the chirality is the **odd-modulus-forced** fifth/fourth generator pair — a **Class-C sign lane**, not the alphabet. (This is §3.45.7's `pc → pc+7 mod 12` reading transposed to the letter-name layer; `gcd(7,12)=1` there, `gcd(4,7)=1` here — same "coprime step generates the whole cycle" fact on a different modulus.)
+
+### §3.46.3 Violin fifths vs double-bass fourths — interval inversion under a read-direction WRITHE (`#T1058`; MEASURED find + CONJECTURE flag)
+
+Violin strings **G·D·A·E** ascend by fifths (**+4 mod 7**, measured). The double bass is the violin **reversed**, **E·A·D·G**, ascending by fourths (**+3 mod 7**, measured — `bass == violin[::-1]`). Reversing the read direction (a **writhe**) inverts the interval (a **twist**): +4 ↔ +3, and the two sum to the octave 7.
+
+- **The fingering reading (prose; kept out of the model).** For fifths the **4th finger** meets the next open string; for fourths the **3rd finger** meets it and the 4th overshoots — which is why the bass frees the pinky. This is a physical performance fact, stated factually and **not modelled**: fingerboard geometry is CAD-grade scope and stays out (§4 CAD-scope ban, `[[feedback_metric_field_native_not_spacetime_shadow]]`).
+- ⚠️ **CONJECTURE — `Lk = Tw + Wr` as a topological identity.** `4 + 3 = 7` is a genuine **interval inversion** (the fifth and its inversion the fourth sum to the octave — standard music theory). Whether the Călugăreanu–White–Fuller linking relation `Lk = Tw + Wr` is *more than a suggestive analogy* here is **unverified**: the two-readings (fixed screw-pitch twist ⊕ read-orientation writhe) structure is real, but the linking identity needs Tw/Wr definitions a fingerboard may not support. Flagged open, not claimed.
+
+### §3.46.4 The shadow-irrep MECHANISM — vertex-views of the k=3 triangle (`#T1054`; MEASURED)
+
+This is the organizing lens made concrete, and it is the mechanism the whole section turns on. Take the triangle of a non-associating triple `{a, b, c}`. **Observe vertex `b`** → you see its two incident edges `a·b` and `b·c`, and you **infer** the opposite edge `c·a` — *that inferred edge is the shadow*. Triality's 3-cycle `a→b→c` **cycles which edge is the shadow**. Whether the inferred shadow is **consistent across all three vertex-views** ⟺ whether the 3-cycle **closes** ⟺ whether the **associator is zero** — read straight off `cd_cycle_holonomy(a,b,c)['closed']`.
+
+| Triple | Lives in | `closed` | defect | Shadow |
+|---|---|---|---|---|
+| `(e1, e2, e3)` | the ℍ subalgebra | **True** | all-zero | **canonical, frame-free** |
+| `(e1, e2, e4)` | crosses the 𝕆 seam | **False** | nonzero | **perspective-relative — none is canonical** |
+
+Both rows are MEASURED. **ℍ has a canonical shadow** (every vertex-view agrees), so its observations are frame-free; **𝕆's non-associating triple has none** — the shadow you infer depends on which vertex you stood at. That is the shadow-irrep stance at the machine floor: an observation is a projection into a chosen coherency, and at 𝕆 the choice cannot be undone.
+
+### §3.46.5 The symphony = the automorphism gauge; the coherent note = the invariant; the wall = Aut(𝕆)=G₂ (MEASURED; re-reads §3.41 — zero new physics)
+
+"Many 1-D strings at once" is the **automorphism gauge** of the rung: the group of relabelings that leave the multiplication a multiplication. Its **dimension is the coherence ceiling** of the rung.
+
+- **Aut(ℍ) = SO(3)** (dim 3); **Aut(𝕆) = G₂ = Der(𝕆)** (dim **14**, measured `len(g2_subalgebra()) = 14`). The `an_embedding` branches the 14 as **8 + 3 + 3̄** su(3) (measured `decomposition.adjoint_14 == (8, 3, 3)`), and the order-3 triality **τ** on 𝔰𝔬(8)=28 has **τ³ = I** (Frobenius residual `0.0`, measured) with **Fix(τ) = 14** (the projector trace `tr((I+τ+τ²)/3) = 14.0`, measured) — the same 14 three independent ways (§3.45.2).
+- **The "coherent note" = the gauge-invariant Laplacian spectrum.** For the associative rungs the spectrum is a genuine invariant; at 𝕆 it is not (below). This is a music **reading** on the §3.41 measured boundary and adds **zero new physics** — its value is the carrier reading, not a new result. (Honest per `[[feedback_name_the_gap_plainly_dont_hedge_or_document_away]]`.)
+
+### §3.46.6 Four independent readings that all land on the SAME associativity break
+
+The load-bearing figure of the section: four different instruments, one wall. Each row is MEASURED through the named op in the provenance script.
+
+| # | Reading | Op(s) | How the ceiling shows | Measured |
+|---|---|---|---|---|
+| **1** | **3-cycle shadow closure** | `cd_cycle_holonomy` | 𝕆 triple fails to close | ℍ `(e1,e2,e3)` closed; 𝕆 `(e1,e2,e4)` **not** |
+| **2** | **automorphism gauge** | `g2_subalgebra` / `an_embedding` / `triality_automorphism` | Aut jumps to G₂ | `14` / `(8,3,3̄)` / `Fix(τ)=14`, `τ³=I` |
+| **3** | **Laplacian spectrum** | `quaternion_laplacian` / `octonion_laplacian` | 𝕆 spectrum is gauge-DEPENDENT, and only on **cycles** | ℍ ≤ 1.6e-15 everywhere; 𝕆 tree **9.2e-15**, triangle **0.490**, 4-cycle **0.806** |
+| **4** | **frame-committed element read** | `octonion_frame_read` | the ℍ base is frame-free **only under the S³ fiber** | base unchanged under a unit-λ fiber move, changed under a non-fiber move; four-sphere identity exact; no frame-free 𝕆 scalar |
+
+**Reading 3 ties back to reading 1.** The 𝕆 Laplacian's gauge-dependence is **localized to cycles**: on a **tree** (path₃) the gauge deviation is `9.2e-15` — the gains are gauge-*removable*, so the spectrum is invariant — while on the **triangle** (`0.490`) and **4-cycle** (`0.806`) it is not. A cycle is exactly where **holonomy** must be well-defined, and holonomy is well-defined only where the loop associates. So the spectral wall (reading 3) and the 3-cycle non-closure (reading 1) are **the same wall**, seen through a heat/wave read versus a bracket read. ℍ passes both (Sp(1)-invariant, ~1e-15); 𝕆 fails both, on cycles.
+
+**And a fifth witness from §3.41.6 the same number confirms:** all **168** of 𝕆's non-closing ordered basis triangles (of 512) **cross the doubling seam** — `{e0..e3}` is fully coherent (0/64), every leak is seam-confined. The frame-committed **element** read (`octonion_frame_read`, reading 4) recovers the ℍ-valued Hopf base **frame-free under the S³ fiber** — the coherent note — but the frame-committed **spectral** read (reading 3) does **not** recover a clean invariant, because the associator leak defeats gauge-invariance in all imaginary directions (~0.1–0.8, not ~1e-15). The coherence that survives is the ℍ-valued *element*, never a gauge-invariant 𝕆 spectrum.
+
+### §3.46.7 The genuinely NEW object — the ladder-to-ladder parallel (commensurability ↔ Hurwitz) (MEASURED; the strong write-up)
+
+`srmech.music` ships a basis-free **3-tier commensurability ladder** — measured verdicts through `commensurability_verdict` / `common_period` / `spectrum_tier`:
+
+| Tier | Carrier | Instrument | Verdict | `common_period` |
+|---|---|---|---|---|
+| **1 — ℚ / harmonic-fused** | `Q` / int | integer series `1,2,3,4,5,6` | **harmonic**, integer-series | exists (**k = 1**) |
+| **2 — algebraic / stiff-string** | `Qalg` | 12-EDO `equal_temperament_partials(12)` | **inharmonic** (field degree **12**) | **raises** — no period |
+| **3 — transcendental / membrane** | none (declared) | `membrane_partials(3,3)` (Bessel zeros) | **open** | **raises** — no period |
+
+The load-bearing move: **set this ladder against the Hurwitz dimension ladder** ℝ/ℂ/ℍ → 𝕆 (§3.45.6). Both are *"basis-free coherence with a ceiling"* — the commensurability ladder's invariant is **field degree / rational rank** (ℚ-membership inside ℚ[x]/(m), basis-free), the Hurwitz ladder's is **algebra dimension** (division/composition, basis-free). A **common period** exists at the harmonic tier (the coherent-note analog) and **provably does not** at the transcendental tier — the field-degree parallel of the octonion wall: `common_period` *raises* rather than hand back a false period, exactly as 𝕆 has no frame-free scalar. **field-degree ↔ Hurwitz dimension; the ceiling on each is where coherence stops being frame-free.**
+
+⚠️ **The refuted alternative, named.** **Kuramoto is NOT this parallel.** Coupled oscillators cohere as a **frame-relative mean** (an order parameter) with **no ceiling** — raise the coupling and they always lock; there is no dimension/field-degree past which coherence is structurally impossible. The commensurability ladder and the Hurwitz ladder both have a *hard* ceiling; Kuramoto has a soft threshold. FORM, not identity: what transfers is the "basis-free coherence with a hard ceiling" *algorithm*, not any constant.
+
+### §3.46.8 cube→sign SHIPS; cube→note is the OPEN conjecture (`#T1059`, links `#T1011`)
+
+The **projector instrument** of §3.29.3 (declared parallel state ⊗ projector-excitation → context-meaningful subset) points at a cube-basis note generalisation. What SHIPS today is **cube→sign**: `winding_tower(w)` is the `(ℤ/2)^d` hypercube coordinate (LSB-first / little-endian), and its **popcount parity is the scalar sign** — measured `winding_tower(5) = (1,0,1)` → popcount 2 → **+1**; `winding_tower(7) = (1,1,1)` → popcount 3 → **−1**, matching the shipped `One.sigma_effective()` (which returns ±1 with **no `abs()`** — Class-K pin ∘ Class-C reorientation). The bare quotient `w mod 2` would **conflate** 5 and 7 (both ≡ 1); the tower **distinguishes** them (measured).
+
+- ⚠️ **CONJECTURE — cube→full NOTE via alternating endianness.** cube→sign ships; **cube→full note** (pitch + loudness + phase, `#T1011`) via **alternating endianness** is the open conjecture. Endianness is a **Class-C chirality with two semantics** (encapsulate-endings vs fast-read = order-carrying vs order-independent, `#T914`); the **projector/constructor dual** — projection reads a declared state (we live in projection space), construction builds from parts (biology/genome, little-endian LSB-up) — is the candidate missing-instrument dual, itself conjecture.
+- ⚠️ **CONJECTURE — recursive / fractal note⇄symphony; ℝ-rung = one-note.** The Hopf-nested fibrated Hurwitz tower S¹→S³→S⁷ (`[[project_h_genome_is_fibrated_hurwitz_tower]]`) makes note⇄symphony **self-similar** — a resonant bell is a *symphony of modes one rung down* (its inharmonic partials, §3.45.7). Whether the ℝ-rung = one atomic note and C·H·O·S-rungs = note-compositions map onto the doubling ladder at all is **conjecture**, not a result.
+
+### §3.46.9 The index lane vs the sign lane — where the asymmetry actually lives (`#T1060`; MEASURED, scratch-provenance)
+
+The deepest disambiguation the arc supplies, and it canonizes the load-bearing part of the `#T1060` scratch work. The Cayley–Dickson product factors into **two lanes**:
+
+- **The INDEX lane** — `e_i · e_j → e_{i XOR j}`. It is **abelian and order-blind**: a labeling / **gauge** below the multiplication ladder. Measured (`notes/lane1_epsilon_placement_2026-07-29.ndjson`): `index_lane_is_XOR = true` at every rung ℝ/ℂ/ℍ/𝕆/𝕊. The A–N alphabet **and** the note-alphabet live here — all **168 = |GL(3,2)|** construction orders of the octonion heptad are isomorphic; the heptad's alphabetical order is one gauge choice (zero-consumers), no more privileged than any other.
+- **The SIGN lane** — the **cocycle** `ε`. It is **order-bearing**: anticommutation and non-associativity live here. Measured: the 2-cocycle defect `δε` is **0 for ℝ/ℂ/ℍ** (`is_2_cocycle = true`), then **168 at 𝕆** and **1848 at 𝕊** (`is_2_cocycle = false`). **That 168 is the SAME 168** as the associator non-closures (§3.41.6) — the sign-lane cocycle failure and the 3-cycle non-closure are one object counted twice. And `octonion_left_mult` stops being a homomorphism at exactly this rung (**42 of 64** ordered pairs fail, `notes/lane1_block_diagonalisation_2026-07-28.ndjson`).
+
+**The flat hypercube is exact on the index lane and wrong on the sign lane, exactly where the algebra anticommutes** — the fraction of anticommuting off-diagonal basis pairs is `(dim−1)/2·dim → ½` as dim grows (`notes/unit_label_cube_rc354.py`, finding **F1336**). The invariant that survives any relabeling is the **Fano-incidence `φ = det₃` over F₂** (support **168**, basis-free, with the degree-2 shadow `q(x) = ε(x,x)`) together with **flexibility** (the floor of the defect ladder, §3.29.3). One consequence for CLAUDE.md §1's two co-valid groupings: the **cube-basis** decomposition `2 + 4 + 8` (by *algebra*, the carrier) is **not** the A–N `1 + 3 + 7 + 3` (by *role*, the operator) — the note-alphabet's ℤ/7 is an index-lane gauge; the coherence ceiling is a sign-lane fact.
+
+### §3.46.10 The honest ledger — MEASURED vs CONJECTURE — and provenance
+
+| Claim | Status | Evidence (op / file) |
+|---|---|---|
+| note-alphabet = ℤ/7; circle of fifths = +4 generator; `gcd(4,7)=gcd(3,7)=1`; 4+3=7 | **MEASURED** | `cyclic_mod_add`, `gcd` |
+| violin fifths (+4) / bass fourths (+3); interval inversion under read-reversal | **MEASURED** | `cyclic_mod_add` |
+| `Lk = Tw + Wr` as a topological identity on the fingerboard | **CONJECTURE** | — (two-readings structure real; identity unverified) |
+| ℍ 3-cycle closes / 𝕆 non-associating triple does not (the shadow mechanism) | **MEASURED** | `cd_cycle_holonomy` |
+| Aut(𝕆)=G₂=14; `an_embedding`=(8,3,3̄); `τ³=I`, `Fix(τ)=14` | **MEASURED** | `g2_subalgebra`, `an_embedding`, `triality_automorphism` |
+| ℍ Laplacian Sp(1)-invariant (~1e-15); 𝕆 gauge-dependent **on cycles only** | **MEASURED** | `quaternion_laplacian`, `octonion_laplacian` |
+| `octonion_frame_read` ℍ base frame-free under the S³ fiber; no frame-free 𝕆 scalar | **MEASURED** | `octonion_frame_read` |
+| the 3-tier commensurability ladder ↔ the Hurwitz dimension ladder (both hard-ceiling) | **MEASURED** (verdicts) + reading (parallel) | `commensurability_verdict` / `common_period`; Kuramoto = refuted alt |
+| cube→sign (`winding_tower`→`sigma_effective`) | **MEASURED** | `winding_tower`, `One.sigma_effective` |
+| cube→full-note via alternating endianness; ℝ-rung=one-note; projector/constructor dual | **CONJECTURE** | — |
+| index lane = XOR gauge (168=\|GL(3,2)\|); sign lane cocycle δε = 168 at 𝕆 = the associator 168 | **MEASURED** | `notes/lane1_*`, `unit_label_cube_rc354` (F1336) |
+
+**Provenance.** `notes/music_shadow_irrep_synthesis_rc384.py` → `notes/music_shadow_irrep_synthesis_rc384.ndjson` reproduces sections 1–8 above through the shipped rc384 ops; the `#T1060` index/sign-lane numbers carry their own committed scratch provenance (`notes/lane1_epsilon_placement_2026-07-29`, `notes/lane1_block_diagonalisation_2026-07-28`, `notes/associator_symmetry_type_rung_by_rung`, `notes/unit_label_cube_rc354`, `notes/lane2_resonance_fossil`). Only what is measured is claimed; everything else is conjecture, marked as such.
+
+**Cross-references.** §3.29.3 (the k=3 loop-defect ladder + the declared-parallel ⊗ projector instrument — the viola/fingerboard instance and its open provocations this section closes into a synthesis) · §3.41 / §3.41.6 (the octonion Laplacian has no frame-free spectrum; `octonion_frame_read` + the 168 seam-confinement) · §3.42 (the substrate self-encoding tetrad — the constitutive `1+3` the alphabet gauge sits below) · §3.43 (the 𝕊 rung — Der stays g₂; nothing new appears above 𝕆) · §3.45.6 (the three Hurwitz ceilings that are different numbers) · §3.45.7 / §5.2 (Music theory IS cyclic-group theory: ℤ₁₂ / D₁₂ / Tonnetz — the 12-EDO peer of this section's ℤ/7 letter layer). Memory: `[[user_stance_observation_is_a_shadow_irrep_under_perspective_shift]]` (the organizing lens), `[[user_stance_cascade_matching_substrate_blind_form_not_identity]]`, `[[feedback_cross_substrate_transfers_the_algorithm_not_the_constant]]`, `[[project_h_genome_is_fibrated_hurwitz_tower]]`. Ontology landing: MFO §VII (time-as-shadow; substrate-vs-excitation).
+
+---
+
 ## §4 Open research questions
 
 ### 4.1 Additional spectral graphic operations the architecture should learn to absorb
