@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc384"
-#define SRMECH_VERSION       "0.9.0rc384"
+#define SRMECH_VERSION_PRE   "rc385"
+#define SRMECH_VERSION       "0.9.0rc385"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -12636,6 +12636,31 @@ srmech_status_t srmech_quaternion_twiddle(
 srmech_status_t srmech_quaternion_dft(
     const double *x, uint32_t n_points, int32_t left, int32_t inverse,
     const double *mu, size_t n, double *out);
+
+/* 0.9.0rc385 (#T1048) — the INVERSE of srmech_quaternion_exp for a UNIT
+ * quaternion q = [w, v]: out = [0, theta * v/‖v‖] with ‖v‖ the Class-K
+ * magnitude of the imaginary part and theta = atan2(‖v‖, w) in [0, pi]. The
+ * pure-real branch (‖v‖ == 0) is the Class-K pin-slot: the zero tangent. ‖v‖
+ * rides the Class-N srmech_rational_sqrt of a sum-of-squares (no abs()); theta
+ * rides srmech_atan_q61 with the quadrant shift in Q61 INTEGER space (by
+ * SRMECH_Q61_HALF_PI, exactly as Python rational.atan2), projected to double
+ * ONCE — byte-exact with srmech.physics.qm.quaternion.quaternion_log. `n` must
+ * be 4; `out` MAY alias `q`. Errors: SRMECH_ERR_NULL_ARG; SRMECH_ERR_BAD_INPUT
+ * (n != 4) or an srmech_rational_sqrt / srmech_atan_q61 error. Additive symbol
+ * -> SRMECH_ABI_VERSION stays 10. */
+srmech_status_t srmech_quaternion_log(
+    const double *q, size_t n, double *out);
+
+/* 0.9.0rc385 (#T1048) — shortest-arc geodesic interpolation on the unit-
+ * quaternion S^3: slerp(q0, q1, t) = q0 . exp(t . log(conj(q0) . q1)). A pure
+ * composition of the shipped ops (Class-C conjugate, Class-M Hamilton product,
+ * the rc385 log, the exp twiddle); t = 0 -> q0, t = 1 -> q1 for unit q0/q1. `n`
+ * must be 4; `out` MUST NOT alias q0/q1. Byte-exact with
+ * srmech.physics.qm.quaternion.quaternion_slerp. Errors: SRMECH_ERR_NULL_ARG;
+ * SRMECH_ERR_BAD_INPUT (n != 4) or a sub-op error. Additive symbol ->
+ * SRMECH_ABI_VERSION stays 10. */
+srmech_status_t srmech_quaternion_slerp(
+    const double *q0, const double *q1, double t, size_t n, double *out);
 
 /* ------------------------------------------------------------------ *
  * srmech_q8 — the DISCRETE quaternion group Q8 = {+-1, +-i, +-j, +-k}

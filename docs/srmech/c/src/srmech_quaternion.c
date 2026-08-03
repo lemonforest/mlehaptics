@@ -292,3 +292,135 @@ srmech_status_t srmech_quaternion_dft(
     }
     return SRMECH_OK;
 }
+
+/* 0.9.0rc385 (#T1048) — the ℍ log/slerp pair, the inverse of the exp twiddle.
+ *
+ * srmech_quaternion_log(q) is the INVERSE of srmech_quaternion_exp for a UNIT
+ * quaternion q = [w, v] (v the 3-vector imaginary part): it returns the
+ * tangent-space element [0, theta * v/‖v‖] where ‖v‖ is the Class-K magnitude
+ * of v and theta = atan2(‖v‖, w) in [0, pi]. The pure-real branch (‖v‖ == 0)
+ * is the Class-K pin-slot: the zero tangent (log of ±1 maps to 0). NO libm and
+ * NO abs() — ‖v‖ rides the Class-N srmech_rational_sqrt of a manifest
+ * sum-of-squares (>= 0, no sign to strip), and theta rides srmech_atan_q61 with
+ * the quadrant shift done in Q61 INTEGER space (by SRMECH_Q61_HALF_PI, EXACTLY
+ * as Python rational.atan2 does), projected to double ONCE — the byte-exact
+ * parity contract with the pure-Python mirror. */
+srmech_status_t srmech_quaternion_log(
+    const double *q, size_t n, double *out)
+{
+    if (q == NULL || out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (n != SRMECH_QUAT_DIM) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    assert(q != NULL && out != NULL);
+    assert(n == SRMECH_QUAT_DIM);
+    const double w = q[0];
+    /* ‖v‖^2 is a sum of squares — manifestly >= 0, so the Class-K pin-slot at
+     * zero is a plain `== 0.0` compare, never an abs(). */
+    const double norm_sq = q[1] * q[1] + q[2] * q[2] + q[3] * q[3];
+    if (norm_sq == 0.0) {                       /* pure real -> zero tangent */
+        out[0] = 0.0;
+        out[1] = 0.0;
+        out[2] = 0.0;
+        out[3] = 0.0;
+        return SRMECH_OK;
+    }
+    double nv = 0.0;
+    srmech_status_t st = srmech_rational_sqrt(norm_sq, &nv);   /* Class-N sqrt */
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    assert(nv > 0.0);
+    /* theta = atan2(nv, w): nv >= 0 so theta in [0, pi]. Quadrant shift stays
+     * in Q61 INTEGER space (mirror of rational.atan2), projected ONCE below. */
+    int64_t theta_q61;
+    if (w == 0.0) {
+        theta_q61 = SRMECH_Q61_HALF_PI;                 /* nv>0, x=0 -> +pi/2 */
+    } else {
+        int64_t base_q61 = 0;
+        st = srmech_atan_q61(nv / w, &base_q61);        /* signed atan(nv/w) */
+        if (st != SRMECH_OK) {
+            return st;
+        }
+        theta_q61 = (w > 0.0)
+            ? base_q61
+            : base_q61 + 2 * SRMECH_Q61_HALF_PI;        /* x<0, y>=0 -> base+pi */
+    }
+    const double theta = (double)theta_q61 / (double)SRMECH_Q61_ONE;
+    out[0] = 0.0;
+    out[1] = theta * q[1] / nv;
+    out[2] = theta * q[2] / nv;
+    out[3] = theta * q[3] / nv;
+    return SRMECH_OK;
+}
+
+/* exp of a PURE-imaginary quaternion tw = [0, v]: angle = ‖v‖ (Class-N
+ * srmech_rational_sqrt of the Class-K sum of squares), axis = v/‖v‖, then
+ * srmech_quaternion_exp on the unit axis; the ‖v‖ -> 0 pin-slot is exp(0) =
+ * identity. Byte-exact with the Python _exp_pure_imag mirror (same float-op
+ * order). No abs(). */
+static srmech_status_t srmech_quat__exp_pure(const double *tw, double *out)
+{
+    assert(tw != NULL);
+    assert(out != NULL);
+    const double tn_sq = tw[1] * tw[1] + tw[2] * tw[2] + tw[3] * tw[3];
+    if (tn_sq == 0.0) {                         /* exp(0) = identity */
+        out[0] = 1.0;
+        out[1] = 0.0;
+        out[2] = 0.0;
+        out[3] = 0.0;
+        return SRMECH_OK;
+    }
+    double tnorm = 0.0;
+    srmech_status_t st = srmech_rational_sqrt(tn_sq, &tnorm);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    assert(tnorm > 0.0);
+    const double inv = 1.0 / tnorm;
+    const double mu_hat[SRMECH_QUAT_DIM] = {
+        0.0, tw[1] * inv, tw[2] * inv, tw[3] * inv };
+    return srmech_quaternion_exp(tnorm, mu_hat, SRMECH_QUAT_DIM, out);
+}
+
+/* srmech_quaternion_slerp(q0, q1, t) = q0 . exp(t . log(conj(q0) . q1)) — the
+ * shortest-arc geodesic interpolation on the unit-quaternion S^3. A pure
+ * composition of the shipped ops: Class-C conjugate, Class-M Hamilton product
+ * (srmech_quat__mul4), the rc385 Class-K/N log, and the exp twiddle. t = 0
+ * yields q0, t = 1 yields q1 (for q0, q1 unit). `out` MUST NOT alias q0/q1.
+ * Byte-exact with the pure-Python mirror by op composition. */
+srmech_status_t srmech_quaternion_slerp(
+    const double *q0, const double *q1, double t, size_t n, double *out)
+{
+    if (q0 == NULL || q1 == NULL || out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (n != SRMECH_QUAT_DIM) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    assert(q0 != NULL && q1 != NULL && out != NULL);
+    assert(n == SRMECH_QUAT_DIM);
+    double c0[SRMECH_QUAT_DIM];
+    srmech_status_t st = srmech_quaternion_conjugate(q0, SRMECH_QUAT_DIM, c0);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    double r[SRMECH_QUAT_DIM];
+    srmech_quat__mul4(c0, q1, r);                       /* conj(q0) . q1 */
+    double lg[SRMECH_QUAT_DIM];
+    st = srmech_quaternion_log(r, SRMECH_QUAT_DIM, lg);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    const double tw[SRMECH_QUAT_DIM] = {
+        0.0, t * lg[1], t * lg[2], t * lg[3] };         /* t . log(r) */
+    double e[SRMECH_QUAT_DIM];
+    st = srmech_quat__exp_pure(tw, e);                  /* exp(t . log(r)) */
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    srmech_quat__mul4(q0, e, out);                      /* q0 . exp(...) */
+    return SRMECH_OK;
+}

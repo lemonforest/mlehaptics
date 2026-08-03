@@ -45,7 +45,7 @@ MANIFEST = Path(__file__).resolve().parent / "registered_op_names.txt"
 #: Registered public-callable count at rc361. Pinned here only so the failure
 #: message can say "516 -> 517" instead of dumping 516 lines; the SET below is
 #: the actual contract.
-EXPECTED_N = 535
+EXPECTED_N = 537
 
 #: sha256 over the NORMALISED manifest body — "\n".join(sorted names) + "\n",
 #: UTF-8. Normalised rather than raw-file-bytes so a CRLF checkout cannot make
@@ -61,8 +61,12 @@ EXPECTED_N = 535
 # (the 𝕆 frame-committed quaternionic-Hopf coherence read) and
 # srmech.math.laplacian.octonion_laplacian (the 𝕆 gain Laplacian measuring the
 # frame-committed coherence ceiling). 533 -> 535, digest below.
+# v0.9.0rc385 (`#T1048`) — two genuinely NEW ops: srmech.physics.qm.quaternion.quaternion_log
+# (the INVERSE of quaternion_exp — the unit-quaternion log map) and
+# srmech.physics.qm.quaternion.quaternion_slerp (the exp/log geodesic
+# interpolation on S³). 535 -> 537, digest below.
 EXPECTED_NAME_SET_SHA256 = (
-    "a6dca880e13e8492110e6aae90408641a04a12aa6b37d29559819e57b3193685")
+    "5197df49b36c82d38703e07f0a1c0a6e0108213d6b668072d88e6ea23a5c257f")
 
 
 def _live_names() -> list[str]:

@@ -592,6 +592,8 @@
 {"exposed_as": "srmech.physics.qm.quaternion.quaternion_conjugate", "defined_at": "srmech.physics.qm.quaternion.quaternion_conjugate", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.physics.qm.quaternion.quaternion_norm", "defined_at": "srmech.physics.qm.quaternion.quaternion_norm", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.physics.qm.quaternion.quaternion_exp", "defined_at": "srmech.physics.qm.quaternion.quaternion_exp", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.physics.qm.quaternion.quaternion_log", "defined_at": "srmech.physics.qm.quaternion.quaternion_log", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.physics.qm.quaternion.quaternion_slerp", "defined_at": "srmech.physics.qm.quaternion.quaternion_slerp", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.physics.qm.quaternion.quaternion_exp_series_truncate", "defined_at": "srmech.physics.qm.quaternion.quaternion_exp_series_truncate", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.physics.qm.quaternion.quaternion_twiddle", "defined_at": "srmech.physics.qm.quaternion.quaternion_twiddle", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.physics.qm.quaternion.quaternion_cycle_holonomy", "defined_at": "srmech.physics.qm.quaternion.quaternion_cycle_holonomy", "bucket": "c_dispatched"}
