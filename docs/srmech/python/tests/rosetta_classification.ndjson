@@ -11,6 +11,7 @@
 {"exposed_as": "srmech.cascade.associator", "defined_at": "srmech.cascade.cayley_dickson.associator", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.cascade.cd_commutator", "defined_at": "srmech.cascade.cayley_dickson.cd_commutator", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.cascade.cd_cycle_holonomy", "defined_at": "srmech.cascade.cayley_dickson.cd_cycle_holonomy", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.cascade.cd_three_form", "defined_at": "srmech.cascade.cayley_dickson.cd_three_form", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.cascade.defect_ladder", "defined_at": "srmech.cascade.cayley_dickson.defect_ladder", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.cascade.octonion_frame_read", "defined_at": "srmech.cascade.cayley_dickson.octonion_frame_read", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.cascade.inertia_signature", "defined_at": "srmech.cascade.cayley_dickson.inertia_signature", "bucket": "c_dispatched"}

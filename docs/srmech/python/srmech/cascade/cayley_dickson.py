@@ -1137,6 +1137,98 @@ def cd_cycle_holonomy(x: Sequence[Any], y: Sequence[Any], z: Sequence[Any],
     }
 
 
+def cd_three_form(x: Sequence[Any], y: Sequence[Any], z: Sequence[Any],
+                  *, table: Any = None) -> Q:
+    """The G₂ ASSOCIATIVE 3-FORM ``φ(x, y, z) = Re(x̄·(y·z))``, a scalar, exact ℚ,
+    any rung (rc386, `#T1062`) — the regrouping-INVARIANT SCALAR twin of the
+    vector :func:`associator`.
+
+    Where :func:`associator` is the pure-IMAGINARY associativity DEFECT
+    ``(x·y)·z − x·(y·z)`` (the part regrouping DOES move), this reads the
+    complementary REAL shadow that regrouping does NOT move. ``Re(associator)``
+    is identically 0, so::
+
+        φ(x, y, z) = Re(x̄·(y·z)) = Re((x̄·y)·z)   — the two bracketings agree
+
+    is the single regrouping-safe scalar both ``(x̄·y)·z`` and ``x̄·(y·z)`` share.
+    Equivalently ``φ(x, y, z) = ⟨x, y·z⟩`` — the exact Euclidean inner product of
+    ``x`` with the product ``y·z`` (``Re(x̄·w) = Σ x_i·w_i``).
+
+    On the IMAGINARY octonions ``Im 𝕆 = ℝ⁷`` this is exactly the Harvey–Lawson
+    associative calibration 3-form ``⟨x, y × z⟩`` (the scalar triple product on
+    the 7-D cross product ``cross7``): fully antisymmetric, ``±1`` on precisely
+    the 7 Fano associative 3-planes and 0 on the other 28 of the ``C(7,3)=35``
+    basis triples::
+
+        {123, 145, 246, 257, 347} = +1        {167, 356} = −1
+
+    — MEASURED through this op, reproducing the shipped FLOAT peer
+    :func:`srmech.math.hdc.g2_three_form` bit-for-bit on all 35 unordered (and
+    343 ordered) imaginary basis triples. It is the exact-ℚ companion to that
+    float form; the sign / orientation convention is the one the Cayley–Dickson
+    product itself fixes (not imposed externally), and ``stab(φ) = G₂ = Der(𝕆)``
+    — every :func:`srmech.physics.qm.so8.g2_subalgebra` derivation annihilates it.
+
+    Args:
+        x, y, z: equal-length elements. With ``table=None`` the length must be a
+            power of two ``≤ CD_MAX_DIM`` (the definite ladder, via
+            :func:`cd_mult`); with a ``table`` the length must be ``len(table)``
+            (via :func:`table_product`). Every exact-rational scalar
+            :func:`cd_mult` accepts is accepted here.
+        table: an optional dim × dim × dim structure-constant tensor —
+            :func:`algebra_table` (the definite ladder, or a split γ-twist when
+            ``gammas=`` is given: the STRUCTURED negative control), or any table
+            :func:`table_product` reads. ``None`` — the default — is the definite
+            Cayley–Dickson ladder ℝ→ℂ→ℍ→𝕆→𝕊…  Conjugation is table-independent
+            (it only negates the imaginary part), so only the two products follow
+            the table.
+
+    Returns:
+        A single exact :class:`~srmech.math.q.Q` — the scalar ``φ(x, y, z)``.
+
+    Raises:
+        ValueError: operands of unequal length; a non-power-of-two length when
+            ``table is None``; a ``table`` whose dim disagrees with the operands.
+
+    Note:
+        Exact end to end — no float, no epsilon, no ``abs()``. NO new C symbol:
+        φ IS the composition ``Re(cd_conjugate(x) · cd_mult(y, z))``, so a
+        dedicated kernel would only re-spell ``a·b`` and a conjugation already in
+        the library — ``composition_of_c`` over the c_dispatched
+        ``srmech_cd_mult`` / ``srmech_cd_qconjugate`` (or
+        ``srmech_algebra_table_product`` with a ``table``). Class M (bilinear
+        bind) ∘ C (conjugation which-way), then a real-part read (the e₀ scalar
+        component). It is the Re-companion to :func:`associator`'s Im defect.
+
+    Canonical SSoT:
+    - Harvey, R. & Lawson, H.B. (1982), *Calibrated geometries*, Acta Math.
+      **148** 47–157 — the associative calibration 3-form φ on Im 𝕆 = ℝ⁷.
+    - Baez, J.C. (2002), *The Octonions*, Bull. AMS **39** 145–205,
+      arXiv:math/0105155, §4.1 — φ, its Fano-plane values and G₂ = Aut(𝕆) as
+      exactly the stabiliser of φ.
+    """
+    ex = tuple(_coerce_frac(v) for v in x)
+    ey = tuple(_coerce_frac(v) for v in y)
+    ez = tuple(_coerce_frac(v) for v in z)
+    if not (len(ex) == len(ey) == len(ez)):
+        raise ValueError(
+            f"cd_three_form: the three operands must share dimension; got "
+            f"{len(ex)}, {len(ey)} and {len(ez)}")
+    if table is None:
+        ex, ey, ez = _as_elem(ex), _as_elem(ey), _as_elem(ez)
+        yz = cd_mult(ey, ez)
+        w = cd_mult(cd_conjugate(ex), yz)
+    else:
+        tbl = _structure_table(table)
+        if len(tbl) != len(ex):
+            raise ValueError(
+                f"cd_three_form: the table is dim {len(tbl)}; got operands of "
+                f"length {len(ex)}")
+        yz = table_product(tbl, ey, ez)
+        w = table_product(tbl, cd_conjugate(ex), yz)
+    return w[0]
+
+
 #: The Cayley–Dickson property-loss ladder, RUNG-indexed (rc383, `#T1054`).
 #: Maps each loop-defect NAME :func:`defect_ladder` returns to the CD doubling
 #: rung at which the corresponding property first turns off — each one rung
