@@ -10,11 +10,12 @@
 # list cannot silently drop a known family.
 #
 # EXCLUDED on purpose (documented in RIPPLE_GATES.md):
-#   test_mcp.py -- spins a real socket SSE server + subprocess round-trips that
-#     hang a fast runner (measured: >90s, no clean exit). The MCP ripple (a new
-#     op in the tool list) is covered by the server-free test_mcpb_emit +
-#     the three fast MCP C-marshalling gates below (marshal / sse / stdio, ~10s
-#     each -- those do NOT spin a server; only test_mcp.py does).
+#   test_mcp.py as a WHOLE FILE -- it spins a real socket SSE server + subprocess
+#     round-trips that hang a fast runner (measured: >90s, no clean exit). But
+#     TWO of its tests ARE included below by NODE-ID (the coercer + signature-
+#     drift gates) -- those run pure (~sub-second, no server / no fixture). The
+#     rest of the MCP ripple is covered by the server-free test_mcpb_emit + the
+#     three fast MCP C-marshalling gates (marshal / sse / stdio, ~10s each).
 #   test_rosetta_roots_single_source_rc361 -- guards test-infra root-sourcing, not
 #     a new op's dispatch surface (and ~35s).
 
@@ -38,6 +39,13 @@ tests/test_mcpb_emit.py
 tests/test_mcp_marshal_c_rc187.py
 tests/test_mcp_sse_c_rc194.py
 tests/test_mcp_stdio_c_rc186.py
+
+# -- MCP coercer + signature drift (fast NODE-IDS carved out of test_mcp.py;
+#    catches the rc273/rc328 class -- novel param TYPE with no _PARAM_COERCERS
+#    handler, and declared-params-vs-signature drift. test_mcp.py's SERVER tests
+#    stay excluded; these two run pure, no server / no fixture) -----------------
+tests/test_mcp.py::test_all_param_types_json_coercible
+tests/test_mcp.py::test_schema_signature_alignment_no_drift
 
 # -- regen-all idempotence / codegen graph -----------------------------------
 tests/test_regen_all_rc346.py
