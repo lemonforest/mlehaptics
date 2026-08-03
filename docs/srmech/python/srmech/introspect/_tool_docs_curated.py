@@ -853,9 +853,8 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
     'srmech.math.octonion.oct_torsor_act': {
         'example': {
             'input': {
-                't, g': 'the whole 8x8 (t in T, g in H) sweep for closure, the '
-                        'oct_mult-identity and R_g==L_conj(g), plus the concrete '
-                        'step e5 <| e1',
+                't': 5,
+                'g': 1,
             },
             'output': (
                 'act closes into T: True ( 64 pairs)\n'
@@ -922,9 +921,8 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
     'srmech.math.octonion.oct_torsor_div': {
         'example': {
             'input': {
-                't1, t2': 'the concrete solve div(e5, e6), the simple-transitivity '
-                          'sweep over T x T, the ^8==conj check on T, and the '
-                          'refused real center oct_torsor_div(0, 5)',
+                't1': 5,
+                't2': 6,
             },
             'output': (
                 'div(e5, e6) = 3  in H: True  solves e5 <| g == e6: True\n'
