@@ -163,8 +163,10 @@ srmech.cascade.defect_ladder
 srmech.cascade.exact_dft.exact_dft
 srmech.cascade.exact_dft.exact_idft
 srmech.cascade.exact_dft.lift
+srmech.cascade.flip_pair
 srmech.cascade.frame_carrier.frame_carrier
 srmech.cascade.frame_carrier.frame_carrier_compare
+srmech.cascade.group_algebra_table
 srmech.cascade.hamming_decode_correct
 srmech.cascade.hamming_encode
 srmech.cascade.hamming_syndrome

@@ -823,15 +823,17 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # count, which grows when new cascade ops land. rc384 (`#T957`) added one more —
     # octonion_frame_read (the 𝕆 frame-committed Hopf coherence read), +1 — and rc386
     # (`#T1062`) one more — cd_three_form (the exact-ℚ G₂ associative 3-form, the
-    # scalar Re-twin of associator), +1 — so the live cascade decoded population is
-    # 95 + 2 + 1 + 1 + 1 = 100.
+    # scalar Re-twin of associator), +1 — and rc387 (`#T1037`, closing `#T1032`) two
+    # more — flip_pair + group_algebra_table (the two STRUCTURED negative controls,
+    # +2) — so the live cascade decoded population is 95 + 2 + 1 + 1 + 1 + 2 = 102.
     cascade = joined.count("srmech.cascade.")
-    assert cascade == 100, (
-        f"expected 100 srmech.cascade op references inside the DECODED channel "
+    assert cascade == 102, (
+        f"expected 102 srmech.cascade op references inside the DECODED channel "
         f"(the rc377 move's 95 + rc380's 2 loop-defect ops + rc383's defect_ladder + "
-        f"rc384's octonion_frame_read + rc386's cd_three_form), found {cascade}. The "
-        f"rc377 amsc->cascade move conserved 95 (amsc 97 -> 2); rc380 grew it by 2, "
-        f"rc383 by 1, rc384 by 1, rc386 by 1. If this is not 100, re-measure.")
+        f"rc384's octonion_frame_read + rc386's cd_three_form + rc387's flip_pair / "
+        f"group_algebra_table), found {cascade}. The rc377 amsc->cascade move "
+        f"conserved 95 (amsc 97 -> 2); rc380 grew it by 2, rc383 by 1, rc384 by 1, "
+        f"rc386 by 1, rc387 by 2. If this is not 102, re-measure.")
     # rc381 (`#T1052`) — THE srmech.physics.qm RECEIVING SIDE, pinned like biology
     # / cascade. UNLIKE every drain above, this move did NOT come out of the amsc
     # population — the qm subpackage was never under amsc. It is a whole-subpackage

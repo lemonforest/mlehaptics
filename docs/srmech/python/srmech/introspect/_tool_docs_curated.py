@@ -194,6 +194,146 @@ CURATED: Dict[str, Dict[str, Any]] = {
             "annihilates it."
         ),
     },
+    # rc387 (#T1037, closing #T1032) — the two STRUCTURED negative controls, promoted
+    # from rc360's hand-rolled test code to registered ops. Output below is a REAL
+    # capture from a WSL2 numpy-absent (pure-path) run; the c_dispatched path is
+    # byte-identical. flip_pair = the FLEXIBILITY control; group_algebra_table = the
+    # METRIC control. The two are complements.
+    'srmech.cascade.flip_pair': {
+        'example': {
+            'output': (
+                "ladder flex viol : 0\n"
+                "flip(8,1,2) flex : 4\n"
+                "ladder signature : (1, 7, 0)\n"
+                "flip   signature : (1, 7, 0)\n"
+                "cell (1,2) ladder -> flip: 1 -> -1"
+            ),
+            'why': (
+                "On the definite octonion ladder the flexible law holds everywhere "
+                "(0 violations), but flip_pair(8,1,2) breaks it at exactly 4 of the "
+                "512 triples -- and the same 4 for every admissible pair. The inertia "
+                "signature (1, 7, 0) is untouched because the flip is strictly "
+                "off-diagonal, so the control isolates a flexibility defect with no "
+                "metric side effect. The two negated cells sit on the shared lane "
+                "1^2 = 3, where +1 becomes -1."
+            ),
+            'worked': '''from srmech.cascade import (flip_pair, algebra_table, associator,
+                            inertia_signature, cd_basis)
+
+
+def flex(dim, t):
+    # the linearised flexible law (x,y,z)+(z,y,x)=0, counted through associator
+    b = [cd_basis(dim, i) for i in range(dim)]
+    return sum(1 for i in range(dim) for j in range(dim) for k in range(dim)
+               if any((u + v) != 0 for u, v in
+                      zip(associator(b[i], b[j], b[k], table=t),
+                          associator(b[k], b[j], b[i], table=t))))
+
+
+# flip_pair(dim, i, j): the definite CD ladder with e_i*e_j AND e_j*e_i negated.
+# The ONLY control that breaks FLEXIBILITY -- and by a CONSTANT 4 per rung.
+t = flip_pair(8, 1, 2)
+print("ladder flex viol :", flex(8, algebra_table(8)))
+print("flip(8,1,2) flex :", flex(8, t))
+# the inertia signature is UNCHANGED: the flip is off-diagonal, the trace is diagonal
+print("ladder signature :", inertia_signature(algebra_table(8))["signature"])
+print("flip   signature :", inertia_signature(t)["signature"])
+# the flip is the two named cells negated on the shared lane 1^2 = 3:
+print("cell (1,2) ladder -> flip:", algebra_table(8)[1][2][3], "->", t[1][2][3])''',
+        },
+        'explanation': (
+            "WHAT: the definite Cayley-Dickson ladder multiplication table with the "
+            "two off-diagonal cells e_i*e_j and e_j*e_i NEGATED -- one named sign "
+            "bit. It returns the same dim x dim x dim structure-constant tensor "
+            "algebra_table returns, so table_product / associator / "
+            "inertia_signature read it unchanged. It is the STRUCTURED negative "
+            "control that breaks FLEXIBILITY, the one law every gamma-twist of "
+            "algebra_table keeps: a single flip breaks the flexible law (x,y,x)=0 at "
+            "EXACTLY 4 of the dim^3 ordered basis triples, uniformly over every "
+            "admissible pair (4/64 at dim 4, 4/512 at dim 8, 4/4096 at dim 16). "
+            "WHEN: reach for it when a carrier claim needs a control that isolates a "
+            "flexibility defect while holding the METRIC fixed -- the inertia "
+            "signature is UNCHANGED by construction (the flip is strictly "
+            "off-diagonal; inertia_signature reads the diagonal trace form), so a "
+            "signature move cannot be confused with the flexibility break. What you "
+            "would otherwise WRONGLY hand-roll: a flexibility control by scrambling "
+            "signs, which also moves the diagonal and so the signature, defeating "
+            "the isolation. SIBLINGS: group_algebra_table is the complementary "
+            "METRIC control (0 bite on the laws, signature split); algebra_table is "
+            "the base table it copies then flips; associator / inertia_signature are "
+            "the two instruments it is read with. NO new C symbol: composition_of_c "
+            "over the c_dispatched srmech_algebra_table plus the Class-C reorient "
+            "sign flip -- never abs()."
+        ),
+    },
+    'srmech.cascade.group_algebra_table': {
+        'example': {
+            'output': (
+                "ring nonassoc    : 0\n"
+                "ladder nonassoc  : 168\n"
+                "ring   signature : (5, 3, 0)\n"
+                "ladder signature : (1, 7, 0)\n"
+                "e2*e7: ring lane (2+7)%8 = 1 | CD lane 2^7 = 5"
+            ),
+            'why': (
+                "The group ring R[Z/8] is fully associative (0 non-associating "
+                "triples) where the octonion ladder has 168 of 512, so it has zero "
+                "bite on the laws; its bite is the METRIC -- the trace signature "
+                "(5, 3, 0) versus the ladder's (1, 7, 0). And the lanes differ: "
+                "e2*e7 sits at (2+7) mod 8 = 1 in the ring but at 2 XOR 7 = 5 on the "
+                "ladder -- a different group at the same dimension."
+            ),
+            'worked': '''from srmech.cascade import (group_algebra_table, algebra_table,
+                            associator, inertia_signature, cd_basis)
+
+
+def nonassoc(dim, t):
+    b = [cd_basis(dim, i) for i in range(dim)]
+    return sum(1 for i in range(dim) for j in range(dim) for k in range(dim)
+               if any(v != 0 for v in associator(b[i], b[j], b[k], table=t)))
+
+
+# group_algebra_table(dim): the group ring R[Z/dim] -- lane (i+j) mod dim, all +1.
+# The WRONG QUOTIENT: same dimension, a DIFFERENT group from the CD ladder XOR lane.
+ring = group_algebra_table(8)
+# ZERO bite on the laws: associative, unlike O 168/512 non-associating triples
+print("ring nonassoc    :", nonassoc(8, ring))
+print("ladder nonassoc  :", nonassoc(8, algebra_table(8)))
+# its bite is the METRIC: the trace signature splits from the ladder
+print("ring   signature :", inertia_signature(ring)["signature"])
+print("ladder signature :", inertia_signature(algebra_table(8))["signature"])
+# the lane is (i+j) mod dim, NOT the CD XOR lane i^j:
+print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 7)''',
+        },
+        'explanation': (
+            "WHAT: the structure-constant table of the group ring R[Z/dim] -- lane "
+            "(i+j) mod dim and ALL signs +1 -- the WRONG-QUOTIENT control. It "
+            "returns the same dim x dim x dim tensor algebra_table returns, but "
+            "built over the CYCLIC group Z/dim instead of the Cayley-Dickson XOR "
+            "group (Z/2)^k; the two coincide only at dim 2 and are genuinely "
+            "different quotients for dim >= 4 (same dimension, different group). "
+            "WHEN: reach for it as the METRIC negative control, the complement of "
+            "flip_pair. The group ring is commutative and associative with a trivial "
+            "cocycle, so it has ZERO bite on the associativity laws (flexible and "
+            "fully associative at every rung, unlike the octonion ladder's 168/512 "
+            "non-associating triples at dim 8) -- its whole bite is on the METRIC: "
+            "inertia_signature reads the trace form as "
+            "(2,0,0)/(3,1,0)/(5,3,0)/(9,7,0) at dim 2/4/8/16 versus the ladder's "
+            "(1,1,0)/(1,3,0)/(1,7,0)/(1,15,0). WARNING -- THE TAUTOLOGY IT INVITES: "
+            "'the wrong-quotient associator differs from the ladder on 168/512 (dim "
+            "8) / 1848/4096 (dim 16)' is a FORCED IDENTITY, not a finding -- the "
+            "ring's own defect is identically 0, so it differs EXACTLY where the "
+            "ladder fails to associate; that count IS the ladder's non-associating "
+            "census (512-344=168) under another name. Use it for the METRIC "
+            "contrast, never for a differs-from-ladder count. SIBLINGS: flip_pair is "
+            "the complementary FLEXIBILITY control; algebra_table is the CD-ladder "
+            "table it contrasts with; associator / inertia_signature are its "
+            "instruments. NO new C symbol: composition_of_c over the c_dispatched "
+            "cyclic.mod_add (the (i+j) mod dim lane) -- hand-rolling (i+j) mod dim "
+            "in bare Python would be a Python-only kernel the standalone-C ledger "
+            "forbids; no abs()."
+        ),
+    },
     "srmech.chemistry.balance_reaction": {"example": {"output": "H2 + O2 -> H2O    : [2, 1, -2]\npropane           : [1, 5, -3, -4]\nethane (gcd)      : [2, 7, -4, -6]\ndict input        : [2, 1, -2]", "why": "The signed stoichiometric coefficients fall straight out of the element-composition nullspace, first-nonzero pinned positive: 2 H2 + O2 -> 2 H2O (H2O negative = product), propane balances to [1,5,-3,-4], the ethane column needs the gcd stripped to reach the primitive [2,7,-4,-6], and formula strings and {element:count} dicts give the identical answer.", "worked": "from srmech.chemistry import balance_reaction\n# Read reactant vs product from the SIGN: a negative coefficient is\n# a product. Species may be formula strings or {element:count} dicts.\nprint(\"H2 + O2 -> H2O    :\", balance_reaction([\"H2\", \"O2\", \"H2O\"]))\nprint(\"propane           :\", balance_reaction([\"C3H8\", \"O2\", \"CO2\", \"H2O\"]))\nprint(\"ethane (gcd)      :\", balance_reaction([\"C2H6\", \"O2\", \"CO2\", \"H2O\"]))\nprint(\"dict input        :\", balance_reaction([{\"H\": 2}, {\"O\": 2}, {\"H\": 2, \"O\": 1}]))"}, "explanation": "WHAT - balances a chemical reaction and RETURNS the signed primitive integer coefficients. A balanced reaction is a vector v in the kernel of the ELEMENT x SPECIES matrix A (element conservation A.v = 0); each exact-Q kernel column is reduced to the smallest integer vector on its ray by the primitive_integer_vector keystone, first nonzero pinned positive. The SIGN carries direction - a negative coefficient is a product. Accepts formula strings, {element:count} dicts, or a raw element x species QMat interchangeably; exact-Q, numpy-free, no abs(). WHEN - reach for it to balance a reaction (combustion, redox, synthesis) from its species alone. An UNBALANCEABLE set (trivial kernel) raises; an UNDERDETERMINED set (kernel dim > 1) raises unless you pass all_balances=True to get every independent balance. SIBLINGS - it composes QMat.nullspace (the exact-Q kernel) with srmech.math.cyclic.primitive_integer_vector (the integer reduction), so do NOT hand-roll a float nullspace and round to integers - that is the exact mistake the keystone exists to prevent. conservation_laws is its transpose-in-role peer (SPECIES x REACTION, not element x species); parse_formula is the input tokenizer it calls on a formula string."},
     "srmech.chemistry.conservation_laws": {"example": {"output": "laws: [[1, 0, 1, 0], [1, -1, 0, -1]]\ngamma^T N = [0, 0, 0]\ngamma^T N = [0, 0, 0]", "why": "Michaelis-Menten E + S <-> ES -> E + P returns two conserved moieties - total enzyme (E + ES) and a substrate-matter combination - and each returned gamma satisfies gamma^T N = 0 exactly, so the conservation is verified, not asserted.", "worked": "from srmech.chemistry import conservation_laws\n# Michaelis-Menten E + S <-> ES -> E + P. N is SPECIES x REACTION\n# (rows E, S, ES, P; columns R1, R2, R3; entry = net change).\nN = [[-1, 1, 1], [-1, 1, 0], [1, -1, -1], [0, 0, 1]]\nlaws = conservation_laws(N)\nprint(\"laws:\", laws)\nfor g in laws:\n    print(\"gamma^T N =\", [sum(g[i] * N[i][j] for i in range(4)) for j in range(3)])"}, "explanation": "WHAT - COMPUTES the conserved moieties of a reaction network: an integer basis of the LEFT-nullspace of the stoichiometric matrix N (every gamma with gamma^T N = 0 - a combination of species whose total is invariant under every reaction, i.e. mass / charge / moiety conservation). It is N.T.nullspace() with each kernel column reduced by the primitive_integer_vector keystone; exact-Q, numpy-free, no abs(). WHEN - reach for it to find what a network keeps fixed: total enzyme, total phosphate, a charge balance. It RETURNS the empty list when N has full row rank (no conserved moiety). SIBLINGS - do NOT confuse its matrix with balance_reaction: N here is SPECIES x REACTION (rows = species, columns = reactions), the transpose-in-role of the ELEMENT x SPECIES matrix - conflating them is the #1 correctness trap this domain guards against. It shares the QMat.nullspace + primitive_integer_vector composition with balance_reaction, so do not re-derive denominator-clearing beside it; deficiency consumes the same stoichiometric N to compute rank(N) = s."},
     "srmech.chemistry.deficiency": {"example": {"output": "A <-> B     : {'deficiency': 0, 'n_complexes': 2, 'n_linkage_classes': 1, 'rank_stoichiometric': 1}\n2A/A+B/2B   : {'deficiency': 1, 'n_complexes': 3, 'n_linkage_classes': 1, 'rank_stoichiometric': 1}\ndelta only  : 1", "why": "The isomerization A <-> B has deficiency 0 (n=2, l=1, s=1) and the classic 2A -> A+B -> 2B -> 2A network has deficiency 1 (n=3, l=1, s=1); with_components exposes the n / l / s breakdown, and the bare call returns just the integer delta.", "worked": "from srmech.chemistry import deficiency\n# delta = n - l - s = rank(L_complex) - rank(N): n distinct complexes,\n# l linkage classes (components of the complex graph), s = rank(N).\nprint(\"A <-> B     :\", deficiency([({\"A\": 1}, {\"B\": 1})], with_components=True))\ntri = [({\"A\": 2}, {\"A\": 1, \"B\": 1}), ({\"A\": 1, \"B\": 1}, {\"B\": 2}), ({\"B\": 2}, {\"A\": 2})]\nprint(\"2A/A+B/2B   :\", deficiency(tri, with_components=True))\nprint(\"delta only  :\", deficiency(tri))"}, "explanation": "WHAT - COMPUTES the Feinberg deficiency delta = n - l - s = rank(L_complex) - rank(N) of a reaction network: n distinct complexes, l linkage classes (connected components of the complex graph), s = rank(N) = dimension of the stoichiometric subspace. delta is a non-negative integer fixed by network topology alone (independent of rate constants). rank(L_complex) = n - l is the exact rank of the combinatorial graph Laplacian of the complex graph; rank(N) is the Class-J QMat.rank. WHEN - reach for it to read a network structural invariant: the Feinberg deficiency-zero and deficiency-one theorems constrain the steady states of many mass-action networks from delta alone. Pass with_components=True for the n / l / s breakdown. Standard reference: M. Feinberg, Foundations of Chemical Reaction Network Theory (Springer AMS 202, 2019). SIBLINGS - it composes dense_laplacian (Class L) with QMat.rank (Class J); do NOT hand-roll a connected-components count for l - the graph Laplacian rank IS n - l, exactly. conservation_laws reads the same stoichiometric N from the other side (its left-nullspace), and rank(N) here is that matrix rank."},

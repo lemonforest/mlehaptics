@@ -45,7 +45,7 @@ MANIFEST = Path(__file__).resolve().parent / "registered_op_names.txt"
 #: Registered public-callable count at rc361. Pinned here only so the failure
 #: message can say "516 -> 517" instead of dumping 516 lines; the SET below is
 #: the actual contract.
-EXPECTED_N = 538
+EXPECTED_N = 540
 
 #: sha256 over the NORMALISED manifest body — "\n".join(sorted names) + "\n",
 #: UTF-8. Normalised rather than raw-file-bytes so a CRLF checkout cannot make
@@ -68,8 +68,13 @@ EXPECTED_N = 538
 # v0.9.0rc386 (`#T1062`) — one genuinely NEW op: srmech.cascade.cd_three_form (the
 # exact-ℚ G₂ associative 3-form φ = Re(x̄·(y·z)), the scalar Re-twin of the vector
 # associator). 537 -> 538, digest below.
+# v0.9.0rc387 (`#T1037`, closing `#T1032`) — two genuinely NEW ops:
+# srmech.cascade.flip_pair (the one-named-bit flexibility control) and
+# srmech.cascade.group_algebra_table (the wrong-quotient group ring ℝ[ℤ/dim] metric
+# control) — rc360's declared STRUCTURED-negative-control residual, promoted from
+# hand-rolled test code to registered ops. 538 -> 540, digest below.
 EXPECTED_NAME_SET_SHA256 = (
-    "7b892e6ff5b031a60836fc3fd19fcf70beb555aa6ff15205d292525d39c5e07d")
+    "867f035df3a53b335542a419259323fd75c8fb685bb07e7a331b1b1a80929bf8")
 
 
 def _live_names() -> list[str]:
