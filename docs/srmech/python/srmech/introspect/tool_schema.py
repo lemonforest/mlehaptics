@@ -8060,6 +8060,67 @@ def _register_primitive_class_tools() -> None:
                               "bracketing-independent ⟺ the defect vanishes; "
                               "always True on an associative rung)}"),
         ),
+        # rc386 (`#T1062`): the SCALAR G₂ associative 3-form φ = Re(x̄·(y·z)) — the
+        # regrouping-INVARIANT REAL shadow both (x̄·y)·z and x̄·(y·z) share (because
+        # Re(associator)≡0). The Re-companion to associator's Im DEFECT: the two
+        # split the octonion triple product into its regrouping-safe scalar and its
+        # regrouping-moving vector. On Im 𝕆 = ℝ⁷ it is the Harvey–Lawson calibration
+        # 3-form, ±1 on the 7 Fano planes — the exact-ℚ twin of the shipped FLOAT
+        # g2_three_form, verified bit-identical 35/35 + 343/343. composition_of_c,
+        # matching its home neighbour associator; NO new C symbol.
+        ToolEntry(
+            name="srmech.cascade.cd_three_form", owner="srmech",
+            category="cascade",
+            summary="The G₂ ASSOCIATIVE 3-FORM φ(x,y,z) = Re(x̄·(y·z)), a SCALAR, "
+                    "exact ℚ, any rung, on the definite ladder (table=None → "
+                    "cd_mult) or on ANY algebra a structure table names (table= → "
+                    "table_product). It is the regrouping-INVARIANT scalar twin of "
+                    "associator: where associator is the pure-IMAGINARY "
+                    "associativity DEFECT (the part regrouping MOVES), φ is the REAL "
+                    "shadow it does NOT move — Re(associator)≡0, so "
+                    "Re(x̄·(y·z))=Re((x̄·y)·z), the one scalar both bracketings "
+                    "share, = ⟨x, y·z⟩. On the imaginary octonions Im 𝕆 = ℝ⁷ φ is "
+                    "the Harvey–Lawson calibration 3-form ⟨x, y×z⟩: fully "
+                    "antisymmetric, ±1 on exactly the 7 Fano associative 3-planes "
+                    "({123,145,246,257,347}=+1, {167,356}=−1) and 0 on the other 28 "
+                    "of the C(7,3)=35 basis triples — MEASURED through it, "
+                    "reproducing the shipped FLOAT peer math.hdc.g2_three_form "
+                    "bit-for-bit on all 35 unordered and 343 ordered imaginary "
+                    "triples, so do NOT reach for that float form when you need the "
+                    "exact-ℚ value, and do NOT hand-roll a scalar triple product "
+                    "beside a measurement. stab(φ)=G₂=Der(𝕆): every g2_subalgebra "
+                    "derivation annihilates it. SIBLINGS: associator is the vector "
+                    "Im twin (the defect); cd_mult / cd_conjugate are the primitives "
+                    "it composes; g2_three_form is the float peer; cross7 the 7-D "
+                    "cross product it calibrates. Exact end to end — no float, no "
+                    "epsilon, no abs(). NO new C symbol: φ IS the composition "
+                    "Re(cd_conjugate(x)·cd_mult(y,z)), so a dedicated kernel would "
+                    "only re-spell a·b and a conjugation already shipped — "
+                    "composition_of_c over the c_dispatched srmech_cd_mult / "
+                    "srmech_cd_qconjugate (or srmech_algebra_table_product with a "
+                    "table). Class M ∘ C, then a real-part read. SSoT: Harvey & "
+                    "Lawson, *Calibrated geometries*, Acta Math. 148 (1982) 47–157; "
+                    "Baez, *The Octonions*, Bull. AMS 39 (2002) 145–205, "
+                    "arXiv:math/0105155, §4.1." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("x", "sequence", True,
+                  "the first element — exact-rational components (int / Q / "
+                  "Fraction / float → its EXACT ratio / (num, den)); with "
+                  "table=None the length is a power of two ≤ CD_MAX_DIM=256"),
+                P("y", "sequence", True, "the second element, same length"),
+                P("z", "sequence", True, "the third element, same length"),
+                P("table", "list[list[list[int]]] | None", False,
+                  "an optional dim × dim × dim structure-constant tensor "
+                  "(algebra_table — including its gammas= split controls — or any "
+                  "table table_product reads); None — the default — is the definite "
+                  "Cayley–Dickson ladder ℝ→ℂ→ℍ→𝕆→𝕊… Conjugation is "
+                  "table-independent, so only the two products follow the table. "
+                  "Keyword-only."),
+            ),
+            returns=R("Q", "a single exact Q — the scalar φ(x,y,z) = Re(x̄·(y·z)); "
+                           "±1 on the 7 Fano associative planes when x,y,z are "
+                           "distinct imaginary basis units, 0 off them"),
+        ),
         # rc383 (`#T1054`): the whole property-loss LADDER read in one pass + a
         # per-rung PROJECTOR. Composes associator / cd_commutator /
         # cd_cycle_holonomy over the SAME three inputs and returns only the

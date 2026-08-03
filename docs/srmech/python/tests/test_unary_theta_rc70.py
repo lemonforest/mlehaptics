@@ -259,7 +259,7 @@ def test_introspect_tools_total_matches_live():
     injections (the shipped surface is what this invariant is about)."""
     from srmech.introspect.tool_schema import get_tool_schema
     shipped = [t for t in get_tool_schema().tools if not t.name.startswith("test.")]
-    assert len(shipped) == 537
+    assert len(shipped) == 538
     names = {t.name for t in shipped}
     assert "srmech.apokatastasis.unary_theta.unary_theta" in names
     assert "srmech.apokatastasis.harmonic_maass.harmonic_maass" in names

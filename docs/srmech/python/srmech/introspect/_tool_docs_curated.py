@@ -125,6 +125,75 @@ CURATED: Dict[str, Dict[str, Any]] = {
             "(quaternion_laplacian / hypercomplex_perspectives)."
         ),
     },
+    # rc386 (#T1062) — the scalar G2 associative 3-form phi = Re(conj(x).(y.z)),
+    # the exact-Q twin of the FLOAT g2_three_form and the Re-companion to
+    # associator's Im defect. Output below is a REAL capture from a WSL2
+    # numpy-absent (pure-path) run; the c_dispatched path is byte-identical.
+    'srmech.cascade.cd_three_form': {
+        'example': {
+            'output': (
+                'phi(e1,e2,e3) = 1\n'
+                'phi(e1,e6,e7) = -1\n'
+                'phi(e1,e2,e4) = 0\n'
+                'phi(e2,e4,e6) = 1 == float g2_three_form 1.0 : True\n'
+                'phi(x,y,z)    = 4'
+            ),
+            'why': (
+                'phi is +-1 on exactly the 7 Fano associative 3-planes and 0 off '
+                'them: the line (1,2,3) reads +1, the sign-flipped line (1,6,7) '
+                'reads -1, and (1,2,4) is not a line so 0. On the imaginary basis '
+                'triple (2,4,6) the exact-Q phi equals the shipped FLOAT '
+                'g2_three_form bit-for-bit. On a generic exact-Q octonion phi is '
+                'the single regrouping-invariant scalar Re(conj(x).(y.z)) = 4.'
+            ),
+            'worked': (
+                'from srmech.cascade import cd_three_form, cd_basis\n'
+                'from srmech.math.hdc import g2_three_form\n'
+                'from srmech.math.q import Q\n'
+                '\n'
+                '# e[0] = 1 (real); e[1..7] span Im O = R^7, the octonion imaginaries.\n'
+                'e = [cd_basis(8, i) for i in range(8)]\n'
+                '# phi is +-1 on the 7 Fano associative 3-planes, 0 on the other 28.\n'
+                'print("phi(e1,e2,e3) =", cd_three_form(e[1], e[2], e[3]))   # +1  Fano 123\n'
+                'print("phi(e1,e6,e7) =", cd_three_form(e[1], e[6], e[7]))   # -1  Fano 167\n'
+                'print("phi(e1,e2,e4) =", cd_three_form(e[1], e[2], e[4]))   # 0   not a line\n'
+                '# Exact-Q twin of the FLOAT g2_three_form, bit-for-bit on Im triples:\n'
+                'q = cd_three_form(e[2], e[4], e[6])\n'
+                'f = g2_three_form([float(v) for v in e[2]], [float(v) for v in e[4]],\n'
+                '                  [float(v) for v in e[6]])\n'
+                'print("phi(e2,e4,e6) =", q, "== float g2_three_form", f, ":", float(q) == f)\n'
+                '# The regrouping-invariant scalar of a generic exact-Q octonion:\n'
+                'x = [Q(1, 2), 0, 1, 0, 0, 3, 0, 1]\n'
+                'y = [0, 2, 0, 1, 1, 0, 0, 0]\n'
+                'z = [1, 0, 0, 0, 0, 1, 2, 0]\n'
+                'print("phi(x,y,z)    =", cd_three_form(x, y, z))'
+            ),
+        },
+        'explanation': (
+            "WHAT: the SCALAR G2 associative 3-form phi(x,y,z) = Re(conj(x).(y.z)) "
+            "-- the regrouping-INVARIANT real shadow both (conj(x).y).z and "
+            "conj(x).(y.z) share, since Re(associator) is identically 0. It RETURNS "
+            "one exact Q. It is the Re-companion to associator's Im defect: the two "
+            "split the octonion triple product into the regrouping-safe scalar (this "
+            "op) and the regrouping-moving vector (associator). On Im O = R^7 it is "
+            "the Harvey-Lawson calibration form <x, y x z>, +-1 on exactly the 7 "
+            "Fano associative planes and 0 on the other 28 of the C(7,3)=35 triples. "
+            "WHEN: reach for it whenever you need the regrouping-safe scalar of a "
+            "triple product AS AN EXACT VALUE -- a Fano orientation sign, a G2 "
+            "calibration, the co-invariant of the associator. What you would "
+            "otherwise WRONGLY reach for: the shipped FLOAT g2_three_form (which "
+            "loses exactness -- this op reproduces it bit-for-bit on all 35 "
+            "unordered and 343 ordered imaginary triples but stays in exact Q), or "
+            "the associator ALONE (which is only the Im defect and never sees this "
+            "real shadow), or a hand-rolled scalar triple product beside a "
+            "measurement (no abs(), no float, no epsilon). SIBLINGS: associator is "
+            "the vector Im twin; cd_mult (Class M) and cd_conjugate (Class C) are "
+            "the two primitives it composes (NO new C symbol -- composition_of_c); "
+            "g2_three_form is the float peer; cross7 is the 7-D cross product it "
+            "calibrates. stab(phi) = G2 = Der(O): every g2_subalgebra derivation "
+            "annihilates it."
+        ),
+    },
     "srmech.chemistry.balance_reaction": {"example": {"output": "H2 + O2 -> H2O    : [2, 1, -2]\npropane           : [1, 5, -3, -4]\nethane (gcd)      : [2, 7, -4, -6]\ndict input        : [2, 1, -2]", "why": "The signed stoichiometric coefficients fall straight out of the element-composition nullspace, first-nonzero pinned positive: 2 H2 + O2 -> 2 H2O (H2O negative = product), propane balances to [1,5,-3,-4], the ethane column needs the gcd stripped to reach the primitive [2,7,-4,-6], and formula strings and {element:count} dicts give the identical answer.", "worked": "from srmech.chemistry import balance_reaction\n# Read reactant vs product from the SIGN: a negative coefficient is\n# a product. Species may be formula strings or {element:count} dicts.\nprint(\"H2 + O2 -> H2O    :\", balance_reaction([\"H2\", \"O2\", \"H2O\"]))\nprint(\"propane           :\", balance_reaction([\"C3H8\", \"O2\", \"CO2\", \"H2O\"]))\nprint(\"ethane (gcd)      :\", balance_reaction([\"C2H6\", \"O2\", \"CO2\", \"H2O\"]))\nprint(\"dict input        :\", balance_reaction([{\"H\": 2}, {\"O\": 2}, {\"H\": 2, \"O\": 1}]))"}, "explanation": "WHAT - balances a chemical reaction and RETURNS the signed primitive integer coefficients. A balanced reaction is a vector v in the kernel of the ELEMENT x SPECIES matrix A (element conservation A.v = 0); each exact-Q kernel column is reduced to the smallest integer vector on its ray by the primitive_integer_vector keystone, first nonzero pinned positive. The SIGN carries direction - a negative coefficient is a product. Accepts formula strings, {element:count} dicts, or a raw element x species QMat interchangeably; exact-Q, numpy-free, no abs(). WHEN - reach for it to balance a reaction (combustion, redox, synthesis) from its species alone. An UNBALANCEABLE set (trivial kernel) raises; an UNDERDETERMINED set (kernel dim > 1) raises unless you pass all_balances=True to get every independent balance. SIBLINGS - it composes QMat.nullspace (the exact-Q kernel) with srmech.math.cyclic.primitive_integer_vector (the integer reduction), so do NOT hand-roll a float nullspace and round to integers - that is the exact mistake the keystone exists to prevent. conservation_laws is its transpose-in-role peer (SPECIES x REACTION, not element x species); parse_formula is the input tokenizer it calls on a formula string."},
     "srmech.chemistry.conservation_laws": {"example": {"output": "laws: [[1, 0, 1, 0], [1, -1, 0, -1]]\ngamma^T N = [0, 0, 0]\ngamma^T N = [0, 0, 0]", "why": "Michaelis-Menten E + S <-> ES -> E + P returns two conserved moieties - total enzyme (E + ES) and a substrate-matter combination - and each returned gamma satisfies gamma^T N = 0 exactly, so the conservation is verified, not asserted.", "worked": "from srmech.chemistry import conservation_laws\n# Michaelis-Menten E + S <-> ES -> E + P. N is SPECIES x REACTION\n# (rows E, S, ES, P; columns R1, R2, R3; entry = net change).\nN = [[-1, 1, 1], [-1, 1, 0], [1, -1, -1], [0, 0, 1]]\nlaws = conservation_laws(N)\nprint(\"laws:\", laws)\nfor g in laws:\n    print(\"gamma^T N =\", [sum(g[i] * N[i][j] for i in range(4)) for j in range(3)])"}, "explanation": "WHAT - COMPUTES the conserved moieties of a reaction network: an integer basis of the LEFT-nullspace of the stoichiometric matrix N (every gamma with gamma^T N = 0 - a combination of species whose total is invariant under every reaction, i.e. mass / charge / moiety conservation). It is N.T.nullspace() with each kernel column reduced by the primitive_integer_vector keystone; exact-Q, numpy-free, no abs(). WHEN - reach for it to find what a network keeps fixed: total enzyme, total phosphate, a charge balance. It RETURNS the empty list when N has full row rank (no conserved moiety). SIBLINGS - do NOT confuse its matrix with balance_reaction: N here is SPECIES x REACTION (rows = species, columns = reactions), the transpose-in-role of the ELEMENT x SPECIES matrix - conflating them is the #1 correctness trap this domain guards against. It shares the QMat.nullspace + primitive_integer_vector composition with balance_reaction, so do not re-derive denominator-clearing beside it; deficiency consumes the same stoichiometric N to compute rank(N) = s."},
     "srmech.chemistry.deficiency": {"example": {"output": "A <-> B     : {'deficiency': 0, 'n_complexes': 2, 'n_linkage_classes': 1, 'rank_stoichiometric': 1}\n2A/A+B/2B   : {'deficiency': 1, 'n_complexes': 3, 'n_linkage_classes': 1, 'rank_stoichiometric': 1}\ndelta only  : 1", "why": "The isomerization A <-> B has deficiency 0 (n=2, l=1, s=1) and the classic 2A -> A+B -> 2B -> 2A network has deficiency 1 (n=3, l=1, s=1); with_components exposes the n / l / s breakdown, and the bare call returns just the integer delta.", "worked": "from srmech.chemistry import deficiency\n# delta = n - l - s = rank(L_complex) - rank(N): n distinct complexes,\n# l linkage classes (components of the complex graph), s = rank(N).\nprint(\"A <-> B     :\", deficiency([({\"A\": 1}, {\"B\": 1})], with_components=True))\ntri = [({\"A\": 2}, {\"A\": 1, \"B\": 1}), ({\"A\": 1, \"B\": 1}, {\"B\": 2}), ({\"B\": 2}, {\"A\": 2})]\nprint(\"2A/A+B/2B   :\", deficiency(tri, with_components=True))\nprint(\"delta only  :\", deficiency(tri))"}, "explanation": "WHAT - COMPUTES the Feinberg deficiency delta = n - l - s = rank(L_complex) - rank(N) of a reaction network: n distinct complexes, l linkage classes (connected components of the complex graph), s = rank(N) = dimension of the stoichiometric subspace. delta is a non-negative integer fixed by network topology alone (independent of rate constants). rank(L_complex) = n - l is the exact rank of the combinatorial graph Laplacian of the complex graph; rank(N) is the Class-J QMat.rank. WHEN - reach for it to read a network structural invariant: the Feinberg deficiency-zero and deficiency-one theorems constrain the steady states of many mass-action networks from delta alone. Pass with_components=True for the n / l / s breakdown. Standard reference: M. Feinberg, Foundations of Chemical Reaction Network Theory (Springer AMS 202, 2019). SIBLINGS - it composes dense_laplacian (Class L) with QMat.rank (Class J); do NOT hand-roll a connected-components count for l - the graph Laplacian rank IS n - l, exactly. conservation_laws reads the same stoichiometric N from the other side (its left-nullspace), and rank(N) here is that matrix rank."},

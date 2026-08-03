@@ -225,6 +225,7 @@ from .cayley_dickson import (
     associator,
     cd_commutator,
     cd_cycle_holonomy,
+    cd_three_form,
     defect_ladder,
     octonion_frame_read,
     OCTONION_FRAME_SEAM,
@@ -385,6 +386,8 @@ __all__ = [
     # The k=2 / k=3 loop-defect ladder — commutator + 3-cycle holonomy (rc380; `#T1055`)
     "cd_commutator",
     "cd_cycle_holonomy",
+    # The G₂ associative 3-form φ = Re(x̄·(y·z)) — the scalar Re-twin of associator (rc386; `#T1062`)
+    "cd_three_form",
     # The RUNG-indexed property-loss ladder + per-rung projector (rc383; `#T1054`)
     "defect_ladder",
     # The 𝕆 frame-committed quaternionic-Hopf coherence read (rc384; `#T957`)

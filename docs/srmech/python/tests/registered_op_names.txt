@@ -143,6 +143,7 @@ srmech.cascade.cd_norm_sq
 srmech.cascade.cd_project
 srmech.cascade.cd_promote
 srmech.cascade.cd_register
+srmech.cascade.cd_three_form
 srmech.cascade.cd_uncouple_working
 srmech.cascade.chiral_dual
 srmech.cascade.chiral_flip
