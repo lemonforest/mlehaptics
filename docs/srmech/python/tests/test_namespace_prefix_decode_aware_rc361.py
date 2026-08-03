@@ -792,11 +792,15 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # SAME per-op count as its sibling quaternion_laplacian / magnetic_laplacian. So
     # the live srmech.math decoded population is 320 + 3 = 323. This is a NEW-op
     # growth, not a move, so no amsc pin shifts.
-    assert math == 323, (
-        f"expected 323 srmech.math op references inside the DECODED channel "
+    # rc388 (`#T963`) then ADDED two NEW srmech.math ops — oct_torsor_act +
+    # oct_torsor_div (the ℍ-torsor act/div of the seam coset H·e) — whose carrier
+    # back-index refs land 2× each in these arrays, so 323 + 4 = 327. NEW-op
+    # growth, not a move; no amsc pin shifts.
+    assert math == 327, (
+        f"expected 327 srmech.math op references inside the DECODED channel "
         f"(rc372 octonion 16 + rc373 A-N primitives 298 + rc374 carriers 6 + rc384 "
-        f"octonion_laplacian 3), found {math}. If this is not 323 the population is "
-        f"not conserved — re-measure.")
+        f"octonion_laplacian 3 + rc388 oct_torsor_act/div 4), found {math}. If this "
+        f"is not 327 the population is not conserved — re-measure.")
     # rc375 — THE srmech.biology RECEIVING SIDE, the arc's SECOND-LARGEST positive
     # population move (after rc373's 298) and the FOURTH receiving namespace pinned
     # here. UNLIKE rc374's pure carriers, the biology bucket's genome / q8 / coupling

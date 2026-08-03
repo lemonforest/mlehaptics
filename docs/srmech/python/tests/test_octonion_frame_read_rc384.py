@@ -251,7 +251,7 @@ def test_both_ops_registered_and_describe_total_is_535():
     names = {e.name for e in get_tool_schema().tools}
     assert "srmech.cascade.octonion_frame_read" in names
     assert "srmech.math.laplacian.octonion_laplacian" in names
-    assert srmech.describe()["tools"]["total"] == 540
+    assert srmech.describe()["tools"]["total"] == 542
 
 
 def test_rosetta_rows_present_composition_of_c():

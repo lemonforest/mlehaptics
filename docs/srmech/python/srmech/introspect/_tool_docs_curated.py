@@ -847,6 +847,145 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
     'srmech.math.octonion.oct_bind': {'example': {'input': {'turn, one': 'a 6-byte octonion buffer bound through an all-e1 coupling and decoupled with its conjugate; then three constant buffers e1/e2/e4 bracketed both ways'}, 'output': 'turn = [1, 2, 4, 3, 0, 7]  one = [1, 1, 1, 1, 1, 1]\noct_bind(turn, one)      = [8, 11, 13, 2, 1, 14]\ndecouple with conj(one)  = [1, 2, 4, 3, 0, 7]\nround trip == turn: True\n(A*B)*C = [7, 7, 7, 7]\nA*(B*C) = [15, 15, 15, 15]\nbuffer-level NON-associativity: True', 'why': 'Buffer-level non-associativity, visible in one line: (A*B)*C gives [7,7,7,7] and A*(B*C) gives [15,15,15,15] — the same index e7 with the sign flipped, so bracketing is CONTENT on this carrier.', 'worked': 'from srmech.math.octonion import oct_bind, oct_conjugate\n\nturn = bytes([1, 2, 4, 3, 0, 7])\none  = bytes([1, 1, 1, 1, 1, 1])\nout  = oct_bind(turn, one)               # -> [8, 11, 13, 2, 1, 14]\ninv  = bytes(oct_conjugate(x) for x in one)\nlist(oct_bind(out, inv))                 # -> [1, 2, 4, 3, 0, 7]\noct_bind(out, inv) == turn               # -> True\n\nA = bytes([1] * 4); B = bytes([2] * 4); C = bytes([4] * 4)\nlist(oct_bind(oct_bind(A, B), C))        # -> [7, 7, 7, 7]      (+e7)\nlist(oct_bind(A, oct_bind(B, C)))        # -> [15, 15, 15, 15]  (-e7)\noct_bind(oct_bind(A, B), C) != oct_bind(A, oct_bind(B, C))     # -> True'}, 'explanation': 'WHAT — the elementwise octonion bind ``out[i] = oct_mult(turn[i], one[i])`` over two equal-length octonion byte buffers (``srmech/math/octonion.py:202``): ``oct_mult`` in its buffer form, Class M. Same-rc C peer ``srmech_oct_bind``, which documents the out-aliasing contract; byte-exact against the pure path. WHEN — reach for it to couple or decouple a whole octonion-carrier strand in one call. TWO CONTRACTS, both measured above and both different from the abelian reflex: the decouple is ``oct_bind(out, conj(one))`` and not a second bind with ``one``; and because the loop is non-associative, BRACKETING is content — the same three buffers give ``+e₇`` left-associated and ``−e₇`` right-associated. A cascade that regroups a chain of these binds for convenience has changed the answer. What you would otherwise wrongly hand-roll is a Python loop over ``oct_mult``, which gives up native dispatch and the length check, or a Klein-4-style XOR bind, which is not this operation at all. SIBLINGS — ``oct_mult`` (``srmech/math/octonion.py:139``) is the scalar product; ``oct_conjugate`` (``:176``) supplies the decoupling operand; ``srmech.biology.q8.q8_bind`` (``srmech/biology/q8.py:195``) is the rung below, associative and cheaper, and is the right choice whenever every index stays in ``e0..e3``; ``srmech.biology.genome.genome_octonion_holonomy`` (``srmech/biology/genome.py:1873``) is the ORDERED fold of this product along a stored strand and ``srmech.biology.genome.genome_octonion_associator`` (``:1910``) is the op that measures the bracketing defect — do not re-derive either from this bind.'},
     'srmech.math.octonion.oct_conjugate': {'example': {'input': {'a': 'every element of the 16-element Moufang loop in turn, plus the Moufang inverse property and the untouched index lane'}, 'output': 'conj over the whole loop 0..15 = [0, 9, 10, 11, 12, 13, 14, 15, 8, 1, 2, 3, 4, 5, 6, 7]\nconj(+e0) = 0 (the real center is self-inverse)\nconj(+e3) = 11 (-e3)   conj(-e7) = 7 (+e7)\na * conj(a) == 0 (= +e0) for all 16: True\ninvolution: True\nthe index lane is UNTOUCHED: conj(a)&7 == a&7 -> True', 'why': 'Same shape as the Q8 conjugate one rung up: it flips only the sign bit, so a·conj(a) = +e0 across all 16 elements and the index lane is provably untouched.', 'worked': 'from srmech.math.octonion import oct_mult, oct_conjugate\n\n[oct_conjugate(a) for a in range(16)]\n# -> [0, 9, 10, 11, 12, 13, 14, 15, 8, 1, 2, 3, 4, 5, 6, 7]\noct_conjugate(0)                         # -> 0   the real centre is self-inverse\noct_conjugate(3), oct_conjugate(15)      # -> (11, 7)   +e3 -> -e3,  -e7 -> +e7\nall(oct_mult(a, oct_conjugate(a)) == 0 for a in range(16))    # -> True\nall(oct_conjugate(oct_conjugate(a)) == a for a in range(16))  # -> True\nall(oct_conjugate(a) & 7 == a & 7 for a in range(16))         # -> True'}, 'explanation': "WHAT — the octonion conjugate / loop inverse (``srmech/math/octonion.py:176``): ``conj(a) = a`` for the real centre (index 0, self-inverse), else ``a ^ 8`` — flip an imaginary unit's sign bit. Class C, an explicit orientation flip with no ``abs()``. The Moufang inverse property ``oct_mult(a, conj(a)) == 0`` (``+e₀``) holds for every one of the 16 elements, it is an involution, and the INDEX lane is untouched — all three measured above. Byte-exact C peer ``srmech_oct_conjugate``. WHEN — reach for it to decouple an ``oct_bind``: as at the Q8 rung, the bind is a loop product and NOT self-inverse, so undoing it means binding against the conjugate of the coupling. It is also the elementary chirality step on this carrier — the discrete counterpart of the fact that ``srmech.physics.qm.octonion.octonion_conjugate`` (``srmech/physics/qm/octonion.py:410``) IS the elementary triality transport. What you would otherwise wrongly hand-roll is ``a ^ 8`` inline: right for the fourteen imaginary elements, wrong for the two centre ones, and it skips the C peer. SIBLINGS — ``oct_mult`` (``srmech/math/octonion.py:139``) is the product this inverts; ``oct_bind`` (``:202``) is the buffer bind whose decouple this supplies; ``srmech.biology.q8.q8_conjugate`` (``srmech/biology/q8.py:169``) is the rung below with the identical contract at 3 bits; ``srmech.physics.qm.octonion.octonion_conjugate`` is the float-coordinate peer. Because non-associativity lives in the PRODUCT and not in the conjugate, this op is structurally identical to its Q8 sibling — do not go looking for an octonion-specific correction here."},
     'srmech.math.octonion.oct_mult': {'example': {'input': {'a, b': 'two 4-bit octonion bytes o = (sign<<3)|index; the whole 7^3 imaginary-triple sweep for the associator, and the e0..e3 corner against q8_mult'}, 'output': 'e1*e2 = 3 (+e3)   e2*e1 = 11 (-e3)\ne1*e1 = 8 (-e0)\nindex lane is exact XOR over all 16x16: True\nassociator-violating imaginary triples: 168 of 343\nfirst one (e1, e2, e4): (e1*e2)*e4 = +e7   e1*(e2*e4) = -e7\nrestricts to q8_mult on e0..e3: True', 'why': '168 of the 343 imaginary triples BREAK associativity — measured, not asserted — while the e0..e3 corner still reproduces q8_mult exactly, so the loss is real and it is confined to the new units.', 'worked': 'from srmech.math.octonion import oct_mult\nfrom srmech.biology.q8 import q8_mult\n\noct_mult(1, 2), oct_mult(2, 1)          # -> (3, 11)   e1*e2 = +e3, e2*e1 = -e3\noct_mult(1, 1)                          # -> 8         e1^2 = -e0\nall(oct_mult(a,b) & 7 == (a & 7) ^ (b & 7)\n    for a in range(16) for b in range(16))              # -> True\n\nbad = [(a,b,c) for a in range(1,8) for b in range(1,8) for c in range(1,8)\n       if oct_mult(oct_mult(a,b),c) != oct_mult(a, oct_mult(b,c))]\nlen(bad), 7 ** 3                        # -> (168, 343)\nbad[0]                                  # -> (1, 2, 4)\noct_mult(oct_mult(1,2),4), oct_mult(1, oct_mult(2,4))   # -> (7, 15)  +e7 / -e7\n\nall(oct_mult(a,b) == (q8_mult(a,b) >> 2) * 8 + (q8_mult(a,b) & 3)\n    for a in range(4) for b in range(4))                # -> True'}, 'explanation': 'WHAT — the octonion Moufang-loop product ``a·b`` of two 4-bit bytes ``o = (sign << 3) | index`` (``0 = +e₀ … 7 = +e₇, 8 = −e₀ … 15 = −e₇``), defined at ``srmech/math/octonion.py:139``. The Cayley–Dickson rung above ``q8_mult``: NON-associative for three independent units, ``e_i² = −1`` (byte 8) for ``i ≠ 0``, and the index lane is exact XOR, ``(a·b) & 7 == (a & 7) ^ (b & 7)``, over all 256 cells. The sign is the ``cd_basis_product`` cocycle at dim 8 xored with the two centre bits — Class-K, never an ``abs()``. Byte-exact C peer ``srmech_oct_mult``. WHEN — reach for it when the carrier genuinely needs seven imaginary directions: a discrete octonion genome fiber, a Fano-line encoding, an ordered fold whose REBRACKETING must be detectable. The measured associator is the whole reason to be careful — 168 of 343 imaginary triples disagree, so any cascade that reassociates a chain of these products is computing a different number, silently. What you would otherwise wrongly hand-roll is a Fano-plane sign table copied from a diagram; the sign conventions there are the classic error and this table already ships four ways that agree because they are the same cocycle. SIBLINGS — ``srmech.biology.q8.q8_mult`` (``srmech/biology/q8.py:133``) is the rung BELOW and the run shows this op restricting to it exactly on ``e0..e3``, so a quaternionic buffer wearing an octonion carrier gains nothing; ``oct_conjugate`` (``srmech/math/octonion.py:176``) is the loop inverse; ``oct_bind`` (``:202``) is the buffer form; ``srmech.physics.qm.octonion.octonion_mult_table`` (``srmech/physics/qm/octonion.py:185``) is the same algebra as a float structure-constant tensor, and ``srmech.biology.genome.genome_octonion_associator`` (``srmech/biology/genome.py:1910``) MEASURES this non-associativity on a stored strand — reach for that rather than re-deriving the defect.'},
+    # rc388 (`#T963`) — the ℍ-torsor act/div pair. Outputs below are REAL
+    # captures from a WSL2 numpy-absent (pure-path) run; these are EXACT integer
+    # ops so the c_dispatched srmech_oct_mult path is byte-identical.
+    'srmech.math.octonion.oct_torsor_act': {
+        'example': {
+            'input': {
+                't': 5,
+                'g': 1,
+            },
+            'output': (
+                'act closes into T: True ( 64 pairs)\n'
+                'act == oct_mult   : True\n'
+                'R_g == L_conj(g)  : True\n'
+                'e5 <| e1 = 4 (a seam byte in T)'
+            ),
+            'why': (
+                'T = {+-e4..+-e7} is a PRINCIPAL right torsor for H = {+-e0..+-e3}: '
+                'the action t <| g = oct_mult(t, g) stays inside T for all 64 (t, g) '
+                'pairs, and the right action R_g equals the LEFT action by conj(g).'
+            ),
+            'worked': (
+                'from srmech.math.octonion import oct_torsor_act, oct_conjugate, oct_mult\n'
+                '\n'
+                '# H = the quaternion subalgebra {+-e0..+-e3}; T = its set-complement,\n'
+                '# the seam coset {+-e4..+-e7}. T is a PRINCIPAL right torsor for H.\n'
+                'H = [0, 1, 2, 3, 8, 9, 10, 11]\n'
+                'T = [4, 5, 6, 7, 12, 13, 14, 15]\n'
+                '\n'
+                '# the action t <| g keeps t inside T for every g in H (closure):\n'
+                'print("act closes into T:",\n'
+                '      all(oct_torsor_act(t, g) in T for t in T for g in H),\n'
+                '      "(", len(T) * len(H), "pairs)")\n'
+                '\n'
+                '# it IS oct_mult restricted to (t in T, g in H) -- no new product:\n'
+                'print("act == oct_mult   :",\n'
+                '      all(oct_torsor_act(t, g) == oct_mult(t, g) for t in T for g in H))\n'
+                '\n'
+                '# and the right action R_g equals the LEFT action by conj(g) on T:\n'
+                'print("R_g == L_conj(g)  :",\n'
+                '      all(oct_torsor_act(t, g) == oct_mult(oct_conjugate(g), t)\n'
+                '          for t in T for g in H))\n'
+                '\n'
+                '# a concrete step: +e5 acted on by +e1 stays in the seam:\n'
+                'print("e5 <| e1 =", oct_torsor_act(5, 1), "(a seam byte in T)")'
+            ),
+        },
+        'explanation': (
+            "WHAT — the RIGHT torsor action t <| g of the quaternion group "
+            "H = {+-e0..+-e3} on the seam coset T = H.e = {+-e4..+-e7} (H's "
+            "set-complement), which is LITERALLY oct_mult(t, g) "
+            "(srmech/math/octonion.py). T carries no distinguished identity, yet H "
+            "acts on it simply-transitively: closure holds because the index lane "
+            "(t&7)^(g&7) keeps bit 2 set (g's index < 4, t's >= 4), so the product "
+            "lands back in T -- measured 64/64 above and 1792/1792 over the 28 "
+            "seams. Class M ∘ I, no abs(); the c_dispatched srmech_oct_mult backs "
+            "it, so NO new C symbol (composition_of_c). WHEN — reach for it to READ "
+            "an oct_mult as a group action on a seam torsor: whenever a quaternion "
+            "subalgebra acts on the octonion units it does NOT contain and you want "
+            "the well-definedness (closure + R_g == L_{conj g}, 1792/1792) rather "
+            "than a bare product. What you would otherwise wrongly hand-roll is "
+            "oct_mult(t, g) with no check that t is a seam element and g a group "
+            "element -- the torsor reading IS exactly that guarantee. SIBLINGS — "
+            "oct_torsor_div (srmech/math/octonion.py) is the inverse, the unique g "
+            "carrying t1 to t2; oct_mult (:139) is the product this is a named "
+            "restriction of, so do not build a second product; oct_conjugate (:176) "
+            "gives the L_{conj g} identity; q8_mult (srmech/biology/q8.py:133) is "
+            "the group's own rung-below product. Do NOT reach for the strict "
+            "3-index seam set instead of this 4-index coset -- it is H-stable only "
+            "1008/1344 and manufactures a seam artifact."
+        ),
+    },
+    'srmech.math.octonion.oct_torsor_div': {
+        'example': {
+            'input': {
+                't1': 5,
+                't2': 6,
+            },
+            'output': (
+                'div(e5, e6) = 3  in H: True  solves e5 <| g == e6: True\n'
+                'simply transitive: True ( 64 pairs)\n'
+                't^8 == conj(t) on T: True'
+            ),
+            'why': (
+                'Because T is a PRINCIPAL right torsor, every ordered (t1, t2) has '
+                'EXACTLY one g in H with t1 <| g == t2 (64/64 unique here, 1792/1792 '
+                'over the 28 seams); div returns it as oct_mult(t1^8, t2), and t1^8 '
+                'IS conj(t1) on T because every seam byte has idx != 0.'
+            ),
+            'worked': (
+                'from srmech.math.octonion import oct_torsor_act, oct_torsor_div, oct_conjugate\n'
+                '\n'
+                'H = [0, 1, 2, 3, 8, 9, 10, 11]\n'
+                'T = [4, 5, 6, 7, 12, 13, 14, 15]\n'
+                '\n'
+                '# div returns the UNIQUE g in H carrying t1 to t2 under the action:\n'
+                't1, t2 = 5, 6                       # +e5, +e6\n'
+                'g = oct_torsor_div(t1, t2)\n'
+                'print("div(e5, e6) =", g, " in H:", g in H,\n'
+                '      " solves e5 <| g == e6:", oct_torsor_act(t1, g) == t2)\n'
+                '\n'
+                '# simple transitivity: EXACTLY one solving g for every ordered (t1, t2):\n'
+                'print("simply transitive:",\n'
+                '      all(sum(1 for gg in H if oct_torsor_act(t1, gg) == t2) == 1\n'
+                '          for t1 in T for t2 in T),\n'
+                '      "(", len(T) * len(T), "pairs)")\n'
+                '\n'
+                '# the op\'s ^8 IS conj on T, because every seam byte has idx != 0:\n'
+                'print("t^8 == conj(t) on T:",\n'
+                '      all((t ^ 8) == oct_conjugate(t) for t in T))\n'
+                '\n'
+                '# the real center is refused (not a torsor element):\n'
+                'oct_torsor_div(0, 5)                # -> ValueError'
+            ),
+        },
+        'explanation': (
+            "WHAT — the RIGHT torsor division: the UNIQUE group element g in H with "
+            "oct_torsor_act(t1, g) == t2, returned as oct_mult(t1^8, t2) "
+            "(srmech/math/octonion.py). Because the seam coset T = H.e is a "
+            "principal right torsor for the quaternion group H, every ordered pair "
+            "(t1, t2) of seam elements has exactly one solving g -- measured 64/64 "
+            "unique above, 1792/1792 over the 28 seams, orbit histogram {1: 1792}. "
+            "By the Moufang left-inverse property that g is conj(t1).t2; on T every "
+            "element is an imaginary unit (idx = t1&7 in {4,5,6,7} != 0), so "
+            "conj(t1) is the branch-free sign flip t1^8 -- which is why the op costs "
+            "one Class-C XOR into the product (10 integer ops) instead of a "
+            "branching oct_conjugate (11). Class C ∘ M, no abs(); the c_dispatched "
+            "srmech_oct_mult backs it, NO new C symbol (composition_of_c). WHEN — "
+            "reach for it to INVERT a seam-torsor action: given where a seam element "
+            "started and where it must land, recover the unique group turn. What you "
+            "would otherwise wrongly hand-roll is oct_mult(oct_conjugate(t1), t2) -- "
+            "correct, but a branch heavier, and it silently accepts the real center "
+            "t1=e0 where conj != ^8; this op refuses idx(t1)==0 for exactly that "
+            "reason. SIBLINGS — oct_torsor_act is the forward action it inverts, so "
+            "do NOT re-solve by brute-force search over H; oct_mult (:139) is the "
+            "product both compose; oct_conjugate (:176) is the branching inverse "
+            "this deliberately does NOT call on the hot path. Do not read the ^8 as "
+            "an abs() -- it is the Class-C sign bit, re-applied by XOR."
+        ),
+    },
     'srmech.biology.q8.q8_bind': {'example': {'input': {'turn, one': 'the codon string ATGGCT as a 6-byte Q8 coset buffer, bound elementwise through an all-+i coupling one, then decoupled with conj(one)'}, 'output': 'turn (ATGGCT as cosets) = [2, 0, 3, 3, 1, 0]\none  (a +i coupling)    = [1, 1, 1, 1, 1, 1]\nq8_bind(turn, one)      = [7, 1, 2, 2, 4, 1]\ndecouple with conj(one) = [2, 0, 3, 3, 1, 0]\nround trip == turn: True\nre-binding the SAME one is NOT the inverse: [6, 4, 7, 7, 5, 4] != turn -> True', 'why': 'The decouple is conj(one), NOT one again: re-binding the same coupling gives [6, 4, 7, 7, 5, 4], which is not the turn — the trap that catches every reader arriving from the Klein-4 XOR bind.', 'worked': "from srmech.biology.q8 import q8_bind, q8_conjugate\nBASES = 'TCAG'; B = {b: i for i, b in enumerate(BASES)}\n\nturn = bytes([B[c] for c in 'ATGGCT'])   # -> [2, 0, 3, 3, 1, 0]\none  = bytes([1, 1, 1, 1, 1, 1])         # a +i coupling invariant\nout  = q8_bind(turn, one)                # -> [7, 1, 2, 2, 4, 1]\n\ninv  = bytes(q8_conjugate(x) for x in one)\nq8_bind(out, inv)                        # -> [2, 0, 3, 3, 1, 0]\nq8_bind(out, inv) == turn                # -> True\nq8_bind(out, one)                        # -> [6, 4, 7, 7, 5, 4]  NOT the turn"}, 'explanation': "WHAT — the elementwise Q8 bind ``out[i] = q8_mult(turn[i], one[i])`` over two equal-length Q8 byte buffers (``srmech/biology/q8.py:195``): ``q8_mult`` in its buffer form, Class M. Same-rc C peer ``srmech_q8_bind``, which additionally documents the out-aliasing contract; the two paths are byte-exact. WHEN — reach for it wherever a whole stored strand must be coupled or decoupled in one call: a genome chromosome's turns against its coupling invariant, an HDC role⊗filler bind on the Q8 carrier, a gauge applied along a buffer. THE CONTRACT THAT BITES, and the reason this entry exists: the bind is a GROUP product, so it is NOT self-inverse. The decouple is ``q8_bind(out, conj(one))``, and re-binding the same ``one`` — the reflex carried over from the Klein-4 XOR bind, where it IS correct — returns something that merely looks plausible, measured above as ``[6, 4, 7, 7, 5, 4]``. What you would otherwise wrongly hand-roll is a Python loop over ``q8_mult``: same arithmetic, but it gives up the native dispatch and the length validation, and a per-element loop is where the aliasing contract gets violated. SIBLINGS — ``q8_mult`` (``srmech/biology/q8.py:133``) is the scalar product; ``q8_conjugate`` (``:169``) supplies the decoupling operand; ``q8_project_v4`` (``:240``) is the exact abelian shadow of this bind and the op to use when you deliberately want the winding gone; ``srmech.math.hdc.klein4_bind`` is the ABELIAN peer whose bind IS self-inverse — that difference is the whole point of having both; ``srmech.math.octonion.oct_bind`` (``srmech/math/octonion.py:202``) is the Cayley–Dickson rung above."},
     'srmech.biology.q8.q8_conjugate': {'example': {'input': {'a': 'every element of Q8 in turn (0..7), plus the three defining checks: a·conj(a) = +1, conj∘conj = id, and the coset lane left untouched'}, 'output': 'conj over the whole group 0..7 = [0, 5, 6, 7, 4, 1, 2, 3]\nconj(+1) = 0 (the center is self-inverse)\nconj(+i) = 5 (-i)   conj(-k) = 3 (+k)\na * conj(a) == 0 (= +1) for every a: True\ninvolution conj(conj(a)) == a: True\nthe coset lane is UNTOUCHED: conj(a)&3 == a&3 -> True', 'why': 'The conjugate flips the SIGN lane and leaves the COSET lane untouched — so it is the group inverse without ever touching the value a genome strand stores.', 'worked': 'from srmech.biology.q8 import q8_mult, q8_conjugate\n\n[q8_conjugate(a) for a in range(8)]      # -> [0, 5, 6, 7, 4, 1, 2, 3]\nq8_conjugate(0)                          # -> 0   the centre is self-inverse\nq8_conjugate(1), q8_conjugate(7)         # -> (5, 3)   +i -> -i,  -k -> +k\nall(q8_mult(a, q8_conjugate(a)) == 0 for a in range(8))     # -> True\nall(q8_conjugate(q8_conjugate(a)) == a for a in range(8))   # -> True\nall(q8_conjugate(a) & 3 == a & 3 for a in range(8))         # -> True'}, 'explanation': 'WHAT — the Q8 conjugate / group inverse (``srmech/biology/q8.py:169``): ``conj(a) = a`` for the centre (coset 0, self-inverse), else ``a ^ 4`` — a single sign-bit flip. It is a Class-C orientation operation written as an explicit XOR, never a Python ``abs()``. Three properties, all measured above rather than asserted: ``q8_mult(a, conj(a)) == 0`` (i.e. ``+1``) for every element, it is an involution, and the COSET lane is untouched (``conj(a) & 3 == a & 3``). WHEN — reach for it to DECOUPLE. Because the Q8 bind is a group product and not a self-inverse XOR, undoing a bind means multiplying by the conjugate of the coupling, not re-applying the coupling — that is the single most consequential difference between this carrier and the Klein-4 one. What you would otherwise wrongly hand-roll is ``a ^ 4`` inline: correct for the six imaginary cosets and WRONG for the centre, where the flip must not happen, and it skips the C peer ``srmech_q8_conjugate``. SIBLINGS — ``q8_mult`` (``srmech/biology/q8.py:133``) is the product this inverts; ``q8_bind`` (``:195``) is the buffer-level bind whose decouple this supplies; ``q8_project_v4`` (``:240``) drops exactly the bit this flips, so the conjugate is INVISIBLE downstream of a projection — do not expect to recover an orientation after projecting. ``srmech.math.octonion.oct_conjugate`` (``srmech/math/octonion.py:176``) is the rung above (4 bits, seven imaginary units); ``srmech.physics.qm.quaternion.quaternion_conjugate`` (``srmech/physics/qm/quaternion.py:394``) is the float-coordinate peer. Do not reach for the Class-C cascade atoms ``chiral_flip`` / ``net_chirality`` here — those act on SEQUENCES of orientations, not on an algebra element.'},
     'srmech.biology.q8.q8_from_one': {'example': {'input': {'one, D': 'the_one(1, 1, 4) — the 1+3+7+3 cascade One — minted as a sectors=8 (OCT) coupling invariant of leaf dimension D = 16'}, 'output': 'q8_from_one(the_one(1,1,4), 16) -> HV(len=16, sectors=8, [6, 2, 4, 1, 3, 3, 3, 0,\nbytes            = [6, 2, 4, 1, 3, 3, 3, 0, 0, 7, 5, 7, 0, 3, 4, 5]\nklein4_from_one  = [2, 2, 0, 1, 3, 3, 3, 0, 0, 3, 1, 3, 0, 3, 0, 1]\nV4 COSET plane: q8_project_v4(q8_from_one) == klein4_from_one -> True\nZ2 SIGN plane (bit 2) = [1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1]\nnot all-positive, so the coupling is a GENUINE non-abelian Q8 one: True\ndeterministic (same One, same D): True', 'why': 'The V4 plane of the minted Q8 one IS klein4_from_one byte-for-byte, and the Z2 sign plane is genuinely mixed — so the coupling is a REAL non-abelian Q8 one, not an all-positive degenerate embedding.', 'worked': 'from srmech.biology.q8 import q8_from_one, q8_project_v4\nfrom srmech.math.hdc import klein4_from_one\nfrom srmech.cascade import the_one\n\none = the_one(1, 1, 4)\nhv  = q8_from_one(one, 16)      # -> HV(len=16, sectors=8, [6, 2, 4, 1, ...])\nhb  = bytes(hv.tobytes())\nlist(hb)          # -> [6, 2, 4, 1, 3, 3, 3, 0, 0, 7, 5, 7, 0, 3, 4, 5]\n\nk4 = bytes(klein4_from_one(one, 16).tobytes())\nlist(k4)          # -> [2, 2, 0, 1, 3, 3, 3, 0, 0, 3, 1, 3, 0, 3, 0, 1]\nbytes(q8_project_v4(hb)) == k4            # -> True   the V4 COSET plane\n[x >> 2 for x in hb]                       # -> the Z2 SIGN plane\nany(x >> 2 for x in hb)                    # -> True   genuinely non-abelian\nbytes(q8_from_one(the_one(1, 1, 4), 16).tobytes()) == hb    # -> True'}, 'explanation': "WHAT — ONE-OCT: the ``One``'s Q8 COUPLING projection (``srmech/biology/q8.py:270``), the Q8 analogue of ``srmech.math.hdc.klein4_from_one``. It mints the ``sectors = 8`` coupling one of leaf dimension ``D`` (bytes 0..7) so a Q8 substrate genome can be minted and read through the ordinary genome API with NO hand-construction. Two DECLARED planes of the One's ``(σ, θ, terms)``: the V4 COSET plane (bits 0..1) IS ``klein4_from_one``'s output — the F380/R21 backward-faithful bridge, so ``q8_project_v4(q8_from_one(one, D)) == klein4_from_one(one, D)`` EXACTLY by construction, measured True above — and the Z2 SIGN plane (bit 2) is a domain-separated Class-A ``klein4_address`` of the SAME One. That second plane is the load-bearing part: it is a declared function of the One, so the minted coupling is a genuine non-abelian Q8 element rather than a Klein-4 one wearing eight sectors. WHEN — reach for it as the FIRST call when minting or reading a Q8 genome: it is the only supported way to obtain a Q8 coupling invariant. What you would otherwise wrongly hand-roll is a klein4 one with the sign bits left at zero, which type-checks, binds, and is an ALL-POSITIVE degenerate coupling whose decouple then coincides with a re-bind — hiding the very asymmetry the carrier exists for. SIBLINGS — ``srmech.math.hdc.klein4_from_one`` is the abelian peer this contains; ``q8_project_v4`` (``srmech/biology/q8.py:240``) is the op that states the bridge; ``q8_bind`` (``:195``) consumes the result; ``srmech.cascade.the_one`` (``srmech/cascade/one.py``) supplies the operand. There is no dedicated C symbol — it is native and pure BY COMPOSITION of ``srmech_klein4_from_one`` + ``srmech_klein4_address``, so a bare-C host mints by the same composition rather than needing a new export."},

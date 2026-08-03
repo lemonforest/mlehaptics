@@ -225,4 +225,4 @@ def test_tool_entries_relocated_and_total_unchanged():
     assert "srmech.math.text.cooccurrence_edges" in names
     assert "srmech.math.text.tokenize" not in names           # retired at rc287
     assert "srmech.math.laplacian.tokenize" not in names      # relocated, not duplicated
-    assert introspect.describe()["tools"]["total"] == 540
+    assert introspect.describe()["tools"]["total"] == 542

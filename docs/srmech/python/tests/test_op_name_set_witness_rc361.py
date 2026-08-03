@@ -45,7 +45,7 @@ MANIFEST = Path(__file__).resolve().parent / "registered_op_names.txt"
 #: Registered public-callable count at rc361. Pinned here only so the failure
 #: message can say "516 -> 517" instead of dumping 516 lines; the SET below is
 #: the actual contract.
-EXPECTED_N = 540
+EXPECTED_N = 542
 
 #: sha256 over the NORMALISED manifest body — "\n".join(sorted names) + "\n",
 #: UTF-8. Normalised rather than raw-file-bytes so a CRLF checkout cannot make
@@ -73,8 +73,12 @@ EXPECTED_N = 540
 # srmech.cascade.group_algebra_table (the wrong-quotient group ring ℝ[ℤ/dim] metric
 # control) — rc360's declared STRUCTURED-negative-control residual, promoted from
 # hand-rolled test code to registered ops. 538 -> 540, digest below.
+# v0.9.0rc388 (`#T963`) — two genuinely NEW ops: srmech.math.octonion.oct_torsor_act
+# (the RIGHT ℍ-torsor action t <| g = oct_mult(t, g) of the quaternion group on a
+# seam coset) and srmech.math.octonion.oct_torsor_div (the unique g with t1 <| g == t2,
+# = oct_mult(t1^8, t2)). 540 -> 542, digest below.
 EXPECTED_NAME_SET_SHA256 = (
-    "867f035df3a53b335542a419259323fd75c8fb685bb07e7a331b1b1a80929bf8")
+    "29fa8eda0a60e79f28806ef26dbd47dc834c1655e5ff0bc86d3ab0a379276dde")
 
 
 def _live_names() -> list[str]:

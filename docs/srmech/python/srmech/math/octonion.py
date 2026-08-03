@@ -47,6 +47,14 @@ A-N placement (per ``[[feedback_no_privileged_primitive_classes]]``):
   encoding BIT computed by ``⊕``, never an ``abs()``).
 - ``oct_conjugate`` — **Class C** (chirality / orientation): the loop inverse,
   ``oct_mult(a, oct_conjugate(a)) == 0`` for every ``a``.
+- ``oct_torsor_act`` / ``oct_torsor_div`` — the RIGHT ``ℍ``-torsor of a seam
+  coset ``T = H·e`` (the 8 signed seam bytes, ``H``'s set-complement). The
+  action ``t <| g = oct_mult(t, g)`` (**Class M ∘ I**, the ``oct_mult`` peer)
+  keeps ``t`` inside ``T`` for every ``g`` in the quaternion group ``H``; the
+  division ``oct_mult(t₁ ^ 8, t₂)`` (**Class C ∘ M**, a sign ⊕ then the peer
+  product) returns the UNIQUE ``g`` with ``t₁ <| g == t₂`` — the torsor is
+  simply transitive. Neither mints a C symbol: both ride the c_dispatched
+  ``srmech_oct_mult`` (``composition_of_c``).
 
 Same-rc C peers (everything-mirrors): ``srmech_oct_mult`` / ``srmech_oct_bind``
 / ``srmech_oct_conjugate`` — byte-for-byte identical with the pure paths here
@@ -245,8 +253,91 @@ def oct_bind(turn: Sequence[int], one: Sequence[int]) -> bytes:
     return bytes(out)
 
 
+def oct_torsor_act(t: int, g: int) -> int:
+    """The RIGHT torsor action ``t <| g`` of the quaternion group ``H`` on a seam
+    coset ``T = H·e`` — literally the loop product ``oct_mult(t, g)``.
+
+    ``T`` (the 8 signed seam bytes ``{±e₄..±e₇}`` on the ``L=(1,2,3)`` line, or
+    the set-complement of any quaternion subalgebra ``H = {±e₀..±e₃}``) is a
+    principal RIGHT torsor for ``H``: right-multiplying a seam element ``t ∈ T``
+    by a group element ``g ∈ H`` lands back in ``T`` (the index lane
+    ``(t&7)^(g&7)`` keeps bit 2 set because ``g``'s index is ``< 4`` and ``t``'s
+    is ``≥ 4``), and the action is simply transitive (:func:`oct_torsor_div`
+    inverts it uniquely). The map is exactly the RIGHT multiplication ``R_g``,
+    which on ``T`` equals the LEFT multiplication by ``conj(g)`` (``R_g ==
+    L_{conj g}`` on ``T``, 1792/1792).
+
+    Class M (loop bind) ∘ Class I (the ⊕ index + the ``Z₂`` sign ⊕; no
+    ``abs()``). ``composition_of_c``: it rides the c_dispatched
+    :func:`oct_mult` (same-rc C peer ``srmech_oct_mult``) and mints NO new C
+    symbol — the "torsor action" is a NAMED reading of ``oct_mult`` restricted
+    to ``(t ∈ T, g ∈ H)``, not a new product.
+
+    Args:
+        t: The seam element being acted on — an octonion byte in ``[0, 16)``
+            (a torsor element ``t ∈ T`` in the intended reading).
+        g: The group element acting on the right — an octonion byte in
+            ``[0, 16)`` (a quaternion group element ``g ∈ H`` in the reading).
+
+    Returns:
+        The acted element ``t <| g = oct_mult(t, g)`` as an octonion byte.
+
+    Raises:
+        ValueError: if ``t`` or ``g`` is not a valid octonion element.
+    """
+    ti = _check_element(t, "oct_torsor_act")
+    gi = _check_element(g, "oct_torsor_act")
+    return oct_mult(ti, gi)
+
+
+def oct_torsor_div(t1: int, t2: int) -> int:
+    """The RIGHT torsor division: the UNIQUE group element ``g ∈ H`` with
+    ``t1 <| g == t2``, computed as ``oct_mult(t1 ^ 8, t2)``.
+
+    Because the seam coset ``T = H·e`` is a PRINCIPAL right torsor for the
+    quaternion group ``H``, for any two seam elements ``t1, t2 ∈ T`` there is
+    exactly one ``g ∈ H`` carrying ``t1`` to ``t2`` under
+    :func:`oct_torsor_act` (orbit histogram ``{1: 1792}`` over the 28 seams).
+    By the Moufang left-inverse property ``t1⁻¹·(t1·g) = g``, that ``g`` is
+    ``conj(t1)·t2``. On ``T`` every element is an IMAGINARY unit (``idx(t1) =
+    t1 & 7 ∈ {4,5,6,7} ≠ 0``), so ``conj(t1)`` is the branch-free sign flip
+    ``t1 ^ 8`` — which is why the op is ``t1 ^ 8`` (one Class-C ⊕) fed to the
+    product (10 integer ops), NOT a branching :func:`oct_conjugate` call (11).
+    The result lands in ``H`` (its index ``(t1&7)^(t2&7)`` clears bit 2, both
+    operands having it set).
+
+    Class C (the sign ⊕) ∘ Class M (the loop bind). ``composition_of_c``: it
+    rides the c_dispatched :func:`oct_mult` (``srmech_oct_mult``) after one
+    XOR and mints NO new C symbol.
+
+    Args:
+        t1: The source seam element — an octonion byte in ``[0, 16)`` with a
+            NON-zero index (``t1 & 7 != 0``), i.e. an imaginary unit / torsor
+            element, so that ``t1 ^ 8`` IS ``conj(t1)``.
+        t2: The target seam element — an octonion byte in ``[0, 16)``.
+
+    Returns:
+        The unique ``g ∈ H`` with ``oct_torsor_act(t1, g) == t2``, as a byte.
+
+    Raises:
+        ValueError: if ``t1`` or ``t2`` is not a valid octonion element, or if
+            ``idx(t1) == 0`` (the real center is not a torsor element, and
+            ``t1 ^ 8`` would not equal ``conj(t1)`` there).
+    """
+    a = _check_element(t1, "oct_torsor_div")
+    b = _check_element(t2, "oct_torsor_div")
+    if (a & 7) == 0:
+        raise ValueError(
+            "oct_torsor_div: t1 must be an imaginary unit (idx != 0) so that "
+            f"t1 ^ 8 == conj(t1); the real center {t1!r} is not a torsor element"
+        )
+    return oct_mult(a ^ 8, b)
+
+
 __all__ = [
     "oct_bind",
     "oct_conjugate",
     "oct_mult",
+    "oct_torsor_act",
+    "oct_torsor_div",
 ]
