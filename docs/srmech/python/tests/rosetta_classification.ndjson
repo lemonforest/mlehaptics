@@ -7,6 +7,8 @@
 {"exposed_as": "srmech.cascade.cd_mult", "defined_at": "srmech.cascade.cayley_dickson.cd_mult", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.cascade.cd_norm_sq", "defined_at": "srmech.cascade.cayley_dickson.cd_norm_sq", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.cascade.algebra_table", "defined_at": "srmech.cascade.cayley_dickson.algebra_table", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.cascade.flip_pair", "defined_at": "srmech.cascade.cayley_dickson.flip_pair", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.cascade.group_algebra_table", "defined_at": "srmech.cascade.cayley_dickson.group_algebra_table", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.cascade.table_product", "defined_at": "srmech.cascade.cayley_dickson.table_product", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.cascade.associator", "defined_at": "srmech.cascade.cayley_dickson.associator", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.cascade.cd_commutator", "defined_at": "srmech.cascade.cayley_dickson.cd_commutator", "bucket": "composition_of_c"}

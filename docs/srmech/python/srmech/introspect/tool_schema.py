@@ -8121,6 +8121,106 @@ def _register_primitive_class_tools() -> None:
                            "±1 on the 7 Fano associative planes when x,y,z are "
                            "distinct imaginary basis units, 0 off them"),
         ),
+        # rc387 (`#T1037`, closing `#T1032`): the TWO STRUCTURED negative controls
+        # that rc360 declared as its residual — hand-rolled in a test file for want
+        # of a constructor. Both are structure-TABLE controls, siblings of
+        # algebra_table / table_product, consumable by associator +
+        # inertia_signature. flip_pair is the ONLY flexibility control (a constant
+        # 4 per rung, signature UNCHANGED); group_algebra_table is the METRIC
+        # control (0 bite on the laws, signature split). composition_of_c, like
+        # their neighbour associator; NO new C symbol.
+        ToolEntry(
+            name="srmech.cascade.flip_pair", owner="srmech",
+            category="cascade",
+            summary="The definite Cayley–Dickson ladder table with e_i·e_j AND "
+                    "e_j·e_i NEGATED — the ONE-NAMED-BIT flexibility control. A "
+                    "sibling of algebra_table / group_algebra_table: it returns the "
+                    "same dim × dim × dim structure-constant tensor that "
+                    "table_product / associator / inertia_signature read. The base "
+                    "is algebra_table(dim) — the definite ladder ℝ→ℂ→ℍ→𝕆→𝕊…, "
+                    "C-dispatched bit-for-bit — and the ONLY change is a single "
+                    "Class-C sign reorientation at the two off-diagonal cells "
+                    "(i, j) and (j, i) on the shared monomial index lane i⊕j. WHY "
+                    "IT SHIPS: it is the ONLY control that breaks FLEXIBILITY, and "
+                    "by a CONSTANT — the flexible law (x,y,x)=0 holds on every rung "
+                    "of the ladder AND on every γ-twist algebra_table builds, so no "
+                    "γ-twist can be the flexibility control; one named flip breaks "
+                    "it at EXACTLY 4 of the dim³ ordered basis triples, uniformly "
+                    "over every admissible pair (4/64 at dim 4, 4/512 at dim 8, "
+                    "4/4096 at dim 16), MEASURED through associator. THE INERTIA "
+                    "SIGNATURE IS UNCHANGED BY CONSTRUCTION: inertia_signature reads "
+                    "the TRACE form Re(x·x), which sees only the DIAGONAL, and the "
+                    "flip touches only strictly-off-diagonal cells (i≠j) — so the "
+                    "signature stays (1,1,0)/(1,3,0)/(1,7,0)/(1,15,0), identical to "
+                    "the ladder. It moves the FLEXIBILITY law while holding the "
+                    "METRIC fixed; group_algebra_table does the exact opposite. "
+                    "Exact integers, no float, no abs(). NO new C symbol — the heavy "
+                    "lift is algebra_table (c_dispatched srmech_algebra_table); the "
+                    "sign flip is reorient (c_dispatched srmech_cascade_reorient_i64) "
+                    "— composition_of_c. Class C ∘ algebra_table. SSoT: Schafer "
+                    "(1966) §III.5 (the flexible law)."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("dim", "int", True,
+                  "a power of two in [1, ALGEBRA_TABLE_MAX_DIM=64] — the "
+                  "algebra_table materialisation ceiling on the dim³ tensor"),
+                P("i", "int", True,
+                  "the first imaginary basis index in (0, dim)"),
+                P("j", "int", True,
+                  "the second imaginary basis index in (0, dim); must be DISTINCT "
+                  "from i — a same-index flip would move the diagonal (the trace "
+                  "form) and change the signature, defeating the control"),
+            ),
+            returns=R("list", "dim × dim × dim nested list[int] — the definite "
+                              "ladder table with the two named cells negated"),
+        ),
+        ToolEntry(
+            name="srmech.cascade.group_algebra_table", owner="srmech",
+            category="cascade",
+            summary="The structure-constant table of the group ring ℝ[ℤ/dim] — the "
+                    "WRONG-QUOTIENT control. A sibling of algebra_table / flip_pair: "
+                    "same dim × dim × dim tensor, consumable by table_product / "
+                    "associator / inertia_signature. Where algebra_table builds the "
+                    "Cayley–Dickson cocycle on the XOR index lane e_i·e_j = ±e_{i⊕j} "
+                    "(the group (ℤ/2)^k), this builds the CYCLIC group ring: lane "
+                    "(i+j) mod dim and ALL signs +1 — the SAME dimension carrying a "
+                    "DIFFERENT group (ℤ/dim and (ℤ/2)^k coincide only at dim 2; for "
+                    "dim ≥ 4 they are genuinely different quotients, which is what "
+                    "'wrong quotient' names). WHY IT SHIPS: it is the METRIC control, "
+                    "the complement of flip_pair. The group ring is commutative and "
+                    "associative with a trivial (all +1) cocycle, so it has ZERO "
+                    "bite on the associativity laws — flexible and fully associative "
+                    "at every rung — and its whole bite is on the METRIC: "
+                    "inertia_signature reads the trace form as "
+                    "(2,0,0)/(3,1,0)/(5,3,0)/(9,7,0) at dim 2/4/8/16 vs the ladder's "
+                    "(1,1,0)/(1,3,0)/(1,7,0)/(1,15,0), because e_i·e_i = +e_{2i mod "
+                    "dim} places the real diagonal on a different index set. "
+                    "MEASURED through the shipped ops. ⚠️ THE TAUTOLOGY IT INVITES, "
+                    "LABELLED AS ONE: 'the wrong-quotient associator differs from the "
+                    "ladder's on 168/512 (dim 8) / 1848/4096 (dim 16)' is a FORCED "
+                    "IDENTITY — the group ring's own associator is identically 0, so "
+                    "it differs EXACTLY where the ladder fails to associate; that "
+                    "count IS the ladder's non-associating census (512−344=168) "
+                    "wearing a different name and carries NO information about the "
+                    "control. Use it for the METRIC contrast, never for a "
+                    "'differs-from-ladder' count. Exact integers, no float, no "
+                    "abs(). NO new C symbol — the lane (i+j) mod dim is "
+                    "cyclic.mod_add (c_dispatched srmech_mod_add), so "
+                    "composition_of_c; hand-rolling (i+j)%dim would be a Python-only "
+                    "kernel the standalone-C ledger forbids. Class I (cyclic). SSoT: "
+                    "Lang, *Algebra* (GTM 211, 2002) §II.3; Springer & Veldkamp "
+                    "(2000) §1.5–1.7."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("dim", "int", True,
+                  "a power of two in [1, ALGEBRA_TABLE_MAX_DIM=64] — mirrors "
+                  "algebra_table so the control sits beside the ladder at matched "
+                  "rungs (dim 2/4/8/16), same dimension and a different group"),
+            ),
+            returns=R("list", "dim × dim × dim nested list[int] — the monomial "
+                              "cyclic-convolution tensor, table[i][j][(i+j) mod "
+                              "dim] = 1"),
+        ),
         # rc383 (`#T1054`): the whole property-loss LADDER read in one pass + a
         # per-rung PROJECTOR. Composes associator / cd_commutator /
         # cd_cycle_holonomy over the SAME three inputs and returns only the

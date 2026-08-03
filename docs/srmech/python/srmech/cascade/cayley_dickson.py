@@ -90,7 +90,10 @@ from .atoms import (      # Class-K pin-slot / Class-C reorient
     pin_slot_at_zero as _pin_slot_at_zero,
     reorient as _reorient,
 )
-from srmech.math.cyclic import gcd as _gcd   # Class-I gcd (native); NOT stdlib math
+from srmech.math.cyclic import (              # Class-I cyclic (native); NOT stdlib
+    gcd as _gcd,
+    mod_add as _mod_add,                      # (i+j) mod n — the group-ring lane
+)
 from srmech.math.q import Q, to_q            # #845: the CD element carrier is Q
 
 from srmech import _native  # rc10: native srmech_cd_basis_product dispatch
@@ -793,6 +796,174 @@ def algebra_table(dim: int, gammas: Any = None) -> List[List[List[int]]]:
         for j in range(dim):
             idx, sign = _gamma_basis_product(dim, g, i, j)
             table[i][j][idx] = sign
+    return table
+
+
+def flip_pair(dim: int, i: int, j: int) -> List[List[List[int]]]:
+    """The definite Cayley–Dickson ladder table with ``e_i·e_j`` **and**
+    ``e_j·e_i`` NEGATED — the ONE-NAMED-BIT flexibility control (rc387,
+    ``#T1037``; the STRUCTURED residual ``#T1032`` declared at rc360).
+
+    A sibling of :func:`algebra_table` / :func:`group_algebra_table`: it returns
+    the same ``dim × dim × dim`` rank-3 structure-constant tensor
+    (``table[i][j][k]`` = coefficient of ``e_k`` in ``e_i·e_j``) that
+    :func:`table_product`, :func:`associator` and :func:`inertia_signature`
+    read. The base is :func:`algebra_table` ``(dim)`` — the definite ladder
+    ℝ→ℂ→ℍ→𝕆→𝕊…, C-dispatched bit-for-bit — and the ONLY change is a single
+    Class-C sign reorientation applied at the two off-diagonal cells ``(i, j)``
+    and ``(j, i)``, both on the shared index lane ``i ⊕ j`` (the CD product is
+    monomial, ``e_i·e_j = ±e_{i⊕j}``, so each cell has exactly one nonzero
+    coefficient).
+
+    **WHY IT SHIPS: it is the ONLY control that breaks FLEXIBILITY, and by a
+    CONSTANT.** The flexible law ``(x, y, x) = 0`` (equivalently the linearised
+    ``(x, y, z) + (z, y, x) = 0``) holds on every rung of the definite ladder
+    and on every γ-twist :func:`algebra_table` builds — the whole γ-family is
+    flexible, so none of them can be the flexibility negative control. One
+    named sign flip breaks it at **exactly 4 of the ``dim³`` ordered basis
+    triples, uniformly over every admissible pair** — 4/64 at dim 4, 4/512 at
+    dim 8, 4/4096 at dim 16 — MEASURED through :func:`associator` in
+    ``docs/srmech/notes/cd_controls_rc387.py``. The constant is the control's
+    signature: it isolates a flexibility defect with no dependence on which
+    pair was flipped.
+
+    **The inertia signature is UNCHANGED, by construction — and that is what
+    makes the attribution clean.** :func:`inertia_signature` reads the TRACE
+    form ``Re(x·x)``, which sees only the DIAGONAL cells ``(k, k)``; a flip
+    touches only the strictly off-diagonal ``(i, j)`` / ``(j, i)`` with
+    ``i ≠ j``, so the diagonal — and therefore the signature ``(1, 1, 0)`` /
+    ``(1, 3, 0)`` / ``(1, 7, 0)`` / ``(1, 15, 0)`` at dim 2/4/8/16 — is
+    identical to the definite ladder's. So this control moves the FLEXIBILITY
+    law while holding the METRIC fixed; its complement
+    :func:`group_algebra_table` does the exact opposite.
+
+    Args:
+        dim: a power of two in ``[1, ALGEBRA_TABLE_MAX_DIM]`` (the
+            :func:`algebra_table` materialisation ceiling — it bounds the
+            ``dim³`` tensor, not the cocycle).
+        i, j: the two DISTINCT imaginary basis indices to flip, each in
+            ``(0, dim)``. ``i == j`` is rejected — the flip is defined on an
+            off-diagonal pair (a same-index flip would move the diagonal and
+            so change the signature, defeating the control).
+
+    Returns:
+        ``dim × dim × dim`` nested ``list[int]`` — the definite ladder table
+        with the two named cells negated.
+
+    Raises:
+        ValueError: ``dim`` not a power of two in range, ``i`` or ``j`` outside
+            ``(0, dim)``, or ``i == j``.
+
+    Note:
+        ``composition_of_c`` — NO new C symbol. The heavy lift is
+        :func:`algebra_table` (the C-dispatched ``srmech_algebra_table``
+        cocycle engine); the sign flip is :func:`srmech.cascade.reorient`, the
+        C-dispatched Class-C reorientation (``srmech_cascade_reorient_i64``),
+        never ``abs()`` and never a bare negation. Exact integers throughout.
+        Class C ∘ ``algebra_table``.
+
+    Canonical SSoT:
+    - Schafer, R.D. (1966), *An Introduction to Nonassociative Algebras*, §III.5
+      — the flexible law and its linearisation.
+    - ``[[feedback_negative_controls_for_carrier_claims_split_octonion_and_random_anticommutative]]``
+    """
+    if not _is_pow2(dim) or dim > ALGEBRA_TABLE_MAX_DIM:
+        raise ValueError(
+            f"flip_pair: dim must be a power of two ≤ "
+            f"ALGEBRA_TABLE_MAX_DIM={ALGEBRA_TABLE_MAX_DIM}; got {dim}")
+    if not (0 < i < dim and 0 < j < dim):
+        raise ValueError(
+            f"flip_pair: i and j must be imaginary basis indices in (0, {dim}); "
+            f"got i={i}, j={j}")
+    if i == j:
+        raise ValueError(
+            f"flip_pair: i and j must be DISTINCT — a same-index flip moves the "
+            f"diagonal (the trace form) and so changes the inertia signature, "
+            f"which is exactly the control this op is built NOT to disturb; "
+            f"got i == j == {i}")
+    table = [[list(row) for row in plane] for plane in algebra_table(dim)]
+    lane = i ^ j                              # the monomial index lane i⊕j
+    # Class-C sign reorientation at the two off-diagonal cells — never a bare
+    # magnitude strip (`[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]`).
+    table[i][j][lane] = _reorient(table[i][j][lane], orientation=-1)
+    table[j][i][lane] = _reorient(table[j][i][lane], orientation=-1)
+    return table
+
+
+def group_algebra_table(dim: int) -> List[List[List[int]]]:
+    """The structure-constant table of the group ring ``ℝ[ℤ/dim]`` — the
+    WRONG-QUOTIENT control (rc387, ``#T1037``; the STRUCTURED residual
+    ``#T1032`` declared at rc360).
+
+    A sibling of :func:`algebra_table` / :func:`flip_pair`: same
+    ``dim × dim × dim`` rank-3 tensor, consumable by :func:`table_product`,
+    :func:`associator` and :func:`inertia_signature`. Where
+    :func:`algebra_table` builds the Cayley–Dickson cocycle on the index lane
+    ``e_i·e_j = ±e_{i⊕j}`` (the XOR group ``(ℤ/2)^k``), this builds the CYCLIC
+    group ring instead: lane ``(i + j) mod dim`` and **all signs +1**. It is
+    the SAME dimension carrying a DIFFERENT group — for ``dim ≥ 4`` the cyclic
+    ``ℤ/dim`` and the XOR ``(ℤ/2)^k`` are genuinely different quotients (they
+    coincide only at ``dim = 2``), which is what "wrong quotient" names.
+
+    **WHY IT SHIPS: it is the METRIC control, the complement of
+    :func:`flip_pair`.** The group ring is commutative and associative with a
+    trivial (all +1) cocycle, so it has **zero bite on the associativity laws**
+    — flexible and fully associative at every rung, unlike the octonion ladder.
+    Its bite is entirely on the METRIC: :func:`inertia_signature` reads the
+    TRACE form as ``(2, 0, 0)`` / ``(3, 1, 0)`` / ``(5, 3, 0)`` / ``(9, 7, 0)``
+    at dim 2/4/8/16 — versus the definite ladder's ``(1, 1, 0)`` /
+    ``(1, 3, 0)`` / ``(1, 7, 0)`` / ``(1, 15, 0)`` — because ``e_i·e_i =
+    +e_{2i mod dim}`` places the real-part diagonal on a different set of
+    indices. MEASURED through the shipped ops in
+    ``docs/srmech/notes/cd_controls_rc387.py``.
+
+    **The tautology this control invites, LABELLED as one.** "The wrong-quotient
+    associator differs from the ladder's on ``dim³ − assoc`` triples" (168/512
+    at dim 8, 1848/4096 at dim 16) is a FORCED IDENTITY, not a finding: the
+    group ring's OWN associator is identically zero (it is associative), so it
+    differs from the ladder EXACTLY where the ladder fails to associate. That
+    count IS the ladder's non-associating census (``512 − 344 = 168``) wearing
+    a different name; it carries no information about the control. Use the group
+    ring for the METRIC contrast (the signatures above), never for a "differs
+    from the ladder" count.
+
+    Args:
+        dim: a power of two in ``[1, ALGEBRA_TABLE_MAX_DIM]`` — mirrors
+            :func:`algebra_table`, so the control sits beside the ladder at
+            matched rungs (``dim = 2, 4, 8, 16``) where the two quotients are
+            most sharply the same dimension and a different group.
+
+    Returns:
+        ``dim × dim × dim`` nested ``list[int]`` — the monomial cyclic-convolution
+        tensor, ``table[i][j][(i+j) mod dim] = 1``.
+
+    Raises:
+        ValueError: ``dim`` not a power of two in range.
+
+    Note:
+        ``composition_of_c`` — NO new C symbol. The lane ``(i + j) mod dim`` is
+        :func:`srmech.math.cyclic.mod_add`, the C-dispatched Class-I modular add
+        (``srmech_mod_add``); hand-rolling ``(i + j) % dim`` would make the op a
+        Python-only kernel with no C twin, which the standalone-C ledger
+        forbids. Exact integers; no float, no ``abs()``. Class I (cyclic).
+
+    Canonical SSoT:
+    - Lang, S. (2002), *Algebra* (3rd ed., GTM 211), §II.3 — the group ring
+      ``R[G]`` and its structure constants.
+    - Springer, T.A. & Veldkamp, F.D. (2000), *Octonions, Jordan Algebras and
+      Exceptional Groups*, §1.5–1.7 — why a composition algebra is NOT a group
+      ring (the contrast this control draws).
+    - ``[[feedback_negative_controls_for_carrier_claims_split_octonion_and_random_anticommutative]]``
+    """
+    if not _is_pow2(dim) or dim > ALGEBRA_TABLE_MAX_DIM:
+        raise ValueError(
+            f"group_algebra_table: dim must be a power of two ≤ "
+            f"ALGEBRA_TABLE_MAX_DIM={ALGEBRA_TABLE_MAX_DIM}; got {dim}")
+    table = [[[0] * dim for _ in range(dim)] for _ in range(dim)]
+    for i in range(dim):
+        for j in range(dim):
+            lane = _mod_add(i, j, dim)        # Class-I cyclic (i+j) mod dim
+            table[i][j][lane] = 1
     return table
 
 

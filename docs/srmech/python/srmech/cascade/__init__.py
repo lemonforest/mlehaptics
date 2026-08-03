@@ -221,6 +221,8 @@ from .cayley_dickson import (
     left_mult_is_invertible,
     inertia_signature,
     algebra_table,
+    flip_pair,
+    group_algebra_table,
     table_product,
     associator,
     cd_commutator,
@@ -380,6 +382,10 @@ __all__ = [
     # The gamma-parameterised CD control constructor (rc352; `#T997`)
     "ALGEBRA_TABLE_MAX_DIM",
     "algebra_table",
+    # The two STRUCTURED negative controls — one-named-bit flexibility break +
+    # the wrong-quotient group ring ℝ[ℤ/dim] (rc387; `#T1037`, closing `#T1032`)
+    "flip_pair",
+    "group_algebra_table",
     "table_product",
     # The associativity DEFECT (rc360; `#T1032`)
     "associator",
