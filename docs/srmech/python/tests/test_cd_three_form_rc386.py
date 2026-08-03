@@ -29,7 +29,6 @@ numpy-free (srmech + stdlib only); mirrors notes/cd_three_form_rc386.py.
 from __future__ import annotations
 
 import json
-from fractions import Fraction as Fr
 from itertools import combinations, permutations, product
 from pathlib import Path
 
@@ -78,7 +77,7 @@ def _generic_triples():
     octs = []
     idx = 0
     while len(octs) < 60:
-        v = [Fr(x) for x in vals[idx:idx + 8]]
+        v = [Q(x) for x in vals[idx:idx + 8]]
         idx += 8
         if any(v[m] != 0 for m in range(4)) and any(v[m] != 0 for m in range(4, 8)):
             octs.append(tuple(v))
@@ -181,11 +180,11 @@ def test_g2_invariance():
     def Dact(D, e):
         out = []
         for r in range(8):
-            s = Fr(0)
+            s = Q(0)
             for c in range(8):
                 val = float(D[r][c])
                 assert val == int(round(val)), "derivation entries must be integers"
-                s += Fr(int(round(val))) * e[c]
+                s += Q(int(round(val))) * e[c]
             out.append(s)
         return tuple(out)
 
