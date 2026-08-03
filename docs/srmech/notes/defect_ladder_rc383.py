@@ -114,6 +114,48 @@ for dim in (2, 4, 8, 16):
 
 
 # ──────────────────────────────────────────────────────────────────────
+# 1b. Arity-4 REFUTED as a fifth rung. The conjectured "square-loop" — the 5
+#     Catalan bracketings of four inputs (a·b·c·d) — is measured SEPARATELY (a
+#     4-input bracketing test via cd_mult, NOT a defect_ladder call: the op reads
+#     four defects on THREE inputs). It turns on at 𝕆 (not one rung later) and is
+#     fully INHERITED from the arity-3 associator — a 4-tuple's bracketings
+#     disagree ⟺ some sub-triple non-associates — so raising the arity adds no new
+#     property and there is NO arity-4 rung. All-basis census (dim^4, the table's
+#     convention): 0/256 at ℍ, 2520/4096 at 𝕆.
+# ──────────────────────────────────────────────────────────────────────
+def square_loop_divergent(dim: int) -> tuple:
+    """Basis 4-tuples whose 5 Catalan bracketings of a·b·c·d disagree — the
+    arity-4 'square-loop' divergence, via cd_mult (Class M)."""
+    e = [cd_basis(dim, i) for i in range(dim)]
+    div = 0
+    for a in e:
+        for b in e:
+            ab = cd_mult(a, b)
+            for c in e:
+                bc = cd_mult(b, c)
+                abc = cd_mult(ab, c)
+                a_bc = cd_mult(a, bc)
+                for d in e:
+                    cd = cd_mult(c, d)
+                    br = (cd_mult(abc, d), cd_mult(a_bc, d), cd_mult(ab, cd),
+                          cd_mult(a, cd_mult(bc, d)), cd_mult(a, cd_mult(b, cd)))
+                    if any(br[0] != k for k in br[1:]):
+                        div += 1
+    return div, len(e) ** 4
+
+
+for dim in (4, 8):
+    div, tot = square_loop_divergent(dim)
+    emit("arity4_square_loop_refutation", dim=dim,
+         algebra=defect_ladder(cd_basis(dim, 0), cd_basis(dim, 0),
+                               cd_basis(dim, 0))["algebra"],
+         divergent=div, total=tot, turns_on=(div > 0),
+         is_new_arity4_rung=False,
+         note="inherited from the arity-3 associator; turns on at 𝕆, not one "
+              "rung later, so there is no arity-4 rung")
+
+
+# ──────────────────────────────────────────────────────────────────────
 # 2a. QM — measurement projection (the LITERAL projector). Exact-ℚ via QMat.
 # ──────────────────────────────────────────────────────────────────────
 # Declared superposition |ψ⟩ = (3/5)|0⟩ + (4/5)|1⟩ (real, normalized) — the
