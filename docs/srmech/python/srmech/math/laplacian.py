@@ -7667,7 +7667,10 @@ def generalized_ngon(
         eigenvalues = sorted(round(float(x), 6) for x in ev)
         distinct_eigenvalues = []
         for x in eigenvalues:
-            if not distinct_eigenvalues or abs(x - distinct_eigenvalues[-1]) > 1e-6:
+            # eigenvalues is sorted ascending, so x >= the last kept value: the gap
+            # is non-negative by construction and needs no abs() (a Class-K magnitude
+            # would be a no-op here — there is no sign to re-apply).
+            if not distinct_eigenvalues or (x - distinct_eigenvalues[-1]) > 1e-6:
                 distinct_eigenvalues.append(x)
         n_distinct = len(distinct_eigenvalues)
         spectral_consistent = (connected and n_distinct == diameter + 1)
