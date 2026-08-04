@@ -94,7 +94,10 @@ warmup_all()
 CEIL_EXAMPLE_INPUT_KEY_MISMATCH: Dict[str, int] = {
     "mixed_param_and_prose": 15,
     "missing_required": 6,
-    "zero_param_with_keys": 11,
+    # rc395 (`#T1000`): 11 -> 10. The removed sedenion_zero_divisor_witness was a
+    # zero-parameter op carrying a numbered {"1".."4"} example input; its removal
+    # drains one row from this bucket, so the ceiling is lowered in the same commit.
+    "zero_param_with_keys": 10,
     "all_prose_labels": 70,
     "numeric_call_index": 87,
 }

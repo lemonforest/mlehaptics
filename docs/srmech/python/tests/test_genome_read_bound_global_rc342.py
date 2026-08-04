@@ -759,15 +759,15 @@ def test_rc342_introduces_no_new_status_enumerator_and_does_not_move_the_abi():
     """rc342 adds no exported symbol, changes no exported signature, removes
     nothing, and adds no callback typedef — every function it introduced or
     re-shaped is ``static``. The rejection reuses ``SRMECH_ERR_BAD_INPUT``, already
-    in every touched export's documented error set. So ``SRMECH_ABI_VERSION`` stays
-    10.
+    in every touched export's documented error set. So ``SRMECH_ABI_VERSION`` did not move at
+    rc342 (rc395 later moved it 10 -> 11 by removing srmech_cd_zero_divisor_witness).
 
     If a later change routes this bound through a NEW status, this fails and the
     ABI question has to be answered deliberately rather than by omission.
     """
     _requires_native()
-    assert _native.EXPECTED_ABI_VERSION == 10, (
-        "rc342 is ABI-neutral; a bump here needs its own justification")
+    assert _native.EXPECTED_ABI_VERSION == 11, (
+        "rc342 is ABI-neutral (rc395 moved the baseline 10 -> 11); a bump here needs its own justification")
     assert _native.NATIVE_ABI_VERSION == _native.EXPECTED_ABI_VERSION, (
         "the loaded library's ABI does not match the one this shim compiled "
         "against — a stale .so, which would make every assertion above a "

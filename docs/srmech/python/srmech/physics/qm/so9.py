@@ -862,7 +862,7 @@ def sedenion_holonomy_conjecture() -> dict:
     The dimension coincidence ``16 = 16`` is a shared carrier, not a shared
     symmetry. (References: the shipped ``O``-side no-frame-free-invariant
     result and :mod:`srmech.cascade.cayley_dickson`'s ``𝕆``-reversible /
-    ``𝕊``-not tower + :func:`~srmech.cascade.cayley_dickson.sedenion_zero_divisor_witness`.)
+    ``𝕊``-not tower + :func:`~srmech.cascade.cayley_dickson.cd_zero_divisor_witness`.)
 
     Class D (the derivation-residual detection + the intersection) ∘ Class L
     (the exact-ℚ rank / nullspace) ∘ Class K (the residual magnitude; never

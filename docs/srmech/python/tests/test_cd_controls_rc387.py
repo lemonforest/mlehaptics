@@ -26,7 +26,7 @@ Genuine checks (NOT smoke tests), reproduced THROUGH the shipped ``associator`` 
      non-associating census (a forced identity, carries no information).
   7. guards + the pure/c_dispatched co-equal dual-construction oracle.
   8. registration ratchet (__all__ / Rosetta composition_of_c / op-name list /
-     describe() total 543) + a no-abs() source guard.
+     describe() total 544) + a no-abs() source guard.
 
 numpy-free (srmech + stdlib only); NO stdlib fractions — the CD element carrier is
 srmech.math.q.Q. Mirrors notes/cd_controls_rc387.py.
@@ -220,7 +220,7 @@ def test_registration_ratchet():
     assert "group_algebra_table" in C.__all__
     from srmech.introspect.tool_schema import tool_schema_view
     view = tool_schema_view()
-    assert len(view["tools"]) == 543
+    assert len(view["tools"]) == 544
     names = {t["name"] for t in view["tools"]}
     assert "srmech.cascade.flip_pair" in names
     assert "srmech.cascade.group_algebra_table" in names

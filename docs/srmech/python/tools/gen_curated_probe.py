@@ -185,7 +185,7 @@ def _worked_ns():
         cd_register, cd_uncouple_working, hypercomplex_couple,
         hypercomplex_exp, inertia_signature, is_division_algebra_dim,
         left_mult_is_invertible, left_mult_kernel, sedenion_register,
-        sedenion_zero_divisor_witness, table_product, the_one,
+        cd_zero_divisor_witness, table_product, the_one,
     )
     from srmech.physics.qm.octonion import octonion_mult_table
     from srmech.physics.qm.quaternion import quaternion_mult_table
@@ -209,7 +209,7 @@ def _worked_ns():
         return bases[(i >> 4) & 3] + bases[(i >> 2) & 3] + bases[i & 3]
 
     ns = dict(locals())
-    ns["ZD"] = sedenion_zero_divisor_witness()
+    ns["ZD"] = cd_zero_divisor_witness(16)         # rc395: dim-general successor
     ns["O8"] = algebra_table(8)
     ns["SPLIT8"] = algebra_table(8, gammas=[1, -1, -1])
     return ns
@@ -508,34 +508,11 @@ WORKED = [
      "cd_promote is exact, and truncation is not reachable."),
 
     # ── the Hurwitz wall ──────────────────────────────────────────────
-    ("srmech.cascade.sedenion_zero_divisor_witness", [
-        ("1", "{k: ZD[k] for k in ('dim','x_form','y_form','x_norm_sq',"
-              "'y_norm_sq','product_is_zero')}"),
-        ("2", "cd_mult(ZD['x'], ZD['y'])"),
-        ("3", "left_mult_is_invertible(ZD['x'])"),
-        ("4", "sedenion_register(D=8192).is_navigable(ZD['x'])"),
-    ],
-     "WHAT — a CONCRETE sedenion zero divisor: x = e1 + e10 and "
-     "y = e4 − e15, both of norm 2, whose product is exactly zero — found "
-     "by searching OUR OWN multiplication table, not transcribed from the "
-     "literature. Zero arguments; it is a constant of the algebra. "
-     "WHEN — reach for it whenever you need the executable form of 'zero "
-     "divisors first appear at 16 and never heal': as a fixture for a test, "
-     "as the input that makes ``left_mult_kernel`` non-empty, or as the "
-     "non-navigable composite direction a register refuses. What you would "
-     "otherwise wrongly hand-roll is a brute-force search over dim-16 pairs "
-     "— which is also the wrong shape of search, because zero divisors are "
-     "MEASURE-ZERO (``left_mult_is_invertible`` returned True on 300/300 "
-     "random dim-16 elements), so a random hunt finds nothing. "
-     "SIBLINGS — ``is_division_algebra_dim`` states the same boundary as a "
-     "predicate over dims; ``left_mult_kernel`` / "
-     "``left_mult_is_invertible`` test an element you supply; "
-     "``algebra_table(8, gammas=[1,-1,-1])`` exhibits zero divisors at dim "
-     "8 instead, which is the honest way to get one BELOW the wall.",
-     "The wall, executed and reusable: two norm-2 sedenions with product "
-     "zero, and the same x is both the non-invertible left multiplier and "
-     "the direction a sedenion register declines to navigate."),
-
+    # (rc395, `#T1000`) the srmech.cascade.sedenion_zero_divisor_witness probe row
+    # was REMOVED here: the op is gone, replaced by the dim-general
+    # cd_zero_divisor_witness / cd_zero_divisor_witnesses whose curated worked
+    # examples are hand-authored in _tool_docs_curated.py (new worked-form). ZD
+    # (the fixture) is now cd_zero_divisor_witness(16) — the identical dim-16 dict.
     ("srmech.cascade.left_mult_kernel", [
         ("1", "len(left_mult_kernel(ZD['x'])), left_mult_kernel(ZD['x'])[0]"),
         ("2", "left_mult_kernel([1,0,0,0,0,0,0,1])"),
@@ -557,11 +534,11 @@ WORKED = [
      "exact at any magnitude. "
      "WITNESS HALF ONLY — it answers 'is THIS x a zero divisor'. FINDING a "
      "candidate is a different problem it does not solve, and a random "
-     "search will not: see ``sedenion_zero_divisor_witness`` for a "
+     "search will not: see ``cd_zero_divisor_witness`` for a "
      "constructed one. "
      "SIBLINGS — ``left_mult_is_invertible`` is the bool peer (cheaper: it "
      "can take a modular-rank fast path on the shipped ladder); "
-     "``sedenion_zero_divisor_witness`` supplies the x; "
+     "``cd_zero_divisor_witness`` supplies the x; "
      "``is_division_algebra_dim`` is the dimension-level statement.",
      "Non-empty kernel = no backward direction: 4 basis vectors for the "
      "sedenion witness, empty for 1+e7 on 𝕆, and 4 again for that same "
@@ -779,7 +756,7 @@ WORKED = [
      "THE GENUINELY-NEW SURFACE IS NAVIGATION, and calls 3–4 are the whole "
      "story: navigating by a SINGLE basis direction always works (signed "
      "permutation, every rung), while navigating by the COMPOSITE direction "
-     "e1 + e10 — which is exactly ``sedenion_zero_divisor_witness()['x']`` "
+     "e1 + e10 — which is exactly ``cd_zero_divisor_witness(16)['x']`` "
      "— is refused, because that direction has no inverse. The Hurwitz "
      "horizon shows up as a navigability answer, not as a crash. "
      "SIBLINGS — ``cd_register(16, namespace='SEDENION')`` is the "

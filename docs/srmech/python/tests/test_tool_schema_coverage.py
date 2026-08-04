@@ -362,8 +362,8 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # cascade.cayley_dickson.* — the open-exterior boundary-demonstrator
     # (v0.7.3rc1 / #915 / MFO §VII.6.23). The discoverable surface is registered
     # under STABLE flat names ``srmech.cascade.{cd_mult,cd_conjugate,
-    # cd_norm_sq,cd_basis_product,sedenion_zero_divisor_witness,left_mult_kernel,
-    # left_mult_is_invertible,is_division_algebra_dim}`` (which ARE registered);
+    # cd_norm_sq,cd_basis_product,cd_zero_divisor_witness,cd_zero_divisor_witnesses,
+    # left_mult_kernel,left_mult_is_invertible,is_division_algebra_dim}`` (registered);
     # the submodule-dotted names are the same objects re-exported flat, and the
     # building-block helpers (cd_add / cd_basis / left_mult_matrix) are sugar
     # around registered entries — exempt exactly like the one.* re-exports above.
@@ -374,7 +374,8 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     "srmech.cascade.cayley_dickson.cd_basis",
     "srmech.cascade.cayley_dickson.cd_basis_product",
     "srmech.cascade.cayley_dickson.is_division_algebra_dim",
-    "srmech.cascade.cayley_dickson.sedenion_zero_divisor_witness",
+    "srmech.cascade.cayley_dickson.cd_zero_divisor_witness",
+    "srmech.cascade.cayley_dickson.cd_zero_divisor_witnesses",
     "srmech.cascade.cayley_dickson.left_mult_matrix",
     "srmech.cascade.cayley_dickson.left_mult_kernel",
     "srmech.cascade.cayley_dickson.left_mult_is_invertible",

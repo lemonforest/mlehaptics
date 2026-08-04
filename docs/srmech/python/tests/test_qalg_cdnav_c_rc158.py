@@ -1,13 +1,16 @@
-"""Qalg TAIL Batch 2 (0.9.0rc158): the 4 Cayley–Dickson INTEGER-cocycle
+"""Qalg TAIL Batch 2 (0.9.0rc158): the Cayley–Dickson INTEGER-cocycle
 NAVIGATION ops earn a C path — ``bignum_reference → c_dispatched``.
 
-FOUR new C kernels give the signed-basis-unit loop navigation a standalone-C
+New C kernels give the signed-basis-unit loop navigation a standalone-C
 surface, COMPOSED over the existing ``srmech_cd_basis_product`` cocycle:
 
   * ``srmech_cd_closure``              (sub-loop fixpoint)
   * ``srmech_cd_left_orbit``          (one left-multiplication cycle)
   * ``srmech_cd_min_generating_set``  (min spanning cardinality; composes closure)
-  * ``srmech_cd_zero_divisor_witness``(first sedenion basis-pair zero divisor)
+
+(rc395 `#T1000`: the original fourth kernel ``srmech_cd_zero_divisor_witness``
+was REMOVED — the dim-16 brute-force export is subsumed by the composition_of_c
+``cd_zero_divisor_witness`` over ``gf_rref`` + ``cd_basis_product``; ABI 10 -> 11.)
 
 They are genuinely INTEGER (signed units ±e_i, bounded ≤ 2·dim ≤ 2·CD_MAX_DIM
 = 512 since rc298 raised the cap 64 → 256; NO bignum,
@@ -71,13 +74,17 @@ _MGS_CASES = [
 
 @pytest.mark.skipif(not _native.HAS_NATIVE, reason="native lib not loaded")
 def test_native_symbols_present():
-    # The 4 CD navigation C symbols are actually loaded, so parity exercises C.
+    # The 3 surviving CD navigation C symbols are loaded, so parity exercises C.
+    # (rc395 `#T1000`: srmech_cd_zero_divisor_witness was REMOVED — the dim-16
+    # brute-force export is subsumed by the composition_of_c cd_zero_divisor_
+    # witness over gf_rref + cd_basis_product; ABI 10 -> 11.)
     assert _native.has_native_cd_closure()
     # The raw helpers reach the loop with no Python-side navigation loop.
     assert _native.cd_closure_c(8, [1, 2]) is not None
     assert _native.cd_left_orbit_c(8, 1, 1) is not None
     assert _native.cd_min_generating_set_c(8, list(range(1, 8))) == 3
-    assert _native.cd_zero_divisor_witness_c() == (1, 10, 4, 15, -1)
+    assert not hasattr(_native, "cd_zero_divisor_witness_c")   # removed at rc395
+    assert not hasattr(_native.LIB, "srmech_cd_zero_divisor_witness")
 
 
 # ---- closure --------------------------------------------------------------
@@ -147,19 +154,22 @@ def test_min_generating_set_value_oracles():
         cd.min_generating_set(8, [1])                   # single unit cannot span
 
 
-# ---- sedenion_zero_divisor_witness ----------------------------------------
+# ---- cd_zero_divisor_witness (rc395: the dim-general successor) -------------
 
 @pytest.mark.skipif(not _native.HAS_NATIVE, reason="native lib not loaded")
 def test_zero_divisor_witness_native_equals_pure():
-    """The witness dict native == FORCED-PURE, byte-identical."""
-    nat = _force(True, cd.sedenion_zero_divisor_witness)
-    pure = _force(False, cd.sedenion_zero_divisor_witness)
+    """The witness dict native == FORCED-PURE, byte-identical. It is now a
+    composition_of_c (gf_rref + cd_basis_product), so 'native' means those
+    C-dispatched leaves are on; the witness must be identical either way."""
+    nat = _force(True, cd.cd_zero_divisor_witness, 16)
+    pure = _force(False, cd.cd_zero_divisor_witness, 16)
     assert nat == pure
 
 
 def test_zero_divisor_witness_value_oracle():
-    """The KNOWN first sedenion basis-pair zero divisor: (e1+e10)(e4−e15)=0."""
-    w = cd.sedenion_zero_divisor_witness()
+    """The KNOWN first sedenion basis-pair zero divisor: (e1+e10)(e4−e15)=0 —
+    unchanged at dim 16 across the rc395 rename (continuity pin)."""
+    w = cd.cd_zero_divisor_witness(16)
     assert w["dim"] == 16
     assert w["x_form"] == "e1 + e10"
     assert w["y_form"] == "e4 - e15"
@@ -171,11 +181,12 @@ def test_zero_divisor_witness_value_oracle():
 # ---- ledger ---------------------------------------------------------------
 
 def test_ledger_rows():
-    """All 4 ops → c_dispatched (left bignum_reference)."""
+    """The 3 navigation ops → c_dispatched (left bignum_reference). rc395 removed
+    the 4th (sedenion_zero_divisor_witness): its dim-general successors are
+    composition_of_c, checked in test_zero_divisor_general_rc395.py."""
     fixture = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
     rows = {json.loads(l)["defined_at"]: json.loads(l)["bucket"]
             for l in fixture.read_text(encoding="utf-8").splitlines() if l.strip()}
-    for op in ("closure", "left_orbit", "min_generating_set",
-               "sedenion_zero_divisor_witness"):
+    for op in ("closure", "left_orbit", "min_generating_set"):
         da = f"srmech.cascade.cayley_dickson.{op}"
         assert rows.get(da) == "c_dispatched", (op, rows.get(da))

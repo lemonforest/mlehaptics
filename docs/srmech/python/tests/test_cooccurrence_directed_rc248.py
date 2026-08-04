@@ -98,7 +98,7 @@ def _pure_directed(docs, window, vocab):
 @pytest.mark.skipif(not NATIVE, reason="rc248 directed cooccurrence C peer not loaded")
 def test_native_symbol_bound():
     assert hasattr(_native.LIB, "srmech_text_cooccurrence_edges_directed")
-    assert _native.NATIVE_ABI_VERSION == 10
+    assert _native.NATIVE_ABI_VERSION == 11
 
 
 @pytest.mark.skipif(not NATIVE, reason="rc248 directed cooccurrence C peer not loaded")

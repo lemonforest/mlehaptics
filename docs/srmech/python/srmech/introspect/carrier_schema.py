@@ -610,7 +610,7 @@ CEILING_MECHANISMS: Dict[str, str] = {
     "hurwitz": (
         "Hurwitz (1898): the normed composition algebras over R are exactly "
         "dims 1, 2, 4, 8; past dim 8 srmech ships the explicit counterexample "
-        "(cascade.sedenion_zero_divisor_witness)"),
+        "(cascade.cd_zero_divisor_witness)"),
     "tooling": (
         "a build constant — verification cost, not a mathematical wall; "
         "liftable, and rc298 (`#T933`) did lift it 64 -> 256"),
@@ -683,7 +683,7 @@ _CAPABILITY: Dict[str, Dict[str, Any]] = {
     # differences empty). Non-commuting turn composition is gone.
     "octonion": _cap("cd_mult (O)", _CAP_FULL, _CAP_ABELIAN_ONLY, False,
                      max_dim=8, bounded_by="definition"),
-    # 𝕊 — past Hurwitz. srmech ships the witness: cascade.sedenion_zero_divisor_witness.
+    # 𝕊 — past Hurwitz. srmech ships the witness: cascade.cd_zero_divisor_witness.
     "sedenion": _cap("cd_mult (S)", _CAP_ZERO_DIVISORS, _CAP_ABELIAN_ONLY,
                      False, max_dim=16, bounded_by="definition"),
     # ── the exact scalars ────────────────────────────────────────────────────
@@ -1092,7 +1092,7 @@ def carrier_schema() -> Dict[str, Dict[str, Any]]:
 # capability it decides): a field is formally real iff -1 is not a sum of
 # squares, and C/H/O all give -1 = i^2 in ONE square while R/Q/Z do not. For the
 # zero-divisor carriers the witness is an exhibited pair, the pattern
-# ``cascade.sedenion_zero_divisor_witness`` already ships. So ``order: "none"``
+# ``cascade.cd_zero_divisor_witness`` already ships. So ``order: "none"``
 # would be falsifiable rather than asserted.
 #
 # NOT SHIPPED, DELIBERATELY: the four words are NOT attached to any carrier row.

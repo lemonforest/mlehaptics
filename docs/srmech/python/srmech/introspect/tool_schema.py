@@ -8602,19 +8602,48 @@ def _register_primitive_class_tools() -> None:
                       "higher half is non-zero"),
         ),
         ToolEntry(
-            name="srmech.cascade.sedenion_zero_divisor_witness", owner="srmech",
+            name="srmech.cascade.cd_zero_divisor_witness", owner="srmech",
             category="cascade",
-            summary="Exhibit a concrete sedenion (dim 16) zero divisor: x, y both "
-                    "nonzero with x·y = 0 — found from OUR OWN multiplication table "
-                    "(own-work-first, not a literature transcription). The executable "
-                    "form of '§VII.6.23: zero divisors first appear at 16 and never "
-                    "heal'. Division algebras (dims 1,2,4,8) provably have none."
+            summary="The FIRST basis-pair zero divisor of the Cayley–Dickson algebra "
+                    "of dimension dim: x = e_i + e_j and y = e_k + s·e_l, both nonzero, "
+                    "with x·y = 0 — the dim-general successor of the removed hardwired "
+                    "sedenion witness (at dim 16 it returns the IDENTICAL e1+e10 / "
+                    "e4−e15 payload). The executable form of '§VII.6.23: zero divisors "
+                    "first appear at 16 and never heal'. None for dim ≤ 8 (division "
+                    "algebras provably have none). composition_of_c: [0] of the "
+                    "gf_rref support solve + the DETERMINED cd_basis_product sign "
+                    "criterion, no dedicated C symbol."
                     + PUBLISH_OPT_IN_NOTE,
-            parameters=(),
-            returns=R("dict",
-                      "{'dim':16, 'x','y': Q tuples, 'x_form','y_form': "
-                      "'e_i ± e_j' strings, 'x_norm_sq','y_norm_sq': nonzero, "
-                      "'product': all-zero, 'product_is_zero': True}"),
+            parameters=(
+                P("dim", "int", False,
+                  "power-of-two dimension 16 ≤ dim ≤ CD_MAX_DIM (default 16); "
+                  "dim ≤ 8 returns None"),
+            ),
+            returns=R("dict | None",
+                      "{'dim', 'x','y': Q tuples, 'x_form','y_form': 'e_i ± e_j' "
+                      "strings, 'x_norm_sq','y_norm_sq': nonzero, 'product': all-zero, "
+                      "'product_is_zero': True}; None at dim ≤ 8"),
+        ),
+        ToolEntry(
+            name="srmech.cascade.cd_zero_divisor_witnesses", owner="srmech",
+            category="cascade",
+            summary="The COMPLETE set of basis-pair zero-divisor witnesses of the "
+                    "Cayley–Dickson algebra of dimension dim: every (i,j,k,l,s) with "
+                    "(e_i + e_j)·(e_k + s·e_l) = 0 (exactly 168 at dim 16). Solves the "
+                    "i⊕j⊕k⊕l = 0 support system with the C-dispatched GF(2) gf_rref and "
+                    "reads the second-factor sign DETERMINED off cd_basis_product — "
+                    "O(dim³), tractable to CD_MAX_DIM, NOT the exponential product "
+                    "sweep. Empty for dim ≤ 8 (division algebras). composition_of_c; "
+                    "no dedicated C symbol."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("dim", "int", False,
+                  "power-of-two dimension 16 ≤ dim ≤ CD_MAX_DIM (default 16); "
+                  "dim ≤ 8 returns []"),
+            ),
+            returns=R("list",
+                      "the (i, j, k, l, s) witness tuples in deterministic "
+                      "(i, j, k, l) order; [] at dim ≤ 8"),
         ),
         ToolEntry(
             name="srmech.cascade.left_mult_kernel", owner="srmech",

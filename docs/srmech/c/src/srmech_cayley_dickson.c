@@ -417,66 +417,8 @@ srmech_status_t srmech_cd_min_generating_set(int dim, const int *unit_idxs,
     return SRMECH_OK;
 }
 
-/* Is (e_i + e_j)(e_k + s*e_l) the zero sedenion? Integer accumulation over the
- * cocycle (mirror of Python cayley_dickson._basis_sum_terms_zero on the two
- * fixed 2-term factors). */
-static srmech_status_t cd_pair_product_is_zero(int dim, int i, int j,
-                                               int k, int l, int s,
-                                               int *out_zero)
-{
-    assert(out_zero != NULL);
-    assert(dim >= 1 && dim <= SRMECH_CD_MAX_DIM);
-    int acc[SRMECH_CD_MAX_DIM];
-    for (int t = 0; t < dim; t++) { acc[t] = 0; }
-    int ax[2] = { i, j };              /* terms_x = {(i,+1),(j,+1)} */
-    int by[2] = { k, l };
-    int cy[2] = { 1, s };              /* terms_y = {(k,+1),(l,s)}  */
-    for (int a = 0; a < 2; a++) {
-        for (int b = 0; b < 2; b++) {
-            int idx = 0;
-            int sgn = 1;
-            srmech_status_t st = srmech_cd_basis_product(dim, ax[a], by[b],
-                                                         &idx, &sgn);
-            if (st != SRMECH_OK) { return st; }
-            acc[idx] += cy[b] * sgn;   /* sa == +1 for both x terms */
-        }
-    }
-    int allzero = 1;
-    for (int t = 0; t < dim; t++) { if (acc[t] != 0) { allzero = 0; } }
-    *out_zero = allzero;
-    return SRMECH_OK;
-}
-
-srmech_status_t srmech_cd_zero_divisor_witness(int *out_i, int *out_j,
-                                               int *out_k, int *out_l,
-                                               int *out_s)
-{
-    assert(out_i != NULL && out_j != NULL && out_k != NULL);
-    assert(out_l != NULL && out_s != NULL);
-    if (out_i == NULL || out_j == NULL || out_k == NULL ||
-        out_l == NULL || out_s == NULL) {
-        return SRMECH_ERR_NULL_ARG;
-    }
-    const int dim = SRMECH_SEDENION_NUM_SLOTS;   /* 16 */
-    for (int i = 1; i < dim; i++) {
-        for (int j = i + 1; j < dim; j++) {
-            for (int k = 1; k < dim; k++) {
-                for (int l = k + 1; l < dim; l++) {
-                    for (int si = 0; si < 2; si++) {
-                        int s = (si == 0) ? 1 : -1;
-                        int zero = 0;
-                        srmech_status_t st = cd_pair_product_is_zero(
-                            dim, i, j, k, l, s, &zero);
-                        if (st != SRMECH_OK) { return st; }
-                        if (zero != 0) {
-                            *out_i = i; *out_j = j; *out_k = k;
-                            *out_l = l; *out_s = s;
-                            return SRMECH_OK;
-                        }
-                    }
-                }
-            }
-        }
-    }
-    return SRMECH_ERR_BAD_INPUT;   /* unreachable: the sedenions have witnesses */
-}
+/* (rc395, task #T1000) cd_pair_product_is_zero + srmech_cd_zero_divisor_witness
+ * were REMOVED here: the dedicated dim-16 brute-force export is subsumed by the
+ * dim-general Python cd_zero_divisor_witness / cd_zero_divisor_witnesses, a
+ * composition_of_c over the GF(2) gf_rref + cd_basis_product. The removal bumped
+ * SRMECH_ABI_VERSION 10 -> 11 (see c/include/srmech.h). */
