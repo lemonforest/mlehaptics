@@ -270,7 +270,7 @@ def test_int64_intermediate_overflow_falls_back():
 
 def test_describe_total_is_526():
     import srmech
-    assert srmech.describe()["tools"]["total"] == 544
+    assert srmech.describe()["tools"]["total"] == 546
 
 
 def test_registered_in_tool_schema():

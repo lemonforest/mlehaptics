@@ -342,7 +342,7 @@ def test_registration_and_count():
     names = {t.name for t in get_tool_schema().tools}
     assert "srmech.math.laplacian.propagate" in names
     assert "srmech.math.laplacian.eph_harvest" in names
-    assert len(get_tool_schema().tools) == 544
-    assert srmech.describe()["tools"]["total"] == 544
+    assert len(get_tool_schema().tools) == 546
+    assert srmech.describe()["tools"]["total"] == 546
     assert "propagate" in L.LAPLACIAN_OPS
     assert "eph_harvest" in L.LAPLACIAN_OPS

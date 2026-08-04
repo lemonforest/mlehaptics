@@ -1,4 +1,4 @@
-{"n": 459, "native": true, "python": "3.10", "record": "meta"}
+{"n": 461, "native": true, "python": "3.10", "record": "meta"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.amsc.catalog.get_attested_dataset", "problems": [], "src_sha256": "58d42a7869396586ee1363c377b8b1abf02bf5febea9d695f6aa4e49b8e26a99", "statements": 9, "status": "ok"}
 {"markers_fired": [{"exc": "ValueError", "line": 20}], "n_markers": 1, "name": "srmech.amsc.catalog.list_attested_sources", "problems": [], "src_sha256": "986c4bccd23f665bd00f8d91187777f98acfd091cbc9a95550c36560c3546452", "statements": 9, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.amsc.catalog.list_catalog_chains", "problems": [], "src_sha256": "80aee0a39a7344378b831ef74cb41d64bce16527865a2f790c433220b1390bac", "statements": 7, "status": "ok"}
@@ -419,6 +419,8 @@
 {"markers_fired": [], "n_markers": 0, "name": "srmech.physics.qm.quaternion.quaternion_slerp", "problems": [], "src_sha256": "1b776ffe5e66a5742f251e28fc748e190e85178a2ae7b1f2ef424c95dbef227e", "statements": 9, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.physics.qm.quaternion.quaternion_table_attestation", "problems": [], "src_sha256": "ff10e35dbdf10d523fde2b5a475cf63802c5d5d0b2d0a132644a2ced661e891e", "statements": 11, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.physics.qm.quaternion.quaternion_twiddle", "problems": [], "src_sha256": "f0590e769c8bfa8c26d857c23293bc03812c2f6460db8d362f6248375f9750f9", "statements": 10, "status": "ok"}
+{"markers_fired": [], "n_markers": 0, "name": "srmech.physics.qm.single_particle.clock_operator", "problems": [], "src_sha256": "20558302acf23a73054078eb51588ab177f772f5839a69f7dacb7f6dbe6367a3", "statements": 10, "status": "ok"}
+{"markers_fired": [], "n_markers": 0, "name": "srmech.physics.qm.single_particle.shift_operator", "problems": [], "src_sha256": "0322706d6b586667b2caa7073e46d90948e88754569846d862b4616c3bc146ea", "statements": 12, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.physics.qm.sm.ckm_matrix", "problems": [], "src_sha256": "d86207bf0617e3a382d3e73658c157490e3c4f56bfb78792ff248b453aa1c6d7", "statements": 7, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.physics.qm.sm.ckm_unitarity_residual", "problems": [], "src_sha256": "7fb6ca534fefd184aa46e8a34f423612cfa1f55b08ad3f274b51645efe93f1e0", "statements": 8, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.physics.qm.sm.electroweak_summary", "problems": [], "src_sha256": "c2f31dd008cec4b2961099a71b328a9cd56d83ca3d15b7f6551b7ccb778a13b0", "statements": 5, "status": "ok"}

@@ -866,13 +866,19 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # 3 (each op's back-index name + its HV-typed carrier slots — log has one HV
     # param, slerp two), so +5. No amsc pin moves (this is a genuine physics.qm
     # POPULATION add, tracked by the decoded channel exactly as designed).
+    # rc396 (`#T1031`, position-operator half) then ADDED two more NEW physics.qm
+    # ops — clock_operator (the Weyl clock U = diag(ω^k), the fenced position x̂) +
+    # shift_operator (the cyclic shift V, the group-level momentum) — whose carrier
+    # back-index refs land 2× EACH in these hoisted byte arrays (measured), so
+    # 159 -> 163. NEW-op growth, not a move; no amsc pin shifts.
     physics_qm = joined.count("srmech.physics.qm.")
-    assert physics_qm == 159, (
-        f"expected 159 srmech.physics.qm op references inside the DECODED channel "
+    assert physics_qm == 163, (
+        f"expected 163 srmech.physics.qm op references inside the DECODED channel "
         f"(the rc381 qm-subpackage rename's carrier back-index — octonion / "
         f"quaternion / so8 / triality / gauge / sm op names — plus rc385's "
-        f"quaternion_log (+2) / quaternion_slerp (+3)), found {physics_qm}. "
-        f"srmech.qm. fell to 0 by exactly the original 154; if this is not 159 the "
+        f"quaternion_log (+2) / quaternion_slerp (+3) and rc396's clock_operator "
+        f"(+2) / shift_operator (+2)), found {physics_qm}. "
+        f"srmech.qm. fell to 0 by exactly the original 154; if this is not 163 the "
         f"population is not conserved — re-measure. (This is a physics.qm add, not "
         f"an amsc drain, so no amsc pin moves.)")
     assert joined.count("srmech.qm.") == 0, (

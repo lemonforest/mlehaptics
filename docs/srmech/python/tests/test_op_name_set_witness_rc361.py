@@ -45,7 +45,7 @@ MANIFEST = Path(__file__).resolve().parent / "registered_op_names.txt"
 #: Registered public-callable count at rc361. Pinned here only so the failure
 #: message can say "516 -> 517" instead of dumping 516 lines; the SET below is
 #: the actual contract.
-EXPECTED_N = 544
+EXPECTED_N = 546
 
 #: sha256 over the NORMALISED manifest body — "\n".join(sorted names) + "\n",
 #: UTF-8. Normalised rather than raw-file-bytes so a CRLF checkout cannot make
@@ -87,8 +87,13 @@ EXPECTED_N = 544
 # dim 16 the identical e1+e10 / e4−e15 payload) and
 # srmech.cascade.cd_zero_divisor_witnesses (the complete basis-pair set, 168 at
 # dim 16). 543 -> 544, digest below.
+# v0.9.0rc396 (`#T1031`, position-operator half) — two genuinely NEW ops:
+# srmech.physics.qm.single_particle.clock_operator (the Weyl clock U = diag(ω^k) —
+# the fenced position x̂ on a ring) and srmech.physics.qm.single_particle.shift_operator
+# (the cyclic shift V — the group-level momentum), obeying U V = ω V U. 544 -> 546,
+# digest below.
 EXPECTED_NAME_SET_SHA256 = (
-    "1f9b5aee03f51d83ddc3135b940bbacfe10ed37e2b3245fbc4a8ea632bae5ce2")
+    "e471c1e18634efffe0c4464681a029f2442c83b20cfba74293f8c61891a9ca1d")
 
 
 def _live_names() -> list[str]:
