@@ -223,6 +223,14 @@ if(SRMECH_SRCS)
         add_executable(test_srmech_genome c/test/test_srmech_genome.c)
         target_link_libraries(test_srmech_genome PRIVATE srmech ${SRMECH_MATH_LIB})
 
+        # rc391 (`#T907` slice 1): the srmech_toml_parse_arena_bytes sizer +
+        # a parse round-trip smoke. Public-API only (srmech.h), so it links the
+        # shipped lib like the others and needs no c/src include. Joins the
+        # -Werror/-WX gate AND the ctest run so the new C symbol is exercised on
+        # all three OSes. Run it: ./build/test_srmech_toml_arena (exit 0 = pass)
+        add_executable(test_srmech_toml_arena c/test/test_srmech_toml_arena.c)
+        target_link_libraries(test_srmech_toml_arena PRIVATE srmech ${SRMECH_MATH_LIB})
+
         # THE RUN STEP. Every executable above is registered with ctest, so
         # `ctest --output-on-failure` in .github/workflows/srmech-ci.yml
         # actually executes them on all three OSes. Whole set = 551 ms wall on
@@ -231,7 +239,7 @@ if(SRMECH_SRCS)
             test_srmech_trans_q61 test_srmech_modular_linalg
             test_srmech_crt_reconstruct test_srmech_qmat_crt test_srmech_carrier
             test_srmech_progress test_srmech_bigint test_srmech_progress_tick
-            test_srmech_text_fold test_srmech_genome)
+            test_srmech_text_fold test_srmech_genome test_srmech_toml_arena)
             add_test(NAME ${t} COMMAND ${t})
         endforeach()
     endif()
