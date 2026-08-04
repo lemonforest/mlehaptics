@@ -42,7 +42,7 @@ CURATED: Dict[str, Dict[str, Any]] = {
             'worked': (
                 'from srmech.physics.qm.single_particle import clock_operator, shift_operator\n'
                 'from srmech.physics.qm.spin import pauli_matrices\n'
-                'from srmech.math.laplacian import mat_norm\n'
+                'from srmech.math.laplacian import mat_norm, mat_matmul\n'
                 '\n'
                 '# The Weyl clock U = diag(omega^k), omega = e^(2i*pi/n): the single-\n'
                 '# valued phase-POSITION x_hat on a ring of n sites (a naive diag(k*dx)\n'
@@ -56,7 +56,7 @@ CURATED: Dict[str, Dict[str, Any]] = {
                 '# with its partner shift V it obeys the Weyl relation U V = omega V U\n'
                 '# (the finite form of [x_hat, p_hat] = i*hbar) -- exact at n=4.\n'
                 'V = shift_operator(4); omega = U[1, 1]\n'
-                'print(mat_norm((U @ V) - omega * (V @ U)))   # -> 0.0'
+                'print(mat_norm(mat_matmul(U, V) - omega * mat_matmul(V, U)))   # -> 0.0'
             ),
         },
         'explanation': (
