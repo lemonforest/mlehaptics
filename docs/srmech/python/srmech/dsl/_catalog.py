@@ -31,17 +31,20 @@ from __future__ import annotations
 
 import importlib
 import os
-import sys
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Tuple
 
-# tomllib is stdlib on 3.11+; tomli is the back-port for 3.10. Mirror
-# the same fallback pattern used elsewhere in srmech.
-if sys.version_info >= (3, 11):
-    import tomllib as _toml
-else:  # pragma: no cover — 3.10-only branch
-    import tomli as _toml  # type: ignore[no-redef]
+# srmech's own internal TOML front door (`#T907` slice 2). Native `srmech_toml`
+# parser first, stdlib ``tomllib`` (3.11+) / ``tomli`` (3.10) floor otherwise —
+# the cascade-catalog descriptors now self-host on the C parser wherever it is
+# present. A float-bearing descriptor (e.g. ``best_rational_signed.toml``'s
+# ``dead_band = 1e-12``) is DECLINED by the C path and rides the bit-exact stdlib
+# parser, so the parsed value — and any ``TOMLDecodeError`` on a malformed
+# descriptor — is identical to the previous stdlib-only parse either way.
+# ``srmech._toml`` is a leaf module (it imports ``srmech._native`` lazily inside
+# ``loads()``), so this module-top import introduces no package-init cycle.
+from srmech import _toml as srmech_toml
 
 #: On-disk directory housing the cascade-catalog TOML descriptors.
 #: Resolved relative to ``srmech.dsl._catalog`` so editable installs
@@ -145,7 +148,7 @@ def load_catalog() -> Dict[str, Dict[str, Any]]:
             )
         for toml_path in sorted(base.glob("*.toml")):
             raw = toml_path.read_bytes()
-            desc = _toml.loads(raw.decode("utf-8"))
+            desc = srmech_toml.loads(raw.decode("utf-8"))
             cascade_section = desc.get("cascade")
             if not isinstance(cascade_section, dict):
                 raise ValueError(
