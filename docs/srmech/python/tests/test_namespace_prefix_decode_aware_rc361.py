@@ -796,11 +796,17 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # oct_torsor_div (the ℍ-torsor act/div of the seam coset H·e) — whose carrier
     # back-index refs land 2× each in these arrays, so 323 + 4 = 327. NEW-op
     # growth, not a move; no amsc pin shifts.
-    assert math == 327, (
-        f"expected 327 srmech.math op references inside the DECODED channel "
+    # rc399 (`#T1064` Tier 3) then ADDED one NEW srmech.math op —
+    # generalized_ngon (the guarded generalized-n-gon incidence-graph /
+    # Feit–Higman spectral read) — whose carrier back-index ref lands 1× in these
+    # arrays (via its int-typed n_points / spectral_max_nodes params → the 'int'
+    # carrier), so 327 + 1 = 328. NEW-op growth, not a move; no amsc pin shifts.
+    assert math == 328, (
+        f"expected 328 srmech.math op references inside the DECODED channel "
         f"(rc372 octonion 16 + rc373 A-N primitives 298 + rc374 carriers 6 + rc384 "
-        f"octonion_laplacian 3 + rc388 oct_torsor_act/div 4), found {math}. If this "
-        f"is not 327 the population is not conserved — re-measure.")
+        f"octonion_laplacian 3 + rc388 oct_torsor_act/div 4 + rc399 generalized_ngon "
+        f"1), found {math}. If this is not 328 the population is not conserved — "
+        f"re-measure.")
     # rc375 — THE srmech.biology RECEIVING SIDE, the arc's SECOND-LARGEST positive
     # population move (after rc373's 298) and the FOURTH receiving namespace pinned
     # here. UNLIKE rc374's pure carriers, the biology bucket's genome / q8 / coupling
@@ -843,6 +849,17 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # unit_loop / loop_invariants (𝕆's Moufang-loop machinery promoted from
     # test-only to queryable), +5. So the live cascade decoded
     # population is 95 + 2 + 1 + 1 + 1 + 2 + 2 + 5 = 109.
+    # rc399 (`#T1064` Tier 2) ADDED four NEW srmech.cascade ops — jordan_product /
+    # cayley_plane_point / cayley_plane_incidence / octonion_hopf_base (the 𝕆P²
+    # Cayley-plane surface) — but they add ZERO to THIS decoded count, so it HOLDS
+    # at 109. The decoded-channel back-index only lists ops whose declared
+    # param/return type-string carries an EMITTED carrier's name token; all four
+    # take only `sequence` operands and return `Q` / `dict`, so they touch only
+    # the `Q` carrier (not emitted to this const table) or no carrier at all —
+    # unlike the rc398 Moufang ops, which each named the `int` carrier via a
+    # `dim` / `list[list[list[int]]]` type. MEASURED 0 refs each (rc399, this
+    # branch). A cascade op grows this count only when it declares an emitted
+    # carrier token; these four legitimately do not.
     cascade = joined.count("srmech.cascade.")
     assert cascade == 109, (
         f"expected 109 srmech.cascade op references inside the DECODED channel "

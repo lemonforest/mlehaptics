@@ -21,6 +21,10 @@
 {"exposed_as": "srmech.cascade.malcev_defect", "defined_at": "srmech.cascade.cayley_dickson.malcev_defect", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.cascade.unit_loop", "defined_at": "srmech.cascade.cayley_dickson.unit_loop", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.cascade.loop_invariants", "defined_at": "srmech.cascade.cayley_dickson.loop_invariants", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.cascade.jordan_product", "defined_at": "srmech.cascade.cayley_plane.jordan_product", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.cascade.cayley_plane_point", "defined_at": "srmech.cascade.cayley_plane.cayley_plane_point", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.cascade.cayley_plane_incidence", "defined_at": "srmech.cascade.cayley_plane.cayley_plane_incidence", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.cascade.octonion_hopf_base", "defined_at": "srmech.cascade.cayley_plane.octonion_hopf_base", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.cascade.inertia_signature", "defined_at": "srmech.cascade.cayley_dickson.inertia_signature", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.cascade.left_mult_is_invertible", "defined_at": "srmech.cascade.cayley_dickson.left_mult_is_invertible", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.cascade.left_mult_kernel", "defined_at": "srmech.cascade.cayley_dickson.left_mult_kernel", "bucket": "composition_of_c"}
@@ -596,6 +600,7 @@
 {"exposed_as": "srmech.math.laplacian.recover_check_spectral", "defined_at": "srmech.math.laplacian.recover_check_spectral", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.math.laplacian.order_fingerprint", "defined_at": "srmech.math.laplacian.order_fingerprint", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.math.laplacian.recover_check_order", "defined_at": "srmech.math.laplacian.recover_check_order", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.math.laplacian.generalized_ngon", "defined_at": "srmech.math.laplacian.generalized_ngon", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.physics.qm.quaternion.quaternion_mult_table", "defined_at": "srmech.physics.qm.quaternion.quaternion_mult_table", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.physics.qm.quaternion.quaternion_table_attestation", "defined_at": "srmech.physics.qm.quaternion.quaternion_table_attestation", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.physics.qm.quaternion.quaternion_left_mult", "defined_at": "srmech.physics.qm.quaternion.quaternion_left_mult", "bucket": "c_dispatched"}

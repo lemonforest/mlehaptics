@@ -101,7 +101,7 @@ import struct  # §52 Part 2: pack/unpack the on-disk edge records for the out-o
 import tempfile  # §52 Part 2: default scratch dir for recursive_cut
 from array import array  # §564: numpy-free 2-D Mat carrier buffer (interleaved-complex)
 from srmech.math.q import Q, to_q  # §26: exact-rational interior solve (Class-N), no float
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from srmech.math.rational import sqrt as _rsqrt  # §22: scalar root via Class-N, not libm
 from srmech.math.rational import hypot as _rhypot  # Class-N |z| magnitude, not libm
@@ -237,6 +237,7 @@ __all__ = [
     "three_fold_eigvec_groups",
     "spectral_spine",
     "relational_structure",
+    "generalized_ngon",
 ]
 
 MAX_NATIVE_NODES: int = 256
@@ -7403,6 +7404,310 @@ def spectral_block_dispatch(
     }
 
 
+# ──────────────────────────────────────────────────────────────────────
+# Generalized n-gon incidence graph + Feit–Higman spectral read
+# (rc399, `#T1064` Tier 3). A generalized n-gon is an INCIDENCE GEOMETRY
+# (points + lines + flags) whose bipartite incidence graph has girth 2n,
+# diameter n and a Feit–Higman-constrained spectrum. This is a Class-L
+# READ of a SUPPLIED combinatorial object — girth/diameter are GRAPH
+# metrics (BFS), NOT drawings; nothing here is CAD / continuum
+# (`[[feedback_cad_ban_is_gpu_numerical_not_closedform_physical]]`). §3.41.7
+# consumes exactly this guarded surface and NOT the Tits–Weiss n=4/6/8
+# classification machinery (Albert / char-2 Ree carriers srmech declines).
+#
+# SSoT: J. Tits & R. Weiss (2002), *Moufang Polygons*, Springer Monographs
+# in Mathematics — the Moufang n-gons, n ∈ {3,4,6,8}; H. Van Maldeghem
+# (1998), *Generalized Polygons*, Monographs in Mathematics 93, Birkhäuser
+# — the Feit–Higman constraint and incidence-graph spectra; W. Feit &
+# G. Higman (1964), *J. Algebra* 1, 114–131 — the {2,3,4,6,8} theorem.
+# ──────────────────────────────────────────────────────────────────────
+
+#: Thick finite generalized n-gons exist ONLY for these n (Feit–Higman 1964;
+#: n=2 is the degenerate complete-bipartite case). Thin (ordinary) n-gons
+#: exist for every n.
+_FEIT_HIGMAN_THICK_N: Tuple[int, ...] = (2, 3, 4, 6, 8)
+
+
+def _ngon_bipartite_edges(
+    n_points: int, lines: Sequence[Sequence[int]]
+) -> "Tuple[int, List[Tuple[int, int]]]":
+    """Bipartite incidence graph: vertices ``0..n_points-1`` = points,
+    ``n_points..n_points+n_lines-1`` = lines; edge ``(p, n_points+li)`` for each
+    point ``p`` on line ``li``. Returns ``(n_vertices, edges)``."""
+    edges: List[Tuple[int, int]] = []
+    for li, pts_on_line in enumerate(lines):
+        for p in pts_on_line:
+            if not (0 <= int(p) < n_points):
+                raise ValueError(
+                    f"generalized_ngon: line {li} references point {p} outside "
+                    f"[0, {n_points})")
+            edges.append((int(p), n_points + li))
+    return n_points + len(lines), edges
+
+
+def _ngon_adjacency_lists(
+    n_vertices: int, edges: Sequence[Tuple[int, int]]
+) -> List[List[int]]:
+    adj: List[set] = [set() for _ in range(n_vertices)]
+    for u, v in edges:
+        adj[u].add(v)
+        adj[v].add(u)
+    return [sorted(a) for a in adj]
+
+
+def _ngon_diameter(adj: List[List[int]]) -> int:
+    """Max shortest-path distance (BFS from every vertex). ``-1`` iff the graph
+    is disconnected (some pair is unreachable)."""
+    from collections import deque
+
+    n = len(adj)
+    diam = 0
+    for s in range(n):
+        dist = [-1] * n
+        dist[s] = 0
+        q = deque([s])
+        while q:
+            u = q.popleft()
+            for w in adj[u]:
+                if dist[w] < 0:
+                    dist[w] = dist[u] + 1
+                    q.append(w)
+        if any(d < 0 for d in dist):
+            return -1
+        diam = max(diam, max(dist))
+    return diam
+
+
+def _ngon_girth(adj: List[List[int]]) -> int:
+    """Length of the shortest cycle (BFS from every vertex, tracking the parent
+    so the tree edge is not miscounted). ``-1`` iff the graph is a forest."""
+    from collections import deque
+
+    n = len(adj)
+    best = -1
+    for s in range(n):
+        dist = [-1] * n
+        par = [-1] * n
+        dist[s] = 0
+        q = deque([s])
+        while q:
+            u = q.popleft()
+            for w in adj[u]:
+                if dist[w] < 0:
+                    dist[w] = dist[u] + 1
+                    par[w] = u
+                    q.append(w)
+                elif par[u] != w:
+                    cyc = dist[u] + dist[w] + 1
+                    if best < 0 or cyc < best:
+                        best = cyc
+    return best
+
+
+def _standard_ngon_incidence(name: str) -> "Tuple[int, List[Tuple[int, ...]], int, bool]":
+    """The built-in standard incidence structures. Returns
+    ``(n_points, lines, expected_n, thick)``.
+
+    * ``"fano"`` — the Fano plane ``PG(2,2)`` (n=3 THICK): 7 points = the nonzero
+      vectors of ``𝔽₂³``, 7 lines = the triples XOR-summing to 0. Incidence
+      graph = the Heawood graph.
+    * ``"doily"`` — the generalized quadrangle ``GQ(2,2)`` / "doily" (n=4 THICK):
+      15 points = the duads (2-subsets) of ``{1..6}``, 15 lines = the synthemes
+      (partitions into three duads). Incidence graph = the Tutte–Coxeter graph.
+    * ``"ordinary_k"`` — the THIN ordinary k-gon (order (1,1)): incidence graph =
+      the ``2k``-cycle ``C_{2k}``; valid for every ``k ≥ 2`` (including 6 and 8,
+      which the THICK carriers §3.41.7 declines to build).
+    """
+    key = name.strip().lower()
+    if key == "fano":
+        lines = []
+        for a in range(1, 8):
+            for b in range(a + 1, 8):
+                c = a ^ b
+                if c > b:
+                    lines.append((a - 1, b - 1, c - 1))
+        return 7, lines, 3, True
+    if key == "doily":
+        from itertools import combinations
+
+        duads = list(combinations(range(6), 2))
+        d_index = {d: i for i, d in enumerate(duads)}
+        synthemes: List[tuple] = []
+        for a in combinations(range(6), 2):
+            rest = [x for x in range(6) if x not in a]
+            for b in combinations(rest, 2):
+                c = tuple(x for x in rest if x not in b)
+                syn = tuple(sorted([a, b, c]))
+                if syn not in synthemes:
+                    synthemes.append(syn)
+        lines = [tuple(d_index[d] for d in syn) for syn in synthemes]
+        return len(duads), lines, 4, True
+    if key.startswith("ordinary_"):
+        try:
+            k = int(key.split("_", 1)[1])
+        except ValueError:
+            k = -1
+        if k >= 2:
+            return k, [(i, (i + 1) % k) for i in range(k)], k, False
+    raise ValueError(
+        f"generalized_ngon: unknown example {name!r}; known: 'fano' (n=3), "
+        f"'doily' (n=4), 'ordinary_k' for k≥2 (thin k-gon = C_2k)")
+
+
+def generalized_ngon(
+    n_points: Optional[int] = None,
+    lines: Optional[Sequence[Sequence[int]]] = None,
+    example: Optional[str] = None,
+    spectral_max_nodes: int = 256,
+) -> Dict[str, Any]:
+    """VALIDATE + spectrally READ a generalized n-gon from its incidence
+    structure — the bipartite incidence-graph girth/diameter/biregularity plus
+    the Feit–Higman spectral constraint (rc399, `#T1064`, Class-L, guarded).
+
+    A **generalized n-gon** is an incidence geometry (points, lines, flags) whose
+    bipartite **incidence graph** (point ↔ line, edge = flag) has girth ``2n``,
+    diameter ``n`` and is biregular of order ``(s, t)`` (every line has ``s+1``
+    points, every point lies on ``t+1`` lines). Its incidence graph is
+    **distance-regular** of diameter ``n``, hence has exactly ``n+1`` distinct
+    adjacency eigenvalues — the checkable Feit–Higman/Higman spectral constraint.
+    This op is a **read of a SUPPLIED object**: girth and diameter are BFS graph
+    metrics (never a drawing — nothing here is CAD / continuum); the spectrum
+    routes through the shipped :func:`dense_adjacency` + :func:`jacobi_eigvals`.
+
+    Supply either an ``example`` name or an explicit ``(n_points, lines)``:
+
+    * ``example="fano"`` — the Fano plane (n=3 THICK; Heawood incidence graph).
+    * ``example="doily"`` — ``GQ(2,2)`` (n=4 THICK; Tutte–Coxeter incidence
+      graph).
+    * ``example="ordinary_k"`` — the THIN ordinary k-gon ``C_{2k}`` (any ``k≥2``).
+    * ``n_points`` + ``lines`` — an arbitrary structure (``lines`` = a sequence
+      of point-index sequences).
+
+    ⚠️ **Scope (honest, §3.41.7).** The THICK n=3 and n=4 examples are built from
+    pure combinatorics (𝔽₂³ / the S₆ duads–synthemes) with NO exceptional-group
+    machinery. The THICK **n=6** (split Cayley hexagon, needs G₂) and **n=8**
+    (Ree–Tits octagon, needs the char-2 ²F₄) built-ins are **NOT** provided —
+    they require the Albert / char-2 Ree carriers §3.41.7 deliberately declines.
+    For n=6/8 the THIN ordinary k-gon (``ordinary_6`` / ``ordinary_8``) is the
+    carrier-free witness that girth ``2n`` / diameter ``n`` hold; a SUPPLIED
+    thick n=6/8 structure is validated and classified correctly all the same.
+
+    Args:
+        n_points: number of points (with ``lines``); ignored if ``example`` set.
+        lines: a sequence of point-index sequences (one per line); ignored if
+            ``example`` set.
+        example: a built-in structure name (see above); when given, ``n_points``
+            / ``lines`` are derived from it.
+        spectral_max_nodes: skip the adjacency-spectrum read above this vertex
+            count (default 256, the native Jacobi bound); girth/diameter are
+            still computed. Set ``0`` to skip the spectral read entirely.
+
+    Returns:
+        A ``dict`` with: ``n`` (girth//2, the polygon order, ``None`` if not a
+        polygon), ``n_points`` / ``n_lines`` / ``n_vertices``, ``girth`` /
+        ``diameter``, ``point_degree`` / ``line_size`` and the geometry order
+        ``order_s`` (= line_size−1) / ``order_t`` (= point_degree−1),
+        ``biregular`` / ``connected`` (bool), ``thick`` (bool, ``s,t ≥ 2``),
+        ``feit_higman_allowed`` (``n`` in ``{2,3,4,6,8}`` when thick, else any
+        ``n`` for thin), ``is_generalized_polygon`` (the combinatorial verdict),
+        ``eigenvalues`` (sorted floats, or ``None`` if skipped) /
+        ``distinct_eigenvalues`` / ``n_distinct_eigenvalues``,
+        ``spectral_consistent`` (``n_distinct == diameter+1``), and ``example``.
+
+    Note:
+        The graph build + spectrum are ``composition_of_c`` over the C-dispatched
+        :func:`dense_adjacency` / :func:`jacobi_eigvals`; the girth/diameter BFS
+        is exact integer glue (Class L). NO new C symbol —
+        ``SRMECH_ABI_VERSION`` unchanged.
+
+    Canonical SSoT: Feit & Higman (1964), *J. Algebra* **1** 114–131 (the
+    ``{2,3,4,6,8}`` theorem); Van Maldeghem (1998), *Generalized Polygons*
+    (incidence-graph spectra); Tits & Weiss (2002), *Moufang Polygons*.
+    """
+    if example is not None:
+        np_, lns, _expected, _thick = _standard_ngon_incidence(str(example))
+        n_points, lines = np_, lns
+    if n_points is None or lines is None:
+        raise ValueError(
+            "generalized_ngon: supply either example= or both n_points= and "
+            "lines=")
+    n_points = int(n_points)
+    lines = [tuple(int(p) for p in ln) for ln in lines]
+    n_lines = len(lines)
+
+    n_vertices, edges = _ngon_bipartite_edges(n_points, lines)
+    adj = _ngon_adjacency_lists(n_vertices, edges)
+
+    # biregularity: point-degrees vs line-sizes (each a singleton set ⟺ regular)
+    point_degs = {len(adj[i]) for i in range(n_points)}
+    line_degs = {len(adj[n_points + i]) for i in range(n_lines)}
+    biregular = len(point_degs) == 1 and len(line_degs) == 1
+    point_degree = next(iter(point_degs)) if len(point_degs) == 1 else None
+    line_size = next(iter(line_degs)) if len(line_degs) == 1 else None
+    order_s = (line_size - 1) if line_size is not None else None
+    order_t = (point_degree - 1) if point_degree is not None else None
+
+    diameter = _ngon_diameter(adj)
+    connected = diameter >= 0
+    girth = _ngon_girth(adj)
+
+    n = (girth // 2) if (girth > 0 and girth % 2 == 0) else None
+    thick = bool(order_s is not None and order_t is not None
+                 and order_s >= 2 and order_t >= 2)
+    feit_higman_allowed = (n in _FEIT_HIGMAN_THICK_N) if thick else (n is not None)
+
+    # spectral read — the Feit–Higman distinct-eigenvalue constraint
+    eigenvalues: Optional[List[float]] = None
+    distinct_eigenvalues: Optional[List[float]] = None
+    n_distinct: Optional[int] = None
+    spectral_consistent: Optional[bool] = None
+    if spectral_max_nodes and n_vertices <= spectral_max_nodes:
+        A = dense_adjacency(n_vertices, edges)
+        ev = jacobi_eigvals(A)
+        eigenvalues = sorted(round(float(x), 6) for x in ev)
+        distinct_eigenvalues = []
+        for x in eigenvalues:
+            # eigenvalues is sorted ascending, so x >= the last kept value: the gap
+            # is non-negative by construction and needs no abs() (a Class-K magnitude
+            # would be a no-op here — there is no sign to re-apply).
+            if not distinct_eigenvalues or (x - distinct_eigenvalues[-1]) > 1e-6:
+                distinct_eigenvalues.append(x)
+        n_distinct = len(distinct_eigenvalues)
+        spectral_consistent = (connected and n_distinct == diameter + 1)
+
+    is_generalized_polygon = bool(
+        connected
+        and biregular
+        and n is not None
+        and diameter == n
+        and girth == 2 * n
+        and (spectral_consistent in (None, True))
+    )
+
+    return {
+        "n": n,
+        "n_points": n_points,
+        "n_lines": n_lines,
+        "n_vertices": n_vertices,
+        "girth": girth,
+        "diameter": diameter,
+        "point_degree": point_degree,
+        "line_size": line_size,
+        "order_s": order_s,
+        "order_t": order_t,
+        "biregular": biregular,
+        "connected": connected,
+        "thick": thick,
+        "feit_higman_allowed": feit_higman_allowed,
+        "is_generalized_polygon": is_generalized_polygon,
+        "eigenvalues": eigenvalues,
+        "distinct_eigenvalues": distinct_eigenvalues,
+        "n_distinct_eigenvalues": n_distinct,
+        "spectral_consistent": spectral_consistent,
+        "example": str(example) if example is not None else None,
+    }
+
+
 # Registry of available Class L op names for the composition engine.
 # Order is documentary; consumers iterate by name not position.
 LAPLACIAN_OPS: Tuple[str, ...] = (
@@ -7453,4 +7758,5 @@ LAPLACIAN_OPS: Tuple[str, ...] = (
     "dense_solve",
     "schur_complement",
     "dirichlet_to_neumann",
+    "generalized_ngon",
 )

@@ -45,7 +45,7 @@ MANIFEST = Path(__file__).resolve().parent / "registered_op_names.txt"
 #: Registered public-callable count at rc361. Pinned here only so the failure
 #: message can say "516 -> 517" instead of dumping 516 lines; the SET below is
 #: the actual contract.
-EXPECTED_N = 551
+EXPECTED_N = 556
 
 #: sha256 over the NORMALISED manifest body — "\n".join(sorted names) + "\n",
 #: UTF-8. Normalised rather than raw-file-bytes so a CRLF checkout cannot make
@@ -96,8 +96,15 @@ EXPECTED_N = 551
 # srmech.cascade.{moufang_residue, is_moufang, malcev_defect, unit_loop, loop_invariants}
 # (the loop 𝕆 already IS, promoted from a test-only proof + the unnamed closure(8,[1..7])
 # data to queryable exact-ℚ ops). 546 -> 551, digest below.
+# v0.9.0rc399 (`#T1064` Tier 2/3) — five genuinely NEW ops: the octonion CAYLEY
+# PLANE 𝕆P² surface, srmech.cascade.{jordan_product, cayley_plane_point,
+# cayley_plane_incidence, octonion_hopf_base} (the Albert-algebra Jordan product,
+# 𝕆P² rank-1 idempotent points, the trace-form incidence pairing, the 𝕆P¹≅S⁸
+# octonionic Hopf base), plus srmech.math.laplacian.generalized_ngon (the guarded
+# generalized-n-gon incidence-graph / Feit–Higman spectral read). 551 -> 556,
+# digest below.
 EXPECTED_NAME_SET_SHA256 = (
-    "02c010db0f3b02aaf1254ae66bb93552b0bccae94fd8e4aaa95905e690698b56")
+    "af1aba9ce3aa22189bc67e8a2b0cc8a0088b9202857b363e84772c69bf44a3d3")
 
 
 def _live_names() -> list[str]:

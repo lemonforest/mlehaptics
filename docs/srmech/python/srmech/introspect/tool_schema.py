@@ -8529,6 +8529,198 @@ def _register_primitive_class_tools() -> None:
                               "list of elements-index permutations — the Mlt(L) "
                               "generators)}"),
         ),
+        # rc399 (`#T1064` Tier 2/3): the octonion CAYLEY PLANE 𝕆P² (carrier-
+        # native, one rung above octonion_frame_read's ℍP¹≅S⁴) + the guarded
+        # generalized-n-gon incidence-graph / Feit–Higman spectral read. §3.41.7
+        # REFUTED the Moufang-POLYGON connection; 𝕆P² survives ONLY as the n=3
+        # same-cause FORM echo, built here on its OWN merits (NOT a bridge that
+        # resolves the §3.41.6 frame-read ceiling). All composition_of_c over the
+        # shipped octonion product / graph kernels; NO new C symbol, ABI stays 11.
+        ToolEntry(
+            name="srmech.cascade.jordan_product", owner="srmech",
+            category="cascade",
+            summary="The JORDAN PRODUCT A∘B = (A·B + B·A)/2 of two Albert-algebra "
+                    "elements A, B of J₃(𝕆) — the 3×3 octonionic-Hermitian "
+                    "matrices (dim 27 = 3 real diagonal + 3 octonion off-diagonal) "
+                    "under the commutative, NON-associative product that makes "
+                    "them a Jordan algebra. Each element rides as a flat 27-vector "
+                    "[d₁,d₂,d₃] + x₁(8) + x₂(8) + x₃(8) in the Freudenthal layout "
+                    "(dᵢ real, xᵢ octonion, the off-diagonal Hermitian). A∘B is "
+                    "Hermitian regardless of octonion associativity, so it "
+                    "re-packs into the same 27-form. This is the product "
+                    "cayley_plane_point (idempotency) and cayley_plane_incidence "
+                    "(the trace form) build on. SIBLINGS: cayley_plane_point / "
+                    "cayley_plane_incidence read points and incidence over it; "
+                    "cd_mult is the octonion product it composes. Exact end to "
+                    "end — no float, no abs(). NO new C symbol — composition_of_c "
+                    "over the c_dispatched srmech_cd_mult / srmech_cd_qconjugate. "
+                    "Class M ∘ K. SSoT: Springer & Veldkamp, *Octonions, Jordan "
+                    "Algebras and Exceptional Groups* (2000) ch. 5; Baez, "
+                    "arXiv:math/0105155 §3." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("a", "sequence", True,
+                  "a J₃(𝕆) element — a length-27 exact-rational vector "
+                  "[d₁,d₂,d₃] + x₁(8) + x₂(8) + x₃(8) (int / Q / Fraction / "
+                  "float → its EXACT ratio / (num, den))"),
+                P("b", "sequence", True, "the second J₃(𝕆) element, length 27"),
+            ),
+            returns=R("Q", "the flat-27 exact-Q vector of A∘B (Hermitian, same "
+                           "layout)"),
+        ),
+        ToolEntry(
+            name="srmech.cascade.cayley_plane_point", owner="srmech",
+            category="cascade",
+            summary="A POINT of the octonion Cayley plane 𝕆P² — the rank-1, "
+                    "trace-1 idempotent P = v·v* / ⟨v,v⟩ built from a Veronese "
+                    "vector v = (x₁,x₂,x₃) ∈ 𝕆³. P projects onto the octonionic "
+                    "line [v]: diagonal (|x₁|²,|x₂|²,|x₃|²)/⟨v,v⟩ (so tr P = 1 "
+                    "EXACTLY) and off-diagonal xᵢ·x̄ⱼ/⟨v,v⟩, returned as a flat-27 "
+                    "J₃(𝕆) element. A genuine point is a rank-1 idempotent "
+                    "(P∘P = P). BECAUSE 𝕆 IS NON-ASSOCIATIVE, P∘P = P holds iff "
+                    "v's entries PAIRWISE ASSOCIATE (two of three real, or all in "
+                    "a common ℍ) — so the op returns idempotent_defect = the exact "
+                    "⟨P∘P − P, ·⟩ magnitude² and is_point = (defect == 0). "
+                    "MEASURED: (1,e₁,e₂) → 0 (a point); (e₁,e₂,e₄) → 4/27 ≠ 0 — "
+                    "the plane's non-Desarguesian nature, an instrument that can "
+                    "return otherwise. SIBLINGS: jordan_product is the product it "
+                    "checks over; cayley_plane_incidence pairs two points; "
+                    "octonion_hopf_base is the 𝕆P¹≅S⁸ base one rung below. Exact, "
+                    "no abs() (defect / inner are Class-K ⟨v,v⟩). NO new C symbol "
+                    "— composition_of_c over cd_mult / cd_conjugate / cd_norm_sq. "
+                    "Class M ∘ C ∘ K. SSoT: Springer & Veldkamp (2000) ch. 5; "
+                    "Baez, arXiv:math/0105155 §4.2." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("x1", "sequence", True,
+                  "the first octonion coordinate — a length-8 exact-rational "
+                  "vector (int / Q / Fraction / float → its EXACT ratio / "
+                  "(num, den)); v must be nonzero"),
+                P("x2", "sequence", True, "the second octonion coordinate, length 8"),
+                P("x3", "sequence", True, "the third octonion coordinate, length 8"),
+            ),
+            returns=R("dict", "{point (flat-27 J₃ element P), trace (Q, =1), "
+                              "inner (Q, ⟨v,v⟩), idempotent_defect (Q, ⟨P∘P−P,·⟩; "
+                              "0 ⟺ genuine 𝕆P² point), is_point (bool)}"),
+        ),
+        ToolEntry(
+            name="srmech.cascade.cayley_plane_incidence", owner="srmech",
+            category="cascade",
+            summary="The INCIDENCE pairing of two Cayley-plane elements — the "
+                    "Jordan TRACE FORM ⟨A,B⟩ = Tr(A∘B) on J₃(𝕆). The Cayley plane "
+                    "is SELF-DUAL (a polarity swaps points and lines), so this one "
+                    "symmetric bilinear form reads both point–point polarity and "
+                    "point–line incidence: a point P and a line L (each a rank-1 "
+                    "idempotent) are INCIDENT iff Tr(P∘L) = 0 (Jordan-orthogonal). "
+                    "Because the trace is LINEAR it is associativity-BLIND, hence "
+                    "ALWAYS exact and well-defined — unlike the cross-product "
+                    "'line through two points', which closes only on the "
+                    "Desarguesian (associating-coordinate) subplane. MEASURED on "
+                    "the coordinate triangle E₁,E₂,E₃ and the unit point U=[1,1,1]: "
+                    "Tr(Eᵢ∘Eⱼ) = δᵢⱼ (a projective triangle) and Tr(Eᵢ∘U) = 1/3; "
+                    "Tr(P∘P) = 1 for any point. SIBLINGS: cayley_plane_point builds "
+                    "the idempotents; jordan_product is the product it traces. "
+                    "Exact, no abs(). NO new C symbol — composition_of_c over "
+                    "jordan_product (hence cd_mult / cd_conjugate). Class M ∘ K. "
+                    "SSoT: Springer & Veldkamp (2000) ch. 5 (the trace form + the "
+                    "polarity of 𝕆P²); Baez, arXiv:math/0105155 §4.2."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("a", "sequence", True,
+                  "a J₃(𝕆) element (a point or a line) — a length-27 "
+                  "exact-rational vector [d₁,d₂,d₃] + x₁(8) + x₂(8) + x₃(8)"),
+                P("b", "sequence", True, "the second J₃(𝕆) element, length 27"),
+            ),
+            returns=R("Q", "the exact Q scalar Tr(A∘B) — 0 ⟺ incident / "
+                           "Jordan-orthogonal"),
+        ),
+        ToolEntry(
+            name="srmech.cascade.octonion_hopf_base", owner="srmech",
+            category="cascade",
+            summary="The octonionic Hopf base 𝕆P¹ ≅ S⁸ — the direct carrier-"
+                    "native rung UP from octonion_frame_read's quaternionic "
+                    "ℍP¹ ≅ S⁴. octonion_frame_read reads one octonion (q₀,q₁) ∈ ℍ² "
+                    "onto the quaternionic Hopf base S³↪S⁷↠S⁴; one rung above is "
+                    "the OCTONIONIC Hopf fibration S⁷↪S¹⁵↠S⁸ with base 𝕆P¹ ≅ S⁸ — "
+                    "the missing object between the frame-committed ℍ base and the "
+                    "full plane 𝕆P². Reads x = (a,b) ∈ 𝕆² (a 16-vector): "
+                    "base_O = 2·a·conj(b) (8 comps), base_R = |a|² − |b|² (the "
+                    "Class-K pin-slot diagonal, no abs()). LANDS ON S⁸ exactly — "
+                    "|base_O|² + base_R² == norm_sq² (norm_sq = |a|²+|b|² = |x|²), "
+                    "bit-exact. Restricting x to ℍ² collapses base_O into ℍ (its "
+                    "seam half vanishes), recovering the quaternionic base. ⚠️ THE "
+                    "§3.41 CEILING: unlike the quaternionic base, this one is NOT "
+                    "frame-free under the S⁷ fiber — a seam-crossing unit-octonion "
+                    "right-multiply MOVES it (the reassociation fails at 𝕆); "
+                    "reported via reduces_to_h / on_s8. FORM, not identity. "
+                    "SIBLINGS: octonion_frame_read is the ℍP¹≅S⁴ rung below; "
+                    "cayley_plane_point is the full 𝕆P² above. Exact, no abs(). "
+                    "NO new C symbol — composition_of_c over cd_mult / "
+                    "cd_conjugate / cd_norm_sq. Class M ∘ C ∘ K. SSoT: Baez, "
+                    "arXiv:math/0105155 §4.1–§4.2 (the octonionic Hopf fibration "
+                    "S⁷↪S¹⁵↠S⁸, 𝕆P¹≅S⁸); Springer & Veldkamp (2000) ch. 5."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("x", "sequence", True,
+                  "a length-16 vector (a,b) ∈ 𝕆² (a = x[:8], b = x[8:]) — every "
+                  "exact-rational scalar cd_mult accepts (int / Q / Fraction / "
+                  "float → its EXACT ratio / (num, den))"),
+            ),
+            returns=R("dict", "{a, b (the octonion halves), base_O (8 Q), base_R "
+                              "(Q), norm_sq (Q), base_norm_sq (Q), on_s8 (bool, "
+                              "the exact S⁸ norm identity), reduces_to_h (bool)}"),
+        ),
+        ToolEntry(
+            name="srmech.math.laplacian.generalized_ngon", owner="srmech",
+            category="laplacian",
+            summary="VALIDATE + spectrally READ a generalized n-gon from its "
+                    "incidence structure — the bipartite incidence-graph girth / "
+                    "diameter / biregularity plus the Feit–Higman spectral "
+                    "constraint (Class-L, guarded; §3.41.7 Tier 3). A generalized "
+                    "n-gon is an incidence geometry (points, lines, flags) whose "
+                    "bipartite incidence graph has girth 2n, diameter n and is "
+                    "biregular of order (s,t); its incidence graph is "
+                    "distance-regular of diameter n, hence has exactly n+1 "
+                    "distinct adjacency eigenvalues — the checkable Feit–Higman "
+                    "constraint. A READ of a SUPPLIED object: girth / diameter are "
+                    "BFS GRAPH metrics (never a drawing — no CAD / continuum); the "
+                    "spectrum routes through dense_adjacency + jacobi_eigvals. "
+                    "Supply example='fano' (n=3 THICK, Heawood graph, eigs "
+                    "{±3,±√2}), example='doily' (GQ(2,2), n=4 THICK, "
+                    "Tutte–Coxeter, eigs {±3,±2,0}), example='ordinary_k' (the "
+                    "THIN k-gon C_2k, any k≥2), or an explicit (n_points, lines). "
+                    "SCOPE: the THICK n=6 (split Cayley hexagon) / n=8 (Ree–Tits "
+                    "octagon) built-ins are NOT provided — they need the Albert / "
+                    "char-2 Ree carriers §3.41.7 declines; the THIN ordinary_6 / "
+                    "ordinary_8 are the carrier-free n=6/8 witnesses, and a "
+                    "SUPPLIED thick structure is classified all the same. "
+                    "SIBLINGS: dense_adjacency / jacobi_eigvals are the graph + "
+                    "spectrum it composes. NO new C symbol — composition_of_c. "
+                    "SSoT: Feit & Higman, *J. Algebra* 1 (1964) 114–131 (the "
+                    "{2,3,4,6,8} theorem); Van Maldeghem, *Generalized Polygons* "
+                    "(1998); Tits & Weiss, *Moufang Polygons* (2002)."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("n_points", "Optional[int]", False,
+                  "number of points (used with lines=); ignored when example= is "
+                  "set"),
+                P("lines", "list[list[int]]", False,
+                  "a sequence of point-index sequences (one per line); ignored "
+                  "when example= is set"),
+                P("example", "Optional[str]", False,
+                  "a built-in structure: 'fano' (n=3), 'doily' (n=4), or "
+                  "'ordinary_k' for k≥2 (the thin k-gon C_2k)"),
+                P("spectral_max_nodes", "int", False,
+                  "skip the adjacency-spectrum read above this vertex count "
+                  "(default 256, the native Jacobi bound; 0 = skip the spectrum). "
+                  "girth / diameter are always computed"),
+            ),
+            returns=R("dict", "{n, n_points, n_lines, n_vertices, girth, "
+                              "diameter, point_degree, line_size, order_s, "
+                              "order_t, biregular, connected, thick, "
+                              "feit_higman_allowed, is_generalized_polygon, "
+                              "eigenvalues, distinct_eigenvalues, "
+                              "n_distinct_eigenvalues, spectral_consistent, "
+                              "example}"),
+        ),
         # rc310: the DISCRETE quaternion group Q8 = {+-1,+-i,+-j,+-k} as 3-bit
         # bytes — the discrete peer of the continuous ℍ surface (qm.quaternion).
         # The cascade-faithful Q8-genome foundation (ADDITIVE; no genome wiring).

@@ -129,6 +129,8 @@ srmech.cascade.algebra_table
 srmech.cascade.associator
 srmech.cascade.autocorrelation
 srmech.cascade.best_rational_signed
+srmech.cascade.cayley_plane_incidence
+srmech.cascade.cayley_plane_point
 srmech.cascade.cd_basis_product
 srmech.cascade.cd_carry
 srmech.cascade.cd_commutator
@@ -178,6 +180,7 @@ srmech.cascade.hypercomplex_exp
 srmech.cascade.inertia_signature
 srmech.cascade.is_division_algebra_dim
 srmech.cascade.is_moufang
+srmech.cascade.jordan_product
 srmech.cascade.kuramoto_step
 srmech.cascade.left_mult_is_invertible
 srmech.cascade.left_mult_kernel
@@ -196,6 +199,7 @@ srmech.cascade.moufang_residue
 srmech.cascade.net_chirality
 srmech.cascade.octonion_dft
 srmech.cascade.octonion_frame_read
+srmech.cascade.octonion_hopf_base
 srmech.cascade.parallel_sector_dispatch
 srmech.cascade.phase_coherent_peak
 srmech.cascade.pin_slot_at_zero
@@ -332,6 +336,7 @@ srmech.math.laplacian.eulerian_path
 srmech.math.laplacian.fiedler_sparse
 srmech.math.laplacian.fiedler_sparse_file
 srmech.math.laplacian.fiedler_vector
+srmech.math.laplacian.generalized_ngon
 srmech.math.laplacian.ground_state_flux_response
 srmech.math.laplacian.heat_trace
 srmech.math.laplacian.hermitian_eigendecompose

@@ -238,6 +238,16 @@ from .cayley_dickson import (
     unit_loop,
     loop_invariants,
 )
+# The octonion CAYLEY PLANE 𝕆P² surface (rc399; `#T1064` Tier 2) — the n=3
+# Moufang plane built carrier-native, one rung above octonion_frame_read's
+# ℍP¹≅S⁴: the Albert-algebra Jordan product, 𝕆P² points, the trace-form
+# incidence pairing, and the 𝕆P¹≅S⁸ octonionic Hopf base.
+from .cayley_plane import (
+    jordan_product,
+    cayley_plane_point,
+    cayley_plane_incidence,
+    octonion_hopf_base,
+)
 # Sedenion-addressable hyper-loop RBS-HDC instrument (v0.7.4rc1; UPSTREAM §31 of
 # PR #687; F465 + F468). The sedenion box made into an addressable instrument:
 # 16 named slots (octonion working block e0..e7 + EC/carry block e8..e15), HDC
@@ -414,6 +424,13 @@ __all__ = [
     "malcev_defect",
     "unit_loop",
     "loop_invariants",
+    # The octonion CAYLEY PLANE 𝕆P² surface (rc399; `#T1064` Tier 2) — the n=3
+    # Moufang plane carrier-native (Albert-algebra Jordan product, 𝕆P² points,
+    # the trace-form incidence pairing, the 𝕆P¹≅S⁸ octonionic Hopf base)
+    "jordan_product",
+    "cayley_plane_point",
+    "cayley_plane_incidence",
+    "octonion_hopf_base",
     # Sedenion-addressable RBS-HDC instrument (v0.7.4rc1; UPSTREAM §31; F465/F468)
     "SedenionRegister",
     "sedenion_register",
