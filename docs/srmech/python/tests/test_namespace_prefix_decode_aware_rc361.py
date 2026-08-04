@@ -838,17 +838,21 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # cd_zero_divisor_witnesses (the dim-general zero-divisor ops that REPLACED the
     # hardwired sedenion_zero_divisor_witness), +2. The removed sedenion op had NO
     # decoded ref (0 on rc394, measured — it was never in this carrier namespace
-    # index), so its removal is not an offset. So the live cascade decoded
-    # population is 95 + 2 + 1 + 1 + 1 + 2 + 2 = 104.
+    # index), so its removal is not an offset. rc398 (the Moufang loop-completion)
+    # then ADDED five more — moufang_residue / is_moufang / malcev_defect /
+    # unit_loop / loop_invariants (𝕆's Moufang-loop machinery promoted from
+    # test-only to queryable), +5. So the live cascade decoded
+    # population is 95 + 2 + 1 + 1 + 1 + 2 + 2 + 5 = 109.
     cascade = joined.count("srmech.cascade.")
-    assert cascade == 104, (
-        f"expected 104 srmech.cascade op references inside the DECODED channel "
+    assert cascade == 109, (
+        f"expected 109 srmech.cascade op references inside the DECODED channel "
         f"(the rc377 move's 95 + rc380's 2 loop-defect ops + rc383's defect_ladder + "
         f"rc384's octonion_frame_read + rc386's cd_three_form + rc387's flip_pair / "
-        f"group_algebra_table + rc395's cd_zero_divisor_witness / _witnesses), found "
+        f"group_algebra_table + rc395's cd_zero_divisor_witness / _witnesses + rc398's "
+        f"5 Moufang loop-completion ops), found "
         f"{cascade}. The rc377 amsc->cascade move "
         f"conserved 95 (amsc 97 -> 2); rc380 grew it by 2, rc383 by 1, rc384 by 1, "
-        f"rc386 by 1, rc387 by 2, rc395 by 2. If this is not 104, re-measure.")
+        f"rc386 by 1, rc387 by 2, rc395 by 2, rc398 by 5. If this is not 109, re-measure.")
     # rc381 (`#T1052`) — THE srmech.physics.qm RECEIVING SIDE, pinned like biology
     # / cascade. UNLIKE every drain above, this move did NOT come out of the amsc
     # population — the qm subpackage was never under amsc. It is a whole-subpackage
