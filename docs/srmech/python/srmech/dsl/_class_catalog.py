@@ -30,15 +30,19 @@ from __future__ import annotations
 
 import importlib
 import os
-import sys
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Tuple
 
-if sys.version_info >= (3, 11):
-    import tomllib as _toml
-else:  # pragma: no cover — 3.10-only branch
-    import tomli as _toml  # type: ignore[no-redef]
+# srmech's own internal TOML front door (`#T907` slice 2). Native `srmech_toml`
+# parser first, stdlib ``tomllib`` (3.11+) / ``tomli`` (3.10) floor otherwise —
+# the [class] catalog descriptors now self-host on the C parser wherever it is
+# present. The parsed value — and any ``TOMLDecodeError`` on a malformed
+# descriptor — is identical to the previous stdlib-only parse either way (a
+# float-bearing doc, should one appear, is DECLINED by the C path and rides the
+# bit-exact stdlib parser). ``srmech._toml`` is a leaf module (it imports
+# ``srmech._native`` lazily inside ``loads()``), so this introduces no cycle.
+from srmech import _toml as srmech_toml
 
 #: On-disk directory housing the packaged [class] TOML descriptors.
 #:
@@ -116,7 +120,7 @@ def load_class_catalog() -> Dict[str, Dict[str, Any]]:
             )
         for toml_path in sorted(base.glob("*.toml")):
             raw = toml_path.read_bytes()
-            desc = _toml.loads(raw.decode("utf-8"))
+            desc = srmech_toml.loads(raw.decode("utf-8"))
             class_section = desc.get("class")
             if not isinstance(class_section, dict):
                 raise ValueError(
