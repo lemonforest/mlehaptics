@@ -51,6 +51,18 @@ import warnings
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+# srmech's own internal TOML front door (`#T907` slice 4, final). The native
+# ``srmech_toml`` parser first, stdlib ``tomllib`` (3.11+) / ``tomli`` (3.10)
+# floor otherwise (or when the C parser DECLINES a document). Imported as
+# ``_toml`` (leading underscore) — NOT ``srmech_toml`` — so the leaf-module name
+# never matches the ``gen_c_claims`` ``^srmech_`` C-symbol scan; ``srmech._toml``
+# is a leaf that imports ``_native`` lazily, so no import cycle.
+from srmech import _toml
+
+# The ``tomllib`` alias below is RETAINED solely for the
+# ``except tomllib.TOMLDecodeError`` clause in ``_read_smoke_cache``:
+# ``_toml.load`` rides ``tomllib`` on a malformed document and propagates the
+# same ``TOMLDecodeError``, so the exception contract is unchanged.
 if sys.version_info >= (3, 11):
     import tomllib
 else:  # pragma: no cover  (py3.10 only)
@@ -402,7 +414,7 @@ def _read_descriptor(toml_path: Path, source_hint: str) -> Dict[str, Any]:
     _require(toml_path.exists(),
              f"{source_hint}: profile descriptor {toml_path} does not exist")
     with toml_path.open("rb") as f:
-        return tomllib.load(f)
+        return _toml.load(f)
 
 
 def _enumerate_profiles() -> Dict[str, _EnumeratedDescriptor]:
@@ -524,7 +536,7 @@ def _read_smoke_cache(profile_name: str, profile_version: str) \
         return None
     try:
         with p.open("rb") as f:
-            return tomllib.load(f)
+            return _toml.load(f)
     except (OSError, tomllib.TOMLDecodeError):
         return None
 

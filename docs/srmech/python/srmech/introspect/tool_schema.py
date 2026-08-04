@@ -67,14 +67,18 @@ of objects).
 from __future__ import annotations
 
 import json
-import sys
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
-if sys.version_info >= (3, 11):
-    import tomllib
-else:  # pragma: no cover  (py3.10 only)
-    import tomli as tomllib  # type: ignore[no-redef]
+# srmech's own internal TOML front door (`#T907` slice 4, final). The native
+# ``srmech_toml`` parser first, stdlib ``tomllib`` (3.11+) / ``tomli`` (3.10)
+# floor otherwise (or when the C parser DECLINES a document). Imported as
+# ``_toml`` (leading underscore), NOT ``srmech_toml``: this module registers
+# ToolEntries and is walked by ``tools/gen_c_claims.py``, whose ``^srmech_``
+# scan would false-match a ``srmech_toml`` global as a bogus C-symbol claim and
+# redden ``test_c_claim_resolution_rc300``. The name ``_toml`` sidesteps the
+# matcher. ``srmech._toml`` is a leaf (imports ``_native`` lazily) — no cycle.
+from srmech import _toml
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -675,7 +679,7 @@ def load_extension_file(
     assert owner, "owner must be non-empty"
 
     with open(path, "rb") as f:
-        data = tomllib.load(f)
+        data = _toml.load(f)
 
     raw_tools = data.get("tools", [])
     if not isinstance(raw_tools, list):
