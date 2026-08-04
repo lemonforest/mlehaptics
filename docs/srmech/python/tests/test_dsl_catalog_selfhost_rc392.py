@@ -16,11 +16,12 @@ What this file certifies, distinct from the rc391 oracle (which pinned
   synthetic ``_provenance`` / ``_source`` keys the loaders add) to a DIRECT
   ``tomllib`` parse of the same descriptor files — i.e. routing the parse through
   ``srmech._toml`` changed nothing observable about the built-in catalogs.
-* **The C parser actually self-hosts the catalog corpus** (native-guarded via
-  ``require_native`` — the `#T843` / `#T1004` contract). ``best_rational_signed.toml``
-  (``dead_band = 1e-12``) is the ONE expected decline-to-tomllib (float fidelity,
-  `#T1066`); every other cascade descriptor and all four class descriptors
-  self-host on ``srmech_toml`` and equal the stdlib parse.
+* **The C parser self-hosts the ENTIRE catalog corpus** (native-guarded via
+  ``require_native`` — the `#T843` / `#T1004` contract). As of rc397 (`#T1066`)
+  the C decimal→double parse is correctly-rounded, so ``best_rational_signed.toml``
+  (``dead_band = 1e-12``) self-hosts too — the float boundary that used to force
+  it to tomllib is closed. Every cascade descriptor and all four class
+  descriptors self-host on ``srmech_toml`` and equal the stdlib parse.
 * **A malformed descriptor still raises the same error type as before** —
   ``tomllib.TOMLDecodeError`` — through the repointed loaders (the C path
   DECLINES a syntactically broken doc and rides the stdlib parse, which raises).
@@ -51,10 +52,11 @@ else:  # pragma: no cover — 3.10 back-port
 #: ``tomllib`` parse carries neither, so they are stripped before comparison.
 _SYNTHETIC = ("_provenance", "_source")
 
-#: The single cascade descriptor the C parser DECLINES (a float value —
-#: ``dead_band = 1e-12`` — that srmech_toml's libm-free accumulator lands 1 ULP
-#: off; it rides the bit-exact stdlib parse). By design, tracked as `#T1066`.
-_EXPECTED_CASCADE_DECLINE = "best_rational_signed.toml"
+#: The one cascade descriptor that carries a float (``best_rational_signed.toml``,
+#: ``dead_band = 1e-12``). It USED to decline to tomllib (the old libm-free
+#: accumulator was 1 ULP off); rc397 (`#T1066`) made the C float parse
+#: correctly-rounded, so it now self-hosts like every other descriptor.
+_FLOAT_BEARING_CASCADE = "best_rational_signed.toml"
 
 
 def _read(path: Path) -> str:
@@ -158,10 +160,10 @@ def test_class_catalog_self_hosts_to_the_same_registry() -> None:
 # ── the C parser actually self-hosts the catalog corpus (native-guarded) ─────
 
 def test_c_path_self_hosts_the_cascade_catalog() -> None:
-    """The native ``srmech_toml`` parser self-hosts every cascade descriptor
-    EXCEPT the one float-bearing ``best_rational_signed.toml``, which DECLINES to
-    tomllib (the documented float boundary, `#T1066`). Each self-hosted parse
-    equals the stdlib oracle."""
+    """The native ``srmech_toml`` parser self-hosts EVERY cascade descriptor,
+    including the float-bearing ``best_rational_signed.toml`` — since rc397
+    (`#T1066`) the C float parse is correctly-rounded, so nothing declines. Each
+    self-hosted parse equals the stdlib oracle."""
     require_native("srmech_toml_parse")
     assert hasattr(_native.LIB, "srmech_toml_parse"), (
         "native library is loaded but exposes no srmech_toml_parse — a stale / "
@@ -176,10 +178,12 @@ def test_c_path_self_hosts_the_cascade_catalog() -> None:
             self_hosted.append(p.name)
             assert got_c == _stdlib_toml.loads(text), (
                 f"C-vs-tomllib dict mismatch for cascade descriptor {p.name}")
-    assert declined == [_EXPECTED_CASCADE_DECLINE], (
-        f"cascade C-parser declines are not exactly the one documented float doc: "
-        f"got {declined}, expected [{_EXPECTED_CASCADE_DECLINE!r}]")
-    assert self_hosted, "no cascade descriptor self-hosted on the C parser"
+    assert declined == [], (
+        f"cascade descriptor(s) DECLINED by the C parser — since rc397 the whole "
+        f"catalog self-hosts (floats included): {declined}")
+    assert _FLOAT_BEARING_CASCADE in self_hosted, (
+        f"the float-bearing {_FLOAT_BEARING_CASCADE!r} must now self-host on the "
+        f"correctly-rounded C float parse, not decline to tomllib")
 
 
 def test_c_path_self_hosts_the_class_catalog() -> None:

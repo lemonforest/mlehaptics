@@ -87,10 +87,11 @@ def test_corpus_is_non_empty():
 def test_c_path_parity(path: Path):
     """srmech_toml (C) == tomllib for every shipped descriptor.
 
-    A DECLINE (``toml_loads_c`` returns ``None``) is recorded as an EXPLICIT skip
-    with its reason — never a silent pass. ``test_decline_set_is_empty`` then
-    turns any such decline into a hard corpus-level failure (full-coverage
-    proof)."""
+    As of rc397 (`#T1066`) the C float parse is correctly-rounded, so the whole
+    shipped corpus — floats included — self-hosts on ``srmech_toml``. A DECLINE
+    (``toml_loads_c`` returns ``None``) is therefore now a REGRESSION on this
+    float-free-plus-float corpus, not an expected skip, and fails here directly;
+    ``test_no_corpus_doc_declines`` is the corpus-level companion proof."""
     require_native("srmech_toml_parse")
     assert hasattr(_native.LIB, "srmech_toml_parse"), (
         "native library is loaded but exposes no srmech_toml_parse — a stale / "
@@ -98,11 +99,10 @@ def test_c_path_parity(path: Path):
     text = _read(path)
     expected = _stdlib_toml.loads(text)
     got = _native.toml_loads_c(text)
-    if got is None:
-        pytest.skip(
-            f"C parser DECLINED {_rel(path)} (a float value, or a construct outside "
-            f"the supported subset) — it rides the tomllib fallback; the decline "
-            f"boundary is pinned by test_declines_are_exactly_the_float_docs")
+    assert got is not None, (
+        f"C parser DECLINED {_rel(path)} — since rc397 the entire shipped corpus "
+        f"(floats included) must self-host on srmech_toml; a decline means an "
+        f"unsupported construct crept in, or the float fix regressed")
     assert got == expected, f"C-vs-tomllib dict mismatch for {_rel(path)}"
 
 
@@ -128,36 +128,33 @@ def _has_float(obj) -> bool:
     return False
 
 
-def test_declines_are_exactly_the_float_docs():
-    """FULL COVERAGE, honestly bounded. The plan assumed the corpus was
-    float-free; it is NOT — ``best_rational_signed.toml`` carries
-    ``dead_band = 1e-12``, which srmech_toml's libm-free accumulator lands 1 ULP
-    off tomllib. So ``toml_loads_c`` DECLINES float-bearing documents (they ride
-    the bit-exact stdlib parser) and self-hosts everything else. This test pins
-    that exact boundary: every declined doc contains a float, and NO non-float
-    doc declines — i.e. the ONLY thing the C path gives up is float fidelity, a
-    known + documented gap, never an integer / string / table grammar failure."""
+def test_no_corpus_doc_declines():
+    """FULL COVERAGE. Before rc397 the corpus was NOT float-free —
+    ``best_rational_signed.toml`` carries ``dead_band = 1e-12``, which the old
+    libm-free accumulator landed 1 ULP off tomllib, so ``toml_loads_c`` DECLINED
+    every float-bearing document and rode the stdlib parser. rc397 (`#T1066`)
+    made the C decimal→double parse correctly-rounded (Clinger fast path +
+    srmech_bigint exact tail), closing that last gap. So the boundary has moved:
+    the C path now self-hosts the ENTIRE shipped corpus, floats and all, and the
+    decline-set is EMPTY. Any decline here is a real grammar gap (a datetime, a
+    quoted key, an int past int64) or a float-fix regression — never expected."""
     require_native("srmech_toml_parse")
     assert hasattr(_native.LIB, "srmech_toml_parse"), "stale lib: no srmech_toml_parse"
     declined = []
-    non_float_declines = []
-    float_docs_not_declined = []
+    float_docs_declined = []
     for path in _TOML_FILES:
         text = _read(path)
-        has_float = _has_float(_stdlib_toml.loads(text))
-        is_decline = _native.toml_loads_c(text) is None
-        if is_decline:
+        if _native.toml_loads_c(text) is None:
             declined.append(_rel(path))
-            if not has_float:
-                non_float_declines.append(_rel(path))
-        elif has_float:
-            float_docs_not_declined.append(_rel(path))
-    assert non_float_declines == [], (
-        f"the C parser DECLINED float-FREE descriptor(s) — a real grammar gap, "
-        f"not the documented float boundary: {non_float_declines}")
-    assert float_docs_not_declined == [], (
-        f"float-bearing descriptor(s) were NOT declined, so a non-bit-exact "
-        f"float may have slipped through the native path: {float_docs_not_declined}")
+            if _has_float(_stdlib_toml.loads(text)):
+                float_docs_declined.append(_rel(path))
+    assert float_docs_declined == [], (
+        f"float-bearing descriptor(s) still DECLINE after rc397 — the correctly-"
+        f"rounded C float parse should self-host them bit-exactly: {float_docs_declined}")
+    assert declined == [], (
+        f"C parser DECLINED descriptor(s) — since rc397 the whole shipped corpus "
+        f"self-hosts on srmech_toml; a decline means an unsupported construct "
+        f"(datetime / quoted key / >int64) crept in: {declined}")
 
 
 def test_type_fidelity():
@@ -186,17 +183,20 @@ def test_type_fidelity():
     assert all(type(x) is int for x in got["items"])
 
 
-def test_float_doc_rides_stdlib():
-    """The float-fidelity boundary, made explicit. ``1e-12`` is the exact value
-    the corpus carries and that srmech_toml lands 1 ULP off. The native path must
-    DECLINE it (return None), and the front door must therefore hand back the
-    stdlib's correctly-rounded value — bit-exact with tomllib."""
+def test_float_doc_self_hosts():
+    """The float-fidelity boundary, closed. ``1e-12`` is the exact value the
+    corpus carries and that the OLD accumulator landed 1 ULP off. rc397
+    (`#T1066`) makes the native path parse it correctly-rounded, so it now
+    SELF-HOSTS (``toml_loads_c`` returns the dict, not None) bit-exactly, and the
+    front door returns the same value it always did."""
     require_native("srmech_toml_parse")
     doc = "dead_band = 1e-12\n"
-    assert _native.toml_loads_c(doc) is None, (
-        "a float-bearing doc must be declined by the native path so it rides the "
-        "bit-exact stdlib parser (float fidelity is not guaranteed in C)")
-    # The internal front door still returns the correct value (via tomllib).
+    got_c = _native.toml_loads_c(doc)
+    assert got_c is not None, (
+        "since rc397 a float-bearing doc must SELF-HOST on the native path "
+        "(correctly-rounded C parse), not decline")
+    assert got_c == _stdlib_toml.loads(doc), "C float parse is not bit-exact with tomllib"
+    # The internal front door returns the same correctly-rounded value.
     assert _toml.loads(doc) == _stdlib_toml.loads(doc)
     assert type(_toml.loads(doc)["dead_band"]) is float
 
