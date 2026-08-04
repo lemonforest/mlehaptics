@@ -218,18 +218,16 @@ def build_aliases_from_toml_str(spec: str) -> Dict[str, Callable[..., Any]]:
     ``{name: callable}`` mapping — the config-driven naming layer (§95.2 / #1407).
 
     Each ``target`` is resolved (srmech.*-restricted) to its live callable. The parse routes
-    through the C ``srmech_toml`` parser when native (the DSL's :func:`_toml_loads_native`),
-    falling back to the stdlib ``tomllib`` / ``tomli`` (same dict, same decode error). Raises
+    through :func:`srmech._toml.loads` (native ``srmech_toml`` parser first, stdlib
+    ``tomllib`` / ``tomli`` floor — same dict, same decode error). Raises
     ``TypeError`` if ``spec`` is not a str, ``ValueError`` on a malformed ``[[alias]]`` entry
     or a non-``srmech.*`` target.
     """
     if not isinstance(spec, str):
         raise TypeError("build_aliases_from_toml_str: spec must be a str of TOML; got {}".format(
             type(spec).__name__))
-    from srmech.dsl._toml_chain import _toml, _toml_loads_native
-    data = _toml_loads_native(spec)
-    if data is None:
-        data = _toml.loads(spec)
+    from srmech import _toml as _srmech_toml
+    data = _srmech_toml.loads(spec)
     entries = data.get("alias", []) if isinstance(data, dict) else []
     if not isinstance(entries, list):
         raise ValueError("[[alias]] must be an ARRAY of tables (each a name + target)")
