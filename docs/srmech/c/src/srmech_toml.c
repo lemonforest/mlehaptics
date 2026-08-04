@@ -908,6 +908,7 @@ static srmech_status_t toml_f64_scan(const char *buf, char *dig, int dcap,
     while (hi >= lo && raw[hi] == '0') { hi--; }
     if (hi < lo) { *pndig = 0; *pE = 0; return SRMECH_OK; }   /* all zero */
     E += (nraw - 1 - hi);                                      /* trailing 0s */
+    if (hi - lo + 1 > dcap) { return SRMECH_ERR_OVERFLOW; }     /* live dcap bound (not assert-only) */
     for (i = 0; i <= hi - lo; i++) { dig[i] = raw[lo + i]; }
     *pndig = hi - lo + 1;
     *pE = E;
