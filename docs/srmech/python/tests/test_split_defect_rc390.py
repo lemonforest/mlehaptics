@@ -28,6 +28,7 @@ from srmech.biology.genome import split_defect
 from srmech.math.octonion import oct_mult
 from srmech.cascade.cayley_dickson import cd_basis_product, algebra_table
 from srmech.introspect.tool_schema import get_tool_schema
+from tests._native_gate import require_native
 
 
 # ── reference folds (through shipped ops) ────────────────────────────────────
@@ -182,6 +183,14 @@ def test_gauge_invariant_under_128_sign_regaugings():
 
 # ── the acceptance oracle: c_dispatched == pure fallback ─────────────────────
 def test_c_peer_is_byte_identical_to_pure_fallback():
+    # This test's proposition — "the C peer is byte-identical to the pure
+    # fallback" — is meaningless without a C peer to compare against. So it gates
+    # on the native library (`#T1004`/`#T843`): present → runs; absent under the
+    # pure-by-design CI cell → skips (tagged, counted by the skip-audit fan-in);
+    # absent UNEXPECTEDLY → fails, never a quiet pass. The pure path's own
+    # correctness is covered by the value-pinned tests above, which run everywhere.
+    require_native("srmech_split_defect")
+
     def pure(w, k):
         def fold(ws):
             b = 0
