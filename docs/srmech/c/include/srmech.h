@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc390"
-#define SRMECH_VERSION       "0.9.0rc390"
+#define SRMECH_VERSION_PRE   "rc391"
+#define SRMECH_VERSION       "0.9.0rc391"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -8622,6 +8622,18 @@ struct srmech_toml_value {
         } tbl;
     } u;
 };
+
+/* srmech_toml_parse_arena_bytes (0.9.0rc391) — return a SAFE upper bound, in
+ * bytes, for the `ws` arena srmech_toml_parse needs to parse a `src_len`-byte
+ * document. Both the transient builder tree (arena-linked tables + per-key
+ * entries + NUL-terminated key/string copies) and the finalised right-sized
+ * value tree coexist in `ws`, so the bound is linear in the source length plus
+ * a fixed floor for a tiny document. This is exactly the parse-only budget
+ * srmech_dsl_toml_chain_to_json already carves for its internal
+ * srmech_toml_parse call, so the figure is proven-safe in production. A caller
+ * that still meets SRMECH_ERR_OVERFLOW on a pathological many-tiny-keys doc may
+ * grow and retry. ABI-additive: a new symbol, so SRMECH_ABI_VERSION stays 10. */
+size_t srmech_toml_parse_arena_bytes(size_t src_len);
 
 /* Parse src[0..len) into a TOML tree built ENTIRELY inside the caller's
  * arena `ws` (ws_len bytes, used as an 8-byte-aligned bump allocator).

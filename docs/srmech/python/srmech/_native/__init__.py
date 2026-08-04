@@ -532,6 +532,61 @@ class _SrmechResponsionEntryC(ctypes.Structure):
     ]
 
 
+# --------------------------------------------------------------------------
+# srmech_toml_value_t — the tagged-union parse-tree node (0.9.0rc391, #T907
+# slice 1). Mirrors `struct srmech_toml_value` in srmech.h exactly: an int tag
+# (SRMECH_TOML_STRING=0 / INT=1 / FLOAT=2 / BOOL=3 / ARRAY=4 / TABLE=5) then an
+# 8-byte-aligned union. The node is self-referential (ARRAY items[] and TABLE
+# vals[] are srmech_toml_value_t**), so the value class is forward-declared and
+# its _fields_ patched after the union types exist. `str.ptr` is kept as a raw
+# c_void_p (not c_char_p) so the walker reads exactly `str.len` bytes and does
+# not truncate a value that legitimately carries an embedded NUL (``).
+# --------------------------------------------------------------------------
+SRMECH_TOML_STRING = 0
+SRMECH_TOML_INT = 1
+SRMECH_TOML_FLOAT = 2
+SRMECH_TOML_BOOL = 3
+SRMECH_TOML_ARRAY = 4
+SRMECH_TOML_TABLE = 5
+
+
+class _TomlValue(ctypes.Structure):
+    pass
+
+
+class _TomlStr(ctypes.Structure):
+    _fields_ = [("ptr", ctypes.c_void_p), ("len", ctypes.c_uint32)]
+
+
+class _TomlArr(ctypes.Structure):
+    _fields_ = [
+        ("items", ctypes.POINTER(ctypes.POINTER(_TomlValue))),
+        ("n", ctypes.c_uint32),
+    ]
+
+
+class _TomlTbl(ctypes.Structure):
+    _fields_ = [
+        ("keys", ctypes.POINTER(ctypes.c_char_p)),
+        ("vals", ctypes.POINTER(ctypes.POINTER(_TomlValue))),
+        ("n", ctypes.c_uint32),
+    ]
+
+
+class _TomlUnion(ctypes.Union):
+    _fields_ = [
+        ("str", _TomlStr),
+        ("i", ctypes.c_int64),
+        ("f", ctypes.c_double),
+        ("b", ctypes.c_int),
+        ("arr", _TomlArr),
+        ("tbl", _TomlTbl),
+    ]
+
+
+_TomlValue._fields_ = [("type", ctypes.c_int), ("u", _TomlUnion)]
+
+
 def _bind(lib: ctypes.CDLL) -> None:
     """Set argtypes / restype for every function we call into."""
     # const char *srmech_version(void)
@@ -5117,6 +5172,34 @@ def _bind(lib: ctypes.CDLL) -> None:
     if hasattr(lib, "srmech_dsl_toml_chain_to_json_arena_bytes"):
         lib.srmech_dsl_toml_chain_to_json_arena_bytes.argtypes = [ctypes.c_size_t]
         lib.srmech_dsl_toml_chain_to_json_arena_bytes.restype = ctypes.c_size_t
+
+    # ------------------------------------------------------------------
+    # srmech_toml_parse / srmech_toml_table_get / srmech_toml_parse_arena_bytes
+    # (0.9.0rc391, #T907 slice 1) — the RAW TOML parser bound DIRECTLY (Route A),
+    # mirroring how sha256_bytes self-hosts a direct C symbol rather than routing
+    # through the DSL JSON bridge. srmech._toml.loads walks the returned
+    # srmech_toml_value_t tree straight to a Python dict, so a native install
+    # reads descriptors/catalogs with no external tomllib/tomli. hasattr-guarded
+    # so a stale lib without these symbols keeps the stdlib parse. All additive
+    # symbols → SRMECH_ABI_VERSION unchanged.
+    #   srmech_status_t srmech_toml_parse(const char *src, size_t len,
+    #       void *ws, size_t ws_len, srmech_toml_value_t **out)
+    # ------------------------------------------------------------------
+    if hasattr(lib, "srmech_toml_parse"):
+        lib.srmech_toml_parse.argtypes = [
+            ctypes.c_char_p, ctypes.c_size_t,          # src, len
+            ctypes.c_void_p, ctypes.c_size_t,          # ws, ws_len
+            ctypes.POINTER(ctypes.POINTER(_TomlValue)),  # out
+        ]
+        lib.srmech_toml_parse.restype = ctypes.c_int
+    if hasattr(lib, "srmech_toml_table_get"):
+        lib.srmech_toml_table_get.argtypes = [
+            ctypes.POINTER(_TomlValue), ctypes.c_char_p,
+        ]
+        lib.srmech_toml_table_get.restype = ctypes.POINTER(_TomlValue)
+    if hasattr(lib, "srmech_toml_parse_arena_bytes"):
+        lib.srmech_toml_parse_arena_bytes.argtypes = [ctypes.c_size_t]
+        lib.srmech_toml_parse_arena_bytes.restype = ctypes.c_size_t
 
     # ------------------------------------------------------------------
     # srmech_infer — the F929 OPEN/infer ROUTER (0.9.0rc176; the
@@ -17639,6 +17722,120 @@ def config_load_file(path: str) -> None:
     )
     if rc != SRMECH_OK:
         raise RuntimeError(f"srmech_config_load_file returned non-OK status {rc}")
+
+
+# The belt-and-suspenders ceiling for toml_loads_c's grow-on-OVERFLOW loop. The
+# arena sizer (srmech_toml_parse_arena_bytes) already returns a proven-safe
+# bound, so this cap is only reached by a truly pathological document; hitting
+# it declines to None and the caller rides the stdlib tomllib parse.
+_TOML_ARENA_CAP = 256 * 1024 * 1024
+
+
+def _toml_tree_to_dict(node: "_TomlValue"):
+    """Walk a parsed srmech_toml_value_t node into a native Python object.
+
+    STRING→str / INT→int / FLOAT→float / BOOL→bool / ARRAY→list / TABLE→dict.
+    Every scalar is copied out here (string_at + decode materialise fresh
+    Python objects), so the caller may free the parse arena the instant this
+    returns — nothing in the result still aliases into ``ws``."""
+    t = node.type
+    if t == SRMECH_TOML_STRING:
+        ptr = node.u.str.ptr
+        if not ptr:
+            return ""
+        return ctypes.string_at(ptr, node.u.str.len).decode("utf-8")
+    if t == SRMECH_TOML_INT:
+        return int(node.u.i)
+    if t == SRMECH_TOML_FLOAT:
+        return float(node.u.f)
+    if t == SRMECH_TOML_BOOL:
+        return bool(node.u.b)
+    if t == SRMECH_TOML_ARRAY:
+        n = node.u.arr.n
+        items = node.u.arr.items
+        return [_toml_tree_to_dict(items[k].contents) for k in range(n)]
+    if t == SRMECH_TOML_TABLE:
+        n = node.u.tbl.n
+        keys = node.u.tbl.keys
+        vals = node.u.tbl.vals
+        out = {}
+        for k in range(n):
+            out[keys[k].decode("utf-8")] = _toml_tree_to_dict(vals[k].contents)
+        return out
+    raise RuntimeError(f"srmech_toml: unknown node tag {t}")
+
+
+def _toml_tree_has_float(node: "_TomlValue") -> bool:
+    """True if the parse tree carries any FLOAT node.
+
+    srmech_toml's libm-free decimal→double accumulator (repeated ×/÷ 10) is NOT
+    guaranteed to be IEEE-round-trip-faithful: e.g. ``1e-12`` lands 1 ULP off
+    tomllib's correctly-rounded value. A self-hosting loader that silently
+    returned a DIFFERENT float than the stdlib would be worse than one that
+    declines, so :func:`toml_loads_c` declines a float-bearing document and rides
+    the stdlib parser for bit-exactness. This is the same fidelity boundary the
+    DSL bridge's ``%.17g`` float path already carries, and it keeps a future
+    attested descriptor's ``descriptor_hash`` identical native-vs-pure."""
+    t = node.type
+    if t == SRMECH_TOML_FLOAT:
+        return True
+    if t == SRMECH_TOML_ARRAY:
+        items = node.u.arr.items
+        return any(
+            _toml_tree_has_float(items[k].contents) for k in range(node.u.arr.n)
+        )
+    if t == SRMECH_TOML_TABLE:
+        vals = node.u.tbl.vals
+        return any(
+            _toml_tree_has_float(vals[k].contents) for k in range(node.u.tbl.n)
+        )
+    return False
+
+
+def toml_loads_c(text: str):
+    """Parse a TOML document through the native srmech_toml parser.
+
+    Returns a dict on success, or ``None`` when the C parser DECLINES the
+    document. A decline happens on either (a) a syntax error / a construct
+    outside the supported subset — datetimes, quoted keys, non-decimal ints,
+    bignums — or (b) the presence of any FLOAT, whose libm-free parse is not
+    guaranteed bit-exact with tomllib (see :func:`_toml_tree_has_float`). A
+    ``None`` return is the caller's signal to ride the stdlib tomllib/tomli
+    fallback, exactly like the DSL chain bridge. Raises RuntimeError only if
+    called with no native srmech_toml_parse symbol present (guard with
+    HAS_NATIVE + hasattr)."""
+    if not (HAS_NATIVE and LIB is not None and hasattr(LIB, "srmech_toml_parse")):
+        raise RuntimeError(
+            "toml_loads_c called without native srmech_toml_parse; "
+            "guard with HAS_NATIVE and hasattr(LIB, 'srmech_toml_parse')")
+    raw = text.encode("utf-8")
+    n = len(raw)
+    if hasattr(LIB, "srmech_toml_parse_arena_bytes"):
+        ws_len = int(LIB.srmech_toml_parse_arena_bytes(ctypes.c_size_t(n)))
+    else:
+        ws_len = max(65536, 256 * n)
+    while True:
+        # `ws` must outlive the walk — every pointer the C tree returns aliases
+        # into it. Holding it in this local through _toml_tree_to_dict is the
+        # lifetime guarantee; the walk fully materialises the dict before return.
+        ws = ctypes.create_string_buffer(ws_len)
+        out = ctypes.POINTER(_TomlValue)()
+        rc = LIB.srmech_toml_parse(
+            raw, ctypes.c_size_t(n),
+            ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+            ctypes.byref(out),
+        )
+        if rc == SRMECH_OK:
+            root = out.contents
+            if _toml_tree_has_float(root):
+                return None  # float-fidelity boundary → ride tomllib bit-exactly
+            return _toml_tree_to_dict(root)
+        if rc == SRMECH_ERR_OVERFLOW and ws_len < _TOML_ARENA_CAP:
+            ws_len = min(ws_len * 2, _TOML_ARENA_CAP)
+            continue
+        # BAD_INPUT (unsupported construct / syntax error), NULL_ARG, or an
+        # arena that blew the cap: decline so the caller rides tomllib.
+        return None
 
 
 def _scalar_trans_c(symbol: str, x: float) -> float:

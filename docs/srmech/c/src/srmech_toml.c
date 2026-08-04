@@ -1426,6 +1426,19 @@ static srmech_status_t toml_finalize_root(toml_parser_t *p, toml_btable_t *root,
     return SRMECH_OK;
 }
 
+/* Safe upper bound for the parse arena (see srmech.h for the contract). The
+ * transient builder tree and the finalised value tree both live in `ws`, so the
+ * cost is linear in the source length; the constant floor covers a tiny doc's
+ * fixed root overhead. 256 bytes/source-byte is the same parse-only budget
+ * srmech_dsl_toml_chain_to_json carves internally, and it dwarfs the ~56
+ * bytes/source-byte a densest-possible `a=1\n` corpus actually consumes. */
+size_t srmech_toml_parse_arena_bytes(size_t src_len)
+{
+    assert(sizeof(srmech_toml_value_t) <= 256u);
+    assert(sizeof(toml_bvalue_t) <= 256u);
+    return 256u * src_len + 65536u;
+}
+
 srmech_status_t srmech_toml_parse(const char *src, size_t len,
                                   void *ws, size_t ws_len,
                                   srmech_toml_value_t **out)
