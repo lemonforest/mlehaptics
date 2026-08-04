@@ -231,6 +231,17 @@ if(SRMECH_SRCS)
         add_executable(test_srmech_toml_arena c/test/test_srmech_toml_arena.c)
         target_link_libraries(test_srmech_toml_arena PRIVATE srmech ${SRMECH_MATH_LIB})
 
+        # rc397 (`#T1066`): the correctly-rounded, libm-free srmech_toml
+        # decimal->double parse (Clinger fast path + srmech_bigint exact tail).
+        # Compares the parser's SRMECH_TOML_FLOAT value BIT-FOR-BIT against the
+        # host compiler's own double literals (correctly rounded), plus the
+        # denormal / overflow->inf / underflow->0 boundaries built from bit
+        # patterns. Public-API only (srmech.h), joins the -Werror/-WX gate AND
+        # the ctest run so the fix is proven on all three OSes. Run it:
+        #   ./build/test_srmech_toml_float        (exit 0 = all pass)
+        add_executable(test_srmech_toml_float c/test/test_srmech_toml_float.c)
+        target_link_libraries(test_srmech_toml_float PRIVATE srmech ${SRMECH_MATH_LIB})
+
         # THE RUN STEP. Every executable above is registered with ctest, so
         # `ctest --output-on-failure` in .github/workflows/srmech-ci.yml
         # actually executes them on all three OSes. Whole set = 551 ms wall on
@@ -239,7 +250,8 @@ if(SRMECH_SRCS)
             test_srmech_trans_q61 test_srmech_modular_linalg
             test_srmech_crt_reconstruct test_srmech_qmat_crt test_srmech_carrier
             test_srmech_progress test_srmech_bigint test_srmech_progress_tick
-            test_srmech_text_fold test_srmech_genome test_srmech_toml_arena)
+            test_srmech_text_fold test_srmech_genome test_srmech_toml_arena
+            test_srmech_toml_float)
             add_test(NAME ${t} COMMAND ${t})
         endforeach()
     endif()

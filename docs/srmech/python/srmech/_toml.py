@@ -5,12 +5,13 @@ Its PURPOSE is to drop the external ``tomli`` / ``tomllib`` dependency wherever
 srmech's C parser is present. When the native library exposes
 ``srmech_toml_parse``, :func:`loads` walks the C parse tree straight to a Python
 dict (Route A, #T907) — the same self-hosting move ``sha256_bytes`` makes for
-hashing, but for TOML. On a pure / Pyodide wheel (no native library), or when the
-C parser DECLINES a document (a construct outside its supported subset —
-datetimes, quoted keys, non-decimal ints, arbitrary-precision ints, or a FLOAT,
-whose libm-free C parse is not guaranteed bit-exact with the stdlib so
-float-bearing documents ride the stdlib parser for fidelity), it falls back to
-the stdlib ``tomllib`` (Python 3.11+) or the ``tomli`` backport (3.10).
+hashing, but for TOML. Floats self-host too: as of rc397 (`#T1066`) the C
+decimal→double parse is correctly-rounded (Clinger fast path + a srmech_bigint
+exact tail), so a float value is bit-identical to the stdlib's. On a pure /
+Pyodide wheel (no native library), or when the C parser DECLINES a document (a
+construct outside its supported subset — datetimes, quoted keys, non-decimal
+ints, or an int that overflows int64), it falls back to the stdlib ``tomllib``
+(Python 3.11+) or the ``tomli`` backport (3.10).
 
 That fallback is MANDATORY and is never removed: the C library is absent on pure
 / Pyodide installs, so ``tomllib`` / ``tomli`` remains the correctness path

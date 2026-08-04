@@ -17750,45 +17750,19 @@ def _toml_tree_to_dict(node: "_TomlValue"):
     raise RuntimeError(f"srmech_toml: unknown node tag {t}")
 
 
-def _toml_tree_has_float(node: "_TomlValue") -> bool:
-    """True if the parse tree carries any FLOAT node.
-
-    srmech_toml's libm-free decimal→double accumulator (repeated ×/÷ 10) is NOT
-    guaranteed to be IEEE-round-trip-faithful: e.g. ``1e-12`` lands 1 ULP off
-    tomllib's correctly-rounded value. A self-hosting loader that silently
-    returned a DIFFERENT float than the stdlib would be worse than one that
-    declines, so :func:`toml_loads_c` declines a float-bearing document and rides
-    the stdlib parser for bit-exactness. This is the same fidelity boundary the
-    DSL bridge's ``%.17g`` float path already carries, and it keeps a future
-    attested descriptor's ``descriptor_hash`` identical native-vs-pure."""
-    t = node.type
-    if t == SRMECH_TOML_FLOAT:
-        return True
-    if t == SRMECH_TOML_ARRAY:
-        items = node.u.arr.items
-        return any(
-            _toml_tree_has_float(items[k].contents) for k in range(node.u.arr.n)
-        )
-    if t == SRMECH_TOML_TABLE:
-        vals = node.u.tbl.vals
-        return any(
-            _toml_tree_has_float(vals[k].contents) for k in range(node.u.tbl.n)
-        )
-    return False
-
-
 def toml_loads_c(text: str):
     """Parse a TOML document through the native srmech_toml parser.
 
     Returns a dict on success, or ``None`` when the C parser DECLINES the
-    document. A decline happens on either (a) a syntax error / a construct
-    outside the supported subset — datetimes, quoted keys, non-decimal ints,
-    bignums — or (b) the presence of any FLOAT, whose libm-free parse is not
-    guaranteed bit-exact with tomllib (see :func:`_toml_tree_has_float`). A
-    ``None`` return is the caller's signal to ride the stdlib tomllib/tomli
-    fallback, exactly like the DSL chain bridge. Raises RuntimeError only if
-    called with no native srmech_toml_parse symbol present (guard with
-    HAS_NATIVE + hasattr)."""
+    document. A decline happens on a syntax error or a construct outside the
+    supported subset — datetimes, quoted keys, non-decimal ints, or an int that
+    overflows int64. FLOATS self-host: as of rc397 (`#T1066`) srmech_toml's
+    decimal→double parse is correctly-rounded (Clinger fast path + a
+    srmech_bigint exact tail), so a float value is bit-identical to
+    ``float(str)`` / tomllib and no longer forces a decline. A ``None`` return
+    is the caller's signal to ride the stdlib tomllib/tomli fallback, exactly
+    like the DSL chain bridge. Raises RuntimeError only if called with no native
+    srmech_toml_parse symbol present (guard with HAS_NATIVE + hasattr)."""
     if not (HAS_NATIVE and LIB is not None and hasattr(LIB, "srmech_toml_parse")):
         raise RuntimeError(
             "toml_loads_c called without native srmech_toml_parse; "
@@ -17811,10 +17785,7 @@ def toml_loads_c(text: str):
             ctypes.byref(out),
         )
         if rc == SRMECH_OK:
-            root = out.contents
-            if _toml_tree_has_float(root):
-                return None  # float-fidelity boundary → ride tomllib bit-exactly
-            return _toml_tree_to_dict(root)
+            return _toml_tree_to_dict(out.contents)
         if rc == SRMECH_ERR_OVERFLOW and ws_len < _TOML_ARENA_CAP:
             ws_len = min(ws_len * 2, _TOML_ARENA_CAP)
             continue
