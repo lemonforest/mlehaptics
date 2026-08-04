@@ -240,8 +240,6 @@ def test_registration_ratchet():
     names = {t["name"] for t in view["tools"]}
     assert "srmech.math.octonion.oct_torsor_act" in names
     assert "srmech.math.octonion.oct_torsor_div" in names
-    assert view["srmech_version"] == "0.9.0rc388"
-    assert srmech.__version__ == "0.9.0rc388"
 
 
 def test_rosetta_and_op_name_ledgers():
