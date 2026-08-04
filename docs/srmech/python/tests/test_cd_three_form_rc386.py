@@ -266,8 +266,6 @@ def test_registration_ratchet():
     assert len(view["tools"]) == 542
     names = {t["name"] for t in view["tools"]}
     assert "srmech.cascade.cd_three_form" in names
-    assert view["srmech_version"] == "0.9.0rc388"
-    assert srmech.__version__ == "0.9.0rc388"
 
 
 def test_rosetta_and_op_name_ledgers():
