@@ -187,7 +187,7 @@ def test_dim16_zero_divisor_multiply_is_zero_and_well_defined():
     WELL-DEFINED sedenion product (via cd_mult), byte-identical to calling
     cd_mult directly. Norm is NOT multiplicative here (N(x·y)=0 while
     N(x)·N(y)=4), which is exactly the object past the Hurwitz wall."""
-    w = cd.sedenion_zero_divisor_witness()
+    w = cd.cd_zero_divisor_witness(16)
     x, y = w["x"], w["y"]
     assert w["x_norm_sq"] == Q(2) and w["y_norm_sq"] == Q(2)   # both nonzero
 

@@ -186,7 +186,7 @@ def test_left_mult_matrix_unit_is_signed_permutation():
 def test_left_mult_kernel_native_equals_pure():
     # a division-algebra element (empty kernel) + a sedenion zero divisor
     # (non-empty kernel): both byte-identical native == pure.
-    w = cd.sedenion_zero_divisor_witness()
+    w = cd.cd_zero_divisor_witness(16)
     cases = [
         [F(1), F(2), F(3), F(4), F(5), F(6), F(7), F(8)],   # invertible octonion
         list(w["x"]),                                        # zero divisor (dim 16)
@@ -201,7 +201,7 @@ def test_left_mult_kernel_native_equals_pure():
 def test_left_mult_kernel_zero_divisor_nonempty_invertible_empty():
     # The §VII.6.23.4 falsifier: a sedenion zero divisor has NO backward
     # direction (non-empty left-mult kernel); a division-algebra element does.
-    w = cd.sedenion_zero_divisor_witness()
+    w = cd.cd_zero_divisor_witness(16)
     ker = cd.left_mult_kernel(list(w["x"]))
     assert len(ker) >= 1                          # left zero divisor
     # y (the witness partner) is annihilated: x·y = 0, so y ∈ ker(L(x)).

@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc394"
-#define SRMECH_VERSION       "0.9.0rc394"
+#define SRMECH_VERSION_PRE   "rc395"
+#define SRMECH_VERSION       "0.9.0rc395"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -201,8 +201,16 @@ extern "C" {
  *      callback typedef, no existing signature changed), so SRMECH_ABI_VERSION STAYS
  *      10 and GENOME_FORMAT_VERSION STAYS 19 — the organized strand is plain v15-era
  *      KERNEL chromosomes over existing caps + blocks.
+ *  (rc395, v0.9.0rc395, task #T1000) — REMOVED the dedicated dim-16 brute-force export
+ *      srmech_cd_zero_divisor_witness (and its static helper cd_pair_product_is_zero).
+ *      It predated the GF(2) route and is subsumed by the dim-general Python ops
+ *      cd_zero_divisor_witness / cd_zero_divisor_witnesses, which are composition_of_c
+ *      over the already-C gf_rref + cd_basis_product (no dedicated C symbol). A removed
+ *      export produces no symptom other than a version mismatch, so by standing policy
+ *      it bumps SRMECH_ABI_VERSION 10 -> 11. GENOME_FORMAT_VERSION stays 19 — no on-disk
+ *      format change.
  */
-#define SRMECH_ABI_VERSION 10
+#define SRMECH_ABI_VERSION 11
 
 /* ------------------------------------------------------------------ *
  * Thread-local storage qualifier (reentrancy support; #772)
@@ -4831,12 +4839,14 @@ srmech_status_t srmech_algebra_table(int dim, const int *gammas,
  * "signed unit" is (sign, index) with sign in {+1,-1}, index in [0, dim); the
  * full Moufang loop has 2*dim of them. These give a C-only host the loop
  * analogues of the cyclic-group orbit machinery: the sub-loop a generator set
- * spans, one left-multiplication cycle, the minimum spanning cardinality, and
- * the sedenion zero-divisor witness. Each COMPOSES srmech_cd_basis_product (it
- * does NOT re-implement the cocycle). Rosetta peers of
- * srmech.cascade.cayley_dickson.{closure,left_orbit,min_generating_set,
- * sedenion_zero_divisor_witness}, attested BYTE-IDENTICAL by
- * tests/test_qalg_cdnav_c_rc158.py.
+ * spans, one left-multiplication cycle, and the minimum spanning cardinality.
+ * Each COMPOSES srmech_cd_basis_product (it does NOT re-implement the cocycle).
+ * Rosetta peers of
+ * srmech.cascade.cayley_dickson.{closure,left_orbit,min_generating_set},
+ * attested BYTE-IDENTICAL by tests/test_qalg_cdnav_c_rc158.py.
+ * (rc395 `#T1000`: the fourth peer srmech_cd_zero_divisor_witness was REMOVED —
+ * subsumed by the composition_of_c cd_zero_divisor_witness over gf_rref +
+ * cd_basis_product; ABI 10 -> 11.)
  *
  * ABI-additive: new symbols + two macros, so SRMECH_ABI_VERSION stays 3.
  * ------------------------------------------------------------------ */
@@ -4880,16 +4890,11 @@ srmech_status_t srmech_cd_left_orbit(int dim, int start_idx, int gen_idx,
 srmech_status_t srmech_cd_min_generating_set(int dim, const int *unit_idxs,
                                              size_t n_units, int *out_k);
 
-/* The first sedenion (dim 16) basis-pair zero divisor: (e_i + e_j)(e_k + s*e_l)
- * = 0 with both factors nonzero, found by searching basis-unit pairs in the
- * SAME nested order (i<j, k<l, s in {+1,-1}) as the Python oracle so the witness
- * is identical. *out_i/j/k/l receive the imaginary-unit indices (1..15);
- * *out_s the second-factor sign (+1/-1). Errors: SRMECH_ERR_NULL_ARG. (The
- * sedenions always have such a witness; a not-found return would be a broken
- * convention -> SRMECH_ERR_BAD_INPUT.) */
-srmech_status_t srmech_cd_zero_divisor_witness(int *out_i, int *out_j,
-                                               int *out_k, int *out_l,
-                                               int *out_s);
+/* (rc395, task #T1000) srmech_cd_zero_divisor_witness was REMOVED here: the
+ * dedicated dim-16 brute-force export is subsumed by the dim-general Python
+ * cd_zero_divisor_witness / cd_zero_divisor_witnesses, a composition_of_c over
+ * the GF(2) gf_rref + cd_basis_product. Its removal bumped SRMECH_ABI_VERSION to
+ * 11 (see the ABI history above). */
 
 /* ------------------------------------------------------------------
  * Qi — the EXACT-complex (Gaussian-rational) carrier C-host peer (0.9.0rc15;

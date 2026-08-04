@@ -148,7 +148,7 @@ def test_is_navigable_octonion_reversible():
 
 def test_is_navigable_sedenion_zero_divisor_irreversible():
     reg = sedenion_register()
-    witness = cd.sedenion_zero_divisor_witness()["x"]
+    witness = cd.cd_zero_divisor_witness(16)["x"]
     assert reg.is_navigable(witness) is False       # the Hurwitz horizon
 
 

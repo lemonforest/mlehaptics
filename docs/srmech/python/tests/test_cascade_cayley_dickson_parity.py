@@ -113,7 +113,7 @@ def test_no_zero_divisor_below_16():
 def test_sedenion_zero_divisor_witness():
     """A concrete dim-16 zero divisor x·y = 0 with x, y both nonzero — the
     executable form of 'zero divisors first appear at 16'."""
-    w = cd.sedenion_zero_divisor_witness()
+    w = cd.cd_zero_divisor_witness(16)
     assert w["dim"] == 16
     assert w["product_is_zero"]
     assert w["x_norm_sq"] > 0 and w["y_norm_sq"] > 0
@@ -122,7 +122,7 @@ def test_sedenion_zero_divisor_witness():
 
 def test_composition_norm_fails_at_16():
     """N(x·y) = 0 ≠ N(x)·N(y): the composition identity breaks on 𝕆→𝕊 (C3)."""
-    w = cd.sedenion_zero_divisor_witness()
+    w = cd.cd_zero_divisor_witness(16)
     assert cd.cd_norm_sq(cd.cd_mult(w["x"], w["y"])) == 0
     assert cd.cd_norm_sq(w["x"]) * cd.cd_norm_sq(w["y"]) != 0
 
@@ -131,7 +131,7 @@ def test_no_backward_direction_at_the_wall():
     """left_mult_kernel: the witness is a left zero divisor (no inverse map) —
     '§VII.6.23.4 anything past and unobserved is lost'; division algebras keep
     every nonzero element invertible."""
-    w = cd.sedenion_zero_divisor_witness()
+    w = cd.cd_zero_divisor_witness(16)
     ker = cd.left_mult_kernel(w["x"])
     assert len(ker) >= 1
     assert not cd.left_mult_is_invertible(w["x"])

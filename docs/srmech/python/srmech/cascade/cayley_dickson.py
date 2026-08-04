@@ -23,9 +23,11 @@ the sim does not cross, exhibited so the wall is provable in our own code.
 
 What it attests (each a bit-exact, exact-rational witness):
 
-* **Zero divisors first appear at dim 16 and never heal.** :func:`sedenion_zero_divisor_witness`
-  exhibits a concrete pair ``x, y`` (both nonzero) with ``x·y = 0`` — found from
-  *our own* multiplication table, not transcribed from a paper. Division algebras
+* **Zero divisors first appear at dim 16 and never heal.** :func:`cd_zero_divisor_witness`
+  exhibits a concrete pair ``x, y`` (both nonzero) with ``x·y = 0`` at any rung
+  ``dim ≥ 16``, and :func:`cd_zero_divisor_witnesses` enumerates the WHOLE
+  basis-pair set (168 at dim 16) — found from *our own* multiplication table via
+  the GF(2) support solve, not transcribed from a paper. Division algebras
   (dims 1, 2, 4, 8) provably have none.
 * **The norm stops being multiplicative at 16.** A zero-divisor pair has
   ``N(x·y) = N(0) = 0`` while ``N(x)·N(y) ≠ 0`` (composition holds for 𝕆, fails
@@ -95,6 +97,8 @@ from srmech.math.cyclic import (              # Class-I cyclic (native); NOT std
     mod_add as _mod_add,                      # (i+j) mod n — the group-ring lane
 )
 from srmech.math.q import Q, to_q            # #845: the CD element carrier is Q
+from srmech.math.modular_linalg import gf_rref  # Class-I GF(2) solve — the zero-
+#                                          divisor support system (rc395, `#T1000`)
 
 from srmech import _native  # rc10: native srmech_cd_basis_product dispatch
 
@@ -1910,11 +1914,12 @@ def _terms_to_elem(dim: int, terms) -> Tuple[Q, ...]:
     return tuple(e)
 
 
-def _build_zero_divisor_dict(i: int, j: int, k: int, l: int, s: int
-                             ) -> Dict[str, Any]:
-    """Assemble the witness dict from the found basis indices (shared by the
-    native + pure paths so both emit a byte-identical result)."""
-    dim = 16
+def _build_zero_divisor_dict(i: int, j: int, k: int, l: int, s: int,
+                             dim: int = 16) -> Dict[str, Any]:
+    """Assemble the witness dict from the found basis indices. ``dim`` defaults
+    to 16 (the sedenion rung) so the rc158→rc394 dim-16 payload is reproduced
+    byte-for-byte; :func:`cd_zero_divisor_witness` passes the actual rung for the
+    general instrument (rc395, `#T1000`)."""
     terms_x = [(i, 1), (j, 1)]
     terms_y = [(k, 1), (l, s)]
     is_zero, prod = _basis_sum_terms_zero(dim, terms_x, terms_y)
@@ -1934,38 +1939,129 @@ def _build_zero_divisor_dict(i: int, j: int, k: int, l: int, s: int
     }
 
 
-def sedenion_zero_divisor_witness() -> Dict[str, Any]:
-    """Exhibit a concrete sedenion (dim 16) zero divisor: ``x, y`` both nonzero
-    with ``x·y = 0``. Found by searching basis-unit pairs with **our own**
-    multiplication table (own-work-first, not a literature transcription).
+def _zd_support_solutions(d: int, n_bits: int) -> List[Tuple[int, int]]:
+    """Every ``(k, l)`` with ``k ⊕ l = d`` over ``(ℤ/2)^n_bits``, obtained by
+    SOLVING the affine GF(2) system ``[I | I | d]`` through the shipped Class-I
+    :func:`~srmech.math.modular_linalg.gf_rref` — not by enumerating pairs and
+    filtering.
 
-    Returns a dict with the two elements (as Q tuples), their human
-    ``e_i ± e_j`` forms, their (nonzero) squared norms, and the (all-zero)
-    product — the executable form of "zero divisors first appear at 16."
+    The unknowns are the ``n_bits`` bits of ``k`` then the ``n_bits`` bits of
+    ``l``; row ``b`` is ``k_b + l_b = d_b (mod 2)``. ``gf_rref`` returns the RREF,
+    its rank and its pivot columns; the free columns parametrise the affine
+    solution set, read back by back-substitution from that RREF.
     """
-    dim = 16
-    # rc158: dispatch the integer basis-pair search to srmech_cd_zero_divisor_
-    # witness (composes the cocycle C peer). It returns the SAME first witness
-    # (same nested search order) as the pure loop below — byte-identical dict.
-    native = _native.cd_zero_divisor_witness_c()
-    if native is not None:
-        return _build_zero_divisor_dict(*native)
-    units = range(1, dim)                       # imaginary units e_1 … e_15
-    for i in units:
+    n_unk = 2 * n_bits
+    rows: List[List[int]] = []
+    for b in range(n_bits):
+        row = [0] * (n_unk + 1)
+        row[b] = 1
+        row[n_bits + b] = 1
+        row[n_unk] = (d >> b) & 1
+        rows.append(row)
+    out = gf_rref(rows, 2)                       # ← the shipped Class-I GF(2) solve
+    rref, pivots = out["rref"], out["pivots"]
+    free = [c for c in range(n_unk) if c not in pivots]
+    solutions: List[Tuple[int, int]] = []
+    for mask in range(1 << len(free)):
+        x = [0] * n_unk
+        for t, c in enumerate(free):
+            x[c] = (mask >> t) & 1
+        for row_i, pivot_col in enumerate(pivots):    # back-substitute
+            acc = rref[row_i][n_unk]
+            for c in free:
+                acc ^= rref[row_i][c] & x[c]
+            x[pivot_col] = acc
+        k = sum(bit << b for b, bit in enumerate(x[:n_bits]))
+        l = sum(bit << b for b, bit in enumerate(x[n_bits:]))
+        solutions.append((k, l))
+    return solutions
+
+
+def _cd_zero_divisor_tuples(dim: int) -> List[Tuple[int, int, int, int, int]]:
+    """The COMPLETE, deterministically ordered set of basis-pair zero-divisor
+    witnesses ``(i, j, k, l, s)`` — ``(e_i + e_j)·(e_k + s·e_l) = 0`` — of the
+    Cayley–Dickson algebra of dimension ``dim``, with NO search over the sign
+    and NO search over ``(k, l)``.
+
+    Derivation. ``e_a·e_b = σ(a,b)·e_{a⊕b}``, so the product expands to four
+    terms with indices ``i⊕k, i⊕l, j⊕k, j⊕l``. With ``i ≠ j`` and ``k ≠ l`` the
+    only pairing that can cancel forces the single GF(2) condition
+    ``i ⊕ j ⊕ k ⊕ l = 0`` — the affine system solved by
+    :func:`_zd_support_solutions`. Given a surviving support the first pair
+    cancels iff ``σ(i,k) + s·σ(j,l) = 0``, so ``s = −σ(i,k)·σ(j,l)`` is
+    **determined** (a Class-K sign pin re-applied by Class-C); the witness is
+    admitted iff the second pair then also cancels. Signs come from the
+    C-dispatched :func:`cd_basis_product`.
+
+    Ordering is total: outer ``(i, j)`` ascending, and within each pair the
+    admitted supports sorted by ``(k, l)`` — so ``[0]`` is the first witness.
+    Empty for every ``dim ≤ 8`` (ℝ / ℂ / ℍ / 𝕆 are division algebras). O(dim³),
+    tractable to :data:`CD_MAX_DIM` — NOT the exponential product sweep.
+    """
+    if not _is_pow2(dim) or dim > CD_MAX_DIM:
+        raise ValueError(f"dim must be a power of two ≤ {CD_MAX_DIM}; got {dim}")
+    if dim <= 8:
+        return []                               # division algebras: no zero divisor
+    n_bits = dim.bit_length() - 1
+    witnesses: List[Tuple[int, int, int, int, int]] = []
+    for i in range(1, dim):
         for j in range(i + 1, dim):
-            terms_x = [(i, 1), (j, 1)]
-            for k in units:
-                for l in range(k + 1, dim):
-                    for s in (1, -1):
-                        terms_y = [(k, 1), (l, s)]
-                        is_zero, _prod = _basis_sum_terms_zero(
-                            dim, terms_x, terms_y)
-                        if is_zero:
-                            return _build_zero_divisor_dict(i, j, k, l, s)
-    raise RuntimeError(                         # unreachable: 𝕊 has zero divisors
-        "no basis-pair zero divisor found in the sedenions — the convention is "
-        "inconsistent with Cayley–Dickson (this should be impossible)"
-    )
+            admitted: List[Tuple[int, int, int, int, int]] = []
+            for (k, l) in _zd_support_solutions(i ^ j, n_bits):
+                if k == 0 or l == 0 or k >= l:
+                    continue                    # e_0 = 1; (k, l) unordered
+                _idx, s_ik = cd_basis_product(dim, i, k)
+                _idx, s_jl = cd_basis_product(dim, j, l)
+                _idx, s_il = cd_basis_product(dim, i, l)
+                _idx, s_jk = cd_basis_product(dim, j, k)
+                s = -s_ik * s_jl                # DETERMINED, not searched
+                if s * s_il + s_jk == 0:
+                    admitted.append((i, j, k, l, s))
+            admitted.sort(key=lambda w: (w[2], w[3]))
+            witnesses.extend(admitted)
+    return witnesses
+
+
+def cd_zero_divisor_witnesses(dim: int = 16
+                              ) -> List[Tuple[int, int, int, int, int]]:
+    """The COMPLETE set of basis-pair zero-divisor witnesses of the
+    Cayley–Dickson algebra of dimension ``dim`` — every ``(i, j, k, l, s)`` with
+    ``(e_i + e_j)·(e_k + s·e_l) = 0``, both factors nonzero. The dim-general
+    successor of the rc158 hardwired sedenion witness: it EXHIBITS the whole
+    boundary, not one point of it.
+
+    A ``composition_of_c`` op — it solves the ``i ⊕ j ⊕ k ⊕ l = 0`` support
+    system with the C-dispatched Class-I :func:`~srmech.math.modular_linalg.gf_rref`
+    and reads every sign off the C-dispatched cocycle :func:`cd_basis_product`;
+    the second-factor sign is DETERMINED, never searched, so the cost is O(dim³)
+    (tractable to :data:`CD_MAX_DIM` = 256), not the exponential product sweep.
+    Deterministic order (``(i, j, k, l)`` ascending), so ``[0]`` is the first
+    witness. Empty for every ``dim ≤ 8`` — ℝ / ℂ / ℍ / 𝕆 are division algebras
+    and provably have none (§VII.6.23: zero divisors first appear at 16 and
+    never heal). At dim 16 there are exactly 168.
+    """
+    return _cd_zero_divisor_tuples(dim)
+
+
+def cd_zero_divisor_witness(dim: int = 16) -> "Dict[str, Any] | None":
+    """The FIRST basis-pair zero divisor (deterministic order) of the
+    Cayley–Dickson algebra of dimension ``dim`` — ``x = e_i + e_j`` and
+    ``y = e_k + s·e_l`` with ``x·y = 0``, both nonzero — returned as a dict with
+    the two elements (Q tuples), their ``e_i ± e_j`` forms, their (nonzero)
+    squared norms, and the (all-zero) product.
+
+    The dim-general successor of the removed hardwired ``sedenion_zero_divisor_
+    witness``: at ``dim = 16`` it returns the IDENTICAL payload (``x = e1 + e10``,
+    ``y = e4 − e15``) — the dim-16 answer is unchanged, only the name and the
+    generality moved. ``None`` for every ``dim ≤ 8`` (the division algebras have
+    no zero divisor). Shares the :func:`cd_zero_divisor_witnesses` enumeration —
+    it is ``[0]`` of that set, so a ``composition_of_c`` over the same
+    C-dispatched :func:`~srmech.math.modular_linalg.gf_rref` + :func:`cd_basis_product`.
+    """
+    tuples = _cd_zero_divisor_tuples(dim)
+    if not tuples:
+        return None
+    return _build_zero_divisor_dict(*tuples[0], dim=dim)
 
 
 def left_mult_matrix(x: Sequence[Any], table: Any = None) -> List[List[Q]]:
@@ -2173,7 +2269,7 @@ def left_mult_is_invertible(x: Sequence[Any], table: Any = None) -> bool:
 # algebra (exact, all seven γ-twists) WITH zero divisors: (e₀+e₁)(e₀−e₁) = 0,
 # gated cd_norm_sq(e₀+e₁, gammas=γ) = 0, left-multiplication kernel dim 4.
 # Losing composition therefore does not by itself PRODUCE zero divisors: at
-# dim 16 they are EXHIBITED (:func:`sedenion_zero_divisor_witness`), never
+# dim 16 they are EXHIBITED (:func:`cd_zero_divisor_witness`), never
 # inferred — and :func:`left_mult_is_invertible` returns True on 200/200 random
 # dim-16 elements, so the wall is invisible to sampling at dim 16 AND at
 # split-𝕆 dim 8. Exhibit, do not sample.
@@ -2194,7 +2290,7 @@ def left_mult_is_invertible(x: Sequence[Any], table: Any = None) -> bool:
 # first already had instruments in this tree
 # (:func:`srmech.cascade.cd_basis_product` commuting-pair counts;
 # ``hdc.loop_associator`` / ``genome_octonion_associator``;
-# :func:`sedenion_zero_divisor_witness` / :func:`left_mult_is_invertible`).
+# :func:`cd_zero_divisor_witness` / :func:`left_mult_is_invertible`).
 # The FIRST rung had none. This is it.
 # ──────────────────────────────────────────────────────────────────────
 
@@ -2563,9 +2659,11 @@ def inertia_signature(table: Any) -> Dict[str, Any]:
     signature is a REAL-PLACE statement and ``a² − 2b²`` is isotropic over ℝ
     while anisotropic over ℚ. Separating them needs a RATIONAL zero of the norm
     form, which this op does not compute. Zero divisors are
-    :func:`left_mult_is_invertible`; :func:`sedenion_zero_divisor_witness`
-    takes no dimension argument and is sedenion-specific, so it is not a
-    general isotropy surface either. **This gap is open, not closed.**
+    :func:`left_mult_is_invertible`; :func:`cd_zero_divisor_witnesses` does take a
+    dimension argument, but it enumerates only the discrete BASIS-PAIR witnesses
+    ``(e_i + e_j)(e_k + s·e_l) = 0`` (168 at dim 16), not the rational isotropy
+    cone of the norm form, so it is not a general isotropy surface either.
+    **This gap is open, not closed.**
 
     **The witness, and exactly what it certifies.** ``witness`` is the negative
     pivot direction from the congruence diagonalisation: ``w`` with

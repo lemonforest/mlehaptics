@@ -834,15 +834,21 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # (`#T1062`) one more — cd_three_form (the exact-ℚ G₂ associative 3-form, the
     # scalar Re-twin of associator), +1 — and rc387 (`#T1037`, closing `#T1032`) two
     # more — flip_pair + group_algebra_table (the two STRUCTURED negative controls,
-    # +2) — so the live cascade decoded population is 95 + 2 + 1 + 1 + 1 + 2 = 102.
+    # +2). rc395 (`#T1000`) then ADDED two more — cd_zero_divisor_witness +
+    # cd_zero_divisor_witnesses (the dim-general zero-divisor ops that REPLACED the
+    # hardwired sedenion_zero_divisor_witness), +2. The removed sedenion op had NO
+    # decoded ref (0 on rc394, measured — it was never in this carrier namespace
+    # index), so its removal is not an offset. So the live cascade decoded
+    # population is 95 + 2 + 1 + 1 + 1 + 2 + 2 = 104.
     cascade = joined.count("srmech.cascade.")
-    assert cascade == 102, (
-        f"expected 102 srmech.cascade op references inside the DECODED channel "
+    assert cascade == 104, (
+        f"expected 104 srmech.cascade op references inside the DECODED channel "
         f"(the rc377 move's 95 + rc380's 2 loop-defect ops + rc383's defect_ladder + "
         f"rc384's octonion_frame_read + rc386's cd_three_form + rc387's flip_pair / "
-        f"group_algebra_table), found {cascade}. The rc377 amsc->cascade move "
+        f"group_algebra_table + rc395's cd_zero_divisor_witness / _witnesses), found "
+        f"{cascade}. The rc377 amsc->cascade move "
         f"conserved 95 (amsc 97 -> 2); rc380 grew it by 2, rc383 by 1, rc384 by 1, "
-        f"rc386 by 1, rc387 by 2. If this is not 102, re-measure.")
+        f"rc386 by 1, rc387 by 2, rc395 by 2. If this is not 104, re-measure.")
     # rc381 (`#T1052`) — THE srmech.physics.qm RECEIVING SIDE, pinned like biology
     # / cascade. UNLIKE every drain above, this move did NOT come out of the amsc
     # population — the qm subpackage was never under amsc. It is a whole-subpackage

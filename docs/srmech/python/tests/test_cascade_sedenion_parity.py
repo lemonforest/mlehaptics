@@ -118,7 +118,7 @@ def test_is_navigable_parity_vs_fraction_oracle():
                 v = [Fraction(0)] * NUM_SLOTS
                 v[i] = Fraction(1); v[j] = Fraction(s)
                 cases.append(tuple(v))
-    w = cd.sedenion_zero_divisor_witness()                      # the zero divisor (False)
+    w = cd.cd_zero_divisor_witness(16)                      # the zero divisor (False)
     cases.append(w["x"]); cases.append(w["y"])
     for x in cases:
         # the Fraction-nullspace reference (NOT the dispatching wrapper).

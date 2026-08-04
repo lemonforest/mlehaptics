@@ -434,13 +434,23 @@ def test_the_shipped_cd_norm_sq_cannot_serve_as_the_isotropy_test():
     assert int(cd_norm_sq([1, -1], gammas=(+1,))) == 0
 
 
-def test_sedenion_zero_divisor_witness_is_not_a_general_isotropy_surface():
-    """The other prescribed reuse, checked rather than assumed: it takes no
-    dimension argument, so it cannot be pointed at split-ℂ."""
+def test_cd_zero_divisor_witnesses_is_not_a_general_isotropy_surface():
+    """The other prescribed reuse, checked rather than assumed — and its premise
+    INVERTED at rc395 (`#T1000`). ``cd_zero_divisor_witnesses`` IS dim-general
+    now (the hardwired sedenion op it replaced was not), so it DOES take a
+    dimension argument. But it enumerates only the DISCRETE basis-pair witnesses
+    ``(e_i + e_j)(e_k + s·e_l) = 0`` — a finite set (168 at dim 16), not the
+    rational isotropy cone of the trace/norm form — so it still cannot be pointed
+    at split-ℂ to separate it from ℚ(√2). Generality over RUNGS is not generality
+    over a rung's isotropy surface."""
     import inspect
-    assert list(inspect.signature(cd.sedenion_zero_divisor_witness)
-                .parameters) == []
-    assert cd.sedenion_zero_divisor_witness()["dim"] == 16
+    assert list(inspect.signature(cd.cd_zero_divisor_witnesses)
+                .parameters) == ["dim"]
+    ws = cd.cd_zero_divisor_witnesses(16)
+    assert len(ws) == 168 and all(len(w) == 5 for w in ws)   # finite, discrete
+    assert cd.cd_zero_divisor_witnesses(4) == []              # division algebras
+    assert cd.cd_zero_divisor_witnesses(8) == []
+    assert cd.cd_zero_divisor_witness(16)["dim"] == 16        # dim now a parameter
 
 
 def test_order_sense_is_named_in_the_payload():
@@ -468,7 +478,7 @@ def test_the_read_is_uncorrelated_with_being_a_division_algebra():
     """It flags 𝕊 (which IS flagged, n₋ = 15) and misses split-ℂ (n₋ = 0),
     while 𝕊 has zero divisors and split-ℂ has them too. The trace-form read
     simply is not a division-algebra test — ``left_mult_is_invertible`` and
-    ``sedenion_zero_divisor_witness`` are."""
+    ``cd_zero_divisor_witness`` are."""
     assert cascade.inertia_signature(SEDENION)["has_negative_direction"] is True
     assert cascade.inertia_signature(SPLIT_COMPLEX)["has_negative_direction"] \
         is False

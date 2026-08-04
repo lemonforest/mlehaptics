@@ -121,7 +121,7 @@ from typing import Optional
 #        change — so the fiedler dispatch sites below pass BYTES in lockstep.
 #        The added *_arena_bytes symbol alone would NOT have bumped; the unit
 #        reinterpretation is what does.
-EXPECTED_ABI_VERSION: int = 10
+EXPECTED_ABI_VERSION: int = 11
 
 # Back-compat alias: downstream code reading ``_native.ABI_VERSION`` gets the
 # expected (compiled-against) ABI == EXPECTED_ABI_VERSION (NOT the runtime-
@@ -1945,17 +1945,10 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.POINTER(ctypes.c_int),       # out_k (0 = no spanning subset)
         ]
         lib.srmech_cd_min_generating_set.restype = ctypes.c_int
-    #   int srmech_cd_zero_divisor_witness(int *out_i, int *out_j,
-    #       int *out_k, int *out_l, int *out_s)
-    if hasattr(lib, "srmech_cd_zero_divisor_witness"):
-        lib.srmech_cd_zero_divisor_witness.argtypes = [
-            ctypes.POINTER(ctypes.c_int),       # out_i
-            ctypes.POINTER(ctypes.c_int),       # out_j
-            ctypes.POINTER(ctypes.c_int),       # out_k
-            ctypes.POINTER(ctypes.c_int),       # out_l
-            ctypes.POINTER(ctypes.c_int),       # out_s (+1 / -1)
-        ]
-        lib.srmech_cd_zero_divisor_witness.restype = ctypes.c_int
+    # (rc395, `#T1000`) srmech_cd_zero_divisor_witness argtypes binding REMOVED —
+    # the dim-16 brute-force export is gone (subsumed by the composition_of_c
+    # cd_zero_divisor_witness / cd_zero_divisor_witnesses over gf_rref +
+    # cd_basis_product); its removal bumped EXPECTED_ABI_VERSION 10 -> 11.
 
     # Cayley-Dickson EXACT-ℚ VECTOR carrier (v0.9.0rc159; Qalg TAIL Batch 3) —
     # the 1-D sibling of srmech_qmat; num/den srmech_bigint arrays. The four
@@ -8656,8 +8649,10 @@ def has_native_cd_closure() -> bool:
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_cd_closure")
                 and hasattr(LIB, "srmech_cd_left_orbit")
-                and hasattr(LIB, "srmech_cd_min_generating_set")
-                and hasattr(LIB, "srmech_cd_zero_divisor_witness"))
+                and hasattr(LIB, "srmech_cd_min_generating_set"))
+    # (rc395, `#T1000`) srmech_cd_zero_divisor_witness dropped from this gate —
+    # the symbol was removed (ABI 10 -> 11); the three surviving nav symbols are
+    # the only ones cd_closure_c / cd_left_orbit_c / cd_min_generating_set_c use.
 
 
 def cd_closure_c(dim: int, gen_idxs: "list[int]") -> "set | None":
@@ -8715,21 +8710,11 @@ def cd_min_generating_set_c(dim: int, units: "list[int]") -> "int | None":
     return int(out_k.value)
 
 
-def cd_zero_divisor_witness_c() -> "tuple | None":
-    """Native sedenion zero-divisor search → ``(i, j, k, l, s)`` (the first
-    witness ``(e_i + e_j)(e_k + s·e_l) = 0`` in the same nested order as the
-    Python oracle), or None (no-C lib). Composes ``srmech_cd_basis_product``."""
-    if not has_native_cd_closure():
-        return None
-    oi = ctypes.c_int(); oj = ctypes.c_int(); ok = ctypes.c_int()
-    ol = ctypes.c_int(); os_ = ctypes.c_int()
-    rc = LIB.srmech_cd_zero_divisor_witness(
-        ctypes.byref(oi), ctypes.byref(oj), ctypes.byref(ok),
-        ctypes.byref(ol), ctypes.byref(os_))
-    if rc != SRMECH_OK:
-        return None
-    return (int(oi.value), int(oj.value), int(ok.value),
-            int(ol.value), int(os_.value))
+# (rc395, `#T1000`) cd_zero_divisor_witness_c() REMOVED — the dedicated dim-16
+# brute-force C export srmech_cd_zero_divisor_witness is gone (ABI 10 -> 11).
+# Its dim-general successors cd_zero_divisor_witness / cd_zero_divisor_witnesses
+# are composition_of_c over the already-dispatched gf_rref + cd_basis_product, so
+# no whole-op native wrapper is needed.
 
 
 # ----------------------------------------------------------------------

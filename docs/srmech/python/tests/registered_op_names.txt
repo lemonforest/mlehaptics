@@ -146,6 +146,8 @@ srmech.cascade.cd_promote
 srmech.cascade.cd_register
 srmech.cascade.cd_three_form
 srmech.cascade.cd_uncouple_working
+srmech.cascade.cd_zero_divisor_witness
+srmech.cascade.cd_zero_divisor_witnesses
 srmech.cascade.chiral_dual
 srmech.cascade.chiral_flip
 srmech.cascade.compose.parse_catalog_chains
@@ -196,7 +198,6 @@ srmech.cascade.pin_slot_at_zero
 srmech.cascade.quaternion_dft
 srmech.cascade.reorient
 srmech.cascade.sedenion_register
-srmech.cascade.sedenion_zero_divisor_witness
 srmech.cascade.signed_sum_squared
 srmech.cascade.spectral_cascades.dft
 srmech.cascade.spectral_cascades.fft

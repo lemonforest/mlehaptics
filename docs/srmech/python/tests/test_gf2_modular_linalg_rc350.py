@@ -56,7 +56,7 @@ from srmech.cascade.cayley_dickson import (
     cd_basis_product,
     cd_mult,
     left_mult_is_invertible,
-    sedenion_zero_divisor_witness,
+    cd_zero_divisor_witness,
 )
 from srmech.math.modular_linalg import gf_rref
 
@@ -368,10 +368,11 @@ def test_sedenion_zero_divisors_found_by_gf2_solve_all_annihilate():
         assert all(c == 0 for c in cd_mult(x, y)), (i, j, k, l, s)
 
 
-def test_gf2_criterion_reproduces_the_shipped_hardwired_witness():
-    """``sedenion_zero_divisor_witness()`` is hardwired precisely because
-    sampling cannot find one. The GF(2) construction must contain it."""
-    w = sedenion_zero_divisor_witness()
+def test_gf2_criterion_reproduces_the_shipped_witness():
+    """The shipped first witness (rc395: ``cd_zero_divisor_witness(16)``, the
+    dim-general successor of the removed hardwired sedenion op) is the one
+    sampling cannot find. The GF(2) construction must contain it."""
+    w = cd_zero_divisor_witness(16)
     assert (w["x_form"], w["y_form"]) == ("e1 + e10", "e4 - e15")
     witnesses, _ = _zero_divisor_witnesses_via_gf2(16)
     assert (1, 10, 4, 15, -1) in set(witnesses)
