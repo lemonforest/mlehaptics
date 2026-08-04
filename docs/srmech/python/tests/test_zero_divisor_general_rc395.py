@@ -146,7 +146,7 @@ def test_op_set_equals_independent_composed_c_recompute(dim):
     """The shipped op's witness SET == an independent recompute driven straight
     through ``srmech_gf_rref`` + ``srmech_cd_basis_product``. A mismatch is the
     finding (co-equal dual construction certifies mutual realizability)."""
-    require_native(f"cd_zero_divisor_witnesses composed-C recompute at dim {dim}")
+    require_native("cd_zero_divisor_witnesses composed-C recompute")
     op_set = set(cd_zero_divisor_witnesses(dim))
     c_set = _witnesses_via_c(dim)
     assert op_set == c_set, (
@@ -158,7 +158,7 @@ def test_op_set_equals_independent_composed_c_recompute(dim):
 def test_pure_path_equals_native_path(dim):
     """Pure Python == native dispatch, order-identical (the two projections of
     the same composition_of_c op are consistent)."""
-    require_native(f"cd_zero_divisor_witnesses pure-vs-native at dim {dim}")
+    require_native("cd_zero_divisor_witnesses pure-vs-native")
     pure = _force(False, cd_zero_divisor_witnesses, dim)
     nat = _force(True, cd_zero_divisor_witnesses, dim)
     assert pure == nat

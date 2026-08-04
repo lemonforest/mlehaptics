@@ -139,7 +139,7 @@ _DIM = 64
 #: ``GenomeBoundingError`` analogue (``_raise_native_genome`` maps every non-OK
 #: status to that type). rc337 introduces no new enumerator, which is the whole
 #: ABI argument: nothing about the ctypes wire format moves, so
-#: ``SRMECH_ABI_VERSION`` stays 10.
+#: ``SRMECH_ABI_VERSION`` was 10 at rc337 (rc395 later moved it 10 -> 11 by removing srmech_cd_zero_divisor_witness; this anchor tracks the CURRENT baseline).
 _BAD_INPUT = 2
 
 #: LANDED (rc342, #T969). This file kept four assertions marked ``xfail`` rather
@@ -653,8 +653,8 @@ def test_rc337_introduces_no_new_status_enumerator():
     the ABI question has to be answered deliberately rather than by omission.
     """
     _requires_native()
-    assert _native.EXPECTED_ABI_VERSION == 10, (
-        "rc337 is ABI-neutral; a bump here needs its own justification")
+    assert _native.EXPECTED_ABI_VERSION == 11, (
+        "rc337 is ABI-neutral (rc395 moved the baseline 10 -> 11); a bump here needs its own justification")
     with tempfile.TemporaryDirectory() as tmp:
         d, _one_ = _save_two_chromosomes(tmp)
         _corrupt(d, "A")
