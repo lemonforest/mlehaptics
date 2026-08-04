@@ -1627,6 +1627,28 @@ srmech_status_t srmech_genome_octonion_holonomy(const uint8_t *turns,
     return SRMECH_OK;
 }
 
+/* rc390 — the ORDER-CARRYING octonion associativity read. See srmech.h. */
+srmech_status_t srmech_split_defect(const uint8_t *word, uint32_t n, uint32_t k,
+                                    uint8_t *out_bit)
+{
+    if (word == NULL || out_bit == NULL) { return SRMECH_ERR_NULL_ARG; }
+    assert(word != NULL && out_bit != NULL);
+    if (n < 2u || k == 0u || k >= n) { return SRMECH_ERR_BAD_INPUT; }
+    assert(k > 0u && k < n);
+    for (uint32_t i = 0u; i < n; ++i) {
+        if (word[i] >= 16u) { return SRMECH_ERR_BAD_INPUT; }
+    }
+    uint8_t whole = 0u;                     /* the octonion identity +e0 (byte 0) */
+    for (uint32_t i = 0u; i < n; ++i) { whole = srmech_oct_mult(whole, word[i]); }
+    uint8_t pre = 0u;
+    for (uint32_t i = 0u; i < k; ++i) { pre = srmech_oct_mult(pre, word[i]); }
+    uint8_t suf = 0u;
+    for (uint32_t i = k; i < n; ++i) { suf = srmech_oct_mult(suf, word[i]); }
+    const uint8_t split = srmech_oct_mult(pre, suf);   /* the k-re-bracketing */
+    *out_bit = (uint8_t)((uint8_t)(whole >> 3) ^ (uint8_t)(split >> 3));
+    return SRMECH_OK;
+}
+
 /* §98/v15 public CHROMATIN cap writer — the srmech_genome_chromatin wrapper. */
 srmech_status_t srmech_genome_chromatin(unsigned char chromatin_type, uint64_t num,
                                         uint64_t den, const unsigned char *handle,

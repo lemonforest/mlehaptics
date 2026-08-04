@@ -395,7 +395,7 @@ def test_registration_and_count():
     from srmech.introspect.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
     assert "srmech.math.laplacian.propagate_sparse" in names
-    assert len(get_tool_schema().tools) == 542
-    assert srmech.describe()["tools"]["total"] == 542
+    assert len(get_tool_schema().tools) == 543
+    assert srmech.describe()["tools"]["total"] == 543
     assert "propagate_sparse" in L.LAPLACIAN_OPS
     assert "propagate_sparse" in L.__all__

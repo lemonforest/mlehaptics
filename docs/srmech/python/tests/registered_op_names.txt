@@ -108,6 +108,7 @@ srmech.biology.genome.plasmid
 srmech.biology.genome.quad_turn
 srmech.biology.genome.recall
 srmech.biology.genome.recover_diploid
+srmech.biology.genome.split_defect
 srmech.biology.genome.telomere
 srmech.biology.genome.telomere_tick
 srmech.biology.genome.upgrade_v15_to_v16

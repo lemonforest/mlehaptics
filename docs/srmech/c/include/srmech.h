@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc389"
-#define SRMECH_VERSION       "0.9.0rc389"
+#define SRMECH_VERSION_PRE   "rc390"
+#define SRMECH_VERSION       "0.9.0rc390"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -12784,6 +12784,25 @@ srmech_status_t srmech_genome_octonion_holonomy(const uint8_t *turns,
                                                 uint32_t n_turns,
                                                 uint32_t leaf_dim,
                                                 uint8_t *out);
+
+/* THE ORDER-CARRYING OCTONION ASSOCIATIVITY READ — split_defect (rc390). The
+ * ORDER-carrying complement of srmech_genome_octonion_associator (order-BLIND:
+ * L-vs-R fold, permutation-invariant). For a `word` of n octonion basis letters
+ * (each byte < 16) and a split index k (0 < k < n), it reads the sign bit of the
+ * fully-LEFT fold of the whole word against the sign bit of (fold(word[:k]) .
+ * fold(word[k:])) — the SAME letters, RE-BRACKETED at k:
+ *   *out_bit = (fold(word) >> 3) ^ (oct_mult(fold(word[:k]), fold(word[k:])) >> 3)
+ * The octonion index lane is ⊕-associative so both bracketings share the index and
+ * differ ONLY in the center sign bit — the returned 0/1. It CAN fire only when BOTH
+ * split sides have length >= 2 (a length-1 side folds trivially), so a middle split
+ * needs n >= 4 (the 𝕆 census is 1008/2401 at n=4). Folds via srmech_oct_mult (NOT a
+ * reimplemented product); Class-M (the two folds) ∘ Class-K (the sign reads) ∘
+ * Class-C (the XOR); no abs(). No malloc, no goto, no recursion. ADDITIVE plain
+ * symbol reusing NO callback typedef -> SRMECH_ABI_VERSION stays 10. Contract:
+ * word/out_bit non-NULL, n >= 2, 0 < k < n, every byte < 16. Errors:
+ * SRMECH_ERR_NULL_ARG (word or out_bit NULL), SRMECH_ERR_BAD_INPUT (bad k/n/byte). */
+srmech_status_t srmech_split_defect(const uint8_t *word, uint32_t n, uint32_t k,
+                                    uint8_t *out_bit);
 
 /* ------------------------------------------------------------------ *
  * srmech_octonion — the ODFT twiddle family + the whole-transform

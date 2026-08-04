@@ -45,7 +45,7 @@ MANIFEST = Path(__file__).resolve().parent / "registered_op_names.txt"
 #: Registered public-callable count at rc361. Pinned here only so the failure
 #: message can say "516 -> 517" instead of dumping 516 lines; the SET below is
 #: the actual contract.
-EXPECTED_N = 542
+EXPECTED_N = 543
 
 #: sha256 over the NORMALISED manifest body — "\n".join(sorted names) + "\n",
 #: UTF-8. Normalised rather than raw-file-bytes so a CRLF checkout cannot make
@@ -77,8 +77,12 @@ EXPECTED_N = 542
 # (the RIGHT ℍ-torsor action t <| g = oct_mult(t, g) of the quaternion group on a
 # seam coset) and srmech.math.octonion.oct_torsor_div (the unique g with t1 <| g == t2,
 # = oct_mult(t1^8, t2)). 540 -> 542, digest below.
+# v0.9.0rc390 (`#T961`) — one genuinely NEW op: srmech.biology.genome.split_defect
+# (the ORDER-carrying octonion associativity read — the complement of the order-BLIND
+# genome_octonion_associator; signbit(fold(word)) ^ signbit(fold(word[:k]).fold(word[k:]))).
+# 542 -> 543, digest below.
 EXPECTED_NAME_SET_SHA256 = (
-    "29fa8eda0a60e79f28806ef26dbd47dc834c1655e5ff0bc86d3ab0a379276dde")
+    "4b4b9cf8d8e1cd8afa0d93e03e324457edad9ad1799cd0115d4fff89653f8646")
 
 
 def _live_names() -> list[str]:

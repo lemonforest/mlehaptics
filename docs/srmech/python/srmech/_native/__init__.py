@@ -1031,6 +1031,19 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_genome_octonion_holonomy.restype = ctypes.c_int
 
+    # rc390: the ORDER-carrying octonion associativity read — split_defect. Folds a
+    # `word` of n octonion bytes and reads the sign bit of the whole LEFT fold XOR
+    # the sign bit of the k-re-bracketing fold(word[:k]).fold(word[k:]) into out_bit.
+    # Additive INTEGER symbol (no callback typedef) -> ABI stays 10; hasattr-guarded.
+    if hasattr(lib, "srmech_split_defect"):
+        lib.srmech_split_defect.argtypes = [
+            ctypes.POINTER(ctypes.c_uint8),     # word (n bytes)
+            ctypes.c_uint32,                    # n
+            ctypes.c_uint32,                    # k
+            ctypes.POINTER(ctypes.c_uint8),     # out_bit (1 byte, 0/1)
+        ]
+        lib.srmech_split_defect.restype = ctypes.c_int
+
     # int srmech_jacobi_eigvals(uint32_t n, double *matrix,
     #                           uint32_t max_sweeps, double tolerance,
     #                           double *out_eigvals)
@@ -18682,6 +18695,35 @@ def genome_octonion_holonomy_c(turns: bytes, n_turns: int, leaf_dim: int):
     return bytes(c_out)
 
 
+def has_native_split_defect() -> bool:
+    """True iff the rc390 native ``srmech_split_defect`` is loaded — a pre-rc390 lib
+    lacks it, so ``genome.split_defect`` folds the two brackets in pure Python
+    (``oct_mult``)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_split_defect"))
+
+
+def split_defect_c(word: bytes, k: int):
+    """Native dispatch for the ORDER-carrying octonion associativity read (rc390).
+    ``word`` is a bytes buffer of octonion letters (each < 16), ``k`` the split index
+    (``0 < k < len(word)``). Returns the ``0/1`` defect bit as an ``int``, or ``None``
+    on a missing symbol / non-OK status (caller then runs the pure ``oct_mult`` fold).
+    No scratch/arena — the C op writes a single out byte directly."""
+    if not has_native_split_defect():
+        return None
+    buf = bytes(word)
+    n = len(buf)
+    if n < 2 or k <= 0 or k >= n:
+        return None
+    c_word = (ctypes.c_uint8 * n).from_buffer_copy(buf)
+    c_bit = ctypes.c_uint8(0)
+    rc = LIB.srmech_split_defect(
+        c_word, ctypes.c_uint32(n), ctypes.c_uint32(int(k)), ctypes.byref(c_bit))
+    if rc != SRMECH_OK:
+        return None
+    return int(c_bit.value)
+
+
 def has_native_genome_census() -> bool:
     """True iff the §96/rc267 native ``srmech_genome_census`` (+ its arena SSoT) is
     loaded — a pre-rc267 lib lacks it, so ``genome.genome_census`` uses the pure
@@ -21120,10 +21162,12 @@ __all__ = [
     "has_native_genome",
     "has_native_genome_fiber_holonomy",
     "has_native_genome_octonion_holonomy",
+    "has_native_split_defect",
     "has_native_genome_census",
     "has_native_genome_registry",
     "genome_fiber_holonomy_c",
     "genome_octonion_holonomy_c",
+    "split_defect_c",
     "genome_save_c",
     "genome_load_c",
     "genome_catalog_c",

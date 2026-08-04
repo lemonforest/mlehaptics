@@ -66,6 +66,7 @@ from .q8 import q8_conjugate as _q8_conjugate
 from .q8 import q8_project_v4 as _q8_project_v4
 from srmech.math.octonion import oct_bind as _oct_bind
 from srmech.math.octonion import oct_conjugate as _oct_conjugate
+from srmech.math.octonion import oct_mult as _oct_mult
 from srmech.math.tlv import tlv_pack as _tlv_pack
 from srmech.math.tlv import tlv_unpack as _tlv_unpack
 from srmech.version import __version__ as _SRMECH_VERSION
@@ -73,7 +74,7 @@ from srmech.version import __version__ as _SRMECH_VERSION
 __all__ = [
     "discrete_writhe", "cwf_consistency_mod2",
     "genome_fiber_holonomy", "genome_add_fiber", "genome_read_fiber",
-    "genome_octonion_holonomy", "genome_octonion_associator",
+    "genome_octonion_holonomy", "genome_octonion_associator", "split_defect",
     "genome_add_octonion_fiber", "genome_read_octonion_fiber",
     "codon_read", "codon_frame_monodromy", "CODON_BASES",
     "encode_shape", "quad_turn", "telomere", "chromosome",
@@ -1078,6 +1079,7 @@ GENOME_CARRIER_SURFACE: Dict[str, Tuple[str, str]] = {
     "genome_read_fiber": ("fixed", "reads the Q8 fiber cap"),
     "genome_octonion_holonomy": ("fixed", "octonion by construction"),
     "genome_octonion_associator": ("fixed", "measures 𝕆 non-associativity; 𝕆-only by nature"),
+    "split_defect": ("fixed", "reads the ORDER-carrying 𝕆 associativity split-defect; 𝕆-only by nature"),
     "genome_add_octonion_fiber": ("fixed", "writes the octonion fiber cap"),
     "genome_read_octonion_fiber": ("fixed", "reads the octonion fiber cap"),
     "codon_read": ("fixed", "projects Q8 -> V4 (q8_project_v4); the projection IS the op"),
@@ -1982,6 +1984,88 @@ def genome_octonion_associator(turns, leaf_dim=None):
     for t in range(n_turns - 1, -1, -1):
         right = _oct_bind(flat[t * leaf_dim:(t + 1) * leaf_dim], right)
     return bytes(((left[s] >> 3) ^ (right[s] >> 3)) for s in range(leaf_dim))
+
+
+def _oct_word_fold(word):
+    """The fully-LEFT octonion product fold of ``word`` (a sequence of octonion
+    bytes ``0..15``) into a single octonion byte — ``acc = oct_mult(acc, letter)``
+    from the identity ``+e₀`` (byte 0), REUSING :func:`~srmech.math.octonion.oct_mult`
+    (NOT a reimplemented product). The 𝕆 index lane is ⊕-associative, so the RESULT
+    INDEX is bracketing-independent; only the center sign bit carries the defect."""
+    acc = 0
+    for b in word:
+        acc = _oct_mult(acc, b)
+    return acc
+
+
+def split_defect(word, k):
+    """The ORDER-CARRYING octonion associativity read — the complement of the
+    order-BLIND :func:`genome_octonion_associator`.
+
+    Where the associator compares the fully-LEFT and fully-RIGHT folds of the SAME
+    ordered turns (a PERMUTATION-INVARIANT, bracketing-only read that is identically
+    ``0`` at ``n = 3, 4``), ``split_defect`` reads the SAME letters RE-BRACKETED at a
+    single split point ``k``. For a ``word`` of octonion basis letters it compares the
+    sign bit of the whole LEFT fold against the sign bit of ``fold(word[:k]) ·
+    fold(word[k:])``::
+
+        split_defect(word, k) = signbit(fold(word))
+                                ^ signbit(fold(word[:k]) · fold(word[k:]))
+
+    where ``fold`` is the left-fold octonion product (:func:`_oct_word_fold`) and ``·``
+    is :func:`~srmech.math.octonion.oct_mult`. Because the octonion index lane is
+    ⊕-associative, both bracketings ALWAYS share the same index and can differ ONLY in
+    the center sign bit, so the defect is that one bit ``∈ {0, 1}``. Class-M (the two
+    folds) ∘ Class-K (the two sign reads, the pin-slot bit) ∘ Class-C (the XOR compare);
+    no ``abs()`` (sign is the Class-K pin bit ``b >> 3``, re-applied by the Class-C XOR).
+
+    It CAN fire only when BOTH split sides have length ``≥ 2`` (a length-1 side folds
+    trivially, so its bracketing cannot move), so for a MIDDLE split it needs ``n ≥ 4``
+    — the measured 𝕆 census is **1008/2401** at ``n = 4, k = 2`` (all length-4 words over
+    the 7 imaginary units). It is identically ``0`` for any all-quaternionic word (a
+    single Fano frame is associative) and for the associative peer algebras (ℂ, ℍ, and
+    Cl(0,7) — 7 anticommuting generators but ASSOCIATIVE), and it is unchanged under the
+    128 = 2⁷ sign re-gaugings of the generators — so it detects **associativity**, NOT
+    the division property (split-𝕆 gives the identical census). A ``0`` therefore means
+    EITHER the re-bracketing preserved the sign OR the word is too short at ``k`` to fire.
+
+    Dispatches to the whole-op C peer :c:func:`srmech_split_defect` (``c_dispatched``;
+    byte-identical pure ``oct_mult`` fallback); ADDITIVE symbol, ``SRMECH_ABI_VERSION``
+    stays 10.
+
+    Args:
+        word: the octonion word — a ``bytes``/``bytearray`` or a sequence of ``int``
+            octonion letters (each ``0..15``: index ``b & 7``, sign bit ``b >> 3``).
+        k: the split index, ``1 ≤ k < len(word)`` — the left bracket takes ``word[:k]``,
+            the right takes ``word[k:]``.
+
+    Returns:
+        ``int`` — the ``0/1`` order-carrying associator-defect bit at split ``k``.
+
+    Raises:
+        ValueError: a non-octonion byte, ``len(word) < 2``, or ``k`` out of range.
+    """
+    buf = bytes(word)
+    n = len(buf)
+    if n < 2:
+        raise ValueError(
+            f"split_defect: word needs at least 2 letters to split (got {n})")
+    if not 1 <= k < n:
+        raise ValueError(
+            f"split_defect: split index k must satisfy 1 <= k < {n} (got {k})")
+    for b in buf:
+        if not 0 <= b <= 15:
+            raise ValueError(
+                f"split_defect: byte {b} is not an octonion element (0..15) — the "
+                f"fold is the exact-integer octonion product")
+    native = _native.split_defect_c(buf, k)
+    if native is not None:
+        return native
+    whole = _oct_word_fold(buf)                 # fully-LEFT fold of the whole word
+    pre = _oct_word_fold(buf[:k])
+    suf = _oct_word_fold(buf[k:])
+    split = _oct_mult(pre, suf)                 # the k-re-bracketing
+    return (whole >> 3) ^ (split >> 3)
 
 
 def _oct_pack_holonomy_payload(holonomy: bytes) -> bytes:
