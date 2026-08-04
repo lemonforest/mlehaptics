@@ -807,6 +807,229 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
             "loop cocycle."
         ),
     },
+    # rc399 (`#T1064` Tier 2/3): the octonion CAYLEY PLANE 𝕆P² (carrier-native)
+    # + the guarded generalized-n-gon / Feit–Higman read. Outputs below are real
+    # WSL2 numpy-absent captures.
+    'srmech.cascade.jordan_product': {
+        'example': {
+            'output': (
+                'E1 o E1 == E1 : True\n'
+                'E1 o E2 == 0  : True'
+            ),
+            'why': (
+                'The Jordan product is the commutative, non-associative product '
+                'A∘B=(AB+BA)/2 that makes the 27-dim Albert algebra J₃(𝕆). A point '
+                'of 𝕆P² is a rank-1 idempotent (P∘P=P), and two distinct '
+                'coordinate points are Jordan-orthogonal (E1∘E2=0) — the two '
+                'facts cayley_plane_point and cayley_plane_incidence read.'
+            ),
+            'worked': (
+                'from srmech.cascade import jordan_product, cayley_plane_point\n'
+                '# A rank-1 idempotent squares to itself under the Jordan product.\n'
+                'E1 = cayley_plane_point([1,0,0,0,0,0,0,0], [0]*8, [0]*8)["point"]\n'
+                'print("E1 o E1 == E1 :", list(jordan_product(E1, E1)) == list(E1))\n'
+                '# Two distinct coordinate idempotents are Jordan-orthogonal.\n'
+                'E2 = cayley_plane_point([0]*8, [1,0,0,0,0,0,0,0], [0]*8)["point"]\n'
+                'print("E1 o E2 == 0  :", all(c == 0 for c in jordan_product(E1, E2)))'
+            ),
+        },
+        'explanation': (
+            "WHAT: the Jordan product A∘B=(AB+BA)/2 of two elements of the Albert "
+            "algebra J₃(𝕆) — the 3x3 octonionic-Hermitian matrices (dim 27 = 3 "
+            "real diagonal + 3 octonion off-diagonal), carried as a flat 27-vector "
+            "[d1,d2,d3]+x1(8)+x2(8)+x3(8) in the Freudenthal layout. Commutative "
+            "but NON-associative; A∘B is Hermitian regardless of octonion "
+            "associativity, so it re-packs into the same 27-form. WHEN: reach for "
+            "it as the underlying product for anything on 𝕆P² — the idempotency "
+            "test of a point, the trace-form incidence pairing, a Jordan square. "
+            "What you would otherwise wrongly hand-roll: the full 3x3 octonionic "
+            "matmul with its non-reassociating cd_mult entries, twice, plus the "
+            "symmetrisation. SIBLINGS: cayley_plane_point builds the rank-1 "
+            "idempotents; cayley_plane_incidence traces the product; cd_mult is "
+            "the octonion product it composes. Exact, no abs(). NO new C symbol — "
+            "composition_of_c over the c_dispatched cd_mult / cd_conjugate."
+        ),
+    },
+    'srmech.cascade.cayley_plane_point': {
+        'example': {
+            'output': (
+                '[1,e1,e2]  is_point: True  trace: 1  defect: 0\n'
+                '[e1,e2,e4] is_point: False trace: 1  defect: 4/27'
+            ),
+            'why': (
+                'A point of 𝕆P² is a rank-1 trace-1 idempotent P=vv*/⟨v,v⟩. '
+                'BECAUSE 𝕆 is non-associative, P∘P=P holds iff the entries of v '
+                'PAIRWISE ASSOCIATE: (1,e1,e2) (a real + a common-ℍ pair) is a '
+                'genuine point (defect 0), while (e1,e2,e4) (three non-associating '
+                'imaginary units) has an exact nonzero defect 4/27 — the '
+                'non-Desarguesian nature of the plane, not a bug.'
+            ),
+            'worked': (
+                'from srmech.cascade import cayley_plane_point, cd_basis\n'
+                'e = [list(cd_basis(8, i)) for i in range(8)]\n'
+                '# Pairwise-associating entries -> a genuine OP^2 point.\n'
+                'P = cayley_plane_point([1,0,0,0,0,0,0,0], e[1], e[2])\n'
+                'print("[1,e1,e2]  is_point:", P["is_point"], " trace:", P["trace"], " defect:", P["idempotent_defect"])\n'
+                '# Three non-associating imaginary units -> NOT a point.\n'
+                'Q = cayley_plane_point(e[1], e[2], e[4])\n'
+                'print("[e1,e2,e4] is_point:", Q["is_point"], "trace:", Q["trace"], " defect:", Q["idempotent_defect"])'
+            ),
+        },
+        'explanation': (
+            "WHAT: a POINT of the octonion Cayley plane 𝕆P² — the rank-1, trace-1 "
+            "idempotent P=vv*/⟨v,v⟩ built from a Veronese vector v=(x1,x2,x3) in "
+            "𝕆^3, returned as a flat-27 J₃(𝕆) element. tr P = 1 EXACTLY for any "
+            "nonzero v. WHEN: reach for it to construct a 𝕆P² point and to TEST "
+            "whether a given Veronese vector actually is one — the op returns "
+            "idempotent_defect = ⟨P∘P−P,·⟩ and is_point = (defect==0). The "
+            "boundary IS the mathematics: P∘P=P holds only when v's entries "
+            "pairwise associate (two real, or a common ℍ), so the op is an "
+            "instrument that can return otherwise — (e1,e2,e4) gives 4/27, the "
+            "non-Desarguesian nature of 𝕆P². What you would wrongly hand-roll: the "
+            "outer product vv* with octonion entries and the non-associative "
+            "idempotency check. SIBLINGS: jordan_product is the product it checks "
+            "over; cayley_plane_incidence pairs two points via the trace form; "
+            "octonion_hopf_base is the 𝕆P¹≅S⁸ base one rung below. Exact, no abs() "
+            "(defect/inner are Class-K magnitude²). NO new C symbol — "
+            "composition_of_c over cd_mult / cd_conjugate / cd_norm_sq."
+        ),
+    },
+    'srmech.cascade.cayley_plane_incidence': {
+        'example': {
+            'output': (
+                'Tr(E1 o E2) = 0  (incident / orthogonal)\n'
+                'Tr(E1 o U ) = 1/3\n'
+                'Tr(E1 o E1) = 1  (a point: idempotent)'
+            ),
+            'why': (
+                'The Cayley plane is self-dual, so the single Jordan trace form '
+                'Tr(A∘B) reads both point-point polarity and point-line incidence: '
+                'two elements are incident iff Tr(A∘B)=0. On the coordinate '
+                'triangle Tr(Ei∘Ej)=δij (a projective triangle) and Tr(Ei∘U)=1/3; '
+                'because the trace is linear it is associativity-blind, hence '
+                'always exact — unlike the cross-product line construction.'
+            ),
+            'worked': (
+                'from srmech.cascade import cayley_plane_incidence, cayley_plane_point\n'
+                'E1 = cayley_plane_point([1,0,0,0,0,0,0,0], [0]*8, [0]*8)["point"]\n'
+                'E2 = cayley_plane_point([0]*8, [1,0,0,0,0,0,0,0], [0]*8)["point"]\n'
+                'U  = cayley_plane_point([1,0,0,0,0,0,0,0], [1,0,0,0,0,0,0,0], [1,0,0,0,0,0,0,0])["point"]\n'
+                'print("Tr(E1 o E2) =", cayley_plane_incidence(E1, E2), " (incident / orthogonal)")\n'
+                'print("Tr(E1 o U ) =", cayley_plane_incidence(E1, U))\n'
+                'print("Tr(E1 o E1) =", cayley_plane_incidence(E1, E1), " (a point: idempotent)")'
+            ),
+        },
+        'explanation': (
+            "WHAT: the INCIDENCE pairing of two Cayley-plane elements — the Jordan "
+            "trace form ⟨A,B⟩=Tr(A∘B) on J₃(𝕆). The plane is SELF-DUAL (a polarity "
+            "swaps points and lines), so this one symmetric bilinear form reads "
+            "both point-point polarity and point-line incidence: a point P and a "
+            "line L (each a rank-1 idempotent) are incident iff Tr(P∘L)=0 "
+            "(Jordan-orthogonal). WHEN: reach for it as the incidence PRIMITIVE — "
+            "it is ALWAYS exact and well-defined because the trace is linear, "
+            "hence associativity-blind, unlike the cross-product 'line through two "
+            "points', which closes only on the Desarguesian (associating-"
+            "coordinate) subplane. MEASURED: Tr(Ei∘Ej)=δij, Tr(Ei∘U)=1/3, "
+            "Tr(P∘P)=1. What you would wrongly hand-roll: the trace of a "
+            "non-associative Jordan product. SIBLINGS: cayley_plane_point builds "
+            "the idempotents; jordan_product is the product it traces. Exact, no "
+            "abs(). NO new C symbol — composition_of_c over jordan_product."
+        ),
+    },
+    'srmech.cascade.octonion_hopf_base': {
+        'example': {
+            'output': (
+                'on_s8: True  base_R: 0  norm_sq: 2\n'
+                'reduces_to_h: True  on_s8: True'
+            ),
+            'why': (
+                'The octonionic Hopf fibration S⁷↪S¹⁵↠S⁸ has base 𝕆P¹≅S⁸ — one '
+                'rung above the quaternionic ℍP¹≅S⁴ of octonion_frame_read. The '
+                'base '
+                '(base_O, base_R) lands on S⁸ EXACTLY (the norm identity), and '
+                'restricting the input to ℍ² collapses base_O into ℍ (seam half '
+                'zero), recovering the quaternionic base below.'
+            ),
+            'worked': (
+                'from srmech.cascade import octonion_hopf_base, cd_basis\n'
+                'e = [list(cd_basis(8, i)) for i in range(8)]\n'
+                '# x = (e1, e4) in O^2 -> the S^8 base; the norm identity is EXACT.\n'
+                'h = octonion_hopf_base(e[1] + e[4])\n'
+                'print("on_s8:", h["on_s8"], " base_R:", h["base_R"], " norm_sq:", h["norm_sq"])\n'
+                '# x in H^2 collapses base_O into H (seam half zero).\n'
+                'hH = octonion_hopf_base([1,2,3,4,0,0,0,0] + [5,6,7,8,0,0,0,0])\n'
+                'print("reduces_to_h:", hH["reduces_to_h"], " on_s8:", hH["on_s8"])'
+            ),
+        },
+        'explanation': (
+            "WHAT: the octonionic Hopf base 𝕆P¹≅S⁸ — the direct carrier-native "
+            "rung UP from octonion_frame_read's quaternionic ℍP¹≅S⁴. Reads "
+            "x=(a,b) in 𝕆² (a 16-vector): base_O = 2·a·conj(b) (8 comps), base_R "
+            "= |a|²−|b|² (the Class-K pin-slot diagonal). It LANDS ON S⁸ exactly — "
+            "|base_O|²+base_R² == norm_sq² (norm_sq = |a|²+|b|² = |x|²), bit-exact. "
+            "WHEN: reach for it to read the genuine object between the "
+            "frame-committed ℍ base and the full plane 𝕆P². Restricting x to ℍ² "
+            "collapses base_O into ℍ, recovering the quaternionic base. WARNING "
+            "THE §3.41 CEILING: unlike the quaternionic base, this one is NOT "
+            "frame-free under the S⁷ fiber — a seam-crossing unit-octonion "
+            "right-multiply MOVES it (the reassociation fails at 𝕆). FORM, not "
+            "identity. SIBLINGS: octonion_frame_read is the ℍP¹≅S⁴ rung below; "
+            "cayley_plane_point is the full 𝕆P² above. Exact, no abs(). NO new C "
+            "symbol — composition_of_c over cd_mult / cd_conjugate / cd_norm_sq."
+        ),
+    },
+    'srmech.math.laplacian.generalized_ngon': {
+        'example': {
+            'output': (
+                'fano : n=3 girth=6 diam=3 poly=True eigs=[-3.0, -1.414214, 1.414214, 3.0]\n'
+                'doily: n=4 girth=8 diam=4 poly=True eigs=[-3.0, -2.0, -0.0, 2.0, 3.0]\n'
+                'ord_6: n=6 girth=12 diam=6 thick=False poly=True'
+            ),
+            'why': (
+                'The bipartite incidence graph of a generalized n-gon has girth 2n, '
+                'diameter n and exactly n+1 distinct adjacency eigenvalues '
+                '(distance-regular). The Fano plane (n=3, Heawood, eigs {±3,±√2}) '
+                'and the GQ(2,2) doily (n=4, Tutte-Coxeter, eigs {±3,±2,0}) are the '
+                'THICK built-ins; the thin ordinary 6-gon is the carrier-free n=6 '
+                'witness (the thick n=6 hexagon is declined — it needs G₂).'
+            ),
+            'worked': (
+                'from srmech.math.laplacian import generalized_ngon\n'
+                '# Fano plane (n=3 THICK): incidence graph = Heawood, girth 6, diam 3.\n'
+                'r = generalized_ngon(example="fano")\n'
+                'print("fano : n=%s girth=%s diam=%s poly=%s eigs=%s" % (\n'
+                '      r["n"], r["girth"], r["diameter"], r["is_generalized_polygon"], r["distinct_eigenvalues"]))\n'
+                '# GQ(2,2) doily (n=4 THICK): incidence graph = Tutte-Coxeter.\n'
+                'd = generalized_ngon(example="doily")\n'
+                'print("doily: n=%s girth=%s diam=%s poly=%s eigs=%s" % (\n'
+                '      d["n"], d["girth"], d["diameter"], d["is_generalized_polygon"], d["distinct_eigenvalues"]))\n'
+                '# The thin ordinary 6-gon (C_12) is the carrier-free n=6 witness.\n'
+                'o = generalized_ngon(example="ordinary_6")\n'
+                'print("ord_6: n=%s girth=%s diam=%s thick=%s poly=%s" % (\n'
+                '      o["n"], o["girth"], o["diameter"], o["thick"], o["is_generalized_polygon"]))'
+            ),
+        },
+        'explanation': (
+            "WHAT: VALIDATE + spectrally READ a generalized n-gon from its "
+            "incidence structure. A generalized n-gon is an incidence geometry "
+            "(points, lines, flags) whose bipartite incidence graph has girth 2n, "
+            "diameter n and is biregular of order (s,t); its incidence graph is "
+            "distance-regular of diameter n, hence has exactly n+1 distinct "
+            "adjacency eigenvalues — the checkable Feit-Higman constraint. A READ "
+            "of a SUPPLIED object: girth/diameter are BFS GRAPH metrics (never a "
+            "drawing — no CAD/continuum); the spectrum routes through "
+            "dense_adjacency + jacobi_eigvals. WHEN: reach for it to classify an "
+            "incidence structure (which n, thick vs thin, orders (s,t)) and check "
+            "the Feit-Higman spectral constraint. Supply example='fano'/'doily'/"
+            "'ordinary_k' or an explicit (n_points, lines). SCOPE (§3.41.7): the "
+            "THICK n=6 (split Cayley hexagon, needs G₂) and n=8 (Ree-Tits octagon, "
+            "needs char-2 ²F₄) built-ins are NOT provided — the Albert/Ree carriers "
+            "srmech declines; the thin ordinary_6/ordinary_8 are the carrier-free "
+            "n=6/8 witnesses, and a SUPPLIED thick structure is classified all the "
+            "same. SIBLINGS: dense_adjacency / jacobi_eigvals are the graph + "
+            "spectrum it composes. NO new C symbol — composition_of_c."
+        ),
+    },
     "srmech.cascade.cd_cycle_holonomy": {"example": {"output": "dim  2  open (non-closing) triangles    0 / 8\ndim  4  open (non-closing) triangles    0 / 64\ndim  8  open (non-closing) triangles  168 / 512\nclosed: False  defect: [0, 0, 0, 0, 0, 0, 0, 2]\ndefect == associator: True", "why": "On associative rungs (ℝ/ℂ/ℍ) every basis triangle CLOSES — the loop-holonomy is bracketing-free, which is why the ℍ-only quaternion peer never has to choose. At 𝕆 the triangles fail to close on exactly the 168/512 non-associating triples, the k=3 turn-on. The defect it returns IS the associator of the three edge-gains — same k=3 content, holonomy framing.", "worked": "from srmech.cascade import cd_cycle_holonomy, cd_basis, associator\n\n# The 3-cycle loop-holonomy over CD edges. On associative rungs (R/C/H) every\n# triangle CLOSES (bracketing-free); at O the basis triangles fail to close on\n# exactly the non-associating triples - the k=3 turn-on.\nfor dim in (2, 4, 8):\n    b = [cd_basis(dim, i) for i in range(dim)]\n    open_ = sum(1 for i in range(dim) for j in range(dim) for k in range(dim)\n                if not cd_cycle_holonomy(b[i], b[j], b[k])[\"closed\"])\n    print(\"dim %2d  open (non-closing) triangles %4d / %d\" % (dim, open_, dim ** 3))\n\n# A concrete octonion triangle that does NOT close: 0 -> e1 -> e2 -> e4.\nh = cd_cycle_holonomy(cd_basis(8, 1), cd_basis(8, 2), cd_basis(8, 4))\nprint(\"closed:\", h[\"closed\"], \" defect:\", [int(q) for q in h[\"defect\"]])\n\n# the defect IS the associator - same k=3 content, holonomy framing.\nprint(\"defect == associator:\",\n      h[\"defect\"] == associator(cd_basis(8, 1), cd_basis(8, 2), cd_basis(8, 4)))"}, "explanation": "WHAT — the loop-holonomy walked around a 3-cycle of Cayley–Dickson edge-gains, returned as a dict {dim, holonomy_left=(x·y)·z, holonomy_right=x·(y·z), defect=left−right, closed}. closed is True iff the two bracketings agree, i.e. the triangle closes independently of how the walk is nested. table=None runs it on the definite ladder through cd_mult, table= on any algebra a structure tensor names through table_product. Exact end to end — no float, no epsilon, no abs(). WHEN — reach for it to read the k=3 turn-on as a HOLONOMY rather than a bare tuple: closed is a property of the RUNG, not the gains — every triangle closes on an associative rung, and at 𝕆 the basis triangles fail to close on exactly the non-associating triples (168/512 at 𝕆, 1848/4096 at 𝕊). It is the general-dim, any-rung generalisation of qm.quaternion.quaternion_cycle_holonomy, which lives at ℍ where the walk is bracketing-free. ⚠️ EPISTEMIC CEILING: it reads the FORM of the holonomy (the ordered walk + whether it closes), not an SU(2) conjugacy class — that read is special to unit quaternions and the general rung has no analogue. SIBLINGS — associator is the same k=3 defect as a bare trilinear tuple (this op's defect field == associator(x, y, z)); cd_commutator is the k=2 square-loop one rung below; quaternion_cycle_holonomy is the ℍ-only associative sibling with its conjugacy-class read; cd_mult and table_product are the products it composes, and walking the triangle both ways by hand is exactly what not to re-derive. No new C symbol was minted and none is owed: it is the composition of two already-c_dispatched products."},
     'srmech.cascade.defect_ladder': {'example': {'output': "H rung 2 nonzero {'commutator': True, 'associator': False, 'flexibility': False, 'left_alternator': False}\nH projected ['commutator']\nO rung 3 closed False projected ['associator', 'commutator']\nS associator [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2]\nS admits @4 True", 'why': 'One call surfaces the whole ladder: at H only the commutator has fired (the projector keeps just it), at O the associator joins and the triangle no longer closes, and at S the alternativity failure shows up ONLY for the seam-crossing a=e1+e10 as [a,a,e4]=2*e15 -- the projector admitting rung 4 that a basis-only probe cannot see.', 'worked': 'from srmech.cascade import defect_ladder, cd_basis, cd_add\n\n# The whole property-loss LADDER + a per-rung PROJECTOR in one call. Each\n# loop-defect turns on one rung LATER: commutator at H, associator at O,\n# alternator at S. \'projected\' is the projector applied -- only the defects\n# a given rung can make nonzero.\n# H (dim 4, rung 2): only the commutator has fired.\nh = defect_ladder(cd_basis(4, 1), cd_basis(4, 2), cd_basis(4, 3))\nprint("H rung", h["rung"], "nonzero", h["nonzero"])\nprint("H projected", sorted(h["projected"]))\n# O (dim 8, rung 3): commutator AND associator fire; the triangle opens.\no = defect_ladder(cd_basis(8, 1), cd_basis(8, 2), cd_basis(8, 4))\nprint("O rung", o["rung"], "closed", o["holonomy_closed"], "projected", sorted(o["projected"]))\n# S (dim 16, rung 4): alternativity fails ONLY for a SEAM-CROSSING input --\n# a = e1 + e10, [a,a,e4] = 2*e15. A basis-only probe would miss it.\na = cd_add(cd_basis(16, 1), cd_basis(16, 10))\ns = defect_ladder(a, a, cd_basis(16, 4))\nprint("S associator", [int(q) for q in s["defects"]["associator"]])\nprint("S admits @4", s["rung_admits"]["alt_zero_div@4"])'}, 'explanation': "WHAT - the whole Cayley-Dickson property-loss ladder read in ONE call plus a per-rung PROJECTOR. It composes cd_commutator [x,y], associator [x,y,z], the left alternator [x,x,y] and the flexibility floor [x,y,x] over the SAME three inputs, plus the cd_cycle_holonomy closed-read, and returns dict(dim, rung, algebra, defects, nonzero, holonomy_closed, rung_admits, projected). The loss is RUNG-indexed, not arity-indexed: commutativity turns off at H (rung 2), associativity at O (rung 3), alternativity + the division property at S (rung 4); flexibility is the FLOOR that never turns on and total order (rung 1, C) is a metric fact carried only as an admits-flag. Exact end to end - no float, no abs(). WHEN - reach for it to get the FULL ladder AND the rung-meaningful subset in one shot instead of calling four defect ops and remembering which turns on where; 'projected' IS the projector applied. WARNING RUNG 4 IS NOT BASIS-VISIBLE: [e_i,e_i,e_j]=0 at S exactly as at O, so feed a SEAM-CROSSING input (a=e1+e10, x=y=a, z=e4) to see alternativity fail as [a,a,e4]=2*e15 - a basis-only probe reports S alternative, wrongly. The arity-4 'square-loop' holonomy is REFUTED (it turns on at O, inherited from the associator, not a fifth rung). WARNING EPISTEMIC CEILING - this k=3 is the arity-3 Cayley-Dickson associator; it is FORM, not identity, and must NOT be fused with the substrate B/H/N k=3 signature (different k=3's; the reading transfers the algorithm, never the constant). SIBLINGS - it is the CD instance of the cross-substrate 'declared-parallel-state (x) projector-excitation -> rung-meaningful subset' instrument (the QM Born-rule measurement, genome chromatin access, and the viola fingerboard bow are the domain peers in srmech notebook 3.29); associator / cd_commutator / cd_cycle_holonomy are the three ops it composes - call them directly when you want ONE defect, not the whole ladder. NO new C symbol was minted and none is owed: composition_of_c over already-c_dispatched products."},
     'srmech.cascade.octonion_frame_read': {'example': {'output': 'base_H [2, 36, 4, -2] base_R -7\nsphere |base_H|^2 + base_R^2 == norm_sq^2: True\nfiber: base_H unchanged True | writhe changed True', 'why': 'On the committed frame e4, O splits H (+) H*l and the quaternionic-Hopf base (base_H, base_R) is UNCHANGED under the S3 fiber (a unit-quaternion right-multiply of both halves) -- the coherent note -- while the writhe q1 carries the fiber DOF; the base sits on an exact four-sphere.', 'worked': 'from srmech.cascade import octonion_frame_read, cd_norm_sq\nfrom srmech.cascade.cayley_dickson import cd_mult\nfrom srmech.math.q import Q\n\n# O = H (+) H*l on the committed frame e4 (q0=x[:4], q1=x[4:]): read O as a\n# FRAME-FREE quaternionic-Hopf base + an H-valued writhe (the S3 fiber DOF).\nx = [1, 2, -3, 1, 2, -1, 1, 4]\nr = octonion_frame_read(x)\nprint("base_H", [int(q) for q in r["base_H"]], "base_R", int(r["base_R"]))\n# the base lies on the radius-norm_sq FOUR-SPHERE (exact-Q identity):\nprint("sphere |base_H|^2 + base_R^2 == norm_sq^2:",\n      cd_norm_sq(r["base_H"]) + r["base_R"] * r["base_R"]\n      == r["norm_sq"] * r["norm_sq"])\n# FRAME-FREE UNDER THE S3 FIBER: right-multiply BOTH halves by a UNIT quaternion\n# lambda = (1/2)(1,1,1,1) (|lambda|^2 = 1). The Hopf base is UNCHANGED (the\n# coherent note) while the writhe q1 CHANGES (it carries the fiber DOF).\nlam = (Q(1, 2), Q(1, 2), Q(1, 2), Q(1, 2))\nq0b, q1b = cd_mult(r["q0"], lam), cd_mult(r["q1"], lam)\nrb = octonion_frame_read(list(q0b) + list(q1b))\nprint("fiber: base_H unchanged", rb["base_H"] == r["base_H"],\n      "| writhe changed", rb["writhe"] != r["writhe"])'}, 'explanation': "WHAT: the FRAME-COMMITTED coherence read of an octonion. Section 3.41 measured 'no FRAME-FREE invariant' (F1301/F1302), but that is the R-SCALAR question asked of a rung whose coherence is H-shaped: MEASURED, {e0,e1,e2,e3} is a genuine H subalgebra of O and is FULLY coherent (0/64 basis-triple associators nonzero) while ALL 168 of O's nonzero associators (of 512) CROSS the doubling seam H*l = {e4..e7} (0 non-seam). So commit the splitting unit l=e4, split O = H (+) H*l (q0=x[:4], q1=x[4:]), and read the QUATERNIONIC HOPF FIBRATION S3 -> S7 -> S4: base_H = 2*q0*conj(q1) (H) and base_R = |q0|^2 - |q1|^2 (R) are the frame-free-UNDER-THE-FIBER Hopf base (the coherent note), lying on the radius-norm_sq four-sphere (|base_H|^2 + base_R^2 == norm_sq^2, exact); writhe = q1 is the S3 fiber generator (EQUIVARIANT -- it changes under the fiber, non-tautological); canonical_affine = q0*q1^-1 is the fiber-fixed HP1 coordinate. WHEN: reach for it to read what survives of O's coherence once a frame is committed, as an H-valued object rather than an R-scalar. WARNING EPISTEMIC CEILING: this does NOT contradict 3.41 -- the companion octonion_laplacian MEASURES that the O gain-Laplacian spectrum is NOT gauge-invariant (~0.1-0.5 vs H's ~1e-15); the coherence here is frame-free only UNDER THE FIBER, not under an arbitrary gauge. FORM, not identity -- the S3/S4 split is the FORM of O's frame-committed coherence, no claim that this S3 and any substrate's fiber are the same object. SIBLINGS: octonion_laplacian is the spectral companion that reads the ceiling; associator is the defect whose 168/168 seam-confinement this op rests on. NO new C symbol: composition_of_c over c_dispatched cd_mult / cd_conjugate / cd_norm_sq."},
