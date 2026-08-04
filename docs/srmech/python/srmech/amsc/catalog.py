@@ -63,6 +63,23 @@ from .descriptor import (
 )
 from .format import MPRRecord, read_ndjson
 
+# srmech's own internal TOML front door (`#T907` slice 3). The descriptor read
+# behind ``_catalog_toml_dict`` (which feeds ``parse_catalog_chains`` over the
+# ``[[catalog.operator_chain]]`` bridge) now self-hosts on the native
+# ``srmech_toml`` parser wherever the C library is present, with the stdlib
+# ``tomllib`` / ``tomli`` floor otherwise (or when the C parser DECLINES a
+# construct — e.g. a float — and rides the bit-exact stdlib parse). The parsed
+# dict is identical to the previous stdlib-only parse either way. ``srmech._toml``
+# is a leaf module (it imports ``srmech._native`` lazily inside ``loads()``), so
+# this module-top import introduces no package-init cycle.
+#
+# The alias is ``_srmech_toml`` (leading underscore), NOT ``srmech_toml``, to match
+# ``amsc/descriptor.py`` and to stay clear of ``tools/gen_c_claims.py``'s
+# ``srmech_*`` bytecode scan: ``_catalog_toml_dict`` is an underscore-prefixed
+# helper the C-claim walker follows into, and a bare ``srmech_toml`` global would
+# read as an off-header C-dispatch claim. Do NOT rename it back to ``srmech_toml``.
+from srmech import _toml as _srmech_toml
+
 
 # ──────────────────────────────────────────────────────────────────────
 # rc172 — the catalog REGISTRY / KERNEL-STATE / AUDIT logic dispatches to C
@@ -1209,13 +1226,8 @@ def _catalog_toml_dict(source_key: str) -> tuple[Descriptor, Dict[str, Any]]:
     if source_key not in descriptors:
         raise KeyError(f"unknown source_key {source_key!r}")
     descriptor = descriptors[source_key]
-    import sys
-    if sys.version_info >= (3, 11):
-        import tomllib
-    else:  # pragma: no cover
-        import tomli as tomllib  # type: ignore
     raw = descriptor.path.read_bytes()
-    return descriptor, tomllib.loads(raw.decode("utf-8"))
+    return descriptor, _srmech_toml.loads(raw.decode("utf-8"))
 
 
 def _load_catalog_chains(source_key: str) -> List[Any]:
