@@ -25,6 +25,74 @@ from __future__ import annotations
 from typing import Any, Dict
 
 CURATED: Dict[str, Dict[str, Any]] = {
+    # rc390 (#T961) — split_defect, the ORDER-carrying octonion associativity read.
+    # Output below is a REAL WSL2 numpy-absent capture; the c_dispatched path
+    # (srmech_split_defect) is byte-identical to the pure oct_mult fold.
+    'srmech.biology.genome.split_defect': {
+        'example': {
+            'output': (
+                '[1,2,3,4,5] k=2 : 1\n'
+                '[5,4,3,2,1] k=2 : 0\n'
+                '[1,2,3,1]   k=2 : 0\n'
+                '[1,2,4]     k=1 : 1\n'
+                '[1,2,4]     k=2 : 0'
+            ),
+            'why': (
+                'The generic octonion word [e1..e5] FIRES at the middle split (its '
+                'left-fold and its k=2 re-bracketing differ in the center sign bit); '
+                'the REVERSED word [e5..e1] -- the SAME letters -- gives a DIFFERENT '
+                'defect (0), which is exactly the ORDER the permutation-invariant '
+                'genome_octonion_associator cannot see. A single Fano frame {e1,e2,e3} '
+                'is a quaternion subalgebra, so it associates -> 0. And the threshold '
+                'is visible: the triple (e1,e2,e4) is genuinely NON-associative (it '
+                'fires at k=1), yet a split whose right side is one letter CANNOT fire '
+                '(k=2 -> 0) -- proving a 0 can mean "too short at k", not "associative".'
+            ),
+            'worked': (
+                'from srmech.biology.genome import split_defect\n'
+                '\n'
+                '# split_defect reads the ORDER-carrying octonion associativity defect --\n'
+                '# the SAME letters RE-BRACKETED at k. It fires only when BOTH split\n'
+                '# sides have length >= 2 (a length-1 side folds trivially).\n'
+                'print("[1,2,3,4,5] k=2 :", split_defect([1, 2, 3, 4, 5], 2))   # fires\n'
+                '# ORDER-carrying: the reversed word (same letters) has a DIFFERENT\n'
+                '# defect -- the order-BLIND associator cannot see this.\n'
+                'print("[5,4,3,2,1] k=2 :", split_defect([5, 4, 3, 2, 1], 2))\n'
+                '# a single Fano frame {e1,e2,e3} is a quaternion subalgebra -> 0\n'
+                'print("[1,2,3,1]   k=2 :", split_defect([1, 2, 3, 1], 2))\n'
+                '# threshold visible: (e1,e2,e4) IS non-associative (fires at k=1) but a\n'
+                '# split with a length-1 side CANNOT fire -> 0 (too short, not assoc.)\n'
+                'print("[1,2,4]     k=1 :", split_defect([1, 2, 4], 1))\n'
+                'print("[1,2,4]     k=2 :", split_defect([1, 2, 4], 2))'
+            ),
+        },
+        'explanation': (
+            "WHAT: the ORDER-carrying octonion associativity read -- the complement of "
+            "the order-BLIND genome_octonion_associator. The associator compares the "
+            "fully-LEFT and fully-RIGHT folds of the same ordered turns, a "
+            "PERMUTATION-INVARIANT (bracketing-only) read that is identically 0 at "
+            "n=3,4. split_defect instead takes ONE word of octonion basis letters and "
+            "RE-BRACKETS it at a single split k: it XORs the sign bit of the whole "
+            "left-fold with the sign bit of fold(word[:k]).fold(word[k:]). Because the "
+            "octonion index lane is XOR-associative, the two bracketings always share "
+            "the index and differ only in the center sign bit -- the returned 0/1. "
+            "WHEN: reach for it whenever you need to know whether a SPECIFIC ordering "
+            "of octonion letters, re-associated at a SPECIFIC seam k, changes the "
+            "sign -- i.e. the order-dependent (not merely bracketing-dependent) part of "
+            "non-associativity. It fires only when BOTH sides have length >= 2, so a "
+            "middle split needs n >= 4; the measured O census is 1008/2401 at n=4,k=2. "
+            "A 0 is AMBIGUOUS (associative OR too short at k) -- read it with that in "
+            "mind. What you would otherwise WRONGLY hand-roll: an abs() on a fold "
+            "(sign IS the Class-K pin bit b>>3, re-applied by the Class-C XOR), or a "
+            "reimplemented octonion product beside a measurement (this folds through "
+            "the shipped oct_mult / srmech_split_defect). "
+            "SIBLINGS: genome_octonion_associator is the order-BLIND peer (L-vs-R fold); "
+            "genome_octonion_holonomy is the single ordered left-fold this splits; "
+            "oct_mult is the underlying loop product. It detects ASSOCIATIVITY, not the "
+            "division property -- split-octonions give the identical 1008/2401, and the "
+            "associative Cl(0,7) (7 anticommuting generators) gives 0."
+        ),
+    },
     # rc385 (#T1048) — the ℍ log/slerp pair. Outputs below are REAL captures from
     # a WSL2 numpy-absent (pure-path) run; the c_dispatched path is byte-identical.
     'srmech.physics.qm.quaternion.quaternion_log': {

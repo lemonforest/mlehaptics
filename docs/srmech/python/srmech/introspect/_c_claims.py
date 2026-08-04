@@ -203,6 +203,7 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
         'srmech_genome_recover_diploid',
         'srmech_genome_recover_diploid_q8',
     ),
+    'srmech.biology.genome.split_defect': ('srmech_split_defect',),
     'srmech.biology.genome.telomere': ('srmech_genome_telomere',),
     'srmech.biology.genome.telomere_tick': (
         'srmech_genome_arena_bytes',

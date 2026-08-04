@@ -808,11 +808,16 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # refs moved OUT of the amsc decoded count (196 -> 97) and INTO biology (0 -> 99)
     # inside the same arrays. Conserved: -99 amsc = +99 biology. math / apokatastasis
     # / music all held (320 / 13 / 13) — the biology move touched none of them.
-    assert biology == 99, (
-        f"expected 99 srmech.biology op references inside the DECODED channel "
-        f"(the rc375 biology bucket's genome / q8 / coupling carrier back-index), "
-        f"found {biology}. amsc fell 196 -> 97 by exactly these 99; if this is not "
-        f"99 the population move is not conserved — re-measure.")
+    # rc390 (`#T961`) then ADDED one NEW srmech.biology op — split_defect (the
+    # ORDER-carrying octonion associativity read) — whose carrier back-index refs land
+    # 2× in these hoisted byte arrays (the same per-op count as its octonion peers), so
+    # the live srmech.biology decoded population is 99 + 2 = 101. NEW-op growth, not a
+    # move; no amsc pin shifts.
+    assert biology == 101, (
+        f"expected 101 srmech.biology op references inside the DECODED channel "
+        f"(the rc375 biology bucket's genome / q8 / coupling carrier back-index 99 + "
+        f"rc390 split_defect 2), found {biology}. If this is not 101 the population "
+        f"is not conserved — re-measure.")
     # rc377 — THE srmech.cascade RECEIVING SIDE, the arc's FINAL and largest-carrier
     # population move. The 15 cascade modules folded amsc->srmech.cascade; their
     # carrier back-index refs (one / cayley_dickson / sedenion_register / cd_register

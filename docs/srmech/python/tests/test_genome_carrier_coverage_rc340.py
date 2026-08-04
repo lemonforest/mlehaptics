@@ -62,12 +62,17 @@ from srmech.math.hv import HV
 #: adding a new accepting one keeps the gap constant and used to pass here — the floor
 #: catches it. Lower these ceilings whenever coverage genuinely improves; raise one
 #: ONLY alongside a new carrier-free op, and only with the floors held.
-CEIL_GENOME_CARRIER_GAP_PY = 49
+#: rc390: 49 → 50 — split_defect is a new CARRIER-FREE op (a bit-returning
+#: octonion-associativity read over a word of basis letters, the order-carrying
+#: peer of genome_octonion_associator, itself already in this gap). Sanctioned
+#: raise per the note above ("raise one ONLY alongside a new carrier-free op").
+CEIL_GENOME_CARRIER_GAP_PY = 50
 
 #: Ops with NO ``element_type`` on the MCP / tool-schema surface. rc339: 65 (of 67
 #: registered entries — only kernel_pack + genome_append_kernel published it).
-#: rc340: 45. rc345: 46 (``genome_content``; see the note above).
-CEIL_GENOME_CARRIER_GAP_MCP = 46
+#: rc340: 45. rc345: 46 (``genome_content``; see the note above). rc390: 47
+#: (split_defect — the same new carrier-free op, klein4-only over the wire).
+CEIL_GENOME_CARRIER_GAP_MCP = 47
 
 #: Ops that DO accept ``element_type``. **UP ONLY** — this is the invariant the gap
 #: ceilings only approximate. rc340: 22. rc345: 22 (unchanged; the rc added a
