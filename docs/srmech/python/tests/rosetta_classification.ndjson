@@ -217,6 +217,8 @@
 {"exposed_as": "srmech.physics.qm.relativistic.minkowski_metric", "defined_at": "srmech.physics.qm.relativistic.minkowski_metric", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.physics.qm.single_particle.density_matrix", "defined_at": "srmech.physics.qm.single_particle.density_matrix", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.physics.qm.single_particle.lattice_momentum", "defined_at": "srmech.physics.qm.single_particle.lattice_momentum", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.physics.qm.single_particle.clock_operator", "defined_at": "srmech.physics.qm.single_particle.clock_operator", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.physics.qm.single_particle.shift_operator", "defined_at": "srmech.physics.qm.single_particle.shift_operator", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.physics.qm.single_particle.tdse_evolve", "defined_at": "srmech.physics.qm.single_particle.tdse_evolve", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.physics.qm.single_particle.tise_solve", "defined_at": "srmech.physics.qm.single_particle.tise_solve", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.physics.qm.sm.ckm_matrix", "defined_at": "srmech.physics.qm.sm.ckm_matrix", "bucket": "composition_of_c"}

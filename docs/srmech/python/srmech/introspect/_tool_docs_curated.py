@@ -25,6 +25,122 @@ from __future__ import annotations
 from typing import Any, Dict
 
 CURATED: Dict[str, Dict[str, Any]] = {
+    # rc396 (#T1031) — the Weyl clock/shift pair. Outputs below are REAL WSL2
+    # numpy-absent captures; the sub-quarter phases route through the C-backed
+    # srmech_quaternion_twiddle, the quarter-turn ones are exact Gaussian integers.
+    'srmech.physics.qm.single_particle.clock_operator': {
+        'example': {
+            'input': {'n': '4'},
+            'output': '[(1+0j), 1j, (-1+0j), (-0-1j)]',
+            'why': (
+                'clock_operator(4) has diagonal [1, i, -1, -i] -- the four '
+                'quarter-turn roots of unity, exact; clock_operator(2) reproduces '
+                'the Pauli sigma_z exactly; and the Weyl relation U V = omega V U '
+                'closes to 0.0 at n=4, the finite-dimensional form of the canonical '
+                '[x_hat, p_hat] = i*hbar.'
+            ),
+            'worked': (
+                'from srmech.physics.qm.single_particle import clock_operator, shift_operator\n'
+                'from srmech.physics.qm.spin import pauli_matrices\n'
+                'from srmech.math.laplacian import mat_norm\n'
+                '\n'
+                '# The Weyl clock U = diag(omega^k), omega = e^(2i*pi/n): the single-\n'
+                '# valued phase-POSITION x_hat on a ring of n sites (a naive diag(k*dx)\n'
+                '# jumps at the seam n-1 -> 0 and is multi-valued, so it is wrong here).\n'
+                'U = clock_operator(4)\n'
+                'print([U[k, k] for k in range(4)])          # -> [(1+0j), 1j, (-1+0j), (-0-1j)]\n'
+                '# n=4 lands every entry on a quarter-turn root of unity -> BIT-EXACT;\n'
+                '# at n=2 the clock IS the Pauli sigma_z.\n'
+                'sx, sy, sz = pauli_matrices()\n'
+                'print(clock_operator(2) == sz)              # -> True\n'
+                '# with its partner shift V it obeys the Weyl relation U V = omega V U\n'
+                '# (the finite form of [x_hat, p_hat] = i*hbar) -- exact at n=4.\n'
+                'V = shift_operator(4); omega = U[1, 1]\n'
+                'print(mat_norm((U @ V) - omega * (V @ U)))   # -> 0.0'
+            ),
+        },
+        'explanation': (
+            "WHAT: the Weyl clock U = diag(omega^k), omega = e^(2i*pi/n) -- the "
+            "topology-respecting POSITION operator x_hat on a ring of n sites. It "
+            "returns an n x n diagonal unitary Mat whose eigenvalue winds once "
+            "around the unit circle and closes, so it is single-valued on the "
+            "periodic lattice; a naive linear x_hat = diag(k*dx) is NOT single-"
+            "valued, because it jumps at the seam n-1 -> 0, which is why that form "
+            "is physically wrong on a ring. WHEN: reach for it whenever you need "
+            "the fenced position on a cyclic lattice -- finite quantum mechanics, a "
+            "clock-and-shift / mutually-unbiased-bases construction, or the "
+            "position half of the discrete canonical pair whose momentum is "
+            "shift_operator. The entries are exact Gaussian integers {1, i, -1, -i} "
+            "wherever the phase is a whole quarter-turn (so n=2 and n=4 are BIT-"
+            "EXACT -- the n=2 clock IS sigma_z), and only a genuine sub-quarter "
+            "angle is read off srmech's own C-backed quaternion_twiddle roots-of-"
+            "unity, never stdlib cmath. What you would otherwise WRONGLY hand-roll: "
+            "diag(range(n)) as 'position', which is multi-valued on the ring and "
+            "gives the wrong commutator. SIBLINGS: shift_operator is its partner V "
+            "(the momentum), and together they satisfy the Weyl relation "
+            "U V = omega V U -- the finite-dimensional [x_hat, p_hat] = i*hbar; "
+            "lattice_momentum is the differential momentum generator p_hat = "
+            "-i d/dx whose exponential is V; exact_dft is the change of basis F "
+            "with F V F^H = U, so the clock and shift are the two eigenbases of a "
+            "transform srmech already computes exactly in C."
+        ),
+    },
+    'srmech.physics.qm.single_particle.shift_operator': {
+        'example': {
+            'input': {'n': '4'},
+            'output': '[[0, 0, 0, 1], [1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0]]',
+            'why': (
+                'shift_operator(4) is the cyclic permutation |k> -> |k+1 mod 4> '
+                '(ones on the sub-diagonal plus the top-right corner that closes '
+                'the ring); shift_operator(2) reproduces the Pauli sigma_x exactly; '
+                'and because V is an integer permutation V**4 = I is bit-exact.'
+            ),
+            'worked': (
+                'from srmech.physics.qm.single_particle import clock_operator, shift_operator\n'
+                'from srmech.physics.qm.spin import pauli_matrices\n'
+                'from srmech.math.laplacian import mat_matmul\n'
+                'from srmech.math.mat import Mat\n'
+                '\n'
+                '# The Weyl shift V|k> = |k+1 mod n>: the cyclic one-site translation\n'
+                '# = the group-level MOMENTUM. A real cyclic permutation (as complex).\n'
+                'V = shift_operator(4)\n'
+                'print([[int(V[i, j].real) for j in range(4)] for i in range(4)])\n'
+                '#   -> [[0, 0, 0, 1], [1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0]]\n'
+                '# at n=2 the shift IS the Pauli sigma_x.\n'
+                'sx, sy, sz = pauli_matrices()\n'
+                'print(shift_operator(2) == sx)              # -> True\n'
+                '# V is an integer permutation, so V**n = I is BIT-EXACT for every n.\n'
+                'I4 = Mat.from_rows([[1+0j if i==j else 0j for j in range(4)]\n'
+                '                    for i in range(4)], is_complex=True)\n'
+                'Vn = I4\n'
+                'for _ in range(4): Vn = mat_matmul(Vn, V)\n'
+                'print(Vn == I4)                             # -> True'
+            ),
+        },
+        'explanation': (
+            "WHAT: the Weyl shift V, the cyclic one-site translation "
+            "V|k> = |k+1 mod n> on a ring of n sites -- the group-level MOMENTUM. "
+            "It returns an n x n unitary Mat that is a real cyclic permutation "
+            "(ones on the unit sub-diagonal plus the top-right corner that closes "
+            "the ring), carried as complex. It is the exponentiated generator of "
+            "translation: the finite-lattice partner of the continuous p_hat that "
+            "lattice_momentum differentiates. WHEN: reach for it whenever you need "
+            "the group-level momentum / discrete translation on a cyclic lattice, "
+            "the momentum half of the discrete canonical pair, or a clock-and-shift "
+            "/ mutually-unbiased-bases construction. Because V is an integer "
+            "permutation, V**n = I and V . V^H = I are BIT-EXACT for every n (no "
+            "float tolerance). At n=2 the shift IS the Pauli sigma_x, and the chiral "
+            "third i*(V U) = sigma_y = iXZ falls straight out of the multiply "
+            "already shipped, so no separate Y op is added. What you would otherwise "
+            "WRONGLY hand-roll: a hand-written roll / np.roll permutation beside a "
+            "measurement, rather than the shipped op. SIBLINGS: clock_operator is "
+            "its partner U (the position); together U V = omega V U (the finite-dim "
+            "[x_hat, p_hat] = i*hbar); lattice_momentum is the differential momentum "
+            "p_hat = -i d/dx that V exponentiates; exact_dft is the change of basis "
+            "F with F V F^H = U (the shift and clock are the two eigenbases of one "
+            "exact-DFT transform)."
+        ),
+    },
     # rc390 (#T961) — split_defect, the ORDER-carrying octonion associativity read.
     # Output below is a REAL WSL2 numpy-absent capture; the c_dispatched path
     # (srmech_split_defect) is byte-identical to the pure oct_mult fold.

@@ -22,7 +22,7 @@ Genuine checks (NOT smoke tests):
      of them non-trivial), so stab(φ) = G₂ = Der(𝕆).
   6. full antisymmetry + the table= branch parity + the CD_MAX_DIM guards.
   7. registration ratchet (__all__ / Rosetta composition_of_c / registered
-     op-name list / describe() total 544) + a no-abs() source guard.
+     op-name list / describe() total 546) + a no-abs() source guard.
 
 numpy-free (srmech + stdlib only); mirrors notes/cd_three_form_rc386.py.
 """
@@ -263,7 +263,7 @@ def test_registration_ratchet():
     assert "cd_three_form" in C.__all__
     from srmech.introspect.tool_schema import tool_schema_view
     view = tool_schema_view()
-    assert len(view["tools"]) == 544
+    assert len(view["tools"]) == 546
     names = {t["name"] for t in view["tools"]}
     assert "srmech.cascade.cd_three_form" in names
 

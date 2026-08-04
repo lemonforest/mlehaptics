@@ -14,11 +14,18 @@ dissolves into the 14-class primitive vocabulary per
 
 - **TDSE / TISE / Heisenberg / Liouville-vN** — Class L (spectral evolution)
 - **Lattice momentum ``p̂`` + the general ``[A, B]`` commutator** — Class C
-  (central-difference lattice gradient) ∘ Class L (commutator). NOTE: no
-  position operator ``x̂`` ships, so ``[x̂, p̂]`` is **not** composable from
-  this surface. On a periodic lattice it would not equal ``iħ·I`` anyway —
-  ``x̂`` is not single-valued on the ring — so it needs its own fenced
-  operator, not a naive diagonal.
+  (central-difference lattice gradient) ∘ Class L (commutator).
+- **Weyl clock ``U`` + shift ``V``** — Class C (cyclic reorientation) ∘ Class I
+  (the cyclic group ``Z_n``). The fenced **position** ``x̂`` now ships as the
+  Weyl ``clock_operator`` — the single-valued phase-on-the-ring
+  ``U = diag(ω^k)`` (``ω = e^{2πi/n}``), NOT a naive linear ``diag(k·dx)`` (that
+  one is multi-valued on the ring and jumps at the seam). Its partner
+  ``shift_operator`` ``V`` is the group-level momentum (one-site translation).
+  So ``[x̂, p̂]`` IS now expressible on this surface — in its correct compact
+  form, the **Weyl relation** ``U V = ω V U``, the finite-dimensional version of
+  ``[x̂, p̂] = iℏ`` (NOT ``iℏ·I``, which cannot hold on a finite ring). At
+  ``n = 2`` the pair reduces bit-exactly to Pauli: ``U = σ_z``, ``V = σ_x``,
+  ``i·V·U = σ_y`` (the chirality third ``Y = iXZ``).
 - **Pauli matrices** — Class M (Clifford binding via Cl(0,3))
 - **Hydrogen radial** — Class L (radial-Laplacian eigendecomp)
 - **Harmonic oscillator** — Class M (HDC binding for a, a†)
@@ -26,7 +33,8 @@ dissolves into the 14-class primitive vocabulary per
 Submodules:
 
 - :mod:`srmech.physics.qm.single_particle` — TDSE, TISE, Heisenberg, commutator,
-  density matrix, Liouville-vN, lattice momentum.
+  density matrix, Liouville-vN, lattice momentum, the Weyl clock ``U`` (fenced
+  position ``x̂``) + shift ``V`` (group momentum) obeying ``U V = ω V U``.
 - :mod:`srmech.physics.qm.spin` — Pauli matrices, Clifford-algebra checks.
 - :mod:`srmech.physics.qm.bell` — Bell-CHSH inequality + Tsirelson bound ``2√2``
   as bit-exact framework identity (Class L ∘ I ∘ M ∘ C ∘ A cascade).

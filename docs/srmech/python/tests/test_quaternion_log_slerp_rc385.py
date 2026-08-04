@@ -20,7 +20,7 @@ Genuine checks (NOT smoke tests):
   5. THE ACCEPTANCE ORACLE (native only): pure vs c_dispatched byte-identity for
      BOTH ops across a quadrant/pin-slot bank (w<0 exercises the atan2 quadrant).
   6. registration ratchet (__all__ / Rosetta c_dispatched / _c_claims / the
-     describe() total 544) + a no-abs()/no-libm source guard.
+     describe() total 546) + a no-abs()/no-libm source guard.
 
 numpy-free (srmech + stdlib only); mirrors notes/quaternion_log_slerp_rc385.py.
 """
@@ -183,7 +183,7 @@ def test_both_ops_in_all_and_describe_total_is_540():
     ).get_tool_schema().tools}
     assert "srmech.physics.qm.quaternion.quaternion_log" in names
     assert "srmech.physics.qm.quaternion.quaternion_slerp" in names
-    assert srmech.describe()["tools"]["total"] == 544
+    assert srmech.describe()["tools"]["total"] == 546
 
 
 def test_rosetta_rows_present_c_dispatched():

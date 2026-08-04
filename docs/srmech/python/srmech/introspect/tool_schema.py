@@ -9577,6 +9577,24 @@ def _register_qm_tools() -> None:
             returns=R("Mat", "(n, n) Hermitian complex"),
         ),
         ToolEntry(
+            name="srmech.physics.qm.single_particle.clock_operator", owner="srmech",
+            category="qm.single_particle",
+            summary="Weyl clock U = diag(ω^k), ω = e^{2πi/n} — the fenced "
+                    "position x̂ on a ring; unitary, U**n = I; U V = ω V U. "
+                    "Schwinger (1960) PNAS 46, 570; Weyl (1931).",
+            parameters=(P("n", "int", True, "ring sites ≥ 2"),),
+            returns=R("Mat", "(n, n) diagonal unitary complex"),
+        ),
+        ToolEntry(
+            name="srmech.physics.qm.single_particle.shift_operator", owner="srmech",
+            category="qm.single_particle",
+            summary="Weyl shift V|k⟩ = |k+1 mod n⟩ — group-level momentum / "
+                    "one-site translation; unitary, V**n = I; U V = ω V U. "
+                    "Schwinger (1960) PNAS 46, 570; Weyl (1931).",
+            parameters=(P("n", "int", True, "ring sites ≥ 2"),),
+            returns=R("Mat", "(n, n) cyclic-shift unitary complex"),
+        ),
+        ToolEntry(
             name="srmech.physics.qm.single_particle.density_matrix", owner="srmech",
             category="qm.single_particle",
             summary="Pure-state density matrix ρ = |ψ⟩⟨ψ|. "

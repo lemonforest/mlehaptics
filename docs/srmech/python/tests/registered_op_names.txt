@@ -496,11 +496,13 @@ srmech.physics.qm.relativistic.klein_gordon_dispersion
 srmech.physics.qm.relativistic.minkowski_metric
 srmech.physics.qm.relativistic.weyl_left_projector
 srmech.physics.qm.relativistic.weyl_right_projector
+srmech.physics.qm.single_particle.clock_operator
 srmech.physics.qm.single_particle.commutator
 srmech.physics.qm.single_particle.density_matrix
 srmech.physics.qm.single_particle.heisenberg_evolve
 srmech.physics.qm.single_particle.lattice_momentum
 srmech.physics.qm.single_particle.liouville_evolve
+srmech.physics.qm.single_particle.shift_operator
 srmech.physics.qm.single_particle.tdse_evolve
 srmech.physics.qm.single_particle.tise_solve
 srmech.physics.qm.sm.ckm_matrix
