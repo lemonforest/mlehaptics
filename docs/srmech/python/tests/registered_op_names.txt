@@ -177,10 +177,13 @@ srmech.cascade.hypercomplex_couple
 srmech.cascade.hypercomplex_exp
 srmech.cascade.inertia_signature
 srmech.cascade.is_division_algebra_dim
+srmech.cascade.is_moufang
 srmech.cascade.kuramoto_step
 srmech.cascade.left_mult_is_invertible
 srmech.cascade.left_mult_kernel
+srmech.cascade.loop_invariants
 srmech.cascade.magnitude
+srmech.cascade.malcev_defect
 srmech.cascade.matrix_cascades.char_poly
 srmech.cascade.matrix_cascades.eigvals
 srmech.cascade.matrix_cascades.eigvals_exact
@@ -189,6 +192,7 @@ srmech.cascade.matrix_cascades.lll_reduce
 srmech.cascade.matrix_cascades.lstsq
 srmech.cascade.matrix_cascades.qr
 srmech.cascade.matrix_cascades.svd
+srmech.cascade.moufang_residue
 srmech.cascade.net_chirality
 srmech.cascade.octonion_dft
 srmech.cascade.octonion_frame_read
@@ -207,6 +211,7 @@ srmech.cascade.spectral_cascades.kron
 srmech.cascade.table_product
 srmech.cascade.the_one
 srmech.cascade.top_k_by_score
+srmech.cascade.unit_loop
 srmech.cascade.winding_fold
 srmech.chemistry.balance_reaction
 srmech.chemistry.conservation_laws

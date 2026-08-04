@@ -1893,6 +1893,322 @@ def min_generating_set(dim: int,
 
 
 # ──────────────────────────────────────────────────────────────────────
+# The octonion MOUFANG LOOP — rc398 (`#T1064`).
+#
+# 𝕆 is a Moufang loop, and srmech already ships that loop TWICE with C
+# parity — this module's exact-ℚ Cayley–Dickson product and the float
+# loop-bind family in ``srmech.math.hdc`` — but only as octonion
+# ARITHMETIC. The three Moufang identities were proven ONLY inside
+# ``tests/test_loop_bind_moufang.py``, the Mal'cev-not-Lie tangent fact
+# likewise, and the 16-element unit loop M16 existed only as the DATA
+# ``closure(8, [1..7])`` with no name and no invariants. The ops below
+# promote that latent, proven machinery to first-class QUERYABLE checkers.
+# They are exact-ℚ, table-generic siblings of :func:`associator` /
+# :func:`cd_commutator`: each is a composition of the already-c_dispatched
+# products ``cd_mult`` / ``table_product`` — NO new C symbol, ABI unchanged
+# — Class-K clean throughout (zero-tests via ⟨v,v⟩, never ``abs()``).
+#
+# SSoT: Baez, J.C. (2002), *The Octonions*, Bull. AMS 39 145–205,
+# arXiv:math/0105155, §2 (the octonion Moufang identities, alternativity,
+# and the Mal'cev tangent algebra); Conway, J.H. & Smith, D.A. (2003),
+# *On Quaternions and Octonions*, A K Peters, ch. 6 (the unit-octonion
+# Moufang loop and its Cayley table); Schafer, R.D. (1966), *An
+# Introduction to Nonassociative Algebras*, §III.1 (the associator).
+# ──────────────────────────────────────────────────────────────────────
+
+def _norm_sq(v: Sequence[Q]) -> Q:
+    """⟨v, v⟩ = Σ vᵢ² — the exact-ℚ Class-K magnitude², never ``abs()`` (a
+    square is nonnegative by construction). The all-zero tuple ⟺ 0."""
+    return sum((c * c for c in v), _coerce_frac(0))
+
+
+def _loop_products(table: Any, *elems: Sequence[Any]):
+    """Coerce ``elems`` and return ``(mul, coerced)`` on associator's two
+    routes: ``cd_mult`` on the definite ladder (``table=None``) or
+    ``table_product`` on any structure table (``table=``). Raises on a
+    dimension mismatch, exactly as :func:`associator`."""
+    coerced = [tuple(_coerce_frac(v) for v in e) for e in elems]
+    n = len(coerced[0])
+    if any(len(e) != n for e in coerced):
+        raise ValueError("Moufang op: all operands must share dimension")
+    if table is None:
+        if not (_is_pow2(n) and n <= CD_MAX_DIM):
+            raise ValueError(
+                f"table=None needs a power-of-two length ≤ {CD_MAX_DIM}; "
+                f"got {n}")
+        coerced = [_as_elem(e) for e in coerced]
+        return cd_mult, coerced
+    tbl = _structure_table(table)
+    if len(tbl) != n:
+        raise ValueError(
+            f"table is dim {len(tbl)}; got operands of length {n}")
+    return (lambda a, b: table_product(tbl, a, b)), coerced
+
+
+def _loop_basis(table: Any, dim: int) -> "Tuple[int, List[Tuple[Q, ...]]]":
+    """The ordered basis ``[e_0, …, e_{d-1}]`` of the algebra — the definite
+    Cayley–Dickson ladder rung ``dim`` (``table=None``) or the algebra a
+    structure ``table`` names (``d = len(table)``)."""
+    if table is None:
+        return dim, [cd_basis(dim, i) for i in range(dim)]
+    tbl = _structure_table(table)
+    d = len(tbl)
+    z, one = _coerce_frac(0), _coerce_frac(1)
+    return d, [tuple(one if t == i else z for t in range(d)) for i in range(d)]
+
+
+def moufang_residue(x: Sequence[Any], y: Sequence[Any], z: Sequence[Any],
+                    table: Any = None) -> Q:
+    """The MOUFANG DEFECT of the ordered triple ``(x, y, z)`` — the max, over
+    the three Moufang identities, of the exact-ℚ ⟨·,·⟩ magnitude² by which
+    each fails (rc398, `#T1064`).
+
+    The three identities (with ``·`` the algebra product)::
+
+        M1:  x·(y·(x·z))  =  ((x·y)·x)·z
+        M2:  y·(x·(z·x))  =  ((y·x)·z)·x
+        M3:  (y·z)·(x·y)  =  y·((z·x)·y)
+
+    Each is the all-zero tuple ⟺ that identity holds at ``(x, y, z)``; the
+    return is ``max ⟨mᵢ, mᵢ⟩`` over the three residual tuples ``mᵢ = lhsᵢ −
+    rhsᵢ``. It is EXACTLY 0 for every octonion triple (𝕆 is a Moufang loop —
+    alternative, hence Moufang) and a real nonzero residual on a non-Moufang
+    control: ``moufang_residue(e₁, e₂, e₁₂, table=algebra_table(16))`` on the
+    sedenion rung 𝕊 returns 4, because 𝕊 is not even alternative and so not
+    Moufang. Whole-loop verdict: :func:`is_moufang`.
+
+    Args:
+        x, y, z: equal-length elements — exact-rational components (int / Q /
+            Fraction / float → its EXACT ratio / (num, den)). With
+            ``table=None`` the length is a power of two ``≤ CD_MAX_DIM``.
+        table: an optional dim × dim × dim structure tensor
+            (:func:`algebra_table` — including its ``gammas=`` split controls
+            — or any table :func:`table_product` reads); ``None`` — the
+            default — is the definite Cayley–Dickson ladder ℝ→ℂ→ℍ→𝕆→𝕊….
+
+    Returns:
+        A single exact :class:`~srmech.math.q.Q` — 0 ⟺ all three Moufang
+        identities hold at ``(x, y, z)``.
+
+    Note:
+        Exact end to end — no float, no epsilon, no ``abs()`` (the residue is
+        the Class-K ⟨v,v⟩ magnitude²). NO new C symbol — ``composition_of_c``
+        over the c_dispatched ``srmech_cd_mult`` / ``srmech_algebra_table_product``.
+        Class M ∘ K.
+    """
+    mul, (a, b, c) = _loop_products(table, x, y, z)
+
+    def sub(u: Tuple[Q, ...], v: Tuple[Q, ...]) -> Tuple[Q, ...]:
+        return tuple(p - q for p, q in zip(u, v))
+
+    m1 = sub(mul(a, mul(b, mul(a, c))), mul(mul(mul(a, b), a), c))
+    m2 = sub(mul(b, mul(a, mul(c, a))), mul(mul(mul(b, a), c), a))
+    m3 = sub(mul(mul(b, c), mul(a, b)), mul(b, mul(mul(c, a), b)))
+    return max(_norm_sq(m1), _norm_sq(m2), _norm_sq(m3))
+
+
+def is_moufang(table: Any = None, dim: int = 8) -> bool:
+    """Is the algebra a MOUFANG LOOP? — the whole-loop boolean: every ordered
+    basis triple has :func:`moufang_residue` 0 (rc398, `#T1064`).
+
+    True for the definite ladder up to 𝕆 (``dim`` 1/2/4/8 — ℝ/ℂ/ℍ/𝕆 are all
+    Moufang) and FALSE from the sedenion rung up (``dim`` 16 — 𝕊 is not
+    alternative, so not Moufang). Returns on the FIRST nonzero residue, so the
+    False verdict is cheap; the True verdict is the full ``dim³`` basis-triple
+    census. Reads any algebra a ``table`` names, so the ``gammas=`` split
+    controls of :func:`algebra_table` go through it unchanged.
+
+    Args:
+        table: an optional structure tensor (:func:`algebra_table` or any
+            table :func:`table_product` reads); ``None`` — the default — is the
+            definite Cayley–Dickson ladder, whose rung is ``dim``.
+        dim: the ladder rung when ``table is None`` (a power of two ``≤
+            CD_MAX_DIM``); ignored when ``table`` is given (``len(table)`` wins).
+
+    Returns:
+        ``True`` ⟺ all three Moufang identities hold on every ordered basis
+        triple of the algebra.
+
+    Note:
+        Exact, no ``abs()``. NO new C symbol — ``composition_of_c`` over
+        :func:`moufang_residue`. Class M ∘ K.
+    """
+    d, basis = _loop_basis(table, dim)
+    for i in range(d):
+        for j in range(d):
+            for k in range(d):
+                if moufang_residue(basis[i], basis[j], basis[k],
+                                   table=table) != 0:
+                    return False
+    return True
+
+
+def malcev_defect(x: Sequence[Any], y: Sequence[Any], z: Sequence[Any],
+                  table: Any = None) -> "Dict[str, Q]":
+    """The loop's TANGENT-ALGEBRA check: the Jacobi (Lie) defect and the
+    Mal'cev defect of the ordered triple ``(x, y, z)`` (rc398, `#T1064`).
+
+    The tangent algebra of a Moufang loop is a **Mal'cev algebra**: the
+    commutator bracket ``[x, y] = x·y − y·x`` is anticommutative but the
+    Jacobi identity FAILS — it is replaced by the weaker Mal'cev identity.
+    This op returns both defects as exact-ℚ ⟨·,·⟩ magnitude²::
+
+        jacobi = ⟨J, J⟩,           J(x,y,z) = [[x,y],z]+[[y,z],x]+[[z,x],y]
+        malcev = ⟨D, D⟩,           D = J(x,y,[x,z]) − [J(x,y,z), x]
+
+    On the octonions ``jacobi`` is NONZERO on a generic imaginary triple
+    (e.g. ``malcev_defect(e₁, e₂, e₄)`` → ``jacobi = 144`` since ``J = 12·e₇``)
+    — the tangent algebra is **not Lie** — while ``malcev`` is EXACTLY 0 — it
+    **is Mal'cev**. That pair, ``jacobi ≠ 0`` and ``malcev = 0``, is the
+    Mal'cev-not-Lie signature of 𝔤 = Im 𝕆 under the commutator bracket.
+
+    Args:
+        x, y, z: equal-length elements (as :func:`moufang_residue`).
+        table: an optional structure tensor; ``None`` is the definite ladder.
+
+    Returns:
+        ``{"jacobi": Q, "malcev": Q}`` — the Jacobi and Mal'cev magnitude²
+        defects. ``jacobi > 0`` witnesses not-Lie; ``malcev == 0`` witnesses
+        Mal'cev.
+
+    Note:
+        Exact, no ``abs()``. NO new C symbol — ``composition_of_c`` over the
+        c_dispatched ``srmech_cd_mult`` / ``srmech_algebra_table_product``.
+        Class C (bracket order) ∘ M ∘ K.
+    """
+    mul, (a, b, c) = _loop_products(table, x, y, z)
+
+    def sub(u: Tuple[Q, ...], v: Tuple[Q, ...]) -> Tuple[Q, ...]:
+        return tuple(p - q for p, q in zip(u, v))
+
+    def comm(p: Tuple[Q, ...], q: Tuple[Q, ...]) -> Tuple[Q, ...]:
+        return sub(mul(p, q), mul(q, p))
+
+    def jac(p: Tuple[Q, ...], q: Tuple[Q, ...],
+            r: Tuple[Q, ...]) -> Tuple[Q, ...]:
+        t1, t2, t3 = comm(comm(p, q), r), comm(comm(q, r), p), comm(comm(r, p), q)
+        return tuple(u + v + w for u, v, w in zip(t1, t2, t3))
+
+    jabc = jac(a, b, c)
+    mal = sub(jac(a, b, comm(a, c)), comm(jac(a, b, c), a))
+    return {"jacobi": _norm_sq(jabc), "malcev": _norm_sq(mal)}
+
+
+#: Standard names for the unit Moufang loop by ORDER (= 2·dim signed units).
+_UNIT_LOOP_NAMES: "Dict[int, str]" = {2: "C2", 4: "C4", 8: "Q8", 16: "M16",
+                                      32: "M32"}
+
+
+def _ordered_loop(dim: int) -> "List[Tuple[int, int]]":
+    """The full unit loop as an ORDERED list ``[+e₀,…,+e_{d-1},−e₀,…,−e_{d-1}]``,
+    tied to the actual :func:`closure` result (positives-then-negatives read)."""
+    spanned = closure(dim, list(range(1, dim)))
+    canonical = [(1, i) for i in range(dim)] + [(-1, i) for i in range(dim)]
+    return [su for su in canonical if su in spanned]
+
+
+def unit_loop(dim: int = 8) -> "Dict[str, Any]":
+    """The UNIT MOUFANG LOOP of the Cayley–Dickson rung ``dim`` — the named
+    handle for the 16 signed octonion units **M16** (rc398, `#T1064`).
+
+    The ``2·dim`` signed basis units ``{±e₀, …, ±e_{dim-1}}`` close under
+    Cayley–Dickson multiplication into a loop (a quasigroup with identity).
+    At ``dim=8`` that is **M16**, the octonion unit Moufang loop — the object
+    that has lived in the tree only as the DATA ``closure(8, [1..7])``; this op
+    NAMES it and hands back its Cayley table. At ``dim=4`` it is the quaternion
+    group **Q8** (associative — a group, the degenerate Moufang loop); at
+    ``dim=16`` the sedenion unit loop **M32** (not Moufang; see
+    :func:`is_moufang`). The data is not duplicated — ``elements`` is the
+    ordered :func:`closure` result.
+
+    Args:
+        dim: the ladder rung — a power of two ``≤ CD_MAX_DIM``.
+
+    Returns:
+        ``{"dim", "order" (= 2·dim), "name", "elements", "cayley_table"}``
+        where ``elements`` is the ordered signed units ``[(sign, index), …]``
+        (``[+e₀,…, −e₀,…]``) and ``cayley_table[a][b]`` is the ``elements``
+        index of ``element_a · element_b`` — a Latin square (every row and
+        column a permutation), the defining loop property.
+
+    Note:
+        Wraps :func:`closure`; the products are the integer cocycle
+        ``srmech_cd_basis_product`` — ``composition_of_c``, no new C symbol.
+    """
+    elements = _ordered_loop(dim)
+    idx = {su: n for n, su in enumerate(elements)}
+    cayley = [[idx[_loop_mult(dim, a, b)] for b in elements] for a in elements]
+    order = len(elements)
+    return {
+        "dim": dim,
+        "order": order,
+        "name": _UNIT_LOOP_NAMES.get(order, f"L{order}"),
+        "elements": elements,
+        "cayley_table": cayley,
+    }
+
+
+def loop_invariants(dim: int = 8) -> "Dict[str, Any]":
+    """The loop-theory INVARIANTS of the unit Moufang loop, plus the
+    generators of its multiplication group Mlt(L) (rc398, `#T1064`).
+
+    Over the ordered unit loop ``L`` (:func:`unit_loop`) it returns:
+
+    * **nucleus** — the associative centre ``{a : (a,x,y) = 0 ∀ x, y}`` (the
+      elements that associate with everything; :func:`associator` is the
+      instrument). For M16 the nucleus is exactly ``{±1} = {±e₀}`` — the loop
+      is as-non-associative as a Moufang loop gets.
+    * **commutant** — ``{a : [a, x] = 0 ∀ x}`` (:func:`cd_commutator`), the
+      elements that commute with everything; for M16 also ``{±1}``.
+    * **center** — nucleus ∩ commutant (associates AND commutes); ``{±1}``.
+    * **left_translations / right_translations** — the generators of the
+      multiplication group **Mlt(L) = ⟨Lₐ, Rₐ⟩**, each a permutation of the
+      loop given as an ``elements``-index list (``Lₐ = a·x``, ``Rₐ = x·a``).
+      These ARE the discrete restrictions of ``srmech.math.hdc``'s
+      :func:`loop_left_op` / :func:`loop_right_op`, and they surface the
+      identity ``associator(a, x, b) = −[Lₐ, R_b]·x`` (the commutator of a
+      left and a right translation IS the associator, up to sign).
+
+    Args:
+        dim: the ladder rung — a power of two ``≤ CD_MAX_DIM``.
+
+    Returns:
+        ``{"nucleus", "commutant", "center"}`` (each a list of signed units
+        ``[(sign, index), …]``) and ``{"left_translations",
+        "right_translations"}`` (each a list of ``elements``-index
+        permutations).
+
+    Note:
+        ``composition_of_c`` over :func:`associator` / :func:`cd_commutator`
+        and the integer loop cocycle — no new C symbol, no ``abs()``.
+    """
+    elements = _ordered_loop(dim)
+    idx = {su: n for n, su in enumerate(elements)}
+    vecs = {}
+    for s, i in elements:
+        v = [0] * dim
+        v[i] = s
+        vecs[(s, i)] = tuple(_coerce_frac(c) for c in v)
+
+    nucleus = [a for a in elements
+               if all(_norm_sq(associator(vecs[a], vecs[u], vecs[w])) == 0
+                      for u in elements for w in elements)]
+    commutant = [a for a in elements
+                 if all(_norm_sq(cd_commutator(vecs[a], vecs[u])) == 0
+                        for u in elements)]
+    center = [a for a in nucleus if a in commutant]
+    left = [[idx[_loop_mult(dim, a, x)] for x in elements] for a in elements]
+    right = [[idx[_loop_mult(dim, x, a)] for x in elements] for a in elements]
+    return {
+        "nucleus": nucleus,
+        "commutant": commutant,
+        "center": center,
+        "left_translations": left,
+        "right_translations": right,
+    }
+
+
+# ──────────────────────────────────────────────────────────────────────
 # Demonstrators — the §VII.6.23 open-exterior falsifiers, in our own code.
 # ──────────────────────────────────────────────────────────────────────
 

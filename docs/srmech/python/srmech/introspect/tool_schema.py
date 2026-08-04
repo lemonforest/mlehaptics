@@ -8342,6 +8342,193 @@ def _register_primitive_class_tools() -> None:
                               "canonical_affine (4 Q or None) — the fiber-fixed "
                               "ℍP¹ coordinate}"),
         ),
+        # rc398 (`#T1064`): the octonion MOUFANG LOOP surface. 𝕆 IS a Moufang
+        # loop and srmech ships it twice (this module's exact-ℚ product + the
+        # float loop-bind family in math.hdc), but the three identities were
+        # proven ONLY inside test_loop_bind_moufang.py, the Mal'cev-not-Lie fact
+        # likewise, and the 16-element unit loop M16 lived only as the unnamed
+        # DATA closure(8,[1..7]). These five promote that latent, proven
+        # machinery to queryable ops — exact-ℚ, table-generic, composition_of_c
+        # siblings of associator / cd_commutator; NO new C symbol, ABI stays 11.
+        ToolEntry(
+            name="srmech.cascade.moufang_residue", owner="srmech",
+            category="cascade",
+            summary="The MOUFANG DEFECT of an ordered triple (x, y, z): the max, "
+                    "over the three Moufang identities, of the exact-ℚ ⟨·,·⟩ "
+                    "magnitude² by which each fails — M1 x·(y·(x·z))=((x·y)·x)·z, "
+                    "M2 y·(x·(z·x))=((y·x)·z)·x, M3 (y·z)·(x·y)=y·((z·x)·y). "
+                    "Returns a single exact Q; 0 ⟺ all three identities hold at "
+                    "(x, y, z). EXACTLY 0 for every octonion triple (𝕆 is "
+                    "alternative, hence Moufang) and split-𝕆 (also alternative), "
+                    "but a REAL nonzero residual on a non-Moufang control: on the "
+                    "sedenion rung 𝕊 (table=algebra_table(16)) the triple "
+                    "(e1,e2,e12) gives 4, because 𝕊 is not even alternative. "
+                    "table=None runs the definite ladder via cd_mult; table= runs "
+                    "ANY algebra a structure tensor names via table_product. "
+                    "Whole-loop verdict: is_moufang. SIBLINGS: is_moufang counts "
+                    "it over every basis triple; associator is the k=3 "
+                    "associativity defect it builds on; malcev_defect is the "
+                    "tangent-algebra check. Exact end to end — no float, no "
+                    "epsilon, no abs() (the residue IS the Class-K ⟨v,v⟩). NO new "
+                    "C symbol — composition_of_c over the c_dispatched "
+                    "srmech_cd_mult / srmech_algebra_table_product. Class M ∘ K. "
+                    "SSoT: Baez, *The Octonions*, Bull. AMS 39 (2002) 145–205, "
+                    "arXiv:math/0105155 §2; Conway & Smith, *On Quaternions and "
+                    "Octonions* (2003) ch. 6." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("x", "sequence", True,
+                  "the first element — exact-rational components (int / Q / "
+                  "Fraction / float → its EXACT ratio / (num, den)); with "
+                  "table=None the length is a power of two ≤ CD_MAX_DIM=256"),
+                P("y", "sequence", True, "the second element, same length"),
+                P("z", "sequence", True, "the third element, same length"),
+                P("table", "list[list[list[int]]] | None", False,
+                  "an optional dim × dim × dim structure-constant tensor "
+                  "(algebra_table — including its gammas= split controls — or "
+                  "any table table_product reads); None — the default — is the "
+                  "definite Cayley–Dickson ladder ℝ→ℂ→ℍ→𝕆→𝕊…"),
+            ),
+            returns=R("Q", "one exact Q — 0 iff all three Moufang identities "
+                           "hold at (x, y, z)"),
+        ),
+        ToolEntry(
+            name="srmech.cascade.is_moufang", owner="srmech",
+            category="cascade",
+            summary="Is the algebra a MOUFANG LOOP? — the whole-loop boolean: "
+                    "True ⟺ every ordered basis triple has moufang_residue 0. "
+                    "True for the definite ladder up to 𝕆 (dim 1/2/4/8 — ℝ/ℂ/ℍ/𝕆 "
+                    "are the normed division algebras, all alternative hence "
+                    "Moufang) and FALSE from the sedenion rung up (dim 16 — 𝕊 is "
+                    "not alternative, so not Moufang). Returns on the FIRST "
+                    "nonzero residue, so the False verdict is cheap; the True "
+                    "verdict is the full dim³ basis-triple census. Reads any "
+                    "algebra a table names, so the gammas= split controls of "
+                    "algebra_table go through it (split-𝕆 is still Moufang). "
+                    "SIBLINGS: moufang_residue is the per-triple exact residue it "
+                    "counts; is_division_algebra_dim answers the STRONGER "
+                    "division-algebra question (𝕆 yes, 𝕊 no) — Moufang is the "
+                    "weaker loop property. Exact, no abs(). NO new C symbol — "
+                    "composition_of_c over moufang_residue. Class M ∘ K. SSoT: "
+                    "Baez, *The Octonions*, Bull. AMS 39 (2002) 145–205, "
+                    "arXiv:math/0105155 §2." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("table", "list[list[list[int]]] | None", False,
+                  "an optional dim × dim × dim structure tensor (algebra_table "
+                  "or any table table_product reads); None — the default — is "
+                  "the definite Cayley–Dickson ladder, whose rung is dim"),
+                P("dim", "int", False,
+                  "the ladder rung when table is None (a power of two ≤ "
+                  "CD_MAX_DIM=256; default 8 = 𝕆); ignored when table is given "
+                  "(len(table) wins)"),
+            ),
+            returns=R("bool", "True iff all three Moufang identities hold on "
+                              "every ordered basis triple of the algebra"),
+        ),
+        ToolEntry(
+            name="srmech.cascade.malcev_defect", owner="srmech",
+            category="cascade",
+            summary="The loop's TANGENT-ALGEBRA check: the Jacobi (Lie) defect "
+                    "AND the Mal'cev defect of an ordered triple (x, y, z), each "
+                    "an exact-ℚ ⟨·,·⟩ magnitude². The tangent algebra of a "
+                    "Moufang loop under the commutator bracket [x,y]=x·y−y·x is a "
+                    "MAL'CEV algebra: anticommutative, but the Jacobi identity "
+                    "FAILS — replaced by the weaker Mal'cev identity "
+                    "J(x,y,[x,z])=[J(x,y,z),x], where J is the Jacobian "
+                    "[[x,y],z]+[[y,z],x]+[[z,x],y]. On 𝕆 the Jacobi defect is "
+                    "NONZERO on a generic imaginary triple (malcev_defect(e1,e2,e4) "
+                    "→ jacobi=144, since J=12·e7) — the tangent algebra is NOT "
+                    "Lie — while the Mal'cev defect is EXACTLY 0 — it IS Mal'cev. "
+                    "That pair (jacobi≠0, malcev=0) is the Mal'cev-not-Lie "
+                    "signature of 𝔤=Im 𝕆. SIBLINGS: cd_commutator is the bracket "
+                    "it builds on; moufang_residue is the loop-level identity "
+                    "check whose tangent this is. Exact, no abs(). NO new C "
+                    "symbol — composition_of_c over the c_dispatched "
+                    "srmech_cd_mult / srmech_algebra_table_product. Class C "
+                    "(bracket order) ∘ M ∘ K. SSoT: Baez, *The Octonions*, Bull. "
+                    "AMS 39 (2002) 145–205, arXiv:math/0105155 §2 (the Mal'cev "
+                    "tangent algebra)." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("x", "sequence", True,
+                  "the first element — exact-rational components (int / Q / "
+                  "Fraction / float → its EXACT ratio / (num, den)); with "
+                  "table=None the length is a power of two ≤ CD_MAX_DIM=256"),
+                P("y", "sequence", True, "the second element, same length"),
+                P("z", "sequence", True, "the third element, same length"),
+                P("table", "list[list[list[int]]] | None", False,
+                  "an optional dim × dim × dim structure tensor (algebra_table "
+                  "or any table table_product reads); None — the default — is "
+                  "the definite Cayley–Dickson ladder ℝ→ℂ→ℍ→𝕆→𝕊…"),
+            ),
+            returns=R("dict", "{jacobi (Q), malcev (Q)} — the Jacobi and Mal'cev "
+                              "magnitude² defects; jacobi>0 witnesses not-Lie, "
+                              "malcev==0 witnesses Mal'cev"),
+        ),
+        ToolEntry(
+            name="srmech.cascade.unit_loop", owner="srmech",
+            category="cascade",
+            summary="The UNIT MOUFANG LOOP of the Cayley–Dickson rung dim — the "
+                    "named handle for the 16 signed octonion units M16. The 2·dim "
+                    "signed basis units {±e0,…,±e(dim−1)} close under CD "
+                    "multiplication into a loop (a quasigroup with identity); at "
+                    "dim=8 that is M16, the octonion unit Moufang loop that until "
+                    "now lived in the tree only as the unnamed DATA "
+                    "closure(8,[1..7]). This op NAMES it and returns its Cayley "
+                    "table. At dim=4 it is the quaternion GROUP Q8 (associative — "
+                    "a group, the degenerate Moufang loop); at dim=16 the sedenion "
+                    "unit loop M32 (not Moufang; see is_moufang). The data is not "
+                    "duplicated — elements is the ordered closure result. The "
+                    "cayley_table is a Latin square (every row and column a "
+                    "permutation), the defining loop property. SIBLINGS: closure "
+                    "is the sub-loop generator it wraps; loop_invariants reads its "
+                    "nucleus / centre / translation generators; is_moufang is the "
+                    "loop-property verdict. NO new C symbol — composition_of_c "
+                    "over the integer cocycle srmech_cd_basis_product; no abs(). "
+                    "SSoT: Conway & Smith, *On Quaternions and Octonions* (2003) "
+                    "ch. 6; Baez, arXiv:math/0105155 §2." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("dim", "int", False,
+                  "the ladder rung — a power of two ≤ CD_MAX_DIM=256 (default "
+                  "8 = 𝕆, giving M16)"),
+            ),
+            returns=R("dict", "{dim, order (=2·dim), name (e.g. 'M16'), elements "
+                              "(the ordered signed units [(sign, index), …]), "
+                              "cayley_table (cayley_table[a][b] = the elements "
+                              "index of element_a · element_b — a Latin square)}"),
+        ),
+        ToolEntry(
+            name="srmech.cascade.loop_invariants", owner="srmech",
+            category="cascade",
+            summary="The loop-theory INVARIANTS of the unit Moufang loop, plus "
+                    "the generators of its multiplication group Mlt(L). Over the "
+                    "ordered unit loop L (unit_loop) it returns: nucleus — the "
+                    "associative centre {a : associator(a,x,y)=0 ∀ x,y} (for M16 "
+                    "exactly {±1}={±e0}, so the loop is as-non-associative as a "
+                    "Moufang loop gets); commutant — {a : [a,x]=0 ∀ x} (for M16 "
+                    "also {±1}); center — nucleus ∩ commutant ({±1}); and "
+                    "left_translations / right_translations — the generators of "
+                    "Mlt(L)=⟨La, Ra⟩, each a permutation of the loop as an "
+                    "elements-index list (La = a·x, Ra = x·a). These ARE the "
+                    "discrete restrictions of math.hdc's loop_left_op / "
+                    "loop_right_op, and they surface the identity "
+                    "associator(a,x,b) = −[La, R_b]·x (the commutator of a left "
+                    "and a right translation IS the associator, up to sign). "
+                    "SIBLINGS: unit_loop is the loop + Cayley table it reads; "
+                    "associator / cd_commutator are the two instruments the "
+                    "nucleus / commutant are measured with. NO new C symbol — "
+                    "composition_of_c over associator / cd_commutator and the "
+                    "integer loop cocycle; no abs(). SSoT: Conway & Smith, *On "
+                    "Quaternions and Octonions* (2003) ch. 6." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("dim", "int", False,
+                  "the ladder rung — a power of two ≤ CD_MAX_DIM=256 (default "
+                  "8 = 𝕆 / M16)"),
+            ),
+            returns=R("dict", "{nucleus, commutant, center (each a list of "
+                              "signed units [(sign, index), …]), "
+                              "left_translations, right_translations (each a "
+                              "list of elements-index permutations — the Mlt(L) "
+                              "generators)}"),
+        ),
         # rc310: the DISCRETE quaternion group Q8 = {+-1,+-i,+-j,+-k} as 3-bit
         # bytes — the discrete peer of the continuous ℍ surface (qm.quaternion).
         # The cascade-faithful Q8-genome foundation (ADDITIVE; no genome wiring).

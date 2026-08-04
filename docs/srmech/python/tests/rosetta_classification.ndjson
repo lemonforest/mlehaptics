@@ -16,6 +16,11 @@
 {"exposed_as": "srmech.cascade.cd_three_form", "defined_at": "srmech.cascade.cayley_dickson.cd_three_form", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.cascade.defect_ladder", "defined_at": "srmech.cascade.cayley_dickson.defect_ladder", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.cascade.octonion_frame_read", "defined_at": "srmech.cascade.cayley_dickson.octonion_frame_read", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.cascade.moufang_residue", "defined_at": "srmech.cascade.cayley_dickson.moufang_residue", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.cascade.is_moufang", "defined_at": "srmech.cascade.cayley_dickson.is_moufang", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.cascade.malcev_defect", "defined_at": "srmech.cascade.cayley_dickson.malcev_defect", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.cascade.unit_loop", "defined_at": "srmech.cascade.cayley_dickson.unit_loop", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.cascade.loop_invariants", "defined_at": "srmech.cascade.cayley_dickson.loop_invariants", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.cascade.inertia_signature", "defined_at": "srmech.cascade.cayley_dickson.inertia_signature", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.cascade.left_mult_is_invertible", "defined_at": "srmech.cascade.cayley_dickson.left_mult_is_invertible", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.cascade.left_mult_kernel", "defined_at": "srmech.cascade.cayley_dickson.left_mult_kernel", "bucket": "composition_of_c"}

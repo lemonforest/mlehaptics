@@ -527,6 +527,286 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
     'srmech.cascade.best_rational_signed': {'example': {'input': {'x': 'the Metonic ratio 235/19 = 12.368421052631579 and its negation, the Saros/Metonic ratio 223/235, and the signed lunar equation of centre -0.07189024134555966', 'max_denominator': 'the default 100, then 12, then 1000'}, 'output': 'best_rational_signed(235/19)                       = (235, 19)\nbest_rational_signed(235/19, max_denominator=12)   = (136, 11)\nbest_rational_signed(-235/19)                      = (-235, 19)\nbest_rational_signed(223/235)                      = (93, 98)   <- default max_denominator is 100, so 235 is out of reach\nbest_rational_signed(223/235, max_denominator=1000, fine_scale=10**9) = (223, 235)\nbest_rational_signed(-0.07189024134555966)         = (-1, 14)\nbest_rational_signed(0.0) = (0, 1)   (-0.0) = (0, 1)   nan = (0, 1)\nunsigned Class-N peer best_rational(235, 19, 64)   = (235, 19)', 'worked': "from srmech.cascade import best_rational_signed\nfrom srmech.math.rational import best_rational\nfrom srmech.math.kepler import equation_of_centre\nbest_rational_signed(235 / 19)                    # -> (235, 19)\nbest_rational_signed(235 / 19, max_denominator=12)  # -> (136, 11)\nbest_rational_signed(-235 / 19)                   # -> (-235, 19)\nbest_rational_signed(223 / 235)                   # -> (93, 98)\nbest_rational_signed(223 / 235, max_denominator=1000,\n                     fine_scale=10**9)            # -> (223, 235)\nbest_rational_signed(equation_of_centre(3.9, 0.0549))   # -> (-1, 14)\nbest_rational_signed(float('nan'))                # -> (0, 1)\nbest_rational(235, 19, 64)   # the Class-N peer: INT PAIR -> (235, 19)", 'why': 'The Metonic 235/19 comes back exactly at the default ceiling but collapses to 136/11 at max_denominator=12, and 223/235 needs the ceiling raised past the default 100 before it can be recovered — so the lever, not the float, decides the answer, and the sign rides through untouched.'}, 'explanation': 'WHAT — the Class-K then Class-N then Class-C anchor cascade: strip the sign at the pin-slot, take the small-denominator best-rational of the non-negative magnitude, then re-apply the sign. Returns a ``(signed_numerator, denominator)`` int pair. Defaults are ``max_denominator=100`` and ``fine_scale=1_000_000`` (``srmech/cascade/compose.py:60`` / ``:64``); the origin, sub-dead-band magnitudes and NaN all map to ``(0, 1)``, and ``max_denominator < 1`` or ``fine_scale < 1`` raises ValueError. No ``abs()`` anywhere — the sign lives in the Class-K/Class-C pair end-to-end. WHEN — reach for it for any cross-domain rational anchor taken from a SIGNED float: a ratio that might come back negative, an equation-of-centre residual, a phase offset. The worked run is also the warning: the default ceiling of 100 silently rewrites 223/235 as 93/98, so read the ceiling before reading the answer. SIBLINGS you would otherwise re-derive — and this is the one that actually bites: ``srmech.math.rational.best_rational`` (``srmech/math/rational.py:162``) is the Class-N primitive underneath, but it takes an INTEGER PAIR ``(numerator, denominator, max_d)`` and is UNSIGNED, so passing it a float or a negative is the standard mistake this op exists to prevent. ``cascade.pin_slot_at_zero`` (``atoms.py:120``) and ``cascade.reorient`` (``atoms.py:218``) are the two stages it already composes — do not rebuild the sandwich; ``cascade.winding_fold`` (``one.py:348``) is the angular analogue that splits a float into an integer part plus a residue.'},
     "srmech.cascade.associator": {"example": {"output": "dim  2  associating triples     8 /     8\ndim  4  associating triples    64 /    64\ndim  8  associating triples   344 /   512\nassoc(e1,e2,e4) in O = [0, 0, 0, 0, 0, 0, 0, 2]\nassoc(e1,e2,e3) in H = [0, 0, 0, 0]\nladder route == table route over all 512 triples: 512 / 512\nO defect == split-O defect                      : 416 / 512", "why": "The per-rung associativity census this project pins at five sites IS count(associator == 0) over the ordered basis triples, and it comes straight back out of the op: 8/8, 64/64, 344/512, 2248/4096 at dim 2/4/8/16. The ladder route (cd_mult twice) and the table route (table_product twice) agree 512/512 at dim 8, which is a differential and not a tautology — a recursive doubling and a triple loop over a materialised tensor are different code. The split-𝕆 twist disagrees with 𝕆 on 96 of those 512 defects, so table= genuinely reaches a second algebra.", "worked": "from srmech.cascade import associator, algebra_table, cd_basis\n\n# The pinned per-rung associativity census IS count(associator == 0) over the\n# ordered basis triples. It is quoted at five sites in the tree; this op is the\n# named home for computing it.\n# Rungs 16 and 32 are in the CHANGELOG and in the rc360 test; dim 16\n# alone costs ~55s, past this harness's 15s per-snippet budget.\nfor dim in (2, 4, 8):\n    b = [cd_basis(dim, i) for i in range(dim)]\n    n = sum(1 for i in range(dim) for j in range(dim) for k in range(dim)\n            if all(v == 0 for v in associator(b[i], b[j], b[k])))\n    print(\"dim %2d  associating triples %5d / %5d\" % (dim, n, dim ** 3))\n\n# A concrete octonion triple that does NOT associate: (e1 e2) e4 != e1 (e2 e4).\nprint(\"assoc(e1,e2,e4) in O =\", [int(q) for q in\n                                associator(cd_basis(8, 1), cd_basis(8, 2), cd_basis(8, 4))])\nprint(\"assoc(e1,e2,e3) in H =\", [int(q) for q in\n                                associator(cd_basis(4, 1), cd_basis(4, 2), cd_basis(4, 3))])\n\n# table= sends it onto ANY algebra. The two routes agree where both apply --\n# a real differential (a recursive doubling vs a triple loop over a tensor).\nO, split = algebra_table(8), algebra_table(8, [1, -1, -1])\nb = [cd_basis(8, i) for i in range(8)]\nsame = agree = 0\nfor i in range(8):\n    for j in range(8):\n        for k in range(8):\n            ladder = associator(b[i], b[j], b[k])\n            same += ladder == associator(b[i], b[j], b[k], table=O)\n            agree += ladder == associator(b[i], b[j], b[k], table=split)\nprint(\"ladder route == table route over all 512 triples:\", same, \"/ 512\")\nprint(\"O defect == split-O defect                      :\", agree, \"/ 512\")"}, "explanation": "WHAT — the associativity defect (x·y)·z − x·(y·z), returned as a dim-tuple of exact Q; the all-zero tuple means the ordered triple associates. table=None runs it on the definite Cayley–Dickson ladder through cd_mult, table= runs it on whatever algebra a rank-3 structure tensor names, through table_product. Exact end to end — no float, no epsilon, no abs(). WHEN — reach for it the moment you are about to write cd_mult(cd_mult(x, y), z) minus cd_mult(x, cd_mult(y, z)) beside a measurement, which is what every associativity census in this tree did before rc360. The per-rung counts pinned at five sites (carrier_schema, introspect, the CD_TURN_MAX_DIM prose, the rc343 ceiling test, the C header) ARE this op counted over the ordered basis triples — 2: 8/8, 4: 64/64, 8: 344/512, 16: 2248/4096, 32: 16808/32768 — and it REPRODUCES them rather than moving them. It is also the instrument a negative control is read with: the linearised flexible law (x,y,z) + (z,y,x) = 0 is counted through it. SIBLINGS — cd_mult and table_product are the two products it composes, and calling either of them twice by hand is exactly what not to re-derive; algebra_table supplies the tables it takes, and its gammas= split algebras are the STRUCTURED negative control; left_mult_kernel answers a DIFFERENT question (zero divisors — whether multiply-by-x has an inverse map — not whether a triple associates); genome.genome_octonion_associator is the dim-8 genome fiber's defect reader and does not generalise up the ladder. No new C symbol was minted for it and none is owed: the associator IS the composition of two already-c_dispatched products, so a dedicated kernel would only re-spell a·b twice."},
     "srmech.cascade.cd_commutator": {"example": {"output": "dim  1  noncommuting pairs    0 /    1   (dim-1)(dim-2)=0\ndim  2  noncommuting pairs    0 /    4   (dim-1)(dim-2)=0\ndim  4  noncommuting pairs    6 /   16   (dim-1)(dim-2)=6\ndim  8  noncommuting pairs   42 /   64   (dim-1)(dim-2)=42\n[e1,e2] in H = [0, 0, 0, 2]\nsplit-O noncommuting pairs at dim 8 = 42", "why": "The k=2 square-loop defect turns on at ℍ (6/16 noncommuting ordered basis pairs) while the associator is still 0 there — the closed form is (dim-1)(dim-2), so it is 0 at ℝ/ℂ, 6 at ℍ, 42 at 𝕆. i·j − j·i = 2k in ℍ. The split-𝕆 table= route reaches the same 42 at dim 8, so the op reads any algebra a structure table names, not just the definite ladder.", "worked": "from srmech.cascade import cd_commutator, cd_basis, algebra_table\n\n# The k=2 SQUARE-LOOP defect [x,y] = x·y - y·x. Its per-rung noncommuting\n# census IS count(cd_commutator != 0) over the ordered basis pairs, closed\n# form (dim-1)(dim-2): it turns ON at H (6/16), one rung BELOW the associator\n# (still 0 at H).\nfor dim in (1, 2, 4, 8):\n    b = [cd_basis(dim, i) for i in range(dim)]\n    n = sum(1 for i in range(dim) for j in range(dim)\n            if any(v != 0 for v in cd_commutator(b[i], b[j])))\n    print(\"dim %2d  noncommuting pairs %4d / %4d   (dim-1)(dim-2)=%d\"\n          % (dim, n, dim * dim, (dim - 1) * (dim - 2)))\n\n# i·j - j·i = 2k in H (e1·e2 = e3).\nprint(\"[e1,e2] in H =\", [int(q) for q in cd_commutator(cd_basis(4, 1), cd_basis(4, 2))])\n\n# table= reaches the split-O negative control (same 42 noncommuting at dim 8).\nsplit = algebra_table(8, [1, -1, -1])\nb = [cd_basis(8, i) for i in range(8)]\nn = sum(1 for i in range(8) for j in range(8)\n        if any(v != 0 for v in cd_commutator(b[i], b[j], table=split)))\nprint(\"split-O noncommuting pairs at dim 8 =\", n)"}, "explanation": "WHAT — the commutativity defect x·y − y·x, returned as a dim-tuple of exact Q; the all-zero tuple means the ordered pair (x, y) commutes. table=None runs it on the definite Cayley–Dickson ladder through cd_mult, table= runs it on whatever algebra a rank-3 structure tensor names, through table_product. Exact end to end — no float, no epsilon, no abs(). WHEN — reach for it the moment you are about to write cd_mult(x, y) minus cd_mult(y, x) beside a measurement. It is the k=2 rung of the Cayley–Dickson property-loss ladder: the per-rung noncommuting census is count(cd_commutator != 0) over the ordered basis pairs, closed form (dim-1)(dim-2) — 0 at ℝ, 0 at ℂ, 6 at ℍ, 42 at 𝕆, 210 at 𝕊 — and it TURNS ON at ℍ, one rung below the associator, which is what makes the pair a ladder and not a restatement. SIBLINGS — associator is the k=3 triangle rung up (still 0 where the commutator first fires); cd_mult and table_product are the two products it composes, and calling either twice by hand is exactly what not to re-derive; cd_cycle_holonomy is the 3-cycle holonomy that carries the same k=3 associator defect as a loop; algebra_table supplies the tables it takes, and its gammas= split algebras are the STRUCTURED negative control. No new C symbol was minted for it and none is owed: the commutator IS the composition of two already-c_dispatched products, so a dedicated kernel would only re-spell a·b twice."},
+    # rc398 (`#T1064`) — the octonion Moufang-loop surface. Outputs below are
+    # REAL captures from a WSL2 numpy-absent (pure-path) run; every op is a
+    # pure composition of already-c_dispatched products, so the native cell is
+    # byte-identical.
+    'srmech.cascade.moufang_residue': {
+        'example': {
+            'output': (
+                'O  moufang_residue(e1,e2,e4)  = 0\n'
+                'S  moufang_residue(e1,e2,e12) = 4\n'
+                'split-O moufang_residue(e1,e2,e4) = 0'
+            ),
+            'why': (
+                'Every octonion triple satisfies all three Moufang identities '
+                '(residue exactly 0 -- 𝕆 is alternative, hence Moufang), and so '
+                'does split-𝕆 (also alternative). The sedenion 𝕊 is NOT '
+                'alternative, so it is not a Moufang loop, and the concrete '
+                'triple (e1,e2,e12) shows a real nonzero defect of 4.'
+            ),
+            'worked': (
+                'from srmech.cascade import moufang_residue, cd_basis, algebra_table\n'
+                '\n'
+                '# The three Moufang identities as one exact-Q residue (max of the\n'
+                '# three magnitude^2 defects). O is a Moufang loop -> 0 on every triple.\n'
+                'e = [cd_basis(8, i) for i in range(8)]\n'
+                'print("O  moufang_residue(e1,e2,e4)  =", moufang_residue(e[1], e[2], e[4]))\n'
+                '# S (sedenion, dim 16) is not even alternative, so NOT Moufang:\n'
+                '# a concrete triple with a nonzero defect (the negative control).\n'
+                's = [cd_basis(16, i) for i in range(16)]\n'
+                'print("S  moufang_residue(e1,e2,e12) =", moufang_residue(s[1], s[2], s[12]))\n'
+                '# table= reaches any algebra a structure tensor names; split-O is\n'
+                '# ALSO alternative, so it stays Moufang (residue 0):\n'
+                'print("split-O moufang_residue(e1,e2,e4) =",\n'
+                '      moufang_residue(e[1], e[2], e[4], table=algebra_table(8, [1, -1, -1])))'
+            ),
+        },
+        'explanation': (
+            "WHAT: the Moufang defect of an ordered triple (x, y, z) -- the max, "
+            "over the three Moufang identities M1 x.(y.(x.z))=((x.y).x).z, "
+            "M2 y.(x.(z.x))=((y.x).z).x, M3 (y.z).(x.y)=y.((z.x).y), of the "
+            "exact-Q inner-product magnitude^2 by which each fails. It returns "
+            "one exact Q; 0 means all three identities hold at (x, y, z). It is "
+            "identically 0 for every octonion triple (O is alternative, hence "
+            "Moufang) and for split-O, and a real nonzero residual on a "
+            "non-Moufang control such as the sedenion rung. WHEN: reach for it to "
+            "measure HOW FAR a triple is from the Moufang law AS AN EXACT VALUE "
+            "-- a loop-law audit, a negative-control residual, the per-triple "
+            "input to a whole-loop census. What you would otherwise WRONGLY "
+            "hand-roll: the six bracketed products of each identity beside a "
+            "measurement (no float, no epsilon, no abs() -- the residue IS the "
+            "Class-K magnitude^2). SIBLINGS: is_moufang counts this over every "
+            "ordered basis triple and returns the whole-loop boolean; associator "
+            "is the k=3 associativity defect this builds on (Moufang is the "
+            "weaker loop law that survives where associativity dies); "
+            "malcev_defect is the tangent-algebra companion. NO new C symbol -- "
+            "composition_of_c over the c_dispatched cd_mult / "
+            "algebra_table_product."
+        ),
+    },
+    'srmech.cascade.is_moufang': {
+        'example': {
+            'output': (
+                'C  is_moufang: True\n'
+                'H  is_moufang: True\n'
+                'O  is_moufang: True\n'
+                'S  triple defect (e1,e2,e12): 4'
+            ),
+            'why': (
+                'The normed division algebras R/C/H/O are all alternative, hence '
+                'all Moufang loops -- and dim 8 is the payoff, non-associative '
+                'yet still Moufang. The sedenion 𝕊 breaks it: is_moufang(dim=16) '
+                'is False, witnessed cheaply here by one triple with defect 4 '
+                '(the full dim-16 census is ~12s, past the harness budget).'
+            ),
+            'worked': (
+                'from srmech.cascade import is_moufang, moufang_residue, cd_basis\n'
+                '\n'
+                '# R -> O are ALL Moufang loops (the normed division algebras are\n'
+                '# alternative, hence Moufang); dim 8 is the payoff -- 𝕆 is\n'
+                '# non-associative yet still Moufang.\n'
+                'print("C  is_moufang:", is_moufang(dim=2))\n'
+                'print("H  is_moufang:", is_moufang(dim=4))\n'
+                'print("O  is_moufang:", is_moufang(dim=8))\n'
+                '# S (sedenion) is NOT Moufang: is_moufang(dim=16) is False, but the\n'
+                '# full census is ~12s -- past this harness time budget -- so the\n'
+                '# witness is one defective triple.\n'
+                'print("S  triple defect (e1,e2,e12):",\n'
+                '      moufang_residue(cd_basis(16, 1), cd_basis(16, 2), cd_basis(16, 12)))'
+            ),
+        },
+        'explanation': (
+            "WHAT: the whole-loop boolean -- True if and only if every ordered "
+            "basis triple of the algebra has moufang_residue 0. True for the "
+            "definite Cayley-Dickson ladder up to O (dim 1/2/4/8 -- R/C/H/O are "
+            "the normed division algebras, all alternative, hence Moufang loops) "
+            "and False from the sedenion rung up (dim 16 -- S is not alternative, "
+            "so not Moufang). It returns on the FIRST nonzero residue, so the "
+            "False verdict is cheap; the True verdict is the full dim^3 "
+            "basis-triple census. WHEN: reach for it to certify that a whole "
+            "algebra IS (or is not) a Moufang loop, rather than checking one "
+            "triple with moufang_residue. It reads any algebra a table names, so "
+            "the gammas= split controls of algebra_table go through it -- split-O "
+            "is still Moufang. What you would otherwise WRONGLY conclude: that "
+            "'non-associative' means 'not a loop' -- O is the standing "
+            "counterexample this op makes queryable. SIBLINGS: moufang_residue is "
+            "the per-triple exact residue it counts; is_division_algebra_dim "
+            "answers the STRONGER division-algebra question (O yes, S no) -- "
+            "Moufang is the weaker loop property that O keeps and S loses at the "
+            "same rung. NO new C symbol -- composition_of_c over moufang_residue."
+        ),
+    },
+    'srmech.cascade.malcev_defect': {
+        'example': {
+            'output': (
+                'O malcev_defect(e1,e2,e4) = { jacobi: 144  malcev: 0 }\n'
+                "not Lie: True    is Malcev: True"
+            ),
+            'why': (
+                'On the octonions the Jacobi defect is nonzero (J(e1,e2,e4) = '
+                '12.e7, so jacobi = 144) -- the commutator bracket algebra is NOT '
+                'Lie -- while the weaker Malcev identity holds exactly '
+                '(malcev = 0). That pair, jacobi != 0 and malcev == 0, is the '
+                'Malcev-not-Lie signature of the octonion tangent algebra.'
+            ),
+            'worked': (
+                'from srmech.cascade import malcev_defect, cd_basis\n'
+                '\n'
+                '# The tangent algebra of O under [x,y] = x.y - y.x is MALCEV, not Lie.\n'
+                'e = [cd_basis(8, i) for i in range(8)]\n'
+                'd = malcev_defect(e[1], e[2], e[4])\n'
+                'print("O malcev_defect(e1,e2,e4) = { jacobi:", d["jacobi"],\n'
+                '      " malcev:", d["malcev"], "}")\n'
+                '# jacobi != 0 => the Jacobi identity FAILS => NOT a Lie algebra;\n'
+                '# malcev == 0 => the weaker Malcev identity holds => it IS Malcev.\n'
+                'print("not Lie:", d["jacobi"] != 0, "   is Malcev:", d["malcev"] == 0)'
+            ),
+        },
+        'explanation': (
+            "WHAT: the tangent-algebra check of the Moufang loop -- both the "
+            "Jacobi (Lie) defect and the Mal'cev defect of an ordered triple, "
+            "each an exact-Q inner-product magnitude^2. The tangent algebra of a "
+            "Moufang loop under the commutator bracket [x,y]=x.y-y.x is a MAL'CEV "
+            "algebra: anticommutative, but the Jacobi identity FAILS -- replaced "
+            "by the weaker Mal'cev identity J(x,y,[x,z])=[J(x,y,z),x], where J is "
+            "the Jacobian [[x,y],z]+[[y,z],x]+[[z,x],y]. On O the Jacobi defect is "
+            "nonzero on a generic imaginary triple (jacobi=144 at (e1,e2,e4), "
+            "since J=12.e7) while the Mal'cev defect is exactly 0. WHEN: reach for "
+            "it to certify a carrier's bracket algebra is Mal'cev-not-Lie -- the "
+            "tangent-space fact that distinguishes the octonion loop from a group "
+            "(whose tangent is a Lie algebra). What you would otherwise WRONGLY "
+            "assume: that any anticommutative bracket obeys Jacobi -- the "
+            "octonion commutator does not, and jacobi>0 is the witness. SIBLINGS: "
+            "cd_commutator is the bracket [x,y] it builds on; moufang_residue is "
+            "the loop-level identity check whose tangent this is; associator is "
+            "the associativity defect one algebraic level up. NO new C symbol -- "
+            "composition_of_c over the c_dispatched cd_mult / algebra_table_product."
+        ),
+    },
+    'srmech.cascade.unit_loop': {
+        'example': {
+            'output': (
+                'name / order : M16 / 16\n'
+                'elements[:3] : [(1, 0), (1, 1), (1, 2)]\n'
+                'Cayley rows are permutations: True\n'
+                'L_{e1} row  : [1, 8, 3, 10, 5, 12, 15, 6, 9, 0, 11, 2, 13, 4, 7, 14]\n'
+                'unit_loop(4) : Q8 8'
+            ),
+            'why': (
+                'The 16 signed octonion units close into the Moufang loop M16 -- '
+                'the object that lived in the tree only as the unnamed data '
+                'closure(8,[1..7]). Its Cayley table is a Latin square (every row '
+                'a permutation of 0..15), the defining loop property; dim 4 gives '
+                'the quaternion GROUP Q8 (associative, order 8).'
+            ),
+            'worked': (
+                'from srmech.cascade import unit_loop\n'
+                '\n'
+                '# The 16 signed octonion units close into the Moufang loop M16\n'
+                '# (was only ever the un-named data closure(8,[1..7])).\n'
+                'M16 = unit_loop(8)\n'
+                'print("name / order :", M16["name"], "/", M16["order"])\n'
+                'print("elements[:3] :", M16["elements"][:3])\n'
+                '# The Cayley table is a Latin square -- every row a permutation --\n'
+                '# which IS the defining loop (quasigroup-with-identity) property.\n'
+                'rows = M16["cayley_table"]\n'
+                'print("Cayley rows are permutations:",\n'
+                '      all(sorted(r) == list(range(16)) for r in rows))\n'
+                'print("L_{e1} row  :", rows[1])\n'
+                '# dim 4 gives the quaternion GROUP Q8 (associative, degenerate Moufang):\n'
+                'print("unit_loop(4) :", unit_loop(4)["name"], unit_loop(4)["order"])'
+            ),
+        },
+        'explanation': (
+            "WHAT: the unit Moufang loop of the Cayley-Dickson rung dim -- the "
+            "named handle for the 16 signed octonion units M16. The 2.dim signed "
+            "basis units close under CD multiplication into a loop (a quasigroup "
+            "with identity); at dim=8 that is M16, the octonion unit Moufang loop "
+            "that until now lived in the tree only as the unnamed data "
+            "closure(8,[1..7]). It returns the loop's name, order (=2.dim), the "
+            "ordered signed units, and the Cayley table cayley_table[a][b] = the "
+            "elements index of element_a . element_b -- a Latin square, every row "
+            "and column a permutation. WHEN: reach for it whenever you need the "
+            "octonion unit loop AS A NAMED OBJECT with a multiplication table -- a "
+            "loop-theory computation, a Cayley-table read, the discrete peer of "
+            "the continuous loop-bind family. At dim=4 it is the quaternion GROUP "
+            "Q8 (associative, the degenerate Moufang loop); at dim=16 the sedenion "
+            "unit loop M32 (not Moufang; see is_moufang). What you would otherwise "
+            "WRONGLY do: re-derive the 16 units and their products from a Fano "
+            "diagram -- the data is closure(8,[1..7]) and this op names and tables "
+            "it without duplicating it. SIBLINGS: closure is the sub-loop "
+            "generator it wraps; loop_invariants reads its nucleus / centre / "
+            "translation generators; is_moufang is the loop-property verdict. NO "
+            "new C symbol -- composition_of_c over the integer cocycle "
+            "cd_basis_product."
+        ),
+    },
+    'srmech.cascade.loop_invariants': {
+        'example': {
+            'output': (
+                'nucleus  : [(1, 0), (-1, 0)]\n'
+                'commutant: [(1, 0), (-1, 0)]\n'
+                'center   : [(1, 0), (-1, 0)]\n'
+                'L_e1     : [1, 8, 3, 10, 5, 12, 15, 6, 9, 0, 11, 2, 13, 4, 7, 14]\n'
+                'associator(a,x,b) = [0, 0, 0, 0, 0, 0, 0, -2]\n'
+                '[L_a,R_b]x        = [0, 0, 0, 0, 0, 0, 0, 2]\n'
+                'associator == -[L_a,R_b]x : True'
+            ),
+            'why': (
+                'M16 is as non-associative as a Moufang loop gets: its nucleus, '
+                'commutant and centre are all exactly {+1, -1} = {+-e0}. The left '
+                'translations generate Mlt(L), and the returned data verifies the '
+                'identity associator(a,x,b) = -[L_a, R_b]x -- the commutator of a '
+                'left and a right translation IS the associator, up to sign.'
+            ),
+            'worked': (
+                'from srmech.cascade import loop_invariants, associator, cd_basis, cd_mult\n'
+                '\n'
+                '# M16 is as non-associative as a Moufang loop gets:\n'
+                '# nucleus = commutant = center = {+-1} = {+-e0}.\n'
+                'inv = loop_invariants(8)\n'
+                'print("nucleus  :", inv["nucleus"])\n'
+                'print("commutant:", inv["commutant"])\n'
+                'print("center   :", inv["center"])\n'
+                '# The translations generate Mlt(L); L_{e1} as an elements-index perm:\n'
+                'print("L_e1     :", inv["left_translations"][1])\n'
+                '# The surfaced identity  associator(a,x,b) = -[L_a,R_b]x  (a,x,b = e1,e4,e2):\n'
+                'a, x, b = cd_basis(8, 1), cd_basis(8, 4), cd_basis(8, 2)\n'
+                'LRx = [p - q for p, q in zip(cd_mult(a, cd_mult(x, b)), cd_mult(cd_mult(a, x), b))]\n'
+                'lhs = associator(a, x, b)\n'
+                'print("associator(a,x,b) =", [int(v) for v in lhs])\n'
+                'print("[L_a,R_b]x        =", [int(v) for v in LRx])\n'
+                'print("associator == -[L_a,R_b]x :", list(lhs) == [-v for v in LRx])'
+            ),
+        },
+        'explanation': (
+            "WHAT: the loop-theory invariants of the unit Moufang loop plus the "
+            "generators of its multiplication group Mlt(L). Over the ordered unit "
+            "loop L (unit_loop) it returns the nucleus (the associative centre "
+            "{a : associator(a,x,y)=0 for all x,y} -- for M16 exactly {+-1}, so "
+            "the loop is as non-associative as a Moufang loop gets), the "
+            "commutant ({a : [a,x]=0 for all x} -- for M16 also {+-1}), the "
+            "center (nucleus intersect commutant), and left_translations / "
+            "right_translations -- the generators of Mlt(L)=<La, Ra>, each a "
+            "permutation of the loop given as an elements-index list (La=a.x, "
+            "Ra=x.a). WHEN: reach for it to read the structural invariants of the "
+            "octonion loop, or to get the translation maps whose products "
+            "generate its multiplication group. It surfaces the identity "
+            "associator(a,x,b) = -[La, R_b].x -- the commutator of a left and a "
+            "right translation IS the associator, up to sign, which is exactly "
+            "how a Moufang loop's non-associativity and its translation group "
+            "connect. What you would otherwise WRONGLY assume: that the nucleus "
+            "of a non-associative loop is empty -- for M16 it is {+-1}, the "
+            "elements that associate with everything. SIBLINGS: unit_loop is the "
+            "loop + Cayley table it reads; associator / cd_commutator are the two "
+            "instruments the nucleus / commutant are measured with; the "
+            "continuous math.hdc loop_left_op / loop_right_op are the R^8 linear "
+            "extensions of these discrete translations. NO new C symbol -- "
+            "composition_of_c over associator / cd_commutator and the integer "
+            "loop cocycle."
+        ),
+    },
     "srmech.cascade.cd_cycle_holonomy": {"example": {"output": "dim  2  open (non-closing) triangles    0 / 8\ndim  4  open (non-closing) triangles    0 / 64\ndim  8  open (non-closing) triangles  168 / 512\nclosed: False  defect: [0, 0, 0, 0, 0, 0, 0, 2]\ndefect == associator: True", "why": "On associative rungs (ℝ/ℂ/ℍ) every basis triangle CLOSES — the loop-holonomy is bracketing-free, which is why the ℍ-only quaternion peer never has to choose. At 𝕆 the triangles fail to close on exactly the 168/512 non-associating triples, the k=3 turn-on. The defect it returns IS the associator of the three edge-gains — same k=3 content, holonomy framing.", "worked": "from srmech.cascade import cd_cycle_holonomy, cd_basis, associator\n\n# The 3-cycle loop-holonomy over CD edges. On associative rungs (R/C/H) every\n# triangle CLOSES (bracketing-free); at O the basis triangles fail to close on\n# exactly the non-associating triples - the k=3 turn-on.\nfor dim in (2, 4, 8):\n    b = [cd_basis(dim, i) for i in range(dim)]\n    open_ = sum(1 for i in range(dim) for j in range(dim) for k in range(dim)\n                if not cd_cycle_holonomy(b[i], b[j], b[k])[\"closed\"])\n    print(\"dim %2d  open (non-closing) triangles %4d / %d\" % (dim, open_, dim ** 3))\n\n# A concrete octonion triangle that does NOT close: 0 -> e1 -> e2 -> e4.\nh = cd_cycle_holonomy(cd_basis(8, 1), cd_basis(8, 2), cd_basis(8, 4))\nprint(\"closed:\", h[\"closed\"], \" defect:\", [int(q) for q in h[\"defect\"]])\n\n# the defect IS the associator - same k=3 content, holonomy framing.\nprint(\"defect == associator:\",\n      h[\"defect\"] == associator(cd_basis(8, 1), cd_basis(8, 2), cd_basis(8, 4)))"}, "explanation": "WHAT — the loop-holonomy walked around a 3-cycle of Cayley–Dickson edge-gains, returned as a dict {dim, holonomy_left=(x·y)·z, holonomy_right=x·(y·z), defect=left−right, closed}. closed is True iff the two bracketings agree, i.e. the triangle closes independently of how the walk is nested. table=None runs it on the definite ladder through cd_mult, table= on any algebra a structure tensor names through table_product. Exact end to end — no float, no epsilon, no abs(). WHEN — reach for it to read the k=3 turn-on as a HOLONOMY rather than a bare tuple: closed is a property of the RUNG, not the gains — every triangle closes on an associative rung, and at 𝕆 the basis triangles fail to close on exactly the non-associating triples (168/512 at 𝕆, 1848/4096 at 𝕊). It is the general-dim, any-rung generalisation of qm.quaternion.quaternion_cycle_holonomy, which lives at ℍ where the walk is bracketing-free. ⚠️ EPISTEMIC CEILING: it reads the FORM of the holonomy (the ordered walk + whether it closes), not an SU(2) conjugacy class — that read is special to unit quaternions and the general rung has no analogue. SIBLINGS — associator is the same k=3 defect as a bare trilinear tuple (this op's defect field == associator(x, y, z)); cd_commutator is the k=2 square-loop one rung below; quaternion_cycle_holonomy is the ℍ-only associative sibling with its conjugacy-class read; cd_mult and table_product are the products it composes, and walking the triangle both ways by hand is exactly what not to re-derive. No new C symbol was minted and none is owed: it is the composition of two already-c_dispatched products."},
     'srmech.cascade.defect_ladder': {'example': {'output': "H rung 2 nonzero {'commutator': True, 'associator': False, 'flexibility': False, 'left_alternator': False}\nH projected ['commutator']\nO rung 3 closed False projected ['associator', 'commutator']\nS associator [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2]\nS admits @4 True", 'why': 'One call surfaces the whole ladder: at H only the commutator has fired (the projector keeps just it), at O the associator joins and the triangle no longer closes, and at S the alternativity failure shows up ONLY for the seam-crossing a=e1+e10 as [a,a,e4]=2*e15 -- the projector admitting rung 4 that a basis-only probe cannot see.', 'worked': 'from srmech.cascade import defect_ladder, cd_basis, cd_add\n\n# The whole property-loss LADDER + a per-rung PROJECTOR in one call. Each\n# loop-defect turns on one rung LATER: commutator at H, associator at O,\n# alternator at S. \'projected\' is the projector applied -- only the defects\n# a given rung can make nonzero.\n# H (dim 4, rung 2): only the commutator has fired.\nh = defect_ladder(cd_basis(4, 1), cd_basis(4, 2), cd_basis(4, 3))\nprint("H rung", h["rung"], "nonzero", h["nonzero"])\nprint("H projected", sorted(h["projected"]))\n# O (dim 8, rung 3): commutator AND associator fire; the triangle opens.\no = defect_ladder(cd_basis(8, 1), cd_basis(8, 2), cd_basis(8, 4))\nprint("O rung", o["rung"], "closed", o["holonomy_closed"], "projected", sorted(o["projected"]))\n# S (dim 16, rung 4): alternativity fails ONLY for a SEAM-CROSSING input --\n# a = e1 + e10, [a,a,e4] = 2*e15. A basis-only probe would miss it.\na = cd_add(cd_basis(16, 1), cd_basis(16, 10))\ns = defect_ladder(a, a, cd_basis(16, 4))\nprint("S associator", [int(q) for q in s["defects"]["associator"]])\nprint("S admits @4", s["rung_admits"]["alt_zero_div@4"])'}, 'explanation': "WHAT - the whole Cayley-Dickson property-loss ladder read in ONE call plus a per-rung PROJECTOR. It composes cd_commutator [x,y], associator [x,y,z], the left alternator [x,x,y] and the flexibility floor [x,y,x] over the SAME three inputs, plus the cd_cycle_holonomy closed-read, and returns dict(dim, rung, algebra, defects, nonzero, holonomy_closed, rung_admits, projected). The loss is RUNG-indexed, not arity-indexed: commutativity turns off at H (rung 2), associativity at O (rung 3), alternativity + the division property at S (rung 4); flexibility is the FLOOR that never turns on and total order (rung 1, C) is a metric fact carried only as an admits-flag. Exact end to end - no float, no abs(). WHEN - reach for it to get the FULL ladder AND the rung-meaningful subset in one shot instead of calling four defect ops and remembering which turns on where; 'projected' IS the projector applied. WARNING RUNG 4 IS NOT BASIS-VISIBLE: [e_i,e_i,e_j]=0 at S exactly as at O, so feed a SEAM-CROSSING input (a=e1+e10, x=y=a, z=e4) to see alternativity fail as [a,a,e4]=2*e15 - a basis-only probe reports S alternative, wrongly. The arity-4 'square-loop' holonomy is REFUTED (it turns on at O, inherited from the associator, not a fifth rung). WARNING EPISTEMIC CEILING - this k=3 is the arity-3 Cayley-Dickson associator; it is FORM, not identity, and must NOT be fused with the substrate B/H/N k=3 signature (different k=3's; the reading transfers the algorithm, never the constant). SIBLINGS - it is the CD instance of the cross-substrate 'declared-parallel-state (x) projector-excitation -> rung-meaningful subset' instrument (the QM Born-rule measurement, genome chromatin access, and the viola fingerboard bow are the domain peers in srmech notebook 3.29); associator / cd_commutator / cd_cycle_holonomy are the three ops it composes - call them directly when you want ONE defect, not the whole ladder. NO new C symbol was minted and none is owed: composition_of_c over already-c_dispatched products."},
     'srmech.cascade.octonion_frame_read': {'example': {'output': 'base_H [2, 36, 4, -2] base_R -7\nsphere |base_H|^2 + base_R^2 == norm_sq^2: True\nfiber: base_H unchanged True | writhe changed True', 'why': 'On the committed frame e4, O splits H (+) H*l and the quaternionic-Hopf base (base_H, base_R) is UNCHANGED under the S3 fiber (a unit-quaternion right-multiply of both halves) -- the coherent note -- while the writhe q1 carries the fiber DOF; the base sits on an exact four-sphere.', 'worked': 'from srmech.cascade import octonion_frame_read, cd_norm_sq\nfrom srmech.cascade.cayley_dickson import cd_mult\nfrom srmech.math.q import Q\n\n# O = H (+) H*l on the committed frame e4 (q0=x[:4], q1=x[4:]): read O as a\n# FRAME-FREE quaternionic-Hopf base + an H-valued writhe (the S3 fiber DOF).\nx = [1, 2, -3, 1, 2, -1, 1, 4]\nr = octonion_frame_read(x)\nprint("base_H", [int(q) for q in r["base_H"]], "base_R", int(r["base_R"]))\n# the base lies on the radius-norm_sq FOUR-SPHERE (exact-Q identity):\nprint("sphere |base_H|^2 + base_R^2 == norm_sq^2:",\n      cd_norm_sq(r["base_H"]) + r["base_R"] * r["base_R"]\n      == r["norm_sq"] * r["norm_sq"])\n# FRAME-FREE UNDER THE S3 FIBER: right-multiply BOTH halves by a UNIT quaternion\n# lambda = (1/2)(1,1,1,1) (|lambda|^2 = 1). The Hopf base is UNCHANGED (the\n# coherent note) while the writhe q1 CHANGES (it carries the fiber DOF).\nlam = (Q(1, 2), Q(1, 2), Q(1, 2), Q(1, 2))\nq0b, q1b = cd_mult(r["q0"], lam), cd_mult(r["q1"], lam)\nrb = octonion_frame_read(list(q0b) + list(q1b))\nprint("fiber: base_H unchanged", rb["base_H"] == r["base_H"],\n      "| writhe changed", rb["writhe"] != r["writhe"])'}, 'explanation': "WHAT: the FRAME-COMMITTED coherence read of an octonion. Section 3.41 measured 'no FRAME-FREE invariant' (F1301/F1302), but that is the R-SCALAR question asked of a rung whose coherence is H-shaped: MEASURED, {e0,e1,e2,e3} is a genuine H subalgebra of O and is FULLY coherent (0/64 basis-triple associators nonzero) while ALL 168 of O's nonzero associators (of 512) CROSS the doubling seam H*l = {e4..e7} (0 non-seam). So commit the splitting unit l=e4, split O = H (+) H*l (q0=x[:4], q1=x[4:]), and read the QUATERNIONIC HOPF FIBRATION S3 -> S7 -> S4: base_H = 2*q0*conj(q1) (H) and base_R = |q0|^2 - |q1|^2 (R) are the frame-free-UNDER-THE-FIBER Hopf base (the coherent note), lying on the radius-norm_sq four-sphere (|base_H|^2 + base_R^2 == norm_sq^2, exact); writhe = q1 is the S3 fiber generator (EQUIVARIANT -- it changes under the fiber, non-tautological); canonical_affine = q0*q1^-1 is the fiber-fixed HP1 coordinate. WHEN: reach for it to read what survives of O's coherence once a frame is committed, as an H-valued object rather than an R-scalar. WARNING EPISTEMIC CEILING: this does NOT contradict 3.41 -- the companion octonion_laplacian MEASURES that the O gain-Laplacian spectrum is NOT gauge-invariant (~0.1-0.5 vs H's ~1e-15); the coherence here is frame-free only UNDER THE FIBER, not under an arbitrary gauge. FORM, not identity -- the S3/S4 split is the FORM of O's frame-committed coherence, no claim that this S3 and any substrate's fiber are the same object. SIBLINGS: octonion_laplacian is the spectral companion that reads the ceiling; associator is the defect whose 168/168 seam-confinement this op rests on. NO new C symbol: composition_of_c over c_dispatched cd_mult / cd_conjugate / cd_norm_sq."},

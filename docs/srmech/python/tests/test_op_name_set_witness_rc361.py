@@ -45,7 +45,7 @@ MANIFEST = Path(__file__).resolve().parent / "registered_op_names.txt"
 #: Registered public-callable count at rc361. Pinned here only so the failure
 #: message can say "516 -> 517" instead of dumping 516 lines; the SET below is
 #: the actual contract.
-EXPECTED_N = 546
+EXPECTED_N = 551
 
 #: sha256 over the NORMALISED manifest body — "\n".join(sorted names) + "\n",
 #: UTF-8. Normalised rather than raw-file-bytes so a CRLF checkout cannot make
@@ -92,8 +92,12 @@ EXPECTED_N = 546
 # the fenced position x̂ on a ring) and srmech.physics.qm.single_particle.shift_operator
 # (the cyclic shift V — the group-level momentum), obeying U V = ω V U. 544 -> 546,
 # digest below.
+# v0.9.0rc398 (`#T1064`) — five genuinely NEW ops: the octonion MOUFANG LOOP surface,
+# srmech.cascade.{moufang_residue, is_moufang, malcev_defect, unit_loop, loop_invariants}
+# (the loop 𝕆 already IS, promoted from a test-only proof + the unnamed closure(8,[1..7])
+# data to queryable exact-ℚ ops). 546 -> 551, digest below.
 EXPECTED_NAME_SET_SHA256 = (
-    "e471c1e18634efffe0c4464681a029f2442c83b20cfba74293f8c61891a9ca1d")
+    "02c010db0f3b02aaf1254ae66bb93552b0bccae94fd8e4aaa95905e690698b56")
 
 
 def _live_names() -> list[str]:
