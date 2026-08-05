@@ -94,7 +94,15 @@ static srmech_status_t toml_arena_alloc(toml_arena_t *a, size_t nbytes,
     assert(out != NULL);
     *out = NULL;
     size_t want = (nbytes == 0u) ? SRMECH_TOML_ALIGN : toml_align_up(nbytes);
-    if (want == SIZE_MAX || want > a->len - a->used) {
+    /* rc404 (`#T1069`): a saturated toml_align_up means the REQUEST itself
+     * cannot be represented in a size_t — no arena of any size satisfies it,
+     * so it is LIMIT. Genuine exhaustion below stays OVERFLOW: it is the ONE
+     * surviving retryable return in this file, and every caller grow-loop
+     * keys on it. */
+    if (want == SIZE_MAX) {
+        return SRMECH_ERR_LIMIT;
+    }
+    if (want > a->len - a->used) {
         return SRMECH_ERR_OVERFLOW;
     }
     uint8_t *p = a->base + a->used;
@@ -611,14 +619,19 @@ static srmech_status_t toml_str_to_i64(const char *buf, int64_t *out)
             return SRMECH_ERR_BAD_INPUT;
         }
         uint64_t d = (uint64_t)(buf[k] - '0');
+        /* rc404 (`#T1069`): uint64 digit accumulation saturating is a VALUE
+         * range, not an arena — LIMIT. */
         if (mag > (UINT64_MAX - d) / 10u) {
-            return SRMECH_ERR_OVERFLOW;
+            return SRMECH_ERR_LIMIT;
         }
         mag = mag * 10u + d;
     }
     uint64_t limit = neg ? (uint64_t)INT64_MAX + 1u : (uint64_t)INT64_MAX;
+    /* rc404 (`#T1069`): THIS IS THE ~537 MiB DEFECT. An integer outside int64
+     * declined at status 4, so toml_loads_c's grow-loop doubled its arena 13
+     * times for a verdict fixed by the literal's own digits. */
     if (mag > limit) {
-        return SRMECH_ERR_OVERFLOW;
+        return SRMECH_ERR_LIMIT;
     }
     *out = neg ? -(int64_t)mag : (int64_t)mag;
     return SRMECH_OK;
@@ -908,7 +921,11 @@ static srmech_status_t toml_f64_scan(const char *buf, char *dig, int dcap,
     while (hi >= lo && raw[hi] == '0') { hi--; }
     if (hi < lo) { *pndig = 0; *pE = 0; return SRMECH_OK; }   /* all zero */
     E += (nraw - 1 - hi);                                      /* trailing 0s */
-    if (hi - lo + 1 > dcap) { return SRMECH_ERR_OVERFLOW; }     /* live dcap bound (not assert-only) */
+    /* rc404 (`#T1069`): a FIXED digit capacity -> LIMIT. The condition itself
+     * is untouched — rc397 red'd the pedantic build here when `dcap` became
+     * assert-only under -DNDEBUG, so this stays a LIVE bound (not assert-only)
+     * and `dcap` keeps a non-assert reader on every build. */
+    if (hi - lo + 1 > dcap) { return SRMECH_ERR_LIMIT; }        /* live dcap bound (not assert-only) */
     for (i = 0; i <= hi - lo; i++) { dig[i] = raw[lo + i]; }
     *pndig = hi - lo + 1;
     *pE = E;
@@ -1037,8 +1054,9 @@ static srmech_status_t toml_parse_key_path(toml_parser_t *p, const char **segs,
     assert(segs != NULL && n_seg != NULL);
     uint32_t count = 0u;
     for (uint32_t guard = 0; guard <= cap; guard++) {
+        /* rc404 (`#T1069`): a caller-fixed key-path segment cap -> LIMIT. */
         if (count >= cap) {
-            return SRMECH_ERR_OVERFLOW;
+            return SRMECH_ERR_LIMIT;
         }
         uint32_t klen = 0u;
         srmech_status_t st = toml_parse_bare_key(p, &segs[count], &klen);
@@ -1138,14 +1156,30 @@ static srmech_status_t toml_dup_value(toml_parser_t *p,
 
 /* Parse `[ v, v, ... ]` (opening '[' already consumed). Array elements
  * are values that are themselves already finalised (scalars, nested
- * arrays, inline tables) — no deferred builder tables appear here. */
+ * arrays, inline tables) — no deferred builder tables appear here.
+ *
+ * rc404 (`#T1069`): the depth guard below returns SRMECH_ERR_LIMIT.
+ * SRMECH_TOML_MAX_DEPTH is compiled in, not the caller's arena, so growing the
+ * arena cannot help. THIS IS THE ~677 MiB DEFECT — a depth-80 array declined
+ * here at status 4, which toml_loads_c's grow-loop could not tell from
+ * exhaustion, so it doubled its arena 13 times and re-parsed at every step
+ * before returning the same verdict.
+ *
+ * The trailing `return SRMECH_ERR_LIMIT` at the end of the function is the
+ * JPL-Rule-2 loop-guard fallthrough, also moved off status 4. HONESTY NOTE:
+ * it is UN-GATED — the guard bound is the input length and each iteration
+ * consumes >= 1 byte, so the loop always exits through a return above and no
+ * test can distinguish that line before or after.
+ *
+ * (Both notes live out here rather than at their guards because JPL Rule 4
+ * caps this function at 60 lines and it sits close to that bound.) */
 static srmech_status_t toml_parse_array(toml_parser_t *p,
                                         srmech_toml_value_t *out, int depth)
 {
     assert(p != NULL);
     assert(out != NULL);
     if (depth >= SRMECH_TOML_MAX_DEPTH) {
-        return SRMECH_ERR_OVERFLOW;
+        return SRMECH_ERR_LIMIT;   /* structural cap; see note above */
     }
     /* Collect elements into an arena linked list (like the builder tables) —
      * NO fixed staging array, so the element count is bounded only by the
@@ -1192,7 +1226,7 @@ static srmech_status_t toml_parse_array(toml_parser_t *p,
             p->i++;
         }
     }
-    return SRMECH_ERR_OVERFLOW;
+    return SRMECH_ERR_LIMIT;   /* rc404: loop-guard fallthrough; see note above */
 }
 
 /* Parse `{ k = v, ... }` (opening '{' already consumed) into a builder
@@ -1203,8 +1237,9 @@ static srmech_status_t toml_parse_inline_table(toml_parser_t *p,
 {
     assert(p != NULL);
     assert(out != NULL);
+    /* rc404 (`#T1069`): compiled-in depth cap -> LIMIT (inline-table half). */
     if (depth >= SRMECH_TOML_MAX_DEPTH) {
-        return SRMECH_ERR_OVERFLOW;
+        return SRMECH_ERR_LIMIT;
     }
     toml_btable_t *t = NULL;
     srmech_status_t st = toml_btable_new(p, true, &t);
@@ -1250,7 +1285,9 @@ static srmech_status_t toml_parse_inline_table(toml_parser_t *p,
             toml_skip_ws_nl(p);
         }
     }
-    return SRMECH_ERR_OVERFLOW;
+    /* rc404 (`#T1069`): loop-guard fallthrough -> LIMIT. UN-GATED, same
+     * reasoning as the array half above. */
+    return SRMECH_ERR_LIMIT;
 }
 
 /* ================================================================== *
@@ -1366,8 +1403,9 @@ static srmech_status_t toml_finalize_btable(toml_parser_t *p,
 {
     assert(p != NULL);
     assert(t != NULL && out != NULL);
+    /* rc404 (`#T1069`): compiled-in depth cap -> LIMIT (finalise half). */
     if (depth >= SRMECH_TOML_MAX_DEPTH) {
-        return SRMECH_ERR_OVERFLOW;
+        return SRMECH_ERR_LIMIT;
     }
     const char **keys = NULL;
     srmech_toml_value_t **vals = NULL;

@@ -55,7 +55,7 @@ def test_cap_foundation_symbols_present():
     assert _native.genome_telomere_c("chrX", 64) is not None
     # ABI is 11 as of rc395 (the removed srmech_cd_zero_divisor_witness export; this
     # genome surface is additive-unchanged).
-    assert _native.EXPECTED_ABI_VERSION == 11
+    assert _native.EXPECTED_ABI_VERSION == 12
 
 
 # ── (i) srmech_genome_encode_shape → the dict is BYTE-IDENTICAL native-vs-pure ─

@@ -723,6 +723,10 @@ SCAN_ROOTS = {
     # cannot be staled by a tool-surface change), which makes this test the only
     # thing that would notice a hand-edited table limb.
     "tests/test_ryu_tables_attested_rc403.py": ("docs/srmech/c",),
+    # rc404 (`#T1069`): counts `return SRMECH_ERR_OVERFLOW` across
+    # c/src/*.c to hold the OVERFLOW/LIMIT conflation on a down-only ratchet.
+    # Reads only C sources, so the reach is inside srmech-ci's own trigger.
+    "tests/test_status_conflation_ratchet_rc404.py": ("docs/srmech/c",),
 }
 
 #: Reach expressions that can climb ABOVE `docs/srmech/python/`. `parents[1]`

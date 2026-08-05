@@ -68,7 +68,20 @@ _PY_ROOT = _HERE.parent                      # <repo>/docs/srmech/python
 _SRMECH_ROOT = _PY_ROOT.parent               # <repo>/docs/srmech
 _LEDGER = _PY_ROOT / "tests" / "rosetta_classification.ndjson"
 _HEADER = _SRMECH_ROOT / "c" / "include" / "srmech.h"
-_OUT = _PY_ROOT / "srmech" / "amsc" / "_c_claims.py"
+# rc404 (`#T1069`): was `srmech/amsc/_c_claims.py` — a path ADR-0010 retired.
+# The shipped artifact is `srmech/introspect/_c_claims.py`; `srmech/amsc/` has
+# no `_c_claims.py` at all.
+#
+# SCOPE OF THE DEFECT, stated precisely, because it is narrower than it looks:
+# the AUTHORITATIVE output path is the one in tools/codegen_manifest.py
+# (`output="python/srmech/introspect/_c_claims.py"`), and that has been correct
+# all along — so `regen_all.py` and the ripple gate were never affected. Only
+# the `--standalone` escape hatch reads this constant, and it would have
+# written a spurious dead file under amsc/ while leaving the real artifact
+# untouched, reporting success either way. Aligning the two removes the
+# divergence. Verified after the fix: a standalone render reproduces the
+# committed `srmech/introspect/_c_claims.py` byte-for-byte.
+_OUT = _PY_ROOT / "srmech" / "introspect" / "_c_claims.py"
 
 _SYM = re.compile(r"^srmech_[A-Za-z0-9_]{2,}$")
 _HASNAT = re.compile(r"^has_native_[A-Za-z0-9_]+$")

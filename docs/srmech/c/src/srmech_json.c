@@ -23,11 +23,16 @@
  * the writer (srmech_json_write_ws) walk the tree with an EXPLICIT stack
  * bounded by SRMECH_JSON_MAX_DEPTH.
  *
- * Float caveat: DOUBLE values are written best-effort (%.17g, then
- * normalised to carry a '.'); byte-parity with Python's repr(float)
- * is NOT guaranteed. The parity GUARANTEE covers null / bool / int /
- * string / object / array trees only (MPR / genome manifests are
- * float-free). See JPL_AUDIT.md + CHANGELOG.
+ * Floats: DOUBLE values ride srmech_double_repr, an integer-only Ryu
+ * shortest-round-trip conversion, so byte-parity with Python's
+ * repr(float) IS guaranteed as of rc403 (`#T1071`) — for non-finite
+ * doubles too ("NaN" / "Infinity" / "-Infinity"). Before rc403 this
+ * was a best-effort snprintf("%.17g") whose output was
+ * platform-dependent, and THIS BLOCK STILL SAID SO UNTIL rc404, having
+ * been missed when rc403 updated include/srmech.h:5227 beside it. The
+ * parity guarantee now covers null / bool / int / double / string /
+ * object / array trees alike. Still libm-free. See JPL_AUDIT.md +
+ * CHANGELOG.
  *
  * License: MIT.
  */
@@ -371,14 +376,32 @@ static srmech_status_t json_scan_number(json_parser_t *p, bool *is_double)
  * an out-of-int64 integer returned SRMECH_OK with the value CLAMPED to
  * INT64_MAX — a silent wrong answer no status code reported. JSON legitimately
  * permits integers wider than int64 and int64_t genuinely cannot hold them, so
- * the honest answer is an explicit DECLINE (SRMECH_ERR_OVERFLOW) the caller can
- * SEE, not a plausible wrong number. Such values ride the rc176 decimal-STRING
- * bignum transport (see srmech_carrier_marshal.c), which is unaffected.
+ * the honest answer is an explicit DECLINE (SRMECH_ERR_LIMIT as of rc404) the
+ * caller can SEE, not a plausible wrong number. Such values ride the rc176
+ * decimal-STRING bignum transport (see srmech_carrier_marshal.c), unaffected.
  *
- * NOTE the OVERFLOW return is shared with arena exhaustion, so a caller that
- * grows-and-retries on OVERFLOW (srmech._native.json_loads_c) will retry once
- * per doubling before declining. That is correct but not free; the Python side
- * keeps a cheap pre-scan as a FAST PATH, no longer as a correctness guard.
+ * rc404 (`#T1069`) — THREE RETURNS IN THIS FUNCTION MOVED OFF STATUS 4.
+ * (Documented here rather than at each site: JPL Rule 4 caps the function at
+ * 60 lines and it is near that bound.)
+ *   - `n >= 63u`  -> SRMECH_ERR_LIMIT. This is the `char tmp[64]` STAGING
+ *     bound, a compiled-in structural cap and not the caller's arena. Isolated
+ *     by construction: "1." + N zeros (value exactly 1.0) parses at
+ *     N = 60/61/62 and declines at N = 63 with the SAME value and the SAME
+ *     arena, so only the token LENGTH moved. The `n == 0u` half stays
+ *     BAD_INPUT.
+ *   - `errno == ERANGE` -> SRMECH_ERR_LIMIT. A VALUE outside int64; no arena
+ *     relieves it.
+ *   - `endp != tmp + n` -> SRMECH_ERR_BAD_INPUT. rc402 collapsed this into the
+ *     same status as ERANGE; a token strtoll did not fully consume is
+ *     MALFORMED, which is rc402's own adjudication for every other bad-grammar
+ *     shape. HONESTY NOTE: this branch is UN-GATED. json_scan_number has
+ *     already validated the token as `-?(0|[1-9][0-9]*)`, which strtoll always
+ *     consumes in full, so no input reaches it. It is defensive depth and NO
+ *     TEST CAN DISTINGUISH IT before or after the change.
+ * This paragraph replaced one claiming "the OVERFLOW return is shared with
+ * arena exhaustion ... the Python side keeps a cheap pre-scan as a FAST PATH".
+ * Both halves are now false: the statuses are distinct, and rc404 DELETED that
+ * pre-scan precisely because splitting them removed its reason to exist.
  *
  * DOUBLE path: strtod is ADJUDICATED CORRECT, not overlooked. It is correctly
  * rounded, returns +/-HUGE_VAL on overflow (`1e400` -> inf, matching CPython's
@@ -398,8 +421,9 @@ static srmech_status_t json_parse_number(json_parser_t *p,
         return sst;
     }
     size_t n = p->pos - start;
+    /* rc404: staging bound -> LIMIT, empty -> BAD_INPUT (see note above). */
     if (n == 0u || n >= 63u) {
-        return (n == 0u) ? SRMECH_ERR_BAD_INPUT : SRMECH_ERR_OVERFLOW;
+        return (n == 0u) ? SRMECH_ERR_BAD_INPUT : SRMECH_ERR_LIMIT;
     }
     char tmp[64];
     memcpy(tmp, p->src + start, n);
@@ -412,8 +436,12 @@ static srmech_status_t json_parse_number(json_parser_t *p,
     char *endp = NULL;
     errno = 0;
     long long parsed = strtoll(tmp, &endp, 10);
-    if (errno == ERANGE || endp != tmp + n) {
-        return SRMECH_ERR_OVERFLOW;
+    /* rc404: ERANGE -> LIMIT; partial consume -> BAD_INPUT (note above). */
+    if (errno == ERANGE) {
+        return SRMECH_ERR_LIMIT;
+    }
+    if (endp != tmp + n) {
+        return SRMECH_ERR_BAD_INPUT;
     }
 #if LLONG_MAX > INT64_MAX
     /* A live runtime bound, not an assert: on a hypothetical target where
@@ -421,7 +449,7 @@ static srmech_status_t json_parse_number(json_parser_t *p,
      * cast would truncate. Compiles away where long long IS 64-bit (the #if
      * keeps -Wtype-limits quiet under -Wextra -Werror). */
     if (parsed < (long long)INT64_MIN || parsed > (long long)INT64_MAX) {
-        return SRMECH_ERR_OVERFLOW;
+        return SRMECH_ERR_LIMIT;   /* rc404: a VALUE range, not an arena */
     }
 #endif
     v->type = SRMECH_JSON_INT;
@@ -607,7 +635,10 @@ static srmech_status_t json_frame_grow(json_parser_t *p, json_frame_t *fr)
     assert(p != NULL && fr != NULL);
     assert(fr->n == fr->cap);
     uint32_t ncap = (fr->cap < 0x80000000u) ? (fr->cap * 2u) : 0xFFFFFFFFu;
-    if (ncap == fr->cap) { return SRMECH_ERR_OVERFLOW; }
+    /* rc404 (`#T1069`): uint32 child-count saturation at 2^32 is a compiled-in
+     * WIDTH, not the caller's arena — LIMIT. The two json_arena_alloc failures
+     * below stay OVERFLOW: those ARE the arena, and growing it does help. */
+    if (ncap == fr->cap) { return SRMECH_ERR_LIMIT; }
     srmech_json_value_t **nv = (srmech_json_value_t **)json_arena_alloc(
         &p->arena, (size_t)ncap * sizeof(srmech_json_value_t *));
     if (nv == NULL) { return SRMECH_ERR_OVERFLOW; }
@@ -788,6 +819,13 @@ static srmech_status_t json_step_array(json_parser_t *p, json_frame_t *top,
     return json_parse_value_head(p, child, opened);
 }
 
+/* rc404 (`#T1069`): the depth guard inside returns SRMECH_ERR_LIMIT.
+ * SRMECH_JSON_MAX_DEPTH is a compiled-in 64, not the caller's arena, so
+ * growing the arena cannot help. THIS IS THE ~512 MiB DEFECT: a depth-80
+ * document declined here at status 4, which json_loads_c's grow-loop could not
+ * tell from exhaustion, so it doubled its arena 13 times and re-parsed at every
+ * step before giving the same answer. LIMIT stops it at the first call. (Note
+ * lives here, not at the guard: JPL Rule 4 caps this function at 60 lines.) */
 static srmech_status_t json_parse_containers(json_parser_t *p,
                                              srmech_json_value_t *root,
                                              json_frame_t *stack,
@@ -828,7 +866,7 @@ static srmech_status_t json_parse_containers(json_parser_t *p,
         }
         if (opened != 0) {
             if (depth >= SRMECH_JSON_MAX_DEPTH) {
-                return SRMECH_ERR_OVERFLOW;
+                return SRMECH_ERR_LIMIT;   /* rc404: see note above function */
             }
             st = json_frame_open(p, &stack[depth], child);
             if (st != SRMECH_OK) {
@@ -1184,8 +1222,12 @@ static srmech_status_t json_emit_tree(json_writer_t *w,
         if (closed) {
             depth--;
         } else if (child != NULL) {
+            /* rc404 (`#T1069`): a structural depth cap, moved for consistency.
+             * HONESTY NOTE: UN-GATED. json_emit_dims sizes this stack to the
+             * ACTUAL tree, so the branch is unreachable through the public
+             * entry point and NO TEST CAN DISTINGUISH IT before or after. */
             if (depth >= max_depth) {
-                return SRMECH_ERR_OVERFLOW;
+                return SRMECH_ERR_LIMIT;
             }
             json_emit_open(w, &stack[depth], child);
             depth++;

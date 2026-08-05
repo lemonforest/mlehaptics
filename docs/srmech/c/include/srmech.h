@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc403"
-#define SRMECH_VERSION       "0.9.0rc403"
+#define SRMECH_VERSION_PRE   "rc404"
+#define SRMECH_VERSION       "0.9.0rc404"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -209,8 +209,29 @@ extern "C" {
  *      export produces no symptom other than a version mismatch, so by standing policy
  *      it bumps SRMECH_ABI_VERSION 10 -> 11. GENOME_FORMAT_VERSION stays 19 — no on-disk
  *      format change.
+ * v12 — v0.9.0rc404 (`#T1069`): SRMECH_ERR_LIMIT = 8 splits the retryable half of
+ *      SRMECH_ERR_OVERFLOW away from the structural half, and srmech_json_parse /
+ *      srmech_toml_parse now RETURN THE NEW VALUE for a class of input that
+ *      returned 4 through rc403. NO signature changed shape; the CONTRACT of an
+ *      existing export's RETURN VALUE changed — the same KIND of bump as v10's
+ *      ws_len unit reinterpretation, and for the same reason: the version is the
+ *      only thing that tells an out-of-tree caller to re-read the contract. The
+ *      status block below states outright that non-zero values "form part of the
+ *      wire contract with the Python ctypes binding", so reinterpreting one IS a
+ *      wire-contract change.
+ *
+ *      WHAT THE BUMP ACTUALLY BUYS, measured. rc404 also deletes the rc401
+ *      Python-side pre-scan, which existed ONLY because the two conditions shared
+ *      status 4. A stale rc403 .so reports ABI 11 and would otherwise LOAD into
+ *      rc404 Python; with the pre-scan gone and the C sites un-migrated, an
+ *      out-of-int64 literal costs 13 native calls and ~512 MiB of arena instead of
+ *      1 call and ~0.1 MiB — reintroducing the exact defect rc404 exists to
+ *      remove, and doing it SILENTLY, because the answer stays correct. Rejecting
+ *      the stale lib (clean fall-back to the pure path) is strictly better than a
+ *      correct answer bought at 512 MiB. GENOME_FORMAT_VERSION stays 19 — no
+ *      on-disk format change.
  */
-#define SRMECH_ABI_VERSION 11
+#define SRMECH_ABI_VERSION 12
 
 /* ------------------------------------------------------------------ *
  * Thread-local storage qualifier (reentrancy support; #772)
@@ -253,11 +274,49 @@ typedef enum srmech_status {
     SRMECH_ERR_OVERFLOW   = 4,  /* bounded buffer overflow guard  */
     SRMECH_ERR_NOT_IMPL   = 5,  /* not yet implemented (Phase B1) */
     SRMECH_ERR_INTERNAL   = 6,  /* invariant violation; report it */
-    SRMECH_CANCELLED      = 7   /* §101: a progress tick returned nonzero — a
+    SRMECH_CANCELLED      = 7,  /* §101: a progress tick returned nonzero — a
                                  * CLEAN abort, NOT an error. The out-count
                                  * reflects the COMPLETE units already written
                                  * (a valid partial); the C mirror of the
                                  * telomere_tick honest-decline. */
+    SRMECH_ERR_LIMIT      = 8   /* rc404 (`#T1069`): a bound that GROWING THE
+                                 * CALLER'S BUFFERS CANNOT RELIEVE — a value
+                                 * outside the representable range, a
+                                 * compiled-in structural cap, or a
+                                 * non-convergent iteration. Retrying is futile
+                                 * BY CONSTRUCTION, which is exactly what
+                                 * distinguishes it from SRMECH_ERR_OVERFLOW.
+                                 *
+                                 * WHY THE SPLIT. Until rc404 both conditions
+                                 * shared status 4, so a caller's grow-loop
+                                 * could not tell "your arena was too small"
+                                 * from "this integer does not fit in int64".
+                                 * The loop therefore doubled its arena up to
+                                 * the cap and re-parsed at every step before
+                                 * declining — measured at 13 native calls and
+                                 * ~512 MiB of allocation for a document whose
+                                 * verdict was fixed at the first byte. The
+                                 * answer was always CORRECT; it was the COST
+                                 * that was wrong.
+                                 *
+                                 * DIRECTION IS FORCED, NOT CHOSEN. Status 4
+                                 * KEEPS the retryable/buffer meaning, so every
+                                 * existing `rc == SRMECH_ERR_OVERFLOW -> grow`
+                                 * loop stays correct with ZERO edits and the
+                                 * new value falls through to its decline
+                                 * branch. Assigning 8 to the buffer case
+                                 * instead would silently stop every retry loop
+                                 * growing on genuine arena exhaustion.
+                                 *
+                                 * MIGRATION IS PARTIAL AND DELIBERATE. rc404
+                                 * re-statuses ONE MEASURED SLICE —
+                                 * srmech_json.c and srmech_toml.c — and leaves
+                                 * the rest of the tree conflating the two under
+                                 * status 4. The remaining sites are visible and
+                                 * monotone via the down-only line ratchet in
+                                 * python/tests/test_status_conflation_ratchet_rc404.py.
+                                 * Do NOT read a status-4 return elsewhere in
+                                 * the tree as "therefore retryable" yet. */
 } srmech_status_t;
 
 /* ------------------------------------------------------------------ *
@@ -5194,6 +5253,19 @@ struct srmech_json_value {
  * error. Arena exhaustion → SRMECH_ERR_OVERFLOW; malformed input →
  * SRMECH_ERR_BAD_INPUT; a NULL required pointer → SRMECH_ERR_NULL_ARG.
  *
+ * rc404 (`#T1069`) — SRMECH_ERR_LIMIT, and why the distinction is the point.
+ * SRMECH_ERR_OVERFLOW now means EXACTLY "your arena was too small; GROW IT AND
+ * RETRY and this call may succeed". Conditions no arena can relieve return
+ * SRMECH_ERR_LIMIT instead, and a caller must NOT retry them:
+ *   - an integer outside int64 (`99999999999999999999`)
+ *   - a numeric literal >= 63 bytes (the internal staging bound)
+ *   - nesting past SRMECH_JSON_MAX_DEPTH (64)
+ *   - uint32 saturation of a container's child count
+ * All four returned SRMECH_ERR_OVERFLOW through rc403, so a grow-loop could not
+ * tell them from exhaustion and doubled its arena to the cap before declining —
+ * measured at 13 calls and ~512 MiB for a verdict fixed at the first byte. The
+ * ANSWER was always correct; only the cost was wrong.
+ *
  * String decoding handles \" \\ \/ \b \f \n \r \t and \uXXXX
  * (including UTF-16 surrogate pairs → UTF-8 bytes). Numbers with a
  * '.', 'e', or 'E' parse to SRMECH_JSON_DOUBLE; otherwise to
@@ -8728,8 +8800,16 @@ size_t srmech_toml_parse_arena_bytes(size_t src_len);
  * Returns:
  *   SRMECH_OK             — success (*out set)
  *   SRMECH_ERR_NULL_ARG   — src (with len > 0), ws, or out is NULL
- *   SRMECH_ERR_OVERFLOW   — caller arena `ws` too small for this document,
- *                           or nesting exceeds SRMECH_TOML_MAX_DEPTH
+ *   SRMECH_ERR_OVERFLOW   — caller arena `ws` too small for this document.
+ *                           GROW IT AND RETRY; this call may then succeed.
+ *   SRMECH_ERR_LIMIT      — rc404 (`#T1069`): a bound no arena relieves —
+ *                           nesting past SRMECH_TOML_MAX_DEPTH, an integer
+ *                           outside int64, a saturated size computation, or a
+ *                           fixed digit/key-segment capacity. DO NOT RETRY.
+ *                           These returned SRMECH_ERR_OVERFLOW through rc403,
+ *                           so a grow-loop burned every doubling to the cap
+ *                           first — measured 13 calls / ~537 MiB on an
+ *                           out-of-int64 literal, for a correct answer.
  *   SRMECH_ERR_BAD_INPUT  — a syntax error / unsupported construct
  */
 srmech_status_t srmech_toml_parse(const char *src, size_t len,

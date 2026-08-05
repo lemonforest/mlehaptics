@@ -132,7 +132,7 @@ def part_j():
             beta_is_a_bicharacter=(left == 0 and right == 0),
             delta_eps_failures=cyc, eps_is_a_2_cocycle=(cyc == 0),
             first_witness=wit,
-            note="Elduque arXiv:1801.07002 p.3 derives bimultiplicativity of "
+            note="Elduque & Rodrigo-Escudero arXiv:1801.07002 p.3 derives bimultiplicativity of "
                  "beta FROM associativity.  Measured here independently.")
 
     # CONTROL 1: the Clifford twist at the same groups -- must be a bicharacter

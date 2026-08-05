@@ -25,6 +25,30 @@ DERIVED (open premises, stated so it can be checked):
   -- it is not an independent direction.  Combined with (I1), our class is 0 in
   both.  The gerbe direction is not UNTESTED; it is MEASURED ZERO.
 
+CITATIONS (added rc404, `#T1069` -- this file named "Elduque Thm 2" and
+"Albuquerque & Majid" in its prose while carrying NO citation block at all,
+so neither reference could be checked from the file that relied on them):
+
+  [1] A. Elduque and A. Rodrigo-Escudero, "Clifford algebras as twisted group
+      algebras and the Arf invariant", Adv. Appl. Clifford Algebras 28 (2018),
+      no. 2, Art. 41, 15 pp.  DOI 10.1007/s00006-018-0862-y.
+      Preprint arXiv:1801.07002v1 [math.RA], 22 Jan 2018.
+      -- "Elduque Thm 2" above is Theorem 2 of this paper. NOTE THE SECOND
+      AUTHOR: the tree cited this as "Elduque" alone at 15 sites until rc404.
+
+  [2] H. Albuquerque and S. Majid, "Quasialgebra structure of the octonions",
+      J. Algebra 220 (1999), no. 1, 188-224.  DOI 10.1006/jabr.1998.7850.
+      Preprint arXiv:math/9802116v1 [math.QA], 25 Feb 1998 (DAMTP/97-138).
+      -- "AM" / "Albuquerque & Majid" above. Journal year is 1999, not the
+      1998 of the preprint; both are given because the file cites the result,
+      and only the preprint is openly quotable.
+
+  [3] Prasad and Vemuri, cited above at Sec.2 for the alternating property.
+      NOT attested here -- rc404 could not verify it from a primary source in
+      session, and naming a paper it has not read is exactly the failure mode
+      the citation block exists to prevent. Treat as UNVERIFIED pending a
+      PDF check.
+
 No float, no numpy, no fractions, no abs().
 """
 from __future__ import annotations

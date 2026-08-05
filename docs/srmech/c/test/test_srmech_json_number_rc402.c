@@ -26,10 +26,14 @@
  *
  * THE CONTRACT THIS FILE PINS. Every one of those inputs must now return an
  * ERROR STATUS, never SRMECH_OK-with-a-value. An honest decline the caller can
- * SEE beats a plausible wrong number. Out-of-int64 is SRMECH_ERR_OVERFLOW (the
- * value is well-formed JSON, it simply does not fit int64_t, and JSON
- * legitimately permits such integers — they ride the rc176 decimal-string
- * transport); malformed grammar and a NUL-bearing key are SRMECH_ERR_BAD_INPUT.
+ * SEE beats a plausible wrong number. Out-of-int64 is SRMECH_ERR_LIMIT as of
+ * rc404 (`#T1069`) — the value is well-formed JSON, it simply does not fit
+ * int64_t, and JSON legitimately permits such integers (they ride the rc176
+ * decimal-string transport). It read SRMECH_ERR_OVERFLOW from rc402 until
+ * rc404, which split status 4 so a caller can tell "your arena was too small,
+ * grow and retry" from "this bound is structural, retrying is futile". The
+ * >= 63-byte staging bound moved with it. Malformed grammar and a NUL-bearing
+ * key remain SRMECH_ERR_BAD_INPUT.
  *
  * AND WHAT MUST STILL WORK. The valid edges are pinned just as hard, because a
  * scanner tightened too far is its own silent defect: INT64_MAX / INT64_MIN / 0
@@ -137,21 +141,28 @@ static void test_int_overflow_declines(void)
 {
     printf("-- integer overflow declines (was: SRMECH_OK with a clamped value) --\n");
     /* Pre-rc402 these two returned SRMECH_OK / INT64_MAX and INT64_MIN. */
-    check_status("99999999999999999999", SRMECH_ERR_OVERFLOW,
-                 "20-digit positive declines with OVERFLOW");
-    check_status("-99999999999999999999", SRMECH_ERR_OVERFLOW,
-                 "20-digit negative declines with OVERFLOW");
-    /* One past each int64 boundary — the tightest possible overflow case. */
-    check_status("9223372036854775808", SRMECH_ERR_OVERFLOW,
-                 "INT64_MAX+1 declines with OVERFLOW");
-    check_status("-9223372036854775809", SRMECH_ERR_OVERFLOW,
-                 "INT64_MIN-1 declines with OVERFLOW");
+    /* rc404 (`#T1069`) RE-STATUSED ALL SIX OF THESE. They read
+     * SRMECH_ERR_OVERFLOW from rc402 until rc404, which is precisely the
+     * conflation rc404 exists to remove: an integer outside int64 is a VALUE
+     * range that growing the caller's arena cannot relieve, so it is
+     * SRMECH_ERR_LIMIT. What these assertions really pin — an honest DECLINE
+     * rather than SRMECH_OK-with-a-clamped-value — is unchanged, and is still
+     * the whole point of the file. */
+    check_status("99999999999999999999", SRMECH_ERR_LIMIT,
+                 "20-digit positive declines with LIMIT");
+    check_status("-99999999999999999999", SRMECH_ERR_LIMIT,
+                 "20-digit negative declines with LIMIT");
+    /* One past each int64 boundary — the tightest possible range case. */
+    check_status("9223372036854775808", SRMECH_ERR_LIMIT,
+                 "INT64_MAX+1 declines with LIMIT");
+    check_status("-9223372036854775809", SRMECH_ERR_LIMIT,
+                 "INT64_MIN-1 declines with LIMIT");
     /* Nested, so the decline propagates out of a container rather than being
      * swallowed by the element loop. */
-    check_status("{\"n\": 99999999999999999999}", SRMECH_ERR_OVERFLOW,
-                 "overflow inside an object propagates");
-    check_status("[1, 2, 99999999999999999999]", SRMECH_ERR_OVERFLOW,
-                 "overflow inside an array propagates");
+    check_status("{\"n\": 99999999999999999999}", SRMECH_ERR_LIMIT,
+                 "out-of-int64 inside an object propagates");
+    check_status("[1, 2, 99999999999999999999]", SRMECH_ERR_LIMIT,
+                 "out-of-int64 inside an array propagates");
 }
 
 /* ---- 2. Valid integer edges must STILL parse exactly. ---- */
@@ -264,8 +275,10 @@ static void test_long_literal_declines(void)
     /* 70 digits: longer than the 64-byte tmp[] staging buffer. */
     const char *long_int =
         "1111111111111111111111111111111111111111111111111111111111111111111111";
-    check_status(long_int, SRMECH_ERR_OVERFLOW,
-                 "70-digit literal declines with OVERFLOW");
+    /* rc404 (`#T1069`): the tmp[64] staging bound is a compiled-in structural
+     * cap, so this is SRMECH_ERR_LIMIT too, not SRMECH_ERR_OVERFLOW. */
+    check_status(long_int, SRMECH_ERR_LIMIT,
+                 "70-digit literal declines with LIMIT");
 }
 
 /* ---- 7. Deep nesting still parses (the scanner change must not disturb it). */

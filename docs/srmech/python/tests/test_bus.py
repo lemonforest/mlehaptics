@@ -592,8 +592,11 @@ def test_discovery_iterates_uds_socket_files(unique_name):
     files on POSIX (they're stat-type ``S_IFSOCK``, not ``S_IFREG``).
     Effect: every ``by_name()`` / ``list_endpoints()`` call returned
     empty on POSIX even though the socket existed and was connectable.
-    The ``_wait_for_endpoint`` helper used by 40+ bus tests therefore
-    timed out on every POSIX CI cell across the rc1–rc9 series. Fixed
+    The ``_wait_for_endpoint`` helper — 14 call sites across 13 tests
+    in this module — therefore timed out on every POSIX CI cell across
+    the rc1–rc9 series. (This read "40+ bus tests" until rc404
+    (`#T1069`); the real figure is a third of that, and the same false
+    claim had been quoted into ``test_cli_bus.py`` in rc402.) Fixed
     by inverting the directory check (skip dirs, accept everything
     else). Windows passes irrespective because its ``.txt`` registry
     file IS a regular file.
@@ -1014,8 +1017,8 @@ def test_native_bus_symbols_present():
     from srmech import _native
     if not _native.HAS_NATIVE:
         pytest.skip("native not loaded; nothing to verify")
-    assert _native.NATIVE_ABI_VERSION == 11, (
-        f"ABI 11 expected (rc395 removed srmech_cd_zero_divisor_witness, 10 -> 11); "
+    assert _native.NATIVE_ABI_VERSION == 12, (
+        f"ABI 12 expected (rc404 `#T1069` re-statused srmech_json/toml_parse, 11 -> 12); "
         f"got {_native.NATIVE_ABI_VERSION}"
     )
     for sym in (
@@ -1052,8 +1055,8 @@ def test_abi_version_is_7():
     the new srmech_progress_cb_t dispatch-observer typedef, #840).
     """
     from srmech import _native
-    assert _native.EXPECTED_ABI_VERSION == 11, (
-        f"EXPECTED_ABI_VERSION should be 11; got "
+    assert _native.EXPECTED_ABI_VERSION == 12, (
+        f"EXPECTED_ABI_VERSION should be 12; got "
         f"{_native.EXPECTED_ABI_VERSION}"
     )
 
