@@ -1327,7 +1327,14 @@ def _run_catalog_chain_native(
         "chain_schema_version": 1,
         "operator_chain": [_compose._spec_to_chain_dict(c) for c in chains],
     }
-    ctx = {"row": row, "inputs": inputs or {}}
+    # rc402 (`#T1068`): drop UNREFERENCED out-of-int64 columns before marshalling,
+    # exactly as _compose._run_chain_native does. srmech_json now DECLINES such a
+    # literal rather than silently clamping it to INT64_MAX, so leaving one in
+    # would cost the C fast path over a field the chain never reads. The
+    # _run_ints_fit_i64 gate above has already proven every READ int fits.
+    ctx, ctx_ok = _compose._drop_oversized_ints({"row": row, "inputs": inputs or {}})
+    if not ctx_ok:
+        return _RUN_NATIVE_MISS
     try:
         cat_json = json.dumps(payload_obj, ensure_ascii=False).encode("utf-8")
         ctx_json = json.dumps(ctx, ensure_ascii=False).encode("utf-8")

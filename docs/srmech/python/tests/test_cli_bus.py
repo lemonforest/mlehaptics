@@ -72,19 +72,37 @@ def _start_server(
 
 
 def _wait_for_endpoint(name: str, *, timeout_s: float = 8.0) -> bool:
-    """Poll ``srmech bus list`` until ``name`` appears (or timeout)."""
+    """Poll the bus discovery layer until ``name`` is up (or timeout).
+
+    This probes **in-process** via :func:`srmech.bus.by_name` — the same
+    discovery + liveness call ``srmech bus list`` itself makes (see
+    ``cli/bus.py:run_list``) — rather than spawning ``python -m srmech
+    bus list --json`` per sample. It matches the helper of the same name
+    in :mod:`tests.test_bus`, which 40+ bus tests already use.
+
+    Why (rc402, a measured Windows flake): a subprocess sample costs a
+    whole interpreter start + ``srmech`` import — **measured 0.67–1.25 s
+    on an idle Windows box, vs 0.6–2.8 ms in-process, a 400–1000×
+    gap**. The instrument cost the same order as the thing it measured,
+    so an 8 s deadline bought only ~8 samples idle and ~2–3 on a 2-core
+    CI runner under xdist load — while the server being waited for paid
+    that identical startup cost. That is a sampling-rate defect, not a
+    deadline that is too short, so the deadline below is deliberately
+    UNCHANGED: this fix raises the sample count inside the same 8 s,
+    it does not buy more time.
+
+    CLI coverage is unaffected — ``bus list`` / ``bus list --json`` /
+    ``bus list --all --json`` keep their own dedicated subprocess tests
+    below; this helper is readiness scaffolding, not the assertion.
+    """
+    from srmech.bus import by_name
+
     deadline = time.monotonic() + timeout_s
     while time.monotonic() < deadline:
-        out = _run_cli("bus", "list", "--json")
-        if out.returncode == 0:
-            try:
-                data = json.loads(out.stdout or "[]")
-            except json.JSONDecodeError:
-                data = []
-            for ep in data:
-                if ep.get("name") == name and ep.get("alive"):
-                    return True
-        time.sleep(0.1)
+        ep = by_name(name)
+        if ep is not None and ep.alive:
+            return True
+        time.sleep(0.02)
     return False
 
 

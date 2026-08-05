@@ -242,6 +242,22 @@ if(SRMECH_SRCS)
         add_executable(test_srmech_toml_float c/test/test_srmech_toml_float.c)
         target_link_libraries(test_srmech_toml_float PRIVATE srmech ${SRMECH_MATH_LIB})
 
+        # rc402 (`#T1068`): the srmech_json number-scanner + integer-range
+        # correctness gate. Before rc402 an out-of-int64 integer returned
+        # SRMECH_OK with the value CLAMPED to INT64_MAX (strtoll's ERANGE was
+        # never read), a malformed literal like `--1` or `1e` returned
+        # SRMECH_OK with an invented value, and a NUL-bearing object key came
+        # back silently TRUNCATED. All three now DECLINE with a status the
+        # caller can see. This test fails 20 of its 45 assertions against the
+        # pre-rc402 parser, so it is a real instrument rather than a
+        # rubber-stamp. Public-API only (srmech.h), joins the -Werror/-WX gate
+        # AND the ctest run so the fix is proven on all three OSes. Run it:
+        #   ./build/test_srmech_json_number_rc402   (exit 0 = all pass)
+        add_executable(test_srmech_json_number_rc402
+                       c/test/test_srmech_json_number_rc402.c)
+        target_link_libraries(test_srmech_json_number_rc402
+                              PRIVATE srmech ${SRMECH_MATH_LIB})
+
         # THE RUN STEP. Every executable above is registered with ctest, so
         # `ctest --output-on-failure` in .github/workflows/srmech-ci.yml
         # actually executes them on all three OSes. Whole set = 551 ms wall on
@@ -251,7 +267,7 @@ if(SRMECH_SRCS)
             test_srmech_crt_reconstruct test_srmech_qmat_crt test_srmech_carrier
             test_srmech_progress test_srmech_bigint test_srmech_progress_tick
             test_srmech_text_fold test_srmech_genome test_srmech_toml_arena
-            test_srmech_toml_float)
+            test_srmech_toml_float test_srmech_json_number_rc402)
             add_test(NAME ${t} COMMAND ${t})
         endforeach()
     endif()
