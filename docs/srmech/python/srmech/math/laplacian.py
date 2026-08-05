@@ -2988,7 +2988,7 @@ def mat_outer(a, b) -> "Mat":
 # Real-typed peers. The complex kernel IS the contraction engine; a real
 # matmul/matvec/dot is the complex one on imag-free input with the (exactly
 # zero) imaginary part dropped — so these ride the native complex kernel and
-# return float64. They exist so the real-typed scientific-tier sites (Spin(8)
+# return float64. They exist so the real-typed consumer sites (Spin(8)
 # / g₂ / triality octonion-rep algebra, octonion-DFT regular representation,
 # Minkowski real 4-momenta, real DSP) can leave numpy `@`/`.dot` for a cascade
 # without a dtype change. Each is `composition_of_c` (no own C symbol; the math

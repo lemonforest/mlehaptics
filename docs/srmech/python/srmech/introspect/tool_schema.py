@@ -1415,7 +1415,7 @@ def _register_primitive_class_tools() -> None:
             name="srmech.math.laplacian.dense_laplacian", owner="srmech",
             category="laplacian",
             summary="Graph Laplacian L = D - A. Native C dispatch when "
-                    "n ≤ 256; numpy fallback otherwise.",
+                    "n ≤ 256; numpy-free pure-Python fallback otherwise.",
             # rc15: declare `edges` as list[tuple[int, int]] (matching the
             # shipped `dense_laplacian(n, edges: Iterable[Tuple[int, int]])`
             # signature + the sibling `dense_adjacency` entry). The earlier
@@ -2375,8 +2375,9 @@ def _register_primitive_class_tools() -> None:
             summary="Class-L dense linear solve A·X = B (A n×n; B/X n×w matrix "
                     "or length-n vector). The reusable solve schur_complement "
                     "composes over. Native C peer (Gauss–Jordan, partial "
-                    "pivoting, n,w ≤ 256) on the scientific tier; exact-rational "
-                    "Fraction solve (Class-N core, numpy-absent or exact=True).",
+                    "pivoting, n,w ≤ 256); float realization rides the numpy-free "
+                    "Mat engine; exact-rational Fraction solve (Class-N core, "
+                    "exact=True).",
             parameters=(P("A", "Mat", True,
                           "n × n coefficient matrix; nested JSON list over MCP"),
                         P("B", "Mat | Vec", True,
@@ -2396,8 +2397,8 @@ def _register_primitive_class_tools() -> None:
             summary="Class-L Schur complement / discrete Dirichlet-to-Neumann "
                     "map S = L_∂∂ − L_∂i·L_ii⁻¹·L_i∂ (the bulk integrated out; "
                     "the operator|operand FUSION op). Exact-rational Fraction "
-                    "solve (Class-N core, numpy-absent or exact=True); "
-                    "NumPy solve float realization on the scientific tier.",
+                    "solve (Class-N core, exact=True); the float realization "
+                    "rides the numpy-free Mat engine (dense_solve -> mat_solve).",
             parameters=(P("L", "Mat", True,
                           "n × n SPD operator (a graph Laplacian); nested JSON "
                           "list over MCP"),
@@ -2470,7 +2471,7 @@ def _register_primitive_class_tools() -> None:
             name="srmech.math.laplacian.mat_solve",
             owner="srmech", category="laplacian",
             summary="Numpy-FREE dense linear solve A·X = B over the Mat carrier "
-                    "(carrier-removal #564): real Mat.buffers feed the native "
+                    "(carrier-removal #564): real Mat.buffer feeds the native "
                     "srmech_dense_solve_f64_ws zero-copy; exact-rational "
                     "Gauss-Jordan fallback with no native lib. Complex A/B route "
                     "through the real 2n×2n block embedding (rc95), riding the "
@@ -7601,8 +7602,8 @@ def _register_primitive_class_tools() -> None:
                     "of the continuous (σ,θ,μ) family = coupling's 𝕊(σ,θ) (F420) plus "
                     "the axis μ. Class M (octonion multiply) ∘ C (σ/conjugation "
                     "orientation) ∘ N (rational phase θ); no new algebra, no abs(). "
-                    "Scientific tier (UPSTREAM §22): requires numpy on call."
-                    + PUBLISH_OPT_IN_NOTE,
+                    "Numpy-free end to end: pure cascade over the "
+                    "octonion tables." + PUBLISH_OPT_IN_NOTE,
             parameters=(
                 P("streams", "sequence", True,
                   "≤3 reals → quaternion imag carrier; 4–7 → octonion imag; a "
@@ -9111,8 +9112,9 @@ def _register_primitive_class_tools() -> None:
                     "always a signed permutation, composite-direction nav reversible "
                     "ONLY ≤𝕆 (the Hurwitz horizon). Pure composition of shipped "
                     "primitives — no new algebra, no abs() (sign is Class C chiral_flip). "
-                    "Storage + coupler are the scientific tier (numpy on call); "
-                    "navigate/is_navigable/carry/correct are numpy-free."
+                    "The WHOLE instrument is numpy-free: storage + coupler route "
+                    "through mint_vector / the Class-M hdc cascades, and "
+                    "navigate/is_navigable/carry/correct are pure address-algebra."
                     + PUBLISH_OPT_IN_NOTE,
             parameters=(
                 P("D", "int", False, "hypervector width in bits (default 8192; the RBS-HDC dimension)"),
@@ -9409,8 +9411,8 @@ def _register_primitive_class_tools() -> None:
                     "sign ∘ Class C apply (never abs()); ⨁ over n is Class I. At "
                     "n=1 (Im ℂ one-dimensional) the seed coincides with the "
                     "rotation axis so θ is inert and only σ survives. Numpy-free, "
-                    "exact-rational; the opt-in One.to_numpy()/to_matrix() float "
-                    "realisations are the scientific tier (§22). No new primitive "
+                    "exact-rational; the opt-in One.to_matrix() float realisation "
+                    "is a numpy-free 14x14 Mat. No new primitive "
                     "class. SSoT: Hurwitz (1898); the parallelizable-sphere ladder "
                     "S¹,S³,S⁷.",
             parameters=(
@@ -10859,8 +10861,9 @@ def _register_qm_tools() -> None:
                     "0/1/3 planes (the octonion epicycle). Matches the "
                     "hardcoded srmech.cascade.one.FANO_PLANES bit-for-bit "
                     "(the structure cross-derivation). Class A "
-                    "(content-addressing the octonion convention). Scientific "
-                    "tier (§22): numpy. Baez (2002) §2." + PUBLISH_OPT_IN_NOTE,
+                    "(content-addressing the octonion convention). Numpy-free: "
+                    "derived on the ALU. Baez (2002) §2."
+                    + PUBLISH_OPT_IN_NOTE,
             parameters=(),
             returns=R("tuple",
                       "((), ((1,2,1),), ((1,6,-1),(2,5,1),(3,4,1)))"),

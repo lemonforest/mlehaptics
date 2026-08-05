@@ -153,10 +153,9 @@ from .coupled import (
 # Quaternion / octonion DFT composites (v0.7.0rc31; #863, F380). The native
 # transform for a Klein-4 object — its ℍ/𝕆 coefficient algebra resolves both
 # Z₂ chirality axes the complex FFT collapses (the flat shadow). COMPOSITES
-# over the qm.octonion left/right-mult atoms — no new primitive class. Scientific
-# tier (§22): numpy is imported lazily INSIDE each op, so this import stays
-# numpy-free (the rc30 numpy-absent-safe core is intact); the transforms use
-# numpy on call.
+# over the qm.octonion left/right-mult atoms — no new primitive class. Numpy-free
+# end to end (rc125, #564): the transforms are pure cascade over the Mat / Vec
+# carriers, so neither this import nor any call reaches for numpy.
 from .hypercomplex_dft import (
     quaternion_dft,
     octonion_dft,
@@ -177,8 +176,8 @@ from .hamming import (
 # (σ, θ)-parameterised exact-rational object: ℝ·1 anchors (the B/H/N
 # grammar) ⊕ σ e^{Î_nθ} Im 𝔸_n (the 1:3:7 imaginary, rotated by the
 # epicycle). Numpy-free at import (the e^{Îθ} = cos+Î·sin is built from the
-# Class-N rational series); float realisations (.to_numpy / .to_matrix) are
-# the opt-in scientific tier. The qm-matrix Rosetta peer lives in
+# Class-N rational series); the float realisation (.to_matrix) is an
+# opt-in numpy-free Mat. The qm-matrix Rosetta peer lives in
 # srmech.physics.qm.hurwitz.
 from .one import (
     Block,

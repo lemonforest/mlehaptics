@@ -517,3 +517,81 @@ def test_numpy_math_total_is_down_only():
         f"numpy-math total {total} exceeds pinned {ceil_total}; a cascade op "
         "regressed to numpy math. Per-file breakdown:\n" + _per_file_breakdown()
     )
+
+
+# ---------------------------------------------------------------------------
+# rc407 (`#T1076`) — the PROSE half: no shipped payload may PROMISE a numpy path
+# that the package cannot take.
+# ---------------------------------------------------------------------------
+#
+# The ratchet above guards numpy MATH re-entering the source. It says nothing
+# about prose, and the three regexes above cannot match a claim like "the
+# scientific tier (numpy on call)" at all. Measured at rc406, FOUR ToolEntry
+# summaries promised a numpy code path — `dense_laplacian` ("numpy fallback
+# otherwise"), `dense_solve` and `schur_complement` ("on the scientific tier" /
+# "NumPy solve float realization"), and `sedenion_register` ("Storage + coupler
+# are the scientific tier (numpy on call)") — in a package with ZERO numpy
+# imports, where the `scientific = ["numpy"]` extra itself is GONE
+# (`pyproject.toml`: "there is no numpy tier"). All four shipped in the wheel
+# and byte-mirrored into `srmech_tool_registry.c`.
+#
+# The claim shapes below are deliberately NARROW. This is not an attempt to
+# read English; it is a pin on the exact vocabulary the removed tier was
+# described with, so the phrases cannot quietly come back. "numpy-free" and
+# "numpy-absent" are the CORRECT negatives and are not matched.
+
+_NUMPY_TIER_CLAIMS = (
+    re.compile(r"scientific[- ]tier", re.I),
+    re.compile(r"\[scientific\]", re.I),
+    re.compile(r"numpy fallback", re.I),
+    re.compile(r"numpy on call", re.I),
+    re.compile(r"numpy solve", re.I),
+)
+
+
+def test_no_shipped_prose_promises_a_numpy_tier():
+    """**Strict-zero.** No ToolEntry prose may promise a numpy path.
+
+    Self-verifying, per ``[[feedback_an_instrument_that_cannot_return_otherwise
+    _is_not_a_measurement]]``: the premise is asserted FIRST. If numpy ever
+    returns to the package, the premise assertion fails loudly and this guard
+    correctly stops applying, rather than silently policing prose that has
+    become true again.
+    """
+    # PREMISE — the package imports numpy nowhere, so no numpy path exists.
+    importers = [
+        str(p.relative_to(SRMECH_PKG))
+        for p in sorted(SRMECH_PKG.rglob("*.py"))
+        if "__pycache__" not in p.parts
+        and re.search(
+            r"^[ \t]*(?:import numpy|from numpy)",
+            p.read_text(encoding="utf-8"),
+            re.M,
+        )
+    ]
+    assert not importers, (
+        f"PREMISE BROKEN: {len(importers)} module(s) import numpy: {importers}. "
+        "numpy is back in the package, so 'the scientific tier' may be a true "
+        "statement again — re-adjudicate this guard rather than editing prose."
+    )
+
+    from srmech.introspect.tool_schema import get_tool_schema, warmup_all
+
+    warmup_all()
+    offenders = []
+    for tool in get_tool_schema().tools:
+        for field in ("summary", "explanation"):
+            text = getattr(tool, field, None)
+            if text is None:
+                continue
+            for pattern in _NUMPY_TIER_CLAIMS:
+                if pattern.search(str(text)):
+                    offenders.append((tool.name, field, pattern.pattern))
+    assert not offenders, (
+        f"{len(offenders)} ToolEntry prose field(s) promise a numpy code path "
+        f"in a package with ZERO numpy imports: {offenders}. There is no "
+        "`[scientific]` extra and no numpy tier (#564 removed both) — say what "
+        "the op actually does (`numpy-free Mat engine`, `pure-Python fallback`, "
+        "`exact-rational Fraction solve`). This prose ships in the wheel and in "
+        "srmech_tool_registry.c."
+    )

@@ -24,9 +24,11 @@ Layout (the load-bearing design choice): **row-major, flat** ``array('d')``.
 This module imports **no numpy at load time** (numpy-free core — the "runs
 embedded without numpy/LAPACK" identity). Convert out explicitly:
 
-* :meth:`tolist` / :meth:`tobytes` — stdlib, always available;
-* :meth:`to_numpy` — the opt-in numpy bridge (lazy import; clear message if
-  numpy is absent — the numpy-free path is :meth:`tolist`).
+* :meth:`tolist` / :meth:`tobytes` — stdlib, always available.
+
+There is no numpy bridge: the ``to_numpy`` export was deleted with the
+carrier-removal arc (#564) and ``Mat`` has no numpy-valued conversion at
+all. :meth:`tolist` IS the conversion-out path.
 """
 from __future__ import annotations
 

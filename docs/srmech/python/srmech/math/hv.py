@@ -9,9 +9,11 @@ convert out *on purpose*.
 
 Convert out explicitly:
 
-* ``hv.tolist()`` / ``hv.tobytes()`` — stdlib, always available;
-* ``hv.to_numpy()`` — the opt-in numpy bridge (lazy import; raises a clear
-  message if numpy is absent — the numpy-free path is ``.tolist()``).
+* ``hv.tolist()`` / ``hv.tobytes()`` — stdlib, always available.
+
+There is no numpy bridge: the ``to_numpy`` export was deleted with the
+carrier-removal arc (#564) and ``HV`` has no numpy-valued conversion at
+all. ``.tolist()`` IS the conversion-out path.
 
 This module imports **no numpy at load time** — it is part of the numpy-free
 core (the "runs embedded without numpy/LAPACK" identity). The underlying

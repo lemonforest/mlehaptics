@@ -86,3 +86,40 @@ def test_no_to_numpy_attribute():
     assert not hasattr(m, "to_numpy")
     assert m.tolist() == [[1.0, 2.0], [3.0, 4.0]]
     assert list(m.buffer) == [1.0, 2.0, 3.0, 4.0]
+
+
+def test_no_to_numpy_in_registry_prose():
+    """**Strict-zero.** No ToolEntry may cite ``to_numpy`` in shipped prose.
+
+    The sibling assertion above declares the name deleted tree-wide (#564,
+    commit ``4aa75d64a``), so this needs no allowlist — it is excluded by RULE:
+    if ``to_numpy`` is not an attribute of any carrier, no shipped payload may
+    name it as callable.
+
+    Why a TOKEN check and not a resolution check: a bare backticked member with
+    no class root — the ``the_one`` explanation shipped "the float
+    ``to_matrix()`` / ``to_numpy()`` realisations" — is invisible to BOTH
+    extractions in ``test_prose_oprefs_resolve_rc363.py``, because there is no
+    owner to resolve it against. Measured at rc406 this was live in **1 of 556**
+    entries, in TWO fields (``summary`` and ``explanation``), ``mcp_callable``,
+    and travelled inside the wheel and the compiled ``srmech_tool_registry.c``.
+    """
+    from srmech.introspect.tool_schema import get_tool_schema, warmup_all
+
+    warmup_all()
+    offenders = []
+    for tool in get_tool_schema().tools:
+        for field in ("summary", "explanation", "example"):
+            text = getattr(tool, field, None)
+            if text is None:
+                continue
+            if "to_numpy" in str(text):
+                offenders.append((tool.name, field))
+    assert not offenders, (
+        f"{len(offenders)} ToolEntry prose field(s) cite `to_numpy`, which was "
+        f"DELETED with the carrier-removal arc (#564) and raises AttributeError "
+        f"on every carrier: {offenders}. This prose ships in the wheel and in "
+        f"srmech_tool_registry.c — reword it (the conversion surface is "
+        f"`tolist` / `tobytes` / `buffer`; `One.to_matrix` is the float "
+        f"realisation)."
+    )
