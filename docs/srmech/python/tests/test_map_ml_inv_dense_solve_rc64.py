@@ -121,7 +121,9 @@ def test_no_residual_np_linalg_inv_in_map_ml():
     assert not re.search(r"\bnp\.linalg\.inv\s*\(", txt)
     # rc102 (carrier-removal #564): the covariance inverse now routes through the
     # numpy-free Mat-carrier ``mat_solve`` (was ``dense_solve``); op is numpy-free.
-    # (The column-0 `import numpy` ratchet in test_numpy_carrier_ratchet.py is the
-    # authoritative numpy-free gate; here we just confirm the routing target.)
+    # (The `numpy` row of the BAN_LIST table in test_selfhosting_import_ban.py is
+    # the authoritative numpy-free gate — it absorbed test_numpy_carrier_ratchet at
+    # rc405 and walks the AST, so it also sees the function-local imports the old
+    # column-0 line regex could not. Here we just confirm the routing target.)
     assert "mat_solve(" in txt
     assert not re.search(r"(?m)^import numpy", txt)
