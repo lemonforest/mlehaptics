@@ -105,7 +105,6 @@ kernel; no float math, no numpy, no ``abs()``.
 
 from __future__ import annotations
 
-import json
 from typing import Any, Dict, List, Optional, Tuple
 from srmech import _json as _srmech_json
 
