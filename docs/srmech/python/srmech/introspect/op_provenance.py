@@ -102,6 +102,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 from srmech.math.q import Q  # #845: exact-ℚ carrier (was fractions.Fraction)
 
 from ..amsc.format import sha256_bytes
+from srmech import _json as _srmech_json
 
 __all__ = [
     "carry",
@@ -467,7 +468,7 @@ def _carry_record_native(op: str, canon_inputs: Dict[str, Any],
         out, ctypes.c_size_t(ws_bytes), ctypes.byref(out_len))
     if rc != _native.SRMECH_OK:
         return None
-    return json.loads(out.raw[:out_len.value].decode("utf-8"))
+    return _srmech_json.loads(out.raw[:out_len.value].decode("utf-8"))
 
 
 def _lossy_record_native(op: str, canon_inputs: Dict[str, Any],
@@ -493,7 +494,7 @@ def _lossy_record_native(op: str, canon_inputs: Dict[str, Any],
         out, ctypes.c_size_t(ws_bytes), ctypes.byref(out_len))
     if rc != _native.SRMECH_OK:
         return None
-    return json.loads(out.raw[:out_len.value].decode("utf-8"))
+    return _srmech_json.loads(out.raw[:out_len.value].decode("utf-8"))
 
 
 def _reproject_verify_native(record: Dict[str, Any],

@@ -79,6 +79,7 @@ from typing import Any, Dict, List, Optional, Tuple
 # redden ``test_c_claim_resolution_rc300``. The name ``_toml`` sidesteps the
 # matcher. ``srmech._toml`` is a leaf (imports ``_native`` lazily) — no cycle.
 from srmech import _toml
+from srmech import _json as _srmech_json
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -635,7 +636,7 @@ def _native_tool_schema_view() -> Optional[Dict[str, Any]]:
     raw = _native.tool_schema_view_c()
     if raw is None:
         return None
-    return json.loads(raw.decode("utf-8"))
+    return _srmech_json.loads(raw.decode("utf-8"))
 
 
 # ──────────────────────────────────────────────────────────────────────

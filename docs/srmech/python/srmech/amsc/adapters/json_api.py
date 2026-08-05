@@ -110,6 +110,9 @@ def _has_records(body: bytes, records_path: str) -> bool:
     """Return True if the response body contains at least one record
     at the configured records_path. Used to detect end-of-pagination."""
     try:
+        # stdlib json by PROTOCOL-BOUNDARY decision, not neglect (`#T1008`): this is a
+        # FETCHED external HTTP API response body — the least-trusted input in the tree.
+        # The READ self-host covers srmech's own committed data, not third-party wire.
         payload = json.loads(body.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError):
         return False
@@ -132,6 +135,9 @@ def parse(
     ``"data.results"``). Each row is mapped via
     ``[parse].field_map``.
     """
+    # stdlib json by PROTOCOL-BOUNDARY decision, not neglect (`#T1008`): this is a
+    # FETCHED external HTTP API response body — the least-trusted input in the tree.
+    # The READ self-host covers srmech's own committed data, not third-party wire.
     payload = json.loads(raw.decode("utf-8"))
     parse_cfg = descriptor.parse
     records_path = str(parse_cfg.get("records_path", ""))

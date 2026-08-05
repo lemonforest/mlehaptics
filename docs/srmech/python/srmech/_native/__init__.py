@@ -37,8 +37,23 @@ Status codes (``srmech_status_t``):
 from __future__ import annotations
 
 import ctypes
+# stdlib json by LAYERING decision, not neglect (`#T1008`). The rc401 READ
+# self-host repointed srmech's descriptor / manifest / catalog reads onto
+# srmech._json, which is a CONSUMER of this shim: srmech._json.loads calls
+# json_loads_c below. The four json.loads/json.load sites in this file are
+# therefore left on the stdlib deliberately — routing them back through
+# srmech._json would invert the dependency and make the ctypes shim depend on a
+# module that depends on the shim.
+#
+# Checked, so the reason is layering and not an inability: srmech._json imports
+# _native LAZILY (inside loads(), the same way srmech._toml does), so there is
+# no module-level import cycle and the repoint would in fact work. It is
+# declined because the payoff is nil — these four reads already sit inside the
+# native-only paths — while the failure mode is severe: a partially-initialised
+# _native is what silently degrades the ENTIRE package to the pure path.
 import json
 import os
+import re
 import sys
 from array import array
 from pathlib import Path
@@ -585,6 +600,68 @@ class _TomlUnion(ctypes.Union):
 
 
 _TomlValue._fields_ = [("type", ctypes.c_int), ("u", _TomlUnion)]
+
+
+# --------------------------------------------------------------------------
+# srmech_json_value_t — the tagged-union parse-tree node (0.9.0rc401, #T1008
+# slice 1: the READ half). Mirrors `struct srmech_json_value` in srmech.h
+# exactly: an int tag then an 8-byte-aligned union. Self-referential (ARRAY
+# items[] and OBJECT vals[] are srmech_json_value_t**), so the value class is
+# forward-declared and its _fields_ patched once the union types exist — the
+# same shape the _TomlValue block above uses.
+#
+# Note the asymmetry between OBJECT keys and STRING values, which is
+# load-bearing for the walker: a string VALUE carries an explicit `len` (so it
+# may hold an embedded NUL), whereas an object KEY is a plain `const char *`
+# NUL-terminated arena copy (srmech_json.c json_read_object_key), which the C
+# writer and srmech_json_object_get re-measure with strlen. A key containing a
+# genuine NUL would therefore be TRUNCATED — one of the reasons
+# _json_native_safe declines a document containing a backslash-u-0000 escape.
+# --------------------------------------------------------------------------
+SRMECH_JSON_NULL = 0
+SRMECH_JSON_BOOL = 1
+SRMECH_JSON_INT = 2
+SRMECH_JSON_DOUBLE = 3
+SRMECH_JSON_STRING = 4
+SRMECH_JSON_ARRAY = 5
+SRMECH_JSON_OBJECT = 6
+
+
+class _JsonValue(ctypes.Structure):
+    pass
+
+
+class _JsonStr(ctypes.Structure):
+    _fields_ = [("ptr", ctypes.c_void_p), ("len", ctypes.c_uint32)]
+
+
+class _JsonArr(ctypes.Structure):
+    _fields_ = [
+        ("items", ctypes.POINTER(ctypes.POINTER(_JsonValue))),
+        ("n", ctypes.c_uint32),
+    ]
+
+
+class _JsonObj(ctypes.Structure):
+    _fields_ = [
+        ("keys", ctypes.POINTER(ctypes.c_char_p)),
+        ("vals", ctypes.POINTER(ctypes.POINTER(_JsonValue))),
+        ("n", ctypes.c_uint32),
+    ]
+
+
+class _JsonUnion(ctypes.Union):
+    _fields_ = [
+        ("str", _JsonStr),
+        ("i", ctypes.c_int64),
+        ("f", ctypes.c_double),
+        ("b", ctypes.c_int),
+        ("arr", _JsonArr),
+        ("obj", _JsonObj),
+    ]
+
+
+_JsonValue._fields_ = [("type", ctypes.c_int), ("u", _JsonUnion)]
 
 
 def _bind(lib: ctypes.CDLL) -> None:
@@ -5193,6 +5270,24 @@ def _bind(lib: ctypes.CDLL) -> None:
     if hasattr(lib, "srmech_toml_parse_arena_bytes"):
         lib.srmech_toml_parse_arena_bytes.argtypes = [ctypes.c_size_t]
         lib.srmech_toml_parse_arena_bytes.restype = ctypes.c_size_t
+
+    # srmech_json_parse — the READ half of the JSON self-host (0.9.0rc401,
+    # #T1008 slice 1), the exact peer of the srmech_toml_parse binding above:
+    #
+    #   srmech_status_t srmech_json_parse(const char *src, size_t len,
+    #       void *ws, size_t ws_len, srmech_json_value_t **out)
+    #
+    # Binding an ALREADY-EXPORTED C symbol adds no C surface: no new symbol is
+    # declared, defined or removed, so SRMECH_ABI_VERSION stays 11. Unlike TOML
+    # there is deliberately NO srmech_json_parse_arena_bytes sizer in the C
+    # header, so json_loads_c sizes heuristically and grows on OVERFLOW.
+    if hasattr(lib, "srmech_json_parse"):
+        lib.srmech_json_parse.argtypes = [
+            ctypes.c_char_p, ctypes.c_size_t,           # src, len
+            ctypes.c_void_p, ctypes.c_size_t,           # ws, ws_len
+            ctypes.POINTER(ctypes.POINTER(_JsonValue)),  # out
+        ]
+        lib.srmech_json_parse.restype = ctypes.c_int
 
     # ------------------------------------------------------------------
     # srmech_infer — the F929 OPEN/infer ROUTER (0.9.0rc176; the
@@ -17791,6 +17886,185 @@ def toml_loads_c(text: str):
             continue
         # BAD_INPUT (unsupported construct / syntax error), NULL_ARG, or an
         # arena that blew the cap: decline so the caller rides tomllib.
+        return None
+
+
+# --------------------------------------------------------------------------
+# JSON read half (0.9.0rc401, #T1008 slice 1) — the peer of toml_loads_c above.
+# --------------------------------------------------------------------------
+
+# Belt-and-suspenders ceiling for json_loads_c's grow-on-OVERFLOW loop. There is
+# NO srmech_json_parse_arena_bytes sizer in the C header (the TOML parser has
+# one; the JSON parser does not), so the first try is a heuristic multiple of
+# the source length and OVERFLOW doubles it up to this cap.
+_JSON_ARENA_CAP = 256 * 1024 * 1024
+
+# First-try arena multiplier. A srmech_json_value_t is 32 bytes; the densest
+# real shape is a bare int array (`[1,1,1,…]`, ~20 bytes of arena per 2 source
+# bytes), while an object-shaped manifest — what the srmech corpus actually is —
+# runs nearer 7x. 32x therefore lands the common case on the first try and
+# leaves the pathological array to one doubling.
+_JSON_ARENA_MULT = 32
+
+_INT64_MIN = -(2 ** 63)
+_INT64_MAX = 2 ** 63 - 1
+
+# One left-to-right pass that alternates COMPLETE STRING LITERAL | NUMBER RUN.
+# The string alternative is FIRST and matches escapes, so digits inside strings
+# are consumed as string content and never mistaken for numbers. The number
+# alternatives deliberately require a leading '-' or digit — a bare `[0-9.eE+-]+`
+# class would match the 'e' in `true`/`false` and mis-flag every document.
+# The trailing class mirrors EXACTLY what srmech_json.c's json_parse_number
+# swallows, so what this sees is what the C parser will see.
+_JSON_SCAN_RE = re.compile(rb'"(?:[^"\\]|\\.)*"|-[0-9.eE+-]*|[0-9][0-9.eE+-]*',
+                           re.S)
+
+# The strict RFC 8259 number grammar CPython's json accepts.
+_JSON_STRICT_NUM_RE = re.compile(rb'-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?'
+                                 rb'(?:[eE][+-]?[0-9]+)?\Z')
+
+# A backslash-u-0000 escape anywhere. Deliberately CONSERVATIVE: only an object KEY is
+# actually corrupted by it (keys are stored as NUL-terminated arena copies and
+# re-measured with strlen, so a NUL truncates the key), while a string VALUE
+# carries an explicit length and survives. Declining on either is cheap and safe.
+_JSON_NUL_ESCAPE_RE = re.compile(rb'\\u0000')
+
+
+def _json_native_safe(raw: bytes) -> bool:
+    """Would srmech_json_parse agree with ``json.loads`` on these bytes?
+
+    Guards the three places where the C parser does NOT decline but SILENTLY
+    diverges from CPython — the cases a plain rc != SRMECH_OK check cannot
+    catch, because C returns SRMECH_OK with a wrong value:
+
+    1. **An integer outside int64.** ``srmech_json.c`` parses ints with a bare
+       ``strtoll`` and never inspects ``errno``, so ``99999999999999999999``
+       CLAMPS to ``INT64_MAX`` where CPython returns the exact int.
+    2. **A number literal >= 63 chars.** The C scanner returns
+       ``SRMECH_ERR_OVERFLOW`` for it — indistinguishable from arena exhaustion,
+       so the grow loop would futilely double to the cap before declining.
+    3. **A malformed number the C scanner accepts loosely.** Its character class
+       is ``[0-9.eE+-]``, so ``01`` / ``1.2.3`` / ``1e`` / ``--1`` / a bare ``-``
+       are all consumed and handed to ``strtoll`` / ``strtod``, which stop at the
+       first bad byte and yield a value; CPython raises ``JSONDecodeError``.
+
+    Plus a conservative decline on any ``\\u0000`` escape (see
+    ``_JSON_NUL_ESCAPE_RE``).
+
+    Everything else the C parser gets WRONG it also gets DECLINED on — lone
+    surrogates, ``NaN``/``Infinity``, depth > 64, trailing garbage, unterminated
+    strings all return SRMECH_ERR_BAD_INPUT and ride the stdlib floor.
+
+    Returning False is always SAFE: it costs a stdlib parse, never correctness.
+    So on any doubt (including a malformed document where this scan may
+    desynchronise from the real tokenizer) the honest answer is False.
+    """
+    if _JSON_NUL_ESCAPE_RE.search(raw) is not None:
+        return False
+    for m in _JSON_SCAN_RE.finditer(raw):
+        tok = m.group()
+        if tok[:1] == b'"':
+            continue                      # a string literal; nothing to check
+        if len(tok) >= 63:
+            return False                  # (2) C returns OVERFLOW on this
+        if _JSON_STRICT_NUM_RE.match(tok) is None:
+            return False                  # (3) C accepts it, CPython does not
+        if not (b"." in tok or b"e" in tok or b"E" in tok):
+            if not (_INT64_MIN <= int(tok) <= _INT64_MAX):
+                return False              # (1) C would clamp it silently
+    return True
+
+
+def _json_tree_to_obj(node: "_JsonValue"):
+    """Walk a parsed srmech_json_value_t node into a native Python object.
+
+    NULL→None / BOOL→bool / INT→int / DOUBLE→float / STRING→str / ARRAY→list /
+    OBJECT→dict. Every scalar is copied out here (string_at + decode materialise
+    fresh Python objects), so the caller may release the parse arena the instant
+    this returns — nothing in the result still aliases into ``ws``.
+
+    Duplicate object keys resolve LAST-WINS by writing left-to-right into the
+    dict, which is exactly what ``json.loads`` does. Recursion is bounded by the
+    C parser's own SRMECH_JSON_MAX_DEPTH (64), well inside Python's limit."""
+    t = node.type
+    if t == SRMECH_JSON_NULL:
+        return None
+    if t == SRMECH_JSON_BOOL:
+        return bool(node.u.b)
+    if t == SRMECH_JSON_INT:
+        return int(node.u.i)
+    if t == SRMECH_JSON_DOUBLE:
+        return float(node.u.f)
+    if t == SRMECH_JSON_STRING:
+        ptr = node.u.str.ptr
+        if not ptr:
+            return ""
+        return ctypes.string_at(ptr, node.u.str.len).decode("utf-8")
+    if t == SRMECH_JSON_ARRAY:
+        n = node.u.arr.n
+        items = node.u.arr.items
+        return [_json_tree_to_obj(items[k].contents) for k in range(n)]
+    if t == SRMECH_JSON_OBJECT:
+        n = node.u.obj.n
+        keys = node.u.obj.keys
+        vals = node.u.obj.vals
+        out = {}
+        for k in range(n):
+            out[keys[k].decode("utf-8")] = _json_tree_to_obj(vals[k].contents)
+        return out
+    raise RuntimeError(f"srmech_json: unknown node tag {t}")
+
+
+def json_loads_c(text: str):
+    """Parse a JSON document through the native srmech_json parser.
+
+    Returns the parsed object on success, or ``None`` when the native path
+    DECLINES — either because :func:`_json_native_safe` ruled the document
+    outside the range where C and CPython provably agree, or because the C
+    parser itself returned non-OK (syntax error, ``NaN``/``Infinity``, a lone
+    surrogate, nesting past SRMECH_JSON_MAX_DEPTH = 64, trailing garbage), or
+    because the arena blew the cap. A ``None`` return is the caller's signal to
+    ride the stdlib ``json.loads`` fallback, exactly like :func:`toml_loads_c`.
+
+    Note ``None`` is unambiguous as a decline signal even though ``null`` is a
+    legal JSON document: ``srmech._json.loads`` re-parses on the floor and
+    returns the same ``None``, so the observable value is identical either way.
+
+    Raises RuntimeError only if called with no native srmech_json_parse symbol
+    present (guard with HAS_NATIVE + hasattr)."""
+    if not (HAS_NATIVE and LIB is not None and hasattr(LIB, "srmech_json_parse")):
+        raise RuntimeError(
+            "json_loads_c called without native srmech_json_parse; "
+            "guard with HAS_NATIVE and hasattr(LIB, 'srmech_json_parse')")
+    try:
+        raw = text.encode("utf-8")
+    except UnicodeEncodeError:
+        # A str carrying lone surrogates (json.loads can PRODUCE one, and a
+        # caller may round-trip it back in) has no UTF-8 form to hand to C.
+        return None
+    if not _json_native_safe(raw):
+        return None
+    n = len(raw)
+    ws_len = max(65536, _JSON_ARENA_MULT * n)
+    while True:
+        # `ws` must outlive the walk — every pointer the C tree returns aliases
+        # into it. Holding it in this local through _json_tree_to_obj is the
+        # lifetime guarantee; the walk fully materialises the result before
+        # return.
+        ws = ctypes.create_string_buffer(ws_len)
+        out = ctypes.POINTER(_JsonValue)()
+        rc = LIB.srmech_json_parse(
+            raw, ctypes.c_size_t(n),
+            ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+            ctypes.byref(out),
+        )
+        if rc == SRMECH_OK:
+            return _json_tree_to_obj(out.contents)
+        if rc == SRMECH_ERR_OVERFLOW and ws_len < _JSON_ARENA_CAP:
+            ws_len = min(ws_len * 2, _JSON_ARENA_CAP)
+            continue
+        # BAD_INPUT (syntax error / unsupported literal / depth), NULL_ARG, or
+        # an arena that blew the cap: decline so the caller rides json.loads.
         return None
 
 

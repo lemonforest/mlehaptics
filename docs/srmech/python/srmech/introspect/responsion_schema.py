@@ -107,6 +107,7 @@ from __future__ import annotations
 
 import json
 from typing import Any, Dict, List, Optional, Tuple
+from srmech import _json as _srmech_json
 
 __all__ = ["responsion_schema"]
 
@@ -386,7 +387,7 @@ def _native_responsion_schema() -> Optional[Dict[str, List[Dict[str, Any]]]]:
     raw = _native.responsion_schema_json_c()
     if raw is None:
         return None
-    return json.loads(raw.decode("utf-8"))
+    return _srmech_json.loads(raw.decode("utf-8"))
 
 
 def responsion_schema() -> Dict[str, List[Dict[str, Any]]]:

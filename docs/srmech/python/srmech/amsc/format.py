@@ -57,6 +57,7 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple
+from srmech import _json as _srmech_json
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -131,7 +132,7 @@ class MPRRecord:
 
     @classmethod
     def from_json_line(cls, line: str) -> "MPRRecord":
-        payload = json.loads(line)
+        payload = _srmech_json.loads(line)
         if not isinstance(payload, dict):
             raise ValueError("MPR line is not a JSON object")
         return cls(

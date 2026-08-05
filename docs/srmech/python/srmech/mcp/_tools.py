@@ -405,6 +405,10 @@ def _native_mcp_defs() -> Optional[List[Dict[str, Any]]]:
     raw = _native.tool_entries_to_mcp_defs_c()
     if raw is None:
         return None
+    # stdlib json by PROTOCOL-BOUNDARY decision, not neglect (`#T1008`): this is the
+    # MCP JSON-RPC wire — untrusted external input on a published protocol contract.
+    # Self-hosting it onto srmech._json is a separate decision with a different risk
+    # profile from reading srmech's own descriptors, so the READ self-host stops here.
     return json.loads(raw.decode("utf-8"))
 
 

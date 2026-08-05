@@ -482,6 +482,9 @@ def run_send(args: argparse.Namespace) -> int:
         )
         return 2
     try:
+        # stdlib json by PROTOCOL-BOUNDARY decision, not neglect (`#T1008`): this parses
+        # user-supplied CLI input (argv / a named file / stdin), not an srmech-authored
+        # descriptor. The READ self-host deliberately stops at the process boundary.
         event = json.loads(raw_json)
     except json.JSONDecodeError as exc:
         print(f"invalid JSON: {exc}", file=sys.stderr)

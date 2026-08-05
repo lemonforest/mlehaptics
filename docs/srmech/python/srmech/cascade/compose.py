@@ -75,6 +75,7 @@ import re
 import warnings
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Tuple
+from srmech import _json as _srmech_json
 
 
 # Composition engine schema version this module implements.
@@ -286,7 +287,7 @@ def _parse_chain_spec_native(
         "srmech_chain_spec_parse", payload)
     if text is None:
         return None
-    return _chain_spec_from_native(chain_dict, json.loads(text))
+    return _chain_spec_from_native(chain_dict, _srmech_json.loads(text))
 
 
 def _parse_catalog_chains_native(
@@ -312,7 +313,7 @@ def _parse_catalog_chains_native(
         "srmech_chain_catalog_parse", payload)
     if text is None:
         return None
-    native_list = json.loads(text)
+    native_list = _srmech_json.loads(text)
     if len(native_list) != len(chains_raw):
         return None
     return [_chain_spec_from_native(chains_raw[i], native_list[i])
@@ -709,7 +710,7 @@ def _run_chain_native(
         ws, ws_bytes, out, out_cap, ctypes.byref(out_len))
     if rc != _native.SRMECH_OK:
         return _NATIVE_MISS
-    desc = json.loads(out.raw[:out_len.value].decode("utf-8"))
+    desc = _srmech_json.loads(out.raw[:out_len.value].decode("utf-8"))
     return _reconstruct_value(desc)
 
 

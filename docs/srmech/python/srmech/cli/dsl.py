@@ -185,6 +185,9 @@ def run_run(args: argparse.Namespace) -> int:
 
     if args.input is not None:
         try:
+            # stdlib json by PROTOCOL-BOUNDARY decision, not neglect (`#T1008`): this parses
+            # user-supplied CLI input (argv / a named file / stdin), not an srmech-authored
+            # descriptor. The READ self-host deliberately stops at the process boundary.
             input_value = json.loads(args.input)
         except json.JSONDecodeError as exc:
             print(
@@ -207,9 +210,11 @@ def run_run(args: argparse.Namespace) -> int:
                     raw = raw.strip()
                     if not raw:
                         continue
+                    # stdlib json: same protocol-boundary decision as above.
                     input_value.append(json.loads(raw))
         else:
             with open(in_path, "rb") as fh:
+                # stdlib json: same protocol-boundary decision as above.
                 input_value = json.loads(fh.read())
     else:
         print(

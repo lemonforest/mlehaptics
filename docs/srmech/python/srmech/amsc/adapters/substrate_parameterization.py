@@ -64,6 +64,7 @@ from typing import Any, Dict, Iterator, Mapping, Optional, Tuple
 
 from ..descriptor import Descriptor
 from . import _base
+from srmech import _json as _srmech_json
 
 ADAPTER_NAME = "substrate_parameterization"
 
@@ -531,7 +532,7 @@ def parse(
         if not stripped or stripped.startswith("#"):
             continue
         try:
-            row = json.loads(stripped)
+            row = _srmech_json.loads(stripped)
         except json.JSONDecodeError as exc:
             raise _base.AdapterError(
                 f"substrate_parameterization: NDJSON parse error at line "

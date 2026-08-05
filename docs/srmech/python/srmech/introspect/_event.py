@@ -24,6 +24,7 @@ from __future__ import annotations
 import json
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, Optional, Tuple
+from srmech import _json as _srmech_json
 
 #: MPR envelope version the introspect stream pins to. Same value as
 #: ``srmech.amsc.format.MPR_SCHEMA_VERSION`` — the introspect stream
@@ -145,7 +146,7 @@ def parse(line: bytes) -> Event:
     text = line.decode("utf-8").rstrip("\n").rstrip("\r")
     if not text:
         raise ValueError("introspect.parse: empty line")
-    payload = json.loads(text)
+    payload = _srmech_json.loads(text)
     required = (
         "mpr_version",
         "op_name",

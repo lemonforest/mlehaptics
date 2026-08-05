@@ -280,6 +280,10 @@ class MCPServer:
                 self._initialized = True
             return None
         if kind == _native.MCP_KIND_RESPONSE and resp is not None:
+            # stdlib json by PROTOCOL-BOUNDARY decision, not neglect (`#T1008`): this is the
+            # MCP JSON-RPC wire — untrusted external input on a published protocol contract.
+            # Self-hosting it onto srmech._json is a separate decision with a different risk
+            # profile from reading srmech's own descriptors, so the READ self-host stops here.
             return json.loads(resp.decode("utf-8"))
         return _PURE_FALLBACK
 

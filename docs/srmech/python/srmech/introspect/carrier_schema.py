@@ -249,6 +249,7 @@ from ..math.carrier_ladder import _OP_CONTRACTS
 # from the one SSoT rather than re-typed here (cayley_dickson imports nothing
 # from this module, so there is no cycle).
 from ..cascade.cayley_dickson import CD_MAX_DIM as _CD_MAX_DIM
+from srmech import _json as _srmech_json
 
 # rc241 (#839) — the generated per-carrier CONSTRUCTION example (the operand-side
 # peer of _tool_docs.py). Guarded so a stripped/missing module never breaks import.
@@ -957,7 +958,7 @@ def _native_carrier_schema() -> Optional[Dict[str, Dict[str, Any]]]:
     raw = _native.carrier_schema_json_c()
     if raw is None:
         return None
-    return json.loads(raw.decode("utf-8"))
+    return _srmech_json.loads(raw.decode("utf-8"))
 
 
 def carrier_schema() -> Dict[str, Dict[str, Any]]:
