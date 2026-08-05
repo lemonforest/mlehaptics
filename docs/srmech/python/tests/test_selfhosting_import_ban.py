@@ -136,15 +136,41 @@ lie about a mandatory floor:
   (Checked, not assumed: the first read of these looked like front-door
   bypasses and they are not.)
 
-* **``json`` — a down-only CEIL of 39 import statements.** srmech self-hosts
-  the READ half behind ``srmech._json.loads`` (native ``srmech_json_parse``
-  first, stdlib floor). Measured: 29 read-half uses, of which **28 are
-  drainable** to ``_json.loads`` and 1 is ``_json.py``'s own floor; and 64
-  write-half uses which are **by-design stdlib** — ``_json.py``'s docstring
-  states the write half is deliberately not self-hosted, because
-  ``srmech_json_write_ws`` declines the non-finite floats ``json.dumps``
-  emits. So the ceiling is honest debt with a named drainable half, exactly
-  the shape ``CEIL_NUMPY_CARRIER`` had at 61.
+* **``json`` — a down-only CEIL of 36 import statements**, plus the named
+  ``_json.py`` front-door floor. The ceiling is pinned by the **WRITE** half.
+
+  ⚠️ **The rc405 version of this bullet was wrong, and the correction is the
+  point of rc406.** It read *"29 read-half uses, of which 28 are drainable"*.
+  Three separate quantities had been collapsed into one number:
+
+  ===========================  =====  =================================
+  quantity                     count  what it actually is
+  ===========================  =====  =================================
+  ``import`` STATEMENTS          37   what this CEIL counts (32 files)
+  READ call sites                18   ``json.loads`` x17 + ``json.load``
+  WRITE call sites               64   ``dumps`` / ``dump``
+  ===========================  =====  =================================
+
+  The "29" was ``18 read calls + 11 ``json.JSONDecodeError`` TYPE REFERENCES`` —
+  and an ``except json.JSONDecodeError`` clause is not a parse call and cannot
+  be drained by definition. The "28 drainable" then asserted a drain that had
+  **already happened**: rc401 repointed **27** sites onto ``_json.loads`` and
+  left **17** deliberately fenced on a per-site allowlist, with the reason
+  written at each site (11 PROTOCOL BOUNDARY — MCP JSON-RPC wire, bus wire,
+  CLI/argv input, fetched HTTP bodies; 4 LAYERING inside ``_native``, where
+  repointing would invert the dependency, since ``srmech._json`` is a CONSUMER
+  of that shim; plus ``_json.py``'s own floor). So the drainable read half was
+  **0**, not 28. ``test_json_read_selfhost_rc401.py`` pins the 27/17 split in
+  both directions and would have contradicted the number on sight.
+
+  What rc406 actually removed was **2 DEAD imports** — ``carrier_schema.py`` and
+  ``responsion_schema.py``, repointed at rc401 with their ``import json`` left
+  behind, so two fully-drained files were counted as borrowed forever. Nothing
+  could see that (every guard here counts imports; the rc401 gate counts read
+  CALLS), which is why :func:`test_no_banned_import_is_dead` now ships.
+
+  39 -> 37 (2 dead imports) -> 36 (``_json.py`` reclassified from anonymous debt
+  to a named front-door necessity, matching the ``tomllib`` row).
 
 Where the numpy drainage ledger lives
 =====================================
@@ -201,10 +227,12 @@ _SCOPES = {SCOPE_PACKAGE, SCOPE_PACKAGE_AND_SUPPORTING}
 #: `srmech/math/laplacian.py` and `c/ROSETTA_LEDGER.md` both cite this name.
 CEIL_NUMPY_CARRIER = 0
 
-#: `json` import statements under `srmech/`. DOWN-ONLY. 28 of the 29 read-half
-#: uses are drainable to `srmech._json.loads`; the 64 write-half uses are
-#: by-design stdlib (see the module docstring's adjudication).
-CEIL_STDLIB_JSON = 39
+#: `json` import statements under `srmech/`, EXCLUDING the named front-door
+#: floor in `_json.py`. DOWN-ONLY. This counts IMPORT STATEMENTS — not calls —
+#: and what pins it is the **WRITE** half: 64 by-design-stdlib `dumps`/`dump`
+#: sites. The READ half is already fully adjudicated (see the module docstring).
+#: rc406 measured 39 -> 36.
+CEIL_STDLIB_JSON = 36
 
 
 # ── the allowance ROLES ───────────────────────────────────────────────
@@ -275,7 +303,6 @@ _FRACTIONS_ALLOWANCES: Mapping[str, str] = {
     "tests/test_exact_eigvals_routing_rc21.py": _ORACLE,
     "tests/test_fractions_to_q_rc263.py": _INTERCHANGE,
     "tests/test_gosper_rc41.py": _INTERCHANGE,
-    "tests/test_infer_router_f929.py": _INTERCHANGE,
     "tests/test_jacobi_sncndn_series.py": _ORACLE,
     "tests/test_karatsuba_and_qpow_rc168.py": _INTERCHANGE,
     "tests/test_klein4_gain_laplacian_rc229.py": _ORACLE,
@@ -319,6 +346,17 @@ _FRACTIONS_ALLOWANCES: Mapping[str, str] = {
     "tests/test_zeilberger_crt_route_rc47.py": _INTERCHANGE,
     "tests/test_zeilberger_rc42.py": _INTERCHANGE,
     "tools/gen_carrier_examples_probe.py": _PROBE_NS,
+}
+
+#: The JSON front-door allowance. Exactly the peer of `_toml.py` below, and it
+#: is named for the same reason: `_json.py` carries the MANDATORY pure/Pyodide
+#: stdlib floor, so its import can never be drained and does not belong in a
+#: DOWN-ONLY debt ledger that is supposed to be drivable to a true floor.
+#: (Through rc405 it sat inside `CEIL_STDLIB_JSON`, which meant the ceiling had
+#: a permanent +1 no rc could ever remove — the toml row next door had already
+#: modelled this correctly.)
+_JSON_ALLOWANCES: Mapping[str, str] = {
+    "srmech/_json.py": _FRONT_DOOR_FLOOR,
 }
 
 #: The TOML front-door allowances. Identical file set for both spellings — the
@@ -433,11 +471,15 @@ BAN_LIST = (
         replaces_with="srmech._json.loads (native srmech_json_parse first, stdlib floor)",
         rationale=(
             "srmech self-hosts the JSON READ half behind its own front door "
-            "(`#T1008`). 28 of the 29 read-half uses are drainable to _json.loads; "
-            "the 64 write-half uses are by-design stdlib, because "
-            "srmech_json_write_ws declines the non-finite floats json.dumps emits. "
-            "DOWN-ONLY debt with a named drainable half."
+            "(`#T1008`). The READ half is DONE: rc401 repointed 27 call sites onto "
+            "_json.loads and fenced the remaining 17 on a per-site allowlist that "
+            "test_json_read_selfhost_rc401.py enforces in BOTH directions. What "
+            "this ceiling counts is the WRITE half — 64 by-design-stdlib dumps/dump "
+            "sites, because srmech_json_write_ws declines the non-finite floats "
+            "json.dumps emits, and does not implement indent= or the second "
+            "separators= grammar. DOWN-ONLY."
         ),
+        allowances=_JSON_ALLOWANCES,
     ),
     BanEntry(
         module="tomllib",
@@ -714,6 +756,16 @@ def test_no_allowance_has_gone_stale(entry: BanEntry):
     unlisted one that does: the allowance outlived its reason and is drifting
     toward a blanket permission nobody re-read. Same discipline as the JPL
     Rule-5 exempt list — an excuse must be counted, not granted.
+
+    .. note::
+
+       This test alone is NOT sufficient, and rc406 measured why: it asks
+       whether the file still IMPORTS the module, which a DEAD import answers
+       "yes" to forever. ``tests/test_infer_router_f929.py`` held an
+       ``_INTERCHANGE`` allowance — *"proves srmech ACCEPTS the foreign type"* —
+       on a ``from fractions import Fraction`` whose name the file never used,
+       with a docstring claiming the use. The allowance covered nothing and this
+       test could not see it. :func:`test_no_banned_import_is_dead` closes that.
     """
     importers = set(_scan(entry))
     stale = sorted(set(entry.allowances) - importers)
@@ -721,6 +773,78 @@ def test_no_allowance_has_gone_stale(entry: BanEntry):
         f"these files are named in the {entry.module!r} allowances but no longer "
         f"import it — the allowance is stale; DELETE the entry so it cannot "
         f"quietly cover a future import:\n  " + "\n  ".join(stale))
+
+
+def _bound_names(tree, module: str):
+    """``{bound name: [lineno, ...]}`` for every binding this module's imports make.
+
+    ``import json`` and ``import json.decoder`` both bind ``json``; ``import json
+    as _j`` binds ``_j``; ``from json import loads`` binds ``loads``.
+    """
+    bound: dict = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name == module or alias.name.startswith(module + "."):
+                    name = alias.asname or alias.name.split(".")[0]
+                    bound.setdefault(name, []).append(node.lineno)
+        elif isinstance(node, ast.ImportFrom):
+            if node.level != 0:
+                continue
+            mod = node.module or ""
+            if mod == module or mod.startswith(module + "."):
+                for alias in node.names:
+                    bound.setdefault(alias.asname or alias.name, []).append(node.lineno)
+    return bound
+
+
+@pytest.mark.parametrize("entry", BAN_LIST, ids=_ids(BAN_LIST))
+def test_no_banned_import_is_dead(entry: BanEntry):
+    """A borrowed import whose bound name is NEVER USED is a defect twice over.
+
+    rc406 found two shapes of it in one scan, and neither had anything watching:
+
+    1. **It holds an allowance open on nothing.**
+       :func:`test_no_allowance_has_gone_stale` asks *"does this file still
+       import the module?"* — and a dead import says yes forever. Measured:
+       ``tests/test_infer_router_f929.py`` carried the ``_INTERCHANGE``
+       allowance on a ``Fraction`` it never referenced.
+
+    2. **It is permanent phantom debt in a DOWN-ONLY ledger.**
+       ``CEIL_STDLIB_JSON`` counts import STATEMENTS. rc401 repointed
+       ``introspect/carrier_schema.py`` and ``introspect/responsion_schema.py``
+       onto ``srmech._json`` and left both ``import json`` lines behind, so two
+       fully-drained files went on being counted as borrowed. The rc401 gate
+       (``test_repointed_modules_bind_the_front_door``) checks only that no
+       stdlib READ CALL survives — a bare import passes it cleanly.
+
+    Both are invisible to every other guard here, which all count IMPORTS. This
+    one counts USES, which is the question the allowance was really answering.
+
+    A ``Name`` load covers both spellings: ``json.loads(...)`` puts ``json`` in a
+    ``Load`` context as the attribute base, and ``loads(...)`` from a
+    ``from``-import is a bare ``Name`` load. Annotations count as use.
+    """
+    dead = []
+    for path, key in _iter_scope_files(entry.scope):
+        tree = _tree(path)
+        if tree is None:
+            continue
+        bound = _bound_names(tree, entry.module)
+        if not bound:
+            continue
+        used = {n.id for n in ast.walk(tree)
+                if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Load)}
+        for name, linenos in sorted(bound.items()):
+            if name not in used:
+                dead.append(f"{key}:{linenos}: binds {name!r} and never uses it")
+    assert not dead, (
+        f"DEAD {entry.module!r} import(s) — the name is bound and never used.\n"
+        f"DELETE the import. If the file is on this entry's `allowances`, delete "
+        f"that row too: a dead import holds an allowance open over nothing, which "
+        f"`test_no_allowance_has_gone_stale` cannot see (it checks for an IMPORT, "
+        f"and a dead one is still an import). In a CEIL row it is worse — "
+        f"permanent phantom debt in a DOWN-ONLY ledger.\n  " + "\n  ".join(dead))
 
 
 def test_every_allowance_carries_a_reviewed_reason():

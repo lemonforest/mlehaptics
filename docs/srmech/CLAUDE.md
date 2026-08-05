@@ -75,6 +75,16 @@ beyond a single-file read.
 
 **What shipped since v0.4.0 — the v0.5.0 and v0.6.0 arcs:**
 
+> ⚠️ **Paths in this release narrative are AS-SHIPPED-THEN, not as-importable-now.**
+> The `qm` subpackage moved to `srmech.physics.qm.*` (ADR-0010, v0.9.0rc381) and
+> the old `srmech.qm.*` spelling was REMOVED at v0.9.0rc382 — `import srmech.qm`
+> raises `ModuleNotFoundError` today. Five entries below named the dead path with
+> nothing marking it dead, and they read as live API; rc406 (`#T1074`) gives each
+> one its current spelling inline. Measured cost of leaving it: a session read
+> line 86 and repeated `srmech.qm.so8.an_embedding` into a technical answer as a
+> live path. This file is loaded as orientation every session and is explicitly
+> NOT hygiene-gated, so a stale path here PROPAGATES rather than sitting inert.
+
 - **v0.5.0 (graduated to production PyPI)** — the rc9–rc22 voxel
   arc, srmech recognising its own shape voxel-by-voxel. It adds:
   the **`srmech.bus`** cross-process IPC bus + **Bus-class API**
@@ -83,16 +93,21 @@ beyond a single-file read.
   descriptors; the **`srmech-mcp`** Model Context Protocol server
   adapter (for Claude Code) and the **`srmech-agent`** Anthropic
   SDK adapter; the **profile-plugin loader**; a top-level
-  **`srmech.native_status()`**; **`srmech.qm.so8.an_embedding`**
+  **`srmech.native_status()`**; **`an_embedding`** — shipped as
+  `srmech.qm.so8.an_embedding`, now **`srmech.physics.qm.so8.an_embedding`**
   (14 = 8 + 3 + 3̄ su(3) branching of g₂ = Der(𝕆)); the full
-  **28 = 𝔰𝔬(8) chiral read-out** (`srmech.qm.so8` adjoint +
-  `srmech.qm.triality` order-3 outer automorphism); and
+  **28 = 𝔰𝔬(8) chiral read-out** (then `srmech.qm.so8` / `srmech.qm.triality`,
+  now **`srmech.physics.qm.so8`** adjoint +
+  **`srmech.physics.qm.triality`** order-3 outer automorphism); and
   **`srmech mcp emit-mcpb`** (emits a Claude Desktop `.mcpb`
   bundle from introspection).
 - **v0.6.0 (rc1–rc14 to date; rc14 dev head)** — the lean-ISA arc.
   It adds: the **`cascade.atoms` / `cascade.compose`** two-tier
-  lean-ISA split (#751); **`srmech.qm.so8.quaternion_subalgebra_stabilizer`**
-  so(4) = su(2) ⊕ su(2) (#759); **`srmech.qm.triality.lean_isa_seventh_primitive`**
+  lean-ISA split (#751); **`quaternion_subalgebra_stabilizer`** — shipped as
+  `srmech.qm.so8.*`, now **`srmech.physics.qm.so8.quaternion_subalgebra_stabilizer`**
+  — so(4) = su(2) ⊕ su(2) (#759); **`lean_isa_seventh_primitive`** — shipped as
+  `srmech.qm.triality.*`, now
+  **`srmech.physics.qm.triality.lean_isa_seventh_primitive`** —
   order-3 triality 7th primitive (#761); `sha256_bytes` docs
   (#738); a **reentrant C core** (#772 — thread-local scratch; note the
   caveat reconciled in rc306 below); the Klein-4 four-sector

@@ -14,7 +14,12 @@ reduction it did not verify — the executable no-magic-numbers / no-hallucinati
 discipline. This test pins exactly that.
 
 This test is numpy-FREE and math-FREE (no ``import numpy`` / ``import math``): it
-uses only the srmech carriers + plain Python arithmetic + ``fractions.Fraction``.
+uses only the srmech carriers + plain Python arithmetic. (Until rc406 this line
+also claimed ``fractions.Fraction`` and the file carried a matching
+``from fractions import Fraction`` — both were false: the name was never used,
+and the DEAD import was silently holding the file's ``_INTERCHANGE`` allowance
+open in the self-hosting ban table. Deleted together, which is what the new
+dead-import guard exists to force.)
 
 Coverage:
   (a) a graph relationship → routes to SPECTRAL, verified, closed_form is the
@@ -26,8 +31,6 @@ Coverage:
       reason, a candidate hint) — and the router NEVER returns reducible:True
       without the reducer's verification actually being True.
 """
-
-from fractions import Fraction
 
 import pytest
 
