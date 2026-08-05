@@ -52,6 +52,16 @@
 static int g_passed = 0;
 static int g_failed = 0;
 
+/* Reinterpret an IEEE-754 bit pattern as a double, without type-punning UB and
+ * without <math.h> (srmech is libm-free). Used to name +/-inf portably — MSVC
+ * errors on a literal `1.0 / 0.0` (C2124) that gcc/clang fold to inf. */
+static double f64_from_bits(uint64_t bits)
+{
+    double out;
+    memcpy(&out, &bits, sizeof(out));
+    return out;
+}
+
 /* 1 MiB workspace arena — every document here is tiny. */
 static unsigned char g_ws[1024u * 1024u];
 
@@ -188,9 +198,16 @@ static void test_double_path_unchanged(void)
     printf("-- double path matches CPython at both ends (verified non-defect) --\n");
     /* CPython: json.loads('1e400') -> inf. strtod returns HUGE_VAL on overflow,
      * so the existing behaviour ALREADY agreed and an errno check here would
-     * have declined input CPython accepts. */
-    const double pos_inf = 1.0 / 0.0;
-    const double neg_inf = -1.0 / 0.0;
+     * have declined input CPython accepts.
+     *
+     * Build the expected infinities from their IEEE-754 BIT PATTERNS, not from
+     * `1.0 / 0.0`: MSVC rejects a compile-time divide-by-zero outright (C2124,
+     * measured on the windows-latest pedantic cell) where gcc/clang quietly
+     * fold it to inf. srmech is libm-free, so <math.h>'s INFINITY is also out.
+     * The bit form is portable, needs no libm, and is what check_double_bits
+     * compares against anyway. */
+    const double pos_inf = f64_from_bits(0x7FF0000000000000u);
+    const double neg_inf = f64_from_bits(0xFFF0000000000000u);
     check_double_bits("1e400", pos_inf, "1e400 -> inf (matches CPython)");
     check_double_bits("-1e400", neg_inf, "-1e400 -> -inf (matches CPython)");
     /* CPython: json.loads('1e-400') -> 0.0. strtod underflows to 0.0 likewise. */
