@@ -611,9 +611,14 @@ calls** — go through `sha256_bytes` (Phase B5 discipline).
 
 ### ABI compatibility
 
-C ABI version is currently **9** (`SRMECH_ABI_VERSION = 9` in
-`c/include/srmech.h`; `EXPECTED_ABI_VERSION = 9` in
-`python/srmech/amsc/_native.py`). **Bump in lockstep** whenever
+C ABI version is currently **12** (`SRMECH_ABI_VERSION = 12` in
+`c/include/srmech.h`; `EXPECTED_ABI_VERSION = 12` in
+`python/srmech/_native/__init__.py`). *(These three lines said ABI **9** and
+pointed at `python/srmech/amsc/_native.py` until rc404 (`#T1069`) — two stale
+facts in three lines: the version was three bumps behind, and ADR-0010 moved
+the shim, so the named path had ceased to exist. This file is NOT
+hygiene-gated, so nothing but a reader catches that.)* **Bump in lockstep**
+whenever
 the wire format of any existing exported function changes. Adding
 a new symbol does NOT bump ABI (the Python shim just doesn't bind
 unknown symbols) — EXCEPT that, by standing precedent, adding a new
@@ -645,6 +650,22 @@ gained `(void *ws, size_t ws_len)` caller-arena params (removing its
 32 MiB static catalog arena / static count table / static window — the
 ~11k-section corpus cap AND the non-reentrancy), with the paired ctypes
 argtypes updated in lockstep. `GENOME_FORMAT_VERSION` stays 15.
+**v10 (v0.9.0rc307)** reinterpreted the `fiedler_sparse` family's
+`ws_len` UNIT from a count-of-doubles to BYTES — no signature changed shape,
+but the CONTRACT of an existing param did. **v11 (v0.9.0rc395, `#T1000`)**
+removed `srmech_cd_zero_divisor_witness` (a removal always bumps).
+**v12 (v0.9.0rc404, `#T1069`)** is the second bump of the v10 kind: no
+signature changed, but `srmech_json_parse` / `srmech_toml_parse` now RETURN a
+different status (the new `SRMECH_ERR_LIMIT = 8`) for a class of input that
+returned `SRMECH_ERR_OVERFLOW = 4` through rc403. The status block in
+`srmech.h` states outright that non-zero values "form part of the wire
+contract with the Python ctypes binding", so reinterpreting one is a
+wire-contract change. It is load-bearing rather than ceremonial here: rc404
+also deletes the rc401 Python pre-scan that existed only because the two
+conditions shared a status, and a stale rc403 `.so` reports ABI 11 — so
+without the bump it would still LOAD and silently cost ~512 MiB on an
+out-of-int64 literal (the answer stays correct; only the cost is wrong).
+`GENOME_FORMAT_VERSION` stays 19 throughout v10–v12.
 
 **#772 reconciliation (rc306).** The "reentrant C core" claim (#772) rests
 on the `SRMECH_THREAD_LOCAL` thread-local-storage scratch. `srmech_genome_section_counts`

@@ -94,3 +94,13 @@ tests/test_no_stdlib_fractions_import.py
 #    this MANUALLY (it bumped the count 100 -> 102). Pure-Python (reads the
 #    regen'd artifacts + decodes their byte arrays), ~seconds; no native .so.
 tests/test_namespace_prefix_decode_aware_rc361.py
+
+# -- ctest wiring: every built C test is also REGISTERED with ctest ----------
+#    Added rc404 (`#T1069`), which ships a new C test. The failure mode it
+#    covers is the quiet one: a `c/test/*.c` gets an add_executable but is left
+#    out of the `foreach(t ...)` list, so it joins the -Werror/`/WX` build and
+#    then NEVER RUNS. This gate is strict-zero on add_executable minus add_test
+#    and fires loudly -- but it was absent from this manifest, so only the full
+#    CI suite caught it and `ripple_check.py` could not. Pure-Python (parses
+#    CMakeLists.txt + lists c/test/), ~seconds, no native .so.
+tests/test_c_test_wiring_rc356.py

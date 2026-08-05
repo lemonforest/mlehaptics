@@ -111,7 +111,7 @@ def part_f():
             delta_eps_ours=is_cocycle(ours), delta_eps_clifford=is_cocycle(cl),
             clifford_is_associative=(is_cocycle(cl) == 0),
             ours_is_associative=(is_cocycle(ours) == 0),
-            note="Cl_{0,d} built to Elduque arXiv:1801.07002 Sec.4 spec "
+            note="Cl_{0,d} built to Elduque & Rodrigo-Escudero arXiv:1801.07002 Sec.4 spec "
                  "(beta(g_i,g_j) = -1 for i != j) and compared to the SHIPPED "
                  "cd_basis_product twist at the same group.")
 

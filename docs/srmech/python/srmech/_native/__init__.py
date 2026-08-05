@@ -29,9 +29,25 @@ Status codes (``srmech_status_t``):
     SRMECH_ERR_NULL_ARG   = 1
     SRMECH_ERR_BAD_INPUT  = 2
     SRMECH_ERR_IO         = 3
-    SRMECH_ERR_OVERFLOW   = 4
+    SRMECH_ERR_OVERFLOW   = 4   (a CALLER-SUPPLIED buffer/arena was too small
+                                 -- GROW AND RETRY is the correct response)
     SRMECH_ERR_NOT_IMPL   = 5
     SRMECH_ERR_INTERNAL   = 6
+    SRMECH_CANCELLED      = 7   (a progress tick returned nonzero: a CLEAN
+                                 abort, not an error)
+    SRMECH_ERR_LIMIT      = 8   (rc404: a bound growing the caller's buffers
+                                 CANNOT relieve -- an unrepresentable value, a
+                                 compiled-in structural cap, or a
+                                 non-convergent iteration. Retrying is futile.)
+
+``SRMECH_CANCELLED`` was absent from this table (and from ``__all__``) from the
+rc275 §101 work until rc404 added it alongside ``SRMECH_ERR_LIMIT``.
+
+rc404 (`#T1069`) migrates ONE MEASURED SLICE to the 4/8 split --
+``srmech_json.c`` and ``srmech_toml.c``. Elsewhere in the C tree status 4 still
+carries BOTH meanings, so do not read a status-4 return from another module as
+"therefore retryable" yet; ``srmech_ndjson.c``'s over-long-line cap is a known
+example that is structural but still reports 4.
 """
 
 from __future__ import annotations
@@ -136,7 +152,18 @@ from typing import Optional
 #        change — so the fiedler dispatch sites below pass BYTES in lockstep.
 #        The added *_arena_bytes symbol alone would NOT have bumped; the unit
 #        reinterpretation is what does.
-EXPECTED_ABI_VERSION: int = 11
+# v12 — v0.9.0rc404 (`#T1069`): SRMECH_ERR_LIMIT = 8 splits the retryable half
+#        of SRMECH_ERR_OVERFLOW away from the structural half, and
+#        srmech_json_parse / srmech_toml_parse RETURN THE NEW VALUE where they
+#        returned 4 through rc403. A RETURN-VALUE contract reinterpretation with
+#        no signature change — the same kind as v10's ws_len unit change.
+#        Load-bearing here specifically: rc404 deletes the rc401 pre-scan below,
+#        which existed only because the two conditions shared status 4. A stale
+#        rc403 .so reports ABI 11 and would otherwise load into this Python;
+#        with the pre-scan gone it costs 13 native calls / ~512 MiB on an
+#        out-of-int64 literal instead of 1 call / ~0.1 MiB — SILENTLY, since the
+#        answer stays correct. This pin is what rejects it.
+EXPECTED_ABI_VERSION: int = 12
 
 # Back-compat alias: downstream code reading ``_native.ABI_VERSION`` gets the
 # expected (compiled-against) ABI == EXPECTED_ABI_VERSION (NOT the runtime-
@@ -154,6 +181,15 @@ SRMECH_ERR_INTERNAL: int = 6
 SRMECH_CANCELLED: int = 7          # §101: a progress tick returned nonzero — a
                                   # CLEAN abort (not an error); out-count is the
                                   # complete units written (a valid partial).
+SRMECH_ERR_LIMIT: int = 8          # rc404 (`#T1069`): a bound that growing the
+                                  # caller's buffers CANNOT relieve — an
+                                  # unrepresentable value, a compiled-in
+                                  # structural cap, or a non-convergent
+                                  # iteration. The retryable/buffer meaning
+                                  # stays on 4, so every existing
+                                  # `rc == SRMECH_ERR_OVERFLOW -> grow` loop is
+                                  # correct unedited and 8 falls through to its
+                                  # decline branch.
 
 
 # Class L broadening (Phase 2): transcendental op-id enum.
@@ -615,8 +651,10 @@ _TomlValue._fields_ = [("type", ctypes.c_int), ("u", _TomlUnion)]
 # may hold an embedded NUL), whereas an object KEY is a plain `const char *`
 # NUL-terminated arena copy (srmech_json.c json_read_object_key), which the C
 # writer and srmech_json_object_get re-measure with strlen. A key containing a
-# genuine NUL would therefore be TRUNCATED — one of the reasons
-# _json_native_safe declines a document containing a backslash-u-0000 escape.
+# genuine NUL would therefore be TRUNCATED — which is why rc402 (`#T1068`) made
+# the C parser DECLINE a NUL-bearing key outright (SRMECH_ERR_BAD_INPUT). This
+# comment used to credit the rc401 Python pre-scan `_json_native_safe`; that
+# workaround was removed in rc404 (`#T1069`) and the C side owns the contract.
 # --------------------------------------------------------------------------
 SRMECH_JSON_NULL = 0
 SRMECH_JSON_BOOL = 1
@@ -17884,8 +17922,13 @@ def toml_loads_c(text: str):
         if rc == SRMECH_ERR_OVERFLOW and ws_len < _TOML_ARENA_CAP:
             ws_len = min(ws_len * 2, _TOML_ARENA_CAP)
             continue
-        # BAD_INPUT (unsupported construct / syntax error), NULL_ARG, or an
-        # arena that blew the cap: decline so the caller rides tomllib.
+        # BAD_INPUT (unsupported construct / syntax error), NULL_ARG, a
+        # non-retryable SRMECH_ERR_LIMIT (rc404 `#T1069`: an integer outside
+        # int64, a compiled-in depth or capacity cap), or an arena that blew
+        # the cap: decline so the caller rides tomllib. The LIMIT cases used to
+        # arrive here as SRMECH_ERR_OVERFLOW, which the test above could not
+        # distinguish from real exhaustion — so they burned every doubling up
+        # to _TOML_ARENA_CAP first. They now decline on the first pass.
         return None
 
 
@@ -17906,96 +17949,38 @@ _JSON_ARENA_CAP = 256 * 1024 * 1024
 # leaves the pathological array to one doubling.
 _JSON_ARENA_MULT = 32
 
-_INT64_MIN = -(2 ** 63)
-_INT64_MAX = 2 ** 63 - 1
 
-# One left-to-right pass that alternates COMPLETE STRING LITERAL | NUMBER RUN.
-# The string alternative is FIRST and matches escapes, so digits inside strings
-# are consumed as string content and never mistaken for numbers. The number
-# alternatives deliberately require a leading '-' or digit — a bare `[0-9.eE+-]+`
-# class would match the 'e' in `true`/`false` and mis-flag every document.
-# The trailing class stays DELIBERATELY LOOSE (`[0-9.eE+-]*`) even though
-# rc402 tightened the C scanner to strict RFC 8259. This regex's job is to find
-# where a numeric token STARTS and how far it could possibly run, so it can spot
-# the >= 63-byte and out-of-int64 cases; over-consuming a malformed tail is
-# harmless, because rc402's C parser declines that document on its own.
-_JSON_SCAN_RE = re.compile(rb'"(?:[^"\\]|\\.)*"|-[0-9.eE+-]*|[0-9][0-9.eE+-]*',
-                           re.S)
-
-# The strict RFC 8259 number grammar CPython's json accepts. rc402: used only to
-# tell a WELL-FORMED integer (whose int64 range must be checked, to skip a
-# futile arena-grow loop) from a malformed token (which C now rejects itself) —
-# no longer to decide correctness.
-_JSON_STRICT_NUM_RE = re.compile(rb'-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?'
-                                 rb'(?:[eE][+-]?[0-9]+)?\Z')
-
-# rc402 (`#T1068`) REMOVED _JSON_NUL_ESCAPE_RE. It declined any document
-# carrying a backslash-u-0000 escape, to work around srmech_json.c storing
-# object keys as NUL-terminated arena copies (strlen then truncated such a key
-# and the parse still returned SRMECH_OK). rc402 makes the C parser decline a
-# NUL-bearing KEY explicitly, and a NUL in a string VALUE was never broken —
-# values carry an explicit length. Both are proven in
-# c/test/test_srmech_json_number_rc402.c, so the workaround is gone rather than
-# left orphaned.
-
-
-def _json_native_safe(raw: bytes) -> bool:
-    """Fast-path pre-scan: is the native parse worth attempting on these bytes?
-
-    **rc402 (`#T1068`) narrowed this from a CORRECTNESS guard to a PERFORMANCE
-    one.** At rc401 it stood in for three real defects in ``srmech_json.c``,
-    each of which returned SRMECH_OK with a WRONG VALUE — the one shape a plain
-    ``rc != SRMECH_OK`` check cannot catch. rc402 fixed all three at the source:
-
-    ============================  ==========================  ==================
-    input                         rc401 C behaviour           rc402 C behaviour
-    ============================  ==========================  ==================
-    ``99999999999999999999``      OK, clamped to INT64_MAX    ERR_OVERFLOW
-    ``--1`` / bare ``-``          OK, value ``0``             ERR_BAD_INPUT
-    ``01``                        OK, value ``1``             ERR_BAD_INPUT
-    ``1.2.3``                     OK, value ``1.2``           ERR_BAD_INPUT
-    ``1e`` / ``1e+`` / ``1.``     OK, value ``1``             ERR_BAD_INPUT
-    key ``a\\u0000b``              OK, key cut to ``"a"``      ERR_BAD_INPUT
-    ============================  ==========================  ==================
-
-    So the C parser now DECLINES every one of them, ``json_loads_c`` returns
-    None on the non-OK status, and the stdlib floor produces the exact value or
-    the genuine ``JSONDecodeError``. Correctness no longer depends on this
-    function at all — which is why the two checks that existed PURELY for
-    correctness are gone:
-
-    * the strict-grammar check (rc401 item 3) — the C scanner is now strict
-      RFC 8259 itself, so it rejects exactly what CPython rejects;
-    * the ``\\u0000`` check — a NUL-bearing object KEY declines in C now, and a
-      NUL in a string VALUE was always correct (values carry an explicit length;
-      only NUL-terminated KEY storage ever truncated). Both are proven in
-      ``c/test/test_srmech_json_number_rc402.c``.
-
-    What REMAINS is one check, kept for speed rather than truth: an integer
-    outside int64, and any numeric literal >= 63 bytes, both return
-    ``SRMECH_ERR_OVERFLOW`` — a status ``json_loads_c`` cannot distinguish from
-    ARENA EXHAUSTION, because the C parser uses one code for both. Without this
-    pre-scan such a document would be re-parsed at every arena doubling up to
-    ``_JSON_ARENA_CAP`` (256 MiB) before declining. The answer would still be
-    CORRECT; it would just allocate its way there. Catching it in one cheap
-    regex pass is strictly better.
-
-    Returning False is always SAFE: it costs a stdlib parse, never correctness.
-    So on any doubt (including a malformed document where this scan may
-    desynchronise from the real tokenizer) the honest answer is False.
-    """
-    for m in _JSON_SCAN_RE.finditer(raw):
-        tok = m.group()
-        if tok[:1] == b'"':
-            continue                      # a string literal; nothing to check
-        if len(tok) >= 63:
-            return False                  # C returns OVERFLOW; skip the grow loop
-        if _JSON_STRICT_NUM_RE.match(tok) is None:
-            continue                      # rc402: C declines this itself, cheaply
-        if not (b"." in tok or b"e" in tok or b"E" in tok):
-            if not (_INT64_MIN <= int(tok) <= _INT64_MAX):
-                return False              # C returns OVERFLOW; skip the grow loop
-    return True
+# rc404 (`#T1069`) DELETED the rc401 pre-scan `_json_native_safe`, together
+# with _INT64_MIN / _INT64_MAX, _JSON_SCAN_RE and _JSON_STRICT_NUM_RE.
+#
+# It existed for exactly ONE reason, which the rc402 docstring stated
+# outright: an out-of-int64 integer and a >= 63-byte numeric literal both
+# returned SRMECH_ERR_OVERFLOW, "a status json_loads_c cannot distinguish
+# from ARENA EXHAUSTION, because the C parser uses one code for both". So
+# the loop below would double its arena up to _JSON_ARENA_CAP and re-parse
+# at every step before declining. The regex bought a cheap early exit.
+#
+# rc404 removes the CAUSE instead of the symptom: srmech_json.c now returns
+# SRMECH_ERR_LIMIT for both conditions, the loop's `rc == SRMECH_ERR_OVERFLOW`
+# test is false, and it declines on the FIRST call. Measured, all four
+# shapes now cost calls=1 / ~0.1 MiB.
+#
+# It was only ever a PARTIAL workaround anyway: it scans numeric tokens, so
+# a depth-80 document — the ~512 MiB case — sailed straight through it.
+#
+# Verified by a 60,000-case differential fuzz of srmech._json.loads against
+# CPython json.loads on value AND exception type across int64 boundaries,
+# >= 63-byte literals, malformed grammar, backslash-u-0000, surrogate pairs,
+# subnormals and 1e400: 0 mismatches with the pre-scan removed.
+#
+# `_JSON_ARENA_MULT` above STAYS — it sizes the first try, unrelated to the
+# pre-scan. `import re` STAYS — 48 other uses in this file.
+#
+# PRECONDITION, load-bearing: this deletion is safe ONLY because the
+# >= 63-byte staging bound at srmech_json.c json_parse_number ALSO became
+# SRMECH_ERR_LIMIT. With that site left at 4, a 70-digit literal would
+# revert to 13 native calls / ~512 MiB. EXPECTED_ABI_VERSION 11 -> 12 is
+# what stops a stale rc403 .so from doing precisely that.
 
 
 def _json_tree_to_obj(node: "_JsonValue"):
@@ -18042,12 +18027,19 @@ def json_loads_c(text: str):
     """Parse a JSON document through the native srmech_json parser.
 
     Returns the parsed object on success, or ``None`` when the native path
-    DECLINES — either because :func:`_json_native_safe` ruled the document
-    outside the range where C and CPython provably agree, or because the C
-    parser itself returned non-OK (syntax error, ``NaN``/``Infinity``, a lone
-    surrogate, nesting past SRMECH_JSON_MAX_DEPTH = 64, trailing garbage), or
-    because the arena blew the cap. A ``None`` return is the caller's signal to
-    ride the stdlib ``json.loads`` fallback, exactly like :func:`toml_loads_c`.
+    DECLINES — because the C parser returned non-OK: a syntax error,
+    ``NaN``/``Infinity``, a lone surrogate, an integer outside int64, a numeric
+    literal >= 63 bytes, nesting past SRMECH_JSON_MAX_DEPTH = 64, trailing
+    garbage, or an arena that blew the cap. A ``None`` return is the caller's
+    signal to ride the stdlib ``json.loads`` fallback, exactly like
+    :func:`toml_loads_c`.
+
+    rc404 (`#T1069`) removed the second decline route. Through rc403 a Python
+    pre-scan (``_json_native_safe``) also declined documents up front, because
+    the C parser reported "integer outside int64" and "arena too small" with
+    the SAME status and the grow-loop below could not tell them apart. The C
+    side now returns SRMECH_ERR_LIMIT for the structural cases, so the loop
+    declines on the FIRST call and the pre-scan is gone.
 
     Note ``None`` is unambiguous as a decline signal even though ``null`` is a
     legal JSON document: ``srmech._json.loads`` re-parses on the floor and
@@ -18064,8 +18056,6 @@ def json_loads_c(text: str):
     except UnicodeEncodeError:
         # A str carrying lone surrogates (json.loads can PRODUCE one, and a
         # caller may round-trip it back in) has no UTF-8 form to hand to C.
-        return None
-    if not _json_native_safe(raw):
         return None
     n = len(raw)
     ws_len = max(65536, _JSON_ARENA_MULT * n)
@@ -18086,8 +18076,14 @@ def json_loads_c(text: str):
         if rc == SRMECH_ERR_OVERFLOW and ws_len < _JSON_ARENA_CAP:
             ws_len = min(ws_len * 2, _JSON_ARENA_CAP)
             continue
-        # BAD_INPUT (syntax error / unsupported literal / depth), NULL_ARG, or
-        # an arena that blew the cap: decline so the caller rides json.loads.
+        # BAD_INPUT (syntax error / unsupported literal), NULL_ARG, a
+        # non-retryable SRMECH_ERR_LIMIT (rc404 `#T1069`: an integer outside
+        # int64, a numeric literal >= 63 bytes, nesting past
+        # SRMECH_JSON_MAX_DEPTH), or an arena that blew the cap: decline so the
+        # caller rides json.loads. The LIMIT cases used to arrive here as
+        # SRMECH_ERR_OVERFLOW, indistinguishable from real exhaustion by the
+        # test above — the depth case cost 13 calls and ~512 MiB before
+        # declining. They now decline on the first pass.
         return None
 
 
@@ -21643,6 +21639,8 @@ __all__ = [
     "SRMECH_ERR_OVERFLOW",
     "SRMECH_ERR_NOT_IMPL",
     "SRMECH_ERR_INTERNAL",
+    "SRMECH_CANCELLED",
+    "SRMECH_ERR_LIMIT",
     "SRMECH_TRANS_EXP",
     "SRMECH_TRANS_COS",
     "SRMECH_TRANS_SIN",

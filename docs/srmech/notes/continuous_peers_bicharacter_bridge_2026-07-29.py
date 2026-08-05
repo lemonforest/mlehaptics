@@ -8,6 +8,10 @@ What is being decided, and against which literature:
 
   [L1] Elduque & Rodrigo-Escudero, "Clifford algebras as twisted group algebras
        and the Arf invariant", arXiv:1801.07002v1 [math.RA], 22 Jan 2018.
+       PUBLISHED AS: Adv. Appl. Clifford Algebras 28 (2018), no. 2, Art. 41,
+       15 pp.  DOI 10.1007/s00006-018-0862-y.  (Journal record added rc404,
+       `#T1069`; the tree carried only the preprint ID, and cited the paper as
+       "Elduque" alone -- dropping the second author -- at 15 sites.)
        Local hoodoo: docs/srmech/hoodoos/1801.07002_elduque_clifford_twisted_group_algebras.pdf
        * Theorem 2 (p.4): G a FINITELY GENERATED ABELIAN group, F a FIELD,
          beta : G x G -> F^x an ALTERNATING BICHARACTER  ==>  there EXISTS
@@ -23,6 +27,11 @@ What is being decided, and against which literature:
 
   [L2] Albuquerque & Majid, "Quasialgebra structure of the octonions",
        arXiv:math/9802116v1 [math.QA], 25 Feb 1998, DAMTP/97-138.
+       PUBLISHED AS: J. Algebra 220 (1999), no. 1, 188-224.
+       DOI 10.1006/jabr.1998.7850.  (Journal record added rc404, `#T1069`;
+       cross-checked against [L1]'s own bibliography, its ref [1], which
+       gives the same volume/issue/pages/year. Note the journal year 1999
+       against the 1998 preprint.)
        Local hoodoo: docs/srmech/hoodoos/math9802116_albuquerque_majid_quasialgebra_octonions.pdf
        * p.1: "for the octonions, the cocycle is a coboundary and can be
          identified as the result of twisting k(G) by a 2-cochain F".
@@ -188,8 +197,50 @@ def eps_bits_from_table(dim: int, gammas):
 
 
 def beta_of(eps):
-    """The ALTERNATING BICHARACTER as an F2 additive form:
-    R(x,y) = eps(x,y) + eps(y,x).  (Multiplicatively beta = (-1)^R.)"""
+    """The COMMUTATION FORM as an F2 additive form:
+    R(x,y) = eps(x,y) + eps(y,x).  (Multiplicatively beta = (-1)^R.)
+
+    rc404 (`#T1069`) NAMING CORRECTION — MEASURED, NOT RENAMED.
+    This docstring said "the ALTERNATING BICHARACTER". For OUR object that is
+    a category error at d >= 3, and it is the strongest-worded instance of it
+    in the file, because beta_of IS our beta (called at :262, :305, :309,
+    :324, :398).
+
+    What is actually measured of this beta (see
+    lane1_clifford_beta_2026-07-29.ndjson, regenerated in rc404):
+
+      * gauge-invariant                      -- yes
+      * symmetric, and alternating on the
+        diagonal                             -- yes, but DEFINITIONALLY so:
+                                                beta[a][b] = eps[a][b]*eps[b][a]
+                                                over {+-1} cannot be otherwise
+      * BIMULTIPLICATIVE                     -- NO at d >= 3.
+                                                C 0/8, H 0/64 failures, but
+                                                O 168/512, S 2520/4096,
+                                                T 26040/32768.
+
+    Bimultiplicativity is the whole content of the word "bicharacter". Elduque
+    & Rodrigo-Escudero (arXiv:1801.07002, p.3) DERIVE it from associativity --
+    "the associativity of F^sigma G gives ... therefore beta is multiplicative
+    in the first variable ... so beta is an alternating bicharacter on G". Our
+    carrier is non-associative from O upward, so exactly where associativity
+    fails, bimultiplicativity fails with it, and the noun stops applying. At
+    d = 1, 2 (C, H) the object IS a bicharacter and the word is correct --
+    which is why this is a scope error, not a wrong formula.
+
+    THE REPLACEMENT NOUN IS DELIBERATELY LEFT OPEN. "Commutation factor" was
+    the candidate and rc404 REJECTED it as unattested: 0 hits across the
+    Elduque & Rodrigo-Escudero PDF and 0 in this repo. What that paper's
+    section 1 actually attributes to Morier-Genoud-Ovsienko is the word
+    *bicharacter*, not "commutation factor"; the term's likely home is the
+    epsilon-commutative / colour-Lie-algebra literature (Scheunert), which
+    could not be attested in-session either -- and its reference [9] resolves
+    to a paywalled Elsevier DOI, which by standing discipline cannot ground an
+    attestation. Swapping an attested-but-misapplied noun for an unattested
+    one is a provenance REGRESSION, not a correction. So this file uses the
+    plainly descriptive "commutation form" and states the measurement; naming
+    it properly needs a citation this rc does not have.
+    """
     dim = len(eps)
     return [[(eps[i][j] + eps[j][i]) % 2 for j in range(dim)] for i in range(dim)]
 
@@ -250,7 +301,14 @@ def part_b():
             dim_kernel=h2 - alt, kernel_equals_d=(h2 - alt == d),
             gap_order=1 << d,
             note="ker(symmetriser) = Hom(G, F^x/(F^x)^2); at F^x = {+/-1} that "
-                 "is (Z/2)^d, so 2^d twists share one bicharacter")
+                 "is (Z/2)^d, so 2^d twists share one commutation form. "
+                 "rc404 (`#T1069`): this said 'share one bicharacter'. "
+                 "dim_alternating_bicharacters above counts the LITERATURE's "
+                 "objects and is correct; the shared form itself is only a "
+                 "bicharacter at d = 1, 2 -- measured NOT bimultiplicative "
+                 "from d = 3 up (O 168/512). Noun left descriptive on "
+                 "purpose: see beta_of's docstring for why no replacement "
+                 "term is asserted.")
 
     # B2: MEASURE it on the shipped gamma family -- same beta, different q.
     for d in range(1, 5):
@@ -311,7 +369,11 @@ def part_b():
         rec(kind="fibre_of_symmetriser_on_gamma_family", d=d, dim=dim,
             n_tables=1 << d, n_sharing_the_default_beta=same_beta,
             fibre_is_full_family=(same_beta == (1 << d)),
-            note="every gamma table has the SAME commutation bicharacter")
+            note="every gamma table has the SAME commutation form. rc404 "
+                 "(`#T1069`): read 'commutation bicharacter', which is false "
+                 "at this d=3 row -- the form is measured NOT bimultiplicative "
+                 "at O (168 of 512 triples). The SHARING is what this row "
+                 "measures and it is unaffected.")
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -398,7 +460,7 @@ def part_d():
             beta_matches=(beta_of(ours) == beta_of(lit)),
             q_ours=q_of(ours), q_literature=q_of(lit),
             note="SHIPPED cd_basis_product vs Albuquerque-Majid's published "
-                 "cochain as quoted in Elduque arXiv:1801.07002 Example 1. "
+                 "cochain as quoted in Elduque & Rodrigo-Escudero arXiv:1801.07002 Example 1. "
                  "Gauge-equivalent == same G-graded algebra (Elduque eq.5).")
 
 

@@ -279,6 +279,25 @@ if(SRMECH_SRCS)
         target_link_libraries(test_srmech_ryu_repr_rc403
                               PRIVATE srmech ${SRMECH_MATH_LIB})
 
+        # rc404 (`#T1069`): the SRMECH_ERR_OVERFLOW / SRMECH_ERR_LIMIT
+        # discriminator. Asserts that a caller can tell "grow your arena and
+        # retry" from "this bound is structural, retrying is futile" — which
+        # through rc403 it could not, because both returned status 4.
+        #
+        # A real instrument, measured against both libraries: rc403 exits 1
+        # with 5 of 12 rows failing (the five NOT_RETRYABLE rows whose sites
+        # rc404 moves); rc404 exits 0. The negative-control rows return
+        # BAD_INPUT in BOTH builds, so the gate is not "everything returns
+        # OVERFLOW", and the valid-document rows pass in both, so it is not
+        # "everything is broken". Adding the enum constant alone does NOT
+        # satisfy it — only re-statusing the sites does.
+        # Public-API only (srmech.h). ~0 s. Run it:
+        #   ./build/test_srmech_status_discrimination_rc404   (exit 0 = pass)
+        add_executable(test_srmech_status_discrimination_rc404
+                       c/test/test_srmech_status_discrimination_rc404.c)
+        target_link_libraries(test_srmech_status_discrimination_rc404
+                              PRIVATE srmech ${SRMECH_MATH_LIB})
+
         # THE RUN STEP. Every executable above is registered with ctest, so
         # `ctest --output-on-failure` in .github/workflows/srmech-ci.yml
         # actually executes them on all three OSes. Whole set = 551 ms wall on
@@ -289,7 +308,8 @@ if(SRMECH_SRCS)
             test_srmech_progress test_srmech_bigint test_srmech_progress_tick
             test_srmech_text_fold test_srmech_genome test_srmech_toml_arena
             test_srmech_toml_float test_srmech_json_number_rc402
-            test_srmech_ryu_repr_rc403)
+            test_srmech_ryu_repr_rc403
+            test_srmech_status_discrimination_rc404)
             add_test(NAME ${t} COMMAND ${t})
         endforeach()
     endif()

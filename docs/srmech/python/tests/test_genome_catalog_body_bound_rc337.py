@@ -653,8 +653,8 @@ def test_rc337_introduces_no_new_status_enumerator():
     the ABI question has to be answered deliberately rather than by omission.
     """
     _requires_native()
-    assert _native.EXPECTED_ABI_VERSION == 11, (
-        "rc337 is ABI-neutral (rc395 moved the baseline 10 -> 11); a bump here needs its own justification")
+    assert _native.EXPECTED_ABI_VERSION == 12, (
+        "rc337 is ABI-neutral (rc404 moved the baseline 11 -> 12); a bump here needs its own justification")
     with tempfile.TemporaryDirectory() as tmp:
         d, _one_ = _save_two_chromosomes(tmp)
         _corrupt(d, "A")

@@ -3,8 +3,9 @@ name: srmech-ci
 # Per-PR build + test for the srmech package.
 #
 # srmech is a NATIVE-C-ACCELERATED package with TWO co-equal projections of one
-# capability set (ADR-0009): a compiled projection (135 C sources, 507 exported
-# symbols, ABI 10, built through scikit-build-core + cibuildwheel) and a pure /
+# capability set (ADR-0009): a compiled projection (137 C sources, 801 exported
+# srmech_* symbols by `nm -D`, ABI 12, built through scikit-build-core +
+# cibuildwheel) and a pure /
 # scripting projection (the `pyproject-pure.toml` hatchling wheel that Pyodide,
 # WASM and toolchain-less sdist installs get). Neither is "the fallback for" the
 # other; a capability missing from either is a defect.

@@ -16,10 +16,23 @@ magnitude-stripped).
 import json
 import sys
 
-sys.path.insert(0, "/mnt/d/GitHub/mlehaptics/docs/srmech/python")
+# rc404 (`#T1069`): all three of the lines below were stale, and together they
+# meant this script could not RUN — so the numbers it emitted had no
+# re-executable provenance, which is the one thing MPM asks of generating code.
+#   1. sys.path pointed at an ABSOLUTE path in the main checkout, so a worktree
+#      run imported someone else's tree (or nothing).
+#   2. srmech.amsc.cascade.cayley_dickson -> srmech.cascade.cayley_dickson
+#      (ADR-0010 moved the cascade namespace out of amsc/).
+#   3. srmech.qm.* -> srmech.physics.qm.* (ADR-0010 physics slice; the old path
+#      was REMOVED outright in rc382, so this raised ModuleNotFoundError).
+# Now relative to this file, and on the current module paths.
+import os
 
-from srmech.amsc.cascade.cayley_dickson import algebra_table, table_product
-from srmech.qm.octonion import octonion_mult_table
+sys.path.insert(
+    0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "python"))
+
+from srmech.cascade.cayley_dickson import algebra_table, table_product
+from srmech.physics.qm.octonion import octonion_mult_table
 
 OUT = []
 
@@ -217,9 +230,28 @@ for dim in (2, 4, 8, 16):
     supp_unordered = frozenset(frozenset((a, b)) for (a, b) in supp_ordered)
 
     # (c) alternating / symmetric
-    diag_ok = all(beta[a][a] == 1 for a in range(dim))
-    inv_ok = all(beta[a][b] * beta[b][a] == 1 for a in range(dim) for b in range(dim))
-    sym_ok = all(beta[a][b] == beta[b][a] for a in range(dim) for b in range(dim))
+    #
+    # rc404 (`#T1069`) RELABELLED ALL THREE OF THESE AS DEFINITIONAL. Given
+    # beta[a][b] = eps[a][b] * eps[b][a] with eps in {-1,+1}, none of them can
+    # return False, for reasons that are arithmetic rather than empirical:
+    #   diag  beta[a][a] = eps[a][a]^2 = 1                     (a square in {+-1})
+    #   inv   beta[a][b]*beta[b][a] = (eps[a][b]*eps[b][a])^2  (likewise)
+    #   sym   beta[a][b] = beta[b][a]                          (integer * commutes)
+    # So they are restatements of the construction, not measurements of it, and
+    # a reader who sees three `true`s beside one real negative will read four
+    # results where there is one. The emitted keys carry a `_definitional`
+    # suffix for that reason.
+    #
+    # An earlier draft of this fix named only two of the three (inv and sym),
+    # which would have been worse than leaving all three alone: relabelling two
+    # makes the unlabelled `diag` look like the surviving measurement.
+    #
+    # THE GENUINELY MEASURED LEG IS BIMULTIPLICATIVITY, below. It returns real
+    # negatives — 168 of 512 failures at O, 2520 of 4096 at S — which is what a
+    # leg that CAN fail looks like.
+    diag_definitional = all(beta[a][a] == 1 for a in range(dim))
+    inv_definitional = all(beta[a][b] * beta[b][a] == 1 for a in range(dim) for b in range(dim))
+    sym_definitional = all(beta[a][b] == beta[b][a] for a in range(dim) for b in range(dim))
 
     # THE NON-TRIVIAL ONE: is beta BIMULTIPLICATIVE (a bicharacter)?
     bichar_fail = 0
@@ -233,9 +265,9 @@ for dim in (2, 4, 8, 16):
                         bichar_ex.append([a, b, c])
     radical = [a for a in range(dim) if all(beta[a][b] == 1 for b in range(dim))]
     emit({"kind": "M2c_beta_alternating_and_bicharacter", "algebra": NAMES[dim], "dim": dim,
-          "beta_diag_all_plus1": diag_ok,
-          "beta_is_its_own_inverse": inv_ok,
-          "beta_symmetric": sym_ok,
+          "beta_diag_all_plus1_definitional": diag_definitional,
+          "beta_is_its_own_inverse_definitional": inv_definitional,
+          "beta_symmetric_definitional": sym_definitional,
           "beta_bimultiplicative_failures_of_%d" % (dim ** 3): bichar_fail,
           "beta_IS_a_bicharacter": bichar_fail == 0,
           "first_failing_triples_abc": bichar_ex,
@@ -340,7 +372,12 @@ emit({"kind": "M0_independent_route_control",
           all(o1[i][j][k] == o2[i][j][k] for i in range(8) for j in range(8) for k in range(8)),
       "cells": 512})
 
-with open("/mnt/d/GitHub/mlehaptics/docs/srmech/notes/lane1_clifford_beta_2026-07-29.ndjson", "w") as f:
+# rc404 (`#T1069`): was a hard-coded absolute path into the MAIN checkout
+# (/mnt/d/GitHub/.../docs/srmech/notes/...). Any agent running this from a
+# worktree wrote its output into someone else's tree — a session-isolation
+# violation, and a silent one, since the run still reported success. Now
+# `__file__`-relative, matching the three sibling emitters in this directory.
+with open(__file__.replace(".py", ".ndjson"), "w") as f:
     for r in OUT:
         f.write(json.dumps(r, sort_keys=True) + "\n")
 print("WROTE", len(OUT), "records", file=sys.stderr)

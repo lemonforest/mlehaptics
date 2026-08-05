@@ -144,7 +144,11 @@ rec(kind="q_separates_definite_from_split", d=3, rows=sep,
     q_separates=(sum(1 for s in sep if s["q_equals_definite_O"]) == 1),
     R_separates=(sum(1 for s in sep if s["R_equals_definite_O"]) == 8),
     note="q separates definite O from all 7 split forms; R does NOT (all 8 "
-         "share the same commutation bicharacter) -- and phi does not either")
+         "share the same commutation form) -- and phi does not either. "
+         "rc404 (`#T1069`): read 'commutation bicharacter'. This row is d=3 "
+         "(O), where the form is measured NOT bimultiplicative -- 168 of 512 "
+         "triples fail -- so it is not a bicharacter here. The separation "
+         "result this row reports is untouched.")
 
 # ── S3. dim of the COMPLETE gauge invariant C^2 / B^2 ─────────────────────
 for normalised in (False, True):

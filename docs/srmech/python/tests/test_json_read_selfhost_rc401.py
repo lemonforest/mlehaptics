@@ -14,12 +14,18 @@ Three properties are load-bearing and each has its own test:
 2. **Equal failures.** The native path never raises on bad input — it DECLINES —
    so a caller's ``except json.JSONDecodeError`` must keep working. Every
    malformed input is checked to raise the same exception type from both.
-3. **The silent-divergence guards actually fire.** The C parser returns
-   SRMECH_OK with a WRONG value for an out-of-int64 integer (bare ``strtoll``,
-   no ``errno`` check → clamps to INT64_MAX) and for numbers its loose
-   ``[0-9.eE+-]`` scanner accepts but CPython rejects. Those are caught by a
-   pre-scan, not by a status code, so the tests assert the DECLINE happens —
-   a guard that stopped firing would otherwise be invisible.
+3. **The divergence guards actually fire.** Historically the C parser
+   returned SRMECH_OK with a WRONG value for an out-of-int64 integer (bare
+   ``strtoll``, no ``errno`` check → clamped to INT64_MAX) and for numbers its
+   loose ``[0-9.eE+-]`` scanner accepted but CPython rejects. Those were caught
+   by a Python pre-scan rather than by a status code. **Both halves of that are
+   now historical**: rc402 (`#T1068`) made the C scanner strict RFC 8259 and
+   made it DECLINE the out-of-int64 case, and rc404 (`#T1069`) re-statused that
+   decline to ``SRMECH_ERR_LIMIT`` and DELETED the pre-scan. The assertions
+   below are unchanged and still pass, because they were always behavioural —
+   ``_native_declined`` observes ``json_loads_c(...) is None`` and never named
+   the mechanism. What they pin is that the DECLINE still happens; a guard that
+   stopped firing would otherwise be invisible.
 """
 
 from __future__ import annotations
@@ -302,11 +308,14 @@ BIG_INTS = [
 def test_bigint_declines_and_value_is_exact(lit):
     """An out-of-int64 integer must NOT ride the C parser.
 
-    ``srmech_json.c`` parses ints with a bare ``strtoll`` and never inspects
-    ``errno``, so it would return SRMECH_OK with the value CLAMPED to
-    ``INT64_MAX`` — a silent wrong answer no status check can catch. The
-    pre-scan has to catch it, so assert both halves: the decline happened, AND
-    the value that comes back is the exact Python int.
+    Before rc402 (`#T1068`) ``srmech_json.c`` parsed ints with a bare
+    ``strtoll`` and never inspected ``errno``, so it returned SRMECH_OK with the
+    value CLAMPED to ``INT64_MAX`` — a silent wrong answer no status check could
+    catch, which a Python pre-scan had to catch first. rc402 made the C parser
+    decline it itself and rc404 (`#T1069`) re-statused that decline to
+    ``SRMECH_ERR_LIMIT`` (a value range no arena relieves), deleting the
+    pre-scan. Both halves are still asserted: the decline happens, AND the value
+    that comes back is the exact Python int.
     """
     require_native("srmech._json out-of-int64 decline guard")
     assert _native_declined(lit), (
@@ -320,9 +329,14 @@ LOOSE_NUMBERS = ["01", "1.2.3", "1e", "-", "--1", "1.", "[1,2.3.4]", "{\"a\":01}
 
 @pytest.mark.parametrize("text", LOOSE_NUMBERS)
 def test_loose_number_declines(text):
-    """The C scanner's ``[0-9.eE+-]`` class swallows these; CPython rejects them.
+    """Numbers CPython rejects must not come back as values.
 
-    Without the pre-scan the C parser would return a VALUE where CPython raises.
+    The C scanner's ``[0-9.eE+-]`` character class used to swallow these, so
+    before rc402 (`#T1068`) the parser returned a VALUE where CPython raises and
+    a Python pre-scan was the only thing catching it. rc402 made the C scanner
+    strict RFC 8259, so it now rejects exactly what CPython rejects and the
+    pre-scan became redundant — rc404 (`#T1069`) removed it. This assertion is
+    unchanged and still passes; only what satisfies it moved into C.
     """
     require_native("srmech._json loose-number decline guard")
     assert _native_declined(text), (
@@ -345,10 +359,13 @@ def test_nul_escape_declines():
 
 
 def test_long_number_literal_declines():
-    """>= 63 bytes hits the C scanner's staging buffer and returns OVERFLOW.
+    """>= 63 bytes hits the C scanner's ``tmp[64]`` staging buffer.
 
-    Indistinguishable from arena exhaustion, so it must be caught BEFORE the
-    call or the grow loop doubles to the cap for nothing.
+    This returned ``SRMECH_ERR_OVERFLOW`` until rc404 (`#T1069`) — indistinguishable
+    from arena exhaustion, so it had to be caught BEFORE the call or the grow
+    loop doubled to the cap for nothing. It is now ``SRMECH_ERR_LIMIT``: a
+    compiled-in structural bound, distinguishable at the status, so the loop
+    declines on the first call and no pre-scan is needed.
     """
     require_native("srmech._json long-number decline guard")
     lit = "1." + "0" * 70
@@ -422,7 +439,7 @@ def test_native_symbol_is_bound_when_native():
     assert hasattr(_native.LIB, "srmech_json_parse")
     assert hasattr(_native, "json_loads_c")
     # Binding an already-exported symbol adds no C surface.
-    assert _native.EXPECTED_ABI_VERSION == 11
+    assert _native.EXPECTED_ABI_VERSION == 12
 
 
 def test_pure_floor_is_reachable_and_correct():
