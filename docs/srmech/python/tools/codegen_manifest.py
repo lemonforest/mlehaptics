@@ -233,6 +233,20 @@ EXCLUDED: Dict[str, str] = {
         "fetch, same dual C-header + Python-module emission, same attested "
         "re-verification test. Not tool-surface dependent."
     ),
+    "c/tools/gen_ryu_tables.py": (
+        "VENDORED CONSTANT TABLE, HERMETIC BUT TOOL-SURFACE-INDEPENDENT "
+        "(rc403, `#T1071`). Derives c/src/srmech_ryu_tables.h — the 618 rows "
+        "of 128-bit powers of five the shortest-round-trip double->decimal "
+        "converter multiplies against — from closed-form integer definitions. "
+        "Unlike the two Unicode generators it needs no network and IS "
+        "deterministic, but it belongs out of the pass for the same structural "
+        "reason: it imports no srmech module, reads nothing this graph "
+        "produces, and its output is a mathematical constant, so no "
+        "tool-surface change can ever stale it. Re-running it on every regen "
+        "would spend seconds recomputing 5**325 to produce a byte-identical "
+        "file. tests/test_ryu_tables_attested_rc403.py re-derives and compares "
+        "every row instead, which is the check that actually has teeth."
+    ),
     "python/tools/gen_curated_probe.py": (
         "HUMAN-IN-THE-LOOP CURATION, NOT A SSoT REBUILD. Its own docstring "
         "says 'NOT the SSoT — the human reviews/edits the emitted file'. It "

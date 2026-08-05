@@ -37,8 +37,10 @@
  * never unbounded). Marshalled as a canonical-JSON value descriptor:
  *   {"k":"n"} | {"k":"i","v":<int>} | {"k":"f","v":<num>} | {"k":"s","v":<str>} |
  *   {"k":"l","v":[<desc>,..]}  (list) | {"k":"t","v":[<desc>,..]}  (tuple).
- * FLOAT round-trips at %.17g (NOT byte-identical — the numeric atoms' parity is
- * WITHIN-TOL; exact/structural stages are exact).
+ * FLOAT is emitted through srmech_json_write_ws, so as of rc403 (`#T1071`) the
+ * numeric atoms are BYTE-IDENTICAL to CPython repr(float) — this line read
+ * "round-trips at %.17g (NOT byte-identical ... WITHIN-TOL)" until then, which
+ * was true of the old snprintf writer and is no longer true of the Ryu one.
  *
  * THE LEAF-DISPATCH TABLE (lookup_cascade_op → C kernel): magnitude, reorient,
  * pin_slot_at_zero, best_rational_signed, chiral_flip, net_chirality,

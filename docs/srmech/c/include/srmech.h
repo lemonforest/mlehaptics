@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc402"
-#define SRMECH_VERSION       "0.9.0rc402"
+#define SRMECH_VERSION_PRE   "rc403"
+#define SRMECH_VERSION       "0.9.0rc403"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3056,8 +3056,11 @@ srmech_status_t srmech_chain_run(
  *
  * srmech_catalog_list_chains: emit the chain-summary array
  *   [{classes:[class_id,...], n_steps, name, on_error, returns, summary}, ...]
- * (canonical JSON, byte-identical to json.dumps(obj, sort_keys=True)); each
- * chain is validated as in srmech_chain_spec_parse. */
+ * (canonical JSON, byte-identical to CPython
+ * json.dumps(obj, sort_keys=True, ensure_ascii=False) — the exact kwarg
+ * combination srmech_json_write_ws implements; this line omitted
+ * ensure_ascii until rc403); each chain is validated as in
+ * srmech_chain_spec_parse. */
 size_t srmech_catalog_list_chains_arena_bytes(size_t cat_len);
 srmech_status_t srmech_catalog_list_chains(
     const char *cat_json, size_t cat_len,
@@ -3095,8 +3098,10 @@ srmech_status_t srmech_catalog_run_chain(
  * (Python list vs tuple) + BOUNDED-depth children (JPL Rule 1 — the nesting
  * recursion is depth-guarded + asserted, never unbounded). Marshalled as:
  *   {"k":"n"} | {"k":"i","v":<int>} | {"k":"f","v":<num>} | {"k":"s","v":<str>} |
- *   {"k":"l","v":[..]} (list) | {"k":"t","v":[..]} (tuple). FLOAT round-trips at
- *   %.17g → the numeric atoms' parity is WITHIN-TOL, not byte-identical.
+ *   {"k":"l","v":[..]} (list) | {"k":"t","v":[..]} (tuple). FLOAT is emitted by
+ *   srmech_json_write_ws, so as of rc403 (`#T1071`) the numeric atoms are
+ *   BYTE-IDENTICAL to repr(float), not merely within-tolerance. This line read
+ *   "round-trips at %.17g -> WITHIN-TOL, not byte-identical" until then.
  *
  * THE LEAF-DISPATCH TABLE: magnitude / reorient / pin_slot_at_zero /
  * best_rational_signed / chiral_flip / net_chirality / autocorrelation — the
@@ -3126,9 +3131,12 @@ srmech_status_t srmech_dsl_chain_run(
 
 /* srmech_dsl_toml_chain_to_json — the TOML front-end bridge (0.9.0rc182). Parse
  * a TOML chain-spec document via srmech_toml_parse, then serialise the parsed
- * table tree as canonical JSON (byte-identical to json.dumps(sort_keys=True) for
- * null/bool/int/string/object/array; DOUBLE best-effort %.17g — WITHIN-TOL, the
- * chain-spec grammar is float-rare). The output is the build_chain_from_dict IR
+ * table tree as canonical JSON (byte-identical to CPython
+ * json.dumps(obj, sort_keys=True, ensure_ascii=False) — this line omitted both
+ * `obj` and ensure_ascii until rc403. DOUBLE values are byte-identical too as of
+ * rc403; the old "%.17g, WITHIN-TOL" caveat is retired, and a non-finite double
+ * now DECLINES rather than emitting an unparseable token). The output is the
+ * build_chain_from_dict IR
  * the Python `build_chain_from_toml_str` feeds straight into the chain builder —
  * so a C-only / MCU host reads a `[chain]` + `[[stage]]` TOML descriptor with no
  * Python TOML hop. A syntax error / unsupported construct / arena overflow →
@@ -5131,7 +5139,10 @@ srmech_status_t srmech_algebra_inertia_signature(const int64_t *table,
  *   json.dumps(obj, sort_keys=True, ensure_ascii=False)
  * for any tree of null / bool / int / string / object / array — which
  * is exactly what an MPR manifest / a genome catalog is (they are
- * float-free). See the byte-parity rules at srmech_json_write below.
+ * float-free) — AND, as of rc403 (`#T1071`), for FINITE doubles too,
+ * via the integer-only Ryu converter behind srmech_double_repr. A
+ * non-finite double DECLINES the write. See the byte-parity rules at
+ * srmech_json_write below for the exact domain.
  *
  * Strings (and object keys) in the value tree are stored DECODED (the
  * raw UTF-8 bytes, escapes already resolved) and are NOT NUL-
@@ -5211,11 +5222,35 @@ size_t srmech_json_write_arena_bytes(const srmech_json_value_t *v);
  * set on SRMECH_OK.
  *
  * The output is byte-identical to CPython
- * json.dumps(obj, sort_keys=True, ensure_ascii=False) for null / bool
- * / int / string / object / array trees. DOUBLE values are best-effort
- * (%.17g shortest-ish) and are NOT guaranteed byte-identical to
- * Python's repr(float) — float parity is explicitly out of scope (MPR
- * / genome manifests are float-free). */
+ * json.dumps(obj, sort_keys=True, ensure_ascii=False) — the FULL kwarg
+ * combination, no other. DOUBLE values are byte-identical too as of
+ * rc403 (`#T1071`): each rides srmech_double_repr, an integer-only Ryu
+ * conversion, so the digits are a function of the input bits alone.
+ * Before rc403 this was snprintf("%.17g"), which was platform-dependent
+ * (Windows spells 1e17 as `1e+017`, Linux as `1e+17`) — for a canonical
+ * writer whose bytes go behind a sha256 that meant the same tree hashed
+ * differently per host.
+ *
+ * TWO domain limits, both exact and both deliberate:
+ *
+ *  - NON-FINITE DOUBLE -> SRMECH_ERR_BAD_INPUT for the whole write. RFC
+ *    8259 has no NaN / Infinity literal and srmech_json_parse (this
+ *    module's other half) declines those tokens by the rc402
+ *    adjudication, so emitting them would produce a document this
+ *    library cannot read back — fatal for an attestation chain. The
+ *    write DECLINES instead, visibly. (srmech_mcp_serialise_result makes
+ *    the OPPOSITE call for its own contract; see the note there.)
+ *
+ *  - OBJECT KEYS ARE STRINGS. CPython's sort_keys=True sorts the original
+ *    key OBJECTS and only then coerces them to strings, so a dict with
+ *    INTEGER keys orders numerically ({1:..,2:..,10:..} -> "1","2","10")
+ *    while this writer, whose tree holds keys already as strings, orders
+ *    bytewise ("1","10","2"). That is not a bug to fix here — bytewise IS
+ *    correct for the string keys the tree can represent, and a
+ *    numeric-aware comparator would then be wrong for the genuine string
+ *    keys "1"/"2"/"10". It is a limit on what may be handed to a future
+ *    C-backed dumps: coerce non-string keys, and sort, on the Python
+ *    side. */
 srmech_status_t srmech_json_write_ws(const srmech_json_value_t *v,
                                      char *buf, size_t buf_len,
                                      size_t *out_len,
@@ -5684,26 +5719,60 @@ srmech_status_t srmech_mcp_marshal_arg(const char *type_string,
  * (capacity `buf_len`; NO trailing NUL) and set *out_len. Two-pass:
  * `buf == NULL` is a SIZE-QUERY (nothing written; *out_len <- exact byte
  * count); a too-small non-NULL `buf` returns SRMECH_ERR_OVERFLOW (never
- * writes past the buffer). BYTE-IDENTICAL to CPython json.dumps(x,
- * separators=(",", ":")) (insertion-order keys, default ensure_ascii=True):
- * bytes -> base64 string, complex -> [re,im], NONE -> null, BOOL ->
- * true/false, tuple -> array. rc190: FLOAT/COMPLEX + the MAT carrier serialise
- * each double via srmech_double_repr (the SHORTEST round-trip decimal, byte-
- * identical to CPython repr(float)/json.dumps); a MAT -> a nested [[...]] float
- * array (compact). A non-finite double is the pure path's job (defers). */
+ * writes past the buffer). BYTE-IDENTICAL to CPython
+ *   json.dumps(x, separators=(",", ":"))
+ * and no other kwarg combination — insertion-order keys (NOT sorted; that is
+ * srmech_json_write_ws's contract, not this one) and the DEFAULT
+ * ensure_ascii=True and allow_nan=True: bytes -> base64 string, complex ->
+ * [re,im], NONE -> null, BOOL -> true/false, tuple -> array; a MAT -> a nested
+ * [[...]] float array (compact).
+ *
+ * FLOAT/COMPLEX/MAT doubles go through srmech_double_repr, the shortest
+ * round-trip decimal. rc403 (`#T1071`) replaced that function's printf search
+ * with an integer-only Ryu conversion; before rc403 it emitted the wrong digits
+ * for 92 of the 4196 signed powers of two, so THIS surface shipped bytes that
+ * were not json.dumps's at SRMECH_OK.
+ *
+ * NON-FINITE (rc403): emits CPython's own "NaN" / "Infinity" / "-Infinity",
+ * which is what allow_nan=True produces, replacing the platform-spelled %.17g
+ * fallback ("nan"/"inf" under glibc). This is the OPPOSITE call from
+ * srmech_json_write_ws, which DECLINES a non-finite double — deliberately, and
+ * for a reason specific to each: this surface's consumer is a CPython
+ * json.loads, which accepts all three tokens, so the round trip closes; the
+ * canonical writer's consumer is srmech_json_parse, which is strict RFC 8259
+ * and does not. */
 srmech_status_t srmech_mcp_serialise_result(const srmech_mval_t *v,
                                             char *buf, size_t buf_len,
                                             size_t *out_len);
 
-/* rc190 — format a FINITE double as CPython repr(float)/json.dumps(float) does:
- * the SHORTEST decimal that round-trips (David Gay 'r' mode), rendered fixed OR
- * scientific per CPython's rule (scientific iff decpt<=-4 or decpt>16), with the
- * integer-valued fixed form carrying a trailing ".0" (repr(5.0)=="5.0"). Writes
- * a NUL-terminated string into `out` (cap >= 32) and sets *out_len (length
- * excluding the NUL). Returns SRMECH_OK; SRMECH_ERR_NULL_ARG for a NULL/too-
- * small buffer; SRMECH_ERR_BAD_INPUT for a non-finite v (NaN/Inf — the caller
- * defers; these do not arise in the exact tools). libm-FREE: the only libc
- * calls are snprintf("%.*e") + strtod (both stdio/stdlib, NOT libm). */
+/* Format a FINITE double exactly as CPython repr(float) / json.dumps(float) do:
+ * the SHORTEST decimal that round-trips, rendered fixed OR scientific per
+ * CPython's rule (scientific iff decpt <= -4 or decpt > 16), with the
+ * integer-valued fixed form carrying a trailing ".0" (repr(5.0) == "5.0") and
+ * the exponent padded to a MINIMUM of two digits ("5e-08", never "5e-8").
+ * Writes a NUL-terminated string into `out` (cap >= 32) and sets *out_len
+ * (length excluding the NUL). Returns SRMECH_OK; SRMECH_ERR_NULL_ARG for a
+ * NULL / too-small buffer; SRMECH_ERR_BAD_INPUT for a non-finite v (NaN / Inf —
+ * the caller decides the spelling, and the two callers decide differently; see
+ * srmech_mcp_serialise_result and srmech_json_write_ws above).
+ *
+ * rc403 (`#T1071`) — WHAT CHANGED, AND A CORRECTION TO THIS PROSE. From rc190
+ * to rc402 the implementation searched for the shortest snprintf("%.*e") that
+ * strtod round-trips, and THIS COMMENT CALLED THAT "David Gay 'r' mode". It was
+ * not. It is the shortest PRINTF-REACHABLE round-tripper: at an exact decimal
+ * tie glibc rounds to-even, that candidate then fails round-trip, and the tie's
+ * other neighbour — which does round-trip at the same length — was never
+ * offered, so the search returned one digit too many. 92 of the 4196 signed
+ * powers of two were wrong, including 2**-24 (emitted as the 17-digit
+ * 5.9604644775390625e-08 where CPython gives 5.960464477539063e-08).
+ *
+ * It is now an integer-only, table-driven Ryu conversion (Ulf Adams, PLDI 2018)
+ * in src/srmech_ryu.c. NO printf and NO strtod in the digit path, and no
+ * floating-point arithmetic either — so the output depends on the input bits
+ * alone and is identical on gcc / clang / MSVC and Linux / macOS / Windows by
+ * construction, where "%.17g" was not (Windows spells 1e17 as `1e+017`).
+ * Still libm-FREE. Gated by c/test/test_srmech_ryu_repr_rc403.c (in the ctest
+ * foreach, all three OSes) and tests/test_ryu_double_repr_rc403.py. */
 srmech_status_t srmech_double_repr(double v, char *out, size_t cap,
                                    size_t *out_len);
 
@@ -5844,7 +5913,12 @@ srmech_progress_cb_t srmech_set_progress_cb(srmech_progress_cb_t cb,
  * (`fields_json`[0..`fields_len`)), and the call ARGS as a JSON object
  * (`args_json`[0..`args_len`)); for a method in the rc201 PROVEN BATCH it runs
  * the method IN C and writes {"result": <value>, "fields": <post-self-state>} as
- * canonical JSON (byte-identical to json.dumps(serialise_native(...))) into `out`
+ * canonical JSON — it emits through srmech_mcp_serialise_result, so the exact
+ * claim is byte-identity with
+ *   json.dumps(serialise_native(...), separators=(",", ":"))
+ * (insertion-order keys, default ensure_ascii=True). This line carried a BARE
+ * `json.dumps(serialise_native(...))` until rc403, which names the DEFAULT
+ * ", " / ": " separators — the opposite of what this surface emits — into `out`
  * (cap `out_cap`; NO trailing NUL), setting *out_len + *out_kind =
  * SRMECH_MAKE_CLASS_DISPATCHED. For a returns="self" method "result" is the NEW
  * instance's field-state DICT (self untouched).
@@ -6041,10 +6115,17 @@ srmech_status_t srmech_cli_dispatch(const char *parsed_json, size_t len,
  * FLOAT-FREE BY CONSTRUCTION: the op-provenance canonical image carries
  * floats only as {"__float64__": "<float.hex>"} string tags. A raw JSON
  * float (any number token containing '.', 'e', or 'E') is REJECTED with
- * SRMECH_ERR_BAD_INPUT — C's %.17g double rendering is not byte-identical
- * to Python repr(float), and a silent fork of the hash is exactly what
- * this op exists to prevent. (The Python wrapper enforces the same
- * rejection; the mirror agrees on the domain, not just the values.)
+ * SRMECH_ERR_BAD_INPUT. (The Python wrapper enforces the same rejection;
+ * the mirror agrees on the domain, not just the values.)
+ *
+ * The REASON given here until rc403 was "C's %.17g double rendering is not
+ * byte-identical to Python repr(float)" — true then, no longer true now that
+ * srmech_json_write_ws rides the Ryu converter. The rejection STANDS anyway,
+ * on the stronger of the two original grounds: `float.hex()` is exact and
+ * `repr(float)` is merely shortest-round-trip, so the hex tag is the right
+ * pre-image for a hash regardless of how well the decimal writer performs.
+ * Keeping the rejection also keeps this op's domain independent of the
+ * writer, which is what a self-hash should be.
  *
  * `ws` is the caller arena for ALL scratch (parse tree + writer key-sort
  * scratch + the canonical byte buffer) — bound by the caller's RAM, no
