@@ -17914,64 +17914,87 @@ _INT64_MAX = 2 ** 63 - 1
 # are consumed as string content and never mistaken for numbers. The number
 # alternatives deliberately require a leading '-' or digit — a bare `[0-9.eE+-]+`
 # class would match the 'e' in `true`/`false` and mis-flag every document.
-# The trailing class mirrors EXACTLY what srmech_json.c's json_parse_number
-# swallows, so what this sees is what the C parser will see.
+# The trailing class stays DELIBERATELY LOOSE (`[0-9.eE+-]*`) even though
+# rc402 tightened the C scanner to strict RFC 8259. This regex's job is to find
+# where a numeric token STARTS and how far it could possibly run, so it can spot
+# the >= 63-byte and out-of-int64 cases; over-consuming a malformed tail is
+# harmless, because rc402's C parser declines that document on its own.
 _JSON_SCAN_RE = re.compile(rb'"(?:[^"\\]|\\.)*"|-[0-9.eE+-]*|[0-9][0-9.eE+-]*',
                            re.S)
 
-# The strict RFC 8259 number grammar CPython's json accepts.
+# The strict RFC 8259 number grammar CPython's json accepts. rc402: used only to
+# tell a WELL-FORMED integer (whose int64 range must be checked, to skip a
+# futile arena-grow loop) from a malformed token (which C now rejects itself) —
+# no longer to decide correctness.
 _JSON_STRICT_NUM_RE = re.compile(rb'-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?'
                                  rb'(?:[eE][+-]?[0-9]+)?\Z')
 
-# A backslash-u-0000 escape anywhere. Deliberately CONSERVATIVE: only an object KEY is
-# actually corrupted by it (keys are stored as NUL-terminated arena copies and
-# re-measured with strlen, so a NUL truncates the key), while a string VALUE
-# carries an explicit length and survives. Declining on either is cheap and safe.
-_JSON_NUL_ESCAPE_RE = re.compile(rb'\\u0000')
+# rc402 (`#T1068`) REMOVED _JSON_NUL_ESCAPE_RE. It declined any document
+# carrying a backslash-u-0000 escape, to work around srmech_json.c storing
+# object keys as NUL-terminated arena copies (strlen then truncated such a key
+# and the parse still returned SRMECH_OK). rc402 makes the C parser decline a
+# NUL-bearing KEY explicitly, and a NUL in a string VALUE was never broken —
+# values carry an explicit length. Both are proven in
+# c/test/test_srmech_json_number_rc402.c, so the workaround is gone rather than
+# left orphaned.
 
 
 def _json_native_safe(raw: bytes) -> bool:
-    """Would srmech_json_parse agree with ``json.loads`` on these bytes?
+    """Fast-path pre-scan: is the native parse worth attempting on these bytes?
 
-    Guards the three places where the C parser does NOT decline but SILENTLY
-    diverges from CPython — the cases a plain rc != SRMECH_OK check cannot
-    catch, because C returns SRMECH_OK with a wrong value:
+    **rc402 (`#T1068`) narrowed this from a CORRECTNESS guard to a PERFORMANCE
+    one.** At rc401 it stood in for three real defects in ``srmech_json.c``,
+    each of which returned SRMECH_OK with a WRONG VALUE — the one shape a plain
+    ``rc != SRMECH_OK`` check cannot catch. rc402 fixed all three at the source:
 
-    1. **An integer outside int64.** ``srmech_json.c`` parses ints with a bare
-       ``strtoll`` and never inspects ``errno``, so ``99999999999999999999``
-       CLAMPS to ``INT64_MAX`` where CPython returns the exact int.
-    2. **A number literal >= 63 chars.** The C scanner returns
-       ``SRMECH_ERR_OVERFLOW`` for it — indistinguishable from arena exhaustion,
-       so the grow loop would futilely double to the cap before declining.
-    3. **A malformed number the C scanner accepts loosely.** Its character class
-       is ``[0-9.eE+-]``, so ``01`` / ``1.2.3`` / ``1e`` / ``--1`` / a bare ``-``
-       are all consumed and handed to ``strtoll`` / ``strtod``, which stop at the
-       first bad byte and yield a value; CPython raises ``JSONDecodeError``.
+    ============================  ==========================  ==================
+    input                         rc401 C behaviour           rc402 C behaviour
+    ============================  ==========================  ==================
+    ``99999999999999999999``      OK, clamped to INT64_MAX    ERR_OVERFLOW
+    ``--1`` / bare ``-``          OK, value ``0``             ERR_BAD_INPUT
+    ``01``                        OK, value ``1``             ERR_BAD_INPUT
+    ``1.2.3``                     OK, value ``1.2``           ERR_BAD_INPUT
+    ``1e`` / ``1e+`` / ``1.``     OK, value ``1``             ERR_BAD_INPUT
+    key ``a\\u0000b``              OK, key cut to ``"a"``      ERR_BAD_INPUT
+    ============================  ==========================  ==================
 
-    Plus a conservative decline on any ``\\u0000`` escape (see
-    ``_JSON_NUL_ESCAPE_RE``).
+    So the C parser now DECLINES every one of them, ``json_loads_c`` returns
+    None on the non-OK status, and the stdlib floor produces the exact value or
+    the genuine ``JSONDecodeError``. Correctness no longer depends on this
+    function at all — which is why the two checks that existed PURELY for
+    correctness are gone:
 
-    Everything else the C parser gets WRONG it also gets DECLINED on — lone
-    surrogates, ``NaN``/``Infinity``, depth > 64, trailing garbage, unterminated
-    strings all return SRMECH_ERR_BAD_INPUT and ride the stdlib floor.
+    * the strict-grammar check (rc401 item 3) — the C scanner is now strict
+      RFC 8259 itself, so it rejects exactly what CPython rejects;
+    * the ``\\u0000`` check — a NUL-bearing object KEY declines in C now, and a
+      NUL in a string VALUE was always correct (values carry an explicit length;
+      only NUL-terminated KEY storage ever truncated). Both are proven in
+      ``c/test/test_srmech_json_number_rc402.c``.
+
+    What REMAINS is one check, kept for speed rather than truth: an integer
+    outside int64, and any numeric literal >= 63 bytes, both return
+    ``SRMECH_ERR_OVERFLOW`` — a status ``json_loads_c`` cannot distinguish from
+    ARENA EXHAUSTION, because the C parser uses one code for both. Without this
+    pre-scan such a document would be re-parsed at every arena doubling up to
+    ``_JSON_ARENA_CAP`` (256 MiB) before declining. The answer would still be
+    CORRECT; it would just allocate its way there. Catching it in one cheap
+    regex pass is strictly better.
 
     Returning False is always SAFE: it costs a stdlib parse, never correctness.
     So on any doubt (including a malformed document where this scan may
     desynchronise from the real tokenizer) the honest answer is False.
     """
-    if _JSON_NUL_ESCAPE_RE.search(raw) is not None:
-        return False
     for m in _JSON_SCAN_RE.finditer(raw):
         tok = m.group()
         if tok[:1] == b'"':
             continue                      # a string literal; nothing to check
         if len(tok) >= 63:
-            return False                  # (2) C returns OVERFLOW on this
+            return False                  # C returns OVERFLOW; skip the grow loop
         if _JSON_STRICT_NUM_RE.match(tok) is None:
-            return False                  # (3) C accepts it, CPython does not
+            continue                      # rc402: C declines this itself, cheaply
         if not (b"." in tok or b"e" in tok or b"E" in tok):
             if not (_INT64_MIN <= int(tok) <= _INT64_MAX):
-                return False              # (1) C would clamp it silently
+                return False              # C returns OVERFLOW; skip the grow loop
     return True
 
 

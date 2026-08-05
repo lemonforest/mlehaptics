@@ -34,23 +34,26 @@ constructs outside its supported subset, and it is LOUD about them:
 * ordinary syntax errors, unterminated strings, trailing garbage, empty input.
 * an arena that grew past the 256 MiB cap.
 
-**B. srmech declines pre-emptively**, because the C parser would return
-``SRMECH_OK`` with a value that DISAGREES with CPython. These are the dangerous
-ones — a status check alone cannot catch them — and
-``_native._json_native_safe`` scans for them before any C call:
+**B. the C parser declines a value it cannot represent.** An integer outside
+int64 returns ``SRMECH_ERR_OVERFLOW``: JSON legitimately permits such integers
+and ``int64_t`` genuinely cannot hold them, so srmech declines and the floor
+returns the exact int. (Inside srmech's own corpus these ride the rc176
+decimal-STRING bignum transport instead — see ``srmech_carrier_marshal.c``.)
 
-* an integer outside int64: ``srmech_json.c`` parses with a bare ``strtoll``
-  and never checks ``errno``, so ``99999999999999999999`` would CLAMP to
-  ``INT64_MAX``. CPython returns the exact int, so srmech declines and the
-  floor returns the exact int too.
-* a number literal 63 bytes or longer (the C scanner's fixed staging buffer).
-* a malformed number the C scanner accepts loosely — its character class is
-  ``[0-9.eE+-]``, so ``01``, ``1.2.3``, ``1e``, ``--1`` and a bare ``-`` are all
-  swallowed and handed to ``strtoll``/``strtod``, which stop at the first bad
-  byte and yield a value where CPython raises.
-* any ``\\u0000`` escape (conservative: only an object KEY is actually
-  corrupted, since keys are stored NUL-terminated and re-measured with
-  ``strlen``, but declining on either is cheap).
+.. note::
+
+   **This list used to be longer, and that is the point.** At rc401 category B
+   was a set of pre-emptive PYTHON-side workarounds for three places where
+   ``srmech_json.c`` returned ``SRMECH_OK`` with a WRONG VALUE — the one shape a
+   status check cannot catch. rc402 (`#T1068`) fixed all three in the C parser:
+   an out-of-int64 integer CLAMPED to ``INT64_MAX`` (``strtoll``'s ``ERANGE``
+   was never read); the loose ``[0-9.eE+-]`` scanner turned ``--1`` and a bare
+   ``-`` into ``0``, ``01`` into ``1`` and ``1.2.3`` into ``1.2``; and an object
+   KEY carrying a NUL escape came back silently TRUNCATED. The C parser now
+   declines each one with a status the caller can SEE, so the Python guard
+   shrank to a single arena-grow FAST PATH and is no longer load-bearing for
+   correctness. The int64 clamp had been known since **rc176**, where a bignum
+   transport was built beside it rather than fixing it.
 
 Declining is always SAFE: it costs a stdlib parse, never correctness.
 
@@ -63,10 +66,16 @@ Two consequences worth relying on
 2. **Floats are the stdlib's.** ``srmech_json.c`` parses doubles with
    ``strtod``, which is correctly rounded, matching CPython's ``float()``. This
    is checked directly by ``tests/test_json_read_selfhost_rc401.py`` rather
-   than assumed.
+   than assumed. rc402 ADJUDICATED that path and deliberately left it alone:
+   ``strtod`` returns ``HUGE_VAL`` on overflow and ``0.0`` on underflow, which
+   is exactly what CPython's ``json`` does (``1e400`` -> ``inf``, ``1e-400`` ->
+   ``0.0``, ``5e-324`` -> the smallest subnormal), so adding an ``errno`` check
+   there would have REGRESSED parity by declining input CPython accepts. A
+   verified non-defect is a finding; it is pinned in
+   ``c/test/test_srmech_json_number_rc402.c``.
 
-The write half is NOT here (deferred to rc402/rc403)
-----------------------------------------------------
+The write half is NOT here (deferred to rc403)
+-----------------------------------------------
 ``srmech_json_write_ws`` exists and is byte-identical to
 ``json.dumps(obj, sort_keys=True, ensure_ascii=False)`` — but only for that ONE
 keyword combination. Measured across the tree, the ``json.dumps`` call sites use

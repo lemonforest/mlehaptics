@@ -35,6 +35,8 @@
 #include "srmech.h"
 
 #include <assert.h>
+#include <errno.h>
+#include <limits.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -306,8 +308,84 @@ static srmech_status_t json_parse_string(json_parser_t *p,
     return SRMECH_ERR_BAD_INPUT;  /* unterminated string */
 }
 
+/* Scan a number at p->pos against the STRICT RFC 8259 grammar, advancing
+ * p->pos past it and setting *is_double when a frac or exp part is present:
+ *
+ *   number = [ '-' ] int [ frac ] [ exp ]
+ *   int    = '0' / ( digit1-9 *DIGIT )      <- NO leading zeros
+ *   frac   = '.' 1*DIGIT                    <- at least one digit
+ *   exp    = ('e'/'E') [ '+' / '-' ] 1*DIGIT
+ *
+ * rc402 (`#T1068`): the pre-rc402 scanner used the character class
+ * `[0-9.eE+-]`, so `01`, `1.2.3`, `1e`, `--1`, `+1` and a bare `-` were all
+ * SWALLOWED and handed to strtoll/strtod, which stop at the first bad byte and
+ * yield a VALUE where CPython's json raises JSONDecodeError. Malformed input
+ * now DECLINES with SRMECH_ERR_BAD_INPUT instead of inventing a number. */
+static srmech_status_t json_scan_number(json_parser_t *p, bool *is_double)
+{
+    assert(p != NULL);
+    assert(is_double != NULL);
+    *is_double = false;
+    if (p->pos < p->len && p->src[p->pos] == '-') {
+        p->pos++;   /* a leading '+' is NOT legal JSON and falls through */
+    }
+    if (p->pos >= p->len || !json_is_digit(p->src[p->pos])) {
+        return SRMECH_ERR_BAD_INPUT;   /* bare '-', '--1', '+1', '.5', 'e1' */
+    }
+    if (p->src[p->pos] == '0') {
+        p->pos++;
+        if (p->pos < p->len && json_is_digit(p->src[p->pos])) {
+            return SRMECH_ERR_BAD_INPUT;   /* leading zero: `01`, `00` */
+        }
+    } else {
+        while (p->pos < p->len && json_is_digit(p->src[p->pos])) { p->pos++; }
+    }
+    if (p->pos < p->len && p->src[p->pos] == '.') {
+        p->pos++;
+        if (p->pos >= p->len || !json_is_digit(p->src[p->pos])) {
+            return SRMECH_ERR_BAD_INPUT;   /* `1.`, `1.e5` */
+        }
+        while (p->pos < p->len && json_is_digit(p->src[p->pos])) { p->pos++; }
+        *is_double = true;
+    }
+    if (p->pos < p->len && (p->src[p->pos] == 'e' || p->src[p->pos] == 'E')) {
+        p->pos++;
+        if (p->pos < p->len &&
+            (p->src[p->pos] == '+' || p->src[p->pos] == '-')) {
+            p->pos++;
+        }
+        if (p->pos >= p->len || !json_is_digit(p->src[p->pos])) {
+            return SRMECH_ERR_BAD_INPUT;   /* `1e`, `1e+`, `1E-` */
+        }
+        while (p->pos < p->len && json_is_digit(p->src[p->pos])) { p->pos++; }
+        *is_double = true;
+    }
+    return SRMECH_OK;
+}
+
 /* Parse a number (int → SRMECH_JSON_INT, fractional/exponent →
- * SRMECH_JSON_DOUBLE) at p->pos into `v`. */
+ * SRMECH_JSON_DOUBLE) at p->pos into `v`.
+ *
+ * rc402 (`#T1068`) INTEGER RANGE: strtoll returns LLONG_MAX/LLONG_MIN and sets
+ * ERANGE when the literal does not fit. Before rc402 errno was never read, so
+ * an out-of-int64 integer returned SRMECH_OK with the value CLAMPED to
+ * INT64_MAX — a silent wrong answer no status code reported. JSON legitimately
+ * permits integers wider than int64 and int64_t genuinely cannot hold them, so
+ * the honest answer is an explicit DECLINE (SRMECH_ERR_OVERFLOW) the caller can
+ * SEE, not a plausible wrong number. Such values ride the rc176 decimal-STRING
+ * bignum transport (see srmech_carrier_marshal.c), which is unaffected.
+ *
+ * NOTE the OVERFLOW return is shared with arena exhaustion, so a caller that
+ * grows-and-retries on OVERFLOW (srmech._native.json_loads_c) will retry once
+ * per doubling before declining. That is correct but not free; the Python side
+ * keeps a cheap pre-scan as a FAST PATH, no longer as a correctness guard.
+ *
+ * DOUBLE path: strtod is ADJUDICATED CORRECT, not overlooked. It is correctly
+ * rounded, returns +/-HUGE_VAL on overflow (`1e400` -> inf, matching CPython's
+ * json, which also yields inf) and 0.0 on underflow (`1e-400` -> 0.0, likewise
+ * matching). So an errno check here would REGRESS parity by declining inputs
+ * CPython accepts. Deliberately left alone; proven in
+ * c/test/test_srmech_json_number_rc402.c. */
 static srmech_status_t json_parse_number(json_parser_t *p,
                                          srmech_json_value_t *v)
 {
@@ -315,19 +393,9 @@ static srmech_status_t json_parse_number(json_parser_t *p,
     assert(v != NULL);
     size_t start = p->pos;
     bool is_double = false;
-    if (p->pos < p->len && p->src[p->pos] == '-') {
-        p->pos++;
-    }
-    while (p->pos < p->len) {
-        char c = p->src[p->pos];
-        if (json_is_digit(c)) {
-            p->pos++;
-        } else if (c == '.' || c == 'e' || c == 'E' || c == '+' || c == '-') {
-            is_double = (c == '.' || c == 'e' || c == 'E') ? true : is_double;
-            p->pos++;
-        } else {
-            break;
-        }
+    srmech_status_t sst = json_scan_number(p, &is_double);
+    if (sst != SRMECH_OK) {
+        return sst;
     }
     size_t n = p->pos - start;
     if (n == 0u || n >= 63u) {
@@ -339,10 +407,25 @@ static srmech_status_t json_parse_number(json_parser_t *p,
     if (is_double) {
         v->type = SRMECH_JSON_DOUBLE;
         v->u.f = strtod(tmp, NULL);
-    } else {
-        v->type = SRMECH_JSON_INT;
-        v->u.i = (int64_t)strtoll(tmp, NULL, 10);
+        return SRMECH_OK;
     }
+    char *endp = NULL;
+    errno = 0;
+    long long parsed = strtoll(tmp, &endp, 10);
+    if (errno == ERANGE || endp != tmp + n) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+#if LLONG_MAX > INT64_MAX
+    /* A live runtime bound, not an assert: on a hypothetical target where
+     * long long is wider than int64_t, strtoll succeeds without ERANGE and the
+     * cast would truncate. Compiles away where long long IS 64-bit (the #if
+     * keeps -Wtype-limits quiet under -Wextra -Werror). */
+    if (parsed < (long long)INT64_MIN || parsed > (long long)INT64_MAX) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+#endif
+    v->type = SRMECH_JSON_INT;
+    v->u.i = (int64_t)parsed;
     return SRMECH_OK;
 }
 
@@ -488,7 +571,23 @@ static srmech_status_t json_read_object_key(json_parser_t *p,
     }
     /* Store the key as a NUL-terminated arena copy so the value-tree key
      * array carries a plain `const char *` (the writer + object_get
-     * re-measure via strlen). JSON keys are NUL-free, so strlen is exact. */
+     * re-measure via strlen).
+     *
+     * rc402 (`#T1068`): this comment used to read "JSON keys are NUL-free, so
+     * strlen is exact" — which is FALSE. A key spelled as the letter "a", then
+     * a backslash-u-0000 escape, then the letter "b" (spelling that escape
+     * literally in a C comment is a portability hazard, hence the prose) is
+     * legal JSON decoding to THREE bytes with a NUL in the middle. strlen
+     * reports 1 for it, and the parse returned
+     * SRMECH_OK with the key silently TRUNCATED to "a". NUL-terminated storage
+     * is the real, load-bearing constraint (the writer's key-sort and
+     * srmech_json_object_get both strlen), so the honest answer is an explicit
+     * DECLINE rather than a wrong key. A string VALUE is unaffected: it carries
+     * an explicit length and survives an embedded NUL intact. */
+    if (kv.u.str.len > 0u &&
+        memchr(kv.u.str.ptr, '\0', (size_t)kv.u.str.len) != NULL) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
     char *kbuf = (char *)json_arena_alloc(&p->arena, kv.u.str.len + 1u);
     if (kbuf == NULL) {
         return SRMECH_ERR_OVERFLOW;

@@ -677,6 +677,54 @@ def _reconstruct_value(desc: Dict[str, Any]) -> Any:
     raise ValueError(f"unknown chain-run value descriptor kind {k!r}")
 
 
+def _drop_oversized_ints(obj: Any) -> "tuple[Any, bool]":
+    """Strip out-of-int64 ints from the ctx tree bound for the C run loop.
+
+    Returns ``(cleaned, ok)``; ``ok`` False means the caller must take
+    ``_NATIVE_MISS`` because the value could not be dropped safely.
+
+    **Why this exists (rc402, `#T1068`).** :func:`_run_ints_fit_i64` has already
+    guaranteed that every int the C run will actually READ fits int64, so by
+    construction any oversized int still in the tree is UNREFERENCED — exactly
+    the ``expected_num`` / ``expected_den`` bignum columns that docstring names
+    as "irrelevant". They were irrelevant only because ``srmech_json`` used to
+    parse an out-of-int64 literal by silently CLAMPING it to ``INT64_MAX``: the
+    clamped value was never read, so nobody saw the wrong number, and the fast
+    path stayed available. rc402 makes that literal DECLINE with
+    ``SRMECH_ERR_OVERFLOW`` — correctly — which would otherwise cost the C fast
+    path on 10 of the 51 shipped catalog chain rows purely because of a column
+    the chain never touches.
+
+    Dropping the KEY is the honest way to keep that property: C never reads the
+    field, and if one ever WERE referenced the lookup finds nothing, yields NULL
+    and the whole chain defers to the pure runner — a miss, never a wrong
+    answer. A bare int inside a LIST is different: removing an element would
+    renumber the ones after it and silently corrupt an ``[N]`` index, so that
+    case reports ``ok=False`` and the caller defers to pure instead.
+    """
+    if isinstance(obj, dict):
+        out = {}
+        for k, v in obj.items():
+            if isinstance(v, int) and not isinstance(v, bool) and not _i64(v):
+                continue                     # unreferenced bignum column: drop
+            cleaned, ok = _drop_oversized_ints(v)
+            if not ok:
+                return obj, False
+            out[k] = cleaned
+        return out, True
+    if isinstance(obj, list):
+        out_list = []
+        for v in obj:
+            if isinstance(v, int) and not isinstance(v, bool) and not _i64(v):
+                return obj, False            # cannot drop without renumbering
+            cleaned, ok = _drop_oversized_ints(v)
+            if not ok:
+                return obj, False
+            out_list.append(cleaned)
+        return out_list, True
+    return obj, True
+
+
 def _run_chain_native(
     spec: ChainSpec,
     row: Optional[Dict[str, Any]],
@@ -693,7 +741,9 @@ def _run_chain_native(
     if not _run_ints_fit_i64(spec, row, inputs or {}):
         return _NATIVE_MISS
     chain_dict = _spec_to_chain_dict(spec)
-    ctx = {"row": row, "inputs": inputs or {}}
+    ctx, ctx_ok = _drop_oversized_ints({"row": row, "inputs": inputs or {}})
+    if not ctx_ok:
+        return _NATIVE_MISS
     try:
         chain_json = json.dumps(chain_dict, ensure_ascii=False).encode("utf-8")
         ctx_json = json.dumps(ctx, ensure_ascii=False).encode("utf-8")
