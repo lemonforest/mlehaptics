@@ -90,10 +90,13 @@ FROZEN_KNOWN_GATES = frozenset({
     "tests/test_non_compute_ratchet_rc170.py",
     "tests/test_annex_ratchet_rc177.py",
     "tests/test_annex_ratchet_rc183.py",
-    # -- stdlib-fractions ban (new test files, #845 / #870): a new op-rc's new
-    #    TEST FILE reaching for stdlib `fractions` trips this. It reds a fresh
-    #    CI round (rc386) if the runner omits it. Pure-Python, whole file. ------
-    "tests/test_no_stdlib_fractions_import.py",
+    # -- self-hosting import ban (`#T1073`): the ONE table-driven ban list.
+    #    A new op-rc's new TEST FILE reaching for stdlib `fractions` trips it
+    #    (#845 / #870 -- it reds a fresh CI round, rc386, if the runner omits
+    #    it), and so does a new package module reaching for numpy / math /
+    #    decimal, or bypassing the `srmech._json` / `srmech._toml` front doors.
+    #    Absorbed the three separate ratchets at rc405. Pure-Python. ------------
+    "tests/test_selfhosting_import_ban.py",
     # -- decode-aware namespace population pin (rc361, `#T1034`): a new cascade
     #    op bumps the `srmech.cascade` DECODED-channel population (rc387 ran it
     #    by hand at 100 -> 102). Invisible to a text grep; the manifest's only
