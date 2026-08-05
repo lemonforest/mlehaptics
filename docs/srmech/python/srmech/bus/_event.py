@@ -121,6 +121,9 @@ def parse(data: bytes) -> Event:
     text = data.decode("utf-8")
     if not text.strip():
         raise ValueError("bus.parse: empty data")
+    # stdlib json by PROTOCOL-BOUNDARY decision, not neglect (`#T1008`): the bus wire
+    # carries payloads from other processes. External input on a protocol contract
+    # is out of scope for the READ self-host.
     payload = json.loads(text)
     required = ("mpr_version", "type", "payload", "attestation")
     for k in required:

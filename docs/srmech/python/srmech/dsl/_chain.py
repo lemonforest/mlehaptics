@@ -129,6 +129,7 @@ from srmech.introspect._writer import (
     _is_publishing as _is_pub,
     emit_if_publishing as _emit,
 )
+from srmech import _json as _srmech_json
 
 
 def _describe_shape(value: Any) -> str:
@@ -463,7 +464,7 @@ class Chain:
             ws, ws_bytes, out, out_cap, ctypes.byref(out_len))
         if rc != _native.SRMECH_OK:
             return _NATIVE_MISS
-        desc = json.loads(out.raw[:out_len.value].decode("utf-8"))
+        desc = _srmech_json.loads(out.raw[:out_len.value].decode("utf-8"))
         return _desc_to_value(desc)
 
     def run(self, input_value: Any) -> Any:

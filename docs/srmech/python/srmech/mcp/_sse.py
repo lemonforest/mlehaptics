@@ -226,6 +226,10 @@ def _make_handler_class(
             content_length = int(self.headers.get("Content-Length") or 0)
             raw = self.rfile.read(content_length)
             try:
+                # stdlib json by PROTOCOL-BOUNDARY decision, not neglect (`#T1008`): this is the
+                # MCP JSON-RPC wire — untrusted external input on a published protocol contract.
+                # Self-hosting it onto srmech._json is a separate decision with a different risk
+                # profile from reading srmech's own descriptors, so the READ self-host stops here.
                 request = json.loads(raw.decode("utf-8"))
             except (UnicodeDecodeError, json.JSONDecodeError) as exc:
                 # JSON parse error rides over SSE per spec.

@@ -70,6 +70,7 @@ from srmech.math.octonion import oct_mult as _oct_mult
 from srmech.math.tlv import tlv_pack as _tlv_pack
 from srmech.math.tlv import tlv_unpack as _tlv_unpack
 from srmech.version import __version__ as _SRMECH_VERSION
+from srmech import _json as _srmech_json
 
 __all__ = [
     "discrete_writhe", "cwf_consistency_mod2",
@@ -8653,7 +8654,7 @@ def _read_manifest(path) -> dict:
     validated as a real MPR record before its ``data`` is returned."""
     manifest_path = Path(path) / _MANIFEST_NAME
     text = manifest_path.read_text(encoding="utf-8")
-    payload = json.loads(text)
+    payload = _srmech_json.loads(text)
     record = _MPRRecord(
         mpr_version=str(payload.get("mpr_version", "")),
         data=dict(payload.get("data", {})),
@@ -8672,7 +8673,7 @@ def _write_manifest(path, record) -> None:
     with LF newline so the catalog is byte-stable across platforms (the same
     discipline ``format.write_ndjson`` uses)."""
     manifest_path = Path(path) / _MANIFEST_NAME
-    payload = json.loads(record.to_json_line())   # the MPRRecord's own to-dict path
+    payload = _srmech_json.loads(record.to_json_line())   # the MPRRecord's own to-dict path
     text = json.dumps(payload, sort_keys=True, ensure_ascii=False)
     manifest_path.write_text(text + "\n", encoding="utf-8", newline="\n")
 
@@ -9314,7 +9315,7 @@ def _canonical_catalog(path, coupling=None) -> dict:
         try:
             text = _native.genome_catalog_c(
                 str(Path(path)), _coupling_bytes_or_empty(coupling))
-            return json.loads(text)["data"]
+            return _srmech_json.loads(text)["data"]
         except _native.NativeGenomeError as exc:
             _raise_native_genome(exc)
     return _catalog_data(path, coupling)
@@ -9446,7 +9447,7 @@ def genome_census(path, *, coupling=None) -> dict:
         try:
             text = _native.genome_census_c(
                 str(Path(path)), _coupling_bytes_or_empty(coupling))
-            return _apply_type_aliases_to_census(json.loads(text))
+            return _apply_type_aliases_to_census(_srmech_json.loads(text))
         except _native.NativeGenomeError as exc:
             _raise_native_genome(exc)
     return _apply_type_aliases_to_census(
@@ -9495,7 +9496,7 @@ def genome_content(path, *, coupling=None) -> dict:
         try:
             text = _native.genome_content_c(
                 str(Path(path)), _coupling_bytes_or_empty(coupling))
-            return json.loads(text)
+            return _srmech_json.loads(text)
         except _native.NativeGenomeError as exc:
             _raise_native_genome(exc)
     # Pure projection over the CANONICAL catalog — the same single streamed body pass
@@ -9559,7 +9560,7 @@ def genome_registry(root, *, coupling=None) -> dict:
         try:
             text = _native.genome_registry_c(
                 str(Path(root)), _coupling_bytes_or_empty(coupling))
-            return _apply_type_aliases_to_registry(json.loads(text))
+            return _apply_type_aliases_to_registry(_srmech_json.loads(text))
         except _native.NativeGenomeError as exc:
             _raise_native_genome(exc)
     root_str = str(Path(root))          # normalise identically to the native call above
@@ -11083,7 +11084,7 @@ def _chr_record(data) -> _MPRRecord:
 def _write_mpr_file(path, record) -> None:
     """Serialise an MPRRecord to ``path`` (one JSON object + LF) — byte-stable,
     the same canonical form :func:`_write_manifest` uses for manifest.json."""
-    payload = json.loads(record.to_json_line())
+    payload = _srmech_json.loads(record.to_json_line())
     text = json.dumps(payload, sort_keys=True, ensure_ascii=False)
     Path(path).write_text(text + "\n", encoding="utf-8", newline="\n")
 
@@ -11093,7 +11094,7 @@ def _read_chr(path) -> _MPRRecord:
     :class:`GenomeBoundingError` if it is not a chromosome bundle (wrong
     data_schema_id) or fails MPR-v1 structure validation."""
     text = Path(path).read_text(encoding="utf-8")
-    payload = json.loads(text)
+    payload = _srmech_json.loads(text)
     record = _MPRRecord(
         mpr_version=str(payload.get("mpr_version", "")),
         data=dict(payload.get("data", {})),

@@ -79,6 +79,7 @@ from .format import MPRRecord, read_ndjson
 # helper the C-claim walker follows into, and a bare ``srmech_toml`` global would
 # read as an off-header C-dispatch claim. Do NOT rename it back to ``srmech_toml``.
 from srmech import _toml as _srmech_toml
+from srmech import _json as _srmech_json
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -138,7 +139,7 @@ def _registered_roots_native(
         ws, ws_bytes, out, out_cap, ctypes.byref(out_len))
     if rc != _native.SRMECH_OK:
         return None
-    return json.loads(out.raw[:out_len.value].decode("utf-8"))
+    return _srmech_json.loads(out.raw[:out_len.value].decode("utf-8"))
 
 
 def _local_kernel_state_native(
@@ -170,7 +171,7 @@ def _local_kernel_state_native(
         ws, ws_bytes, out, out_cap, ctypes.byref(out_len))
     if rc != _native.SRMECH_OK:
         return None
-    return json.loads(out.raw[:out_len.value].decode("utf-8"))
+    return _srmech_json.loads(out.raw[:out_len.value].decode("utf-8"))
 
 
 def _use_local_kernel_native(
@@ -201,7 +202,7 @@ def _use_local_kernel_native(
         ws, ws_bytes, out, out_cap, ctypes.byref(out_len))
     if rc != _native.SRMECH_OK:
         return None
-    return json.loads(out.raw[:out_len.value].decode("utf-8"))
+    return _srmech_json.loads(out.raw[:out_len.value].decode("utf-8"))
 
 
 def _attestation_audit_native(
@@ -233,7 +234,7 @@ def _attestation_audit_native(
         ctypes.byref(out_len))
     if rc != _native.SRMECH_OK:
         return None
-    return json.loads(out.raw[:out_len.value].decode("utf-8"))
+    return _srmech_json.loads(out.raw[:out_len.value].decode("utf-8"))
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -1296,7 +1297,7 @@ def _list_catalog_chains_native(
         ctypes.byref(out_len))
     if rc != _native.SRMECH_OK:
         return None
-    chains = json.loads(out.raw[:out_len.value].decode("utf-8"))
+    chains = _srmech_json.loads(out.raw[:out_len.value].decode("utf-8"))
     return {"ok": True, "source_key": source_key,
             "n_chains": len(chains), "chains": chains}
 
@@ -1345,7 +1346,7 @@ def _run_catalog_chain_native(
         ctypes.byref(out_len))
     if rc != _native.SRMECH_OK:
         return _RUN_NATIVE_MISS
-    desc = json.loads(out.raw[:out_len.value].decode("utf-8"))
+    desc = _srmech_json.loads(out.raw[:out_len.value].decode("utf-8"))
     return _compose._reconstruct_value(desc)
 
 
