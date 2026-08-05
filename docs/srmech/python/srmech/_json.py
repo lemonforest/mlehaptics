@@ -74,15 +74,47 @@ Two consequences worth relying on
    verified non-defect is a finding; it is pinned in
    ``c/test/test_srmech_json_number_rc402.c``.
 
-The write half is NOT here (deferred to rc403)
------------------------------------------------
-``srmech_json_write_ws`` exists and is byte-identical to
-``json.dumps(obj, sort_keys=True, ensure_ascii=False)`` — but only for that ONE
-keyword combination. Measured across the tree, the ``json.dumps`` call sites use
-``ensure_ascii`` (21), ``sort_keys`` (20), ``separators=`` (7), ``indent=`` (5),
-and — the actual blocker — ``default=`` (4), which passes a PYTHON CALLABLE the
-C writer cannot honour without an ABI change. The write half is therefore not a
-drop-in and is deliberately left for its own rc rather than half-done here.
+The write half is still NOT here — and rc403 re-measured why
+------------------------------------------------------------
+``srmech_json_write_ws`` is byte-identical to
+``json.dumps(obj, sort_keys=True, ensure_ascii=False)`` — that ONE keyword
+combination, and (since rc403, `#T1071`) including FLOATS, which now ride an
+integer-only Ryu converter instead of ``snprintf("%.17g")``.
+
+The census in this docstring was WRONG until rc403 and is restated here from an
+AST walk of ``srmech/`` rather than a line grep (the old numbers came from
+single-line ``grep``, which misses every multi-line call). Measured: **64**
+``json.dumps`` / ``json.dump`` call sites, using ``ensure_ascii`` (**23**),
+``sort_keys`` (**21**), ``separators=`` (**10**), ``indent=`` (**9**) and
+``default=`` (**8**). Every figure was under-counted before; ``separators`` and
+``indent`` by roughly half.
+
+The old note also mis-diagnosed the blocker. It called ``default=`` "a PYTHON
+CALLABLE the C writer cannot honour without an ABI change" — but **7 of the 8
+``default=`` sites pass the builtin ``str``**, not a bespoke callable
+(``cli/bus.py`` x4, ``mcp/_server.py``, ``mcp/_sse.py``, ``mcp/_stdio.py``);
+only ``mcp/_tools.py`` passes a project function (``_json_fallback``). A
+"stringify whatever is left" default needs no callback across the ABI at all.
+The real obstacles are the ones that were never listed: ``indent=`` (9 sites)
+is a whole second output grammar the C writer does not implement, and
+``separators=`` (10 sites) means the compact form and the default-spaced form
+are BOTH live in this tree while the C writer hard-codes one of them.
+
+Two further domain limits, both exact, both discovered while measuring:
+
+* **Non-string dict keys.** ``sort_keys=True`` sorts the original key OBJECTS
+  and coerces afterwards, so ``{1:'a', 2:'b', 10:'c'}`` emits ``"1","2","10"``;
+  the C writer's tree holds keys already as strings and sorts them bytewise,
+  which for those same keys gives ``"1","10","2"``. Any C-backed ``dumps``
+  must coerce and sort non-string keys on the PYTHON side first.
+* **Non-finite floats.** ``json.dumps`` emits ``NaN`` / ``Infinity`` /
+  ``-Infinity`` by default; ``srmech_json_write_ws`` DECLINES them (rc403),
+  because it is paired with the strict-RFC-8259 ``srmech_json_parse`` and must
+  not write a document its own parser refuses. A C-backed ``dumps`` would have
+  to route those to the stdlib.
+
+So the write half remains deliberately un-self-hosted. What rc403 changed is
+that FLOAT PARITY is no longer one of the reasons.
 
 This is an INTERNAL module. It registers no ToolEntry, adds nothing to
 ``describe()`` / introspect / MCP, and is not one of the 14 A-N compute

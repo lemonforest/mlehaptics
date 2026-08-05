@@ -258,6 +258,27 @@ if(SRMECH_SRCS)
         target_link_libraries(test_srmech_json_number_rc402
                               PRIVATE srmech ${SRMECH_MATH_LIB})
 
+        # rc403 (`#T1071`): the Ryu-class shortest-round-trip double->decimal
+        # writer. TWO halves, because a bare-C host has no CPython to ask.
+        # Half (A) PROVES shortest-round-trip: emit the decimal, parse it back
+        # with srmech's own libm-free correctly-rounded decimal->double (rc397,
+        # via srmech_toml_parse), require bit-identity, then require that
+        # NEITHER one-digit-shorter neighbour round-trips. Half (B) pins the
+        # SPELLING against CPython repr(float) literals — which is also the
+        # platform-independence gate, since %.17g of 1e17 is "1e+017" on Windows
+        # and "1e+17" on Linux, and this runs on all three OSes.
+        #
+        # It is a real instrument, not a rubber stamp: run against the
+        # PRE-rc403 library it exits 1 with 109 failures (87042 values checked),
+        # while 3,000,000 uniformly random bit patterns found ZERO — the defect
+        # lived in the zero-mantissa class, which random sampling never hits.
+        # Public-API only (srmech.h). ~0.95 s. Run it:
+        #   ./build/test_srmech_ryu_repr_rc403     (exit 0 = all pass)
+        add_executable(test_srmech_ryu_repr_rc403
+                       c/test/test_srmech_ryu_repr_rc403.c)
+        target_link_libraries(test_srmech_ryu_repr_rc403
+                              PRIVATE srmech ${SRMECH_MATH_LIB})
+
         # THE RUN STEP. Every executable above is registered with ctest, so
         # `ctest --output-on-failure` in .github/workflows/srmech-ci.yml
         # actually executes them on all three OSes. Whole set = 551 ms wall on
@@ -267,7 +288,8 @@ if(SRMECH_SRCS)
             test_srmech_crt_reconstruct test_srmech_qmat_crt test_srmech_carrier
             test_srmech_progress test_srmech_bigint test_srmech_progress_tick
             test_srmech_text_fold test_srmech_genome test_srmech_toml_arena
-            test_srmech_toml_float test_srmech_json_number_rc402)
+            test_srmech_toml_float test_srmech_json_number_rc402
+            test_srmech_ryu_repr_rc403)
             add_test(NAME ${t} COMMAND ${t})
         endforeach()
     endif()

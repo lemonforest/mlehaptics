@@ -879,6 +879,12 @@ typedef struct {
     size_t  cap;      /* buffer capacity (bytes)      */
     size_t  pos;      /* bytes written / counted      */
     int     overflow; /* 1 once a write exceeded cap  */
+    srmech_status_t decline;  /* rc403: latches the first VALUE the writer
+                               * refuses to spell (a non-finite double). Not
+                               * an overflow — the tree is unrepresentable in
+                               * this writer's output language, so the whole
+                               * write returns non-OK rather than emitting a
+                               * token srmech_json_parse cannot read back. */
 } json_writer_t;
 
 /* Append `n` raw bytes (or count them in query mode). Once a write
@@ -959,29 +965,57 @@ static void json_write_int(json_writer_t *w, int64_t v)
     json_put(w, tmp, (size_t)n);
 }
 
-/* Format a double best-effort (NOT byte-parity with Python repr;
- * manifests are float-free — see header). Ensures a '.'/'e' is present
- * so the value reads back as a float. */
+/* Format a double EXACTLY as CPython repr(float) / json.dumps do, via the
+ * integer-only Ryu engine in srmech_ryu.c (rc403).
+ *
+ * This used to be `snprintf("%.17g")`, which was wrong for a canonical writer
+ * in two independent ways. It was PLATFORM-DEPENDENT — the C standard fixes
+ * only a MINIMUM exponent width, so Windows spells 1e17 as `1e+017` and Linux
+ * as `1e+17`; identical source over an identical double therefore hashed
+ * differently per host, which is fatal for bytes that live behind a sha256
+ * attestation. And it diverged from CPython on 8 of 16 everyday values
+ * (0.1 -> "0.10000000000000001", 1/3 -> "0.33333333333333331"), so a manifest
+ * written by the C half and one written by the Python half were not the same
+ * document. Ryu has neither property: the digits are a function of the input
+ * bits alone.
+ *
+ * NON-FINITE (rc403 D4 adjudication) DECLINES: the writer latches
+ * SRMECH_ERR_BAD_INPUT and srmech_json_write_ws returns it, rather than
+ * spelling the value. Three candidate behaviours were on the table:
+ *
+ *   (a) keep "%.17g" -> "nan" / "inf". Matches no CPython kwarg combination
+ *       on any platform, and is not valid JSON. This was the status quo and
+ *       it returned SRMECH_OK — a silent wrong answer, the top defect class.
+ *   (b) emit CPython's "NaN" / "Infinity" / "-Infinity". Byte-correct against
+ *       json.dumps, but this writer is PAIRED with srmech_json_parse, which is
+ *       strict RFC 8259 and declines those literals by deliberate rc402
+ *       adjudication. A canonical writer whose bytes go behind a sha256 must
+ *       not emit a document its own parser refuses: the attestation chain
+ *       (write -> hash -> parse -> re-hash) would break at the re-read, and
+ *       ADR-0003's bare-C host has no stdlib json to fall back to.
+ *   (c) DECLINE. RFC 8259 has no non-finite literal, so for a strict-RFC
+ *       writer this is the faithful answer, it is VISIBLE in the status, and
+ *       it makes writer-output a subset of parser-input unconditionally — a
+ *       stronger invariant than either half had before.
+ *
+ * (c) ships. The MCP marshal's mm_emit_double takes (b) instead, because its
+ * contract is byte-identity with json.dumps for a CPython consumer; that
+ * asymmetry is deliberate and documented at both sites. */
 static void json_write_double(json_writer_t *w, double v)
 {
+    char rep[40];
+    size_t rlen = 0u;
+    srmech_status_t st;
     assert(w != NULL);
     assert(w->buf != NULL || w->cap == 0);
-    char tmp[40];
-    int n = snprintf(tmp, sizeof(tmp), "%.17g", v);
-    if (n < 0) {
+    st = srmech_double_repr(v, rep, sizeof(rep), &rlen);
+    if (st != SRMECH_OK) {
+        if (w->decline == SRMECH_OK) {
+            w->decline = SRMECH_ERR_BAD_INPUT;
+        }
         return;
     }
-    bool has_dot = false;
-    for (int k = 0; k < n; k++) {
-        if (tmp[k] == '.' || tmp[k] == 'e' || tmp[k] == 'E' ||
-            tmp[k] == 'n' || tmp[k] == 'i') {
-            has_dot = true;
-        }
-    }
-    json_put(w, tmp, (size_t)n);
-    if (!has_dot && n < (int)sizeof(tmp) - 2) {
-        json_put(w, ".0", 2u);
-    }
+    json_put(w, rep, rlen);
 }
 
 /* ------------------------------------------------------------------ *
@@ -1138,7 +1172,7 @@ static srmech_status_t json_emit_tree(json_writer_t *w,
     assert(stack != NULL && max_depth > 0);
     if (root->type != SRMECH_JSON_OBJECT && root->type != SRMECH_JSON_ARRAY) {
         json_emit_scalar(w, root);
-        return SRMECH_OK;
+        return w->decline;              /* rc403: non-finite double DECLINES */
     }
     int depth = 0;
     json_emit_open(w, &stack[0], root);
@@ -1157,7 +1191,7 @@ static srmech_status_t json_emit_tree(json_writer_t *w,
             depth++;
         }
     }
-    return SRMECH_OK;
+    return w->decline;                  /* rc403: non-finite double DECLINES */
 }
 
 /* Emit-scratch dimensions: the widest object child-count (the order-array
@@ -1273,6 +1307,7 @@ srmech_status_t srmech_json_write_ws(const srmech_json_value_t *v,
     w.cap = buf_len;
     w.pos = 0;
     w.overflow = 0;
+    w.decline = SRMECH_OK;
     srmech_status_t st = json_emit_tree(&w, v, stack, depth);
     if (st != SRMECH_OK) {
         return st;

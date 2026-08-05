@@ -716,6 +716,13 @@ SCAN_ROOTS = {
     "tests/test_rosetta_transitive_standalone.py": ("docs/srmech/c",),
     "tests/test_worked_examples_execute_rc354.py": ("docs/srmech/python",),
     "tests/test_laplacian_numpy_free.py": ("docs/srmech/python",),
+    # rc403 (`#T1071`): loads c/tools/gen_ryu_tables.py and re-derives every row
+    # of c/src/srmech_ryu_tables.h from it. Both live under c/, so the reach is
+    # inside srmech-ci's own trigger; it is declared here because the generator
+    # is DELIBERATELY excluded from the regen_all pass (a mathematical constant
+    # cannot be staled by a tool-surface change), which makes this test the only
+    # thing that would notice a hand-edited table limb.
+    "tests/test_ryu_tables_attested_rc403.py": ("docs/srmech/c",),
 }
 
 #: Reach expressions that can climb ABOVE `docs/srmech/python/`. `parents[1]`

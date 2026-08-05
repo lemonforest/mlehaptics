@@ -332,112 +332,18 @@ srmech_status_t srmech_mval_from_json(const srmech_json_value_t *j,
 }
 
 /* ------------------------------------------------------------------
- * SHORTEST double->repr formatter (rc190) — CPython repr(float)/json.dumps.
+ * SHORTEST double->repr formatter — MOVED to src/srmech_ryu.c (rc403).
+ *
+ * srmech_double_repr and its four helpers lived here from rc190 until
+ * rc403. They searched for the shortest `%.*e` that strtod round-trips,
+ * which is the shortest PRINTF-REACHABLE round-tripper, not the shortest
+ * round-tripper: at an exact decimal tie glibc rounds to-even, so the
+ * tie's other neighbour was never offered as a candidate and the search
+ * fell through to one digit too many. 92 of the 4196 signed powers of two
+ * disagreed with CPython repr(), and mm_emit_double below emitted those
+ * wrong bytes at SRMECH_OK. srmech_ryu.c replaces it with an integer-only,
+ * table-driven Ryu conversion with no printf, no strtod and no libm.
  * ------------------------------------------------------------------ */
-
-/* Shortest %.*e (p=0..16) that strtod-round-trips `m` (m>0, finite). Fills the
- * significant decimal digits into `digs` (>=18 chars) + *ndig, and the base-10
- * exponent of the leading digit into *exp10. Returns SRMECH_ERR_BAD_INPUT if
- * snprintf overruns (never for a finite m). glibc/msvc/macOS printf + strtod
- * are correctly-rounded, so this yields the same digit string CPython's dtoa
- * (mode 0) does on the same platform. */
-static srmech_status_t dr_shortest(double m, char *digs, int *ndig, int *exp10)
-{
-    char tmp[40]; int p, i, dn; long e;
-    assert(m > 0.0);
-    assert(digs != NULL && ndig != NULL && exp10 != NULL);
-    for (p = 0; p <= 16; p++) {
-        int nn = snprintf(tmp, sizeof tmp, "%.*e", p, m);
-        if (nn < 0 || (size_t)nn >= sizeof tmp) { return SRMECH_ERR_BAD_INPUT; }
-        if (strtod(tmp, NULL) == m) { break; }
-    }
-    if (p > 16) { p = 16; }                             /* 17 sig digits always round-trip */
-    dn = 0;
-    for (i = 0; tmp[i] != 'e' && tmp[i] != 'E' && tmp[i] != '\0'; i++) {
-        if (tmp[i] >= '0' && tmp[i] <= '9') { digs[dn++] = tmp[i]; }
-    }
-    if (tmp[i] != 'e' && tmp[i] != 'E') { return SRMECH_ERR_BAD_INPUT; }
-    e = strtol(tmp + i + 1, NULL, 10);
-    *ndig = dn; *exp10 = (int)e;
-    return SRMECH_OK;
-}
-
-/* Append `n` '0' chars into out at *pos (bounded by the ndig<=17 / decpt<=16
- * fixed-format geometry — the caller sizes cap >= 32). */
-static void dr_zeros(char *out, size_t *pos, int n)
-{
-    int i;
-    assert(out != NULL && pos != NULL);
-    assert(n >= 0);
-    for (i = 0; i < n; i++) { out[(*pos)++] = '0'; }
-}
-
-/* Render the exponential form (use_exp): D[.DDDD]e{+-}XX (>=2 exponent digits). */
-static void dr_exp(char *out, size_t *pos, const char *digs, int ndig, int exp10)
-{
-    int i, ea; char es;
-    assert(out != NULL && pos != NULL && digs != NULL);
-    assert(ndig >= 1);
-    out[(*pos)++] = digs[0];
-    if (ndig > 1) {
-        out[(*pos)++] = '.';
-        for (i = 1; i < ndig; i++) { out[(*pos)++] = digs[i]; }
-    }
-    out[(*pos)++] = 'e';
-    es = (exp10 < 0) ? '-' : '+'; ea = (exp10 < 0) ? -exp10 : exp10;
-    out[(*pos)++] = es;
-    if (ea < 10) { out[(*pos)++] = '0'; out[(*pos)++] = (char)('0' + ea); }
-    else { char eb[8]; int en = snprintf(eb, sizeof eb, "%d", ea);
-           if (en > 0) { memcpy(out + *pos, eb, (size_t)en); *pos += (size_t)en; } }
-}
-
-/* Render the fixed form from digits + decimal-point position `decpt`. */
-static void dr_fixed(char *out, size_t *pos, const char *digs, int ndig, int decpt)
-{
-    int i;
-    assert(out != NULL && pos != NULL && digs != NULL);
-    assert(ndig >= 1);
-    if (decpt <= 0) {                                   /* 0.<zeros><digits> */
-        out[(*pos)++] = '0'; out[(*pos)++] = '.';
-        dr_zeros(out, pos, -decpt);
-        for (i = 0; i < ndig; i++) { out[(*pos)++] = digs[i]; }
-    } else if (decpt >= ndig) {                          /* <digits><zeros>.0 */
-        for (i = 0; i < ndig; i++) { out[(*pos)++] = digs[i]; }
-        dr_zeros(out, pos, decpt - ndig);
-        out[(*pos)++] = '.'; out[(*pos)++] = '0';
-    } else {                                             /* <digits>.<digits> */
-        for (i = 0; i < decpt; i++) { out[(*pos)++] = digs[i]; }
-        out[(*pos)++] = '.';
-        for (i = decpt; i < ndig; i++) { out[(*pos)++] = digs[i]; }
-    }
-}
-
-srmech_status_t srmech_double_repr(double v, char *out, size_t cap, size_t *out_len)
-{
-    char digs[20]; int ndig = 0, exp10 = 0, decpt; size_t pos = 0u;
-    uint64_t bits; int neg; double m; srmech_status_t st;
-    /* NULL/too-small buffer returns NULL_ARG BEFORE any assert (rc715). */
-    if (out == NULL || out_len == NULL || cap < 32u) { return SRMECH_ERR_NULL_ARG; }
-    if (v != v) { return SRMECH_ERR_BAD_INPUT; }        /* NaN -> defer */
-    if (v != 0.0 && v * 0.5 == v) { return SRMECH_ERR_BAD_INPUT; }  /* +-Inf -> defer */
-    memcpy(&bits, &v, sizeof bits);                     /* libm-free sign (incl. -0.0) */
-    neg = (int)(bits >> 63);
-    assert(cap >= 32u);
-    if (v == 0.0) {
-        const char *z = neg ? "-0.0" : "0.0";
-        memcpy(out, z, strlen(z) + 1u); *out_len = strlen(z); return SRMECH_OK;
-    }
-    m = neg ? -v : v;
-    st = dr_shortest(m, digs, &ndig, &exp10);
-    if (st != SRMECH_OK) { return st; }
-    decpt = exp10 + 1;
-    if (neg) { out[pos++] = '-'; }
-    if (decpt <= -4 || decpt > 16) { dr_exp(out, &pos, digs, ndig, exp10); }
-    else { dr_fixed(out, &pos, digs, ndig, decpt); }
-    assert(pos < cap);
-    out[pos] = '\0'; *out_len = pos;
-    return SRMECH_OK;
-}
 
 /* ------------------------------------------------------------------
  * OUTBOUND serialiser — bounded emit sink, ensure_ascii=True, insertion
@@ -570,19 +476,40 @@ static void mm_emit_int(mm_emit_t *e, int64_t v)
     mm_raw(e, tmp, (size_t)n);
 }
 
-/* Emit a double as CPython repr(float)/json.dumps do — the SHORTEST round-trip
- * decimal via srmech_double_repr (rc190 repr-parity). A non-finite double (never
- * produced by the exact tools) falls back to the %.17g(+".0") best-effort form. */
+/* Emit a double exactly as CPython repr(float) / json.dumps do — the SHORTEST
+ * round-trip decimal via srmech_double_repr (rc403: integer-only Ryu, no printf).
+ *
+ * NON-FINITE (rc403 D4 adjudication). This now emits CPython's OWN spelling —
+ * "NaN" / "Infinity" / "-Infinity" — where it used to emit C's platform-spelled
+ * "%.17g" ("nan" / "inf" / "-inf" under glibc, "-nan(ind)" / "1.#INF" under some
+ * MSVC runtimes). This surface's entire contract is byte-identity with
+ * json.dumps, whose DEFAULT allow_nan=True produces exactly those three tokens;
+ * the old fallback matched no CPython kwarg combination on any platform.
+ *
+ * Deliberately ASYMMETRIC with srmech_json_write_ws, which DECLINES a non-finite
+ * double rather than spelling it. That writer is the canonical one: its bytes go
+ * behind a sha256 and are read back by srmech_json_parse, which is strict RFC
+ * 8259 and has no NaN literal, so emitting a token its own parser refuses would
+ * break the attestation round trip silently. Here the consumer is a CPython
+ * json.loads, which accepts all three, so the round trip closes. Same engine,
+ * two non-finite policies, each derived from its own contract. */
 static void mm_emit_double(mm_emit_t *e, double v)
 {
-    char rep[40]; size_t rlen = 0u;
+    char rep[40]; size_t rlen = 0u; uint64_t bits = 0u;
     assert(e != NULL);
     assert(sizeof rep >= 32u);
     if (srmech_double_repr(v, rep, sizeof rep, &rlen) == SRMECH_OK) {
         mm_raw(e, rep, rlen);
+        return;
+    }
+    /* Only reachable for a non-finite v (biased exponent all ones). */
+    memcpy(&bits, &v, sizeof bits);
+    if ((bits & 0x000FFFFFFFFFFFFFull) != 0u) {
+        mm_cstr(e, "NaN");
+    } else if ((bits >> 63) != 0u) {
+        mm_cstr(e, "-Infinity");
     } else {
-        int n = snprintf(rep, sizeof rep, "%.17g", v);   /* NaN/Inf best-effort */
-        if (n > 0) { mm_raw(e, rep, (size_t)n); }
+        mm_cstr(e, "Infinity");
     }
 }
 
