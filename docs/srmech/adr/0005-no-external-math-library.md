@@ -56,12 +56,50 @@ library (no `libm` reliance for the exact path, no GMP): srmech provides its own
    fractions-free must have literally no import of it anywhere in its reachable
    graph, and a test for such a module must itself be free of the library.
 
-4. **Enforced by AST ratchets, not vigilance.** Each purge ships a ratchet that
-   AST-walks `srmech/` and fails on the banned import (`test_no_stdlib_math_import`,
-   the numpy-carrier ratchet, `test_no_stdlib_fractions_import`). Ratchet counts only
-   ever go DOWN. Any future external-math library gets the same treatment.
+4. **Enforced by ONE data-driven AST ratchet, not vigilance and not a file per
+   library.** `tests/test_selfhosting_import_ban.py` AST-walks the tree and fails on
+   a banned import; every ban is a row in its `BAN_LIST` table, so **adding the next
+   ban is a data edit**. Counts only ever go DOWN. Any future external-math library
+   gets a row.
 
-5. **Float is the last mile only.** Exact work stays in the integer ALU / `Q` /
+   *Why one table (rc405, `#T1073`).* Until rc405 this clause named three separate
+   files — `test_no_stdlib_math_import` (rc13), the numpy-carrier ratchet (rc69),
+   `test_no_stdlib_fractions_import` (rc263) — and that shape re-created §1's failure
+   one level up: stating only the instances is what let `fractions` in, and a file per
+   instance means the FOURTH ban costs a new file, so it does not get written. It had
+   not been: `decimal` is named in §2 above and had **no ratchet at all**. The three
+   files are absorbed; the table now carries seven rows, each with a **mode** and an
+   **enforcement**:
+
+   | module | mode | enforcement | replaced by |
+   |---|---|---|---|
+   | `numpy` | BANNED_ENGINE | strict zero | `Mat` / `Vec` / `HV` + native dense kernels |
+   | `math` | BANNED_ENGINE | strict zero (+ `math.<attr>` access) | `srmech.math.rational` Class-N cascades, `srmech_isqrt` |
+   | `fractions` | BANNED_ENGINE | strict zero; 64 named `tests/`+`tools/` oracle allowances | `srmech.math.q.Q` / `to_q` |
+   | `decimal` | ALLOWED_PROJECTION | strict zero; allowance set EMPTY | `Q` / `srmech_bigint` interior; projection is srmech's own `srmech_double_repr` |
+   | `json` | FRONT_DOOR_ONLY | down-only CEIL = 39 | `srmech._json.loads` |
+   | `tomllib` | FRONT_DOOR_ONLY | strict zero; 3 named files | `srmech._toml.loads` |
+   | `tomli` | FRONT_DOOR_ONLY | strict zero; 3 named files | `srmech._toml.loads` |
+
+5. **Projection out is allowed; engine use is not** (user direction 2026-08-05:
+   *"we can let srmech project to decimal when needed"*). The ban is on using a
+   foreign library as the **computation engine**. srmech converting or emitting to a
+   foreign type at an output / interop boundary is legitimate, which is why the ban
+   list carries a per-row MODE rather than being a flat blocklist. `ALLOWED_PROJECTION`
+   permits an import from a file NAMED as a projection boundary — and `decimal`'s
+   allowance set is empty, because the capability is already self-hosted in C as
+   `srmech_double_repr` (integer-only Ryu, shortest round-trip) and no stdlib
+   `decimal` is needed for it.
+
+6. **The ban is a COVERAGE instrument, not purity theatre** (same direction:
+   *"this approach of srmech tooling first also means we thoroughly test all our
+   surfaces"*). Reaching for srmech first is how every shipped surface gets exercised
+   and how real gaps become visible. When the guard fires the first question is
+   **"does srmech already ship this and I did not look?"** — twice in one session the
+   answer was yes (`mat_rank`, `srmech_double_repr`). The guard says so in its failure
+   message.
+
+7. **Float is the last mile only.** Exact work stays in the integer ALU / `Q` /
    `srmech_bigint` all the way; a `float` appears only at the terminal display /
    projection boundary (see ADR-0005). This is *why* no external float-math library
    is needed in the interior.
@@ -72,7 +110,17 @@ library (no `libm` reliance for the exact path, no GMP): srmech provides its own
   runs the same exact-relationship math. This is the point.
 - Enforcement history (all shipped + ratcheted): **numpy** removed across the
   carrier arc rc75–rc133; **stdlib `math`** removed rc13; **stdlib `fractions`**
-  removed rc263 (the `Q` carrier subsumed it). Each left a standing AST ratchet.
+  removed rc263 (the `Q` carrier subsumed it). Each left a standing AST ratchet;
+  rc405 absorbed all three into the one `BAN_LIST` table above. The per-rc numpy
+  drainage record (61 → 0) is **not** in the guard — it is committed per-flip in
+  `c/ROSETTA_LEDGER.md` and per-rc in `python/CHANGELOG.md`, and the constant name
+  `CEIL_NUMPY_CARRIER` is kept in the guard so those records stay live.
+- rc405 also closed a scan hole the retired guards carried: both skipped any path
+  under `srmech/_native/`, on a comment that it holds only compiled libraries. That
+  stopped being true when `srmech/_native/__init__.py` became a **1.1 MB generated
+  Python module** — which was therefore exempt from the `math` and `fractions` bans.
+  The table-driven guard scans every `.py` with no exclusion; measured at adoption,
+  both stay at 0, so closing it was free.
 - New surfaces cost more up front (build the native primitive) but never accrue an
   external-library dependency that has to be unwound later at ~20-module scale.
 

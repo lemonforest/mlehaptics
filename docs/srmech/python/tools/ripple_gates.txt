@@ -82,11 +82,15 @@ tests/test_non_compute_ratchet_rc170.py
 tests/test_annex_ratchet_rc177.py
 tests/test_annex_ratchet_rc183.py
 
-# -- stdlib-fractions ban (new test files) -----------------------------------
-#    A new op-rc's new TEST FILE that reaches for stdlib `fractions` trips this
-#    (#845 / #870). It cost rc386 a full CI-red round because the runner did not
-#    include it. Pure-Python, sub-second.
-tests/test_no_stdlib_fractions_import.py
+# -- self-hosting import ban (`#T1073`) --------------------------------------
+#    The ONE table-driven ban list: numpy / math / fractions / decimal (engine
+#    bans) + json / tomllib / tomli (front-door ledgers). A new op-rc's new TEST
+#    FILE reaching for stdlib `fractions` trips it (#845 / #870) — that cost
+#    rc386 a full CI-red round because the runner did not include it — and a new
+#    package module reaching for ANY banned engine trips it too. Absorbed
+#    test_no_stdlib_fractions_import + test_no_stdlib_math_import +
+#    test_numpy_carrier_ratchet at rc405. Pure-Python, no native `.so`.
+tests/test_selfhosting_import_ban.py
 
 # -- decode-aware namespace population pin ------------------------------------
 #    Adding a cascade op bumps the `srmech.cascade` DECODED-channel population
