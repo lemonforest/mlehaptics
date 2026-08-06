@@ -92,7 +92,14 @@ warmup_all()
 # large, LOWER it in the same commit that drained the rows; a ceiling left
 # above the true count is exactly the slack a false green lives in.
 CEIL_EXAMPLE_INPUT_KEY_MISMATCH: Dict[str, int] = {
-    "mixed_param_and_prose": 15,
+    # rc408 (`#T1078`): 15 -> 14. ``srmech.biology.genome.genome_append``'s
+    # example already called the op with a ``catalog`` key, but the ToolEntry
+    # did not DECLARE ``catalog`` — so a real, working call read as an entry
+    # "mixing parameter names with prose". The converse-ratchet sweep declares
+    # it (with the other 33 real-but-undeclared parameters), every key of that
+    # example is now a real parameter, and the row drains. Lowered in the SAME
+    # commit as the drain.
+    "mixed_param_and_prose": 14,
     "missing_required": 6,
     # rc395 (`#T1000`): 11 -> 10. The removed sedenion_zero_divisor_witness was a
     # zero-parameter op carrying a numbered {"1".."4"} example input; its removal

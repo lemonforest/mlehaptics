@@ -1201,6 +1201,11 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     # ── JSON-native-ish that still want a light shape fix ──
     "pathlib.Path": _to_path,
     "tuple[int, int]": _to_int_tuple,
+    # 0.9.0rc408 (`#T1078`): cascade.the_one `w` — the WINDING TRIAD
+    # (n_sigma, n_theta, n_phi). ``_to_int_tuple`` is arity-agnostic (it turns
+    # the JSON list into a tuple; the op validates the length), so the pair
+    # coercer above serves the triad unchanged.
+    "tuple[int, int, int]": _to_int_tuple,
     "list[tuple[int, int]]": _identity,   # nested lists JSON-native
     "list[tuple[int, int, int]]": _identity,  # v0.9.0rc328: cotangent_weights `triangles` — (i,j,k) vertex-index triples, JSON-native nested list
     # 0.9.0rc231 (#810 / #687): the V₄-gain-graph odd/even-channel ops.
@@ -1268,6 +1273,17 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     "operator_name": _resolve_operator_name,
     "callable": _identity,
     "numpy.random.Generator": _identity,
+    # 0.9.0rc408 (`#T1078`): the HOST-SIDE operand types. Both publish
+    # JSON-schema "null" (srmech.mcp._tools._TYPE_LEXICON), so the ONLY value
+    # that can arrive here over the wire is ``None`` — and ``coerce_param``
+    # short-circuits ``None`` before ever reaching this table. The identity
+    # entries therefore exist for the IN-PROCESS path (a Python caller passing
+    # a real callback / Generator through invoke_tool) and to satisfy the
+    # ``has_coercer`` exhaustiveness ratchet, which requires every ADVERTISED
+    # param type to have an explicit handler. Identity is the correct handler:
+    # a live host object is already the native form and must not be touched.
+    "host_callable": _identity,
+    "host_rng": _identity,
 }
 
 
