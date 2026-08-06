@@ -12,7 +12,7 @@ is not.
 **Supersedes:** none.
 **Superseded-by:** none.
 **Amends:** **none.** This ADR **extends ADR-0012, it does not amend it** — nothing in 0012 is revised,
-narrowed or contradicted. It occupies a gap 0012 explicitly left open; see §1.2 for the warrant, quoted
+narrowed or contradicted. It occupies a gap 0012 explicitly left open; see §1.6 for the warrant, quoted
 verbatim.
 **Relates-to:** **ADR-0012** (introspect IS the API contract — this ADR names one of the open gaps that
 ADR defines the standard for; C1–C6 are not restated here) · **ADR-0009** (multi-implementation parity
@@ -22,7 +22,8 @@ partly an ADR-0004 question) · **ADR-0010** (namespace declustering — `tool_s
 generated peers now live under `srmech/introspect/`, not `srmech/amsc/`; every path in this ADR is
 post-declustering) · **ADR-0007** §2.3 (the release ripple these three files ride).
 **Motivated by:** eight retrieval failures in a single agent session working ON this codebase, every
-one over capability that had already shipped (§1.1).
+one over capability that had already shipped — and every one a **confident wrong answer supplied by
+training**, never a blank (§1.2).
 
 ---
 
@@ -50,24 +51,87 @@ srmech is bounded by the caller's domain vocabulary, it is a calculator.** The s
 ADR is what makes it not one — and §6 measures that today the surface is *authored* but not
 *reachable*, which is the same failure wearing better clothes.
 
-### 1.1 The demonstration — and precisely which half of it is re-derivable
+### 1.1 The reason the surface must exist — user direction
 
-An LLM agent working on this codebase recorded **eight retrieval failures in one session**, every one
-over capability that had **already shipped**. Not gaps: authored, tested, wheel-resident capability
-that the agent could not find and therefore re-derived or declared missing.
+> *"we must do something different to make 'reach for srmech for all maths' also let you know how to
+> reach in the first place. I'd hoped that this would become emergent from usage, but it just keeps
+> getting pushed out by static LLM weights for a world made out of only established python libraries."*
 
-*(The count of eight is reported from the originating session and is not re-derivable here — it is a
-property of that transcript, not of the tree. The exhibit below IS re-derived, and it is the sharpest
-of the eight.)*
+This is the ADR's core argument, and the second sentence is the load-bearing one: **emergence was
+tried and it lost.** Not to indifference — to a competing signal that is always present, always
+confident, and always earlier.
 
-**The sharpest instance.** `srmech.math.cyclic.gcd` carries a WHEN clause naming its affordance in the
-reader's own domain vocabulary — verbatim from the shipped entry:
+### 1.2 It is a COMPETING-PRIORS problem, not an ignorance problem
 
-> WHEN — reach for it any time two periods, tooth counts or moduli must be reduced to their common
-> sub-period: **gear-train ratio reduction, dial realignment**, reducing a `(num, den)` pair before it
-> enters a Class-N chain.
+**All eight measured failures were confident wrong answers supplied by training, never blanks.** That
+distinction decides the whole design. An ignorance problem is solved by adding information. A
+competing-priors problem is not — the information was already there, and something else answered
+first.
 
-That sentence is exactly what an Antikythera-side reader needs, and it ships. Measured on this branch:
+Every row below is a real capability that ships. Verified on this branch by direct lookup:
+
+| the trained reach | what actually ships | verified |
+|---|---|---|
+| `decimal` for a logarithm | `srmech.math.rational.log` · `…rational.log1p_series_truncate` | both `lookup()` OK |
+| `math.gcd` | `srmech.math.cyclic.gcd` | `lookup()` OK |
+| filed `mat_rank` as a **GAP** — because numpy has `matrix_rank`, so srmech was assumed not to | **`QMat.rank(self, *, method: str = "auto")`** — `srmech/math/qmat.py:447` | method exists; `resolve_all('rank')` → **`()`** |
+| wrote `srmech.math.rational.Q` — "rational" is the *world's* word (`fractions`, `sympy.Rational`) | **`srmech.math.q.Q`** — `srmech/math/q.py:234` | correct module confirmed |
+| guessed `all_entries()` / `REGISTRY` / `ENTRIES` — the names *libraries* use | `get_tool_schema()` · `tool_schema_view()` (`introspect/tool_schema.py:645`) | `all_entries` → **no such name** |
+
+**The `mat_rank` row is the sharpest and deserves its own sentence**, because it is not a retrieval
+failure at all — it is the index being scoped narrower than the capability surface, and saying so in a
+field nobody reads. `describe()["tools"]["covers"]` states verbatim: *"registered module-level ops
+only; **carrier/class methods are not indexed here**"*. `rank` is a method. So an agent consulting the
+index and concluding "srmech has no rank" **read the index correctly and got a false answer about the
+package.** ADR-0012's INCOMPLETE IS AS BAD AS FALSE, instantiated.
+
+### 1.3 The bootstrap is circular — which is why emergence cannot close it
+
+Knowledge accumulates through usage · usage requires reaching · reaching requires knowing what is
+there. **Without an index the cycle never closes, and every session restarts from the trained prior.**
+Emergence is not slow here; it is structurally blocked. A loop with no entry point does not converge
+given more laps.
+
+**The detector works. The referral is missing.** The project's standing rule — *catching yourself
+reaching for another math module IS the gap signal* — fired repeatedly and correctly in the session
+that produced these eight. But **when it fires there is nowhere to consult**, so the fallback is the
+prior anyway. That is the precise shape of the defect: **a working instrument with no referral path.**
+
+The tree already anticipated this exact failure and wrote the counter-instruction into the one organ
+that cannot be reached. `srmech.math.cyclic.gcd`'s SIBLINGS clause, verbatim:
+
+> **SIBLINGS — READ THIS BEFORE FILING A GAP.** […] **Do not reach for `math.gcd` inside a cascade:**
+> the value is identical, but the stdlib call is invisible to the DSL declarer, the tool schema and
+> the introspect writer.
+
+An instruction naming the precise trained reach (`math.gcd`), and an instruction against the precise
+error that was in fact committed for another op (filing a gap) — both authored, both shipped, both
+unreachable. *(Honest bound: that exact `READ THIS BEFORE FILING A GAP` sentence appears in **1 of
+556** explanations. It is one author's note, not a convention — its force here is as an exhibit that
+the knowledge existed, not as evidence of a systematic practice.)*
+
+### 1.4 Therefore the acceptance criterion is TEMPORAL, not merely correctness
+
+The standard this surface is measured against is **not** *"can it find gcd?"* It is:
+
+> ### **Does srmech's answer arrive BEFORE the habit fires?**
+
+**An answer that arrives after `import math` has already been written has lost, even when it is
+right.** This is what distinguishes the explanation surface from documentation in the ordinary sense:
+documentation is judged by whether it is correct and complete when consulted, and this surface is
+judged by whether it *wins a race it is currently not entered in*. Every reachability measurement in
+§6 should be read against that clock, not against a coverage percentage.
+
+### 1.5 Why the AFFORDANCE organ is load-bearing rather than ornamental
+
+Training knows densely and reliably what a gcd *is*. So **identification competes with training and
+loses** — it is the one thing the prior is strongest at, and srmech's version arrives later.
+
+Training cannot supply *"**this project** reaches for gcd when reducing gear-train ratios and dial
+realignments"*, because that is **not a fact about mathematics but about this substrate's use of it.**
+No corpus contains it. **Identification competes and loses; affordance does not compete at all.**
+
+That is why the WHEN organ is the asset and why its unreachability is the defect. Measured:
 
 | probe | in `summary` | in `explanation` | in `example` | entries touched | `resolve()` |
 |---|---|---|---|---|---|
@@ -76,12 +140,18 @@ That sentence is exactly what an Antikythera-side reader needs, and it ships. Me
 | `chirality` | 31 | 49 | — | 65 | `None` |
 | `eigen` | 48 | 76 | — | 107 | `None` |
 
-**`gear` appears 0 times across all 556 summaries** — the advertised index — while the domain
-vocabulary was authored 36 entries deep in the unadvertised half. The word was written down and
-structurally unreachable. That is not an authoring failure; it is an addressing failure, and it is the
-subject of this ADR.
+`srmech.math.cyclic.gcd`'s WHEN clause, verbatim from the shipped entry:
 
-### 1.2 The warrant — ADR-0012 left this gap open on purpose
+> WHEN — reach for it any time two periods, tooth counts or moduli must be reduced to their common
+> sub-period: **gear-train ratio reduction, dial realignment**, reducing a `(num, den)` pair before it
+> enters a Class-N chain.
+
+**`gear` appears 0 times across all 556 summaries** — the advertised index — while the vocabulary
+training could never have supplied was authored 36 entries deep in the unadvertised half. The word was
+written down and structurally unreachable. That is not an authoring failure; it is an addressing
+failure, and it is the subject of this ADR.
+
+### 1.6 The warrant — ADR-0012 left this gap open on purpose
 
 ADR-0012 is titled *"The introspect surface IS the API contract — autonomous composition, **not
 documentation**"*. Its §9 states, verbatim:
@@ -114,7 +184,12 @@ the string, or `len(json.dumps(v, sort_keys=True))` for the `example` dict):
 The unadvertised half is **1,680,228 chars — 4.4× the advertised index.** Full population on all three
 fields; the coverage floors (§4) are why.
 
-### 2.1 The organ decomposition — this is the load-bearing structure
+### 2.1 The organ decomposition — WHERE WE ARE, not what it is
+
+⚠️ **Read this subsection as a description of the present form, not of the target.** §2.3 states the
+goal, which is different in kind: four **readings of one addressed set**, not four authored strings.
+The four-field shape below is where the surface stands today, and §2.3 argues it is the wrong shape
+for what it is being asked to do.
 
 The payload is not one undifferentiated blob. It has **four organs**, and they answer four different
 questions:
@@ -164,6 +239,99 @@ of §2.1 are separately *addressable in principle* and not separately *parseable
 heuristic. Any future consumer that wants to select one organ (§5) must either adopt a delimiter
 contract or move the organs into distinct fields. **This ADR does not choose between those** (§9.1) —
 it records that the choice exists and that today the answer is "neither".
+
+### 2.3 THE GOAL — four readings of one score
+
+**User direction, and it is a decision about what the surface should become:**
+
+> *"our goal is that our introspect surface become four readings of one score, even if it needs
+> constructed of discrete subparticles."*
+
+**The target: the organs become four TRAVERSALS of one addressed set, not four authored strings.**
+Identification, contract, affordance and demonstration stop being four places prose is written and
+become four ways one body of addressed content is read. §2.1's four-field form is the current
+approximation to this; it is not the thing itself.
+
+**Why the present form is not merely unpolished but expressively insufficient — measured.**
+
+**(a) An atom may belong to more than one reading, and today you must say it twice or drop it.**
+gcd's *"reduces two periods to their common sub-period"* is simultaneously **contract** (it is what
+the op computes) and **affordance** (it is when you reach for it). Measured on the shipped entry, the
+organs split cleanly at WHAT `[0:357]` / WHEN `[357:717]` / SIBLINGS `[717:1475]`, and:
+
+| probe | WHAT | WHEN | SIBLINGS |
+|---|---|---|---|
+| `sub-period` | — | ✅ | — |
+| `uint64` · `ValueError` | ✅ | — | — |
+| **`lcm`** | — | **✅** | **✅** |
+
+Two distinct failures in one entry. **`sub-period` is dropped from a reading**: the characterisation
+lives only in WHEN, so a WHAT traversal cannot see the very thing the op computes. **`lcm` is said
+twice**: it is authored in WHEN *and* in SIBLINGS, because both readings genuinely need it and the
+form gives them no way to share.
+
+At scale — *basis: the **521 of 556** entries whose explanation splits cleanly as WHAT < WHEN <
+SIBLINGS; content words are `[A-Za-z_]\w{5,}`, stop-words removed; "shared" = appears in ≥2 organs*:
+
+**513 of 521 entries (98.5%)** carry at least one content word in two or more organs — median **6**
+shared tokens per entry, mean 5.9, max 16.
+
+⚠️ **This instrument over-counts and must be read as an upper bound.** Lexical overlap is not proof of
+semantic duplication: an op's own name, and common technical vocabulary, recur innocently. What it
+establishes is that **cross-organ repetition is the norm rather than the exception**, which is what
+the four-field form predicts. The gcd `lcm` case is the hand-verified instance; the 98.5% is the
+population shape around it, not 513 proven duplications.
+
+**(b) Sub-field granularity is the load-bearing allowance.** *"even if it needs constructed of
+discrete subparticles"* is not a hedge — it is the enabling condition. **Readings are only
+non-destructive if the underlying set is finer than any one reading needs.** Were atoms field-sized, a
+reading wanting half of one would have to **cut** it — and cutting is construction, not reading. The
+whole property depends on the atoms being smaller than the readings.
+
+**(c) It dissolves a wart already recorded here.** §2.2 measures the WHAT/WHEN separation as a *string
+convention* — em-dash 325 / colon 130 / hyphen 37 / absent 46. Under an addressed set the separation
+is **structural**, and a reading becomes a **frame commitment** rather than a parse. §2.2's finding is
+therefore not a defect to patch but evidence for this target.
+
+**(d) The phrase is "address one way, read another" — NOT "build one way".** Addressing and reading
+are both non-destructive; **building twice would mean two encodings**, which is exactly what §7
+measures as the present cost and exactly what this must not reproduce.
+
+The musical analogy is precise rather than decorative: **retrograde, inversion and transposition are
+readings, not rewrites — the marks on the page do not move.** And the formal statement is
+**`Lk = Tw + Wr`**: the linking number is what is *there* (invariant); twist and writhe are the
+frame-relative decomposition that trades off with how you read. **Building would change `Lk`; reading
+cannot.**
+
+✅ **This is carrier-native, not an imported metaphor — srmech ships the theorem.**
+`srmech.biology.genome.cwf_consistency_mod2` is the Călugăreanu–White–Fuller check `Lk = Tw + Wr (mod
+2)`, with `discrete_writhe` supplying Wr and `quaternion_cycle_holonomy` supplying Lk. Its own shipped
+explanation states the design rule that maps **exactly** onto the migration risk below:
+
+> The load-bearing design rule is that **Wr is computed from geometry and NEVER as `Lk - Tw`**; that
+> is what gives the check teeth […] A version that back-solved Wr would report True always and detect
+> nothing.
+
+**Read that as the constraint on any future decomposition: each reading must be derived from the
+addressed atoms independently, never back-solved from the other readings.** A reading defined as
+"whatever the other three did not take" is the back-solve, and it detects nothing.
+
+**⚠️ MIGRATION CAUTION — recorded as a RISK, not as a plan.**
+
+**556 ops × 3,022 chars of `explanation` + `example` is not obviously machine-decomposable.**
+*(Measured: mean 3,022 chars per op on the `json.dumps` basis for `example`; 2,938 on a concatenated-
+values basis; 1,337 for `explanation` alone. The coordinating brief said ~2,850 — my measurement
+supersedes it, and the figure is basis-dependent as §6.2 requires.)*
+
+**The content most at risk is the most valuable and the least recoverable: the WHEN clauses' domain
+vocabulary.** §1.5 is the argument for why — it is the one organ training cannot regenerate, so a
+decomposition that loses it cannot be repaired from any model's prior. And the failure would be
+**silent**: a wrong decomposition yields a score that reads correctly in three organs and has quietly
+lost the fourth's vocabulary. **Nothing currently gates that** — there is no instrument that would go
+red (§11).
+
+**The migration path is the hard part, not the target.** Naming the target does not license attempting
+it without an instrument that can detect vocabulary loss first.
 
 ---
 
@@ -270,6 +438,14 @@ This is a decision about **shape**, not about mechanism: the organs are distinct
 addressable in principle, and any encoding chosen later (§9.1) must preserve that separability rather
 than re-flatten it. §2.2 records that today the delimiter is not uniform enough to make the selection
 mechanical, which is a constraint on the encoding decision, not a reason to defer the shape decision.
+
+**Selectability is the weak form; §2.3's four readings is the strong form.** Selecting an organ
+presupposes each organ is a separable *string*, and §2.3 measures why that presupposition fails: 98.5%
+of entries carry content across two or more organs, and gcd's `lcm` is authored twice because the form
+offers no way to share. **Under four readings of one addressed set, selection stops being extraction
+and becomes traversal** — the same atom can participate in two readings without being written twice,
+and no reading has to cut another's content to get what it needs. This section states the requirement
+a consumer has today; §2.3 states the shape that satisfies it without forcing duplication.
 
 ---
 
@@ -482,6 +658,18 @@ recorded as *observations*, not as decisions this ADR makes:
   measured against.
 - **The organs are separately selectable by design** — and §2.2 records that the current delimiter is
   not uniform enough to make that mechanical, which is a real constraint on the encoding decision.
+- **The stated goal is four READINGS of one addressed set (§2.3), and the four-field form is recorded
+  as where we are rather than as what it is.** A future rc proposing to keep four authored strings is
+  proposing against a stated goal and should say so. The two measured arguments for the change are
+  that an atom may belong to more than one reading (gcd's `lcm`, authored twice) and that a reading
+  may need content another organ holds (gcd's `sub-period`, dropped from WHAT).
+- **The failure mode is CONFIDENT WRONG ANSWERS, not blanks (§1.2), so the bar is temporal (§1.4).**
+  A future measurement reporting that the surface "covers" a capability has answered the wrong
+  question; the question is whether its answer arrives before the trained reach fires.
+- **Any decomposition must derive each reading independently, never back-solve one from the others**
+  (§2.3, on the tree's own `cwf_consistency_mod2` rule). And **no decomposition should be attempted
+  before an instrument exists that can detect WHEN-vocabulary loss** — that loss is silent, and
+  nothing currently goes red on it.
 - **Reachability is the gap, not authoring.** The authored half is at 100% on all three fields; the
   derived half — search, selection, addressing — is at 0%. No future rc should re-file "the prose is
   thin" as the problem; measured, the prose is 1.68 MB and unreachable.
@@ -506,6 +694,14 @@ exist in several directions — ADR-0004 makes config-driven the preferred way t
 ADR-0012 §3.4 (C6) measures that config-driven behaviour is *invisible* to introspect by construction,
 so "move it to TOML" trades one reachability problem for another. **Nothing here should be read as
 prejudging that trade.**
+
+⚠️ **§2.3's four-readings goal does NOT re-open this question, and must not be read as deciding it.**
+"Four readings of one addressed set" is a statement about **shape** — what the content must be able to
+do — and it is deliberately silent on what an atom is made of, where atoms live, how they are
+serialised, and how they cross the C wire. Several encodings could satisfy it and several could not;
+choosing among them is still open, still out of scope here, and still an ADR-0004-adjacent question.
+The goal **constrains** the encoding decision (§2.3(b): the atoms must be finer than any reading;
+§2.3(d): one encoding, not two) without **making** it.
 
 ### 9.2 The genome is explicitly NOT the store — and the reason is principled
 
@@ -656,8 +852,11 @@ this ADR is 🟢 Implementing and not ✅ Accepted.
 | §6.1 | no read path exists | **none** | **UNGATED** — a grep today, not a gate |
 | §6.3 | MCP payload is prose-independent | **none** | **UNGATED** — reproducible in three lines (§12), never asserted by CI |
 | §6.5 | the address space is unsolved | — | **not instrumentable**; §9.3 declines to specify it |
+| §1.4 | the answer arrives before the habit fires | **none** | **UNGATED — and no instrument is even proposed.** Measuring it needs an agent-in-the-loop trial, not a pytest assertion. Stated as the standard, explicitly not as a passing property |
+| §2.3 | four readings of one addressed set | **none** | **GOAL, not a clause.** Adds no instrument and claims nothing. The four-field form remains what ships |
+| §2.3 | a migration must not silently lose WHEN vocabulary | **none** | **UNGATED — and this is the dangerous one.** The failure is silent by construction; §2.3 records it as a RISK and makes building the detector a precondition of attempting the migration |
 
-**Counted exactly: 2 gated · 4 ungated · 2 not instrumentable.** And **both gated rows are inherited
+**Counted exactly: 2 gated · 6 ungated (one of them a goal, one a standard) · 2 not instrumentable.** And **both gated rows are inherited
 from earlier rcs — this ADR builds no new instrument.** Of the four ungated, one (§4) is not merely
 unenforced but **measurably false today**, and is stated as a target rather than as a property. An
 honest reading of the table is: *the surface is named and measured; almost nothing about it is yet
@@ -734,6 +933,13 @@ draft that survives contact and says where it was wrong is worth more than one t
 | `srmech/amsc/tool_schema.py` | moved by ADR-0010 to **`srmech/introspect/tool_schema.py`** |
 | `python/tools/gen_tool_registry.py` | the file is at **`c/tools/gen_tool_registry.py`** (line 278 correct) |
 | `527/556 = 94%` carry both organ markers | **confirmed** — on the bare-token basis, 94.78% (§2.1) |
+| "556 ops × ~2,850 chars" (§2.3 migration scope) | **3,022** mean on the `json.dumps` basis; 2,938 concatenated-values; 1,337 `explanation` alone |
+
+Also verified for §1.2, each by direct lookup: `srmech.math.rational.log` and
+`…rational.log1p_series_truncate` both resolve; `QMat.rank(self, *, method="auto")` exists at
+`srmech/math/qmat.py:447` while `resolve_all('rank')` returns `()`; `Q` is defined at
+`srmech/math/q.py:234` (so `srmech.math.q.Q`, not `…rational.Q`); `tool_schema_view` exists at
+`introspect/tool_schema.py:645` and `all_entries` exists nowhere.
 
 Everything else in the brief verified exactly, including the three file sizes, the five `example`
 sub-key populations, the three char censuses, `509/545`, `resolve('winding')` with 26 mentions,
