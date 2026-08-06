@@ -1184,7 +1184,9 @@ def test_no_banned_import_is_dead_anywhere():
                 for node in ast.walk(tree)
                 if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load)
             }
-            for name in sorted(bound - loads):
+            # A name re-exported through __all__ is referenced nowhere in its own
+            # module by design — not dead. See _banned_bindings' docstring.
+            for name in sorted(bound - loads - _reexported_names(tree)):
                 dead.append(f"{path.relative_to(_REPO_ROOT)}: {name}")
 
     assert not dead, (
@@ -1196,7 +1198,26 @@ def test_no_banned_import_is_dead_anywhere():
 
 
 def _banned_bindings(tree: "ast.AST") -> set:
-    """Names in this module bound by an import of a BAN_LIST module."""
+    """Names in this module bound by an import of a BAN_LIST module.
+
+    TWO false-positive classes are excluded BY CONSTRUCTION, both found by these
+    guards firing on a correct tree (rc407, `#T1076`) — a guard that fires is
+    evidence, and both times the evidence was about the guard:
+
+    1. **`node.level` is load-bearing.** srmech has its OWN ``srmech.math``
+       subpackage, so ``from ..math.qmat import QMat`` has
+       ``node.module == "math.qmat"`` and is indistinguishable from the stdlib
+       ``math`` to a level-blind scan. A RELATIVE import can never be the stdlib
+       module, so only ``level == 0`` counts. Without this, five srmech carriers
+       (`Poly`, `QMat`, `Qalg`, `Qprime`, `TriPoly`), `srmech.math.q.Q` and
+       `schur_complement` were all reported as dead *banned* imports.
+
+    2. **`__all__` re-exports are not dead.** A name bound in an ``__init__.py``
+       purely to re-export it is referenced nowhere in that file BY DESIGN. This
+       is the exact false-positive `B8`'s alias-closure was rejected for — a
+       legitimate ``Q = Fraction`` + ``__all__ = ["Q"]`` re-export must read
+       LIVE. Handled by the caller via :func:`_reexported_names`.
+    """
     banned = {entry.module for entry in BAN_LIST} | {"tomllib", "tomli"}
     bound = set()
     for node in ast.walk(tree):
@@ -1205,10 +1226,30 @@ def _banned_bindings(tree: "ast.AST") -> set:
                 if alias.name.split(".")[0] in banned:
                     bound.add(alias.asname or alias.name.split(".")[0])
         elif isinstance(node, ast.ImportFrom):
-            if node.module and node.module.split(".")[0] in banned:
+            # level > 0 is a RELATIVE import — srmech's own tree, never stdlib.
+            if node.level == 0 and node.module and node.module.split(".")[0] in banned:
                 for alias in node.names:
                     bound.add(alias.asname or alias.name)
     return bound
+
+
+def _reexported_names(tree: "ast.AST") -> set:
+    """Names listed in a module-level ``__all__`` — re-exported, so not dead."""
+    out = set()
+    for node in tree.body:
+        targets = []
+        if isinstance(node, ast.Assign):
+            targets = node.targets
+        elif isinstance(node, ast.AnnAssign):
+            targets = [node.target]
+        if not any(isinstance(t, ast.Name) and t.id == "__all__" for t in targets):
+            continue
+        value = node.value
+        if isinstance(value, (ast.List, ast.Tuple, ast.Set)):
+            for element in value.elts:
+                if isinstance(element, ast.Constant) and isinstance(element.value, str):
+                    out.add(element.value)
+    return out
 
 
 def test_no_banned_import_is_kept_alive_by_a_tautology():
@@ -1337,7 +1378,16 @@ def test_every_oracle_row_documents_its_independence():
         if not path.exists():
             continue
         text = path.read_text(encoding="utf-8").lower()
-        if "oracle" not in text and "independent" not in text:
+        # The accepted vocabulary is the DISCRIMINATOR's own, documented at the
+        # top of _FRACTIONS_ALLOWANCES: an oracle "computes a value FROM SCRATCH
+        # that is then compared against a srmech result". rc407 first shipped
+        # this accepting only "oracle"/"independent" and it fired on
+        # test_cascade_cayley_dickson_parity.py — whose docstring says
+        # "from-scratch references (no srmech import for the structural facts)",
+        # i.e. the clearest possible statement of independence, in the exact
+        # words this file teaches. A guard must accept the vocabulary it defines.
+        if not any(w in text for w in
+                   ("oracle", "independent", "from-scratch", "from scratch")):
             missing.append(relpath)
 
     assert not missing, (

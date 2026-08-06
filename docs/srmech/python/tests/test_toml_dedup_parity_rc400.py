@@ -95,9 +95,15 @@ def _stdlib_toml_parse_floor_offenders(pkg_root: Path) -> list[str]:
     floor. Uses AST so it is precise about two legitimate NON-floors that a naive
     text grep would false-positive:
 
-    * an EXCEPTION-TYPE reference (``except tomllib.TOMLDecodeError``) — e.g.
-      ``amsc/descriptor.py`` and ``profile_loader.py`` retain ``import tomllib``
-      solely for that clause; they parse via ``srmech._toml``. Not a floor.
+    * an EXCEPTION-TYPE reference (``except tomllib.TOMLDecodeError``) — a
+      module importing the stdlib solely to NAME a type, not to parse. Not a
+      floor. Through rc406 ``amsc/descriptor.py`` and ``profile_loader.py`` were
+      the live examples; rc407 (`#T1076`) drained BOTH, because
+      ``srmech._toml`` now re-exports ``TOMLDecodeError`` itself and a front
+      door that does not name the error it raises forces its callers into the
+      banned import. The carve-out stays — it is the correct rule, and the next
+      such module must not be miscounted as a floor — but it currently matches
+      NOTHING, which is the intended end state.
     * ``import tomli as tomllib`` sitting inside a STRING literal (the
       ``_tool_docs`` curated worked-example prose) — not a real Import node.
     """

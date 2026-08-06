@@ -106,12 +106,45 @@ def test_amsc_loaders_use_srmech_internal_toml_front_door() -> None:
         "srmech.amsc.descriptor no longer routes its parse through srmech._toml")
     assert _catalog_mod._srmech_toml is srmech_toml_frontdoor, (
         "srmech.amsc.catalog no longer routes its parse through srmech._toml")
-    # descriptor.py DELIBERATELY retains its ``tomllib`` alias — the
-    # ``except tomllib.TOMLDecodeError`` clause needs the exception type. Its
-    # removal would break the error contract, so pin that it stays.
-    assert hasattr(_descriptor_mod, "tomllib"), (
-        "descriptor.py dropped its tomllib alias; the except TOMLDecodeError "
-        "clause needs it — the error contract would break")
+
+
+def test_malformed_toml_still_raises_the_documented_error(tmp_path) -> None:
+    """Malformed TOML reaches the caller as ``DescriptorValidationError``.
+
+    rc407 (`#T1076`) REPLACED A PROXY WITH AN EXECUTION. This used to assert
+    ``hasattr(_descriptor_mod, "tomllib")`` — pinning the MECHANISM (the module
+    keeps a stdlib alias so ``except tomllib.TOMLDecodeError`` can name a type)
+    as a stand-in for the PROPERTY (malformed TOML still raises the documented
+    error). rc407 gave ``srmech._toml`` its own exception contract, so
+    ``descriptor.py`` no longer needs the banned import and the clause reads
+    ``except _srmech_toml.TOMLDecodeError``. The mechanism changed; the property
+    did not — and a proxy cannot tell those apart, so it went red on a correct
+    tree.
+
+    An execution is strictly stronger and cannot go vacuous: an attribute check
+    passes for an alias nothing catches, while this fails unless a real
+    malformed document really is converted at the real boundary.
+    """
+    bad = tmp_path / "broken.toml"
+    bad.write_text("[source]\nname = \n", encoding="utf-8")
+
+    with pytest.raises(_descriptor_mod.DescriptorValidationError) as excinfo:
+        load_descriptor(bad)
+    assert "TOML parse error" in str(excinfo.value)
+
+    # ...and the conversion is the front door's type, not a stdlib import the
+    # module re-derived for itself. `__cause__` is what `raise ... from exc`
+    # preserved, so this pins the actual clause that caught it.
+    assert isinstance(excinfo.value.__cause__, srmech_toml_frontdoor.TOMLDecodeError)
+
+    # The banned import must NOT come back: it is what the rc407 drain removed
+    # (`_TOML_ALLOWANCES` 3 -> 1), and restoring it would silently re-open the
+    # allowance the ledger no longer carries.
+    assert not hasattr(_descriptor_mod, "tomllib"), (
+        "descriptor.py re-imported stdlib tomllib. rc407 drained it — the "
+        "exception type it existed to name now lives on the front door as "
+        "srmech._toml.TOMLDecodeError, and the ban ledger no longer allowances "
+        "this file.")
 
 
 # ── THE load-bearing invariant: descriptor_hash byte-identical before/after ──
