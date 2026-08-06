@@ -315,10 +315,13 @@ def test_quasimodular_forms_ring_source_is_numpy_math_abs_free():
 def test_represent_is_a_tool_entry_total_matches_live():
     """``quasimodular_represent`` is a genuine REDUCER (the WEIGHT-axis
     analog of the Σ-row reducers, one generator up from rc84) → it IS a registered
-    ToolEntry, taking the shipped tool count 341 → 342. eisenstein_e2 + the bare
-    constructor + weight_monomials/dim are NOT ToolEntries."""
+    ToolEntry, taking the shipped tool count 341 → 342 at rc89 (the live total is
+    total is asserted below). eisenstein_e2 + the bare constructor + weight_monomials/dim are
+    NOT ToolEntries."""
     from srmech.introspect.tool_schema import get_tool_schema
-    shipped = [t for t in get_tool_schema().tools if not t.name.startswith("test.")]
+    # rc410 (`#T1085`): filter by OWNER, not by name-prefix — see
+    # tests/_profile_probe.py for why the prefix axis was the wrong question.
+    shipped = list(get_tool_schema().by_owner("srmech"))
     assert len(shipped) == 556
     names = {t.name for t in shipped}
     assert ("srmech.apokatastasis.quasimodular_forms_ring.quasimodular_represent"

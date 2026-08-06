@@ -42,9 +42,13 @@ from srmech.introspect.tool_schema import get_tool_schema
 
 MANIFEST = Path(__file__).resolve().parent / "registered_op_names.txt"
 
-#: Registered public-callable count at rc361. Pinned here only so the failure
-#: message can say "516 -> 517" instead of dumping 516 lines; the SET below is
-#: the actual contract.
+#: Registered public-callable count, srmech-owned. Pinned here only so the
+#: failure message can say "N -> N+1" instead of dumping every name; the SET
+#: below is the actual contract.
+#: (This illustrated the message with the frozen literals "516 -> 517" from
+#: rc361 until rc410 (`#T1085`) — stale by 40 ops, in a comment whose only job
+#: was to show the CURRENT value, sitting two lines above the real one. Written
+#: symbolically now so it cannot go stale a second time.)
 EXPECTED_N = 556
 
 #: sha256 over the NORMALISED manifest body — "\n".join(sorted names) + "\n",
@@ -108,7 +112,20 @@ EXPECTED_NAME_SET_SHA256 = (
 
 
 def _live_names() -> list[str]:
-    return sorted(e.name for e in get_tool_schema().tools)
+    """The op names SRMECH ITSELF registers.
+
+    v0.9.0rc410 (`#T1085`) — this read `get_tool_schema().tools`, the UNFILTERED
+    view, which deliberately publishes `srmech_tools + profile_tools`. The
+    manifest next door is a witness to SRMECH's op names, so comparing it
+    against a set that can contain a third party's rows is a basis mismatch:
+    with any profile active, `test_the_live_name_SET_matches_the_manifest` fails
+    on `added(1): ['<profile>.op']` — a false rename report.
+
+    Note this is NOT reachable by repointing `EXPECTED_N`: the SET assertion
+    fires first, so the count pin never gets a say. The count is the weaker
+    check here; the SET is the contract.
+    """
+    return sorted(e.name for e in get_tool_schema().by_owner("srmech"))
 
 
 def _manifest_names() -> list[str]:

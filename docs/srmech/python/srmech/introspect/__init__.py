@@ -827,8 +827,10 @@ def describe() -> Dict[str, Any]:
     ``json.dumps(describe())``. For a Python caller that is no gap —
     ``tool_schema`` is already in ``dir(srmech.introspect)``. But
     ``describe()`` is explicitly the root for the MCP / JSON-RPC consumer, and
-    **a JSON consumer has no ``dir()``**: it reads a total of 556 ops and the
-    payload names nowhere to look them up.
+    **a JSON consumer has no ``dir()``**: it reads an op total and the
+    payload names nowhere to look them up. (The total was restated as a literal
+    here until rc410, `#T1085`; it is published live in the same payload under
+    ``tools["total"]``, so writing it into prose could only ever go stale.)
 
     Both values are **Python import routes, not tool names** — deliberately.
     ``get_tool_schema`` is not a registered ``ToolEntry`` (no entry's last
@@ -1364,8 +1366,10 @@ def describe() -> Dict[str, Any]:
         # category; before this rc nothing in the payload said HOW TO REACH
         # ONE. That is not a gap for a Python caller — `dir(srmech.introspect)`
         # already shows `tool_schema` — but describe() is explicitly the MCP /
-        # JSON consumer's root, and a JSON consumer has no `dir()`: it sees a
-        # count of 556 ops and nowhere named to look one up. Both values are
+        # JSON consumer's root, and a JSON consumer has no `dir()`: it sees an
+        # op count (published live two lines below) and nowhere named to look
+        # one up. rc410 (`#T1085`) removed the literal restated here. Both
+        # values are
         # Python import routes, NOT tool names: `get_tool_schema` has no
         # ToolEntry, so an MCP-only client reads them as a location rather
         # than as a call. `covers` states the SCOPE of that

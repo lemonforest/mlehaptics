@@ -267,10 +267,16 @@ def test_harmonic_maass_tool_entry_registered():
 
 def test_introspect_tools_total_matches_live_rc71():
     """The canonical shipped tool count after the rc71 ``harmonic_maass`` op
-    (339 → 340). Counted over the SHIPPED surface only (excluding any ``test.``-
-    namespaced injections other tests leak), so the invariant is order-independent."""
+    (339 → 340 then).
+
+    Counted over the surface SRMECH OWNS, so the invariant is
+    order-independent. rc410 (`#T1085`) changed the axis from a ``test.``
+    name-prefix exclusion to the owner filter — see ``tests/_profile_probe.py``
+    for why the prefix was neither necessary nor sufficient."""
     from srmech.introspect.tool_schema import get_tool_schema
-    shipped = [t for t in get_tool_schema().tools if not t.name.startswith("test.")]
+    # rc410 (`#T1085`): filter by OWNER, not by name-prefix — see
+    # tests/_profile_probe.py for why the prefix axis was the wrong question.
+    shipped = list(get_tool_schema().by_owner("srmech"))
     assert len(shipped) == 556
     names = {t.name for t in shipped}
     assert "srmech.apokatastasis.harmonic_maass.harmonic_maass" in names

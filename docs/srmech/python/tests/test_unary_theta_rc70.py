@@ -250,15 +250,26 @@ def test_unary_theta_tool_entry_registered():
 
 
 def test_introspect_tools_total_matches_live():
-    """The canonical shipped tool count after the rc71 ``harmonic_maass`` op (339 →
-    340; the rc70 ``unary_theta`` op took it 338 → 339). Counted over the SHIPPED
-    surface only — other tests (e.g. ``test_tool_schema.py``) imperatively
-    ``register_tool`` throwaway ``test.*`` entries into the global schema singleton
-    that they do not (cleanly) remove, so the raw ``describe()`` total drifts up by
-    those leaks depending on test order. We exclude the ``test.``-namespaced
-    injections (the shipped surface is what this invariant is about)."""
+    """The canonical shipped tool count (the rc70 ``unary_theta`` op took it
+    338 → 339; rc71's ``harmonic_maass`` 339 → 340). The live value is the assertion below.
+
+    Counted over the surface SRMECH OWNS, because that is what the invariant is
+    about — a tool count is a statement about srmech's own registry, not about
+    whatever else happens to be in the process.
+
+    rc410 (`#T1085`) corrected BOTH the axis and this docstring. It previously
+    said other tests "imperatively ``register_tool`` throwaway ``test.*``
+    entries ... that they do not (cleanly) remove". That is no longer true and
+    it justified the wrong filter twice over: the two ``test.*`` injections in
+    ``test_tool_schema.py`` are owner ``"srmech"`` and have been
+    ``try``/``finally``-protected since rc409, so they do not leak — while the
+    one genuinely unprotected leak in that file registers owner ``"gamma"``,
+    which a ``test.``-prefix test does not match. The prefix filter was
+    therefore neither necessary nor sufficient; the owner filter is both."""
     from srmech.introspect.tool_schema import get_tool_schema
-    shipped = [t for t in get_tool_schema().tools if not t.name.startswith("test.")]
+    # rc410 (`#T1085`): filter by OWNER, not by name-prefix — see
+    # tests/_profile_probe.py for why the prefix axis was the wrong question.
+    shipped = list(get_tool_schema().by_owner("srmech"))
     assert len(shipped) == 556
     names = {t.name for t in shipped}
     assert "srmech.apokatastasis.unary_theta.unary_theta" in names

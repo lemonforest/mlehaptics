@@ -1,0 +1,368 @@
+"""rc410 (`#T1085`) — the OWNER AXIS: gates that asked "how many tools?" when
+they meant "how many tools does SRMECH OWN?".
+
+THE NULL THIS RC IS BUILT ON — READ IT BEFORE EDITING ANY COUNT PIN
+===================================================================
+srmech's ~74 registry count assertions across ~67 files are **CORRECT and must
+not be touched.** The measured owner census is a single key, ``{'srmech': N}``,
+and nothing in srmech's suite or CI activates a profile, so
+
+    len(get_tool_schema().tools) == len(get_tool_schema().by_owner("srmech"))
+
+**identically**. Repointing those pins would edit 66 files, re-derive ~74
+constants, fix zero live defects, and risk writing a wrong constant that CI
+cannot catch precisely because the right and wrong values coincide today.
+
+So the honest framing is NOT "srmech's gates are wrong". It is: **a small
+number of gates measure on the wrong AXIS, which breaks any downstream consumer
+that registers a profile and runs srmech's suite** — and it was true for 8
+places, not 74. This module is the gate for those 8, plus the one genuine
+product defect (the ``.mcpb`` attestation).
+
+WHY THE SUITE COULD NOT SEE ANY OF THIS
+=======================================
+Because owned == total, a wrong-axis gate and a correct one are
+indistinguishable by running the suite. ``tests/_profile_probe.py`` supplies the
+one bit of state that tells them apart. Every assertion below is written as
+``before == during == after`` around a live probe registration, so it cannot be
+satisfied by an expression that merely stopped measuring.
+"""
+
+from __future__ import annotations
+
+import json
+import re
+from pathlib import Path
+
+import pytest
+
+from srmech.introspect.tool_schema import RESERVED_OWNERS, get_tool_schema
+from tests._profile_probe import PROBE_NAME, probe_registered
+
+_SRMECH_PKG = Path(__file__).resolve().parents[1] / "srmech"
+
+#: Python modules under ``srmech/`` that are GENERATED, not hand-written. Their
+#: text is derived from ``ToolEntry`` prose + the C claim ledger, so a cardinal
+#: appearing there is an artifact of its source, not hand-authored rot, and the
+#: fix belongs upstream in the generator. Verified to exist by
+#: ``test_the_generated_file_exemptions_all_exist`` so a rename cannot silently
+#: widen the exemption into a hole.
+_GENERATED_MODULES = (
+    "introspect/_tool_docs.py",
+    "introspect/_tool_docs_curated.py",
+    "introspect/_c_claims.py",
+)
+
+
+def _owned_total() -> int:
+    return len(get_tool_schema().by_owner("srmech"))
+
+
+def _hand_written_modules() -> list[Path]:
+    exempt = {(_SRMECH_PKG / rel).resolve() for rel in _GENERATED_MODULES}
+    return [
+        p
+        for p in sorted(_SRMECH_PKG.rglob("*.py"))
+        if "__pycache__" not in p.parts and p.resolve() not in exempt
+    ]
+
+
+# ──────────────────────────────────────────────────────────────────────
+# The predicate itself
+# ──────────────────────────────────────────────────────────────────────
+
+
+def test_the_two_spellings_of_srmech_owned_agree() -> None:
+    """``by_owner("srmech")`` and the ``RESERVED_OWNERS`` membership test are
+    used interchangeably across this rc's changes. They agree today because
+    ``RESERVED_OWNERS == {"srmech"}``. If that set ever grows, the two spellings
+    diverge silently and half the fixes below would quietly change meaning —
+    so pin the agreement rather than assume it."""
+    schema = get_tool_schema()
+    by_owner = [t.name for t in schema.by_owner("srmech")]
+    by_reserved = [t.name for t in schema.tools if t.owner in RESERVED_OWNERS]
+    assert by_owner == by_reserved, (
+        "the two spellings of 'srmech's own' disagree — RESERVED_OWNERS has "
+        f"probably grown beyond {{'srmech'}} (it is {sorted(RESERVED_OWNERS)}). "
+        "Every filter this rc introduced must then be re-read deliberately."
+    )
+
+
+def test_the_probe_actually_moves_the_unfiltered_total() -> None:
+    """NON-VACUITY GUARD for every other test in this file.
+
+    If the probe stopped registering, all the invariance assertions below would
+    pass trivially. This one fails in that case: it asserts the UNFILTERED total
+    DOES move, which is the whole reason the filtered one must not.
+    """
+    before = len(get_tool_schema().tools)
+    with probe_registered():
+        during = len(get_tool_schema().tools)
+        assert PROBE_NAME in {t.name for t in get_tool_schema().tools}
+    after = len(get_tool_schema().tools)
+    assert during == before + 1, (
+        "the probe did not reach the registry — every invariance assertion in "
+        "this module is vacuous until this passes"
+    )
+    assert after == before, "the probe leaked out of its context manager"
+
+
+# ──────────────────────────────────────────────────────────────────────
+# A1 — the .mcpb attestation (the only SILENT wrong answer in the set)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def test_the_mcpb_attestation_speaks_only_for_srmech() -> None:
+    """FAILS BEFORE (rc409): ``tool_count`` 556 -> 557 and
+    ``tool_schema_sha256`` changes, inside a block stamped
+    ``parser_version: "srmech <version>"``.
+
+    This is the one item on the rc410 list that is not a test failure. It
+    escapes the process as a shipped, signed-looking MPM attestation asserting a
+    third party's tool surface as srmech's own — and it is **not re-verifiable**,
+    which is the specific property the MPM discipline exists to guarantee: a
+    consumer re-running the hash against a plain ``pip install srmech`` could
+    never reproduce it.
+    """
+    from srmech.mcp._mcpb import build_manifest
+
+    before = build_manifest()["attestation"]
+    with probe_registered():
+        during = build_manifest()["attestation"]
+    after = build_manifest()["attestation"]
+
+    for key in ("tool_count", "tool_schema_sha256", "tool_schema_version"):
+        assert during[key] == before[key] == after[key], (
+            f"a profile-owned row moved attestation[{key!r}]: "
+            f"{before[key]!r} -> {during[key]!r}. The attestation may only "
+            "speak for rows srmech OWNS."
+        )
+    assert during["tool_count"] == _owned_total()
+
+
+def test_the_advertised_surface_still_includes_profile_tools() -> None:
+    """The COUNTERPART to the test above — and the reason this rc is not a
+    blanket "filter everything by owner".
+
+    ``tools[]`` is the spec-mandated description of what the server actually
+    serves, and it really will serve an active profile's tools. Filtering it
+    would make the manifest wrong in the spec's own terms. The attestation is a
+    different claim with a different scope. Pinning both directions keeps a
+    later reader from "tidying" one into the other.
+    """
+    from srmech.mcp._mcpb import build_manifest
+
+    before = build_manifest()
+    with probe_registered():
+        during = build_manifest()
+    assert len(during["tools"]) == len(before["tools"]) + 1
+    assert PROBE_NAME in {t["name"] for t in during["tools"]}
+    assert during["attestation"]["tool_count"] == len(before["tools"])
+
+
+def test_the_owner_filter_is_a_byte_level_noop_on_a_clean_registry() -> None:
+    """THE REGRESSION PROOF for A1.
+
+    The attestation hash is a published, ratcheted value (the rc184 C
+    hash-ratchet locks the C const table against this exact pre-image). A fix
+    that changed it on a clean tree would be a silent breaking change dressed as
+    a bug fix. Byte equality — not hash equality — because the hash is the thing
+    under test.
+    """
+    from srmech.mcp._mcpb import _owned_tool_schema
+
+    unfiltered = json.dumps(
+        get_tool_schema().to_jsonable(), sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    filtered = json.dumps(
+        _owned_tool_schema().to_jsonable(), sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    assert filtered == unfiltered, (
+        "the owner filter changed the attestation pre-image on a CLEAN "
+        "registry. It must be a no-op there — owned == total when no profile "
+        "is active, and the emitted hash is ratcheted."
+    )
+
+
+# ──────────────────────────────────────────────────────────────────────
+# A2 — the C-table count basis
+# ──────────────────────────────────────────────────────────────────────
+
+
+def test_the_c_table_count_basis_is_owner_filtered() -> None:
+    """FAILS BEFORE: ``test_generated_table_declares_every_entry`` reads N+1
+    live while the artifact correctly holds N, and reports staleness that does
+    not exist.
+
+    Post-rc409 the generator REFUSES to emit a profile-owned row, so owner
+    purity is an ENFORCED write-side invariant of the artifact. Comparing it
+    against an unfiltered live count is a basis mismatch.
+    """
+    from tests.test_tool_registry_c_rc184 import _owned_entry_count
+
+    before = _owned_entry_count()
+    with probe_registered():
+        during = _owned_entry_count()
+    after = _owned_entry_count()
+    assert before == during == after == _owned_total()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# A3 — the op-name SET witness (the strongest gate in the tree)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def test_the_op_name_set_witness_is_owner_filtered() -> None:
+    """FAILS BEFORE: ``test_the_live_name_SET_matches_the_manifest`` reports
+    ``added(1): ['<probe>.op']`` — a false RENAME report.
+
+    Note this one is NOT reachable by repointing a count constant: the SET
+    assertion fires before the count assertion, so ``EXPECTED_N`` never gets a
+    say. That is also why the gate is worth protecting — it catches same-count
+    renames that no count pin can see.
+    """
+    from tests.test_op_name_set_witness_rc361 import EXPECTED_N, _live_names
+
+    before = _live_names()
+    with probe_registered():
+        during = _live_names()
+    after = _live_names()
+    assert before == during == after
+    assert PROBE_NAME not in during
+    assert len(during) == EXPECTED_N
+
+
+# ──────────────────────────────────────────────────────────────────────
+# K5 — the prior, WRONG answer to exactly this question
+# ──────────────────────────────────────────────────────────────────────
+
+_NAME_PREFIX_AXIS = re.compile(r'startswith\(\s*["\']test\.["\']\s*\)')
+
+
+def test_no_test_file_filters_srmech_s_own_tools_by_name_prefix() -> None:
+    """STRICT ZERO, no exemptions.
+
+    Six count gates filtered "srmech's own tools" by excluding names that BEGIN
+    WITH ``test.`` — a name-prefix answer to an OWNER question. They carried
+    justifying docstrings, so they read as already fixed, and anyone grepping
+    for the literal count would have rewritten the number and left the axis
+    broken.
+
+    (The offending call is deliberately not spelled out anywhere in this file:
+    this gate is strict-zero with NO exemption list, and an exemption for "the
+    test that documents the pattern" is the first hole every such ratchet
+    acquires.)
+
+    The prefix was neither necessary nor sufficient: the two ``test.*``
+    injections in ``test_tool_schema.py`` are owner ``"srmech"`` and have been
+    ``try``/``finally``-protected since rc409 (so they do not leak), while the
+    one genuinely unprotected leak in that file registered owner ``"gamma"``
+    — whose names a ``test.`` prefix test does not match at all.
+    """
+    tests_dir = Path(__file__).resolve().parent
+    offenders = [
+        f"{p.name}:{i}"
+        for p in sorted(tests_dir.glob("*.py"))
+        for i, line in enumerate(
+            p.read_text(encoding="utf-8").splitlines(), start=1
+        )
+        if _NAME_PREFIX_AXIS.search(line)
+    ]
+    assert not offenders, (
+        "a test filters srmech's own tools by NAME PREFIX instead of by "
+        f"owner: {offenders}. Use get_tool_schema().by_owner('srmech')."
+    )
+
+
+# ──────────────────────────────────────────────────────────────────────
+# K8 — shipped prose cardinals
+# ──────────────────────────────────────────────────────────────────────
+
+
+def test_the_generated_file_exemptions_all_exist() -> None:
+    """An exemption naming a file that does not exist is a silent hole. If a
+    generated module is renamed, this fails rather than quietly widening the
+    scan's blind spot."""
+    missing = [rel for rel in _GENERATED_MODULES if not (_SRMECH_PKG / rel).exists()]
+    assert not missing, f"generated-file exemptions no longer exist: {missing}"
+
+
+def test_no_shipped_module_restates_the_registry_total() -> None:
+    """The registry total was written as a literal into THREE shipped modules —
+    ``mcp/_tools.py``, and ``introspect/__init__.py`` twice. These travel inside
+    the wheel and reach users through ``describe()`` and the MCP tool list.
+
+    The first was self-refuting in adjacent sentences: it stated the total as a
+    literal and then promised "the COUNT is no longer stated here, so it cannot
+    go stale again". rc409 set the precedent for stripping exactly this rot from
+    ``gen_tool_registry.py:10``.
+
+    ⚠️ BRITTLENESS, NAMED: this scans for the CURRENT total as a word-bounded
+    number. Today that is a 3-digit value with no legitimate use as a constant
+    in hand-written srmech source. Should the total ever land on a value that
+    IS a common constant, this gate will start reporting false positives — and
+    it will do so LOUDLY, which is the correct failure mode. Re-scope it then;
+    do not add blanket exemptions to quiet it.
+    """
+    total = str(_owned_total())
+    pattern = re.compile(rf"\b{re.escape(total)}\b")
+    offenders = [
+        f"{p.relative_to(_SRMECH_PKG).as_posix()}:{i}"
+        for p in _hand_written_modules()
+        for i, line in enumerate(
+            p.read_text(encoding="utf-8").splitlines(), start=1
+        )
+        if pattern.search(line)
+    ]
+    assert not offenders, (
+        f"the registry total ({total}) is restated as a literal in shipped "
+        f"source: {offenders}. It ships in the wheel and goes stale on the "
+        "next op added. Point at the live value instead: "
+        "len(get_tool_schema().by_owner('srmech'))."
+    )
+
+
+# ──────────────────────────────────────────────────────────────────────
+# K9 — a failing test must not leak rows into every later test
+# ──────────────────────────────────────────────────────────────────────
+
+
+def test_a_failing_unregister_test_cleans_up_after_itself() -> None:
+    """FAILS BEFORE: 2 rows leak, so ONE genuine defect is reported as THREE
+    failures — the real one plus two later count assertions reading N+2 and
+    naming unrelated modules.
+
+    ``test_unregister_profile_tools_removes_all`` registered two profile rows
+    and then asserted BEFORE the only call that removes them. Under CI's
+    ``--dist load`` the collateral set is worker-dependent, so the noise is not
+    even reproducible.
+
+    This drives the real test function through its own failure path rather than
+    re-implementing it, so the subject under test is the shipped one.
+    """
+    import srmech.introspect.tool_schema as ts
+    from srmech.introspect.tool_schema import ToolSchema
+
+    import tests.test_tool_schema as tts
+
+    snapshot = dict(ts._REGISTRY)
+    original = ToolSchema.by_owner
+    try:
+        # Induce a genuine-looking defect: by_owner lies once, so the FIRST
+        # assertion in the test body fails — before any cleanup could run.
+        ToolSchema.by_owner = lambda self, owner: ()  # type: ignore[assignment]
+        with pytest.raises(AssertionError):
+            tts.test_unregister_profile_tools_removes_all()
+        ToolSchema.by_owner = original  # type: ignore[assignment]
+
+        leaked = sorted(set(ts._REGISTRY) - set(snapshot))
+        assert not leaked, (
+            f"a failing test leaked {leaked} into the process-global registry. "
+            "Every later count assertion in the same worker now reads "
+            f"+{len(leaked)} and fails for a reason that has nothing to do "
+            "with it. Wrap the body in try/finally."
+        )
+    finally:
+        ToolSchema.by_owner = original  # type: ignore[assignment]
+        ts._REGISTRY.clear()
+        ts._REGISTRY.update(snapshot)
