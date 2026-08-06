@@ -95,8 +95,8 @@ Canonical SSoT:
 # modules from importing on a numpy-absent install — the rc70 runnable≠loadable
 # trap / [[feedback_carrier_ratchet_misses_require_numpy_subpackage_gates]]),
 # each submodule is loaded LAZILY on first access (the rc71 signal_processing
-# precedent): a flipped module imports numpy-free; an as-yet-numpy module still
-# surfaces the actionable [scientific] hint (not a bare numpy ImportError).
+# precedent). All 15 submodules are numpy-free (#564), so every one of them
+# imports numpy-free and the lazy load is now purely an import-cost win.
 
 import importlib
 

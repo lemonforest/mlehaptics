@@ -720,7 +720,6 @@
 {"exposed_as": "srmech.introspect.publish", "defined_at": "srmech.introspect.publish", "bucket": "non_compute", "non_compute_kind": "host_glue"}
 {"exposed_as": "srmech.introspect.list", "defined_at": "srmech.introspect.list", "bucket": "non_compute", "non_compute_kind": "host_glue"}
 {"exposed_as": "srmech.introspect.by_pid", "defined_at": "srmech.introspect.by_pid", "bucket": "non_compute", "non_compute_kind": "host_glue"}
-{"exposed_as": "srmech.introspect._maybe_auto_publish", "defined_at": "srmech.introspect._maybe_auto_publish", "bucket": "non_compute", "non_compute_kind": "host_glue"}
 {"exposed_as": "srmech.introspect.introspect_dir", "defined_at": "srmech.introspect._writer.introspect_dir", "bucket": "non_compute", "non_compute_kind": "host_glue"}
 {"exposed_as": "srmech.introspect.emit_if_publishing", "defined_at": "srmech.introspect._writer.emit_if_publishing", "bucket": "non_compute", "non_compute_kind": "host_glue"}
 {"exposed_as": "srmech.introspect.describe", "defined_at": "srmech.introspect.describe", "bucket": "non_compute", "non_compute_kind": "composes_c"}

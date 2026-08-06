@@ -100,9 +100,9 @@ Cascade decomposition (no new primitive class — a composition of A–N):
 The generator is **numpy-free at import** and **exact-rational** in its core
 (every entry a reduced ``(num, den)`` integer pair via the Class-N
 ``cos_series_truncate`` / ``sin_series_truncate`` Taylor partials). The
-optional :meth:`One.to_numpy` / :meth:`One.to_matrix` float realisations
-lazily import numpy (the ``srmech[scientific]`` tier, §22) — never at module
-load (so the carrier ratchet must not count this module).
+optional :meth:`One.to_matrix` float realisation is a numpy-free
+:class:`~srmech.math.mat.Mat` — the package carries no numpy dependency at
+all, so nothing here imports numpy at module load or on call.
 
 Canonical SSoT:
 - Hurwitz (1898), *Über die Composition der quadratischen Formen* — the
@@ -598,8 +598,8 @@ class One:
     A numpy-free, exact-rational structured object. Build with
     :func:`the_one`. The three :class:`Block` instances tile the
     ``1+3+7+3 = 14`` A–N partition; :meth:`to_flat_rational` flattens to the
-    14 exact rationals; :meth:`to_numpy` / :meth:`to_matrix` give the opt-in
-    float realisations (the ``srmech[scientific]`` tier).
+    14 exact rationals; :meth:`to_matrix` gives the opt-in float
+    realisation (a numpy-free :class:`~srmech.math.mat.Mat`).
     """
 
     sigma: int
@@ -735,9 +735,9 @@ class One:
         exact integers via :func:`the_one`); float only LEAVES, and only on
         request — ``as_float=True`` does the single terminal ``num/den`` cast
         to a **plain Python float with NO numpy** (the "return float sometimes"
-        rule). *Unlike* :meth:`to_numpy` / :meth:`to_matrix` — the numpy-tier
-        exports the carrier-removal arc (#564) is retiring — this float export
-        needs no numpy at all. One boundary cast is not error summation; a
+        rule). *Like* :meth:`to_matrix` — which returns a numpy-free
+        :class:`~srmech.math.mat.Mat` now the carrier-removal arc (#564) has
+        completed — this float export needs no numpy at all. One boundary cast is not error summation; a
         *chain* of float ops would be
         (``[[feedback_no_numpy_rosetta_peer_continuous_float_error_collecting]]``).
 
@@ -1120,8 +1120,8 @@ def to_scalar(one: "One",
     (the scalar peer of :meth:`One.to_flat_rational`). Float only *leaves*, and
     only on request: ``as_float=True`` does the single terminal ``num/den``
     cast to a **plain Python float — no numpy** (the "return float sometimes"
-    rule). *Unlike* :meth:`One.to_numpy` / :meth:`One.to_matrix` (the numpy
-    ``[scientific]``-tier exports the carrier-removal arc #564 is retiring),
+    rule). *Like* :meth:`One.to_matrix` (a numpy-free ``Mat`` now the
+    carrier-removal arc #564 has completed),
     this float export needs no numpy. One boundary cast ≠ error summation; a
     *chain* of float ops would be
     (``[[feedback_no_numpy_rosetta_peer_continuous_float_error_collecting]]``).

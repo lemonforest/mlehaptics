@@ -359,12 +359,19 @@ def tool_entries_to_mcp_defs(
     """Yield an MCP tool definition for every ADVERTISED registered
     ToolEntry.
 
-    v0.5.0rc15 — entries marked ``mcp_callable=False`` (the 7
-    ``srmech.spectral.*`` handle-pending tools) are EXCLUDED here so a
+    Entries marked ``mcp_callable=False`` are EXCLUDED here so a
     ``tools/list`` consumer is never offered a tool it cannot actually
     call. They remain in ``get_tool_schema().tools`` for introspection
     (``srmech.introspect.describe`` reports them under
     ``handle_pending``); only the advertised catalog hides them.
+
+    The exclusion is currently a NO-OP: this said "the 7
+    ``srmech.spectral.*`` handle-pending tools" from v0.5.0rc15 until rc407,
+    and the measured count is now ``sum(1 for t in sch.tools if not
+    t.mcp_callable) == 0`` — every one of the 556 entries is advertised. The
+    branch is kept because the field is still part of the ToolEntry contract
+    and a future handle-pending op must not be advertised; the COUNT is no
+    longer stated here, so it cannot go stale again.
 
     Parameters
     ----------

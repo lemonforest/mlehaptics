@@ -34,7 +34,6 @@ from __future__ import annotations
 
 import importlib.util
 import json
-from fractions import Fraction
 from pathlib import Path
 
 import pytest
@@ -264,8 +263,3 @@ def test_reducible_m_raises_via_pure_fallback():
         _force(True, eigvec_exact, A, bad)       # C -> BAD_INPUT -> pure raises
     with pytest.raises(ValueError):
         _force(False, eigvec_exact, A, bad)
-
-
-def test_unused_fraction_import():
-    """Keep the Fraction import live (exact-rational substrate marker)."""
-    assert Fraction(3, 4) + Fraction(1, 4) == 1

@@ -39,6 +39,12 @@ _PATH4_L = [
     [0, -1, 2, -1],
     [0, 0, -1, 1],
 ]
+# An INDEPENDENT expected value, written from scratch in stdlib `Fraction` and
+# never produced by srmech — which is why this file's ban-list allowance is
+# `_ORACLE` (rc407, `#T1076`). The `Fraction(g)` in `_assert_exact_equals` below
+# is an out-projection of the srmech result so it can be compared against THIS
+# constant; it is not srmech grading itself. Borderline-by-review, because the
+# out-projection also reads like interchange — the from-scratch constant decides.
 _THIRD = Fraction(1, 3)
 _EXPECTED_S = [[_THIRD, -_THIRD], [-_THIRD, _THIRD]]
 

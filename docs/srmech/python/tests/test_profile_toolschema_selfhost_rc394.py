@@ -142,14 +142,36 @@ def test_loaders_reference_srmech_internal_toml_front_door() -> None:
         "srmech.introspect.tool_schema no longer routes its parse through srmech._toml")
 
 
-def test_profile_loader_retains_tomllib_for_the_exception_contract() -> None:
-    """``profile_loader`` DELIBERATELY keeps its ``tomllib`` alias — ``_read_smoke_cache``
-    catches ``tomllib.TOMLDecodeError`` to treat a malformed cache as a miss. Removing
-    it would break the error contract, so pin that it stays. (``tool_schema`` has no
-    such catch, so it dropped the alias entirely.)"""
-    assert hasattr(_pl, "tomllib"), (
-        "profile_loader dropped its tomllib alias; the except TOMLDecodeError clause "
-        "in _read_smoke_cache needs it — the error contract would break")
+def test_malformed_smoke_cache_is_treated_as_a_miss(tmp_path, monkeypatch) -> None:
+    """A malformed smoke-cache file reads as a MISS, not an exception.
+
+    rc407 (`#T1076`) REPLACED A PROXY WITH AN EXECUTION, for the same reason as
+    its peer in ``test_descriptor_hash_selfhost_rc393.py``. This asserted
+    ``hasattr(_pl, "tomllib")`` — pinning the MECHANISM (keep a stdlib alias so
+    ``except tomllib.TOMLDecodeError`` can name a type) as a stand-in for the
+    PROPERTY (a malformed cache is swallowed and reported as a miss). rc407 gave
+    ``srmech._toml`` its own exception contract, so the clause reads
+    ``except (OSError, _toml.TOMLDecodeError)`` and the banned import is gone.
+    The mechanism changed; the property did not.
+
+    An execution cannot go vacuous the way the attribute check could: this fails
+    if the catch stops matching, whereas ``hasattr`` passed happily for an alias
+    that nothing caught.
+    """
+    monkeypatch.setattr(_pl, "_cache_dir", lambda: tmp_path, raising=False)
+    cache = _pl._cache_path("probe-profile", "1.0.0")
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    cache.write_text("this is not = valid = toml\n[[[\n", encoding="utf-8")
+
+    assert _pl._read_smoke_cache("probe-profile", "1.0.0") is None, (
+        "a malformed smoke cache must read as a MISS; if it now propagates, the "
+        "except clause stopped matching what srmech._toml raises")
+
+    # The banned import must not come back — rc407 drained it (`_TOML_ALLOWANCES`
+    # 3 -> 1) and the ledger no longer allowances this file.
+    assert not hasattr(_pl, "tomllib"), (
+        "profile_loader re-imported stdlib tomllib. rc407 drained it — the "
+        "exception type it existed to name is now srmech._toml.TOMLDecodeError.")
 
 
 # ── UNIVERSAL front-door parity: srmech._toml == tomllib for each fixture ─────

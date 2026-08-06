@@ -46,6 +46,44 @@ MCP_PROTOCOL_VERSION: str = "2024-11-05"
 This is the version Claude Code (circa late-2024 / 2025) speaks."""
 
 
+MCP_INSTRUCTIONS: str = (
+    "srmech exposes its capabilities through a registered tool registry. "
+    "START HERE: call `srmech.introspect.describe` for the capability index "
+    "(shape and counts). Tool descriptions in tools/list carry the `summary` "
+    "field only; each op also has `example` and `explanation`, which are not "
+    "reachable over MCP - read them from Python via "
+    "`srmech.introspect.tool_schema.get_tool_schema()`. Carrier CLASSES and "
+    "their methods (Mat, QMat, Q, One, ...) are NOT registered tools: they are "
+    "published by `srmech.introspect.carrier_schema.carrier_schema` and in "
+    "describe()['carriers'], so a lookup miss for a class method is not "
+    "evidence the capability is absent."
+)
+"""The ``instructions`` field of the ``initialize`` result (rc407, `#T1076`).
+
+An MCP client gets no start-here pointer before its first tool call unless the
+handshake carries one, and MCP has no other channel for it: ``resources/*``,
+``prompts/*``, ``completion/*`` and ``logging/*`` all return "unknown method".
+
+Every claim here is CHECKED, because an MCP-only client cannot verify any of
+them. ``srmech.introspect.describe`` and
+``srmech.introspect.carrier_schema.carrier_schema`` are registered and
+``mcp_callable``; ``get_tool_schema`` is deliberately named as a PYTHON route
+because it is NOT a registered tool (no ToolEntry's last segment is
+``get_tool_schema``), so telling an MCP-only client to call it would be a lie.
+
+**Byte-identical to the C peer** ``mcp_build_initialize``
+(``c/src/srmech_mcp.c``) per ADR-0009 — the capability is the invariant and the
+two projections are co-equal, so this string must be edited in BOTH or neither.
+``tests/test_mcp_initialize_instructions_rc407.py`` pins that equality by
+parsing the literal out of the C source.
+
+Deliberately NOT appended: the ``explanation`` prose itself. ``tools/list`` is
+already 776,020 bytes (~194k tokens) and total explanation prose is 743,164
+bytes, so a catalog-wide append reaches ~1.52 MB (~379k tokens). That is
+correct-by-design, not neglect; a scoped accessor is the follow-up.
+"""
+
+
 MCP_SERVER_NAME: str = "srmech-mcp"
 """Default server name advertised in ``initialize.serverInfo``."""
 
@@ -332,6 +370,12 @@ class MCPServer:
                 # itself comes via tools/list.
                 "tools": {},
             },
+            # rc407 (`#T1076`): the start-here pointer. Without it a client
+            # gets no route to the capability index before its first tool
+            # call, and MCP offers no other channel — resources/prompts/
+            # completion/logging all return "unknown method" here. Byte-
+            # identical to the C peer; see MCP_INSTRUCTIONS.
+            "instructions": MCP_INSTRUCTIONS,
         }
 
     def _handle_tools_list(self, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -433,6 +477,7 @@ __all__ = [
     "JSONRPC_INVALID_REQUEST",
     "JSONRPC_METHOD_NOT_FOUND",
     "JSONRPC_PARSE_ERROR",
+    "MCP_INSTRUCTIONS",
     "MCP_PROTOCOL_VERSION",
     "MCP_SERVER_NAME",
     "MCP_TOOL_ERROR",

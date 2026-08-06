@@ -126,6 +126,23 @@ from __future__ import annotations
 import json as _stdlib_json
 from typing import Any
 
+#: The exception :func:`loads` raises on a malformed document (rc407, `#T1076`).
+#:
+#: A front door owns its EXCEPTION CONTRACT, not just its happy path. Until
+#: rc407 this module re-exported ``load``/``loads`` but no error type, so a
+#: caller could not write ``except`` around it without importing the very
+#: module the ban exists to remove — and four package files did exactly that,
+#: importing stdlib ``json`` solely to name this class. ``_json.loads('{bad')``
+#: raises a genuine ``json.JSONDecodeError`` on both the native and the stdlib
+#: path (the native parser DECLINES and control rides the stdlib parse), so
+#: this alias is the true type, not a look-alike.
+#:
+#: This is a deliberate DEPARTURE from the tomllib precedent, which kept such
+#: aliases as named necessities. The justification is the front-door contract
+#: itself: a caller cannot catch what ``loads`` raises without the banned
+#: import. It is the correct thing rather than a shim around the break.
+JSONDecodeError = _stdlib_json.JSONDecodeError
+
 
 def loads(text: str) -> Any:
     """Parse a JSON string — native ``srmech_json`` first, stdlib floor.

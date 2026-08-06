@@ -57,7 +57,6 @@ References
 
 from __future__ import annotations
 
-import json
 import sys
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterator, Mapping, Optional, Tuple
@@ -533,7 +532,7 @@ def parse(
             continue
         try:
             row = _srmech_json.loads(stripped)
-        except json.JSONDecodeError as exc:
+        except _srmech_json.JSONDecodeError as exc:
             raise _base.AdapterError(
                 f"substrate_parameterization: NDJSON parse error at line "
                 f"{line_index} in {descriptor.path.name!r}: {exc}"

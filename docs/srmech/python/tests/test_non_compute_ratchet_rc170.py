@@ -339,11 +339,21 @@ _EXPECTED_SPLIT = {
     # host_glue `list_*` in srmech.dsl against five dev_tooling siblings. CI
     # reported the count (21 -> 23 / 51 -> 52); the fix was the CLASSIFICATION,
     # not the pin, and the corrected split is 22 / 53. Total 210 -> 213.
+    # rc407 (`#T1076`): host_glue 22 -> 21, total 213 -> 212. `srmech.introspect`
+    # stopped exporting the PRIVATE name `_maybe_auto_publish` from its
+    # `__all__` (it also exported `_PublishHandle`; neither belongs on a public
+    # surface). `_live_ops()` walks `__all__`, falling back to non-underscore
+    # `dir()` — so an underscore name absent from `__all__` is off the tracked
+    # surface by BOTH routes, and its rosetta_classification.ndjson row went
+    # stale (`test_no_stale_classification` said so by name). The FUNCTION is
+    # untouched and still reached by direct attribute access from
+    # `srmech/__init__.py:63`, which `__all__` does not govern — what changed is
+    # the PUBLISHED surface, which is what this census counts.
     "composes_c": 138,
-    "host_glue": 22,
+    "host_glue": 21,
     "dev_tooling": 53,
 }
-_TOTAL_NON_COMPUTE = 213        # rc364 (ADR-0010 first execution slice): 210 -> 213, the three srmech.dsl alias-catalog rows (resolve_alias_descriptor -> host_glue; list_alias_descriptors + register_alias_dir -> dev_tooling; see the split note above)  # rc325 (§𝕆-FIBER/v18): 205 -> 208, genome.genome_octonion_associator + genome_add_octonion_fiber + genome_read_octonion_fiber (rc322 §Q8-FIBER/v17: 203 -> 205, genome.genome_add_fiber + genome_read_fiber; rc312 §Q8/v16: 202 -> 203, genome.upgrade_v15_to_v16)  # rc345 (task T964): 208 -> 209, genome.genome_content
+_TOTAL_NON_COMPUTE = 212        # rc407 (`#T1076`): 213 -> 212, srmech.introspect dropped the private `_maybe_auto_publish` from __all__ (see the split note above)  # rc364 (ADR-0010 first execution slice): 210 -> 213, the three srmech.dsl alias-catalog rows (resolve_alias_descriptor -> host_glue; list_alias_descriptors + register_alias_dir -> dev_tooling; see the split note above)  # rc325 (§𝕆-FIBER/v18): 205 -> 208, genome.genome_octonion_associator + genome_add_octonion_fiber + genome_read_octonion_fiber (rc322 §Q8-FIBER/v17: 203 -> 205, genome.genome_add_fiber + genome_read_fiber; rc312 §Q8/v16: 202 -> 203, genome.upgrade_v15_to_v16)  # rc345 (task T964): 208 -> 209, genome.genome_content
 
 
 def _rows():

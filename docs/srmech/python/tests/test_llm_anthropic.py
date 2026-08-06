@@ -14,7 +14,6 @@ the flag (and the fake module) for one specific test.
 
 from __future__ import annotations
 
-import json
 import os
 import sys
 import types

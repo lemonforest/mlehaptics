@@ -16,7 +16,6 @@ the CI test-matrix cells build the native lib (``pip install -e``) so it runs th
 
 numpy-free per the module's discipline (no numpy import, no ``np.``).
 """
-import json
 import tempfile
 from pathlib import Path
 

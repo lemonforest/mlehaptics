@@ -689,6 +689,11 @@ _WORKFLOWS = _REPO_ROOT / ".github" / "workflows"
 SCAN_ROOTS = {
     # THE WIDE ONE: rglobs the entire subtree to derive the `#TNNN` vocabulary.
     "tests/test_ref_notation_emitted_rc348.py": ("docs/srmech",),
+    # rc407 (`#T1076`): the ADR-0009 MCP parity gate reads the C source to
+    # reassemble `srmech_mcp_instructions` and assert it is byte-identical to
+    # the Python `MCP_INSTRUCTIONS`. Reaching into c/ is the POINT of that
+    # gate — a fixture copy here could agree with a stale literal.
+    "tests/test_mcp_initialize_instructions_rc407.py": ("docs/srmech/c",),
     # Reads the committed proof NDJSON under notes/ and re-measures against it.
     "tests/test_cd_register_ops_rc301.py": ("docs/srmech/notes",),
     # rc361 (`#T1034`): WIDE, and it has to be. The fifth-copy gate scans the

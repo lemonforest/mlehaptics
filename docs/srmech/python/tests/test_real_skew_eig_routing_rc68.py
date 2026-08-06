@@ -23,7 +23,6 @@ lists (no numpy oracle, per
 
 from __future__ import annotations
 
-import math
 import random
 import re
 import pathlib

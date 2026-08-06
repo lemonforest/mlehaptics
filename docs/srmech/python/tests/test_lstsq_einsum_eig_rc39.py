@@ -12,8 +12,6 @@ numpy-FREE (#564): numpy is GONE from srmech — these return plain Python lists
 * eigvals → the exact ``eigvals_exact`` (integer-entried) eigenvalue multiset,
   plus the closed-form 2×2 case. No numpy anywhere.
 """
-import cmath
-import math
 import random
 
 import pytest
