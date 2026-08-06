@@ -1812,4 +1812,245 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
     'srmech.music.membrane_partials': {'example': {'worked': 'from srmech.music import (membrane_partials, spectrum_tier,\n                          commensurability_verdict, common_period)\ndrum = membrane_partials(n_orders=2, m_zeros=2, scale_bits=64)\n(drum["modes"], drum["tier"], drum["open_partials"])\n# -> (((0, 1), (0, 2), (1, 1), (1, 2)), 3, (0, 1, 2, 3))\ndrum["declared_precision_only"]\n# -> True\ndrum["ratios"][1]\n# -> Q(101827468167337821657, 44361201604729763720)\nspectrum_tier(drum["ratios"], open_partials=drum["open_partials"])["tier_name"]\n# -> \'open\'\ncommensurability_verdict(drum["ratios"], open_partials=drum["open_partials"])["verdict"]\n# -> \'open\'\ncommon_period(drum["ratios"], open_partials=drum["open_partials"])  # -> ValueError\ndrum["transcendence_claim"][:57]\n# -> \'NONE. Whether Bessel zeros are transcendental or algebrai\'', 'output': "modes ((0, 1), (0, 2), (1, 1), (1, 2)), tier 3, open_partials (0, 1, 2, 3), declared_precision_only True; ratio[1] == Q(101827468167337821657, 44361201604729763720); spectrum_tier -> 'open'; commensurability_verdict -> 'open'; common_period -> ValueError('spectrum is OPEN at partial indices [0, 1, 2, 3] (Tier 3)'); transcendence_claim begins 'NONE.'", 'why': "A twenty-digit exact rational that the op refuses to let you treat as exact. It is a value of DECLARED PRECISION standing in for j(n,m)/j(0,1), so every verdict over it comes back 'open' and no period is returned — which is exactly what reading a best_rational anchor off these same rationals would have produced instead."}, 'explanation': "WHAT — returns a circular membrane's modal ratios ``j(n,m) / j(0,1)`` (Fletcher & Rossing, *The Physics of Musical Instruments*, 2nd ed., Springer 1998, sec. 3.2 — which is why a drum has no pitch the way a string does), computed from ``bessel_zero_fixed`` at a DECLARED fixed-point scale, together with the ``(n, m)`` mode labels and an ``open_partials`` tuple naming every index. WHEN — use it as the Tier-3 case, and pass ``open_partials`` straight through to ``spectrum_tier`` / ``commensurability_verdict`` so the declaration travels with the numbers. WHAT IS NOT CLAIMED is the load-bearing part: the returned ratios are exact rationals OF DECLARED PRECISION, they are not claimed to be the true values, and the true values are not claimed to be transcendental, algebraic-irrational or rational. DLMF 10.21 was fetched and contains no transcendence statement; Siegel's theorem was never fetched. The field-theoretic status is UNRESOLVED and the op says so in ``transcendence_claim`` rather than inferring it. SIBLINGS — do not hand-roll the ratios from a table of Bessel zeros and then hand them to a period gauge: without the Tier-3 declaration they are just rationals, ``spectrum_tier`` reads them 'rational', and Class-N ``best_rational`` would happily mint a period for a spectrum whose commensurability is undecided. ``bessel_zero_fixed`` is the kernel underneath; ``bell_partials`` / ``equal_temperament_partials`` / ``stiff_string_partials`` are the Tier 1 and Tier 2 peers."},
     'srmech.music.spectrum_tier': {'example': {'worked': 'from srmech.math.q import Q\nfrom srmech.music import (spectrum_tier, bell_partials,\n                          stiff_string_partials, membrane_partials)\nspectrum_tier(bell_partials()["ratios"])["tier_name"]\n# -> \'rational\'\nspectrum_tier(stiff_string_partials(Q(1, 1000), n_partials=4)["ratios"])["tier_name"]\n# -> \'algebraic\'\ndrum = membrane_partials(n_orders=2, m_zeros=2, scale_bits=64)\ntier = spectrum_tier(drum["ratios"], open_partials=drum["open_partials"])\n(tier["tier_name"], tier["exact"], tier["open_indices"])\n# -> (\'open\', False, (0, 1, 2, 3))\n# ...and the SAME four numbers with the declaration dropped:\nspectrum_tier(drum["ratios"])["tier_name"]\n# -> \'rational\'\nspectrum_tier([Q(3, 2), 2.0])  # -> TypeError', 'output': "spectrum_tier(bell)['tier_name'] == 'rational'; spectrum_tier(stiff_string B=1/1000)['tier_name'] == 'algebraic'; membrane WITH open_partials -> ('open', False, (0, 1, 2, 3)); the SAME membrane ratios WITHOUT the declaration -> 'rational'; a float ratio -> TypeError('partial[1]: float ratios are refused')", 'why': "The fourth line is the whole point of the op: one identical tuple of four Q values reads 'open' when its constructor declared it Tier 3 and 'rational' when it did not. Tier 3 is DECLARED because it cannot be inferred — a rational standing in for something with no exact carrier is, as a carrier, just a rational."}, 'explanation': "WHAT — returns the EXACTNESS TIER of a spectrum, plus a per-partial record carrying carrier, field_degree and ``in_rationals``. Tier 1 = an exact rational carrier (``Q``/``int``); Tier 2 = an exact ALGEBRAIC-IRRATIONAL carrier (``Qalg`` — ``alpha**2 == 2`` holds IN THE FIELD, so it is still exact and still decidable); Tier 3 = no exact carrier exists at all. The spectrum's tier is the WEAKEST of its partials', and ``in_rationals`` is ``None`` (UNDECIDED) at Tier 3 rather than ``False``, because 'we cannot decide' is not 'we decided no'. WHEN — reach for it before believing ANY spectrum-derived number, and specifically to keep 'an exact rational' apart from 'a rational of DECLARED PRECISION standing in for something else'. Tiers 1 and 2 are INFERRED from the carrier; Tier 3 must be DECLARED through ``open_partials``, because only the constructor knows the provenance. The transcript above measures that asymmetry: the same four membrane ratios report 'open' with the declaration and 'rational' without it. SIBLINGS — this is the tier tag ``coupling.resonant_spectrum`` never had; its peer ``coupling.fractal_spectrum`` already returns a ``spectrum_open`` string for exactly this reason (no finite exact carrier decides Julia-set membership), so the idea was in the tree and only the tag was missing. Do not hand-roll a tier test from ``type(ratio)``: that gets Tiers 1 and 2 right and Tier 3 silently wrong, which is the only case that matters. ``commensurability_verdict`` and ``common_period`` read the same partials through the same private reader as this op, so the three can never disagree about a spectrum."},
     'srmech.music.stiff_string_partials': {'example': {'worked': 'from srmech.math.q import Q\nfrom srmech.music import (stiff_string_partials, commensurability_verdict,\n                          common_period)\nstiff = stiff_string_partials(Q(1, 1000), n_partials=4)\n(stiff["tier"], stiff["radicands"])\n# -> (2, (Q(1001, 1000), Q(502, 125), Q(9081, 1000), Q(2032, 125)))\ncommensurability_verdict(stiff["ratios"])["verdict"]\n# -> \'inharmonic\'\ncommensurability_verdict(stiff["ratios"])["incommensurable"]\n# -> (0, 1, 2, 3)\nideal = stiff_string_partials(0, n_partials=4)\n(ideal["tier"], ideal["ratios"])\n# -> (1, (Q(1, 1), Q(2, 1), Q(3, 1), Q(4, 1)))\n(commensurability_verdict(ideal["ratios"])["integer_series"],\n common_period(ideal["ratios"]))\n# -> (True, 1)\nstiff_string_partials(0.001)  # -> TypeError', 'output': "B = 1/1000 -> tier 2 with radicands (Q(1001, 1000), Q(502, 125), Q(9081, 1000), Q(2032, 125)), verdict 'inharmonic', all four partials (0, 1, 2, 3) provably outside the rationals; B = 0 -> tier 1 with ratios (Q(1, 1), Q(2, 1), Q(3, 1), Q(4, 1)), integer_series True and common period 1; a float B -> TypeError('inharmonicity must be EXACT')", 'why': 'The built-in control fires: at B = 0 the radicand collapses to n**2, a perfect square, so every surd degenerates to the integer n and the ideal flexible string is recovered EXACTLY — same code path, Tier 1, integer_series True. A real piano string at B = 1/1000 is inharmonic in the strong sense: no partial shares a period with the fundamental at any multiple, ever.'}, 'explanation': "WHAT — returns a stiff (piano) string's partials from the textbook closed form ``f_n = n*f0*sqrt(1 + B*n**2)`` (Fletcher & Rossing, *The Physics of Musical Instruments*, 2nd ed., Springer 1998, sec. 2.18 — bending stiffness sharpens each partial). With ``B`` rational the ratio to the fundamental is ``sqrt(n**2 * (1 + B*n**2))``, a QUADRATIC SURD living exactly in ℚ[x]/(x**2 − r_n), so the whole family is Tier 2 and carried with no approximation anywhere. Each partial gets its own quadratic field because the radicands differ — correct and harmless, since ℚ-membership is field-theoretic in each field separately. WHEN — use it as the Tier-2 case with a BUILT-IN CONTROL: at ``B == 0`` the radicand becomes the perfect square ``n**2``, every ratio degenerates to the integer ``n``, and the op returns Tier 1 with ``integer_series`` True. A constructor that cannot come out the other way would not be measuring anything, so the degenerate arm is part of the instrument. SIBLINGS — this family was ALREADY exactly carriable by the shipped ``Qalg``; what was missing was the tier tag and a verdict that could read it, so do not re-implement the surd arithmetic. Above all do not pass a float ``B`` — it is refused on purpose, because a float B makes every radicand a float-rational and collapses the Tier-1/Tier-2 distinction this constructor exists to expose. Peer constructors: ``bell_partials`` (Tier 1), ``equal_temperament_partials`` (Tier 2, one shared field), ``membrane_partials`` (Tier 3)."},
+    # rc411 (`#T1086`) — the introspect INDEX + the registry's own front door.
+    # Every output below is a REAL WSL2 numpy-absent capture. The transcripts
+    # deliberately assert INVARIANTS (uniqueness, key sets, exact types, the
+    # resolve() control) rather than printing the registered-op TOTAL: a
+    # captured cardinal in shipped prose goes stale on the next registration,
+    # which is exactly the rot rc409 removed.
+    'srmech.introspect.search.search': {
+        'example': {
+            'input': {
+                'query': "the need in natural words — here the motivating control, plus a carrier-scoped call and a miss",
+                'k': '3',
+                'scope': "'all' (the union of the verb + noun registries), narrowed to 'carriers' in the second call",
+            },
+            # OUTPUTS ONLY — deliberately not a second copy of the ``worked``
+            # transcript. The first draft re-quoted every call here, and since
+            # the frame indexes each example sub-key separately that tripled the
+            # term frequency of the demonstration queries INSIDE the index's own
+            # row: measured, it displaced `srmech.math.cyclic.gcd` from rank 1
+            # to rank 2 for "greatest common divisor" and put this op there
+            # instead. An op whose examples ARE queries is the one row where
+            # duplicated example prose changes the answer, so it keeps the field
+            # convention strictly: `worked` carries the calls, `output` carries
+            # what they returned.
+            'output': (
+                "True                                     the resolve() control misses\n"
+                "'srmech.cascade.winding_fold'            the index does not\n"
+                "'from srmech.cascade import winding_fold'   reach: paste-ready\n"
+                "'example.output: winding_fold(2*pi*5.0) = (5, -1.2247147740396258e-15)…'\n"
+                "'Q'                                      exact rational, never a float\n"
+                "64                                       the ADR-0011 sha256 witness\n"
+                "['Mat', 'QMat']                          scope='carriers'"
+            ),
+            'why': (
+                'The control is the whole point: resolve("winding") is None because '
+                'resolve matches whole dotted segments, and the same felt word returns '
+                'winding_fold FIRST through the index. The rest shows the answer is '
+                'actionable without a second call — reach ships the import line, why '
+                'ships the field that matched WITH the matching excerpt, and score is '
+                'an exact Q rather than a float. The last line is the one people miss: '
+                'a query that matches nothing returns an EMPTY tuple, not the k '
+                'least-bad rows.'
+            ),
+            'worked': (
+                "from srmech.introspect.search import search\n"
+                "from srmech.introspect.tool_schema import get_tool_schema\n"
+                "\n"
+                "# THE CONTROL that motivated the op: resolve() matches whole dotted\n"
+                "# segments, so a word the caller FELT but that is not a leaf name misses.\n"
+                "get_tool_schema().resolve('winding') is None   # -> True\n"
+                "\n"
+                "hits = search('winding number', k=3)\n"
+                "hits[0]['name']       # -> 'srmech.cascade.winding_fold'\n"
+                "hits[0]['reach']      # -> 'from srmech.cascade import winding_fold'\n"
+                "hits[0]['why'][:78]\n"
+                "# -> 'example.output: winding_fold(2*pi*5.0) = (5, -1.2247147740396258e-15)…'\n"
+                "type(hits[0]['score']).__name__   # -> 'Q'  exact rational, no float anywhere\n"
+                "len(hits.witness)                 # -> 64   sha256 of the frame corpus\n"
+                "\n"
+                "# scope narrows to the NOUN registry — matrix rank is a carrier method,\n"
+                "# not a registered op name, so the carrier scope is where it lives.\n"
+                "[h['name'] for h in search('exact rank of a matrix', k=2, scope='carriers')]\n"
+                "# -> ['Mat', 'QMat']\n"
+                "\n"
+                "# A query matching nothing returns an EMPTY tuple, never the k\n"
+                "# least-bad rows. Deliberately NOT demonstrated with a literal\n"
+                "# nonsense token here: this example ships INSIDE the corpus it\n"
+                "# searches, so writing one would make it a hit and the documented\n"
+                "# `-> ()` false. The suite proves it with tokens it derives at run\n"
+                "# time (tests/test_introspect_search_rc411.py)."
+            ),
+        },
+        'explanation': (
+            'WHAT — the need-shaped INDEX over the union of the verb registry '
+            '(``get_tool_schema()``) and the noun/carrier registry '
+            '(``carrier_schema()``), returning ranked records ``{kind, name, score, '
+            'why, reach}``. It is the INVERSE of ``srmech.introspect.describe``: '
+            'describe answers "what is the shape", this answers "I want X". The '
+            'cascade is a composition of ops that already ship — E ``get_tool_schema`` '
+            '/ ``carrier_schema`` -> F/B ``srmech.math.tlv.tlv_pack`` (one TLV frame '
+            'per row) -> A ``sha256_bytes`` (the corpus witness) -> G '
+            '``srmech.math.search.byte_search`` (tf per frame, df = frames hit) -> N '
+            '``srmech.math.q.Q(N - df, df)`` (EXACT idf: no float, no log) -> G '
+            '``byte_search`` over the name leaf (the 4x boost) -> E '
+            '``srmech.cascade.top_k_by_score``, which takes the exact ``Q`` scores '
+            'directly. Float-free end to end, and there is no ``abs()`` because tf '
+            'and df are counts and the scores are non-negative by construction. '
+            'WHEN — reach for it when you do NOT already know the name. That is the '
+            'whole split against its sibling: ``ToolSchema.resolve`` matches whole '
+            'dotted segments, so ``resolve("winding_fold")`` hits and '
+            '``resolve("winding")`` returns ``None``, and 6901 tokens that appear '
+            'only in prose are unresolvable by it. Reach for ``resolve`` when the '
+            'exact dotted name is known and for THIS when it is not. What you would '
+            'otherwise wrongly hand-roll is a loop over ``get_tool_schema().tools`` '
+            'doing a substring test on ``t.name`` — which is what ``resolve`` already '
+            'does better, and which reads neither ``explanation`` nor ``example``, '
+            'i.e. it misses the ~2,850 characters per op where the answer usually '
+            'is. Rows that match nothing are OMITTED, so an unanswerable query '
+            'returns empty rather than the k least-bad rows; do not read a short '
+            'result as truncation. SIBLINGS — ``srmech.introspect.describe`` is the '
+            'table of contents to this index and the two share one corpus; '
+            '``ToolSchema.resolve`` / ``resolve_all`` are the exact-name matchers '
+            'described above; ``srmech.introspect.carrier_schema.carrier_schema`` is '
+            'the noun registry this searches under ``scope="carriers"``, and it is '
+            'where class METHODS live (``QMat.rank``) that the verb registry '
+            'deliberately does not index. ``srmech.rbs_lm.encode_aboutness`` is the '
+            'HDC route over the same question — a MORPHOLOGY matcher rather than a '
+            'lexical one, thousands of times more expensive, and best used as an '
+            'optional rerank over this op\'s top-k rather than instead of it. '
+            'ADR-0011: the frame set is derived on demand and NOTHING is persisted; '
+            'the ``sha256`` witness on the result is that ADR\'s cache-vs-witness '
+            'admissibility condition, so a caller who does hold a derived view has '
+            'something to compare against the source.'
+        ),
+    },
+    'srmech.introspect.tool_schema.get_tool_schema': {
+        'example': {
+            'input': {'(none)': 'no parameters — a pure constructor over the live registry'},
+            'output': (
+                "type(s).__name__                 -> 'ToolSchema'\n"
+                "type(s.tools[0]).__name__        -> 'ToolEntry'\n"
+                "s.resolve('gcd').name            -> 'srmech.math.cyclic.gcd'\n"
+                "s.resolve('winding') is None     -> True    whole dotted segments only\n"
+                "sorted({t.owner for t in s.tools}) -> ['srmech']\n"
+                "len(s.tools) == len({t.name for t in s.tools}) -> True   names are unique"
+            ),
+            'why': (
+                'The uniqueness identity is asserted instead of the registered-op '
+                'total on purpose: it is the invariant that actually matters to a '
+                'caller (a name resolves to exactly one row) and it does not go '
+                'stale the next time an op is registered.'
+            ),
+            'worked': (
+                "from srmech.introspect.tool_schema import get_tool_schema, warmup_all\n"
+                "\n"
+                "warmup_all()          # counts are complete however srmech was entered\n"
+                "s = get_tool_schema()\n"
+                "type(s).__name__                    # -> 'ToolSchema'\n"
+                "type(s.tools[0]).__name__           # -> 'ToolEntry'\n"
+                "s.resolve('gcd').name               # -> 'srmech.math.cyclic.gcd'\n"
+                "s.resolve('winding') is None        # -> True   segments, not substrings\n"
+                "sorted({t.owner for t in s.tools})  # -> ['srmech']\n"
+                "len(s.tools) == len({t.name for t in s.tools})   # -> True"
+            ),
+        },
+        'explanation': (
+            'WHAT — returns the live ``ToolSchema``: a frozen dataclass carrying '
+            '``srmech_version``, ``tool_schema_version`` and ``tools``, a tuple of '
+            'every registered ``ToolEntry`` with its category, summary, explanation, '
+            'worked example, parameters and returns. srmech\'s own tools come first '
+            'in registration order, then profile-contributed tools grouped by owner '
+            '— note it returns the UNION, so a profile registration moves the total. '
+            'WHEN — reach for it whenever the consumer is Python and wants the live '
+            'objects and their methods (``by_owner`` / ``lookup`` / ``resolve`` / '
+            '``resolve_all`` / ``to_json`` / ``to_jsonable``). This is the object '
+            '``describe()["tools"]["registry"]`` names and the object '
+            '``srmech.introspect.search.search`` indexes. It is a PURE constructor '
+            'over the live registry and deliberately does NOT route through the C '
+            'table: it is the independent Python SSoT that the rc184 hash-ratchet '
+            'locks that table against, and routing it through would make the ratchet '
+            'circular. The bare-C host peer ``srmech_get_tool_schema`` realises the '
+            'same data, proven equivalent by object reconstruction in '
+            '``tests/test_tool_schema_ops_c_rc185.py``. What you would otherwise '
+            'wrongly hand-roll is walking ``srmech``\'s submodules with ``pkgutil`` '
+            'and ``inspect`` to enumerate callables — that returns the public '
+            'surface, which is a DIFFERENT and larger set than the registered one, '
+            'and it recovers none of the authored prose. SIBLINGS — '
+            '``tool_schema_view`` is this same registry rendered as a '
+            'JSON-serialisable dict; reach for THAT when the consumer is a wire or a '
+            'file, because the ``ToolSchema`` object itself is not JSON-serialisable. '
+            '``srmech.introspect.describe`` is the at-a-glance shape (~1% of the '
+            'text) rather than the full table; ``srmech.introspect.search.search`` '
+            'is the need-shaped index over it. Registered as a row only in rc411: '
+            'before that the name matched zero registered entries, so the registry '
+            'did not contain its own front door.'
+        ),
+    },
+    'srmech.introspect.tool_schema.tool_schema_view': {
+        'example': {
+            'input': {'(none)': 'no parameters — the registry rendered for a wire or a file'},
+            'output': (
+                "sorted(v)              -> ['srmech_version', 'tool_schema_version', 'tools']\n"
+                "sorted(v['tools'][0])[:6]\n"
+                "  -> ['category', 'example', 'explanation', 'mcp_callable', 'name', 'owner']\n"
+                "len(v['tools']) == len(get_tool_schema().tools) -> True   same registry\n"
+                "isinstance(json.dumps(v), str)                  -> True\n"
+                "json.dumps(get_tool_schema())                   -> TypeError"
+            ),
+            'why': (
+                'The last two lines are the whole reason this op exists as a peer '
+                'rather than as a method: the dict round-trips through json.dumps '
+                'and the live ToolSchema object raises TypeError, so picking the '
+                'wrong one of the pair fails at the serialisation boundary rather '
+                'than at the call.'
+            ),
+            'worked': (
+                "import json\n"
+                "from srmech.introspect.tool_schema import (\n"
+                "    get_tool_schema, tool_schema_view, warmup_all)\n"
+                "\n"
+                "warmup_all()\n"
+                "v = tool_schema_view()\n"
+                "sorted(v)                  # -> ['srmech_version', 'tool_schema_version', 'tools']\n"
+                "sorted(v['tools'][0])[:6]\n"
+                "# -> ['category', 'example', 'explanation', 'mcp_callable', 'name', 'owner']\n"
+                "len(v['tools']) == len(get_tool_schema().tools)   # -> True\n"
+                "isinstance(json.dumps(v), str)                    # -> True\n"
+                "# the live object is NOT serialisable — that is the split:\n"
+                "json.dumps(get_tool_schema())                     # -> TypeError"
+            ),
+        },
+        'explanation': (
+            'WHAT — returns ``get_tool_schema()`` rendered as a JSON-serialisable '
+            'dict: ``{"srmech_version", "tool_schema_version", "tools"}`` where each '
+            'tool is a plain dict of its ToolEntry fields. WHEN — reach for THIS '
+            'when the consumer is JSON: an MCP payload, a ``srmech --tool-schema`` '
+            'CLI dump, an attestation body, anything crossing a wire or landing in a '
+            'file. Reach for ``get_tool_schema`` instead when the consumer is Python '
+            'and wants the live objects and their methods. The split is enforced by '
+            'the serialiser rather than by convention — ``json.dumps`` on the live '
+            '``ToolSchema`` raises ``TypeError``, as the worked example shows. '
+            'PERFORMANCE / PARITY NOTE worth knowing before you reach past it: when '
+            'no profile tools are registered and the native library is loaded, the '
+            'view is produced by the bare-C host op ``srmech_tool_schema_view`` and '
+            'parsed back, VALUE-identical to the pure '
+            '``get_tool_schema().to_jsonable()`` (dict equality is order-insensitive; '
+            'the native keys arrive in canonical sorted order). Any profile tool, a '
+            'stale or absent library, or a non-OK C status falls back to the Python '
+            'path, so the result is the same either way and the routing is not '
+            'something a caller has to manage. What you would otherwise wrongly '
+            'hand-roll is ``dataclasses.asdict`` over the schema — it walks the same '
+            'fields but does not apply the tuple/bytes normalisation the wire needs, '
+            'and it silently produces a payload the C peer would not agree with. '
+            'SIBLINGS — ``get_tool_schema`` is the live-object half of this pair and '
+            '``ToolSchema.to_jsonable`` is the method form this wraps; '
+            '``srmech.introspect.describe`` is the at-a-glance shape rather than the '
+            'full table, and ``srmech.introspect.search.search`` is the need-shaped '
+            'index over the same corpus. Registered as a row only in rc411, for the '
+            'same reason as its sibling: both are the registry\'s own front door and '
+            'neither was findable in it.'
+        ),
+    },
 }

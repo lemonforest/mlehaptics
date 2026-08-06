@@ -29,7 +29,8 @@ closing the end that was never checked.
 WHAT THIS IS *NOT*
 ==================
 Not a stale-artifact check. The guard fires on a condition that is FALSE in a
-clean codegen environment (measured owner census: ``{'srmech': 556}``), and the
+clean codegen environment (measured owner census: a single ``srmech`` key
+carrying the whole registry), and the
 emit path never branched on owner — ``gen_tool_registry.py:209`` writes
 ``t.owner`` unconditionally into a string pool where ``"srmech"`` already
 lives. **Output is byte-identical**, which is why rc409 commits zero

@@ -14,7 +14,7 @@ channel for one: ``resources/*``, ``prompts/*``, ``completion/*`` and
 That matters more here than for a typical server, because ``tools/list``
 descriptions are built from ``summary`` + an optional ``Returns:`` line + the
 ``[srmech category: …; owner: …]`` tag ONLY. The ``example`` and ``explanation``
-fields — 556 of 556 entries carry both — have no MCP route at any granularity,
+fields — every registered entry carries both — have no MCP route at any granularity,
 so a client that cannot find a capability has no way to learn that it is looking
 at one field of fourteen.
 

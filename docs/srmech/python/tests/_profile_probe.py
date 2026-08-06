@@ -5,7 +5,7 @@ WHY THIS EXISTS
 srmech's own suite never activates a profile. There is no
 ``register_profile_tools`` / ``load_profile`` / ``SRMECH_PROFILE`` anywhere in
 ``conftest.py`` or in any CI workflow. So the measured owner census is a single
-key — ``{'srmech': 556}`` — and therefore
+key — ``{'srmech': N}`` for the whole registry — and therefore
 
     len(get_tool_schema().tools) == len(get_tool_schema().by_owner("srmech"))
 

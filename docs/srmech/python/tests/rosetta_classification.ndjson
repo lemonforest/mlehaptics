@@ -622,6 +622,7 @@
 {"exposed_as": "srmech.math.carrier_ladder.carrier_ladder_descriptor", "defined_at": "srmech.math.carrier_ladder.carrier_ladder_descriptor", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
 {"exposed_as": "srmech.introspect.carrier_schema.carrier_schema", "defined_at": "srmech.introspect.carrier_schema.carrier_schema", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.introspect.responsion_schema.responsion_schema", "defined_at": "srmech.introspect.responsion_schema.responsion_schema", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.introspect.search.search", "defined_at": "srmech.introspect.search.search", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.cascade.cd_promote", "defined_at": "srmech.cascade.cayley_dickson.cd_promote", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.cascade.cd_project", "defined_at": "srmech.cascade.cayley_dickson.cd_project", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.introspect.op_provenance.carry", "defined_at": "srmech.introspect.op_provenance.carry", "bucket": "non_compute", "non_compute_kind": "composes_c"}
