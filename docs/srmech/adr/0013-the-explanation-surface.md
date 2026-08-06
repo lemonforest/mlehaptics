@@ -165,6 +165,66 @@ name the `explanation` + `example` payload as a surface in its own right, and it
 those two fields as *fields the SSoT carries* rather than as a layer with its own consumers, its own
 organs and its own addressing problem. This ADR names it, without revising a word of 0012.
 
+### 1.7 Three grains — and why the answer is NOT a hand-written usage guide
+
+**User question, 2026-08-06:**
+
+> *"then should we have some general usage guide alongside the srmech notebook that delves into
+> everything we've added, beyond architecture?"*
+
+The question is the right one and its answer is a **decision this ADR must record**, because the
+obvious response — write a guide — would violate two standing constraints and manufacture a third
+drift surface. srmech's self-information is stratified by **grain**, and the three grains are in
+radically different states:
+
+| grain | home | state (measured, rc409 registry) |
+|---|---|---|
+| **ARCHITECTURE** — the A-N vocabulary, the substrate claims | `srmech_research_notebook.md` (7,373 lines) | **DRIFTING** — highest rcN it mentions is **rc399**; shipped is rc410; **26** `docs/srmech/python` commits landed since it was last touched; **zero** currency gates |
+| **PER-OP** — what one op is, means, and demonstrates | `summary` + `explanation` + `example` | **COMPLETE** — 556/556 on all three, ~2.05 M chars, floor-enforced (§4) |
+| **PER-TASK** — which ops go together to do X | `composes` / `preserves` | **EMPTY** — **2 / 556** and **2 / 556**, 295 and 602 chars |
+
+**A hand-authored guide is the wrong instrument, for three separable reasons.**
+
+**(a) It would be a second encoding of content that already exists.** ADR-0011 states verbatim: *"If a
+legible view is wanted, derive it on demand through the tool surface; do not persist it."* ~2.05 M
+characters of per-op usage prose already ship at 100 % coverage. A guide restating it is precisely the
+persisted duplicate 0011 forbids — and the per-op grain is the grain a guide would naturally target,
+because it is the grain that already has content to copy.
+
+**(b) It would be a sidecar.** The standing stance is that research notebooks stay monolithic — fold
+material *directly in*, never alongside. A companion usage document is the sidecar shape by
+construction.
+
+**(c) It would rot, and we have the measurement proving it.** The architecture notebook is the control
+experiment: hand-maintained prose about a moving tree, no gate, **11 rcs stale**. A guide restating
+2.05 M characters that change every rc would drift faster, because it restates more.
+
+**The real gap the question points at is the PER-TASK grain, and this ADR does not currently cover
+it.** §2.3's four readings — identification, contract, affordance, demonstration — are **all four
+per-op readings**. Every one answers a question of the form *"what about THIS op?"*. None answers
+*"which ops compose to do X?"*. The score metaphor holds and sharpens the point: four readings of one
+op's staff is still one staff. A task is a **passage across staves**, and no reading of a single staff
+recovers it.
+
+**Decision recorded here (execution tracked as `#T1093`, blocked behind the rc411 index):**
+
+1. **No hand-authored usage guide.** Any usage view is **DERIVED** — generated on demand from
+   `summary` + `explanation` + `example` + `composes`, riding the same index the reachability deficit
+   (§6) requires. One encoding, no sidecar, no new drift surface.
+2. **The content gap is `composes` / `preserves`, not a missing document.** rc305 shipped those fields
+   as the composition layer; the *mechanism* landed and the *content* never did. 2/556 is 0.36 %.
+3. **The per-task grain is named here as OUT of the four-readings decomposition**, not silently folded
+   into it. Whether it becomes a fifth reading, a distinct surface, or a derived join over `composes`
+   is **open** and deliberately not decided by this ADR.
+
+⚠️ **Limits on the numbers above, stated so they are not over-read.** The `composes`/`preserves`
+census counts **non-empty, not good** — a one-word value scores identically to a real one, so 2/556 is
+a **floor on the gap**, not a quality assessment. It is measured on the **rc409** registry; rc411
+(`#T1079`) adds three rows to 559 and it must be re-measured after. And **556/556 population on the
+per-op fields is not a claim that the per-op grain is *correct*** — §6 measures that none of it is
+reachable, and `#T1092` records a shipped field (`mcp_callable`) that is uniformly populated and
+uniformly *wrong* on at least 17 ops. Full population is a coverage fact, never a truth fact.
+
 ---
 
 ## 2. Decision — what the explanation surface IS
