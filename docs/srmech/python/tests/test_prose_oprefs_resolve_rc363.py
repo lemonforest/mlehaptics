@@ -153,6 +153,31 @@ _FILE_SUFFIXES = frozenset({
     "toml", "json", "ndjson", "md", "txt", "cfg", "in", "yml", "yaml",
 })
 
+#: Tails that make a two-segment extraction a DOMAIN NAME rather than a module
+#: path — the peer of ``_FILE_SUFFIXES`` above, and the same rule applied to the
+#: other artifact class whose spelling collides with a dotted path.
+#:
+#: rc408 (`#T1078`): ``srmech.net`` IS the project's website (root ``CLAUDE.md``
+#: §2: "PyPI; srmech.net forwards to repo"), and it is written into every
+#: genome manifest as the DEFAULT ``source_url`` — so it appears in prose
+#: legitimately, and will keep appearing: the whole point of the rc304
+#: ``attestation=`` override is to let a caller replace that default with a real
+#: source, which cannot be explained without naming it. A domain is
+#: syntactically identical to a dotted module path, so the extractor cannot tell
+#: them apart and reported ``srmech.net`` as an unresolvable citation. That is a
+#: FALSE-POSITIVE CLASS in this gate, not a defect in the prose — the same shape
+#: as ``srmech.h``, and fixed by the same mechanism rather than a special case.
+#:
+#: DELIBERATELY NARROW, in two ways that both matter:
+#:   1. It fires ONLY on a TWO-SEGMENT extraction, exactly like ``_FILE_SUFFIXES``.
+#:      ``srmech.net.foo`` is still resolved and still fails if dead, so the
+#:      exclusion cannot be widened into cover for a real broken citation.
+#:   2. ``io`` / ``dev`` / ``ai`` are TLDs but are DELIBERATELY ABSENT: each is a
+#:      plausible srmech submodule name, and admitting them would blind the gate
+#:      to a genuinely dead ``srmech.io.*``-rooted path. Only TLDs that could not
+#:      credibly name a Python submodule of this package are listed.
+_DOMAIN_SUFFIXES = frozenset({"net", "com", "org"})
+
 #: The ToolEntry prose fields this gate reads. ``example`` is EXCLUDED — see the
 #: module docstring: the rc354 execution gate runs those, which is strictly
 #: stronger than resolving them.
@@ -165,6 +190,8 @@ def _normalise(raw: str) -> Optional[str]:
     segs = raw.split(".")
     if len(segs) == 2 and segs[1] in _FILE_SUFFIXES:
         return None                      # `srmech.h` — a FILE
+    if len(segs) == 2 and segs[1] in _DOMAIN_SUFFIXES:
+        return None                      # `srmech.net` — a DOMAIN (the website)
     if "*" in segs:
         segs = segs[:segs.index("*")]
     if len(segs) < 2:
@@ -270,6 +297,60 @@ def test_the_filename_rule_is_exercised_not_theoretical() -> None:
     assert _normalise("srmech.h") is None
     assert _normalise("srmech.physics.qm.*") == "srmech.physics.qm"
     assert _normalise("srmech.math.laplacian") == "srmech.math.laplacian"
+
+
+def test_the_domain_rule_is_exercised_and_still_catches_dead_paths() -> None:
+    """rc408 (`#T1078`) — the peer of the filename rule, with its COUNTERFACTUAL.
+
+    An exclusion is only safe if it is (a) actually used and (b) narrow enough
+    that it cannot swallow a real defect. Both are asserted here, because an
+    exclusion that quietly widened would turn this whole gate green for the
+    wrong reason — the failure mode a CEIL would have introduced, and the reason
+    this was fixed as a decidable rule instead.
+    """
+    # (a) EXERCISED — `srmech.net` really is cited, so the rule is not dead code.
+    #     Scanned over the SAME surfaces `_citations` walks (entry fields AND
+    #     parameter summaries AND returns), not just the entry fields: the live
+    #     citation is in genome_save's `attestation` PARAMETER summary, and a
+    #     narrower scan here would have declared the rule dead while it was in use.
+    raw_domain = []
+    for t in get_tool_schema().tools:
+        blobs = [getattr(t, f, None) or "" for f in _ENTRY_FIELDS]
+        blobs += [p.summary or "" for p in t.parameters]
+        if t.returns is not None:
+            blobs.append(getattr(t.returns, "shape", "") or "")
+            blobs.append(getattr(t.returns, "summary", "") or "")
+        for text in blobs:
+            raw_domain += [m.group(0) for m in _DOTTED.finditer(text)
+                           if m.group(0) == "srmech.net"]
+    assert raw_domain, (
+        "no `srmech.net` citation found — the domain exclusion in _normalise is "
+        "no longer exercised; drop it or find why the project website stopped "
+        "being named in the attestation prose")
+    assert _normalise("srmech.net") is None
+
+    # (b) THE COUNTERFACTUAL, four ways. The rule must NOT have blunted the gate.
+    #
+    # 1. It is TWO-SEGMENT ONLY: a longer path that merely starts with the
+    #    domain is still normalised, still resolved, and still dead.
+    assert _normalise("srmech.net.foo") == "srmech.net.foo"
+    assert _resolves("srmech.net.foo") is None
+
+    # 2. A two-segment path whose tail is NOT a listed suffix is untouched.
+    assert _normalise("srmech.nosuchmodule") == "srmech.nosuchmodule"
+    assert _resolves("srmech.nosuchmodule") is None
+
+    # 3. The rc407 DEFECT CLASS still fails — a real module, a dead attribute.
+    #    `One.to_numpy` was deleted in 4aa75d64a and cited as live until rc407;
+    #    its module-rooted spelling must still be unresolvable.
+    assert _resolves("srmech.cascade.one.the_one") == "attr"   # the live peer
+    assert _resolves("srmech.cascade.one.to_numpy") is None    # the dead one
+
+    # 4. TLDs that could credibly name a submodule are NOT excluded, so a dead
+    #    `srmech.io` / `srmech.dev` citation would still be caught.
+    assert "io" not in _DOMAIN_SUFFIXES
+    assert "dev" not in _DOMAIN_SUFFIXES
+    assert _normalise("srmech.io") == "srmech.io"
 
 
 # ── 1. THE GATE ───────────────────────────────────────────────────────────────

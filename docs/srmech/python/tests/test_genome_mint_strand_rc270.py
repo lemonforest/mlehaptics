@@ -261,8 +261,14 @@ def test_mint_strand_tool_has_docs():
     # rc340 (#T965): 6 -> 7 — the shared ET_PARAM (element_type) is now published on
     # the MCP surface for every genome op whose Python surface accepts it, so a
     # remote caller can pick the carrier rung instead of silently getting klein4.
-    assert len(entry.parameters) == 7
+    # rc408 (`#T1078`): 7 -> 8 — `progress`, the §101 per-call heartbeat, was a real
+    # parameter of mint_strand's signature that the ToolEntry did not declare. It is
+    # now declared (typed host_callable, publishing JSON-schema "null", so no client
+    # can be told to fill it) rather than hidden. NOT a new capability: the kwarg has
+    # been accepted since §101 / ABI v6 — only the contract caught up.
+    assert len(entry.parameters) == 8
     assert any(p.name == "element_type" for p in entry.parameters)
+    assert any(p.name == "progress" for p in entry.parameters)
 
 
 # ── 8. 1:1 C<->Python byte-parity of the spliced cap (native-gated) ─────────
