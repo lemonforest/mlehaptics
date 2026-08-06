@@ -65,9 +65,12 @@ def test_idempotent_re_registration_is_silent() -> None:
         register_tool(entry)
         register_tool(entry)  # should not raise
     finally:
-        # cleanup: the entry has owner "srmech", so unregister_profile_tools is a
-        # no-op for it — pop it from the global registry directly so it does NOT
-        # leak into the schema singleton and inflate other tests' tools.total.
+        # cleanup: pop directly. rc409 (`#T1080`) — this comment used to read
+        # "the entry has owner 'srmech', so unregister_profile_tools is a no-op
+        # for it", which was FALSE and backwards: that call removed all 556
+        # entries and left the registry EMPTY. It now RAISES on the reserved
+        # owner, so the direct pop is the only correct cleanup either way — but
+        # for the opposite reason to the one recorded here for many rcs.
         ts._REGISTRY.pop("test.idempotent", None)
 
 
@@ -92,7 +95,10 @@ def test_conflicting_re_registration_raises() -> None:
             register_tool(e2)
     finally:
         # cleanup: pop the injected entry so it does NOT leak into the schema
-        # singleton (owner "srmech" → unregister_profile_tools can't remove it).
+        # singleton. rc409 (`#T1080`) — the parenthetical here used to claim
+        # (owner "srmech" → unregister_profile_tools can't remove it), the exact
+        # inverse of the measured behaviour: it removed EVERYTHING. It now
+        # raises on the reserved owner. See test_reserved_owner_guard_rc409.py.
         ts._REGISTRY.pop("test.conflicting", None)
 
 

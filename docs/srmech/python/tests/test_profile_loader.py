@@ -1,4 +1,4 @@
-"""Unit tests for srmech.profile_loader (Task #199, ADR-0001).
+"""Unit tests for srmech.profile_loader (`#T199`, ADR-0001).
 
 The loader is tested without actually installing a real profile-bearing
 package — instead, tests fabricate _EnumeratedDescriptor records directly
@@ -278,11 +278,24 @@ def test_entry_point_form_1_package_only(tmp_path: Path) -> None:
     """Form 1: entry-point value is a package name. Loader uses
     importlib.resources.files(package) to locate srmech_profile.toml.
 
-    We can't easily exercise the full entry-point machinery in a unit
-    test without pip-installing a fixture package, so we test the
-    underlying resolver against a synthesised module-with-resources
-    pattern: directly stub the entry-point's load() result and verify
-    _resolve_entry_point_toml handles ModuleType targets.
+    This test covers the RESOLVER only: it stubs the entry-point's load()
+    result and verifies _resolve_entry_point_toml handles ModuleType
+    targets. That is a deliberate unit scope, not a limitation.
+
+    rc409 (`#T1080`) — THIS DOCSTRING USED TO CLAIM A BLOCKER THAT DOES NOT
+    EXIST: "We can't easily exercise the full entry-point machinery in a
+    unit test without pip-installing a fixture package." **Refuted by
+    execution.** A hand-written `fakeprof-1.0.0.dist-info/` (METADATA +
+    entry_points.txt) on a `sys.path` directory drives the whole real path —
+    discovery, resolve, validate, smoke, cache, `Profile` — with the standard
+    library alone: no pip, no network, no install. See
+    `tests/test_profile_entrypoint_discovery_rc409.py`, which also carries the
+    negative control (rename the group, everything goes quiet).
+
+    The correction matters beyond accuracy: a COST had been written into the
+    tree as a BLOCKER, and for many rcs it deterred anyone from covering
+    `entry_points()`, the `MAX_ENUMERATED_PROFILES` cap, or the activation
+    body — none of which had a single reference in `tests/` before rc409.
     """
     from srmech.profile_loader import _resolve_entry_point_toml
     import types

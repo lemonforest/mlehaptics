@@ -230,9 +230,32 @@ def build_docs() -> Tuple[Dict[str, Dict[str, Any]], Dict[str, Dict[str, Any]],
     except Exception:
         CURATED = {}
 
+    # rc409 (`#T1080`) — the SECOND generator that walks the live mutable
+    # registry, and the one whose output ships INSIDE THE WHEEL
+    # (`srmech/introspect/_tool_docs.py`, read back by `describe()` and the MCP
+    # tool list). A profile active in the generating interpreter would have its
+    # tools baked in as srmech's own. Same guard, same reason, same house
+    # exception type as the C-side generator; see `_reject_profile_tools` in
+    # `c/tools/gen_tool_registry.py` for the full rationale.
+    from srmech.introspect.tool_schema import (
+        RESERVED_OWNERS, ToolSchemaValidationError,
+    )
+    _all_tools = list(get_tool_schema().tools)
+    _intruders = [t for t in _all_tools if t.owner not in RESERVED_OWNERS]
+    if _intruders:
+        raise ToolSchemaValidationError(
+            f"refusing to build tool docs: {len(_intruders)} of "
+            f"{len(_all_tools)} entries are PROFILE-owned and would ship in "
+            f"the wheel as srmech's own.\n"
+            + "\n".join(f"    {t.name!r} owner={t.owner!r}"
+                        for t in _intruders[:10])
+            + ("\n    ..." if len(_intruders) > 10 else "")
+            + "\n\nRegenerate from a clean interpreter with no profile active."
+        )
+
     docs: Dict[str, Dict[str, Any]] = {}
     seed: Dict[str, Dict[str, Any]] = {}
-    for t in get_tool_schema().tools:
+    for t in _all_tools:
         fn = _resolve_callable(t.name)
         expl = _clean_doc(getattr(fn, "__doc__", None)) if fn is not None else None
         entry: Dict[str, Any] = {}

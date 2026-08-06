@@ -1,6 +1,6 @@
 """Adapter implementations for the attested collector framework.
 
-Six adapter categories cover the realistic source space:
+Seven adapter categories cover the realistic source space:
 
 * ``html_scraper`` — pages parsed via BeautifulSoup field-map
 * ``json_api`` — JSON endpoints with pagination
@@ -12,6 +12,14 @@ Six adapter categories cover the realistic source space:
 * ``literature_curated`` — per-body catalogues from peer-reviewed
   literature; no network fetch, NDJSON committed directly,
   per-row ``source_doi`` mandatory in each row's data block
+* ``substrate_parameterization`` — the odd one out, and deliberately so:
+  the six above answer *"where do the ground-proof rows come from?"*,
+  this one answers *"how is a parameterized substrate configured?"*.
+  Carries the full parameter set for a substrate characterization run
+  under ``[fetch.substrate_parameterization.*]`` (the RBS-LM Klein-4
+  chirality-level sentence substrate is the canonical consumer), so
+  every former module-level magic number is attested catalog content
+  rather than script-embedded magic
 
 Each adapter exposes:
 
