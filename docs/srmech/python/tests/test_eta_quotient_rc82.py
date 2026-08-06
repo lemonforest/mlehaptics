@@ -233,9 +233,14 @@ def test_eta_quotient_source_is_numpy_math_abs_free():
 # ── gate (g): a CARRIER — NO ToolEntry, tools.total UNCHANGED ─────────────────
 def test_eta_quotient_is_a_carrier_no_tool_entry():
     """EtaQuotient is a CARRIER (like Poly / RiemannTheta) → it registers NO
-    ToolEntry, so the shipped tool count is UNCHANGED at 342."""
+    ToolEntry, so the shipped tool count is UNCHANGED by it.
+
+    (This read "UNCHANGED at 342" until rc410 (`#T1085`), one line above the
+    real assertion — the cardinal belongs there, not in prose where it rots.)"""
     from srmech.introspect.tool_schema import get_tool_schema
-    shipped = [t for t in get_tool_schema().tools if not t.name.startswith("test.")]
+    # rc410 (`#T1085`): filter by OWNER, not by name-prefix — see
+    # tests/_profile_probe.py for why the prefix axis was the wrong question.
+    shipped = list(get_tool_schema().by_owner("srmech"))
     assert len(shipped) == 556
     names = {t.name for t in shipped}
     # no eta_quotient ToolEntry leaked in

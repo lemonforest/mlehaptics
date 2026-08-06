@@ -280,11 +280,14 @@ def test_modular_forms_ring_source_is_numpy_math_abs_free():
 def test_represent_is_a_tool_entry_total_matches_live():
     """``modular_forms_ring_represent`` is a genuine REDUCER (the WEIGHT-axis analog
     of the Σ-row gosper/zeilberger/wz_certificate) → it IS a registered ToolEntry,
-    which took the shipped tool count 340 → 341 at rc84 (now 342 with the rc89
-    quasimodular reducer). The bare carrier constructor + weight_monomials/dim are
-    NOT ToolEntries."""
+    which took the shipped tool count 340 → 341 at rc84 (this then said "now
+    342" until rc410 (`#T1085`) — a present-tense cardinal that rotted; the live
+    total is the assertion below). The bare carrier constructor +
+    weight_monomials/dim are NOT ToolEntries."""
     from srmech.introspect.tool_schema import get_tool_schema
-    shipped = [t for t in get_tool_schema().tools if not t.name.startswith("test.")]
+    # rc410 (`#T1085`): filter by OWNER, not by name-prefix — see
+    # tests/_profile_probe.py for why the prefix axis was the wrong question.
+    shipped = list(get_tool_schema().by_owner("srmech"))
     assert len(shipped) == 556
     names = {t.name for t in shipped}
     assert "srmech.apokatastasis.modular_forms_ring.modular_forms_ring_represent" in names

@@ -128,21 +128,39 @@ def test_register_profile_tools_enforces_owner_tag() -> None:
 
 def test_unregister_profile_tools_removes_all() -> None:
     """unregister_profile_tools removes every entry owned by the
-    named profile."""
+    named profile.
+
+    rc410 (`#T1085`) — the body is wrapped in ``try``/``finally``. It was not,
+    and the very first assertion ran BEFORE the only call that removes the two
+    rows. So a genuine failure of THIS test left ``gamma.a`` / ``gamma.b`` in
+    the process-global registry, and every later count assertion in the same
+    worker then read 558 and failed too — three failures reported for one
+    defect, with the two spurious ones naming unrelated modules. Worse, which
+    tests get hit is scheduling-dependent under ``--dist load``, so the
+    collateral set changes between runs.
+
+    The cleanup must not depend on the assertions passing. Note this is the ONE
+    unprotected leak in this file; the two ``test.*`` injections above have been
+    ``try``/``finally``-protected since rc409.
+    """
     entries = [
         ToolEntry(name="gamma.a", owner="gamma", category="test", summary="a"),
         ToolEntry(name="gamma.b", owner="gamma", category="test", summary="b"),
     ]
     register_profile_tools("gamma", entries)
+    try:
+        view_before = get_tool_schema()
+        assert len(view_before.by_owner("gamma")) == 2
 
-    view_before = get_tool_schema()
-    assert len(view_before.by_owner("gamma")) == 2
+        n = unregister_profile_tools("gamma")
+        assert n == 2
 
-    n = unregister_profile_tools("gamma")
-    assert n == 2
-
-    view_after = get_tool_schema()
-    assert len(view_after.by_owner("gamma")) == 0
+        view_after = get_tool_schema()
+        assert len(view_after.by_owner("gamma")) == 0
+    finally:
+        # Idempotent: a no-op on the green path (the rows are already gone),
+        # the actual cleanup on any failure path.
+        unregister_profile_tools("gamma")
 
 
 def test_by_owner_filter() -> None:
