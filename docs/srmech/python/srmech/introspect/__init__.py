@@ -761,7 +761,11 @@ def describe() -> Dict[str, Any]:
               "tools": {"total": <int>,
                         "mcp_callable": <int>,
                         "handle_pending": <int>,
-                        "by_category": {<category>: <count>, ...}},
+                        "by_category": {<category>: <count>, ...},
+                        "registry": <import path of the drill-down>,
+                        "resolve": <import path of the per-op lookup>,
+                        "covers": <what that registry does and does NOT
+                                   index>},
               "handle_pending": [<sorted handle-pending tool names>],
               "categories": [<sorted category names>],
               "classes": {"total": <int>,
@@ -814,6 +818,31 @@ def describe() -> Dict[str, Any]:
                         "worked_example": {...},
                         "granularity": {...}},
             }
+
+    ``tools["registry"]`` / ``["resolve"]`` / ``["covers"]`` (rc407, `#T1076`)
+    — the DRILL-DOWN ROUTE, published inside the payload. Up to rc406 this
+    report answered "how many ops are there, and under which category?" and
+    never "where do I go to reach one": ``get_tool_schema`` / ``ToolEntry`` /
+    ``registry`` / ``find`` / ``lookup`` occurred **zero times** in
+    ``json.dumps(describe())``. For a Python caller that is no gap —
+    ``tool_schema`` is already in ``dir(srmech.introspect)``. But
+    ``describe()`` is explicitly the root for the MCP / JSON-RPC consumer, and
+    **a JSON consumer has no ``dir()``**: it reads a total of 556 ops and the
+    payload names nowhere to look them up.
+
+    Both values are **Python import routes, not tool names** — deliberately.
+    ``get_tool_schema`` is not a registered ``ToolEntry`` (no entry's last
+    segment is ``get_tool_schema``), so an MCP-only client cannot *call* it;
+    what it gains is the true location of the registry rather than a dead end.
+    The same distinction is drawn, for the same reason, in the ``initialize``
+    instructions the MCP server hands a client at handshake.
+
+    ``covers`` states the registry's SCOPE in the same breath, because the
+    registry indexes module-level ops only — a reader who looks for a carrier
+    or class METHOD there and misses should learn it was never indexed there,
+    not conclude it does not ship (``describe()["carriers"]`` and
+    :mod:`srmech.introspect.carrier_schema` are that surface, and the latter
+    IS mcp-callable).
 
     ``lanes`` (rc347, `#T985`) — the OP-side complement of ``carriers``.
     rc339 published what each CARRIER can DO; this publishes **what each OP
@@ -1330,11 +1359,30 @@ def describe() -> Dict[str, Any]:
             "abi_version": _native.NATIVE_ABI_VERSION,
             "native_version": _native.NATIVE_VERSION,
         },
+        # rc407 (`#T1076`) — the index now carries its own DRILL-DOWN ROUTE.
+        # `total`/`by_category` say how many ops exist and under which
+        # category; before this rc nothing in the payload said HOW TO REACH
+        # ONE. That is not a gap for a Python caller — `dir(srmech.introspect)`
+        # already shows `tool_schema` — but describe() is explicitly the MCP /
+        # JSON consumer's root, and a JSON consumer has no `dir()`: it sees a
+        # count of 556 ops and nowhere named to look one up. Both values are
+        # Python import routes, NOT tool names: `get_tool_schema` has no
+        # ToolEntry, so an MCP-only client reads them as a location rather
+        # than as a call. `covers` states the SCOPE of that
+        # registry so a reader who fails to find a carrier method there knows
+        # it was never indexed there rather than concluding it does not exist.
         "tools": {
             "total": len(schema.tools),
             "mcp_callable": mcp_callable_count,
             "handle_pending": len(handle_pending),
             "by_category": dict(sorted(by_category.items())),
+            "registry": "srmech.introspect.tool_schema.get_tool_schema",
+            "resolve": "srmech.introspect.tool_schema.get_tool_schema().resolve",
+            "covers": (
+                "registered module-level ops only; carrier/class methods are "
+                "not indexed here — they are published in "
+                'describe()["carriers"] and srmech.introspect.carrier_schema'
+            ),
         },
         "handle_pending": sorted(handle_pending),
         "categories": sorted(by_category.keys()),
@@ -1420,14 +1468,24 @@ def native_status() -> Dict[str, Any]:
     }
 
 
+# rc407 (`#T1076`) — ``__all__`` is the EXPORT LIST, and through rc406 it was
+# neither. It carried two PRIVATE names (``_PublishHandle``,
+# ``_maybe_auto_publish``) — a leading underscore and a place in the public
+# export list are a contradiction, and nothing needed the export: the one
+# in-tree consumer, ``srmech/__init__.py``, reaches ``_maybe_auto_publish`` by
+# direct attribute access, which ``__all__`` does not govern. Meanwhile the
+# three SCHEMA SURFACES this package exists to publish — ``tool_schema`` (the
+# per-op registry), ``carrier_schema`` (the operand carriers) and
+# ``responsion_schema`` — were all absent from it, and two of them were not
+# even reachable by plain attribute access, because nothing imports them
+# eagerly. ``srmech.introspect.carrier_schema`` raised ``AttributeError``.
 __all__ = [
     "Event",
     "INTROSPECT_DIR_NAME",
     "MPR_VERSION_INTROSPECT",
     "Run",
-    "_PublishHandle",
-    "_maybe_auto_publish",
     "by_pid",
+    "carrier_schema",
     "describe",
     "describe_shape",
     "emit_if_publishing",
@@ -1436,5 +1494,49 @@ __all__ = [
     "native_status",
     "parse",
     "publish",
+    "responsion_schema",
     "serialize",
+    "tool_schema",
 ]
+
+# The three schema submodules are bound LAZILY, on first attribute access
+# (PEP 562), not eagerly at package import.
+#
+# MEASURED, rc407, WSL2 / numpy-absent CPython, 5 fresh interpreters: a bare
+# ``import srmech.introspect`` costs ~1.46 s, and importing these two
+# submodules on top of it costs a further ~500 ms — ``carrier_schema`` alone is
+# ~470-600 ms of it (it builds the full carrier-capability table at import
+# time), ``responsion_schema`` ~18 ms. Eager binding would therefore add ~34%
+# to the import of every consumer, including the many that only ever want
+# ``describe()`` or ``publish()``. That is two orders of magnitude past the
+# threshold where "just import it" is the right answer, so the names are
+# resolved on demand instead.
+#
+# ``tool_schema`` is listed here too even though ``srmech/__init__.py``
+# already imports it during package init (which is WHY it has always been in
+# ``dir()``): relying on a sibling module's side effect to make an entry in
+# our own ``__all__`` resolvable is a latent break, and the fallback costs
+# nothing when the module is already in ``sys.modules``.
+_LAZY_SUBMODULES = ("carrier_schema", "responsion_schema", "tool_schema")
+
+
+def __getattr__(name: str):
+    """PEP 562 — bind the schema submodules on first access.
+
+    Makes both entry paths work off one mechanism: ``from srmech.introspect
+    import *`` (CPython calls :func:`getattr` for each ``__all__`` name, which
+    lands here) and plain ``import srmech.introspect; srmech.introspect.
+    carrier_schema`` (attribute miss on the module, which also lands here).
+    """
+    if name in _LAZY_SUBMODULES:
+        import importlib
+
+        module = importlib.import_module(f"{__name__}.{name}")
+        globals()[name] = module  # bind once; later reads skip this hook
+        return module
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def __dir__():
+    """Keep the lazy names visible to ``dir()`` and to tab-completion."""
+    return sorted(set(globals()) | set(_LAZY_SUBMODULES))

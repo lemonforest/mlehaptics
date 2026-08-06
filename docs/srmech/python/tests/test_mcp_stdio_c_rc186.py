@@ -33,7 +33,7 @@ import pytest
 
 import srmech
 from srmech import _native
-from srmech.mcp import MCP_PROTOCOL_VERSION, MCPServer
+from srmech.mcp import MCP_INSTRUCTIONS, MCP_PROTOCOL_VERSION, MCPServer
 from srmech.mcp._server import build_attestation
 from srmech.mcp._tools import tool_entries_to_mcp_defs
 
@@ -77,6 +77,12 @@ def test_initialize_byte_identical_to_pure() -> None:
     kind, resp = _c(req)
     assert kind == _native.MCP_KIND_RESPONSE
     # The DEFAULT server (name srmech-mcp) is what the C peer models.
+    #
+    # rc407 (`#T1076`) added `instructions` — the start-here pointer — to BOTH
+    # projections in one commit, so this pin moved with them. Key ORDER is
+    # load-bearing here: the assertion is byte-identity, and the C emitter
+    # writes protocolVersion, serverInfo, capabilities, instructions, so the
+    # dict below must be built in that same order.
     expected = {
         "jsonrpc": "2.0", "id": 1,
         "result": {
@@ -84,6 +90,7 @@ def test_initialize_byte_identical_to_pure() -> None:
             "serverInfo": {"name": "srmech-mcp",
                            "version": srmech.__version__},
             "capabilities": {"tools": {}},
+            "instructions": MCP_INSTRUCTIONS,
         },
     }
     assert resp == json.dumps(expected, separators=(",", ":")).encode("utf-8")

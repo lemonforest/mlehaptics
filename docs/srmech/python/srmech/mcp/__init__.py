@@ -73,6 +73,7 @@ srmech is another; ``srmech.mcp`` is the bind operator.
 from __future__ import annotations
 
 from ._server import (
+    MCP_INSTRUCTIONS,
     MCP_PROTOCOL_VERSION,
     MCPError,
     MCPServer,
@@ -87,6 +88,7 @@ from ._tools import (
 __all__ = [
     "MCPError",
     "MCPServer",
+    "MCP_INSTRUCTIONS",
     "MCP_PROTOCOL_VERSION",
     "invoke_tool",
     "serve_http_sse",
