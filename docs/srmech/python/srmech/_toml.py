@@ -28,13 +28,29 @@ import sys
 from typing import Any, Dict
 
 
+def _stdlib_backend():
+    """The stdlib tomllib (3.11+) / tomli backport (3.10) module."""
+    if sys.version_info >= (3, 11):
+        import tomllib as _backend
+    else:  # pragma: no cover
+        import tomli as _backend  # type: ignore[no-redef]
+    return _backend
+
+
 def _stdlib_loads(text: str) -> Dict[str, Any]:
     """Parse via the stdlib tomllib (3.11+) / tomli backport (3.10)."""
-    if sys.version_info >= (3, 11):
-        import tomllib as _toml
-    else:  # pragma: no cover
-        import tomli as _toml  # type: ignore[no-redef]
-    return _toml.loads(text)
+    return _stdlib_backend().loads(text)
+
+
+#: The exception :func:`loads` raises on a malformed document (rc407, `#T1076`).
+#:
+#: The peer of :data:`srmech._json.JSONDecodeError`, and bound from whichever
+#: backend the version branch above selected, so it is the SAME class the
+#: parse actually raises on 3.10 and on 3.11+ alike — not a look-alike and not
+#: a version-specific guess. Without it a caller had to re-run the
+#: tomllib/tomli branch itself just to name the type, which is precisely what
+#: ``srmech/amsc/descriptor.py`` and ``srmech/profile_loader.py`` were doing.
+TOMLDecodeError = _stdlib_backend().TOMLDecodeError
 
 
 def loads(text: str) -> Dict[str, Any]:

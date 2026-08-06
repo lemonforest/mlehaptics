@@ -41,21 +41,20 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Tuple
 
-if sys.version_info >= (3, 11):
-    import tomllib
-else:  # pragma: no cover
-    import tomli as tomllib  # type: ignore
-
 # srmech's own internal TOML front door (`#T907` slice 3). Native `srmech_toml`
 # parser first, stdlib ``tomllib`` (3.11+) / ``tomli`` (3.10) floor otherwise —
 # the attested descriptors now self-host on the C parser wherever it is present.
 # A float-bearing descriptor is DECLINED by the C path and rides the bit-exact
 # stdlib parser, so the parsed dict — and therefore ``descriptor_hash``'s
 # ``json.dumps(sort_keys=True)`` SHA — is byte-identical to the previous
-# stdlib-only parse either way (the load-bearing attestation invariant). The
-# ``tomllib`` alias above is RETAINED for the ``except tomllib.TOMLDecodeError``
-# clause below: ``srmech._toml.loads`` rides ``tomllib`` on a malformed document
-# and re-raises that exact type, so the descriptor error contract is unchanged.
+# stdlib-only parse either way (the load-bearing attestation invariant).
+#
+# rc407 (`#T1076`): the module-top ``tomllib`` / ``tomli`` version branch is
+# GONE. It survived solely to name the type in ``except tomllib.TOMLDecodeError``
+# below — an import of the banned module purely to spell an exception. The front
+# door now owns its own exception contract, so the clause reads
+# ``_srmech_toml.TOMLDecodeError`` and the error contract is unchanged (that
+# alias is bound from the same backend the parse rides).
 # ``srmech._toml`` is a leaf module (it imports ``srmech._native`` lazily inside
 # ``loads()``), so this module-top import introduces no package-init cycle.
 #
@@ -225,7 +224,7 @@ def load_descriptor(
     raw = path.read_bytes()
     try:
         parsed = _srmech_toml.loads(raw.decode("utf-8"))
-    except tomllib.TOMLDecodeError as exc:
+    except _srmech_toml.TOMLDecodeError as exc:
         raise DescriptorValidationError(
             f"{path}: TOML parse error: {exc}"
         ) from exc

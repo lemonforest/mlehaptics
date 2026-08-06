@@ -8230,9 +8230,8 @@ def invoke_tool_c(
     is unavailable. numpy-free; single-pass over a generously-sized buffer."""
     if not has_native_invoke():
         return (False, None)
-    import json as _json
     nm = name.encode("utf-8")
-    args_json = _json.dumps(arguments or {}, separators=(",", ":")).encode("utf-8")
+    args_json = json.dumps(arguments or {}, separators=(",", ":")).encode("utf-8")
     ws_len = int(LIB.srmech_invoke_tool_arena_bytes(len(args_json)))
     ws = (ctypes.c_char * ws_len)()
     out_cap = 256 * len(args_json) + 8192
@@ -8287,11 +8286,10 @@ def make_class_run_c(
     ``(False, None)`` — the caller runs the pure CatalogClass. numpy-free."""
     if not has_native_make_class():
         return (False, None)
-    import json as _json
     toml_b = class_toml.encode("utf-8")
     method_b = method.encode("utf-8")
-    fields_b = _json.dumps(fields or {}, separators=(",", ":")).encode("utf-8")
-    args_b = _json.dumps(args or {}, separators=(",", ":")).encode("utf-8")
+    fields_b = json.dumps(fields or {}, separators=(",", ":")).encode("utf-8")
+    args_b = json.dumps(args or {}, separators=(",", ":")).encode("utf-8")
     ws_len = int(LIB.srmech_make_class_run_arena_bytes(
         len(toml_b), len(fields_b), len(args_b)))
     ws = (ctypes.c_char * ws_len)()
@@ -8406,11 +8404,10 @@ def run_class_method_c(
     user class, or a leaf the engine defers). numpy-free."""
     if not has_native_run_class_method():
         return (False, None)
-    import json as _json
     name_b = class_name.encode("utf-8")
     method_b = method.encode("utf-8")
-    fields_b = _json.dumps(fields or {}, separators=(",", ":")).encode("utf-8")
-    args_b = _json.dumps(args or {}, separators=(",", ":")).encode("utf-8")
+    fields_b = json.dumps(fields or {}, separators=(",", ":")).encode("utf-8")
+    args_b = json.dumps(args or {}, separators=(",", ":")).encode("utf-8")
     ws_len = int(LIB.srmech_run_class_method_arena_bytes(
         name_b, len(fields_b), len(args_b)))
     ws = (ctypes.c_char * ws_len)()
@@ -13892,9 +13889,8 @@ def infer_c(rel_json: str, max_terms: int = 4):
     if not has_native_infer():
         return None
     payload = rel_json.encode("utf-8")
-    import json as _json
     try:
-        _rel = _json.loads(rel_json)
+        _rel = json.loads(rel_json)
     except (ValueError, TypeError):
         _rel = None
     _rc223 = isinstance(_rel, dict) and (
@@ -13952,8 +13948,7 @@ def infer_c(rel_json: str, max_terms: int = 4):
     )
     if rc != SRMECH_OK:
         return None
-    import json as _json
-    return _json.loads(out.raw[:out_len.value].decode("utf-8"))
+    return json.loads(out.raw[:out_len.value].decode("utf-8"))
 
 
 # ----------------------------------------------------------------------

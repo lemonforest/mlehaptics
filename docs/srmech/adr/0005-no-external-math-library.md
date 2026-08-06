@@ -75,21 +75,42 @@ library (no `libm` reliance for the exact path, no GMP): srmech provides its own
    |---|---|---|---|
    | `numpy` | BANNED_ENGINE | strict zero | `Mat` / `Vec` / `HV` + native dense kernels |
    | `math` | BANNED_ENGINE | strict zero (+ `math.<attr>` access) | `srmech.math.rational` Class-N cascades, `srmech_isqrt` |
-   | `fractions` | BANNED_ENGINE | strict zero; 64 named `tests/`+`tools/` oracle allowances | `srmech.math.q.Q` / `to_q` |
-   | `decimal` | ALLOWED_PROJECTION | strict zero; allowance set EMPTY | `Q` / `srmech_bigint` interior; projection is srmech's own `srmech_double_repr` |
-   | `json` | FRONT_DOOR_ONLY | down-only CEIL = 39 | `srmech._json.loads` |
-   | `tomllib` | FRONT_DOOR_ONLY | strict zero; 3 named files | `srmech._toml.loads` |
-   | `tomli` | FRONT_DOOR_ONLY | strict zero; 3 named files | `srmech._toml.loads` |
+   | `fractions` | BANNED_ENGINE | strict zero; 62 named `tests/`+`tools/` allowances (rc407) | `srmech.math.q.Q` / `to_q` |
+   | `decimal` | ALLOWED_PROJECTION | strict zero; 1 named `tests/` oracle (rc407 widened the scope to `tests/`+`tools/`, matching `fractions`) | `Q` / `srmech_bigint` interior; projection is srmech's own `srmech_double_repr` |
+   | `json` | FRONT_DOOR_ONLY | down-only CEIL = 29 (rc407) | `srmech._json.loads` |
+   | `tomllib` | FRONT_DOOR_ONLY | strict zero; 1 named file (rc407 drained the 2 exception-alias importers) | `srmech._toml.loads` |
+   | `tomli` | FRONT_DOOR_ONLY | strict zero; 1 named file (rc407 drained the 2 exception-alias importers) | `srmech._toml.loads` |
 
 5. **Projection out is allowed; engine use is not** (user direction 2026-08-05:
    *"we can let srmech project to decimal when needed"*). The ban is on using a
    foreign library as the **computation engine**. srmech converting or emitting to a
    foreign type at an output / interop boundary is legitimate, which is why the ban
    list carries a per-row MODE rather than being a flat blocklist. `ALLOWED_PROJECTION`
-   permits an import from a file NAMED as a projection boundary — and `decimal`'s
-   allowance set is empty, because the capability is already self-hosted in C as
+   permits an import from a NAMED file — and in the package `decimal` stays at
+   strict zero, because the capability is already self-hosted in C as
    `srmech_double_repr` (integer-only Ryu, shortest round-trip) and no stdlib
    `decimal` is needed for it.
+
+   **Amended rc407 (`#T1076`): a named file may be a projection boundary OR an
+   independent oracle.** Through rc406 this clause said such a file must be "a
+   projection boundary", and that was too narrow for the ban list's own contents.
+   `fractions` was the ONLY row scanning `tests/`+`tools/`, so a live `decimal`
+   import in `tests/test_classn_precision_wave2_rc320.py` — backing gate G2's
+   precision oracle for all seven Q61 float-projection ops — sat outside every
+   row's scan, unallowanced and unseen. rc407 widened the `decimal` row to match
+   its exact-arithmetic peer, and the file it then had to name is an `_ORACLE`,
+   not a projection boundary at all. So `ALLOWED_PROJECTION` admits both:
+
+   - a **projection boundary** — srmech CONVERTING or EMITTING the foreign type
+     at an output / interop edge; or
+   - an **independent oracle** — a TEST importing the foreign library to grade a
+     srmech result against a reference srmech did not produce. That is the
+     OPPOSITE of engine use: the whole point is that the foreign library does not
+     share the carrier under test.
+
+   What stays banned is unchanged, and is the only thing the mode was ever about:
+   srmech importing the library to do its own math. The package-scope ceiling is
+   still 0.
 
 6. **The ban is a COVERAGE instrument, not purity theatre** (same direction:
    *"this approach of srmech tooling first also means we thoroughly test all our

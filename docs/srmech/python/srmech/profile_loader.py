@@ -59,14 +59,13 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 # is a leaf that imports ``_native`` lazily, so no import cycle.
 from srmech import _toml
 
-# The ``tomllib`` alias below is RETAINED solely for the
-# ``except tomllib.TOMLDecodeError`` clause in ``_read_smoke_cache``:
-# ``_toml.load`` rides ``tomllib`` on a malformed document and propagates the
-# same ``TOMLDecodeError``, so the exception contract is unchanged.
-if sys.version_info >= (3, 11):
-    import tomllib
-else:  # pragma: no cover  (py3.10 only)
-    import tomli as tomllib  # type: ignore[no-redef]
+# rc407 (`#T1076`): the ``tomllib`` / ``tomli`` version branch that used to sit
+# here is GONE. It was RETAINED solely to name the type in the
+# ``except tomllib.TOMLDecodeError`` clause in ``_read_smoke_cache`` — an import
+# of the banned module purely to spell an exception. The front door now owns its
+# exception contract, so that clause reads ``_toml.TOMLDecodeError``; the alias
+# is bound from the same backend ``_toml.load`` rides, so the contract is
+# unchanged.
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -537,7 +536,7 @@ def _read_smoke_cache(profile_name: str, profile_version: str) \
     try:
         with p.open("rb") as f:
             return _toml.load(f)
-    except (OSError, tomllib.TOMLDecodeError):
+    except (OSError, _toml.TOMLDecodeError):
         return None
 
 
