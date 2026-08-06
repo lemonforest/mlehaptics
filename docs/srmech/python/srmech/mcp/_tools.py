@@ -429,10 +429,17 @@ def tool_entries_to_mcp_defs(
     The exclusion is currently a NO-OP: this said "the 7
     ``srmech.spectral.*`` handle-pending tools" from v0.5.0rc15 until rc407,
     and the measured count is now ``sum(1 for t in sch.tools if not
-    t.mcp_callable) == 0`` — every one of the 556 entries is advertised. The
+    t.mcp_callable) == 0`` — every registered entry is advertised. The
     branch is kept because the field is still part of the ToolEntry contract
     and a future handle-pending op must not be advertised; the COUNT is no
     longer stated here, so it cannot go stale again.
+
+    (rc410, `#T1085`: that last clause was self-refuting — the sentence before
+    it restated the total as a literal, which is exactly the thing it promised
+    was gone. The literal is now actually removed, and
+    ``tests/test_owner_axis_rc410.py`` enforces that no shipped module restates
+    it. The live value is
+    ``len(get_tool_schema().by_owner("srmech"))``.)
 
     Parameters
     ----------
