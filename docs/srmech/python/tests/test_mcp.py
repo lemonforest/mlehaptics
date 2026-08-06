@@ -1283,21 +1283,41 @@ def test_random_ops_rng_takes_precedence_over_seed() -> None:
 
 
 def test_random_ops_schema_drops_unserialisable_rng() -> None:
-    """The DETERMINISTIC mint ToolEntries advertise the JSON-friendly
-    ``seed`` and NO un-serialisable ``rng`` Generator (a Generator has no
-    valid JSON-Schema type and must never reach the MCP / Anthropic schema).
+    """The DETERMINISTIC mint ToolEntries advertise the JSON-friendly ``seed``,
+    and no client can ever be told to send an un-serialisable ``rng`` Generator
+    (generator STATE has no JSON form).
 
     rc290: ``klein4_random`` left this set — it is the STOCHASTIC regime and
-    has no ``seed`` to advertise. ``klein4_expand`` took its place."""
+    has no ``seed`` to advertise. ``klein4_expand`` took its place.
+
+    rc408 (`#T1078`) — HOW that is enforced changed. This test used to assert
+    ``rng`` appeared in NO entry's ``parameters``. ``klein4_expand(D, seed)``
+    has no ``rng`` at all, so for it the assertion is unchanged; but
+    ``polar_random(D, rng=None, seed=None)`` DOES accept one, and omitting it
+    from the contract hid a real capability from every in-process Python caller
+    while the wire was already safe by other means. The honest split: the
+    parameter is DECLARED, never REQUIRED, and publishes JSON-schema ``"null"``
+    — so a schema-obedient client's only legal value is ``null``, which coerces
+    to "absent" and runs the op on the ``seed`` path exactly as before. The wire
+    limitation is a fact about the TYPE, not a licence to hide the PARAMETER.
+    """
+    from srmech.mcp._tools import _json_schema_type_for
+
     schema = get_tool_schema()
     for name in ("srmech.math.hdc.klein4_expand",
                  "srmech.math.hdc.polar_random"):
         entry = schema.lookup(name)
         assert entry is not None, f"{name} not registered"
-        param_names = {p.name for p in entry.parameters}
-        assert "seed" in param_names, f"{name} must advertise `seed`"
-        assert "rng" not in param_names, (
-            f"{name} must NOT advertise the un-serialisable `rng` Generator"
+        by_name = {p.name: p for p in entry.parameters}
+        assert "seed" in by_name, f"{name} must advertise `seed`"
+        rng = by_name.get("rng")
+        if rng is None:
+            continue                       # klein4_expand has no rng to declare
+        assert not rng.required, f"{name}: `rng` must never be required"
+        assert _json_schema_type_for(rng.type) == "null", (
+            f"{name} must not advertise a fillable `rng` Generator; its "
+            f"declared type {rng.type!r} publishes "
+            f"{_json_schema_type_for(rng.type)!r}, want 'null'"
         )
 
 

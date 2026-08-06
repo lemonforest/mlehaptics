@@ -265,11 +265,23 @@ def test_native_trampoline_exception_does_not_crash_and_reraises():
     assert len(G.mint(kernels, one)) > 0
 
 
-# ── 7. Callable-not-a-wire-param guard ────────────────────────────────────────
-
-def test_progress_is_never_a_tool_wire_param():
-    from srmech.introspect.tool_schema import get_tool_schema, warmup_all
-    warmup_all()
-    for t in get_tool_schema().tools:
-        names = [p.name for p in (t.parameters or ())]
-        assert "progress" not in names, f"{t.name} must not expose progress as a wire param"
+# ── 7. Callable-not-a-wire-param guard — MOVED (rc408, `#T1078`) ──────────────
+#
+# ``test_progress_is_never_a_tool_wire_param`` used to live here and asserted
+# that ``progress`` appeared in NO ToolEntry's ``parameters``. It protected the
+# right thing — a callable must never be advertised as a value a JSON-RPC client
+# can send — by the wrong mechanism: it enforced that by keeping the parameter
+# OUT of the contract entirely, which hid a real capability from every consumer
+# of the registry, including the in-process Python callers who CAN pass it (and
+# for a multi-hour genome encode it is the ONLY channel that reports working
+# status or accepts a cancel).
+#
+# The honest split now lives in
+# ``tests/test_declared_param_completeness_rc408.py::
+# test_host_side_params_are_declared_but_not_wire_passable``: ``progress`` (and
+# its host-side peers ``compatible`` / ``rng``) must be DECLARED, must never be
+# REQUIRED, and must publish JSON-schema ``"null"`` — so a schema-obedient client
+# can still only send ``null``, which coerces to "absent" and runs the op with
+# the callback disabled, exactly as this guard used to guarantee. That file also
+# pins the count (all ELEVEN ``progress`` ops) so an op cannot gain the kwarg
+# without declaring it.

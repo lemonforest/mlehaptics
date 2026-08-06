@@ -801,12 +801,22 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # Feit–Higman spectral read) — whose carrier back-index ref lands 1× in these
     # arrays (via its int-typed n_points / spectral_max_nodes params → the 'int'
     # carrier), so 327 + 1 = 328. NEW-op growth, not a move; no amsc pin shifts.
-    assert math == 328, (
-        f"expected 328 srmech.math op references inside the DECODED channel "
+    # rc408 (`#T1078`) — a THIRD cause category, and the first of its kind on this
+    # pin: neither a move nor a new op, but an EXISTING op declaring a parameter it
+    # always accepted. srmech.math.laplacian.mat_eigvals declared only `a: Mat`,
+    # while its real signature is mat_eigvals(a, max_sweeps=500). Declaring
+    # `max_sweeps: int` puts the op into the 'int' carrier's consumes back-index
+    # alongside 'Mat', so its refs in these arrays go 1 -> 2 and the population is
+    # 328 + 1 = 329. Measured, not inferred: decoding the base and current registries
+    # and diffing showed mat_eigvals as the ONLY name whose count changed. The
+    # back-index is now MORE correct — it previously did not know an op that takes an
+    # int operand takes one. No amsc pin shifts (this is growth, not a move).
+    assert math == 329, (
+        f"expected 329 srmech.math op references inside the DECODED channel "
         f"(rc372 octonion 16 + rc373 A-N primitives 298 + rc374 carriers 6 + rc384 "
         f"octonion_laplacian 3 + rc388 oct_torsor_act/div 4 + rc399 generalized_ngon "
-        f"1), found {math}. If this is not 328 the population is not conserved — "
-        f"re-measure.")
+        f"1 + rc408 mat_eigvals max_sweeps:int 1), found {math}. If this is not 329 "
+        f"the population is not conserved — re-measure.")
     # rc375 — THE srmech.biology RECEIVING SIDE, the arc's SECOND-LARGEST positive
     # population move (after rc373's 298) and the FOURTH receiving namespace pinned
     # here. UNLIKE rc374's pure carriers, the biology bucket's genome / q8 / coupling
@@ -819,11 +829,29 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # 2× in these hoisted byte arrays (the same per-op count as its octonion peers), so
     # the live srmech.biology decoded population is 99 + 2 = 101. NEW-op growth, not a
     # move; no amsc pin shifts.
-    assert biology == 101, (
-        f"expected 101 srmech.biology op references inside the DECODED channel "
+    # rc408 (`#T1078`) — 101 -> 106, the SAME third cause category as the math pin
+    # above: no move, no new op, five EXISTING ops declaring parameters they always
+    # accepted, whose types name a registered carrier. Measured by decoding the base
+    # and current registries and diffing per name — these five are the only biology
+    # names whose counts changed:
+    #   chromosome                1 -> 2  gains the 'int' carrier from its
+    #                                     newly-declared active_count / centromere /
+    #                                     centromere_at (Optional[int]); it already
+    #                                     held 'HV' via leaves / coupling.
+    #   genome_catalog            0 -> 1  each of these four gains 'HV' from its
+    #   genome_genes              0 -> 1  newly-declared coupling: Optional[HV].
+    #   genome_load               0 -> 1  They held ZERO carrier refs before, because
+    #   genome_window             0 -> 1  their only other param is `path: str` and
+    #                                     there is no 'str' carrier.
+    # `kernel: bool`, `catalog: Optional[dict]` and `attestation: dict` add nothing —
+    # there is no 'bool' or 'dict' carrier. The back-index is now MORE correct: it
+    # previously did not know that four ops taking an HV coupling take one. Growth,
+    # not a move; no amsc pin shifts.
+    assert biology == 106, (
+        f"expected 106 srmech.biology op references inside the DECODED channel "
         f"(the rc375 biology bucket's genome / q8 / coupling carrier back-index 99 + "
-        f"rc390 split_defect 2), found {biology}. If this is not 101 the population "
-        f"is not conserved — re-measure.")
+        f"rc390 split_defect 2 + rc408 coupling/int declarations 5), found {biology}. "
+        f"If this is not 106 the population is not conserved — re-measure.")
     # rc377 — THE srmech.cascade RECEIVING SIDE, the arc's FINAL and largest-carrier
     # population move. The 15 cascade modules folded amsc->srmech.cascade; their
     # carrier back-index refs (one / cayley_dickson / sedenion_register / cd_register

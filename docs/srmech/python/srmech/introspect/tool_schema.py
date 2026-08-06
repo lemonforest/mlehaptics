@@ -851,6 +851,18 @@ def _register_amsc_tools() -> None:
                 ToolParameter("source_key", "str", required=True),
                 ToolParameter("limit", "Optional[int]", required=False),
                 ToolParameter("offset", "int", required=False),
+                ToolParameter(
+                    "live", "bool", required=False,
+                    summary="keyword-only; when True, FETCH the source's rows "
+                            "from its upstream archive at call time (the T3 "
+                            "reproducibility tier) through the descriptor's "
+                            "declared adapter, instead of reading the committed "
+                            "NDJSON. Each row is stamped with retrieval-time + "
+                            "response checksum + collector-descriptor-hash, just "
+                            "like a T1 collector run, and the envelope carries a "
+                            "'_tier': 'T3' discriminator (plus retrieved_at + "
+                            "upstream_response_sha256 for paper-appendix replay). "
+                            "Default False = the committed T0+T1+T2 baseline."),
             ),
             returns=ToolReturn(
                 type="dict",
@@ -2297,7 +2309,30 @@ def _register_primitive_class_tools() -> None:
                         P("graph_path", "str", True,
                           "packed edge file written by write_packed_graph"),
                         P("max_iters", "int", False,
-                          "power-iteration cap (default 250)")),
+                          "power-iteration cap (default 250)"),
+                        P("progress", "host_callable", False,
+                          "keyword-only; the §101 / ABI-v6 per-call progress "
+                          "HEARTBEAT + graceful-abort tick — an IN-PROCESS host "
+                          "callable, never an MCP wire value (its type publishes "
+                          "JSON-schema 'null', so the only legal wire value is "
+                          "absent). Called as progress(ev) with ONE dict "
+                          "{struct_size, phase, done, total}; here it fires per "
+                          "POWER ITERATION with phase=PARTITIONING, done = the "
+                          "iteration just completed (1-based) and total = "
+                          "max_iters. A TRUTHY return CANCELS and the op returns "
+                          "the zeroed 'no cut' Vec (a bare-return op — the caller "
+                          "owns the callback, so it knows it cancelled; libcurl "
+                          "semantics). done/total are EXACT integer cardinalities "
+                          "(Class-N): the library never divides and never "
+                          "accumulates a float, so a percentage is the observer's "
+                          "own done/total, not something reported. The tick fires "
+                          "INLINE on the encode thread (zero concurrency, "
+                          "MCU-safe, no RTOS); passing it routes to the native "
+                          "ENCODE-PROGRESS overload (same tick sequence, "
+                          "byte-parity) or the pure threaded power loop. NOT the "
+                          "v5 srmech_progress_cb_t process-global dispatch "
+                          "OBSERVER (void return, no cancel channel). Default "
+                          "None = disabled.")),
             returns=R("Vec", "length-n sign-bearing Fiedler vector (numpy-free "
                              "1-D carrier)"),
         ),
@@ -2326,7 +2361,46 @@ def _register_primitive_class_tools() -> None:
                         P("weights", "Optional[list[float]]", False),
                         P("max_tome", "int", False,
                           "a sub-graph with ≤ max_tome nodes is a leaf tome "
-                          "(default 256)")),
+                          "(default 256)"),
+                        P("work_dir", "Optional[str]", False,
+                          "keyword-only; the scratch directory for the on-disk "
+                          "packed graph / node-set queue / retired tomes. None "
+                          "(default) mints a fresh temp dir — the CALLER owns it "
+                          "either way and it is NOT auto-deleted (the tome files "
+                          "live there, and tome_paths points into it). Pass the "
+                          "same dir again to reuse it across calls."),
+                        P("max_iters", "int", False,
+                          "keyword-only; the per-bisection power-iteration cap, "
+                          "forwarded unchanged to fiedler_sparse_file (default "
+                          "250)."),
+                        P("max_depth", "int", False,
+                          "keyword-only; the recursion-depth guard — a sub-graph "
+                          "at this depth is retired as a leaf tome uncut, so a "
+                          "degenerate graph cannot recurse forever (default 64, "
+                          "the same value the standalone-C peer uses)."),
+                        P("progress", "host_callable", False,
+                          "keyword-only; the §101 / ABI-v6 per-call progress "
+                          "HEARTBEAT + graceful-abort tick — an IN-PROCESS host "
+                          "callable, never an MCP wire value (its type publishes "
+                          "JSON-schema 'null', so the only legal wire value is "
+                          "absent). Called as progress(ev) with ONE dict "
+                          "{struct_size, phase, done, total}; here it fires once "
+                          "per QUEUE STEP with phase=PARTITIONING, done = the sum "
+                          "of the FINALIZED tome sizes (exact + monotone; == n "
+                          "once the queue empties) and total = n, plus a terminal "
+                          "done == n heartbeat whose return is ignored. A TRUTHY "
+                          "return CANCELS cleanly: every still-pending node-set is "
+                          "promoted to a coarse UNCUT tome, so the result still "
+                          "partitions ALL n nodes — a valid (coarser) partition "
+                          "with status='cancelled', never a torn one. done/total "
+                          "are EXACT integer cardinalities (Class-N): the library "
+                          "never divides and never accumulates a float, so a "
+                          "percentage is the observer's own done/total, not "
+                          "something reported. The tick fires INLINE on the encode "
+                          "thread (zero concurrency, MCU-safe, no RTOS). NOT the "
+                          "v5 srmech_progress_cb_t process-global dispatch "
+                          "OBSERVER (void return, no cancel channel). Default "
+                          "None = disabled.")),
             returns=R("dict",
                       "{n_tomes, tome_paths, tomes, work_dir} — the community "
                       "partition (tomes = node-id lists; tome_paths on disk)"),
@@ -2526,7 +2600,21 @@ def _register_primitive_class_tools() -> None:
                     "mat_hermitian_eigendecompose for Hermitian A. Golub & Van "
                     "Loan §7.4.3 + §7.5 + §7.5.1.",
             parameters=(P("a", "Mat", True,
-                          "n × n real or complex Mat (square, any non-Hermitian)"),),
+                          "n × n real or complex Mat (square, any non-Hermitian)"),
+                        P("max_sweeps", "int", False,
+                          "keyword-only; the PER-ROW shifted-QR budget — the "
+                          "whole decomposition is capped at max_sweeps * n QR "
+                          "steps (the Class-K iterate-to-convergence "
+                          "asymptotic-DoF bound), and exceeding it RAISES "
+                          "RuntimeError rather than silently returning the "
+                          "diagonal of an un-converged block (that was the "
+                          "historic all-zero companion-matrix bug); the message "
+                          "points at the exact integer oracle "
+                          "cascade.matrix_cascades.eigvals_exact. Forwarded "
+                          "unchanged to the native srmech_mat_eigvals_ws peer. "
+                          "Raising it only buys more iterations for a slowly "
+                          "converging subdiagonal — it does not change an answer "
+                          "that already converged. Default 500.")),
             returns=R("list[complex]",
                       "length-n eigenvalue multiset (unique only as a set)"),
         ),
@@ -3423,7 +3511,43 @@ def _register_primitive_class_tools() -> None:
                         P("coupling", "HV", True, "the held invariant every turn is coupled through"),
                         P("label", "str", False, "keyword-only; the chromosome label for the telomere cap (default 'chromosome')"),
                         P("genes", "Sequence[tuple]", False, "keyword-only; multi-gene mode (F730): [(gene_label, gene_leaves), ...] inside one telomere-capped chromosome (pass leaves OR genes). §128/§129/§130 REGULATORY genes carry inline Class-I logic that gene_express filters on: a 4-tuple (gene_label, gene_leaves, activator_mask, repressor_mask) is the §129 two Klein-4 bit-planes / klein4_mask gate (require-present + require-absent conditions); a 3-tuple with an INT third element (gene_label, gene_leaves, activator_mask) is §128 activator-only (repressor 0, byte-identical to rc128); a 3-tuple with a DICT third element (gene_label, gene_leaves, {'gate':'boolean','dnf':[(act,rep),...]}) is a §130 BOOLEAN gene (arbitrary boolean logic as a DNF — an OR of (require-present, require-absent) AND-clauses; AND/OR/NOT/XOR; E1 klein4_mask subset E2 boolean); a 3-tuple with a DICT (gene_label, gene_leaves, {'gate':'threshold','weights':[w0,w1,...],'threshold':theta}) is a §131 THRESHOLD gene (E4 — a linear-threshold / perceptron gate: SIGNED integer weight per condition + an integer threshold; expresses iff Sum weight_i*bit_i(cell_state) >= theta; SIGNED weights = inhibitory inputs; GENUINELY DISTINCT from E2 — a MAJORITY-of-n / weighted dose-sum needs an exponential DNF, so linear-threshold subset-not small-DNF); a 3-tuple with a DICT (gene_label, gene_leaves, {'gate':'graded','weights':[w0,w1,...],'denom':D}) is a §132 GRADED gene (E3 — the ORTHOGONAL analog LEVEL axis / dose-response: a SIGNED integer level-weight per condition + a POSITIVE denominator; gene_express_levels reports the reduced exact-rational LEVEL Sum weight_i*bit_i(cell_state) / D clamped to [0,1]); a 2-tuple is UNREGULATED (always expressed)"),
-                        ET_PARAM),
+                        ET_PARAM,
+                        P("kernel", "bool", False,
+                          "keyword-only; when True the chromosome opens with a "
+                          "§89 KERNEL telomere (0x6B) instead of the plain CHROM "
+                          "cap — the boundary cap genome_append_kernel writes. A "
+                          "SINGLE-kernel form: mutually exclusive with genes= "
+                          "(and with active_count= / centromere=, which open "
+                          "their own caps). Default False."),
+                        P("active_count", "Optional[int]", False,
+                          "keyword-only; when given, the (single-kernel) "
+                          "chromosome is led by an ACTIVE telomere (0x74) "
+                          "carrying that exact Hayflick replicative counter "
+                          "INLINE instead of a plain telomere — the cap (op) then "
+                          "governs whether the leaves may divide, gated by the "
+                          "count (operand), through telomere_tick. A "
+                          "NON-NEGATIVE exact int (Class-I/N; a bool is "
+                          "explicitly REJECTED, and it must fit the uint64 "
+                          "field; a count is never signed, so no abs()). "
+                          "Mutually exclusive with kernel= / genes=. Default "
+                          "None = a plain telomere."),
+                        P("centromere", "Optional[int]", False,
+                          "keyword-only; the §95a MINT form — the chromosome's "
+                          "GLOBAL 4-way orientation (a Klein-4 sector, an int in "
+                          "0..3; a bool is REJECTED) written as an INTERIOR "
+                          "centromere cap (0x58) spliced into the strand, "
+                          "promoting a Tier-1 plasmid shape to a Tier-2 NUCLEAR "
+                          "chromosome. Recover it with centromere_of. A "
+                          "single-kernel form: mutually exclusive with kernel= / "
+                          "genes=. Default None = no centromere."),
+                        P("centromere_at", "Optional[int]", False,
+                          "keyword-only; WHERE the centromere= cap is spliced — "
+                          "the arm-split index into the data TURNS, range-checked "
+                          "0 <= centromere_at <= len(turns). POSITION IS the p:q "
+                          "arm-ratio (biology: the centromere position defines "
+                          "the arms), so nothing double-encodes it. Requires "
+                          "centromere= (passing it alone raises). Default None = "
+                          "the metacentric midpoint len(turns) // 2.")),
             returns=R("list", "the strand: [telomere_cap, coupled turn, ...] (single-kernel) or [telomere_cap, gene_header, coupled turn, ..., gene_header, ...] (multi-gene)"),
         ),
         ToolEntry(
@@ -3500,7 +3624,30 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("kernels", "dict", False, "{label: leaves} mapping OR [(label, leaves), ...] sequence (insertion order = strand order); pass kernels OR chromosomes"),
                         P("coupling", "HV", True, "the held invariant every turn is coupled through"),
                         P("chromosomes", "Sequence[tuple]", False, "keyword-only; the multi-gene form [(label, [(gene_label, gene_leaves), ...]), ...] — defers to plasmid() (all plasmids); pass kernels OR chromosomes"),
-                        ET_PARAM),
+                        ET_PARAM,
+                        P("progress", "host_callable", False,
+                          "keyword-only; the §101 / ABI-v6 per-call progress "
+                          "HEARTBEAT + graceful-abort tick — an IN-PROCESS host "
+                          "callable, never an MCP wire value (its type publishes "
+                          "JSON-schema 'null', so the only legal wire value is "
+                          "absent). Called as progress(ev) with ONE dict "
+                          "{struct_size, phase, done, total}; here it fires per "
+                          "KERNEL with phase=MINTING, done = the index of the "
+                          "kernel about to be minted and total = the number of "
+                          "kernels. A TRUTHY return CANCELS cleanly and the op "
+                          "returns the VALID PARTIAL strand — the whole "
+                          "chromosomes minted so far, a shorter but readable "
+                          "genome. done/total are EXACT integer cardinalities "
+                          "(Class-N): the library never divides and never "
+                          "accumulates a float, so a percentage is the observer's "
+                          "own done/total, not something reported. The tick fires "
+                          "INLINE on the encode thread (zero concurrency, "
+                          "MCU-safe, no RTOS); on the native path it rides the "
+                          "srmech_genome_mint_progress ctypes trampoline with "
+                          "byte-parity against the pure loop. NOT the v5 "
+                          "srmech_progress_cb_t process-global dispatch OBSERVER "
+                          "(void return, no cancel channel). Default None = "
+                          "disabled.")),
             returns=R("list", "the genome strand (a flat list of Klein-4 vectors: per kernel a plasmid chromosome or a centromere-minted nuclear one), recovered with partition"),
         ),
         ToolEntry(
@@ -3511,10 +3658,28 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.biology.genome.integrate", owner="srmech", category="genome",
-            summary="Integrate a PROVIRUS (a chromosome strand) INTO a host genome strand — the viral-integration analog (§95.1d / #1407 / F1244), the coherency-translation-layer. Biology: a retrovirus (a Tier-1 PLASMID genome — telomere-capped, no centromere) integrates into a eukaryote's DNA (Tier-2 — NUCLEAR / DIPLOID) and is thereafter part of it; we watch it, so ONE shared cascade spans the levels. In srmech that coherence is FREE: rc258 centromere, rc259 diploid, and the mint umbrella ALL couple every turn through the SAME the_one (one k=3 cascade at different rungs), so a plasmid provirus simply becomes another chromosome and EVERYTHING still recovers — partition recovers every chromosome, centromere_of still reads the host's nuclear chromosome, recover_diploid still recovers its diploid, and the provirus recovers too. That is the translation between the Tier-1 and Tier-2 levels: no conversion needed because they are the same cascade. §135/rc273 (F1251) COMPATIBILITY GATE: horizontal transfer has EMPIRICAL BOUNDARIES — attested bacterial genomics (Shropshire et al.) measured CG307 plasmids shared with other clonal groups EXCEPT CG258 (segregated), so HGT is NOT universal. integrate now CHECKS host<->provirus compatibility BEFORE splicing and HONEST-DECLINES on incompatibility (returns None — a clean refuse, inform-don't-crash, mirroring telomere_tick senescence — leaving the host UNCHANGED, not forcing every element into every host). The DEFAULT predicate is the F1244 coherence contract made checkable: host + provirus must share the COUPLING WIDTH (== coupling / leaf_dim) — two genomes at different widths were coupled through different invariants and cannot cohere (an incompatible replicon, the CG258 analog); this is a Class-K/C equality read, never abs(). Python callers may ALSO pass a compatible=(host, provirus)->bool hook to add a domain replicon/lineage barrier (checked IN ADDITION to width; both must pass) — this is an IN-PROCESS Python affordance, NOT an MCP wire parameter (a callable cannot cross JSON-RPC), so it is not in the parameter list. A COMPATIBLE provirus integrates EXACTLY as rc262 (the gate adds ONLY a refuse path — full back-compat). host is a genome strand (any mix of plasmid/nuclear/diploid); provirus is a chromosome strand opening with a boundary cap (from chromosome / plasmid / mint / diploid); at is the host CHROMOSOME INDEX to insert before (0-based; default None = after the last). BOTH must share the_one (the coherence contract). Strand splicing (no re-coupling); a C-only host integrates identically via the srmech_genome_integrate C peer (rc276 / #891 / G4 — the stage-2 SPLICE primitive: it scans the host's boundary caps, resolves the same at->locus, applies the same width-coherence gate, and concatenates the two genomes' self-describing chromosome regions byte-identically), and when HAS_NATIVE this Python path DISPATCHES the splice to that peer (byte-identical whether native or pure). Class C (the integration) o Class K (the coherency-width gate) composing the C-built chromosome strands.",
+            summary="Integrate a PROVIRUS (a chromosome strand) INTO a host genome strand — the viral-integration analog (§95.1d / #1407 / F1244), the coherency-translation-layer. Biology: a retrovirus (a Tier-1 PLASMID genome — telomere-capped, no centromere) integrates into a eukaryote's DNA (Tier-2 — NUCLEAR / DIPLOID) and is thereafter part of it; we watch it, so ONE shared cascade spans the levels. In srmech that coherence is FREE: rc258 centromere, rc259 diploid, and the mint umbrella ALL couple every turn through the SAME the_one (one k=3 cascade at different rungs), so a plasmid provirus simply becomes another chromosome and EVERYTHING still recovers — partition recovers every chromosome, centromere_of still reads the host's nuclear chromosome, recover_diploid still recovers its diploid, and the provirus recovers too. That is the translation between the Tier-1 and Tier-2 levels: no conversion needed because they are the same cascade. §135/rc273 (F1251) COMPATIBILITY GATE: horizontal transfer has EMPIRICAL BOUNDARIES — attested bacterial genomics (Shropshire et al.) measured CG307 plasmids shared with other clonal groups EXCEPT CG258 (segregated), so HGT is NOT universal. integrate now CHECKS host<->provirus compatibility BEFORE splicing and HONEST-DECLINES on incompatibility (returns None — a clean refuse, inform-don't-crash, mirroring telomere_tick senescence — leaving the host UNCHANGED, not forcing every element into every host). The DEFAULT predicate is the F1244 coherence contract made checkable: host + provirus must share the COUPLING WIDTH (== coupling / leaf_dim) — two genomes at different widths were coupled through different invariants and cannot cohere (an incompatible replicon, the CG258 analog); this is a Class-K/C equality read, never abs(). Python callers may ALSO pass a compatible=(host, provirus)->bool hook to add a domain replicon/lineage barrier (checked IN ADDITION to width; both must pass) — this is an IN-PROCESS Python affordance (a callable cannot cross JSON-RPC). v0.9.0rc408: it IS declared in the parameter list (the contract must not hide a capability), typed host_callable, which publishes JSON-schema null — over the wire the only legal value is absence, and the op then applies the width gate alone. A COMPATIBLE provirus integrates EXACTLY as rc262 (the gate adds ONLY a refuse path — full back-compat). host is a genome strand (any mix of plasmid/nuclear/diploid); provirus is a chromosome strand opening with a boundary cap (from chromosome / plasmid / mint / diploid); at is the host CHROMOSOME INDEX to insert before (0-based; default None = after the last). BOTH must share the_one (the coherence contract). Strand splicing (no re-coupling); a C-only host integrates identically via the srmech_genome_integrate C peer (rc276 / #891 / G4 — the stage-2 SPLICE primitive: it scans the host's boundary caps, resolves the same at->locus, applies the same width-coherence gate, and concatenates the two genomes' self-describing chromosome regions byte-identically), and when HAS_NATIVE this Python path DISPATCHES the splice to that peer (byte-identical whether native or pure). Class C (the integration) o Class K (the coherency-width gate) composing the C-built chromosome strands.",
             parameters=(P("host", "Sequence[HV]", True, "a genome strand — any mix of plasmid / nuclear / diploid chromosomes (from genome / plasmid / mint)"),
                         P("provirus", "Sequence[HV]", True, "a chromosome strand opening with a boundary cap (from chromosome / plasmid / mint / diploid), coupled through the SAME coupling as host"),
-                        P("at", "Optional[int]", False, "keyword-only; the host CHROMOSOME INDEX to insert the provirus before (0-based; default None = integrate after the last chromosome)")),
+                        P("at", "Optional[int]", False, "keyword-only; the host CHROMOSOME INDEX to insert the provirus before (0-based; default None = integrate after the last chromosome)"),
+                        P("compatible", "host_callable", False,
+                          "keyword-only; an IN-PROCESS host predicate "
+                          "(host, provirus) -> bool that adds a DOMAIN replicon / "
+                          "lineage barrier ON TOP of the default coupling-width "
+                          "coherence gate — BOTH must pass, so it can only ever "
+                          "REFUSE an integration the width gate would have "
+                          "allowed, never force one it refused. §135/rc273 "
+                          "(F1251): horizontal transfer has empirical boundaries "
+                          "— attested bacterial genomics measured CG307 plasmids "
+                          "shared with other clonal groups EXCEPT the segregated "
+                          "CG258 — so a falsey return makes integrate return None "
+                          "(the honest-decline; the host is left UNCHANGED, "
+                          "inform-don't-crash). A callable cannot cross JSON-RPC "
+                          "— there is no name to resolve and no serialised form — "
+                          "so its type publishes JSON-schema 'null' and the only "
+                          "legal wire value is absent; the gate then runs the "
+                          "width check alone, which is also the default. Default "
+                          "None = the width-coherence check only.")),
             returns=R("Optional[list]", "the combined genome strand (host with the provirus spliced in at the chromosome boundary, recovered with partition) on a COMPATIBLE integration, else None (the honest-decline; host unchanged) on an incompatible one"),
         ),
         ToolEntry(
@@ -3554,7 +3719,40 @@ def _register_primitive_class_tools() -> None:
             summary="Build a genome — the BIOLOGY-AWARE UMBRELLA that lets the tooling PICK each chromosome's shape by modeling biology (rc260 rename, §95.2 / #1407). The umbrella noun + default smart constructor: per kernel the attested encode_shape criterion (F715, no magic number) decides plasmid-vs-nuclear — a plasmid-scale kernel (tome/mobius, <=4 leaves) stays a Tier-1 PLASMID chromosome (no centromere), a eukaryotic-chromosome-scale kernel (quad_strand, >=5 leaves) is MINTED as a Tier-2 NUCLEAR chromosome with an interior centromere carrying its global orientation (content-address folded to a sector). A genome strand IS a strand (list of Klein-4 vectors); recover with partition (the reader is format-agnostic). RC260 RENAME (breaking): genome was the pure all-plasmid builder — that is now plasmid(); mint() is the explicit alias of this umbrella. kernels is a dict {label: leaves} or (label, leaves) pairs. Composes chromosome + centromere (Class A + Class C + Class M).",
             parameters=(P("kernels", "dict", True, "{label: leaves} — each kernel's leaves are Klein-4 vectors (one tome each)"),
                         P("coupling", "HV", True, "the held invariant every turn of every chromosome is coupled through"),
-                        ET_PARAM),
+                        ET_PARAM,
+                        P("chromosomes", "Sequence[tuple]", False,
+                          "keyword-only; the multi-gene form "
+                          "[(label, [(gene_label, gene_leaves), ...]), ...] — a "
+                          "SEQUENCE of (label, genes) pairs (a dict is NOT "
+                          "accepted here). Genes are a different structure from a "
+                          "minted kernel, so when it is given the umbrella defers "
+                          "WHOLESALE to plasmid(): every chromosome comes out "
+                          "Tier-1 plasmid and no centromere selection runs. Pass "
+                          "exactly one of kernels= or chromosomes=. Default "
+                          "None."),
+                        P("progress", "host_callable", False,
+                          "keyword-only; the §101 / ABI-v6 per-call progress "
+                          "HEARTBEAT + graceful-abort tick — an IN-PROCESS host "
+                          "callable, never an MCP wire value (its type publishes "
+                          "JSON-schema 'null', so the only legal wire value is "
+                          "absent). Called as progress(ev) with ONE dict "
+                          "{struct_size, phase, done, total}; here it fires per "
+                          "KERNEL with phase=MINTING, done = the index of the "
+                          "kernel about to be minted and total = the number of "
+                          "kernels. A TRUTHY return CANCELS cleanly and the op "
+                          "returns the VALID PARTIAL strand — the whole "
+                          "chromosomes minted so far, a shorter but readable "
+                          "genome. done/total are EXACT integer cardinalities "
+                          "(Class-N): the library never divides and never "
+                          "accumulates a float, so a percentage is the observer's "
+                          "own done/total, not something reported. The tick fires "
+                          "INLINE on the encode thread (zero concurrency, "
+                          "MCU-safe, no RTOS); on the native path it rides the "
+                          "srmech_genome_mint_progress ctypes trampoline with "
+                          "byte-parity against the pure loop. NOT the v5 "
+                          "srmech_progress_cb_t process-global dispatch OBSERVER "
+                          "(void return, no cancel channel). Default None = "
+                          "disabled.")),
             returns=R("list", "the flat genome strand: per kernel a plasmid chromosome or a centromere-minted nuclear one, recovered with partition"),
         ),
         ToolEntry(
@@ -3590,7 +3788,8 @@ def _register_primitive_class_tools() -> None:
                         P("path", "str", True, "the genome DIRECTORY to write (created if absent; gets manifest.json + turns.bin)"),
                         P("coupling", "HV", True, "the held invariant every turn is coupled through (content-addressed into the manifest)"),
                         P("labels", "list", False, "optional, back-compat; when given VALIDATES the scanned chromosome set (labels are discovered inline)"),
-                        ET_PARAM),
+                        ET_PARAM,
+                        P("attestation", "dict", False, "keyword-only; a caller MPR SOURCE-attestation whose provided fields OVERRIDE the srmech default written into manifest.json (override-only over the five source-identity fields source_doi / source_url / license / retrieved_at / response_sha256 — an ABSENT field keeps its default, so a partial dict never blanks one; the four ENCODER-identity fields parser_version / parser_rule_hash / collector_descriptor_path / collector_descriptor_hash stay srmech-owned). Records an attested corpus genome's REAL source (e.g. a simplewiki dump under CC-BY-SA-4.0) genome-natively — the genome directory is the SSoT, no sidecar files (§41/F1300), so the manifest is the only legitimate home for it. A malformed override (non-dict / unknown key such as a source_uri typo / a value that makes the merged block an invalid MPR) RAISES before any bytes hit disk, so the very misattribution this parameter exists to prevent cannot be introduced silently; omitted -> the srmech default (source srmech.net/genome/persistence) is written unchanged.")),
             returns=R("dict", "the manifest data {format_version=4, leaf_dim, n_turns, coupling, body_sha256 (region chain), regions, chromosomes}"),
         ),
         ToolEntry(
@@ -3604,13 +3803,36 @@ def _register_primitive_class_tools() -> None:
             name="srmech.biology.genome.genome_load", owner="srmech", category="genome",
             summary="Reconstruct a genome from a directory (UPSTREAM §41) — returns (strand, coupling, labels). labels=None loads the WHOLE genome: streams turns.bin block-by-block (RAM bounded by the active block, not the whole file) and re-hashes the streamed body against the manifest body_sha256. A subset labels=[...] is a PAGED read: it seeks to each requested chromosome's byte_offset and reads only its byte_len bytes (RAM bounded by the largest single chromosome), re-hashing that region's cap against cap_sha256. Bounding IS integrity — a flipped / truncated / re-ordered byte raises GenomeBoundingError. The returned strand is byte-for-byte the saved strand for the requested chromosomes; coupling is rebuilt from the manifest's stored block and verified against its hash.",
             parameters=(P("path", "str", True, "the genome directory written by genome_save"),
-                        P("labels", "list", False, "keyword-only; chromosome subset to page in (None = load all, streamed)")),
+                        P("labels", "list", False, "keyword-only; chromosome subset to page in (None = load all, streamed)"),
+                        P("coupling", "Optional[HV]", False,
+                          "keyword-only; an OVERRIDE for the held invariant — an "
+                          "HV, or any sequence lifted through HV.from_sequence. "
+                          "Default None = rebuild it from the manifest's stored "
+                          "block and verify that block's content-address bound (a "
+                          "mismatch is a GenomeBoundingError). §44 makes the "
+                          "strand the SSoT and the manifest only an optional .fai "
+                          "cache, so this is REQUIRED when manifest.json is "
+                          "ABSENT — its length is the leaf width the "
+                          "rebuild-by-scan needs, which is what lets you load a "
+                          "tar of turns.bin alone. It is also how you decouple "
+                          "against a DIFFERENT held anchor than the cached "
+                          "one.")),
             returns=R("tuple", "(strand, coupling, labels) — the reconstructed genome (byte-exact for the requested chromosomes)"),
         ),
         ToolEntry(
             name="srmech.biology.genome.genome_catalog", owner="srmech", category="genome",
             summary="Read the catalog of a genome (UPSTREAM §41 / §44 / §56 / §96). When manifest.json is present this is the cheap, body-free read — it returns the manifest data dict (§56/v4: leaf_dim, n_turns, body_sha256 = the region CHAIN, coupling hash+hex, a regions array {byte_offset, byte_len, sha256}, and per-chromosome cap_sha256 / leaf_count / byte_offset / byte_len / §96 cap_kind) WITHOUT opening turns.bin. §96: cap_kind ∈ {plasmid, nuclear, diploid} is the per-chromosome classification DERIVED on the SAME §44 scan (plasmid = plasmid-scale / nuclear = an interior centromere / diploid = a diploid-telomere opener; nuclear > diploid > plasmid) — a NEW additive field, no format bump (v12 head-only manifests derive it on read). rc271 (F1251) adopts the field's own names — plasmid (was 'stick') / nuclear (was 'minted'); opt back into the old names with genome.set_type_aliases / load_type_aliases_toml (a pure Python presentation layer; the C output stays canonical). §44: when the manifest is ABSENT the catalog is REBUILT by scanning the self-describing body (the strand is the SSoT, the manifest an optional .fai cache; the region chain is body-derivable, so the rebuild reproduces the manifest byte-identically); that rebuild needs coupling= (its length is the leaf width) and reads turns.bin once. The manifest is an MPRRecord (MPR v1) that passes validate_mpr_record (its response_sha256 IS the body_sha256 chain head). v2/v3 manifests read compatibly. numpy-free.",
-            parameters=(P("path", "str", True, "the genome directory written by genome_save"),),
+            parameters=(P("path", "str", True, "the genome directory written by genome_save"),
+                        P("coupling", "Optional[HV]", False,
+                          "keyword-only; an OVERRIDE for the held invariant — an "
+                          "HV, or any sequence lifted through HV.from_sequence. "
+                          "Default None = take it from the manifest's stored "
+                          "block (whose content-address bound is verified). §44 "
+                          "makes the strand the SSoT and the manifest only an "
+                          "optional .fai cache, so this is REQUIRED when "
+                          "manifest.json is ABSENT — the catalog is then REBUILT "
+                          "by scanning turns.bin and its length is the leaf "
+                          "width that scan needs.")),
             returns=R("dict", "the manifest data (chromosome index + integrity hashes + §96 per-chromosome cap_kind), read from manifest.json or rebuilt by scanning turns.bin"),
         ),
         ToolEntry(
@@ -3640,21 +3862,63 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("path", "str", True, "the genome directory written by genome_save"),
                         P("label", "str", True, "the new chromosome's label (must not already exist in the genome)"),
                         P("leaves", "Sequence[HV]", True, "the new kernel's Klein-4 leaf vectors"),
-                        P("coupling", "HV", True, "the held invariant the new turns are coupled through (dim must match leaf_dim)")),
+                        P("coupling", "HV", True, "the held invariant the new turns are coupled through (dim must match leaf_dim)"),
+                        P("kernel", "bool", False,
+                          "keyword-only; when True the appended chromosome opens "
+                          "with a §89 KERNEL telomere (0x6B) instead of the plain "
+                          "CHROM cap — the form genome_append_kernel builds on "
+                          "top of this op. Default False."),
+                        P("catalog", "Optional[dict]", False,
+                          "keyword-only; the O(1)-streaming handle, and a "
+                          "THREE-mode union. None (the default) is a COLD one-off "
+                          "append: the disk write is still O(1), but the returned "
+                          "full catalog is DERIVED from the body once (O(n)) — "
+                          "looping this way is the O(n²) wall. A DICT threads a "
+                          "prior genome_save / genome_append return: it is "
+                          "mutate-appended one entry in memory, so N appends cost "
+                          "O(N) total. The literal string \"load\" RESUMES a "
+                          "streaming loop with no prior return in hand — the "
+                          "threadable catalog is read from disk ONCE (O(n)) and "
+                          "the return is threaded for the rest of the loop. An "
+                          "empty / partial dict carrying no 'leaf_dim' is not a "
+                          "genome catalog and raises a pointed ValueError naming "
+                          "these three modes, never a bare KeyError.")),
             returns=R("dict", "the updated manifest data (with the appended chromosome + region entry + O(1)-extended body_sha256 chain)"),
         ),
         ToolEntry(
             name="srmech.biology.genome.genome_window", owner="srmech", category="genome",
             summary="Page in ONLY one chromosome's leaves from a genome (UPSTREAM §41). Seeks to the chromosome label's byte_offset and reads only its byte_len bytes (RAM bounded by that one chromosome), re-hashing the region's cap against the manifest cap_sha256 — a mismatch raises GenomeBoundingError. Returns the chromosome's stored leaves (the coupled data turns, the cap excluded) as a list of Klein-4 vectors, in order — the disk-paging counterpart of reaching into one partition of the genome without loading the rest.",
             parameters=(P("path", "str", True, "the genome directory written by genome_save"),
-                        P("label", "str", True, "the chromosome label whose leaves to page in")),
+                        P("label", "str", True, "the chromosome label whose leaves to page in"),
+                        P("coupling", "Optional[HV]", False,
+                          "keyword-only; an OVERRIDE for the held invariant — an "
+                          "HV, or any sequence lifted through HV.from_sequence. "
+                          "Default None = take it from the manifest's stored "
+                          "block (whose content-address bound is verified). §44 "
+                          "makes the strand the SSoT and the manifest only an "
+                          "optional .fai cache, so this is REQUIRED when "
+                          "manifest.json is ABSENT — the byte_offset / byte_len "
+                          "of the region are then reconstructed by scanning "
+                          "turns.bin and its length is the leaf width that scan "
+                          "needs.")),
             returns=R("list", "the chromosome's stored leaves (coupled turns, cap excluded), in order"),
         ),
         ToolEntry(
             name="srmech.biology.genome.genome_genes", owner="srmech", category="genome",
             summary="Page ONE multi-gene chromosome's genes back from a genome (F732 / UPSTREAM §44) — the disk counterpart of the in-memory genes(). Pages in only that chromosome's region (RAM-bounded + cap-integrity-checked), then SCANS it for the inline GENE caps (§44 — no gene-index sidecar; the gene boundaries + labels live in the body) and re-binds the_one (rebuilt + hash-verified from the manifest cache, or a coupling override) to recover a list of (gene_label, gene_leaves) — exactly what genes(chromosome(genes=…)) returns in memory. Raises ValueError on a single-kernel chromosome (no inline GENE caps; use genome_window / partition). numpy-free.",
             parameters=(P("path", "str", True, "the genome directory written by genome_save"),
-                        P("label", "str", True, "the multi-gene chromosome label whose genes to page in")),
+                        P("label", "str", True, "the multi-gene chromosome label whose genes to page in"),
+                        P("coupling", "Optional[HV]", False,
+                          "keyword-only; an OVERRIDE for the held invariant — an "
+                          "HV, or any sequence lifted through HV.from_sequence — "
+                          "and it is what the recovered genes are re-bound "
+                          "through. Default None = rebuild it from the manifest's "
+                          "stored block (verified against that block's stored "
+                          "hash). §44 makes the strand the SSoT and the manifest "
+                          "only an optional .fai cache, so this is REQUIRED when "
+                          "manifest.json is ABSENT — the region offsets are then "
+                          "reconstructed by scanning turns.bin, and it is needed "
+                          "anyway to uncouple the genes.")),
             returns=R("list", "the chromosome's genes as a list of (gene_label, gene_leaves) tuples, in order"),
         ),
         ToolEntry(
@@ -3740,7 +4004,21 @@ def _register_primitive_class_tools() -> None:
                         P("label", "str", True, "the new kernel chromosome's label (must not already exist in the genome)"),
                         P("hv", "Sequence[int]", True, "the flat Klein-4 kernel to append — symbols {0,1,2,3} (HV / list / bytes) of any dimension D"),
                         P("element_type", "str", False, "keyword-only; the declared element-type enum recorded in the §89 header (default 'klein4')"),
-                        P("coupling", "HV", False, "keyword-only; the coupling invariant (optional when a manifest is present; its length is the leaf width for a manifest-less genome)")),
+                        P("coupling", "HV", False, "keyword-only; the coupling invariant (optional when a manifest is present; its length is the leaf width for a manifest-less genome)"),
+                        P("catalog", "Optional[dict]", False,
+                          "keyword-only; THREAD a prior genome_save / "
+                          "genome_append(_kernel) catalog DICT to keep the whole "
+                          "call O(1) — it is used directly as the O(1) head here "
+                          "and forwarded to genome_append, which mutate-appends "
+                          "the new entry in memory rather than re-deriving the "
+                          "catalog from the body. Default None = read the O(1) "
+                          "head from disk. DICT FORM ONLY: unlike genome_append "
+                          "this op does NOT handle the \"load\" sentinel — the "
+                          "string is taken as the head and raises when it is "
+                          "indexed for 'leaf_dim', so resume a streaming loop by "
+                          "reading the catalog yourself (or via one "
+                          "genome_append(catalog=\"load\")) and threading the "
+                          "dict.")),
             returns=R("dict", "the updated manifest data (with the appended kernel chromosome + region entry + O(1)-extended body_sha256 chain)"),
         ),
         ToolEntry(
@@ -3777,14 +4055,63 @@ def _register_primitive_class_tools() -> None:
                         P("window", "int", False, "keyword-only; the co-occurrence window (default 2)"),
                         P("k", "int", False, "keyword-only; the bounded top-k per node (default 20)"),
                         P("cap_slack", "int", False, "keyword-only; the top-k store cap slack (cap = k*cap_slack; default 4)"),
-                        P("label_prefix", "str", False, "keyword-only; the section label prefix (default 'sec')")),
+                        P("label_prefix", "str", False, "keyword-only; the section label prefix (default 'sec')"),
+                        P("progress", "host_callable", False,
+                          "keyword-only; the §101 / ABI-v6 per-call progress "
+                          "HEARTBEAT + graceful-abort tick — an IN-PROCESS host "
+                          "callable, never an MCP wire value (its type publishes "
+                          "JSON-schema 'null', so the only legal wire value is "
+                          "absent). Called as progress(ev) with ONE dict "
+                          "{struct_size, phase, done, total}; here it fires "
+                          "between whole SECTIONS with phase=EXTRACTING, done = "
+                          "the sections appended so far and total = the number of "
+                          "documents. A TRUTHY return CANCELS cleanly: the "
+                          "sections already appended are COMPLETE chromosomes "
+                          "(never a half-written one) and the return carries "
+                          "status='cancelled'. done/total are EXACT integer "
+                          "cardinalities (Class-N): the library never divides and "
+                          "never accumulates a float, so a percentage is the "
+                          "observer's own done/total, not something reported. The "
+                          "tick fires INLINE on the encode thread (zero "
+                          "concurrency, MCU-safe, no RTOS). NOT the v5 "
+                          "srmech_progress_cb_t process-global dispatch OBSERVER "
+                          "(void return, no cancel channel). Default None = "
+                          "disabled.")),
             returns=R("dict", "{section_store, vocab, section_count {global_id: n_sections}, n_sections, sections, status}"),
         ),
         ToolEntry(
             name="srmech.biology.plasmid.section_counts", owner="srmech", category="plasmid",
             summary="Derive {global_id: n_sections} — how many distinct PLASMID sections each GLOBAL node appears in — by SCANNING a plasmid_extract store's sections (their GLOBAL node_ids tables). The genome-native, SSoT read stage-2 (F1252 rc279) promotes on: a node is CONSERVED iff its section-occurrence count >= k (a plain integer accumulator, no spectral solve — the section-level, extract-time-available analog of the F1250 cross-community participation read). HIGH section-count = shared across many plasmids = the conserved core (NUCLEAR); count == 1 = accessory (stays PLASMID). A node counts ONCE per section it appears in; the shared VOCAB chromosome (the karyotype index) is excluded. rc280 (§102 / F1253) made this scan READ ONLY WHAT IT NEEDS, fixing the ~22-hour derivation the field measured at 240,881 sections (~0.33 s/section). Two costs were removed. FIRST, the catalog was re-derived PER SECTION: a v12 head-only manifest stores no chromosome table, so genome_window derives it by scanning the whole body and re-folding its Merkle chain — once per section is O(P x whole body), quadratic in corpus size, and it dominated everything else; the catalog is now derived ONCE for the whole scan. SECOND, every section's full graph was decoded — edges, weights and charges — to reach a node_ids table that the §89 payload places BEFORE all of them ([vocab_size, n_node_ids] + node_ids + ...); the read is now TARGETED, paging only the node_ids prefix of each region and never touching the edge bytes, so per-section cost is O(node_ids) not O(section). NO FORMAT CHANGE WAS NEEDED (GENOME_FORMAT_VERSION stays 15): the sections were already self-describing, quad_turn uncouples each leaf independently of every other so a prefix of coupled leaves uncouples to exactly the prefix of the symbol stream, and the region's leading-cap integrity bound lives in the first block so a prefix pays the SAME bound as a whole-region read — the targeted read is not a weaker read, it is the same bound over fewer bytes. Together the scan goes from O(P^2 x body) to O(P x node_ids); the counts are BYTE-IDENTICAL to the full-decode derivation and that equivalence is the pinned SSoT check. §101: an in-process progress= callable (a Python-only kwarg, NOT an MCP wire parameter) fires between whole SECTIONS with phase EXTRACTING; a truthy return RAISES SectionCountsCancelled rather than returning a partial — unlike a cancelled encode, whose chromosomes-so-far are a valid shorter genome, a partial COUNT is not a smaller valid count but a wrong one that would silently shift every downstream conservation threshold. STILL THE DELIBERATE FALLBACK, NOT THE HOT PATH: plasmid_extract returns section_count as a free streamed accumulator, so passing it to genome_integrate_plasmids means no scan happens at all; this op exists to RESUME against a store you did not just build and to VERIFY the accumulator against the on-disk SSoT. Dispatches the whole scan to the srmech_genome_section_counts C peer when HAS_NATIVE (a bare-C host derives the counts end-to-end); the pure body is the numpy-free alternative + byte-parity oracle. Integer/exact (Class-N); no abs(); numpy-free.",
             parameters=(P("section_store", "str", True, "a plasmid_extract sections genome directory"),
-                        P("coupling", "HV", False, "keyword-only; the coupling invariant (only needed for a manifest-less store — its length is the leaf width)")),
+                        P("coupling", "HV", False, "keyword-only; the coupling invariant (only needed for a manifest-less store — its length is the leaf width)"),
+                        P("progress", "host_callable", False,
+                          "keyword-only; the §101 / ABI-v6 per-call progress "
+                          "HEARTBEAT + graceful-abort tick — an IN-PROCESS host "
+                          "callable, never an MCP wire value (its type publishes "
+                          "JSON-schema 'null', so the only legal wire value is "
+                          "absent). Called as progress(ev) with ONE dict "
+                          "{struct_size, phase, done, total}; here it fires "
+                          "between whole SECTIONS with phase=EXTRACTING, done = "
+                          "the sections scanned so far and total = P, the store's "
+                          "section count. A TRUTHY return RAISES "
+                          "SectionCountsCancelled rather than returning a partial "
+                          "— unlike a cancelled ENCODE, whose chromosomes so far "
+                          "are a valid shorter genome, a partial COUNT is not a "
+                          "smaller valid count but a WRONG one, and it would "
+                          "silently shift every downstream conservation threshold "
+                          "with nothing in the result revealing it; the counts "
+                          "accumulated so far ride on the exception's .counts, "
+                          "with .done / .total, explicitly labelled partial. "
+                          "done/total are EXACT integer cardinalities (Class-N): "
+                          "the library never divides and never accumulates a "
+                          "float, so a percentage is the observer's own "
+                          "done/total, not something reported. The tick fires "
+                          "INLINE on the scan thread (zero concurrency, MCU-safe, "
+                          "no RTOS) and is handed through to the "
+                          "srmech_genome_section_counts C peer when HAS_NATIVE. "
+                          "NOT the v5 srmech_progress_cb_t process-global "
+                          "dispatch OBSERVER (void return, no cancel channel). "
+                          "Default None = disabled.")),
             returns=R("dict", "{global_id: n_sections} — the section-occurrence integer accumulator (stage-2's conservation >= k input)"),
         ),
         ToolEntry(
@@ -3802,7 +4129,36 @@ def _register_primitive_class_tools() -> None:
                         P("section_count", "dict", False, "keyword-only; the FREE streamed accumulator from plasmid_extract — pass it. Omitting it triggers the deliberate O(P*section) section_counts re-derivation"),
                         P("k", "str", False, "keyword-only; 'auto' (default) derives-or-declines; a positive int is a stated policy choice (reported as k_source='policy')"),
                         P("core_edges", "list", False, "keyword-only; the per-section GLOBAL edge lists, to skip the core-harvest read"),
-                        P("out_path", "str", False, "keyword-only; genome_save the organized genome here (skipped on cancel)")),
+                        P("out_path", "str", False, "keyword-only; genome_save the organized genome here (skipped on cancel)"),
+                        P("progress", "host_callable", False,
+                          "keyword-only; the §101 / ABI-v6 per-call progress "
+                          "HEARTBEAT + graceful-abort tick — an IN-PROCESS host "
+                          "callable, never an MCP wire value (its type publishes "
+                          "JSON-schema 'null', so the only legal wire value is "
+                          "absent). Called as progress(ev) with ONE dict "
+                          "{struct_size, phase, done, total}; here it fires "
+                          "between whole CHROMOSOMES — ONCE with phase=MINTING "
+                          "(done=0, total=1) for the core promote, then per "
+                          "section with phase=INTEGRATING, done = the sections "
+                          "merged so far and total = P. There is no scan phase "
+                          "when section_count is supplied: the fast path does no "
+                          "counting work to report. A TRUTHY return CANCELS "
+                          "cleanly — the returned strand is the minted core plus "
+                          "the sections merged so far, a valid readable SHORTER "
+                          "organized genome truncated at a chromosome boundary, "
+                          "with status='cancelled', and out_path is NOT written. "
+                          "done/total are EXACT integer cardinalities (Class-N): "
+                          "the library never divides and never accumulates a "
+                          "float, so a percentage is the observer's own "
+                          "done/total, not something reported. The tick fires "
+                          "INLINE on the encode thread (zero concurrency, "
+                          "MCU-safe, no RTOS) and is handed THROUGH to the C "
+                          "orchestrator, so on the native path the heartbeat and "
+                          "the cancel are the C loop's own rather than a Python "
+                          "hook wrapped around an opaque call. NOT the v5 "
+                          "srmech_progress_cb_t process-global dispatch OBSERVER "
+                          "(void return, no cancel channel). Default None = "
+                          "disabled.")),
             returns=R("dict", "{strand, k, k_source (derived|declined|policy), bimodal, one_dna_type, core, counts {nuclear, plasmid}, n_sections, n_integrated, histogram, status}"),
         ),
         ToolEntry(
@@ -3817,7 +4173,34 @@ def _register_primitive_class_tools() -> None:
                         P("top_k", "int", False, "keyword-only; the bounded top-k per node (default 20)"),
                         P("cap_slack", "int", False, "keyword-only; the top-k store cap slack (default 4)"),
                         P("label_prefix", "str", False, "keyword-only; the section label prefix (default 'sec')"),
-                        P("cache_edges", "bool", False, "keyword-only; keep per-section global edge lists in state so a threshold crossing re-filters in memory (default True)")),
+                        P("cache_edges", "bool", False, "keyword-only; keep per-section global edge lists in state so a threshold crossing re-filters in memory (default True)"),
+                        P("progress", "host_callable", False,
+                          "keyword-only; the §101 / ABI-v6 per-call progress "
+                          "HEARTBEAT + graceful-abort tick — an IN-PROCESS host "
+                          "callable, never an MCP wire value (its type publishes "
+                          "JSON-schema 'null', so the only legal wire value is "
+                          "absent). Called as progress(ev) with ONE dict "
+                          "{struct_size, phase, done, total}. It covers the "
+                          "stage-2 ORGANIZE half only (the stage-1 section append "
+                          "is O(doc) and untick'd): ONCE with phase=MINTING "
+                          "(done=0, total=1) for the core promote, then per "
+                          "section with phase=INTEGRATING, done = the sections "
+                          "folded so far and total = the store's section count. A "
+                          "TRUTHY return CANCELS cleanly — the returned strand is "
+                          "the minted core plus the sections folded so far, a "
+                          "valid readable SHORTER organized genome truncated at a "
+                          "chromosome boundary, with status='cancelled'. "
+                          "done/total are EXACT integer cardinalities (Class-N): "
+                          "the library never divides and never accumulates a "
+                          "float, so a percentage is the observer's own "
+                          "done/total, not something reported. The tick fires "
+                          "INLINE on the encode thread (zero concurrency, "
+                          "MCU-safe, no RTOS) and is handed THROUGH to the "
+                          "srmech_genome_add_plasmid C peer, so on the native "
+                          "path the heartbeat and the cancel are the C loop's "
+                          "own. NOT the v5 srmech_progress_cb_t process-global "
+                          "dispatch OBSERVER (void return, no cancel channel). "
+                          "Default None = disabled.")),
             returns=R("dict", "{strand, state, section, k, k_source, core_changed, core, bimodal, one_dna_type, counts {nuclear, plasmid}, n_sections, n_integrated, status}"),
         ),
         ToolEntry(
@@ -3829,7 +4212,28 @@ def _register_primitive_class_tools() -> None:
                         P("centromere_at", "Optional[int]", False, "keyword-only; the arm-split index in DATA turns, 0..n_turns (default the metacentric midpoint n_turns//2 — position IS the p:q arm-ratio)"),
                         P("repeats", "int", False, "keyword-only; the alpha-satellite repeat-array size R (default 15; uint8 1..255)"),
                         P("handle", "str", False, "keyword-only; the inline CENP-A epigenetic handle (default 'cen')"),
-                        ET_PARAM),
+                        ET_PARAM,
+                        P("progress", "host_callable", False,
+                          "keyword-only; the §101 / ABI-v6 per-call progress "
+                          "HEARTBEAT + graceful-abort tick — an IN-PROCESS host "
+                          "callable, never an MCP wire value (its type publishes "
+                          "JSON-schema 'null', so the only legal wire value is "
+                          "absent). Called as progress(ev) with ONE dict "
+                          "{struct_size, phase, done, total}; here it is a SINGLE "
+                          "PRE-OP gate — one tick with phase=MINTING, done=0, "
+                          "total=1 — because a centromere SPLICE has no "
+                          "meaningful partial. A TRUTHY return DECLINES cleanly "
+                          "and returns the valid UNMODIFIED pre-mint strand, "
+                          "which also skips the recall decode that is the op's "
+                          "actual cost. done/total are EXACT integer "
+                          "cardinalities (Class-N): the library never divides and "
+                          "never accumulates a float, so a percentage is the "
+                          "observer's own done/total, not something reported. The "
+                          "tick fires INLINE on the encode thread (zero "
+                          "concurrency, MCU-safe, no RTOS). NOT the v5 "
+                          "srmech_progress_cb_t process-global dispatch OBSERVER "
+                          "(void return, no cancel channel). Default None = "
+                          "disabled.")),
             returns=R("list", "the MINTED strand — the input strand with one interior centromere cap (0x58) spliced at the p:q arm-split; recover the orientation + arm-ratio with centromere_of, census as 'nuclear' after genome_save"),
         ),
         ToolEntry(
@@ -3842,7 +4246,32 @@ def _register_primitive_class_tools() -> None:
                         P("work_dir", "str", False, "keyword-only; scratch dir for recursive_cut's on-disk tomes (caller owns it)"),
                         P("max_tome", "int", False, "keyword-only; recursive_cut leaf size — a sub-graph with <= max_tome nodes is a community (default 256)"),
                         P("n_bins", "int", False, "keyword-only; participation-histogram resolution for the antimode (default 16)"),
-                        P("max_iters", "int", False, "keyword-only; per-bisection power-iteration cap (default 250)")),
+                        P("max_iters", "int", False, "keyword-only; per-bisection power-iteration cap (default 250)"),
+                        P("progress", "host_callable", False,
+                          "keyword-only; the §101 / ABI-v6 per-call progress "
+                          "HEARTBEAT + graceful-abort tick — an IN-PROCESS host "
+                          "callable, never an MCP wire value (its type publishes "
+                          "JSON-schema 'null', so the only legal wire value is "
+                          "absent). Called as progress(ev) with ONE dict "
+                          "{struct_size, phase, done, total}. It is threaded into "
+                          "recursive_cut, which IS the dominant cost, so the "
+                          "ticks are that op's: phase=PARTITIONING, done = the "
+                          "sum of the finalized tome sizes (exact + monotone) and "
+                          "total = n, one per queue step. A TRUTHY return CANCELS "
+                          "cleanly — the community assignment is still a valid "
+                          "(coarser) partition of ALL n nodes, so this returns a "
+                          "CLEAN partial with the communities + work_dir filled "
+                          "and the participation / antimode / groups left empty, "
+                          "carrying status='cancelled'. done/total are EXACT "
+                          "integer cardinalities (Class-N): the library never "
+                          "divides and never accumulates a float, so a percentage "
+                          "is the observer's own done/total, not something "
+                          "reported. The tick fires INLINE on the encode thread "
+                          "(zero concurrency, MCU-safe, no RTOS) and is handed "
+                          "through to the srmech_genome_graph_partition C peer "
+                          "when it is present. NOT the v5 srmech_progress_cb_t "
+                          "process-global dispatch OBSERVER (void return, no "
+                          "cancel channel). Default None = disabled.")),
             returns=R("dict", "the introspectable partition: {n, n_communities, bimodal, one_dna_type, antimode, participation, communities, groups, counts:{nuclear,plasmid}, node_counts, work_dir}"),
         ),
         ToolEntry(
@@ -3859,7 +4288,34 @@ def _register_primitive_class_tools() -> None:
                         P("n_bins", "int", False, "keyword-only; forwarded to genome_partition (default 16)"),
                         P("centromere_at", "int", False, "keyword-only; the nuclear arm-split forwarded to mint_strand (default the metacentric midpoint)"),
                         P("attestation", "dict", False, "keyword-only; when path is given, a caller MPR SOURCE-attestation forwarded to genome_save whose fields OVERRIDE the srmech default written into manifest.json (override-only over the five source-identity fields source_doi / source_url / license / retrieved_at / response_sha256; the four ENCODER-identity fields parser_version / parser_rule_hash / collector_descriptor_path / collector_descriptor_hash stay srmech-owned). Records an attested corpus genome's REAL source (e.g. a simplewiki dump under CC-BY-SA-4.0) genome-natively — the genome directory is the SSoT, no sidecar files (§41/F1300), so the manifest is the only legitimate home for it. A malformed override (non-dict / unknown key / value that makes the merged block an invalid MPR) RAISES before any bytes hit disk; omitted -> the srmech default is written unchanged."),
-                        ET_PARAM),
+                        ET_PARAM,
+                        P("progress", "host_callable", False,
+                          "keyword-only; the §101 / ABI-v6 per-call progress "
+                          "HEARTBEAT + graceful-abort tick — an IN-PROCESS host "
+                          "callable, never an MCP wire value (its type publishes "
+                          "JSON-schema 'null', so the only legal wire value is "
+                          "absent). Called as progress(ev) with ONE dict "
+                          "{struct_size, phase, done, total}; here it covers BOTH "
+                          "halves — first genome_partition's phase=PARTITIONING "
+                          "ticks (done = the sum of finalized tome sizes, total = "
+                          "n), then one per classified GROUP with phase=MINTING, "
+                          "done = the group index and total = the number of "
+                          "groups. A TRUTHY return CANCELS cleanly and returns "
+                          "the VALID PARTIAL {strand, chromosomes, partition, "
+                          "counts, status='cancelled'} — the whole chromosomes "
+                          "minted so far — and NOTHING is genome_save'd, so no "
+                          "half-written body ever reaches disk. Note that passing "
+                          "it declines the whole-builder native peer: the PURE "
+                          "path threads the tick itself, and the C peer serves a "
+                          "bare-C host through its own tick channel. done/total "
+                          "are EXACT integer cardinalities (Class-N): the library "
+                          "never divides and never accumulates a float, so a "
+                          "percentage is the observer's own done/total, not "
+                          "something reported. The tick fires INLINE on the "
+                          "encode thread (zero concurrency, MCU-safe, no RTOS). "
+                          "NOT the v5 srmech_progress_cb_t process-global "
+                          "dispatch OBSERVER (void return, no cancel channel). "
+                          "Default None = disabled.")),
             returns=R("dict", "{strand, chromosomes:[{label,type,community,n_syms,nodes}], partition, counts:{nuclear,plasmid}, path?, census?} — genome_census reports the measured {nuclear, plasmid} when path is given"),
         ),
         ToolEntry(
@@ -4068,15 +4524,33 @@ def _register_primitive_class_tools() -> None:
                     "{-1, 0, +1} (the 3-state Class-M variant alphabet). "
                     "Pass an integer `seed` for a DETERMINISTIC vector "
                     "(bit-exact / attestation discipline).",
-            # rc13: advertise the JSON-friendly integer `seed`, NOT the
-            # un-serialisable `rng: numpy.random.Generator` (a Generator has
-            # no valid JSON-Schema type and cannot cross JSON-RPC / an
-            # Anthropic tool schema). In-process Python callers still have
-            # the `rng=` kwarg on the function; the schema exposes only the
-            # serialisable path.
+            # rc13: advertise the JSON-friendly integer `seed` as THE wire path
+            # for a deterministic vector — a Generator's STATE has no JSON form
+            # and cannot cross JSON-RPC / an Anthropic tool schema.
+            # rc408 (`#T1078`): `rng` is now DECLARED alongside it rather than
+            # omitted. Omitting it hid a real capability from every consumer of
+            # the contract, including the in-process Python callers who CAN
+            # pass it (and for whom an explicit `rng` WINS over `seed`). It is
+            # typed host_rng, which publishes JSON-schema null: a schema-obedient
+            # client can only send null = absent, so the wire behaviour is
+            # unchanged and `seed` remains the only fillable wire path.
             parameters=(P("D", "int", True, "dimension"),
                         P("seed", "int", False,
-                          "integer seed for a deterministic vector")),
+                          "integer seed for a deterministic vector"),
+                        P("rng", "host_rng", False,
+                          "a HOST-SIDE generator for in-process callers — a "
+                          "random.Random, or a numpy Generator (duck-typed: "
+                          "hasattr(rng, 'integers') picks the numpy path, "
+                          "otherwise .randrange is used). An explicit rng WINS "
+                          "over seed when both are given, and it also bypasses "
+                          "the deterministic native MT19937 kernel, which is only "
+                          "taken on the integer-seed path. Generator STATE has no "
+                          "JSON form, so this type publishes JSON-schema 'null' "
+                          "and the only legal wire value is absent — MCP / "
+                          "Anthropic callers pass the integer seed instead, which "
+                          "gives a reproducible stream. Default None: the "
+                          "generator is built internally as random.Random(seed) "
+                          "(seed=None then draws from urandom).")),
             returns=R("array", "int8 in {-1,0,+1}"),
         ),
         ToolEntry(
@@ -6013,7 +6487,18 @@ def _register_primitive_class_tools() -> None:
                         P("inputs", "dict", True,
                           "the EXACT operand inputs keyed by name (canonicalised "
                           "with the rc117 float-free canon; Q / int / rational "
-                          "leaves ride as exact tags)")),
+                          "leaves ride as exact tags)"),
+                        P("projection_kind", "str", False,
+                          "keyword-only; the NON-ASYMPTOTIC projection kind "
+                          "recorded on the address — the honest alternative to "
+                          "faking an interior/edge tower_kind this projection "
+                          "does not climb. It must be a recognised "
+                          "lossy-projection kind (the recognised set is currently "
+                          "the single value 'hdc', the Klein-4 "
+                          "superposition-collapse of a fold_encode); anything "
+                          "else raises ValueError. It rides into the record and "
+                          "so into its chain_sha256, making it part of the "
+                          "projection's IDENTITY. Default 'hdc'.")),
             returns=R("dict",
                       "the record {op, params: {}, input_sha256, family: None, "
                       "rung: {}, projection_kind: 'hdc', leaves_exact, "
@@ -6674,6 +7159,25 @@ def _register_primitive_class_tools() -> None:
                   "the partition ceiling N (a positive int; N ≥ λ₁ ≥ … ≥ λₙ ≥ 0)"),
                 P("n", "int", True,
                   "the rank / number of variables n (a positive int)"),
+                P("verify", "bool", False,
+                  "keyword-only; when True this becomes a per-call VERIFIED "
+                  "reducer (rc101) and returns {'closed_form': EllRatio, "
+                  "'verified': True | False | None} instead of the bare "
+                  "EllRatio. The proof is EXACT, not numeric: the LHS n-fold Cₙ "
+                  "very-well-poised sum over the partitions Λ_{nN} is built "
+                  "SYMBOLICALLY as a ThetaSum, this constructive closed form is "
+                  "subtracted, and .is_zero — the complete rc98/rc99 "
+                  "multi-variable elliptic decision (structural elliptic "
+                  "interpolation) — decides the residual. verified=True means "
+                  "the residual is provably ≡ 0; False means the check "
+                  "DISCRIMINATED (a wrong or perturbed closed form is caught); "
+                  "None is an HONEST 'not verified: the sum is too large to "
+                  "decide in-budget' when the C(N+n, n) partition count exceeds "
+                  "the measured is_zero feasibility frontier — NOT a failure and "
+                  "NOT a claim the identity is false. The constructive "
+                  "closed_form is returned in EVERY case, so the None path never "
+                  "hangs and never withholds the reduction. Default False "
+                  "(back-compat: the plain call returns the bare EllRatio)."),
             ),
             returns=R("EllRatio",
                       "the exact closed-form theta-quotient product "
@@ -9420,6 +9924,15 @@ def _register_primitive_class_tools() -> None:
                 P("theta_num", "int", True, "epicycle angle numerator (radians)"),
                 P("theta_den", "int", False, "epicycle angle denominator > 0; default 1"),
                 P("terms", "int", False, "Class-N Taylor depth for cos/sin; default 24"),
+                P("w", "tuple[int, int, int]", False,
+                  "winding TRIAD (w_saros, w_metonic, w_callippic) — three "
+                  "whole-ℤ metacycle windings filling the three ℝ·1 grammar "
+                  "anchors B/H/N (the Antikythera back-panel dials). Default "
+                  "(0,0,0) = at rest, byte-identical to the unwound One. Lifts "
+                  "SO→Spin (the double cover): carried WHOLE, never mod-2, and "
+                  "read back by One.winding_tower() / One.sigma_effective(); "
+                  "the adjoint projection (One.to_matrix) is w-INVARIANT, so "
+                  "the winding folds away there"),
             ),
             returns=R("One", "structured generator: three Blocks tiling 1+3+7+3 = 14"),
         ),
@@ -9663,7 +10176,22 @@ def _register_primitive_class_tools() -> None:
                           "rc12 recombine: None (default; leaf dict, combined "
                           "None) | 'bundle'/'mean'/'sector0'/'concat' → one "
                           "composable value at result['combined'] so the "
-                          "dispatch chains / nests")),
+                          "dispatch chains / nests"),
+                        P("verify", "bool", False,
+                          "keyword-only; when True, RE-CHECK the correctness "
+                          "invariants at RUNTIME — recompute the serial "
+                          "(single-thread, same-sector) reference and assert "
+                          "parallel == serial bit-for-bit, plus sector 2 == "
+                          "cascade.chiral_dual. Default False, because those are "
+                          "STRUCTURAL guarantees of the F233 4-way independence "
+                          "(each worker reads ONLY its own sector-transformed "
+                          "input, 0 cross-thread reads) already proven in the "
+                          "test suite, NOT facts that need recomputing per call: "
+                          "recomputing them inline DOUBLED the body invocations "
+                          "and turned the dispatch into a 2.6–7.7× slowdown "
+                          "against serial (the rc8 fix). Whichever path ran is "
+                          "reported back at "
+                          "result['independence']['runtime_verified'].")),
             returns=R("dict",
                       "{sectors:{s:{label:(γ₅,iω₇), result}}, combined "
                       "(rc12: recombined value when combine= given, else None), "

@@ -127,6 +127,18 @@ _TYPE_LEXICON: Dict[str, str] = {
     "sequence": "array",
     "iterable[int]": "array",
     "tuple[int, int]": "array",
+    # 0.9.0rc408 (`#T1078`): cascade.the_one `w`, the winding triad. An ARRAY,
+    # like its pair sibling above — without this row it would default to
+    # "string" and tell a schema-obedient client to send text for three ints.
+    "tuple[int, int, int]": "array",
+    # 0.9.0rc408: `Sequence[tuple]` has had a coercer (_seq_tuple) since
+    # v0.7.5rc134 but never a lexicon row, so genome.chromosome `genes` and
+    # plasmid `chromosomes` have been publishing "string" for what is plainly a
+    # nested ARRAY — the ADR-0012 §4.2 silent-degradation row, found while
+    # declaring genome.genome `chromosomes` against the same type. Fixed here
+    # rather than deferred: it is a falsehood in a schema this rc is already
+    # editing, and it costs one row.
+    "Sequence[tuple]": "array",
     # numpy-free carrier-spirit param types (v0.7.5rc132) — all ride JSON as a
     # nested (Mat / Mat-tuple) or flat (Vec / HV) array; never named numpy.
     "Mat": "array",
@@ -158,6 +170,37 @@ _TYPE_LEXICON: Dict[str, str] = {
     "SpectralHandle": "object",
     "SpectralHandle | bytes": "object",
     "numpy.random.Generator": "object",
+    # ── 0.9.0rc408 (`#T1078`): the HOST-SIDE types. These publish JSON-schema
+    #    ``"null"``, and they are the only types in the lexicon that do.
+    #
+    #    A host-side operand is a live Python object — a callback, an RNG — that
+    #    cannot cross a process boundary by ANY encoding. There is no base64
+    #    form, no name to resolve, no handle: the value IS the caller's own
+    #    function or generator state. So the honest published type is the one
+    #    JSON value a client may legally send: ``null``, meaning "absent", which
+    #    ``coerce_param`` already passes through unchanged and which runs the op
+    #    exactly as if the parameter had been omitted.
+    #
+    #    WHY NOT ``"string"`` (what the generic ``callable`` key publishes).
+    #    ``callable`` means "rides as a NAME a registry resolves" — the
+    #    ``operator_name`` pattern. A ``progress`` tick has no such registry, so
+    #    publishing ``"string"`` would tell a schema-obedient client to send
+    #    text that the op would then try to CALL: a guaranteed TypeError in a
+    #    tool that works fine today. Telling a client to send a value that
+    #    cannot work is worse than telling it to send nothing.
+    #
+    #    WHY DECLARE THEM AT ALL, then. Because ``parameters`` is the API
+    #    CONTRACT, not only the wire schema — the same argument rc362 made for
+    #    naming the in-process ``Qalg`` arm of ``Sequence[int | Q | Qalg]``.
+    #    Omitting a host-side param hides a real capability from every consumer
+    #    of the registry, INCLUDING the in-process Python callers who can
+    #    actually pass it. rc408 measured 13 such parameters hidden across 13
+    #    entries; §101 ``progress`` was 11 of them, and for a multi-hour genome
+    #    encode it is the ONLY channel that reports working status or accepts a
+    #    cancel. The wire limitation is a fact about the TYPE; it was never a
+    #    licence to hide the PARAMETER.
+    "host_callable": "null",
+    "host_rng": "null",
 }
 
 
@@ -205,6 +248,24 @@ _ENCODING_HINT: Dict[str, str] = {
         "nested JSON array of integer lists (rows / coefficient cells)"
     ),
     "Sequence[bytes]": "array of base64-encoded byte strings",
+    # 0.9.0rc408 (`#T1078`): the host-side operands. Both publish JSON-schema
+    # "null" (see _TYPE_LEXICON) — this is the prose half, telling a consumer
+    # WHY the only legal wire value is absence and what to do instead.
+    "host_callable": (
+        "a HOST-SIDE callable, supplied by the calling process. It cannot "
+        "cross a process boundary in any encoding — there is no name to "
+        "resolve and no serialised form — so over MCP / JSON-RPC the only "
+        "legal value is null (absent), and the op then runs with the callback "
+        "disabled, which is its default. In-process Python callers pass a real "
+        "function; each parameter's own summary gives the exact signature"
+    ),
+    "host_rng": (
+        "a HOST-SIDE random generator (``random.Random``, or a numpy "
+        "``Generator``), supplied by the calling process. Generator STATE has "
+        "no JSON form, so over MCP / JSON-RPC the only legal value is null "
+        "(absent) — pass the integer ``seed`` parameter instead, which is "
+        "advertised alongside it and gives a reproducible stream"
+    ),
     # 0.9.0rc362: the exact-ℚ carrier + the acoustic-spectrum sequence over it.
     "Q": (
         "[numerator, denominator] as exact integers, or a bare integer; never "

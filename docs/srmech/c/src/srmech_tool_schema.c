@@ -502,7 +502,25 @@ static const mcp_kv_t MCP_TYPE_LEXICON[] = {
      * rows this rc independently found missing are above -- rc362 landed them
      * in the same fix, so only these two are new here.) */
     {"float | Q", "number"},
-    {"number | Q", "number"}
+    {"number | Q", "number"},
+    /* v0.9.0rc408 (`#T1078`): the HOST-SIDE operand types -- the only rows in
+     * this table that publish "null". A host-side operand is a live object of
+     * the CALLING process (the §101 progress tick, an integrate compatibility
+     * predicate, a polar_random Generator); it cannot cross a process boundary
+     * in any encoding, so the one JSON value a client may legally send is null
+     * = "absent", which runs the op with the affordance disabled (its default).
+     * They are DECLARED rather than omitted because ToolEntry.parameters is the
+     * API contract, not only the wire schema -- the same argument rc362 made
+     * for naming the in-process Qalg arm. Mirrors _TYPE_LEXICON in
+     * python/srmech/mcp/_tools.py; keep the two tables in lockstep. */
+    {"host_callable", "null"},
+    {"host_rng", "null"},
+    /* v0.9.0rc408: cascade.the_one `w`, the winding triad -- an ARRAY like its
+     * pair sibling; without this row it would default to "string". And
+     * Sequence[tuple], which has had a coercer since v0.7.5rc134 but never a
+     * lexicon row, so it silently published "string" for a nested array. */
+    {"tuple[int, int, int]", "array"},
+    {"Sequence[tuple]", "array"}
 };
 
 /* type-string → per-type JSON wire-encoding hint (mirrors _ENCODING_HINT).
@@ -572,7 +590,23 @@ static const mcp_kv_t MCP_ENCODING_HINT[] = {
      "base64-encoded bytes"},
     {"operator_name",
      "dotted import path of a unary sequence->sequence srmech operator, "
-     "e.g. \"srmech.cascade.chiral_flip\""}
+     "e.g. \"srmech.cascade.chiral_flip\""},
+    /* v0.9.0rc408 (`#T1078`): the prose half of the host-side rows above --
+     * WHY the only legal wire value is absence, and what to send instead.
+     * Mirrors _ENCODING_HINT in python/srmech/mcp/_tools.py byte-for-byte. */
+    {"host_callable",
+     "a HOST-SIDE callable, supplied by the calling process. It cannot "
+     "cross a process boundary in any encoding \xe2\x80\x94 there is no name to "
+     "resolve and no serialised form \xe2\x80\x94 so over MCP / JSON-RPC the only "
+     "legal value is null (absent), and the op then runs with the callback "
+     "disabled, which is its default. In-process Python callers pass a real "
+     "function; each parameter's own summary gives the exact signature"},
+    {"host_rng",
+     "a HOST-SIDE random generator (``random.Random``, or a numpy "
+     "``Generator``), supplied by the calling process. Generator STATE has "
+     "no JSON form, so over MCP / JSON-RPC the only legal value is null "
+     "(absent) \xe2\x80\x94 pass the integer ``seed`` parameter instead, which is "
+     "advertised alongside it and gives a reproducible stream"}
 };
 
 /* Bounded linear scan of a static kv table; NULL when the key is absent. */
