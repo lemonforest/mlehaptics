@@ -1,9 +1,14 @@
 """rc409 (`#T1080`) — the ADR status-coherence gate. THE FIRST TEST TO READ `adr/`.
 
-Twelve ADRs each carry a status on **two** hand-written surfaces that must
+Every ADR carries a status on **two** hand-written surfaces that must
 agree — the file's own ``**Status:**`` header and its row in the
 ``adr/README.md`` index — plus a third that must *define* the glyph they use
 (the README legend). Nothing computed over any of it.
+
+*(This paragraph said "Twelve ADRs" until ADR-0013 landed and made it thirteen.
+The count now lives in ``_EXPECTED_ADR_COUNT`` alone, so there is exactly one
+place to update — a bare count in prose beside a constant that already holds it
+is the stale-by-construction shape ADR-0013 §6.5 is about.)*
 
 Census that motivated this file, basis named::
 
@@ -37,9 +42,9 @@ occupies :3. A naive line-3 parser is wrong on 1 of 12 and would have to be
 "fixed" by exempting the one file it cannot read. Search for the FIRST status
 line instead; that is correct for all twelve without an exemption list.
 
-There are **12** ADRs. The 13th file in the directory,
-``0001-profile-pattern.schema.json``, is a COMPANION ARTIFACT sharing ADR-0001's
-number (README "Conventions"), not a second ADR — hence the ``*.md`` glob.
+``0001-profile-pattern.schema.json`` is a COMPANION ARTIFACT sharing ADR-0001's
+number (README "Conventions"), not a second ADR — hence the ``*.md`` glob, which
+is what keeps it out of the population regardless of how many ADRs exist.
 
 ENCODING
 ========
@@ -63,7 +68,7 @@ _README = _ADR_DIR / "README.md"
 #: of shrinking the population every assertion below iterates over. A gate that
 #: silently checks fewer things is the false-green shape this suite exists to
 #: stop.
-_EXPECTED_ADR_COUNT = 12
+_EXPECTED_ADR_COUNT = 13
 
 #: ``**Status:**`` then the rest of the line. Searched, never line-indexed.
 _STATUS_LINE = re.compile(r"^\*\*Status:\*\*\s*(.+)$")
