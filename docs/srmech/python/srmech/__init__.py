@@ -68,7 +68,7 @@ The entry point is now first, and every exported name is present.
 
 from .version import __version__
 
-# v0.3.0 — Task #199 profile pattern. Top-level `srmech.profile("name")`
+# v0.3.0 — `#T199` profile pattern. Top-level `srmech.profile("name")`
 # is the activation API; `srmech.list_profiles()` enumerates installed
 # profiles. The loader walks `importlib.metadata.entry_points(group=
 # "srmech.profiles")` eagerly on first access (ADR-0001 §5.5).
@@ -99,7 +99,7 @@ _introspect._maybe_auto_publish()
 
 __all__ = [
     "__version__",
-    # profile loader API (Task #199, ADR-0001)
+    # profile loader API (`#T199`, ADR-0001)
     "AbiMismatchError",
     "InvalidProfileError",
     "Profile",

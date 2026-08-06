@@ -29,7 +29,7 @@ on every wheel install.
 
 These are the **built-in** catalogs. User-supplied directories — registered via
 ``register_class_dir`` / ``register_catalog_dir`` / ``register_alias_dir`` or
-the ``SRMECH_CLASS_PATH`` / ``SRMECH_CATALOG_PATH`` / ``SRMECH_ALIAS_PATH``
+the ``SRMECH_CLASS_PATH`` / ``SRMECH_CASCADE_PATH`` / ``SRMECH_ALIAS_PATH``
 env-vars — are the ``srmech.external.*`` extension point and never live here.
 """
 

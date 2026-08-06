@@ -1,7 +1,7 @@
 """LLM-friendly introspection of the AMSC framework + profile extensions.
 
 Task #198 — produces a single, structured description of every
-callable surface srmech exposes (and, post-Task #199, every profile-
+callable surface srmech exposes (and, post-`#T199`, every profile-
 contributed callable), so an LLM consumer can discover what srmech
 can do without reading the implementation. The same view powers
 the profile loader's smoke-test auto-derivation (ADR-0001 §5.5).
@@ -47,7 +47,7 @@ Discovery
   re-registration with an identical entry is a no-op; with a
   different entry it raises `ToolSchemaConflictError`.
 - `register_profile_tools(profile_name, entries)` is the path
-  profiles use (Task #199); same semantics but tags each entry
+  profiles use (`#T199`); same semantics but tags each entry
   with the contributing profile.
 - `tool_schema_view()` returns a stable dict suitable for JSON
   serialisation (preserves insertion order; profile-contributed
@@ -86,6 +86,21 @@ from srmech import _json as _srmech_json
 # Format version
 # ──────────────────────────────────────────────────────────────────────
 TOOL_SCHEMA_VERSION: str = "1.0"
+
+#: Owner tags a PROFILE may never claim (v0.9.0rc409, `#T1080`).
+#:
+#: ``owner == "srmech"`` is not a label — it is a DECISION PREDICATE at six
+#: shipped sites. :func:`get_tool_schema` splits the registry on it, and four
+#: native fast-path gates spell ``not any(e.owner != "srmech" ...)`` as their
+#: proxy for "the live registry still equals the compiled-in C table". Nothing
+#: reserved the string: ``profile_loader._NAME_PATTERN`` is
+#: ``^[a-z][a-z0-9_-]*$``, which ``"srmech"`` matches, so a profile could
+#: legally claim it and inject rows the fast-path then read as srmech's own.
+#:
+#: Enforced at BOTH ends — ``profile_loader._validate_descriptor`` (root cause:
+#: the name never enters the system) and :func:`unregister_profile_tools`
+#: (defense in depth: the reserved owner cannot be used to wipe the registry).
+RESERVED_OWNERS: "frozenset[str]" = frozenset({"srmech"})
 
 #: Inline discoverability note (v0.5.0rc7) appended to the ``summary``
 #: of every emitting op's ToolEntry. Surfaces the opt-in path through
@@ -570,11 +585,33 @@ def register_profile_tools(
 def unregister_profile_tools(profile_name: str) -> int:
     """Remove every registered tool whose owner matches `profile_name`.
 
-    Used by the profile loader when a profile is deactivated (e.g.
-    smoke-test failure during re-validation). Returns the number of
-    entries removed.
+    Returns the number of entries removed. Raises
+    :class:`ToolSchemaValidationError` when `profile_name` is a reserved
+    owner (see :data:`RESERVED_OWNERS`) — ``"srmech"`` is not a profile,
+    and removing "every entry owned by srmech" is the whole registry.
+
+    v0.9.0rc409 (`#T1080`) — THE DOCSTRING USED TO NAME A CALLER THAT DOES
+    NOT EXIST: *"Used by the profile loader when a profile is deactivated
+    (e.g. smoke-test failure during re-validation)."* There is no
+    deactivation API (``grep -c deactivat srmech/profile_loader.py`` -> 0),
+    and the scenario it describes is unreachable by construction:
+    :func:`~srmech.profile_loader.profile` raises ``SmokeTestFailedError``
+    BEFORE ``Profile`` is constructed, and tool registration happens inside
+    ``Profile.__init__`` — so a smoke failure has registered nothing to
+    unregister. ``ADR-0001 §5.5`` specifies exactly that ("profile
+    enumerated but NOT ACTIVE"), which the old text contradicted. There are
+    currently ZERO shipped callers; this is a public-API surface for
+    in-process callers, including profile package code.
     """
     assert profile_name, "profile_name must be non-empty"
+    if profile_name in RESERVED_OWNERS:
+        raise ToolSchemaValidationError(
+            f"{profile_name!r} is a reserved owner and cannot be "
+            f"unregistered as a profile: it tags srmech's OWN tools, so this "
+            f"call would remove the entire registry ({len(_REGISTRY)} entries) "
+            f"and leave every owner-based fast-path gate reading an empty "
+            f"table. Reserved owners: {sorted(RESERVED_OWNERS)}."
+        )
     to_remove = [n for n, e in _REGISTRY.items() if e.owner == profile_name]
     for n in to_remove:
         del _REGISTRY[n]
@@ -642,7 +679,7 @@ def _native_tool_schema_view() -> Optional[Dict[str, Any]]:
 # ──────────────────────────────────────────────────────────────────────
 # TOML loader (for profile extension files)
 #
-# Used by the profile loader (Task #199). Reads a profile's
+# Used by the profile loader (`#T199`). Reads a profile's
 # extension file and returns a list of ToolEntry suitable for
 # register_profile_tools.
 #
@@ -12818,6 +12855,7 @@ __all__ = [
     "ToolSchemaConflictError",
     "ToolSchemaError",
     "ToolSchemaValidationError",
+    "RESERVED_OWNERS",
     "get_tool_schema",
     "load_extension_file",
     "register_profile_tools",

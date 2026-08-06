@@ -696,6 +696,20 @@ SCAN_ROOTS = {
     "tests/test_mcp_initialize_instructions_rc407.py": ("docs/srmech/c",),
     # Reads the committed proof NDJSON under notes/ and re-measures against it.
     "tests/test_cd_register_ops_rc301.py": ("docs/srmech/notes",),
+    # rc409 (`#T1080`): the FIRST test to read `docs/srmech/adr/`. It holds each
+    # ADR's own `**Status:**` header equal to its `adr/README.md` index row and
+    # to the legend's glyph vocabulary. Reaching into adr/ IS the point — both
+    # surfaces are hand-written and nothing else compares them. Covered by
+    # srmech-ref-guard.yml's `docs/srmech/**` trigger, not by srmech-ci's
+    # python/+c/ one, which is exactly the gap the test below exists to catch.
+    "tests/test_adr_status_coherence_rc409.py": ("docs/srmech/adr",),
+    # rc409 (`#T1080`): imports BOTH registry-walking generators to prove each
+    # refuses profile-owned rows. They live in python/tools and c/tools, so the
+    # test must reach parents[2] to put both on sys.path — inside srmech-ci's
+    # own trigger, but declared here because an UNDECLARED reach is exactly how
+    # the scan/trigger drift happened the previous two times.
+    "tests/test_codegen_owner_guard_rc409.py": (
+        "docs/srmech/python", "docs/srmech/c"),
     # rc361 (`#T1034`): WIDE, and it has to be. The fifth-copy gate scans the
     # whole subtree because the fourth copy of the Rosetta root tuple lived in
     # notes/_rosetta_inventory.py — outside srmech-ci's python/+c/ trigger and

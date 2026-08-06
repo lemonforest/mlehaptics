@@ -1,18 +1,31 @@
 #!/usr/bin/env python3
 """Code-generator for ``c/src/srmech_tool_registry.c`` (0.9.0rc184).
 
-The C MCP-server FOUNDATION GATE: emit the ~403-entry
+The C MCP-server FOUNDATION GATE: emit the
 ``srmech.introspect.tool_schema`` registry as a ``const`` C data table so a
 bare-C host (no Python) can produce the tool registry DATA and the
 canonical ``tool_schema_sha256`` attestation with no interpreter.
 
+*(rc409, `#T1080`: this line said "the ~403-entry ... registry" against a
+measured 556 — the same unattributed-cardinal rot the adapter docstring
+carried. The count is deliberately NOT restated here: ``:265`` already emits
+``Entries: {len(tools)}`` from the live value, so the number has an
+authoritative home and does not need a second hand-maintained copy.)*
+
 Determinism / order
 -------------------
 Walks ``get_tool_schema().tools`` — the SAME order the Python canonical
-payload (``schema.to_jsonable()["tools"]``) uses (srmech tools in
-registration order, then profile tools by owner). The generated table
-row order is therefore identical to the order the byte-identity
-hash-ratchet compares against.
+payload (``schema.to_jsonable()["tools"]``) uses. The generated table row
+order is therefore identical to the order the byte-identity hash-ratchet
+compares against.
+
+**srmech tools ONLY.** This previously read "srmech tools in registration
+order, then profile tools by owner", which described the ordering of
+``get_tool_schema()`` in general and so read as SANCTIONING profile rows in
+the emitted table. It never was: the table is compiled into the shipped
+library, where a bare-C host cannot distinguish a profile's row from
+srmech's own. ``_reject_profile_tools`` now enforces what the read side
+(``tool_schema_view`` and its three peers) has always assumed.
 
 Byte-identity strategy
 ----------------------
@@ -149,6 +162,46 @@ def _fragment(value: "dict | None") -> "str | None":
     return json.dumps(value, sort_keys=True, separators=(",", ":"))
 
 
+def _reject_profile_tools(tools: "list") -> None:
+    """Refuse to emit a table containing PROFILE-owned rows (rc409, `#T1080`).
+
+    This generator walks the LIVE, MUTABLE `srmech.introspect.tool_schema`
+    registry. If any profile is active in the generating interpreter, its tools
+    land in `get_tool_schema().tools` and are emitted verbatim into a `const` C
+    table that then ships COMPILED INTO the library — where a bare-C host reads
+    them as srmech's own, with no way to tell the difference and no way to
+    remove them.
+
+    THE READ SIDE ALREADY ENFORCES THIS; THE WRITE SIDE ENFORCED IT NOWHERE.
+    `tool_schema.tool_schema_view` and three peers refuse the C table the
+    moment a profile tool is present, precisely because the table is only
+    valid as a picture of the pure srmech registry. rc409 closes the write
+    half of that existing contract — it does not invent a new one.
+
+    Raises `ToolSchemaValidationError` rather than asserting: `assert`
+    vanishes under `python -O`, and a codegen guard must not be optimizable
+    away. Every offender is collected before raising, so one run names them
+    all instead of failing on the first.
+    """
+    from srmech.introspect.tool_schema import (
+        RESERVED_OWNERS, ToolSchemaValidationError,
+    )
+    intruders = [t for t in tools if t.owner not in RESERVED_OWNERS]
+    if intruders:
+        raise ToolSchemaValidationError(
+            f"refusing to generate the C tool registry: "
+            f"{len(intruders)} of {len(tools)} entries are PROFILE-owned and "
+            f"would be compiled into the shipped library as srmech's own.\n"
+            + "\n".join(f"    {t.name!r} owner={t.owner!r}"
+                        for t in intruders[:10])
+            + ("\n    ..." if len(intruders) > 10 else "")
+            + "\n\nRegenerate from a clean interpreter with no profile "
+              "activated. The C table is only meaningful as the PURE srmech "
+              "registry — that is the invariant tool_schema_view() and its "
+              "three peers already check on the READ side."
+        )
+
+
 def generate() -> str:
     # Import srmech from the sibling python/ tree (dev-time generation).
     here = Path(__file__).resolve()
@@ -160,6 +213,7 @@ def generate() -> str:
     warmup_all()
     schema = get_tool_schema()
     tools = list(schema.tools)
+    _reject_profile_tools(tools)
 
     hoist = _Hoist()
     body: list[str] = []

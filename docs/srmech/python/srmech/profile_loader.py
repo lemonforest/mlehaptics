@@ -1,4 +1,4 @@
-"""srmech profile loader — Task #199 implementation (ADR-0001).
+"""srmech profile loader — `#T199` implementation (ADR-0001).
 
 Loads `srmech_profile.toml` descriptors declared by installed packages
 via the ``srmech.profiles`` entry-point group, validates each against
@@ -222,6 +222,20 @@ def _validate_descriptor(data: Dict[str, Any], source_hint: str) -> None:
              f"^[a-z][a-z0-9_-]*$ (lowercase, alphanumeric + dash/underscore)")
     _require(1 <= len(name) <= 64,
              f"{source_hint}: [profile].name length must be 1..64")
+
+    # v0.9.0rc409 (`#T1080`) — ROOT CAUSE of the reserved-owner hole.
+    # `_NAME_PATTERN` above matches "srmech", and a profile's name becomes the
+    # `owner` tag on every tool it registers. `owner == "srmech"` is a decision
+    # predicate at six shipped sites (get_tool_schema's split; four native
+    # fast-path gates), so a profile claiming the name would inject rows that
+    # every one of them reads as srmech's own. Refuse it HERE, where the name
+    # enters the system, rather than only at the points that consume it.
+    from .introspect.tool_schema import RESERVED_OWNERS
+    _require(name not in RESERVED_OWNERS,
+             f"{source_hint}: [profile].name {name!r} is RESERVED — it tags "
+             f"srmech's own tools and is what the registry split and the "
+             f"native fast-path gates key on. Reserved: "
+             f"{sorted(RESERVED_OWNERS)}. Choose a different profile name.")
 
     version = p["version"]
     _require(isinstance(version, str) and _VERSION_PATTERN.match(version),
