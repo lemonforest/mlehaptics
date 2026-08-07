@@ -47,6 +47,16 @@ WHAT TURNS EACH CLAUSE RED (each verified by mutation, rc412)
   control below is the same mutation, run as an assertion.)
 * clause 3 — make any row name itself.
 
+AND THE READER, WITHOUT WHICH THE ROWS WOULD ONLY MOVE A HASH
+============================================================
+The last block of this file gates rc412's other half. Through rc411 the only
+consumers of ``composes`` were ``ToolEntry.to_jsonable``, the curated merge
+and the C serialiser — not one of them a question a caller asks — and the
+REVERSE direction ("what is built FROM this op") had no reader at all.
+``ToolSchema.composition()`` answers both in one call; ``search``'s index
+gains the two fields. Removing either goes red here. The index half is the
+weaker one and the tests say so out loud rather than overclaiming it.
+
 WHY THE ORDER IS HAND-TRACED AND NOT DERIVED
 ============================================
 The SET is derivable; the ORDER is not. Measured at rc412 over the whole
