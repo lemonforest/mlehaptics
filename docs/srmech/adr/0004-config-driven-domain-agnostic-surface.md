@@ -62,7 +62,24 @@ a constraint.** Two commitments:
 (via `functools.wraps`, preserving the signature/docstring); `build_aliases_from_toml_str(spec)` /
 `load_aliases_toml(path)` parse a `[[alias]]` array (`name` + `target`) into a `{name: callable}`
 mapping. Parsing reuses the DSL's native (`srmech_toml`) + `tomllib` loader; resolution reuses the
-robust dotted-name walk `srmech.mcp._tools._resolve_dotted_callable`.
+robust dotted-name walk `srmech._resolve.resolve_dotted_callable`.
+
+> **rc413 (`#T1094`) — path corrected, and the scope made explicit.** This sentence read
+> `srmech.mcp._tools._resolve_dotted_callable` through rc412. The walker moved to
+> `srmech._resolve` (core) because two *core* rungs — this one and
+> `srmech._handles.resolve_operator_name` — were importing upward into the ADR-0009 §4 host-glue
+> layer, which made `srmech.mcp` non-removable. The claim itself was, and remains, **scoped to the
+> `[[alias]]` rung only**. That scoping is worth stating out loud rather than leaving to
+> inference: the `[class]` rung next door does **not** share this resolver. It ships its own
+> deliberately weaker last-dot-only `srmech.dsl._class_catalog._resolve_op`, so a `[class]` TOML
+> `op` may bind `module.function` but **not** `module.Class.method`, while an `[[alias]]` `target`
+> may bind either. Measured at rc413 over real `module.Class.method` triples enumerated from the
+> shipped package (N = 307): the robust walker resolves all of them, `_resolve_op` raises
+> `ModuleNotFoundError` on all of them. Over every population the package actually *ships* the two
+> agree exactly (ToolEntry names 0/559 divergent, class-catalog op-refs 0/31, alias targets 0/7),
+> so nothing is broken today — but the two rungs are not interchangeable, and unifying them would
+> be a **widening of what a user `[class]` descriptor may bind**, i.e. its own decision with its
+> own test, not a refactor. rc413 deliberately did not make it.
 
 **Security (load-bearing):** a `target` **MUST** be a dotted `srmech.*` path. The config-driven
 naming layer binds names to srmech's *own* surface, **never arbitrary imports** — a config file

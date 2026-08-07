@@ -12183,7 +12183,7 @@ def _register_dsl_tools() -> None:
     ``ToolEntry`` data only — it does NOT import ``srmech.dsl`` (whose
     ``_chain`` pulls ``srmech.introspect._writer`` and whose ``_catalog``
     lazily pulls ``srmech.cascade``). The dotted-name targets are
-    resolved by :mod:`srmech.mcp._tools` at *invoke* time, not here, so
+    resolved by :mod:`srmech._resolve` at *invoke* time, not here, so
     registering at this module's import is cycle-free. ``warmup_all()``
     additionally imports ``srmech.dsl`` for manifest completeness; that
     import is also cycle-free (verified — neither ``srmech.dsl`` nor

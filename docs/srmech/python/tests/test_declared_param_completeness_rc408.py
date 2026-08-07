@@ -93,13 +93,13 @@ def _live_param_names(fn: object) -> Set[str]:
 
 def _undeclared() -> Dict[str, List[str]]:
     """Map ToolEntry name -> sorted real-but-undeclared parameter names."""
-    from srmech.mcp._tools import _resolve_dotted_callable
+    from srmech._resolve import resolve_dotted_callable
 
     warmup_all()
     gaps: Dict[str, List[str]] = {}
     for entry in get_tool_schema().tools:
         try:
-            fn = _resolve_dotted_callable(entry.name)
+            fn = resolve_dotted_callable(entry.name)
         except Exception:
             # Resolution is the rc13 gate's job; a failure there is that
             # gate's finding, not this one's.
