@@ -36,9 +36,14 @@ walker resolves all of them and ``_resolve_op`` raises ``ModuleNotFoundError``
 on all of them. Unifying them would therefore *widen* what a user-registered
 ``[class]`` TOML may bind — a behaviour change to the class rung with its own
 design question and its own test, not a refactor. Over every population the
-package actually ships the two agree exactly (ToolEntry names 0/559 divergent;
-class-catalog op-refs 0/31; alias targets 0/7; cascade dotted ops 0/1), so the
-split costs nothing today and is left standing on purpose.
+package actually ships — the whole ToolEntry registry, the class-catalog
+op-refs, the alias targets, the cascade-catalog dotted ops — the two agree
+exactly, with ZERO divergent names in any of them. (A zero census is
+basis-free, so no denominator is restated here; the registry total in
+particular is deliberately never written as a literal in shipped source, per
+``tests/test_owner_axis_rc410.py``. The per-population counts as measured at
+rc413 are in the CHANGELOG entry.) The split costs nothing today and is left
+standing on purpose.
 
 THE ``ismodule`` INNER FALLBACK IS LOAD-BEARING — DO NOT "CLEAN IT UP"
 ======================================================================
