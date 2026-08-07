@@ -426,20 +426,24 @@ def tool_entries_to_mcp_defs(
     (``srmech.introspect.describe`` reports them under
     ``handle_pending``); only the advertised catalog hides them.
 
-    The exclusion is currently a NO-OP: this said "the 7
-    ``srmech.spectral.*`` handle-pending tools" from v0.5.0rc15 until rc407,
-    and the measured count is now ``sum(1 for t in sch.tools if not
-    t.mcp_callable) == 0`` — every registered entry is advertised. The
-    branch is kept because the field is still part of the ToolEntry contract
-    and a future handle-pending op must not be advertised; the COUNT is no
-    longer stated here, so it cannot go stale again.
+    The exclusion is LIVE as of v0.9.0rc414 (`#T1092`). It was a no-op from
+    rc16 (when the ``$srmech_handle`` grammar returned the 7
+    ``srmech.spectral.*`` tools to callable) until rc414, which excluded the
+    first entry that no encoder can rescue — a context manager, whose
+    obstruction is its shape in TIME rather than its type: a ``with``-block
+    scope cannot span two JSON-RPC calls. Every entry excluded here MUST carry
+    an ``mcp_unavailable_reason``, so a consumer that notices the absence can
+    always find out why; that invariant is gated, and it is stated as an
+    invariant precisely so no COUNT is restated in this docstring, where two
+    previous literals went stale.
 
-    (rc410, `#T1085`: that last clause was self-refuting — the sentence before
-    it restated the total as a literal, which is exactly the thing it promised
-    was gone. The literal is now actually removed, and
-    ``tests/test_owner_axis_rc410.py`` enforces that no shipped module restates
-    it. The live value is
-    ``len(get_tool_schema().by_owner("srmech"))``.)
+    (rc410, `#T1085`: an earlier version of this paragraph was self-refuting —
+    it promised the literal was gone in the sentence after restating it. The
+    literal is now actually gone, and ``tests/test_owner_axis_rc410.py``
+    enforces that no shipped module restates it. The live values are
+    ``len(get_tool_schema().by_owner("srmech"))`` for the registry and
+    ``sum(1 for t in get_tool_schema().tools if t.mcp_callable)`` for the
+    advertised catalog.)
 
     Parameters
     ----------
@@ -667,10 +671,26 @@ def _json_fallback(obj: Any) -> Any:
     consumer still sees the value without losing the call."""
     # serialise_native already covers ndarray / numpy-scalar / bytes /
     # complex / tuple / set / Path; re-run it defensively in case a
-    # nested ``default=`` invocation surfaces one of those.
+    # nested ``default=`` invocation surfaces one of those. Since rc414 it
+    # also covers the framework carriers (the ``$srmech_carrier`` envelope),
+    # so most of what used to reach the ``repr`` line below no longer does.
     prepared = serialise_native(obj)
     if prepared is not obj:
         return prepared
+    # rc414 (`#T1092`) — an object that ships its OWN canonical JSON view
+    # uses it, ahead of the generic dataclass arm. The motivating case is
+    # ``ToolSchema``: ``dataclasses.asdict`` rendered it with FIVE extra keys
+    # and at a different size from the canonical ``to_jsonable`` (2,572,811 vs
+    # 2,501,642 bytes), so the same object had two disagreeing renderings and
+    # the one a consumer got depended on which door it came through. The
+    # canonical view is the API contract (ADR-0012); ``asdict`` is a Python
+    # implementation detail leaking through the wire.
+    to_jsonable = getattr(obj, "to_jsonable", None)
+    if callable(to_jsonable) and not isinstance(obj, type):
+        try:
+            return serialise_native(to_jsonable())
+        except TypeError:
+            pass          # a to_jsonable that needs arguments is not this one
     # Dataclasses -> their asdict view if available.
     import dataclasses
     if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
