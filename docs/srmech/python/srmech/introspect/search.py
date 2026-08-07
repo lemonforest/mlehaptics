@@ -18,8 +18,11 @@ no new data: the corpus it indexes is the prose that already ships.
 **rc412 (`#T1093`) extends the same finding to the STRUCTURED half.** rc305
 added ``ToolEntry.composes`` / ``ToolEntry.preserves``; both ride the wheel and
 both are baked into the C registry — and no accessor read either one either.
-They are now indexed alongside the prose, so a query naming a sub-op reaches
-the composites built from it. See :func:`_op_fields`.
+They are now indexed alongside the prose. The index is the *lesser* half of
+that repair and :func:`_op_fields` says why: the primary reader is
+:meth:`~srmech.introspect.tool_schema.ToolSchema.composition`, because the
+question a caller holding a primitive arrives with — *what is built FROM
+this?* — is the REVERSE of a directed edge, and no text index can invert one.
 
 THE CASCADE — every stage is a shipped, registered op
 =====================================================
@@ -251,9 +254,16 @@ def _op_fields(entry: Any) -> Tuple[Tuple[str, str], ...]:
     That is deliberate on two counts: it is the same key-omission
     ``to_jsonable`` and the C serialiser already perform, and it keeps a leaf
     op (for which empty is the *correct* default, ``tool_schema.py``) exactly
-    as searchable as it was. What the caller gains is a directed one: a query
-    naming a sub-op now reaches the composites BUILT FROM it, and ``why``
-    says ``composes:`` so the hit is legible as an edge rather than as prose.
+    as searchable as it was.
+
+    **What this buys is bounded, and the bound is measured rather than
+    guessed.** Over the declared sub-op references shipped at rc412 the
+    ``composes`` text wins the ``why`` attribution on NONE of them: a row's
+    own prose almost always already names the ops it composes, so the tuple
+    adds a frame the corpus was silently missing rather than a new retrieval
+    signal. The reader that actually answers a composition question is
+    :meth:`~srmech.introspect.tool_schema.ToolSchema.composition`, which also
+    carries the REVERSE edge this index cannot express at all.
     """
     fields: List[Tuple[str, str]] = [
         ("name", entry.name or ""),
