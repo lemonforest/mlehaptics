@@ -1927,8 +1927,13 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
         ),
     },
     'srmech.introspect.tool_schema.get_tool_schema': {
+        # NO ``input`` key: ``get_tool_schema()`` takes no parameters, and
+        # ``input`` is a KWARGS MAP whose keys are parameter names
+        # (`srmech/introspect/tool_schema.py:28`). A prose label like
+        # ``{'(none)': ...}`` is not a parameter, which is precisely what
+        # `test_tool_example_input_schema_rc355.py`'s `zero_param_with_keys`
+        # class counts. ``worked`` alone satisfies the executed-example floor.
         'example': {
-            'input': {'(none)': 'no parameters — a pure constructor over the live registry'},
             'output': (
                 "type(s).__name__                 -> 'ToolSchema'\n"
                 "type(s.tools[0]).__name__        -> 'ToolEntry'\n"
@@ -1989,8 +1994,9 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
         ),
     },
     'srmech.introspect.tool_schema.tool_schema_view': {
+        # NO ``input`` key — same reason as its sibling above: zero parameters,
+        # and ``input`` keys must be parameter names.
         'example': {
-            'input': {'(none)': 'no parameters — the registry rendered for a wire or a file'},
             'output': (
                 "sorted(v)              -> ['srmech_version', 'tool_schema_version', 'tools']\n"
                 "sorted(v['tools'][0])[:6]\n"

@@ -92,7 +92,6 @@ distinguishes those two things on purpose.
 """
 from __future__ import annotations
 
-import json as _json
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 __all__ = ["SearchResult", "search"]
@@ -185,6 +184,42 @@ def _count(haystack: bytes, needle: bytes) -> int:
 # Frame construction — E (catalog) -> F/B (render + TLV) -> A (content-address)
 # ──────────────────────────────────────────────────────────────────────
 
+def _as_text(value: Any) -> str:
+    """Render a nested registry value as flat, order-stable, searchable text.
+
+    NOT ``json.dumps``, and that is deliberate on two counts.
+
+    **The ban.** ``srmech/_json.py`` is the self-hosted front door, but it is
+    the **READ half only** — ``json.dumps`` is explicitly not self-hosted there,
+    because ``srmech_json_write_ws`` declines the non-finite floats stdlib
+    emits. So the front door genuinely cannot serve a serialise call here, and
+    the stdlib import ledger is DOWN-ONLY. The resolution is neither to raise
+    the ceiling nor to force the front door: **this call site never needed JSON
+    at all.**
+
+    **The quality reason, which is the better one.** The frame is an input to a
+    SUBSTRING SCAN, not a wire format. ``json.dumps`` defaults to
+    ``ensure_ascii=True``, so it would render ``ℚ`` as ``\\u211a`` and make every
+    non-ASCII character in the corpus unsearchable — in a registry whose prose
+    is full of ``ℚ``, ``𝕆``, ``Σ`` and ``→``. It would also inject ``{``, ``"``
+    and ``:`` noise that no query can ever match. Flattening to bare text keeps
+    the characters literal and drops the punctuation.
+
+    Order is made explicit rather than inherited: dict keys are sorted, so the
+    frame — and therefore the ``sha256`` witness — is reproducible independently
+    of insertion order.
+    """
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        return " ".join(
+            f"{key} {_as_text(value[key])}"
+            for key in sorted(value, key=str))
+    if isinstance(value, (list, tuple)):
+        return " ".join(_as_text(item) for item in value)
+    return str(value)
+
+
 def _op_fields(entry: Any) -> Tuple[Tuple[str, str], ...]:
     """``(label, text)`` pairs for one ToolEntry, in TLV tag order.
 
@@ -202,12 +237,9 @@ def _op_fields(entry: Any) -> Tuple[Tuple[str, str], ...]:
     example = entry.example
     if isinstance(example, dict):
         for key in sorted(example):
-            value = example[key]
-            text = value if isinstance(value, str) else _json.dumps(
-                value, sort_keys=True, default=str)
-            fields.append((f"example.{key}", text))
+            fields.append((f"example.{key}", _as_text(example[key])))
     elif example:
-        fields.append(("example", str(example)))
+        fields.append(("example", _as_text(example)))
     return tuple(fields)
 
 
@@ -218,9 +250,7 @@ def _carrier_fields(name: str, row: Dict[str, Any]) -> Tuple[Tuple[str, str], ..
         value = row.get(key)
         if value in (None, "", [], {}):
             continue
-        text = value if isinstance(value, str) else _json.dumps(
-            value, sort_keys=True, default=str)
-        fields.append((f"carrier.{key}", text))
+        fields.append((f"carrier.{key}", _as_text(value)))
     return tuple(fields)
 
 
