@@ -4,9 +4,21 @@
 **accepted AFTER its clauses were instrumented, not before.** Everything below is in force.
 
 **What acceptance rests on.** The criterion was: *every clause has an instrument that can return
-otherwise, proven by injection.* At acceptance — **C1, C3, C4, C5 and C2's param half are gated**, each
-with an injection proof, all three rc363 gates strict-zero with **no CEIL** (possible only because every
-residual they found was fixed rather than ceilinged). **Two clauses are ACCEPTED AS DECLARED-OPEN, not
+otherwise, proven by injection.* At acceptance — **C1, C3, C4, C5 and C2's param half were recorded as
+gated**, each with an injection proof, all three rc363 gates strict-zero with **no CEIL** (possible only
+because every residual they found was fixed rather than ceilinged).
+
+> ⚠️ **C5 was NOT gated at acceptance, and this sentence was wrong when written** (corrected
+> v0.9.0rc414, `#T1092`). C5 had no instrument at all — §3.3's instrument table lists C2, C3 and the
+> prose op-refs, and C5 is absent from it; `grep -rn "C5\b" tests/*.py` matched only an unrelated,
+> differently-numbered clause set in `tests/test_codon_read_rc314.py`. The clause was refuted by
+> execution on its own marquee exhibit at rc411/rc413. It acquired a real instrument
+> (`tests/test_wire_round_trip_rc414.py`) and passed it in rc414; see §3.1 C5 for the reproduction and
+> the argument. **Two other sentences in this document repeated the same false claim and are corrected
+> in place: §7.3 and §12.** The correction is left visible rather than silently rewritten, because "an
+> ADR sentence asserting a clause is gated" turned out to be the only evidence anyone had that it was.
+
+**Two clauses are ACCEPTED AS DECLARED-OPEN, not
 as satisfied**: **C2's return half** (no second channel exists; §6.3 declines the only available
 surface, and closing it needs a typed element-carrier field this ADR deliberately does not specify) and
 **C6** (stated, argued and measured in §3.4; implementation assigned to its own rc by user direction).
@@ -65,10 +77,14 @@ whole is for or when it is complete.
 ### 1.1 The measured cost — a brief that shipped a 12× under-scope
 
 `docs/srmech/CLAUDE.md` described the op-total ripple as *"the FIVE duplicated count-tests"* from
-around rc135 until rc362. Measured on this branch: the op total is pinned in **~60 assertion sites
-across ~54 test files** (the rc362 CHANGELOG entry records *"60 count assertions across 54 test
-files"*; a slightly different counting predicate gives 61 — the digit is predicate-dependent, the order
-of magnitude is not). A build brief was scoped from the stale line as a five-file edit.
+around rc135 until rc362. Measured **at rc414, with the predicate stated**: `git grep -c "== <total>"`
+over `tests/` only → **73 lines across 66 files**. (The rc363 text of this paragraph said *"~60
+assertion sites across ~54 test files"* without naming a predicate, and by rc414 that had itself gone
+stale — inside the very section that exists because the figure went stale once already. Omitting the
+predicate is what makes a number un-re-measurable, so it is now given: the literal `== <total>`, in
+`tests/`, nowhere else. Note the predicate is not exhaustive by construction — rc414 also found
+`tests/test_op_name_set_witness_rc361.py`'s `EXPECTED_N`, a count pin the `== ` form cannot match.)
+A build brief was scoped from the stale line as a five-file edit.
 
 That file is explicitly **not** hygiene-gated, so nothing else was positioned to catch it. The number
 went stale because *nobody owned the thing it counted*.
@@ -160,7 +176,7 @@ instrument (§3.3).
 
 **C3 — CONSTRUCTIBLE.** Every carrier an op consumes or produces has a `carrier_schema` row with a
 description, a measured capability block, and a construction example. The registry's own admission rule
-already says this — `srmech/amsc/carrier_schema.py:171-176`, verbatim: *"Internal exact representations
+already says this — `srmech/introspect/carrier_schema.py:171-177`, verbatim: *"Internal exact representations
 no public op surfaces (`QMat` / `Qalg` / the genus-`RiemannTheta` family) join when an op surfaces them
 (the drift ratchet in `tests/test_carrier_schema_rc205.py` forces the addition)."* *Exhibit: rc362 is
 the first event in the tree that fires that trigger, and the addition did not happen. Baseline **as
@@ -185,7 +201,46 @@ not only in-process. *Exhibit: the rc's marquee case — 12-TET exactly represen
 incommensurable with the octave except at the octave — was unreachable over MCP, because
 `serialise_native` had a `Q → [num, den]` branch added at rc231 with the comment "never a lossy float,
 **NEVER A BARE REPR STRING**" and no algebraic peer. Feeding `equal_temperament_partials`' own `ratios`
-back into `spectrum_tier` over the wire returned `isError=True … got str`.* **CLOSED in-rc.**
+back into `spectrum_tier` over the wire returned `isError=True … got str`.*
+**GATED in v0.9.0rc414 (`#T1092`). This clause was marked `CLOSED in-rc` and was NOT closed — it was
+refuted by execution on the exhibit written into the clause itself.**
+
+> **The refutation, reproduced on the live tree at 0.9.0rc411 and again at rc413** (native dispatching,
+> ABI 12):
+>
+> ```
+> invoke_tool("srmech.music.equal_temperament_partials", {"divisions":12,"degrees":[0,7,12]})
+> serialise_result(...) -> {"ratios": ["Qalg((-2, 0, …, 1), (Q(1, 1), Q(0, 1), …))", …]}
+>
+> music.spectrum_tier(loads(wire)["ratios"])
+>   -> RAISED: TypeError partial[0]: expected Q, Qalg, int or an (int, int) pair; got str
+> music.spectrum_tier(raw["ratios"])["tier"]  -> 2      # in-process: fine
+> ```
+>
+> That is the SAME failure mode the clause records as closed, on the SAME exhibit, one algebra up:
+> `Q` got its `[num, den]` branch at rc231 and `Qalg` never got the algebraic peer.
+
+**Why it went green: there was no C5 instrument, and §3.3's instrument table does not list one.**
+Every exercise of the exhibit is **in-process** — `tests/test_music_commensurability_rc362.py:231`,
+`:244`, `:280` and `:522` all call `music.equal_temperament_partials(...)["ratios"]` directly, never
+through `invoke_tool` / `serialise_result`. So the gate that "selected" the new ops tested the one
+transport the clause is not about. This is precisely the failure §3.2 names — *"C4 and C5 had gates
+that **selected** the new ops"* — and it is the reason a clause needs an instrument that can return
+otherwise rather than a gate that merely runs.
+
+**The instrument, as of rc414:** `tests/test_wire_round_trip_rc414.py`. It is the OUTBOUND converse of
+the inbound `test_all_param_types_json_coercible` ratchet, and it selects the population C5 is about:
+every registered op's declared return type (**549 of 560** are covered by the carrier registry ∪ the
+non-carrier class list) plus every carrier in `carrier_schema()` constructed from its own shipped
+example. `test_adr0012_c5_marquee_exhibit_chains_over_the_wire` asserts THIS clause's exhibit through
+`serialise_result` → `srmech._json.loads` → `deserialise_native` → the consumer, and
+`test_no_carrier_crosses_as_a_repr_string` is strict-zero on the defect class. The gate seeds
+down-only ceilings for the residual (carriers not round-tripping; declared return types with no
+inbound coercer) rather than asserting the surface is finished, because it is not.
+
+**No count appears in this status line.** Restating a measured number in the status line is the
+rc407 / rc410 recurrence, twice observed; the numbers live in the gate, where they are inputs to an
+assertion.
 
 **C6 — CONFIG-VISIBLE.** *(added 2026-07-30 by user direction; see §3.4 for the argument and the
 measurements.)* Every behaviour the package ships **as configuration** is enumerable through the same
@@ -217,6 +272,14 @@ the build measured is recorded here because **it corrected this draft twice**.
 | **C2** (return half) | — | none | **still OPEN** (§6.3 declines the only available surface) |
 | **C3** | closed rc362, ungated | `tests/test_carrier_use_derivation_rc363.py` | **strict-zero, no CEIL** |
 | prose op-refs (`#T1045`) | — | `tests/test_prose_oprefs_resolve_rc363.py` | **strict-zero, no CEIL** |
+| **C5** *(added rc414, `#T1092`)* | marked `CLOSED in-rc` at rc362 and **refuted by execution** at rc411/rc413 | `tests/test_wire_round_trip_rc414.py` | **strict-zero on the repr-string class; DOWN-ONLY CEILs on the rest** |
+
+**C5's absence from this table WAS the finding.** The table above listed C2, C3 and the prose gate, and
+three separate sentences elsewhere in this document asserted C5 was gated. Nothing reconciled the two,
+because nothing reads an ADR for content — and a clause whose only evidence of being gated is a
+sentence saying so is exactly the shape §3.2 warns about. The rc414 row is the first entry here whose
+exhibit column records a REFUTATION rather than a closure, and that asymmetry is deliberate: it is
+cheaper to keep a wrong verdict visible than to discover a second time that it was never measured.
 
 **The shared instrument (C2 and C3; the prose gate is independent).** The two carrier clauses ride
 `tests/coercion_boundary.py`, a **second, independent channel**: it reads what each op's own source
@@ -300,7 +363,10 @@ declares a property it does not have, with nothing positioned to notice.
   verdict stands; closing it needs a new typed element-carrier field, which is machinery this ADR
   deliberately does not specify.
 - **C6 (the TOML surface), stated in §3.1 and argued in §3.4.** Deliberately NOT implemented here.
-- **C1, C4, C5** were already gated before this rc and are unchanged.
+- **C1 and C4** were already gated before this rc and are unchanged. **C5 was listed here too, and
+  that was false**: it had no instrument, and was refuted by execution on its own exhibit (corrected
+  v0.9.0rc414, `#T1092`; see §3.1 C5). It is gated from rc414 by
+  `tests/test_wire_round_trip_rc414.py`.
 - **The §6.2 uninformative-green list.** Five gates whose green carries no information are recorded,
   not repaired.
 
@@ -403,7 +469,7 @@ should be scoped from a prose sentence that has gone stale.
 | 3 | `srmech/mcp/_coercion.py` — a coercer per declared param type | always | hand (strict-zero ratchet) |
 | 4 | `srmech/mcp/_tools.py` `_TYPE_LEXICON` — a JSON-schema type | on a new type string | hand (**ungated** — silently degrades to `"string"`) |
 | 5 | `srmech/mcp/_coercion.py` `serialise_native` — an outbound branch | on a new returned carrier | hand (**ungated** — silently repr-terminates) |
-| 6 | `srmech/amsc/carrier_schema.py` `_CARRIERS` + `_carrier_examples` | on a new surfaced carrier | hand (ratchet is **type-string-scoped**) |
+| 6 | `srmech/introspect/carrier_schema.py` `_CARRIERS` + `_carrier_examples` | on a new surfaced carrier | hand (ratchet is **type-string-scoped**) |
 | 7 | `tests/rosetta_classification.ndjson` — a bucket row | always | hand |
 | 8 | `tests/rosetta_roots.py` — the walk root | **on a new top-level package** | hand — rc362's load-bearing edit; a root naming a non-existent package is **silently skipped** |
 | 9 | `COMPOSES_C_ZERO_REACH_PINNED` + its written justification | `non_compute`/`composes_c` and zero-reach | hand |
@@ -415,7 +481,7 @@ should be scoped from a prose sentence that has gone stale.
 | 15 | `c/src/srmech_carrier_registry.c` | always | regenerated |
 | 16 | `c/src/srmech_{class,responsion}_registry.c` | always (usually no-op) | regenerated |
 | 17 | `tests/registered_op_names.txt` + `EXPECTED_N` / `EXPECTED_NAME_SET_SHA256` | always | regenerated, **committed in the same commit** |
-| 18 | the op-total count pins — **~60 assertions across ~54 test files** | always | hand |
+| 18 | the op-total count pins — **73 lines across 66 test files** (`== <total>` in `tests/`, rc414), **plus `EXPECTED_N` in `tests/test_op_name_set_witness_rc361.py`, which that predicate misses** | always | hand |
 | 19 | `tests/worked_examples_result.ndjson` — the execution ledger | iff the example carries a `worked` key | regenerated |
 
 **Two properties of this table are decisions, not observations.**
@@ -629,8 +695,10 @@ shape available, because nothing in the artifact reveals it.
   the Rosetta ledger, `carrier_schema`, the worked-example gates, or the alias descriptors resolves
   here first, and to ADR-0007/0009/0010 for the edges those own.
 - **Reviewers have six named clauses.** "Which of C1–C6 does this landing satisfy, and which gate
-  selected it?" is answerable by inspection. As of rc363: C1 gated; C2 **param half** gated, return
-  half open; C3 gated; C4 and C5 gated; **C6 stated and ungated**. A landing that claims an ungated
+  selected it?" is answerable by inspection. As of **rc414**: C1 gated; C2 **param half** gated, return
+  half open; C3 gated; C4 gated; **C5 gated by `tests/test_wire_round_trip_rc414.py`** (this line read
+  "C4 and C5 gated" as of rc363 and was false for C5 — it had no instrument and was refuted on its own
+  exhibit; see §3.1 C5); **C6 stated and ungated**. A landing that claims an ungated
   clause claims it on a reading, not on a measurement — and §3.3 records that when C2's and C3's
   exhibits were closed by reading rather than by measurement, the reading was wrong about the
   baseline.
@@ -684,7 +752,7 @@ shape available, because nothing in the artifact reveals it.
 
 `srmech/introspect/__init__.py` (`describe()` at `:722`; the ROOT/INDEX contract at `:736-739`) ·
 `srmech/amsc/tool_schema.py` (the SSoT) ·
-`srmech/amsc/carrier_schema.py:171-176` (the carrier admission rule this ADR's C3 restates) ·
+`srmech/introspect/carrier_schema.py:171-177` (the carrier admission rule this ADR's C3 restates) ·
 `tests/test_carrier_schema_rc205.py:310-326` (the drift ratchet, and its type-string scope) ·
 `tests/test_worked_examples_strict_zero_rc353.py` (strict-zero by user direction 2026-07-28 — **no
 `CEIL_` dict, no per-category allowlist**) ·

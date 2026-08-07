@@ -213,8 +213,14 @@ STAYS (elementwise ops use it). Each removal also touches: laplacian
 count in the duplicated count-tests, and `_native.py`.
 
 ⚠️ **This line said "the FIVE duplicated count-tests" until rc362 — that was stale
-and it mis-scoped a build brief.** Measured on the rc362 branch: **61 assertion
-sites pin the op total, across ~54 test files.** "Five" was true around rc135 and
+and it mis-scoped a build brief.** Measured **at rc414, predicate stated**:
+`git grep -c "== <total>"` over `tests/` only → **73 lines across 66 test
+files**, PLUS `EXPECTED_N` in `tests/test_op_name_set_witness_rc361.py`, which
+that predicate cannot match (it is a bare assignment, not a comparison) and
+which also needs the manifest rewritten and its sha256 re-pinned in the same
+commit. The rc362 figure written here was "61 sites across ~54 files" with no
+predicate given — and an unstated predicate is why a re-measurement cannot be
+reproduced. "Five" was true around rc135 and
 the surface has grown by an order of magnitude since. Do not brief a count-bumping
 change as a five-file edit. Re-measure before quoting a number here — this file is
 explicitly NOT hygiene-gated, so nothing else will catch it going stale again.

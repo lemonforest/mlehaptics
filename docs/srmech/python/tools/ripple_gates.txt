@@ -69,6 +69,25 @@ tests/test_tool_example_input_schema_rc355.py
 #    every declared sub-op is actually CALLED. ~13 s, pure-Python. -----------
 tests/test_composes_grain_rc412.py
 
+# -- mcp_callable / advertised-catalog surface (rc414, `#T1092`) -------------
+#    rc414 ships the FIRST mcp_callable=False entry since the field existed, and
+#    measured that ripple_check went GREEN on the flip while CI went red: none of
+#    these three targets was in this manifest. The two files are cheap and pure;
+#    test_mcp.py is added by NODE ID only (the whole file spins an SSE server).
+#    NOTE the compiled registry is the LIVE path on a native host — a Python-only
+#    flip is a silent no-op on the actually-advertised catalog until
+#    srmech_tool_registry.c is regenerated AND libsrmech rebuilt.
+tests/test_mcp_initialize_instructions_rc407.py
+tests/test_llm_anthropic.py
+tests/test_mcp.py::test_handle_pending_absent_from_advertised_catalogs
+
+# -- wire round-trip gate (rc414, `#T1092`) ----------------------------------
+#    The OUTBOUND converse of test_mcp.py::test_all_param_types_json_coercible
+#    (which is the inbound half and already listed above). An rc that adds a
+#    carrier return type, or changes serialise_native / the coercer table, moves
+#    this. Pure-Python, sub-second.
+tests/test_wire_round_trip_rc414.py
+
 # -- count-pin describe()["tools"]["total"] (cheap representatives) -----------
 tests/test_registry_smoke_rc127.py
 tests/test_rc15_describe_resolve.py
