@@ -1845,6 +1845,51 @@ def _synth_spectral_handle_envelope() -> Dict[str, Any]:
     return serialise_native(handle)
 
 
+def _synth_chain_spec_wire() -> Dict[str, Any]:
+    """A GENUINE minimal chain — one Class-I step, ``gcd(12, 18)`` -> 6 — as the
+    JSON object a client puts on the wire for a ``ChainSpec`` param.
+
+    rc414 (`#T1092`) — this row was ``"ChainSpec": {}``, an empty dict, and it
+    was adequate ONLY because nothing downstream validated it: ``coerce_param``
+    mapped ``ChainSpec`` to the ``_identity`` pass-through, so ``{}`` sailed
+    through coercion and the op then raised a TOLERATED domain error. rc414
+    gives the type a real coercer (``_to_chain_spec`` -> ``parse_chain_spec``),
+    and a real coercer correctly REJECTS ``{}`` with
+    ``ChainSpecError: chain entry missing required key 'name'``.
+
+    THE FIX IS THE SYNTH VALUE, NOT THE COERCER. Widening ``_to_chain_spec`` to
+    accept ``{}`` would restore the exact anti-pattern rc408 named — advertising
+    a value that cannot work — one layer further down, and it is the anti-pattern
+    this whole rc exists to remove.
+
+    THIS IS THE THIRD INSTANCE OF THE SAME SHAPE. ``"callable": "abs"`` became
+    ``"operator_name": "srmech.cascade.chiral_flip"`` at rc16 for exactly this
+    reason (a str that is not callable, tolerated as a TypeError), and
+    ``SpectralHandle`` became a freshly-minted registered envelope in the same
+    rc. A placeholder is only ever "fine" until something starts checking it,
+    and then it reads as a product bug rather than as test scaffolding.
+
+    The same table has a fourth, still-live instance, tracked separately as
+    `#T1094`: the fall-through ``return table.get(type_string, "a")`` hands the
+    literal ``"a"`` to EVERY undeclared string param — including filesystem
+    paths — so a smoke run writes a stray 16-byte file named ``a`` into the
+    package directory. Not fixed here; it needs its own rc, and gitignoring the
+    file would close the symptom while preserving the defect.
+
+    The chain is chosen so it genuinely EXECUTES: class ``I`` resolves to
+    ``srmech.math.cyclic`` (not ``srmech.cascade`` — the class registry maps
+    letters to owning modules), ``gcd`` is a real op on it, and both consumers
+    of this value work — ``run_chain`` returns ``6`` and ``resolve_chain``
+    returns a callable that returns ``6``.
+    """
+    return {
+        "name": "smoke_gcd",
+        "summary": "one Class-I step: gcd(12, 18)",
+        "returns": "int",
+        "steps": [{"class": "I", "op": "gcd", "args": {"a": 12, "b": 18}}],
+    }
+
+
 def _synth_value_for_type(type_string: str) -> Any:
     """Synthesise ONE minimal, schema-valid JSON-wire value for a declared
     ToolEntry param type, using the rc14 coercion encodings.
@@ -1995,10 +2040,14 @@ def _synth_value_for_type(type_string: str) -> Any:
         "sequence": [1, 2, 3],
         "pathlib.Path": "smoke_nonexistent_path.toml",
         "int | float | str | list | dict": 1,
-        # opaque in-process handles. ``ChainSpec`` / ``callable`` /
-        # ``numpy.random.Generator`` bind as a dict / name / None and let the
-        # op raise a tolerated DOMAIN error.
-        "ChainSpec": {},
+        # opaque in-process handles. ``callable`` / ``numpy.random.Generator``
+        # bind as a name / None and let the op raise a tolerated DOMAIN error.
+        # rc414 (`#T1092`) — ``ChainSpec`` synths to a GENUINE, EXECUTABLE chain
+        # (was ``{}``, adequate only while the coercer was the ``_identity``
+        # pass-through; a real coercer rightly rejects an empty dict). See
+        # ``_synth_chain_spec_wire`` for why the synth value is the fix and
+        # widening the coercer would not be.
+        "ChainSpec": _synth_chain_spec_wire(),
         "callable": "abs",
         # rc16 — ``operator_name`` synths to a GENUINE unary seq->seq op so
         # chiral_dual is driven cleanly (was the old "callable"->"abs"

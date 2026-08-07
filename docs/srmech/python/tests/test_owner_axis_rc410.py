@@ -124,7 +124,8 @@ def test_the_mcpb_attestation_speaks_only_for_srmech() -> None:
     consumer re-running the hash against a plain ``pip install srmech`` could
     never reproduce it.
     """
-    from srmech.mcp._mcpb import build_manifest
+    from srmech.mcp._mcpb import _owned_tool_schema, build_manifest
+    from srmech.mcp._tools import tool_entries_to_mcp_defs
 
     before = build_manifest()["attestation"]
     with probe_registered():
@@ -137,7 +138,38 @@ def test_the_mcpb_attestation_speaks_only_for_srmech() -> None:
             f"{before[key]!r} -> {during[key]!r}. The attestation may only "
             "speak for rows srmech OWNS."
         )
-    assert during["tool_count"] == _owned_total()
+
+    # rc414 (`#T1092`) — this read ``== _owned_total()``, and that was correct
+    # only while EXCLUSION WAS IMPOSSIBLE. ``owned_def_count`` in _mcpb.py is
+    # owned AND ADVERTISED; ``_owned_total()`` is owned, full stop. The two
+    # coincided for every release up to rc413 because ``mcp_callable=False``
+    # had zero entries tree-wide, so no srmech-owned row was ever un-advertised.
+    #
+    # rc414 excludes ``srmech.introspect.publish`` (a with-block scope cannot
+    # span two JSON-RPC calls), and the two bases separate by exactly that one
+    # row. The PRODUCTION code is right: an attestation that counted a tool the
+    # server will not serve would be a false MPM claim, which is the very
+    # failure this test exists to prevent. So the assertion is re-derived on the
+    # attestation's own basis rather than on the registry's.
+    #
+    # Both halves are derived live — no literal, and the SECOND half is what
+    # keeps this honest: asserting only ``<= _owned_total()`` would pass if the
+    # attestation silently counted nothing.
+    owned = {t.name for t in _owned_tool_schema().tools}
+    owned_and_advertised = sum(
+        1 for d in tool_entries_to_mcp_defs() if d["name"] in owned)
+    assert during["tool_count"] == owned_and_advertised, (
+        f"attestation tool_count {during['tool_count']} != the owned AND "
+        f"advertised count {owned_and_advertised}. The attestation vouches for "
+        f"what srmech OWNS and SERVES; counting an owned-but-excluded row "
+        f"would assert a tool the server does not offer."
+    )
+    excluded_owned = _owned_total() - owned_and_advertised
+    assert excluded_owned == sum(
+        1 for t in _owned_tool_schema().tools if not t.mcp_callable), (
+        "the gap between the owned registry and the owned+advertised "
+        "attestation is not accounted for by mcp_callable=False rows"
+    )
 
 
 def test_the_advertised_surface_still_includes_profile_tools() -> None:
