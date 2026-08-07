@@ -25,6 +25,82 @@ from __future__ import annotations
 from typing import Any, Dict
 
 CURATED: Dict[str, Dict[str, Any]] = {
+    # rc414 (`#T1092`) — fold_identity, registered at last. Outputs below are
+    # REAL WSL2 numpy-absent captures.
+    'srmech.biology.coupling.fold_identity': {
+        'example': {
+            'input': {'a': '<RecoverableFold>', 'b': '<RecoverableFold>'},
+            'output': "'EQUAL'",
+            'why': (
+                'The three verdicts are all exercised, and the middle one is the '
+                'point: two folds built at dim 256 and dim 1024 with different '
+                'seeds have lossy bundles that differ bit-for-bit and compare '
+                'False under ==, yet fold_identity calls them EQUAL, because they '
+                'recover the same (R, branches). Drop the exact complement from '
+                'one of them and the SAME comparison becomes UNKNOWN rather than '
+                'flipping to NOT_EQUAL -- the op declines instead of guessing.'
+            ),
+            'worked': (
+                '# Identity for a lossy projection that CARRIES its exact\n'
+                '# complement. Subject: the Sierpinski-gasket spectral decimation\n'
+                '# R(z) = 5z - 4z^2 against a different quadratic.\n'
+                'from srmech.math.q import Q\n'
+                'from srmech.math.poly import Poly\n'
+                'from srmech.biology.coupling import (\n'
+                '    RecoverableFold, fold_encode_recoverable, fold_identity)\n'
+                '\n'
+                'GASKET = Poly.from_coeffs([Q(0, 1), Q(5, 1), Q(-4, 1)])\n'
+                'OTHER = Poly.from_coeffs([Q(0, 1), Q(3, 1), Q(-2, 1)])\n'
+                'a = fold_encode_recoverable(GASKET, 3, dim=256, seed=0)\n'
+                'b = fold_encode_recoverable(GASKET, 3, dim=1024, seed=7)\n'
+                'c = fold_encode_recoverable(OTHER, 3, dim=256, seed=0)\n'
+                '\n'
+                'a == b\n'
+                '# -> False          RecoverableFold inherits OBJECT identity\n'
+                'fold_identity(a, b)\n'
+                "# -> 'EQUAL'       same (R, branches) -- dim and seed are free\n"
+                'fold_identity(a, c)\n'
+                "# -> 'NOT_EQUAL'   a genuinely different recoverable object\n"
+                'a.lossy_bundle["fold"].tolist() == b.lossy_bundle["fold"].tolist()\n'
+                '# -> False          the BUNDLES differ bit-for-bit; identity is\n'
+                '#                   the OPERATION, not the projection\n'
+                '\n'
+                '# Drop the exact complement and identity stops being decidable.\n'
+                'bare = RecoverableFold(a.lossy_bundle, None)\n'
+                'bare.has_seed\n'
+                '# -> False\n'
+                'fold_identity(a, bare)\n'
+                "# -> 'UNKNOWN'     NEVER a false EQUAL/NOT_EQUAL from a lossy\n"
+                '#                   bundle alone -- the honest decline\n'
+            ),
+        },
+        'explanation': (
+            'WHAT it computes: the three-valued identity verdict for two '
+            'RecoverableFold pairs -- EQUAL / NOT_EQUAL when BOTH carry the '
+            'exact complement, UNKNOWN when either does not. Two folds are the '
+            'same fold iff they recover the same (R, branches), decided through '
+            "each fold's .identity(): an op_provenance canonical chain-hash over "
+            'the pinned EXACT inputs, so the verdict is independent of the '
+            'Klein-4 width dim and of the seed. WHEN to reach for it: any time '
+            'you need to know whether two folds are the same object. You would '
+            'otherwise wrongly hand-roll `a == b`, which is OBJECT IDENTITY here '
+            '(RecoverableFold defines no __eq__) and answers False for two folds '
+            'that are provably the same map; or you would compare '
+            '.lossy_bundle contents, which answers False whenever the dims or '
+            'seeds differ even though the folds are identical. HOW it relates to '
+            'its SIBLINGS: fold_encode is the rc124 bare lossy store; '
+            'fold_encode_recoverable attaches the exact complement R that makes '
+            'recovery exact at ANY dim; fold_spectrum READS a fold back. This op '
+            'is the only one that COMPARES two of them. It is '
+            'op_provenance.op_verdict\'s EQUAL/UNKNOWN one-sidedness with the '
+            'decidable arm restored -- op_verdict cannot answer NOT_EQUAL '
+            'because program-equality is undecidable, whereas here the operand '
+            'is exact, so inequality IS decidable whenever both complements are '
+            'present. The UNKNOWN arm is not a failure: it is the recoverability '
+            'principle stated operationally -- identity is decidable only when '
+            'you hold the complement.'
+        ),
+    },
     # rc396 (#T1031) — the Weyl clock/shift pair. Outputs below are REAL WSL2
     # numpy-absent captures; the sub-quarter phases route through the C-backed
     # srmech_quaternion_twiddle, the quarter-turn ones are exact Gaussian integers.

@@ -86,6 +86,28 @@ if _TESTS_DIR not in _sys.path:
 warmup_all()
 _ADVERTISED = [e for e in get_tool_schema().tools if e.mcp_callable]
 
+# rc414 (`#T1092`) — a FLOOR on the parametrisation size.
+#
+# ``_ADVERTISED`` drives the every-tool invocation smoke here and (imported)
+# the return-type honesty sweep in test_immolation.py. It is a FILTER on
+# ``mcp_callable``, so flipping an op to False silently removes it from both
+# sweeps — and until rc414 nothing asserted the parametrised set had any
+# particular size. Coverage could therefore drain away one flip at a time with
+# every remaining test still green, which is the "a filter that hides ripple is
+# the gate lying" shape.
+#
+# The floor is deliberately a floor and not an equality: ops are ADDED every
+# rc, and an equality here would be one more count-pin to bump (there are 73
+# of those already). It is set just under the live value so a mass exclusion
+# trips it while ordinary growth does not.
+assert len(_ADVERTISED) >= 550, (
+    f"only {len(_ADVERTISED)} entries are mcp_callable — the every-tool "
+    f"invocation smoke and test_immolation's return-type sweep are both "
+    f"parametrised over this list, so a drop here silently shrinks TWO "
+    f"coverage surfaces at once. If ops were legitimately excluded, lower "
+    f"this floor deliberately and say why in the rc's CHANGELOG entry."
+)
+
 
 # ──────────────────────────────────────────────────────────────────────
 # Tool conversion: every ToolEntry yields a valid MCP tool def
@@ -1823,6 +1845,51 @@ def _synth_spectral_handle_envelope() -> Dict[str, Any]:
     return serialise_native(handle)
 
 
+def _synth_chain_spec_wire() -> Dict[str, Any]:
+    """A GENUINE minimal chain — one Class-I step, ``gcd(12, 18)`` -> 6 — as the
+    JSON object a client puts on the wire for a ``ChainSpec`` param.
+
+    rc414 (`#T1092`) — this row was ``"ChainSpec": {}``, an empty dict, and it
+    was adequate ONLY because nothing downstream validated it: ``coerce_param``
+    mapped ``ChainSpec`` to the ``_identity`` pass-through, so ``{}`` sailed
+    through coercion and the op then raised a TOLERATED domain error. rc414
+    gives the type a real coercer (``_to_chain_spec`` -> ``parse_chain_spec``),
+    and a real coercer correctly REJECTS ``{}`` with
+    ``ChainSpecError: chain entry missing required key 'name'``.
+
+    THE FIX IS THE SYNTH VALUE, NOT THE COERCER. Widening ``_to_chain_spec`` to
+    accept ``{}`` would restore the exact anti-pattern rc408 named — advertising
+    a value that cannot work — one layer further down, and it is the anti-pattern
+    this whole rc exists to remove.
+
+    THIS IS THE THIRD INSTANCE OF THE SAME SHAPE. ``"callable": "abs"`` became
+    ``"operator_name": "srmech.cascade.chiral_flip"`` at rc16 for exactly this
+    reason (a str that is not callable, tolerated as a TypeError), and
+    ``SpectralHandle`` became a freshly-minted registered envelope in the same
+    rc. A placeholder is only ever "fine" until something starts checking it,
+    and then it reads as a product bug rather than as test scaffolding.
+
+    The same table has a fourth, still-live instance, tracked separately as
+    `#T1094`: the fall-through ``return table.get(type_string, "a")`` hands the
+    literal ``"a"`` to EVERY undeclared string param — including filesystem
+    paths — so a smoke run writes a stray 16-byte file named ``a`` into the
+    package directory. Not fixed here; it needs its own rc, and gitignoring the
+    file would close the symptom while preserving the defect.
+
+    The chain is chosen so it genuinely EXECUTES: class ``I`` resolves to
+    ``srmech.math.cyclic`` (not ``srmech.cascade`` — the class registry maps
+    letters to owning modules), ``gcd`` is a real op on it, and both consumers
+    of this value work — ``run_chain`` returns ``6`` and ``resolve_chain``
+    returns a callable that returns ``6``.
+    """
+    return {
+        "name": "smoke_gcd",
+        "summary": "one Class-I step: gcd(12, 18)",
+        "returns": "int",
+        "steps": [{"class": "I", "op": "gcd", "args": {"a": 12, "b": 18}}],
+    }
+
+
 def _synth_value_for_type(type_string: str) -> Any:
     """Synthesise ONE minimal, schema-valid JSON-wire value for a declared
     ToolEntry param type, using the rc14 coercion encodings.
@@ -1973,10 +2040,14 @@ def _synth_value_for_type(type_string: str) -> Any:
         "sequence": [1, 2, 3],
         "pathlib.Path": "smoke_nonexistent_path.toml",
         "int | float | str | list | dict": 1,
-        # opaque in-process handles. ``ChainSpec`` / ``callable`` /
-        # ``numpy.random.Generator`` bind as a dict / name / None and let the
-        # op raise a tolerated DOMAIN error.
-        "ChainSpec": {},
+        # opaque in-process handles. ``callable`` / ``numpy.random.Generator``
+        # bind as a name / None and let the op raise a tolerated DOMAIN error.
+        # rc414 (`#T1092`) — ``ChainSpec`` synths to a GENUINE, EXECUTABLE chain
+        # (was ``{}``, adequate only while the coercer was the ``_identity``
+        # pass-through; a real coercer rightly rejects an empty dict). See
+        # ``_synth_chain_spec_wire`` for why the synth value is the fix and
+        # widening the coercer would not be.
+        "ChainSpec": _synth_chain_spec_wire(),
         "callable": "abs",
         # rc16 — ``operator_name`` synths to a GENUINE unary seq->seq op so
         # chiral_dual is driven cleanly (was the old "callable"->"abs"
@@ -2125,11 +2196,32 @@ def test_handle_pending_absent_from_advertised_catalogs() -> None:
     spectral names are PRESENT in BOTH advertised surfaces (MCP ``tools/list``
     via ``tool_entries_to_mcp_defs`` AND the Anthropic ``_build_tool_catalog``
     seam). (If a residual handle-pending tool is ever introduced later, a
-    fresh exclusion assertion can be re-added for it.)"""
+    fresh exclusion assertion can be re-added for it.)
+
+    v0.9.0rc414 (`#T1092`) — that parenthetical is now cashed in. The rc16
+    assertion was ``pending == set()``, i.e. "zero excluded, forever"; rc414
+    excludes ``srmech.introspect.publish``, whose obstruction is not a type an
+    encoder can fix but a SHAPE IN TIME (a ``with``-block scope cannot span two
+    JSON-RPC calls). The rc16 property that actually matters — the 7 spectral
+    tools are PRESENT in both advertised surfaces, because the ``$srmech_handle``
+    grammar rescued them — is untouched below and is what this test still
+    guards. What replaces the strict-zero is the EXCLUSION-IS-HONOURED pair:
+    whatever is excluded must be absent from BOTH advertised catalogs (not
+    merely flagged in the registry), so the field and the seams cannot drift
+    apart."""
     schema = get_tool_schema()
     pending = {e.name for e in schema.tools if not e.mcp_callable}
-    assert pending == set(), (
-        f"rc16 expects ZERO handle-pending tools; still pending: {pending}"
+
+    # THE EXCLUSION IS HONOURED, not just declared. A flip that the seams
+    # ignore is worse than no flip: the tool stays advertised while the
+    # registry says it is not callable.
+    advertised_mcp = {d["name"] for d in tool_entries_to_mcp_defs()}
+    leaked = pending & advertised_mcp
+    assert leaked == set(), (
+        f"entries marked mcp_callable=False are STILL advertised over MCP: "
+        f"{leaked}. The exclusion filter did not take effect — on a native "
+        f"host the compiled registry is the live path, so this also means "
+        f"srmech_tool_registry.c needs regenerating and libsrmech rebuilding."
     )
 
     spectral_names = {
@@ -2158,6 +2250,25 @@ def test_handle_pending_absent_from_advertised_catalogs() -> None:
     assert spectral_names <= anthropic_srmech_names, (
         f"spectral tools missing from the Anthropic catalog: "
         f"{spectral_names - anthropic_srmech_names}"
+    )
+    assert not (pending & anthropic_srmech_names), (
+        f"excluded entries leaked into the Anthropic catalog seam: "
+        f"{pending & anthropic_srmech_names}"
+    )
+
+    # rc414 — the advertised catalog is EXACTLY the callable subset. rc16's
+    # ``spectral_names <= mcp_names`` is a SUBSET check over 7 hardcoded names,
+    # so it cannot see the advertised catalog silently losing entries it does
+    # not name. (Measured during the rc414 research: a stale libsrmech
+    # advertised 556 against a 559-entry registry, and no gate reported it —
+    # two of the three missing names were ops MCP_INSTRUCTIONS tells a client
+    # to call.) This equality is the missing half.
+    assert advertised_mcp == {
+        e.name for e in schema.tools if e.mcp_callable
+    }, (
+        "the advertised MCP catalog is not exactly the mcp_callable subset; "
+        "on a native host this usually means the compiled registry in "
+        "libsrmech is stale against the Python registry — rebuild it"
     )
 
 

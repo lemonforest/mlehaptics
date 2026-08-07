@@ -1,4 +1,4 @@
-{"n": 474, "native": false, "python": "3.10", "record": "meta"}
+{"n": 475, "native": true, "python": "3.10", "record": "meta"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.amsc.catalog.get_attested_dataset", "problems": [], "src_sha256": "58d42a7869396586ee1363c377b8b1abf02bf5febea9d695f6aa4e49b8e26a99", "statements": 9, "status": "ok"}
 {"markers_fired": [{"exc": "ValueError", "line": 20}], "n_markers": 1, "name": "srmech.amsc.catalog.list_attested_sources", "problems": [], "src_sha256": "986c4bccd23f665bd00f8d91187777f98acfd091cbc9a95550c36560c3546452", "statements": 9, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.amsc.catalog.list_catalog_chains", "problems": [], "src_sha256": "80aee0a39a7344378b831ef74cb41d64bce16527865a2f790c433220b1390bac", "statements": 7, "status": "ok"}
@@ -10,6 +10,7 @@
 {"markers_fired": [], "n_markers": 0, "name": "srmech.amsc.format.sha256_bytes", "problems": [], "src_sha256": "a7ce9b987f5c61a3e9ca8960f7ba28a22120fa0346d178b3fa87e3dfa4796914", "statements": 9, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.biology.coupling.fold_encode", "problems": [], "src_sha256": "edd4876bea5150af3dc5b9dc7905e3f7cfda50916a2253e3a110c493fbb9f7b6", "statements": 12, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.biology.coupling.fold_encode_recoverable", "problems": [], "src_sha256": "475cf5969b8a82fe651e1e8fd95efa555c64bd18e14dc5150c0a7a9add96305f", "statements": 14, "status": "ok"}
+{"markers_fired": [], "n_markers": 0, "name": "srmech.biology.coupling.fold_identity", "problems": [], "src_sha256": "987e3b70201c88f461cf671997b5656f17a2823300562198570328a91fd2f33f", "statements": 15, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.biology.coupling.fold_spectrum", "problems": [], "src_sha256": "e61e9acc701e53e5be592685aab490704d5804e2ba776fd627d4fdcfe7bae255", "statements": 14, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.biology.coupling.fractal_spectrum", "problems": [], "src_sha256": "c1a9c1ab87c5a64b01e6e7f66e22705fc0d1e153f66a592768bc0d578e840df4", "statements": 13, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.biology.coupling.from_bodies", "problems": [], "src_sha256": "339d4feb94b9e583ac32ffb18b293540cebe3db620b089975094cca43bdb58eb", "statements": 11, "status": "ok"}

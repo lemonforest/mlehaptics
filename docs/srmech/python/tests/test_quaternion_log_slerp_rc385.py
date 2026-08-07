@@ -183,7 +183,7 @@ def test_both_ops_in_all_and_describe_total_is_540():
     ).get_tool_schema().tools}
     assert "srmech.physics.qm.quaternion.quaternion_log" in names
     assert "srmech.physics.qm.quaternion.quaternion_slerp" in names
-    assert srmech.describe()["tools"]["total"] == 559
+    assert srmech.describe()["tools"]["total"] == 560
 
 
 def test_rosetta_rows_present_c_dispatched():

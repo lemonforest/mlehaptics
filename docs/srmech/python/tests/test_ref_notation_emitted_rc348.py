@@ -380,7 +380,18 @@ CEIL_BARE_REFS_EMITTED = {
     # tool_schema.py (the `rc41` string x2 emissions + the §39 make_class
     # inverse summary), which is why this drains 3 rather than converting 3.
     # 129 -> 126.
-    "c/src/srmech_tool_registry.c": 126,
+    # rc414 (`#T1092`): 126 -> 124. Two pre-convention bare `#723` refs, in the
+    # `fold_encode_recoverable` and `lossy_projection_record` ToolEntry
+    # summaries, converted to `#T723`. They were INVISIBLE to the strict-zero
+    # sibling gate until this rc, and the mechanism is worth recording because
+    # it is how this ratchet is supposed to work: the strict-zero clause fires
+    # only on the DECIDABLE class — a number the tree spells `#TNNN`
+    # SOMEWHERE, written bare. Nothing spelled it `#T723`, so both refs sat in
+    # this CEIL as undecidable residue. rc414 registered `fold_identity` and
+    # wrote `#T723` in its summary; that one act made the number decidable and
+    # the strict-zero gate immediately named both siblings. Converting them
+    # DRAINS rather than converts, because the refs are gone, not relabelled.
+    "c/src/srmech_tool_registry.c": 124,
     # rc352: 2 -> 0. Both were the SAME pre-convention `#845`, emitted twice
     # from one upstream string (`carrier_schema.py`, the `Q` carrier
     # description). It sat here legitimately until this rc: the strict-zero

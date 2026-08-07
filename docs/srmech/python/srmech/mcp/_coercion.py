@@ -392,6 +392,43 @@ def _to_one(value: Any, *, param: str = "") -> Any:
     return one_from_jsonable(value)
 
 
+def _to_chain_spec(value: Any, *, param: str = "") -> Any:
+    """Coerce a JSON object to a :class:`~srmech.cascade.compose.ChainSpec`
+    (rc414, `#T1092`) — ``run_chain`` / ``resolve_chain``'s ``spec``.
+
+    A live ``ChainSpec`` (an in-process caller) passes through unchanged;
+    a JSON object is parsed by the op family's OWN parser,
+    :func:`srmech.cascade.compose.parse_chain_spec`, so there is exactly one
+    definition of what a chain is and the coercer cannot drift from it. A
+    malformed chain therefore raises the parser's own ``ChainSpecError``,
+    naming the offending step and key, rather than an
+    ``AttributeError: 'dict' object has no attribute 'steps'`` from deep
+    inside the runner.
+    """
+    from srmech.cascade.compose import ChainSpec, parse_chain_spec  # lazy
+    if isinstance(value, ChainSpec):
+        return value
+    if not isinstance(value, dict):
+        return value
+    return parse_chain_spec(value)
+
+
+def _to_recoverable_fold(value: Any, *, param: str = "") -> Any:
+    """Coerce a JSON object to a :class:`RecoverableFold` (rc414, `#T1092`) —
+    ``coupling.fold_identity``'s two operands. A live fold passes through; the
+    generating-input object ``{"R", "branches", "dim", "seed"}`` is re-encoded
+    through the op family's own ``fold_encode_recoverable``, so the wire form
+    and the constructor cannot drift apart. (The paired outbound half is
+    :func:`_wire_recoverable_fold`, defined with the other carrier wire forms
+    below; it is resolved at call time.)"""
+    from srmech.biology.coupling import RecoverableFold  # lazy
+    if isinstance(value, RecoverableFold):
+        return value
+    if not isinstance(value, dict):
+        return value
+    return _unwire_recoverable_fold(value)
+
+
 def _to_poly_or_bipoly(value: Any, *, param: str = "") -> Any:
     """Coerce a JSON value for a poly-ladder PROMOTE param (``Poly | BiPoly``;
     rc116 ``carrier_ladder.poly_promote``). The op restructures an
@@ -556,6 +593,24 @@ def _to_ellmonomial(value: Any, *, param: str = "") -> Any:
     if isinstance(value, bool):
         return value
     if isinstance(value, str):
+        # rc414 (`#T1092`) — REJECT a repr, do not read it as a symbol NAME.
+        # Before rc414 an EllMonomial serialised OUT as its repr, and this
+        # branch read that repr straight back IN as a symbol: the wire string
+        # "EllMonomial(1·q^2)" became the monomial
+        # EllMonomial(1·EllMonomial(1·q^2)^1) — a DIFFERENT, well-formed
+        # monomial, silently, with no exception anywhere. The outbound
+        # envelope removes the input; this closes the door behind it, because
+        # a symbol NAME is a bare identifier and never contains a bracket or
+        # the repr's centre dot.
+        if "(" in value or ")" in value or "·" in value:
+            raise ValueError(
+                f"EllMonomial param {param or '<ell-monomial>'!r}: "
+                f"{value!r} is a repr / structured token, not a symbol name. "
+                f"A symbol is a bare identifier ('x0', 't', 'z1'); an "
+                f"arbitrary monomial rides as its "
+                f'{{"coeff": [num, den], "exponents": {{sym: exp}}}} object '
+                f"(or the $srmech_carrier envelope a producer emits)."
+            )
         return EllMonomial.symbol(value)
     if isinstance(value, int):
         return EllMonomial.scalar(Q(value, 1))
@@ -1258,10 +1313,23 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     # `fluxes` — a scalar diffusion-time/flux OR a list of them; both forms are
     # JSON-native (the op itself dispatches scalar → float, sequence → Vec).
     "float | Sequence[float]": _identity,
-    # ── opaque in-process handle types (cannot ride JSON; the schema
-    #    renders them as objects and an in-process caller passes the real
-    #    object through). Listed so the ratchet stays exhaustive. ──
-    "ChainSpec": _identity,
+    # 0.9.0rc414 (`#T1092`): ChainSpec was the LAST ``_identity`` row that was
+    # not actually a pass-through decision — it was the reason ``run_chain`` and
+    # ``resolve_chain`` looked non-callable. The advertised JSON schema publishes
+    # ``spec: "object"``, so a schema-obedient client sends a JSON object; the
+    # object then arrived RAW and the op raised
+    # ``AttributeError: 'dict' object has no attribute 'steps'``. That is the
+    # rc408 anti-pattern verbatim (telling a client to send a value that cannot
+    # work is worse than telling it to send nothing) and it is a MISSING
+    # COERCER, not a missing capability: ``parse_chain_spec`` is itself
+    # MCP-callable and returns a structured dict. A live ChainSpec still passes
+    # through untouched for the in-process caller.
+    "ChainSpec": _to_chain_spec,
+    # 0.9.0rc414 (`#T1092`): coupling.fold_identity's two operands. The op was
+    # shipped and __all__-exported since `#T723` but carried no ToolEntry, so
+    # this is the first rc in which the type is ADVERTISED and therefore the
+    # first in which it needs a handler.
+    "RecoverableFold": _to_recoverable_fold,
     # ── rc16 by-reference handle dual-grammar (was _identity in rc14/15;
     #    now REAL resolvers — the $srmech_handle envelope -> live object). ──
     "SpectralHandle": _resolve_spectral_handle,
@@ -1304,13 +1372,496 @@ def coerce_param(value: Any, type_string: str, *, param: str = "") -> Any:
     it means "absent / use the default" for an ``Optional[...]`` param,
     regardless of the declared element type (so an explicit ``null`` for
     an ``Optional[np.ndarray]`` stays ``None``, not a 0-d object array).
+
+    rc414 (`#T1092`): a ``$srmech_carrier`` envelope is rebuilt STRUCTURALLY
+    first (:func:`deserialise_native`), so a carrier a producer emitted —
+    at the top level OR nested inside a ``dict`` / ``list`` the declared
+    type-string does not describe — arrives as the live carrier. Every
+    ``_to_*`` coercer passes a live carrier through unchanged, so the two
+    stages compose: structural rebuild, then declared-type coercion.
     """
     if value is None:
         return None
+    value = deserialise_native(value)
     coercer = _PARAM_COERCERS.get(type_string)
     if coercer is None:
         return value
     return coercer(value, param=param)
+
+
+# ──────────────────────────────────────────────────────────────────────
+# rc414 (`#T1092`) — the SELF-DESCRIBING CARRIER ENVELOPE
+#
+# THE STRUCTURAL ASYMMETRY THIS CLOSES. ``serialise_native`` is STRUCTURAL
+# (it walks the value); ``coerce_param`` is DECLARED-TYPE (a table read off
+# ``returns.type``). Before rc414 there was no structural inverse, so a
+# carrier nested inside a ``dict`` / ``list`` / ``tuple`` was serialised out
+# and could never be reconstructed in — and that is exactly where the
+# mathematical content lives. ``zeilberger`` handed its ``certificate`` back
+# as the STRING ``"BiPoly(k_degree=1, exact-ℚ[n,k])"``; that certificate is
+# the entire point of the op. 119 registered ops declare a bare ``dict``,
+# 39 a ``list``, 23 a ``tuple``.
+#
+# THE FORM. A carrier rides as ``{"$srmech_carrier": "<name>", "value": …}``
+# — the shape ``_handles.HANDLE_ENVELOPE_KEY`` (``"$srmech_handle"``) already
+# establishes for the by-reference grammar. This is its BY-VALUE peer: the
+# handle envelope says "the object stayed here, here is its address"; the
+# carrier envelope says "here is the object, exactly". Both are namespaced
+# with a leading ``$`` so they are unambiguous against every other wire shape
+# in play.
+#
+# THE VALUE PAYLOAD IS NOT NEW GRAMMAR. Each ``value`` is the wire form the
+# COMPILED implementation already reads — ``srmech_carrier_marshal`` has
+# consumed exactly these nested exact-ℚ shapes since rc191/rc223
+# (``SRMECH_CARRIER_POLY`` / ``_BIPOLY`` / ``_SCALAR`` / ``_TRIPOLY`` /
+# ``_QBIPOLY`` / ``_ELLRATIO``, ``c/include/srmech.h``), and the Python
+# ``_*_pairs`` / ``_*_from_pairs`` bridges that feed it are the SAME pair
+# functions used here. So the envelope adds a self-describing TAG around a
+# payload both implementations already agree on, rather than minting a
+# second, divergent encoding of the same object. That is what makes the
+# ADR-0009 C-parity obligation a tag-reader, not a re-implementation.
+#
+# SCOPE, STATED SO IT IS CHECKABLE. The envelope is applied to exactly the
+# carriers that TODAY degrade to ``repr(obj)`` in ``_tools._json_fallback``.
+# Carriers with an established, tested wire form — ``Q`` -> ``[num, den]``,
+# ``Mat`` / ``Vec`` -> nested list, ``HV`` -> list[int], ``bytes`` -> base64,
+# ``complex`` -> ``[re, im]`` — are NOT wrapped: their forms round-trip today
+# and re-tagging them would be a gratuitous wire break. Nothing that works
+# before rc414 changes shape; only lossy repr strings become structure.
+# ──────────────────────────────────────────────────────────────────────
+
+#: Sentinel key tagging a BY-VALUE carrier on the JSON wire — the by-value
+#: peer of :data:`srmech._handles.HANDLE_ENVELOPE_KEY`.
+CARRIER_ENVELOPE_KEY: str = "$srmech_carrier"
+
+
+def encode_carrier_envelope(name: str, value: Any) -> Dict[str, Any]:
+    """Build the on-wire carrier object ``{"$srmech_carrier": name,
+    "value": value}``."""
+    assert name, "encode_carrier_envelope: name must be non-empty"
+    return {CARRIER_ENVELOPE_KEY: name, "value": value}
+
+
+def is_carrier_envelope(value: Any) -> bool:
+    """True iff ``value`` is a by-value carrier object carrying the
+    :data:`CARRIER_ENVELOPE_KEY` sentinel."""
+    return (isinstance(value, dict)
+            and CARRIER_ENVELOPE_KEY in value
+            and isinstance(value.get(CARRIER_ENVELOPE_KEY), str))
+
+
+# ── the per-carrier VALUE forms (the shipped C-bridge pair shapes) ────────
+
+def _wire_poly(p: Any) -> Any:
+    """``Poly`` -> ascending-degree ``[[num, den], …]``. The
+    ``SRMECH_CARRIER_POLY`` shape; ``srmech.math.poly._pairs`` verbatim."""
+    return [[c.numerator, c.denominator] for c in p.coeffs]
+
+
+def _unwire_poly(v: Any) -> Any:
+    from srmech.math.poly import Poly
+    return Poly.from_coeffs(v)
+
+
+def _wire_bipoly(b: Any) -> Any:
+    """``BiPoly`` -> k-ascending list of Poly-in-n coefficient lists. The
+    ``SRMECH_CARRIER_BIPOLY`` shape; ``zeilberger._bi_pairs`` verbatim."""
+    return [_wire_poly(kp) for kp in b.terms]
+
+
+def _unwire_bipoly(v: Any) -> Any:
+    from srmech.apokatastasis.zeilberger import BiPoly
+    return BiPoly.coerce(v)
+
+
+def _wire_tripoly(t: Any) -> Any:
+    """``TriPoly`` -> the j-major ``[[[num, den], …]_n]_k]_j`` nest. The
+    ``SRMECH_CARRIER_TRIPOLY`` shape; ``tripoly._tri_pairs`` verbatim."""
+    return [_wire_bipoly(bib) for bib in t.blocks]
+
+
+def _unwire_tripoly(v: Any) -> Any:
+    from srmech.math.tripoly import _tri_from_pairs
+    return _tri_from_pairs(v)
+
+
+def _wire_qpoly(p: Any) -> Any:
+    """``QPoly`` -> ``[x_low, [[[num, den], …]_q]_x]``.
+
+    ``x_low`` is the Laurent tail offset and it is CARRIED. Before rc414 the
+    outbound form was a repr string and the inbound ``_to_qpoly`` accepted only
+    the bare cell list, while ``QPoly.from_coeffs(seq, x_low=0)`` takes
+    ``x_low`` as a SEPARATE parameter — so a Laurent ``QPoly`` could not be
+    expressed in EITHER direction. This is ``qpoly._qp_pairs`` verbatim, i.e.
+    the ``[x_low, rows]`` pair the ``SRMECH_CARRIER_QBIPOLY`` reader already
+    consumes per Y-cell."""
+    from srmech.math.qpoly import _qp_pairs
+    x_low, rows = _qp_pairs(p)
+    return [x_low, [[[n, d] for n, d in run] for run in rows]]
+
+
+def _unwire_qpoly(v: Any) -> Any:
+    from srmech.math.qpoly import _qp_from_pairs
+    return _qp_from_pairs((int(v[0]), v[1]))
+
+
+def _wire_qbipoly(b: Any) -> Any:
+    """``QBiPoly`` -> ``[[x_low, rows], …]_Y`` — one ``_wire_qpoly`` payload
+    per Y-cell. The ``SRMECH_CARRIER_QBIPOLY`` shape (``qbipoly._qb_pairs``
+    carries the per-Y ``x_low`` list for exactly this reason)."""
+    return [_wire_qpoly(cell) for cell in b.terms]
+
+
+def _unwire_qbipoly(v: Any) -> Any:
+    from srmech.math.qbipoly import QBiPoly
+    return QBiPoly([_unwire_qpoly(cell) for cell in v])
+
+
+def _wire_ellmonomial(m: Any) -> Any:
+    """``EllMonomial`` -> ``{"coeff": [num, den], "exponents": {sym: exp}}``.
+
+    Not invented here: ``_to_ellmonomial``'s GENERAL dict arm has specified
+    this exact shape since rc231, and its own docstring calls it the form that
+    lets "a bare host round-trip an ARBITRARY monomial (everything-mirrors)".
+    Only the outbound branch was missing."""
+    c = m.coeff
+    return {"coeff": [c.numerator, c.denominator], "exponents": dict(m.exps)}
+
+
+def _unwire_ellmonomial(v: Any) -> Any:
+    return _to_ellmonomial(v)
+
+
+def _wire_theta(t: Any) -> Any:
+    """``Theta`` -> ``{"arg": <EllMonomial form>}``. Composes from the monomial
+    leaf with zero new grammar (a ``Theta`` is exactly its argument)."""
+    return {"arg": _wire_ellmonomial(t.arg)}
+
+
+def _unwire_theta(v: Any) -> Any:
+    from srmech.apokatastasis.ellbase import Theta
+    return Theta(_unwire_ellmonomial(v["arg"]))
+
+
+def _wire_ellratio(r: Any) -> Any:
+    """``EllRatio`` -> ``{"prefactor": <mono>, "num": [<theta>…],
+    "den": [<theta>…]}``. Composes from the monomial + theta leaves — again
+    zero new grammar."""
+    return {
+        "prefactor": _wire_ellmonomial(r.prefactor),
+        "num": [_wire_theta(t) for t in r.num],
+        "den": [_wire_theta(t) for t in r.den],
+    }
+
+
+def _unwire_ellratio(v: Any) -> Any:
+    from srmech.apokatastasis.ellbase import EllRatio
+    return EllRatio(
+        _unwire_ellmonomial(v.get("prefactor", 1)),
+        [_unwire_theta(t) for t in v.get("num", ())],
+        [_unwire_theta(t) for t in v.get("den", ())],
+    )
+
+
+def _wire_qmat(m: Any) -> Any:
+    """``QMat`` -> nested ``[[[num, den], …], …]`` — the exact-ℚ peer of the
+    ``Mat`` branch's nested float list. The inbound half already existed
+    (``_to_qmat_rows``, registered under the union key
+    ``"QMat | Sequence[Sequence[int | Q]]"``); only the outbound was missing."""
+    return [[[q.numerator, q.denominator] for q in row] for row in m._rows]
+
+
+def _unwire_qmat(v: Any) -> Any:
+    from srmech.math.qmat import QMat
+    return QMat.from_rows(v)
+
+
+def _wire_qalg(a: Any) -> Any:
+    """``Qalg`` -> ``{"m": [int, …], "coords": [[num, den], …]}`` — the minimal
+    polynomial's integer coefficient list plus the exact-ℚ coordinate vector in
+    the power basis ``1, α, α², …``.
+
+    Those two ARE the element (``Σ coords[i]·αⁱ`` in ``ℚ[x]/(m)``), so the pair
+    is complete. This is the carrier that made ADR-0012 clause C5 false on its
+    own marquee exhibit: ``music.equal_temperament_partials`` returns
+    ``ratios`` as ``Qalg``, and feeding them straight back into
+    ``music.spectrum_tier`` over the wire raised ``TypeError: expected Q, Qalg,
+    int or an (int, int) pair; got str``, because ``Q`` gained its
+    ``[num, den]`` branch at rc231 and the algebraic peer never did."""
+    return {
+        "m": [int(c) for c in a._m],
+        "coords": [[q.numerator, q.denominator] for q in a._coords],
+    }
+
+
+def _unwire_qalg(v: Any) -> Any:
+    from srmech.math.q import Q
+    from srmech.math.qalg import Qalg
+    return Qalg([int(c) for c in v["m"]],
+                [Q(int(c[0]), int(c[1])) for c in v["coords"]])
+
+
+def _wire_carrier_spectrum(cs: Any) -> Any:
+    """``CarrierSpectrum`` -> ``{"element": <EllRatio form>}``.
+
+    A ``CarrierSpectrum`` is a pure DERIVATION of its ``EllRatio`` element (the
+    cyclic σ-spectrum and the p-character blocks are both read FROM it on
+    construction), so the element is the whole state and re-deriving on read is
+    exact. Shipping the derived channels too would be a second source of truth
+    for facts the element already determines."""
+    return {"element": _wire_ellratio(cs.element)}
+
+
+def _unwire_carrier_spectrum(v: Any) -> Any:
+    from srmech.math.carrier_spectrum import CarrierSpectrum
+    return CarrierSpectrum(_unwire_ellratio(v["element"]))
+
+
+def _wire_theta_sum(s: Any) -> Any:
+    """``ThetaSum`` -> ``{"terms": [{"prefactor": <mono>, "thetas": [<theta>…]}],
+    "den_prefactor": <mono>, "den_thetas": [<theta>…]}``.
+
+    The numerator terms carry their exact ``Q`` coefficient folded INTO the
+    prefactor monomial (that is the carrier's own canonical form), so no
+    separate coefficient field is emitted and the rebuild passes coefficient 1."""
+    return {
+        "terms": [{"prefactor": _wire_ellmonomial(pref),
+                   "thetas": [_wire_theta(t) for t in thetas]}
+                  for pref, thetas in s.terms],
+        "den_prefactor": _wire_ellmonomial(s.den_prefactor),
+        "den_thetas": [_wire_theta(t) for t in s.den_thetas],
+    }
+
+
+def _unwire_theta_sum(v: Any) -> Any:
+    from srmech.apokatastasis.thetasum import ThetaSum
+    from srmech.math.q import Q
+    return ThetaSum(
+        terms=[(Q(1, 1), _unwire_ellmonomial(t["prefactor"]),
+                [_unwire_theta(th) for th in t.get("thetas", ())])
+               for t in v.get("terms", ())],
+        den_prefactor=_unwire_ellmonomial(v.get("den_prefactor", 1)),
+        den_thetas=[_unwire_theta(th) for th in v.get("den_thetas", ())],
+    )
+
+
+def _wire_theta_bracket_sum(s: Any) -> Any:
+    """``ThetaBracketSum`` -> ``[{"bracket": [[sym, exp], …], "coeff":
+    [num, den]}, …]``.
+
+    Internally a ``{monomial_key: Q}`` dict where a monomial_key is a sorted
+    tuple of canonical bracket-argument keys. JSON has no tuple key, so each
+    entry rides as an explicit object and the key tuple is rebuilt on read —
+    the ordering is canonical on both sides, so the round-trip is exact."""
+    return [{"bracket": [list(k) for k in key],
+             "coeff": [c.numerator, c.denominator]}
+            for key, c in s._terms.items()]
+
+
+def _unwire_theta_bracket_sum(v: Any) -> Any:
+    from srmech.apokatastasis.riemann_theta_multisum import ThetaBracketSum
+    from srmech.math.q import Q
+    terms = {}
+    for row in v:
+        key = tuple(tuple(k) for k in row["bracket"])
+        terms[key] = Q(int(row["coeff"][0]), int(row["coeff"][1]))
+    return ThetaBracketSum(terms)
+
+
+def _wire_mock_q_series(s: Any) -> Any:
+    """``MockQSeries`` -> ``{"kind": str, "leading": [num, den],
+    "coeffs": [[num, den], …] | null}`` — the constructor's own three
+    parameters. ``_to_mock_q_series`` already names both rule arms inbound."""
+    coeffs = getattr(s, "_coeffs", None)
+    return {
+        "kind": s._kind,
+        "leading": [s._leading.numerator, s._leading.denominator],
+        "coeffs": (None if not coeffs
+                   else [[c.numerator, c.denominator] for c in coeffs]),
+    }
+
+
+def _unwire_mock_q_series(v: Any) -> Any:
+    from srmech.apokatastasis.harmonic_maass import MockQSeries
+    from srmech.math.q import Q
+    lead = v["leading"]
+    return MockQSeries(
+        v["kind"], Q(int(lead[0]), int(lead[1])),
+        None if v.get("coeffs") is None
+        else [(int(c[0]), int(c[1])) for c in v["coeffs"]],
+    )
+
+
+def _wire_one(o: Any) -> Any:
+    """``One`` -> its OWN canonical ``_to_jsonable()`` dict.
+
+    Before rc414 a ``One`` reached ``_json_fallback``'s dataclass arm, which
+    emitted a six-key ``dataclasses.asdict`` view that is NOT the canonical
+    shape and that ``one_from_jsonable`` does not read — so an MCP caller
+    could SET the winding triad (rc408 made ``w`` a declared, pinned param)
+    and could never READ it back. Routing through the canonical pair, which
+    rc414 teaches to carry the winding, closes both halves."""
+    return o._to_jsonable()
+
+
+def _unwire_one(v: Any) -> Any:
+    from srmech.cascade.one import one_from_jsonable
+    return one_from_jsonable(v)
+
+
+def _wire_recoverable_fold(f: Any) -> Any:
+    """``RecoverableFold`` -> ``{"R": <Poly form>, "branches": int, "dim": int,
+    "seed": int}``.
+
+    The four generating inputs, and ONLY those: the lossy Klein-4 bundle is a
+    pure deterministic function of them (``fold_encode(R, branches, dim=dim,
+    seed=seed)``), so shipping the bundle's D-wide store over the wire would be
+    both enormous and redundant. This is the same set ``RecoverableFold.identity()``
+    hashes, which is what makes the round-trip provably identity-preserving
+    rather than merely plausible — ``fold_identity(orig, rebuilt)`` returns
+    ``EQUAL``.
+    """
+    return {
+        "R": _wire_poly(f.exact_seed_R),
+        "branches": f.branches,
+        "dim": f.dim,
+        "seed": f._seed,
+    }
+
+
+def _unwire_recoverable_fold(v: Any) -> Any:
+    from srmech.biology.coupling import fold_encode_recoverable
+    return fold_encode_recoverable(
+        _unwire_poly(v["R"]), int(v["branches"]),
+        dim=int(v["dim"]), seed=int(v.get("seed", 0)),
+    )
+
+
+def _wire_chainspec(spec: Any) -> Any:
+    """``ChainSpec`` -> the dict ``parse_chain_spec`` ACCEPTS.
+
+    The dataclass arm emitted the field name ``class_id`` while the parser
+    requires the key ``class`` (``srmech/cascade/compose.py``), so a
+    ``ChainSpec`` did not round-trip through its own parser. The step key is
+    re-spelled here, at the wire boundary, rather than renaming the dataclass
+    field."""
+    return {
+        "name": spec.name,
+        "summary": spec.summary,
+        "returns": spec.returns,
+        "on_error": spec.on_error,
+        "steps": [
+            {
+                "class": st.class_id,
+                "op": st.op,
+                "args": serialise_native(st.args),
+                **({} if st.on_error is None else {"on_error": st.on_error}),
+            }
+            for st in spec.steps
+        ],
+    }
+
+
+def _unwire_chainspec(v: Any) -> Any:
+    from srmech.cascade.compose import parse_chain_spec
+    return parse_chain_spec(v)
+
+
+#: class NAME -> (outbound value-form, inbound rebuild). Keyed by name rather
+#: than by type object so the table costs no imports until a value of that
+#: class actually crosses.
+_CARRIER_WIRE: Dict[str, Any] = {
+    "Poly": (_wire_poly, _unwire_poly),
+    "BiPoly": (_wire_bipoly, _unwire_bipoly),
+    "TriPoly": (_wire_tripoly, _unwire_tripoly),
+    "QPoly": (_wire_qpoly, _unwire_qpoly),
+    "QBiPoly": (_wire_qbipoly, _unwire_qbipoly),
+    "EllMonomial": (_wire_ellmonomial, _unwire_ellmonomial),
+    "Theta": (_wire_theta, _unwire_theta),
+    "EllRatio": (_wire_ellratio, _unwire_ellratio),
+    "One": (_wire_one, _unwire_one),
+    "ChainSpec": (_wire_chainspec, _unwire_chainspec),
+    "RecoverableFold": (_wire_recoverable_fold, _unwire_recoverable_fold),
+    "QMat": (_wire_qmat, _unwire_qmat),
+    "Qalg": (_wire_qalg, _unwire_qalg),
+    "CarrierSpectrum": (_wire_carrier_spectrum, _unwire_carrier_spectrum),
+    "ThetaSum": (_wire_theta_sum, _unwire_theta_sum),
+    "ThetaBracketSum": (_wire_theta_bracket_sum, _unwire_theta_bracket_sum),
+    "MockQSeries": (_wire_mock_q_series, _unwire_mock_q_series),
+}
+
+#: Carriers that are HANDLE-shaped, not value-shaped: each holds a ``D``-wide
+#: hypervector store and exposes MUTATING methods (``write`` / ``carry`` /
+#: ``couple_working`` / ``navigate``), so "the value" is not what a consumer
+#: wants back — the LIVE object is. Both inherit object identity
+#: (``CDRegister.__eq__ is object.__eq__``), which makes a by-value form
+#: un-gateable as well as wrong. They ride the rc16 ``$srmech_handle``
+#: envelope instead — the same mechanism that took the 7 ``srmech.spectral.*``
+#: tools from uncallable to ``handle_pending: 0``.
+_HANDLE_SHAPED_CARRIERS: Dict[str, str] = {
+    "CDRegister": "cd-register",
+    "SedenionRegister": "sedenion-register",
+}
+
+
+def serialise_carrier(value: Any) -> Any:
+    """Return the wire object for a framework carrier, or ``None`` when
+    ``value`` is not one this layer owns.
+
+    ``None`` (rather than a raised error) is the "not mine" signal so the
+    caller falls through to the existing structural branches untouched.
+    """
+    name = type(value).__name__
+    kind = _HANDLE_SHAPED_CARRIERS.get(name)
+    if kind is not None:
+        from srmech._handles import encode_envelope, get_handle_registry
+
+        uuid_hex, handle_name = get_handle_registry().register(value, kind=kind)
+        return encode_envelope(uuid_hex, handle_name, kind)
+    entry = _CARRIER_WIRE.get(name)
+    if entry is None:
+        return None
+    # Guard against a same-named foreign class: the encoder must actually
+    # apply. A failure here is a bug in the pairing, not a caller error, so
+    # it degrades to "not mine" and the historical path still runs.
+    try:
+        return encode_carrier_envelope(name, entry[0](value))
+    except (AttributeError, TypeError, ValueError):
+        return None
+
+
+def deserialise_native(value: Any) -> Any:
+    """The STRUCTURAL inverse of :func:`serialise_native` for tagged carriers.
+
+    Walks ``value`` and rebuilds every ``$srmech_carrier`` envelope it finds —
+    at the top level or nested at any depth inside a ``dict`` / ``list``. This
+    is the half that did not exist before rc414, and its absence is why a
+    carrier inside a ``dict``-declared return could be emitted and never
+    reconstructed.
+
+    Anything untagged is returned unchanged (containers are rebuilt only when
+    a descendant actually changed, so the common no-carrier case allocates
+    nothing new).
+    """
+    if is_carrier_envelope(value):
+        name = value[CARRIER_ENVELOPE_KEY]
+        entry = _CARRIER_WIRE.get(name)
+        if entry is None:
+            # An envelope this build does not know: hand back the payload
+            # rather than the wrapper, so the caller sees data, not a tag.
+            return value.get("value")
+        return entry[1](deserialise_native(value.get("value")))
+    if isinstance(value, dict):
+        rebuilt = {k: deserialise_native(v) for k, v in value.items()}
+        return rebuilt if any(
+            rebuilt[k] is not value[k] for k in value
+        ) else value
+    if isinstance(value, list):
+        rebuilt_l = [deserialise_native(v) for v in value]
+        return rebuilt_l if any(
+            a is not b for a, b in zip(rebuilt_l, value)
+        ) else value
+    return value
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -1356,6 +1907,16 @@ def serialise_native(value: Any) -> Any:
 
         uuid_hex, name = get_handle_registry().register(value, kind="spectral")
         return encode_envelope(uuid_hex, name, "spectral")
+    # rc414 (`#T1092`) — the framework CARRIERS that previously fell all the way
+    # through to _json_fallback's ``return repr(obj)``. Checked here, immediately
+    # after the SpectralHandle interception and BEFORE the dict / sequence
+    # branches, because several carriers ARE dict- or sequence-shaped internally
+    # and would otherwise be walked as plain containers. Returns None for
+    # anything this layer does not own, so every historical branch below is
+    # reached unchanged.
+    _carrier_wire = serialise_carrier(value)
+    if _carrier_wire is not None:
+        return _carrier_wire
     # bytes -> base64
     if isinstance(value, (bytes, bytearray)):
         return base64.b64encode(bytes(value)).decode("ascii")
@@ -1434,6 +1995,12 @@ __all__ = [
     "has_coercer",
     "serialise_native",
     "complex_pairs_to_ndarray",
+    # rc414 (`#T1092`) — the by-value carrier envelope + its structural inverse
+    "CARRIER_ENVELOPE_KEY",
+    "encode_carrier_envelope",
+    "is_carrier_envelope",
+    "serialise_carrier",
+    "deserialise_native",
 ]
 
 

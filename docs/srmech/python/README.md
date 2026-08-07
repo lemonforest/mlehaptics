@@ -213,7 +213,21 @@ A `SpectralHandle` is an opaque, frozen, bytes-bearing dataclass that JSON-RPC c
 {"$srmech_handle": {"uuid": "…", "name": "spectral:<sha12>", "kind": "spectral"}}
 ```
 
-(the literal sentinel key is `HANDLE_ENVELOPE_KEY = "$srmech_handle"`), the caller copies it verbatim into the next tool's input, and `srmech._handles.get_handle_registry()` resolves it back to the live in-process object. The id carries a **dual grammar**: `uuid` is the position-encoded (silicon / cyclic-algebra) address, `name` is the meaning-encoded (biology / continuous-Hopf) address auto-derived from the handle's Class-A `content_sha` (`"spectral:" + content_sha[:12]`); resolution tries `uuid` then `name` — the registry is the **B/H/N continuous↔discrete translation locus**. With the grammar landed, **all 7 `srmech.spectral.*` operations are MCP-callable** (`describe()` reports `handle_pending: 0`).
+(the literal sentinel key is `HANDLE_ENVELOPE_KEY = "$srmech_handle"`), the caller copies it verbatim into the next tool's input, and `srmech._handles.get_handle_registry()` resolves it back to the live in-process object. The id carries a **dual grammar**: `uuid` is the position-encoded (silicon / cyclic-algebra) address, `name` is the meaning-encoded (biology / continuous-Hopf) address auto-derived from the handle's Class-A `content_sha` (`"spectral:" + content_sha[:12]`); resolution tries `uuid` then `name` — the registry is the **B/H/N continuous↔discrete translation locus**. With the grammar landed, **all 7 `srmech.spectral.*` operations are MCP-callable**.
+
+The envelope generalises by its `kind` field, and v0.9.0rc414 uses it: `CDRegister` and `SedenionRegister` are **handle-shaped, not value-shaped** — each holds a `D`-wide hypervector store behind mutating methods (`write` / `carry` / `couple_working` / `navigate`) and inherits object identity, so what a consumer wants back is the live object, not a copy of its contents. They ride the same `$srmech_handle` id under `kind` `"cd-register"` / `"sedenion-register"`. Before rc414 both crossed as `"<...SedenionRegister object at 0x…>"` — a **non-deterministic** payload, because the class ships no `__repr__` and the default one carries a memory address, so two identical calls produced different bytes.
+
+#### By-value carriers — the `$srmech_carrier` envelope (rc414)
+
+The by-value peer of the same idea. An exact-algebra carrier (`Poly`, `BiPoly`, `TriPoly`, `QPoly`, `QBiPoly`, `EllMonomial`, `Theta`, `EllRatio`, `One`, `ChainSpec`, `RecoverableFold`) rides as
+
+```json
+{"$srmech_carrier": "BiPoly", "value": [[[1,1],[1,1]],[[-1,1]]]}
+```
+
+and is rebuilt structurally on the way back in. Before rc414 each of these fell through to `repr(obj)` and crossed as a metadata **string** — `"BiPoly(k_degree=1, exact-ℚ[n,k])"` — which is why `zeilberger`'s `certificate`, the entire point of that op, arrived as prose. The `value` payload is not new grammar: it is the same nested exact-ℚ shape the C carrier marshal (`SRMECH_CARRIER_POLY` / `_BIPOLY` / `_TRIPOLY` / `_QBIPOLY` / `_ELLRATIO`) has read since v0.9.0rc191, so both implementations already agree on the payload and the envelope only adds the tag that says which carrier it is.
+
+Two consequences worth stating plainly, because both were silent-wrong-answer defects rather than missing features. A `QPoly`'s **`x_low`** (the Laurent tail offset) is now carried in both directions — the coefficient-list form dropped it, so a Laurent `QPoly` could not be expressed at all, in either direction, and came back as a different polynomial. And `the_one`'s **winding triad** now survives: rc408 made `w` a declared parameter, so from rc408 a caller could SET the winding and never READ it back, receiving a well-formed `One` at rest with no error.
 
 ### `srmech.cascade` — foundational cross-domain cascade catalog
 
@@ -576,7 +590,7 @@ d = describe()
 print(d["srmech_version"])              # e.g. "0.9.0"
 print(d["tools"]["total"])              # every registered ToolEntry
 print(d["tools"]["mcp_callable"])       # advertised over JSON-RPC / Anthropic
-print(d["tools"]["handle_pending"])     # 0 since the rc16 handle grammar landed
+print(d["tools"]["handle_pending"])     # entries NOT advertised over MCP; each carries a reason
 print(sorted(d["tools"]["by_category"]))
 ```
 

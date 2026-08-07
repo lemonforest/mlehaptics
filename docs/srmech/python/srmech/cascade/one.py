@@ -749,22 +749,46 @@ class One:
         """The canonical JSON-native serialisation of the One's value-carrying
         ADJOINT state — the DICT a bare-C host, the Python, and the rc201
         object-model engine all agree on:
-        ``{"sigma": int, "theta": [num, den], "terms": int}``.
+        ``{"sigma": int, "theta": [num, den], "terms": int}``, plus
+        ``"winding": [w_saros, w_metonic, w_callippic]`` when the One is WOUND.
 
-        These three fields fully determine the ADJOINT: :attr:`blocks` are a pure
-        derivation of ``(sigma, theta, terms)`` via ``srmech_the_one`` (the
+        These three base fields fully determine the ADJOINT: :attr:`blocks` are a
+        pure derivation of ``(sigma, theta, terms)`` via ``srmech_the_one`` (the
         w-INVARIANT 2π base). So :func:`one_from_jsonable` round-trips this DICT
         EXACTLY — same sigma/theta/terms/blocks, and ``srmech_the_one`` regenerates
-        the same 14 flat rationals. The :attr:`winding` triad + :attr:`spinor` are
-        the SEPARATE gh#1276 surface (their own ``srmech_winding_*`` C peers), and
-        every leaf op ``one.toml`` / ``hurwitz.toml`` bind is w-BLIND, so they are
-        NOT carried here — a wound One would need ``winding`` added to this DICT.
+        the same 14 flat rationals.
+
+        rc414 (`#T1092`) — THE WINDING IS NOW CARRIED. This docstring previously
+        ended "a wound One would need ``winding`` added to this DICT", and that
+        was a live defect rather than a note: rc408 (`#T1078`) made ``w`` a
+        DECLARED, pinned parameter of ``cascade.the_one``, so from rc408 an MCP
+        caller could SET the winding triad and could never READ it back — the
+        round-trip returned a different, well-formed ``One`` at rest, with no
+        exception. That is the silent-wrong-answer class, not a missing feature.
+
+        ``winding`` is emitted ONLY when the triad is non-rest. An unwound One's
+        dict is therefore BYTE-IDENTICAL to every release before rc414, so the
+        agreement with the compiled object-model engine (which reads
+        sigma/theta/terms) is preserved exactly where it already held, and the
+        key appears only in the case that previously could not be expressed at
+        all. This is the ``genome.amplify`` precedent — a field that costs
+        nothing until it carries something (``n == 1`` is byte-identical to a
+        plain gene; only ``n >= 2`` spends the field).
+
+        :attr:`spinor` is DERIVED, not carried: it is a pure function of
+        ``(theta, winding)`` (see :func:`the_one`), so re-deriving it on read is
+        exact and storing it would be a second source of truth for one fact.
+        :attr:`One.spinor_sign` — the ``(−1)^Σw`` double-cover sign — likewise
+        comes back for free once the triad does.
         """
-        return {
+        d = {
             "sigma": self.sigma,
             "theta": [self.theta[0], self.theta[1]],
             "terms": self.terms,
         }
+        if tuple(self.winding) != _ZERO_WINDING:
+            d["winding"] = [int(w) for w in self.winding]
+        return d
 
     # ── the winding surface — read from the spinor total space (gh#1276) ──
     #
@@ -1076,17 +1100,23 @@ s_generator = the_one
 
 def one_from_jsonable(d: dict) -> One:
     """Reconstruct a :class:`One` from the canonical DICT :meth:`One._to_jsonable`
-    emits (``{"sigma": int, "theta": [num, den], "terms": int}``) — the bare-C-host
-    / rc201 object-model round-trip.
+    emits (``{"sigma": int, "theta": [num, den], "terms": int}``, plus
+    ``"winding"`` when wound) — the bare-C-host / rc201 object-model round-trip.
 
     The ADJOINT (:attr:`One.blocks`) is regenerated via ``srmech_the_one`` from the
-    three fields, so the reconstructed One is IDENTICAL in sigma/theta/terms/blocks
-    (the winding defaults to rest ``(0,0,0)`` — the DICT carries only the w-INVARIANT
-    adjoint state; see :meth:`One._to_jsonable`). ``terms`` is optional (defaults to
+    three base fields, so the reconstructed One is IDENTICAL in
+    sigma/theta/terms/blocks. rc414 (`#T1092`): the :attr:`One.winding` triad is
+    read back when the dict carries it, so a WOUND One now round-trips whole —
+    including its :attr:`One.spinor` and the ``(−1)^Σw`` :attr:`One.spinor_sign`,
+    both of which the constructor re-derives from the triad. An absent
+    ``winding`` still means rest ``(0,0,0)``, so every pre-rc414 dict reads
+    exactly as it always did. ``terms`` is optional (defaults to
     :data:`DEFAULT_TERMS`)."""
     theta = d["theta"]
+    w = d.get("winding", _ZERO_WINDING)
     return the_one(int(d["sigma"]), int(theta[0]), int(theta[1]),
-                   int(d.get("terms", DEFAULT_TERMS)))
+                   int(d.get("terms", DEFAULT_TERMS)),
+                   tuple(int(x) for x in w))
 
 
 def _one_scalar_native(one: "One", mode: str, index):

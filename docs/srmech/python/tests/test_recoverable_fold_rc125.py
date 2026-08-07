@@ -299,16 +299,45 @@ def test_lossy_projection_record_validates():
 # ─────────────────────────────────────────────────────────────────────
 def test_tools_total_matches_live():
     from srmech import introspect
-    assert introspect.describe()["tools"]["total"] == 559
+    assert introspect.describe()["tools"]["total"] == 560
 
 
-def test_new_ops_registered_fold_identity_exempt():
+def test_all_three_ops_are_registered_including_fold_identity():
+    """rc414 (`#T1092`) — this test was named
+    ``test_new_ops_registered_fold_identity_exempt`` and its final clause
+    asserted ``schema.lookup("...fold_identity") is None``, i.e. it PINNED THE
+    ABSENCE as intended. The stated warrant was that "its RecoverableFold
+    operands cannot ride JSON".
+
+    **The exemption itself was the defect, and the warrant was false.** A
+    ``RecoverableFold`` is fully determined by its four generating inputs
+    ``(R, branches, dim, seed)`` — which is exactly what
+    ``RecoverableFold.identity()`` hashes — so it rides JSON perfectly well as
+    ``{"R": <Poly form>, "branches": int, "dim": int, "seed": int}`` and is
+    rebuilt through the op family's own ``fold_encode_recoverable``. rc414 adds
+    that coercer and registers the op.
+
+    The cost of the exemption was not hypothetical. ``fold_identity`` was
+    shipped, ``coupling.__all__``-exported and named in ``RecoverableFold``'s
+    own class docstring, but invisible to ``describe()``, to the MCP tool list
+    and to every registry-driven census — and a research leg reading this module
+    concluded ``RecoverableFold`` "cannot be gated" while its purpose-built
+    three-valued gate sat 215 lines below the line being read. For an LLM
+    consumer, an op absent from introspection is an op that does not exist.
+
+    What the original test was really protecting is KEPT and is now applied to
+    all three ops rather than two: every op this rc-line added is registered,
+    srmech-owned, correctly categorised, and has a real inbound coercer for
+    every declared param type — that last clause being the one that would have
+    caught the exemption's warrant, had it been applied.
+    """
     from srmech.introspect import tool_schema
     from srmech.mcp._coercion import has_coercer
 
     schema = tool_schema.get_tool_schema()
     for name, cat in (
         ("srmech.biology.coupling.fold_encode_recoverable", "coupling"),
+        ("srmech.biology.coupling.fold_identity", "coupling"),
         ("srmech.introspect.op_provenance.lossy_projection_record", "op_provenance"),
     ):
         entry = schema.lookup(name)
@@ -318,13 +347,27 @@ def test_new_ops_registered_fold_identity_exempt():
         for p in entry.parameters:
             assert has_coercer(p.type), f"{name}:{p.name} type {p.type!r} uncoercible"
 
-    # fold_identity is EXEMPT (its RecoverableFold operands cannot ride JSON) —
-    # a public + tested verdict op, NOT an MCP ToolEntry.
-    assert schema.lookup("srmech.biology.coupling.fold_identity") is None
     assert hasattr(coupling, "fold_identity")
 
     enc = schema.lookup("srmech.biology.coupling.fold_encode_recoverable")
     assert {p.name: p.type for p in enc.parameters}["R"] == "Poly"
+
+    # The claim that replaced the exemption, asserted rather than described:
+    # a RecoverableFold DOES ride JSON, and the round trip preserves IDENTITY
+    # (which is the only property that matters here — the carrier has no
+    # __eq__, so `==` is object identity and would answer False regardless).
+    fid = schema.lookup("srmech.biology.coupling.fold_identity")
+    assert {p.name: p.type for p in fid.parameters} == {
+        "a": "RecoverableFold", "b": "RecoverableFold"}
+
+    from srmech._json import loads
+    from srmech.mcp._coercion import coerce_param
+    from srmech.mcp._tools import serialise_result
+
+    fold = coupling.fold_encode_recoverable(
+        Poly.from_coeffs([Q(0, 1), Q(5, 1), Q(-4, 1)]), 3, dim=64, seed=0)
+    back = coerce_param(loads(serialise_result(fold)), "RecoverableFold")
+    assert coupling.fold_identity(fold, back) == "EQUAL"
 
 
 def test_rosetta_rows_are_non_compute():

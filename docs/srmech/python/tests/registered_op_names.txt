@@ -37,6 +37,7 @@ srmech.apokatastasis.zeilberger.bipoly_from_coeffs
 srmech.apokatastasis.zeilberger.zeilberger
 srmech.biology.coupling.fold_encode
 srmech.biology.coupling.fold_encode_recoverable
+srmech.biology.coupling.fold_identity
 srmech.biology.coupling.fold_spectrum
 srmech.biology.coupling.fractal_spectrum
 srmech.biology.coupling.from_bodies
