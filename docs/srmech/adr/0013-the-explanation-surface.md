@@ -180,7 +180,7 @@ radically different states:
 | grain | home | state (measured, rc409 registry) |
 |---|---|---|
 | **ARCHITECTURE** — the A-N vocabulary, the substrate claims | `srmech_research_notebook.md` (7,373 lines) | **DRIFTING** — highest rcN it mentions is **rc399**; shipped is rc410; **26** `docs/srmech/python` commits landed since it was last touched; **zero** currency gates |
-| **PER-OP** — what one op is, means, and demonstrates | `summary` + `explanation` + `example` | **COMPLETE** — 556/556 on all three, ~2.05 M chars, floor-enforced (§4) |
+| **PER-OP** — what one op is, means, and demonstrates | `summary` + `explanation` + `example` | **COMPLETE** — 559/559 on all three post-rc411, ~2.05 M chars, floor-enforced (§4) |
 | **DECOMPOSITION** — what sub-ops this op is built from | `composes` | **2 / 559** (0.36 %); derivable — see §1.7.1 |
 | **INVARIANT** — what guarantees this op maintains | `preserves` | **2 / 559**; *not* the same grain as `composes` — see §1.7.1 |
 | **PER-TASK** — which ops go together to do X | **NO HOME** | **does not exist anywhere** — see §1.7.1 |
@@ -261,16 +261,18 @@ recovers it.
 1. **No hand-authored usage guide.** Any usage view is **DERIVED** — generated on demand from
    `summary` + `explanation` + `example` + `composes`, riding the same index the reachability deficit
    (§6) requires. One encoding, no sidecar, no new drift surface.
-2. **The content gap is `composes` / `preserves`, not a missing document.** rc305 shipped those fields
-   as the composition layer; the *mechanism* landed and the *content* never did. 2/556 is 0.36 %.
+2. **`composes` / `preserves` are a real gap, but NOT the per-task one** — see §1.7.1. rc305 shipped
+   those fields as the composition layer; the *mechanism* landed and the *content* never did
+   (**2/559** each, re-measured post-rc411, 0.36 %). What they record is **downward decomposition**;
+   the per-task question is lateral, and has no home at all.
 3. **The per-task grain is named here as OUT of the four-readings decomposition**, not silently folded
-   into it. Whether it becomes a fifth reading, a distinct surface, or a derived join over `composes`
-   is **open** and deliberately not decided by this ADR.
+   into it. Whether it becomes a fifth reading, a distinct surface, or a derived join over an
+   *inverted* `composes` graph is **open** and deliberately not decided by this ADR.
 
 ⚠️ **Limits on the numbers above, stated so they are not over-read.** The `composes`/`preserves`
-census counts **non-empty, not good** — a one-word value scores identically to a real one, so 2/556 is
+census counts **non-empty, not good** — a one-word value scores identically to a real one, so 2/559 is
 a **floor on the gap**, not a quality assessment. It is measured on the **rc409** registry; rc411
-(`#T1079`) adds three rows to 559 and it must be re-measured after. And **556/556 population on the
+(`#T1079`) took the registry to 559; **re-measured after it landed: still 2/559 each** — rc411 added three rows and populated neither field. And **559/559 population on the
 per-op fields is not a claim that the per-op grain is *correct*** — §6 measures that none of it is
 reachable, and `#T1092` records a shipped field (`mcp_callable`) that is uniformly populated and
 uniformly *wrong* on at least 17 ops. Full population is a coverage fact, never a truth fact.
