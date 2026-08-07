@@ -55,6 +55,8 @@ import uuid
 from collections import OrderedDict
 from typing import Any, Callable, Dict, Optional, Tuple
 
+from ._resolve import resolve_dotted_callable
+
 #: Sentinel key that tags a handle id object on the JSON wire. Namespaced
 #: (a leading ``$``) so it is unambiguous against every other wire shape in
 #: play — a base64 bare-``str`` (the other arm of ``SpectralHandle |
@@ -300,7 +302,7 @@ def resolve_operator_name(name: str) -> Callable[..., Any]:
     BEFORE delegating to the dotted-callable resolver. We then best-effort
     verify the resolved object is callable. (The honest contract is "a
     dotted ``srmech.*`` unary sequence->sequence operator name." Note:
-    ``_resolve_dotted_callable`` already checks ``callable()``; the
+    ``resolve_dotted_callable`` already checks ``callable()``; the
     *arity / seq->seq* contract is enforced at RUNTIME by ``chiral_dual``'s
     own native length-guard / Python composition — a resolvable-but-wrong
     op such as a binary or scalar op raises a ``TypeError`` there, NOT a
@@ -309,7 +311,7 @@ def resolve_operator_name(name: str) -> Callable[..., Any]:
     ``srmech.cascade.chiral_flip``.)
 
     SAFETY (v0.5.0rc17 hardening): the ``srmech.*`` name PREFIX is necessary
-    but NOT sufficient. ``_resolve_dotted_callable`` walks attributes, so a
+    but NOT sufficient. ``resolve_dotted_callable`` walks attributes, so a
     name can traverse THROUGH a srmech module to a re-exported stdlib
     callable (e.g. ``srmech.amsc.format.hashlib.sha256`` -> the real
     ``_hashlib`` ``sha256``). After resolution we additionally verify the
@@ -329,12 +331,9 @@ def resolve_operator_name(name: str) -> Callable[..., Any]:
             f"resolvable (arbitrary importable callables are rejected for "
             f"safety)"
         )
-    # Lazy import to avoid a _handles -> mcp import edge at module load.
-    from srmech.mcp._tools import _resolve_dotted_callable
-
-    resolved = _resolve_dotted_callable(name)
+    resolved = resolve_dotted_callable(name)
     # rc17 hardening: the srmech.* name PREFIX is necessary but not
-    # sufficient -- _resolve_dotted_callable walks attributes, so a name can
+    # sufficient -- resolve_dotted_callable walks attributes, so a name can
     # traverse THROUGH a srmech module to a re-exported stdlib callable
     # (e.g. srmech.amsc.format.hashlib.sha256 -> the real _hashlib sha256).
     # Verify the RESOLVED object truly originates in the srmech namespace.

@@ -28,8 +28,10 @@ Two entry points::
 **Security.** A ``target`` MUST be a dotted ``srmech.*`` path — the config-driven naming layer
 binds names to srmech's OWN surface, never arbitrary imports (a config file cannot be coaxed
 into importing / calling an unrelated module). Resolution reuses the robust dotted-name walk
-:func:`srmech.mcp._tools._resolve_dotted_callable`; parsing reuses the DSL's native+tomllib
-TOML loader. numpy-free; no import cost until called.
+:func:`srmech._resolve.resolve_dotted_callable`; parsing reuses the DSL's native+tomllib
+TOML loader. numpy-free; no import cost until called. (Through rc412 that walk lived in
+``srmech.mcp._tools``, so this core rung imported upward into the ADR-0009 §4 host-glue layer
+and ``rm -rf srmech/mcp`` took the alias rung with it; rc413 `#T1094` moved it to core.)
 
 **rc364 — THE LAYER GETS A CATALOG DIRECTORY** (ADR-0010 amendment B). rc261 shipped
 ``load_aliases_toml(path)`` and nothing else: a bare filesystem path, with no
@@ -65,6 +67,8 @@ import functools
 import os
 from pathlib import Path
 from typing import Any, Callable, Dict, List
+
+from .._resolve import resolve_dotted_callable
 
 __all__ = [
     "ALIAS_CATALOG_DIR",
@@ -184,8 +188,7 @@ def _resolve_target(target: str) -> Callable[..., Any]:
         raise ValueError(
             "alias target must be a dotted srmech.* path (the config-driven naming layer binds "
             "names to srmech's own surface, not arbitrary imports); got {!r}".format(target))
-    from srmech.mcp._tools import _resolve_dotted_callable   # the robust import-and-getattr walk
-    fn = _resolve_dotted_callable(target)
+    fn = resolve_dotted_callable(target)
     if not callable(fn):
         raise ValueError("alias target {!r} does not resolve to a callable".format(target))
     return fn

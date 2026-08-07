@@ -9,14 +9,17 @@ it atomically.
 
 The two ToolEntries registered in
 :func:`srmech.introspect.tool_schema._register_dsl_tools` resolve (via the
-dotted-name walk in :mod:`srmech.mcp._tools`) to:
+dotted-name walk in :mod:`srmech._resolve`) to:
 
 * :func:`run_toml_chain` — ``srmech.dsl.run_toml_chain`` — parse an
   inline TOML chain spec, build the :class:`Chain`, run it against an
   input value, return the result.
 * :func:`list_catalog_ops` — ``srmech.dsl.list_catalog_ops`` — enumerate
-  the 11 cascade-catalog ops with their A–N class + 1-line purpose, so an
-  LLM knows which op names a spec may use.
+  the cascade-catalog ops with their A–N class + 1-line purpose, so an
+  LLM knows which op names a spec may use. (This line said "the 11
+  cascade-catalog ops" through rc412; measured at rc413 the catalog holds
+  20. The count is deliberately not restated here — it moves, and the
+  callable itself is the SSoT.)
 
 Both take plain keyword parameters (``spec`` / ``input_value`` and no
 params respectively) — no ``*args`` / ``**kwargs`` — so the rc10

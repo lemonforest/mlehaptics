@@ -38,12 +38,12 @@ which the dispatcher converts to a JSON-RPC error response.
 
 from __future__ import annotations
 
-import importlib
 import inspect
 import json
 import re
 from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple
 
+from .._resolve import DottedNameError, resolve_dotted_callable
 from ..introspect.tool_schema import (
     ToolEntry,
     ToolParameter,
@@ -515,60 +515,15 @@ def compile_filter(pattern: Optional[str]) -> Optional[Callable[[str], bool]]:
 
 # ──────────────────────────────────────────────────────────────────────
 # Resolution: dotted name -> live callable
+#
+# rc413 (`#T1094`): the walker itself now lives in ``srmech._resolve`` — core,
+# not this adapter. It had two CORE callers (``srmech._handles`` and
+# ``srmech.dsl._alias``) importing upward into ``srmech.mcp``, which made the
+# ADR-0009 §4 host-glue layer non-removable. ``invoke_tool`` below re-wraps the
+# core :class:`DottedNameError` as :class:`MCPToolError` so the JSON-RPC
+# dispatcher's ``except MCPToolError`` keeps catching resolution failures
+# unchanged; the MCP error type stays an MCP-layer concern.
 # ──────────────────────────────────────────────────────────────────────
-
-
-def _resolve_dotted_callable(name: str) -> Callable[..., Any]:
-    """Walk a dotted name to its live callable.
-
-    For ``a.b.c.d``: try ``import a.b.c`` then ``getattr(mod, "d")``;
-    fall back to splitting at the last ``.`` and importing whatever
-    prefix imports cleanly. Raises :class:`MCPToolError` on failure.
-    """
-    assert name, "resolve: name must be non-empty"
-    parts = name.split(".")
-    if len(parts) < 2:
-        raise MCPToolError(
-            f"tool name {name!r} has no module prefix; "
-            f"cannot resolve to a Python callable"
-        )
-
-    # Try the most-specific module prefix first, then back off.
-    # e.g. for "srmech.cascade.chiral_flip" we try
-    # importing "srmech.cascade" then attr "chiral_flip".
-    for split_idx in range(len(parts) - 1, 0, -1):
-        mod_name = ".".join(parts[:split_idx])
-        attr_path = parts[split_idx:]
-        try:
-            mod = importlib.import_module(mod_name)
-        except ImportError:
-            continue
-        obj: Any = mod
-        try:
-            for a in attr_path:
-                obj = getattr(obj, a)
-        except AttributeError:
-            continue
-        if not callable(obj):
-            # Name-collision case: a submodule whose name equals a
-            # re-exported callable (e.g. ``cascade.sedenion_register`` the
-            # MODULE vs the ``sedenion_register`` factory). Importing the
-            # submodule makes Python rebind the package attribute from the
-            # re-exported function to the module object, so ``getattr`` here
-            # yields a non-callable module. Prefer the same-named callable
-            # defined inside it — the "module X re-exports callable X"
-            # convention — so the registry's flat ``...sedenion_register``
-            # ToolEntry resolves regardless of import order (the W7
-            # schema/signature drift this otherwise trips post-import).
-            if inspect.ismodule(obj):
-                inner = getattr(obj, attr_path[-1], None)
-                if callable(inner):
-                    return inner
-            continue
-        return obj
-    raise MCPToolError(
-        f"tool name {name!r} did not resolve to any importable callable"
-    )
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -640,7 +595,13 @@ def invoke_tool(name: str, arguments: Dict[str, Any]) -> Any:
     """
     entry = _entry_by_name(name)
     coerced = _coerce_arguments(entry, arguments or {})
-    fn = _resolve_dotted_callable(name)
+    try:
+        fn = resolve_dotted_callable(name)
+    except DottedNameError as exc:
+        # Preserve the MCP-layer contract: _server.handle / anthropic_agent
+        # both catch MCPToolError to turn a resolution failure into a
+        # JSON-RPC error response rather than a traceback.
+        raise MCPToolError(str(exc)) from exc
 
     # Variadic dispatch: ``fn(**coerced)`` cannot call a function with a
     # ``*args`` (VAR_POSITIONAL) parameter — Python raises

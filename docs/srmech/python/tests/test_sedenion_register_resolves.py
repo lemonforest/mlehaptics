@@ -16,7 +16,7 @@ from __future__ import annotations
 import importlib
 import inspect
 
-from srmech.mcp._tools import _resolve_dotted_callable
+from srmech._resolve import resolve_dotted_callable
 
 
 def test_sedenion_register_resolves_after_submodule_import() -> None:
@@ -24,12 +24,12 @@ def test_sedenion_register_resolves_after_submodule_import() -> None:
     # package attribute to the MODULE object (shadowing the re-exported factory).
     importlib.import_module("srmech.cascade.sedenion_register")
 
-    fn = _resolve_dotted_callable("srmech.cascade.sedenion_register")
+    fn = resolve_dotted_callable("srmech.cascade.sedenion_register")
     assert callable(fn), "the ToolEntry must resolve to a callable, not a module"
     assert not inspect.ismodule(fn), "must resolve to the factory, not the module"
 
 
 def test_other_colliding_flat_names_still_resolve() -> None:
     """A non-colliding flat name (no same-named submodule) is unaffected."""
-    fn = _resolve_dotted_callable("srmech.cascade.cd_basis_product")
+    fn = resolve_dotted_callable("srmech.cascade.cd_basis_product")
     assert callable(fn) and not inspect.ismodule(fn)

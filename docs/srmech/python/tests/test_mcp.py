@@ -1417,14 +1417,14 @@ def test_schema_signature_alignment_no_drift() -> None:
     This test would have caught both naming.lookup (``entries``) and
     template.render (``substitutions``). It guards all ~158 tools at once.
     """
-    from srmech.mcp._tools import _resolve_dotted_callable
+    from srmech._resolve import resolve_dotted_callable
 
     schema = get_tool_schema()
     assert len(schema.tools) > 50, "tool registry unexpectedly small"
 
     drift: List[Tuple[str, str, List[str]]] = []
     for entry in schema.tools:
-        fn = _resolve_dotted_callable(entry.name)
+        fn = resolve_dotted_callable(entry.name)
         sig = __import__("inspect").signature(fn)
         params = sig.parameters.values()
         Parameter = __import__("inspect").Parameter
