@@ -45,6 +45,23 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 
 - **Re-measured after those content edits, because this index searches itself.** Editing an `example` edits the corpus — the property that displaced `gcd` earlier in this rc — so the corpus was re-run rather than assumed. **All 8 ranks are UNCHANGED** (1/1/1/1/3/5/2/5 as tabulated above, denominator 588). The frame witness DID move (`17754ad4…` → `4a0405d2…`) and the blob shrank 2.15 → 2.14 MB with the build at 46 ms, so the change was real and the ranking was simply robust to it: the JSON punctuation and escape sequences were noise, not signal. That is a small piece of out-of-sample evidence in a result otherwise entirely in-sample.
 
+- **CI: the per-shard guard is raised 25 -> 40 minutes, and this is NOT rc411's defect.** Stated plainly rather than buried, because riding a shared-CI fix in a feature rc without saying whose problem it is would be the dishonest version. The pure-suite's slowest shard was killed at its 25-minute guard, which reported as three red jobs (the shard, plus the two fan-ins that consume all six shard logs and fail for missing input). The control row is what settles authorship — shard 3, four consecutive runs:
+
+  | commit | shard 3 | result |
+  |---|---|---|
+  | **`main` a963bd46 — no rc411** | **21m18s** | success |
+  | rc411 50a6acec8 | 21m09s | success |
+  | rc411 f51e2bcf4 | 21m26s | success |
+  | rc411 7ea15a035 | **30m** | KILLED at the guard |
+
+  The slowest shard is a **21-minute** shard **on main**, so 25 was ~17% headroom, not the "generous" margin its comment claimed. rc411 moves it by **0-17 s** — inside run-to-run noise — and its three new ops were measured DIRECTLY in the exhaustive per-op MCP smoke at **~1 s** total (`get_tool_schema` 555 ms, `tool_schema_view` 306 ms, `search` 177 ms; the two registry-returning ops each serialise ~2.5 MB). The raise rides here because rc411 cannot go green without it and the flake will hit any branch.
+
+- **The stale rationale was rewritten, not just the number.** Every premise of the comment above `timeout-minutes` had gone false: "~8-10 min of its 1/6 of the suite" (it is 21m18s), "~25 gives generous headroom" (~17%), and "a false trip still only costs one ~10-min shard" (it costs 21 minutes plus two fan-in jobs). Bumping the digit and leaving the reasoning false is the exact rot this project fights — a stale rationale is how the "five duplicated count-tests" line reached a 12x under-scope. The comment now carries the measured table and cites **`#T1007`** as the note whose SIZING assumption this supersedes; `#T1007`'s split decision stands and is what made the shards measurable at all.
+
+- **UNEXPLAINED, and deliberately not papered over by the raise: rounds 1 and 2 ran ~21m and round 3 hit 30m — a ~43% jump on a diff measured at ~1 s.** Raising the ceiling makes that survivable; it does not diagnose it. Runner noise (these ran immediately after a multi-hour GitHub Actions outage) is plausible and **unproven**. It could not be narrowed: a job killed at the guard uploads no artifact and GitHub serves no log for it, so no per-test evidence exists to separate "uniformly slower" from "hung on one test". That is itself an argument for the raise, since a shard that COMPLETES uploads its `--durations=0` log and the next occurrence is diagnosable where this one was not. If it recurs at 40, variance is not the cause and the number is not the fix.
+
+- **Related, and deliberately NOT acted on here: `#T1051`** already records that the pure-CI floor is five slow ops. A worst shard sitting at **85% of budget on main** is that same problem surfacing as flakiness rather than as duration. Lowering the floor is the real fix; this guard only stops it from being reported as a test failure.
+
 - **Gate: `tests/test_introspect_search_rc411.py`, 15 tests, all failing at rc410 with `ModuleNotFoundError`** — non-vacuity is structural here, not asserted: the module did not exist. It pins the retrieval corpus, the `resolve("winding") is None` control (`resolve` is CORRECT AS IS — this is not a bug report against it), exact-`Q` scores, monotone ranking, empty-not-padded misses, that `reach` strings actually import, and the witness's stability *and* its ability to move. The no-match control asserts its own tokens are absent first, so it cannot decay into a tautology — the first draft used the word "token", which occurs in 19 frames.
 
 ## [0.9.0rc410]
