@@ -49,7 +49,7 @@ MANIFEST = Path(__file__).resolve().parent / "registered_op_names.txt"
 #: rc361 until rc410 (`#T1085`) — stale by 40 ops, in a comment whose only job
 #: was to show the CURRENT value, sitting two lines above the real one. Written
 #: symbolically now so it cannot go stale a second time.)
-EXPECTED_N = 559
+EXPECTED_N = 560
 
 #: sha256 over the NORMALISED manifest body — "\n".join(sorted names) + "\n",
 #: UTF-8. Normalised rather than raw-file-bytes so a CRLF checkout cannot make
@@ -113,8 +113,19 @@ EXPECTED_N = 559
 # tool_schema_view}, which were the functions that RETURN the registry and were
 # not IN it: before this rc the name `get_tool_schema` matched 0 of 556 rows.
 # 556 -> 559, digest below.
+# rc414 (`#T1092`): +1 — srmech.biology.coupling.fold_identity. NOT a new op: it
+# has been shipped and `coupling.__all__`-exported since task #723, and is named
+# in RecoverableFold's own class docstring. It simply never carried a ToolEntry,
+# while all seven of its `coupling` siblings did — so it was absent from
+# describe(), from the MCP tool list, and from every registry-driven census.
+# That invisibility has a measured cost: a research leg reading the coupling
+# module concluded RecoverableFold "cannot be gated" while its purpose-built
+# three-valued gate (EQUAL / NOT_EQUAL / UNKNOWN) sat 215 lines below the line
+# it was reading. This witness could not have caught that, because an op absent
+# from the registry is absent from the live set too — the gap was in what got
+# REGISTERED, not in what drifted. 559 -> 560, digest below.
 EXPECTED_NAME_SET_SHA256 = (
-    "86aff65f8f28917bbd95639deb121247c5970ca8994408019b941cfb059194c3")
+    "700e1ca0f4fe7dec961cc1f65bd9a19a71f147960bf90f1216fc431f813b18a6")
 
 
 def _live_names() -> list[str]:

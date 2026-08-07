@@ -263,7 +263,7 @@ def test_registration_ratchet():
     assert "cd_three_form" in C.__all__
     from srmech.introspect.tool_schema import tool_schema_view
     view = tool_schema_view()
-    assert len(view["tools"]) == 559
+    assert len(view["tools"]) == 560
     names = {t["name"] for t in view["tools"]}
     assert "srmech.cascade.cd_three_form" in names
 

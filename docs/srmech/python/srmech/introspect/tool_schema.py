@@ -5623,7 +5623,7 @@ def _register_primitive_class_tools() -> None:
             category="coupling",
             summary="Encode a spectral-decimation structure into a RECOVERABLE "
                     "PAIR — the HarmonicMaass-shaped follow-on to fold_encode "
-                    "(rc125; task #723). Returns a RecoverableFold PAIR: the "
+                    "(rc125; `#T723`). Returns a RecoverableFold PAIR: the "
                     "rc124 lossy Klein-4 fold store (.lossy_bundle ↔ "
                     "HarmonicMaass.hol) AND the exact generating decimation R "
                     "(.exact_seed_R ↔ HarmonicMaass.shadow). Because R is "
@@ -5653,6 +5653,46 @@ def _register_primitive_class_tools() -> None:
                       "the pair carrier (.lossy_bundle ↔ hol / .exact_seed_R ↔ "
                       "shadow / .has_seed / .branches / .dim / .complement() / "
                       ".recover() / .identity()); read via fold_spectrum(pair)"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # rc414 (`#T1092`) — REGISTERING A SHIPPED OP THAT WAS INVISIBLE.
+        # fold_identity has been in coupling.__all__ since `#T723` and is
+        # named in RecoverableFold's own class docstring, but it carried NO
+        # ToolEntry while all seven of its coupling siblings did. So it was
+        # absent from describe(), from the MCP tool list, and from every
+        # registry-driven census — which is how a research leg concluded that
+        # RecoverableFold "cannot be gated" while its purpose-built
+        # three-valued gate sat 215 lines below the line being read. An op
+        # invisible to introspection is, for an LLM consumer, an op that does
+        # not exist (`[[project_introspect_surface_is_the_api_contract...]]`).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.biology.coupling.fold_identity", owner="srmech",
+            category="coupling",
+            summary="The RECOVERABLE-FOLD identity verdict — 'EQUAL' / "
+                    "'NOT_EQUAL' / 'UNKNOWN' (`#T723`). Two RecoverableFolds "
+                    "are the SAME fold iff they recover the same (R, branches), "
+                    "decided via each fold's .identity() (the op_provenance "
+                    "canonical-hash over the pinned EXACT inputs). THREE-VALUED "
+                    "on purpose: EQUAL / NOT_EQUAL when BOTH carry the exact "
+                    "complement (the inputs are exact, so inequality is "
+                    "DECIDABLE), and UNKNOWN when EITHER lacks it — identity is "
+                    "not decidable from a lossy bundle alone, and the op "
+                    "declines rather than guessing. This is op_verdict's "
+                    "EQUAL/UNKNOWN one-sidedness with the decidable arm "
+                    "restored by exactness. It is also the equality oracle for "
+                    "RecoverableFold, which inherits object identity and "
+                    "therefore cannot be gated by '=='. PURE comparison over "
+                    "two carriers → non_compute (no dedicated C peer). "
+                    "numpy-free; no abs().",
+            parameters=(P("a", "RecoverableFold", True,
+                          "the first fold pair (from fold_encode_recoverable)"),
+                        P("b", "RecoverableFold", True,
+                          "the second fold pair to compare against")),
+            returns=R("str",
+                      "'EQUAL' / 'NOT_EQUAL' when both folds carry the exact "
+                      "complement; 'UNKNOWN' when either does not (never a "
+                      "false EQUAL/NOT_EQUAL from lossy bundles)"),
         ),
         # ────────────────────────────────────────────────────────────
         # The §76 "telescope" Σ-row closed-form prover (F929) — Gosper's
@@ -6544,7 +6584,7 @@ def _register_primitive_class_tools() -> None:
             owner="srmech", category="op_provenance",
             summary="Build the exact op-address RECORD for a LOSSY-PROJECTION op "
                     "whose recovery is EXACT from its CARRIED complement (rc125; "
-                    "task #723) — the DUAL face of the float/asymptotic-tower "
+                    "`#T723`) — the DUAL face of the float/asymptotic-tower "
                     "projections carry() addresses. Where carry() addresses a "
                     "VALUE-INEXACT op (a float readout / a series truncation) "
                     "whose exactness lives in the ASYMPTOTIC generator, a "
@@ -11823,6 +11863,31 @@ def _register_introspect_tools() -> None:
                     "Yields a handle exposing pid, start_time_ns, "
                     "file_path of the active writer."
                 ),
+            ),
+            # v0.9.0rc414 (`#T1092`) — the FIRST mcp_callable=False entry since
+            # the field was introduced in rc15, and the only one this rc could
+            # justify. Every other candidate examined DISSOLVED into an encoder
+            # or a handle: the exact-algebra carriers were un-ENCODED rather than
+            # un-callable (the $srmech_carrier envelope), CDRegister /
+            # SedenionRegister ride the $srmech_handle envelope, and
+            # run_chain / resolve_chain were a MISSING COERCER
+            # (_coercion._to_chain_spec) — see the rc414 CHANGELOG entry, which
+            # records the run_chain rejection explicitly so a later reader does
+            # not re-file it.
+            #
+            # publish does not dissolve, because the obstruction is not its TYPE
+            # but its SHAPE IN TIME: a `with`-block scope cannot span two
+            # JSON-RPC calls. There is no encoder for "the enter/exit pair", and
+            # a handle that survived the response would outlive the request it
+            # belongs to — that is a leak, not a wire form.
+            mcp_callable=False,
+            mcp_unavailable_reason=(
+                "scope-returning: publish is a with-block context manager, and "
+                "a scope cannot span two JSON-RPC calls — the enter/exit pair "
+                "has no wire form and a leaked handle would outlive the "
+                "request. Read published runs over the wire with "
+                "srmech.introspect.list / srmech.introspect.by_pid; publishing "
+                "one is an in-process affordance."
             ),
         )
     )

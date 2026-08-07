@@ -216,29 +216,68 @@ def test_c_peer_emits_the_field_in_the_initialize_payload() -> None:
         "mcp_build_initialize does not emit the shared literal")
 
 
-# ── 3. the excluded-tools docstring must not restate a stale count ────────────
+# ── 3. the excluded-tools contract must not restate a stale count ─────────────
 
-def test_no_mcp_callable_false_entries_and_docstring_states_no_count() -> None:
-    """The rc407 incidental: ``tool_entries_to_mcp_defs`` claimed 7 excluded
-    ``srmech.spectral.*`` handle-pending tools; the measured count is 0."""
+def test_every_excluded_entry_carries_a_reason_and_no_count_is_restated() -> None:
+    """The rc407 incidental, re-aimed at rc414 (`#T1092`).
+
+    rc407 deleted a hardcoded ``7`` from ``tool_entries_to_mcp_defs``'s
+    docstring — a count that had been wrong since rc16 — and replaced it with
+    ``excluded == []`` plus ``"== 0" in doc``. Those two assertions fixed the
+    stale-count defect by pinning the OTHER literal: "zero, forever". That is
+    the same failure shape rc407 was correcting, one release later, and rc414
+    is the release that trips it — it ships the first legitimately-excluded
+    entry (``srmech.introspect.publish``: a ``with``-block scope cannot span two
+    JSON-RPC calls).
+
+    So the assertion is re-aimed at the PROPERTY rc407 was really protecting,
+    which no literal can express and no future count can invalidate: **an
+    excluded entry must say why**. A consumer that notices a tool missing from
+    ``tools/list`` can always recover the reason from the introspection surface,
+    and the advertised catalog is exactly the callable subset. Neither clause
+    names a number, so neither can go stale."""
     from srmech.introspect.tool_schema import get_tool_schema, warmup_all
     from srmech.mcp._tools import tool_entries_to_mcp_defs
 
     warmup_all()
     schema = get_tool_schema()
-    excluded = [t.name for t in schema.tools if not t.mcp_callable]
-    assert excluded == [], (
-        f"{len(excluded)} entries are mcp_callable=False: {excluded}. That is "
-        f"legitimate, but the docstring deliberately states no count — record "
-        f"the reason for the handle-pending entries instead.")
-    assert len(list(tool_entries_to_mcp_defs())) == len(schema.tools)
+    excluded = [t for t in schema.tools if not t.mcp_callable]
 
-    # Assert POSITIVELY that the correction is recorded. A "the 7 is absent"
-    # check would be brittle in the other direction: the docstring legitimately
-    # QUOTES the stale wording in order to say what changed, so the substring
-    # is present on purpose.
+    # (a) EXCLUSION IS ALWAYS EXPLAINED. A bare False with a NULL reason is what
+    #     c/include/srmech.h documents as the CALLABLE case, so an unexplained
+    #     exclusion is also a C-side ambiguity, not only an unhelpful one.
+    unexplained = [t.name for t in excluded if not t.mcp_unavailable_reason]
+    assert unexplained == [], (
+        f"{len(unexplained)} entries are mcp_callable=False with no "
+        f"mcp_unavailable_reason: {unexplained}. Excluding a tool is "
+        f"legitimate; excluding it silently is not — the reason IS the "
+        f"consumer's only route from 'this tool is missing' to 'and here is "
+        f"what to call instead'.")
+
+    # (b) The reverse: a reason with no exclusion is an orphan claim.
+    orphaned = [t.name for t in schema.tools
+                if t.mcp_callable and t.mcp_unavailable_reason]
+    assert orphaned == [], (
+        f"{len(orphaned)} advertised entries carry an mcp_unavailable_reason: "
+        f"{orphaned}. A reason that explains nothing has outlived the "
+        f"exclusion it described.")
+
+    # (c) The advertised catalog is EXACTLY the callable subset — derived on
+    #     both sides, never a literal.
+    advertised = len(list(tool_entries_to_mcp_defs()))
+    callable_n = sum(1 for t in schema.tools if t.mcp_callable)
+    assert advertised == callable_n, (
+        f"advertised catalog has {advertised} defs but {callable_n} entries "
+        f"are mcp_callable — the exclusion filter and the field disagree")
+
+    # (d) NO COUNT IS RESTATED in the docstring. rc407 removed a stale ``7``;
+    #     rc410 removed a restated registry total; this keeps both gone. The
+    #     docstring may still QUOTE the historical wording to say what changed,
+    #     which is why the check is on a bare-integer pattern rather than on
+    #     any particular substring being absent.
     doc = tool_entries_to_mcp_defs.__doc__ or ""
-    assert "== 0" in doc, (
-        "the docstring no longer records that the measured mcp_callable=False "
-        "count is 0; it claimed 7 from v0.5.0rc15 until rc407, and a bare "
-        "count here is exactly what went stale")
+    restated = re.findall(r"==\s*\d+", doc)
+    assert restated == [], (
+        f"the docstring restates a literal count {restated}; that is exactly "
+        f"what went stale in rc15 (7) and again in rc410 (the registry total). "
+        f"State the invariant, not the number.")

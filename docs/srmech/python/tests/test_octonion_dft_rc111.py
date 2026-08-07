@@ -465,7 +465,7 @@ def test_tools_total_matches_live():
     the octonion_dft ToolEntry pre-existed (v0.7.0rc31 — graduation updates
     the entry + its Rosetta bucket, it does not add a tool)."""
     from srmech import introspect
-    assert introspect.describe()["tools"]["total"] == 559
+    assert introspect.describe()["tools"]["total"] == 560
 
 
 def test_rosetta_buckets():
