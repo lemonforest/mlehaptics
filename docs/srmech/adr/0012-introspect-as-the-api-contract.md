@@ -107,7 +107,7 @@ a stronger guarantee than the surface makes.
 
 | # | Surface | Entry point | Guarantees TODAY | Does NOT guarantee |
 |---|---|---|---|---|
-| 1 | **Tool schema** — the SSoT | `srmech.amsc.tool_schema.get_tool_schema()` | every registered op carries `name` / `owner` / `category` / `summary` / `explanation` / `example` / `returns` / `mcp_callable` (525/525) | that any *optional* field is populated. `composes` 2/525 · `preserves` 2/525 · `smoke_test_hint` 20/525 · `reads_lane` 9/525 |
+| 1 | **Tool schema** — the SSoT | `srmech.introspect.tool_schema.get_tool_schema()` | every registered op carries `name` / `owner` / `category` / `summary` / `explanation` / `example` / `returns` / `mcp_callable` (whole-registry, held by a 100% floor) | that any *optional* field is populated. **Measured rc412:** `composes` 9/559 · `preserves` 2/559 · `smoke_test_hint` 21/559 · `reads_lane` 9/559 |
 | 2 | **`describe()`** — the root index | `srmech.describe()` (`srmech/introspect/__init__.py:722`) | **counts and shape** over the whole surface, self-warming, entry-path independent | **per-op detail — by design.** 9 of 525 ops are named anywhere in the payload, all inside `lanes.ops`. Its own docstring (`:736-739`): *"It is a ROOT / INDEX: it surfaces the shape, not the detail."* A domain is *covered* here iff **counted**, never iff **named** |
 | 3 | **MCP** | `srmech.mcp` · `tool_entries_to_mcp_defs` · `emit-mcpb` | enumeration, dotted-name dispatch, and `mcp_callable` honoured end-to-end — a new op is advertised and invocable with **zero** MCP-side registration (`grep music srmech/mcp/` = 0 hits) | that the published `inputSchema` is **right** — an unknown srmech type-string degrades silently to `{"type":"string"}` (`srmech/mcp/_tools.py:155-157`); that a return **serialises** rather than repr-terminating; that the advertised **catalog covers the registry** |
 | 4 | **Generated C tool registry** | `c/src/srmech_tool_registry.c` | name/identity for every op; count integrity (`srmech_tool_registry_len` is `sizeof`-derived, so it cannot drift from its own table); hash identity against the Python SSoT | **payload quality.** The sha256 ratchet locks in a `{"call": "f(x=<int>) -> dict"}` stencil exactly as happily as a worked example |
@@ -488,13 +488,29 @@ complete, and then the population never arrived:
 
 | subsystem | declared | measured today |
 |---|---|---|
-| `ToolEntry.composes` / `.preserves` | rc305, *"the Siona compose-a-cascade **CAPSTONE**"* (`#T943`) | **2 of 525** — `genome.genome_from_graph` and `genome.cwf_consistency_mod2`, both landed in the rc that shipped the field. **Nothing has been added since.** |
+| `ToolEntry.composes` / `.preserves` | rc305, *"the Siona compose-a-cascade **CAPSTONE**"* (`#T943`) | **PARTLY DISCHARGED rc412.** As written this row said *"2 of 525 — `genome.genome_from_graph` and `genome.cwf_consistency_mod2`, both landed in the rc that shipped the field. Nothing has been added since."* Two corrections, and the row is worth keeping for both. (a) The landing claim was **false**: `genome_from_graph` landed rc305, `cwf_consistency_mod2` landed rc313, eight rcs later — rc305's own CHANGELOG says *"Only genome_from_graph carries composition data this rc."* (b) The diagnosis was right and the cause was one layer below population: **nothing read either field.** rc412 (`#T1093`) ships `ToolSchema.composition()` — including the REVERSE edge, which had no reader at all — indexes both fields in `search`, closes the vacuity hole below (`cwf`'s declaration was pinned by nothing: deleting it left the rc305 gate fully green), and hand-traces seven more rows under a stated criterion. **`composes` 9/559; `preserves` still 2/559 and deliberately so** — it is a *different* feature (rc305 checks `composes` for registry membership and `preserves` only for non-emptiness), and any floor on it is satisfiable at scale with zero per-op information, so it gets a declared taxonomy before it gets rows. |
 | `[[alias]]` config vocabulary | ADR-0004 §4, rc261, with a security contract and a parse path | **ZERO descriptors** anywhere in the tree until rc362 added the first — and that one is `tests/data/music_domain_aliases.toml`, a **test fixture outside every wheel** (`wheel.packages = ["srmech"]`, `tests/**` only under `sdist.include`, no force-include, no `MANIFEST.in`). **FIXED rc364** — 2 descriptors now ship inside `srmech/cascade/catalogs/alias_catalog/`. Note the row's own words survive the fix and are worth keeping: the population was zero-in-the-wheel for **101 rcs** and no gate said so, because there was no directory to count |
 
 **Name the pattern: a field or subsystem whose population is 2 of 525, or 0 of anything, is not
 shipped — it is declared.** The mechanism works; the capstone language is what is false. And nothing
 goes red, because a strict-zero ratchet over an EMPTY selected set passes — the instrument cannot
 return otherwise.
+
+**rc412 (`#T1093`) found the layer BELOW population, and it sharpens this section rather than
+retiring it.** The `composes` row above is not merely under-populated — until rc412 **nothing read
+it**. `to_jsonable`, the curated merge and the C serialiser were the only consumers, none of them a
+question a caller asks. So the honest ordering is **reader first, rows second**: populating a field
+nothing reads only moves a hash, and a population drive launched without a reader would have
+manufactured exactly the filler this section warns about. The shrinking-set corollary was also
+measured live rather than argued: `cwf_consistency_mod2`'s declaration was pinned by nothing, so
+deleting it took the declared-edge total from 27 to 25 with the rc305 gate **fully green** — the
+same "instrument cannot return otherwise" failure, one direction over.
+
+**And a coverage floor is the wrong repair here, on measurement.** `tool_schema.py` says of
+`composes` that empty is *"the correct default"* for a leaf op, and an identity-resolved call graph
+puts **231 of 559** rows at zero reachable registered sub-ops even at depth 3. "State the
+population" is the obligation this section imposes; "drive the population to the denominator" is
+not, and conflating them would turn this section into the defect it diagnoses.
 
 The asymmetry that makes this diagnosable: the `[class]` half of the same config-TOML family is fully
 packaged and introspectable — 4 descriptors ship **inside** `srmech/cascade/catalogs/class_catalog/`

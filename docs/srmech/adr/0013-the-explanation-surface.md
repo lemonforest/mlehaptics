@@ -181,7 +181,7 @@ radically different states:
 |---|---|---|
 | **ARCHITECTURE** — the A-N vocabulary, the substrate claims | `srmech_research_notebook.md` (7,373 lines) | **DRIFTING** — highest rcN it mentions is **rc399**; shipped is rc410; **26** `docs/srmech/python` commits landed since it was last touched; **zero** currency gates |
 | **PER-OP** — what one op is, means, and demonstrates | `summary` + `explanation` + `example` | **COMPLETE** — 556/556 on all three, ~2.05 M chars, floor-enforced (§4) |
-| **PER-TASK** — which ops go together to do X | `composes` / `preserves` | **EMPTY** — **2 / 556** and **2 / 556**, 295 and 602 chars |
+| **PER-TASK** — which ops go together to do X | `composes` / `preserves` | **NEARLY EMPTY, and re-measured at rc412** — `composes` **9 / 559**, `preserves` **2 / 559**. The rc409 figures were 2/556 and 2/556 at 295 and 602 chars (`repr(tuple)` lengths — the counting method, recovered rc412, so both figures reconcile). rc412 (`#T1093`) found the cause one layer below population — **nothing READ either field** — and shipped `ToolSchema.composition()` before adding rows. `preserves` is held at 2 deliberately: it is a *different* feature from `composes` and gets a declared taxonomy before it gets rows |
 
 **A hand-authored guide is the wrong instrument, for three separable reasons.**
 
