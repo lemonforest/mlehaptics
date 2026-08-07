@@ -183,7 +183,7 @@ radically different states:
 | **PER-OP** — what one op is, means, and demonstrates | `summary` + `explanation` + `example` | **COMPLETE** — 559/559 on all three post-rc411, ~2.05 M chars, floor-enforced (§4) |
 | **DECOMPOSITION** — what sub-ops this op is built from | `composes` | **9 / 559** post-rc412 (was 2/559); set derivable, order hand-traced — see §1.7.1 |
 | **INVARIANT** — what guarantees this op maintains | `preserves` | **2 / 559**, deliberately held pending a taxonomy; *not* the same grain as `composes` — see §1.7.1 |
-| **PER-TASK** — which ops go together to do X | **NO HOME** | **does not exist anywhere** — see §1.7.1 |
+| **PER-TASK** — which ops go together to do X | `composes`, **lateral branch** | **1 / 559** — `best_rational_signed` only; the branch is declared by the field contract (`tool_schema.py:314`, `:318`) and almost unpopulated. This row read **"NO HOME — does not exist anywhere"** until §1.7.1a retracted it — see §1.7.1 |
 
 #### 1.7.1 ⚠️ CORRECTION (2026-08-07) — this table originally named the wrong home
 
@@ -193,13 +193,67 @@ It would not.** Corrected on measurement (rc412 design research, run `wf_a0dd4fb
 adversarial verification; the leg that first raised it was itself returned `holds=false`, so the
 structural core below is carried as the synthesis pass's own re-derivation, not that leg's claim).
 
-**The contract at `introspect/tool_schema.py:317-331` — the dataclass field comments, which are the
-SSoT, not CHANGELOG prose — defines `composes` as "the ORDERED sub-ops this op is built from … Empty
-for a LEAF op (the correct default)".** That is **implementation decomposition, and it points
-DOWNWARD**. The per-task question points **LATERALLY**: *which ops do I chain to accomplish X*.
-"What X is made of" does not yield "what to chain X with" without **inverting the graph**, and two
-populated rows are not a graph. Both shipped rows are exactly downward traces — `genome_from_graph`
-pins its five sub-ops in traced call order, `cwf_consistency_mod2` its two.
+**The contract is the dataclass field comments at `introspect/tool_schema.py:313-331` — the SSoT,
+not CHANGELOG prose. Quoted in full, because a truncated quotation of it is what produced the
+retracted claim below:**
+
+> *v0.9.0rc305 (`#T943`) — the Siona compose-a-cascade capstone. `describe()` / `example` are PER-OP;
+> **a cascade is CROSS-OP. These two fields carry the chaining knowledge** that otherwise lives only
+> in CHANGELOG prose Siona cannot read as data.*
+>
+> *`composes` — the ORDERED sub-ops this op is built from **(or that a declared cascade chains)**.
+> Empty for a LEAF op (the correct default); the call-order sequence of registered op names for a
+> composite.*
+
+So the field has **two declared branches**, and the contract names them in its own first sentence:
+a **DOWNWARD** branch (implementation decomposition — what X is made of) and a **LATERAL** branch
+(what a declared cascade chains — which is the per-task question). The per-task grain is therefore
+**not homeless; it has a declared home that is nearly unpopulated.**
+
+##### ⚠️ 1.7.1a RETRACTION (2026-08-07, same day) — the paragraph above replaces a false one
+
+As first published, §1.7.1 cited this contract as `tool_schema.py:**317**-331` and quoted it as
+*"the ORDERED sub-ops this op is built from **…** Empty for a LEAF op"*. Both are defects, and they
+compound:
+
+- **The cited range starts four lines below the sentence that refutes it.** The contiguous `#:`
+  block begins at `:313`; `:314` is *"a cascade is CROSS-OP. These two fields carry the chaining
+  knowledge"*. Citing `:317` excises it.
+- **The ellipsis elided `(or that a declared cascade chains)`** — the parenthetical that states the
+  lateral branch outright.
+
+Both excisions land on the lateral branch and nothing else. `grep` for `CROSS-OP` / `declared
+cascade` over §1.7.1 as first published returns **zero hits**: the ADR argued the branch does not
+exist, from a quotation constructed by removing every sentence that says it does.
+
+**The positive evidence was one sentence at n = 2** — *"Both shipped rows are exactly downward
+traces"* — in a paragraph that elsewhere calls their co-population *"an accident of authorship"*.
+A two-row census cannot separate *"the field is downward-only"* from *"only the downward branch has
+been used yet"*. That is `[[feedback_an_instrument_that_cannot_return_otherwise_is_not_a_measurement]]`
+and `[[feedback_a_zero_census_is_basis_free_a_nonzero_one_is_gauge]]`, applied to a field contract
+rather than to a number.
+
+**And the lateral branch is already populated, at n = 1.**
+`srmech/cascade/catalogs/cascade_catalog/best_rational_signed.toml:41` declares
+`operation = "pin_slot_at_zero -> best_rational(...) -> reorient"`, and
+`tests/test_composes_grain_rc412.py:146-150` declares `composes` as that identical three-tuple,
+verbatim. For a declared cascade the downward decomposition and the lateral chain **are the same
+tuple** — which is precisely why every gate stayed green under both readings, and why the
+substitution registered as a clarification rather than as a scope deletion. No instrument in the
+suite could report a difference.
+
+**Procedural note, recorded because it is the reusable part.** §1.7.1's own commit body disclosed
+that *"the leg that first raised this was returned `holds=false`, so the structural core is carried
+as the synthesis pass's own re-derivation, not that leg's claim."* The re-derivation's entire
+evidentiary base was the n = 2 census above — i.e. the rejected leg's evidence, re-attributed. **A
+re-derivation whose only evidence is the refuted leg's evidence is a re-attribution.** When a
+`holds=false` verdict is carried forward anyway, the carrying pass must supply its own falsifier and
+its own sample size, stated inline; here, asking *"what population would refute this?"* forces
+*"is any row using the other branch?"*, and the answer was already in the tree.
+
+**What survives, and what does not.** `composes` and `preserves` being two features rather than one
+(next paragraph) **stands** — it rests on the gate asymmetry, not on the citation. The table row is
+corrected from **NO HOME** to a declared-but-unpopulated home. §2.3's four readings remain per-op.
 
 **`composes` and `preserves` are TWO FEATURES, not one.** They share a Python type and nothing else.
 The asymmetry is already enforced inside the single gate file: `test_composes_preserves_rc305.py:126`
@@ -211,8 +265,20 @@ honest-null guarantee) under one key with no taxonomy and no checker. That they 
 same two rows is an accident of authorship: a leaf op with a real invariant and no composition is legal,
 and unrepresented.
 
-**So §2.3's four readings remain per-op, and the per-task grain still has no home — that part of the
-original section stands.** What changes is that it has *never* had one, rather than having an empty one.
+**So §2.3's four readings remain per-op.** What §1.7.1a changes is the per-task row: it has a
+**declared home that is almost unpopulated (1/559)**, not no home. The original §1.7 was closer to
+right than the "correction" that replaced it — it said `composes` was the home and measured it
+empty; the error there was only the *count*, not the *address*.
+
+**One consequence that is code, not prose, and must not be left implicit.**
+`tests/test_composes_grain_rc412.py:453` (`test_every_declared_sub_op_is_actually_called`, clause 2)
+requires every declared sub-op to be **AST-call-reachable from the parent**. That is correct for the
+downward branch and **structurally wrong for the lateral one**: a declared cascade chains ops that
+the parent does not call. As written, the next attempt to populate the per-task grain fails CI and
+is read as *"the field does not support this"* — hardening the retracted conclusion into a test,
+where it would be far harder to see. Either scope clause 2 to rows not sourced from a cascade-catalog
+descriptor, or add a second admission path validating a declared-cascade row against its descriptor's
+`operation` chain. Tracked as `#T1096`.
 
 **Measured for the record** (identity-resolved AST call-graph over the 559 resolved callables, following
 function-local `ImportFrom` aliases through unregistered private helpers):
