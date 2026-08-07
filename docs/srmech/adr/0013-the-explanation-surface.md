@@ -181,7 +181,57 @@ radically different states:
 |---|---|---|
 | **ARCHITECTURE** — the A-N vocabulary, the substrate claims | `srmech_research_notebook.md` (7,373 lines) | **DRIFTING** — highest rcN it mentions is **rc399**; shipped is rc410; **26** `docs/srmech/python` commits landed since it was last touched; **zero** currency gates |
 | **PER-OP** — what one op is, means, and demonstrates | `summary` + `explanation` + `example` | **COMPLETE** — 556/556 on all three, ~2.05 M chars, floor-enforced (§4) |
-| **PER-TASK** — which ops go together to do X | `composes` / `preserves` | **EMPTY** — **2 / 556** and **2 / 556**, 295 and 602 chars |
+| **DECOMPOSITION** — what sub-ops this op is built from | `composes` | **2 / 559** (0.36 %); derivable — see §1.7.1 |
+| **INVARIANT** — what guarantees this op maintains | `preserves` | **2 / 559**; *not* the same grain as `composes` — see §1.7.1 |
+| **PER-TASK** — which ops go together to do X | **NO HOME** | **does not exist anywhere** — see §1.7.1 |
+
+#### 1.7.1 ⚠️ CORRECTION (2026-08-07) — this table originally named the wrong home
+
+**As first written, the row above read `PER-TASK … | composes / preserves | EMPTY 2/556`. That was
+wrong, and the error mattered, because it implied populating `composes` would close the per-task gap.
+It would not.** Corrected on measurement (rc412 design research, run `wf_a0dd4fbf-9b8`, 9 agents with
+adversarial verification; the leg that first raised it was itself returned `holds=false`, so the
+structural core below is carried as the synthesis pass's own re-derivation, not that leg's claim).
+
+**The contract at `introspect/tool_schema.py:317-331` — the dataclass field comments, which are the
+SSoT, not CHANGELOG prose — defines `composes` as "the ORDERED sub-ops this op is built from … Empty
+for a LEAF op (the correct default)".** That is **implementation decomposition, and it points
+DOWNWARD**. The per-task question points **LATERALLY**: *which ops do I chain to accomplish X*.
+"What X is made of" does not yield "what to chain X with" without **inverting the graph**, and two
+populated rows are not a graph. Both shipped rows are exactly downward traces — `genome_from_graph`
+pins its five sub-ops in traced call order, `cwf_consistency_mod2` its two.
+
+**`composes` and `preserves` are TWO FEATURES, not one.** They share a Python type and nothing else.
+The asymmetry is already enforced inside the single gate file: `test_composes_preserves_rc305.py:126`
+checks every `composes` entry for **registry membership** (referential integrity into the op graph),
+while `:147` checks `preserves` only for non-empty strings. `composes` is a typed traversable edge;
+`preserves` is unconstrained prose — its six shipped strings already span **five** distinct claim-kinds
+(round-trip invariant, cross-op measurement agreement, implementation discipline, precision bound,
+honest-null guarantee) under one key with no taxonomy and no checker. That they are co-populated on the
+same two rows is an accident of authorship: a leaf op with a real invariant and no composition is legal,
+and unrepresented.
+
+**So §2.3's four readings remain per-op, and the per-task grain still has no home — that part of the
+original section stands.** What changes is that it has *never* had one, rather than having an empty one.
+
+**Measured for the record** (identity-resolved AST call-graph over the 559 resolved callables, following
+function-local `ImportFrom` aliases through unregistered private helpers):
+
+| depth | non-empty | edges | ground truth recovered |
+|---|---|---|---|
+| 1 | 237 / 559 | 364 | 5 / 7 |
+| 3 | 342 / 559 | 643 | **7 / 7** |
+
+**The SET is derivable; the ORDER is not.** Lexical first-call order matches **0 of 2** ground-truth
+rows, because a native fast-path branch calls `genome_save`/`genome_census` ahead of the pure path a
+human traced — and the contract says ORDERED. Any future population is therefore derivation for the
+set plus human tracing for the sequence, never derivation alone.
+
+⚠️ **And the field is unread.** `srmech/introspect/search.py::_op_fields` indexes exactly `name`,
+`category`, `summary`, `explanation`, `example.*`. **rc411's search surface does not index `composes`
+or `preserves`.** Their only consumers are `to_jsonable` (`tool_schema.py:400-401`), the curated merge
+(`:526-527`), and the C serialiser. Populating an unread field moves a hash and nothing else — which is
+why any rc that populates them must ship a **reader** first.
 
 **A hand-authored guide is the wrong instrument, for three separable reasons.**
 
