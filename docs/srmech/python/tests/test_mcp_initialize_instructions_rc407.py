@@ -14,7 +14,7 @@ channel for one: ``resources/*``, ``prompts/*``, ``completion/*`` and
 That matters more here than for a typical server, because ``tools/list``
 descriptions are built from ``summary`` + an optional ``Returns:`` line + the
 ``[srmech category: …; owner: …]`` tag ONLY. The ``example`` and ``explanation``
-fields — 556 of 556 entries carry both — have no MCP route at any granularity,
+fields — every registered entry carries both — have no MCP route at any granularity,
 so a client that cannot find a capability has no way to learn that it is looking
 at one field of fourteen.
 
@@ -102,8 +102,30 @@ def test_instructions_only_promise_mcp_callable_tools() -> None:
     """Anything the instructions tell a client to CALL must be registered and
     ``mcp_callable``; anything unregistered must be framed as a Python route.
 
-    This is the guard that keeps the pointer honest. ``get_tool_schema`` is NOT
-    a ToolEntry, so the text names it only alongside 'from Python'."""
+    v0.9.0rc411 (`#T1086`) — REVISITED, exactly as the rc407 tripwire below
+    demanded. rc407 wrote: *"get_tool_schema is deliberately NOT callable over
+    MCP; if it ever becomes a registered tool this assertion fires and the
+    wording should be revisited."* rc411 registered it — the whole rc is that
+    the registry did not contain its own front door — so the assertion fired on
+    a shipped string that had become FALSE. ``example`` and ``explanation`` ARE
+    reachable over MCP now, and the text said they were not.
+
+    The wording was re-pointed at ``tool_schema_view`` rather than at
+    ``get_tool_schema``, and that choice is load-bearing rather than
+    cosmetic. Measured on this tree: over MCP, ``get_tool_schema``'s result
+    serialises through ``dataclasses.asdict`` (2,572,811 bytes) and carries
+    FIVE keys — ``composes`` / ``preserves`` / ``reads_input`` / ``reads_lane``
+    / ``mcp_unavailable_reason`` — that the canonical ``to_jsonable`` rendering
+    behind ``tool_schema_view`` (2,501,642 bytes) deliberately omits. Two
+    disagreeing renderings of one registry over one protocol; the instructions
+    must name the canonical one.
+
+    ``get_tool_schema`` was deliberately left ``mcp_callable`` (the default):
+    flipping it would make it the FIRST ``mcp_callable=False`` row in the
+    registry, which ``test_no_mcp_callable_false_entries_and_docstring_states_
+    no_count`` below asserts is empty, and would move ``describe()``'s
+    published ``handle_pending``. That is `#T1092`'s question, not rc411's.
+    """
     from srmech.introspect.tool_schema import get_tool_schema, warmup_all
 
     warmup_all()
@@ -112,18 +134,22 @@ def test_instructions_only_promise_mcp_callable_tools() -> None:
 
     text = _initialize_result()["instructions"]
     for promised in ("srmech.introspect.describe",
+                     "srmech.introspect.search.search",
+                     "srmech.introspect.tool_schema.tool_schema_view",
                      "srmech.introspect.carrier_schema.carrier_schema"):
         assert promised in text
         assert promised in callable_names, (
             f"the instructions tell a client to call {promised!r}, which is "
             f"not a registered mcp_callable ToolEntry")
 
-    # get_tool_schema is deliberately NOT callable over MCP; if it ever becomes
-    # a registered tool this assertion fires and the wording should be revisited.
-    assert not any(n.endswith("get_tool_schema") for n in callable_names), (
-        "`get_tool_schema` is now MCP-callable — the instructions frame it as a "
-        "PYTHON-only route ('read them from Python via'), so update the wording")
-    assert "from Python via" in text
+    # The rc407 tripwire, re-aimed at what is now the live hazard. The text must
+    # NOT send an MCP client to `get_tool_schema`: its over-the-wire rendering
+    # is the non-canonical asdict shape documented above, so naming it here
+    # would point clients at the schema that disagrees.
+    assert "get_tool_schema" not in text, (
+        "the instructions name `get_tool_schema` as an MCP route. Its MCP "
+        "serialisation is dataclasses.asdict, which carries five keys "
+        "to_jsonable omits — send clients to `tool_schema_view` instead.")
 
 
 # ── 2. ADR-0009 — the two projections are co-equal ────────────────────────────

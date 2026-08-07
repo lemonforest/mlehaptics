@@ -116,7 +116,21 @@ NON_CARRIER_CLASSES = frozenset({
     "MPRRecord",         # provenance record envelope
     "RecoverableFold",   # coupling pair-carrier handle (in-process only)
     "Run",               # introspect run record
+    "SearchResult",      # introspect search result envelope (rc411)
     "SpectralHandle",    # by-reference spectral handle (rc16 envelope)
+    # rc411 (`#T1086`): two introspect types, both records rather than operands.
+    # `ToolSchema` is the registry VIEW returned by the newly-registered
+    # `get_tool_schema`; `SearchResult` is the ranked-record envelope returned
+    # by `search` (a `tuple` subclass carrying the ADR-0011 corpus witness).
+    # Nobody does maths with either — they carry rows and a provenance digest,
+    # which is the `Run` shape (an introspect record), not the `Mat` shape.
+    #
+    # Note it took BOTH gates to surface them, which is the argument for this
+    # set being single-sourced: the rc205 ratchet reads the DECLARED ToolEntry
+    # return type and saw only `ToolSchema`; the rc363 use-derivation gate reads
+    # the SOURCE annotation and saw only `SearchResult`. Either alone would have
+    # left the other unexempted and the tree red.
+    "ToolSchema",        # tool-registry view (introspection, not operand)
 })
 
 # Dunder methods are a class's own protocol, not an op's coercion boundary:

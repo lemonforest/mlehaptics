@@ -49,7 +49,7 @@ MANIFEST = Path(__file__).resolve().parent / "registered_op_names.txt"
 #: rc361 until rc410 (`#T1085`) — stale by 40 ops, in a comment whose only job
 #: was to show the CURRENT value, sitting two lines above the real one. Written
 #: symbolically now so it cannot go stale a second time.)
-EXPECTED_N = 556
+EXPECTED_N = 559
 
 #: sha256 over the NORMALISED manifest body — "\n".join(sorted names) + "\n",
 #: UTF-8. Normalised rather than raw-file-bytes so a CRLF checkout cannot make
@@ -107,8 +107,14 @@ EXPECTED_N = 556
 # octonionic Hopf base), plus srmech.math.laplacian.generalized_ngon (the guarded
 # generalized-n-gon incidence-graph / Feit–Higman spectral read). 551 -> 556,
 # digest below.
+# rc411 (`#T1086`): +3 — the introspect INDEX and the registry's own front door.
+# srmech.introspect.search.search (the need-shaped ranked index over the tool +
+# carrier registries) plus srmech.introspect.tool_schema.{get_tool_schema,
+# tool_schema_view}, which were the functions that RETURN the registry and were
+# not IN it: before this rc the name `get_tool_schema` matched 0 of 556 rows.
+# 556 -> 559, digest below.
 EXPECTED_NAME_SET_SHA256 = (
-    "af1aba9ce3aa22189bc67e8a2b0cc8a0088b9202857b363e84772c69bf44a3d3")
+    "86aff65f8f28917bbd95639deb121247c5970ca8994408019b941cfb059194c3")
 
 
 def _live_names() -> list[str]:

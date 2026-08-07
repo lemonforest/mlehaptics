@@ -1,4 +1,4 @@
-{"n": 471, "native": false, "python": "3.10", "record": "meta"}
+{"n": 474, "native": false, "python": "3.10", "record": "meta"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.amsc.catalog.get_attested_dataset", "problems": [], "src_sha256": "58d42a7869396586ee1363c377b8b1abf02bf5febea9d695f6aa4e49b8e26a99", "statements": 9, "status": "ok"}
 {"markers_fired": [{"exc": "ValueError", "line": 20}], "n_markers": 1, "name": "srmech.amsc.catalog.list_attested_sources", "problems": [], "src_sha256": "986c4bccd23f665bd00f8d91187777f98acfd091cbc9a95550c36560c3546452", "statements": 9, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.amsc.catalog.list_catalog_chains", "problems": [], "src_sha256": "80aee0a39a7344378b831ef74cb41d64bce16527865a2f790c433220b1390bac", "statements": 7, "status": "ok"}
@@ -190,6 +190,9 @@
 {"markers_fired": [{"exc": "ValueError", "line": 17}, {"exc": "ValueError", "line": 21}], "n_markers": 2, "name": "srmech.introspect.op_provenance.reproject", "problems": [], "src_sha256": "5a338f909a9417587ec092a4f689952a2eed8a95b9bdf3ecf1f5b483131bb25a", "statements": 9, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.introspect.publish", "problems": [], "src_sha256": "ddfac4a37275fcbeb6aa7a52431366f6dacdeeffbea4494d2409d8fff83ea9f0", "statements": 12, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.introspect.responsion_schema.responsion_schema", "problems": [], "src_sha256": "dc3422e3824dcc26d7ca1f8afee2723d207480af9ec5c012f367e02e381990fa", "statements": 14, "status": "ok"}
+{"markers_fired": [], "n_markers": 0, "name": "srmech.introspect.search.search", "problems": [], "src_sha256": "05c27c860a3518319f930f7fb186a04cc6aa928d129cf83933669b8f8cc5f095", "statements": 10, "status": "ok"}
+{"markers_fired": [], "n_markers": 0, "name": "srmech.introspect.tool_schema.get_tool_schema", "problems": [], "src_sha256": "4ac264a79f3cdf87491388f62fd912eb94b42d3aaf62715bf693e10c655bb1fc", "statements": 9, "status": "ok"}
+{"markers_fired": [{"exc": "TypeError", "line": 13}], "n_markers": 1, "name": "srmech.introspect.tool_schema.tool_schema_view", "problems": [], "src_sha256": "d2fe6f5a1a93191aefbadd66db8cd2da9f7b6ebc831a5dd94a391e2dd1e20999", "statements": 9, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.math.carrier_ladder.carrier_ladder_descriptor", "problems": [], "src_sha256": "c0ba46da3e2d4bf49aaf84fc4f4fc78b6f04c320e5b5696c355ebaff098aa3d0", "statements": 12, "status": "ok"}
 {"markers_fired": [{"exc": "ValueError", "line": 11}, {"exc": "ValueError", "line": 16}], "n_markers": 2, "name": "srmech.math.carrier_ladder.poly_project", "problems": [], "src_sha256": "17539d26602596907b2a3203f8ec6d8c874a6a194f2e8148c0bca2da82679fb2", "statements": 10, "status": "ok"}
 {"markers_fired": [{"exc": "ValueError", "line": 21}], "n_markers": 1, "name": "srmech.math.carrier_ladder.poly_promote", "problems": [], "src_sha256": "1dd7e6d74f98a37b07d0ac608a19fc4ca86a1687fea8ab4ee438cf0b997e6298", "statements": 14, "status": "ok"}

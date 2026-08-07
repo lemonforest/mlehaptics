@@ -11940,6 +11940,166 @@ def _register_introspect_tools() -> None:
             ),
         )
     )
+    _register_index_tools()
+
+
+def _register_index_tools() -> None:
+    """Register the need-shaped INDEX and the registry's own front door
+    (v0.9.0rc411, `#T1086`).
+
+    THE HOLE THIS CLOSES, in one measurement. Before this, ``get_tool_schema``
+    — the function that returns the registry — matched **0 of 556** registered
+    names. *The registry did not contain its own front door.* A caller who
+    arrived asking "how do I get the tool registry" could be told the answer by
+    ``describe()['tools']['registry']`` (rc407) and could not find it by asking
+    the registry, which is the one surface guaranteed to be in front of them.
+
+    All three rows go under the EXISTING ``introspect`` category. That is a
+    deliberate ripple-minimiser, not an aesthetic choice: category count is one
+    of only two published quantities that does NOT move on a registration, so
+    filing here keeps ``n_categories`` at 76 and confines the sweep to the
+    total.
+
+    Self-reference is precedent, not a problem — ``srmech.introspect.describe``
+    is already a registered row and the published total already counts itself.
+    State it as a fixed point: **the total includes the index, and a query for
+    the index returns the index.**
+    """
+    register_tool(
+        ToolEntry(
+            name="srmech.introspect.search.search",
+            owner="srmech",
+            category="introspect",
+            summary=(
+                "The need-shaped INDEX over the tool + carrier registries — "
+                "the INVERSE of `srmech.introspect.describe`. `describe()` "
+                "answers 'what is the shape'; this answers 'I want X', "
+                "phrased in the words the need was felt in. Reach for it when "
+                "you do NOT already know the name: `resolve()` matches whole "
+                "dotted segments only, so `resolve('winding')` is None while "
+                "this returns `srmech.cascade.winding_fold` first. Ranks the "
+                "union of the verb registry and the carrier (noun) registry "
+                "over ALL their authored prose — name, "
+                "category, summary, explanation and every example sub-key — "
+                "which is the half of the introspect surface no accessor read "
+                "before rc411. Each record carries `why` (the field that "
+                "matched, WITH the matched excerpt) and `reach` (the "
+                "importable call form), so the answer is actionable without a "
+                "second call, per ADR-0012. Exact-Q scoring end to end: the "
+                "idf is `Q(N - df, df)`, never a float and never a log. "
+                "Derived on demand and never persisted (ADR-0011); the "
+                "sha256 corpus witness rides on the result's `.witness`."
+            ),
+            parameters=(
+                ToolParameter(
+                    "query", "str", required=True,
+                    summary=(
+                        "The need, in natural words — not a name pattern. "
+                        "Use `resolve()` instead when the exact dotted name "
+                        "is already known."
+                    ),
+                ),
+                ToolParameter(
+                    "k", "int", required=False,
+                    summary=(
+                        "How many records to return (default 10, clamped to "
+                        "the corpus size). Rows that match nothing are "
+                        "omitted, so fewer than k records means the corpus "
+                        "genuinely had fewer matches — never padding."
+                    ),
+                ),
+                ToolParameter(
+                    "scope", "str", required=False,
+                    summary=(
+                        "'ops' (the verb registry), 'carriers' (the operand / "
+                        "noun registry) or 'all' (the union; default)."
+                    ),
+                ),
+            ),
+            returns=ToolReturn(
+                type="tuple[dict, ...]",
+                shape=(
+                    "A SearchResult (a tuple subclass) of records, highest "
+                    "score first, each {'kind': 'op' | 'carrier', 'name': "
+                    "str, 'score': Q (exact rational, serialised over MCP as "
+                    "[num, den]), 'why': str (the matched field, then ': ', "
+                    "then the densest matching excerpt), 'reach': str (the "
+                    "importable call form)}. The tuple additionally carries "
+                    "`.witness` — the sha256 content-address of the frame "
+                    "corpus the ranking was derived from (ADR-0011)."
+                ),
+            ),
+        )
+    )
+    register_tool(
+        ToolEntry(
+            name="srmech.introspect.tool_schema.get_tool_schema",
+            owner="srmech",
+            category="introspect",
+            summary=(
+                "THE REGISTRY ITSELF: returns the live ToolSchema — every "
+                "registered op with its category, summary, explanation, "
+                "worked example, parameters and returns. This is the object "
+                "`describe()['tools']['registry']` names and the object "
+                "`srmech.introspect.search.search` indexes. Registered as a "
+                "row in rc411 because it was not one: the name matched NO "
+                "registered entry, so the registry did not contain its own "
+                "front door and could not answer 'how do I get the tool "
+                "registry'. "
+                "A PURE constructor over the live registry — deliberately NOT "
+                "routed through the C table, because it is the independent "
+                "Python SSoT the rc184 hash-ratchet locks that table against, "
+                "and routing it through would make the ratchet circular. The "
+                "bare-C host peer `srmech_get_tool_schema` realises the same "
+                "data. Returns srmech's own tools first in registration "
+                "order, then profile-contributed tools grouped by owner."
+            ),
+            parameters=(),
+            returns=ToolReturn(
+                type="ToolSchema",
+                shape=(
+                    "Frozen dataclass: srmech_version (str), "
+                    "tool_schema_version (str), tools (tuple[ToolEntry, "
+                    "...]). Methods: by_owner / lookup / resolve / "
+                    "resolve_all / to_json / to_jsonable."
+                ),
+            ),
+        )
+    )
+    register_tool(
+        ToolEntry(
+            name="srmech.introspect.tool_schema.tool_schema_view",
+            owner="srmech",
+            category="introspect",
+            summary=(
+                "The registry as a JSON-serialisable dict — "
+                "`get_tool_schema()` rendered for a wire or a file. Reach for "
+                "THIS when the consumer is JSON (an MCP payload, a CLI "
+                "`--tool-schema` dump, an attestation body); reach for "
+                "`get_tool_schema` when the consumer is Python and wants the "
+                "live objects and their methods. When no profile tools are "
+                "registered and the native library is loaded, the view is "
+                "produced by the bare-C host op `srmech_tool_schema_view` and "
+                "parsed back — VALUE-identical to the pure "
+                "`get_tool_schema().to_jsonable()`; any profile tool, a stale "
+                "or absent library, or a non-OK C status falls back to the "
+                "Python path. Registered as a row in rc411 for the same "
+                "reason as its sibling: both are the registry's own front "
+                "door and neither was findable in it."
+            ),
+            parameters=(),
+            returns=ToolReturn(
+                type="dict",
+                shape=(
+                    "{'srmech_version': str, 'tool_schema_version': str, "
+                    "'tools': [{'name': str, 'owner': str, 'category': str, "
+                    "'summary': str, 'parameters': [...], 'returns': {...}, "
+                    "'example': {...}, 'explanation': str, 'mcp_callable': "
+                    "bool, ...}, ...]}"
+                ),
+            ),
+        )
+    )
 
 
 def _register_dsl_tools() -> None:

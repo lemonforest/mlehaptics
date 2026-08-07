@@ -13,7 +13,7 @@ WHY THAT IS A REAL DEFECT AND NOT A STYLE POINT. It is not a circularity
 argument — ``tool_schema`` IS in ``dir(srmech.introspect)`` in a fresh
 interpreter, so a Python caller can always find the drill-down by hand. The
 consumer that cannot is the one ``describe()`` exists for: **a JSON consumer
-has no ``dir()``.** It receives a total of 556 and, from the payload alone, no
+has no ``dir()``.** It receives a bare total and, from the payload alone, no
 next call. So the route has to be IN the payload.
 
 ``covers`` is the second half. The registry indexes module-level ops only;
@@ -107,6 +107,6 @@ def test_registry_size_is_unchanged_by_this_rc():
     from srmech.introspect.tool_schema import get_tool_schema, warmup_all
 
     warmup_all()
-    assert len(get_tool_schema().tools) == 556
-    assert describe()["tools"]["total"] == 556
+    assert len(get_tool_schema().tools) == 559
+    assert describe()["tools"]["total"] == 559
     assert describe()["srmech_version"] == srmech.__version__

@@ -1499,6 +1499,7 @@ __all__ = [
     "parse",
     "publish",
     "responsion_schema",
+    "search",
     "serialize",
     "tool_schema",
 ]
@@ -1521,7 +1522,18 @@ __all__ = [
 # ``dir()``): relying on a sibling module's side effect to make an entry in
 # our own ``__all__`` resolvable is a latent break, and the fallback costs
 # nothing when the module is already in ``sys.modules``.
-_LAZY_SUBMODULES = ("carrier_schema", "responsion_schema", "tool_schema")
+# ``search`` (rc411) joins them for the same reason and with the same cost
+# shape: it is the need-shaped INDEX over the other two, so importing it
+# eagerly would drag ``carrier_schema``'s ~470-600 ms table build into every
+# consumer that only wanted ``describe()``.
+#
+# NOTE the module/function name collision this shares with ``carrier_schema``:
+# ``from srmech.introspect import search`` binds the MODULE, so the callable is
+# reached as ``from srmech.introspect.search import search``. That is the form
+# ``search()`` itself emits in its own ``reach`` field, so the index's answer
+# about itself is the one that works.
+_LAZY_SUBMODULES = ("carrier_schema", "responsion_schema", "search",
+                    "tool_schema")
 
 
 def __getattr__(name: str):

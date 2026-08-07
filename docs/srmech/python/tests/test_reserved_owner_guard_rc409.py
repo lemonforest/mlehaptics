@@ -63,7 +63,7 @@ from srmech.introspect.tool_schema import (
 
 @pytest.fixture(autouse=True)
 def _no_registry_leak():
-    """Snapshot/restore the 556-entry registry around every test in this file.
+    """Snapshot/restore the whole registry around every test in this file.
 
     `tool_schema._REGISTRY` has NO autouse snapshot in `conftest.py`, unlike
     `path_registry._REGISTRY` next door (whose rc283 post-mortem is written up
@@ -91,7 +91,7 @@ def test_unregister_profile_tools_refuses_the_reserved_owner() -> None:
     Measured on rc408: this call returned 556 and left `_REGISTRY` empty, so
     `get_tool_schema().tools` went to zero and `describe()["tools"]["total"]`
     reported 0. The assertion below is deliberately written against a snapshot
-    taken at runtime rather than the literal 556 — pinning the number here
+    taken at runtime rather than the literal count — pinning the number here
     would mint a 75th copy of a count that already has 74 pins across 67 files.
     """
     before = len(get_tool_schema().tools)

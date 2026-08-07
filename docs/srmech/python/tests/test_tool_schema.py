@@ -67,8 +67,8 @@ def test_idempotent_re_registration_is_silent() -> None:
     finally:
         # cleanup: pop directly. rc409 (`#T1080`) — this comment used to read
         # "the entry has owner 'srmech', so unregister_profile_tools is a no-op
-        # for it", which was FALSE and backwards: that call removed all 556
-        # entries and left the registry EMPTY. It now RAISES on the reserved
+        # for it", which was FALSE and backwards: that call removed EVERY
+        # entry and left the registry EMPTY. It now RAISES on the reserved
         # owner, so the direct pop is the only correct cleanup either way — but
         # for the opposite reason to the one recorded here for many rcs.
         ts._REGISTRY.pop("test.idempotent", None)

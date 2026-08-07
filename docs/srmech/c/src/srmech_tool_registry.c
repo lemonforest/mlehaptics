@@ -13,7 +13,7 @@
  * const data table (JPL-clean: const arrays, no dynamic init, no malloc).
  * The accessors + the canonical serialiser live in srmech_tool_schema.c.
  *
- * Entries: 556. tool_schema_version: 1.0.
+ * Entries: 559. tool_schema_version: 1.0.
  */
 
 #include "srmech.h"
@@ -3205,23 +3205,28 @@ static const srmech_tool_param_t ts_params_531[] = {
     { "pid", "int", 1, "Process ID to look up." },
 };
 static const srmech_tool_param_t ts_params_533[] = {
+    { "query", "str", 1, "The need, in natural words \342\200\224 not a name pattern. Use `resolve()` instead when the exact dotted name is already known." },
+    { "k", "int", 0, "How many records to return (default 10, clamped to the corpus size). Rows that match nothing are omitted, so fewer than k records means the corpus genuinely had fewer matches \342\200\224 never padding." },
+    { "scope", "str", 0, "'ops' (the verb registry), 'carriers' (the operand / noun registry) or 'all' (the union; default)." },
+};
+static const srmech_tool_param_t ts_params_536[] = {
     { "spec", "str", 1, "TOML chain spec: a [chain] table + [[stage]] array (one builder call per stage)." },
     { "input_value", "int | float | str | list | dict", 1, "Seed value fed to the first stage (a JSON-shaped value: number / string / list / dict). Passed to Chain.run unchanged." },
 };
-static const srmech_tool_param_t ts_params_535[] = {
+static const srmech_tool_param_t ts_params_538[] = {
     { "source_keys", "list", 0, "restrict the catalog-chain half to these source keys; omit to auto-discover all registered sources." },
 };
-static const srmech_tool_param_t ts_params_537[] = {
+static const srmech_tool_param_t ts_params_540[] = {
     { "name", "str", 1, "the class name to describe (e.g. 'Genome')." },
 };
-static const srmech_tool_param_t ts_params_538[] = {
+static const srmech_tool_param_t ts_params_541[] = {
     { "name", "str", 1, "the class name (introspected if fields/methods omitted; else the emitted [class].name)." },
     { "fields", "dict", 0, "{field: type} declarations; omit (with methods) to introspect a registered class instead." },
     { "methods", "dict", 0, "{method: {op, binds, doc, appends|sets}} \342\200\224 methods as dotted cascade-op refs." },
     { "doc", "str", 0, "class docstring (overrides the introspected doc)." },
     { "kind", "str", 0, "class kind tag (overrides the introspected kind)." },
 };
-static const srmech_tool_param_t ts_params_539[] = {
+static const srmech_tool_param_t ts_params_542[] = {
     { "text", "str", 1, "the utterance / description body (its tokens are df-gated)" },
     { "D", "int", 1, "Klein-4 dimension (F1008 used 8192)" },
     { "df", "dict", 0, "token -> doc-frequency table (the aboutness-gate corpus stats); None disables the gate" },
@@ -3232,68 +3237,68 @@ static const srmech_tool_param_t ts_params_539[] = {
     { "func_frac", "float", 0, "gate threshold as a fraction of n_docs (default 0.35)" },
     { "token_mode", "str", 0, "'byteglyph' (default, structure-bearing) or 'address' (F1008 orthogonal dual)" },
 };
-static const srmech_tool_param_t ts_params_540[] = {
+static const srmech_tool_param_t ts_params_543[] = {
     { "partials", "Sequence[int | Q | Qalg]", 1, "non-empty sequence of partial-to-fundamental frequency RATIOS. Over the wire each is a bare int or an exact [num, den] pair; an in-process caller may also pass Q or Qalg (Qalg has no JSON form, so it is reachable in-process only). float is REFUSED" },
     { "open_partials", "Sequence[int]", 0, "indices whose true value has NO exact carrier; declared by the constructor that produced them" },
 };
-static const srmech_tool_param_t ts_params_541[] = {
+static const srmech_tool_param_t ts_params_544[] = {
     { "partials", "Sequence[int | Q | Qalg]", 1, "partial-to-fundamental frequency ratios. Over the wire each is a bare int or an exact [num, den] pair; Q and Qalg are additionally accepted in-process (Qalg has no JSON form). float is REFUSED" },
     { "open_partials", "Sequence[int]", 0, "indices declared Tier 3 by their constructor" },
 };
-static const srmech_tool_param_t ts_params_542[] = {
+static const srmech_tool_param_t ts_params_545[] = {
     { "partials", "Sequence[int | Q | Qalg]", 1, "partial-to-fundamental frequency ratios; over the wire each is a bare int or an exact [num, den] pair (Qalg in-process only). float is REFUSED" },
     { "open_partials", "Sequence[int]", 0, "indices declared Tier 3 by their constructor" },
 };
-static const srmech_tool_param_t ts_params_544[] = {
+static const srmech_tool_param_t ts_params_547[] = {
     { "divisions", "int", 0, "steps per octave (>=1); default 12" },
     { "octave", "int", 0, "the integer octave ratio (>=2); default 2" },
     { "degrees", "Sequence[int]", 0, "which scale degrees to return; default 0..divisions inclusive" },
 };
-static const srmech_tool_param_t ts_params_545[] = {
+static const srmech_tool_param_t ts_params_548[] = {
     { "inharmonicity", "Q", 1, "the stiffness coefficient B >= 0, as Q, int or an (int, int) pair; must be EXACT (floats refused)" },
     { "n_partials", "int", 0, "how many partials, n = 1..n_partials (>=1); default 8" },
 };
-static const srmech_tool_param_t ts_params_546[] = {
+static const srmech_tool_param_t ts_params_549[] = {
     { "n_orders", "int", 0, "how many Bessel orders n = 0..n_orders-1 (>=1); default 3" },
     { "m_zeros", "int", 0, "how many zeros per order, m = 1..m_zeros (>=1); default 3" },
     { "scale_bits", "int", 0, "the DECLARED fixed-point precision of the zeros; default 128" },
 };
-static const srmech_tool_param_t ts_params_547[] = {
+static const srmech_tool_param_t ts_params_550[] = {
     { "order", "int", 1, "the integer Bessel order k >= 0" },
     { "numerator", "int", 1, "the argument's numerator; the argument must be >= 0" },
     { "denominator", "int", 1, "the argument's denominator, > 0" },
     { "scale_bits", "int", 0, "the DECLARED fixed-point scale in bits, [8, 4096]; default 256" },
 };
-static const srmech_tool_param_t ts_params_548[] = {
+static const srmech_tool_param_t ts_params_551[] = {
     { "order", "int", 1, "the integer Bessel order n >= 0" },
     { "index", "int", 1, "which positive zero, 1-based (1 = the first)" },
     { "scale_bits", "int", 0, "the DECLARED fixed-point scale in bits; default 256" },
     { "newton_steps", "int", 0, "Newton refinements after the McMahon start, [1, 64]; default 8" },
 };
-static const srmech_tool_param_t ts_params_549[] = {
+static const srmech_tool_param_t ts_params_552[] = {
     { "species", "Sequence[str | dict[str,int]] | QMat", 1, "the reaction's species: a list of formula strings (\"H2O\") and/or {element: count} dicts (mixable), or a raw element x species QMat (rows = elements, columns = species)" },
     { "all_balances", "bool", 0, "when the kernel dimension is > 1, return every primitive basis vector instead of raising; default False" },
 };
-static const srmech_tool_param_t ts_params_550[] = {
+static const srmech_tool_param_t ts_params_553[] = {
     { "N", "QMat | Sequence[Sequence[int | Q]]", 1, "the stoichiometric matrix (rows = species, columns = reactions) as a QMat or a nested int/Q sequence" },
 };
-static const srmech_tool_param_t ts_params_551[] = {
+static const srmech_tool_param_t ts_params_554[] = {
     { "reactions", "Sequence[tuple[dict[str,int], dict[str,int]]]", 1, "an iterable of (reactant, product) pairs; each complex is an {species: coeff} dict ({\"A\": 2} for 2A), a bare species-name str (coeff 1), or the zero complex (\"\"/\"0\"/None for the empty complex in a synthesis/degradation step)" },
     { "with_components", "bool", 0, "return the full breakdown dict instead of the bare integer; default False" },
 };
-static const srmech_tool_param_t ts_params_552[] = {
+static const srmech_tool_param_t ts_params_555[] = {
     { "formula", "str", 1, "the formula string; element = [A-Z][a-z]*, count = a run of ASCII digits (default 1), groups nest with ( ... ) and an optional trailing count" },
 };
-static const srmech_tool_param_t ts_params_553[] = {
+static const srmech_tool_param_t ts_params_556[] = {
     { "framed", "bytes", 1, "Frame body (nonce[16] || ciphertext) \342\200\224 the unwrapped TLV payload." },
     { "dna", "bytes", 1, "32+ byte pre-shared Bio-TOTP secret. Pass ZERO_DNA (b'\\x00'*32) for herd-immunity / public mode (same code path; deterministic ciphertext recoverable by anyone)." },
     { "window_ns", "int", 0, "Optional time-window override in nanoseconds (default 250_000_000 = 250 ms; env-var ``SRMECH_BUS_TOTP_WINDOW_NS`` honoured)." },
     { "time_ns", "int", 0, "Optional explicit wall-clock override (defaults to time.time_ns()). Useful for replaying historical captures." },
 };
-static const srmech_tool_param_t ts_params_554[] = {
+static const srmech_tool_param_t ts_params_557[] = {
     { "cleanup_dead", "bool", 0, "When True (default), registration files for endpoints with no live server are removed from disk as a side effect." },
 };
-static const srmech_tool_param_t ts_params_555[] = {
+static const srmech_tool_param_t ts_params_558[] = {
     { "name", "str", 1, "Endpoint name (matches the name passed to `srmech.bus.serve(name, ...)`)." },
 };
 
@@ -12947,11 +12952,65 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
     },
     { /* 533 */
+        "srmech.introspect.search.search",
+        "srmech",
+        "introspect",
+        "The need-shaped INDEX over the tool + carrier registries \342\200\224 the INVERSE of `srmech.introspect.describe`. `describe()` answers 'what is the shape'; this answers 'I want X', phrased in the words the need was felt in. Reach for it when you do NOT already know the name: `resolve()` matches whole dotted segments only, so `resolve('winding')` is None while this returns `srmech.cascade.winding_fold` first. Ranks the union of the verb registry and the carrier (noun) registry over ALL their authored prose \342\200\224 name, category, summary, explanation and every example sub-key \342\200\224 which is the half of the introspect surface no accessor read before rc411. Each record carries `why` (the field that matched, WITH the matched excerpt) and `reach` (the importable call form), so the answer is actionable without a second call, per ADR-0012. Exact-Q scoring end to end: the idf is `Q(N - df, df)`, never a float and never a log. Derived on demand and never persisted (ADR-0011); the sha256 corpus witness rides on the result's `.witness`.",
+        ts_params_533, 3u,
+        "tuple[dict, ...]",
+        "A SearchResult (a tuple subclass) of records, highest score first, each {'kind': 'op' | 'carrier', 'name': str, 'score': Q (exact rational, serialised over MCP as [num, den]), 'why': str (the matched field, then ': ', then the densest matching excerpt), 'reach': str (the importable call form)}. The tuple additionally carries `.witness` \342\200\224 the sha256 content-address of the frame corpus the ranking was derived from (ADR-0011).",
+        1,
+        NULL,
+        "{\"input\":{\"k\":\"3\",\"query\":\"the need in natural words \\u2014 here the motivating control, plus a carrier-scoped call and a miss\",\"scope\":\"'all' (the union of the verb + noun registries), narrowed to 'carriers' in the second call\"},\"output\":\"True                                     the resolve() control misses\\n'srmech.cascade.winding_fold'            the index does not\\n'from srmech.cascade import winding_fold'   reach: paste-ready\\n'example.output: winding_fold(2*pi*5.0) = (5, -1.2247147740396258e-15)\\u2026'\\n'Q'                                      exact rational, never a float\\n64                                       the ADR-0011 sha256 witness\\n['Mat', 'QMat']                          scope='carriers'\",\"why\":\"The control is the whole point: resolve(\\\"winding\\\") is None because resolve matches whole dotted segments, and the same felt word returns winding_fold FIRST through the index. The rest shows the answer is actionable without a second call \\u2014 reach ships the import line, why ships the field that matched WITH the matching excerpt, and score is an exact Q rather than a float. The last line is the one people miss: a query that matches nothing returns an EMPTY tuple, not the k least-bad rows.\",\"worked\":\"from srmech.introspect.search import search\\nfrom srmech.introspect.tool_schema import get_tool_schema\\n\\n# THE CONTROL that motivated the op: resolve() matches whole dotted\\n# segments, so a word the caller FELT but that is not a leaf name misses.\\nget_tool_schema().resolve('winding') is None   # -> True\\n\\nhits = search('winding number', k=3)\\nhits[0]['name']       # -> 'srmech.cascade.winding_fold'\\nhits[0]['reach']      # -> 'from srmech.cascade import winding_fold'\\nhits[0]['why'][:78]\\n# -> 'example.output: winding_fold(2*pi*5.0) = (5, -1.2247147740396258e-15)\\u2026'\\ntype(hits[0]['score']).__name__   # -> 'Q'  exact rational, no float anywhere\\nlen(hits.witness)                 # -> 64   sha256 of the frame corpus\\n\\n# scope narrows to the NOUN registry \\u2014 matrix rank is a carrier method,\\n# not a registered op name, so the carrier scope is where it lives.\\n[h['name'] for h in search('exact rank of a matrix', k=2, scope='carriers')]\\n# -> ['Mat', 'QMat']\\n\\n# A query matching nothing returns an EMPTY tuple, never the k\\n# least-bad rows. Deliberately NOT demonstrated with a literal\\n# nonsense token here: this example ships INSIDE the corpus it\\n# searches, so writing one would make it a hit and the documented\\n# `-> ()` false. The suite proves it with tokens it derives at run\\n# time (tests/test_introspect_search_rc411.py).\"}",
+        NULL,
+        "WHAT \342\200\224 the need-shaped INDEX over the union of the verb registry (``get_tool_schema()``) and the noun/carrier registry (``carrier_schema()``), returning ranked records ``{kind, name, score, why, reach}``. It is the INVERSE of ``srmech.introspect.describe``: describe answers \"what is the shape\", this answers \"I want X\". The cascade is a composition of ops that already ship \342\200\224 E ``get_tool_schema`` / ``carrier_schema`` -> F/B ``srmech.math.tlv.tlv_pack`` (one TLV frame per row) -> A ``sha256_bytes`` (the corpus witness) -> G ``srmech.math.search.byte_search`` (tf per frame, df = frames hit) -> N ``srmech.math.q.Q(N - df, df)`` (EXACT idf: no float, no log) -> G ``byte_search`` over the name leaf (the 4x boost) -> E ``srmech.cascade.top_k_by_score``, which takes the exact ``Q`` scores directly. Float-free end to end, and there is no ``abs()`` because tf and df are counts and the scores are non-negative by construction. WHEN \342\200\224 reach for it when you do NOT already know the name. That is the whole split against its sibling: ``ToolSchema.resolve`` matches whole dotted segments, so ``resolve(\"winding_fold\")`` hits and ``resolve(\"winding\")`` returns ``None``, and the many thousands of tokens that appear only in prose are unresolvable by it. Reach for ``resolve`` when the exact dotted name is known and for THIS when it is not. What you would otherwise wrongly hand-roll is a loop over ``get_tool_schema().tools`` doing a substring test on ``t.name`` \342\200\224 which is what ``resolve`` already does better, and which reads neither ``explanation`` nor ``example``, i.e. it misses the bulk of the authored text per op, which is where the answer usually is. Rows that match nothing are OMITTED, so an unanswerable query returns empty rather than the k least-bad rows; do not read a short result as truncation. SIBLINGS \342\200\224 ``srmech.introspect.describe`` is the table of contents to this index and the two share one corpus; ``ToolSchema.resolve`` / ``resolve_all`` are the exact-name matchers described above; ``srmech.introspect.carrier_schema.carrier_schema`` is the noun registry this searches under ``scope=\"carriers\"``, and it is where class METHODS live (``QMat.rank``) that the verb registry deliberately does not index. ``srmech.rbs_lm.encode_aboutness`` is the HDC route over the same question \342\200\224 a MORPHOLOGY matcher rather than a lexical one, thousands of times more expensive, and best used as an optional rerank over this op's top-k rather than instead of it. ADR-0011: the frame set is derived on demand and NOTHING is persisted; the ``sha256`` witness on the result is that ADR's cache-vs-witness admissibility condition, so a caller who does hold a derived view has something to compare against the source.",
+        NULL, 0u,
+        NULL, 0u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 534 */
+        "srmech.introspect.tool_schema.get_tool_schema",
+        "srmech",
+        "introspect",
+        "THE REGISTRY ITSELF: returns the live ToolSchema \342\200\224 every registered op with its category, summary, explanation, worked example, parameters and returns. This is the object `describe()['tools']['registry']` names and the object `srmech.introspect.search.search` indexes. Registered as a row in rc411 because it was not one: the name matched NO registered entry, so the registry did not contain its own front door and could not answer 'how do I get the tool registry'. A PURE constructor over the live registry \342\200\224 deliberately NOT routed through the C table, because it is the independent Python SSoT the rc184 hash-ratchet locks that table against, and routing it through would make the ratchet circular. The bare-C host peer `srmech_get_tool_schema` realises the same data. Returns srmech's own tools first in registration order, then profile-contributed tools grouped by owner.",
+        NULL, 0u,
+        "ToolSchema",
+        "Frozen dataclass: srmech_version (str), tool_schema_version (str), tools (tuple[ToolEntry, ...]). Methods: by_owner / lookup / resolve / resolve_all / to_json / to_jsonable.",
+        1,
+        NULL,
+        "{\"output\":\"type(s).__name__                 -> 'ToolSchema'\\ntype(s.tools[0]).__name__        -> 'ToolEntry'\\ns.resolve('gcd').name            -> 'srmech.math.cyclic.gcd'\\ns.resolve('winding') is None     -> True    whole dotted segments only\\nsorted({t.owner for t in s.tools}) -> ['srmech']\\nlen(s.tools) == len({t.name for t in s.tools}) -> True   names are unique\",\"why\":\"The uniqueness identity is asserted instead of the registered-op total on purpose: it is the invariant that actually matters to a caller (a name resolves to exactly one row) and it does not go stale the next time an op is registered.\",\"worked\":\"from srmech.introspect.tool_schema import get_tool_schema, warmup_all\\n\\nwarmup_all()          # counts are complete however srmech was entered\\ns = get_tool_schema()\\ntype(s).__name__                    # -> 'ToolSchema'\\ntype(s.tools[0]).__name__           # -> 'ToolEntry'\\ns.resolve('gcd').name               # -> 'srmech.math.cyclic.gcd'\\ns.resolve('winding') is None        # -> True   segments, not substrings\\nsorted({t.owner for t in s.tools})  # -> ['srmech']\\nlen(s.tools) == len({t.name for t in s.tools})   # -> True\"}",
+        NULL,
+        "WHAT \342\200\224 returns the live ``ToolSchema``: a frozen dataclass carrying ``srmech_version``, ``tool_schema_version`` and ``tools``, a tuple of every registered ``ToolEntry`` with its category, summary, explanation, worked example, parameters and returns. srmech's own tools come first in registration order, then profile-contributed tools grouped by owner \342\200\224 note it returns the UNION, so a profile registration moves the total. WHEN \342\200\224 reach for it whenever the consumer is Python and wants the live objects and their methods (``by_owner`` / ``lookup`` / ``resolve`` / ``resolve_all`` / ``to_json`` / ``to_jsonable``). This is the object ``describe()[\"tools\"][\"registry\"]`` names and the object ``srmech.introspect.search.search`` indexes. It is a PURE constructor over the live registry and deliberately does NOT route through the C table: it is the independent Python SSoT that the rc184 hash-ratchet locks that table against, and routing it through would make the ratchet circular. The bare-C host peer ``srmech_get_tool_schema`` realises the same data, proven equivalent by object reconstruction in ``tests/test_tool_schema_ops_c_rc185.py``. What you would otherwise wrongly hand-roll is walking ``srmech``'s submodules with ``pkgutil`` and ``inspect`` to enumerate callables \342\200\224 that returns the public surface, which is a DIFFERENT and larger set than the registered one, and it recovers none of the authored prose. SIBLINGS \342\200\224 ``tool_schema_view`` is this same registry rendered as a JSON-serialisable dict; reach for THAT when the consumer is a wire or a file, because the ``ToolSchema`` object itself is not JSON-serialisable. ``srmech.introspect.describe`` is the at-a-glance shape (~1% of the text) rather than the full table; ``srmech.introspect.search.search`` is the need-shaped index over it. Registered as a row only in rc411: before that the name matched zero registered entries, so the registry did not contain its own front door.",
+        NULL, 0u,
+        NULL, 0u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 535 */
+        "srmech.introspect.tool_schema.tool_schema_view",
+        "srmech",
+        "introspect",
+        "The registry as a JSON-serialisable dict \342\200\224 `get_tool_schema()` rendered for a wire or a file. Reach for THIS when the consumer is JSON (an MCP payload, a CLI `--tool-schema` dump, an attestation body); reach for `get_tool_schema` when the consumer is Python and wants the live objects and their methods. When no profile tools are registered and the native library is loaded, the view is produced by the bare-C host op `srmech_tool_schema_view` and parsed back \342\200\224 VALUE-identical to the pure `get_tool_schema().to_jsonable()`; any profile tool, a stale or absent library, or a non-OK C status falls back to the Python path. Registered as a row in rc411 for the same reason as its sibling: both are the registry's own front door and neither was findable in it.",
+        NULL, 0u,
+        "dict",
+        "{'srmech_version': str, 'tool_schema_version': str, 'tools': [{'name': str, 'owner': str, 'category': str, 'summary': str, 'parameters': [...], 'returns': {...}, 'example': {...}, 'explanation': str, 'mcp_callable': bool, ...}, ...]}",
+        1,
+        NULL,
+        "{\"output\":\"sorted(v)              -> ['srmech_version', 'tool_schema_version', 'tools']\\nsorted(v['tools'][0])[:6]\\n  -> ['category', 'example', 'explanation', 'mcp_callable', 'name', 'owner']\\nlen(v['tools']) == len(get_tool_schema().tools) -> True   same registry\\nisinstance(json.dumps(v), str)                  -> True\\njson.dumps(get_tool_schema())                   -> TypeError\",\"why\":\"The last two lines are the whole reason this op exists as a peer rather than as a method: the dict round-trips through json.dumps and the live ToolSchema object raises TypeError, so picking the wrong one of the pair fails at the serialisation boundary rather than at the call.\",\"worked\":\"import json\\nfrom srmech.introspect.tool_schema import (\\n    get_tool_schema, tool_schema_view, warmup_all)\\n\\nwarmup_all()\\nv = tool_schema_view()\\nsorted(v)                  # -> ['srmech_version', 'tool_schema_version', 'tools']\\nsorted(v['tools'][0])[:6]\\n# -> ['category', 'example', 'explanation', 'mcp_callable', 'name', 'owner']\\nlen(v['tools']) == len(get_tool_schema().tools)   # -> True\\nisinstance(json.dumps(v), str)                    # -> True\\n# the live object is NOT serialisable \\u2014 that is the split:\\njson.dumps(get_tool_schema())                     # -> TypeError\"}",
+        NULL,
+        "WHAT \342\200\224 returns ``get_tool_schema()`` rendered as a JSON-serialisable dict: ``{\"srmech_version\", \"tool_schema_version\", \"tools\"}`` where each tool is a plain dict of its ToolEntry fields. WHEN \342\200\224 reach for THIS when the consumer is JSON: an MCP payload, a ``srmech --tool-schema`` CLI dump, an attestation body, anything crossing a wire or landing in a file. Reach for ``get_tool_schema`` instead when the consumer is Python and wants the live objects and their methods. The split is enforced by the serialiser rather than by convention \342\200\224 ``json.dumps`` on the live ``ToolSchema`` raises ``TypeError``, as the worked example shows. PERFORMANCE / PARITY NOTE worth knowing before you reach past it: when no profile tools are registered and the native library is loaded, the view is produced by the bare-C host op ``srmech_tool_schema_view`` and parsed back, VALUE-identical to the pure ``get_tool_schema().to_jsonable()`` (dict equality is order-insensitive; the native keys arrive in canonical sorted order). Any profile tool, a stale or absent library, or a non-OK C status falls back to the Python path, so the result is the same either way and the routing is not something a caller has to manage. What you would otherwise wrongly hand-roll is ``dataclasses.asdict`` over the schema \342\200\224 it walks the same fields but does not apply the tuple/bytes normalisation the wire needs, and it silently produces a payload the C peer would not agree with. SIBLINGS \342\200\224 ``get_tool_schema`` is the live-object half of this pair and ``ToolSchema.to_jsonable`` is the method form this wraps; ``srmech.introspect.describe`` is the at-a-glance shape rather than the full table, and ``srmech.introspect.search.search`` is the need-shaped index over the same corpus. Registered as a row only in rc411, for the same reason as its sibling: both are the registry's own front door and neither was findable in it.",
+        NULL, 0u,
+        NULL, 0u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 536 */
         "srmech.dsl.run_toml_chain",
         "srmech",
         "dsl",
         "Compose AND run a cascade in ONE call: author an inline TOML chain spec, feed an input value, get the chain result. The declarative, one-shot face of the rc8 cascade DSL (the fluent `chain().then(...).loop(...)` builder is not tool-callable \342\200\224 a tool call can't chain methods). The `spec` is a TOML document with a `[chain]` table + `[[stage]]` array entries; each stage carries exactly one discriminator: `op` (then), `loop_n` + `sub_chain` (loop), `fold_init` + `fold_op` (fold), or `reduce_op` (reduce); any other key forwards as a cascade-op kwarg (e.g. `max_denominator`). Op names come from `srmech.dsl.list_catalog_ops` (the 20-op cascade catalog). Example spec: `[chain]\\nname='demo'\\n\\n[[stage]]\\nop='chiral_flip'`. Framework reading: the DSL composes Class M (cross-class bind) over the cascade catalog; each stage is one A\342\200\223N primitive-class instance, the chain is the composition. (v0.5.0rc12 \342\200\224 DSL surface voxel).",
-        ts_params_533, 2u,
+        ts_params_536, 2u,
         "Any",
         "Output of the final stage (an empty chain returns the input unchanged).",
         1,
@@ -12964,7 +13023,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 534 */
+    { /* 537 */
         "srmech.dsl.list_catalog_ops",
         "srmech",
         "dsl",
@@ -12982,12 +13041,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 535 */
+    { /* 538 */
         "srmech.dsl.list_ops",
         "srmech",
         "dsl",
         "Unify the two op-discovery registries into ONE list (\302\24717 U3): BOTH the value-transform cascade ops (`list_catalog_ops`) AND the AMSC catalog-declared operator chains (`catalog.list_catalog_chains`), each record tagged a uniform `kind` (`stage` | `combinator` | `catalog-chain`) and `provenance` (`srmech` | `user` | `catalog:<source_key>`). Before this the DSL op list and the catalog-chain registry were disjoint \342\200\224 a kernel chain declared on a text-catalog was invisible to the DSL. `source_keys` restricts the catalog-chain half; omit to auto-discover every registered attested source. Framework reading: Class E (catalog enumeration) over both registries at once. (v0.7.5rc45 \342\200\224 \302\24717 U3 unified op-discovery.)",
-        ts_params_535, 1u,
+        ts_params_538, 1u,
         "list[dict]",
         "[{'name': str, 'class': str, 'purpose': str, 'kind': 'stage'|'combinator'|'catalog-chain', 'provenance': str}, ...] sorted by (kind, name).",
         1,
@@ -13000,7 +13059,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 536 */
+    { /* 539 */
         "srmech.dsl.list_class_surface",
         "srmech",
         "dsl",
@@ -13018,12 +13077,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 537 */
+    { /* 540 */
         "srmech.dsl.describe_class",
         "srmech",
         "dsl",
         "Describe ONE user-declared srmech class by name \342\200\224 the focused companion to `srmech.dsl.list_class_surface`. Returns the JSON-able descriptor (name, kind, doc, fields, methods with each method's bound cascade op + binds + appends/sets, provenance) for the shipped seed `Genome` or any bring-your-own class. The shape srmech.dsl.make_class(name) constructs and srmech.dsl.run_class_method runs. Framework reading: Class F (descriptor render) over the [class] catalog. (v0.7.5rc41 \342\200\224 class-from-TOML surface; gh #962 Part 2).",
-        ts_params_537, 1u,
+        ts_params_540, 1u,
         "dict",
         "{'name', 'kind', 'doc', 'fields', 'methods', 'provenance'} \342\200\224 the full class descriptor.",
         1,
@@ -13036,12 +13095,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 538 */
+    { /* 541 */
         "srmech.dsl.generate_class_descriptor",
         "srmech",
         "dsl",
         "Render a [class] TOML descriptor string \342\200\224 the INVERSE of srmech.dsl.make_class (\302\24739). Two modes: (explicit) pass `fields` ({field: type}) + `methods` ({method: {op: dotted-cascade-op, binds: [...], doc, appends|sets}} \342\200\224 the describe_class method shape) and it renders straight from the components; (introspection) pass ONLY `name` of a registered class (e.g. 'Genome') and it recovers the descriptor via describe_class and re-emits it \342\200\224 a constructed class rendering its OWN [class] TOML back out. The emitted string is round-trippable: drop it in a register_class_dir dir and make_class constructs the identical class (docs re-emit single-line with escaped newlines, so a multi-line seed doc decodes back bit-identically). Closes the make_class loop the other direction. Framework reading: Class E (catalog enumeration) \342\210\230 Class F (descriptor render) \342\210\230 Class H (self-introspection) \342\200\224 no new primitive class. (v0.7.5rc49 \342\200\224 \302\24739 make_class inverse; gh #962 Part 2.)",
-        ts_params_538, 5u,
+        ts_params_541, 5u,
         "str",
         "A [class] TOML descriptor string (name/kind/doc + [class.field] + [class.method.*]) round-trippable through srmech.dsl.make_class.",
         1,
@@ -13054,12 +13113,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 539 */
+    { /* 542 */
         "srmech.rbs_lm.encode_aboutness",
         "srmech",
         "rbs_lm",
         "Doc-frequency-GATED ABOUTNESS encoder \342\200\224 encode a natural utterance (or an op's name+summary) as ONE structure-bearing Klein-4 aboutness hypervector for grounding \"which srmech op does this?\" by klein4_similarity. The F1008 recipe (78% top-1 over the tool_schema, zero training) the plain encode_sentence_l3 lacks: (1) a doc-frequency aboutness GATE (down-weight tokens that appear catalog-wide \342\200\224 'matrix', 'of'), (2) NAME-weighting (an op's own name tokens count 3x + 2x bigram; F769 identity), (3) order-aware BIGRAMS (so (klein,4) != (klein,gordon); never a bag), plus letter-digit tokenization (klein4->klein 4). Tokens are minted via the STRUCTURE-BEARING klein4_encode_bytes (default token_mode='byteglyph'), NOT the high-diffusion word-hash address (F1260: a hash avalanche destroys morphology \342\200\224 a good ADDRESS but a bad REPRESENTATION), so cat/cats stays distinguishable from cat/dog. Pass df/n_docs from a corpus to enable the gate; name= for an op's identity tokens; None df for the single-word case. composition_of_c (klein4_encode_bytes -> bind/bundle); numpy-free, no abs().",
-        ts_params_539, 9u,
+        ts_params_542, 9u,
         "HV",
         "uint8 in {0,1,2,3}",
         1,
@@ -13072,12 +13131,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 540 */
+    { /* 543 */
         "srmech.music.spectrum_tier",
         "srmech",
         "music",
         "TIER-TAG an acoustic spectrum \342\200\224 the honesty layer over any spectrum-carrying value. Tier 1 = exact RATIONAL carrier (Q/int). Tier 2 = exact ALGEBRAIC-IRRATIONAL carrier (Qalg; alpha**2 == 2 holds IN THE FIELD, so it is still exact and still decidable). Tier 3 = NO exact carrier exists \342\200\224 transcendence unresolved or known-absent \342\200\224 so any number present is a rational of DECLARED PRECISION only. The spectrum's tier is the WEAKEST of its partials'. Tiers 1 and 2 are INFERRED from the carrier; Tier 3 must be DECLARED via open_partials, because it cannot be inferred \342\200\224 a rational standing in for a transcendental is, as a carrier, just a rational, and only the constructor knows the provenance. That asymmetry IS the honesty layer. Precedent: fractal_spectrum already returns a spectrum_open string rather than a list because no finite exact carrier decides Julia-set membership. float ratios are REFUSED (every float IS a rational, so a float spectrum would be unconditionally Tier 1 and unconditionally commensurable \342\200\224 the exact silent harmonisation this layer exists to prevent). 'harmonic' here is the ACOUSTIC word, never the chirality order classify_harmonic uses. Exact-Q; numpy-free; no abs().",
-        ts_params_540, 2u,
+        ts_params_543, 2u,
         "dict",
         "{'tier': 1|2|3, 'tier_name': str, 'exact': bool, 'n_partials': int, 'per_partial': list of {index, carrier, tier, tier_name, field_degree, in_rationals (None = UNDECIDED at Tier 3)}, 'open_indices': tuple, 'open_reason': str|None}",
         1,
@@ -13090,12 +13149,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 541 */
+    { /* 544 */
         "srmech.music.commensurability_verdict",
         "srmech",
         "music",
         "Decide whether an acoustic spectrum is commensurable with its fundamental \342\200\224 a verdict that CAN return 'inharmonic'. The invariant is RATIONAL RANK / FIELD DEGREE, not a period: membership in the rationals inside Q[x]/(m) is field-theoretic (Q is the unique degree-1 subfield of Q(alpha)), so it survives any change of Q-basis and is a genuine invariant rather than a presentation count. Every ratio in Q => a common period exists ('harmonic'); any ratio provably outside Q => that partial shares no period with the fundamental at any multiple ('inharmonic'); any partial declared Tier 3 => 'open'. WHY THIS WAS NEEDED: Class-I gcd/lcm STRUCTURALLY cannot return 'inharmonic' \342\200\224 a finite set of rational ratios always has an lcm, so it always yields a finite period. And Class-N best_rational is worse than silent: it does not approximate an inharmonic spectrum, it CONVERTS it into a harmonic one, since every anchor p/q IS a finite period T0*q (measured: an irrational read at max_den 1e2/1e4/1e6 gives 22/7, 355/113, 2917129/928551). Raising max_den only buys a longer FALSE period, never a verdict. Verified: in Q[x]/(x**12 - 2), s**0 rational True, s**1..s**11 all False, s**12 True \342\200\224 12-tone equal temperament exactly represented AND provably incommensurable with the octave except AT the octave. TWO SENSES KEPT APART: 'verdict' answers *commensurable?*; 'integer_series' answers the classical acoustics question *are the ratios the plain integer series 1,2,3,...?*. A tuned bell (1/2, 1, 6/5, 3/2, 2) is called inharmonic by acousticians yet is exactly commensurable \342\200\224 harmonic with integer_series False. No threshold and no denominator ceiling is consulted anywhere in the decision. Exact-Q; numpy-free; no abs().",
-        ts_params_541, 2u,
+        ts_params_544, 2u,
         "dict",
         "{'verdict': 'harmonic'|'inharmonic'|'open', 'integer_series': bool, 'rational_rank': int, 'n_partials': int, 'field_degrees': tuple, 'incommensurable': tuple of indices provably outside Q, 'open_indices': tuple, 'tier': int, 'tier_name': str, 'period_multiplier': int|None (only when harmonic), 'class_i_note': str, 'class_n_warning': str}",
         1,
@@ -13108,12 +13167,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 542 */
+    { /* 545 */
         "srmech.music.common_period",
         "srmech",
         "music",
         "The common period of an acoustic spectrum as an integer multiple k of the fundamental period T0 \342\200\224 and the GUARD that makes silent harmonisation UNREACHABLE. Returns k (the Class-I lcm of the reduced ratio denominators, so a partial at p/q completes a whole number of cycles in k*T0 exactly when q divides k) when, and only when, commensurability_verdict says 'harmonic'. For an 'inharmonic' or 'open' spectrum it RAISES: there is no period to return, and handing back a best_rational anchor instead would silently convert the spectrum into a harmonic one. That conversion is the corruption this op exists to make impossible \342\200\224 the only way to obtain a period from this family is to have earned the verdict first. The raised message names the offending partial indices and why no period exists. Exact integer; numpy-free; no abs().",
-        ts_params_542, 2u,
+        ts_params_545, 2u,
         "int",
         "the period multiplier k (common period = k*T0); raises ValueError when the spectrum is inharmonic or open",
         1,
@@ -13126,7 +13185,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 543 */
+    { /* 546 */
         "srmech.music.bell_partials",
         "srmech",
         "music",
@@ -13144,12 +13203,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 544 */
+    { /* 547 */
         "srmech.music.equal_temperament_partials",
         "srmech",
         "music",
         "Equal temperament as EXACT algebraic numbers \342\200\224 TIER 2. Builds the number field Q[x]/(x**divisions - octave) and returns the requested scale degrees as exact Qalg powers of its generator s; the step ratio is the divisions-th root of the octave \342\200\224 irrational, and carried EXACTLY rather than approximated. This is the verified worked case for the whole family: in Q[x]/(x**12 - 2), s**0 is rational (1), s**1 through s**11 are ALL irrational, and s**12 is rational (2) \342\200\224 12-tone equal temperament exactly representable AND provably incommensurable with the octave except AT the octave, decided with no threshold and no denominator ceiling. REFUSES a reducible x**n - a (Lang, Algebra 3rd ed., VI sec. 9 Thm 9.1: irreducible iff a is not a p-th power for every prime p | n, the -4K**4 clause being unreachable for an integer a >= 2), because the quotient ring would not be a field and the rational-membership oracle would be meaningless. Composes the Qalg field algebra + Class-J prime factorisation. Exact-Q; numpy-free; no abs().",
-        ts_params_544, 3u,
+        ts_params_547, 3u,
         "dict",
         "{'ratios': tuple[Qalg,...], 'degrees': tuple, 'tier': 2, 'open_partials': (), 'minimal_polynomial': tuple[int,...] (low->high, monic), 'field_degree': int}",
         1,
@@ -13162,12 +13221,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 545 */
+    { /* 548 */
         "srmech.music.stiff_string_partials",
         "srmech",
         "music",
         "A stiff (piano) string's partials \342\200\224 TIER 2, exactly carriable TODAY. The textbook closed form is f_n = n*f0*sqrt(1 + B*n**2) (Fletcher & Rossing, The Physics of Musical Instruments, 2nd ed., Springer 1998, sec. 2.18 \342\200\224 bending stiffness sharpens each partial). With B RATIONAL the ratio to the fundamental is sqrt(rational): r_n = n*sqrt(1+B*n**2) = sqrt(n**2*(1+B*n**2)), a QUADRATIC SURD living exactly in Q[x]/(x**2 - r_n). No approximation anywhere \342\200\224 this whole family was ALREADY exactly carriable by the shipped Qalg; what was missing was the tier tag and a verdict that could read it. Each partial gets its own quadratic field (the radicands differ), which is correct and harmless: commensurability with the fundamental is a per-partial rational-membership question, field-theoretic in each field separately. BUILT-IN CONTROL: at B == 0 the radicand collapses to n**2, a perfect square, so every ratio degenerates to the integer n and the op returns Tier 1 with verdict 'harmonic' and integer_series True \342\200\224 the ideal flexible string, recovered exactly. A float B is REFUSED (it would make every radicand a float-rational and collapse the Tier-1/Tier-2 distinction). Exact-Q; numpy-free; no abs().",
-        ts_params_545, 2u,
+        ts_params_548, 2u,
         "dict",
         "{'ratios': tuple[Qalg|Q,...], 'orders': tuple, 'tier': 1|2, 'open_partials': (), 'inharmonicity': Q, 'radicands': tuple[Q,...], 'cite_as': str}",
         1,
@@ -13180,12 +13239,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 546 */
+    { /* 549 */
         "srmech.music.membrane_partials",
         "srmech",
         "music",
         "A circular membrane's partials \342\200\224 TIER 3, DECLARED OPEN. The modal frequencies of an ideal circular membrane are proportional to the Bessel zeros, so the ratio to the fundamental is j_{n,m}/j_{0,1} (Fletcher & Rossing, The Physics of Musical Instruments, 2nd ed., Springer 1998, sec. 3.2) \342\200\224 which is why a drum has no pitch the way a string does. EVERY partial is declared Tier 3, and NOTHING is asserted about why: the returned ratios are exact rationals OF DECLARED PRECISION from bessel_zero_fixed, are not claimed to be the true values, and the true values are not claimed to be transcendental, algebraic-irrational or rational. DLMF 10.21 was fetched and contains no transcendence statement; Siegel's theorem was never fetched. The honest position is that the field-theoretic status is UNRESOLVED, so the tier is declared open and every commensurability verdict over this spectrum returns 'open' \342\200\224 never 'harmonic', which is exactly what reading a best_rational anchor off these rationals would have produced. Pass open_partials straight through to spectrum_tier / commensurability_verdict. Exact-Q; numpy-free; no abs().",
-        ts_params_546, 3u,
+        ts_params_549, 3u,
         "dict",
         "{'ratios': tuple[Q,...], 'modes': tuple of (n,m), 'tier': 3, 'open_partials': tuple(all indices), 'scale_bits': int, 'declared_precision_only': True, 'transcendence_claim': 'NONE ...', 'cite_as': str}",
         1,
@@ -13198,12 +13257,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 547 */
+    { /* 550 */
         "srmech.music.bessel_j_fixed",
         "srmech",
         "music",
         "J_k(x) for integer order k >= 0 and rational x >= 0, as an exact rational on a DECLARED 2**-scale_bits fixed-point grid. The DLMF 10.2.2 / Watson (1922) sec. 3.1 ascending series J_k(x) = SUM_m (-1)**m (x/2)**(2m+k) / (m!(m+k)!), summed by the exact integer recurrence t_{m+1} = t_m*(x/2)**2/((m+1)(m+k+1)); the series alternates, so truncating when the running term underflows the scale bounds the truncation error BY that term. SIGN LIVES IN THE ORIENTATION, NOT THE DIVISOR: the running term is a NON-NEGATIVE magnitude and the alternation is an explicit Class-K sign-flip re-applied by Class-C reorient at the accumulation, so every shift and divide runs on a magnitude where C truncation and Python floor agree \342\200\224 which is what makes the C peer srmech_bessel_j_fixed_big bit-identical by construction (measured 168/168 across order x argument x scale). Negative x raises (the Class-K real-axis domain; use J_k(-x) = (-1)**k J_k(x)). The return is a rational OF DECLARED PRECISION and asserts nothing about the arithmetic nature of any Bessel value. Exact integer body; numpy-free; no float; no abs().",
-        ts_params_547, 4u,
+        ts_params_550, 4u,
         "tuple",
         "(num, den) with den == 2**scale_bits \342\200\224 the exact value at the declared precision",
         1,
@@ -13216,12 +13275,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 548 */
+    { /* 551 */
         "srmech.music.bessel_zero_fixed",
         "srmech",
         "music",
         "The index-th positive zero of J_order at a DECLARED precision. McMahon's asymptotic start (DLMF 10.21.19) beta = pi*(4*index + 2*order - 1)/4, j ~ beta - (4*order**2 - 1)/(8*beta), refined by exact-rational Newton on bessel_j_fixed with the derivative from DLMF 10.6.1 (J_k' = (J_{k-1} - J_{k+1})/2, J_0' = -J_1). Every iterate is snapped back onto the declared grid so the denominator stays bounded, and the sign handling in that snap is a Class-K split plus a Class-C re-application \342\200\224 never abs(), and never a negative floor-divide. THIS ASSERTS NOTHING ABOUT THE TRUE ZERO: it is a rational of declared precision. Whether Bessel zeros are transcendental or algebraic-irrational is OPEN in this project \342\200\224 DLMF 10.21 states nothing on it and Siegel's theorem was never fetched \342\200\224 so membrane_partials tags such a spectrum Tier 3 and every verdict over it returns 'open'. Pure orchestration over bessel_j_fixed (C-dispatched) and the C-backed pi cascade, so it adds NO new numerical kernel. Exact-Q; numpy-free; no abs().",
-        ts_params_548, 4u,
+        ts_params_551, 4u,
         "tuple",
         "(num, den) on the declared 2**-scale_bits grid; den is a power of two 2**k with k <= scale_bits, NOT unconditionally 2**scale_bits \342\200\224 the value is an exact Q and comes back REDUCED (measured: bessel_zero_fixed(0, 1, scale_bits=64) has den 2**61). bessel_j_fixed does always carry den == 2**scale_bits; this one does not",
         1,
@@ -13234,12 +13293,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 549 */
+    { /* 552 */
         "srmech.chemistry.balance_reaction",
         "srmech",
         "chemistry",
         "Balance a chemical reaction -> signed primitive integer coefficients. A balanced reaction is a vector v in the kernel of the ELEMENT x SPECIES matrix A (element conservation A.v = 0); each exact-Q kernel column is reduced to the smallest integer vector on its ray by the rc378 primitive_integer_vector keystone, canonical sign = first nonzero entry positive. Read reactant vs product from the SIGN: a NEGATIVE coefficient is a product. ['H2','O2','H2O'] -> [2, 1, -2] (2 H2 + O2 -> 2 H2O). Accepts formula strings, {element: count} dicts, or a raw element x species QMat, interchangeably. Raises on an UNBALANCEABLE reaction (trivial kernel); an UNDERDETERMINED reaction (kernel dim > 1) raises unless all_balances=True, which returns every independent balance. Class L nullspace o Class I/K/C keystone; composition_of_c; exact-Q, numpy-free, no abs().",
-        ts_params_549, 2u,
+        ts_params_552, 2u,
         "list",
         "list[int] \342\200\224 the signed primitive coefficients (kernel dim 1, the usual case); or list[list[int]] (one primitive vector per independent balance) when all_balances=True",
         1,
@@ -13252,12 +13311,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 550 */
+    { /* 553 */
         "srmech.chemistry.conservation_laws",
         "srmech",
         "chemistry",
         "The conserved moieties of a reaction network \342\200\224 an integer basis of the LEFT-nullspace of the stoichiometric matrix N (every gamma with gamma^T N = 0: a combination of species whose total is invariant under every reaction, i.e. mass / charge / moiety conservation). Computed as N.T.nullspace() with each kernel column reduced by the primitive_integer_vector keystone. N is the SPECIES x REACTION matrix of a NETWORK (rows = species, columns = reactions; entry = net change) \342\200\224 the transpose-in-role of balance_reaction's element x species matrix. For Michaelis-Menten E + S <-> ES -> E + P this returns two laws (total enzyme E + ES, and a substrate-matter moiety). Class L left-nullspace o Class I keystone; composition_of_c; exact-Q, numpy-free, no abs().",
-        ts_params_550, 1u,
+        ts_params_553, 1u,
         "list",
         "list[list[int]] \342\200\224 one primitive integer conservation vector per left-nullspace basis element (length = number of species each); empty when N has full row rank (no conserved moiety)",
         1,
@@ -13270,12 +13329,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 551 */
+    { /* 554 */
         "srmech.chemistry.deficiency",
         "srmech",
         "chemistry",
         "The Feinberg deficiency delta of a chemical reaction network: delta = n - l - s = rank(L_complex) - rank(N), where n = number of distinct complexes, l = number of linkage classes (connected components of the complex graph), and s = rank(N) = dimension of the stoichiometric subspace. delta is a NON-NEGATIVE integer fixed by network topology alone (independent of rate constants). rank(L_complex) = n - l is the exact rank of the combinatorial graph Laplacian of the complex graph (a graph Laplacian has rank = vertices - components); rank(N) is the Class-J QMat.rank. A -> B has delta 0; 2A -> A+B -> 2B -> 2A has delta 1. Definitional and stated self-contained; standard reference M. Feinberg, Foundations of Chemical Reaction Network Theory (Springer, Applied Mathematical Sciences 202, 2019) and the open-access Lectures on Chemical Reaction Networks (Univ. of Wisconsin MRC, 1979/1980). Class L Laplacian o Class J rank; composition_of_c; exact-Q, numpy-free, no abs().",
-        ts_params_551, 2u,
+        ts_params_554, 2u,
         "int",
         "the deficiency delta (default); or {'deficiency', 'n_complexes', 'n_linkage_classes', 'rank_stoichiometric'} when with_components=True",
         1,
@@ -13288,12 +13347,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 552 */
+    { /* 555 */
         "srmech.chemistry.parse_formula",
         "srmech",
         "chemistry",
         "Parse a chemical formula string into an {element: count} dict \342\200\224 the ergonomic input balance_reaction accepts. Handles multi-letter element symbols (\"Ca\", \"Cl\"), implicit and explicit ASCII-digit counts (\"O\" -> 1, \"O2\" -> 2), and arbitrarily NESTED parenthesised groups with a trailing multiplier (\"Ca3(PO4)2\" -> {Ca:3, P:2, O:8}; \"(OH)2\" -> {O:2, H:2}). DEFERS (raises, never silently mis-parses) hydrate dots, charges, and isotope/bracket syntax (out of `#T1050` scope). Class F/G (Render / byte-search): a bounded placeholder scan, the srmech_template_render family. Dispatches to the JPL-clean caller-arena C twin srmech_parse_formula (the pure-Python body is the byte-identical fallback and parity oracle); c_dispatched.",
-        ts_params_552, 1u,
+        ts_params_555, 1u,
         "dict",
         "{element: count} \342\200\224 element symbol -> total count; repeated occurrences accumulate",
         1,
@@ -13306,12 +13365,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 553 */
+    { /* 556 */
         "srmech.bus.decode_splice",
         "srmech",
         "bus",
         "Decode one frame of a UTLP Bio-TOTP bus channel (Claim 255 alignment) given the per-channel DNA secret. Pure function (no side effects); suitable for LLM / agent introspection of mid-stream traffic. Returns (plaintext, used_time_ns); the plaintext is the original JSON-encoded bus Event and the used_time_ns is the candidate time-bucket value that successfully decoded (the current bucket or \302\2611 bucket for clock-skew tolerance). Cipher: AES-128-CTR when ``pip install srmech[crypto]`` extra is installed (UTLP-exact path); HMAC-SHA-256 counter-mode keystream by default (stdlib-only, structurally equivalent for the defensive-scope threat model). Key derivation rolls every 250 ms (WINDOW_NS=250_000_000; configurable via ``SRMECH_BUS_TOTP_WINDOW_NS`` env var); the receiver tolerates \302\2611 window for clock skew. Frame layout: [nonce:16][ciphertext]; nonce = sender_id_u64 || channel_id_u32 || packet_seq_u32. Pass ZERO_DNA (b'\\x00'*32) for herd-immunity / public mode. v0.5.0rc7 (Bio-TOTP wire format; UTLP Claim 255).",
-        ts_params_553, 4u,
+        ts_params_556, 4u,
         "tuple[bytes, int]",
         "(plaintext, used_time_ns) \342\200\224 JSON-encoded bus Event bytes, and the candidate time value that decoded successfully.",
         1,
@@ -13324,12 +13383,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 554 */
+    { /* 557 */
         "srmech.bus.list_endpoints",
         "srmech",
         "bus",
         "Enumerate currently-running srmech.bus endpoints owned by the current user by scanning the `~/.srmech/bus-*.sock` (POSIX) / `~/.srmech/bus-*.txt` (Windows) registry directory. Best-effort liveness check per endpoint (POSIX: UDS connect probe; Windows: TCP loopback connect or WaitNamedPipeW probe). Side effect (when `cleanup_dead=True`, the default): registration files for endpoints whose server is no longer accepting connections are removed from disk on read. Returns `[]` on Pyodide / WASM (no socket support). Sorted alphabetically by endpoint name. v0.5.0rc9 (MCP / catalog discoverability; backing function shipped since v0.5.0rc1).",
-        ts_params_554, 1u,
+        ts_params_557, 1u,
         "list[Endpoint]",
         "Each Endpoint is a frozen dataclass: name (str), path (pathlib.Path), transport ('uds' POSIX / 'pipe' or 'tcp' Windows), alive (bool), pid (Optional[int], currently always None \342\200\224 reserved for a future rc that records owner PID in the registry file).",
         1,
@@ -13342,12 +13401,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 555 */
+    { /* 558 */
         "srmech.bus.by_name",
         "srmech",
         "bus",
         "Look up one srmech.bus endpoint by name. Same registry scan as `srmech.bus.list_endpoints` but returns just the matching record (or `None` if no endpoint of that name is registered for the current user). Does NOT auto-clean dead-endpoint registration files (the caller may want to inspect a dead endpoint's record). Returns `None` on Pyodide / WASM. v0.5.0rc9 (MCP / catalog discoverability; backing function shipped since v0.5.0rc1).",
-        ts_params_555, 1u,
+        ts_params_558, 1u,
         "Endpoint | None",
         "Frozen dataclass with name (str), path (pathlib.Path), transport ('uds' / 'pipe' / 'tcp'), alive (bool), pid (Optional[int]). `None` when no matching endpoint is registered.",
         1,

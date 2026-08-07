@@ -282,11 +282,53 @@ jobs:
         shard: [1, 2, 3, 4, 5, 6]
     # `#T1007` — the pure-suite split has LANDED, so the rc357 judgment call (a
     # single 70-min guard over the whole ~45-min monolith) is reversed as that note
-    # said it should be. This is now a PER-SHARD guard: each shard is ~2-min install
-    # + ~8-10 min of its 1/6 of the suite, so ~25 gives generous headroom without
-    # over-tightening (a false trip still only costs one ~10-min shard, not 45 min).
+    # said it should be. This is a PER-SHARD guard: ~2-min install + this shard's
+    # 1/6 of the suite.
+    #
+    # rc411 (`#T1086`) — RAISED 25 -> 40, and the rationale REWRITTEN, because every
+    # premise of the old one had gone false. This supersedes `#T1007`'s sizing
+    # assumption (NOT its split decision, which stands and is what made the shards
+    # measurable in the first place). The old text said each shard was "~8-10 min",
+    # that 25 was "generous headroom", and that a false trip "only costs one ~10-min
+    # shard". MEASURED, shard 3, four consecutive runs:
+    #
+    #     main a963bd46 (no rc411)   21m18s   success   <- the CONTROL
+    #     rc411 50a6acec8            21m09s   success
+    #     rc411 f51e2bcf4            21m26s   success
+    #     rc411 7ea15a035            30m      KILLED at the 25-min guard
+    #
+    # So the slowest shard is a ~21-MINUTE shard, not a ~10-minute one; 25 over
+    # 21m18s is ~17% headroom, which is the opposite of generous; and a false trip
+    # costs 21 minutes plus the two fan-in jobs that consume all six shard logs
+    # (skip-audit + durations-merge), which FAIL for missing input and make one slow
+    # runner look like three red jobs. 40 gives ~88% headroom over the measured
+    # worst shard.
+    #
+    # NOT CAUSED BY rc411, and the control row above is why this is stated rather
+    # than assumed: rc411 moves shard 3 by 0-17s (inside run-to-run noise), and its
+    # three new ops were measured directly in the exhaustive per-op MCP smoke at
+    # ~1s total. The raise rides in rc411 because rc411 cannot go green without it
+    # and the flake will hit any branch, not because rc411 caused it.
+    #
+    # STILL UNEXPLAINED, and deliberately not papered over by this raise: rounds 1
+    # and 2 ran ~21m and round 3 hit 30m — a ~43% jump on a diff measured at ~1s.
+    # Raising the ceiling makes that survivable; it does NOT diagnose it. Runner
+    # noise (these ran immediately after a multi-hour GitHub Actions outage) is
+    # plausible and UNPROVEN. It could not be narrowed further: a job killed at the
+    # guard uploads NO artifact (the "Preserve this shard's pure-suite log" step
+    # never runs) and GitHub serves no log for it, so there is no per-test evidence
+    # to separate "uniformly slower" from "hung on one test". That is itself an
+    # argument for the raise — a shard that COMPLETES uploads its `--durations=0`
+    # log, so the next occurrence is diagnosable where this one was not. If it
+    # recurs at 40, the cause is not variance and this number is not the fix.
+    #
+    # RELATED, not addressed here: `#T1051` records that the pure-CI floor is five
+    # slow ops. A worst shard sitting at 85% of budget ON MAIN is that same problem
+    # surfacing as flakiness rather than as duration. Lowering the floor is the real
+    # fix; this guard only stops it from being reported as a test failure.
+    #
     # If a shard legitimately grows past this, RAISE the number — do not narrow.
-    timeout-minutes: 25
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
