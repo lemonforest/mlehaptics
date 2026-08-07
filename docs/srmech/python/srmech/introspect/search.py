@@ -15,6 +15,12 @@ question a caller actually arrives with.
 This module closes that with ONE accessor. No new system, no new schema, and
 no new data: the corpus it indexes is the prose that already ships.
 
+**rc412 (`#T1093`) extends the same finding to the STRUCTURED half.** rc305
+added ``ToolEntry.composes`` / ``ToolEntry.preserves``; both ride the wheel and
+both are baked into the C registry — and no accessor read either one either.
+They are now indexed alongside the prose, so a query naming a sub-op reaches
+the composites built from it. See :func:`_op_fields`.
+
 THE CASCADE — every stage is a shipped, registered op
 =====================================================
 This is not new capability. It is a registered composition of ops that already
@@ -61,8 +67,9 @@ fails that — it tells a caller which row won and not why it won or how to reac
 it. So every record carries:
 
 * ``why``   — the FIELD that matched (``explanation``, ``example.worked``,
-  ``carrier.description``, ``name``), so a caller can see whether the hit is
-  the op's own subject or a pointer inside a neighbour's prose;
+  ``carrier.description``, ``name``, ``composes``, ``preserves``), so a caller
+  can see whether the hit is the op's own subject, a pointer inside a
+  neighbour's prose, or a declared structural edge;
 * ``reach`` — the importable call form, ready to paste.
 
 ``reach`` matters more than it looks. The measured failure it fixes is a
@@ -83,7 +90,10 @@ this reaches is standalone-ready (``tlv_pack`` / ``sha256_bytes`` /
 / ``top_k_by_score`` are ``non_compute`` leaves). A bare-C host has
 ``srmech_tool_registry_count/_get/_find``, ``srmech_carrier_registry_*``,
 ``srmech_byte_search`` and ``srmech_sha256`` — the retrieval half of this
-cascade has been executed in C over all 556 entries.
+cascade has been executed in C over every entry the registry carries.
+(That last clause named a literal entry count until rc412; it had been stale
+since the next op landed. ``srmech_tool_registry_count()`` is the number, and
+it is the only spelling that cannot go stale.)
 
 This is NOT an exemption claim. ADR-0009 §4 exempts only ``srmech.mcp`` /
 ``srmech.llm`` and the ``host_glue`` rows, and *"Nothing else is exempt."*
@@ -227,6 +237,23 @@ def _op_fields(entry: Any) -> Tuple[Tuple[str, str], ...]:
     ``example.worked`` specifically — the sub-key that carries the executable
     transcript, and therefore the one whose hit tells a caller the answer is
     a real call and not a description of one.
+
+    ``composes`` / ``preserves`` join the index at rc412 (`#T1093`). They are
+    the SAME defect this module was written for, one field-pair later: rc305
+    added two structured ToolEntry fields, they ride the wheel, the C
+    serialiser bakes them into ``srmech_tool_registry.c`` — and until rc412
+    **no accessor read either one**. The only consumers were
+    ``ToolEntry.to_jsonable``, the curated merge, and the C emitter, none of
+    which is a caller-facing question. Populating an unread field only moves
+    a hash, so the reader lands before the rows do.
+
+    An EMPTY field contributes nothing — no label, no bytes, no frame change.
+    That is deliberate on two counts: it is the same key-omission
+    ``to_jsonable`` and the C serialiser already perform, and it keeps a leaf
+    op (for which empty is the *correct* default, ``tool_schema.py``) exactly
+    as searchable as it was. What the caller gains is a directed one: a query
+    naming a sub-op now reaches the composites BUILT FROM it, and ``why``
+    says ``composes:`` so the hit is legible as an edge rather than as prose.
     """
     fields: List[Tuple[str, str]] = [
         ("name", entry.name or ""),
@@ -240,6 +267,13 @@ def _op_fields(entry: Any) -> Tuple[Tuple[str, str], ...]:
             fields.append((f"example.{key}", _as_text(example[key])))
     elif example:
         fields.append(("example", _as_text(example)))
+    # rc412 (`#T1093`) — the compose/preserve layer becomes reachable. Appended
+    # AFTER example so the pre-rc412 field order is untouched for every row
+    # that declares neither, which is most of them.
+    if entry.composes:
+        fields.append(("composes", _as_text(entry.composes)))
+    if entry.preserves:
+        fields.append(("preserves", _as_text(entry.preserves)))
     return tuple(fields)
 
 

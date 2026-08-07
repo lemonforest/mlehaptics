@@ -150,7 +150,8 @@ def test_why_names_a_field_and_carries_the_excerpt() -> None:
     for h in search("greatest common divisor", k=5):
         assert ": " in h["why"], f"why has no excerpt: {h['why']!r}"
         field = h["why"].split(":", 1)[0]
-        assert field in ("name", "category", "summary", "explanation") or (
+        assert field in ("name", "category", "summary", "explanation",
+                         "composes", "preserves") or (
             field.startswith("example.") or field.startswith("carrier.")), (
             f"why names an unknown field: {field!r}")
 
