@@ -484,6 +484,58 @@ class ToolSchema:
             if t.name == name or t.name.endswith(suffix)
         )
 
+    def composition(self, name: str) -> Optional[Dict[str, Any]]:
+        """BOTH directions of the ``composes`` edge for one op, in one call.
+
+        v0.9.0rc412 (`#T1093`) — the reader for :attr:`ToolEntry.composes`.
+
+        ``composes`` is a DIRECTED edge: the ordered sub-ops an op is built
+        FROM. rc305 shipped the field and rc313 added a second row, and
+        through rc411 the only things that read either were
+        ``ToolEntry.to_jsonable``, the curated merge and the C serialiser —
+        none of them a question a caller asks. In particular **the reverse
+        direction had no reader at all**: the registry could say what
+        ``genome_from_graph`` is built from and could not say what is built
+        from ``mint_strand``. That second question is the one a caller
+        holding a primitive actually arrives with, and inverting a directed
+        edge by hand means iterating 500-plus rows.
+
+        Returns ``{"name", "composes", "composed_by"}`` — the RESOLVED full
+        name, the declared ordered sub-ops (downward, exactly as declared),
+        and the ops that declare this one (upward, sorted). ``None`` when the
+        name does not resolve, so "no such op" stays distinguishable from
+        "a leaf with no edges", which answers with two empty tuples.
+
+        The name goes through :meth:`resolve`, so a bare leaf works and an
+        AMBIGUOUS leaf returns ``None`` rather than picking a side — the same
+        contract ``resolve`` already sets.
+
+        Derived on demand and nothing is cached, per ADR-0011: an inverted
+        index held across a profile registration would be stale exactly when
+        it mattered. Both directions are a single pass over ``tools``.
+
+        PARITY (ADR-0009): no new C symbol, and none is owed. This is a
+        registry TRAVERSAL, not a compute kernel — the obligation on that
+        bucket is transitive standalone-C reachability, and a bare-C host has
+        it: ``srmech_tool_registry_count`` / ``_get`` walk the same table, and
+        each ``srmech_tool_entry_t`` carries ``composes`` +
+        ``composes_count``, so both directions are derivable there by the
+        same single pass.
+
+        >>> schema = get_tool_schema()
+        >>> schema.composition("no_such_op_anywhere") is None
+        True
+        """
+        entry = self.resolve(name)
+        if entry is None:
+            return None
+        return {
+            "name": entry.name,
+            "composes": tuple(entry.composes),
+            "composed_by": tuple(sorted(
+                t.name for t in self.tools if entry.name in t.composes)),
+        }
+
 
 # ──────────────────────────────────────────────────────────────────────
 # Registry

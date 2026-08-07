@@ -177,12 +177,12 @@ obvious response — write a guide — would violate two standing constraints an
 drift surface. srmech's self-information is stratified by **grain**, and the three grains are in
 radically different states:
 
-| grain | home | state (measured, rc409 registry) |
+| grain | home | state (measured; per-row basis noted — the registry is 559 at rc411, `composes` re-measured at rc412) |
 |---|---|---|
-| **ARCHITECTURE** — the A-N vocabulary, the substrate claims | `srmech_research_notebook.md` (7,373 lines) | **DRIFTING** — highest rcN it mentions is **rc399**; shipped is rc410; **26** `docs/srmech/python` commits landed since it was last touched; **zero** currency gates |
+| **ARCHITECTURE** — the A-N vocabulary, the substrate claims | `srmech_research_notebook.md` (7,373 lines) | **DRIFTING** — highest rcN it mentions is **rc399**; shipped is rc412; **26** `docs/srmech/python` commits landed since it was last touched; **zero** currency gates |
 | **PER-OP** — what one op is, means, and demonstrates | `summary` + `explanation` + `example` | **COMPLETE** — 559/559 on all three post-rc411, ~2.05 M chars, floor-enforced (§4) |
-| **DECOMPOSITION** — what sub-ops this op is built from | `composes` | **2 / 559** (0.36 %); derivable — see §1.7.1 |
-| **INVARIANT** — what guarantees this op maintains | `preserves` | **2 / 559**; *not* the same grain as `composes` — see §1.7.1 |
+| **DECOMPOSITION** — what sub-ops this op is built from | `composes` | **9 / 559** post-rc412 (was 2/559); set derivable, order hand-traced — see §1.7.1 |
+| **INVARIANT** — what guarantees this op maintains | `preserves` | **2 / 559**, deliberately held pending a taxonomy; *not* the same grain as `composes` — see §1.7.1 |
 | **PER-TASK** — which ops go together to do X | **NO HOME** | **does not exist anywhere** — see §1.7.1 |
 
 #### 1.7.1 ⚠️ CORRECTION (2026-08-07) — this table originally named the wrong home
@@ -232,6 +232,18 @@ set plus human tracing for the sequence, never derivation alone.
 or `preserves`.** Their only consumers are `to_jsonable` (`tool_schema.py:400-401`), the curated merge
 (`:526-527`), and the C serialiser. Populating an unread field moves a hash and nothing else — which is
 why any rc that populates them must ship a **reader** first.
+
+**Post-rc412 addendum (2026-08-07).** rc412 (`#T1093`) acted on this section and changed two of its
+numbers, so read the figures above as current and §1.7.1's body as the rc411-basis correction that
+prompted them. It found the cause **one layer below population — nothing READ either field**
+(`search.py::_op_fields` indexed neither), and shipped `ToolSchema.composition()` **before** adding
+rows: a traversal in **both** directions, because `composes` points downward and the question a caller
+actually holds is the reverse edge — *what is built FROM this?* — which previously required walking all
+559 rows. `composes` then went **2 → 9** rows (7 → 27 references), hand-traced under a stated criterion,
+with a three-clause gate that fires on undeclared population as well as deletion. `preserves` was left
+at 2 on purpose. **A measurement worth keeping: indexing `composes` in search wins the `why`
+attribution on 0 of 27 references** — a row's own prose almost always already names the ops it composes
+— so the index alone would have been a reader that provably reads nothing.
 
 **A hand-authored guide is the wrong instrument, for three separable reasons.**
 

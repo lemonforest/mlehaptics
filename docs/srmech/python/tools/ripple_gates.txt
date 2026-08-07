@@ -60,6 +60,15 @@ tests/test_worked_examples_strict_zero_rc353.py
 tests/test_worked_examples_execute_rc354.py
 tests/test_tool_example_input_schema_rc355.py
 
+# -- composes: declaration drift + verifiability (rc412, `#T1093`) -----------
+#    The `composes` field is edited in the SAME curated file as explanation /
+#    example, so an rc touching a ToolEntry can move it by accident -- and the
+#    rc305 sweep cannot see a declaration DISAPPEAR (a strict-zero check over a
+#    shrinking set is vacuously true; measured: deleting one left rc305 fully
+#    green). This pins the declaring set against a reviewed roster and checks
+#    every declared sub-op is actually CALLED. ~13 s, pure-Python. -----------
+tests/test_composes_grain_rc412.py
+
 # -- count-pin describe()["tools"]["total"] (cheap representatives) -----------
 tests/test_registry_smoke_rc127.py
 tests/test_rc15_describe_resolve.py
