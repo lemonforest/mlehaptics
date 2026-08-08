@@ -66,6 +66,34 @@ The ASCII short-circuit is a **proof, not an optimisation guess**: no codepoint 
 
 **H3 from the scoping brief was already closed and is reported as such.** The brief named `tests/test_adr_status_coherence_rc409.py:87`'s hand-rolled `[^\x00-\x7F]+` clusterer, failing on the keycap `1️⃣`. It was measured against rc414; **rc415 already routed that parser through `glyph_stream`** via `tests/adr_corpus.status_pair`, and `status_pair('1️⃣ Keycap')` → `('1️⃣', 'Keycap')` at HEAD. Nothing to fix; verified rather than assumed.
 
+### `#T1101` — the registry-completeness ratchet: every public `__all__` callable is registered or on a documented, down-only allowlist
+
+`srmech.biology.coupling.fold_identity` shipped in `coupling.__all__` from `#T723` and carried **no `ToolEntry` for roughly 300 rcs**, while all seven of its coupling siblings had one. rc414 registered it by hand. This rc lands the gate that would have caught it the day it was written.
+
+**The consequence was not "it was undocumented".** It was absent from `describe()`, from the MCP tool list, and from every registry-driven census; `srmech.introspect.search` could not return it at any `k` in any phrasing, because the index is BUILT from the registry; and of the other 559 rows, the number whose `summary` / `explanation` / `example` / `parameters` / `returns` / `composes` / `preserves` mention the token `fold_identity` anywhere is **ZERO**. The row a composer lands on instead, `fold_encode_recoverable`, has a well-written SIBLINGS paragraph naming `fold_encode` / `fold_spectrum` / `fractal_spectrum` and omitting the one op that answers *"can this be gated?"* — it even names the METHOD `rf.identity()` while never naming the free function. So the surface the project designated as its API contract returned a **silent false negative**, and a research leg read it and concluded `RecoverableFold` "cannot be gated" while its purpose-built three-valued gate sat 215 lines below the line being read.
+
+**Seeded at the MEASURED residual, not an inherited number: `CEIL_REGISTRY_GAPS = 184` of 744 in-scope public callables.** Scope is every non-`_` name in a public module's `__all__` that resolves to a callable which is not a class and not a module, counted once at its DEFINING module (the registry homes ops by defining module per ADR-0010, so a package-level re-export is the same op at a second path) unless that module is private, in which case the re-export IS the surface point. Classes are excluded because `carrier_schema()` owns the operand surface — `describe()["tools"]["covers"]` says so verbatim — and constants because a constant is not an op.
+
+**Coverage is by OBJECT IDENTITY, never leaf name.** Name matching would have declared 11 rc416 surface points covered by unrelated ops: `srmech.bus.list` "covered" by `srmech.introspect.list`, `srmech.signal_processing.lookup` by `srmech.introspect.naming.lookup`. That is the laundering shape the ratchet exists to refuse, and it is asserted as its own test.
+
+**The allowlist is the risk surface, so every row carries a reason CODE from a closed set, and every code carries an EXIT CONDITION** — what would remove rows bearing it. Two of the five are additionally **machine-checked against the path they claim to describe**, so a row cannot wear a cheap label to escape the expensive one:
+
+| code | rows | exit condition |
+|---|---:|---|
+| `OPEN_REGISTRATION` | **125** | ⚠️ **DEBT, not an exemption** — someone writes the `ToolEntry`. Held on its own down-only sub-ceiling |
+| `REGISTRY_MUTATOR` | 24 | the registry gains a self-describing mutator row shape |
+| `PROTOCOL_UNIFORM` | 19 | the AMSC adapter DISPATCHER earns a row (seven rows called `parse` is not an answer) |
+| `CLI_SUBCOMMAND` | 12 | the CLI grows a callable-op contract (machine-checked: must be under `srmech.cli`) |
+| `ADR0009_EXEMPT` | 4 | ADR-0009 §4's exemption list changes (machine-checked: must be under `srmech.mcp`/`llm`) |
+
+Naming 125 rows "exempt" would be the discharge; naming them **debt** is what makes the ceiling mean something as it drains. `CEIL_OPEN_REGISTRATION = 125` is separately down-only precisely so re-labelling debt as one of the four design codes cannot make the number fall.
+
+**RETRO-CHECK — the acceptance criterion, and it is RUN, twice, two ways.** A gate that would not have caught the defect that motivated it is not the gate. (i) The predicate is read against `coupling.py` and `tool_schema.py` **as they were at `966ce2dcb^`** — the commit before rc414's registration — pulled out of `git show` rather than remembered: `fold_identity` is in `coupling.__all__` there (line 1632), and `fold_identity` occurs **0 times** in `tool_schema.py` there. Both halves have flipped at HEAD. (ii) The predicate is then EXECUTED against that state: take the live covered-object set, discard exactly the one id rc414 added, and assert the ratchet reports `["srmech.biology.coupling.fold_identity"]` **and nothing else**. When git is unavailable (i) SKIPS loudly rather than passing — a retro-check that degrades to green is worse than none.
+
+**Injection proofs, run and reverted:** a public `__all__` gaining a name with no `ToolEntry` fires and names it; the same name with a leading underscore does NOT (off-surface by design); an injected class and an injected constant do NOT (different registries own those answers, and if either fired the allowlist would have to absorb the whole carrier and constant surface to stay green). Plus a **non-vacuity floor** — `FLOOR_SCOPE_POPULATION = 700` — because narrowing the scope predicate is the other way to make a ceiling fall, and a ratchet whose scope silently empties is green forever.
+
+**`tests/test_ref_notation_emitted_rc348.py`'s SCAN_ROOTS gate caught the new file's out-of-tree reach on the first run** and it is declared rather than worked around: the retro-check runs `git show` at the repo root because a fixture copy of the two pre-rc414 files would be a copy of the very claim under test. The word-table attestation test is declared alongside it, and the reason it was not *forced* to be is recorded: it spells its reach with `os.path.dirname` rather than `Path.parents`, which the scanner cannot see — the same blind spot its two predecessor table-tests have been sitting in.
+
 ## [0.9.0rc415]
 
 **ADR integrity, slice 1 of 3 — the `adr/` corpus becomes a checked surface (`#T1098`).** Thirteen ADRs are the tree's standing policy, and until rc409 **nothing in the suite read them**. rc409 read the status glyphs. This rc reads the **citations**, and the corpus turns out to have drifted exactly the way an unchecked one does: one pointer named a symbol that has never existed in any commit, seven more had been silently repointed by two rcs of unrelated insertions, and an ADR carried a status pair its own legend does not define — on **both** hand-written surfaces at once, which is precisely why the glyph-only gate stayed green.
