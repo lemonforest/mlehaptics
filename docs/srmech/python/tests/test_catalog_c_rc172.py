@@ -290,8 +290,15 @@ def test_list_attested_sources_native_pure():
 def test_list_attested_sources_adapter_class_filter():
     curated = catalog.list_attested_sources(adapter_class="curated")
     assert curated["adapter_class"] == "curated"
+    # rc418 (`#T1108`): "curated" is the NO-NETWORK class and has two members.
+    # They share the committed-NDJSON model and split on where the attestation
+    # lives — literature_curated synthesises it at read time, mpr_committed
+    # reads back the one already committed. Pinning the class to a single name
+    # made the taxonomy a synonym for one adapter, which is not what a class is.
+    assert set(catalog.ADAPTER_CLASSES["curated"]) == {
+        "literature_curated", "mpr_committed"}
     for s in curated["sources"]:
-        assert s["adapter"] == "literature_curated"
+        assert s["adapter"] in catalog.ADAPTER_CLASSES["curated"]
     with pytest.raises(ValueError):
         catalog.list_attested_sources(adapter_class="not_a_real_class")
 

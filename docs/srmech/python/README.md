@@ -517,7 +517,7 @@ One further coverage fact stated plainly rather than left to be discovered: `srm
 
 Two readings of the same abbreviation:
 
-- At **collection time**, the adapter classes are *collecting* attested rows from upstream archives. Seven adapters cover the realistic source space:
+- At **collection time**, the adapter classes are *collecting* attested rows from upstream archives. Eight adapters cover the realistic source space:
 
   | adapter | class | network? |
   |---|---|---|
@@ -526,10 +526,11 @@ Two readings of the same abbreviation:
   | `csv_bulk` | fetched | yes (CSV/XYZ bulk) |
   | `netcdf_grid` | fetched | stub (gated behind extras) |
   | `geotiff_bbox` | fetched | stub (gated behind extras) |
-  | `literature_curated` | curated | no (NDJSON committed directly) |
+  | `literature_curated` | curated | no (data-only NDJSON committed directly) |
+  | `mpr_committed` | curated | no (whole MPR envelopes committed directly) |
   | `substrate_parameterization` | configured | no (parameter set, not rows) |
 
-  The `curated` class never touches the network: rows are committed as data-only NDJSON, and srmech synthesises full MPR attestation blocks at read time from each row's per-row DOI.
+  The `curated` class never touches the network, and its two members split on **where the attestation lives** — a distinction v0.9.0rc418 (`#T1108`) had to introduce because getting it wrong is not cosmetic. A `literature_curated` catalog commits **data-only** rows and srmech **synthesises** the full MPR attestation at read time from each row's per-row DOI; an `mpr_committed` catalog commits **whole MPR v1 envelopes** whose attestation was minted when the upstream response was captured, and srmech reads it back **verbatim**. Synthesis is legitimate only where nothing true was committed. Pointing the synthesising reader at an envelope makes it manufacture a `response_sha256` over the row's own JSON on top of one that already hashes the real upstream response — the read-side mirror of the write-side substitution `#T1108` closes.
 
 - After collection, the resulting NDJSON SSOTs are a *catalog* of attested data — committed into the package, registered into the universal bridge by downstream consumers, queryable through `list_attested_sources()` / `get_attested_dataset()`.
 

@@ -55,6 +55,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 from srmech import _native
 from srmech.math.cyclic import gcd as _gcd
 from srmech.amsc.format import MPRRecord as _MPRRecord
+from srmech.amsc.format import MPRValidationError as _MPRValidationError
 from srmech.amsc.format import read_ndjson as _read_ndjson
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
 from srmech.amsc.format import validate_mpr_record as _validate_mpr_record
@@ -8615,17 +8616,18 @@ def _manifest_record(data, *, attestation=None) -> _MPRRecord:
         f"genome_persistence/v{GENOME_FORMAT_VERSION}".encode("utf-8")
     )
     descriptor_hash = _sha256_bytes(GENOME_MANIFEST_SCHEMA_ID.encode("utf-8"))
-    attest = {
-        "source_doi": "10.0/srmech.genome.persistence",
-        "source_url": "https://srmech.net/genome/persistence",
-        "license": "CC0",
-        "retrieved_at": "1970-01-01T00:00:00Z",
+    attest = dict(_default_source_attestation())
+    # response_sha256 + the four ENCODER-identity fields are ALWAYS synthesised
+    # here, never inherited: they describe THIS body and THIS build. See
+    # _ATTESTATION_CARRY_FIELDS for why inheriting the body hash would be worse
+    # than the substitution `#T1108` fixes.
+    attest.update({
         "response_sha256": body_sha,
         "parser_version": parser_version,
         "parser_rule_hash": rule_hash,
         "collector_descriptor_path": "srmech/biology/genome.py",
         "collector_descriptor_hash": descriptor_hash,
-    }
+    })
     if attestation is not None:
         attest = _merge_source_attestation(attest, attestation)
     record = _MPRRecord(
@@ -8646,12 +8648,24 @@ def _manifest_record(data, *, attestation=None) -> _MPRRecord:
     return record
 
 
-def _read_manifest(path) -> dict:
-    """Read + parse ``path/manifest.json`` into its ``data`` block (the catalog).
+def _read_manifest_record(path) -> _MPRRecord:
+    """Read + parse ``path/manifest.json`` into the WHOLE :class:`MPRRecord` —
+    data block, attestation block and rendering block.
+
+    **The read half of the attestation lifecycle (`#T1108`).** Until v0.9.0rc418
+    this function did not exist and :func:`_read_manifest` was the only reader:
+    it built the full record — including the attestation — validated it, and then
+    returned ``record.data``, dropping the attestation on the floor. Nothing
+    anywhere in srmech handed back an on-disk attestation, so "carry the caller's
+    attestation forward across a mutation" had **no source to carry from**, and
+    every mutating op re-synthesised the srmech default instead. That is why a
+    genome saved under ``CC-BY-SA-4.0`` with a real DOI came back ``CC0`` /
+    ``10.0/srmech.genome.persistence`` after one ``genome_append``, and why the
+    false block validated as cleanly as the true one.
 
     Reads ONLY the manifest file (never opens ``turns.bin``) — this is the
-    catalog read. Round-trips through :class:`MPRRecord` so the on-disk shape is
-    validated as a real MPR record before its ``data`` is returned."""
+    catalog read. The on-disk shape is validated as a real MPR record before
+    anything is returned."""
     manifest_path = Path(path) / _MANIFEST_NAME
     text = manifest_path.read_text(encoding="utf-8")
     payload = _srmech_json.loads(text)
@@ -8663,7 +8677,163 @@ def _read_manifest(path) -> dict:
         rendering=dict(payload.get("rendering", {})),
     )
     _validate_mpr_record(record)
-    return record.data
+    return record
+
+
+def _read_manifest(path) -> dict:
+    """Read + parse ``path/manifest.json`` into its ``data`` block (the catalog).
+
+    The ``data``-only projection of :func:`_read_manifest_record`. Reads ONLY the
+    manifest file (never opens ``turns.bin``) — this is the catalog read. Callers
+    that need the ATTESTATION (every mutating op, since `#T1108`) must use
+    :func:`_read_manifest_record` or :func:`_on_disk_source_attestation`; this
+    one deliberately projects it away, which is exactly the projection that used
+    to be the only one available."""
+    return _read_manifest_record(path).data
+
+
+#: The attestation fields that INHERIT from an existing on-disk manifest across a
+#: mutation — the four that describe WHERE THE CORPUS CAME FROM. They are facts
+#: about the source, and a mutation does not change the source.
+#:
+#: **This is deliberately NOT** :data:`_ATTESTATION_SOURCE_FIELDS`, which is a
+#: FIVE-element set including ``response_sha256``. That set answers a different
+#: question — *what may a caller OVERRIDE at create time* — and including the
+#: response hash there is correct for that job. Inheriting it would be a worse
+#: defect than the one `#T1108` fixes: ``response_sha256`` IS the body hash
+#: (:func:`_manifest_record` writes ``body_sha`` into it), so carrying the old
+#: value across an append would freeze a stale body digest into an attested
+#: genome and every downstream re-verification would fail against bytes that are
+#: perfectly intact. Measured at rc417: on a default-attested genome, one plain
+#: ``genome_append`` moves ``response_sha256`` and NOTHING ELSE.
+#:
+#: The same measurement is what makes the refuse-on-conflict predicate affordable.
+#: Scoped to these four it fires on ZERO of the 178 ``genome_append`` call sites
+#: in the tree; scoped to all five it fires on ALL 178.
+_ATTESTATION_CARRY_FIELDS: Tuple[str, ...] = (
+    "source_doi", "source_url", "license", "retrieved_at",
+)
+
+
+class GenomeAttestationConflict(ValueError):
+    """A mutation would overwrite a genome's non-default attestation.
+
+    Raised (`#T1108`) when an explicit ``attestation=`` disagrees with a
+    non-default block already on disk in any of the four
+    :data:`_ATTESTATION_CARRY_FIELDS`. It is a ``ValueError`` subclass so
+    existing ``except ValueError`` handlers keep working, and its own type so a
+    caller that genuinely means to re-attest can catch exactly this.
+
+    The point is not that overwriting is forbidden — it is that overwriting is
+    never SILENT. Pass the same values to confirm, or change them deliberately
+    and the refusal tells you what you are replacing."""
+
+
+def _default_source_attestation() -> Dict[str, str]:
+    """The four srmech-default SOURCE fields, as a fresh dict.
+
+    Split out of :func:`_manifest_record` so the carry-forward machinery and the
+    conflict predicate can ask *"is this block the default one?"* without
+    re-spelling the constants — the exact copy-by-hand that let the C peer's
+    literals drift from Python's for eleven releases."""
+    return {
+        "source_doi": "10.0/srmech.genome.persistence",
+        "source_url": "https://srmech.net/genome/persistence",
+        "license": "CC0",
+        "retrieved_at": "1970-01-01T00:00:00Z",
+    }
+
+
+def _on_disk_source_attestation(path) -> Optional[Dict[str, str]]:
+    """The four :data:`_ATTESTATION_CARRY_FIELDS` from ``path/manifest.json``,
+    or ``None`` when there is no readable manifest to inherit from.
+
+    A genome with no manifest, an unreadable one, or one whose MPR shape does not
+    validate has no attestation of record, so a mutation on it mints the srmech
+    default exactly as before. Only a manifest that reads back as a valid MPR
+    contributes an inheritance."""
+    manifest_path = Path(path) / _MANIFEST_NAME
+    if not manifest_path.exists():
+        return None
+    try:
+        record = _read_manifest_record(path)
+    except (OSError, ValueError, _MPRValidationError):
+        return None
+    attestation = record.attestation
+    return {
+        field: str(attestation[field])
+        for field in _ATTESTATION_CARRY_FIELDS
+        if isinstance(attestation.get(field), str)
+    }
+
+
+def _is_default_source_attestation(on_disk) -> bool:
+    """True iff ``on_disk`` carries exactly the srmech default in all four
+    carry fields (or is empty / absent). A default block is not an attestation
+    of record — it is the absence of one — so overwriting it is not a conflict."""
+    if not on_disk:
+        return True
+    defaults = _default_source_attestation()
+    return all(
+        on_disk.get(field, defaults[field]) == defaults[field]
+        for field in _ATTESTATION_CARRY_FIELDS
+    )
+
+
+def _resolve_attestation(path, attestation):
+    """Resolve the SOURCE attestation a mutation should write — the whole
+    lifecycle rule in one place (`#T1108`).
+
+    Three inputs, one answer:
+
+    * **nothing on disk, no override** → ``None``; the caller writes the srmech
+      default, byte-identical to every release before rc418.
+    * **a non-default block on disk, no override** → CARRY IT FORWARD. This is
+      the case that used to silently substitute, and it is the common one: nine
+      mutating ops reached it with no way for the caller to prevent it.
+    * **an explicit override** → honoured, but only after the conflict check. If
+      a non-default block is already on disk and the override disagrees with it
+      in any of the four carry fields, raise
+      :class:`GenomeAttestationConflict`. Agreeing values are not a conflict, so
+      re-passing the same attestation is idempotent.
+
+    Returns a dict suitable for :func:`_manifest_record`'s ``attestation=``, or
+    ``None`` to mean "srmech default". The four ENCODER-identity fields are never
+    involved: they describe the current build and are always re-synthesised."""
+    on_disk = _on_disk_source_attestation(path)
+    inherited_is_real = not _is_default_source_attestation(on_disk)
+    if attestation is None:
+        return dict(on_disk) if inherited_is_real else None
+    if not isinstance(attestation, dict):
+        raise TypeError(
+            "genome attestation override must be a dict of MPR source fields, "
+            f"got {type(attestation).__name__}"
+        )
+    if inherited_is_real:
+        clashes = {
+            field: (on_disk.get(field), attestation[field])
+            for field in _ATTESTATION_CARRY_FIELDS
+            if field in attestation
+            and str(attestation[field]) != on_disk.get(field)
+        }
+        if clashes:
+            detail = "; ".join(
+                f"{field}: on disk {have!r} -> given {want!r}"
+                for field, (have, want) in sorted(clashes.items())
+            )
+            raise GenomeAttestationConflict(
+                f"genome at {str(path)!r} already carries a non-default MPR "
+                f"attestation and the attestation= given would overwrite it "
+                f"({detail}). srmech does not silently replace an attestation of "
+                f"record. To RE-ATTEST deliberately, read the current block, "
+                f"decide, and write the new one on a genome you have first "
+                f"cleared; to KEEP the existing source, omit attestation= (it is "
+                f"carried forward automatically); to confirm no change, pass the "
+                f"values already on disk"
+            )
+    merged = dict(on_disk) if inherited_is_real else {}
+    merged.update(attestation)
+    return merged
 
 
 def _write_manifest(path, record) -> None:

@@ -32,7 +32,7 @@ from srmech.amsc.descriptor import load_descriptor
 
 
 def test_all_known_adapters_registered() -> None:
-    """All seven adapter modules register themselves at import time."""
+    """All eight adapter modules register themselves at import time."""
     expected = {
         "html_scraper",
         "json_api",
@@ -41,6 +41,10 @@ def test_all_known_adapters_registered() -> None:
         "geotiff_bbox",
         "literature_curated",
         "substrate_parameterization",
+        # rc418 (`#T1108`): the envelope-shaped peer of literature_curated —
+        # committed MPR records whose attestation is read back VERBATIM rather
+        # than synthesised over.
+        "mpr_committed",
     }
     assert set(ADAPTERS.keys()) == expected
 

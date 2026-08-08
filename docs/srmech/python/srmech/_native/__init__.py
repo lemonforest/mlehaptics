@@ -5133,10 +5133,17 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_catalog_use_local_kernel_arena_bytes.restype = ctypes.c_size_t
     #   int srmech_catalog_attestation_audit(source_key, source_key_len,
-    #       ndjson, ndjson_len, ws, ws_len, out, out_cap, size_t *out_len)
+    #       descriptor, descriptor_len, ndjson, ndjson_len,
+    #       ws, ws_len, out, out_cap, size_t *out_len)
+    # ABI 13 (`#T1108`): the descriptor pair is NEW. Without it the C peer can
+    # only project what a committed line already carries, which for a data-only
+    # literature_curated row is nothing — so it emitted empty strings and agreed
+    # with a Python peer doing the same wrong thing. Synthesis needs [source] /
+    # [parse] / [schema] and the descriptor's own canonical hash.
     if hasattr(lib, "srmech_catalog_attestation_audit"):
         lib.srmech_catalog_attestation_audit.argtypes = [
             ctypes.c_char_p, ctypes.c_size_t,   # source_key, source_key_len
+            ctypes.c_char_p, ctypes.c_size_t,   # descriptor, descriptor_len
             ctypes.c_char_p, ctypes.c_size_t,   # ndjson, ndjson_len
             ctypes.c_void_p, ctypes.c_size_t,   # ws, ws_len
             ctypes.c_char_p, ctypes.c_size_t,   # out, out_cap
@@ -5145,7 +5152,9 @@ def _bind(lib: ctypes.CDLL) -> None:
         lib.srmech_catalog_attestation_audit.restype = ctypes.c_int
     if hasattr(lib, "srmech_catalog_attestation_audit_arena_bytes"):
         lib.srmech_catalog_attestation_audit_arena_bytes.argtypes = [
-            ctypes.c_size_t, ctypes.c_size_t,   # ndjson_len, source_key_len
+            ctypes.c_size_t,                    # ndjson_len
+            ctypes.c_size_t,                    # descriptor_len
+            ctypes.c_size_t,                    # source_key_len
         ]
         lib.srmech_catalog_attestation_audit_arena_bytes.restype = ctypes.c_size_t
 
