@@ -163,7 +163,18 @@ from typing import Optional
 #        with the pre-scan gone it costs 13 native calls / ~512 MiB on an
 #        out-of-int64 literal instead of 1 call / ~0.1 MiB — SILENTLY, since the
 #        answer stays correct. This pin is what rejects it.
-EXPECTED_ABI_VERSION: int = 12
+# v13 — v0.9.0rc418 (`#T1108`): the ATTESTATION LIFECYCLE bump, the second of
+#        the ORDINARY kind after v9. The ten genome WRITE entry points each
+#        gained (const char *attestation, size_t attestation_len) and
+#        srmech_catalog_attestation_audit gained (const char *descriptor,
+#        size_t descriptor_len). Eleven existing exported signatures changed, so
+#        the ctypes argtypes below move in lockstep — v9's precedent exactly.
+#        Load-bearing: a stale rc417 .so reports ABI 12 and would otherwise load
+#        into this Python, where the carry-forward lives in the C builders. It
+#        would keep OVERWRITING a caller's real attestation with srmech's
+#        defaults, and the false block would still validate as a well-formed
+#        MPR — the silent-wrong-answer class. This pin is what rejects it.
+EXPECTED_ABI_VERSION: int = 13
 
 # Back-compat alias: downstream code reading ``_native.ABI_VERSION`` gets the
 # expected (compiled-against) ABI == EXPECTED_ABI_VERSION (NOT the runtime-

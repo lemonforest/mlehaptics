@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc417"
-#define SRMECH_VERSION       "0.9.0rc417"
+#define SRMECH_VERSION_PRE   "rc418"
+#define SRMECH_VERSION       "0.9.0rc418"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -230,8 +230,37 @@ extern "C" {
  *      the stale lib (clean fall-back to the pure path) is strictly better than a
  *      correct answer bought at 512 MiB. GENOME_FORMAT_VERSION stays 19 — no
  *      on-disk format change.
+ *
+ *   v13 (v0.9.0rc418, task `#T1108`) — the ATTESTATION LIFECYCLE bump, and the
+ *      second of the ORDINARY kind after v9. Eleven existing exported signatures
+ *      changed: the ten genome WRITE entry points
+ *        srmech_genome_save / _append / _remove / _replace / _export / _import /
+ *        _pack / _from_graph / _plasmid_extract / _add_plasmid
+ *      each gained `(const char *attestation, size_t attestation_len)` — the
+ *      caller MPR SOURCE-attestation channel the compiled projection previously
+ *      did not have AT ALL, and
+ *        srmech_catalog_attestation_audit
+ *      gained `(const char *descriptor, size_t descriptor_len)` so it can
+ *      SYNTHESISE a literature_curated row's attestation instead of projecting a
+ *      raw envelope's. The paired ctypes argtypes move in lockstep, exactly as
+ *      v9's precedent requires — quoted from docs/srmech/CLAUDE.md: "v9
+ *      (v0.9.0rc306, task #899) is the first bump of the ORDINARY kind — an
+ *      existing exported signature changed: srmech_genome_section_counts gained
+ *      (void *ws, size_t ws_len) caller-arena params ... with the paired ctypes
+ *      argtypes updated in lockstep."
+ *
+ *      WHAT THE BUMP BUYS. Before rc418 the ten write entry points had no channel
+ *      for a caller attestation, so `genome_save(attestation=...)` had to branch
+ *      to the scripting projection — an ADR-0009 capability gap dressed up as a
+ *      fast-path skip. A stale rc417 .so reports ABI 12 and would otherwise load
+ *      into rc418 Python, where the carry-forward the rc adds lives in the C
+ *      builders: the stale lib would keep OVERWRITING a caller's real attestation
+ *      with srmech's defaults and the result would still validate as a well-formed
+ *      MPR. That is the silent-wrong-answer class, so rejecting the stale lib is
+ *      the only safe read. GENOME_FORMAT_VERSION stays 19 — the attestation block
+ *      is free-form MPR content, gains no key, and turns.bin is untouched.
  */
-#define SRMECH_ABI_VERSION 12
+#define SRMECH_ABI_VERSION 13
 
 /* ------------------------------------------------------------------ *
  * Thread-local storage qualifier (reentrancy support; #772)
