@@ -330,16 +330,34 @@ When Task #198's tool_schema lands, srmech's introspection surface (`srmech --to
 
 CLI help integration is the same shape: `srmech --help` lists the base srmech commands first, then each active profile's commands grouped under its profile name. Plugins extending the help menu is mechanical, not policy-laden.
 
-### Loader-side JPL ratchet test
+### Loader-side JPL ratchet test — SPECIFIED, **NOT BUILT**
 
-Mirroring `tests/test_jpl_audit.py` for srmech's C, srmech v0.3.0 ships a `tests/test_loader_discipline.py` that ratchets:
+> ⚠️ **This section asserted a shipped ratchet that has never existed** (corrected v0.9.0rc415,
+> `#T1098`). It read *"srmech v0.3.0 ships a `tests/test_loader_discipline.py` that ratchets: …"* and
+> closed with *"PRs that introduce a regression fail CI."* — both in the present perfect, both false.
+> `git grep -ln test_loader_discipline` returns **this ADR as the sole hit in the whole tree**, and
+> `git log --all -S"test_loader_discipline"` returns no commit that ever added such a file. The
+> cited peer `tests/test_jpl_audit.py` **does** resolve, which is exactly what made the pairing read
+> as real: one live pointer lends its credibility to the dead one beside it.
+>
+> The text below is restated as the **design**, which is what it always was. It is not deleted —
+> deleting it is ADR-0012 §3.2's forbidden discharge, where non-compliance is disposed of by making
+> the claim disappear rather than by instrumenting or withdrawing it. The clause row at the bottom
+> of this section carries the deadline.
+
+Mirroring `tests/test_jpl_audit.py` for srmech's C, the loader tier **is specified to** ratchet:
 
 - No unbounded loops in the loader (no `while True`; bounded iteration count for all enumeration passes).
 - No `eval` / `exec` in the loader path.
 - All profile-supplied strings consumed via `importlib`-family safe APIs.
 - Smoke-test cache file format is validated by JSON Schema at read time.
 
-This is the loader's analog of the C-side `SRMECH_PEDANTIC=ON` build. PRs that introduce a regression fail CI.
+This is the loader's analog of the C-side `SRMECH_PEDANTIC=ON` build. **Today nothing enforces any of
+the four**, so a PR introducing a regression against them passes CI.
+
+| § | clause | instrument today | status |
+|---|---|---|---|
+| §5.5 | the loader tier holds the four JPL-analog properties above | **none** — `tests/test_loader_discipline.py` does not exist and never has | **UNGATED — deferred.** `expiry: rc425`. Per ADR-0012 §3.2 the two admissible discharges are (1) build the ratchet, or (3) withdraw the clause and accept that this ADR then claims strictly less. Restating the four properties as an aspiration is **not** a discharge |
 
 ## 5.6. Interpreted-runtime plugins (future tier; reserved in v0.3.0 schema, not implemented)
 

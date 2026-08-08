@@ -1,7 +1,11 @@
 # ADR-0012: The introspect surface IS the API contract — autonomous composition, not documentation
 
-**Status:** 🟢 **ACCEPTED — standing policy** (user direction 2026-07-30, *"mark adr12 accepted"*),
-**accepted AFTER its clauses were instrumented, not before.** Everything below is in force.
+**Status:** 🟢 **Implementing** — direction accepted (user direction 2026-07-30, *"mark adr12
+accepted"*), execution arc **OPEN**. Everything below is in force; the ADR stays revisable in
+place until its shape has settled. (v0.9.0rc415, `#T1098`: the 2026-07-30 header read
+`🟢 **ACCEPTED**`, a pair the legend at `README.md` does not define — 🟢 is *Implementing*.
+Held at 🟢 by user direction: proceeding with ADR-0013 and the queue may surface more, and the
+C5 correction at rc414 plus C6's still-open status are what that reasoning predicted.)
 
 **What acceptance rests on.** The criterion was: *every clause has an instrument that can return
 otherwise, proven by injection.* At acceptance — **C1, C3, C4, C5 and C2's param half were recorded as
@@ -125,7 +129,7 @@ a stronger guarantee than the surface makes.
 |---|---|---|---|---|
 | 1 | **Tool schema** — the SSoT | `srmech.introspect.tool_schema.get_tool_schema()` | every registered op carries `name` / `owner` / `category` / `summary` / `explanation` / `example` / `returns` / `mcp_callable` (whole-registry, held by a 100% floor) | that any *optional* field is populated. **Measured rc412:** `composes` 9/559 · `preserves` 2/559 · `smoke_test_hint` 21/559 · `reads_lane` 9/559 |
 | 2 | **`describe()`** — the root index | `srmech.describe()` (`srmech/introspect/__init__.py:722`) | **counts and shape** over the whole surface, self-warming, entry-path independent | **per-op detail — by design.** 9 of 525 ops are named anywhere in the payload, all inside `lanes.ops`. Its own docstring (`:736-739`): *"It is a ROOT / INDEX: it surfaces the shape, not the detail."* A domain is *covered* here iff **counted**, never iff **named** |
-| 3 | **MCP** | `srmech.mcp` · `tool_entries_to_mcp_defs` · `emit-mcpb` | enumeration, dotted-name dispatch, and `mcp_callable` honoured end-to-end — a new op is advertised and invocable with **zero** MCP-side registration (`grep music srmech/mcp/` = 0 hits) | that the published `inputSchema` is **right** — an unknown srmech type-string degrades silently to `{"type":"string"}` (`srmech/mcp/_tools.py:155-157`); that a return **serialises** rather than repr-terminating; that the advertised **catalog covers the registry** |
+| 3 | **MCP** | `srmech.mcp` · `tool_entries_to_mcp_defs` · `emit-mcpb` | enumeration, dotted-name dispatch, and `mcp_callable` honoured end-to-end — a new op is advertised and invocable with **zero** MCP-side registration (`grep music srmech/mcp/` = 0 hits) | that the published `inputSchema` is **right** — an unknown srmech type-string degrades silently to `{"type":"string"}` (`srmech/mcp/_tools.py:209`); that a return **serialises** rather than repr-terminating; that the advertised **catalog covers the registry** |
 | 4 | **Generated C tool registry** | `c/src/srmech_tool_registry.c` | name/identity for every op; count integrity (`srmech_tool_registry_len` is `sizeof`-derived, so it cannot drift from its own table); hash identity against the Python SSoT | **payload quality.** The sha256 ratchet locks in a `{"call": "f(x=<int>) -> dict"}` stencil exactly as happily as a worked example |
 | 5 | **Rosetta ledger** | `tests/rosetta_classification.ndjson` + two ratchets | every registered op carries a committed bucket, and the walk genuinely reaches a new package once `tests/rosetta_roots.py` names it — rc362's load-bearing edit | that the bucket was **checked**. Of the four gates that appear to cover a new composite, three carry no information about it (§6.2) |
 | 6 | **Carrier schema** — the operand half | `srmech.amsc.carrier_schema.carrier_schema()` | the registry covers every carrier the op surface **DECLARES**, in `parameters[].type` / `returns.type` (25 rows, byte-identical in C) | that it covers every carrier the ops **USE**. The derivation is a token scan over declared type strings; `returns.shape` is never read |
@@ -254,10 +258,51 @@ do is part of the API, and a caller holding only `describe()` must be able to fi
 ### 3.2 The clause the shape of the failures teaches
 
 C4 and C5 had gates that **selected** the new ops; both were closed within the rc. C2 and C3 had no
-gate that selected them; both are open. **A clause without an instrument that can return otherwise is
-not a clause, it is a preference.** That is the same standard the project applies to measurements
-(`[[feedback_an_instrument_that_cannot_return_otherwise_is_not_a_measurement]]`), applied to the
-contract itself.
+gate that selected them; both are open.
+
+**A clause with no instrument that can return otherwise is a DEFECT in this ADR, not a softer kind
+of clause.** It is the contract-level form of
+`[[feedback_an_instrument_that_cannot_return_otherwise_is_not_a_measurement]]`: an assertion no
+apparatus can contradict is not weaker evidence, it is no evidence.
+
+**A defect of this kind has exactly three admissible discharges, and relabelling is not one of them.**
+
+1. **INSTRUMENT it.** Ship a check that fails when the clause is false, proven by injection — the
+   mutation is recorded beside the check, not merely described. This is the default.
+2. **DATE it.** Record `expiry: rcNNNN` in the clause's own row. The expiry is a promise the tree
+   holds: the gate re-fails once the shipped rc passes it, so a deferral cannot go quiet. A deferral
+   with no expiry is not a deferral, it is the defect wearing a schedule.
+3. **WITHDRAW it.** Delete the clause, or restate it as `**definitional**` / `**not instrumentable**`
+   with the reason **in the row** — and accept that the ADR then claims strictly less. §6.3's three
+   declined requirements are the worked example: they are recorded as UNSUPPORTED, not softened.
+
+**Rewording the verdict is NOT a fourth discharge.** "GOAL", "standard", "target", "aspiration" and
+"preference" all describe a clause with no instrument; none of them changes whether the ADR asserts
+something the tree can contradict. If the ADR still means it, discharge 1 or 2 applies. If it does
+not, discharge 3 applies. A verdict word is not an exit.
+
+**This clause is self-applying, and its instrument is named.** `tests/test_adr_clause_instrument_rc415.py`
+reads every open-state row in every ADR's clause tables and fails when the row cites neither a
+resolvable pytest node id nor a live `expiry:`. It also fails when a cited node id **stops** resolving,
+so deleting the gate breaks the ADR — which is the only way a citation is load-bearing rather than
+decorative. Measured at rc414, before that gate existed: **0 of 13** open-state rows across the corpus
+carried an enforceable follow-through. That is the population this clause was always about.
+
+> ⚠️ **What this section said until v0.9.0rc415** (`#T1098`), and why it was replaced rather than
+> tightened: *"A clause without an instrument that can return otherwise is **not a clause, it is a
+> preference**."* That is a **definition**, not a failure condition. Under it an uninstrumented clause
+> is not in breach — it has simply been reclassified, so **non-compliance is discharged by
+> relabelling**. The corpus already exercised the escape: ADR-0013 §11 writes `**GOAL, not a clause.**
+> Adds no instrument and claims nothing`, audits itself as `2 gated · 6 ungated`, and ships anyway —
+> all of which was **legal** under the old wording. The three discharges above are what the old
+> sentence was reaching for; naming them is what makes the difference between a standard and a
+> vocabulary.
+>
+> **The instrument named above ships in the rc AFTER this rewrite** (rc416), which is deliberate and
+> is the discipline the rewrite itself demands: a clause and the gate that can refute it are the same
+> deliverable, and an instrument built in the same rc as the change it detects has no green baseline,
+> so a red is unattributable (ADR-0010 A.5's own ordering constraint). Until it lands, this clause
+> carries `expiry: rc417` under discharge 2 — its own rule, applied to itself.
 
 ### 3.3 Amendment (rc363) — the clauses were IMPLEMENTED before this ADR was accepted
 
@@ -464,8 +509,8 @@ should be scoped from a prose sentence that has gone stale.
 
 | # | Site | When | Kind |
 |---|---|---|---|
-| 1 | `srmech/amsc/tool_schema.py` — the `ToolEntry` | always | hand |
-| 2 | `srmech/amsc/_tool_docs_curated.py` — curated example + explanation | always (C4) | **hand — an INPUT to codegen; no generator rewrites it** |
+| 1 | `srmech/introspect/tool_schema.py` — the `ToolEntry` | always | hand |
+| 2 | `srmech/introspect/_tool_docs_curated.py` — curated example + explanation | always (C4) | **hand — an INPUT to codegen; no generator rewrites it** |
 | 3 | `srmech/mcp/_coercion.py` — a coercer per declared param type | always | hand (strict-zero ratchet) |
 | 4 | `srmech/mcp/_tools.py` `_TYPE_LEXICON` — a JSON-schema type | on a new type string | hand (**ungated** — silently degrades to `"string"`) |
 | 5 | `srmech/mcp/_coercion.py` `serialise_native` — an outbound branch | on a new returned carrier | hand (**ungated** — silently repr-terminates) |
@@ -473,10 +518,10 @@ should be scoped from a prose sentence that has gone stale.
 | 7 | `tests/rosetta_classification.ndjson` — a bucket row | always | hand |
 | 8 | `tests/rosetta_roots.py` — the walk root | **on a new top-level package** | hand — rc362's load-bearing edit; a root naming a non-existent package is **silently skipped** |
 | 9 | `COMPOSES_C_ZERO_REACH_PINNED` + its written justification | `non_compute`/`composes_c` and zero-reach | hand |
-| 10 | `srmech/amsc/_c_claims.py` — the op→C-symbol manifest | `c_dispatched` | regenerated |
-| 11 | `srmech/amsc/_native.py` — the ctypes binding | `c_dispatched` | hand |
+| 10 | `srmech/introspect/_c_claims.py` — the op→C-symbol manifest | `c_dispatched` | regenerated |
+| 11 | `srmech/_native/__init__.py` — the ctypes binding | `c_dispatched` | hand |
 | 12 | `c/include/srmech.h` + `c/src/*.c` — the C implementation | `c_dispatched` (ADR-0009) | hand |
-| 13 | `srmech/amsc/_tool_docs.py` | always | regenerated |
+| 13 | `srmech/introspect/_tool_docs.py` | always | regenerated |
 | 14 | `c/src/srmech_tool_registry.c` | always | regenerated |
 | 15 | `c/src/srmech_carrier_registry.c` | always | regenerated |
 | 16 | `c/src/srmech_{class,responsion}_registry.c` | always (usually no-op) | regenerated |
@@ -488,7 +533,7 @@ should be scoped from a prose sentence that has gone stale.
 
 ### 4.1 The hand/regenerated split is where the drift lives
 
-Eleven of the nineteen are hand edits. `_tool_docs_curated.py` is the one most easily missed because it
+Twelve of the nineteen are hand edits. `_tool_docs_curated.py` is the one most easily missed because it
 *looks* generated and sits beside the generated file it feeds — ADR-0010 Amendment A.3 independently
 found the same thing from the opposite direction (276 hand edits in it that its own budget had not
 costed).
@@ -747,18 +792,33 @@ shape available, because nothing in the artifact reveals it.
   `srmech_carrier_registry.c` (26 → 28 carrier rows), widens eight declared param types, and adds five
   `_PARAM_COERCERS` keys. Recorded here rather than quietly dropped: an ADR that says it changes
   nothing and then changes something is the same shape of stale claim §1.1 is about.
+- **⚠️ It did not, until rc415, have an intake path for a defect in an EXISTING op.** C1–C6 all select
+  on a LANDING — a new op, a new declared type, a new surfaced carrier. Nothing in this ADR selects on
+  an op that shipped correct and has since gone stale, and a layer whose contract only fires at
+  registration will drift exactly where nothing is landing. Measured cost of the omission, rc414:
+  ADR-0009 §1.2 carries two rows verdicted **"Still open"** whose capabilities closed at rc281 and
+  rc306 — `srmech_genome_amplify` (`c/include/srmech.h:8667`) and the caller-arena
+  `srmech_genome_section_counts_arena_bytes` (`c/include/srmech.h:8446-8483`) — one of them
+  contradicted by ADR-0009's own §8 four paragraphs later; and that §8 lists eight capabilities as
+  open, all eight of which now have whole-op C entry points.
+  **Intake clause (rc415, `#T1098`): a defect found in an already-shipped op enters through the same
+  clause set as a landing.** The rc that finds it either (a) fixes it in that rc, or (b) records it in
+  the owning ADR's clause table with an instrument or an `expiry:`, per §3.2. "Found, noted, not
+  scheduled" is §3.2's defect wearing a different hat, and it is what produced the two rows above.
+  This bullet does not widen a ratchet or add a field — the survey did not justify new machinery
+  (§9 bullet 2) — it names the selector the six clauses do not have.
 
 ## 10. Sources
 
 `srmech/introspect/__init__.py` (`describe()` at `:722`; the ROOT/INDEX contract at `:736-739`) ·
-`srmech/amsc/tool_schema.py` (the SSoT) ·
+`srmech/introspect/tool_schema.py` (the SSoT) ·
 `srmech/introspect/carrier_schema.py:171-177` (the carrier admission rule this ADR's C3 restates) ·
 `tests/test_carrier_schema_rc205.py:310-326` (the drift ratchet, and its type-string scope) ·
 `tests/test_worked_examples_strict_zero_rc353.py` (strict-zero by user direction 2026-07-28 — **no
 `CEIL_` dict, no per-category allowlist**) ·
 `tools/run_worked_examples.py:198` + `tests/test_worked_examples_execute_rc354.py` ·
 `tests/test_tool_example_input_schema_rc355.py:137-139` ·
-`srmech/mcp/_tools.py:155-157` (the `"string"` fallback) · `srmech/mcp/_coercion.py` (the inbound
+`srmech/mcp/_tools.py:209` (the `"string"` fallback) · `srmech/mcp/_coercion.py` (the inbound
 strict-zero ratchet; `serialise_native`'s rc231 comment) ·
 `tests/c_byte_arrays.py` (the single byte-array decoder, extracted rc361) ·
 **rc363 instruments** — `tests/coercion_boundary.py` (the second, source-derived channel, and the

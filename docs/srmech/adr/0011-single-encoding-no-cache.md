@@ -98,7 +98,7 @@ three fields away from a violating one:
 
 | head field | stored | compared on read | disagreement is |
 |---|---|---|---|
-| `body_sha256` | yes | **yes** — `genome.py:8986` raises | **caught** |
+| `body_sha256` | yes | **yes** — `genome.py:9137-9142` raises | **caught** |
 | `carrier` | yes | derivable, "a pure function of the body" | n/a |
 | `n_turns` / `n_chromosomes` | yes | **never** | **silent** |
 
