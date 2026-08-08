@@ -1,6 +1,7 @@
 # ADR-0009: srmech is a multi-implementation codebase — the capability is the invariant, each implementation is a coherency projection
 
 **Status:** ✅ Accepted — **standing policy** (governs every rc, every op, every review).
+**Clauses:** unaudited.
 **Date:** 2026-07-19.
 **Authors:** Steven Kirkland + Claude Opus 4.8.
 **Supersedes:** none.

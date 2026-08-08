@@ -68,8 +68,12 @@ human traced. The contract says ORDERED (``tool_schema.py``), so static
 analysis supplies the set and a human supplies the order. That asymmetry is
 why clause 2 checks ``declared ⊆ derived`` and NOT sequence equality.
 
-numpy-free; stdlib ``ast`` / ``importlib`` / ``inspect`` only (none is a
-ledgered import — see ``tests/test_selfhosting_import_ban.py``).
+numpy-free; stdlib ``ast`` / ``importlib`` / ``inspect`` / ``pathlib`` /
+``functools`` only (none is a ledgered import — see
+``tests/test_selfhosting_import_ban.py``). TOML is read through **srmech's own**
+``srmech._toml``, not ``tomllib``: rc417 added a descriptor reader here, and a
+gate about self-hosting that reached for the stdlib parser to do it would be
+making the point backwards.
 """
 
 from __future__ import annotations
@@ -78,8 +82,12 @@ import ast
 import importlib
 import inspect
 import sys
+from functools import lru_cache
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
+from srmech import _toml as _srmech_toml
+from srmech.dsl import _toml_chain
 from srmech.introspect.tool_schema import get_tool_schema, warmup_all
 
 warmup_all()
@@ -450,9 +458,64 @@ def test_the_instrument_discriminates() -> None:
     )
 
 
+#: Where the shipped ``[cascade]`` TOML descriptors live. Resolved off the
+#: module that loads them, not off ``srmech.__file__``, so an ADR-0010 move of
+#: the catalog is a red here rather than a silently empty chain.
+_CASCADE_CATALOG = (Path(_toml_chain.__file__).resolve().parent.parent
+                    / "cascade" / "catalogs" / "cascade_catalog")
+
+#: Characters that may appear inside an op name in an ``operation`` chain.
+_OP_NAME_CHARS = frozenset(
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_")
+
+
+@lru_cache(maxsize=256)
+def _descriptor_chain(name: str) -> "frozenset":
+    """The leaf op names chained by ``name``'s own ``[cascade].operation``.
+
+    ``frozenset()`` when the op ships no descriptor — an absent descriptor
+    must admit NOTHING, never everything.
+
+    Parsed with ``srmech._toml`` (the framework's own reader), and tokenised
+    by hand rather than with ``re``: srmech ships no regex surface, and this
+    file is inside the corpus ``tests/test_selfhosting_import_ban.py``
+    watches. The chain is written as
+    ``pin_slot_at_zero -> best_rational(a, b, c) -> reorient``, so every
+    identifier-shaped token is harvested and the caller matches on leaf names.
+    Over-harvesting argument names is harmless here: a token only ever
+    *admits* a sub-op the roster already declares, and the roster is itself a
+    reviewed, exactly-pinned population (clause 1).
+
+    ⚠️ The field is ``[cascade.signature].operation``, **not**
+    ``[cascade].operation``. The first draft of this reader assumed the
+    latter, parsed cleanly, and returned an empty chain for every descriptor
+    in the catalog — a silent no-op that behaved exactly like "no descriptor
+    exists". :func:`test_the_descriptor_reader_actually_reads_something` is
+    the assertion that caught it and is why it ships.
+    """
+    leaf = name.rsplit(".", 1)[-1]
+    path = _CASCADE_CATALOG / f"{leaf}.toml"
+    if not path.is_file():
+        return frozenset()
+    table = _srmech_toml.loads(path.read_bytes().decode("utf-8"))
+    cascade = table.get("cascade", {})
+    operation = str(cascade.get("signature", {}).get("operation", ""))
+    tokens: Set[str] = set()
+    buf: List[str] = []
+    for ch in operation:
+        if ch in _OP_NAME_CHARS:
+            buf.append(ch)
+        elif buf:
+            tokens.add("".join(buf))
+            buf = []
+    if buf:
+        tokens.add("".join(buf))
+    return frozenset(tokens)
+
+
 def test_every_declared_sub_op_is_actually_called() -> None:
-    """CLAUSE 2. Every declared sub-op is reached from the declaring op's own
-    source within the derivation depth.
+    """CLAUSE 2. Every declared sub-op is either CALLED by the declaring op or
+    CHAINED by that op's own cascade descriptor.
 
     A failure here means one of two things, and the message says which to
     check first: the declaration is WRONG (a sub-op the op does not call), or
@@ -460,18 +523,101 @@ def test_every_declared_sub_op_is_actually_called() -> None:
     a C-side composition behind a thin shim). The second is a legitimate
     outcome — but it must be adjudicated, not assumed, which is why it fails
     rather than warns.
+
+    rc417 (`#T1100`) — THE SECOND ADMISSION PATH, AND WHY IT IS NOT A LOOPHOLE
+    ==========================================================================
+    Through rc416 this clause admitted **one** kind of evidence: the sub-op is
+    AST-call-reachable from the parent's source. That is correct DOWNWARD — a
+    declared sub-op the parent genuinely never reaches is a false declaration,
+    and the clause catches it.
+
+    It is **structurally wrong LATERALLY**, and the shape is not hypothetical:
+    a cascade can be declared in a TOML ``[cascade]`` descriptor whose
+    ``operation`` field chains ops that the **DSL runner** invokes, not the
+    parent. ``best_rational_signed.toml`` spells it
+    ``pin_slot_at_zero -> best_rational(…) -> reorient``. Under the single
+    admission path such a row fails clause 2 while being *entirely true* —
+    the composition is real, it is simply executed by a chain interpreter
+    rather than by a call in the parent's body. The gate would then be
+    measuring *which execution mechanism a cascade uses*, not whether its
+    declaration is honest.
+
+    So a missing sub-op is also admitted when the parent's own descriptor
+    chains it. That is a **second channel of the same evidence**, not a
+    weakening: the descriptor is a shipped, parsed artefact under the same
+    codegen ratchets as the registry, so the row is still being checked
+    against something the tree can contradict.
+
+    **Why this does not silently pass everything.** The descriptor is looked
+    up by the parent's exact leaf name, only under
+    ``srmech/cascade/catalogs/cascade_catalog/``, and only its ``operation``
+    string is read. A parent with no descriptor gets no second path, and a
+    sub-op absent from both the call graph and the chain still fails. The
+    admission is reported (:func:`test_descriptor_admissions_are_reported`)
+    rather than absorbed, so a row that starts leaning on it is visible.
+
+    Today **every** ROSTER row passes on the call-graph path alone, so the
+    second path admits nothing. It is landed before it is needed on purpose:
+    a descriptor-sourced ``composes`` row would otherwise arrive as a red
+    with a message accusing a correct declaration of being wrong.
     """
     offenders: Dict[str, List[str]] = {}
     for name, subs in ROSTER.items():
         found = _derived(name)
-        missing = [s for s in subs if s not in found]
+        chained = _descriptor_chain(name)
+        missing = [s for s in subs
+                   if s not in found and s.rsplit(".", 1)[-1] not in chained]
         if missing:
             offenders[name] = missing
     assert not offenders, (
-        "declared sub-ops that no call-graph path reaches: "
-        f"{offenders}. Either the declaration outran the code, or the call is "
-        "dynamic / C-side and the row does not belong in ROSTER."
+        "declared sub-ops that no call-graph path reaches AND no cascade "
+        f"descriptor chains: {offenders}. Either the declaration outran the "
+        "code, or the call is dynamic / C-side and the row does not belong "
+        "in ROSTER."
     )
+
+
+def test_descriptor_admissions_are_reported() -> None:
+    """Which rows lean on the descriptor path, PRINTED. Never a failure.
+
+    An admission path nobody watches becomes the path everything takes. This
+    prints the exact set each run, so "the call graph proves it" quietly
+    turning into "the TOML says so" is visible at the moment it happens
+    rather than at the next audit.
+    """
+    leaning: Dict[str, List[str]] = {}
+    for name, subs in ROSTER.items():
+        found = _derived(name)
+        chained = _descriptor_chain(name)
+        via = [s for s in subs
+               if s not in found and s.rsplit(".", 1)[-1] in chained]
+        if via:
+            leaning[name] = via
+    print(f"\n[rc417] clause-2 rows admitted via the DESCRIPTOR chain rather "
+          f"than the call graph: {leaning or 'none'} "
+          f"(of {len(ROSTER)} roster rows)\n")
+    assert True
+
+
+def test_the_descriptor_reader_actually_reads_something() -> None:
+    """NON-VACUITY of the second admission path.
+
+    A ``_descriptor_chain`` that always returned ``frozenset()`` would make
+    the new path invisible — clause 2 would behave exactly as it did at
+    rc416 and this rc's stated fix would be a no-op nobody could detect.
+    ``best_rational_signed`` is the worked example the docstring names, so it
+    is the one asserted.
+    """
+    chain = _descriptor_chain("srmech.cascade.best_rational_signed")
+    assert {"pin_slot_at_zero", "best_rational", "reorient"} <= chain, (
+        "the cascade descriptor for best_rational_signed did not yield its "
+        f"own operation chain; got {sorted(chain)}. The catalog moved, the "
+        "field was renamed, or the parse silently returned nothing — in any "
+        "of those cases the second admission path is dead and clause 2 is "
+        "back to being laterally wrong without saying so.")
+    assert _descriptor_chain("srmech.biology.genome.genome_from_graph") == frozenset(), (
+        "an op with no cascade descriptor must yield an EMPTY chain, not a "
+        "fallback that admits anything")
 
 
 # ──────────────────────────────────────────────────────────────────────

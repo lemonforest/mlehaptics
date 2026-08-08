@@ -37,6 +37,7 @@ acceptance was deferred to avoid.
 
 *(The README legend spells this status ✅ Accepted; the 🟢 marker follows ADR-0010's usage. Was 🟡
 PROPOSED from 2026-07-30 until the rc363 instruments landed the same day.)*
+**Clauses:** audited.
 **Date:** 2026-07-30. **Amended 2026-07-30 (rc363)** — see §3.3.
 **Implemented before accepted, on purpose.** User direction 2026-07-30: *"adr12 implement as proposed
 tell us when to mark accepted. might seem backwards but I don't want follow up adr to fix it if we
@@ -281,12 +282,19 @@ apparatus can contradict is not weaker evidence, it is no evidence.
 something the tree can contradict. If the ADR still means it, discharge 1 or 2 applies. If it does
 not, discharge 3 applies. A verdict word is not an exit.
 
-**This clause is self-applying, and its instrument is named.** `tests/test_adr_clause_instrument_rc415.py`
-reads every open-state row in every ADR's clause tables and fails when the row cites neither a
-resolvable pytest node id nor a live `expiry:`. It also fails when a cited node id **stops** resolving,
-so deleting the gate breaks the ADR — which is the only way a citation is load-bearing rather than
-decorative. Measured at rc414, before that gate existed: **0 of 13** open-state rows across the corpus
-carried an enforceable follow-through. That is the population this clause was always about.
+**This clause is self-applying, and its instrument is named.**
+`tests/test_adr_clause_instrument_rc417.py:1` reads every live row in every ADR's clause tables and
+fails when a cited pytest node id does not resolve — the file must exist **and** declare
+`def <name>(`, so deleting the test breaks the ADR, which is the only way a citation is load-bearing
+rather than decorative. Measured at rc416, before that gate existed: **0 of 17** clause rows across
+the corpus carried a pytest node id at all, and `::test_` occurred exactly **once** corpus-wide, as
+prose. That is the population this clause was always about.
+
+*(This paragraph named `tests/test_adr_clause_instrument_rc415.py` from rc415 until rc417 — a file that
+has never existed under any rc number. It survived two rcs because the rc415 citation gate is anchored
+on the `path:line` form and a **bare path with no line number is outside it**: the ADR named its own
+instrument and nothing could tell that the name was empty. The reference now carries `:1` so the
+citation gate holds it, which is the smallest possible fix and the one that generalises.)*
 
 > ⚠️ **What this section said until v0.9.0rc415** (`#T1098`), and why it was replaced rather than
 > tightened: *"A clause without an instrument that can return otherwise is **not a clause, it is a
@@ -298,11 +306,17 @@ carried an enforceable follow-through. That is the population this clause was al
 > sentence was reaching for; naming them is what makes the difference between a standard and a
 > vocabulary.
 >
-> **The instrument named above ships in the rc AFTER this rewrite** (rc416), which is deliberate and
+> **The instrument named above ships in the rc AFTER this rewrite**, which is deliberate and
 > is the discipline the rewrite itself demands: a clause and the gate that can refute it are the same
 > deliverable, and an instrument built in the same rc as the change it detects has no green baseline,
 > so a red is unattributable (ADR-0010 A.5's own ordering constraint). Until it lands, this clause
 > carries `expiry: rc417` under discharge 2 — its own rule, applied to itself.
+>
+> **DISCHARGED at rc417** (`#T1100`). The expiry was written naming rc416 as the landing rc; rc416
+> shipped the search tokenizer and the registry-completeness ratchet instead, so the deferral ran one
+> rc past its own promise and the expiry is what made that visible rather than quiet. That is the
+> mechanism working: a deferral with no expiry is the defect wearing a schedule, and this one came
+> due, was noticed because it was dated, and was paid.
 
 ### 3.3 Amendment (rc363) — the clauses were IMPLEMENTED before this ADR was accepted
 
@@ -311,13 +325,36 @@ does not close the **clause**: a clause with no instrument is a preference, and 
 hand is a preference that happened to be honoured once. rc363 therefore builds the instruments. What
 the build measured is recorded here because **it corrected this draft twice**.
 
-| clause | exhibit | instrument | residual |
+| clause | exhibit | instrument | status |
 |---|---|---|---|
-| **C2** (param half) | closed rc362, ungated | `tests/test_declared_type_honesty_rc363.py` | **strict-zero, no CEIL** |
+| **C2** (param half) | closed rc362, ungated | `tests/test_declared_type_honesty_rc363.py::test_declared_types_name_every_accepted_and_raise_named_carrier` | **strict-zero, no CEIL** |
 | **C2** (return half) | — | none | **still OPEN** (§6.3 declines the only available surface) |
-| **C3** | closed rc362, ungated | `tests/test_carrier_use_derivation_rc363.py` | **strict-zero, no CEIL** |
-| prose op-refs (`#T1045`) | — | `tests/test_prose_oprefs_resolve_rc363.py` | **strict-zero, no CEIL** |
-| **C5** *(added rc414, `#T1092`)* | marked `CLOSED in-rc` at rc362 and **refuted by execution** at rc411/rc413 | `tests/test_wire_round_trip_rc414.py` | **strict-zero on the repr-string class; DOWN-ONLY CEILs on the rest** |
+| **C3** | closed rc362, ungated | `tests/test_carrier_use_derivation_rc363.py::test_every_used_carrier_is_registered` | **strict-zero, no CEIL** |
+| prose op-refs (`#T1045`) | — | `tests/test_prose_oprefs_resolve_rc363.py::test_no_unresolved_citation_anywhere` | **strict-zero, no CEIL** |
+| **C5** *(added rc414, `#T1092`)* | marked `CLOSED in-rc` at rc362 and **refuted by execution** at rc411/rc413 | `tests/test_wire_round_trip_rc414.py::test_no_carrier_crosses_as_a_repr_string` | **strict-zero on the repr-string class; DOWN-ONLY CEILs on the rest** |
+
+**⚠️ Amendment (rc417, `#T1100`) — the instrument column now names a NODE ID, and what that does and does not buy.**
+Through rc416 every cell above named a **file**. A file-valued instrument is falsifiable in exactly one
+way — the file must exist — and stays green when the test inside it is renamed, gutted or deleted, which
+is precisely how a clause loses its instrument while this table keeps claiming one. A node id is
+falsifiable three ways: the file resolves, the file declares `def <name>(`, and **deleting the test
+breaks this ADR**. `tests/test_adr_clause_instrument_rc417.py::test_every_cited_node_id_resolves` is
+what makes the third true.
+
+**Say the limit in the same breath.** A derived status does **not** remove typing from this table — it
+demotes what is typed from a **VERDICT** to a **POINTER**. A human still writes *"this clause is gated
+by X"*, and the `status` column above is still hand-authored prose. The gain is narrower and real: a
+pointer is falsifiable, a verdict is not. The rc417 gate is also **static only** — it checks that a
+cited node id RESOLVES, not that it PASSES, because a pytest test reading a run manifest reads the
+*previous* run and is green-by-staleness on a fresh clone. A cited test that resolves and fails is
+invisible to it today; closing that is the deferred pass arm, not a property this row may claim.
+
+**This row's own discharge.** §3.2's `expiry: rc417` is met by the gate landing, and the instrument it
+names there is corrected from the never-existent `tests/test_adr_clause_instrument_rc415.py` to the
+file that shipped. That mis-citation lived for two rcs and **nothing caught it**: the rc415 citation
+gate is anchored on the `path:line` form, and a bare path with no line number is outside it. The
+dead-instrument class is now covered for node ids by the gate above; a bare `path` with neither a line
+nor a `::` is still not, and that is stated rather than assumed closed.
 
 **C5's absence from this table WAS the finding.** The table above listed C2, C3 and the prose gate, and
 three separate sentences elsewhere in this document asserted C5 was gated. Nothing reconciled the two,

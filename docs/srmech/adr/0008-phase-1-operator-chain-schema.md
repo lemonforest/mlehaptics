@@ -5,6 +5,7 @@
 **Status:** 🔄 Proposed — Phase 1 candidate (schema v1). Schema is a candidate-not-endorsed under
 `[[feedback_no_lineage_claims_in_notebook]]`'s humility discipline; Phase 2 implementation
 validation will exercise the shape and surface revisions.
+**Clauses:** unaudited.
 **Date:** 2026-05-16.
 **Authors:** Steven Kirkland + Claude Opus 4.7 (concertmaster dispatch).
 **Status of parent ADR:** ADR-0002 (catalog-as-computation) Draft.

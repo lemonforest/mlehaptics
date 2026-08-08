@@ -1,6 +1,7 @@
 # ADR-0004: srmech's user-facing surface is config-driven — the domain-agnostic layer (classes, chains, catalogs, and names in TOML)
 
 **Status:** ✅ Accepted — **standing policy** (governs how domain-specific surfaces are added).
+**Clauses:** unaudited.
 **Date:** 2026-07-16.
 **Authors:** Steven Kirkland + Claude Opus 4.8.
 **Supersedes:** none.
