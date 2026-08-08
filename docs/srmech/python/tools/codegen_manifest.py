@@ -233,6 +233,19 @@ EXCLUDED: Dict[str, str] = {
         "fetch, same dual C-header + Python-module emission, same attested "
         "re-verification test. Not tool-surface dependent."
     ),
+    "c/tools/gen_unicode_word_tables.py": (
+        "VENDORED UPSTREAM DATA, NON-HERMETIC (rc416, `#T1102`). The "
+        "word-character-property peer of the two generators above — same "
+        "UnicodeData.txt fetch (the SAME pinned upstream digest the fold "
+        "table is built from), same dual C-header + Python-module emission, "
+        "same attested re-verification test "
+        "(tests/test_unicode_word_tables_attested.py). It answers 'is this "
+        "codepoint a letter/mark/number, and which' so that no srmech surface "
+        "has to call str.isalnum(), which pins the answer to the RUNNING "
+        "interpreter's UCD (13.0.0 on this host against the table's 16.0.0) "
+        "and which a bare-C host cannot call at all. Not tool-surface "
+        "dependent; refresh it deliberately, on its own."
+    ),
     "c/tools/gen_ryu_tables.py": (
         "VENDORED CONSTANT TABLE, HERMETIC BUT TOOL-SURFACE-INDEPENDENT "
         "(rc403, `#T1071`). Derives c/src/srmech_ryu_tables.h — the 618 rows "

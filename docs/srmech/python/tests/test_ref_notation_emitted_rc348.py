@@ -757,6 +757,21 @@ SCAN_ROOTS = {
     # c/src/*.c to hold the OVERFLOW/LIMIT conflation on a down-only ratchet.
     # Reads only C sources, so the reach is inside srmech-ci's own trigger.
     "tests/test_status_conflation_ratchet_rc404.py": ("docs/srmech/c",),
+    # rc416 (`#T1101`): the registry-completeness RETRO-CHECK runs `git show`
+    # at the repo root, so it reaches ABOVE docs/srmech entirely. That is the
+    # point of it — the check reads coupling.py and tool_schema.py as they
+    # were at 966ce2dcb^, and a fixture copy of those two files would be a
+    # copy of the very claim under test. `docs/srmech` is the narrowest root
+    # that contains the paths it asks git for.
+    "tests/test_registry_completeness_rc416.py": ("docs/srmech",),
+    # rc416 (`#T1102`): parses c/src/srmech_unicode_word_tables.h to prove the
+    # two coherency projections hold byte-identical tables, and reads
+    # c/tools/gen_unicode_word_tables.py to prove the generator still asserts
+    # its own invariants. The `test_unicode_{gb,fold}_tables_attested` peers do
+    # the same; they escaped this list only because they spell the reach with
+    # os.path.dirname rather than Path.parents, which the scanner below cannot
+    # see. Declared here so the third one does not inherit that blind spot.
+    "tests/test_unicode_word_tables_attested.py": ("docs/srmech/c",),
 }
 
 #: Reach expressions that can climb ABOVE `docs/srmech/python/`. `parents[1]`

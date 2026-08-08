@@ -15,7 +15,8 @@ import pytest
 from srmech.introspect import tool_schema as ts
 from srmech.math import hdc
 from srmech.rbs_lm import encode_aboutness, ground_tool_schema
-from srmech.rbs_lm.grounding import _aboutness_tokens, _doc_frequencies
+from srmech.rbs_lm.grounding import (_aboutness_tokens, _doc_frequencies,
+                                     _gate_keep)
 
 
 def _fl(x):
@@ -135,7 +136,46 @@ def test_arg_validation():
 
 def test_tokenizer_letter_digit_split():
     assert _aboutness_tokens("klein-4 SHA256") == ["klein", "4", "sha", "256"]
-    assert _aboutness_tokens("a of the x") == ["of", "the"]   # len-1 dropped
+    # rc416 (`#T1102`): the letter-digit split is now a LETTER<->NUMBER
+    # boundary read from the vendored UCD table, not `[a-z][0-9]`, so it fires
+    # outside ASCII too. This is the half of the change that ADDS behaviour.
+    assert _aboutness_tokens("κ4") == ["κ", "4"]
+    assert _aboutness_tokens("语言4") == ["语言", "4"]
+
+
+def test_tokenizer_single_glyph_noise_is_gated_not_deleted():
+    """rc416 (`#T1102`) — the length floor moved from the TOKENIZER to the GATE.
+
+    This test replaces ``_aboutness_tokens("a of the x") == ["of", "the"]``.
+    It is not a relaxation: the property that assertion was protecting is
+    *"single-letter noise must not carry aboutness"*, and that property is
+    re-asserted below, on the instrument that can actually hold it.
+
+    The old assertion could not. A floor of 2 that drops ``a`` and ``x`` also
+    drops ``中``, ``国``, ``κ`` and ``π`` — one-glyph WORDS, not noise — which
+    is the rc287 word-tokenizer deletion reproduced one layer down. There is no
+    floor value that separates them, because "is this one glyph" is not the
+    question. "Is this catalog-wide glue" is, and the F768/F984 doc-frequency
+    gate answers it FROM the corpus rather than from a hand-tuned constant.
+    """
+    # The tokenizer now KEEPS them — deleting content at the front door was
+    # the defect, and a one-glyph CJK word survives for the same reason.
+    assert _aboutness_tokens("a of the x") == ["a", "of", "the", "x"]
+    assert _aboutness_tokens("中 国") == ["中", "国"]
+
+    # ...and the GATE drops them, which is the property under protection.
+    docs = [_aboutness_tokens(d) for d in (
+        "a matrix of x rows", "a vector of x cells", "a graph of x nodes",
+        "a fold of x leaves")]
+    df, n_docs = _doc_frequencies(docs)
+    func = 0.35 * n_docs
+    for glue in ("a", "of", "x"):
+        assert not _gate_keep(glue, df, func), (
+            f"{glue!r} appears in {df.get(glue)}/{n_docs} docs and must be "
+            "gated as catalog-wide glue")
+    for content in ("matrix", "vector", "graph", "fold"):
+        assert _gate_keep(content, df, func), (
+            f"{content!r} is aboutness and must survive the gate")
 
 
 # ── grounding on a controlled synthetic corpus (fast, deterministic) ─────────
