@@ -49,8 +49,23 @@ pass designed four gates and it is tempting to land all four gates' helpers
 at once. Three were written and deleted before commit (a bold-span scanner, an
 anchored-prefix test, a line-span reader) because rc415 ships two gates and an
 untested helper is a surface claiming coverage it has not got — which is the
-defect class this whole arc exists to close. rc416's clause-instrument gate
+defect class this whole arc exists to close. rc417's clause-instrument gate
 adds what it needs **and the test that exercises it**, in the same commit.
+
+v0.9.0rc417 (`#T1100`) — THE CLAUSE SURFACE
+===========================================
+Seven exports land for ``tests/test_adr_clause_instrument_rc417.py``:
+:func:`clause_tables`, :func:`nodes`, :func:`resolves`, :func:`pinned_spans`,
+:func:`is_pinned`, :func:`clauses_header`, and the :class:`Table` /
+:func:`scan_tables` pair the first of those is built on. Every one has a
+consumer in that gate, in this commit.
+
+The structural change is that **the table scan now keeps its header**. rc415's
+:func:`tables` dropped it, which made the single predicate a clause gate is
+made of — *"does this table's header contain a ``clause`` column?"* —
+unaskable. Rather than add a second scanner beside the first, the scan is
+factored into :func:`scan_tables` and ``tables`` became a projection of it, so
+there is exactly one definition of what a markdown table is.
 
 CAPABILITY GAPS SURFACED BY WRITING THIS (recorded, not worked around)
 ======================================================================
@@ -402,8 +417,8 @@ def split_cells(line: str) -> List[str]:
     return [c.strip() for c in cells]
 
 
-def tables(blob: bytes) -> List[List[Tuple[int, List[str]]]]:
-    """Every markdown table, as a list of ``(line_number, cells)`` rows.
+def scan_tables(blob: bytes) -> "List[Table]":
+    """Every markdown table as a :class:`Table` — header row INCLUDED.
 
     A TABLE is a maximal run of consecutive ``|``-leading lines containing at
     least one delimiter row. **A lone ``|`` line is prose**, not a table, and
@@ -415,10 +430,15 @@ def tables(blob: bytes) -> List[List[Tuple[int, List[str]]]]:
     Fenced ``` blocks are skipped — the ADRs quote markdown at each other,
     and a quoted table is an EXAMPLE, not a claim this corpus makes.
 
-    Delimiter rows and the header row above them are dropped; what comes back
-    is DATA rows only.
+    ⚠️ **rc417 exists because :func:`tables` DROPS the header**, which makes
+    the one predicate a clause gate is built out of — *"does this table's
+    header contain a ``clause`` column?"* — unaskable. The research pass
+    flagged that prospectively as a wrong-SHAPE gap before this module even
+    landed. Rather than bolt a second scanner beside the first, the scan is
+    factored HERE and :func:`tables` became a projection of it, so the two
+    can never disagree about what a table is.
     """
-    out: List[List[Tuple[int, List[str]]]] = []
+    out: List[Table] = []
     run: List[Tuple[int, List[str]]] = []
     run_has_delim = False
     in_fence = False
@@ -426,14 +446,17 @@ def tables(blob: bytes) -> List[List[Tuple[int, List[str]]]]:
     def flush() -> None:
         nonlocal run, run_has_delim
         if run and run_has_delim:
-            body = [(n, c) for n, c in run if not _is_delimiter_row(c)]
             # The header is the row immediately above the delimiter; the
             # delimiter's index in the ORIGINAL run tells us how many rows
             # preceded it.
             delim_at = next(i for i, (_, c) in enumerate(run)
                             if _is_delimiter_row(c))
+            head_n, head_cells = (run[delim_at - 1] if delim_at
+                                  else (run[delim_at][0], []))
             header_lines = {n for n, _ in run[:delim_at]}
-            out.append([(n, c) for n, c in body if n not in header_lines])
+            body = [(n, c) for n, c in run
+                    if not _is_delimiter_row(c) and n not in header_lines]
+            out.append(Table(head_n, head_cells, body))
         run = []
         run_has_delim = False
 
@@ -455,6 +478,205 @@ def tables(blob: bytes) -> List[List[Tuple[int, List[str]]]]:
     flush()
     return out
 
+
+def tables(blob: bytes) -> List[List[Tuple[int, List[str]]]]:
+    """Every markdown table, as a list of ``(line_number, cells)`` DATA rows.
+
+    The header-blind projection of :func:`scan_tables`, kept because the
+    rc409 status gate wants rows and nothing else. Delimiter rows and the
+    header row above them are dropped.
+    """
+    return [t.rows for t in scan_tables(blob)]
+
+
+class Table:
+    """One markdown table: its header line, header cells, and data rows."""
+
+    __slots__ = ("header_line", "header", "rows")
+
+    def __init__(self, header_line: int, header: List[str],
+                 rows: List[Tuple[int, List[str]]]):
+        self.header_line = header_line
+        self.header = header
+        self.rows = rows
+
+    def column_of(self, name: str) -> Optional[int]:
+        """The index of the header cell whose casefolded strip is ``name``.
+
+        EXACT cell equality, never substring. ``clause`` occurs 53 times in
+        ADR-0012's prose and several times inside other tables' *data*; a
+        substring rule over header cells would also match a column headed
+        *"clause under test"*. The predicate a gate is built on has to be the
+        narrow one.
+        """
+        for i, cell in enumerate(self.header):
+            if cell.strip().casefold() == name:
+                return i
+        return None
+
+    def __repr__(self) -> str:               # pragma: no cover - diagnostics
+        return f"<Table :{self.header_line} {self.header!r} x{len(self.rows)}>"
+
+
+
+# ── clause tables (rc417, `#T1100`) ───────────────────────────────────
+
+#: The three columns a clause table MUST carry, by exact casefolded name.
+#:
+#: ⚠️ There is deliberately **no alias table**. rc417 found the corpus spelling
+#: the verdict column two ways (``residual`` in ADR-0012, ``status`` in
+#: ADR-0001/0013) and the instrument column two ways (``instrument`` vs
+#: ``instrument today``), and normalised the headers with three one-line edits
+#: rather than teaching the parser both spellings. An alias table is a second
+#: vocabulary that has to be kept in sync with the first, which is the shape
+#: ADR-0010 Amendment A.4 indicts; a rename is a fact.
+CLAUSE_COLUMNS: Tuple[str, ...] = ("clause", "instrument", "status")
+
+
+def clause_tables(blob: bytes) -> "List[Table]":
+    """Every CLAUSE table in an ADR — a table with a ``clause`` header cell.
+
+    **A CLAUSE is a data row of a markdown table whose header row contains a
+    cell whose casefolded stripped text is exactly ``clause``.**
+
+    Selected on the ``clause`` column ALONE, not on all of
+    :data:`CLAUSE_COLUMNS`. That is the load-bearing choice: a selector that
+    demanded all three would make a table missing its ``status`` column simply
+    *invisible* to the gate rather than a failure of it, and a shape check that
+    cannot see a malformed table is not a shape check.
+    """
+    return [t for t in scan_tables(blob) if t.column_of("clause") is not None]
+
+
+#: Characters a pytest node id's TEST-NAME half may contain.
+_NAME_CHARS = frozenset(
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_")
+
+
+def nodes(text: str) -> List[str]:
+    """Every pytest NODE ID in ``text``, in order. Class G, no regex.
+
+    Form: ``tests/<file>.py::<test_name>``. Scans for the ``.py::`` token,
+    walks LEFT over path characters for the file half and RIGHT over
+    identifier characters for the name half — the same two-directional walk
+    :func:`citations` uses, because srmech ships no capture (gap 6).
+
+    Returns node ids **as written**, including any that are malformed in ways
+    the gate must report: an empty name half comes back as ``"…py::"`` rather
+    than being silently dropped, because a truncated node id in a clause row
+    is precisely the defect a resolution check exists to catch.
+    """
+    raw = text.encode("utf-8")
+    out: List[str] = []
+    for hit in find_all(raw, b".py::"):
+        start = hit
+        while start > 0 and raw[start - 1] in _PATH_CHARS:
+            start -= 1
+        end = hit + len(b".py::")
+        while end < len(raw) and chr(raw[end]) in _NAME_CHARS:
+            end += 1
+        out.append(raw[start:end].decode("utf-8", "replace"))
+    return out
+
+
+def resolves(node: str) -> bool:
+    """True when ``node``'s file exists AND declares ``def <name>(``.
+
+    The second half is what makes a cited node id **load-bearing rather than
+    decorative**: a file-existence check alone stays green when the test it
+    names is renamed or deleted, which is the exact way a clause quietly loses
+    its instrument while the ADR keeps claiming one.
+
+    Class-G ``byte_search`` for ``b"\\ndef " + name + b"("`` — anchored at a
+    line start so a *mention* of the name inside another test's body cannot
+    satisfy it.
+    """
+    if "::" not in node:
+        return False
+    file_part, _, name = node.partition("::")
+    if not name:
+        return False
+    path = resolve_path(file_part)
+    if path is None:
+        return False
+    needle = b"\ndef " + name.encode("utf-8") + b"("
+    return byte_search(path.read_bytes(), needle) is not None
+
+
+# ── pinned regions (§4.5) ─────────────────────────────────────────────
+
+#: Line-start markers that open a PINNED region. A **closed set**, and closed
+#: on purpose: pinning excuses a row from the derivation, so an inferred pin
+#: is a silent exemption. Blockquote ``>`` is deliberately NOT a marker — it
+#: carries 41 lines in ADR-0012 alone for LIVE quoted contracts.
+PIN_MARKERS: Tuple[str, ...] = ("## Amendment ", "⚠️ CORRECTION", "RETRACTION")
+
+
+def pinned_spans(blob: bytes) -> List[Tuple[int, int]]:
+    """Inclusive ``(first_line, last_line)`` spans of every PINNED region.
+
+    A pinned region is a **dated record**: its verdicts are claims about what
+    was true *then*, so rewriting them falsifies them (ADR-0010 A.3 says so of
+    ``CHANGELOG.md`` and ``notes/``). A clause row inside one is history, not
+    a live claim, and must not drive a derived status.
+
+    A ``## Amendment`` marker is a heading, so its region runs to the next
+    heading of **equal or higher** level. ``⚠️ CORRECTION`` / ``RETRACTION``
+    are not headings — they sit inside a section — so their region runs to the
+    next heading of any level, i.e. the end of the section that contains them.
+    """
+    lines = text_lines(blob)
+    spans: List[Tuple[int, int]] = []
+    open_at: Optional[int] = None
+    open_level = 0
+
+    for n, line in enumerate(lines, start=1):
+        stripped = line.strip()
+        level = 0
+        if stripped.startswith("#"):
+            level = len(stripped) - len(stripped.lstrip("#"))
+
+        if open_at is not None and level and level <= open_level:
+            spans.append((open_at, n - 1))
+            open_at = None
+
+        for marker in PIN_MARKERS:
+            if not stripped.startswith(marker):
+                continue
+            if open_at is None:
+                open_at = n
+                # A heading marker is bounded by its own level; a non-heading
+                # marker is bounded by the next heading of ANY level (999 is
+                # "deeper than every real heading", so any heading closes it).
+                open_level = level if level else 999
+            break
+
+    if open_at is not None:
+        spans.append((open_at, len(lines)))
+    return spans
+
+
+def is_pinned(spans: Sequence[Tuple[int, int]], line: int) -> bool:
+    """True when ``line`` falls inside any span from :func:`pinned_spans`."""
+    return any(lo <= line <= hi for lo, hi in spans)
+
+
+# ── the audit header (§4.6) ───────────────────────────────────────────
+
+
+def clauses_header(blob: bytes) -> str:
+    """The ``**Clauses:**`` header value — ``"audited"`` / ``"unaudited"`` / ``""``.
+
+    **Searched, never line-indexed.** Measured across the corpus:
+    ``**Status:**`` is on line 3 for twelve ADRs and line **5** for ADR-0008,
+    which carries a renumbering banner first. A head-only or fixed-offset
+    parser is wrong on 1 of 13 and would have to be "fixed" by exempting the
+    one file it cannot read.
+    """
+    for line in text_lines(blob):
+        if line.startswith("**Clauses:**"):
+            return line[len("**Clauses:**"):].strip().rstrip(".").strip().casefold()
+    return ""
 
 
 # ── citations ─────────────────────────────────────────────────────────
@@ -709,9 +931,16 @@ def file_line_count(path: Path) -> int:
 
 __all__ = [
     "ADR_DIR", "ADR_README", "SR_ROOT", "REPO_ROOT", "EXCLUDED_DIR_NAMES",
-    "CITATION_SUFFIXES", "Citation",
+    "CITATION_SUFFIXES", "Citation", "Table",
     "adr_files", "all_markdown", "adr_number", "read_adr", "text_lines",
     "find_all", "line_index", "line_of", "status_pair", "legend",
-    "lifecycle", "tables", "split_cells", "citations", "all_citations",
-    "resolve_path", "resolve_candidates", "file_line_count",
+    "lifecycle", "tables", "scan_tables", "split_cells", "citations",
+    "all_citations", "resolve_path", "resolve_candidates", "file_line_count",
+    # rc417 (`#T1100`) — the clause-instrument surface. Every one of these is
+    # exercised by tests/test_adr_clause_instrument_rc417.py, which lands in
+    # the SAME commit: an accessor with no consumer is an untested export
+    # claiming coverage it has not got.
+    "CLAUSE_COLUMNS", "PIN_MARKERS",
+    "clause_tables", "nodes", "resolves",
+    "pinned_spans", "is_pinned", "clauses_header",
 ]

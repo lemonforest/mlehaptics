@@ -1,6 +1,7 @@
 # ADR-0001: The srmech profile pattern — domain-specific extension as configuration
 
 **Status:** 🟢 **Implementing** (`#T199`) — execution arc OPEN, shape still being learned, so this ADR stays revisable in place rather than being superseded to change. **The loader is real and shipped**: `srmech/profile_loader.py` (989 lines) implements descriptor validation, entry-point enumeration, the smoke gate, the cache and `Profile` activation, with two test files and two downstream profiles (`ephemerides-spectral`, `chess-spectral`) exercising it. *(This line read "⏳ Draft … not yet implemented" until rc409 — false for the loader as a whole, which is why the status moved.)* **What is genuinely NOT implemented is narrower and is the open question:** of the six `[profile]` blocks the companion `0001-profile-pattern.schema.json` declares, the loader validates three (`catalogs`, `bridge`, `native`) and reads **`cli` and `smoke_test` nowhere** — yet both real downstream profiles ship a `_srmech_smoke.py` and declare `[profile.smoke_test] callable = …` that srmech never invokes (and `callable` is not even a schema key). **To-implement-or-delete on those two blocks is the decision this ADR is still learning**; it is what gates promotion to ✅ Accepted.
+**Clauses:** audited.
 **Date:** 2026-05-14.
 **Authors:** Steven Kirkland + Claude Opus 4.7.
 **Supersedes:** none.
@@ -355,7 +356,7 @@ Mirroring `tests/test_jpl_audit.py` for srmech's C, the loader tier **is specifi
 This is the loader's analog of the C-side `SRMECH_PEDANTIC=ON` build. **Today nothing enforces any of
 the four**, so a PR introducing a regression against them passes CI.
 
-| § | clause | instrument today | status |
+| § | clause | instrument | status |
 |---|---|---|---|
 | §5.5 | the loader tier holds the four JPL-analog properties above | **none** — `tests/test_loader_discipline.py` does not exist and never has | **UNGATED — deferred.** `expiry: rc425`. Per ADR-0012 §3.2 the two admissible discharges are (1) build the ratchet, or (3) withdraw the clause and accept that this ADR then claims strictly less. Restating the four properties as an aspiration is **not** a discharge |
 

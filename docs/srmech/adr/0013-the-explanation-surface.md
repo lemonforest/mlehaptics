@@ -7,6 +7,7 @@ does **not** claim acceptance for the uninstrumented ones. That is precisely why
 than ✅ — per ADR-0012 §3.2, *a clause without an instrument that can return otherwise is not a
 clause, it is a preference*, and a preference labelled as such is honest where one counted as coverage
 is not.
+**Clauses:** audited.
 **Date:** 2026-08-06.
 **Authors:** Steven Kirkland + Claude Opus 5.
 **Supersedes:** none.
@@ -271,7 +272,7 @@ right than the "correction" that replaced it — it said `composes` was the home
 empty; the error there was only the *count*, not the *address*.
 
 **One consequence that is code, not prose, and must not be left implicit.**
-`tests/test_composes_grain_rc412.py:453` (`test_every_declared_sub_op_is_actually_called`, clause 2)
+`tests/test_composes_grain_rc412.py:516` (`test_every_declared_sub_op_is_actually_called`, clause 2)
 requires every declared sub-op to be **AST-call-reachable from the parent**. That is correct for the
 downward branch and **structurally wrong for the lateral one**: a declared cascade chains ops that
 the parent does not call. As written, the next attempt to populate the per-task grain fails CI and
@@ -1032,11 +1033,11 @@ name.
 Per ADR-0012 §3.2, a clause with no instrument is a preference. Stating which is which is the reason
 this ADR is 🟢 Implementing and not ✅ Accepted.
 
-| § | clause | instrument today | status |
+| § | clause | instrument | status |
 |---|---|---|---|
 | §2 | the surface is named and defined | — | **definitional**; nothing to instrument |
-| §4.1 | coverage floors stay (100% `explanation` + `example`) | `tests/test_tool_docs_coverage_rc240.py` (§12) | **GATED** — inherited, strict floors |
-| §3 | the payload crosses the C wire and is hash-bearing | the `tool_schema_sha256` ratchet | **GATED** — inherited |
+| §4.1 | coverage floors stay (100% `explanation` + `example`) | `tests/test_tool_docs_coverage_rc240.py::test_every_srmech_tool_has_explanation` (§12) | **GATED** — inherited, strict floors |
+| §3 | the payload crosses the C wire and is hash-bearing | `tests/test_tool_registry_c_rc184.py::test_hash_ratchet_matches_mcpb_tool_schema_sha256` | **GATED** — inherited |
 | §4 | one SSoT, three consumers | **none** | **UNGATED — and currently FALSE** (57 hand-authored, 0 derived). Stated as a target, not as a satisfied property |
 | §5 | organs separately selectable | **none** | **UNGATED**; §2.2 shows the delimiter is not uniform enough to make selection mechanical |
 | §6.1 | no read path exists | **none** | **UNGATED** — a grep today, not a gate |

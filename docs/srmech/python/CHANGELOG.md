@@ -13,6 +13,52 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc417]
+
+The ADR clause-instrument gate and a **derived ADR status** (`#T1100`), discharging ADR-0012 §3.2's `expiry: rc417` — the one dated deferral in the corpus, come due. No public op is added, so `describe()["tools"]["total"]` stays **560** and `SRMECH_ABI_VERSION` stays **12**.
+
+### `#T1100` — a clause's verdict becomes a POINTER, and a pointer can be wrong
+
+**Say the limit first, because the next session inherits whatever this paragraph claims.** A derived status **does not remove typing**. It demotes what is typed from a **VERDICT** to a **POINTER**. Someone still hand-writes *"this clause is gated by X"*, and every `status` cell in every clause table is still hand-authored prose. What changes is what kind of object the hand-written half is: a verdict (`**GATED**`, `strict-zero, no CEIL`, `✅ Accepted`) is a claim nothing in the tree can contradict, so it cannot be wrong, so it carries no information — `[[feedback_an_instrument_that_cannot_return_otherwise_is_not_a_measurement]]` at the contract layer, which is ADR-0012 §3.2's own subject. A pointer (`tests/test_x.py::test_y`) is falsifiable three ways: the file must resolve, the file must declare `def <name>(`, and **deleting the test must break the ADR**.
+
+**Measured at rc416, before the gate. Three of the research brief's figures had moved and are re-measured here:**
+
+| | rc414 (as briefed) | rc416 (measured) |
+|---|---|---|
+| clause tables / rows | 2 / 16 | **3 / 17** — ADR-0001 `:358` landed after the brief |
+| rows citing a pytest node id | 0 of 16 | **0 of 17** |
+| `::test_` corpus-wide | 1 (prose, ADR-0012) | **1** — unchanged |
+| ADRs with no clause table | 10 of 13 | **10 of 13**, seven typed ✅ |
+| the marquee live defect | ADR-0012 `:3` `🟢 ACCEPTED` vs its own *"still OPEN"* | **already fixed by rc415** (`:3` reads `🟢 Implementing`) |
+
+**So the demotion fires NOWHERE today, and that is reported rather than dressed up.** All three ADRs carrying a clause table are typed 🟢 Implementing and all three derive `IMPLEMENTING`. The gate lands green and catches nothing on day one. Injection proof D — ADR-0012's header set to `✅ Accepted` — turns it red naming `adr/0012:331`, the C2 return half, so the green is a property of the corpus and not of the check. Where it *would* fire next is recorded as a **falsifiable prediction**: ADR-0009 is typed ✅ and currently `unaudited`, and its own §8 says *"It does not assert that srmech currently has multi-implementation parity. It does not"* and *"no vocabulary sweep has been performed"*.
+
+**Two decisions carry the design.** ⏳ Draft and 🔄 Proposed **stay hand-typed** — they are claims about intent, and no instrument distinguishes Draft-with-no-clauses from Implementing-with-no-clauses; the derivation covers `{🟢, ✅}` only. And **demotion is derived and mandatory while promotion is permitted and never forced**: any open clause ⇒ must not be ✅ (strict zero), but all-clauses-settled ⇒ ✅ is *offered* to a human, because a derivation proves *"every clause I can see is satisfied"* and can never prove *"the clause set is complete"*, which is what `adr/README.md` actually defines ✅ to mean.
+
+**Six of 17 rows now cite a resolving node id** (from 0). ADR-0012's five rows and ADR-0013's two `**GATED**` rows named test **files**; a file-valued pointer stays green when the test inside is renamed or gutted, which is exactly how a clause loses its instrument while the ADR keeps claiming one.
+
+**The header the corpus was spelling three ways is normalised, with no alias table.** ADR-0012's verdict column read `residual`, ADR-0001/0013's `status`; the instrument column read `instrument` in one and `instrument today` in two. Three one-line renames, then `clause` · `instrument` · `status` are required by exact cell name. An alias table is a second vocabulary requiring sync with the first — ADR-0010 Amendment A.4's own indictment; a rename is a fact.
+
+**The bootstrap is graduated, and both halves get said.** A strict rule reds 7 of 13 ADRs on landing, and by `test_adr_status_coherence_rc409.py`'s own recorded standard *"8/13 false positives on day one earns a `-k` filter within a week, and a filtered gate is a gate that lies."* The missing distinction is three-valued: an ADR with no clause table has not been **READ**, which is not the same as having open clauses. So every ADR gains `**Clauses:** audited|unaudited` — parsed by **search, never line index**, because `**Status:**` is on line 3 for twelve ADRs and line **5** for ADR-0008 — and `CEIL_UNAUDITED_ADRS = 10` drains it down-only in the `CEIL_WIRE_GLUE_GAPS` shape. Better than today (nothing says an ADR's clauses have never been read, and 10 of 13 were in that condition invisibly); **weaker than the strict rule** (an unaudited ADR's typed status is not checked, only counted). At `CEIL == 0` the graduated form retires.
+
+**The trap, and the two independent defences.** A naive substring verdict classifier counts `GATED` inside `UNGATED` and mis-flags **6 of ADR-0013's 11 rows** as simultaneously open and closed — CM-7's own defect class, *read a prefix and discard the rest*, which is what put `(🟢, ACCEPTED)` live on two surfaces with the rc409 gate green. `verdict_tokens` matches **longest-token-first on whole normalised tokens, word-bounded on both sides**; either defence alone suffices and both ship. The regression runs against the live corpus every run, so it needs no injection.
+
+**`GOAL` is deliberately not a waiver token.** §3.2 names it in the list it closes — *"'GOAL', 'standard', 'target', 'aspiration' and 'preference' all describe a clause with no instrument"* — so ADR-0013 `:1046`'s `**GOAL, not a clause.**` reports OPEN. That is §3.2 read correctly, not a false positive. The legal waivers are `definitional` and `not instrumentable`, each requiring a stated reason **in the same cell**, measured after the token is removed so the token cannot be its own reason.
+
+**PINNED regions do not count**, and pinning is by **explicit marker only** — `## Amendment <X>`, `⚠️ CORRECTION`, `RETRACTION`, at line start. Blockquote `>` is **not** a signal: ADR-0012 alone carries 41 blockquoted lines and they hold LIVE quoted contracts. ADR-0010's 14 Amendment spans are the live population; none currently contains a clause row, so the guard is prophylactic and says so.
+
+**A dead instrument that lived two rcs, and why nothing caught it.** ADR-0012 §3.2 named its own instrument as `tests/test_adr_clause_instrument_rc415.py` — a file that has never existed under any rc number. The rc415 citation gate is anchored on the `path:line` form, and **a bare path with no line number is outside it**: the ADR named its instrument and nothing could tell the name was empty. Corrected to the file that shipped, with a `:1` so the citation gate now holds it. The node-id class is covered by the new gate; a bare `path` with neither a line nor a `::` is still not, and that is stated rather than assumed closed.
+
+**Scope, stated.** Only the **static arm** ships. The pass arm (`passed(n)` — did the cited node actually PASS) needs a run manifest and a CI step after the suite, and is deferred **because a pytest test reading a run manifest reads the PREVIOUS run** and is green-by-staleness on a fresh clone — a second unfalsifiable verdict wearing a filename, which is the defect this rc removes. Consequence, named rather than hidden: **a cited test that resolves and FAILS is invisible to this arm today.**
+
+### `#T1096` (code half) — clause 2 was correct downward and wrong laterally
+
+`tests/test_composes_grain_rc412.py`'s clause 2 admitted exactly one kind of evidence: a declared sub-op is AST-call-reachable from its parent's source. That is right for a composition executed by calls in the parent's body, and **structurally wrong for one executed by the DSL chain runner** — `best_rational_signed.toml` declares `pin_slot_at_zero -> best_rational(…) -> reorient` under `[cascade.signature].operation`, ops the *interpreter* invokes, not the parent. Such a row would fail clause 2 while being entirely true, so the gate would be measuring *which execution mechanism a cascade uses* rather than whether its declaration is honest.
+
+A **second admission path** now validates a missing sub-op against the parent's own descriptor chain — the same evidence through a second channel, not a weakening, since the descriptor is a shipped artefact under the same codegen ratchets. It is looked up by exact leaf name, only under `cascade_catalog/`, and only `operation` is read; an op with no descriptor gets no second path. Every ROSTER row still passes on the call graph alone, so **the new path admits nothing today** — it is landed before it is needed, because otherwise a correct descriptor-sourced declaration would arrive as a red accusing it of being wrong. `test_descriptor_admissions_are_reported` prints the set each run so the call-graph path quietly becoming the TOML path is visible when it happens.
+
+*(The first draft of the reader looked at `[cascade].operation` rather than `[cascade.signature].operation`. It parsed cleanly and returned an empty chain for every descriptor in the catalog — a silent no-op indistinguishable from "no descriptor exists". `test_the_descriptor_reader_actually_reads_something` is what caught it, and is why a non-vacuity assertion ships beside every derivation in this rc.)*
+
 ## [0.9.0rc416]
 
 Two independently-justified fixes. Neither adds a public op, so `describe()["tools"]["total"]` stays **560** and `SRMECH_ABI_VERSION` stays **12**; one new vendored data table ships (a `.h` plus a Python module, emitted by one generator).

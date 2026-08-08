@@ -47,6 +47,31 @@ context.
   ✅ or underclaim 🔄; two ADRs improvised 🟢 and used it to mean two different
   things. `tests/test_adr_status_coherence_rc409.py` now holds file header ↔
   index row ↔ legend to strict equality.
+- **`**Clauses:** audited | unaudited`** — a header field beside `**Status:**`, on every
+  ADR, and a **three-valued** distinction rather than a two-valued one. An ADR with no
+  clause table has not had its clauses **READ**; that is a different condition from
+  having clauses that are open, and until rc417 the two were indistinguishable. Ten of
+  thirteen ADRs were in the first condition invisibly.
+  - `audited` — the ADR's clauses are enumerated in a **clause table**: a markdown table
+    whose header carries the three columns `clause` · `instrument` · `status` (extra
+    columns are fine). `tests/test_adr_clause_instrument_rc417.py` then checks it.
+  - `unaudited` — nobody has enumerated them yet. The typed status is **not challenged**;
+    the ADR is **counted**, in a population `CEIL_UNAUDITED_ADRS` drains down-only, the
+    same shape `CEIL_WIRE_GLUE_GAPS` used to walk 11 → 0.
+  - **An `instrument` cell names a pytest NODE ID**, `tests/<file>.py::<test_name>` — not a
+    file. A file-valued pointer stays green when the test inside it is renamed or deleted;
+    a node id is checked for the file **and** for `def <name>(`, so **deleting the test
+    breaks the ADR**. That is the only version of a citation worth more than the verdict
+    it replaces.
+  - **What this does NOT do**, stated so nobody inherits a larger claim: a derived status
+    does not remove typing. It demotes what is typed from a **VERDICT** to a **POINTER**.
+    A human still writes *"this clause is gated by X"*. The gain is that a pointer is
+    falsifiable and a verdict is not.
+  - **Demotion is derived and mandatory; promotion is permitted and never forced.** Any
+    open clause ⇒ the ADR must not be ✅ (strict zero). All clauses settled ⇒ ✅ is
+    *offered*, and a human confirms it with the same two-surface edit rc409 forces —
+    because a derivation proves *"every clause I can see is satisfied"* and can never
+    prove *"the clause set is complete"*, which is what ✅ actually asserts.
 - **Amendment:** an ADR may **amend** another without superseding it (`Amends: NNNN` in
   the header; the amended ADR carries an `Amended-by` note). Both stay Accepted and in
   force; the amending ADR states in its body exactly which clause it revises and why.

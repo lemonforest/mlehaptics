@@ -1,6 +1,7 @@
 # ADR-0011: One encoding per datum — the genome has no cache
 
 **Status:** ✅ Accepted — user direction 2026-07-26. Applies immediately to all genome work.
+**Clauses:** unaudited.
 **Date:** 2026-07-26.
 
 ---

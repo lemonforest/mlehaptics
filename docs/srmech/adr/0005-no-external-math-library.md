@@ -1,6 +1,7 @@
 # ADR-0005: No external mathematics library — srmech is its own math library
 
 **Status:** ✅ Accepted (standing architecture policy; consolidates discipline previously held only in project memory).
+**Clauses:** unaudited.
 **Date:** 2026-07-17.
 **Authors:** Steven Kirkland + Claude.
 **Supersedes:** none.
