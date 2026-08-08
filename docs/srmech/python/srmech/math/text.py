@@ -86,6 +86,7 @@ from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Union
 from .. import _native
 from ..math import _unicode_gb_tables as _gb
 from ..math import _unicode_fold_tables as _fold
+from ..math import _unicode_word_tables as _word
 
 __all__ = ["fold_marks", "glyph_stream", "cooccurrence_edges",
            "cooccurrence_topk"]
@@ -477,6 +478,85 @@ def fold_marks(text: str) -> str:
             out.append(chr(rep))       # precomposed → its base
         # else: rep == FOLD_DROP — a combining mark, dropped
     return "".join(out)
+
+
+# ── rc416: the vendored word-character table, decoded once per process ──────
+#
+# The THIRD instance of the rc287 / rc293 vendoring pattern, and the one whose
+# alternative is not "derive it" but a SPECIFIC host call with a SPECIFIC
+# measured defect. `str.isalnum()` answers this question already and pins the
+# answer to the RUNNING interpreter's UCD: this host reports
+# `unicodedata.unidata_version == '13.0.0'` while the GB and fold tables above
+# are both UCD 16.0.0, so U+0870 (Lo in 16.0.0, unassigned in 13.0.0) is a
+# letter to `glyph_stream` and a separator to `isalnum` IN THE SAME PROCESS.
+# A bare-C host has no `str` at all, so the compiled projection could never
+# reproduce the scripting one's answer — ADR-0009's forbidden shape.
+#
+# The property is a PREDICATE (word vs separator), so the packed rows carry no
+# payload byte: covered means word. General_Category L* / M* / N*; Pc (`_`)
+# and S* (`→`) are deliberately OUT — see c/tools/gen_unicode_word_tables.py
+# for what each exclusion costs.
+
+_WORD_TABLE: Optional[tuple] = None
+
+
+#: A codepoint no range covers: a token SEPARATOR.
+_WORD_KIND_NONE = 0
+
+
+def _word_table() -> tuple:
+    """The decoded ``(lo, hi, kind)`` range arrays, built once per process."""
+    global _WORD_TABLE
+    if _WORD_TABLE is None:
+        blob = _word.WORD_TABLE_BLOB
+        n = _word.WORD_RANGE_COUNT
+        lo = array("I", bytes(n * 4))
+        hi = array("I", bytes(n * 4))
+        kind = bytearray(n)
+        for i in range(n):
+            base = i * 9
+            lo[i] = int.from_bytes(blob[base:base + 4], "little")
+            hi[i] = int.from_bytes(blob[base + 4:base + 8], "little")
+            kind[i] = blob[base + 8]
+        _WORD_TABLE = (lo, hi, bytes(kind))
+    return _WORD_TABLE
+
+
+def _word_kind_cp(cp: int) -> int:
+    """``cp``'s word KIND — ``_word.WORD_KIND_LETTER`` (General_Category L* or
+    M*), ``_word.WORD_KIND_NUMBER`` (N*), or 0 for a token separator.
+
+    The vendored-table peer of ``str.isalnum()``, minus the host dependency,
+    plus the marks, plus the letter/number split. Same binary search as
+    :func:`_gb_prop` and :func:`_fold_lookup`.
+    """
+    lo, hi, kind = _word_table()
+    i = bisect.bisect_right(lo, cp) - 1
+    if i >= 0 and cp <= hi[i]:
+        return kind[i]
+    return _WORD_KIND_NONE
+
+
+def _glyph_kind(cluster: str) -> int:
+    """One grapheme cluster's word kind: LETTER, NUMBER, or 0 for a separator.
+
+    Decided by the cluster's **base** — its first codepoint — because that is
+    what the cluster IS: UAX #29 glues a base to its trailing marks, joiners
+    and variation selectors, so asking about the base asks about the whole
+    thing exactly once. ``'क्षि'`` is one cluster whose base ``क`` is ``Lo``, so
+    the virama and the vowel sign ride along without needing their own vote;
+    ``'1️⃣'`` is one cluster whose base ``1`` is ``Nd``, so a keycap is one
+    NUMBER rather than three separate decisions.
+
+    An empty cluster is a separator — :func:`glyph_stream` never emits one, so
+    this arm exists for callers that build cluster lists by other means.
+    """
+    return _word_kind_cp(ord(cluster[0])) if cluster else _WORD_KIND_NONE
+
+
+def _is_word_glyph(cluster: str) -> bool:
+    """Is one grapheme cluster word CONTENT rather than a token separator?"""
+    return _glyph_kind(cluster) != _WORD_KIND_NONE
 
 
 def _gb_is_break(prev: int, cur: int, gb11: int, incb_consonant: bool,

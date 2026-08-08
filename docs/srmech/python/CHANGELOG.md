@@ -13,6 +13,59 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc416]
+
+Two independently-justified fixes. Neither adds a public op, so `describe()["tools"]["total"]` stays **560** and `SRMECH_ABI_VERSION` stays **12**; one new vendored data table ships (a `.h` plus a Python module, emitted by one generator).
+
+### `#T1102` — the search tokenizer segments GLYPHS, and it was returning confident wrong answers
+
+`srmech/introspect/search.py` accumulated `ch.isalnum() and ch.isascii()`. **Three of the four Latin-shaped assumptions that got `srmech.math.text.tokenize` DELETED at rc287 had reassembled inside the one runtime-reachable discovery surface** — a length floor of 2 CODEPOINTS, a universal `lower()`, and an `isascii()` gate harder than anything the retired tokenizer carried. Measured on the rc415 tree:
+
+| query | rc415 | rc416 |
+|---|---|---|
+| `_tokenize('中 国')` | `()` — the exact deletion `README:311` names | `(中, 国)` |
+| `search('ℚ')` | **0 rows**, in a corpus holding ℚ in 51 frames | 5 rows, `qpoly_from_coeffs` first |
+| `search('groß')` | `group_algebra_table`, `ground_state_flux_response`, `cd_three_form` | **EMPTY** |
+| `_tokenize('élevée')` | `(b'lev',)` → `gene_express_levels` | `(b'elevee',)` |
+
+**The `groß` row is why this shipped rather than waiting, and it is not a missing-feature row.** `'groß'` truncated to the needle `b'gro'`, and a prefix is a perfectly valid needle — so the caller got three real rows with real scores, about group algebra, for a German word. Not a decline: a **confident wrong answer**. `'élevée'` did the same through `b'lev'`.
+
+It also broke two contracts the module states about itself. `search()` documents that EMPTY means *"we have nothing for this"*; for a non-ASCII query it meant *"this instrument cannot express your query"* — UNSUPPORTED reported as EMPTY, unrecoverable by the caller. And `_as_text` refuses `json.dumps` **specifically** so the corpus keeps ℚ / 𝕆 / Σ / → searchable (`ensure_ascii` "would make every non-ASCII character in the corpus unsearchable"); that care was 100% cancelled two functions above it.
+
+**The same defect, independently authored, in the second natural-language surface.** `srmech/rbs_lm/grounding.py` carried `_NON_ALNUM = re.compile(r"[^a-z0-9]+")`: `'語言'` → `[]`, `'groß'` → `['gro']`. Two of two ASCII-locked is convergence, not a slip, so both are fixed here rather than the one that was noticed first. Its `([a-z])([0-9])` letter-digit split (the F1008 `klein4` → `klein 4` alignment) is re-spelled as the **property it was approximating** — a LETTER↔NUMBER boundary — so it now fires for `κ4` and `語言4` too.
+
+**Both now compose shipped ops and decide nothing locally:** `fold_marks` (vendored UCD 16.0.0 fold table) → `glyph_stream` (UAX #29 extended grapheme clusters, 1093/1093 on the official conformance suite) → a vendored word-kind predicate. A grapheme cluster is classified by its **base** codepoint, so `क्षि` is one decision and `1️⃣` is one NUMBER rather than three.
+
+**A THIRD vendored table — `c/tools/gen_unicode_word_tables.py`, 890 ranges / 8,010 B / 145,440 codepoints, UCD 16.0.0, `sha256 78c11e16…`.** Not vendored for the usual reason. `str.isalnum()` answers this question already; it pins the answer to the **RUNNING interpreter's UCD**, and this tree's host reports `unidata_version == '13.0.0'` against the vendored tables' 16.0.0 — a live three-major-version skew, so `glyph_stream` and `isalnum` disagree about the same codepoint *in the same process*. A bare-C host has no `str` at all (ADR-0003), so the compiled projection could never reproduce the scripting one. `tests/test_unicode_word_tables_attested.py` asserts the host/table disagreement is **non-empty**, so if the versions ever converge the argument fails loudly instead of becoming decoration.
+
+The property is `General_Category ∈ L* M* N*`, each row carrying its KIND (1 LETTER incl. marks, 2 NUMBER). **Two exclusions are contract, and each costs something that is stated rather than glossed.** `Pc` (`_`) is OUT even though UTS #18's word-character class includes it, because `search` documents and depends on `"top k score"` reaching `top_k_by_score`. `S*` is OUT, so **a query of a bare `→` tokenizes to nothing** — admitting `Sm` would fuse `a+b` and `x=1` into single tokens across the ~99%-ASCII corpus. ℚ / 𝕆 / Σ are `Lu`, i.e. LETTERS, so the notation that actually fills the registry is in.
+
+**`_MIN_TOKEN` re-derived in GLYPHS: 2 → 1, and 2 was not available.** `中 国` is two one-glyph tokens, so `min_glyphs=2` returns `()` and reproduces the rc287 deletion exactly. What 1 costs is a SCAN, not an answer — the old comment's own reasoning is why: a one-glyph token matches almost every frame, so `df → N` and its idf is `Q(N−N, N) == 0` **exactly**, contributing zero rather than noise. The floor was buying time and charging whole writing systems for it. The grounding tokenizer's length floor is removed for the same reason and its job handed to the instrument that can actually do it — the F768/F984 doc-frequency gate, which measures glue FROM the corpus.
+
+**BOTH sides of the index fold** (`_frame_from_pairs` was `.lower()`-only): folding the query alone would make the fold a mismatch generator, since a folded token cannot be found in unfolded bytes. `.lower()` and deliberately **not** `.casefold()` — `lower` is the locale-INDEPENDENT map, and casefold would make the index locale-*dependent* (Turkish I/ı) in the name of thoroughness. `fold_marks` runs first, which is what repairs `İSTANBUL` → `istanbul`.
+
+**The corpus witness moves — `298e2939ca11…` → `cd067fe2f4d4…`** — and is re-pinned in `tests/test_search_glyph_tokenizer_rc416.py`. That edit is the fold; 70 of 589 frames move, for 258 bytes.
+
+**Measured cost, and it DISAGREES with the brief that scoped this work.** The brief called the runtime cost "nil" on the grounds that `_tokenize` has one call site, on the query only. That is true of the tokenizer and false of the change: **folding the CORPUS is the expensive half**, and it is paid on every `search()` call because ADR-0011 forbids persisting the frame set. Warm-vs-warm on this tree, one process, best of four passes:
+
+| `_build_frames("all")` | best | Δ |
+|---|---:|---:|
+| rc415 shape — `.lower()` only | 0.221 s | — |
+| fold both sides, no short-circuit | 0.452 s | +0.231 s |
+| **rc416 shipped** — fold + ASCII short-circuit | **0.364 s** | **+0.143 s** |
+
+`_tokenize` itself, same query, 200 calls: **6.6 µs → 56.1 µs** (7 tokens → 9; the brief's figures were 19.4 µs → 225 µs on a different host, so the ratio is worse and the absolute is better). Against a `search()` call this is the smaller term either way.
+
+⚠️ **A first pass at this measurement was wrong and is corrected here rather than quietly restated.** It compared a COLD `_build_frames` (0.292 s → 1.065 s) against a WARM one in the same process — the first call carries `warmup_all()` and the import of every registered module. The cold figure is not a fold cost; the honest fold cost is the +0.143 s above, about 6× smaller than the first reading.
+
+The ASCII short-circuit is a **proof, not an optimisation guess**: no codepoint below U+0080 is `Mn`/`Mc`/`Me` or decomposes through one, so `fold_marks` is the IDENTITY on ASCII — asserted over the whole domain in the gate, not sampled. `str.isascii()` is a codepoint-RANGE test carrying no Unicode data, so it brings none of the host-UCD dependency `str.isalnum()` would; the compiled projection makes the identical decision on `byte < 0x80`. The corpus witness is byte-identical with and without it, which is what proves it value-preserving.
+
+**Acceptance, all four green:** `search('ℚ')` returns rows · the ASCII benchmark (`grapheme` / `okina` / `virama` / `GB9c`) keeps its top-k exactly · the witness is re-pinned · and the **truncation witness** — `search('groß')` is EMPTY and no longer reaches `group_algebra_table`.
+
+**Ripple, re-aimed rather than deleted.** `test_tokenizer_letter_digit_split`'s `_aboutness_tokens("a of the x") == ["of", "the"]` was protecting *"single-letter noise must not carry aboutness"* — a property a length floor cannot hold, because the same floor deletes `中`, `国`, `κ` and `π`. Replaced by `test_tokenizer_single_glyph_noise_is_gated_not_deleted`, which asserts the tokenizer KEEPS them and the **gate** drops them. `ground_tool_schema` top-1 is unchanged.
+
+**H3 from the scoping brief was already closed and is reported as such.** The brief named `tests/test_adr_status_coherence_rc409.py:87`'s hand-rolled `[^\x00-\x7F]+` clusterer, failing on the keycap `1️⃣`. It was measured against rc414; **rc415 already routed that parser through `glyph_stream`** via `tests/adr_corpus.status_pair`, and `status_pair('1️⃣ Keycap')` → `('1️⃣', 'Keycap')` at HEAD. Nothing to fix; verified rather than assumed.
+
 ## [0.9.0rc415]
 
 **ADR integrity, slice 1 of 3 — the `adr/` corpus becomes a checked surface (`#T1098`).** Thirteen ADRs are the tree's standing policy, and until rc409 **nothing in the suite read them**. rc409 read the status glyphs. This rc reads the **citations**, and the corpus turns out to have drifted exactly the way an unchecked one does: one pointer named a symbol that has never existed in any commit, seven more had been silently repointed by two rcs of unrelated insertions, and an ADR carried a status pair its own legend does not define — on **both** hand-written surfaces at once, which is precisely why the glyph-only gate stayed green.

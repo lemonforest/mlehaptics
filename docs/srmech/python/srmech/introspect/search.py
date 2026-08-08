@@ -30,6 +30,8 @@ This is not new capability. It is a registered composition of ops that already
 ship, which is also what collapses its ADR-0009 story (see PARITY below)::
 
     E   catalog        get_tool_schema() + carrier_schema()
+    B/G text-framing   srmech.math.text.fold_marks — marks off, BOTH sides
+    B/G segmentation   srmech.math.text.glyph_stream — UAX #29 glyph clusters
     F/B render + TLV   srmech.math.tlv.tlv_pack  — one TLV frame per row
     A   content-addr   srmech.amsc.format.sha256_bytes — the corpus witness
     G   byte-search    srmech.math.search.byte_search — tf per frame, df = frames hit
@@ -111,7 +113,7 @@ __all__ = ["SearchResult", "search"]
 
 
 # ──────────────────────────────────────────────────────────────────────
-# Tokenisation
+# Tokenisation — GLYPHS, not ASCII runs (rc416, `#T1102`)
 #
 # Deliberately NO hand-tuned stoplist. The exact-Q idf gate below already
 # suppresses common words harder than a word list does, and it does it from
@@ -122,11 +124,61 @@ __all__ = ["SearchResult", "search"]
 # carrying no signal — and a tuned constant that carries no signal is a
 # liability, because it looks like it is doing something.
 #
-# ``_MIN_TOKEN`` is 2, not 1: a single character matches inside almost every
-# frame, so df -> N and its idf collapses to ~0 anyway. Dropping it early
-# saves the scan rather than changing the answer.
+# WHAT rc416 REPLACED, AND WHY IT WAS WORSE THAN A DROP
+# ----------------------------------------------------
+# Until rc416 this function accumulated ``ch.isalnum() and ch.isascii()``.
+# Three of the four Latin-shaped assumptions that got ``tokenize`` DELETED at
+# rc287 had quietly reassembled here — a length floor of 2 CODEPOINTS, a
+# universal ``lower()``, and an ``isascii()`` gate harder than anything the
+# retired tokenizer had. Measured on this tree at rc415:
+#
+#   _tokenize('中 国')   -> ()            the exact deletion README:311 names
+#   _tokenize('’okina') -> (b'okina',)   the okina README:313 celebrates saving
+#   search('ℚ')         -> 0 rows        in a corpus holding ℚ in 51 frames
+#
+# and the failure that is worse than any of those, because it is not a
+# decline but a CONFIDENT WRONG ANSWER:
+#
+#   'groß'   -> b'gro' -> group_algebra_table, ground_state_flux_response, …
+#   'élevée' -> b'lev' -> gene_express_levels, condense, accessible
+#
+# A truncated prefix is still a valid needle, so the row that comes back looks
+# exactly like a real hit. It also cancelled a design intent stated 60 lines
+# below it: :func:`_as_text` refuses ``json.dumps`` specifically so the corpus
+# keeps ``ℚ``, ``𝕆``, ``Σ`` and ``→`` searchable — care taken on the corpus
+# side and thrown away two functions above. And it broke the module's own
+# contract: :func:`search` promises EMPTY means *"we have nothing for this"*,
+# while for a non-ASCII query it meant *"this instrument cannot express your
+# query"* — UNSUPPORTED reported as EMPTY, unrecoverable by the caller.
+#
+# The replacement composes three SHIPPED ops rather than deciding anything
+# here: ``fold_marks`` (Class B/G, vendored UCD 16.0.0 fold table),
+# ``glyph_stream`` (UAX #29 extended grapheme clusters, 1093/1093 on the
+# official conformance suite) and the vendored word-character predicate
+# ``_is_word_glyph``. NOTHING calls ``str.isalnum()``: that pins the answer to
+# the HOST's UCD (13.0.0 here, against the vendored tables' 16.0.0) and a
+# bare-C host cannot ask it at all, so a host classifier would put the two
+# ADR-0009 projections on different data.
+#
+# ``_MIN_GLYPHS`` — THE ONE CONTRACT DECISION, AND ITS COST
+# --------------------------------------------------------
+# The old floor was 2 CODEPOINTS. Re-derived in glyphs it is **1**, and 2 is
+# not available: ``中 国`` is two one-glyph tokens, so ``min_glyphs=2`` returns
+# ``()`` and reproduces the rc287 deletion exactly. Only 1 recovers it.
+#
+# What 1 costs is a SCAN, not an answer. The old comment's reasoning still
+# holds and is why the cost is bounded: a one-glyph token matches inside
+# almost every frame, so ``df -> N`` and its idf is ``Q(N - N, N) == 0``
+# EXACTLY — it contributes zero to every score rather than a little noise to
+# each. So the ranking is unchanged for the ASCII case the floor was written
+# for; what changes is that the corpus is scanned once more per single-glyph
+# query token. Measured on this tree, a five-token ASCII query gains one such
+# token (``top_k_by_score`` -> ``top`` / ``k`` / ``by`` / ``score``) and the
+# scan is the dominant term, so the honest statement is: the floor was buying
+# time, it was not buying correctness, and it was charging whole writing
+# systems for it.
 # ──────────────────────────────────────────────────────────────────────
-_MIN_TOKEN = 2
+_MIN_GLYPHS = 1
 
 #: Occurrence counting saturates here. This is a BOUNDED loop, not a guess:
 #: tf is a sub-linear signal (a row that says "rank" 40 times is not 40x more
@@ -140,33 +192,104 @@ _TF_CAP = 32
 _LEAF_BOOST = 4
 
 
-def _tokenize(text: str) -> Tuple[bytes, ...]:
-    """Lowercase alphanumeric runs, as bytes, deduplicated, order-preserving.
+def _index_fold(text: str) -> str:
+    """The ONE normalisation BOTH sides of the index pass through.
 
-    Underscores SPLIT. ``top_k_by_score`` tokenizes to ``top``/``by``/``score``
-    on the query side, while the frame keeps the underscored form intact — and
-    because the match is a substring scan rather than a word match, the query
-    tokens still find it. Splitting the query and not the corpus is what makes
-    ``"top k score"`` reach ``top_k_by_score`` without a stemmer.
+    This is not a helper, it is the index's alignment contract. A token is
+    matched by a byte scan, so the query and the corpus have to be folded the
+    SAME way or the fold is a mismatch generator rather than a recall gain.
+    Until rc416 the two sides disagreed: :func:`_frame_from_pairs` applied
+    ``.lower()`` to the corpus while :func:`_tokenize` applied ``.lower()``
+    *plus* an ASCII filter to the query. Both call this now.
+
+    Two stages, in this order and for a stated reason each:
+
+    * :func:`~srmech.math.text.fold_marks` — combining marks off, by Unicode
+      CATEGORY, from the vendored UCD 16.0.0 table. It runs FIRST because it
+      is the stage that repairs case: ``'İ'`` folds to ``'I'`` before
+      ``.lower()`` sees it, so the Turkish dotted capital does not become the
+      two-codepoint ``i`` + U+0307 that splits one word into two types.
+    * ``.lower()`` — and deliberately NOT ``.casefold()``. ``str.lower()`` is
+      the locale-INDEPENDENT map; casefold is the aggressive one that unifies
+      pairs some locales hold distinct (Turkish I/ı), which would make the
+      index locale-DEPENDENT in the name of being more thorough.
+
+    Folding the corpus is what buys the recall: a caller who types ``naive``
+    reaches prose that says ``naïve``, and one who types ``क्षि`` reaches it as
+    ``कष``. **The cost, stated because it is visible in the output:**
+    :attr:`SearchResult` records carry a ``why`` excerpt cut from these folded
+    bytes, so an excerpt over mark-bearing prose shows the folded form. That
+    was already true for case before rc416 (excerpts have always come from
+    ``.lower()``ed bytes); rc416 extends the same loss to marks rather than
+    introducing a new kind of it.
+
+    **The ASCII short-circuit is a PROOF, not an optimisation guess.** No
+    codepoint below U+0080 is General_Category Mn/Mc/Me and none carries a
+    canonical decomposition containing a mark, so ``fold_marks`` is the
+    IDENTITY on pure-ASCII text — asserted over the whole ASCII domain by
+    ``tests/test_search_glyph_tokenizer_rc416.py``, not assumed here. Skipping
+    the call for ASCII input is therefore value-preserving by construction.
+    It matters because the corpus is ~68% ASCII by field and the call is
+    ctypes-marshalled per field. Measured warm-vs-warm on this tree, best of
+    four passes over the whole frame set: ``.lower()`` alone (the pre-rc416
+    shape) 0.221 s, folding both sides without this branch 0.452 s, folding
+    with it **0.364 s** — so the branch returns about 38% of the fold's cost,
+    and the fold's whole cost is +0.143 s per :func:`search` call. ``str.isascii()`` is a codepoint-RANGE test, not a
+    Unicode-property lookup, so it carries none of the host-UCD dependency
+    that ``str.isalnum()`` would — the compiled projection makes the identical
+    decision on ``byte < 0x80``.
     """
+    from ..math.text import fold_marks
+
+    if text.isascii():
+        return text.lower()
+    return fold_marks(text).lower()
+
+
+def _tokenize(text: str) -> Tuple[bytes, ...]:
+    """Word-glyph runs, folded, as bytes, deduplicated, order-preserving.
+
+    A token is a maximal run of WORD glyphs — grapheme clusters whose base
+    codepoint is a letter, mark or number in the vendored UCD 16.0.0 table.
+    Everything else (space, punctuation, symbols, controls) separates.
+
+    Underscores SPLIT, and that is a deliberate exclusion rather than an
+    accident of the property set: UTS #18's ``\\w`` includes
+    Connector_Punctuation and this table does not. ``top_k_by_score``
+    tokenizes to ``top``/``k``/``by``/``score`` on the query side, while the
+    frame keeps the underscored form intact — and because the match is a
+    substring scan rather than a word match, the query tokens still find it.
+    Splitting the query and not the corpus is what makes ``"top k score"``
+    reach ``top_k_by_score`` without a stemmer.
+
+    Symbols separate too, so a query of a bare ``→`` tokenizes to ``()``. The
+    notation that fills srmech's prose is unaffected — ``ℚ`` (U+211A), ``𝕆``
+    (U+1D546) and ``Σ`` (U+03A3) are ``Lu``, i.e. LETTERS — but the arrow
+    genuinely is not reachable as a query, and admitting Sm to fix that would
+    fuse ``a+b`` and ``x=1`` into single tokens across the whole ASCII corpus.
+    """
+    from ..math.text import _is_word_glyph, glyph_stream
+
     out: List[bytes] = []
     seen = set()
     buf: List[str] = []
-    for ch in text.lower():
-        if ch.isalnum() and ch.isascii():
-            buf.append(ch)
-            continue
-        if buf:
-            tok = "".join(buf).encode("ascii")
-            buf = []
-            if len(tok) >= _MIN_TOKEN and tok not in seen:
-                seen.add(tok)
-                out.append(tok)
-    if buf:
-        tok = "".join(buf).encode("ascii")
-        if len(tok) >= _MIN_TOKEN and tok not in seen:
+
+    def _flush() -> None:
+        if len(buf) < _MIN_GLYPHS:
+            del buf[:]
+            return
+        tok = "".join(buf).encode("utf-8", "replace")
+        del buf[:]
+        if tok not in seen:
             seen.add(tok)
             out.append(tok)
+
+    for cluster in glyph_stream(_index_fold(text)):
+        if _is_word_glyph(cluster):
+            buf.append(cluster)
+        else:
+            _flush()
+    _flush()
     return tuple(out)
 
 
@@ -379,14 +502,21 @@ def _build_frames(scope: str) -> Tuple[Tuple[_Frame, ...], str]:
 def _frame_from_pairs(kind: str, name: str,
                       pairs: Tuple[Tuple[str, str], ...],
                       reach: str, tlv_pack: Any) -> _Frame:
-    """TLV-pack one row's fields into its frame (Class F render + Class B TLV)."""
+    """TLV-pack one row's fields into its frame (Class F render + Class B TLV).
+
+    Both the field bodies and the name leaf pass through :func:`_index_fold`,
+    the SAME two stages the query does. rc416 (`#T1102`) changed this line
+    from a bare ``.lower()``: folding one side only would have made the fold a
+    mismatch generator, since a folded query token can no longer be found in
+    unfolded corpus bytes. This is the edit that moves the corpus witness.
+    """
     field_bytes: List[Tuple[str, bytes]] = []
     chunks: List[bytes] = []
     for tag, (label, text) in enumerate(pairs, start=1):
-        raw = text.lower().encode("utf-8", "replace")
+        raw = _index_fold(text).encode("utf-8", "replace")
         field_bytes.append((label, raw))
         chunks.append(tlv_pack(tag, raw))
-    leaf = name.rpartition(".")[2].lower().encode("utf-8", "replace")
+    leaf = _index_fold(name.rpartition(".")[2]).encode("utf-8", "replace")
     return _Frame(kind, name, leaf, b"".join(chunks),
                   tuple(field_bytes), reach)
 
