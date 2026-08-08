@@ -1,6 +1,6 @@
 # ADR-0010: srmech namespace declustering — `amsc` is the attestation framework, not the dumping ground
 
-**Status:** 🟢 **IMPLEMENTING — execution arc OPEN; STRUCTURE slice shipped v0.9.0rc364, FIRST–FOURTH MODULE-MOVING slices shipped v0.9.0rc366 / rc367 / rc368 / rc369** (`#T1034`). *(rc409: the word was "ACCEPTED" while the README index said 🔄 Proposed — the two surfaces disagreed for the whole rc364→rc408 window. 🟢 is now the DEFINED fifth state "Implementing", which is what this ADR has meant by it all along; the glyph did not change, only the vocabulary caught up.)* The deferral condition is satisfied: the Class-N precision migration completed (rc318→320) and the class-registry prerequisite landed in rc359. Amendment A (2026-07-29) carries the measured move map, budget and rejected-shorthand record; Amendment B (2026-07-30) carries the first executed slice — `srmech.cascade` is real, the built-in catalogs moved out of `amsc/_research/`; Amendment C (2026-07-31) carries the first slice to relocate a module with public callables — `harmonics` → `srmech.music` — which is where the census and op-name-set witness got their first live test; Amendment D (2026-07-31) carries the second — `naming` → `srmech.introspect` — which corrected the module-move instrument set to THREE (the decode-aware prefix ratchet, missed by rc366's first commit) and hit the first C-side entanglement (`srmech_invoke.c` hardcodes the dotted tool name). *(Was 🟡 Proposed — target design, deferred behind the precision migration.)*
+**Status:** 🟢 **Implementing — execution arc OPEN; STRUCTURE slice shipped v0.9.0rc364, FIRST–FOURTH MODULE-MOVING slices shipped v0.9.0rc366 / rc367 / rc368 / rc369** (`#T1034`). *(rc409: the word was "ACCEPTED" while the README index said 🔄 Proposed — the two surfaces disagreed for the whole rc364→rc408 window. 🟢 is now the DEFINED fifth state "Implementing", which is what this ADR has meant by it all along; the glyph did not change, only the vocabulary caught up.)* The deferral condition is satisfied: the Class-N precision migration completed (rc318→320) and the class-registry prerequisite landed in rc359. Amendment A (2026-07-29) carries the measured move map, budget and rejected-shorthand record; Amendment B (2026-07-30) carries the first executed slice — `srmech.cascade` is real, the built-in catalogs moved out of `amsc/_research/`; Amendment C (2026-07-31) carries the first slice to relocate a module with public callables — `harmonics` → `srmech.music` — which is where the census and op-name-set witness got their first live test; Amendment D (2026-07-31) carries the second — `naming` → `srmech.introspect` — which corrected the module-move instrument set to THREE (the decode-aware prefix ratchet, missed by rc366's first commit) and hit the first C-side entanglement (`srmech_invoke.c` hardcodes the dotted tool name). *(Was 🔄 Proposed — target design, deferred behind the precision migration. v0.9.0rc415, `#T1098`: this narration spelled the earlier state 🟡, a glyph the legend and the lifecycle line both define NOWHERE — the rc409 gate read status glyphs but never narration, so an undefined glyph survived in the same line as a defined one.)*
 **Date:** 2026-07-23.
 **Authors:** Steven Kirkland + Claude Opus 4.8.
 **Supersedes:** none.
@@ -286,11 +286,25 @@ no green baseline, so a red is unattributable.
    review-gated, NOT emitted by `tools/codegen_manifest.py`** — if codegen writes it, the rename
    arc's own `python tools/gen_*.py` makes the digest green unconditionally and the witness becomes
    another EMPTY probe, reproducing the exact failure this section indicts.
+
+   ✅ **DONE — v0.9.0rc361 (`#T1034`).** `tests/test_op_name_set_witness_rc361.py` + the
+   hand-committed manifest `tests/registered_op_names.txt`.
 2. **Single-source the rosetta `_ROOTS`** — collapse the four duplicated copies to one definition,
    so the rename updates one place instead of four. (Widening it to the new namespaces cannot precede
    their existence; de-duplicating it can.)
+
+   ✅ **DONE — v0.9.0rc361 (`#T1034`).** `tests/rosetta_roots.py` — the one definition; the four
+   copies now import it. Its gap-assertion peer is
+   `tests/test_rosetta_roots_single_source_rc361.py`.
 3. **A decode-aware prefix check** over `srmech_carrier_registry.c` + `srmech_class_registry.c` +
    `srmech_tool_registry.c`, per A.3's table.
+
+   ✅ **DONE — v0.9.0rc361 (`#T1034`).** `tests/test_namespace_prefix_decode_aware_rc361.py`.
+
+   *(v0.9.0rc415, `#T1098`: items 1–3 all landed at rc361 and carried NO completion marker while
+   item 5 carried one, so the convention existed and was unevenly applied — an ADR reader could
+   not tell a done prerequisite from an outstanding one. The markers above are the remedy; nothing
+   in items 1–3 is retracted.)*
 4. **Fold `_tool_docs_curated.py`'s 276 hand edits into the plan** before estimating the rename rcs.
 5. **A module-and-subpackage CENSUS of `srmech/amsc/`** — added rc364 (Amendment B.5). The
    decode-aware prefix check in (3) counts *dotted module paths*, so it is structurally blind to

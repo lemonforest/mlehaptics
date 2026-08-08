@@ -76,7 +76,7 @@ Every row below is a real capability that ships. Verified on this branch by dire
 | `math.gcd` | `srmech.math.cyclic.gcd` | `lookup()` OK |
 | filed `mat_rank` as a **GAP** — because numpy has `matrix_rank`, so srmech was assumed not to | **`QMat.rank(self, *, method: str = "auto")`** — `srmech/math/qmat.py:447` | method exists; `resolve_all('rank')` → **`()`** |
 | wrote `srmech.math.rational.Q` — "rational" is the *world's* word (`fractions`, `sympy.Rational`) | **`srmech.math.q.Q`** — `srmech/math/q.py:234` | correct module confirmed |
-| guessed `all_entries()` / `REGISTRY` / `ENTRIES` — the names *libraries* use | `get_tool_schema()` · `tool_schema_view()` (`introspect/tool_schema.py:645`) | `all_entries` → **no such name** |
+| guessed `all_entries()` / `REGISTRY` / `ENTRIES` — the names *libraries* use | `get_tool_schema()` (`introspect/tool_schema.py:673`) · `tool_schema_view()` (`:697`) | `all_entries` → **no such name** |
 
 **The `mat_rank` row is the sharpest and deserves its own sentence**, because it is not a retrieval
 failure at all — it is the index being scoped narrower than the capability surface, and saying so in a
@@ -296,7 +296,7 @@ set plus human tracing for the sequence, never derivation alone.
 ⚠️ **And the field is unread.** `srmech/introspect/search.py::_op_fields` indexes exactly `name`,
 `category`, `summary`, `explanation`, `example.*`. **rc411's search surface does not index `composes`
 or `preserves`.** Their only consumers are `to_jsonable` (`tool_schema.py:400-401`), the curated merge
-(`:526-527`), and the C serialiser. Populating an unread field moves a hash and nothing else — which is
+(`_apply_docs`, `:578-581`), and the C serialiser. Populating an unread field moves a hash and nothing else — which is
 why any rc that populates them must ship a **reader** first.
 
 **Post-rc412 addendum (2026-08-07).** rc412 (`#T1093`) acted on this section and changed two of its
@@ -651,7 +651,7 @@ Grepped across the whole `srmech/` package for any reference to `.explanation` /
 
 | touch point | file:line | what it does |
 |---|---|---|
-| **ingress** | `srmech/introspect/tool_schema.py:515-534` (`_merge_docs`) | merges the curated docs onto the entry **at registration** |
+| **ingress** | `srmech/introspect/tool_schema.py:562-586` (`_apply_docs`) | merges the curated docs onto the entry **at registration** |
 | **egress** | `srmech/introspect/tool_schema.py:390-393` (`to_jsonable`) | copies both fields into the JSON blob **on serialisation** |
 
 **Nothing in between ever reads them.** No search, no filter, no render, no selection, no accessor. The
@@ -1013,7 +1013,7 @@ largest of its ~14 load-bearing uses. Verbatim, `c/include/srmech.h:7154-7155`:
 > **a callable cannot cross the C wire**).
 
 with the near-twin at `srmech.h:7100` — *"predicate stays a **Python-layer** affordance (a callable
-cannot cross the C wire)"* — and the JSON-RPC variant at `introspect/tool_schema.py:3698`, *"an
+cannot cross the C wire)"* — and the JSON-RPC variant at `introspect/tool_schema.py:3750`, *"an
 IN-PROCESS Python affordance (a callable cannot cross JSON-RPC)"*.
 
 **The explanation surface does cross the C wire** (§3: `srmech_tool_entry_t.explanation`,
@@ -1046,8 +1046,8 @@ this ADR is 🟢 Implementing and not ✅ Accepted.
 | §2.3 | four readings of one addressed set | **none** | **GOAL, not a clause.** Adds no instrument and claims nothing. The four-field form remains what ships |
 | §2.3 | a migration must not silently lose WHEN vocabulary | **none** | **UNGATED — and this is the dangerous one.** The failure is silent by construction; §2.3 records it as a RISK and makes building the detector a precondition of attempting the migration |
 
-**Counted exactly: 2 gated · 6 ungated (one of them a goal, one a standard) · 2 not instrumentable.** And **both gated rows are inherited
-from earlier rcs — this ADR builds no new instrument.** Of the four ungated, one (§4) is not merely
+**Counted exactly, 11 rows: 2 gated · 6 ungated (one of them a standard) · 1 goal · 1 definitional · 1 not instrumentable.** And **both gated rows are inherited
+from earlier rcs — this ADR builds no new instrument.** Of the six ungated, one (§4) is not merely
 unenforced but **measurably false today**, and is stated as a target rather than as a property. An
 honest reading of the table is: *the surface is named and measured; almost nothing about it is yet
 enforced.* That is what 🟢 Implementing means, and it is why acceptance is not claimed.
@@ -1129,7 +1129,7 @@ Also verified for §1.2, each by direct lookup: `srmech.math.rational.log` and
 `…rational.log1p_series_truncate` both resolve; `QMat.rank(self, *, method="auto")` exists at
 `srmech/math/qmat.py:447` while `resolve_all('rank')` returns `()`; `Q` is defined at
 `srmech/math/q.py:234` (so `srmech.math.q.Q`, not `…rational.Q`); `tool_schema_view` exists at
-`introspect/tool_schema.py:645` and `all_entries` exists nowhere.
+`introspect/tool_schema.py:697` and `all_entries` exists nowhere.
 
 Everything else in the brief verified exactly, including the three file sizes, the five `example`
 sub-key populations, the three char censuses, `509/545`, `resolve('winding')` with 26 mentions,
@@ -1139,7 +1139,7 @@ sub-key populations, the three char censuses, `509/545`, `resolve('winding')` wi
 
 Demonstrated incidentally while measuring §6.3, and recorded here **only as a cross-reference**:
 
-- **`srmech.introspect.tool_schema._REGISTRY` (`tool_schema.py:498`) is a plain module-level `dict`
+- **`srmech.introspect.tool_schema._REGISTRY` (`tool_schema.py:550`) is a plain module-level `dict`
   with no write guard** — no `MappingProxyType`, no lock, no freeze. It is not in `__all__`, but it is
   imported by name across modules (`introspect/carrier_schema.py:981`,
   `introspect/responsion_schema.py:406`). A direct `_REGISTRY[name] = tampered` **bypasses
@@ -1168,8 +1168,8 @@ rewrite would target, and because §3 establishes that this payload is *inside t
 
 ## 13. Sources
 
-`srmech/introspect/tool_schema.py` — the SSoT (`_REGISTRY` at `:498`; `_merge_docs` ingress at
-`:515-534`; `to_jsonable` egress at `:390-393`; `resolve_all` at `:474-485`) ·
+`srmech/introspect/tool_schema.py` — the SSoT (`_REGISTRY` at `:550`; `_apply_docs` ingress at
+`:562-586`; `to_jsonable` egress at `:390-393`; `resolve_all` at `:474-485`) ·
 `srmech/introspect/__init__.py:735-736` (the ROOT/INDEX self-description §6.5 reads against) ·
 `srmech/introspect/_tool_docs.py` + `_tool_docs_curated.py` (the two identical payloads, §7) ·
 `srmech/mcp/_tools.py:395-402` (the `description` assembly that omits the prose) ·
