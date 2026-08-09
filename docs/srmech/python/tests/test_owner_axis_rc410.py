@@ -518,17 +518,42 @@ def test_the_restatement_scan_still_bites() -> None:
             f"rc419 false positive is not actually fixed"
         )
 
-    # …and the real exhibit, read from the shipped file rather than described:
-    # thetasum's prime table must be silent, and it must be silent because the
-    # AST accounted for the occurrence, not because the scan stopped looking.
+    # …and the real exhibit, read from the shipped file rather than described.
+    #
+    # rc420 RE-SCOPE (`#T1114`): the total moved off a prime (569 -> 598 =
+    # 2·13·23), so the rc419 exhibit — "the CURRENT total sits inside
+    # thetasum's prime table and the AST accounts for it" — predicted its own
+    # expiry ("the exhibit must be re-chosen"). The re-choice keeps BOTH
+    # halves live with neither branch a skip:
+    #
+    #   * when the current total IS in the shipped prime table (a prime
+    #     <= 617), the original exhibit runs unchanged: present AND silent;
+    #   * when it is NOT, that absence is asserted as a definite fact (the
+    #     main gate then has no table false-positive to fear for this file)
+    #     AND the AST-subtraction path is still exercised against the LIVE
+    #     file by scanning for 569 — the rc419 value known to sit in
+    #     _STRUCT_PRIMES — so the "silent because accounted, not because the
+    #     scan stopped looking" property keeps a real shipped exhibit at all
+    #     times, whatever the current total is.
     thetasum = _SRMECH_PKG / "apokatastasis" / "thetasum.py"
     source = thetasum.read_text(encoding="utf-8")
-    assert re.search(rf"\b{total}\b", source), (
-        f"thetasum.py no longer contains {total} — this control has gone "
-        f"vacuous and the exhibit must be re-chosen (the total moved off a "
-        f"prime, or _STRUCT_PRIMES changed)"
-    )
-    assert _restatement_lines(source, str(thetasum), total) == []
+    if re.search(rf"\b{total}\b", source):
+        assert _restatement_lines(source, str(thetasum), total) == [], (
+            f"thetasum.py contains {total} inside _STRUCT_PRIMES and the "
+            f"AST no longer accounts for it — the rc419 false positive is "
+            f"back"
+        )
+    else:
+        # The definite complementary fact + the live AST exhibit at 569.
+        assert re.search(r"\b569\b", source), (
+            "thetasum.py no longer contains 569 (_STRUCT_PRIMES changed) — "
+            "re-choose the live exhibit value for this branch"
+        )
+        assert _restatement_lines(source, str(thetasum), 569) == [], (
+            "the AST table-subtraction no longer silences thetasum's prime "
+            "table for a value KNOWN to be a table element — the re-scope "
+            "has regressed"
+        )
 
 
 # ──────────────────────────────────────────────────────────────────────

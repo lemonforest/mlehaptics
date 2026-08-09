@@ -2745,4 +2745,1095 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
             'neither was findable in it.'
         ),
     },
+    'srmech.cascade.as_oct8': {'example': {'input': {'vec': 'one ODFT sample: an 8-component octonion, or '
+                              'a 4-component quaternion to zero-extend'},
+             'output': 'as_oct8([1.0, 2.0, 3.0, 4.0]) = [1.0, 2.0, 3.0, 4.0, '
+                       '0.0, 0.0, 0.0, 0.0] — a quaternion zero-extends into '
+                       'H ⊂ O',
+             'why': 'The octonion coercion is widening (H embeds in O '
+                    'losslessly) where the quaternion one is guarded — the '
+                    'asymmetry IS the algebra: projection loses, embedding '
+                    'does not.',
+             'worked': 'from srmech.cascade import as_oct8\n'
+                       'as_oct8([1.0, 2.0, 3.0, 4.0])\n'
+                       '            # -> [1.0, 2.0, 3.0, 4.0, 0.0, 0.0, 0.0, '
+                       '0.0]\n'
+                       'as_oct8([1.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0])\n'
+                       '            # -> [1.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, '
+                       '0.0]\n'},
+ 'explanation': 'WHAT — Class M: coerce a 4- or 8-component sample to an '
+                '8-list of floats — a quaternion zero-extends into ``ℍ ⊂ 𝕆`` '
+                '(lossless embedding), an 8-vector passes through coerced. '
+                'Contrast the quaternion-side twin, which must GUARD: '
+                'projecting 𝕆 → ℍ can lose content, embedding ℍ → 𝕆 cannot — '
+                'the asymmetry between the two coercions is the algebra '
+                'itself, made visible at the op boundary. WHEN — as the '
+                'coercion-map body of the declared ``octonion_dft`` chain '
+                "(``seq_get`` then this, per sample, the shipped wrapper's "
+                'own order); it was the private ``_as8`` until rc420, '
+                "promoted so the descriptor's step list names only "
+                'registered ops (the BLK-REGMAP discipline). Parameter name '
+                'is ``vec`` (the historical signature, kept — a rename would '
+                'be churn with no value). SIBLING — '
+                '``srmech.cascade.as_quat4`` (the guarded quaternion twin); '
+                '``srmech.cascade.odft_resolve_mu`` (the axis-side coercion '
+                'of the same transform).'},
+    'srmech.cascade.as_quat4': {'example': {'input': {'v': 'one QDFT sample: a 4-component quaternion, or '
+                            'an H-valued 8-vector (e4..e7 zero)'},
+             'output': 'as_quat4([1.0, 2.0, 3.0, 4.0, 0.0, 0.0, 0.0, 0.0]) = '
+                       '[1.0, 2.0, 3.0, 4.0]; a nonzero e4..e7 tail raises '
+                       '(it would silently leak H)',
+             'why': 'The per-sample coercion step of quaternion_dft, public '
+                    "so the declared chain's coercion map names a registered "
+                    'op — and the H-leak guard is part of the contract, not '
+                    'a convenience.',
+             'worked': 'from srmech.cascade import as_quat4\n'
+                       'as_quat4([1.0, 2.0, 3.0, 4.0])    # -> [1.0, 2.0, '
+                       '3.0, 4.0]\n'
+                       'as_quat4([1.0, 2.0, 3.0, 4.0, 0.0, 0.0, 0.0, 0.0])\n'
+                       '                                  # -> [1.0, 2.0, '
+                       '3.0, 4.0]\n'
+                       'as_quat4([0.0] * 4 + [1.0] + [0.0] * 3)\n'
+                       '                                  # -> ValueError (e4..e7 '
+                       'must be zero)\n'},
+ 'explanation': 'WHAT — Class M: coerce one QDFT sample to a plain 4-list of '
+                'floats — accepting a 4-component quaternion or the '
+                'octonion-embedded 8-vector form with ``e4..e7 == 0``, and '
+                'RAISING on a nonzero tail (accepting it would silently '
+                'project an octonion into ℍ, which is a value error, not a '
+                'convenience). WHEN — as the coercion-map body of the '
+                'declared ``quaternion_dft`` chain (``seq_get`` then this, '
+                'once per sample, exactly as the shipped wrapper coerces up '
+                'front); it was the private ``_as_quat4`` until rc420, '
+                'promoted because a declared chain cannot honestly name a '
+                'private symbol — the BLK-REGMAP resolution is that every '
+                'step of a shipped descriptor is a REGISTERED op. '
+                '``float()`` coercion is exact on floats, so the map order '
+                'is the shipped order. SIBLING — ``srmech.cascade.as_oct8`` '
+                'is the octonion twin (zero-EXTENDS a quaternion instead of '
+                'truncating); ``srmech.cascade.qdft_resolve_mu`` is the '
+                'axis-side coercion of the same one-resolution contract.'},
+    'srmech.cascade.byte_slice': {'example': {'input': {'data': 'the 32-byte sha256_raw digest of the content',
+                       'start': '0',
+                       'stop': '8'},
+             'output': "byte_slice(b'abcdefgh', 0, 4) = b'abcd'; on the "
+                       'digest, byte_slice(digest, 0, 8) is the 8-byte '
+                       'stride window int_parse_le consumes',
+             'why': "The stride's framing half, measured missing at rung 3: "
+                    'sha256(content)[0:8] had no registered spelling, so the '
+                    'Mode-B stride could not be declared.',
+             'worked': 'from srmech.cascade import byte_slice\n'
+                       "byte_slice(b'abcdefgh', 0, 4)     # -> b'abcd'\n"
+                       'from srmech.amsc.format import sha256_raw\n'
+                       "len(byte_slice(sha256_raw(b'hello'), 0, 8))\n"
+                       '                                  # -> 8\n'},
+ 'explanation': 'WHAT — Class-B framing: it returns ``data[start:stop]``, '
+                'the byte-range window as a registered chain step. WHEN — '
+                'wherever a declared cascade reads a FIXED WINDOW out of a '
+                'byte object: the ``encode_loe_content`` stride takes the '
+                'first 8 bytes of the content digest '
+                '(``sha256(content)[0:8]``), and until rc420 that slice '
+                "existed only inside the op's body — the `#T1114` rung-3 "
+                'census filed it under BLK-FRAMING because no registered op '
+                'could spell it, which alone made the Mode-B pipeline '
+                'undeclarable. Use it with literal window bounds; a COMPUTED '
+                'bound would come from a prior step reference like any other '
+                'argument. SIBLING — ``srmech.cascade.int_parse_le`` is the '
+                'parse half of the same stride (window → integer); '
+                '``srmech.cascade.utf8_encode`` is the boundary crossed just '
+                'before; ``srmech.math.search.byte_search`` is the Class-G '
+                "op when the window's POSITION is unknown and must be found "
+                'rather than framed.'},
+    'srmech.cascade.compensated_sum': {'example': {'input': {'values': 'the per-lag products of one '
+                                 'autocorrelation bin, magnitudes spanning '
+                                 '~20 decades'},
+             'output': 'compensated_sum([1e10, 1.0, -1e10, 2.0]) = 3.0 — the '
+                       'Neumaier compensation recovers the bits a plain += '
+                       'would lose on the cancellation',
+             'why': 'The substrate-native fsum replacement: the '
+                    'larger-magnitude term is selected by a SQUARE compare '
+                    '(no abs()), and the per-add error rides a separate '
+                    'compensation term recovered at the end.',
+             'worked': 'from srmech.cascade import compensated_sum\n'
+                       'compensated_sum([1e10, 1.0, -1e10, 2.0])\n'
+                       '                                  # -> 3.0\n'
+                       'compensated_sum([])               # -> 0.0\n'
+                       'compensated_sum([0.1] * 10)       # -> '
+                       '1.0000000000000002\n'},
+ 'explanation': 'WHAT — Class M: the Kahan-Babuska-Neumaier compensated '
+                'summation, public since rc420 (it was the private '
+                '``_compensated_sum`` since rc13, when it replaced the '
+                'stdlib ``math.fsum``). Each add computes ``t = s + v``, '
+                'selects the larger-magnitude operand by a SQUARE comparison '
+                '(``s*s >= v*v`` — Class-K honest, no ``abs()``), '
+                'accumulates the bits the add lost into a running '
+                'compensation ``c``, and returns ``s + c`` — matching '
+                '``fsum`` to ~1 ulp on well-conditioned sums. WHEN — as a '
+                "declared chain's Σ step wherever the SHIPPED op sums "
+                'compensated: the ``autocorrelation`` chain names it per lag '
+                'bin, and it is the SAME body the shipped fallback calls, so '
+                'the equivalence is structural. Structurally it IS a fold '
+                'with a ``(sum, compensation)`` pair accumulator plus a '
+                'final combine — declarable once a pair-accumulator fold '
+                'exists; shipped as one leaf so the float order stays pinned '
+                '(the `#T1114` rung-4 delegation, recorded rather than '
+                'hidden). SIBLING — ``srmech.cascade.f64_add`` is the '
+                'UNcompensated fold body (the kuramoto Σ, which ships '
+                'plain).'},
+    'srmech.cascade.correlation_product': {'example': {'input': {'i': 'the sample index from the inner map',
+                       'j': 'the wrapped index (i + k) mod n from the '
+                            'registered Class-I mod_add',
+                       'x': 'the (already float) signal list'},
+             'output': 'correlation_product([1.0, -2.0, 3.0], 0, 2) = 3.0 — '
+                       'float(x[0]) * float(x[2]), the pointwise '
+                       'Wiener-Khinchin pairing',
+             'why': 'The autocorrelation fallback CALLS this op since rc420, '
+                    'so the declared chain and the shipped op share one body '
+                    '— bit-identity by construction, not by parallel '
+                    'maintenance.',
+             'worked': 'from srmech.cascade import correlation_product, '
+                       'autocorrelation\n'
+                       'correlation_product([1.0, -2.0, 3.0], 0, 2)\n'
+                       '                                  # -> 3.0\n'
+                       '# the chain wires j = (i + k) mod n from Class-I '
+                       'mod_add;\n'
+                       '# the shipped op is the same product summed per '
+                       'lag:\n'
+                       'autocorrelation([1.0, -2.0, 3.0])\n'
+                       '                                  # -> [14.0, -7.0, '
+                       '-7.0]\n'},
+ 'explanation': 'WHAT — Class L: ONE ``(i, j)`` product of the circular '
+                'autocorrelation, ``float(x[i]) * float(x[j])`` — the '
+                'pointwise body of the Wiener-Khinchin Σ (the product IS the '
+                'spectral pairing the power-spectrum identity sums, hence '
+                'Class L rather than a bare arithmetic class). WHEN — inside '
+                "the declared ``autocorrelation`` chain's inner indexed map, "
+                'paired with the REGISTERED Class-I ``mod_add`` computing '
+                "``j = (i + k) mod n`` — the census's point was that the "
+                'index arithmetic needed no new leaf, only the product did. '
+                "Since rc420 the shipped op's pure fallback CALLS this op "
+                '(``float()`` is idempotent on the pre-coerced signal, so '
+                'the float-op order is unchanged), which is what makes the '
+                'chain-vs-op bit-identity structural. Pointwise and total: '
+                "the ``i``/``k`` iteration lives in the chain's map "
+                'combinator layer, never in here. SIBLING — '
+                '``srmech.cascade.compensated_sum`` is the Σ that consumes '
+                'these products; ``srmech.cascade.autocorrelation`` is the '
+                'whole composite.'},
+    'srmech.cascade.dead_band': {'example': {'input': {'band': 'the Class-K dead-band threshold (1e-12 in '
+                               'best_rational_signed)',
+                       'value': 'the pin-slot magnitude (already '
+                                'non-negative)'},
+             'output': 'dead_band(5e-13, 1e-12) = 0.0 (below the band: the '
+                       "carrier's own zero); dead_band(0.5, 1e-12) = 0.5; "
+                       'dead_band(3, 1) = 3 (type-preserving: int in, int '
+                       'out)',
+             'why': 'Without this step a naive best_rational_signed chain '
+                    'diverges from the shipped op in the (sub-band magnitude '
+                    'x huge fine_scale x huge max_denominator) corner — the '
+                    '_ZERO_BAND branch is real, and the declared chain must '
+                    'carry it.',
+             'worked': 'from srmech.cascade import dead_band\n'
+                       'dead_band(5e-13, 1e-12)           # -> 0.0   (below '
+                       'the band)\n'
+                       'dead_band(0.5, 1e-12)             # -> 0.5\n'
+                       'dead_band(3, 1)                   # -> 3     '
+                       '(type-preserving)\n'
+                       'dead_band(0.0, 1e-12)             # -> 0.0\n'},
+ 'explanation': 'WHAT — the Class-K pin-slot dead-band gate over a '
+                'NON-NEGATIVE magnitude: ``value`` when ``value >= band``, '
+                "else the value's own zero (``value * 0`` — type-preserving "
+                'over int / float / exact carriers, mirroring the '
+                '``pin_slot_at_zero`` origin discipline; NaN propagates '
+                'rather than being silently read as zero). WHEN — '
+                'immediately after a ``pin_slot_at_zero`` split, wherever '
+                'the shipped op applies a ``_ZERO_BAND``: the declared '
+                '``best_rational_signed`` chain runs it between the pin-slot '
+                "and the banker's scale-round, and the rc420 measurement is "
+                'exactly why — without it the chain returned ``(1, '
+                "2000000000000)`` where the shipped op's dead-band branch "
+                'returns ``(0, 1)`` (sub-band magnitude with fine_scale 1e13 '
+                'and max_denominator 1e12). Because the input contract is a '
+                'MAGNITUDE, the compare is a plain ``>=`` — no sign branch, '
+                'no ``abs()``. SIBLING — ``srmech.cascade.pin_slot_at_zero`` '
+                'produces the magnitude this gates; '
+                '``srmech.cascade.magnitude`` is the two-step select idiom '
+                'that needs no band at all.'},
+    'srmech.cascade.dft_scale': {'example': {'input': {'inverse': 'whether this is the inverse transform',
+                       'n': 'the transform length (0 legal: the empty '
+                            'transform)'},
+             'output': 'dft_scale(True, 4) = 0.25 (the 1/N inverse '
+                       'normalisation); dft_scale(False, 4) = 1.0 (forward '
+                       'unscaled); dft_scale(True, 0) = 1.0 (total at n == '
+                       "0, mirroring the wrappers' empty early-return)",
+             'why': 'The 1/N-on-inverse convention as a named Class-N step, '
+                    'total on n >= 0 so the empty-transform chain still runs '
+                    'it.',
+             'worked': 'from srmech.cascade import dft_scale\n'
+                       'dft_scale(True, 4)                # -> 0.25\n'
+                       'dft_scale(False, 4)               # -> 1.0\n'
+                       'dft_scale(True, 0)                # -> 1.0  (total '
+                       'on the empty transform)\n'},
+ 'explanation': 'WHAT — Class N: the hypercomplex-DFT output scale — ``1.0 / '
+                'float(n)`` on the inverse transform when ``n > 0``, else '
+                '``1.0`` (forward transforms are unscaled in this '
+                'convention; Parseval then reads ``Σ‖X‖² = N·Σ‖x‖²``). The '
+                "``n > 0`` guard mirrors the public wrappers' ``if not xs: "
+                'return []`` early return — it is wrapper-layer in the '
+                'shipped op, but a declared chain has no early return, so '
+                'the scale step must be TOTAL on ``n >= 0`` to run before an '
+                "empty outer map. WHEN — as the step feeding ``vec_scale``'s "
+                '``s`` in both declared DFT chains; both shipped composed '
+                'paths call this function since rc420, so the convention is '
+                'stated once and shared three ways. The rational ``1/n`` is '
+                'the Class-N content; the inverse-conditional is '
+                'descriptor-static and lives inside the op. SIBLING — '
+                '``srmech.cascade.dft_sigma`` (the sign half of the same '
+                'convention pair), ``srmech.cascade.vec_scale`` (the '
+                'consumer).'},
+    'srmech.cascade.dft_sigma': {'example': {'input': {'inverse': 'which way the transform walks the phase '
+                                  'circle'},
+             'output': 'dft_sigma(False) = -1 (forward); dft_sigma(True) = '
+                       '+1 (inverse) — the twiddle sign convention as a '
+                       'named Class-C step',
+             'why': "The sign IS the transform's Class-C which-way; naming "
+                    'it as a step is what lets a declared chain state its '
+                    'convention rather than inherit one silently.',
+             'worked': 'from srmech.cascade import dft_sigma\n'
+                       'dft_sigma(False)                  # -> -1  '
+                       '(forward)\n'
+                       'dft_sigma(True)                   # -> 1   '
+                       '(inverse)\n'},
+ 'explanation': 'WHAT — Class C: the hypercomplex-DFT twiddle sign '
+                'convention — ``+1`` for the inverse transform, ``-1`` '
+                'forward (``sigma = 1 if inverse else -1``, the line both '
+                'composed DFT paths open with, exiled to its own op '
+                'instance). The classification is the point: the sign '
+                'decides which way the twiddle walks the phase circle, which '
+                "IS the cascade's Class-C which-way — a convention that "
+                'deserves a named, declarable step rather than a buried '
+                'literal, in a codebase whose ODFT already learned (F378) '
+                'that silent conventions are how hypercomplex transforms go '
+                'wrong. WHEN — as an early step of any declared DFT-shaped '
+                'chain; both shipped composed paths call this function since '
+                'rc420 and both declared chains name it, so all three '
+                'surfaces state the SAME convention by construction. The '
+                'branch is descriptor-static (a bool parameter), hence '
+                'inside the op — the exile discipline. SIBLING — '
+                '``srmech.cascade.dft_scale`` is the matching normalisation '
+                'convention; ``srmech.cascade.qdft_summand`` / '
+                '``odft_summand`` consume the sign per (k, m).'},
+    'srmech.cascade.f64_add': {'example': {'input': {'a': "the running Σ accumulator (the fold's acc slot)",
+                       'b': "one coupling term (the fold's elem slot)"},
+             'output': 'f64_add(0.1, 0.2) = 0.30000000000000004 — the '
+                       'IEEE-754 add, exactly as the shipped += order '
+                       'performs it; a left fold from 0.0 reproduces '
+                       'coupling_sum += term bit-exactly',
+             'why': 'A left fold of this op from a 0.0 seed IS the shipped '
+                    'accumulation order (0.0 + t == t, then the identical '
+                    'add sequence), which is what lets a declared chain '
+                    'claim bit-identity, not just closeness.',
+             'worked': 'from srmech.cascade import f64_add\n'
+                       'f64_add(0.1, 0.2)                 # -> '
+                       '0.30000000000000004\n'
+                       '# the declared kuramoto chains fold this over the '
+                       'sin terms:\n'
+                       'acc = 0.0\n'
+                       'for t in (0.5, 0.25, -0.125):\n'
+                       '    acc = f64_add(acc, t)\n'
+                       'acc                               # -> 0.625\n'},
+ 'explanation': 'WHAT — Class-M accumulate: it returns ``a + b``, the scalar '
+                'fold body. Class M is deliberate — the DSL classifies '
+                'fold/reduce as Class M (the cross-class accumulator-element '
+                'BIND), and this is the accumulator those forms bind when '
+                'the Σ is plain (uncompensated). WHEN — as the ``fold_op`` '
+                'of a declared chain whose shipped op accumulates with bare '
+                '``+=``: both kuramoto chains fold it over their '
+                'per-oscillator coupling terms, and the bit-identity claim '
+                'rests on the order argument stated in the docstring — a '
+                'LEFT fold from a ``0.0`` seed performs ``0.0 + t0`` (which '
+                'is ``t0``) then the identical add order as the shipped '
+                '``coupling_sum += term`` loop. Do NOT reach for it when the '
+                'shipped Σ is compensated. SIBLING — '
+                '``srmech.cascade.compensated_sum`` is the Neumaier Σ (the '
+                "autocorrelation chain's body); ``srmech.cascade.vec_add`` "
+                "is this op's elementwise-vector twin for the DFT chains."},
+    'srmech.cascade.int_parse_le': {'example': {'input': {'data': 'the 8-byte stride window sliced from the '
+                               'content digest'},
+             'output': "int_parse_le(b'\\x01\\x02') = 513 — little-endian: "
+                       'the FIRST byte is least significant (1 + 2*256)',
+             'why': 'The parse half of the content-derived stride: '
+                    "int.from_bytes(digest[0:8], 'little') had no registered "
+                    'spelling until rc420 (BLK-FRAMING).',
+             'worked': 'from srmech.cascade import int_parse_le\n'
+                       "int_parse_le(b'\\x01\\x02')        # -> 513  (1 + "
+                       '2*256; little-endian)\n'
+                       "int_parse_le(b'\\x02\\x01')        # -> 258  (2 + "
+                       '1*256)\n'},
+ 'explanation': 'WHAT — Class-B framing: it parses bytes as a LITTLE-ENDIAN '
+                "unsigned integer (``int.from_bytes(data, 'little')``) — the "
+                'byte-order choice is the contract, not a detail: the first '
+                "byte is least-significant, so ``b'\\x01\\x02'`` is 513, and "
+                'reading the same window big-endian gives a DIFFERENT stride '
+                'and therefore a different fingerprint. WHEN — as the parse '
+                'half of a content-derived index or stride: the '
+                '``encode_loe_content`` chain parses its 8-byte digest '
+                'window with this op and reduces mod D on the registered '
+                'Class-I ``mod_add``. Endianness is Class-C on bytes (a '
+                'which-way choice), which is why the op name carries it '
+                'rather than defaulting silently. SIBLING — '
+                '``srmech.cascade.byte_slice`` frames the window this '
+                'parses; ``srmech.math.tlv.tlv_unpack`` is the structured '
+                'Class-B reader when the bytes carry typed fields rather '
+                'than one bare integer.'},
+    'srmech.cascade.kuramoto_gen_out': {'example': {'input': {'dt': 'the Euler step',
+                       'i': 'this oscillator',
+                       'omega': 'the natural frequencies',
+                       'ps': 'pin strength (scalar broadcast or length-n)',
+                       'psi': 'pin anchors, or None for no pinning',
+                       's': 'its folded Σ_j weighted coupling',
+                       'theta': 'the phase list'},
+             'output': 'pinned: kuramoto_gen_out([0.2], [0.1], 0, 0.5, '
+                       '[1.0], 0.5, 0.05) = 0.24793390227248807 (the '
+                       'p_i*sin(psi_i - theta_i) term enters); unpinned '
+                       '(psi=None): 0.23',
+             'why': 'The psi-None branch is descriptor-static and lives '
+                    'INSIDE this op instance — the exile-to-op-instance '
+                    'pattern, so the declared chain never needs a branch '
+                    'form.',
+             'worked': 'from srmech.cascade import kuramoto_gen_out\n'
+                       'kuramoto_gen_out([0.2], [0.1], 0, 0.5, [1.0], 0.5, '
+                       '0.05)\n'
+                       '                                  # -> '
+                       '0.24793390227248807\n'
+                       'kuramoto_gen_out([0.2], [0.1], 0, 0.5, None, 1.0, '
+                       '0.05)\n'
+                       '                                  # -> 0.23  (no '
+                       'pinning)\n'},
+ 'explanation': 'WHAT — Class C: the GENERAL-path Kuramoto-Sakaguchi Euler '
+                'combine — ``f = omega[i] + s``; when pinned, ``f += ps[i] * '
+                'sin(psi[i] - theta[i])`` (``ps`` broadcasts a scalar or '
+                'indexes a length-n sequence); then ``float(theta[i] + dt * '
+                'f)``. WHEN — as the final body step of the declared general '
+                'kuramoto chain; the shipped general fallback CALLS it since '
+                'rc420, so the chain and the op share one body. The design '
+                'point worth naming: the ``psi is None`` (no-pinning) '
+                'decision is a DESCRIPTOR-STATIC branch, and it lives INSIDE '
+                'this op instance rather than in the chain — the '
+                '``_control_flow`` exile discipline that keeps the '
+                'declarative surface branch-free and total. The pinning term '
+                'is a second sin coupling, to a fixed anchor instead of to '
+                'the other oscillators (a per-oscillator forcing). SIBLING — '
+                '``srmech.cascade.kuramoto_out_simple`` is the unpinned '
+                'simple twin; ``srmech.cascade.kuramoto_gen_term`` builds '
+                'the ``s`` this consumes.'},
+    'srmech.cascade.kuramoto_gen_term': {'example': {'input': {'adjacency': 'the n x n weight rows, or None for '
+                                    'mean-field',
+                       'alpha': 'the Sakaguchi phase-lag',
+                       'coupling': 'the global K scaling the matrix (the '
+                                   'rc15 §32 fix)',
+                       'i': 'receiver',
+                       'inv_n': 'the mean-field fallback weight',
+                       'j': 'provider',
+                       'theta': 'the phase list'},
+             'output': 'with A = [[0,1],[0.25,0]], K = 2: '
+                       'kuramoto_gen_term(theta, A, 2.0, 1.0, 0.0, 0, 1) = '
+                       'Q(545504860453082587, 288230376151711744) — w = '
+                       'K*A[0][1] = 2.0 weights the TERM; with adjacency '
+                       'None and alpha 0.4 the weight falls back to inv_n '
+                       'and the lag enters the sin',
+             'why': 'The general path weights each TERM (w * sin(theta_j - '
+                    'theta_i - alpha)) — the float-order distinction from '
+                    "the simple path's weighted SUM; the "
+                    'adjacency-vs-mean-field selection is a '
+                    'descriptor-static branch living inside this op.',
+             'worked': 'from srmech.cascade import kuramoto_gen_term\n'
+                       'A = [[0.0, 1.0], [0.25, 0.0]]\n'
+                       'kuramoto_gen_term([0.1, 2.0], A, 2.0, 1.0, 0.0, 0, '
+                       '1)\n'
+                       '                    # -> Q(545504860453082587, '
+                       '288230376151711744)\n'
+                       'kuramoto_gen_term([0.1, 2.0], None, 2.0, 1.0, 0.4, '
+                       '0, 1)\n'
+                       '                    # -> Q(2300066841586666207, '
+                       '2305843009213693952)\n'},
+ 'explanation': 'WHAT — Class N: ONE ``(i, j)`` term of the GENERAL '
+                'Kuramoto-Sakaguchi path — ``w * sin(theta[j] - theta[i] - '
+                'alpha)`` with ``w = coupling * float(adjacency[i][j])`` '
+                'when an adjacency is given (the rc15 §32 fix: the global K '
+                'SCALES the matrix, so ``coupling=0`` zeroes the adjacency '
+                'path too) and ``w = inv_n`` otherwise. WHEN — as the '
+                'inner-map body of the declared general kuramoto chain; the '
+                'shipped general fallback CALLS this op since rc420. Two '
+                'things live INSIDE the op on purpose: the '
+                'adjacency-vs-mean-field selection (a descriptor-static '
+                'branch — the exile discipline keeps branches out of the '
+                'chain grammar) and the Sakaguchi ``alpha`` offset (a '
+                'Class-C phase-lag on the coupling argument). The per-TERM '
+                'weighting is the float-order fact that separates this '
+                "cascade from the simple path's weighted-sum — the reason "
+                '``kuramoto_step`` declares two chains. SIBLING — '
+                '``srmech.cascade.kuramoto_sin_term`` (simple twin), '
+                '``srmech.cascade.kuramoto_gen_out`` (the combine this '
+                'feeds).'},
+    'srmech.cascade.kuramoto_inv_n': {'example': {'input': {'coupling': 'the global coupling K',
+                       'n': 'the oscillator count (0 legal: the empty '
+                            'roster)'},
+             'output': 'kuramoto_inv_n(2.0, 4) = 0.5; kuramoto_inv_n(1.0, 0) '
+                       '= 0.0 — total on n >= 0 (the empty-roster chain maps '
+                       'over nothing but the scale step must still run)',
+             'why': 'The K/n mean-field normalisation as its own op '
+                    'instance; the n == 0 guard is descriptor-static and '
+                    'lives here, not in the chain grammar.',
+             'worked': 'from srmech.cascade import kuramoto_inv_n\n'
+                       'kuramoto_inv_n(2.0, 4)            # -> 0.5\n'
+                       'kuramoto_inv_n(1.0, 0)            # -> 0.0  (total '
+                       'on the empty roster)\n'
+                       'kuramoto_inv_n(0.0, 3)            # -> 0.0  (zero '
+                       'coupling)\n'},
+ 'explanation': 'WHAT — Class N: the Kuramoto mean-field scale ``K/n``, '
+                'returning ``0.0`` when ``n == 0`` — the ``inv_n = '
+                '(float(coupling) / n) if n > 0 else 0.0`` line of both '
+                'shipped ``kuramoto_step`` paths, exiled to its own '
+                'registered op instance (the guard is a descriptor-static '
+                'branch, so it lives inside the op rather than demanding a '
+                'branch form in the chain grammar; the empty-roster chain '
+                'maps over nothing, but this step must still be TOTAL to run '
+                'before the map). WHEN — as step 1 of either declared '
+                'kuramoto chain, and anywhere a mean-field normalisation '
+                'must be a named, executable step: the shipped fallbacks '
+                'call this exact function since rc420, so the declared '
+                'chains and the op share the value bit-for-bit. SIBLING — '
+                '``srmech.cascade.kuramoto_sin_term`` / '
+                "``kuramoto_out_simple`` are the simple path's other two "
+                'leaves; ``srmech.cascade.kuramoto_gen_term`` consumes this '
+                'as the mean-field fallback weight when no adjacency is '
+                'given.'},
+    'srmech.cascade.kuramoto_out_simple': {'example': {'input': {'dt': 'the Euler step',
+                       'i': 'this oscillator',
+                       'inv_n': 'the K/n scale',
+                       'omega': 'the natural-frequency list',
+                       's': 'its folded Σ_j sin coupling',
+                       'theta': 'the phase list'},
+             'output': 'kuramoto_out_simple([0.1], [1.0], 0, 0.0, 1.0, 0.01) '
+                       '= 0.11 — theta_0 + dt*(omega_0 + inv_n*0): pure '
+                       'drift when the coupling sum vanishes',
+             'why': 'The shipped output line in its exact expression order '
+                    '(inv_n*s, then omega_i +, then dt*, then theta_i +) — '
+                    'order is the contract, because bit-identity is the '
+                    'claim.',
+             'worked': 'from srmech.cascade import kuramoto_out_simple\n'
+                       'kuramoto_out_simple([0.1], [1.0], 0, 0.0, 1.0, '
+                       '0.01)\n'
+                       '                                  # -> 0.11  (pure '
+                       'drift)\n'
+                       'kuramoto_out_simple([0.1, 2.0], [1.0, 0.5], 0, '
+                       '0.9463000876874145,\n'
+                       '                    0.5, 0.05)    # -> '
+                       '0.17365750219218537\n'},
+ 'explanation': 'WHAT — Class C: the SIMPLE-path Kuramoto Euler combine — '
+                '``float(theta[i] + dt * (omega[i] + inv_n * s))``, the '
+                'shipped output line as its own registered op with the exact '
+                'expression order preserved (``inv_n * s`` first, then '
+                '``omega_i +``, then ``dt *``, then ``theta_i +`` — '
+                'reassociating any of it would break the bit-identity the '
+                "declared chain claims). Class C per the shipped op's own "
+                '``I ∘ sin ∘ Σ ∘ C`` classification: the Euler add is the '
+                "cascade's Class-C accumulate. WHEN — as the final body step "
+                'of the declared simple kuramoto chain, consuming the folded '
+                'Σ from ``f64_add`` and the scale from ``kuramoto_inv_n``; '
+                'the shipped fallback calls this function since rc420. The '
+                'float collapse happens HERE (the integrator is an FPU '
+                'dynamical system; the exact Q sin terms collapse at this '
+                'per-step boundary — the shipped comment, now enforced by '
+                'shared code). SIBLING — ``srmech.cascade.kuramoto_gen_out`` '
+                'is the general twin carrying the pinning branch.'},
+    'srmech.cascade.kuramoto_sin_term': {'example': {'input': {'i': 'the oscillator receiving coupling',
+                       'j': 'the oscillator providing it',
+                       'theta': 'the whole phase list (the map body reads it '
+                                'at both indices)'},
+             'output': 'kuramoto_sin_term([0.1, 2.0], 0, 1) = '
+                       'Q(545504860453082587, 576460752303423488) — the '
+                       'Class-N rational sin flows EXACT (Q) and collapses '
+                       'to float only at the Euler combine, exactly as the '
+                       'shipped path does',
+             'why': 'The simple path weights the SUM, not the terms — this '
+                    'op is deliberately unweighted, which is precisely the '
+                    'float-order distinction that makes kuramoto_step two '
+                    'declared cascades.',
+             'worked': 'from srmech.cascade import kuramoto_sin_term\n'
+                       'kuramoto_sin_term([0.1, 2.0], 0, 1)\n'
+                       '                    # -> Q(545504860453082587, '
+                       '576460752303423488)\n'
+                       'float(kuramoto_sin_term([0.1, 2.0], 0, 1))\n'
+                       '                    # -> 0.9463000876874145  '
+                       '(sin(1.9))\n'
+                       'kuramoto_sin_term([0.5, 0.5], 0, 1)\n'
+                       '                    # -> Q(0, 1)  (sin(0): no '
+                       'self-coupling term)\n'},
+ 'explanation': 'WHAT — Class N: ONE ``(i, j)`` coupling term of the SIMPLE '
+                'Kuramoto path — ``sin(theta[j] - theta[i])`` via the '
+                'shipped Class-N rational sin, which returns an EXACT ``Q``; '
+                'the rational flows through the Σ and collapses to float '
+                'only at the per-step Euler boundary, exactly as the shipped '
+                "op's own docstring records. WHEN — as the inner-map body of "
+                'the declared simple kuramoto chain. The op is deliberately '
+                'UNWEIGHTED: the simple path weights the SUM (``inv_n * '
+                'S``), the general path weights each TERM — that is a '
+                'float-order distinction, not a refactor choice, and it is '
+                'why ``kuramoto_step`` declares two chains rather than '
+                'papering one over the dispatch. The shipped simple fallback '
+                'CALLS this op since rc420 (``float()`` idempotent on the '
+                'pre-coerced phases), so chain-vs-op bit-identity is '
+                'structural. SIBLING — ``srmech.cascade.kuramoto_gen_term`` '
+                'is the weighted, frustrated general twin; '
+                '``srmech.math.rational.sin`` is the Class-N primitive '
+                'inside.'},
+    'srmech.cascade.odft_resolve_mu': {'example': {'input': {'mu_axis': "a named octonion axis ('i'..'e7', 'ijk', "
+                                  "'diagonal') or a general unit "
+                                  'pure-imaginary 4-/8-vector'},
+             'output': "odft_resolve_mu('diagonal') = [0.0] + "
+                       '[0.3779644730092272] * 7 — the equal-weight (Σ '
+                       'e_a)/sqrt(7) axis that couples all seven imaginary '
+                       'streams',
+             'why': 'The octonion one-resolution contract with error '
+                    'messages naming octonion_dft — resolved once, consumed '
+                    'identically by native, composed and declared-chain '
+                    'paths.',
+             'worked': 'from srmech.cascade import odft_resolve_mu\n'
+                       "odft_resolve_mu('i')\n"
+                       '    # -> [0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]\n'
+                       "odft_resolve_mu('diagonal')\n"
+                       '    # -> [0.0, 0.3779644730092272, '
+                       '0.3779644730092272,\n'
+                       '    #     0.3779644730092272, 0.3779644730092272, '
+                       '0.3779644730092272,\n'
+                       '    #     0.3779644730092272, 0.3779644730092272]\n'},
+ 'explanation': 'WHAT — resolve an ODFT axis to a UNIT pure-imaginary 8-list '
+                "``μ̂``: named axes ``'i'``/``'j'``/``'k'`` (= "
+                "``'e1'``..``'e3'``), ``'e4'``..``'e7'``, ``'ijk'`` "
+                "(``(e1+e2+e3)/√3``), ``'diagonal'`` (``(Σ e_a)/√7`` — "
+                'couples all seven imaginary streams into the real/anchor '
+                'coherence channel), or a general unit pure-imaginary '
+                '4-/8-vector. WHEN — ONCE per transform per axis (the '
+                'two-sided form resolves its right axis through the same '
+                'op), before any twiddle: the one-resolution parity contract '
+                'means native, composed and (rc420) declared-chain paths all '
+                'consume identical floats. The declared ``octonion_dft`` '
+                'chain names it twice (steps 0 and 1: μ̂ and μ̂_r); for the '
+                'one-sided forms pass ``mu_r_axis = mu_axis``, mirroring the '
+                "wrapper's ``mu_r_hat = mu_hat`` (the summand ignores it "
+                'there). Delegates to the qm.octonion resolver with the '
+                '``octonion_dft`` op label so errors name the public op. '
+                'SIBLING — ``srmech.cascade.qdft_resolve_mu`` (the ℍ twin), '
+                '``srmech.cascade.odft_summand`` (the consumer).'},
+    'srmech.cascade.odft_summand': {'example': {'input': {'bracketing': 'the DECLARED F378 association order',
+                       'form': 'left | right | two_sided',
+                       'k': 'output bin',
+                       'm': 'input sample',
+                       'mu_hat': 'the left/single axis',
+                       'mu_r_hat': 'the right axis (two-sided)',
+                       'n': 'len(xs)',
+                       'sigma': 'the sign convention',
+                       'xs': 'the coerced 8-vector samples'},
+             'output': 'two_sided left_associated on the e1 sample: '
+                       "odft_summand(xo, 1, 1, 2, 'two_sided', "
+                       "'left_associated', -1, odft_resolve_mu('i'), "
+                       "odft_resolve_mu('j')) = [-1.222980050563649e-16, "
+                       '1.0, -1.4956802040766655e-32, 1.222980050563649e-16, '
+                       '0.0, 0.0, 0.0, 0.0] — (W_l·x)·W_r, the bracketing '
+                       'carried INSIDE the op',
+             'why': "O is non-associative, so 'the ODFT' is not defined "
+                    'until the bracketing is declared — and the declared '
+                    'chain carries that attested choice inside this op '
+                    'instance, never as a silent assumption.',
+             'worked': 'from srmech.cascade import odft_summand, '
+                       'odft_resolve_mu\n'
+                       'xo = [[1.0] + [0.0] * 7, [0.0, 1.0] + [0.0] * 6]\n'
+                       "mu, mu_r = odft_resolve_mu('i'), "
+                       "odft_resolve_mu('j')\n"
+                       "odft_summand(xo, 1, 1, 2, 'two_sided', "
+                       "'left_associated', -1, mu, mu_r)\n"
+                       '    # -> [-1.222980050563649e-16, 1.0, '
+                       '-1.4956802040766655e-32,\n'
+                       '    #     1.222980050563649e-16, 0.0, 0.0, 0.0, '
+                       '0.0]\n'
+                       "odft_summand(xo, 1, 1, 2, 'left', 'left_associated', "
+                       '-1, mu, mu_r)\n'
+                       '    # -> [1.222980050563649e-16, 1.0, 0.0, 0.0, 0.0, '
+                       '0.0, 0.0, 0.0]\n'},
+ 'explanation': 'WHAT — Class M: ONE ``(k, m)`` summand of the octonion DFT '
+                '— ``W·x[m]`` / ``x[m]·W`` for the one-sided forms, or the '
+                'three-factor two-sided product in the DECLARED association '
+                'order (``(W_l·x)·W_r`` vs ``W_l·(x·W_r)`` — these '
+                'measurably differ in 𝕆, F378, which is why the bracketing '
+                'is an attested parameter and not a detail). The '
+                '``form``/``bracketing`` branches are descriptor-static and '
+                'live INSIDE this op instance (the exile discipline); the '
+                "``k``/``m`` iteration lives in the chain's indexed-map "
+                'layer — pointwise and total. WHEN — as the innermost body '
+                'of the declared ``octonion_dft`` chain; the shipped '
+                'composed path CALLS this op since rc420, so the chain, the '
+                'composed path and the attested convention are one body '
+                '(measured 10/10 at rung 4 before the promotion). The '
+                'one-sided forms ignore ``mu_r_hat`` (pass ``mu_hat`` again, '
+                'mirroring the wrapper). SIBLING — '
+                '``srmech.cascade.qdft_summand`` (the associative ℍ rung '
+                "below, no bracketing parameter — Artin's theorem is why)."},
+    'srmech.cascade.orientation_compose': {'example': {'input': {'acc': 'the running net handedness (+1 seed)',
+                       'orientation': "one operator's orientation in {-1, 0, "
+                                      '+1}'},
+             'output': 'orientation_compose(1, -1) = -1; '
+                       'orientation_compose(-1, 0) = 0 (a zero-crossing '
+                       'ABSORBS); folding it over [0, -1] from +1 gives 0 == '
+                       'net_chirality([0, -1]), where a bare reorient fold '
+                       'gives -1',
+             'why': "Measured rc420: reorient's orientation == 0 branch is a "
+                    "NO-OP, not absorbing — so the naive 'fold reorient' "
+                    'reading of net_chirality is VALUE-WRONG on any list '
+                    'with a 0 before a nonzero. The absorbing branch exiles '
+                    'into this op, and the fold of THIS body is '
+                    'value-identical.',
+             'worked': 'from srmech.cascade import orientation_compose, '
+                       'net_chirality\n'
+                       'orientation_compose(1, -1)        # -> -1\n'
+                       'orientation_compose(-1, 0)        # -> 0   '
+                       '(absorbing)\n'
+                       'orientation_compose(0, -1)        # -> 0   (0 stays '
+                       '0: reorient(0)= -0)\n'
+                       'acc = 1\n'
+                       'for o in [0, -1]:\n'
+                       '    acc = orientation_compose(acc, o)\n'
+                       'acc                               # -> 0\n'
+                       'net_chirality([0, -1])            # -> 0   (the '
+                       'shipped op agrees)\n'},
+ 'explanation': 'WHAT — Class C: ONE step of the net-chirality product — '
+                '``0`` when ``orientation == 0`` (a zero-crossing collapses '
+                'net handedness: ABSORBING), else ``reorient(acc, '
+                'orientation=orientation)`` (the sign re-application). '
+                'Folding it left over an orientation list from a ``+1`` seed '
+                'IS ``net_chirality``. WHEN — as the ``fold_op`` of the '
+                'declared ``net_chirality`` chain, and anywhere a running '
+                'handedness must compose one orientation at a time. The '
+                'reason it exists is a measured near-miss worth '
+                'internalising: the descriptor prose reads '
+                '``reduce(reorient, orientations, 1)``, and a bare '
+                "``reorient`` fold is NOT that op — ``reorient``'s "
+                '``orientation == 0`` branch passes the value through, so '
+                '``[0, -1]`` folds to ``-1`` where the shipped op returns '
+                '``0``. The absorbing zero guard is descriptor-static, so it '
+                'exiles into this op instance (the ``_control_flow`` exile '
+                'discipline) instead of demanding a branch form in the chain '
+                'grammar. Deliberately POSITIONAL ``(acc, elem)`` so both '
+                'fold surfaces bind it without the ``fold_args`` rebinding. '
+                'SIBLING — ``srmech.cascade.reorient`` is the non-absorbing '
+                'half it composes; ``srmech.cascade.net_chirality`` is the '
+                'whole fold, shipped.'},
+    'srmech.cascade.pair': {'example': {'input': {'first': 'the re-signed numerator from the reorient '
+                                'step',
+                       'second': 'the denominator from the best_rational '
+                                 'step'},
+             'output': 'pair(-22, 7) = (-22, 7) — the tuple[int, int] the '
+                       "best_rational_signed chain's returns contract "
+                       'promises, built by a STEP because a chain returns '
+                       "only its final step's output",
+             'why': "A chain returns only its LAST step's output, so a "
+                    'declared tuple return is unbuildable without a pack '
+                    'step — measured as BLK-FRAMING at rung 3, closed by '
+                    'registering this op.',
+             'worked': 'from srmech.cascade import pair\n'
+                       'pair(-22, 7)                      # -> (-22, 7)\n'
+                       "# the declared best_rational_signed chain's final "
+                       'step:\n'
+                       'from srmech.dsl import run_cascade_chain\n'
+                       "run_cascade_chain('best_rational_signed',\n"
+                       "    {'x': -3.14159265358979, 'fine_scale': 1000000,\n"
+                       "     'max_denominator': 100})     # -> (-22, 7)\n"},
+ 'explanation': 'WHAT — Class-B assembly: it returns ``(first, second)``, a '
+                '2-tuple built as a chain STEP. The need is structural and '
+                'was measured (`#T1114` rung 1/3, BLK-FRAMING): an ADR-0008 '
+                "chain returns only its FINAL step's output, so a descriptor "
+                'whose ``returns`` promises ``tuple[int, int]`` — '
+                "``best_rational_signed``'s ``(signed_numerator, "
+                'denominator)`` — literally cannot be declared without a '
+                'step that performs the assembly. WHEN — as the final step '
+                'of any declared chain whose contract is a pair; reach for '
+                'it rather than restructuring the chain to smuggle both '
+                "values through one op's return. Note the asymmetry the "
+                'census found: SELECT needed no op (the literal ``[N]`` '
+                "indexer picks elements out — the magnitude chain's "
+                '``@step[0].output[1]``), PACK did. SIBLING — '
+                '``srmech.math.tlv.tlv_pack`` is the byte-level Class-B '
+                'framer when the pair must leave Python; this op is its '
+                'in-memory value-level counterpart.'},
+    'srmech.cascade.qdft_resolve_mu': {'example': {'input': {'mu_axis': 'a named axis '
+                                  "'i'/'j'/'k'/'ijk'/'diagonal', or a "
+                                  'general unit pure-imaginary vector'},
+             'output': "qdft_resolve_mu('ijk') = [0.0, 0.5773502691896258, "
+                       '0.5773502691896258, 0.5773502691896258] — the '
+                       'equal-weight (i+j+k)/sqrt(3) coupling axis, resolved '
+                       'ONCE per transform',
+             'why': 'The one-resolution parity contract: mu-hat is resolved '
+                    'exactly once so the native and composed paths (and now '
+                    'the declared chain) consume the identical floats.',
+             'worked': 'from srmech.cascade import qdft_resolve_mu\n'
+                       "qdft_resolve_mu('i')              # -> [0.0, 1.0, "
+                       '0.0, 0.0]\n'
+                       "qdft_resolve_mu('ijk')\n"
+                       '    # -> [0.0, 0.5773502691896258, '
+                       '0.5773502691896258, 0.5773502691896258]\n'
+                       'qdft_resolve_mu([0.0, 3.0, 0.0, 4.0])\n'
+                       '    # -> [0.0, 0.6, 0.0, 0.8]  (normalised general '
+                       'axis)\n'},
+ 'explanation': 'WHAT — resolve the QDFT transform axis to a UNIT '
+                'pure-imaginary 4-list ``μ̂`` (``μ̂² = −1``): named axes '
+                "``'i'``/``'j'``/``'k'``/``'ijk'`` (for ℍ, ``'diagonal'`` IS "
+                "``'ijk'`` — the equal-weight coupling axis), or a general "
+                'pure-imaginary 4-vector normalised via the Class-N sqrt '
+                'cascade (an ℍ-valued 8-vector with zero tail is also '
+                'accepted). WHEN — ONCE per transform, before any twiddle: '
+                'this is the one-resolution parity contract — the native '
+                'path, the composed path and (rc420) the declared chain all '
+                'consume the IDENTICAL resolved floats, which is a '
+                'precondition of the byte-exact parity claims, not an '
+                'optimisation. It was the private ``_resolve_mu4_qdft`` '
+                'until rc420; the declared ``quaternion_dft`` chain names it '
+                'as step 0. SIBLING — ``srmech.cascade.odft_resolve_mu`` is '
+                'the 8-component octonion twin; '
+                '``srmech.cascade.qdft_summand`` consumes the resolved axis '
+                'per (k, m).'},
+    'srmech.cascade.qdft_summand': {'example': {'input': {'k': 'output bin',
+                       'left': 'the twiddle side',
+                       'm': 'input sample',
+                       'mu_hat': 'the resolved unit axis',
+                       'n': 'len(xs), fixed at entry',
+                       'sigma': 'the dft_sigma convention',
+                       'xs': 'the coerced sample list'},
+             'output': 'qdft_summand(xs, 1, 1, 2, True, -1, '
+                       "qdft_resolve_mu('i')) = [1.222980050563649e-16, "
+                       '-1.0, -1.222980050563649e-16, 1.0] — '
+                       'W(-2π·1·1/2)·x[1]: one (k, m) term, twiddle → 4x4 '
+                       'operator → row-dot left-to-right',
+             'why': 'The composed QDFT path CALLS this op since rc420 — one '
+                    'body shared by the shipped op and the declared chain, '
+                    'so their bit-identity is structural rather than '
+                    'parallel-maintained.',
+             'worked': 'from srmech.cascade import qdft_summand, '
+                       'qdft_resolve_mu\n'
+                       'xs = [[1.0, 0.5, -0.25, 2.0], [0.0, 1.0, 0.0, '
+                       '-1.0]]\n'
+                       "mu = qdft_resolve_mu('i')\n"
+                       'qdft_summand(xs, 1, 1, 2, True, -1, mu)\n'
+                       '    # -> [1.222980050563649e-16, -1.0, '
+                       '-1.222980050563649e-16, 1.0]\n'
+                       'qdft_summand(xs, 0, 0, 2, True, -1, mu)\n'
+                       '    # -> [1.0, 0.5, -0.25, 2.0]  (W(0) = 1: the k=0 '
+                       'term is x[0])\n'},
+ 'explanation': 'WHAT — Class M: ONE ``(k, m)`` summand of the quaternion '
+                'DFT — the twiddle ``W(σ·2πkm/n)`` resolved on the given '
+                'axis, lifted to its 4×4 left- or right-multiplication '
+                'operator, then applied to ``xs[m]`` by row-dot accumulated '
+                'LEFT-TO-RIGHT — the exact float-op order of the composed '
+                "path's inner loop, because since rc420 that loop CALLS this "
+                'op (chain/op bit-identity is structural, measured 12/12 at '
+                '`#T1114` rung 4 before the promotion). WHEN — as the '
+                "innermost body of the declared ``quaternion_dft`` chain's "
+                'nested indexed map; everything descriptor-static (the '
+                '``left`` side choice) lives inside the op, everything '
+                "iterative (``k``/``m``) lives in the chain's map combinator "
+                'layer — the op is pointwise and total, which is what the '
+                "closed kernel's totality argument needs from every leaf. "
+                'SIBLING — ``srmech.cascade.odft_summand`` is the octonion '
+                'rung above (with the F378 bracketing inside); '
+                '``srmech.cascade.vec_add`` folds these terms; '
+                '``srmech.physics.qm.quaternion.quaternion_left_mult`` is '
+                'the operator lift inside.'},
+    'srmech.cascade.seq_get': {'example': {'input': {'i': 'the map index @idx.i the literal [N] grammar '
+                            'cannot spell',
+                       'seq': 'the coerced QDFT sample list'},
+             'output': 'seq_get([10, 20, 30], 1) = 20; as a data-first map '
+                       "body, map_indexed('srmech.cascade.leaves.seq_get') "
+                       'is the identity map',
+             'why': "The chain reference grammar's [N] indexer is "
+                    'literal-only, so a COMPUTED index (x[@idx.k]) is '
+                    'unspellable — dynamic element access must enter as an '
+                    'op, and this is that op.',
+             'worked': 'from srmech.cascade import seq_get\n'
+                       'from srmech.dsl import chain\n'
+                       'seq_get([10, 20, 30], 1)          # -> 20\n'
+                       '# data-first (seq, i): the map_indexed identity '
+                       'body\n'
+                       "chain().map_indexed('srmech.cascade.leaves.seq_get').run([7, "
+                       '8, 9])\n'
+                       '                                  # -> [7, 8, 9]\n'},
+ 'explanation': 'WHAT — Class-E lookup: it returns ``seq[i]`` — dynamic '
+                'element access as a registered op. The reason it exists is '
+                'grammatical, and it was MEASURED (`#T1114` rung 4): the '
+                "chain reference DSL's ``[N]`` indexer is literal-only "
+                '(``@step[0].output[1]`` is spellable, ``x[@idx.k]`` is '
+                'not), so a computed index can only enter a declared chain '
+                'through an op. WHEN — use it in any indexed-map chain body '
+                'that must read the whole input at its own index: the '
+                'coercion maps of the hypercomplex DFT chains do exactly '
+                '``seq_get(x, @idx.i)`` then coerce. Its data-first ``(seq, '
+                'i)`` shape is deliberate — it binds directly as the '
+                '``map_indexed`` body, where it IS the identity map. SIBLING '
+                "— ``srmech.cascade.seq_len`` pins the frame's size where "
+                'this reads its elements; the catalog-lookup Class-E '
+                'primitive ``srmech.amsc.catalog.get_attested_dataset`` is '
+                'the keyed (non-positional) lookup this degenerates from.'},
+    'srmech.cascade.seq_len': {'example': {'input': {'seq': 'the four Antikythera front-dial pointers as a '
+                              'frame whose element count pins an indexed '
+                              "map's n"},
+             'output': 'seq_len([2, 3, 5, 7]) = 4; seq_len(iter([2, 3])) '
+                       'raises TypeError — an unsized iterable is rejected '
+                       'AT THE FRAME BOUNDARY, which is the indexed-map '
+                       'totality pin',
+             'why': "The op is where a declared chain's n becomes data-SIZED "
+                    'rather than data-DEPENDENT: len is taken once, before '
+                    'any body runs, and an unsized iterable fails here '
+                    'instead of iterating forever.',
+             'worked': 'from srmech.cascade import seq_len\n'
+                       'seq_len([2, 3, 5, 7])            # -> 4\n'
+                       'seq_len(())                      # -> 0\n'
+                       'seq_len(iter([2, 3]))            # -> TypeError (unsized '
+                       'iterables rejected)\n'},
+ 'explanation': 'WHAT — Class-B framing: it returns ``len(seq)``, the L in '
+                'TLV — the element count of a sized frame, taken ONCE. WHEN '
+                '— reach for it in a declared cascade chain wherever ``n`` '
+                'has to be pinned at entry: every indexed-map chain in the '
+                'rc420 catalog (autocorrelation, kuramoto_step, the '
+                'hypercomplex DFTs) opens with this step, because the map '
+                "form's totality argument is exactly that ``n`` is fixed "
+                'BEFORE the first body run (data-SIZED, never data-DEPENDENT '
+                '— no predicate decides continuation). Do not hand-roll a '
+                'bare ``len()`` inside a chain body: the point of the '
+                'registered leaf is that the frame boundary is a NAMED step '
+                'the descriptor can declare and the gate can execute. '
+                'SIBLING — ``srmech.cascade.seq_get`` is the access half of '
+                'the same inventory (the computed-index read the literal '
+                '``[N]`` grammar cannot spell); ``srmech.math.tlv.tlv_pack`` '
+                'is the full Class-B framing primitive when the frame itself '
+                'must be serialised, not merely counted.'},
+    'srmech.cascade.str_concat': {'example': {'input': {'prefix': "the LoE mint namespace 'LoE.content.'",
+                       'text': "the user's content string"},
+             'output': "str_concat('LoE.content.', 'hello') = "
+                       "'LoE.content.hello' — the mint name the "
+                       'encode_loe_content chain feeds to mint_vector',
+             'why': 'The one string-assembly step the shipped cascades need: '
+                    'the Mode-B encode builds its two mint names by prefix '
+                    'concatenation, and a declared chain needs that as a '
+                    'named step.',
+             'worked': 'from srmech.cascade import str_concat\n'
+                       "str_concat('LoE.content.', 'hello')\n"
+                       '                                  # -> '
+                       "'LoE.content.hello'\n"
+                       "str_concat('LoE.substrate.', 'audio')\n"
+                       '                                  # -> '
+                       "'LoE.substrate.audio'\n"},
+ 'explanation': 'WHAT — Class-F render: it returns ``prefix + text`` — '
+                'string concatenation as the degenerate template (a template '
+                'with one hole at the end and no substitution grammar). WHEN '
+                '— in a declared chain that must BUILD a name before minting '
+                'or hashing it: the ``encode_loe_content`` chain uses it '
+                "twice (``'LoE.content.' + content`` for the content mint, "
+                "``'LoE.substrate.' + substrate`` for the anchor mint). Use "
+                'the general Class-F primitive when there is real '
+                'substitution to do; use this leaf when the assembly is a '
+                'bare prefix — reaching for a full template engine to '
+                'prepend a namespace is the over-rolled version of this '
+                'step. SIBLING — ``srmech.math.template.render`` is the '
+                'general Class-F primitive (bytes-typed, ``{key}`` '
+                'substitution, C peer ``srmech_template_render``); '
+                '``srmech.cascade.utf8_encode`` is the step that usually '
+                'FOLLOWS this one, taking the assembled name across the str '
+                '→ bytes framing boundary.'},
+    'srmech.cascade.utf8_encode': {'example': {'input': {'text': 'the content string whose UTF-8 bytes the '
+                               'stride hash consumes'},
+             'output': "utf8_encode('θ') = b'\\xce\\xb8' — two bytes for one "
+                       'codepoint, the framing boundary the sha256 stride '
+                       'crosses',
+             'why': 'The str -> bytes boundary is a Class-B framing step, '
+                    'not an incidental cast: the encode_loe_content stride '
+                    'hashes the CONTENT BYTES, and a declared chain must '
+                    'name that crossing.',
+             'worked': 'from srmech.cascade import utf8_encode\n'
+                       "utf8_encode('hello')              # -> b'hello'\n"
+                       "utf8_encode('\\u03b8')             # -> "
+                       "b'\\xce\\xb8'  (2 bytes, 1 codepoint)\n"},
+ 'explanation': "WHAT — Class-B framing: it returns ``text.encode('utf-8')`` "
+                '— the string-to-bytes boundary as a registered chain step. '
+                'WHEN — wherever a declared cascade must hash, slice or '
+                'transmit STRING content: the ``encode_loe_content`` chain '
+                'crosses this boundary before its ``sha256_raw`` stride '
+                'step, because SHA-256 consumes bytes and the descriptor has '
+                'to say which bytes (the UTF-8 encoding IS part of the '
+                'fingerprint contract — a different encoding is a different '
+                'fingerprint). Do not leave the ``.encode()`` implicit '
+                'inside a bigger op: the rc420 catalog discipline is that '
+                'every framing crossing is a named, registered step the gate '
+                'can execute. SIBLING — ``srmech.cascade.byte_slice`` and '
+                '``srmech.cascade.int_parse_le`` are the next two steps of '
+                'the same stride cascade (slice the digest, parse the '
+                'integer); ``srmech.amsc.format.sha256_raw`` is the Class-A '
+                'hash between them.'},
+    'srmech.cascade.vec_add': {'example': {'input': {'a': 'the running Σ_m accumulator (4- or 8-vector)',
+                       'b': 'one DFT summand term'},
+             'output': 'vec_add([1.0, 2.0], [0.5, -0.5]) = [1.5, 1.5] — '
+                       'elementwise, the acc[i] += term[i] order the shipped '
+                       'composed DFT paths perform',
+             'why': 'A left fold of this op from a zero seed reproduces the '
+                    'shipped per-slot accumulate bit-exactly — the Σ_m of '
+                    'both hypercomplex DFT chains.',
+             'worked': 'from srmech.cascade import vec_add\n'
+                       'vec_add([1.0, 2.0], [0.5, -0.5])  # -> [1.5, 1.5]\n'
+                       '# the QDFT chain folds it from the 4-zero seed:\n'
+                       'acc = [0.0, 0.0, 0.0, 0.0]\n'
+                       'for term in ([1.0, 0.0, 0.0, 1.0], [0.5, 0.5, 0.5, '
+                       '0.5]):\n'
+                       '    acc = vec_add(acc, term)\n'
+                       'acc                               # -> [1.5, 0.5, '
+                       '0.5, 1.5]\n'},
+ 'explanation': 'WHAT — Class-M accumulate: elementwise vector addition '
+                '``[a[i] + b[i]]`` — the Σ_m fold body of the hypercomplex '
+                "DFT chains. WHEN — as the ``fold_op`` over a map's list of "
+                'per-summand vectors: the declared ``quaternion_dft`` chain '
+                'folds it from the seed ``[0.0, 0.0, 0.0, 0.0]`` and the '
+                '``octonion_dft`` chain from the 8-zero seed, and the '
+                'bit-identity claim is an ORDER claim — ``0.0 + t == t`` for '
+                'the first term, then the identical per-slot add order as '
+                'the shipped ``acc[i] += term[i]`` loop, with slots '
+                'independent so hoisting per-term vectors changes nothing '
+                '(measured 42/42 at `#T1114` rung 4). Do not substitute a '
+                "Mat/ndarray add here: the chains' carrier is the plain "
+                '4-/8-list the shipped composed paths use. SIBLING — '
+                '``srmech.cascade.vec_scale`` is the matching final per-bin '
+                'scale step; ``srmech.cascade.f64_add`` is the scalar twin; '
+                '``srmech.math.laplacian.mat_matmul`` is the Class-L carrier '
+                'surface when the object really is a Mat.'},
+    'srmech.cascade.vec_scale': {'example': {'input': {'s': 'the dft_scale output (1/n inverse, 1.0 forward)',
+                       'v': 'the folded Σ_m accumulator for one output bin'},
+             'output': 'vec_scale([1.0, -2.0], 0.5) = [0.5, -1.0] — the '
+                       '[acc[i] * scale for i in range(dim)] per-bin output '
+                       'line of both composed DFT paths',
+             'why': 'The final step of each DFT chain bin: one '
+                    'multiplicative scale, in exactly the shipped '
+                    'comprehension order.',
+             'worked': 'from srmech.cascade import vec_scale\n'
+                       'vec_scale([1.0, -2.0], 0.5)       # -> [0.5, -1.0]\n'
+                       'vec_scale([4.0, 8.0, 12.0, 16.0], 0.25)\n'
+                       '                                  # -> [1.0, 2.0, '
+                       '3.0, 4.0]\n'},
+ 'explanation': 'WHAT — Class-M accumulate: elementwise scale ``[v[i] * s]`` '
+                '— the per-bin output line of the composed hypercomplex DFT '
+                'paths (``[acc[i] * scale for i in range(dim)]``), '
+                'registered so the declared chains can name it as their '
+                'final body step. WHEN — as the last step of a declared '
+                "DFT-shaped chain bin, fed by ``srmech.cascade.dft_scale``'s "
+                'convention value (``1/n`` on the inverse transform, ``1.0`` '
+                'forward) — the multiply order is the shipped order, which '
+                "is what keeps the chain's bit-identity claim honest rather "
+                'than merely-close. Reach for it too wherever a declared '
+                'chain must scale a small plain-list vector without hauling '
+                'in a carrier type. SIBLING — ``srmech.cascade.vec_add`` is '
+                'the Σ this scales; ``srmech.cascade.dft_scale`` computes '
+                '``s``; the Mat-carrier Class-L ops '
+                '(``srmech.math.laplacian.mat_matmul`` family) are the right '
+                'tool when the vector is a genuine dense-algebra operand '
+                'rather than a DFT bin.'},
+    'srmech.dsl.run_cascade_chain': {'example': {'input': {'inputs': "{'a': 12, 'b': 18} — the chain's @input.* "
+                                 'bindings',
+                       'op_name': "'cyclic_gcd' — any of the 17 executable "
+                                  'descriptors'},
+             'output': "run_cascade_chain('cyclic_gcd', {'a': 12, 'b': 18}) "
+                       "= 6; run_cascade_chain('magnitude', x=-3.25) = 3.25; "
+                       "run_cascade_chain('net_chirality', orientations=[1, "
+                       '-1, 0, -1]) = 0; kuramoto_step needs variant= '
+                       "('simple' | 'general')",
+             'why': "The catalog made callable: the descriptor's own "
+                    'declared step list runs through the schema-v2 engine, '
+                    'and the rc420 gate proves every shipped chain '
+                    "bit-identical to its shipped op — so this is the op's "
+                    'cascade run declaratively, not a re-implementation.',
+             'worked': 'from srmech.dsl import run_cascade_chain\n'
+                       "run_cascade_chain('cyclic_gcd', {'a': 12, 'b': 18})\n"
+                       '                                  # -> 6\n'
+                       "run_cascade_chain('magnitude', x=-3.25)\n"
+                       '                                  # -> 3.25\n'
+                       "run_cascade_chain('net_chirality', orientations=[1, "
+                       '-1, 0, -1])\n'
+                       '                                  # -> 0\n'
+                       "run_cascade_chain('kuramoto_step',\n"
+                       "    {'theta': [0.1], 'omega': [0.4], 'coupling': "
+                       "1.0, 'dt': 0.01},\n"
+                       "    variant='simple')             # -> "
+                       '[0.10400000000000001]\n'},
+ 'explanation': "WHAT — run a cascade-catalog descriptor's DECLARED chain: "
+                "it parses the descriptor's ``[[cascade.chain]]`` step list "
+                'through the ADR-0008 §2 engine (schema v2 — dotted op '
+                'addressing, indexed map, fold, the @idx/@bind/@op reference '
+                'forms) and executes it on the given ``@input.*`` bindings, '
+                "returning the final step's output. WHEN — reach for it when "
+                'you want the CASCADE a shipped op performs, as data — the '
+                'op → chain half of the word-problem bridge ADR-0012 C6 '
+                'measured as unenumerable through rc419: '
+                "``describe()['cascade_catalog']`` counts the catalog (17 "
+                'executable / 3 leaf), ``srmech.dsl.list_catalog_ops`` '
+                'carries per-descriptor ``status``, and this runs the '
+                'declared chain. Every shipped chain is proven BIT-identical '
+                'to its shipped op by the rc420 gate (84 proof cases '
+                "including each descriptor's documented boundary cases), so "
+                'this is not a second implementation to drift — it is the '
+                'same cascade, declared. A parameter-dispatched op with '
+                'float-order-distinct paths declares one chain per path: '
+                "pass ``variant=`` (``kuramoto_step``: ``'simple'`` / "
+                "``'general'``). SIBLING — ``srmech.dsl.run_toml_chain`` "
+                'runs a USER-authored inline TOML chain over the DSL stage '
+                "grammar; this one runs the SHIPPED descriptor's declared "
+                'decomposition. A LEAF descriptor (``chiral_flip`` / '
+                '``pin_slot_at_zero`` / ``reorient``) has no chain to run '
+                'and says so.'},
+    'srmech.math.rational.scale_round_half_even': {'example': {'input': {'scale': 'the integer fine-scale',
+                       'value': 'the dead-banded pin-slot magnitude'},
+             'output': 'scale_round_half_even(0.5, 1) = 0 and '
+                       "scale_round_half_even(1.5, 1) = 2 — banker's "
+                       'rounding, both halves to EVEN; '
+                       'scale_round_half_even(3.14159265358979, 10**6) = '
+                       '3141593',
+             'why': "Python's round() IS round-half-to-even (PEP 3141) and "
+                    "the C peer's libm-free branch matches it bit-exactly at "
+                    'the .5 boundary — C99 round() (half-away-from-zero) '
+                    'would diverge there, and is deliberately not this '
+                    'contract.',
+             'worked': 'from srmech.math.rational import '
+                       'scale_round_half_even\n'
+                       'scale_round_half_even(0.5, 1)     # -> 0   (half to '
+                       'EVEN)\n'
+                       'scale_round_half_even(1.5, 1)     # -> 2   (half to '
+                       'EVEN)\n'
+                       'scale_round_half_even(2.5, 1)     # -> 2\n'
+                       'scale_round_half_even(3.14159265358979, 10**6)\n'
+                       '                                  # -> 3141593\n'},
+ 'explanation': 'WHAT — Class N: scale a non-negative real by an integer and '
+                'round HALF-TO-EVEN to an int — ``int(round(value * '
+                'scale))``, the stage ``best_rational_signed`` performs '
+                'between its Class-K pin-slot and its Class-N '
+                '``best_rational`` anchor. It was described at length in '
+                "that descriptor's ``[cascade.rounding]`` block and "
+                'registered NOWHERE until rc420 — the `#T1114` census filed '
+                'that as its own blocker (BLK-N-SCALE-ROUND), because a '
+                'declared chain cannot name prose. WHEN — as the scale-round '
+                'step of any float→rational anchoring cascade; feed it the '
+                'DEAD-BANDED magnitude (the Class-K ``dead_band`` step runs '
+                'first in the declared chain). THE CONTRACT IS THE ROUNDING '
+                "MODE: Python's ``round()`` is round-half-to-even (banker's, "
+                'PEP 3141) — ``round(0.5) == 0``, ``round(1.5) == 2`` — '
+                "matching the C peer's libm-free "
+                '``_cascade_brs_round_half_even`` branch bit-exactly at the '
+                '``.5`` boundary; C99 ``round()`` rounds half AWAY from zero '
+                'and would diverge exactly there. Do not substitute a '
+                'hand-rolled ``int(x + 0.5)`` — that is a THIRD rounding '
+                'mode. SIBLING — ``srmech.math.rational.best_rational`` '
+                'consumes the result as its numerator; '
+                '``srmech.cascade.dead_band`` gates the input.'},
 }

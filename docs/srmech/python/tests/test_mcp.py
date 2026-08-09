@@ -1075,7 +1075,8 @@ def test_describe_shape() -> None:
     # answers what "native" cannot — whether the loaded library actually holds
     # the C symbols our c_dispatched ops claim to route to — `#938`; rc347 adds
     # "lanes", the OP-side complement of "carriers": what each op READS —
-    # `#T985`).
+    # `#T985`; rc420 adds "cascade_catalog", the [cascade] descriptor state —
+    # ADR-0012 clause C6 closed under local task `#T1114`).
     assert set(d.keys()) == {
         "srmech_version",
         "tool_schema_version",
@@ -1084,6 +1085,7 @@ def test_describe_shape() -> None:
         "handle_pending",
         "categories",
         "classes",
+        "cascade_catalog",
         "carriers",
         "limits",
         "c_claims",

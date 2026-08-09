@@ -79,7 +79,7 @@ from srmech.math.text import fold_marks, glyph_stream
 #: WSL2 re-derivation. Five independent builds, one hash. The contract holds;
 #: only the corpus moved.
 WITNESS_RC416 = (
-    "c9ed2f548dd78e78eb57fb01e5e1876f1bd1366aa78e6a3bbec1a37008665d1f")
+    "64d7a6a1e3e7e39134d485a0c17865682cabd34aebbdd18ed93dec744cca4447")
 
 #: The ASCII control set. These four queries are the ops the tokenizer work is
 #: ABOUT, so a regression on them would be the change eating its own subject.
