@@ -12748,6 +12748,29 @@ def _register_signal_processing_tools() -> None:
             parameters=(
                 P("op_name", "str", True,
                   "canonical op name; one of registered_ops()"),
+                # v0.9.0rc419 (`#T1110`): the VARIADIC, declared. dispatch's
+                # signature is dispatch(op_name, *args, path=, D=, **kwargs),
+                # and `args` is the *args slot — the POSITIONAL arguments the
+                # routed implementation receives, not the keyword map (that is
+                # **kwargs, which stays undeclared on purpose: an open keyword
+                # namespace is not a named capability). Withholding it made the
+                # ONE thing dispatch is for — passing an op its operands —
+                # unreachable from the contract, which is the exact gap
+                # test_declared_param_completeness_rc408.py exists to close.
+                # "sequence" is the honest token: an ARRAY on the wire (it is
+                # already in _TYPE_LEXICON, so no schema degrades to "string"),
+                # with elements this schema deliberately does not narrow
+                # because their admissible types belong to the ROUTED op, not
+                # to dispatch. invoke_tool already unpacks a declared
+                # VAR_POSITIONAL positionally by name, as it does for
+                # hdc.polar_bundle `vectors` and matrix_cascades.einsum
+                # `operands`, so declaring it makes the row genuinely callable.
+                P("args", "sequence", False,
+                  "the *args variadic: positional arguments forwarded verbatim "
+                  "to the routed implementation. Element types are the routed "
+                  "op's, not dispatch's, so this schema does not narrow them; "
+                  "an element with no wire form is unreachable over MCP even "
+                  "though the array is. Default () = no positional arguments"),
                 P("path", "Optional[str]", False,
                   "keyword-only; force 'A' / 'B' / 'verify'. Default None = "
                   "rule-based routing via resolve_path()"),

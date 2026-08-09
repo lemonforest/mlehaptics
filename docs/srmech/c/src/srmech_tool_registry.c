@@ -3252,6 +3252,7 @@ static const srmech_tool_param_t ts_params_543[] = {
 };
 static const srmech_tool_param_t ts_params_544[] = {
     { "op_name", "str", 1, "canonical op name; one of registered_ops()" },
+    { "args", "sequence", 0, "the *args variadic: positional arguments forwarded verbatim to the routed implementation. Element types are the routed op's, not dispatch's, so this schema does not narrow them; an element with no wire form is unreachable over MCP even though the array is. Default () = no positional arguments" },
     { "path", "Optional[str]", 0, "keyword-only; force 'A' / 'B' / 'verify'. Default None = rule-based routing via resolve_path()" },
     { "D", "int", 0, "keyword-only; RBS-HDC bound-vector dimension forwarded to Path B implementations. Default 8192" },
 };
@@ -13243,7 +13244,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech",
         "signal_processing",
         "THE signal-processing entry point: run one op by NAME, routing between its Path A (closed-form algebra over the 14 A-N primitives) and Path B (RBS-HDC bound vector at D=8192) implementations. Positional and keyword arguments are forwarded verbatim to the chosen implementation. path= forces a side ('A' / 'B'); omit it and resolve_path() decides \342\200\224 an active begin_cascade() context prefers Path B, otherwise the op's primary A-N class picks per DEFAULT_PATH_PER_CLASS (Class K rotation and Class M bind/bundle/permute default to B, the other twelve to A). Raises UnknownOperationError for a name the registry does not carry: dispatch is a PATH-ROUTER over the ops that HAVE two paths, not a name-resolver over every op in the package.",
-        ts_params_544, 3u,
+        ts_params_544, 4u,
         "int | float | str | list | dict",
         "whatever the routed implementation returns, unchanged",
         1,
