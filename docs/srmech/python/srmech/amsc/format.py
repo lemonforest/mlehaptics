@@ -135,6 +135,22 @@ class MPRRecord:
         payload = _srmech_json.loads(line)
         if not isinstance(payload, dict):
             raise ValueError("MPR line is not a JSON object")
+        # `#T1108`: the three block keys are TYPE-CHECKED before the ``dict()``
+        # coercion, not after. A ``dict()`` over a JSON list / number / bool /
+        # null raises a bare ``TypeError``, which ``read_ndjson``'s handler does
+        # not catch — so seven of the twelve malformed shapes escaped as a
+        # ``TypeError`` with NO LINE NUMBER instead of the documented
+        # ``MPRValidationError``. (A JSON *string* did not escape, because
+        # ``dict('abc')`` raises ``ValueError``, which IS caught — so the defect
+        # was invisible to any probe that only tried a string.) A TypeError
+        # without a line number is not a diagnosis; it is a stack trace.
+        for key in ("data", "attestation", "rendering"):
+            block = payload.get(key, {})
+            if not isinstance(block, dict):
+                raise ValueError(
+                    f"MPR {key!r} must be a JSON object, got "
+                    f"{type(block).__name__}"
+                )
         return cls(
             mpr_version=str(payload.get("mpr_version", "")),
             data=dict(payload.get("data", {})),
@@ -264,7 +280,22 @@ def read_ndjson(path: Path) -> Iterator[MPRRecord]:
     that the catalog-discovery path quietly tolerates.
 
     Raises ``MPRValidationError`` on a malformed (non-comment,
-    non-empty) line, with the line number for diagnostics.
+    non-empty) line, with the line number for diagnostics. Since
+    v0.9.0rc418 (`#T1108`) that promise holds for EVERY malformed
+    shape: a line whose ``data`` / ``attestation`` / ``rendering`` is a
+    JSON list, number, bool or null used to escape as a bare
+    ``TypeError`` with no line number (seven of the twelve
+    key-by-value-type combinations), because the ``dict()`` coercion in
+    :meth:`MPRRecord.from_json_line` ran before any type check. The
+    check now runs first and the raise is typed in all twelve.
+
+    What this does NOT raise on is a WELL-FORMED line that is a flat
+    data dict — a ``literature_curated`` catalogue's committed row. That
+    yields a structurally valid but EMPTY record, and it is CORRECT AS
+    DESIGNED: the attestation for such a row is synthesised at read time
+    by :func:`catalog.get_attested_dataset` from the descriptor, which is
+    why that is the op to reach for. See the "THE TRAP FIRST" note in
+    the tool docs.
 
     Task #201 Phase B4 — when the native library is available, the
     file-IO + line tokenisation runs in C (``srmech_ndjson_iter``)

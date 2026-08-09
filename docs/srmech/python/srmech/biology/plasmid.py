@@ -134,14 +134,18 @@ def _encode_section_syms(vocab_size, edges, weights, node_ids):
 
 
 def _seed_first_section(store, label, vocab_size, edges, weights, node_ids,
-                        coupling):
+                        coupling, attestation=None):
     """The FIRST section into a FRESH store: encode + ``genome_save`` (creates the
     dir + manifest). Same in the native + pure paths (the C append peer requires an
     existing store). Returns the manifest ``data`` dict."""
     syms = _encode_section_syms(vocab_size, edges, weights, node_ids)
     strand = _genome.kernel_pack(syms, leaf_dim=len(list(coupling)), label=label,
                                  coupling=coupling)
-    return _genome.genome_save(strand, store, coupling)
+    # `#T1108`: provenance enters the two-stage pipeline exactly ONCE, here at the
+    # SEED. Every later section append, the vocab refresh (remove + append) and the
+    # stage-2 promotion are IN-PLACE on this same store, so they carry it forward
+    # for free rather than each needing a parameter of their own.
+    return _genome.genome_save(strand, store, coupling, attestation=attestation)
 
 
 def _append_section(store, label, vocab_size, edges, weights, node_ids, coupling,
@@ -153,7 +157,8 @@ def _append_section(store, label, vocab_size, edges, weights, node_ids, coupling
     ``data`` (pure) or ``None`` (native — re-derived once at the end)."""
     n_syms = _native.genome_plasmid_extract_c(
         vocab_size, [tuple(e) for e in edges], list(weights), None,
-        list(node_ids), [], str(store), label, dim, _coupling_block_bytes(coupling))
+        list(node_ids), [], str(store), label, dim,
+        _coupling_block_bytes(coupling))
     if n_syms is not None:
         return None                                 # C appended; catalog derived later
     syms = _encode_section_syms(vocab_size, edges, weights, node_ids)
@@ -181,7 +186,8 @@ def _write_vocab_chromosome(store, words, coupling) -> None:
 
 
 def plasmid_extract(docs, section_store, coupling, *, vocab=None, window=2, k=20,
-                    cap_slack=4, label_prefix="sec", progress=None) -> dict:
+                    cap_slack=4, label_prefix="sec", progress=None,
+                    attestation=None) -> dict:
     """STAGE 1 EXTRACT — stream ``docs`` into APPEND-ONLY plasmid sections.
 
     Each document (a token sequence) becomes ONE Tier-1 plasmid chromosome: its
@@ -239,7 +245,7 @@ def plasmid_extract(docs, section_store, coupling, *, vocab=None, window=2, k=20
         if not store_exists:
             data = _seed_first_section(store, label, len(local_words),
                                        cooc["edges"], cooc["weights"], global_ids,
-                                       coupling)
+                                       coupling, attestation)
             store_exists = True
         else:
             data = _append_section(store, label, len(local_words), cooc["edges"],
@@ -782,7 +788,13 @@ def genome_integrate_plasmids(section_store, coupling, *, section_count=None, k=
         core_strand, section_strands, coupling, dim, progress)
     status = _STATUS_CANCELLED if cancelled else _STATUS_OK
     if out_path is not None and not cancelled:
-        _genome.genome_save(strand, out_path, coupling)
+        # `#T1108`: this is the ONE plasmid write that lands in a DIFFERENT
+        # directory, so carry-forward cannot reach it from `out_path`. It DERIVES
+        # the block from the section store it was built out of — the corpus is the
+        # same corpus, so the source is the same source.
+        _genome.genome_save(
+            strand, out_path, coupling,
+            attestation=_genome._on_disk_source_attestation(section_store) or None)
     return {"strand": strand, "k": split["k"], "k_source": split["k_source"],
             "bimodal": split["bimodal"],
             "one_dna_type": split["one_dna_type"], "core": core_nodes,

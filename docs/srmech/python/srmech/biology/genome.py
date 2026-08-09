@@ -8780,6 +8780,21 @@ def _is_default_source_attestation(on_disk) -> bool:
     )
 
 
+def _validate_source_attestation_values(override) -> None:
+    """Every provided attestation value must be a NON-EMPTY string.
+
+    The same rule :func:`srmech.amsc.format.validate_mpr_record` applies to a
+    finished record, lifted to the override so it fires identically whichever
+    projection services the write (`#T1108`). Raises
+    :class:`~srmech.amsc.format.MPRValidationError`."""
+    for key, value in override.items():
+        if not isinstance(value, str) or not value:
+            raise _MPRValidationError(
+                f"genome attestation: {key!r} must be a non-empty string, got "
+                f"{value!r}"
+            )
+
+
 def _resolve_attestation(path, attestation):
     """Resolve the SOURCE attestation a mutation should write — the whole
     lifecycle rule in one place (`#T1108`).
@@ -8809,6 +8824,15 @@ def _resolve_attestation(path, attestation):
             "genome attestation override must be a dict of MPR source fields, "
             f"got {type(attestation).__name__}"
         )
+    # `#T1108`: VALIDATE HERE, not at the manifest build. Before rc418 a caller
+    # override reached only the pure path, where _manifest_record built and
+    # validated the record before any byte hit disk. Now every mutating op resolves
+    # and most hand the block straight to C, which cannot raise a Python typed
+    # error — so an unknown key ("source_uri") or an empty value would have been
+    # silently dropped on the compiled path and rejected on the scripting one. The
+    # rejection has to live where BOTH paths pass through.
+    _merge_source_attestation({}, attestation)          # key-set check (ValueError)
+    _validate_source_attestation_values(attestation)    # MPRValidationError
     if inherited_is_real:
         clashes = {
             field: (on_disk.get(field), attestation[field])
@@ -8975,16 +8999,24 @@ def genome_save(strand, path, coupling, labels=None, *, attestation=None,
     # identically for a genome of ANY size (the C carves its scratch from the caller
     # arena — no compiled-in cap). Native is authoritative when present; the pure-
     # Python path below is the complete alternative ONLY when there is no C.
-    # §41 provenance: a caller ``attestation=`` OVERRIDE (an attested corpus genome's
-    # true source) is applied by the PURE manifest write — the native ``srmech_genome_save``
-    # writes the srmech DEFAULT MPR and takes no override, so the override path writes the
-    # (already-materialised) ``body_bytes`` + the overridden manifest from Python, producing
-    # an on-disk manifest BYTE-IDENTICAL to what a byte-identical C save would emit for the
-    # same override (the two projections do NOT diverge; the capability is the invariant,
-    # ADR-0009). With no override the native fast path is unchanged (byte-identical to before).
-    if attestation is None and _native.has_native_genome():
+    # §41 provenance (`#T1108`): the ATTESTATION OF RECORD is resolved FIRST — carried
+    # forward from the manifest already at ``path`` when there is one, then overlaid by an
+    # explicit ``attestation=`` (which is REFUSED rather than silently applied when it
+    # disagrees with a non-default block on disk). Resolving before any byte is written is
+    # what makes the refusal safe: a conflict never leaves a half-written genome.
+    #
+    # THE COMMENT THAT USED TO BE HERE WAS FALSE, and it is worth saying why rather than
+    # just deleting it. It claimed the pure override path produced a manifest
+    # "BYTE-IDENTICAL to what a byte-identical C save would emit for the same override".
+    # No such C save existed: ``srmech_genome_save`` took no attestation at all, so the
+    # counterfactual had no referent and the claim was unfalsifiable. Two lines above it
+    # the same comment said so outright. rc418 gives the C the channel, so the sentence is
+    # now TRUE and a real gate can hold it (test_attestation_of_record_rc418.py).
+    resolved = _resolve_attestation(path, attestation)
+    if _native.has_native_genome():
         try:
-            _native.genome_save_c(str(path), body_bytes, leaf_dim, bytes(coupling_block))
+            _native.genome_save_c(str(path), body_bytes, leaf_dim,
+                                  bytes(coupling_block), attestation=resolved)
             return data
         except _native.NativeGenomeError as exc:
             _raise_native_genome(exc)
@@ -8992,13 +9024,13 @@ def genome_save(strand, path, coupling, labels=None, *, attestation=None,
     # Build + VALIDATE the record BEFORE any bytes hit disk, so a malformed caller
     # attestation is rejected (no half-written genome). attestation=None reproduces the
     # default record exactly.
-    record = _manifest_record(head, attestation=attestation)
+    record = _manifest_record(head, attestation=resolved)
     (path / _BODY_NAME).write_bytes(body_bytes)
     _write_manifest(path, record)                     # v12: HEAD-ONLY on disk
     return data
 
 
-def upgrade_v15_to_v16(path, *, coupling=None) -> dict:
+def upgrade_v15_to_v16(path, *, coupling=None, attestation=None) -> dict:
     """Migrate a v≤15 genome directory to format v16 IN PLACE (§Q8/rc312) — the on-disk
     Q₈-format upgrade. Returns the re-derived manifest ``data`` (now stamped v16).
 
@@ -9008,9 +9040,16 @@ def upgrade_v15_to_v16(path, *, coupling=None) -> dict:
     0). The upgrade is therefore a manifest RE-STAMP — re-derive the ``.fai`` head from the
     body (the SSoT, §44), which now stamps ``format_version = 16`` + the derived ``carrier``.
     Because the body is untouched and ``body_sha256`` is a pure function of the body (the
-    region CHAIN since v4), the on-disk bytes that move are EXACTLY the manifest's
-    ``format_version`` + ``carrier`` fields; ``turns.bin`` is byte-identical. Idempotent: a
-    v16 genome re-stamps to itself.
+    region CHAIN since v4), the manifest is the only file that moves and ``turns.bin``
+    is byte-identical. Idempotent: a v16 genome re-stamps to itself.
+
+    **This paragraph used to say the moving bytes were EXACTLY ``format_version`` +
+    ``carrier``, and that was FALSE for any attested genome** (`#T1108`): the whole
+    attestation block moved too, because the re-stamp discarded the block it had just
+    read and re-minted srmech's default over it. Since v0.9.0rc418 the four SOURCE
+    fields are CARRIED FORWARD and only the ENCODER-identity fields are re-stamped —
+    which is what a migration should do, since a container-format change does not move
+    the corpus. ``response_sha256`` is unchanged here because the body is unchanged.
 
     ``coupling`` (optional): the leaf width comes from the manifest's stored coupling block
     unless overridden; a manifest-LESS genome REQUIRES ``coupling=`` (its length is the leaf
@@ -9049,7 +9088,14 @@ def upgrade_v15_to_v16(path, *, coupling=None) -> dict:
     head = _build_head_data(leaf_dim, coupling_block, data["n_turns"],
                             len(data["chromosomes"]), data["body_sha256"],
                             data["carrier"])
-    _write_manifest(path, _manifest_record(head))     # v16 HEAD-ONLY on disk
+    # `#T1108`: a MIGRATION re-stamps the ENCODER identity and PRESERVES the
+    # SOURCE. Until rc418 it read the manifest here (to get format_version) and
+    # then discarded the attestation block one line later — literally one
+    # variable away from preserving it. Its docstring's claim that "the on-disk
+    # bytes that move are EXACTLY the manifest's format_version + carrier fields"
+    # was false for any attested genome: the whole attestation block moved too.
+    _write_manifest(path, _manifest_record(
+        head, attestation=_resolve_attestation(path, attestation)))
     return data
 
 
@@ -10799,7 +10845,8 @@ def genome_genes_expressed(path, coupling, cell_state):
     return out
 
 
-def genome_append(path, label, leaves, coupling, *, kernel=False, catalog=None) -> dict:
+def genome_append(path, label, leaves, coupling, *, kernel=False, catalog=None,
+                  attestation=None) -> dict:
     """Append ONE chromosome to an existing genome at ``path/`` in O(1) — UPSTREAM
     §41 / §56 (rc115 #1245(b)) + v12 (the O(1) genome-native rewrite). Returns the
     full catalog ``data`` dict (unchanged shape: ``chromosomes`` / ``regions`` / … ).
@@ -10904,10 +10951,16 @@ def genome_append(path, label, leaves, coupling, *, kernel=False, catalog=None) 
     # every subsequent append reads the v12 head and is O(1). (A threaded catalog is
     # already v12-chain, so it never takes this branch.)
     if catalog is None and int(head.get("format_version", GENOME_FORMAT_VERSION)) < 4:
+        # `#T1108`: the legacy-v2/v3 MIGRATION branch. A migration re-stamps the
+        # ENCODER identity (it is a new build) but the SOURCE is unchanged — the
+        # corpus did not move because its container format did — so it carries
+        # forward like every other mutation.
+        mig_attest = _resolve_attestation(path, attestation)
         if _native.has_native_genome():
             try:
                 _native.genome_append_c(str(path), label, appended, leaf_dim,
-                                        bytes(coupling_block))
+                                        bytes(coupling_block),
+                                        attestation=mig_attest)
             except _native.NativeGenomeError as exc:
                 _raise_native_genome(exc)
         else:
@@ -10919,7 +10972,8 @@ def genome_append(path, label, leaves, coupling, *, kernel=False, catalog=None) 
                 leaf_dim, coupling_block, data["n_turns"],
                 len(data["chromosomes"]), data["body_sha256"],
                 data.get("carrier", _ELEMENT_TYPE_NAMES[ELEMENT_TYPE_KLEIN4]))
-            _write_manifest(path, _manifest_record(mig_head))
+            _write_manifest(path, _manifest_record(mig_head,
+                                                   attestation=mig_attest))
         return _catalog_data(path, coupling)
 
     byte_offset = body_path.stat().st_size          # O(1) stat = the PRIOR body size
@@ -10946,16 +11000,18 @@ def genome_append(path, label, leaves, coupling, *, kernel=False, catalog=None) 
     # Write the DNA + the O(1) head. Native C append is AUTHORITATIVE when present —
     # it tail-extends turns.bin + writes the head, no whole-body / whole-catalog
     # rewrite. Otherwise the pure path does the same tail-extend + head write.
+    # `#T1108`: resolved BEFORE the tail-extend, from the manifest still on disk.
+    resolved = _resolve_attestation(path, attestation)
     if _native.has_native_genome():
         try:
             _native.genome_append_c(str(path), label, appended, leaf_dim,
-                                    bytes(coupling_block))
+                                    bytes(coupling_block), attestation=resolved)
         except _native.NativeGenomeError as exc:
             _raise_native_genome(exc)
     else:
         with body_path.open("ab") as f:
             f.write(appended)                       # O(1) tail-extend
-        _write_manifest(path, _manifest_record(head_data))   # O(1) HEAD-ONLY
+        _write_manifest(path, _manifest_record(head_data, attestation=resolved))
 
     # Return the full catalog dict (unchanged shape).
     if catalog is not None:
@@ -10972,7 +11028,7 @@ def genome_append(path, label, leaves, coupling, *, kernel=False, catalog=None) 
 
 
 def genome_append_kernel(path, label, hv, *, element_type=None,
-                         coupling=None, catalog=None) -> dict:
+                         coupling=None, catalog=None, attestation=None) -> dict:
     """Append a newly-taught kernel — WITH its §89 header — to a genome in O(1)
     amortised (§89/rc126, issue #1261). The uniformly-Klein-4 payoff of format v6.
 
@@ -11037,7 +11093,8 @@ def genome_append_kernel(path, label, hv, *, element_type=None,
     return genome_append(path, label, leaves, coupling, kernel=True, catalog=catalog)
 
 
-def _write_body_and_manifest(path, body_bytes, leaf_dim, coupling) -> dict:
+def _write_body_and_manifest(path, body_bytes, leaf_dim, coupling,
+                             *, attestation=None) -> dict:
     """Commit a spliced body to ``turns.bin`` + re-derive its ``.fai`` manifest — §44/§45.
 
     The shared write-path for the in-place edits (:func:`genome_remove` /
@@ -11052,6 +11109,10 @@ def _write_body_and_manifest(path, body_bytes, leaf_dim, coupling) -> dict:
     body_bytes = bytes(body_bytes)
     # §44: rebuild-by-scan validates the splice (whole multiple of leaf_dim, cap-led
     # regions) BEFORE anything is written — a corrupt edit never lands on disk.
+    # `#T1108`: resolve the attestation of record BEFORE turns.bin is overwritten —
+    # the carry-forward reads the manifest still on disk. This is the single choke
+    # point for remove / replace / import / pack, so all four inherit here.
+    resolved = _resolve_attestation(path, attestation)
     data = _rebuild_manifest_from_body(body_bytes, leaf_dim, coupling)
     coupling_block = bytes.fromhex(data["coupling"]["hex"])
     head = _build_head_data(
@@ -11059,11 +11120,11 @@ def _write_body_and_manifest(path, body_bytes, leaf_dim, coupling) -> dict:
         len(data["chromosomes"]), data["body_sha256"],
         data.get("carrier", _ELEMENT_TYPE_NAMES[ELEMENT_TYPE_KLEIN4]))
     (Path(path) / _BODY_NAME).write_bytes(body_bytes)
-    _write_manifest(path, _manifest_record(head))     # v12: HEAD-ONLY on disk
+    _write_manifest(path, _manifest_record(head, attestation=resolved))
     return data
 
 
-def genome_remove(path, label, *, coupling=None) -> dict:
+def genome_remove(path, label, *, coupling=None, attestation=None) -> dict:
     """Excise ONE chromosome from a genome IN PLACE — UPSTREAM §45.
 
     Biology excises; it does not re-synthesize. Finds the chromosome ``label``'s region
@@ -11103,7 +11164,8 @@ def genome_remove(path, label, *, coupling=None) -> dict:
     # re-derive the manifest, byte-identical); native is authoritative (no fallback).
     if _native.has_native_genome():
         try:
-            _native.genome_remove_c(str(path), label, bytes(_leaf_blocks([one])[0]))
+            _native.genome_remove_c(str(path), label, bytes(_leaf_blocks([one])[0]),
+                                    attestation=attestation)
             return _catalog_data(path, one)     # full derived catalog (v12 head-only on disk)
         except _native.NativeGenomeError as exc:
             _raise_native_genome(exc)
@@ -11112,10 +11174,11 @@ def genome_remove(path, label, *, coupling=None) -> dict:
     body = (path / _BODY_NAME).read_bytes()
     _verify_body_integrity(body, data)                   # integrity bound before edit
     new_body = body[:off] + body[off + byte_len:]        # splice the span out in place
-    return _write_body_and_manifest(path, new_body, leaf_dim, one)  # rebuild → v4 regions+chain
+    return _write_body_and_manifest(path, new_body, leaf_dim, one,
+                                    attestation=attestation)
 
 
-def genome_replace(path, label, leaves, coupling) -> dict:
+def genome_replace(path, label, leaves, coupling, *, attestation=None) -> dict:
     """Replace ONE chromosome's content IN PLACE — UPSTREAM §45.
 
     Splices the chromosome ``label``'s old byte span out of ``turns.bin`` and a FRESH
@@ -11167,7 +11230,7 @@ def genome_replace(path, label, leaves, coupling) -> dict:
         try:
             _native.genome_replace_c(
                 str(path), label, new_region, leaf_dim,
-                bytes(_leaf_blocks([coupling])[0]))
+                bytes(_leaf_blocks([coupling])[0]), attestation=attestation)
             return _catalog_data(path, coupling)    # full derived catalog
         except _native.NativeGenomeError as exc:
             _raise_native_genome(exc)
@@ -11176,7 +11239,8 @@ def genome_replace(path, label, leaves, coupling) -> dict:
     body = (path / _BODY_NAME).read_bytes()
     _verify_body_integrity(body, data)                   # integrity bound before edit
     new_body = body[:off] + new_region + body[off + byte_len:]
-    return _write_body_and_manifest(path, new_body, leaf_dim, coupling)
+    return _write_body_and_manifest(path, new_body, leaf_dim, coupling,
+                                    attestation=attestation)
 
 
 # ────────────────────────────────────────────────────────────────────────
@@ -11209,13 +11273,142 @@ def _chr_data(label, leaf_dim, leaf_count, cap_sha256, coupling_block, region):
     }
 
 
-def _chr_record(data) -> _MPRRecord:
+#: srmech's own default SOURCE block for an EXPORTED ``.chr`` bundle. Peer of
+#: :func:`_default_source_attestation`; the C mirror is
+#: ``genome_attest_chr_default`` in ``srmech_genome.c``.
+def _default_chr_attestation() -> Dict[str, str]:
+    """The four srmech-default SOURCE fields of a ``.chr``, as a fresh dict."""
+    return {
+        "source_doi": "10.0/srmech.genome.chromosome",
+        "source_url": "https://srmech.net/genome/chromosome",
+        "license": "CC0",
+        "retrieved_at": "1970-01-01T00:00:00Z",
+    }
+
+
+def _bundle_source_attestation(record) -> Optional[Dict[str, str]]:
+    """The four SOURCE fields of a read ``.chr`` bundle, or ``None`` when it
+    carries only srmech's ``.chr`` default (`#T1108`).
+
+    Used where a genome is SEEDED from bundles — :func:`genome_import` into a
+    fresh dest, :func:`genome_pack` into a fresh dest. There is no destination
+    manifest to carry from at that moment and the bundle IS the genome, so the
+    bundle's block is the attestation of record. Without this a GPL-3.0-only
+    chromosome seeded a CC0 genome — the same substitution, one indirection out."""
+    attestation = getattr(record, "attestation", None) or {}
+    source = {
+        field: str(attestation[field])
+        for field in _ATTESTATION_CARRY_FIELDS
+        if isinstance(attestation.get(field), str)
+    }
+    defaults = _default_chr_attestation()
+    if all(source.get(f, defaults[f]) == defaults[f]
+           for f in _ATTESTATION_CARRY_FIELDS):
+        return None
+    return source
+
+
+def _seed_attestation(dest, fallback, attestation):
+    """Resolve a SEED write's attestation: the destination's own block if it has
+    one, else ``fallback`` (the bundle's), else srmech's default — then the
+    caller override with the usual refuse-on-conflict rule."""
+    on_disk = _on_disk_source_attestation(dest)
+    if not _is_default_source_attestation(on_disk):
+        return _resolve_attestation(dest, attestation)
+    if attestation is None:
+        return dict(fallback) if fallback else None
+    merged = dict(fallback) if fallback else {}
+    merged.update(attestation)
+    return merged
+
+
+def _chr_source_from_parent(path, attestation):
+    """The four SOURCE fields an EXPORTED ``.chr`` should carry (`#T1108`).
+
+    Inherits from the parent genome's ``manifest.json`` when that manifest holds a
+    NON-DEFAULT block, then applies an explicit ``attestation=`` on top with the
+    same refuse-on-conflict rule the manifest write uses. Returns ``None`` when
+    there is nothing to inherit and nothing given, which reproduces every release
+    before rc418 byte-for-byte."""
+    on_disk = _on_disk_source_attestation(path)
+    inherited_is_real = not _is_default_source_attestation(on_disk)
+    if attestation is None:
+        return dict(on_disk) if inherited_is_real else None
+    if not isinstance(attestation, dict):
+        raise TypeError(
+            "chromosome attestation override must be a dict of MPR source fields, "
+            f"got {type(attestation).__name__}"
+        )
+    if inherited_is_real:
+        clashes = sorted(
+            field for field in _ATTESTATION_CARRY_FIELDS
+            if field in attestation
+            and str(attestation[field]) != on_disk.get(field)
+        )
+        if clashes:
+            raise GenomeAttestationConflict(
+                f"genome at {str(path)!r} already carries a non-default MPR "
+                f"attestation and the attestation= given for the exported .chr "
+                f"would overwrite it in {clashes!r}. A .chr is the DISTRIBUTION "
+                f"unit — srmech does not silently re-license one on the way out. "
+                f"Omit attestation= to inherit the parent's, or pass the values "
+                f"already on disk to confirm"
+            )
+    merged = dict(on_disk) if inherited_is_real else {}
+    merged.update(attestation)
+    return merged
+
+
+def _chr_attestation(attestation, region_sha, parser_version, rule_hash,
+                     descriptor_hash) -> Dict[str, str]:
+    """Assemble a ``.chr`` attestation: the four SOURCE fields (default,
+    inherited or caller-given) plus the five srmech-owned ones."""
+    source = _default_chr_attestation()
+    if attestation is not None:
+        if not isinstance(attestation, dict):
+            raise TypeError(
+                "chromosome attestation override must be a dict of MPR source "
+                f"fields, got {type(attestation).__name__}"
+            )
+        for key, value in attestation.items():
+            if key not in _ATTESTATION_CARRY_FIELDS:
+                raise ValueError(
+                    f"chromosome attestation: {key!r} is not an overridable "
+                    f"source field (allowed: {sorted(_ATTESTATION_CARRY_FIELDS)}). "
+                    f"response_sha256 IS the region digest and both projections "
+                    f"hard-check it on import, so it is srmech-owned here even "
+                    f"though _manifest_record lets a caller state it"
+                )
+            source[key] = value
+    source.update({
+        "response_sha256": region_sha,
+        "parser_version": parser_version,
+        "parser_rule_hash": rule_hash,
+        "collector_descriptor_path": "srmech/biology/genome.py",
+        "collector_descriptor_hash": descriptor_hash,
+    })
+    return source
+
+
+def _chr_record(data, *, attestation=None) -> _MPRRecord:
     """Wrap a .chr ``data`` block in an MPRRecord (MPR v1) — §43.
 
     ``attestation.response_sha256`` IS the chromosome region hash
     (``region.sha256``), so :func:`genome_import` re-hashes the region and
     self-verifies. Mirrors :func:`_manifest_record`; the record satisfies
-    :func:`srmech.amsc.format.validate_mpr_record`."""
+    :func:`srmech.amsc.format.validate_mpr_record`.
+
+    **The FOUR-field override set, and why it is four and not five (`#T1108`).**
+    A ``.chr`` is the DISTRIBUTION unit — it leaves the machine — so before
+    rc418 a chromosome exported from a ``GPL-3.0-only`` parent shipped as
+    ``CC0`` under ``10.0/srmech.genome.chromosome``, which is the
+    highest-severity site of the whole substitution. It now inherits the
+    parent genome's four SOURCE fields and accepts an explicit override of the
+    same four. ``response_sha256`` is deliberately NOT overridable here, unlike
+    in :func:`_manifest_record`: it IS the region digest and BOTH projections
+    hard-check it on import (Python below and in :func:`genome_import`, C in
+    ``genome_chr_verify_extract``), so a settable one would let a caller forge
+    or simply break a bundle's self-verification."""
     region_sha = data["region"]["sha256"]
     parser_version = f"srmech {_SRMECH_VERSION}"
     rule_hash = _sha256_bytes(
@@ -11226,17 +11419,8 @@ def _chr_record(data) -> _MPRRecord:
         mpr_version="1.0",
         data=data,
         data_schema_id=GENOME_CHR_SCHEMA_ID,
-        attestation={
-            "source_doi": "10.0/srmech.genome.chromosome",
-            "source_url": "https://srmech.net/genome/chromosome",
-            "license": "CC0",
-            "retrieved_at": "1970-01-01T00:00:00Z",
-            "response_sha256": region_sha,
-            "parser_version": parser_version,
-            "parser_rule_hash": rule_hash,
-            "collector_descriptor_path": "srmech/biology/genome.py",
-            "collector_descriptor_hash": descriptor_hash,
-        },
+        attestation=_chr_attestation(attestation, region_sha, parser_version,
+                                     rule_hash, descriptor_hash),
         rendering={
             "human_readable_name": f"srmech chromosome bundle ({data['label']})",
             "cite_as": "srmech genome chromosome bundle (UPSTREAM §43)",
@@ -11281,7 +11465,7 @@ def _read_chr(path) -> _MPRRecord:
     return record
 
 
-def genome_export(path, label, out, *, coupling=None) -> dict:
+def genome_export(path, label, out, *, coupling=None, attestation=None) -> dict:
     """Export ONE chromosome as a single self-contained ``.chr`` file — UPSTREAM §43.
 
     Reads the chromosome ``label``'s fixed-width region (CHROM cap + coupled data
@@ -11318,7 +11502,8 @@ def genome_export(path, label, out, *, coupling=None) -> dict:
     if _native.has_native_genome():
         try:
             _native.genome_export_c(
-                str(path), label, str(out), _coupling_bytes_or_empty(coupling))
+                str(path), label, str(out), _coupling_bytes_or_empty(coupling),
+                attestation=attestation)
             return _read_chr(Path(out)).data
         except _native.NativeGenomeError as exc:
             _raise_native_genome(exc)
@@ -11327,11 +11512,17 @@ def genome_export(path, label, out, *, coupling=None) -> dict:
     one_block = bytes.fromhex(data["coupling"]["hex"])
     chr_data = _chr_data(label, leaf_dim, int(entry["leaf_count"]),
                          entry["cap_sha256"], one_block, region)
-    _write_mpr_file(Path(out), _chr_record(chr_data))
+    # `#T1108`: the .chr INHERITS the parent genome's four SOURCE fields (the export
+    # has the parent dir in hand), and an explicit override rides on top. Before
+    # rc418 this line minted 10.0/srmech.genome.chromosome / CC0 unconditionally, so
+    # a chromosome exported from a licensed corpus shipped mis-attributed.
+    _write_mpr_file(Path(out), _chr_record(
+        chr_data,
+        attestation=_chr_source_from_parent(path, attestation)))
     return chr_data
 
 
-def genome_import(chr_path, dest, *, coupling=None) -> dict:
+def genome_import(chr_path, dest, *, coupling=None, attestation=None) -> dict:
     """Import a ``.chr`` chromosome bundle into a genome at ``dest`` — UPSTREAM §43.
 
     Reads the MPR-attested ``.chr`` (:func:`genome_export`'s output), RE-HASHES its
@@ -11377,7 +11568,8 @@ def genome_import(chr_path, dest, *, coupling=None) -> dict:
         try:
             dest.mkdir(parents=True, exist_ok=True)   # native SEED save needs the dir
             _native.genome_import_c(
-                str(chr_path), str(dest), _coupling_bytes_or_empty(coupling))
+                str(chr_path), str(dest), _coupling_bytes_or_empty(coupling),
+                attestation=attestation)
             return _catalog_data(dest, coupling)    # full derived catalog
         except _native.NativeGenomeError as exc:
             _raise_native_genome(exc)
@@ -11402,7 +11594,11 @@ def genome_import(chr_path, dest, *, coupling=None) -> dict:
         # §55/v3: written VERBATIM, so a legacy v2 .chr region seeds a legacy
         # body — never re-encoded — exactly like the native C seed).
         dest.mkdir(parents=True, exist_ok=True)
-        return _write_body_and_manifest(dest, region, leaf_dim, one)
+        return _write_body_and_manifest(
+            dest, region, leaf_dim, one,
+            attestation=_seed_attestation(
+                dest, _bundle_source_attestation(_read_chr(chr_path)),
+                attestation))
     # APPEND into the existing genome — same coupling invariant + fresh label.
     dest_data = _catalog_data(dest, coupling if coupling is not None else one)
     if int(dest_data["leaf_dim"]) != leaf_dim:
@@ -11421,7 +11617,8 @@ def genome_import(chr_path, dest, *, coupling=None) -> dict:
         )
     dest_body = body_path.read_bytes()
     _verify_body_integrity(dest_body, dest_data)             # bound before grow
-    return _write_body_and_manifest(dest, dest_body + region, leaf_dim, one)
+    return _write_body_and_manifest(dest, dest_body + region, leaf_dim, one,
+                                    attestation=attestation)
 
 
 def genome_explode(path, out_dir, *, coupling=None) -> list:
@@ -11484,7 +11681,7 @@ def genome_explode(path, out_dir, *, coupling=None) -> list:
     return written
 
 
-def genome_pack(loose_dir, dest, *, coupling=None) -> dict:
+def genome_pack(loose_dir, dest, *, coupling=None, attestation=None) -> dict:
     """Pack a directory of loose ``.chr`` files into one packed genome — UPSTREAM §43.
 
     The loose→packed inverse of :func:`genome_explode` (git ``repack``-like). Every
@@ -11536,7 +11733,8 @@ def genome_pack(loose_dir, dest, *, coupling=None) -> dict:
         scratch = Path(tempfile.mkdtemp())
         try:
             _native.genome_pack_c(
-                str(loose_dir), str(scratch), _coupling_bytes_or_empty(coupling))
+                str(loose_dir), str(scratch), _coupling_bytes_or_empty(coupling),
+                attestation=attestation)
             dest.mkdir(parents=True, exist_ok=True)
             (dest / _BODY_NAME).write_bytes((scratch / _BODY_NAME).read_bytes())
             (dest / _MANIFEST_NAME).write_bytes(
@@ -11598,8 +11796,15 @@ def genome_pack(loose_dir, dest, *, coupling=None) -> dict:
         dest_labels.add(lbl)
         body.extend(region)
     dest.mkdir(parents=True, exist_ok=True)
-    return _write_body_and_manifest(dest, bytes(body), leaf_dim,
-                                    _hv_from_block(one_block))
+    # `#T1108`: a pack into a FRESH dest inherits the FIRST bundle's four SOURCE
+    # fields (canonical order). explode stamps every bundle with the parent's block,
+    # so this is exactly what makes explode -> pack a round trip instead of a
+    # re-licensing. RESIDUAL, stated: bundles of MIXED provenance take the first and
+    # are not diagnosed — before rc418 they took none of them and wrote CC0.
+    return _write_body_and_manifest(
+        dest, bytes(body), leaf_dim, _hv_from_block(one_block),
+        attestation=_seed_attestation(
+            dest, _bundle_source_attestation(_read_chr(keyed[0][1])), attestation))
 
 
 #: §43 — the AMSC row schema id for a registered chromosome source. Each row is the
