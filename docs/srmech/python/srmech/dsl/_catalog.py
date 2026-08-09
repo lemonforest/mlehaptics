@@ -264,12 +264,37 @@ def lookup_cascade_op(op_name: str) -> Callable:
     Raises
     ------
     ValueError
-        If ``op_name`` is not present in any catalog descriptor.
+        If ``op_name`` is not present in any catalog descriptor (bare
+        form), or a dotted name does not resolve to a callable.
     RuntimeError
         If a (non-composite) descriptor exists but :mod:`srmech.cascade`
         does not expose a matching Python callable (an install integrity
         failure).
     """
+    # rc420 (`#T1114` BLK-REGMAP): a FULLY-QUALIFIED dotted op_name resolves
+    # by import — the caller-side twin of the §17 U2 descriptor-side dotted
+    # `[cascade].op` below (same rpartition + callable guard). This is what
+    # makes "dotted-or-bare NAME" true for every builder (`then` / `fold` /
+    # `reduce` / `parallel_sectors` / `map_indexed`): any shipped registered
+    # op can serve as a stage or combinator body without a catalog
+    # descriptor of its own. Catalog names never contain a dot, so the two
+    # forms cannot collide.
+    if "." in op_name:
+        mod_path, _, attr = op_name.rpartition(".")
+        try:
+            mod = importlib.import_module(mod_path)
+        except ImportError as exc:
+            raise ValueError(
+                f"dotted cascade op {op_name!r}: module {mod_path!r} not "
+                f"importable: {exc}"
+            ) from exc
+        fn = getattr(mod, attr, None)
+        if fn is None or not callable(fn):
+            raise ValueError(
+                f"dotted cascade op {op_name!r} does not resolve to a "
+                f"callable (checked {mod_path}.{attr})"
+            )
+        return fn
     catalog = load_catalog()
     if op_name not in catalog:
         raise ValueError(

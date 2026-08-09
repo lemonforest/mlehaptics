@@ -79,7 +79,48 @@ from srmech import _json as _srmech_json
 
 
 # Composition engine schema version this module implements.
-ENGINE_SCHEMA_VERSION: int = 1
+#
+# v0.9.0rc420 (`#T1114`, ADR-0008 Amendment A): the engine implements
+# schema v2, a STRICT SUPERSET of v1 — every v1 chain is a valid v2 chain
+# unchanged, so v1 catalogs keep working (SUPPORTED_SCHEMA_VERSIONS).
+# v2 adds, each closing a census-measured blocker:
+#
+#   * DOTTED op names (BLK-REGMAP) — a step's ``op`` may be a fully-qualified
+#     ``"srmech.cascade.leaves.seq_len"``; ``class`` stays required and
+#     becomes CLASSIFICATION, not addressing (the letter->module registry
+#     remains the resolution for bare names). Precedent: the srmech.dsl
+#     dotted-op resolver (``_catalog.py`` §17 U2).
+#   * the MAP step form (BLK-ITER-INDEXED) — ``{map_over, index?, bind?,
+#     body}``: a general indexed map ``out[k] = body(k, ...)`` with
+#     ``n = len(resolve(map_over))`` FIXED AT ENTRY (an unsized iterable is
+#     rejected — the totality pin; the map is data-SIZED, never
+#     data-DEPENDENT, so no predicate ever decides continuation).
+#   * the FOLD step form (BLK-ITER-COMPOSE) — ``{fold_class, fold_op,
+#     fold_init, over, fold_args?}``: the DSL surface's
+#     catamorphism-with-seed, ported to this surface. ``fold_args`` is the
+#     rc420 fix for the measured fold-contract defect: a binary POSITIONAL
+#     fold could not bind a kw-only atom (``reorient(value, *,
+#     orientation=)`` raised TypeError); naming the two argument slots
+#     binds it.
+#   * the ``@idx.<name>`` / ``@bind.<name>`` reference forms — required
+#     because the v1 grammar hard-codes namespaces ``row|input|step|catalog``
+#     and its ``[N]`` indexer is literal-only. SCOPING DECISION (stated,
+#     per the rung-4 measurement): a map body's ``@step[N]`` is BODY-LOCAL
+#     (a body is a chain in miniature — the same static bounds check applies
+#     recursively), and outer data flows in ONLY through ``@bind`` /
+#     ``@idx``, which makes every cross-boundary dependency EXPLICIT at the
+#     map boundary — the same explicit-only rule §3.2 already imposes on
+#     step-to-step flow (no magic implicit piping).
+#   * the ``@op.<dotted.path>`` reference form (BLK-HIGHER-ORDER) — a
+#     descriptor can name an op AS A VALUE (``chiral_dual`` /
+#     ``parallel_sector_dispatch`` take op-valued parameters). Measured at
+#     rung 3: a runtime callable already THREADS fine through ``@input``;
+#     the gap was descriptor-level naming only.
+ENGINE_SCHEMA_VERSION: int = 2
+
+#: Schema versions this engine accepts — v2 is a superset of v1, so both
+#: parse; a catalog declaring anything else is rejected at activation.
+SUPPORTED_SCHEMA_VERSIONS: Tuple[int, ...] = (1, 2)
 
 # Class → module mapping (Phase 1 §5).
 DEFAULT_CLASS_REGISTRY: Dict[str, str] = {
@@ -103,10 +144,22 @@ DEFAULT_CLASS_REGISTRY: Dict[str, str] = {
 LEGAL_ERROR_POLICIES: Tuple[str, ...] = ("raise", "warn_return_none", "skip")
 
 # Reference DSL regex: ``@<namespace>.<path>``. `path` allows dotted
-# fields and optional `[N]` indexers.
+# fields and optional `[N]` indexers. v2 (rc420) adds three namespaces:
+# ``idx`` (an enclosing map's index), ``bind`` (a map-entry-resolved
+# closure value) and ``op`` (a dotted op-as-value reference).
 _REFERENCE_PATTERN = re.compile(
-    r"^@(row|input|step|catalog)((?:\.[A-Za-z_][A-Za-z0-9_]*|\[\d+\])+)$"
+    r"^@(row|input|step|catalog|idx|bind|op)"
+    r"((?:\.[A-Za-z_][A-Za-z0-9_]*|\[\d+\])+)$"
 )
+
+#: The v2-only reference namespaces — a v1 chain never carries these.
+_V2_NAMESPACES = ("idx", "bind", "op")
+
+#: The v2-only step-form discriminator keys (map / fold). Any of these on a
+#: step makes the chain a v2 chain; they are mutually exclusive with the
+#: plain ``class``+``op``+``args`` form AND with each other.
+_MAP_KEYS = ("map_over", "index", "bind", "body")
+_FOLD_KEYS = ("fold_class", "fold_op", "fold_init", "over", "fold_args")
 
 
 class ChainSpecError(ValueError):
@@ -131,6 +184,68 @@ class StepSpec:
 
 
 @dataclass(frozen=True)
+class MapStepSpec:
+    """One INDEXED-MAP step (schema v2, rc420 — the `#T1114`
+    BLK-ITER-INDEXED closure).
+
+    ``out = [run(body) for k in range(len(resolve(map_over)))]`` with the
+    reference form ``@idx.<index>`` bound to ``k`` inside the body and
+    ``@bind.<name>`` bound to the entry-resolved ``bind`` values. Maps NEST;
+    inner bodies see outer indices and binds (layered environments).
+
+    TOTALITY (the invariant this form must protect, stated where it is
+    declared): ``n = len(seq)`` is fixed BEFORE the first body run (an
+    unsized iterable is rejected at run time); the body is a finite,
+    descriptor-static step list; nesting depth is descriptor-static. So the
+    step performs exactly a descriptor-static number of op calls per input
+    element — total iff every leaf op is total, the SAME totality class the
+    shipped DSL fold/reduce already run under (``make_fold_stage`` iterates
+    ``for elem in input_seq`` over a runtime-length input). The map is
+    data-SIZED, never data-DEPENDENT: no predicate decides continuation.
+
+    Attributes:
+      - ``map_over``: reference resolving to a SIZED sequence.
+      - ``index``: the ``@idx`` name the body sees (default ``"k"``).
+      - ``bind``: name → reference/literal, resolved ONCE at map entry.
+      - ``body``: the body step tuple (BODY-LOCAL ``@step[N]`` numbering).
+    """
+
+    map_over: str
+    index: str
+    bind: Dict[str, Any]
+    body: Tuple[Any, ...]
+    on_error: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class FoldStepSpec:
+    """One FOLD step (schema v2, rc420 — the `#T1114` BLK-ITER-COMPOSE
+    port of the DSL surface's catamorphism-with-seed).
+
+    ``acc = fold_init; for elem in resolve(over): acc = op(acc, elem)`` —
+    the exact ``make_fold_stage`` iteration contract. ``fold_args``, when
+    given, is a 2-tuple of keyword names ``(acc_name, elem_name)`` so a
+    kw-only binary op binds (the rc420 fold-contract fix: the shipped
+    ``reorient(value, *, orientation=)`` raised TypeError under the
+    positional fold call).
+
+    Attributes:
+      - ``fold_class``: single letter A–N (classification).
+      - ``fold_op``: op name (bare → letter registry; dotted → direct).
+      - ``fold_init``: the seed (literal or reference).
+      - ``over``: reference resolving to the folded sequence.
+      - ``fold_args``: optional ``(acc_kwarg, elem_kwarg)`` name pair.
+    """
+
+    fold_class: str
+    fold_op: str
+    fold_init: Any
+    over: str
+    fold_args: Optional[Tuple[str, str]] = None
+    on_error: Optional[str] = None
+
+
+@dataclass(frozen=True)
 class ChainSpec:
     """One operator chain declared in a catalog descriptor.
 
@@ -139,23 +254,29 @@ class ChainSpec:
       - ``summary``: human-readable description.
       - ``returns``: typed string ``"<type>  # <comment>"``.
       - ``on_error``: chain-level error policy (default ``"raise"``).
-      - ``steps``: list of :class:`StepSpec` in execution order.
+      - ``steps``: list of :class:`StepSpec` (v1) — plus, in a v2 chain,
+        :class:`MapStepSpec` / :class:`FoldStepSpec` — in execution order.
     """
 
     name: str
     summary: str
     returns: str
-    steps: Tuple[StepSpec, ...]
+    steps: Tuple[Any, ...]
     on_error: str = "raise"
 
 
 def _validate_reference(
-    ref: str, step_index: int
+    ref: str, step_index: int,
+    idx_names: frozenset = frozenset(),
+    bind_names: frozenset = frozenset(),
 ) -> None:
     """Validate a single reference string against the DSL grammar.
 
-    Raises :class:`ChainSpecError` on grammar failure or out-of-bounds
-    ``@step[N]`` reference (N >= current step index).
+    Raises :class:`ChainSpecError` on grammar failure, an out-of-bounds
+    ``@step[N]`` reference (N >= current step index), or a v2 scoped
+    reference (``@idx`` / ``@bind``) whose name no enclosing map binds —
+    the static half of the rc420 scoping decision (a body-local grammar
+    is only honest if an unbound name fails at ACTIVATION, not mid-run).
     """
     m = _REFERENCE_PATTERN.match(ref)
     if not m:
@@ -177,6 +298,34 @@ def _validate_reference(
             raise ChainSpecError(
                 f"step[{step_index}]: @step[{target_idx}] references a "
                 f"step that has not yet executed (must be < {step_index})"
+            )
+    elif namespace == "idx":
+        name_match = re.match(r"^\.([A-Za-z_][A-Za-z0-9_]*)$", m.group(2))
+        if name_match is None:
+            raise ChainSpecError(
+                f"step[{step_index}]: @idx reference {ref!r} must be a "
+                f"single bare index name (@idx.<name>)"
+            )
+        if name_match.group(1) not in idx_names:
+            raise ChainSpecError(
+                f"step[{step_index}]: @idx.{name_match.group(1)}: no "
+                f"enclosing map binds index {name_match.group(1)!r} "
+                f"(bound here: {sorted(idx_names) or 'none'})"
+            )
+    elif namespace == "bind":
+        name_match = re.match(r"^\.([A-Za-z_][A-Za-z0-9_]*)", m.group(2))
+        if name_match is None or name_match.group(1) not in bind_names:
+            got = name_match.group(1) if name_match else m.group(2)
+            raise ChainSpecError(
+                f"step[{step_index}]: @bind.{got}: no enclosing map binds "
+                f"{got!r} (bound here: {sorted(bind_names) or 'none'})"
+            )
+    elif namespace == "op":
+        if "[" in m.group(2) or m.group(2).count(".") < 2:
+            raise ChainSpecError(
+                f"step[{step_index}]: @op reference {ref!r} must be a "
+                f"dotted module path with at least two components "
+                f"(@op.<module...>.<callable>) and no [N] indexers"
             )
 
 
@@ -266,13 +415,75 @@ def _call_compose_native(lib, arena_sym: str, call_sym: str,
     return out.raw[:out_len.value].decode("utf-8")
 
 
+def _chain_has_v2_forms(chain_dict: Any) -> bool:
+    """True iff any step (recursively) carries a v2 discriminator key or a
+    v2 reference namespace — the PYTHON-FIRST sequencing guard (rc420).
+
+    The C parse peer (``srmech_chain_spec_parse``) is a REQUIRED-KEYS check,
+    not a closed-key-set check: a step carrying BOTH a valid v1 skeleton and
+    v2 keys would parse in C with the v2 keys SILENTLY DISCARDED — a chain
+    that runs as if the map form were never written, the exact ADR-0009
+    parity break the native-then-pure structure would otherwise hide. So any
+    v2 content routes the WHOLE chain to the pure path, whose validator
+    enforces the mutual-exclusion rule loudly. Measured shape: C-accepts /
+    Python-rejects is the dangerous split; Python-first is safe (C returns
+    BAD_INPUT → pure handles).
+    """
+    if not isinstance(chain_dict, dict):
+        return False
+    steps = chain_dict.get("steps")
+    if not isinstance(steps, list):
+        return False
+
+    found = False
+
+    def _scan_refs(a: Any) -> None:
+        nonlocal found
+        if found:
+            return
+        if isinstance(a, str) and a.startswith("@"):
+            m = _REFERENCE_PATTERN.match(a)
+            if m is not None and m.group(1) in _V2_NAMESPACES:
+                found = True
+        elif isinstance(a, dict):
+            for v in a.values():
+                _scan_refs(v)
+        elif isinstance(a, (list, tuple)):
+            for v in a:
+                _scan_refs(v)
+
+    def _scan_steps(raw_steps: Any) -> None:
+        nonlocal found
+        if found or not isinstance(raw_steps, list):
+            return
+        for st in raw_steps:
+            if not isinstance(st, dict):
+                continue
+            if any(k in st for k in _MAP_KEYS) or \
+                    any(k in st for k in _FOLD_KEYS):
+                found = True
+                return
+            op = st.get("op")
+            if isinstance(op, str) and "." in op:
+                found = True                 # dotted op — v2 addressing
+                return
+            _scan_refs(st.get("args", {}))
+
+    _scan_steps(steps)
+    return found
+
+
 def _parse_chain_spec_native(
     chain_dict: Dict[str, Any]
 ) -> Optional[ChainSpec]:
     """Native ``parse_chain_spec``: validate one chain block in C + rebuild
     the ChainSpec. ``None`` (→ pure path) on a non-dict input, a non-JSON
-    payload, or any C-side validation failure."""
+    payload, any C-side validation failure, or (rc420) a chain carrying any
+    v2 form — see :func:`_chain_has_v2_forms` for why v2 must be
+    Python-first."""
     if not isinstance(chain_dict, dict):
+        return None
+    if _chain_has_v2_forms(chain_dict):
         return None
     lib = _compose_lib("srmech_chain_spec_parse",
                        "srmech_chain_spec_parse_arena_bytes")
@@ -296,6 +507,9 @@ def _parse_catalog_chains_native(
     """Native ``parse_catalog_chains``: validate the schema version + every
     chain in C. ``None`` (→ pure path) on a non-JSON payload or any C-side
     validation failure (the pure path raises the specific ChainSpecError)."""
+    if any(_chain_has_v2_forms(c) for c in chains_raw
+           if isinstance(c, dict)):
+        return None                      # v2 forms are Python-first (rc420)
     lib = _compose_lib("srmech_chain_catalog_parse",
                        "srmech_chain_catalog_parse_arena_bytes")
     if lib is None:
@@ -375,14 +589,43 @@ def parse_chain_spec(chain_dict: Dict[str, Any]) -> ChainSpec:
 
 
 def _parse_step(
-    chain_name: str, step_idx: int, raw_step: Any
-) -> StepSpec:
-    """Parse + validate one step dict from a chain's ``steps`` list."""
+    chain_name: str, step_idx: int, raw_step: Any,
+    idx_names: frozenset = frozenset(),
+    bind_names: frozenset = frozenset(),
+):
+    """Parse + validate one step dict from a chain's ``steps`` list.
+
+    v2 (rc420): dispatches on the step's discriminator keys — the map form
+    (any of ``map_over``/``index``/``bind``/``body``), the fold form (any of
+    ``fold_*``/``over``), or the plain v1 ``class``+``op``+``args`` form.
+    Mixing forms on one step is rejected (the mutual-exclusion rule that
+    keeps the C parse peer's required-keys check honest: a step can never
+    carry BOTH a valid v1 skeleton and silently-droppable v2 keys).
+    """
     if not isinstance(raw_step, dict):
         raise ChainSpecError(
             f"chain {chain_name!r} step[{step_idx}]: must be dict; "
             f"got {type(raw_step).__name__}"
         )
+    has_map = any(k in raw_step for k in _MAP_KEYS)
+    has_fold = any(k in raw_step for k in _FOLD_KEYS)
+    has_std = any(k in raw_step for k in ("class", "op", "args"))
+    if (1 if has_map else 0) + (1 if has_fold else 0) + \
+            (1 if has_std else 0) > 1:
+        raise ChainSpecError(
+            f"chain {chain_name!r} step[{step_idx}]: mixes step forms "
+            f"(map keys {sorted(k for k in _MAP_KEYS if k in raw_step)}, "
+            f"fold keys {sorted(k for k in _FOLD_KEYS if k in raw_step)}, "
+            f"plain keys "
+            f"{sorted(k for k in ('class', 'op', 'args') if k in raw_step)})"
+            f"; a step is exactly ONE form"
+        )
+    if has_map:
+        return _parse_map_step(chain_name, step_idx, raw_step,
+                               idx_names, bind_names)
+    if has_fold:
+        return _parse_fold_step(chain_name, step_idx, raw_step,
+                                idx_names, bind_names)
     for required in ("class", "op", "args"):
         if required not in raw_step:
             raise ChainSpecError(
@@ -408,10 +651,122 @@ def _parse_step(
             f"chain {chain_name!r} step[{step_idx}]: illegal on_error "
             f"{step_on_error!r}; legal: {LEGAL_ERROR_POLICIES}"
         )
-    # Validate reference grammar + step-reference bounds.
-    _walk_args(args, lambda r: _validate_reference(r, step_idx))
+    # Validate reference grammar + step-reference bounds (+ v2 scopes).
+    _walk_args(args, lambda r: _validate_reference(r, step_idx,
+                                                   idx_names, bind_names))
     return StepSpec(class_id=class_id, op=op, args=dict(args),
                     on_error=step_on_error)
+
+
+def _parse_map_step(
+    chain_name: str, step_idx: int, raw_step: Dict[str, Any],
+    idx_names: frozenset, bind_names: frozenset,
+) -> MapStepSpec:
+    """Parse + validate one v2 MAP step (see :class:`MapStepSpec`)."""
+    for required in ("map_over", "body"):
+        if required not in raw_step:
+            raise ChainSpecError(
+                f"chain {chain_name!r} step[{step_idx}]: map step missing "
+                f"required key {required!r} (a map is map_over + body "
+                f"[+ index, bind])"
+            )
+    map_over = raw_step["map_over"]
+    if not (isinstance(map_over, str) and map_over.startswith("@")):
+        raise ChainSpecError(
+            f"chain {chain_name!r} step[{step_idx}]: map_over must be a "
+            f"reference string; got {map_over!r}"
+        )
+    _validate_reference(map_over, step_idx, idx_names, bind_names)
+    index = raw_step.get("index", "k")
+    if not (isinstance(index, str)
+            and re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", index)):
+        raise ChainSpecError(
+            f"chain {chain_name!r} step[{step_idx}]: map index must be an "
+            f"identifier; got {index!r}"
+        )
+    bind_raw = raw_step.get("bind", {})
+    if not isinstance(bind_raw, dict):
+        raise ChainSpecError(
+            f"chain {chain_name!r} step[{step_idx}]: map bind must be a "
+            f"dict; got {type(bind_raw).__name__}"
+        )
+    # Bind values resolve in the OUTER scope, at map entry.
+    _walk_args(bind_raw, lambda r: _validate_reference(r, step_idx,
+                                                       idx_names, bind_names))
+    body_raw = raw_step["body"]
+    if not isinstance(body_raw, list) or len(body_raw) == 0:
+        raise ChainSpecError(
+            f"chain {chain_name!r} step[{step_idx}]: map body must be a "
+            f"non-empty step list"
+        )
+    step_on_error = raw_step.get("on_error")
+    if step_on_error is not None and step_on_error not in LEGAL_ERROR_POLICIES:
+        raise ChainSpecError(
+            f"chain {chain_name!r} step[{step_idx}]: illegal on_error "
+            f"{step_on_error!r}; legal: {LEGAL_ERROR_POLICIES}"
+        )
+    # The body scope: this map's index + binds LAYER over the enclosing
+    # scope (inner maps see outer indices/binds); @step[N] restarts at the
+    # body (body-local numbering — the rc420 scoping decision).
+    inner_idx = idx_names | frozenset({index})
+    inner_bind = bind_names | frozenset(str(k) for k in bind_raw)
+    body = tuple(
+        _parse_step(chain_name, body_idx, raw_body, inner_idx, inner_bind)
+        for body_idx, raw_body in enumerate(body_raw)
+    )
+    return MapStepSpec(map_over=map_over, index=index, bind=dict(bind_raw),
+                       body=body, on_error=step_on_error)
+
+
+def _parse_fold_step(
+    chain_name: str, step_idx: int, raw_step: Dict[str, Any],
+    idx_names: frozenset, bind_names: frozenset,
+) -> FoldStepSpec:
+    """Parse + validate one v2 FOLD step (see :class:`FoldStepSpec`)."""
+    for required in ("fold_class", "fold_op", "fold_init", "over"):
+        if required not in raw_step:
+            raise ChainSpecError(
+                f"chain {chain_name!r} step[{step_idx}]: fold step missing "
+                f"required key {required!r} (a fold is fold_class + fold_op "
+                f"+ fold_init + over [+ fold_args])"
+            )
+    fold_class = str(raw_step["fold_class"])
+    if fold_class not in DEFAULT_CLASS_REGISTRY:
+        raise ChainSpecError(
+            f"chain {chain_name!r} step[{step_idx}]: unknown fold_class "
+            f"{fold_class!r}; legal: {sorted(DEFAULT_CLASS_REGISTRY)}"
+        )
+    fold_op = str(raw_step["fold_op"])
+    over = raw_step["over"]
+    if not (isinstance(over, str) and over.startswith("@")):
+        raise ChainSpecError(
+            f"chain {chain_name!r} step[{step_idx}]: over must be a "
+            f"reference string; got {over!r}"
+        )
+    _validate_reference(over, step_idx, idx_names, bind_names)
+    fold_init = raw_step["fold_init"]
+    _walk_args(fold_init, lambda r: _validate_reference(r, step_idx,
+                                                        idx_names,
+                                                        bind_names))
+    fold_args = raw_step.get("fold_args")
+    if fold_args is not None:
+        if (not isinstance(fold_args, (list, tuple)) or len(fold_args) != 2
+                or not all(isinstance(a, str) for a in fold_args)):
+            raise ChainSpecError(
+                f"chain {chain_name!r} step[{step_idx}]: fold_args must be "
+                f"a pair of kwarg names (acc_name, elem_name); got "
+                f"{fold_args!r}"
+            )
+        fold_args = (fold_args[0], fold_args[1])
+    step_on_error = raw_step.get("on_error")
+    if step_on_error is not None and step_on_error not in LEGAL_ERROR_POLICIES:
+        raise ChainSpecError(
+            f"chain {chain_name!r} step[{step_idx}]: illegal on_error "
+            f"{step_on_error!r}; legal: {LEGAL_ERROR_POLICIES}"
+        )
+    return FoldStepSpec(fold_class=fold_class, fold_op=fold_op,
+                        fold_init=fold_init, over=over,
+                        fold_args=fold_args, on_error=step_on_error)
 
 
 def _resolve_dotted_path(obj: Any, path: str) -> Any:
@@ -445,12 +800,42 @@ def _resolve_dotted_path(obj: Any, path: str) -> Any:
     return current
 
 
+def _resolve_dotted_callable(dotted: str, *, what: str) -> Callable[..., Any]:
+    """Resolve a fully-qualified dotted name to a callable.
+
+    The BLK-REGMAP lever (rc420): ``class`` is CLASSIFICATION; a dotted
+    ``op`` (or an ``@op.`` reference) is ADDRESSING. Mirrors the shipped
+    srmech.dsl dotted-op resolver (``_catalog.py`` §17 U2): split at the
+    last dot, import the module, getattr the attribute."""
+    mod_path, _, attr = dotted.rpartition(".")
+    if not mod_path:
+        raise ChainSpecError(
+            f"{what}: dotted name {dotted!r} needs at least "
+            f"<module>.<callable>"
+        )
+    try:
+        module = importlib.import_module(mod_path)
+    except ImportError as exc:
+        raise ChainSpecError(
+            f"{what}: module {mod_path!r} not importable: {exc}"
+        ) from exc
+    fn = getattr(module, attr, None)
+    if fn is None or not callable(fn):
+        raise ChainSpecError(
+            f"{what}: {dotted!r} does not resolve to a callable "
+            f"(checked {mod_path}.{attr})"
+        )
+    return fn
+
+
 def _resolve_reference(
     ref: str,
     *,
     row: Optional[Dict[str, Any]],
     inputs: Dict[str, Any],
     step_outputs: List[Any],
+    idx_env: Optional[Dict[str, int]] = None,
+    bind_env: Optional[Dict[str, Any]] = None,
 ) -> Any:
     """Resolve one reference string at runtime."""
     m = _REFERENCE_PATTERN.match(ref)
@@ -458,6 +843,21 @@ def _resolve_reference(
         raise ValueError(f"reference {ref!r} does not match DSL")
     namespace = m.group(1)
     path = m.group(2)
+    if namespace == "idx":
+        name = path[1:]
+        if idx_env is None or name not in idx_env:
+            raise RuntimeError(
+                f"reference {ref!r}: no enclosing map binds index {name!r}"
+            )
+        return idx_env[name]
+    if namespace == "bind":
+        if bind_env is None:
+            raise RuntimeError(
+                f"reference {ref!r}: no enclosing map binds anything"
+            )
+        return _resolve_dotted_path(bind_env, path)
+    if namespace == "op":
+        return _resolve_dotted_callable(path[1:], what=f"reference {ref!r}")
     if namespace == "row":
         if row is None:
             raise RuntimeError(
@@ -529,30 +929,36 @@ def _resolve_args(
     row: Optional[Dict[str, Any]],
     inputs: Dict[str, Any],
     step_outputs: List[Any],
+    idx_env: Optional[Dict[str, int]] = None,
+    bind_env: Optional[Dict[str, Any]] = None,
 ) -> Any:
     """Recursively resolve all references in an args structure."""
     if isinstance(args, str):
         if args.startswith("@"):
             return _resolve_reference(
                 args, row=row, inputs=inputs, step_outputs=step_outputs,
+                idx_env=idx_env, bind_env=bind_env,
             )
         return args
     if isinstance(args, dict):
         return {
             k: _resolve_args(v, row=row, inputs=inputs,
-                             step_outputs=step_outputs)
+                             step_outputs=step_outputs,
+                             idx_env=idx_env, bind_env=bind_env)
             for k, v in args.items()
         }
     if isinstance(args, list):
         return [
             _resolve_args(v, row=row, inputs=inputs,
-                          step_outputs=step_outputs)
+                          step_outputs=step_outputs,
+                          idx_env=idx_env, bind_env=bind_env)
             for v in args
         ]
     if isinstance(args, tuple):
         return tuple(
             _resolve_args(v, row=row, inputs=inputs,
-                          step_outputs=step_outputs)
+                          step_outputs=step_outputs,
+                          idx_env=idx_env, bind_env=bind_env)
             for v in args
         )
     return args
@@ -637,10 +1043,16 @@ def _run_ints_fit_i64(
 
 def _chain_c_eligible(spec: ChainSpec) -> bool:
     """True iff every step is a "raise"-policy, Class-N, in-table op — the
-    precondition for the C run loop (else the complete pure path runs)."""
+    precondition for the C run loop (else the complete pure path runs).
+
+    rc420: a v2 step (map / fold — not a plain :class:`StepSpec`) is never
+    C-run-eligible; the type check comes FIRST so the guard cannot
+    AttributeError on a spec kind it predates."""
     if spec.on_error != "raise":
         return False
     for step in spec.steps:
+        if not isinstance(step, StepSpec):
+            return False
         if step.on_error not in (None, "raise"):
             return False
         if step.class_id != "N" or step.op not in _RUN_C_OPS:
@@ -764,6 +1176,65 @@ def _run_chain_native(
     return _reconstruct_value(desc)
 
 
+def _resolve_step_op(
+    chain_name: str, idx: int, class_id: str, op: str,
+    reg: Dict[str, str],
+) -> Callable[..., Any]:
+    """Resolve one step's op name to a callable.
+
+    A DOTTED op resolves by import (the rc420 BLK-REGMAP lever — ``class``
+    is classification, the dotted name is addressing); a bare op resolves
+    through the letter->module registry exactly as v1 did."""
+    if "." in op:
+        return _resolve_dotted_callable(
+            op, what=f"chain {chain_name!r} step[{idx}]")
+    module_name = reg.get(class_id)
+    if module_name is None:
+        raise ChainSpecError(
+            f"chain {chain_name!r} step[{idx}]: class "
+            f"{class_id!r} has no registered module"
+        )
+    try:
+        module = importlib.import_module(module_name)
+    except ImportError as exc:
+        raise ChainSpecError(
+            f"chain {chain_name!r} step[{idx}]: module "
+            f"{module_name!r} not importable: {exc}"
+        ) from exc
+    op_callable = getattr(module, op, None)
+    if op_callable is None or not callable(op_callable):
+        raise ChainSpecError(
+            f"chain {chain_name!r} step[{idx}]: op {op!r} "
+            f"not found on {module_name!r}"
+        )
+    return op_callable
+
+
+def _resolve_steps(
+    chain_name: str, steps, reg: Dict[str, str],
+) -> List[Tuple[Any, Any]]:
+    """Resolve a step tuple to an execution tree.
+
+    Each entry is ``(spec, payload)``: a plain step's payload is its
+    callable; a fold step's payload is its fold-op callable; a map step's
+    payload is its recursively-resolved BODY tree. Resolution happens once,
+    up front — activation-time failure, never mid-run (Phase 1 §7)."""
+    resolved: List[Tuple[Any, Any]] = []
+    for idx, step in enumerate(steps):
+        if isinstance(step, MapStepSpec):
+            resolved.append(
+                (step, _resolve_steps(chain_name, step.body, reg)))
+        elif isinstance(step, FoldStepSpec):
+            resolved.append(
+                (step, _resolve_step_op(chain_name, idx, step.fold_class,
+                                        step.fold_op, reg)))
+        else:
+            resolved.append(
+                (step, _resolve_step_op(chain_name, idx, step.class_id,
+                                        step.op, reg)))
+    return resolved
+
+
 def resolve_chain(
     spec: ChainSpec,
     registry: Optional[Dict[str, str]] = None,
@@ -771,35 +1242,15 @@ def resolve_chain(
     """Resolve a chain to a callable.
 
     Validates that each step's ``op`` exists on the registered class
-    module; raises :class:`ChainSpecError` on missing op.
+    module (or, dotted, resolves by import); raises
+    :class:`ChainSpecError` on missing op. Map bodies resolve recursively.
 
     Returns a callable with signature
     ``f(row: Optional[dict] = None, **inputs) -> Any`` that executes
     the chain.
     """
     reg = registry or DEFAULT_CLASS_REGISTRY
-    resolved_ops: List[Tuple[StepSpec, Callable[..., Any]]] = []
-    for idx, step in enumerate(spec.steps):
-        module_name = reg.get(step.class_id)
-        if module_name is None:
-            raise ChainSpecError(
-                f"chain {spec.name!r} step[{idx}]: class "
-                f"{step.class_id!r} has no registered module"
-            )
-        try:
-            module = importlib.import_module(module_name)
-        except ImportError as exc:
-            raise ChainSpecError(
-                f"chain {spec.name!r} step[{idx}]: module "
-                f"{module_name!r} not importable: {exc}"
-            ) from exc
-        op_callable = getattr(module, step.op, None)
-        if op_callable is None or not callable(op_callable):
-            raise ChainSpecError(
-                f"chain {spec.name!r} step[{idx}]: op {step.op!r} "
-                f"not found on {module_name!r}"
-            )
-        resolved_ops.append((step, op_callable))
+    resolved_ops = _resolve_steps(spec.name, spec.steps, reg)
 
     def _run(row: Optional[Dict[str, Any]] = None,
              **inputs: Any) -> Any:
@@ -825,9 +1276,67 @@ def _execute_resolved(
     native = _run_chain_native(spec, row, inputs)
     if native is not _NATIVE_MISS:
         return native
+    return _run_resolved_steps(spec, resolved_ops, row, inputs,
+                               idx_env={}, bind_env={})
+
+
+def _run_map_step(
+    spec: ChainSpec,
+    step: MapStepSpec,
+    resolved_body: List[Tuple[Any, Any]],
+    row: Optional[Dict[str, Any]],
+    inputs: Dict[str, Any],
+    step_outputs: List[Any],
+    idx_env: Dict[str, int],
+    bind_env: Dict[str, Any],
+) -> List[Any]:
+    """Run one indexed-map step: exactly ``n`` body runs, ``n`` pinned at
+    entry (the totality pin — see :class:`MapStepSpec`)."""
+    seq = _resolve_reference(step.map_over, row=row, inputs=inputs,
+                             step_outputs=step_outputs,
+                             idx_env=idx_env, bind_env=bind_env)
+    try:
+        n = len(seq)                  # n FIXED AT ENTRY — the totality pin
+    except TypeError:
+        raise ChainSpecError(
+            f"chain {spec.name!r}: map_over {step.map_over!r} must resolve "
+            f"to a SIZED sequence (len()-able); an unsized iterable would "
+            f"make n data-dependent at run time"
+        )
+    binds = {
+        name: _resolve_args(ref, row=row, inputs=inputs,
+                            step_outputs=step_outputs,
+                            idx_env=idx_env, bind_env=bind_env)
+        for name, ref in step.bind.items()
+    }
+    inner_bind = {**bind_env, **binds}
+    out: List[Any] = []
+    for k in range(n):                # exactly n body runs, no predicate
+        inner_idx = dict(idx_env)
+        inner_idx[step.index] = k
+        out.append(_run_resolved_steps(spec, resolved_body, row, inputs,
+                                       idx_env=inner_idx,
+                                       bind_env=inner_bind))
+    return out
+
+
+def _run_resolved_steps(
+    spec: ChainSpec,
+    resolved_ops: List[Tuple[Any, Any]],
+    row: Optional[Dict[str, Any]],
+    inputs: Dict[str, Any],
+    *,
+    idx_env: Dict[str, int],
+    bind_env: Dict[str, Any],
+) -> Any:
+    """The (recursive) v2 execution spine: run one resolved step list.
+
+    A map body runs through this same function with its OWN (body-local)
+    ``step_outputs`` and a layered idx/bind environment — a body is a chain
+    in miniature (the rc420 scoping decision)."""
     step_outputs: List[Any] = []
     final_output: Any = None
-    for idx, (step, op_callable) in enumerate(resolved_ops):
+    for idx, (step, payload) in enumerate(resolved_ops):
         policy = step.on_error or spec.on_error
         if policy == "skip":
             raise NotImplementedError(
@@ -835,14 +1344,37 @@ def _execute_resolved(
                 "contexts; not supported by run_chain()"
             )
         try:
-            args = _resolve_args(step.args, row=row, inputs=inputs,
-                                 step_outputs=step_outputs)
-            result = op_callable(**args)
+            if isinstance(step, MapStepSpec):
+                result = _run_map_step(spec, step, payload, row, inputs,
+                                       step_outputs, idx_env, bind_env)
+            elif isinstance(step, FoldStepSpec):
+                seq = _resolve_reference(step.over, row=row, inputs=inputs,
+                                         step_outputs=step_outputs,
+                                         idx_env=idx_env, bind_env=bind_env)
+                acc = _resolve_args(step.fold_init, row=row, inputs=inputs,
+                                    step_outputs=step_outputs,
+                                    idx_env=idx_env, bind_env=bind_env)
+                if step.fold_args is not None:
+                    acc_name, elem_name = step.fold_args
+                    for elem in seq:      # the make_fold_stage contract
+                        acc = payload(**{acc_name: acc, elem_name: elem})
+                else:
+                    for elem in seq:
+                        acc = payload(acc, elem)
+                result = acc
+            else:
+                args = _resolve_args(step.args, row=row, inputs=inputs,
+                                     step_outputs=step_outputs,
+                                     idx_env=idx_env, bind_env=bind_env)
+                result = payload(**args)
         except Exception as exc:  # pragma: no cover (policy branches)
             if policy == "warn_return_none":
+                what = (f"{step.class_id}.{step.op}"
+                        if isinstance(step, StepSpec) else
+                        type(step).__name__)
                 warnings.warn(
                     f"chain {spec.name!r} step[{idx}] "
-                    f"({step.class_id}.{step.op}) failed: {exc!r}; "
+                    f"({what}) failed: {exc!r}; "
                     f"returning None per on_error policy",
                     RuntimeWarning, stacklevel=2,
                 )
@@ -895,10 +1427,11 @@ def parse_catalog_chains(
             "catalog declares operator_chain entries but is missing "
             "[catalog].chain_schema_version"
         )
-    if schema_version != ENGINE_SCHEMA_VERSION:
+    if schema_version not in SUPPORTED_SCHEMA_VERSIONS:
         raise ChainSpecError(
             f"catalog chain_schema_version = {schema_version!r}; this "
-            f"engine implements v{ENGINE_SCHEMA_VERSION} only"
+            f"engine implements {SUPPORTED_SCHEMA_VERSIONS} (v2 is a "
+            f"strict superset of v1)"
         )
     return [parse_chain_spec(c) for c in chains_raw]
 
@@ -952,6 +1485,7 @@ __all__ = [
     "ChainSpecError",
     "DEFAULT_CLASS_REGISTRY",
     "ENGINE_SCHEMA_VERSION",
+    "SUPPORTED_SCHEMA_VERSIONS",
     "LEGAL_ERROR_POLICIES",
     "StepSpec",
     "parse_catalog_chains",

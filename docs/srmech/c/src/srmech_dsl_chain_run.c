@@ -621,20 +621,26 @@ static srmech_status_t dsl_binary_dispatch(dcr_bump_t *b, const char *op,
 
 /* ------------------------------------------------------------------
  * build_chain_from_dict-in-C: parse the stage array + thread the value. A plain
- * `op` stage runs the leaf-dispatch atom; a loop/fold/reduce discriminator runs
- * the combinator; a `parallel_body` discriminator, a missing `op`, a non-C leaf,
- * or a non-C binary body → SRMECH_ERR_NOT_IMPL (defer to pure).
+ * `op` stage runs the leaf-dispatch atom; a loop/fold/reduce/map_indexed
+ * discriminator runs the combinator; a `parallel_body` discriminator, a missing
+ * `op`, a non-C leaf, or a non-C binary/map body → SRMECH_ERR_NOT_IMPL (defer
+ * to pure).
  * ------------------------------------------------------------------ */
 
-/* 1 iff `stage` carries a combinator discriminator (loop/fold/reduce/parallel). */
+/* 1 iff `stage` carries a combinator discriminator
+ * (loop/fold/reduce/parallel/map_indexed). rc420 (`#T1114`): "map_op" is the
+ * SIXTH form's key — a widening here must move in lockstep with the Python
+ * dispatcher (_toml_chain.py) and the closure ratchet
+ * (tests/test_combinator_kernel_closure.py), which now READS this array. */
 static int dsl_stage_is_combinator(const srmech_json_value_t *stage)
 {
-    static const char *disc[6] = { "loop_n", "sub_chain", "fold_init",
-                                   "fold_op", "reduce_op", "parallel_body" };
+    static const char *disc[7] = { "loop_n", "sub_chain", "fold_init",
+                                   "fold_op", "reduce_op", "parallel_body",
+                                   "map_op" };
     uint32_t i;
     assert(stage != NULL);
     assert(stage->type == SRMECH_JSON_OBJECT);
-    for (i = 0u; i < 6u; i++) {
+    for (i = 0u; i < 7u; i++) {
         if (srmech_json_object_get(stage, disc[i]) != NULL) { return 1; }
     }
     return 0;
@@ -725,6 +731,55 @@ static srmech_status_t dsl_run_reduce(const srmech_json_value_t *stage, dv_value
     return SRMECH_OK;
 }
 
+/* 1 iff a map body name is `seq_get` — bare, or dotted `....seq_get` (the
+ * Python IR carries the dotted spelling `srmech.cascade.leaves.seq_get`).
+ * The C map-body table is exactly this one entry today; an unknown body
+ * defers the whole chain to pure (inform-don't-limit). */
+static int dsl_map_body_is_seq_get(const char *op, uint32_t opl)
+{
+    assert(op != NULL);
+    assert(opl > 0u);
+    if (opl == 7u && memcmp(op, "seq_get", 7u) == 0) { return 1; }
+    if (opl > 8u && memcmp(op + (opl - 8u), ".seq_get", 8u) == 0) { return 1; }
+    return 0;
+}
+
+/* map_indexed {"map_op":<op>} (rc420, `#T1114` — the SIXTH combinator) —
+ * out[k] = body(input, k) for k in 0..n-1 with n = len(input) FIXED AT
+ * ENTRY: the map is data-SIZED, never data-DEPENDENT (no predicate decides
+ * continuation), the same totality class as fold's element walk. The C body
+ * table carries `seq_get` (data-first body(input, k) == input[k] — the
+ * identity map); any other body / a non-LIST input / an over-cap length →
+ * NOT_IMPL (defer to pure). Items are SHARED with the input carrier — dv
+ * values are immutable through this runner, so aliasing is sound. */
+static srmech_status_t dsl_run_map_indexed(const srmech_json_value_t *stage,
+                                           dv_value_t *cur, dcr_bump_t *b,
+                                           dv_value_t **out)
+{
+    const srmech_json_value_t *mo = srmech_json_object_get(stage, "map_op");
+    dv_value_t *res; dv_value_t **items; uint32_t k, n;
+    assert(stage != NULL && b != NULL && out != NULL);
+    assert(cur != NULL);
+    if (mo == NULL || mo->type != SRMECH_JSON_STRING) { return SRMECH_ERR_NOT_IMPL; }
+    if (!dsl_map_body_is_seq_get(mo->u.str.ptr, mo->u.str.len)) {
+        return SRMECH_ERR_NOT_IMPL;              /* non-C map body -> pure */
+    }
+    if (cur->kind != DV_LIST) { return SRMECH_ERR_NOT_IMPL; }  /* map over a seq */
+    n = cur->n;                                  /* n FIXED AT ENTRY */
+    if (n > (uint32_t)DCR_MAX_SEQ) { return SRMECH_ERR_NOT_IMPL; }
+    res = dv_new(b, DV_LIST);
+    if (res == NULL) { return SRMECH_ERR_OVERFLOW; }
+    items = (dv_value_t **)dcr_carve(b, (size_t)n * sizeof(void *) + 1u);
+    if (items == NULL) { return SRMECH_ERR_OVERFLOW; }
+    for (k = 0u; k < n; k++) {
+        assert(k < (uint32_t)DCR_MAX_SEQ);       /* JPL Rule 2 bound */
+        items[k] = cur->items[k];                /* seq_get(input, k) */
+    }
+    res->items = items; res->n = n; res->is_tuple = 0;
+    *out = res;
+    return SRMECH_OK;
+}
+
 /* Run ONE combinator stage. A `parallel_body` fan-out DEFERS to pure (host
  * threads — inform-don't-limit, not a shell violation). */
 static srmech_status_t dsl_run_combinator(const srmech_json_value_t *stage,
@@ -735,6 +790,9 @@ static srmech_status_t dsl_run_combinator(const srmech_json_value_t *stage,
     assert(cur != NULL);
     if (srmech_json_object_get(stage, "parallel_body") != NULL) {
         return SRMECH_ERR_NOT_IMPL;                     /* host-thread fan-out */
+    }
+    if (srmech_json_object_get(stage, "map_op") != NULL) {
+        return dsl_run_map_indexed(stage, cur, b, out);
     }
     if (srmech_json_object_get(stage, "loop_n") != NULL ||
         srmech_json_object_get(stage, "sub_chain") != NULL) {
