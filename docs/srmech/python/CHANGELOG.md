@@ -13,6 +13,87 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc419]
+
+**The ratchet that could not see, and the door it was not watching (`#T1110`).** The registry-completeness ratchet shipped at rc416 to catch exactly one shape: a public op that is reachable by import and invisible to `describe()` / `search` / MCP. It sat at `unaccounted == 0`, exactly on its ceiling, reporting a clean surface. It was reporting on **746 of 813** public callables, and the 67 it could not see included the entire `srmech.signal_processing` closed-form op surface.
+
+`describe()["tools"]["total"]` moves **560 → 569**. `SRMECH_ABI_VERSION` stays **13** and `GENOME_FORMAT_VERSION` stays **19** — no C source changed; the six generated C/Python tables are regenerated, nothing more.
+
+### The predicate was `__all__`-gated, and `__all__` is optional
+
+`public_surface()` read `getattr(m, "__all__", ()) or ()` with **no fallback**, so a module that declines to declare `__all__` contributed **zero** surface points. "Completeness" therefore meant *completeness relative to declared exports* — and a module could leave the ratchet by writing nothing.
+
+The proof that this was accidental rather than scoped is in the same directory. `tests/conftest.py`'s `rosetta_live_objects()` walks the SAME packages for the SAME purpose and **does** carry the fallback:
+
+```python
+names = getattr(mod, "__all__", None)
+if names is None:
+    names = [n for n in dir(mod) if not n.startswith("_")]
+```
+
+Two ratchets, one directory, disagreeing on scope by one clause — and asymmetrically: the Rosetta ledger already carried all 42 `closed_form_ops` entry points while the completeness ratchet carried none of them. There is no documented exclusion for undeclared modules, and the walk was never narrowed; it visits every module either way.
+
+Measured with the fallback grafted in: **746 → 813** paths, **742 → 804** distinct objects, and **75** newly-visible public callables with neither a `ToolEntry` nor an allowlist row — 45 of them `closed_form_ops.<op>.op` (`dct` / `wavelet` / `viterbi` / `esprit` / `huffman` / `lz77` …), 8 Path-B twins, the rest in `cayley_dickson` / `cli` / `llm` / `rbs_lm.substrate`. **This was never a `signal_processing` story.**
+
+### The ceiling is SPLIT, not re-seeded upward
+
+Absorbing 75 rows into `CEIL_REGISTRY_GAPS` would raise a down-only ratchet, and worse, would merge two populations with different drain schedules into one number so a gain in either could hide a loss in the other. The allowlist is partitioned instead, by the property that caused the blind spot:
+
+| ceiling | before | after | what moved |
+|---|---|---|---|
+| `CEIL_REGISTRY_GAPS` (module DECLARES `__all__`) | 186 | **167** | −10 re-homed, −9 discharged |
+| `CEIL_OPEN_REGISTRATION` | 125 | **116 → 107** | same |
+| `CEIL_UNDECLARED_SURFACE` (module declares NO `__all__`) | — | **75** | new, seeded at the measurement |
+| `CEIL_UNDECLARED_OPEN_REGISTRATION` | — | **59** | new; the number slice 2 drains |
+
+The honest total across both allowlists went **186 → 251**, which is exactly what the two ceilings sum to.
+
+**Ten rows MOVED rather than being discharged, and that must be read as debt relocated, never repaid.** With the fallback in place the defining module of e.g. `srmech.cascade.cd_add` exports the name itself, so the ratchet's own "counted at its defining module instead" clause re-homes the pair to `srmech.cascade.cayley_dickson.cd_add`. The move is forced, not chosen — `test_allowlist_has_no_stale_rows` fails on the old paths. The ten are three `srmech.cascade.cd_*`, `srmech.cli.main`, and six `srmech.rbs_lm.*`.
+
+The partition is **machine-checked** (`test_the_two_allowlists_partition_by_declaredness`): disjointness in both directions plus, for every row, that its bucket matches whether its module declares `__all__`. Two ceilings invite parking a row wherever there is slack; the bucket is decided by the module, not by the accounting. A companion non-vacuity test asserts the repaired half is observed **in its own right** — the whole-population floor would stay green if the one new clause were reverted, since 746 of 813 clear it without the fallback ever running.
+
+One new reason code, `DUAL_PATH_TWIN`, covers the 8 `path_b_ops` entry points, bound both ways to that package. `OPEN_REGISTRATION` would have called a made decision "nobody decided"; `PROTOCOL_UNIFORM` is machine-locked to `srmech.amsc.adapters`, so wearing it would have meant widening a guard to fit a label.
+
+### The door the README points at was itself invisible
+
+`README.md` imports and demonstrates `dispatch` / `begin_cascade` / `lookup` / `has_path` **by name** as this package's entry point. Every one of them was unregistered. Measured at rc418, with positive controls so the null is REFUTED rather than unsupported: **8/8** control queries returned relevant registered ops; **0/41** signal-processing queries returned the op; **12** returned literally nothing; and the MCP tool list carried **559** definitions of which **zero** mentioned `signal_processing`.
+
+Nine rows land, keyed on the full dotted path — which also settles the one name collision, `signal_processing…path_registry.lookup` versus the registered `introspect.naming.lookup` (coverage is by `id(obj)`, never by leaf name, precisely so those two are never confused):
+
+`cascade_dispatcher.{dispatch, begin_cascade, end_cascade, current_cascade, resolve_path, is_dispatch_table_locked}` · `path_registry.{has_path, lookup, registered_ops}`
+
+Each carries an authored, **executing** worked example (the strict-zero gate has no ceiling, and the rc354 gate re-runs every snippet; all nine run clean and every `# -> ExcType` marker fires). The six `REGISTRY_MUTATOR` names stay unregistered, reason re-verified rather than inherited: all six still return `None` and their whole effect is on process-global state.
+
+Three rows are `mcp_callable=False`, on the rc414 `introspect.publish` precedent — the obstruction is shape, not taste. `begin_cascade` is a `with`-block scope and a scope cannot span two JSON-RPC calls; `current_cascade` and `lookup` return live in-process objects, and `lookup`'s `OperationEntry` holds the two implementation **callables**, which have no wire form at all.
+
+**`CEIL_RETURN_TYPES_WITHOUT_COERCER` moves 131 → 134, and that is a RAISE — a regression by that file's own rule, recorded rather than laundered.** Those are the same three ops. A coercer was not landed instead because for these it would be reachability theatre: all three are `mcp_callable=False` *because* the return has no wire form, so writing a coercer that re-resolves an `OperationEntry` from its name would drop the row off the list while nothing became reachable — draining a debt ledger by editing the ledger. Each row instead carries a machine-readable `mcp_unavailable_reason`, which is a stronger claim than the counter makes.
+
+### `registered_ops()` returned an iterator over a tuple it had already built
+
+`len(registered_ops())` raised `TypeError`. "How many ops are registered" is the first question anyone asks of a registry read-surface, and it was the one call the surface could not answer. The body built `loaded + pending` in full and then wrapped it in `iter()`, so the laziness bought nothing. It returns the tuple now — still iterable, so every existing `set(...)` / `tuple(...)` / `for` caller is unaffected, and additionally `len()`-able, indexable, and an immutable snapshot.
+
+### Two shipped falsehoods on the PyPI project page, and a gate so they cannot drift again
+
+`README.md` is the published long-description. Line 16 advertised a **543**-entry tool registry against a live 560 — stale by 17, i.e. by seventeen rcs that each registered something and left the sentence alone. Line 142 claimed **ABI 10** against a live 13, and the worked `native_status()` block below it printed `abi_version: 10, expected_abi: 10, native_version: '0.9.0rc389'`. The file **contradicted itself**: line 450 already said `SRMECH_ABI_VERSION` moves *12 → 13*.
+
+`tests/test_readme_currency_rc419.py` ties both to LIVE values — `len(get_tool_schema().by_owner("srmech"))` and `_native.EXPECTED_ABI_VERSION` — so the prose fails at the moment it stops being true rather than seventeen rcs later. Internal consistency is asserted separately, because at rc418 the two ABI sentences disagreed with each other and a reader could have caught that with no access to the source: two independent defects, not one symptom. Historical rc citations are deliberately left alone, the same carve-out `test_adapter_count_prose_rc409` documents — editing a dated claim to today's value fabricates history.
+
+The README also gained the **direct-import convention**, which was simply absent: `dispatch` is a path-*router* and routes the 13 ops that have two paths, so the documented calling convention did not cover 33 of the 41 advertised closed-form ops. `from srmech.signal_processing.closed_form_ops.wavelet import op` is now shown.
+
+### Two defects found while building, both loud, both fixed at the root
+
+**`gen_tool_docs.render` emitted JSON into a Python source file.** It serialised each payload with `json.dumps` and wrote the result into `_tool_docs.py`, which `load_committed` then **executes as Python**. JSON and Python literals agree on strings, numbers, lists and dicts and diverge on exactly three tokens. The first curated `example` to carry a `None` **value** — `end_cascade`'s documented `{'ctx': None}` — emitted `{"ctx": null}` and the next generator pass died with `NameError: name 'null' is not defined`. Latent for as long as the file has existed, and invisible to every test because no test can see a state the data has never held. Now emitted with a key-sorted Python-literal writer.
+
+**`tools/run_worked_examples.py --only-stale` stamps the CURRENT cell's `native` flag onto rows merged from another cell.** The committed ledger is a `native: true` measurement; re-running `--only-stale` in a pure cell merges the prior native rows and relabels the whole file `native: false`, which silently converts the down-only failure ceiling into a `pytest.skip` and mislabels 475 measurements. Not a code change this rc — the ledger here was regenerated in a **native** cell (`libsrmech` built locally) so the merge is cell-consistent, and `meta.native` is unchanged. Filed rather than patched because the honest fix is for the runner to refuse a cross-cell merge, which is its own change.
+
+### A routing inconsistency, documented and pinned rather than silently changed
+
+`resolve_path` reads the op's primary A-N class and does **not** check that the side it names is registered. `form_function_rotate` declares primary class `A`, so it resolves to Path A — and only its Path B exists, so the default `dispatch` raises `DispatchError`. It fails loudly with an accurate message, so this is not a silent-wrong-answer, and changing the routing rule is a design decision rather than a discovery fix. It is now stated in `resolve_path`'s worked example **and pinned there with a `# -> DispatchError` marker**, so the rc354 execute gate verifies the behaviour every run: the finding is a live guard, not a note.
+
+### Deliberately held
+
+Slice 2 (38 `closed_form_ops` rows) and slice 3 (`form_function_rotation` / `rbs_hdc_instrument` / `profiling`) are **not** in this rc. Each of the 38 needs an authored, executing, domain-grounded worked example under a strict-zero gate, and a concurrent arc may add a required A-N cascade-composition field to `ToolEntry`; authoring 38 examples against a shape that is still moving would author them twice. The debt is counted, not hidden — that is what `CEIL_UNDECLARED_OPEN_REGISTRATION = 59` is for. `RBSHDCInstrument` is a genuine **carrier-registry** gap (handle-shaped exactly like `CDRegister` / `SedenionRegister`, which are carrier rows) and is filed separately: it is a different registry with a different ripple, and bundling it would make this two arcs.
+
 ## [0.9.0rc418]
 
 **The attestation lifecycle (`#T1108`).** srmech had no concept of *the attestation of record*. The write half **synthesised where it had to preserve**; the read half **read raw where it had to synthesise**. Both defects were invisible to every differential test in the tree, for the same reason in each case: **the two projections agreed, byte for byte, on the wrong answer**. A co-equal dual construction certifies mutual realizability, not correctness — so this rc's gates never compare C to Python and stop there; every clause names an external truth and asserts the op returns *that*.
