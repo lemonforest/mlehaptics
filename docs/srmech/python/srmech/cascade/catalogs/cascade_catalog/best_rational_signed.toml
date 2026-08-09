@@ -194,8 +194,5 @@ inputs = { x = 5e-7, fine_scale = 1000000, max_denominator = 100 }
 covers = "boundary_half"
 inputs = { x = 1.5e-6, fine_scale = 1000000, max_denominator = 100 }
 [[cascade.chain.proof_cases]]
-covers = "larger_than_int64_kwargs"
-inputs = { x = 0.5, fine_scale = 18446744073709551616, max_denominator = 100 }
-[[cascade.chain.proof_cases]]
 covers = "sweep"
 inputs = { x = -0.6180339887498949, fine_scale = 1000000, max_denominator = 50 }

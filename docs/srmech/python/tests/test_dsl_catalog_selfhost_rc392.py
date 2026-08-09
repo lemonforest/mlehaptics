@@ -106,6 +106,27 @@ def test_loaders_use_srmech_internal_toml_front_door() -> None:
 
 # ── registry identity through the repointed loaders ──────────────────────────
 
+def _deep_equal(a, b) -> bool:
+    """Byte-identical-parse equality (rc420, `#T1114`): the cascade
+    descriptors now carry TOML 1.0 special floats (the documented NaN /
+    inf proof-case boundary inputs), and dict ``==`` can NEVER equate a
+    NaN-bearing parse with its oracle even when both parsers agree
+    bit-for-bit. Floats compare by their 8 BYTES (NaN == same-bits NaN;
+    ``-0.0`` distinct from ``0.0`` — stricter than ``==``). Twin of the
+    helpers in test_toml_selfhost_parity_rc391.py /
+    test_toml_dedup_parity_rc400.py."""
+    if isinstance(a, float) or isinstance(b, float):
+        import struct
+        return (isinstance(a, float) and isinstance(b, float)
+                and struct.pack("<d", a) == struct.pack("<d", b))
+    if isinstance(a, dict) and isinstance(b, dict):
+        return set(a) == set(b) and all(_deep_equal(a[k], b[k]) for k in a)
+    if isinstance(a, list) and isinstance(b, list):
+        return len(a) == len(b) and all(
+            _deep_equal(x, y) for x, y in zip(a, b))
+    return type(a) is type(b) and a == b
+
+
 def test_cascade_catalog_self_hosts_to_the_same_registry() -> None:
     """``load_catalog()`` (now via ``srmech._toml``) == a direct ``tomllib`` parse
     of the built-in ``[cascade]`` descriptors, descriptor-for-descriptor."""
@@ -127,7 +148,7 @@ def test_cascade_catalog_self_hosts_to_the_same_registry() -> None:
         f"loader-only={sorted(set(got_shipped) - set(expected))}, "
         f"tomllib-only={sorted(set(expected) - set(got_shipped))}")
     for name in expected:
-        assert _strip(got_shipped[name]) == expected[name], (
+        assert _deep_equal(_strip(got_shipped[name]), expected[name]), (
             f"cascade descriptor {name!r} parsed DIFFERENTLY through the repointed "
             f"loader than through a direct tomllib parse")
 
@@ -176,7 +197,7 @@ def test_c_path_self_hosts_the_cascade_catalog() -> None:
             declined.append(p.name)
         else:
             self_hosted.append(p.name)
-            assert got_c == _stdlib_toml.loads(text), (
+            assert _deep_equal(got_c, _stdlib_toml.loads(text)), (
                 f"C-vs-tomllib dict mismatch for cascade descriptor {p.name}")
     assert declined == [], (
         f"cascade descriptor(s) DECLINED by the C parser — since rc397 the whole "

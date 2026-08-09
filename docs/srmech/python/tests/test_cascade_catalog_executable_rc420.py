@@ -85,6 +85,14 @@ WRAPPER_LAYER_BOUNDARIES = {
                           "before any cascade step runs",
         "bool_kwargs": "a native-vs-pure DISPATCH note (bool rejected by "
                        "the C type gate), not a value contract",
+        "larger_than_int64_kwargs": "the boundary VALUE is outside the "
+                                    "TOML integer domain (TOML 1.0: "
+                                    "64-bit signed, lossless parse "
+                                    "required — a shipped descriptor "
+                                    "cannot carry it; see "
+                                    "test_no_corpus_int_exceeds_int64); "
+                                    "the bignum pure-path behavior is "
+                                    "covered by the op's own tests",
     },
     "net_chirality": {
         "out_of_int8": "native-dispatch fallback note (which projection "
@@ -144,6 +152,14 @@ WRAPPER_LAYER_BOUNDARIES = {
     "cyclic_mod_inv": {
         "no_inverse": "guard RAISES (gcd(a, n) != 1)",
         "degenerate_modulus": "guard RAISES (n >= 2 required)",
+        "out_of_int64": "the boundary VALUE is outside the TOML integer "
+                        "domain (TOML 1.0: 64-bit signed, and a lossless "
+                        "parse is REQUIRED — srmech_toml correctly "
+                        "declines beyond it, and the corpus rule "
+                        "test_no_corpus_int_exceeds_int64 holds shipped "
+                        "descriptors inside the spec envelope); the "
+                        "bignum pure-path behavior is covered by the "
+                        "primitive's own tests",
     },
     "cyclic_mod_mul_wide": {
         "zero_modulus": "guard RAISES at the primitive",
