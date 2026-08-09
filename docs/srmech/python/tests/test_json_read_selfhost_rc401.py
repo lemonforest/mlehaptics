@@ -242,7 +242,7 @@ def test_battery_malformed_parity(label, text):
 
     The native path declines rather than raising, so every exception here comes
     from the stdlib floor — which is exactly why ``except json.JSONDecodeError``
-    still works at all 27 repointed call sites.
+    still works at all 28 repointed call sites.
     """
     with pytest.raises(json.JSONDecodeError):
         _json.loads(text)
@@ -490,6 +490,10 @@ REPOINTED_MODULES = [
     "srmech.amsc.catalog",
     "srmech.amsc.format",
     "srmech.amsc.adapters.literature_curated",
+    # rc418 (`#T1108`): the envelope-shaped curated peer. It reads committed
+    # MPR v1 lines, so it binds the front door like every other repointed
+    # module and carries NO stdlib json read. 27 -> 28 sites.
+    "srmech.amsc.adapters.mpr_committed",
     "srmech.amsc.adapters.substrate_parameterization",
     "srmech.cascade.compose",
     "srmech.dsl._chain",
@@ -500,7 +504,7 @@ REPOINTED_MODULES = [
     "srmech.introspect._event",
 ]
 
-N_REPOINTED_SITES = 27
+N_REPOINTED_SITES = 28
 N_ALLOWLISTED_SITES = 17
 
 
@@ -584,7 +588,7 @@ def test_repointed_modules_bind_the_front_door():
 
 
 def test_classification_counts_are_pinned():
-    """The 27 / 17 split is a measurement, so pin it — prose cannot go red."""
+    """The 28 / 17 split is a measurement, so pin it — prose cannot go red."""
     sites = _json_read_sites(_pkg_root())
     n_self = sum(1 for hits in sites.values() for _, k in hits if k == "selfhost")
     n_std = sum(len([1 for _, k in hits if k == "stdlib"])

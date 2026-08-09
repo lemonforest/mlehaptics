@@ -235,6 +235,8 @@ def unaccounted(allowlist: Dict[str, str]) -> Tuple[str, ...]:
 #
 # By code:  OPEN_REGISTRATION 125 · REGISTRY_MUTATOR 24 · PROTOCOL_UNIFORM 19
 #           · CLI_SUBCOMMAND 12 · ADR0009_EXEMPT 4
+# rc418 (`#T1108`): PROTOCOL_UNIFORM 19 -> 21. A new adapter always adds
+# exactly its fetch/parse pair; mpr_committed is the eighth adapter.
 _KNOWN_REGISTRY_GAPS: Dict[str, str] = {
     # ── srmech.amsc.adapters ──
     'srmech.amsc.adapters.attest': PROTOCOL_UNIFORM,
@@ -255,6 +257,13 @@ _KNOWN_REGISTRY_GAPS: Dict[str, str] = {
     # ── srmech.amsc.adapters.literature_curated ──
     'srmech.amsc.adapters.literature_curated.fetch': PROTOCOL_UNIFORM,
     'srmech.amsc.adapters.literature_curated.parse': PROTOCOL_UNIFORM,
+    # ── srmech.amsc.adapters.mpr_committed ──
+    # v0.9.0rc418 (`#T1108`): the envelope-shaped peer of
+    # literature_curated. Same PROTOCOL_UNIFORM shape as every other
+    # adapter -- fetch/parse ARE the adapter protocol, dispatched through
+    # get_adapter(), never called by name from a tool.
+    'srmech.amsc.adapters.mpr_committed.fetch': PROTOCOL_UNIFORM,
+    'srmech.amsc.adapters.mpr_committed.parse': PROTOCOL_UNIFORM,
     # ── srmech.amsc.adapters.netcdf_grid ──
     'srmech.amsc.adapters.netcdf_grid.fetch': PROTOCOL_UNIFORM,
     'srmech.amsc.adapters.netcdf_grid.parse': PROTOCOL_UNIFORM,
@@ -497,7 +506,23 @@ _KNOWN_REGISTRY_GAPS: Dict[str, str] = {
 #: the scope predicate: narrowing the scope to make the number fall is the
 #: laundering move, and :func:`test_the_scope_predicate_still_sees_the_surface`
 #: is the floor that refuses it.
-CEIL_REGISTRY_GAPS = 184
+#:
+#: **184 -> 186 at v0.9.0rc418 (`#T1108`), and this is a REGRESSION by this
+#: ratchet's own definition, not a fix.** rc418 adds an eighth AMSC adapter
+#: (``mpr_committed``, the envelope-shaped peer of ``literature_curated``),
+#: and a new adapter mechanically brings its ``fetch`` / ``parse`` pair —
+#: the adapter PROTOCOL, dispatched through ``get_adapter()`` and never
+#: called by name from a tool. Both rows carry ``PROTOCOL_UNIFORM``, the
+#: same reason code the other SEVEN adapters' pairs carry, so the shape is
+#: uniform rather than special-cased.
+#:
+#: Registering these two INSTEAD was considered and rejected: it would make
+#: one adapter of eight visible to ``describe()`` and the other seven not,
+#: and it would move ``describe()["tools"]["total"]`` off 560, rippling
+#: into the 73-line count-test swarm for a reason unrelated to this rc.
+#: The uniform treatment is the honest one; the ceiling rising is the cost,
+#: recorded here rather than laundered.
+CEIL_REGISTRY_GAPS = 186
 
 #: DOWN-ONLY sub-ceiling on the DEBT bucket specifically. The other four codes
 #: are stated design positions; this one is *"nobody decided"*, and it is the

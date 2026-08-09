@@ -657,19 +657,15 @@ static srmech_json_value_t *cat_audit_row(srmech_json_builder_t *b,
  * guessing here is how the blank projection happened in the first place. */
 static srmech_status_t cat_audit_needs_synthesis(const char *descriptor,
                                                  size_t descriptor_len,
-                                                 unsigned char **cursor,
-                                                 unsigned char *end,
+                                                 void *tws, size_t tws_len,
                                                  int *out_synth)
 {
     assert(out_synth != NULL);
-    assert(cursor != NULL && end != NULL);
+    assert(tws != NULL || tws_len == 0u);
     if (descriptor == NULL || descriptor_len == 0u) { return SRMECH_ERR_BAD_INPUT; }
-    size_t need = srmech_toml_parse_arena_bytes(descriptor_len) + 64u;
-    unsigned char *tws = cat_carve(cursor, end, need);
-    if (tws == NULL) { return SRMECH_ERR_OVERFLOW; }
     srmech_toml_value_t *root = NULL;
     srmech_status_t st = srmech_toml_parse(descriptor, descriptor_len,
-                                           tws, need, &root);
+                                           tws, tws_len, &root);
     if (st != SRMECH_OK) { return st; }
     const srmech_toml_value_t *fetch = srmech_toml_table_get(root, "fetch");
     const srmech_toml_value_t *ad =
@@ -756,13 +752,8 @@ srmech_status_t srmech_catalog_attestation_audit(
      * them emits empty strings that VALIDATE -- the silent-wrong-answer this
      * rc exists to close. The compiled projection cannot yet SYNTHESISE that
      * block, so it declines BY TYPE rather than answering wrongly. */
-    {
-        int synth = 0;
-        srmech_status_t ds = cat_audit_needs_synthesis(descriptor, descriptor_len,
-                                                       &cur, end, &synth);
-        if (ds != SRMECH_OK) { return ds; }
-        if (synth) { return SRMECH_ERR_NOT_IMPL; }
-    }
+    size_t dws_len = srmech_toml_parse_arena_bytes(descriptor_len) + 64u;
+    unsigned char *dws = cat_carve(&cur, end, dws_len);
     size_t pa_len = 96u * ndjson_len + 16384u;
     size_t sc_len = 10u * ndjson_len + 8192u;
     unsigned char *pa = cat_carve(&cur, end, pa_len);
@@ -772,8 +763,16 @@ srmech_status_t srmech_catalog_attestation_audit(
     unsigned char *aws = cat_align_ptr(cur);
     if (aws > end) { return SRMECH_ERR_OVERFLOW; }
     size_t wr_len = (size_t)(end - aws);
-    if (pa == NULL || sc == NULL || abd == NULL || aws == NULL) {
+    if (pa == NULL || sc == NULL || abd == NULL || aws == NULL ||
+        dws == NULL) {
         return SRMECH_ERR_OVERFLOW;
+    }
+    {
+        int synth = 0;
+        srmech_status_t ds = cat_audit_needs_synthesis(descriptor, descriptor_len,
+                                                       dws, dws_len, &synth);
+        if (ds != SRMECH_OK) { return ds; }
+        if (synth) { return SRMECH_ERR_NOT_IMPL; }
     }
     srmech_json_builder_t b;
     srmech_status_t st = srmech_json_builder_init(&b, abd,

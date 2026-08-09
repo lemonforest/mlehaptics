@@ -96,7 +96,12 @@ static srmech_status_t genome_join(const char *dir, const char *name,
     size_t dl = strlen(dir);
     size_t nl = strlen(name);
     if (dl + 1u + nl + 1u > out_cap) {
-        return SRMECH_ERR_OVERFLOW;
+        /* rc418 migration (rc404 `#T1069` status split): every caller passes
+         * a FIXED SRMECH_GENOME_PATH_MAX stack array, not a caller-grown
+         * buffer, so this bound is a compiled-in structural cap that no arena
+         * relieves — SRMECH_ERR_LIMIT, not OVERFLOW. Returning 4 here told a
+         * grow-loop to keep doubling against a verdict that could not move. */
+        return SRMECH_ERR_LIMIT;
     }
     memcpy(out, dir, dl);
     out[dl] = '/';
@@ -689,7 +694,12 @@ static srmech_status_t genome_attest_overlay(char (*dst)[SRMECH_GENOME_ATTEST_MA
             srmech_json_object_get(att, genome_attest_keys[i]);
         if (v == NULL || v->type != SRMECH_JSON_STRING) { continue; }
         if ((size_t)v->u.str.len + 1u > (size_t)SRMECH_GENOME_ATTEST_MAX) {
-            return SRMECH_ERR_OVERFLOW;
+            /* SRMECH_ERR_LIMIT, not OVERFLOW: the cap is a COMPILED-IN field
+             * width, so no caller arena relieves it and a grow-loop would
+             * allocate its way to a verdict fixed before it started (rc404
+             * `#T1069`, the status split). A DOI or a licence longer than
+             * SRMECH_GENOME_ATTEST_MAX is a decline, never a truncation. */
+            return SRMECH_ERR_LIMIT;
         }
         memcpy(dst[i], v->u.str.ptr, v->u.str.len);
         dst[i][v->u.str.len] = '\0';
@@ -2534,7 +2544,10 @@ static srmech_status_t genome_attest_override(char (*dst)[SRMECH_GENOME_ATTEST_M
     for (uint32_t i = 0; i < SRMECH_GENOME_ATTEST_OVR_FIELDS; i++) {
         memcpy(given[i], dst[i], SRMECH_GENOME_ATTEST_MAX);
     }
-    if (ws == NULL || ws_len == 0u) { return SRMECH_ERR_OVERFLOW; }
+    /* No arena guard here on purpose: srmech_json_parse ALREADY types both
+     * conditions — SRMECH_ERR_NULL_ARG for a NULL ws, SRMECH_ERR_OVERFLOW for
+     * one too small — so a second check would only be a less precise copy of
+     * the first. */
     srmech_json_value_t *root = NULL;
     st = srmech_json_parse(attestation, attestation_len, ws, ws_len, &root);
     if (st != SRMECH_OK) { return st; }
