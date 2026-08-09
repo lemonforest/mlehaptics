@@ -49,6 +49,33 @@ WHAT EACH HALF CATCHES
   grows, and it reds with a "lower the ratchet" message if it shrinks — so a
   future slice cannot land without recording its own progress.
 
+WHAT THE CEILING ACTUALLY COUNTS — a VOLUME PROXY, named as such (rc420)
+------------------------------------------------------------------------
+The ceiling counts EVERY live ``return SRMECH_ERR_OVERFLOW`` line, correct and
+conflating alike — because (per the paragraph above) "is this line buffer-class
+or structural" is not mechanically decidable; that classification is a human
+adjudication, one site at a time, and no grep computes it. Two consequences,
+both deliberate:
+
+* a CORRECT new buffer-class return still trips the ceiling. That is the
+  instrument being honest about its own resolution, not a defect: the trip
+  forces the adjudication to happen ON THE RECORD. rc420 is the precedent —
+  see the ceiling's own comment below.
+* the sanctioned move when the trip is a verified buffer-class addition is an
+  EXPLICIT raise with a written adjudication naming each line and why growing
+  the caller's arena is the fix — the same discipline ``DRAINED_EXACT``'s
+  failure message has always named ("raise the number here and say why").
+  A silent bump is never sanctioned; neither is re-labelling a correct
+  OVERFLOW as LIMIT just to keep a number flat, which would break every
+  caller grow-loop keyed on status 4.
+
+Could the instrument be sharpened to "count only returns NOT shown retryable"?
+Only by maintaining a per-site adjudicated allowlist — which is exactly what
+``DRAINED_EXACT`` is, extended file by file as sites are hand-audited. Until a
+file's every site is adjudicated, the volume proxy over the residue is the
+strongest decidable instrument available, and this section is the written
+reason why.
+
 COUNTING RULE. Block comments are stripped before counting, because a
 ``return SRMECH_ERR_OVERFLOW`` inside a ``/* ... */`` narration is prose, not a
 producer site. Measured at rc404: **2** such lines (``srmech_ndjson.c`` and
@@ -93,7 +120,28 @@ DRAINED_EXACT = {
 #: DOWN-ONLY CEIL on tree-wide ``return SRMECH_ERR_OVERFLOW`` LINES, comments
 #: stripped. rc403 measured 718 (720 raw, less 2 inside block comments);
 #: rc404 migrates 14 of them, landing at 704.
-CEIL_CONFLATING_RETURN_LINES = 704
+#:
+#: rc420 (`#T1114`) ADJUDICATED RAISE, 704 -> 706 — never a silent bump. The
+#: sixth combinator (``dsl_run_map_indexed`` in ``srmech_dsl_chain_run.c``)
+#: added exactly two returns, both verified buffer-class at the source:
+#:
+#:   * ``if (res == NULL)   { return SRMECH_ERR_OVERFLOW; }`` — ``dv_new``'s
+#:     only NULL path is its ``dcr_carve`` of ``sizeof(dv_value_t)`` failing;
+#:   * ``if (items == NULL) { return SRMECH_ERR_OVERFLOW; }`` — the item
+#:     pointer-array carve failing;
+#:
+#: and ``dcr_carve`` returns NULL on exactly one condition: the requested
+#: bytes do not fit the remaining bump arena, which is built directly on the
+#: CALLER-SUPPLIED ``ws``/``ws_len``. Grow the arena and retry, and the call
+#: may succeed — the rc404 definition of status 4. The structural bounds in
+#: the same function (``n > DCR_MAX_SEQ`` compiled cap, non-LIST input,
+#: unknown map body) all return ``SRMECH_ERR_NOT_IMPL`` (defer to pure)
+#: BEFORE either carve, so neither line is reachable through a condition no
+#: arena can relieve; and ``DCR_MAX_SEQ = 1<<24`` bounds the carve request
+#: (``n * sizeof(void *) + 1``) far below any size_t wrap. No conflation —
+#: the ceiling moved because the instrument counts volume, not because the
+#: residue grew (see "WHAT THE CEILING ACTUALLY COUNTS" above).
+CEIL_CONFLATING_RETURN_LINES = 706
 
 _RETURN_OVERFLOW = re.compile(r"return\s+SRMECH_ERR_OVERFLOW\s*;")
 
@@ -192,7 +240,13 @@ def test_conflating_return_lines_ratchet_down_only() -> None:
         f"outside a representable range, a compiled-in cap, or a "
         f"non-convergent iteration, it is SRMECH_ERR_LIMIT — returning 4 there "
         f"makes a caller's grow-loop allocate its way to a verdict that was "
-        f"fixed before it started."
+        f"fixed before it started.\n"
+        f"If the new site IS a verified caller-arena failure, the sanctioned "
+        f"move is an EXPLICIT raise of CEIL_CONFLATING_RETURN_LINES with a "
+        f"written adjudication naming each line and its NULL provenance (the "
+        f"rc420 note above the constant is the template). Never bump "
+        f"silently, and never re-label a correct status-4 return as LIMIT to "
+        f"keep the number flat — grow-loops key on 4."
     )
 
     assert total == CEIL_CONFLATING_RETURN_LINES, (

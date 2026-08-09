@@ -159,11 +159,16 @@ def list_ops(*, source_keys: Any = None) -> List[Dict[str, str]]:
     ``kind`` + ``provenance`` so an LLM / CLI sees the whole authorable surface
     in one call.
 
-    Each record is ``{"name", "class", "purpose", "kind", "provenance"}``:
+    Every record carries ``{"name", "class", "purpose", "kind",
+    "provenance"}``; cascade-op records additionally carry the rc420
+    ``status`` key they inherit from :func:`list_catalog_ops` (a
+    catalog-chain is not a cascade_catalog descriptor, so the
+    executable/leaf axis does not apply to it):
 
-    * **cascade-ops** — every :func:`list_catalog_ops` record, with its existing
-      ``kind`` (``"stage"`` / ``"combinator"``) and ``provenance``
-      (``"srmech"`` A-tier / ``"user"`` B-tier BYO).
+    * **cascade-ops** — every :func:`list_catalog_ops` record VERBATIM
+      (including ``status``), with its existing ``kind`` (``"stage"`` /
+      ``"combinator"``) and ``provenance`` (``"srmech"`` A-tier /
+      ``"user"`` B-tier BYO).
     * **catalog-chains** — for each registered attested source (or each key in
       ``source_keys``), every declared chain, tagged ``kind="catalog-chain"``
       and ``provenance=f"catalog:{source_key}"`` (``class`` = the chain's A–N
