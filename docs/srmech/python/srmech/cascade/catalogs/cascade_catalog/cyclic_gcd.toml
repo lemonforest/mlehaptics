@@ -77,3 +77,39 @@ canonical_landings = [
   "feedback_sign_handling_is_class_k_pin_slot_not_alu_abs — srmech best_rational integer-pair signature note (sibling Class N primitive)",
   "user_stance_cross_substrate_cascade_matching_as_research_method — primitive cascade-named alias keeps cascade-count claims honest",
 ]
+
+# ── rc420 (`#T1114`): the EXECUTABLE chain — ADR-0008 §2 (schema v2).
+# Delegation-shaped: the cascade wrapper IS a thin native-dispatch layer over
+# the Class-I primitive srmech.math.cyclic.gcd (the [cascade.delegates_to]
+# block above, made runnable). Measured PASS at rung 3 (default registry).
+[[cascade.chain]]
+chain_schema_version = 2
+summary = "Class-I delegation: cyclic_gcd(a, b) IS srmech.math.cyclic.gcd(a, b)."
+returns = "int  # gcd(a, b) >= 0"
+
+[[cascade.chain.steps]]
+class = "I"
+op = "gcd"
+args = { a = "@input.a", b = "@input.b" }
+
+[[cascade.chain.proof_cases]]
+covers = "sweep"
+inputs = { a = 12, b = 18 }
+[[cascade.chain.proof_cases]]
+covers = "sweep"
+inputs = { a = 270, b = 192 }
+[[cascade.chain.proof_cases]]
+covers = "one_zero"
+inputs = { a = 0, b = 7 }
+[[cascade.chain.proof_cases]]
+covers = "one_zero"
+inputs = { a = 7, b = 0 }
+[[cascade.chain.proof_cases]]
+covers = "both_zero"
+inputs = { a = 0, b = 0 }
+[[cascade.chain.proof_cases]]
+covers = "coprime"
+inputs = { a = 35, b = 64 }
+[[cascade.chain.proof_cases]]
+covers = "equal"
+inputs = { a = 41, b = 41 }

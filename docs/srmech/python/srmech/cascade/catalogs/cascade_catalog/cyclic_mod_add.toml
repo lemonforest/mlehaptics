@@ -58,3 +58,28 @@ canonical_landings = [
   "cyclic_mod_mul.toml — the multiply stage this composes into an LCG step",
   "user_stance_cross_substrate_cascade_matching_as_research_method — LCG as one 14-class cascade shape",
 ]
+
+# ── rc420 (`#T1114`): the EXECUTABLE chain — ADR-0008 §2 (schema v2).
+# Delegation-shaped over the Class-I primitive srmech.math.cyclic.mod_add.
+[[cascade.chain]]
+chain_schema_version = 2
+summary = "Class-I delegation: cyclic_mod_add(a, b, n) IS srmech.math.cyclic.mod_add(a, b, n)."
+returns = "int  # (a + b) mod n, in [0, n)"
+
+[[cascade.chain.steps]]
+class = "I"
+op = "mod_add"
+args = { a = "@input.a", b = "@input.b", n = "@input.n" }
+
+[[cascade.chain.proof_cases]]
+covers = "sweep"
+inputs = { a = 7, b = 8, n = 12 }
+[[cascade.chain.proof_cases]]
+covers = "sweep"
+inputs = { a = 0, b = 0, n = 5 }
+[[cascade.chain.proof_cases]]
+covers = "wrap"
+inputs = { a = 11, b = 11, n = 12 }
+[[cascade.chain.proof_cases]]
+covers = "identity"
+inputs = { a = 9, b = 0, n = 10 }

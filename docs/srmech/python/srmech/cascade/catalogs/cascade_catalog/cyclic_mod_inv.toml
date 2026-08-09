@@ -60,3 +60,32 @@ canonical_landings = [
   "cyclic_mod_mul.toml — the multiply stage this inverts",
   "user_stance_cross_substrate_cascade_matching_as_research_method — modular inversion as one 14-class cascade shape",
 ]
+
+# ── rc420 (`#T1114`): the EXECUTABLE chain — ADR-0008 §2 (schema v2).
+# Delegation-shaped over the Class-I primitive srmech.math.cyclic.mod_inv.
+[[cascade.chain]]
+chain_schema_version = 2
+summary = "Class-I delegation: cyclic_mod_inv(a, n) IS srmech.math.cyclic.mod_inv(a, n)."
+returns = "int  # the multiplicative inverse of a mod n, in [1, n)"
+
+[[cascade.chain.steps]]
+class = "I"
+op = "mod_inv"
+args = { a = "@input.a", n = "@input.n" }
+
+[[cascade.chain.proof_cases]]
+covers = "sweep"
+inputs = { a = 3, n = 7 }
+[[cascade.chain.proof_cases]]
+covers = "sweep"
+inputs = { a = 5, n = 12 }
+[[cascade.chain.proof_cases]]
+covers = "self_inverse"
+inputs = { a = 1, n = 13 }
+[[cascade.chain.proof_cases]]
+covers = "out_of_int64"
+# n = 2**64 - 59 (the largest prime below 2**64): beyond INT64_MAX but
+# inside the primitive's uint64 domain — the exact band the boundary case
+# documents (C path overflows; the pure pow(a, -1, n) fallback carries it,
+# and the gate's pure projection runs that fallback on BOTH sides).
+inputs = { a = 3, n = 18446744073709551557 }

@@ -67,3 +67,27 @@ canonical_landings = [
   "MFO §VII.6.x (Class L graph-Laplacian boundary reduction; Poincaré–Steklov / Dirichlet-to-Neumann)",
   "feedback_own_work_is_primary_attestation — the committed re-runnable op is the primary attestation; Kron 1939 / Steklov secondary",
 ]
+
+# ── rc420 (`#T1114`): the EXECUTABLE chain — ADR-0008 §2 (schema v2).
+# Delegation-shaped: the catalog op IS the Class-L primitive
+# srmech.math.laplacian.schur_complement (the one catalog op reachable from
+# the default letter registry by its own name — measured PASS at rung 3).
+[[cascade.chain]]
+chain_schema_version = 2
+summary = "Class-L delegation: the Schur complement / Dirichlet-to-Neumann reduction onto the boundary index set."
+returns = "Mat  # the |boundary| x |boundary| Schur complement"
+
+[[cascade.chain.steps]]
+class = "L"
+op = "schur_complement"
+args = { L = "@input.L", boundary_idx = "@input.boundary_idx" }
+
+[[cascade.chain.proof_cases]]
+covers = "sweep"
+inputs = { L = [[2.0, -1.0, 0.0], [-1.0, 2.0, -1.0], [0.0, -1.0, 2.0]], boundary_idx = [0, 2] }
+[[cascade.chain.proof_cases]]
+covers = "path4"
+inputs = { L = [[1.0, -1.0, 0.0, 0.0], [-1.0, 2.0, -1.0, 0.0], [0.0, -1.0, 2.0, -1.0], [0.0, 0.0, -1.0, 1.0]], boundary_idx = [0, 3] }
+[[cascade.chain.proof_cases]]
+covers = "no_interior"
+inputs = { L = [[2.0, -1.0], [-1.0, 2.0]], boundary_idx = [0, 1] }

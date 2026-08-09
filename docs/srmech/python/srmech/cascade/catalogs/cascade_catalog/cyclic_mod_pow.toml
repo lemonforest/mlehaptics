@@ -60,3 +60,28 @@ canonical_landings = [
   "cyclic_mod_mul.toml — the Class-I cascade-catalog peer",
   "user_stance_cross_substrate_cascade_matching_as_research_method — modular exponentiation as one 14-class cascade shape",
 ]
+
+# ── rc420 (`#T1114`): the EXECUTABLE chain — ADR-0008 §2 (schema v2).
+# Delegation-shaped over the Class-I primitive srmech.math.cyclic.mod_pow.
+[[cascade.chain]]
+chain_schema_version = 2
+summary = "Class-I delegation: cyclic_mod_pow(a, k, n) IS srmech.math.cyclic.mod_pow(a, k, n)."
+returns = "int  # (a ** k) mod n, in [0, n)"
+
+[[cascade.chain.steps]]
+class = "I"
+op = "mod_pow"
+args = { a = "@input.a", k = "@input.k", n = "@input.n" }
+
+[[cascade.chain.proof_cases]]
+covers = "sweep"
+inputs = { a = 3, k = 7, n = 10 }
+[[cascade.chain.proof_cases]]
+covers = "zero_exponent"
+inputs = { a = 9, k = 0, n = 7 }
+[[cascade.chain.proof_cases]]
+covers = "fermat"
+inputs = { a = 2, k = 10, n = 11 }
+[[cascade.chain.proof_cases]]
+covers = "modulus_one"
+inputs = { a = 5, k = 3, n = 1 }
