@@ -60,7 +60,7 @@ def test_encrypted_bus_symbols_present():
     """rc179 adds serve_encrypted + connect_encrypted. (rc180 bumped ABI 3 → 4
     with the pub/sub subscriber-delivery callback typedef; these transport
     symbols are unchanged.)"""
-    assert _native.NATIVE_ABI_VERSION == 12, (
+    assert _native.NATIVE_ABI_VERSION == 13, (
         f"ABI must be 12 after rc404 (`#T1069`); got {_native.NATIVE_ABI_VERSION}"
     )
     for sym in ("srmech_bus_serve_encrypted", "srmech_bus_connect_encrypted"):
