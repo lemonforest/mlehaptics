@@ -144,12 +144,16 @@ def _private_arena(d: str, coupling: bytes):
     """
     fn = _native.LIB.srmech_genome_arena_bytes
     fn.restype = ctypes.c_size_t
-    fn.argtypes = [ctypes.c_size_t, ctypes.c_uint32, ctypes.c_size_t]
+    # ABI 13 (`#T1108`): the fourth param is attestation_len. A caller
+    # attestation is VARIABLE-LENGTH, so the sizer cannot answer without it;
+    # 0 here means "no override", which is what this fixture builds.
+    fn.argtypes = [ctypes.c_size_t, ctypes.c_uint32, ctypes.c_size_t,
+                   ctypes.c_size_t]
     body_sz = _native._genome_file_size(os.path.join(d, "turns.bin"))
     man_sz = _native._genome_file_size(os.path.join(d, "manifest.json"))
     need = int(fn(ctypes.c_size_t(max(man_sz, body_sz)),
                   ctypes.c_uint32(_native._genome_chrom_count(d, coupling)),
-                  ctypes.c_size_t(0)))
+                  ctypes.c_size_t(0), ctypes.c_size_t(0)))
     return (ctypes.c_char * need)()
 
 

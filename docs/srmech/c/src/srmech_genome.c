@@ -2545,6 +2545,30 @@ static srmech_status_t genome_attest_override(char (*dst)[SRMECH_GENOME_ATTEST_M
     return SRMECH_OK;
 }
 
+/* Adopt `src`'s four SOURCE fields into `dst` ONLY when `src` is not simply the
+ * default block for ITS OWN kind (`#T1108`).
+ *
+ * Load-bearing where the two kinds MEET, and it is the one place the two
+ * projections can silently disagree: a genome manifest's default
+ * (10.0/srmech.genome.persistence) is NOT a .chr's default
+ * (10.0/srmech.genome.chromosome). Copying a DEFAULT parent block into an
+ * exported .chr would stamp the persistence DOI onto a chromosome bundle, which
+ * the scripting projection never does — measured as a genuine byte divergence
+ * before this helper existed. A default block is the ABSENCE of an attestation
+ * of record, so it is never inherited across a kind boundary; only a real one
+ * is. */
+static void genome_attest_adopt_if_real(char (*dst)[SRMECH_GENOME_ATTEST_MAX],
+                                        const char (*src)[SRMECH_GENOME_ATTEST_MAX],
+                                        const char *const *src_defs)
+{
+    assert(dst != NULL && src != NULL);
+    assert(src_defs != NULL);
+    if (genome_attest_is_default(src, src_defs)) { return; }
+    for (uint32_t i = 0; i < SRMECH_GENOME_ATTEST_FIELDS; i++) {
+        memcpy(dst[i], src[i], SRMECH_GENOME_ATTEST_MAX);
+    }
+}
+
 /* CARRY (from a dir) then OVERRIDE — the whole rule, for the ops that have only
  * a path in hand. */
 static srmech_status_t genome_attest_resolve(char (*dst)[SRMECH_GENOME_ATTEST_MAX],
@@ -6103,8 +6127,11 @@ static srmech_status_t genome_chr_resolve_attest(genome_chr_strings_t *cs,
     void *aw = NULL;
     size_t al = 0u;
     genome_arena_tail(a, &aw, &al);
-    srmech_status_t st = genome_attest_carry(cs->src_attest, dir, aw, al);
+    char parent[SRMECH_GENOME_ATTEST_OVR_FIELDS][SRMECH_GENOME_ATTEST_MAX];
+    genome_attest_seed(parent, genome_attest_default);
+    srmech_status_t st = genome_attest_carry(parent, dir, aw, al);
     if (st != SRMECH_OK) { return st; }
+    genome_attest_adopt_if_real(cs->src_attest, parent, genome_attest_default);
     return genome_attest_override(cs->src_attest, genome_attest_chr_default,
                                   SRMECH_GENOME_ATTEST_FIELDS,
                                   attestation, attestation_len, aw, al);
@@ -6339,11 +6366,14 @@ static srmech_status_t genome_import_seed(const char *dest,
     assert(dest != NULL && rec != NULL);
     assert(region != NULL || region_len == 0u);
     char src[SRMECH_GENOME_ATTEST_OVR_FIELDS][SRMECH_GENOME_ATTEST_MAX];
+    char bundle[SRMECH_GENOME_ATTEST_OVR_FIELDS][SRMECH_GENOME_ATTEST_MAX];
     genome_attest_seed(src, genome_attest_default);
+    genome_attest_seed(bundle, genome_attest_chr_default);
     srmech_status_t st = genome_attest_overlay(
-        src, srmech_json_object_get(rec, "attestation"),
+        bundle, srmech_json_object_get(rec, "attestation"),
         SRMECH_GENOME_ATTEST_FIELDS);
     if (st != SRMECH_OK) { return st; }
+    genome_attest_adopt_if_real(src, bundle, genome_attest_chr_default);
     st = genome_attest_override(src, genome_attest_default,
                                 SRMECH_GENOME_ATTEST_OVR_FIELDS,
                                 attestation, attestation_len, pw, pl);
@@ -6695,10 +6725,14 @@ static srmech_status_t genome_pack_read_chr(const char *loose_dir,
          * bundles of MIXED provenance takes the first and does not diagnose the
          * mixture. Before rc418 it took NONE of them and wrote CC0. */
         if (src_attest != NULL) {
+            char bundle[SRMECH_GENOME_ATTEST_OVR_FIELDS][SRMECH_GENOME_ATTEST_MAX];
+            genome_attest_seed(bundle, genome_attest_chr_default);
             st = genome_attest_overlay(
-                src_attest, srmech_json_object_get(rec, "attestation"),
+                bundle, srmech_json_object_get(rec, "attestation"),
                 SRMECH_GENOME_ATTEST_FIELDS);
             if (st != SRMECH_OK) { return st; }
+            genome_attest_adopt_if_real(src_attest, bundle,
+                                        genome_attest_chr_default);
         }
     } else if (ld != *leaf_dim || one_len != *pack_one_len ||
                memcmp(oneblk, pack_one, one_len) != 0) {

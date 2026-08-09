@@ -326,6 +326,38 @@ def test_a_seeded_destination_inherits_from_the_bundle() -> None:
         assert _block(packed)["source_doi"] == A["source_doi"]
 
 
+def test_a_default_block_is_never_inherited_across_a_kind_boundary() -> None:
+    """⚠️ REGRESSION. A genome manifest's default DOI
+    (``10.0/srmech.genome.persistence``) is NOT a ``.chr``'s default
+    (``10.0/srmech.genome.chromosome``), and the two KINDS meet at exactly two
+    places: export (genome → bundle) and a seeded import/pack (bundle → genome).
+
+    A default block is the ABSENCE of an attestation of record, so it must never
+    cross that boundary. Copying one across stamps the wrong kind's DOI onto the
+    artifact — and it does it only on genomes that carry NO attestation, which is
+    every genome the rest of this file does not build. Measured as a genuine
+    native-vs-pure byte divergence at index 477 of the exported ``.chr``
+    (``…persistence`` where ``…chromosome`` belonged) before the fix, so this
+    clause is a real regression guard, not a restatement.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        tmp = pathlib.Path(td)
+        path = _default(tmp, "d.genome")
+        assert _block(path)["source_doi"] == "10.0/srmech.genome.persistence"
+
+        out = tmp / "alpha.chr"
+        G.genome_export(path, "alpha", out, coupling=_coupling())
+        assert _chr_block(out)["source_doi"] == "10.0/srmech.genome.chromosome", (
+            "the genome's DEFAULT block was copied into the .chr"
+        )
+
+        dest = tmp / "seeded.genome"
+        G.genome_import(out, dest, coupling=_coupling())
+        assert _block(dest)["source_doi"] == "10.0/srmech.genome.persistence", (
+            "the .chr's DEFAULT block was copied into the seeded genome"
+        )
+
+
 # ──────────────────────────────────────────────────────────────────────
 # §5.1 / the SPY — a parity test that cannot enter C is not a parity test.
 # ──────────────────────────────────────────────────────────────────────
