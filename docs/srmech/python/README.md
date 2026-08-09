@@ -13,7 +13,7 @@
 
 Implementation is JPL Power-of-Ten compliant on the C side; cibuildwheel matrix covers Linux / macOS / Windows × Python 3.10–3.14; a `py3-none-any` pure-Python wheel ships for Pyodide / WASM environments where the C surface can't load.
 
-**Two implementations, one capability set.** srmech is a multi-implementation codebase: the **scripting-coherency** implementation (`python/srmech`) and the **compiled-coherency** implementation (`c/src`, `c/include`) are co-equal projections of the same capability into different execution regimes, related by projection rather than by rank — neither is the reference, and parity means *byte-identical results*, not similar behaviour (ADR-0009). The orchestration is compiled too, not only the compute kernels: the `srmech.bus` cross-process IPC server (req/rep **and** pub/sub broadcast, over AF_UNIX sockets / Windows named pipes, with an optional encrypted wire), the `srmech.dsl` operator-chain interpreter, the MCP server (JSON-RPC over stdio + HTTP/SSE) with in-C tool dispatch over the 543-entry tool registry, the CLI arg-parser, and the `make_class` config-driven `[class]` object model all ship as `libsrmech` symbols, so a host with **no Python present** can serve tools, run cascades, and speak the bus. The exact-algebra tail is C-native too: exact-ℚ `char_poly` / `eigvals` / `eigvec` / `eig` / `jordan_form` and integer-polynomial factoring run on srmech's own `srmech_bigint` (no Python-int oracle), and the Python-side `Q` / `Qi` exact scalars dispatch straight to it.
+**Two implementations, one capability set.** srmech is a multi-implementation codebase: the **scripting-coherency** implementation (`python/srmech`) and the **compiled-coherency** implementation (`c/src`, `c/include`) are co-equal projections of the same capability into different execution regimes, related by projection rather than by rank — neither is the reference, and parity means *byte-identical results*, not similar behaviour (ADR-0009). The orchestration is compiled too, not only the compute kernels: the `srmech.bus` cross-process IPC server (req/rep **and** pub/sub broadcast, over AF_UNIX sockets / Windows named pipes, with an optional encrypted wire), the `srmech.dsl` operator-chain interpreter, the MCP server (JSON-RPC over stdio + HTTP/SSE) with in-C tool dispatch over the 569-entry tool registry, the CLI arg-parser, and the `make_class` config-driven `[class]` object model all ship as `libsrmech` symbols, so a host with **no Python present** can serve tools, run cascades, and speak the bus. The exact-algebra tail is C-native too: exact-ℚ `char_poly` / `eigvals` / `eigvec` / `eig` / `jordan_form` and integer-polynomial factoring run on srmech's own `srmech_bigint` (no Python-int oracle), and the Python-side `Q` / `Qi` exact scalars dispatch straight to it.
 
 Coverage is **not** yet complete, and the gap is enumerated rather than asserted away — see [C-host coverage](#c-host-coverage--what-a-bare-c-host-cannot-run-today) for the ops a bare-C host cannot currently run, and the down-only ratchet that pins them.
 
@@ -139,13 +139,13 @@ The partition above is the **substrate / construction frame**: it builds real-fi
 
 Under ADR-0010 the 14 A-N classes are homed by owning subpackage, not under one flat namespace. The **bulk is `srmech.math.*`** (`tlv`, `dispatch`, `template`, `search`, `cyclic`, `primes`, `kepler`, `laplacian`, `hdc`, `rational`); content-addressing + streaming are `srmech.amsc.format`; catalog lookup is `srmech.introspect.naming`; and self-introspection rides the native shim `srmech._native`. The **Home** column of the table below names each class's importable module (relative to `srmech.`). Both implementations realise the class; which one services a call inside a co-installed process is a **routing** decision, made once at import time. If `libsrmech` cannot be loaded (Pyodide, ABI mismatch), calls route to the Python implementation and results are unchanged.
 
-To check which implementation is routing, call `srmech.native_status()` (top-level; equivalently `describe()['native']`) — `{has_native, dispatching, abi_version, expected_abi, native_version, load_error}`. `dispatching` is `True` iff `libsrmech` loaded **and** its ABI matched (**ABI 10** at this release — v9 gave `srmech_genome_section_counts` its caller-arena params, v10 added the Laplace–Beltrami α-family constructors); otherwise `load_error` carries the reason and the Python implementation services the call. Routing status is not evidence of parity — that is what the ratchets below are for. (The native shim is `srmech._native` — the package that carries the ctypes bindings and holds `libsrmech.{so,dll,dylib}`.)
+To check which implementation is routing, call `srmech.native_status()` (top-level; equivalently `describe()['native']`) — `{has_native, dispatching, abi_version, expected_abi, native_version, load_error}`. `dispatching` is `True` iff `libsrmech` loaded **and** its ABI matched (**ABI 13** at this release — v11 removed `srmech_cd_zero_divisor_witness`, v12 gave `srmech_json_parse` / `srmech_toml_parse` a new `SRMECH_ERR_LIMIT` status, v13 gave nine exported genome entry points their caller-attestation params); otherwise `load_error` carries the reason and the Python implementation services the call. Routing status is not evidence of parity — that is what the ratchets below are for. (The native shim is `srmech._native` — the package that carries the ctypes bindings and holds `libsrmech.{so,dll,dylib}`.)
 
 ```python
 import srmech
 srmech.native_status()
-# {'has_native': True, 'dispatching': True, 'abi_version': 10,
-#  'expected_abi': 10, 'native_version': '0.9.0rc389', 'load_error': None}
+# {'has_native': True, 'dispatching': True, 'abi_version': 13,
+#  'expected_abi': 13, 'native_version': '0.9.0rc419', 'load_error': None}
 ```
 
 | Home (under `srmech.`) | Class | Primitive operation |
@@ -271,6 +271,14 @@ from srmech.signal_processing import (
 with begin_cascade() as ctx:
     spectrum = dispatch("fft", path=PATH_A, signal=x)
     truncated = dispatch("hdc_truncation", path=PATH_B, signal=spectrum, k=64)
+```
+
+**`dispatch` routes the ops that HAVE two paths — the other 33 are called by direct import.** `dispatch` is a path-*router*, not a name-resolver: `registered_ops()` returns the 13 names it can route, and asking it for a single-path op raises `UnknownOperationError`. That is the correct answer to a routing question, not a gap — but it does mean the calling convention above is not the one for most of the 41. Import those directly; each module exposes exactly one callable named `op`:
+
+```python
+from srmech.signal_processing.closed_form_ops.wavelet import op as wavelet
+from srmech.signal_processing.closed_form_ops.dct import op as dct
+coeffs = dct(x, dct_type=2)
 ```
 
 Path A and Path B produce bit-exact-equal outputs on substrate-natural inputs (D1 algebra-content identity); substrate-fingerprint divergence at D2 is expected and documented.
