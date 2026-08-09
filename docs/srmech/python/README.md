@@ -145,7 +145,7 @@ To check which implementation is routing, call `srmech.native_status()` (top-lev
 import srmech
 srmech.native_status()
 # {'has_native': True, 'dispatching': True, 'abi_version': 13,
-#  'expected_abi': 13, 'native_version': '0.9.0rc419', 'load_error': None}
+#  'expected_abi': 13, 'native_version': '0.9.0rc420', 'load_error': None}
 ```
 
 | Home (under `srmech.`) | Class | Primitive operation |
