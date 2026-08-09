@@ -658,7 +658,11 @@ static void genome_attest_seed(char (*dst)[SRMECH_GENOME_ATTEST_MAX],
 
 /* 1 iff `dst` still carries exactly `defs` in all four fields — "this genome has
  * no attestation of record", the state in which overwriting is not a conflict. */
-static int genome_attest_is_default(const char (*dst)[SRMECH_GENOME_ATTEST_MAX],
+/* NOTE the non-const array pointer: ISO C treats `char (*)[N]` and
+ * `const char (*)[N]` as INCOMPATIBLE (not merely qualified) pointer types, so a
+ * const parameter here is a -Wpedantic error at every call site. Read-only by
+ * contract, not by qualifier. */
+static int genome_attest_is_default(char (*dst)[SRMECH_GENOME_ATTEST_MAX],
                                     const char *const *defs)
 {
     assert(dst != NULL);
@@ -2558,7 +2562,7 @@ static srmech_status_t genome_attest_override(char (*dst)[SRMECH_GENOME_ATTEST_M
  * of record, so it is never inherited across a kind boundary; only a real one
  * is. */
 static void genome_attest_adopt_if_real(char (*dst)[SRMECH_GENOME_ATTEST_MAX],
-                                        const char (*src)[SRMECH_GENOME_ATTEST_MAX],
+                                        char (*src)[SRMECH_GENOME_ATTEST_MAX],
                                         const char *const *src_defs)
 {
     assert(dst != NULL && src != NULL);
@@ -3939,7 +3943,7 @@ static srmech_status_t genome_save_resolved(
     const unsigned char *body, size_t body_len,
     uint32_t leaf_dim,
     const unsigned char *coupling, size_t coupling_len,
-    const char (*src_attest)[SRMECH_GENOME_ATTEST_MAX],
+    char (*src_attest)[SRMECH_GENOME_ATTEST_MAX],
     void *ws, size_t ws_len)
 {
     assert(dir != NULL || ws == NULL);
@@ -6679,6 +6683,26 @@ static void genome_sort_by_label(char labels[][SRMECH_GENOME_MAX_LABEL],
  * the single-pass concat step (rc115 #1245(b)). The first bundle (is_first) sets
  * the pack's coupling + leaf_dim; each later bundle must match them (one coupling
  * invariant). *offset advances by the region length. */
+/* `#T1108`: adopt a .chr BUNDLE's four SOURCE fields into `dst`, but only when
+ * the bundle carries a REAL block rather than the .chr default — a default is the
+ * ABSENCE of an attestation of record and must not cross the kind boundary into a
+ * genome manifest. Split out to keep genome_pack_read_chr inside JPL Rule 4. */
+static srmech_status_t genome_attest_from_bundle(
+    char (*dst)[SRMECH_GENOME_ATTEST_MAX], const srmech_json_value_t *rec)
+{
+    assert(rec != NULL);
+    assert(SRMECH_GENOME_ATTEST_MAX > 1u);
+    if (dst == NULL) { return SRMECH_OK; }
+    char bundle[SRMECH_GENOME_ATTEST_OVR_FIELDS][SRMECH_GENOME_ATTEST_MAX];
+    genome_attest_seed(bundle, genome_attest_chr_default);
+    srmech_status_t st = genome_attest_overlay(
+        bundle, srmech_json_object_get(rec, "attestation"),
+        SRMECH_GENOME_ATTEST_FIELDS);
+    if (st != SRMECH_OK) { return st; }
+    genome_attest_adopt_if_real(dst, bundle, genome_attest_chr_default);
+    return SRMECH_OK;
+}
+
 static srmech_status_t genome_pack_read_chr(const char *loose_dir,
     const char *name, void *ws, size_t ws_len, unsigned char *body,
     size_t body_cap, size_t *offset, unsigned char *pack_one,
@@ -6724,16 +6748,8 @@ static srmech_status_t genome_pack_read_chr(const char *loose_dir,
          * bundle 0 carries it back. RESIDUAL, stated rather than hidden: packing
          * bundles of MIXED provenance takes the first and does not diagnose the
          * mixture. Before rc418 it took NONE of them and wrote CC0. */
-        if (src_attest != NULL) {
-            char bundle[SRMECH_GENOME_ATTEST_OVR_FIELDS][SRMECH_GENOME_ATTEST_MAX];
-            genome_attest_seed(bundle, genome_attest_chr_default);
-            st = genome_attest_overlay(
-                bundle, srmech_json_object_get(rec, "attestation"),
-                SRMECH_GENOME_ATTEST_FIELDS);
-            if (st != SRMECH_OK) { return st; }
-            genome_attest_adopt_if_real(src_attest, bundle,
-                                        genome_attest_chr_default);
-        }
+        st = genome_attest_from_bundle(src_attest, rec);
+        if (st != SRMECH_OK) { return st; }
     } else if (ld != *leaf_dim || one_len != *pack_one_len ||
                memcmp(oneblk, pack_one, one_len) != 0) {
         return SRMECH_ERR_BAD_INPUT;              /* different coupling invariant */
