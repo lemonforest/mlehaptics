@@ -71,6 +71,62 @@ would have accepted 11 false pairs at rc416 — ``srmech.bus.list`` "covered" by
 ``srmech.introspect.naming.lookup`` — which is the exact shape of laundering
 this ratchet exists to refuse.
 
+rc419 (`#T1110`) — THE PREDICATE WAS ``__all__``-GATED, AND ``__all__`` IS OPTIONAL
+==================================================================================
+Through rc418 :func:`public_surface` read ``getattr(m, "__all__", ()) or ()``
+with **no fallback**. A module that declines to write ``__all__`` therefore
+contributed ZERO surface points — so "completeness" meant *completeness
+relative to declared exports*, and a module could leave the ratchet simply by
+not declaring any. That is not a scope decision anybody made; there is no
+documented exclusion for it, and the walk itself was never narrowed (it visits
+every module either way).
+
+The proof it was accidental is in the same directory. ``tests/conftest.py``'s
+``rosetta_live_objects()`` walks the SAME packages for the SAME purpose and
+DOES carry the fallback::
+
+    names = getattr(mod, "__all__", None)
+    if names is None:
+        names = [n for n in dir(mod) if not n.startswith("_")]
+
+Two ratchets, one directory, disagreeing on scope by exactly that clause — and
+the consequence was asymmetric: the Rosetta ledger already carried all 42
+``closed_form_ops`` entry points while this ratchet carried none of them.
+
+MEASURED at rc418 with the fallback grafted in (native cell, numpy-absent):
+the population goes **746 -> 813 paths** / **742 -> 804 distinct objects**, and
+**75** newly-visible public callables have neither a ``ToolEntry`` nor an
+allowlist row. 45 of those are ``closed_form_ops.<op>.op``, 8 are the Path-B
+twins, and the rest sit in ``cayley_dickson`` / ``cli`` / ``llm`` /
+``rbs_lm.substrate`` — so this was never a ``signal_processing`` story.
+
+WHY THE CEILING IS SPLIT RATHER THAN RE-SEEDED UPWARD
+=====================================================
+Absorbing 75 rows into ``CEIL_REGISTRY_GAPS`` would raise a DOWN-ONLY ratchet,
+which is a regression by this file's own definition, and worse: it would mix
+two populations with different drain schedules into one number, so a gain in
+either could hide a loss in the other. Instead the allowlist is PARTITIONED by
+the property that caused the blind spot:
+
+* :data:`_KNOWN_REGISTRY_GAPS` — rows whose module DECLARES ``__all__``. This
+  is the rc416 population, and its ceiling stays down-only across the repair.
+* :data:`_UNDECLARED_SURFACE_GAPS` — rows whose module declares NO ``__all__``.
+  Newly visible at rc419, seeded at the measurement above.
+
+The partition is MACHINE-CHECKED (:func:`test_the_two_allowlists_partition_by_
+declaredness`), so a row cannot hop buckets to dodge a ceiling — which is the
+laundering move this shape would otherwise invite.
+
+Ten rc416 rows MOVED between the buckets rather than being discharged, and that
+is worth stating plainly because it makes ``CEIL_REGISTRY_GAPS`` FALL by ten
+without a single op being registered. With the fallback in place, the defining
+module of e.g. ``srmech.cascade.cd_add`` now exports the name itself, so the
+"counted at its defining module instead" clause re-homes the pair to
+``srmech.cascade.cayley_dickson.cd_add``. Same op, same gap, canonical path —
+:func:`test_allowlist_has_no_stale_rows` forces the move. The ten are the three
+``srmech.cascade.cd_*`` rows, ``srmech.cli.main``, and the six
+``srmech.rbs_lm.*`` rows.
+
 THE ALLOWLIST IS THE RISK SURFACE
 =================================
 A bare-name allowlist is the silent-exemption shape this project has found
@@ -136,6 +192,23 @@ REGISTRY_MUTATOR = "REGISTRY_MUTATOR"
 #: PURPOSE and move to a stated design, not a gap.
 PROTOCOL_UNIFORM = "PROTOCOL_UNIFORM"
 
+#: v0.9.0rc419 (`#T1110`). The Path-B implementation twin of an op whose
+#: Path-A peer is the public one: ``srmech.signal_processing.path_b_ops.<op>.op``
+#: is the routed-TO implementation :func:`dispatch` selects, not a second
+#: capability. Registering both sides would advertise eight duplicate ops
+#: differing only in which substrate runs — and the SELECTOR, not the op name,
+#: is how a composer picks (``dispatch(name, path=PATH_B)``).
+#: Introduced because the honest alternative was worse in both directions:
+#: ``OPEN_REGISTRATION`` would call a MADE decision "nobody decided" and inflate
+#: the debt ceiling with eight rows no future rc intends to drain, and
+#: ``PROTOCOL_UNIFORM`` is machine-locked to ``srmech.amsc.adapters`` by
+#: :func:`test_reason_codes_match_the_surface_they_claim` — so wearing it here
+#: would have required widening that check, i.e. weakening a guard to fit a
+#: label. EXITS WHEN: the registry gains a path-qualified row shape (one row
+#: whose ``parameters`` carries the PATH_A / PATH_B selector), at which point
+#: the eight twins stay unregistered ON PURPOSE. Machine-checked.
+DUAL_PATH_TWIN = "DUAL_PATH_TWIN"
+
 #: ⚠️ DEBT, NOT AN EXEMPTION. A public op whose registration decision has
 #: never been made. Every entry here is a live ``fold_identity``-shaped risk:
 #: reachable by import, invisible to ``describe()``, ``search`` and MCP.
@@ -144,7 +217,8 @@ PROTOCOL_UNIFORM = "PROTOCOL_UNIFORM"
 OPEN_REGISTRATION = "OPEN_REGISTRATION"
 
 _REASON_CODES = frozenset({ADR0009_EXEMPT, CLI_SUBCOMMAND, REGISTRY_MUTATOR,
-                           PROTOCOL_UNIFORM, OPEN_REGISTRATION})
+                           PROTOCOL_UNIFORM, DUAL_PATH_TWIN,
+                           OPEN_REGISTRATION})
 
 #: The mutator verbs ``REGISTRY_MUTATOR`` is allowed to cover. Closed, so a
 #: future entry cannot claim the code by inventing a verb.
@@ -172,10 +246,42 @@ def _public_modules() -> Dict[str, object]:
     return out
 
 
+def _exported_names() -> Tuple[Dict[str, Tuple[str, ...]], Dict[str, bool]]:
+    """``({module: exported_names}, {module: declares___all__})``.
+
+    The fallback is DELIBERATELY byte-for-byte the one ``conftest.py``'s
+    ``rosetta_live_objects()`` uses, because the rc419 defect was precisely
+    that these two predicates disagreed. ``getattr(m, "__all__", None)`` — not
+    ``... , ()) or ()`` — so an EXPLICIT ``__all__ = []`` still means "this
+    module exports nothing" and is honoured, while an ABSENT ``__all__`` falls
+    back to the public ``dir()``. Conflating those two was the bug.
+    """
+    mods = _public_modules()
+    alls: Dict[str, Tuple[str, ...]] = {}
+    declares: Dict[str, bool] = {}
+    for name, module in mods.items():
+        names = getattr(module, "__all__", None)
+        declares[name] = names is not None
+        if names is None:
+            names = [n for n in dir(module) if not n.startswith("_")]
+        alls[name] = tuple(names)
+    return alls, declares
+
+
+def declares_all(path: str) -> bool:
+    """True if the module owning ``path`` declares an ``__all__``.
+
+    This is the partition function for the two allowlists, exposed so the
+    partition can be CHECKED rather than asserted in prose.
+    """
+    _alls, declares = _exported_names()
+    return declares.get(path.rpartition(".")[0], True)
+
+
 def public_surface() -> Dict[str, int]:
     """``{"<public.path>": id(obj)}`` — the in-scope public callables."""
     mods = _public_modules()
-    alls = {n: tuple(getattr(m, "__all__", ()) or ()) for n, m in mods.items()}
+    alls, _declares = _exported_names()
     scope: Dict[str, int] = {}
     for name, exported in alls.items():
         module = mods[name]
@@ -331,9 +437,10 @@ _KNOWN_REGISTRY_GAPS: Dict[str, str] = {
     'srmech.bus.aio.pipe': OPEN_REGISTRATION,
     'srmech.bus.aio.serve': OPEN_REGISTRATION,
     # ── srmech.cascade ──
-    'srmech.cascade.cd_add': OPEN_REGISTRATION,
-    'srmech.cascade.cd_basis': OPEN_REGISTRATION,
-    'srmech.cascade.left_mult_matrix': OPEN_REGISTRATION,
+    # rc419: cd_add / cd_basis / left_mult_matrix RE-HOMED to
+    # _UNDECLARED_SURFACE_GAPS under srmech.cascade.cayley_dickson — with the
+    # dir() fallback the defining module exports them itself, so the
+    # "counted at its defining module instead" clause moves the pair there.
     # ── srmech.cascade.compose ──
     'srmech.cascade.compose.greedy_bipartite_alignment': OPEN_REGISTRATION,
     # ── srmech.cascade.matrix_cascades ──
@@ -372,7 +479,8 @@ _KNOWN_REGISTRY_GAPS: Dict[str, str] = {
     'srmech.cascade.sedenion_register.sed_uncouple_working': OPEN_REGISTRATION,
     'srmech.cascade.sedenion_register.sed_write': OPEN_REGISTRATION,
     # ── srmech.cli ──
-    'srmech.cli.main': CLI_SUBCOMMAND,
+    # rc419: 'srmech.cli.main' RE-HOMED to _UNDECLARED_SURFACE_GAPS as
+    # 'srmech.cli.main.main' (the srmech.cli.main MODULE declares no __all__).
     # ── srmech.cli.bus ──
     'srmech.cli.bus.add_arguments': CLI_SUBCOMMAND,
     'srmech.cli.bus.run': CLI_SUBCOMMAND,
@@ -435,28 +543,19 @@ _KNOWN_REGISTRY_GAPS: Dict[str, str] = {
     'srmech.profile_loader.profile': OPEN_REGISTRATION,
     'srmech.profile_loader.reset_for_testing': REGISTRY_MUTATOR,
     # ── srmech.rbs_lm ──
-    'srmech.rbs_lm.encode_bigram_l1': OPEN_REGISTRATION,
-    'srmech.rbs_lm.encode_sentence_l3': OPEN_REGISTRATION,
-    'srmech.rbs_lm.encode_skeleton_l2': OPEN_REGISTRATION,
-    'srmech.rbs_lm.encode_word_k4': OPEN_REGISTRATION,
-    'srmech.rbs_lm.sim_k4_batch': OPEN_REGISTRATION,
-    'srmech.rbs_lm.token_seed': OPEN_REGISTRATION,
+    # rc419: all six RE-HOMED to _UNDECLARED_SURFACE_GAPS under
+    # srmech.rbs_lm.substrate, their defining module (which declares no
+    # __all__, and which exports two MORE public ops nothing was counting).
     # ── srmech.rbs_lm.grounding ──
     'srmech.rbs_lm.grounding.ground_tool_schema': OPEN_REGISTRATION,
     # ── srmech.signal_processing.cascade_dispatcher ──
-    'srmech.signal_processing.cascade_dispatcher.begin_cascade':
-        OPEN_REGISTRATION,
-    'srmech.signal_processing.cascade_dispatcher.current_cascade':
-        OPEN_REGISTRATION,
-    'srmech.signal_processing.cascade_dispatcher.dispatch': OPEN_REGISTRATION,
-    'srmech.signal_processing.cascade_dispatcher.end_cascade':
-        OPEN_REGISTRATION,
-    'srmech.signal_processing.cascade_dispatcher.is_dispatch_table_locked':
-        OPEN_REGISTRATION,
+    # rc419 (`#T1110`): begin_cascade / current_cascade / dispatch /
+    # end_cascade / is_dispatch_table_locked / resolve_path REGISTERED —
+    # six rows DELETED and the ceiling lowered. Only the two lock mutators
+    # remain, and their REGISTRY_MUTATOR reason was re-verified, not
+    # inherited: both still return None and mutate process-global state.
     'srmech.signal_processing.cascade_dispatcher.lock_dispatch_table':
         REGISTRY_MUTATOR,
-    'srmech.signal_processing.cascade_dispatcher.resolve_path':
-        OPEN_REGISTRATION,
     'srmech.signal_processing.cascade_dispatcher.unlock_dispatch_table':
         REGISTRY_MUTATOR,
     # ── srmech.signal_processing.form_function_rotation ──
@@ -471,13 +570,12 @@ _KNOWN_REGISTRY_GAPS: Dict[str, str] = {
     'srmech.signal_processing.form_function_rotation.'
     'verify_rotation_class_n_cycle_order': OPEN_REGISTRATION,
     # ── srmech.signal_processing.path_registry ──
+    # rc419 (`#T1110`): has_path / lookup / registered_ops REGISTERED — three
+    # rows DELETED. The three mutators stay, reason re-verified at rc419.
     'srmech.signal_processing.path_registry.clear_registry': REGISTRY_MUTATOR,
-    'srmech.signal_processing.path_registry.has_path': OPEN_REGISTRATION,
-    'srmech.signal_processing.path_registry.lookup': OPEN_REGISTRATION,
     'srmech.signal_processing.path_registry.register': REGISTRY_MUTATOR,
     'srmech.signal_processing.path_registry.register_lazy_loader':
         REGISTRY_MUTATOR,
-    'srmech.signal_processing.path_registry.registered_ops': OPEN_REGISTRATION,
     # ── srmech.signal_processing.profiling ──
     'srmech.signal_processing.profiling.cell_grid': OPEN_REGISTRATION,
     'srmech.signal_processing.profiling.clear_records': REGISTRY_MUTATOR,
@@ -522,17 +620,234 @@ _KNOWN_REGISTRY_GAPS: Dict[str, str] = {
 #: into the 73-line count-test swarm for a reason unrelated to this rc.
 #: The uniform treatment is the honest one; the ceiling rising is the cost,
 #: recorded here rather than laundered.
-CEIL_REGISTRY_GAPS = 186
+#:
+#: **186 -> 176 at v0.9.0rc419 (`#T1110`), and the ten are a MOVE, not a
+#: discharge.** Read that as debt relocated, never as debt repaid: the same ten
+#: ops are still unregistered, now counted in
+#: :data:`_UNDECLARED_SURFACE_GAPS` at their defining-module path (three
+#: ``srmech.cascade.cd_*`` -> ``srmech.cascade.cayley_dickson.*``,
+#: ``srmech.cli.main`` -> ``srmech.cli.main.main``, six ``srmech.rbs_lm.*`` ->
+#: ``srmech.rbs_lm.substrate.*``). The move is FORCED, not chosen: with the
+#: dir() fallback their defining modules export the names themselves, so the
+#: "counted at its defining module instead" clause re-homes the pairs and
+#: :func:`test_allowlist_has_no_stale_rows` would fail on the old paths. The
+#: honest total across both allowlists went 186 -> 251, and that total is
+#: exactly what the two ceilings sum to.
+#:
+#: **176 -> 167 in the same rc, and THESE nine ARE a discharge.** The
+#: ``signal_processing`` dispatcher / path-registry read surface — ``dispatch``,
+#: ``begin_cascade``, ``end_cascade``, ``current_cascade``, ``resolve_path``,
+#: ``is_dispatch_table_locked``, ``has_path``, ``lookup``, ``registered_ops`` —
+#: earned nine ``ToolEntry`` rows, so nine allowlist rows were DELETED and the
+#: ceiling lowered, which is the only sanctioned way this number falls.
+CEIL_REGISTRY_GAPS = 167
 
 #: DOWN-ONLY sub-ceiling on the DEBT bucket specifically. The other four codes
 #: are stated design positions; this one is *"nobody decided"*, and it is the
 #: number that says how much ``fold_identity``-shaped risk is still live.
-CEIL_OPEN_REGISTRATION = 125
+#: rc419: 125 -> 116, all nine of them the same re-homing (the three
+#: ``cd_*`` and the six ``rbs_lm`` rows); ``srmech.cli.main`` was the tenth
+#: and wore ``CLI_SUBCOMMAND``, so it never counted here. Then 116 -> 107 for
+#: the nine dispatcher-surface registrations, which is a real discharge: nine
+#: ops that were reachable-by-import and invisible-to-introspection now answer
+#: ``describe()`` / ``search`` / MCP.
+CEIL_OPEN_REGISTRATION = 107
+
+#: ⚠️ DOWN-ONLY, and the OTHER half of the partition (rc419, `#T1110`). Rows
+#: here name public callables whose module declares NO ``__all__`` — the class
+#: :func:`public_surface` could not see through rc418. Seeded at the MEASURED
+#: rc419 residual: 75 uncovered of the 67 newly-visible paths' population, in
+#: four reason codes — OPEN_REGISTRATION 59 · DUAL_PATH_TWIN 8 ·
+#: CLI_SUBCOMMAND 6 · ADR0009_EXEMPT 2.
+#:
+#: Kept SEPARATE from ``_KNOWN_REGISTRY_GAPS`` on purpose. These two
+#: populations drain on different schedules — the declared one has been
+#: draining since rc416, this one has not started — and merging them would let
+#: a gain in either hide a loss in the other. The split is machine-checked by
+#: :func:`test_the_two_allowlists_partition_by_declaredness`, so a row cannot
+#: move bucket to dodge a ceiling.
+#:
+#: THE 59 ``OPEN_REGISTRATION`` ROWS ARE THE rc419 DEBT, STATED. 45 of them are
+#: ``closed_form_ops.<op>.op`` — the dct / wavelet / viterbi / esprit / huffman
+#: / lz77 surface the README advertises by name as a headline feature and which
+#: ``srmech.introspect.search`` returns for NO query at any ``k`` (measured:
+#: 8/8 positive controls hit, 0/41 targets, 12 returned empty). Draining them
+#: is deliberately NOT in rc419: each needs an authored, executing worked
+#: example under a strict-zero gate, and the ``ToolEntry`` contract itself may
+#: gain a required field. Authoring 38 examples against a shape that is still
+#: moving would author them twice. The number is here so the debt is counted,
+#: not so it looks small.
+_UNDECLARED_SURFACE_GAPS: Dict[str, str] = {
+    # ── srmech.cascade.cayley_dickson ──
+    'srmech.cascade.cayley_dickson.cd_add': OPEN_REGISTRATION,
+    'srmech.cascade.cayley_dickson.cd_basis': OPEN_REGISTRATION,
+    'srmech.cascade.cayley_dickson.closure': OPEN_REGISTRATION,
+    'srmech.cascade.cayley_dickson.left_mult_matrix': OPEN_REGISTRATION,
+    'srmech.cascade.cayley_dickson.left_orbit': OPEN_REGISTRATION,
+    'srmech.cascade.cayley_dickson.min_generating_set': OPEN_REGISTRATION,
+    # ── srmech.cli.klass ──
+    'srmech.cli.klass.add_arguments': CLI_SUBCOMMAND,
+    'srmech.cli.klass.run': CLI_SUBCOMMAND,
+    # ── srmech.cli.main ──
+    'srmech.cli.main.build_parser': CLI_SUBCOMMAND,
+    'srmech.cli.main.main': CLI_SUBCOMMAND,
+    # ── srmech.cli.status ──
+    'srmech.cli.status.add_arguments': CLI_SUBCOMMAND,
+    'srmech.cli.status.run': CLI_SUBCOMMAND,
+    # ── srmech.llm.anthropic_agent_cli ──
+    'srmech.llm.anthropic_agent_cli.build_parser': ADR0009_EXEMPT,
+    'srmech.llm.anthropic_agent_cli.main': ADR0009_EXEMPT,
+    # ── srmech.rbs_lm.substrate ──
+    'srmech.rbs_lm.substrate.encode_bigram_l1': OPEN_REGISTRATION,
+    'srmech.rbs_lm.substrate.encode_sentence_l3': OPEN_REGISTRATION,
+    'srmech.rbs_lm.substrate.encode_skeleton_l2': OPEN_REGISTRATION,
+    'srmech.rbs_lm.substrate.encode_word_byteglyph': OPEN_REGISTRATION,
+    'srmech.rbs_lm.substrate.encode_word_k4': OPEN_REGISTRATION,
+    'srmech.rbs_lm.substrate.scale_signature': OPEN_REGISTRATION,
+    'srmech.rbs_lm.substrate.sim_k4_batch': OPEN_REGISTRATION,
+    'srmech.rbs_lm.substrate.token_seed': OPEN_REGISTRATION,
+    # ── srmech.signal_processing.closed_form_ops.allpass ──
+    'srmech.signal_processing.closed_form_ops.allpass.op': OPEN_REGISTRATION,
+    # ── srmech.signal_processing.closed_form_ops.arithmetic_coding ──
+    'srmech.signal_processing.closed_form_ops.arithmetic_coding.op':
+        OPEN_REGISTRATION,
+    # ── srmech.signal_processing.closed_form_ops.beamforming_fixed ──
+    'srmech.signal_processing.closed_form_ops.beamforming_fixed.op':
+        OPEN_REGISTRATION,
+    # ── srmech.signal_processing.closed_form_ops.cross_spectral ──
+    'srmech.signal_processing.closed_form_ops.cross_spectral.op':
+        OPEN_REGISTRATION,
+    # ── srmech.signal_processing.closed_form_ops.dct ──
+    'srmech.signal_processing.closed_form_ops.dct.op': OPEN_REGISTRATION,
+    # ── srmech.signal_processing.closed_form_ops.esprit ──
+    'srmech.signal_processing.closed_form_ops.esprit.op': OPEN_REGISTRATION,
+    # ── srmech.signal_processing.closed_form_ops.farrow ──
+    'srmech.signal_processing.closed_form_ops.farrow.op': OPEN_REGISTRATION,
+    # ── srmech.signal_processing.closed_form_ops.fft ──
+    'srmech.signal_processing.closed_form_ops.fft.op': OPEN_REGISTRATION,
+    # ── srmech.signal_processing.closed_form_ops.fir ──
+    'srmech.signal_processing.closed_form_ops.fir.op': OPEN_REGISTRATION,
+    # ── srmech.signal_processing.closed_form_ops.fsk ──
+    'srmech.signal_processing.closed_form_ops.fsk.op': OPEN_REGISTRATION,
+    # ── srmech.signal_processing.closed_form_ops.hdc_truncation ──
+    'srmech.signal_processing.closed_form_ops.hdc_truncation.op':
+        OPEN_REGISTRATION,
+    # ── srmech.signal_processing.closed_form_ops.heat_kernel ──
+    'srmech.signal_processing.closed_form_ops.heat_kernel.op':
+        OPEN_REGISTRATION,
+    # ── srmech.signal_processing.closed_form_ops.huffman ──
+    'srmech.signal_processing.closed_form_ops.huffman.op': OPEN_REGISTRATION,
+    # ── srmech.signal_processing.closed_form_ops.ica_jade ──
+    'srmech.signal_processing.closed_form_ops.ica_jade.op': OPEN_REGISTRATION,
+    # ── srmech.signal_processing.closed_form_ops.ifft ──
+    'srmech.signal_processing.closed_form_ops.ifft.op': OPEN_REGISTRATION,
+    # ── srmech.signal_processing.closed_form_ops.iir ──
+    'srmech.signal_processing.closed_form_ops.iir.op': OPEN_REGISTRATION,
+    # ── srmech.signal_processing.closed_form_ops.jpeg ──
+    'srmech.signal_processing.closed_form_ops.jpeg.dct_op': OPEN_REGISTRATION,
+    'srmech.signal_processing.closed_form_ops.jpeg.op': OPEN_REGISTRATION,
+    # ── srmech.signal_processing.closed_form_ops.lmmse ──
+    'srmech.signal_processing.closed_form_ops.lmmse.op': OPEN_REGISTRATION,
+    # ── srmech.signal_processing.closed_form_ops.lz77 ──
+    'srmech.signal_processing.closed_form_ops.lz77.op': OPEN_REGISTRATION,
+    # ── srmech.signal_processing.closed_form_ops.map_ml ──
+    'srmech.signal_processing.closed_form_ops.map_ml.op': OPEN_REGISTRATION,
+    # ── srmech.signal_processing.closed_form_ops.matched_filter ──
+    'srmech.signal_processing.closed_form_ops.matched_filter.op':
+        OPEN_REGISTRATION,
+    # ── srmech.signal_processing.closed_form_ops.mimo_svd ──
+    'srmech.signal_processing.closed_form_ops.mimo_svd.op': OPEN_REGISTRATION,
+    # ── srmech.signal_processing.closed_form_ops.mlse ──
+    'srmech.signal_processing.closed_form_ops.mlse.op': OPEN_REGISTRATION,
+    'srmech.signal_processing.closed_form_ops.mlse.viterbi_op':
+        OPEN_REGISTRATION,
+    # ── srmech.signal_processing.closed_form_ops.multirate ──
+    'srmech.signal_processing.closed_form_ops.multirate.op': OPEN_REGISTRATION,
+    # ── srmech.signal_processing.closed_form_ops.multitaper ──
+    'srmech.signal_processing.closed_form_ops.multitaper.op':
+        OPEN_REGISTRATION,
+    # ── srmech.signal_processing.closed_form_ops.music ──
+    'srmech.signal_processing.closed_form_ops.music.op': OPEN_REGISTRATION,
+    # ── srmech.signal_processing.closed_form_ops.ofdm ──
+    'srmech.signal_processing.closed_form_ops.ofdm.op': OPEN_REGISTRATION,
+    # ── srmech.signal_processing.closed_form_ops.pi_cascade ──
+    'srmech.signal_processing.closed_form_ops.pi_cascade.op':
+        OPEN_REGISTRATION,
+    # ── srmech.signal_processing.closed_form_ops.polyphase ──
+    'srmech.signal_processing.closed_form_ops.polyphase.decompose':
+        OPEN_REGISTRATION,
+    'srmech.signal_processing.closed_form_ops.polyphase.op': OPEN_REGISTRATION,
+    # ── srmech.signal_processing.closed_form_ops.psk_qam ──
+    'srmech.signal_processing.closed_form_ops.psk_qam.op': OPEN_REGISTRATION,
+    # ── srmech.signal_processing.closed_form_ops.rfft ──
+    'srmech.signal_processing.closed_form_ops.rfft.op': OPEN_REGISTRATION,
+    # ── srmech.signal_processing.closed_form_ops.rle ──
+    'srmech.signal_processing.closed_form_ops.rle.op': OPEN_REGISTRATION,
+    # ── srmech.signal_processing.closed_form_ops.sign_quantise ──
+    'srmech.signal_processing.closed_form_ops.sign_quantise.op':
+        OPEN_REGISTRATION,
+    # ── srmech.signal_processing.closed_form_ops.sinc_interp ──
+    'srmech.signal_processing.closed_form_ops.sinc_interp.op':
+        OPEN_REGISTRATION,
+    # ── srmech.signal_processing.closed_form_ops.spectral_subtraction ──
+    'srmech.signal_processing.closed_form_ops.spectral_subtraction.op':
+        OPEN_REGISTRATION,
+    # ── srmech.signal_processing.closed_form_ops.spectrogram ──
+    'srmech.signal_processing.closed_form_ops.spectrogram.op':
+        OPEN_REGISTRATION,
+    'srmech.signal_processing.closed_form_ops.spectrogram.stft_op':
+        OPEN_REGISTRATION,
+    # ── srmech.signal_processing.closed_form_ops.stft ──
+    'srmech.signal_processing.closed_form_ops.stft.op': OPEN_REGISTRATION,
+    # ── srmech.signal_processing.closed_form_ops.vector_quantisation ──
+    'srmech.signal_processing.closed_form_ops.vector_quantisation.op':
+        OPEN_REGISTRATION,
+    # ── srmech.signal_processing.closed_form_ops.viterbi ──
+    'srmech.signal_processing.closed_form_ops.viterbi.op': OPEN_REGISTRATION,
+    # ── srmech.signal_processing.closed_form_ops.wavelet ──
+    'srmech.signal_processing.closed_form_ops.wavelet.op': OPEN_REGISTRATION,
+    # ── srmech.signal_processing.closed_form_ops.wiener ──
+    'srmech.signal_processing.closed_form_ops.wiener.op': OPEN_REGISTRATION,
+    # ── srmech.signal_processing.path_b_ops.fft ──
+    'srmech.signal_processing.path_b_ops.fft.op': DUAL_PATH_TWIN,
+    # ── srmech.signal_processing.path_b_ops.hdc_truncation ──
+    'srmech.signal_processing.path_b_ops.hdc_truncation.op': DUAL_PATH_TWIN,
+    # ── srmech.signal_processing.path_b_ops.ifft ──
+    'srmech.signal_processing.path_b_ops.ifft.op': DUAL_PATH_TWIN,
+    # ── srmech.signal_processing.path_b_ops.matched_filter ──
+    'srmech.signal_processing.path_b_ops.matched_filter.op': DUAL_PATH_TWIN,
+    # ── srmech.signal_processing.path_b_ops.pi_cascade ──
+    'srmech.signal_processing.path_b_ops.pi_cascade.op': DUAL_PATH_TWIN,
+    # ── srmech.signal_processing.path_b_ops.rfft ──
+    'srmech.signal_processing.path_b_ops.rfft.op': DUAL_PATH_TWIN,
+    # ── srmech.signal_processing.path_b_ops.sign_quantise ──
+    'srmech.signal_processing.path_b_ops.sign_quantise.op': DUAL_PATH_TWIN,
+    # ── srmech.signal_processing.path_b_ops.wiener ──
+    'srmech.signal_processing.path_b_ops.wiener.op': DUAL_PATH_TWIN,
+}
+
+#: DOWN-ONLY ceiling on :data:`_UNDECLARED_SURFACE_GAPS`. Seeded at the MEASURED
+#: rc419 residual — 75. Same rule as its declared sibling: it falls by DELETING
+#: a row, never by narrowing the predicate that finds them.
+CEIL_UNDECLARED_SURFACE = 75
+
+#: DOWN-ONLY sub-ceiling on the DEBT bucket of the undeclared half. The mirror
+#: of :data:`CEIL_OPEN_REGISTRATION`, and the number slice 2 of this arc drains.
+CEIL_UNDECLARED_OPEN_REGISTRATION = 59
+
+#: The union both the ratchet and every allowlist-honesty test are checked
+#: against. Keys are disjoint by construction (a module either declares
+#: ``__all__`` or it does not) and
+#: :func:`test_the_two_allowlists_partition_by_declaredness` proves it, so the
+#: merge cannot silently drop a row.
+_ALL_GAPS: Dict[str, str] = {**_KNOWN_REGISTRY_GAPS, **_UNDECLARED_SURFACE_GAPS}
 
 #: FLOOR on the in-scope population. Not a pin — a floor, so a legitimate new
 #: op raises it without ceremony while a scope predicate that quietly stops
-#: observing goes red. rc416 measured 744.
-FLOOR_SCOPE_POPULATION = 700
+#: observing goes red. rc416 measured 744; rc419's predicate repair measured
+#: 813, so the floor moves up with it — leaving it at 700 would have let the
+#: repair be silently reverted without this guard noticing.
+FLOOR_SCOPE_POPULATION = 790
 
 
 # ── 1. the ratchet ──────────────────────────────────────────────────────────
@@ -546,7 +861,7 @@ def test_every_public_all_callable_is_registered_or_an_acknowledged_gap():
     the closed set AND it raises a down-only ceiling, which is a regression
     rather than a fix.
     """
-    missing = unaccounted(_KNOWN_REGISTRY_GAPS)
+    missing = unaccounted(_ALL_GAPS)
     assert not missing, (
         "public __all__ callable(s) resolve to NO ToolEntry and sit on NO "
         "documented allowlist row — they are importable and invisible to "
@@ -578,13 +893,100 @@ def test_open_registration_debt_is_down_only():
         f"to refuse; register the op instead.")
 
 
+def test_undeclared_surface_ceiling_is_down_only():
+    """The rc419 half, same DOWN-ONLY rule as its declared sibling.
+
+    Separate from :func:`test_registry_gap_ceiling_is_down_only` so the two
+    populations cannot net each other out. Registering a
+    ``closed_form_ops.<op>.op`` must LOWER this number specifically; it must
+    not be discharged by a win somewhere in the declared half.
+    """
+    assert len(_UNDECLARED_SURFACE_GAPS) == CEIL_UNDECLARED_SURFACE, (
+        f"undeclared-surface allowlist holds {len(_UNDECLARED_SURFACE_GAPS)} "
+        f"rows against a ceiling of {CEIL_UNDECLARED_SURFACE}. DOWN-ONLY: "
+        f"registering an op DELETES its row and LOWERS the ceiling.")
+
+
+def test_undeclared_open_registration_debt_is_down_only():
+    """The DEBT sub-ceiling of the undeclared half — the number slice 2 drains.
+
+    45 of these are the ``closed_form_ops`` op entry points. This is the
+    figure that says how much of the README's headline signal-processing
+    surface is still invisible to ``describe()`` / ``search`` / MCP.
+    """
+    debt = [p for p, c in _UNDECLARED_SURFACE_GAPS.items()
+            if c == OPEN_REGISTRATION]
+    assert len(debt) == CEIL_UNDECLARED_OPEN_REGISTRATION, (
+        f"undeclared OPEN_REGISTRATION debt is {len(debt)} against a ceiling "
+        f"of {CEIL_UNDECLARED_OPEN_REGISTRATION}. Re-labelling debt as one of "
+        f"the design codes to make this fall is the discharge this file "
+        f"exists to refuse; register the op instead.")
+
+
+def test_the_two_allowlists_partition_by_declaredness():
+    """THE GUARD THAT MAKES THE SPLIT HONEST.
+
+    Two ceilings invite one move: park a row in whichever bucket has slack.
+    The partition is therefore not a convention — it is a decidable property
+    of the row's own module (does it declare ``__all__``?), asserted in both
+    directions plus disjointness. A row cannot be in both, cannot be in
+    neither, and cannot sit in the bucket that does not describe it.
+    """
+    both = sorted(set(_KNOWN_REGISTRY_GAPS) & set(_UNDECLARED_SURFACE_GAPS))
+    assert not both, ("row(s) appear in BOTH allowlists, so one ceiling is "
+                      "counting them twice:\n  " + "\n  ".join(both))
+    assert len(_ALL_GAPS) == (len(_KNOWN_REGISTRY_GAPS)
+                              + len(_UNDECLARED_SURFACE_GAPS)), (
+        "the merged view lost rows — the two dicts are not disjoint")
+
+    _alls, declares = _exported_names()
+    misfiled = []
+    for path in sorted(_KNOWN_REGISTRY_GAPS):
+        module = path.rpartition(".")[0]
+        if module in declares and not declares[module]:
+            misfiled.append(f"{path}: in _KNOWN_REGISTRY_GAPS but {module} "
+                            f"declares NO __all__")
+    for path in sorted(_UNDECLARED_SURFACE_GAPS):
+        module = path.rpartition(".")[0]
+        if declares.get(module, False):
+            misfiled.append(f"{path}: in _UNDECLARED_SURFACE_GAPS but "
+                            f"{module} DOES declare __all__")
+    assert not misfiled, (
+        "allowlist row(s) sit in the bucket that does not describe them. The "
+        "bucket is decided by the module, not by which ceiling has room:\n  "
+        + "\n  ".join(misfiled))
+
+
+def test_the_undeclared_half_of_the_surface_is_actually_observed():
+    """NON-VACUITY for the rc419 repair SPECIFICALLY.
+
+    :func:`test_the_scope_predicate_still_sees_the_surface` is a floor on the
+    WHOLE population, and 746 of 813 points clear it without the fallback ever
+    running — so it would stay green if someone reverted the one clause this
+    rc exists to add. This asserts the repaired half is non-empty in its own
+    right, named at the module that made the defect visible.
+    """
+    surface = public_surface()
+    cfo = [p for p in surface
+           if p.startswith("srmech.signal_processing.closed_form_ops.")]
+    assert len(cfo) >= 40, (
+        f"only {len(cfo)} closed_form_ops entry points are in scope; rc419 "
+        f"measured 45. The __all__ fallback in _exported_names() has been "
+        f"removed or narrowed, and the ratchet is blind again.")
+    _alls, declares = _exported_names()
+    undeclared = [m for m, d in declares.items() if not d]
+    assert len(undeclared) >= 50, (
+        f"only {len(undeclared)} public modules declare no __all__; the walk "
+        f"is not reaching them.")
+
+
 def test_allowlist_entries_are_still_gaps():
     """Keeps the allowlist honest in the other direction: an op that has
     QUIETLY earned a ``ToolEntry`` must be DELETED from here (and the ceiling
     lowered), not left sitting on a list claiming to be invisible."""
     covered = registered_object_ids()
     surface = public_surface()
-    closed = sorted(p for p in _KNOWN_REGISTRY_GAPS
+    closed = sorted(p for p in _ALL_GAPS
                     if p in surface and surface[p] in covered)
     assert not closed, (
         "allowlisted op(s) now HAVE a ToolEntry — delete the row(s) and lower "
@@ -596,7 +998,7 @@ def test_allowlist_has_no_stale_rows():
     dead exemption. Deleting the op is a legitimate way to close a gap, so this
     reports the row rather than tolerating it."""
     surface = public_surface()
-    stale = sorted(p for p in _KNOWN_REGISTRY_GAPS if p not in surface)
+    stale = sorted(p for p in _ALL_GAPS if p not in surface)
     assert not stale, (
         "allowlist row(s) name paths that are no longer in scope (renamed, "
         "removed, or dropped from __all__) — delete them and lower "
@@ -609,7 +1011,7 @@ def test_every_allowlist_row_carries_a_reason_from_the_closed_set():
     """A bare-name allowlist is the silent-exemption shape. Every row carries a
     code, and the code vocabulary is closed so a future row cannot invent an
     exemption by naming one."""
-    bad = sorted(f"{p} -> {c!r}" for p, c in _KNOWN_REGISTRY_GAPS.items()
+    bad = sorted(f"{p} -> {c!r}" for p, c in _ALL_GAPS.items()
                  if c not in _REASON_CODES)
     assert not bad, (
         "allowlist row(s) carry a reason outside the closed set "
@@ -617,21 +1019,33 @@ def test_every_allowlist_row_carries_a_reason_from_the_closed_set():
 
 
 def test_reason_codes_match_the_surface_they_claim():
-    """Two of the five codes are decidable from the path, so they are CHECKED.
+    """Four of the six codes are decidable from the path, so they are CHECKED.
 
     Without this an entry could wear ``CLI_SUBCOMMAND`` — a stated design
     position with a narrow exit condition — to avoid wearing
     ``OPEN_REGISTRATION``, which is counted as debt and drained. The cheap
     label has to be unavailable, not merely discouraged.
+
+    rc419 adds ``DUAL_PATH_TWIN``, bound BOTH ways to
+    ``srmech.signal_processing.path_b_ops``. Both directions matter: without
+    the reverse clause a future path_b_ops entry point could quietly wear
+    ``OPEN_REGISTRATION`` and inflate the debt with a decision that was in
+    fact made; without the forward clause the new code would become a general-
+    purpose escape hatch, which is what the closed set exists to prevent.
     """
     wrong = []
-    for path, code in sorted(_KNOWN_REGISTRY_GAPS.items()):
+    for path, code in sorted(_ALL_GAPS.items()):
         module, _, leaf = path.rpartition(".")
         is_wire = (module.startswith("srmech.mcp")
                    or module.startswith("srmech.llm"))
         is_cli = module == "srmech.cli" or module.startswith("srmech.cli.")
         is_adapter = module.startswith("srmech.amsc.adapters")
+        is_path_b = module.startswith("srmech.signal_processing.path_b_ops")
         is_mutator = any(leaf.startswith(v) for v in _MUTATOR_PREFIXES)
+        if code == DUAL_PATH_TWIN and not is_path_b:
+            wrong.append(f"{path}: DUAL_PATH_TWIN outside path_b_ops")
+        if is_path_b and code != DUAL_PATH_TWIN:
+            wrong.append(f"{path}: under path_b_ops but coded {code}")
         if code == ADR0009_EXEMPT and not is_wire:
             wrong.append(f"{path}: ADR0009_EXEMPT but not under mcp/llm")
         if is_wire and code != ADR0009_EXEMPT:
@@ -771,7 +1185,7 @@ def test_the_ratchet_would_have_fired_on_fold_identity_pre_rc414():
     assert surface[key] in registered_object_ids(), (
         "fold_identity is on the public surface and NOT registered at HEAD — "
         "rc414's registration has regressed")
-    assert key not in _KNOWN_REGISTRY_GAPS, (
+    assert key not in _ALL_GAPS, (
         "fold_identity must never be allowlisted — it is the motivating "
         "defect, not an accepted gap")
 
@@ -797,7 +1211,7 @@ def test_the_ratchet_NAMES_fold_identity_with_rc414s_registration_undone():
     covered.discard(id(fold_identity))          # rc414 undone
 
     would_fire = sorted(path for path, oid in public_surface().items()
-                        if oid not in covered and path not in _KNOWN_REGISTRY_GAPS)
+                        if oid not in covered and path not in _ALL_GAPS)
     assert would_fire == [key], (
         "with rc414's registration undone the ratchet must name exactly "
         f"fold_identity and nothing else; it named {would_fire}")
@@ -824,13 +1238,13 @@ def test_an_injected_unregistered_all_entry_goes_red():
         target._injected_op_rc416 = _injected_op
         target.__all__ = list(original) + ["_injected_op_rc416"]
         # an underscore name is off the surface by design — no fire yet
-        assert not [m for m in unaccounted(_KNOWN_REGISTRY_GAPS)
+        assert not [m for m in unaccounted(_ALL_GAPS)
                     if "injected" in m], (
             "an underscore-prefixed __all__ entry must stay off the surface")
 
         target.injected_op_rc416 = _injected_op
         target.__all__ = list(original) + ["injected_op_rc416"]
-        missing = unaccounted(_KNOWN_REGISTRY_GAPS)
+        missing = unaccounted(_ALL_GAPS)
         assert "srmech.math.text.injected_op_rc416" in missing, (
             "the ratchet did NOT fire on a public __all__ name with no "
             f"ToolEntry — it is green by construction. Saw: {missing}")
@@ -839,7 +1253,7 @@ def test_an_injected_unregistered_all_entry_goes_red():
         for attr in ("_injected_op_rc416", "injected_op_rc416"):
             if hasattr(target, attr):
                 delattr(target, attr)
-    assert not unaccounted(_KNOWN_REGISTRY_GAPS), (
+    assert not unaccounted(_ALL_GAPS), (
         "the injection was not cleanly reverted")
 
 
@@ -859,7 +1273,7 @@ def test_an_injected_class_or_constant_does_not_fire():
         target.INJECTED_CONST_RC416 = 42
         target.__all__ = list(original) + ["InjectedCarrierRc416",
                                            "INJECTED_CONST_RC416"]
-        assert not [m for m in unaccounted(_KNOWN_REGISTRY_GAPS)
+        assert not [m for m in unaccounted(_ALL_GAPS)
                     if "Injected" in m or "INJECTED" in m], (
             "a class or a constant fired the ratchet; the scope is CALLABLES "
             "that are not classes")
