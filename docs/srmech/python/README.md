@@ -421,6 +421,34 @@ print([(c["label"], c["type"]) for c in census["chromosomes"]])
 | census | `genome_census` · `genome_registry` | roll up a genome / a directory of genomes |
 | two-stage encode | `plasmid.plasmid_extract` · `plasmid.section_counts` · `plasmid.conserved_core` · `plasmid.genome_integrate_plasmids` · `plasmid.add_plasmid` | extract-then-organize, incremental |
 
+#### The attestation of record — omitting `attestation=` PRESERVES it (v0.9.0rc418)
+
+A genome's `manifest.json` carries a full MPR attestation block, and until v0.9.0rc418 **every mutating op re-minted srmech's default over it**. A genome saved under a real DOI and a real licence came back `10.0/srmech.genome.persistence` / `CC0` after one `genome_append` — and the false block validated as a well-formed MPR exactly as cleanly as the true one, which is why no test caught it. The same substitution ran through `genome_append_kernel`, `genome_remove`, `genome_replace`, `genome_import`, `genome_pack`, `upgrade_v15_to_v16`, a re-`genome_save`, and — worst, because it is the **distribution unit** — `genome_export`, so a chromosome exported from a `GPL-3.0-only` parent shipped as `CC0` and left the machine that way.
+
+srmech now has the concept it was missing: **the attestation of record**.
+
+```python
+G.genome_save(strand, path, coupling, attestation={
+    "source_doi": "10.5281/zenodo.1234567",
+    "source_url": "https://example.org/corpus",
+    "license": "GPL-3.0-only",
+    "retrieved_at": "2026-08-08T00:00:00Z",
+})
+G.genome_append(path, "chr2", leaves, coupling)     # ← carried forward, not re-minted
+```
+
+Three rules, and the split between them is the whole design:
+
+| | behaviour |
+|---|---|
+| **Four SOURCE fields** — `source_doi` · `source_url` · `license` · `retrieved_at` | **INHERIT** across every mutation. They are facts about where the corpus came from, and a mutation does not change the source. |
+| **`response_sha256` + the four encoder-identity fields** | **ALWAYS re-synthesised.** `response_sha256` IS the body hash; carrying it forward would freeze a stale digest into an attested genome and every downstream re-verification would fail against bytes that are perfectly intact — a worse defect than the one being fixed. |
+| **An explicit `attestation=` that DISAGREES with a non-default block on disk** | `GenomeAttestationConflict` (a `ValueError` subclass). Overwriting an attestation of record is allowed; it is never *silent*. Pass the values already on disk to confirm, or omit the argument to keep them. |
+
+`genome_export` stamps the parent's block onto the `.chr`; `genome_import` and `genome_pack` into a **fresh** destination inherit from the bundle, because at that moment the bundle *is* the genome. `plasmid_extract(..., attestation=...)` is where provenance enters the two-stage pipeline — once, at the seed; every later section append and the stage-2 promotion are in-place and carry it forward for free.
+
+**The compiled projection gained the same capability, not a workaround.** Ten C entry points took no attestation at all before this release, which is why `genome_save(attestation=…)` had to branch to the scripting path — an ADR-0009 capability gap. `SRMECH_ABI_VERSION` moves **12 → 13** (nine existing exported signatures changed; the second ordinary-kind bump after v9). A bare-C host now saves, appends and exports with a caller attestation and gets byte-identical manifests. `GENOME_FORMAT_VERSION` stays **19** — the attestation block is free-form MPR content, gains no key, and `turns.bin` is untouched.
+
 #### Copy number is a multiplicity, not N strands
 
 `amplify` records **how many copies** on a gene's cap, in what was NUL padding. `n == 1` is byte-identical to a plain gene, so only `n >= 2` spends the field, and a gene written before the field existed reads back as `1`. The count is transparent to every existing reader.
