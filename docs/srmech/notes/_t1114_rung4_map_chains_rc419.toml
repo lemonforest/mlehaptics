@@ -1,0 +1,249 @@
+# SPIKE `#T1114` rung 4 — the four BLK-ITER-INDEXED descriptors, authored in
+# the EXTENDED schema of _t1114_rung4_map_engine_rc419.py (SS2 steps + map/fold
+# forms + the new @idx.<name> / @bind.<name> reference forms).  EXTERNAL
+# prototype descriptors — nothing here ships.
+#
+# Letter assignments for stub ops (E/M/N/K -> the stub module under the
+# harness's override registry) are see-past plumbing for BLK-REGMAP, NOT
+# class-identity claims.  The one REGISTERED op used mid-body is the Class-I
+# mod_add (srmech.math.cyclic, default registry) — the autocorrelation index
+# arithmetic (i+k) mod n needs no stub.
+
+# ── quaternion_dft: map_k( scale . fold_+ . map_m(summand(k, m, X)) ) ──────
+[[chain]]
+name = "map_quaternion_dft"
+
+[[chain.steps]]                       # 0: mu-hat (one-resolution contract)
+class = "N"
+op = "resolve_mu4"
+args = { mu_axis = "@input.mu_axis" }
+
+[[chain.steps]]                       # 1: elementwise coercion map (xs)
+map_over = "@input.x"
+index = "i"
+[[chain.steps.body]]
+class = "E"
+op = "seq_get"
+args = { seq = "@input.x", i = "@idx.i" }
+[[chain.steps.body]]
+class = "M"
+op = "as_quat4"
+args = { v = "@step[0].output" }
+
+[[chain.steps]]                       # 2: n = len(xs)  (fixed at entry)
+class = "E"
+op = "seq_len"
+args = { seq = "@step[1].output" }
+
+[[chain.steps]]                       # 3: sigma
+class = "N"
+op = "dft_sigma"
+args = { inverse = "@input.inverse" }
+
+[[chain.steps]]                       # 4: scale
+class = "N"
+op = "dft_scale"
+args = { inverse = "@input.inverse", n = "@step[2].output" }
+
+[[chain.steps]]                       # 5: THE OUTER INDEXED MAP over k
+map_over = "@step[1].output"
+index = "k"
+bind = { xs = "@step[1].output", n = "@step[2].output", sigma = "@step[3].output", scale = "@step[4].output", mu = "@step[0].output", left = "@input.left" }
+
+[[chain.steps.body]]                  # 5.b0: inner indexed map over m
+map_over = "@bind.xs"
+index = "m"
+[[chain.steps.body.body]]
+class = "M"
+op = "qdft_summand"
+args = { xs = "@bind.xs", k = "@idx.k", m = "@idx.m", n = "@bind.n", left = "@bind.left", sigma = "@bind.sigma", mu_hat = "@bind.mu" }
+
+[[chain.steps.body]]                  # 5.b1: Sigma_m — left fold, zero seed
+fold_class = "M"
+fold_op = "vec_add"
+fold_init = [0.0, 0.0, 0.0, 0.0]
+over = "@step[0].output"
+
+[[chain.steps.body]]                  # 5.b2: x scale
+class = "M"
+op = "vec_scale"
+args = { v = "@step[1].output", s = "@bind.scale" }
+
+# ── octonion_dft: same shape, 8-dim, declared bracketing ───────────────────
+[[chain]]
+name = "map_octonion_dft"
+
+[[chain.steps]]                       # 0: mu-hat (left / single axis)
+class = "N"
+op = "resolve_mu8"
+args = { mu_axis = "@input.mu_axis" }
+
+[[chain.steps]]                       # 1: mu_r-hat (two-sided right axis)
+class = "N"
+op = "resolve_mu8"
+args = { mu_axis = "@input.mu_r_axis" }
+
+[[chain.steps]]                       # 2: elementwise coercion map (xs)
+map_over = "@input.x"
+index = "i"
+[[chain.steps.body]]
+class = "E"
+op = "seq_get"
+args = { seq = "@input.x", i = "@idx.i" }
+[[chain.steps.body]]
+class = "M"
+op = "as_oct8"
+args = { v = "@step[0].output" }
+
+[[chain.steps]]                       # 3: n
+class = "E"
+op = "seq_len"
+args = { seq = "@step[2].output" }
+
+[[chain.steps]]                       # 4: sigma
+class = "N"
+op = "dft_sigma"
+args = { inverse = "@input.inverse" }
+
+[[chain.steps]]                       # 5: scale
+class = "N"
+op = "dft_scale"
+args = { inverse = "@input.inverse", n = "@step[3].output" }
+
+[[chain.steps]]                       # 6: THE OUTER INDEXED MAP over k
+map_over = "@step[2].output"
+index = "k"
+bind = { xs = "@step[2].output", n = "@step[3].output", sigma = "@step[4].output", scale = "@step[5].output", mu = "@step[0].output", mu_r = "@step[1].output", form = "@input.form", bracketing = "@input.bracketing" }
+
+[[chain.steps.body]]                  # 6.b0: inner indexed map over m
+map_over = "@bind.xs"
+index = "m"
+[[chain.steps.body.body]]
+class = "M"
+op = "odft_summand"
+args = { xs = "@bind.xs", k = "@idx.k", m = "@idx.m", n = "@bind.n", form = "@bind.form", bracketing = "@bind.bracketing", sigma = "@bind.sigma", mu_hat = "@bind.mu", mu_r_hat = "@bind.mu_r" }
+
+[[chain.steps.body]]                  # 6.b1: Sigma_m
+fold_class = "M"
+fold_op = "vec_add"
+fold_init = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+over = "@step[0].output"
+
+[[chain.steps.body]]                  # 6.b2: x scale
+class = "M"
+op = "vec_scale"
+args = { v = "@step[1].output", s = "@bind.scale" }
+
+# ── kuramoto_step (simple path): map_i( combine . fold_+ . map_j(sin) ) ────
+# Each out[i] consumes the WHOLE theta through the inner all-to-all sum —
+# f(i, whole_input), not an elementwise map (the rung-4 (b) confirmation).
+[[chain]]
+name = "map_kuramoto_simple"
+
+[[chain.steps]]                       # 0: n = len(theta)
+class = "E"
+op = "seq_len"
+args = { seq = "@input.theta" }
+
+[[chain.steps]]                       # 1: inv_n = K/n
+class = "K"
+op = "kuramoto_inv_n"
+args = { coupling = "@input.coupling", n = "@step[0].output" }
+
+[[chain.steps]]                       # 2: THE OUTER INDEXED MAP over i
+map_over = "@input.theta"
+index = "i"
+bind = { theta = "@input.theta", omega = "@input.omega", inv_n = "@step[1].output", dt = "@input.dt" }
+
+[[chain.steps.body]]                  # 2.b0: inner map over j (all-to-all)
+map_over = "@bind.theta"
+index = "j"
+[[chain.steps.body.body]]
+class = "K"
+op = "kuramoto_sin_term"
+args = { theta = "@bind.theta", i = "@idx.i", j = "@idx.j" }
+
+[[chain.steps.body]]                  # 2.b1: S = Sigma_j (left fold, 0.0 seed)
+fold_class = "M"
+fold_op = "f64_add"
+fold_init = 0.0
+over = "@step[0].output"
+
+[[chain.steps.body]]                  # 2.b2: theta_i + h*(omega_i + inv_n*S)
+class = "K"
+op = "kuramoto_out_simple"
+args = { theta = "@bind.theta", omega = "@bind.omega", i = "@idx.i", s = "@step[1].output", inv_n = "@bind.inv_n", dt = "@bind.dt" }
+
+# ── kuramoto_step (generalised Kuramoto-Sakaguchi path) ────────────────────
+# Separate chain because the shipped op BRANCHES between two float-order-
+# distinct cascades (weight-the-sum vs weight-the-term); a declarative chain
+# has no branch form — dispatch-on-parameters is a wrapper-layer gap, noted.
+[[chain]]
+name = "map_kuramoto_general"
+
+[[chain.steps]]                       # 0: n
+class = "E"
+op = "seq_len"
+args = { seq = "@input.theta" }
+
+[[chain.steps]]                       # 1: inv_n
+class = "K"
+op = "kuramoto_inv_n"
+args = { coupling = "@input.coupling", n = "@step[0].output" }
+
+[[chain.steps]]                       # 2: THE OUTER INDEXED MAP over i
+map_over = "@input.theta"
+index = "i"
+bind = { theta = "@input.theta", omega = "@input.omega", adjacency = "@input.adjacency", coupling = "@input.coupling", inv_n = "@step[1].output", alpha = "@input.alpha", psi = "@input.psi", ps = "@input.ps", dt = "@input.dt" }
+
+[[chain.steps.body]]                  # 2.b0: inner map over j
+map_over = "@bind.theta"
+index = "j"
+[[chain.steps.body.body]]
+class = "K"
+op = "kuramoto_gen_term"
+args = { theta = "@bind.theta", adjacency = "@bind.adjacency", coupling = "@bind.coupling", inv_n = "@bind.inv_n", alpha = "@bind.alpha", i = "@idx.i", j = "@idx.j" }
+
+[[chain.steps.body]]                  # 2.b1: S = Sigma_j
+fold_class = "M"
+fold_op = "f64_add"
+fold_init = 0.0
+over = "@step[0].output"
+
+[[chain.steps.body]]                  # 2.b2: combine (+ optional pinning)
+class = "K"
+op = "kuramoto_gen_out"
+args = { theta = "@bind.theta", omega = "@bind.omega", i = "@idx.i", s = "@step[1].output", psi = "@bind.psi", ps = "@bind.ps", dt = "@bind.dt" }
+
+# ── autocorrelation: map_k( neumaier . map_i( x[i]*x[(i+k) mod n] ) ) ──────
+# The index arithmetic (i+k) mod n runs on the REGISTERED Class-I mod_add —
+# the one place a shipped registered op serves mid-body.
+[[chain]]
+name = "map_autocorrelation"
+
+[[chain.steps]]                       # 0: n = len(x)
+class = "E"
+op = "seq_len"
+args = { seq = "@input.x" }
+
+[[chain.steps]]                       # 1: THE OUTER INDEXED MAP over k (lags)
+map_over = "@input.x"
+index = "k"
+bind = { x = "@input.x", n = "@step[0].output" }
+
+[[chain.steps.body]]                  # 1.b0: inner indexed map over i
+map_over = "@bind.x"
+index = "i"
+[[chain.steps.body.body]]             # (i + k) mod n — REGISTERED Class I
+class = "I"
+op = "mod_add"
+args = { a = "@idx.i", b = "@idx.k", n = "@bind.n" }
+[[chain.steps.body.body]]
+class = "E"
+op = "ac_term"
+args = { x = "@bind.x", i = "@idx.i", j = "@step[0].output" }
+
+[[chain.steps.body]]                  # 1.b1: the shipped compensated Sigma
+class = "M"
+op = "neumaier_sum"
+args = { values = "@step[0].output" }

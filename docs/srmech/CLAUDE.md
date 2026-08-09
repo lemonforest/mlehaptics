@@ -298,12 +298,22 @@ lean-ISA atoms/composites `chiral_flip`, `pin_slot_at_zero`, `magnitude`,
 catalog has since doubled. Re-count before quoting a number here — this
 file is explicitly NOT hygiene-gated, which is exactly how the sibling
 "five duplicated count-tests" line reached a 12× under-scope (ADR-0012
-§1.1). **And nothing else can catch it**: ADR-0012 §3.4 (clause C6)
+§1.1). ~~**And nothing else can catch it**: ADR-0012 §3.4 (clause C6)
 measures that the 20 cascade descriptors have ZERO `describe()`
 visibility — `json.dumps(describe())` contains `"cascade_catalog"` 0
 times — so this prose sentence is currently the tree's only statement of
-how many there are. The `[class]` catalog next door IS counted
-(`describe()["classes"]["toml_total"] == 4`); the asymmetry is the point.
+how many there are.~~ **SUPERSEDED at rc420 (`#T1114`)**: C6's
+cascade_catalog front is CLOSED — `describe()["cascade_catalog"]` now
+counts the catalog live (`total` / `executable` / `leaf` + a
+per-descriptor status map; 20 = 17 executable + 3 explicit leaves at
+rc420), every descriptor declares an executable ADR-0008 chain or an
+explicit leaf (`tests/test_cascade_catalog_executable_rc420.py`, no
+third state), and `srmech.dsl.run_cascade_chain` runs a declared chain.
+This prose is no longer the only statement of how many there are — the
+live count is the SSoT and this sentence defers to it. The `[class]`
+catalog next door was always counted
+(`describe()["classes"]["toml_total"] == 4`); the asymmetry C6 named is
+gone on this front (the `[[alias]]` layer's axis is still open).
 
 **Discipline — PREFER config-driven `[class]` TOML over hand-coded
 domain classes** (`[[feedback_prefer_config_driven_toml_classes]]`,
@@ -632,8 +642,10 @@ calls** — go through `sha256_bytes` (Phase B5 discipline).
 
 ### ABI compatibility
 
-C ABI version is currently **12** (`SRMECH_ABI_VERSION = 12` in
-`c/include/srmech.h`; `EXPECTED_ABI_VERSION = 12` in
+C ABI version is currently **13** (`SRMECH_ABI_VERSION = 13` in
+`c/include/srmech.h`; `EXPECTED_ABI_VERSION = 13` in
+*(this line said 12 until rc420 — one bump behind again, the exact
+staleness shape the rc404 note below records; the v13 bump was rc418's)*
 `python/srmech/_native/__init__.py`). *(These three lines said ABI **9** and
 pointed at `python/srmech/amsc/_native.py` until rc404 (`#T1069`) — two stale
 facts in three lines: the version was three bumps behind, and ADR-0010 moved

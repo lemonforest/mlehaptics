@@ -1176,8 +1176,8 @@ rewrite would target, and because §3 establishes that this payload is *inside t
 `srmech/mcp/_tools.py:395-402` (the `description` assembly that omits the prose) ·
 `srmech/cli/*.py` (the 57 hand-authored help strings; `cli/mcp.py:7` for the "nothing is
 hand-authored" docstring) ·
-`c/include/srmech.h:5432-5511` (`srmech_tool_entry_t`; the "documentation-hint fields" wording at
-`:5396`; `explanation` at `:5429`; the byte-identity/hash contract at `:5390-5400`) ·
+`c/include/srmech.h:5444-5523` (`srmech_tool_entry_t`; the "documentation-hint fields" wording at
+`:5408`; `explanation` at `:5441`; the byte-identity/hash contract at `:5402-5412`) ·
 `c/tools/gen_tool_registry.py:265,:276,:277,:278` (where `summary` / `example` / `smoke_test_hint` /
 `explanation` are baked into C) ·
 `c/src/srmech_tool_registry.c` (the third copy) ·

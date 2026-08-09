@@ -1,0 +1,110 @@
+# SPIKE ARTIFACT — `#T1114` rung 1.  NOT a shipped descriptor.
+#
+# An EXECUTABLE inversion of the documentary
+# `srmech/cascade/catalogs/cascade_catalog/best_rational_signed.toml`
+# into ADR-0008 §2's `[[catalog.operator_chain]]` schema.  The documentary
+# descriptor states its three stages as PROSE
+# (`class_composition = "K∘N∘C"`, `class_k_inline = "if x > 0: ..."`);
+# this file states them as STEPS, so the engine
+# (`srmech.cascade.compose`) can run them.
+#
+# Written to be executed by `_rung1_invert_descriptor_rc419.py`, which
+# measures exactly which ADR-0008 §2 clause each variant hits.
+#
+# THREE variants, in increasing optimism:
+#   A  the literal K -> N -> C reading of the documentary descriptor.
+#   B  A, plus the scale/round stage the reference implementation
+#      performs between K and N (`int(round(mag * fine_scale))`).
+#   C  B, plus the `(numerator, denominator)` tuple assembly the
+#      documentary `[cascade.signature].output` promises.
+
+[catalog]
+chain_schema_version = 1
+
+# ── Variant A — the literal three-stage reading ───────────────────────
+[[catalog.operator_chain]]
+name = "best_rational_signed_a_literal_knc"
+summary = "K∘N∘C as the documentary descriptor states it: pin_slot_at_zero -> best_rational -> reorient."
+returns = "tuple[int, int]  # (signed_numerator, positive_denominator)"
+on_error = "raise"
+
+[[catalog.operator_chain.steps]]
+class = "K"
+op = "pin_slot_at_zero"
+args = { x = "@input.x" }
+
+[[catalog.operator_chain.steps]]
+class = "N"
+op = "best_rational"
+args = { numerator = "@step[0].output[1]", denominator = "@input.fine_scale", max_denominator = "@input.max_denominator" }
+
+[[catalog.operator_chain.steps]]
+class = "C"
+op = "reorient"
+args = { value = "@step[1].output[0]", orientation = "@step[0].output[0]" }
+
+# ── Variant B — A + the scale/round stage the reference performs ──────
+[[catalog.operator_chain]]
+name = "best_rational_signed_b_with_scale_round"
+summary = "A, with the int(round(magnitude * fine_scale)) stage the Python reference runs between Class K and Class N."
+returns = "tuple[int, int]  # (signed_numerator, positive_denominator)"
+on_error = "raise"
+
+[[catalog.operator_chain.steps]]
+class = "K"
+op = "pin_slot_at_zero"
+args = { x = "@input.x" }
+
+# The stage the documentary descriptor hides inside
+# `[cascade.signature].operation`: "best_rational(round(magnitude *
+# fine_scale), fine_scale, max_denominator)".  There is no registered
+# A-N op that scales a real and rounds half-to-even; `scale_round_half_even`
+# is the name this spike PROPOSES.  The engine will report it missing.
+[[catalog.operator_chain.steps]]
+class = "N"
+op = "scale_round_half_even"
+args = { value = "@step[0].output[1]", scale = "@input.fine_scale" }
+
+[[catalog.operator_chain.steps]]
+class = "N"
+op = "best_rational"
+args = { numerator = "@step[1].output", denominator = "@input.fine_scale", max_denominator = "@input.max_denominator" }
+
+[[catalog.operator_chain.steps]]
+class = "C"
+op = "reorient"
+args = { value = "@step[2].output[0]", orientation = "@step[0].output[0]" }
+
+# ── Variant C — B + the tuple assembly the output contract promises ───
+[[catalog.operator_chain]]
+name = "best_rational_signed_c_with_pack"
+summary = "B, plus the final (signed_numerator, denominator) assembly. The chain returns only its LAST step's output, so the pair must be built by a step."
+returns = "tuple[int, int]  # (signed_numerator, positive_denominator)"
+on_error = "raise"
+
+[[catalog.operator_chain.steps]]
+class = "K"
+op = "pin_slot_at_zero"
+args = { x = "@input.x" }
+
+[[catalog.operator_chain.steps]]
+class = "N"
+op = "scale_round_half_even"
+args = { value = "@step[0].output[1]", scale = "@input.fine_scale" }
+
+[[catalog.operator_chain.steps]]
+class = "N"
+op = "best_rational"
+args = { numerator = "@step[1].output", denominator = "@input.fine_scale", max_denominator = "@input.max_denominator" }
+
+[[catalog.operator_chain.steps]]
+class = "C"
+op = "reorient"
+args = { value = "@step[2].output[0]", orientation = "@step[0].output[0]" }
+
+# There is no registered op that packs two prior step outputs into a
+# tuple.  `pair` is the name this spike PROPOSES.
+[[catalog.operator_chain.steps]]
+class = "B"
+op = "pair"
+args = { first = "@step[3].output", second = "@step[2].output[1]" }

@@ -256,6 +256,19 @@ do is part of the API, and a caller holding only `describe()` must be able to fi
 `describe()` axis and no package home at all.* **OPEN — and deliberately NOT implemented in rc363**
 (the `describe()` axes are the user's own rc).
 
+> ✅ **The cascade_catalog front CLOSED at v0.9.0rc420** (`#T1114`). `describe()` carries a twelfth
+> top-level key `cascade_catalog` — `{total, executable, leaf, status: {descriptor: state}, run,
+> enumerate}` — and the state it counts is itself new: every one of the 20 descriptors is
+> **executable** (declares an ADR-0008 §2 chain, executed bit-identical to its shipped op by
+> `tests/test_cascade_catalog_executable_rc420.py`) or an explicit **leaf**, with the no-third-state
+> rule strict-zero. `srmech.dsl.list_catalog_ops` rows carry the per-descriptor `status` column and
+> `srmech.dsl.run_cascade_chain` runs a declared chain, so the op → chain half of §3.4's word-problem
+> bridge is both countable at the root index and callable. Instrument:
+> `tests/test_cascade_catalog_executable_rc420.py::test_no_third_state_strict_zero` +
+> the twelve-key pin `tests/test_describe_registry_pointer_rc407.py::test_top_level_key_set_is_untouched`.
+> **The alias-layer front remains OPEN** (`"alias"` still occurs 0 times in the payload); the clause
+> row below carries that residue, so the closure claims exactly what was closed and no more.
+
 ### 3.2 The clause the shape of the failures teaches
 
 C4 and C5 had gates that **selected** the new ops; both were closed within the rc. C2 and C3 had no
@@ -332,6 +345,8 @@ the build measured is recorded here because **it corrected this draft twice**.
 | **C3** | closed rc362, ungated | `tests/test_carrier_use_derivation_rc363.py::test_every_used_carrier_is_registered` | **strict-zero, no CEIL** |
 | prose op-refs (`#T1045`) | — | `tests/test_prose_oprefs_resolve_rc363.py::test_no_unresolved_citation_anywhere` | **strict-zero, no CEIL** |
 | **C5** *(added rc414, `#T1092`)* | marked `CLOSED in-rc` at rc362 and **refuted by execution** at rc411/rc413 | `tests/test_wire_round_trip_rc414.py::test_no_carrier_crosses_as_a_repr_string` | **strict-zero on the repr-string class; DOWN-ONLY CEILs on the rest** |
+| **C6** (cascade_catalog front) *(added rc363 §3.4; closed rc420, `#T1114`)* | 20 descriptors, zero `describe()` visibility through rc419 | `tests/test_cascade_catalog_executable_rc420.py::test_no_third_state_strict_zero` | **GATED — strict-zero (no third state) + the 12-key root pin; the section counts 17 executable / 3 leaf** |
+| **C6** (alias front) | `"alias"` occurs 0 times in `json.dumps(describe())` (re-measured rc420) | none | **still OPEN** (the layer has a package home since rc364; the `describe()` axis does not exist yet) |
 
 **⚠️ Amendment (rc417, `#T1100`) — the instrument column now names a NODE ID, and what that does and does not buy.**
 Through rc416 every cell above named a **file**. A file-valued instrument is falsifiable in exactly one
@@ -482,6 +497,15 @@ until ADR-0010's first execution slice moved the built-in catalogs to the compos
 *measurements* (4 / 20 / visible / not-visible) are unchanged by that move — a directory move does
 not change what `describe()` can see, which is itself part of C6's point.
 
+✅ **THE MIDDLE ROW INVERTED AT v0.9.0rc420** (`#T1114`). The table above is the 2026-07-30
+measurement and stands as written; re-measured at rc420: `json.dumps(describe())` now contains
+`"cascade_catalog"` as a twelfth top-level key whose payload counts the catalog (`total: 20,
+executable: 17, leaf: 3`) and carries the per-descriptor status map — and the states it counts are
+new facts, not relabels: every descriptor now declares an EXECUTABLE ADR-0008 §2 chain (proven
+bit-identical to its shipped op, per proof case, by the rc420 gate) or an explicit LEAF with a
+machine-readable reason, no third state. The alias row is unchanged (`"alias"`: still 0 — that
+front stays OPEN and is carried as its own clause row in §3.3).
+
 Two of the three are unreachable, and the third proves the reachable shape is already available: the
 `[class]` layer has a packaged directory constant, a loader that reads it, a `toml_total` count and
 three registered ops. **The asymmetry is the finding** — this is not a missing capability, it is a
@@ -535,6 +559,10 @@ deleted in the same commit. Reasoning recorded as ADR-0010 Amendment B.
 their own rc. Recording the clause without building it is the correct move here *only because it is
 labelled* — per §3.2 an unimplemented clause is a preference, and this one is named as such rather than
 counted as coverage.
+
+**Status update, v0.9.0rc420 (`#T1114`): the cascade_catalog front is CLOSED and gated** (the rc the
+user assigned arrived — see the ✅ notes above and the two C6 rows in §3.3's clause table). **The
+alias front remains OPEN** on its own row, so this clause now claims exactly the half that shipped.
 
 
 ## 4. Decision — the ripple is the layer's shape, and it is enumerated HERE
