@@ -733,6 +733,26 @@ static srmech_status_t cat_audit_rows(srmech_json_builder_t *b,
     return SRMECH_OK;
 }
 
+/* `#T1108` DECIDE BEFORE PROJECTING. A data-only literature_curated
+ * catalogue's committed lines carry no attestation at all, so projecting them
+ * emits empty strings that VALIDATE -- the silent-wrong-answer this rc exists
+ * to close. The compiled projection cannot yet SYNTHESISE that block, so it
+ * declines BY TYPE (SRMECH_ERR_NOT_IMPL) rather than answering wrongly.
+ * SRMECH_OK means "projecting is legitimate here"; anything else is the
+ * caller's answer. */
+static srmech_status_t cat_audit_decide(const char *descriptor,
+                                        size_t descriptor_len,
+                                        void *dws, size_t dws_len)
+{
+    assert(descriptor != NULL || descriptor_len == 0u);
+    assert(dws != NULL || dws_len == 0u);
+    int synth = 0;
+    srmech_status_t st = cat_audit_needs_synthesis(descriptor, descriptor_len,
+                                                   dws, dws_len, &synth);
+    if (st != SRMECH_OK) { return st; }
+    return synth ? SRMECH_ERR_NOT_IMPL : SRMECH_OK;
+}
+
 srmech_status_t srmech_catalog_attestation_audit(
     const char *source_key, size_t source_key_len,
     const char *descriptor, size_t descriptor_len,
@@ -747,11 +767,6 @@ srmech_status_t srmech_catalog_attestation_audit(
     }
     unsigned char *cur = (unsigned char *)ws;
     unsigned char *end = cur + ws_len;
-    /* `#T1108`: DECIDE BEFORE PROJECTING. A data-only literature_curated
-     * catalogue's committed lines carry no attestation at all, so projecting
-     * them emits empty strings that VALIDATE -- the silent-wrong-answer this
-     * rc exists to close. The compiled projection cannot yet SYNTHESISE that
-     * block, so it declines BY TYPE rather than answering wrongly. */
     size_t dws_len = srmech_toml_parse_arena_bytes(descriptor_len) + 64u;
     unsigned char *dws = cat_carve(&cur, end, dws_len);
     size_t pa_len = 96u * ndjson_len + 16384u;
@@ -767,13 +782,10 @@ srmech_status_t srmech_catalog_attestation_audit(
         dws == NULL) {
         return SRMECH_ERR_OVERFLOW;
     }
-    {
-        int synth = 0;
-        srmech_status_t ds = cat_audit_needs_synthesis(descriptor, descriptor_len,
-                                                       dws, dws_len, &synth);
-        if (ds != SRMECH_OK) { return ds; }
-        if (synth) { return SRMECH_ERR_NOT_IMPL; }
-    }
+    /* `#T1108`: DECIDE BEFORE PROJECTING -- see cat_audit_decide. */
+    srmech_status_t ds = cat_audit_decide(descriptor, descriptor_len,
+                                          dws, dws_len);
+    if (ds != SRMECH_OK) { return ds; }
     srmech_json_builder_t b;
     srmech_status_t st = srmech_json_builder_init(&b, abd,
         64u * ndjson_len + 16384u + 4u * source_key_len);
