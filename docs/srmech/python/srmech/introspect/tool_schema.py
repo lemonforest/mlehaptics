@@ -12897,7 +12897,7 @@ def _register_dsl_tools() -> None:
                 "leaf declaration; this parses the declared steps through "
                 "srmech.cascade.compose and runs them on the given "
                 "inputs. The shipped chains are proven BIT-identical to "
-                "their shipped ops by the rc420 gate (93 proof cases incl. "
+                "their shipped ops by the rc420 gate (91 proof cases incl. "
                 "each descriptor's documented boundary cases), so this is "
                 "the op's own cascade run declaratively — the op -> chain "
                 "half of the word-problem bridge (ADR-0012 C6), callable. "
