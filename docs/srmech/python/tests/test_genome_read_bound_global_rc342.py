@@ -766,7 +766,7 @@ def test_rc342_introduces_no_new_status_enumerator_and_does_not_move_the_abi():
     ABI question has to be answered deliberately rather than by omission.
     """
     _requires_native()
-    assert _native.EXPECTED_ABI_VERSION == 12, (
+    assert _native.EXPECTED_ABI_VERSION == 13, (
         "rc342 is ABI-neutral (rc404 moved the baseline 11 -> 12); a bump here needs its own justification")
     assert _native.NATIVE_ABI_VERSION == _native.EXPECTED_ABI_VERSION, (
         "the loaded library's ABI does not match the one this shim compiled "

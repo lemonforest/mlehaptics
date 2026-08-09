@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc417"
-#define SRMECH_VERSION       "0.9.0rc417"
+#define SRMECH_VERSION_PRE   "rc418"
+#define SRMECH_VERSION       "0.9.0rc418"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -230,8 +230,37 @@ extern "C" {
  *      the stale lib (clean fall-back to the pure path) is strictly better than a
  *      correct answer bought at 512 MiB. GENOME_FORMAT_VERSION stays 19 — no
  *      on-disk format change.
+ *
+ *   v13 (v0.9.0rc418, task `#T1108`) — the ATTESTATION LIFECYCLE bump, and the
+ *      second of the ORDINARY kind after v9. Eleven existing exported signatures
+ *      changed: the ten genome WRITE entry points
+ *        srmech_genome_save / _append / _remove / _replace / _export / _import /
+ *        _pack / _from_graph / _plasmid_extract / _add_plasmid
+ *      each gained `(const char *attestation, size_t attestation_len)` — the
+ *      caller MPR SOURCE-attestation channel the compiled projection previously
+ *      did not have AT ALL, and
+ *        srmech_catalog_attestation_audit
+ *      gained `(const char *descriptor, size_t descriptor_len)` so it can
+ *      SYNTHESISE a literature_curated row's attestation instead of projecting a
+ *      raw envelope's. The paired ctypes argtypes move in lockstep, exactly as
+ *      v9's precedent requires — quoted from docs/srmech/CLAUDE.md: "v9
+ *      (v0.9.0rc306, task #899) is the first bump of the ORDINARY kind — an
+ *      existing exported signature changed: srmech_genome_section_counts gained
+ *      (void *ws, size_t ws_len) caller-arena params ... with the paired ctypes
+ *      argtypes updated in lockstep."
+ *
+ *      WHAT THE BUMP BUYS. Before rc418 the ten write entry points had no channel
+ *      for a caller attestation, so `genome_save(attestation=...)` had to branch
+ *      to the scripting projection — an ADR-0009 capability gap dressed up as a
+ *      fast-path skip. A stale rc417 .so reports ABI 12 and would otherwise load
+ *      into rc418 Python, where the carry-forward the rc adds lives in the C
+ *      builders: the stale lib would keep OVERWRITING a caller's real attestation
+ *      with srmech's defaults and the result would still validate as a well-formed
+ *      MPR. That is the silent-wrong-answer class, so rejecting the stale lib is
+ *      the only safe read. GENOME_FORMAT_VERSION stays 19 — the attestation block
+ *      is free-form MPR content, gains no key, and turns.bin is untouched.
  */
-#define SRMECH_ABI_VERSION 12
+#define SRMECH_ABI_VERSION 13
 
 /* ------------------------------------------------------------------ *
  * Thread-local storage qualifier (reentrancy support; #772)
@@ -3005,14 +3034,39 @@ srmech_status_t srmech_catalog_use_local_kernel(
 
 /* attestation_audit: {ok, source_key, n_rows, rows:[...]}. Iterates the
  * NDJSON file bytes (lstrip each line; skip empty / '#' comment lines),
- * parses each row as JSON, and projects data_schema_id + attestation.
- * {response_sha256, retrieved_at, parser_version, parser_rule_hash,
- * collector_descriptor_hash} (each "" when absent). A per-line parse
- * failure returns non-OK -> the caller runs the pure path. */
+ * parses each row as JSON, and projects data_schema_id + the EIGHT
+ * attestation fields {source_doi, source_url, license, response_sha256,
+ * retrieved_at, parser_version, parser_rule_hash, collector_descriptor_hash}
+ * (each "" when absent). A per-line parse failure returns non-OK -> the caller
+ * runs the pure path.
+ *
+ * `#T1108` (ABI 13) — THE DESCRIPTOR PAIR IS NEW, and it is what makes the
+ * answer honest rather than merely consistent. The projection above is only
+ * legitimate when the committed line IS an MPR envelope. A data-only
+ * `literature_curated` catalogue commits rows with no attestation key at all,
+ * so through rc417 this op returned empty strings for every field of every row
+ * of eight of the nine registered sources — and so did its Python peer, which
+ * is why eleven releases of differential testing never saw it.
+ *
+ * With the descriptor in hand the op reads `[fetch].adapter` and DECIDES:
+ *   - a verbatim adapter (live fetchers, `mpr_committed`)   -> project.
+ *   - `literature_curated`                                  -> SRMECH_ERR_NOT_IMPL.
+ * The decline is a NAMED CAPABILITY GAP, not a bug and not a fallback:
+ * synthesising the curated block needs canonical-TOML `descriptor_hash` /
+ * `parser_rule_hash` peers that the C surface does not export today, and
+ * SRMECH_ERR_NOT_IMPL (never SRMECH_ERR_OVERFLOW) says so — no arena relieves
+ * it. The Python host services the call completely; a bare-C host does not get
+ * this one source class yet. Declining loudly is the only alternative to
+ * answering wrongly, which is the state this replaces.
+ *
+ * A NULL / unparseable descriptor is SRMECH_ERR_BAD_INPUT rather than an
+ * assumed-verbatim projection: guessing is how the blank answer happened. */
 size_t srmech_catalog_attestation_audit_arena_bytes(size_t ndjson_len,
+                                                    size_t descriptor_len,
                                                     size_t source_key_len);
 srmech_status_t srmech_catalog_attestation_audit(
     const char *source_key, size_t source_key_len,
+    const char *descriptor, size_t descriptor_len,
     const char *ndjson, size_t ndjson_len,
     void *ws, size_t ws_len, char *out, size_t out_cap, size_t *out_len);
 
@@ -7391,6 +7445,16 @@ srmech_status_t srmech_genome_save(
     const unsigned char *body, size_t body_len,
     uint32_t leaf_dim,
     const unsigned char *coupling, size_t coupling_len,
+    /* `#T1108` (ABI 13): the caller MPR SOURCE attestation — a JSON object
+     * carrying any of source_doi / source_url / license / retrieved_at. NULL
+     * (len 0) = none, in which case the block already in <dir>/manifest.json
+     * is CARRIED FORWARD and srmech's default is written only when there is
+     * nothing to inherit. A given block that DISAGREES with a non-default one
+     * already on disk is SRMECH_ERR_BAD_INPUT: overwriting an attestation of
+     * record is allowed, it is never silent. response_sha256 and the four
+     * encoder-identity fields are ALWAYS re-synthesised and are not readable
+     * through this channel. */
+    const char *attestation, size_t attestation_len,
     void *ws, size_t ws_len);
 
 /* The arena byte count any genome op needs for a body of `body_len` bytes with
@@ -7401,7 +7465,7 @@ srmech_status_t srmech_genome_save(
  * the .chr region/hex/io + per-chromosome strings/manifest/json + a fixed slop).
  * Adding this symbol does NOT bump SRMECH_ABI_VERSION. */
 size_t srmech_genome_arena_bytes(size_t body_len, uint32_t n_chroms,
-                                 size_t region_len);
+                                 size_t region_len, size_t attestation_len);
 
 /* The exact working-arena size (bytes) srmech_genome_append needs for the genome at
  * `dir` when it stages a `region_len`-byte region. Reads manifest.json into `ws`
@@ -7421,6 +7485,7 @@ size_t srmech_genome_arena_bytes(size_t body_len, uint32_t n_chroms,
  *   SRMECH_ERR_IO         — the body turns.bin is missing / unstattable.
  * Adding this symbol does NOT bump SRMECH_ABI_VERSION. */
 srmech_status_t srmech_genome_append_arena_bytes(const char *dir, size_t region_len,
+                                                 size_t attestation_len,
                                                  void *ws, size_t ws_len,
                                                  size_t *out_bytes);
 
@@ -7754,6 +7819,7 @@ srmech_status_t srmech_genome_append(
     const char *dir, const char *label,
     const unsigned char *region, size_t region_len, uint32_t leaf_dim,
     const unsigned char *coupling, size_t coupling_len,
+    const char *attestation, size_t attestation_len,
     void *ws, size_t ws_len);
 
 /* §45 IN-PLACE EDIT — biology excises, it does not re-synthesize. With the §44
@@ -7790,6 +7856,7 @@ srmech_status_t srmech_genome_append(
 srmech_status_t srmech_genome_remove(
     const char *dir, const char *label,
     const unsigned char *coupling, size_t coupling_len,
+    const char *attestation, size_t attestation_len,
     void *ws, size_t ws_len);
 
 /* REPLACE: swap chromosome `label`'s content IN PLACE — splice its old span out
@@ -7819,6 +7886,7 @@ srmech_status_t srmech_genome_replace(
     const char *dir, const char *label,
     const unsigned char *region, size_t region_len, uint32_t leaf_dim,
     const unsigned char *coupling, size_t coupling_len,
+    const char *attestation, size_t attestation_len,
     void *ws, size_t ws_len);
 
 /* §43 FILE-MANAGEMENT — the chromosome as a bundleable .chr file. Now that §44
@@ -7857,6 +7925,7 @@ srmech_status_t srmech_genome_replace(
 srmech_status_t srmech_genome_export(
     const char *dir, const char *label, const char *out_path,
     const unsigned char *coupling, size_t coupling_len,
+    const char *attestation, size_t attestation_len,
     void *ws, size_t ws_len);
 
 /* IMPORT: read a .chr bundle (genome_export's output), RE-HASH its region and
@@ -7888,6 +7957,7 @@ srmech_status_t srmech_genome_export(
 srmech_status_t srmech_genome_import(
     const char *chr_path, const char *dest,
     const unsigned char *coupling, size_t coupling_len,
+    const char *attestation, size_t attestation_len,
     void *ws, size_t ws_len);
 
 /* §43 LOOSE<->PACKED — git's object model for genomes.
@@ -7938,6 +8008,7 @@ srmech_status_t srmech_genome_explode(
 srmech_status_t srmech_genome_pack(
     const char *loose_dir, const char *dest,
     const unsigned char *coupling, size_t coupling_len,
+    const char *attestation, size_t attestation_len,
     void *ws, size_t ws_len);
 
 /* §127/v7 (#726) ACTIVE-TELOMERE TICK — the divide/gate op whose OPERATOR behaviour
@@ -8331,6 +8402,7 @@ srmech_status_t srmech_genome_plasmid_extract(
     const uint64_t *extras, size_t n_ex,
     const char *dir, const char *label,
     uint32_t leaf_dim, const unsigned char *coupling,
+    const char *attestation, size_t attestation_len,
     void *ws, size_t ws_len, size_t *out_n_syms);
 
 /* rc279 (§102 / F1252 STAGE 2 — ORGANIZE, the CONSERVE step) — read the

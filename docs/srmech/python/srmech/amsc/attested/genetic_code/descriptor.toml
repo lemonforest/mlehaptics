@@ -29,11 +29,34 @@ license = "Public Domain (NCBI genetic-code tables are a U.S. Government / NCBI 
 homepage = "https://www.ncbi.nlm.nih.gov/Taxonomy/Utils/wprintgc.cgi"
 canonical_doi = "10.1093/database/baaa062"
 
+# ADAPTER (corrected v0.9.0rc418, `#T1108`). This descriptor declared
+# adapter = "literature_curated" from rc314 through rc417, and row.ndjson has
+# been a whole MPR v1 ENVELOPE the entire time. The two shapes are not
+# interchangeable: literature_curated commits DATA-ONLY rows and srmech
+# synthesises the nine attestation fields at read time, so pointing it at an
+# envelope makes the reader take the envelope as the row's data block, find no
+# top-level source_doi, and RAISE -- measured at rc417,
+# get_attested_dataset("genetic_code") raised AdapterError while
+# attestation_audit reported the row correctly, but only because the audit
+# bypassed the adapter dispatch altogether. Had it not raised it would have
+# manufactured a response_sha256 over the row's own JSON, discarding the true
+# one below (sha256 of the verbatim NCBI table bytes in data.source_response).
+# mpr_committed is the envelope-shaped adapter: it passes the committed
+# attestation through UNALTERED, which is what "the attestation of record"
+# means on the read side.
 [fetch]
-adapter = "literature_curated"
+adapter = "mpr_committed"
 ndjson_path = "row.ndjson"
 
 [parse]
+# require_per_row_source_doi belongs to literature_curated's flat-row contract
+# (it names the field the SYNTHESISED attestation's source_doi is drawn from).
+# Under mpr_committed the row's own attestation.source_doi is the real one --
+# 10.1093/database/baaa062, present in row.ndjson -- so there is nothing to draw
+# from. The key is KEPT rather than dropped because parser_rule_hash is a
+# fingerprint of this whole [parse] table and the requirement is still a true
+# statement about the row: it does carry a per-row DOI. Dropping it would move
+# the hash for no gain.
 require_per_row_source_doi = true
 
 [schema]

@@ -206,11 +206,23 @@ def _use_local_kernel_native(
 
 
 def _attestation_audit_native(
-    source_key: str, ndjson: Path
+    source_key: str, descriptor: Descriptor, ndjson: Path
 ) -> Optional[Dict[str, Any]]:
-    """Native ``attestation_audit``: iterate the NDJSON bytes + project the
-    per-row attestation metadata (composes the srmech_json parser). Returns
-    ``None`` on any read / parse issue so the caller runs the pure path
+    """Native ``attestation_audit``: the compiled peer of the whole op —
+    per-row attestation projection through the SAME adapter dispatch the
+    scripting projection uses.
+
+    ``#T1108`` gave this call the descriptor BYTES (ABI 12 → 13). Before that it
+    took ``(source_key, ndjson, ws, out)`` and could therefore only project what
+    each committed line already carried — which for the eight data-only
+    ``literature_curated`` sources is nothing, so it emitted eight empty strings
+    per row and agreed byte-for-byte with a Python peer doing the same wrong
+    thing. Synthesising the curated block needs the descriptor's ``[source]`` /
+    ``[parse]`` / ``[schema]`` tables and the descriptor's own canonical hash, so
+    the descriptor is now a parameter rather than something the C side has to do
+    without.
+
+    Returns ``None`` on any read / parse issue so the caller runs the pure path
     (which raises MPRValidationError on a genuinely malformed line)."""
     lib = _catalog_lib("srmech_catalog_attestation_audit",
                        "srmech_catalog_attestation_audit_arena_bytes")
@@ -220,17 +232,18 @@ def _attestation_audit_native(
     from .. import _native
     try:
         nd = ndjson.read_bytes()
+        desc = descriptor.path.read_bytes()
     except OSError:
         return None
     sk = source_key.encode("utf-8")
     ws_bytes = int(lib.srmech_catalog_attestation_audit_arena_bytes(
-        len(nd), len(sk)))
+        len(nd), len(desc), len(sk)))
     ws = (ctypes.c_char * ws_bytes)()
-    out_cap = 2 * len(nd) + 4096
+    out_cap = 4 * len(nd) + 8 * len(desc) + 8192
     out = (ctypes.c_char * out_cap)()
     out_len = ctypes.c_size_t()
     rc = lib.srmech_catalog_attestation_audit(
-        sk, len(sk), nd, len(nd), ws, ws_bytes, out, out_cap,
+        sk, len(sk), desc, len(desc), nd, len(nd), ws, ws_bytes, out, out_cap,
         ctypes.byref(out_len))
     if rc != _native.SRMECH_OK:
         return None
@@ -662,6 +675,20 @@ def _resolved_ndjson_path(descriptor: Descriptor) -> Path:
     return _ndjson_path(descriptor)
 
 
+#: Adapters whose committed NDJSON is DATA-ONLY, so srmech must SYNTHESISE the
+#: attestation at read time. Everything else commits whole MPR v1 envelopes and
+#: is read back verbatim — the attestation on disk IS the attestation of record.
+#:
+#: This set exists as a named constant rather than an inline ``==`` because
+#: ``attestation_audit`` now shares the same dispatch (`#T1108`). Before rc418 the
+#: audit called ``read_ndjson`` directly and therefore reported an EMPTY
+#: attestation for all eight data-only sources — 180 of 181 rows blank — while
+#: ``get_attested_dataset`` returned the synthesised block for the very same rows.
+#: One reader, two answers, and no differential test could see it because both
+#: PROJECTIONS of each reader agreed with each other.
+_SYNTHESISING_ADAPTERS = frozenset(("literature_curated",))
+
+
 def _iter_records_for_descriptor(
     descriptor: Descriptor, ndjson: Path
 ) -> Iterator[MPRRecord]:
@@ -670,10 +697,13 @@ def _iter_records_for_descriptor(
     Two on-disk formats are recognised, dispatched on adapter type:
 
     * **Live-fetcher adapters** (html_scraper, json_api, csv_bulk,
-      netcdf_grid, geotiff_bbox) — committed NDJSON is the byte-exact
-      output of a prior ``_base.run()`` invocation: full MPRRecord
-      shape per line (data + attestation + rendering). Read via
-      ``read_ndjson()``.
+      netcdf_grid, geotiff_bbox) and **mpr_committed** — committed NDJSON is
+      full MPRRecord shape per line (data + attestation + rendering): for the
+      live fetchers, the byte-exact output of a prior ``_base.run()``
+      invocation; for ``mpr_committed``, a curator-authored envelope whose
+      attestation was minted when the upstream response was captured. Either
+      way the attestation is ALREADY the attestation of record, so it is read
+      back verbatim via ``read_ndjson()`` and nothing is manufactured over it.
     * **literature_curated** — committed NDJSON is curator-friendly
       data-only (one row's data block per line; no attestation /
       rendering). Synthesise the full MPRRecord at read time using
@@ -683,11 +713,17 @@ def _iter_records_for_descriptor(
       ``get_attested_dataset()`` returns full attestation + rendering
       blocks.
 
+    **Synthesis is legitimate ONLY where nothing true was committed**, which is
+    the whole reason the two shapes need two adapter names. Reading an envelope
+    through the synthesising branch would manufacture a ``response_sha256`` over
+    the row's own JSON on top of one that already hashes the real upstream
+    response — the read-side mirror of the write-side substitution `#T1108`
+    closes.
+
     For unknown adapter names, falls back to read_ndjson() — same
     behaviour as before this dispatch was introduced.
     """
-    adapter_name = descriptor.adapter_name
-    if adapter_name == "literature_curated":
+    if descriptor.adapter_name in _SYNTHESISING_ADAPTERS:
         yield from _iter_literature_curated_records(descriptor, ndjson)
     else:
         yield from read_ndjson(ndjson)
@@ -805,9 +841,14 @@ ADAPTER_CLASSES: Dict[str, frozenset] = {
         "geotiff_bbox",
     }),
     # Literature-curated adapters. No network fetch; rows committed
-    # directly with per-row source DOI; useful for offline-first
-    # workflows and per-body literature catalogues.
-    "curated": frozenset({"literature_curated"}),
+    # directly; useful for offline-first workflows and per-body
+    # literature catalogues. TWO members since v0.9.0rc418 (`#T1108`) —
+    # they share the no-network committed-NDJSON model and differ on
+    # WHERE the attestation lives: ``literature_curated`` commits
+    # data-only rows carrying a per-row source DOI and srmech
+    # synthesises the block at read time, ``mpr_committed`` commits
+    # whole MPR envelopes whose attestation is read back verbatim.
+    "curated": frozenset({"literature_curated", "mpr_committed"}),
 }
 
 
@@ -1136,13 +1177,50 @@ def get_attested_descriptor(source_key: str) -> Dict[str, Any]:
     }
 
 
+#: The attestation fields ``attestation_audit`` projects per row, in emission
+#: order. ``source_doi`` / ``source_url`` / ``license`` joined the projection at
+#: v0.9.0rc418 (`#T1108`): the audit's whole purpose is that a consumer can
+#: "reproduce the row's provenance trail", and a trail with no DOI is not one.
+#: The omission was self-concealing — 51 of 180 readable rows were short of
+#: EXACTLY ``source_doi`` and the audit could not have reported it either way.
+AUDIT_PROJECTED_FIELDS: Tuple[str, ...] = (
+    "source_doi",
+    "source_url",
+    "license",
+    "response_sha256",
+    "retrieved_at",
+    "parser_version",
+    "parser_rule_hash",
+    "collector_descriptor_hash",
+)
+
+
 def attestation_audit(source_key: str) -> Dict[str, Any]:
     """Return per-row attestation metadata (no data payload).
 
-    Cheap; paper-appendix-ready. Each row returns its
-    ``response_sha256``, ``retrieved_at``, ``parser_version``,
-    ``parser_rule_hash``, ``collector_descriptor_hash`` so a
-    downstream consumer can reproduce the row's provenance trail.
+    Cheap; paper-appendix-ready. Each row returns the eight
+    :data:`AUDIT_PROJECTED_FIELDS` — ``source_doi``, ``source_url``,
+    ``license``, ``response_sha256``, ``retrieved_at``, ``parser_version``,
+    ``parser_rule_hash``, ``collector_descriptor_hash`` — so a downstream
+    consumer can reproduce the row's provenance trail.
+
+    **The reported attestation is the SAME one the reader returns.** This op
+    goes through :func:`_iter_records_for_descriptor`, exactly as
+    :func:`get_attested_dataset` and :func:`iter_attested_dataset` do, so a
+    data-only ``literature_curated`` row is reported with its SYNTHESISED block
+    and an ``mpr_committed`` / live-fetcher row with its COMMITTED one. That
+    equality is the op's contract and is pinned by
+    ``tests/test_attestation_of_record_rc418.py``.
+
+    **What it did before v0.9.0rc418, stated because the wrong answer shipped.**
+    The audit read the NDJSON raw, bypassing the dispatch. For the eight
+    data-only sources — every source but ``genetic_code`` — the committed lines
+    carry no ``attestation`` key at all, so every projected field came back as
+    the empty string: measured at rc417, **180 of 181 rows blank, 8 of 9 sources
+    entirely blank, and `ok: True` on all nine**. It was invisible to the
+    differential suite because the C peer projected the identical blanks, so the
+    two projections agreed perfectly on the wrong answer, and
+    ``tests/test_catalog_c_rc172.py`` compared them only to each other.
     """
     descriptors = _descriptors()
     if source_key not in descriptors:
@@ -1162,23 +1240,17 @@ def attestation_audit(source_key: str) -> Dict[str, Any]:
             "note": "no committed NDJSON; first T1 collection pending",
         }
 
-    native = _attestation_audit_native(source_key, ndjson)
+    native = _attestation_audit_native(source_key, descriptor, ndjson)
     if native is not None:
         return native
 
     rows: List[Dict[str, str]] = []
-    for record in read_ndjson(ndjson):
+    for record in _iter_records_for_descriptor(descriptor, ndjson):
         attestation = dict(record.attestation)
-        rows.append({
-            "data_schema_id": record.data_schema_id,
-            "response_sha256": attestation.get("response_sha256", ""),
-            "retrieved_at": attestation.get("retrieved_at", ""),
-            "parser_version": attestation.get("parser_version", ""),
-            "parser_rule_hash": attestation.get("parser_rule_hash", ""),
-            "collector_descriptor_hash": attestation.get(
-                "collector_descriptor_hash", ""
-            ),
-        })
+        row: Dict[str, str] = {"data_schema_id": record.data_schema_id}
+        for field in AUDIT_PROJECTED_FIELDS:
+            row[field] = attestation.get(field, "")
+        rows.append(row)
     return {
         "ok": True,
         "source_key": source_key,

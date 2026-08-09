@@ -1771,6 +1771,7 @@ static const srmech_tool_param_t ts_params_179[] = {
 static const srmech_tool_param_t ts_params_180[] = {
     { "path", "str", 1, "the genome DIRECTORY to upgrade in place (its manifest.json is re-stamped to v16; turns.bin is byte-untouched for a klein4 genome)" },
     { "coupling", "HV", 0, "keyword-only; the held invariant \342\200\224 only needed to rebuild a manifest-LESS genome (its length is the leaf width)" },
+    { "attestation", "Optional[dict]", 0, "keyword-only; the caller MPR SOURCE attestation (`#T1108`) - any of source_doi / source_url / license / retrieved_at. OMITTING IT PRESERVES: the block already in manifest.json is CARRIED FORWARD, and srmech's default is written only when there is nothing to inherit. Through v0.9.0rc417 this parameter did not exist and every call re-minted the default, so an attested genome came back with the srmech DEFAULT licence and the srmech default persistence DOI after one mutation. A block that DISAGREES with a non-default one already on disk raises GenomeAttestationConflict rather than replacing it silently. response_sha256 and the four encoder-identity fields are srmech-owned and always re-synthesised." },
 };
 static const srmech_tool_param_t ts_params_181[] = {
     { "path", "str", 1, "the genome directory written by genome_save" },
@@ -1800,6 +1801,7 @@ static const srmech_tool_param_t ts_params_186[] = {
     { "coupling", "HV", 1, "the held invariant the new turns are coupled through (dim must match leaf_dim)" },
     { "kernel", "bool", 0, "keyword-only; when True the appended chromosome opens with a \302\24789 KERNEL telomere (0x6B) instead of the plain CHROM cap \342\200\224 the form genome_append_kernel builds on top of this op. Default False." },
     { "catalog", "Optional[dict]", 0, "keyword-only; the O(1)-streaming handle, and a THREE-mode union. None (the default) is a COLD one-off append: the disk write is still O(1), but the returned full catalog is DERIVED from the body once (O(n)) \342\200\224 looping this way is the O(n\302\262) wall. A DICT threads a prior genome_save / genome_append return: it is mutate-appended one entry in memory, so N appends cost O(N) total. The literal string \"load\" RESUMES a streaming loop with no prior return in hand \342\200\224 the threadable catalog is read from disk ONCE (O(n)) and the return is threaded for the rest of the loop. An empty / partial dict carrying no 'leaf_dim' is not a genome catalog and raises a pointed ValueError naming these three modes, never a bare KeyError." },
+    { "attestation", "Optional[dict]", 0, "keyword-only; the caller MPR SOURCE attestation (`#T1108`) - any of source_doi / source_url / license / retrieved_at. OMITTING IT PRESERVES: the block already in manifest.json is CARRIED FORWARD, and srmech's default is written only when there is nothing to inherit. Through v0.9.0rc417 this parameter did not exist and every call re-minted the default, so an attested genome came back with the srmech DEFAULT licence and the srmech default persistence DOI after one mutation. A block that DISAGREES with a non-default one already on disk raises GenomeAttestationConflict rather than replacing it silently. response_sha256 and the four encoder-identity fields are srmech-owned and always re-synthesised." },
 };
 static const srmech_tool_param_t ts_params_187[] = {
     { "path", "str", 1, "the genome directory written by genome_save" },
@@ -1815,23 +1817,27 @@ static const srmech_tool_param_t ts_params_189[] = {
     { "path", "str", 1, "the genome directory written by genome_save" },
     { "label", "str", 1, "the chromosome label to excise (must not be the genome's only chromosome)" },
     { "coupling", "HV", 0, "the held invariant (only required when manifest.json is absent \342\200\224 its length is the leaf width for the \302\24744 rebuild-by-scan)" },
+    { "attestation", "Optional[dict]", 0, "keyword-only; the caller MPR SOURCE attestation (`#T1108`) - any of source_doi / source_url / license / retrieved_at. OMITTING IT PRESERVES: the block already in manifest.json is CARRIED FORWARD, and srmech's default is written only when there is nothing to inherit. Through v0.9.0rc417 this parameter did not exist and every call re-minted the default, so an attested genome came back with the srmech DEFAULT licence and the srmech default persistence DOI after one mutation. A block that DISAGREES with a non-default one already on disk raises GenomeAttestationConflict rather than replacing it silently. response_sha256 and the four encoder-identity fields are srmech-owned and always re-synthesised." },
 };
 static const srmech_tool_param_t ts_params_190[] = {
     { "path", "str", 1, "the genome directory written by genome_save" },
     { "label", "str", 1, "the chromosome label whose content to replace" },
     { "leaves", "Sequence[HV]", 1, "the replacement kernel's Klein-4 leaf vectors" },
     { "coupling", "HV", 1, "the held invariant the new turns are coupled through (dim must match leaf_dim)" },
+    { "attestation", "Optional[dict]", 0, "keyword-only; the caller MPR SOURCE attestation (`#T1108`) - any of source_doi / source_url / license / retrieved_at. OMITTING IT PRESERVES: the block already in manifest.json is CARRIED FORWARD, and srmech's default is written only when there is nothing to inherit. Through v0.9.0rc417 this parameter did not exist and every call re-minted the default, so an attested genome came back with the srmech DEFAULT licence and the srmech default persistence DOI after one mutation. A block that DISAGREES with a non-default one already on disk raises GenomeAttestationConflict rather than replacing it silently. response_sha256 and the four encoder-identity fields are srmech-owned and always re-synthesised." },
 };
 static const srmech_tool_param_t ts_params_191[] = {
     { "path", "str", 1, "the genome directory written by genome_save" },
     { "label", "str", 1, "the chromosome label to export as a .chr bundle" },
     { "out", "str", 1, "the output file path for the .chr (one MPR-attested JSON record)" },
     { "coupling", "HV", 0, "the held invariant (only required when the source genome's manifest.json is absent \342\200\224 its length is the leaf width for the \302\24744 rebuild-by-scan)" },
+    { "attestation", "Optional[dict]", 0, "keyword-only; the caller MPR SOURCE attestation for the EXPORTED .chr (`#T1108`). Omitted, the bundle inherits the PARENT genome's four SOURCE fields - a .chr is the DISTRIBUTION unit, so a chromosome exported from a licensed genome must not leave the machine stamped CC0, which is what every release before v0.9.0rc418 did. Only the four source fields are settable here: response_sha256 IS the region digest and both projections hard-check it on import." },
 };
 static const srmech_tool_param_t ts_params_192[] = {
     { "chr_path", "str", 1, "the .chr bundle file written by genome_export" },
     { "dest", "str", 1, "the dest genome directory (seeded fresh if it has no genome, else appended to)" },
     { "coupling", "HV", 0, "the held invariant (only consulted for a manifest-less EXISTING dest \342\200\224 the \302\24744 rebuild width; the bundle carries its own coupling)" },
+    { "attestation", "Optional[dict]", 0, "keyword-only; the caller MPR SOURCE attestation (`#T1108`) - any of source_doi / source_url / license / retrieved_at. OMITTING IT PRESERVES: the block already in manifest.json is CARRIED FORWARD, and srmech's default is written only when there is nothing to inherit. Through v0.9.0rc417 this parameter did not exist and every call re-minted the default, so an attested genome came back with the srmech DEFAULT licence and the srmech default persistence DOI after one mutation. A block that DISAGREES with a non-default one already on disk raises GenomeAttestationConflict rather than replacing it silently. response_sha256 and the four encoder-identity fields are srmech-owned and always re-synthesised." },
 };
 static const srmech_tool_param_t ts_params_193[] = {
     { "path", "str", 1, "the packed genome directory written by genome_save" },
@@ -1842,6 +1848,7 @@ static const srmech_tool_param_t ts_params_194[] = {
     { "loose_dir", "str", 1, "the directory of loose .chr bundles (e.g. genome_explode's output)" },
     { "dest", "str", 1, "the dest packed genome directory (seeded fresh if it has no genome, else appended/merged into)" },
     { "coupling", "HV", 0, "the held invariant (only consulted for a manifest-less EXISTING dest \342\200\224 the \302\24744 rebuild width; each .chr carries its own coupling)" },
+    { "attestation", "Optional[dict]", 0, "keyword-only; the caller MPR SOURCE attestation (`#T1108`) - any of source_doi / source_url / license / retrieved_at. OMITTING IT PRESERVES: the block already in manifest.json is CARRIED FORWARD, and srmech's default is written only when there is nothing to inherit. Through v0.9.0rc417 this parameter did not exist and every call re-minted the default, so an attested genome came back with the srmech DEFAULT licence and the srmech default persistence DOI after one mutation. A block that DISAGREES with a non-default one already on disk raises GenomeAttestationConflict rather than replacing it silently. response_sha256 and the four encoder-identity fields are srmech-owned and always re-synthesised." },
 };
 static const srmech_tool_param_t ts_params_195[] = {
     { "chr_dir", "str", 1, "the directory of loose .chr bundles to register (e.g. genome_explode's output)" },
@@ -1867,6 +1874,7 @@ static const srmech_tool_param_t ts_params_198[] = {
     { "element_type", "str", 0, "keyword-only; the declared element-type enum recorded in the \302\24789 header (default 'klein4')" },
     { "coupling", "HV", 0, "keyword-only; the coupling invariant (optional when a manifest is present; its length is the leaf width for a manifest-less genome)" },
     { "catalog", "Optional[dict]", 0, "keyword-only; THREAD a prior genome_save / genome_append(_kernel) catalog DICT to keep the whole call O(1) \342\200\224 it is used directly as the O(1) head here and forwarded to genome_append, which mutate-appends the new entry in memory rather than re-deriving the catalog from the body. Default None = read the O(1) head from disk. DICT FORM ONLY: unlike genome_append this op does NOT handle the \"load\" sentinel \342\200\224 the string is taken as the head and raises when it is indexed for 'leaf_dim', so resume a streaming loop by reading the catalog yourself (or via one genome_append(catalog=\"load\")) and threading the dict." },
+    { "attestation", "Optional[dict]", 0, "keyword-only; the caller MPR SOURCE attestation (`#T1108`) - any of source_doi / source_url / license / retrieved_at. OMITTING IT PRESERVES: the block already in manifest.json is CARRIED FORWARD, and srmech's default is written only when there is nothing to inherit. Through v0.9.0rc417 this parameter did not exist and every call re-minted the default, so an attested genome came back with the srmech DEFAULT licence and the srmech default persistence DOI after one mutation. A block that DISAGREES with a non-default one already on disk raises GenomeAttestationConflict rather than replacing it silently. response_sha256 and the four encoder-identity fields are srmech-owned and always re-synthesised." },
 };
 static const srmech_tool_param_t ts_params_199[] = {
     { "vocab_size", "int", 1, "node count of the graph" },
@@ -1896,6 +1904,7 @@ static const srmech_tool_param_t ts_params_201[] = {
     { "cap_slack", "int", 0, "keyword-only; the top-k store cap slack (cap = k*cap_slack; default 4)" },
     { "label_prefix", "str", 0, "keyword-only; the section label prefix (default 'sec')" },
     { "progress", "host_callable", 0, "keyword-only; the \302\247101 / ABI-v6 per-call progress HEARTBEAT + graceful-abort tick \342\200\224 an IN-PROCESS host callable, never an MCP wire value (its type publishes JSON-schema 'null', so the only legal wire value is absent). Called as progress(ev) with ONE dict {struct_size, phase, done, total}; here it fires between whole SECTIONS with phase=EXTRACTING, done = the sections appended so far and total = the number of documents. A TRUTHY return CANCELS cleanly: the sections already appended are COMPLETE chromosomes (never a half-written one) and the return carries status='cancelled'. done/total are EXACT integer cardinalities (Class-N): the library never divides and never accumulates a float, so a percentage is the observer's own done/total, not something reported. The tick fires INLINE on the encode thread (zero concurrency, MCU-safe, no RTOS). NOT the v5 srmech_progress_cb_t process-global dispatch OBSERVER (void return, no cancel channel). Default None = disabled." },
+    { "attestation", "Optional[dict]", 0, "keyword-only; the caller MPR SOURCE attestation for the section store (`#T1108`). This is where provenance enters the two-stage pipeline - ONCE, at the seed. Every later section append, the vocab refresh and the stage-2 promotion are in-place on the same store and carry it forward for free." },
 };
 static const srmech_tool_param_t ts_params_202[] = {
     { "section_store", "str", 1, "a plasmid_extract sections genome directory" },
@@ -6640,7 +6649,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech",
         "genome",
         "Migrate a v<=15 genome directory to on-disk format v16 IN PLACE (UPSTREAM \302\24755 / \302\247Q8; rc312) \342\200\224 the Q8 on-disk-format upgrade. rc311 wired the Q8 carrier into the genome as an element_type coupling path but the on-disk WIRE still assumed 2-bit klein4 turns; v16 adds a SECOND data-turn packing (a Q8 turn 3-bit-packs under Q8_PACKED_TURN_MARKER 0x38, the klein4 turn keeps the 2-bit PACKED_TURN_MARKER 0x51) + a manifest carrier field. A v15 genome is ALWAYS klein4 (2-bit turns), and v16's klein4 packer is BYTE-IDENTICAL, so the turns.bin BODY needs NO repack: a v15 turn (bytes 0..3, sign bit 0) is EXACTLY the winding-0 / Lk-0 slice of a v16 Q8 turn (q8_project_v4(turn) == turn and every winding sign bit is 0). The upgrade is therefore a manifest RE-STAMP \342\200\224 re-derive the .fai head by SCANNING the unchanged body (\302\24744 \342\200\224 the strand is the SSoT), which now stamps format_version=16 + the derived carrier ('klein4' / 'q8'). Because the body is untouched and body_sha256 is a pure function of the body (the region CHAIN since v4), the ONLY on-disk bytes that MOVE are the manifest's format_version + carrier fields; turns.bin is byte-identical. Idempotent \342\200\224 a v16 genome re-stamps to itself; REFUSES to downgrade a genome newer than this build. coupling= is only needed for a manifest-LESS genome (its length is the leaf width \342\200\224 you can upgrade a turns.bin shipped alone). Returns the re-derived manifest data dict (format_version=16). The migrate-on-read precedent of the v11->v12 head-only upgrade; numpy-free; hashes via sha256_bytes.",
-        ts_params_180, 2u,
+        ts_params_180, 3u,
         "dict",
         "the re-derived manifest data (format_version=16, carrier, leaf_dim, n_turns, coupling, body_sha256, regions, chromosomes)",
         1,
@@ -6748,7 +6757,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech",
         "genome",
         "Append ONE chromosome to an existing genome in O(1)-AMORTISED time (UPSTREAM \302\24741 / \302\24755 / \302\24756 \342\200\224 #1245 ask (b)) \342\200\224 the helix grows. Packs leaves into a telomere-capped chromosome (coupled through coupling) and TAIL-EXTENDS turns.bin with its blocks in the \302\24755/v3 packed form (caps verbatim, data turns bit-packed 4 symbols/byte; APPEND-ONLY \342\200\224 prior body bytes are NEVER read, rewritten, or re-hashed, so appending to a v2 genome yields a MIXED body the walk reads as-is). The manifest is updated by APPENDING one chromosome entry + one region entry and EXTENDING the body_sha256 region CHAIN from its prior head in O(1) \342\200\224 no whole-body re-hash, no whole-body re-scan; n_turns grows by the appended block count. Every EXISTING chromosome / region entry stays byte-identical. \302\24756: the per-append cost is bounded by the NEW chromosome's encoding + the (small) manifest rewrite, NOT the genome's total size \342\200\224 so N appends are O(N) total, not O(N\302\262) (the F833 super-linear wall closed). Appending to a legacy v2/v3 genome migrates it to v4 once. Returns the updated manifest data dict. numpy-free.",
-        ts_params_186, 6u,
+        ts_params_186, 7u,
         "dict",
         "the updated manifest data (with the appended chromosome + region entry + O(1)-extended body_sha256 chain)",
         1,
@@ -6802,7 +6811,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech",
         "genome",
         "Excise ONE chromosome from a genome IN PLACE (UPSTREAM \302\24745) \342\200\224 biology excises, it does not re-synthesize. Finds the chromosome label's region in the self-describing body (\302\24744 \342\200\224 its CHROM cap + data turns occupy [byte_offset, byte_offset+byte_len)) and splices THAT byte span out of turns.bin, leaving every OTHER chromosome's coupled body bytes byte-identical (no kernel is decoded / re-coupled \342\200\224 the survivors are the same bytes, only relocated). The derived .fai manifest is then rebuilt by scanning the spliced body (\302\24744 \342\200\224 body_sha256 / n_turns and every survivor's byte_offset recomputed; the manifest stays an optional cache). Re-hashes the whole on-disk body against the committed body_sha256 BEFORE the edit (never splice a corrupt body \342\200\224 GenomeBoundingError). coupling= is needed only when manifest.json is absent (its length is the leaf width for the rebuild-by-scan). Raises ValueError if the label is absent or is the genome's only chromosome. numpy-free.",
-        ts_params_189, 3u,
+        ts_params_189, 4u,
         "dict",
         "the updated manifest data (the excised chromosome gone, survivors' byte_offsets + body_sha256 recomputed)",
         1,
@@ -6820,7 +6829,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech",
         "genome",
         "Replace ONE chromosome's content IN PLACE (UPSTREAM \302\24745). Splices the chromosome label's old byte span out of turns.bin and a FRESH telomere-capped chromosome (leaves coupled through coupling, same label) IN at the same position \342\200\224 every OTHER chromosome's coupled body bytes stay byte-identical (an in-place edit, NOT a whole-genome re-pack). The derived manifest is rebuilt by scanning the new body (\302\24744 \342\200\224 the strand is the SSoT). coupling is REQUIRED (it both re-couples the new leaves AND supplies the leaf width for the \302\24744 rebuild) and must match the genome's leaf_dim. Re-hashes the on-disk body against body_sha256 before the edit (GenomeBoundingError on mismatch). Raises ValueError if the label is absent. numpy-free.",
-        ts_params_190, 4u,
+        ts_params_190, 5u,
         "dict",
         "the updated manifest data (the chromosome's content replaced in place, body_sha256 recomputed)",
         1,
@@ -6838,7 +6847,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech",
         "genome",
         "Export ONE chromosome as a single self-contained .chr file (UPSTREAM \302\24743). Reads the chromosome label's fixed-width region (CHROM cap + coupled data turns; the cap re-hashed against the manifest cap_sha256) and writes it \342\200\224 together with the_one \342\200\224 to out as ONE MPR-attested record (MPR v1; response_sha256 IS the region hash). So a chromosome becomes a self-contained, content-addressed unit: tar it, ship it, genome_import it self-verifying \342\200\224 realising the \302\24743 'chromosome as a bundleable file' goal on top of the \302\24744 self-describing strand. Composes srmech.amsc.format (the MPRRecord + sha256 content-address), NOT a parallel attestation. \302\24744: pass the_one= to export from a manifest-less source genome. Raises ValueError if the label is absent. numpy-free.",
-        ts_params_191, 4u,
+        ts_params_191, 5u,
         "dict",
         "the .chr data block (format_version / leaf_dim / label / leaf_count / cap_sha256 / coupling hash+hex / region hash+hex)",
         1,
@@ -6856,7 +6865,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech",
         "genome",
         "Import a .chr chromosome bundle into a genome at dest (UPSTREAM \302\24743). Reads the MPR-attested .chr (genome_export's output), RE-HASHES its region and its coupling and compares them against the bundle's own attestation \342\200\224 a mismatch is a GenomeBoundingError (self-verifying). Then: if dest has no genome yet, the .chr SEEDS a fresh one (its region becomes turns.bin verbatim, its coupling the coupling invariant); if dest already holds a genome, the chromosome is APPENDED byte-for-byte \342\200\224 which REQUIRES the same coupling invariant (the dest coupling must match the .chr coupling) and a fresh label. The manifest is re-derived by scanning the grown body (\302\24744 \342\200\224 the strand is the SSoT). numpy-free.",
-        ts_params_192, 3u,
+        ts_params_192, 4u,
         "dict",
         "the dest manifest data (the seeded genome, or the existing genome with the imported chromosome appended)",
         1,
@@ -6892,7 +6901,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech",
         "genome",
         "Pack a directory of loose .chr files into one packed genome (UPSTREAM \302\24743; the loose->packed inverse of genome_explode, git repack-like). Every *.chr bundle in loose_dir is genome_import-ed into dest in CANONICAL sorted-label order, so the packed turns.bin is a well-defined function of the chromosome SET \342\200\224 like a content-addressed packfile, insertion order is NOT preserved (a packed genome is canonicalised to sorted-label order). The first import SEEDS dest (when it has no genome yet); the rest APPEND byte-for-byte; all the bundles MUST share one coupling invariant (the same the_one) \342\200\224 a mismatched .chr is a GenomeBoundingError, a duplicate label a ValueError. Byte-identical to the source iff the source was already in canonical sorted-label order; otherwise re-canonicalises while preserving every chromosome's bytes. Raises ValueError if loose_dir holds no .chr files. numpy-free.",
-        ts_params_194, 3u,
+        ts_params_194, 4u,
         "dict",
         "the dest manifest data (the assembled packed genome)",
         1,
@@ -6964,7 +6973,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech",
         "genome",
         "Append a newly-taught kernel \342\200\224 WITH its \302\24789 header \342\200\224 to a genome in O(1) AMORTISED (UPSTREAM \302\24789 / format v6 \342\200\224 issue #1261, F1045/F1046). The uniformly-Klein-4 payoff. hv is the flat kernel (Klein-4 sector symbols {0,1,2,3} \342\200\224 an HV / list / bytes) of ANY dimension D; it is chunked into the genome's leaf_dim-wide leaves (final leaf zero-padded) LED by the UNIFORMLY-KLEIN-4 \302\24789 header LEAF (base-4-encoded D + element_type + leaf_dim \342\200\224 _pack_kernel_header_klein4). Because that header is a 100%-Klein-4 leaf, [header, *content] is just a list of Klein-4 leaves \342\200\224 so this FALLS OUT of genome_append (kernel=True, a KERNEL telomere 0x6B opens the chromosome): the chromosome tail-extends turns.bin and folds one region onto the body_sha256 chain in O(1), no whole-body re-hash / re-scan. This is the deliverable a downstream 'teach a kernel -> append it' loop was about to hand-roll: before v6 the \302\24760 0x4B byte-TLV header could NOT ride genome_append (unbinding it via klein4_bind failed 'must be in {0,1,2,3}'); v6 makes the header a Klein-4 leaf so appending a kernel WITH its header is native. Recover the EXACT kernel (trimmed to D) with kernel_unpack. coupling is optional when path has a manifest (resolved from the cache), required for a manifest-less genome (its length is the leaf width). Raises ValueError on a duplicate label or a non-Klein-4 symbol. numpy-free; no abs(); the C peer is genome_append's srmech_genome_append (the 0x6B kernel telomere is one more self-describing cap).",
-        ts_params_198, 6u,
+        ts_params_198, 7u,
         "dict",
         "the updated manifest data (with the appended kernel chromosome + region entry + O(1)-extended body_sha256 chain)",
         1,
@@ -7018,7 +7027,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech",
         "plasmid",
         "STAGE 1 EXTRACT (F1252 / \302\247102) \342\200\224 stream documents into APPEND-ONLY plasmid sections, RETIRING the loose monolithic co-occurrence JSON at the graph-L layer. Each ingest DOCUMENT (a token sequence) becomes ONE Tier-1 PLASMID chromosome: its LOCAL window co-occurrence graph (cooccurrence_topk \342\200\224 window / top-k / cap_slack) is encoded to a \302\24789/v6 KERNEL chromosome (Klein-4 leaves, a 0x6B kernel telomere, NO centromere) and APPENDED to section_store (a genome directory) in \302\247v12 O(1) HEAD-only time \342\200\224 so adding a document appends ONE bounded plasmid section + bumps the head, NEVER re-extracts, and NEVER dumps a 916 MB monolith (this IS persist-genome-native-not-loose-JSON one layer up). The first document SEEDS the store (genome_save); the rest append. Edges use LOCAL node indices but the section's node_ids label table maps each to a GLOBAL vocab id (via the append-only vocab) \342\200\224 so a word shared across sections carries the SAME id (the precondition stage-2 conservation reads); a shared VOCAB chromosome (the karyotype index) records the global word->id table. The heavy per-section compute (graph_kernel_encode -> the \302\24789 KERNEL-region build -> genome_append) rides the ONE bare-C orchestrator srmech_genome_plasmid_extract when HAS_NATIVE (genome-must-exist-in-C: a bare-C host runs stage-1 end-to-end as cooccurrence_topk -> plasmid_extract, zero Python); the pure body (_graph_kernel_encode + genome_append_kernel) is the numpy-free alternative + BYTE-PARITY oracle (the section turns.bin is byte-identical whether native or pure). \302\247101: an in-process progress= callable (a Python-only kwarg, NOT an MCP wire parameter \342\200\224 a callable cannot cross JSON-RPC) fires between whole SECTIONS with phase EXTRACTING (done=sections so far, total=n docs); a truthy return CANCELS cleanly, truncating at a valid chromosome boundary (a partial section is never left; status='cancelled'). Returns {section_store, vocab (grown, append-only), section_count {global_id: n_sections} the integer accumulator stage-2 promotes on, n_sections, sections, status}. leaf_dim (len(coupling)) must be >= 52 (the \302\24789 uniformly-Klein-4 kernel header fits one leaf). Integer/exact (Class-N); no abs(); numpy-free; genome-native (no loose JSON).",
-        ts_params_201, 9u,
+        ts_params_201, 10u,
         "dict",
         "{section_store, vocab, section_count {global_id: n_sections}, n_sections, sections, status}",
         1,

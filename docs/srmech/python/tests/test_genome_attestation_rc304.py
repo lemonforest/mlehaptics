@@ -190,13 +190,20 @@ def test_default_manifest_native_equals_pure(tmp_path, monkeypatch):
     assert native_bytes == pure_bytes
 
 
-def test_override_manifest_native_equals_pure(tmp_path, monkeypatch):
-    _build(tmp_path / "native", attestation=_SIMPLEWIKI)
-    native_bytes = (tmp_path / "native" / "manifest.json").read_bytes()
-    _force_pure(monkeypatch)
-    _build(tmp_path / "pure", attestation=_SIMPLEWIKI)
-    pure_bytes = (tmp_path / "pure" / "manifest.json").read_bytes()
-    assert native_bytes == pure_bytes
+# ``test_override_manifest_native_equals_pure`` lived here and was DELETED at
+# v0.9.0rc418 (`#T1108`). It built a "native" arm and a "pure" arm and asserted
+# byte-equal manifests — but with an attestation present, ``genome_save`` forced
+# the PURE branch in BOTH arms (the compiled ``srmech_genome_save`` took no
+# attestation at all), so it compared pure to pure and could not fail. Measured:
+# ``genome_save_c`` was entered ONCE with the attestation omitted and ZERO times
+# with it present. Its sibling ``test_default_manifest_native_equals_pure`` above
+# is real; the asymmetry sat exactly on the capability C lacked.
+#
+# A parity test that cannot enter C is not a parity test. rc418 gives the C the
+# channel and the replacement lives in
+# ``tests/test_attestation_of_record_rc418.py`` — which parametrises the same
+# comparison across every mutating op AND spies on the compiled entry point, so
+# it cannot silently re-become the pure-vs-pure vacuum.
 
 
 def test_turns_bin_identical_with_and_without_attestation(tmp_path):

@@ -421,6 +421,34 @@ print([(c["label"], c["type"]) for c in census["chromosomes"]])
 | census | `genome_census` · `genome_registry` | roll up a genome / a directory of genomes |
 | two-stage encode | `plasmid.plasmid_extract` · `plasmid.section_counts` · `plasmid.conserved_core` · `plasmid.genome_integrate_plasmids` · `plasmid.add_plasmid` | extract-then-organize, incremental |
 
+#### The attestation of record — omitting `attestation=` PRESERVES it (v0.9.0rc418)
+
+A genome's `manifest.json` carries a full MPR attestation block, and until v0.9.0rc418 **every mutating op re-minted srmech's default over it**. A genome saved under a real DOI and a real licence came back `10.0/srmech.genome.persistence` / `CC0` after one `genome_append` — and the false block validated as a well-formed MPR exactly as cleanly as the true one, which is why no test caught it. The same substitution ran through `genome_append_kernel`, `genome_remove`, `genome_replace`, `genome_import`, `genome_pack`, `upgrade_v15_to_v16`, a re-`genome_save`, and — worst, because it is the **distribution unit** — `genome_export`, so a chromosome exported from a `GPL-3.0-only` parent shipped as `CC0` and left the machine that way.
+
+srmech now has the concept it was missing: **the attestation of record**.
+
+```python
+G.genome_save(strand, path, coupling, attestation={
+    "source_doi": "10.5281/zenodo.1234567",
+    "source_url": "https://example.org/corpus",
+    "license": "GPL-3.0-only",
+    "retrieved_at": "2026-08-08T00:00:00Z",
+})
+G.genome_append(path, "chr2", leaves, coupling)     # ← carried forward, not re-minted
+```
+
+Three rules, and the split between them is the whole design:
+
+| | behaviour |
+|---|---|
+| **Four SOURCE fields** — `source_doi` · `source_url` · `license` · `retrieved_at` | **INHERIT** across every mutation. They are facts about where the corpus came from, and a mutation does not change the source. |
+| **`response_sha256` + the four encoder-identity fields** | **ALWAYS re-synthesised.** `response_sha256` IS the body hash; carrying it forward would freeze a stale digest into an attested genome and every downstream re-verification would fail against bytes that are perfectly intact — a worse defect than the one being fixed. |
+| **An explicit `attestation=` that DISAGREES with a non-default block on disk** | `GenomeAttestationConflict` (a `ValueError` subclass). Overwriting an attestation of record is allowed; it is never *silent*. Pass the values already on disk to confirm, or omit the argument to keep them. |
+
+`genome_export` stamps the parent's block onto the `.chr`; `genome_import` and `genome_pack` into a **fresh** destination inherit from the bundle, because at that moment the bundle *is* the genome. `plasmid_extract(..., attestation=...)` is where provenance enters the two-stage pipeline — once, at the seed; every later section append and the stage-2 promotion are in-place and carry it forward for free.
+
+**The compiled projection gained the same capability, not a workaround.** Ten C entry points took no attestation at all before this release, which is why `genome_save(attestation=…)` had to branch to the scripting path — an ADR-0009 capability gap. `SRMECH_ABI_VERSION` moves **12 → 13** (nine existing exported signatures changed; the second ordinary-kind bump after v9). A bare-C host now saves, appends and exports with a caller attestation and gets byte-identical manifests. `GENOME_FORMAT_VERSION` stays **19** — the attestation block is free-form MPR content, gains no key, and `turns.bin` is untouched.
+
 #### Copy number is a multiplicity, not N strands
 
 `amplify` records **how many copies** on a gene's cap, in what was NUL padding. `n == 1` is byte-identical to a plain gene, so only `n >= 2` spends the field, and a gene written before the field existed reads back as `1`. The count is transparent to every existing reader.
@@ -517,7 +545,7 @@ One further coverage fact stated plainly rather than left to be discovered: `srm
 
 Two readings of the same abbreviation:
 
-- At **collection time**, the adapter classes are *collecting* attested rows from upstream archives. Seven adapters cover the realistic source space:
+- At **collection time**, the adapter classes are *collecting* attested rows from upstream archives. Eight adapters cover the realistic source space:
 
   | adapter | class | network? |
   |---|---|---|
@@ -526,10 +554,11 @@ Two readings of the same abbreviation:
   | `csv_bulk` | fetched | yes (CSV/XYZ bulk) |
   | `netcdf_grid` | fetched | stub (gated behind extras) |
   | `geotiff_bbox` | fetched | stub (gated behind extras) |
-  | `literature_curated` | curated | no (NDJSON committed directly) |
+  | `literature_curated` | curated | no (data-only NDJSON committed directly) |
+  | `mpr_committed` | curated | no (whole MPR envelopes committed directly) |
   | `substrate_parameterization` | configured | no (parameter set, not rows) |
 
-  The `curated` class never touches the network: rows are committed as data-only NDJSON, and srmech synthesises full MPR attestation blocks at read time from each row's per-row DOI.
+  The `curated` class never touches the network, and its two members split on **where the attestation lives** — a distinction v0.9.0rc418 (`#T1108`) had to introduce because getting it wrong is not cosmetic. A `literature_curated` catalog commits **data-only** rows and srmech **synthesises** the full MPR attestation at read time from each row's per-row DOI; an `mpr_committed` catalog commits **whole MPR v1 envelopes** whose attestation was minted when the upstream response was captured, and srmech reads it back **verbatim**. Synthesis is legitimate only where nothing true was committed. Pointing the synthesising reader at an envelope makes it manufacture a `response_sha256` over the row's own JSON on top of one that already hashes the real upstream response — the read-side mirror of the write-side substitution `#T1108` closes.
 
 - After collection, the resulting NDJSON SSOTs are a *catalog* of attested data — committed into the package, registered into the universal bridge by downstream consumers, queryable through `list_attested_sources()` / `get_attested_dataset()`.
 

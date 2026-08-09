@@ -13,6 +13,106 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc418]
+
+**The attestation lifecycle (`#T1108`).** srmech had no concept of *the attestation of record*. The write half **synthesised where it had to preserve**; the read half **read raw where it had to synthesise**. Both defects were invisible to every differential test in the tree, for the same reason in each case: **the two projections agreed, byte for byte, on the wrong answer**. A co-equal dual construction certifies mutual realizability, not correctness — so this rc's gates never compare C to Python and stop there; every clause names an external truth and asserts the op returns *that*.
+
+`describe()["tools"]["total"]` stays **560** (adding a parameter adds no op). `GENOME_FORMAT_VERSION` stays **19**. `SRMECH_ABI_VERSION` moves **12 → 13**.
+
+### The write half — a mutation PRESERVED the source, or it destroyed it
+
+Measured at rc417, one mutation on a genome saved with a real DOI and `GPL-3.0-only`:
+
+| op | what survived |
+|---|---|
+| `genome_append` · `genome_append_kernel` · `genome_remove` · `genome_replace` · `genome_pack` · `upgrade_v15_to_v16` · re-`genome_save` | **NOTHING** → `CC0` / `10.0/srmech.genome.persistence` |
+| `genome_import` | destroyed the **destination's own** block |
+| `genome_export` → `.chr` — the **distribution unit** | minted `10.0/srmech.genome.chromosome` / `CC0` and left the machine that way |
+
+Both projections, byte-identical, Class-G over the raw `manifest.json` bytes across one `genome_append`: `GPL-3.0-only` before=1 after=0, `CC0` before=0 after=1, in the compiled path and the scripting path alike. `validate_mpr_record` did not raise on either read. **The false block validates as cleanly as the true one** — which is the consistency oracle working exactly as designed, on a defect it cannot see.
+
+**The fix, and the split that IS the design.** The four SOURCE fields — `source_doi` / `source_url` / `license` / `retrieved_at` — **INHERIT** across a mutation: they are facts about where the corpus came from, and a mutation does not change the source. `response_sha256` and the four encoder-identity fields are **ALWAYS re-synthesised**: they describe THIS body and THIS build. Inheriting the body hash would freeze a stale digest into an attested genome and every downstream re-verification would fail against bytes that are perfectly intact — a **worse** defect than the one being fixed, and the easy mistake. `_ATTESTATION_CARRY_FIELDS` (four) is therefore deliberately **not** `_ATTESTATION_SOURCE_FIELDS` (five, including `response_sha256`, which answers the different question *what may a caller override at create*).
+
+That scoping is also what makes the new refusal affordable. An explicit `attestation=` that disagrees with a non-default block already on disk raises **`GenomeAttestationConflict`** (a `ValueError` subclass, so existing handlers keep working). Measured at rc417: scoped to the four static fields the predicate fires on **zero** of the 178 `genome_append` call sites in the tree; scoped to all five it fires on **all 178**, because `response_sha256` moves on every ordinary append. Overwriting an attestation of record is allowed — it is never *silent*.
+
+Every mutating op gained `attestation=`, and **omitting it now preserves rather than substitutes**, which dissolves the standing objection to an override-only fix ("a caller who forgets it still gets the false default").
+
+`genome_export` stamps the parent's four fields onto the `.chr` and accepts a **four**-field override, not five: `response_sha256` IS the region digest and **both** projections hard-check it on import, so a settable one would let a caller forge or simply break a bundle's self-verification.
+
+**Two sites the brief did not measure, found while building.** `genome_import` into a **fresh** dest and `genome_pack` into a fresh dest have no destination manifest to carry from — reading the block off disk alone still left them writing `CC0`. The bundle IS the genome at that moment, so both now inherit from it (pack takes the first bundle in canonical order, which is exactly what makes `explode` → `pack` a round trip rather than a re-licensing). Residual, stated rather than hidden: packing bundles of **mixed** provenance takes the first and does not diagnose the mixture — before rc418 it took none of them and wrote `CC0`.
+
+### The read half — `attestation_audit` bypassed the dispatch
+
+`attestation_audit` called `read_ndjson` directly instead of `_iter_records_for_descriptor`, the dispatch `get_attested_dataset` already used. For the eight data-only `literature_curated` sources the committed lines carry no `attestation` key at all, so every projected field came back empty. Measured on this tree, before → after:
+
+```
+rows with ALL projected fields empty   180/181  ->    0/181
+sources entirely blank                     8/9  ->      0/9
+audit vs reader, per row              180 DISAGREE -> 181 AGREE
+```
+
+The projection also gained `source_doi` / `source_url` / `license` (six fields → eight, plus `data_schema_id`). The op's own contract is that a consumer can *"reproduce the row's provenance trail"*, and a trail with no DOI is not one — and the omission was **self-concealing**: 51 of 180 readable rows are short of exactly `source_doi`, and the audit could not have reported that either way.
+
+Routing the audit through the dispatch required fixing `genetic_code/descriptor.toml` **first**, in the same rc: it declared `adapter = "literature_curated"` while its `row.ndjson` has always been a whole MPR v1 envelope, so the synthesising reader raised on it. The new **`mpr_committed`** adapter is the envelope-shaped peer (`KNOWN_ADAPTERS` 7 → 8; `ADAPTER_CLASSES["curated"]` gains a second member). **Synthesis is legitimate only where nothing true was committed** — pointing the synthesising reader at an envelope manufactures a `response_sha256` over the row's own JSON on top of one that already hashes the real upstream response, which is the read-side mirror of the write-side substitution.
+
+Two of the nine fields in that committed attestation were **already unverifiable at rc417** and nothing in the tree could see it: `collector_descriptor_hash` and `parser_rule_hash` had rotted against the descriptor they claim to hash, while `response_sha256` verified. The SOURCE half was true all along; the ENCODER half had drifted. Both are re-minted from the descriptor as it now stands — the same split the write half enforces.
+
+### `read_ndjson` raises TYPED on every malformed shape
+
+`format.py`'s docstring promised `MPRValidationError` with a line number. Measured: **seven of twelve** key × JSON-value-type combinations escaped as a bare `TypeError` from the `dict()` coercions — list/int/bool/null in `data`, list/int in `attestation`, list in `rendering`. A JSON *string* did **not** escape, because `dict('abc')` raises `ValueError`, which the handler catches — so the defect was invisible to any probe that only tried a string. The type check now runs before the coercion and all twelve raise typed, with the line number.
+
+What still does **not** raise is a well-formed flat data dict, and that is **correct as designed**: the attestation for such a row is synthesised at read time from the descriptor. Only the docstring changed there.
+
+### `SRMECH_ABI_VERSION` 12 → 13 — the precedent, quoted rather than asserted
+
+From `docs/srmech/CLAUDE.md`: *"**v9 (v0.9.0rc306, task #899)** is the first bump of the ORDINARY kind — an existing exported signature changed: `srmech_genome_section_counts` gained `(void *ws, size_t ws_len)` caller-arena params … with the paired ctypes argtypes updated in lockstep."*
+
+The same rule applies here, **nine** times. Eight genome write entry points — `srmech_genome_save` / `_append` / `_remove` / `_replace` / `_export` / `_import` / `_pack` / `_plasmid_extract` — each gained `(const char *attestation, size_t attestation_len)`, and `srmech_catalog_attestation_audit` gained `(const char *descriptor, size_t descriptor_len)`. Three arena sizers move with them, because a caller attestation is **variable-length** and `srmech_genome_arena_bytes`'s own contract says the caller sizes from it *"rather than guessing"* — a sizer that cannot see the length cannot answer, so leaning on existing fixed slop would be against the stated contract even where it happens to fit.
+
+**Nine, not the ten the brief scoped.** A census of `genome_write_file` call sites in `c/src/srmech_genome.c` finds exactly **three** places that write a manifest or a `.chr` — `srmech_genome_save`, the O(1) head append, and the `.chr` export — and every other write op reaches one of them. `srmech_genome_from_graph` and `srmech_genome_add_plasmid` emit **in-memory blocks** and write no manifest, so they need no channel, for precisely the reason the brief already exempts `srmech_genome_integrate_plasmids`. Python's `genome_from_graph(path=…, attestation=…)` is a Python-level composition over `genome_save`; a bare-C host makes the same two calls and passes the attestation to the second.
+
+`upgrade_v15_to_v16` has **no** dedicated C symbol and that is correct as designed — it is a manifest re-stamp classified `non_compute` and pinned by name in `tests/test_non_compute_ratchet_rc170.py`. It is not an overlooked wire-glue gap, and this rc pins that so a later reader does not "fix" it. It still had to learn to preserve, and does.
+
+**Why the bump is load-bearing rather than ceremonial.** A stale rc417 `.so` reports ABI 12 and would otherwise load into rc418 Python, where the carry-forward lives in the C builders. It would keep overwriting a caller's real attestation with srmech's defaults, and the false block would still validate as a well-formed MPR. That is the silent-wrong-answer class, so rejecting the stale library is the only safe read.
+
+### A named capability gap, opened deliberately in place of a wrong answer
+
+`srmech_catalog_attestation_audit` now reads the descriptor's `[fetch].adapter` and **decides**: a verbatim adapter is projected; a `literature_curated` one returns **`SRMECH_ERR_NOT_IMPL`**. Synthesising that block needs canonical-TOML `descriptor_hash` / `parser_rule_hash` peers the C surface does not export, and `SRMECH_ERR_NOT_IMPL` (never `SRMECH_ERR_OVERFLOW`) says so — no arena relieves it. The Python host services the call completely; a bare-C host does not get this one source class yet. **Declining loudly is the only alternative to answering wrongly, which is the state it replaces.** A NULL or unparseable descriptor is `SRMECH_ERR_BAD_INPUT` rather than an assumed-verbatim projection: guessing is how the blank answer happened.
+
+### The gates — `tests/test_attestation_of_record_rc418.py`, 40 tests
+
+Built on the shipped template `tests/test_composes_grain_rc412.py`, whose doctrine line is the reason for the shape: **a strict-zero sweep over a shrinking set is vacuously true.**
+
+- **`test_the_attestation_survives_the_lifecycle`** — parametrised over the mutating-op roster, in **both** projections: build with a distinctive non-default block, mutate, assert the four static fields survived **or** the op declined with the typed conflict error. No third outcome. **This is the verb `tests/test_genome_attestation_rc304.py`'s nineteen tests never exercised** — they build and read only, which is exactly why nine ops could destroy the block for eleven releases with a green suite.
+- **`test_the_body_hash_is_resynthesised_not_inherited`** — the easy mistake, pinned separately because it fails the *other* way.
+- **⚠️ NEGATIVE CONTROL** — a DEFAULT-attested genome under the same mutation must PASS. Two implementations go red here and nowhere else: one that refused every mutation (so the clauses above passed only via their `except` branch), and one whose conflict predicate is written over all five source fields instead of the static four.
+- **SPY** on `genome_save_c` — without it the parity clauses silently re-become the pure-vs-pure vacuum described below.
+- **`test_the_c_entry_point_accepts_what_its_python_peer_accepts`** — the ADR-0009 capability clause. It asserts the **capability**, not the value, reading the live ctypes `argtypes` (the wire contract itself, not a docstring about it), with its own negative control that a READ op did *not* gain the channel.
+- **`test_the_audit_agrees_with_the_reader`** — for every registered source and every row, the audit's projected fields equal the reader's. **180 of 180 disagreements at rc417; zero now.** Plus a non-vacuity probe: a projection that silently emptied itself again would satisfy the equality trivially, both sides blank.
+- **`test_read_ndjson_raises_typed_on_every_malformed_shape`** — twelve fixtures, with a negative control that a well-formed line still parses.
+
+**`test_override_manifest_native_equals_pure` (`tests/test_genome_attestation_rc304.py`) is DELETED.** It built a "native" arm and a "pure" arm and asserted byte-equal manifests — but with an attestation present, `genome_save` forced the PURE branch in **both**, so it compared pure to pure and **could not fail**. Measured: `genome_save_c` was entered once with the attestation omitted and **zero** times with it present. Its sibling `test_default_manifest_native_equals_pure` is real; the asymmetry sat exactly on the capability C lacked. A parity test that cannot enter C is not a parity test.
+
+`tests/test_catalog_c_rc172.py`'s six-field row pin and its blank-projection C contract **held the read-side defect in place**, so both move with the fix rather than being worked around; the C-peer test gains a negative control that the same bytes under a synthesising descriptor must decline.
+
+The standalone C suite gains an rc418 section that runs with no Python present — save with a caller attestation, append, assert carry; a conflicting override refused; and a negative control that a default genome still writes the default and no attestation leaks between genomes. **246 assertions, 0 failures.**
+
+### Prose corrected in the same rc
+
+The comment above `genome.py`'s pure-override branch claimed the manifest was *"BYTE-IDENTICAL to what a byte-identical C save would emit for the same override (the two projections do NOT diverge; the capability is the invariant, ADR-0009)"*. **The counterfactual had no referent** — `srmech_genome_save` took no attestation at all — and two lines earlier the same comment said so outright. rc418 gives the C the channel, so the sentence is now true and a gate holds it. `upgrade_v15_to_v16`'s docstring claimed *"the on-disk bytes that move are EXACTLY the manifest's `format_version` + `carrier` fields"*, false for any attested genome: the whole attestation block moved too.
+
+### Two open decisions, settled
+
+1. **The committed v2 fixture's `collector_descriptor_path`** (`tests/data/genome_v2_fixture/manifest.json`) still reads `srmech/amsc/genome.py`; ADR-0010 moved the module to `srmech/biology/genome.py`. **Left as committed.** The fixture exists to prove srmech still reads a v2 genome written by srmech 0.9.0rc113, and `collector_descriptor_path` records *which encoder wrote these bytes* — which is `srmech/amsc/genome.py`, truthfully, because that is where the encoder lived. Re-stamping it would make the fixture a v2 artifact claiming a v19-era encoder, i.e. would replace a true statement with a false one to satisfy a path check. The brief is right that nothing in the tree declares the fixture byte-frozen; the argument for leaving it is not frozenness, it is that the value is **correct**.
+2. **`read_ndjson`'s flat-dict empty behaviour** is correct as designed and is **not** changed. Only its docstring moved, to say plainly what raises and what does not.
+
+### Capability gaps and residuals, named so they are not rediscovered
+
+- The compiled `attestation_audit` cannot synthesise a `literature_curated` block (above). Enumerated, typed, and asserted.
+- srmech has **no self-hosted JSON write half** — `srmech._json.loads` exists, there is no `dumps` — so the manifest writer and the new attestation marshal reach stdlib `json.dumps` at the output boundary. That asymmetry is relevant here because the manifest bytes on the pure path are written by stdlib.
+- Packing `.chr` bundles of mixed provenance takes the first and does not diagnose the mixture.
+- "Zero call sites break under refuse-on-conflict" is bounded by tree and language: nine roots of `.py` files. Not scanned: `.ipynb`, `.toml`, `.md` code fences, shell scripts. **Zero in this tree; unknown outside it.**
+
 ## [0.9.0rc417]
 
 The ADR clause-instrument gate and a **derived ADR status** (`#T1100`), discharging ADR-0012 §3.2's `expiry: rc417` — the one dated deferral in the corpus, come due. No public op is added, so `describe()["tools"]["total"]` stays **560** and `SRMECH_ABI_VERSION` stays **12**.

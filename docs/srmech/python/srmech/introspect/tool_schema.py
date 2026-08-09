@@ -3885,7 +3885,20 @@ def _register_primitive_class_tools() -> None:
             name="srmech.biology.genome.upgrade_v15_to_v16", owner="srmech", category="genome",
             summary="Migrate a v<=15 genome directory to on-disk format v16 IN PLACE (UPSTREAM §55 / §Q8; rc312) — the Q8 on-disk-format upgrade. rc311 wired the Q8 carrier into the genome as an element_type coupling path but the on-disk WIRE still assumed 2-bit klein4 turns; v16 adds a SECOND data-turn packing (a Q8 turn 3-bit-packs under Q8_PACKED_TURN_MARKER 0x38, the klein4 turn keeps the 2-bit PACKED_TURN_MARKER 0x51) + a manifest carrier field. A v15 genome is ALWAYS klein4 (2-bit turns), and v16's klein4 packer is BYTE-IDENTICAL, so the turns.bin BODY needs NO repack: a v15 turn (bytes 0..3, sign bit 0) is EXACTLY the winding-0 / Lk-0 slice of a v16 Q8 turn (q8_project_v4(turn) == turn and every winding sign bit is 0). The upgrade is therefore a manifest RE-STAMP — re-derive the .fai head by SCANNING the unchanged body (§44 — the strand is the SSoT), which now stamps format_version=16 + the derived carrier ('klein4' / 'q8'). Because the body is untouched and body_sha256 is a pure function of the body (the region CHAIN since v4), the ONLY on-disk bytes that MOVE are the manifest's format_version + carrier fields; turns.bin is byte-identical. Idempotent — a v16 genome re-stamps to itself; REFUSES to downgrade a genome newer than this build. coupling= is only needed for a manifest-LESS genome (its length is the leaf width — you can upgrade a turns.bin shipped alone). Returns the re-derived manifest data dict (format_version=16). The migrate-on-read precedent of the v11->v12 head-only upgrade; numpy-free; hashes via sha256_bytes.",
             parameters=(P("path", "str", True, "the genome DIRECTORY to upgrade in place (its manifest.json is re-stamped to v16; turns.bin is byte-untouched for a klein4 genome)"),
-                        P("coupling", "HV", False, "keyword-only; the held invariant — only needed to rebuild a manifest-LESS genome (its length is the leaf width)")),
+                        P("coupling", "HV", False, "keyword-only; the held invariant — only needed to rebuild a manifest-LESS genome (its length is the leaf width)"),
+                        P("attestation", "Optional[dict]", False,
+                          "keyword-only; the caller MPR SOURCE attestation (`#T1108`) - any of "
+                          "source_doi / source_url / license / retrieved_at. OMITTING IT "
+                          "PRESERVES: the block already in manifest.json is CARRIED FORWARD, and "
+                          "srmech's default is written only when there is nothing to inherit. "
+                          "Through v0.9.0rc417 this parameter did not exist and every call "
+                          "re-minted the default, so an attested genome came back with the "
+                          "srmech DEFAULT licence and the srmech default persistence DOI after "
+                          "one mutation. A block that "
+                          "DISAGREES with a non-default one already on disk raises "
+                          "GenomeAttestationConflict rather than replacing it silently. "
+                          "response_sha256 and the four encoder-identity fields are srmech-owned "
+                          "and always re-synthesised.")),
             returns=R("dict", "the re-derived manifest data (format_version=16, carrier, leaf_dim, n_turns, coupling, body_sha256, regions, chromosomes)"),
         ),
         ToolEntry(
@@ -3971,7 +3984,20 @@ def _register_primitive_class_tools() -> None:
                           "the return is threaded for the rest of the loop. An "
                           "empty / partial dict carrying no 'leaf_dim' is not a "
                           "genome catalog and raises a pointed ValueError naming "
-                          "these three modes, never a bare KeyError.")),
+                          "these three modes, never a bare KeyError."),
+                        P("attestation", "Optional[dict]", False,
+                          "keyword-only; the caller MPR SOURCE attestation (`#T1108`) - any of "
+                          "source_doi / source_url / license / retrieved_at. OMITTING IT "
+                          "PRESERVES: the block already in manifest.json is CARRIED FORWARD, and "
+                          "srmech's default is written only when there is nothing to inherit. "
+                          "Through v0.9.0rc417 this parameter did not exist and every call "
+                          "re-minted the default, so an attested genome came back with the "
+                          "srmech DEFAULT licence and the srmech default persistence DOI after "
+                          "one mutation. A block that "
+                          "DISAGREES with a non-default one already on disk raises "
+                          "GenomeAttestationConflict rather than replacing it silently. "
+                          "response_sha256 and the four encoder-identity fields are srmech-owned "
+                          "and always re-synthesised.")),
             returns=R("dict", "the updated manifest data (with the appended chromosome + region entry + O(1)-extended body_sha256 chain)"),
         ),
         ToolEntry(
@@ -4015,7 +4041,20 @@ def _register_primitive_class_tools() -> None:
             summary="Excise ONE chromosome from a genome IN PLACE (UPSTREAM §45) — biology excises, it does not re-synthesize. Finds the chromosome label's region in the self-describing body (§44 — its CHROM cap + data turns occupy [byte_offset, byte_offset+byte_len)) and splices THAT byte span out of turns.bin, leaving every OTHER chromosome's coupled body bytes byte-identical (no kernel is decoded / re-coupled — the survivors are the same bytes, only relocated). The derived .fai manifest is then rebuilt by scanning the spliced body (§44 — body_sha256 / n_turns and every survivor's byte_offset recomputed; the manifest stays an optional cache). Re-hashes the whole on-disk body against the committed body_sha256 BEFORE the edit (never splice a corrupt body — GenomeBoundingError). coupling= is needed only when manifest.json is absent (its length is the leaf width for the rebuild-by-scan). Raises ValueError if the label is absent or is the genome's only chromosome. numpy-free.",
             parameters=(P("path", "str", True, "the genome directory written by genome_save"),
                         P("label", "str", True, "the chromosome label to excise (must not be the genome's only chromosome)"),
-                        P("coupling", "HV", False, "the held invariant (only required when manifest.json is absent — its length is the leaf width for the §44 rebuild-by-scan)")),
+                        P("coupling", "HV", False, "the held invariant (only required when manifest.json is absent — its length is the leaf width for the §44 rebuild-by-scan)"),
+                        P("attestation", "Optional[dict]", False,
+                          "keyword-only; the caller MPR SOURCE attestation (`#T1108`) - any of "
+                          "source_doi / source_url / license / retrieved_at. OMITTING IT "
+                          "PRESERVES: the block already in manifest.json is CARRIED FORWARD, and "
+                          "srmech's default is written only when there is nothing to inherit. "
+                          "Through v0.9.0rc417 this parameter did not exist and every call "
+                          "re-minted the default, so an attested genome came back with the "
+                          "srmech DEFAULT licence and the srmech default persistence DOI after "
+                          "one mutation. A block that "
+                          "DISAGREES with a non-default one already on disk raises "
+                          "GenomeAttestationConflict rather than replacing it silently. "
+                          "response_sha256 and the four encoder-identity fields are srmech-owned "
+                          "and always re-synthesised.")),
             returns=R("dict", "the updated manifest data (the excised chromosome gone, survivors' byte_offsets + body_sha256 recomputed)"),
         ),
         ToolEntry(
@@ -4024,7 +4063,20 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("path", "str", True, "the genome directory written by genome_save"),
                         P("label", "str", True, "the chromosome label whose content to replace"),
                         P("leaves", "Sequence[HV]", True, "the replacement kernel's Klein-4 leaf vectors"),
-                        P("coupling", "HV", True, "the held invariant the new turns are coupled through (dim must match leaf_dim)")),
+                        P("coupling", "HV", True, "the held invariant the new turns are coupled through (dim must match leaf_dim)"),
+                        P("attestation", "Optional[dict]", False,
+                          "keyword-only; the caller MPR SOURCE attestation (`#T1108`) - any of "
+                          "source_doi / source_url / license / retrieved_at. OMITTING IT "
+                          "PRESERVES: the block already in manifest.json is CARRIED FORWARD, and "
+                          "srmech's default is written only when there is nothing to inherit. "
+                          "Through v0.9.0rc417 this parameter did not exist and every call "
+                          "re-minted the default, so an attested genome came back with the "
+                          "srmech DEFAULT licence and the srmech default persistence DOI after "
+                          "one mutation. A block that "
+                          "DISAGREES with a non-default one already on disk raises "
+                          "GenomeAttestationConflict rather than replacing it silently. "
+                          "response_sha256 and the four encoder-identity fields are srmech-owned "
+                          "and always re-synthesised.")),
             returns=R("dict", "the updated manifest data (the chromosome's content replaced in place, body_sha256 recomputed)"),
         ),
         ToolEntry(
@@ -4033,7 +4085,15 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("path", "str", True, "the genome directory written by genome_save"),
                         P("label", "str", True, "the chromosome label to export as a .chr bundle"),
                         P("out", "str", True, "the output file path for the .chr (one MPR-attested JSON record)"),
-                        P("coupling", "HV", False, "the held invariant (only required when the source genome's manifest.json is absent — its length is the leaf width for the §44 rebuild-by-scan)")),
+                        P("coupling", "HV", False, "the held invariant (only required when the source genome's manifest.json is absent — its length is the leaf width for the §44 rebuild-by-scan)"),
+                        P("attestation", "Optional[dict]", False,
+                          "keyword-only; the caller MPR SOURCE attestation for the EXPORTED .chr "
+                          "(`#T1108`). Omitted, the bundle inherits the PARENT genome's four "
+                          "SOURCE fields - a .chr is the DISTRIBUTION unit, so a chromosome "
+                          "exported from a licensed genome must not leave the machine stamped "
+                          "CC0, which is what every release before v0.9.0rc418 did. Only the four "
+                          "source fields are settable here: response_sha256 IS the region digest "
+                          "and both projections hard-check it on import.")),
             returns=R("dict", "the .chr data block (format_version / leaf_dim / label / leaf_count / cap_sha256 / coupling hash+hex / region hash+hex)"),
         ),
         ToolEntry(
@@ -4041,7 +4101,20 @@ def _register_primitive_class_tools() -> None:
             summary="Import a .chr chromosome bundle into a genome at dest (UPSTREAM §43). Reads the MPR-attested .chr (genome_export's output), RE-HASHES its region and its coupling and compares them against the bundle's own attestation — a mismatch is a GenomeBoundingError (self-verifying). Then: if dest has no genome yet, the .chr SEEDS a fresh one (its region becomes turns.bin verbatim, its coupling the coupling invariant); if dest already holds a genome, the chromosome is APPENDED byte-for-byte — which REQUIRES the same coupling invariant (the dest coupling must match the .chr coupling) and a fresh label. The manifest is re-derived by scanning the grown body (§44 — the strand is the SSoT). numpy-free.",
             parameters=(P("chr_path", "str", True, "the .chr bundle file written by genome_export"),
                         P("dest", "str", True, "the dest genome directory (seeded fresh if it has no genome, else appended to)"),
-                        P("coupling", "HV", False, "the held invariant (only consulted for a manifest-less EXISTING dest — the §44 rebuild width; the bundle carries its own coupling)")),
+                        P("coupling", "HV", False, "the held invariant (only consulted for a manifest-less EXISTING dest — the §44 rebuild width; the bundle carries its own coupling)"),
+                        P("attestation", "Optional[dict]", False,
+                          "keyword-only; the caller MPR SOURCE attestation (`#T1108`) - any of "
+                          "source_doi / source_url / license / retrieved_at. OMITTING IT "
+                          "PRESERVES: the block already in manifest.json is CARRIED FORWARD, and "
+                          "srmech's default is written only when there is nothing to inherit. "
+                          "Through v0.9.0rc417 this parameter did not exist and every call "
+                          "re-minted the default, so an attested genome came back with the "
+                          "srmech DEFAULT licence and the srmech default persistence DOI after "
+                          "one mutation. A block that "
+                          "DISAGREES with a non-default one already on disk raises "
+                          "GenomeAttestationConflict rather than replacing it silently. "
+                          "response_sha256 and the four encoder-identity fields are srmech-owned "
+                          "and always re-synthesised.")),
             returns=R("dict", "the dest manifest data (the seeded genome, or the existing genome with the imported chromosome appended)"),
         ),
         ToolEntry(
@@ -4057,7 +4130,20 @@ def _register_primitive_class_tools() -> None:
             summary="Pack a directory of loose .chr files into one packed genome (UPSTREAM §43; the loose->packed inverse of genome_explode, git repack-like). Every *.chr bundle in loose_dir is genome_import-ed into dest in CANONICAL sorted-label order, so the packed turns.bin is a well-defined function of the chromosome SET — like a content-addressed packfile, insertion order is NOT preserved (a packed genome is canonicalised to sorted-label order). The first import SEEDS dest (when it has no genome yet); the rest APPEND byte-for-byte; all the bundles MUST share one coupling invariant (the same the_one) — a mismatched .chr is a GenomeBoundingError, a duplicate label a ValueError. Byte-identical to the source iff the source was already in canonical sorted-label order; otherwise re-canonicalises while preserving every chromosome's bytes. Raises ValueError if loose_dir holds no .chr files. numpy-free.",
             parameters=(P("loose_dir", "str", True, "the directory of loose .chr bundles (e.g. genome_explode's output)"),
                         P("dest", "str", True, "the dest packed genome directory (seeded fresh if it has no genome, else appended/merged into)"),
-                        P("coupling", "HV", False, "the held invariant (only consulted for a manifest-less EXISTING dest — the §44 rebuild width; each .chr carries its own coupling)")),
+                        P("coupling", "HV", False, "the held invariant (only consulted for a manifest-less EXISTING dest — the §44 rebuild width; each .chr carries its own coupling)"),
+                        P("attestation", "Optional[dict]", False,
+                          "keyword-only; the caller MPR SOURCE attestation (`#T1108`) - any of "
+                          "source_doi / source_url / license / retrieved_at. OMITTING IT "
+                          "PRESERVES: the block already in manifest.json is CARRIED FORWARD, and "
+                          "srmech's default is written only when there is nothing to inherit. "
+                          "Through v0.9.0rc417 this parameter did not exist and every call "
+                          "re-minted the default, so an attested genome came back with the "
+                          "srmech DEFAULT licence and the srmech default persistence DOI after "
+                          "one mutation. A block that "
+                          "DISAGREES with a non-default one already on disk raises "
+                          "GenomeAttestationConflict rather than replacing it silently. "
+                          "response_sha256 and the four encoder-identity fields are srmech-owned "
+                          "and always re-synthesised.")),
             returns=R("dict", "the dest manifest data (the assembled packed genome)"),
         ),
         ToolEntry(
@@ -4107,7 +4193,20 @@ def _register_primitive_class_tools() -> None:
                           "indexed for 'leaf_dim', so resume a streaming loop by "
                           "reading the catalog yourself (or via one "
                           "genome_append(catalog=\"load\")) and threading the "
-                          "dict.")),
+                          "dict."),
+                        P("attestation", "Optional[dict]", False,
+                          "keyword-only; the caller MPR SOURCE attestation (`#T1108`) - any of "
+                          "source_doi / source_url / license / retrieved_at. OMITTING IT "
+                          "PRESERVES: the block already in manifest.json is CARRIED FORWARD, and "
+                          "srmech's default is written only when there is nothing to inherit. "
+                          "Through v0.9.0rc417 this parameter did not exist and every call "
+                          "re-minted the default, so an attested genome came back with the "
+                          "srmech DEFAULT licence and the srmech default persistence DOI after "
+                          "one mutation. A block that "
+                          "DISAGREES with a non-default one already on disk raises "
+                          "GenomeAttestationConflict rather than replacing it silently. "
+                          "response_sha256 and the four encoder-identity fields are srmech-owned "
+                          "and always re-synthesised.")),
             returns=R("dict", "the updated manifest data (with the appended kernel chromosome + region entry + O(1)-extended body_sha256 chain)"),
         ),
         ToolEntry(
@@ -4165,7 +4264,13 @@ def _register_primitive_class_tools() -> None:
                           "concurrency, MCU-safe, no RTOS). NOT the v5 "
                           "srmech_progress_cb_t process-global dispatch OBSERVER "
                           "(void return, no cancel channel). Default None = "
-                          "disabled.")),
+                          "disabled."),
+                        P("attestation", "Optional[dict]", False,
+                          "keyword-only; the caller MPR SOURCE attestation for the section store "
+                          "(`#T1108`). This is where provenance enters the two-stage pipeline - "
+                          "ONCE, at the seed. Every later section append, the vocab refresh and "
+                          "the stage-2 promotion are in-place on the same store and carry it "
+                          "forward for free.")),
             returns=R("dict", "{section_store, vocab, section_count {global_id: n_sections}, n_sections, sections, status}"),
         ),
         ToolEntry(

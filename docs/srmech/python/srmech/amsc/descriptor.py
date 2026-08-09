@@ -117,6 +117,7 @@ KNOWN_ADAPTERS: Tuple[str, ...] = (
     "geotiff_bbox",
     "literature_curated",
     "substrate_parameterization",
+    "mpr_committed",
 )
 """Adapter categories. The first five shipped in v0.25.0. The sixth
 (``literature_curated``) shipped after v0.26.0 to support per-body
@@ -130,8 +131,16 @@ parameter set lives in nested ``[fetch.substrate_parameterization.*]``
 sub-tables surfaced as typed sub-dataclasses
 (``srmech.amsc.adapters.substrate_parameterization.config_for``), and
 ``fetch``/``parse`` pass through the committed measurement NDJSON (no
-per-row DOI — the rows are computed outputs). New adapter types require
-a new module under ``srmech/amsc/adapters/`` + entry here."""
+per-row DOI — the rows are computed outputs). The eighth
+(``mpr_committed``, srmech 0.9.0rc418 / `#T1108`) is the ENVELOPE-shaped
+peer of ``literature_curated``: same no-network committed-NDJSON model,
+but each line is already a whole MPR v1 record, so its attestation is the
+attestation of record and is read back verbatim rather than synthesised.
+The distinction is load-bearing, not cosmetic — declaring an
+envelope-shaped catalog as ``literature_curated`` makes the reader
+manufacture a fresh attestation over a row that already carries a true
+one. New adapter types require a new module under
+``srmech/amsc/adapters/`` + entry here."""
 
 
 # ──────────────────────────────────────────────────────────────────────

@@ -546,16 +546,22 @@ srmech_status_t srmech_catalog_use_local_kernel(
  * caller runs the COMPLETE pure path (value-parity, never a rescue).
  * ------------------------------------------------------------------ */
 size_t srmech_catalog_attestation_audit_arena_bytes(size_t ndjson_len,
+                                                    size_t descriptor_len,
                                                     size_t source_key_len)
 {
     assert(sizeof(srmech_json_value_t) <= 64u);
     assert(sizeof(void *) <= 16u);
+    /* `#T1108` (ABI 13): the descriptor's own TOML tree. The audit has to
+     * KNOW which shape the committed rows are before it may project them --
+     * see cat_audit_needs_synthesis. */
+    size_t desc = srmech_toml_parse_arena_bytes(descriptor_len)
+                + descriptor_len + 64u;
     size_t parse = 96u * ndjson_len + 16384u;   /* reused per line */
     size_t store = 2u * ndjson_len + 4096u;     /* duped field bytes */
     size_t items = 8u * ndjson_len + 4096u;     /* row ptr array */
     size_t build = 64u * ndjson_len + 16384u + 4u * source_key_len;
     size_t writer = 8u * ndjson_len + 16384u;
-    return parse + store + items + build + writer + 512u;
+    return desc + parse + store + items + build + writer + 512u;
 }
 
 /* Advance `p` past leading ASCII whitespace within [p, e). */
@@ -606,18 +612,70 @@ static srmech_json_value_t *cat_audit_row(srmech_json_builder_t *b,
         (row->type == SRMECH_JSON_OBJECT)
             ? srmech_json_object_get(row, "attestation") : NULL;
     if (att != NULL && att->type != SRMECH_JSON_OBJECT) { att = NULL; }
-    const char *keys[6] = {"data_schema_id", "response_sha256", "retrieved_at",
+    /* `#T1108`: EIGHT projected fields + data_schema_id. source_doi /
+     * source_url / license joined the projection because the op's own
+     * contract is that a consumer can reproduce the row's provenance trail,
+     * and a trail with no DOI is not one. Order matches
+     * catalog.AUDIT_PROJECTED_FIELDS. */
+    const char *keys[9] = {"data_schema_id", "source_doi", "source_url",
+                           "license", "response_sha256", "retrieved_at",
                            "parser_version", "parser_rule_hash",
                            "collector_descriptor_hash"};
-    srmech_json_value_t *vals[6];
+    srmech_json_value_t *vals[9];
     vals[0] = cat_audit_field(b, row, "data_schema_id", sc, scend);
-    vals[1] = cat_audit_field(b, att, "response_sha256", sc, scend);
-    vals[2] = cat_audit_field(b, att, "retrieved_at", sc, scend);
-    vals[3] = cat_audit_field(b, att, "parser_version", sc, scend);
-    vals[4] = cat_audit_field(b, att, "parser_rule_hash", sc, scend);
-    vals[5] = cat_audit_field(b, att, "collector_descriptor_hash", sc, scend);
-    for (int i = 0; i < 6; i++) { if (vals[i] == NULL) { return NULL; } }
-    return srmech_json_new_object(b, keys, vals, 6u);
+    vals[1] = cat_audit_field(b, att, "source_doi", sc, scend);
+    vals[2] = cat_audit_field(b, att, "source_url", sc, scend);
+    vals[3] = cat_audit_field(b, att, "license", sc, scend);
+    vals[4] = cat_audit_field(b, att, "response_sha256", sc, scend);
+    vals[5] = cat_audit_field(b, att, "retrieved_at", sc, scend);
+    vals[6] = cat_audit_field(b, att, "parser_version", sc, scend);
+    vals[7] = cat_audit_field(b, att, "parser_rule_hash", sc, scend);
+    vals[8] = cat_audit_field(b, att, "collector_descriptor_hash", sc, scend);
+    for (int i = 0; i < 9; i++) { if (vals[i] == NULL) { return NULL; } }
+    return srmech_json_new_object(b, keys, vals, 9u);
+}
+
+/* `#T1108` — does this descriptor's committed NDJSON need its attestation
+ * SYNTHESISED at read time, or is the block on disk the attestation of record?
+ *
+ * The split is `[fetch].adapter`, and it is the same split
+ * `catalog._SYNTHESISING_ADAPTERS` makes in the scripting projection: a
+ * ``literature_curated`` catalogue commits DATA-ONLY rows and srmech builds the
+ * attestation from the descriptor plus each row's own DOI; every other adapter
+ * — the live fetchers and ``mpr_committed`` — commits whole MPR v1 envelopes
+ * whose attestation is read back verbatim.
+ *
+ * Why the C peer must ASK rather than just project: through v0.9.0rc417 it did
+ * not ask, so for the eight data-only sources it emitted a full set of empty
+ * strings per row and its Python peer emitted the same empty strings. Two
+ * projections agreeing perfectly on a wrong answer is precisely what a
+ * differential test cannot see (a consistency oracle certifies mutual
+ * realizability, not correctness), which is why it survived eleven releases.
+ *
+ * *out_synth is 1 when synthesis is required. An absent / unparseable
+ * descriptor is NOT treated as "verbatim" — it is SRMECH_ERR_BAD_INPUT, because
+ * guessing here is how the blank projection happened in the first place. */
+static srmech_status_t cat_audit_needs_synthesis(const char *descriptor,
+                                                 size_t descriptor_len,
+                                                 void *tws, size_t tws_len,
+                                                 int *out_synth)
+{
+    assert(out_synth != NULL);
+    assert(tws != NULL || tws_len == 0u);
+    if (descriptor == NULL || descriptor_len == 0u) { return SRMECH_ERR_BAD_INPUT; }
+    srmech_toml_value_t *root = NULL;
+    srmech_status_t st = srmech_toml_parse(descriptor, descriptor_len,
+                                           tws, tws_len, &root);
+    if (st != SRMECH_OK) { return st; }
+    const srmech_toml_value_t *fetch = srmech_toml_table_get(root, "fetch");
+    const srmech_toml_value_t *ad =
+        (fetch != NULL) ? srmech_toml_table_get(fetch, "adapter") : NULL;
+    if (ad == NULL || ad->type != SRMECH_TOML_STRING) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    *out_synth = (ad->u.str.len == 18u &&
+                  memcmp(ad->u.str.ptr, "literature_curated", 18u) == 0) ? 1 : 0;
+    return SRMECH_OK;
 }
 
 /* True iff the lstripped line [p, e) is a skip line (empty or '#' comment). */
@@ -675,17 +733,42 @@ static srmech_status_t cat_audit_rows(srmech_json_builder_t *b,
     return SRMECH_OK;
 }
 
+/* `#T1108` DECIDE BEFORE PROJECTING. A data-only literature_curated
+ * catalogue's committed lines carry no attestation at all, so projecting them
+ * emits empty strings that VALIDATE -- the silent-wrong-answer this rc exists
+ * to close. The compiled projection cannot yet SYNTHESISE that block, so it
+ * declines BY TYPE (SRMECH_ERR_NOT_IMPL) rather than answering wrongly.
+ * SRMECH_OK means "projecting is legitimate here"; anything else is the
+ * caller's answer. */
+static srmech_status_t cat_audit_decide(const char *descriptor,
+                                        size_t descriptor_len,
+                                        void *dws, size_t dws_len)
+{
+    assert(descriptor != NULL || descriptor_len == 0u);
+    assert(dws != NULL || dws_len == 0u);
+    int synth = 0;
+    srmech_status_t st = cat_audit_needs_synthesis(descriptor, descriptor_len,
+                                                   dws, dws_len, &synth);
+    if (st != SRMECH_OK) { return st; }
+    return synth ? SRMECH_ERR_NOT_IMPL : SRMECH_OK;
+}
+
 srmech_status_t srmech_catalog_attestation_audit(
     const char *source_key, size_t source_key_len,
+    const char *descriptor, size_t descriptor_len,
     const char *ndjson, size_t ndjson_len,
     void *ws, size_t ws_len, char *out, size_t out_cap, size_t *out_len)
 {
     assert(out_len != NULL);
     assert(ndjson != NULL || ndjson_len == 0u);
     if (source_key == NULL || ndjson == NULL || ws == NULL || out == NULL ||
-        out_len == NULL) { return SRMECH_ERR_NULL_ARG; }
+        out_len == NULL || (descriptor == NULL && descriptor_len != 0u)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
     unsigned char *cur = (unsigned char *)ws;
     unsigned char *end = cur + ws_len;
+    size_t dws_len = srmech_toml_parse_arena_bytes(descriptor_len) + 64u;
+    unsigned char *dws = cat_carve(&cur, end, dws_len);
     size_t pa_len = 96u * ndjson_len + 16384u;
     size_t sc_len = 10u * ndjson_len + 8192u;
     unsigned char *pa = cat_carve(&cur, end, pa_len);
@@ -695,9 +778,14 @@ srmech_status_t srmech_catalog_attestation_audit(
     unsigned char *aws = cat_align_ptr(cur);
     if (aws > end) { return SRMECH_ERR_OVERFLOW; }
     size_t wr_len = (size_t)(end - aws);
-    if (pa == NULL || sc == NULL || abd == NULL || aws == NULL) {
+    if (pa == NULL || sc == NULL || abd == NULL || aws == NULL ||
+        dws == NULL) {
         return SRMECH_ERR_OVERFLOW;
     }
+    /* `#T1108`: DECIDE BEFORE PROJECTING -- see cat_audit_decide. */
+    srmech_status_t ds = cat_audit_decide(descriptor, descriptor_len,
+                                          dws, dws_len);
+    if (ds != SRMECH_OK) { return ds; }
     srmech_json_builder_t b;
     srmech_status_t st = srmech_json_builder_init(&b, abd,
         64u * ndjson_len + 16384u + 4u * source_key_len);
