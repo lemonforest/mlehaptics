@@ -63,8 +63,23 @@ from srmech.math.text import fold_marks, glyph_stream
 #: add, removal, reorder or prose edit moves it. rc415's was
 #: ``298e2939ca1156b9f2f4a75f4e64a0b9fc537ad4c14ecd127449fd31ce99004b``; rc416
 #: moves it because BOTH sides of the index now fold, and that IS the edit.
+#:
+#: **RE-PINNED at v0.9.0rc419 (`#T1110`).** rc416's value was
+#: ``cd067fe2f4d4e9bb2dbae1838b853273d0d70b79795858135849c2b40d5874df``. It
+#: moved because rc419 registered NINE ``srmech.signal_processing`` rows
+#: (560 -> 569 ops is the visible part; the corpus is built from ToolEntry
+#: prose, so nine new frames plus the README / docstring edits in the same rc
+#: are all inside the digest) — a PROSE edit, which is the branch this
+#: constant's own failure message names as "re-pin".
+#:
+#: The other branch — non-determinism, which WOULD break the ADR-0011 witness
+#: contract — was ruled out by measurement, not by assumption: the identical
+#: digest was produced by all four native CI cells (ubuntu py3.10, ubuntu
+#: py3.12, macos-14 py3.12, windows py3.12), the pure shards, and a local
+#: WSL2 re-derivation. Five independent builds, one hash. The contract holds;
+#: only the corpus moved.
 WITNESS_RC416 = (
-    "cd067fe2f4d4e9bb2dbae1838b853273d0d70b79795858135849c2b40d5874df")
+    "c9ed2f548dd78e78eb57fb01e5e1876f1bd1366aa78e6a3bbec1a37008665d1f")
 
 #: The ASCII control set. These four queries are the ops the tokenizer work is
 #: ABOUT, so a regression on them would be the change eating its own subject.

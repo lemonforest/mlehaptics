@@ -551,6 +551,15 @@ srmech.physics.qm.triality.triality_cycle
 srmech.physics.qm.triality.triality_relation_residual
 srmech.physics.qm.triality.triality_swap
 srmech.rbs_lm.encode_aboutness
+srmech.signal_processing.cascade_dispatcher.begin_cascade
+srmech.signal_processing.cascade_dispatcher.current_cascade
+srmech.signal_processing.cascade_dispatcher.dispatch
+srmech.signal_processing.cascade_dispatcher.end_cascade
+srmech.signal_processing.cascade_dispatcher.is_dispatch_table_locked
+srmech.signal_processing.cascade_dispatcher.resolve_path
+srmech.signal_processing.path_registry.has_path
+srmech.signal_processing.path_registry.lookup
+srmech.signal_processing.path_registry.registered_ops
 srmech.spectral.decompose
 srmech.spectral.delta
 srmech.spectral.predict

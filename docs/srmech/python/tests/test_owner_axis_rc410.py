@@ -30,9 +30,11 @@ satisfied by an expression that merely stopped measuring.
 
 from __future__ import annotations
 
+import ast
 import json
 import re
 from pathlib import Path
+from typing import Dict, List, Optional
 
 import pytest
 
@@ -64,6 +66,87 @@ def _hand_written_modules() -> list[Path]:
         p
         for p in sorted(_SRMECH_PKG.rglob("*.py"))
         if "__pycache__" not in p.parts and p.resolve() not in exempt
+    ]
+
+
+#: Minimum element count for an all-numeric container literal to read as a DATA
+#: TABLE rather than as a quantity wearing a container. Three is the smallest
+#: width at which "this is a list of numbers" is unmistakable; below it,
+#: ``_SHAPE = (569,)`` or ``_BOUNDS = [0, 569]`` are still plainly restatements
+#: of a count and stay in scope. Pinned by ``test_the_restatement_scan_still_bites``
+#: from BOTH sides.
+_TABLE_MIN_ELEMENTS = 3
+
+
+def _numeric_literal(node: ast.AST) -> Optional[float]:
+    """The value of ``node`` if it is a NUMERIC literal, else ``None``.
+
+    ``bool`` is excluded deliberately: ``True`` is an ``int`` to Python but is
+    never an element of a numeric table, and admitting it would let
+    ``(True, False, 569)`` read as one.
+
+    A leading sign is part of the literal (``-1`` in a coefficient table), so a
+    unary ``+``/``-`` over a numeric constant is unwrapped. That is NEGATION of
+    a syntax node, not magnitude: nothing here erases a sign, so the Class-K
+    pin-slot discipline is untouched.
+    """
+    if isinstance(node, ast.Constant):
+        if isinstance(node.value, bool):
+            return None
+        if isinstance(node.value, (int, float)):
+            return float(node.value)
+        return None
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.USub, ast.UAdd)):
+        inner = _numeric_literal(node.operand)
+        if inner is None:
+            return None
+        return -inner if isinstance(node.op, ast.USub) else inner
+    return None
+
+
+def _table_element_lines(source: str, path: str, total: int) -> Dict[int, int]:
+    """Map line number -> how often ``total`` appears there AS A TABLE ELEMENT.
+
+    An ``ast`` walk, so the decision is STRUCTURAL: a tuple / list / set
+    literal all of whose elements are numeric literals is a data table, and an
+    integer inside one means "the k-th entry", not "the registry total". A
+    syntax error yields ``{}``, which subtracts nothing — the scan then applies
+    unmodified, which is the fail-LOUD direction.
+    """
+    covered: Dict[int, int] = {}
+    try:
+        tree = ast.parse(source, path)
+    except SyntaxError:
+        return covered
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.Tuple, ast.List, ast.Set)):
+            continue
+        values = [_numeric_literal(e) for e in node.elts]
+        if len(values) < _TABLE_MIN_ELEMENTS or any(v is None for v in values):
+            continue
+        for element, value in zip(node.elts, values):
+            if value == float(total):
+                covered[element.lineno] = covered.get(element.lineno, 0) + 1
+    return covered
+
+
+def _restatement_lines(source: str, path: str, total: int) -> List[int]:
+    """Line numbers where ``total`` is RESTATED as a count.
+
+    The base scan stays a word-bounded TEXT scan over every line, because all
+    three cardinals rc410 struck lived in PROSE — two in docstrings, one in a
+    ``#`` comment — and an ``ast`` walk over integer constants would have found
+    none of them. What the ``ast`` supplies is a SUBTRACTION: occurrences the
+    syntax proves are elements of a numeric table are not restatements, so they
+    are deducted per line rather than the line being skipped. A line therefore
+    still fails if it carries one more occurrence than the table accounts for.
+    """
+    pattern = re.compile(rf"\b{re.escape(str(total))}\b")
+    covered = _table_element_lines(source, path, total)
+    return [
+        i
+        for i, line in enumerate(source.splitlines(), start=1)
+        if len(pattern.findall(line)) > covered.get(i, 0)
     ]
 
 
@@ -329,22 +412,52 @@ def test_no_shipped_module_restates_the_registry_total() -> None:
     go stale again". rc409 set the precedent for stripping exactly this rot from
     ``gen_tool_registry.py:10``.
 
-    ⚠️ BRITTLENESS, NAMED: this scans for the CURRENT total as a word-bounded
-    number. Today that is a 3-digit value with no legitimate use as a constant
-    in hand-written srmech source. Should the total ever land on a value that
-    IS a common constant, this gate will start reporting false positives — and
-    it will do so LOUDLY, which is the correct failure mode. Re-scope it then;
-    do not add blanket exemptions to quiet it.
+    ⚠️ BRITTLENESS, NAMED (rc410): this scanned for the CURRENT total as a
+    word-bounded number. At rc410 that was a 3-digit value with no legitimate
+    use as a constant in hand-written srmech source. The note said: should the
+    total ever land on a value that IS a common constant, this gate will start
+    reporting false positives — and it will do so LOUDLY, which is the correct
+    failure mode. **Re-scope it then; do not add blanket exemptions to quiet
+    it.**
+
+    THE PREDICTION CAME TRUE AT rc419 (`#T1110`), AND THIS IS THE RE-SCOPE
+    =====================================================================
+    rc419's nine ``signal_processing`` registrations moved the total to
+    **569, which is prime** — so it appears in ``apokatastasis/thetasum.py``'s
+    ``_STRUCT_PRIMES``, a 113-entry table of the primes up to 617, between 563
+    and 571. Nothing there restates anything; the total merely landed on a
+    value with a legitimate life of its own. One offender, exactly the
+    predicted shape.
+
+    THE RE-SCOPE, AND WHY IT IS NOT AN EXEMPTION
+    ============================================
+    No file is named, no line is named, no substring is skipped, and no
+    ``noqa`` exists. The gate now distinguishes the two cases by SYNTAX:
+
+    * a **restatement** is the number standing alone as a quantity — an
+      assignment, a comparison, a default argument, an f-string, or a sentence
+      of prose that says how many there are;
+    * a **table element** is an integer inside a tuple / list / set literal
+      whose elements are ALL numeric literals, where its meaning is its
+      POSITION in a data table.
+
+    ``_restatement_lines`` keeps the word-bounded text scan — which is what
+    catches prose, and all three cardinals rc410 struck WERE prose (two
+    docstrings and a ``#`` comment; an ``ast`` walk over integer constants
+    would have found none of them) — and subtracts, per line, the occurrences
+    the ``ast`` proves are table elements. A line carrying one more occurrence
+    than the table accounts for still fails.
+
+    ``test_the_restatement_scan_still_bites`` pins that this still bites, from
+    both sides.
     """
-    total = str(_owned_total())
-    pattern = re.compile(rf"\b{re.escape(total)}\b")
+    total = _owned_total()
     offenders = [
         f"{p.relative_to(_SRMECH_PKG).as_posix()}:{i}"
         for p in _hand_written_modules()
-        for i, line in enumerate(
-            p.read_text(encoding="utf-8").splitlines(), start=1
+        for i in _restatement_lines(
+            p.read_text(encoding="utf-8"), str(p), total
         )
-        if pattern.search(line)
     ]
     assert not offenders, (
         f"the registry total ({total}) is restated as a literal in shipped "
@@ -352,6 +465,70 @@ def test_no_shipped_module_restates_the_registry_total() -> None:
         "next op added. Point at the live value instead: "
         "len(get_tool_schema().by_owner('srmech'))."
     )
+
+
+def test_the_restatement_scan_still_bites() -> None:
+    """⚠️ NEGATIVE CONTROL for the re-scope above.
+
+    A gate that stopped firing on the thing it exists for is worse than the
+    false positive that prompted the re-scope, and this tree has shipped that
+    failure before. So the predicate is driven directly, over sources written
+    HERE, and must decide both ways:
+
+    * MUST FIND every shape a restatement actually takes — including the two
+      that the real defect took (a docstring sentence and a ``#`` comment),
+      which is why the base scan is still a text scan and not an ``ast`` walk
+      over integer constants;
+    * MUST NOT FIND the same integer sitting in a numeric data table, which is
+      the rc419 false positive.
+
+    The subject is the shipped helper, not a re-implementation of it.
+    """
+    total = _owned_total()
+
+    must_find = {
+        "assignment": f"_TOTAL = {total}",
+        "comparison": f"assert n == {total}",
+        "default argument": f"def f(n: int = {total}) -> None: ...",
+        "f-string": f'msg = f"{{n}} of {total} ops"',
+        "comment prose": f"# the registry carries {total} ops",
+        "docstring prose": f'"""The registry carries {total} ops."""',
+        "narrow container": f"_SHAPE = ({total},)",
+        "extra occurrence on a table line": (
+            f"_T = (2, {total}, 3)  # {total} of them"
+        ),
+    }
+    for label, src in must_find.items():
+        assert _restatement_lines(src, f"<{label}>", total) == [1], (
+            f"the re-scoped scan no longer bites on a {label} restatement "
+            f"({src!r}) — it has become decorative, which is strictly worse "
+            f"than the false positive it was re-scoped to remove"
+        )
+
+    must_not_find = {
+        "tuple of ints": f"_PRIMES = (563, {total}, 571)",
+        "list of ints": f"_T = [563, {total}, 571]",
+        "set of ints": f"_S = {{563, {total}, 571}}",
+        "signed / float table": f"_C = (-1, {total}, 2.5)",
+        "nested table": f"_N = [[1, 2, 3], [563, {total}, 571]]",
+    }
+    for label, src in must_not_find.items():
+        assert _restatement_lines(src, f"<{label}>", total) == [], (
+            f"the re-scoped scan still fires on a {label} ({src!r}) — the "
+            f"rc419 false positive is not actually fixed"
+        )
+
+    # …and the real exhibit, read from the shipped file rather than described:
+    # thetasum's prime table must be silent, and it must be silent because the
+    # AST accounted for the occurrence, not because the scan stopped looking.
+    thetasum = _SRMECH_PKG / "apokatastasis" / "thetasum.py"
+    source = thetasum.read_text(encoding="utf-8")
+    assert re.search(rf"\b{total}\b", source), (
+        f"thetasum.py no longer contains {total} — this control has gone "
+        f"vacuous and the exhibit must be re-chosen (the total moved off a "
+        f"prime, or _STRUCT_PRIMES changed)"
+    )
+    assert _restatement_lines(source, str(thetasum), total) == []
 
 
 # ──────────────────────────────────────────────────────────────────────

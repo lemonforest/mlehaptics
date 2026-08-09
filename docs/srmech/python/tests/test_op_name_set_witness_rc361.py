@@ -49,7 +49,7 @@ MANIFEST = Path(__file__).resolve().parent / "registered_op_names.txt"
 #: rc361 until rc410 (`#T1085`) — stale by 40 ops, in a comment whose only job
 #: was to show the CURRENT value, sitting two lines above the real one. Written
 #: symbolically now so it cannot go stale a second time.)
-EXPECTED_N = 560
+EXPECTED_N = 569
 
 #: sha256 over the NORMALISED manifest body — "\n".join(sorted names) + "\n",
 #: UTF-8. Normalised rather than raw-file-bytes so a CRLF checkout cannot make
@@ -124,8 +124,19 @@ EXPECTED_N = 560
 # it was reading. This witness could not have caught that, because an op absent
 # from the registry is absent from the live set too — the gap was in what got
 # REGISTERED, not in what drifted. 559 -> 560, digest below.
+# rc419 (`#T1110`): +9 — the srmech.signal_processing DISPATCHER + PATH-REGISTRY
+# read surface: cascade_dispatcher.{dispatch, begin_cascade, end_cascade,
+# current_cascade, resolve_path, is_dispatch_table_locked} and
+# path_registry.{has_path, lookup, registered_ops}. Same shape as rc414's
+# fold_identity and not new code either — README.md demonstrates these BY NAME
+# as the package's entry point, and every one of them was unregistered, so the
+# MCP tool list carried 559 definitions of which ZERO mentioned
+# signal_processing and introspect.search returned the op for 0 of 41 target
+# queries (8/8 positive controls passed, so that null is REFUTED, not
+# unsupported). These are the FIRST nine signal_processing rows in the registry.
+# 560 -> 569, digest below.
 EXPECTED_NAME_SET_SHA256 = (
-    "700e1ca0f4fe7dec961cc1f65bd9a19a71f147960bf90f1216fc431f813b18a6")
+    "5c552a15f7c2aa5a90ebe756da17a2c64741b09a3794a0ed2f5fba6d3770457d")
 
 
 def _live_names() -> list[str]:

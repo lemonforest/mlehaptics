@@ -13,7 +13,7 @@
  * const data table (JPL-clean: const arrays, no dynamic init, no malloc).
  * The accessors + the canonical serialiser live in srmech_tool_schema.c.
  *
- * Entries: 560. tool_schema_version: 1.0.
+ * Entries: 569. tool_schema_version: 1.0.
  */
 
 #include "srmech.h"
@@ -3251,67 +3251,93 @@ static const srmech_tool_param_t ts_params_543[] = {
     { "token_mode", "str", 0, "'byteglyph' (default, structure-bearing) or 'address' (F1008 orthogonal dual)" },
 };
 static const srmech_tool_param_t ts_params_544[] = {
+    { "op_name", "str", 1, "canonical op name; one of registered_ops()" },
+    { "args", "sequence", 0, "the *args variadic: positional arguments forwarded verbatim to the routed implementation. Element types are the routed op's, not dispatch's, so this schema does not narrow them; an element with no wire form is unreachable over MCP even though the array is. Default () = no positional arguments" },
+    { "path", "Optional[str]", 0, "keyword-only; force 'A' / 'B' / 'verify'. Default None = rule-based routing via resolve_path()" },
+    { "D", "int", 0, "keyword-only; RBS-HDC bound-vector dimension forwarded to Path B implementations. Default 8192" },
+};
+static const srmech_tool_param_t ts_params_545[] = {
+    { "substrate", "Optional[str]", 0, "substrate label, or None for substrate-agnostic. One of 'bci' / 'audio' / 'rf' / 'ephemeris'" },
+    { "D", "int", 0, "keyword-only; bound-vector dimension for the cascade. Default 8192" },
+};
+static const srmech_tool_param_t ts_params_546[] = {
+    { "ctx", "Optional[dict]", 0, "the CascadeContext to flush; None flushes the innermost active context" },
+};
+static const srmech_tool_param_t ts_params_548[] = {
+    { "op_name", "str", 1, "canonical op name" },
+    { "explicit_path", "Optional[str]", 0, "keyword-only; 'A' / 'B' / 'verify' \342\200\224 returned unchanged" },
+    { "input_size", "Optional[int]", 0, "keyword-only; input-size hint (reserved for the learned threshold table)" },
+    { "substrate", "Optional[str]", 0, "keyword-only; substrate hint overriding the active context" },
+};
+static const srmech_tool_param_t ts_params_550[] = {
+    { "op_name", "str", 1, "canonical op name" },
+    { "path", "str", 1, "'A' or 'B'" },
+};
+static const srmech_tool_param_t ts_params_551[] = {
+    { "op_name", "str", 1, "canonical op name" },
+};
+static const srmech_tool_param_t ts_params_553[] = {
     { "partials", "Sequence[int | Q | Qalg]", 1, "non-empty sequence of partial-to-fundamental frequency RATIOS. Over the wire each is a bare int or an exact [num, den] pair; an in-process caller may also pass Q or Qalg (Qalg has no JSON form, so it is reachable in-process only). float is REFUSED" },
     { "open_partials", "Sequence[int]", 0, "indices whose true value has NO exact carrier; declared by the constructor that produced them" },
 };
-static const srmech_tool_param_t ts_params_545[] = {
+static const srmech_tool_param_t ts_params_554[] = {
     { "partials", "Sequence[int | Q | Qalg]", 1, "partial-to-fundamental frequency ratios. Over the wire each is a bare int or an exact [num, den] pair; Q and Qalg are additionally accepted in-process (Qalg has no JSON form). float is REFUSED" },
     { "open_partials", "Sequence[int]", 0, "indices declared Tier 3 by their constructor" },
 };
-static const srmech_tool_param_t ts_params_546[] = {
+static const srmech_tool_param_t ts_params_555[] = {
     { "partials", "Sequence[int | Q | Qalg]", 1, "partial-to-fundamental frequency ratios; over the wire each is a bare int or an exact [num, den] pair (Qalg in-process only). float is REFUSED" },
     { "open_partials", "Sequence[int]", 0, "indices declared Tier 3 by their constructor" },
 };
-static const srmech_tool_param_t ts_params_548[] = {
+static const srmech_tool_param_t ts_params_557[] = {
     { "divisions", "int", 0, "steps per octave (>=1); default 12" },
     { "octave", "int", 0, "the integer octave ratio (>=2); default 2" },
     { "degrees", "Sequence[int]", 0, "which scale degrees to return; default 0..divisions inclusive" },
 };
-static const srmech_tool_param_t ts_params_549[] = {
+static const srmech_tool_param_t ts_params_558[] = {
     { "inharmonicity", "Q", 1, "the stiffness coefficient B >= 0, as Q, int or an (int, int) pair; must be EXACT (floats refused)" },
     { "n_partials", "int", 0, "how many partials, n = 1..n_partials (>=1); default 8" },
 };
-static const srmech_tool_param_t ts_params_550[] = {
+static const srmech_tool_param_t ts_params_559[] = {
     { "n_orders", "int", 0, "how many Bessel orders n = 0..n_orders-1 (>=1); default 3" },
     { "m_zeros", "int", 0, "how many zeros per order, m = 1..m_zeros (>=1); default 3" },
     { "scale_bits", "int", 0, "the DECLARED fixed-point precision of the zeros; default 128" },
 };
-static const srmech_tool_param_t ts_params_551[] = {
+static const srmech_tool_param_t ts_params_560[] = {
     { "order", "int", 1, "the integer Bessel order k >= 0" },
     { "numerator", "int", 1, "the argument's numerator; the argument must be >= 0" },
     { "denominator", "int", 1, "the argument's denominator, > 0" },
     { "scale_bits", "int", 0, "the DECLARED fixed-point scale in bits, [8, 4096]; default 256" },
 };
-static const srmech_tool_param_t ts_params_552[] = {
+static const srmech_tool_param_t ts_params_561[] = {
     { "order", "int", 1, "the integer Bessel order n >= 0" },
     { "index", "int", 1, "which positive zero, 1-based (1 = the first)" },
     { "scale_bits", "int", 0, "the DECLARED fixed-point scale in bits; default 256" },
     { "newton_steps", "int", 0, "Newton refinements after the McMahon start, [1, 64]; default 8" },
 };
-static const srmech_tool_param_t ts_params_553[] = {
+static const srmech_tool_param_t ts_params_562[] = {
     { "species", "Sequence[str | dict[str,int]] | QMat", 1, "the reaction's species: a list of formula strings (\"H2O\") and/or {element: count} dicts (mixable), or a raw element x species QMat (rows = elements, columns = species)" },
     { "all_balances", "bool", 0, "when the kernel dimension is > 1, return every primitive basis vector instead of raising; default False" },
 };
-static const srmech_tool_param_t ts_params_554[] = {
+static const srmech_tool_param_t ts_params_563[] = {
     { "N", "QMat | Sequence[Sequence[int | Q]]", 1, "the stoichiometric matrix (rows = species, columns = reactions) as a QMat or a nested int/Q sequence" },
 };
-static const srmech_tool_param_t ts_params_555[] = {
+static const srmech_tool_param_t ts_params_564[] = {
     { "reactions", "Sequence[tuple[dict[str,int], dict[str,int]]]", 1, "an iterable of (reactant, product) pairs; each complex is an {species: coeff} dict ({\"A\": 2} for 2A), a bare species-name str (coeff 1), or the zero complex (\"\"/\"0\"/None for the empty complex in a synthesis/degradation step)" },
     { "with_components", "bool", 0, "return the full breakdown dict instead of the bare integer; default False" },
 };
-static const srmech_tool_param_t ts_params_556[] = {
+static const srmech_tool_param_t ts_params_565[] = {
     { "formula", "str", 1, "the formula string; element = [A-Z][a-z]*, count = a run of ASCII digits (default 1), groups nest with ( ... ) and an optional trailing count" },
 };
-static const srmech_tool_param_t ts_params_557[] = {
+static const srmech_tool_param_t ts_params_566[] = {
     { "framed", "bytes", 1, "Frame body (nonce[16] || ciphertext) \342\200\224 the unwrapped TLV payload." },
     { "dna", "bytes", 1, "32+ byte pre-shared Bio-TOTP secret. Pass ZERO_DNA (b'\\x00'*32) for herd-immunity / public mode (same code path; deterministic ciphertext recoverable by anyone)." },
     { "window_ns", "int", 0, "Optional time-window override in nanoseconds (default 250_000_000 = 250 ms; env-var ``SRMECH_BUS_TOTP_WINDOW_NS`` honoured)." },
     { "time_ns", "int", 0, "Optional explicit wall-clock override (defaults to time.time_ns()). Useful for replaying historical captures." },
 };
-static const srmech_tool_param_t ts_params_558[] = {
+static const srmech_tool_param_t ts_params_567[] = {
     { "cleanup_dead", "bool", 0, "When True (default), registration files for endpoints with no live server are removed from disk as a side effect." },
 };
-static const srmech_tool_param_t ts_params_559[] = {
+static const srmech_tool_param_t ts_params_568[] = {
     { "name", "str", 1, "Endpoint name (matches the name passed to `srmech.bus.serve(name, ...)`)." },
 };
 
@@ -3399,6 +3425,23 @@ static const char *const ts_reads_input_384[] = {
 };
 static const char *const ts_reads_input_511[] = {
     "algebra",
+};
+static const char *const ts_composes_544[] = {
+    "srmech.signal_processing.cascade_dispatcher.resolve_path",
+    "srmech.signal_processing.path_registry.lookup",
+};
+static const char *const ts_preserves_544[] = {
+    "path= is honoured unconditionally \342\200\224 an explicit side is never overridden by the cascade hint or by the class default",
+    "arguments are forwarded verbatim; D is injected only into implementations whose signature accepts it",
+};
+static const char *const ts_preserves_546[] = {
+    "idempotent: flushing an already-closed context does not re-run the flush",
+};
+static const char *const ts_preserves_548[] = {
+    "pure: resolve_path never runs the op and never mutates the registry or the cascade stack",
+};
+static const char *const ts_preserves_552[] = {
+    "an immutable snapshot \342\200\224 a later registration does not change a tuple already returned",
 };
 
 /* The tool registry, in get_tool_schema().tools order (== the order
@@ -13197,11 +13240,173 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
     },
     { /* 544 */
+        "srmech.signal_processing.cascade_dispatcher.dispatch",
+        "srmech",
+        "signal_processing",
+        "THE signal-processing entry point: run one op by NAME, routing between its Path A (closed-form algebra over the 14 A-N primitives) and Path B (RBS-HDC bound vector at D=8192) implementations. Positional and keyword arguments are forwarded verbatim to the chosen implementation. path= forces a side ('A' / 'B'); omit it and resolve_path() decides \342\200\224 an active begin_cascade() context prefers Path B, otherwise the op's primary A-N class picks per DEFAULT_PATH_PER_CLASS (Class K rotation and Class M bind/bundle/permute default to B, the other twelve to A). Raises UnknownOperationError for a name the registry does not carry: dispatch is a PATH-ROUTER over the ops that HAVE two paths, not a name-resolver over every op in the package.",
+        ts_params_544, 4u,
+        "int | float | str | list | dict",
+        "whatever the routed implementation returns, unchanged",
+        1,
+        NULL,
+        "{\"input\":{\"D\":8192,\"op_name\":\"fft\",\"path\":\"A\"},\"output\":\"[(10+0j), (-2+2j), (-2+0j), (-1.9999999999999998-2j)]\",\"why\":\"Four calls that show what dispatch IS. The same op runs by NAME with no import of the implementation; the positional and keyword forms are the same call because arguments are forwarded verbatim; path=PATH_A pins the side and returns bit-identical output to the auto-routed call, which is the evidence that routing chooses a SUBSTRATE and never an answer; and sign_quantise returns +/-1 rather than a spectrum, so the return type is the op's, not the dispatcher's. The last line is the honest boundary: 41 closed-form ops ship in srmech.signal_processing.closed_form_ops, and dispatch routes the THIRTEEN that have a registered path -- asking it for wavelet raises rather than silently importing something.\",\"worked\":\"from srmech.signal_processing import (\\n    dispatch, registered_ops, PATH_A)\\n\\nlen(registered_ops())\\n# -> 13            the ops dispatch can route (NOT all 41 closed-form ops)\\n\\n# By name. Nothing imports fft; the registry resolves it.\\ndispatch(\\\"fft\\\", signal=[1, 2, 3, 4])\\n# -> [(10+0j), (-2+2j), (-2+0j), (-1.9999999999999998-2j)]\\n\\n# Positional and keyword are the SAME call -- args are\\n# forwarded verbatim -- and pinning the side changes nothing\\n# about the value, which is the whole dual-path claim.\\ndispatch(\\\"fft\\\", [1, 2, 3, 4], path=PATH_A)\\n# -> [(10+0j), (-2+2j), (-2+0j), (-1.9999999999999998-2j)]\\n\\n# The return type is the OP's, never the dispatcher's.\\ndispatch(\\\"sign_quantise\\\", signal=[3.0, -1.5, 0.0, -0.25])\\n# -> [1, -1, 1, -1]\\ndispatch(\\\"rfft\\\", signal=[1.0, 2.0, 3.0, 4.0])\\n# -> [(10+0j), (-2+2j), (-2+0j)]   half spectrum, real input\\n\\n# An op with no registered path is refused, LOUDLY.\\ndispatch(\\\"wavelet\\\", signal=[1, 2, 3, 4])\\n# -> UnknownOperationError\\n\"}",
+        NULL,
+        "WHAT it computes: nothing itself -- it RESOLVES. dispatch(op_name, ...) looks the name up in srmech.signal_processing.path_registry, asks resolve_path() which side to run, and calls that implementation with the caller's arguments forwarded unchanged, returning whatever the op returns. The two sides are Path A (closed-form algebra composed from the 14 A-N primitives) and Path B (an RBS-HDC bound vector at D=8192). Routing picks a SUBSTRATE, never an answer: dispatch(\"fft\", x) and dispatch(\"fft\", x, path=PATH_A) return the same list. WHEN to reach for it: when the op name is data -- a cascade spec, a config row, a user string -- or when you want the substrate choice made for you. If you already know which op you want and only ever want Path A, importing it directly is clearer and one lookup cheaper: `from srmech.signal_processing.closed_form_ops.dct import op`. That direct-import form is also the ONLY way to reach the 28 closed-form ops that have a single path and therefore no router entry -- reaching for dispatch there gets you UnknownOperationError, which is the correct answer to a question about routing, not a bug. SIBLINGS: resolve_path answers \"which side WOULD it choose\" without running anything -- use it instead of a trial dispatch when you are only inspecting routing. has_path is the non-raising probe for whether a side exists at all; lookup returns the full OperationEntry including the literature citation and the A-N class tuple that routing reads; registered_ops enumerates what can be routed. begin_cascade wraps a sequence of dispatch calls so they all prefer Path B. Do not hand-roll a name->function dict in front of this: the lazy-loader indirection in path_registry is what keeps `import srmech.signal_processing` numpy-free, and a hand-built table defeats it by importing everything eagerly.",
+        ts_composes_544, 2u,
+        ts_preserves_544, 2u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 545 */
+        "srmech.signal_processing.cascade_dispatcher.begin_cascade",
+        "srmech",
+        "signal_processing",
+        "Open a CASCADE CONTEXT \342\200\224 a with-block inside which dispatch() prefers Path B for every nested op, because Path B's encode cost amortises over cascade depth while Path A pays per call. Yields the live CascadeContext (substrate / depth / D / closed). Auto-flushes on normal exit AND on exception; nests, with the innermost context supplying the substrate hint. substrate must be None or one of ('bci', 'audio', 'rf', 'ephemeris').",
+        ts_params_545, 2u,
+        "contextmanager[CascadeContext]",
+        "yields the opened context; closed=True after exit",
+        0,
+        "scope-returning: begin_cascade is a with-block context manager, and a scope cannot span two JSON-RPC calls \342\200\224 the enter/exit pair has no wire form and a context leaked across requests would keep routing later, unrelated calls to Path B. Over the wire, force the side per call with dispatch(op_name, path='B') instead; the context is an in-process affordance.",
+        "{\"input\":{\"substrate\":\"bci\"},\"output\":\"('bci', 0, 8192, False, 'B')\",\"why\":\"The one line that matters is the flip: resolve_path(\\\"fft\\\") is 'A' outside the block and 'B' inside it, with no argument changed at either call site. That is the whole point of a cascade context -- Path B pays its encode cost once and amortises it over depth, so a RUN of ops wants B even when each op alone would want A. The exit is shown to be automatic: ctx.closed flips to True and current_cascade() returns to None without an explicit end_cascade(), and it would do the same if the block had raised.\",\"worked\":\"from srmech.signal_processing import (\\n    begin_cascade, current_cascade, resolve_path)\\n\\n# Outside a cascade, fft routes by its primary A-N class.\\nresolve_path(\\\"fft\\\")\\n# -> 'A'\\n\\nwith begin_cascade(substrate=\\\"bci\\\") as ctx:\\n    inner = (ctx.substrate, ctx.depth, ctx.D, ctx.closed,\\n             resolve_path(\\\"fft\\\"))\\ninner\\n# -> ('bci', 0, 8192, False, 'B')\\n#          the SAME call now routes to Path B -- the context\\n#          is the only thing that changed\\n\\n# Exit is automatic, and would also fire on an exception.\\nctx.closed\\n# -> True\\ncurrent_cascade()\\n# -> None\\n\\n# The substrate label is closed, not free text.\\nbegin_cascade(substrate=\\\"not-a-substrate\\\").__enter__()\\n# -> ValueError\\n\"}",
+        NULL,
+        "WHAT it computes: a context, not a value. begin_cascade pushes a CascadeContext (substrate / depth / D / closed) onto a per-thread stack and yields it; while that context is open, resolve_path -- and therefore every dispatch call that does not pass an explicit path= -- returns Path B. On exit, normal or exceptional, the context is flushed and popped. Contexts nest, and the innermost supplies the substrate hint. WHEN to reach for it: whenever you are about to run a SEQUENCE of signal_processing ops on the same data. Path B encodes into a D=8192 bound vector once and reuses it, so the encode cost amortises over the run; Path A recomputes per call. For a single isolated op the context buys nothing and you should just call dispatch. Note what you should NOT hand-roll: passing path=PATH_B to every call in the run looks equivalent and is not, because an explicit path also overrides the per-op class defaults for ops that genuinely want A, whereas the cascade hint is what the dispatcher is designed to weigh. SIBLINGS: end_cascade is the imperative form for code that cannot be structured around a with-block -- prefer this one, because end_cascade does not fire on an exception. current_cascade READS the innermost open context; resolve_path shows you the routing decision the context produces without running the op. This is not srmech.introspect.publish, which is also a with-block but scopes RUN-STATUS publication rather than dispatch routing.",
+        NULL, 0u,
+        NULL, 0u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 546 */
+        "srmech.signal_processing.cascade_dispatcher.end_cascade",
+        "srmech",
+        "signal_processing",
+        "Imperative-form cascade flush \342\200\224 the equivalent of leaving a begin_cascade() with-block, for callers that cannot structure their code around one. Flushes the given context, or the innermost active one when ctx is None, and removes it from the per-thread stack. A no-op when no cascade is active, so it is safe to call unconditionally. Prefer the context-manager form: it also flushes on exception, which a forgotten end_cascade() does not.",
+        ts_params_546, 1u,
+        NULL,
+        NULL,
+        1,
+        NULL,
+        "{\"input\":{\"ctx\":null},\"output\":\"(True, None)\",\"why\":\"The imperative form driven by hand so the state transition is visible: the context is live and open, end_cascade() closes it and removes it from the stack, and a second end_cascade() on an empty stack is a silent no-op rather than an error. That last line is the reason the op is safe to call unconditionally in a finally: block -- which is exactly the code shape people reach for it in.\",\"worked\":\"from srmech.signal_processing.cascade_dispatcher import (\\n    begin_cascade, current_cascade, end_cascade)\\n\\n# Drive the context manager by hand to expose the transition.\\ncm = begin_cascade(substrate=\\\"audio\\\")\\nctx = cm.__enter__()\\n(current_cascade() is ctx, ctx.closed)\\n# -> (True, False)      open, and it IS the innermost\\n\\nend_cascade()\\n# -> None               flushes the innermost, returns nothing\\n(ctx.closed, current_cascade())\\n# -> (True, None)       closed AND popped off the stack\\n\\n# Safe to call unconditionally -- an empty stack is a no-op,\\n# which is what makes it usable in a finally: block.\\nend_cascade()\\n# -> None\\n\"}",
+        NULL,
+        "WHAT it computes: nothing -- it returns None. end_cascade(ctx) flushes a CascadeContext and removes it from the per-thread stack; with ctx=None it flushes the innermost active one, and with no cascade active at all it does nothing. Flushing is idempotent, so closing an already-closed context does not re-run the flush. WHEN to reach for it: only when your code cannot be structured around a with-block -- a callback pair, a class that opens a cascade in one method and closes it in another, a generator that yields across the region. Everywhere else, use begin_cascade as a context manager instead: the imperative form has one real hazard, which is that an exception between the open and the end_cascade() call leaves the context open and every later dispatch on that thread silently routing to Path B. Do not hand-roll the pop by reaching into the stack; that is what this op is. SIBLINGS: begin_cascade is the with-block form and the recommended one -- it calls the same flush on the way out, including on an exception. current_cascade tells you whether there is anything to end. It is unrelated to path_registry.clear_registry, which drops op REGISTRATIONS rather than cascade scope.",
+        NULL, 0u,
+        ts_preserves_546, 1u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 547 */
+        "srmech.signal_processing.cascade_dispatcher.current_cascade",
+        "srmech",
+        "signal_processing",
+        "Return the innermost active CascadeContext, or None when no begin_cascade() block is open. The read half of the cascade hint: this is how you check WHY dispatch() is about to choose Path B. Per-thread \342\200\224 a context opened on one thread is invisible to another, by design.",
+        NULL, 0u,
+        "Optional[CascadeContext]",
+        "innermost active context, or None",
+        0,
+        "returns a live in-process CascadeContext whose meaning is its position on a per-thread stack; a JSON copy would describe a scope belonging to a request that has already ended. The wire-callable read of routing intent is cascade_dispatcher.resolve_path, which returns a plain string.",
+        "{\"input\":{},\"output\":\"((True, 'rf', 1024), (True, 'audio', 8192), (True, 'rf'))\",\"why\":\"Nesting, read from the inside. Two contexts are opened with DIFFERENT substrates and different D; current_cascade() returns the innermost at every point, and -- the part worth seeing -- the inner block does not inherit the outer D=1024, it takes the default 8192, because D is a per-context argument and not a stack-wide setting. When the inner block exits the outer one is current again, so this is a stack and not a flag.\",\"worked\":\"from srmech.signal_processing import (\\n    begin_cascade, current_cascade)\\n\\ncurrent_cascade()\\n# -> None               no cascade open\\n\\nwith begin_cascade(substrate=\\\"rf\\\", D=1024) as outer:\\n    a = (current_cascade() is outer,\\n         current_cascade().substrate, current_cascade().D)\\n    with begin_cascade(substrate=\\\"audio\\\") as inner:\\n        b = (current_cascade() is inner,\\n             current_cascade().substrate, current_cascade().D)\\n    c = (current_cascade() is outer,\\n         current_cascade().substrate)\\n(a, b, c)\\n# -> ((True, 'rf', 1024), (True, 'audio', 8192), (True, 'rf'))\\n#      innermost wins; the inner block does NOT inherit\\n#      D=1024 -- D is per-context, not stack-wide\\n\\ncurrent_cascade()\\n# -> None               both popped\\n\"}",
+        NULL,
+        "WHAT it computes: the innermost open CascadeContext on the calling thread, or None when no begin_cascade block is active. The object carries the substrate label, the depth counter, the bound-vector dimension D, and the closed flag. WHEN to reach for it: when you need to know WHY dispatch is about to choose Path B, or to make library code behave differently inside a caller's cascade without changing its signature -- current_cascade() is None is the honest test for \"am I being called standalone\". It is per-thread by design, so a context opened on one thread is invisible on another; do not treat it as a process-global setting, and do not cache the returned object across a block boundary, because it is closed on exit. SIBLINGS: resolve_path is what you usually want instead -- it answers the routing question directly, as a plain string, and it is the wire-callable one (current_cascade is not offered over MCP because a scope belonging to a finished request means nothing to a later caller). begin_cascade opens what this reads; end_cascade closes it. Reading ctx.depth here is not a substitute for CASCADE_DEPTH_THRESHOLD_FOR_PATH_B, which is the constant the routing rule compares against.",
+        NULL, 0u,
+        NULL, 0u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 548 */
+        "srmech.signal_processing.cascade_dispatcher.resolve_path",
+        "srmech",
+        "signal_processing",
+        "Answer 'which side would dispatch() choose for this op?' WITHOUT running it. Rules, in order: an explicit_path is honoured unconditionally; else an open begin_cascade() context returns 'B'; else the op's primary A-N class routes per DEFAULT_PATH_PER_CLASS; else 'A'. An unregistered op resolves to 'A' rather than raising \342\200\224 resolve_path reports routing INTENT, and only dispatch() asserts the op exists.",
+        ts_params_548, 4u,
+        "str",
+        "'A' / 'B' / 'verify'",
+        1,
+        NULL,
+        "{\"input\":{\"op_name\":\"fft\"},\"output\":\"'A'\",\"why\":\"All four routing rules exercised in precedence order, plus the trap they combine into. fft has primary class A so it routes to 'A'; an explicit path is honoured unconditionally; an open cascade forces 'B'; and an unregistered name resolves to 'A' rather than raising, because resolve_path reports INTENT and only dispatch asserts existence. The last three lines are the one that will bite: form_function_rotate declares primary class A and so resolves to 'A', but it has only a Path B implementation, so the default dispatch raises DispatchError. resolve_path reads the CLASS table; it does not check that the side it names is registered. Probe with has_path first, or pass path= explicitly.\",\"worked\":\"from srmech.signal_processing import (\\n    begin_cascade, dispatch, has_path, lookup, resolve_path,\\n    PATH_A, PATH_B)\\n\\n# Rule 3: route on the op's PRIMARY A-N class.\\nlookup(\\\"fft\\\").classes\\n# -> ('A', 'I', 'K')\\nresolve_path(\\\"fft\\\")\\n# -> 'A'            class A -> Path A per DEFAULT_PATH_PER_CLASS\\n\\n# Rule 1: an explicit path wins over everything.\\nresolve_path(\\\"fft\\\", explicit_path=PATH_B)\\n# -> 'B'\\n\\n# Rule 2: an open cascade prefers Path B.\\nwith begin_cascade(substrate=\\\"bci\\\"):\\n    inside = resolve_path(\\\"fft\\\")\\ninside\\n# -> 'B'\\n\\n# Rule 4: an UNREGISTERED op resolves rather than raising --\\n# resolve_path reports intent, dispatch asserts existence.\\nresolve_path(\\\"wavelet\\\")\\n# -> 'A'\\n\\n# THE TRAP: resolve_path reads the CLASS table and does not\\n# check that the side it names is actually registered.\\nlookup(\\\"form_function_rotate\\\").classes\\n# -> ('A', 'C', 'M')\\nresolve_path(\\\"form_function_rotate\\\")\\n# -> 'A'\\nhas_path(\\\"form_function_rotate\\\", PATH_A)\\n# -> False          ... but there is no Path A to run\\ndispatch(\\\"form_function_rotate\\\", b\\\"abcdefgh\\\")\\n# -> DispatchError  so the DEFAULT route fails; pass\\n#                   path=PATH_B, or probe has_path first\\n\"}",
+        NULL,
+        "WHAT it computes: the side dispatch WOULD run for one invocation, as the string 'A' / 'B' / 'verify', without running anything and without touching the registry or the cascade stack. The rules apply in order: an explicit_path is returned unchanged; an open begin_cascade context gives B; otherwise the op's first A-N class routes per DEFAULT_PATH_PER_CLASS (Class K rotation and Class M bind/bundle/permute default to B, the other twelve to A); otherwise A. WHEN to reach for it: to explain or test routing rather than to perform it -- asserting that a cascade context really does flip an op to Path B, or logging the substrate decision before a run. Read it as INTENT, not as a guarantee the call will succeed: it names a side from the class table and never checks that side is registered, so form_function_rotate resolves to A while only its Path B exists, and the default dispatch raises DispatchError. Combine it with has_path rather than hand-rolling the class-table lookup yourself, which would duplicate DEFAULT_PATH_PER_CLASS and drift from it. SIBLINGS: dispatch is resolve_path plus the actual call. has_path answers the complementary question -- does that side EXIST -- and is what turns this op's intent into a safe call. lookup gives you the classes tuple this reads. current_cascade shows the context that rule 2 fires on.",
+        NULL, 0u,
+        ts_preserves_548, 1u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 549 */
+        "srmech.signal_processing.cascade_dispatcher.is_dispatch_table_locked",
+        "srmech",
+        "signal_processing",
+        "Is the learned dispatch table locked? Under the lock-at-release policy each shipped release pins one table so a cascade's routing is REPRODUCIBLE across runs and machines; the default is locked. Unlocking (unlock_dispatch_table) is a local override for regenerating thresholds on your own machine and does not pollute the shipped table. Read this before trusting a routing benchmark: an unlocked table means the routing you measured may not be the routing anyone else gets.",
+        NULL, 0u,
+        "bool",
+        "True when the shipped table is locked",
+        1,
+        NULL,
+        "{\"input\":{},\"output\":\"True\",\"why\":\"The lock is shown to be real state and not a constant: it starts True on a fresh import, unlock_dispatch_table() makes it False, and re-locking restores it. That round trip is the point -- the reason to read this flag is that an UNLOCKED table means the routing you just benchmarked is your local table, not the one the release pinned, so the numbers are not reproducible for anyone else. The snippet re-locks so it leaves the process as it found it.\",\"worked\":\"from srmech.signal_processing import is_dispatch_table_locked\\nfrom srmech.signal_processing.cascade_dispatcher import (\\n    lock_dispatch_table, unlock_dispatch_table)\\n\\n# Locked on a fresh import -- the lock-at-release default.\\nis_dispatch_table_locked()\\n# -> True\\n\\nunlock_dispatch_table()\\nis_dispatch_table_locked()\\n# -> False          local override in effect; any routing\\n#                   measured now is YOUR table, not the\\n#                   release-pinned one\\n\\nlock_dispatch_table()\\nis_dispatch_table_locked()\\n# -> True           restored -- leave the process as found\\n\"}",
+        NULL,
+        "WHAT it computes: a bool -- whether the learned dispatch table is locked. Under the lock-at-release policy each shipped release pins one threshold table, so a cascade routes identically across runs and machines; a fresh import is locked. WHEN to reach for it: before trusting or publishing any routing measurement, and in tests that must not silently inherit a local override. If this returns False, someone in the process called unlock_dispatch_table -- the thresholds may be regenerated local ones, so a benchmark taken now does not describe what another machine will do. It is the honest guard to assert rather than hand-rolling a check on the private _LOCK_STATE dict, which is not part of the API and carries two more keys whose meaning is internal. SIBLINGS: lock_dispatch_table / unlock_dispatch_table are the write half and are deliberately NOT registered as tools -- they mutate process-global state and have no value contract, so they sit on the registry-completeness allowlist under REGISTRY_MUTATOR rather than being callable from a catalog. resolve_path is what the table actually influences; read that instead when you want the routing decision rather than the reproducibility flag.",
+        NULL, 0u,
+        NULL, 0u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 550 */
+        "srmech.signal_processing.path_registry.has_path",
+        "srmech",
+        "signal_processing",
+        "Does op_name have an implementation registered on this side? The cheap, non-raising probe: unlike lookup() it returns False for an unregistered op instead of raising, so it is the right guard before dispatch(..., path=...). Triggers the lazy loader for ops registered deferred (the numpy-free import path), so a True answer means the implementation is now really loaded. path must be 'A' or 'B' \342\200\224 'verify' is a dispatcher mode, never a registered side, and raises ValueError here.",
+        ts_params_550, 2u,
+        "bool",
+        "True if that side is registered",
+        1,
+        NULL,
+        "{\"input\":{\"op_name\":\"fft\",\"path\":\"A\"},\"output\":\"True\",\"why\":\"Three shapes of op in five lines: fft is genuinely dual-path, form_function_rotate is Path-B-only, and wavelet is not in the router at all. The third is why this op exists in the form it does -- it returns False rather than raising, so it is the safe pre-flight before dispatch(..., path=...), where lookup would have thrown. The middle one is the case that catches people: an op CAN be registered and still have no A side.\",\"worked\":\"from srmech.signal_processing import has_path, PATH_A, PATH_B\\n\\n# Genuinely dual-path: both sides registered.\\nhas_path(\\\"fft\\\", PATH_A)\\n# -> True\\nhas_path(\\\"fft\\\", PATH_B)\\n# -> True\\n\\n# Registered, but Path B ONLY -- the case that surprises.\\nhas_path(\\\"form_function_rotate\\\", PATH_A)\\n# -> False\\nhas_path(\\\"form_function_rotate\\\", PATH_B)\\n# -> True\\n\\n# Not in the router at all: False, NOT an exception. This is\\n# what makes it the safe pre-flight check.\\nhas_path(\\\"wavelet\\\", PATH_A)\\n# -> False\\n\\n# 'verify' is a dispatcher MODE, never a registered side.\\nhas_path(\\\"fft\\\", \\\"verify\\\")\\n# -> ValueError\\n\"}",
+        NULL,
+        "WHAT it computes: a bool -- is there an implementation registered for this op on this side. It triggers the lazy loader first, so a True answer means the implementation is now genuinely importable and loaded, not merely promised. path must be PATH_A or PATH_B; 'verify' is a dispatcher mode rather than a registered side and raises ValueError. WHEN to reach for it: as the pre-flight before dispatch(op, path=...), and any time you are branching on capability. This is the non-raising probe -- reach for it instead of wrapping lookup in a try/except UnknownOperationError, which is the same question asked expensively, and instead of testing membership in registered_ops(), which tells you the op exists but not which sides it has. The form_function_rotate case is exactly why that distinction matters. SIBLINGS: lookup returns the whole OperationEntry (both implementations, the citation, the A-N classes) and RAISES on an unknown name. registered_ops enumerates names without saying anything about sides. resolve_path names the side dispatch would pick, which is a different question again -- and notably does not consult this op, which is how an op can resolve to a side that has_path reports False for.",
+        NULL, 0u,
+        NULL, 0u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 551 */
+        "srmech.signal_processing.path_registry.lookup",
+        "srmech",
+        "signal_processing",
+        "Return the OperationEntry for op_name \342\200\224 its op_name, the Path A and Path B implementations (either may be None), the SSoT literature citation the op was built from, and the tuple of 14 A-N primitive classes it composes over. This is where the PROVENANCE lives: srmech's signal-processing ops each cite the paper they realise (fft cites Cooley & Tukey 1965), and the class tuple is what DEFAULT_PATH_PER_CLASS routes on. Raises UnknownOperationError for an unregistered name; use has_path() when you want a boolean instead.",
+        ts_params_551, 1u,
+        "OperationEntry",
+        "op_name / path_a / path_b / ssot_citation / classes",
+        0,
+        "returns an OperationEntry holding the two live implementation CALLABLES; a function has no wire form, and a JSON copy that silently dropped them would advertise an entry a consumer cannot dispatch through. Over the wire, ask path_registry.has_path for the sides and path_registry.registered_ops for the names.",
+        "{\"input\":{\"op_name\":\"fft\"},\"output\":\"('A', 'I', 'K')\",\"why\":\"The entry read field by field, because each one answers a different question. op_name is the routing key; the two path slots say which substrates exist; classes is the tuple DEFAULT_PATH_PER_CLASS routes on, so it is the WHY behind resolve_path returning 'A'; and ssot_citation is the provenance -- fft carries Cooley & Tukey (1965) with a Crossref-verified DOI, not a paraphrase. sign_quantise showing ('K', 'M') is the contrast that makes the class tuple legible: a Class K primary is exactly what routes an op to Path B by default.\",\"worked\":\"from srmech.signal_processing import lookup\\n\\ne = lookup(\\\"fft\\\")\\ne.op_name\\n# -> 'fft'\\n(e.path_a is not None, e.path_b is not None)\\n# -> (True, True)   both substrates implemented\\n\\n# The A-N class tuple is what routing reads.\\ne.classes\\n# -> ('A', 'I', 'K')\\n\\n# ... and the PROVENANCE the op was built from.\\ne.ssot_citation[:52]\\n# -> \\\"Cooley & Tukey (1965), 'An algorithm for the machi\\\"\\n\\n# Contrast: a Class-K primary is what sends an op to Path B\\n# by default.\\nlookup(\\\"sign_quantise\\\").classes\\n# -> ('K', 'M')\\n\\n# Unknown names RAISE -- use has_path for a boolean.\\nlookup(\\\"wavelet\\\")\\n# -> UnknownOperationError\\n\"}",
+        NULL,
+        "WHAT it computes: the OperationEntry for an op name -- a frozen record of op_name, the Path A and Path B implementations (either may be None), the SSoT literature citation the op realises, and the tuple of 14 A-N primitive classes it composes over. It runs the lazy loader first, so the callables it hands back are live. It raises UnknownOperationError for a name the registry does not carry. WHEN to reach for it: when you want the op's METADATA rather than its result -- auditing which paper an op implements, explaining a routing decision from the class tuple, or grabbing the implementation to call in a tight loop without re-resolving. Do not reach for it as an existence check: has_path answers that without an exception, and wrapping this in try/except is the expensive spelling of the same question. SIBLINGS: has_path is the non-raising per-side probe; registered_ops enumerates the names; resolve_path consumes the classes tuple this exposes; dispatch is lookup plus resolve_path plus the call. Note the name collision this op's dotted path exists to disambiguate -- srmech.introspect.naming.lookup is a CATALOG lookup over tool names and an entirely different function; the registries are matched by object identity, never by leaf name, precisely so the two are never confused.",
+        NULL, 0u,
+        NULL, 0u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 552 */
+        "srmech.signal_processing.path_registry.registered_ops",
+        "srmech",
+        "signal_processing",
+        "Every op name the registry knows \342\200\224 eagerly-registered first in registration order, then the lazily-registrable ops not yet loaded. DECLARATIVE: a deferred op is listed WITHOUT forcing its import, which is what keeps `import srmech.signal_processing` numpy-free while still advertising the ops honestly. This is the set dispatch() can route; it is deliberately SMALLER than the closed-form op catalogue, because only ops with two paths need a router. Returns a tuple, so len() works.",
+        NULL, 0u,
+        "Sequence[str]",
+        "op names; eager ones first, then pending lazy ones",
+        1,
+        NULL,
+        "{\"input\":{},\"output\":\"13\",\"why\":\"The call the surface could not answer until this release: len(registered_ops()) raised TypeError through rc418 because the op returned iter() over a tuple it had already built in full. It returns the tuple now, so len / indexing / re-iteration all work and the value is an immutable snapshot. The final line is the honest shape of the router -- of the 13 names, only 8 have BOTH sides; the rest are single-substrate entries, which is why has_path exists as a separate question from membership in this list.\",\"worked\":\"from srmech.signal_processing import (\\n    has_path, registered_ops, PATH_A, PATH_B)\\n\\nops = registered_ops()\\ntype(ops).__name__\\n# -> 'tuple'        rc419: was a bare iterator through rc418,\\n#                   so len() raised TypeError\\nlen(ops)\\n# -> 13\\nops[:5]\\n# -> ('rbs_hdc_mint_class_operator',\\n#     'rbs_hdc_mint_cascade_composition',\\n#     'rbs_hdc_encode_loe_content',\\n#     'rbs_hdc_decode_loe_fingerprint',\\n#     'form_function_rotate')\\n\\n# Being listed does NOT mean both substrates exist: only 8 of\\n# the 13 are genuinely dual-path.\\nsorted(n for n in ops\\n       if has_path(n, PATH_A) and has_path(n, PATH_B))\\n# -> ['fft', 'hdc_truncation', 'ifft', 'matched_filter',\\n#     'pi_cascade', 'rfft', 'sign_quantise', 'wiener']\\n\"}",
+        NULL,
+        "WHAT it computes: a tuple of every op name the path registry knows -- eagerly-registered ones first in registration order, then any lazily-registrable ops not yet loaded. It is DECLARATIVE: a deferred op is named without forcing its import, which is what keeps `import srmech.signal_processing` numpy-free while still advertising the op honestly. The tuple is a snapshot, so a later registration does not mutate a value already returned. WHEN to reach for it: to enumerate what dispatch can route -- building a menu, validating a config that names ops, or asserting in a test that an op registered itself on import. Read it as the ROUTER's inventory and not as srmech's signal-processing catalogue: 41 closed-form ops ship under srmech.signal_processing.closed_form_ops, and most have exactly one implementation, so they need no router entry and are reached by direct import instead. Do not infer capability from membership here. SIBLINGS: has_path answers which SIDES a listed name actually has, and the two questions come apart -- only 8 of the 13 names are dual-path. lookup returns the full entry for one name and raises for an unknown one. dispatch consumes these names. The write half (register, register_lazy_loader, clear_registry) is deliberately unregistered as a tool: those mutate process-global state and have no value contract.",
+        NULL, 0u,
+        ts_preserves_552, 1u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 553 */
         "srmech.music.spectrum_tier",
         "srmech",
         "music",
         "TIER-TAG an acoustic spectrum \342\200\224 the honesty layer over any spectrum-carrying value. Tier 1 = exact RATIONAL carrier (Q/int). Tier 2 = exact ALGEBRAIC-IRRATIONAL carrier (Qalg; alpha**2 == 2 holds IN THE FIELD, so it is still exact and still decidable). Tier 3 = NO exact carrier exists \342\200\224 transcendence unresolved or known-absent \342\200\224 so any number present is a rational of DECLARED PRECISION only. The spectrum's tier is the WEAKEST of its partials'. Tiers 1 and 2 are INFERRED from the carrier; Tier 3 must be DECLARED via open_partials, because it cannot be inferred \342\200\224 a rational standing in for a transcendental is, as a carrier, just a rational, and only the constructor knows the provenance. That asymmetry IS the honesty layer. Precedent: fractal_spectrum already returns a spectrum_open string rather than a list because no finite exact carrier decides Julia-set membership. float ratios are REFUSED (every float IS a rational, so a float spectrum would be unconditionally Tier 1 and unconditionally commensurable \342\200\224 the exact silent harmonisation this layer exists to prevent). 'harmonic' here is the ACOUSTIC word, never the chirality order classify_harmonic uses. Exact-Q; numpy-free; no abs().",
-        ts_params_544, 2u,
+        ts_params_553, 2u,
         "dict",
         "{'tier': 1|2|3, 'tier_name': str, 'exact': bool, 'n_partials': int, 'per_partial': list of {index, carrier, tier, tier_name, field_degree, in_rationals (None = UNDECIDED at Tier 3)}, 'open_indices': tuple, 'open_reason': str|None}",
         1,
@@ -13214,12 +13419,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 545 */
+    { /* 554 */
         "srmech.music.commensurability_verdict",
         "srmech",
         "music",
         "Decide whether an acoustic spectrum is commensurable with its fundamental \342\200\224 a verdict that CAN return 'inharmonic'. The invariant is RATIONAL RANK / FIELD DEGREE, not a period: membership in the rationals inside Q[x]/(m) is field-theoretic (Q is the unique degree-1 subfield of Q(alpha)), so it survives any change of Q-basis and is a genuine invariant rather than a presentation count. Every ratio in Q => a common period exists ('harmonic'); any ratio provably outside Q => that partial shares no period with the fundamental at any multiple ('inharmonic'); any partial declared Tier 3 => 'open'. WHY THIS WAS NEEDED: Class-I gcd/lcm STRUCTURALLY cannot return 'inharmonic' \342\200\224 a finite set of rational ratios always has an lcm, so it always yields a finite period. And Class-N best_rational is worse than silent: it does not approximate an inharmonic spectrum, it CONVERTS it into a harmonic one, since every anchor p/q IS a finite period T0*q (measured: an irrational read at max_den 1e2/1e4/1e6 gives 22/7, 355/113, 2917129/928551). Raising max_den only buys a longer FALSE period, never a verdict. Verified: in Q[x]/(x**12 - 2), s**0 rational True, s**1..s**11 all False, s**12 True \342\200\224 12-tone equal temperament exactly represented AND provably incommensurable with the octave except AT the octave. TWO SENSES KEPT APART: 'verdict' answers *commensurable?*; 'integer_series' answers the classical acoustics question *are the ratios the plain integer series 1,2,3,...?*. A tuned bell (1/2, 1, 6/5, 3/2, 2) is called inharmonic by acousticians yet is exactly commensurable \342\200\224 harmonic with integer_series False. No threshold and no denominator ceiling is consulted anywhere in the decision. Exact-Q; numpy-free; no abs().",
-        ts_params_545, 2u,
+        ts_params_554, 2u,
         "dict",
         "{'verdict': 'harmonic'|'inharmonic'|'open', 'integer_series': bool, 'rational_rank': int, 'n_partials': int, 'field_degrees': tuple, 'incommensurable': tuple of indices provably outside Q, 'open_indices': tuple, 'tier': int, 'tier_name': str, 'period_multiplier': int|None (only when harmonic), 'class_i_note': str, 'class_n_warning': str}",
         1,
@@ -13232,12 +13437,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 546 */
+    { /* 555 */
         "srmech.music.common_period",
         "srmech",
         "music",
         "The common period of an acoustic spectrum as an integer multiple k of the fundamental period T0 \342\200\224 and the GUARD that makes silent harmonisation UNREACHABLE. Returns k (the Class-I lcm of the reduced ratio denominators, so a partial at p/q completes a whole number of cycles in k*T0 exactly when q divides k) when, and only when, commensurability_verdict says 'harmonic'. For an 'inharmonic' or 'open' spectrum it RAISES: there is no period to return, and handing back a best_rational anchor instead would silently convert the spectrum into a harmonic one. That conversion is the corruption this op exists to make impossible \342\200\224 the only way to obtain a period from this family is to have earned the verdict first. The raised message names the offending partial indices and why no period exists. Exact integer; numpy-free; no abs().",
-        ts_params_546, 2u,
+        ts_params_555, 2u,
         "int",
         "the period multiplier k (common period = k*T0); raises ValueError when the spectrum is inharmonic or open",
         1,
@@ -13250,7 +13455,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 547 */
+    { /* 556 */
         "srmech.music.bell_partials",
         "srmech",
         "music",
@@ -13268,12 +13473,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 548 */
+    { /* 557 */
         "srmech.music.equal_temperament_partials",
         "srmech",
         "music",
         "Equal temperament as EXACT algebraic numbers \342\200\224 TIER 2. Builds the number field Q[x]/(x**divisions - octave) and returns the requested scale degrees as exact Qalg powers of its generator s; the step ratio is the divisions-th root of the octave \342\200\224 irrational, and carried EXACTLY rather than approximated. This is the verified worked case for the whole family: in Q[x]/(x**12 - 2), s**0 is rational (1), s**1 through s**11 are ALL irrational, and s**12 is rational (2) \342\200\224 12-tone equal temperament exactly representable AND provably incommensurable with the octave except AT the octave, decided with no threshold and no denominator ceiling. REFUSES a reducible x**n - a (Lang, Algebra 3rd ed., VI sec. 9 Thm 9.1: irreducible iff a is not a p-th power for every prime p | n, the -4K**4 clause being unreachable for an integer a >= 2), because the quotient ring would not be a field and the rational-membership oracle would be meaningless. Composes the Qalg field algebra + Class-J prime factorisation. Exact-Q; numpy-free; no abs().",
-        ts_params_548, 3u,
+        ts_params_557, 3u,
         "dict",
         "{'ratios': tuple[Qalg,...], 'degrees': tuple, 'tier': 2, 'open_partials': (), 'minimal_polynomial': tuple[int,...] (low->high, monic), 'field_degree': int}",
         1,
@@ -13286,12 +13491,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 549 */
+    { /* 558 */
         "srmech.music.stiff_string_partials",
         "srmech",
         "music",
         "A stiff (piano) string's partials \342\200\224 TIER 2, exactly carriable TODAY. The textbook closed form is f_n = n*f0*sqrt(1 + B*n**2) (Fletcher & Rossing, The Physics of Musical Instruments, 2nd ed., Springer 1998, sec. 2.18 \342\200\224 bending stiffness sharpens each partial). With B RATIONAL the ratio to the fundamental is sqrt(rational): r_n = n*sqrt(1+B*n**2) = sqrt(n**2*(1+B*n**2)), a QUADRATIC SURD living exactly in Q[x]/(x**2 - r_n). No approximation anywhere \342\200\224 this whole family was ALREADY exactly carriable by the shipped Qalg; what was missing was the tier tag and a verdict that could read it. Each partial gets its own quadratic field (the radicands differ), which is correct and harmless: commensurability with the fundamental is a per-partial rational-membership question, field-theoretic in each field separately. BUILT-IN CONTROL: at B == 0 the radicand collapses to n**2, a perfect square, so every ratio degenerates to the integer n and the op returns Tier 1 with verdict 'harmonic' and integer_series True \342\200\224 the ideal flexible string, recovered exactly. A float B is REFUSED (it would make every radicand a float-rational and collapse the Tier-1/Tier-2 distinction). Exact-Q; numpy-free; no abs().",
-        ts_params_549, 2u,
+        ts_params_558, 2u,
         "dict",
         "{'ratios': tuple[Qalg|Q,...], 'orders': tuple, 'tier': 1|2, 'open_partials': (), 'inharmonicity': Q, 'radicands': tuple[Q,...], 'cite_as': str}",
         1,
@@ -13304,12 +13509,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 550 */
+    { /* 559 */
         "srmech.music.membrane_partials",
         "srmech",
         "music",
         "A circular membrane's partials \342\200\224 TIER 3, DECLARED OPEN. The modal frequencies of an ideal circular membrane are proportional to the Bessel zeros, so the ratio to the fundamental is j_{n,m}/j_{0,1} (Fletcher & Rossing, The Physics of Musical Instruments, 2nd ed., Springer 1998, sec. 3.2) \342\200\224 which is why a drum has no pitch the way a string does. EVERY partial is declared Tier 3, and NOTHING is asserted about why: the returned ratios are exact rationals OF DECLARED PRECISION from bessel_zero_fixed, are not claimed to be the true values, and the true values are not claimed to be transcendental, algebraic-irrational or rational. DLMF 10.21 was fetched and contains no transcendence statement; Siegel's theorem was never fetched. The honest position is that the field-theoretic status is UNRESOLVED, so the tier is declared open and every commensurability verdict over this spectrum returns 'open' \342\200\224 never 'harmonic', which is exactly what reading a best_rational anchor off these rationals would have produced. Pass open_partials straight through to spectrum_tier / commensurability_verdict. Exact-Q; numpy-free; no abs().",
-        ts_params_550, 3u,
+        ts_params_559, 3u,
         "dict",
         "{'ratios': tuple[Q,...], 'modes': tuple of (n,m), 'tier': 3, 'open_partials': tuple(all indices), 'scale_bits': int, 'declared_precision_only': True, 'transcendence_claim': 'NONE ...', 'cite_as': str}",
         1,
@@ -13322,12 +13527,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 551 */
+    { /* 560 */
         "srmech.music.bessel_j_fixed",
         "srmech",
         "music",
         "J_k(x) for integer order k >= 0 and rational x >= 0, as an exact rational on a DECLARED 2**-scale_bits fixed-point grid. The DLMF 10.2.2 / Watson (1922) sec. 3.1 ascending series J_k(x) = SUM_m (-1)**m (x/2)**(2m+k) / (m!(m+k)!), summed by the exact integer recurrence t_{m+1} = t_m*(x/2)**2/((m+1)(m+k+1)); the series alternates, so truncating when the running term underflows the scale bounds the truncation error BY that term. SIGN LIVES IN THE ORIENTATION, NOT THE DIVISOR: the running term is a NON-NEGATIVE magnitude and the alternation is an explicit Class-K sign-flip re-applied by Class-C reorient at the accumulation, so every shift and divide runs on a magnitude where C truncation and Python floor agree \342\200\224 which is what makes the C peer srmech_bessel_j_fixed_big bit-identical by construction (measured 168/168 across order x argument x scale). Negative x raises (the Class-K real-axis domain; use J_k(-x) = (-1)**k J_k(x)). The return is a rational OF DECLARED PRECISION and asserts nothing about the arithmetic nature of any Bessel value. Exact integer body; numpy-free; no float; no abs().",
-        ts_params_551, 4u,
+        ts_params_560, 4u,
         "tuple",
         "(num, den) with den == 2**scale_bits \342\200\224 the exact value at the declared precision",
         1,
@@ -13340,12 +13545,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 552 */
+    { /* 561 */
         "srmech.music.bessel_zero_fixed",
         "srmech",
         "music",
         "The index-th positive zero of J_order at a DECLARED precision. McMahon's asymptotic start (DLMF 10.21.19) beta = pi*(4*index + 2*order - 1)/4, j ~ beta - (4*order**2 - 1)/(8*beta), refined by exact-rational Newton on bessel_j_fixed with the derivative from DLMF 10.6.1 (J_k' = (J_{k-1} - J_{k+1})/2, J_0' = -J_1). Every iterate is snapped back onto the declared grid so the denominator stays bounded, and the sign handling in that snap is a Class-K split plus a Class-C re-application \342\200\224 never abs(), and never a negative floor-divide. THIS ASSERTS NOTHING ABOUT THE TRUE ZERO: it is a rational of declared precision. Whether Bessel zeros are transcendental or algebraic-irrational is OPEN in this project \342\200\224 DLMF 10.21 states nothing on it and Siegel's theorem was never fetched \342\200\224 so membrane_partials tags such a spectrum Tier 3 and every verdict over it returns 'open'. Pure orchestration over bessel_j_fixed (C-dispatched) and the C-backed pi cascade, so it adds NO new numerical kernel. Exact-Q; numpy-free; no abs().",
-        ts_params_552, 4u,
+        ts_params_561, 4u,
         "tuple",
         "(num, den) on the declared 2**-scale_bits grid; den is a power of two 2**k with k <= scale_bits, NOT unconditionally 2**scale_bits \342\200\224 the value is an exact Q and comes back REDUCED (measured: bessel_zero_fixed(0, 1, scale_bits=64) has den 2**61). bessel_j_fixed does always carry den == 2**scale_bits; this one does not",
         1,
@@ -13358,12 +13563,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 553 */
+    { /* 562 */
         "srmech.chemistry.balance_reaction",
         "srmech",
         "chemistry",
         "Balance a chemical reaction -> signed primitive integer coefficients. A balanced reaction is a vector v in the kernel of the ELEMENT x SPECIES matrix A (element conservation A.v = 0); each exact-Q kernel column is reduced to the smallest integer vector on its ray by the rc378 primitive_integer_vector keystone, canonical sign = first nonzero entry positive. Read reactant vs product from the SIGN: a NEGATIVE coefficient is a product. ['H2','O2','H2O'] -> [2, 1, -2] (2 H2 + O2 -> 2 H2O). Accepts formula strings, {element: count} dicts, or a raw element x species QMat, interchangeably. Raises on an UNBALANCEABLE reaction (trivial kernel); an UNDERDETERMINED reaction (kernel dim > 1) raises unless all_balances=True, which returns every independent balance. Class L nullspace o Class I/K/C keystone; composition_of_c; exact-Q, numpy-free, no abs().",
-        ts_params_553, 2u,
+        ts_params_562, 2u,
         "list",
         "list[int] \342\200\224 the signed primitive coefficients (kernel dim 1, the usual case); or list[list[int]] (one primitive vector per independent balance) when all_balances=True",
         1,
@@ -13376,12 +13581,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 554 */
+    { /* 563 */
         "srmech.chemistry.conservation_laws",
         "srmech",
         "chemistry",
         "The conserved moieties of a reaction network \342\200\224 an integer basis of the LEFT-nullspace of the stoichiometric matrix N (every gamma with gamma^T N = 0: a combination of species whose total is invariant under every reaction, i.e. mass / charge / moiety conservation). Computed as N.T.nullspace() with each kernel column reduced by the primitive_integer_vector keystone. N is the SPECIES x REACTION matrix of a NETWORK (rows = species, columns = reactions; entry = net change) \342\200\224 the transpose-in-role of balance_reaction's element x species matrix. For Michaelis-Menten E + S <-> ES -> E + P this returns two laws (total enzyme E + ES, and a substrate-matter moiety). Class L left-nullspace o Class I keystone; composition_of_c; exact-Q, numpy-free, no abs().",
-        ts_params_554, 1u,
+        ts_params_563, 1u,
         "list",
         "list[list[int]] \342\200\224 one primitive integer conservation vector per left-nullspace basis element (length = number of species each); empty when N has full row rank (no conserved moiety)",
         1,
@@ -13394,12 +13599,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 555 */
+    { /* 564 */
         "srmech.chemistry.deficiency",
         "srmech",
         "chemistry",
         "The Feinberg deficiency delta of a chemical reaction network: delta = n - l - s = rank(L_complex) - rank(N), where n = number of distinct complexes, l = number of linkage classes (connected components of the complex graph), and s = rank(N) = dimension of the stoichiometric subspace. delta is a NON-NEGATIVE integer fixed by network topology alone (independent of rate constants). rank(L_complex) = n - l is the exact rank of the combinatorial graph Laplacian of the complex graph (a graph Laplacian has rank = vertices - components); rank(N) is the Class-J QMat.rank. A -> B has delta 0; 2A -> A+B -> 2B -> 2A has delta 1. Definitional and stated self-contained; standard reference M. Feinberg, Foundations of Chemical Reaction Network Theory (Springer, Applied Mathematical Sciences 202, 2019) and the open-access Lectures on Chemical Reaction Networks (Univ. of Wisconsin MRC, 1979/1980). Class L Laplacian o Class J rank; composition_of_c; exact-Q, numpy-free, no abs().",
-        ts_params_555, 2u,
+        ts_params_564, 2u,
         "int",
         "the deficiency delta (default); or {'deficiency', 'n_complexes', 'n_linkage_classes', 'rank_stoichiometric'} when with_components=True",
         1,
@@ -13412,12 +13617,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 556 */
+    { /* 565 */
         "srmech.chemistry.parse_formula",
         "srmech",
         "chemistry",
         "Parse a chemical formula string into an {element: count} dict \342\200\224 the ergonomic input balance_reaction accepts. Handles multi-letter element symbols (\"Ca\", \"Cl\"), implicit and explicit ASCII-digit counts (\"O\" -> 1, \"O2\" -> 2), and arbitrarily NESTED parenthesised groups with a trailing multiplier (\"Ca3(PO4)2\" -> {Ca:3, P:2, O:8}; \"(OH)2\" -> {O:2, H:2}). DEFERS (raises, never silently mis-parses) hydrate dots, charges, and isotope/bracket syntax (out of `#T1050` scope). Class F/G (Render / byte-search): a bounded placeholder scan, the srmech_template_render family. Dispatches to the JPL-clean caller-arena C twin srmech_parse_formula (the pure-Python body is the byte-identical fallback and parity oracle); c_dispatched.",
-        ts_params_556, 1u,
+        ts_params_565, 1u,
         "dict",
         "{element: count} \342\200\224 element symbol -> total count; repeated occurrences accumulate",
         1,
@@ -13430,12 +13635,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 557 */
+    { /* 566 */
         "srmech.bus.decode_splice",
         "srmech",
         "bus",
         "Decode one frame of a UTLP Bio-TOTP bus channel (Claim 255 alignment) given the per-channel DNA secret. Pure function (no side effects); suitable for LLM / agent introspection of mid-stream traffic. Returns (plaintext, used_time_ns); the plaintext is the original JSON-encoded bus Event and the used_time_ns is the candidate time-bucket value that successfully decoded (the current bucket or \302\2611 bucket for clock-skew tolerance). Cipher: AES-128-CTR when ``pip install srmech[crypto]`` extra is installed (UTLP-exact path); HMAC-SHA-256 counter-mode keystream by default (stdlib-only, structurally equivalent for the defensive-scope threat model). Key derivation rolls every 250 ms (WINDOW_NS=250_000_000; configurable via ``SRMECH_BUS_TOTP_WINDOW_NS`` env var); the receiver tolerates \302\2611 window for clock skew. Frame layout: [nonce:16][ciphertext]; nonce = sender_id_u64 || channel_id_u32 || packet_seq_u32. Pass ZERO_DNA (b'\\x00'*32) for herd-immunity / public mode. v0.5.0rc7 (Bio-TOTP wire format; UTLP Claim 255).",
-        ts_params_557, 4u,
+        ts_params_566, 4u,
         "tuple[bytes, int]",
         "(plaintext, used_time_ns) \342\200\224 JSON-encoded bus Event bytes, and the candidate time value that decoded successfully.",
         1,
@@ -13448,12 +13653,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 558 */
+    { /* 567 */
         "srmech.bus.list_endpoints",
         "srmech",
         "bus",
         "Enumerate currently-running srmech.bus endpoints owned by the current user by scanning the `~/.srmech/bus-*.sock` (POSIX) / `~/.srmech/bus-*.txt` (Windows) registry directory. Best-effort liveness check per endpoint (POSIX: UDS connect probe; Windows: TCP loopback connect or WaitNamedPipeW probe). Side effect (when `cleanup_dead=True`, the default): registration files for endpoints whose server is no longer accepting connections are removed from disk on read. Returns `[]` on Pyodide / WASM (no socket support). Sorted alphabetically by endpoint name. v0.5.0rc9 (MCP / catalog discoverability; backing function shipped since v0.5.0rc1).",
-        ts_params_558, 1u,
+        ts_params_567, 1u,
         "list[Endpoint]",
         "Each Endpoint is a frozen dataclass: name (str), path (pathlib.Path), transport ('uds' POSIX / 'pipe' or 'tcp' Windows), alive (bool), pid (Optional[int], currently always None \342\200\224 reserved for a future rc that records owner PID in the registry file).",
         1,
@@ -13466,12 +13671,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 559 */
+    { /* 568 */
         "srmech.bus.by_name",
         "srmech",
         "bus",
         "Look up one srmech.bus endpoint by name. Same registry scan as `srmech.bus.list_endpoints` but returns just the matching record (or `None` if no endpoint of that name is registered for the current user). Does NOT auto-clean dead-endpoint registration files (the caller may want to inspect a dead endpoint's record). Returns `None` on Pyodide / WASM. v0.5.0rc9 (MCP / catalog discoverability; backing function shipped since v0.5.0rc1).",
-        ts_params_559, 1u,
+        ts_params_568, 1u,
         "Endpoint | None",
         "Frozen dataclass with name (str), path (pathlib.Path), transport ('uds' / 'pipe' / 'tcp'), alive (bool), pid (Optional[int]). `None` when no matching endpoint is registered.",
         1,

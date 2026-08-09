@@ -199,6 +199,30 @@ ROSTER: Dict[str, Tuple[str, ...]] = {
         "srmech.math.cyclic.mod_mul",
         "srmech.math.cyclic.mod_add",
     ),
+    # rc419 (`#T1110`). Reviewed, and this edit IS the review.
+    #
+    # `dispatch` is the only one of the nine new signal_processing rows that
+    # declares a composition, and it is the honest one: its body reads
+    #
+    #     chosen = resolve_path(op_name, explicit_path=path)
+    #     entry  = lookup(op_name)
+    #
+    # in that order — RESOLVE the side, then FETCH the entry holding the two
+    # implementations — before calling the selected one. Both are registered
+    # ops in their own right as of this rc, which is what makes the edge
+    # declarable at all; before rc419 neither had a ToolEntry, so `dispatch`
+    # could not have named its own parts even if someone had wanted to.
+    #
+    # The other eight are LEAVES and stay empty, which is the correct default.
+    # In particular `begin_cascade` is NOT declared as composing anything: it
+    # INFLUENCES resolve_path through the per-thread context stack rather than
+    # calling it, and "built from" is a call edge, not an influence edge —
+    # declaring it would be exactly the over-attribution `klein4_compose`'s
+    # note above refuses.
+    "srmech.signal_processing.cascade_dispatcher.dispatch": (
+        "srmech.signal_processing.cascade_dispatcher.resolve_path",
+        "srmech.signal_processing.path_registry.lookup",
+    ),
 }
 
 

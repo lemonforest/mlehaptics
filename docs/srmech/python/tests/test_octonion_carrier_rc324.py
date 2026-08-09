@@ -438,7 +438,7 @@ def test_pre_rc324_strand_still_opens():
 # =====================================================================
 def test_registration_ratchet():
     import srmech
-    assert srmech.describe()["tools"]["total"] == 560
+    assert srmech.describe()["tools"]["total"] == 569
     for name in ("oct_mult", "oct_conjugate", "oct_bind"):
         assert name in O.__all__
 

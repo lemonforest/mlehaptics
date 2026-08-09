@@ -131,6 +131,21 @@ NON_CARRIER_CLASSES = frozenset({
     # the SOURCE annotation and saw only `SearchResult`. Either alone would have
     # left the other unexempted and the tree red.
     "ToolSchema",        # tool-registry view (introspection, not operand)
+    # rc419 (`#T1110`): the two signal_processing dispatcher types, both
+    # in-process CONTEXT/REFERENCE objects that fail the "does a caller do
+    # MATHS with it?" question outright.
+    #
+    # `CascadeContext` is a position on a per-thread stack — substrate label,
+    # depth, D, closed. Its whole meaning is WHERE it sits while a with-block
+    # is open; it carries no value a caller computes on.
+    #
+    # `OperationEntry` is the path-registry record: an op name, a literature
+    # citation, an A-N class tuple, and the two IMPLEMENTATION CALLABLES. A
+    # function is the clearest possible non-operand — which is also why
+    # `path_registry.lookup` is `mcp_callable=False`; the same fact drives
+    # both, from the two different channels.
+    "CascadeContext",    # per-thread dispatch-routing scope (rc419)
+    "OperationEntry",    # path-registry record holding live callables (rc419)
 })
 
 # Dunder methods are a class's own protocol, not an op's coercion boundary:

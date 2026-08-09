@@ -12676,6 +12676,338 @@ def _register_rbs_lm_tools() -> None:
 # ──────────────────────────────────────────────────────────────────────
 
 
+def _register_signal_processing_tools() -> None:
+    """Register the ``srmech.signal_processing`` DISPATCHER + PATH-REGISTRY read
+    surface (v0.9.0rc419, `#T1110`).
+
+    THE DOOR THE README POINTS AT WAS ITSELF INVISIBLE. ``python/README.md``
+    imports and demonstrates ``dispatch`` / ``begin_cascade`` / ``lookup`` /
+    ``has_path`` BY NAME as this package's documented entry point, and every one
+    of them was unregistered — so ``describe()`` did not list them,
+    ``srmech.introspect.search`` could not return them at any ``k`` (the index is
+    BUILT from the registry), and the MCP tool list carried 559 definitions of
+    which ZERO mentioned ``signal_processing``. That is the ``fold_identity``
+    shape at the level of a whole subpackage: an LLM consumer holding only the
+    catalog could not learn that srmech HAS a dual-path dispatcher, let alone
+    call it. Measured, with positive controls: 8/8 control queries returned
+    relevant registered ops, 0/41 signal-processing queries returned the op, and
+    12 returned literally nothing — so the null is REFUTED, not unsupported.
+
+    KEYED ON THE FULL DOTTED PATH, which also settles the one name collision:
+    ``srmech.signal_processing.path_registry.lookup`` versus the registered
+    ``srmech.introspect.naming.lookup``. The completeness ratchet resolves
+    coverage by ``id(obj)`` precisely so those two are never confused, and the
+    registry homes ops by DEFINING module (ADR-0010) — ``cascade_dispatcher`` and
+    ``path_registry``, not the ``signal_processing`` package re-export.
+
+    NINE ROWS, AND THE SIX THAT ARE DELIBERATELY ABSENT. ``register``,
+    ``register_lazy_loader``, ``clear_registry``, ``lock_dispatch_table``,
+    ``unlock_dispatch_table`` and ``clear_records`` stay unregistered under the
+    ``REGISTRY_MUTATOR`` reason code. Re-verified at rc419 rather than inherited:
+    all six still return ``None`` and their whole effect is on process-global
+    state a later call observes, so there is no value contract for ``returns`` to
+    state, and registering the registrar inside the registry it mutates is the
+    circularity the code names. The exit condition (a self-describing mutator row
+    shape) has not been met.
+
+    THREE ROWS ARE ``mcp_callable=False``, and the obstruction is SHAPE, not
+    taste — the ``srmech.introspect.publish`` precedent (rc414) exactly:
+    ``begin_cascade`` is a ``with``-block scope, and a scope cannot span two
+    JSON-RPC calls; ``current_cascade`` and ``lookup`` hand back live in-process
+    objects (``lookup``'s ``OperationEntry`` carries the two implementation
+    CALLABLES, which have no wire form at all). They stay in
+    ``get_tool_schema().tools`` for introspection and are excluded from the
+    advertised MCP catalog, so an LLM is never offered an uncallable tool.
+
+    Declarative ``ToolEntry`` data only — no ``srmech.signal_processing`` import
+    here (dotted names resolve at invoke time via :mod:`srmech._resolve`), so
+    registering at this module's import stays cycle-free AND numpy-free.
+    """
+    P = ToolParameter
+    R = ToolReturn
+
+    register_tool(
+        ToolEntry(
+            name="srmech.signal_processing.cascade_dispatcher.dispatch",
+            owner="srmech", category="signal_processing",
+            summary=(
+                "THE signal-processing entry point: run one op by NAME, routing "
+                "between its Path A (closed-form algebra over the 14 A-N "
+                "primitives) and Path B (RBS-HDC bound vector at D=8192) "
+                "implementations. Positional and keyword arguments are forwarded "
+                "verbatim to the chosen implementation. path= forces a side "
+                "('A' / 'B'); omit it and resolve_path() decides — an active "
+                "begin_cascade() context prefers Path B, otherwise the op's "
+                "primary A-N class picks per DEFAULT_PATH_PER_CLASS (Class K "
+                "rotation and Class M bind/bundle/permute default to B, the "
+                "other twelve to A). Raises UnknownOperationError for a name the "
+                "registry does not carry: dispatch is a PATH-ROUTER over the ops "
+                "that HAVE two paths, not a name-resolver over every op in the "
+                "package."
+            ),
+            parameters=(
+                P("op_name", "str", True,
+                  "canonical op name; one of registered_ops()"),
+                # v0.9.0rc419 (`#T1110`): the VARIADIC, declared. dispatch's
+                # signature is dispatch(op_name, *args, path=, D=, **kwargs),
+                # and `args` is the *args slot — the POSITIONAL arguments the
+                # routed implementation receives, not the keyword map (that is
+                # **kwargs, which stays undeclared on purpose: an open keyword
+                # namespace is not a named capability). Withholding it made the
+                # ONE thing dispatch is for — passing an op its operands —
+                # unreachable from the contract, which is the exact gap
+                # test_declared_param_completeness_rc408.py exists to close.
+                # "sequence" is the honest token: an ARRAY on the wire (it is
+                # already in _TYPE_LEXICON, so no schema degrades to "string"),
+                # with elements this schema deliberately does not narrow
+                # because their admissible types belong to the ROUTED op, not
+                # to dispatch. invoke_tool already unpacks a declared
+                # VAR_POSITIONAL positionally by name, as it does for
+                # hdc.polar_bundle `vectors` and matrix_cascades.einsum
+                # `operands`, so declaring it makes the row genuinely callable.
+                P("args", "sequence", False,
+                  "the *args variadic: positional arguments forwarded verbatim "
+                  "to the routed implementation. Element types are the routed "
+                  "op's, not dispatch's, so this schema does not narrow them; "
+                  "an element with no wire form is unreachable over MCP even "
+                  "though the array is. Default () = no positional arguments"),
+                P("path", "Optional[str]", False,
+                  "keyword-only; force 'A' / 'B' / 'verify'. Default None = "
+                  "rule-based routing via resolve_path()"),
+                P("D", "int", False,
+                  "keyword-only; RBS-HDC bound-vector dimension forwarded to "
+                  "Path B implementations. Default 8192"),
+            ),
+            returns=R("int | float | str | list | dict",
+                      "whatever the routed implementation returns, unchanged"),
+            composes=("srmech.signal_processing.cascade_dispatcher.resolve_path",
+                      "srmech.signal_processing.path_registry.lookup"),
+            preserves=(
+                "path= is honoured unconditionally — an explicit side is never "
+                "overridden by the cascade hint or by the class default",
+                "arguments are forwarded verbatim; D is injected only into "
+                "implementations whose signature accepts it",
+            ),
+        )
+    )
+
+    register_tool(
+        ToolEntry(
+            name="srmech.signal_processing.cascade_dispatcher.begin_cascade",
+            owner="srmech", category="signal_processing",
+            summary=(
+                "Open a CASCADE CONTEXT — a with-block inside which dispatch() "
+                "prefers Path B for every nested op, because Path B's encode "
+                "cost amortises over cascade depth while Path A pays per call. "
+                "Yields the live CascadeContext (substrate / depth / D / closed). "
+                "Auto-flushes on normal exit AND on exception; nests, with the "
+                "innermost context supplying the substrate hint. substrate must "
+                "be None or one of ('bci', 'audio', 'rf', 'ephemeris')."
+            ),
+            parameters=(
+                P("substrate", "Optional[str]", False,
+                  "substrate label, or None for substrate-agnostic. One of "
+                  "'bci' / 'audio' / 'rf' / 'ephemeris'"),
+                P("D", "int", False,
+                  "keyword-only; bound-vector dimension for the cascade. "
+                  "Default 8192"),
+            ),
+            returns=R("contextmanager[CascadeContext]",
+                      "yields the opened context; closed=True after exit"),
+            mcp_callable=False,
+            mcp_unavailable_reason=(
+                "scope-returning: begin_cascade is a with-block context manager, "
+                "and a scope cannot span two JSON-RPC calls — the enter/exit "
+                "pair has no wire form and a context leaked across requests "
+                "would keep routing later, unrelated calls to Path B. Over the "
+                "wire, force the side per call with "
+                "dispatch(op_name, path='B') instead; the context is an "
+                "in-process affordance."
+            ),
+        )
+    )
+
+    register_tool(
+        ToolEntry(
+            name="srmech.signal_processing.cascade_dispatcher.end_cascade",
+            owner="srmech", category="signal_processing",
+            summary=(
+                "Imperative-form cascade flush — the equivalent of leaving a "
+                "begin_cascade() with-block, for callers that cannot structure "
+                "their code around one. Flushes the given context, or the "
+                "innermost active one when ctx is None, and removes it from the "
+                "per-thread stack. A no-op when no cascade is active, so it is "
+                "safe to call unconditionally. Prefer the context-manager form: "
+                "it also flushes on exception, which a forgotten end_cascade() "
+                "does not."
+            ),
+            parameters=(
+                P("ctx", "Optional[dict]", False,
+                  "the CascadeContext to flush; None flushes the innermost "
+                  "active context"),
+            ),
+            returns=None,
+            preserves=(
+                "idempotent: flushing an already-closed context does not "
+                "re-run the flush",
+            ),
+        )
+    )
+
+    register_tool(
+        ToolEntry(
+            name="srmech.signal_processing.cascade_dispatcher.current_cascade",
+            owner="srmech", category="signal_processing",
+            summary=(
+                "Return the innermost active CascadeContext, or None when no "
+                "begin_cascade() block is open. The read half of the cascade "
+                "hint: this is how you check WHY dispatch() is about to choose "
+                "Path B. Per-thread — a context opened on one thread is "
+                "invisible to another, by design."
+            ),
+            parameters=(),
+            returns=R("Optional[CascadeContext]",
+                      "innermost active context, or None"),
+            mcp_callable=False,
+            mcp_unavailable_reason=(
+                "returns a live in-process CascadeContext whose meaning is its "
+                "position on a per-thread stack; a JSON copy would describe a "
+                "scope belonging to a request that has already ended. The "
+                "wire-callable read of routing intent is "
+                "cascade_dispatcher.resolve_path, which returns a plain string."
+            ),
+        )
+    )
+
+    register_tool(
+        ToolEntry(
+            name="srmech.signal_processing.cascade_dispatcher.resolve_path",
+            owner="srmech", category="signal_processing",
+            summary=(
+                "Answer 'which side would dispatch() choose for this op?' "
+                "WITHOUT running it. Rules, in order: an explicit_path is "
+                "honoured unconditionally; else an open begin_cascade() context "
+                "returns 'B'; else the op's primary A-N class routes per "
+                "DEFAULT_PATH_PER_CLASS; else 'A'. An unregistered op resolves "
+                "to 'A' rather than raising — resolve_path reports routing "
+                "INTENT, and only dispatch() asserts the op exists."
+            ),
+            parameters=(
+                P("op_name", "str", True, "canonical op name"),
+                P("explicit_path", "Optional[str]", False,
+                  "keyword-only; 'A' / 'B' / 'verify' — returned unchanged"),
+                P("input_size", "Optional[int]", False,
+                  "keyword-only; input-size hint (reserved for the learned "
+                  "threshold table)"),
+                P("substrate", "Optional[str]", False,
+                  "keyword-only; substrate hint overriding the active context"),
+            ),
+            returns=R("str", "'A' / 'B' / 'verify'"),
+            preserves=(
+                "pure: resolve_path never runs the op and never mutates the "
+                "registry or the cascade stack",
+            ),
+        )
+    )
+
+    register_tool(
+        ToolEntry(
+            name="srmech.signal_processing."
+                 "cascade_dispatcher.is_dispatch_table_locked",
+            owner="srmech", category="signal_processing",
+            summary=(
+                "Is the learned dispatch table locked? Under the lock-at-release "
+                "policy each shipped release pins one table so a cascade's "
+                "routing is REPRODUCIBLE across runs and machines; the default "
+                "is locked. Unlocking (unlock_dispatch_table) is a local "
+                "override for regenerating thresholds on your own machine and "
+                "does not pollute the shipped table. Read this before trusting "
+                "a routing benchmark: an unlocked table means the routing you "
+                "measured may not be the routing anyone else gets."
+            ),
+            parameters=(),
+            returns=R("bool", "True when the shipped table is locked"),
+        )
+    )
+
+    register_tool(
+        ToolEntry(
+            name="srmech.signal_processing.path_registry.has_path",
+            owner="srmech", category="signal_processing",
+            summary=(
+                "Does op_name have an implementation registered on this side? "
+                "The cheap, non-raising probe: unlike lookup() it returns False "
+                "for an unregistered op instead of raising, so it is the right "
+                "guard before dispatch(..., path=...). Triggers the lazy loader "
+                "for ops registered deferred (the numpy-free import path), so a "
+                "True answer means the implementation is now really loaded. "
+                "path must be 'A' or 'B' — 'verify' is a dispatcher mode, never "
+                "a registered side, and raises ValueError here."
+            ),
+            parameters=(
+                P("op_name", "str", True, "canonical op name"),
+                P("path", "str", True, "'A' or 'B'"),
+            ),
+            returns=R("bool", "True if that side is registered"),
+        )
+    )
+
+    register_tool(
+        ToolEntry(
+            name="srmech.signal_processing.path_registry.lookup",
+            owner="srmech", category="signal_processing",
+            summary=(
+                "Return the OperationEntry for op_name — its op_name, the Path A "
+                "and Path B implementations (either may be None), the SSoT "
+                "literature citation the op was built from, and the tuple of "
+                "14 A-N primitive classes it composes over. This is where the "
+                "PROVENANCE lives: srmech's signal-processing ops each cite the "
+                "paper they realise (fft cites Cooley & Tukey 1965), and the "
+                "class tuple is what DEFAULT_PATH_PER_CLASS routes on. Raises "
+                "UnknownOperationError for an unregistered name; use has_path() "
+                "when you want a boolean instead."
+            ),
+            parameters=(
+                P("op_name", "str", True, "canonical op name"),
+            ),
+            returns=R("OperationEntry",
+                      "op_name / path_a / path_b / ssot_citation / classes"),
+            mcp_callable=False,
+            mcp_unavailable_reason=(
+                "returns an OperationEntry holding the two live implementation "
+                "CALLABLES; a function has no wire form, and a JSON copy that "
+                "silently dropped them would advertise an entry a consumer "
+                "cannot dispatch through. Over the wire, ask "
+                "path_registry.has_path for the sides and "
+                "path_registry.registered_ops for the names."
+            ),
+        )
+    )
+
+    register_tool(
+        ToolEntry(
+            name="srmech.signal_processing.path_registry.registered_ops",
+            owner="srmech", category="signal_processing",
+            summary=(
+                "Every op name the registry knows — eagerly-registered first in "
+                "registration order, then the lazily-registrable ops not yet "
+                "loaded. DECLARATIVE: a deferred op is listed WITHOUT forcing "
+                "its import, which is what keeps `import srmech.signal_processing` "
+                "numpy-free while still advertising the ops honestly. This is "
+                "the set dispatch() can route; it is deliberately SMALLER than "
+                "the closed-form op catalogue, because only ops with two paths "
+                "need a router. Returns a tuple, so len() works."
+            ),
+            parameters=(),
+            returns=R("Sequence[str]",
+                      "op names; eager ones first, then pending lazy ones"),
+            preserves=(
+                "an immutable snapshot — a later registration does not change "
+                "a tuple already returned",
+            ),
+        )
+    )
+
 def _register_music_tools() -> None:
     """Register the ``srmech.music`` acoustic domain slice (v0.9.0rc362).
 
@@ -13224,6 +13556,7 @@ _register_qm_tools()
 _register_introspect_tools()
 _register_dsl_tools()
 _register_rbs_lm_tools()
+_register_signal_processing_tools()
 _register_music_tools()
 _register_chemistry_tools()
 
