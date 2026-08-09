@@ -25,6 +25,614 @@ from __future__ import annotations
 from typing import Any, Dict
 
 CURATED: Dict[str, Dict[str, Any]] = {
+    # ── rc419 (`#T1110`) — the signal_processing dispatcher + path-registry
+    # read surface, registered at last. Every output below is a REAL WSL2
+    # capture (numpy-absent, HAS_NATIVE True); none is typed from memory.
+    'srmech.signal_processing.cascade_dispatcher.dispatch': {
+        'example': {
+            # Only DECLARED parameter names belong in `input` (the kwargs-map
+            # contract). dispatch's payload rides its **kwargs tail -- see the
+            # `worked` transcript for the full `signal=` call.
+            'input': {'op_name': 'fft', 'path': 'A', 'D': 8192},
+            'output': "[(10+0j), (-2+2j), (-2+0j), (-1.9999999999999998-2j)]",
+            'why': (
+                'Four calls that show what dispatch IS. The same op runs by '
+                'NAME with no import of the implementation; the positional and '
+                'keyword forms are the same call because arguments are '
+                'forwarded verbatim; path=PATH_A pins the side and returns '
+                'bit-identical output to the auto-routed call, which is the '
+                'evidence that routing chooses a SUBSTRATE and never an answer; '
+                'and sign_quantise returns +/-1 rather than a spectrum, so the '
+                'return type is the op\'s, not the dispatcher\'s. The last '
+                'line is the honest boundary: 41 closed-form ops ship in '
+                'srmech.signal_processing.closed_form_ops, and dispatch routes '
+                'the THIRTEEN that have a registered path -- asking it for '
+                'wavelet raises rather than silently importing something.'
+            ),
+            'worked': (
+                'from srmech.signal_processing import (\n'
+                '    dispatch, registered_ops, PATH_A)\n'
+                '\n'
+                'len(registered_ops())\n'
+                '# -> 13            the ops dispatch can route (NOT all 41 '
+                'closed-form ops)\n'
+                '\n'
+                '# By name. Nothing imports fft; the registry resolves it.\n'
+                'dispatch("fft", signal=[1, 2, 3, 4])\n'
+                '# -> [(10+0j), (-2+2j), (-2+0j), (-1.9999999999999998-2j)]\n'
+                '\n'
+                '# Positional and keyword are the SAME call -- args are\n'
+                '# forwarded verbatim -- and pinning the side changes nothing\n'
+                '# about the value, which is the whole dual-path claim.\n'
+                'dispatch("fft", [1, 2, 3, 4], path=PATH_A)\n'
+                '# -> [(10+0j), (-2+2j), (-2+0j), (-1.9999999999999998-2j)]\n'
+                '\n'
+                '# The return type is the OP\'s, never the dispatcher\'s.\n'
+                'dispatch("sign_quantise", signal=[3.0, -1.5, 0.0, -0.25])\n'
+                '# -> [1, -1, 1, -1]\n'
+                'dispatch("rfft", signal=[1.0, 2.0, 3.0, 4.0])\n'
+                '# -> [(10+0j), (-2+2j), (-2+0j)]   half spectrum, real input\n'
+                '\n'
+                '# An op with no registered path is refused, LOUDLY.\n'
+                'dispatch("wavelet", signal=[1, 2, 3, 4])\n'
+                '# -> UnknownOperationError\n'
+            ),
+        },
+        'explanation': (
+            'WHAT it computes: nothing itself -- it RESOLVES. dispatch(op_name, '
+            '...) looks the name up in srmech.signal_processing.path_registry, '
+            'asks resolve_path() which side to run, and calls that '
+            'implementation with the caller\'s arguments forwarded unchanged, '
+            'returning whatever the op returns. The two sides are Path A '
+            '(closed-form algebra composed from the 14 A-N primitives) and Path '
+            'B (an RBS-HDC bound vector at D=8192). Routing picks a SUBSTRATE, '
+            'never an answer: dispatch("fft", x) and dispatch("fft", x, '
+            'path=PATH_A) return the same list. '
+            'WHEN to reach for it: when the op name is data -- a cascade spec, a '
+            'config row, a user string -- or when you want the substrate choice '
+            'made for you. If you already know which op you want and only ever '
+            'want Path A, importing it directly is clearer and one lookup '
+            'cheaper: `from srmech.signal_processing.closed_form_ops.dct import '
+            'op`. That direct-import form is also the ONLY way to reach the 28 '
+            'closed-form ops that have a single path and therefore no router '
+            'entry -- reaching for dispatch there gets you '
+            'UnknownOperationError, which is the correct answer to a question '
+            'about routing, not a bug. '
+            'SIBLINGS: resolve_path answers "which side WOULD it choose" '
+            'without running anything -- use it instead of a trial dispatch '
+            'when you are only inspecting routing. has_path is the non-raising '
+            'probe for whether a side exists at all; lookup returns the full '
+            'OperationEntry including the literature citation and the A-N class '
+            'tuple that routing reads; registered_ops enumerates what can be '
+            'routed. begin_cascade wraps a sequence of dispatch calls so they '
+            'all prefer Path B. Do not hand-roll a name->function dict in front '
+            'of this: the lazy-loader indirection in path_registry is what keeps '
+            '`import srmech.signal_processing` numpy-free, and a hand-built '
+            'table defeats it by importing everything eagerly.'
+        ),
+    },
+    'srmech.signal_processing.cascade_dispatcher.begin_cascade': {
+        'example': {
+            'input': {'substrate': 'bci'},
+            'output': "('bci', 0, 8192, False, 'B')",
+            'why': (
+                'The one line that matters is the flip: resolve_path("fft") is '
+                "'A' outside the block and 'B' inside it, with no argument "
+                'changed at either call site. That is the whole point of a '
+                'cascade context -- Path B pays its encode cost once and '
+                'amortises it over depth, so a RUN of ops wants B even when '
+                'each op alone would want A. The exit is shown to be automatic: '
+                'ctx.closed flips to True and current_cascade() returns to None '
+                'without an explicit end_cascade(), and it would do the same if '
+                'the block had raised.'
+            ),
+            'worked': (
+                'from srmech.signal_processing import (\n'
+                '    begin_cascade, current_cascade, resolve_path)\n'
+                '\n'
+                '# Outside a cascade, fft routes by its primary A-N class.\n'
+                'resolve_path("fft")\n'
+                "# -> 'A'\n"
+                '\n'
+                'with begin_cascade(substrate="bci") as ctx:\n'
+                '    inner = (ctx.substrate, ctx.depth, ctx.D, ctx.closed,\n'
+                '             resolve_path("fft"))\n'
+                'inner\n'
+                "# -> ('bci', 0, 8192, False, 'B')\n"
+                '#          the SAME call now routes to Path B -- the context\n'
+                '#          is the only thing that changed\n'
+                '\n'
+                '# Exit is automatic, and would also fire on an exception.\n'
+                'ctx.closed\n'
+                '# -> True\n'
+                'current_cascade()\n'
+                '# -> None\n'
+                '\n'
+                '# The substrate label is closed, not free text.\n'
+                'begin_cascade(substrate="not-a-substrate").__enter__()\n'
+                '# -> ValueError\n'
+            ),
+        },
+        'explanation': (
+            'WHAT it computes: a context, not a value. begin_cascade pushes a '
+            'CascadeContext (substrate / depth / D / closed) onto a per-thread '
+            'stack and yields it; while that context is open, resolve_path -- '
+            'and therefore every dispatch call that does not pass an explicit '
+            'path= -- returns Path B. On exit, normal or exceptional, the '
+            'context is flushed and popped. Contexts nest, and the innermost '
+            'supplies the substrate hint. '
+            'WHEN to reach for it: whenever you are about to run a SEQUENCE of '
+            'signal_processing ops on the same data. Path B encodes into a '
+            'D=8192 bound vector once and reuses it, so the encode cost '
+            'amortises over the run; Path A recomputes per call. For a single '
+            'isolated op the context buys nothing and you should just call '
+            'dispatch. Note what you should NOT hand-roll: passing path=PATH_B '
+            'to every call in the run looks equivalent and is not, because an '
+            'explicit path also overrides the per-op class defaults for ops '
+            'that genuinely want A, whereas the cascade hint is what the '
+            'dispatcher is designed to weigh. '
+            'SIBLINGS: end_cascade is the imperative form for code that cannot '
+            'be structured around a with-block -- prefer this one, because '
+            'end_cascade does not fire on an exception. current_cascade READS '
+            'the innermost open context; resolve_path shows you the routing '
+            'decision the context produces without running the op. This is not '
+            'srmech.introspect.publish, which is also a with-block but scopes '
+            'RUN-STATUS publication rather than dispatch routing.'
+        ),
+    },
+    'srmech.signal_processing.cascade_dispatcher.end_cascade': {
+        'example': {
+            'input': {'ctx': None},
+            'output': "(True, None)",
+            'why': (
+                'The imperative form driven by hand so the state transition is '
+                'visible: the context is live and open, end_cascade() closes it '
+                'and removes it from the stack, and a second end_cascade() on '
+                'an empty stack is a silent no-op rather than an error. That '
+                'last line is the reason the op is safe to call unconditionally '
+                'in a finally: block -- which is exactly the code shape people '
+                'reach for it in.'
+            ),
+            'worked': (
+                'from srmech.signal_processing.cascade_dispatcher import (\n'
+                '    begin_cascade, current_cascade, end_cascade)\n'
+                '\n'
+                '# Drive the context manager by hand to expose the transition.\n'
+                'cm = begin_cascade(substrate="audio")\n'
+                'ctx = cm.__enter__()\n'
+                '(current_cascade() is ctx, ctx.closed)\n'
+                '# -> (True, False)      open, and it IS the innermost\n'
+                '\n'
+                'end_cascade()\n'
+                '# -> None               flushes the innermost, returns nothing\n'
+                '(ctx.closed, current_cascade())\n'
+                '# -> (True, None)       closed AND popped off the stack\n'
+                '\n'
+                '# Safe to call unconditionally -- an empty stack is a no-op,\n'
+                '# which is what makes it usable in a finally: block.\n'
+                'end_cascade()\n'
+                '# -> None\n'
+            ),
+        },
+        'explanation': (
+            'WHAT it computes: nothing -- it returns None. end_cascade(ctx) '
+            'flushes a CascadeContext and removes it from the per-thread stack; '
+            'with ctx=None it flushes the innermost active one, and with no '
+            'cascade active at all it does nothing. Flushing is idempotent, so '
+            'closing an already-closed context does not re-run the flush. '
+            'WHEN to reach for it: only when your code cannot be structured '
+            'around a with-block -- a callback pair, a class that opens a '
+            'cascade in one method and closes it in another, a generator that '
+            'yields across the region. Everywhere else, use begin_cascade as a '
+            'context manager instead: the imperative form has one real hazard, '
+            'which is that an exception between the open and the end_cascade() '
+            'call leaves the context open and every later dispatch on that '
+            'thread silently routing to Path B. Do not hand-roll the pop by '
+            'reaching into the stack; that is what this op is. '
+            'SIBLINGS: begin_cascade is the with-block form and the recommended '
+            'one -- it calls the same flush on the way out, including on an '
+            'exception. current_cascade tells you whether there is anything to '
+            'end. It is unrelated to path_registry.clear_registry, which drops '
+            'op REGISTRATIONS rather than cascade scope.'
+        ),
+    },
+    'srmech.signal_processing.cascade_dispatcher.current_cascade': {
+        'example': {
+            'input': {},
+            'output': "((True, 'rf', 1024), (True, 'audio', 8192), (True, 'rf'))",
+            'why': (
+                'Nesting, read from the inside. Two contexts are opened with '
+                'DIFFERENT substrates and different D; current_cascade() '
+                'returns the innermost at every point, and -- the part worth '
+                'seeing -- the inner block does not inherit the outer D=1024, '
+                'it takes the default 8192, because D is a per-context '
+                'argument and not a stack-wide setting. When the inner block '
+                'exits the outer one is current again, so this is a stack and '
+                'not a flag.'
+            ),
+            'worked': (
+                'from srmech.signal_processing import (\n'
+                '    begin_cascade, current_cascade)\n'
+                '\n'
+                'current_cascade()\n'
+                '# -> None               no cascade open\n'
+                '\n'
+                'with begin_cascade(substrate="rf", D=1024) as outer:\n'
+                '    a = (current_cascade() is outer,\n'
+                '         current_cascade().substrate, current_cascade().D)\n'
+                '    with begin_cascade(substrate="audio") as inner:\n'
+                '        b = (current_cascade() is inner,\n'
+                '             current_cascade().substrate, current_cascade().D)\n'
+                '    c = (current_cascade() is outer,\n'
+                '         current_cascade().substrate)\n'
+                '(a, b, c)\n'
+                "# -> ((True, 'rf', 1024), (True, 'audio', 8192), (True, 'rf'))\n"
+                '#      innermost wins; the inner block does NOT inherit\n'
+                '#      D=1024 -- D is per-context, not stack-wide\n'
+                '\n'
+                'current_cascade()\n'
+                '# -> None               both popped\n'
+            ),
+        },
+        'explanation': (
+            'WHAT it computes: the innermost open CascadeContext on the calling '
+            'thread, or None when no begin_cascade block is active. The object '
+            'carries the substrate label, the depth counter, the bound-vector '
+            'dimension D, and the closed flag. '
+            'WHEN to reach for it: when you need to know WHY dispatch is about '
+            'to choose Path B, or to make library code behave differently '
+            'inside a caller\'s cascade without changing its signature -- '
+            'current_cascade() is None is the honest test for "am I being '
+            'called standalone". It is per-thread by design, so a context '
+            'opened on one thread is invisible on another; do not treat it as '
+            'a process-global setting, and do not cache the returned object '
+            'across a block boundary, because it is closed on exit. '
+            'SIBLINGS: resolve_path is what you usually want instead -- it '
+            'answers the routing question directly, as a plain string, and it '
+            'is the wire-callable one (current_cascade is not offered over MCP '
+            'because a scope belonging to a finished request means nothing to a '
+            'later caller). begin_cascade opens what this reads; end_cascade '
+            'closes it. Reading ctx.depth here is not a substitute for '
+            'CASCADE_DEPTH_THRESHOLD_FOR_PATH_B, which is the constant the '
+            'routing rule compares against.'
+        ),
+    },
+    'srmech.signal_processing.cascade_dispatcher.resolve_path': {
+        'example': {
+            'input': {'op_name': 'fft'},
+            'output': "'A'",
+            'why': (
+                'All four routing rules exercised in precedence order, plus the '
+                'trap they combine into. fft has primary class A so it routes '
+                "to 'A'; an explicit path is honoured unconditionally; an open "
+                "cascade forces 'B'; and an unregistered name resolves to 'A' "
+                'rather than raising, because resolve_path reports INTENT and '
+                'only dispatch asserts existence. The last three lines are the '
+                'one that will bite: form_function_rotate declares primary '
+                "class A and so resolves to 'A', but it has only a Path B "
+                'implementation, so the default dispatch raises DispatchError. '
+                'resolve_path reads the CLASS table; it does not check that the '
+                'side it names is registered. Probe with has_path first, or '
+                'pass path= explicitly.'
+            ),
+            'worked': (
+                'from srmech.signal_processing import (\n'
+                '    begin_cascade, dispatch, has_path, lookup, resolve_path,\n'
+                '    PATH_A, PATH_B)\n'
+                '\n'
+                '# Rule 3: route on the op\'s PRIMARY A-N class.\n'
+                'lookup("fft").classes\n'
+                "# -> ('A', 'I', 'K')\n"
+                'resolve_path("fft")\n'
+                "# -> 'A'            class A -> Path A per DEFAULT_PATH_PER_CLASS\n"
+                '\n'
+                '# Rule 1: an explicit path wins over everything.\n'
+                'resolve_path("fft", explicit_path=PATH_B)\n'
+                "# -> 'B'\n"
+                '\n'
+                '# Rule 2: an open cascade prefers Path B.\n'
+                'with begin_cascade(substrate="bci"):\n'
+                '    inside = resolve_path("fft")\n'
+                'inside\n'
+                "# -> 'B'\n"
+                '\n'
+                '# Rule 4: an UNREGISTERED op resolves rather than raising --\n'
+                '# resolve_path reports intent, dispatch asserts existence.\n'
+                'resolve_path("wavelet")\n'
+                "# -> 'A'\n"
+                '\n'
+                '# THE TRAP: resolve_path reads the CLASS table and does not\n'
+                '# check that the side it names is actually registered.\n'
+                'lookup("form_function_rotate").classes\n'
+                "# -> ('A', 'C', 'M')\n"
+                'resolve_path("form_function_rotate")\n'
+                "# -> 'A'\n"
+                'has_path("form_function_rotate", PATH_A)\n'
+                '# -> False          ... but there is no Path A to run\n'
+                'dispatch("form_function_rotate", b"abcdefgh")\n'
+                '# -> DispatchError  so the DEFAULT route fails; pass\n'
+                '#                   path=PATH_B, or probe has_path first\n'
+            ),
+        },
+        'explanation': (
+            'WHAT it computes: the side dispatch WOULD run for one invocation, '
+            "as the string 'A' / 'B' / 'verify', without running anything and "
+            'without touching the registry or the cascade stack. The rules '
+            'apply in order: an explicit_path is returned unchanged; an open '
+            'begin_cascade context gives B; otherwise the op\'s first A-N '
+            'class routes per DEFAULT_PATH_PER_CLASS (Class K rotation and '
+            'Class M bind/bundle/permute default to B, the other twelve to A); '
+            'otherwise A. '
+            'WHEN to reach for it: to explain or test routing rather than to '
+            'perform it -- asserting that a cascade context really does flip an '
+            'op to Path B, or logging the substrate decision before a run. Read '
+            'it as INTENT, not as a guarantee the call will succeed: it names a '
+            'side from the class table and never checks that side is '
+            'registered, so form_function_rotate resolves to A while only its '
+            'Path B exists, and the default dispatch raises DispatchError. '
+            'Combine it with has_path rather than hand-rolling the class-table '
+            'lookup yourself, which would duplicate DEFAULT_PATH_PER_CLASS and '
+            'drift from it. '
+            'SIBLINGS: dispatch is resolve_path plus the actual call. has_path '
+            'answers the complementary question -- does that side EXIST -- and '
+            'is what turns this op\'s intent into a safe call. lookup gives you '
+            'the classes tuple this reads. current_cascade shows the context '
+            'that rule 2 fires on.'
+        ),
+    },
+    'srmech.signal_processing.cascade_dispatcher.is_dispatch_table_locked': {
+        'example': {
+            'input': {},
+            'output': "True",
+            'why': (
+                'The lock is shown to be real state and not a constant: it '
+                'starts True on a fresh import, unlock_dispatch_table() makes '
+                'it False, and re-locking restores it. That round trip is the '
+                'point -- the reason to read this flag is that an UNLOCKED '
+                'table means the routing you just benchmarked is your local '
+                'table, not the one the release pinned, so the numbers are not '
+                'reproducible for anyone else. The snippet re-locks so it '
+                'leaves the process as it found it.'
+            ),
+            'worked': (
+                'from srmech.signal_processing import is_dispatch_table_locked\n'
+                'from srmech.signal_processing.cascade_dispatcher import (\n'
+                '    lock_dispatch_table, unlock_dispatch_table)\n'
+                '\n'
+                '# Locked on a fresh import -- the lock-at-release default.\n'
+                'is_dispatch_table_locked()\n'
+                '# -> True\n'
+                '\n'
+                'unlock_dispatch_table()\n'
+                'is_dispatch_table_locked()\n'
+                '# -> False          local override in effect; any routing\n'
+                '#                   measured now is YOUR table, not the\n'
+                '#                   release-pinned one\n'
+                '\n'
+                'lock_dispatch_table()\n'
+                'is_dispatch_table_locked()\n'
+                '# -> True           restored -- leave the process as found\n'
+            ),
+        },
+        'explanation': (
+            'WHAT it computes: a bool -- whether the learned dispatch table is '
+            'locked. Under the lock-at-release policy each shipped release pins '
+            'one threshold table, so a cascade routes identically across runs '
+            'and machines; a fresh import is locked. '
+            'WHEN to reach for it: before trusting or publishing any routing '
+            'measurement, and in tests that must not silently inherit a local '
+            'override. If this returns False, someone in the process called '
+            'unlock_dispatch_table -- the thresholds may be regenerated local '
+            'ones, so a benchmark taken now does not describe what another '
+            'machine will do. It is the honest guard to assert rather than '
+            'hand-rolling a check on the private _LOCK_STATE dict, which is '
+            'not part of the API and carries two more keys whose meaning is '
+            'internal. '
+            'SIBLINGS: lock_dispatch_table / unlock_dispatch_table are the '
+            'write half and are deliberately NOT registered as tools -- they '
+            'mutate process-global state and have no value contract, so they '
+            'sit on the registry-completeness allowlist under REGISTRY_MUTATOR '
+            'rather than being callable from a catalog. resolve_path is what '
+            'the table actually influences; read that instead when you want the '
+            'routing decision rather than the reproducibility flag.'
+        ),
+    },
+    'srmech.signal_processing.path_registry.has_path': {
+        'example': {
+            'input': {'op_name': 'fft', 'path': 'A'},
+            'output': "True",
+            'why': (
+                'Three shapes of op in five lines: fft is genuinely dual-path, '
+                'form_function_rotate is Path-B-only, and wavelet is not in the '
+                'router at all. The third is why this op exists in the form it '
+                'does -- it returns False rather than raising, so it is the '
+                'safe pre-flight before dispatch(..., path=...), where lookup '
+                'would have thrown. The middle one is the case that catches '
+                'people: an op CAN be registered and still have no A side.'
+            ),
+            'worked': (
+                'from srmech.signal_processing import has_path, PATH_A, PATH_B\n'
+                '\n'
+                '# Genuinely dual-path: both sides registered.\n'
+                'has_path("fft", PATH_A)\n'
+                '# -> True\n'
+                'has_path("fft", PATH_B)\n'
+                '# -> True\n'
+                '\n'
+                '# Registered, but Path B ONLY -- the case that surprises.\n'
+                'has_path("form_function_rotate", PATH_A)\n'
+                '# -> False\n'
+                'has_path("form_function_rotate", PATH_B)\n'
+                '# -> True\n'
+                '\n'
+                '# Not in the router at all: False, NOT an exception. This is\n'
+                '# what makes it the safe pre-flight check.\n'
+                'has_path("wavelet", PATH_A)\n'
+                '# -> False\n'
+                '\n'
+                "# 'verify' is a dispatcher MODE, never a registered side.\n"
+                'has_path("fft", "verify")\n'
+                '# -> ValueError\n'
+            ),
+        },
+        'explanation': (
+            'WHAT it computes: a bool -- is there an implementation registered '
+            'for this op on this side. It triggers the lazy loader first, so a '
+            'True answer means the implementation is now genuinely importable '
+            'and loaded, not merely promised. path must be PATH_A or PATH_B; '
+            "'verify' is a dispatcher mode rather than a registered side and "
+            'raises ValueError. '
+            'WHEN to reach for it: as the pre-flight before dispatch(op, '
+            'path=...), and any time you are branching on capability. This is '
+            'the non-raising probe -- reach for it instead of wrapping lookup '
+            'in a try/except UnknownOperationError, which is the same question '
+            'asked expensively, and instead of testing membership in '
+            'registered_ops(), which tells you the op exists but not which '
+            'sides it has. The form_function_rotate case is exactly why that '
+            'distinction matters. '
+            'SIBLINGS: lookup returns the whole OperationEntry (both '
+            'implementations, the citation, the A-N classes) and RAISES on an '
+            'unknown name. registered_ops enumerates names without saying '
+            'anything about sides. resolve_path names the side dispatch would '
+            'pick, which is a different question again -- and notably does not '
+            'consult this op, which is how an op can resolve to a side that '
+            'has_path reports False for.'
+        ),
+    },
+    'srmech.signal_processing.path_registry.lookup': {
+        'example': {
+            'input': {'op_name': 'fft'},
+            'output': "('A', 'I', 'K')",
+            'why': (
+                'The entry read field by field, because each one answers a '
+                'different question. op_name is the routing key; the two path '
+                'slots say which substrates exist; classes is the tuple '
+                'DEFAULT_PATH_PER_CLASS routes on, so it is the WHY behind '
+                "resolve_path returning 'A'; and ssot_citation is the "
+                'provenance -- fft carries Cooley & Tukey (1965) with a '
+                'Crossref-verified DOI, not a paraphrase. sign_quantise showing '
+                "('K', 'M') is the contrast that makes the class tuple legible: "
+                'a Class K primary is exactly what routes an op to Path B by '
+                'default.'
+            ),
+            'worked': (
+                'from srmech.signal_processing import lookup\n'
+                '\n'
+                'e = lookup("fft")\n'
+                'e.op_name\n'
+                "# -> 'fft'\n"
+                '(e.path_a is not None, e.path_b is not None)\n'
+                '# -> (True, True)   both substrates implemented\n'
+                '\n'
+                '# The A-N class tuple is what routing reads.\n'
+                'e.classes\n'
+                "# -> ('A', 'I', 'K')\n"
+                '\n'
+                '# ... and the PROVENANCE the op was built from.\n'
+                'e.ssot_citation[:52]\n'
+                "# -> \"Cooley & Tukey (1965), 'An algorithm for the machi\"\n"
+                '\n'
+                '# Contrast: a Class-K primary is what sends an op to Path B\n'
+                '# by default.\n'
+                'lookup("sign_quantise").classes\n'
+                "# -> ('K', 'M')\n"
+                '\n'
+                '# Unknown names RAISE -- use has_path for a boolean.\n'
+                'lookup("wavelet")\n'
+                '# -> UnknownOperationError\n'
+            ),
+        },
+        'explanation': (
+            'WHAT it computes: the OperationEntry for an op name -- a frozen '
+            'record of op_name, the Path A and Path B implementations (either '
+            'may be None), the SSoT literature citation the op realises, and '
+            'the tuple of 14 A-N primitive classes it composes over. It runs '
+            'the lazy loader first, so the callables it hands back are live. It '
+            'raises UnknownOperationError for a name the registry does not '
+            'carry. '
+            'WHEN to reach for it: when you want the op\'s METADATA rather '
+            'than its result -- auditing which paper an op implements, '
+            'explaining a routing decision from the class tuple, or grabbing '
+            'the implementation to call in a tight loop without re-resolving. '
+            'Do not reach for it as an existence check: has_path answers that '
+            'without an exception, and wrapping this in try/except is the '
+            'expensive spelling of the same question. '
+            'SIBLINGS: has_path is the non-raising per-side probe; '
+            'registered_ops enumerates the names; resolve_path consumes the '
+            'classes tuple this exposes; dispatch is lookup plus resolve_path '
+            'plus the call. Note the name collision this op\'s dotted path '
+            'exists to disambiguate -- srmech.introspect.naming.lookup is a '
+            'CATALOG lookup over tool names and an entirely different function; '
+            'the registries are matched by object identity, never by leaf name, '
+            'precisely so the two are never confused.'
+        ),
+    },
+    'srmech.signal_processing.path_registry.registered_ops': {
+        'example': {
+            'input': {},
+            'output': "13",
+            'why': (
+                'The call the surface could not answer until this release: '
+                'len(registered_ops()) raised TypeError through rc418 because '
+                'the op returned iter() over a tuple it had already built in '
+                'full. It returns the tuple now, so len / indexing / '
+                're-iteration all work and the value is an immutable snapshot. '
+                'The final line is the honest shape of the router -- of the 13 '
+                'names, only 8 have BOTH sides; the rest are single-substrate '
+                'entries, which is why has_path exists as a separate question '
+                'from membership in this list.'
+            ),
+            'worked': (
+                'from srmech.signal_processing import (\n'
+                '    has_path, registered_ops, PATH_A, PATH_B)\n'
+                '\n'
+                'ops = registered_ops()\n'
+                'type(ops).__name__\n'
+                "# -> 'tuple'        rc419: was a bare iterator through rc418,\n"
+                '#                   so len() raised TypeError\n'
+                'len(ops)\n'
+                '# -> 13\n'
+                'ops[:5]\n'
+                "# -> ('rbs_hdc_mint_class_operator',\n"
+                "#     'rbs_hdc_mint_cascade_composition',\n"
+                "#     'rbs_hdc_encode_loe_content',\n"
+                "#     'rbs_hdc_decode_loe_fingerprint',\n"
+                "#     'form_function_rotate')\n"
+                '\n'
+                '# Being listed does NOT mean both substrates exist: only 8 of\n'
+                '# the 13 are genuinely dual-path.\n'
+                'sorted(n for n in ops\n'
+                '       if has_path(n, PATH_A) and has_path(n, PATH_B))\n'
+                "# -> ['fft', 'hdc_truncation', 'ifft', 'matched_filter',\n"
+                "#     'pi_cascade', 'rfft', 'sign_quantise', 'wiener']\n"
+            ),
+        },
+        'explanation': (
+            'WHAT it computes: a tuple of every op name the path registry '
+            'knows -- eagerly-registered ones first in registration order, then '
+            'any lazily-registrable ops not yet loaded. It is DECLARATIVE: a '
+            'deferred op is named without forcing its import, which is what '
+            'keeps `import srmech.signal_processing` numpy-free while still '
+            'advertising the op honestly. The tuple is a snapshot, so a later '
+            'registration does not mutate a value already returned. '
+            'WHEN to reach for it: to enumerate what dispatch can route -- '
+            'building a menu, validating a config that names ops, or asserting '
+            'in a test that an op registered itself on import. Read it as the '
+            'ROUTER\'s inventory and not as srmech\'s signal-processing '
+            'catalogue: 41 closed-form ops ship under '
+            'srmech.signal_processing.closed_form_ops, and most have exactly '
+            'one implementation, so they need no router entry and are reached '
+            'by direct import instead. Do not infer capability from membership '
+            'here. '
+            'SIBLINGS: has_path answers which SIDES a listed name actually has, '
+            'and the two questions come apart -- only 8 of the 13 names are '
+            'dual-path. lookup returns the full entry for one name and raises '
+            'for an unknown one. dispatch consumes these names. The write half '
+            '(register, register_lazy_loader, clear_registry) is deliberately '
+            'unregistered as a tool: those mutate process-global state and have '
+            'no value contract.'
+        ),
+    },
     # rc414 (`#T1092`) — fold_identity, registered at last. Outputs below are
     # REAL WSL2 numpy-absent captures.
     'srmech.biology.coupling.fold_identity': {
