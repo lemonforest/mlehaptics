@@ -95,6 +95,7 @@ from typing import Tuple
 # resolve as attribute access (and so ``import srmech.cascade.atoms`` works).
 from . import atoms
 from . import composites
+from . import leaves
 from . import parallel
 
 # Flat re-export — the public surface stays byte-identical to the pre-move
@@ -129,6 +130,31 @@ from .composites import (
     autocorrelation,
     signed_sum_squared,
     top_k_by_score,
+    # `#T1114` rc420 — the shipped-op leaf set the cascade-catalog declared
+    # chains name (each is the exact body its parent op's fallback CALLS):
+    compensated_sum,
+    correlation_product,
+    kuramoto_inv_n,
+    kuramoto_sin_term,
+    kuramoto_out_simple,
+    kuramoto_gen_term,
+    kuramoto_gen_out,
+)
+# `#T1114` rc420 — the framing / access / assembly LEAF inventory (BLK-FRAMING
+# + the indexed-map leaf set measured missing at rungs 3-4).
+from .leaves import (
+    byte_slice,
+    dead_band,
+    f64_add,
+    int_parse_le,
+    orientation_compose,
+    pair,
+    seq_get,
+    seq_len,
+    str_concat,
+    utf8_encode,
+    vec_add,
+    vec_scale,
 )
 # The Klein-4 four-sector PARALLEL dispatch (v0.6.0rc6; F233). A Python
 # *orchestration* layer over the C-parity'd cascade.atoms — runs one cascade
@@ -162,6 +188,16 @@ from .hypercomplex_dft import (
     phase_coherent_peak,
     hypercomplex_couple,
     hypercomplex_exp,
+    # `#T1114` rc420 — the DFT leaf set the declared chains name (the composed
+    # paths CALL these, so chain/op bit-identity is structural):
+    as_quat4,
+    as_oct8,
+    qdft_resolve_mu,
+    odft_resolve_mu,
+    dft_sigma,
+    dft_scale,
+    qdft_summand,
+    odft_summand,
 )
 # Hamming / GF(2) linear block-code family — the CARRY/EC half of the
 # sedenion front-loader (#910 / §30; F442/F449). Lean-ALU XOR-native; the
@@ -338,6 +374,35 @@ __all__ = [
     "chiral_flip",
     "chiral_dual",
     "net_chirality",
+    # `#T1114` rc420 — the cascade-catalog LEAF inventory (BLK-FRAMING + the
+    # indexed-map leaf set) + the shipped-op leaves the declared chains name
+    "byte_slice",
+    "dead_band",
+    "f64_add",
+    "int_parse_le",
+    "orientation_compose",
+    "pair",
+    "seq_get",
+    "seq_len",
+    "str_concat",
+    "utf8_encode",
+    "vec_add",
+    "vec_scale",
+    "compensated_sum",
+    "correlation_product",
+    "kuramoto_inv_n",
+    "kuramoto_sin_term",
+    "kuramoto_out_simple",
+    "kuramoto_gen_term",
+    "kuramoto_gen_out",
+    "as_quat4",
+    "as_oct8",
+    "qdft_resolve_mu",
+    "odft_resolve_mu",
+    "dft_sigma",
+    "dft_scale",
+    "qdft_summand",
+    "odft_summand",
     # Klein-4 four-sector parallel dispatch (v0.6.0rc6; F233)
     "KLEIN4_SECTOR_CAP",
     "Z4_DISPATCH_SLOTS",
@@ -456,5 +521,6 @@ __all__ = [
     # submodules (canonical homes)
     "atoms",
     "composites",
+    "leaves",
     "parallel",
 ]
