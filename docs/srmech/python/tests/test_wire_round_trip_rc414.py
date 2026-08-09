@@ -97,7 +97,39 @@ EXPECTED_CARRIERS = 29
 #: claim over these is UNDEFINED, not true — the value comes back unchanged
 #: because nothing looked at it. This is the headline residual of `#T1092` and
 #: the number the follow-on rcs drain.
-CEIL_RETURN_TYPES_WITHOUT_COERCER = 131
+#:
+#: **131 -> 134 at v0.9.0rc419 (`#T1110`) — a RAISE, and therefore a regression
+#: by this file's own rule, recorded here and in the CHANGELOG rather than
+#: laundered.** rc419 registers the nine-row ``srmech.signal_processing``
+#: dispatcher / path-registry read surface. Six of the nine declare coercible
+#: returns (``str`` / ``bool`` / ``Sequence[str]`` / the generic op-result
+#: union) or, for ``end_cascade``, no return at all — it genuinely returns
+#: ``None``, so it carries ``returns=None`` and this gate correctly skips it.
+#: THREE do not, and all three are the SAME shape as the rc414 entry already
+#: inside this residual (``srmech.introspect.publish``, whose declared return is
+#: ``contextmanager[_PublishHandle]``):
+#:
+#: * ``cascade_dispatcher.begin_cascade`` -> ``contextmanager[CascadeContext]``
+#:   — a ``with``-block SCOPE. There is no encoder for an enter/exit pair.
+#: * ``cascade_dispatcher.current_cascade`` -> ``Optional[CascadeContext]`` — the
+#:   value's meaning is its POSITION on a per-thread stack, so a copy that
+#:   crossed the wire would describe a scope belonging to a finished request.
+#: * ``path_registry.lookup`` -> ``OperationEntry`` — the entry holds the two
+#:   live implementation CALLABLES, and a function has no wire form.
+#:
+#: WHY A COERCER WAS NOT LANDED INSTEAD, which is what this gate normally
+#: demands. For these three an inbound coercer would be reachability THEATRE:
+#: all three are ``mcp_callable=False`` precisely BECAUSE their return has no
+#: wire form, so no consumer is offered them over any transport. Writing a
+#: coercer that re-resolves an ``OperationEntry`` from its name would let the
+#: row drop off this list while nothing whatsoever became reachable — draining
+#: a debt ledger by editing the ledger. The honest record is that the residual
+#: grew by three, and that each of the three carries a machine-readable
+#: ``mcp_callable=False`` + ``mcp_unavailable_reason`` stating the obstruction
+#: at the row itself, which is a STRONGER claim than this counter makes.
+#: The number falls again when a ``$srmech_scope`` / handle grammar exists that
+#: can carry a scope honestly — the same exit condition ``publish`` is waiting on.
+CEIL_RETURN_TYPES_WITHOUT_COERCER = 134
 
 #: Carriers, constructed from their own shipped example expressions, that do
 #: NOT survive a wire round-trip. Counted over the EVALUABLE subset.
