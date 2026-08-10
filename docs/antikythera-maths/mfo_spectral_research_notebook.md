@@ -6433,6 +6433,19 @@ There is no "true" partition — only the right bracketing for your question (th
 
 #### 4. Worked example (srmech 0.7.0/0.7.1 live — the surface landed in PR #889)
 
+> ⚠️ **PATH CURRENCY (added rc420, `#T1114`).** The import below is preserved
+> **as-run at 0.7.0/0.7.1** and is left alone deliberately — rewriting a dated
+> worked example to today's spelling would fabricate the record of what that
+> release looked like. **The live path is `srmech.cascade.the_one`**:
+> `srmech.amsc.cascade` was relocated to the top-level `srmech.cascade`
+> namespace by the ADR-0010 domain slice and the old spelling now raises
+> `ModuleNotFoundError`. The *op name and signature are unchanged*, so paste
+> the block with the prefix swapped. Found by the srmech-side notebook
+> currency gate (`docs/srmech/python/tests/test_notebook_currency_rc420.py`),
+> which cannot itself watch this file — a srmech test may not reach into a
+> sister subtree no srmech CI trigger covers, so an MFO-side peer is the
+> follow-up this banner stands in for.
+
 ```python
 from srmech.amsc.cascade import the_one
 
@@ -6492,6 +6505,13 @@ The **Hurwitz `1,2,4,8` theorem** — the only finite-dimensional **normed divis
 #### 2. The instrument — the horizon is now executable (srmech 0.7.3)
 
 `srmech.amsc.cascade.cayley_dickson` ships the **exact (Fraction)** ladder and, with it, the horizon as a one-line question:
+
+> ⚠️ **PATH CURRENCY (added rc420, `#T1114`).** Same relocation as §VIII.31.15
+> above: the name below is preserved **as-run at 0.7.3**, and the live path is
+> **`srmech.cascade.cayley_dickson`** — `srmech.amsc.cascade` was moved to the
+> top-level `srmech.cascade` namespace by the ADR-0010 domain slice and now
+> raises `ModuleNotFoundError`. `is_division_algebra_dim` itself is unchanged
+> and still returns `True` at 8 / `False` at 16.
 
 ```python
 from srmech.amsc.cascade import cayley_dickson as cd
