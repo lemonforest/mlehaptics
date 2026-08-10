@@ -93,3 +93,17 @@ jobs:
       - name: cd_register committed-proof NDJSON matches the live measurement
         working-directory: docs/srmech/python
         run: python -m pytest tests/test_cd_register_ops_rc301.py -q
+
+      # rc420 (`#T1114`) — THIRD GUARD, same reasoning as the two above.
+      # srmech_research_notebook.md is the declared SSoT for the A-N vocabulary
+      # and for the package's own architecture, and it sits at docs/srmech/,
+      # outside srmech-ci.yml's docs/srmech/python/** trigger. Measured at
+      # rc419: its most recent rc mention was rc399 against an rc420 HEAD, and
+      # NO test read it as a currency surface. A notebook-only commit is
+      # precisely the commit that can restate the combinator count, the
+      # cascade-catalog cardinal or an import path — so without this step the
+      # gate would be armed and silent on the only commits it exists to catch.
+      # ~12s pure, no native build.
+      - name: Notebook currency gate (SSoT notebook vs the live surface)
+        working-directory: docs/srmech/python
+        run: python -m pytest tests/test_notebook_currency_rc420.py -q
