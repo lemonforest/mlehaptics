@@ -15,6 +15,15 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 
 ## [0.9.0rc421]
 
+### CI-red round 1 — the corpus witness moved, and the ripple runner could not see it
+
+The first CI round went red on **four native cells + pure shard 6**, all on the same three tests in `tests/test_search_glyph_tokenizer_rc416.py`: `WITNESS_RC416`, the introspect search-corpus content-address, moved to `4200c5fbf84bb2b2d6d57816fa7f77abfeed23a4c9e50645c3cffb714d9e525f`.
+
+This is the **re-pin** branch of that constant's own failure message, not the drift branch, and which branch it was got decided by measurement rather than assumption: five successive local `_build_frames('all')` builds produced one hash, and all five failing CI cells reported that same digest. The frame set is **unchanged at 627 = 598 ops + 29 carriers** — rc421 registers no op — so the move is **pure prose**: `octonion_frame_read`'s ToolEntry summary and its `frame` parameter text (which said *"frame defaults to 4 and any other value raises"*, now false), plus the paired curated explanation and worked example.
+
+**The gate gap is the real finding, and it is fixed at root rather than absorbed.** This is the FOURTH consecutive re-pin (rc416 → rc419 → rc420 → rc421), and the first where `tools/ripple_check.py` was actually run and went **GREEN (388 passed)** while CI went red — because `test_search_glyph_tokenizer_rc416.py` was not in `tools/ripple_gates.txt`. The corpus is **built from ToolEntry prose**, so ToolEntry prose is a dispatch surface and any rc editing one moves this digest by construction. rc421 adds the file to the manifest (whole file, ~13 s, pure-Python) and freezes it in `FROZEN_KNOWN_GATES` so a future manifest trim cannot drop the prose-ripple axis. The next prose rc learns this in ~13 s instead of after a ~25 min full-suite round.
+
+
 **`octonion_frame_read`'s `frame=4` pin was a SCOPE wearing a theorem's clothes — and the widening is 28-valued, not 7 (`#T1122`).** `srmech.cascade.octonion_frame_read` has accepted a `frame=` keyword since rc384 and rejected every value but `4`, with a validator whose message argued that only `ℓ = e₄` is well-posed "on the standard basis", because `e₁/e₂/e₃` lie inside the ℍ base and `e₅/e₆/e₇ = e_{1,2,3}·e₄` "are not independent seam generators, so no other single basis unit splits 𝕆 = ℍ ⊕ ℍℓ cleanly". **The first clause is true and survives; the conclusion was false and shipped for 37 rcs.** Measured against `cd_mult` itself: the standard base admits **four** valid splitting units `{e₄,e₅,e₆,e₇}`, not one — "not independent" and "not a valid splitting unit" are different claims, and the message conflated them. `frame=` is now the frame it was always named for. `describe()["tools"]["total"]` **HOLDS at 598** — a parameter widened, no op added. `SRMECH_ABI_VERSION` stays **13**; `GENOME_FORMAT_VERSION` stays **19**.
 
 ### The measurement that picked the API shape — 28, and it was NOT guessed
