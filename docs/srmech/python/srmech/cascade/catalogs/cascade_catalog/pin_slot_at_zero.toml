@@ -37,3 +37,15 @@ canonical_landings = [
   "feedback_sign_handling_is_class_k_pin_slot_not_alu_abs — no abs() inside cascade scripts",
   "docs/unsolved-maths/_cascade_helpers.py — original precursor",
 ]
+
+# ── rc420 (`#T1114`): EXPLICIT leaf declaration — silence is not a leaf claim.
+[cascade.leaf]
+irreducible = true
+reason = """
+The atom IS the Class-K primitive (the sign-split at the zero phase
+boundary — the pin entering/leaving the slot); nothing lower-level is
+registered to compose it. Measured at `#T1114` rung 3: correctly
+irreducible. Every sign-honest cascade in the catalog starts from this
+atom; decomposing it would need a sign comparison, which IS this atom.
+"""
+declared = "0.9.0rc420"

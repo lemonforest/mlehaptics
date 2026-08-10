@@ -78,8 +78,23 @@ from srmech.math.text import fold_marks, glyph_stream
 #: py3.12, macos-14 py3.12, windows py3.12), the pure shards, and a local
 #: WSL2 re-derivation. Five independent builds, one hash. The contract holds;
 #: only the corpus moved.
+#:
+#: **RE-PINNED AGAIN at v0.9.0rc420 (`#T1114`).** rc419's value was
+#: ``cc1d93e6bb901ef5d52d28a895771b502ec5b32b1888b14e7e381f472262d7fa``. Two
+#: prose edits in the same rc moved it, both inside the corpus by
+#: construction: rc420 registered **29** new ops for the executable cascade
+#: catalog (569 -> 598, and the frame set is 627 = 598 ops + 29 carriers), and
+#: the rc420 CI-red fix corrected three shipped docstring falsehoods in the
+#: curated tool docs (``list_ops``'s ``returns`` shape, one additive key
+#: behind after ``list_catalog_ops`` gained ``status``). Both are the "re-pin"
+#: branch of this constant's own failure message, not the drift branch.
+#:
+#: Determinism re-established independently at this value: the identical
+#: digest came from all four native CI cells, the pure shards, the
+#: fork-isolated asserts-live cell, AND a local WSL2 re-derivation on the
+#: branch. **Seven independent builds, one hash.**
 WITNESS_RC416 = (
-    "c9ed2f548dd78e78eb57fb01e5e1876f1bd1366aa78e6a3bbec1a37008665d1f")
+    "fc3d83e702098f823e66501ad5978aadc1d972f0e70047f48c28bdf99234b604")
 
 #: The ASCII control set. These four queries are the ops the tokenizer work is
 #: ABOUT, so a regression on them would be the change eating its own subject.

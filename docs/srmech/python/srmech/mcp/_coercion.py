@@ -1286,6 +1286,8 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     "Optional[dict]": _identity,
     "list": _identity,
     "list[int]": _identity,
+    "list[float]": _identity,     # rc420 (`#T1114`): the cascade leaf inventory's float-vector params (vec_add / vec_scale / compensated_sum / the kuramoto+DFT leaves) — JSON-native, like list[int]
+    "object": _identity,          # rc420 (`#T1114`): a declared ANY-JSON-VALUE param (cascade.pair assembles two arbitrary values) — the explicit spelling of "passes through unchanged"
     "Optional[list[float]]": _identity,
     "iterable[int]": _identity,
     "sequence": _identity,

@@ -3119,6 +3119,26 @@ def _register_primitive_class_tools() -> None:
                       "(p', q') — or (p', q', path) when with_path=True, path = the "
                       "CF partial quotients, whose folded convergent is (p', q')"),
         ),
+        ToolEntry(
+            name="srmech.math.rational.scale_round_half_even", owner="srmech",
+            category="rational",
+            summary="Class N: scale a non-negative real by an integer and "
+                    "round half-to-even to an int — int(round(value * scale)), "
+                    "the stage best_rational_signed performs between its "
+                    "Class-K pin-slot and its best_rational anchor. Described "
+                    "at length in that descriptor's [cascade.rounding] block "
+                    "and registered nowhere until rc420 (the #T1114 "
+                    "BLK-N-SCALE-ROUND blocker). ROUNDING CONTRACT: Python's "
+                    "round() IS round-half-to-even (banker's, PEP 3141) — "
+                    "round(0.5) == 0, round(1.5) == 2 — matching the C peer's "
+                    "libm-free _cascade_brs_round_half_even branch bit-exactly "
+                    "at the .5 boundary; C99 round() (half-AWAY-from-zero) is "
+                    "deliberately NOT this contract.",
+            parameters=(P("value", "float", True, "a non-negative magnitude"),
+                        P("scale", "int", True, "the integer fine-scale ≥ 1")),
+            returns=R("int", "int(round(value * scale)), banker's-rounded"),
+            smoke_test_hint={"value": "1.5", "scale": "1"},
+        ),
         # ────────────────────────────────────────────────────────────
         # Class N — rational reconstruction (rc45, rung 2 of the
         # CRT-QMat re-fibration arc). The residue→bounded-p/q closer.
@@ -8109,6 +8129,402 @@ def _register_primitive_class_tools() -> None:
             returns=R("int", "in [0, n)"),
             smoke_test_hint={"a": "2**64", "b": "3", "n": "2**128"},
         ),
+        # ────────────────────────────────────────────────────────────
+        # rc420 (#T1114): the cascade-catalog LEAF INVENTORY — the framing /
+        # access / assembly leaves the census measured MISSING (BLK-FRAMING +
+        # the indexed-map leaf set), plus the shipped-op leaves the declared
+        # [[cascade.chain]] step lists name (each is the exact body its parent
+        # op's own fallback calls since rc420). Compositions / pointwise
+        # leaves; no new C symbol; no new primitive class.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.cascade.seq_len", owner="srmech",
+            category="cascade",
+            summary="Class B (framing): len(seq) — the L in TLV, the element "
+                    "count of a sized frame. The leaf every indexed-map chain "
+                    "uses to pin n at entry (the totality contract: a map is "
+                    "data-SIZED, never data-DEPENDENT; an unsized iterable "
+                    "raises here rather than iterating). Measured missing by "
+                    "the #T1114 rung-4 inventory probe." + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("seq", "sequence", True, "a sized sequence"),),
+            returns=R("int", "len(seq)"),
+        ),
+        ToolEntry(
+            name="srmech.cascade.seq_get", owner="srmech",
+            category="cascade",
+            summary="Class E (catalog lookup): dynamic element access seq[i]. "
+                    "The chain reference grammar's [N] indexer is LITERAL-only "
+                    "(a descriptor can spell @step[0].output[1] but never "
+                    "x[@idx.k]), so a COMPUTED index enters a chain only "
+                    "through this op. Data-first (seq, i), so it also binds as "
+                    "the map_indexed identity body." + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("seq", "sequence", True, "the sequence"),
+                        P("i", "int", True, "the index")),
+            returns=R("object", "seq[i]"),
+            smoke_test_hint={"seq": "[10, 20, 30]", "i": "1"},
+        ),
+        ToolEntry(
+            name="srmech.cascade.pair", owner="srmech",
+            category="cascade",
+            summary="Class B (framing): assemble two values into a 2-tuple. "
+                    "A chain returns only its FINAL step's output, so a "
+                    "declared tuple[int, int] return can only be BUILT by a "
+                    "step — this one (best_rational_signed's (numerator, "
+                    "denominator) assembly). The #T1114 BLK-FRAMING pack "
+                    "half; SELECT needed no op (literal indexing covers it)."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("first", "object", True), P("second", "object", True)),
+            returns=R("tuple", "(first, second)"),
+            smoke_test_hint={"first": "3", "second": "7"},
+        ),
+        ToolEntry(
+            name="srmech.cascade.str_concat", owner="srmech",
+            category="cascade",
+            summary="Class F (render): prefix + text — the degenerate "
+                    "template. The one string-assembly step the shipped "
+                    "cascades need (encode_loe_content's 'LoE.content.' + "
+                    "content mint names); srmech.math.template.render is the "
+                    "general bytes-typed Class-F primitive, this is its "
+                    "str-typed prefix special case." + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("prefix", "str", True), P("text", "str", True)),
+            returns=R("str", "prefix + text"),
+            smoke_test_hint={"prefix": "'LoE.content.'", "text": "'hello'"},
+        ),
+        ToolEntry(
+            name="srmech.cascade.utf8_encode", owner="srmech",
+            category="cascade",
+            summary="Class B (framing): UTF-8 encode a string to bytes — the "
+                    "str → bytes framing boundary (the content.encode('utf-8') "
+                    "step of encode_loe_content, made a named chain step)."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("text", "str", True),),
+            returns=R("bytes", "text encoded UTF-8"),
+            smoke_test_hint={"text": "'hello'"},
+        ),
+        ToolEntry(
+            name="srmech.cascade.byte_slice", owner="srmech",
+            category="cascade",
+            summary="Class B (framing): the byte range data[start:stop] — the "
+                    "framing half of the encode_loe_content stride "
+                    "(sha256(content)[0:8]). Measured missing at #T1114 "
+                    "rung 3 (BLK-FRAMING)." + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("data", "bytes", True),
+                        P("start", "int", True), P("stop", "int", True)),
+            returns=R("bytes", "data[start:stop]"),
+            smoke_test_hint={"data": "b'abcdefgh'", "start": "0", "stop": "4"},
+        ),
+        ToolEntry(
+            name="srmech.cascade.int_parse_le", owner="srmech",
+            category="cascade",
+            summary="Class B (framing): parse bytes as a little-endian "
+                    "unsigned integer — the int-parse half of the "
+                    "encode_loe_content stride (int.from_bytes(digest[0:8], "
+                    "'little')). Measured missing at #T1114 rung 3 "
+                    "(BLK-FRAMING)." + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("data", "bytes", True, "the bytes to parse"),),
+            returns=R("int", "the little-endian unsigned value"),
+            smoke_test_hint={"data": "b'\\\\x01\\\\x02'"},
+        ),
+        ToolEntry(
+            name="srmech.cascade.f64_add", owner="srmech",
+            category="cascade",
+            summary="Class M (accumulate): scalar a + b — the fold body for a "
+                    "plain Σ (the DSL classifies fold/reduce as Class M: the "
+                    "accumulator-element bind). A LEFT fold from a 0.0 seed "
+                    "reproduces the shipped += order bit-exactly (0.0 + t == "
+                    "t, then the identical add order) — the kuramoto coupling "
+                    "sum's declared spelling." + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("a", "float", True), P("b", "float", True)),
+            returns=R("float", "a + b"),
+            smoke_test_hint={"a": "1.5", "b": "2.25"},
+        ),
+        ToolEntry(
+            name="srmech.cascade.vec_add", owner="srmech",
+            category="cascade",
+            summary="Class M (accumulate): elementwise vector a + b — the Σ_m "
+                    "fold body of the hypercomplex DFT chains. A LEFT fold "
+                    "from a zero seed reproduces the shipped acc[i] += "
+                    "term[i] order bit-exactly." + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("a", "list[float]", True), P("b", "list[float]", True)),
+            returns=R("list[float]", "[a[i] + b[i]]"),
+            smoke_test_hint={"a": "[1.0, 2.0]", "b": "[0.5, -0.5]"},
+        ),
+        ToolEntry(
+            name="srmech.cascade.vec_scale", owner="srmech",
+            category="cascade",
+            summary="Class M (accumulate): elementwise v * s — mirrors the "
+                    "shipped DFT output scale [acc[i] * scale for i in "
+                    "range(dim)] bit-exactly (the declared chains' final "
+                    "per-bin step)." + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("v", "list[float]", True), P("s", "float", True)),
+            returns=R("list[float]", "[v[i] * s]"),
+            smoke_test_hint={"v": "[1.0, -2.0]", "s": "0.5"},
+        ),
+        ToolEntry(
+            name="srmech.cascade.dead_band", owner="srmech",
+            category="cascade",
+            summary="Class K (pin-slot dead-band): gate a non-negative "
+                    "magnitude at a band — value if value >= band, else "
+                    "value's own zero (value * 0; type-preserving; NaN "
+                    "propagates, never silently read as zero). The _ZERO_BAND "
+                    "branch of best_rational_signed exiled to its own op so "
+                    "the declared chain carries the SAME dead-band the "
+                    "shipped op applies (measured rc420: without it the chain "
+                    "diverges in the sub-band x huge-fine_scale corner). The "
+                    "input is a Class-K MAGNITUDE (already >= 0), so the "
+                    "compare is a plain >= — no sign branch, no abs()."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("value", "number", True, "a non-negative magnitude"),
+                        P("band", "number", True, "the dead-band threshold")),
+            returns=R("number", "value, or its zero below the band"),
+            smoke_test_hint={"value": "0.5", "band": "1e-12"},
+        ),
+        ToolEntry(
+            name="srmech.cascade.orientation_compose", owner="srmech",
+            category="cascade",
+            summary="Class C: one step of the net-chirality product — 0 when "
+                    "orientation == 0 (a zero-crossing ABSORBS), else "
+                    "reorient(acc, orientation). Folding this left over an "
+                    "orientation list from a +1 seed IS net_chirality — "
+                    "measured rc420: a bare reorient fold is NOT "
+                    "(reorient's orientation == 0 branch is a no-op, so "
+                    "net_chirality([0,-1]) == 0 but the bare fold gives -1). "
+                    "Positionally fold-shaped (acc, elem) so both fold "
+                    "surfaces bind it directly." + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("acc", "int", True, "the running handedness"),
+                        P("orientation", "int", True, "in {-1, 0, +1}")),
+            returns=R("int", "the composed orientation"),
+            smoke_test_hint={"acc": "1", "orientation": "-1"},
+        ),
+        ToolEntry(
+            name="srmech.cascade.compensated_sum", owner="srmech",
+            category="cascade",
+            summary="Class M: Kahan-Babuska-Neumaier compensated Σ — the "
+                    "substrate-native math.fsum replacement (magnitude "
+                    "selection by SQUARE compare s*s >= v*v, no abs(); the "
+                    "bits lost per add accumulate in a compensation term "
+                    "recovered at the end; matches fsum to ~1 ulp on "
+                    "well-conditioned sums). Public since rc420 so the "
+                    "autocorrelation chain's Σ step names a registered op — "
+                    "the SAME body the shipped fallback calls."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("values", "list[float]", True),),
+            returns=R("float", "the compensated sum"),
+            smoke_test_hint={"values": "[1e10, 1.0, -1e10, 2.0]"},
+        ),
+        ToolEntry(
+            name="srmech.cascade.correlation_product", owner="srmech",
+            category="cascade",
+            summary="Class L: ONE (i, j) product of the circular "
+                    "autocorrelation — float(x[i]) * float(x[j]), the "
+                    "pointwise body of the Wiener-Khinchin Σ (the shipped "
+                    "autocorrelation fallback CALLS it since rc420, so the "
+                    "declared chain and the op share one body). The (i+k) mod "
+                    "n index arrives from the registered Class-I mod_add; the "
+                    "iteration lives in the chain's indexed-map layer."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("x", "list[float]", True),
+                        P("i", "int", True), P("j", "int", True)),
+            returns=R("float", "float(x[i]) * float(x[j])"),
+            smoke_test_hint={"x": "[1.0, -2.0, 3.0]", "i": "0", "j": "2"},
+        ),
+        ToolEntry(
+            name="srmech.cascade.kuramoto_inv_n", owner="srmech",
+            category="cascade",
+            summary="Class N: the Kuramoto mean-field scale K/n (0.0 when "
+                    "n == 0 — total on the empty roster). The inv_n line of "
+                    "both kuramoto_step paths as its own op instance; the "
+                    "shipped fallbacks call it since rc420."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("coupling", "float", True, "the global K"),
+                        P("n", "int", True, "the oscillator count")),
+            returns=R("float", "coupling / n, or 0.0 at n == 0"),
+            smoke_test_hint={"coupling": "2.0", "n": "4"},
+        ),
+        ToolEntry(
+            name="srmech.cascade.kuramoto_sin_term", owner="srmech",
+            category="cascade",
+            summary="Class N: ONE (i, j) coupling term of the SIMPLE Kuramoto "
+                    "path — sin(theta[j] - theta[i]) via the Class-N rational "
+                    "sin. Unweighted on purpose: the simple path weights the "
+                    "SUM (inv_n * S), not the terms — the float-order "
+                    "distinction that makes kuramoto_step TWO declared "
+                    "cascades. Pointwise; the all-to-all (i, j) iteration "
+                    "lives in the chain's indexed-map layer."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("theta", "list[float]", True),
+                        P("i", "int", True), P("j", "int", True)),
+            returns=R("float", "sin(theta[j] - theta[i])"),
+            smoke_test_hint={"theta": "[0.1, 2.0]", "i": "0", "j": "1"},
+        ),
+        ToolEntry(
+            name="srmech.cascade.kuramoto_out_simple", owner="srmech",
+            category="cascade",
+            summary="Class C: the SIMPLE-path Kuramoto Euler combine — "
+                    "theta[i] + dt * (omega[i] + inv_n * s), the shipped "
+                    "output line in its exact expression order (the fallback "
+                    "calls it since rc420). Class C per the op's own "
+                    "I∘sin∘Σ∘C classification of the Euler add."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("theta", "list[float]", True),
+                        P("omega", "list[float]", True),
+                        P("i", "int", True),
+                        P("s", "float", True, "the Σ_j sin coupling sum"),
+                        P("inv_n", "float", True), P("dt", "float", True)),
+            returns=R("float", "the oscillator's next phase"),
+            smoke_test_hint={"theta": "[0.1]", "omega": "[1.0]", "i": "0",
+                             "s": "0.0", "inv_n": "1.0", "dt": "0.01"},
+        ),
+        ToolEntry(
+            name="srmech.cascade.kuramoto_gen_term", owner="srmech",
+            category="cascade",
+            summary="Class N: ONE (i, j) term of the GENERAL Kuramoto-"
+                    "Sakaguchi path — w * sin(theta[j] - theta[i] - alpha) "
+                    "with w = coupling * A[i][j] (the rc15 §32 fix: K scales "
+                    "the matrix) when an adjacency is given, else the "
+                    "mean-field inv_n. The general path weights each TERM; "
+                    "the adjacency-vs-mean-field branch is descriptor-static "
+                    "and lives inside this op (the exile discipline)."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("theta", "list[float]", True),
+                        P("adjacency", "list", True, "n x n rows, or None for mean-field"),
+                        P("coupling", "float", True),
+                        P("inv_n", "float", True),
+                        P("alpha", "float", True, "Sakaguchi phase-lag"),
+                        P("i", "int", True), P("j", "int", True)),
+            returns=R("float", "the weighted frustrated coupling term"),
+        ),
+        ToolEntry(
+            name="srmech.cascade.kuramoto_gen_out", owner="srmech",
+            category="cascade",
+            summary="Class C: the GENERAL-path Kuramoto-Sakaguchi Euler "
+                    "combine — f = omega[i] + s; + ps[i] * sin(psi[i] - "
+                    "theta[i]) when pinned; theta[i] + dt * f. The psi-None "
+                    "(no-pinning) branch is descriptor-static and lives "
+                    "INSIDE this op instance; ps broadcasts a scalar or "
+                    "indexes a length-n sequence." + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("theta", "list[float]", True),
+                        P("omega", "list[float]", True),
+                        P("i", "int", True),
+                        P("s", "float", True, "the Σ_j weighted coupling"),
+                        P("psi", "Optional[list[float]]", True, "pin anchors"),
+                        P("ps", "float | Sequence[float]", True, "pin strength"),
+                        P("dt", "float", True)),
+            returns=R("float", "the oscillator's next phase"),
+        ),
+        ToolEntry(
+            name="srmech.cascade.as_quat4", owner="srmech",
+            category="cascade",
+            summary="Class M: coerce one QDFT sample to a plain 4-list — a "
+                    "4-component quaternion, or the octonion-embedded "
+                    "8-vector with e4..e7 == 0 (a nonzero tail raises: it "
+                    "would silently leak ℍ). The per-sample coercion step of "
+                    "quaternion_dft, public so the declared chain's coercion "
+                    "map names a registered op." + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("v", "sequence", True, "4- or ℍ-valued 8-vector"),),
+            returns=R("list[float]", "the 4-component sample"),
+            smoke_test_hint={"v": "[1.0, 2.0, 3.0, 4.0]"},
+        ),
+        ToolEntry(
+            name="srmech.cascade.as_oct8", owner="srmech",
+            category="cascade",
+            summary="Class M: coerce a 4- or 8-component sample to an "
+                    "8-vector (a quaternion zero-extends into ℍ ⊂ 𝕆). The "
+                    "per-sample coercion step of octonion_dft, public so the "
+                    "declared chain's coercion map names a registered op."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("vec", "sequence", True, "4- or 8-component"),),
+            returns=R("list[float]", "the 8-component sample"),
+            smoke_test_hint={"vec": "[1.0, 2.0, 3.0, 4.0]"},
+        ),
+        ToolEntry(
+            name="srmech.cascade.qdft_resolve_mu", owner="srmech",
+            category="cascade",
+            summary="Resolve the QDFT axis to a UNIT pure-imaginary 4-list "
+                    "μ̂ — ONCE per transform (the one-resolution parity "
+                    "contract: native and composed paths consume identical "
+                    "floats). Named axes 'i'/'j'/'k'/'ijk'/'diagonal' or a "
+                    "general unit pure-imaginary vector."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("mu_axis", "list|str", True, "named axis str, or a unit pure-imaginary vector"),),
+            returns=R("list[float]", "the unit 4-component axis"),
+            smoke_test_hint={"mu_axis": "'i'"},
+        ),
+        ToolEntry(
+            name="srmech.cascade.odft_resolve_mu", owner="srmech",
+            category="cascade",
+            summary="Resolve an ODFT axis to a UNIT pure-imaginary 8-list μ̂ "
+                    "— ONCE per transform (the one-resolution parity "
+                    "contract), with error messages naming octonion_dft. "
+                    "Named axes ('i'..'e7'/'ijk'/'diagonal') or a general "
+                    "unit pure-imaginary 4-/8-vector." + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("mu_axis", "list|str", True, "named axis str, or a unit pure-imaginary vector"),),
+            returns=R("list[float]", "the unit 8-component axis"),
+            smoke_test_hint={"mu_axis": "'i'"},
+        ),
+        ToolEntry(
+            name="srmech.cascade.dft_sigma", owner="srmech",
+            category="cascade",
+            summary="Class C: the hypercomplex-DFT twiddle sign convention — "
+                    "+1 inverse, -1 forward. The sigma line of both composed "
+                    "DFT paths as a named Class-C orientation step: the sign "
+                    "IS the transform's which-way (forward or backward around "
+                    "the phase circle)." + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("inverse", "bool", True),),
+            returns=R("int", "+1 if inverse else -1"),
+        ),
+        ToolEntry(
+            name="srmech.cascade.dft_scale", owner="srmech",
+            category="cascade",
+            summary="Class N: the hypercomplex-DFT output scale — 1/n for "
+                    "the inverse transform (n > 0), else 1.0. The scale line "
+                    "of both composed DFT paths; the n > 0 guard mirrors the "
+                    "wrappers' empty-input early return, so the op is total "
+                    "on n >= 0." + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("inverse", "bool", True), P("n", "int", True)),
+            returns=R("float", "the per-bin output scale"),
+            smoke_test_hint={"inverse": "True", "n": "4"},
+        ),
+        ToolEntry(
+            name="srmech.cascade.qdft_summand", owner="srmech",
+            category="cascade",
+            summary="Class M: ONE (k, m) summand of the QDFT — W(σ·2πkm/n) "
+                    "applied to x[m] on the declared side (twiddle → 4×4 "
+                    "operator → row-dot left-to-right, the exact composed-"
+                    "path float order; the shipped path CALLS this op since "
+                    "rc420, so chain/op bit-identity is structural). "
+                    "Pointwise and total — the k/m iteration lives in the "
+                    "chain's indexed-map layer, never in here."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("xs", "list[list[float]]", True, "coerced samples"),
+                        P("k", "int", True), P("m", "int", True),
+                        P("n", "int", True, "len(xs), fixed at entry"),
+                        P("left", "bool", True, "twiddle side"),
+                        P("sigma", "int", True, "the dft_sigma convention"),
+                        P("mu_hat", "list[float]", True, "resolved unit axis")),
+            returns=R("list[float]", "the 4-component summand for bin k"),
+        ),
+        ToolEntry(
+            name="srmech.cascade.odft_summand", owner="srmech",
+            category="cascade",
+            summary="Class M: ONE (k, m) summand of the ODFT, including the "
+                    "DECLARED two-sided bracketing order (F378 — the "
+                    "association order is an attested field, and it lives "
+                    "INSIDE this op instance as a descriptor-static branch; "
+                    "the shipped path CALLS this op since rc420). Pointwise "
+                    "and total." + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("xs", "list[list[float]]", True, "coerced samples"),
+                        P("k", "int", True), P("m", "int", True),
+                        P("n", "int", True),
+                        P("form", "str", True, "left | right | two_sided"),
+                        P("bracketing", "str", True,
+                          "left_associated | right_associated"),
+                        P("sigma", "int", True),
+                        P("mu_hat", "list[float]", True),
+                        P("mu_r_hat", "list[float]", True,
+                          "right axis (two-sided; ignored one-sided)")),
+            returns=R("list[float]", "the 8-component summand for bin k"),
+        ),
         ToolEntry(
             name="srmech.cascade.kuramoto_step", owner="srmech",
             category="cascade",
@@ -12122,7 +12538,14 @@ def _register_introspect_tools() -> None:
                 "pairs), so non-commuting turn composition is gone there. "
                 "`limits['element_types']` gives the same ladder per genome "
                 "element_type rung (klein4 / q8 / octonion) with the "
-                "exhaustive measurement each verdict was read from."
+                "exhaustive measurement each verdict was read from. "
+                "rc420 (#T1114) — the report also carries `cascade_catalog`: "
+                "the 20 [cascade] descriptors' executable state (total / "
+                "executable / leaf + the per-descriptor status map), the "
+                "op -> chain half of the word-problem bridge ADR-0012 C6 "
+                "measured as unenumerable. Run a declared chain via "
+                "srmech.dsl.run_cascade_chain; per-row detail via "
+                "srmech.dsl.list_catalog_ops."
             ),
             parameters=(),
             returns=ToolReturn(
@@ -12140,6 +12563,10 @@ def _register_introspect_tools() -> None:
                     "'classes': {'total': int, 'names': [sorted class "
                     "names], 'routes': {name: 'toml' | 'python', ...}, "
                     "'toml_total': int}, "
+                    "'cascade_catalog': {'total': int, 'executable': int, "
+                    "'leaf': int, 'status': {descriptor: 'executable' | "
+                    "'leaf' | 'undeclared', ...}, 'run': str, "
+                    "'enumerate': str}, "
                     "'carriers': {'total': int, 'capabilities': {carrier: "
                     "{'product': str | None, 'address': 'exact' | None, "
                     "'compose': 'full' | 'zero_divisors' | 'unclassified' | "
@@ -12434,16 +12861,75 @@ def _register_dsl_tools() -> None:
                 "parallel_sector_dispatch, pin_slot_at_zero, quaternion_dft, "
                 "reorient, schur_complement). Each record "
                 "also carries a `kind` "
-                "(`stage` | `combinator`) and `provenance` (`srmech` | "
-                "`user`). Framework reading: Class E (catalog enumeration) "
-                "∘ Class F (descriptor render). No parameters." + rc12
+                "(`stage` | `combinator`), `provenance` (`srmech` | "
+                "`user`) and — rc420, #T1114 / ADR-0012 C6 — `status`: the "
+                "cascade_catalog executable state per descriptor "
+                "(`executable` = declares a runnable ADR-0008 chain, run "
+                "it via srmech.dsl.run_cascade_chain; `leaf` = declares "
+                "its own irreducibility with a reason; every shipped "
+                "descriptor is one of the two). Framework reading: Class E "
+                "(catalog enumeration) ∘ Class F (descriptor render). No "
+                "parameters." + rc12
             ),
             parameters=(),
             returns=ToolReturn(
                 type="list[dict]",
                 shape=(
                     "[{'name': str, 'class': <A–N class composition>, "
-                    "'purpose': str}, ...] sorted ascending by name."
+                    "'purpose': str, 'kind': 'stage'|'combinator', "
+                    "'provenance': 'srmech'|'user', 'status': "
+                    "'executable'|'leaf'|'undeclared'}, ...] sorted "
+                    "ascending by name."
+                ),
+            ),
+        )
+    )
+    register_tool(
+        ToolEntry(
+            name="srmech.dsl.run_cascade_chain",
+            owner="srmech",
+            category="dsl",
+            summary=(
+                "Run a cascade-catalog descriptor's DECLARED chain "
+                "(rc420, #T1114 — the catalog made executable). Every "
+                "[cascade] descriptor now carries an ADR-0008 §2 "
+                "(schema v2) [[cascade.chain]] step list or an explicit "
+                "leaf declaration; this parses the declared steps through "
+                "srmech.cascade.compose and runs them on the given "
+                "inputs. The shipped chains are proven BIT-identical to "
+                "their shipped ops by the rc420 gate (91 proof cases incl. "
+                "each descriptor's documented boundary cases), so this is "
+                "the op's own cascade run declaratively — the op -> chain "
+                "half of the word-problem bridge (ADR-0012 C6), callable. "
+                "A parameter-dispatched op with float-order-distinct paths "
+                "declares one chain per path: pass variant= "
+                "(kuramoto_step: 'simple' | 'general'). Discover names + "
+                "status via srmech.dsl.list_catalog_ops or "
+                "describe()['cascade_catalog']."
+            ),
+            parameters=(
+                ToolParameter(
+                    "op_name", "str", required=True,
+                    summary="the descriptor name ([cascade].name), e.g. "
+                            "'magnitude' / 'quaternion_dft'.",
+                ),
+                ToolParameter(
+                    "inputs", "dict", required=False,
+                    summary="the chain's @input.* bindings, e.g. "
+                            "{'x': -3.25} for magnitude.",
+                ),
+                ToolParameter(
+                    "variant", "str", required=False,
+                    summary="which declared chain when the descriptor "
+                            "carries several (keyword-only); default = the "
+                            "single declared chain.",
+                ),
+            ),
+            returns=ToolReturn(
+                type="Any",
+                shape=(
+                    "The declared chain's final-step output (bit-identical "
+                    "to the shipped op on the pure projection)."
                 ),
             ),
         )

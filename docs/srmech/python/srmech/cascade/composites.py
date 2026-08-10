@@ -64,16 +64,24 @@ DEFAULT_MAX_DENOMINATOR = 100
 DEFAULT_FINE_SCALE = 1_000_000
 
 
-def _compensated_sum(values: Sequence[float]) -> float:
-    """Kahan–Babuška–Neumaier compensated summation — substrate-native (rc13
-    replaces the stdlib ``math.fsum``).
+def compensated_sum(values: Sequence[float]) -> float:
+    """Class M: Kahan–Babuška–Neumaier compensated summation —
+    substrate-native (rc13 replaces the stdlib ``math.fsum``; PUBLIC since
+    v0.9.0rc420 so the ``autocorrelation.toml`` declared chain's Σ step
+    names a registered op — the `#T1114` BLK-REGMAP resolution).
 
     Keeps a per-bin running sum well-conditioned with NO maths library: the
     larger-magnitude term is selected by a **square** comparison
     (``s*s >= v*v`` — no ``abs()``, Class-K honest), and the bits lost at each
     add are accumulated in a separate compensation term recovered at the end.
     Near-exact for the well-conditioned autocorrelation sums it backs (the
-    stdlib ``math.fsum`` is exactly-rounded; Neumaier matches it to ~1 ulp)."""
+    stdlib ``math.fsum`` is exactly-rounded; Neumaier matches it to ~1 ulp).
+
+    Structurally this IS a fold with a ``(sum, compensation)`` PAIR
+    accumulator plus a final combine — declaratively expressible once the
+    pair/framing inventory exists, but shipped as one leaf so the float-op
+    order stays pinned to this exact body (the `#T1114` rung-4 delegation,
+    recorded rather than hidden)."""
     s = 0.0
     c = 0.0                                        # running compensation
     for v in values:
@@ -84,6 +92,11 @@ def _compensated_sum(values: Sequence[float]) -> float:
             c += (v - t) + s
         s = t
     return s + c
+
+
+#: Private spelling kept for the module's own internal call sites; the op
+#: itself is the public :func:`compensated_sum` (v0.9.0rc420).
+_compensated_sum = compensated_sum
 
 
 def _try_native_best_rational_signed(x, max_denominator, fine_scale):
@@ -571,16 +584,117 @@ def autocorrelation(x: Sequence[float]) -> List[float]:
         return native
     # Numpy-free fallback (UPSTREAM §22): the direct circular autocorrelation
     # r[k] = Σ_n x[n]·x[(n+k) mod n] — identically IFFT(|FFT(x)|²) for real x,
-    # but with no FFT / no numpy. _compensated_sum (Neumaier) keeps the per-bin
+    # but with no FFT / no numpy. compensated_sum (Neumaier) keeps the per-bin
     # sum well-conditioned — substrate-native, no stdlib math.fsum.
+    # v0.9.0rc420 (`#T1114`): the per-(i, j) product is the PUBLIC op
+    # correlation_product and this loop CALLS it — the declared chain in
+    # autocorrelation.toml and this fallback share one body (float() is
+    # idempotent on the pre-coerced xs, so the op order is unchanged).
     xs = [float(v) for v in x]
     n = len(xs)
     if n == 0:
         return []
     return [
-        _compensated_sum([xs[i] * xs[(i + k) % n] for i in range(n)])
+        compensated_sum([correlation_product(xs, i, (i + k) % n)
+                         for i in range(n)])
         for k in range(n)
     ]
+
+
+def correlation_product(x: Sequence[float], i: int, j: int) -> float:
+    """Class L: ONE ``(i, j)`` product of the circular autocorrelation —
+    ``float(x[i]) * float(x[j])``.
+
+    The pointwise body of :func:`autocorrelation`'s Σ (which CALLS this op
+    since v0.9.0rc420, so the declared chain and the shipped fallback share
+    one body). Class L because the product IS the spectral pairing the
+    Wiener-Khinchin identity sums; the ``j = (i + k) mod n`` index
+    arithmetic arrives from the REGISTERED Class-I ``mod_add`` step — the
+    index math needs no leaf of its own. Pointwise and total; the ``i``/``k``
+    iteration lives in the chain's indexed-map combinator layer.
+    """
+    return float(x[i]) * float(x[j])
+
+
+def kuramoto_inv_n(coupling: float, n: int) -> float:
+    """Class N: the Kuramoto mean-field scale ``K/n`` (``0.0`` when
+    ``n == 0``).
+
+    The ``inv_n = (float(coupling) / n) if n > 0 else 0.0`` line of both
+    :func:`kuramoto_step` paths, exiled to its own op instance (the
+    ``n == 0`` guard is descriptor-static; the empty-roster chain maps over
+    nothing, but the scale step must still be total on ``n >= 0``).
+    """
+    return (float(coupling) / n) if n > 0 else 0.0
+
+
+def kuramoto_sin_term(theta: Sequence[float], i: int, j: int) -> float:
+    """Class N: ONE ``(i, j)`` coupling term of the SIMPLE Kuramoto path —
+    ``sin(theta[j] - theta[i])`` via the shipped Class-N rational sin.
+
+    The simple path weights the SUM (``inv_n * S``), not the terms — this op
+    is the unweighted term, preserving the shipped float-op order exactly
+    (:func:`kuramoto_step`'s simple fallback CALLS it since v0.9.0rc420;
+    ``float()`` is idempotent on the pre-coerced phases). Pointwise and
+    total; the all-to-all ``(i, j)`` iteration lives in the chain's
+    indexed-map combinator layer.
+    """
+    return _rsin(float(theta[j]) - float(theta[i]))
+
+
+def kuramoto_out_simple(theta: Sequence[float], omega: Sequence[float],
+                        i: int, s: float, inv_n: float, dt: float) -> float:
+    """Class C: the SIMPLE-path Kuramoto Euler combine —
+    ``theta[i] + dt * (omega[i] + inv_n * s)``.
+
+    The shipped simple-path output line, exiled to its own op instance with
+    the identical expression order (:func:`kuramoto_step`'s simple fallback
+    CALLS it since v0.9.0rc420). Class C per the shipped op's own
+    classification of the Euler add (``I ∘ sin ∘ Σ ∘ C``).
+    """
+    h = float(dt)
+    theta_i = float(theta[i])
+    return float(theta_i + h * (float(omega[i]) + inv_n * s))
+
+
+def kuramoto_gen_term(theta: Sequence[float], adjacency, coupling: float,
+                      inv_n: float, alpha: float, i: int, j: int) -> float:
+    """Class N: ONE ``(i, j)`` term of the GENERAL Kuramoto-Sakaguchi path —
+    ``w * sin(theta[j] - theta[i] - alpha)`` with ``w = K * A[i][j]``
+    (the rc15 §32 fix: the global coupling SCALES the matrix) when an
+    adjacency is given, else the mean-field ``inv_n``.
+
+    The general path weights each TERM (unlike the simple path's
+    weighted-sum), matching the shipped float-op order exactly
+    (:func:`kuramoto_step`'s general fallback CALLS it since v0.9.0rc420).
+    The adjacency-vs-mean-field selection is a descriptor-static branch and
+    lives INSIDE this op instance (the exile discipline). Pointwise and
+    total.
+    """
+    a = float(alpha)
+    kc = float(coupling)
+    w = (kc * float(adjacency[i][j])) if adjacency is not None else inv_n
+    return w * _rsin(float(theta[j]) - float(theta[i]) - a)
+
+
+def kuramoto_gen_out(theta: Sequence[float], omega: Sequence[float],
+                     i: int, s: float, psi, ps, dt: float) -> float:
+    """Class C: the GENERAL-path Kuramoto-Sakaguchi Euler combine —
+    ``f = omega[i] + s``; ``+ ps[i] * sin(psi[i] - theta[i])`` when pinned;
+    ``theta[i] + dt * f``.
+
+    The shipped general-path output line, exiled to its own op instance
+    (:func:`kuramoto_step`'s general fallback CALLS it since v0.9.0rc420).
+    The ``psi is None`` (no-pinning) branch is descriptor-static and lives
+    INSIDE this op instance — the exile-to-op-instance pattern, not hidden
+    iteration. ``ps`` may be a length-``n`` sequence or a broadcast scalar.
+    """
+    theta_i = float(theta[i])
+    f = float(omega[i]) + s
+    if psi is not None:
+        p_i = float(ps[i]) if hasattr(ps, "__len__") else float(ps)
+        f += p_i * _rsin(float(psi[i]) - theta_i)
+    return float(theta_i + float(dt) * f)
 
 
 def kuramoto_step(
@@ -686,18 +800,23 @@ def kuramoto_step(
             return native
         # Python fallback — the SAME composition + the SAME coupling-sum index
         # order as the C peer (so same-platform results match to the last bit).
-        inv_n = (float(coupling) / n) if n > 0 else 0.0
-        h = float(dt)
+        # v0.9.0rc420 (`#T1114`): the per-(i, j) term and the per-i combine are
+        # the PUBLIC ops kuramoto_sin_term / kuramoto_out_simple and this loop
+        # CALLS them — the declared chain in kuramoto_step.toml and this
+        # fallback share one body (float() is idempotent on the pre-coerced
+        # phases, so the float-op order is unchanged; measured bit-identical,
+        # `#T1114` rung 4, 7/7).
+        inv_n = kuramoto_inv_n(coupling, n)
         out: List[float] = []
         for i in range(n):
-            theta_i = float(theta_list[i])
             coupling_sum = 0.0
             for j in range(n):
-                coupling_sum += _rsin(float(theta_list[j]) - theta_i)
+                coupling_sum += kuramoto_sin_term(theta_list, i, j)
             # Kuramoto phase step — float to match the native peer + List[float]
             # contract (the integrator is an FPU dynamical system; the sin
             # coupling flowed Q, collapsing at this per-step boundary).
-            out.append(float(theta_i + h * (float(omega_list[i]) + inv_n * coupling_sum)))
+            out.append(kuramoto_out_simple(theta_list, omega_list, i,
+                                           coupling_sum, inv_n, dt))
         return out
 
     # ── generalised path: validate + dispatch (native or Python) ──────────
@@ -737,26 +856,24 @@ def kuramoto_step(
     # Python fallback for the generalised step — SAME index order as the C
     # peer. No abs(): sin coupling (Class I/J) + Σ-reduce + Class-C Euler add;
     # the Sakaguchi α is a Class-C phase offset; pinning is a Class-C/M anchor.
-    k = float(coupling)
-    inv_n = (k / n) if n > 0 else 0.0
-    a = float(alpha)
-    h = float(dt)
+    # v0.9.0rc420 (`#T1114`): the per-(i, j) term (which carries the §32
+    # K·A_ij weight fix as a descriptor-static branch) and the per-i combine
+    # (which carries the psi-None branch) are the PUBLIC ops
+    # kuramoto_gen_term / kuramoto_gen_out and this loop CALLS them — the
+    # declared chain in kuramoto_step.toml and this fallback share one body
+    # (float() is idempotent on the pre-coerced rows/phases; measured
+    # bit-identical, `#T1114` rung 4, 4/4).
+    adj_rows = ([[adj_flat[i * n + j] for j in range(n)] for i in range(n)]
+                if adj_flat is not None else None)
+    inv_n = kuramoto_inv_n(coupling, n)
     out2: List[float] = []
     for i in range(n):
-        theta_i = float(theta_list[i])
         s = 0.0
         for j in range(n):
-            # §32 fix (v0.7.5rc15): the adjacency weight is SCALED by the global
-            # coupling scalar (effective weight = K·A_ij), matching the all-to-all
-            # branch (inv_n = K/n). coupling == 0 zeroes the term; coupling tunes
-            # global strength. Prior to rc15 this used the raw A_ij, so coupling
-            # had no effect on the adjacency path.
-            w = (k * adj_flat[i * n + j]) if adj_flat is not None else inv_n
-            s += w * _rsin(float(theta_list[j]) - theta_i - a)
-        f = float(omega_list[i]) + s
-        if psi is not None:
-            f += ps[i] * _rsin(psi[i] - theta_i)
-        out2.append(float(theta_i + h * f))    # float Kuramoto step (see above)
+            s += kuramoto_gen_term(theta_list, adj_rows, coupling, inv_n,
+                                   alpha, i, j)
+        out2.append(kuramoto_gen_out(theta_list, omega_list, i, s,
+                                     psi, ps, dt))
     return out2
 
 

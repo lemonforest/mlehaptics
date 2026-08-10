@@ -42,3 +42,49 @@ canonical_landings = [
   "feedback_sign_handling_is_class_k_pin_slot_not_alu_abs — no abs() inside cascade scripts",
   "docs/unsolved-maths/_cascade_helpers.py — original precursor",
 ]
+
+# ── rc420 (`#T1114`): the EXECUTABLE chain — ADR-0008 §2 (schema v2).
+# The measured 2-step idiom (rung 3, bit-identical 10/10 incl. -0.0/NaN/inf):
+# SELECT is soluble in-schema — the literal [1] indexer picks the magnitude
+# out of the pin-slot pair, and the identity reorient (orientation = 1)
+# carries it as the final step. No select op was needed (contrast: PACK was —
+# see best_rational_signed's Class-B pair step).
+[[cascade.chain]]
+chain_schema_version = 2
+summary = "Class-K decomposition: magnitude(x) IS pin_slot_at_zero(x)[1], carried by the identity Class-C reorient."
+returns = "float  # |x| as the Class-K pin-slot magnitude (NaN -> 0.0 dead-band)"
+
+[[cascade.chain.steps]]
+class = "K"
+op = "srmech.cascade.atoms.pin_slot_at_zero"
+args = { x = "@input.x" }
+
+[[cascade.chain.steps]]
+class = "C"
+op = "srmech.cascade.atoms.reorient"
+args = { value = "@step[0].output[1]", orientation = 1 }
+
+[[cascade.chain.proof_cases]]
+covers = "negative"
+inputs = { x = -3.5 }
+[[cascade.chain.proof_cases]]
+covers = "origin"
+inputs = { x = 0.0 }
+[[cascade.chain.proof_cases]]
+covers = "negative_zero"
+inputs = { x = -0.0 }
+[[cascade.chain.proof_cases]]
+covers = "nan_dead_band"
+inputs = { x = nan }
+[[cascade.chain.proof_cases]]
+covers = "inf"
+inputs = { x = inf }
+[[cascade.chain.proof_cases]]
+covers = "inf"
+inputs = { x = -inf }
+[[cascade.chain.proof_cases]]
+covers = "sweep"
+inputs = { x = 2.25 }
+[[cascade.chain.proof_cases]]
+covers = "sub_band_passthrough"
+inputs = { x = -1e-13 }

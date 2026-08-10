@@ -1097,6 +1097,27 @@ def describe() -> Dict[str, Any]:
     _class_routes = _list_domain_classes()
     _toml_total = sum(1 for r in _class_routes.values() if r == "toml")
 
+    # The cascade catalog (rc420, `#T1114` — CLOSES ADR-0012 clause C6).
+    # Measured at rc419: json.dumps(describe()) contained "cascade_catalog"
+    # ZERO times while the catalog shipped 20 descriptors inside the wheel —
+    # the largest measured instance of INCOMPLETE-IS-AS-BAD-AS-FALSE in the
+    # layer (§3.4: an agent holding only describe() could not get from a
+    # word problem to a cascade because the op → chain half of the bridge
+    # was unenumerable). rc420 makes every descriptor executable-or-LEAF
+    # and this section makes that state COUNTABLE at the root index: total /
+    # executable / leaf plus the per-descriptor status map. Guarded like
+    # the class catalog — a broken descriptor dir degrades to an empty
+    # report, never an import error at describe().
+    try:
+        from ..dsl._cascade_chain import (
+            cascade_catalog_status as _cascade_status_fn)
+        _cascade_status = dict(sorted(_cascade_status_fn().items()))
+    except Exception:  # pragma: no cover — cascade catalog optional/absent
+        _cascade_status = {}
+    _cascade_executable = sum(
+        1 for s in _cascade_status.values() if s == "executable")
+    _cascade_leaf = sum(1 for s in _cascade_status.values() if s == "leaf")
+
     # Carriers (rc298 `#936`) — the OPERAND nouns. The registry has a 100%
     # construction-example floor and a compiled-in C peer table, and before
     # rc298 describe() could not see it at all: the same mechanism-2 defect the
@@ -1400,6 +1421,25 @@ def describe() -> Dict[str, Any]:
             "names": sorted(_class_routes),
             "routes": dict(_class_routes),
             "toml_total": _toml_total,
+        },
+        # The cascade catalog (rc420, `#T1114` — ADR-0012 clause C6 closed).
+        # The 20 [cascade] descriptors were shipping inside the wheel with
+        # ZERO describe() visibility while the [class] catalog next door was
+        # counted — the measured asymmetry §3.4 names. Now the op → chain
+        # half of the word-problem bridge is enumerable at the root index:
+        # every descriptor is "executable" (declares a runnable ADR-0008 §2
+        # chain, proven bit-identical to its shipped op by the rc420 gate)
+        # or "leaf" (declares its own irreducibility with a reason). Run a
+        # declared chain via srmech.dsl.run_cascade_chain; enumerate detail
+        # via srmech.dsl.list_catalog_ops (which carries this status per
+        # row).
+        "cascade_catalog": {
+            "total": len(_cascade_status),
+            "executable": _cascade_executable,
+            "leaf": _cascade_leaf,
+            "status": _cascade_status,
+            "run": "srmech.dsl.run_cascade_chain",
+            "enumerate": "srmech.dsl.list_catalog_ops",
         },
         # Carriers (rc298 `#936`; capability-tagged rc339 `#T967`) — the operand
         # nouns to `tools`' verbs, each with what it can DO. `capabilities` is

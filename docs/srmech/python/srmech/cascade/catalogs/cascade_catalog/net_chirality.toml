@@ -49,3 +49,44 @@ canonical_landings = [
   "Spike #74 / #89 (Class C composition net-chirality)",
   "user_stance_endianness_is_class_c_on_bytes — Class C ⊂ Klein-4 ⊂ Spin(8) triality",
 ]
+
+# ── rc420 (`#T1114`): the EXECUTABLE chain — ADR-0008 §2 (schema v2).
+# ONE fold step (BLK-ITER-COMPOSE closed). The fold body is
+# orientation_compose, NOT bare reorient — measured at rc420: reorient's
+# orientation == 0 branch is a NO-OP, so a bare-reorient fold gives -1 on
+# [0, -1] where the shipped op's absorbing zero guard gives 0. The
+# zero-absorption branch exiles into the registered op instance, and the
+# fold of THAT body is value-identical to the shipped op (the short-circuit
+# is a cost optimisation, not a semantic one, once the body absorbs).
+[[cascade.chain]]
+chain_schema_version = 2
+summary = "Class-C catamorphism: fold orientation_compose over the orientations from the +1 seed."
+returns = "int  # +1 / -1 / 0 — the net handedness"
+
+[[cascade.chain.steps]]
+fold_class = "C"
+fold_op = "srmech.cascade.leaves.orientation_compose"
+fold_init = 1
+over = "@input.orientations"
+
+[[cascade.chain.proof_cases]]
+covers = "empty"
+inputs = { orientations = [] }
+[[cascade.chain.proof_cases]]
+covers = "single_zero"
+inputs = { orientations = [0] }
+[[cascade.chain.proof_cases]]
+covers = "single_zero"
+inputs = { orientations = [0, -1] }
+[[cascade.chain.proof_cases]]
+covers = "single_zero"
+inputs = { orientations = [-1, 0, -1] }
+[[cascade.chain.proof_cases]]
+covers = "sweep"
+inputs = { orientations = [-1, -1] }
+[[cascade.chain.proof_cases]]
+covers = "sweep"
+inputs = { orientations = [1, -1, 1] }
+[[cascade.chain.proof_cases]]
+covers = "sweep"
+inputs = { orientations = [-1, -1, -1, 1] }

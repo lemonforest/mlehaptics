@@ -49,7 +49,7 @@ MANIFEST = Path(__file__).resolve().parent / "registered_op_names.txt"
 #: rc361 until rc410 (`#T1085`) — stale by 40 ops, in a comment whose only job
 #: was to show the CURRENT value, sitting two lines above the real one. Written
 #: symbolically now so it cannot go stale a second time.)
-EXPECTED_N = 569
+EXPECTED_N = 598  # rc420 (local task T1114): 569 -> 598, the 29 cascade-catalog leaf-inventory + runner registrations
 
 #: sha256 over the NORMALISED manifest body — "\n".join(sorted names) + "\n",
 #: UTF-8. Normalised rather than raw-file-bytes so a CRLF checkout cannot make
@@ -136,7 +136,7 @@ EXPECTED_N = 569
 # unsupported). These are the FIRST nine signal_processing rows in the registry.
 # 560 -> 569, digest below.
 EXPECTED_NAME_SET_SHA256 = (
-    "5c552a15f7c2aa5a90ebe756da17a2c64741b09a3794a0ed2f5fba6d3770457d")
+    "d8dc87f552eab81241b98fbae32fac46bcfff6d0ebb561eee72752c75f39433f")
 
 
 def _live_names() -> list[str]:

@@ -51,7 +51,21 @@ SSOT_CITATION = (
 
 
 def _abs(x: float) -> float:
-    """Class-K sign-branch magnitude (no ALU ``abs()``)."""
+    """Class-K sign-branch magnitude (no ALU ``abs()``) — and deliberately
+    NOT the shipped :func:`srmech.cascade.magnitude`.
+
+    rc420 (`#T1120`) adjudication, MEASURED: the shipped ``magnitude`` maps
+    NaN to ``0.0`` (its documented Class-K dead-band contract), while this
+    branch PROPAGATES NaN (``NaN >= 0.0`` is False, so ``-NaN`` → still
+    NaN). All four call sites below are CONVERGENCE / THRESHOLD guards
+    (``_abs(num) + _abs(den) < 1e-15``, ``_abs(theta) < tol``, the
+    ``off`` accumulation) — under the shipped op a NaN mid-sweep would be
+    silently read as ``0.0 < tol`` and the sweep would report CONVERGED on
+    garbage, converting a loud failure into a silent wrong answer (the top
+    defect class). ``-0.0`` also differs bitwise (this branch returns
+    ``-0.0``; the shipped op returns ``0.0``) though never by value at
+    these compare-only sites. So the helper stays: the difference is a
+    CONTRACT (NaN dead-band), not a re-roll."""
     return x if x >= 0.0 else -x
 
 

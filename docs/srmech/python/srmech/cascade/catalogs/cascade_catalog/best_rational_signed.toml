@@ -120,3 +120,79 @@ canonical_landings = [
   "Python Language Reference §6.13 (built-in round()) — banker's-rounding semantics the C peer matches via its libm-free round-half-to-even branch (formerly llrint() / FE_TONEAREST)",
   "IEEE 754-2008 §4.3.1 — roundTiesToEven (the FE_TONEAREST default mode)",
 ]
+
+# ── rc420 (`#T1114`): the EXECUTABLE chain — ADR-0008 §2 (schema v2).
+# The rung-1/rung-3 5-step chain (219/219 bit-identical with external stubs)
+# with its two stubs now REGISTERED (scale_round_half_even — BLK-N-SCALE-ROUND;
+# pair — BLK-FRAMING), PLUS the Class-K dead_band step the naive chain lacked:
+# measured at rc420, without it the chain diverges from the shipped op in the
+# (sub-dead-band magnitude x huge fine_scale x huge max_denominator) corner —
+# the shipped _ZERO_BAND branch is real, so the declared chain carries it.
+[[cascade.chain]]
+chain_schema_version = 2
+summary = "The full K∘N∘C cascade as steps: pin-slot -> dead-band -> banker's scale-round -> best_rational -> reorient -> pair."
+returns = "tuple[int, int]  # (signed_numerator, positive_denominator)"
+
+[[cascade.chain.steps]]
+class = "K"
+op = "srmech.cascade.atoms.pin_slot_at_zero"
+args = { x = "@input.x" }
+
+[[cascade.chain.steps]]
+class = "K"
+op = "srmech.cascade.leaves.dead_band"
+args = { value = "@step[0].output[1]", band = 1e-12 }
+
+[[cascade.chain.steps]]
+class = "N"
+op = "scale_round_half_even"
+args = { value = "@step[1].output", scale = "@input.fine_scale" }
+
+[[cascade.chain.steps]]
+class = "N"
+op = "best_rational"
+args = { numerator = "@step[2].output", denominator = "@input.fine_scale", max_denominator = "@input.max_denominator" }
+
+[[cascade.chain.steps]]
+class = "C"
+op = "srmech.cascade.atoms.reorient"
+args = { value = "@step[3].output[0]", orientation = "@step[0].output[0]" }
+
+[[cascade.chain.steps]]
+class = "B"
+op = "srmech.cascade.leaves.pair"
+args = { first = "@step[4].output", second = "@step[3].output[1]" }
+
+[[cascade.chain.proof_cases]]
+covers = "sweep"
+inputs = { x = 3.14159265358979, fine_scale = 1000000, max_denominator = 100 }
+[[cascade.chain.proof_cases]]
+covers = "negative_input"
+inputs = { x = -3.14159265358979, fine_scale = 1000000, max_denominator = 100 }
+[[cascade.chain.proof_cases]]
+covers = "origin"
+inputs = { x = 0.0, fine_scale = 1000000, max_denominator = 100 }
+[[cascade.chain.proof_cases]]
+covers = "origin"
+inputs = { x = -0.0, fine_scale = 1000000, max_denominator = 100 }
+[[cascade.chain.proof_cases]]
+covers = "nan"
+inputs = { x = nan, fine_scale = 1000000, max_denominator = 100 }
+[[cascade.chain.proof_cases]]
+covers = "sub_dead_band"
+inputs = { x = 5e-13, fine_scale = 1000000, max_denominator = 100 }
+[[cascade.chain.proof_cases]]
+covers = "sub_dead_band"
+# The rc420 dead-band corner: fine_scale + max_denominator large enough that
+# a chain WITHOUT the Class-K dead_band step would return (1, 2000000000000)
+# where the shipped op's _ZERO_BAND branch returns (0, 1).
+inputs = { x = 5e-13, fine_scale = 10000000000000, max_denominator = 1000000000000 }
+[[cascade.chain.proof_cases]]
+covers = "boundary_half"
+inputs = { x = 5e-7, fine_scale = 1000000, max_denominator = 100 }
+[[cascade.chain.proof_cases]]
+covers = "boundary_half"
+inputs = { x = 1.5e-6, fine_scale = 1000000, max_denominator = 100 }
+[[cascade.chain.proof_cases]]
+covers = "sweep"
+inputs = { x = -0.6180339887498949, fine_scale = 1000000, max_denominator = 50 }

@@ -29,8 +29,24 @@ TESTDIR := test
 SRCS := $(filter-out $(SRCDIR)/.gitkeep,$(wildcard $(SRCDIR)/*.c))
 OBJS := $(patsubst $(SRCDIR)/%.c,$(BUILD)/%.o,$(SRCS))
 
+# rc420 (`#T1117`): compiler-generated HEADER DEPENDENCIES. Until this rc the
+# pattern rule below depended on the .c file ONLY, so editing
+# include/srmech.h — which every source includes, and which carries
+# SRMECH_VERSION / SRMECH_ABI_VERSION — recompiled NOTHING: a version bump
+# left a stale srmech_meta.o reporting the OLD version string while Python
+# reported the new one (15 phantom failures at rc419), and any header-only
+# struct/ABI change could silently fail to propagate. `-MMD -MP` makes each
+# compile emit a .d makefile fragment naming every non-system header the
+# object actually read; `-include` splices them in (first build: none exist,
+# nothing to include — correct, everything compiles anyway). GNU-make +
+# gcc/clang syntax, which is this Makefile's whole audience: MSVC builds go
+# through CMake (the pedantic-matrix Windows cell runs cmake, never this
+# file). VERIFIED BY THE FAILING CASE: bump only the header version, run
+# plain `make lib`, the rebuilt library reports the NEW version.
+DEPFLAGS := -MMD -MP
+DEPS     := $(OBJS:.o=.d)
+
 LIB     := $(BUILD)/libsrmech.a
-TESTBIN := $(BUILD)/test_srmech
 
 .PHONY: all lib test parity clean
 
@@ -46,7 +62,9 @@ $(LIB): $(OBJS) | $(BUILD)
 	fi
 
 $(BUILD)/%.o: $(SRCDIR)/%.c | $(BUILD)
-	$(CC) $(CFLAGS) -I$(INCDIR) -c $< -o $@
+	$(CC) $(CFLAGS) $(DEPFLAGS) -I$(INCDIR) -c $< -o $@
+
+-include $(DEPS)
 
 $(BUILD):
 	@mkdir -p $@

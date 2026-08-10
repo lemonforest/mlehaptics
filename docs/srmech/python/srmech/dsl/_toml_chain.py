@@ -86,9 +86,10 @@ from ._chain import Chain, chain as _chain_factory
 _RESERVED_STAGE_KEYS = frozenset({
     "op",
     "loop_n", "sub_chain",
-    "fold_init", "fold_op",
+    "fold_init", "fold_op", "fold_args",
     "reduce_op",
     "parallel_body", "n_sectors", "combine",
+    "map_op",
 })
 
 
@@ -226,17 +227,19 @@ def _apply_stage_to_chain(
     has_fold = "fold_init" in stage or "fold_op" in stage
     has_reduce = "reduce_op" in stage
     has_parallel = "parallel_body" in stage
-    chosen = sum([has_op, has_loop, has_fold, has_reduce, has_parallel])
+    has_map = "map_op" in stage
+    chosen = sum([has_op, has_loop, has_fold, has_reduce, has_parallel,
+                  has_map])
     if chosen == 0:
         raise ValueError(
             f"stage {idx} has no discriminator; expected one of "
             f"`op`, `loop_n`+`sub_chain`, `fold_init`+`fold_op`, "
-            f"`reduce_op`, or `parallel_body`"
+            f"`reduce_op`, `parallel_body`, or `map_op`"
         )
     if chosen > 1:
         raise ValueError(
             f"stage {idx} has multiple discriminators "
-            f"(op / loop_n / fold_op / reduce_op / parallel_body); "
+            f"(op / loop_n / fold_op / reduce_op / parallel_body / map_op); "
             f"pick exactly one"
         )
 
@@ -293,7 +296,30 @@ def _apply_stage_to_chain(
                 f"stage {idx} `fold_op` must be a string; got "
                 f"{type(fold_op).__name__}"
             )
-        ch.fold(stage["fold_init"], fold_op, **kwargs)
+        # rc420 (`#T1114` fold-contract fix): `fold_args = ["value",
+        # "orientation"]` names the two fold slots as KWARGS so a kw-only
+        # binary op (the shipped reorient) binds from TOML too.
+        fold_args = stage.get("fold_args")
+        if fold_args is not None:
+            if (not isinstance(fold_args, list) or len(fold_args) != 2
+                    or not all(isinstance(a, str) for a in fold_args)):
+                raise ValueError(
+                    f"stage {idx} `fold_args` must be a pair of kwarg "
+                    f"names [acc_name, elem_name]; got {fold_args!r}"
+                )
+            fold_args = (fold_args[0], fold_args[1])
+        ch.fold(stage["fold_init"], fold_op, arg_names=fold_args, **kwargs)
+        return
+
+    if has_map:
+        map_op = stage["map_op"]
+        if not isinstance(map_op, str):
+            raise ValueError(
+                f"stage {idx} `map_op` must be a string (the NAME of a "
+                f"data-first body op `body(input_seq, k)`); got "
+                f"{type(map_op).__name__}"
+            )
+        ch.map_indexed(map_op, **kwargs)
         return
 
     if has_reduce:

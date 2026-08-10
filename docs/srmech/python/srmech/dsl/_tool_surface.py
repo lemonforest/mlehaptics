@@ -103,18 +103,26 @@ def list_catalog_ops() -> List[Dict[str, str]]:
     list[dict]
         ``[{"name": str, "class": <A–N class composition>, "purpose":
         str, "kind": "stage" | "combinator", "provenance": "srmech" |
-        "user"}, ...]``, sorted ascending by ``name``. Includes the 11
-        shipped ops (the 8 lean-ISA atoms/composites + the v0.7.0rc8
-        autocorrelation + the v0.6.0 parallel_sector_dispatch + kuramoto_step)
-        PLUS any bring-your-own
+        "user", "status": "executable" | "leaf" | "undeclared"}, ...]``,
+        sorted ascending by ``name``. Includes the 20 shipped
+        cascade_catalog descriptors PLUS any bring-your-own
         ops from a registered catalog dir (F289 D2). ``kind`` is the DSL
         role: ``"stage"`` = a plain ``op=`` value→value stage;
         ``"combinator"`` = a higher-order special form (``parallel_sector_dispatch``)
         driven by its own discriminator (the ``parallel`` fan-out), NOT
         usable as a plain ``op=`` stage. ``provenance`` is the MPM tier:
         ``"srmech"`` (A-tier shipped) or ``"user"`` (B-tier, attested to the
-        user's own descriptor — a bring-your-own op).
+        user's own descriptor — a bring-your-own op). ``status`` (rc420,
+        `#T1114` / ADR-0012 C6) is the descriptor's executable state:
+        ``"executable"`` = declares a runnable ADR-0008 §2
+        ``[[cascade.chain]]`` (run it via
+        :func:`srmech.dsl.run_cascade_chain`; the rc420 gate proves it
+        bit-identical to the shipped op), ``"leaf"`` = declares its own
+        irreducibility with a machine-readable reason; every SHIPPED
+        descriptor is one of those two (``"undeclared"`` can only appear
+        on a bring-your-own descriptor that predates the convention).
     """
+    from ._cascade_chain import descriptor_status
     out: List[Dict[str, str]] = []
     for name in list_cascade_ops():
         desc = get_descriptor(name)
@@ -133,6 +141,9 @@ def list_catalog_ops() -> List[Dict[str, str]]:
             # (a bring-your-own catalog-dir op, attested to its own
             # descriptor hash, NOT a shipped primitive; F289 D2).
             "provenance": "srmech" if prov == "srmech" else "user",
+            # rc420 (`#T1114`): the cascade_catalog executable state —
+            # the per-descriptor half of describe()["cascade_catalog"].
+            "status": descriptor_status(desc),
         })
     return out
 
@@ -148,11 +159,16 @@ def list_ops(*, source_keys: Any = None) -> List[Dict[str, str]]:
     ``kind`` + ``provenance`` so an LLM / CLI sees the whole authorable surface
     in one call.
 
-    Each record is ``{"name", "class", "purpose", "kind", "provenance"}``:
+    Every record carries ``{"name", "class", "purpose", "kind",
+    "provenance"}``; cascade-op records additionally carry the rc420
+    ``status`` key they inherit from :func:`list_catalog_ops` (a
+    catalog-chain is not a cascade_catalog descriptor, so the
+    executable/leaf axis does not apply to it):
 
-    * **cascade-ops** — every :func:`list_catalog_ops` record, with its existing
-      ``kind`` (``"stage"`` / ``"combinator"``) and ``provenance``
-      (``"srmech"`` A-tier / ``"user"`` B-tier BYO).
+    * **cascade-ops** — every :func:`list_catalog_ops` record VERBATIM
+      (including ``status``), with its existing ``kind`` (``"stage"`` /
+      ``"combinator"``) and ``provenance`` (``"srmech"`` A-tier /
+      ``"user"`` B-tier BYO).
     * **catalog-chains** — for each registered attested source (or each key in
       ``source_keys``), every declared chain, tagged ``kind="catalog-chain"``
       and ``provenance=f"catalog:{source_key}"`` (``class`` = the chain's A–N

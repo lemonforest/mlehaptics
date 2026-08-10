@@ -150,16 +150,40 @@ def test_exactly_one_native_first_toml_parse_floor() -> None:
 
 # ── deduped surfaces == srmech._toml.loads == tomllib, native + pure ─────────
 
+def _deep_equal(a, b) -> bool:
+    """Byte-identical-parse equality — the verb dict ``==`` cannot be.
+
+    rc420 (`#T1114`): the cascade-catalog proof cases legitimately carry IEEE
+    special floats (``x = nan`` is a DOCUMENTED best_rational_signed boundary
+    case), and under ``==`` a parse containing NaN can NEVER equal its oracle
+    — both parsers agreed bit-for-bit and the old assert still fired, a false
+    red from the comparison verb, not the parsers. Floats therefore compare
+    by their 8 BYTES: NaN equals the same NaN, and ``-0.0`` is DISTINCT from
+    ``0.0`` — which is STRICTER than ``==`` on the signed-zero axis, i.e. the
+    honest spelling of the docstring's "byte-identical dicts" claim.
+    """
+    if isinstance(a, float) or isinstance(b, float):
+        import struct
+        return (isinstance(a, float) and isinstance(b, float)
+                and struct.pack("<d", a) == struct.pack("<d", b))
+    if isinstance(a, dict) and isinstance(b, dict):
+        return set(a) == set(b) and all(_deep_equal(a[k], b[k]) for k in a)
+    if isinstance(a, list) and isinstance(b, list):
+        return len(a) == len(b) and all(
+            _deep_equal(x, y) for x, y in zip(a, b))
+    return type(a) is type(b) and a == b
+
+
 def _assert_corpus_parity() -> None:
     for p in _corpus():
         text = _read(p)
         oracle = _stdlib_toml.loads(text)
         # (a) the deduped file surface
-        assert _toml_chain.load_chain_toml(p) == oracle, (
+        assert _deep_equal(_toml_chain.load_chain_toml(p), oracle), (
             f"load_chain_toml diverged from tomllib for {p.name}")
         # (b) the deduped in-memory surface — build a Chain from a chain-spec is
         # tested elsewhere; here we prove the PARSE step (front door) matches.
-        assert srmech_toml_frontdoor.loads(text) == oracle, (
+        assert _deep_equal(srmech_toml_frontdoor.loads(text), oracle), (
             f"srmech._toml.loads diverged from tomllib for {p.name}")
 
 

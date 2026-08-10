@@ -1000,6 +1000,54 @@ static srmech_status_t toml_parse_number(toml_parser_t *p,
     return SRMECH_OK;
 }
 
+/* Match a TOML 1.0 SPECIAL FLOAT (`inf` / `nan`, optionally signed) at
+ * p->i (rc420, `#T1114`). The cascade-catalog descriptors' proof cases
+ * carry the DOCUMENTED NaN / infinity boundary inputs (`x = nan` in
+ * best_rational_signed.toml, `x = inf` in magnitude.toml), so the shipped
+ * corpus now exercises the special-float grammar this tokenizer lacked —
+ * the rc391/rc397 corpus gates rightly treat a DECLINE as a regression.
+ * Bit-exact with the tomllib oracle: `nan`/`+nan` -> the positive quiet
+ * NaN 0x7ff8000000000000, `-nan` -> its sign-flipped twin, `inf`/`+inf`/
+ * `-inf` -> the IEEE infinities. The literal must be TERMINATED (not the
+ * prefix of a longer bare token); anything else is left untouched for
+ * toml_parse_number to adjudicate. */
+static bool toml_parse_special_float(toml_parser_t *p,
+                                     srmech_toml_value_t *out)
+{
+    assert(p != NULL);
+    assert(out != NULL);
+    size_t j = p->i;
+    bool neg = false;
+    uint64_t bits;
+    double f;
+    if (j < p->n && (p->s[j] == '+' || p->s[j] == '-')) {
+        neg = (p->s[j] == '-');
+        j++;
+    }
+    if (p->n - j < 3u) {
+        return false;
+    }
+    if (strncmp(p->s + j, "inf", 3u) == 0) {
+        bits = (uint64_t)0x7ff0000000000000ULL;
+    } else if (strncmp(p->s + j, "nan", 3u) == 0) {
+        bits = (uint64_t)0x7ff8000000000000ULL;
+    } else {
+        return false;
+    }
+    j += 3u;
+    if (j < p->n && toml_is_bare_key_char(p->s[j])) {
+        return false;                /* prefix of a longer token — not ours */
+    }
+    if (neg) {
+        bits |= (uint64_t)1u << 63;
+    }
+    memcpy(&f, &bits, sizeof f);
+    out->type = SRMECH_TOML_FLOAT;
+    out->u.f = f;
+    p->i = j;
+    return true;
+}
+
 /* Match the literal `lit` at p->i; on success advance past it. */
 static bool toml_match_literal(toml_parser_t *p, const char *lit)
 {
@@ -1322,6 +1370,9 @@ static srmech_status_t toml_parse_value(toml_parser_t *p,
     if (toml_match_literal(p, "false")) {
         out->type = SRMECH_TOML_BOOL;
         out->u.b = 0;
+        return SRMECH_OK;
+    }
+    if (toml_parse_special_float(p, out)) {   /* rc420: inf / nan (signed) */
         return SRMECH_OK;
     }
     return toml_parse_number(p, out);

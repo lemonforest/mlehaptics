@@ -233,7 +233,9 @@ def test_parse_catalog_chains_rejects_unsupported_version():
             ])],
         },
     }
-    with pytest.raises(compose.ChainSpecError, match="implements v1"):
+    # rc420 (`#T1114`): the engine implements (1, 2) — v2 is a strict
+    # superset of v1 — so the rejection names the supported TUPLE now.
+    with pytest.raises(compose.ChainSpecError, match="implements \\(1, 2\\)"):
         compose.parse_catalog_chains(toml)
 
 

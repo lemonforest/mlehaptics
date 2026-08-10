@@ -87,3 +87,61 @@ canonical_landings = [
   "feedback_c_python_co_equal_parity_not_callback — the C peer srmech_autocorrelation_f64 is a standalone symbol (direct O(n²) sum); C never calls back into Python",
   "R-RBS-LM F290 §C — the 'un-flatten' catalog composite (autocorr -> difference-graph -> conservation-validate) this primitive unblocks",
 ]
+
+# ── rc420 (`#T1114`): the EXECUTABLE chain — ADR-0008 §2 (schema v2).
+# BLK-ITER-INDEXED closed by the indexed-map form (measured 9/9 bit-identical
+# at rung 4): the outer map ranges the lags k, the inner map ranges i, the
+# (i + k) mod n index arithmetic runs on the REGISTERED Class-I mod_add, the
+# per-pair product is the registered correlation_product (the SAME body the
+# shipped fallback calls since rc420), and the per-bin Σ is the registered
+# compensated_sum. PURE-projection equivalence: the descriptor's own parity
+# field says the C peer is FFT-round-off tolerance, not bit-exact.
+[[cascade.chain]]
+chain_schema_version = 2
+summary = "Circular autocorrelation as an indexed map of indexed maps: out[k] = compensated_sum(x[i] * x[(i+k) mod n])."
+returns = "list[float]  # length n; out[0] is the signal energy"
+
+[[cascade.chain.steps]]
+class = "B"
+op = "srmech.cascade.leaves.seq_len"
+args = { seq = "@input.x" }
+
+[[cascade.chain.steps]]
+map_over = "@input.x"
+index = "k"
+bind = { x = "@input.x", n = "@step[0].output" }
+
+[[cascade.chain.steps.body]]
+map_over = "@bind.x"
+index = "i"
+
+[[cascade.chain.steps.body.body]]
+class = "I"
+op = "mod_add"
+args = { a = "@idx.i", b = "@idx.k", n = "@bind.n" }
+
+[[cascade.chain.steps.body.body]]
+class = "L"
+op = "srmech.cascade.composites.correlation_product"
+args = { x = "@bind.x", i = "@idx.i", j = "@step[0].output" }
+
+[[cascade.chain.steps.body]]
+class = "M"
+op = "srmech.cascade.composites.compensated_sum"
+args = { values = "@step[0].output" }
+
+[[cascade.chain.proof_cases]]
+covers = "n_zero"
+inputs = { x = [] }
+[[cascade.chain.proof_cases]]
+covers = "n_one"
+inputs = { x = [3.0] }
+[[cascade.chain.proof_cases]]
+covers = "sweep"
+inputs = { x = [1.0, -2.0, 3.0, 0.5] }
+[[cascade.chain.proof_cases]]
+covers = "periodicity"
+inputs = { x = [1.0, 2.0, 3.0, 4.0, 5.0] }
+[[cascade.chain.proof_cases]]
+covers = "compensation"
+inputs = { x = [10000000000.0, 1.0, -10000000000.0, 2.0, 3.0] }

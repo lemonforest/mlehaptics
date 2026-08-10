@@ -246,9 +246,15 @@ def hypercomplex_exp(theta: float, k_axes: int) -> Tuple["_Q", ...]:
     return tuple(_Q(v, _Q61_ONE) for v in ints)
 
 
-def _as8(vec) -> List[float]:
-    """Coerce a 4- or 8-component quaternion/octonion sample to an 8-vector
-    ``list[float]`` (numpy-free)."""
+def as_oct8(vec) -> List[float]:
+    """Class M: coerce a 4- or 8-component quaternion/octonion sample to an
+    8-vector ``list[float]`` (numpy-free) — a quaternion is zero-extended
+    into ``ℍ ⊂ 𝕆``.
+
+    The per-sample coercion step of :func:`octonion_dft` (public since
+    v0.9.0rc420 so the ``octonion_dft.toml`` declared chain's elementwise
+    coercion map names a registered op — the `#T1114` BLK-REGMAP
+    resolution)."""
     a = [float(x) for x in vec]
     n = len(a)
     if n == 4:
@@ -259,6 +265,11 @@ def _as8(vec) -> List[float]:
         f"hypercomplex sample must have 4 (quaternion) or 8 (octonion) "
         f"components; got {n}"
     )
+
+
+#: Private spelling kept for the module's own internal call sites; the op
+#: itself is the public :func:`as_oct8` (v0.9.0rc420).
+_as8 = as_oct8
 
 
 def _resolve_mu(mu_axis, *, octonion) -> List[float]:
@@ -417,41 +428,24 @@ def _odft_composed(xs: List[List[float]], form: str, bracketing: str,
     Float-op order MIRRORS the C peer exactly (twiddle → operator matrix →
     row-dot left-to-right → per-summand term → accumulate over m → one final
     scale; the two-sided form applies the DECLARED bracketing order), so the
-    two paths are byte-exact — the parity contract, not a tolerance."""
-    from srmech.physics.qm.octonion import (
-        _twiddle_resolved,
-        octonion_left_mult,
-        octonion_right_mult,
-    )
+    two paths are byte-exact — the parity contract, not a tolerance.
+
+    v0.9.0rc420 (`#T1114`): the per-``(k, m)`` inner body is the PUBLIC op
+    :func:`odft_summand` and this loop CALLS it — the declared chain in
+    ``octonion_dft.toml`` and this composed path share one body, so their
+    bit-identity is structural, not parallel-maintained. The accumulate is
+    the :func:`srmech.cascade.leaves.vec_add` left-fold order and the scale
+    is :func:`srmech.cascade.leaves.vec_scale` — same float-op order as the
+    pre-rc420 inline loop (``0.0 + t == t``, then identical add order)."""
     n_pts = len(xs)
-    sigma = 1 if inverse else -1
-    scale = (1.0 / float(n_pts)) if inverse else 1.0
-    two_sided = form == "two_sided"
-    left = form == "left"
-    left_assoc = bracketing == "left_associated"
+    sigma = dft_sigma(inverse)
+    scale = dft_scale(inverse, n_pts)
     out: List[List[float]] = []
     for k in range(n_pts):
         acc = [0.0] * _ODIM
         for m in range(n_pts):
-            w = _twiddle_resolved(k, m, n_pts, sigma, mu_hat)
-            if two_sided:
-                # The DECLARED bracketing (the attested field, F378): the
-                # 3-factor product W_l · x · W_r needs an association order.
-                w_r = _twiddle_resolved(k, m, n_pts, sigma, mu_r_hat)
-                if left_assoc:                     # (W_l · x) · W_r
-                    inner = _odft_matvec8(octonion_left_mult(w).tolist(),
-                                          xs[m])
-                    term = _odft_matvec8(octonion_right_mult(w_r).tolist(),
-                                         inner)
-                else:                              # W_l · (x · W_r)
-                    inner = _odft_matvec8(octonion_right_mult(w_r).tolist(),
-                                          xs[m])
-                    term = _odft_matvec8(octonion_left_mult(w).tolist(),
-                                         inner)
-            elif left:                             # W · x  (one product)
-                term = _odft_matvec8(octonion_left_mult(w).tolist(), xs[m])
-            else:                                  # x · W  (one product)
-                term = _odft_matvec8(octonion_right_mult(w).tolist(), xs[m])
+            term = odft_summand(xs, k, m, n_pts, form, bracketing,
+                                sigma, mu_hat, mu_r_hat)
             for i in range(_ODIM):
                 acc[i] += term[i]
         out.append([acc[i] * scale for i in range(_ODIM)])
@@ -475,12 +469,17 @@ _C_DBLP = ctypes.POINTER(ctypes.c_double)
 _QDFT_N_MAX = 2 ** 32
 
 
-def _as_quat4(v) -> List[float]:
-    """Coerce one QDFT sample to a plain 4-list (numpy-free).
+def as_quat4(v) -> List[float]:
+    """Class M: coerce one QDFT sample to a plain 4-list (numpy-free).
 
     Accepts a 4-component quaternion or the rc31 octonion-embedded 8-vector
     form with ``e4..e7 == 0`` (a nonzero tail would silently leak ℍ, so it
-    raises — the same guard the composite tier enforced)."""
+    raises — the same guard the composite tier enforced).
+
+    The per-sample coercion step of :func:`quaternion_dft` (public since
+    v0.9.0rc420 so the ``quaternion_dft.toml`` declared chain's elementwise
+    coercion map names a registered op — the `#T1114` BLK-REGMAP
+    resolution)."""
     a = [float(c) for c in v]
     n = len(a)
     if n == 4:
@@ -499,7 +498,12 @@ def _as_quat4(v) -> List[float]:
     )
 
 
-def _resolve_mu4_qdft(mu_axis) -> List[float]:
+#: Private spelling kept for the module's own internal call sites; the op
+#: itself is the public :func:`as_quat4` (v0.9.0rc420).
+_as_quat4 = as_quat4
+
+
+def qdft_resolve_mu(mu_axis) -> List[float]:
     """Resolve the QDFT axis to a UNIT pure-imaginary 4-list ``μ̂`` — ONCE per
     public call, so the native and composed paths consume the identical floats
     (the rc109 one-resolution parity contract).
@@ -537,6 +541,137 @@ def _resolve_mu4_qdft(mu_axis) -> List[float]:
     if v[1] == 0.0 and v[2] == 0.0 and v[3] == 0.0:
         raise ValueError("mu_axis must be a non-zero pure-imaginary vector")
     return _quat._resolve_mu4(v, "quaternion_dft")
+
+
+#: Private spelling kept for the module's own internal call sites; the op
+#: itself is the public :func:`qdft_resolve_mu` (v0.9.0rc420).
+_resolve_mu4_qdft = qdft_resolve_mu
+
+
+def odft_resolve_mu(mu_axis) -> List[float]:
+    """Resolve an ODFT axis to a UNIT pure-imaginary 8-list ``μ̂`` — ONCE per
+    public call (the one-resolution parity contract, mirroring
+    :func:`qdft_resolve_mu`). Delegates to the qm.octonion resolver with the
+    ``octonion_dft`` op label, so error messages name the public op.
+
+    Public since v0.9.0rc420 so the ``octonion_dft.toml`` declared chain's
+    axis-resolution steps name a registered op (`#T1114` BLK-REGMAP)."""
+    from srmech.physics.qm import octonion as _oct
+    return _oct._resolve_mu8(mu_axis, "octonion_dft")
+
+
+def dft_sigma(inverse: bool) -> int:
+    """Class C: the hypercomplex-DFT twiddle sign convention —
+    ``+1`` for the inverse transform, ``-1`` forward.
+
+    The ``sigma = 1 if inverse else -1`` line of both composed DFT paths,
+    exiled to its own op instance (a descriptor-static branch) so the
+    declared chains carry it as a named Class-C orientation step. The sign
+    IS the transform's Class-C which-way: it decides whether the twiddle
+    walks the phase circle forward or backward."""
+    return 1 if inverse else -1
+
+
+def dft_scale(inverse: bool, n: int) -> float:
+    """Class N: the hypercomplex-DFT output scale — ``1/n`` for the inverse
+    transform (``n > 0``), else ``1.0``.
+
+    The ``scale = (1.0 / float(n_pts)) if inverse else 1.0`` line of both
+    composed DFT paths, exiled to its own op instance. The ``n > 0`` guard
+    mirrors the public wrappers' ``if not xs: return []`` early return
+    (wrapper-layer, not iteration-layer), so the op is total on ``n >= 0``."""
+    return (1.0 / float(n)) if (inverse and n > 0) else 1.0
+
+
+def qdft_summand(xs, k: int, m: int, n: int, left: bool, sigma: int,
+                 mu_hat) -> List[float]:
+    """Class M: ONE ``(k, m)`` summand of the QDFT —
+    ``W(σ·2πkm/n) · x[m]`` (left form) or ``x[m] · W`` (right form).
+
+    Twiddle → 4×4 operator → row-dot accumulated left-to-right: the exact
+    float-op order of the composed path's inner loop (which CALLS this op
+    since v0.9.0rc420 — the chain and the shipped op share one body). The
+    ``k``/``m`` iteration itself stays OUTSIDE this op, in the chain's
+    indexed-map combinator layer — this op is pointwise and total.
+
+    Args:
+        xs: the coerced sample list (each a 4-list; see :func:`as_quat4`).
+        k: output bin index.
+        m: input sample index.
+        n: the transform length (``len(xs)``, fixed at entry).
+        left: ``True`` for the left form (twiddle multiplies on the left).
+        sigma: the :func:`dft_sigma` sign convention.
+        mu_hat: the resolved unit axis (see :func:`qdft_resolve_mu`).
+
+    Returns:
+        The 4-component summand term for output bin ``k``.
+    """
+    from srmech.physics.qm.quaternion import (
+        _twiddle_resolved,
+        quaternion_left_mult,
+        quaternion_right_mult,
+    )
+    w = _twiddle_resolved(k, m, n, sigma, mu_hat)
+    op = quaternion_left_mult(w) if left else quaternion_right_mult(w)
+    rows = op.tolist()
+    xm = xs[m]
+    out = []
+    for i in range(_QDIM):
+        t = 0.0
+        for c in range(_QDIM):
+            t += rows[i][c] * xm[c]
+        out.append(t)
+    return out
+
+
+def odft_summand(xs, k: int, m: int, n: int, form: str, bracketing: str,
+                 sigma: int, mu_hat, mu_r_hat) -> List[float]:
+    """Class M: ONE ``(k, m)`` summand of the ODFT — the exact float-op
+    order of the composed path's inner loop (which CALLS this op since
+    v0.9.0rc420), including the DECLARED two-sided bracketing order (F378).
+
+    The ``form`` / ``bracketing`` branches are descriptor-static and live
+    INSIDE this op instance (the exile discipline); the ``k``/``m``
+    iteration stays outside, in the chain's indexed-map combinator layer —
+    this op is pointwise and total.
+
+    Args:
+        xs: the coerced sample list (each an 8-list; see :func:`as_oct8`).
+        k: output bin index.
+        m: input sample index.
+        n: the transform length (``len(xs)``, fixed at entry).
+        form: ``"left"`` / ``"right"`` / ``"two_sided"``.
+        bracketing: ``"left_associated"`` / ``"right_associated"`` (the
+            attested F378 association order; load-bearing for
+            ``two_sided`` only).
+        sigma: the :func:`dft_sigma` sign convention.
+        mu_hat: the resolved left/single unit axis
+            (see :func:`odft_resolve_mu`).
+        mu_r_hat: the resolved right unit axis (two-sided form; the
+            one-sided forms pass ``mu_hat`` again, ignored).
+
+    Returns:
+        The 8-component summand term for output bin ``k``.
+    """
+    from srmech.physics.qm.octonion import (
+        _twiddle_resolved,
+        octonion_left_mult,
+        octonion_right_mult,
+    )
+    w = _twiddle_resolved(k, m, n, sigma, mu_hat)
+    two_sided = form == "two_sided"
+    left = form == "left"
+    left_assoc = bracketing == "left_associated"
+    if two_sided:
+        w_r = _twiddle_resolved(k, m, n, sigma, mu_r_hat)
+        if left_assoc:                         # (W_l · x) · W_r
+            inner = _odft_matvec8(octonion_left_mult(w).tolist(), xs[m])
+            return _odft_matvec8(octonion_right_mult(w_r).tolist(), inner)
+        inner = _odft_matvec8(octonion_right_mult(w_r).tolist(), xs[m])
+        return _odft_matvec8(octonion_left_mult(w).tolist(), inner)
+    if left:                                   # W · x  (one product)
+        return _odft_matvec8(octonion_left_mult(w).tolist(), xs[m])
+    return _odft_matvec8(octonion_right_mult(w).tolist(), xs[m])
 
 
 def _qdft_native_ready() -> bool:
@@ -581,28 +716,26 @@ def _qdft_composed(xs: List[List[float]], left: bool, inverse: bool,
 
     Float-op order MIRRORS the C peer exactly (twiddle → operator matrix →
     row-dot left-to-right → accumulate over n → one final scale), so the two
-    paths are byte-exact — the parity contract, not a tolerance."""
-    from srmech.physics.qm.quaternion import (
-        _twiddle_resolved,
-        quaternion_left_mult,
-        quaternion_right_mult,
-    )
+    paths are byte-exact — the parity contract, not a tolerance.
+
+    v0.9.0rc420 (`#T1114`): the per-``(k, m)`` inner body is the PUBLIC op
+    :func:`qdft_summand` and this loop CALLS it — the declared chain in
+    ``quaternion_dft.toml`` and this composed path share one body, so their
+    bit-identity is structural, not parallel-maintained. Hoisting the
+    per-``i`` ``acc[i] += t`` out of the row-dot into a per-term vector add
+    is float-op-order-preserving: each ``t`` is computed identically and the
+    ``acc`` slots are independent (measured bit-identical, `#T1114` rung 4,
+    12/12)."""
     n_pts = len(xs)
-    sigma = 1 if inverse else -1
-    scale = (1.0 / float(n_pts)) if inverse else 1.0
+    sigma = dft_sigma(inverse)
+    scale = dft_scale(inverse, n_pts)
     out: List[List[float]] = []
     for k in range(n_pts):
         acc = [0.0, 0.0, 0.0, 0.0]
         for m in range(n_pts):
-            w = _twiddle_resolved(k, m, n_pts, sigma, mu_hat)
-            op = quaternion_left_mult(w) if left else quaternion_right_mult(w)
-            rows = op.tolist()
-            xm = xs[m]
+            term = qdft_summand(xs, k, m, n_pts, left, sigma, mu_hat)
             for i in range(_QDIM):
-                t = 0.0
-                for c in range(_QDIM):
-                    t += rows[i][c] * xm[c]
-                acc[i] += t
+                acc[i] += term[i]
         out.append([acc[i] * scale for i in range(_QDIM)])
     return out
 
@@ -693,8 +826,8 @@ def quaternion_dft(
                 "complex Mat"
             )
         x = x.tolist()
-    xs = [_as_quat4(v) for v in x]
-    mu_hat = _resolve_mu4_qdft(mu_axis)
+    xs = [as_quat4(v) for v in x]
+    mu_hat = qdft_resolve_mu(mu_axis)
     if not xs:
         return []
     left = form == "left"
@@ -819,7 +952,6 @@ def octonion_dft(
             "two-sided octonion_dft inverse is open under non-associativity "
             "(F378); only the one-sided forms round-trip"
         )
-    from srmech.physics.qm import octonion as _oct
     if isinstance(x, _Mat):
         if x.is_complex:
             raise ValueError(
@@ -827,13 +959,13 @@ def octonion_dft(
                 "complex Mat"
             )
         x = x.tolist()
-    xs = [_as8(v) for v in x]
+    xs = [as_oct8(v) for v in x]
     # One-resolution parity contract: μ̂ (and μ̂_r for the two-sided form) are
     # resolved exactly ONCE so the native and composed paths consume the
     # identical floats. The one-sided forms pass μ̂ twice (μ_r ignored).
-    mu_hat = _oct._resolve_mu8(mu_axis, "octonion_dft")
+    mu_hat = odft_resolve_mu(mu_axis)
     if form == "two_sided":
-        mu_r_hat = _oct._resolve_mu8(two_sided_right_axis, "octonion_dft")
+        mu_r_hat = odft_resolve_mu(two_sided_right_axis)
     else:
         mu_r_hat = mu_hat
     if not xs:

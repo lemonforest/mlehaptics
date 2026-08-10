@@ -83,6 +83,31 @@ def test_corpus_is_non_empty():
         f"pass vacuously; the glob or the package layout is broken")
 
 
+def _deep_equal(a, b) -> bool:
+    """Byte-identical-parse equality — the verb dict ``==`` cannot be.
+
+    rc420 (`#T1114`): the cascade-catalog proof cases legitimately carry
+    TOML 1.0 special floats (``x = nan`` is best_rational_signed's
+    documented boundary case, ``x = inf`` magnitude's), and under ``==`` a
+    parse containing NaN can NEVER equal its oracle even when both parsers
+    agree bit-for-bit — a false red from the comparison verb. Floats
+    therefore compare by their 8 BYTES: NaN equals the same-bits NaN, and
+    ``-0.0`` is DISTINCT from ``0.0`` — STRICTER than ``==`` on the
+    signed-zero axis, i.e. the honest spelling of this module's own
+    "byte-identical dicts" parity claim. Twin of the helper in
+    ``test_toml_dedup_parity_rc400.py``."""
+    if isinstance(a, float) or isinstance(b, float):
+        import struct
+        return (isinstance(a, float) and isinstance(b, float)
+                and struct.pack("<d", a) == struct.pack("<d", b))
+    if isinstance(a, dict) and isinstance(b, dict):
+        return set(a) == set(b) and all(_deep_equal(a[k], b[k]) for k in a)
+    if isinstance(a, list) and isinstance(b, list):
+        return len(a) == len(b) and all(
+            _deep_equal(x, y) for x, y in zip(a, b))
+    return type(a) is type(b) and a == b
+
+
 @pytest.mark.parametrize("path", _TOML_FILES, ids=lambda p: _rel(p))
 def test_c_path_parity(path: Path):
     """srmech_toml (C) == tomllib for every shipped descriptor.
@@ -91,7 +116,10 @@ def test_c_path_parity(path: Path):
     shipped corpus — floats included — self-hosts on ``srmech_toml``. A DECLINE
     (``toml_loads_c`` returns ``None``) is therefore now a REGRESSION on this
     float-free-plus-float corpus, not an expected skip, and fails here directly;
-    ``test_no_corpus_doc_declines`` is the corpus-level companion proof."""
+    ``test_no_corpus_doc_declines`` is the corpus-level companion proof.
+    rc420 (`#T1114`): the corpus gained TOML 1.0 special floats (the proof-case
+    NaN/inf boundary inputs) — parsed by the new ``toml_parse_special_float``
+    tokenizer arm, compared here by BITS (see :func:`_deep_equal`)."""
     require_native("srmech_toml_parse")
     assert hasattr(_native.LIB, "srmech_toml_parse"), (
         "native library is loaded but exposes no srmech_toml_parse — a stale / "
@@ -103,7 +131,8 @@ def test_c_path_parity(path: Path):
         f"C parser DECLINED {_rel(path)} — since rc397 the entire shipped corpus "
         f"(floats included) must self-host on srmech_toml; a decline means an "
         f"unsupported construct crept in, or the float fix regressed")
-    assert got == expected, f"C-vs-tomllib dict mismatch for {_rel(path)}"
+    assert _deep_equal(got, expected), (
+        f"C-vs-tomllib dict mismatch for {_rel(path)}")
 
 
 @pytest.mark.parametrize("path", _TOML_FILES, ids=lambda p: _rel(p))
@@ -113,7 +142,7 @@ def test_frontdoor_parity(path: Path):
     stdlib oracle either way."""
     require_native("srmech_toml_parse")
     text = _read(path)
-    assert _toml.loads(text) == _stdlib_toml.loads(text), (
+    assert _deep_equal(_toml.loads(text), _stdlib_toml.loads(text)), (
         f"_toml.loads-vs-tomllib mismatch for {_rel(path)}")
 
 

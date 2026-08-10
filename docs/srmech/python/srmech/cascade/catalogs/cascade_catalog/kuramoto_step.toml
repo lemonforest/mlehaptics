@@ -115,3 +115,126 @@ canonical_landings = [
   "R-RBS-LM F141 / F231 / R-95 / F234 — the dispatch-clock Euler recurrence the research hand-rolled (now C-parity'd)",
   "srmech_kepler.c — the existing libm-sin precedent (Class I/J upstream) the coupling reuses",
 ]
+
+# ── rc420 (`#T1114`): the EXECUTABLE chains — ADR-0008 §2 (schema v2).
+# TWO chains, because the shipped op IS two float-order-distinct cascades
+# behind a parameter dispatch (the simple path weights the SUM, inv_n * S;
+# the general path weights each TERM, sum of w * sin(...)) — declaring one
+# chain would paper over the dispatch (measured at rung 4: 7/7 simple + 4/4
+# general bit-identical at exactly this granularity). The dispatch condition
+# itself is wrapper-layer (`operation_general_routing` above).
+[[cascade.chain]]
+chain_schema_version = 2
+variant = "simple"
+applies_when = "adjacency is None and alpha == 0.0 and pin_anchor is None"
+summary = "The plain mean-field Kuramoto step: map_i(combine ∘ fold_+ ∘ map_j(sin term))."
+returns = "list[float]  # the n phases after one forward-Euler step"
+
+[[cascade.chain.steps]]
+class = "B"
+op = "srmech.cascade.leaves.seq_len"
+args = { seq = "@input.theta" }
+
+[[cascade.chain.steps]]
+class = "N"
+op = "srmech.cascade.composites.kuramoto_inv_n"
+args = { coupling = "@input.coupling", n = "@step[0].output" }
+
+[[cascade.chain.steps]]
+map_over = "@input.theta"
+index = "i"
+bind = { theta = "@input.theta", omega = "@input.omega", inv_n = "@step[1].output", dt = "@input.dt" }
+
+[[cascade.chain.steps.body]]
+map_over = "@bind.theta"
+index = "j"
+
+[[cascade.chain.steps.body.body]]
+class = "N"
+op = "srmech.cascade.composites.kuramoto_sin_term"
+args = { theta = "@bind.theta", i = "@idx.i", j = "@idx.j" }
+
+[[cascade.chain.steps.body]]
+fold_class = "M"
+fold_op = "srmech.cascade.leaves.f64_add"
+fold_init = 0.0
+over = "@step[0].output"
+
+[[cascade.chain.steps.body]]
+class = "C"
+op = "srmech.cascade.composites.kuramoto_out_simple"
+args = { theta = "@bind.theta", omega = "@bind.omega", i = "@idx.i", s = "@step[1].output", inv_n = "@bind.inv_n", dt = "@bind.dt" }
+
+[[cascade.chain.proof_cases]]
+covers = "sweep"
+inputs = { theta = [0.1, 2.0, -1.0], omega = [1.0, 0.5, 0.2], coupling = 2.0, dt = 0.05 }
+[[cascade.chain.proof_cases]]
+covers = "n_zero"
+inputs = { theta = [], omega = [], coupling = 1.0, dt = 0.01 }
+[[cascade.chain.proof_cases]]
+covers = "n_one"
+inputs = { theta = [0.7], omega = [1.3], coupling = 1.0, dt = 0.01 }
+[[cascade.chain.proof_cases]]
+covers = "zero_coupling"
+inputs = { theta = [0.2, 0.4], omega = [0.1, 0.2], coupling = 0.0, dt = 0.05 }
+[[cascade.chain.proof_cases]]
+covers = "sweep"
+inputs = { theta = [3.1, -3.1, 0.5, 0.5, 1.25], omega = [0.1, 0.1, 0.1, 0.1, 0.1], coupling = 0.75, dt = 0.02 }
+
+[[cascade.chain]]
+chain_schema_version = 2
+variant = "general"
+applies_when = "adjacency is not None or alpha != 0.0 or pin_anchor is not None"
+summary = "The generalised Kuramoto-Sakaguchi step: per-TERM weights (K*A_ij or inv_n), the alpha phase-lag inside the sin, optional per-oscillator pinning."
+returns = "list[float]  # the n phases after one forward-Euler step"
+
+[[cascade.chain.steps]]
+class = "B"
+op = "srmech.cascade.leaves.seq_len"
+args = { seq = "@input.theta" }
+
+[[cascade.chain.steps]]
+class = "N"
+op = "srmech.cascade.composites.kuramoto_inv_n"
+args = { coupling = "@input.coupling", n = "@step[0].output" }
+
+[[cascade.chain.steps]]
+map_over = "@input.theta"
+index = "i"
+bind = { theta = "@input.theta", omega = "@input.omega", adjacency = "@input.adjacency", coupling = "@input.coupling", inv_n = "@step[1].output", alpha = "@input.alpha", psi = "@input.pin_anchor", ps = "@input.pin_strength", dt = "@input.dt" }
+
+[[cascade.chain.steps.body]]
+map_over = "@bind.theta"
+index = "j"
+
+[[cascade.chain.steps.body.body]]
+class = "N"
+op = "srmech.cascade.composites.kuramoto_gen_term"
+args = { theta = "@bind.theta", adjacency = "@bind.adjacency", coupling = "@bind.coupling", inv_n = "@bind.inv_n", alpha = "@bind.alpha", i = "@idx.i", j = "@idx.j" }
+
+[[cascade.chain.steps.body]]
+fold_class = "M"
+fold_op = "srmech.cascade.leaves.f64_add"
+fold_init = 0.0
+over = "@step[0].output"
+
+[[cascade.chain.steps.body]]
+class = "C"
+op = "srmech.cascade.composites.kuramoto_gen_out"
+args = { theta = "@bind.theta", omega = "@bind.omega", i = "@idx.i", s = "@step[1].output", psi = "@bind.psi", ps = "@bind.ps", dt = "@bind.dt" }
+
+[[cascade.chain.proof_cases]]
+covers = "adjacency_directed"
+inputs = { theta = [0.1, 2.0], omega = [1.0, 0.5], coupling = 2.0, dt = 0.05, adjacency = [[0.0, 1.0], [0.25, 0.0]], alpha = 0.0 }
+[[cascade.chain.proof_cases]]
+covers = "alpha_frustration"
+inputs = { theta = [0.1, 2.0, 0.3], omega = [1.0, 0.5, 0.1], coupling = 1.5, dt = 0.02, alpha = 0.4 }
+[[cascade.chain.proof_cases]]
+covers = "pinning"
+inputs = { theta = [0.2, 0.4, 0.6], omega = [0.1, 0.2, 0.3], coupling = 1.0, dt = 0.05, alpha = 0.1, pin_anchor = [0.0, 0.5, 1.0], pin_strength = [1.0, 2.0, 0.5] }
+[[cascade.chain.proof_cases]]
+covers = "pinning_broadcast"
+inputs = { theta = [0.2, 0.4], omega = [0.1, 0.2], coupling = 1.0, dt = 0.05, alpha = 0.0, pin_anchor = [1.0, -1.0], pin_strength = 0.5 }
+[[cascade.chain.proof_cases]]
+covers = "zero_coupling"
+inputs = { theta = [1.0, -1.0], omega = [0.0, 0.0], coupling = 0.0, dt = 0.01, adjacency = [[0.5, 2.0], [0.25, 0.0]], alpha = 0.0 }

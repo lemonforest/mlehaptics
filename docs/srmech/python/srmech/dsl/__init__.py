@@ -89,6 +89,10 @@ from ._toml_chain import (
     build_chain_from_toml_str,
     load_chain_toml,
 )
+# rc420 (`#T1114`): the cascade-catalog EXECUTABLE-CHAIN surface — every
+# [cascade] descriptor now declares an ADR-0008 §2 chain or an explicit
+# LEAF; this runs the declared chain through the schema-v2 engine.
+from ._cascade_chain import run_cascade_chain
 
 __all__ = [
     # Fluent builder
@@ -110,6 +114,9 @@ __all__ = [
     # Declarative one-shot surface (v0.5.0rc12 — LLM tool entry points)
     "run_toml_chain",
     "list_catalog_ops",
+    # rc420 (`#T1114`): run a [cascade] descriptor's DECLARED chain — the
+    # catalog made executable (the 17-executable / 3-LEAF inversion).
+    "run_cascade_chain",
     # §17 U3 (rc45): unified op-discovery — cascade-ops + catalog-chains in one list
     "list_ops",
     # rc261 (§95.2 / #1407): config-driven FUNCTION ALIASING — bind a user's own name to

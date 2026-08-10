@@ -74,3 +74,22 @@ canonical_landings = [
   "cyclic_mod_mul.toml — the uint64-capped sibling",
   "user_stance_cross_substrate_cascade_matching_as_research_method — the PCG64 LCG step as one 14-class cascade shape",
 ]
+
+# ── rc420 (`#T1114`): the EXECUTABLE chain — ADR-0008 §2 (schema v2).
+# Delegation-shaped over the Class-I primitive srmech.math.cyclic.mod_mul_wide.
+[[cascade.chain]]
+chain_schema_version = 2
+summary = "Class-I delegation: cyclic_mod_mul_wide(a, b, n) IS srmech.math.cyclic.mod_mul_wide(a, b, n)."
+returns = "int  # (a * b) mod n with a 128-bit-wide intermediate, in [0, n)"
+
+[[cascade.chain.steps]]
+class = "I"
+op = "mod_mul_wide"
+args = { a = "@input.a", b = "@input.b", n = "@input.n" }
+
+[[cascade.chain.proof_cases]]
+covers = "sweep"
+inputs = { a = 7, b = 8, n = 12 }
+[[cascade.chain.proof_cases]]
+covers = "wide_product"
+inputs = { a = 9223372036854775806, b = 9223372036854775805, n = 9223372036854775807 }

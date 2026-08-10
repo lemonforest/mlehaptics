@@ -81,8 +81,9 @@ def test_the_route_is_discoverable_in_the_serialised_payload():
 
 
 def test_top_level_key_set_is_untouched():
-    """The route rides INSIDE 'tools'. The 11-key top level is pinned
+    """The route rides INSIDE 'tools'. The 12-key top level is pinned
     exhaustively by ``tests/test_domain_classes_rc298.py`` and must not move.
+    (11 -> 12 at rc420: "cascade_catalog" — ADR-0012 clause C6 closed.)
     """
     d = describe()
 
@@ -94,12 +95,13 @@ def test_top_level_key_set_is_untouched():
         "handle_pending",
         "categories",
         "classes",
+        "cascade_catalog",
         "carriers",
         "limits",
         "c_claims",
         "lanes",
     }
-    assert len(d) == 11
+    assert len(d) == 12
 
 
 def test_registry_size_is_unchanged_by_this_rc():
@@ -107,6 +109,6 @@ def test_registry_size_is_unchanged_by_this_rc():
     from srmech.introspect.tool_schema import get_tool_schema, warmup_all
 
     warmup_all()
-    assert len(get_tool_schema().tools) == 569
-    assert describe()["tools"]["total"] == 569
+    assert len(get_tool_schema().tools) == 598
+    assert describe()["tools"]["total"] == 598
     assert describe()["srmech_version"] == srmech.__version__

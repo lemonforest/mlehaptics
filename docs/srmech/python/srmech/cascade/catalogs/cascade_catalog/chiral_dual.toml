@@ -78,3 +78,45 @@ canonical_landings = [
   "docs/srmech/notes/spike_chiral_an_spectral_shape.py — 14-operator sweep",
   "Spike #74 / #89 (Class C composition net-chirality)",
 ]
+
+# ── rc420 (`#T1114`): the EXECUTABLE chain — ADR-0008 §2 (schema v2).
+# The 3-step decomposition chiral_flip -> op -> chiral_flip with a FIXED
+# demonstration body (the Class-L autocorrelation — a real seq -> seq op).
+# The rung-3 measurement: with the body fixed, this 3-step chain runs
+# bit-identically; the op-valued PARAMETER itself (BLK-HIGHER-ORDER) is
+# closed by the rc420 @op reference namespace — see the
+# parallel_sector_dispatch chain, whose body is @op-named — so the general
+# call chiral_dual(op, x) is declarable by substituting any dotted op name
+# for the middle step.
+[[cascade.chain]]
+chain_schema_version = 2
+summary = "Class C ∘ op ∘ Class C: flip, run the (demonstration) body, flip back."
+returns = "list[float]  # chiral_flip(body(chiral_flip(x)))"
+
+[[cascade.chain.steps]]
+class = "C"
+op = "srmech.cascade.atoms.chiral_flip"
+args = { seq = "@input.x" }
+
+[[cascade.chain.steps]]
+class = "L"
+op = "srmech.cascade.composites.autocorrelation"
+args = { x = "@step[0].output" }
+
+[[cascade.chain.steps]]
+class = "C"
+op = "srmech.cascade.atoms.chiral_flip"
+args = { seq = "@step[1].output" }
+
+[[cascade.chain.proof_cases]]
+covers = "sweep"
+inputs = { x = [1.0, 2.0, 3.0] }
+[[cascade.chain.proof_cases]]
+covers = "sweep"
+inputs = { x = [0.5, -1.5, 2.5, -3.5] }
+[[cascade.chain.proof_cases]]
+covers = "single"
+inputs = { x = [4.0] }
+[[cascade.chain.proof_cases]]
+covers = "empty"
+inputs = { x = [] }

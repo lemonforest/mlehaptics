@@ -74,3 +74,25 @@ canonical_landings = [
   "cyclic_gcd.toml — the Class-I cascade-catalog model this follows",
   "user_stance_cross_substrate_cascade_matching_as_research_method — a modular cascade (LCG) is one 14-class cascade shape",
 ]
+
+# ── rc420 (`#T1114`): the EXECUTABLE chain — ADR-0008 §2 (schema v2).
+# Delegation-shaped over the Class-I primitive srmech.math.cyclic.mod_mul.
+[[cascade.chain]]
+chain_schema_version = 2
+summary = "Class-I delegation: cyclic_mod_mul(a, b, n) IS srmech.math.cyclic.mod_mul(a, b, n)."
+returns = "int  # (a * b) mod n, in [0, n)"
+
+[[cascade.chain.steps]]
+class = "I"
+op = "mod_mul"
+args = { a = "@input.a", b = "@input.b", n = "@input.n" }
+
+[[cascade.chain.proof_cases]]
+covers = "sweep"
+inputs = { a = 7, b = 8, n = 12 }
+[[cascade.chain.proof_cases]]
+covers = "zero_factor"
+inputs = { a = 0, b = 9, n = 11 }
+[[cascade.chain.proof_cases]]
+covers = "wrap"
+inputs = { a = 11, b = 11, n = 12 }

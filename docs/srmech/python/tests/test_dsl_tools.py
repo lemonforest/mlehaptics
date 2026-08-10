@@ -71,6 +71,18 @@ _EXPECTED_CATALOG_OPS = {
     "cyclic_mod_mul_wide",
 }
 
+#: The FULL key set of a ``list_catalog_ops`` record — pinned ONCE, here.
+#: rc420 (`#T1114` / ADR-0012 C6) added ``status`` ("executable" | "leaf" |
+#: "undeclared") alongside the rc12/rc44 five. An ADDITIVE payload change
+#: extends this ONE constant (and the docstring in
+#: ``srmech/dsl/_tool_surface.py``); a REMOVED key fails the per-row subset
+#: check below on every record — that direction is never tolerated, because
+#: a key silently disappearing from a public payload is exactly the drift
+#: this pin exists to catch.
+_CATALOG_OP_RECORD_KEYS = {
+    "name", "class", "purpose", "kind", "provenance", "status",
+}
+
 
 # ──────────────────────────────────────────────────────────────────────
 # Registration
@@ -201,9 +213,10 @@ def test_dsl_run_toml_chain_unknown_op_raises() -> None:
 
 def test_dsl_list_catalog_ops() -> None:
     """``srmech.dsl.list_catalog_ops`` returns the cascade-catalog ops, each
-    with a name + A–N class + purpose, sourced from the on-disk
-    descriptors (the ``_EXPECTED_CATALOG_OPS`` set is the SSoT for the
-    exact membership)."""
+    with the full ``_CATALOG_OP_RECORD_KEYS`` record shape (name + A–N
+    class + purpose + kind + provenance + rc420 status), sourced from the
+    on-disk descriptors (the ``_EXPECTED_CATALOG_OPS`` set is the SSoT for
+    the exact membership)."""
     result = invoke_tool("srmech.dsl.list_catalog_ops", {})
     assert isinstance(result, list)
     names = {rec["name"] for rec in result}
@@ -211,12 +224,25 @@ def test_dsl_list_catalog_ops() -> None:
         f"list_catalog_ops returned {sorted(names)}; expected the 11 "
         f"cascade-catalog ops {sorted(_EXPECTED_CATALOG_OPS)}"
     )
-    # Each record carries class + purpose + kind + provenance, and
+    # Record-shape contract, pinned in ONE place (_CATALOG_OP_RECORD_KEYS)
+    # with the two failure directions kept distinct:
+    #   * per-row SUBSET — a REMOVED key fails on every record; never
+    #     tolerated (a key vanishing from a public payload is the drift
+    #     this test exists to catch);
+    #   * ONE union-equality below the loop — an ADDED key fails exactly
+    #     once, at the single pinned constant, instead of scattering
+    #     exact-set breakage through the file (the rc420 `status` addition
+    #     broke the old inline exact-set assertion here).
     # class/purpose are non-empty for the real catalog descriptors. The
     # shipped ops are all A-tier (provenance="srmech"); a bring-your-own
     # registered op would be "user" (F289 D2 / v0.7.0rc6).
     for rec in result:
-        assert set(rec.keys()) == {"name", "class", "purpose", "kind", "provenance"}
+        assert _CATALOG_OP_RECORD_KEYS <= set(rec.keys()), (
+            f"{rec['name']} record lost key(s) "
+            f"{sorted(_CATALOG_OP_RECORD_KEYS - set(rec.keys()))} — a key "
+            f"disappearing from the public list_catalog_ops payload is a "
+            f"contract break, not a cleanup"
+        )
         assert rec["class"], f"{rec['name']} has empty class composition"
         assert rec["purpose"], f"{rec['name']} has empty purpose"
         assert rec["kind"] in ("stage", "combinator"), (
@@ -226,6 +252,24 @@ def test_dsl_list_catalog_ops() -> None:
             f"{rec['name']} is a shipped op; expected provenance 'srmech', "
             f"got {rec['provenance']!r}"
         )
+        # rc420 (`#T1114`): every SHIPPED descriptor declares an executable
+        # ADR-0008 chain or an explicit leaf — no third state
+        # ("undeclared" can only appear on a bring-your-own descriptor
+        # predating the convention, and every row here is provenance
+        # "srmech").
+        assert rec["status"] in ("executable", "leaf"), (
+            f"{rec['name']} has status {rec['status']!r}; a shipped "
+            f"descriptor must declare an executable chain or an explicit "
+            f"leaf (the rc420 gate removes the third state)"
+        )
+    union_keys = set().union(*(rec.keys() for rec in result))
+    assert union_keys == _CATALOG_OP_RECORD_KEYS, (
+        f"list_catalog_ops records carry key(s) "
+        f"{sorted(union_keys - _CATALOG_OP_RECORD_KEYS)} not in the pinned "
+        f"contract — if the addition is deliberate, extend "
+        f"_CATALOG_OP_RECORD_KEYS (one place) and the docstring in "
+        f"srmech/dsl/_tool_surface.py"
+    )
     # Sorted ascending by name (so an LLM gets a stable enumeration).
     assert [r["name"] for r in result] == sorted(names)
     # The DSL role is surfaced honestly: the higher-order fan-out is a

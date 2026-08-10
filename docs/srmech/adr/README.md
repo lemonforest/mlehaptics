@@ -21,7 +21,7 @@ context.
 | [ADR-0005](0005-no-external-math-library.md) | No external mathematics library — srmech is its own math library | ✅ Accepted | 2026-07-17 |
 | [ADR-0006](0006-carrier-discipline.md) | Carrier discipline — exactness, sign, format, and bounded memory | ✅ Accepted | 2026-07-17 |
 | [ADR-0007](0007-release-engineering.md) | Release engineering — version SSOT, rc-first, the registry ripple, HAL/PAL, JPL | ✅ Accepted | 2026-07-17 |
-| [ADR-0008](0008-phase-1-operator-chain-schema.md) | Operator-chain DSL — Phase 1 schema specification | 🔄 Proposed | 2026-05-16 |
+| [ADR-0008](0008-phase-1-operator-chain-schema.md) | Operator-chain DSL — Phase 1 schema specification | ✅ Accepted | 2026-05-16 |
 | [ADR-0009](0009-multi-implementation-parity-capability-is-the-invariant.md) | Multi-implementation parity — the capability is the invariant, each implementation is a coherency projection (amends 0003) | ✅ Accepted | 2026-07-19 |
 | [ADR-0010](0010-namespace-declustering.md) | srmech namespace declustering — `amsc` is the attestation framework, not the dumping ground | 🟢 Implementing | 2026-07-23 |
 | [ADR-0011](0011-single-encoding-no-cache.md) | One encoding per datum — the genome has no cache (biology re-derives; a cache lives outside the genome or not at all) | ✅ Accepted | 2026-07-26 |

@@ -200,7 +200,10 @@ _EXPECTED_ADR_COUNT = 13
 #: Seeded at the rc417 measurement: 10 of 13 (0002–0011). Auditing an ADR
 #: means enumerating its clauses in a clause table and flipping its header to
 #: ``audited``; the number then goes down and can never go back up.
-CEIL_UNAUDITED_ADRS = 10
+#: rc420 (`#T1114`): 10 -> 9 — ADR-0008 audited (7 clause rows, every one
+#: instrumented with a resolving node id) and promoted ✅ Accepted on both
+#: surfaces; the first drain of this population.
+CEIL_UNAUDITED_ADRS = 9
 
 #: The two legal ``**Clauses:**`` values.
 _CLAUSE_HEADER_VALUES = ("audited", "unaudited")

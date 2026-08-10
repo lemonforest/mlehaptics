@@ -238,4 +238,6 @@ def test_describe_still_reports_the_rest_unchanged():
         "handle_pending", "categories", "classes", "carriers", "limits",
         "c_claims",  # rc300 `#938` — C-claim resolution against the loaded lib
         "lanes",     # rc347 `#T985` — the OP-side complement of "carriers"
+        "cascade_catalog",  # rc420 `#T1114` — ADR-0012 C6: the 20 [cascade]
+                            # descriptors, countable at the root index at last
     }

@@ -35,6 +35,7 @@ __all__ = [
     "continued_fraction",
     "continued_fraction_convergents",
     "best_rational",
+    "scale_round_half_even",
     "rational_reconstruct",
     "exp_series_truncate",
     "rational_add",
@@ -270,6 +271,36 @@ def best_rational(numerator: int,
     if with_path:
         return best_p, best_q, path
     return best_p, best_q
+
+
+def scale_round_half_even(value: float, scale: int) -> int:
+    """Class N: scale a non-negative real by an integer and round
+    half-to-even to an ``int`` — ``int(round(value * scale))``.
+
+    The stage ``best_rational_signed`` performs between its Class-K pin-slot
+    and its Class-N :func:`best_rational` anchor
+    (``num_pos = int(round(mag * fine_scale))``), described at length in
+    that descriptor's ``[cascade.rounding]`` block and registered nowhere
+    until v0.9.0rc420 (the `#T1114` BLK-N-SCALE-ROUND blocker).
+
+    ROUNDING CONTRACT (the ``[cascade.rounding]`` parity pin): Python's
+    built-in ``round()`` IS round-half-to-even (banker's rounding, PEP 3141)
+    — ``round(0.5) == 0``, ``round(1.5) == 2`` — which is what the C peer's
+    libm-free ``_cascade_brs_round_half_even`` branch matches bit-exactly at
+    the ``.5`` boundary. C99 ``round()`` (round-half-AWAY-from-zero) would
+    diverge there and is deliberately NOT this op's contract.
+
+    Args:
+        value: a non-negative real magnitude (typically the second element
+            of a ``pin_slot_at_zero`` result, after the Class-K
+            :func:`srmech.cascade.leaves.dead_band` gate).
+        scale: the integer fine-scale (``>= 1``).
+
+    Returns:
+        ``int(round(value * scale))`` — the banker's-rounded integer
+        numerator for a ``best_rational(num, scale, max_denominator)`` call.
+    """
+    return int(round(value * scale))
 
 
 def _rational_reconstruct_pure(residue: int, modulus: int,

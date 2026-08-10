@@ -394,7 +394,7 @@ CEIL_AMSC_PREFIX = {
     # artifact carries no cascade back-index byte arrays — those live in the carrier
     # registry). The 69 residual as-text amsc cites are keeper-op documentation
     # (format.sha256_bytes and kin) that legitimately still name srmech.amsc.
-    "c/src/srmech_tool_registry.c": (69, 0),
+    "c/src/srmech_tool_registry.c": (72, 0),  # rc420 (local task T1114): +3 as-text, DOCUMENTATION only (decoded flat, op-name count flat at 396) — the new cascade leaf docs legitimately cite srmech.amsc siblings: byte_slice + utf8_encode name srmech.amsc.format.sha256_raw (the stride hash between them), seq_get names srmech.amsc.catalog.get_attested_dataset (the keyed-lookup Class-E primitive it degenerates from). The rc362 case exactly.
     # rc368 — THE FIRST MODULE MOVE TO MOVE THIS ARTIFACT (the new data point).
     # This was the CONTROL row through harmonics/naming: "no byte arrays, decoded
     # 0 is a real zero". It is still a real zero on the decoded channel, but the
@@ -476,7 +476,7 @@ CEIL_AMSC_PREFIX = {
     # doc-pair partner of the tool registry: the same 75 cascade ops' documentation
     # (ToolEntry names + worked-example imports + sibling-prose dotted refs) repointed
     # amsc->cascade. decoded stays 0. The 66 residual as-text are keeper-op docs.
-    "python/srmech/introspect/_tool_docs.py": (66, 0),
+    "python/srmech/introspect/_tool_docs.py": (69, 0),  # rc420 (local task T1114): +3 as-text, DOCUMENTATION only (decoded flat, op-name count flat at 396) — the new cascade leaf docs legitimately cite srmech.amsc siblings: byte_slice + utf8_encode name srmech.amsc.format.sha256_raw (the stride hash between them), seq_get names srmech.amsc.catalog.get_attested_dataset (the keyed-lookup Class-E primitive it degenerates from). The rc362 case exactly.
     # as-text 250 -> 248 at rc367 (-2), decoded UNCHANGED at 0. rc367 is the
     # FIRST module move to move THIS artifact — a departure from the harmonics
     # analog. _c_claims.py is the op -> C-symbol CLAIM manifest, keyed only for
@@ -552,7 +552,7 @@ CEIL_AMSC_PREFIX = {
 #:
 #: as-text 2933 (rc361) -> 2943 (rc362, +10 = the 5 citations x 2 artifacts).
 #: decoded 577 (rc361)  ->  577 (rc362, FLAT — the population did not move).
-TOTAL_AS_TEXT = 141    # rc376 637 -> rc377 141 (-496: THE CASCADE SUBPACKAGE, the FINAL slice — the 75 cascade ops' ToolEntry/doc citations repoint amsc->cascade across the tool_registry (-188) + _tool_docs (-186) + carrier (-67) + _c_claims (-52) + responsion (-3); class UNCHANGED at 0. The residual 141 are keeper-op docs that legitimately still name srmech.amsc.)
+TOTAL_AS_TEXT = 147    # rc420 (local task T1114): 141 -> 147, +3 in the tool registry + +3 in _tool_docs — the same three documentation citations counted once per emitted artifact (see the per-file notes); decoded UNMOVED at 2, so this is the documentation case, not a drain regression.  # was: 141    # rc376 637 -> rc377 141 (-496: THE CASCADE SUBPACKAGE, the FINAL slice — the 75 cascade ops' ToolEntry/doc citations repoint amsc->cascade across the tool_registry (-188) + _tool_docs (-186) + carrier (-67) + _c_claims (-52) + responsion (-3); class UNCHANGED at 0. The residual 141 are keeper-op docs that legitimately still name srmech.amsc.)
 TOTAL_DECODED = 2      # rc376 126 -> rc377 2 (-124: THE CASCADE SUBPACKAGE — cascade ops ARE carriers, so 95 carrier back-index refs + 29 class descriptor refs move amsc->cascade in the hoisted byte arrays. amsc's decoded population is now DRAINED to 2 keeper residuals — ADR-0010 execution is COMPLETE)
 
 
@@ -811,11 +811,13 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # and diffing showed mat_eigvals as the ONLY name whose count changed. The
     # back-index is now MORE correct — it previously did not know an op that takes an
     # int operand takes one. No amsc pin shifts (this is growth, not a move).
-    assert math == 329, (
-        f"expected 329 srmech.math op references inside the DECODED channel "
+    assert math == 332, (
+        f"expected 332 srmech.math op references inside the DECODED channel "
         f"(rc372 octonion 16 + rc373 A-N primitives 298 + rc374 carriers 6 + rc384 "
         f"octonion_laplacian 3 + rc388 oct_torsor_act/div 4 + rc399 generalized_ngon "
-        f"1 + rc408 mat_eigvals max_sweeps:int 1), found {math}. If this is not 329 "
+        f"1 + rc408 mat_eigvals max_sweeps:int 1 + rc420 scale_round_half_even "
+            f"3 — the local task T1114 Class-N registration: its float+int consumes "
+            f"rows and int produces row in the carrier back-index), found {math}. If this is not 332 "
         f"the population is not conserved — re-measure.")
     # rc375 — THE srmech.biology RECEIVING SIDE, the arc's SECOND-LARGEST positive
     # population move (after rc373's 298) and the FOURTH receiving namespace pinned
@@ -889,15 +891,15 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # branch). A cascade op grows this count only when it declares an emitted
     # carrier token; these four legitimately do not.
     cascade = joined.count("srmech.cascade.")
-    assert cascade == 109, (
-        f"expected 109 srmech.cascade op references inside the DECODED channel "
+    assert cascade == 154, (
+        f"expected 154 srmech.cascade op references inside the DECODED channel "
         f"(the rc377 move's 95 + rc380's 2 loop-defect ops + rc383's defect_ladder + "
         f"rc384's octonion_frame_read + rc386's cd_three_form + rc387's flip_pair / "
         f"group_algebra_table + rc395's cd_zero_divisor_witness / _witnesses + rc398's "
         f"5 Moufang loop-completion ops), found "
         f"{cascade}. The rc377 amsc->cascade move "
         f"conserved 95 (amsc 97 -> 2); rc380 grew it by 2, rc383 by 1, rc384 by 1, "
-        f"rc386 by 1, rc387 by 2, rc395 by 2, rc398 by 5. If this is not 109, re-measure.")
+        f"rc386 by 1, rc387 by 2, rc395 by 2, rc398 by 5; rc420 (local task T1114) by 45 — the 27 cascade leaf-inventory registrations (12 leaves + 7 composites + 8 DFT leaves) land 45 consumes/produces rows in the carrier back-index. If this is not 154, re-measure.")
     # rc381 (`#T1052`) — THE srmech.physics.qm RECEIVING SIDE, pinned like biology
     # / cascade. UNLIKE every drain above, this move did NOT come out of the amsc
     # population — the qm subpackage was never under amsc. It is a whole-subpackage

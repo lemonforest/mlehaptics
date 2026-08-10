@@ -37,3 +37,17 @@ canonical_landings = [
   "docs/srmech/rbs_research_notebook.md §2.2 — cascade-rate gain reading",
   "docs/srmech/srmech_research_notebook.md §3.27 — recursive-Hopf catalog",
 ]
+
+# ── rc420 (`#T1114`): EXPLICIT leaf declaration — silence is not a leaf claim.
+[cascade.leaf]
+irreducible = true
+reason = """
+The atom IS the Class-C primitive (the orientation reversal seq[::-1]);
+nothing lower-level is registered to compose it. Measured at `#T1114`
+rung 3: correctly irreducible — even self-delegation is not a
+decomposition. It is ALSO expressible as one indexed-map body
+(out[k] = seq[n-1-k]; measured at rung 4), but that spelling composes
+the atom out of an index mirror it would itself have to provide — the
+atom is the floor, not a composite.
+"""
+declared = "0.9.0rc420"

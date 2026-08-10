@@ -95,3 +95,34 @@ canonical_landings = [
   "feedback_sign_handling_is_class_k_pin_slot_not_alu_abs — no abs() (Class K magnitude / Class C net_chirality)",
   "GitHub #778 (Python orchestration, rc6), #771 (C parity, rc7), the rc8 slowdown fix — the C/Python parity + speedup-as-shipped arc",
 ]
+
+# ── rc420 (`#T1114`): the EXECUTABLE chain — ADR-0008 §2 (schema v2).
+# The BLK-HIGHER-ORDER closure demonstrated: the descriptor NAMES its
+# op-valued body via the rc420 @op reference namespace (measured at rung 3:
+# a runtime callable already THREADED through @input — the gap was
+# descriptor-level naming, which @op closes). The combinator itself stays
+# one step (kind = "combinator": the Klein-4 fan-out is a special form, not
+# a first-order composition — the same reason the DSL drives it through the
+# `parallel` discriminator rather than `op=`).
+[[cascade.chain]]
+chain_schema_version = 2
+summary = "The Klein-4 four-sector fan-out with its body op NAMED by the @op reference (chiral_flip as the demonstration body)."
+returns = "dict  # sectors / combined / z4_dispatch_slots / independence / collapse_lattice / cap / framework_thread_ladder_reading"
+
+[[cascade.chain.steps]]
+class = "C"
+op = "srmech.cascade.parallel.parallel_sector_dispatch"
+args = { body = "@op.srmech.cascade.atoms.chiral_flip", x = "@input.x", n_sectors = "@input.n_sectors", combine = "@input.combine" }
+
+[[cascade.chain.proof_cases]]
+covers = "sweep"
+inputs = { x = [1.0, 2.0, 3.0], n_sectors = 4, combine = "bundle" }
+[[cascade.chain.proof_cases]]
+covers = "sweep"
+inputs = { x = [1.0, -2.0, 3.0, -4.0], n_sectors = 2, combine = "concat" }
+[[cascade.chain.proof_cases]]
+covers = "sector0"
+inputs = { x = [0.5, 1.5], n_sectors = 1, combine = "sector0" }
+[[cascade.chain.proof_cases]]
+covers = "mean"
+inputs = { x = [2.0, 4.0, 6.0], n_sectors = 4, combine = "mean" }

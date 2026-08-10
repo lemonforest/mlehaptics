@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc419"
-#define SRMECH_VERSION       "0.9.0rc419"
+#define SRMECH_VERSION_PRE   "rc420"
+#define SRMECH_VERSION       "0.9.0rc420"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3233,9 +3233,20 @@ srmech_status_t srmech_catalog_run_chain(
  *            BINARY op: cyclic_gcd). Empty list → acc = fold_init.
  *   * reduce {"reduce_op":<op>} — acc = list[0]; fold the BINARY op over the
  *            remaining elements. Empty list → non-OK (pure raises ValueError).
+ *   * map_indexed {"map_op":<op>} (0.9.0rc420, the SIXTH combinator — the
+ *            general indexed map, the dominant missing recursion scheme the
+ *            census under local task `#T1114` measured) — out[k] =
+ *            body(input, k) for k in 0..len(input)-1, n FIXED AT ENTRY
+ *            (data-SIZED, never data-DEPENDENT; the same totality class as
+ *            fold). C map-body table: seq_get (data-first identity access);
+ *            any other body → non-OK → pure. Widened CONSCIOUSLY with the
+ *            Python dispatcher + tests/test_combinator_kernel_closure.py in
+ *            the same change (the closure ratchet now cross-reads this
+ *            file's discriminator array, so the two sides cannot drift).
  * `parallel_body` (the Klein-4 fan-out over host threads) still DEFERS to pure.
  * A combinator whose body op is not a C leaf / binary kernel → non-OK → pure.
- * ABI-additive → SRMECH_ABI_VERSION stays 4. */
+ * ABI-additive → SRMECH_ABI_VERSION stays 4 (and the rc420 map form adds no
+ * symbol, changes no signature and adds no callback typedef → ABI unchanged). */
 size_t srmech_dsl_chain_run_arena_bytes(size_t chain_len, size_t input_len);
 srmech_status_t srmech_dsl_chain_run(
     const char *chain_json, size_t chain_len,

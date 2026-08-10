@@ -266,9 +266,9 @@ def test_parse_catalog_chains_missing_version_defers_to_pure():
 
 def test_parse_catalog_chains_bad_version_defers_to_pure():
     toml = _catalog([_VALID_CHAINS["single_step"]], version=99)
-    with pytest.raises(compose.ChainSpecError, match="implements v1"):
+    with pytest.raises(compose.ChainSpecError, match=r"implements \(1, 2\)"):
         compose.parse_catalog_chains(toml)
-    with pytest.raises(compose.ChainSpecError, match="implements v1"):
+    with pytest.raises(compose.ChainSpecError, match=r"implements \(1, 2\)"):
         _force_pure(compose.parse_catalog_chains, toml)
 
 
