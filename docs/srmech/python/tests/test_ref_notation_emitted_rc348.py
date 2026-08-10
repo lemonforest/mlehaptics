@@ -721,6 +721,15 @@ SCAN_ROOTS = {
     # the scan/trigger drift happened the previous two times.
     "tests/test_codegen_owner_guard_rc409.py": (
         "docs/srmech/python", "docs/srmech/c"),
+    # rc420 (`#T1114`): the NOTEBOOK CURRENCY GATE reads
+    # docs/srmech/srmech_research_notebook.md -- the declared SSoT for the A-N
+    # vocabulary -- and holds its live-architecture claims (combinator count,
+    # cascade-catalog totals, registry cardinal, every `srmech.*` path in a
+    # fenced block) against the shipped surface. The notebook sits one level
+    # ABOVE srmech-ci's python/+c/ trigger, which is exactly why it drifted 21
+    # rcs with nothing watching, so the reach is declared here and the gate
+    # gets its own step in srmech-ref-guard.yml.
+    "tests/test_notebook_currency_rc420.py": ("docs/srmech",),
     # rc361 (`#T1034`): WIDE, and it has to be. The fifth-copy gate scans the
     # whole subtree because the fourth copy of the Rosetta root tuple lived in
     # notes/_rosetta_inventory.py — outside srmech-ci's python/+c/ trigger and
