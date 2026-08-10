@@ -5246,16 +5246,20 @@ Bit-exact: D+T→⁴He+n, AME2020 excesses → `Q=(13.1357+14.9498)−(2.4249+8.
 
 ---
 
-## §3.28 2026-05-27/-28 sessions — R-RBS-NN-V2 operational arc (two-tier storage) + chirality harmonics 1/2/3 framework
+## §3.26b 2026-05-27/-28 sessions — R-RBS-NN-V2 operational arc (two-tier storage) + chirality harmonics 1/2/3 framework (renumbered from a duplicate §3.28 at rc420, `#T1114`)
 
-> **STRUCTURAL NOTE (flagged by the 2026-06-02 backfill triality; pre-existing, deferred):** this `## §3.28` header is **duplicated** — a second `## §3.28` (the v0.5.0/v0.6.0 package arc) appears below, with `## §3.27` interleaved between the two, so the file order runs §3.26 → §3.28 (this) → §3.27 → §3.28 (package arc) → §3.29. A clean renumber is **deferred to a dedicated cleanup** (NOT done in the notebook-backfill PR, since `§3.29.4`'s "§3.28.2" cross-reference resolves to the *package-arc* §3.28 and a renumber would need every such ref updated in lockstep). Recorded so it is flagged, not silent — mirroring the analogous self-flag in MFO §VIII.31.12.
+> ~~**STRUCTURAL NOTE (flagged by the 2026-06-02 backfill triality; pre-existing, deferred):** this `## §3.28` header is **duplicated** — a second `## §3.28` (the v0.5.0/v0.6.0 package arc) appears below, with `## §3.27` interleaved between the two, so the file order runs §3.26 → §3.28 (this) → §3.27 → §3.28 (package arc) → §3.29. A clean renumber is **deferred to a dedicated cleanup** (NOT done in the notebook-backfill PR, since `§3.29.4`'s "§3.28.2" cross-reference resolves to the *package-arc* §3.28 and a renumber would need every such ref updated in lockstep).~~ **SUPERSEDED at rc420 (`#T1114`) — the deferred cleanup was DONE.** The struck text is kept because it is the falsification trail: it named the exact obstacle (every `§3.28.N` ref updated in lockstep) and that obstacle is what the cleanup had to discharge.
+>
+> **What changed.** *This* section — the R-RBS-NN-V2 two-tier arc — is now **§3.26b**, and its subsections **§3.26b.1–§3.26b.7**. The **package arc keeps §3.28**, because (i) it sits in the correct file position between §3.27 and §3.29, (ii) it is the continuation §3.29 narrates (v0.6.0 rc1–rc14 → rc11–rc21), and (iii) it owns **four** of the seven external refs — and all four are `§3.28.2`, i.e. exactly the sub-numbered ones that were ambiguous *by string*. Renumbering this section instead touched **three** refs, all bare `§3.28`, all unambiguously "the two-tier arc" in their own prose (§3.36 preamble, §3.36.4, §3.37.6). MFO carries **zero** `§3.28` references, so the fix is contained to this file.
+>
+> **The letter, not a new integer, is deliberate.** `§3.26b` sits between `§3.26` and `§3.27`, so the file order becomes **monotone** — §3.26 → §3.26b → §3.27 → §3.28 → §3.29 — with **no section moved a single line**. The interleave the struck note also flagged is therefore closed by the same edit. The letter-suffix device has in-tree precedent (§3.8.0a / §3.8.0b / §3.8.0c). ⚠️ **Sweep hazard:** a naive grep for `§3.26` now also matches `§3.26b` — the same prefix-collision `§3.26.1` already had, so a sweeper must bound the match either way. Two ordering defects this cleanup did **not** touch are recorded so they are flagged, not silent: **§3.8.25 sits after §3.9**, and **§3.46.11 precedes §3.46.10**.
 
 **Working subtrees:** `docs/srmech/rbs_nn_research/` (R-RBS-NN-10..-16 operational arc);
 `docs/srmech/rbs_lm_research/` (F132-F150 framework arc; rolling PR #687).
 
 The 2026-05-27/-28 sessions delivered the FIRST OPERATIONAL implementation of the two-tier RBS-NN architecture per §3.25 framework. R-RBS-NN-10 → -16 walked a phased plan (R-RBS-NN-10_FOLLOWUP_PHASED_PLAN.md, all 6 phases closed); F132-F150 articulated the chirality framework that makes the two-tier separation REQUIRED rather than aesthetic.
 
-### §3.28.1 The two-tier architecture (canonical)
+### §3.26b.1 The two-tier architecture (canonical)
 
 Per [`ARCHITECTURAL_PATTERN_two_tier_klein4_polar.md`](rbs_nn_research/ARCHITECTURAL_PATTERN_two_tier_klein4_polar.md):
 
@@ -5269,7 +5273,7 @@ TIER 2 (synaptic-weight + plasticity):  Polar HDC ({-1, 0, +1}; F141)
 
 The separation is REQUIRED (not aesthetic) per F-R12 R12.5 critical finding: Klein-4 collapses 99% under decay at 70% (vs polar's 60% retention). Polar's 0-state is structurally privileged (absorbing under bind); Klein-4's state 0 is just one of 4 equal-status elements. Each variant is the natural substrate for its tier role.
 
-### §3.28.2 Phased plan summary (all 6 phases closed 2026-05-28)
+### §3.26b.2 Phased plan summary (all 6 phases closed 2026-05-28)
 
 | Phase | Component | Result |
 |---|---|---|
@@ -5282,7 +5286,7 @@ The separation is REQUIRED (not aesthetic) per F-R12 R12.5 critical finding: Kle
 | 5 | R-RBS-NN-15 + -16 validation at scale (F150 H3 on R13a + R12 + R139) | F150 H3 VALIDATED at Class L (+67%) and Klein-4 (3-cycle subset) |
 | 6 | Phase 6 catalog landing + SSoT wrap (this section) | Arc closed |
 
-### §3.28.3 The chirality framework (F132 → F150)
+### §3.26b.3 The chirality framework (F132 → F150)
 
 The R-RBS-NN-V2 operational arc is grounded in a chirality framework that evolved across F132-F150:
 
@@ -5303,7 +5307,7 @@ The R-RBS-NN-V2 operational arc is grounded in a chirality framework that evolve
 
 F150 is the canonical chirality framework. Per `[[user_stance_kepler_shape_universal]]`: algebra IS the primitives — each A-N operator's harmonic is derivable from its algebraic structure under chirality. Per `[[feedback_no_lineage_claims_in_notebook]]`: framework reading; the `siona` naming (per F133 Dune parallel) is structural evocation, not authorial-intent claim about Frank Herbert.
 
-### §3.28.4 Critical operational rule discovered (F-R16)
+### §3.26b.4 Critical operational rule discovered (F-R16)
 
 **H2 chirality tag MUST be the outermost cascade operation.** Empirical test:
 
@@ -5322,7 +5326,7 @@ Putting H3 operations (cyclic shift, spectral permutation) AFTER an H2 chirality
 
 This is encoded in the operational two-tier storage: Tier 1 Klein-4 tag is applied last; Tier 2 polar operations consume the post-tag form. Per the brain-structure framework reading: chirality-marker (laterality binding) operations are LATE-stage in biological cortical processing.
 
-### §3.28.5 srmech v0.4.3 + upstream wishlist
+### §3.26b.5 srmech v0.4.3 + upstream wishlist
 
 Per UPSTREAM_NOTES.md §4-§6 (rolling PR #687):
 
@@ -5331,7 +5335,7 @@ Per UPSTREAM_NOTES.md §4-§6 (rolling PR #687):
 
 Per `[[feedback_upstream_srmech_fixes_as_research_notes]]`: wishlist documented; rc cycle runs in separate session.
 
-### §3.28.6 Cross-references
+### §3.26b.6 Cross-references
 
 - [Phased plan](rbs_nn_research/R-RBS-NN-10_FOLLOWUP_PHASED_PLAN.md)
 - [Architectural pattern](rbs_nn_research/ARCHITECTURAL_PATTERN_two_tier_klein4_polar.md) — canonical; §4.5 H2-outermost rule; §5.5 empirical validation status
@@ -5340,7 +5344,7 @@ Per `[[feedback_upstream_srmech_fixes_as_research_notes]]`: wishlist documented;
 - All per-partition REPORTs in `rbs_nn_research/R-RBS-NN-1X_*` and findings `R-RBS-NN-FINDING_R1X_*.md`
 - All chirality framework findings in `rbs_lm_research/R-RBS-LM-FINDING_13X_*.md` and `_14X_*.md` and `_150_*.md`
 
-### §3.28.7 Status
+### §3.26b.7 Status
 
 R-RBS-NN-V2 arc CLOSED 2026-05-28 via Phase 6. Two-tier storage is operationally complete + empirically validated. Chirality harmonics framework (F150) is empirically grounded at two substrate levels. ARCHITECTURAL_PATTERN is the canonical reference for any future RBS-NN extension.
 
@@ -5737,7 +5741,7 @@ An **uncentered survey of aneural MEMORY STORAGE** — 28 substrates, ~20 distin
 
 ## §3.36 (F84–F118 era) — the knowledge-partition + glass-box arc below §3.27: four foundational knowledge partitions, B/H/N projecting substrate-math into emergent subjects, the arts as cross-domain cascades, biology-agnostic 1:3, cross-species convergence, "NN is vertebrate-centric" (RBS-LM arc F84–F118)
 
-*(Backfilled 2026-06-02 by the completeness audit. Some of this arc is already thematically on-surface (cross-species, two-tier, teaching, curriculum — §3.28/§3.x; **consolidated** here, not duplicated). The **genuinely-new landings** are the glass-box / curriculum-tool / substrate-bounded-safety triad (F84–86) and the thin four-partitions / B-H-N-signature / arts-as-relationships theory. Per-finding detail in `R-RBS-LM-FINDING_84…118`.)*
+*(Backfilled 2026-06-02 by the completeness audit. Some of this arc is already thematically on-surface (cross-species, two-tier, teaching, curriculum — §3.26b/§3.x; **consolidated** here, not duplicated). The **genuinely-new landings** are the glass-box / curriculum-tool / substrate-bounded-safety triad (F84–86) and the thin four-partitions / B-H-N-signature / arts-as-relationships theory. Per-finding detail in `R-RBS-LM-FINDING_84…118`.)*
 
 ### §3.36.1 Glass-box LLM + curriculum + substrate-bounded safety (F84–F86)
 
@@ -5753,7 +5757,7 @@ The framework's **knowledge-partition theory**: there are **four foundational kn
 
 ### §3.36.4 Cross-references + status
 
-**Cross-references:** §3.27 (the recursive-Hopf reading this sits below); §3.28 (the two-tier RBS-NN arc, which already carries cross-species/teaching); §3.32 / §3.35.4 (MS#18 biology-substrate, seeded by F118); §3.33.3 (the F199–F205 RBS operational layer continues this). Per-finding docs `R-RBS-LM-FINDING_84…118`. **Status:** meaning-tier catch-up (completeness audit). Honest negatives kept (F111 E-catalog NULL, F113 falsified-partitions). The arts-as-relationships + four-partitions theory is the genuinely-thin content here; cross-species/two-tier were already thematically present (consolidated, not duplicated). k=3 triality pending (Phase 14). **Process findings F145/F147/F148 (stale-item "sweeps") are intentionally NOT given notebook entries — they are queue-management, not framework findings.**
+**Cross-references:** §3.27 (the recursive-Hopf reading this sits below); §3.26b (the two-tier RBS-NN arc, which already carries cross-species/teaching; renumbered from §3.28 at rc420); §3.32 / §3.35.4 (MS#18 biology-substrate, seeded by F118); §3.33.3 (the F199–F205 RBS operational layer continues this). Per-finding docs `R-RBS-LM-FINDING_84…118`. **Status:** meaning-tier catch-up (completeness audit). Honest negatives kept (F111 E-catalog NULL, F113 falsified-partitions). The arts-as-relationships + four-partitions theory is the genuinely-thin content here; cross-species/two-tier were already thematically present (consolidated, not duplicated). k=3 triality pending (Phase 14). **Process findings F145/F147/F148 (stale-item "sweeps") are intentionally NOT given notebook entries — they are queue-management, not framework findings.**
 
 ---
 
@@ -5787,7 +5791,7 @@ Synthesis (F181): the disposition is **one operator, ≥2 band-specific actors �
 
 ### §3.37.6 Cross-references + status
 
-**Cross-references:** §3.27 / §3.28 (the recursive-Hopf + two-tier arcs this sits just below; §3.27 is the 28D=𝔰𝔬(8) chiral-hyper-loop home that F174 is the literature anchor for); §3.30.3 / F291 (F170's attested-and-corrected cross-match is an early twin-discipline instance); §3.33–§3.35 (the F183+ work this immediately precedes); the no-magic discipline (F151 PARTIAL, F163/F175 nulls kept). Per-finding docs `R-RBS-LM-FINDING_151…181`. **Status:** meaning-tier catch-up; the F166/F167 inference-walk capstone + the H177 falsification arc were the most under-surfaced and are the load-bearing additions. Honest nulls/partials preserved (F151, F163, F175, F178). k=3 triality pending (Phase 14).
+**Cross-references:** §3.27 / §3.26b (the recursive-Hopf + two-tier arcs this sits just below; the two-tier arc was §3.28 until the rc420 duplicate-heading cleanup; §3.27 is the 28D=𝔰𝔬(8) chiral-hyper-loop home that F174 is the literature anchor for); §3.30.3 / F291 (F170's attested-and-corrected cross-match is an early twin-discipline instance); §3.33–§3.35 (the F183+ work this immediately precedes); the no-magic discipline (F151 PARTIAL, F163/F175 nulls kept). Per-finding docs `R-RBS-LM-FINDING_151…181`. **Status:** meaning-tier catch-up; the F166/F167 inference-walk capstone + the H177 falsification arc were the most under-surfaced and are the load-bearing additions. Honest nulls/partials preserved (F151, F163, F175, F178). k=3 triality pending (Phase 14).
 
 ## §3.38 The A–N reversibility / lossy audit — reversible-rotation vs irreversible-projection (per-operator)
 
