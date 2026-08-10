@@ -791,6 +791,16 @@ Task #217 Phase C1 (srmech v0.4.0) shipped every class with a native C surface (
 
 ### §3.8.2 Canonical QM/QFT/SM operations layer on top of the 14 classes (Phase C1 rc9-rc11)
 
+> ⚠️ **PATH CURRENCY (added rc420, `#T1114`).** Every `srmech.qm.<name>` in this subsection —
+> the framing sentence and all eight table rows — is **as-shipped-at-v0.4.0** and is kept
+> because this is a dated Phase-C1 record. **The live prefix is `srmech.physics.qm.*`**:
+> ADR-0010's physics slice moved the whole `qm` subpackage at v0.9.0rc381, and the old spelling
+> was **REMOVED** at v0.9.0rc382 — a clean break with no alias — so `import srmech.qm` raises
+> `ModuleNotFoundError`. Read every row below as `srmech.physics.qm.<name>`; the *module names*
+> after the prefix are unchanged. This banner exists because the table reads as a live API
+> surface rather than a release record, and a session has already lifted a path out of a
+> comparable table into a technical answer as though it still resolved.
+
 Per `[[feedback_science_is_ssot_not_project]]`, srmech v0.4.0 ships a canonical physics-operations layer at `srmech.qm.*` — each operation sourced from the physics literature (Schrödinger / Heisenberg / Dirac / Yang-Mills / Glashow-Weinberg-Salam / Higgs / Cabibbo-Kobayashi-Maskawa / Mostafazadeh / Bender-Boettcher) and dissolved into the 14-class vocabulary above. **No new primitive classes** — every QM/QFT/SM operation is a composite of A–N.
 
 | Module | Operations | Dissolves into | Canonical SSoT |
@@ -804,7 +814,7 @@ Per `[[feedback_science_is_ssot_not_project]]`, srmech v0.4.0 ships a canonical 
 | `srmech.qm.gauge` | SU(2)/SU(3) Gell-Mann generators, structure constants, Casimirs, Wilson loops | Class M (Lie-algebra binding) + Class L (matrix exponential) + Class C (path-ordered iteration) | Yang-Mills (1954); Gell-Mann (1962); Wilson (1974); Peskin-Schroeder §§15-17 |
 | `srmech.qm.sm` | Higgs vev, weak mixing angle, W/Z masses, Weinberg relation, Yukawa, CKM | Class K (continuous projection of vev → mass relations) + Class M (CKM unitary mixing) | Glashow (1961); Weinberg (1967); Salam (1968); Higgs (1964); Cabibbo (1963); Kobayashi-Maskawa (1973); Peskin-Schroeder Chs 20-21 |
 
-`srmech.amsc.tool_schema` registers ~87 entries covering every public callable across `srmech.amsc.*` (14-class primitives) + `srmech.qm.*` (operations layer) for LLM-friendly introspection. Coverage ratchet test (`tests/test_tool_schema_coverage.py`) walks `srmech` via `pkgutil` + `inspect` and asserts each public function has a registered entry.
+`srmech.amsc.tool_schema` registers ~87 entries covering every public callable across `srmech.amsc.*` (14-class primitives) + `srmech.qm.*` (operations layer) for LLM-friendly introspection. *(**As-of-v0.4.0**, and dated rather than bumped like its sibling rows. Live at rc420: the registry is at **`srmech.introspect.tool_schema.get_tool_schema`** and holds **598** entries — `len(get_tool_schema().tools)`, equal to `describe()["tools"]["total"]`. Read the live value, never a literal; see the §3.28.3 ledger bullet, which carries the same correction for the same reason.)* Coverage ratchet test (`tests/test_tool_schema_coverage.py`) walks `srmech` via `pkgutil` + `inspect` and asserts each public function has a registered entry.
 
 **Stoichiometry hope (Phase 8) → resolved (Phase 9).** Phase 8 hoped that stoichiometry's integer-ratio algebra + reaction-network hypergraph structure + Feinberg deficiency theorem might surface a *genuinely new* primitive class. Phase 9's full investigation found instead that stoichiometry's algebra theory IS the existing primitive vocabulary instantiated at the chemistry-dynamics substrate. Every well-posed stoichiometric / mass-action / deficiency / detailed-balance / vibrational construct examined reduces to an existing class or composition. The vocabulary keeps tightening; this is consistent with `[[user_stance_string_theory_instrument_first]]` — the project's instrument keeps describing what's there using existing primitives; new dimensions are not being invented.
 
@@ -6411,7 +6421,7 @@ So `Δ₉` restricted to `Spin(8)` is the two inequivalent **half-spinors** `8_s
 | **DERIVED** (positive) | `Der(𝕊) = g₂` persists to `𝕊` **and** embeds in `spin(9)` as the triality-diagonal `g₂`, acting on `Δ₉ = 𝕊` as `diag(D, D)` | all **14** such lifts have sedenion-Leibniz residual **exactly 0** (genuine derivations); they lie in `span(spin(9))`; **`dim(spin(9) ∩ Der(𝕊)) = 14`** (exact ℚ nullspace) |
 | **NULL** (the honest bound) | the strong conjecture **fails** — the associator holonomy is valued in `g₂` (dim 14), **not** `Spin(9)` (dim 36) | only a 14-dim subspace of the 36 `spin(9)` directions preserves `𝕊`-multiplication; the other 22 (block-mixing `Σ_{a,8}` + `8_s ≠ 8_c` directions) have **nonzero** Leibniz residual; **0 of 36** individual generators are derivations |
 
-**Reading.** The associator curvature does **not** reappear as a *Spin(9)* holonomy; it reappears as the **same `g₂ ⊂ Spin(9)`** holonomy it already was on `𝕆`. Nothing *new* appears at the `𝕊` rung — the symmetry is the same `G₂ = Aut(𝕆)` it already was; the derivation algebra is *stable* at `g₂` up the whole Cayley–Dickson tower (Schafer). The dimension coincidence `16 = 16` is a **shared carrier, not a shared symmetry** — exactly the `[[feedback_cross_substrate_transfers_the_algorithm_not_the_constant]]` failure mode (the `g₂` *algorithm* transfers; a Spin(9) *constant* does not). This composes with §3.41 (the `𝕆` Laplacian has no frame-free spectrum — the reversible interior *ends* at `𝕆`) and the `𝕆`-reversible / `𝕊`-not tower (`sedenion_zero_divisor_witness`): past `𝕆`, both the reversibility *and* the symmetry-growth stop.
+**Reading.** The associator curvature does **not** reappear as a *Spin(9)* holonomy; it reappears as the **same `g₂ ⊂ Spin(9)`** holonomy it already was on `𝕆`. Nothing *new* appears at the `𝕊` rung — the symmetry is the same `G₂ = Aut(𝕆)` it already was; the derivation algebra is *stable* at `g₂` up the whole Cayley–Dickson tower (Schafer). The dimension coincidence `16 = 16` is a **shared carrier, not a shared symmetry** — exactly the `[[feedback_cross_substrate_transfers_the_algorithm_not_the_constant]]` failure mode (the `g₂` *algorithm* transfers; a Spin(9) *constant* does not). This composes with §3.41 (the `𝕆` Laplacian has no frame-free spectrum — the reversible interior *ends* at `𝕆`) and the `𝕆`-reversible / `𝕊`-not tower (~~`sedenion_zero_divisor_witness`~~ **`cd_zero_divisor_witness(dim=16)`** — renamed to the dim-general form; the hardwired sedenion symbol was REMOVED, and its C peer's removal is what bumped `SRMECH_ABI_VERSION` to 11 at rc395, path corrected rc420 `#T1114`): past `𝕆`, both the reversibility *and* the symmetry-growth stop.
 
 **Status:** DERIVED build + PARTIAL conjecture verdict; recognize-not-read, FORM-not-identity, no lineage claim (`[[feedback_no_lineage_claims_in_notebook]]`). Surface: `srmech.qm.so9` (rc323) — `so9_adjoint_basis` / `spin9_gamma_matrices` / `spin9_spinor_generators` / `spin8_in_spin9_branching` / `sedenion_holonomy_conjecture`. SSoT: Baez (2002, arXiv:math/0105155) §2.4/§3.4 (octonionic `Spin(9)` / triality); Schafer (1954, *Amer. J. Math.* 76, 435–446) (`Der(𝔸ₙ) = g₂`, `n ≥ 3`). Cross-refs: §3.30 (`𝔰𝔬(8)`/triality — the rung below), §3.41 (the octonion Hurwitz wall), MFO §VIII.31.16 (the `𝕆→𝕊` reversibility horizon). An honest NULL half of a PARTIAL is a first-class deliverable.
 
@@ -6451,6 +6461,34 @@ The framing — a tri-state packed `Q` as "the uniform layer between all functio
 
 **Status:** MEASURED. Every output below was executed on WSL2 (Python 3.10.12, srmech 0.9.0rc352 from the source tree, **numpy absent**) and pasted verbatim. Nothing here is typed from memory; where a number looked surprising it was re-run rather than corrected.
 
+> ⚠️ **PATH-CURRENCY BANNER (added rc420, `#T1114`).** The measured outputs below are **history
+> and stay** — they were captured at 0.9.0rc352, and editing them to today's values would
+> fabricate a re-measurement that did not happen. The **import paths are API**, and they had gone
+> dead. Four module moves plus one op removal account for all of it: `srmech.qm.*` →
+> **`srmech.physics.qm.*`** (ADR-0010 physics slice; the old path was REMOVED at rc382 with no
+> alias); `srmech.amsc.cascade.*` → **`srmech.cascade.*`**; `srmech.amsc.poly` →
+> **`srmech.math.poly`**; `srmech.amsc.qmat` → **`srmech.math.qmat`**; and
+> `sedenion_zero_divisor_witness` was replaced by the dim-general
+> **`cd_zero_divisor_witness(dim=16)`**. **Ten import statements and one call were dead in this
+> section; all are corrected in place.**
+>
+> **Why this section in particular.** §3.45.0 exists to record the *phantom-gap failure* — a
+> reader concluding a capability is absent because they could not find it. Ten non-importable
+> lines inside the section written to cure that failure is the failure recurring one level up:
+> a reader who pastes them gets `ModuleNotFoundError` and reads it as a broken install rather
+> than a moved module. Measured at the pinned tree, every one of the ten raises.
+>
+> **What was re-verified and what was not — the weaker claim named as weaker.** §3.45.1, §3.45.2
+> and §3.45.6 were re-executed with the corrected paths and reproduce their shipped output
+> **byte-identically**, including `cd_zero_divisor_witness()` returning the same
+> `e1 + e10 * e4 - e15` witness under its new name. So the outputs were never stale; only the
+> routes to them were. §3.45.3/.4/.5/.7/.8 were **not** re-executed: their imports are corrected
+> and every op they call was verified present at rc420, which is a weaker claim and is stated as
+> such. Two path citations inside §3.45.0's rc352-era narrative are left as written on purpose
+> (`srmech/amsc/qmat.py:447` is now `srmech/math/qmat.py:447` — same line number;
+> `c/include/srmech.h:11761` is now `:12126`), because that table is a dated account of a past
+> session, not a live instruction.
+
 ### 3.45.0 Why this section exists — the phantom-gap failure
 
 srmech's `describe()` / `EXAMPLES` / `EXPLAIN` surface exists so that a reader — human or agent — can see **what the package already does** without reading 513 op sources. Through rc352 it did not do that. All 513 `example` fields were signature echoes, 356 of them literal type stencils:
@@ -6470,7 +6508,7 @@ That is the function's declaration re-rendered. It carries no argument values, n
 
 So the bar for an example is not "documented". It is: **a competent reader cannot fail to see the op already does this job.** That requires three things a signature echo cannot supply — a worked call across a few coherent invocations, its real captured output, and prose naming the siblings so a neighbour cannot be re-derived by accident.
 
-The organising principle of this section follows the same logic. Examples are grouped **by research subject**, not by module. An agent looking for "how do I read the genetic code's own symmetry" should not have to already know that the answer lives in `amsc.cascade`.
+The organising principle of this section follows the same logic. Examples are grouped **by research subject**, not by module. An agent looking for "how do I read the genetic code's own symmetry" should not have to already know that the answer lives in **`srmech.cascade`** (written `amsc.cascade` through rc381; corrected at rc420, `#T1114` — `srmech.amsc.cascade` no longer exists).
 
 ---
 
@@ -6479,10 +6517,10 @@ The organising principle of this section follows the same logic. Examples are gr
 The SU(3) generators are not asserted to be normalised; the normalisation is **measured** by contracting them against themselves, and the colour factor falls out with no eigendecomposition anywhere.
 
 ```python
-from srmech.qm.gauge import (su3_generators, su3_gell_mann_matrices,
-                             su3_structure_constants, casimir_eigenvalue,
-                             lie_algebra_residual)
-from srmech.amsc.cascade.matrix_cascades import einsum
+from srmech.physics.qm.gauge import (su3_generators, su3_gell_mann_matrices,
+                                     su3_structure_constants, casimir_eigenvalue,
+                                     lie_algebra_residual)
+from srmech.cascade.matrix_cascades import einsum
 
 lam = su3_gell_mann_matrices()
 L = [[[complex(M[i, j]) for j in range(3)] for i in range(3)] for M in lam]
@@ -6508,7 +6546,7 @@ bracket residual : 1.570092458683775e-16
 The electroweak sector is one call from couplings to observables:
 
 ```python
-from srmech.qm.sm import electroweak_summary, ckm_matrix, ckm_unitarity_residual
+from srmech.physics.qm.sm import electroweak_summary, ckm_matrix, ckm_unitarity_residual
 s = electroweak_summary(0.65, 0.357, 246.0)
 print("M_W, M_Z         :", s["M_W"], s["M_Z"])
 print("sin^2 theta_W    :", s["sin_theta_W"] ** 2)
@@ -6533,8 +6571,8 @@ CKM unitarity    : 1.1699998969206036e-16
 ### 3.45.2 Standard Model, exceptional side — g₂ = Der(𝕆), triality, and the D₄ folds
 
 ```python
-from srmech.qm.so8 import g2_subalgebra, so8_adjoint_basis
-from srmech.qm.triality import triality_automorphism
+from srmech.physics.qm.so8 import g2_subalgebra, so8_adjoint_basis
+from srmech.physics.qm.triality import triality_automorphism
 from srmech.math.laplacian import mat_matmul, mat_norm
 
 g2, B = g2_subalgebra(), so8_adjoint_basis()
@@ -6574,8 +6612,8 @@ Subject: the sha256-attested NCBI translation table 1 shipped in the wheel at `s
 
 ```python
 from srmech.biology import genome as G
-from srmech.amsc.cascade import (cd_basis_product, cd_navmap, cd_navigate,
-                                 cd_couple_working, cd_uncouple_working)
+from srmech.cascade import (cd_basis_product, cd_navmap, cd_navigate,
+                            cd_couple_working, cd_uncouple_working)
 BASES = "TCAG"                                  # the attested base order
 codon = lambda i: BASES[i // 16] + BASES[(i // 4) % 4] + BASES[i % 4]
 FAM = {}
@@ -6708,7 +6746,7 @@ The same subject at the **gravitational** rung: a body set becomes a coupling gr
 from srmech.biology.coupling import (from_bodies, resonant_spectrum,
                                   resonant_spectrum_sparse, fractal_spectrum)
 from srmech.math.laplacian import dense_laplacian
-from srmech.amsc.poly import poly_from_coeffs
+from srmech.math.poly import poly_from_coeffs
 
 n, edges, w = from_bodies([1.0, 4.704e-5, 2.528e-5, 7.804e-5, 5.667e-5],
                           [0.0, 421.8, 671.1, 1070.4, 1882.7])
@@ -6798,11 +6836,13 @@ The convergent ladder also **reproduces a standing falsification in one call**. 
 ### 3.45.6 Hurwitz structure — where the tower stops, and the three ceilings that are not the same number
 
 ```python
-from srmech.amsc.cascade import (is_division_algebra_dim, cd_navmap_is_signed_permutation,
-                                 sedenion_zero_divisor_witness, left_mult_is_invertible,
-                                 left_mult_kernel, algebra_table, inertia_signature,
-                                 cd_mult, cd_norm_sq)
-Z = sedenion_zero_divisor_witness()
+from srmech.cascade import (is_division_algebra_dim, cd_navmap_is_signed_permutation,
+                            cd_zero_divisor_witness, left_mult_is_invertible,
+                            left_mult_kernel, algebra_table, inertia_signature,
+                            cd_mult, cd_norm_sq)
+Z = cd_zero_divisor_witness()          # rc420: the dim-general successor of the
+                                       # removed hardwired sedenion_zero_divisor_witness;
+                                       # dim defaults to 16 — same witness, same output
 print("Hurwitz dims   :", [(d, is_division_algebra_dim(d)) for d in (1,2,4,8,16,32,64)])
 print("addressing     :", [(d, cd_navmap_is_signed_permutation(d)) for d in (2,4,8,16,32,64)])
 print("witness        :", Z["x_form"], "*", Z["y_form"], "| norms",
@@ -6903,7 +6943,7 @@ keep_k=12 identity  : True
 The nucleosome is the same *reading* on a physical substrate, and it needs no transform at all:
 
 ```python
-from srmech.amsc.cascade import autocorrelation, top_k_by_score
+from srmech.cascade import autocorrelation, top_k_by_score
 contacts = {(k * 51) // 5 for k in range(15)}     # h_s = 51/5 = 10.2 bp/turn
 track = [1.0 if i in contacts else 0.0 for i in range(147)]
 r = autocorrelation(track)
@@ -6930,7 +6970,7 @@ top-5 lags  : [10, 137, 51, 96, 20]
 
 ```python
 import srmech.introspect as I
-from srmech.amsc.qmat import QMat
+from srmech.math.qmat import QMat
 d = I.describe()
 print("version:", d["srmech_version"], "| tools:", d["tools"]["total"],
       "| categories:", len(d["categories"]))
