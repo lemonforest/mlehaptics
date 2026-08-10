@@ -269,10 +269,25 @@ a tree-wide search on 2026-07-28 found no `ℍℓ` and no cursive-`ℓ` doubling
 is *reconstructed from the structure it describes*, not recovered from a prior source. The
 structural content (which triple closes, which does not) is textbook Cayley–Dickson and is
 independently checkable from the shipped `algebra_table`; the *notation* is ours and is recorded
-here so it stops being re-derived each session. **Open and unresolved:** `#T982` — `one.py:1` and
+here so it stops being re-derived each session. ~~**Open and unresolved:** `#T982` — `one.py:1` and
 `one.py:10` still contradict each other on which partition is the carrier `(1+1)+(1+3)+(1+7) = 2+4+8`
 and which is the operator `1+3+7+3 = 14`; until that closes, conflating these partitions is a
-hazard the tree creates, not a reader error.
+hazard the tree creates, not a reader error.~~
+
+> ✅ **SUPERSEDED at rc420 (`#T1114`) — `#T982` CLOSED at v0.9.0rc355; the struck text above was
+> 65 rcs stale.** The code was never wrong; what was missing was the **naming hinge**, and
+> `one.py`'s module docstring now supplies it in both directions: the **CARRIER partition**
+> `(1+1) + (1+3) + (1+7) = 2 + 4 + 8` groups the fourteen by *which algebra* a direction lives in
+> (read ACROSS the rows; the constant `BLOCK_DIMS`), and the **OPERATOR partition** `1 + 3 + 7 + 3`
+> groups the SAME fourteen by *what role* a direction plays (read DOWN the columns; `One.partition`).
+> **Neither refines the other and neither is *the* partition** — they are the row-sums and the
+> column-sums of one table, not rival totals. `_validate_slot_shape` mechanises the hinge
+> (`1 + len(Im block) == BLOCK_DIMS`) so the two cannot drift apart silently again. The root cause
+> is worth keeping, stated with its pre-rc355 scope: `BLOCK_DIMS` drove **none of the matrix
+> builds** (`to_matrix` / `_blocks_from_flat` / `_adjoint_blocks_pure` are driven by `IMAG_DIMS`
+> alone), so nothing forced the two groupings to be named apart — `_validate_slot_shape` is
+> precisely the consumer rc355 added to close that. Restated at §3.46.9 and §2.6.5; the record is
+> kept rather than deleted so the falsification trail survives.
 
 Sister-notebook MFO carries the same notation-key in its Part I framing.
 
@@ -326,7 +341,7 @@ The alphabetical surface lives at §3.8 (canonical srmech enumeration) and in th
 
 ### §2.6.5 The observer-frame reordering — `3 + 1 + 3 + 7` (the same loop, cut at the projection)
 
-The `1 + 3 + 7 + 3` partition above is the **substrate / construction frame**: it builds real-first (the `{A}` content-anchor), then the imaginary grades `Im ℍ` and `Im 𝕆`, and closes the **winding** `{B, H, N}` last — the same order the One assembles, `S(σ,θ,w) = ⨁_{n=1}^{3}(ℝ·1 ⊕ σ·e^{Î_nθ}·Im 𝔸_n)`, `dim = 1 + 3 + 7 + 3` (which is why that construction order is left untouched — see §3.41.5 / the `qm.hurwitz` peer). An **observer** does not build the loop; the observer reads it, and reads it from the other side — the operators that *make the projection* first, and the content-anchor as the shadow the loop casts rather than its seed:
+The `1 + 3 + 7 + 3` partition above is the **substrate / construction frame**: it builds real-first (the `{A}` content-anchor), then the imaginary grades `Im ℍ` and `Im 𝕆`, and closes the **winding** `{B, H, N}` last — the same order the One assembles, `S(σ,θ,w) = ⨁_{n=1}^{3}(ℝ·1 ⊕ σ·e^{Î_nθ}·Im 𝔸_n)`, `dim = 1 + 3 + 7 + 3` (which is why that construction order is left untouched — see §3.41.5 / the ~~`qm.hurwitz`~~ **`physics.qm.hurwitz`** peer — path corrected at rc420, `#T1114`; `srmech.qm.*` was REMOVED at rc382, and note that the peer op is `hurwitz_planes`, `hurwitz_matrix` having been retired outright, §3.48.6). An **observer** does not build the loop; the observer reads it, and reads it from the other side — the operators that *make the projection* first, and the content-anchor as the shadow the loop casts rather than its seed:
 
 | Slot | Classes | Observer role |
 |---|---|---|
@@ -814,7 +829,7 @@ Phase 2 (v0.4.1rc5) lands the broadening with full C + Python parity per `[[feed
 | `elementwise_multiply_complex(a, b) → a * b` | `srmech.math.laplacian.elementwise_multiply_complex` + `srmech_elementwise_multiply_complex` | Pointwise complex algebra (no domain literature; included for completeness) |
 | `elementwise_transcendental(arr, op_name)` for `op_name ∈ {"exp", "cos", "sin", "log", "exp_i"}` | `srmech.math.laplacian.elementwise_transcendental` + `srmech_elementwise_transcendental` | ANSI C99 §7.12 libm; `exp_i(x) = exp(i·x)` realised as `cos + i·sin` over the real argument |
 
-The C-side Hermitian eigendecomposition is **pi-free** per `[[user_stance_pi_as_projection]]`: the complex-Jacobi phase factor `e^(iφ) = γ/|γ|` is computed algebraically as `γ_re/|γ| + i·γ_im/|γ|` (no `atan2` call); the real-symmetric reduction inside each rotation uses the same `c, s` algebraic recipe as the existing `srmech_jacobi_eigvals`. The C path stays under the `n ≤ SRMECH_LAPLACIAN_MAX_NODES = 256` bound; larger systems fall back to `numpy.linalg.eigh`.
+The C-side Hermitian eigendecomposition is **pi-free** per `[[user_stance_pi_as_projection]]`: the complex-Jacobi phase factor `e^(iφ) = γ/|γ|` is computed algebraically as `γ_re/|γ| + i·γ_im/|γ|` (no `atan2` call); the real-symmetric reduction inside each rotation uses the same `c, s` algebraic recipe as the existing `srmech_jacobi_eigvals`. The C path stays under the `n ≤ SRMECH_LAPLACIAN_MAX_NODES = 256` bound; larger systems fall back to ~~`numpy.linalg.eigh`~~ **the pure-Python cyclic-Jacobi over the `Mat` carrier** (**SUPERSEDED at rc420, `#T1114`** — numpy left `install_requires` at v0.7.0rc47 and was REMOVED entirely by the v0.7.5 carrier arc; measured at the pinned tree there is no real `import numpy` anywhere in `srmech/`, and this notebook's own header already says so. The *dated spike records* in §3.5.1–§3.5.3 that cite `numpy.linalg.eigh` as the instrument a 2026-05-11 measurement was checked against are history and correctly stay.)
 
 The composition engine that consumes these ops via TOML chains lives at `srmech.amsc.compose` (Phase 2, same rc). The four Phase 1 worked-example chains plus the TDSE spike chain compose entirely against the broadened Class L surface; no new primitive class is referenced by any cosmos-catalog operator chain. Cross-references: ADR-0002 §3 (parent), Phase 1 schema doc (`docs/srmech/adr/0002-phase-1-operator-chain-schema.md`), Phase 1 report (`docs/srmech/notes/adr_0002_phase_1_dsl_design_2026-05-16.md`).
 
@@ -7263,6 +7278,386 @@ First escape of the 3-index set: `L=(1,2,3), e=4, g=+e₁, t=+e₅ → byte 4 = 
 **Provenance.** `notes/oct_torsor_rc388.py` → `.ndjson` (6 findings, all through the shipped ops; no `abs()` — sign is the Class-K pin bit `b>>3` re-applied by a Class-C XOR; no stdlib `fractions`). Differential gate: `tests/test_oct_torsor_rc388.py` (the 4-point ratchet + the 3-index/4-index correction + the pure-vs-c_dispatched byte-identity oracle).
 
 **Cross-references.** §3.46 (the octonion carrier + the associator's 168 seam-confinement `T` rests on) · §3.41.6 (`{e0..e3}` fully coherent, every leak seam-crossing) · §3.45.6 (the three Hurwitz ceilings that are different numbers — turns/composition/addressing). Memory: `[[user_stance_cascade_matching_substrate_blind_form_not_identity]]` (FORM, not identity), `[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]`, `[[project_h_genome_is_fibrated_hurwitz_tower]]`.
+
+---
+
+## §3.48 Continuous math IS a cascade of the 14 A–N classes — the linear-algebra half, termination DERIVED from a declared precision, and the machine-code coherence tier (2026-06-04 → 2026-08-10; MEASURED, shipped)
+
+The framework's longest-standing assumption about a "scientific tier" was that certain operations —
+`svd` / `qr` / `eig` / `lstsq` / `einsum` / `kron` / complex-`exp` / `FFT` — are **primitives srmech
+lacks**, so a numerical library must supply them. That assumption is **falsified**, and the *shape*
+of the error is the load-bearing content, not the list of ops:
+
+> **It was a missing COMPOSITION mistaken for a missing CAPABILITY.**
+
+There are exactly 14 irrep class operations (§2.6). A "continuous" operation is not a fifteenth kind
+of thing; it is a **chain of the 14**. The same error had already been made once and corrected once —
+the asymptotic trig "couldn't replace numpy" until it was derived — and the general case is recorded
+here so the pattern is recognisable the next time a surface looks absent. This composes exactly with
+`[[feedback_ungated_surfaces_trickle_gated_surfaces_race_to_100]]`: an underived op becomes BELIEVED
+ABSENT, and belief is what has to be falsified, not the op.
+
+The living derivation record is [`notes/continuous_math_as_14_class_cascade.md`](notes/continuous_math_as_14_class_cascade.md).
+That note is history — the per-rc route by which each op was derived. **This section is what survived
+falsification**, restated against the shipped tree at v0.9.0rc420.
+
+### §3.48.1 The transcendental half is already established — read §3.39, not this
+
+The per-transcendental reading (`sin` / `cos` / `tan` / `atan` / `atan2` / `exp` / `log` / `sqrt` /
+`hypot`, each as a named A–N composition) is **§3.39.3** and is correct as written. The
+float-as-projection lens is **§3.39.2** (ALU-all-the-way / FPU-last-mile), and the honest boundary —
+where a `Q` carried *through* a Jacobi sweep **hung**, because an iterative kernel's rotations are
+genuinely irrational per step — is **§3.39.4**. Nothing here revises any of that; it is forward-linked,
+not repeated. What §3.39 does *not* cover is the **linear-algebra half**. That is below.
+
+### §3.48.2 The linear-algebra half — every "scientific tier" op as a named A–N chain
+
+Each row is a *composition*, not a new primitive. No class is promoted; the 14 stay flat
+(`[[feedback_no_privileged_primitive_classes]]`).
+
+| op | A–N cascade | what each stage IS | shipped surface |
+|---|---|---|---|
+| **DFT** `X_k = Σ_n x_n·e^(−2πi·kn/N)` | **M ∘ {N∘C} ∘ I** | **I** the index `kn mod N` (the cyclic group ℤ/N) · **N∘C** the twiddle = Class-N trig composed with the Class-C i-rotation, i.e. one `cexp` · **M** the `Σ_n` **bundle**: N rotated copies of the signal superposed | `srmech.cascade.spectral_cascades.dft` / `idft` |
+| **FFT** (radix-2) | **M ∘ {N∘C} ∘ I ∘ J ∘ K** | the DFT chain **plus J** — the radix split `N = N₁·N₂` is a *factorization* — **plus K**, the butterfly recursion depth read as asymptotic-DoF divide-and-conquer | `…spectral_cascades.fft` / `ifft`; direct-`dft` fallback at every non-power-of-2 `N` |
+| **kron** `A ⊗ B` | **I ∘ M** | **I** the mixed-radix index decomposition (ℤ/p factor arithmetic) · **M** the element products. A container plus Class-I indexing | `…spectral_cascades.kron` |
+| **QR** `A = QR` | **M ∘ C ∘ N ∘ K** | `Q` is a *product* (**M**) of elementary orthogonal transforms. The **shipped** route is a **Householder** reflection `H = I − 2vvᵀ/(vᵀv)` = **K** (sign-flip across a hyperplane) ∘ **M** (the outer-product `vvᵀ` bind) ∘ **N** (`1/(vᵀv)`) | `srmech.cascade.matrix_cascades.qr` (Householder; reduced + complete) |
+| **SVD** `A = UΣVᵀ` | **L ∘ (N∘K) ∘ M ∘ N** | `V, Σ²` = the eigendecomposition of `AᵀA` — that is **L**, and srmech already had it · `Σ = √λ` = **N∘K** · `U = A·V·Σ⁻¹` = **M** (matrix bind) ∘ **N** (reciprocal) | `…matrix_cascades.svd` (Gram-matrix route through `hermitian_eigendecompose`) |
+| **eig** (non-Hermitian) `A = VΛV⁻¹` | **K ∘ L ∘ {QR} ∘ C** | the QR algorithm `A ← RQ` converging to Schur form: **K** iterate-to-convergence (asymptotic-DoF) · **L** the spectral content · **{QR}** the per-step chain above · **C** the spectral shifts | `…matrix_cascades.eigvals` (shifted-QR) |
+| **lstsq** `min‖Ax − b‖` | **{QR} ∘ M ∘ I** | solve `Rx = Qᵀb`: the **{QR}** factorization ∘ **M** (the `Qᵀb` product) ∘ **I** — back-substitution is an *ordered* triangular solve | `…matrix_cascades.lstsq` |
+| **einsum** (tensor contraction) | **B/D ∘ I ∘ M** | the contraction string is a **typed spec** — **B** (TLV-framing) / **D** (index-pattern match); the contraction itself is **I** (iterate index tuples) ∘ **M** (the sum-of-products bundle) | `…matrix_cascades.einsum` |
+| **Hermitian eig** | **L** | the cyclic Jacobi — the already-shipped special case the whole SVD row leans on | `srmech.math.laplacian.hermitian_eigendecompose` |
+
+**The DFT row is the keystone, and it is not a metaphor.** `X_k = Σ_n x_n·e^(−2πi·kn/N)` is a
+*bundle of rotating phasors* — which is the Antikythera epicycle-sum
+(`[[user_stance_epicycle_via_gear_plus_pin]]`) written in another alphabet. The shipped
+`spectral_cascades.dft` annotates its own lines that way (`# Class I: cyclic index`, `# Class N
+twiddle angle`, `# Class C rotation, Class M bundle`). Deriving `cexp` is what unlocked the whole
+column: once the twiddle is a cascade, the transform is an **M**-bundle over **I**-indexed rotations,
+and the fast variant only adds **J** and **K**.
+
+**Honest bounds on the table.** (i) These are *derivations plus shipped surfaces*, not a claim that
+the shipped chain is the numerically best route. (ii) General mixed-radix FFT is a **stated future
+refinement**, not a shipped row — the shipped `fft` is radix-2 with a direct-`dft` fallback. (iii) A
+**Givens** rotation `[[c,−s],[s,c]]` is likewise **C** built from **N** (`c = a/r`, `s = b/r`), and
+it is the natural derivation to reach for on the QR row — but srmech ships **no Givens QR**. Its
+Givens rotations live in the Jacobi sweep of `srmech.math.laplacian`, i.e. on the **Hermitian-eig**
+row. Stated because the derivation is right and the attribution would have been wrong.
+
+### §3.48.3 Termination is DERIVED FROM a declared precision — not a declared parameter
+
+This is the one statement of the reading that has lived **only in code**, and it is the statement most
+often got backwards. The surface is **two-layered**, and the layers take different things:
+
+| layer | surface | what it takes | bound |
+|---|---|---|---|
+| **exact-rational REFERENCE** | `exp_series_truncate` / `sin_` / `cos_` / `log1p_` / `atan_series_truncate(numerator, denominator, num_terms)` | `num_terms` — an integer count, **positional** | capped at **512**; over-cap raises `ValueError` |
+| **PROJECTION** | `exp` / `log` / `cos` / `sin` / `tan` / `atan` / `atan2` / `sqrt` / `hypot` / `cexp` | **no term count at all** — a keyword-only `precision: int \| None`, a **bit budget** | `precision=None` selects the byte-identical Q61 fast path; `precision=P` lengthens the working bignum |
+
+At the projection layer, `_num_terms_for(bnum, bden, target_bits, shape)` **derives** the smallest
+`N` whose truncation remainder is below `2**-P`, from the reduced-argument bound and the series shape.
+The derivation is itself pure integer: term magnitudes are tracked as an **unreduced** integer pair,
+bit-length differences *are* the true `log₂` regardless of common factors, and **no float sizes the
+count**. That closes the loop with the Class-N module's own founding statement — *"no infinity invoked
+at any step, no floating-point at any step"*.
+
+**The `terms=` kwarg is gone from the projection layer** (v0.9.0rc320, breaking, **no** legacy alias):
+passing it now raises `TypeError`. It had been a *dead* keyword — the docstrings claimed it selected an
+arbitrary-precision reference surface and the body never read it — so the migration replaced a fiction
+with a live contract rather than renaming a working knob. This is the **dual-precision contract**: one
+knob, two co-equal projections of the *same* rational — `precision=None` → platform-bounded (a
+`best_rational` anchor riding a native int64 word, float-free); `precision=P` → srmech-native bigint,
+with the stated remainder bound tightening monotonically as `P` rises.
+
+⚠️ **Read the boundary precisely — `terms=` is not gone from the tree.** `the_one(σ, θ_num, θ_den,
+terms=24, w=…)` still carries an explicit Class-N Taylor depth, because it is a *generator over the
+exact layer*, not a projection. "Termination is derived" is a statement about the **projection** layer
+only; the exact-rational layer's `num_terms` is, and remains, a declared parameter. **A sweep that
+deleted every `terms=` would break the One.**
+
+### §3.48.4 The machine-code tier had to be measured separately — the `libm` divergence
+
+§3.29.4 already establishes the coherence partition this depends on — **one SSoT, three coherences**
+(`MFO + srmech notebook` = *meaning* : `Python` / `C` source = *language* : `Compiled C` = *machine
+code*), and it is not restated here. What §3.48 adds is the *finding that partition made visible*, and
+it could not have been found any other way.
+
+The discipline sweeps that routed Python scalar math onto the Class-N cascade all walked `*.py`. That
+left a gap the Python source **cannot** expose: on a native install the Kepler / Kuramoto /
+signed-Laplacian ops dispatched to **C** peers that still called `libm`. The meaning and language tiers
+said "Class-N cascade"; the machine-code tier ran `libm`. They agreed *numerically* — rational
+trig/sqrt ≡ `libm` to machine ε, which is exactly why the C-parity tests passed and **masked it** — but
+the C was not a faithful transpile of the same cascade. This is
+`[[feedback_false_green_comments_and_dead_instrumentation_seams]]` at library scale: a green parity
+suite certifying a *number* while the *identity* claim quietly failed.
+
+**What survived: the executable now runs the cascade.** `srmech_{sin,cos,atan,atan2}`, a C
+`pi_cascade`, `srmech_rational_sqrt` (two-limb integer isqrt), `srmech_exp` / `srmech_log` (Q61 integer
+exp-Taylor; Q61 integer `atanh` series `log(m) = 2·atanh((m−1)/(m+1))`), and the last `fabs` replaced
+by an explicit **Class-K sign-branch**. The ratchet that measures it
+(`tests/test_c_cascade_coherence.py`) is down-only in the `test_jpl_audit.py` shape, extends to the C99
+**complex** `libm` so no future complex op can silently reintroduce it, and its baseline is
+**`_BASELINE_TOTAL = 0`** — MEASURED at the pinned tree. **The shipped `libsrmech` holds no `libm`
+transcendental.** All three tiers agree.
+
+The method generalises past this instance: *a ratchet that walks only one language certifies only that
+language.* Per `[[reference_two_language_problem_inverted_python_c_different_scales]]`, Python and C
+are the same problem at different scales — so a gap between them is invisible until an instrument is
+pointed at the tier below both.
+
+### §3.48.5 "The One" `S(σ,θ,w)` — the same 14, read GENERATIVELY
+
+Everything above runs **decomposition**-ward: each continuous op factors *into* the 14. The One closes
+the loop from the other end — a single parameterised object that **IS** the 14-dimensional A–N space.
+Its grading, and the two co-valid partitions of one fourteen, are already established at **§2.6.5**
+(construction frame) and **§3.46.9** (carrier vs operator); they are not restated here.
+
+What *is* new to this notebook is the **plane count**, and it is a structural read rather than a
+choice. `e^{Î_n θ}` is not an abstract single-plane rotation: it is the algebra's **own** rotation
+(conjugation by `cos(θ/2) + Î_n sin(θ/2)`), which fixes the axis `Î_n = e_{2ⁿ−1}` and turns **every
+Fano-triple plane through `Î_n`** by `θ` *at once*. The count is `(2ⁿ⁻¹−1)`:
+
+| `n` | `𝔸ₙ` | planes turned by ONE θ-turn | `Im 𝔸ₙ` rotation eigenvalues |
+|---|---|---|---|
+| 1 | ℂ | **0** — no plane to turn; only the Class-K sign `σ` survives | `{1}` (1-dimensional `Im ℂ`; the axis is the whole space) |
+| 2 | ℍ | **1** | `{1, e^{±iθ}}` |
+| 3 | 𝕆 | **3** (the Fano triples through `e₇`) | `{1, e^{±iθ}, e^{±iθ}, e^{±iθ}}` |
+
+Two structural reads fall out, neither imposed:
+
+1. **At `n=1` the epicycle degenerates to the sign.** The `Im ℂ` seed *is* the rotation axis, so `θ`
+   is inert and the only freedom is the Class-K sign `σ`. The epicycle **is** the sign-flip at the
+   foundational algebra (`[[user_stance_epicycle_via_gear_plus_pin]]`); rotational richness then grows
+   `0 → 1 → 3` up the ladder.
+2. **The `7` carries a `1 + 3·2`.** The octonion imaginary is not a featureless heptad under the One's
+   rotation — it is one fixed axis plus three 2-planes spinning in lockstep. **The `3` of the `1:3:7`
+   reappears *inside* the `7`** as the plane count, and `2·(planes) + 1` reproduces `1, 3, 7` exactly.
+
+MEASURED at the pinned tree: `hurwitz_planes()` **derives** those planes from the attested octonion
+multiplication table and equals `srmech.cascade.one.FANO_PLANES`, which hard-codes them —
+`((), ((1,2,1),), ((1,6,−1),(2,5,1),(3,4,1)))`, plane counts `[0, 1, 3]`. Two independent routes to one
+object, which is what makes it a cross-derivation rather than a restatement. Note the orientation is
+**not** sign-uniform (`e₁e₆ = −e₇`) — the classic error when planes are copied off a diagram instead of
+read out of the table.
+
+So `S(σ,θ,w)` adds the *generative* direction to the decomposition above: the 14 are the block-graded
+pieces of **one turning object**, and turning its single angle realises the epicycle simultaneously at
+three scales `0 / 1 / 3` — the octonion dial driving three hands at once.
+
+### §3.48.6 The corrections this integration carries — the note's paths are rc-era
+
+The source note is dated to the v0.7.0rc3x–rc5x era and every module path in it has since moved. The
+note stays as written (living history); the current truth is here.
+
+| the note spells | current, MEASURED at v0.9.0rc420 | why it moved |
+|---|---|---|
+| `srmech.amsc.rational.*` | **`srmech.math.rational.*`**, publicly re-exported as **`srmech.calculus.*`** | ADR-0010 namespace declustering |
+| `srmech.amsc.cascade.{spectral_cascades, matrix_cascades, one}` | **`srmech.cascade.{…}`** | `srmech.cascade` is ADR-0010's first new top-level namespace |
+| `srmech.amsc.laplacian.hermitian_eigendecompose` | **`srmech.math.laplacian.hermitian_eigendecompose`** | same |
+| `srmech.qm.hurwitz.hurwitz_matrix` (+ the `np.array_equal` parity read) | **RETIRED, no replacement.** `srmech.physics.qm.hurwitz.hurwitz_planes` survives | it was a *float* duplicate of `One.to_matrix` — continuous-float math that sums error every op. The surviving cross-derivation is `FANO_PLANES == hurwitz_planes()`; the float 14×14 is the opt-in lossy export, never the math path |
+| `srmech.qm.*` generally | **`srmech.physics.qm.*`** | ADR-0010; the old spelling was REMOVED (clean break, no alias) — `import srmech.qm` raises `ModuleNotFoundError` |
+| `srmech.asymptotic_calculus` | **`srmech.calculus`** — the alias is **retained**, no-break | the "asymptotic" qualifier singled out one module while the whole framework (trig, exp, the eigen ops, the FFT-as-epicycle-sum) is equally substrate-native asymptotic-rational |
+| numpy as "a temporary fallback behind the `srmech[scientific]` extra" | **numpy is GONE** — no extra, no `import numpy` anywhere in `srmech/`; the carriers are `Mat` / `Vec` / `HV` / `Q` | the carrier-removal arc (§3.38, §3.39) went past optional to absent |
+
+⚠️ **`hurwitz_matrix` is RETIRED, not renamed** — the row above cannot be discharged by repathing.
+Measured: `srmech.physics.qm.hurwitz` exposes only `hurwitz_planes` and `octonion_mult_table`. Anyone
+updating the note's Rosetta pair by changing `srmech.qm` → `srmech.physics.qm` would ship a call that
+does not exist.
+
+### §3.48.7 Cross-references + status
+
+**Cross-references:** §3.39.2 / §3.39.3 / §3.39.4 (the float-as-projection lens, the per-transcendental
+table, and the iterative-kernel boundary — the transcendental half, not repeated here); §3.29.4 (the
+three-coherence partition §3.48.4 depends on); §3.38 (the reversibility / lossy audit); §2.6 (the
+`1 + 3 + 7 + 3` partition every row above composes from); §2.6.5 + §3.46.9 (the One's grading, and the
+carrier-vs-operator partitions of one fourteen); §3.49 (the executable cascade catalog — where a
+*declared* chain became a *run* chain). Source note:
+[`notes/continuous_math_as_14_class_cascade.md`](notes/continuous_math_as_14_class_cascade.md).
+Per-rc engineering record: `python/CHANGELOG.md` (cited, not inlined). Memory:
+`[[feedback_continuous_number_line_pedagogical_obstacle]]`; `[[user_stance_alu_all_the_way_fpu_last_mile]]`;
+`[[user_stance_epicycle_via_gear_plus_pin]]` (the DFT row);
+`[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]` (no `abs()` anywhere in these chains);
+`[[feedback_no_privileged_primitive_classes]]`;
+`[[feedback_ungated_surfaces_trickle_gated_surfaces_race_to_100]]`.
+
+**Status:** MEASURED + shipped. Every surface named above imports and runs at the pinned tree; the C
+coherence ratchet baseline is `0`. **Honest residuals:** general mixed-radix FFT is a stated future
+refinement, not a shipped row; the QR row's Givens derivation is derivation-only (Householder ships);
+and the table certifies *derivability + a shipped surface*, not that each shipped chain is the
+numerically optimal route.
+
+---
+
+## §3.49 The cascade catalog became EXECUTABLE — declared-vs-run, the two-state contract, and the grammar/op boundary (`#T1114`; MEASURED, shipped v0.9.0rc420)
+
+A descriptor that *describes* a cascade and a descriptor that *runs* one are different objects, and the
+distance between them is measurable. The `[cascade]` catalog under
+`srmech/cascade/catalogs/cascade_catalog/` spent its whole life on the first side: **20 descriptors,
+prose records of hand-rolled ops, zero carrying an executable step list**, and — measured by ADR-0012's
+clause C6 — with literally zero `describe()` visibility. `#T1114` inverted both. What follows is what is
+*true* about the catalog now; the per-rc route is in `python/CHANGELOG.md`.
+
+> ⚠️ **Three different "six"es live in this notebook and they are three different KINDS of object.**
+> **§3.21.5's universal core `M I N C L A`** is six **letters** (classes). **ISA-6** (F208, §3.33.4)
+> is six **instructions** (ops), spanning only classes {K, C} — and it is the *order-2* core only, F220
+> asking a **seventh**, order-3 opcode. **Combinator-6** (`then`, `loop`, `fold`, `reduce`, `parallel`,
+> `map_indexed`) is six **forms**, typed by classes {I, M, C, E∘M}. Letters / instructions / forms;
+> §3.29.6 is the canonical discrimination. This section uses the last two; it never uses the first.
+
+### §3.49.1 The two-state contract — executable or leaf, and NO THIRD STATE
+
+The catalog's twenty descriptors partition **20 = 17 executable + 3 leaf**, and the partition is
+*total by gate*, not by convention:
+
+- **EXECUTABLE** — the descriptor declares at least one chain, and every declared chain is **EXECUTED**
+  against its authored proof cases (including each descriptor's own documented boundary cases) and
+  compared **bit-for-bit** — a canonical byte encoding, so NaN payloads and signed zeros distinguish —
+  against the shipped op.
+- **LEAF** — the descriptor declares irreducibility explicitly, with a machine-readable reason.
+- **There is no third state.** *Silence is not a leaf declaration.* The gate is strict-zero with no
+  ceiling to drain.
+
+The equivalence is run on the **pure** projection, and the reason is a real one rather than
+convenience: several shipped ops dispatch whole-transform C kernels whose parity to the Python
+composition is a *documented tolerance*, not bit-exactness, so a native-projection bit-compare would
+assert something the tree explicitly does not promise. The chains' claim is about the **cascade** — the
+composition the descriptor documents — and the pure path IS that composition; each projection's own
+native parity is gated by its op's existing differential tests (ADR-0009).
+
+This is the discipline of `[[feedback_false_green_comments_and_dead_instrumentation_seams]]` applied to
+a catalog: prose describing a cascade is not a test of it. The descriptors did not become *more correct*
+at rc420 — they became **falsifiable**.
+
+### §3.49.2 The three declared leaves are three of the ISA-6 instructions — a PARTIAL agreement, stated honestly
+
+The three descriptors that declare irreducibility are **`chiral_flip`**, **`pin_slot_at_zero`** and
+**`reorient`** — three of the six **instructions** of the ATOM-vs-COMPOSITE A-N ISA (F208, §3.33.4).
+The RISC-minimality lens said those instructions are silicon-atomic; the executability census, run for
+an entirely different reason, independently landed on three of them as the descriptors that *cannot*
+decompose into a chain of registered ops.
+
+⚠️ **This is a 3-of-6 partial agreement, not a convergence, and the two instruments do not measure the
+same predicate.** F208 declared all six silicon-able; the census finds three irreducible, because the
+remaining three (`magnitude`, `chiral_dual`, `net_chirality`) **are** expressible as chains. And
+"atomic" means different things on the two axes: F208's sense is *has a dedicated C kernel* (five of
+the six do), while the census's sense is *not expressible as a chain of registered ops*. So F208's
+block claim is **partly refuted** on the census's axis, and "atomic" is a per-instruction fact, not a
+property of the ISA as a block. Two instruments agreeing on three of six is worth recording; calling it
+one answer would be the same category error §3.29.6 exists to prevent.
+
+### §3.49.3 `@idx.k` is UNSPELLABLE — the boundary between the two rungs
+
+The sharpest structural find is a *negative* one. The reference grammar's `[N]` indexer is
+**literal-only**: a descriptor can spell `@step[0].output[1]`, but it can never spell `x[@idx.k]`. So a
+**computed index cannot enter a chain as grammar at all** — it can only enter **as an op** (`seq_get`,
+Class-E: lookup-by-position is the degenerate catalog lookup, where the catalog is the sequence and the
+key is the index).
+
+That is a genuine boundary between the two rungs, not a gap to be closed. Grammar is the layer whose
+bounds are checkable *statically*; an op is the layer where a value decides something. Admitting a
+computed index into the grammar would move a data-dependent decision into the statically-audited layer,
+which is precisely what the totality argument below depends on **not** happening. The registered leaf
+inventory (`srmech/cascade/leaves.py` — **12** leaves: `seq_len`, `seq_get`, `pair`, `str_concat`,
+`utf8_encode`, `byte_slice`, `int_parse_le`, `f64_add`, `vec_add`, `vec_scale`, `dead_band`,
+`orientation_compose`) is what the exile lands in. **Class letters are CLASSIFICATION, not addressing**:
+these are reachable from a step by dotted op name regardless of which letter the step declares (§3.29.8).
+
+Two of those leaves exist because a naive chain **measurably diverged** from its shipped op, and both
+divergences are Class-K facts:
+
+- **`dead_band`** — the shipped `best_rational_signed` applies its Class-K dead-band **before** scaling.
+  Without the leaf, a declared chain diverges in the sub-dead-band-magnitude × huge-scale corner.
+- **`orientation_compose`** — MEASURED: a bare fold of `reorient` is **not** value-identical to
+  `net_chirality`. `net_chirality([0, −1]) == 0`, but folding `reorient` gives `−1`, because
+  `reorient`'s `orientation == 0` branch is a **no-op** while the shipped loop's zero guard is
+  **absorbing**. "Zero is absorbing" is FALSE for the bare atom — the absorbing branch is
+  descriptor-static, so it exiles into an op instance, which then folds correctly.
+
+That second one is the section's best single lesson: **the divergence was invisible until the chain was
+executed.** Prose could not have found it; a proof case did.
+
+### §3.49.4 What the engine had to gain, and what it deliberately did not
+
+The census measured the distance as a small set of distinct blockers, closed at root rather than worked
+around: **dotted op addressing** (`class` is classification, the dotted name is addressing); a **MAP
+step form** `{map_over, index, bind, body}`; a **FOLD step form** whose named argument slots fix a real
+contract defect (a binary-positional fold could not bind a keyword-only atom); the registered leaf
+inventory above; and a **`@op.<dotted>`** reference form so a descriptor can name an op **as a value**.
+Schema **v2 is a strict superset of v1** — every v1 catalog parses and runs unchanged.
+
+**The scoping decision, stated once.** A map body's `@step[N]` is **body-local** — a body is a chain in
+miniature, so the static bounds check applies recursively — and outer data enters **only** through the
+bind and index namespaces. That is the engine's explicit-only data-flow rule applied at the map
+boundary: **no implicit closure over outer steps.**
+
+**The totality argument, and it is auditable.** The map is data-**SIZED**, never data-**DEPENDENT**:
+`n` is pinned before the first body run (unsized iterables rejected at entry), the body is a
+descriptor-static step list, nesting depth is descriptor-static, and **no predicate anywhere decides
+continuation**. That is the same totality class the existing fold already had. The exile boundary —
+predicate-driven unbounded iteration stays in the op-instance layer — is **unmoved**; and the census
+measured the shipped corpus's true exile class (predicate-only unbounded iteration) as **EMPTY**.
+
+**The residual, stated as the census stated it.** The rung-4 scheme census named **three** still-missing
+populations, not two: *higher-order* (n=2), *scan* / mapAccumL (n=8), and *fuel-bounded consume* (n=3);
+divide-and-conquer measured n=0. The **higher-order** one is CLOSED at rc420 by the `@op.<dotted>`
+reference form — `parallel_sector_dispatch` now spells its body as
+`body = "@op.srmech.cascade.atoms.chiral_flip"` and both of its ops are among the 17 executable. So
+**two** populations remain, and they are bound as **down-only named populations** with their blocked
+module sets pinned by name — which is what makes the remaining Phase-2 surface auditable rather than
+aspirational.
+
+### §3.49.5 The combinator kernel closes at six FORMS — on BOTH projections
+
+The DSL's control-flow kernel widened from five forms to **six** (`map_indexed`, the general indexed
+map), **consciously**, and — this is the part that is structural rather than procedural — **on both
+co-equal projections in one change**: the Python builder and TOML discriminator, and the C discriminator
+array and its map runner. Per
+`[[user_stance_srmech_is_multi_implementation_not_python_with_c_accel]]`, capability is the invariant
+and the projections are co-equal, so a half-mirrored widening is a capability divergence, not a
+performance detail. (§3.29.1 carries the correction this forced to the shipped "five" claim.)
+
+**Found while widening: the C discriminator array was pinned by NOTHING.** The closure ratchet was
+Python-only, so a half-mirrored widening would have silently deferred to the pure path **with no
+symptom** — a green suite, a correct answer, and a broken co-equality claim. The ratchet now cross-reads
+the C array with strict equality in both directions. This is the same failure family as §3.48.4's `libm`
+divergence: *an instrument that walks one language certifies one language.*
+
+The widening added no C symbol, changed no signature, and added no callback typedef, so **the ABI did
+not move**.
+
+### §3.49.6 The catalog now counts itself — `describe()`'s twelfth key
+
+`describe()` gained a twelfth top-level key, **`cascade_catalog`**, carrying `{total, executable, leaf,
+status, run, enumerate}` — a live per-descriptor status map plus the names of the runner
+(`srmech.dsl.run_cascade_chain`) and the enumerator (`srmech.dsl.list_catalog_ops`). Before this, the
+only statement anywhere of how many cascade descriptors exist was a **prose sentence in a
+non-hygiene-gated orientation file** — which is exactly how that sentence had already gone stale by a
+factor of two. The live count is now the SSoT and the prose defers to it (see the dated rc10 bullet in
+the package-arc §3.28.2).
+
+That closes ADR-0012 C6's cascade_catalog front, and it is the general shape of
+`[[project_introspect_surface_is_the_api_contract_not_documentation]]`: a surface the introspection
+contract cannot see is a surface that drifts, and the fix is never a better sentence — it is making the
+object count itself.
+
+### §3.49.7 Cross-references + status
+
+**Cross-references:** ADR-0008 — **✅ Accepted**, with an audited clause table binding every standing
+claim to a resolving test node, and Amendment A stating what schema v2 added and why; ADR-0009 (co-equal
+projections — why the widening had to land on both); ADR-0012 (introspect as the API contract — the C6
+clause this closes on one front); §3.33.4 (the ATOM-vs-COMPOSITE A-N ISA, whose three atomic
+instructions are the three declared leaves); §3.21.5 (the universal core — six **letters**, a different
+object; see the disambiguation above); §3.29.6 (the three sixes); §3.29.7 (the four executable
+composition surfaces this catalog is one consumer of); §3.29.8 (why the corpus was single-class before
+the addressing change); §3.48 (the continuous-math derivations these descriptors document). Per-rc
+record: `python/CHANGELOG.md` (cited, not inlined). Census provenance: the `#T1114` rung NDJSON +
+generating scripts under `docs/srmech/notes/`, per `[[feedback_computational_provenance_discipline]]`.
+
+**Status:** MEASURED + shipped. The two-state gate is strict-zero with no ceiling; the bit-identity is
+executed rather than asserted; the kernel closure is cross-read across both projections. **Honest
+residuals:** two recursion schemes (scan, fuel-bounded consume) are still missing from the form set and
+are pinned as down-only named populations, not claimed as closed; and the bit-identity gate certifies
+the **pure** projection — each projection's native parity remains the responsibility of its op's own
+differential tests.
 
 ---
 
