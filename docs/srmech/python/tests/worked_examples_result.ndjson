@@ -166,7 +166,7 @@
 {"markers_fired": [], "n_markers": 0, "name": "srmech.cascade.moufang_residue", "problems": [], "src_sha256": "1eb7e6ef3b211a4c5e6ec8523570f347f5b23dc7317dcdb0b624a414f3a114cb", "statements": 6, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.cascade.net_chirality", "problems": [], "src_sha256": "f25d979e8d7ed5a8ab9b23bbf33c7d813dadaa1a12bd4b1ff8af94ec4ab46274", "statements": 9, "status": "ok"}
 {"markers_fired": [{"exc": "NotImplementedError", "line": 24}], "n_markers": 1, "name": "srmech.cascade.octonion_dft", "problems": [], "src_sha256": "fb67b20a44e8303e5c669e0bf3bfa59940197fec28a04ff84b23d7d4433ef77d", "statements": 14, "status": "ok"}
-{"markers_fired": [], "n_markers": 0, "name": "srmech.cascade.octonion_frame_read", "problems": [], "src_sha256": "1e0431d202cdcc9c3a4f36d33d69b4e85b6b27fa556160df778e302a54bad2bb", "statements": 11, "status": "ok"}
+{"markers_fired": [], "n_markers": 0, "name": "srmech.cascade.octonion_frame_read", "problems": [], "src_sha256": "c5e59b1ffa731d987f82e159d630815c1e99b89cb78f2da7eab40adae4a54eef", "statements": 15, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.cascade.octonion_hopf_base", "problems": [], "src_sha256": "4964fc9ff967f6cb50ec3799e9461d10265737a661742d6d1c5049ad9b056c7e", "statements": 6, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.cascade.odft_resolve_mu", "problems": [], "src_sha256": "14b4993071ef4b31819047706efd94806406d7bb2db6fc6152079168f474a0a3", "statements": 3, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.cascade.odft_summand", "problems": [], "src_sha256": "b16cc6fb38613db3b286acbeb8f33b94b5212a04cb40e323fc11bfc34143587a", "statements": 5, "status": "ok"}
