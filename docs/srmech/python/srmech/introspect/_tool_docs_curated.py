@@ -3836,4 +3836,304 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
                 'mode. SIBLING — ``srmech.math.rational.best_rational`` '
                 'consumes the result as its numerator; '
                 '``srmech.cascade.dead_band`` gates the input.'},
+    # -- rc422 (`#T1123`) -- the CENTRE / COVERING layer + the Z(Spin(8))
+    # rep-kernel anchor. Every output below is a REAL WSL2 capture
+    # (numpy-absent); none is typed from memory.
+    'srmech.math.covering.center_parity': {
+        'example': {
+            'input': {'winding': -3},
+            'output': '-1 -- the winding is odd, so the spinor sign has flipped. '
+                      'center_parity(0) = 1, center_parity(1) = -1, '
+                      'center_parity(10) = 1: one winding flips, two restore.',
+            'why': 'This is the one bit that survives when an integer winding is '
+                   'read through a finite centre. Six shipped surfaces each '
+                   're-derived it by hand before this op existed.',
+            'worked': 'from srmech.math.covering import center_parity\n'
+                      '# SUBJECT: an integer winding read through Z(SU(2)) = {+-1}.\n'
+                      'center_parity(0)      # -> 1    no winding\n'
+                      'center_parity(1)      # -> -1   ONE winding flips the spinor\n'
+                      'center_parity(-3)     # -> -1   orientation-blind: (-1)^w = (-1)^(-w)\n'
+                      'center_parity(10)     # -> 1    two windings restore (4pi)\n'},
+        'explanation':
+            'WHAT -- it computes the Z/2 central sign ``(-1)^winding`` of an '
+            'integer winding, returning ``+1`` for even and ``-1`` for odd. That '
+            'is the monodromy of a loop through a centre of order 2: one full '
+            'winding flips the spinor sign, two restore it -- the Spin -> SO '
+            'double cover, equally ``pi_1(SO(3)) = Z/2``. WHEN -- reach for it '
+            'whenever a quantity that really lives in a COVER is being read '
+            'through a finite quotient, and you want the surviving datum named '
+            'rather than improvised. What you would otherwise wrongly hand-roll '
+            'is ``(-1) ** w`` or ``1 - 2 * (w % 2)``: both are correct '
+            'arithmetic and both bypass the Class-K pin-slot / Class-C '
+            'orientation composition the ``abs()`` ban exists to enforce, and '
+            'neither says which covering the bit is the shadow OF. SIBLINGS -- '
+            'do not re-derive it from ``srmech.cascade.one.One.spinor_sign`` '
+            '(that is this same bit specialised to the winding triad) nor from '
+            '``srmech.physics.qm.quaternion.quaternion_cycle_holonomy``\'s '
+            '``center_parity`` field nor from '
+            '``srmech.biology.genome.cwf_consistency_mod2``\'s '
+            '``lk_center_parity``; those three are the instances, this is the '
+            'primitive. ``center_lift`` is the accumulator that produces the '
+            'winding in the first place, and ``lift_fibre`` is what tells you '
+            'how much the bit threw away.'},
+    'srmech.math.covering.center_lift': {
+        'example': {
+            'input': {'steps': [1, 1, 1], 'center_order': 2},
+            'output': "{'cover_lift': 3, 'center_shadow': 1, 'center_order': 2, "
+                      "'center_parity': -1, 'shadow_determines_lift': False}. "
+                      "The same steps with center_order=0 (the universal Z "
+                      "cover) give {'cover_lift': 3, 'center_shadow': 3, "
+                      "'center_order': 0, 'center_parity': -1, "
+                      "'shadow_determines_lift': True}.",
+            'why': 'The integer 3 survives in BOTH runs. Only the shadow '
+                   'differs -- which is the point: the loss is a statement about '
+                   'which accumulator was kept, not an unavoidable one.',
+            'worked': 'from srmech.math.covering import center_lift\n'
+                      '# SUBJECT: three unit steps accumulated in a cover.\n'
+                      'r = center_lift([1, 1, 1], 2)\n'
+                      "r['cover_lift']               # -> 3    the INTEGER, kept\n"
+                      "r['center_shadow']            # -> 1    all a Z/2 centre can hold\n"
+                      "r['shadow_determines_lift']   # -> False\n"
+                      'u = center_lift([1, 1, 1], 0)  # 0 = the universal Z cover\n'
+                      "u['center_shadow']            # -> 3    nothing reduced\n"
+                      "u['shadow_determines_lift']   # -> True\n"},
+        'explanation':
+            'WHAT -- it accumulates a sequence of integer steps in the COVER and '
+            'returns both the integer lift and its image in the centre, plus the '
+            'honest flag ``shadow_determines_lift`` (True exactly for the '
+            'universal cover, ``center_order=0``, where the deck group is Z and '
+            'nothing is reduced). WHEN -- reach for it when an encoder lives in a '
+            'finite group but the quantity it is encoding does not. Task '
+            '`#T1005` is precisely this case: the genome accumulates in the '
+            'finite group where a helix accumulates in its universal cover, so '
+            "DNA's integer Lk has nowhere to live. Run this alongside the "
+            'finite-group encoder and the integer survives. What you would '
+            'otherwise wrongly hand-roll is ``sum(steps) % n`` -- which discards '
+            'the very datum worth keeping, and silently gets the sign wrong for '
+            'negative lifts on an unsigned modular op. SIBLINGS -- do not '
+            're-implement the sign handling: ``srmech.math.cyclic.mod_add`` '
+            'serves the unsigned domain, so a negative lift here is a genuine '
+            'Class-K pin-slot plus Class-C reorientation on the cyclic carrier, '
+            'never an ``abs()``. ``center_parity`` is the order-2 special case of '
+            'the shadow; ``lift_fibre`` is the converse instrument (what the '
+            'shadow does not determine); ``linking_number_cwf`` is the route to '
+            'the same integer when you hold Tw and Wr instead of steps.'},
+    'srmech.math.covering.lift_fibre': {
+        'example': {
+            'input': {'shadow': 1, 'center_order': 2, 'window': 4},
+            'output': "{'fibre': [-3, -1, 1, 3], 'size': 4, 'center_order': 2, "
+                      "'window': 4, 'determined': False} -- the four integers in "
+                      "[-4, 4] that one bit cannot separate. With "
+                      "center_order=0: lift_fibre(3, 0, 5) -> {'fibre': [3], "
+                      "'size': 1, 'center_order': 0, 'window': 5, "
+                      "'determined': True}.",
+            'why': 'The SAME code path returns determined=True when nothing was '
+                   'lost and determined=False when something was. An instrument '
+                   'that could only ever report loss would not be measuring it.',
+            'worked': 'from srmech.math.covering import lift_fibre\n'
+                      '# SUBJECT: what a single centre-parity bit throws away.\n'
+                      'f = lift_fibre(1, 2, 4)\n'
+                      "f['fibre']        # -> [-3, -1, 1, 3]\n"
+                      "f['determined']   # -> False   the bit does NOT pin the lift\n"
+                      'g = lift_fibre(3, 0, 5)   # the universal Z cover\n'
+                      "g['fibre']        # -> [3]\n"
+                      "g['determined']   # -> True    nothing was lost\n"},
+        'explanation':
+            'WHAT -- it returns the integer lifts a centre-shadow does NOT '
+            'determine: the fibre over a shadow is a coset of ``center_order*Z``, '
+            'and this ENUMERATES it inside ``[-window, window]`` rather than '
+            'asserting that information was lost. WHEN -- reach for it whenever '
+            'you are about to write the sentence "the finite group can only pin '
+            'this mod n" and want that sentence to be a measurement instead of a '
+            'claim. The universal-cover case is the load-bearing half: with '
+            '``center_order=0`` the same call returns a fibre of size 1 and '
+            '``determined=True``, so the op demonstrably CAN come out the other '
+            'way. What you would otherwise wrongly hand-roll is a prose comment '
+            'in a docstring, which no test can contradict. SIBLINGS -- it is the '
+            'converse of ``center_lift`` (that one keeps the lift, this one '
+            'measures what keeping only the shadow costs) and the general form '
+            'of the loss ``center_parity`` incurs at n=2. Do not reach for '
+            '``srmech.math.cyclic.mod_add`` directly to rebuild the coset walk; '
+            'the signed reduction is already composed here.'},
+    'srmech.math.covering.linking_number_cwf': {
+        'example': {
+            'input': {'twist': [3, 2], 'writhe': [5, 2]},
+            'output': "{'lk': (4, 1), 'is_integer': True, 'linking_number': 4, "
+                      "'center_parity': 1, 'twist': (3, 2), 'writhe': (5, 2)} -- "
+                      "two half-integers summing to a topological integer. A "
+                      "non-integral sum is reported, never rounded: "
+                      "linking_number_cwf((7,3),(1,3)) -> {'lk': (8, 3), "
+                      "'is_integer': False, 'linking_number': None, "
+                      "'center_parity': None, ...}.",
+            'why': 'Tw = 3/2 and Wr = 5/2 are each frame-relative and each move '
+                   'when the framing moves; their sum 4 does not. That asymmetry '
+                   'IS the theorem, and the mod-2 shadow destroys it.',
+            'worked': 'from srmech.math.covering import linking_number_cwf\n'
+                      '# SUBJECT: Calugareanu-White-Fuller, Lk = Tw + Wr.\n'
+                      'r = linking_number_cwf((3, 2), (5, 2))   # exact (num, den) pairs\n'
+                      "r['lk']              # -> (4, 1)\n"
+                      "r['is_integer']      # -> True\n"
+                      "r['linking_number']  # -> 4      the topological integer\n"
+                      "r['center_parity']   # -> 1      the bit mod-2 encoders keep\n"
+                      'b = linking_number_cwf((7, 3), (1, 3))\n'
+                      "b['lk'], b['is_integer'], b['linking_number']\n"
+                      '  # -> ((8, 3), False, None)   reported, not rounded\n'},
+        'explanation':
+            'WHAT -- it computes ``Lk = Tw + Wr`` in exact rationals and returns '
+            'the integer linking number together with an integrality '
+            'certificate: a non-integral sum comes back with ``is_integer`` '
+            'False and ``linking_number`` None, the exact rational preserved '
+            'rather than rounded away. WHEN -- reach for it when you hold twist '
+            'and writhe and want the topological invariant they add up to. The '
+            "theorem's whole content is an asymmetry: Tw and Wr are each "
+            'FRAME-RELATIVE reals that move when the framing moves, while their '
+            'sum does not -- which is exactly what a mod-2 shadow destroys. What '
+            'you would otherwise wrongly hand-roll is a float sum plus '
+            '``round()``, which converts a failed integrality check into a '
+            'plausible wrong answer, and which needs stdlib ``fractions`` to '
+            'avoid -- a module this package bans. Inputs are ``(num, den)`` '
+            'integer pairs, the Class-N contract, never floats. SIBLINGS -- '
+            '``srmech.biology.genome.cwf_consistency_mod2`` checks the same '
+            'relation MOD 2 and returns ``lk_center_parity``; do not re-derive '
+            'the integer from that bit, because the bit is what the integer was '
+            'reduced to. ``srmech.biology.genome.discrete_writhe`` supplies Wr; '
+            '``center_parity`` is applied here to the recovered integer.'},
+    'srmech.math.covering.covering_catalog': {
+        'example': {
+            'input': {},
+            'output': "n_reached 4, n_rejected 5. reached: ['spin8', 'spin3', "
+                      "'q8_v4', 'circle_z'] with centre orders [4, 2, 2, 0]. "
+                      "rejected: ['octonion_frame_read_s3_fiber', "
+                      "'cayley_dickson_rung_bump', 'g2_der_octonions', "
+                      "'hermitian_spectrum', 'triality_automorphism'] on "
+                      "clauses ['(ii)', '(ii)', '(ii)', '(iii)', '(i)'].",
+            'why': 'Five rejections against four acceptances. A census that '
+                   'accepted every candidate would not be a finding, and the '
+                   'g2 rejection is MEASURED (the triality-fixed subgroup of '
+                   'Z(Spin(8)) is trivial), not asserted.',
+            'worked': 'from srmech.math.covering import covering_catalog\n'
+                      '# SUBJECT: which shipped coherencies the covering layer reaches.\n'
+                      'c = covering_catalog()\n'
+                      "c['n_reached'], c['n_rejected']        # -> (4, 5)\n"
+                      "[r['name'] for r in c['reached']]\n"
+                      "  # -> ['spin8', 'spin3', 'q8_v4', 'circle_z']\n"
+                      "[r['center_order'] for r in c['reached']]\n"
+                      '  # -> [4, 2, 2, 0]      0 = the universal Z cover\n'
+                      "[(r['name'], r['fails_clause']) for r in c['rejected']][:2]\n"
+                      "  # -> [('octonion_frame_read_s3_fiber', '(ii)'),\n"
+                      "  #     ('cayley_dickson_rung_bump', '(ii)')]\n"},
+        'explanation':
+            'WHAT -- it returns the census of which shipped coherencies the '
+            'centre / covering layer REACHES and which it REJECTS, each with a '
+            'reason and a named failing clause of a predicate stated before the '
+            'candidates were scored: reached iff (i) a base object the shipped '
+            'op computes in, (ii) a covering with NON-TRIVIAL centre Z, and '
+            '(iii) an output that is the image of a Z-torsor-valued quantity. '
+            'WHEN -- reach for it before assuming a given op has a hidden global '
+            'datum. Two of the rejections are the useful ones: the S^3 fibre '
+            'writhe of ``octonion_frame_read`` fails clause (ii) because '
+            '``pi_1(S^3) = 0`` -- a simply connected fibre carries no covering '
+            'datum at all -- and ``g2 = Der(O)`` fails it on a MEASURED basis, '
+            'the triality-fixed subgroup of Z(Spin(8)) being trivial. The rows '
+            'are recomputed per call from ``spin8_center``, so the catalog is a '
+            'computation, not a table. What you would otherwise wrongly '
+            'hand-roll is a prose list in a notebook, which cannot be '
+            'contradicted by a test. SIBLINGS -- ``spin8_center`` and '
+            '``triality_rep_dictionary`` are the derived spin8 row; '
+            '``center_lift`` / ``lift_fibre`` / ``center_parity`` are the ops '
+            'the rows point at. Do not add a row without giving the predicate a '
+            'chance to reject it.'},
+    'srmech.physics.qm.triality.spin8_center': {
+        'example': {
+            'input': {},
+            'output': "order 4; elements [(1, 1, 1), (1, -1, -1), (-1, 1, -1), "
+                      "(-1, -1, 1)]; is_klein_four True; rep_kernels "
+                      "{'v': (1, -1, -1), 's': (-1, 1, -1), 'c': (-1, -1, 1)}; "
+                      "algebra_centre_dim 0; triality_fixed_subgroup "
+                      "[(1, 1, 1)].",
+            'why': 'Each non-identity element has exactly ONE +1 coordinate, so '
+                   'it acts trivially on exactly one rep. That is what makes '
+                   '{3 involutions} <-> {3 reps} forced rather than chosen. Note '
+                   'algebra_centre_dim 0: the ALGEBRA centre is the zero object, '
+                   'and that is the correct answer, not a refutation.',
+            'worked': 'from srmech.physics.qm.triality import spin8_center\n'
+                      '# SUBJECT: the global datum so(8) structurally cannot hold.\n'
+                      'c = spin8_center()\n'
+                      "c['order']                    # -> 4     a Klein four-group\n"
+                      "c['elements'][1]              # -> (1, -1, -1)\n"
+                      "c['rep_kernels']['v']         # -> (1, -1, -1)  kills 8v\n"
+                      "c['rep_kernels']['s']         # -> (-1, 1, -1)  kills 8s\n"
+                      "c['algebra_centre_dim']       # -> 0   CORRECT: so(8) is semisimple\n"
+                      "c['triality_fixed_subgroup']  # -> [(1, 1, 1)]  trivial\n"},
+        'explanation':
+            'WHAT -- it returns ``Z(Spin(8))``, the Klein four-group, SOLVED off '
+            'the octonion multiplication table: the four scalar triples '
+            '``(g_v, g_s, g_c)`` satisfying the group form of Cartan\'s relation '
+            '``g_v(x.y) = g_s(x).g_c(y)`` on all 64 octonion basis pairs, so the '
+            'constraint ``eps_v = eps_s*eps_c`` is FOUND rather than imposed. '
+            'Each non-identity element acts trivially on exactly one of '
+            '{8v, 8s, 8c}, so the kernels ARE a labelling. WHEN -- reach for it '
+            'when you need the global (pi_1) datum the Lie algebra cannot carry. '
+            'The trap to know about first: computing the centre of the ALGEBRA '
+            'returns the zero object and that is CORRECT -- so(8) is semisimple, '
+            'and the same algebra belongs to Spin(8), SO(8) and PSO(8) alike, so '
+            'it structurally cannot tell them apart. A run reporting "the centre '
+            'is zero" has confirmed the setup, not refuted anything; this op '
+            'returns that zero explicitly as ``algebra_centre_dim`` so the '
+            'distinction is on the record. What you would otherwise wrongly '
+            'hand-roll is an eigen-decomposition hunting for a central element '
+            'in the 28-dim adjoint, which will correctly find nothing. '
+            'SIBLINGS -- ``so8_adjoint_basis`` is the local object this '
+            'complements; ``triality_rep_dictionary`` consumes the kernels to '
+            'derive the V4 bridge; ``srmech.math.covering.covering_catalog`` '
+            'lists this as the spin8 row. Do not re-derive the centre from '
+            '``triality_automorphism``: tau ACTS on the centre, it does not '
+            'carry one.'},
+    'srmech.physics.qm.triality.triality_rep_dictionary': {
+        'example': {
+            'input': {},
+            'output': "dictionary {'iomega7': 's', 'gamma5': 'c', 'cpt': 'v'}; "
+                      "residual_ambiguity 1 (prior_ambiguity 3); "
+                      "order3_only_survivors the 3 cyclic rotations; "
+                      "tau_label_action {'v': 's', 's': 'c', 'c': 'v'}; "
+                      "swap_label_action {'v': 's', 's': 'v', 'c': 'c'} so "
+                      "swap_fixes ['c']; controls {'order2_for_order3_v4_side': "
+                      "0, 'order2_for_order3_so8_side': 0, "
+                      "'identity_for_cycle': 6, 'behave': True}.",
+            'why': 'rc421 measured the residual ambiguity at 3 and could go no '
+                   'further: the centralizer of a 3-cycle in Sym(3) has order 3, '
+                   'so an order-3 generator alone CANNOT pin a bijection. The '
+                   'rep-kernel labelling supplies the second generator, and 3 '
+                   'collapses to 1.',
+            'worked': 'from srmech.physics.qm.triality import triality_rep_dictionary\n'
+                      '# SUBJECT: the V4 <-> so(8) bridge, derived not chosen.\n'
+                      'd = triality_rep_dictionary()\n'
+                      "d['prior_ambiguity']       # -> 3    rc421's ceiling\n"
+                      "d['residual_ambiguity']    # -> 1\n"
+                      "d['dictionary']\n"
+                      "  # -> {'iomega7': 's', 'gamma5': 'c', 'cpt': 'v'}\n"
+                      "d['swap_fixes']            # -> ['c']   S_B fixes 8c\n"
+                      "d['controls']['identity_for_cycle']         # -> 6\n"
+                      "d['controls']['order2_for_order3_so8_side'] # -> 0\n"},
+        'explanation':
+            'WHAT -- it returns the canonical {iomega7, gamma5, CPT} <-> '
+            '{8v, 8s, 8c} dictionary, derived from the Z(Spin(8)) rep-kernel '
+            'anchor rather than chosen, together with the label actions of the '
+            'shipped tau and S_B, the survivor census and three inline controls. '
+            'The result is iomega7 <-> 8s, gamma5 <-> 8c, CPT <-> 8v. WHEN -- '
+            'reach for it before writing any sentence that pairs a Klein-4 '
+            'sector with a triality rep. rc421 measured this bridge NOT '
+            'canonical as shipped, residual ambiguity 3, and the reason is '
+            'arithmetic rather than carelessness: the centralizer of a 3-cycle '
+            'in Sym(3) has order 3, so an order-3 generator ALONE cannot pin a '
+            'bijection. What you would otherwise wrongly hand-roll is the '
+            '"obvious" alignment iomega7<->8v, gamma5<->8s, CPT<->8c, which is '
+            'NOT the derived one. Read the honest bound before quoting it: the '
+            'dictionary is canonical RELATIVE TO the shipped generator pairing '
+            'and the shipped V4 sector names -- a different order-2 gives a '
+            'different dictionary -- so it is FORM, never object-identity. '
+            'SIBLINGS -- ``spin8_center`` supplies the anchor; '
+            '``srmech.math.hdc.klein4_triality_cycle`` and ``triality_cycle`` '
+            'are the two order-3 generators it intertwines; do not re-derive '
+            'the correspondence from either docstring alone.'},
 }

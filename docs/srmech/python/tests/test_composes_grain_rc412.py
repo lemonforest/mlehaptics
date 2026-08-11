@@ -223,6 +223,37 @@ ROSTER: Dict[str, Tuple[str, ...]] = {
         "srmech.signal_processing.cascade_dispatcher.resolve_path",
         "srmech.signal_processing.path_registry.lookup",
     ),
+
+    # ── rc422 (`#T1123`) — the CENTRE / COVERING layer + the Z(Spin(8))
+    # rep-kernel anchor. Six shipped ops had each hand-rolled the same
+    # centre-parity shadow with no common surface; these rows are the surface.
+    #
+    # NOT DECLARED, deliberately: `covering_catalog` calls `spin8_center` to
+    # recompute the two fields a reader would most want to disbelieve (the
+    # spin8 row's centre order and the g2 rejection's measured basis), but the
+    # catalog is not BUILT FROM it — the other three reached rows and all five
+    # rejections stand without that call. Declaring it would over-attribute in
+    # exactly the way `klein4_compose`'s note above refuses.
+    "srmech.math.covering.center_parity": (
+        "srmech.cascade.magnitude",
+        "srmech.math.cyclic.mod_add",
+        "srmech.cascade.reorient",
+    ),
+    "srmech.math.covering.center_lift": (
+        "srmech.math.covering.center_parity",
+    ),
+    "srmech.math.covering.lift_fibre": (
+        "srmech.cascade.magnitude",
+    ),
+    "srmech.math.covering.linking_number_cwf": (
+        "srmech.math.covering.center_parity",
+    ),
+    "srmech.physics.qm.triality.spin8_center": (
+        "srmech.physics.qm.octonion.octonion_mult_table",
+    ),
+    "srmech.physics.qm.triality.triality_rep_dictionary": (
+        "srmech.physics.qm.triality.spin8_center",
+    ),
 }
 
 

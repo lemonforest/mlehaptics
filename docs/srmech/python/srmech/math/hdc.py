@@ -2326,13 +2326,36 @@ _KLEIN4_TRIALITY_INVERSE = (0, 3, 1, 2)
 def klein4_triality_cycle(v, *, inverse=False):
     """Cycle the three Klein-4 chirality involutions — the order-3 S₃ generator.
 
-    The V₄-carrier image of the so(8) triality ``8v → 8s → 8c`` (see
-    :func:`srmech.physics.qm.triality.triality_cycle`): the three non-identity
-    involutions cycle ``iω₇(1) → γ₅(2) → CPT(3) → iω₇(1)``, with identity(0)
-    fixed. This is the order-3 generator of ``Aut(V₄) = S₃`` — the "third axis"
-    (F182) that the three order-2 flips (:func:`klein4_chirality_flip_gamma5` /
+    The three non-identity involutions cycle ``iω₇(1) → γ₅(2) → CPT(3) →
+    iω₇(1)``, with identity(0) fixed. This is the order-3 generator of
+    ``Aut(V₄) = S₃`` — the "third axis" (F182) that the three order-2 flips
+    (:func:`klein4_chirality_flip_gamma5` /
     :func:`klein4_chirality_flip_omega7` / :func:`klein4_cpt_mirror`) cannot
     reach: order-3 cycling of the involutions, NOT a fourth order-2 chirality.
+
+    **Its relation to the so(8) triality ``8v → 8s → 8c``, stated precisely**
+    (rc422, `#T1123`). This docstring used to open *"The V₄-carrier image of the
+    so(8) triality ``8v → 8s → 8c``"* immediately above the ``iω₇ → γ₅ → CPT``
+    cycle, which reads as the correspondence ``iω₇↔8v, γ₅↔8s, CPT↔8c``. Two
+    things were wrong with that. It asserted a specific dictionary at a time
+    when NO shipped op pinned one (rc421 measured the residual ambiguity at
+    **3**: an order-3 generator alone cannot pin a bijection, because the
+    centralizer of a 3-cycle in ``Sym(3)`` has order 3). And the dictionary it
+    reads as is **not the one that holds**. The derived correspondence is
+
+        ``iω₇ ↔ 8s``,  ``γ₅ ↔ 8c``,  ``CPT ↔ 8v``
+
+    — see :func:`srmech.physics.qm.triality.triality_rep_dictionary`, which
+    derives it from the ``Z(Spin(8))`` rep-kernel anchor
+    (:func:`srmech.physics.qm.triality.spin8_center`) rather than choosing it,
+    and :func:`srmech.math.covering.covering_catalog` for the layer it belongs
+    to. What IS true without any dictionary is the shape: this op and
+    :func:`srmech.physics.qm.triality.triality_cycle` are both the order-3
+    generator of an ``S₃``, at two different carriers. That is a **FORM** match
+    at this junction, never object-identity — the dictionary above is canonical
+    relative to the shipped generator pairing and the shipped V₄ sector names,
+    which is the honest bound
+    (``[[user_stance_cascade_matching_substrate_blind_form_not_identity]]``).
 
     Class I (cyclic order-3 permutation) — a pure uint8 relabel; no sign, no
     ``abs()``. Applying it three times returns the input (``T∘T∘T = id``);

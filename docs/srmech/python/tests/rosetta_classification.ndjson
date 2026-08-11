@@ -811,3 +811,10 @@
 {"exposed_as": "srmech.cascade.odft_summand", "defined_at": "srmech.cascade.hypercomplex_dft.odft_summand", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.math.rational.scale_round_half_even", "defined_at": "srmech.math.rational.scale_round_half_even", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.dsl.run_cascade_chain", "defined_at": "srmech.dsl._cascade_chain.run_cascade_chain", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.math.covering.center_parity", "defined_at": "srmech.math.covering.center_parity", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.math.covering.center_lift", "defined_at": "srmech.math.covering.center_lift", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.math.covering.lift_fibre", "defined_at": "srmech.math.covering.lift_fibre", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.math.covering.linking_number_cwf", "defined_at": "srmech.math.covering.linking_number_cwf", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.math.covering.covering_catalog", "defined_at": "srmech.math.covering.covering_catalog", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.physics.qm.triality.spin8_center", "defined_at": "srmech.physics.qm.triality.spin8_center", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.physics.qm.triality.triality_rep_dictionary", "defined_at": "srmech.physics.qm.triality.triality_rep_dictionary", "bucket": "composition_of_c"}

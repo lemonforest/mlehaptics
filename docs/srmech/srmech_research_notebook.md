@@ -814,7 +814,7 @@ Per `[[feedback_science_is_ssot_not_project]]`, srmech v0.4.0 ships a canonical 
 | `srmech.qm.gauge` | SU(2)/SU(3) Gell-Mann generators, structure constants, Casimirs, Wilson loops | Class M (Lie-algebra binding) + Class L (matrix exponential) + Class C (path-ordered iteration) | Yang-Mills (1954); Gell-Mann (1962); Wilson (1974); Peskin-Schroeder §§15-17 |
 | `srmech.qm.sm` | Higgs vev, weak mixing angle, W/Z masses, Weinberg relation, Yukawa, CKM | Class K (continuous projection of vev → mass relations) + Class M (CKM unitary mixing) | Glashow (1961); Weinberg (1967); Salam (1968); Higgs (1964); Cabibbo (1963); Kobayashi-Maskawa (1973); Peskin-Schroeder Chs 20-21 |
 
-`srmech.amsc.tool_schema` registers ~87 entries covering every public callable across `srmech.amsc.*` (14-class primitives) + `srmech.qm.*` (operations layer) for LLM-friendly introspection. *(**As-of-v0.4.0**, and dated rather than bumped like its sibling rows. Live at rc421: the registry is at **`srmech.introspect.tool_schema.get_tool_schema`** and holds **598** entries — `len(get_tool_schema().tools)`, equal to `describe()["tools"]["total"]`. Read the live value, never a literal; see the §3.28.3 ledger bullet, which carries the same correction for the same reason.)* Coverage ratchet test (`tests/test_tool_schema_coverage.py`) walks `srmech` via `pkgutil` + `inspect` and asserts each public function has a registered entry.
+`srmech.amsc.tool_schema` registers ~87 entries covering every public callable across `srmech.amsc.*` (14-class primitives) + `srmech.qm.*` (operations layer) for LLM-friendly introspection. *(**As-of-v0.4.0**, and dated rather than bumped like its sibling rows. Live at rc422: the registry is at **`srmech.introspect.tool_schema.get_tool_schema`** and holds **605** entries — `len(get_tool_schema().tools)`, equal to `describe()["tools"]["total"]`. Read the live value, never a literal; see the §3.28.3 ledger bullet, which carries the same correction for the same reason.)* Coverage ratchet test (`tests/test_tool_schema_coverage.py`) walks `srmech` via `pkgutil` + `inspect` and asserts each public function has a registered entry.
 
 **Stoichiometry hope (Phase 8) → resolved (Phase 9).** Phase 8 hoped that stoichiometry's integer-ratio algebra + reaction-network hypergraph structure + Feinberg deficiency theorem might surface a *genuinely new* primitive class. Phase 9's full investigation found instead that stoichiometry's algebra theory IS the existing primitive vocabulary instantiated at the chemistry-dynamics substrate. Every well-posed stoichiometric / mass-action / deficiency / detailed-balance / vibrational construct examined reduces to an existing class or composition. The vocabulary keeps tightening; this is consistent with `[[user_stance_string_theory_instrument_first]]` — the project's instrument keeps describing what's there using existing primitives; new dimensions are not being invented.
 
@@ -5448,7 +5448,7 @@ The v0.6.0 line splits and completes the cascade surface and closes the remainin
 - **`sha256_bytes` docs (#738); reentrant C core (#772)** — the native library made re-entrant (no mutable global state) so the parallel dispatch is safe.
 - **Klein-4 four-sector `parallel_sector_dispatch`** — the F233 "1 cascade = 4 independent Klein-4 chirality sectors" reading, shipped Python-first (#778, rc6) then C-parity'd (`srmech_cascade_parallel_sector_dispatch` + the `srmech_cascade_body_f64` callback typedef, #771, rc7), then **slowdown-fixed (rc8)**: the rc7 shim was serial-by-design and the rc6 Python double-computed per call — both removed, so a GIL-releasing body now genuinely overlaps (~4×) instead of running 2.6–7.7× slower. The four sectors are `inv_T_s(body(T_s(x)))` with `T_s = γ₅^a ∘ iω₇^b` (two commuting Class-C involutions); cap-at-4 per F220 (past 4 needs the order-3 triality, not Klein-4). No `abs()` — sign is Class K magnitude + Class C net_chirality.
 - **rc9 — native `kuramoto_step`** (`srmech_cascade_kuramoto_step_f64`): closes a **known-broken parity gap** (the dispatch-clock / coupled-oscillator Euler step the research arc hand-rolled in Python, F141 / F231 / R-95 / F234, had no `srmech_*` primitive). Honest cascade shape **I∘sin∘Σ∘C** — a composition of existing class operations (cyclic phase + libm-sin coupling + sum-reduce + Class-C Euler add), NOT a new privileged primitive; parity to libm-trig tolerance, same coupling-sum index order both sides. This is the `[[feedback_no_ship_known_broken_gold_is_law]]` discipline in action: a C/Python parity gap is a known-broken item and routes through an rc, not a deferred issue.
-- **rc10 — release-prep doc-hygiene.** The two v0.6.0 cascade ops get their **cascade-catalog TOML descriptors** (`parallel_sector_dispatch.toml`, `kuramoto_step.toml`) → the `srmech.dsl` catalog is now **10 descriptors** (8 lean-ISA atoms/composites + 2); the PyPI README, the subtree `CLAUDE.md`, the C `README.md` / `JPL_AUDIT.md`, and this section are all brought current with the shipped state. No runtime change. *(The "10" is **as-of-rc10** and STAYS — a per-rc ledger entry is dated, never silently bumped. **Live at rc421: 20 descriptors**, and the catalog is now **executable** rather than prose — `describe()["cascade_catalog"] == {"total": 20, "executable": 17, "leaf": 3}`: 17 descriptors declare an ADR-0008 schema-v2 chain, 3 declare an explicit leaf, and there is no third state (`tests/test_cascade_catalog_executable_rc420.py`). The live `describe()` reading is the SSoT for the number; this line is history. Cf. the same correction in the subtree `docs/srmech/CLAUDE.md`. See §3.49.)*
+- **rc10 — release-prep doc-hygiene.** The two v0.6.0 cascade ops get their **cascade-catalog TOML descriptors** (`parallel_sector_dispatch.toml`, `kuramoto_step.toml`) → the `srmech.dsl` catalog is now **10 descriptors** (8 lean-ISA atoms/composites + 2); the PyPI README, the subtree `CLAUDE.md`, the C `README.md` / `JPL_AUDIT.md`, and this section are all brought current with the shipped state. No runtime change. *(The "10" is **as-of-rc10** and STAYS — a per-rc ledger entry is dated, never silently bumped. **Live at rc422: 20 descriptors**, and the catalog is now **executable** rather than prose — `describe()["cascade_catalog"] == {"total": 20, "executable": 17, "leaf": 3}`: 17 descriptors declare an ADR-0008 schema-v2 chain, 3 declare an explicit leaf, and there is no third state (`tests/test_cascade_catalog_executable_rc420.py`). The live `describe()` reading is the SSoT for the number; this line is history. Cf. the same correction in the subtree `docs/srmech/CLAUDE.md`. See §3.49.)*
 - **rc11 — the DSL `parallel` discriminator + cascade-op `kind` classification (this voxel).** A pre-gold introspection audit found `parallel_sector_dispatch` — a **1→N higher-order fan-out combinator** (takes a *body* op + data, returns N per-sector results) — had leaked into the plain-`op` catalog, so the DSL advertised it as a `chain().then(op=…)` stage where it structurally cannot fit (its first arg is the *body*, not the piped value). rc11 reconciles it the way loop/fold/reduce already are — as **its own chain special form** — rather than force-fitting it as a plain op: a new **`parallel` discriminator** (`chain.parallel_sectors(body, n_sectors=4)` / `[[stage]] parallel_body='…'`) fans the piped value through `body` across the ≤4 Klein-4 sectors (the F233 4-thread speedup) and yields the ordered list of per-sector results. Cascade ops now carry a `[cascade].kind` (`"stage"` default / `"combinator"`); `parallel_sector_dispatch` is `kind="combinator"`, surfaced in `list_catalog_ops` / `srmech dsl ops` (a `[combinator]` tag) / the tool-schema, and using it as a plain `op=` raises a **guided error** pointing at the `parallel` discriminator. This is the substrate-self-recognition discipline turned on the package's OWN op-surface: an op is advertised under the contract it actually satisfies (a 1→N combinator is a control-flow special form, not a 1→1 stage — the same distinction the DSL already drew for loop/fold/reduce). No new ToolEntry (`describe()` stays 178); ABI unchanged at 3.
 - **rc14 — the generalised Kuramoto-Sakaguchi step (this voxel; §11.1 forward-ask).** The §11.1 ask: extend `kuramoto_step` past the plain all-to-all mean-field. **The first C-touching rc of the §11 arc** — and the first to exercise the co-equal-parity discipline (`[[feedback_c_python_co_equal_parity_not_callback]]`) on a feature whose op already HAS a C peer: adding the matrix-step in Python only would leave the Python op carrying a step the C can't run, so it ships in BOTH substrates at once. `kuramoto_step(theta, omega, *, coupling=1.0, dt=0.01, adjacency=None, alpha=0.0, pin_anchor=None, pin_strength=1.0)` computes `dθ_i = ω_i + Σ_j A_ij·sin(θ_j − θ_i − α) [ + p_i·sin(ψ_i − θ_i) ]`: `adjacency` is a row-major n×n coupling matrix (`A[i][j]` weights j's influence on i; **non-symmetric → directed/one-way coupling**, a graph Laplacian → graph-structured coupling; `None` → all-to-all uniform `K/n`); `alpha` is the Sakaguchi phase frustration; `pin_anchor`+`pin_strength` are per-oscillator pinning anchors ψ / strengths p. With all three at defaults the step is **byte-for-byte the original**. The CO-EQUAL C peer **`srmech_cascade_kuramoto_step_general_f64`** (new symbol in `srmech_kuramoto.c`; additive → **ABI stays 3**; JPL-clean ≤60-line/≥2-assert/no-malloc/no-goto/reentrant; NULL adjacency → uniform, NULL pin → none; **NEVER a Python callback** — the C path runs C bodies) computes the identical step, differential-tested vs the Python fallback to libm-trig tolerance. **No `abs()`** — sin coupling (Class I/J) + Σ-reduce + Class-C Euler add + the Sakaguchi α (Class-C phase offset) + the Class-C/M pinning anchor; honest composition, not a new privileged primitive. The kuramoto ToolEntry gains 4 params; no new entry (`describe()` stays 178). JPL audit ratchet stays at 0.
 - **rc13 — the klein4_* HDC ops get a `sectors=`/`parallel=`/`mode=` flag (this voxel; §11.3 forward-ask).** Now that rc12 made the four-sector dispatch composable, the §11.3 forward-ask for an optional sectors flag on the Klein-4 HDC ops lands. `klein4_bind` (= (F₂)²-XOR), `klein4_bundle` (= per-bit majority), `klein4_similarity` (= mean-equality) each gain `sectors=` (1..4, **default-ON when `os.cpu_count() >= 4`**) / `parallel=` (bool alias) / `mode=`. TWO modes: `mode="chunk"` (default) is **data-parallel** — split the D-length vector(s) into ≤4 contiguous position-slices, run the op per slice on a thread, concat; **BIT-IDENTICAL** to serial. `mode="chirality"` is the **F233 4-sector dispatch** — and the substrate-faithful refinement is that it uses klein4's OWN involution sector-flips (γ₅ = XOR 2 / iω₇ = XOR 1 / CPT = XOR 3), NOT the signed-real `cascade.atoms` transforms (negating a uint8 {0,1,2,3} chirality-sector value is meaningless), with `klein4_bundle` recombine (similarity recombines via **sector-0** = value-transparent). All defaults are value-preserving, so default-on changes only the EXECUTION path, never the result. **Co-equal-parity** (`[[feedback_c_python_co_equal_parity_not_callback]]`): this is self-contained Python orchestration over the pure-Python/numpy klein4 ops — it does NOT route through the C peer; a standalone-C klein4 sector dispatch (C dispatch running C bodies, never a Python callback) is the tracked follow-up. No `abs()`. The 3 klein4 ToolEntries gain `sectors`/`parallel`/`mode` params; no new entry (`describe()` stays 178); ABI unchanged at 3; pure-Python.
@@ -5456,8 +5456,8 @@ The v0.6.0 line splits and completes the cascade surface and closes the remainin
 
 ### §3.28.3 Discipline ledger + cross-references
 
-- **`describe()` tool total: 178** — **as-of-the-v0.6.0-line, and it STAYS at 178 here** (the rc9 `kuramoto_step` ToolEntry added the +1 over the rc8 count of 177). It is dated rather than bumped for one reason, stated so the next reader does not "fix" it: **this whole ledger is v0.6.0-scoped**, and four sibling bullets a few lines above say `describe()` *stays* 178 through rc11–rc14 while §3.29.4 records **179** at the v0.6.0 graduation. Rewriting one number in a block of six would leave the block self-contradicting. *(Live at rc421: **598**, measured as `len(get_tool_schema().tools)` — introspection lives at `srmech.introspect.tool_schema.get_tool_schema`, and `describe()["tools"]["total"]` reads the same value; several sibling docs still name the pre-ADR-0010 `srmech.amsc.tool_schema`.)* The instruction was always right and is restated with force: **read `describe()` rather than hard-coding — the count grows per voxel.**
-- **ABI version: 3** throughout the v0.6.0 line (every voxel is an additive C symbol; the v3 bump was at v0.5.0rc2 for the `srmech_bus_*` callback ABI) — **dated, not bumped**, for the same reason as the bullet above: the clause "throughout the v0.6.0 line" scopes it in its own words, and a sibling bullet at §3.29.4 records ABI 3 at the graduation. *(Live at rc421: **`SRMECH_ABI_VERSION` is 13**, `c/include/srmech.h:263`. The v3 → v13 progression — new callback typedefs, two symbol REMOVALS, two wire-contract reinterpretations — is recorded in `python/CHANGELOG.md` and the subtree `docs/srmech/CLAUDE.md` "ABI compatibility" section, **which is the SSoT for it, and it is CITED here, never inlined**, per the admission rule that per-rc engineering records stay in the CHANGELOG.)*
+- **`describe()` tool total: 178** — **as-of-the-v0.6.0-line, and it STAYS at 178 here** (the rc9 `kuramoto_step` ToolEntry added the +1 over the rc8 count of 177). It is dated rather than bumped for one reason, stated so the next reader does not "fix" it: **this whole ledger is v0.6.0-scoped**, and four sibling bullets a few lines above say `describe()` *stays* 178 through rc11–rc14 while §3.29.4 records **179** at the v0.6.0 graduation. Rewriting one number in a block of six would leave the block self-contradicting. *(Live at rc422: **605**, measured as `len(get_tool_schema().tools)` — introspection lives at `srmech.introspect.tool_schema.get_tool_schema`, and `describe()["tools"]["total"]` reads the same value; several sibling docs still name the pre-ADR-0010 `srmech.amsc.tool_schema`.)* The instruction was always right and is restated with force: **read `describe()` rather than hard-coding — the count grows per voxel.**
+- **ABI version: 3** throughout the v0.6.0 line (every voxel is an additive C symbol; the v3 bump was at v0.5.0rc2 for the `srmech_bus_*` callback ABI) — **dated, not bumped**, for the same reason as the bullet above: the clause "throughout the v0.6.0 line" scopes it in its own words, and a sibling bullet at §3.29.4 records ABI 3 at the graduation. *(Live at rc422: **`SRMECH_ABI_VERSION` is 13**, `c/include/srmech.h:263`. The v3 → v13 progression — new callback typedefs, two symbol REMOVALS, two wire-contract reinterpretations — is recorded in `python/CHANGELOG.md` and the subtree `docs/srmech/CLAUDE.md` "ABI compatibility" section, **which is the SSoT for it, and it is CITED here, never inlined**, per the admission rule that per-rc engineering records stay in the CHANGELOG.)*
 - **Release routing:** every voxel ships as `vX.Y.ZrcN` to TestPyPI first; the clean (non-rc) tag only graduates a state already verified-green on TestPyPI (`[[feedback_always_rc_first_for_downstream_publishes]]` + `[[feedback_no_ship_known_broken_gold_is_law]]`). The clean **v0.6.0** graduation — the deliberate human-gated call — **shipped to production PyPI on 2026-06-01** (the rc16→rc21 arc; see §3.29.4).
 - **Cross-references:** §3.27 (the 28-dim chiral hyper-loop = 𝔰𝔬(8) the so8/triality voxels make callable); MFO §VIII.31.11; `python/CHANGELOG.md` (the authoritative per-rc record); the cascade-honesty discipline `[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]` (no `abs()` in any cascade op).
 
@@ -5539,7 +5539,7 @@ Two corrections to the loose framing, both now canonical:
 
   **F220's Lagrange obstruction SURVIVES and is strengthened.** Adjoining leg (d)'s rung transposition to the six atoms' toggles yields order **8** (D₄) — still a 2-group, no order-3, which is leg (d)'s measured ℤ/2 made group-theoretic. Only adjoining σ lifts the reachable group to order **24 = V₄ ⋊ S₃ = S₄**, the `Aut(Q8)` echo of §3.42.6. **The 7th opcode is precisely what unlocks order 3.**
 
-  ⚠️ **Measured ceiling, stated so the claim is not over-read:** the registry ships **zero** ops bridging the two carriers. "The same abstract S₃" is therefore **FORM evidence at this junction, never object-identity** — every S₃ is abstractly isomorphic to every other, so the content would be a *canonical* map, and none is shipped. §3.42.6's lift stays expert-to-pin. Four negative controls behaved: pairing σ with a V₄ *translation* (not an automorphism) gives A₄ of order 12, not S₃; the central involution fails at so(8); and the order-3 certificate **rejects both order-2 objects**, so §3.29.3's "single most common triality error" is caught by instrument rather than by care.
+  ⚠️ **Measured ceiling, stated so the claim is not over-read** *(the "zero ops" half was TRUE at rc420 and is SUPERSEDED at rc422 — see §3.51; the FORM-not-identity half stands unchanged)*: ~~the registry ships **zero** ops bridging the two carriers~~ — **at rc420 the registry shipped zero ops bridging the two carriers**, which is why "the same abstract S₃" was FORM evidence with nothing behind it: every S₃ is abstractly isomorphic to every other, so the content would be a *canonical* map, and none was shipped. **rc422 ships one** — `srmech.physics.qm.triality.triality_rep_dictionary`, derived from the `Z(Spin(8))` rep-kernel anchor (`spin8_center`) rather than chosen. **"The same abstract S₃" remains FORM evidence at this junction, never object-identity**, and §3.42.6's lift stays expert-to-pin: the shipped map is canonical *relative to* the shipped generator pairing and the shipped V₄ sector names, which is a derived intertwiner of two presentations, not a claim that the two S₃'s are the same object. Four negative controls behaved: pairing σ with a V₄ *translation* (not an automorphism) gives A₄ of order 12, not S₃; the central involution fails at so(8); and the order-3 certificate **rejects both order-2 objects**, so §3.29.3's "single most common triality error" is caught by instrument rather than by care.
 
 ### §3.29.3 The four distinct k=3 senses — do NOT conflate
 
@@ -7710,6 +7710,115 @@ residuals:** two recursion schemes (scan, fuel-bounded consume) are still missin
 are pinned as down-only named populations, not claimed as closed; and the bit-identity gate certifies
 the **pure** projection — each projection's native parity remains the responsibility of its op's own
 differential tests.
+
+---
+
+## §3.51 The CENTRE / COVERING layer — the global datum a local object structurally cannot hold; and the V₄ ↔ so(8) bridge derived, 3 → 1 (2026-08-11; `#T1123`; MEASURED, shipped v0.9.0rc422)
+
+**The gap, stated once.** srmech carries **algebras and finite groups** — local and quotient objects.
+It had no way to carry the **global (π₁ / centre) datum a local object cannot hold**. The shape had
+surfaced at least six times and been hand-rolled independently every time:
+
+| where it surfaced | what survived |
+|---|---|
+| `so(8)` / `Spin(8)` | the algebra cannot see `Z(Spin(8)) = V₄` — and that centre IS `π₁(PSO(8))` |
+| `genome.cwf_consistency_mod2` | its own bounding: `Q₈` pins `Lk` only **mod 2**; it returns `lk_center_parity` |
+| `q8.q8_project_v4` | its own docstring: *"Drops the center sign bit"* |
+| `quaternion_cycle_holonomy` | `center_parity ∈ {+1, −1, 0}` |
+| `One.spinor_sign` | `(−1)^Σw` — "the genuine Spin→SO 2:1 lift" |
+| `laplacian.cycle_holonomy` | the holonomy **mod 1**; the integer winding is what it cannot return |
+
+In every case the survivor is the same object: **the centre-parity — one bit where an integer lived.**
+One structure underneath all six: a central extension `1 → Z → G̃ → G → 1`, in which a closed loop in
+`G` lifts to a **monodromy** in `Z`. When `Z ≅ ℤ` the datum is an *integer* (a winding, a linking
+number); when `Z` is finite of order `n` only the residue survives, and at `n = 2` that residue is one
+bit. `srmech.math.covering` is that surface: `center_parity`, `center_lift`, `lift_fibre`,
+`linking_number_cwf`, `covering_catalog`.
+
+⚠️ **The trap, named because it looks like a refutation.** "Compute the centre of `so(8)`" returns the
+**zero object**, and that is *correct* — `so(8)` is semisimple. The Klein four-group is `Z(Spin(8))`,
+a property of the simply-connected **GROUP**; the same algebra belongs to `Spin(8)`, `SO(8)` **and**
+`PSO(8)` and structurally cannot distinguish them, because a centre is **global** data where a Lie
+algebra is **local** data. A category distinction, not a limitation to engineer around — and precisely
+*why* the datum needs a carrier of its own. `spin8_center()` returns that zero explicitly as
+`algebra_centre_dim`, and the gate pins it as an EXPECTED value.
+
+**`lift_fibre` is the instrument half, and it is the one that makes the claim falsifiable.** "The
+finite group can only pin this mod n" is a sentence no test can contradict — it is a claim, not a
+measurement, and *an instrument that cannot return otherwise is not a measurement*. With
+`center_order=0` (the universal ℤ cover) the same call returns a fibre of size 1 and
+`determined=True`. It demonstrably **can** come out the other way.
+
+### §3.51.1 The census REJECTS more than it accepts
+
+The fit predicate was stated **before** the candidates were scored: reached iff (i) a base object the
+shipped op computes in, (ii) a covering with **non-trivial** centre `Z`, and (iii) an output that is
+the image of a `Z`-torsor-valued quantity. `π₁(base) = 0` or `Z` trivial ⇒ REJECT.
+
+**Reached (4):** `spin8` (`Z = V₄`, derived below) · `spin3` (`Z(SU(2)) = {±1}`) · `q8_v4` ·
+`circle_z` (deck group ℤ — the `#T1005` row: the genome accumulates in the finite group where a helix
+accumulates in its universal cover, so the loss is a statement about *which accumulator was kept*).
+
+**Rejected (5), each on a named clause.** Two are load-bearing. The **S³ fibre writhe** of
+`octonion_frame_read` fails clause (ii) because **`π₁(S³) = 0`** — a simply connected fibre carries no
+covering datum at all, so `q₁` is a frame-relative continuous residue, not a discrete monodromy class.
+(Push the read down to `SO(3) = S³/{±1}` and a ℤ/2 *does* appear — but that is the `spin3` row, a
+**different object**, and merging them is exactly the form-vs-identity error the layer is bound by.)
+And **`g₂ = Der(𝕆)`** fails it on a **MEASURED** basis: the triality-fixed subgroup of `Z(Spin(8))` is
+trivial, so `g₂ = Fix(τ)` inherits no centre. That is the rejection proving the predicate
+discriminates — `g₂` sits *inside* a reached row and is still correctly rejected on its own. Also
+rejected: the CD rung bump (doubling is not a covering map), the Hermitian spectrum (eigenvalues are
+conjugation-invariant — no monodromy is encoded, and the odd channel that *is* lost is already the
+`circle_z` row, so admitting it would double-count one loss as two), and `τ` itself (an automorphism
+**acts on** a centre; being adjacent to the datum is not holding it).
+
+### §3.51.2 The bridge: residual ambiguity 3 → 1, DERIVED not chosen
+
+rc421 measured the V₄ ↔ so(8) bridge **NOT canonical as shipped**, residual ambiguity **3**, and named
+the reason as arithmetic rather than carelessness: both carriers' order-3 generators are 3-cycles on a
+3-element set, and **the centralizer of a 3-cycle in `Sym(3)` has order 3**, so an order-3 generator
+*alone* cannot pin a bijection. It priced the route and left one thing unverified — whether
+`octonion_left_mult` / `octonion_right_mult` suffice. rc422 walks it; they do (both regenerate every
+structure constant, so the construction is bottom-up FROM the carrier).
+
+1. **`spin8_center()`** solves `Z(Spin(8))` off the octonion multiplication table — the four scalar
+   triples satisfying `g_v(x·y) = g_s(x)·g_c(y)` on **all 64** basis pairs. The constraint
+   `ε_v = ε_s·ε_c` is **FOUND, not imposed**, and each non-identity element acts trivially on exactly
+   ONE of `{8v, 8s, 8c}`. **The kernels ARE the dictionary**, forced by structure.
+2. With the reps labelled, the shipped 28×28 `τ` and `S_B` acquire a readable **label action** — the
+   exact object rc421 measured unreachable. `τ` cycles `v → s → c` (agreeing independently with
+   `triality_cycle`'s documented direction); `S_B` exchanges `v ↔ s` and **fixes `c`**.
+3. Requiring a bijection to intertwine **both** shipped generator pairs cuts 3 survivors to **1**:
+
+> **`iω₇ ↔ 8s` · `γ₅ ↔ 8c` · `CPT ↔ 8v`**
+
+**The honest bound belongs beside the result, not below it.** The dictionary is canonical **relative
+to** the shipped generator pairing and the shipped V₄ sector names. Each carrier ships exactly one
+order-3 and one order-2 automorphism, so nothing was picked from a menu of equals — but a *different*
+order-2 yields a *different* dictionary (control D), and §3.40.4 records that which sign bit is called
+`γ₅` and which `iω₇` is a convention this notebook has never pinned. So it is a **derived intertwiner
+of two shipped S₃ presentations: FORM, never object-identity**
+(`[[user_stance_cascade_matching_substrate_blind_form_not_identity]]`). §3.42.6's lift stays
+expert-to-pin. §3.29.2's "the registry ships zero ops bridging the two carriers" was true at rc420 and
+is superseded here — one is shipped, and it is derived rather than chosen.
+
+**What separates DERIVED from PICKED is the anti-pick control**: exchange the two companion slots and
+the dictionary moves by *exactly* the `s↔c` relabel. A chosen dictionary would not move at all. Four
+negative controls behave, including §3.29.3's named **"single most common triality error"** (an
+order-2 object where the order-3 element is meant → 0 survivors, both sides) and the vacuous-constraint
+control (identity → all 6, proving the order-3 cut to 3 was a real cut). The label actions are re-read
+**independently** by exact characteristic polynomial off the 28×28 matrices, using only their values
+and never their construction — a co-equal second construction, so a disagreement would be the finding
+(`[[user_stance_co_equal_dual_construction_is_a_consistency_oracle]]`).
+
+**Shipped prose corrected.** `klein4_triality_cycle`'s docstring opened *"The V₄-carrier image of the
+so(8) triality `8v → 8s → 8c`"* directly above the `iω₇ → γ₅ → CPT` cycle — which reads as
+`iω₇↔8v, γ₅↔8s, CPT↔8c`. It asserted a specific dictionary while none was pinned, **and the dictionary
+it reads as is not the one that holds**. Corrected, gated, and pointed at the deriving op.
+
+**Generating code + NDJSON:** `docs/srmech/notes/v4_so8_bridge_derivation_rc422.{py,ndjson}` (the walk)
+and `v4_so8_bridge_canonicity_rc422.{py,ndjson}` (rc421's pricing run). Gate:
+`tests/test_covering_layer_rc422.py`. **Status:** MEASURED, shipped v0.9.0rc422.
 
 ---
 

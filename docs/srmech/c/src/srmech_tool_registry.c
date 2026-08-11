@@ -13,7 +13,7 @@
  * const data table (JPL-clean: const arrays, no dynamic init, no malloc).
  * The accessors + the canonical serialiser live in srmech_tool_schema.c.
  *
- * Entries: 598. tool_schema_version: 1.0.
+ * Entries: 605. tool_schema_version: 1.0.
  */
 
 #include "srmech.h"
@@ -3343,40 +3343,56 @@ static const srmech_tool_param_t ts_params_551[] = {
     { "g_s", "Mat", 1, "8\303\2278 8_s companion" },
     { "g_c", "Mat", 1, "8\303\2278 8_c companion" },
 };
+static const srmech_tool_param_t ts_params_555[] = {
+    { "winding", "int", 1, "the integer accumulated in the cover" },
+};
+static const srmech_tool_param_t ts_params_556[] = {
+    { "steps", "list[int]", 1, "per-step integer contributions, summed in the cover" },
+    { "center_order", "int", 0, "order of the centre Z; 0 = the universal \342\204\244 cover (default)" },
+};
+static const srmech_tool_param_t ts_params_557[] = {
+    { "shadow", "int", 1, "the centre residue the local object holds" },
+    { "center_order", "int", 1, "order of the centre; 0 = the universal \342\204\244 cover" },
+    { "window", "int", 1, "enumerate lifts of magnitude at most this" },
+};
 static const srmech_tool_param_t ts_params_558[] = {
+    { "twist", "tuple[int, int]", 1, "Tw as an exact (num, den) integer pair" },
+    { "writhe", "tuple[int, int]", 1, "Wr as an exact (num, den) integer pair" },
+};
+static const srmech_tool_param_t ts_params_565[] = {
     { "remove_on_exit", "bool", 0, "If True, the status file is unlinked when the with-block exits. Default False \342\200\224 leave the file for `srmech status` to auto-clean on next read." },
 };
-static const srmech_tool_param_t ts_params_560[] = {
+static const srmech_tool_param_t ts_params_567[] = {
     { "pid", "int", 1, "Process ID to look up." },
 };
-static const srmech_tool_param_t ts_params_562[] = {
+static const srmech_tool_param_t ts_params_569[] = {
     { "query", "str", 1, "The need, in natural words \342\200\224 not a name pattern. Use `resolve()` instead when the exact dotted name is already known." },
     { "k", "int", 0, "How many records to return (default 10, clamped to the corpus size). Rows that match nothing are omitted, so fewer than k records means the corpus genuinely had fewer matches \342\200\224 never padding." },
     { "scope", "str", 0, "'ops' (the verb registry), 'carriers' (the operand / noun registry) or 'all' (the union; default)." },
 };
-static const srmech_tool_param_t ts_params_565[] = {
+static const srmech_tool_param_t ts_params_572[] = {
     { "spec", "str", 1, "TOML chain spec: a [chain] table + [[stage]] array (one builder call per stage)." },
     { "input_value", "int | float | str | list | dict", 1, "Seed value fed to the first stage (a JSON-shaped value: number / string / list / dict). Passed to Chain.run unchanged." },
 };
-static const srmech_tool_param_t ts_params_567[] = {
+static const srmech_tool_param_t ts_params_574[] = {
     { "op_name", "str", 1, "the descriptor name ([cascade].name), e.g. 'magnitude' / 'quaternion_dft'." },
     { "inputs", "dict", 0, "the chain's @input.* bindings, e.g. {'x': -3.25} for magnitude." },
     { "variant", "str", 0, "which declared chain when the descriptor carries several (keyword-only); default = the single declared chain." },
 };
-static const srmech_tool_param_t ts_params_568[] = {
+static const srmech_tool_param_t ts_params_575[] = {
     { "source_keys", "list", 0, "restrict the catalog-chain half to these source keys; omit to auto-discover all registered sources." },
 };
-static const srmech_tool_param_t ts_params_570[] = {
+static const srmech_tool_param_t ts_params_577[] = {
     { "name", "str", 1, "the class name to describe (e.g. 'Genome')." },
 };
-static const srmech_tool_param_t ts_params_571[] = {
+static const srmech_tool_param_t ts_params_578[] = {
     { "name", "str", 1, "the class name (introspected if fields/methods omitted; else the emitted [class].name)." },
     { "fields", "dict", 0, "{field: type} declarations; omit (with methods) to introspect a registered class instead." },
     { "methods", "dict", 0, "{method: {op, binds, doc, appends|sets}} \342\200\224 methods as dotted cascade-op refs." },
     { "doc", "str", 0, "class docstring (overrides the introspected doc)." },
     { "kind", "str", 0, "class kind tag (overrides the introspected kind)." },
 };
-static const srmech_tool_param_t ts_params_572[] = {
+static const srmech_tool_param_t ts_params_579[] = {
     { "text", "str", 1, "the utterance / description body (its tokens are df-gated)" },
     { "D", "int", 1, "Klein-4 dimension (F1008 used 8192)" },
     { "df", "dict", 0, "token -> doc-frequency table (the aboutness-gate corpus stats); None disables the gate" },
@@ -3387,94 +3403,94 @@ static const srmech_tool_param_t ts_params_572[] = {
     { "func_frac", "float", 0, "gate threshold as a fraction of n_docs (default 0.35)" },
     { "token_mode", "str", 0, "'byteglyph' (default, structure-bearing) or 'address' (F1008 orthogonal dual)" },
 };
-static const srmech_tool_param_t ts_params_573[] = {
+static const srmech_tool_param_t ts_params_580[] = {
     { "op_name", "str", 1, "canonical op name; one of registered_ops()" },
     { "args", "sequence", 0, "the *args variadic: positional arguments forwarded verbatim to the routed implementation. Element types are the routed op's, not dispatch's, so this schema does not narrow them; an element with no wire form is unreachable over MCP even though the array is. Default () = no positional arguments" },
     { "path", "Optional[str]", 0, "keyword-only; force 'A' / 'B' / 'verify'. Default None = rule-based routing via resolve_path()" },
     { "D", "int", 0, "keyword-only; RBS-HDC bound-vector dimension forwarded to Path B implementations. Default 8192" },
 };
-static const srmech_tool_param_t ts_params_574[] = {
+static const srmech_tool_param_t ts_params_581[] = {
     { "substrate", "Optional[str]", 0, "substrate label, or None for substrate-agnostic. One of 'bci' / 'audio' / 'rf' / 'ephemeris'" },
     { "D", "int", 0, "keyword-only; bound-vector dimension for the cascade. Default 8192" },
 };
-static const srmech_tool_param_t ts_params_575[] = {
+static const srmech_tool_param_t ts_params_582[] = {
     { "ctx", "Optional[dict]", 0, "the CascadeContext to flush; None flushes the innermost active context" },
 };
-static const srmech_tool_param_t ts_params_577[] = {
+static const srmech_tool_param_t ts_params_584[] = {
     { "op_name", "str", 1, "canonical op name" },
     { "explicit_path", "Optional[str]", 0, "keyword-only; 'A' / 'B' / 'verify' \342\200\224 returned unchanged" },
     { "input_size", "Optional[int]", 0, "keyword-only; input-size hint (reserved for the learned threshold table)" },
     { "substrate", "Optional[str]", 0, "keyword-only; substrate hint overriding the active context" },
 };
-static const srmech_tool_param_t ts_params_579[] = {
+static const srmech_tool_param_t ts_params_586[] = {
     { "op_name", "str", 1, "canonical op name" },
     { "path", "str", 1, "'A' or 'B'" },
 };
-static const srmech_tool_param_t ts_params_580[] = {
+static const srmech_tool_param_t ts_params_587[] = {
     { "op_name", "str", 1, "canonical op name" },
 };
-static const srmech_tool_param_t ts_params_582[] = {
+static const srmech_tool_param_t ts_params_589[] = {
     { "partials", "Sequence[int | Q | Qalg]", 1, "non-empty sequence of partial-to-fundamental frequency RATIOS. Over the wire each is a bare int or an exact [num, den] pair; an in-process caller may also pass Q or Qalg (Qalg has no JSON form, so it is reachable in-process only). float is REFUSED" },
     { "open_partials", "Sequence[int]", 0, "indices whose true value has NO exact carrier; declared by the constructor that produced them" },
 };
-static const srmech_tool_param_t ts_params_583[] = {
+static const srmech_tool_param_t ts_params_590[] = {
     { "partials", "Sequence[int | Q | Qalg]", 1, "partial-to-fundamental frequency ratios. Over the wire each is a bare int or an exact [num, den] pair; Q and Qalg are additionally accepted in-process (Qalg has no JSON form). float is REFUSED" },
     { "open_partials", "Sequence[int]", 0, "indices declared Tier 3 by their constructor" },
 };
-static const srmech_tool_param_t ts_params_584[] = {
+static const srmech_tool_param_t ts_params_591[] = {
     { "partials", "Sequence[int | Q | Qalg]", 1, "partial-to-fundamental frequency ratios; over the wire each is a bare int or an exact [num, den] pair (Qalg in-process only). float is REFUSED" },
     { "open_partials", "Sequence[int]", 0, "indices declared Tier 3 by their constructor" },
 };
-static const srmech_tool_param_t ts_params_586[] = {
+static const srmech_tool_param_t ts_params_593[] = {
     { "divisions", "int", 0, "steps per octave (>=1); default 12" },
     { "octave", "int", 0, "the integer octave ratio (>=2); default 2" },
     { "degrees", "Sequence[int]", 0, "which scale degrees to return; default 0..divisions inclusive" },
 };
-static const srmech_tool_param_t ts_params_587[] = {
+static const srmech_tool_param_t ts_params_594[] = {
     { "inharmonicity", "Q", 1, "the stiffness coefficient B >= 0, as Q, int or an (int, int) pair; must be EXACT (floats refused)" },
     { "n_partials", "int", 0, "how many partials, n = 1..n_partials (>=1); default 8" },
 };
-static const srmech_tool_param_t ts_params_588[] = {
+static const srmech_tool_param_t ts_params_595[] = {
     { "n_orders", "int", 0, "how many Bessel orders n = 0..n_orders-1 (>=1); default 3" },
     { "m_zeros", "int", 0, "how many zeros per order, m = 1..m_zeros (>=1); default 3" },
     { "scale_bits", "int", 0, "the DECLARED fixed-point precision of the zeros; default 128" },
 };
-static const srmech_tool_param_t ts_params_589[] = {
+static const srmech_tool_param_t ts_params_596[] = {
     { "order", "int", 1, "the integer Bessel order k >= 0" },
     { "numerator", "int", 1, "the argument's numerator; the argument must be >= 0" },
     { "denominator", "int", 1, "the argument's denominator, > 0" },
     { "scale_bits", "int", 0, "the DECLARED fixed-point scale in bits, [8, 4096]; default 256" },
 };
-static const srmech_tool_param_t ts_params_590[] = {
+static const srmech_tool_param_t ts_params_597[] = {
     { "order", "int", 1, "the integer Bessel order n >= 0" },
     { "index", "int", 1, "which positive zero, 1-based (1 = the first)" },
     { "scale_bits", "int", 0, "the DECLARED fixed-point scale in bits; default 256" },
     { "newton_steps", "int", 0, "Newton refinements after the McMahon start, [1, 64]; default 8" },
 };
-static const srmech_tool_param_t ts_params_591[] = {
+static const srmech_tool_param_t ts_params_598[] = {
     { "species", "Sequence[str | dict[str,int]] | QMat", 1, "the reaction's species: a list of formula strings (\"H2O\") and/or {element: count} dicts (mixable), or a raw element x species QMat (rows = elements, columns = species)" },
     { "all_balances", "bool", 0, "when the kernel dimension is > 1, return every primitive basis vector instead of raising; default False" },
 };
-static const srmech_tool_param_t ts_params_592[] = {
+static const srmech_tool_param_t ts_params_599[] = {
     { "N", "QMat | Sequence[Sequence[int | Q]]", 1, "the stoichiometric matrix (rows = species, columns = reactions) as a QMat or a nested int/Q sequence" },
 };
-static const srmech_tool_param_t ts_params_593[] = {
+static const srmech_tool_param_t ts_params_600[] = {
     { "reactions", "Sequence[tuple[dict[str,int], dict[str,int]]]", 1, "an iterable of (reactant, product) pairs; each complex is an {species: coeff} dict ({\"A\": 2} for 2A), a bare species-name str (coeff 1), or the zero complex (\"\"/\"0\"/None for the empty complex in a synthesis/degradation step)" },
     { "with_components", "bool", 0, "return the full breakdown dict instead of the bare integer; default False" },
 };
-static const srmech_tool_param_t ts_params_594[] = {
+static const srmech_tool_param_t ts_params_601[] = {
     { "formula", "str", 1, "the formula string; element = [A-Z][a-z]*, count = a run of ASCII digits (default 1), groups nest with ( ... ) and an optional trailing count" },
 };
-static const srmech_tool_param_t ts_params_595[] = {
+static const srmech_tool_param_t ts_params_602[] = {
     { "framed", "bytes", 1, "Frame body (nonce[16] || ciphertext) \342\200\224 the unwrapped TLV payload." },
     { "dna", "bytes", 1, "32+ byte pre-shared Bio-TOTP secret. Pass ZERO_DNA (b'\\x00'*32) for herd-immunity / public mode (same code path; deterministic ciphertext recoverable by anyone)." },
     { "window_ns", "int", 0, "Optional time-window override in nanoseconds (default 250_000_000 = 250 ms; env-var ``SRMECH_BUS_TOTP_WINDOW_NS`` honoured)." },
     { "time_ns", "int", 0, "Optional explicit wall-clock override (defaults to time.time_ns()). Useful for replaying historical captures." },
 };
-static const srmech_tool_param_t ts_params_596[] = {
+static const srmech_tool_param_t ts_params_603[] = {
     { "cleanup_dead", "bool", 0, "When True (default), registration files for endpoints with no live server are removed from disk as a side effect." },
 };
-static const srmech_tool_param_t ts_params_597[] = {
+static const srmech_tool_param_t ts_params_604[] = {
     { "name", "str", 1, "Endpoint name (matches the name passed to `srmech.bus.serve(name, ...)`)." },
 };
 
@@ -3563,21 +3579,65 @@ static const char *const ts_reads_input_412[] = {
 static const char *const ts_reads_input_539[] = {
     "algebra",
 };
-static const char *const ts_composes_573[] = {
+static const char *const ts_composes_553[] = {
+    "srmech.physics.qm.octonion.octonion_mult_table",
+};
+static const char *const ts_preserves_553[] = {
+    "the four scalar triples close under componentwise product and are all involutions \342\200\224 a Klein four-group, checked not assumed",
+    "each non-identity central element acts trivially on exactly one of {8v, 8s, 8c}",
+};
+static const char *const ts_composes_554[] = {
+    "srmech.physics.qm.triality.spin8_center",
+};
+static const char *const ts_preserves_554[] = {
+    "the derived bijection intertwines BOTH shipped generator pairs \342\200\224 the order-3 cycle and the order-2 transposition",
+    "the two order-2-for-order-3 controls return 0 and the identity-for-cycle control returns 6",
+};
+static const char *const ts_composes_555[] = {
+    "srmech.cascade.magnitude",
+    "srmech.math.cyclic.mod_add",
+    "srmech.cascade.reorient",
+};
+static const char *const ts_preserves_555[] = {
+    "orientation-blind: center_parity(w) == center_parity(-w)",
+};
+static const char *const ts_composes_556[] = {
+    "srmech.math.covering.center_parity",
+};
+static const char *const ts_preserves_556[] = {
+    "cover_lift is the exact integer sum regardless of center_order \342\200\224 the cover datum is never reduced away",
+    "shadow_determines_lift is True iff center_order == 0",
+};
+static const char *const ts_composes_557[] = {
+    "srmech.cascade.magnitude",
+};
+static const char *const ts_preserves_557[] = {
+    "determined is True iff the fibre has exactly one element",
+};
+static const char *const ts_composes_558[] = {
+    "srmech.math.covering.center_parity",
+};
+static const char *const ts_preserves_558[] = {
+    "the exact rational sum is preserved even when non-integral \342\200\224 linking_number is None rather than rounded",
+};
+static const char *const ts_preserves_559[] = {
+    "every shipped_ops entry in a reached row is a live registered op path \342\200\224 a row cannot outlive the op it names",
+};
+static const char *const ts_composes_580[] = {
     "srmech.signal_processing.cascade_dispatcher.resolve_path",
     "srmech.signal_processing.path_registry.lookup",
 };
-static const char *const ts_preserves_573[] = {
+static const char *const ts_preserves_580[] = {
     "path= is honoured unconditionally \342\200\224 an explicit side is never overridden by the cascade hint or by the class default",
     "arguments are forwarded verbatim; D is injected only into implementations whose signature accepts it",
 };
-static const char *const ts_preserves_575[] = {
+static const char *const ts_preserves_582[] = {
     "idempotent: flushing an already-closed context does not re-run the flush",
 };
-static const char *const ts_preserves_577[] = {
+static const char *const ts_preserves_584[] = {
     "pure: resolve_path never runs the op and never mutates the registry or the cascade stack",
 };
-static const char *const ts_preserves_581[] = {
+static const char *const ts_preserves_588[] = {
     "an immutable snapshot \342\200\224 a later registration does not change a tuple already returned",
 };
 
@@ -13539,6 +13599,132 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
     },
     { /* 553 */
+        "srmech.physics.qm.triality.spin8_center",
+        "srmech",
+        "qm.triality",
+        "Z(Spin(8)) \342\200\224 the Klein four-group \342\200\224 SOLVED off the octonion multiplication table (rc422). \342\232\240\357\270\217 The Lie-algebra centre of so(8) is the ZERO object and that is CORRECT: so(8) is semisimple, and the Klein four-group belongs to the simply-connected GROUP. The algebra is SHARED by Spin(8) / SO(8) / PSO(8) and structurally cannot tell them apart, because a centre is global (\317\200\342\202\201) data where an algebra carries local data \342\200\224 a category distinction, not a shortfall. A Spin(8) element is a triple (g_v, g_s, g_c) with g_v(x\302\267y) = g_s(x)\302\267g_c(y); restricting to SCALAR triples and solving exhaustively on all 64 octonion basis pairs gives 4 solutions, so the constraint \316\265_v = \316\265_s\302\267\316\265_c is FOUND, not imposed. THE KERNELS ARE THE DICTIONARY: each non-identity element acts trivially on exactly ONE of {8v,8s,8c}, which FORCES {3 involutions} \342\206\224 {3 reps} rather than choosing it \342\200\224 the anchor whose absence left the V\342\202\204\342\206\224so(8) bridge non-canonical through rc421. Also returns the \317\204-fixed subgroup, measured TRIVIAL (identity only): the basis for rejecting g\342\202\202 = Fix(\317\204) in covering_catalog. The so(8) instance of srmech.math.covering. Class A\342\210\230I; exact integers; numpy-free; no abs(). Baez (2002) \302\2472.4.",
+        NULL, 0u,
+        "dict",
+        "{'order': 4, 'elements': [(\316\265v,\316\265s,\316\265c)], 'is_klein_four': bool, 'rep_kernels': {'v'|'s'|'c': triple}, 'constraint': str, 'algebra_centre_dim': 0, 'triality_fixed_subgroup': list, 'basis_pairs_checked': 64}",
+        1,
+        NULL,
+        "{\"input\":{},\"output\":\"order 4; elements [(1, 1, 1), (1, -1, -1), (-1, 1, -1), (-1, -1, 1)]; is_klein_four True; rep_kernels {'v': (1, -1, -1), 's': (-1, 1, -1), 'c': (-1, -1, 1)}; algebra_centre_dim 0; triality_fixed_subgroup [(1, 1, 1)].\",\"why\":\"Each non-identity element has exactly ONE +1 coordinate, so it acts trivially on exactly one rep. That is what makes {3 involutions} <-> {3 reps} forced rather than chosen. Note algebra_centre_dim 0: the ALGEBRA centre is the zero object, and that is the correct answer, not a refutation.\",\"worked\":\"from srmech.physics.qm.triality import spin8_center\\n# SUBJECT: the global datum so(8) structurally cannot hold.\\nc = spin8_center()\\nc['order']                    # -> 4     a Klein four-group\\nc['elements'][1]              # -> (1, -1, -1)\\nc['rep_kernels']['v']         # -> (1, -1, -1)  kills 8v\\nc['rep_kernels']['s']         # -> (-1, 1, -1)  kills 8s\\nc['algebra_centre_dim']       # -> 0   CORRECT: so(8) is semisimple\\nc['triality_fixed_subgroup']  # -> [(1, 1, 1)]  trivial\\n\"}",
+        NULL,
+        "WHAT -- it returns ``Z(Spin(8))``, the Klein four-group, SOLVED off the octonion multiplication table: the four scalar triples ``(g_v, g_s, g_c)`` satisfying the group form of Cartan's relation ``g_v(x.y) = g_s(x).g_c(y)`` on all 64 octonion basis pairs, so the constraint ``eps_v = eps_s*eps_c`` is FOUND rather than imposed. Each non-identity element acts trivially on exactly one of {8v, 8s, 8c}, so the kernels ARE a labelling. WHEN -- reach for it when you need the global (pi_1) datum the Lie algebra cannot carry. The trap to know about first: computing the centre of the ALGEBRA returns the zero object and that is CORRECT -- so(8) is semisimple, and the same algebra belongs to Spin(8), SO(8) and PSO(8) alike, so it structurally cannot tell them apart. A run reporting \"the centre is zero\" has confirmed the setup, not refuted anything; this op returns that zero explicitly as ``algebra_centre_dim`` so the distinction is on the record. What you would otherwise wrongly hand-roll is an eigen-decomposition hunting for a central element in the 28-dim adjoint, which will correctly find nothing. SIBLINGS -- ``so8_adjoint_basis`` is the local object this complements; ``triality_rep_dictionary`` consumes the kernels to derive the V4 bridge; ``srmech.math.covering.covering_catalog`` lists this as the spin8 row. Do not re-derive the centre from ``triality_automorphism``: tau ACTS on the centre, it does not carry one.",
+        ts_composes_553, 1u,
+        ts_preserves_553, 2u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 554 */
+        "srmech.physics.qm.triality.triality_rep_dictionary",
+        "srmech",
+        "qm.triality",
+        "The canonical {i\317\211\342\202\207, \316\263\342\202\205, CPT} \342\206\224 {8v, 8s, 8c} dictionary, DERIVED from the Z(Spin(8)) rep-kernel anchor (rc422). rc421 measured this bridge NOT canonical as shipped, residual ambiguity 3: both carriers' order-3 generators are 3-cycles on a 3-element set, and the centralizer of a 3-cycle in Sym(3) has order 3, so an order-3 generator ALONE cannot pin a bijection \342\200\224 an arithmetic ceiling, not a shortfall of care. Three moves close it: (1) spin8_center labels the three central involutions by which rep each kills (forced); (2) with the reps labelled the shipped 28\303\22728 \317\204 and S_B acquire a readable LABEL ACTION \342\200\224 \317\204 cycles v\342\206\222s\342\206\222c, S_B exchanges v\342\206\224s and FIXES c; (3) requiring a bijection to intertwine BOTH shipped generator pairs cuts the 3 survivors to 1, because the natural 3-point S\342\202\203-set has trivial centralizer in Sym(3). Result: i\317\211\342\202\207\342\206\2248s, \316\263\342\202\205\342\206\2248c, CPT\342\206\2248v. HONEST BOUND: canonical RELATIVE TO the shipped generator pairing and the shipped V\342\202\204 sector names \342\200\224 a different order-2 gives a different dictionary, so this is a derived intertwiner of two shipped S\342\202\203 presentations, FORM and never object-identity. Carries three controls inline, incl. \302\2473.29.3's named 'single most common triality error' (an order-2 object where order-3 is meant \342\206\222 0 survivors). Class I\342\210\230C\342\210\230D. Baez (2002) \302\2472.4; Cartan (1925).",
+        NULL, 0u,
+        "dict",
+        "{'dictionary': {'iomega7'|'gamma5'|'cpt': 'v'|'s'|'c'}, 'residual_ambiguity': 1, 'prior_ambiguity': 3, 'order3_only_survivors': list, 'tau_label_action', 'swap_label_action', 'swap_fixes', 'v4_cycle', 'v4_rung_transposition', 'rep_kernels', 'controls', 'honest_bound'}",
+        1,
+        NULL,
+        "{\"input\":{},\"output\":\"dictionary {'iomega7': 's', 'gamma5': 'c', 'cpt': 'v'}; residual_ambiguity 1 (prior_ambiguity 3); order3_only_survivors the 3 cyclic rotations; tau_label_action {'v': 's', 's': 'c', 'c': 'v'}; swap_label_action {'v': 's', 's': 'v', 'c': 'c'} so swap_fixes ['c']; controls {'order2_for_order3_v4_side': 0, 'order2_for_order3_so8_side': 0, 'identity_for_cycle': 6, 'behave': True}.\",\"why\":\"rc421 measured the residual ambiguity at 3 and could go no further: the centralizer of a 3-cycle in Sym(3) has order 3, so an order-3 generator alone CANNOT pin a bijection. The rep-kernel labelling supplies the second generator, and 3 collapses to 1.\",\"worked\":\"from srmech.physics.qm.triality import triality_rep_dictionary\\n# SUBJECT: the V4 <-> so(8) bridge, derived not chosen.\\nd = triality_rep_dictionary()\\nd['prior_ambiguity']       # -> 3    rc421's ceiling\\nd['residual_ambiguity']    # -> 1\\nd['dictionary']\\n  # -> {'iomega7': 's', 'gamma5': 'c', 'cpt': 'v'}\\nd['swap_fixes']            # -> ['c']   S_B fixes 8c\\nd['controls']['identity_for_cycle']         # -> 6\\nd['controls']['order2_for_order3_so8_side'] # -> 0\\n\"}",
+        NULL,
+        "WHAT -- it returns the canonical {iomega7, gamma5, CPT} <-> {8v, 8s, 8c} dictionary, derived from the Z(Spin(8)) rep-kernel anchor rather than chosen, together with the label actions of the shipped tau and S_B, the survivor census and three inline controls. The result is iomega7 <-> 8s, gamma5 <-> 8c, CPT <-> 8v. WHEN -- reach for it before writing any sentence that pairs a Klein-4 sector with a triality rep. rc421 measured this bridge NOT canonical as shipped, residual ambiguity 3, and the reason is arithmetic rather than carelessness: the centralizer of a 3-cycle in Sym(3) has order 3, so an order-3 generator ALONE cannot pin a bijection. What you would otherwise wrongly hand-roll is the \"obvious\" alignment iomega7<->8v, gamma5<->8s, CPT<->8c, which is NOT the derived one. Read the honest bound before quoting it: the dictionary is canonical RELATIVE TO the shipped generator pairing and the shipped V4 sector names -- a different order-2 gives a different dictionary -- so it is FORM, never object-identity. SIBLINGS -- ``spin8_center`` supplies the anchor; ``srmech.math.hdc.klein4_triality_cycle`` and ``triality_cycle`` are the two order-3 generators it intertwines; do not re-derive the correspondence from either docstring alone.",
+        ts_composes_554, 1u,
+        ts_preserves_554, 2u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 555 */
+        "srmech.math.covering.center_parity",
+        "srmech",
+        "covering",
+        "The \342\204\244/2 central sign (\342\210\2221)^winding of an integer winding: \302\2611 \342\200\224 THE ONE BIT WHERE AN INTEGER LIVED. This is the single primitive that six shipped surfaces each re-derived by hand: One.spinor_sign's (\342\210\2221)^\316\243w, quaternion_cycle_holonomy's center_parity, cwf_consistency_mod2's lk_center_parity. One winding flips the sign, two restore it \342\200\224 the Spin\342\206\222SO double cover, equally \317\200\342\202\201(SO(3)) = \342\204\244/2. Class K (pin-slot magnitude, never abs()) \342\210\230 Class I (mod-2 via mod_add) \342\210\230 Class C (the \302\2611 orientation re-application). (\342\210\2221)^w = (\342\210\2221)^(\342\210\222w), so the parity is orientation-blind by construction and negative windings need no special case. numpy-free.",
+        ts_params_555, 1u,
+        "int",
+        "+1 when winding is even, \342\210\2221 when odd",
+        1,
+        NULL,
+        "{\"input\":{\"winding\":-3},\"output\":\"-1 -- the winding is odd, so the spinor sign has flipped. center_parity(0) = 1, center_parity(1) = -1, center_parity(10) = 1: one winding flips, two restore.\",\"why\":\"This is the one bit that survives when an integer winding is read through a finite centre. Six shipped surfaces each re-derived it by hand before this op existed.\",\"worked\":\"from srmech.math.covering import center_parity\\n# SUBJECT: an integer winding read through Z(SU(2)) = {+-1}.\\ncenter_parity(0)      # -> 1    no winding\\ncenter_parity(1)      # -> -1   ONE winding flips the spinor\\ncenter_parity(-3)     # -> -1   orientation-blind: (-1)^w = (-1)^(-w)\\ncenter_parity(10)     # -> 1    two windings restore (4pi)\\n\"}",
+        NULL,
+        "WHAT -- it computes the Z/2 central sign ``(-1)^winding`` of an integer winding, returning ``+1`` for even and ``-1`` for odd. That is the monodromy of a loop through a centre of order 2: one full winding flips the spinor sign, two restore it -- the Spin -> SO double cover, equally ``pi_1(SO(3)) = Z/2``. WHEN -- reach for it whenever a quantity that really lives in a COVER is being read through a finite quotient, and you want the surviving datum named rather than improvised. What you would otherwise wrongly hand-roll is ``(-1) ** w`` or ``1 - 2 * (w % 2)``: both are correct arithmetic and both bypass the Class-K pin-slot / Class-C orientation composition the ``abs()`` ban exists to enforce, and neither says which covering the bit is the shadow OF. SIBLINGS -- do not re-derive it from ``srmech.cascade.one.One.spinor_sign`` (that is this same bit specialised to the winding triad) nor from ``srmech.physics.qm.quaternion.quaternion_cycle_holonomy``'s ``center_parity`` field nor from ``srmech.biology.genome.cwf_consistency_mod2``'s ``lk_center_parity``; those three are the instances, this is the primitive. ``center_lift`` is the accumulator that produces the winding in the first place, and ``lift_fibre`` is what tells you how much the bit threw away.",
+        ts_composes_555, 3u,
+        ts_preserves_555, 1u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 556 */
+        "srmech.math.covering.center_lift",
+        "srmech",
+        "covering",
+        "Accumulate integer steps in the COVER and project to the centre \342\200\224 the op that KEEPS the integer where the shipped local object keeps only the residue. Task `#T1005` states the problem it answers: the genome accumulates in the FINITE GROUP where a helix accumulates in its UNIVERSAL COVER, so DNA's integer Lk has nowhere to live. Run this alongside a finite-group encoder and the integer survives: the loss is a statement about which accumulator was kept, not an unavoidable one. center_order=0 spells the universal cover (deck group \342\204\244) \342\200\224 nothing is reduced, and shadow_determines_lift is True exactly there, which is the honest report of when the projection loses nothing. Class I (mod-n projection) \342\210\230 Class K/C (the signed reduction; mod_add serves the unsigned domain, so a negative lift is a genuine pin-slot + reorientation, never an abs()). numpy-free.",
+        ts_params_556, 2u,
+        "dict",
+        "{'cover_lift': int, 'center_shadow': int, 'center_order': int, 'center_parity': \302\2611, 'shadow_determines_lift': bool}",
+        1,
+        NULL,
+        "{\"input\":{\"center_order\":2,\"steps\":[1,1,1]},\"output\":\"{'cover_lift': 3, 'center_shadow': 1, 'center_order': 2, 'center_parity': -1, 'shadow_determines_lift': False}. The same steps with center_order=0 (the universal Z cover) give {'cover_lift': 3, 'center_shadow': 3, 'center_order': 0, 'center_parity': -1, 'shadow_determines_lift': True}.\",\"why\":\"The integer 3 survives in BOTH runs. Only the shadow differs -- which is the point: the loss is a statement about which accumulator was kept, not an unavoidable one.\",\"worked\":\"from srmech.math.covering import center_lift\\n# SUBJECT: three unit steps accumulated in a cover.\\nr = center_lift([1, 1, 1], 2)\\nr['cover_lift']               # -> 3    the INTEGER, kept\\nr['center_shadow']            # -> 1    all a Z/2 centre can hold\\nr['shadow_determines_lift']   # -> False\\nu = center_lift([1, 1, 1], 0)  # 0 = the universal Z cover\\nu['center_shadow']            # -> 3    nothing reduced\\nu['shadow_determines_lift']   # -> True\\n\"}",
+        NULL,
+        "WHAT -- it accumulates a sequence of integer steps in the COVER and returns both the integer lift and its image in the centre, plus the honest flag ``shadow_determines_lift`` (True exactly for the universal cover, ``center_order=0``, where the deck group is Z and nothing is reduced). WHEN -- reach for it when an encoder lives in a finite group but the quantity it is encoding does not. Task `#T1005` is precisely this case: the genome accumulates in the finite group where a helix accumulates in its universal cover, so DNA's integer Lk has nowhere to live. Run this alongside the finite-group encoder and the integer survives. What you would otherwise wrongly hand-roll is ``sum(steps) % n`` -- which discards the very datum worth keeping, and silently gets the sign wrong for negative lifts on an unsigned modular op. SIBLINGS -- do not re-implement the sign handling: ``srmech.math.cyclic.mod_add`` serves the unsigned domain, so a negative lift here is a genuine Class-K pin-slot plus Class-C reorientation on the cyclic carrier, never an ``abs()``. ``center_parity`` is the order-2 special case of the shadow; ``lift_fibre`` is the converse instrument (what the shadow does not determine); ``linking_number_cwf`` is the route to the same integer when you hold Tw and Wr instead of steps.",
+        ts_composes_556, 1u,
+        ts_preserves_556, 2u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 557 */
+        "srmech.math.covering.lift_fibre",
+        "srmech",
+        "covering",
+        "The integer lifts a centre-shadow does NOT determine \342\200\224 the fibre over a shadow, a coset of center_order\302\267\342\204\244, ENUMERATED inside [\342\210\222window, window] rather than asserted. An instrument that cannot return otherwise is not a measurement, so 'information was lost' is made falsifiable here instead of being claimed in prose: for the universal cover (center_order=0) the same op returns a fibre of size 1 and determined=True, i.e. it CAN say nothing was lost, by the same code path that says something was. Class I (the coset walk) \342\210\230 Class E (enumeration). numpy-free; no abs().",
+        ts_params_557, 3u,
+        "dict",
+        "{'fibre': list[int], 'size': int, 'center_order': int, 'window': int, 'determined': bool}",
+        1,
+        NULL,
+        "{\"input\":{\"center_order\":2,\"shadow\":1,\"window\":4},\"output\":\"{'fibre': [-3, -1, 1, 3], 'size': 4, 'center_order': 2, 'window': 4, 'determined': False} -- the four integers in [-4, 4] that one bit cannot separate. With center_order=0: lift_fibre(3, 0, 5) -> {'fibre': [3], 'size': 1, 'center_order': 0, 'window': 5, 'determined': True}.\",\"why\":\"The SAME code path returns determined=True when nothing was lost and determined=False when something was. An instrument that could only ever report loss would not be measuring it.\",\"worked\":\"from srmech.math.covering import lift_fibre\\n# SUBJECT: what a single centre-parity bit throws away.\\nf = lift_fibre(1, 2, 4)\\nf['fibre']        # -> [-3, -1, 1, 3]\\nf['determined']   # -> False   the bit does NOT pin the lift\\ng = lift_fibre(3, 0, 5)   # the universal Z cover\\ng['fibre']        # -> [3]\\ng['determined']   # -> True    nothing was lost\\n\"}",
+        NULL,
+        "WHAT -- it returns the integer lifts a centre-shadow does NOT determine: the fibre over a shadow is a coset of ``center_order*Z``, and this ENUMERATES it inside ``[-window, window]`` rather than asserting that information was lost. WHEN -- reach for it whenever you are about to write the sentence \"the finite group can only pin this mod n\" and want that sentence to be a measurement instead of a claim. The universal-cover case is the load-bearing half: with ``center_order=0`` the same call returns a fibre of size 1 and ``determined=True``, so the op demonstrably CAN come out the other way. What you would otherwise wrongly hand-roll is a prose comment in a docstring, which no test can contradict. SIBLINGS -- it is the converse of ``center_lift`` (that one keeps the lift, this one measures what keeping only the shadow costs) and the general form of the loss ``center_parity`` incurs at n=2. Do not reach for ``srmech.math.cyclic.mod_add`` directly to rebuild the coset walk; the signed reduction is already composed here.",
+        ts_composes_557, 1u,
+        ts_preserves_557, 1u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 558 */
+        "srmech.math.covering.linking_number_cwf",
+        "srmech",
+        "covering",
+        "Lk = Tw + Wr \342\200\224 the INTEGER topological invariant recovered from two frame-relative rationals (C\304\203lug\304\203reanu\342\200\223White\342\200\223Fuller). The theorem's content is the asymmetry the mod-2 shadow destroys: Tw and Wr each MOVE when the framing moves, while their sum does not. srmech already ships genome.cwf_consistency_mod2, which checks (Tw+Wr) \342\211\241 Lk mod 2 and returns lk_center_parity \342\200\224 the bit; this returns the integer, and CERTIFIES its integrality rather than assuming it (a non-integral sum reports is_integer False with the exact rational preserved, never rounded away). Inputs are exact (num, den) integer pairs \342\200\224 the Class-N contract, never floats. Class N (exact \342\204\232) \342\210\230 Class K (the integrality pin-slot). numpy-free; no stdlib fractions; no abs().",
+        ts_params_558, 2u,
+        "dict",
+        "{'lk': (num, den), 'is_integer': bool, 'linking_number': int | None, 'center_parity': \302\2611 | None, 'twist': (num, den), 'writhe': (num, den)}",
+        1,
+        NULL,
+        "{\"input\":{\"twist\":[3,2],\"writhe\":[5,2]},\"output\":\"{'lk': (4, 1), 'is_integer': True, 'linking_number': 4, 'center_parity': 1, 'twist': (3, 2), 'writhe': (5, 2)} -- two half-integers summing to a topological integer. A non-integral sum is reported, never rounded: linking_number_cwf((7,3),(1,3)) -> {'lk': (8, 3), 'is_integer': False, 'linking_number': None, 'center_parity': None, ...}.\",\"why\":\"Tw = 3/2 and Wr = 5/2 are each frame-relative and each move when the framing moves; their sum 4 does not. That asymmetry IS the theorem, and the mod-2 shadow destroys it.\",\"worked\":\"from srmech.math.covering import linking_number_cwf\\n# SUBJECT: Calugareanu-White-Fuller, Lk = Tw + Wr.\\nr = linking_number_cwf((3, 2), (5, 2))   # exact (num, den) pairs\\nr['lk']              # -> (4, 1)\\nr['is_integer']      # -> True\\nr['linking_number']  # -> 4      the topological integer\\nr['center_parity']   # -> 1      the bit mod-2 encoders keep\\nb = linking_number_cwf((7, 3), (1, 3))\\nb['lk'], b['is_integer'], b['linking_number']\\n  # -> ((8, 3), False, None)   reported, not rounded\\n\"}",
+        NULL,
+        "WHAT -- it computes ``Lk = Tw + Wr`` in exact rationals and returns the integer linking number together with an integrality certificate: a non-integral sum comes back with ``is_integer`` False and ``linking_number`` None, the exact rational preserved rather than rounded away. WHEN -- reach for it when you hold twist and writhe and want the topological invariant they add up to. The theorem's whole content is an asymmetry: Tw and Wr are each FRAME-RELATIVE reals that move when the framing moves, while their sum does not -- which is exactly what a mod-2 shadow destroys. What you would otherwise wrongly hand-roll is a float sum plus ``round()``, which converts a failed integrality check into a plausible wrong answer, and which needs stdlib ``fractions`` to avoid -- a module this package bans. Inputs are ``(num, den)`` integer pairs, the Class-N contract, never floats. SIBLINGS -- ``srmech.biology.genome.cwf_consistency_mod2`` checks the same relation MOD 2 and returns ``lk_center_parity``; do not re-derive the integer from that bit, because the bit is what the integer was reduced to. ``srmech.biology.genome.discrete_writhe`` supplies Wr; ``center_parity`` is applied here to the recovered integer.",
+        ts_composes_558, 1u,
+        ts_preserves_558, 1u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 559 */
+        "srmech.math.covering.covering_catalog",
+        "srmech",
+        "covering",
+        "The census: which shipped coherencies the centre/covering layer REACHES, and which it REJECTS \342\200\224 each with a reason. The fit predicate is stated BEFORE the candidates were scored: REACHED iff (i) a base object the shipped op computes in, (ii) a covering / central extension with NON-TRIVIAL centre Z, and (iii) the shipped op's output is the image of a Z-torsor-valued quantity a finer invariant exists for upstairs; \317\200\342\202\201(base)=0 or Z trivial \342\207\222 REJECT. Reached (4): spin8 (Z = V\342\202\204, derived at rc422), spin3 (Z(SU(2)) = {\302\2611}: quaternion_cycle_holonomy, One.spinor_sign), q8_v4 (q8_project_v4 'drops the center sign bit'), circle_z (deck \342\204\244: cwf_consistency_mod2, discrete_writhe, cycle_holonomy \342\200\224 the `#T1005` row). Rejected (5), each on a named clause: the S\302\263 fibre writhe of octonion_frame_read (\317\200\342\202\201(S\302\263)=0 \342\200\224 the fibre is simply connected, so there is no covering datum; pushing the read to SO(3) gives the spin3 row, a DIFFERENT object), the Cayley\342\200\223Dickson rung bump (doubling is not a covering map), g\342\202\202 = Der(\360\235\225\206) (MEASURED: the triality-fixed subgroup of Z(Spin(8)) is trivial), the Hermitian spectrum (eigenvalues are conjugation-invariant \342\200\224 no monodromy is encoded), and \317\204 itself (an automorphism ACTS on a centre; being adjacent to the datum is not holding it). HONEST BOUND: each row is a FORM match at its stated junction \342\200\224 two centres are not the same object because both are called 'centre'. Class E.",
+        NULL, 0u,
+        "dict",
+        "{'reached': list[dict], 'rejected': list[dict], 'n_reached': 4, 'n_rejected': 5, 'predicate': str, 'honest_bound': str}",
+        1,
+        NULL,
+        "{\"input\":{},\"output\":\"n_reached 4, n_rejected 5. reached: ['spin8', 'spin3', 'q8_v4', 'circle_z'] with centre orders [4, 2, 2, 0]. rejected: ['octonion_frame_read_s3_fiber', 'cayley_dickson_rung_bump', 'g2_der_octonions', 'hermitian_spectrum', 'triality_automorphism'] on clauses ['(ii)', '(ii)', '(ii)', '(iii)', '(i)'].\",\"why\":\"Five rejections against four acceptances. A census that accepted every candidate would not be a finding, and the g2 rejection is MEASURED (the triality-fixed subgroup of Z(Spin(8)) is trivial), not asserted.\",\"worked\":\"from srmech.math.covering import covering_catalog\\n# SUBJECT: which shipped coherencies the covering layer reaches.\\nc = covering_catalog()\\nc['n_reached'], c['n_rejected']        # -> (4, 5)\\n[r['name'] for r in c['reached']]\\n  # -> ['spin8', 'spin3', 'q8_v4', 'circle_z']\\n[r['center_order'] for r in c['reached']]\\n  # -> [4, 2, 2, 0]      0 = the universal Z cover\\n[(r['name'], r['fails_clause']) for r in c['rejected']][:2]\\n  # -> [('octonion_frame_read_s3_fiber', '(ii)'),\\n  #     ('cayley_dickson_rung_bump', '(ii)')]\\n\"}",
+        NULL,
+        "WHAT -- it returns the census of which shipped coherencies the centre / covering layer REACHES and which it REJECTS, each with a reason and a named failing clause of a predicate stated before the candidates were scored: reached iff (i) a base object the shipped op computes in, (ii) a covering with NON-TRIVIAL centre Z, and (iii) an output that is the image of a Z-torsor-valued quantity. WHEN -- reach for it before assuming a given op has a hidden global datum. Two of the rejections are the useful ones: the S^3 fibre writhe of ``octonion_frame_read`` fails clause (ii) because ``pi_1(S^3) = 0`` -- a simply connected fibre carries no covering datum at all -- and ``g2 = Der(O)`` fails it on a MEASURED basis, the triality-fixed subgroup of Z(Spin(8)) being trivial. The rows are recomputed per call from ``spin8_center``, so the catalog is a computation, not a table. What you would otherwise wrongly hand-roll is a prose list in a notebook, which cannot be contradicted by a test. SIBLINGS -- ``spin8_center`` and ``triality_rep_dictionary`` are the derived spin8 row; ``center_lift`` / ``lift_fibre`` / ``center_parity`` are the ops the rows point at. Do not add a row without giving the predicate a chance to reject it.",
+        NULL, 0u,
+        ts_preserves_559, 1u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 560 */
         "srmech.physics.qm.so9.so9_adjoint_basis",
         "srmech",
         "qm.so9",
@@ -13556,7 +13742,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 554 */
+    { /* 561 */
         "srmech.physics.qm.so9.spin9_gamma_matrices",
         "srmech",
         "qm.so9",
@@ -13574,7 +13760,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 555 */
+    { /* 562 */
         "srmech.physics.qm.so9.spin9_spinor_generators",
         "srmech",
         "qm.so9",
@@ -13592,7 +13778,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 556 */
+    { /* 563 */
         "srmech.physics.qm.so9.spin8_in_spin9_branching",
         "srmech",
         "qm.so9",
@@ -13610,7 +13796,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 557 */
+    { /* 564 */
         "srmech.physics.qm.so9.sedenion_holonomy_conjecture",
         "srmech",
         "qm.so9",
@@ -13628,12 +13814,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 558 */
+    { /* 565 */
         "srmech.introspect.publish",
         "srmech",
         "introspect",
         "Opt-in context manager that enables per-op event emission for `srmech status` / `srmech bus tap` consumers. Wrap your sweep in `with srmech.introspect.publish():` OR set `SRMECH_PUBLISH_STATUS=1` env-var before importing srmech to enable per-op events. Without this opt-in, all srmech operations are silent (no overhead). Designed for research sessions where you want to observe a long-running sweep from a second process via `srmech status` or via `srmech bus tap`. Events land in `~/.srmech/run-{pid}-{start_time_ns}.ndjson` (NDJSON, one MPR-shaped event per line). v0.4.6+ (out-of-band introspection); v0.5.0rc7 (catalog discoverability).",
-        ts_params_558, 1u,
+        ts_params_565, 1u,
         "contextmanager[_PublishHandle]",
         "Yields a handle exposing pid, start_time_ns, file_path of the active writer.",
         0,
@@ -13646,7 +13832,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 559 */
+    { /* 566 */
         "srmech.introspect.list",
         "srmech",
         "introspect",
@@ -13664,12 +13850,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 560 */
+    { /* 567 */
         "srmech.introspect.by_pid",
         "srmech",
         "introspect",
         "Look up the most-recent srmech run for one PID. PID-recycling defence: if two status files share the same PID because the OS reused it, the one with the larger `start_time_ns` wins (the more-recent run; the `start_time_ns` suffix in the filename defeats PID recycling). Returns `None` if no file matches, or on Pyodide / WASM (no filesystem). v0.5.0rc9 (MCP / catalog discoverability).",
-        ts_params_560, 1u,
+        ts_params_567, 1u,
         "Run | None",
         "Frozen dataclass with pid (int), start_time_ns (int), script_name (str), current_op (str), current_class (str), elapsed_ms (int), status ('running' | 'finished' | 'died'), event_count (int), file_path (pathlib.Path). `None` when no file matches the PID.",
         1,
@@ -13682,7 +13868,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 561 */
+    { /* 568 */
         "srmech.introspect.describe",
         "srmech",
         "introspect",
@@ -13700,12 +13886,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 562 */
+    { /* 569 */
         "srmech.introspect.search.search",
         "srmech",
         "introspect",
         "The need-shaped INDEX over the tool + carrier registries \342\200\224 the INVERSE of `srmech.introspect.describe`. `describe()` answers 'what is the shape'; this answers 'I want X', phrased in the words the need was felt in. Reach for it when you do NOT already know the name: `resolve()` matches whole dotted segments only, so `resolve('winding')` is None while this returns `srmech.cascade.winding_fold` first. Ranks the union of the verb registry and the carrier (noun) registry over ALL their authored prose \342\200\224 name, category, summary, explanation and every example sub-key \342\200\224 which is the half of the introspect surface no accessor read before rc411. Each record carries `why` (the field that matched, WITH the matched excerpt) and `reach` (the importable call form), so the answer is actionable without a second call, per ADR-0012. Exact-Q scoring end to end: the idf is `Q(N - df, df)`, never a float and never a log. Derived on demand and never persisted (ADR-0011); the sha256 corpus witness rides on the result's `.witness`.",
-        ts_params_562, 3u,
+        ts_params_569, 3u,
         "tuple[dict, ...]",
         "A SearchResult (a tuple subclass) of records, highest score first, each {'kind': 'op' | 'carrier', 'name': str, 'score': Q (exact rational, serialised over MCP as [num, den]), 'why': str (the matched field, then ': ', then the densest matching excerpt), 'reach': str (the importable call form)}. The tuple additionally carries `.witness` \342\200\224 the sha256 content-address of the frame corpus the ranking was derived from (ADR-0011).",
         1,
@@ -13718,7 +13904,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 563 */
+    { /* 570 */
         "srmech.introspect.tool_schema.get_tool_schema",
         "srmech",
         "introspect",
@@ -13736,7 +13922,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 564 */
+    { /* 571 */
         "srmech.introspect.tool_schema.tool_schema_view",
         "srmech",
         "introspect",
@@ -13754,12 +13940,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 565 */
+    { /* 572 */
         "srmech.dsl.run_toml_chain",
         "srmech",
         "dsl",
         "Compose AND run a cascade in ONE call: author an inline TOML chain spec, feed an input value, get the chain result. The declarative, one-shot face of the rc8 cascade DSL (the fluent `chain().then(...).loop(...)` builder is not tool-callable \342\200\224 a tool call can't chain methods). The `spec` is a TOML document with a `[chain]` table + `[[stage]]` array entries; each stage carries exactly one discriminator: `op` (then), `loop_n` + `sub_chain` (loop), `fold_init` + `fold_op` (fold), or `reduce_op` (reduce); any other key forwards as a cascade-op kwarg (e.g. `max_denominator`). Op names come from `srmech.dsl.list_catalog_ops` (the 20-op cascade catalog). Example spec: `[chain]\\nname='demo'\\n\\n[[stage]]\\nop='chiral_flip'`. Framework reading: the DSL composes Class M (cross-class bind) over the cascade catalog; each stage is one A\342\200\223N primitive-class instance, the chain is the composition. (v0.5.0rc12 \342\200\224 DSL surface voxel).",
-        ts_params_565, 2u,
+        ts_params_572, 2u,
         "Any",
         "Output of the final stage (an empty chain returns the input unchanged).",
         1,
@@ -13772,7 +13958,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 566 */
+    { /* 573 */
         "srmech.dsl.list_catalog_ops",
         "srmech",
         "dsl",
@@ -13790,12 +13976,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 567 */
+    { /* 574 */
         "srmech.dsl.run_cascade_chain",
         "srmech",
         "dsl",
         "Run a cascade-catalog descriptor's DECLARED chain (rc420, #T1114 \342\200\224 the catalog made executable). Every [cascade] descriptor now carries an ADR-0008 \302\2472 (schema v2) [[cascade.chain]] step list or an explicit leaf declaration; this parses the declared steps through srmech.cascade.compose and runs them on the given inputs. The shipped chains are proven BIT-identical to their shipped ops by the rc420 gate (91 proof cases incl. each descriptor's documented boundary cases), so this is the op's own cascade run declaratively \342\200\224 the op -> chain half of the word-problem bridge (ADR-0012 C6), callable. A parameter-dispatched op with float-order-distinct paths declares one chain per path: pass variant= (kuramoto_step: 'simple' | 'general'). Discover names + status via srmech.dsl.list_catalog_ops or describe()['cascade_catalog'].",
-        ts_params_567, 3u,
+        ts_params_574, 3u,
         "Any",
         "The declared chain's final-step output (bit-identical to the shipped op on the pure projection).",
         1,
@@ -13808,12 +13994,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 568 */
+    { /* 575 */
         "srmech.dsl.list_ops",
         "srmech",
         "dsl",
         "Unify the two op-discovery registries into ONE list (\302\24717 U3): BOTH the value-transform cascade ops (`list_catalog_ops`) AND the AMSC catalog-declared operator chains (`catalog.list_catalog_chains`), each record tagged a uniform `kind` (`stage` | `combinator` | `catalog-chain`) and `provenance` (`srmech` | `user` | `catalog:<source_key>`). Before this the DSL op list and the catalog-chain registry were disjoint \342\200\224 a kernel chain declared on a text-catalog was invisible to the DSL. `source_keys` restricts the catalog-chain half; omit to auto-discover every registered attested source. Framework reading: Class E (catalog enumeration) over both registries at once. (v0.7.5rc45 \342\200\224 \302\24717 U3 unified op-discovery.)",
-        ts_params_568, 1u,
+        ts_params_575, 1u,
         "list[dict]",
         "[{'name': str, 'class': str, 'purpose': str, 'kind': 'stage'|'combinator'|'catalog-chain', 'provenance': str}, ...] sorted by (kind, name).",
         1,
@@ -13826,7 +14012,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 569 */
+    { /* 576 */
         "srmech.dsl.list_class_surface",
         "srmech",
         "dsl",
@@ -13844,12 +14030,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 570 */
+    { /* 577 */
         "srmech.dsl.describe_class",
         "srmech",
         "dsl",
         "Describe ONE user-declared srmech class by name \342\200\224 the focused companion to `srmech.dsl.list_class_surface`. Returns the JSON-able descriptor (name, kind, doc, fields, methods with each method's bound cascade op + binds + appends/sets, provenance) for the shipped seed `Genome` or any bring-your-own class. The shape srmech.dsl.make_class(name) constructs and srmech.dsl.run_class_method runs. Framework reading: Class F (descriptor render) over the [class] catalog. (v0.7.5rc41 \342\200\224 class-from-TOML surface; gh #962 Part 2).",
-        ts_params_570, 1u,
+        ts_params_577, 1u,
         "dict",
         "{'name', 'kind', 'doc', 'fields', 'methods', 'provenance'} \342\200\224 the full class descriptor.",
         1,
@@ -13862,12 +14048,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 571 */
+    { /* 578 */
         "srmech.dsl.generate_class_descriptor",
         "srmech",
         "dsl",
         "Render a [class] TOML descriptor string \342\200\224 the INVERSE of srmech.dsl.make_class (\302\24739). Two modes: (explicit) pass `fields` ({field: type}) + `methods` ({method: {op: dotted-cascade-op, binds: [...], doc, appends|sets}} \342\200\224 the describe_class method shape) and it renders straight from the components; (introspection) pass ONLY `name` of a registered class (e.g. 'Genome') and it recovers the descriptor via describe_class and re-emits it \342\200\224 a constructed class rendering its OWN [class] TOML back out. The emitted string is round-trippable: drop it in a register_class_dir dir and make_class constructs the identical class (docs re-emit single-line with escaped newlines, so a multi-line seed doc decodes back bit-identically). Closes the make_class loop the other direction. Framework reading: Class E (catalog enumeration) \342\210\230 Class F (descriptor render) \342\210\230 Class H (self-introspection) \342\200\224 no new primitive class. (v0.7.5rc49 \342\200\224 \302\24739 make_class inverse; gh #962 Part 2.)",
-        ts_params_571, 5u,
+        ts_params_578, 5u,
         "str",
         "A [class] TOML descriptor string (name/kind/doc + [class.field] + [class.method.*]) round-trippable through srmech.dsl.make_class.",
         1,
@@ -13880,12 +14066,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 572 */
+    { /* 579 */
         "srmech.rbs_lm.encode_aboutness",
         "srmech",
         "rbs_lm",
         "Doc-frequency-GATED ABOUTNESS encoder \342\200\224 encode a natural utterance (or an op's name+summary) as ONE structure-bearing Klein-4 aboutness hypervector for grounding \"which srmech op does this?\" by klein4_similarity. The F1008 recipe (78% top-1 over the tool_schema, zero training) the plain encode_sentence_l3 lacks: (1) a doc-frequency aboutness GATE (down-weight tokens that appear catalog-wide \342\200\224 'matrix', 'of'), (2) NAME-weighting (an op's own name tokens count 3x + 2x bigram; F769 identity), (3) order-aware BIGRAMS (so (klein,4) != (klein,gordon); never a bag), plus letter-digit tokenization (klein4->klein 4). Tokens are minted via the STRUCTURE-BEARING klein4_encode_bytes (default token_mode='byteglyph'), NOT the high-diffusion word-hash address (F1260: a hash avalanche destroys morphology \342\200\224 a good ADDRESS but a bad REPRESENTATION), so cat/cats stays distinguishable from cat/dog. Pass df/n_docs from a corpus to enable the gate; name= for an op's identity tokens; None df for the single-word case. composition_of_c (klein4_encode_bytes -> bind/bundle); numpy-free, no abs().",
-        ts_params_572, 9u,
+        ts_params_579, 9u,
         "HV",
         "uint8 in {0,1,2,3}",
         1,
@@ -13898,12 +14084,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 573 */
+    { /* 580 */
         "srmech.signal_processing.cascade_dispatcher.dispatch",
         "srmech",
         "signal_processing",
         "THE signal-processing entry point: run one op by NAME, routing between its Path A (closed-form algebra over the 14 A-N primitives) and Path B (RBS-HDC bound vector at D=8192) implementations. Positional and keyword arguments are forwarded verbatim to the chosen implementation. path= forces a side ('A' / 'B'); omit it and resolve_path() decides \342\200\224 an active begin_cascade() context prefers Path B, otherwise the op's primary A-N class picks per DEFAULT_PATH_PER_CLASS (Class K rotation and Class M bind/bundle/permute default to B, the other twelve to A). Raises UnknownOperationError for a name the registry does not carry: dispatch is a PATH-ROUTER over the ops that HAVE two paths, not a name-resolver over every op in the package.",
-        ts_params_573, 4u,
+        ts_params_580, 4u,
         "int | float | str | list | dict",
         "whatever the routed implementation returns, unchanged",
         1,
@@ -13911,17 +14097,17 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"D\":8192,\"op_name\":\"fft\",\"path\":\"A\"},\"output\":\"[(10+0j), (-2+2j), (-2+0j), (-1.9999999999999998-2j)]\",\"why\":\"Four calls that show what dispatch IS. The same op runs by NAME with no import of the implementation; the positional and keyword forms are the same call because arguments are forwarded verbatim; path=PATH_A pins the side and returns bit-identical output to the auto-routed call, which is the evidence that routing chooses a SUBSTRATE and never an answer; and sign_quantise returns +/-1 rather than a spectrum, so the return type is the op's, not the dispatcher's. The last line is the honest boundary: 41 closed-form ops ship in srmech.signal_processing.closed_form_ops, and dispatch routes the THIRTEEN that have a registered path -- asking it for wavelet raises rather than silently importing something.\",\"worked\":\"from srmech.signal_processing import (\\n    dispatch, registered_ops, PATH_A)\\n\\nlen(registered_ops())\\n# -> 13            the ops dispatch can route (NOT all 41 closed-form ops)\\n\\n# By name. Nothing imports fft; the registry resolves it.\\ndispatch(\\\"fft\\\", signal=[1, 2, 3, 4])\\n# -> [(10+0j), (-2+2j), (-2+0j), (-1.9999999999999998-2j)]\\n\\n# Positional and keyword are the SAME call -- args are\\n# forwarded verbatim -- and pinning the side changes nothing\\n# about the value, which is the whole dual-path claim.\\ndispatch(\\\"fft\\\", [1, 2, 3, 4], path=PATH_A)\\n# -> [(10+0j), (-2+2j), (-2+0j), (-1.9999999999999998-2j)]\\n\\n# The return type is the OP's, never the dispatcher's.\\ndispatch(\\\"sign_quantise\\\", signal=[3.0, -1.5, 0.0, -0.25])\\n# -> [1, -1, 1, -1]\\ndispatch(\\\"rfft\\\", signal=[1.0, 2.0, 3.0, 4.0])\\n# -> [(10+0j), (-2+2j), (-2+0j)]   half spectrum, real input\\n\\n# An op with no registered path is refused, LOUDLY.\\ndispatch(\\\"wavelet\\\", signal=[1, 2, 3, 4])\\n# -> UnknownOperationError\\n\"}",
         NULL,
         "WHAT it computes: nothing itself -- it RESOLVES. dispatch(op_name, ...) looks the name up in srmech.signal_processing.path_registry, asks resolve_path() which side to run, and calls that implementation with the caller's arguments forwarded unchanged, returning whatever the op returns. The two sides are Path A (closed-form algebra composed from the 14 A-N primitives) and Path B (an RBS-HDC bound vector at D=8192). Routing picks a SUBSTRATE, never an answer: dispatch(\"fft\", x) and dispatch(\"fft\", x, path=PATH_A) return the same list. WHEN to reach for it: when the op name is data -- a cascade spec, a config row, a user string -- or when you want the substrate choice made for you. If you already know which op you want and only ever want Path A, importing it directly is clearer and one lookup cheaper: `from srmech.signal_processing.closed_form_ops.dct import op`. That direct-import form is also the ONLY way to reach the 28 closed-form ops that have a single path and therefore no router entry -- reaching for dispatch there gets you UnknownOperationError, which is the correct answer to a question about routing, not a bug. SIBLINGS: resolve_path answers \"which side WOULD it choose\" without running anything -- use it instead of a trial dispatch when you are only inspecting routing. has_path is the non-raising probe for whether a side exists at all; lookup returns the full OperationEntry including the literature citation and the A-N class tuple that routing reads; registered_ops enumerates what can be routed. begin_cascade wraps a sequence of dispatch calls so they all prefer Path B. Do not hand-roll a name->function dict in front of this: the lazy-loader indirection in path_registry is what keeps `import srmech.signal_processing` numpy-free, and a hand-built table defeats it by importing everything eagerly.",
-        ts_composes_573, 2u,
-        ts_preserves_573, 2u,
+        ts_composes_580, 2u,
+        ts_preserves_580, 2u,
         NULL,
         NULL, 0u,
     },
-    { /* 574 */
+    { /* 581 */
         "srmech.signal_processing.cascade_dispatcher.begin_cascade",
         "srmech",
         "signal_processing",
         "Open a CASCADE CONTEXT \342\200\224 a with-block inside which dispatch() prefers Path B for every nested op, because Path B's encode cost amortises over cascade depth while Path A pays per call. Yields the live CascadeContext (substrate / depth / D / closed). Auto-flushes on normal exit AND on exception; nests, with the innermost context supplying the substrate hint. substrate must be None or one of ('bci', 'audio', 'rf', 'ephemeris').",
-        ts_params_574, 2u,
+        ts_params_581, 2u,
         "contextmanager[CascadeContext]",
         "yields the opened context; closed=True after exit",
         0,
@@ -13934,12 +14120,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 575 */
+    { /* 582 */
         "srmech.signal_processing.cascade_dispatcher.end_cascade",
         "srmech",
         "signal_processing",
         "Imperative-form cascade flush \342\200\224 the equivalent of leaving a begin_cascade() with-block, for callers that cannot structure their code around one. Flushes the given context, or the innermost active one when ctx is None, and removes it from the per-thread stack. A no-op when no cascade is active, so it is safe to call unconditionally. Prefer the context-manager form: it also flushes on exception, which a forgotten end_cascade() does not.",
-        ts_params_575, 1u,
+        ts_params_582, 1u,
         NULL,
         NULL,
         1,
@@ -13948,11 +14134,11 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         "WHAT it computes: nothing -- it returns None. end_cascade(ctx) flushes a CascadeContext and removes it from the per-thread stack; with ctx=None it flushes the innermost active one, and with no cascade active at all it does nothing. Flushing is idempotent, so closing an already-closed context does not re-run the flush. WHEN to reach for it: only when your code cannot be structured around a with-block -- a callback pair, a class that opens a cascade in one method and closes it in another, a generator that yields across the region. Everywhere else, use begin_cascade as a context manager instead: the imperative form has one real hazard, which is that an exception between the open and the end_cascade() call leaves the context open and every later dispatch on that thread silently routing to Path B. Do not hand-roll the pop by reaching into the stack; that is what this op is. SIBLINGS: begin_cascade is the with-block form and the recommended one -- it calls the same flush on the way out, including on an exception. current_cascade tells you whether there is anything to end. It is unrelated to path_registry.clear_registry, which drops op REGISTRATIONS rather than cascade scope.",
         NULL, 0u,
-        ts_preserves_575, 1u,
+        ts_preserves_582, 1u,
         NULL,
         NULL, 0u,
     },
-    { /* 576 */
+    { /* 583 */
         "srmech.signal_processing.cascade_dispatcher.current_cascade",
         "srmech",
         "signal_processing",
@@ -13970,12 +14156,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 577 */
+    { /* 584 */
         "srmech.signal_processing.cascade_dispatcher.resolve_path",
         "srmech",
         "signal_processing",
         "Answer 'which side would dispatch() choose for this op?' WITHOUT running it. Rules, in order: an explicit_path is honoured unconditionally; else an open begin_cascade() context returns 'B'; else the op's primary A-N class routes per DEFAULT_PATH_PER_CLASS; else 'A'. An unregistered op resolves to 'A' rather than raising \342\200\224 resolve_path reports routing INTENT, and only dispatch() asserts the op exists.",
-        ts_params_577, 4u,
+        ts_params_584, 4u,
         "str",
         "'A' / 'B' / 'verify'",
         1,
@@ -13984,11 +14170,11 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         "WHAT it computes: the side dispatch WOULD run for one invocation, as the string 'A' / 'B' / 'verify', without running anything and without touching the registry or the cascade stack. The rules apply in order: an explicit_path is returned unchanged; an open begin_cascade context gives B; otherwise the op's first A-N class routes per DEFAULT_PATH_PER_CLASS (Class K rotation and Class M bind/bundle/permute default to B, the other twelve to A); otherwise A. WHEN to reach for it: to explain or test routing rather than to perform it -- asserting that a cascade context really does flip an op to Path B, or logging the substrate decision before a run. Read it as INTENT, not as a guarantee the call will succeed: it names a side from the class table and never checks that side is registered, so form_function_rotate resolves to A while only its Path B exists, and the default dispatch raises DispatchError. Combine it with has_path rather than hand-rolling the class-table lookup yourself, which would duplicate DEFAULT_PATH_PER_CLASS and drift from it. SIBLINGS: dispatch is resolve_path plus the actual call. has_path answers the complementary question -- does that side EXIST -- and is what turns this op's intent into a safe call. lookup gives you the classes tuple this reads. current_cascade shows the context that rule 2 fires on.",
         NULL, 0u,
-        ts_preserves_577, 1u,
+        ts_preserves_584, 1u,
         NULL,
         NULL, 0u,
     },
-    { /* 578 */
+    { /* 585 */
         "srmech.signal_processing.cascade_dispatcher.is_dispatch_table_locked",
         "srmech",
         "signal_processing",
@@ -14006,12 +14192,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 579 */
+    { /* 586 */
         "srmech.signal_processing.path_registry.has_path",
         "srmech",
         "signal_processing",
         "Does op_name have an implementation registered on this side? The cheap, non-raising probe: unlike lookup() it returns False for an unregistered op instead of raising, so it is the right guard before dispatch(..., path=...). Triggers the lazy loader for ops registered deferred (the numpy-free import path), so a True answer means the implementation is now really loaded. path must be 'A' or 'B' \342\200\224 'verify' is a dispatcher mode, never a registered side, and raises ValueError here.",
-        ts_params_579, 2u,
+        ts_params_586, 2u,
         "bool",
         "True if that side is registered",
         1,
@@ -14024,12 +14210,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 580 */
+    { /* 587 */
         "srmech.signal_processing.path_registry.lookup",
         "srmech",
         "signal_processing",
         "Return the OperationEntry for op_name \342\200\224 its op_name, the Path A and Path B implementations (either may be None), the SSoT literature citation the op was built from, and the tuple of 14 A-N primitive classes it composes over. This is where the PROVENANCE lives: srmech's signal-processing ops each cite the paper they realise (fft cites Cooley & Tukey 1965), and the class tuple is what DEFAULT_PATH_PER_CLASS routes on. Raises UnknownOperationError for an unregistered name; use has_path() when you want a boolean instead.",
-        ts_params_580, 1u,
+        ts_params_587, 1u,
         "OperationEntry",
         "op_name / path_a / path_b / ssot_citation / classes",
         0,
@@ -14042,7 +14228,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 581 */
+    { /* 588 */
         "srmech.signal_processing.path_registry.registered_ops",
         "srmech",
         "signal_processing",
@@ -14056,16 +14242,16 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         "WHAT it computes: a tuple of every op name the path registry knows -- eagerly-registered ones first in registration order, then any lazily-registrable ops not yet loaded. It is DECLARATIVE: a deferred op is named without forcing its import, which is what keeps `import srmech.signal_processing` numpy-free while still advertising the op honestly. The tuple is a snapshot, so a later registration does not mutate a value already returned. WHEN to reach for it: to enumerate what dispatch can route -- building a menu, validating a config that names ops, or asserting in a test that an op registered itself on import. Read it as the ROUTER's inventory and not as srmech's signal-processing catalogue: 41 closed-form ops ship under srmech.signal_processing.closed_form_ops, and most have exactly one implementation, so they need no router entry and are reached by direct import instead. Do not infer capability from membership here. SIBLINGS: has_path answers which SIDES a listed name actually has, and the two questions come apart -- only 8 of the 13 names are dual-path. lookup returns the full entry for one name and raises for an unknown one. dispatch consumes these names. The write half (register, register_lazy_loader, clear_registry) is deliberately unregistered as a tool: those mutate process-global state and have no value contract.",
         NULL, 0u,
-        ts_preserves_581, 1u,
+        ts_preserves_588, 1u,
         NULL,
         NULL, 0u,
     },
-    { /* 582 */
+    { /* 589 */
         "srmech.music.spectrum_tier",
         "srmech",
         "music",
         "TIER-TAG an acoustic spectrum \342\200\224 the honesty layer over any spectrum-carrying value. Tier 1 = exact RATIONAL carrier (Q/int). Tier 2 = exact ALGEBRAIC-IRRATIONAL carrier (Qalg; alpha**2 == 2 holds IN THE FIELD, so it is still exact and still decidable). Tier 3 = NO exact carrier exists \342\200\224 transcendence unresolved or known-absent \342\200\224 so any number present is a rational of DECLARED PRECISION only. The spectrum's tier is the WEAKEST of its partials'. Tiers 1 and 2 are INFERRED from the carrier; Tier 3 must be DECLARED via open_partials, because it cannot be inferred \342\200\224 a rational standing in for a transcendental is, as a carrier, just a rational, and only the constructor knows the provenance. That asymmetry IS the honesty layer. Precedent: fractal_spectrum already returns a spectrum_open string rather than a list because no finite exact carrier decides Julia-set membership. float ratios are REFUSED (every float IS a rational, so a float spectrum would be unconditionally Tier 1 and unconditionally commensurable \342\200\224 the exact silent harmonisation this layer exists to prevent). 'harmonic' here is the ACOUSTIC word, never the chirality order classify_harmonic uses. Exact-Q; numpy-free; no abs().",
-        ts_params_582, 2u,
+        ts_params_589, 2u,
         "dict",
         "{'tier': 1|2|3, 'tier_name': str, 'exact': bool, 'n_partials': int, 'per_partial': list of {index, carrier, tier, tier_name, field_degree, in_rationals (None = UNDECIDED at Tier 3)}, 'open_indices': tuple, 'open_reason': str|None}",
         1,
@@ -14078,12 +14264,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 583 */
+    { /* 590 */
         "srmech.music.commensurability_verdict",
         "srmech",
         "music",
         "Decide whether an acoustic spectrum is commensurable with its fundamental \342\200\224 a verdict that CAN return 'inharmonic'. The invariant is RATIONAL RANK / FIELD DEGREE, not a period: membership in the rationals inside Q[x]/(m) is field-theoretic (Q is the unique degree-1 subfield of Q(alpha)), so it survives any change of Q-basis and is a genuine invariant rather than a presentation count. Every ratio in Q => a common period exists ('harmonic'); any ratio provably outside Q => that partial shares no period with the fundamental at any multiple ('inharmonic'); any partial declared Tier 3 => 'open'. WHY THIS WAS NEEDED: Class-I gcd/lcm STRUCTURALLY cannot return 'inharmonic' \342\200\224 a finite set of rational ratios always has an lcm, so it always yields a finite period. And Class-N best_rational is worse than silent: it does not approximate an inharmonic spectrum, it CONVERTS it into a harmonic one, since every anchor p/q IS a finite period T0*q (measured: an irrational read at max_den 1e2/1e4/1e6 gives 22/7, 355/113, 2917129/928551). Raising max_den only buys a longer FALSE period, never a verdict. Verified: in Q[x]/(x**12 - 2), s**0 rational True, s**1..s**11 all False, s**12 True \342\200\224 12-tone equal temperament exactly represented AND provably incommensurable with the octave except AT the octave. TWO SENSES KEPT APART: 'verdict' answers *commensurable?*; 'integer_series' answers the classical acoustics question *are the ratios the plain integer series 1,2,3,...?*. A tuned bell (1/2, 1, 6/5, 3/2, 2) is called inharmonic by acousticians yet is exactly commensurable \342\200\224 harmonic with integer_series False. No threshold and no denominator ceiling is consulted anywhere in the decision. Exact-Q; numpy-free; no abs().",
-        ts_params_583, 2u,
+        ts_params_590, 2u,
         "dict",
         "{'verdict': 'harmonic'|'inharmonic'|'open', 'integer_series': bool, 'rational_rank': int, 'n_partials': int, 'field_degrees': tuple, 'incommensurable': tuple of indices provably outside Q, 'open_indices': tuple, 'tier': int, 'tier_name': str, 'period_multiplier': int|None (only when harmonic), 'class_i_note': str, 'class_n_warning': str}",
         1,
@@ -14096,12 +14282,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 584 */
+    { /* 591 */
         "srmech.music.common_period",
         "srmech",
         "music",
         "The common period of an acoustic spectrum as an integer multiple k of the fundamental period T0 \342\200\224 and the GUARD that makes silent harmonisation UNREACHABLE. Returns k (the Class-I lcm of the reduced ratio denominators, so a partial at p/q completes a whole number of cycles in k*T0 exactly when q divides k) when, and only when, commensurability_verdict says 'harmonic'. For an 'inharmonic' or 'open' spectrum it RAISES: there is no period to return, and handing back a best_rational anchor instead would silently convert the spectrum into a harmonic one. That conversion is the corruption this op exists to make impossible \342\200\224 the only way to obtain a period from this family is to have earned the verdict first. The raised message names the offending partial indices and why no period exists. Exact integer; numpy-free; no abs().",
-        ts_params_584, 2u,
+        ts_params_591, 2u,
         "int",
         "the period multiplier k (common period = k*T0); raises ValueError when the spectrum is inharmonic or open",
         1,
@@ -14114,7 +14300,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 585 */
+    { /* 592 */
         "srmech.music.bell_partials",
         "srmech",
         "music",
@@ -14132,12 +14318,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 586 */
+    { /* 593 */
         "srmech.music.equal_temperament_partials",
         "srmech",
         "music",
         "Equal temperament as EXACT algebraic numbers \342\200\224 TIER 2. Builds the number field Q[x]/(x**divisions - octave) and returns the requested scale degrees as exact Qalg powers of its generator s; the step ratio is the divisions-th root of the octave \342\200\224 irrational, and carried EXACTLY rather than approximated. This is the verified worked case for the whole family: in Q[x]/(x**12 - 2), s**0 is rational (1), s**1 through s**11 are ALL irrational, and s**12 is rational (2) \342\200\224 12-tone equal temperament exactly representable AND provably incommensurable with the octave except AT the octave, decided with no threshold and no denominator ceiling. REFUSES a reducible x**n - a (Lang, Algebra 3rd ed., VI sec. 9 Thm 9.1: irreducible iff a is not a p-th power for every prime p | n, the -4K**4 clause being unreachable for an integer a >= 2), because the quotient ring would not be a field and the rational-membership oracle would be meaningless. Composes the Qalg field algebra + Class-J prime factorisation. Exact-Q; numpy-free; no abs().",
-        ts_params_586, 3u,
+        ts_params_593, 3u,
         "dict",
         "{'ratios': tuple[Qalg,...], 'degrees': tuple, 'tier': 2, 'open_partials': (), 'minimal_polynomial': tuple[int,...] (low->high, monic), 'field_degree': int}",
         1,
@@ -14150,12 +14336,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 587 */
+    { /* 594 */
         "srmech.music.stiff_string_partials",
         "srmech",
         "music",
         "A stiff (piano) string's partials \342\200\224 TIER 2, exactly carriable TODAY. The textbook closed form is f_n = n*f0*sqrt(1 + B*n**2) (Fletcher & Rossing, The Physics of Musical Instruments, 2nd ed., Springer 1998, sec. 2.18 \342\200\224 bending stiffness sharpens each partial). With B RATIONAL the ratio to the fundamental is sqrt(rational): r_n = n*sqrt(1+B*n**2) = sqrt(n**2*(1+B*n**2)), a QUADRATIC SURD living exactly in Q[x]/(x**2 - r_n). No approximation anywhere \342\200\224 this whole family was ALREADY exactly carriable by the shipped Qalg; what was missing was the tier tag and a verdict that could read it. Each partial gets its own quadratic field (the radicands differ), which is correct and harmless: commensurability with the fundamental is a per-partial rational-membership question, field-theoretic in each field separately. BUILT-IN CONTROL: at B == 0 the radicand collapses to n**2, a perfect square, so every ratio degenerates to the integer n and the op returns Tier 1 with verdict 'harmonic' and integer_series True \342\200\224 the ideal flexible string, recovered exactly. A float B is REFUSED (it would make every radicand a float-rational and collapse the Tier-1/Tier-2 distinction). Exact-Q; numpy-free; no abs().",
-        ts_params_587, 2u,
+        ts_params_594, 2u,
         "dict",
         "{'ratios': tuple[Qalg|Q,...], 'orders': tuple, 'tier': 1|2, 'open_partials': (), 'inharmonicity': Q, 'radicands': tuple[Q,...], 'cite_as': str}",
         1,
@@ -14168,12 +14354,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 588 */
+    { /* 595 */
         "srmech.music.membrane_partials",
         "srmech",
         "music",
         "A circular membrane's partials \342\200\224 TIER 3, DECLARED OPEN. The modal frequencies of an ideal circular membrane are proportional to the Bessel zeros, so the ratio to the fundamental is j_{n,m}/j_{0,1} (Fletcher & Rossing, The Physics of Musical Instruments, 2nd ed., Springer 1998, sec. 3.2) \342\200\224 which is why a drum has no pitch the way a string does. EVERY partial is declared Tier 3, and NOTHING is asserted about why: the returned ratios are exact rationals OF DECLARED PRECISION from bessel_zero_fixed, are not claimed to be the true values, and the true values are not claimed to be transcendental, algebraic-irrational or rational. DLMF 10.21 was fetched and contains no transcendence statement; Siegel's theorem was never fetched. The honest position is that the field-theoretic status is UNRESOLVED, so the tier is declared open and every commensurability verdict over this spectrum returns 'open' \342\200\224 never 'harmonic', which is exactly what reading a best_rational anchor off these rationals would have produced. Pass open_partials straight through to spectrum_tier / commensurability_verdict. Exact-Q; numpy-free; no abs().",
-        ts_params_588, 3u,
+        ts_params_595, 3u,
         "dict",
         "{'ratios': tuple[Q,...], 'modes': tuple of (n,m), 'tier': 3, 'open_partials': tuple(all indices), 'scale_bits': int, 'declared_precision_only': True, 'transcendence_claim': 'NONE ...', 'cite_as': str}",
         1,
@@ -14186,12 +14372,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 589 */
+    { /* 596 */
         "srmech.music.bessel_j_fixed",
         "srmech",
         "music",
         "J_k(x) for integer order k >= 0 and rational x >= 0, as an exact rational on a DECLARED 2**-scale_bits fixed-point grid. The DLMF 10.2.2 / Watson (1922) sec. 3.1 ascending series J_k(x) = SUM_m (-1)**m (x/2)**(2m+k) / (m!(m+k)!), summed by the exact integer recurrence t_{m+1} = t_m*(x/2)**2/((m+1)(m+k+1)); the series alternates, so truncating when the running term underflows the scale bounds the truncation error BY that term. SIGN LIVES IN THE ORIENTATION, NOT THE DIVISOR: the running term is a NON-NEGATIVE magnitude and the alternation is an explicit Class-K sign-flip re-applied by Class-C reorient at the accumulation, so every shift and divide runs on a magnitude where C truncation and Python floor agree \342\200\224 which is what makes the C peer srmech_bessel_j_fixed_big bit-identical by construction (measured 168/168 across order x argument x scale). Negative x raises (the Class-K real-axis domain; use J_k(-x) = (-1)**k J_k(x)). The return is a rational OF DECLARED PRECISION and asserts nothing about the arithmetic nature of any Bessel value. Exact integer body; numpy-free; no float; no abs().",
-        ts_params_589, 4u,
+        ts_params_596, 4u,
         "tuple",
         "(num, den) with den == 2**scale_bits \342\200\224 the exact value at the declared precision",
         1,
@@ -14204,12 +14390,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 590 */
+    { /* 597 */
         "srmech.music.bessel_zero_fixed",
         "srmech",
         "music",
         "The index-th positive zero of J_order at a DECLARED precision. McMahon's asymptotic start (DLMF 10.21.19) beta = pi*(4*index + 2*order - 1)/4, j ~ beta - (4*order**2 - 1)/(8*beta), refined by exact-rational Newton on bessel_j_fixed with the derivative from DLMF 10.6.1 (J_k' = (J_{k-1} - J_{k+1})/2, J_0' = -J_1). Every iterate is snapped back onto the declared grid so the denominator stays bounded, and the sign handling in that snap is a Class-K split plus a Class-C re-application \342\200\224 never abs(), and never a negative floor-divide. THIS ASSERTS NOTHING ABOUT THE TRUE ZERO: it is a rational of declared precision. Whether Bessel zeros are transcendental or algebraic-irrational is OPEN in this project \342\200\224 DLMF 10.21 states nothing on it and Siegel's theorem was never fetched \342\200\224 so membrane_partials tags such a spectrum Tier 3 and every verdict over it returns 'open'. Pure orchestration over bessel_j_fixed (C-dispatched) and the C-backed pi cascade, so it adds NO new numerical kernel. Exact-Q; numpy-free; no abs().",
-        ts_params_590, 4u,
+        ts_params_597, 4u,
         "tuple",
         "(num, den) on the declared 2**-scale_bits grid; den is a power of two 2**k with k <= scale_bits, NOT unconditionally 2**scale_bits \342\200\224 the value is an exact Q and comes back REDUCED (measured: bessel_zero_fixed(0, 1, scale_bits=64) has den 2**61). bessel_j_fixed does always carry den == 2**scale_bits; this one does not",
         1,
@@ -14222,12 +14408,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 591 */
+    { /* 598 */
         "srmech.chemistry.balance_reaction",
         "srmech",
         "chemistry",
         "Balance a chemical reaction -> signed primitive integer coefficients. A balanced reaction is a vector v in the kernel of the ELEMENT x SPECIES matrix A (element conservation A.v = 0); each exact-Q kernel column is reduced to the smallest integer vector on its ray by the rc378 primitive_integer_vector keystone, canonical sign = first nonzero entry positive. Read reactant vs product from the SIGN: a NEGATIVE coefficient is a product. ['H2','O2','H2O'] -> [2, 1, -2] (2 H2 + O2 -> 2 H2O). Accepts formula strings, {element: count} dicts, or a raw element x species QMat, interchangeably. Raises on an UNBALANCEABLE reaction (trivial kernel); an UNDERDETERMINED reaction (kernel dim > 1) raises unless all_balances=True, which returns every independent balance. Class L nullspace o Class I/K/C keystone; composition_of_c; exact-Q, numpy-free, no abs().",
-        ts_params_591, 2u,
+        ts_params_598, 2u,
         "list",
         "list[int] \342\200\224 the signed primitive coefficients (kernel dim 1, the usual case); or list[list[int]] (one primitive vector per independent balance) when all_balances=True",
         1,
@@ -14240,12 +14426,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 592 */
+    { /* 599 */
         "srmech.chemistry.conservation_laws",
         "srmech",
         "chemistry",
         "The conserved moieties of a reaction network \342\200\224 an integer basis of the LEFT-nullspace of the stoichiometric matrix N (every gamma with gamma^T N = 0: a combination of species whose total is invariant under every reaction, i.e. mass / charge / moiety conservation). Computed as N.T.nullspace() with each kernel column reduced by the primitive_integer_vector keystone. N is the SPECIES x REACTION matrix of a NETWORK (rows = species, columns = reactions; entry = net change) \342\200\224 the transpose-in-role of balance_reaction's element x species matrix. For Michaelis-Menten E + S <-> ES -> E + P this returns two laws (total enzyme E + ES, and a substrate-matter moiety). Class L left-nullspace o Class I keystone; composition_of_c; exact-Q, numpy-free, no abs().",
-        ts_params_592, 1u,
+        ts_params_599, 1u,
         "list",
         "list[list[int]] \342\200\224 one primitive integer conservation vector per left-nullspace basis element (length = number of species each); empty when N has full row rank (no conserved moiety)",
         1,
@@ -14258,12 +14444,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 593 */
+    { /* 600 */
         "srmech.chemistry.deficiency",
         "srmech",
         "chemistry",
         "The Feinberg deficiency delta of a chemical reaction network: delta = n - l - s = rank(L_complex) - rank(N), where n = number of distinct complexes, l = number of linkage classes (connected components of the complex graph), and s = rank(N) = dimension of the stoichiometric subspace. delta is a NON-NEGATIVE integer fixed by network topology alone (independent of rate constants). rank(L_complex) = n - l is the exact rank of the combinatorial graph Laplacian of the complex graph (a graph Laplacian has rank = vertices - components); rank(N) is the Class-J QMat.rank. A -> B has delta 0; 2A -> A+B -> 2B -> 2A has delta 1. Definitional and stated self-contained; standard reference M. Feinberg, Foundations of Chemical Reaction Network Theory (Springer, Applied Mathematical Sciences 202, 2019) and the open-access Lectures on Chemical Reaction Networks (Univ. of Wisconsin MRC, 1979/1980). Class L Laplacian o Class J rank; composition_of_c; exact-Q, numpy-free, no abs().",
-        ts_params_593, 2u,
+        ts_params_600, 2u,
         "int",
         "the deficiency delta (default); or {'deficiency', 'n_complexes', 'n_linkage_classes', 'rank_stoichiometric'} when with_components=True",
         1,
@@ -14276,12 +14462,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 594 */
+    { /* 601 */
         "srmech.chemistry.parse_formula",
         "srmech",
         "chemistry",
         "Parse a chemical formula string into an {element: count} dict \342\200\224 the ergonomic input balance_reaction accepts. Handles multi-letter element symbols (\"Ca\", \"Cl\"), implicit and explicit ASCII-digit counts (\"O\" -> 1, \"O2\" -> 2), and arbitrarily NESTED parenthesised groups with a trailing multiplier (\"Ca3(PO4)2\" -> {Ca:3, P:2, O:8}; \"(OH)2\" -> {O:2, H:2}). DEFERS (raises, never silently mis-parses) hydrate dots, charges, and isotope/bracket syntax (out of `#T1050` scope). Class F/G (Render / byte-search): a bounded placeholder scan, the srmech_template_render family. Dispatches to the JPL-clean caller-arena C twin srmech_parse_formula (the pure-Python body is the byte-identical fallback and parity oracle); c_dispatched.",
-        ts_params_594, 1u,
+        ts_params_601, 1u,
         "dict",
         "{element: count} \342\200\224 element symbol -> total count; repeated occurrences accumulate",
         1,
@@ -14294,12 +14480,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 595 */
+    { /* 602 */
         "srmech.bus.decode_splice",
         "srmech",
         "bus",
         "Decode one frame of a UTLP Bio-TOTP bus channel (Claim 255 alignment) given the per-channel DNA secret. Pure function (no side effects); suitable for LLM / agent introspection of mid-stream traffic. Returns (plaintext, used_time_ns); the plaintext is the original JSON-encoded bus Event and the used_time_ns is the candidate time-bucket value that successfully decoded (the current bucket or \302\2611 bucket for clock-skew tolerance). Cipher: AES-128-CTR when ``pip install srmech[crypto]`` extra is installed (UTLP-exact path); HMAC-SHA-256 counter-mode keystream by default (stdlib-only, structurally equivalent for the defensive-scope threat model). Key derivation rolls every 250 ms (WINDOW_NS=250_000_000; configurable via ``SRMECH_BUS_TOTP_WINDOW_NS`` env var); the receiver tolerates \302\2611 window for clock skew. Frame layout: [nonce:16][ciphertext]; nonce = sender_id_u64 || channel_id_u32 || packet_seq_u32. Pass ZERO_DNA (b'\\x00'*32) for herd-immunity / public mode. v0.5.0rc7 (Bio-TOTP wire format; UTLP Claim 255).",
-        ts_params_595, 4u,
+        ts_params_602, 4u,
         "tuple[bytes, int]",
         "(plaintext, used_time_ns) \342\200\224 JSON-encoded bus Event bytes, and the candidate time value that decoded successfully.",
         1,
@@ -14312,12 +14498,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 596 */
+    { /* 603 */
         "srmech.bus.list_endpoints",
         "srmech",
         "bus",
         "Enumerate currently-running srmech.bus endpoints owned by the current user by scanning the `~/.srmech/bus-*.sock` (POSIX) / `~/.srmech/bus-*.txt` (Windows) registry directory. Best-effort liveness check per endpoint (POSIX: UDS connect probe; Windows: TCP loopback connect or WaitNamedPipeW probe). Side effect (when `cleanup_dead=True`, the default): registration files for endpoints whose server is no longer accepting connections are removed from disk on read. Returns `[]` on Pyodide / WASM (no socket support). Sorted alphabetically by endpoint name. v0.5.0rc9 (MCP / catalog discoverability; backing function shipped since v0.5.0rc1).",
-        ts_params_596, 1u,
+        ts_params_603, 1u,
         "list[Endpoint]",
         "Each Endpoint is a frozen dataclass: name (str), path (pathlib.Path), transport ('uds' POSIX / 'pipe' or 'tcp' Windows), alive (bool), pid (Optional[int], currently always None \342\200\224 reserved for a future rc that records owner PID in the registry file).",
         1,
@@ -14330,12 +14516,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 597 */
+    { /* 604 */
         "srmech.bus.by_name",
         "srmech",
         "bus",
         "Look up one srmech.bus endpoint by name. Same registry scan as `srmech.bus.list_endpoints` but returns just the matching record (or `None` if no endpoint of that name is registered for the current user). Does NOT auto-clean dead-endpoint registration files (the caller may want to inspect a dead endpoint's record). Returns `None` on Pyodide / WASM. v0.5.0rc9 (MCP / catalog discoverability; backing function shipped since v0.5.0rc1).",
-        ts_params_597, 1u,
+        ts_params_604, 1u,
         "Endpoint | None",
         "Frozen dataclass with name (str), path (pathlib.Path), transport ('uds' / 'pipe' / 'tcp'), alive (bool), pid (Optional[int]). `None` when no matching endpoint is registered.",
         1,
