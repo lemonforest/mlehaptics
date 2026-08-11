@@ -283,9 +283,13 @@ def commensurability_verdict(partials: Sequence,
         ``"n_partials"``, ``"field_degrees"``, ``"incommensurable"`` (indices
         provably outside ℚ), ``"open_indices"``, ``"tier"`` / ``"tier_name"``,
         ``"period_multiplier"`` (the integer ``k`` with common period ``k·T₀``,
-        present only when harmonic — otherwise ``None``), plus the two standing
-        notes ``"class_i_note"`` and ``"class_n_warning"`` that record WHY the
-        two pre-existing gauges cannot answer this.
+        present only when harmonic — otherwise ``None``),
+        ``"period_unavailable"`` (``None``, or the reason ``k`` could not be
+        represented: a harmonic spectrum whose denominators exceed the Class-I
+        2**64 parity surface has a genuine period that this surface cannot
+        carry, and saying so beats destroying a correct verdict), plus the two
+        standing notes ``"class_i_note"`` and ``"class_n_warning"`` that record
+        WHY the two pre-existing gauges cannot answer this.
 
     Raises:
         TypeError / ValueError: as :func:`spectrum_tier`.
@@ -307,7 +311,10 @@ def commensurability_verdict(partials: Sequence,
         verdict == "harmonic"
         and all(_as_q(r["value"]).denominator == 1 for r in rows))
 
-    period = _period_multiplier(rows) if verdict == "harmonic" else None
+    if verdict == "harmonic":
+        period, period_unavailable = _period_multiplier_or_unavailable(rows)
+    else:
+        period, period_unavailable = None, None
 
     return {
         "verdict": verdict,
@@ -320,6 +327,7 @@ def commensurability_verdict(partials: Sequence,
         "tier": tier,
         "tier_name": _TIER_NAMES[tier],
         "period_multiplier": period,
+        "period_unavailable": period_unavailable,
         "class_i_note": _CLASS_I_NOTE,
         "class_n_warning": _CLASS_N_WARNING,
     }
@@ -341,6 +349,61 @@ def _period_multiplier(rows) -> int:
     for r in rows:
         k = _cyclic.lcm(k, _as_q(r["value"]).denominator)
     return int(k)
+
+
+#: The Class-I parity surface. ``srmech.math.cyclic.lcm`` binds the fixed-width
+#: ``srmech_lcm`` and rejects an operand OR a result beyond this bound, which is
+#: a real C-parity contract and is NOT relaxed here.
+_CLASS_I_PARITY_MAX = 0xFFFF_FFFF_FFFF_FFFF
+
+
+def _period_multiplier_or_unavailable(rows):
+    """The same Class-I fold, reporting UNREPRESENTABLE instead of raising.
+
+    ``common_period`` raises on an out-of-range period, and **must**: a period
+    is the only thing it has to return, and handing back an anchor instead
+    would silently convert the spectrum into a harmonic one. That refusal is
+    the documented, worked-example-pinned behaviour and is unchanged.
+
+    ``commensurability_verdict`` is a different shape. Its verdict, rational
+    rank, field degrees and incommensurable-index tuple are all computed —
+    and CORRECT — *before* the period is even attempted, and
+    ``period_multiplier`` is documented as an OPTIONAL field. Letting the fold
+    raise there destroys a correct answer in service of an optional one. That
+    was reachable on two shipped inputs (a 64-bit-declared membrane spectrum,
+    and any ``best_rational``-anchored spectrum with a large enough ceiling)
+    and is the defect this closes.
+
+    ``gcd`` PREDICTS and ``lcm`` COMPUTES: the Class-I ``gcd`` is uncapped by
+    design (arbitrary precision is the pure path's own numeric domain), so it
+    can size the next step exactly; the capped ``lcm`` is then called only when
+    the result provably fits, so the shipped Class-I op stays in the cascade
+    and the two agree bit-for-bit.
+
+    Returns ``(k, None)`` or ``(None, reason)``.
+    """
+    from srmech.math import cyclic as _cyclic
+    k = 1
+    for r in rows:
+        q = int(_as_q(r["value"]).denominator)
+        if q > _CLASS_I_PARITY_MAX:
+            return (None, (
+                f"a partial's reduced denominator ({q}) exceeds the Class-I "
+                f"parity surface of 2**64 - 1, so no period multiplier is "
+                f"representable there. The verdict above is unaffected — it "
+                f"is decided by FIELD DEGREE, which needs no period. Call "
+                f"common_period() to get the refusal as a raise."))
+        g = _cyclic.gcd(k, q)          # Class I — uncapped by design
+        candidate = k // g * q
+        if candidate > _CLASS_I_PARITY_MAX:
+            return (None, (
+                f"the running lcm of the reduced denominators ({candidate}) "
+                f"exceeds the Class-I parity surface of 2**64 - 1, so no "
+                f"period multiplier is representable there. The verdict above "
+                f"is unaffected — it is decided by FIELD DEGREE, which needs "
+                f"no period. Call common_period() to get it as a raise."))
+        k = _cyclic.lcm(k, q)          # Class I — provably in range now
+    return (int(k), None)
 
 
 def common_period(partials: Sequence,

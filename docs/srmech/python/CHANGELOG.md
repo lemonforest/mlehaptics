@@ -13,6 +13,117 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc424]
+
+### The music RELATIONS lane — and the homograph that had been hiding an op from search for its whole life (`#T1113`)
+
+**Registry moves 605 → 612 (+7). ABI stays 13 — no new C symbol.** All seven ops compose primitives that are already `c_dispatched` (`gcd` / `factor` / `cyclic_mod_add` / `mat_hermitian_eigendecompose` / `mat_matmul`), so every one lands in `composition_of_c` and `CEIL_PYTHON_ONLY_DEBT` stays at its exact-equality **0**.
+
+#### Two lanes that disagree, which is the content rather than a defect
+
+`srmech.music` answered *what does this object sound like?* — partials, tiers, commensurability. It could not answer *how do two pitches stand to one another?*. Six new ops open that second lane, and they never read a spectrum:
+
+| op | classes | what it decides |
+|---|---|---|
+| `just_limit(num, den)` | J ∘ I ∘ N | p-limit, prime support, odd limit, **monzo** |
+| `comma_of_chain(gen, n, period)` | N ∘ J | the exact residue of an n-step chain — **DERIVED, never a table** |
+| `tempers_out(comma, edo)` | I ∘ N | is the comma in the kernel of the EDO's val? |
+| `interval_vector(pcs)` | I ∘ E | interval-class content of a pitch-class set |
+| `normal_order(pcs, convention)` | I ∘ E | the most compact rotation |
+| `prime_form(pcs, convention)` | I ∘ E | the canonical representative under Tn/TnI |
+
+The lanes **disagree, and that is §3.46.2's point made executable**. A chain of just fifths never closes in the frequency lane — `(3/2)**n == 2**m` has no solution for `n > 0`, because the prime supports `{3}` and `{2}` are disjoint — while the same chain always closes in the modular lane, since a generator coprime to the modulus generates the whole cycle. The exact non-vanishing residue between them **is** a comma. `comma_of_chain` derives both famous ones from one op and no stored constant: `(3/2)` stacked 12× against the octave gives `531441/524288`, and stacked 4× against `5/1` gives `81/80`.
+
+`tempers_out` then explains the keyboard, and it does so **without a logarithm**: `k == round(n·log2 p)` if and only if `2**(2k-1) <= p**(2n) < 2**(2k+1)`, a comparison between two exact integers. So the patent val is *decided*, not estimated. 12-EDO tempers out `81/80` (which is why one key serves both D♯ and E♭) and `531441/524288` (which is what closes the circle of fifths). 5-EDO tempers out the first and not the second — the two questions are genuinely independent.
+
+#### `prime_form` names its convention, because six set classes make that a real choice
+
+Forte (1973) packs normal order **from the left**; Rahn (1980) packs it **from the right**. We enumerated every set class of cardinality 2..10 and compared the two algorithms row by row rather than copying a list — and they disagree on **exactly 6 of the 208**:
+
+| set class | `"forte"` | `"rahn"` |
+|---|---|---|
+| 5-20 | `(0,1,3,7,8)` | `(0,1,5,6,8)` |
+| 6-Z29 | `(0,1,3,6,8,9)` | `(0,2,3,6,7,9)` |
+| 6-31 | `(0,1,3,5,8,9)` | `(0,1,4,5,7,9)` |
+| **7-Z18** | `(0,1,2,3,5,8,9)` | `(0,1,4,5,6,7,9)` |
+| 7-20 | `(0,1,2,4,7,8,9)` | `(0,1,2,5,6,7,9)` |
+| 8-26 | `(0,1,2,4,5,7,9,10)` | `(0,1,3,4,5,7,8,10)` |
+
+**Note 7-Z18 — and note that the figure usually quoted is FIVE.** Straus's *Introduction to Post-Tonal Theory* lists five and omits it; six is what the algorithms actually do, and what independent open set-class tables list. Measuring rather than copying is the only reason this tree has the right number. `convention` is therefore a **required argument with no default** on both `prime_form` and `normal_order`: an unnamed default silently picks a side in a live scholarly disagreement and is wrong for whichever community it did not pick.
+
+`interval_vector` ships with its own limit stated: measured over cardinalities 2..10, **23 interval vectors are shared by more than one set class**. Those are the Z-related pairs, and they are why the interval vector answers "what intervals are in here?" but never "which set class is this?".
+
+#### `music_doa` — a first REGISTRATION, not a rename
+
+The MUSIC (MUltiple SIgnal Classification) direction-of-arrival op had **no `ToolEntry` and no dispatcher entry** — measured: 13 of 38 declared Path-A modules were dispatchable, and this was not one. So it was **absent** from `search()` rather than out-ranked by the `srmech.music` acoustics ops, and it had been for its whole life. Renaming alone would have changed nothing.
+
+It is now registered as `srmech.signal_processing.music_doa` (+1 op, and `registered_ops()` 13 → 14), and the module renamed `closed_form_ops.music` → `closed_form_ops.music_doa` so the homograph with the `srmech.music` package cannot recur. Search, measured before and after on this tree:
+
+| query | rc423 | rc424 |
+|---|---|---|
+| `"direction of arrival"` | **absent** | **rank 1** |
+| `"DOA estimation"` | **absent** | **rank 1** |
+| `"subspace eigendecomposition source localisation"` | **absent** | **rank 1** |
+| `"MUltiple SIgnal Classification"` | **absent** | **rank 1** |
+| `"MUSIC algorithm"` | **absent** | rank 2 (behind the `int` carrier) |
+
+The research phase predicted rank 1 across the board; measured on the finished tree it is **rank 1 on four of five**, rank 2 on the fifth. Worth recording *how* that number moved: an intermediate measurement, taken after the `ToolEntry` landed but before the curated `explanation` / `worked` blocks did, put `"MUltiple SIgnal Classification"` at rank 4. `search.py` indexes the curated prose too, so those blocks are not decoration — they are half the retrieval surface. The intermediate figure was a true measurement of an unfinished tree, which is exactly the shape of stale number a build ships by accident.
+
+Its Class L ∘ Class K identity, its numpy-free carrier path and its trauma-informed scope paragraph (educational / civilian DOA only) are unchanged.
+
+### Fixed
+
+#### A paywalled-only citation, in shipped text (`#T1113`)
+
+`music_doa`'s `SSOT_CITATION` cited **only** DOI `10.1109/TAP.1986.1143830` — IEEE, paywalled — which `[[feedback_paywalled_doi_cannot_be_attested]]` rejects outright. The project was breaking its own rule inside a published wheel. It now leads with the **open** chain: Schmidt (1979), *Proceedings of the RADC Spectrum Estimation Workshop (2nd), 3-5 October 1979, Griffiss AFB NY*, 243-258; RADC-TR-79-63; **DTIC accession ADA081736**. The IEEE reprint is named for provenance and explicitly **not** used as the attestation, matching the substitution already made in `srmech.chemistry.reactions`. Verification state, stated exactly: the accession → volume-title mapping was fetched live and confirms *"Proceedings of the RADC Spectrum Estimation Workshop (2nd) held 3, 4, & 5 October 1979, Griffiss AFB, NY"*; DTIC bot-blocks automated PDF retrieval, so the 243-258 page range rests on multiple independent secondary sources rather than on our own extraction of the scan. Recorded rather than glossed.
+
+#### Three reachable crashes where a correct answer was destroyed by an optional field
+
+One principle, applied three times: **the op whose entire answer IS the bounded quantity keeps raising; the op for which it is an optional enrichment reports the absence instead.**
+
+1. **`commensurability_verdict` → `ValueError: b exceeds uint64 range`** on a 64-bit-declared `membrane_partials` spectrum passed without its Tier-3 declaration.
+2. **`commensurability_verdict` → `OverflowError`** by the other route — every denominator in range, but the running `lcm` out of range (first at `max_denominator=1501` on a `best_rational`-anchored 12-TET spectrum).
+3. **`comma_of_chain` → `ValueError`** from `factor`, which carries the same fixed-width bound: a 41-fifth chain's residue has a 20-digit numerator. Found by this rc's own test sweep at authoring time.
+
+In all three the verdict / comma was already computed and **correct**; only the optional enrichment (`period_multiplier`, or `limit`/`monzo`) was unrepresentable. `commensurability_verdict` now returns `period_unavailable`, and `comma_of_chain` returns `factorisation_unavailable`, each naming which bound was hit. **`common_period` and `just_limit` still raise, byte-identically** — their raise is the feature that makes silent harmonisation unreachable, and `common_period`'s exact message is pinned in its shipped worked example, which is unchanged.
+
+⚠️ The brief for this rc described (1) as firing at `max_den >= 100`. It does not: at `max_den=100` the period is `17948700` and comes back fine. Two distinct defects had been conflated — one operand-bound `ValueError` reached via `membrane_partials`, one result-bound `OverflowError` reached via `best_rational`. Both are pinned separately in `tests/test_music_relations_rc424.py`.
+
+### The coercion-boundary resolver followed the object for the MODULE and the name for the FUNCTION (`#T1113`)
+
+CI round 2 left one gate red: `test_carrier_use_derivation_rc363::test_the_derivation_selects_a_real_population`, *"the coercion-boundary walk entered no function for 1 of 612 ops"*. The blind op was `srmech.signal_processing.music_doa`.
+
+`tests/coercion_boundary.py` resolved the **module** through the live object's `__module__` — `defining_module`'s own docstring calls that "what makes a re-exported op analysable" — and then looked the **function** up by the registry LEAF. That asymmetry was invisible for as long as every re-export happened to preserve the name: `srmech.music.spectrum_tier` is `def spectrum_tier` in `_spectra`, so leaf and def agreed *by luck*. `music_doa` is the first op where the re-export **renames** — it is `closed_form_ops.music_doa.op`, promoted under a name that disambiguates it from the `srmech.music` package — so its module resolved and its function did not.
+
+**Fixed resolver-side, and not as a Path-A special case.** `boundary_for` now falls back to the DEF name off the live object, which is *exactly what `_walk` has always done for an imported callee* thirty lines below (`__module__` + `__name__`). This is the file's own established convention, applied at last to its entry point. It fixes the general class **"registered under a different leaf than it is defined as"** — every re-export, promotion and alias — rather than teaching the resolver about one protocol.
+
+The alternative considered and rejected was module-side: `def music_doa(...)` with `op = music_doa` kept as the Path-A alias. It inverts the protocol (whose entire point is a *uniform* entry point), gives every module two names for one function, couples the source name to the registered name so a later re-registration forces a second rename — and implies **41** renames rather than one resolver change.
+
+Measured, not assumed:
+
+| | |
+|---|---|
+| blind ops, before / after | **1 of 612** → **0 of 612** |
+| `music_doa` now reaches | `closed_form_ops.music_doa.op` — a real body, no exemption |
+| gate can still FAIL | planted-defect proof: with the fallback removed it goes **red on exactly 1** |
+| `#T1112` forecast, **measured** | all **41** `closed_form_ops` modules promoted this way: **41 reach, 0 blind** |
+
+⚠️ Two corrections to the diagnosis this came in with. The population is **41** modules exposing a callable `op` (38 Phase-2 baseline + `ifft` + `pi_cascade` + `rfft`), not 39. And the gate has **no exemption path** — it asserts `len(reached) == len(tools)` outright — so "exempt with a stated reason and a pinned count" was not available even had it been wanted; the walk had to genuinely reach a body.
+
+### `ripple_check.py` now sweeps the whole suite for collection errors FIRST (`#T1113`)
+
+Round 1 went red on **twelve CI jobs** — all six pure shards, every native cell, asserts-live and the partition guard — from **one** stale importer of the renamed module. An import error at COLLECTION kills a shard outright: pytest never runs anything, so it reports *nothing* rather than the right failure, and the breadth of the red reflects the failure MODE, not the blast radius.
+
+The part worth recording: **this runner was GREEN on that same tree.** Every gate in the manifest imported fine; the stale importer sat in a file no gate targets. A rename is therefore invisible both to targeted tests *and* to a manifest-driven runner — a manifest can only see the files it names, and a rename defect breaks the file nobody thought to name.
+
+So `tools/ripple_check.py` now runs a whole-suite `pytest --collect-only` before any gate, and **aborts** on failure. Measured on this tree: **14,515 tests resolved, 0 errors, ~63 s**. It is deliberately *not* a `ripple_gates.txt` line — the manifest holds pytest targets, and encoding a whole-suite sweep as one would subject it to the very limit it exists to escape. Instead `test_ripple_manifest_covers_known_gates.py` gains two pins: that the sweep still exists and covers all of `tests/`, and that it runs **before** the gates with an abort on nonzero (gate results computed after a collection error are misleading, not merely incomplete). Proven by planting the round-1 defect: the runner exits 2, names the import, and never reaches the gates.
+
+This is a third axis, distinct from rc421's search-corpus witness (prose drift) and rc422's README currency (shipped literals).
+
+### Notes
+
+`composes` was authored **at birth** for all seven rows (population 164/612 → 171/612, `DECLARED` 16 → 23), so `CEIL_UNADJUDICATED` holds at **182** with no drain and no raise — a registry growing by 7 with an unchanged residual is the rc423 ratchet doing exactly what it was seeded to do. Every multi-element order was **traced**, per ADR-0013:292 (the set is derivable; the order is not). `WITNESS_RC416` re-pinned (seventh consecutive), frame set **634 → 641 = 612 ops + 29 carriers**, determinism re-established over eight builds before re-pinning. The README gains a `srmech.music` section — it had none.
+
 ## [0.9.0rc423]
 
 ### `composes` POPULATION — the field was gated three ways for correctness and zero ways for population, and that is why it stopped moving (`#T1113`)

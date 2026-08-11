@@ -175,6 +175,23 @@ from . import form_function_rotation as _form_function_rotation  # noqa: F401
 # module-load time. Phase 2's broader 38-op Path A registration script
 # remains deferred per the implementation plan.
 from . import path_b_ops as _path_b_ops  # noqa: F401
+
+# rc424 (`#T1113`) — music_doa is Path-A-ONLY (no Path B dual until Phase 6),
+# so no path_b_ops sidecar imports it and closed_form_ops is PEP-562 lazy;
+# without this line its module-load `_register()` would never fire and the op
+# would stay undispatchable. Imported EAGERLY rather than through a lazy
+# loader on purpose: `test_path_registry_registered_ops_iteration` pins that
+# the only PENDING lazy ops are the three numpy-shaped ones, and a fourth
+# lazy loader would trip it. The module is numpy-free and pulls only carriers
+# already loaded, so the eager cost is nil.
+from .closed_form_ops import music_doa as _cf_music_doa  # noqa: F401
+
+#: MUSIC (MUltiple SIgnal Classification) direction-of-arrival estimation.
+#: Bound at PACKAGE level, not left inside ``closed_form_ops``, because rc424
+#: registers it as ``srmech.signal_processing.music_doa`` and a ToolEntry name
+#: must resolve to a live object. The module keeps its ``op`` spelling for
+#: symmetry with its 40 Path-A siblings; this is the advertised public path.
+music_doa = _cf_music_doa.op
 from .rbs_hdc_instrument import (
     CANONICAL_CASCADES,
     CLASS_DEFINITIONS,
@@ -248,6 +265,8 @@ __all__ = [
     "RegistryError",
     "DuplicateRegistrationError",
     "UnknownOperationError",
+    # Closed-form ops promoted to the package surface (rc424, `#T1113`)
+    "music_doa",
     # Profiling API
     "record_profile",
     "iter_records",

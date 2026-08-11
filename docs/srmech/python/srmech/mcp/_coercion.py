@@ -494,6 +494,31 @@ def _to_q(value: Any, *, param: str = "") -> Any:
     return value
 
 
+def _to_ratio(value: Any, *, param: str = "") -> Any:
+    """``int | Sequence[int] | Q`` -> a single exact ratio (v0.9.0rc424).
+
+    The rc424 music-RELATIONS family takes ONE ratio where the rc362 acoustic
+    family took a SEQUENCE of them, so :func:`_seq_q_or_int` is the wrong
+    shape and :func:`_to_q` is the wrong contract: these ops accept a bare
+    ``int``, an exact ``[num, den]`` pair, or a live ``Q``, and they do their
+    own coercion (``relations._as_ratio``) because they must be able to REFUSE
+    a float with an explanatory message.
+
+    So this coercer is deliberately near-transparent: it turns JSON's list
+    into the tuple the ops read most naturally, and passes everything else
+    through UNCHANGED. In particular a ``float`` is NOT rationalised here —
+    the ops reject floats on purpose (``81/80`` and ``1/1`` are different
+    intervals, and a float that rounds one to the other has erased a comma),
+    and manufacturing an exact value at this layer would defeat that refusal
+    where the caller cannot see it. Let the op raise its own ``TypeError``.
+    """
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, list) and len(value) == 2:
+        return tuple(value)
+    return value
+
+
 def _seq_q_or_int(value: Any, *, param: str = "") -> Any:
     """``Sequence[int | Q | Qalg]`` -> list of ``int`` / ``Q`` / ``Qalg``
     (v0.9.0rc362).
@@ -1234,6 +1259,10 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     # stated in _tools._ENCODING_HINT, which is where it belongs.
     # No float arm — see _seq_q_or_int.
     "Sequence[int | Q | Qalg]": _seq_q_or_int,
+    # v0.9.0rc424: the music-RELATIONS family's SINGLE-ratio operand — the
+    # scalar peer of the sequence key above (just_limit / comma_of_chain /
+    # tempers_out).
+    "int | Sequence[int] | Q": _to_ratio,
     # v0.7.5rc155: the §50 holographic-bundle accumulator (klein4_bundle_accumulate
     # /_resolve) — a (1+2*D) uint32 array, or None for the create case.
     "array('I')": _to_uint32_acc,

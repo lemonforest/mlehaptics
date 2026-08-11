@@ -763,12 +763,12 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
         f"the carrier registry's decoded amsc population is {amsc}, expected "
         f"2 — the cascade subpackage drained it 97 -> 2 at rc377 (ADR-0010 "
         f"execution COMPLETE); re-read the pins before trusting anything else.")
-    assert music == 13, (
-        f"expected 13 srmech.music op references inside the DECODED channel "
+    assert music == 19, (
+        f"expected 19 srmech.music op references inside the DECODED channel "
         f"(9 from the rc362 Q / Qalg ops.consumes back-index + 4 from the rc366 "
-        f"harmonics module move), found {music}. If this is 0 the natural "
-        f"experiment below is inert and this test proves nothing — re-measure "
-        f"and pick a live example.")
+        f"harmonics module move + 6 from the rc424 RELATIONS lane), found "
+        f"{music}. If this is 0 the natural experiment below is inert and this "
+        f"test proves nothing — re-measure and pick a live example.")
     # rc371 — THE POSITIVE POPULATION MOVE, on the SAME (decoded) channel. The
     # whole-family drain moved 13 elliptic-carrier op refs (ellbase / thetasum and
     # kin) OUT of the amsc decoded count (529 -> 516) and INTO apokatastasis

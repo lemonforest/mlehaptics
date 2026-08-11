@@ -555,7 +555,33 @@ def boundary_for(tool_name: str) -> Boundary:
     """Derive :class:`Boundary` for one registered op name. Always returns a
     Boundary — an unanalysable op (no source, C-only, a functools wrapper)
     yields an EMPTY one, and every gate reports how many it could analyse so an
-    empty selection can never masquerade as a clean pass."""
+    empty selection can never masquerade as a clean pass.
+
+    ⚠️ **The registry LEAF is not always the DEF name** (rc424, `#T1113`). This
+    function resolved the MODULE through the live object's ``__module__`` (see
+    :func:`defining_module`, whose docstring calls that "what makes a
+    re-exported op analysable") but then looked the FUNCTION up by the registry
+    leaf. That asymmetry was invisible for as long as every re-export happened
+    to preserve the name: ``srmech.music.spectrum_tier`` is defined in
+    ``_spectra`` as ``def spectrum_tier``, so leaf and def agreed by luck.
+
+    ``srmech.signal_processing.music_doa`` is the first op where the re-export
+    RENAMES — it is ``closed_form_ops.music_doa.op``, promoted to the package
+    surface under a name that disambiguates it from the ``srmech.music``
+    package. Its module resolved fine and its function did not, so the walk
+    returned an EMPTY Boundary and ``test_the_derivation_selects_a_real_
+    population`` went red on 1 of 612 — correctly, because a blind op makes the
+    strict-zero gate downstream uninformative.
+
+    So the function is now resolved the same way the module already was, and
+    the same way :func:`_walk` has ALWAYS resolved an imported callee a few
+    lines below (``__module__`` + ``__name__`` off the live object). This is
+    not a Path-A special case and names no protocol: it fixes the general class
+    "registered under a different leaf than it is defined as", which covers
+    every re-export, promotion and alias — including the 38 remaining
+    ``closed_form_ops`` modules queued by `#T1112`, all of which define
+    ``def op`` and would otherwise each land blind here.
+    """
     mod = defining_module(tool_name)
     out = Boundary(tool_name, mod)
     if mod is None:
@@ -563,13 +589,25 @@ def boundary_for(tool_name: str) -> Boundary:
     fns, glb = _module_functions(mod)
     if not fns:
         return out
-    root = tool_name.rpartition(".")[2]
-    fn = fns.get(root)
+    pkg, _, root = tool_name.rpartition(".")
+    try:
+        obj = getattr(importlib.import_module(pkg), root, None)
+    except Exception:  # noqa: BLE001 — an unimportable module is not analysable
+        obj = None
+    fn_name, fn = root, fns.get(root)
+    if fn is None:
+        # Fall back to the DEF name off the live object. Deliberately narrow:
+        # the name must exist in the DEFINING module's own top-level defs, so a
+        # functools wrapper pointing at some other module still yields an empty
+        # Boundary exactly as before rather than silently analysing the wrong
+        # body.
+        objname = getattr(obj, "__name__", None)
+        if isinstance(objname, str) and objname in fns:
+            fn_name, fn = objname, fns[objname]
     if fn is None:
         return out
-    _walk(root, set(_param_names(fn)), mod, out, set())
+    _walk(fn_name, set(_param_names(fn)), mod, out, set())
     out.constructed |= _constructed(fn, glb, out)
-    obj = getattr(importlib.import_module(tool_name.rpartition(".")[0]), root, None)
     if obj is not None:
         out.annotated |= _annotation_classes(obj, glb, out)
     return out

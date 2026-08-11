@@ -65,7 +65,7 @@ PATH_A_OP_MODULES = (
     "sinc_interp",
     "beamforming_fixed",
     "ica_jade",
-    "music",
+    "music_doa",
     "esprit",
     "lmmse",
     "map_ml",
@@ -543,7 +543,7 @@ def test_ica_jade_smoke():
 
 
 def test_music_smoke():
-    from srmech.signal_processing.closed_form_ops import music as m
+    from srmech.signal_processing.closed_form_ops import music_doa as m
 
     M = 4
     # Build a covariance matrix with one strong eigenvalue: R = 0.1·I + a·aᴴ.

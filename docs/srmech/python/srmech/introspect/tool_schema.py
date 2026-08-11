@@ -13768,6 +13768,76 @@ def _register_signal_processing_tools() -> None:
         )
     )
 
+    # ────────────────────────────────────────────────────────────────
+    # rc424 (`#T1113`) — the FIRST registration of the MUSIC DOA op.
+    # Measured on rc423: it had NO ToolEntry and was NOT in the
+    # dispatcher, so it was ABSENT from search() rather than out-ranked
+    # by the srmech.music acoustics ops — a +1 registration, not a
+    # zero-delta rename. The name carries its own disambiguation now.
+    # ────────────────────────────────────────────────────────────────
+    register_tool(
+        ToolEntry(
+            name="srmech.signal_processing.music_doa",
+            owner="srmech", category="signal_processing",
+            summary=(
+                "MUSIC (MUltiple SIgnal Classification) — the subspace "
+                "direction-of-arrival / frequency estimator of Schmidt (1979). "
+                "Eigendecompose the sensor covariance R, split its "
+                "eigenvectors into a signal subspace and a NOISE subspace, and "
+                "score each candidate steering vector by how nearly ORTHOGONAL "
+                "it is to that noise subspace; the pseudo-spectrum peaks where "
+                "a source actually is. Resolution is not diffraction-limited, "
+                "which is the whole reason the method displaced beamforming. "
+                "IDENTITY: Class L (the correlation eigendecomposition that "
+                "splits the two subspaces) composed with Class K (the "
+                "subspace-partition threshold that picks which eigenvectors "
+                "are noise) — a genuine pin-slot phase boundary, at the "
+                "signal/noise rank cut. ⚠️ THE NAME IS AN ACRONYM, NOT THE ART "
+                "FORM: this is array signal processing and has nothing to do "
+                "with the srmech.music package, which is acoustics and pitch "
+                "relations. Through rc423 this module was literally named "
+                "`music`, one dotted path from `srmech.music`; rc424 renamed "
+                "it music_doa so the homograph cannot recur. SCOPE: "
+                "educational signal-processing reference only — acoustic "
+                "source-finding, civilian DOA estimation, frequency "
+                "estimation. numpy-free (the eigendecomposition and the "
+                "noise-subspace projection both route through the native "
+                "Mat carrier), and no abs() — |z|**2 is re**2 + im**2."
+            ),
+            parameters=(
+                P("R", "Mat", True,
+                  "the M-by-M Hermitian sensor covariance matrix"),
+                P("steering_vectors", "list[list[complex]]", True,
+                  "K candidate steering vectors, each of length M — the "
+                  "directions to score"),
+                P("n_sources", "int", True,
+                  "how many sources to assume; the signal subspace takes this "
+                  "many eigenvectors and the remaining M - n_sources are the "
+                  "noise subspace. This IS the Class-K threshold, and it is "
+                  "required rather than inferred — guessing the source count "
+                  "from the eigenvalue gap is a separate decision the op "
+                  "declines to make silently"),
+                P("D", "int", False,
+                  "eigendecomposition working precision; default 8192"),
+            ),
+            returns=R("list",
+                      "the pseudo-spectrum as a list of float, one value per "
+                      "steering vector; "
+                      "peaks mark estimated arrival directions. These are "
+                      "RELATIVE scores, not powers — the peak LOCATIONS carry "
+                      "the estimate, the heights do not"),
+            composes=(
+                "srmech.math.laplacian.mat_hermitian_eigendecompose",
+                "srmech.math.laplacian.mat_matmul",
+            ),
+            preserves=(
+                "numpy-free and abs()-free: |z|**2 is computed as "
+                "re**2 + im**2 through the native Mat carrier",
+            ),
+        )
+    )
+
+
 def _register_music_tools() -> None:
     """Register the ``srmech.music`` acoustic domain slice (v0.9.0rc362).
 
@@ -14123,6 +14193,275 @@ def _register_music_tools() -> None:
                                "bessel_zero_fixed(0, 1, scale_bits=64) has den "
                                "2**61). bessel_j_fixed does always carry "
                                "den == 2**scale_bits; this one does not"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # rc424 (`#T1113`) — the RELATIONAL lane. Everything above this
+        # line answers "what does this object sound like?"; everything
+        # below answers "how do two pitches stand to one another?".
+        # Both lanes are exact and neither reads the other's carrier.
+        # All six are pure compositions of already-C-backed primitives
+        # (gcd / factor / cyclic_mod_add), so they ship
+        # composition_of_c and add NOTHING to CEIL_PYTHON_ONLY_DEBT,
+        # which is pinned at exactly 0 with an exact-equality ratchet.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.music.just_limit", owner="srmech",
+            category="music",
+            summary="The p-LIMIT, prime support and MONZO of a just interval — "
+                    "the Class-J reading of a tuning ratio. p-limit tuning IS "
+                    "exactly the multiplicative subgroup of Q+ generated by the "
+                    "primes <= p, so 'what limit is this interval?' is literally "
+                    "'what is the largest prime in its factorisation?': 3/2 is "
+                    "3-limit, 5/4 is 5-limit, 7/4 is 7-limit. The MONZO is the "
+                    "exponent vector of that factorisation (3/2 -> {2: -1, "
+                    "3: 1}), i.e. the interval's coordinates in the free abelian "
+                    "group on the primes — which is what makes comma arithmetic "
+                    "and temperament kernels exact INTEGER linear algebra rather "
+                    "than approximation. The odd limit drops the prime 2, "
+                    "because octave-equivalence is assumed in most tuning "
+                    "literature: 2/1 is 2-limit but 1-odd-limit. Class J (prime "
+                    "factorisation) over Class I (gcd reduce first) carried by "
+                    "Class N (exact Q). WHY IT MATTERS BEYOND TUNING: this op is "
+                    "the cheapest DEMONSTRATION of the `#T1014` Class-N "
+                    "corruption. best_rational does not approximate a musical "
+                    "interval, it REPLACES it with a different one you can hear "
+                    "— measured on the shipped op, 12-tone equal temperament's "
+                    "irrational major third comes back as exactly 5/4 at "
+                    "max_denominator 10 (a DIFFERENT, just interval, and the "
+                    "verdict silently flips to harmonic), then as 63/50 at 100 "
+                    "and 635/504 at 1000, where the p-limit has run away from 5 "
+                    "to 7 to 127. Same op, three incompatible answers, none of "
+                    "them the input. Exact-Q; numpy-free; no abs(); float is "
+                    "REFUSED at the door.",
+            parameters=(P("num", "int | Sequence[int] | Q", True,
+                          "the numerator, or the whole ratio as an exact "
+                          "[num, den] pair. float is REFUSED — a float has "
+                          "already lost the distinction this op exists to "
+                          "keep"),
+                        P("den", "int | Sequence[int] | Q", False,
+                          "the denominator when num was a bare int; "
+                          "default 1")),
+            returns=R("dict", "{'ratio': str, 'num': int, 'den': int, "
+                              "'primes': tuple, 'limit': int, 'odd_limit': int, "
+                              "'monzo': dict mapping prime (as str) to a signed "
+                              "exponent}"),
+            composes=("srmech.math.cyclic.gcd", "srmech.math.primes.factor"),
+            preserves=(
+                "no silent precision loss — the ratio is reduced and factored "
+                "exactly, and float input raises rather than being coerced",
+            ),
+        ),
+        ToolEntry(
+            name="srmech.music.comma_of_chain", owner="srmech",
+            category="music",
+            summary="DERIVE the comma of an n-step generator chain — never look "
+                    "it up. Stack the generator n times, fold the result back "
+                    "into [1, period) by whole periods, and what is left over IS "
+                    "the comma: the exact rational by which the chain FAILS to "
+                    "close. A table of five named constants would earn nothing; "
+                    "deriving the residue is the capability, and it answers for "
+                    "generators and periods no table lists. The two most-cited "
+                    "commas both fall out of this one op: gen 3/2, n 12, period "
+                    "2 gives 531441/524288, the PYTHAGOREAN comma (twelve just "
+                    "fifths against seven octaves); gen 3/2, n 4, period 5 gives "
+                    "81/80, the SYNTONIC comma (four just fifths against a just "
+                    "major third two octaves up). THE RESIDUE IS STRUCTURAL, NOT "
+                    "AN ERROR TERM: (3/2)**n == 2**m has no solution for n > 0 "
+                    "by unique factorisation, because the prime supports {3} and "
+                    "{2} are disjoint. The chain does not nearly close and does "
+                    "not close badly — it CANNOT close, and the comma is the "
+                    "exact measure of that impossibility. This is Class J "
+                    "deciding a question Class I cannot even pose: both modular "
+                    "reads DO close (a generator coprime to the modulus "
+                    "generates the whole cycle), and only the frequency lane "
+                    "sees the failure. Class N (exact Q) over Class J (the prime "
+                    "support that decides it). Period reduction is exact "
+                    "integer cross-multiplication — no logarithm, no float, no "
+                    "abs(); the signed count of periods removed is returned "
+                    "rather than discarded, because the orientation of the "
+                    "reduction is Class-C data. Exact-Q; numpy-free.",
+            parameters=(P("gen", "int | Sequence[int] | Q", True,
+                          "the generator ratio, must exceed 1; exact "
+                          "[num, den] pair or int. float REFUSED"),
+                        P("n", "int", True,
+                          "how many generators to stack; n >= 0. A negative "
+                          "chain is the reciprocal generator's positive chain "
+                          "— invert gen instead, so the read direction stays "
+                          "explicit"),
+                        P("period", "int | Sequence[int] | Q", False,
+                          "the equivalence interval, must exceed 1; default 2 "
+                          "(the octave)")),
+            returns=R("dict", "{'comma': str, 'num': int, 'den': int, "
+                              "'vanishes': bool (True only for the trivial "
+                              "1/1), 'periods_removed': int (SIGNED), "
+                              "'limit': int|None, 'monzo': dict|None, "
+                              "'factorisation_unavailable': str|None, "
+                              "'gen': str, 'n': int, 'period': str}. The "
+                              "comma is exact at EVERY n; only the Class-J "
+                              "enrichment (limit / monzo) is bounded, because "
+                              "factor binds the fixed-width srmech_factor and "
+                              "refuses an operand beyond 2**64 - 1. A long "
+                              "chain reaches that quickly — 41 fifths already "
+                              "carries a 20-digit numerator — so limit and "
+                              "monzo come back None with a reason rather than "
+                              "the op destroying a correct comma"),
+            composes=("srmech.math.cyclic.gcd", "srmech.music.just_limit"),
+            preserves=(
+                "derived, never tabulated: the comma is computed from the "
+                "generator chain, so no named constant is stored anywhere in "
+                "the op",
+            ),
+        ),
+        ToolEntry(
+            name="srmech.music.tempers_out", owner="srmech",
+            category="music",
+            summary="Does n-tone equal temperament TEMPER OUT this comma? A "
+                    "temperament tempers out a comma exactly when the comma maps "
+                    "to the UNISON under that temperament's val — i.e. when the "
+                    "comma's monzo lies in the KERNEL of the map sending each "
+                    "prime p to round(n*log2 p). THE LOGARITHM IS REMOVED, NOT "
+                    "APPROXIMATED: k == round(n*log2 p) if and only if "
+                    "2**(2k-1) <= p**(2n) < 2**(2k+1), which is a comparison "
+                    "between two exact integers. So the val is DECIDED, not "
+                    "estimated — no log, no float, no tolerance, nothing "
+                    "rounded. THIS IS THE OP THAT EXPLAINS THE KEYBOARD. 12-EDO "
+                    "tempers out the syntonic comma 81/80, which is what makes "
+                    "it a meantone temperament and why a piano has one key for "
+                    "both D# and Eb; it also tempers out the Pythagorean comma "
+                    "531441/524288, which is what closes the circle of fifths "
+                    "that the frequency lane leaves structurally OPEN. 5-EDO "
+                    "tempers out the syntonic comma too (it is in the meantone "
+                    "family) but NOT the Pythagorean one, so the two questions "
+                    "are genuinely independent. Class I (the integer val and its "
+                    "kernel) over Class N (the exact Q comma). Exact integer; "
+                    "numpy-free; no abs().",
+            parameters=(P("comma", "int | Sequence[int] | Q", True,
+                          "the comma as an exact [num, den] pair, or a bare "
+                          "numerator when den is given. float REFUSED"),
+                        P("edo", "int", True,
+                          "the equal division of the octave; edo >= 1"),
+                        P("den", "int | Sequence[int] | Q", False,
+                          "the denominator when comma was a bare int")),
+            returns=R("dict", "{'tempers_out': bool, 'steps': int (the SIGNED "
+                              "number of EDO steps the comma maps to; zero "
+                              "exactly when tempered out), 'comma': str, "
+                              "'edo': int, 'val': dict mapping each prime the "
+                              "comma uses to its patent-val step count, "
+                              "'monzo': dict}"),
+            composes=("srmech.music.just_limit",),
+            preserves=(
+                "no logarithm and no tolerance: the patent val is decided by "
+                "exact integer comparison, so the same input always yields the "
+                "same val",
+            ),
+        ),
+        ToolEntry(
+            name="srmech.music.interval_vector", owner="srmech",
+            category="music",
+            summary="The INTERVAL-CLASS VECTOR of a pitch-class set — how a set "
+                    "relates to ITSELF at every interval class. Entry i counts "
+                    "the unordered pairs separated by interval class i+1, for i "
+                    "in 0..5. The major triad [0, 4, 7] gives (0, 0, 1, 1, 1, 0) "
+                    "— one minor third, one major third, one fourth — and so "
+                    "does the minor triad [0, 3, 7], which is the first hint "
+                    "that this invariant is COARSE. IT IS NOT A COMPLETE "
+                    "INVARIANT, AND THE LOSS HAS A NAME. Measured over every set "
+                    "class of cardinality 2..10: 23 interval vectors are shared "
+                    "by MORE THAN ONE set class. Those are the Z-RELATED pairs — "
+                    "genuinely different objects with identical interval "
+                    "content, e.g. [0,1,3,7] and [0,1,4,6], both giving "
+                    "(1,1,1,1,1,1). So this op answers 'what intervals does this "
+                    "set contain?' and NOT 'which set class is this?'; for the "
+                    "latter use prime_form, and note that even prime_form "
+                    "separates a Z-pair only by the set class itself, never by "
+                    "interval content. Class I (the Z/12 group action, through "
+                    "the shipped modular add) over Class E (the catalog fold). "
+                    "The fold at the TRITONE is a Class-K pin-slot at the phase "
+                    "boundary, NOT an abs(): 6 is the unique self-inverse "
+                    "interval in Z/12 because 12 is even and the octave CAN be "
+                    "bisected — in Z/7 no step is self-inverse, because 7 is "
+                    "odd. Exact integer; numpy-free.",
+            parameters=(P("pcs", "Sequence[int]", True,
+                          "pitch classes; reduced mod 12 and de-duplicated, so "
+                          "[0, 4, 7] and [12, 16, 7, 7] are the same input"),),
+            returns=R("tuple", "a 6-tuple of counts, one per interval class 1..6"),
+            composes=("srmech.cascade.cyclic_mod_add",),
+            preserves=(
+                "input order and duplication are irrelevant: the vector "
+                "depends only on the SET of pitch classes mod 12",
+            ),
+        ),
+        ToolEntry(
+            name="srmech.music.normal_order", owner="srmech",
+            category="music",
+            summary="The NORMAL ORDER of a pitch-class set — the most compact "
+                    "rotation — with the convention REQUIRED, never defaulted. "
+                    "Both conventions first minimise the outer span; they break "
+                    "the tie differently, and that difference is the whole "
+                    "reason there is no default. 'forte' — Forte (1973) — packs "
+                    "FROM THE LEFT: after the span, compare the first interval, "
+                    "then the second, working outward. 'rahn' — Rahn (1980) — "
+                    "packs FROM THE RIGHT: after the span, compare the interval "
+                    "to the second-to-last, then the third-to-last, working "
+                    "inward from the end. Passing an unknown convention raises, "
+                    "and omitting it is a TypeError, because a silent default "
+                    "would pick a side in a live scholarly disagreement (see "
+                    "prime_form, where the divergence is enumerated). Returns "
+                    "the pitch classes in normal order and does NOT transpose "
+                    "them to 0 — that is prime_form's job, and keeping the two "
+                    "apart is what lets a caller see WHICH rotation was chosen. "
+                    "Class I (the Z/12 rotation) over Class E (the "
+                    "canonical-representative selection). Exact integer; "
+                    "numpy-free; no abs().",
+            parameters=(P("pcs", "Sequence[int]", True,
+                          "pitch classes; reduced mod 12 and de-duplicated"),
+                        P("convention", "str", True,
+                          "'forte' or 'rahn'. REQUIRED — there is deliberately "
+                          "no default")),
+            returns=R("tuple", "the pitch classes in normal order, NOT "
+                               "transposed to 0"),
+            composes=("srmech.cascade.cyclic_mod_add",),
+            preserves=(
+                "a caller-facing requirement, not a default: the convention "
+                "must be named on every call, and an unknown one raises",
+            ),
+        ),
+        ToolEntry(
+            name="srmech.music.prime_form", owner="srmech",
+            category="music",
+            summary="The PRIME FORM of a pitch-class set — the canonical "
+                    "representative of its set class under Tn/TnI — with the "
+                    "convention REQUIRED, never defaulted. Take the normal order "
+                    "of the set and of its inversion, transpose each to start at "
+                    "0, keep the smaller. That is the Class-E half: a catalog "
+                    "selection over the Class-I group orbit. THE CONVENTION IS "
+                    "NOT COSMETIC — IT IS A LIVE SCHOLARLY DISAGREEMENT, AND WE "
+                    "MEASURED IT. Enumerating every set class of cardinality "
+                    "2..10 and comparing the two algorithms row by row, EXACTLY "
+                    "6 DISAGREE: 5-20 (forte 01378 / rahn 01568), 6-Z29 (013689 "
+                    "/ 023679), 6-31 (013589 / 014579), 7-Z18 (0123589 / "
+                    "0145679), 7-20 (0124789 / 0125679), and 8-26 (0124579T / "
+                    "013457 8T). NOTE 7-Z18. The figure most often quoted is "
+                    "FIVE, following Straus's Introduction to Post-Tonal Theory, "
+                    "which omits it; six is what the algorithms actually do, and "
+                    "what independent open set-class tables list. Our six is "
+                    "COMPUTED, not copied, and the suite pins all of them. An "
+                    "unnamed prime_form would silently answer as one community "
+                    "and be wrong for the other on exactly these six — hence no "
+                    "default, ever. Exact integer; numpy-free; no abs().",
+            parameters=(P("pcs", "Sequence[int]", True,
+                          "pitch classes; reduced mod 12 and de-duplicated"),
+                        P("convention", "str", True,
+                          "'forte' or 'rahn'. REQUIRED — there is deliberately "
+                          "no default, because the two disagree on 6 of the "
+                          "set classes")),
+            returns=R("tuple", "the prime form, starting at 0"),
+            composes=("srmech.cascade.cyclic_mod_add",
+                      "srmech.music.normal_order"),
+            preserves=(
+                "transposition- and inversion-invariant: every member of a set "
+                "class returns the same prime form under a given convention",
+            ),
         ),
     ]
     for e in entries:
