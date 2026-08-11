@@ -89,6 +89,37 @@ In all three the verdict / comma was already computed and **correct**; only the 
 
 ⚠️ The brief for this rc described (1) as firing at `max_den >= 100`. It does not: at `max_den=100` the period is `17948700` and comes back fine. Two distinct defects had been conflated — one operand-bound `ValueError` reached via `membrane_partials`, one result-bound `OverflowError` reached via `best_rational`. Both are pinned separately in `tests/test_music_relations_rc424.py`.
 
+### The coercion-boundary resolver followed the object for the MODULE and the name for the FUNCTION (`#T1113`)
+
+CI round 2 left one gate red: `test_carrier_use_derivation_rc363::test_the_derivation_selects_a_real_population`, *"the coercion-boundary walk entered no function for 1 of 612 ops"*. The blind op was `srmech.signal_processing.music_doa`.
+
+`tests/coercion_boundary.py` resolved the **module** through the live object's `__module__` — `defining_module`'s own docstring calls that "what makes a re-exported op analysable" — and then looked the **function** up by the registry LEAF. That asymmetry was invisible for as long as every re-export happened to preserve the name: `srmech.music.spectrum_tier` is `def spectrum_tier` in `_spectra`, so leaf and def agreed *by luck*. `music_doa` is the first op where the re-export **renames** — it is `closed_form_ops.music_doa.op`, promoted under a name that disambiguates it from the `srmech.music` package — so its module resolved and its function did not.
+
+**Fixed resolver-side, and not as a Path-A special case.** `boundary_for` now falls back to the DEF name off the live object, which is *exactly what `_walk` has always done for an imported callee* thirty lines below (`__module__` + `__name__`). This is the file's own established convention, applied at last to its entry point. It fixes the general class **"registered under a different leaf than it is defined as"** — every re-export, promotion and alias — rather than teaching the resolver about one protocol.
+
+The alternative considered and rejected was module-side: `def music_doa(...)` with `op = music_doa` kept as the Path-A alias. It inverts the protocol (whose entire point is a *uniform* entry point), gives every module two names for one function, couples the source name to the registered name so a later re-registration forces a second rename — and implies **41** renames rather than one resolver change.
+
+Measured, not assumed:
+
+| | |
+|---|---|
+| blind ops, before / after | **1 of 612** → **0 of 612** |
+| `music_doa` now reaches | `closed_form_ops.music_doa.op` — a real body, no exemption |
+| gate can still FAIL | planted-defect proof: with the fallback removed it goes **red on exactly 1** |
+| `#T1112` forecast, **measured** | all **41** `closed_form_ops` modules promoted this way: **41 reach, 0 blind** |
+
+⚠️ Two corrections to the diagnosis this came in with. The population is **41** modules exposing a callable `op` (38 Phase-2 baseline + `ifft` + `pi_cascade` + `rfft`), not 39. And the gate has **no exemption path** — it asserts `len(reached) == len(tools)` outright — so "exempt with a stated reason and a pinned count" was not available even had it been wanted; the walk had to genuinely reach a body.
+
+### `ripple_check.py` now sweeps the whole suite for collection errors FIRST (`#T1113`)
+
+Round 1 went red on **twelve CI jobs** — all six pure shards, every native cell, asserts-live and the partition guard — from **one** stale importer of the renamed module. An import error at COLLECTION kills a shard outright: pytest never runs anything, so it reports *nothing* rather than the right failure, and the breadth of the red reflects the failure MODE, not the blast radius.
+
+The part worth recording: **this runner was GREEN on that same tree.** Every gate in the manifest imported fine; the stale importer sat in a file no gate targets. A rename is therefore invisible both to targeted tests *and* to a manifest-driven runner — a manifest can only see the files it names, and a rename defect breaks the file nobody thought to name.
+
+So `tools/ripple_check.py` now runs a whole-suite `pytest --collect-only` before any gate, and **aborts** on failure. Measured on this tree: **14,515 tests resolved, 0 errors, ~63 s**. It is deliberately *not* a `ripple_gates.txt` line — the manifest holds pytest targets, and encoding a whole-suite sweep as one would subject it to the very limit it exists to escape. Instead `test_ripple_manifest_covers_known_gates.py` gains two pins: that the sweep still exists and covers all of `tests/`, and that it runs **before** the gates with an abort on nonzero (gate results computed after a collection error are misleading, not merely incomplete). Proven by planting the round-1 defect: the runner exits 2, names the import, and never reaches the gates.
+
+This is a third axis, distinct from rc421's search-corpus witness (prose drift) and rc422's README currency (shipped literals).
+
 ### Notes
 
 `composes` was authored **at birth** for all seven rows (population 164/612 → 171/612, `DECLARED` 16 → 23), so `CEIL_UNADJUDICATED` holds at **182** with no drain and no raise — a registry growing by 7 with an unchanged residual is the rc423 ratchet doing exactly what it was seeded to do. Every multi-element order was **traced**, per ADR-0013:292 (the set is derivable; the order is not). `WITNESS_RC416` re-pinned (seventh consecutive), frame set **634 → 641 = 612 ops + 29 carriers**, determinism re-established over eight builds before re-pinning. The README gains a `srmech.music` section — it had none.

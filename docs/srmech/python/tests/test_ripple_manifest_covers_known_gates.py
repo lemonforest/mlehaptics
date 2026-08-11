@@ -239,3 +239,62 @@ def test_every_frozen_gate_actually_exists() -> None:
         "renamed):\n  " + "\n  ".join(sorted(stale))
         + "\n\nUpdate this frozen set AND the manifest to the new name."
     )
+
+
+# ── the whole-suite COLLECTION SWEEP (rc424, `#T1113`) ───────────────────────
+#
+# The sweep is NOT a manifest line, and that is deliberate: the manifest holds
+# pytest TARGETS, and this is a sweep over the entire suite. Encoding it as a
+# target would misfile it and subject it to the very limit it exists to escape
+# — a manifest can only see the files it names, and a rename defect breaks the
+# file nobody thought to name.
+#
+# So it is pinned HERE instead, at the same granularity FROZEN_KNOWN_GATES pins
+# the target list: the runner must still perform the sweep, and must still run
+# it BEFORE the gates.
+
+def test_the_runner_exposes_a_whole_suite_collection_sweep() -> None:
+    """`ripple_check` must still carry the collect-only sweep.
+
+    Measured cause (rc424): ONE stale importer of a renamed module took twelve
+    CI jobs red — all six pure shards, every native cell, asserts-live and the
+    partition guard — because an import error at COLLECTION kills a shard
+    outright. This runner was GREEN on that same tree: every gate it names
+    imported fine, and the stale importer sat in a file no gate targets.
+    """
+    assert hasattr(ripple_check, "run_collect_sweep"), (
+        "ripple_check.run_collect_sweep is gone. The whole-suite collection "
+        "sweep is the ONLY check in this runner that sees files the manifest "
+        "does not name; without it a rename is invisible to the runner and "
+        "surfaces as a dozen red CI jobs with a one-line cause.")
+    sweep = getattr(ripple_check, "COLLECT_SWEEP", None)
+    assert isinstance(sweep, list) and "--collect-only" in sweep, (
+        f"COLLECT_SWEEP must still be a --collect-only invocation; got {sweep!r}")
+    assert "tests/" in sweep, (
+        "the sweep must cover the WHOLE tests/ tree — narrowing it to a subset "
+        "reintroduces the blind spot it closes")
+
+
+def test_the_collection_sweep_runs_before_the_gates_and_aborts_on_failure() -> None:
+    """Order and abort-on-failure are the load-bearing half.
+
+    A sweep that ran AFTER the gates, or whose nonzero return did not abort,
+    would let the runner print gate results computed on a tree that could not
+    be imported — which is worse than not running it, because those results
+    look authoritative and are not.
+    """
+    src = (_TOOLS / "ripple_check.py").read_text(encoding="utf-8")
+    body = src.split("def main(", 1)[1]
+    call = body.find("run_collect_sweep(")
+    pytest_cmd = body.find('"-m", "pytest"')
+    assert call != -1, "main() no longer calls run_collect_sweep()"
+    assert pytest_cmd != -1, "main() no longer builds the gate pytest command"
+    assert call < pytest_cmd, (
+        "the collection sweep must run BEFORE the gate command is built — "
+        "gate results computed after a collection error are misleading, not "
+        "merely incomplete.")
+    tail = body[call:pytest_cmd]
+    assert "return rc" in tail, (
+        "a nonzero collection sweep must ABORT the run; without the early "
+        "return the runner would go on to report gate results for a tree that "
+        "does not import.")
