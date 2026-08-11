@@ -160,7 +160,7 @@ srmech.qm.triality.triality_cycle
 srmech.qm.triality.triality_relation_residual
 srmech.signal_processing.closed_form_ops.hdc_truncation.op
 srmech.signal_processing.closed_form_ops.heat_kernel.op
-srmech.signal_processing.closed_form_ops.music.op
+srmech.signal_processing.closed_form_ops.music_doa.op
 srmech.signal_processing.cascade_compose_rotations
 srmech.signal_processing.form_function_rotate
 srmech.signal_processing.inverse_form_function_rotate

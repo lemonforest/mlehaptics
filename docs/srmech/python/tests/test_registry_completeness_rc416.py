@@ -766,8 +766,20 @@ _UNDECLARED_SURFACE_GAPS: Dict[str, str] = {
     # ── srmech.signal_processing.closed_form_ops.multitaper ──
     'srmech.signal_processing.closed_form_ops.multitaper.op':
         OPEN_REGISTRATION,
-    # ── srmech.signal_processing.closed_form_ops.music ──
-    'srmech.signal_processing.closed_form_ops.music.op': OPEN_REGISTRATION,
+    # ── srmech.signal_processing.closed_form_ops.music (was here) ──
+    #    rc424 (`#T1113`): DISCHARGED. The MUSIC DOA op earned a ToolEntry
+    #    (`srmech.signal_processing.music_doa`) plus a dispatcher registration,
+    #    so its row is DELETED and both undeclared ceilings drop by one — the
+    #    only sanctioned way this population falls.
+    #
+    #    ⚠️ Note WHY it discharges while `fft.op` / `wiener.op` /
+    #    `pi_cascade.op` a few rows away do NOT, since all four are now
+    #    dispatcher-registered. This gate matches by OBJECT IDENTITY
+    #    (`registered_object_ids()`), not by dotted path, and the package-level
+    #    `srmech.signal_processing.music_doa` IS the same function object as
+    #    `closed_form_ops.music_doa.op`. Dispatcher registration alone changes
+    #    nothing here; a ToolEntry pointing at the same object is what closes
+    #    the row. The other three still have no ToolEntry at all.
     # ── srmech.signal_processing.closed_form_ops.ofdm ──
     'srmech.signal_processing.closed_form_ops.ofdm.op': OPEN_REGISTRATION,
     # ── srmech.signal_processing.closed_form_ops.pi_cascade ──
@@ -829,11 +841,15 @@ _UNDECLARED_SURFACE_GAPS: Dict[str, str] = {
 #: DOWN-ONLY ceiling on :data:`_UNDECLARED_SURFACE_GAPS`. Seeded at the MEASURED
 #: rc419 residual — 75. Same rule as its declared sibling: it falls by DELETING
 #: a row, never by narrowing the predicate that finds them.
-CEIL_UNDECLARED_SURFACE = 75
+#: rc424 (`#T1113`): 75 -> 74 — the MUSIC DOA row DELETED, discharged by a
+#: real ToolEntry registration rather than by a narrowed predicate.
+CEIL_UNDECLARED_SURFACE = 74
 
 #: DOWN-ONLY sub-ceiling on the DEBT bucket of the undeclared half. The mirror
 #: of :data:`CEIL_OPEN_REGISTRATION`, and the number slice 2 of this arc drains.
-CEIL_UNDECLARED_OPEN_REGISTRATION = 59
+#: rc424 (`#T1113`): 59 -> 58, the MUSIC DOA discharge — the first row this
+#: sub-ceiling has drained since it was seeded at rc419.
+CEIL_UNDECLARED_OPEN_REGISTRATION = 58
 
 #: The union both the ratchet and every allowlist-honesty test are checked
 #: against. Keys are disjoint by construction (a module either declares
