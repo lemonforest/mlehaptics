@@ -236,12 +236,22 @@ def test_the_documented_music_vocabulary_one_liner_actually_runs() -> None:
     """The same, for rc362's ``[[alias]]`` descriptor: a domain SHIPS its words."""
     names = dsl.load_aliases_toml("music_domain_aliases")
     assert set(names) == {
+        # the ACOUSTIC lane (rc362) — words for things you HEAR
         "partials", "bell_tuning", "overtone_series", "drum_modes",
-        "temperament", "is_inharmonic", "overtone_period", "exactness"}
+        "temperament", "is_inharmonic", "overtone_period", "exactness",
+        # the RELATIONAL lane (rc424) — words for relations you RECKON
+        "p_limit", "comma", "tempers", "interval_content",
+        "compact_rotation", "set_class",
+        # and the §3.46.2 ℤ/7 walk, which earns a NAME but not an op
+        "scale_step"}
     from srmech import music
     assert names["partials"]() == music.bell_partials(), (
         "the aliased name no longer forwards to its target — the binding is "
         "pure naming and must be value-identical.")
+    assert names["comma"]((3, 2), 12, (2, 1))["comma"] == "531441/524288"
+    assert names["set_class"]([0, 4, 7], "rahn") == (0, 3, 7)
+    # the walk of §3.46.2: F -> C is the fifth, a single +4 step in ℤ/7
+    assert names["scale_step"](6, 4, 7) == 3
 
 
 # ── 3. the registered alias directory ───────────────────────────────────────

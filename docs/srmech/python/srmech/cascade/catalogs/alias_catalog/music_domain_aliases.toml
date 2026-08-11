@@ -72,3 +72,46 @@ target = "srmech.music.common_period"
 [[alias]]
 name = "exactness"
 target = "srmech.music.spectrum_tier"
+
+# -- rc424 (`#T1113`): the RELATIONAL lane's domain words --------------------
+# The acoustic block above names things you HEAR; these name relations you
+# RECKON. Same mechanism, same point: the general ops keep general names and
+# the domain word is a config binding over them.
+[[alias]]
+name = "p_limit"
+target = "srmech.music.just_limit"
+
+[[alias]]
+name = "comma"
+target = "srmech.music.comma_of_chain"
+
+[[alias]]
+name = "tempers"
+target = "srmech.music.tempers_out"
+
+[[alias]]
+name = "interval_content"
+target = "srmech.music.interval_vector"
+
+[[alias]]
+name = "compact_rotation"
+target = "srmech.music.normal_order"
+
+[[alias]]
+name = "set_class"
+target = "srmech.music.prime_form"
+
+# THE Z/7 WALK, and why it is a BINDING rather than an op. Notebook 3.46.2
+# reads the circle of fifths as a single +4 step in Z/7 (the fourth is +3, and
+# 4 + 3 = 7 is the conserved octave). That walk is exactly one cyclic_mod_add
+# call and carries NO decision, so registering it would add registry surface
+# for zero capability -- it was costed and REJECTED as an op alongside
+# interval_invert / pitch_class_transpose / pitch_class_invert. What it DOES
+# earn is its domain name, which is what this layer exists to give:
+#
+#     names = load_aliases_toml("music_domain_aliases")
+#     names["scale_step"](6, 4, 7)   # F -> C, the fifth, == 3
+#
+[[alias]]
+name = "scale_step"
+target = "srmech.cascade.cyclic_mod_add"

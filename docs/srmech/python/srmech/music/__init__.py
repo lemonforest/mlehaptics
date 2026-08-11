@@ -42,6 +42,25 @@ WHAT IS HERE
     The Class-N exact-rational Bessel kernel the membrane needs, promoted from
     the Spike #40 exact primitives.
 
+``just_limit`` / ``comma_of_chain`` / ``tempers_out`` / ``interval_vector`` /
+``normal_order`` / ``prime_form``
+    **The RELATIONAL lane (rc424).** Everything above answers *what does this
+    object sound like?*; these six answer *how do two pitches stand to one
+    another?*. They read no spectrum and carry no partials. Full statement in
+    :mod:`srmech.music.relations` — including why the frequency lane (ℚ⁺ under
+    multiplication, where a chain of fifths provably CANNOT close) and the
+    modular lane (ℤ/12 under addition, where it always does) disagree, and why
+    the exact residue between them IS a comma.
+
+⚠️ **A THIRD HOMOGRAPH, now disarmed.** Besides the two senses of "harmonic"
+above, "MUSIC" is also an ACRONYM — **MU**ltiple **SI**gnal **C**lassification,
+the subspace direction-of-arrival estimator — which has nothing to do with this
+package. Through rc423 it shipped as ``srmech.signal_processing.closed_form_ops
+.music``, one dotted path away from here. rc424 renamed it
+``srmech.signal_processing.music_doa`` and registered it, so the name now
+carries its own disambiguation instead of relying on a reader noticing which
+package it lives in.
+
 WHY IT IS NOT UNDER ``srmech.amsc``
 ===================================
 ADR-0010 is actively DRAINING that namespace back to attestation, and the drain
@@ -67,6 +86,14 @@ from ._spectra import (
     common_period,
     spectrum_tier,
 )
+from .relations import (
+    comma_of_chain,
+    interval_vector,
+    just_limit,
+    normal_order,
+    prime_form,
+    tempers_out,
+)
 
 __all__ = [
     "spectrum_tier",
@@ -78,6 +105,13 @@ __all__ = [
     "membrane_partials",
     "bessel_j_fixed",
     "bessel_zero_fixed",
+    # rc424 (`#T1113`) — the RELATIONAL lane (see the module docstring above).
+    "just_limit",
+    "comma_of_chain",
+    "tempers_out",
+    "interval_vector",
+    "normal_order",
+    "prime_form",
 ]
 
 # ``TIER_RATIONAL`` / ``TIER_ALGEBRAIC`` / ``TIER_OPEN`` are importable module
