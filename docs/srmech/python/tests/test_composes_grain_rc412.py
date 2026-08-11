@@ -22,8 +22,29 @@ says of ``composes``: *"Empty for a LEAF op (the correct default)"*, and
 ``rc305:103`` actively pins ``sha256_bytes`` empty. A floor would demand
 content on the majority of the registry, and the only way to satisfy it is to
 invent composition partners — filler shipped into a surface ADR-0012 makes
-load-bearing. A ceiling is no better: a down-only ceiling on unpopulated rows
-presumes the residual should reach zero, and here it must not.
+load-bearing. **That half stands and rc423 did not weaken it.**
+
+⚠️ **AMENDED rc423 (`#T1113`) — the sentence that followed was WRONG, and it
+is left standing here rather than deleted so the correction is legible.** It
+read: *"A ceiling is no better: a down-only ceiling on unpopulated rows
+presumes the residual should reach zero, and here it must not."* The
+conclusion is right about the DENOMINATOR it names and wrong about the one it
+should have named. A ceiling over **unpopulated** rows is indeed incoherent,
+exactly as written — leaves are permanently unpopulated and must stay so. But
+"unpopulated" and "**unadjudicated**" are different sets, and only the first
+was considered here. A row nobody has ever looked at and a row measured to
+compose nothing are indistinguishable in this field — both are ``()`` — and
+collapsing them is what let the population trickle 9 → 16 across ~45 rcs with
+every gate green.
+
+``tests/test_composes_population_rc423.py`` splits them. An op is ADJUDICATED
+when it is declared, or measured to reach nothing (LEAF), or measured to reach
+exactly one thing (SINGLE), or reviewed and deliberately refused. The residual
+is then rows whose order a human has not traced — and **that** residual should
+reach zero, so it carries a down-only ceiling. The population claim this file
+declined to make is now made, and it is made against a denominator that can
+honestly drain (rc419's lesson: a ceiling over an unfaithful denominator reads
+as progress).
 
 So the clauses gate DRIFT and TRUTH, never coverage:
 
@@ -78,22 +99,17 @@ making the point backwards.
 
 from __future__ import annotations
 
-import ast
-import importlib
-import inspect
-import sys
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Set, Tuple
 
+from composes_derive import (BY_NAME, DERIVE_DEPTH, SCHEMA, derived,
+                             ledger_names, resolve_op)
 from srmech import _toml as _srmech_toml
 from srmech.dsl import _toml_chain
-from srmech.introspect.tool_schema import get_tool_schema, warmup_all
 
-warmup_all()
-
-_SCHEMA = get_tool_schema()
-_BY_NAME = {t.name: t for t in _SCHEMA.tools}
+_SCHEMA = SCHEMA
+_BY_NAME = BY_NAME
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -267,22 +283,39 @@ def _declaring() -> Dict[str, Tuple[str, ...]]:
 
 
 def test_the_declaring_set_is_exactly_the_roster() -> None:
-    """The rows that declare a composition are EXACTLY the roster's keys.
+    """The rows that declare a composition are EXACTLY the two reviewed
+    populations: this file's hand-traced ROSTER, plus rc423's forced-order
+    SINGLE tier.
 
     This is the clause that closes the rc305 hole. A strict-zero sweep over
     "every declared entry resolves" cannot see a declaration DISAPPEAR; this
     can. It fails in both directions on purpose — an undeclared population is
     as much a drift as a deletion, because the field ships into the wheel and
     into the compiled-in C registry either way.
+
+    rc423 (`#T1113`) — WHY THE UNION, AND WHY IT IS STILL EXACT
+    ===========================================================
+    Through rc422 this asserted ``live == set(ROSTER)``, which was the whole
+    reviewed population because there was only one KIND of review. rc423 adds
+    a second kind with a different admission rule, so the assertion takes the
+    union of the two ledgers — and it stays an EQUALITY, which is the property
+    that matters. A row still cannot appear in the registry without appearing
+    in one of the two reviewed ledgers first.
+
+    The two are disjoint by construction and
+    ``test_the_two_populations_do_not_overlap`` in the rc423 file proves it,
+    so a row cannot hop ledgers to dodge either gate.
     """
     live = set(_declaring())
-    want = set(ROSTER)
+    want = set(ROSTER) | _rc423_single_names()
     assert live == want, (
         "the set of rows declaring `composes` drifted from the reviewed "
-        f"roster. Deleted: {sorted(want - live)}. "
-        f"Added without a roster entry: {sorted(live - want)}. "
-        "If the change is intended, update ROSTER in this file — that edit "
-        "IS the review."
+        f"populations. Deleted: {sorted(want - live)}. "
+        f"Added without a ledger entry: {sorted(live - want)}. "
+        "If the change is intended: a HAND-TRACED multi-op row goes in ROSTER "
+        "in this file (that edit IS the review); a FORCED-ORDER single-op row "
+        "goes in tests/composes_adjudication_rc423.ndjson via the committed "
+        "census script. Do not hand-write a row into either one."
     )
 
 
@@ -330,166 +363,27 @@ def test_the_roster_is_not_empty_and_every_target_is_registered() -> None:
 # quietly bless a false one.
 # ──────────────────────────────────────────────────────────────────────
 
-_DERIVE_DEPTH = 3
+# rc423 (`#T1113`) — the machinery that used to live here MOVED to
+# ``tests/composes_derive.py`` and is imported above. Nothing about it
+# changed; it is shared because rc423's population tiers need the SAME
+# call-graph this clause uses, and a copied instrument drifts from its
+# original while both copies stay green (the failure
+# ``tests/test_rosetta_roots_single_source_rc361.py`` exists to prevent).
+# The full rationale — identity-resolution, the depth-3 default, and why it
+# is a LOWER BOUND — is in that module's docstring.
+
+_DERIVE_DEPTH = DERIVE_DEPTH
+_resolve_op = resolve_op
+_derived = derived
 
 
-def _resolve_registry() -> Dict[int, str]:
-    """``id(callable) -> registry name`` for every row that resolves."""
-    out: Dict[int, str] = {}
-    for name in _BY_NAME:
-        obj = _resolve_op(name)
-        if obj is not None:
-            out.setdefault(id(obj), name)
-    return out
+def _rc423_single_names() -> Set[str]:
+    """The rc423 forced-order SINGLE tier — the second reviewed population.
 
-
-def _resolve_op(name: str) -> Optional[Any]:
-    module, _, leaf = name.rpartition(".")
-    try:
-        return getattr(importlib.import_module(module), leaf)
-    except Exception:
-        return None
-
-
-_ID2NAME = _resolve_registry()
-
-_TREES: Dict[str, Optional[ast.AST]] = {}
-_DEFS: Dict[Tuple[str, str], Optional[ast.AST]] = {}
-
-
-def _module_tree(modname: str) -> Optional[ast.AST]:
-    if modname not in _TREES:
-        try:
-            mod = sys.modules.get(modname) or importlib.import_module(modname)
-            _TREES[modname] = ast.parse(inspect.getsource(mod))
-        except Exception:
-            _TREES[modname] = None
-    return _TREES[modname]
-
-
-def _def_node(fn: Any) -> Optional[ast.AST]:
-    """The ``FunctionDef`` for ``fn``, located by (module, qualname)."""
-    modname = getattr(fn, "__module__", None)
-    qual = getattr(fn, "__qualname__", None)
-    if not modname or not qual:
-        return None
-    key = (modname, qual)
-    if key in _DEFS:
-        return _DEFS[key]
-    tree = _module_tree(modname)
-    found = None
-    if tree is not None:
-        stack: List[Tuple[str, Any]] = [("", tree)]
-        while stack:
-            prefix, cur = stack.pop()
-            for child in ast.iter_child_nodes(cur):
-                if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                    q = prefix + child.name
-                    if q == qual:
-                        found = child
-                    stack.append((q + ".<locals>.", child))
-                elif isinstance(child, ast.ClassDef):
-                    stack.append((prefix + child.name + ".", child))
-    _DEFS[key] = found
-    return found
-
-
-def _local_aliases(node: ast.AST) -> Dict[str, Any]:
-    """``alias -> live object`` for imports written INSIDE the function body.
-
-    Not optional: the srmech tree imports inside function bodies routinely to
-    break cycles, and ``cwf``'s ground truth arrives through exactly such an
-    aliased import.
+    Read fresh rather than cached at import so a ledger edit is visible to
+    clause 1 in the same run that makes it.
     """
-    out: Dict[str, Any] = {}
-    for sub in ast.walk(node):
-        if isinstance(sub, ast.ImportFrom) and not sub.level and sub.module:
-            for alias in sub.names:
-                try:
-                    mod = importlib.import_module(sub.module)
-                    out[alias.asname or alias.name] = getattr(mod, alias.name)
-                except Exception:
-                    pass
-        elif isinstance(sub, ast.Import):
-            for alias in sub.names:
-                head = alias.name.split(".")[0]
-                try:
-                    out[alias.asname or head] = importlib.import_module(head)
-                except Exception:
-                    pass
-    return out
-
-
-def _resolve_callee(call: ast.Call, aliases: Dict[str, Any],
-                    glb: Dict[str, Any]) -> Optional[Any]:
-    """The live object a ``Call`` node's callee expression names, or None."""
-    func = call.func
-    chain: List[str] = []
-    while isinstance(func, ast.Attribute):
-        chain.append(func.attr)
-        func = func.value
-    if not isinstance(func, ast.Name):
-        return None                      # a call on a subscript / call result
-    chain.append(func.id)
-    chain.reverse()
-    obj = aliases.get(chain[0], glb.get(chain[0]))
-    if obj is None:
-        return None
-    for part in chain[1:]:
-        try:
-            obj = getattr(obj, part)
-        except Exception:
-            return None
-    return obj
-
-
-def _calls_of(fn: Any) -> Tuple[List[str], List[Any]]:
-    """``(registered names called, unregistered srmech helpers called)``."""
-    node = _def_node(fn)
-    if node is None:
-        return [], []
-    aliases = _local_aliases(node)
-    glb = getattr(fn, "__globals__", {})
-    hits: List[str] = []
-    helpers: List[Any] = []
-    seen: Set[int] = set()
-    for sub in ast.walk(node):
-        if not isinstance(sub, ast.Call):
-            continue
-        obj = _resolve_callee(sub, aliases, glb)
-        if obj is None or id(obj) in seen:
-            continue
-        seen.add(id(obj))
-        name = _ID2NAME.get(id(obj))
-        if name is not None:
-            hits.append(name)
-        elif (callable(obj) and hasattr(obj, "__code__")
-              and str(getattr(obj, "__module__", "") or "").startswith("srmech")):
-            helpers.append(obj)
-    return hits, helpers
-
-
-def _derived(name: str, depth: int = _DERIVE_DEPTH) -> Set[str]:
-    """Registered ops reachable from ``name`` within ``depth`` call hops,
-    descending only through UNREGISTERED ``srmech.*`` helpers."""
-    root = _resolve_op(name)
-    if root is None:
-        return set()
-    out: Set[str] = set()
-    frontier: List[Tuple[Any, int]] = [(root, 0)]
-    seen: Set[int] = {id(root)}
-    while frontier:
-        fn, d = frontier.pop()
-        hits, helpers = _calls_of(fn)
-        for hit in hits:
-            if hit != name:
-                out.add(hit)
-        if d + 1 < depth:
-            for helper in helpers:
-                if id(helper) not in seen:
-                    seen.add(id(helper))
-                    frontier.append((helper, d + 1))
-    return out
+    return ledger_names("SINGLE")
 
 
 def test_the_instrument_discriminates() -> None:
@@ -737,8 +631,13 @@ def test_the_reverse_edge_is_answerable_and_non_vacuous() -> None:
     assert got["composed_by"], (
         "the reverse edge is empty for an op three roster rows declare — the "
         "inversion is not happening")
+    # rc423: klein4_bind's fan-in now spans BOTH populations (three ROSTER
+    # rows plus rc423 SINGLE-tier rows), so the cross-check reads the live
+    # declaring map rather than ROSTER alone — indexing ROSTER here would
+    # KeyError on a perfectly valid rc423 parent.
+    declaring = _declaring()
     for parent in got["composed_by"]:
-        assert "srmech.math.hdc.klein4_bind" in ROSTER[parent]
+        assert "srmech.math.hdc.klein4_bind" in declaring[parent]
 
 
 def test_composition_agrees_with_the_registry_in_both_directions() -> None:
@@ -755,15 +654,41 @@ def test_composition_agrees_with_the_registry_in_both_directions() -> None:
 
 
 def test_composition_distinguishes_a_leaf_from_a_missing_op() -> None:
-    """A leaf answers with two empty tuples; an unknown name answers ``None``.
+    """A leaf answers with empty ``composes``; an unknown name answers ``None``.
 
     Collapsing those two would make "the registry has nothing for this" and
     "this op composes nothing" the same answer, and only one of them means
     the caller should stop looking.
+
+    rc423 (`#T1113`) — WHY THIS TEST MOVED, AND WHAT IT WAS ACCIDENTALLY
+    ASSERTING
+    ====================================================================
+    Through rc422 this pinned ``sha256_bytes`` to *both* tuples empty. Only
+    the first was the property under test; the second was an artefact of a
+    16-row population in which nothing yet declared the tree's most-composed
+    primitive. rc423's seeding pass gives ``sha256_bytes`` **8** parents, all
+    of them true, and the old assertion went red for a change that is the
+    whole point of the rc — a textbook incidental pin.
+
+    So the leaf-vs-missing distinction is now asserted on ``composes`` (the
+    direction the docstring is actually about), and the two-empty-tuples
+    shape is asserted separately on an op that genuinely has no edge in
+    either direction. Both facts still ship; neither is now hostage to the
+    population growing.
     """
     leaf = _SCHEMA.composition("srmech.amsc.format.sha256_bytes")
-    assert leaf == {
-        "name": "srmech.amsc.format.sha256_bytes",
+    assert leaf is not None
+    assert leaf["name"] == "srmech.amsc.format.sha256_bytes"
+    assert leaf["composes"] == ()          # a leaf DOWNWARD — the claim here
+    assert leaf["composed_by"], (
+        "sha256_bytes is the registry's most-composed primitive; an empty "
+        "reverse edge means the inversion stopped working")
+
+    # An op with no edge in EITHER direction still answers with two empty
+    # tuples rather than None, which is the shape the reader promises.
+    isolated = _SCHEMA.composition("srmech.amsc.format.read_ndjson")
+    assert isolated == {
+        "name": "srmech.amsc.format.read_ndjson",
         "composes": (),
         "composed_by": (),
     }

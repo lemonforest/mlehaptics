@@ -128,7 +128,7 @@ a stronger guarantee than the surface makes.
 
 | # | Surface | Entry point | Guarantees TODAY | Does NOT guarantee |
 |---|---|---|---|---|
-| 1 | **Tool schema** — the SSoT | `srmech.introspect.tool_schema.get_tool_schema()` | every registered op carries `name` / `owner` / `category` / `summary` / `explanation` / `example` / `returns` / `mcp_callable` (whole-registry, held by a 100% floor) | that any *optional* field is populated. **Measured rc412:** `composes` 9/559 · `preserves` 2/559 · `smoke_test_hint` 21/559 · `reads_lane` 9/559 |
+| 1 | **Tool schema** — the SSoT | `srmech.introspect.tool_schema.get_tool_schema()` | every registered op carries `name` / `owner` / `category` / `summary` / `explanation` / `example` / `returns` / `mcp_callable` (whole-registry, held by a 100% floor) | that any *optional* field is populated. **Measured rc412:** `composes` 9/559 · `preserves` 2/559 · `smoke_test_hint` 21/559 · `reads_lane` 9/559. **Re-measured rc423 (`#T1113`), registry now 605:** `composes` **164/605** (the population pass — §6.1) · `preserves` **13/605** (hold lifted, taxonomy declared and enforced). `smoke_test_hint` and `reads_lane` were **not** re-measured at rc423; their rc412 figures stand on the 559 basis and must not be re-based by arithmetic |
 | 2 | **`describe()`** — the root index | `srmech.describe()` (`srmech/introspect/__init__.py:722`) | **counts and shape** over the whole surface, self-warming, entry-path independent | **per-op detail — by design.** 9 of 525 ops are named anywhere in the payload, all inside `lanes.ops`. Its own docstring (`:736-739`): *"It is a ROOT / INDEX: it surfaces the shape, not the detail."* A domain is *covered* here iff **counted**, never iff **named** |
 | 3 | **MCP** | `srmech.mcp` · `tool_entries_to_mcp_defs` · `emit-mcpb` | enumeration, dotted-name dispatch, and `mcp_callable` honoured end-to-end — a new op is advertised and invocable with **zero** MCP-side registration (`grep music srmech/mcp/` = 0 hits) | that the published `inputSchema` is **right** — an unknown srmech type-string degrades silently to `{"type":"string"}` (`srmech/mcp/_tools.py:209`); that a return **serialises** rather than repr-terminating; that the advertised **catalog covers the registry** |
 | 4 | **Generated C tool registry** | `c/src/srmech_tool_registry.c` | name/identity for every op; count integrity (`srmech_tool_registry_len` is `sizeof`-derived, so it cannot drift from its own table); hash identity against the Python SSoT | **payload quality.** The sha256 ratchet locks in a `{"call": "f(x=<int>) -> dict"}` stencil exactly as happily as a worked example |
@@ -664,7 +664,7 @@ complete, and then the population never arrived:
 
 | subsystem | declared | measured today |
 |---|---|---|
-| `ToolEntry.composes` / `.preserves` | rc305, *"the Siona compose-a-cascade **CAPSTONE**"* (`#T943`) | **PARTLY DISCHARGED rc412.** As written this row said *"2 of 525 — `genome.genome_from_graph` and `genome.cwf_consistency_mod2`, both landed in the rc that shipped the field. Nothing has been added since."* Two corrections, and the row is worth keeping for both. (a) The landing claim was **false**: `genome_from_graph` landed rc305, `cwf_consistency_mod2` landed rc313, eight rcs later — rc305's own CHANGELOG says *"Only genome_from_graph carries composition data this rc."* (b) The diagnosis was right and the cause was one layer below population: **nothing read either field.** rc412 (`#T1093`) ships `ToolSchema.composition()` — including the REVERSE edge, which had no reader at all — indexes both fields in `search`, closes the vacuity hole below (`cwf`'s declaration was pinned by nothing: deleting it left the rc305 gate fully green), and hand-traces seven more rows under a stated criterion. **`composes` 9/559; `preserves` still 2/559 and deliberately so** — it is a *different* feature (rc305 checks `composes` for registry membership and `preserves` only for non-emptiness), and any floor on it is satisfiable at scale with zero per-op information, so it gets a declared taxonomy before it gets rows. |
+| `ToolEntry.composes` / `.preserves` | rc305, *"the Siona compose-a-cascade **CAPSTONE**"* (`#T943`) | **PARTLY DISCHARGED rc412.** As written this row said *"2 of 525 — `genome.genome_from_graph` and `genome.cwf_consistency_mod2`, both landed in the rc that shipped the field. Nothing has been added since."* Two corrections, and the row is worth keeping for both. (a) The landing claim was **false**: `genome_from_graph` landed rc305, `cwf_consistency_mod2` landed rc313, eight rcs later — rc305's own CHANGELOG says *"Only genome_from_graph carries composition data this rc."* (b) The diagnosis was right and the cause was one layer below population: **nothing read either field.** rc412 (`#T1093`) ships `ToolSchema.composition()` — including the REVERSE edge, which had no reader at all — indexes both fields in `search`, closes the vacuity hole below (`cwf`'s declaration was pinned by nothing: deleting it left the rc305 gate fully green), and hand-traces seven more rows under a stated criterion. **`composes` 9/559; `preserves` still 2/559 and deliberately so** — it is a *different* feature (rc305 checks `composes` for registry membership and `preserves` only for non-emptiness), and any floor on it is satisfiable at scale with zero per-op information, so it gets a declared taxonomy before it gets rows. **(c) DISCHARGED for `composes` at rc423 (`#T1113`); HOLD LIFTED for `preserves` at the same rc.** `composes` **16/605 → 164/605** by tier adjudication, not by row-by-row tracing (the tier table is below); `preserves` **13/605** with the taxonomy the hold was waiting for now declared and enforced at strict zero (`tests/test_preserves_taxonomy_rc423.py`). The row's own reasoning is what earned the discharge and is kept verbatim above: the taxonomy came **before** the rows, exactly as this cell demanded. |
 | `[[alias]]` config vocabulary | ADR-0004 §4, rc261, with a security contract and a parse path | **ZERO descriptors** anywhere in the tree until rc362 added the first — and that one is `tests/data/music_domain_aliases.toml`, a **test fixture outside every wheel** (`wheel.packages = ["srmech"]`, `tests/**` only under `sdist.include`, no force-include, no `MANIFEST.in`). **FIXED rc364** — 2 descriptors now ship inside `srmech/cascade/catalogs/alias_catalog/`. Note the row's own words survive the fix and are worth keeping: the population was zero-in-the-wheel for **101 rcs** and no gate said so, because there was no directory to count |
 
 **Name the pattern: a field or subsystem whose population is 2 of 525, or 0 of anything, is not
@@ -687,6 +687,44 @@ same "instrument cannot return otherwise" failure, one direction over.
 puts **231 of 559** rows at zero reachable registered sub-ops even at depth 3. "State the
 population" is the obligation this section imposes; "drive the population to the denominator" is
 not, and conflating them would turn this section into the defect it diagnoses.
+
+**⚠️ rc423 (`#T1113`) EXTENDS the paragraph above; it retracts nothing in it.** The argument stands as
+written, the re-measurement agrees with it — **258 of 605** rows reach zero registered sub-ops at
+depth 3, the same finding one registry larger — and **rc423 shipped no coverage floor**. What rc423
+adds is the reason a *ceiling* is nevertheless compatible with that reasoning, which the original
+paragraph had no occasion to distinguish.
+
+**The distinction is between two sets that the field rendered identical.** A LEAF row is
+`composes = ()` **because it composes nothing** — permanently and correctly empty; a floor over it
+would be an instruction to invent edges. An UNEXAMINED row is `composes = ()` **because nobody
+looked** — and in the field the two were **indistinguishable**, both an empty tuple, with no
+instrument able to say which was which. The obligation this section imposes ("state the population")
+was therefore unsatisfiable at rc412 for a reason the section did not name: *stating* a population
+requires being able to say of each row **why** it is empty.
+
+So rc423 adjudicates every row into a tier and ratchets **only the residue** — registry 605, census
+generated by the committed `docs/srmech/notes/_composes_population_census_rc423.py`, per-row verdicts
+shipped as `docs/srmech/python/tests/composes_adjudication_rc423.ndjson`:
+
+| tier | count | admission rule |
+|---|---|---|
+| **DECLARED** | 16 | hand-traced multi-op, pinned in `tests/test_composes_grain_rc412.py::ROSTER` |
+| **SINGLE** | 148 | `derived(name, depth=1)` is a SINGLETON — exactly one direct registered call edge, so the ordered tuple is **FORCED** (one element has one ordering) |
+| **LEAF** | 258 | `derived(name, depth=3)` is EMPTY — *"composes nothing registered"* as a MEASURED statement |
+| **REFUSED** | 1 | tier-eligible and deliberately declined: `srmech.math.covering.covering_catalog` *consults* `spin8_center` rather than being built from it (rc422 read it and said no) |
+| **RESIDUAL** | 182 | ≥2 direct call edges — **the ORDER is a human act**, so the row is NOT enumerated |
+
+**Adjudicated 423 of 605.** `composes` population moved **16/605 → 164/605**; `preserves` stayed
+**13/605**, deliberately unseeded.
+
+**`CEIL_UNADJUDICATED = 182` is a down-only ceiling over the UNADJUDICATED RESIDUAL — NOT over
+"unpopulated rows", and the difference is the whole reason it does not contradict this section.**
+Over unpopulated rows it would be the denominator-drive this section forbids, and it would count the
+258 leaves as debt they can never discharge. Over the residual it counts only rows where the order is
+a human act **and the human act has not happened** — which is the honest remainder of "state the
+population", not a coverage target. **Read the two sentences together as the rule this section now
+carries:** *never floor a field whose correct value is often empty; do ceiling the set of rows whose
+emptiness has not been adjudicated.*
 
 The asymmetry that makes this diagnosable: the `[class]` half of the same config-TOML family is fully
 packaged and introspectable — 4 descriptors ship **inside** `srmech/cascade/catalogs/class_catalog/`

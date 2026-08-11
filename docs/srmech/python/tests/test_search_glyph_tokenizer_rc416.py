@@ -134,8 +134,31 @@ from srmech.math.text import fold_marks, glyph_stream
 #: Determinism re-established independently at this value BEFORE re-pinning:
 #: five successive local `_build_frames('all')` builds on WSL2 (numpy-absent)
 #: produced one hash, with `len(frames) == 634` each time.
+#:
+#: **RE-PINNED AGAIN at v0.9.0rc423 (`#T1113`).** rc422's value was
+#: ``989dd20b28080ea9af75b9e142053f30c1f614e90751fbdd728eab93b4714056``. This
+#: is the SIXTH consecutive re-pin, and it is a THIRD kind — neither new prose
+#: nor new ops, but new **structured metadata on existing rows**. rc423's
+#: composes POPULATION pass takes ``composes`` from 16/605 to 164/605, and
+#: ``search.py::_op_fields`` has indexed that field since rc412, so 148 rows
+#: that previously contributed no ``composes`` frame-field now contribute one.
+#: The frame COUNT is unchanged at **634 = 605 ops + 29 carriers** — no op was
+#: registered — and ``describe()['tools']['total']`` stays **605**. Only the
+#: frame CONTENTS moved. That is worth naming: a witness move with a flat
+#: frame count is the signature of a metadata rc, and reading it as prose
+#: drift or as a registration would send the next author looking in the wrong
+#: place.
+#:
+#: Determinism re-established independently at this value BEFORE re-pinning:
+#: EIGHT builds on WSL2 (numpy-absent) — five successive
+#: `_build_frames('all')` calls inside one process, plus three FRESH
+#: interpreters — all produced this one hash. The cross-process half matters
+#: here because the new frame content is derived from a dict populated at
+#: import through the curated-docs merge, which is exactly the shape that
+#: could have carried iteration-order nondeterminism between runs. It does
+#: not.
 WITNESS_RC416 = (
-    "989dd20b28080ea9af75b9e142053f30c1f614e90751fbdd728eab93b4714056")
+    "376cdbf03d83a47d2a032589128cc805dd5877ee7cfe7744f677181db8551dac")
 
 #: The ASCII control set. These four queries are the ops the tokenizer work is
 #: ABOUT, so a regression on them would be the change eating its own subject.
