@@ -13,6 +13,59 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc422]
+
+### The CENTRE / COVERING layer — srmech could carry algebras and finite groups, but not the global datum they structurally cannot hold (`#T1123`)
+
+srmech carries **local** and **quotient** objects: Lie algebras, finite groups. It has had no way to carry the **global (π₁ / centre) datum a local object cannot hold**. The shape recurred, and each time it was hand-rolled independently:
+
+| where it surfaced | what survived |
+|---|---|
+| `so(8)` / `Spin(8)` | the algebra cannot see `Z(Spin(8)) = V₄` — and that centre is exactly `π₁(PSO(8))` |
+| `biology.genome.cwf_consistency_mod2` | its own shipped bounding: a finite group (`Q₈`) pins `Lk` only **mod 2**; it already returns `lk_center_parity` |
+| `biology.q8.q8_project_v4` | its own docstring: *"Drops the center sign bit"* |
+| `physics.qm.quaternion.quaternion_cycle_holonomy` | `center_parity ∈ {+1, −1, 0}` |
+| `cascade.one.One.spinor_sign` | `(−1)^Σw` — "the genuine Spin→SO 2:1 lift" |
+| `math.laplacian.cycle_holonomy` | the holonomy **mod 1**; the integer winding of the lift is what it cannot return |
+
+**Six shipped ops, six hand-rolled shadows, no common surface** — and in every case the survivor is the same thing: the **centre-parity, one bit where an integer lived**. `srmech.math.covering` is that surface. One structure underneath: a central extension `1 → Z → G̃ → G → 1`, where a closed loop in `G` lifts to a monodromy in `Z`; when `Z ≅ ℤ` the datum is an **integer** (a winding, a linking number), and when `Z` is finite of order `n` only the residue survives.
+
+⚠️ **THE TRAP, NAMED BECAUSE IT LOOKS LIKE A REFUTATION.** "Compute the centre of `so(8)`" returns the **zero object**, and that is *correct*: `so(8)` is semisimple. The Klein four-group is `Z(Spin(8))`, a property of the simply-connected **GROUP**. The same algebra belongs to `Spin(8)`, `SO(8)` **and** `PSO(8)` and structurally cannot distinguish them, because a centre is **global** data where a Lie algebra is **local** data. This is a category distinction, not a limitation to engineer around — it is precisely *why* the datum needs a carrier of its own. `spin8_center()` returns that zero explicitly as `algebra_centre_dim`, and `tests/test_covering_layer_rc422.py` pins it as an EXPECTED value so a later reader does not mistake it for a refutation.
+
+**Five new ops in `srmech.math.covering`** — `center_parity` (the ℤ/2 shadow, the primitive the six instances above each re-derived), `center_lift` (accumulate in the COVER, project to the centre — the op that *keeps* the integer, which is task `#T1005`'s answer: the genome accumulates in the finite group where a helix accumulates in its universal cover, so the loss is a statement about which accumulator was kept), `lift_fibre` (what the shadow does NOT determine, **enumerated** rather than asserted), `linking_number_cwf` (`Lk = Tw + Wr` as an exact-ℚ integer with an integrality certificate — the integer where `cwf_consistency_mod2` keeps the bit), and `covering_catalog` (the census).
+
+`lift_fibre` is the one worth reading twice. "The finite group can only pin this mod n" is the kind of sentence that no test can contradict, so it is a claim rather than a measurement — and *an instrument that cannot return otherwise is not a measurement*. With `center_order=0` (the universal ℤ cover) the same call returns a fibre of size 1 and `determined=True`. It demonstrably **can** come out the other way.
+
+### The census REJECTS more than it accepts, and the rejections are the finding
+
+`covering_catalog()` scores candidates against a predicate stated **before** they were scored: reached iff (i) a base object the shipped op computes in, (ii) a covering with **non-trivial** centre `Z`, and (iii) an output that is the image of a `Z`-torsor-valued quantity. `π₁(base) = 0` or `Z` trivial ⇒ REJECT.
+
+**Reached (4):** `spin8` (`Z = V₄`, derived below), `spin3` (`Z(SU(2)) = {±1}` — `quaternion_cycle_holonomy`, `One.spinor_sign`), `q8_v4` (`q8_project_v4`), `circle_z` (deck group ℤ — `cwf_consistency_mod2`, `discrete_writhe`, `cycle_holonomy`; the `#T1005` row).
+
+**Rejected (5), each on a named clause.** The two that matter: the **S³ fibre writhe** of `octonion_frame_read` fails clause (ii) because **`π₁(S³) = 0`** — a simply connected fibre carries no covering datum at all, so `q₁` is a frame-relative continuous residue and not a discrete monodromy class. (Push the read down to `SO(3) = S³/{±1}` and you *do* get a ℤ/2 — but that is the `spin3` row, a **different object**, and merging them would be exactly the form-vs-identity error this layer is bound by.) And **`g₂ = Der(𝕆)`** fails it on a **MEASURED** basis: the triality-fixed subgroup of `Z(Spin(8))` is trivial (identity only), so `g₂ = Fix(τ)` inherits no centre. That one is the proof the predicate discriminates — `g₂` sits *inside* a row that is reached, and is still correctly rejected on its own. Also rejected: the Cayley–Dickson rung bump (doubling is not a covering map), the Hermitian spectrum (eigenvalues are conjugation-invariant, so no monodromy is encoded — and the odd channel that *is* lost is already the `circle_z` row, so admitting it would double-count one loss as two), and `τ` itself (an automorphism **acts on** a centre; being adjacent to the datum is not holding it).
+
+### The V₄ ↔ so(8) bridge: residual ambiguity **3 → 1**, DERIVED not chosen
+
+rc421's `v4_so8_bridge_canonicity_rc422` measured the bridge **NOT canonical as shipped**, residual ambiguity **3**, and named the reason as arithmetic rather than carelessness: both carriers' order-3 generators are 3-cycles on a 3-element set, and the centralizer of a 3-cycle in `Sym(3)` has order 3, so **an order-3 generator alone cannot pin a bijection**. It also named the buildable route and left one thing unverified — whether `octonion_left_mult` / `octonion_right_mult` suffice. rc422 walks it. (They do: both regenerate every structure constant, so the whole construction is bottom-up FROM the carrier.)
+
+- **`spin8_center()`** solves `Z(Spin(8))` off the octonion multiplication table: the four scalar triples `(g_v, g_s, g_c)` satisfying the group form of Cartan's relation `g_v(x·y) = g_s(x)·g_c(y)` on **all 64** octonion basis pairs. The constraint `ε_v = ε_s·ε_c` is **FOUND, not imposed**, and each non-identity element acts trivially on exactly ONE of `{8v, 8s, 8c}` — so **the kernels ARE the dictionary**, forced by structure.
+- With the reps labelled, the shipped 28×28 `τ` and `S_B` acquire a readable **label action** — the exact object rc421 measured unreachable (`label_action_of_swap_recoverable_from_shipped_ops = False`). `τ` cycles `v → s → c`; `S_B` exchanges `v ↔ s` and **fixes `c`**.
+- **`triality_rep_dictionary()`** requires a bijection to intertwine BOTH shipped generator pairs. That cuts rc421's 3 survivors to **1**: **`iω₇ ↔ 8s`, `γ₅ ↔ 8c`, `CPT ↔ 8v`**.
+
+**The honest bound, which belongs beside the result and not below it.** The dictionary is canonical **RELATIVE TO** the shipped generator pairing and the shipped V₄ sector names. Each carrier ships exactly one order-3 and one order-2 automorphism, so nothing was picked from a menu of equals — but a *different* order-2 yields a *different* dictionary (measured as control D), and the notebook records that which sign bit is called `γ₅` and which `iω₇` is a convention it has never pinned. So this is a **derived intertwiner of two shipped S₃ presentations: FORM, never object-identity.** What separates DERIVED from PICKED is the anti-pick control: exchange the two companion slots and the dictionary moves by *exactly* the `s↔c` relabel. A chosen dictionary would not move at all.
+
+Four negative controls behave, including §3.29.3's named **"single most common triality error"** (an order-2 object where the order-3 element is meant → 0 survivors, from both sides), and the vacuous-constraint control (identity → all 6, which is what proves the order-3 cut to 3 was a real cut). The label actions are re-read **independently** in `tests/test_covering_layer_rc422.py` by exact characteristic polynomial off the 28×28 matrices, using only their values and never their construction — a co-equal second construction, so a disagreement would be the finding.
+
+Full derivation + controls: `docs/srmech/notes/v4_so8_bridge_derivation_rc422.{py,ndjson}`.
+
+### A shipped-prose falsehood, corrected
+
+`srmech.math.hdc.klein4_triality_cycle`'s docstring opened *"The V₄-carrier image of the so(8) triality `8v → 8s → 8c`"* immediately above the `iω₇ → γ₅ → CPT` cycle — which reads as the correspondence `iω₇↔8v, γ₅↔8s, CPT↔8c`. **Two things were wrong.** It asserted a specific dictionary while no shipped op pinned one, and the dictionary it reads as is **not the one that holds**. It now states the derived correspondence, cites the deriving op, and marks the FORM-not-identity bound. `tests/test_covering_layer_rc422.py` gates the correction.
+
+### Versions
+
+`describe()["tools"]["total"]` **598 → 605** (5 covering + 2 triality). `SRMECH_ABI_VERSION` stays **13** — no C symbol was added, removed or changed shape; every new op is `composition_of_c` over already-C-dispatched primitives (`magnitude`, `mod_add`, `reorient`, `octonion_mult_table`), so the capability is realized in C by composition per ADR-0009 and nothing touches the wire contract. `GENOME_FORMAT_VERSION` stays **19**. `WITNESS_RC416` re-pinned (fifth consecutive re-pin, first for the *population* reason rather than pure prose: the frame set moves 627 → **634 = 605 ops + 29 carriers**).
+
 ## [0.9.0rc421]
 
 ### CI-red round 1 — the corpus witness moved, and the ripple runner could not see it

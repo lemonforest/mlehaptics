@@ -49,7 +49,7 @@ MANIFEST = Path(__file__).resolve().parent / "registered_op_names.txt"
 #: rc361 until rc410 (`#T1085`) — stale by 40 ops, in a comment whose only job
 #: was to show the CURRENT value, sitting two lines above the real one. Written
 #: symbolically now so it cannot go stale a second time.)
-EXPECTED_N = 598  # rc420 (local task T1114): 569 -> 598, the 29 cascade-catalog leaf-inventory + runner registrations
+EXPECTED_N = 605  # rc422 (local task T1123): 598 -> 605, the centre/covering layer (5 srmech.math.covering ops) + the 2 Z(Spin(8)) rep-kernel anchor ops  # rc420 (local task T1114): 569 -> 598, the 29 cascade-catalog leaf-inventory + runner registrations
 
 #: sha256 over the NORMALISED manifest body — "\n".join(sorted names) + "\n",
 #: UTF-8. Normalised rather than raw-file-bytes so a CRLF checkout cannot make
@@ -135,8 +135,16 @@ EXPECTED_N = 598  # rc420 (local task T1114): 569 -> 598, the 29 cascade-catalog
 # queries (8/8 positive controls passed, so that null is REFUTED, not
 # unsupported). These are the FIRST nine signal_processing rows in the registry.
 # 560 -> 569, digest below.
+# v0.9.0rc422 (`#T1123`) — the CENTRE / COVERING layer. Seven new names: the five
+# srmech.math.covering ops (center_parity / center_lift / lift_fibre /
+# linking_number_cwf / covering_catalog) and the two Z(Spin(8)) rep-kernel anchor
+# ops (srmech.physics.qm.triality.spin8_center / triality_rep_dictionary). All
+# ADDITIONS, no rename: srmech carried algebras and finite groups (local /
+# quotient objects) with no way to hold the global (pi_1 / centre) datum, and six
+# shipped ops had each hand-rolled the same centre-parity shadow. 598 -> 605,
+# digest below.
 EXPECTED_NAME_SET_SHA256 = (
-    "d8dc87f552eab81241b98fbae32fac46bcfff6d0ebb561eee72752c75f39433f")
+    "4ce7dd526dfb5d97d4a4423e1c3ae29ee8a28568e9720d87454922e5832a32b5")
 
 
 def _live_names() -> list[str]:

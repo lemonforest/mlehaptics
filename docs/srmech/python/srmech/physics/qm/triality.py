@@ -887,12 +887,291 @@ def lean_isa_seventh_primitive() -> dict:
     }
 
 
+# ──────────────────────────────────────────────────────────────────────
+# spin8_center / triality_rep_dictionary — the Z(Spin(8)) rep-kernel anchor
+# (rc422, `#T1123`; the so(8) instance of the srmech.math.covering layer).
+#
+# ⚠️ THE TRAP, NAMED SO IT IS NOT WALKED INTO. "Compute the centre of so(8)"
+# returns the ZERO object, and that is CORRECT: so(8) is semisimple, so its
+# Lie-algebra centre is 0. The Klein four-group is Z(Spin(8)), a property of
+# the simply-connected GROUP — global (π₁) data, where a Lie algebra carries
+# only local data. The same algebra belongs to Spin(8), SO(8) AND PSO(8) and
+# structurally cannot tell them apart. A run reporting "the centre is zero"
+# has confirmed the setup, not refuted anything.
+#
+# WHAT IS DERIVED HERE, AND WHAT IS DEFINITIONAL (the an_embedding honesty
+# split):
+#   • DERIVED, bit-exact, off the octonion multiplication table: the four
+#     scalar triples satisfying the GROUP relation g_v(x·y) = g_s(x)·g_c(y),
+#     their Klein-four structure, and the rep-kernel labelling — each
+#     non-identity element acts trivially on EXACTLY ONE of {8v, 8s, 8c},
+#     which is what FORCES {3 involutions} ↔ {3 reps}.
+#   • DEFINITIONAL, from how :func:`_companion_maps` builds them: S_B is the
+#     map A ↦ its 8s companion, so its label action is the transposition
+#     (v s); S_C is A ↦ its 8c companion, giving (v c); τ = S_B·S_C acts on
+#     labels as the 3-cycle v → s → c → v (matching :func:`triality_cycle`'s
+#     documented direction, an independent agreement).
+#   • MEASURED INDEPENDENTLY (not definitionally) in
+#     ``docs/srmech/notes/v4_so8_bridge_derivation_rc422.py``: the same label
+#     actions read off the 28×28 matrices by exact characteristic polynomial,
+#     without using their construction — the co-equal dual construction that
+#     turns the definitional statement into a checked one.
+# ──────────────────────────────────────────────────────────────────────
+
+#: The label action of the shipped ``S_B`` (``triality_swap``) on {v, s, c}.
+#: S_B carries A to its 8s companion, so precomposition exchanges 8v and 8s and
+#: FIXES 8c. Independently confirmed by char-poly in the rc422 note.
+_SWAP_LABEL_ACTION: Dict[str, str] = {"v": "s", "s": "v", "c": "c"}
+
+#: The label action of the shipped ``τ = S_B·S_C`` (``triality_automorphism``).
+#: Precomposition is contravariant, so the labels compose as π_{S_C} ∘ π_{S_B},
+#: giving the 3-cycle v → s → c → v — the SAME direction :func:`triality_cycle`
+#: documents, reached by a different route.
+_TAU_LABEL_ACTION: Dict[str, str] = {"v": "s", "s": "c", "c": "v"}
+
+#: The V₄-carrier generators this bridge is pinned against, both SHIPPED and
+#: both unique at their carrier: the order-3 ``klein4_triality_cycle`` and the
+#: order-2 Cayley–Dickson rung-bump automorphism rc420's leg (d) derived from
+#: the CD sign cocycle (γ₅ fixed, iω₇ ↔ CPT, identically at every rung from
+#: ℍ→𝕆 upward).
+_V4_CYCLE: Dict[str, str] = {"iomega7": "gamma5", "gamma5": "cpt",
+                             "cpt": "iomega7"}
+_V4_RUNG: Dict[str, str] = {"gamma5": "gamma5", "iomega7": "cpt",
+                            "cpt": "iomega7"}
+
+_V4_NONIDENTITY: Tuple[str, ...] = ("iomega7", "gamma5", "cpt")
+
+
+def _octonion_product_int(x: Sequence[int], y: Sequence[int],
+                          table) -> List[int]:
+    """Exact integer octonion product straight off the structure-constant
+    table — the carrier-native product the centre solve runs on."""
+    out = [0] * _DIM
+    for i in range(_DIM):
+        if not x[i]:
+            continue
+        for j in range(_DIM):
+            if not y[j]:
+                continue
+            xy = x[i] * y[j]
+            col = table[i][j]
+            for k in range(_DIM):
+                if col[k]:
+                    out[k] += xy * col[k]
+    return out
+
+
+def spin8_center() -> dict:
+    """``Z(Spin(8))`` — the Klein four-group, SOLVED off the octonion table.
+
+    The global datum ``so(8)`` structurally cannot hold. A ``Spin(8)`` element
+    is a triple ``(g_v, g_s, g_c)`` of ``SO(8)`` maps satisfying the group form
+    of Cartan's relation, ``g_v(x·y) = g_s(x)·g_c(y)``; differentiating it at
+    the identity gives exactly the algebra relation :func:`triality_companions`
+    solves, so the three SLOTS are the same three 8-dim reps. Restricting to
+    SCALAR triples and solving **exhaustively on all 64 octonion basis pairs**
+    yields four solutions — the constraint ``ε_v = ε_s·ε_c`` is FOUND, not
+    imposed — and they form a Klein four-group under componentwise product.
+
+    **The kernels ARE the dictionary.** Each non-identity element has exactly
+    one ``+1`` coordinate, i.e. acts trivially on exactly one of ``{8v, 8s,
+    8c}``. That makes ``{3 central involutions} ↔ {3 reps}`` FORCED BY
+    STRUCTURE rather than chosen — the anchor whose absence made the
+    V₄ ↔ so(8) bridge non-canonical through rc421.
+
+    Also returned: ``triality_fixed_subgroup``, the elements of the centre that
+    τ's label action leaves in place. It is TRIVIAL (identity only), which is
+    the measured basis for the ``g2_der_octonions`` rejection row in
+    :func:`srmech.math.covering.covering_catalog` — ``g₂ = Fix(τ)`` inherits no
+    centre to carry.
+
+    Class A (the content-addressed carrier read) ∘ Class I (the sign group).
+    numpy-free; exact integers throughout; no ``abs()``.
+
+    Canonical SSoT: Baez (2002) §2.4 (``Z(Spin(8)) = ℤ/2 × ℤ/2``, triality
+    permuting ``8v``/``8s``/``8c``); Cartan (1925).
+
+    Returns:
+        ``{'order': 4, 'elements': list[(εv, εs, εc)], 'is_klein_four': bool,
+        'rep_kernels': {'v'|'s'|'c': (εv, εs, εc)}, 'constraint': str,
+        'algebra_centre_dim': 0, 'triality_fixed_subgroup': list[tuple],
+        'basis_pairs_checked': 64}``
+
+    Example:
+        >>> spin8_center()["rep_kernels"]["v"]
+        (1, -1, -1)
+    """
+    table = octonion_mult_table()
+    basis = [[1 if k == i else 0 for k in range(_DIM)] for i in range(_DIM)]
+    elements: List[Tuple[int, int, int]] = []
+    for ev in (1, -1):
+        for es in (1, -1):
+            for ec in (1, -1):
+                if all(
+                    [ev * t for t in _octonion_product_int(basis[i], basis[j],
+                                                           table)]
+                    == _octonion_product_int([es * t for t in basis[i]],
+                                             [ec * t for t in basis[j]], table)
+                    for i in range(_DIM) for j in range(_DIM)
+                ):
+                    elements.append((ev, es, ec))
+
+    def _prod(a, b):
+        return tuple(x * y for x, y in zip(a, b))
+
+    identity = (1, 1, 1)
+    is_klein = (len(elements) == 4
+                and all(_prod(a, b) in elements
+                        for a in elements for b in elements)
+                and all(_prod(a, a) == identity for a in elements))
+    kernels: Dict[str, Tuple[int, int, int]] = {}
+    for z in elements:
+        if z == identity:
+            continue
+        trivial_on = [nm for nm, eps in zip(_FRAME_ORDER, z) if eps == 1]
+        if len(trivial_on) == 1:
+            kernels[trivial_on[0]] = z
+    # τ permutes the coordinates of the sign triple exactly as it permutes the
+    # reps; the fixed subgroup is what g₂ = Fix(τ) could inherit.
+    order = {nm: i for i, nm in enumerate(_FRAME_ORDER)}
+    fixed = [z for z in elements
+             if tuple(z[order[_TAU_LABEL_ACTION[nm]]]
+                      for nm in _FRAME_ORDER) == z]
+    return {
+        "order": len(elements),
+        "elements": elements,
+        "is_klein_four": is_klein,
+        "rep_kernels": kernels,
+        "constraint": "eps_v = eps_s * eps_c — solved on all 64 octonion basis "
+                      "pairs, not imposed",
+        "algebra_centre_dim": 0,
+        "algebra_centre_note": "so(8) is semisimple: its LIE-ALGEBRA centre is "
+                               "the zero object, and that is the correct "
+                               "answer. Z(Spin(8)) is GROUP-level (pi_1) data "
+                               "the algebra cannot hold — a category "
+                               "distinction, not a shortfall.",
+        "triality_fixed_subgroup": fixed,
+        "basis_pairs_checked": _DIM * _DIM,
+    }
+
+
+def triality_rep_dictionary() -> dict:
+    """The canonical ``{iω₇, γ₅, CPT} ↔ {8v, 8s, 8c}`` dictionary — DERIVED.
+
+    rc421 measured this bridge **NOT canonical as shipped**, residual ambiguity
+    **3**: both carriers' order-3 generators are 3-cycles on a 3-element set,
+    and the centralizer of a 3-cycle in ``Sym(3)`` has order 3, so an order-3
+    generator ALONE cannot pin a unique dictionary — an arithmetic ceiling, not
+    a shortfall of care. Closing it needed the rep-LABELING that
+    :func:`spin8_center` now supplies.
+
+    The derivation, in three moves:
+
+    1. :func:`spin8_center` solves ``Z(Spin(8))`` off the octonion table and
+       labels its three involutions by which rep each kills. **Forced.**
+    2. With the reps labelled, the shipped ``28×28`` ``τ`` and ``S_B`` acquire
+       a readable LABEL ACTION — the object rc421 measured unreachable. ``τ``
+       cycles ``v → s → c``; ``S_B`` exchanges ``v ↔ s`` and FIXES ``c``.
+    3. Requiring a bijection to intertwine BOTH shipped generator pairs cuts
+       the 3 order-3 survivors to **1**. The natural 3-point ``S₃``-set has
+       trivial centralizer in ``Sym(3)``, so once the group isomorphism is
+       fixed the equivariant bijection is unique.
+
+    **HONEST BOUND — read this before quoting the dictionary.** It is canonical
+    RELATIVE TO the shipped generator pairing and the shipped V₄ sector names.
+    Each carrier ships exactly one order-3 and one order-2 automorphism, so
+    nothing was picked from a menu of equals; but a DIFFERENT order-2 yields a
+    different dictionary (measured as control D in the rc422 note), and the
+    notebook records that which sign bit is called ``γ₅`` and which ``iω₇`` is
+    a convention it has never pinned. So this is a **derived intertwiner of two
+    shipped S₃ presentations — FORM, never object-identity**
+    (``[[user_stance_cascade_matching_substrate_blind_form_not_identity]]``).
+    What makes it derived rather than chosen is that relabelling the inputs
+    moves the output with them (the rc422 note's anti-pick control A).
+
+    Class I (the order-3 cyclic intertwiner) ∘ Class C (the order-2 chirality
+    constraint) ∘ Class D (the equivariance pattern-match).
+
+    Canonical SSoT: Baez (2002) §2.4; Cartan (1925). Full derivation +
+    independent char-poly confirmation + four negative controls:
+    ``docs/srmech/notes/v4_so8_bridge_derivation_rc422.py``.
+
+    Returns:
+        ``{'dictionary': {'iomega7'|'gamma5'|'cpt': 'v'|'s'|'c'},
+        'residual_ambiguity': 1, 'prior_ambiguity': 3,
+        'order3_only_survivors': list[dict], 'tau_label_action': dict,
+        'swap_label_action': dict, 'rep_kernels': dict, 'controls': dict,
+        'honest_bound': str}``
+
+    Example:
+        >>> triality_rep_dictionary()["dictionary"]["gamma5"]
+        'c'
+    """
+    centre = spin8_center()
+
+    def _survivors(v4_gen, so8_gen):
+        out = []
+        for a in _FRAME_ORDER:
+            for b in _FRAME_ORDER:
+                for c in _FRAME_ORDER:
+                    if len({a, b, c}) != 3:
+                        continue
+                    d = dict(zip(_V4_NONIDENTITY, (a, b, c)))
+                    if all(d[v4_gen[k]] == so8_gen[d[k]]
+                           for k in _V4_NONIDENTITY):
+                        out.append(d)
+        return out
+
+    order3 = _survivors(_V4_CYCLE, _TAU_LABEL_ACTION)
+    both = [d for d in order3
+            if all(d[_V4_RUNG[k]] == _SWAP_LABEL_ACTION[d[k]]
+                   for k in _V4_NONIDENTITY)]
+    identity_perm = {k: k for k in _FRAME_ORDER}
+    controls = {
+        # section 3.29.3's named "single most common triality error": an
+        # order-2 object where the order-3 element is meant. Must be 0.
+        "order2_for_order3_v4_side": len(_survivors(_V4_RUNG,
+                                                    _TAU_LABEL_ACTION)),
+        "order2_for_order3_so8_side": len(_survivors(_V4_CYCLE,
+                                                     _SWAP_LABEL_ACTION)),
+        # a vacuous constraint must leave all 6 — proof the order-3 cut is real
+        "identity_for_cycle": len(_survivors(
+            {k: k for k in _V4_NONIDENTITY}, identity_perm)),
+        "note": "controls behave iff the two order-2-for-order-3 counts are 0 "
+                "and the identity count is 6",
+    }
+    controls["behave"] = (controls["order2_for_order3_v4_side"] == 0
+                          and controls["order2_for_order3_so8_side"] == 0
+                          and controls["identity_for_cycle"] == 6)
+    return {
+        "dictionary": both[0] if len(both) == 1 else None,
+        "residual_ambiguity": len(both),
+        "prior_ambiguity": 3,
+        "prior": "rc421 v4_so8_bridge_canonicity: NOT canonical as shipped, "
+                 "residual ambiguity 3, center_or_kernel_ops=[]",
+        "order3_only_survivors": order3,
+        "tau_label_action": dict(_TAU_LABEL_ACTION),
+        "swap_label_action": dict(_SWAP_LABEL_ACTION),
+        "swap_fixes": [k for k, v in _SWAP_LABEL_ACTION.items() if k == v],
+        "v4_cycle": dict(_V4_CYCLE),
+        "v4_rung_transposition": dict(_V4_RUNG),
+        "rep_kernels": centre["rep_kernels"],
+        "controls": controls,
+        "honest_bound": "canonical RELATIVE TO the shipped generator pairing "
+                        "and the shipped V4 sector names; a derived "
+                        "intertwiner of two shipped S3 presentations — FORM, "
+                        "never object-identity",
+    }
+
+
 __all__ = [
     "lean_isa_seventh_primitive",
+    "spin8_center",
     "triality_apply",
     "triality_automorphism",
     "triality_companions",
     "triality_cycle",
     "triality_relation_residual",
+    "triality_rep_dictionary",
     "triality_swap",
 ]

@@ -137,6 +137,19 @@ tests/test_namespace_prefix_decode_aware_rc361.py
 #    CMakeLists.txt + lists c/test/), ~seconds, no native .so.
 tests/test_c_test_wiring_rc356.py
 
+# -- README currency (rc422, `#T1123`) ---------------------------------------
+#    The README is the PyPI long-description AND it names two live values: the
+#    tool-registry cardinal and the worked `native_status()` block's
+#    native_version. Both move on an op-registering rc and on every version
+#    bump -- i.e. on essentially every rc this runner exists for. Measured at
+#    rc422: this runner went GREEN on the full manifest while the README still
+#    said "598-entry tool registry" (live: 605) and native_version 0.9.0rc421
+#    (live: rc422), because the file was not listed here. Same shape rc421
+#    fixed for the search-corpus witness one entry below, and the same cost if
+#    left: a CI-red round for two one-line prose facts. Whole file, ~14 s,
+#    pure-Python, no native .so.
+tests/test_readme_currency_rc419.py
+
 # -- search-corpus witness (rc421, `#T1122`) ---------------------------------
 #    The introspect search corpus is BUILT FROM ToolEntry prose, so its
 #    content-address moves whenever an rc edits a summary, a parameter blurb or

@@ -116,8 +116,26 @@ from srmech.math.text import fold_marks, glyph_stream
 #: five successive local `_build_frames('all')` builds produced one hash, and
 #: all four native CI cells plus pure shard 6 reported this identical digest in
 #: their failure output. The drift branch is ruled out by measurement, again.
+#:
+#: **RE-PINNED AGAIN at v0.9.0rc422 (`#T1123`).** rc421's value was
+#: ``4200c5fbf84bb2b2d6d57816fa7f77abfeed23a4c9e50645c3cffb714d9e525f``. This
+#: is the FIFTH consecutive re-pin, and the first of the two kinds this
+#: constant distinguishes that is NOT pure prose: rc422 registers **seven new
+#: ops** — the five ``srmech.math.covering`` centre/covering ops and the two
+#: ``Z(Spin(8))`` rep-kernel anchor ops — so the frame set moves
+#: **627 -> 634 = 605 ops + 29 carriers** and
+#: ``describe()['tools']['total']`` moves 598 -> 605. Seven new ToolEntry
+#: summaries plus seven new curated explanation/example/worked blocks all land
+#: in the corpus by construction. Still the "re-pin" branch of this constant's
+#: own failure message, but for the population reason rather than the prose
+#: one — and rc421's manifest entry did its job: `tools/ripple_check.py`
+#: surfaced this locally instead of a CI round.
+#:
+#: Determinism re-established independently at this value BEFORE re-pinning:
+#: five successive local `_build_frames('all')` builds on WSL2 (numpy-absent)
+#: produced one hash, with `len(frames) == 634` each time.
 WITNESS_RC416 = (
-    "4200c5fbf84bb2b2d6d57816fa7f77abfeed23a4c9e50645c3cffb714d9e525f")
+    "989dd20b28080ea9af75b9e142053f30c1f614e90751fbdd728eab93b4714056")
 
 #: The ASCII control set. These four queries are the ops the tokenizer work is
 #: ABOUT, so a regression on them would be the change eating its own subject.

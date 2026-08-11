@@ -811,13 +811,25 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # and diffing showed mat_eigvals as the ONLY name whose count changed. The
     # back-index is now MORE correct — it previously did not know an op that takes an
     # int operand takes one. No amsc pin shifts (this is growth, not a move).
-    assert math == 332, (
-        f"expected 332 srmech.math op references inside the DECODED channel "
+    # rc422 (local task T1123) — NEW-op growth again, and the first row on this pin
+    # where a registered op contributes ZERO. The centre/covering layer adds five
+    # srmech.math.covering ops; MEASURED by decoding the registry and counting by
+    # name rather than inferring one-ref-per-op: center_parity 2 (its int param AND
+    # its int return both land in the 'int' carrier's back-index), center_lift 1,
+    # lift_fibre 1, linking_number_cwf 1 — and covering_catalog **0**, because it
+    # takes no parameters and returns a dict, so it has no carrier back-index ref at
+    # all. 332 + 5 = 337. The non-covering residual was re-measured at exactly 332,
+    # unchanged, so this is growth and not a move. (The rc's other two new ops are
+    # srmech.physics.qm.triality.*, which this pin does not count.)
+    assert math == 337, (
+        f"expected 337 srmech.math op references inside the DECODED channel "
         f"(rc372 octonion 16 + rc373 A-N primitives 298 + rc374 carriers 6 + rc384 "
         f"octonion_laplacian 3 + rc388 oct_torsor_act/div 4 + rc399 generalized_ngon "
         f"1 + rc408 mat_eigvals max_sweeps:int 1 + rc420 scale_round_half_even "
             f"3 — the local task T1114 Class-N registration: its float+int consumes "
-            f"rows and int produces row in the carrier back-index), found {math}. If this is not 332 "
+            f"rows and int produces row in the carrier back-index — + rc422 the "
+            f"covering layer 5, of which covering_catalog contributes 0), "
+            f"found {math}. If this is not 337 "
         f"the population is not conserved — re-measure.")
     # rc375 — THE srmech.biology RECEIVING SIDE, the arc's SECOND-LARGEST positive
     # population move (after rc373's 298) and the FOURTH receiving namespace pinned

@@ -279,6 +279,11 @@ srmech.math.carrier_ladder.poly_promote
 srmech.math.carrier_ladder.qpoly_project
 srmech.math.carrier_ladder.qpoly_promote
 srmech.math.carrier_spectrum.carrier_spectrum
+srmech.math.covering.center_lift
+srmech.math.covering.center_parity
+srmech.math.covering.covering_catalog
+srmech.math.covering.lift_fibre
+srmech.math.covering.linking_number_cwf
 srmech.math.cyclic.bigint_mul
 srmech.math.cyclic.gcd
 srmech.math.cyclic.lcm
@@ -573,11 +578,13 @@ srmech.physics.qm.spin.pauli_identity
 srmech.physics.qm.spin.pauli_matrices
 srmech.physics.qm.spin.pauli_spin_operator
 srmech.physics.qm.triality.lean_isa_seventh_primitive
+srmech.physics.qm.triality.spin8_center
 srmech.physics.qm.triality.triality_apply
 srmech.physics.qm.triality.triality_automorphism
 srmech.physics.qm.triality.triality_companions
 srmech.physics.qm.triality.triality_cycle
 srmech.physics.qm.triality.triality_relation_residual
+srmech.physics.qm.triality.triality_rep_dictionary
 srmech.physics.qm.triality.triality_swap
 srmech.rbs_lm.encode_aboutness
 srmech.signal_processing.cascade_dispatcher.begin_cascade
