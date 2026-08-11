@@ -1594,8 +1594,213 @@ def defect_ladder(x: Sequence[Any], y: Sequence[Any], z: Sequence[Any],
 #: ``{e₀, e₁, e₂, e₃}`` and the seam half ``{e₄, e₅, e₆, e₇}``.
 OCTONION_FRAME_SEAM = 4
 
+#: The Fano line whose ℍ subalgebra is the DEFAULT base of
+#: :func:`octonion_frame_read` — ``span{e₀, e₁, e₂, e₃}``. A bare-``int``
+#: ``frame=`` names a splitting unit on THIS line; the explicit
+#: ``(i, j, k, ℓ)`` form selects another of the seven.
+OCTONION_FRAME_LINE = (1, 2, 3)
 
-def octonion_frame_read(x: Sequence[Any], *, frame: int = 4) -> Dict[str, Any]:
+#: How many well-posed frames 𝕆 admits — **MEASURED**, not asserted (rc421,
+#: `#T1122`; ``docs/srmech/notes/octonion_frame_ell_within_line_rc421.py``):
+#: **7** Fano lines × **4** valid splitting units each. All 28 reads of one
+#: generic octonion are DISTINCT, so the frame is the ``(line, ℓ)`` **pair**,
+#: not the line. (Contrast rc388's 28 seams, which DO collapse to 7 — that
+#: count is over the seam *set*, and ``T`` is always ``H``'s set-complement.
+#: ``ℓ`` fixes the seam half's *identification* with ℍ, ``x = q₀ + q₁·ℓ``, not
+#: merely its span, which is why the READ does not collapse with the SET.)
+OCTONION_FRAME_COUNT = 28
+
+
+def _octonion_fano_lines() -> Tuple[Tuple[int, ...], ...]:
+    """The 7 Fano lines of 𝕆, DERIVED from :func:`cd_basis_product`.
+
+    Each line ``(i, j, k)`` is a triple of imaginary units closed under
+    multiplication, so ``span{e₀, e_i, e_j, e_k}`` is an ℍ subalgebra. Nothing
+    is tabulated: the lines are read off srmech's own cocycle, so if the
+    multiplication table ever moved, these would move with it rather than
+    silently disagreeing. Used only to ENUMERATE the seven in an error message —
+    the fast path decides membership with a single product.
+    """
+    lines: Set[Tuple[int, ...]] = set()
+    for i in range(1, 8):
+        for j in range(i + 1, 8):
+            index, _sign = cd_basis_product(8, i, j)
+            if index != 0:
+                lines.add(tuple(sorted((i, j, index))))
+    return tuple(sorted(lines))
+
+
+def _frame_embed(base: Sequence[int], p: Sequence[Q]) -> Tuple[Q, ...]:
+    """Lift a 4-vector in the frame's base coordinates to a full 8-vector 𝕆."""
+    x = [Q(0, 1)] * 8
+    for slot, b in enumerate(base):
+        x[b] = p[slot]
+    return tuple(x)
+
+
+def _frame_extract(base: Sequence[int], x: Sequence[Q]) -> Tuple[Q, ...]:
+    """Read the frame's base coordinates back out of a full 8-vector 𝕆."""
+    return tuple(x[b] for b in base)
+
+
+def _frame_h_mult(base: Sequence[int], p: Sequence[Q],
+                  q: Sequence[Q]) -> Tuple[Q, ...]:
+    """The frame's ℍ product — :func:`cd_mult` itself, restricted to the base.
+
+    Deliberately NOT a 4-vector `cd_mult` on the base coordinates: that would
+    silently assume ``e_i·e_j = +e_k`` for the *sorted* line, which is a
+    convention this module refuses to hard-code. Embedding into 𝕆 and
+    extracting makes the structure constants — signs included — come from
+    :func:`cd_mult`. On the default base ``(0,1,2,3)`` the two agree exactly,
+    because ``(a,0)·(b,0) = (ab,0)`` under Cayley–Dickson doubling.
+    """
+    return _frame_extract(base, cd_mult(_frame_embed(base, p),
+                                        _frame_embed(base, q)))
+
+
+def _frame_h_conj(base: Sequence[int], p: Sequence[Q]) -> Tuple[Q, ...]:
+    """The frame's ℍ conjugation — :func:`cd_conjugate` restricted to the base."""
+    return _frame_extract(base, cd_conjugate(_frame_embed(base, p)))
+
+
+def _octonion_frame_spec(frame: Any) -> Dict[str, Any]:
+    """Resolve a ``frame=`` argument to its ``(base, ℓ, seam, chart)`` split.
+
+    Accepts either form :func:`octonion_frame_read` documents — a bare ``int``
+    (a splitting unit on the default line :data:`OCTONION_FRAME_LINE`) or an
+    explicit 4-sequence ``(i, j, k, ℓ)``. Everything is derived from
+    :func:`cd_basis_product`; every rejection says WHY the input is not a
+    well-posed frame, and what to pass instead.
+    """
+    # ── shape: which of the two spellings is this? ────────────────────────
+    if isinstance(frame, bool):     # bool is an int subclass; never a frame
+        raise ValueError(
+            "octonion_frame_read: frame must be an int (a splitting unit on "
+            f"the default Fano line {OCTONION_FRAME_LINE}) or a 4-sequence "
+            "(i, j, k, ℓ) naming a line and its splitting unit; got a bool.")
+    if isinstance(frame, int):
+        line, ell = tuple(OCTONION_FRAME_LINE), int(frame)
+        spelling = "int"
+    else:
+        if isinstance(frame, (str, bytes, bytearray)):
+            # A str IS iterable, and "1234" would otherwise coerce to a valid
+            # 4-sequence — a text frame must never be read as basis indices.
+            raise ValueError(
+                "octonion_frame_read: frame must be an int (a splitting unit "
+                f"on the default Fano line {OCTONION_FRAME_LINE}) or a "
+                "4-sequence (i, j, k, ℓ) naming a Fano line and its splitting "
+                f"unit; got the text value {frame!r}. Basis indices are ints, "
+                "not characters.")
+        try:
+            raw = list(frame)
+            items = [int(v) for v in raw]
+        except (TypeError, ValueError):
+            raise ValueError(
+                "octonion_frame_read: frame must be an int (a splitting unit "
+                f"on the default Fano line {OCTONION_FRAME_LINE}) or a "
+                "4-sequence (i, j, k, ℓ) naming a Fano line and its splitting "
+                f"unit; got {frame!r}, whose entries are not all basis "
+                "indices.") from None
+        # A basis index is an INTEGER. Truncating 1.5 → 1 would hand back a
+        # perfectly well-formed read of a frame the caller never asked for.
+        if any(a != b for a, b in zip(items, raw)):
+            raise ValueError(
+                "octonion_frame_read: frame entries must be exact basis "
+                f"indices, but {frame!r} carries a non-integral value. A basis "
+                "index names a unit e_k, so it is never rounded or truncated.")
+        if len(items) != 4:
+            raise ValueError(
+                "octonion_frame_read: an explicit frame is the 4-sequence "
+                "(i, j, k, ℓ) — the three imaginary units of a Fano line, then "
+                f"the splitting unit — but got length {len(items)}: "
+                f"{items!r}. 𝕆 admits {OCTONION_FRAME_COUNT} well-posed frames "
+                f"({len(_octonion_fano_lines())} lines × 4 splitting units).")
+        line, ell = tuple(items[:3]), items[3]
+        spelling = "tuple"
+
+    # ── the line: three DISTINCT imaginary units, closed under cd_mult ────
+    if len(set(line)) != 3 or any(not (1 <= v <= 7) for v in line):
+        raise ValueError(
+            f"octonion_frame_read: frame line {tuple(line)} is not three "
+            "distinct IMAGINARY basis indices in [1, 7]. e₀ is the real unit "
+            "and belongs to every ℍ base, so it is never named in the line. "
+            f"The {len(_octonion_fano_lines())} Fano lines of this "
+            f"multiplication table are {_octonion_fano_lines()}.")
+    i, j, k = sorted(line)
+    index, _sign = cd_basis_product(8, i, j)
+    if index != k:
+        raise ValueError(
+            f"octonion_frame_read: frame line {tuple(sorted(line))} is not a "
+            f"Fano line of this multiplication table — cd_mult gives "
+            f"e{i}·e{j} = ±e{index}, not ±e{k}, so span{{e₀, e{i}, e{j}, e{k}}} "
+            "is NOT closed and is not an ℍ subalgebra. The "
+            f"{len(_octonion_fano_lines())} lines of this table are "
+            f"{_octonion_fano_lines()} (derived from cd_basis_product, not "
+            "tabulated).")
+    base = (0, i, j, k)
+    seam = tuple(m for m in range(1, 8) if m not in base)
+
+    # ── the splitting unit: an imaginary unit OUTSIDE the base ────────────
+    if not (0 <= ell <= 7):
+        raise ValueError(
+            f"octonion_frame_read: splitting unit ℓ = e{ell} is not a basis "
+            "index of 𝕆; expected 1 ≤ ℓ ≤ 7.")
+    if ell == 0:
+        raise ValueError(
+            "octonion_frame_read: frame=0 names e₀, the REAL unit. e₀ lies in "
+            "every ℍ base, so 𝕆 = ℍ ⊕ ℍe₀ is not a splitting — ℍe₀ is ℍ "
+            f"itself. The splitting unit must be one of this frame's seam "
+            f"units {seam}.")
+    if ell in base:
+        if spelling == "int":
+            raise ValueError(
+                f"octonion_frame_read: frame={ell} — e{ell} lies INSIDE the ℍ "
+                f"base {{e0, e{i}, e{j}, e{k}}} of the default Fano line "
+                f"{OCTONION_FRAME_LINE}, so it cannot split 𝕆 = ℍ ⊕ ℍℓ (ℍℓ "
+                "would re-enter the base). The bare-int spelling always uses "
+                "that base; its four valid splitting units are "
+                f"{seam}. To put e{ell} in the SEAM instead, name a line that "
+                "does not contain it with the explicit 4-sequence spelling, "
+                f"e.g. frame=({_a_line_without(ell)}, {ell}). 𝕆 admits "
+                f"{OCTONION_FRAME_COUNT} well-posed frames in all "
+                f"({len(_octonion_fano_lines())} lines × 4 splitting units).")
+        raise ValueError(
+            f"octonion_frame_read: frame=({i}, {j}, {k}, {ell}) — the "
+            f"splitting unit e{ell} lies INSIDE its own ℍ base "
+            f"{{e0, e{i}, e{j}, e{k}}}, so 𝕆 = ℍ ⊕ ℍℓ is not a splitting (ℍℓ "
+            f"would re-enter the base). This line's four valid splitting units "
+            f"are {seam}.")
+
+    # ── the chart: e_m = s·e_σ(m)·e_ℓ, read off cd_basis_product ──────────
+    # Class K reads the pin-slot sign off the product; Class C re-applies it
+    # onto the coefficient. No abs() — the sign is a carried channel.
+    chart: List[Tuple[int, int, int]] = []
+    reached: Set[int] = set()
+    for b in base:
+        index, sign = cd_basis_product(8, b, ell)
+        chart.append((index, b, sign))
+        reached.add(index)
+    if reached != set(seam):
+        raise ValueError(
+            f"octonion_frame_read: frame=({i}, {j}, {k}, {ell}) — e{ell} does "
+            f"not carry the ℍ base ONTO the seam {seam}; the base·e{ell} "
+            f"images are {tuple(sorted(reached))}, so 𝕆 = ℍ ⊕ ℍℓ is not a "
+            "splitting of 𝕆 into two ℍ halves.")
+    chart.sort()
+    return {"base": base, "ell": ell, "seam": seam,
+            "chart": tuple(chart), "line": (i, j, k)}
+
+
+def _a_line_without(ell: int) -> str:
+    """A Fano line not containing ``e_ell`` — for the 'pass this instead' hint."""
+    for cand in _octonion_fano_lines():
+        if ell not in cand:
+            return ", ".join(str(v) for v in cand)
+    return "i, j, k"    # unreachable for 𝕆: every unit misses 4 of the 7 lines
+
+
+def octonion_frame_read(x: Sequence[Any], *,
+                        frame: "int | Sequence[int]" = 4) -> Dict[str, Any]:
     """Read an octonion on a COMMITTED frame as a frame-free quaternionic-Hopf
     base ⊕ an ℍ-valued writhe — the FRAME-COMMITTED coherence read of 𝕆 (rc384,
     `#T957`).
@@ -1608,14 +1813,48 @@ def octonion_frame_read(x: Sequence[Any], *, frame: int = 4) -> Dict[str, Any]:
     ordered basis-triple associators is nonzero — while ALL ``168`` of the
     octonion's nonzero associators (of ``512`` ordered basis triples) CROSS the
     doubling seam ``ℍℓ = {e₄, e₅, e₆, e₇}`` (``0`` non-seam nonzero). So 𝕆's
-    coherence is **frame-COMMITTED**: pick the splitting unit ``ℓ = e₄`` and
+    coherence is **frame-COMMITTED**: pick a splitting unit ``ℓ`` and
     ``𝕆 = ℍ ⊕ ℍℓ`` splits into a coherent ℍ base and the seam that carries every
     non-closure. The geometry is the **quaternionic Hopf fibration**
     ``S³ ↪ S⁷ ↠ S⁴`` — read 𝕆 = ``(q₀, q₁) ∈ ℍ²`` as a point of the frame-free
     base ``ℍP¹ ≅ S⁴`` plus the ``S³`` fiber it sits over.
 
-    **The split.** With the default frame ``ℓ = e₄``, ``q₀ = x[:4]`` is the ℍ
-    part and ``q₁ = x[4:]`` the ℍℓ (seam) part.
+    **There are 28 frames, and the count was MEASURED** (rc421, `#T1122`;
+    ``docs/srmech/notes/octonion_frame_{seven_frames,generalised_read,
+    ell_within_line}_rc421.py``). Through rc420 this op accepted only
+    ``frame=4``, on the argument that ``e₁/e₂/e₃`` lie inside the ℍ base and
+    ``e₅/e₆/e₇`` "are not independent seam generators". The first half is right;
+    **the conclusion was not** — measured against ``cd_mult``, the standard base
+    ``{e₀,e₁,e₂,e₃}`` admits **four** valid splitting units ``{e₄,e₅,e₆,e₇}``,
+    not one. And a frame is properly a choice of ℍ *subalgebra*, of which 𝕆 has
+    **seven** (one per Fano line), each with four valid ``ℓ``:
+
+    * all seven bases are closed under ``cd_mult``, and all ``64`` ordered
+      base-triple associators vanish for each (they are genuinely associative,
+      not merely closed);
+    * the four ``ℓ`` of a line do **not** agree — all ``7 × 4 = 28`` reads of one
+      generic octonion are DISTINCT, so the frame is the ``(line, ℓ)`` **pair**;
+    * within a line they are related by an exactly predictable **right action**:
+      if ``e_ℓ' = u·e_ℓ`` for a signed base unit ``u``, then
+      ``base_H' = base_H·u`` and ``canonical_affine' = canonical_affine·u``
+      (``28/28`` each), a signed permutation of the four coordinates, while
+      ``q₀``, ``base_R`` and ``norm_sq`` are ``ℓ``-INVARIANT;
+    * ``norm_sq`` is shared by all 28 — the frame-independent scale.
+
+    Do not confuse this 28 with rc388's ``oct_torsor_act`` 28, which DOES
+    collapse to 7: that count is over the seam **set**, and ``T`` is always
+    ``H``'s set-complement, so all four ``ℓ`` of a line share it. ``ℓ`` fixes the
+    seam half's *identification* with ℍ (``x = q₀ + q₁·ℓ``), not merely its span
+    — which is why the READ does not collapse with the SET.
+
+    **The split, derived not tabulated.** For a frame with base
+    ``{e₀, e_i, e_j, e_k}`` and splitting unit ``e_ℓ``, every seam unit satisfies
+    ``e_m = s·e_σ(m)·e_ℓ`` for a unique base index ``σ(m)`` and sign
+    ``s ∈ {+1,−1}``, so ``x = q₀ + q₁·ℓ`` with ``q₀`` the base part and ``q₁``
+    the seam part pulled back along ``ℓ``. That signed permutation ``(σ, s)`` is
+    read off :func:`cd_basis_product` — no Fano convention is hard-coded here —
+    and it is returned as ``seam_chart``. On the default frame it is the
+    identity, so ``q₀ = x[:4]`` and ``q₁ = x[4:]`` exactly as before.
 
     **The Hopf base — the coherent note, frame-FREE UNDER THE FIBER.** The
     quaternionic Hopf map sends ``(q₀, q₁)`` to the point of ``S⁴ ⊂ ℍ ⊕ ℝ``::
@@ -1663,19 +1902,39 @@ def octonion_frame_read(x: Sequence[Any], *, frame: int = 4) -> Dict[str, Any]:
         x: An 8-vector octonion. Every exact-rational scalar :func:`cd_mult`
             accepts (``Q`` / ``int`` / ``float`` / ``Fraction`` / ``(num, den)``)
             is accepted; coerced to exact :class:`~srmech.math.q.Q`.
-        frame: The splitting-unit index ``ℓ = e_frame``. Only the Cayley–Dickson
-            doubling seam ``e₄`` (= ``dim // 2``) is well-posed on the standard
-            basis: ``e₁, e₂, e₃`` live INSIDE the ℍ base and ``e₅, e₆, e₇ =
-            e_{1,2,3}·e₄`` are not independent seam generators, so no other single
-            basis unit gives a clean ``ℍ ⊕ ℍℓ`` split of the standard-basis
-            octonion. Any ``frame != 4`` raises ``ValueError``.
+        frame: Which of the ``28`` well-posed frames to read on. Two spellings:
+
+            * a bare **int** ``ℓ`` — the splitting unit, on the DEFAULT Fano
+              line :data:`OCTONION_FRAME_LINE` = ``(1,2,3)`` (ℍ base
+              ``{e₀,e₁,e₂,e₃}``). Valid: ``4, 5, 6, 7``. **The default ``4`` is
+              the Cayley–Dickson doubling seam and is unchanged in meaning and
+              in value.**
+            * an explicit **4-sequence** ``(i, j, k, ℓ)`` — the three imaginary
+              units of a Fano line, then its splitting unit. ``(1,2,3,4)`` is
+              the default; ``(2,4,6,1)`` reads on a different ℍ subalgebra.
+
+            Rejected with a message naming the specific defect: an ``ℓ`` inside
+            its own base (``e₀`` always, and ``1/2/3`` under the bare-int
+            spelling, which cannot change the base), a triple that is not a Fano
+            line of this multiplication table, or an ``ℓ`` that fails to carry
+            the base onto the seam.
 
     Returns:
         A ``dict`` with:
 
-        * ``frame`` (int, ``4``) and ``dim`` (int, ``8``);
+        * ``frame`` (int) — the splitting unit ``ℓ`` actually used (``4`` by
+          default), and ``dim`` (int, ``8``);
+        * ``base`` (4 ints, ``(0,1,2,3)`` by default) and ``seam`` (4 ints,
+          ``(4,5,6,7)`` by default) — the basis indices of the two halves.
+          ``frame`` alone cannot name one of 28 frames, so ``base`` is what
+          makes the returned read self-describing; the pair ``(base, frame)``
+          identifies the frame exactly;
+        * ``seam_chart`` (4 triples ``(m, σ(m), s)``, ascending in ``m``) — the
+          signed permutation ``e_m = s·e_σ(m)·e_ℓ`` the split was derived from.
+          This is the channel the ``ℓ``-dependence lives in: within a line, it
+          is the ONLY thing that changes;
         * ``q0`` / ``q1`` — the ℍ base half and the ℍℓ seam half, each a
-          4-tuple of exact :class:`~srmech.math.q.Q`;
+          4-tuple of exact :class:`~srmech.math.q.Q`, in ``base`` order;
         * ``base_H`` (4 ``Q``) and ``base_R`` (``Q``) — the quaternionic-Hopf
           base, FRAME-FREE UNDER THE FIBER (the coherent note);
         * ``norm_sq`` (``Q``) — ``|q₀|² + |q₁|² = |x|²``; the base lies on the
@@ -1688,7 +1947,9 @@ def octonion_frame_read(x: Sequence[Any], *, frame: int = 4) -> Dict[str, Any]:
           fiber-FIXED ``ℍP¹`` inhomogeneous coordinate; ``None`` iff ``q₁ == 0``.
 
     Raises:
-        ValueError: ``x`` is not an 8-vector; ``frame != 4``.
+        ValueError: ``x`` is not an 8-vector; ``frame`` is not one of the 28
+            well-posed frames (see the ``frame`` argument for the four distinct
+            rejection reasons, each named separately in the message).
 
     Note:
         Exact end to end — no float, no epsilon, no ``abs()`` (the ``base_R``
@@ -1713,20 +1974,23 @@ def octonion_frame_read(x: Sequence[Any], *, frame: int = 4) -> Dict[str, Any]:
         raise ValueError(
             f"octonion_frame_read: x must be an 8-vector octonion; got "
             f"length {dim}")
-    if frame != dim // 2:
-        raise ValueError(
-            f"octonion_frame_read: frame={frame} is not the Cayley–Dickson "
-            f"doubling seam e{dim // 2}. Only ℓ = e{dim // 2} is well-posed on "
-            f"the standard basis — e1/e2/e3 lie inside the ℍ base and "
-            f"e5/e6/e7 = e_{{1,2,3}}·e4 are not independent seam generators, so "
-            f"no other single basis unit splits 𝕆 = ℍ ⊕ ℍℓ cleanly.")
-    half = dim // 2
-    q0 = ex[:half]
-    q1 = ex[half:]
+    spec = _octonion_frame_spec(frame)
+    base, ell = spec["base"], spec["ell"]
+    seam, chart = spec["seam"], spec["chart"]
+    # The split, DERIVED: q₀ is the base half; q₁ is the seam half pulled back
+    # along ℓ, since e_m = s·e_σ(m)·e_ℓ ⟹ the coefficient of e_σ(m) in q₁ is
+    # s·x_m. Class K reads the pin-slot sign off cd_basis_product, Class C
+    # re-applies it — never abs().
+    q0 = _frame_extract(base, ex)
+    slots = [Q(0, 1)] * 4
+    for m, b, sign in chart:
+        slots[base.index(b)] = _reorient(ex[m], orientation=sign)
+    q1 = tuple(slots)
     # The quaternionic Hopf base — frame-free UNDER the S³ fiber (the coherent
     # note). base_H is the ℍ off-diagonal 2·q₀·conj(q₁); base_R the ℝ diagonal
     # |q₀|² − |q₁|² (Class-K pin-slot difference; NO abs()).
-    base_H = tuple(Q(2, 1) * c for c in cd_mult(q0, cd_conjugate(q1)))
+    base_H = tuple(Q(2, 1) * c
+                   for c in _frame_h_mult(base, q0, _frame_h_conj(base, q1)))
     n0 = cd_norm_sq(q0)
     n1 = cd_norm_sq(q1)
     base_R = n0 - n1
@@ -1741,11 +2005,14 @@ def octonion_frame_read(x: Sequence[Any], *, frame: int = 4) -> Dict[str, Any]:
         writhe = q1
         writhe_norm_sq = n1
         inv1 = Q(1, 1) / writhe_norm_sq             # 1/|q₁|² (exact ℚ)
-        q1_inv = tuple(c * inv1 for c in cd_conjugate(q1))
-        canonical_affine = cd_mult(q0, q1_inv)
+        q1_inv = tuple(c * inv1 for c in _frame_h_conj(base, q1))
+        canonical_affine = _frame_h_mult(base, q0, q1_inv)
     return {
-        "frame": frame,
+        "frame": ell,
         "dim": dim,
+        "base": base,
+        "seam": seam,
+        "seam_chart": chart,
         "q0": q0,
         "q1": q1,
         "base_H": base_H,

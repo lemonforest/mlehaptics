@@ -93,8 +93,31 @@ from srmech.math.text import fold_marks, glyph_stream
 #: digest came from all four native CI cells, the pure shards, the
 #: fork-isolated asserts-live cell, AND a local WSL2 re-derivation on the
 #: branch. **Seven independent builds, one hash.**
+#:
+#: **RE-PINNED AGAIN at v0.9.0rc421 (`#T1122`).** rc420's value was
+#: ``4200c5fbf84bb2b2d6d57816fa7f77abfeed23a4c9e50645c3cffb714d9e525f``. rc421
+#: registers NO new op (the frame set is unchanged at 627 = 598 ops + 29
+#: carriers, and ``describe()['tools']['total']`` is untouched) — this move is
+#: PURE PROSE: `octonion_frame_read`'s ToolEntry summary + its ``frame``
+#: parameter text, which said "frame defaults to 4 and any other value
+#: raises" and is now false, plus the paired curated explanation/example.
+#: Same "re-pin" branch of this constant's own failure message.
+#:
+#: ⚠️ **This is the FOURTH consecutive re-pin (rc416 → rc419 → rc420 → rc421),
+#: and rc421 is the first where `tools/ripple_check.py` was RUN and went GREEN
+#: anyway** (388 passed) while CI went red on these three tests — because this
+#: file was not in `tools/ripple_gates.txt`. ToolEntry prose IS a dispatch
+#: surface and the corpus is BUILT FROM IT, so any rc that edits a ToolEntry
+#: moves this digest by construction. rc421 adds this file to the manifest and
+#: freezes it in `FROZEN_KNOWN_GATES`, so the next prose rc learns it in ~13 s
+#: instead of after a ~25 min full-suite round.
+#:
+#: Determinism re-established independently at this value BEFORE re-pinning:
+#: five successive local `_build_frames('all')` builds produced one hash, and
+#: all four native CI cells plus pure shard 6 reported this identical digest in
+#: their failure output. The drift branch is ruled out by measurement, again.
 WITNESS_RC416 = (
-    "fc3d83e702098f823e66501ad5978aadc1d972f0e70047f48c28bdf99234b604")
+    "4200c5fbf84bb2b2d6d57816fa7f77abfeed23a4c9e50645c3cffb714d9e525f")
 
 #: The ASCII control set. These four queries are the ops the tokenizer work is
 #: ABOUT, so a regression on them would be the change eating its own subject.

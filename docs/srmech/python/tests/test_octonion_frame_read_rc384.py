@@ -144,8 +144,22 @@ def test_frame_read_rejects_non_octonion():
 
 
 def test_frame_read_rejects_non_seam_frame():
+    """A frame whose ℓ lies INSIDE its own ℍ base is still refused.
+
+    ⚠️ This test asserted ``frame=5`` raised until v0.9.0rc421 (`#T1122`), and
+    that expectation encoded the very claim rc421 falsified. rc420's validator
+    argued ``e₅/e₆/e₇`` "are not independent seam generators, so no other single
+    basis unit splits 𝕆 = ℍ ⊕ ℍℓ cleanly" — but measured against ``cd_mult``
+    the standard ℍ base admits FOUR valid splitting units ``{e₄,e₅,e₆,e₇}``, and
+    ``frame=5`` is a well-posed frame giving a genuinely different read. The
+    surviving rejection is the half of the old argument that WAS true:
+    ``e₁/e₂/e₃`` lie inside the base. See
+    ``tests/test_octonion_frame_28_rc421.py`` for the full 28-frame gate.
+    """
     with pytest.raises(ValueError):
-        octonion_frame_read(_X, frame=5)
+        octonion_frame_read(_X, frame=2)        # inside the ℍ base — refused
+    # ...and the value this test used to pin as invalid is now a real frame
+    assert octonion_frame_read(_X, frame=5)["frame"] == 5
 
 
 # ── 4. octonion_laplacian shape / symmetry / known answer ────────────────

@@ -136,3 +136,13 @@ tests/test_namespace_prefix_decode_aware_rc361.py
 #    CI suite caught it and `ripple_check.py` could not. Pure-Python (parses
 #    CMakeLists.txt + lists c/test/), ~seconds, no native .so.
 tests/test_c_test_wiring_rc356.py
+
+# -- search-corpus witness (rc421, `#T1122`) ---------------------------------
+#    The introspect search corpus is BUILT FROM ToolEntry prose, so its
+#    content-address moves whenever an rc edits a summary, a parameter blurb or
+#    a curated explanation — i.e. on essentially every op-touching rc. It has
+#    now moved four rcs running (rc416/419/420/421), and on rc421 this runner
+#    went GREEN (388 passed) while four native cells + pure shard 6 went red on
+#    it, purely because this file was not listed here. Whole file, ~13 s,
+#    pure-Python, no native .so.
+tests/test_search_glyph_tokenizer_rc416.py

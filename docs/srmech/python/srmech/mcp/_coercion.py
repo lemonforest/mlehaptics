@@ -1315,6 +1315,12 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     # `fluxes` — a scalar diffusion-time/flux OR a list of them; both forms are
     # JSON-native (the op itself dispatches scalar → float, sequence → Vec).
     "float | Sequence[float]": _identity,
+    # 0.9.0rc421 (`#T1122`): cascade.octonion_frame_read `frame` — either a bare
+    # int (a splitting unit on the default Fano line) or a 4-sequence
+    # (i, j, k, ℓ) naming a line and its splitting unit. Both arms are
+    # JSON-native; the op's own validator is the canonical checker and names the
+    # specific defect, so nothing is coerced away from it here.
+    "int | Sequence[int]": _identity,
     # 0.9.0rc414 (`#T1092`): ChainSpec was the LAST ``_identity`` row that was
     # not actually a pass-through decision — it was the reason ``run_chain`` and
     # ``resolve_chain`` looked non-callable. The advertised JSON schema publishes

@@ -102,6 +102,12 @@ FROZEN_KNOWN_GATES = frozenset({
     #    by hand at 100 -> 102). Invisible to a text grep; the manifest's only
     #    population-of-namespace gate. Pure-Python, whole file. -----------------
     "tests/test_namespace_prefix_decode_aware_rc361.py",
+    # -- search-corpus witness: the introspect corpus is built FROM ToolEntry
+    #    prose, so ANY ToolEntry edit moves its content-address. Four
+    #    consecutive rcs moved it (rc416/419/420/421); on rc421 ripple_check
+    #    went green while CI went red, because it was unlisted. Frozen so a
+    #    future manifest trim cannot drop the prose-ripple axis. -------------
+    "tests/test_search_glyph_tokenizer_rc416.py",
 })
 
 
