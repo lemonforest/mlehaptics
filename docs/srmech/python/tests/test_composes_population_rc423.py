@@ -30,7 +30,7 @@ the half that can honestly drain.
 
 FOUR TIERS, AND EACH TAKES THE READING THAT CAN FALSIFY IT
 ===========================================================
-Every one of the 605 registered ops lands in exactly one tier. The ledger
+Every one of the 612 registered ops lands in exactly one tier. The ledger
 (``tests/composes_adjudication_rc423.ndjson``, produced by the committed
 census script ``docs/srmech/notes/_composes_population_census_rc423.py``)
 enumerates the first three; RESIDUAL is the complement and is deliberately
@@ -125,6 +125,19 @@ _DECLARING: Dict[str, Tuple[str, ...]] = {
 #
 #     DECLARED  16   SINGLE 148   LEAF 258   REFUSED 1   RESIDUAL 182
 #     adjudicated 423 / 605        composes population 164 / 605
+#
+# rc424 (`#T1113`) re-ran the same census over a registry of 612:
+#
+#     DECLARED  23   SINGLE 148   LEAF 258   REFUSED 1   RESIDUAL 182
+#     adjudicated 430 / 612        composes population 171 / 612
+#
+# The CEILING DOES NOT MOVE, and that is the wanted outcome rather than a
+# missed drain: rc424 registered seven ops and authored `composes` for all
+# seven AT BIRTH, so all seven landed in DECLARED and none passed through the
+# residual. A registry that grows by 7 with an unchanged residual is the
+# ratchet doing precisely what it was seeded to do. (Had even one arrived
+# undeclared, RESIDUAL would read 183 and this gate would be red — which is
+# the whole design.)
 #
 # A row leaves this residual by being TRACED — read the implementation, work
 # out the call order, add it to test_composes_grain_rc412.py::ROSTER — and

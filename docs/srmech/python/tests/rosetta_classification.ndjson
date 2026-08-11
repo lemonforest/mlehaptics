@@ -249,7 +249,7 @@
 {"exposed_as": "srmech.signal_processing.closed_form_ops.hdc_truncation.op", "defined_at": "srmech.signal_processing.closed_form_ops.hdc_truncation.op", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.heat_kernel.op", "defined_at": "srmech.signal_processing.closed_form_ops.heat_kernel.op", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.lmmse.op", "defined_at": "srmech.signal_processing.closed_form_ops.lmmse.op", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.signal_processing.closed_form_ops.music.op", "defined_at": "srmech.signal_processing.closed_form_ops.music.op", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.signal_processing.music_doa", "defined_at": "srmech.signal_processing.closed_form_ops.music_doa.op", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.signal_processing.compute_content_stride", "defined_at": "srmech.signal_processing.form_function_rotation.compute_content_stride", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.signal_processing.decode_loe_fingerprint", "defined_at": "srmech.signal_processing.rbs_hdc_instrument.decode_loe_fingerprint", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.signal_processing.encode_loe_content", "defined_at": "srmech.signal_processing.rbs_hdc_instrument.encode_loe_content", "bucket": "composition_of_c"}
@@ -818,3 +818,9 @@
 {"exposed_as": "srmech.math.covering.covering_catalog", "defined_at": "srmech.math.covering.covering_catalog", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.physics.qm.triality.spin8_center", "defined_at": "srmech.physics.qm.triality.spin8_center", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.physics.qm.triality.triality_rep_dictionary", "defined_at": "srmech.physics.qm.triality.triality_rep_dictionary", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.music.just_limit", "defined_at": "srmech.music.relations.just_limit", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.music.comma_of_chain", "defined_at": "srmech.music.relations.comma_of_chain", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.music.tempers_out", "defined_at": "srmech.music.relations.tempers_out", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.music.interval_vector", "defined_at": "srmech.music.relations.interval_vector", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.music.normal_order", "defined_at": "srmech.music.relations.normal_order", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.music.prime_form", "defined_at": "srmech.music.relations.prime_form", "bucket": "composition_of_c"}

@@ -216,6 +216,33 @@ CLASSIFIED: Dict[str, Tuple[str, ...]] = {
     # ── srmech.signal_processing.path_registry.registered_ops
     'an immutable snapshot — a later registration does not change a tuple already returned':
         ('IMMUTABILITY',),
+    # ── rc424 (`#T1113`) — the music RELATIONS family + the MUSIC DOA
+    # registration. Seven ops, seven invariants, classified AS WRITTEN rather
+    # than back-filled: rc423's whole point was that the next row must arrive
+    # already classified.
+    # ── srmech.music.just_limit
+    'no silent precision loss — the ratio is reduced and factored exactly, and float input raises rather than being coerced':
+        ('EXACTNESS',),
+    # ── srmech.music.comma_of_chain
+    'derived, never tabulated: the comma is computed from the generator chain, so no named constant is stored anywhere in the op':
+        ('IMPLEMENTATION_DISCIPLINE',),
+    # ── srmech.music.tempers_out
+    'no logarithm and no tolerance: the patent val is decided by exact integer comparison, so the same input always yields the same val':
+        ('EXACTNESS',),
+    # ── srmech.music.interval_vector
+    'input order and duplication are irrelevant: the vector depends only on the SET of pitch classes mod 12':
+        ('DESIGN_CONTRACT',),
+    # ── srmech.music.normal_order
+    'a caller-facing requirement, not a default: the convention must be named on every call, and an unknown one raises':
+        ('DESIGN_CONTRACT',),
+    # ── srmech.music.prime_form
+    # ALGEBRAIC, not DESIGN_CONTRACT: the kind's own wording names "invariance
+    # under a group action", and Tn/TnI IS the group whose orbit a set class is.
+    'transposition- and inversion-invariant: every member of a set class returns the same prime form under a given convention':
+        ('ALGEBRAIC',),
+    # ── srmech.signal_processing.music_doa
+    'numpy-free and abs()-free: |z|**2 is computed as re**2 + im**2 through the native Mat carrier':
+        ('IMPLEMENTATION_DISCIPLINE',),
 }
 
 

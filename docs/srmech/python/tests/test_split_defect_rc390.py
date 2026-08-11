@@ -226,4 +226,4 @@ def test_op_is_registered():
     assert "split_defect" in genome.__all__
     names = {e.name for e in get_tool_schema().tools}
     assert "srmech.biology.genome.split_defect" in names
-    assert srmech.describe()["tools"]["total"] == 605
+    assert srmech.describe()["tools"]["total"] == 612

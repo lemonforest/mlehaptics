@@ -13,7 +13,7 @@
 
 Implementation is JPL Power-of-Ten compliant on the C side; cibuildwheel matrix covers Linux / macOS / Windows × Python 3.10–3.14; a `py3-none-any` pure-Python wheel ships for Pyodide / WASM environments where the C surface can't load.
 
-**Two implementations, one capability set.** srmech is a multi-implementation codebase: the **scripting-coherency** implementation (`python/srmech`) and the **compiled-coherency** implementation (`c/src`, `c/include`) are co-equal projections of the same capability into different execution regimes, related by projection rather than by rank — neither is the reference, and parity means *byte-identical results*, not similar behaviour (ADR-0009). The orchestration is compiled too, not only the compute kernels: the `srmech.bus` cross-process IPC server (req/rep **and** pub/sub broadcast, over AF_UNIX sockets / Windows named pipes, with an optional encrypted wire), the `srmech.dsl` operator-chain interpreter, the MCP server (JSON-RPC over stdio + HTTP/SSE) with in-C tool dispatch over the 605-entry tool registry, the CLI arg-parser, and the `make_class` config-driven `[class]` object model all ship as `libsrmech` symbols, so a host with **no Python present** can serve tools, run cascades, and speak the bus. The exact-algebra tail is C-native too: exact-ℚ `char_poly` / `eigvals` / `eigvec` / `eig` / `jordan_form` and integer-polynomial factoring run on srmech's own `srmech_bigint` (no Python-int oracle), and the Python-side `Q` / `Qi` exact scalars dispatch straight to it.
+**Two implementations, one capability set.** srmech is a multi-implementation codebase: the **scripting-coherency** implementation (`python/srmech`) and the **compiled-coherency** implementation (`c/src`, `c/include`) are co-equal projections of the same capability into different execution regimes, related by projection rather than by rank — neither is the reference, and parity means *byte-identical results*, not similar behaviour (ADR-0009). The orchestration is compiled too, not only the compute kernels: the `srmech.bus` cross-process IPC server (req/rep **and** pub/sub broadcast, over AF_UNIX sockets / Windows named pipes, with an optional encrypted wire), the `srmech.dsl` operator-chain interpreter, the MCP server (JSON-RPC over stdio + HTTP/SSE) with in-C tool dispatch over the 612-entry tool registry, the CLI arg-parser, and the `make_class` config-driven `[class]` object model all ship as `libsrmech` symbols, so a host with **no Python present** can serve tools, run cascades, and speak the bus. The exact-algebra tail is C-native too: exact-ℚ `char_poly` / `eigvals` / `eigvec` / `eig` / `jordan_form` and integer-polynomial factoring run on srmech's own `srmech_bigint` (no Python-int oracle), and the Python-side `Q` / `Qi` exact scalars dispatch straight to it.
 
 Coverage is **not** yet complete, and the gap is enumerated rather than asserted away — see [C-host coverage](#c-host-coverage--what-a-bare-c-host-cannot-run-today) for the ops a bare-C host cannot currently run, and the down-only ratchet that pins them.
 
@@ -145,7 +145,7 @@ To check which implementation is routing, call `srmech.native_status()` (top-lev
 import srmech
 srmech.native_status()
 # {'has_native': True, 'dispatching': True, 'abi_version': 13,
-#  'expected_abi': 13, 'native_version': '0.9.0rc423', 'load_error': None}
+#  'expected_abi': 13, 'native_version': '0.9.0rc424', 'load_error': None}
 ```
 
 | Home (under `srmech.`) | Class | Primitive operation |
@@ -282,6 +282,31 @@ coeffs = dct(x, dct_type=2)
 ```
 
 Path A and Path B produce bit-exact-equal outputs on substrate-natural inputs (D1 algebra-content identity); substrate-fingerprint divergence at D2 is expected and documented.
+
+> ⚠️ **`music_doa` is an acronym, not the art form.** `srmech.signal_processing.music_doa` is **MU**ltiple **SI**gnal **C**lassification — the subspace direction-of-arrival estimator — and has nothing to do with the `srmech.music` package below. Through v0.9.0rc423 it shipped as `closed_form_ops.music`, one dotted path from `srmech.music`; v0.9.0rc424 renamed it and registered it so the name carries its own disambiguation.
+
+### `srmech.music` — acoustic spectra and pitch relations
+
+Two lanes that never meet, kept apart on purpose.
+
+**The acoustic lane** asks what a single sounding object *is*. `spectrum_tier` tags a spectrum's exactness — Tier 1 exact rational, Tier 2 exact algebraic irrational, Tier 3 no exact carrier (**declared**, never inferred). `commensurability_verdict` then decides `"harmonic"` / `"inharmonic"` / `"open"` by **rational rank**, not by finding a period — which is the point, because Class-I `gcd`/`lcm` structurally *cannot* return `"inharmonic"` (a finite set of rational ratios always has an lcm) and Class-N `best_rational` is worse than silent: it does not approximate an inharmonic spectrum, it **converts** it into a harmonic one. `common_period` returns a period only for a spectrum that earned the verdict, and raises otherwise — that refusal is what makes the silent conversion unreachable. Four closed-form constructors span all three tiers: `bell_partials`, `equal_temperament_partials`, `stiff_string_partials`, `membrane_partials`.
+
+**The relational lane** (new in v0.9.0rc424) asks how two pitches stand to *one another*. It reads no spectrum.
+
+```python
+from srmech.music import just_limit, comma_of_chain, tempers_out, prime_form
+
+just_limit((3, 2))["monzo"]                     # {'2': -1, '3': 1}  — a just fifth IS 2**-1 * 3
+comma_of_chain((3, 2), 12, (2, 1))["comma"]     # '531441/524288'    — the Pythagorean comma, DERIVED
+tempers_out((81, 80), 12)["tempers_out"]        # True  — why a piano has one key for D# and Eb
+prime_form([0, 4, 7], "rahn")                   # (0, 3, 7)
+```
+
+The two lanes **disagree, and that is the content**. A chain of just fifths never closes in the frequency lane — `(3/2)**n == 2**m` has no solution for `n > 0`, because the prime supports `{3}` and `{2}` are disjoint — while the same chain always closes in the modular lane, because a generator coprime to the modulus generates the whole cycle. The exact non-vanishing residue between them **is** a comma, and `comma_of_chain` derives it rather than looking it up.
+
+`prime_form` and `normal_order` **require** a `convention` argument and have no default. Forte (1973) packs normal order from the left, Rahn (1980) from the right, and they give different prime forms for exactly **6 of the 208 set classes** — 5-20, 6-Z29, 6-31, 7-Z18, 7-20, 8-26 — measured here by enumerating every set class of cardinality 2..10 rather than by copying a list. (Note 7-Z18: the count usually quoted is *five*, following Straus, which omits it.) An unnamed `prime_form` would silently pick a side in a live scholarly disagreement.
+
+Everything in both lanes is exact ℚ or exact ℤ: no `float`, no stdlib `math`/`fractions`/`decimal`, no numpy, and no `abs()` — sign is a Class-K pin-slot with Class-C re-application.
 
 ### `srmech.math.text` — the glyph stream (UAX #29)
 

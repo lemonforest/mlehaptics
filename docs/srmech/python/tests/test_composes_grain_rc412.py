@@ -270,6 +270,63 @@ ROSTER: Dict[str, Tuple[str, ...]] = {
     "srmech.physics.qm.triality.triality_rep_dictionary": (
         "srmech.physics.qm.triality.spin8_center",
     ),
+
+    # ── rc424 (`#T1113`) — the music RELATIONS family + the MUSIC DOA
+    # registration. Authored WITH `composes` from birth rather than back-filled:
+    # the rc423 population ratchet exists because this field trickled 9 -> 16
+    # across ~45 rcs when nothing measured it, and an rc that adds seven ops
+    # without declaring is exactly how that happens again.
+    #
+    # Every order below is TRACED, not guessed — ADR-0013:292 measures that the
+    # SET of sub-ops is derivable from source but the ORDER is not (lexical
+    # first-call order matched 0 of 2 traced rows), so a two-element row with a
+    # guessed order is not admissible.
+
+    # `_reduce` runs FIRST (gcd, to put the ratio in lowest terms) and only then
+    # is each of numerator and denominator factored. Reversing them would not
+    # merely reorder — factoring 81/54 unreduced yields a monzo with a 3-exponent
+    # that cancels, so the reduce is load-bearing, not cosmetic.
+    "srmech.music.just_limit": (
+        "srmech.math.cyclic.gcd",
+        "srmech.math.primes.factor",
+    ),
+    # The chain is built and period-reduced entirely through `_reduce` (gcd) —
+    # every stacking step and every period fold reduces — and `just_limit` is
+    # called ONCE at the end, on the finished residue, to report its limit and
+    # monzo. So gcd strictly precedes just_limit.
+    "srmech.music.comma_of_chain": (
+        "srmech.math.cyclic.gcd",
+        "srmech.music.just_limit",
+    ),
+    # One call edge: the monzo comes from `just_limit`, and the patent val is
+    # then pure integer comparison over no registered op.
+    "srmech.music.tempers_out": (
+        "srmech.music.just_limit",
+    ),
+    "srmech.music.interval_vector": (
+        "srmech.cascade.cyclic_mod_add",
+    ),
+    "srmech.music.normal_order": (
+        "srmech.cascade.cyclic_mod_add",
+    ),
+    # `_as_pcs` normalises through cyclic_mod_add BEFORE anything else runs,
+    # and `_invert` uses it again to build the second candidate; `normal_order`
+    # is called on each candidate after that. cyclic_mod_add therefore precedes
+    # normal_order on both branches, and the final transposition-to-0 is a third
+    # use of it — but a repeated op appears once, as the ROSTER contract is a
+    # set of DISTINCT sub-ops in first-call order.
+    "srmech.music.prime_form": (
+        "srmech.cascade.cyclic_mod_add",
+        "srmech.music.normal_order",
+    ),
+    # Class L splits the subspaces first (the eigendecomposition), and only
+    # then does Class K's chosen noise basis get projected against the steering
+    # vectors. The matmul cannot run before the eigendecomposition — it consumes
+    # its output — so this order is forced by the dataflow, not chosen.
+    "srmech.signal_processing.music_doa": (
+        "srmech.math.laplacian.mat_hermitian_eigendecompose",
+        "srmech.math.laplacian.mat_matmul",
+    ),
 }
 
 

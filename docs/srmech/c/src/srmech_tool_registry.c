@@ -13,7 +13,7 @@
  * const data table (JPL-clean: const arrays, no dynamic init, no malloc).
  * The accessors + the canonical serialiser live in srmech_tool_schema.c.
  *
- * Entries: 605. tool_schema_version: 1.0.
+ * Entries: 612. tool_schema_version: 1.0.
  */
 
 #include "srmech.h"
@@ -3430,67 +3430,98 @@ static const srmech_tool_param_t ts_params_587[] = {
     { "op_name", "str", 1, "canonical op name" },
 };
 static const srmech_tool_param_t ts_params_589[] = {
+    { "R", "Mat", 1, "the M-by-M Hermitian sensor covariance matrix" },
+    { "steering_vectors", "list[list[complex]]", 1, "K candidate steering vectors, each of length M \342\200\224 the directions to score" },
+    { "n_sources", "int", 1, "how many sources to assume; the signal subspace takes this many eigenvectors and the remaining M - n_sources are the noise subspace. This IS the Class-K threshold, and it is required rather than inferred \342\200\224 guessing the source count from the eigenvalue gap is a separate decision the op declines to make silently" },
+    { "D", "int", 0, "eigendecomposition working precision; default 8192" },
+};
+static const srmech_tool_param_t ts_params_590[] = {
     { "partials", "Sequence[int | Q | Qalg]", 1, "non-empty sequence of partial-to-fundamental frequency RATIOS. Over the wire each is a bare int or an exact [num, den] pair; an in-process caller may also pass Q or Qalg (Qalg has no JSON form, so it is reachable in-process only). float is REFUSED" },
     { "open_partials", "Sequence[int]", 0, "indices whose true value has NO exact carrier; declared by the constructor that produced them" },
 };
-static const srmech_tool_param_t ts_params_590[] = {
+static const srmech_tool_param_t ts_params_591[] = {
     { "partials", "Sequence[int | Q | Qalg]", 1, "partial-to-fundamental frequency ratios. Over the wire each is a bare int or an exact [num, den] pair; Q and Qalg are additionally accepted in-process (Qalg has no JSON form). float is REFUSED" },
     { "open_partials", "Sequence[int]", 0, "indices declared Tier 3 by their constructor" },
 };
-static const srmech_tool_param_t ts_params_591[] = {
+static const srmech_tool_param_t ts_params_592[] = {
     { "partials", "Sequence[int | Q | Qalg]", 1, "partial-to-fundamental frequency ratios; over the wire each is a bare int or an exact [num, den] pair (Qalg in-process only). float is REFUSED" },
     { "open_partials", "Sequence[int]", 0, "indices declared Tier 3 by their constructor" },
 };
-static const srmech_tool_param_t ts_params_593[] = {
+static const srmech_tool_param_t ts_params_594[] = {
     { "divisions", "int", 0, "steps per octave (>=1); default 12" },
     { "octave", "int", 0, "the integer octave ratio (>=2); default 2" },
     { "degrees", "Sequence[int]", 0, "which scale degrees to return; default 0..divisions inclusive" },
 };
-static const srmech_tool_param_t ts_params_594[] = {
+static const srmech_tool_param_t ts_params_595[] = {
     { "inharmonicity", "Q", 1, "the stiffness coefficient B >= 0, as Q, int or an (int, int) pair; must be EXACT (floats refused)" },
     { "n_partials", "int", 0, "how many partials, n = 1..n_partials (>=1); default 8" },
 };
-static const srmech_tool_param_t ts_params_595[] = {
+static const srmech_tool_param_t ts_params_596[] = {
     { "n_orders", "int", 0, "how many Bessel orders n = 0..n_orders-1 (>=1); default 3" },
     { "m_zeros", "int", 0, "how many zeros per order, m = 1..m_zeros (>=1); default 3" },
     { "scale_bits", "int", 0, "the DECLARED fixed-point precision of the zeros; default 128" },
 };
-static const srmech_tool_param_t ts_params_596[] = {
+static const srmech_tool_param_t ts_params_597[] = {
     { "order", "int", 1, "the integer Bessel order k >= 0" },
     { "numerator", "int", 1, "the argument's numerator; the argument must be >= 0" },
     { "denominator", "int", 1, "the argument's denominator, > 0" },
     { "scale_bits", "int", 0, "the DECLARED fixed-point scale in bits, [8, 4096]; default 256" },
 };
-static const srmech_tool_param_t ts_params_597[] = {
+static const srmech_tool_param_t ts_params_598[] = {
     { "order", "int", 1, "the integer Bessel order n >= 0" },
     { "index", "int", 1, "which positive zero, 1-based (1 = the first)" },
     { "scale_bits", "int", 0, "the DECLARED fixed-point scale in bits; default 256" },
     { "newton_steps", "int", 0, "Newton refinements after the McMahon start, [1, 64]; default 8" },
 };
-static const srmech_tool_param_t ts_params_598[] = {
+static const srmech_tool_param_t ts_params_599[] = {
+    { "num", "int | Sequence[int] | Q", 1, "the numerator, or the whole ratio as an exact [num, den] pair. float is REFUSED \342\200\224 a float has already lost the distinction this op exists to keep" },
+    { "den", "int | Sequence[int] | Q", 0, "the denominator when num was a bare int; default 1" },
+};
+static const srmech_tool_param_t ts_params_600[] = {
+    { "gen", "int | Sequence[int] | Q", 1, "the generator ratio, must exceed 1; exact [num, den] pair or int. float REFUSED" },
+    { "n", "int", 1, "how many generators to stack; n >= 0. A negative chain is the reciprocal generator's positive chain \342\200\224 invert gen instead, so the read direction stays explicit" },
+    { "period", "int | Sequence[int] | Q", 0, "the equivalence interval, must exceed 1; default 2 (the octave)" },
+};
+static const srmech_tool_param_t ts_params_601[] = {
+    { "comma", "int | Sequence[int] | Q", 1, "the comma as an exact [num, den] pair, or a bare numerator when den is given. float REFUSED" },
+    { "edo", "int", 1, "the equal division of the octave; edo >= 1" },
+    { "den", "int | Sequence[int] | Q", 0, "the denominator when comma was a bare int" },
+};
+static const srmech_tool_param_t ts_params_602[] = {
+    { "pcs", "Sequence[int]", 1, "pitch classes; reduced mod 12 and de-duplicated, so [0, 4, 7] and [12, 16, 7, 7] are the same input" },
+};
+static const srmech_tool_param_t ts_params_603[] = {
+    { "pcs", "Sequence[int]", 1, "pitch classes; reduced mod 12 and de-duplicated" },
+    { "convention", "str", 1, "'forte' or 'rahn'. REQUIRED \342\200\224 there is deliberately no default" },
+};
+static const srmech_tool_param_t ts_params_604[] = {
+    { "pcs", "Sequence[int]", 1, "pitch classes; reduced mod 12 and de-duplicated" },
+    { "convention", "str", 1, "'forte' or 'rahn'. REQUIRED \342\200\224 there is deliberately no default, because the two disagree on 6 of the set classes" },
+};
+static const srmech_tool_param_t ts_params_605[] = {
     { "species", "Sequence[str | dict[str,int]] | QMat", 1, "the reaction's species: a list of formula strings (\"H2O\") and/or {element: count} dicts (mixable), or a raw element x species QMat (rows = elements, columns = species)" },
     { "all_balances", "bool", 0, "when the kernel dimension is > 1, return every primitive basis vector instead of raising; default False" },
 };
-static const srmech_tool_param_t ts_params_599[] = {
+static const srmech_tool_param_t ts_params_606[] = {
     { "N", "QMat | Sequence[Sequence[int | Q]]", 1, "the stoichiometric matrix (rows = species, columns = reactions) as a QMat or a nested int/Q sequence" },
 };
-static const srmech_tool_param_t ts_params_600[] = {
+static const srmech_tool_param_t ts_params_607[] = {
     { "reactions", "Sequence[tuple[dict[str,int], dict[str,int]]]", 1, "an iterable of (reactant, product) pairs; each complex is an {species: coeff} dict ({\"A\": 2} for 2A), a bare species-name str (coeff 1), or the zero complex (\"\"/\"0\"/None for the empty complex in a synthesis/degradation step)" },
     { "with_components", "bool", 0, "return the full breakdown dict instead of the bare integer; default False" },
 };
-static const srmech_tool_param_t ts_params_601[] = {
+static const srmech_tool_param_t ts_params_608[] = {
     { "formula", "str", 1, "the formula string; element = [A-Z][a-z]*, count = a run of ASCII digits (default 1), groups nest with ( ... ) and an optional trailing count" },
 };
-static const srmech_tool_param_t ts_params_602[] = {
+static const srmech_tool_param_t ts_params_609[] = {
     { "framed", "bytes", 1, "Frame body (nonce[16] || ciphertext) \342\200\224 the unwrapped TLV payload." },
     { "dna", "bytes", 1, "32+ byte pre-shared Bio-TOTP secret. Pass ZERO_DNA (b'\\x00'*32) for herd-immunity / public mode (same code path; deterministic ciphertext recoverable by anyone)." },
     { "window_ns", "int", 0, "Optional time-window override in nanoseconds (default 250_000_000 = 250 ms; env-var ``SRMECH_BUS_TOTP_WINDOW_NS`` honoured)." },
     { "time_ns", "int", 0, "Optional explicit wall-clock override (defaults to time.time_ns()). Useful for replaying historical captures." },
 };
-static const srmech_tool_param_t ts_params_603[] = {
+static const srmech_tool_param_t ts_params_610[] = {
     { "cleanup_dead", "bool", 0, "When True (default), registration files for endpoints with no live server are removed from disk as a side effect." },
 };
-static const srmech_tool_param_t ts_params_604[] = {
+static const srmech_tool_param_t ts_params_611[] = {
     { "name", "str", 1, "Endpoint name (matches the name passed to `srmech.bus.serve(name, ...)`)." },
 };
 
@@ -4069,19 +4100,65 @@ static const char *const ts_preserves_584[] = {
 static const char *const ts_preserves_588[] = {
     "an immutable snapshot \342\200\224 a later registration does not change a tuple already returned",
 };
-static const char *const ts_composes_597[] = {
-    "srmech.music.bessel_j_fixed",
+static const char *const ts_composes_589[] = {
+    "srmech.math.laplacian.mat_hermitian_eigendecompose",
+    "srmech.math.laplacian.mat_matmul",
+};
+static const char *const ts_preserves_589[] = {
+    "numpy-free and abs()-free: |z|**2 is computed as re**2 + im**2 through the native Mat carrier",
 };
 static const char *const ts_composes_598[] = {
-    "srmech.math.cyclic.primitive_integer_vector",
+    "srmech.music.bessel_j_fixed",
 };
 static const char *const ts_composes_599[] = {
-    "srmech.math.cyclic.primitive_integer_vector",
+    "srmech.math.cyclic.gcd",
+    "srmech.math.primes.factor",
+};
+static const char *const ts_preserves_599[] = {
+    "no silent precision loss \342\200\224 the ratio is reduced and factored exactly, and float input raises rather than being coerced",
 };
 static const char *const ts_composes_600[] = {
-    "srmech.math.laplacian.dense_laplacian",
+    "srmech.math.cyclic.gcd",
+    "srmech.music.just_limit",
+};
+static const char *const ts_preserves_600[] = {
+    "derived, never tabulated: the comma is computed from the generator chain, so no named constant is stored anywhere in the op",
+};
+static const char *const ts_composes_601[] = {
+    "srmech.music.just_limit",
+};
+static const char *const ts_preserves_601[] = {
+    "no logarithm and no tolerance: the patent val is decided by exact integer comparison, so the same input always yields the same val",
+};
+static const char *const ts_composes_602[] = {
+    "srmech.cascade.cyclic_mod_add",
+};
+static const char *const ts_preserves_602[] = {
+    "input order and duplication are irrelevant: the vector depends only on the SET of pitch classes mod 12",
+};
+static const char *const ts_composes_603[] = {
+    "srmech.cascade.cyclic_mod_add",
+};
+static const char *const ts_preserves_603[] = {
+    "a caller-facing requirement, not a default: the convention must be named on every call, and an unknown one raises",
 };
 static const char *const ts_composes_604[] = {
+    "srmech.cascade.cyclic_mod_add",
+    "srmech.music.normal_order",
+};
+static const char *const ts_preserves_604[] = {
+    "transposition- and inversion-invariant: every member of a set class returns the same prime form under a given convention",
+};
+static const char *const ts_composes_605[] = {
+    "srmech.math.cyclic.primitive_integer_vector",
+};
+static const char *const ts_composes_606[] = {
+    "srmech.math.cyclic.primitive_integer_vector",
+};
+static const char *const ts_composes_607[] = {
+    "srmech.math.laplacian.dense_laplacian",
+};
+static const char *const ts_composes_611[] = {
     "srmech.bus.list_endpoints",
 };
 
@@ -14691,11 +14768,29 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
     },
     { /* 589 */
+        "srmech.signal_processing.music_doa",
+        "srmech",
+        "signal_processing",
+        "MUSIC (MUltiple SIgnal Classification) \342\200\224 the subspace direction-of-arrival / frequency estimator of Schmidt (1979). Eigendecompose the sensor covariance R, split its eigenvectors into a signal subspace and a NOISE subspace, and score each candidate steering vector by how nearly ORTHOGONAL it is to that noise subspace; the pseudo-spectrum peaks where a source actually is. Resolution is not diffraction-limited, which is the whole reason the method displaced beamforming. IDENTITY: Class L (the correlation eigendecomposition that splits the two subspaces) composed with Class K (the subspace-partition threshold that picks which eigenvectors are noise) \342\200\224 a genuine pin-slot phase boundary, at the signal/noise rank cut. \342\232\240\357\270\217 THE NAME IS AN ACRONYM, NOT THE ART FORM: this is array signal processing and has nothing to do with the srmech.music package, which is acoustics and pitch relations. Through rc423 this module was literally named `music`, one dotted path from `srmech.music`; rc424 renamed it music_doa so the homograph cannot recur. SCOPE: educational signal-processing reference only \342\200\224 acoustic source-finding, civilian DOA estimation, frequency estimation. numpy-free (the eigendecomposition and the noise-subspace projection both route through the native Mat carrier), and no abs() \342\200\224 |z|**2 is re**2 + im**2.",
+        ts_params_589, 4u,
+        "list",
+        "the pseudo-spectrum as a list of float, one value per steering vector; peaks mark estimated arrival directions. These are RELATIVE scores, not powers \342\200\224 the peak LOCATIONS carry the estimate, the heights do not",
+        1,
+        NULL,
+        "{\"input\":{\"R\":\"<Mat 4x4 Hermitian covariance>\",\"n_sources\":1,\"steering_vectors\":[[1,1,1,1]]},\"output\":\"[0.25, 9.999999999999999e+29, 0.25, 0.25] -- the pseudo-spectrum peaks by ~30 orders of magnitude at index 1, the true source direction\",\"why\":\"A complete MUSIC run in one screen, numpy absent. The peak is not marginally higher -- it is ~30 orders of magnitude higher, because the true steering vector lies almost exactly IN the signal subspace and so is almost exactly orthogonal to the noise subspace the op projects onto. That is the whole mechanism, visible in one number.\",\"worked\":\"from srmech.math.mat import Mat\\nfrom srmech.signal_processing.closed_form_ops.music_doa import op\\n# a 4-sensor array, ONE source whose per-element phase\\n# step is exactly j (90 degrees), plus a little noise:\\na = [1 + 0j, 1j, -1 + 0j, -1j]\\nrows = [[a[i] * a[j].conjugate() + (0.01 if i == j else 0.0)\\n         for j in range(4)] for i in range(4)]\\nR = Mat.from_rows(rows, is_complex=True)\\n# four candidate directions: phase steps +1, +j, -1, -j\\ncands = [[1+0j, 1+0j, 1+0j, 1+0j],\\n         [1+0j, 1j, -1+0j, -1j],\\n         [1+0j, -1+0j, 1+0j, -1+0j],\\n         [1+0j, -1j, -1+0j, 1j]]\\nps = op(R, cands, n_sources=1)\\n[round(v, 6) for v in ps]\\n# -> [0.25, 1e+30, 0.25, 0.25]\\nmax(range(len(ps)), key=lambda i: ps[i])\\n# -> 1     the true direction, found\"}",
+        NULL,
+        "WHAT -- returns the MUSIC pseudo-spectrum: one score per candidate steering vector, peaking where a source actually is. It eigendecomposes the sensor covariance (Class L), splits the eigenvectors into a signal subspace of size ``n_sources`` and a noise subspace of the rest (Class K -- a genuine pin-slot at the signal/noise rank cut), and scores each candidate by the inverse of its projection onto the noise subspace. WHEN -- reach for it for acoustic source-finding, civilian direction-of-arrival estimation and frequency estimation, when you need to resolve sources closer together than a beamformer can. Its resolution is not diffraction-limited, which is why it displaced beamforming. Note that ``n_sources`` is REQUIRED rather than inferred: guessing the source count from the eigenvalue gap is a separate decision, and the op declines to make it silently. SIBLINGS -- ``esprit`` is the rotational-invariance peer that returns parameters directly instead of a spectrum to be searched; ``beamforming_fixed`` is the diffraction-limited baseline this improves on. And a naming caution rather than a sibling: ``srmech.music`` is a DIFFERENT package -- acoustics and pitch relations -- and has nothing to do with this op, whose name is the acronym MUltiple SIgnal Classification. Do not reach for one expecting the other.",
+        ts_composes_589, 2u,
+        ts_preserves_589, 1u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 590 */
         "srmech.music.spectrum_tier",
         "srmech",
         "music",
         "TIER-TAG an acoustic spectrum \342\200\224 the honesty layer over any spectrum-carrying value. Tier 1 = exact RATIONAL carrier (Q/int). Tier 2 = exact ALGEBRAIC-IRRATIONAL carrier (Qalg; alpha**2 == 2 holds IN THE FIELD, so it is still exact and still decidable). Tier 3 = NO exact carrier exists \342\200\224 transcendence unresolved or known-absent \342\200\224 so any number present is a rational of DECLARED PRECISION only. The spectrum's tier is the WEAKEST of its partials'. Tiers 1 and 2 are INFERRED from the carrier; Tier 3 must be DECLARED via open_partials, because it cannot be inferred \342\200\224 a rational standing in for a transcendental is, as a carrier, just a rational, and only the constructor knows the provenance. That asymmetry IS the honesty layer. Precedent: fractal_spectrum already returns a spectrum_open string rather than a list because no finite exact carrier decides Julia-set membership. float ratios are REFUSED (every float IS a rational, so a float spectrum would be unconditionally Tier 1 and unconditionally commensurable \342\200\224 the exact silent harmonisation this layer exists to prevent). 'harmonic' here is the ACOUSTIC word, never the chirality order classify_harmonic uses. Exact-Q; numpy-free; no abs().",
-        ts_params_589, 2u,
+        ts_params_590, 2u,
         "dict",
         "{'tier': 1|2|3, 'tier_name': str, 'exact': bool, 'n_partials': int, 'per_partial': list of {index, carrier, tier, tier_name, field_degree, in_rationals (None = UNDECIDED at Tier 3)}, 'open_indices': tuple, 'open_reason': str|None}",
         1,
@@ -14708,12 +14803,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 590 */
+    { /* 591 */
         "srmech.music.commensurability_verdict",
         "srmech",
         "music",
         "Decide whether an acoustic spectrum is commensurable with its fundamental \342\200\224 a verdict that CAN return 'inharmonic'. The invariant is RATIONAL RANK / FIELD DEGREE, not a period: membership in the rationals inside Q[x]/(m) is field-theoretic (Q is the unique degree-1 subfield of Q(alpha)), so it survives any change of Q-basis and is a genuine invariant rather than a presentation count. Every ratio in Q => a common period exists ('harmonic'); any ratio provably outside Q => that partial shares no period with the fundamental at any multiple ('inharmonic'); any partial declared Tier 3 => 'open'. WHY THIS WAS NEEDED: Class-I gcd/lcm STRUCTURALLY cannot return 'inharmonic' \342\200\224 a finite set of rational ratios always has an lcm, so it always yields a finite period. And Class-N best_rational is worse than silent: it does not approximate an inharmonic spectrum, it CONVERTS it into a harmonic one, since every anchor p/q IS a finite period T0*q (measured: an irrational read at max_den 1e2/1e4/1e6 gives 22/7, 355/113, 2917129/928551). Raising max_den only buys a longer FALSE period, never a verdict. Verified: in Q[x]/(x**12 - 2), s**0 rational True, s**1..s**11 all False, s**12 True \342\200\224 12-tone equal temperament exactly represented AND provably incommensurable with the octave except AT the octave. TWO SENSES KEPT APART: 'verdict' answers *commensurable?*; 'integer_series' answers the classical acoustics question *are the ratios the plain integer series 1,2,3,...?*. A tuned bell (1/2, 1, 6/5, 3/2, 2) is called inharmonic by acousticians yet is exactly commensurable \342\200\224 harmonic with integer_series False. No threshold and no denominator ceiling is consulted anywhere in the decision. Exact-Q; numpy-free; no abs().",
-        ts_params_590, 2u,
+        ts_params_591, 2u,
         "dict",
         "{'verdict': 'harmonic'|'inharmonic'|'open', 'integer_series': bool, 'rational_rank': int, 'n_partials': int, 'field_degrees': tuple, 'incommensurable': tuple of indices provably outside Q, 'open_indices': tuple, 'tier': int, 'tier_name': str, 'period_multiplier': int|None (only when harmonic), 'class_i_note': str, 'class_n_warning': str}",
         1,
@@ -14726,12 +14821,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 591 */
+    { /* 592 */
         "srmech.music.common_period",
         "srmech",
         "music",
         "The common period of an acoustic spectrum as an integer multiple k of the fundamental period T0 \342\200\224 and the GUARD that makes silent harmonisation UNREACHABLE. Returns k (the Class-I lcm of the reduced ratio denominators, so a partial at p/q completes a whole number of cycles in k*T0 exactly when q divides k) when, and only when, commensurability_verdict says 'harmonic'. For an 'inharmonic' or 'open' spectrum it RAISES: there is no period to return, and handing back a best_rational anchor instead would silently convert the spectrum into a harmonic one. That conversion is the corruption this op exists to make impossible \342\200\224 the only way to obtain a period from this family is to have earned the verdict first. The raised message names the offending partial indices and why no period exists. Exact integer; numpy-free; no abs().",
-        ts_params_591, 2u,
+        ts_params_592, 2u,
         "int",
         "the period multiplier k (common period = k*T0); raises ValueError when the spectrum is inharmonic or open",
         1,
@@ -14744,7 +14839,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 592 */
+    { /* 593 */
         "srmech.music.bell_partials",
         "srmech",
         "music",
@@ -14762,12 +14857,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 593 */
+    { /* 594 */
         "srmech.music.equal_temperament_partials",
         "srmech",
         "music",
         "Equal temperament as EXACT algebraic numbers \342\200\224 TIER 2. Builds the number field Q[x]/(x**divisions - octave) and returns the requested scale degrees as exact Qalg powers of its generator s; the step ratio is the divisions-th root of the octave \342\200\224 irrational, and carried EXACTLY rather than approximated. This is the verified worked case for the whole family: in Q[x]/(x**12 - 2), s**0 is rational (1), s**1 through s**11 are ALL irrational, and s**12 is rational (2) \342\200\224 12-tone equal temperament exactly representable AND provably incommensurable with the octave except AT the octave, decided with no threshold and no denominator ceiling. REFUSES a reducible x**n - a (Lang, Algebra 3rd ed., VI sec. 9 Thm 9.1: irreducible iff a is not a p-th power for every prime p | n, the -4K**4 clause being unreachable for an integer a >= 2), because the quotient ring would not be a field and the rational-membership oracle would be meaningless. Composes the Qalg field algebra + Class-J prime factorisation. Exact-Q; numpy-free; no abs().",
-        ts_params_593, 3u,
+        ts_params_594, 3u,
         "dict",
         "{'ratios': tuple[Qalg,...], 'degrees': tuple, 'tier': 2, 'open_partials': (), 'minimal_polynomial': tuple[int,...] (low->high, monic), 'field_degree': int}",
         1,
@@ -14780,12 +14875,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 594 */
+    { /* 595 */
         "srmech.music.stiff_string_partials",
         "srmech",
         "music",
         "A stiff (piano) string's partials \342\200\224 TIER 2, exactly carriable TODAY. The textbook closed form is f_n = n*f0*sqrt(1 + B*n**2) (Fletcher & Rossing, The Physics of Musical Instruments, 2nd ed., Springer 1998, sec. 2.18 \342\200\224 bending stiffness sharpens each partial). With B RATIONAL the ratio to the fundamental is sqrt(rational): r_n = n*sqrt(1+B*n**2) = sqrt(n**2*(1+B*n**2)), a QUADRATIC SURD living exactly in Q[x]/(x**2 - r_n). No approximation anywhere \342\200\224 this whole family was ALREADY exactly carriable by the shipped Qalg; what was missing was the tier tag and a verdict that could read it. Each partial gets its own quadratic field (the radicands differ), which is correct and harmless: commensurability with the fundamental is a per-partial rational-membership question, field-theoretic in each field separately. BUILT-IN CONTROL: at B == 0 the radicand collapses to n**2, a perfect square, so every ratio degenerates to the integer n and the op returns Tier 1 with verdict 'harmonic' and integer_series True \342\200\224 the ideal flexible string, recovered exactly. A float B is REFUSED (it would make every radicand a float-rational and collapse the Tier-1/Tier-2 distinction). Exact-Q; numpy-free; no abs().",
-        ts_params_594, 2u,
+        ts_params_595, 2u,
         "dict",
         "{'ratios': tuple[Qalg|Q,...], 'orders': tuple, 'tier': 1|2, 'open_partials': (), 'inharmonicity': Q, 'radicands': tuple[Q,...], 'cite_as': str}",
         1,
@@ -14798,12 +14893,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 595 */
+    { /* 596 */
         "srmech.music.membrane_partials",
         "srmech",
         "music",
         "A circular membrane's partials \342\200\224 TIER 3, DECLARED OPEN. The modal frequencies of an ideal circular membrane are proportional to the Bessel zeros, so the ratio to the fundamental is j_{n,m}/j_{0,1} (Fletcher & Rossing, The Physics of Musical Instruments, 2nd ed., Springer 1998, sec. 3.2) \342\200\224 which is why a drum has no pitch the way a string does. EVERY partial is declared Tier 3, and NOTHING is asserted about why: the returned ratios are exact rationals OF DECLARED PRECISION from bessel_zero_fixed, are not claimed to be the true values, and the true values are not claimed to be transcendental, algebraic-irrational or rational. DLMF 10.21 was fetched and contains no transcendence statement; Siegel's theorem was never fetched. The honest position is that the field-theoretic status is UNRESOLVED, so the tier is declared open and every commensurability verdict over this spectrum returns 'open' \342\200\224 never 'harmonic', which is exactly what reading a best_rational anchor off these rationals would have produced. Pass open_partials straight through to spectrum_tier / commensurability_verdict. Exact-Q; numpy-free; no abs().",
-        ts_params_595, 3u,
+        ts_params_596, 3u,
         "dict",
         "{'ratios': tuple[Q,...], 'modes': tuple of (n,m), 'tier': 3, 'open_partials': tuple(all indices), 'scale_bits': int, 'declared_precision_only': True, 'transcendence_claim': 'NONE ...', 'cite_as': str}",
         1,
@@ -14816,12 +14911,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 596 */
+    { /* 597 */
         "srmech.music.bessel_j_fixed",
         "srmech",
         "music",
         "J_k(x) for integer order k >= 0 and rational x >= 0, as an exact rational on a DECLARED 2**-scale_bits fixed-point grid. The DLMF 10.2.2 / Watson (1922) sec. 3.1 ascending series J_k(x) = SUM_m (-1)**m (x/2)**(2m+k) / (m!(m+k)!), summed by the exact integer recurrence t_{m+1} = t_m*(x/2)**2/((m+1)(m+k+1)); the series alternates, so truncating when the running term underflows the scale bounds the truncation error BY that term. SIGN LIVES IN THE ORIENTATION, NOT THE DIVISOR: the running term is a NON-NEGATIVE magnitude and the alternation is an explicit Class-K sign-flip re-applied by Class-C reorient at the accumulation, so every shift and divide runs on a magnitude where C truncation and Python floor agree \342\200\224 which is what makes the C peer srmech_bessel_j_fixed_big bit-identical by construction (measured 168/168 across order x argument x scale). Negative x raises (the Class-K real-axis domain; use J_k(-x) = (-1)**k J_k(x)). The return is a rational OF DECLARED PRECISION and asserts nothing about the arithmetic nature of any Bessel value. Exact integer body; numpy-free; no float; no abs().",
-        ts_params_596, 4u,
+        ts_params_597, 4u,
         "tuple",
         "(num, den) with den == 2**scale_bits \342\200\224 the exact value at the declared precision",
         1,
@@ -14834,12 +14929,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 597 */
+    { /* 598 */
         "srmech.music.bessel_zero_fixed",
         "srmech",
         "music",
         "The index-th positive zero of J_order at a DECLARED precision. McMahon's asymptotic start (DLMF 10.21.19) beta = pi*(4*index + 2*order - 1)/4, j ~ beta - (4*order**2 - 1)/(8*beta), refined by exact-rational Newton on bessel_j_fixed with the derivative from DLMF 10.6.1 (J_k' = (J_{k-1} - J_{k+1})/2, J_0' = -J_1). Every iterate is snapped back onto the declared grid so the denominator stays bounded, and the sign handling in that snap is a Class-K split plus a Class-C re-application \342\200\224 never abs(), and never a negative floor-divide. THIS ASSERTS NOTHING ABOUT THE TRUE ZERO: it is a rational of declared precision. Whether Bessel zeros are transcendental or algebraic-irrational is OPEN in this project \342\200\224 DLMF 10.21 states nothing on it and Siegel's theorem was never fetched \342\200\224 so membrane_partials tags such a spectrum Tier 3 and every verdict over it returns 'open'. Pure orchestration over bessel_j_fixed (C-dispatched) and the C-backed pi cascade, so it adds NO new numerical kernel. Exact-Q; numpy-free; no abs().",
-        ts_params_597, 4u,
+        ts_params_598, 4u,
         "tuple",
         "(num, den) on the declared 2**-scale_bits grid; den is a power of two 2**k with k <= scale_bits, NOT unconditionally 2**scale_bits \342\200\224 the value is an exact Q and comes back REDUCED (measured: bessel_zero_fixed(0, 1, scale_bits=64) has den 2**61). bessel_j_fixed does always carry den == 2**scale_bits; this one does not",
         1,
@@ -14847,17 +14942,125 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"output\":\"bessel_zero_fixed(0, 1, scale_bits=64) == (5545150200591220465, 2305843009213693952), whose denominator is 2**61 and NOT 2**64 (the exact Q reduced); J_0 at that value is exactly 0 on the 64-bit grid; j(0,1) < j(1,1) < j(0,2) at scale_bits=96 is True; index 0 -> ValueError('index must be an int >= 1 (1-based)')\",\"why\":\"The denominator line is worth reading twice: the return is an exact ``Q``, so it comes back REDUCED, and at 64 bits the reduction takes 2**64 down to 2**61. The grid is 2**-scale_bits; the returned denominator is a power of two no larger than that, not always equal to it. Interlacing holds, which is the structural check a per-zero residual cannot give.\",\"worked\":\"from srmech.math.q import Q\\nfrom srmech.music import bessel_zero_fixed, bessel_j_fixed\\nzero = bessel_zero_fixed(0, 1, scale_bits=64)\\nzero\\n# -> (5545150200591220465, 2305843009213693952)\\n(zero[1] == 1 << 61, zero[1] == 1 << 64)\\n# -> (True, False)    the Q reduced: a power of two, not always 2**scale_bits\\nQ(*bessel_j_fixed(0, zero[0], zero[1], scale_bits=64)) == Q(0, 1)\\n# -> True\\nzeros = {(n, m): Q(*bessel_zero_fixed(n, m, scale_bits=96))\\n         for n in range(2) for m in (1, 2)}\\nzeros[(0, 1)] < zeros[(1, 1)] < zeros[(0, 2)]\\n# -> True    (Watson 1922 sec. 15.22 interlacing)\\nbessel_zero_fixed(0, 0)  # -> ValueError\"}",
         NULL,
         "WHAT \342\200\224 returns the ``index``-th positive zero of ``J_order`` as an exact ``(num, den)`` rational at a declared fixed-point scale: McMahon's asymptotic start (DLMF 10.21.19) refined by exact-rational Newton on ``bessel_j_fixed``, with the derivative from DLMF 10.6.1 and every iterate snapped back onto the ``2**-scale_bits`` grid so the denominator stays bounded. The denominator is a power of two no larger than ``2**scale_bits`` \342\200\224 the value is an exact ``Q`` and therefore reduced, as the transcript measures. WHEN \342\200\224 use it when a Bessel zero is needed exactly-as-declared, and read the declaration as the whole of the claim. It asserts NOTHING about the true zero: whether Bessel zeros are transcendental or algebraic-irrational is OPEN in this project, DLMF 10.21 states nothing on it, and Siegel's theorem was never fetched. That is why ``spectrum_tier`` tags a membrane spectrum Tier 3 and a verdict over one returns 'open' rather than 'harmonic'. SIBLINGS \342\200\224 do not re-derive the zeros with a float Newton and do not reach for a table: there is no scipy in this tree and no other Bessel surface among the registered ops, and a float iterate would silently reintroduce the declared-precision confusion the tier layer exists to prevent. Verify with the two checks the transcript runs \342\200\224 the residual through ``bessel_j_fixed``, and Watson (1922) sec. 15.22 interlacing ``j(n,m) < j(n+1,m) < j(n,m+1)``, which a per-zero residual cannot see. ``membrane_partials`` is the acoustic consumer; ``srmech.physics.qm.bell`` is an unrelated CHSH surface despite the neighbouring name.",
-        ts_composes_597, 1u,
+        ts_composes_598, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 598 */
+    { /* 599 */
+        "srmech.music.just_limit",
+        "srmech",
+        "music",
+        "The p-LIMIT, prime support and MONZO of a just interval \342\200\224 the Class-J reading of a tuning ratio. p-limit tuning IS exactly the multiplicative subgroup of Q+ generated by the primes <= p, so 'what limit is this interval?' is literally 'what is the largest prime in its factorisation?': 3/2 is 3-limit, 5/4 is 5-limit, 7/4 is 7-limit. The MONZO is the exponent vector of that factorisation (3/2 -> {2: -1, 3: 1}), i.e. the interval's coordinates in the free abelian group on the primes \342\200\224 which is what makes comma arithmetic and temperament kernels exact INTEGER linear algebra rather than approximation. The odd limit drops the prime 2, because octave-equivalence is assumed in most tuning literature: 2/1 is 2-limit but 1-odd-limit. Class J (prime factorisation) over Class I (gcd reduce first) carried by Class N (exact Q). WHY IT MATTERS BEYOND TUNING: this op is the cheapest DEMONSTRATION of the `#T1014` Class-N corruption. best_rational does not approximate a musical interval, it REPLACES it with a different one you can hear \342\200\224 measured on the shipped op, 12-tone equal temperament's irrational major third comes back as exactly 5/4 at max_denominator 10 (a DIFFERENT, just interval, and the verdict silently flips to harmonic), then as 63/50 at 100 and 635/504 at 1000, where the p-limit has run away from 5 to 7 to 127. Same op, three incompatible answers, none of them the input. Exact-Q; numpy-free; no abs(); float is REFUSED at the door.",
+        ts_params_599, 2u,
+        "dict",
+        "{'ratio': str, 'num': int, 'den': int, 'primes': tuple, 'limit': int, 'odd_limit': int, 'monzo': dict mapping prime (as str) to a signed exponent}",
+        1,
+        NULL,
+        "{\"input\":{\"den\":2,\"num\":3},\"output\":\"{'ratio': '3/2', 'num': 3, 'den': 2, 'primes': (2, 3), 'limit': 3, 'odd_limit': 3, 'monzo': {'2': -1, '3': 1}}\",\"why\":\"The first three calls are the op doing its job. The last three are the reason it is worth shipping: a comma is DEFINED by not being a unison, and best_rational at a low ceiling returns exactly a unison. That is not a rounding error, it is a different interval, and the p-limit collapsing 5 -> 1 is the same corruption read off a second field.\",\"worked\":\"from srmech.music import just_limit\\nfrom srmech.math.rational import best_rational\\njust_limit((3, 2))['limit']\\n# -> 3            the just fifth: 3-limit\\njust_limit((7, 4))['monzo']\\n# -> {'2': -2, '7': 1}    the septimal seventh IS 2**-2 * 7\\njust_limit((45, 32))\\n# -> limit 5, monzo {'2': -5, '3': 2, '5': 1}\\n# and now the #T1014 corruption, in two lines:\\njust_limit(81, 80)['limit']\\n# -> 5            the syntonic comma, a real 5-limit interval\\nbest_rational(81, 80, 10)\\n# -> (1, 1)       Class-N ERASES it to a unison\\njust_limit(best_rational(81, 80, 10))['limit']\\n# -> 1            and the limit collapses 5 -> 1\"}",
+        NULL,
+        "WHAT -- returns the p-limit, the prime support, the odd limit and the MONZO (the exponent vector of the prime factorisation) of a just interval. ``3/2`` is 3-limit with monzo ``{2: -1, 3: 1}``; the odd limit drops the prime 2 because octave-equivalence is assumed in most tuning literature, so ``2/1`` is 2-limit but 1-odd-limit. Class J asks the question, Class I reduces the ratio first, Class N carries it exactly. WHEN -- reach for it whenever you need to know what tuning system an interval belongs to, and ALWAYS before feeding a ratio to anything Class-N. The monzo is the load-bearing return value: it turns comma arithmetic and temperament kernels into exact integer linear algebra, which is what makes ``tempers_out`` decidable rather than approximate. What you would otherwise wrongly hand-roll is a float ``log`` of the ratio and a tolerance -- and a tolerance is precisely how 81/80 becomes 1/1. SIBLINGS -- ``comma_of_chain`` DERIVES the small residues whose limits you would then read here, and ``tempers_out`` consumes this op's monzo directly rather than re-factoring. Do not hand-write a prime-factorisation loop: ``srmech.math.primes.factor`` is C-dispatched and this op is the musical reading of it. And do not reach for ``srmech.music.commensurability_verdict`` here -- that answers a question about a SPECTRUM (do these partials share a period), not about a single interval.",
+        ts_composes_599, 2u,
+        ts_preserves_599, 1u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 600 */
+        "srmech.music.comma_of_chain",
+        "srmech",
+        "music",
+        "DERIVE the comma of an n-step generator chain \342\200\224 never look it up. Stack the generator n times, fold the result back into [1, period) by whole periods, and what is left over IS the comma: the exact rational by which the chain FAILS to close. A table of five named constants would earn nothing; deriving the residue is the capability, and it answers for generators and periods no table lists. The two most-cited commas both fall out of this one op: gen 3/2, n 12, period 2 gives 531441/524288, the PYTHAGOREAN comma (twelve just fifths against seven octaves); gen 3/2, n 4, period 5 gives 81/80, the SYNTONIC comma (four just fifths against a just major third two octaves up). THE RESIDUE IS STRUCTURAL, NOT AN ERROR TERM: (3/2)**n == 2**m has no solution for n > 0 by unique factorisation, because the prime supports {3} and {2} are disjoint. The chain does not nearly close and does not close badly \342\200\224 it CANNOT close, and the comma is the exact measure of that impossibility. This is Class J deciding a question Class I cannot even pose: both modular reads DO close (a generator coprime to the modulus generates the whole cycle), and only the frequency lane sees the failure. Class N (exact Q) over Class J (the prime support that decides it). Period reduction is exact integer cross-multiplication \342\200\224 no logarithm, no float, no abs(); the signed count of periods removed is returned rather than discarded, because the orientation of the reduction is Class-C data. Exact-Q; numpy-free.",
+        ts_params_600, 3u,
+        "dict",
+        "{'comma': str, 'num': int, 'den': int, 'vanishes': bool (True only for the trivial 1/1), 'periods_removed': int (SIGNED), 'limit': int|None, 'monzo': dict|None, 'factorisation_unavailable': str|None, 'gen': str, 'n': int, 'period': str}. The comma is exact at EVERY n; only the Class-J enrichment (limit / monzo) is bounded, because factor binds the fixed-width srmech_factor and refuses an operand beyond 2**64 - 1. A long chain reaches that quickly \342\200\224 41 fifths already carries a 20-digit numerator \342\200\224 so limit and monzo come back None with a reason rather than the op destroying a correct comma",
+        1,
+        NULL,
+        "{\"input\":{\"gen\":[3,2],\"n\":12,\"period\":[2,1]},\"output\":\"{'comma': '531441/524288', 'num': 531441, 'den': 524288, 'vanishes': False, 'periods_removed': 7, 'limit': 3, 'monzo': {'2': -19, '3': 12}, 'factorisation_unavailable': None, 'gen': '3/2', 'n': 12, 'period': '2/1'}\",\"why\":\"Four named commas out of one op and no table anywhere, plus the trivial case that actually vanishes so ``vanishes`` is shown to discriminate rather than being permanently False. The last pair is the honest bound: at n=41 the residue carries a 20-digit numerator, past what ``factor`` can take, so the p-limit is withheld with a reason -- while the comma itself, and the answer that actually matters (it still does not close), survive intact.\",\"worked\":\"from srmech.music import comma_of_chain\\ncomma_of_chain((3, 2), 12, (2, 1))['comma']\\n# -> '531441/524288'   the PYTHAGOREAN comma, derived\\ncomma_of_chain((3, 2), 12, (2, 1))['periods_removed']\\n# -> 7                 twelve fifths minus seven octaves\\ncomma_of_chain((3, 2), 4, (5, 1))['comma']\\n# -> '81/80'           the SYNTONIC comma, same op\\ncomma_of_chain((8, 7), 1, (9, 8))['comma']\\n# -> '64/63'           the septimal comma of Archytas\\ncomma_of_chain((2, 1), 1, (2, 1))['vanishes']\\n# -> True              the octave chain DOES close\\n# and the bound, reported rather than raised:\\ncomma_of_chain((3, 2), 41, (2, 1))['limit']\\n# -> None    41 fifths overflow the Class-J 2**64 surface\\ncomma_of_chain((3, 2), 41, (2, 1))['vanishes']\\n# -> False   but the COMMA is still exact, and still open\"}",
+        NULL,
+        "WHAT -- stacks ``gen`` ``n`` times, folds the product back into ``[1, period)`` by whole periods, and returns what is left over: the exact rational by which the chain fails to close, together with the SIGNED count of periods removed, its p-limit and its monzo. WHEN -- reach for it whenever you would otherwise look up a comma. A table of five constants earns nothing and goes stale; deriving the residue answers for generators and periods no table lists, and it makes the reason visible. The reason is worth stating plainly: ``(3/2)**n == 2**m`` has NO solution for ``n > 0``, because the prime supports ``{3}`` and ``{2}`` are disjoint. The chain does not nearly close and does not close badly -- it cannot close, and the comma measures that exactly. SIBLINGS -- ``just_limit`` is called internally and reports the limit and monzo of the residue, so do not re-factor the result; ``tempers_out`` then decides which equal temperaments make the residue vanish. Do not hand-roll this with ``best_rational`` as an intermediate step: a comma is a SMALL exact rational and a low denominator ceiling erases it to 1/1 instead of approximating it.",
+        ts_composes_600, 2u,
+        ts_preserves_600, 1u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 601 */
+        "srmech.music.tempers_out",
+        "srmech",
+        "music",
+        "Does n-tone equal temperament TEMPER OUT this comma? A temperament tempers out a comma exactly when the comma maps to the UNISON under that temperament's val \342\200\224 i.e. when the comma's monzo lies in the KERNEL of the map sending each prime p to round(n*log2 p). THE LOGARITHM IS REMOVED, NOT APPROXIMATED: k == round(n*log2 p) if and only if 2**(2k-1) <= p**(2n) < 2**(2k+1), which is a comparison between two exact integers. So the val is DECIDED, not estimated \342\200\224 no log, no float, no tolerance, nothing rounded. THIS IS THE OP THAT EXPLAINS THE KEYBOARD. 12-EDO tempers out the syntonic comma 81/80, which is what makes it a meantone temperament and why a piano has one key for both D# and Eb; it also tempers out the Pythagorean comma 531441/524288, which is what closes the circle of fifths that the frequency lane leaves structurally OPEN. 5-EDO tempers out the syntonic comma too (it is in the meantone family) but NOT the Pythagorean one, so the two questions are genuinely independent. Class I (the integer val and its kernel) over Class N (the exact Q comma). Exact integer; numpy-free; no abs().",
+        ts_params_601, 3u,
+        "dict",
+        "{'tempers_out': bool, 'steps': int (the SIGNED number of EDO steps the comma maps to; zero exactly when tempered out), 'comma': str, 'edo': int, 'val': dict mapping each prime the comma uses to its patent-val step count, 'monzo': dict}",
+        1,
+        NULL,
+        "{\"input\":{\"comma\":[81,80],\"edo\":12},\"output\":\"{'tempers_out': True, 'steps': 0, 'comma': '81/80', 'edo': 12, 'val': {'2': 12, '3': 19, '5': 28}, 'monzo': {'2': -4, '3': 4, '5': -1}}\",\"why\":\"The last three lines are the point: 5-EDO tempers out the syntonic comma but NOT the Pythagorean one, so the two questions are genuinely independent rather than two names for \\\"is this 12-EDO\\\". ``steps`` is returned beside the boolean because 1 step off and 40 steps off are different facts about a temperament.\",\"worked\":\"from srmech.music import tempers_out\\ntempers_out((81, 80), 12)['tempers_out']\\n# -> True     12-EDO is a MEANTONE temperament\\ntempers_out((81, 80), 12)['val']\\n# -> {'2': 12, '3': 19, '5': 28}   the patent val\\ntempers_out((531441, 524288), 12)['tempers_out']\\n# -> True     and it closes the circle of fifths\\ntempers_out((531441, 524288), 5)\\n# -> tempers_out False, steps 1   5-EDO does NOT\\ntempers_out((81, 80), 5)['tempers_out']\\n# -> True     but 5-EDO IS in the meantone family\\ntempers_out((81, 80), 22)['steps']\\n# -> 1        22-EDO is not\"}",
+        NULL,
+        "WHAT -- returns whether ``edo``-tone equal temperament maps this comma to the unison, i.e. whether the comma's monzo lies in the KERNEL of the val ``p -> round(edo*log2 p)``, together with the signed step count and the val itself. WHEN -- reach for it to ask why a keyboard is shaped the way it is. 12-EDO tempering out 81/80 is what makes it meantone and why one key serves both D# and Eb; 12-EDO tempering out 531441/524288 is what closes the circle of fifths that the frequency lane leaves structurally open. The implementation detail that matters to a caller: THE LOGARITHM IS REMOVED, NOT APPROXIMATED. ``k == round(n*log2 p)`` if and only if ``2**(2k-1) <= p**(2n) < 2**(2k+1)``, a comparison between two exact integers, so the val is decided and no tolerance is consulted anywhere. SIBLINGS -- it consumes ``just_limit``'s monzo directly, so do not factor the comma yourself first; ``comma_of_chain`` is where the commas worth asking about come from. Do not hand-roll the val with ``math.log2`` and ``round`` -- that reintroduces a float into a decision this op makes exactly, and stdlib ``math`` is banned in this package for exactly that reason.",
+        ts_composes_601, 1u,
+        ts_preserves_601, 1u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 602 */
+        "srmech.music.interval_vector",
+        "srmech",
+        "music",
+        "The INTERVAL-CLASS VECTOR of a pitch-class set \342\200\224 how a set relates to ITSELF at every interval class. Entry i counts the unordered pairs separated by interval class i+1, for i in 0..5. The major triad [0, 4, 7] gives (0, 0, 1, 1, 1, 0) \342\200\224 one minor third, one major third, one fourth \342\200\224 and so does the minor triad [0, 3, 7], which is the first hint that this invariant is COARSE. IT IS NOT A COMPLETE INVARIANT, AND THE LOSS HAS A NAME. Measured over every set class of cardinality 2..10: 23 interval vectors are shared by MORE THAN ONE set class. Those are the Z-RELATED pairs \342\200\224 genuinely different objects with identical interval content, e.g. [0,1,3,7] and [0,1,4,6], both giving (1,1,1,1,1,1). So this op answers 'what intervals does this set contain?' and NOT 'which set class is this?'; for the latter use prime_form, and note that even prime_form separates a Z-pair only by the set class itself, never by interval content. Class I (the Z/12 group action, through the shipped modular add) over Class E (the catalog fold). The fold at the TRITONE is a Class-K pin-slot at the phase boundary, NOT an abs(): 6 is the unique self-inverse interval in Z/12 because 12 is even and the octave CAN be bisected \342\200\224 in Z/7 no step is self-inverse, because 7 is odd. Exact integer; numpy-free.",
+        ts_params_602, 1u,
+        "tuple",
+        "a 6-tuple of counts, one per interval class 1..6",
+        1,
+        NULL,
+        "{\"input\":{\"pcs\":[0,4,7]},\"output\":\"(0, 0, 1, 1, 1, 0)\",\"why\":\"Two demonstrations of the SAME limitation at two strengths. Major and minor triads share a vector because one is the other inverted -- expected. The last pair is the real caveat: [0,1,3,7] and [0,1,4,6] are NOT related by transposition or inversion, they are different set classes, and the interval vector still cannot tell them apart. Measured over cardinalities 2..10, 23 vectors are shared by more than one set class.\",\"worked\":\"from srmech.music import interval_vector\\ninterval_vector([0, 4, 7])\\n# -> (0, 0, 1, 1, 1, 0)   major triad\\ninterval_vector([0, 3, 7])\\n# -> (0, 0, 1, 1, 1, 0)   minor triad -- THE SAME\\ninterval_vector([0, 2, 4, 5, 7, 9, 11])\\n# -> (2, 5, 4, 3, 6, 1)   the diatonic scale\\ninterval_vector([0, 2, 4, 6, 8, 10])\\n# -> (0, 6, 0, 6, 0, 3)   whole-tone: 3 ic's absent\\ninterval_vector([0, 1, 3, 7])\\n# -> (1, 1, 1, 1, 1, 1)\\ninterval_vector([0, 1, 4, 6])\\n# -> (1, 1, 1, 1, 1, 1)   a Z-RELATED pair\"}",
+        NULL,
+        "WHAT -- returns the interval-class vector: a 6-tuple whose entry ``i`` counts the unordered pairs of pitch classes separated by interval class ``i+1``. It describes how a set relates to ITSELF. WHEN -- reach for it to characterise a chord or scale by its interval content, e.g. to see at a glance that the whole-tone scale contains no semitones and no fourths. But reach for it knowing what it CANNOT do: it is a lossy invariant, and the loss has a name. Z-RELATED set classes share an interval vector while being genuinely different objects, so this op answers \"what intervals are in here?\" and never \"which set class is this?\". SIBLINGS -- ``prime_form`` answers the identity question, and it is the one to use for classification; note that even it separates a Z-pair only by the set class itself, never by interval content, so the two ops are complements rather than a weak and a strong version of one thing. Do not hand-roll the fold at the tritone with ``abs()``: 6 is the unique self-inverse interval in Z/12 and the fold there is a Class-K pin-slot at a real phase boundary, which ``abs()`` would flatten into an arithmetic accident.",
+        ts_composes_602, 1u,
+        ts_preserves_602, 1u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 603 */
+        "srmech.music.normal_order",
+        "srmech",
+        "music",
+        "The NORMAL ORDER of a pitch-class set \342\200\224 the most compact rotation \342\200\224 with the convention REQUIRED, never defaulted. Both conventions first minimise the outer span; they break the tie differently, and that difference is the whole reason there is no default. 'forte' \342\200\224 Forte (1973) \342\200\224 packs FROM THE LEFT: after the span, compare the first interval, then the second, working outward. 'rahn' \342\200\224 Rahn (1980) \342\200\224 packs FROM THE RIGHT: after the span, compare the interval to the second-to-last, then the third-to-last, working inward from the end. Passing an unknown convention raises, and omitting it is a TypeError, because a silent default would pick a side in a live scholarly disagreement (see prime_form, where the divergence is enumerated). Returns the pitch classes in normal order and does NOT transpose them to 0 \342\200\224 that is prime_form's job, and keeping the two apart is what lets a caller see WHICH rotation was chosen. Class I (the Z/12 rotation) over Class E (the canonical-representative selection). Exact integer; numpy-free; no abs().",
+        ts_params_603, 2u,
+        "tuple",
+        "the pitch classes in normal order, NOT transposed to 0",
+        1,
+        NULL,
+        "{\"input\":{\"convention\":\"forte\",\"pcs\":[0,1,3,7,8]},\"output\":\"(0, 1, 3, 7, 8)\",\"why\":\"The first pair shows the conventions agreeing, which is the common case and why the disagreement is easy to miss. The second pair is one of the six set classes where they do not, and the returned rotations are visibly different objects rather than different spellings. The last line shows the op refusing an unknown convention rather than quietly falling back to one.\",\"worked\":\"from srmech.music import normal_order\\nnormal_order([0, 4, 7], 'forte')\\n# -> (0, 4, 7)      the two conventions agree here\\nnormal_order([0, 4, 7], 'rahn')\\n# -> (0, 4, 7)\\nnormal_order([0, 1, 3, 7, 8], 'forte')\\n# -> (0, 1, 3, 7, 8)   set class 5-20, packed LEFT\\nnormal_order([0, 1, 3, 7, 8], 'rahn')\\n# -> (7, 8, 0, 1, 3)   the same set, packed RIGHT\\nnormal_order([0, 4, 7], 'straus')\\n# -> ValueError\"}",
+        NULL,
+        "WHAT -- returns the most compact rotation of a pitch-class set. Both conventions first minimise the outer span; ``\"forte\"`` then packs from the LEFT (compare the first interval, then the second, working outward) and ``\"rahn\"`` packs from the RIGHT (compare the interval to the second-to-last, working inward). The result is NOT transposed to 0. WHEN -- reach for it when you want to see WHICH rotation a convention chose, which is exactly the information ``prime_form`` throws away when it normalises to 0. It is also the honest place to start if you are checking an analysis against a textbook: knowing the rotation tells you immediately which convention that textbook uses. SIBLINGS -- ``prime_form`` is this op plus the inversion comparison and the transposition to 0; do not re-derive one from the other by hand, and do not build a \"default convention\" wrapper over either. There is no default here on purpose: the two conventions disagree on 6 of the 208 set classes (enumerated in ``prime_form``'s own explanation), so a default silently picks a side in a live scholarly disagreement and is wrong for whichever community it did not pick.",
+        ts_composes_603, 1u,
+        ts_preserves_603, 1u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 604 */
+        "srmech.music.prime_form",
+        "srmech",
+        "music",
+        "The PRIME FORM of a pitch-class set \342\200\224 the canonical representative of its set class under Tn/TnI \342\200\224 with the convention REQUIRED, never defaulted. Take the normal order of the set and of its inversion, transpose each to start at 0, keep the smaller. That is the Class-E half: a catalog selection over the Class-I group orbit. THE CONVENTION IS NOT COSMETIC \342\200\224 IT IS A LIVE SCHOLARLY DISAGREEMENT, AND WE MEASURED IT. Enumerating every set class of cardinality 2..10 and comparing the two algorithms row by row, EXACTLY 6 DISAGREE: 5-20 (forte 01378 / rahn 01568), 6-Z29 (013689 / 023679), 6-31 (013589 / 014579), 7-Z18 (0123589 / 0145679), 7-20 (0124789 / 0125679), and 8-26 (0124579T / 013457 8T). NOTE 7-Z18. The figure most often quoted is FIVE, following Straus's Introduction to Post-Tonal Theory, which omits it; six is what the algorithms actually do, and what independent open set-class tables list. Our six is COMPUTED, not copied, and the suite pins all of them. An unnamed prime_form would silently answer as one community and be wrong for the other on exactly these six \342\200\224 hence no default, ever. Exact integer; numpy-free; no abs().",
+        ts_params_604, 2u,
+        "tuple",
+        "the prime form, starting at 0",
+        1,
+        NULL,
+        "{\"input\":{\"convention\":\"rahn\",\"pcs\":[0,1,3,7,8]},\"output\":\"(0, 1, 5, 6, 8)\",\"why\":\"Major and minor triads collapsing to one prime form is the op working. The four lines after are why the convention argument is required: 5-20 and 7-Z18 come back as visibly different tuples depending on which of two published algorithms you asked for. 7-Z18 is included deliberately -- it is the one the most-quoted count of FIVE omits.\",\"worked\":\"from srmech.music import prime_form\\nprime_form([0, 4, 7], 'forte')\\n# -> (0, 3, 7)      major triad -> the 3-11 set class\\nprime_form([0, 3, 7], 'forte')\\n# -> (0, 3, 7)      minor triad -> the SAME class\\nprime_form([0, 2, 4, 5, 7, 9, 11], 'rahn')\\n# -> (0, 1, 3, 5, 6, 8, 10)   the diatonic scale\\n# the six set classes where the conventions DISAGREE:\\nprime_form([0, 1, 3, 7, 8], 'forte')\\n# -> (0, 1, 3, 7, 8)          5-20, Forte\\nprime_form([0, 1, 3, 7, 8], 'rahn')\\n# -> (0, 1, 5, 6, 8)          5-20, Rahn\\nprime_form([0, 1, 4, 5, 6, 7, 9], 'forte')\\n# -> (0, 1, 2, 3, 5, 8, 9)    7-Z18, Forte\\nprime_form([0, 1, 4, 5, 6, 7, 9], 'rahn')\\n# -> (0, 1, 4, 5, 6, 7, 9)    7-Z18, Rahn\"}",
+        NULL,
+        "WHAT -- returns the canonical representative of a set class under Tn/TnI: the smaller of the normal orders of the set and of its inversion, each transposed to start at 0. This is the Class-E catalog selection over the Class-I group orbit. WHEN -- reach for it to decide whether two chords are \"the same chord\" in the post-tonal sense, which is the question ``interval_vector`` cannot answer because Z-related classes share a vector. Reach for it having decided which convention you are working in, and record that decision: Forte (1973) and Rahn (1980) give different prime forms for exactly 6 set classes -- 5-20, 6-Z29, 6-31, 7-Z18, 7-20 and 8-26 -- and we measured that by enumerating every set class of cardinality 2..10 rather than by copying a list. Note 7-Z18 in particular: the figure usually quoted is FIVE, following Straus, which omits it. SIBLINGS -- ``normal_order`` is the first half of this op and is the one to call when you want to see the rotation before it is normalised; ``interval_vector`` is the lossy complement. Do not write a wrapper that defaults the convention, and do not hand-roll the inversion with a subtraction -- ``cyclic_mod_add`` is the shipped Class-I action and it is C-dispatched.",
+        ts_composes_604, 2u,
+        ts_preserves_604, 1u,
+        NULL,
+        NULL, 0u,
+    },
+    { /* 605 */
         "srmech.chemistry.balance_reaction",
         "srmech",
         "chemistry",
         "Balance a chemical reaction -> signed primitive integer coefficients. A balanced reaction is a vector v in the kernel of the ELEMENT x SPECIES matrix A (element conservation A.v = 0); each exact-Q kernel column is reduced to the smallest integer vector on its ray by the rc378 primitive_integer_vector keystone, canonical sign = first nonzero entry positive. Read reactant vs product from the SIGN: a NEGATIVE coefficient is a product. ['H2','O2','H2O'] -> [2, 1, -2] (2 H2 + O2 -> 2 H2O). Accepts formula strings, {element: count} dicts, or a raw element x species QMat, interchangeably. Raises on an UNBALANCEABLE reaction (trivial kernel); an UNDERDETERMINED reaction (kernel dim > 1) raises unless all_balances=True, which returns every independent balance. Class L nullspace o Class I/K/C keystone; composition_of_c; exact-Q, numpy-free, no abs().",
-        ts_params_598, 2u,
+        ts_params_605, 2u,
         "list",
         "list[int] \342\200\224 the signed primitive coefficients (kernel dim 1, the usual case); or list[list[int]] (one primitive vector per independent balance) when all_balances=True",
         1,
@@ -14865,17 +15068,17 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"output\":\"H2 + O2 -> H2O    : [2, 1, -2]\\npropane           : [1, 5, -3, -4]\\nethane (gcd)      : [2, 7, -4, -6]\\ndict input        : [2, 1, -2]\",\"why\":\"The signed stoichiometric coefficients fall straight out of the element-composition nullspace, first-nonzero pinned positive: 2 H2 + O2 -> 2 H2O (H2O negative = product), propane balances to [1,5,-3,-4], the ethane column needs the gcd stripped to reach the primitive [2,7,-4,-6], and formula strings and {element:count} dicts give the identical answer.\",\"worked\":\"from srmech.chemistry import balance_reaction\\n# Read reactant vs product from the SIGN: a negative coefficient is\\n# a product. Species may be formula strings or {element:count} dicts.\\nprint(\\\"H2 + O2 -> H2O    :\\\", balance_reaction([\\\"H2\\\", \\\"O2\\\", \\\"H2O\\\"]))\\nprint(\\\"propane           :\\\", balance_reaction([\\\"C3H8\\\", \\\"O2\\\", \\\"CO2\\\", \\\"H2O\\\"]))\\nprint(\\\"ethane (gcd)      :\\\", balance_reaction([\\\"C2H6\\\", \\\"O2\\\", \\\"CO2\\\", \\\"H2O\\\"]))\\nprint(\\\"dict input        :\\\", balance_reaction([{\\\"H\\\": 2}, {\\\"O\\\": 2}, {\\\"H\\\": 2, \\\"O\\\": 1}]))\"}",
         NULL,
         "WHAT - balances a chemical reaction and RETURNS the signed primitive integer coefficients. A balanced reaction is a vector v in the kernel of the ELEMENT x SPECIES matrix A (element conservation A.v = 0); each exact-Q kernel column is reduced to the smallest integer vector on its ray by the primitive_integer_vector keystone, first nonzero pinned positive. The SIGN carries direction - a negative coefficient is a product. Accepts formula strings, {element:count} dicts, or a raw element x species QMat interchangeably; exact-Q, numpy-free, no abs(). WHEN - reach for it to balance a reaction (combustion, redox, synthesis) from its species alone. An UNBALANCEABLE set (trivial kernel) raises; an UNDERDETERMINED set (kernel dim > 1) raises unless you pass all_balances=True to get every independent balance. SIBLINGS - it composes QMat.nullspace (the exact-Q kernel) with srmech.math.cyclic.primitive_integer_vector (the integer reduction), so do NOT hand-roll a float nullspace and round to integers - that is the exact mistake the keystone exists to prevent. conservation_laws is its transpose-in-role peer (SPECIES x REACTION, not element x species); parse_formula is the input tokenizer it calls on a formula string.",
-        ts_composes_598, 1u,
+        ts_composes_605, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 599 */
+    { /* 606 */
         "srmech.chemistry.conservation_laws",
         "srmech",
         "chemistry",
         "The conserved moieties of a reaction network \342\200\224 an integer basis of the LEFT-nullspace of the stoichiometric matrix N (every gamma with gamma^T N = 0: a combination of species whose total is invariant under every reaction, i.e. mass / charge / moiety conservation). Computed as N.T.nullspace() with each kernel column reduced by the primitive_integer_vector keystone. N is the SPECIES x REACTION matrix of a NETWORK (rows = species, columns = reactions; entry = net change) \342\200\224 the transpose-in-role of balance_reaction's element x species matrix. For Michaelis-Menten E + S <-> ES -> E + P this returns two laws (total enzyme E + ES, and a substrate-matter moiety). Class L left-nullspace o Class I keystone; composition_of_c; exact-Q, numpy-free, no abs().",
-        ts_params_599, 1u,
+        ts_params_606, 1u,
         "list",
         "list[list[int]] \342\200\224 one primitive integer conservation vector per left-nullspace basis element (length = number of species each); empty when N has full row rank (no conserved moiety)",
         1,
@@ -14883,17 +15086,17 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"output\":\"laws: [[1, 0, 1, 0], [1, -1, 0, -1]]\\ngamma^T N = [0, 0, 0]\\ngamma^T N = [0, 0, 0]\",\"why\":\"Michaelis-Menten E + S <-> ES -> E + P returns two conserved moieties - total enzyme (E + ES) and a substrate-matter combination - and each returned gamma satisfies gamma^T N = 0 exactly, so the conservation is verified, not asserted.\",\"worked\":\"from srmech.chemistry import conservation_laws\\n# Michaelis-Menten E + S <-> ES -> E + P. N is SPECIES x REACTION\\n# (rows E, S, ES, P; columns R1, R2, R3; entry = net change).\\nN = [[-1, 1, 1], [-1, 1, 0], [1, -1, -1], [0, 0, 1]]\\nlaws = conservation_laws(N)\\nprint(\\\"laws:\\\", laws)\\nfor g in laws:\\n    print(\\\"gamma^T N =\\\", [sum(g[i] * N[i][j] for i in range(4)) for j in range(3)])\"}",
         NULL,
         "WHAT - COMPUTES the conserved moieties of a reaction network: an integer basis of the LEFT-nullspace of the stoichiometric matrix N (every gamma with gamma^T N = 0 - a combination of species whose total is invariant under every reaction, i.e. mass / charge / moiety conservation). It is N.T.nullspace() with each kernel column reduced by the primitive_integer_vector keystone; exact-Q, numpy-free, no abs(). WHEN - reach for it to find what a network keeps fixed: total enzyme, total phosphate, a charge balance. It RETURNS the empty list when N has full row rank (no conserved moiety). SIBLINGS - do NOT confuse its matrix with balance_reaction: N here is SPECIES x REACTION (rows = species, columns = reactions), the transpose-in-role of the ELEMENT x SPECIES matrix - conflating them is the #1 correctness trap this domain guards against. It shares the QMat.nullspace + primitive_integer_vector composition with balance_reaction, so do not re-derive denominator-clearing beside it; deficiency consumes the same stoichiometric N to compute rank(N) = s.",
-        ts_composes_599, 1u,
+        ts_composes_606, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 600 */
+    { /* 607 */
         "srmech.chemistry.deficiency",
         "srmech",
         "chemistry",
         "The Feinberg deficiency delta of a chemical reaction network: delta = n - l - s = rank(L_complex) - rank(N), where n = number of distinct complexes, l = number of linkage classes (connected components of the complex graph), and s = rank(N) = dimension of the stoichiometric subspace. delta is a NON-NEGATIVE integer fixed by network topology alone (independent of rate constants). rank(L_complex) = n - l is the exact rank of the combinatorial graph Laplacian of the complex graph (a graph Laplacian has rank = vertices - components); rank(N) is the Class-J QMat.rank. A -> B has delta 0; 2A -> A+B -> 2B -> 2A has delta 1. Definitional and stated self-contained; standard reference M. Feinberg, Foundations of Chemical Reaction Network Theory (Springer, Applied Mathematical Sciences 202, 2019) and the open-access Lectures on Chemical Reaction Networks (Univ. of Wisconsin MRC, 1979/1980). Class L Laplacian o Class J rank; composition_of_c; exact-Q, numpy-free, no abs().",
-        ts_params_600, 2u,
+        ts_params_607, 2u,
         "int",
         "the deficiency delta (default); or {'deficiency', 'n_complexes', 'n_linkage_classes', 'rank_stoichiometric'} when with_components=True",
         1,
@@ -14901,17 +15104,17 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"output\":\"A <-> B     : {'deficiency': 0, 'n_complexes': 2, 'n_linkage_classes': 1, 'rank_stoichiometric': 1}\\n2A/A+B/2B   : {'deficiency': 1, 'n_complexes': 3, 'n_linkage_classes': 1, 'rank_stoichiometric': 1}\\ndelta only  : 1\",\"why\":\"The isomerization A <-> B has deficiency 0 (n=2, l=1, s=1) and the classic 2A -> A+B -> 2B -> 2A network has deficiency 1 (n=3, l=1, s=1); with_components exposes the n / l / s breakdown, and the bare call returns just the integer delta.\",\"worked\":\"from srmech.chemistry import deficiency\\n# delta = n - l - s = rank(L_complex) - rank(N): n distinct complexes,\\n# l linkage classes (components of the complex graph), s = rank(N).\\nprint(\\\"A <-> B     :\\\", deficiency([({\\\"A\\\": 1}, {\\\"B\\\": 1})], with_components=True))\\ntri = [({\\\"A\\\": 2}, {\\\"A\\\": 1, \\\"B\\\": 1}), ({\\\"A\\\": 1, \\\"B\\\": 1}, {\\\"B\\\": 2}), ({\\\"B\\\": 2}, {\\\"A\\\": 2})]\\nprint(\\\"2A/A+B/2B   :\\\", deficiency(tri, with_components=True))\\nprint(\\\"delta only  :\\\", deficiency(tri))\"}",
         NULL,
         "WHAT - COMPUTES the Feinberg deficiency delta = n - l - s = rank(L_complex) - rank(N) of a reaction network: n distinct complexes, l linkage classes (connected components of the complex graph), s = rank(N) = dimension of the stoichiometric subspace. delta is a non-negative integer fixed by network topology alone (independent of rate constants). rank(L_complex) = n - l is the exact rank of the combinatorial graph Laplacian of the complex graph; rank(N) is the Class-J QMat.rank. WHEN - reach for it to read a network structural invariant: the Feinberg deficiency-zero and deficiency-one theorems constrain the steady states of many mass-action networks from delta alone. Pass with_components=True for the n / l / s breakdown. Standard reference: M. Feinberg, Foundations of Chemical Reaction Network Theory (Springer AMS 202, 2019). SIBLINGS - it composes dense_laplacian (Class L) with QMat.rank (Class J); do NOT hand-roll a connected-components count for l - the graph Laplacian rank IS n - l, exactly. conservation_laws reads the same stoichiometric N from the other side (its left-nullspace), and rank(N) here is that matrix rank.",
-        ts_composes_600, 1u,
+        ts_composes_607, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,
     },
-    { /* 601 */
+    { /* 608 */
         "srmech.chemistry.parse_formula",
         "srmech",
         "chemistry",
         "Parse a chemical formula string into an {element: count} dict \342\200\224 the ergonomic input balance_reaction accepts. Handles multi-letter element symbols (\"Ca\", \"Cl\"), implicit and explicit ASCII-digit counts (\"O\" -> 1, \"O2\" -> 2), and arbitrarily NESTED parenthesised groups with a trailing multiplier (\"Ca3(PO4)2\" -> {Ca:3, P:2, O:8}; \"(OH)2\" -> {O:2, H:2}). DEFERS (raises, never silently mis-parses) hydrate dots, charges, and isotope/bracket syntax (out of `#T1050` scope). Class F/G (Render / byte-search): a bounded placeholder scan, the srmech_template_render family. Dispatches to the JPL-clean caller-arena C twin srmech_parse_formula (the pure-Python body is the byte-identical fallback and parity oracle); c_dispatched.",
-        ts_params_601, 1u,
+        ts_params_608, 1u,
         "dict",
         "{element: count} \342\200\224 element symbol -> total count; repeated occurrences accumulate",
         1,
@@ -14924,12 +15127,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 602 */
+    { /* 609 */
         "srmech.bus.decode_splice",
         "srmech",
         "bus",
         "Decode one frame of a UTLP Bio-TOTP bus channel (Claim 255 alignment) given the per-channel DNA secret. Pure function (no side effects); suitable for LLM / agent introspection of mid-stream traffic. Returns (plaintext, used_time_ns); the plaintext is the original JSON-encoded bus Event and the used_time_ns is the candidate time-bucket value that successfully decoded (the current bucket or \302\2611 bucket for clock-skew tolerance). Cipher: AES-128-CTR when ``pip install srmech[crypto]`` extra is installed (UTLP-exact path); HMAC-SHA-256 counter-mode keystream by default (stdlib-only, structurally equivalent for the defensive-scope threat model). Key derivation rolls every 250 ms (WINDOW_NS=250_000_000; configurable via ``SRMECH_BUS_TOTP_WINDOW_NS`` env var); the receiver tolerates \302\2611 window for clock skew. Frame layout: [nonce:16][ciphertext]; nonce = sender_id_u64 || channel_id_u32 || packet_seq_u32. Pass ZERO_DNA (b'\\x00'*32) for herd-immunity / public mode. v0.5.0rc7 (Bio-TOTP wire format; UTLP Claim 255).",
-        ts_params_602, 4u,
+        ts_params_609, 4u,
         "tuple[bytes, int]",
         "(plaintext, used_time_ns) \342\200\224 JSON-encoded bus Event bytes, and the candidate time value that decoded successfully.",
         1,
@@ -14942,12 +15145,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 603 */
+    { /* 610 */
         "srmech.bus.list_endpoints",
         "srmech",
         "bus",
         "Enumerate currently-running srmech.bus endpoints owned by the current user by scanning the `~/.srmech/bus-*.sock` (POSIX) / `~/.srmech/bus-*.txt` (Windows) registry directory. Best-effort liveness check per endpoint (POSIX: UDS connect probe; Windows: TCP loopback connect or WaitNamedPipeW probe). Side effect (when `cleanup_dead=True`, the default): registration files for endpoints whose server is no longer accepting connections are removed from disk on read. Returns `[]` on Pyodide / WASM (no socket support). Sorted alphabetically by endpoint name. v0.5.0rc9 (MCP / catalog discoverability; backing function shipped since v0.5.0rc1).",
-        ts_params_603, 1u,
+        ts_params_610, 1u,
         "list[Endpoint]",
         "Each Endpoint is a frozen dataclass: name (str), path (pathlib.Path), transport ('uds' POSIX / 'pipe' or 'tcp' Windows), alive (bool), pid (Optional[int], currently always None \342\200\224 reserved for a future rc that records owner PID in the registry file).",
         1,
@@ -14960,12 +15163,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         NULL, 0u,
     },
-    { /* 604 */
+    { /* 611 */
         "srmech.bus.by_name",
         "srmech",
         "bus",
         "Look up one srmech.bus endpoint by name. Same registry scan as `srmech.bus.list_endpoints` but returns just the matching record (or `None` if no endpoint of that name is registered for the current user). Does NOT auto-clean dead-endpoint registration files (the caller may want to inspect a dead endpoint's record). Returns `None` on Pyodide / WASM. v0.5.0rc9 (MCP / catalog discoverability; backing function shipped since v0.5.0rc1).",
-        ts_params_604, 1u,
+        ts_params_611, 1u,
         "Endpoint | None",
         "Frozen dataclass with name (str), path (pathlib.Path), transport ('uds' / 'pipe' / 'tcp'), alive (bool), pid (Optional[int]). `None` when no matching endpoint is registered.",
         1,
@@ -14973,7 +15176,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"output\":\"cosmos: cosmos | alive True | transport uds\\nunknown name: None\\nreply type/payload: f_dark {'payload': {'row': 0}, 'type': 'f_dark'}\\nreply sender: cosmos\\ndead record: antikythera | alive False | file bus-antikythera.sock\\nstill there: True\\nafter list_endpoints(): None\",\"why\":\"One named lookup feeds straight into connect(), and the same record survives repeated reads after its owner is SIGKILLed \\u2014 by_name never reaps, so a dead endpoint stays inspectable until list_endpoints() sweeps it.\",\"worked\":\"# --- bus_worker.py (runs as the SECOND process) -----------------------------------------------------\\n# \\\"\\\"\\\"A bus endpoint held open until the process is killed.\\\"\\\"\\\"\\n# import time\\n# from srmech.bus import serve\\n#\\n# def handler(event):\\n#     return {\\\"type\\\": \\\"ratio\\\", \\\"payload\\\": {\\\"metonic\\\": [235, 19]}}\\n#\\n# with serve(\\\"antikythera\\\", handler=handler):\\n#     time.sleep(300)\\n# --------------------------------------------------------------------\\nimport signal, subprocess, sys, time\\nfrom srmech.bus import serve, connect, by_name, list_endpoints\\n\\ndef cosmos(event):\\n    return {\\\"type\\\": \\\"f_dark\\\", \\\"payload\\\": {\\\"row\\\": 0}}\\n\\nw = subprocess.Popen([sys.executable, \\\"bus_worker.py\\\"])   # serves \\\"antikythera\\\"\\nwith serve(\\\"cosmos\\\", handler=cosmos):\\n    while by_name(\\\"antikythera\\\") is None:\\n        time.sleep(0.1)\\n    ep = by_name(\\\"cosmos\\\")\\n    print(\\\"cosmos:\\\", ep.name, \\\"| alive\\\", ep.alive, \\\"| transport\\\", ep.transport)\\n    print(\\\"unknown name:\\\", by_name(\\\"nucleosome\\\"))\\n\\n    # The record is enough to CONNECT -- discovery, then use.\\n    with connect(ep.name) as ch:\\n        r = ch.send({\\\"type\\\": \\\"ping\\\"})\\n        print(\\\"reply type/payload:\\\", r[\\\"type\\\"], r[\\\"payload\\\"])\\n        print(\\\"reply sender:\\\", r[\\\"attestation\\\"][\\\"sender_name\\\"])\\n\\n    # by_name does NOT reap: a dead endpoint's record stays inspectable.\\n    w.send_signal(signal.SIGKILL); w.wait(); time.sleep(0.5)\\n    d = by_name(\\\"antikythera\\\")\\n    print(\\\"dead record:\\\", d.name, \\\"| alive\\\", d.alive, \\\"| file\\\", d.path.name)\\n    print(\\\"still there:\\\", by_name(\\\"antikythera\\\") is not None)\\n    list_endpoints()                       # THIS is what reaps it\\n    print(\\\"after list_endpoints():\\\", by_name(\\\"antikythera\\\"))\"}",
         NULL,
         "WHAT \342\200\224 the same registry scan as ``list_endpoints``, returning just the ``Endpoint`` whose name matches, or ``None`` when nothing is registered under that name (also ``None`` on Pyodide / WASM). WHEN \342\200\224 you already know the endpoint's name and want its record: is it alive, what transport did it bind, where is its registration file. The deliberate difference from ``list_endpoints`` is that this call does NOT auto-clean dead registrations, which makes it the right tool for post-mortem inspection of an endpoint whose server has gone \342\200\224 the worked run reads a SIGKILLed endpoint's record twice and it only vanishes once ``list_endpoints()`` runs. What you would otherwise wrongly hand-roll is ``[e for e in list_endpoints() if e.name == n]``, which silently REAPS the very dead record you were trying to look at. SIBLINGS \342\200\224 ``list_endpoints`` is the enumerate form AND the reaper; ``connect(name)`` performs its own resolution, so ``by_name`` is for inspecting BEFORE or INSTEAD of connecting, never a required pre-step; ``srmech.introspect.by_pid`` is the identically-shaped single-record lookup on the OTHER ``~/.srmech`` registry (publishing runs, keyed by pid) and shares the same no-reap contract; ``decode_splice`` is what you use on the traffic once you are attached.",
-        ts_composes_604, 1u,
+        ts_composes_611, 1u,
         NULL, 0u,
         NULL,
         NULL, 0u,

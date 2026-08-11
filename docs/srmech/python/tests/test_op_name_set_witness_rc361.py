@@ -49,7 +49,7 @@ MANIFEST = Path(__file__).resolve().parent / "registered_op_names.txt"
 #: rc361 until rc410 (`#T1085`) — stale by 40 ops, in a comment whose only job
 #: was to show the CURRENT value, sitting two lines above the real one. Written
 #: symbolically now so it cannot go stale a second time.)
-EXPECTED_N = 605  # rc422 (local task T1123): 598 -> 605, the centre/covering layer (5 srmech.math.covering ops) + the 2 Z(Spin(8)) rep-kernel anchor ops  # rc420 (local task T1114): 569 -> 598, the 29 cascade-catalog leaf-inventory + runner registrations
+EXPECTED_N = 612  # rc424 (local task T1113): 605 -> 612, the 6 srmech.music relational ops + the first registration of srmech.signal_processing.music_doa  # rc422 (local task T1123): 598 -> 605, the centre/covering layer (5 srmech.math.covering ops) + the 2 Z(Spin(8)) rep-kernel anchor ops  # rc420 (local task T1114): 569 -> 598, the 29 cascade-catalog leaf-inventory + runner registrations
 
 #: sha256 over the NORMALISED manifest body — "\n".join(sorted names) + "\n",
 #: UTF-8. Normalised rather than raw-file-bytes so a CRLF checkout cannot make
@@ -143,8 +143,18 @@ EXPECTED_N = 605  # rc422 (local task T1123): 598 -> 605, the centre/covering la
 # quotient objects) with no way to hold the global (pi_1 / centre) datum, and six
 # shipped ops had each hand-rolled the same centre-parity shadow. 598 -> 605,
 # digest below.
+# v0.9.0rc424 (`#T1113`) — the music RELATIONS lane plus the MUSIC DOA
+# registration. Seven new names: six srmech.music relational ops (just_limit /
+# comma_of_chain / tempers_out / interval_vector / normal_order / prime_form)
+# and srmech.signal_processing.music_doa. All ADDITIONS at the registry level.
+# The seventh is worth naming precisely because it LOOKS like a rename and is
+# not: the DOA op had NO ToolEntry through rc423, so it was ABSENT from
+# search() rather than out-ranked by the srmech.music acoustics ops, and this
+# is its first registration (+1). Its MODULE was separately renamed
+# closed_form_ops.music -> closed_form_ops.music_doa, which moves no registry
+# name because no registry name pointed at it. 605 -> 612, digest below.
 EXPECTED_NAME_SET_SHA256 = (
-    "4ce7dd526dfb5d97d4a4423e1c3ae29ee8a28568e9720d87454922e5832a32b5")
+    "cbe1e528a2dc94dde1eca29ac91df3c6e1ebf7764f30468cc94184b770a0a2a0")
 
 
 def _live_names() -> list[str]:

@@ -157,8 +157,33 @@ from srmech.math.text import fold_marks, glyph_stream
 #: import through the curated-docs merge, which is exactly the shape that
 #: could have carried iteration-order nondeterminism between runs. It does
 #: not.
+#:
+#: **RE-PINNED AGAIN at v0.9.0rc424 (`#T1113`).** rc423's value was
+#: ``376cdbf03d83a47d2a032589128cc805dd5877ee7cfe7744f677181db8551dac``. This
+#: is the SEVENTH consecutive re-pin, and it is back to the **population**
+#: kind: rc424 registers **seven new ops** — the six ``srmech.music``
+#: relational ops (``just_limit`` / ``comma_of_chain`` / ``tempers_out`` /
+#: ``interval_vector`` / ``normal_order`` / ``prime_form``) and
+#: ``srmech.signal_processing.music_doa`` — so the frame set moves
+#: **634 -> 641 = 612 ops + 29 carriers** and
+#: ``describe()['tools']['total']`` moves 605 -> 612. Seven new ToolEntry
+#: summaries, seven new curated explanation/example/worked blocks, and seven
+#: new ``composes`` tuples all land in the corpus by construction.
+#:
+#: One entry deserves naming because it would otherwise be mis-read as a
+#: rename: ``music_doa`` had **no ToolEntry at all** through rc423, so it
+#: contributed **no frame** and was ABSENT from the corpus rather than
+#: out-ranked within it. Its arrival is a genuine +1 to the frame count, not a
+#: relabelling of an existing frame — which is why the count moves by seven
+#: and not by six.
+#:
+#: Determinism re-established independently at this value BEFORE re-pinning:
+#: EIGHT builds on WSL2 (numpy-absent) — five successive
+#: `_build_frames('all')` calls inside one process, plus three FRESH
+#: interpreters — all produced this one hash, with `len(frames) == 641` every
+#: time.
 WITNESS_RC416 = (
-    "376cdbf03d83a47d2a032589128cc805dd5877ee7cfe7744f677181db8551dac")
+    "ad80c34e0c5fb6e03b76dee9d2511050791f726a8a5a8c049d116837439fca09")
 
 #: The ASCII control set. These four queries are the ops the tokenizer work is
 #: ABOUT, so a regression on them would be the change eating its own subject.
