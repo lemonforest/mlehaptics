@@ -64,10 +64,12 @@ It is now registered as `srmech.signal_processing.music_doa` (+1 op, and `regist
 | `"direction of arrival"` | **absent** | **rank 1** |
 | `"DOA estimation"` | **absent** | **rank 1** |
 | `"subspace eigendecomposition source localisation"` | **absent** | **rank 1** |
+| `"MUltiple SIgnal Classification"` | **absent** | **rank 1** |
 | `"MUSIC algorithm"` | **absent** | rank 2 (behind the `int` carrier) |
-| `"MUltiple SIgnal Classification"` | **absent** | rank 4 |
 
-The research phase predicted rank 1 across the board; the measurement is rank 1 on three of five. Recorded as measured. Its Class L ∘ Class K identity, its numpy-free carrier path and its trauma-informed scope paragraph (educational / civilian DOA only) are unchanged.
+The research phase predicted rank 1 across the board; measured on the finished tree it is **rank 1 on four of five**, rank 2 on the fifth. Worth recording *how* that number moved: an intermediate measurement, taken after the `ToolEntry` landed but before the curated `explanation` / `worked` blocks did, put `"MUltiple SIgnal Classification"` at rank 4. `search.py` indexes the curated prose too, so those blocks are not decoration — they are half the retrieval surface. The intermediate figure was a true measurement of an unfinished tree, which is exactly the shape of stale number a build ships by accident.
+
+Its Class L ∘ Class K identity, its numpy-free carrier path and its trauma-informed scope paragraph (educational / civilian DOA only) are unchanged.
 
 ### Fixed
 
