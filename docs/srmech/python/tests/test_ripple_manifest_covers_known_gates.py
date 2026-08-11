@@ -76,6 +76,19 @@ FROZEN_KNOWN_GATES = frozenset({
     "tests/test_worked_examples_strict_zero_rc353.py",
     "tests/test_worked_examples_execute_rc354.py",
     "tests/test_tool_example_input_schema_rc355.py",
+    # -- composes / preserves: the cascade-identity family (rc423, `#T1113`).
+    #    FROZEN for the reason rc423 exists. Its finding is that a surface with
+    #    no population instrument does not trickle -- it STALLS, and then reads
+    #    as finished because nothing is red (measured: 9 -> 16 rows across ~45
+    #    rcs, three correctness gates green throughout). A ratchet that can be
+    #    quietly dropped from the manifest is that same failure one level up,
+    #    so the population gate and the grain gate it depends on are pinned
+    #    here rather than left to a future manifest edit. All three are edited
+    #    from the SAME curated file as explanation / example, so an rc touching
+    #    any ToolEntry can move them by accident. ------------------------------
+    "tests/test_composes_grain_rc412.py",
+    "tests/test_composes_population_rc423.py",
+    "tests/test_preserves_taxonomy_rc423.py",
     # -- count-pin describe()["tools"]["total"] -------------------------------
     "tests/test_registry_smoke_rc127.py",
     # -- class-TOML op-ref guard (#T930 -- the third generated C table) -------

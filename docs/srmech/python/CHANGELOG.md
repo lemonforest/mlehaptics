@@ -13,6 +13,66 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc423]
+
+### `composes` POPULATION — the field was gated three ways for correctness and zero ways for population, and that is why it stopped moving (`#T1113`)
+
+User direction 2026-08-08: *"every operation should also have its cascade composition still as part of its identity."* Everything needed already shipped. The FIELD landed rc305 (`ToolEntry.composes`, C-mirrored, riding `tool_schema_sha256`). The READER landed rc412 (`ToolSchema.composition()` plus the reverse edge). The GATES landed rc305 / rc412 — registry membership, AST call-reachability, acyclicity. **What was missing is POPULATION**, and the arc shows it: 9 rows at rc412, 16 at rc422. Seven rows in roughly forty-five rcs, every gate green throughout.
+
+**`composes` moves 16/605 → 164/605.**
+
+#### The defect was a missing DISTINCTION, not a missing number
+
+`composes` correctness was gated three ways; its population was gated zero ways. A ceiling had been considered and refused at rc412, in a sentence this rc amends in place rather than deletes: *"a down-only ceiling on unpopulated rows presumes the residual should reach zero, and here it must not."* That is **right about the denominator it names and wrong about the one it should have named**. A ceiling over *unpopulated* rows is genuinely incoherent — a leaf is permanently and correctly empty. But **"unpopulated" and "unadjudicated" are different sets, and the field cannot tell them apart**: a row nobody has ever examined and a row measured to compose nothing are both `()`. Every "is this complete?" question was therefore unanswerable, and an unanswerable question is what let the number sit still.
+
+#### Four tiers, and each takes the reading that can FALSIFY it
+
+Every one of the 605 registered ops lands in exactly one tier. The ledger (`tests/composes_adjudication_rc423.ndjson`) is produced by the committed census script `docs/srmech/notes/_composes_population_census_rc423.py`; RESIDUAL is the complement and is deliberately **not** enumerated, so the ceiling cannot become a second copy of a list that then drifts from the first.
+
+| tier | n | rule | proved by |
+|---|---|---|---|
+| `DECLARED` | 16 | hand-traced multi-op composition | AST **subset**, depth 3 (rc412 clause 2) |
+| `SINGLE` | 148 | the op's own body directly calls **exactly one** registered op | AST **equality**, depth 1 |
+| `LEAF` | 258 | reaches **nothing** registered | AST **equality** against ∅, depth 3 |
+| `REFUSED` | 1 | tier-eligible, and a prior rc read it and declined | human review, recorded |
+| `RESIDUAL` | 182 | two or more direct call edges — ORDER is a human act | — the down-only ceiling |
+
+adjudicated **423 / 605**.
+
+**The ORDER problem does not arise, and that is the point.** rc412 measured that lexical first-call order matches ground truth on **0 of 2** rows — a derived SET is trustworthy and a derived SEQUENCE is not. Nothing here orders anything: a LEAF has no sequence, and a SINGLE has exactly one element, which has exactly one ordering. Order stays a human act performed in `ROSTER`, which is precisely why the mechanical tiers stop at one sub-op instead of reaching for the 182 rows with two or more.
+
+**Each tier takes the depth that can falsify it, never the one that flatters it.** LEAF uses depth **3** — the most generous reach available — because for an emptiness claim an under-reading is the *permissive* direction. SINGLE uses depth **1**, because a depth-3 singleton could be a private helper's internal the parent never calls itself, which is the over-attribution `klein4_compose`'s roster note refuses. The mechanical tiers are gated by EQUALITY and the hand-traced tier by SUBSET; that asymmetry is not an oversight — a subset check is all that is available once a human *selects* which of several reachable ops to name, while a mechanically-derived row has nothing to select and so must match exactly.
+
+**`REFUSED` is one row and it is recorded as data, not skipped.** `covering_catalog` is a depth-1 singleton on `spin8_center`, so the mechanical rule *would* admit it; rc422 read the implementation and declined, because the catalog consults that op rather than being built from it. A gate now asserts the refusal is still **load-bearing** — if the code changes so the row stops being tier-eligible, the carve-out has outlived its reason and goes red rather than quietly persisting.
+
+#### The RATCHET — `CEIL_UNADJUDICATED = 182`, down-only
+
+The point of the rc. A row leaves the residual by being **traced** — read the implementation, work out the call order, add it to `ROSTER` — and the ceiling is lowered in the same commit. A paired anti-slack clause forces the constant down when the residual drains, so it cannot become decorative. Raising it is never the fix: a new op arriving with two-plus call edges and no traced order is exactly the drift this catches.
+
+#### Negative controls, because a gate that passes on invented rows is not a gate
+
+The `SINGLE` tier is machine-generated, so the question to ask is whether its gate could pass on a row somebody made up. The predicate is factored into one function and the control **calls that function** rather than restating it — three fabrications, failing for three different reasons: a plausible-but-wrong sub-op, a two-element tuple (smuggling untraced order past a rule that only ever justified one element), and an invented edge on a genuine leaf. The LEAF control runs the leaf predicate against `gf_rref`, which reaches three ops. Declaring a false leaf is the cheapest way to drain the ceiling dishonestly — it needs no code at all — so it is the one most worth proving impossible.
+
+#### `preserves` — the HOLD is LIFTED, with the taxonomy in place (and it had LEAKED)
+
+`preserves` was held pending a taxonomy (ADR-0013 §1.7.1; ADR-0012 §6.1: *"any floor on it is satisfiable at scale with zero per-op information, so it gets a declared taxonomy before it gets rows"*). **It went 2 → 13 anyway** — a hold with no instrument is a comment, and rc419 and rc422 both added rows in good faith without meeting one.
+
+Reading all 13 (21 invariant strings) finds them **unclassified, not wrong**: every one is a genuine INVARIANT claim, and a taxonomy is already implicit in them. It closes — all 21 classify with no residue and no kind invented to catch a stray. Ten kinds, each carrying a definition **and a VERIFIABILITY class** (`EXECUTABLE` / `STRUCTURAL` / `PROSE`), the field that decides whether a row is a testable guarantee or a note: `ALGEBRAIC`, `ROUND_TRIP`, `EXACTNESS`, `HONEST_NULL`, `PURITY`, `IDEMPOTENCE`, `IMMUTABILITY`, `DESIGN_CONTRACT`, `CROSS_CHECK`, `IMPLEMENTATION_DISCIPLINE`.
+
+Enforced at **strict zero**: an unclassified `preserves` string now fails CI, which answers the hold's stated fear structurally rather than by promise — a row must name what KIND of guarantee it makes, and a contentless string has no kind to take. Classification is keyed by the **full sentence**, so rewording an invariant invalidates its kind and forces re-review; a positional key would silently carry the old kind onto new words. A companion clause refuses an **unused** kind, because a taxonomy entry with no instance is a guess.
+
+**`preserves` is deliberately NOT seeded in this rc** and stays 13/605. Lifting the hold makes population legitimate; it does not make it automatic. **Honest status: population unblocked, execution owed** — eight of the ten kinds are EXECUTABLE and nothing yet executes them. That is a NEW obligation created by classifying the rows, not a survival of the old hold, and conflating the two is how a discharged hold silently renews itself.
+
+#### The instrument is now single-sourced
+
+The identity-resolved AST call-graph moved from `test_composes_grain_rc412.py` into `tests/composes_derive.py` (the `tests/rosetta_roots.py` precedent) and is imported by both gates and by the census script. Nothing about it changed. A copied instrument drifts from its original while both copies stay green, and rc423 needed the same call-graph rc412 already had.
+
+#### Ripple
+
+`_tool_docs.py` and `srmech_tool_registry.c` regenerate (idempotent across two passes); `tool_schema_sha256` and the `.mcpb` manifest move with them. **No op is registered** — the registry stays **605**, `describe()['tools']['total']` stays 605, the frame set stays 634, and no count-pin is touched. `WITNESS_RC416` re-pins for a THIRD kind of reason — neither new prose nor new ops, but new structured metadata on existing rows, since `search.py::_op_fields` has indexed `composes` since rc412 and 148 rows now contribute a field they did not. A witness move with a **flat frame count** is the signature of a metadata rc, and reading it as prose drift would send the next author looking in the wrong place. The `srmech.amsc.` as-text pin rises +10 per generated artifact (147 → 167 total) with the decoded channel **flat at 2**: ten `composes` tuples now name an `srmech.amsc` op as a sub-op. Naming a sub-op is a REFERENCE to that namespace, never a move INTO it — the rc362 / rc420 case exactly, and both burdens that pin sets are discharged at the pin.
+
+One incidental pin also moved and is worth naming: `test_composition_distinguishes_a_leaf_from_a_missing_op` asserted `sha256_bytes` had **both** tuples empty. Only the first was the property under test; the second was an artefact of a 16-row population in which nothing yet declared the tree's most-composed primitive. It now has 8 parents, all true. The leaf-vs-missing distinction is asserted on `composes`, and the two-empty-tuples shape on an op with no edge in either direction — both facts still ship, neither is hostage to the population growing.
+
 ## [0.9.0rc422]
 
 ### The CENTRE / COVERING layer — srmech could carry algebras and finite groups, but not the global datum they structurally cannot hold (`#T1123`)

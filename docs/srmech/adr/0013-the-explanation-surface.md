@@ -178,12 +178,12 @@ obvious response — write a guide — would violate two standing constraints an
 drift surface. srmech's self-information is stratified by **grain**, and the three grains are in
 radically different states:
 
-| grain | home | state (measured; per-row basis noted — the registry is 559 at rc411, `composes` re-measured at rc412) |
+| grain | home | state (measured; per-row basis noted — the registry is 559 at rc411, `composes` re-measured at rc412; **both `composes` and `preserves` re-measured at rc423 on a 605-op registry**, §1.7.2) |
 |---|---|---|
 | **ARCHITECTURE** — the A-N vocabulary, the substrate claims | `srmech_research_notebook.md` (7,373 lines) | **DRIFTING** — highest rcN it mentions is **rc399**; shipped is rc412; **26** `docs/srmech/python` commits landed since it was last touched; **zero** currency gates |
 | **PER-OP** — what one op is, means, and demonstrates | `summary` + `explanation` + `example` | **COMPLETE** — 559/559 on all three post-rc411, ~2.05 M chars, floor-enforced (§4) |
-| **DECOMPOSITION** — what sub-ops this op is built from | `composes` | **9 / 559** post-rc412 (was 2/559); set derivable, order hand-traced — see §1.7.1 |
-| **INVARIANT** — what guarantees this op maintains | `preserves` | **2 / 559**, deliberately held pending a taxonomy; *not* the same grain as `composes` — see §1.7.1 |
+| **DECOMPOSITION** — what sub-ops this op is built from | `composes` | **9 / 559** post-rc412 (was 2/559); set derivable, order hand-traced — see §1.7.1. ⚠️ **Superseded by rc423 (`#T1113`): 164 / 605** — the POPULATION pass, adjudicated by tier rather than hand-traced row by row (§1.7.2) |
+| **INVARIANT** — what guarantees this op maintains | `preserves` | ~~**2 / 559**, deliberately held pending a taxonomy~~; *not* the same grain as `composes` — see §1.7.1. ⚠️ **The HOLD is LIFTED at rc423 (`#T1113`)**: **13 / 605** rows (the count moved with the registry, not with a population drive), and the taxonomy the hold was waiting for now exists — **10 kinds DERIVED from the shipped rows**, all 21 invariant strings classified with no residue, enforced at **strict zero** by `tests/test_preserves_taxonomy_rc423.py`. The *"not the same grain as `composes`"* half of this row still stands (§1.7.2) |
 | **PER-TASK** — which ops go together to do X | `composes`, **lateral branch** | **1 / 559** — `best_rational_signed` only; the branch is declared by the field contract (`tool_schema.py:314`, `:318`) and almost unpopulated. This row read **"NO HOME — does not exist anywhere"** until §1.7.1a retracted it — see §1.7.1 |
 
 #### 1.7.1 ⚠️ CORRECTION (2026-08-07) — this table originally named the wrong home
@@ -266,6 +266,17 @@ honest-null guarantee) under one key with no taxonomy and no checker. That they 
 same two rows is an accident of authorship: a leaf op with a real invariant and no composition is legal,
 and unrepresented.
 
+⚠️ **rc423 (`#T1113`) amends the second half of that sentence, and STRENGTHENS the first.** *"…with no
+taxonomy and no checker"* was true when written and is now false on both counts: `preserves` has a
+**10-kind taxonomy** (ALGEBRAIC · ROUND_TRIP · EXACTNESS · HONEST_NULL · PURITY · IDEMPOTENCE ·
+IMMUTABILITY · DESIGN_CONTRACT · CROSS_CHECK · IMPLEMENTATION_DISCIPLINE) and a **strict-zero checker**
+— an unclassified `preserves` string now fails CI (`tests/test_preserves_taxonomy_rc423.py`). The
+five-kinds-under-one-key observation was the right diagnosis; ten kinds is what the same reading finds
+at 13 rows / 21 strings instead of at 2 rows / 6 strings. **The TWO-FEATURES point stands and is now
+enforced separately on each side**: `composes` is gated on registry membership and, since rc423, on a
+tier-adjudicated population census; `preserves` is gated on taxonomic classification. Two features, two
+instruments, neither substitutable for the other.
+
 **So §2.3's four readings remain per-op.** What §1.7.1a changes is the per-task row: it has a
 **declared home that is almost unpopulated (1/559)**, not no home. The original §1.7 was closer to
 right than the "correction" that replaced it — it said `composes` was the home and measured it
@@ -281,18 +292,59 @@ where it would be far harder to see. Either scope clause 2 to rows not sourced f
 descriptor, or add a second admission path validating a declared-cascade row against its descriptor's
 `operation` chain. Tracked as `#T1096`.
 
+✅ **`#T1096` is CLOSED — rc417 (`#T1100`) took the second of the two options above.** Verified against
+the file on this branch: `_descriptor_chain(name)` reads the parent's own
+`srmech/cascade/catalogs/cascade_catalog/<leaf>.toml` `operation` string, and clause 2 now admits a
+sub-op that *either* the call graph reaches *or* the parent's own descriptor chains — so a
+declared-cascade row is no longer a red. Two details are worth carrying, because they are what keeps
+the fix from being the loophole this paragraph feared: the descriptor lookup is by **exact leaf name,
+in that one directory, reading only `operation`** (a parent with no descriptor gets no second path);
+and the admissions are **printed, not absorbed** (`test_descriptor_admissions_are_reported`), so a row
+that starts leaning on the TOML instead of the call graph is visible the run it happens. **Today every
+ROSTER row still passes on the call-graph path alone**, so the second path currently admits nothing —
+it was landed before it was needed, precisely so the first lateral row would not arrive as a red
+accusing a correct declaration of being wrong.
+
+⚠️ **Two line references in the paragraph above have moved and are kept for the record rather than
+rewritten.** `test_every_declared_sub_op_is_actually_called` was at `:516` when this was written; it is
+at **`:465`** on this branch, and `_descriptor_chain` is at **`:422`**. The function did not move
+*down* as the file grew — it moved *up*, because rc423 lifted the derivation instrument OUT of this
+file into `tests/composes_derive.py` (single-sourced there, since two gates now consume it).
+
 **Measured for the record** (identity-resolved AST call-graph over the 559 resolved callables, following
-function-local `ImportFrom` aliases through unregistered private helpers):
+function-local `ImportFrom` aliases through unregistered private helpers) — **this is the rc412-era
+measurement, at the 559 registry; it is preserved, not superseded**:
 
 | depth | non-empty | edges | ground truth recovered |
 |---|---|---|---|
 | 1 | 237 / 559 | 364 | 5 / 7 |
 | 3 | 342 / 559 | 643 | **7 / 7** |
 
+**Re-measured at rc423** (`#T1113`) with the same instrument — now single-sourced at
+`tests/composes_derive.py` — over the **605**-op registry:
+
+| depth | non-empty | zero-reach | basis |
+|---|---|---|---|
+| 1 | **256 / 605** | 349 | `derived(name, depth=1)` |
+| 3 | **347 / 605** | **258** | `derived(name, depth=3)` |
+
+**The 258 is the load-bearing figure and it is a positive statement, not a shortfall.** Those rows
+reach no registered sub-op at depth 3 — *"this op composes nothing registered"* as a MEASURED claim,
+which is exactly what `tool_schema.py` calls the correct default for a leaf. They are the reason a
+coverage floor over this field would be wrong (ADR-0012 §6.1), and the reason the rc423 ratchet is
+scoped to the **unadjudicated residual** instead (§1.7.2).
+
 **The SET is derivable; the ORDER is not.** Lexical first-call order matches **0 of 2** ground-truth
 rows, because a native fast-path branch calls `genome_save`/`genome_census` ahead of the pure path a
 human traced — and the contract says ORDERED. Any future population is therefore derivation for the
 set plus human tracing for the sequence, never derivation alone.
+
+**This finding is why rc423's mechanical tiers stop at ONE sub-op**, and it survives that rc intact. A
+`SINGLE`-tier row is admissible precisely because a one-element tuple has exactly one ordering — the
+order is *forced*, not derived, so no human tracing is skipped. The moment a row has two direct call
+edges the ordering becomes a human act again, and rc423 leaves every such row **unenumerated**
+(§1.7.2's RESIDUAL). The rule above is not a constraint rc423 worked around; it is the rule that drew
+the tier boundary.
 
 ⚠️ **And the field is unread.** `srmech/introspect/search.py::_op_fields` indexes exactly `name`,
 `category`, `summary`, `explanation`, `example.*`. **rc411's search surface does not index `composes`
@@ -311,6 +363,46 @@ with a three-clause gate that fires on undeclared population as well as deletion
 at 2 on purpose. **A measurement worth keeping: indexing `composes` in search wins the `why`
 attribution on 0 of 27 references** — a row's own prose almost always already names the ops it composes
 — so the index alone would have been a reader that provably reads nothing.
+
+#### 1.7.2 Post-rc423 addendum (`#T1113`) — the POPULATION pass, and the ratchet's exact scope
+
+rc412 shipped the reader and nine hand-traced rows. **rc423 shipped the population**, and it did so by
+**adjudication into tiers** rather than by row-by-row tracing, because tracing 605 rows by hand is the
+filler ADR-0012 §6.1 warns about wearing a coverage number. Registry = **605** ops. Census generated by
+the committed script `docs/srmech/notes/_composes_population_census_rc423.py`; the per-row verdicts ship
+as a ledger at `docs/srmech/python/tests/composes_adjudication_rc423.ndjson`.
+
+| tier | count | the rule that admits a row |
+|---|---|---|
+| **DECLARED** | **16** | hand-traced multi-op, pinned row-by-row in `test_composes_grain_rc412.py::ROSTER` |
+| **SINGLE** | **148** | `derived(name, depth=1)` is a **SINGLETON** — the op's own body directly calls exactly one registered op, so the ordered tuple is **FORCED** (one element has one ordering) |
+| **LEAF** | **258** | `derived(name, depth=3)` is **EMPTY** — *"composes nothing registered"*, as a MEASURED statement |
+| **REFUSED** | **1** | tier-eligible and **deliberately declined**: `srmech.math.covering.covering_catalog`, which rc422 read and judged to *consult* `spin8_center` rather than be *built from* it |
+| **RESIDUAL** | **182** | two or more direct call edges — **the ORDER is a human act**, so the row is NOT enumerated |
+
+**Adjudicated 423 of 605.** `composes` population moved **16 / 605 → 164 / 605** (DECLARED + SINGLE).
+`preserves` stayed **13 / 605** — deliberately not seeded; see the taxonomy note on §1.7's INVARIANT row.
+
+**The REFUSED tier is one row and it is the most informative one**, because it is the only tier whose
+admission rule is *a human said no*. A singleton call edge is mechanically eligible; consulting a
+catalog is not the same relation as being built from it, and a tier that could not record that
+distinction would have silently converted a judgement into a measurement. One row is enough to prove the
+tier can return otherwise.
+
+⚠️ **The ratchet is `CEIL_UNADJUDICATED = 182`, down-only, and its scope is the distinction this whole
+section turns on. It is a ceiling over the UNADJUDICATED RESIDUAL — NOT over "unpopulated rows".** Those
+are different sets and conflating them would re-file the LEAF tier as debt. A LEAF row is **permanently
+and correctly empty**; driving it to a population would be inventing edges. What was genuinely wrong
+before rc423 is that **an unexamined row and a measured leaf were indistinguishable in the field** —
+both read as `composes = ()`, and no instrument could tell them apart. Only *that* distinction gets a
+ceiling, and it drains toward the rows where order is a human act and the human act has not happened.
+
+**Honest status of the `preserves` half: population unblocked, execution owed.** The taxonomy assigns
+each of the ten kinds a **VERIFIABILITY class** (EXECUTABLE / STRUCTURAL / PROSE), and **8 of 10 are
+EXECUTABLE** — meaning a machine *could* run the op and check the claim. Nothing does yet. That is a
+**NEW obligation the taxonomy created**, not a survival of the old hold: the hold asked *"what kinds are
+there?"* and has been answered; the open question is now *"does the op actually do what the row says?"*,
+which could not even be asked before the kinds existed.
 
 **A hand-authored guide is the wrong instrument, for three separable reasons.**
 
@@ -343,14 +435,23 @@ recovers it.
 2. **`composes` / `preserves` are a real gap, but NOT the per-task one** — see §1.7.1. rc305 shipped
    those fields as the composition layer; the *mechanism* landed and the *content* never did
    (**2/559** each, re-measured post-rc411, 0.36 %). What they record is **downward decomposition**;
-   the per-task question is lateral, and has no home at all.
+   ~~the per-task question is lateral, and has no home at all~~.
+   ⚠️ **Two amendments, both to this bullet's tail.** The *"no home at all"* clause was retracted by
+   §1.7.1a the day after it was written — the lateral branch has a declared home that is nearly
+   unpopulated. And the **2/559 each** figure is the rc411 basis: at rc423 it is **`composes` 164/605 ·
+   `preserves` 13/605** (§1.7.2). The bullet's *decision* — that these fields are not the per-task
+   grain — is unaffected by either.
 3. **The per-task grain is named here as OUT of the four-readings decomposition**, not silently folded
    into it. Whether it becomes a fifth reading, a distinct surface, or a derived join over an
    *inverted* `composes` graph is **open** and deliberately not decided by this ADR.
 
 ⚠️ **Limits on the numbers above, stated so they are not over-read.** The `composes`/`preserves`
 census counts **non-empty, not good** — a one-word value scores identically to a real one, so 2/559 is
-a **floor on the gap**, not a quality assessment. It is measured on the **rc409** registry; rc411
+a **floor on the gap**, not a quality assessment. *(⚠️ The non-empty-not-good caveat still applies at
+rc423's 164/605 — with one narrowing: the 148 `SINGLE` rows are not merely non-empty, they are pinned by
+an EQUALITY against the depth-1 call graph, so a wrong or fabricated sub-op on one of them fails CI.
+§1.7.2. The `preserves` side gained the peer property: a string is no longer merely non-empty, it must
+classify into a declared kind.)* It is measured on the **rc409** registry; rc411
 (`#T1079`) took the registry to 559; **re-measured after it landed: still 2/559 each** — rc411 added three rows and populated neither field. And **559/559 population on the
 per-op fields is not a claim that the per-op grain is *correct*** — §6 measures that none of it is
 reachable, and `#T1092` records a shipped field (`mcp_callable`) that is uniformly populated and

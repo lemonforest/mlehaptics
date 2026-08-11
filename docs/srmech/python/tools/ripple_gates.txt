@@ -69,6 +69,23 @@ tests/test_tool_example_input_schema_rc355.py
 #    every declared sub-op is actually CALLED. ~13 s, pure-Python. -----------
 tests/test_composes_grain_rc412.py
 
+# -- composes: POPULATION + the down-only ratchet (rc423, `#T1113`) ----------
+#    The grain gate above pins WHAT is declared; this pins HOW MUCH, which is
+#    the axis that had no instrument and so trickled 9 -> 16 across ~45 rcs.
+#    It re-derives every LEAF and SINGLE row from source, so it goes red when
+#    an rc changes an op's call structure WITHOUT re-running the census --
+#    exactly the drift a curated-file edit produces by accident. It also
+#    carries CEIL_UNADJUDICATED, which a new op with two-plus call edges and
+#    no traced order trips immediately. ~25 s, pure-Python. ------------------
+tests/test_composes_population_rc423.py
+
+# -- preserves: taxonomy enforcement (rc423, `#T1113`) -----------------------
+#    Strict-zero: every shipped `preserves` string must classify into a
+#    declared kind. Classification is keyed by the FULL sentence, so REWORDING
+#    an invariant (a routine prose edit in the same curated file) invalidates
+#    its kind and lands here rather than in a CI round. ~20 s, pure-Python. --
+tests/test_preserves_taxonomy_rc423.py
+
 # -- mcp_callable / advertised-catalog surface (rc414, `#T1092`) -------------
 #    rc414 ships the FIRST mcp_callable=False entry since the field existed, and
 #    measured that ripple_check went GREEN on the flip while CI went red: none of
