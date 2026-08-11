@@ -7772,6 +7772,26 @@ conjugation-invariant — no monodromy is encoded, and the odd channel that *is*
 `circle_z` row, so admitting it would double-count one loss as two), and `τ` itself (an automorphism
 **acts on** a centre; being adjacent to the datum is not holding it).
 
+**PREVIEWED but NOT shipped as rows — two candidates that fit in FORM and fail on instantiation, not
+on structure.** The distinction matters and is kept explicit rather than folded into either bucket: a
+`reached` row must name live registered srmech ops (the gate resolves every one against the registry),
+so a structure with no srmech op to name cannot be a row however well it fits.
+
+- **`#T990` — the exeligmos screw** (`Lk = Tw + Wr` as integer-invariant ⊕ frame-relative reals). The
+  structure fits the `circle_z` row exactly: a dial is `ℝ → ℝ/Tℤ`, the deck group is `ℤ`, the pointer
+  reads the quotient and the **turn count is the cover datum** — the triple-Saros exeligmos exists
+  precisely because one Saros leaves a frame-relative ~8 h residue that three cancel to an integer
+  day. But the base object lives in the Antikythera / ephemerides subtree, not in srmech, so clause
+  (i) has no srmech op to point at. **`linking_number_cwf` is the op that would carry it** once one
+  exists. ⚠️ Note the bound even then: the deck group there is `π₁(S¹) = ℤ`, an **abelian** covering
+  and not the centre of a non-abelian group — the FORM matches, the object does not.
+- **`#T1058` — the fingerboard `Lk = Tw + Wr`** (§3.46.3 / §3.46.10, tiered **CONJECTURE**: "the
+  two-readings structure is real; the identity is unverified"). Fails clause (i) for the same reason
+  *and* fails on its own terms — the base is a conjectured structure, not a computed one. The useful
+  outcome is that it is now **testable**: `linking_number_cwf` returns `is_integer=False` with the
+  exact rational preserved, so the conjecture has an instrument that can refute it rather than a
+  prose analogy that cannot.
+
 ### §3.51.2 The bridge: residual ambiguity 3 → 1, DERIVED not chosen
 
 rc421 measured the V₄ ↔ so(8) bridge **NOT canonical as shipped**, residual ambiguity **3**, and named
