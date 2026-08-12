@@ -17,10 +17,45 @@ is the exact failure this project exists to prevent — and getting a
 non-Western system wrong would privilege Western notation by default, which
 is the one outcome the design is trying to avoid.  Tiers:
 
-    VERIFIED-OA  the source document was read
-    SECONDARY-OA a readable OA source asserts it
-    EXPERT-WEB   expert/institutional site, not peer-reviewed
-    UNSOURCED    NOT verified — never stated as fact
+    VERIFIED-SELF the PDF was fetched and its text extracted and grepped IN
+                  THIS SESSION by the author of this script — the strongest
+                  tier here, and the only one not taken on report
+    VERIFIED-OA   a source document was read (by a delegated reader)
+    SECONDARY-OA  a readable OA source asserts it
+    EXPERT-WEB    expert/institutional site, not peer-reviewed
+    UNSOURCED     NOT verified — never stated as fact
+
+⚠️ **TWO ROWS IN AN EARLIER VERSION OF THIS TABLE WERE WRONG, AND THE ERROR
+WAS IN THIS ARTIFACT, NOT IN AN UPSTREAM SOURCE.** A second, independent
+sourcing pass disagreed with the first about gongche and about kepatihan, so
+the contested citation was fetched and its text extracted directly
+(``docs/srmech/notes/`` provenance: the extractor is 25 lines of zlib over
+FlateDecode streams; both PDFs were grepped, not summarised). Result:
+
+* **Tse & Wong (2020) is REAL and correctly cited** — *"Analytical Approaches
+  to World Music, Vol. 8, No. 2. Published December 7, 2020. Metrical
+  Structure and Freedom in Qin Music of the Chinese Literati, Chun-Yan Tse
+  and Chun-Fung Wong"* (verbatim from the extracted text). But its subject is
+  METRICAL structure, and **it does not support the gongche claims** that
+  were attributed to it: gongche appears only in a passing mention that
+  ban/yan pulses are marked "by circles and dots ... adjacent to musical
+  notes in gongche notation". The gongche row is therefore **downgraded to
+  UNSOURCED**, which is also what the second pass independently reported.
+* **The jianzipu STATEFULNESS rule is ABSENT from BOTH cited sources.**
+  Grepped for persist / inherit / carry over / previous character /
+  preceding character / omitted / abbreviat across 417 KB of extracted text
+  from Eiso Chan, L2/22-206 (which IS real: *"Proposal to add 38 characters
+  used for the Chinese traditional musical notation to UAX #45"*,
+  2022-09-19) — **zero hits** — and absent from Tse & Wong likewise. See
+  F24, which is reframed as a CONDITIONAL structural result rather than a
+  measurement of an attested rule.
+
+What Tse & Wong DOES support, verbatim and self-extracted: *"the tablature
+score used for the qin notates the fingering. Each fingering notation is
+formed by combining simplified components of Chinese characters and numerals
+to indicate finger movement and position. ... By following these fingering
+instructions, the player produces a musical note."* That is the
+INSTRUMENT-ACTION family, and it is now the best-attested row in the table.
 
 Pre-registered falsifiers
 =========================
@@ -83,7 +118,16 @@ FAMILIES = [
                       "2012): 19-38.",
             "caveat": "72 dodekatemoria are NOMINAL values that practice "
                       "deviates from — the same theory/practice gap as "
-                      "maqam. 'Byzantine = 72-EDO' is an idealisation.",
+                      "maqam. 'Byzantine = 72-EDO' is an idealisation. "
+                      "⚠️ TWO REFINEMENTS from a second sourcing pass: (a) "
+                      "Skoulios calls the system CONTEXTUALIZED rather than "
+                      "purely intervallic — sign realisation depends on "
+                      "phrase, rhythm and mode, so it is intervallic AND "
+                      "context-sensitive; (b) pre-1814 layers were "
+                      "STENOGRAPHIC, the singer realising them by learned "
+                      "rules (Conomos, GOARCH School of Byzantine Music). "
+                      "The New Method made an already-intervallic system "
+                      "more EXPLICIT; it did not make it intervallic.",
         }],
     },
     {
@@ -104,17 +148,21 @@ FAMILIES = [
                        "Paris-Saclay, 15 Dec 2016, HAL tel-04190628 "
                        "(metadata verified; body NOT read)."},
             {"name": "Gongche 工尺譜",
-             "claim": "ten characters as solmization degrees; movable "
-                      "('pitches were not fixed but could be moved "
-                      "according to the tonal range'); a SKELETAL memory aid",
-             "tier": "VERIFIED-OA",
-             "source": "Tse Chun-Yan & Wong Chun-Fung, Analytical "
-                       "Approaches to World Music 8/2 (2020): 164-194",
-             "caveat": "NOT 12-TET traditionally; 12-TET is a 20th-c. "
-                       "overlay. Character set is regionally parameterised. "
-                       "A written score-header diao declaration is "
-                       "UNSOURCED — the diao is verified at the level of "
-                       "REPERTOIRE ORGANISATION only."},
+             "claim": "NOTHING IS CLAIMED. An earlier version of this row "
+                      "asserted movable solmization degrees and skeletal "
+                      "status on the authority of Tse & Wong (2020). Direct "
+                      "extraction of that PDF shows it mentions gongche "
+                      "ONLY in passing, for ban/yan pulse marks — it does "
+                      "not support the pitch claims at all. A second "
+                      "independent sourcing pass also returned gongche as "
+                      "entirely unverified.",
+             "tier": "UNSOURCED",
+             "source": "NONE. The previously cited source was checked "
+                       "directly and does not support the claim.",
+             "caveat": "This row is retained as an EXPLICIT GAP rather than "
+                       "deleted, so the table cannot silently look complete. "
+                       "Anything downstream that needs gongche must source "
+                       "it first."},
             {"name": "Sargam (Hindustani and Carnatic)",
              "claim": "RELATIVE; 'Sa, the tonic, can be any frequency'. "
                       "Hindustani: the tonic is an attribute of the "
@@ -125,10 +173,16 @@ FAMILIES = [
              "source": "Gulati, MSc, MTG-UPF 2012; Koduri et al., ISMIR "
                        "2011; Ranjani & Sreenivas, arXiv:1711.11357",
              "caveat": "⚠️ The 22-shruti question is a LIVE scholarly "
-                       "DISAGREEMENT with at least six camps; Rao & van der "
-                       "Meer call explaining contemporary intonation via "
-                       "the 22 'a meaningless endeavour'. Reported as "
-                       "disagreement, NOT resolved."},
+                       "DISAGREEMENT with several competing schemes "
+                       "(Western Compilation / Deval / Nagoji Row), none "
+                       "matching experiment well; Rao & van der Meer call "
+                       "explaining contemporary intonation via the 22 'a "
+                       "meaningless endeavour'. Reported as disagreement, "
+                       "NOT resolved. ⚠️ 'Movable' needs BOTH halves or it "
+                       "is misleading: the artist CHOOSES the tonic (Gulati "
+                       "et al.), and it then remains FIXED throughout an "
+                       "entire concert (Schachter, MTO 21/4, 2015). "
+                       "Quoting either half alone misrepresents it."},
             {"name": "Arabic maqam / ajnas",
              "claim": "ajnas are defined by intervals 'which don't change "
                       "when transposed'",
@@ -141,9 +195,23 @@ FAMILIES = [
                        "⚠️ The '1932 Cairo Congress' date for staff "
                        "adoption is WRONG: staff notation entered via "
                        "French-instructed Egyptian military schools in the "
-                       "EARLY 19th c. (Popper, PhD, UCSB 2019, "
-                       "eScholarship qt80x2c647). An older ABJAD notation "
-                       "existed (al-Kindi, al-Farabi, Ibn Sina, al-Urmawi)."},
+                       "EARLY 19th c. via French-instructed Egyptian "
+                       "military schools — BUT this is PROVISIONAL: the "
+                       "Popper source (PhD, UCSB 2019, eScholarship "
+                       "qt80x2c647) was located only as a snippet, its PDF "
+                       "being too large to fetch. The 1932 date is refuted; "
+                       "the replacement date is not yet attested. "
+                       "⚠️ An older ABJAD notation existed — and al-Farabi "
+                       "specifically IS sourced: Camprubi, M., 'Arabic "
+                       "Music Theory and Manuscript Studies: Greek Notation "
+                       "in al-Farabi's Great Book on Music?', History of "
+                       "Music Theory (SMT IG & AMS SG), 10 Apr 2022. The "
+                       "wider chain (al-Kindi, Ibn Sina, al-Urmawi) is "
+                       "SECONDARY at best. ⚠️ Do NOT overstate the "
+                       "24-tone-is-theoretical point from Bozkurt et al. "
+                       "(JNMR 38/1, 2009): that paper RANKS which models "
+                       "conform best, it does not assert blanket "
+                       "divergence."},
         ],
     },
     {
@@ -174,14 +242,29 @@ FAMILIES = [
         "is_chart_of_interval_carrier": False,
         "instances": [
             {"name": "Jianzipu 減字譜 (guqin)",
-             "claim": "compound 'reduced characters' encode left-hand "
-                      "finger + hui position and right-hand technique + "
-                      "string. Without oral transmission the score is "
-                      "'mute music'; dapu converts it 'to live music'",
-             "tier": "VERIFIED-OA",
-             "source": "Tse & Wong, AAWM 8/2 (2020) p.168; Eiso Chan, "
-                       "Unicode L2/22-206 §2.2",
-             "caveat": "⚠️ STATEFUL — see F24."},
+             "claim": "VERBATIM, self-extracted: 'the tablature score used "
+                      "for the qin notates the fingering. Each fingering "
+                      "notation is formed by combining simplified "
+                      "components of Chinese characters and numerals to "
+                      "indicate finger movement and position. ... By "
+                      "following these fingering instructions, the player "
+                      "produces a musical note.' Also verbatim: rhythm is "
+                      "not notated, and lost pieces are reconstructed "
+                      "through dapu.",
+             "tier": "VERIFIED-SELF",
+             "source": "Tse Chun-Yan & Wong Chun-Fung, 'Metrical Structure "
+                       "and Freedom in Qin Music of the Chinese Literati', "
+                       "Analytical Approaches to World Music 8/2 (pub. 7 "
+                       "Dec 2020) — PDF fetched and text extracted in "
+                       "session. Eiso Chan, Unicode L2/22-206, 'Proposal to "
+                       "add 38 characters used for the Chinese traditional "
+                       "musical notation to UAX #45' (2022-09-19) — also "
+                       "fetched and extracted; confirms compound "
+                       "left-hand/right-hand characters.",
+             "caveat": "⚠️ The STATEFULNESS rule is **UNSOURCED** — see "
+                       "F24. It is ABSENT from both of these documents "
+                       "(grepped, 0 hits). Pitch-as-output IS attested; "
+                       "position-inheritance is NOT."},
             {"name": "Lute tablature",
              "claim": "'a purely prescriptive form of notation... it merely "
                       "provides the actions a player must take'",
@@ -207,18 +290,25 @@ FAMILIES = [
                      "counted from lowest; changing pathet does NOT "
                      "renumber the ciphers. 'there is no standard tuning' — "
                      "each gamelan set has its own embat",
-            "tier": "VERIFIED-OA",
-            "source": "Brandts Buys, J. S. 'The common Javanese cipher "
-                      "notation (The Kepatihan notation from Solo).' "
+            "tier": "CONTESTED",
+            "source": "Claimed: Brandts Buys, J. S. 'The common Javanese "
+                      "cipher notation (The Kepatihan notation from Solo).' "
                       "Translingual Discourse in Ethnomusicology 5 (2019): "
                       "1-72, doi:10.17440/tde027 (orig. Djawa 20, 1940); "
                       "Sumarsam, Wesleyan",
-            "caveat": "A FOURTH thing: neither tonic-relative like sol-fa "
-                      "nor absolute like staff notation. Conflating it "
-                      "with movable-do would be an error. A "
-                      "Galin-Paris-Cheve/missionary lineage is UNSOURCED — "
-                      "Brandts Buys, who studied it exhaustively, names "
-                      "neither.",
+            "caveat": "⚠️ CONTESTED BETWEEN TWO SOURCING PASSES: pass 1 "
+                      "reported this VERIFIED-OA with the DOI above; pass 2 "
+                      "reported kepatihan as entirely UNSOURCED. It was NOT "
+                      "independently checked here (the contested-citation "
+                      "budget went to the two rows that F23/F24 depend on), "
+                      "so it is marked CONTESTED rather than promoted or "
+                      "discarded. Treat the STRUCTURAL point — that a "
+                      "degree-fixed/pitch-floating family exists and is "
+                      "neither tonic-relative nor absolute — as the "
+                      "load-bearing claim, and re-source it before any use "
+                      "that depends on the tradition rather than the shape. "
+                      "A Galin-Paris-Cheve/missionary lineage is UNSOURCED "
+                      "under both passes.",
         }],
     },
 ]
@@ -324,12 +414,22 @@ def main() -> int:
 
     # ── F24 — THE STATEFUL FAMILY.  This is the one that breaks the design.
     print("\nF24   STATEFUL chart — the symbol->carrier map is NOT a function")
-    print("      SOURCED: a jianzipu character with an empty upper half "
-          "means the left-hand position PERSISTS from the previous "
-          "character (Tse & Wong, AAWM 8/2 (2020); Unicode L2/22-206 §2.2).")
-    print("      So atoms do NOT compose independently — they compose over a "
-          "carried state. Measured below on a structural model of exactly "
-          "that rule.")
+    print("      ⚠️ REFRAMED. An earlier version of this block opened with "
+          "'SOURCED:' and attributed a position-inheritance rule to "
+          "Tse & Wong (2020) and Unicode L2/22-206. BOTH PDFs were then "
+          "fetched and grepped directly: the rule is ABSENT from both "
+          "(0 hits for persist/inherit/carry over/previous character/"
+          "omitted across 417 KB). The attribution was wrong, and it was "
+          "wrong in THIS artifact.")
+    print("      What is ATTESTED (verbatim, self-extracted) is only that "
+          "jianzipu notates FINGERING and the player 'produces a musical "
+          "note' by executing it — i.e. pitch is an OUTPUT. That supports "
+          "F23, not F24.")
+    print("      So F24 is now a CONDITIONAL structural result: IF a "
+          "notation carries reading state, THEN the atlas language does not "
+          "reach it. The antecedent is not claimed of any named tradition "
+          "here. The measurement below is of the MODEL, and it is worth "
+          "keeping because the consequent is what bounds the design.")
 
     HOLD = None   # the 'upper half omitted' symbol: inherit the position
 
@@ -383,12 +483,20 @@ def main() -> int:
           f"{q1} vs {q2}  identical? {q1 == q2}  "
           f"{'instrument OK' if q1 == q2 else '!! CONTROL FAILED'}")
     emit(finding="F24_stateful_chart_is_a_transducer",
-         sourced_rule="a jianzipu character with an empty upper half means "
-                      "the left-hand position persists from the previous "
-                      "character",
-         source="Tse Chun-Yan & Wong Chun-Fung, AAWM 8/2 (2020): 164-194; "
-                "Eiso Chan, Unicode L2/22-206 §2.2",
-         tier="VERIFIED-OA",
+         modelled_rule="a notation symbol may omit its position component, "
+                       "meaning the position persists from the previous "
+                       "symbol",
+         rule_attribution_status="UNSOURCED — this rule is NOT attributed "
+                                 "to any tradition. It was previously "
+                                 "attributed to Tse & Wong (2020) and "
+                                 "Unicode L2/22-206; both PDFs were fetched "
+                                 "and grepped in session and the rule is "
+                                 "ABSENT from both (0 hits across 417 KB). "
+                                 "The claim is retracted.",
+         result_form="CONDITIONAL — if a notation carries reading state, "
+                     "then the atlas language does not reach it. The "
+                     "antecedent is not claimed of any named tradition.",
+         tier="UNSOURCED (antecedent) / MEASURED (consequent)",
          symbol_sequence=["HOLD" if x is HOLD else x for x in seq],
          read_from_state_0=r1, read_from_state_9=r2,
          identical=r1 == r2, differing_positions=diffs,
@@ -403,16 +511,20 @@ def main() -> int:
                            "with a HOLD — the real case of a fragment "
                            "entered mid-piece, where the inherited position "
                            "is not on the page.",
-         verdict="THE CARRIER+CHART DESIGN DOES NOT REACH THIS FAMILY. A "
-                 "chart in the atlas sense is a FUNCTION from symbols to "
-                 "carrier values. A stateful notation is a TRANSDUCER: "
-                 "(symbol, state) -> (value, state'). The same symbol "
-                 "sequence read from two starting states yields different "
-                 "carrier sequences, measured. The negative control (a "
-                 "stateless chart) does not show the effect, so this is a "
-                 "property of the STATE, not of the harness. Any honest "
-                 "spec must say the torsor/atlas language covers three of "
-                 "the five families and NOT the stateful one.")
+         verdict="CONDITIONAL RESULT. A chart in the atlas sense is a "
+                 "FUNCTION from symbols to carrier values. A stateful "
+                 "reading is a TRANSDUCER: (symbol, state) -> (value, "
+                 "state'). Measured on the model: one 6-symbol sequence "
+                 "yields 12 distinct readings across 12 start states, and "
+                 "the stateless negative control shows no such effect — so "
+                 "the effect is a property of the STATE and not of the "
+                 "harness. What this does NOT establish is that any "
+                 "particular notation is stateful; that antecedent is "
+                 "unsourced and is not asserted. The design consequence "
+                 "survives either way, because it is a statement about what "
+                 "the atlas language can express: a carrier+chart spec "
+                 "covers functions and must say so, rather than quietly "
+                 "assuming every notation is one.")
 
     # ── the connection worth naming, stated as a QUESTION not a claim ────
     print("\n      Connection to the 'active carrier' thread — stated as a "
