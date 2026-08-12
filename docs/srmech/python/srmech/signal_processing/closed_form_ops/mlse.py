@@ -9,6 +9,23 @@ distinction is the trellis-state space — for MLSE the state is the channel
 memory rather than the convolutional-code state. Same algorithmic primitive,
 different substrate interpretation.
 
+⚠️ THE STATE IS THE WHOLE TAP WINDOW, WHICH IS THE THING rc424 GOT WRONG
+(corrected rc425, `#T1112`). ``y_t = Σ_k taps[k]·s_{t−k}`` depends on all
+``L`` symbols, and :func:`viterbi.op` takes a STATE-emission matrix, so every
+symbol the emission reads has to be IN the state — the trellis therefore
+carries ``s_t … s_{t−L+1}`` and has ``A**L`` states, not ``A**(L−1)``.
+Through rc424 it held one symbol too few and the emission compensated by
+applying ``taps[0]`` and ``taps[1]`` to the same entry, which decodes a
+DIFFERENT channel (``[h0+h1, h2, …]`` with the memory shifted a step). That
+was a silent wrong answer: measured against an exhaustive maximum-likelihood
+search over the same observations it disagreed on 4 of 9 test channels,
+returning a sequence of cost 13.0 where the transmitted one scored exactly
+0.0 — and it agreed on every cursor-dominant channel, i.e. exactly the regime
+where a plain slicer is also right, so the error hid wherever this op was not
+earning its keep. Gated now by
+``tests/test_signal_processing_path_a_baseline.py::
+test_mlse_agrees_with_exhaustive_maximum_likelihood_rc425``.
+
 Carrier-removal #564 (rc107): numpy-FREE — the trellis tables (transition /
 emission / initial log-probs) are pure-Python list-of-lists built with the
 Class-N ``rational.log`` cascade, the per-branch metric is an explicit
@@ -83,7 +100,9 @@ def _mlse_native(obs, taps, alpha, T, A, memory, n_states):
     dn = n_states * n_states + 2 * n_states * T + n_states
     dscratch = (ctypes.c_double * dn)()
     iscratch = (ctypes.c_int32 * (T * n_states + T))()
-    uscratch = (ctypes.c_uint32 * max(1, 2 * memory))()
+    # rc425 (`#T1112`): the trellis state is the FULL tap window (L symbols),
+    # not L - 1, so the two shift-register tuples are L wide apiece.
+    uscratch = (ctypes.c_uint32 * max(1, 2 * L))()
     out_path = (ctypes.c_int32 * T)()
     rc = _native.LIB.srmech_mlse(
         obs_re, obs_im, ctypes.c_uint32(T), taps_re, taps_im,
@@ -136,7 +155,29 @@ def op(
     memory = len(taps) - 1
     if memory < 0:
         raise ValueError("channel_taps must have length >= 1")
-    n_states = A ** memory if memory > 0 else 1
+    # ⚠️ rc425 (`#T1112`) — THE TRELLIS STATE SPANS THE WHOLE TAP WINDOW.
+    #
+    # Through rc424 this read ``n_states = A ** memory`` and the emission
+    # summed ``taps[k + 1] * alpha[tup[k]]`` and then ADDED
+    # ``taps[0] * alpha[tup[0]]`` — applying the cursor tap h0 and the first
+    # post-cursor tap h1 to the SAME symbol. The trellis therefore decoded as
+    # if the channel were ``[h0 + h1, h2, ...]`` with the memory shifted one
+    # step, which is a different channel.
+    #
+    # It was a SILENT WRONG ANSWER, not a crash: measured on noiseless BPSK
+    # where the transmitted sequence has branch-metric cost EXACTLY 0.0, the
+    # rc424 trellis returned a sequence costing 13.0 for taps [0.5, 1.0], and
+    # disagreed with an exhaustive maximum-likelihood search on 4 of 9 test
+    # channels. It agreed only where the cursor tap dominates — which is
+    # precisely the regime in which a plain symbol-by-symbol slicer is also
+    # right, so the error hid wherever the op was not earning its keep.
+    #
+    # y_t = sum_{k=0}^{L-1} taps[k] * s_{t-k} depends on L symbols, so a
+    # STATE-emission Viterbi needs all L of them in the state. Holding L - 1
+    # made the emission unrepresentable and the old expression was an attempt
+    # to fold the missing symbol into the ones that were there.
+    width = len(taps)
+    n_states = A ** width if memory > 0 else 1
     T = len(obs)
 
     native = _mlse_native(obs, taps, alpha, T, A, memory, n_states)  # rc144 §B6b
@@ -161,18 +202,19 @@ def op(
             out.append(best_i)
         return out
 
-    # General case: state = (s_{t-1}, ..., s_{t-memory}). Index by integer.
+    # General case: state = (s_t, s_{t-1}, ..., s_{t-memory}) — WIDTH symbols,
+    # the full window y_t depends on. Index by integer, tup[0] most recent.
     def state_to_tuple(s: int) -> list:
         out = []
         x = s
-        for _ in range(memory):
+        for _ in range(width):
             out.append(x % A)
             x //= A
         return out
 
     def tuple_to_state(t: list) -> int:
         s = 0
-        for i in range(memory - 1, -1, -1):
+        for i in range(width - 1, -1, -1):
             s = s * A + t[i]
         return s
 
@@ -199,8 +241,10 @@ def op(
     B_log = [[0.0] * T for _ in range(n_states)]
     for s in range(n_states):
         s_tup = state_to_tuple(s)
-        expected = sum(taps[k + 1] * alpha[s_tup[k]] for k in range(memory))
-        expected += taps[0] * alpha[s_tup[0]]
+        # y_t = sum_k taps[k] * s_{t-k}, and s_tup[k] IS s_{t-k}. One loop over
+        # the whole window — the rc424 form applied taps[0] and taps[1] to the
+        # same symbol and never reached s_{t-memory} at all.
+        expected = sum(taps[k] * alpha[s_tup[k]] for k in range(width))
         for t in range(T):
             e = obs[t] - expected
             # |z|² = real²+imag² (no abs())

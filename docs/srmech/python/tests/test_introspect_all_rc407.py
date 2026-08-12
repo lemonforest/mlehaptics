@@ -128,4 +128,4 @@ def test_registry_size_is_unchanged_by_this_rc():
     from srmech.introspect.tool_schema import get_tool_schema, warmup_all
 
     warmup_all()
-    assert len(get_tool_schema().tools) == 612
+    assert len(get_tool_schema().tools) == 649

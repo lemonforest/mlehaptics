@@ -182,8 +182,37 @@ from srmech.math.text import fold_marks, glyph_stream
 #: `_build_frames('all')` calls inside one process, plus three FRESH
 #: interpreters — all produced this one hash, with `len(frames) == 641` every
 #: time.
+#:
+#: **RE-PINNED AGAIN at v0.9.0rc425 (`#T1112`).** rc424's value was
+#: ``ad80c34e0c5fb6e03b76dee9d2511050791f726a8a5a8c049d116837439fca09``. This
+#: is the EIGHTH consecutive re-pin and the largest population move so far:
+#: rc425 registers **37 new ops** — the remaining Path-A ``closed_form_ops``
+#: — so the frame set moves **641 -> 678 = 649 ops + 29 carriers** and
+#: ``describe()['tools']['total']`` moves 612 -> 649. Thirty-seven new
+#: ToolEntry summaries, thirty-seven new curated explanation / example /
+#: worked blocks, and twenty-six new ``composes`` tuples all land in the
+#: corpus by construction.
+#:
+#: The move is **+37 with ZERO renames** — every one of the 612 rc424 frame
+#: names survives verbatim (``test_op_name_set_witness_rc361`` pins the SET
+#: alongside this hash, and it reports no removals). That is worth stating
+#: because a bulk registration is exactly the change under which a quiet
+#: rename would hide: the count moves so much that a single relabelled frame
+#: would not be visible in the cardinal alone.
+#:
+#: Three modules were deliberately NOT registered and so contribute no frame:
+#: ``closed_form_ops`` also ships ``fft`` / ``ifft`` / ``pi_cascade``, each of
+#: which was executed against the op it shadows and agreed BIT-EXACTLY, so a
+#: frame for it would be a duplicate of one already in the corpus rather than
+#: new content. 40 unregistered modules, 37 frames.
+#:
+#: Determinism re-established independently at this value BEFORE re-pinning:
+#: FIFTEEN builds on WSL2 (numpy-absent) — five successive
+#: `_build_frames('all')` calls inside each of THREE fresh interpreters — all
+#: produced this one hash, with `len(frames) == 678` every time, and the
+#: ops/carriers sub-corpora summing to it on every build.
 WITNESS_RC416 = (
-    "ad80c34e0c5fb6e03b76dee9d2511050791f726a8a5a8c049d116837439fca09")
+    "e40ec9963b134cdb096c3465bae3ba992a753fbecbd7255f11191fa1e1cee072")
 
 #: The ASCII control set. These four queries are the ops the tokenizer work is
 #: ABOUT, so a regression on them would be the change eating its own subject.

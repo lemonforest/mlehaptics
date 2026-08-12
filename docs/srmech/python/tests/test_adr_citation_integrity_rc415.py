@@ -154,8 +154,46 @@ _MIN_QUOTE = 12
 #:     the tool-schema-registry doc BANNER and the struct is at `:5457-5467`.
 #:     Not in this rc's correction list, correctly non-zero here.
 #:
+#: **8 -> 7 at v0.9.0rc425 (`#T1112`), and the residual is now STRUCTURAL.**
+#: The last drainable-by-re-anchoring entry is gone, so what remains is exactly
+#: the three kinds re-anchoring cannot touch: 2 negative-existence claims
+#: (`all_entries`, where absence IS the assertion), 2 ADR-0010 Amendment rows
+#: correct at their declared basis sha (`_live_ops`, `_needs_native` — A.3 says
+#: rewriting a path in a dated record FALSIFIES it), and 3 adjacency false
+#: positives (`c_dispatched`, `dev_tooling`, `tool_schema_view`). Draining any
+#: of the seven needs a DECISION — change the negative-existence phrasing,
+#: re-base a dated Amendment, or narrow :data:`_WINDOW` — not a line number.
+#:
+#: ⚠️ THE rc415 SEED'S EIGHTH ENTRY IS NOT THE ONE THAT DRAINED HERE. The
+#: `0013:1178` imprecision above drained on its own between rc415 and rc424
+#: (the ADR's citation was corrected to `:5444-5523`), and a NEW entry took the
+#: free slot: `0013:286` citing `test_composes_grain_rc412.py:516`, six lines
+#: ABOVE the `def` it names, so the token sat outside the cited function's
+#: scope. rc425 pointed it at the `def` itself. The count held at 8 across that
+#: swap, which is the thing to notice — **a CEIL that does not move is not
+#: evidence that its composition did not**, and only the entry-by-entry listing
+#: above makes the substitution visible at all.
+#:
+#: HOW rc425 CAME TO TOUCH THIS AT ALL — the complement of `#T1107`. That task
+#: recorded that a bare path with no line number is COMPLETELY UNGATED here.
+#: The other edge is the one rc425 hit: a `path:line` citation is BRITTLE to
+#: any insertion above it, so the only gated form is also the only form that
+#: rots on edits that have nothing to do with it. Registering 37 ToolEntries
+#: added 28 lines to `c/include/srmech.h` and 145 to
+#: `test_composes_grain_rc412.py`, which moved 12 citations and took 5 of them
+#: over this CEIL. Whoever picks up `#T1107` needs BOTH halves; any future bulk
+#: registration will re-trigger this exact failure.
+#:
+#: ⚠️ AND THE GATE SAW ONLY 5 OF THE 12. A drifted citation is reported here
+#: only when a backticked token happens to sit in its adjacency window AND the
+#: widened block no longer covers it; the other 7 moved SILENTLY. So repairing
+#: only what this gate prints leaves stale pointers behind and quietly converts
+#: a detectable staleness into an undetectable one. rc425 re-anchored all 12,
+#: found by diffing every cited line's CONTENT against the previous release
+#: rather than by reading this list.
+#:
 #: LOWERING THIS IS A NORMAL COMMIT. Raising it needs a reason in the diff.
-CEIL_TOKEN_EVIDENCE = 8
+CEIL_TOKEN_EVIDENCE = 7
 
 #: Down-only. Quoted runs adjacent to a citation not found in its evidence
 #: window.

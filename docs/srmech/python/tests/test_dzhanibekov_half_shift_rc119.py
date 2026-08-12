@@ -253,7 +253,7 @@ def test_has_native_flag_present():
 def test_tools_total_matches_live():
     """rc119 ships 3 genuinely NEW public ops → +3 ToolEntries (381 → 384)."""
     import srmech.introspect as introspect
-    assert introspect.describe()["tools"]["total"] == 612
+    assert introspect.describe()["tools"]["total"] == 649
 
 
 def test_three_ops_registered():

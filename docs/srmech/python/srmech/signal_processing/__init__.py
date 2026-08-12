@@ -192,6 +192,64 @@ from .closed_form_ops import music_doa as _cf_music_doa  # noqa: F401
 #: must resolve to a live object. The module keeps its ``op`` spelling for
 #: symmetry with its 40 Path-A siblings; this is the advertised public path.
 music_doa = _cf_music_doa.op
+
+# ──────────────────────────────────────────────────────────────────────
+# rc425 (`#T1112`) — the other 37 Path-A ops reach the package surface.
+#
+# WHY A LAZY __getattr__ AND NOT 37 MORE EAGER IMPORTS. rc424 bound
+# ``music_doa`` eagerly for a reason that does NOT generalise: that module
+# (with ``pi_cascade``) is one of only two under ``closed_form_ops`` carrying a
+# module-load ``_register()`` against ``path_registry``, so an import is what
+# makes it dispatchable. Measured at rc425: the other 37 modules register
+# nothing at import time, so eager-importing them would buy no dispatch and
+# would spend the very cost ``closed_form_ops``'s own PEP-562 loader exists to
+# avoid. They resolve through this ``__getattr__`` instead — which is enough,
+# because a ToolEntry name only has to resolve to a live object when something
+# asks for it, and ``srmech._resolve.resolve_dotted_callable`` walks attributes
+# with ``getattr``.
+#
+# The name bound is the module's ``op`` callable, NOT the module: a ToolEntry
+# name must resolve to the thing that gets CALLED. The modules keep their ``op``
+# spelling internally for symmetry across all 41 siblings; these are the
+# advertised public paths, and they are what the registry registers.
+# ──────────────────────────────────────────────────────────────────────
+_CLOSED_FORM_PUBLIC = (
+    "allpass", "arithmetic_coding", "beamforming_fixed", "cross_spectral",
+    "dct", "esprit", "farrow", "fir", "fsk", "hdc_truncation", "heat_kernel",
+    "huffman", "ica_jade", "iir", "jpeg", "lmmse", "lz77", "map_ml",
+    "matched_filter", "mimo_svd", "mlse", "multirate", "multitaper", "ofdm",
+    "polyphase", "psk_qam", "rfft", "rle", "sign_quantise", "sinc_interp",
+    "spectral_subtraction", "spectrogram", "stft", "vector_quantisation",
+    "viterbi", "wavelet", "wiener",
+)
+
+
+def __getattr__(name):
+    """Resolve a Path-A op name to its ``op`` callable, importing on demand.
+
+    ``fft`` / ``ifft`` / ``pi_cascade`` are deliberately ABSENT from
+    ``_CLOSED_FORM_PUBLIC``: each is value-identical (measured bit-exact at
+    rc425 over integer, float, complex, power-of-two and non-power-of-two
+    inputs) to an op the registry already ships — ``srmech.cascade.
+    spectral_cascades.fft`` / ``.ifft`` and ``srmech.math.rational.
+    pi_cascade_digits`` — so binding them here would advertise a second public
+    path to the same values. They stay reachable at
+    ``srmech.signal_processing.closed_form_ops.<name>``.
+    """
+    if name in _CLOSED_FORM_PUBLIC:
+        import importlib
+        mod = importlib.import_module(
+            f".closed_form_ops.{name}", __name__)
+        fn = mod.op
+        globals()[name] = fn
+        return fn
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def __dir__():
+    return sorted(set(globals()) | set(_CLOSED_FORM_PUBLIC))
+
+
 from .rbs_hdc_instrument import (
     CANONICAL_CASCADES,
     CLASS_DEFINITIONS,
@@ -267,6 +325,46 @@ __all__ = [
     "UnknownOperationError",
     # Closed-form ops promoted to the package surface (rc424, `#T1113`)
     "music_doa",
+    # The other 37 Path-A ops (rc425, `#T1112`) — lazy via __getattr__.
+    # fft / ifft / pi_cascade are deliberately absent: each is value-identical
+    # to an op the registry already ships under another name.
+    "allpass",
+    "arithmetic_coding",
+    "beamforming_fixed",
+    "cross_spectral",
+    "dct",
+    "esprit",
+    "farrow",
+    "fir",
+    "fsk",
+    "hdc_truncation",
+    "heat_kernel",
+    "huffman",
+    "ica_jade",
+    "iir",
+    "jpeg",
+    "lmmse",
+    "lz77",
+    "map_ml",
+    "matched_filter",
+    "mimo_svd",
+    "mlse",
+    "multirate",
+    "multitaper",
+    "ofdm",
+    "polyphase",
+    "psk_qam",
+    "rfft",
+    "rle",
+    "sign_quantise",
+    "sinc_interp",
+    "spectral_subtraction",
+    "spectrogram",
+    "stft",
+    "vector_quantisation",
+    "viterbi",
+    "wavelet",
+    "wiener",
     # Profiling API
     "record_profile",
     "iter_records",

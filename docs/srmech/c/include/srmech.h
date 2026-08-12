@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc424"
-#define SRMECH_VERSION       "0.9.0rc424"
+#define SRMECH_VERSION_PRE   "rc425"
+#define SRMECH_VERSION       "0.9.0rc425"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -259,8 +259,25 @@ extern "C" {
  *      MPR. That is the silent-wrong-answer class, so rejecting the stale lib is
  *      the only safe read. GENOME_FORMAT_VERSION stays 19 — the attestation block
  *      is free-form MPR content, gains no key, and turns.bin is untouched.
+ *
+ *  v14 (v0.9.0rc425, `#T1112`) is the third bump of the v10 / v12 kind — no
+ *      signature changed shape, but an existing parameter's CONTRACT did.
+ *      `srmech_mlse`'s `n_states` meant A^(L-1) through rc424 and now means
+ *      A^L: the trellis state is the whole tap window, because y_t reads all L
+ *      symbols and a state-emission Viterbi cannot express an emission that
+ *      depends on a symbol outside its state. The rc424 kernel folded taps[0]
+ *      and taps[1] onto the same symbol, decoding a different channel and
+ *      returning a wrong sequence with no error signal — measured against an
+ *      exhaustive maximum-likelihood search, it disagreed on 4 of 9 test
+ *      channels, returning cost 13.0 where the transmitted sequence scored
+ *      exactly 0.0. It is load-bearing rather than ceremonial: a stale rc424
+ *      .so would still LOAD into rc425 Python, which now sizes its scratch
+ *      arena for A^L states, and the stale lib would carve tup/ntup at the old
+ *      width against that larger arena. Rejecting the stale lib is the only
+ *      safe read, exactly as at v12. GENOME_FORMAT_VERSION stays 19 — no
+ *      on-disk format is touched.
  */
-#define SRMECH_ABI_VERSION 13
+#define SRMECH_ABI_VERSION 14
 
 /* ------------------------------------------------------------------ *
  * Thread-local storage qualifier (reentrancy support; #772)
@@ -4323,11 +4340,22 @@ srmech_status_t srmech_viterbi(const int32_t *obs,
                                int32_t       *out_path);
 
 /* mlse(obs(re,im)[T], taps(re,im)[L], alpha(re,im)[A]): MLSE over an ISI
- * channel. L = memory+1 (tap count); n_states = A^memory (caller-computed);
+ * channel. L = tap count; n_states = A^L (caller-computed) — the trellis state
+ * is the WHOLE tap window s_t..s_{t-L+1}, since y_t = sum_k taps[k]*s_{t-k}
+ * reads all L of them and a state-emission Viterbi cannot express an emission
+ * that depends on a symbol outside its state.
+ *
+ * ⚠️ n_states was A^(L-1) through rc424 and the emission folded taps[0] and
+ * taps[1] onto the same symbol, so the trellis decoded a DIFFERENT channel and
+ * returned a wrong sequence with no error signal. rc425 (`#T1112`) corrects
+ * both. No signature changed shape, but an existing parameter's contract did,
+ * which bumps SRMECH_ABI_VERSION 13 -> 14 under the same rule as the v10 and
+ * v12 bumps.
+ *
  * log_a / log_nstates are the Class-N rational-log constants (computed in
  * Python, passed exact). dscratch carves A_log(n^2) | B_log(n*T) | pi(n) |
  * delta(T*n); iscratch carves psi(T*n) | obs_idx(T); uscratch carves
- * tup(memory) | ntup(memory). out_path receives the T input-symbol indices. */
+ * tup(L) | ntup(L). out_path receives the T input-symbol indices. */
 srmech_status_t srmech_mlse(const double  *obs_re,
                             const double  *obs_im,
                             uint32_t       T,

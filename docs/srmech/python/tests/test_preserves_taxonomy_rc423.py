@@ -175,6 +175,18 @@ CLASSIFIED: Dict[str, Tuple[str, ...]] = {
         ('CROSS_CHECK',),
     'numpy-free; no abs() — sign-handling stays Class-K pin-slot + Class-C':
         ('IMPLEMENTATION_DISCIPLINE',),
+    # ── the four LOSSLESS codecs registered at rc425 (`#T1112`):
+    # huffman / arithmetic_coding / lz77 / rle. ONE sentence across four ops,
+    # deliberately: keying the taxonomy by the whole string makes reuse the
+    # cheap path and rewording the reviewed one, so a shared guarantee should
+    # be shared TEXT rather than four near-identical sentences that would each
+    # need classifying and could each drift apart. The "together with the
+    # side-table" clause is load-bearing rather than hedging -- three of the
+    # four genuinely cannot decode without what the encoder returned (huffman
+    # needs codes + bit_length, arithmetic_coding needs freq + length), and a
+    # round-trip claim that quietly omitted that would be false as written.
+    'lossless: decoding an encoded payload together with the side-table the encoder returned reproduces the input exactly':
+        ('ROUND_TRIP',),
     # ── srmech.math.covering.center_lift
     'cover_lift is the exact integer sum regardless of center_order — the cover datum is never reduced away':
         ('EXACTNESS',),

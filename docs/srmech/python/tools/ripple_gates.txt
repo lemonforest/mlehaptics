@@ -116,6 +116,42 @@ tests/test_class_catalog_oprefs_resolve_930.py
 # -- ref-notation emitted-artifact guard (bare-#NNN autolink) ----------------
 tests/test_ref_notation_emitted_rc348.py
 
+# -- registration surface: allowlist / return-type honesty -------------------
+# ADDED rc425 (`#T1112`), same reason as the citation gate below. CI's second
+# red on this rc was four tests over three causes and NONE of them were on this
+# list, so a green unfiltered sweep meant nothing about any of them:
+#   * 40 allowlist rows stopped being gaps (the registered ops closed them) --
+#     test_registry_completeness_rc416.py is the registration-surface gate by
+#     name, and registering ops is precisely what invalidates its rows. ~46s.
+#   * six ops advertised `list` and return `tuple`.
+#
+# ⚠️ The return-type half is DELIBERATELY NOT ADDED, and saying why matters more
+# than adding it. `test_immolation.py::test_advertised_return_type_is_honest`
+# invokes every advertised tool; measured on this tree it runs >10 min even as a
+# single node, which is the same order as the whole-file test_mcp.py exclusion
+# documented above. Putting it here would make the FAST set not fast, and a
+# pre-push gate people stop running is worse than one that never claimed to
+# cover this. It stays CI-only. What closes the loop locally instead is
+# EXECUTING the contract when you author a `returns=` -- rc425 measured all 47
+# signal_processing entries through the gate's own helpers in ~10s once the
+# population was already imported, which is the cheap way to get the same
+# answer.
+tests/test_registry_completeness_rc416.py
+
+# -- ADR citation integrity (`path:line` drift) ------------------------------
+# ADDED rc425 (`#T1112`), and the reason is the rc that added it. Registering
+# 37 ToolEntries inserted 28 lines into c/include/srmech.h and 145 into
+# test_composes_grain_rc412.py, which moved 12 ADR citations and took 5 of them
+# over CEIL_TOKEN_EVIDENCE. Two full unfiltered ripple_check runs came back
+# green and CI still went red, because this gate was not in this list -- so the
+# ONE gate that observes the surface a bulk registration is guaranteed to
+# disturb was the one the pre-push sweep could not see.
+#
+# It belongs here on the list's own terms: "run this before pushing any rc that
+# registers/edits an op or a ToolEntry" is exactly the change that shifts line
+# numbers in every cited file below the insertion. ~39s, no server, no fixture.
+tests/test_adr_citation_integrity_rc415.py
+
 # -- JPL Power-of-Ten C audit ratchet ----------------------------------------
 tests/test_jpl_audit.py
 

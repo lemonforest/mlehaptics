@@ -49,7 +49,7 @@ MANIFEST = Path(__file__).resolve().parent / "registered_op_names.txt"
 #: rc361 until rc410 (`#T1085`) — stale by 40 ops, in a comment whose only job
 #: was to show the CURRENT value, sitting two lines above the real one. Written
 #: symbolically now so it cannot go stale a second time.)
-EXPECTED_N = 612  # rc424 (local task T1113): 605 -> 612, the 6 srmech.music relational ops + the first registration of srmech.signal_processing.music_doa  # rc422 (local task T1123): 598 -> 605, the centre/covering layer (5 srmech.math.covering ops) + the 2 Z(Spin(8)) rep-kernel anchor ops  # rc420 (local task T1114): 569 -> 598, the 29 cascade-catalog leaf-inventory + runner registrations
+EXPECTED_N = 649  # rc425 (local task T1112): 612 -> 649, the 37 remaining Path-A closed_form_ops (fft / ifft / pi_cascade excluded as bit-exact duplicates of ops the registry already ships)  # rc424 (local task T1113): 605 -> 612, the 6 srmech.music relational ops + the first registration of srmech.signal_processing.music_doa  # rc422 (local task T1123): 598 -> 605, the centre/covering layer (5 srmech.math.covering ops) + the 2 Z(Spin(8)) rep-kernel anchor ops  # rc420 (local task T1114): 569 -> 598, the 29 cascade-catalog leaf-inventory + runner registrations
 
 #: sha256 over the NORMALISED manifest body — "\n".join(sorted names) + "\n",
 #: UTF-8. Normalised rather than raw-file-bytes so a CRLF checkout cannot make
@@ -153,8 +153,28 @@ EXPECTED_N = 612  # rc424 (local task T1113): 605 -> 612, the 6 srmech.music rel
 # is its first registration (+1). Its MODULE was separately renamed
 # closed_form_ops.music -> closed_form_ops.music_doa, which moves no registry
 # name because no registry name pointed at it. 605 -> 612, digest below.
+#
+# v0.9.0rc425 (`#T1112`) — 612 -> 649: the 37 remaining Path-A
+# ``closed_form_ops``. ALL ADDITIONS, zero renames — every one of the 612
+# rc424 names survives verbatim, which is exactly what this witness exists to
+# confirm, since a bulk registration is precisely the kind of change under
+# which a quiet rename would be invisible in the count alone.
+#
+# The population was measured by DEFINING MODULE (some ToolEntry's resolved
+# callable has that ``__module__``), not by leaf name: name matching cannot see
+# the defining module and read ``closed_form_ops/fft.py`` as already registered
+# because a DIFFERENT function, ``srmech.cascade.spectral_cascades.fft``, holds
+# that leaf name. Three earlier counts of this same population (38 / 39 / 41)
+# were all that artifact.
+#
+# 40 modules were unregistered; 37 are registered here. ``fft``, ``ifft`` and
+# ``pi_cascade`` are excluded because each was EXECUTED against the op it
+# shadows and agreed BIT-EXACTLY (max component deviation 0.0) over integer,
+# float, complex, power-of-two, non-power-of-two and length-1 inputs — the same
+# values under a second name, so a row would advertise a duplicate rather than a
+# surface. Had a probe disagreed this would read 650.
 EXPECTED_NAME_SET_SHA256 = (
-    "cbe1e528a2dc94dde1eca29ac91df3c6e1ebf7764f30468cc94184b770a0a2a0")
+    "53cd48b3899972850afba08b6c790222fca2216816e93540d42107ec38b988ff")
 
 
 def _live_names() -> list[str]:

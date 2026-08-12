@@ -13,6 +13,108 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc425]
+
+### 37 Path-A ops come out of the dark — and the one that was silently decoding the wrong channel (`#T1112`)
+
+**Registry moves 612 → 649 (+37). ABI moves 13 → 14** — not for the registration, which adds no C symbol, but for the `srmech_mlse` defect below.
+
+#### The population, and why three earlier counts of it were wrong
+
+`srmech.signal_processing.closed_form_ops` ships **41** modules exposing a callable `op`. At rc424 exactly **one** (`music_doa`) had a ToolEntry. The other 40 were absent from `describe()`, unreachable by `srmech.introspect.search` at any `k` — the index is BUILT from the registry — and missing from the MCP tool list. This is the `fold_identity` shape rc419 found one level up at the dispatcher, one level down.
+
+Three earlier attempts to size this population returned 38, 39 and 41. **All three were name-suffix artifacts.** Matching on the leaf name reads `closed_form_ops/fft.py` as already registered, because a *different* function — `srmech.cascade.spectral_cascades.fft` — holds that leaf name. The honest predicate is *"some ToolEntry's resolved callable has this `__module__`"*, and it is the only one that cannot be fooled: resolve every entry to its live object and read `__module__` off it. That returns **41 / 1 / 40**, and it is what the census in this rc uses.
+
+#### 37, not 40, and the exclusion is measured rather than assumed
+
+`fft`, `ifft` and `pi_cascade` are thin wrappers over ops the registry already ships. Rather than assume that made them duplicates, each was **executed** against its peer — `spectral_cascades.fft` / `.ifft` and `math.rational.pi_cascade_digits` — over integer, float, complex, power-of-two, non-power-of-two and length-1 inputs. Every probe agreed **bit-exactly** (max component deviation `0.0`, not merely within tolerance). They are the same values under a second name, so a row would advertise a duplicate surface. **Had any probe disagreed the count would have been 38**, and the disagreeing op would have earned its own row.
+
+The 37 reach the package surface through a lazy `__getattr__` on `srmech.signal_processing`, not 37 more eager imports. rc424 bound `music_doa` eagerly for a reason that does not generalise: it is one of only two `closed_form_ops` modules with a module-load `_register()` against `path_registry`, so importing it is what makes it dispatchable. Measured here: the other 37 register nothing at import time, so eager-importing them would buy no dispatch and spend exactly the cost `closed_form_ops`'s own PEP-562 loader exists to avoid.
+
+#### Every worked example was run before it was written down
+
+All 37 rows ship a domain-grounded example that **re-executes** under `tests/test_worked_examples_execute_rc354.py` — fresh empty globals, a temp cwd, statement by statement, numpy absent. All 37 come back `ok`. The `# ->` annotations are captured results, not predictions; two were predicted wrong during authoring and corrected against the measurement rather than left standing. Several are cross-op oracles rather than self-reports: `wiener` and `spectral_subtraction` answer **0.75 vs 0.866** on the *same* tone and noise floor (`12/16` in the power domain against `sqrt(12)/4` in the magnitude domain, both hand-derivable), and `map_ml` returns the identical `8/3` that `lmmse` returns for the same linear-Gaussian model.
+
+#### `composes` is traced, and the trace disagreed with the guess 8 times
+
+ADR-0013 §292 records that the SET is derivable and the ORDER is not — lexical first-call order scored **0 of 2** against ground truth. So the 16 multi-edge rows were measured by **runtime trace**: each candidate sub-op was rebound to a recording wrapper across every module holding a reference (which catches function-local `from X import y`, since that is a `getattr` at call time), the op was executed on a real input, and the order of first entry was read off. Stable across repeated runs.
+
+It was not ceremony. The trace **disagrees with alphabetical order on 8 of the 13 rows it could fully resolve**: `dct` enters `cos` before `mat_matvec`; `map_ml` enters `mat_solve` before `mat_matmul`; `ofdm` enters `ifft` before `fft`; `multirate` enters `sin` before `cos`; `wavelet` enters `sqrt` before `mat_matvec`; `multitaper` builds and normalises its tapers before any transform runs; `spectral_subtraction` interleaves the trig *between* its two transforms; and `esprit` runs its three Class-L ops in an order no alphabetisation produces. All eight would have shipped a false ordered claim under the mechanical reading.
+
+Two rows needed a second branch to show their full set, recorded rather than papered over. `psk_qam`'s `cos`/`sin` belong to the PSK constellation and its `sqrt` only to the QAM grid — the branches are **disjoint**, so no single call enters all three and the order follows the op's own `if psk / elif qam` dispatch. `ofdm`'s `hypot` is the per-subcarrier equaliser guard, reached only when demodulating with a channel supplied, so its tuple was traced across a full modulate-then-demodulate round trip. Three more (`fir`, `farrow`, `matched_filter`) reach `mat_matvec` only on the native branch, which the pure trace cell cannot enter; each is a **one-element** set, so the ordering is forced and nothing is guessed.
+
+The population census lands **RESIDUAL at exactly 182** — `CEIL_UNADJUDICATED` unchanged, with 11 new LEAF, 10 new SINGLE and 16 new hand-traced ROSTER rows. No existing ledger row was disturbed (measured: 0 LEAF rows started reaching something, 0 SINGLE rows changed their edge).
+
+### `srmech_mlse` was decoding a different channel than the one you gave it — ABI 13 → 14
+
+**Found while writing `mlse`'s worked example, verified against exhaustive maximum-likelihood decoding, and fixed at root in BOTH projections.**
+
+MLSE is *defined* as the argmin over all candidate sequences of `Σ_t |obs[t] − Σ_k taps[k]·alpha[s_{t−k}]|²`, so for a short sequence a brute-force search **is** the ground truth — no free parameter, no tolerance to argue about. Through rc424 the trellis held `L−1` state symbols and its emission read
+
+```
+expected  = Σ_{k=0}^{memory−1} taps[k+1]·alpha[tup[k]]
+expected += taps[0]·alpha[tup[0]]          # h0 hits the SAME symbol as h1
+```
+
+applying the cursor tap and the first post-cursor tap to the **same symbol**, and never reaching `s_{t−memory}` at all. The trellis therefore decoded as if the channel were `[h0+h1, h2, …]` with the memory shifted a step — a different channel.
+
+The failure mode is the **silent wrong answer**, the worst class. Nothing raised. On noiseless BPSK, where the transmitted sequence scores a branch metric of **exactly 0.0**, rc424 returned a sequence scoring **13.0** for taps `[0.5, 1.0]`, and disagreed with brute force on **4 of 9** test channels.
+
+**It hid where the op was not earning its keep.** rc424 agreed on every cursor-dominant (minimum-phase) channel — which is precisely the regime in which a plain symbol-by-symbol slicer is also right. The whole reason to reach for MLSE is the post-cursor case, and that is exactly the case it got wrong.
+
+The root cause is structural rather than a typo: `y_t` depends on `L` symbols, so a **state-emission** Viterbi needs all `L` of them in the state. Holding `L−1` made the emission unrepresentable, and the old expression was an attempt to fold the missing symbol into the ones that were there. rc425 widens the state to the whole tap window and the emission becomes one clean pass, `Σ_{k=0}^{L−1} taps[k]·alpha[tup[k]]`.
+
+Fixed in **both** projections and differential-tested: 9 of 9 channels now agree with brute force in the pure cell *and* the native cell, with **0 divergences** between Python and C over 60 randomly generated channels.
+
+**ABI 13 → 14.** No signature changed shape, but `n_states` meant `A^(L−1)` and now means `A^L` — the third bump of the v10 / v12 kind. Load-bearing rather than ceremonial: a stale rc424 `.so` would still LOAD into rc425 Python, which now sizes its scratch arena for `A^L` states, and would carve `tup`/`ntup` at the old width against that larger arena. `GENOME_FORMAT_VERSION` stays 19.
+
+#### Why the shipped test could not have caught it
+
+`test_mlse_smoke` exercises only the single-tap path — which bypasses the trellis entirely — and asserts only `isinstance(syms, list)`. **A test that checks a return TYPE cannot fail on a wrong VALUE**, so the op was ungated on the only axis that distinguishes it from a slicer. `test_mlse_agrees_with_exhaustive_maximum_likelihood_rc425` closes that: it checks `mlse` against a brute-force search over every candidate sequence on nine channels, and it asserts *both* that the search itself found the transmitted sequence and that that sequence scores exactly zero — agreeing with a brute force that had gone wrong would prove nothing. The post-cursor rows in its channel list are load-bearing and are marked as such; a suite of only minimum-phase channels would have stayed green through the entire defect.
+
+### Scope
+
+Seven of the 37 are communications- or array-processing-adjacent (`beamforming_fixed`, `esprit`, `fsk`, `matched_filter`, `mlse`, `ofdm`, `psk_qam`). Every one ships as **educational signal-processing reference / civilian** material only — physics and textbook framing, digital-communications teaching, acoustic source-finding — each carrying an explicit `SCOPE` sentence matching the shipped `music_doa` model. No targeting, tracking, interception or capability-assessment framing appears on this surface.
+
+`ica_jade`'s local NaN-propagating `_abs` guard is **untouched and documented as the deliberate contract it is**: the shipped `magnitude` op maps NaN → 0.0 as a Class-K dead-band, which a convergence guard would read as `0.0 < tol` and report CONVERGED on garbage. That adjudication stands.
+
+### A `path:line` citation is the only GATED form and the only form that rots on unrelated edits — the complement of `#T1107`
+
+**CI caught this rc with `V3 token-evidence violations rose to 13, above CEIL_TOKEN_EVIDENCE=8`, and the gate was right.** Registering 37 ToolEntries added **28 lines to `c/include/srmech.h`** (the ABI-14 note plus the corrected `srmech_mlse` contract) and **145 lines to `test_composes_grain_rc412.py`** (the traced ROSTER). Every ADR citation below those insertion points now pointed at the wrong line.
+
+`#T1107` recorded one edge of this: rc415's citation gate is `path:line`-ANCHORED, so **a bare path with no line number is completely ungated**. This rc hit the other edge: **a `path:line` citation is BRITTLE to any insertion above it**. Together they are the whole trade — the only citation form the gate can check is also the only one that rots on edits that have nothing to do with it, and a bulk registration is the largest such insertion many rcs contain. Whoever picks up `#T1107` needs both halves; any future bulk registration re-triggers this exactly.
+
+**The gate saw 5 of 12.** A drifted citation surfaces in V3 only when a backticked token happens to sit inside its adjacency window *and* the widened enclosing block no longer covers it. Diffing every cited line's **content** against the previous release found **12** moved citations; V3 reported **5**. Repairing only what the gate prints would have left seven stale pointers behind and converted a detectable staleness into an undetectable one, so all 12 were re-anchored. The shift was confirmed line-by-line rather than assumed: rc424 line *N* holds byte-identical content to rc425 line *N+28*, verified at 21 cited addresses with zero mismatches.
+
+**Three of the twelve were ALREADY stale before this rc, by ~65 lines, and a faithful re-anchor preserved the error.** Verifying the repaired addresses actually *held what the ADR says they hold* — rather than trusting the arithmetic that passed the gate — caught it: `:7154-7155` was quoted as the verbatim *"Python-only affordance"* passage, which really sits at `:7247-7248`; its near-twin `:7100` is at `:7193`; and the *"constructs a DSL `[class]` instance"* line cited at `:5977` is at `:6070`. All three are quoted **multi-line block quotations**, which `_QUOTE_REJECT` filters out as a known extractor limitation — so V4 never saw them and a `+28` restore would have shipped three confidently-wrong pointers under a green gate. **Arithmetic that satisfies the gate is not the same as a citation that is true**, and the only thing separating them was reading the target line.
+
+**8 of the 13 were pre-existing and were left alone**, established by replaying the gate's own `_evidence` window against the rc424 blob of every cited file rather than by inference. Two are ADR-0010 Amendment rows correct at their declared basis sha — A.3 says rewriting a path in a dated record FALSIFIES it — and two are negative-existence claims about `all_entries`, where the prose says the name *exists nowhere* and being absent from the file **is** the assertion. Re-pointing either kind is precisely the move that turns a detectable stale reference into an undetectable false one.
+
+**`CEIL_TOKEN_EVIDENCE` 8 → 7**, banked at the live count as the gate's own output instructs; it was never raised. The residual seven are now **structural** — 2 negative-existence, 2 dated-basis, 3 adjacency false positives — and draining any of them needs a *decision* (reword the claim, re-base an Amendment, or narrow `_WINDOW`), not a line number. One entry-level finding worth keeping: the rc415 seed's eighth item drained on its own between rc415 and rc424 and a different defect took the free slot, so the count held at 8 across a composition change. **A CEIL that does not move is not evidence that its composition did not** — only the entry-by-entry listing makes such a substitution visible.
+
+Five ADR pointers were also made *precise* rather than merely restored: `srmech.h:5511` was the `owner` field while the ADR sentence claimed `explanation` was there. Restoring the pre-existing `+28` relationship would have passed the gate and kept the false statement, so the citations now name the real addresses (`explanation` `:5522`, `example_json` `:5520`, the documentation-hint wording `:5489`, the hash contract `:5483-5493`, the struct `:5509-5550`).
+
+### Six ops advertised a return type they do not return — an ASSERTED property that was never MEASURED
+
+CI's second red was four distinct tests over three causes, and the largest is the one worth naming plainly. `cross_spectral`, `wavelet`, `huffman`, `arithmetic_coding`, `mimo_svd` and `ica_jade` were registered with `returns=R("list", …)`. **All six return a `tuple`.** The type was written from each op's docstring rather than from running it, which is exactly the defect `test_immolation.py` exists to catch: *"the self-description the package can no longer honour."*
+
+The fix was not to read the docstrings more carefully. It was to **execute all 47 `signal_processing` entries through the gate's own `_synth_args_for_entry` + `invoke_tool` + `_return_type_agrees`**, so the corrected declarations are what the shipped ops actually return — and so the correction covers every entry rather than the six CI happened to reach first. Result: 6 mismatches found, 6 fixed, **0 remaining**. `returns_type` crosses the C wire, so `srmech_tool_registry.c` was regenerated with them.
+
+Two smaller causes, both real:
+
+* **`test_introspect.py::test_native_status` pinned ABI 13** and rc425's sweep missed it, because it is spelled `status["expected_abi"] == 13` while every other pin in the tree reads `ABI_VERSION == 13`. A ratchet found by grepping one spelling is a ratchet that misses the other; the sweep is now by value, not by phrase.
+* **40 rows of `test_registry_completeness_rc416.py`'s allowlist stopped being gaps**, because the ops on them earned ToolEntries. `CEIL_UNDECLARED_SURFACE` **74 → 34** and `CEIL_UNDECLARED_OPEN_REGISTRATION` **58 → 18**, both down-only and both lowered by deletion rather than absorbed. The rows were computed from the gate's own `registered_object_ids()` / `public_surface()` rather than hand-typed — a hand-typed deletion list is how a still-real gap gets removed and a down-only ratchet quietly drops past the truth. **`fft` / `ifft` / `pi_cascade` keep their rows**, which is the check that the allowlist still tells the truth: those three were deliberately not registered, so they are still genuine gaps.
+
+**None of these three were visible to any gate `ripple_check.py` ran** — the same structural miss as the citation gate below, in three more places. `test_registry_completeness_rc416.py` is the registration-surface gate by name and is now on the list too (~46s).
+
+The return-type gate is **deliberately left off**, and the reason is worth more than the addition would be: `test_advertised_return_type_is_honest` invokes every advertised tool and measures **>10 min even as a single node** — the same order as the whole-file `test_mcp.py` exclusion the list already documents. Adding it would make the FAST set not fast, and a pre-push gate people stop running is worse than one that never claimed to cover this. What closes the loop locally is not a slower sweep but **executing the contract when you author a `returns=`**; doing that across all 47 entries took ~10 s once the population was imported.
+
+**And the citation gate joined `tools/ripple_gates.txt`, which is the part that stops this recurring.** Two full unfiltered `ripple_check.py` runs came back green before the push and CI still went red — because `test_adr_citation_integrity_rc415.py` was not in the list. The one gate that observes the surface a bulk registration is *guaranteed* to disturb was the one the pre-push sweep could not see, which made a green local sweep actively misleading rather than merely incomplete. It is on the list now, on the list's own stated terms: *"run this before pushing any rc that registers/edits an op or a ToolEntry."*
+
+### Ripple
+
+`WITNESS_RC416` re-pinned (eighth consecutive re-pin; frames **641 → 678** = 649 ops + 29 carriers), determinism re-established over **15** builds — five successive `_build_frames('all')` calls in each of three fresh interpreters, one hash every time. `EXPECTED_N` 612 → 649 with the manifest rewritten and `EXPECTED_NAME_SET_SHA256` re-pinned in the same commit; the move is **+37 with zero renames**. 73 count-pin assertions across 66 test files, 18 ABI pins, four `Live at rcNNN` stamps re-measured and moved, and the generated `_tool_docs.py` / `_c_claims.py` / `srmech_tool_registry.c` / `srmech_carrier_registry.c` regenerated through `tools/regen_all.py` (idempotent across two passes).
+
 ## [0.9.0rc424]
 
 ### The music RELATIONS lane — and the homograph that had been hiding an op from search for its whole life (`#T1113`)
