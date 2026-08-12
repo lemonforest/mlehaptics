@@ -657,53 +657,58 @@ static void coder_mlse_no_isi(const double *obs_re, const double *obs_im,
 
 /* A_log[prev*n+next] = -log_a for the A reachable next-states, else neg_inf. */
 static void coder_mlse_trans(double *A_log, uint32_t n_states, uint32_t A,
-                             uint32_t memory, double neg_log_a, double neg_inf,
+                             uint32_t width, double neg_log_a, double neg_inf,
                              uint32_t *tup, uint32_t *ntup)
 {
     assert(A_log != NULL && tup != NULL && ntup != NULL);
-    assert(memory > 0u);
+    assert(width > 1u);
     for (uint32_t p = 0u; p < n_states; p++) {
         for (uint32_t q = 0u; q < n_states; q++) {
             A_log[(size_t)p * n_states + q] = neg_inf;
         }
     }
     for (uint32_t prev = 0u; prev < n_states; prev++) {
-        coder_mlse_state_to_tuple(prev, A, memory, tup);
+        coder_mlse_state_to_tuple(prev, A, width, tup);
         for (uint32_t inp = 0u; inp < A; inp++) {
             uint32_t ns;
             ntup[0] = inp;                        /* new_tup = [inp] + prev[:-1] */
-            for (uint32_t k = 1u; k < memory; k++) {
+            for (uint32_t k = 1u; k < width; k++) {
                 ntup[k] = tup[k - 1u];
             }
-            ns = coder_mlse_tuple_to_state(ntup, A, memory);
+            ns = coder_mlse_tuple_to_state(ntup, A, width);
             A_log[(size_t)prev * n_states + ns] = neg_log_a;
         }
     }
 }
 
-/* B_log[s*T+t] = -|obs[t] - expected(s)|^2, expected = sum_k taps[k+1]*alpha[
- * tup[k]] (k=0..memory-1, in order) then += taps[0]*alpha[tup[0]]. */
+/* B_log[s*T+t] = -|obs[t] - expected(s)|^2, expected = sum_k taps[k]*alpha[
+ * tup[k]] for k = 0..width-1, where tup[k] IS the symbol s_{t-k}.
+ *
+ * The state is the WHOLE tap window (width == L), so the sum is one clean pass
+ * over it. Through rc424 the state held L-1 symbols and this read
+ * `sum_k taps[k+1]*alpha[tup[k]]` then `+= taps[0]*alpha[tup[0]]`, applying
+ * the cursor tap h0 and the first post-cursor tap h1 to the SAME symbol and
+ * never reaching s_{t-memory} at all — a different channel, decoded silently
+ * and wrongly (measured against exhaustive ML: 4 of 9 test channels, with the
+ * true sequence's cost exactly 0.0 and the returned sequence's 13.0). This
+ * mirrors the Python kernel byte-for-byte, as the parity contract requires. */
 static void coder_mlse_emit(double *B_log, uint32_t n_states, uint32_t T,
                             const double *obs_re, const double *obs_im,
                             const double *taps_re, const double *taps_im,
                             const double *alpha_re, const double *alpha_im,
-                            uint32_t A, uint32_t memory, uint32_t *tup)
+                            uint32_t A, uint32_t width, uint32_t *tup)
 {
     assert(B_log != NULL && tup != NULL);
-    assert(memory > 0u);
+    assert(width > 1u);
     for (uint32_t s = 0u; s < n_states; s++) {
         double e_re = 0.0, e_im = 0.0, pr, pit;
-        coder_mlse_state_to_tuple(s, A, memory, tup);
-        for (uint32_t k = 0u; k < memory; k++) {
-            coder_cmul(taps_re[k + 1u], taps_im[k + 1u],
+        coder_mlse_state_to_tuple(s, A, width, tup);
+        for (uint32_t k = 0u; k < width; k++) {
+            coder_cmul(taps_re[k], taps_im[k],
                        alpha_re[tup[k]], alpha_im[tup[k]], &pr, &pit);
             e_re += pr;
             e_im += pit;
         }
-        coder_cmul(taps_re[0], taps_im[0], alpha_re[tup[0]], alpha_im[tup[0]],
-                   &pr, &pit);
-        e_re += pr;
-        e_im += pit;
         for (uint32_t t = 0u; t < T; t++) {
             double er = obs_re[t] - e_re;
             double ei = obs_im[t] - e_im;
@@ -712,10 +717,21 @@ static void coder_mlse_emit(double *B_log, uint32_t n_states, uint32_t T,
     }
 }
 
-/* Public MLSE. L = memory+1 (tap count); n_states = A^memory (caller-computed).
+/* Public MLSE. L = tap count; n_states = A^L (caller-computed) — the trellis
+ * state is the WHOLE tap window s_t..s_{t-L+1}, because y_t depends on all L of
+ * them and a state-emission Viterbi cannot represent an emission that reads a
+ * symbol the state does not hold.
+ *
+ * ⚠️ rc425 (`#T1112`): n_states was A^(L-1) through rc424. Nothing about this
+ * signature changed SHAPE, but the contract of an existing parameter did, which
+ * bumps SRMECH_ABI_VERSION by the same standing rule that covered the v10 and
+ * v12 bumps. It is load-bearing rather than ceremonial: a stale rc424 .so would
+ * still load and would silently mis-size its own scratch carve against the
+ * caller's larger arena.
+ *
  * dscratch carves A_log(n^2) | B_log(n*T) | pi(n) | delta(T*n); iscratch carves
- * psi(T*n) | obs_idx(T); uscratch carves tup(memory) | ntup(memory). out_path
- * receives the T input-symbol indices (0..A-1). */
+ * psi(T*n) | obs_idx(T); uscratch carves tup(L) | ntup(L). out_path receives
+ * the T input-symbol indices (0..A-1). */
 srmech_status_t srmech_mlse(const double *obs_re, const double *obs_im,
                             uint32_t T, const double *taps_re,
                             const double *taps_im, uint32_t L,
@@ -749,10 +765,10 @@ srmech_status_t srmech_mlse(const double *obs_re, const double *obs_im,
         int32_t *psi = iscratch;
         int32_t *obs_idx = psi + (size_t)T * n_states;
         uint32_t *tup = uscratch;
-        uint32_t *ntup = uscratch + memory;
-        coder_mlse_trans(A_log, n_states, A, memory, -log_a, -1e18, tup, ntup);
+        uint32_t *ntup = uscratch + L;
+        coder_mlse_trans(A_log, n_states, A, L, -log_a, -1e18, tup, ntup);
         coder_mlse_emit(B_log, n_states, T, obs_re, obs_im, taps_re, taps_im,
-                        alpha_re, alpha_im, A, memory, tup);
+                        alpha_re, alpha_im, A, L, tup);
         for (uint32_t s = 0u; s < n_states; s++) {
             pi[s] = -log_nstates;
         }

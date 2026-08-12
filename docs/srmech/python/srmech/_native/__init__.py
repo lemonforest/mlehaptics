@@ -174,7 +174,21 @@ from typing import Optional
 #        would keep OVERWRITING a caller's real attestation with srmech's
 #        defaults, and the false block would still validate as a well-formed
 #        MPR — the silent-wrong-answer class. This pin is what rejects it.
-EXPECTED_ABI_VERSION: int = 13
+# v14 — v0.9.0rc425 (`#T1112`): the MLSE TRELLIS-STATE bump, the third of the
+#        v10 / v12 kind — no signature changed shape, but an existing
+#        parameter's CONTRACT did. srmech_mlse's n_states meant A^(L-1) and now
+#        means A^L: the trellis state must span the whole tap window, since
+#        y_t = sum_k taps[k]*s_{t-k} reads all L symbols and a state-emission
+#        Viterbi cannot express an emission depending on a symbol outside its
+#        state. The rc424 kernel held L-1 and applied taps[0] and taps[1] to the
+#        SAME symbol, decoding a different channel and returning a wrong
+#        sequence with NO error signal (measured against exhaustive ML: wrong on
+#        4 of 9 channels, cost 13.0 where the true sequence scored exactly 0.0).
+#        Load-bearing: a stale rc424 .so reports ABI 13 and would otherwise load
+#        into this Python, which now sizes its scratch arena for A^L states —
+#        the stale lib would carve tup/ntup at the old width against the larger
+#        arena. This pin is what rejects it.
+EXPECTED_ABI_VERSION: int = 14
 
 # Back-compat alias: downstream code reading ``_native.ABI_VERSION`` gets the
 # expected (compiled-against) ABI == EXPECTED_ABI_VERSION (NOT the runtime-

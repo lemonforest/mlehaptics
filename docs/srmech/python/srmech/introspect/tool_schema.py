@@ -13838,6 +13838,1293 @@ def _register_signal_processing_tools() -> None:
     )
 
 
+def _register_closed_form_path_a_tools() -> None:
+    """Register the 37 remaining Path-A ``closed_form_ops`` (v0.9.0rc425, `#T1112`).
+
+    THE POPULATION, MEASURED BY DEFINING MODULE. ``closed_form_ops`` ships 41
+    modules exposing a callable ``op``. At rc424 exactly ONE of them
+    (``music_doa``) had a ToolEntry. The other 40 were absent from
+    ``describe()``, unreachable by ``srmech.introspect.search`` at any ``k``
+    (the index is BUILT from the registry) and missing from the MCP tool list —
+    the same whole-subpackage ``fold_identity`` shape rc419 found one level up,
+    at the dispatcher.
+
+    ⚠️ THE PREDICATE IS "SOME ToolEntry's CALLABLE HAS THIS ``__module__``", AND
+    THAT MATTERS. Three earlier counts of this population (38 / 39 / 41) were
+    all NAME-SUFFIX artifacts: matching on the leaf name reads
+    ``closed_form_ops/fft.py`` as registered because the registry contains a
+    ``...spectral_cascades.fft``, which is a DIFFERENT function in a different
+    module. Resolving every ToolEntry to its live callable and reading
+    ``__module__`` off it is the only reading that cannot be fooled, and it
+    returns 41 / 1 / 40.
+
+    WHY 37 AND NOT 40. ``fft``, ``ifft`` and ``pi_cascade`` are excluded, and
+    the exclusion is MEASURED rather than assumed: each was executed against
+    the registered op it shadows — ``srmech.cascade.spectral_cascades.fft`` /
+    ``.ifft`` and ``srmech.math.rational.pi_cascade_digits`` — over integer,
+    float, complex, power-of-two, non-power-of-two and length-1 inputs, and
+    every probe agreed BIT-EXACTLY (max component deviation 0.0, not merely
+    within tolerance). They are the same values under a second name, so
+    registering them would advertise a duplicate surface rather than a new one.
+    They stay reachable at ``srmech.signal_processing.closed_form_ops.<name>``.
+    Had any probe disagreed, the count would have been 38 and the disagreeing
+    op would have earned its own row.
+
+    THE ``composes`` ORDERS ARE TRACED, NOT GUESSED. ADR-0013 §292 records that
+    the SET is derivable but the ORDER is not — lexical first-call order scored
+    0 of 2 against ground truth. So the 16 rows with two or more call edges were
+    measured by RUNTIME trace: each declared sub-op was rebound to a recording
+    wrapper across every module holding a reference (which catches
+    function-local ``from X import y``, since that is a ``getattr`` at call
+    time), the op was executed on a real input, and the order of first entry was
+    read off. Every order was stable across repeated runs. The trace paid for
+    itself immediately: it disagrees with lexical order on 8 of the 13 rows it
+    could resolve — ``dct`` enters ``cos`` before ``mat_matvec``, ``map_ml``
+    enters ``mat_solve`` before ``mat_matmul``, ``ofdm`` enters ``ifft`` before
+    ``fft``, and ``esprit`` enters its three Class-L ops in an order no
+    alphabetisation produces. Those eight rows would all have shipped a false
+    ordered claim under the mechanical reading.
+
+    THREE ROWS DECLARE AN EDGE THE TRACE COULD NOT ENTER, AND THAT IS RECORDED
+    RATHER THAN HIDDEN. ``fir`` / ``farrow`` / ``matched_filter`` each reach
+    ``mat_matvec`` only on the NATIVE branch (``_dsp.convolve_matmul``'s
+    Toeplitz matvec, guarded by ``_native.HAS_NATIVE``), and the trace ran in a
+    numpy-absent pure-Python cell where ``HAS_NATIVE`` is False. Each is a
+    one-element set, so the ordering is FORCED and nothing is being guessed;
+    the declaration describes how the op is BUILT, which does not change with
+    the cell it runs in.
+
+    TWO ROWS NEEDED A SECOND BRANCH TO SHOW THEIR FULL SET. ``psk_qam``'s
+    ``rational.sqrt`` is reached only by the QAM constellation build and its
+    ``cos``/``sin`` only by the PSK one — the two branches are DISJOINT, so no
+    single call enters all three, and the declared order follows the op's own
+    dispatch (``if modulation == "psk"`` first, ``elif ... "qam"`` second).
+    ``ofdm``'s ``rational.hypot`` is the per-subcarrier equaliser guard, reached
+    only when demodulating with a channel supplied; its order was taken from a
+    full modulate-then-demodulate round trip so the tuple describes the whole
+    op rather than half of it.
+
+    SCOPE. Several of these ops are communications- or array-processing-adjacent
+    (``beamforming_fixed``, ``esprit``, ``fsk``, ``matched_filter``, ``mlse``,
+    ``ofdm``, ``psk_qam``). Every one ships as EDUCATIONAL SIGNAL-PROCESSING
+    REFERENCE / CIVILIAN material only — physics and textbook framing, digital
+    communications teaching, acoustic source-finding — per
+    ``[[feedback_trauma_informed_defensive_scope]]``. The already-shipped
+    ``music_doa`` entry carries the model paragraph and these match it. No
+    targeting, tracking, interception or capability-assessment framing appears
+    on this surface.
+
+    NO C-PEER OBLIGATION IS CREATED. The Rosetta denominator is the module walk
+    in ``tests/rosetta_roots.py``, NOT the tool registry, so registering Python
+    ops adds no C parity debt; ``SRMECH_ABI_VERSION`` stays 13 (verified, not
+    assumed — no exported C signature or wire format is touched here).
+    """
+    P = ToolParameter
+    R = ToolReturn
+
+    #: The shipped house discipline sentence, reused verbatim so it carries its
+    #: EXISTING taxonomy classification (IMPLEMENTATION_DISCIPLINE) rather than
+    #: minting 37 near-duplicates. Keying the taxonomy by the whole sentence is
+    #: what makes reuse the cheap path and rewording the reviewed one.
+    _DISC = ("numpy-free; no abs() — sign-handling stays Class-K "
+             "pin-slot + Class-C",)
+    #: The lossless-codec round trip. One sentence, four ops.
+    _LOSSLESS = (
+        "lossless: decoding an encoded payload together with the side-table "
+        "the encoder returned reproduces the input exactly",
+    )
+
+    _D = P("D", "int", False,
+           "Path B dimensionality, accepted for cross-path API consistency "
+           "with the dual-path dispatcher; the Path A closed form does not "
+           "use it")
+
+    entries = [
+        # ── Spectral analysis ──────────────────────────────────────────
+        ToolEntry(
+            name="srmech.signal_processing.dct", owner="srmech",
+            category="signal_processing",
+            summary=(
+                "Discrete cosine transform (DCT-II by default, DCT-III for the "
+                "inverse) — the real-valued cousin of the DFT that JPEG and "
+                "essentially every audio codec are built on. Its energy "
+                "compaction is why: for a smooth signal almost all the "
+                "coefficient mass lands in the first few bins, which is what "
+                "makes truncation a compression scheme rather than damage. "
+                "IDENTITY: Class L — the transform IS a matvec against a "
+                "cosine basis, so it is a Laplacian-family spectral "
+                "decomposition, not a distinct primitive. Matches "
+                "scipy's unnormalised convention (norm=None): the result is "
+                "2 * (basis matvec)."
+            ),
+            parameters=(
+                P("signal", "list", True,
+                  "real array-like, 1-D or 2-D"),
+                P("dct_type", "int", False,
+                  "2 for DCT-II (default; the codec standard) or 3 for "
+                  "DCT-III, its inverse"),
+                P("axis", "int", False,
+                  "axis to transform; default -1 (last). For 2-D input, "
+                  "-1 or 1 transforms each row, 0 transforms each column"),
+                _D,
+            ),
+            returns=R("list",
+                      "real DCT coefficients along axis — list[float] for 1-D "
+                      "input, list[list[float]] for 2-D"),
+            composes=("srmech.math.rational.cos",
+                      "srmech.math.laplacian.mat_matvec"),
+            preserves=_DISC,
+        ),
+        ToolEntry(
+            name="srmech.signal_processing.stft", owner="srmech",
+            category="signal_processing",
+            summary=(
+                "Short-time Fourier transform — slice the signal into "
+                "overlapping frames, window each, and transform it, so the "
+                "spectrum becomes a function of TIME instead of a single "
+                "average over the whole record. This is the standard answer to "
+                "the fact that a plain FFT of a signal whose content changes "
+                "tells you what frequencies were present but never WHEN. "
+                "IDENTITY: Class C (the framing / hop orientation) composed "
+                "with Class A (canonical frame ordering), Class I (the cyclic "
+                "per-frame DFT) and Class K (the window taper as a pin-slot "
+                "boundary at each frame edge)."
+            ),
+            parameters=(
+                P("signal", "list", True, "real or complex 1-D array-like"),
+                P("frame_size", "int", False,
+                  "samples per frame; default 256. This sets the "
+                  "time-frequency trade-off — longer frames buy frequency "
+                  "resolution and spend time resolution"),
+                P("hop_size", "Optional[int]", False,
+                  "samples advanced between frames; None means frame_size // 2 "
+                  "(50 percent overlap)"),
+                P("window", "list[float]", False,
+                  "per-sample taper of length frame_size; None means a "
+                  "Hann window"),
+                _D,
+            ),
+            returns=R("list",
+                      "list of per-frame complex spectra — one inner list per "
+                      "frame, in time order"),
+            composes=("srmech.cascade.spectral_cascades.fft",),
+            preserves=_DISC,
+        ),
+        ToolEntry(
+            name="srmech.signal_processing.spectrogram", owner="srmech",
+            category="signal_processing",
+            summary=(
+                "Spectrogram — the STFT with the phase folded away, leaving "
+                "the per-bin magnitude (or power) surface that is the "
+                "standard visual reading of a time-varying spectrum. "
+                "RELATION: this is literally stft followed by a magnitude "
+                "fold, and it composes stft rather than re-deriving the "
+                "framing; reach for stft when you need the phase back. "
+                "IDENTITY: Class C / A / I / K, inherited from stft, with the "
+                "magnitude fold as the Class-K step — computed as "
+                "re**2 + im**2, never abs()."
+            ),
+            parameters=(
+                P("signal", "list", True, "real or complex 1-D array-like"),
+                P("frame_size", "int", False, "samples per frame; default 256"),
+                P("hop_size", "Optional[int]", False,
+                  "samples advanced between frames; None means frame_size // 2"),
+                P("window", "list[float]", False,
+                  "per-sample taper of length frame_size; None means Hann"),
+                _D,
+            ),
+            returns=R("list",
+                      "list of per-frame real magnitude spectra, in time order"),
+            composes=("srmech.signal_processing.stft",),
+            preserves=_DISC,
+        ),
+        ToolEntry(
+            name="srmech.signal_processing.cross_spectral", owner="srmech",
+            category="signal_processing",
+            summary=(
+                "Cross-spectral density between two signals, and optionally "
+                "the magnitude-squared COHERENCE derived from it. The cross "
+                "spectrum says how two records share power frequency by "
+                "frequency; coherence normalises that by each signal's own "
+                "power so the answer is a 0-to-1 number per bin rather than a "
+                "scale-dependent one. IDENTITY: Class M (the per-bin bind of "
+                "the two frame spectra) composed with Class A (canonical frame "
+                "ordering). The |z|**2 terms are re**2 + im**2 and the "
+                "coherence denominator carries an explicit epsilon floor, so "
+                "there is neither an abs() nor a divide-by-zero."
+            ),
+            parameters=(
+                P("x", "list", True, "first signal, 1-D array-like"),
+                P("y", "list", True, "second signal, 1-D array-like"),
+                P("frame_size", "int", False, "samples per frame; default 256"),
+                P("hop_size", "Optional[int]", False,
+                  "samples advanced between frames; None means frame_size // 2"),
+                P("coherence", "bool", False,
+                  "when True, also return the magnitude-squared coherence per "
+                  "bin alongside the cross spectrum"),
+                _D,
+            ),
+            returns=R("list",
+                      "a (frequencies, cross-spectrum) pair; with "
+                      "coherence=True the second element is the "
+                      "magnitude-squared coherence per bin"),
+            composes=("srmech.cascade.spectral_cascades.fft",),
+            preserves=_DISC,
+        ),
+        ToolEntry(
+            name="srmech.signal_processing.multitaper", owner="srmech",
+            category="signal_processing",
+            summary=(
+                "Multitaper power spectral density — average the periodograms "
+                "taken through several ORTHOGONAL tapers instead of one "
+                "window. A single-window periodogram is an unbiased but "
+                "inconsistent estimator: its variance does not fall as the "
+                "record lengthens. Averaging over mutually orthogonal tapers "
+                "buys near-independent looks at the same data, so the variance "
+                "does fall, at a bandwidth cost set by nw. IDENTITY: Class L "
+                "(the per-taper spectral decomposition) composed with Class M "
+                "(the bundle average across tapers)."
+            ),
+            parameters=(
+                P("signal", "list", True, "real 1-D array-like"),
+                P("n_tapers", "int", False,
+                  "how many orthogonal tapers to average; default 4. More "
+                  "tapers means lower variance and wider effective bandwidth"),
+                P("nw", "float", False,
+                  "time-bandwidth product; default 4.0. This IS the "
+                  "resolution-versus-variance dial"),
+                _D,
+            ),
+            returns=R("list[float]",
+                      "the averaged power spectral density, one value per bin"),
+            composes=("srmech.math.rational.sin",
+                      "srmech.math.rational.sqrt",
+                      "srmech.cascade.spectral_cascades.fft"),
+            preserves=_DISC,
+        ),
+        ToolEntry(
+            name="srmech.signal_processing.rfft", owner="srmech",
+            category="signal_processing",
+            summary=(
+                "Real-input FFT — the DFT of a real signal, returning only the "
+                "non-redundant half of the spectrum. A real signal's spectrum "
+                "is conjugate-symmetric, so the upper half carries no "
+                "information the lower half does not; rfft declines to "
+                "materialise it. For length n the output has n // 2 + 1 bins. "
+                "IDENTITY: Class A (canonical sequence order) composed with "
+                "Class I (the cyclic Z/N transform domain) and Class K "
+                "(rotation as a pin-slot on the unit circle) — the same "
+                "cascade the full complex transform runs, with the symmetry "
+                "exploited rather than recomputed."
+            ),
+            parameters=(
+                P("signal", "list", True, "real 1-D array-like"),
+                P("n", "Optional[int]", False,
+                  "length of the transformed axis; None means the signal's own "
+                  "length"),
+                P("axis", "int", False, "axis to transform; default -1"),
+                _D,
+            ),
+            returns=R("list[complex]",
+                      "the non-redundant half spectrum — n // 2 + 1 complex "
+                      "coefficients"),
+            preserves=_DISC,
+        ),
+        ToolEntry(
+            name="srmech.signal_processing.wavelet", owner="srmech",
+            category="signal_processing",
+            summary=(
+                "Multi-level discrete wavelet transform (Haar by default) — "
+                "recursively split the signal into a coarse APPROXIMATION and "
+                "a DETAIL band, then split the approximation again. Unlike the "
+                "Fourier family this localises in time as well as frequency, "
+                "which is why a step edge shows up in a couple of detail "
+                "coefficients here instead of smearing across every bin. "
+                "IDENTITY: Class L (the filter-bank decomposition) composed "
+                "with Class N (the exact rational / sqrt(2) orthonormal "
+                "scaling that keeps the transform energy-preserving)."
+            ),
+            parameters=(
+                P("signal", "list", True, "real 1-D array-like"),
+                P("levels", "int", False,
+                  "how many times to recurse on the approximation band; "
+                  "default 3"),
+                P("wavelet", "str", False,
+                  "wavelet family; default 'haar'"),
+                _D,
+            ),
+            returns=R("list",
+                      "the coarsest approximation band followed by the detail "
+                      "bands, finest last"),
+            composes=("srmech.math.rational.sqrt",
+                      "srmech.math.laplacian.mat_matvec"),
+            preserves=_DISC,
+        ),
+
+        # ── Filtering ──────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.signal_processing.fir", owner="srmech",
+            category="signal_processing",
+            summary=(
+                "Finite impulse response filter — linear convolution of the "
+                "signal with a coefficient table. FIR filters are "
+                "unconditionally stable (there is no feedback path to run "
+                "away) and can be made exactly linear-phase, which is why they "
+                "are the default when phase distortion is unacceptable. "
+                "IDENTITY: Class N (the rational coefficient table IS the "
+                "impulse response) composed with Class C (the cyclic streaming "
+                "that produces the output). When the native dense matmul is "
+                "present the convolution runs as a Toeplitz matvec; otherwise "
+                "the complete pure cascade computes the same values to "
+                "round-off."
+            ),
+            parameters=(
+                P("signal", "list", True, "input signal, 1-D array-like"),
+                P("coefficients", "list", True,
+                  "the filter taps — the impulse response itself"),
+                P("mode", "str", False,
+                  "'full' (default), 'same' or 'valid' — the convolution crop"),
+                _D,
+            ),
+            returns=R("list", "the filtered signal, cropped per mode"),
+            composes=("srmech.math.laplacian.mat_matvec",),
+            preserves=_DISC,
+        ),
+        ToolEntry(
+            name="srmech.signal_processing.iir", owner="srmech",
+            category="signal_processing",
+            summary=(
+                "Infinite impulse response filter — the recursive difference "
+                "equation with feedforward taps b and feedback taps a, "
+                "optionally as a cascade of biquad sections. An IIR reaches a "
+                "given selectivity in far fewer coefficients than the "
+                "equivalent FIR because the feedback path lets a short filter "
+                "have a long memory; the price is that stability is now a "
+                "property you must check, and that phase is not linear. "
+                "Biquad sectioning is the standard defence against "
+                "coefficient-quantisation trouble in high-order designs. "
+                "IDENTITY: Class N (the rational coefficient tables) composed "
+                "with Class C (the recursive streaming orientation)."
+            ),
+            parameters=(
+                P("signal", "list", True, "input signal, 1-D array-like"),
+                P("b", "list", True, "feedforward (numerator) coefficients"),
+                P("a", "list", True,
+                  "feedback (denominator) coefficients; a[0] normalises"),
+                P("biquad_sections", "list[list[float]]", False,
+                  "optional second-order sections, applied in cascade instead "
+                  "of the flat b / a pair"),
+                _D,
+            ),
+            returns=R("list", "the filtered signal, same length as the input"),
+            preserves=_DISC,
+        ),
+        ToolEntry(
+            name="srmech.signal_processing.allpass", owner="srmech",
+            category="signal_processing",
+            summary=(
+                "Allpass filter — unity magnitude response at every frequency, "
+                "with a frequency-dependent PHASE. It changes nothing about "
+                "how much of each frequency is present and everything about "
+                "when each arrives, which is exactly what you want for phase "
+                "equalisation, fractional delay and reverberation structure. "
+                "The magnitude-flat / phase-active split is the whole point "
+                "and is easy to verify: transform before and after, and the "
+                "per-bin magnitudes agree. IDENTITY: Class N — the "
+                "coefficient IS a rational reflection coefficient, and the "
+                "pole-zero mirror pair that produces unity magnitude is a "
+                "rational-anchor construction."
+            ),
+            parameters=(
+                P("signal", "list", True, "input signal, 1-D array-like"),
+                P("a", "float", True,
+                  "the allpass coefficient; magnitude below 1 for stability"),
+                P("b", "float", False,
+                  "second coefficient for the order-2 form"),
+                P("order", "int", False, "1 (default) or 2"),
+                _D,
+            ),
+            returns=R("list", "the phase-shifted signal, magnitude untouched"),
+            preserves=_DISC,
+        ),
+        ToolEntry(
+            name="srmech.signal_processing.matched_filter", owner="srmech",
+            category="signal_processing",
+            summary=(
+                "Matched filter — correlate a signal against a known template. "
+                "It is the provably optimal linear detector for a KNOWN shape "
+                "in additive white noise, in the specific sense that it "
+                "maximises output signal-to-noise ratio at the alignment "
+                "instant; the output peaks where the template best matches. "
+                "IDENTITY: Class A (content-addressing on the template) "
+                "composed with Class C (the correlation lag orientation) and "
+                "Class M (the bind of signal against template). SCOPE: "
+                "educational signal-processing reference only — correlation "
+                "detection, template matching in a recorded trace, and the "
+                "textbook pulse-compression derivation."
+            ),
+            parameters=(
+                P("signal", "list", True, "the record to search, 1-D"),
+                P("template", "list", True, "the known shape to match"),
+                P("mode", "str", False,
+                  "'full' (default), 'same' or 'valid' — the correlation crop"),
+                _D,
+            ),
+            returns=R("list",
+                      "the correlation output; its argmax is the best-match "
+                      "alignment"),
+            composes=("srmech.math.laplacian.mat_matvec",),
+            preserves=_DISC,
+        ),
+        ToolEntry(
+            name="srmech.signal_processing.wiener", owner="srmech",
+            category="signal_processing",
+            summary=(
+                "Wiener filter — the minimum mean-square-error linear "
+                "estimator, applied per frequency bin. It scales each bin by "
+                "the ratio of signal power to total power, so bins where the "
+                "signal dominates pass essentially untouched and bins that are "
+                "mostly noise are attenuated toward zero. That per-bin "
+                "shrinkage IS the whole filter, and it is why the answer "
+                "depends entirely on the power spectra you supply. IDENTITY: "
+                "Class L (the spectral decomposition the shrinkage acts in) "
+                "composed with Class N (the rational gain per bin)."
+            ),
+            parameters=(
+                P("signal", "list", True, "the noisy signal, 1-D"),
+                P("noise_psd", "list", True,
+                  "noise power spectral density per bin"),
+                P("signal_psd", "list", False,
+                  "signal power spectral density per bin; None means it is "
+                  "estimated from the input"),
+                _D,
+            ),
+            returns=R("list", "the filtered signal, same length as the input"),
+            composes=("srmech.cascade.spectral_cascades.fft",
+                      "srmech.cascade.spectral_cascades.ifft"),
+            preserves=_DISC,
+        ),
+
+        # ── Denoising ──────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.signal_processing.sign_quantise", owner="srmech",
+            category="signal_processing",
+            summary=(
+                "Sign quantisation with an explicit DEAD BAND — map each "
+                "sample to its orientation about a threshold, and map samples "
+                "inside the dead band to zero rather than forcing them to a "
+                "side. This is the canonical Class-K pin-slot op: the sign "
+                "flip IS the phase boundary, and the dead band is the honest "
+                "admission that near the boundary the orientation is not "
+                "determined. A quantiser without a dead band has to invent an "
+                "answer for the ambiguous case; this one declines to. "
+                "IDENTITY: Class K, in its purest single-class form."
+            ),
+            parameters=(
+                P("signal", "list", True, "input signal, 1-D array-like"),
+                P("threshold", "float", False,
+                  "the decision boundary; default 0.0"),
+                P("dead_band", "float", False,
+                  "half-width of the zone about the threshold that maps to "
+                  "zero instead of to a sign; default 0.0 (no dead band)"),
+                _D,
+            ),
+            returns=R("list",
+                      "the quantised signal — the orientation per sample, with "
+                      "zeros where the dead band swallowed the decision"),
+            preserves=_DISC,
+        ),
+        ToolEntry(
+            name="srmech.signal_processing.heat_kernel", owner="srmech",
+            category="signal_processing",
+            summary=(
+                "Heat-kernel diffusion on a graph — smooth a node-domain "
+                "signal by running the heat equation on the graph for time t. "
+                "In the Laplacian eigenbasis this is exactly multiplication by "
+                "exp(-t*lambda), so high-frequency graph modes decay fastest "
+                "and the signal relaxes toward its local average; t is the "
+                "single dial from no smoothing to complete equilibration. "
+                "IDENTITY: Class L — this is a graph spectral filter, and the "
+                "eigendecomposition it is defined in is the Laplacian's own."
+            ),
+            parameters=(
+                P("signal", "list", True,
+                  "the node-domain state, length n"),
+                P("laplacian", "list[list[float]]", True,
+                  "the n-by-n Hermitian graph Laplacian"),
+                P("t", "float", False,
+                  "diffusion time; larger t means more smoothing. Default 1.0"),
+                _D,
+            ),
+            returns=R("list[complex]",
+                      "the diffused node-domain state, same length as signal"),
+            composes=("srmech.math.laplacian.mat_hermitian_eigendecompose",
+                      "srmech.math.rational.exp"),
+            preserves=_DISC,
+        ),
+        ToolEntry(
+            name="srmech.signal_processing.spectral_subtraction", owner="srmech",
+            category="signal_processing",
+            summary=(
+                "Spectral subtraction denoising — estimate the noise magnitude "
+                "spectrum, subtract it bin by bin, and resynthesise using the "
+                "ORIGINAL phase. The beta floor is not decoration: raw "
+                "subtraction drives bins negative wherever the noise estimate "
+                "overshoots, and clamping them to a floor rather than to zero "
+                "is what keeps the residual from turning into isolated tonal "
+                "artefacts. IDENTITY: Class L (the spectral domain the "
+                "subtraction happens in) composed with Class N (the rational "
+                "over-subtraction and floor coefficients)."
+            ),
+            parameters=(
+                P("signal", "list", True, "the noisy signal, 1-D"),
+                P("noise_psd", "list", True,
+                  "noise power spectral density per bin"),
+                P("alpha", "float", False,
+                  "over-subtraction factor; default 1.0"),
+                P("beta", "float", False,
+                  "spectral floor, as a fraction of the noise estimate; "
+                  "default 0.01. This is what a bin is clamped TO rather than "
+                  "being allowed to go negative"),
+                _D,
+            ),
+            returns=R("list[float]",
+                      "the denoised signal, same length as the input"),
+            composes=("srmech.cascade.spectral_cascades.fft",
+                      "srmech.math.rational.cos",
+                      "srmech.math.rational.sin",
+                      "srmech.math.rational.sqrt",
+                      "srmech.math.rational.atan2",
+                      "srmech.cascade.spectral_cascades.ifft"),
+            preserves=_DISC,
+        ),
+
+        # ── Compression ────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.signal_processing.huffman", owner="srmech",
+            category="signal_processing",
+            summary=(
+                "Huffman coding — the optimal PREFIX code for a known symbol "
+                "distribution. Frequent symbols get short codewords, rare ones "
+                "long, and no codeword is a prefix of another so the stream "
+                "decodes unambiguously without separators. It is optimal among "
+                "codes that assign a whole number of bits per symbol, which is "
+                "also its limit: arithmetic_coding beats it precisely by "
+                "dropping that integer-bits constraint. Lossless. IDENTITY: "
+                "Class E (the catalog of symbol-to-codeword assignments) "
+                "composed with Class B (the type-length-value framing of the "
+                "packed bitstream)."
+            ),
+            parameters=(
+                P("data", "bytes", True,
+                  "the payload to encode, or the encoded bitstream to decode"),
+                P("decode", "bool", False,
+                  "False (default) encodes; True decodes"),
+                P("codes", "dict", False,
+                  "the symbol-to-codeword table, required when decoding"),
+                P("bit_length", "Optional[int]", False,
+                  "exact bit count of the encoded stream, required when "
+                  "decoding so trailing pad bits are not mistaken for data"),
+                _D,
+            ),
+            returns=R("list",
+                      "when encoding, the packed bitstream together with the "
+                      "code table and bit length needed to decode it; when "
+                      "decoding, the recovered payload"),
+            preserves=_DISC + _LOSSLESS,
+        ),
+        ToolEntry(
+            name="srmech.signal_processing.arithmetic_coding", owner="srmech",
+            category="signal_processing",
+            summary=(
+                "Arithmetic coding — encode an entire message as a single "
+                "number inside a subinterval of [0, 1), narrowed one symbol at "
+                "a time in proportion to each symbol's probability. Because "
+                "the interval narrows by a fraction rather than by whole bits, "
+                "it reaches the entropy bound that Huffman's integer-bits-"
+                "per-symbol constraint holds it away from — the difference "
+                "matters most for skewed alphabets where a symbol deserves "
+                "less than one bit. Lossless. IDENTITY: Class N — the "
+                "cumulative-frequency interval arithmetic IS rational-anchor "
+                "work, and the encoder is exact integer arithmetic scaled to "
+                "avoid any floating interval."
+            ),
+            parameters=(
+                P("data", "bytes", True,
+                  "the payload to encode, or the code value to decode"),
+                P("decode", "bool", False,
+                  "False (default) encodes; True decodes"),
+                P("freq", "dict", False,
+                  "the symbol frequency table, required when decoding"),
+                P("length", "Optional[int]", False,
+                  "number of symbols to emit, required when decoding — the "
+                  "code value alone does not say where the message stops"),
+                _D,
+            ),
+            returns=R("list",
+                      "when encoding, the code value with the frequency table "
+                      "and length needed to decode it; when decoding, the "
+                      "recovered payload"),
+            preserves=_DISC + _LOSSLESS,
+        ),
+        ToolEntry(
+            name="srmech.signal_processing.lz77", owner="srmech",
+            category="signal_processing",
+            summary=(
+                "LZ77 sliding-window compression — replace a repeated run with "
+                "a back-reference (distance, length) into the window of "
+                "already-emitted output. It needs no probability model at all: "
+                "the redundancy it exploits is literal repetition, which is "
+                "why it is the substrate under DEFLATE, gzip and PNG rather "
+                "than a competitor to the entropy coders that usually run "
+                "after it. Lossless. IDENTITY: Class A (content-addressing "
+                "the window) composed with Class G (the byte-level longest-"
+                "match search) and Class B (the framing of literals and "
+                "back-references into one stream)."
+            ),
+            parameters=(
+                P("data", "bytes", True,
+                  "the payload to encode, or the token stream to decode"),
+                P("decode", "bool", False,
+                  "False (default) encodes; True decodes"),
+                P("window_size", "int", False,
+                  "how far back a match may reach; default 4096"),
+                P("lookahead_size", "int", False,
+                  "longest match that may be emitted; default 18"),
+                _D,
+            ),
+            returns=R("list",
+                      "when encoding, the literal / back-reference token "
+                      "stream; when decoding, the recovered payload"),
+            preserves=_DISC + _LOSSLESS,
+        ),
+        ToolEntry(
+            name="srmech.signal_processing.rle", owner="srmech",
+            category="signal_processing",
+            summary=(
+                "Run-length encoding — collapse each maximal run of a repeated "
+                "byte to a (count, value) pair. It is the simplest compressor "
+                "that works and the easiest to reason about: it wins "
+                "dramatically on run-heavy data such as masks, and it LOSES on "
+                "data with no runs, where every singleton costs a count byte "
+                "it did not previously need. Lossless. IDENTITY: Class B (the "
+                "type-length-value framing of each run) composed with Class G "
+                "(the byte-level run scan)."
+            ),
+            parameters=(
+                P("data", "bytes", True,
+                  "the payload to encode, or the run stream to decode"),
+                P("decode", "bool", False,
+                  "False (default) encodes; True decodes"),
+                P("max_run", "int", False,
+                  "longest run a single pair may express; default 255. Longer "
+                  "runs are split across successive pairs"),
+                _D,
+            ),
+            returns=R("list",
+                      "when encoding, the (count, value) run stream; when "
+                      "decoding, the recovered payload"),
+            preserves=_DISC + _LOSSLESS,
+        ),
+        ToolEntry(
+            name="srmech.signal_processing.jpeg", owner="srmech",
+            category="signal_processing",
+            summary=(
+                "Baseline JPEG block transform coding — tile the image into "
+                "blocks, DCT each, divide by a quantisation table and round. "
+                "The quantisation step is where the loss lives and is the "
+                "ONLY place it lives: the DCT itself is invertible, so the "
+                "quality dial is entirely a statement about how coarsely the "
+                "high-frequency coefficients are rounded. LOSSY — a round trip "
+                "returns a near neighbour of the input, not the input. "
+                "IDENTITY: Class L (the per-block DCT) composed with Class K "
+                "(the quantisation threshold) and Class B (block framing). "
+                "RELATION: composes dct rather than re-deriving the transform."
+            ),
+            parameters=(
+                P("image", "list[list[float]]", True,
+                  "the image to encode, or the coefficient blocks to decode"),
+                P("decode", "bool", False,
+                  "False (default) encodes; True decodes"),
+                P("quality", "int", False,
+                  "1 to 100; default 50. Scales the quantisation table, so it "
+                  "sets how much is discarded"),
+                P("quant_table", "list", False,
+                  "explicit quantisation table, overriding quality"),
+                P("block_size", "int", False, "tile edge in pixels; default 8"),
+                _D,
+            ),
+            returns=R("list",
+                      "when encoding, the quantised coefficient blocks; when "
+                      "decoding, the reconstructed image"),
+            composes=("srmech.signal_processing.dct",),
+            preserves=_DISC,
+        ),
+        ToolEntry(
+            name="srmech.signal_processing.hdc_truncation", owner="srmech",
+            category="signal_processing",
+            summary=(
+                "Hyperdimensional bundle with popcount truncation — bundle a "
+                "set of binary hypervectors into one, then optionally truncate "
+                "to a target popcount. The bundle is the HDC superposition "
+                "that keeps the composite similar to each of its members; the "
+                "truncation is a deliberate sparsification that trades some of "
+                "that similarity for a fixed weight. LOSSY by construction — "
+                "a bundle does not retain its members separably. IDENTITY: "
+                "Class M (the HDC bind / bundle) composed with Class K (the "
+                "popcount threshold, a genuine pin-slot at the density cut)."
+            ),
+            parameters=(
+                P("vectors", "Sequence[bytes]", True,
+                  "the binary hypervectors to bundle"),
+                P("truncate_popcount", "Optional[int]", False,
+                  "target number of set bits; None leaves the bundle at its "
+                  "natural density"),
+                _D,
+            ),
+            returns=R("bytes", "the bundled (and optionally truncated) "
+                               "hypervector"),
+            composes=("srmech.math.hdc.bundle",),
+            preserves=_DISC,
+        ),
+        ToolEntry(
+            name="srmech.signal_processing.vector_quantisation", owner="srmech",
+            category="signal_processing",
+            summary=(
+                "Vector quantisation — replace each input vector by the index "
+                "of its nearest codebook entry, and reconstruct by looking the "
+                "index back up. Quantising a whole vector at once beats "
+                "quantising its components independently, because the codebook "
+                "can put its entries where the data actually is rather than on "
+                "a product grid. LOSSY: the round trip returns the codeword, "
+                "not the input, and the gap is the quantisation error. "
+                "IDENTITY: Class E (the codebook catalog lookup) composed with "
+                "Class M (the nearest-neighbour bind) and Class B (index "
+                "framing). Distances are squared, which is monotone in "
+                "distance, so there is no sqrt and no abs()."
+            ),
+            parameters=(
+                P("vectors", "list[list[float]]", True,
+                  "the vectors to quantise, or the indices to reconstruct"),
+                P("codebook", "list[list[float]]", True,
+                  "the codeword table both directions index into"),
+                P("decode", "bool", False,
+                  "False (default) quantises to indices; True reconstructs "
+                  "from them"),
+                _D,
+            ),
+            returns=R("list",
+                      "when encoding, one codebook index per input vector; "
+                      "when decoding, the reconstructed codewords"),
+            preserves=_DISC,
+        ),
+
+        # ── Modulation / detection (civilian-comms scope) ──────────────
+        ToolEntry(
+            name="srmech.signal_processing.psk_qam", owner="srmech",
+            category="signal_processing",
+            summary=(
+                "PSK / QAM constellation mapping and its nearest-neighbour "
+                "demodulator. PSK places M points on a circle so every symbol "
+                "carries equal energy and only phase distinguishes them; "
+                "square QAM places them on a grid, buying a larger minimum "
+                "distance at the same average power once M grows past 8, which "
+                "is exactly why the high-rate modes of civilian standards are "
+                "QAM rather than PSK. IDENTITY: Class I (the integer symbol "
+                "indices) composed with Class K (the decision-region "
+                "projection on the I-Q plane). The demodulator's decision is "
+                "argmin of SQUARED distance, monotone in distance, so no sqrt "
+                "and no abs(). SCOPE: educational signal-processing reference "
+                "only — civilian baseband modulation, digital communications "
+                "teaching material."
+            ),
+            parameters=(
+                P("symbols", "list", True,
+                  "integer symbol indices to modulate, or complex samples to "
+                  "demodulate"),
+                P("modulation", "str", False, "'psk' (default) or 'qam'"),
+                P("M", "int", False,
+                  "constellation size; default 4. Square QAM requires M to be "
+                  "a perfect square"),
+                P("demodulate", "bool", False,
+                  "False (default) maps indices to constellation points; True "
+                  "maps received samples back to indices"),
+                _D,
+            ),
+            returns=R("list",
+                      "the constellation points when modulating, or the "
+                      "decoded integer symbol indices when demodulating"),
+            composes=("srmech.math.rational.cos",
+                      "srmech.math.rational.sin",
+                      "srmech.math.rational.sqrt"),
+            preserves=_DISC,
+        ),
+        ToolEntry(
+            name="srmech.signal_processing.fsk", owner="srmech",
+            category="signal_processing",
+            summary=(
+                "Frequency-shift keying modulation and non-coherent "
+                "demodulation — send one of several tones per symbol, and "
+                "decide by whichever tone correlates most strongly. Because "
+                "the decision uses correlation MAGNITUDE it needs no carrier "
+                "phase lock, which is the trade FSK makes: more bandwidth per "
+                "bit than PSK, in exchange for a receiver that does not have "
+                "to track phase. IDENTITY: Class N (the rational tone table) "
+                "composed with Class I (the cyclic per-symbol sample window). "
+                "The detector is argmax of |corr|**2, monotone in |corr|, so "
+                "no sqrt and no abs(). SCOPE: educational signal-processing "
+                "reference only — civilian digital communications teaching."
+            ),
+            parameters=(
+                P("symbols", "list", True,
+                  "integer symbol indices to modulate, or samples to "
+                  "demodulate"),
+                P("frequencies", "list", True,
+                  "the tone table — one frequency per symbol value"),
+                P("samples_per_symbol", "int", False,
+                  "window length per symbol; default 16"),
+                P("fs", "float", False, "sample rate; default 1.0"),
+                P("demodulate", "bool", False,
+                  "False (default) modulates; True demodulates"),
+                _D,
+            ),
+            returns=R("list",
+                      "the modulated sample stream, or the decoded integer "
+                      "symbol indices"),
+            composes=("srmech.math.laplacian.mat_matvec",),
+            preserves=_DISC,
+        ),
+        ToolEntry(
+            name="srmech.signal_processing.ofdm", owner="srmech",
+            category="signal_processing",
+            summary=(
+                "Orthogonal frequency-division multiplexing — map symbols onto "
+                "subcarriers, inverse-transform to time, and prepend a cyclic "
+                "prefix. The prefix is the load-bearing trick: it turns the "
+                "channel's linear convolution into a CIRCULAR one, which the "
+                "transform diagonalises, so a multipath channel that would "
+                "need a complicated equaliser collapses to one complex divide "
+                "per subcarrier. That is the whole reason OFDM underpins Wi-Fi, "
+                "DSL and LTE. IDENTITY: Class I (the cyclic prefix and "
+                "subcarrier group) composed with Class L (the per-subcarrier "
+                "eigenvalue handle the equaliser uses) and Class K (the guard "
+                "interval as a time-domain projection). SCOPE: educational "
+                "signal-processing reference only — civilian communications "
+                "standards teaching."
+            ),
+            parameters=(
+                P("symbols", "list", True,
+                  "constellation symbols to transmit, or received samples to "
+                  "demodulate"),
+                P("n_subcarriers", "int", False,
+                  "subcarriers per OFDM symbol; default 64"),
+                P("cp_length", "int", False,
+                  "cyclic-prefix length in samples; default 16. It must exceed "
+                  "the channel's delay spread for the circular-convolution "
+                  "argument to hold"),
+                P("demodulate", "bool", False,
+                  "False (default) modulates; True demodulates"),
+                P("channel", "list", False,
+                  "per-subcarrier channel response; when supplied on the "
+                  "demodulate path, each subcarrier is equalised by it"),
+                _D,
+            ),
+            returns=R("list",
+                      "the time-domain sample stream, or the recovered "
+                      "per-subcarrier symbols"),
+            composes=("srmech.cascade.spectral_cascades.ifft",
+                      "srmech.cascade.spectral_cascades.fft",
+                      "srmech.math.rational.hypot"),
+            preserves=_DISC,
+        ),
+        ToolEntry(
+            name="srmech.signal_processing.mimo_svd", owner="srmech",
+            category="signal_processing",
+            summary=(
+                "Singular value decomposition of a MIMO channel matrix — the "
+                "factorisation that turns a coupled multi-antenna channel into "
+                "a set of INDEPENDENT parallel scalar channels, one per "
+                "non-zero singular value. The singular values are the gains of "
+                "those channels and their count is the channel's rank, which "
+                "is the honest ceiling on how many streams the channel can "
+                "actually carry no matter how many antennas are present. "
+                "IDENTITY: Class L — this is the eigen-decomposition family, "
+                "applied to a rectangular operator. SCOPE: educational "
+                "signal-processing reference only — civilian multi-antenna "
+                "communications teaching material."
+            ),
+            parameters=(
+                P("channel_matrix", "list[list[complex]]", True,
+                  "the receive-by-transmit channel matrix"),
+                _D,
+            ),
+            returns=R("list",
+                      "a (U, singular_values, V) triple; the singular values "
+                      "come back in descending order and their count is the "
+                      "rank"),
+            composes=("srmech.math.laplacian.mat_svd",),
+            preserves=_DISC,
+        ),
+        ToolEntry(
+            name="srmech.signal_processing.viterbi", owner="srmech",
+            category="signal_processing",
+            summary=(
+                "Viterbi algorithm — the maximum-likelihood state sequence "
+                "through a hidden Markov trellis, by dynamic programming. It "
+                "finds the single best path exactly, in time linear in the "
+                "sequence length, where enumerating paths would be "
+                "exponential; the trick is that only the best surviving path "
+                "into each state can ever matter downstream. Working in log "
+                "probabilities turns the products into sums and keeps long "
+                "sequences off the floor of the number range. IDENTITY: Class "
+                "L (the trellis as a weighted graph) composed with Class K "
+                "(the per-state survivor decision, a pin-slot at each merge)."
+            ),
+            parameters=(
+                P("observations", "list", True,
+                  "the observation index sequence"),
+                P("transition_log_prob", "list[list[float]]", True,
+                  "state-to-state transition log probabilities"),
+                P("emission_log_prob", "list[list[float]]", True,
+                  "per-state observation emission log probabilities"),
+                P("initial_log_prob", "list[float]", True,
+                  "initial state distribution, in log probability"),
+                _D,
+            ),
+            returns=R("list",
+                      "the most likely state sequence, one state per "
+                      "observation"),
+            preserves=_DISC,
+        ),
+        ToolEntry(
+            name="srmech.signal_processing.mlse", owner="srmech",
+            category="signal_processing",
+            summary=(
+                "Maximum-likelihood sequence estimation over an intersymbol-"
+                "interference channel — Forney's equaliser. When a channel "
+                "smears each symbol into its neighbours, deciding symbols one "
+                "at a time is provably worse than deciding the whole SEQUENCE "
+                "at once; MLSE builds the trellis whose states are the channel "
+                "memory and searches it. RELATION: it composes viterbi rather "
+                "than re-deriving the trellis search — the contribution here "
+                "is the branch metric, not the dynamic program. IDENTITY: "
+                "Class L (the trellis graph) composed with Class K (the "
+                "survivor decision). Branch metrics use squared distance, so "
+                "no sqrt and no abs(). SCOPE: educational signal-processing "
+                "reference only — civilian digital communications teaching."
+            ),
+            parameters=(
+                P("observations", "list", True, "the received sample sequence"),
+                P("channel_taps", "list", True,
+                  "the channel impulse response; its length sets the trellis "
+                  "memory and so the state count"),
+                P("alphabet", "list", True,
+                  "the transmit symbol alphabet"),
+                P("initial_state", "list", False,
+                  "known starting channel state; None means unconstrained"),
+                _D,
+            ),
+            returns=R("list", "the maximum-likelihood transmitted symbol "
+                              "sequence"),
+            composes=("srmech.math.rational.log",
+                      "srmech.signal_processing.viterbi"),
+            preserves=_DISC,
+        ),
+
+        # ── Multi-rate ─────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.signal_processing.multirate", owner="srmech",
+            category="signal_processing",
+            summary=(
+                "Rational resampling by up / down — insert zeros, filter, then "
+                "discard samples, in that order. The order is not "
+                "interchangeable: interpolating before decimating means the "
+                "anti-imaging and anti-aliasing filters can be the SAME "
+                "filter, run once at the higher rate, whereas the other order "
+                "would alias away information before the filter could protect "
+                "it. IDENTITY: Class N (the rational rate ratio itself) "
+                "composed with Class C (the streaming orientation). RELATION: "
+                "polyphase computes the same result with the multiply-by-zero "
+                "work removed; reach for that one at scale."
+            ),
+            parameters=(
+                P("signal", "list", True, "input signal, 1-D array-like"),
+                P("up", "int", False, "interpolation factor; default 1"),
+                P("down", "int", False, "decimation factor; default 1"),
+                P("filter_taps", "list[float]", False,
+                  "the shared anti-imaging / anti-aliasing filter; None means "
+                  "a windowed-sinc design is generated"),
+                _D,
+            ),
+            returns=R("list[float]",
+                      "the resampled signal, at up / down times the input rate"),
+            composes=("srmech.math.rational.sin",
+                      "srmech.math.rational.cos"),
+            preserves=_DISC,
+        ),
+        ToolEntry(
+            name="srmech.signal_processing.polyphase", owner="srmech",
+            category="signal_processing",
+            summary=(
+                "Polyphase decomposition for efficient decimation or "
+                "interpolation — split the filter into L sub-filters so that "
+                "no multiplication is ever performed against a sample that is "
+                "about to be discarded, or against a zero that was just "
+                "inserted. It computes exactly what the naive multirate chain "
+                "computes and simply declines to do the wasted work, which is "
+                "a factor-of-L saving. IDENTITY: Class L (the sub-filter bank "
+                "structure) composed with Class N (the rational phase "
+                "assignment). RELATION: same values as multirate, restructured."
+            ),
+            parameters=(
+                P("signal", "list", True, "input signal, 1-D array-like"),
+                P("filter_taps", "list", True,
+                  "the prototype filter to decompose"),
+                P("L", "int", False, "number of polyphase branches; default 2"),
+                P("mode", "str", False,
+                  "'decimation' (default) or 'interpolation'"),
+                _D,
+            ),
+            returns=R("list", "the resampled signal"),
+            preserves=_DISC,
+        ),
+        ToolEntry(
+            name="srmech.signal_processing.farrow", owner="srmech",
+            category="signal_processing",
+            summary=(
+                "Farrow-structure fractional delay — resample at an arbitrary "
+                "offset mu between existing samples, using a polynomial "
+                "interpolator whose coefficients are FIXED and whose only "
+                "run-time input is mu. That is the whole point of the "
+                "structure: an arbitrary continuously-variable delay without "
+                "redesigning or re-storing a filter per offset, which is what "
+                "makes it the standard timing-recovery interpolator. "
+                "IDENTITY: Class N — the polynomial coefficient table is a "
+                "rational-anchor construction. RELATION: sinc_interp is the "
+                "ideal-bandlimited peer, exact but not cheaply retunable."
+            ),
+            parameters=(
+                P("signal", "list", True, "input signal, 1-D array-like"),
+                P("mu", "float", False,
+                  "fractional delay in samples, 0.0 to 1.0; default 0.0"),
+                _D,
+            ),
+            returns=R("list", "the signal resampled at the fractional offset"),
+            composes=("srmech.math.laplacian.mat_matvec",),
+            preserves=_DISC,
+        ),
+        ToolEntry(
+            name="srmech.signal_processing.sinc_interp", owner="srmech",
+            category="signal_processing",
+            summary=(
+                "Whittaker-Shannon sinc interpolation — reconstruct a "
+                "bandlimited signal at arbitrary target positions from its "
+                "samples. This is the interpolation the sampling theorem "
+                "names: for a genuinely bandlimited signal sampled above the "
+                "Nyquist rate it is not an approximation but the exact "
+                "reconstruction. Its cost is that every output touches every "
+                "input, which is why cheaper interpolators exist at all. "
+                "IDENTITY: Class L (the interpolation operator as a matvec "
+                "against a sinc kernel matrix) composed with Class K (the "
+                "removable singularity at zero offset, handled as an explicit "
+                "boundary rather than by dividing). RELATION: farrow is the "
+                "cheap retunable peer."
+            ),
+            parameters=(
+                P("signal", "list", True, "the sample values"),
+                P("sample_indices", "list", True,
+                  "the positions the samples were taken at"),
+                P("target_indices", "list", True,
+                  "the positions to reconstruct at"),
+                _D,
+            ),
+            returns=R("list",
+                      "the reconstructed values, one per target index"),
+            composes=("srmech.math.laplacian.mat_matvec",),
+            preserves=_DISC,
+        ),
+
+        # ── Adaptive / multi-signal estimation ─────────────────────────
+        ToolEntry(
+            name="srmech.signal_processing.beamforming_fixed", owner="srmech",
+            category="signal_processing",
+            summary=(
+                "Fixed delay-and-sum beamforming — align the per-element "
+                "records by their geometric delays and add. It is the "
+                "simplest spatial filter there is and its resolution is "
+                "DIFFRACTION-LIMITED, set by aperture over wavelength; that "
+                "limit is the baseline the subspace methods were invented to "
+                "beat. IDENTITY: Class L (the array combine as a matvec) "
+                "composed with Class N (the rational delay and weight tables). "
+                "SIBLINGS: music_doa and esprit resolve sources this cannot "
+                "separate. SCOPE: educational signal-processing reference only "
+                "— acoustic source-finding, civilian direction-of-arrival "
+                "estimation, array-processing teaching material."
+            ),
+            parameters=(
+                P("array_signals", "list[list[float]]", True,
+                  "one record per array element"),
+                P("delays_samples", "list", True,
+                  "per-element steering delay, in samples"),
+                P("weights", "list", False,
+                  "per-element shading weights; None means uniform. Shading "
+                  "trades main-lobe width for sidelobe suppression"),
+                _D,
+            ),
+            returns=R("list", "the single beamformed output record"),
+            composes=("srmech.math.laplacian.mat_matvec",),
+            preserves=_DISC,
+        ),
+        ToolEntry(
+            name="srmech.signal_processing.esprit", owner="srmech",
+            category="signal_processing",
+            summary=(
+                "ESPRIT — subspace parameter estimation via rotational "
+                "invariance. Where music_doa builds a pseudo-spectrum you then "
+                "SEARCH for peaks, ESPRIT exploits the shift structure of a "
+                "uniform linear array to return the parameters DIRECTLY as "
+                "generalised eigenvalues, with no search grid and so no "
+                "grid-resolution floor. IDENTITY: Class L (the covariance "
+                "eigendecomposition that exposes the signal subspace) composed "
+                "with Class K (the signal / noise rank cut, a genuine pin-slot "
+                "phase boundary). SIBLINGS: music_doa is the search-based "
+                "peer; beamforming_fixed is the diffraction-limited baseline "
+                "both improve on. SCOPE: educational signal-processing "
+                "reference only — acoustic source-finding, civilian "
+                "direction-of-arrival and frequency estimation."
+            ),
+            parameters=(
+                P("R", "Mat", True,
+                  "the M-by-M Hermitian covariance matrix from a uniform "
+                  "linear array"),
+                P("n_sources", "int", True,
+                  "number of sources, i.e. the signal-subspace dimension. "
+                  "Required rather than inferred: reading the source count off "
+                  "the eigenvalue gap is a separate decision the op declines "
+                  "to make silently"),
+                _D,
+            ),
+            returns=R("list[complex]",
+                      "n_sources generalised eigenvalues; their angles carry "
+                      "the direction or frequency estimates"),
+            composes=("srmech.math.laplacian.mat_hermitian_eigendecompose",
+                      "srmech.math.laplacian.mat_lstsq",
+                      "srmech.math.laplacian.mat_eigvals"),
+            preserves=_DISC,
+        ),
+        ToolEntry(
+            name="srmech.signal_processing.ica_jade", owner="srmech",
+            category="signal_processing",
+            summary=(
+                "JADE independent component analysis — separate a linear "
+                "mixture into statistically independent sources by jointly "
+                "diagonalising fourth-order cumulant matrices. Second-order "
+                "methods can only decorrelate, which leaves an arbitrary "
+                "rotation unresolved; the fourth-order statistics are exactly "
+                "what pins that rotation down, which is why JADE can solve the "
+                "blind source separation problem that whitening alone cannot. "
+                "IDENTITY: Class L (the cumulant eigenstructure) composed with "
+                "Class K (the Givens rotation sign / angle decisions). NOTE: "
+                "the convergence guards deliberately use a local "
+                "NaN-PROPAGATING magnitude rather than the shipped dead-band "
+                "magnitude op — a NaN read as 0.0 would satisfy the tolerance "
+                "test and report convergence on garbage, turning a loud "
+                "failure into a silent wrong answer. That choice is "
+                "adjudicated and intentional."
+            ),
+            parameters=(
+                P("X", "Mat", True,
+                  "the observation matrix, channels by samples"),
+                P("n_components", "Optional[int]", False,
+                  "how many sources to extract; None means as many as there "
+                  "are channels"),
+                P("max_iter", "int", False,
+                  "cap on joint-diagonalisation sweeps; default 100"),
+                P("tol", "float", False,
+                  "convergence tolerance on the sweep rotation; default 1e-06"),
+                _D,
+            ),
+            returns=R("list",
+                      "an (unmixing matrix, recovered sources) pair"),
+            composes=("srmech.math.laplacian.mat_hermitian_eigendecompose",
+                      "srmech.math.rational.sqrt",
+                      "srmech.math.rational.atan2",
+                      "srmech.math.rational.cos",
+                      "srmech.math.rational.sin"),
+            preserves=_DISC,
+        ),
+        ToolEntry(
+            name="srmech.signal_processing.lmmse", owner="srmech",
+            category="signal_processing",
+            summary=(
+                "Linear minimum mean-square-error estimator — the best LINEAR "
+                "estimate of x from y given their covariances. It is the "
+                "workhorse Bayesian estimator precisely because it needs only "
+                "second-order statistics: no distributional assumption is "
+                "required for it to be the optimal linear rule, and when the "
+                "variables happen to be jointly Gaussian it is optimal among "
+                "ALL estimators, not just linear ones. IDENTITY: Class L (the "
+                "covariance solve) composed with Class N (the rational gain). "
+                "SIBLINGS: map_ml is the model-based peer that takes an "
+                "observation matrix and noise covariance instead of the joint "
+                "covariances."
+            ),
+            parameters=(
+                P("y", "list", True, "the observation vector"),
+                P("R_yy", "list[list[float]]", True,
+                  "observation autocovariance"),
+                P("R_xy", "list[list[float]]", True,
+                  "cross-covariance between the quantity of interest and the "
+                  "observation"),
+                P("mean_x", "list", False,
+                  "prior mean of x; None means zero"),
+                P("mean_y", "list", False,
+                  "mean of y; None means zero"),
+                _D,
+            ),
+            returns=R("list[float]", "the LMMSE estimate of x"),
+            composes=("srmech.math.laplacian.mat_solve",),
+            preserves=_DISC,
+        ),
+        ToolEntry(
+            name="srmech.signal_processing.map_ml", owner="srmech",
+            category="signal_processing",
+            summary=(
+                "MAP or ML estimation for the linear-Gaussian model "
+                "y = A x + v. Supply a prior covariance and you get the "
+                "maximum a posteriori estimate; omit it and the SAME code "
+                "returns the maximum-likelihood estimate, because ML is "
+                "exactly MAP under an infinitely flat prior. Having one op "
+                "cover both makes that relationship visible instead of "
+                "splitting it across two surfaces. IDENTITY: Class L (the "
+                "normal-equations solve) composed with Class K (the "
+                "prior-present / prior-absent branch, which is a genuine "
+                "structural boundary rather than a default). SIBLINGS: lmmse "
+                "is the covariance-form peer."
+            ),
+            parameters=(
+                P("y", "list", True, "the observation vector, length m"),
+                P("A", "list[list[float]]", True,
+                  "the m-by-n observation matrix"),
+                P("R_noise", "list[list[float]]", True,
+                  "the m-by-m noise covariance"),
+                P("R_prior", "list[list[float]]", False,
+                  "the n-by-n prior covariance; None selects the ML estimator"),
+                P("mean_prior", "list", False,
+                  "prior mean of x; None means zero"),
+                _D,
+            ),
+            returns=R("list[float]", "the MAP or ML estimate of x"),
+            composes=("srmech.math.laplacian.mat_solve",
+                      "srmech.math.laplacian.mat_matmul"),
+            preserves=_DISC,
+        ),
+    ]
+
+    for entry in entries:
+        register_tool(entry)
+
+
 def _register_music_tools() -> None:
     """Register the ``srmech.music`` acoustic domain slice (v0.9.0rc362).
 
@@ -14656,6 +15943,7 @@ _register_introspect_tools()
 _register_dsl_tools()
 _register_rbs_lm_tools()
 _register_signal_processing_tools()
+_register_closed_form_path_a_tools()
 _register_music_tools()
 _register_chemistry_tools()
 

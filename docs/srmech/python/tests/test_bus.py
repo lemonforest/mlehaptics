@@ -1017,7 +1017,7 @@ def test_native_bus_symbols_present():
     from srmech import _native
     if not _native.HAS_NATIVE:
         pytest.skip("native not loaded; nothing to verify")
-    assert _native.NATIVE_ABI_VERSION == 13, (
+    assert _native.NATIVE_ABI_VERSION == 14, (
         f"ABI 13 expected (rc418 `#T1108` gave the genome write ops + the catalog "
         f"audit a caller-attestation / descriptor channel, 12 -> 13); "
         f"got {_native.NATIVE_ABI_VERSION}"
@@ -1056,7 +1056,7 @@ def test_abi_version_is_7():
     the new srmech_progress_cb_t dispatch-observer typedef, #840).
     """
     from srmech import _native
-    assert _native.EXPECTED_ABI_VERSION == 13, (
+    assert _native.EXPECTED_ABI_VERSION == 14, (
         f"EXPECTED_ABI_VERSION should be 12; got "
         f"{_native.EXPECTED_ABI_VERSION}"
     )

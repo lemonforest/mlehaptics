@@ -13,6 +13,75 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc425]
+
+### 37 Path-A ops come out of the dark — and the one that was silently decoding the wrong channel (`#T1112`)
+
+**Registry moves 612 → 649 (+37). ABI moves 13 → 14** — not for the registration, which adds no C symbol, but for the `srmech_mlse` defect below.
+
+#### The population, and why three earlier counts of it were wrong
+
+`srmech.signal_processing.closed_form_ops` ships **41** modules exposing a callable `op`. At rc424 exactly **one** (`music_doa`) had a ToolEntry. The other 40 were absent from `describe()`, unreachable by `srmech.introspect.search` at any `k` — the index is BUILT from the registry — and missing from the MCP tool list. This is the `fold_identity` shape rc419 found one level up at the dispatcher, one level down.
+
+Three earlier attempts to size this population returned 38, 39 and 41. **All three were name-suffix artifacts.** Matching on the leaf name reads `closed_form_ops/fft.py` as already registered, because a *different* function — `srmech.cascade.spectral_cascades.fft` — holds that leaf name. The honest predicate is *"some ToolEntry's resolved callable has this `__module__`"*, and it is the only one that cannot be fooled: resolve every entry to its live object and read `__module__` off it. That returns **41 / 1 / 40**, and it is what the census in this rc uses.
+
+#### 37, not 40, and the exclusion is measured rather than assumed
+
+`fft`, `ifft` and `pi_cascade` are thin wrappers over ops the registry already ships. Rather than assume that made them duplicates, each was **executed** against its peer — `spectral_cascades.fft` / `.ifft` and `math.rational.pi_cascade_digits` — over integer, float, complex, power-of-two, non-power-of-two and length-1 inputs. Every probe agreed **bit-exactly** (max component deviation `0.0`, not merely within tolerance). They are the same values under a second name, so a row would advertise a duplicate surface. **Had any probe disagreed the count would have been 38**, and the disagreeing op would have earned its own row.
+
+The 37 reach the package surface through a lazy `__getattr__` on `srmech.signal_processing`, not 37 more eager imports. rc424 bound `music_doa` eagerly for a reason that does not generalise: it is one of only two `closed_form_ops` modules with a module-load `_register()` against `path_registry`, so importing it is what makes it dispatchable. Measured here: the other 37 register nothing at import time, so eager-importing them would buy no dispatch and spend exactly the cost `closed_form_ops`'s own PEP-562 loader exists to avoid.
+
+#### Every worked example was run before it was written down
+
+All 37 rows ship a domain-grounded example that **re-executes** under `tests/test_worked_examples_execute_rc354.py` — fresh empty globals, a temp cwd, statement by statement, numpy absent. All 37 come back `ok`. The `# ->` annotations are captured results, not predictions; two were predicted wrong during authoring and corrected against the measurement rather than left standing. Several are cross-op oracles rather than self-reports: `wiener` and `spectral_subtraction` answer **0.75 vs 0.866** on the *same* tone and noise floor (`12/16` in the power domain against `sqrt(12)/4` in the magnitude domain, both hand-derivable), and `map_ml` returns the identical `8/3` that `lmmse` returns for the same linear-Gaussian model.
+
+#### `composes` is traced, and the trace disagreed with the guess 8 times
+
+ADR-0013 §292 records that the SET is derivable and the ORDER is not — lexical first-call order scored **0 of 2** against ground truth. So the 16 multi-edge rows were measured by **runtime trace**: each candidate sub-op was rebound to a recording wrapper across every module holding a reference (which catches function-local `from X import y`, since that is a `getattr` at call time), the op was executed on a real input, and the order of first entry was read off. Stable across repeated runs.
+
+It was not ceremony. The trace **disagrees with alphabetical order on 8 of the 13 rows it could fully resolve**: `dct` enters `cos` before `mat_matvec`; `map_ml` enters `mat_solve` before `mat_matmul`; `ofdm` enters `ifft` before `fft`; `multirate` enters `sin` before `cos`; `wavelet` enters `sqrt` before `mat_matvec`; `multitaper` builds and normalises its tapers before any transform runs; `spectral_subtraction` interleaves the trig *between* its two transforms; and `esprit` runs its three Class-L ops in an order no alphabetisation produces. All eight would have shipped a false ordered claim under the mechanical reading.
+
+Two rows needed a second branch to show their full set, recorded rather than papered over. `psk_qam`'s `cos`/`sin` belong to the PSK constellation and its `sqrt` only to the QAM grid — the branches are **disjoint**, so no single call enters all three and the order follows the op's own `if psk / elif qam` dispatch. `ofdm`'s `hypot` is the per-subcarrier equaliser guard, reached only when demodulating with a channel supplied, so its tuple was traced across a full modulate-then-demodulate round trip. Three more (`fir`, `farrow`, `matched_filter`) reach `mat_matvec` only on the native branch, which the pure trace cell cannot enter; each is a **one-element** set, so the ordering is forced and nothing is guessed.
+
+The population census lands **RESIDUAL at exactly 182** — `CEIL_UNADJUDICATED` unchanged, with 11 new LEAF, 10 new SINGLE and 16 new hand-traced ROSTER rows. No existing ledger row was disturbed (measured: 0 LEAF rows started reaching something, 0 SINGLE rows changed their edge).
+
+### `srmech_mlse` was decoding a different channel than the one you gave it — ABI 13 → 14
+
+**Found while writing `mlse`'s worked example, verified against exhaustive maximum-likelihood decoding, and fixed at root in BOTH projections.**
+
+MLSE is *defined* as the argmin over all candidate sequences of `Σ_t |obs[t] − Σ_k taps[k]·alpha[s_{t−k}]|²`, so for a short sequence a brute-force search **is** the ground truth — no free parameter, no tolerance to argue about. Through rc424 the trellis held `L−1` state symbols and its emission read
+
+```
+expected  = Σ_{k=0}^{memory−1} taps[k+1]·alpha[tup[k]]
+expected += taps[0]·alpha[tup[0]]          # h0 hits the SAME symbol as h1
+```
+
+applying the cursor tap and the first post-cursor tap to the **same symbol**, and never reaching `s_{t−memory}` at all. The trellis therefore decoded as if the channel were `[h0+h1, h2, …]` with the memory shifted a step — a different channel.
+
+The failure mode is the **silent wrong answer**, the worst class. Nothing raised. On noiseless BPSK, where the transmitted sequence scores a branch metric of **exactly 0.0**, rc424 returned a sequence scoring **13.0** for taps `[0.5, 1.0]`, and disagreed with brute force on **4 of 9** test channels.
+
+**It hid where the op was not earning its keep.** rc424 agreed on every cursor-dominant (minimum-phase) channel — which is precisely the regime in which a plain symbol-by-symbol slicer is also right. The whole reason to reach for MLSE is the post-cursor case, and that is exactly the case it got wrong.
+
+The root cause is structural rather than a typo: `y_t` depends on `L` symbols, so a **state-emission** Viterbi needs all `L` of them in the state. Holding `L−1` made the emission unrepresentable, and the old expression was an attempt to fold the missing symbol into the ones that were there. rc425 widens the state to the whole tap window and the emission becomes one clean pass, `Σ_{k=0}^{L−1} taps[k]·alpha[tup[k]]`.
+
+Fixed in **both** projections and differential-tested: 9 of 9 channels now agree with brute force in the pure cell *and* the native cell, with **0 divergences** between Python and C over 60 randomly generated channels.
+
+**ABI 13 → 14.** No signature changed shape, but `n_states` meant `A^(L−1)` and now means `A^L` — the third bump of the v10 / v12 kind. Load-bearing rather than ceremonial: a stale rc424 `.so` would still LOAD into rc425 Python, which now sizes its scratch arena for `A^L` states, and would carve `tup`/`ntup` at the old width against that larger arena. `GENOME_FORMAT_VERSION` stays 19.
+
+#### Why the shipped test could not have caught it
+
+`test_mlse_smoke` exercises only the single-tap path — which bypasses the trellis entirely — and asserts only `isinstance(syms, list)`. **A test that checks a return TYPE cannot fail on a wrong VALUE**, so the op was ungated on the only axis that distinguishes it from a slicer. `test_mlse_agrees_with_exhaustive_maximum_likelihood_rc425` closes that: it checks `mlse` against a brute-force search over every candidate sequence on nine channels, and it asserts *both* that the search itself found the transmitted sequence and that that sequence scores exactly zero — agreeing with a brute force that had gone wrong would prove nothing. The post-cursor rows in its channel list are load-bearing and are marked as such; a suite of only minimum-phase channels would have stayed green through the entire defect.
+
+### Scope
+
+Seven of the 37 are communications- or array-processing-adjacent (`beamforming_fixed`, `esprit`, `fsk`, `matched_filter`, `mlse`, `ofdm`, `psk_qam`). Every one ships as **educational signal-processing reference / civilian** material only — physics and textbook framing, digital-communications teaching, acoustic source-finding — each carrying an explicit `SCOPE` sentence matching the shipped `music_doa` model. No targeting, tracking, interception or capability-assessment framing appears on this surface.
+
+`ica_jade`'s local NaN-propagating `_abs` guard is **untouched and documented as the deliberate contract it is**: the shipped `magnitude` op maps NaN → 0.0 as a Class-K dead-band, which a convergence guard would read as `0.0 < tol` and report CONVERGED on garbage. That adjudication stands.
+
+### Ripple
+
+`WITNESS_RC416` re-pinned (eighth consecutive re-pin; frames **641 → 678** = 649 ops + 29 carriers), determinism re-established over **15** builds — five successive `_build_frames('all')` calls in each of three fresh interpreters, one hash every time. `EXPECTED_N` 612 → 649 with the manifest rewritten and `EXPECTED_NAME_SET_SHA256` re-pinned in the same commit; the move is **+37 with zero renames**. 73 count-pin assertions across 66 test files, 18 ABI pins, four `Live at rcNNN` stamps re-measured and moved, and the generated `_tool_docs.py` / `_c_claims.py` / `srmech_tool_registry.c` / `srmech_carrier_registry.c` regenerated through `tools/regen_all.py` (idempotent across two passes).
+
 ## [0.9.0rc424]
 
 ### The music RELATIONS lane — and the homograph that had been hiding an op from search for its whole life (`#T1113`)

@@ -327,6 +327,151 @@ ROSTER: Dict[str, Tuple[str, ...]] = {
         "srmech.math.laplacian.mat_hermitian_eigendecompose",
         "srmech.math.laplacian.mat_matmul",
     ),
+
+    # ──────────────────────────────────────────────────────────────────
+    # rc425 (`#T1112`) — the 16 multi-edge rows of the closed_form_ops
+    # registration. EVERY tuple below is a RUNTIME TRACE, not a reading.
+    #
+    # ADR-0013 §292 is the reason. It records that the SET is derivable and
+    # the ORDER is not, having measured lexical first-call order at 0 of 2
+    # against ground truth. So each op here was executed on a real input with
+    # every candidate sub-op rebound to a recording wrapper across all
+    # modules holding a reference (which catches function-local
+    # `from X import y`, since that is a getattr at call time), and the order
+    # of FIRST ENTRY was read off. Orders were stable across repeated runs.
+    #
+    # The trace was not ceremony: it DISAGREES with alphabetical order on 8
+    # of the 13 rows it could fully resolve. `dct` enters cos before
+    # mat_matvec; `map_ml` enters mat_solve before mat_matmul; `ofdm` enters
+    # ifft before fft; `multirate` enters sin before cos; `wavelet` enters
+    # sqrt before mat_matvec; `multitaper` enters sin, sqrt, then fft;
+    # `spectral_subtraction` interleaves the trig between its two transforms;
+    # and `esprit` runs its three Class-L ops in an order no alphabetisation
+    # produces. All eight would have shipped a FALSE ordered claim under the
+    # mechanical reading.
+    #
+    # ⚠️ THREE ROWS DECLARE AN EDGE THE TRACE COULD NOT ENTER, recorded here
+    # rather than quietly declared. `fir`, `farrow` and `matched_filter` each
+    # reach `mat_matvec` only through `_dsp.convolve_matmul`'s Toeplitz
+    # matvec, which is guarded by `_native.HAS_NATIVE`; the trace ran in a
+    # pure cell where that is False. Each is a ONE-ELEMENT set, so the
+    # ordering is forced and nothing is guessed — a one-element sequence has
+    # exactly one ordering. The declaration describes how the op is BUILT,
+    # which does not change with the cell it runs in.
+    # ──────────────────────────────────────────────────────────────────
+
+    # cos builds the basis row BEFORE the basis is applied — the matvec
+    # consumes what cos produced, so this order is forced by dataflow.
+    "srmech.signal_processing.dct": (
+        "srmech.math.rational.cos",
+        "srmech.math.laplacian.mat_matvec",
+    ),
+    # Eigendecompose to expose the signal subspace, least-squares the
+    # rotational-invariance relation between its two shifted halves, then take
+    # the eigenvalues OF THAT relation. Each stage consumes the previous one.
+    "srmech.signal_processing.esprit": (
+        "srmech.math.laplacian.mat_hermitian_eigendecompose",
+        "srmech.math.laplacian.mat_lstsq",
+        "srmech.math.laplacian.mat_eigvals",
+    ),
+    # Native-branch-only edge; one element, so the order is forced.
+    "srmech.signal_processing.farrow": (
+        "srmech.math.laplacian.mat_matvec",
+    ),
+    # Native-branch-only edge; one element, so the order is forced.
+    "srmech.signal_processing.fir": (
+        "srmech.math.laplacian.mat_matvec",
+    ),
+    # The heat kernel is exp(-t*lambda) IN the Laplacian eigenbasis, so the
+    # eigendecomposition necessarily precedes the exponential it feeds.
+    "srmech.signal_processing.heat_kernel": (
+        "srmech.math.laplacian.mat_hermitian_eigendecompose",
+        "srmech.math.rational.exp",
+    ),
+    # Whiten (eigendecompose, then sqrt the eigenvalues), then sweep Givens
+    # rotations whose angle comes from atan2 and whose application is cos/sin.
+    "srmech.signal_processing.ica_jade": (
+        "srmech.math.laplacian.mat_hermitian_eigendecompose",
+        "srmech.math.rational.sqrt",
+        "srmech.math.rational.atan2",
+        "srmech.math.rational.cos",
+        "srmech.math.rational.sin",
+    ),
+    # ⚠️ Traced order, and it is the REVERSE of the alphabetical guess: the
+    # posterior solve runs first and the matmul then applies its result.
+    "srmech.signal_processing.map_ml": (
+        "srmech.math.laplacian.mat_solve",
+        "srmech.math.laplacian.mat_matmul",
+    ),
+    # Native-branch-only edge; one element, so the order is forced.
+    "srmech.signal_processing.matched_filter": (
+        "srmech.math.laplacian.mat_matvec",
+    ),
+    # Branch metrics are built in the log domain BEFORE the trellis search
+    # consumes them; mlse contributes the metric and delegates the dynamic
+    # program to the registered viterbi rather than re-deriving it.
+    "srmech.signal_processing.mlse": (
+        "srmech.math.rational.log",
+        "srmech.signal_processing.viterbi",
+    ),
+    # ⚠️ Traced sin-then-cos, the reverse of alphabetical: the windowed-sinc
+    # design evaluates its sinc numerator before the window's cosine taper.
+    "srmech.signal_processing.multirate": (
+        "srmech.math.rational.sin",
+        "srmech.math.rational.cos",
+    ),
+    # ⚠️ The tapers are BUILT (sin) and normalised (sqrt) before any transform
+    # runs, so fft is last -- alphabetical order would have put it first.
+    "srmech.signal_processing.multitaper": (
+        "srmech.math.rational.sin",
+        "srmech.math.rational.sqrt",
+        "srmech.cascade.spectral_cascades.fft",
+    ),
+    # ⚠️ ifft BEFORE fft: modulation synthesises the time-domain symbol first,
+    # and only the demodulate half transforms back. hypot is the
+    # per-subcarrier |H_k| equaliser guard, reached only when demodulating
+    # with a channel supplied — so this tuple was traced across a full
+    # modulate-then-demodulate round trip, not one half of the op.
+    "srmech.signal_processing.ofdm": (
+        "srmech.cascade.spectral_cascades.ifft",
+        "srmech.cascade.spectral_cascades.fft",
+        "srmech.math.rational.hypot",
+    ),
+    # ⚠️ The two constellation branches are DISJOINT — cos/sin belong to PSK
+    # and sqrt only to the QAM grid build, so NO single call enters all three
+    # and no one trace could order them. The order therefore follows the op's
+    # own dispatch, which is `if modulation == "psk"` first and
+    # `elif ... "qam"` second; each branch's internal order is traced.
+    "srmech.signal_processing.psk_qam": (
+        "srmech.math.rational.cos",
+        "srmech.math.rational.sin",
+        "srmech.math.rational.sqrt",
+    ),
+    # ⚠️ The trig sits BETWEEN the two transforms, not after both: forward
+    # transform, decompose each bin into magnitude (sqrt over cos/sin
+    # components) and phase (atan2), subtract, then resynthesise with ifft.
+    # Alphabetical order would have put the two transforms adjacent and lost
+    # exactly the structure that makes this op what it is.
+    "srmech.signal_processing.spectral_subtraction": (
+        "srmech.cascade.spectral_cascades.fft",
+        "srmech.math.rational.cos",
+        "srmech.math.rational.sin",
+        "srmech.math.rational.sqrt",
+        "srmech.math.rational.atan2",
+        "srmech.cascade.spectral_cascades.ifft",
+    ),
+    # ⚠️ sqrt BEFORE mat_matvec: the orthonormal sqrt(2) scaling is baked into
+    # the filter-bank matrix before that matrix is ever applied.
+    "srmech.signal_processing.wavelet": (
+        "srmech.math.rational.sqrt",
+        "srmech.math.laplacian.mat_matvec",
+    ),
+    # Forward transform, per-bin shrinkage, inverse transform. The one row
+    # here whose traced order alphabetical order would also have got right.
+    "srmech.signal_processing.wiener": (
+        "srmech.cascade.spectral_cascades.fft",
+        "srmech.cascade.spectral_cascades.ifft",
+    ),
 }
 
 

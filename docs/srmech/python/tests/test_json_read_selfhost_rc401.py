@@ -428,7 +428,7 @@ def test_is_internal_not_a_registered_tool():
     """
     import srmech
 
-    assert srmech.describe()["tools"]["total"] == 612
+    assert srmech.describe()["tools"]["total"] == 649
     blob = json.dumps(srmech.describe())
     assert "_json" not in blob
     assert "json_loads_c" not in blob
@@ -439,7 +439,7 @@ def test_native_symbol_is_bound_when_native():
     assert hasattr(_native.LIB, "srmech_json_parse")
     assert hasattr(_native, "json_loads_c")
     # Binding an already-exported symbol adds no C surface.
-    assert _native.EXPECTED_ABI_VERSION == 13
+    assert _native.EXPECTED_ABI_VERSION == 14
 
 
 def test_pure_floor_is_reachable_and_correct():

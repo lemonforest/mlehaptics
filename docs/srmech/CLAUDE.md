@@ -642,10 +642,11 @@ calls** — go through `sha256_bytes` (Phase B5 discipline).
 
 ### ABI compatibility
 
-C ABI version is currently **13** (`SRMECH_ABI_VERSION = 13` in
-`c/include/srmech.h`; `EXPECTED_ABI_VERSION = 13` in
-*(this line said 12 until rc420 — one bump behind again, the exact
-staleness shape the rc404 note below records; the v13 bump was rc418's)*
+C ABI version is currently **14** (`SRMECH_ABI_VERSION = 14` in
+`c/include/srmech.h`; `EXPECTED_ABI_VERSION = 14` in
+*(this line said 12 until rc420 and 13 until rc425 — one bump behind on both
+occasions, the exact staleness shape the rc404 note below records; the v13 bump
+was rc418's, the v14 bump is rc425's `srmech_mlse` wire-contract change)*
 `python/srmech/_native/__init__.py`). *(These three lines said ABI **9** and
 pointed at `python/srmech/amsc/_native.py` until rc404 (`#T1069`) — two stale
 facts in three lines: the version was three bumps behind, and ADR-0010 moved
@@ -699,6 +700,25 @@ conditions shared a status, and a stale rc403 `.so` reports ABI 11 — so
 without the bump it would still LOAD and silently cost ~512 MiB on an
 out-of-int64 literal (the answer stays correct; only the cost is wrong).
 `GENOME_FORMAT_VERSION` stays 19 throughout v10–v12.
+
+**v14 (v0.9.0rc425, `#T1112`)** is the THIRD bump of the v10 / v12 kind: no
+signature changed shape, but an existing parameter's CONTRACT did.
+`srmech_mlse`'s `n_states` meant `A^(L-1)` through rc424 and now means `A^L`.
+The trellis state must span the whole tap window, because `y_t = Σ_k taps[k]·s_{t-k}`
+reads all `L` symbols and a state-emission Viterbi cannot express an emission
+that depends on a symbol outside its state. The rc424 kernel held `L-1` and
+folded `taps[0]` and `taps[1]` onto the SAME symbol, so it decoded a different
+channel — `[h0+h1, h2, …]` with the memory shifted a step — and returned a wrong
+sequence **with no error signal**. Measured against an exhaustive
+maximum-likelihood search it disagreed on **4 of 9** test channels, returning a
+sequence of cost 13.0 where the transmitted one scored exactly 0.0; it agreed
+only where the cursor tap dominates, which is precisely the regime in which a
+plain slicer is also right, so the error hid wherever the op was not earning its
+keep. Fixed in BOTH projections and differential-tested (60 random channels,
+zero Python/C divergence). Load-bearing rather than ceremonial: a stale rc424
+`.so` would still LOAD into rc425 Python, which now sizes its scratch arena for
+`A^L` states, and the stale lib would carve `tup`/`ntup` at the old width against
+that larger arena. `GENOME_FORMAT_VERSION` stays 19 — no on-disk format moves.
 
 **#772 reconciliation (rc306).** The "reentrant C core" claim (#772) rests
 on the `SRMECH_THREAD_LOCAL` thread-local-storage scratch. `srmech_genome_section_counts`
