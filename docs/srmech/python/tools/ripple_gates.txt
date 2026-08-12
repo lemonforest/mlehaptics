@@ -236,3 +236,31 @@ tests/test_notebook_currency_rc420.py
 #    as the three entries above, caught before it billed a round rather than
 #    after. Whole file, ~30 s, pure-Python, no native .so.
 tests/test_op_name_set_witness_rc361.py
+
+# -- owner axis / registry-total restatement (rc428, `#T1126`) ---------------
+#    THE FIFTH INSTANCE OF THE UNLISTED-GATE SHAPE, and the most expensive one
+#    yet: this gate took SIX CI cells red at rc427 and is in neither this
+#    manifest nor FROZEN_KNOWN_GATES. It scans 261 shipped modules for a bare
+#    restatement of the registry total, so it moves on any rc that registers an
+#    op AND on any rc whose prose happens to contain the new total. Measured
+#    forward over the next 105 candidate totals: 39 of them (37%) take it RED,
+#    the first at 665 -- TEN registrations from the live 655 -- and 27 of those
+#    39 are explained entirely by bare `#NNN` issue refs, which
+#    test_ref_notation_emitted_rc348.py MANDATES as the correct spelling for a
+#    real GitHub object. The two gates are the same blind spot pointed at each
+#    other. Listing it does not fix that collision; it makes the collision
+#    visible on the fast surface instead of in CI. Whole file, pure-Python.
+tests/test_owner_axis_rc410.py
+
+# -- citation-contains-term (rc428, `#T1126`) --------------------------------
+#    The literature-citation gate. It rides here for a reason the other entries
+#    do not share: it does not move on op COUNT, it moves on op PROSE. Its
+#    subject is the SSoT / citation text inside ToolEntry summaries and module
+#    docstrings, which is edited on essentially every op-touching rc and which
+#    is EMITTED into `_tool_docs.py` and the compiled-in C tool registry. A
+#    citation edited during an op rc reaches users through describe(), the MCP
+#    tool list and `srmech_tool_registry.c` -- measured at rc428, that is
+#    exactly how a FALSE Baez citation shipped inside published wheels and
+#    stayed green through six attestation tests. Reads the committed
+#    `literature_claims` manifest; no network, no native .so. ~20 s.
+tests/test_citation_manifest_rc428.py
