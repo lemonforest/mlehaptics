@@ -238,27 +238,41 @@ def main() -> int:
     print("\n      across lines: 7 Fano lines. A single 28-element torsor "
           "would need a group of order 28 acting freely+transitively on the "
           "frames, hence an order-7 quotient acting so on the LINES.")
-    # measure: does right-multiplication by any single octonion unit permute
-    # the lines transitively?
+    # Measure: does right-multiplication by an octonion unit permute the
+    # lines?  u = 0 is e₀, the IDENTITY, and is included as the POSITIVE
+    # CONTROL — it must return 7/7, otherwise the indexing is wrong and the
+    # zeros below would be an artifact rather than a result.
+    L = [tuple(sorted(t)) for t in lines]
     line_orbits = {}
-    for u in range(1, 8):
-        img = []
-        for ln in lines:
-            m = tuple(sorted({oct_mult(a, u) & 7 for a in ln}))
-            img.append(m)
-        line_orbits[u] = sum(1 for m in img if m in
-                             [tuple(sorted(t)) for t in lines])
-    print(f"      per-unit right-multiplication: how many of the 7 lines map "
-          f"to a line?  {line_orbits}")
+    for u in range(0, 8):
+        img = [tuple(sorted({oct_mult(a, u) & 7 for a in ln})) for ln in lines]
+        line_orbits[u] = sum(1 for m in img if m in L)
+    ctrl = line_orbits[0]
+    print(f"      per-unit right-multiplication, lines mapping to a line:")
+    print(f"        u=0 (IDENTITY, positive control): {ctrl}/7  "
+          f"{'control OK' if ctrl == 7 else '!! INDEXING BROKEN'}")
+    print(f"        u=1..7: {[line_orbits[u] for u in range(1, 8)]}")
+    print(f"      why: multiplying a line by one of its OWN members produces "
+          f"a set containing index 0 (the real unit), which is not a line at "
+          f"all — so right multiplication is simply not the across-line "
+          f"action.")
     emit(finding="F5b_across_lines",
          n_lines=len(lines), per_unit_lines_preserved=line_orbits,
-         verdict="the 28-frame set is NOT presented as a single torsor by the "
-                 "shipped op: the (line, ℓ) pair is a FIBRED set — 7 bases "
-                 "each carrying a 4-element torsor — and the shipped "
-                 "docstring says only the WITHIN-LINE relation is a right "
-                 "action. Measured here: the within-line level is a torsor "
-                 "(for the order-4 quotient); the across-line level is not "
-                 "certified as one by anything shipped.")
+         identity_control=ctrl, control_valid=ctrl == 7,
+         null_class="BOUNDED",
+         verdict="BOUNDED, not REFUTED. What is MEASURED: right "
+                 "multiplication by a basis unit is NOT the across-line "
+                 "action (0/7 for every non-identity unit, with the identity "
+                 "control returning 7/7 so the zeros are a result and not an "
+                 "indexing artifact). What is NOT shown: that no group acts "
+                 "simply transitively on the 7 lines — the relevant "
+                 "automorphism action lives in Aut(𝕆) restricted to the "
+                 "basis structure, which the shipped ops do not expose as a "
+                 "frame-change. So the honest statement is that "
+                 "octonion_frame_read PRESENTS the 28 frames as a FIBRED SET "
+                 "(7 bases, each carrying a 4-element torsor), and only the "
+                 "within-line level is certified torsorial by anything "
+                 "shipped.")
 
     # ══════════════════════════════════════════════════════════════════
     # F6 — the oct_torsor_* structure group, measured against what a
