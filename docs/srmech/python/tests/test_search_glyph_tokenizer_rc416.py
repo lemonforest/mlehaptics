@@ -240,8 +240,19 @@ from srmech.math.text import fold_marks, glyph_stream
 #: ``_build_frames('all')`` calls inside each of THREE fresh interpreters —
 #: all produced this one hash, with ``len(frames) == 684`` every time and the
 #: ops/carriers sub-corpora measuring 655 + 29 = 684 on every build.
+#:
+#: MOVED AGAIN in the rc427 repair pass, with **zero op-count change**
+#: (684 = 655 + 29 both before and after) — the corpus is a hash over ToolEntry
+#: PROSE, and the repair rewrote prose on five entries: the ``dihedral_group``
+#: summary + curated explanation (the shipped "unit_loop yields orders
+#: {4, 8, 16, 32} only" was false — the ladder runs to order 512), three
+#: Schafer ``§III.1`` citations (that book has no sections at all; the
+#: associator is ch. II eqn (11)), and the Baez positive-control count
+#: (7× → 22×). That a +0-op rc moves this hash is the property the witness
+#: exists for. Re-measured the same way: FIFTEEN builds, three fresh
+#: interpreters, one hash, ``len(frames) == 684`` every time.
 WITNESS_RC416 = (
-    "814bfffd3eb768d6f135c1ae22cb48d3949c025c372d559ad837168c2486e87b")
+    "a97c05f9969a23cf872ff6f9860161af93bf6a8eb9eae532d496de56aa425110")
 
 #: The ASCII control set. These four queries are the ops the tokenizer work is
 #: ABOUT, so a regression on them would be the change eating its own subject.

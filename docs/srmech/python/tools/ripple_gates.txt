@@ -212,3 +212,27 @@ tests/test_readme_currency_rc419.py
 #    it, purely because this file was not listed here. Whole file, ~13 s,
 #    pure-Python, no native .so.
 tests/test_search_glyph_tokenizer_rc416.py
+
+# -- notebook currency (rc427, `#T1130`) -------------------------------------
+#    THE THIRD INSTANCE OF THE SAME SHAPE, and it cost a CI-red round again.
+#    `srmech_research_notebook.md` carries `Live at rcNNN:` currency stamps and
+#    two live cardinals (the registry total and the cascade-descriptor count).
+#    The gate asserts the stamp SET equals the pinned release, so it moves on
+#    EVERY rc -- version bump alone is enough, no op required. Measured at
+#    rc427: this runner went GREEN on the full manifest while the notebook
+#    still said "Live at rc425 ... holds 649 entries" (live: rc427 / 655), and
+#    CI went red on two one-line prose facts. rc422 fixed exactly this for the
+#    README two entries up and rc421 for the search corpus one entry up; the
+#    notebook is the same axis and was simply never listed. Whole file, ~10 s,
+#    pure-Python, no native .so.
+tests/test_notebook_currency_rc420.py
+
+# -- op-name-set witness (rc427, `#T1130`) -----------------------------------
+#    `EXPECTED_N` + the sha256-pinned op-name MANIFEST. A new op moves both,
+#    and the count assignment is a bare `EXPECTED_N = <n>`, which the usual
+#    `== <total>` count-pin grep CANNOT match -- so it is invisible to the one
+#    predicate a build brief is most likely to run. It moved 13 lines at rc427
+#    and passed only because the round ran it by hand. Same unlisted-gate shape
+#    as the three entries above, caught before it billed a round rather than
+#    after. Whole file, ~30 s, pure-Python, no native .so.
+tests/test_op_name_set_witness_rc361.py

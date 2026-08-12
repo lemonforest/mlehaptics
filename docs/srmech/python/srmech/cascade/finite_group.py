@@ -246,8 +246,9 @@ def dihedral_group(n: int, convention: str) -> Dict[str, Any]:
             ``"rotation_first"`` (``rⁱ·s``).  **REQUIRED, and honestly a
             LABELLING decision, not a structural one.**  Measured on ``D_12``:
             the map ``x -> x⁻¹`` is an isomorphism from one table to the other
-            on **576/576** products, with identical class sizes
-            ``[1,2,2,2,2,2,1,6,6]``; the identity map is not, so the
+            on **576/576** products, with identical class sizes — as
+            returned, ``[1,2,2,2,2,2,1,6,6]``, i.e. sorted
+            ``[1,1,2,2,2,2,2,6,6]``; the identity map is not, so the
             instrument can return otherwise.  Two supports offered for a
             structural reading were refuted — "360 of 576 cells differ" is
             exactly ``order² − commuting_pairs`` (it restates
@@ -264,8 +265,10 @@ def dihedral_group(n: int, convention: str) -> Dict[str, Any]:
         ``cayley_table[i][j]`` is the index of the product.
 
     **Why it ships.**  No group of order 12 or 24 is reachable from srmech at
-    all: :func:`srmech.cascade.unit_loop` yields orders ``{4, 8, 16, 32}``
-    only, and :func:`srmech.cascade.group_algebra_table` raises
+    all: :func:`srmech.cascade.unit_loop` yields order ``2·dim`` for a
+    power-of-two ``dim``, i.e. ``4, 8, 16, 32, 64, …`` up to ``2·CD_MAX_DIM
+    = 512`` — **always a power of two, so never 12 or 24** — and
+    :func:`srmech.cascade.group_algebra_table` raises
     ``dim must be a power of two`` on 3, 5, 12 and 24 — and is abelian by its
     own docstring besides.  So every non-abelian, non-power-of-two carrier the
     censuses in this module need was unreachable, which made

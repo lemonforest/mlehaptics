@@ -1106,9 +1106,9 @@ def associator(x: Sequence[Any], y: Sequence[Any], z: Sequence[Any],
         re-spell ``a·b`` twice. ``composition_of_c``. Class M ∘ K.
 
     Canonical SSoT:
-    - Schafer, R.D. (1966), *An Introduction to Nonassociative Algebras*, §III.1
-      — the associator ``(x, y, z)`` as the trilinear defect measuring
-      departure from associativity.
+    - Schafer, R.D. (1966), *An Introduction to Nonassociative Algebras*,
+      **ch. II eqn (11)** — the associator ``(x, y, z) = (xy)z - x(yz)`` as the
+      trilinear defect measuring departure from associativity.
     - Baez, J.C. (2002), *The Octonions*, Bull. AMS **39** 145–205,
       arXiv:math/0105155, §1–§2 — the octonion associator and alternativity.
     """
@@ -1277,9 +1277,9 @@ def cd_cycle_holonomy(x: Sequence[Any], y: Sequence[Any], z: Sequence[Any],
         ``abs()``).
 
     Canonical SSoT:
-    - Schafer, R.D. (1966), *An Introduction to Nonassociative Algebras*, §III.1
-      — the associator as the trilinear defect measuring departure from
-      associativity.
+    - Schafer, R.D. (1966), *An Introduction to Nonassociative Algebras*,
+      **ch. II eqn (11)** — the associator as the trilinear defect measuring
+      departure from associativity.
     - Baez, J.C. (2002), *The Octonions*, Bull. AMS **39** 145–205,
       arXiv:math/0105155, §1–§2 — associativity is lost only at ℍ→𝕆.
     """
@@ -1547,9 +1547,10 @@ def defect_ladder(x: Sequence[Any], y: Sequence[Any], z: Sequence[Any],
         (operand-order / loop orientation) ∘ K (sign-flip defect).
 
     Canonical SSoT:
-    - Schafer, R.D. (1966), *An Introduction to Nonassociative Algebras*, §III.1
-      — the associator ``(x, y, z)`` and the alternative laws; flexibility as
-      the identity ``(x, y, x) = 0`` that survives every rung.
+    - Schafer, R.D. (1966), *An Introduction to Nonassociative Algebras*,
+      **ch. II eqn (11)** — the associator ``(x, y, z)``; **ch. III eqns
+      (1)–(2)** the alternative laws, and **(6′)** flexibility as the identity
+      ``(xy)x = x(yx)``, i.e. ``(x, y, x) = 0``, that survives every rung.
     - Baez, J.C. (2002), *The Octonions*, Bull. AMS **39** 145–205,
       arXiv:math/0105155, §1–§2 — commutativity lost at ℂ→ℍ, associativity at
       ℍ→𝕆, alternativity + the division property at 𝕆→𝕊.
@@ -2176,9 +2177,12 @@ def min_generating_set(dim: int,
 # — Class-K clean throughout (zero-tests via ⟨v,v⟩, never ``abs()``).
 #
 # SSoT: Schafer, R.D. (1966), *An Introduction to Nonassociative Algebras*,
-# ch. III — §III.1 (the associator) and eqns (7)–(9), which ARE the three
-# Moufang identities, read verbatim from the public-domain text (Project
-# Gutenberg #25156):
+# ch. III eqns (7)–(9), which ARE the three Moufang identities, read verbatim
+# from the public-domain text (Project Gutenberg #25156). The associator
+# itself is ch. II eqn (11), not ch. III — and the book has NO sections at
+# all, so the "§III.1" this block carried through rc427 named a structure
+# that does not exist (re-measured against the Gutenberg TeX: five chapters,
+# zero `\section`; the associator is defined in ch. II):
 #
 #     (7)  (xax)y   = x[a(xy)]
 #     (8)  y(xax)   = [(yx)a]x
@@ -2194,14 +2198,27 @@ def min_generating_set(dim: int,
 # already shipped inside published wheels:
 #
 #   * §2 is titled "Constructing the Octonions" and states no Moufang
-#     identity. The word "Moufang" occurs in that paper only in §3, where it
-#     names Ruth Moufang and the Moufang (non-Desarguesian) projective plane
-#     𝕆P² — a different object entirely. The cayley_plane.py citations of
-#     Baez §3 / §4.2 for 𝕆P² are therefore CORRECT and were left alone; only
-#     the §2-for-Moufang-identities claim was wrong. Do not batch-convert.
+#     identity. "Moufang" occurs 5 times in that paper and NONE of them is in
+#     §2: three are in §3, where it names Ruth Moufang and the Moufang
+#     (non-Desarguesian) projective plane 𝕆P² — a different object entirely —
+#     and two are in the bibliography ([50] Gündaydin/Piron/Ruegg, [74] Ruth
+#     Moufang 1933). The cayley_plane.py citations of Baez §3 / §4.2 for 𝕆P²
+#     are therefore CORRECT and were left alone; only the
+#     §2-for-Moufang-identities claim was wrong. Do not batch-convert.
 #   * "Mal'cev" does not occur in that paper in ANY spelling. Positive
-#     control on the same instrument: "Cayley-Dickson" occurs 7 times, so the
-#     search can return otherwise.
+#     control on the same instrument: "Cayley–Dickson" occurs 22 times (18
+#     with the en-dash the paper actually sets, 4 with an ASCII hyphen), so
+#     the search can return otherwise.
+#
+# ⚠️ The control count read "7 times" when this block first shipped at rc427
+# and was corrected to 22 in the same rc. BOTH wrong readings came from the
+# same broken instrument, and the failure mode is worth keeping: `pdftotext`
+# emits Latin-1 by DEFAULT, so decoding its output as UTF-8 mangles every
+# en-dash and a "Cayley-Dickson" search then matches only the 4 ASCII-hyphen
+# spellings. Extract with `pdftotext -enc UTF-8`, and count each dash variant
+# SEPARATELY — a single count over a hyphen spelling silently under-reports a
+# paper that sets the name with an en-dash. This is a positive control; a
+# control that under-reports by 5× is not doing its job.
 #
 # The Mal'cev verdict is accordingly DERIVED-AND-MEASURED here, not cited;
 # no replacement citation is asserted for it, because an unverified
@@ -2449,12 +2466,35 @@ def _ordered_loop(dim: int, table: Any = None) -> "List[Tuple[int, int]]":
 
 
 def _loop_mult_any(dim: int, table: Any,
-                   a: "Tuple[int, int]", b: "Tuple[int, int]") -> "Tuple[int, int]":
+                   a: "Tuple[int, int]", b: "Tuple[int, int]",
+                   coc: "Any" = None) -> "Tuple[int, int]":
     """Signed-unit product on either route — the definite ladder cocycle
-    (``table=None``) or a monomial structure table."""
+    (``table=None``) or a monomial structure table.
+
+    ``coc`` is the ALREADY-RESOLVED cocycle for ``table``, as returned by
+    :func:`_monomial_cocycle`.  Pass it whenever more than one product is
+    taken against the same table: this function is called once per CELL of a
+    ``2·d × 2·d`` Cayley table, and :func:`_monomial_cocycle` is an O(d²)
+    full-table scan, so resolving it per call made the table build O(d⁴).
+    Measured at ``dim=16``: ``unit_loop(table=)`` **1.07 s → 0.003 s**, output
+    verified bit-identical (sha256 over the full result, all of dim 2/4/8/16,
+    both routes).  ``None`` keeps the self-contained behaviour for a one-off
+    call.
+
+    ⚠️ This hoist does NOT speed up :func:`loop_invariants`, and the honest
+    reason is that its cost was never here: measured 19.0 s → 17.6 s at
+    ``dim=16``.  The residual is the O(order³) ``associator`` /
+    ``cd_commutator`` sweep over ``nucleus`` / ``commutant``, where each call
+    re-runs :func:`_structure_table` — an O(d³) validate-and-copy — on the
+    same table.  Fixing that means threading a pre-validated table through
+    those PUBLIC, c_dispatched ops, which changes their signatures and is its
+    own rc; it is deliberately not smuggled in here.  Do not read the number
+    above as covering ``loop_invariants``.
+    """
     if table is None:
         return _loop_mult(dim, a, b)
-    _d, coc = _monomial_cocycle(table)
+    if coc is None:
+        _d, coc = _monomial_cocycle(table)
     index, sign = coc[(a[1], b[1])]
     return (a[0] * b[0] * sign, index)
 
@@ -2501,10 +2541,11 @@ def unit_loop(dim: int = 8, table: Any = None) -> "Dict[str, Any]":
         native cocycle is not consulted.
     """
     elements = _ordered_loop(dim, table)
+    coc = None
     if table is not None:
-        dim = len(_structure_table(table))
+        dim, coc = _monomial_cocycle(table)
     idx = {su: n for n, su in enumerate(elements)}
-    cayley = [[idx[_loop_mult_any(dim, table, a, b)] for b in elements]
+    cayley = [[idx[_loop_mult_any(dim, table, a, b, coc)] for b in elements]
               for a in elements]
     order = len(elements)
     return {
@@ -2559,8 +2600,9 @@ def loop_invariants(dim: int = 8, table: Any = None) -> "Dict[str, Any]":
         and the integer loop cocycle — no new C symbol, no ``abs()``.
     """
     elements = _ordered_loop(dim, table)
+    coc = None
     if table is not None:
-        dim = len(_structure_table(table))
+        dim, coc = _monomial_cocycle(table)
     idx = {su: n for n, su in enumerate(elements)}
     vecs = {}
     for s, i in elements:
@@ -2575,9 +2617,9 @@ def loop_invariants(dim: int = 8, table: Any = None) -> "Dict[str, Any]":
                  if all(_norm_sq(cd_commutator(vecs[a], vecs[u], table)) == 0
                         for u in elements)]
     center = [a for a in nucleus if a in commutant]
-    left = [[idx[_loop_mult_any(dim, table, a, x)] for x in elements]
+    left = [[idx[_loop_mult_any(dim, table, a, x, coc)] for x in elements]
             for a in elements]
-    right = [[idx[_loop_mult_any(dim, table, x, a)] for x in elements]
+    right = [[idx[_loop_mult_any(dim, table, x, a, coc)] for x in elements]
              for a in elements]
     return {
         "nucleus": nucleus,

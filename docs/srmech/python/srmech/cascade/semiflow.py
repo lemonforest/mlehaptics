@@ -91,11 +91,16 @@ def finite_semiflow(table: Sequence[int]) -> Dict[str, Any]:
           ``{preimage_size: how_many_targets}``.  The shape of what one
           application destroys — never which element, for the reason
           :func:`srmech.math.cyclic.mod_mul_arrow` states at length.
+          Its keys are ``int`` in-process; **over the MCP wire they arrive
+          as the decimal strings JSON object keys must be** (``{2: 4}`` →
+          ``{"2": 4}``), so a wire client keys on ``str``.
 
     Example — the shipped non-injective self-map::
 
-        finite_semiflow([q8_project_v4(x) for x in range(8)])
+        finite_semiflow(list(q8_project_v4(bytes(range(8)))))
         # -> index 1, period 1, eventual_size 4, semigroup_not_group True
+        #    q8_project_v4 takes a SEQUENCE of Q8 bytes and returns bytes;
+        #    it is not an elementwise int -> int map.
 
     and its negative control, any row of a Latin square::
 

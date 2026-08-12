@@ -260,7 +260,7 @@ extern "C" {
  *      the only safe read. GENOME_FORMAT_VERSION stays 19 — the attestation block
  *      is free-form MPR content, gains no key, and turns.bin is untouched.
  *
- *  v14 (v0.9.0rc427, `#T1112`) is the third bump of the v10 / v12 kind — no
+ *  v14 (v0.9.0rc425, `#T1112`) is the third bump of the v10 / v12 kind — no
  *      signature changed shape, but an existing parameter's CONTRACT did.
  *      `srmech_mlse`'s `n_states` meant A^(L-1) through rc424 and now means
  *      A^L: the trellis state is the whole tap window, because y_t reads all L

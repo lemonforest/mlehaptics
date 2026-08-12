@@ -9109,7 +9109,7 @@ def _register_primitive_class_tools() -> None:
                     "associator IS the composition, so a dedicated kernel would "
                     "only re-spell a·b twice — composition_of_c over the "
                     "c_dispatched srmech_cd_mult / srmech_algebra_table_product. "
-                    "Class M ∘ K. SSoT: Schafer (1966) §III.1; Baez, *The "
+                    "Class M ∘ K. SSoT: Schafer (1966) ch. II eqn (11); Baez, *The "
                     "Octonions*, Bull. AMS 39 (2002) 145–205, arXiv:math/0105155."
                     + PUBLISH_OPT_IN_NOTE,
             parameters=(
@@ -9208,7 +9208,7 @@ def _register_primitive_class_tools() -> None:
                     "epsilon, no abs(). NO new C symbol — composition_of_c over "
                     "the c_dispatched srmech_cd_mult / srmech_algebra_table_product. "
                     "Class M ∘ C (loop orientation) ∘ K. SSoT: Schafer (1966) "
-                    "§III.1; Baez, *The Octonions*, Bull. AMS 39 (2002) 145–205, "
+                    "ch. II eqn (11); Baez, *The Octonions*, Bull. AMS 39 (2002) 145–205, "
                     "arXiv:math/0105155." + PUBLISH_OPT_IN_NOTE,
             parameters=(
                 P("x", "sequence", True,
@@ -9427,7 +9427,7 @@ def _register_primitive_class_tools() -> None:
                     "NO new C symbol: composition_of_c over the c_dispatched "
                     "associator / cd_commutator / cd_cycle_holonomy (themselves "
                     "srmech_cd_mult / srmech_algebra_table_product). Class M ∘ C ∘ "
-                    "K. SSoT: Schafer (1966) §III.1; Baez, *The Octonions*, Bull. "
+                    "K. SSoT: Schafer (1966) ch. II eqn (11); Baez, *The Octonions*, Bull. "
                     "AMS 39 (2002) 145–205, arXiv:math/0105155." + PUBLISH_OPT_IN_NOTE,
             parameters=(
                 P("x", "sequence", True,
@@ -9565,8 +9565,9 @@ def _register_primitive_class_tools() -> None:
                     "Octonions*, arXiv:math/0105155 §2 was cited here for "
                     "the Moufang identities through rc426 and does NOT "
                     "state them — its §2 constructs the octonions, and "
-                    "'Moufang' occurs in that paper only in §3, naming "
-                    "Ruth Moufang and the Moufang plane." + PUBLISH_OPT_IN_NOTE,
+                    "'Moufang' occurs 5× in that paper and never in §2 — "
+                    "3× in §3, naming Ruth Moufang and the Moufang plane, "
+                    "and 2× in the bibliography." + PUBLISH_OPT_IN_NOTE,
             parameters=(
                 P("x", "sequence", True,
                   "the first element — exact-rational components (int / Q / "
@@ -9645,7 +9646,7 @@ def _register_primitive_class_tools() -> None:
                     "verified that Baez arXiv:math/0105155 — cited here "
                     "through rc426 for 'the Mal'cev tangent algebra' — "
                     "contains NO occurrence of Mal'cev in any spelling "
-                    "(positive control: 'Cayley-Dickson' occurs 7×), so "
+                    "(positive control: 'Cayley–Dickson' occurs 22×), so "
                     "no attestation is claimed for it and none is "
                     "substituted unverified. SSoT for the ambient algebra: "
                     "Schafer, *An Introduction to Nonassociative Algebras* "
@@ -10016,7 +10017,9 @@ def _register_primitive_class_tools() -> None:
                     "the non-abelian, non-power-of-two carrier the censuses in "
                     "this module need and could not otherwise reach. WHY IT "
                     "SHIPS: no group of order 12 or 24 is reachable from srmech "
-                    "at all. unit_loop yields orders {4, 8, 16, 32} only, and "
+                    "at all. unit_loop yields order 2·dim for a power-of-two "
+                    "dim (4, 8, 16, 32, 64, … up to 512) — ALWAYS a power of "
+                    "two, so never 12 or 24 — and "
                     "group_algebra_table raises 'dim must be a power of two' on "
                     "3, 5, 12 and 24 — and is abelian by its own docstring "
                     "besides. Without this carrier conjugacy_census and "

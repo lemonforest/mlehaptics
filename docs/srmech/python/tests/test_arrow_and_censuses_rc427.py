@@ -388,3 +388,166 @@ def test_the_closed_form_and_the_tabulated_peer_agree(n: int) -> None:
         assert closed["period"] == tabulated["period"], (c, n)
         assert closed["eventual_size"] == tabulated["eventual_size"], (c, n)
         assert closed["is_permutation"] == tabulated["is_permutation"], (c, n)
+
+
+
+
+# ──────────────────────────────────────────────────────────────────────
+# 8. `returns=` HONESTY — the axis the shipped gates cannot reach here
+#
+# `tests/test_immolation.py::test_advertised_return_type_is_honest` and
+# `test_mcp.py`'s §10.1 smoke both drive ops through `_synth_args_for_entry`,
+# which builds arguments from the TYPE STRING alone (`int -> 1`, `str -> "a"`,
+# `list[list[int]] -> [[1, 2], [3]]`). Every one of this rc's six ops rejects
+# that synth with a DOMAIN ValueError — `n >= 2`, a table index out of range,
+# `convention` not one of the allowed labels — and both gates TOLERATE a
+# domain error, returning before the return type is ever inspected.
+#
+# So those gates are GREEN AND VACUOUS on all six: they contribute zero
+# return-type coverage, and if a later rc changed one of these return types
+# nothing would notice. The general repair is to let `smoke_test_hint` drive
+# synth (it is currently consumed by NOTHING but the schema parser), which
+# moves the synth arguments of the whole registry at once and belongs in its
+# own rc. Until then this file carries the axis for its own ops with REAL
+# arguments, so the coverage is committed rather than a hand-run that vanished
+# with the session that did it.
+# ──────────────────────────────────────────────────────────────────────
+
+from conftest import return_type_agrees        # noqa: E402  (shared helper)
+
+_REAL_CALLS = {
+    "srmech.math.cyclic.mod_mul_arrow": lambda: mod_mul_arrow(2, 12),
+    "srmech.cascade.finite_semiflow": lambda: finite_semiflow([0, 1, 2, 3, 0, 1, 2, 3]),
+    "srmech.cascade.conjugacy_census":
+        lambda: conjugacy_census(dihedral_group(5, "reflection_first")["cayley_table"]),
+    "srmech.cascade.reversal_law_census":
+        lambda: reversal_law_census(dihedral_group(5, "reflection_first")["cayley_table"]),
+    "srmech.cascade.anti_automorphism_witnesses":
+        lambda: anti_automorphism_witnesses(unit_loop(4)["cayley_table"]),
+    "srmech.cascade.dihedral_group": lambda: dihedral_group(5, "reflection_first"),
+    "srmech.cascade.unit_loop": lambda: unit_loop(4, table=algebra_table(4)),
+    "srmech.cascade.loop_invariants": lambda: loop_invariants(4, table=algebra_table(4)),
+}
+
+_JSON_NATIVE = (dict, list, str, int, float, bool, type(None))
+
+
+def _entry(name: str):
+    from srmech.introspect.tool_schema import get_tool_schema
+    hits = [t for t in get_tool_schema().tools if t.name == name]
+    assert len(hits) == 1, f"{name} is not registered exactly once: {len(hits)}"
+    return hits[0]
+
+
+def _non_json_native(value, path="$"):
+    """Every leaf that is NOT a JSON-native type, with the path that reached
+    it — a list, so the failure NAMES the offending field."""
+    bad = []
+    if isinstance(value, dict):
+        for k, v in value.items():
+            if not isinstance(k, (str, int)):
+                bad.append(f"{path}.<key {k!r}: {type(k).__name__}>")
+            bad.extend(_non_json_native(v, f"{path}.{k}"))
+    elif isinstance(value, list):
+        for i, v in enumerate(value):
+            bad.extend(_non_json_native(v, f"{path}[{i}]"))
+    elif not isinstance(value, _JSON_NATIVE):
+        bad.append(f"{path}: {type(value).__name__}")
+    return bad
+
+
+@pytest.mark.parametrize("name", sorted(_REAL_CALLS))
+def test_advertised_return_type_is_honest_on_real_args(name: str) -> None:
+    """The advertised ``returns.type`` against the type actually returned.
+
+    Driven by REAL arguments, so unlike the registry-wide gates this reaches
+    the return value instead of stopping at a tolerated domain error.
+    """
+    advertised = _entry(name).returns.type
+    observed = _REAL_CALLS[name]()
+    verdict = return_type_agrees(observed, advertised)
+    assert verdict is not None, (
+        f"{name}: the advertised return type {advertised!r} carries no "
+        f"assertable token, so this check would pass vacuously — the exact "
+        f"failure mode this section exists to close. Make the type assertable "
+        f"rather than deleting the assertion.")
+    assert verdict, (
+        f"{name} advertises returns.type={advertised!r} but returned "
+        f"{type(observed).__name__}")
+
+
+@pytest.mark.parametrize("name", sorted(_REAL_CALLS))
+def test_the_real_arg_result_is_wire_representable(name: str) -> None:
+    """Each of these returns a dict that must cross the MCP wire. The
+    registry-wide serialisation smoke is downstream of a clean return, so it
+    never runs for these ops either."""
+    from srmech.mcp._coercion import serialise_native
+    observed = serialise_native(_REAL_CALLS[name]())
+    bad = _non_json_native(observed)
+    assert not bad, f"{name}: non-JSON-native leaves after serialise_native: {bad[:5]}"
+
+
+def test_the_return_type_instrument_can_return_false() -> None:
+    """NON-VACUITY CONTROL. The tests above are evidence only if the helper
+    reports disagreement when there is some — an instrument that cannot return
+    otherwise is not a measurement."""
+    assert return_type_agrees({"a": 1}, "dict") is True
+    assert return_type_agrees([1, 2], "dict") is False
+    assert return_type_agrees(7, "dict") is False
+
+
+def test_the_wire_instrument_can_return_false() -> None:
+    """NON-VACUITY CONTROL for the serialisation walk — an un-serialised ``Q``
+    is exactly the leaf ``serialise_native`` exists to flatten."""
+    assert _non_json_native({"ok": [1, "a", None, True]}) == []
+    found = _non_json_native({"bad": Q(1, 2)})
+    assert found and found[0].startswith("$.bad:"), found
+
+
+# The SIX ops new in rc427. All six take a REQUIRED argument whose synthesised
+# value is out of domain, so the registry-wide gates stop before the return.
+# `unit_loop` / `loop_invariants` are the two EXTENDED ops: both predate this
+# rc, both have all-defaulted parameters, so synth calls them cleanly and the
+# registry-wide gates DO cover them. Section 8 covers them anyway — cheaply,
+# and because the `table=` route the rc added is the one synth never exercises.
+_SYNTH_BLOCKED = sorted({
+    "srmech.math.cyclic.mod_mul_arrow",
+    "srmech.cascade.finite_semiflow",
+    "srmech.cascade.conjugacy_census",
+    "srmech.cascade.reversal_law_census",
+    "srmech.cascade.anti_automorphism_witnesses",
+    "srmech.cascade.dihedral_group",
+})
+
+
+def test_the_synth_path_really_is_the_blocked_one() -> None:
+    """RETRO-CHECK, and the reason section 8 exists at all.
+
+    Pins WHICH ops the type-driven synth cannot reach. If a later rc widens
+    synth so a blocked op returns cleanly, this fails and the duplication for
+    that op can be dropped — rather than sitting here forever as unexplained
+    duplication whose motivation nobody can reconstruct. It fails in the other
+    direction too: if a covered op STOPS being reachable, its registry-wide
+    coverage has silently gone vacuous and this says so.
+    """
+    from test_mcp import _synth_args_for_entry            # type: ignore
+    from srmech.mcp import invoke_tool
+
+    reached, blocked = [], []
+    for name in sorted(_REAL_CALLS):
+        entry = _entry(name)
+        try:
+            invoke_tool(entry.name, _synth_args_for_entry(entry))
+        except Exception:                                  # noqa: BLE001
+            blocked.append(name)
+            continue
+        reached.append(name)
+    assert blocked == _SYNTH_BLOCKED, (
+        f"the set of ops the type-driven synth cannot reach has MOVED.\n"
+        f"  expected blocked: {_SYNTH_BLOCKED}\n"
+        f"  actually blocked: {blocked}\n"
+        f"  reached cleanly : {reached}\n"
+        "If synth widened, the registry-wide return-type gates now cover the "
+        "newly-reached ops and section 8's duplication for them can go. If an "
+        "op newly became UNREACHABLE, its registry-wide coverage just went "
+        "vacuous and section 8 is now the only thing checking it.")
