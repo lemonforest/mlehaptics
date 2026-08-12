@@ -283,7 +283,7 @@ right than the "correction" that replaced it — it said `composes` was the home
 empty; the error there was only the *count*, not the *address*.
 
 **One consequence that is code, not prose, and must not be left implicit.**
-`tests/test_composes_grain_rc412.py:667` (`test_every_declared_sub_op_is_actually_called`, clause 2)
+`tests/test_composes_grain_rc412.py:700` (`test_every_declared_sub_op_is_actually_called`, clause 2)
 requires every declared sub-op to be **AST-call-reachable from the parent**. That is correct for the
 downward branch and **structurally wrong for the lateral one**: a declared cascade chains ops that
 the parent does not call. As written, the next attempt to populate the per-task grain fails CI and

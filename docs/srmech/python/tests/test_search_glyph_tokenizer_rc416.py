@@ -211,8 +211,48 @@ from srmech.math.text import fold_marks, glyph_stream
 #: `_build_frames('all')` calls inside each of THREE fresh interpreters — all
 #: produced this one hash, with `len(frames) == 678` every time, and the
 #: ops/carriers sub-corpora summing to it on every build.
+#:
+#: **RE-PINNED AGAIN at v0.9.0rc427 (`#T1130`).** rc425's value was
+#: ``e40ec9963b134cdb096c3465bae3ba992a753fbecbd7255f11191fa1e1cee072``. This
+#: is the NINTH consecutive re-pin. rc427 registers **6 new ops** — the
+#: closed-form directional generator ``math.cyclic.mod_mul_arrow``, its
+#: tabulated peer ``cascade.finite_semiflow``, and the four table-eating
+#: carriers/censuses ``conjugacy_census`` / ``reversal_law_census`` /
+#: ``anti_automorphism_witnesses`` / ``dihedral_group`` — so the frame set
+#: moves **678 -> 684 = 655 ops + 29 carriers** and
+#: ``describe()['tools']['total']`` moves 649 -> 655.
+#:
+#: TWO further corpus movers in the same rc carry NO frame of their own, and
+#: naming them is the point of this note: (a) ``unit_loop`` and
+#: ``loop_invariants`` each gained a ``table=`` parameter, so their existing
+#: frames' TEXT changed while the frame COUNT did not; and (b) an attestation
+#: fix rewrote the citation prose on ``moufang_residue`` / ``is_moufang`` /
+#: ``malcev_defect`` / ``unit_loop`` (Baez arXiv:math/0105155 §2 was cited for
+#: the Moufang identities and does not state them). So this hash would have
+#: moved this rc even with zero new ops — which is exactly why the witness is
+#: a hash over content and not a count.
+#:
+#: The move is **+6 with ZERO renames** — ``test_op_name_set_witness_rc361``
+#: pins the SET alongside this hash and reports no removals.
+#:
+#: Determinism re-established independently at this value BEFORE re-pinning:
+#: FIFTEEN builds on WSL2 (numpy-absent) — five successive
+#: ``_build_frames('all')`` calls inside each of THREE fresh interpreters —
+#: all produced this one hash, with ``len(frames) == 684`` every time and the
+#: ops/carriers sub-corpora measuring 655 + 29 = 684 on every build.
+#:
+#: MOVED AGAIN in the rc427 repair pass, with **zero op-count change**
+#: (684 = 655 + 29 both before and after) — the corpus is a hash over ToolEntry
+#: PROSE, and the repair rewrote prose on five entries: the ``dihedral_group``
+#: summary + curated explanation (the shipped "unit_loop yields orders
+#: {4, 8, 16, 32} only" was false — the ladder runs to order 512), three
+#: Schafer ``§III.1`` citations (that book has no sections at all; the
+#: associator is ch. II eqn (11)), and the Baez positive-control count
+#: (7× → 22×). That a +0-op rc moves this hash is the property the witness
+#: exists for. Re-measured the same way: FIFTEEN builds, three fresh
+#: interpreters, one hash, ``len(frames) == 684`` every time.
 WITNESS_RC416 = (
-    "e40ec9963b134cdb096c3465bae3ba992a753fbecbd7255f11191fa1e1cee072")
+    "a97c05f9969a23cf872ff6f9860161af93bf6a8eb9eae532d496de56aa425110")
 
 #: The ASCII control set. These four queries are the ops the tokenizer work is
 #: ABOUT, so a regression on them would be the change eating its own subject.

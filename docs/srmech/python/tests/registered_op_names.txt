@@ -127,6 +127,7 @@ srmech.bus.by_name
 srmech.bus.decode_splice
 srmech.bus.list_endpoints
 srmech.cascade.algebra_table
+srmech.cascade.anti_automorphism_witnesses
 srmech.cascade.as_oct8
 srmech.cascade.as_quat4
 srmech.cascade.associator
@@ -161,6 +162,7 @@ srmech.cascade.compose.parse_catalog_chains
 srmech.cascade.compose.parse_chain_spec
 srmech.cascade.compose.resolve_chain
 srmech.cascade.compose.run_chain
+srmech.cascade.conjugacy_census
 srmech.cascade.correlation_product
 srmech.cascade.coupled.coupled_wave
 srmech.cascade.coupled.multiplex_streams
@@ -174,10 +176,12 @@ srmech.cascade.dead_band
 srmech.cascade.defect_ladder
 srmech.cascade.dft_scale
 srmech.cascade.dft_sigma
+srmech.cascade.dihedral_group
 srmech.cascade.exact_dft.exact_dft
 srmech.cascade.exact_dft.exact_idft
 srmech.cascade.exact_dft.lift
 srmech.cascade.f64_add
+srmech.cascade.finite_semiflow
 srmech.cascade.flip_pair
 srmech.cascade.frame_carrier.frame_carrier
 srmech.cascade.frame_carrier.frame_carrier_compare
@@ -227,6 +231,7 @@ srmech.cascade.qdft_resolve_mu
 srmech.cascade.qdft_summand
 srmech.cascade.quaternion_dft
 srmech.cascade.reorient
+srmech.cascade.reversal_law_census
 srmech.cascade.sedenion_register
 srmech.cascade.seq_get
 srmech.cascade.seq_len
@@ -290,6 +295,7 @@ srmech.math.cyclic.lcm
 srmech.math.cyclic.mod_add
 srmech.math.cyclic.mod_inv
 srmech.math.cyclic.mod_mul
+srmech.math.cyclic.mod_mul_arrow
 srmech.math.cyclic.mod_mul_wide
 srmech.math.cyclic.mod_pow
 srmech.math.cyclic.primitive_integer_vector

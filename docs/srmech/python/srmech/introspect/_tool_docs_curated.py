@@ -7969,4 +7969,278 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
                        'the gain loop: the epsilon floors on both the '
                        'estimated signal PSD and the denominator are what '
                        'stop an empty bin turning into a division by zero.'},
+
+    # ── rc427 (`#T1130`) — the ARROW + the CENSUSES ──────────────────────
+    'srmech.math.cyclic.mod_mul_arrow': {
+        'example': {
+            'input': {'c': 6, 'n': 12},
+            'output': "{'c': 6, 'n': 12, 'kernel_order': 6, 'index': 2, "
+                      "'consumed_order': 12, 'eventual_modulus': 1, "
+                      "'eventual_size': 1, 'period': 1, "
+                      "'is_permutation': False}",
+            'worked': "from srmech.math.cyclic import mod_mul_arrow\n"
+                      "a = mod_mul_arrow(6, 12)\n"
+                      "a['index'], a['eventual_size']\n"
+                      "# -> (2, 1)      two steps of transient, then a single point\n"
+                      "mod_mul_arrow(2, 12)['period']\n"
+                      "# -> 2           the survivor is stride-4, order 2 on it\n"
+                      "mod_mul_arrow(2, 64)['index']\n"
+                      "# -> 6           NILPOTENT: the guarded case, n/g* == 1\n"
+                      "mod_mul_arrow(3, 7)['is_permutation']\n"
+                      "# -> True        a unit multiplier is no arrow at all",
+            'why': 'The same closed form covers a unit (no arrow), a partial '
+                   'collapse and a nilpotent multiplier, and the nilpotent row '
+                   'is exactly the one a spec without the n/g* == 1 guard '
+                   'raises on.'},
+        'explanation':
+            'WHAT — the eventual shape of the self-map T_c(x) = (c*x) mod n, '
+            'in closed form and exact integers. It returns the transient '
+            'length ``index``, the order ``kernel_order`` of ker T_c, the '
+            'total ``consumed_order`` g*, the surviving ``eventual_modulus`` '
+            'n/g*, and the ``period`` of c on that survivor. Nothing is '
+            'iterated: index is max over shared primes p of '
+            'ceil(v_p(n)/v_p(c)), and g* is the product of p^v_p(n) over those '
+            'same primes. Validated on all 1,829 cells with 2 <= n <= 60 '
+            'against an independent enumeration oracle, with the eventual '
+            'image compared as a SET and zero membership mismatches. '
+            'WHEN — reach for it whenever you need to know what repeated '
+            'multiplication by a NON-UNIT destroys and what survives it: the '
+            'shipped ``srmech.math.primes.cyclic_period`` refuses a non-unit '
+            'outright (gcd != 1), so this is the only route to the eventual '
+            'period of one. It deliberately does NOT return the coset index of '
+            'what each step consumed, because (image, coset index) is a '
+            'bijection — measured 37/37 — and an op that hands that back has '
+            'destroyed the very arrow it was asked to describe. It reports the '
+            'shape and ORDER of the loss instead. '
+            'SIBLINGS you would otherwise re-derive: '
+            '``srmech.cascade.finite_semiflow`` is the tabulated peer and '
+            'gives the same index and period for ANY self-map, but it must '
+            'iterate — do not reach for it on this family when the closed form '
+            'is right here. ``srmech.cascade.left_mult_kernel`` is the '
+            'Cayley-Dickson analogue of the same question, and is why this op '
+            'is classed I then L rather than K: nothing here flips a sign.'},
+
+    'srmech.cascade.finite_semiflow': {
+        'example': {
+            'input': {'table': [0, 1, 2, 3, 0, 1, 2, 3]},
+            'output': "{'order': 8, 'index': 1, 'period': 1, "
+                      "'eventual_size': 4, 'eventual_image': [0, 1, 2, 3], "
+                      "'is_permutation': False, 'semigroup_not_group': True, "
+                      "'kernel_orders': {2: 4}}",
+            'worked': "from srmech.cascade import finite_semiflow, unit_loop\n"
+                      "from srmech.biology.q8 import q8_project_v4\n"
+                      "proj = list(q8_project_v4(list(range(8))))\n"
+                      "proj\n"
+                      "# -> [0, 1, 2, 3, 0, 1, 2, 3]\n"
+                      "s = finite_semiflow(proj)\n"
+                      "s['index'], s['eventual_size'], s['semigroup_not_group']\n"
+                      "# -> (1, 4, True)     the shipped 8 -> 4 arrow\n"
+                      "finite_semiflow(unit_loop(8)['cayley_table'][3])['index']\n"
+                      "# -> 0                a Latin-square row: no arrow, ever",
+            'why': 'The positive case is a real shipped non-injective self-map '
+                   'and the control is the carrier an earlier rationale wrongly '
+                   'named as the feeder — a Latin square, where the instrument '
+                   'is guaranteed to return 0.'},
+        'explanation':
+            'WHAT — the rho shape of an arbitrary finite self-map handed over '
+            'as its graph, table[x] = f(x). It returns the transient ``index``, '
+            'the ``period`` of f restricted to its eventual image, that image '
+            'as a SET together with a sha256 of it, the first-step '
+            'preimage-size histogram ``kernel_orders``, and the arrow '
+            'predicate ``semigroup_not_group`` (index > 0 — f has no inverse '
+            'in the semigroup it generates). '
+            'WHEN — reach for it for any self-map with no closed form: a '
+            'projection, a lossy fold, a table you were handed. The rationale '
+            'here was rewritten because the first one was measurably vacuous: '
+            'a loop Cayley table is a Latin square BY AXIOM, so every row of '
+            'one is a bijection and this op can only ever return index 0 on it '
+            '(measured 4/4, 8/8, 16/16, 32/32). The real feeders are '
+            '``srmech.biology.q8.q8_project_v4`` and the multiplicative maps. '
+            'SIBLINGS: ``srmech.math.cyclic.mod_mul_arrow`` answers the same '
+            'two questions in CLOSED FORM for the (c*x) mod n family without '
+            'touching a single element — use it there rather than tabulating a '
+            'map just to hand it to this op. Do not hand-roll the transient '
+            'loop; the subtlety is that the fixpoint is on the image SIZE, and '
+            'the period must then be taken on the restriction.'},
+
+    'srmech.cascade.conjugacy_census': {
+        'example': {
+            'input': {'cayley_table': [[0, 1], [1, 0]]},
+            'output': "{'order': 2, 'is_associative': True, 'is_group': True, "
+                      "'commuting_pairs': 4, 'commuting_probability_str': "
+                      "'1/1', 'k_classes': 2, 'class_equation_pairs': 4, "
+                      "'class_equation_agrees': True, ...}",
+            'worked': "from srmech.cascade import conjugacy_census, unit_loop\n"
+                      "r = conjugacy_census(unit_loop(8)['cayley_table'])\n"
+                      "r['commuting_pairs'], r['class_equation_pairs']\n"
+                      "# -> (88, 144)    counted 88; the GROUP identity says 144\n"
+                      "r['class_equation_agrees'], r['is_associative']\n"
+                      "# -> (False, False)   and that is exactly why\n"
+                      "conjugacy_census(unit_loop(4)['cayley_table'])['is_group']\n"
+                      "# -> True         Q8 is associative, so there it holds",
+            'why': 'On M16 the group class equation over-reports the commuting '
+                   'pairs by 56, silently, and the associativity flag in the '
+                   'same dict is the reason — which is the whole argument for '
+                   'the guard shipping with the count.'},
+        'explanation':
+            'WHAT — it computes, from a Cayley table alone, the commuting-pair '
+            'count, the conjugacy-class partition and count, and the commuting '
+            'probability as an exact rational Q — each measured directly and '
+            'none inferred from the others. It also returns the guard: '
+            '``is_associative``, ``has_identity``, ``has_inverses``, '
+            '``is_group``. '
+            'WHEN — reach for it before trusting any class-equation reasoning '
+            'about an object you did not prove associative. The GROUP identity '
+            '|{(a,b) : ab = ba}| = k(G)*|G| is false on a loop, and on the '
+            'shipped unit loops it predicts 144 where the truth is 88 (M16) '
+            'and 544 where the truth is 184 (M32) — wrong by 56 and by 360, '
+            'with no error signal. ``class_equation_agrees`` is that '
+            'disagreement made into data, and it doubles as the non-group '
+            'detector. Both conjugation bracketings are computed and compared '
+            'as PARTITIONS rather than as counts, and the class partition '
+            'ships content-addressed, because a count of classes cannot tell '
+            'two different partitions of the same size apart. '
+            'SIBLINGS: ``srmech.cascade.unit_loop`` and '
+            '``srmech.cascade.dihedral_group`` both hand back exactly the '
+            'table this eats — do not build one by hand. '
+            '``srmech.cascade.loop_invariants`` is its nearest shipped '
+            'neighbour, reading nucleus / commutant / centre of the same '
+            'object. Note the 5/8 commuting bound is reported as '
+            'DERIVED-AND-MEASURED and is deliberately NOT cited: the preprint '
+            'it is usually attributed to contains no such bound.'},
+
+    'srmech.cascade.reversal_law_census': {
+        'example': {
+            'input': {'cayley_table': [[0, 1], [1, 0]]},
+            'output': "{'order': 2, 'triples': 8, 'bare_hits': 8, "
+                      "'chiral_hits': 8, 'chiral_flat_hits': 8, "
+                      "'chiral_is_total': True, 'bare_equals_chiral': True, "
+                      "...}",
+            'worked': "from srmech.cascade import reversal_law_census, unit_loop\n"
+                      "r = reversal_law_census(unit_loop(8)['cayley_table'])\n"
+                      "r['bare_hits'], r['chiral_flat_hits']\n"
+                      "# -> (2752, 2752)     equal COUNTS\n"
+                      "r['bare_equals_chiral_flat_counts_agree']\n"
+                      "# -> True             what a count-only read concludes\n"
+                      "r['bare_equals_chiral_flat']\n"
+                      "# -> False            what the SETS actually say\n"
+                      "r['chiral_is_total']\n"
+                      "# -> True             the chiral law is a THEOREM here",
+            'why': 'The two laws agree on 2752 = 2752 and disagree on 1344 '
+                   'triples each way, so this single call is the '
+                   'counts-are-not-sets case in one transcript.'},
+        'explanation':
+            'WHAT — it returns a census of the reversal laws over all n^3 '
+            'ordered triples of a Cayley table, reporting each hit SET '
+            'content-addressed rather than only its size. The forward product '
+            'is (a*b)*c. Reversing a WORD mirrors its bracketing, so three '
+            'cells are measured: BARE (a*b)*c == c*(b*a); CHIRAL '
+            '((a*b)*c)^-1 == c^-1*(b^-1*a^-1); and CHIRAL-FLAT, the same law '
+            'with the bracketing left where it was, which is not a word '
+            'reversal and is kept because a mismatched bracketing is how this '
+            'comparison went wrong before. '
+            'WHEN — reach for it whenever you are about to conclude that two '
+            'predicates over a finite structure are the same one. Here bare '
+            'and chiral-flat both score 2752 of 4096 on M16 while their sets '
+            'differ by 1344 each way, and that count coincidence is '
+            'carrier-specific: Q8 gives 320 vs 512, M32 26048 vs 17984, D12 '
+            '5184 vs 13824. Note also ``chiral_is_total``, True on every '
+            'carrier tested, which says the chiral law is entailed rather than '
+            'measured on them. '
+            'SIBLINGS: ``srmech.cascade.anti_automorphism_witnesses`` is the '
+            'n^2 mechanism that makes this n^3 result interpretable — read it '
+            'first. ``srmech.cascade.chiral_flip`` is the Class-C atom this '
+            'composes; do not hand-roll the order reversal. The '
+            '``half_inversion_*`` cells are a negative control exercised on '
+            'every call rather than a separate op nobody runs.'},
+
+    'srmech.cascade.anti_automorphism_witnesses': {
+        'example': {
+            'input': {'cayley_table': [[0, 1], [1, 0]]},
+            'output': "{'order': 2, 'pairs': 4, 'anti_hits': 4, "
+                      "'direct_hits': 4, 'commuting_hits': 4, "
+                      "'anti_holds_totally': True, "
+                      "'direct_equals_commuting': True, ...}",
+            'worked': "from srmech.cascade import anti_automorphism_witnesses\n"
+                      "from srmech.cascade import unit_loop\n"
+                      "a = anti_automorphism_witnesses(unit_loop(8)['cayley_table'])\n"
+                      "a['anti_holds_totally']\n"
+                      "# -> True          the law is TOTAL on M16\n"
+                      "a['direct_hits'], a['commuting_hits']\n"
+                      "# -> (88, 88)      equal counts, on their own worth little\n"
+                      "a['direct_equals_commuting']\n"
+                      "# -> True          and here the SETS agree too",
+            'why': 'A prior round concluded set equality from these equal '
+                   'counts; the counts and the set verdict are now separate '
+                   'fields, so the conclusion is witnessed rather than assumed '
+                   '— and on this carrier it does hold.'},
+        'explanation':
+            'WHAT — it computes three pair-sets over a Cayley table and '
+            'returns each as a set with a sha256: ANTI ((a*b)^-1 == '
+            'b^-1*a^-1), DIRECT ((a*b)^-1 == a^-1*b^-1), and COMMUTING '
+            '(a*b == b*a). Every verdict field is a set comparison, and each '
+            'sits beside its symmetric-difference sizes so a reader can see '
+            'how far apart two sets are rather than only whether they match. '
+            'WHEN — reach for it when a claim of the form "law X holds exactly '
+            'on set Y" is about to be made. Such a claim was previously '
+            'asserted from an equality of COUNTS alone; this op measures both '
+            'sets, and reports ``direct_equals_commuting`` from set equality. '
+            'Measured, that earlier conclusion turns out to be right on Q8, '
+            'M16, M32 and D12 — which is the point worth sitting with, because '
+            'a true conclusion reached by an instrument that could not have '
+            'detected being wrong is still not a measurement. '
+            'SIBLINGS: ``srmech.cascade.reversal_law_census`` is the n^3 peer '
+            'whose result this makes interpretable, and it is the one to read '
+            'if you care about triples instead of pairs. '
+            '``srmech.cascade.chiral_flip`` is the Class-C atom underneath — '
+            'use it rather than re-implementing an order reversal.'},
+
+    'srmech.cascade.dihedral_group': {
+        'example': {
+            'input': {'n': 3, 'convention': 'reflection_first'},
+            'output': "{'n': 3, 'order': 6, 'convention': 'reflection_first', "
+                      "'elements': ['r^0', 'r^1', 'r^2', 's\u00b7r^0', "
+                      "'s\u00b7r^1', 's\u00b7r^2'], 'identity': 0, "
+                      "'rotations': [0, 1, 2], 'reflections': [3, 4, 5], "
+                      "'cayley_table': [...]}",
+            'worked': "from srmech.cascade import dihedral_group, conjugacy_census\n"
+                      "d = dihedral_group(12, 'reflection_first')\n"
+                      "d['order']\n"
+                      "# -> 24        an order NO shipped constructor could reach\n"
+                      "c = conjugacy_census(d['cayley_table'])\n"
+                      "c['is_group'], c['class_equation_agrees']\n"
+                      "# -> (True, True)      a real group, so the identity holds\n"
+                      "c['commuting_probability_str']\n"
+                      "# -> '3/8'      exact rational, comfortably under 5/8",
+            'why': 'D_12 is the non-abelian order-24 carrier that makes the '
+                   'censuses non-vacuous outside loops, and running one on it '
+                   'is the positive control for the same census that reports '
+                   'class_equation_agrees False on M16.'},
+        'explanation':
+            'WHAT — it returns the dihedral group D_n of order 2n as a Cayley '
+            'table, with its element labels, identity, rotation indices and '
+            'reflection indices. Exact integers throughout; the only sign '
+            'handling is a Class-K pin-slot followed by Class-C re-entry into '
+            'the cyclic lane, never abs() and never a negative int, which '
+            '``cyclic_mod_add`` correctly refuses. '
+            'WHEN — reach for it when a census needs a non-abelian carrier '
+            'whose order is not a power of two. No such group was reachable '
+            'from srmech at all: ``unit_loop`` yields order 2·dim for a '
+            'power-of-two dim (4, 8, 16, 32, 64, … up to 512) — ALWAYS a '
+            'power of two, so never 12 or 24 — '
+            'and ``group_algebra_table`` raises on 3, 5, 12 and 24 and '
+            'is abelian by construction besides. That is the whole '
+            'justification and it is enough. The ``convention`` parameter is '
+            'REQUIRED and is honestly a LABELLING decision, not a structural '
+            'one: the two conventions are isomorphic via x -> x^-1 on 576/576 '
+            'products of D_12, with identical class sizes, while the identity '
+            'map is not — so the check can return otherwise. '
+            'SIBLINGS: ``srmech.cascade.conjugacy_census``, '
+            '``srmech.cascade.reversal_law_census`` and '
+            '``srmech.cascade.anti_automorphism_witnesses`` all eat the '
+            '``cayley_table`` this returns, and '
+            '``srmech.cascade.unit_loop`` is the power-of-two loop peer — '
+            'reach for that one instead when you want a Moufang loop rather '
+            'than a group.'},
+
 }

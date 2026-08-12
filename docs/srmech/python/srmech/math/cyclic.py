@@ -56,6 +56,7 @@ __all__ = [
     "mod_mul_wide",
     "three_cycle",
     "primitive_integer_vector",
+    "mod_mul_arrow",
 ]
 
 
@@ -617,3 +618,121 @@ def _primitive_integer_vector_c(pairs):
         raise RuntimeError(
             f"srmech_primitive_integer_vector returned non-OK status {rc}")
     return int(out_content.value), [int(out_arr[i]) for i in range(n)]
+
+
+# ──────────────────────────────────────────────────────────────────────
+# The DIRECTIONAL GENERATOR on Z/n — Class I (cyclic) then Class L
+# (kernel / rank read).  rc427 (`#T1130`).
+#
+# CLASS NOTE, stated because the first spec got it wrong: this op was
+# proposed as Class K.  It is not.  Class K is the SIGN-FLIP pin-slot, and
+# nothing here flips a sign.  The shipped precedent for the SAME object —
+# "what does multiply-by-a-fixed-element destroy" — is
+# `srmech.cascade.left_mult_kernel`, which is Class L, and the quantity
+# returned here is the same one: the ORDER of a kernel.  So: Class I for
+# the modular arithmetic, then Class L for the kernel read.
+# ──────────────────────────────────────────────────────────────────────
+
+def mod_mul_arrow(c: int, n: int) -> "dict":
+    """The eventual SHAPE of the self-map ``T_c(x) = (c·x) mod n`` — an
+    ARROW on ℤ/n when ``gcd(c, n) > 1``, closed form, exact integers.
+
+    ``T_c`` iterated is a finite semiflow: a TRANSIENT of ``index`` steps
+    during which the image strictly shrinks, then a PERMUTATION of the
+    surviving subgroup forever after.  This op returns both halves without
+    iterating anything.
+
+    Closed form (all integer, no search)::
+
+        kernel_order    = gcd(c, n)
+        index           = max over p | gcd(c, n) of ceil(v_p(n) / v_p(c))
+        consumed_order  = prod over p | gcd(c, n) of p^v_p(n)
+        eventual_modulus= n / consumed_order
+        period          = cyclic_period(c mod m, m)   for m >= 2, else 1
+
+    Args:
+        c: the multiplier.  Read mod ``n``.
+        n: the modulus, ``>= 2``.
+
+    Returns:
+        A dict with ``c`` · ``n`` · ``kernel_order`` (the order of
+        ``ker T_c = {x : c·x ≡ 0}``, a subgroup) · ``index`` (the transient
+        length; ``0`` iff ``T_c`` is already a permutation) · ``consumed_order``
+        (the total order consumed over the whole transient, ``= g*``) ·
+        ``eventual_modulus`` and ``eventual_size`` (both ``n / g*``; the
+        surviving image is the stride-``g*`` subgroup) · ``period`` (the
+        multiplicative order of ``c`` on that survivor) · ``is_permutation``.
+
+    **What it deliberately does NOT return, and why.**  Each step destroys a
+    COSET of ``ker T_c``.  srmech's shipped doctrine for a lossy op is CARRY
+    THE COMPLEMENT (``lossy_projection_record``) — but applied to an arrow
+    that doctrine ANNIHILATES it: measured, ``(image, coset index)``
+    reconstructs the input bijectively, so an op that returns the coset index
+    has no arrow left.  Legibility and irreversibility cannot both be
+    maximised.  This op therefore reports the **shape and ORDER** of what was
+    consumed and never the element: *"this step consumed a coset of an
+    order-g subgroup"* is legible and still irreversible.
+
+    **The gap this fills.**  ``srmech.math.primes.cyclic_period`` refuses a
+    non-unit outright (``gcd != 1; a not in (Z/nZ)*``), so the eventual period
+    of a non-unit multiplier was unreachable through shipped surface.  The
+    ``n / g* == 1`` guard below is NOT decorative: every NILPOTENT multiplier
+    lands there — ``mod_mul_arrow(2, 64)`` has ``g* = 64`` — and
+    ``cyclic_period`` also refuses ``n < 2``.  A spec that omits the guard
+    raises on its own headline example.
+
+    Validated over every ``(n, c)`` with ``2 <= n <= 60``, ``0 <= c < n``
+    (1,829 cells) against an independent enumeration oracle: 0 disagreements
+    on index, period and eventual size, and the eventual image compared as a
+    SET against ``g*·ℤ/n`` with 0 membership mismatches.
+
+    Note:
+        No ``abs()``; sign never arises (every quantity is a non-negative
+        order).  Pure integer; no C peer (composition of shipped C peers).
+    """
+    c = _ensure_uint64("c", c)
+    n = _ensure_uint64("n", n)
+    if n < 2:
+        raise ValueError(f"mod_mul_arrow requires n >= 2; got {n}")
+    # Function-local because ``primes`` imports ``cyclic`` at module level; the
+    # cycle is real and this is how the tree breaks it. Written ABSOLUTE rather
+    # than as ``from .primes import …`` deliberately: the `composes` derivation
+    # instrument (``tests/composes_derive.py:192``) resolves a function-local
+    # ``ImportFrom`` only when ``not sub.level``, so a RELATIVE local import is
+    # invisible to it and this op's two other declared sub-ops would read as
+    # uncalled. The declaration is true either way; the absolute spelling is
+    # what makes it CHECKABLE.
+    from srmech.math.primes import cyclic_period, factor
+
+    c %= n
+    kernel_order = gcd(c, n)
+    prime_powers = factor(n)
+    index = 1 if c == 0 else 0
+    consumed_order = n if c == 0 else 1
+    if c != 0:
+        for p, e_n in prime_powers:
+            e_c, rest = 0, c
+            while rest % p == 0:
+                rest //= p
+                e_c += 1
+            if e_c == 0:
+                continue                     # p never enters the kernel
+            steps = -(-e_n // e_c)           # ceil(e_n / e_c), integer-only
+            if steps > index:
+                index = steps
+            consumed_order *= p ** e_n
+    eventual_modulus = n // consumed_order
+    period = 1
+    if eventual_modulus >= 2:
+        period = cyclic_period(c % eventual_modulus, eventual_modulus)
+    return {
+        "c": c,
+        "n": n,
+        "kernel_order": kernel_order,
+        "index": index,
+        "consumed_order": consumed_order,
+        "eventual_modulus": eventual_modulus,
+        "eventual_size": eventual_modulus,
+        "period": period,
+        "is_permutation": kernel_order == 1,
+    }

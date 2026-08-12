@@ -121,6 +121,18 @@ FROZEN_KNOWN_GATES = frozenset({
     #    went green while CI went red, because it was unlisted. Frozen so a
     #    future manifest trim cannot drop the prose-ripple axis. -------------
     "tests/test_search_glyph_tokenizer_rc416.py",
+    # -- notebook currency: the notebook's `Live at rcNNN:` stamps + its two
+    #    live cardinals move on EVERY rc (the stamp set is pinned to the
+    #    release, so a bare version bump moves it -- no op required). rc427 is
+    #    the THIRD round to go green here and red in CI on this exact shape,
+    #    after rc421 (search corpus) and rc422 (README). Frozen so the prose-
+    #    currency axis cannot be trimmed back out a fourth time. -------------
+    "tests/test_notebook_currency_rc420.py",
+    # -- op-name-set witness: `EXPECTED_N` + the sha256-pinned name manifest.
+    #    Frozen because its count is a bare ASSIGNMENT, not a comparison, so
+    #    the `== <total>` count-pin grep every rc runs cannot see it -- the one
+    #    count-pin the standard predicate structurally misses. ---------------
+    "tests/test_op_name_set_witness_rc361.py",
 })
 
 

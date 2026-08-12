@@ -130,6 +130,42 @@ def _table_element_lines(source: str, path: str, total: int) -> Dict[int, int]:
     return covered
 
 
+def _numeric_range_occurrences(line: str, total: int) -> int:
+    """How often ``total`` appears in ``line`` as one END OF A NUMERIC RANGE.
+
+    THE rc427 RE-SCOPE (`#T1124`), and why it is a third axis rather than an
+    exemption. rc410 predicted this gate would start reporting false positives
+    once the total landed on a value with a legitimate life of its own, and
+    left standing orders: re-scope, never add blanket exemptions. It came true
+    at rc419 (569 is prime, so it lives in ``_STRUCT_PRIMES``) and the fix was
+    the ``ast`` table-element subtraction above.
+
+    rc427 took the total to **655**, which is the last page of
+    ``Appl. Math. Comput. 219(2):644–655`` — the QDFT citation in
+    ``cascade/hypercomplex_dft.py``, verified first-hand by PDF extraction at
+    rc110 and untouched since v0.7.0rc31. The rc419 subtraction cannot see it:
+    the number lives inside a STRING literal, so ``ast`` finds no integer
+    constant, while the text scan reads it — correctly — as prose.
+
+    So the discriminator is syntactic, like its predecessor: a number written
+    as one end of ``<int> – <int>`` is a LOCATOR (a page range, a line range,
+    a year span), not a quantity. It cannot launder a real restatement, because
+    a restatement is the number standing alone — ``655 ops``, ``total = 655``,
+    ``there are 655`` — and none of those spellings carries a range dash with
+    an integer on the far side.
+
+    Both range dashes matter (``644–655`` and ``655–670``) and all three
+    characters are accepted, because a citation may be typeset with ASCII
+    hyphen, en-dash or em-dash and the choice is a typography accident rather
+    than a semantic one.
+    """
+    n = re.escape(str(total))
+    dash = r"[-–—]"
+    ends = re.compile(rf"\d+\s*{dash}\s*{n}\b")
+    starts = re.compile(rf"\b{n}\s*{dash}\s*\d+")
+    return len(ends.findall(line)) + len(starts.findall(line))
+
+
 def _restatement_lines(source: str, path: str, total: int) -> List[int]:
     """Line numbers where ``total`` is RESTATED as a count.
 
@@ -140,13 +176,19 @@ def _restatement_lines(source: str, path: str, total: int) -> List[int]:
     syntax proves are elements of a numeric table are not restatements, so they
     are deducted per line rather than the line being skipped. A line therefore
     still fails if it carries one more occurrence than the table accounts for.
+
+    rc427 adds a SECOND subtraction on the same principle — numeric ranges, see
+    ``_numeric_range_occurrences``. Both are deducted, and the strict-greater
+    comparison is unchanged, so a line carrying one more occurrence than the
+    two subtractions jointly account for still fails.
     """
     pattern = re.compile(rf"\b{re.escape(str(total))}\b")
     covered = _table_element_lines(source, path, total)
     return [
         i
         for i, line in enumerate(source.splitlines(), start=1)
-        if len(pattern.findall(line)) > covered.get(i, 0)
+        if len(pattern.findall(line))
+        > covered.get(i, 0) + _numeric_range_occurrences(line, total)
     ]
 
 
@@ -505,12 +547,41 @@ def test_the_restatement_scan_still_bites() -> None:
             f"than the false positive it was re-scoped to remove"
         )
 
+    # rc427 (`#T1124`): the range axis must bite too. A restatement adjacent to
+    # a range is still a restatement — the subtraction is per-occurrence, not
+    # per-line, so a citation line cannot become a hiding place for a cardinal.
+    must_find["extra occurrence on a citation line"] = (
+        f'"""Appl. Math. Comput. 219(2):644–{total}. The registry '
+        f'carries {total} ops."""'
+    )
+    must_find["dash with a non-numeric far side"] = (
+        f'"""see figure–{total} of the catalogue."""'
+    )
+
+    for label, src in list(must_find.items())[-2:]:
+        assert _restatement_lines(src, f"<{label}>", total) == [1], (
+            f"the rc427 range subtraction over-fired on a {label} "
+            f"({src!r}) — it must deduct only the range occurrence itself"
+        )
+
     must_not_find = {
         "tuple of ints": f"_PRIMES = (563, {total}, 571)",
         "list of ints": f"_T = [563, {total}, 571]",
         "set of ints": f"_S = {{563, {total}, 571}}",
         "signed / float table": f"_C = (-1, {total}, 2.5)",
         "nested table": f"_N = [[1, 2, 3], [563, {total}, 571]]",
+        # rc427 (`#T1124`) — the QDFT page range that made this rc red. The
+        # shipped spelling uses an en-dash; the ASCII and em-dash variants are
+        # included because typesetting is an accident, not a semantics.
+        "citation page range (en-dash)": (
+            f'"""Appl. Math. Comput. 219(2):644–{total}. arXiv:1001.4379."""'
+        ),
+        "citation page range (ASCII hyphen)": (
+            f'"""Bull. Polish Acad. Sci. 59(2):644-{total}."""'
+        ),
+        "citation page range (em-dash)": f'"""pp. 644—{total}."""',
+        "range where the total STARTS it": f'"""pp. {total}–670."""',
+        "spaced range": f'"""lines 644 – {total} of the table."""',
     }
     for label, src in must_not_find.items():
         assert _restatement_lines(src, f"<{label}>", total) == [], (
