@@ -13,6 +13,99 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc427]
+
+### The arrow that had no name, the censuses that were counting instead of comparing, and a citation that shipped false (`#T1130`)
+
+**Registry moves 649 → 655 (+6). ABI stays 14** — every op here is a composition of shipped C peers; no new symbol, no wire-format change.
+
+**Why there is no rc426.** rc426 was a research-only round and is deliberately skipped, not lost. Roughly twenty committed research artifacts under `docs/srmech/notes/` already carry an `_rc427` suffix, and the round's synthesis cites them by `path:line`; renaming them to close the gap would break those citations permanently. The gap is the cheaper of the two costs, and it is recorded here so it is never read as a missing release.
+
+#### The six ops
+
+| Op | What it answers |
+|---|---|
+| `srmech.math.cyclic.mod_mul_arrow(c, n)` | The eventual shape of `T_c(x) = (c·x) mod n`, in closed form |
+| `srmech.cascade.finite_semiflow(table)` | The same two numbers for ANY finite self-map, by iteration |
+| `srmech.cascade.conjugacy_census(cayley_table)` | Commuting pairs, conjugacy classes, exact-ℚ commuting probability — behind an associativity guard |
+| `srmech.cascade.reversal_law_census(cayley_table)` | The bare / chiral / chiral-flat reversal laws, as SETS |
+| `srmech.cascade.anti_automorphism_witnesses(cayley_table)` | The n² pair-level mechanism underneath it |
+| `srmech.cascade.dihedral_group(n, convention)` | D_n as a Cayley table — the non-power-of-two carrier the censuses needed |
+
+`unit_loop` and `loop_invariants` each gained a `table=` parameter and add **no** registry row. They were the only two members of the twelve-op cascade loop family without one, so the unit loop of a split or γ-twisted algebra had to be hand-rolled through `table_product`. Defaults are bit-identical: `unit_loop(d) == unit_loop(d, table=algebra_table(d))` element-for-element at d = 2, 4, 8, 16, and `loop_invariants(8)` likewise.
+
+All three censuses take a **Cayley table, never a callable**. A callable cannot cross JSON-RPC — such a parameter is typed `host_callable` and publishes JSON-schema `null`, so over the wire the only legal value is absence, and 0 of the 12 shipped callable parameters are required. A multiplication is the *semantics* of a census and cannot be optional.
+
+#### `mod_mul_arrow` — the gap was provable
+
+`srmech.math.primes.cyclic_period` **refuses** a non-unit outright (`gcd != 1; a not in (Z/nZ)*`), so the eventual period of a non-unit multiplier was unreachable through shipped surface. The closed form is `index = max over p | gcd(c,n) of ceil(v_p(n)/v_p(c))`, consumed order `g* = Π p^v_p(n)` over those same primes, survivor `n/g*`.
+
+Validated over **all 1,829 cells** with `2 ≤ n ≤ 60`, `0 ≤ c < n` against an independent enumeration oracle: **0 disagreements** on index, period and eventual size, and the eventual image compared as a **SET** against `g*·ℤ/n` with **0 membership mismatches**.
+
+The `n/g* == 1` guard is load-bearing, not defensive: every **nilpotent** multiplier lands there — `mod_mul_arrow(2, 64)` has `g* = 64` — and `cyclic_period` also refuses `n < 2`. A specification of this op that omits the guard raises on its own headline example.
+
+It deliberately does **not** return the coset index of what each step consumed. srmech's doctrine for a lossy op is carry the complement, but applied to an arrow that doctrine annihilates it: `(image, coset index)` reconstructs the input bijectively, so an op that hands it back has no arrow left. Legibility and irreversibility cannot both be maximised, so this reports the **shape and ORDER** of the loss and never the element.
+
+Class **I then L**, not K. Nothing here flips a sign, and the shipped precedent for the same question — `left_mult_kernel`, "what does multiply-by-a-fixed-element destroy" — is Class L.
+
+#### `conjugacy_census` — the guard IS the op
+
+The group class equation `|{(a,b) : ab = ba}| = k(G)·|G|` is a theorem about **groups** and false on a loop. Measured on the shipped unit loops:
+
+| Carrier | Class equation predicts | Counted truth | Error |
+|---|---|---|---|
+| M16 | 144 | **88** | 56 |
+| M32 | 544 | **184** | 360 |
+
+Silently, in both cases. `class_equation_agrees` makes that disagreement into a field, and it doubles as the non-group detector. Both conjugation bracketings are computed and compared as **partitions**, not as counts, and the class partition ships content-addressed — a count of classes cannot tell two different partitions of the same size apart.
+
+The 5/8 commuting bound is reported as **DERIVED-AND-MEASURED and deliberately not cited**: the preprint it is usually attributed to contains no such bound.
+
+#### `reversal_law_census` — and a correction to the round that motivated it
+
+Reversing a **word** mirrors its bracketing: the reverse of `(a b) c` read right-to-left is `c (b a)`. Three cells are measured — BARE `(a·b)·c == c·(b·a)`, CHIRAL `((a·b)·c)⁻¹ == c⁻¹·(b⁻¹·a⁻¹)`, and CHIRAL-FLAT, the same law with the bracketing left where it was.
+
+Two things this **measures** that were previously **asserted**:
+
+1. **`chiral_is_total` is True on every carrier tested** — Q8, M16, M32, D5, D12. The chiral law is a *theorem* of these structures, so any claim that "chiral reversal succeeds on exactly the forward-success set" is entailed rather than measured. The op says so on every call.
+2. Bare and chiral-flat both score **2752 of 4096** on M16 while their sets differ by **1344 each way** — and the count coincidence is **carrier-specific**, which had not been established: Q8 gives 320 vs 512, M32 26048 vs 17984, D12 5184 vs 13824. Only M16 makes the counts agree. **The set disagreement is the durable fact and the equal counts are an accident of one carrier** — the strongest available argument for never letting a count decide.
+
+`anti_automorphism_witnesses` measures the pair-level claim the same way. A prior round concluded from equal counts that the direct law "holds exactly on the commuting pairs"; measured as sets it **does** hold on Q8, M16, M32 and D12 — a true conclusion reached by an instrument that could not have detected being wrong, which is why the counts and the set verdict are now separate fields.
+
+`dihedral_group`'s `convention` stays **required** and is documented honestly as a **labelling** decision: `x → x⁻¹` is an isomorphism between the two tables on **576/576** products of D₁₂ with identical class sizes, while the identity map is not. Two supports once offered for a structural reading do not survive — "360 of 576 cells differ" is exactly `order² − commuting_pairs` and merely restates *non-abelian*.
+
+#### An attestation that shipped false, on five ops, inside published wheels
+
+`Baez, *The Octonions*, arXiv:math/0105155 §2` was cited for the **Moufang identities** on `moufang_residue`, `is_moufang`, `malcev_defect`, `unit_loop` and the `cayley_dickson` block comment. Verified against the paper's full text this rc, it is wrong in **two independent ways**:
+
+* §2 is *Constructing the Octonions* and states no Moufang identity. "Moufang" occurs in that paper only in **§3**, naming Ruth Moufang and the Moufang projective plane 𝕆P² — a different object. (The `cayley_plane.py` citations of Baez §3 / §4.2 for 𝕆P² are therefore **correct** and were left alone. This is not a batch conversion.)
+* **"Mal'cev" does not occur in that paper in any spelling.** Positive control on the same instrument: "Cayley-Dickson" occurs 7 times, so the search can return otherwise.
+
+Re-sourced to **Schafer, *An Introduction to Nonassociative Algebras* (1966), ch. III eqns (7)–(9)**, read verbatim from the public-domain text (Project Gutenberg #25156):
+
+```
+(7)  (xax)y   = x[a(xy)]
+(8)  y(xax)   = [(yx)a]x
+(9)  (xy)(ax) = x(ya)x        for all x, y, a in an alternative algebra
+```
+
+The Mal'cev verdict is marked **DERIVED-AND-MEASURED**; no replacement citation is asserted for it, because an unverified substitute would be the same defect wearing a different name. Baez §2 is retained on `unit_loop` **only** for the Cayley–Dickson doubling it does construct.
+
+A first extraction attempt returned 0 hits for "Moufang" *and* 0 for "octonion" on the Baez PDF — an instrument that cannot return otherwise. That null was discarded rather than reported.
+
+#### Ripple, and what moved
+
+* Search-corpus witness re-pinned (ninth consecutive), 678 → **684 frames** = 655 ops + 29 carriers. It would have moved this rc even with zero new ops, because the `table=` parameters and the citation fix both rewrite existing frames' text.
+* `test_namespace_prefix_decode_aware_rc361`: `srmech.amsc.` as-text 167 → **171**, with decoded **flat at 2** and ops named `srmech.amsc.*` **flat at 9** — the CITATION case, discharged, arising from the four `sha256_bytes` `composes` declarations. Separately `srmech.math` decoded 337 → **338** and `srmech.cascade` 154 → **159**, which are genuine POPULATION moves. Two channels behaving differently in one rc is exactly what that file exists to make visible.
+* 73 count-pin assertions bumped 649 → 655 across 66 test files, plus `EXPECTED_N` and a re-pinned manifest digest. The `649` occurrences inside hashes and integer literals (`205891132094649`, `0x2360ed051fc65da44385df649fccf645`) were **not** touched — a naive substitution corrupts them.
+* `composes`: three ROSTER rows (multi-edge) and three rc423 ledger rows at tier SINGLE. The unadjudicated residual is unchanged, which it had to be — its headroom was zero.
+
+**One instrument blind spot found and worked around, not papered over.** `tests/composes_derive.py:192` resolves a function-local `ImportFrom` only when `not sub.level`, so a **relative** function-local import is invisible to it. `mod_mul_arrow` must import `primes` inside its body (the module-level cycle is real), and written `from .primes import …` two of its three true sub-ops read as uncalled. The import is written absolutely instead; the declaration is true either way, and the absolute spelling is what makes it *checkable*. Widening the resolver would move two gates' derived sets at once and belongs in its own rc.
+
+#### Slipped to rc428
+
+`law_census(domain, dim, table)` — the eight non-Moufang laws (left/right-alternative, flexible, LIP, RIP, division, power-associative, diassociative). Specified and adjudicated, not built: it is the largest of the eight candidates and the narrowest justified, and shipping it would have meant rushing the ripple surface above. Its `domain` parameter must stay **required with no default** — the same law name gives opposite verdicts on the same shipped table (flexibility 256/256 on the signed unit loop, 508/512 on the algebra basis). The Moufang third is already covered by the shipped per-triple `moufang_residue` (1176/4096 nonzero at dim 16), so the narrowing costs nothing.
+
 ## [0.9.0rc425]
 
 ### 37 Path-A ops come out of the dark — and the one that was silently decoding the wrong channel (`#T1112`)

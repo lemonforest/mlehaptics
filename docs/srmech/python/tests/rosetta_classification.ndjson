@@ -824,3 +824,9 @@
 {"exposed_as": "srmech.music.interval_vector", "defined_at": "srmech.music.relations.interval_vector", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.music.normal_order", "defined_at": "srmech.music.relations.normal_order", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.music.prime_form", "defined_at": "srmech.music.relations.prime_form", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.math.cyclic.mod_mul_arrow", "defined_at": "srmech.math.cyclic.mod_mul_arrow", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.cascade.finite_semiflow", "defined_at": "srmech.cascade.semiflow.finite_semiflow", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.cascade.conjugacy_census", "defined_at": "srmech.cascade.finite_group.conjugacy_census", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.cascade.dihedral_group", "defined_at": "srmech.cascade.finite_group.dihedral_group", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.cascade.reversal_law_census", "defined_at": "srmech.cascade.reversal.reversal_law_census", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.cascade.anti_automorphism_witnesses", "defined_at": "srmech.cascade.reversal.anti_automorphism_witnesses", "bucket": "composition_of_c"}

@@ -49,7 +49,7 @@ MANIFEST = Path(__file__).resolve().parent / "registered_op_names.txt"
 #: rc361 until rc410 (`#T1085`) — stale by 40 ops, in a comment whose only job
 #: was to show the CURRENT value, sitting two lines above the real one. Written
 #: symbolically now so it cannot go stale a second time.)
-EXPECTED_N = 649  # rc425 (local task T1112): 612 -> 649, the 37 remaining Path-A closed_form_ops (fft / ifft / pi_cascade excluded as bit-exact duplicates of ops the registry already ships)  # rc424 (local task T1113): 605 -> 612, the 6 srmech.music relational ops + the first registration of srmech.signal_processing.music_doa  # rc422 (local task T1123): 598 -> 605, the centre/covering layer (5 srmech.math.covering ops) + the 2 Z(Spin(8)) rep-kernel anchor ops  # rc420 (local task T1114): 569 -> 598, the 29 cascade-catalog leaf-inventory + runner registrations
+EXPECTED_N = 655  # rc427 (local task T1130): 649 -> 655, the ARROW + CENSUS registration (math.cyclic.mod_mul_arrow + cascade.finite_semiflow / conjugacy_census / reversal_law_census / anti_automorphism_witnesses / dihedral_group; unit_loop + loop_invariants gained table= and add NO row)  # rc425 (local task T1112): 612 -> 649, the 37 remaining Path-A closed_form_ops (fft / ifft / pi_cascade excluded as bit-exact duplicates of ops the registry already ships)  # rc424 (local task T1113): 605 -> 612, the 6 srmech.music relational ops + the first registration of srmech.signal_processing.music_doa  # rc422 (local task T1123): 598 -> 605, the centre/covering layer (5 srmech.math.covering ops) + the 2 Z(Spin(8)) rep-kernel anchor ops  # rc420 (local task T1114): 569 -> 598, the 29 cascade-catalog leaf-inventory + runner registrations
 
 #: sha256 over the NORMALISED manifest body — "\n".join(sorted names) + "\n",
 #: UTF-8. Normalised rather than raw-file-bytes so a CRLF checkout cannot make
@@ -173,8 +173,17 @@ EXPECTED_N = 649  # rc425 (local task T1112): 612 -> 649, the 37 remaining Path-
 # float, complex, power-of-two, non-power-of-two and length-1 inputs — the same
 # values under a second name, so a row would advertise a duplicate rather than a
 # surface. Had a probe disagreed this would read 650.
+#
+# v0.9.0rc427 (`#T1130`) — 649 -> 655. Six ops: the closed-form directional
+# generator `srmech.math.cyclic.mod_mul_arrow`, its tabulated peer
+# `srmech.cascade.finite_semiflow`, and four table-eating carriers/censuses
+# `conjugacy_census` / `reversal_law_census` / `anti_automorphism_witnesses` /
+# `dihedral_group`. `unit_loop` and `loop_invariants` each gained a `table=`
+# parameter in the same rc and add NO row — a parameter extension is exactly
+# the change this SET witness is blind to by design, and the count pin next
+# door is blind to it too, so it is recorded here in prose deliberately.
 EXPECTED_NAME_SET_SHA256 = (
-    "53cd48b3899972850afba08b6c790222fca2216816e93540d42107ec38b988ff")
+    "2a5cfda0a04616473e5109c7a2535a51138744af6891c00b7a23a079e4142773")
 
 
 def _live_names() -> list[str]:

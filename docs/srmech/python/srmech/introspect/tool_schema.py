@@ -9556,9 +9556,17 @@ def _register_primitive_class_tools() -> None:
                     "epsilon, no abs() (the residue IS the Class-K ⟨v,v⟩). NO new "
                     "C symbol — composition_of_c over the c_dispatched "
                     "srmech_cd_mult / srmech_algebra_table_product. Class M ∘ K. "
-                    "SSoT: Baez, *The Octonions*, Bull. AMS 39 (2002) 145–205, "
-                    "arXiv:math/0105155 §2; Conway & Smith, *On Quaternions and "
-                    "Octonions* (2003) ch. 6." + PUBLISH_OPT_IN_NOTE,
+                    "SSoT: Schafer, *An Introduction to Nonassociative "
+                    "Algebras* (1966) ch. III eqns (7)–(9) — the three "
+                    "Moufang identities, read verbatim from the "
+                    "public-domain text (Project Gutenberg #25156); "
+                    "Conway & Smith, *On Quaternions and Octonions* (2003) "
+                    "ch. 6. ATTESTATION FIX rc427 (`#T1130`): Baez, *The "
+                    "Octonions*, arXiv:math/0105155 §2 was cited here for "
+                    "the Moufang identities through rc426 and does NOT "
+                    "state them — its §2 constructs the octonions, and "
+                    "'Moufang' occurs in that paper only in §3, naming "
+                    "Ruth Moufang and the Moufang plane." + PUBLISH_OPT_IN_NOTE,
             parameters=(
                 P("x", "sequence", True,
                   "the first element — exact-rational components (int / Q / "
@@ -9593,8 +9601,12 @@ def _register_primitive_class_tools() -> None:
                     "division-algebra question (𝕆 yes, 𝕊 no) — Moufang is the "
                     "weaker loop property. Exact, no abs(). NO new C symbol — "
                     "composition_of_c over moufang_residue. Class M ∘ K. SSoT: "
-                    "Baez, *The Octonions*, Bull. AMS 39 (2002) 145–205, "
-                    "arXiv:math/0105155 §2." + PUBLISH_OPT_IN_NOTE,
+                    "Schafer, *An Introduction to Nonassociative Algebras* "
+                    "(1966) ch. III eqns (7)–(9), read verbatim from the "
+                    "public-domain text (Project Gutenberg #25156). "
+                    "ATTESTATION FIX rc427 (`#T1130`): Baez "
+                    "arXiv:math/0105155 §2 was cited here through rc426 "
+                    "and does not state the identities." + PUBLISH_OPT_IN_NOTE,
             parameters=(
                 P("table", "list[list[list[int]]] | None", False,
                   "an optional dim × dim × dim structure tensor (algebra_table "
@@ -9628,9 +9640,16 @@ def _register_primitive_class_tools() -> None:
                     "check whose tangent this is. Exact, no abs(). NO new C "
                     "symbol — composition_of_c over the c_dispatched "
                     "srmech_cd_mult / srmech_algebra_table_product. Class C "
-                    "(bracket order) ∘ M ∘ K. SSoT: Baez, *The Octonions*, Bull. "
-                    "AMS 39 (2002) 145–205, arXiv:math/0105155 §2 (the Mal'cev "
-                    "tangent algebra)." + PUBLISH_OPT_IN_NOTE,
+                    "(bracket order) ∘ M ∘ K. The Mal'cev verdict is "
+                    "DERIVED-AND-MEASURED, not cited: rc427 (`#T1130`) "
+                    "verified that Baez arXiv:math/0105155 — cited here "
+                    "through rc426 for 'the Mal'cev tangent algebra' — "
+                    "contains NO occurrence of Mal'cev in any spelling "
+                    "(positive control: 'Cayley-Dickson' occurs 7×), so "
+                    "no attestation is claimed for it and none is "
+                    "substituted unverified. SSoT for the ambient algebra: "
+                    "Schafer, *An Introduction to Nonassociative Algebras* "
+                    "(1966) ch. III." + PUBLISH_OPT_IN_NOTE,
             parameters=(
                 P("x", "sequence", True,
                   "the first element — exact-rational components (int / Q / "
@@ -9667,12 +9686,28 @@ def _register_primitive_class_tools() -> None:
                     "nucleus / centre / translation generators; is_moufang is the "
                     "loop-property verdict. NO new C symbol — composition_of_c "
                     "over the integer cocycle srmech_cd_basis_product; no abs(). "
-                    "SSoT: Conway & Smith, *On Quaternions and Octonions* (2003) "
-                    "ch. 6; Baez, arXiv:math/0105155 §2." + PUBLISH_OPT_IN_NOTE,
+                    "SSoT for the unit Moufang loop: Conway & Smith, *On "
+                    "Quaternions and Octonions* (2003) ch. 6. Baez "
+                    "arXiv:math/0105155 §2 is retained ONLY for the "
+                    "Cayley–Dickson doubling it does construct (§2.2, "
+                    "verified) — rc427 (`#T1130`) narrowed it, because "
+                    "that section states no Moufang identity and the "
+                    "adjacent Moufang ops were citing it as though it "
+                    "did." + PUBLISH_OPT_IN_NOTE,
             parameters=(
                 P("dim", "int", False,
                   "the ladder rung — a power of two ≤ CD_MAX_DIM=256 (default "
                   "8 = 𝕆, giving M16)"),
+                P("table", "list[list[list[int]]] | None", False,
+                  "an optional dim × dim × dim MONOMIAL structure tensor "
+                  "(e.g. from algebra_table, including its gammas= SPLIT "
+                  "members). None — the default — is the shipped "
+                  "Cayley–Dickson product and reproduces every previous "
+                  "result bit-identically; a supplied table names its own "
+                  "algebra and its length supersedes dim. Added rc427 "
+                  "(`#T1130`): this and loop_invariants were the only two "
+                  "members of the twelve-op cascade loop family without "
+                  "it. Carrier plumbing — NO new A–N class."),
             ),
             returns=R("dict", "{dim, order (=2·dim), name (e.g. 'M16'), elements "
                               "(the ordered signed units [(sign, index), …]), "
@@ -9706,12 +9741,322 @@ def _register_primitive_class_tools() -> None:
                 P("dim", "int", False,
                   "the ladder rung — a power of two ≤ CD_MAX_DIM=256 (default "
                   "8 = 𝕆 / M16)"),
+                P("table", "list[list[list[int]]] | None", False,
+                  "an optional dim × dim × dim MONOMIAL structure tensor "
+                  "(e.g. from algebra_table, including its gammas= SPLIT "
+                  "members). None — the default — is the shipped "
+                  "Cayley–Dickson product and reproduces every previous "
+                  "result bit-identically; a supplied table names its own "
+                  "algebra and its length supersedes dim. Added rc427 "
+                  "(`#T1130`): this and unit_loop were the only two "
+                  "members of the twelve-op cascade loop family without "
+                  "it. Carrier plumbing — NO new A–N class."),
             ),
             returns=R("dict", "{nucleus, commutant, center (each a list of "
                               "signed units [(sign, index), …]), "
                               "left_translations, right_translations (each a "
                               "list of elements-index permutations — the Mlt(L) "
                               "generators)}"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # rc427 (`#T1130`) — the ARROW + the CENSUSES. Six ops.
+        #
+        # One thesis runs through all six: **a count agreeing is not a set
+        # agreeing.** Two prior rounds concluded equivalence from equal
+        # counts and were wrong both times, so every census below returns
+        # its hit SET content-addressed with sha256_bytes, and every verdict
+        # field is a set comparison with its count-only twin named beside it
+        # so the weaker read cannot be mistaken for the stronger one.
+        #
+        # The censuses take a CAYLEY TABLE, never a callable. A callable
+        # cannot cross JSON-RPC: such a parameter is typed host_callable and
+        # publishes JSON-schema null, so over the wire the only legal value
+        # is absence — and 0 of the 12 shipped callable params are required.
+        # A multiplication is the SEMANTICS of a census and cannot be
+        # optional, so the table is the only honest carrier.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.math.cyclic.mod_mul_arrow", owner="srmech",
+            category="cyclic",
+            summary="The eventual SHAPE of the self-map T_c(x) = (c·x) mod n — "
+                    "an ARROW on Z/n whenever gcd(c, n) > 1 — in CLOSED FORM, "
+                    "exact integers, no iteration. T_c iterated is a finite "
+                    "semiflow: a TRANSIENT of `index` steps during which the "
+                    "image strictly shrinks, then a PERMUTATION of the survivor "
+                    "forever after. index = max over p | gcd(c,n) of "
+                    "ceil(v_p(n)/v_p(c)); the consumed order g* is the product "
+                    "of p^v_p(n) over those same primes; the eventual modulus "
+                    "is n/g* and the period is the multiplicative order of c on "
+                    "it. THE GAP IT FILLS: primes.cyclic_period REFUSES a "
+                    "non-unit outright (gcd != 1; a not in (Z/nZ)*), so the "
+                    "eventual period of a non-unit multiplier was unreachable "
+                    "through shipped surface. The n/g* == 1 guard is not "
+                    "decorative — every NILPOTENT multiplier lands there, "
+                    "mod_mul_arrow(2, 64) among them, and cyclic_period also "
+                    "refuses n < 2. WHAT IT DELIBERATELY WITHHOLDS: each step "
+                    "destroys a COSET of ker T_c, and returning the coset INDEX "
+                    "would make the pair (image, index) a bijection — measured "
+                    "37/37 — leaving no arrow at all. Legibility and "
+                    "irreversibility cannot both be maximised, so this reports "
+                    "the SHAPE and ORDER of what was consumed and never the "
+                    "element. VALIDATED over every (n, c) with 2 ≤ n ≤ 60, "
+                    "0 ≤ c < n — 1,829 cells — against an independent "
+                    "enumeration oracle: 0 disagreements on index / period / "
+                    "eventual size, and the eventual image compared as a SET "
+                    "against g*·Z/n with 0 membership mismatches. SIBLINGS: "
+                    "cascade.finite_semiflow is the tabulated peer that takes "
+                    "ANY self-map and must iterate; cascade.left_mult_kernel is "
+                    "the Cayley–Dickson analogue of the same question (and is "
+                    "why the class here is I then L, not K — nothing flips a "
+                    "sign). Class I (cyclic) then L (kernel read). No new C "
+                    "symbol; no abs()." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("c", "int", True, "the multiplier; read mod n"),
+                P("n", "int", True, "the modulus, ≥ 2"),
+            ),
+            returns=R("dict", "{c, n, kernel_order (|ker T_c| = gcd(c,n)), "
+                              "index (transient length; 0 iff already a "
+                              "permutation), consumed_order (g*), "
+                              "eventual_modulus, eventual_size (both n/g*), "
+                              "period, is_permutation}"),
+            composes=("srmech.math.cyclic.gcd",
+                      "srmech.math.primes.factor",
+                      "srmech.math.primes.cyclic_period"),
+            preserves=("numpy-free; no abs() — sign-handling stays Class-K "
+                       "pin-slot + Class-C",),
+            smoke_test_hint={"c": "6", "n": "12"},
+        ),
+        ToolEntry(
+            name="srmech.cascade.finite_semiflow", owner="srmech",
+            category="cascade",
+            summary="The rho SHAPE of an arbitrary finite self-map given as its "
+                    "graph: table[x] = f(x) over [0, n). Returns the TRANSIENT "
+                    "length (index), the PERIOD of f restricted to the eventual "
+                    "image, that image as a SET plus its sha256, the "
+                    "first-step preimage-size histogram, and the arrow "
+                    "predicate semigroup_not_group (index > 0 — f has no "
+                    "inverse in the semigroup it generates). RATIONALE "
+                    "REWRITTEN AT rc427 (`#T1130`), and the correction is the "
+                    "point: this op was first justified by 'it consumes a "
+                    "Cayley table unit_loop already produces', which is "
+                    "MEASURABLY VACUOUS — a loop's Cayley table is a Latin "
+                    "square BY AXIOM, so every row is a bijection and this op "
+                    "can only ever return index 0 on one (measured 4/4, 8/8, "
+                    "16/16, 32/32). The one carrier that rationale named is the "
+                    "one class where the instrument is guaranteed to find "
+                    "nothing. The real feeders are the maps that genuinely lose "
+                    "information: biology.q8.q8_project_v4 (the shipped "
+                    "non-injective idempotent self-map, 8 → 4, index 1) and the "
+                    "multiplicative arrows x → mod_pow(a, x, n) / (c·x) mod n. "
+                    "SIBLINGS: math.cyclic.mod_mul_arrow gives the same index "
+                    "and period in CLOSED FORM for the (c·x) mod n family "
+                    "without touching an element — prefer it there; this op is "
+                    "for the self-maps that have no closed form. Class E "
+                    "(orbit/index catalog) then D (permutation pattern). "
+                    "Exact integers; no abs()." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("table", "list[int]", True,
+                  "table[x] = f(x); a length-n list of ints in [0, n) — any "
+                  "self-map of a finite set, given as its graph"),
+            ),
+            returns=R("dict", "{order, index, period, eventual_size, "
+                              "eventual_image (sorted index list), "
+                              "eventual_image_sha256, is_permutation, "
+                              "semigroup_not_group, kernel_orders "
+                              "(preimage-size histogram of the first step)}"),
+            composes=("srmech.amsc.format.sha256_bytes",),
+            preserves=("numpy-free; no abs() — sign-handling stays Class-K "
+                       "pin-slot + Class-C",),
+            smoke_test_hint={"table": "[0, 0, 2, 2]"},
+        ),
+        ToolEntry(
+            name="srmech.cascade.conjugacy_census", owner="srmech",
+            category="cascade",
+            summary="Commuting pairs, conjugacy classes and the commuting "
+                    "probability of a finite magma given by its Cayley table — "
+                    "GUARDED BY ASSOCIATIVITY, and the guard IS the op. "
+                    "'Number of conjugacy classes' is well defined only when "
+                    "conjugation is: on a non-associative loop (g·x)·g⁻¹ and "
+                    "g·(x·g⁻¹) are different maps, so the orbit count depends "
+                    "on a bracketing nobody declared. Worse, the GROUP class "
+                    "equation |{(a,b) : ab = ba}| = k(G)·|G| is a theorem about "
+                    "groups and simply false on a loop — measured on the "
+                    "shipped unit loops, it predicts 144 where the truth is 88 "
+                    "(M16) and 544 where the truth is 184 (M32), silently wrong "
+                    "by 56 and by 360. This op counts the commuting pairs "
+                    "DIRECTLY, reports k separately, and exposes "
+                    "class_equation_agrees between them; that flag is the "
+                    "non-group detector. Both bracketings are computed and "
+                    "compared as PARTITIONS, not as counts. The class partition "
+                    "ships content-addressed, because a count of classes cannot "
+                    "distinguish two different partitions of the same size. The "
+                    "5/8 commuting bound is DERIVED-AND-MEASURED, NOT CITED: "
+                    "the preprint it is usually attributed to contains no such "
+                    "bound, so no attestation is claimed. SIBLINGS: unit_loop "
+                    "and dihedral_group both hand back exactly the table this "
+                    "eats; loop_invariants is its nearest shipped neighbour "
+                    "(nucleus / commutant / centre of the same object); "
+                    "reversal_law_census is the n³ peer. Class E then D then N "
+                    "(exact-ℚ rate). Exact ℤ and exact ℚ; no float, no abs()."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("cayley_table", "list[list[int]]", True,
+                  "the n × n table; cell (i, j) is the index of the product of "
+                  "elements i and j. A table, not a callable — a callable "
+                  "cannot cross JSON-RPC and these operands are the semantics"),
+            ),
+            returns=R("dict", "{order, is_associative, has_identity, identity, "
+                              "has_inverses, is_group, commuting_pairs, "
+                              "commuting_probability (exact Q), "
+                              "commuting_probability_str, k_classes, "
+                              "k_classes_right, bracketing_agrees (PARTITION "
+                              "equality), class_equation_pairs, "
+                              "class_equation_agrees, class_partition, "
+                              "class_partition_sha256, gustafson_5_8, "
+                              "gustafson_applies}"),
+            composes=("srmech.amsc.format.sha256_bytes",),
+            preserves=("numpy-free; no abs() — sign-handling stays Class-K "
+                       "pin-slot + Class-C",),
+        ),
+        ToolEntry(
+            name="srmech.cascade.reversal_law_census", owner="srmech",
+            category="cascade",
+            summary="Census the reversal laws over all n³ ordered triples of a "
+                    "Cayley table, reporting the hit SETS and not only their "
+                    "sizes. The forward product is (a·b)·c. Reversing a WORD "
+                    "MIRRORS ITS BRACKETING — the reverse of (a b) c read "
+                    "right-to-left is c (b a) — so three cells are measured: "
+                    "BARE (a·b)·c == c·(b·a), Class C alone via chiral_flip; "
+                    "CHIRAL ((a·b)·c)⁻¹ == c⁻¹·(b⁻¹·a⁻¹), the anti-automorphism "
+                    "law mirrored consistently; and CHIRAL-FLAT "
+                    "((a·b)·c)⁻¹ == (c⁻¹·b⁻¹)·a⁻¹, the same law with the "
+                    "bracketing left where it was — which is NOT a word "
+                    "reversal, and is kept precisely because a mismatched "
+                    "bracketing is how this comparison went wrong before. TWO "
+                    "THINGS IT MEASURES THAT WERE PREVIOUSLY ASSERTED. (1) "
+                    "chiral_is_total is True on every carrier tested — Q8, M16, "
+                    "M32, D5, D12 — so the chiral law is a THEOREM of these "
+                    "structures, not a finding about them, and any claim that "
+                    "'chiral reversal succeeds on exactly the forward-success "
+                    "set' is ENTAILED rather than measured. (2) bare and "
+                    "chiral-flat both score 2752 of 4096 on M16 while their "
+                    "SETS differ by 1344 each way — and that count coincidence "
+                    "is CARRIER-SPECIFIC: Q8 gives 320 vs 512, M32 26048 vs "
+                    "17984, D12 5184 vs 13824. The set disagreement is the "
+                    "durable fact; the equal counts at M16 are an accident of "
+                    "one carrier, which is the strongest possible argument for "
+                    "never letting a count decide. Every hit set is "
+                    "content-addressed; half_inversion_* is the negative "
+                    "control, exercised on every call rather than shipped as a "
+                    "surface nobody runs. SIBLINGS: anti_automorphism_witnesses "
+                    "is the n² mechanism that makes this n³ result "
+                    "interpretable; chiral_flip is the Class-C atom it "
+                    "composes. Class C then D then A. Exact; no abs()."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("cayley_table", "list[list[int]]", True,
+                  "the n × n table; needs a two-sided identity and unique "
+                  "two-sided inverses, else ValueError — the chiral law has no "
+                  "subject without them"),
+            ),
+            returns=R("dict", "{order, triples, forward_bracketing, "
+                              "bare_hits/_sha256, chiral_hits/_sha256, "
+                              "chiral_flat_hits/_sha256, chiral_is_total, "
+                              "bare_equals_chiral(_flat) as SET equalities each "
+                              "beside its *_counts_agree twin, the pairwise "
+                              "intersection / one-sided differences with shas, "
+                              "half_inversion_* control, hit_triples}"),
+            composes=("srmech.cascade.chiral_flip",
+                      "srmech.amsc.format.sha256_bytes"),
+            preserves=("numpy-free; no abs() — sign-handling stays Class-K "
+                       "pin-slot + Class-C",),
+        ),
+        ToolEntry(
+            name="srmech.cascade.anti_automorphism_witnesses", owner="srmech",
+            category="cascade",
+            summary="The n² mechanism underneath reversal_law_census: which "
+                    "ORDERED PAIRS satisfy the anti-automorphism law, as a SET. "
+                    "Three pair-sets, each measured and none inferred from "
+                    "another — ANTI (a·b)⁻¹ == b⁻¹·a⁻¹ (Class C reverses the "
+                    "inverted letters via chiral_flip), DIRECT "
+                    "(a·b)⁻¹ == a⁻¹·b⁻¹, and COMMUTING a·b == b·a. A prior "
+                    "round asserted that the direct law 'holds exactly on the "
+                    "commuting pairs' FROM AN EQUALITY OF COUNTS; this op "
+                    "compares the two SETS and reports "
+                    "direct_equals_commuting together with both "
+                    "symmetric-difference sizes, so the claim is witnessed or "
+                    "refuted rather than assumed. (Measured: it holds at set "
+                    "level on Q8, M16, M32 and D12 — so the earlier conclusion "
+                    "was right, and it was still reached by an instrument that "
+                    "could not have detected being wrong.) Every set is "
+                    "content-addressed. SIBLINGS: reversal_law_census is the n³ "
+                    "peer whose result this makes interpretable; chiral_flip is "
+                    "the Class-C atom. Class C then D then A. Exact; no abs()."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("cayley_table", "list[list[int]]", True,
+                  "the n × n table; needs a two-sided identity and unique "
+                  "two-sided inverses"),
+            ),
+            returns=R("dict", "{order, pairs, anti_hits/_sha256, "
+                              "direct_hits/_sha256, commuting_hits/_sha256, "
+                              "anti_holds_totally, direct_equals_commuting with "
+                              "direct_not_commuting / commuting_not_direct, "
+                              "anti_equals_commuting with its two differences, "
+                              "witness_pairs}"),
+            composes=("srmech.cascade.chiral_flip",
+                      "srmech.amsc.format.sha256_bytes"),
+            preserves=("numpy-free; no abs() — sign-handling stays Class-K "
+                       "pin-slot + Class-C",),
+        ),
+        ToolEntry(
+            name="srmech.cascade.dihedral_group", owner="srmech",
+            category="cascade",
+            summary="The dihedral group D_n of order 2n, as a Cayley table — "
+                    "the non-abelian, non-power-of-two carrier the censuses in "
+                    "this module need and could not otherwise reach. WHY IT "
+                    "SHIPS: no group of order 12 or 24 is reachable from srmech "
+                    "at all. unit_loop yields orders {4, 8, 16, 32} only, and "
+                    "group_algebra_table raises 'dim must be a power of two' on "
+                    "3, 5, 12 and 24 — and is abelian by its own docstring "
+                    "besides. Without this carrier conjugacy_census and "
+                    "reversal_law_census are vacuous outside loops. THE "
+                    "`convention` PARAMETER IS REQUIRED AND IS HONESTLY A "
+                    "LABELLING DECISION, NOT A STRUCTURAL ONE: measured on "
+                    "D_12, x → x⁻¹ is an isomorphism from one table to the "
+                    "other on 576/576 products with identical class sizes "
+                    "[1,1,2,2,2,2,2,6,6], while the identity map is not — so "
+                    "the instrument can return otherwise. Two supports offered "
+                    "for a structural reading were REFUTED: '360 of 576 cells "
+                    "differ' is exactly order² − commuting_pairs and merely "
+                    "restates non-abelian (already reported one field away), "
+                    "and a downstream 13824-vs-5184 split is identical on BOTH "
+                    "tables. The parameter stays required for the same reason "
+                    "music.relations.prime_form's convention is — a caller must "
+                    "say which labels it means — and for no more. SIBLINGS: "
+                    "conjugacy_census / reversal_law_census / "
+                    "anti_automorphism_witnesses all eat the cayley_table this "
+                    "returns; unit_loop is the power-of-two loop peer. Class I "
+                    "(cyclic) with a Class-K pin-slot for the reflection and "
+                    "Class-C re-entry into the cyclic lane — never abs(), and "
+                    "never a negative int, which cyclic_mod_add correctly "
+                    "refuses. Exact ℤ." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("n", "int", True,
+                  "the rotation order, ≥ 1; the group has order 2n"),
+                P("convention", "str", True,
+                  "'reflection_first' (reflections written s·rⁱ) or "
+                  "'rotation_first' (rⁱ·s). REQUIRED and documented as a "
+                  "LABELLING decision — the two conventions are ISOMORPHIC via "
+                  "x → x⁻¹ (576/576 on D_12)"),
+            ),
+            returns=R("dict", "{n, order (=2n), convention, elements (the "
+                              "labels), cayley_table, identity, rotations, "
+                              "reflections}"),
+            composes=("srmech.cascade.cyclic_mod_add",),
+            preserves=("numpy-free; no abs() — sign-handling stays Class-K "
+                       "pin-slot + Class-C",),
+            smoke_test_hint={"n": "3", "convention": "'reflection_first'"},
         ),
         # rc399 (`#T1064` Tier 2/3): the octonion CAYLEY PLANE 𝕆P² (carrier-
         # native, one rung above octonion_frame_read's ℍP¹≅S⁴) + the guarded

@@ -131,7 +131,7 @@ def test_t3_constitutive_cap_byte_identical_and_format_15():
             [hv for hv in s if G._cap_kind(hv) == G.CHROMATIN_MARKER][0]) == (G.CHROMATIN_GATE_NONE, None)
     assert G.GENOME_FORMAT_VERSION == 19
     import srmech.introspect as introspect
-    assert introspect.describe()["tools"]["total"] == 649
+    assert introspect.describe()["tools"]["total"] == 655
 
 
 # ── T4  C↔Python byte-parity — accessible + the writer + the demand-load plan ─────────

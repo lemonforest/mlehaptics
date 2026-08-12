@@ -273,6 +273,12 @@ from .cayley_dickson import (
     unit_loop,
     loop_invariants,
 )
+# rc427 (`#T1130`) — the ARROW + the CENSUSES. finite_semiflow is the tabulated
+# peer of math.cyclic.mod_mul_arrow; the three table-eating censuses all take a
+# Cayley table (a callable cannot cross JSON-RPC) and all report hit SETS.
+from .semiflow import finite_semiflow
+from .finite_group import conjugacy_census, dihedral_group
+from .reversal import reversal_law_census, anti_automorphism_witnesses
 # The octonion CAYLEY PLANE 𝕆P² surface (rc399; `#T1064` Tier 2) — the n=3
 # Moufang plane built carrier-native, one rung above octonion_frame_read's
 # ℍP¹≅S⁴: the Albert-algebra Jordan product, 𝕆P² points, the trace-form
@@ -488,6 +494,12 @@ __all__ = [
     "malcev_defect",
     "unit_loop",
     "loop_invariants",
+    # rc427 (`#T1130`) — the arrow + the censuses
+    "finite_semiflow",
+    "conjugacy_census",
+    "dihedral_group",
+    "reversal_law_census",
+    "anti_automorphism_witnesses",
     # The octonion CAYLEY PLANE 𝕆P² surface (rc399; `#T1064` Tier 2) — the n=3
     # Moufang plane carrier-native (Albert-algebra Jordan product, 𝕆P² points,
     # the trace-form incidence pairing, the 𝕆P¹≅S⁸ octonionic Hopf base)

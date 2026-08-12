@@ -472,6 +472,39 @@ ROSTER: Dict[str, Tuple[str, ...]] = {
         "srmech.cascade.spectral_cascades.fft",
         "srmech.cascade.spectral_cascades.ifft",
     ),
+
+    # ──────────────────────────────────────────────────────────────────
+    # rc427 (`#T1130`) — the three multi-edge rows of the ARROW + CENSUS
+    # registration. The other three ops registered in that rc have exactly
+    # ONE call edge each and are adjudicated SINGLE in the rc423 ledger,
+    # not here.
+    # ──────────────────────────────────────────────────────────────────
+    # A straight line with no branch on the order: gcd(c, n) is taken first
+    # (it is the kernel order and is reported whatever happens), then
+    # factor(n) supplies the valuations the index needs, and cyclic_period
+    # runs LAST on the survivor -- it cannot run earlier because its
+    # argument, the eventual modulus, is a function of factor's output. It
+    # is also the one guarded call: every NILPOTENT multiplier leaves an
+    # eventual modulus of 1, where cyclic_period would refuse (n >= 2), so
+    # the branch skips it. Guarded or not, the edge is real and the
+    # position is forced. No native fast path anywhere in this op.
+    "srmech.math.cyclic.mod_mul_arrow": (
+        "srmech.math.cyclic.gcd",
+        "srmech.math.primes.factor",
+        "srmech.math.primes.cyclic_period",
+    ),
+    # chiral_flip runs inside the n^3 (resp. n^2) scan -- once per triple,
+    # long before any digest exists -- and sha256_bytes runs once per hit
+    # set after the scan has finished. The order is forced by the dataflow:
+    # there is nothing to content-address until the sets are built.
+    "srmech.cascade.reversal_law_census": (
+        "srmech.cascade.chiral_flip",
+        "srmech.amsc.format.sha256_bytes",
+    ),
+    "srmech.cascade.anti_automorphism_witnesses": (
+        "srmech.cascade.chiral_flip",
+        "srmech.amsc.format.sha256_bytes",
+    ),
 }
 
 

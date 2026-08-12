@@ -2175,12 +2175,37 @@ def min_generating_set(dim: int,
 # products ``cd_mult`` / ``table_product`` — NO new C symbol, ABI unchanged
 # — Class-K clean throughout (zero-tests via ⟨v,v⟩, never ``abs()``).
 #
-# SSoT: Baez, J.C. (2002), *The Octonions*, Bull. AMS 39 145–205,
-# arXiv:math/0105155, §2 (the octonion Moufang identities, alternativity,
-# and the Mal'cev tangent algebra); Conway, J.H. & Smith, D.A. (2003),
-# *On Quaternions and Octonions*, A K Peters, ch. 6 (the unit-octonion
-# Moufang loop and its Cayley table); Schafer, R.D. (1966), *An
-# Introduction to Nonassociative Algebras*, §III.1 (the associator).
+# SSoT: Schafer, R.D. (1966), *An Introduction to Nonassociative Algebras*,
+# ch. III — §III.1 (the associator) and eqns (7)–(9), which ARE the three
+# Moufang identities, read verbatim from the public-domain text (Project
+# Gutenberg #25156):
+#
+#     (7)  (xax)y   = x[a(xy)]
+#     (8)  y(xax)   = [(yx)a]x
+#     (9)  (xy)(ax) = x(ya)x        for all x, y, a in an alternative algebra
+#
+# Conway, J.H. & Smith, D.A. (2003), *On Quaternions and Octonions*, A K
+# Peters, ch. 6 (the unit-octonion Moufang loop and its Cayley table).
+#
+# ⚠️ ATTESTATION FIX, rc427 (`#T1130`). Through rc426 this block cited
+# "Baez, J.C. (2002), *The Octonions*, arXiv:math/0105155, §2 (the octonion
+# Moufang identities, alternativity, and the Mal'cev tangent algebra)" — and
+# that attestation was FALSE in two independent ways, on prose that had
+# already shipped inside published wheels:
+#
+#   * §2 is titled "Constructing the Octonions" and states no Moufang
+#     identity. The word "Moufang" occurs in that paper only in §3, where it
+#     names Ruth Moufang and the Moufang (non-Desarguesian) projective plane
+#     𝕆P² — a different object entirely. The cayley_plane.py citations of
+#     Baez §3 / §4.2 for 𝕆P² are therefore CORRECT and were left alone; only
+#     the §2-for-Moufang-identities claim was wrong. Do not batch-convert.
+#   * "Mal'cev" does not occur in that paper in ANY spelling. Positive
+#     control on the same instrument: "Cayley-Dickson" occurs 7 times, so the
+#     search can return otherwise.
+#
+# The Mal'cev verdict is accordingly DERIVED-AND-MEASURED here, not cited;
+# no replacement citation is asserted for it, because an unverified
+# substitute would be the same defect wearing a different name.
 # ──────────────────────────────────────────────────────────────────────
 
 def _norm_sq(v: Sequence[Q]) -> Q:
@@ -2366,15 +2391,75 @@ _UNIT_LOOP_NAMES: "Dict[int, str]" = {2: "C2", 4: "C4", 8: "Q8", 16: "M16",
                                       32: "M32"}
 
 
-def _ordered_loop(dim: int) -> "List[Tuple[int, int]]":
+def _monomial_cocycle(table: Any) -> "Tuple[int, Dict[Tuple[int, int], Tuple[int, int]]]":
+    """``(d, cocycle)`` for a MONOMIAL structure table, where
+    ``cocycle[(i, j)] == (index, sign)`` means ``e_i·e_j = sign·e_index``.
+
+    A signed BASIS-UNIT loop exists only when every product of two basis units
+    is again ±a basis unit, i.e. when the table is monomial — the property
+    :func:`algebra_table` has by construction and an arbitrary table need not.
+    Raising here rather than silently returning a partial loop is deliberate:
+    a non-monomial table has no unit loop to return.
+    """
+    tbl = _structure_table(table)
+    d = len(tbl)
+    coc: Dict[Tuple[int, int], Tuple[int, int]] = {}
+    for i in range(d):
+        for j in range(d):
+            nz = [(k, v) for k, v in enumerate(tbl[i][j]) if v != 0]
+            if len(nz) != 1 or nz[0][1] not in (1, -1):
+                raise ValueError(
+                    f"table= needs a MONOMIAL table (e_i·e_j = ±e_k); cell "
+                    f"({i}, {j}) has {len(nz)} nonzero coefficient(s)")
+            coc[(i, j)] = (nz[0][0], nz[0][1])
+    for i in range(d):
+        if coc[(0, i)] != (i, 1) or coc[(i, 0)] != (i, 1):
+            raise ValueError(
+                "table= needs e_0 to be the two-sided identity of the "
+                f"structure table; e_0·e_{i} or e_{i}·e_0 is not e_{i}")
+    return d, coc
+
+
+def _ordered_loop(dim: int, table: Any = None) -> "List[Tuple[int, int]]":
     """The full unit loop as an ORDERED list ``[+e₀,…,+e_{d-1},−e₀,…,−e_{d-1}]``,
-    tied to the actual :func:`closure` result (positives-then-negatives read)."""
-    spanned = closure(dim, list(range(1, dim)))
-    canonical = [(1, i) for i in range(dim)] + [(-1, i) for i in range(dim)]
+    tied to the actual :func:`closure` result (positives-then-negatives read).
+
+    ``table=None`` is the definite Cayley–Dickson ladder rung ``dim``; a
+    supplied monomial structure table names its own algebra and ``dim`` is
+    ignored in favour of ``len(table)``."""
+    if table is None:
+        spanned = closure(dim, list(range(1, dim)))
+        d = dim
+    else:
+        d, coc = _monomial_cocycle(table)
+        spanned = {(1, 0)}
+        spanned.update((1, g) for g in range(1, d))
+        changed = True
+        while changed:
+            changed = False
+            for a in list(spanned):
+                for b in list(spanned):
+                    k, s = coc[(a[1], b[1])]
+                    prod = (a[0] * b[0] * s, k)
+                    if prod not in spanned:
+                        spanned.add(prod)
+                        changed = True
+    canonical = [(1, i) for i in range(d)] + [(-1, i) for i in range(d)]
     return [su for su in canonical if su in spanned]
 
 
-def unit_loop(dim: int = 8) -> "Dict[str, Any]":
+def _loop_mult_any(dim: int, table: Any,
+                   a: "Tuple[int, int]", b: "Tuple[int, int]") -> "Tuple[int, int]":
+    """Signed-unit product on either route — the definite ladder cocycle
+    (``table=None``) or a monomial structure table."""
+    if table is None:
+        return _loop_mult(dim, a, b)
+    _d, coc = _monomial_cocycle(table)
+    index, sign = coc[(a[1], b[1])]
+    return (a[0] * b[0] * sign, index)
+
+
+def unit_loop(dim: int = 8, table: Any = None) -> "Dict[str, Any]":
     """The UNIT MOUFANG LOOP of the Cayley–Dickson rung ``dim`` — the named
     handle for the 16 signed octonion units **M16** (rc398, `#T1064`).
 
@@ -2390,6 +2475,17 @@ def unit_loop(dim: int = 8) -> "Dict[str, Any]":
 
     Args:
         dim: the ladder rung — a power of two ``≤ CD_MAX_DIM``.
+        table: an optional rank-3 MONOMIAL structure-constant table (e.g. from
+            :func:`algebra_table`, including its ``gammas=`` SPLIT members).
+            ``None`` — the default — is the shipped Cayley–Dickson product and
+            reproduces every previous result bit-identically; a supplied table
+            names its own algebra and its length supersedes ``dim``.  Added
+            rc427 (`#T1130`): ``unit_loop`` and :func:`loop_invariants` were
+            the only two members of the twelve-op cascade loop family without
+            it, so any caller wanting the unit loop of a split or γ-twisted
+            algebra had to hand-roll the closure through
+            :func:`table_product`.  The parameter carries **no new A–N class**
+            — it is carrier plumbing, not content-addressing.
 
     Returns:
         ``{"dim", "order" (= 2·dim), "name", "elements", "cayley_table"}``
@@ -2401,10 +2497,15 @@ def unit_loop(dim: int = 8) -> "Dict[str, Any]":
     Note:
         Wraps :func:`closure`; the products are the integer cocycle
         ``srmech_cd_basis_product`` — ``composition_of_c``, no new C symbol.
+        With ``table=`` the products come from the table instead and the
+        native cocycle is not consulted.
     """
-    elements = _ordered_loop(dim)
+    elements = _ordered_loop(dim, table)
+    if table is not None:
+        dim = len(_structure_table(table))
     idx = {su: n for n, su in enumerate(elements)}
-    cayley = [[idx[_loop_mult(dim, a, b)] for b in elements] for a in elements]
+    cayley = [[idx[_loop_mult_any(dim, table, a, b)] for b in elements]
+              for a in elements]
     order = len(elements)
     return {
         "dim": dim,
@@ -2415,7 +2516,7 @@ def unit_loop(dim: int = 8) -> "Dict[str, Any]":
     }
 
 
-def loop_invariants(dim: int = 8) -> "Dict[str, Any]":
+def loop_invariants(dim: int = 8, table: Any = None) -> "Dict[str, Any]":
     """The loop-theory INVARIANTS of the unit Moufang loop, plus the
     generators of its multiplication group Mlt(L) (rc398, `#T1064`).
 
@@ -2438,6 +2539,14 @@ def loop_invariants(dim: int = 8) -> "Dict[str, Any]":
 
     Args:
         dim: the ladder rung — a power of two ``≤ CD_MAX_DIM``.
+        table: an optional rank-3 MONOMIAL structure-constant table, exactly
+            as :func:`unit_loop` takes it.  ``None`` — the default — is the
+            shipped Cayley–Dickson product, unchanged.  Added rc427
+            (`#T1130`) as the other half of the same gap; carrier plumbing,
+            **no new A–N class**.  :func:`associator` and
+            :func:`cd_commutator` already took ``table=``, so the invariants
+            themselves needed no new mathematics — only a way to say which
+            algebra they are invariants OF.
 
     Returns:
         ``{"nucleus", "commutant", "center"}`` (each a list of signed units
@@ -2449,7 +2558,9 @@ def loop_invariants(dim: int = 8) -> "Dict[str, Any]":
         ``composition_of_c`` over :func:`associator` / :func:`cd_commutator`
         and the integer loop cocycle — no new C symbol, no ``abs()``.
     """
-    elements = _ordered_loop(dim)
+    elements = _ordered_loop(dim, table)
+    if table is not None:
+        dim = len(_structure_table(table))
     idx = {su: n for n, su in enumerate(elements)}
     vecs = {}
     for s, i in elements:
@@ -2458,14 +2569,16 @@ def loop_invariants(dim: int = 8) -> "Dict[str, Any]":
         vecs[(s, i)] = tuple(_coerce_frac(c) for c in v)
 
     nucleus = [a for a in elements
-               if all(_norm_sq(associator(vecs[a], vecs[u], vecs[w])) == 0
+               if all(_norm_sq(associator(vecs[a], vecs[u], vecs[w], table)) == 0
                       for u in elements for w in elements)]
     commutant = [a for a in elements
-                 if all(_norm_sq(cd_commutator(vecs[a], vecs[u])) == 0
+                 if all(_norm_sq(cd_commutator(vecs[a], vecs[u], table)) == 0
                         for u in elements)]
     center = [a for a in nucleus if a in commutant]
-    left = [[idx[_loop_mult(dim, a, x)] for x in elements] for a in elements]
-    right = [[idx[_loop_mult(dim, x, a)] for x in elements] for a in elements]
+    left = [[idx[_loop_mult_any(dim, table, a, x)] for x in elements]
+            for a in elements]
+    right = [[idx[_loop_mult_any(dim, table, x, a)] for x in elements]
+             for a in elements]
     return {
         "nucleus": nucleus,
         "commutant": commutant,
