@@ -116,6 +116,20 @@ tests/test_class_catalog_oprefs_resolve_930.py
 # -- ref-notation emitted-artifact guard (bare-#NNN autolink) ----------------
 tests/test_ref_notation_emitted_rc348.py
 
+# -- ADR citation integrity (`path:line` drift) ------------------------------
+# ADDED rc425 (`#T1112`), and the reason is the rc that added it. Registering
+# 37 ToolEntries inserted 28 lines into c/include/srmech.h and 145 into
+# test_composes_grain_rc412.py, which moved 12 ADR citations and took 5 of them
+# over CEIL_TOKEN_EVIDENCE. Two full unfiltered ripple_check runs came back
+# green and CI still went red, because this gate was not in this list -- so the
+# ONE gate that observes the surface a bulk registration is guaranteed to
+# disturb was the one the pre-push sweep could not see.
+#
+# It belongs here on the list's own terms: "run this before pushing any rc that
+# registers/edits an op or a ToolEntry" is exactly the change that shifts line
+# numbers in every cited file below the insertion. ~39s, no server, no fixture.
+tests/test_adr_citation_integrity_rc415.py
+
 # -- JPL Power-of-Ten C audit ratchet ----------------------------------------
 tests/test_jpl_audit.py
 
