@@ -1,8 +1,24 @@
 #!/usr/bin/env python3
-"""The citation-claim extraction instrument — srmech rc428, `#T1131`.
+"""The citation-claim extraction instrument + manifest builder — rc428, `#T1126`.
 
 Answers ONE question about a cited source: **does it contain this claim term,
 and WHERE** — and is built so that it cannot lie in either direction.
+
+⚠️ **NETWORK-TOUCHING, OFFLINE OF CI, NOT IN THE WHEEL.** ``tools/`` is not
+packaged. CI never runs this; it consumes the committed
+``srmech/amsc/attested/literature_claims/row.ndjson`` this file writes, exactly
+as ``srmech.amsc.format`` states the discipline: *we trust the committed bytes
+at runtime and never recompute*. Three modes::
+
+    --validate   re-run the F1-F11 falsifier suite (the rc428 acceptance record)
+    --build      fetch, extract, emit row.ndjson for the literature_claims catalog
+    --check      re-derive from cached e-prints and byte-compare (regen --check idiom)
+
+**PROMOTED from ``docs/srmech/notes/_s1_extractor_rc428.py`` at rc428.** It was
+moved rather than copied: a validated 1000-line extraction core living in two
+places is the duplication debt this project has repeatedly paid for. The frozen
+validation output stays at ``docs/srmech/notes/_s1_extractor_rc428.ndjson``;
+``--validate`` regenerates it in place.
 
 WHY THIS EXISTS
 ===============
@@ -104,12 +120,80 @@ comparisons), never ``abs()``. No ``math`` / ``fractions`` / ``decimal`` / numpy
 Hashing routes through ``srmech.amsc.format.sha256_bytes`` per the no-direct-
 ``hashlib`` rule.
 
-Run:  PYTHONPATH=docs/srmech/python python3 docs/srmech/notes/_s1_extractor_rc428.py
-Emits ``_s1_extractor_rc428.ndjson`` — one record per line.
+WHAT rc428 ADDED TO THE PROMOTED INSTRUMENT, AND WHY EACH WAS FORCED
+====================================================================
+
+**1. A LEVEL-AWARE section map** (:func:`numbered_sections`), replacing the
+flat ``\\section``-only :func:`tex_sections`. Forced by measurement, not taste:
+
+  * Baez ``oct.tex`` carries 5 ``\\section`` and **16 ``\\subsection``**. The
+    tree cites ``§2.4``, ``§4.1``, ``§4.2``, ``§3.4`` — every one of those is a
+    SUBSECTION, and a ``\\section``-only map cannot resolve any of them. The
+    rc428 note's map answered "section 2" where the citation says "§2.4".
+  * Rosengren's e-print carries **4 ``\\chapter``** and 24 ``\\section`` and no
+    subsections at all, so its ``\\section`` numbers as ``C.S`` — §1.3, §2.3 —
+    which is exactly how the tree spells it. The TOP PRESENT LEVEL starts the
+    numbering; hardcoding "section = level 0" would number Rosengren §1..§24
+    and report every one of its citations unresolvable.
+  * Starred forms are UNNUMBERED in LaTeX and must not advance the counter.
+    Baez's ``\\subsection*{Acknowledgements}`` would otherwise mint a §5.1 and
+    shift nothing else — a silent off-by-one that only shows up as a citation
+    resolving to the wrong neighbour.
+
+**2. Dotted-PREFIX locator matching.** A citation of ``§3`` covers §3, §3.1 …
+§3.4; ``§4.2`` covers only §4.2 and deeper. String equality would report every
+coarse-grained citation in the tree false. Measured consequence: Baez's
+"exceptional Jordan" reads 3 hits in §3's own prose and 4 more in §3.4, so
+``cayley_plane.py``'s ``§3 (the exceptional Jordan algebra)`` is VERIFIED at 7
+under prefix matching and REFUTED-at-3 under equality — same citation, opposite
+verdict, decided entirely by this rule.
+
+**3. Single-gzip e-print handling.** arXiv serves a bare ``.tex.gz`` for
+single-file submissions (Rosengren) and a ``.tar.gz`` for multi-file ones
+(Baez). The rc428 note handled only the tarball and would have raised
+``ReadError`` on the second source ever added.
+
+**4. A SECOND SOURCE.** The instrument's own stated bound was *"validated
+against exactly ONE source; every new source needs its own positive control."*
+A single-source manifest cannot distinguish "the schema works" from "the schema
+fits Baez", so Rosengren ships as the negative control on the manifest design —
+different subtree, different structure (chapters), different positive control
+(``elliptic``, chosen and recorded BEFORE extraction).
+
+WHAT THE rc428 BUILD MEASURED, THAT THE BRIEF DID NOT PREDICT
+==============================================================
+Three further citation halves are FALSE AS CITED, all the rc426 shape (right
+paper, wrong locator), all in module docstrings that ship inside the wheel:
+
+  * ``cayley_plane.py`` module docstring — ``§4.2 (… the octonionic Hopf
+    fibration S⁷↪S¹⁵↠S⁸, 𝕆P¹≅S⁸)``. "Hopf" occurs **0 times in §4.2**; the
+    fibration table and ``\\OP^1 \\iso S^8`` are both in **§3.1 Projective
+    Lines**, verbatim. The 𝕆P² half of the same parenthesis is CORRECT (§4.2 is
+    F₄, and Baez states there that F₄ is the isometry group of a 16-dimensional
+    projective plane which "is none other than 𝕆P²"). One parenthesis, two
+    claims, opposite verdicts.
+  * ``cayley_plane.py:octonion_hopf_base`` — ``§4.1–§4.2 (the octonionic Hopf
+    fibration … and 𝕆P¹ ≅ S⁸)``. Both halves false at that locator; both are
+    §3.1. This is the SSoT for what that op computes.
+  * ``cayley_dickson.py:cd_three_form`` — ``§4.1 — φ, its Fano-plane values and
+    G₂ = Aut(𝕆)``. "Fano" occurs **0 times in §4.1**; the Fano plane is §2.1.
+    The φ and G₂ halves are correct (§4.1 states φ(x,y,z) = ⟨x,yz⟩ and that the
+    transformations preserving φ "are exactly those in the group G₂").
+
+Each was fixed by RE-POINTING THE LOCATOR, never by deleting the citation.
+Deleting one converts a false citation into an UNSOURCED claim, which is a
+change of defect class rather than a fix — measured on ``malcev_defect``, where
+rc427's removal did exactly that and nothing in the tree noticed.
+
+Run::
+
+    PYTHONPATH=docs/srmech/python python3 docs/srmech/python/tools/build_citation_manifest.py --build
 """
 
 from __future__ import annotations
 
+import gzip
+import io
 import json
 import os
 import re
@@ -120,8 +204,8 @@ import unicodedata
 import urllib.request
 from typing import Dict, List, Optional, Sequence, Tuple
 
-sys.path.insert(0, os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "..", "python"))
+# The package root is this file's grandparent (``python/tools/`` -> ``python/``).
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from srmech.amsc.format import sha256_bytes  # noqa: E402  (Class A anchor)
 
@@ -233,38 +317,123 @@ def term_pattern(term: str) -> str:
 
 
 # ── sections ────────────────────────────────────────────────────────────
-class SectionMap:
-    """Offset -> section label.
+#: Sectioning commands, OUTERMOST first. The top level actually PRESENT in a
+#: document starts the numbering, which is what makes one map serve both a
+#: chapter-bearing source (Rosengren: §1.3 = chapter 1, section 3) and a
+#: chapter-free one (Baez: §2.4 = section 2, subsection 4).
+SECTION_LEVELS = ("part", "chapter", "section", "subsection", "subsubsection")
 
-    ``exact=True`` only when built from LaTeX ``\\section{}`` markup. From
-    rendered PDF text this is a heuristic and says so; the gate must not make
-    section claims on a heuristic map.
+#: The label given to text before the first numbered heading.
+FRONT_MATTER = "FRONT-MATTER"
+
+
+def covers(cited: str, actual: str) -> bool:
+    """Does a cited locator COVER an actual section label? Dotted prefix.
+
+    ``§3`` covers §3, §3.1 … §3.4; ``§4.2`` covers §4.2 and anything deeper;
+    ``§4.2`` does NOT cover §4 or §4.1. The dot boundary is required, so §1
+    never covers §10 — a plain ``startswith`` would, and Rosengren really does
+    have a §2.10 and a §2.11 sitting next to a §2.1.
+
+    Non-numbered labels (``BIBLIOGRAPHY``, ``FRONT-MATTER``) compare by
+    equality; there is no hierarchy to walk.
+    """
+    if cited == actual:
+        return True
+    if not cited.startswith("\u00a7") or not actual.startswith("\u00a7"):
+        return False
+    return actual.startswith(cited + ".")
+
+
+class SectionMap:
+    """Offset -> canonical section label (``§2``, ``§2.4``, ``BIBLIOGRAPHY``).
+
+    ``exact=True`` only when built from LaTeX structural markup. From rendered
+    PDF text this is a heuristic and says so; the gate must not make section
+    claims on a heuristic map.
     """
 
-    def __init__(self, spans: Sequence[Tuple[int, str]], exact: bool) -> None:
-        self.spans = sorted(spans)
+    def __init__(self, spans: Sequence[Tuple[int, str, str]],
+                 exact: bool) -> None:
+        #: ``(offset, label, title)``; ``label is None`` for starred headings,
+        #: which are unnumbered in LaTeX and therefore not addressable.
+        self.spans = sorted(spans, key=lambda s: s[0])
         self.exact = exact
 
     def label(self, pos: int) -> str:
-        current = "front-matter"
-        for start, name in self.spans:
-            if start <= pos:
-                current = name
-            else:
+        current = FRONT_MATTER
+        for start, name, _title in self.spans:
+            if start > pos:
                 break
+            if name is not None:
+                current = name
         return current
+
+    def titles(self) -> "Dict[str, str]":
+        return {lab: title for _s, lab, title in self.spans
+                if lab is not None}
+
+    def labels(self) -> List[str]:
+        seen: List[str] = []
+        for _s, lab, _t in self.spans:
+            if lab is not None and lab not in seen:
+                seen.append(lab)
+        return seen
+
+
+def _balanced_group(text: str, open_at: int) -> Tuple[str, int]:
+    """Read a brace-balanced ``{...}`` starting just after ``open_at``.
+
+    A flat ``\\{([^}]*)\\}`` truncates every heading containing maths — Baez
+    sets ``\\subsection{$\\OP^1$ and Bott Periodicity}``, whose title has no
+    inner brace but whose SIBLINGS (``$\\G_2$``, ``${}_{12}V_{11}$``) do. The
+    Rosengren heading ``\\section{The sum ${}_{12}V_{11}$}`` closes at the
+    FIRST ``}`` under a flat read, which then desynchronises every subsequent
+    offset in the scan.
+    """
+    depth, i = 1, open_at
+    while i < len(text) and depth:
+        if text[i] == "{":
+            depth += 1
+        elif text[i] == "}":
+            depth -= 1
+        i += 1
+    return text[open_at:i - 1], i
 
 
 def tex_sections(text: str) -> SectionMap:
-    """EXACT section map from LaTeX structural markup."""
-    spans: List[Tuple[int, str]] = []
-    n = 0
-    for m in re.finditer(r"\\section\*?\{([^}]*)\}", text):
-        n += 1
-        spans.append((m.start(), "section %d: %s" % (n, m.group(1).strip())))
+    """EXACT, LEVEL-AWARE section map from LaTeX structural markup.
+
+    See the module docstring, "WHAT rc428 ADDED", item 1 — every design choice
+    here was forced by a measured property of one of the two shipped sources,
+    not chosen for generality.
+    """
+    present = [lv for lv in SECTION_LEVELS
+               if re.search(r"\\" + lv + r"\*?\{", text) is not None]
+    spans: List[Tuple[int, Optional[str], str]] = []
+    if present:
+        depth = {lv: i for i, lv in enumerate(present)}
+        counters = [0] * len(present)
+        pat = r"\\(" + "|".join(present) + r")(\*?)\{"
+        for m in re.finditer(pat, text):
+            title, _end = _balanced_group(text, m.end())
+            title = re.sub(r"\s+", " ", title).strip()
+            if m.group(2):
+                # Starred = unnumbered in LaTeX. Recorded so the span list is
+                # a faithful reading of the document, but NOT addressable and
+                # explicitly NOT advancing the counter.
+                spans.append((m.start(), None, title))
+                continue
+            d = depth[m.group(1)]
+            counters[d] += 1
+            for k in range(d + 1, len(counters)):
+                counters[k] = 0
+            spans.append((m.start(),
+                          "\u00a7" + ".".join(str(c) for c in counters[:d + 1]),
+                          title))
     bib = re.search(r"\\begin\{thebibliography\}", text)
     if bib is not None:
-        spans.append((bib.start(), "BIBLIOGRAPHY"))
+        spans.append((bib.start(), "BIBLIOGRAPHY", ""))
     return SectionMap(spans, exact=True)
 
 
@@ -275,11 +444,11 @@ def pdf_sections_heuristic(text: str) -> SectionMap:
     a PDF alone: this same pattern also matches table rows such as
     ``"3 H ⊕ H"`` and ``"4 H[2]"``, which are not sections.
     """
-    spans: List[Tuple[int, str]] = []
+    spans: List[Tuple[int, str, str]] = []
     for m in re.finditer(r"(?m)^[ \t]*(\d+)[ \t]+([A-Z][^\r\n]{3,60})[ \t]*$",
                          text):
-        spans.append((m.start(), "heuristic %s: %s"
-                      % (m.group(1), m.group(2).strip())))
+        spans.append((m.start(), "heuristic §" + m.group(1),
+                      m.group(2).strip()))
     return SectionMap(spans, exact=False)
 
 
@@ -465,6 +634,38 @@ def strip_tex_markup(text: str) -> str:
     return text
 
 
+def eprint_main_tex(raw: bytes, tag: str,
+                    main_hint: str = "") -> Tuple[bytes, str]:
+    """The main ``.tex`` out of an arXiv e-print payload.
+
+    arXiv serves TWO shapes and they are not distinguishable by URL:
+
+      * a ``.tar.gz`` of the whole submission — Baez (``oct.tex`` + 11 ``.eps``);
+      * a bare **gzipped single file** for single-file submissions —
+        Rosengren (``lectures-new.tex``, 47646 B gz).
+
+    The rc428 note handled only the first and raised ``tarfile.ReadError`` on
+    the second. Sniffing by trying ``tarfile`` first and falling back is the
+    honest order: a tar IS a valid gzip member, so testing gzip first would
+    mis-route every tarball.
+    """
+    try:
+        with tarfile.open(fileobj=io.BytesIO(raw), mode="r:*") as tf:
+            names = sorted(m.name for m in tf.getmembers()
+                           if m.isfile() and m.name.endswith(".tex")
+                           and "/" not in m.name
+                           and not m.name.startswith(".."))
+            if not names:
+                raise RuntimeError("no .tex in e-print for " + tag)
+            chosen = main_hint if main_hint in names else names[0]
+            handle = tf.extractfile(chosen)
+            if handle is None:
+                raise RuntimeError("unreadable .tex member for " + tag)
+            return handle.read(), chosen
+    except tarfile.ReadError:
+        return gzip.decompress(raw), "(single-gz)"
+
+
 def backend_tex(tar_bytes: bytes, tag: str,
                 main_hint: str = "") -> Tuple[str, SectionMap]:
     """arXiv LaTeX e-print — the AUTHOR'S OWN SOURCE, not a rendering.
@@ -477,24 +678,7 @@ def backend_tex(tar_bytes: bytes, tag: str,
     LaTeX sets an en-dash as ``--``; that is folded to U+2013 so dash-variant
     reporting is directly comparable with the rendered-PDF backends.
     """
-    os.makedirs(CACHE, exist_ok=True)
-    tarpath = os.path.join(CACHE, tag + ".tar.gz")
-    outdir = os.path.join(CACHE, tag + "_src")
-    with open(tarpath, "wb") as fh:
-        fh.write(tar_bytes)
-    if not os.path.isdir(outdir):
-        os.makedirs(outdir, exist_ok=True)
-        with tarfile.open(tarpath, "r:*") as tf:
-            for member in tf.getmembers():
-                if member.isfile() and "/" not in member.name \
-                        and not member.name.startswith(".."):
-                    tf.extract(member, outdir)
-    tex_files = sorted(f for f in os.listdir(outdir) if f.endswith(".tex"))
-    if not tex_files:
-        raise RuntimeError("no .tex in e-print for " + tag)
-    chosen = main_hint if main_hint in tex_files else tex_files[0]
-    with open(os.path.join(outdir, chosen), "rb") as fh:
-        raw = fh.read()
+    raw, _chosen = eprint_main_tex(tar_bytes, tag, main_hint)
     # arXiv 2001-era sources are Latin-1/ASCII TeX, NOT UTF-8. Try strict
     # UTF-8 first and fall back ONLY with the encoding recorded, never
     # silently — the fallback is legitimate here because TeX escapes
@@ -510,9 +694,71 @@ def backend_tex(tar_bytes: bytes, tag: str,
 
 
 # ── sources ─────────────────────────────────────────────────────────────
+#
+# WATCHLIST SEEDING POLICY — declared, not implicit (rc428 open question 3).
+#
+# The watchlist is CURATED here and is the gate's ONLY vocabulary. The gate
+# never extracts terms from prose, because auto-extraction was measured and
+# REFUTED: a scan of shipped citations yielded 175 distinct "claim-term"
+# candidates of which the most frequent were ``Crossref`` (31), ``Iterable``,
+# ``Optional``, ``Jun`` and ``Der``. A gate keyed on a contaminated vocabulary
+# fires on typing imports.
+#
+# A term is admitted to a source's watchlist iff BOTH hold:
+#   (a) some shipped srmech citation of THAT source attributes THAT term to it
+#       — so the watchlist is a record of what the tree actually claims, and
+#       cannot grow into a general index of the paper; and
+#   (b) it is a NAMED CONCEPT, not a function word — a proper noun, an object
+#       name, or a multi-word technical phrase.
+#
+# Deliberately NOT seeded: adjacent concepts the paper happens to discuss but
+# that no citation claims. Adding those would raise sensitivity at the cost of
+# making the manifest an index rather than an attestation, and every added row
+# is a row someone must verify.
+#
+# ── VARIANTS, AND THE ONE RULE THAT KEEPS THEM HONEST ──────────────────
+#
+# A watchlist entry is either a bare string, or ``(canonical, [variants…])``.
+# All variants are counted TOGETHER, because the tree and the source routinely
+# name the same object with different words and a gate blind to that reports
+# CORRECT citations false — the mirror of a false null, and just as damaging.
+# Both instances here were measured, not imagined:
+#
+#   * ``cayley_plane.py`` claims "the Cayley plane 𝕆P²" of Baez §4.2. Baez
+#     never writes "Cayley plane" ANYWHERE — 0 occurrences in the whole paper.
+#     He writes "octonionic projective plane" (2 in §4.2) and ``\OP^2``, and
+#     §4.2 states outright that F₄'s 16-dimensional projective plane "is none
+#     other than 𝕆P²". The citation is correct; the vocabulary differs.
+#   * ``cayley_dickson.py`` claims "alternativity" of §1–§2. Baez uses the
+#     ADJECTIVE there ("alternative algebra": 6 in §1.1, 4 in §2.2) and the
+#     noun "alternativity" exactly once, in §3.4.
+#
+# ⚠️ **THE RULE: a variant must be another SPELLING OR STANDARD SYNONYM OF THE
+# SAME NAMED OBJECT, verified by reading the source.** It may NEVER be a
+# different object that happens to share a word. "Moufang identities" may not
+# be varianted into "Moufang plane" — that IS the rc426 defect this whole rc
+# exists for, and the variant set ships inside the manifest precisely so that
+# move is visible to a reader rather than buried in a matcher.
+def _term_and_variants(entry: object) -> Tuple[str, Tuple[str, ...]]:
+    """``"Hopf"`` -> ``("Hopf", ("Hopf",))``; a pair -> canonical + variants."""
+    if isinstance(entry, str):
+        return entry, (entry,)
+    canonical, variants = entry            # type: ignore[misc]
+    return canonical, tuple(variants)
 SOURCES = {
     "arxiv:math/0105155": {
-        "cite_as": "Baez, J.C. (2002), The Octonions, arXiv:math/0105155",
+        "cite_as": "Baez, J.C. (2002), 'The Octonions', Bull. Amer. Math. Soc. "
+                   "39:145-205, arXiv:math/0105155",
+        "source_kind": "arxiv_eprint",
+        # ⚠️ MEASURED, not assumed: arXiv's OLD-SCHEME e-print endpoint does
+        # NOT honour a version suffix — ``…/e-print/math/0105155v4`` returns a
+        # 225-byte error page, not the 70969-byte submission. So the version
+        # cannot be pinned in the URL and is instead **attested by the sha256
+        # of the fetched bytes**, which is the stronger mechanism anyway: if
+        # arXiv ever ships a v5, ``--check`` goes red on the hash rather than
+        # silently re-deriving against different text.
+        "version": "v4",
+        "published": "2002-04-23",   # v4; v1 was 2001-05-17
         "pdf_url": "https://arxiv.org/pdf/math/0105155",
         "eprint_url": "https://arxiv.org/e-print/math/0105155",
         "tex_main": "oct.tex",
@@ -525,6 +771,48 @@ SOURCES = {
         # A term with MULTIPLE dash spellings. This is the control that
         # catches the encoding trap; a single-spelling control cannot.
         "multi_spelling_control": ("Cayley-Dickson", 22),
+        "watchlist": [
+            "Moufang", "Mal'cev", "Cayley-Dickson", "triality", "Fano",
+            "Hopf", "Jordan algebra", "exceptional Jordan", "Freudenthal",
+            "Hurwitz", "Kanerva", "projective plane", "Bott",
+            "Spin(8)", "G_2", "F_4", "associator",
+            "Albert algebra", "Clifford algebra",
+            # The two measured vocabulary variants — see the rule above.
+            ("alternativity", ["alternativity", "alternative"]),
+            ("Cayley plane", ["Cayley plane", "octonionic projective plane",
+                              "\\OP^2", "octonionic projective space"]),
+        ],
+    },
+    # The NEGATIVE CONTROL on the manifest design itself. The instrument's own
+    # stated bound is that it has been validated against exactly one source;
+    # a second source in a different subtree, with a different document
+    # structure (chapters, not subsections) and its own positive control, is
+    # what distinguishes "the schema works" from "the schema fits Baez".
+    "arxiv:1608.06161": {
+        "cite_as": "Rosengren, H. (2016), 'Elliptic Hypergeometric Functions', "
+                   "lectures at OPSF-S6, arXiv:1608.06161",
+        "source_kind": "arxiv_eprint",
+        # OPEN QUESTION 4, DECIDED: the BARE id is the manifest key and the
+        # version is an attested ATTRIBUTE. The tree spells this source both
+        # ``1608.06161`` and ``1608.06161v3``; keying on the versioned spelling
+        # would report the bare one as an uncovered phantom source in arm S4.
+        # The v3 e-print is what was fetched and hashed, and it is recorded.
+        "version": "v3",
+        "published": "2017-06-20",   # v3; v1 was 2016-08-22
+        "pdf_url": "https://arxiv.org/pdf/1608.06161v3",
+        "eprint_url": "https://arxiv.org/e-print/1608.06161v3",
+        "tex_main": "",          # single-file submission; no name to hint
+        # Chosen and written down BEFORE extraction, per the instrument's own
+        # bound that every new source needs its own control.
+        "positive_control": "elliptic",
+        "negative_controls": ["Antikythera", "zygomatic", "qwertzuiop",
+                              "octonion"],
+        "multi_spelling_control": ("Frenkel-Turaev", 8),
+        "watchlist": [
+            "Frobenius", "theta function", "partial fraction", "Weierstrass",
+            "three-term", "elliptic function", "modular", "well-poised",
+            "interpolation", "determinant", "Frenkel-Turaev",
+        ],
     },
 }
 
@@ -565,7 +853,15 @@ def run_controls(text: str, spec: Dict[str, object],
             "term": ms_term, "count": len(ms_hits), "expected": ms_expect,
             "by_dash_variant": by_variant,
             "verdict": "PASS" if len(ms_hits) == ms_expect else "FAIL",
-            "encoding_trap_signature": len(ms_hits) == 4,
+            # ⚠️ rc428 generalisation. This read ``len(ms_hits) == 4`` — the
+            # count Baez's "Cayley-Dickson" collapses to under the Latin-1
+            # misdecode. That literal is a property of ONE term in ONE source
+            # and would have silently reported "no trap" for every other one.
+            # The trap signature is simply *the control missing its expected
+            # count*; the collapsed value differs per term (Rosengren's
+            # "Frenkel–Turaev" is 8 en-dashes with NO ASCII spelling, so it
+            # collapses to 0, not to 4).
+            "encoding_trap_signature": len(ms_hits) != ms_expect,
         },
         "u_fffd_present": has_replacement_chars(text),
     }
@@ -645,6 +941,187 @@ def emit(records: List[Dict[str, object]], path: str) -> None:
         for rec in records:
             fh.write(json.dumps(rec, ensure_ascii=False, sort_keys=True))
             fh.write("\n")
+
+
+# ── the manifest build ──────────────────────────────────────────────────
+#: Where the shipped catalog lives. ``tools/`` -> ``python/`` -> the package.
+CATALOG_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "srmech", "amsc", "attested", "literature_claims")
+
+#: The row schema id. Bumping this is a BREAKING catalog change.
+ROW_SCHEMA_ID = "literature_claims.row.v1"
+
+#: The date the catalog's rows were entered. **A FIXED LITERAL, never
+#: ``date.today()``** — a build stamp that moves every run makes ``--check``
+#: report drift on an unchanged tree, and a check that cries wolf is a check
+#: that gets removed. Bump it deliberately when rows are re-derived.
+CATALOG_ENTERED_AT = "2026-08-12"
+
+
+def build_rows(sid: str, spec: Dict[str, object],
+               verbose: bool = True) -> List[Dict[str, object]]:
+    """The rows for one source: one ``source`` row, then one row per term.
+
+    The positive control runs FIRST and raises :class:`ExtractionBroken` on
+    failure, so a broken extraction produces NO rows rather than a page of
+    zeros. That ordering is the whole defence and it is not an accident of
+    control flow: the alternative — extract, then check — has a path where the
+    zeros are already written.
+
+    ── WHY NOT ONE ROW PER (source, section, term) ──────────────────────
+    The first build did exactly that: the full cross-product, 789 rows and
+    **541 KB**, every row repeating both sha256s and the source URL. Ten times
+    the size the design costed, and the size was pure repetition.
+
+    The shape below is smaller AND keeps absence **decidable**, which is the
+    only property that matters — a manifest recording only presences cannot
+    answer *"is this term absent HERE"*, and that is the sole question the gate
+    asks. Decidability is explicit rather than implied:
+
+      * the ``source`` row declares ``sections`` — the COMPLETE ordered list of
+        addressable labels in the document;
+      * each ``term`` row declares ``occurrences_by_section`` for the NONZERO
+        sections only.
+
+    So "term T is absent at section S" is decided as: the term row exists (T
+    was measured), S is in ``sections`` (S was measured), and S is not a key of
+    ``occurrences_by_section``. A missing key can never be confused with an
+    unmeasured one, because both quantifiers are written down.
+    """
+    tag = sid.replace("/", "_").replace(":", "_")
+    pdf_bytes = fetch(str(spec["pdf_url"]), tag + ".pdf")
+    tar_bytes = fetch(str(spec["eprint_url"]), tag + ".eprint")
+    text, sections = backend_tex(tar_bytes, tag, str(spec["tex_main"]))
+    eprint_sha = sha256_bytes(tar_bytes)
+    pdf_sha = sha256_bytes(pdf_bytes)
+
+    # ── controls FIRST. A failure here aborts before a single row exists.
+    ctrl = run_controls(text, spec, "tex")
+    pos_term = str(spec["positive_control"])
+    pos_n = int(ctrl["positive_control"]["count"])  # type: ignore[index]
+
+    # A second, independent backend, so the counts are not one tool's opinion.
+    gs_text, _gs_sec = backend_gs(pdf_bytes, tag, "utf-8")
+    run_controls(gs_text, spec, "gs")
+
+    labels = sections.labels()
+    titles = sections.titles()
+    if not labels:
+        raise ExtractionBroken(
+            "no numbered sections resolved for %s; a manifest keyed on "
+            "sections cannot be built from a document with none" % sid)
+
+    rows: List[Dict[str, object]] = [{
+        "row_type": "source",
+        "source_id": sid,
+        "source_kind": spec["source_kind"],
+        "source_version": spec["version"],
+        "source_url": spec["eprint_url"],
+        "source_pdf_url": spec["pdf_url"],
+        "cite_as": spec["cite_as"],
+        # The Class-A anchors. The VERSION is attested by these hashes rather
+        # than by a URL pin — see the SOURCES note.
+        "source_eprint_sha256": eprint_sha,
+        "source_pdf_sha256": pdf_sha,
+        "section_attribution": "EXACT",   # LaTeX e-print; never a PDF guess
+        # The COMPLETE addressable label set. This is what makes an absent
+        # key in a term row mean "measured absent" instead of "unmeasured".
+        "sections": list(labels),
+        "section_titles": {lab: titles.get(lab, "") for lab in labels},
+        "positive_control": {"term": pos_term, "occurrences": pos_n},
+        "source_published_date": spec["published"],
+        "entered_locally_at": CATALOG_ENTERED_AT,
+    }]
+    for entry in spec["watchlist"]:           # type: ignore[union-attr]
+        term, variants = _term_and_variants(entry)
+        hits: List[Dict[str, object]] = []
+        gs_total = 0
+        for variant in variants:
+            hits.extend(search(text, variant, sections))
+            gs_total += len(search(gs_text, variant))
+        # Variants can overlap ("alternative" is a prefix of no other variant
+        # here, but "Cayley plane" and "octonionic projective plane" could in
+        # principle co-occur), so de-duplicate BY OFFSET. Counting the same
+        # occurrence twice would inflate a presence claim, and an inflated
+        # presence claim is a citation blessed for the wrong reason.
+        hits = list({int(h["offset"]): h for h in hits}.values())
+        per_section: Dict[str, List[Dict[str, object]]] = {}
+        for h in hits:
+            per_section.setdefault(str(h["section"]), []).append(h)
+        rows.append({
+            "row_type": "term",
+            "source_id": sid,
+            "term": term,
+            "variants": list(variants),
+            "occurrences_by_section": {
+                lab: len(hs) for lab, hs in sorted(per_section.items()) if hs},
+            "spellings": sorted({str(h["literal"]) for h in hits}),
+            "document_total": len(hits),
+            "verdict": "VERIFIED" if hits else "REFUTED",
+            # ⚠️ Counts are NOT sets, so agreement of two totals is reported
+            # as what it is — agreement of two totals — and never as proof
+            # that the two backends found the same occurrences.
+            "backends_agree_on_total": len(hits) == gs_total,
+            # Required by the ``literature_curated`` adapter for per-row
+            # attestation. ``entered_locally_at`` is FIXED, not ``today()``:
+            # a build date that moves makes ``--check`` unreproducible, and a
+            # check that cries wolf is a check that gets removed.
+            "source_published_date": spec["published"],
+            "entered_locally_at": CATALOG_ENTERED_AT,
+        })
+        if verbose:
+            nz = {k: len(v) for k, v in sorted(per_section.items()) if v}
+            print("    %-22s total=%-4d %s" % (term, len(hits), nz or "ABSENT"))
+    return rows
+
+
+def manifest_records(verbose: bool = True) -> List[Dict[str, object]]:
+    """The full ``row.ndjson`` payload, sources in sorted order."""
+    out: List[Dict[str, object]] = []
+    for sid in sorted(SOURCES):
+        if verbose:
+            print("  source", sid)
+        out.extend(build_rows(sid, SOURCES[sid], verbose))
+    return out
+
+
+def cmd_build(check_only: bool = False) -> int:
+    rows = manifest_records(verbose=not check_only)
+    path = os.path.join(CATALOG_DIR, "row.ndjson")
+    body = "".join(json.dumps(r, ensure_ascii=False, sort_keys=True) + "\n"
+                   for r in rows)
+    if check_only:
+        if not os.path.exists(path):
+            print("MISSING", path)
+            return 1
+        with open(path, "r", encoding="utf-8", newline="") as fh:
+            have = fh.read()
+        # ⚠️ LINE-WISE, not byte-wise, and the reason is measured rather than
+        # defensive. This repo stores the sibling catalogs' NDJSON with LF, and
+        # `core.autocrlf=true` on Windows rewrites them to CRLF **on
+        # checkout** — the committed asymptotic_calculus row file is 15301
+        # bytes in the object store and 15360 on the working tree. A byte
+        # comparison would therefore report DRIFT on a completely unchanged
+        # manifest, on the platform this is most likely to be run from, and a
+        # check that cries wolf is a check that gets deleted.
+        #
+        # Line-wise is also the semantically correct unit: NDJSON's content IS
+        # its rows, and a line terminator is transport. What this still
+        # catches, which is everything that matters, is a changed row, a
+        # missing row, an extra row, or a reordering.
+        if have.splitlines() != body.splitlines():
+            print("DRIFT: %s does not match a fresh derivation "
+                  "(%d rows on disk, %d derived)"
+                  % (path, len(have.splitlines()), len(body.splitlines())))
+            return 1
+        print("OK", path, len(rows), "rows identical row-for-row")
+        return 0
+    os.makedirs(CATALOG_DIR, exist_ok=True)
+    with open(path, "w", encoding="utf-8", newline="\n") as fh:
+        fh.write(body)
+    print("wrote", path, len(rows), "rows")
+    return 0
 
 
 def main() -> int:
@@ -789,8 +1266,14 @@ def main() -> int:
     gs_text, _ = backends["gs"]
 
     mou = search(tex_text, "Moufang", tex_sec)
-    in_sec2 = [h for h in mou if "section 2" in str(h["section"])]
-    in_sec3 = [h for h in mou if "section 3" in str(h["section"])]
+    # PREFIX matching, not equality — see :func:`covers`. rc428's level-aware
+    # map resolves subsections, so a "§2" citation must still collect a hit
+    # landing in §2.2. Under equality this test would report 0-in-§2 for the
+    # trivial reason that no hit is in §2's own prose, which is a DIFFERENT
+    # claim from the one rc427 made and would be true of many correct
+    # citations too.
+    in_sec2 = [h for h in mou if covers("§2", str(h["section"]))]
+    in_sec3 = [h for h in mou if covers("§3", str(h["section"]))]
     in_bib = [h for h in mou if str(h["section"]) == "BIBLIOGRAPHY"]
 
     malcev_spellings = ["Mal'cev", "Mal’cev", "Mal\u2032cev", "Malcev",
@@ -877,9 +1360,13 @@ def main() -> int:
         "record": "falsifier_F8_section_attribution",
         "tex_exact": True,
         "pdf_heuristic_reliable": False,
-        "tex_section_2_title": next(
-            (n.split(": ", 1)[1] for s, n in tex_sec.spans
-             if n.startswith("section 2:")), None),
+        "tex_section_2_title": tex_sec.titles().get("§2"),
+        # rc428: the level-aware map resolves SUBSECTIONS, which is what the
+        # tree's §2.4 / §4.1 / §4.2 citations are actually addressed to. A
+        # flat section-only map could not resolve any of them.
+        "tex_subsection_titles": {k: v for k, v in
+                                  sorted(tex_sec.titles().items())
+                                  if k.count(".") == 1},
         "verdict": "EXACT from LaTeX e-print; BOUNDED from rendered PDF",
         "note": "Section attribution is structural in LaTeX and a guess in "
                 "rendered text — the PDF heuristic also matches table rows "
@@ -1009,12 +1496,42 @@ def main() -> int:
         ],
     })
 
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                       "_s1_extractor_rc428.ndjson")
+    # The acceptance record stays in ``notes/`` where it was written and where
+    # its own provenance row points; only the SCRIPT moved to ``tools/``.
+    out = os.path.normpath(os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "..", "..", "notes", "_s1_extractor_rc428.ndjson"))
     emit(records, out)
     print("wrote", out, len(records), "records")
     return 0
 
 
+USAGE = """usage: build_citation_manifest.py [--validate | --build | --check]
+
+  --validate  re-run the F1-F11 falsifier suite; rewrites
+              docs/srmech/notes/_s1_extractor_rc428.ndjson (the frozen
+              rc428 acceptance record). This is the DEFAULT.
+  --build     fetch, extract and write
+              srmech/amsc/attested/literature_claims/row.ndjson
+  --check     re-derive from cached e-prints and byte-compare against the
+              committed row.ndjson; nonzero exit on drift
+"""
+
+
+def cli(argv: Sequence[str]) -> int:
+    mode = argv[1] if len(argv) > 1 else "--validate"
+    if mode in ("-h", "--help"):
+        print(USAGE)
+        return 0
+    if mode == "--build":
+        return cmd_build(check_only=False)
+    if mode == "--check":
+        return cmd_build(check_only=True)
+    if mode == "--validate":
+        return main()
+    print(USAGE)
+    return 2
+
+
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(cli(sys.argv))

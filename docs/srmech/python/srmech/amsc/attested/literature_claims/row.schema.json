@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "literature_claims.row.v1",
+  "title": "Literature Claims Catalogue row schema (v1)",
+  "description": "One row of srmech's source-contains-the-claim attestation layer. Two row kinds share this schema, discriminated by `row_type`. A `source` row records the attested document: its Class-A hashes, its version, its mandatory positive control, and `sections` — the COMPLETE ordered list of addressable section labels. A `term` row records one watchlist term's per-section occurrence counts, NONZERO sections only. Absence is therefore DECIDABLE rather than implied: 'term T is absent at section S' holds iff the term row exists (T was measured), S appears in the source row's `sections` (S was measured), and S is not a key of `occurrences_by_section`. Both quantifiers are written down, so a missing key can never be confused with an unmeasured one. Consumed by tests/test_citation_manifest_rc428.py; produced by python/tools/build_citation_manifest.py --build.",
+  "type": "object",
+  "required": [
+    "row_type",
+    "source_id",
+    "source_published_date",
+    "entered_locally_at"
+  ],
+  "properties": {
+    "row_type": {
+      "type": "string",
+      "enum": ["source", "term"],
+      "description": "Discriminator. 'source' rows carry the document-level attestation; 'term' rows carry one term's per-section counts."
+    },
+    "source_id": {
+      "type": "string",
+      "pattern": "^arxiv:",
+      "description": "The BARE identifier, e.g. 'arxiv:math/0105155' or 'arxiv:1608.06161' — NEVER versioned. Decided at rc428: the version is an attested ATTRIBUTE, not part of the key. The tree spells one source both '1608.06161' and '1608.06161v3'; keying on the versioned spelling would report the bare one as an uncovered phantom source in the gate's coverage arm."
+    },
+    "source_kind": {
+      "type": "string",
+      "enum": ["arxiv_eprint", "arxiv_pdf", "gutenberg_tex", "textbook"],
+      "description": "How the source was obtained. Only 'arxiv_eprint' may carry EXACT section attribution, because \\section{} is structural markup rather than a guess about which line of rendered text looked like a heading."
+    },
+    "source_version": {
+      "type": "string",
+      "description": "The version actually fetched, e.g. 'v4'. MEASURED, and attested by `source_eprint_sha256` rather than pinned in the URL: arXiv's OLD-SCHEME e-print endpoint does not honour a version suffix (…/e-print/math/0105155v4 returns a 225-byte error page, not the 70969-byte submission). Hash attestation is the stronger mechanism anyway — a new upstream version turns --check red instead of silently re-deriving against different text."
+    },
+    "source_url": {
+      "type": "string",
+      "description": "The e-print URL the bytes came from."
+    },
+    "source_pdf_url": {
+      "type": "string",
+      "description": "The rendered-PDF URL used by the second, independent extraction backend."
+    },
+    "cite_as": {
+      "type": "string",
+      "description": "The human-readable citation for the source."
+    },
+    "source_eprint_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "Class-A content address of the fetched e-print bytes. This is what attests the version."
+    },
+    "source_pdf_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "Class-A content address of the fetched PDF bytes (the second backend's input)."
+    },
+    "section_attribution": {
+      "type": "string",
+      "enum": ["EXACT", "PRESENCE_ONLY"],
+      "description": "EXACT only where a LaTeX e-print was retrieved. From rendered PDF alone the heading map is a heuristic that also matches table rows such as '3 H (+) H', so such a source supports presence/absence claims ONLY and must never carry a section-scoped verdict."
+    },
+    "sections": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "The COMPLETE ordered list of addressable section labels, canonical dotted form ('§2', '§2.4', 'BIBLIOGRAPHY'). Level-aware: the top sectioning level PRESENT in the document starts the numbering, so a chapter-bearing source numbers \\section as C.S (Rosengren §1.3) and a chapter-free one numbers it as S (Baez §2, with \\subsection giving §2.4). Starred headings are unnumbered in LaTeX and are deliberately absent — counting \\subsection*{Acknowledgements} would shift every following label by one."
+    },
+    "section_titles": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "Label -> heading title, so a reader can check a locator names the section they think it does. This is what shows at a glance that Baez §4.2 is 'F_4' and not, as a shipped citation claimed through rc427, the home of the octonionic Hopf fibration."
+    },
+    "positive_control": {
+      "type": "object",
+      "required": ["term", "occurrences"],
+      "properties": {
+        "term": { "type": "string" },
+        "occurrences": { "type": "integer", "minimum": 1 }
+      },
+      "description": "MANDATORY per source, and the single most load-bearing field in this schema. A term that MUST be present; the builder ABORTS rather than emit any row when it reads zero. rc428 measured an extraction returning 0 for BOTH 'Moufang' and 'octonion' from a paper titled *The Octonions* — an instrument that can return a spurious zero silently blesses every citation in the tree. `minimum: 1` is therefore part of the contract, not a formality."
+    },
+    "term": {
+      "type": "string",
+      "description": "The canonical watchlist term. Admitted iff some shipped srmech citation of THIS source attributes THIS term to it, and it names a concept rather than being a function word. The watchlist is never auto-extracted: extraction was measured and REFUTED, yielding 175 candidates whose most frequent members were 'Crossref' (31), 'Iterable', 'Optional' and 'Jun'."
+    },
+    "variants": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Spellings counted TOGETHER as the canonical term, because the tree and the source routinely name the same object with different words. Measured: shipped prose claims 'the Cayley plane' of Baez §4.2, and Baez writes 'Cayley plane' NOWHERE — he writes 'octonionic projective plane' and \\OP^2, and §4.2 states outright that F_4's 16-dimensional projective plane 'is none other than OP^2'. THE RULE: a variant must be another spelling or standard synonym OF THE SAME NAMED OBJECT, verified by reading. It may never be a different object sharing a word — 'Moufang identities' may not be varianted into 'Moufang plane', which IS the defect this catalog exists for. Variants ship here precisely so that move is visible to a reader rather than buried in a matcher."
+    },
+    "occurrences_by_section": {
+      "type": "object",
+      "additionalProperties": { "type": "integer", "minimum": 1 },
+      "description": "Section label -> occurrence count, NONZERO entries only (hence `minimum: 1`). A label present in the source row's `sections` but absent here is MEASURED ABSENT. A cited locator matches by DOTTED PREFIX, not equality: §3 covers §3 and §3.1…§3.4, while §4.2 covers §4.2 and deeper but not §4. That rule decides verdicts rather than tidying them — Baez's 'exceptional Jordan' reads 3 in §3's own prose and 4 more in §3.4, so a §3 citation of it is VERIFIED at 7 under prefix matching and REFUTED at 3 under equality."
+    },
+    "spellings": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "The literal spellings actually observed, dash variants distinguished. This is the encoding-trap evidence: Baez sets 'Cayley–Dickson' with an en-dash 18 times and with an ASCII hyphen 4 times, and an ASCII-only search finds 4 of 22 while emitting zero U+FFFD, so nothing warns you."
+    },
+    "document_total": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total occurrences across the whole document, all variants, de-duplicated by offset so overlapping variants cannot double-count. An inflated presence count is a citation blessed for the wrong reason."
+    },
+    "verdict": {
+      "type": "string",
+      "enum": ["VERIFIED", "REFUTED"],
+      "description": "The DOCUMENT-level measurement. VERIFIED = present somewhere with the positive control alive; REFUTED = absent from the whole document, which is a measurement and not silence precisely because the control passed on the same extraction. Section-level verdicts are not stored — the gate computes them by joining a cited locator to `occurrences_by_section` under the prefix rule. The wider claim vocabulary (DERIVED-AND-MEASURED, TEXTBOOK-ATTRIBUTED, UNSOURCED, UNATTESTED) describes CLAIMS, not source facts, and therefore lives with the gate rather than here."
+    },
+    "backends_agree_on_total": {
+      "type": "boolean",
+      "description": "Whether the LaTeX e-print and the rendered-PDF backends returned the same TOTAL. Named for exactly what it measures: COUNTS ARE NOT SETS, and two backends reporting the same number may have found different occurrences. Standing precedent in this project: two reversal laws both scored 2752/4096 on the octonion loop and succeeded on DIFFERENT triples."
+    },
+    "source_published_date": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO 8601 date of the FETCHED VERSION (not v1) — Baez v4 is 2002-04-23 where v1 was 2001-05-17. Required by the literature_curated adapter for per-row attestation."
+    },
+    "entered_locally_at": {
+      "type": "string",
+      "format": "date",
+      "description": "Date the row was entered. A FIXED literal in the builder, never date.today(): a build stamp that moves every run makes --check report drift on an unchanged tree, and a check that cries wolf is a check that gets removed."
+    }
+  },
+  "additionalProperties": false
+}
