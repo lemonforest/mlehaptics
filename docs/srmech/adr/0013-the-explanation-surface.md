@@ -1089,7 +1089,7 @@ three distinct objects:
 |---|---|---|
 | 1 | the **operator-chain / cascade** language — `chain()` + `[cascade]`/`[chain]` TOML | `srmech/dsl/__init__.py:1` (*"srmech.dsl — cascade DSL"*), `c/src/srmech_dsl_chain_run.c` |
 | 2 | the **argument-reference** grammar `@row.col` / `@step[0].output`, nested *inside* sense 1 | ADR-0008 §3.7 |
-| 3 | the **`[class]` object-model** descriptors — "DSL-declared class" | ADR-0003 `:54`, `srmech.h:6005`, `:6076` |
+| 3 | the **`[class]` object-model** descriptors — "DSL-declared class" | ADR-0003 `:54`, `srmech.h:6070`, `:6076` |
 
 **ADR-0008 alone applies "DSL" to two different languages in one document**, confirmed by line: sense 1
 at `:1` (*"Operator-chain DSL — schema specification"*) and `:18`; sense 2 at `:28`, `:100`, `:199`
@@ -1109,12 +1109,12 @@ one.
 
 **`affordance` was considered and rejected.** In this tree the word already carries a specific
 technical sense — **a host-language capability that cannot cross a wire** — and it is the single
-largest of its ~14 load-bearing uses. Verbatim, `c/include/srmech.h:7182-7183`:
+largest of its ~14 load-bearing uses. Verbatim, `c/include/srmech.h:7247-7248`:
 
 > The §101 `progress=` gate is a **Python-only affordance** (a splice has no meaningful partial;
 > **a callable cannot cross the C wire**).
 
-with the near-twin at `srmech.h:7128` — *"predicate stays a **Python-layer** affordance (a callable
+with the near-twin at `srmech.h:7193` — *"predicate stays a **Python-layer** affordance (a callable
 cannot cross the C wire)"* — and the JSON-RPC variant at `introspect/tool_schema.py:3750`, *"an
 IN-PROCESS Python affordance (a callable cannot cross JSON-RPC)"*.
 
