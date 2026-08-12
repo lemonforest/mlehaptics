@@ -14064,7 +14064,7 @@ def _register_closed_form_path_a_tools() -> None:
                   "bin alongside the cross spectrum"),
                 _D,
             ),
-            returns=R("list",
+            returns=R("tuple",
                       "a (frequencies, cross-spectrum) pair; with "
                       "coherence=True the second element is the "
                       "magnitude-squared coherence per bin"),
@@ -14153,7 +14153,7 @@ def _register_closed_form_path_a_tools() -> None:
                   "wavelet family; default 'haar'"),
                 _D,
             ),
-            returns=R("list",
+            returns=R("tuple",
                       "the coarsest approximation band followed by the detail "
                       "bands, finest last"),
             composes=("srmech.math.rational.sqrt",
@@ -14427,7 +14427,7 @@ def _register_closed_form_path_a_tools() -> None:
                   "decoding so trailing pad bits are not mistaken for data"),
                 _D,
             ),
-            returns=R("list",
+            returns=R("tuple",
                       "when encoding, the packed bitstream together with the "
                       "code table and bit length needed to decode it; when "
                       "decoding, the recovered payload"),
@@ -14461,7 +14461,7 @@ def _register_closed_form_path_a_tools() -> None:
                   "code value alone does not say where the message stops"),
                 _D,
             ),
-            returns=R("list",
+            returns=R("tuple",
                       "when encoding, the code value with the frequency table "
                       "and length needed to decode it; when decoding, the "
                       "recovered payload"),
@@ -14758,7 +14758,7 @@ def _register_closed_form_path_a_tools() -> None:
                   "the receive-by-transmit channel matrix"),
                 _D,
             ),
-            returns=R("list",
+            returns=R("tuple",
                       "a (U, singular_values, V) triple; the singular values "
                       "come back in descending order and their count is the "
                       "rank"),
@@ -15044,7 +15044,7 @@ def _register_closed_form_path_a_tools() -> None:
                   "convergence tolerance on the sweep rotation; default 1e-06"),
                 _D,
             ),
-            returns=R("list",
+            returns=R("tuple",
                       "an (unmixing matrix, recovered sources) pair"),
             composes=("srmech.math.laplacian.mat_hermitian_eigendecompose",
                       "srmech.math.rational.sqrt",

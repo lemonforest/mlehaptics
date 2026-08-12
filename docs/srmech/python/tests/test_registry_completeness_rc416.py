@@ -706,66 +706,10 @@ _UNDECLARED_SURFACE_GAPS: Dict[str, str] = {
     'srmech.rbs_lm.substrate.scale_signature': OPEN_REGISTRATION,
     'srmech.rbs_lm.substrate.sim_k4_batch': OPEN_REGISTRATION,
     'srmech.rbs_lm.substrate.token_seed': OPEN_REGISTRATION,
-    # ── srmech.signal_processing.closed_form_ops.allpass ──
-    'srmech.signal_processing.closed_form_ops.allpass.op': OPEN_REGISTRATION,
-    # ── srmech.signal_processing.closed_form_ops.arithmetic_coding ──
-    'srmech.signal_processing.closed_form_ops.arithmetic_coding.op':
-        OPEN_REGISTRATION,
-    # ── srmech.signal_processing.closed_form_ops.beamforming_fixed ──
-    'srmech.signal_processing.closed_form_ops.beamforming_fixed.op':
-        OPEN_REGISTRATION,
-    # ── srmech.signal_processing.closed_form_ops.cross_spectral ──
-    'srmech.signal_processing.closed_form_ops.cross_spectral.op':
-        OPEN_REGISTRATION,
-    # ── srmech.signal_processing.closed_form_ops.dct ──
-    'srmech.signal_processing.closed_form_ops.dct.op': OPEN_REGISTRATION,
-    # ── srmech.signal_processing.closed_form_ops.esprit ──
-    'srmech.signal_processing.closed_form_ops.esprit.op': OPEN_REGISTRATION,
-    # ── srmech.signal_processing.closed_form_ops.farrow ──
-    'srmech.signal_processing.closed_form_ops.farrow.op': OPEN_REGISTRATION,
     # ── srmech.signal_processing.closed_form_ops.fft ──
     'srmech.signal_processing.closed_form_ops.fft.op': OPEN_REGISTRATION,
-    # ── srmech.signal_processing.closed_form_ops.fir ──
-    'srmech.signal_processing.closed_form_ops.fir.op': OPEN_REGISTRATION,
-    # ── srmech.signal_processing.closed_form_ops.fsk ──
-    'srmech.signal_processing.closed_form_ops.fsk.op': OPEN_REGISTRATION,
-    # ── srmech.signal_processing.closed_form_ops.hdc_truncation ──
-    'srmech.signal_processing.closed_form_ops.hdc_truncation.op':
-        OPEN_REGISTRATION,
-    # ── srmech.signal_processing.closed_form_ops.heat_kernel ──
-    'srmech.signal_processing.closed_form_ops.heat_kernel.op':
-        OPEN_REGISTRATION,
-    # ── srmech.signal_processing.closed_form_ops.huffman ──
-    'srmech.signal_processing.closed_form_ops.huffman.op': OPEN_REGISTRATION,
-    # ── srmech.signal_processing.closed_form_ops.ica_jade ──
-    'srmech.signal_processing.closed_form_ops.ica_jade.op': OPEN_REGISTRATION,
     # ── srmech.signal_processing.closed_form_ops.ifft ──
     'srmech.signal_processing.closed_form_ops.ifft.op': OPEN_REGISTRATION,
-    # ── srmech.signal_processing.closed_form_ops.iir ──
-    'srmech.signal_processing.closed_form_ops.iir.op': OPEN_REGISTRATION,
-    # ── srmech.signal_processing.closed_form_ops.jpeg ──
-    'srmech.signal_processing.closed_form_ops.jpeg.dct_op': OPEN_REGISTRATION,
-    'srmech.signal_processing.closed_form_ops.jpeg.op': OPEN_REGISTRATION,
-    # ── srmech.signal_processing.closed_form_ops.lmmse ──
-    'srmech.signal_processing.closed_form_ops.lmmse.op': OPEN_REGISTRATION,
-    # ── srmech.signal_processing.closed_form_ops.lz77 ──
-    'srmech.signal_processing.closed_form_ops.lz77.op': OPEN_REGISTRATION,
-    # ── srmech.signal_processing.closed_form_ops.map_ml ──
-    'srmech.signal_processing.closed_form_ops.map_ml.op': OPEN_REGISTRATION,
-    # ── srmech.signal_processing.closed_form_ops.matched_filter ──
-    'srmech.signal_processing.closed_form_ops.matched_filter.op':
-        OPEN_REGISTRATION,
-    # ── srmech.signal_processing.closed_form_ops.mimo_svd ──
-    'srmech.signal_processing.closed_form_ops.mimo_svd.op': OPEN_REGISTRATION,
-    # ── srmech.signal_processing.closed_form_ops.mlse ──
-    'srmech.signal_processing.closed_form_ops.mlse.op': OPEN_REGISTRATION,
-    'srmech.signal_processing.closed_form_ops.mlse.viterbi_op':
-        OPEN_REGISTRATION,
-    # ── srmech.signal_processing.closed_form_ops.multirate ──
-    'srmech.signal_processing.closed_form_ops.multirate.op': OPEN_REGISTRATION,
-    # ── srmech.signal_processing.closed_form_ops.multitaper ──
-    'srmech.signal_processing.closed_form_ops.multitaper.op':
-        OPEN_REGISTRATION,
     # ── srmech.signal_processing.closed_form_ops.music (was here) ──
     #    rc424 (`#T1113`): DISCHARGED. The MUSIC DOA op earned a ToolEntry
     #    (`srmech.signal_processing.music_doa`) plus a dispatcher registration,
@@ -780,46 +724,12 @@ _UNDECLARED_SURFACE_GAPS: Dict[str, str] = {
     #    `closed_form_ops.music_doa.op`. Dispatcher registration alone changes
     #    nothing here; a ToolEntry pointing at the same object is what closes
     #    the row. The other three still have no ToolEntry at all.
-    # ── srmech.signal_processing.closed_form_ops.ofdm ──
-    'srmech.signal_processing.closed_form_ops.ofdm.op': OPEN_REGISTRATION,
     # ── srmech.signal_processing.closed_form_ops.pi_cascade ──
     'srmech.signal_processing.closed_form_ops.pi_cascade.op':
         OPEN_REGISTRATION,
     # ── srmech.signal_processing.closed_form_ops.polyphase ──
     'srmech.signal_processing.closed_form_ops.polyphase.decompose':
         OPEN_REGISTRATION,
-    'srmech.signal_processing.closed_form_ops.polyphase.op': OPEN_REGISTRATION,
-    # ── srmech.signal_processing.closed_form_ops.psk_qam ──
-    'srmech.signal_processing.closed_form_ops.psk_qam.op': OPEN_REGISTRATION,
-    # ── srmech.signal_processing.closed_form_ops.rfft ──
-    'srmech.signal_processing.closed_form_ops.rfft.op': OPEN_REGISTRATION,
-    # ── srmech.signal_processing.closed_form_ops.rle ──
-    'srmech.signal_processing.closed_form_ops.rle.op': OPEN_REGISTRATION,
-    # ── srmech.signal_processing.closed_form_ops.sign_quantise ──
-    'srmech.signal_processing.closed_form_ops.sign_quantise.op':
-        OPEN_REGISTRATION,
-    # ── srmech.signal_processing.closed_form_ops.sinc_interp ──
-    'srmech.signal_processing.closed_form_ops.sinc_interp.op':
-        OPEN_REGISTRATION,
-    # ── srmech.signal_processing.closed_form_ops.spectral_subtraction ──
-    'srmech.signal_processing.closed_form_ops.spectral_subtraction.op':
-        OPEN_REGISTRATION,
-    # ── srmech.signal_processing.closed_form_ops.spectrogram ──
-    'srmech.signal_processing.closed_form_ops.spectrogram.op':
-        OPEN_REGISTRATION,
-    'srmech.signal_processing.closed_form_ops.spectrogram.stft_op':
-        OPEN_REGISTRATION,
-    # ── srmech.signal_processing.closed_form_ops.stft ──
-    'srmech.signal_processing.closed_form_ops.stft.op': OPEN_REGISTRATION,
-    # ── srmech.signal_processing.closed_form_ops.vector_quantisation ──
-    'srmech.signal_processing.closed_form_ops.vector_quantisation.op':
-        OPEN_REGISTRATION,
-    # ── srmech.signal_processing.closed_form_ops.viterbi ──
-    'srmech.signal_processing.closed_form_ops.viterbi.op': OPEN_REGISTRATION,
-    # ── srmech.signal_processing.closed_form_ops.wavelet ──
-    'srmech.signal_processing.closed_form_ops.wavelet.op': OPEN_REGISTRATION,
-    # ── srmech.signal_processing.closed_form_ops.wiener ──
-    'srmech.signal_processing.closed_form_ops.wiener.op': OPEN_REGISTRATION,
     # ── srmech.signal_processing.path_b_ops.fft ──
     'srmech.signal_processing.path_b_ops.fft.op': DUAL_PATH_TWIN,
     # ── srmech.signal_processing.path_b_ops.hdc_truncation ──
@@ -843,13 +753,13 @@ _UNDECLARED_SURFACE_GAPS: Dict[str, str] = {
 #: a row, never by narrowing the predicate that finds them.
 #: rc424 (`#T1113`): 75 -> 74 — the MUSIC DOA row DELETED, discharged by a
 #: real ToolEntry registration rather than by a narrowed predicate.
-CEIL_UNDECLARED_SURFACE = 74
+CEIL_UNDECLARED_SURFACE = 34
 
 #: DOWN-ONLY sub-ceiling on the DEBT bucket of the undeclared half. The mirror
 #: of :data:`CEIL_OPEN_REGISTRATION`, and the number slice 2 of this arc drains.
 #: rc424 (`#T1113`): 59 -> 58, the MUSIC DOA discharge — the first row this
 #: sub-ceiling has drained since it was seeded at rc419.
-CEIL_UNDECLARED_OPEN_REGISTRATION = 58
+CEIL_UNDECLARED_OPEN_REGISTRATION = 18
 
 #: The union both the ratchet and every allowlist-honesty test are checked
 #: against. Keys are disjoint by construction (a module either declares
