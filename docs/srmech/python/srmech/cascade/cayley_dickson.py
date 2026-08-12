@@ -1379,8 +1379,21 @@ def cd_three_form(x: Sequence[Any], y: Sequence[Any], z: Sequence[Any],
     - Harvey, R. & Lawson, H.B. (1982), *Calibrated geometries*, Acta Math.
       **148** 47–157 — the associative calibration 3-form φ on Im 𝕆 = ℝ⁷.
     - Baez, J.C. (2002), *The Octonions*, Bull. AMS **39** 145–205,
-      arXiv:math/0105155, §4.1 — φ, its Fano-plane values and G₂ = Aut(𝕆) as
-      exactly the stabiliser of φ.
+      arXiv:math/0105155, §4.1 — the associative 3-form ``φ(x,y,z) = ⟨x,yz⟩``
+      on Im 𝕆 and G₂ = Aut(𝕆) as exactly the stabiliser of φ; §2.1 — the
+      Fano-plane multiplication table φ takes its values on.
+
+    ⚠️ ATTESTATION FIX, rc428 (`#T1126`). Through rc427 this cited **§4.1**
+    for "φ, its Fano-plane values and G₂ = Aut(𝕆)". The φ half and the G₂ half
+    are correct — §4.1 states both verbatim — but **"Fano" occurs 0 times in
+    §4.1**; the Fano plane is §2.1, which is where the multiplication table
+    lives. One locator, two claims, one of them false: the citation was
+    SPLIT rather than deleted, because deleting the Fano half would convert a
+    mislocated citation into an unsourced claim, which is a change of defect
+    class and not a fix. Positive control on the same extraction: "Cayley–
+    Dickson" occurs 22× in that paper (18 en-dash, 4 ASCII), so the zero is a
+    measurement rather than silence. Found by
+    ``tests/test_citation_manifest_rc428.py``.
     """
     ex = tuple(_coerce_frac(v) for v in x)
     ey = tuple(_coerce_frac(v) for v in y)
@@ -2384,6 +2397,31 @@ def malcev_defect(x: Sequence[Any], y: Sequence[Any], z: Sequence[Any],
         Exact, no ``abs()``. NO new C symbol — ``composition_of_c`` over the
         c_dispatched ``srmech_cd_mult`` / ``srmech_algebra_table_product``.
         Class C (bracket order) ∘ M ∘ K.
+
+    Provenance — **DERIVED-AND-MEASURED, not cited** (rc428, `#T1126`):
+        rc427 verified that Baez, *The Octonions*, arXiv:math/0105155 —
+        cited here through rc426 for "the Mal'cev tangent algebra" —
+        contains **no occurrence of "Mal'cev" in any spelling**, across nine
+        spellings including the Cyrillic. Positive control on the same
+        extraction: "Cayley–Dickson" occurs 22× (18 en-dash, 4 ASCII), so
+        that zero is a measurement rather than silence. **No attestation is
+        claimed for the Mal'cev verdict and none is substituted unverified**
+        — an unverified replacement would be the same defect wearing a
+        different name. The verdict is DERIVED-AND-MEASURED because srmech
+        computes it and a named test EXECUTES the claim:
+        ``tests/test_loop_bind_moufang.py`` runs ``malcev == 0`` on 𝕆.
+
+        ⚠️ rc427 removed the false citation and recorded that reasoning in a
+        ``#`` comment above this function. A comment does not ship — the
+        claim below reaches users through ``help()``, ``describe()``, the
+        MCP tool list and the compiled-in C registry, and it reached them
+        with no verdict attached. Removing a false citation without moving
+        its verdict into the SAME artifact as the claim converts a false
+        citation into an unsourced one: a change of defect class, not a fix.
+        Gated by ``tests/test_citation_manifest_rc428.py`` arm S3.
+
+        SSoT for the ambient algebra: Schafer, R.D. (1966), *An Introduction
+        to Nonassociative Algebras*, ch. III (Project Gutenberg #25156).
     """
     mul, (a, b, c) = _loop_products(table, x, y, z)
 
