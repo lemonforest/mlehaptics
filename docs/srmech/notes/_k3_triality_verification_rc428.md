@@ -252,3 +252,45 @@ observation, not a curve, and it is not offered as one.
 The single most valuable row in this table is the P3 line, and it exists only
 because the protocol required the adjudicator to **check the disputed item
 rather than count votes**. That rule is doing the work, not the number three.
+
+---
+
+## 7. Repair-pass correction to §2 — the right number, the wrong carrier
+
+Added by the rc428 REPAIR pass, which re-measured the adjudication rather than
+inheriting it. The §2 table's **latin-1 misdecode** row is correct in its
+verdict and its integer, and **wrong about which backend produces it**.
+
+Measured on the same e-print (sha256 `90b0bceb…`, matching the shipped
+manifest):
+
+| carrier | non-ASCII bytes | `utf-8` vs `latin-1` decode | `Cayley-Dickson` |
+|---|---|---|---|
+| e-print `oct.tex` (the LaTeX source) | **0** | **byte-identical strings** | 22 → **22** (no change) |
+| rendered PDF via ghostscript | many | genuinely different | 22 → **4** |
+
+`oct.tex` contains **zero** non-ASCII bytes, so `raw.decode("utf-8")` and
+`raw.decode("latin-1")` return the *same string* — the misdecode is a provable
+**no-op** on the TeX backend, and LaTeX sets its en-dashes as ASCII `--`. The
+22 → 4 collapse is reproducible **only on the rendered-PDF text**, where real
+multi-byte U+2013 bytes exist to be mangled. Likewise the row's `Hopf` figures
+are TeX-backend values (20); ghostscript reads 19.
+
+So the adjudicator's `CD=4` was right, and right about the gs backend, while
+the surrounding construction was described as if it ran on the e-print. 8v's
+`CD=7` remains unreproduced on either carrier.
+
+**This does not disturb the P3 verdict — it strengthens it.** The dissent was
+that extraction can report a present term absent without aborting, and both
+the gs misdecode (4 of 22) and the 2% truncation (0 of 22, positive control
+still passing) demonstrate it. Naming the carrier matters because the fix has
+to be attached to something: the guard now runs against **both** backends, and
+the second backend's controls were precisely the ones being computed into a
+discarded return value.
+
+**The methodological point survives intact and is worth stating plainly.** All
+three reps, the adjudicator, and this repair pass each got some quantity wrong
+while agreeing on the direction — 8v on two integers, the adjudicator on the
+carrier. Every one of those errors was found by *re-running the measurement*,
+and none by *re-reading the argument*. That is the rule this whole exercise
+keeps re-deriving: **check the disputed item; do not count the votes.**
