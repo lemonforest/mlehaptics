@@ -598,13 +598,297 @@ def section3(tree: str, rc430_path: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# VERDICTS — operator analysis rows, written after reading each op's source.
-# Kept in this file so the analysis is committed and reproducible alongside
-# the numbers it interprets. Populated in the verdict pass; empty on the
-# probe passes.
+# SECTION 3X — targeted probes the stride sample forced. Each case was
+# REGISTERED after reading the op's source and BEFORE running it; `expect`
+# records the prediction so a surprise is visible as a surprise.
 # ---------------------------------------------------------------------------
 
-VERDICT_ROWS: List[Dict[str, Any]] = []  # filled by the verdict edit pass
+S3X_CASES: List[Tuple[str, tuple, str, str]] = [
+    ("srmech.cascade.vec_add", ([1.0], [1.0, 2.0]),
+     "b_longer_than_a",
+     "EXPECT [2.0] — silent truncation of b's tail (body indexes by len(a)); "
+     "if so this is the SILENT WRONG ANSWER class"),
+    ("srmech.cascade.vec_add", ([1.0, 2.0], [1.0]),
+     "a_longer_than_b",
+     "EXPECT IndexError leak (no guard)"),
+    ("srmech.cascade.dft_scale", (True, 0),
+     "inverse_n_zero",
+     "EXPECT 1.0 — documented ('else 1.0'; wrapper-layer owns the n==0 "
+     "early-return)"),
+    ("srmech.cascade.kuramoto_inv_n", (2.0, 0),
+     "n_zero",
+     "EXPECT 0.0 — documented total on n >= 0"),
+    ("srmech.math.cyclic.primitive_integer_vector", ([0, 0],),
+     "all_zero_vector",
+     "EXPECT [0, 0] — docstring: 'the all-zero vector maps to all-zeros' "
+     "(no gcd(0,0) division blow-up)"),
+    ("srmech.cascade.is_division_algebra_dim", (0,),
+     "dim_zero", "EXPECT False (0 not in {1,2,4,8})"),
+    ("srmech.math.laplacian.recover_check_structural",
+     (2, [(0, 1)], [1]),
+     "valid_instance",
+     "EXPECT ok_structural True — proves the checker CAN pass (an "
+     "instrument that cannot return otherwise is not a measurement)"),
+    ("srmech.signal_processing.cross_spectral", ([], []),
+     "empty_both",
+     "EXPECT (256 freqs, 256 zero bins) — the zero-padded single segment; "
+     "recorded in full to decide QUESTIONABLE vs WRONG"),
+]
+
+
+def section3x(tree: str) -> None:
+    env_row(tree, {"section": "s3x"})
+    for op, args, label, expect in S3X_CASES:
+        fn = resolve_dotted_callable(op)
+        got = _call(fn, args, timeout=4)
+        if op.endswith("cross_spectral") and got["outcome"] == "RETURNED":
+            freqs, s = fn(*args)
+            got["value"] = ("len(freqs)=%d len(s)=%d all_zero=%s"
+                            % (len(freqs), len(s),
+                               all(v == 0 for v in s)))
+        emit({"row": "s3x_execute", "tree": tree, "op": op,
+              "input": repr(args)[:100], "input_label": label,
+              "expect": expect, **got})
+
+
+# ---------------------------------------------------------------------------
+# VERDICTS — operator analysis rows, written after reading each op's source
+# and the s3/s3x executions. Kept in this file so the analysis is committed
+# and reproducible alongside the numbers it interprets.
+# ---------------------------------------------------------------------------
+
+_V = {"row": "s3_verdict"}
+
+VERDICT_ROWS: List[Dict[str, Any]] = [
+    # ---- section 1 per-site repair verdicts (guard vs docstring) ----
+    {"row": "s1_verdict", "op": "srmech.cascade.matrix_cascades.lll_reduce",
+     "defect_at_rc430": "non-sequence rows leak TypeError from the "
+        "coercion listcomp (:3182); RAGGED rows already raised the "
+        "PROMISED ValueError (:3189), so the declared ragged case was "
+        "ENFORCED — the brief's 'not guarded at all' is half right",
+     "repair": "GUARD (ValueError naming the offending row) + docstring "
+        "extension; found ALREADY LANDED in-flight (_lll_check_basis, "
+        "uncommitted build-agent edit) and verified by execution",
+     "why_not_docstring_only": "the container is the right KIND (a "
+        "sequence) with wrong CONTENT; house precedent routes malformed "
+        "nested input to ValueError (qr 'must be a rectangular 2-D "
+        "array-like', cd_add 'dimension mismatch', coupled.py:187). The "
+        "element-level reading (TypeError) is defensible but is not the "
+        "measured house majority for nested-content defects"},
+    {"row": "s1_verdict", "op": "srmech.cascade.signed_sum_squared",
+     "defect_at_rc430": "non-iterable rows ([1, 2]) leak TypeError from "
+        "rows-materializing listcomp (:905). Every case the Raises block "
+        "DECLARED (empty / ragged / non-0-1 bit) was measured ENFORCED "
+        "with ValueError — the defect is UNDER-declaration plus an "
+        "unguarded input, NOT a mis-behaving declared case",
+     "repair": "GUARD (ValueError before materialization) + docstring "
+        "extension declaring the non-iterable case; found ALREADY LANDED "
+        "in-flight and verified by execution",
+     "why_not_docstring_only": "weakening 'Raises ValueError' to bless "
+        "an accidental TypeError from a listcomp would codify an "
+        "accident; the ragged promise needed NO repair (it held)"},
+    {"row": "s1_verdict", "op": "srmech.signal_processing.iir",
+     "defect_at_rc430": "THREE distinct leaks, two unrecorded by rc430: "
+        "(1) a==[] -> IndexError at _lfilter_direct:56 (recorded); "
+        "(2) a[0]==0.0 -> ZeroDivisionError at :57 (UNRECORDED); "
+        "(3) b==[], valid a -> RETURNED [0.0]*len(signal) while the "
+        "co-equal C peer rejects nb==0 with SRMECH_ERR_NULL_ARG — a "
+        "measured SILENT co-equal-projection divergence (UNRECORDED); "
+        "rc430's docstring had NO Raises section, so at baseline this "
+        "was unguarded-and-undeclared, not declared-vs-enforced",
+     "repair": "GUARD at op(): empty b/a -> ValueError, a[0]==0 -> "
+        "ValueError, stating the SAME predicate the shipped C contract "
+        "already enforces; found ALREADY LANDED in-flight and verified "
+        "by execution (all three leaks now ValueError)",
+     "why_not_docstring_only": "documenting [0.0]*n for b==[] would "
+        "canonize a divergence between co-equal projections; the "
+        "consistency oracle says the DISAGREEMENT was the defect "
+        "(capability is the invariant across projections)"},
+
+    # ---- section 3 sampled-acceptor verdicts (15 stride + 2 forced) ----
+    {**_V, "op": "srmech.cascade.vec_add",
+     "verdict": "SILENT_WRONG_ANSWER",
+     "reasoning": "vec_add([1.0],[1.0,2.0]) returns [2.0]: b's tail is "
+        "silently DROPPED (body iterates range(len(a))); the mirror "
+        "orientation leaks IndexError. A public registry op (introspect "
+        "IS the API contract) whose docstring declares no equal-length "
+        "precondition as a raise. House precedent for the repair: "
+        "coupled.py:187 'all streams must have equal length' ValueError. "
+        "THE CRITICAL FINDING OF THIS SECTION"},
+    {**_V, "op": "srmech.cascade.vec_scale", "verdict": "CORRECT_TOTAL",
+     "reasoning": "scalar broadcast has no mismatch axis; [] -> []"},
+    {**_V, "op": "srmech.cascade.autocorrelation",
+     "verdict": "CORRECT_TOTAL",
+     "reasoning": "[1,2] -> [5.0, 4.0] matches the DOCUMENTED circular "
+        "convention r[k]=Σ x[i]x[(i+k) mod n] (r0=1+4, r1=1*2+2*1); "
+        "n==0 -> [] is documented"},
+    {**_V, "op": "srmech.cascade.chiral_flip", "verdict": "CORRECT_TOTAL",
+     "reasoning": "reversal; [] reverses to []"},
+    {**_V, "op": "srmech.cascade.dft_scale",
+     "verdict": "CORRECT_BY_DOCUMENTED_CONVENTION",
+     "reasoning": "(True, 0) -> 1.0 per the documented 'else 1.0'; the "
+        "n==0 case is owned by the wrapper early-return ('if not xs: "
+        "return []'), so the scale is never applied to real data"},
+    {**_V, "op": "srmech.cascade.int_parse_le",
+     "verdict": "CORRECT_BY_STDLIB_CONVENTION",
+     "reasoning": "b'' -> 0 matches int.from_bytes(b'', 'little'); "
+        "convention undocumented in the docstring (minor gap)"},
+    {**_V, "op": "srmech.cascade.kuramoto_step", "verdict": "CORRECT_TOTAL",
+     "reasoning": "([], []) -> [] vacuous zero-oscillator roster; the "
+        "K/n scale is separately total via kuramoto_inv_n's documented "
+        "n==0 -> 0.0. (Its nested-element TypeError leak is a SECTION 2 "
+        "finding, not an acceptance defect)"},
+    {**_V, "op": "srmech.cascade.spectral_cascades.dft",
+     "verdict": "CORRECT_BY_DOCUMENTED_CONVENTION",
+     "reasoning": "[] -> [] wrapper early-return; DFT of the empty "
+        "sequence is the empty sequence (trivial vector space)"},
+    {**_V, "op": "srmech.cascade.spectral_cascades.ifft",
+     "verdict": "CORRECT_BY_DOCUMENTED_CONVENTION",
+     "reasoning": "same wrapper convention as dft"},
+    {**_V, "op": "srmech.math.cyclic.primitive_integer_vector",
+     "verdict": "CORRECT_TOTAL",
+     "reasoning": "[] -> [] vacuous; [0,0] -> [0,0] measured, matching "
+        "the documented 'all-zero vector maps to all-zeros' (no gcd(0,0) "
+        "blow-up)"},
+    {**_V, "op": "srmech.math.laplacian.order_fingerprint",
+     "verdict": "CORRECT_TOTAL",
+     "reasoning": "[] -> [1,0,0,0,0,0,0,0] is the octonion IDENTITY: the "
+        "empty path-ordered product is the empty product = identity — "
+        "mathematically forced, not an accident"},
+    {**_V, "op": "srmech.math.laplacian.recover_check_structural",
+     "verdict": "CORRECT_CHECK_SEMANTICS",
+     "reasoning": "a checker REPORTS rather than raises: (0,[],[]) -> "
+        "ok_structural False is the right verb for a failed integrity "
+        "check (empty edge set / len(edges)!=len(weights) are genuinely "
+        "not-ok inputs), and s3x PROVES the gate can go green: "
+        "(2,[(0,1)],[1]) -> ok_structural True"},
+    {**_V, "op": "srmech.signal_processing.cross_spectral",
+     "verdict": "QUESTIONABLE_CONVENTION",
+     "reasoning": "([], []) -> a 256-bin frequency axis with all-zero "
+        "CSD: the documented single-zero-padded-segment estimate, so the "
+        "SHAPE honors the contract ('two lists of length frame_size'), "
+        "but an ESTIMATE fabricated from zero observations is a trap for "
+        "downstream consumers (scipy.signal.csd errors here). Not "
+        "silent-WRONG (the values are exactly the transform of the "
+        "zero-padded frame); recommend an explicit empty-input guard or "
+        "a documented empty convention"},
+    {**_V, "op": "srmech.signal_processing.multitaper",
+     "verdict": "ACCEPTED_PLAUSIBLE_UNVERIFIED",
+     "reasoning": "[] -> [] correct; [1,2] -> 2-bin PSD of plausible "
+        "magnitude. The numeric values were NOT independently re-derived "
+        "here — stated plainly rather than smoothed over"},
+    {**_V, "op": "srmech.signal_processing.rle", "verdict": "CORRECT_TOTAL",
+     "reasoning": "b'' -> []; b'ab' -> [(97,1),(98,1)] exact"},
+    {**_V, "op": "srmech.signal_processing.spectral_subtraction",
+     "verdict": "CORRECT_TOTAL",
+     "reasoning": "the suspicious-looking ([1,2],[1,2]) -> [1.34,1.48] "
+        "dissolves on reading the signature: the second param is a noise "
+        "PSD (power), not a noise signal — subtracting psd [1,2] from "
+        "obs_psd [9,1] with the beta floor is computed as documented; "
+        "empty inputs -> [] via the length-match + fft of []"},
+
+    # ---- costs ----
+    {"row": "cost", "item": "three rc430 sites (lll_reduce / "
+        "signed_sum_squared / iir)",
+     "size": "ZERO additional — repairs found already landed in-flight "
+        "on srmech-rc431 (uncommitted at measurement time, pinned by "
+        "sha256 in the s1 env row) and verified here by execution; "
+        "needs only the build agent's own tests/commit",
+     "rc": "rc431 (in flight)"},
+    {"row": "cost", "item": "family A — nested-element type-leak, 4 "
+        "remaining ops (spectral_block_dispatch, relative_writhe, "
+        "bundle_with_ties, kuramoto_step)",
+     "size": "SMALL — one ~6-line shape guard + one docstring line each; "
+        "spectral_block_dispatch first (a RAGGED block sits INSIDE its "
+        "declared 'a block is not square -> ValueError' promise and "
+        "leaks TypeError)",
+     "rc": "fits rc431 if the build agent has room; else own follow-up"},
+    {"row": "cost", "item": "family B — assert-as-input-guard "
+        "(continued_fraction_convergents:2416, path_registry.lookup:257)",
+     "size": "TINY — convert 2 asserts to raises of the DECLARED types "
+        "(convergents EXPLICITLY declares 'TypeError: contains non-int "
+        "entries' and enforces it with an assert python -O deletes — the "
+        "sharpest declared-vs-enforced instance measured); add an -O or "
+        "type test",
+     "rc": "fits rc431"},
+    {"row": "cost", "item": "family C — den==0 ZeroDivisionError vs "
+        "ValueError house collision (_reduce_rational:662 feeding 8 "
+        "CD-family ops that promise only ValueError, vs rational_div:792 "
+        "raising ValueError for the SAME condition in the SAME module)",
+     "size": "MEDIUM — a CONVENTION DECISION first (which type does "
+        "den==0 get?), then either 8 docstring additions (declare "
+        "ZeroDivisionError) or one root repair at _reduce_rational with "
+        "ripple across consumers, the C bigq peer, and tests",
+     "rc": "own follow-up rc; do not rush the decision inside rc431"},
+    {"row": "cost", "item": "family D — docstring under-declaration "
+        "(lcm, factor, rational_div; int_parse_le empty-bytes note)",
+     "size": "TINY — docstring-only additions, no behavior change",
+     "rc": "fits rc431"},
+    {"row": "cost", "item": "vec_add silent truncation (+ IndexError "
+        "mirror)",
+     "size": "SMALL — len-equality ValueError per coupled.py:187 "
+        "precedent; NOTE it is the Σ_m fold body of the hypercomplex DFT "
+        "chains, so either accept the per-call check in the hot loop or "
+        "guard at the public boundary only — maintainer's call",
+     "rc": "rc431 or immediate follow-up — silent-wrong outranks"},
+    {"row": "cost", "item": "cross_spectral empty-input convention",
+     "size": "TINY — either a 2-line empty guard (ValueError) or one "
+        "docstring sentence declaring the zero-padded-empty estimate",
+     "rc": "follow-up"},
+
+    # ---- what the brief got wrong (measured) ----
+    {"row": "brief_errata", "n": 1,
+     "claim": "signed_sum_squared's docstring 'PROMISES ValueError for "
+        "ragged input... so it raises TypeError'",
+     "measured": "ragged input raised the PROMISED ValueError at "
+        "composites:913 on the rc430 tag; the TypeError leak is the "
+        "NON-ITERABLE-ROW shape ([1, 2]) only, which the rc430 Raises "
+        "block did not describe. Under-declaration + leak, not a "
+        "mis-behaving declared case"},
+    {"row": "brief_errata", "n": 2,
+     "claim": "lll_reduce: 'basis... is not guarded at all'",
+     "measured": "half right: ragged bases raised the promised "
+        "ValueError ('all basis rows must have equal length', "
+        "_lll_reduce_pure:3189) at rc430; only non-sequence rows leaked "
+        "TypeError. The docstring already declared the ragged case"},
+    {"row": "brief_errata", "n": 3,
+     "claim": "iir: 'a0 = a[0] ... no length check -> IndexError' (the "
+        "whole finding)",
+     "measured": "understated: baseline iir ALSO leaked "
+        "ZeroDivisionError for a[0]==0.0 AND returned [0.0]*n for b==[] "
+        "where the co-equal C peer rejects — the silent-divergence class "
+        "the brief's own section 3 was hunting, inside a section-1 op"},
+    {"row": "brief_errata", "n": 4,
+     "claim": "'31 failed, of which 36 raise ValueError from an srmech "
+        "helper past depth 2 and 3 are genuinely unguarded'",
+     "measured": "arithmetic as written is impossible (36 > 31); rc430's "
+        "NDJSON says 31 OPS with deep failure among 91 probed; the 36 "
+        "will be probe-EVENTS. Reconstruction here: 91 probed, 44 "
+        "accepted-every-edge-arg, exactly reproducing rc430"},
+    {"row": "brief_errata", "n": 5,
+     "claim": "environment as briefed (origin/main at rc430; build agent "
+        "'live on the same branch')",
+     "measured": "by run time the branch carried UNCOMMITTED repairs to "
+        "all three named sites and version.py already read 0.9.0rc431 — "
+        "'someone else will act on it' had partially happened BEFORE the "
+        "measurement completed; s1 pins the acted-on state by hash"},
+
+    # ---- coordinator decision-rule addendum ----
+    {"row": "convention_note",
+     "note": "Opposite-direction convention violations found (requested): "
+        "(1) _reduce_rational:662 raises ZeroDivisionError for a VALUE "
+        "defect (an input rational with den==0) while rational_div:792 "
+        "raises ValueError for the same condition — the tree answers the "
+        "den==0 type question BOTH ways within one module; (2) two "
+        "assert-guards raise AssertionError where TypeError / "
+        "UnknownOperationError are declared. Boundary case noted "
+        "plainly: the in-flight lll_reduce / signed_sum_squared repairs "
+        "raise ValueError for non-sequence ELEMENTS — correct under the "
+        "argument-level reading and the qr/cd_add house precedent, "
+        "though the element-level reading of the TypeError/ValueError "
+        "rule would say TypeError; flagged for the maintainer rather "
+        "than silently resolved"},
+]
 
 
 def section_verdicts() -> None:
@@ -623,6 +907,8 @@ def main() -> int:
     elif which == "s3":
         section3(sys.argv[2], sys.argv[3] if len(sys.argv) > 3
                  else RC430_NDJSON)
+    elif which == "s3x":
+        section3x(sys.argv[2])
     elif which == "verdicts":
         section_verdicts()
     else:
