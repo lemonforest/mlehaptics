@@ -300,8 +300,28 @@ from srmech.math.text import fold_marks, glyph_stream
 #: (numpy-absent) — five successive ``_build_frames('all')`` calls inside each
 #: of THREE fresh interpreters — one hash every time, ``len(frames) == 684``
 #: every time, and the ops/carriers sub-corpora summing to it on every build.
+#: RE-PINNED at the rc430 repair (`#T1127`), and the mover is NOT where a
+#: reader would look first. That repair edited ``returns.type`` on seven ops —
+#: and ``returns`` is not in the corpus at all (the fields are name / category /
+#: summary / explanation / example.* / composes / preserves). The corpus moved
+#: through its CARRIER half instead: ``kuramoto_sin_term`` and
+#: ``kuramoto_gen_term`` were declared ``float`` and actually return ``Q``, so
+#: correcting them moved both ops out of the **float** carrier's ``produces``
+#: list and into **Q**'s — and the carrier frames embed those op lists. Measured
+#: rather than reasoned: the two ops appear in exactly THREE carrier frames
+#: (``Q``, ``float``, ``int``), and ``len(frames)`` stays 684, so no frame was
+#: added or dropped — two frames changed content.
+#:
+#: That is the witness doing its job on the second-order effect of a
+#: declaration fix, which is precisely the drift it exists to catch: a consumer
+#: reading the carrier index was being told float produces something it does not.
+#:
+#: Re-measured the documented way BEFORE re-pinning: FIFTEEN builds on WSL2
+#: (numpy-absent) — five successive ``_build_frames('all')`` calls inside each of
+#: THREE fresh interpreters — ONE hash every time, ``len(frames) == 684`` every
+#: time, and ops (655) + carriers (29) summing to 684 on every build.
 WITNESS_RC416 = (
-    "fec2cdcb48c29c1ffeef49cf4ada4b3049b267c91fb399bc82813d421d8f3033")
+    "50ee7c0d5aedf0865cbe902f87949048a6c38872f6a2fabf4ac67f972827c476")
 
 #: The ASCII control set. These four queries are the ops the tokenizer work is
 #: ABOUT, so a regression on them would be the change eating its own subject.
