@@ -48,7 +48,7 @@ A `*_c` ctypes wrapper returns `None` to mean *"native absent — run the pure b
 
 The wrapper at `_native/__init__.py:10419` **re-states the C predicate** (`nb == 0 or na == 0 or a_list[0] == 0.0`) and then discards it by returning `None`, which `op()` reads as *"native absent"*. So the op answered an input its own co-equal projection calls invalid, with a plausible-looking all-zero signal.
 
-**Python moves to C, never the reverse.** C is the already-shipped, stricter, correct contract, and the capability is the invariant across co-equal projections. The guard now lives in `op()` **before dispatch**, so both arms refuse identically; it is deliberately NOT duplicated inside `_lfilter_direct`, whose only other caller is the biquad branch passing length-3 vectors — a second guard there would be a second unreachable one.
+**Python moves to C, never the reverse.** C is the already-shipped, stricter, correct contract, and the capability is the invariant across co-equal projections. The guard lives in `op()` **before dispatch**, so both arms refuse identically — and it is applied on **both** branches of `op()`, direct and biquad. ⚠️ The first cut applied it to the direct `(b, a)` branch alone, reasoning that the biquad branch always passes length-3 slices of a length-6 section so a second guard would be unreachable. **That is true of the LENGTH predicate and false of `a[0] == 0`** — see the repair section at the foot of this entry.
 
 #### The headline number is 1, and the brief expected a pattern
 
@@ -108,6 +108,25 @@ A floor that only ever rises is not a measurement. If a later seed lowers it, th
 #### What this rc still cannot see
 
 The census reads the C side statically and executes only the Python side, under `SRMECH_EXPECT_PURE=1` against a stale ABI-12 `.so` — **no C code was executed to produce any number here**. It therefore cannot see a divergence in which **both arms return a value and the values differ**, which is this project's worst defect class. The 44 rc430 acceptors that took every edge argument remain **UNADJUDICATED** on the value axis; this rc adjudicates only the subset where one arm *refuses*.
+
+### The repair pass — two of the four repairs were themselves wrong (`#T1129`)
+
+The triage of this rc found three confirmed defects, **two of them introduced by rc431's own repairs**. That is the expected failure mode of an rc whose subject is input-domain guards: a guard is code, and code written to reject bad input can reject good input or eat it.
+
+**1. The shape guard that ate the lattice — a NEW silent wrong answer, the same class as `vec_add`.** `_lll_check_basis` *walks* `basis` in order to validate it, which **consumes a one-shot iterable**. The first cut called it for its exception only and then handed the **original** object to the arms, so a generator basis arrived exhausted, read as the empty lattice, and `lll_reduce` **RETURNED `[]`** — for input rc430 reduced correctly:
+
+```
+rc430   lll_reduce(iter([[1,1,1],[-1,0,2],[3,5,6]]))  ->  [[0,1,0],[1,0,1],[-1,0,2]]
+rc431a  same call                                     ->  []          SILENTLY WRONG
+```
+
+A shape guard that silently deletes the caller's data is strictly worse than the bare `TypeError` it was written to replace — the `TypeError` at least said something was wrong. The guard now **materialises** rows and the front door **rebinds** `basis` to its return, so both arms receive real data. The regression test asserts a one-shot basis, one-shot rows and a generator expression all equal the list answer — compared against `lll_reduce` of the same lattice spelled as lists, never against a literal, so the case cannot drift.
+
+**2. The headline divergence survived the headline repair, on the branch nobody probed.** `iir`'s guard was placed only on the direct `(b, a)` branch, justified by "the biquad branch always passes length-3 slices, so a second guard would be unreachable". **Two predicates were being reasoned about as one, and the reachability argument was sound about the wrong one:** no slice length constrains a *value*. `[1, 0, 0, 0, 0, 0]` is a well-formed 6-coefficient section whose `a0` is `0.0`, and it still reached `_lfilter_direct` and raised a raw `ZeroDivisionError` while `srmech_iir_lfilter_f64` refuses the identical section with `SRMECH_ERR_BAD_INPUT`. The C domain is now stated once in `_check_ba` and enforced on **both** branches, per section, naming which section. The `Raises:` block says so. The two axes are asserted in **separate** tests so that repairing one can never be mistaken for repairing both.
+
+**3. `tools/ripple_gates.txt` lost its backticked tokens to shell command substitution.** The rc431 block was appended through a heredoc, and `` `#T1129` ``, `` `#T1094` ``, `` `*_c` `` and `` `signal_processing.iir` `` were executed and replaced by nothing — leaving `(rc431, )` and "A  wrapper" and "measured at rc431 on  (b == [])". Every other entry in the file uses backticks, so the loss was silent and local. Restored, with the mechanism named in-file so the next appender sees it.
+
+**The fixture audit that closes the loop.** `docs/srmech/notes/_k3_fixture_audit_rc431.py` mutation-tests every assertion this rc added: apply the minimal mutation the assertion claims to catch, and require it to **fail**. **12 fixtures audited, 0 DEAD**, and the auditor carries a **planted dead fixture** — an assertion that says nothing about its subject — which it must report `DEAD` or the whole run is void. It did. The residual ratchet is reported rather than mutated and is **TIGHT**: residual 25, ceil 25, slack 0. Null classification **BOUNDED** — the audit covers assertions for which an in-process subject mutation exists, and the rows outside that bound are named individually.
 
 ## [0.9.0rc430]
 
