@@ -56,6 +56,7 @@ Instrument: ``tools/frame_probe.py``. Census + NDJSON:
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import sys
 from pathlib import Path
@@ -98,6 +99,13 @@ REVIEWED_ROSTER: Dict[str, Tuple[str, Tuple[str, ...]]] = {
     "srmech.cascade.qdft_summand": ("parametric", ("modulus",)),
     "srmech.math.covering.center_parity": ("fixed", ("modulus",)),
     "srmech.math.covering.lift_fibre": ("parametric", ("modulus",)),
+    # Added at the rc430 REPAIR, not at rc430: the probe's degeneracy screen
+    # was foreclosing the parametric sweep whenever the base arguments made the
+    # op constant along the swept coordinate, so `gcd` measured NOT_ADMISSIBLE
+    # and the both-directions gate passed against a census short by one. Its
+    # own delegating alias `srmech.cascade.cyclic_gcd` (below) had declared
+    # parametric/modulus since rc430 — the primitive and the alias disagreed.
+    "srmech.math.cyclic.gcd": ("parametric", ("modulus",)),
     "srmech.math.cyclic.mod_add": ("parametric", ("modulus",)),
     "srmech.math.cyclic.mod_mul": ("parametric", ("modulus",)),
     "srmech.math.cyclic.mod_mul_arrow": ("parametric", ("modulus",)),
@@ -260,6 +268,32 @@ def test_there_is_deliberately_no_free_scope() -> None:
 # 2. THE RATCHET — declared matches measured
 # ══════════════════════════════════════════════════════════════════════
 
+def assert_declaration_matches(entry: ToolEntry, rec: Dict[str, Any]) -> None:
+    """THE COMPARISON, as ONE callable — the whole ratchet and nothing else.
+
+    §2 below is this function applied to the live registry. §6's falsifiers are
+    this same function applied to a DELIBERATELY MIS-DECLARED copy of an entry,
+    required to raise.
+
+    That sharing is the point, and it is a repair (`#T1127`). At rc430 the two
+    §6 falsifiers RE-SPELLED the comparison inline instead of calling it, which
+    made both of them dominated by §2: each concluded `measured != lie` from
+    premises §2 had already established (`measured == entry.frame_scope` and
+    `entry.frame_scope != lie`), so neither could fail in any state where §2
+    passed. They could only go red AFTER the suite was already red — which is
+    not a falsifier, it is an echo. Weakening the body below now breaks §6
+    directly, because §6 has no copy of it to keep passing.
+    """
+    measured = fp.declared_scope(rec["findings"])
+    assert measured == entry.frame_scope, (
+        f"{entry.name} declares frame_scope={entry.frame_scope!r} but measures "
+        f"{measured!r}. findings={json.dumps(rec['findings'])}. MIS-DECLARED.")
+    measured_axis = fp.declared_axis(rec["findings"])
+    assert tuple(entry.frame_axis) == measured_axis, (
+        f"{entry.name} declares frame_axis={tuple(entry.frame_axis)} but "
+        f"measures {measured_axis}. MIS-DECLARED.")
+
+
 @pytest.mark.parametrize("op_name", sorted(REVIEWED_ROSTER))
 def test_declared_frame_matches_measured_response(op_name: str) -> None:
     """THE RATCHET. Drive the op over a dense translation sweep and assert the
@@ -277,14 +311,7 @@ def test_declared_frame_matches_measured_response(op_name: str) -> None:
         f"instrument cannot reach it: verdict={rec['verdict']}. A declaration "
         f"nothing can drive is exactly the false green this file removes.")
 
-    measured = fp.declared_scope(rec["findings"])
-    assert measured == entry.frame_scope, (
-        f"{op_name} declares frame_scope={entry.frame_scope!r} but measures "
-        f"{measured!r}. findings={json.dumps(rec['findings'])}. MIS-DECLARED.")
-    measured_axis = fp.declared_axis(rec["findings"])
-    assert tuple(entry.frame_axis) == measured_axis, (
-        f"{op_name} declares frame_axis={tuple(entry.frame_axis)} but measures "
-        f"{measured_axis}. MIS-DECLARED.")
+    assert_declaration_matches(entry, rec)
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -323,6 +350,12 @@ def test_the_generator_clause_is_narrow_and_says_so() -> None:
     cannot = describe()["frames"]["cannot_express"]
     assert "non_affine_generator" in cannot
     assert "frame_free_vs_no_frame" in cannot
+    # rc430 repair (`#T1127`) — the THIRD blind spot, added because it was
+    # MEASURED rather than reasoned: the roster is derived from one argument
+    # set per op, and srmech.math.cyclic.gcd was missing from it for exactly
+    # that reason. A payload that names two of three blind spots reads as a
+    # complete list of them.
+    assert "base_argument_dependence" in cannot
 
 
 def test_the_generator_axis_population_is_EMPTY_not_absent() -> None:
@@ -452,24 +485,50 @@ def test_the_frame_axis_is_orthogonal_to_the_lane_axis() -> None:
 # 6. HOW IT FAILS — the both-sides bite, pre-registered
 # ══════════════════════════════════════════════════════════════════════
 
+def _mutated(entry: ToolEntry, **kw: Any) -> ToolEntry:
+    """A copy of ``entry`` with a DELIBERATELY WRONG declaration. ToolEntry is a
+    frozen dataclass, so this is a real object the real gate can be run against
+    — not a local restatement of what the gate would have said."""
+    return dataclasses.replace(entry, **kw)
+
+
 def test_every_false_scope_fails_the_ratchet() -> None:
     """FALSIFIER F-1, exhaustive. For each declaring op, substitute every OTHER
-    value in ``FRAME_SCOPES`` and re-run §2's comparison. REFUTED if any false
-    value still passes — a gate that accepts a wrong answer is not a gate."""
+    value in ``FRAME_SCOPES`` into a real ToolEntry copy and run the REAL
+    comparison (``assert_declaration_matches``). REFUTED if any false value
+    still passes — a gate that accepts a wrong answer is not a gate.
+
+    rc430-repair note (`#T1127`): this used to compute
+    ``[s for s in FRAME_SCOPES if s != entry.frame_scope and s == measured]``
+    and assert the list was empty. With §2 having already established
+    ``measured == entry.frame_scope``, that list is empty for the same reason a
+    thing cannot differ from itself — the check was DOMINATED by §2 and could
+    not go red in any state where the suite was green. It now calls the shipped
+    comparison, so weakening that comparison shows up HERE.
+    """
     census = _census()
     rows: List[str] = []
     non_discriminating: List[str] = []
     for name, entry in sorted(_declared().items()):
         rec = census[name]
-        measured = fp.declared_scope(rec["findings"])
-        passes = [s for s in FRAME_SCOPES if s != entry.frame_scope and s == measured]
-        rows.append(f"  {name:60s} {entry.frame_scope:11s} measured={measured!r} "
-                    f"false_that_PASS={passes or 'NONE (discriminating)'}")
-        if passes:
-            non_discriminating.append(f"{name}: {passes}")
+        accepted = []
+        for false_scope in FRAME_SCOPES:
+            if false_scope == entry.frame_scope:
+                continue
+            try:
+                assert_declaration_matches(
+                    _mutated(entry, frame_scope=false_scope), rec)
+            except AssertionError:
+                continue                   # the gate bit, as it must
+            accepted.append(false_scope)   # the gate ACCEPTED a lie
+        rows.append(f"  {name:60s} {entry.frame_scope:11s} "
+                    f"false_that_PASS={accepted or 'NONE (discriminating)'}")
+        if accepted:
+            non_discriminating.append(f"{name}: {accepted}")
     print("\n[rc430] F-1 exhaustive false-scope sweep\n" + "\n".join(rows))
     print(f"declarers {len(rows)} | fully discriminating "
           f"{len(rows) - len(non_discriminating)}/{len(rows)}")
+    assert rows, "no declarers — F-1 would pass vacuously"
     assert not non_discriminating, (
         "REFUTED — a false frame_scope passes the ratchet for:\n  "
         + "\n  ".join(non_discriminating))
@@ -480,20 +539,65 @@ def test_every_false_scope_fails_the_ratchet() -> None:
     ("srmech.cascade.cyclic_mod_add", "fixed"),
 ])
 def test_gate_fires_on_a_planted_defect(op_name: str, lie: str) -> None:
-    """FALSIFIER F-2 — the LIVE gate node, driven with an injected lie.
+    """FALSIFIER F-2 — the LIVE gate function, driven with an injected lie.
 
-    §2's assertion is re-run against a mis-declared entry and must raise. Both
-    directions are planted: a hard-wired op claiming to be parametric, and a
-    parametric op claiming to be hard-wired.
+    A mis-declared ToolEntry copy is passed to the SAME
+    ``assert_declaration_matches`` §2 uses, and it must raise. Both directions
+    are planted: a hard-wired op claiming to be parametric, and a parametric op
+    claiming to be hard-wired.
+
+    rc430-repair note (`#T1127`): this used to open
+    ``with pytest.raises(AssertionError): assert measured == lie`` over
+    locally-computed values, having just asserted both ``measured ==
+    entry.frame_scope`` and ``entry.frame_scope != lie``. The raise was
+    therefore guaranteed by the preconditions rather than by the gate, and the
+    gate itself was never invoked — the test would have stayed green if the
+    shipped comparison had been deleted outright.
     """
     entry = get_tool_schema().lookup(op_name)
     assert entry is not None and entry.frame_scope != lie
-    measured = fp.declared_scope(_census()[op_name]["findings"])
-    assert measured == entry.frame_scope, "precondition: the truth is declared"
+    rec = _census()[op_name]
+
+    # Precondition: the TRUTH passes the real gate.
+    assert_declaration_matches(entry, rec)
+
+    # The LIE must fail that same real gate.
     with pytest.raises(AssertionError):
-        assert measured == lie, (
-            f"{op_name} declares frame_scope={lie!r} but measures "
-            f"{measured!r}. MIS-DECLARED.")
+        assert_declaration_matches(_mutated(entry, frame_scope=lie), rec)
+
+
+def test_the_planted_axis_also_fails_the_ratchet() -> None:
+    """FALSIFIER F-2b. The scope is not the only declared field — ``frame_axis``
+    is compared too, and a falsifier that only ever plants a bad SCOPE leaves
+    the axis half of the comparison unproven.
+
+    The planted axis is a VALID vocabulary term that is the WRONG one for the
+    op, never a made-up token. That distinction is the whole test: a nonsense
+    token is rejected by the registration TYPE-VALIDATOR at construction, so a
+    falsifier built on one never reaches the declared-vs-measured comparison and
+    proves the validator works instead of the ratchet. Only a well-formed lie
+    reaches the gate under test.
+    """
+    census = _census()
+    survived = []
+    planted = 0
+    for name, entry in sorted(_declared().items()):
+        declared_axis = tuple(entry.frame_axis)
+        for axis in sorted(FRAME_AXES):
+            if (axis,) == declared_axis:
+                continue
+            planted += 1
+            try:
+                assert_declaration_matches(
+                    _mutated(entry, frame_axis=(axis,)), census[name])
+            except AssertionError:
+                continue                   # the gate bit, as it must
+            survived.append(f"{name}: declared {declared_axis} accepted ({axis},)")
+    assert planted, "no lie was planted — F-2b would pass vacuously"
+    print(f"\n[rc430 repair] F-2b planted {planted} well-formed false axes")
+    assert not survived, (
+        "REFUTED — a false frame_axis passes the ratchet for:\n  "
+        + "\n  ".join(survived))
 
 
 def test_no_control_in_this_module_is_computed_and_then_ignored() -> None:
@@ -511,7 +615,11 @@ def test_no_control_in_this_module_is_computed_and_then_ignored() -> None:
     assert verdicts == {"fixed", "parametric"}, (
         f"the three controls collapsed to {verdicts}; an instrument that "
         f"returns one verdict for every input is not measuring anything")
-    assert len(_declared()) == len(REVIEWED_ROSTER) == 20
+    # 20 at rc430; 21 at the rc430 repair (`#T1127`), when the probe's
+    # degeneracy screen stopped foreclosing the parametric sweep and
+    # srmech.math.cyclic.gcd became measurable. The count moved because the
+    # INSTRUMENT was repaired, not because an op was hand-added to the roster.
+    assert len(_declared()) == len(REVIEWED_ROSTER) == 21
     assert set(_census()) == {e.name for e in get_tool_schema().tools}, (
         "the census does not cover the registry, so §4's set comparison is "
         "over a subset it chose itself")

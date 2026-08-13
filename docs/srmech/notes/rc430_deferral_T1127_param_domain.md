@@ -64,8 +64,17 @@ sizeof(param_old)  = 32     {name, type, required, summary}
 sizeof(param_newA) = 40     + one const char *
 sizeof(param_newB) = 56     + ptr/array/count  (the reads_lane shape)
 old header computes params[1] at byte 32; new table lays it at 40 / 56
-offsetof(entry, params)  old 8  new 8      <- why frame_scope IS additive
+offsetof(entry, params)  old 32  new 32    <- why frame_scope IS additive
+sizeof(entry)            old 160 new 184   <- what DOES move; callers never see it
 ```
+
+> **Correction (rc430 repair, `#T1127`).** The `offsetof` line read `old 8 new 8` when this memo
+> shipped, and the same false pair shipped in `c/include/srmech.h`. `params` sits behind four
+> pointers (`name` / `owner` / `category` / `summary`), so the offset is **32**, and it was never 8.
+> The conclusion — unchanged, therefore additive, therefore ABI stays 14 — is correct and survives;
+> only the cited number was wrong. Re-measured by compiling the shipped header and a copy with the
+> three frame fields stripped: `32 → 32`, `sizeof` `160 → 184`. The `sizeof(param_*)` rows above
+> were checked in the same run and are correct as written (`sizeof(param) == 32`).
 
 **A wire-format change to exported data. `SRMECH_ABI_VERSION` must go 14 → 15.**
 

@@ -1084,7 +1084,16 @@ def test_describe_shape() -> None:
     # the C symbols our c_dispatched ops claim to route to — `#938`; rc347 adds
     # "lanes", the OP-side complement of "carriers": what each op READS —
     # `#T985`; rc420 adds "cascade_catalog", the [cascade] descriptor state —
-    # ADR-0012 clause C6 closed under local task `#T1114`).
+    # ADR-0012 clause C6 closed under local task `#T1114`; rc430 adds "frames",
+    # the FRAME axis — whether the frame an op reduces in is an INPUT
+    # ("parametric") or welded into the op ("fixed") — local task `#T1127`).
+    #
+    # This set is pinned EXHAUSTIVELY in THREE files, and all three must move
+    # together: here, tests/test_describe_registry_pointer_rc407.py and
+    # tests/test_domain_classes_rc298.py. rc430 shipped a green local ripple
+    # sweep with all three red, because the ripple manifest named only the
+    # first — see tests/test_describe_key_set_pins_rc430.py, which now derives
+    # the pin sites instead of trusting a hand-maintained list.
     assert set(d.keys()) == {
         "srmech_version",
         "tool_schema_version",
@@ -1098,6 +1107,7 @@ def test_describe_shape() -> None:
         "limits",
         "c_claims",
         "lanes",
+        "frames",
     }
     # Version agrees with the package attribute (no hardcoded literal).
     assert d["srmech_version"] == srmech.__version__

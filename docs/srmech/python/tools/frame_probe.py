@@ -388,26 +388,52 @@ def classify(name: str, base: Dict[str, Any], fn) -> Dict[str, Any]:
         # can only ever REJECT: a period that fails on the prefix cannot hold
         # on the superset, so the screen removes runtime, never verdicts.
         short = drv.sequence(x, length=SCREEN)
-        if short is None or len(set(short)) < 2:
-            continue                       # not total, or DEGENERATE — a
-        # constant function has every period and must never classify `fixed`
-        # (PF8); the len(set) < 2 test is where that is enforced.
-        screen_m, _ = least_period(short, mmax=MMAX, min_conf=SCREEN_MIN_CONF)
+        if short is None:
+            continue                       # not total along this coordinate
 
-        vals = drv.sequence(x) if screen_m is not None else None
-        if vals is None and screen_m is not None:
-            continue                       # total on the prefix, not on R
+        # DEGENERATE AT BASE. A constant function has every period and must
+        # never classify `fixed` (PF8); this test is where that is enforced.
+        #
+        # rc430 REPAIR (`#T1127`): it used to `continue`, which also skipped the
+        # PARAMETRIC sweep below — and constancy AT THE BASE ARGUMENTS is a
+        # statement about the fixed branch only. It says nothing about whether
+        # sweeping a modulus parameter makes the op periodic, which is a
+        # different question asked with different arguments.
+        #
+        # WITNESS (the reason this is a repair and not a preference):
+        # f(x, n) = x % n is genuinely parametric, and the shipped screen
+        # returned NOT_ADMISSIBLE for it at base n = 1 (where x % 1 == 0 for
+        # every x) while returning ADMISSIBLE/parametric for the SAME callable
+        # at base n = 5. The verdict tracked the arguments, not the op — so the
+        # census UNDER-reported, and "declared == admissible in both directions"
+        # was being asserted against a roster that could be short.
+        degenerate_at_base = len(set(short)) < 2
 
-        m, conf = (least_period(vals) if vals is not None else (None, 0))
-        if m is not None:
-            carried = _carries(base, m)
-            if not carried:
-                f: Dict[str, Any] = {"coord": x, "scope": "fixed", "period": m,
-                                     "confirmations": conf, "axis": ["modulus"]}
-                _add_generator(f, base, drv.int_sequence(x), m)
-                rec["findings"].append(f)
+        if not degenerate_at_base:
+            screen_m, _ = least_period(short, mmax=MMAX,
+                                       min_conf=SCREEN_MIN_CONF)
+
+            vals = drv.sequence(x) if screen_m is not None else None
+            if vals is None and screen_m is not None:
+                # Total on the prefix, not on R. NOTE (`#T1127`): this is the
+                # SAME shape of leak as the degeneracy screen above — a
+                # fixed-branch screen that also skips the parametric sweep —
+                # but no non-contrived witness was constructed for it at rc430,
+                # so it is left as-shipped and NAMED here rather than changed
+                # on a structural argument alone. UNMEASURED, not closed.
                 continue
-            rec.setdefault("period_carried_by", {})[x] = carried
+
+            m, conf = (least_period(vals) if vals is not None else (None, 0))
+            if m is not None:
+                carried = _carries(base, m)
+                if not carried:
+                    f: Dict[str, Any] = {"coord": x, "scope": "fixed",
+                                         "period": m, "confirmations": conf,
+                                         "axis": ["modulus"]}
+                    _add_generator(f, base, drv.int_sequence(x), m)
+                    rec["findings"].append(f)
+                    continue
+                rec.setdefault("period_carried_by", {})[x] = carried
 
         for np_ in drv.moduli(x):
             try:

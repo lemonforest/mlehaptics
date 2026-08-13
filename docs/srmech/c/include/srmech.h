@@ -5567,8 +5567,17 @@ typedef struct {
      * at rc430 rather than inherited: srmech_tool_registry_table appears 0
      * times in this public header, callers receive a POINTER from
      * srmech_tool_registry_get() and never allocate or stride this struct, so
-     * offsetof(srmech_tool_entry_t, params) is unchanged (measured old 8, new
-     * 8). SRMECH_ABI_VERSION does not move for this append; it stays 14.
+     * offsetof(srmech_tool_entry_t, params) is unchanged (measured old 32, new
+     * 32; sizeof(srmech_tool_entry_t) grows 160 -> 184, which is the part that
+     * moves and the part callers never see). SRMECH_ABI_VERSION does not move
+     * for this append; it stays 14.
+     *
+     * The "8" this comment carried at rc430 was WRONG in both slots — params
+     * sits behind four pointers (name/owner/category/summary), so the offset is
+     * 32, and it was never 8. The CONCLUSION was right and the cited evidence
+     * was not, inside the very sentence that justifies not bumping the ABI.
+     * Re-measured by compiling this header against a copy with the three frame
+     * fields stripped (rc430 repair, `#T1127`).
      *
      * The CONTRAST is load-bearing and was measured at rc430: appending a
      * field to srmech_tool_param_t would NOT be ABI-additive, because that

@@ -67,6 +67,18 @@ FROZEN_KNOWN_GATES = frozenset({
     #    coverage check REQUIRES the exact node, never the hanging whole file. ----
     "tests/test_mcp.py::test_all_param_types_json_coercible",
     "tests/test_mcp.py::test_schema_signature_alignment_no_drift",
+    # -- describe() TOP-LEVEL KEY SET (rc430 repair, `#T1127`). Three files pin
+    #    that key set exhaustively and an rc adding a key moves ALL THREE at
+    #    once. rc430 shipped with all three red behind a green ripple_check,
+    #    because only test_mcp.py was in the manifest and only by node ids that
+    #    do not run the pin. Frozen as a NODE ID for the hanging file and
+    #    whole-file for the two cheap peers, plus the DERIVING gate itself --
+    #    that gate is what keeps the manifest roster honest, so it is the one
+    #    entry whose quiet loss would restore the original blind spot. --------
+    "tests/test_mcp.py::test_describe_shape",
+    "tests/test_describe_registry_pointer_rc407.py",
+    "tests/test_domain_classes_rc298.py",
+    "tests/test_describe_key_set_pins_rc430.py",
     # -- regen-all idempotence / codegen graph --------------------------------
     "tests/test_regen_all_rc346.py",
     # -- worked-example family (strict-zero AND executed ledger AND the

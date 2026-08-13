@@ -3802,6 +3802,9 @@ static const char *const ts_composes_10[] = {
 static const char *const ts_composes_12[] = {
     "srmech.cascade.compose.resolve_chain",
 };
+static const char *const ts_frame_axis_13[] = {
+    "modulus",
+};
 static const char *const ts_composes_14[] = {
     "srmech.math.cyclic.gcd",
 };
@@ -5025,8 +5028,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL,
         NULL, 0u,
-        NULL,
-        NULL, 0u,
+        "parametric",
+        ts_frame_axis_13, 1u,
     },
     { /* 14 */
         "srmech.math.cyclic.lcm",
@@ -6354,7 +6357,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "laplacian",
         "Elementwise complex multiplication a * b (equal-shape; shape-polymorphic \342\200\224 Mat in \342\206\222 Mat out, Vec in \342\206\222 Vec out).",
         ts_params_80, 2u,
-        "Mat",
+        "Mat | Vec",
         "Mat (2-D in) or Vec (1-D in), complex; rank-preserving",
         1,
         NULL,
@@ -6374,7 +6377,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "laplacian",
         "Array-vectorised transcendental: exp / cos / sin / log over real input, or exp_i(x) = exp(1j*x) (TDSE-relevant complex exponential). Shape-polymorphic (Mat in \342\206\222 Mat out, Vec in \342\206\222 Vec out). ANSI C99 \302\2477.12.",
         ts_params_81, 2u,
-        "Mat",
+        "Mat | Vec",
         "Mat/Vec (rank-preserving); complex for exp_i/complex input",
         1,
         NULL,
@@ -6394,7 +6397,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "laplacian",
         "Array Euclidean magnitude sqrt(a_i^2 + b_i^2) via the Class-N hypot cascade (per-element rational.hypot; native srmech_rational_sqrt-dispatched). The numpy-free |z| = sqrt(re^2+im^2) op the DSP modules route through \342\200\224 numpy carries the array only. Golub & Van Loan \302\2471.1.",
         ts_params_82, 2u,
-        "Mat",
+        "Mat | Vec",
         "Mat/Vec sqrt(a_i^2 + b_i^2) (rank-preserving real carrier)",
         1,
         NULL,
@@ -6414,7 +6417,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "laplacian",
         "Array element-wise sqrt(arr_i) via the Class-N rational sqrt cascade (per-element rational.sqrt; native srmech_rational_sqrt-dispatched). The numpy-free array square-root op (companion to elementwise_hypot) for non-negative reals \342\200\224 numpy carries the array only. Rejects arr_i < 0. Golub & Van Loan \302\2471.1.",
         ts_params_83, 1u,
-        "Mat",
+        "Mat | Vec",
         "Mat/Vec sqrt(arr_i), rank-preserving real carrier",
         1,
         NULL,
@@ -11994,8 +11997,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "cascade",
         "Class N: ONE (i, j) coupling term of the SIMPLE Kuramoto path \342\200\224 sin(theta[j] - theta[i]) via the Class-N rational sin. Unweighted on purpose: the simple path weights the SUM (inv_n * S), not the terms \342\200\224 the float-order distinction that makes kuramoto_step TWO declared cascades. Pointwise; the all-to-all (i, j) iteration lives in the chain's indexed-map layer. Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
         ts_params_362, 3u,
-        "float",
-        "sin(theta[j] - theta[i])",
+        "Q",
+        "sin(theta[j] - theta[i]) as an EXACT rational \342\200\224 the Class-N sin returns Q, not a float. Declared float through rc430; measured by invocation at rc430 repair (`#T1127`).",
         1,
         NULL,
         "{\"input\":{\"i\":\"the oscillator receiving coupling\",\"j\":\"the oscillator providing it\",\"theta\":\"the whole phase list (the map body reads it at both indices)\"},\"output\":\"kuramoto_sin_term([0.1, 2.0], 0, 1) = Q(545504860453082587, 576460752303423488) \\u2014 the Class-N rational sin flows EXACT (Q) and collapses to float only at the Euler combine, exactly as the shipped path does\",\"why\":\"The simple path weights the SUM, not the terms \\u2014 this op is deliberately unweighted, which is precisely the float-order distinction that makes kuramoto_step two declared cascades.\",\"worked\":\"from srmech.cascade import kuramoto_sin_term\\nkuramoto_sin_term([0.1, 2.0], 0, 1)\\n                    # -> Q(545504860453082587, 576460752303423488)\\nfloat(kuramoto_sin_term([0.1, 2.0], 0, 1))\\n                    # -> 0.9463000876874145  (sin(1.9))\\nkuramoto_sin_term([0.5, 0.5], 0, 1)\\n                    # -> Q(0, 1)  (sin(0): no self-coupling term)\\n\"}",
@@ -12034,8 +12037,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "cascade",
         "Class N: ONE (i, j) term of the GENERAL Kuramoto-Sakaguchi path \342\200\224 w * sin(theta[j] - theta[i] - alpha) with w = coupling * A[i][j] (the rc15 \302\24732 fix: K scales the matrix) when an adjacency is given, else the mean-field inv_n. The general path weights each TERM; the adjacency-vs-mean-field branch is descriptor-static and lives inside this op (the exile discipline). Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
         ts_params_364, 7u,
-        "float",
-        "the weighted frustrated coupling term",
+        "Q",
+        "the weighted frustrated coupling term, as an EXACT rational \342\200\224 the Class-N sin returns Q, not a float. Declared float through rc430; measured by invocation at rc430 repair (`#T1127`).",
         1,
         NULL,
         "{\"input\":{\"adjacency\":\"the n x n weight rows, or None for mean-field\",\"alpha\":\"the Sakaguchi phase-lag\",\"coupling\":\"the global K scaling the matrix (the rc15 \\u00a732 fix)\",\"i\":\"receiver\",\"inv_n\":\"the mean-field fallback weight\",\"j\":\"provider\",\"theta\":\"the phase list\"},\"output\":\"with A = [[0,1],[0.25,0]], K = 2: kuramoto_gen_term(theta, A, 2.0, 1.0, 0.0, 0, 1) = Q(545504860453082587, 288230376151711744) \\u2014 w = K*A[0][1] = 2.0 weights the TERM; with adjacency None and alpha 0.4 the weight falls back to inv_n and the lag enters the sin\",\"why\":\"The general path weights each TERM (w * sin(theta_j - theta_i - alpha)) \\u2014 the float-order distinction from the simple path's weighted SUM; the adjacency-vs-mean-field selection is a descriptor-static branch living inside this op.\",\"worked\":\"from srmech.cascade import kuramoto_gen_term\\nA = [[0.0, 1.0], [0.25, 0.0]]\\nkuramoto_gen_term([0.1, 2.0], A, 2.0, 1.0, 0.0, 0, 1)\\n                    # -> Q(545504860453082587, 288230376151711744)\\nkuramoto_gen_term([0.1, 2.0], None, 2.0, 1.0, 0.4, 0, 1)\\n                    # -> Q(2300066841586666207, 2305843009213693952)\\n\"}",

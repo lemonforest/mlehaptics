@@ -1206,6 +1206,22 @@ def _register_primitive_class_tools() -> None:
         # ────────────────────────────────────────────────────────────
         ToolEntry(
             name="srmech.math.cyclic.gcd", owner="srmech", category="cyclic",
+            # rc430 (`#T1127`) — the FRAME axis, DERIVED behaviourally and
+            # verified executably by tests/test_frame_scope_rc430.py.
+            # gcd(a + d, b) is periodic in d with period b, so `b` IS the
+            # modulus the op reduces in, and it is an INPUT -> parametric.
+            #
+            # Undeclared when rc430 first shipped, and NOT because anyone chose
+            # to omit it: the probe's degeneracy screen skipped the whole
+            # coordinate whenever the BASE arguments happened to make the op
+            # constant, taking the parametric sweep down with it. So the
+            # measurement returned NOT_ADMISSIBLE for this op and the
+            # both-directions gate was satisfied by a census that was short by
+            # one. Repaired in tools/frame_probe.py at the rc430 repair; the
+            # alias `srmech.cascade.cyclic_gcd`, which DELEGATES here, had
+            # declared parametric/modulus all along — the primitive and its
+            # own alias disagreed, which is what made the gap visible.
+            frame_scope="parametric", frame_axis=("modulus",),
             summary="Greatest common divisor of two non-negative integers.",
             parameters=(P("a", "int", True), P("b", "int", True)),
             returns=R("int", "≥ 0"),
@@ -2906,7 +2922,8 @@ def _register_primitive_class_tools() -> None:
                     "shape-polymorphic — Mat in → Mat out, Vec in → Vec out).",
             parameters=(P("a", "Mat | Vec", True, "Mat (2-D) or Vec (1-D) complex"),
                         P("b", "Mat | Vec", True, "same-shape complex operand")),
-            returns=R("Mat", "Mat (2-D in) or Vec (1-D in), complex; rank-preserving"),
+            returns=R("Mat | Vec",
+                      "Mat (2-D in) or Vec (1-D in), complex; rank-preserving"),
         ),
         ToolEntry(
             name="srmech.math.laplacian.elementwise_transcendental",
@@ -2918,7 +2935,7 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("arr", "Mat | Vec", True, "Mat (2-D) or Vec (1-D) real/complex"),
                         P("op_name", "str", True,
                           "exp / cos / sin / log / exp_i")),
-            returns=R("Mat",
+            returns=R("Mat | Vec",
                       "Mat/Vec (rank-preserving); complex for exp_i/complex input"),
         ),
         ToolEntry(
@@ -2931,7 +2948,8 @@ def _register_primitive_class_tools() -> None:
                     "carries the array only. Golub & Van Loan §1.1.",
             parameters=(P("a", "Mat | Vec", True, "Mat (2-D) or Vec (1-D) real (e.g. z.real)"),
                         P("b", "Mat | Vec", True, "same-shape real (e.g. z.imag)")),
-            returns=R("Mat", "Mat/Vec sqrt(a_i^2 + b_i^2) (rank-preserving real carrier)"),
+            returns=R("Mat | Vec",
+                      "Mat/Vec sqrt(a_i^2 + b_i^2) (rank-preserving real carrier)"),
         ),
         ToolEntry(
             name="srmech.math.laplacian.elementwise_sqrt",
@@ -2944,7 +2962,7 @@ def _register_primitive_class_tools() -> None:
                     "arr_i < 0. Golub & Van Loan §1.1.",
             parameters=(P("arr", "Mat | Vec", True,
                           "Mat (2-D) or Vec (1-D) real, all entries >= 0"),),
-            returns=R("Mat", "Mat/Vec sqrt(arr_i), rank-preserving real carrier"),
+            returns=R("Mat | Vec", "Mat/Vec sqrt(arr_i), rank-preserving real carrier"),
         ),
 
         # ────────────────────────────────────────────────────────────
@@ -8502,7 +8520,10 @@ def _register_primitive_class_tools() -> None:
                     + PUBLISH_OPT_IN_NOTE,
             parameters=(P("theta", "list[float]", True),
                         P("i", "int", True), P("j", "int", True)),
-            returns=R("float", "sin(theta[j] - theta[i])"),
+            returns=R("Q", "sin(theta[j] - theta[i]) as an EXACT rational — the "
+                           "Class-N sin returns Q, not a float. Declared float "
+                           "through rc430; measured by invocation at rc430 "
+                           "repair (`#T1127`)."),
             smoke_test_hint={"theta": "[0.1, 2.0]", "i": "0", "j": "1"},
         ),
         ToolEntry(
@@ -8540,7 +8561,10 @@ def _register_primitive_class_tools() -> None:
                         P("inv_n", "float", True),
                         P("alpha", "float", True, "Sakaguchi phase-lag"),
                         P("i", "int", True), P("j", "int", True)),
-            returns=R("float", "the weighted frustrated coupling term"),
+            returns=R("Q", "the weighted frustrated coupling term, as an EXACT "
+                           "rational — the Class-N sin returns Q, not a float. "
+                           "Declared float through rc430; measured by "
+                           "invocation at rc430 repair (`#T1127`)."),
         ),
         ToolEntry(
             name="srmech.cascade.kuramoto_gen_out", owner="srmech",

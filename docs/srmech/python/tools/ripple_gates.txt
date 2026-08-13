@@ -98,6 +98,21 @@ tests/test_mcp_initialize_instructions_rc407.py
 tests/test_llm_anthropic.py
 tests/test_mcp.py::test_handle_pending_absent_from_advertised_catalogs
 
+# -- describe() TOP-LEVEL KEY SET (rc430 repair, `#T1127`) -------------------
+#    The same failure the rc414 block above records, recurring: rc430 added the
+#    13th top-level describe() key ("frames") and shipped with THREE pin sites
+#    red behind a GREEN ripple_check. Only test_mcp.py was named here, and only
+#    by node ids that do not run the pin -- so the sweep could not have caught
+#    it even in principle. The other two files appeared nowhere in this file.
+#    Any rc adding/removing a top-level describe() key moves ALL of these.
+#    tests/test_describe_key_set_pins_rc430.py DERIVES this roster from the tree
+#    and fails if a pin site is missing here, so this list cannot go stale
+#    silently the way the rc414 one did.
+tests/test_mcp.py::test_describe_shape
+tests/test_describe_registry_pointer_rc407.py
+tests/test_domain_classes_rc298.py
+tests/test_describe_key_set_pins_rc430.py
+
 # -- wire round-trip gate (rc414, `#T1092`) ----------------------------------
 #    The OUTBOUND converse of test_mcp.py::test_all_param_types_json_coercible
 #    (which is the inbound half and already listed above). An rc that adds a

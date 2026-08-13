@@ -81,9 +81,16 @@ def test_the_route_is_discoverable_in_the_serialised_payload():
 
 
 def test_top_level_key_set_is_untouched():
-    """The route rides INSIDE 'tools'. The 12-key top level is pinned
-    exhaustively by ``tests/test_domain_classes_rc298.py`` and must not move.
-    (11 -> 12 at rc420: "cascade_catalog" — ADR-0012 clause C6 closed.)
+    """The route rides INSIDE 'tools'. The 13-key top level is pinned
+    exhaustively HERE and in two peers — ``tests/test_domain_classes_rc298.py``
+    and ``tests/test_mcp.py::test_describe_shape`` — and all three must move
+    together. (11 -> 12 at rc420: "cascade_catalog", ADR-0012 clause C6 closed;
+    12 -> 13 at rc430: "frames", the FRAME axis — local task `#T1127`.)
+
+    The "pinned exhaustively by rc298" phrasing this docstring carried until
+    rc430 named ONE peer and read as though this file were the derivative copy.
+    There are three peers, none derivative; ``test_describe_key_set_pins_rc430``
+    derives the roster so the count cannot go stale silently again.
     """
     d = describe()
 
@@ -100,8 +107,9 @@ def test_top_level_key_set_is_untouched():
         "limits",
         "c_claims",
         "lanes",
+        "frames",
     }
-    assert len(d) == 12
+    assert len(d) == 13
 
 
 def test_registry_size_is_unchanged_by_this_rc():

@@ -1378,6 +1378,17 @@ def describe() -> Dict[str, Any]:
                 "the generator axis is decidable only for ops AFFINE in the "
                 "frame coordinate; a non-affine op that hard-wires a generator "
                 "is undeclarable and counted in the ratchet's residual ceiling"),
+            "base_argument_dependence": (
+                "the roster is DERIVED by driving each op from one set of "
+                "example arguments, so an op whose frame only becomes visible "
+                "under other arguments can be missed. This is a measured "
+                "limitation, not a hypothetical: at rc430 the probe's "
+                "degeneracy screen also skipped the parametric sweep whenever "
+                "the base arguments made the op constant along the swept "
+                "coordinate, and srmech.math.cyclic.gcd was absent from the "
+                "roster for exactly that reason while its own delegating alias "
+                "srmech.cascade.cyclic_gcd was present. Repaired at the rc430 "
+                "repair; the ONE-ARGUMENT-SET bound itself remains"),
         },
         "ops": _frame_ops,
     }
