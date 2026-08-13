@@ -708,10 +708,25 @@ def test_s4_ceiling_is_not_slack() -> None:
 #: transcript of what the op prints. A provenance verdict cannot legitimately be
 #: placed in any of them. Gating a field whose only repair another gate rejects
 #: is a gate demanding an edit the tree forbids — and the predictable escape
-#: from that is to weaken one of the two. These four are the fields where prose
-#: lives and where a verdict BELONGS.
+#: from that is to weaken one of the two.
+#:
+#: ⚠️ **This tuple was DECLARED AND NEVER READ through rc429's first cut**, and
+#: the comment beside it read *"these four are the fields where prose lives"* —
+#: a statement of the gate's scope that was both unenforced and FALSE.
+#: :func:`_emitted_fields` hardcoded its own labels, so editing the constant
+#: that states the scope changed nothing; and ``ToolEntry.returns.shape`` is
+#: emitted prose the constant did not name. Measured: ``moufang_residue``'s
+#: shape string is *"one exact Q — 0 iff all three Moufang identities hold at
+#: (x, y, z)"*, it occurs **2×** in ``c/src/srmech_tool_registry.c``, and it
+#: reaches users through the compiled-in C registry on a path C19 does not
+#: cover. Adding it surfaced **2 genuinely bare claims** that had been shipping.
+#: The constant is now the single source :func:`_emitted_fields` reads.
+#:
+#: ``returns.shape`` is safe to gate for the reason ``worked``/``input`` are
+#: not: no sibling gate executes or schema-validates it, so a verdict CAN go
+#: there. It is prose, in the wheel, read by users.
 S6_PROSE_FIELDS: Tuple[str, ...] = ("docstring", "summary", "explanation",
-                                    "example.why")
+                                    "example.why", "returns.shape")
 
 #: One hand-adjudicated claim: an op, the term naming it, every spelling the
 #: tree uses, the WARRANTS that discharge it, and the test that EXECUTES it.
@@ -782,13 +797,27 @@ def _callable_for(name: str):
 
 
 def _emitted_fields(name: str) -> List[Tuple[str, str]]:
-    """``[(field label, text)]`` for every EMITTED PROSE field of one op."""
+    """``[(field label, text)]`` for every EMITTED PROSE field of one op.
+
+    Reads :data:`S6_PROSE_FIELDS` rather than restating it. The labels and the
+    accessors used to be two independent lists, which is how the constant
+    stating this gate's scope became unreadable and stale at the same time.
+    """
     entry, fn = _entry(name), _callable_for(name)
     example = entry.example or {}
-    return [("docstring", fn.__doc__ or ""),
-            ("summary", entry.summary or ""),
-            ("explanation", entry.explanation or ""),
-            ("example.why", str(example.get("why", "")))]
+    source = {
+        "docstring": lambda: fn.__doc__ or "",
+        "summary": lambda: entry.summary or "",
+        "explanation": lambda: entry.explanation or "",
+        "example.why": lambda: str(example.get("why", "")),
+        "returns.shape": lambda: getattr(entry.returns, "shape", "") or "",
+    }
+    missing = [f for f in S6_PROSE_FIELDS if f not in source]
+    assert not missing, (
+        "S6_PROSE_FIELDS names %s with no accessor here. The constant and this "
+        "function are ONE scope statement — a field named but unreadable is "
+        "the declared-and-never-read defect regenerating." % missing)
+    return [(label, source[label]()) for label in S6_PROSE_FIELDS]
 
 
 def _term_present(text: str, spellings: Tuple[str, ...]) -> List[str]:
@@ -812,13 +841,35 @@ def _is_attributed(text: str, present: List[str]) -> bool:
     Moufang", "nor an integer-level CWF", "never rounded". A6 asks whether a
     CLAIM asserts a source LACKS a term; a whole emitted field is not a claim,
     and running the axis there turns it from a subtraction into a blindfold.
+
+    ⚠️ **The occurrence must share a SENTENCE with the identifier**, and that
+    bound is a repair. Claim scope runs from the id to the next ``;`` or blank
+    line, so through rc429's first cut it swallowed whole following sentences
+    and a TOPICALLY UNRELATED identifier laundered a bare claim. Measured::
+
+        See arXiv:1608.06161 — a foundational reference for the theta
+        machinery. Separately, the Moufang loops satisfy the identity used
+        here.
+
+    read as ATTRIBUTED: the em-dash after a theta-machinery citation opened a
+    claim that reached across a full stop and adopted a disconnected sentence
+    about Moufang loops. No axis checks topical relevance and none should — that
+    is a classifier. A sentence is the syntactic unit over which "this
+    identifier is being offered as the warrant for this term" holds, and it is
+    the same bound A6 now uses next door, for the same reason.
     """
     for unit in CC.parse_units(text):
         for spelling in present:
-            if not CC.contains_term(unit.claim, spelling):
+            hits = CC.occurrences(unit.claim, spelling)
+            if not hits:
                 continue
             if CC.asserts_absence(unit.claim, spelling):
                 continue        # a negation RECORD, not an attribution
+            # The identifier opens the claim at offset 0; an occurrence past
+            # the first sentence break is not what the identifier warrants.
+            first = CC._sentence_bounds(unit.claim, 0)
+            if not any(at < first[1] for at, _end in hits):
+                continue
             return True
     return False
 
@@ -1026,7 +1077,22 @@ def test_s6_the_verdict_reaches_the_compiled_registry() -> None:
 #: precisely the defect arm S6 exists to catch. The two arms pull in opposite
 #: directions on purpose, and S7 is the one that must yield, because it is a
 #: COVERAGE count and S6 is a defect gate.
-CEIL_S7_IDENTIFIER_FREE_CITATION = 253
+#:
+#: ⚠️ **The ceiling therefore carries STATED HEADROOM, and it is not slack.**
+#: Seeded at the post-repair residual EXACTLY, it had zero — so the very next
+#: S6 repair, which works by carrying a verdict into MORE artifacts, would red
+#: CI and the tree's only green path would be to strand the verdict. A ratchet
+#: whose cheapest satisfying move is the defect it guards against is pointed
+#: the wrong way. The headroom is **6**: one roster row's worth of propagation
+#: — its 5 emitted prose fields (:data:`S6_PROSE_FIELDS`) plus the curated seed
+#: — so a single S6 repair never has to touch this number, and a SECOND one
+#: cannot ride through unnoticed.
+#:
+#: It stays DOWN-ONLY. Headroom is granted once, in the open, with the amount
+#: derived from a countable thing; it is not re-granted when consumed. If a
+#: repair exhausts it, re-seed at the new residual and say which repair spent
+#: it — never widen the allowance.
+CEIL_S7_IDENTIFIER_FREE_CITATION = 259
 
 #: A parenthesised year in the range a bibliography uses.
 _S7_YEAR = re.compile(r"\((?:1[6-9]\d\d|20[0-2]\d)\)")
@@ -1215,6 +1281,28 @@ def test_the_bite_fixtures_exercise_both_directions() -> None:
     assert len(s6_fires) >= 4, "S6's bite is unproven"
     assert len(s6_silents) >= 6, "S6's false positives are unguarded"
 
+    # A SILENT fixture carrying no roster term short-circuits at
+    # `bool(present)` and cannot fire whatever the axes do — so counting it as
+    # a false-positive guard is the count lying. Measured at rc429: 6 of 7
+    # silents were vacuous, and the guard above was satisfied entirely by rows
+    # that could not fire. Require the axes to actually be REACHED.
+    reaching = [f for f in s6_silents if _term_present(f[1], f[3])]
+    assert len(reaching) >= 3, (
+        "only %d of %d SILENT S6 fixtures carry a roster term at all; the "
+        "rest short-circuit at `bool(present)` and prove nothing about false "
+        "positives. Add fixtures whose term IS present and which are silenced "
+        "by a REASON — a warrant, an attribution, or a named axis."
+        % (len(reaching), len(s6_silents)))
+
+    # …and at least one must reach the ATTRIBUTED branch, or _is_attributed's
+    # True side has no fixture at all (measured: 0 of 75 live fields take it).
+    attributed = [f for f in s6_silents
+                  if _is_attributed(f[1], _term_present(f[1], f[3]))]
+    assert attributed, (
+        "no SILENT fixture drives _is_attributed True. That branch is then "
+        "untaken by the tree AND unexercised by the suite, which is "
+        "indistinguishable from dead code.")
+
 
 # ── S6's own both-sides bite ──────────────────────────────────────────
 #
@@ -1293,6 +1381,39 @@ S6_BITE_FIXTURES: Tuple[Tuple[str, str, bool, Tuple[str, ...], str], ...] = (
      False, ("Moufang",),
      "Carries no roster term, so S6 is silent. Its A8 half — that "
      "'elliptic function' MUST still match the plural — is control C15."),
+    # ── NON-VACUOUS silents (rc429 repair) ───────────────────────────
+    # Every SILENT row above is silent because _term_present returns [] — the
+    # predicate short-circuits at `bool(present)` and NEVER REACHES the axes it
+    # is supposed to be proving. Measured: 6 of 7. They are kept (they pin that
+    # a MENTION stays out of scope) but they cannot guard a false positive,
+    # because a fixture carrying no term cannot fire whatever the axes do. The
+    # three rows below DO carry a roster term and are silenced by a REASON.
+    ("NON-VACUOUS silent — warranted by an existing attribution",
+     "The MOUFANG DEFECT of an ordered triple, measured against the three "
+     "Moufang identities of Schafer ch. III eqns (7)-(9).",
+     False, ("Moufang",),
+     "present=['Moufang'] — the term IS here, so the predicate runs to the "
+     "end. Silenced by the WARRANT arm, on an attribution this tree already "
+     "verified. No citation is minted to make this pass."),
+    ("NON-VACUOUS silent — ATTRIBUTED, the only control on that branch",
+     "Baez (2002), arXiv:math/0105155, §3 — the Moufang plane and its "
+     "collineation group",
+     False, ("Moufang",),
+     "The ONLY fixture that drives _is_attributed True. Measured: 0 of 75 "
+     "live emitted fields carrying a roster spelling are attributed, so that "
+     "branch is BOUNDED-at-zero by the tree, not EMPTY — and an untaken "
+     "branch with no fixture is indistinguishable from a dead one. "
+     "SYNTHETIC and labelled as such: no tree text exercises it, which is "
+     "the measurement, not an excuse."),
+    ("NON-VACUOUS silent — A9, the identifier that is not a claim",
+     "SIBLINGS -- ``srmech.biology.genome.cwf_consistency_mod2`` checks the "
+     "same relation mod 2, and this op keeps the exact rational.",
+     False, ("Calugareanu", "Călugăreanu", "CWF"),
+     "covering.py's rc428 explanation, VERBATIM. Its only CWF match sat "
+     "inside a dotted path, and the strict-zero arm fired on a field with no "
+     "claim in it. present=[] here only BECAUSE axis A9 subtracts it — "
+     "control C20 pins that the term is otherwise found, so this row measures "
+     "the axis rather than an absence."),
 )
 
 

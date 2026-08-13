@@ -88,6 +88,36 @@ Every control **raises at import** rather than reporting: C13 (the live `ofano` 
 
 **Four blind spots are written into the gate rather than left for rediscovery.** S6 sees only claims someone has already **adjudicated** — rc428 could not see an unsourced claim, rc429 cannot see an **un-adjudicated** one. S6 is op-keyed, so module-level prose is outside it. The 262-site bare-eponym class is ungated on measured evidence, with a cheap pre-registered falsifier stated (hand-label a fresh n≥30 draw and show ≥5 attributions). And S7 **counts, it does not judge** — its precision at that scale is UNSUPPORTED.
 
+#### The repair round — the gate fired on prose carrying no claim (`#T1128`)
+
+A three-rep adjudication over the shipped gate returned twelve findings. **Eleven were re-measured and CONFIRMED; one was NOT-A-DEFECT.** The consequential one inverts a claim this entry makes above.
+
+**⛔ The strict-zero arm fired on a code cross-reference, and demanded an edit to prose that contained no claim.** Axis A8 asks for a word boundary in the original text — and `_` and `.` are not alphanumeric, so they *supply* one. `srmech.biology.genome.cwf_consistency_mod2` therefore contains an A8-bounded occurrence of the term `CWF`. Measured at the rc428 state: of the ten offending fields, `covering.linking_number_cwf :: explanation` carried **exactly one** occurrence of any CWF spelling, and it sat inside that dotted path in a `SIBLINGS --` cross-reference. **A strict-zero provenance gate demanding a citation on prose with no claim in it applies steady pressure to bolt a plausible-looking reference onto correct text — the exact defect this arc exists to eliminate, arriving from the gate's own side.**
+
+Fixed as the gate's own failure message instructs — *by naming an axis*, never by exempting a file or deleting a roster row:
+
+| Axis | Was | Now | Forced by |
+|---|---|---|---|
+| **A9** (new) | — | an occurrence adjacent to `_`, or continuing a dotted path, is a code identifier | the live false positive above |
+| **A6** | whole-CLAIM | per **SENTENCE** | a TRUE sentence about the mathematics silenced a FALSE citation in the sentence before it — the rc426 class re-opening inside an ordinary compound sentence |
+| **A2 × A4** | mark located in the code-span-stripped copy | mark located in the RAW copy, claim still taken from the stripped one | a mark inside a code span blanked the whole following claim, dropping real prose out of the strict-zero population |
+| `_is_attributed` | claim scope (to `;`) | the occurrence must share a **sentence** with the identifier | a topically-unrelated arXiv id laundered a bare claim across a full stop |
+| `NEGATION_TOKENS` | included `"zero"` | removed | `"the ring has zero divisors, and the Moufang identities are established"` read as an absence-assertion. Measured: **0** live units depended on it |
+
+**A9's blast radius was measured before it shipped: 204 occurrences removed corpus-wide, of which 0 sit inside a parsed citation unit.** Arms S1–S4 read identical numbers before and after; every removal is a C symbol name or a dotted Python path. The rc428-state offender count moves **10 → 11**, and the composition is the point: **−1 false positive, +2 true positives.**
+
+**The two true positives were invisible because the gate's scope statement was both unenforced and false.** `S6_PROSE_FIELDS` was **declared and never read** — `_emitted_fields` hardcoded its own labels — and the comment beside it claimed *"these four are the fields where prose lives"*. `ToolEntry.returns.shape` is emitted prose that occurs **2×** in `c/src/srmech_tool_registry.c` and reaches users through the compiled-in C registry. Adding it surfaced two bare claims that had been shipping in `malcev_defect` and `moufang_residue`. Both were repaired by **carrying** the verdict already established elsewhere in the same op — the Schafer attribution and the DERIVED-AND-MEASURED verdict. **No citation is minted in this round either.**
+
+Three further gate-honesty defects, each an instrument that could not return otherwise:
+
+- **6 of 7 of S6's own SILENT bite fixtures were vacuous** — they carry no roster term, so the predicate short-circuits at `bool(present)` and never reaches the axes it is supposed to prove. `test_the_bite_fixtures_exercise_both_directions` asserted `>= 6` silents and was satisfied *entirely* by rows that could not fire. It now requires ≥3 silents whose term is genuinely present **and** ≥1 that reaches the ATTRIBUTED branch.
+- **`_is_attributed`'s True branch had no fixture and no live instance** — 0 of 75 live emitted fields carrying a roster spelling are attributed. Classified **BOUNDED**, not EMPTY (a synthetic control returns True), and now pinned by a labelled fixture.
+- **`CEIL_S7` had ZERO headroom** (residual 253 == ceiling 253), so the next S6 repair — which works *by carrying a verdict into more artifacts* — would red CI, and the cheapest green move would be to strand the verdict. Re-seeded at **259**: one roster row's worth of propagation, stated, granted once, still down-only.
+
+Six new controls raise at import and run under `--validate` (16 total, all PASS): **C20** the live A9 false positive, **C21** A9's negative direction, **C22** A6's cross-sentence launder, **C23** the `"zero"` false positive, **C24** the A2×A4 interaction, **C25** `term_pattern`'s dash quantifier — which is dash-**optional** on purpose, because `densify` deletes the space in `Cayley Dickson`, and that had never been written down.
+
+**NOT-A-DEFECT (1 of 12).** `EXCLUDED_DIR_NAMES` matching an *ancestor* directory zeroes the corpus for a script run from inside a session worktree. Working as designed, and it cannot false-green CI — the non-vacuity floors are real assertions that fail loud on an empty walk. A callout was added because the symptom is a confident zero that looks exactly like a clean tree.
+
 ## [0.9.0rc428]
 
 ### The gate that reads the source, not the tree (`#T1126`)

@@ -9582,7 +9582,9 @@ def _register_primitive_class_tools() -> None:
                   "definite Cayley–Dickson ladder ℝ→ℂ→ℍ→𝕆→𝕊…"),
             ),
             returns=R("Q", "one exact Q — 0 iff all three Moufang identities "
-                           "hold at (x, y, z)"),
+                           "hold at (x, y, z); the identities themselves are "
+                           "Schafer ch. III eqns (7)–(9), as cited in full in "
+                           "this op's summary"),
         ),
         ToolEntry(
             name="srmech.cascade.is_moufang", owner="srmech",
@@ -9665,7 +9667,9 @@ def _register_primitive_class_tools() -> None:
             ),
             returns=R("dict", "{jacobi (Q), malcev (Q)} — the Jacobi and Mal'cev "
                               "magnitude² defects; jacobi>0 witnesses not-Lie, "
-                              "malcev==0 witnesses Mal'cev"),
+                              "malcev==0 witnesses Mal'cev. The Mal'cev name "
+                              "here is DERIVED-AND-MEASURED, not cited — see "
+                              "this op's summary"),
         ),
         ToolEntry(
             name="srmech.cascade.unit_loop", owner="srmech",
