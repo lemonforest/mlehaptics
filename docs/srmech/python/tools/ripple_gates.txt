@@ -113,6 +113,16 @@ tests/test_describe_registry_pointer_rc407.py
 tests/test_domain_classes_rc298.py
 tests/test_describe_key_set_pins_rc430.py
 
+# -- advertised returns.type vs the type actually returned (rc430 repair) -----
+#    THE SAME MAP GAP, one file over. rc430's `#T1094` replaced type-synthesised
+#    arguments with harvested ones, which un-blocked all six ops this file's
+#    retro-check pins -- the check fired exactly as designed and NOTHING RAN IT,
+#    because the file was not listed here. Found only by re-running it by hand
+#    during the rc430 repair triage; three independent reviews missed it.
+#    It also holds the only returns.type-vs-observed gates driven by REAL args,
+#    so any rc touching a `returns=` declaration or the arg provider moves it.
+tests/test_arrow_and_censuses_rc427.py
+
 # -- wire round-trip gate (rc414, `#T1092`) ----------------------------------
 #    The OUTBOUND converse of test_mcp.py::test_all_param_types_json_coercible
 #    (which is the inbound half and already listed above). An rc that adds a

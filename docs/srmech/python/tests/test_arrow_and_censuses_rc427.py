@@ -504,20 +504,26 @@ def test_the_wire_instrument_can_return_false() -> None:
     assert found and found[0].startswith("$.bad:"), found
 
 
-# The SIX ops new in rc427. All six take a REQUIRED argument whose synthesised
-# value is out of domain, so the registry-wide gates stop before the return.
-# `unit_loop` / `loop_invariants` are the two EXTENDED ops: both predate this
-# rc, both have all-defaulted parameters, so synth calls them cleanly and the
-# registry-wide gates DO cover them. Section 8 covers them anyway — cheaply,
-# and because the `table=` route the rc added is the one synth never exercises.
-_SYNTH_BLOCKED = sorted({
-    "srmech.math.cyclic.mod_mul_arrow",
-    "srmech.cascade.finite_semiflow",
-    "srmech.cascade.conjugacy_census",
-    "srmech.cascade.reversal_law_census",
-    "srmech.cascade.anti_automorphism_witnesses",
-    "srmech.cascade.dihedral_group",
-})
+# EMPTY since rc430 — and the empty set is the RESULT, not a disabled check.
+#
+# Through rc429 this held the SIX ops new in rc427: each took a required
+# argument whose type-synthesised value was out of domain, so the registry-wide
+# gates stopped before ever reaching a return value. rc430's `#T1094` work
+# replaced the type-driven fall-through with arguments HARVESTED from each op's
+# own `example["worked"]` — a value from a call that returned is in-domain by
+# construction — and all six became reachable at once. The retro-check below
+# fired exactly as designed and nothing ran it, because this file is not in
+# `tools/ripple_gates.txt`; it is now (rc430 repair, `#T1127`).
+#
+# Section 8's duplication is DELIBERATELY KEPT rather than dropped as the
+# retro-check offers. Its `_REAL_CALLS` drive each op with hand-written real
+# arguments, which is independent evidence from the harvested-arg path the
+# registry-wide gates now use — and rc430 measured that the harvest itself can
+# be wrong (a harvested `path=` pointed at a file the snippet had created, so
+# the census answered differently on consecutive runs). Coverage that survives
+# a defect in the harvester is worth its duplication; what is NOT worth keeping
+# is duplication nobody can explain, which is what this comment removes.
+_SYNTH_BLOCKED: list = []
 
 
 def test_the_synth_path_really_is_the_blocked_one() -> None:
@@ -542,6 +548,12 @@ def test_the_synth_path_really_is_the_blocked_one() -> None:
             blocked.append(name)
             continue
         reached.append(name)
+    # NON-VACUITY. `_SYNTH_BLOCKED` is empty since rc430, so `blocked == []`
+    # would also hold if `_REAL_CALLS` were empty or every call raised on the
+    # way in. The check is evidence only if ops were actually reached.
+    assert reached, (
+        "no op in _REAL_CALLS was reached by the synth path at all — the "
+        "blocked-set comparison below would pass vacuously")
     assert blocked == _SYNTH_BLOCKED, (
         f"the set of ops the type-driven synth cannot reach has MOVED.\n"
         f"  expected blocked: {_SYNTH_BLOCKED}\n"

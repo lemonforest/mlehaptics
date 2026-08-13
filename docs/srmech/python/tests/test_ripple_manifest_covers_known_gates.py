@@ -79,6 +79,12 @@ FROZEN_KNOWN_GATES = frozenset({
     "tests/test_describe_registry_pointer_rc407.py",
     "tests/test_domain_classes_rc298.py",
     "tests/test_describe_key_set_pins_rc430.py",
+    # -- advertised returns.type vs observed, driven by REAL args (rc430
+    #    repair, `#T1127`). Its retro-check pins which ops the synth path
+    #    cannot reach; rc430 widened that path and un-blocked all six at once,
+    #    the check went red as designed, and nothing ran it for an entire rc
+    #    because the file was not in the manifest. -----------------------------
+    "tests/test_arrow_and_censuses_rc427.py",
     # -- regen-all idempotence / codegen graph --------------------------------
     "tests/test_regen_all_rc346.py",
     # -- worked-example family (strict-zero AND executed ledger AND the
