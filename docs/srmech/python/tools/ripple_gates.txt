@@ -315,22 +315,26 @@ tests/test_synth_args_provenance_rc430.py
 #    `literature_claims` manifest; no network, no native .so. ~20 s.
 tests/test_citation_manifest_rc428.py
 
-# -- native contract parity (rc431, ) ---------------------------------
-#    An op owns its EXCEPTION contract, and its C peer's. A  wrapper
+# -- native contract parity (rc431, `#T1129`) --------------------------------
+#    An op owns its EXCEPTION contract, and its C peer's. A `*_c` wrapper
 #    returns None to mean "native absent -- run the pure body", but many also
 #    return None from a predicate on their own ARGUMENTS; where the C peer
 #    returns an error status for that same input, None is OVERLOADED and the
 #    invalidity signal dies at the boundary. If the pure body then does not
 #    reject it either, the C guard is DEAD through the Python front door and the
 #    op answers an input its co-equal projection calls invalid -- measured at
-#    rc431 on  (b == [] RETURNED [0.0]*n). It rides here
+#    rc431 on `signal_processing.iir` (b == [] RETURNED [0.0]*n). It rides here
 #    because the scan derives from LIVE wrapper source and LIVE C guard blocks:
 #    registering an op with a native peer moves it, and so does editing any
 #    guard in c/src/. Strict-zero on the adjudicated divergence + a down-only
 #    CEIL_UNDECIDED on the unreachable residual. ~200 s, pure-Python, no .so.
+#    (These four comment lines lost their backticked tokens -- `#T1129`, `*_c`,
+#    `signal_processing.iir` -- to shell command substitution when the block was
+#    first appended through a heredoc; restored in the rc431 repair. Every other
+#    entry in this file uses backticks, so the loss was silent and local.)
 tests/test_native_contract_parity_rc431.py
 
-# -- invocable RETURNED floor (rc431,  + ) ---------------------
+# -- invocable RETURNED floor (rc431, `#T1129` + `#T1094`) -------------------
 #    The OUTCOME set under the synth-args consumer. Its parametrized sibling
 #    test_mcp.py::test_advertised_tool_invocable asserts only that an op was
 #    REACHED, and rc431 proved by mutation that it stays fully green when every
