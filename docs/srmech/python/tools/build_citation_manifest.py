@@ -604,10 +604,32 @@ def backend_gs(pdf_bytes: bytes, tag: str,
 
 
 def backend_pypdf(pdf_bytes: bytes, tag: str) -> Tuple[str, SectionMap]:
-    """pypdf. **REJECTED for counting** — proven to under-report 22 -> 16.
+    """pypdf — a SECOND rendered-PDF extractor, kept as a consistency oracle.
 
-    Wired in ONLY so the consistency oracle can be shown to bite. If this ever
-    starts agreeing with ghostscript, that is itself a finding worth chasing.
+    ⚠️ **rc428 repair — this docstring was false about its own control.** It
+    read: *"REJECTED for counting — proven to under-report 22 -> 16 … if this
+    ever starts agreeing with ghostscript, that is itself a finding worth
+    chasing."* Both halves were wrong at the time they were written, and the
+    second was self-refuting: the stated trigger was ALREADY satisfied.
+
+    Measured under the SHIPPED dense matcher, same PDF bytes::
+
+        gs     Cayley-Dickson = 22   octonion = 172
+        pypdf  Cayley-Dickson = 22   octonion = 172
+
+    They agree exactly. The 16 is not a property of pypdf — it is a property
+    of NAIVE whitespace-sensitive matching, and :func:`naive_vs_dense_check`
+    localises it precisely: pypdf naive 16 / dense 22, the 6 differences being
+    spellings pypdf breaks mid-word across layout runs (``Cayley–Dick son``,
+    ``Cayle y-Dickson``, ``Cayley–Di ckson``). Ghostscript emits the same
+    words without those breaks, so naive matching flatters gs and penalises
+    pypdf for a rendering artefact rather than for a missing word.
+
+    So pypdf is **not** rejected for counting. What the pair actually
+    establishes is stronger than the original claim: two independent
+    extractors agree on the totals, and the agreement is only visible once
+    normalisation is applied — which is the evidence that normalisation is
+    load-bearing rather than cosmetic.
     """
     from pypdf import PdfReader  # local import: not a package dependency
     os.makedirs(CACHE, exist_ok=True)
@@ -617,6 +639,39 @@ def backend_pypdf(pdf_bytes: bytes, tag: str) -> Tuple[str, SectionMap]:
     reader = PdfReader(pdf)
     text = normalise("\n".join(p.extract_text() or "" for p in reader.pages))
     return text, pdf_sections_heuristic(text)
+
+
+def strip_tex_comments(text: str) -> str:
+    """Remove unescaped ``%``-to-end-of-line LaTeX comments.
+
+    Load-bearing for SECTION ATTRIBUTION, and in the DANGEROUS direction. A
+    commented-out ``\\section{...}`` is not a section — the reader never sees
+    it — but the section scan is a plain regex over the source, so it counted
+    one and advanced the counter. Every label after it then shifts, and a
+    shifted label can move a term's occurrences onto the very section a FALSE
+    citation names, silently BLESSING it. Measured by injecting one commented
+    heading into Baez: ``[§1, §1.1, §2, §2.1, §2.2, §2.3, §2.4, §3, §3.1]``
+    became ``[§1, §2, §2.1, §3, §3.1, §3.2, §3.3, §3.4, §4]`` — every label
+    after the injection point renamed.
+
+    **Measured bound on the shipped corpus (rc428 repair):** both sources have
+    ZERO sectioning commands inside comment lines (Baez 4 comment lines,
+    Rosengren 19), and stripping changes **0** watchlist counts and leaves the
+    label list IDENTICAL for both. So this fix is latent-BOUNDED, not a
+    correction of shipped labels — the manifest was right; it was right by
+    luck rather than by construction, and that is the thing being repaired.
+
+    Comments are also removed from the SEARCH text, not merely from the
+    section scan, for the same reason ``\\cite{}`` keys are: a term inside a
+    comment is not in the document the reader sees, so counting it would
+    over-report presence — and an inflated presence claim is a citation
+    blessed for the wrong reason.
+
+    Known bound, stated rather than hidden: the lookbehind treats ``\\\\%`` (a
+    LaTeX line break immediately followed by a comment) as escaped and leaves
+    it in. That fails SAFE — text is retained, never invented.
+    """
+    return re.sub(r"(?<!\\)%.*$", "", text, flags=re.MULTILINE)
 
 
 def strip_tex_markup(text: str) -> str:
@@ -666,6 +721,13 @@ def eprint_main_tex(raw: bytes, tag: str,
         return gzip.decompress(raw), "(single-gz)"
 
 
+#: Which encoding each ``backend_tex`` call actually decoded with, keyed by
+#: tag. Written on EVERY call, including the successful strict-UTF-8 path, so
+#: that "utf-8" here means *measured*, not *assumed*. Read by
+#: :func:`build_rows` into the source row.
+TEX_ENCODING_USED: Dict[str, str] = {}
+
+
 def backend_tex(tar_bytes: bytes, tag: str,
                 main_hint: str = "") -> Tuple[str, SectionMap]:
     """arXiv LaTeX e-print — the AUTHOR'S OWN SOURCE, not a rendering.
@@ -680,13 +742,29 @@ def backend_tex(tar_bytes: bytes, tag: str,
     """
     raw, _chosen = eprint_main_tex(tar_bytes, tag, main_hint)
     # arXiv 2001-era sources are Latin-1/ASCII TeX, NOT UTF-8. Try strict
-    # UTF-8 first and fall back ONLY with the encoding recorded, never
+    # UTF-8 first and fall back ONLY with the encoding RECORDED, never
     # silently — the fallback is legitimate here because TeX escapes
     # (\"u) carry the accents, so no glyph information rides on the bytes.
+    #
+    # ⚠️ rc428 repair: through the first rc428 push this comment PROMISED a
+    # recording that the code did not perform — ``except UnicodeDecodeError:
+    # text = raw.decode("latin-1")`` recorded nothing anywhere. A docstring
+    # asserting a safeguard the code does not implement is worse than no
+    # docstring, because it is the thing a reader checks INSTEAD of the code.
+    # The encoding is now written to ``TEX_ENCODING_USED`` and travels into
+    # the source row as ``source_tex_encoding``.
+    #
+    # Measured, so the claim is not merely wired: BOTH shipped sources decode
+    # as strict UTF-8 (Baez ``oct.tex`` contains 0 non-ASCII bytes), so the
+    # fallback branch is UNEXERCISED on this corpus. It is recorded as
+    # "utf-8" for both — do not read that as the fallback having been tested.
     try:
         text = decode_strict(raw, "utf-8")
+        TEX_ENCODING_USED[tag] = "utf-8"
     except UnicodeDecodeError:
         text = raw.decode("latin-1")
+        TEX_ENCODING_USED[tag] = "latin-1 (FALLBACK — strict utf-8 failed)"
+    text = strip_tex_comments(text)
     text = strip_tex_markup(text)
     text = text.replace("--", "\u2013")
     text = normalise(text, dehyphenate=False)  # TeX has no line-break hyphens
@@ -771,6 +849,13 @@ SOURCES = {
         # A term with MULTIPLE dash spellings. This is the control that
         # catches the encoding trap; a single-spelling control cannot.
         "multi_spelling_control": ("Cayley-Dickson", 22),
+        # Completeness floors (rc428 repair, defect D3). MEASURED 195933 chars
+        # / 21 addressable labels after comment-stripping; the floors sit ~10%
+        # below so ordinary markup drift does not cry wolf while a short read
+        # trips hard. A 2%-truncated fetch reads 3922 chars — it passed the
+        # positive control and reported Cayley-Dickson and Hopf as REFUTED.
+        "expect_min_chars": 180000,
+        "expect_min_sections": 20,
         "watchlist": [
             "Moufang", "Mal'cev", "Cayley-Dickson", "triality", "Fano",
             "Hopf", "Jordan algebra", "exceptional Jordan", "Freudenthal",
@@ -808,6 +893,11 @@ SOURCES = {
         "negative_controls": ["Antikythera", "zygomatic", "qwertzuiop",
                               "octonion"],
         "multi_spelling_control": ("Frenkel-Turaev", 8),
+        # MEASURED 147001 chars / 28 addressable labels; floors ~10% below.
+        # Set independently of Baez's — "what complete looks like" is a
+        # property of the document, not of the instrument.
+        "expect_min_chars": 135000,
+        "expect_min_sections": 26,
         "watchlist": [
             "Frobenius", "theta function", "partial fraction", "Weierstrass",
             "three-term", "elliptic function", "modular", "well-poised",
@@ -862,9 +952,145 @@ def run_controls(text: str, spec: Dict[str, object],
             # "Frenkel–Turaev" is 8 en-dashes with NO ASCII spelling, so it
             # collapses to 0, not to 4).
             "encoding_trap_signature": len(ms_hits) != ms_expect,
+            # ⚠️ THE LOAD-BEARING FIELD, distinct from ``verdict`` above.
+            # ``verdict``/``encoding_trap_signature`` test EXACT equality with
+            # the e-print-derived expectation, which a rendered backend may
+            # legitimately exceed — Rosengren's "Frenkel–Turaev" is 8 in LaTeX
+            # and 9 in ghostscript, and all nine were inspected and are real
+            # (the PDF carries a table-of-contents line the body source does
+            # not). Only a COLLAPSE below the floor is the encoding trap, so
+            # that is what ``require_controls_usable`` aborts on and what the
+            # gate asserts. Both are recorded: the exact comparison is still a
+            # measurement worth having, it is simply not the alarm.
+            "collapsed": len(ms_hits) < ms_expect,
         },
         "u_fffd_present": has_replacement_chars(text),
     }
+
+
+def require_controls_usable(ctrl: Dict[str, object], backend: str,
+                            sid: str) -> None:
+    """ABORT unless EVERY control passed — not merely the positive one.
+
+    ⚠️ **rc428 repair. This function is the fix for the defect this whole rc
+    is about, committed by the instrument that was built to detect it.**
+
+    :func:`run_controls` has always COMPUTED four independent controls. The
+    build path read exactly one of them — ``positive_control["count"]`` — and
+    discarded ``multi_spelling``, ``negative_verdict``, ``always_true_terms``
+    and ``u_fffd_present``. Three of those four keys were read NOWHERE in the
+    tree (measured: ``grep`` over ``tests/`` and ``srmech/`` = 0 hits). A
+    control that is computed and thrown away is not a control; it is
+    decoration that reads like rigour, which is the exact failure mode
+    ``abort_path_bite_test`` exists to prevent one layer down.
+
+    It was not hypothetical. Measured on the REAL corpus, ghostscript text
+    decoded as latin-1 (the encoding trap this instrument was built to catch)::
+
+        positive control  octonion       = 172   PASS  <- survives, so no abort
+        multi-spelling    Cayley-Dickson = 4     FAIL  (expected 22)
+        U+FFFD present                   = False       <- the tell does NOT fire
+
+    The positive control is ASCII, so it sails through a misdecode untouched
+    while the en-dashed term collapses 22 -> 4. The instrument HELD the
+    signal that would have caught it, in ``multi_spelling.verdict``, and threw
+    it away one line later. The whole manifest would have been built from
+    text known-bad by its own measurement.
+
+    Raising here rather than warning is deliberate: a manifest is the thing
+    the gate trusts to decide ABSENCE, and a false absence marks a CORRECT
+    citation as fabricated.
+
+    ── WHY THE MULTI-SPELLING CHECK IS A FLOOR, NOT AN EQUALITY ─────────
+    The first version of this guard demanded ``count == expected`` and
+    immediately failed the build — correctly refusing to proceed, but for the
+    wrong reason. Rosengren's ``Frenkel-Turaev`` reads 8 in the LaTeX source
+    and **9** in the ghostscript rendering, and inspection of all nine shows
+    every one is a REAL occurrence: the rendered PDF carries a
+    table-of-contents line the body source does not, and one occurrence loses
+    its en-dash glyph in extraction (``FrenkelTuraev``, recovered only by
+    dense matching). The expected counts were measured on the e-print, so
+    imposing them as cross-backend equality tests the wrong proposition —
+    the instrument already records elsewhere that LaTeX and rendered text are
+    genuinely different strings (F6's ADVISORY tier exists for exactly this).
+
+    The trap this guard exists to catch is a **COLLAPSE**: under the latin-1
+    misdecode Baez's ``Cayley-Dickson`` falls 22 -> 4 and every en-dashed
+    spelling VANISHES, leaving only the ASCII ones. A floor catches every
+    collapse while letting a rendering legitimately carry more occurrences
+    than its source. Verified to discriminate on all four shipped
+    (source, backend) pairs plus the misdecode:
+
+        Baez      tex  22 >= 22  PASS      Rosengren tex  8 >= 8  PASS
+        Baez      gs   22 >= 22  PASS      Rosengren gs   9 >= 8  PASS
+        Baez      gs latin-1  4 <  22  ABORT   <- the case that matters
+
+    Version drift in the other direction is not left unguarded; it is caught
+    by the e-print and PDF sha256 anchors, which is where it belongs.
+    """
+    ms = ctrl.get("multi_spelling", {})
+    if isinstance(ms, dict) and ms.get("collapsed"):
+        raise ExtractionBroken(
+            "MULTI-SPELLING CONTROL COLLAPSED for %s via %r: %r read %s, floor "
+            "%s (by dash variant: %r). This is the ENCODING-TRAP signature: "
+            "an ASCII positive control survives a misdecode while a dashed "
+            "term collapses. Refusing to build a manifest from this text."
+            % (sid, backend, ms.get("term"), ms.get("count"),
+               ms.get("expected"), ms.get("by_dash_variant")))
+    if ctrl.get("negative_verdict") != "PASS":
+        raise ExtractionBroken(
+            "NEGATIVE CONTROL FAILED for %s via %r: terms that must be absent "
+            "were found (%r). The matcher is behaving as always-true, so its "
+            "PRESENCE findings carry no information."
+            % (sid, backend, ctrl.get("always_true_terms")))
+    if ctrl.get("u_fffd_present"):
+        raise ExtractionBroken(
+            "U+FFFD REPLACEMENT CHARACTERS present for %s via %r: the decode "
+            "lost bytes, so any zero count is undecidable between 'absent' "
+            "and 'mangled'." % (sid, backend))
+
+
+def require_extraction_complete(text: str, labels: Sequence[str],
+                                spec: Dict[str, object], backend: str,
+                                sid: str) -> None:
+    """ABORT on a TRUNCATED extraction that still passes its controls.
+
+    ⚠️ **rc428 repair.** The only completeness guard on the build path was
+    "zero sections resolved". That misses the field's most common partial
+    failure — a short read — and it misses it in the dangerous direction.
+
+    Measured on the real Baez e-print, truncated to 2% of its length::
+
+        positive control  octonion        = 1     PASS   <- still fires
+        Cayley-Dickson                    = 0     (true 22)
+        Hopf                              = 0     (true 20)
+
+    Every claim term reads zero and the run does not abort, so the manifest
+    would record ``verdict: REFUTED`` for terms the document plainly
+    contains. The gate consuming that manifest decides ABSENCE from it, so a
+    truncated fetch does not produce a missing answer — it produces
+    confident, attested, WRONG ones, and specifically it would accuse
+    CORRECT citations of being fabricated.
+
+    The floors are per-source measured minima with headroom, declared in
+    :data:`SOURCES` beside the controls, because "what does complete look
+    like for THIS document" is not a property the instrument can infer.
+    """
+    min_chars = int(spec.get("expect_min_chars", 0))    # type: ignore[arg-type]
+    min_sections = int(spec.get("expect_min_sections", 0))  # type: ignore
+    if len(text) < min_chars:
+        raise ExtractionBroken(
+            "EXTRACTION INCOMPLETE for %s via %r: %d chars, floor %d. A short "
+            "read that still passes its positive control reports every absent "
+            "term as REFUTED — a false absence, which accuses a correct "
+            "citation of being fabricated."
+            % (sid, backend, len(text), min_chars))
+    if len(labels) < min_sections:
+        raise ExtractionBroken(
+            "SECTION MAP INCOMPLETE for %s via %r: %d addressable labels, "
+            "floor %d. Absence is only decidable against the COMPLETE label "
+            "set, so a partial map makes every 'absent here' claim unsound."
+            % (sid, backend, len(labels), min_sections))
 
 
 def abort_path_bite_test(spec: Dict[str, object]) -> List[Dict[str, object]]:
@@ -874,8 +1100,8 @@ def abort_path_bite_test(spec: Dict[str, object]) -> List[Dict[str, object]]:
     that CANNOT fail. This rc exists because an extraction returned 0 for
     "Moufang" AND 0 for "octonion" from a paper titled *The Octonions*; the
     whole defence is that such a run ABORTS instead of reporting zeros. So the
-    abort is exercised here against three deliberately-broken extractions,
-    each a real way extraction fails in the field:
+    abort is exercised here against SIX deliberately-broken extractions, each
+    a real way extraction fails in the field:
 
       * empty text          — the backend produced nothing at all
       * whitespace-only     — the backend "succeeded" and emitted layout only
@@ -883,10 +1109,33 @@ def abort_path_bite_test(spec: Dict[str, object]) -> List[Dict[str, object]]:
         SEARCH TERMS being asked about, but not the positive control. This is
         the nastiest case: every claim term reads 0, which looks exactly like a
         clean refutation, and only the positive control tells them apart.
+      * encoding-trap collapse — positive control INTACT, dashed term collapsed
+        (the measured latin-1 signature: octonion 172, Cayley-Dickson 22 -> 4)
+      * always-true matcher — positive control intact, a must-be-absent term
+        present, so PRESENCE findings carry no information
+      * replacement chars   — positive control intact, U+FFFD in the text, so
+        a zero is undecidable between "absent" and "mangled"
+
+    ⚠️ **The last three exist because of a measured methodology failure, not a
+    hypothetical one.** Through the first rc428 push this list held only the
+    first three, and all three abort on the POSITIVE CONTROL — so the fixture
+    set exercised exactly one of the four guards while appearing to
+    characterise the whole abort path. Two of three independent verifiers
+    reviewed the instrument using these fixtures and concluded it "ABORTS" on
+    broken extractions; the minority verifier built its own breakages and
+    found two that sailed through. **A self-test that only exercises the paths
+    its author already trusted will confirm whatever its author believed**, and
+    it will do so persuasively enough to survive review. Each of the three new
+    cases keeps the positive control INTACT precisely so it cannot mask them.
 
     Each MUST raise :class:`ExtractionBroken`. A case that does not is
     reported as a FAILED bite — the guard would be decorative.
     """
+    pos = str(spec["positive_control"])
+    ms_term, ms_n = spec["multi_spelling_control"]        # type: ignore[misc]
+    # A body that passes EVERY control, so each case below differs from a
+    # clean run in exactly one way and the guard that fires is identified.
+    clean = pos + " algebra. " + (str(ms_term) + " ") * int(ms_n)
     cases = [
         ("empty", ""),
         ("whitespace_only", "   \n\n\t   \r\n   "),
@@ -894,11 +1143,23 @@ def abort_path_bite_test(spec: Dict[str, object]) -> List[Dict[str, object]]:
          "On the Moufang identities and the Cayley-Dickson construction, "
          "with remarks on the Mal'cev tangent algebra. Section 2 states "
          "the identities in full."),
+        # ── rc428 repair: the three cases above ALL trip the positive
+        # control, so they only ever exercised ONE of the four guards. Two
+        # verifiers concluded from exactly this fixture set that the
+        # instrument "ABORTS" on any broken extraction; it did not. The
+        # three below drive the guards the build path used to discard, and
+        # each keeps the positive control INTACT so it cannot mask them.
+        ("encoding_trap_collapse",
+         pos + " algebra. " + (str(ms_term) + " ") * 4),
+        ("always_true_matcher",
+         clean + " qwertzuiop"),
+        ("replacement_chars", clean + " ��"),
     ]
     out: List[Dict[str, object]] = []
     for name, text in cases:
         try:
-            run_controls(text, spec, "bite:" + name)
+            ctrl = run_controls(text, spec, "bite:" + name)
+            require_controls_usable(ctrl, "bite:" + name, "bite")
             bit = False
             detail = "NO ABORT — the guard did not fire; it is decorative."
         except ExtractionBroken as exc:
@@ -916,6 +1177,58 @@ def abort_path_bite_test(spec: Dict[str, object]) -> List[Dict[str, object]]:
                         "on a MISSING POSITIVE CONTROL specifically, not "
                         "merely on empty input.",
             }
+        out.append(rec)
+    return out
+
+
+def completeness_bite_test(spec: Dict[str, object],
+                           full_text: str,
+                           labels: Sequence[str]) -> List[Dict[str, object]]:
+    """F12 — prove the COMPLETENESS guard fires, on the REAL corpus.
+
+    The truncation case is driven from the actual extracted text rather than a
+    synthetic string, because the property under test is "a short read of THIS
+    document still passes its own controls" — which a synthetic fixture cannot
+    demonstrate and which is exactly how the defect stayed invisible.
+
+    The full-text case is the non-vacuity arm: if the floors were set so high
+    that a COMPLETE extraction also tripped them, every build would abort and
+    the guard would be a denial-of-service rather than a check.
+    """
+    out: List[Dict[str, object]] = []
+    trunc = full_text[:int(len(full_text) * 0.02)]
+    cases = [
+        ("truncated_2pct", trunc, list(labels)[:1], True),
+        ("section_map_stub", full_text, list(labels)[:2], True),
+        ("full_text_must_pass", full_text, list(labels), False),
+    ]
+    for name, text, labs, must_abort in cases:
+        try:
+            require_extraction_complete(text, labs, spec, "bite:" + name,
+                                        "bite")
+            aborted, detail = False, "no abort"
+        except ExtractionBroken as exc:
+            aborted, detail = True, str(exc)[:120]
+        ok = (aborted == must_abort)
+        # Distinct wording per direction. Labelling the must-NOT-abort case
+        # "BITES" would read as "the guard fired" to anyone scanning the
+        # record, which is the opposite of what it establishes.
+        if must_abort:
+            verdict = "BITES" if ok else "FAILED TO BITE"
+        else:
+            verdict = "PASSES CLEAN" if ok else "FALSE ABORT"
+        rec: Dict[str, object] = {
+            "case": name, "aborted": aborted, "expected_abort": must_abort,
+            "correct": ok, "chars": len(text), "labels": len(labs),
+            "verdict": verdict, "detail": detail}
+        if name == "truncated_2pct":
+            # What the manifest WOULD have recorded had this not aborted.
+            rec["would_have_reported"] = {
+                t: len(search(text, t)) for t in
+                ("Cayley-Dickson", "Hopf", str(spec["positive_control"]))}
+            rec["note"] = ("The positive control still fires while every claim "
+                           "term reads 0 — a page of false REFUTED verdicts, "
+                           "each of which accuses a CORRECT citation.")
         out.append(rec)
     return out
 
@@ -998,12 +1311,18 @@ def build_rows(sid: str, spec: Dict[str, object],
 
     # ── controls FIRST. A failure here aborts before a single row exists.
     ctrl = run_controls(text, spec, "tex")
+    require_controls_usable(ctrl, "tex", sid)
     pos_term = str(spec["positive_control"])
     pos_n = int(ctrl["positive_control"]["count"])  # type: ignore[index]
 
     # A second, independent backend, so the counts are not one tool's opinion.
     gs_text, _gs_sec = backend_gs(pdf_bytes, tag, "utf-8")
-    run_controls(gs_text, spec, "gs")
+    # ⚠️ rc428 repair: this call's RESULT WAS DISCARDED. It ran `run_controls`
+    # and dropped the return value on the floor, so the second backend's
+    # controls could fail in every way except a missing positive control and
+    # the build carried on regardless. Bound and checked now.
+    gs_ctrl = run_controls(gs_text, spec, "gs")
+    require_controls_usable(gs_ctrl, "gs", sid)
 
     labels = sections.labels()
     titles = sections.titles()
@@ -1011,6 +1330,7 @@ def build_rows(sid: str, spec: Dict[str, object],
         raise ExtractionBroken(
             "no numbered sections resolved for %s; a manifest keyed on "
             "sections cannot be built from a document with none" % sid)
+    require_extraction_complete(text, labels, spec, "tex", sid)
 
     rows: List[Dict[str, object]] = [{
         "row_type": "source",
@@ -1030,6 +1350,24 @@ def build_rows(sid: str, spec: Dict[str, object],
         "sections": list(labels),
         "section_titles": {lab: titles.get(lab, "") for lab in labels},
         "positive_control": {"term": pos_term, "occurrences": pos_n},
+        # ⚠️ rc428 repair. The row shipped ``positive_control`` ALONE, so the
+        # gate could assert only the one control the build path happened to
+        # read — and a control the manifest does not carry is a control the
+        # gate cannot check. All four now travel with the data they vouch
+        # for, per backend, which is what lets arm S5 assert them.
+        "controls": {
+            b: {
+                "positive_control": c["positive_control"],
+                "multi_spelling": c["multi_spelling"],
+                "negative_verdict": c["negative_verdict"],
+                "always_true_terms": c["always_true_terms"],
+                "u_fffd_present": c["u_fffd_present"],
+            } for b, c in (("tex", ctrl), ("gs", gs_ctrl))
+        },
+        # Measured, not assumed — see backend_tex. "utf-8" here means the
+        # strict decode SUCCEEDED, not that a fallback was never needed.
+        "source_tex_encoding": TEX_ENCODING_USED.get(tag, "(unrecorded)"),
+        "extraction_chars": len(text),
         "source_published_date": spec["published"],
         "entered_locally_at": CATALOG_ENTERED_AT,
     }]
@@ -1200,6 +1538,22 @@ def main() -> int:
              ", ".join(b["case"] for b in bites if b["aborted"])))
     if not all_bit:
         print("  !! ABORT PATH IS DEAD — controls below cannot be trusted")
+
+    # ── F12: prove the COMPLETENESS guard fires, driven from the real text
+    comp = completeness_bite_test(spec, backends["tex"][0],
+                                  backends["tex"][1].labels())
+    comp_ok = all(c["correct"] for c in comp)
+    all_bit = all_bit and comp_ok
+    records.append({
+        "record": "falsifier_F12_completeness_bite",
+        "cases": comp,
+        "verdict": "ALL BITE" if comp_ok else "DEAD SEAM",
+        "note": "A truncated fetch that retains the positive control reports "
+                "every absent term as REFUTED. Before rc428's repair the only "
+                "completeness guard was 'zero sections resolved', which a 2% "
+                "truncation passes.",
+    })
+    print("  F12 completeness: %s" % ("ALL BITE" if comp_ok else "DEAD SEAM"))
 
     # ── controls per backend; a positive-control failure ABORTS ─────────
     control_results = {}
@@ -1503,6 +1857,17 @@ def main() -> int:
         "..", "..", "notes", "_s1_extractor_rc428.ndjson"))
     emit(records, out)
     print("wrote", out, len(records), "records")
+    # ⚠️ rc428 repair: this was an unconditional ``return 0``. F11 could print
+    # "DEAD SEAM" and "!! ABORT PATH IS DEAD — controls below cannot be
+    # trusted" and the process would still exit 0, so any CI step or human
+    # running ``--validate`` and checking the exit status would read a green.
+    # A validator that cannot report failure is not a validator — which is the
+    # same defect class the F11 record itself was written to describe, one
+    # level up, in the code that reports it.
+    if not all_bit:
+        print("FAILED: abort path is a DEAD SEAM; every REFUTED this "
+              "instrument emitted is downgraded to UNSUPPORTED")
+        return 1
     return 0
 
 
