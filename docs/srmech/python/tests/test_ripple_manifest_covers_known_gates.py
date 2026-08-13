@@ -67,6 +67,24 @@ FROZEN_KNOWN_GATES = frozenset({
     #    coverage check REQUIRES the exact node, never the hanging whole file. ----
     "tests/test_mcp.py::test_all_param_types_json_coercible",
     "tests/test_mcp.py::test_schema_signature_alignment_no_drift",
+    # -- describe() TOP-LEVEL KEY SET (rc430 repair, `#T1127`). Three files pin
+    #    that key set exhaustively and an rc adding a key moves ALL THREE at
+    #    once. rc430 shipped with all three red behind a green ripple_check,
+    #    because only test_mcp.py was in the manifest and only by node ids that
+    #    do not run the pin. Frozen as a NODE ID for the hanging file and
+    #    whole-file for the two cheap peers, plus the DERIVING gate itself --
+    #    that gate is what keeps the manifest roster honest, so it is the one
+    #    entry whose quiet loss would restore the original blind spot. --------
+    "tests/test_mcp.py::test_describe_shape",
+    "tests/test_describe_registry_pointer_rc407.py",
+    "tests/test_domain_classes_rc298.py",
+    "tests/test_describe_key_set_pins_rc430.py",
+    # -- advertised returns.type vs observed, driven by REAL args (rc430
+    #    repair, `#T1127`). Its retro-check pins which ops the synth path
+    #    cannot reach; rc430 widened that path and un-blocked all six at once,
+    #    the check went red as designed, and nothing ran it for an entire rc
+    #    because the file was not in the manifest. -----------------------------
+    "tests/test_arrow_and_censuses_rc427.py",
     # -- regen-all idempotence / codegen graph --------------------------------
     "tests/test_regen_all_rc346.py",
     # -- worked-example family (strict-zero AND executed ledger AND the
@@ -158,6 +176,18 @@ FROZEN_KNOWN_GATES = frozenset({
     #    EXTERNAL measurement of the cited source, so dropping it from the
     #    manifest restores exactly the ungated surface that shipped the defect.
     "tests/test_citation_manifest_rc428.py",
+    # -- the FRAME axis + synthesised-argument provenance (rc430, `#T1127` /
+    #    `#T1094`). Frozen together because they share one piece of machinery:
+    #    the (op, param) argument provider. Both are ToolEntry-derived, so a
+    #    new op moves them WITHOUT any declaration being edited --
+    #    test_frame_scope_rc430 derives its admissible set behaviourally and
+    #    asserts set equality in both directions, which is precisely how it
+    #    avoids `reads_lane`'s fate (9 declarers in 82 rcs, because opt-in).
+    #    A gate that can be quietly dropped from the manifest is that same
+    #    opt-in failure one level up, which is why they are pinned here rather
+    #    than left to a future manifest edit.
+    "tests/test_frame_scope_rc430.py",
+    "tests/test_synth_args_provenance_rc430.py",
 })
 
 

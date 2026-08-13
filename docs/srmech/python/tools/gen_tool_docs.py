@@ -63,9 +63,15 @@ from __future__ import annotations
 import io
 import json
 import importlib
+import sys
 from contextlib import redirect_stdout, redirect_stderr
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
+
+# rc430 (`#T1094`) — the (op, param)-keyed valid-argument provider, a sibling
+# in this same tools/ directory.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import example_args as _ea  # noqa: E402
 
 # ── explanation extraction ────────────────────────────────────────────
 
@@ -107,9 +113,36 @@ def _resolve_callable(name: str) -> Optional[Any]:
 
 # ── example synthesis ─────────────────────────────────────────────────
 
-def _synth_arg(type_str: str) -> Tuple[bool, Any]:
+def _synth_arg(type_str: str, param_name: str = "",
+               op_name: str = "") -> Tuple[bool, Any]:
     """A trivially-safe sample value for a scalar/list parameter type, or
-    (False, None) if the type is a carrier / opaque / not auto-synthesizable."""
+    (False, None) if the type is a carrier / opaque / not auto-synthesizable.
+
+    rc430 (`#T1094`) — two changes, both about the fact that ``_build_example``
+    **executes** what this returns:
+
+    * the HARVEST is consulted first, keyed by ``(op, param)``. A value taken
+      from this op's own worked example, in a call that returned, is valid by
+      construction — strictly better than a per-type guess, and deterministic
+      because it comes from the committed ledger.
+    * a path-SHAPED parameter with no harvested value is REFUSED. The old
+      ``"str": "abc"`` row was executed, so ``genome_save(path="abc")`` wrote
+      a file named ``abc`` into whatever directory the generator ran from —
+      the `#T1094` defect with a different literal.
+
+    Refusal rather than a sandbox path is deliberate here, and it is the one
+    place the two consumers of the provider differ: this generator's output is
+    COMMITTED, and a temp directory name changes every run, so a sandbox path
+    could never be byte-identical twice and would take
+    ``test_regen_all_rc346``'s idempotence gate red. The MCP smoke, whose
+    output is ephemeral, uses the sandbox instead and keeps full coverage.
+    """
+    if op_name and param_name:
+        harvested = _ea.provider().get(op_name, param_name)
+        if harvested is not _ea.UNSYNTHESIZABLE:
+            return True, harvested
+    if param_name and _ea.is_path_shaped(param_name, (type_str or "").strip()):
+        return False, None
     t = (type_str or "").strip().lower()
     table = {
         "int": (True, 3),
@@ -187,7 +220,7 @@ def _build_example(entry) -> Tuple[Dict[str, Any], str]:
         for p in entry.parameters:
             if not p.required:
                 continue
-            good, val = _synth_arg(p.type)
+            good, val = _synth_arg(p.type, p.name, entry.name)
             if not good:
                 ok = False
                 break

@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc429"
-#define SRMECH_VERSION       "0.9.0rc429"
+#define SRMECH_VERSION_PRE   "rc430"
+#define SRMECH_VERSION       "0.9.0rc430"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -5543,10 +5543,53 @@ typedef struct {
      * preserves fields appended to this same struct without a bump): callers
      * receive a POINTER from srmech_tool_registry_get and never allocate the
      * struct, so appending leaves every existing field offset unchanged.
-     * SRMECH_ABI_VERSION STAYS 10. */
+     * That append was ABI-additive and SRMECH_ABI_VERSION did not move for it
+     * (it read 10 when rc347 landed; the macro is 14 today, moved by later,
+     * unrelated changes). The bare sentence "STAYS 10" stood here until rc430
+     * and read as a live claim about the current value, which it is not. */
     const char               *reads_lane;      /* NULL iff no lane declared     */
     const char *const        *reads_input;     /* NULL iff reads_input_count==0 */
     uint32_t                  reads_input_count;
+    /* rc430 (#T1127): the FRAME axis — is the frame this op reduces in an
+     * INPUT ("parametric") or WELDED INTO the op ("fixed")? `frame_scope` is
+     * NULL when the op declares no frame, which is the correct default for
+     * most of the surface: an op that accepts no frame datum cannot be
+     * CONTRADICTED on one, so it declares nothing (the same admission rule
+     * that governs reads_lane). `frame_axis` is WHAT the datum is —
+     * "modulus" and/or "generator" — a separate axis because an op can expose
+     * a modulus while welding in a generator. Declared together or not at
+     * all: frame_scope == NULL iff frame_axis_count == 0. Mirrors
+     * ToolEntry.frame_scope / .frame_axis and its key omission, so the
+     * byte-identity contract holds; both JSON keys sort between "explanation"
+     * and "mcp_callable".
+     *
+     * ABI-additive by the same argument as rc305 and rc347 above, RE-VERIFIED
+     * at rc430 rather than inherited: srmech_tool_registry_table appears 0
+     * times in this public header, callers receive a POINTER from
+     * srmech_tool_registry_get() and never allocate or stride this struct, so
+     * offsetof(srmech_tool_entry_t, params) is unchanged (measured old 32, new
+     * 32; sizeof(srmech_tool_entry_t) grows 160 -> 184, which is the part that
+     * moves and the part callers never see). SRMECH_ABI_VERSION does not move
+     * for this append; it stays 14.
+     *
+     * The "8" this comment carried at rc430 was WRONG in both slots — params
+     * sits behind four pointers (name/owner/category/summary), so the offset is
+     * 32, and it was never 8. The CONCLUSION was right and the cited evidence
+     * was not, inside the very sentence that justifies not bumping the ABI.
+     * Re-measured by compiling this header against a copy with the three frame
+     * fields stripped (rc430 repair, `#T1127`).
+     *
+     * The CONTRAST is load-bearing and was measured at rc430: appending a
+     * field to srmech_tool_param_t would NOT be ABI-additive, because that
+     * array IS strided by callers (srmech_invoke.c does e->params[i] at :1589,
+     * :1606, :1612 and there is no srmech_tool_param_get accessor). Such an
+     * append changes sizeof from 32 to 40 and moves params[1] with it — a
+     * wire-format change to exported data that MUST bump the ABI. That is why
+     * the parameter-domain field is deferred to its own rc rather than
+     * bundled here. */
+    const char               *frame_scope;     /* NULL iff no frame declared    */
+    const char *const        *frame_axis;      /* NULL iff frame_axis_count==0  */
+    uint32_t                  frame_axis_count;
 } srmech_tool_entry_t;
 
 /* Number of registered tool entries in the const table. */

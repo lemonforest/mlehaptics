@@ -922,16 +922,29 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # parameter, and both ops already carried an `int` ref through `dim`. That is
     # why the move is exactly +5 and not +7 — a parameter extension is invisible
     # here by construction, the same blind spot the op-name SET witness has.
+    # rc430 repair (`#T1127`) — 159 -> 157, POPULATION, and a DECREASE for once.
+    # `kuramoto_sin_term` / `kuramoto_gen_term` advertised `returns=float` and
+    # actually return `Q` (the Class-N sin is exact); the repair corrects both.
+    # `float` IS an emitted carrier and `Q` is NOT, so each op stops carrying an
+    # emitted carrier token and leaves this back-index — exactly the mechanism
+    # rc399 records four paragraphs up, where four new ops returning `Q` added
+    # ZERO. Same rule, run backwards. -2, measured.
+    #
+    # Nothing was removed and no op was renamed: both ops are still registered
+    # and still reachable; they are simply no longer claiming a carrier they
+    # never produced. The count going DOWN here is the correction landing, and
+    # the carrier registry moved with it (both ops left `float`'s `produces`
+    # list for `Q`'s), which is also what moved the rc416 search-corpus witness.
     cascade = joined.count("srmech.cascade.")
-    assert cascade == 159, (
-        f"expected 159 srmech.cascade op references inside the DECODED channel "
+    assert cascade == 157, (
+        f"expected 157 srmech.cascade op references inside the DECODED channel "
         f"(the rc377 move's 95 + rc380's 2 loop-defect ops + rc383's defect_ladder + "
         f"rc384's octonion_frame_read + rc386's cd_three_form + rc387's flip_pair / "
         f"group_algebra_table + rc395's cd_zero_divisor_witness / _witnesses + rc398's "
         f"5 Moufang loop-completion ops + rc427's 5 arrow/census ops), found "
         f"{cascade}. The rc377 amsc->cascade move "
         f"conserved 95 (amsc 97 -> 2); rc380 grew it by 2, rc383 by 1, rc384 by 1, "
-        f"rc386 by 1, rc387 by 2, rc395 by 2, rc398 by 5; rc420 (local task T1114) by 45 — the 27 cascade leaf-inventory registrations (12 leaves + 7 composites + 8 DFT leaves) land 45 consumes/produces rows in the carrier back-index; rc427 (local task T1130) by 5. If this is not 159, re-measure.")
+        f"rc386 by 1, rc387 by 2, rc395 by 2, rc398 by 5; rc420 (local task T1114) by 45 — the 27 cascade leaf-inventory registrations (12 leaves + 7 composites + 8 DFT leaves) land 45 consumes/produces rows in the carrier back-index; rc427 (local task T1130) by 5; the rc430 repair (local task T1127) SHRANK it by 2, the first decrease — kuramoto_sin_term / kuramoto_gen_term stopped advertising the emitted `float` carrier once their returns were corrected to the un-emitted `Q`. If this is not 157, re-measure.")
     # rc381 (`#T1052`) — THE srmech.physics.qm RECEIVING SIDE, pinned like biology
     # / cascade. UNLIKE every drain above, this move did NOT come out of the amsc
     # population — the qm subpackage was never under amsc. It is a whole-subpackage

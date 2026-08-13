@@ -98,6 +98,31 @@ tests/test_mcp_initialize_instructions_rc407.py
 tests/test_llm_anthropic.py
 tests/test_mcp.py::test_handle_pending_absent_from_advertised_catalogs
 
+# -- describe() TOP-LEVEL KEY SET (rc430 repair, `#T1127`) -------------------
+#    The same failure the rc414 block above records, recurring: rc430 added the
+#    13th top-level describe() key ("frames") and shipped with THREE pin sites
+#    red behind a GREEN ripple_check. Only test_mcp.py was named here, and only
+#    by node ids that do not run the pin -- so the sweep could not have caught
+#    it even in principle. The other two files appeared nowhere in this file.
+#    Any rc adding/removing a top-level describe() key moves ALL of these.
+#    tests/test_describe_key_set_pins_rc430.py DERIVES this roster from the tree
+#    and fails if a pin site is missing here, so this list cannot go stale
+#    silently the way the rc414 one did.
+tests/test_mcp.py::test_describe_shape
+tests/test_describe_registry_pointer_rc407.py
+tests/test_domain_classes_rc298.py
+tests/test_describe_key_set_pins_rc430.py
+
+# -- advertised returns.type vs the type actually returned (rc430 repair) -----
+#    THE SAME MAP GAP, one file over. rc430's `#T1094` replaced type-synthesised
+#    arguments with harvested ones, which un-blocked all six ops this file's
+#    retro-check pins -- the check fired exactly as designed and NOTHING RAN IT,
+#    because the file was not listed here. Found only by re-running it by hand
+#    during the rc430 repair triage; three independent reviews missed it.
+#    It also holds the only returns.type-vs-observed gates driven by REAL args,
+#    so any rc touching a `returns=` declaration or the arg provider moves it.
+tests/test_arrow_and_censuses_rc427.py
+
 # -- wire round-trip gate (rc414, `#T1092`) ----------------------------------
 #    The OUTBOUND converse of test_mcp.py::test_all_param_types_json_coercible
 #    (which is the inbound half and already listed above). An rc that adds a
@@ -251,6 +276,31 @@ tests/test_op_name_set_witness_rc361.py
 #    other. Listing it does not fix that collision; it makes the collision
 #    visible on the fast surface instead of in CI. Whole file, pure-Python.
 tests/test_owner_axis_rc410.py
+
+# -- frame axis: declared-vs-measured + declared==admissible (rc430, `#T1127`)
+#    A new ToolEntry FIELD, so it moves the same four generated artifacts every
+#    `reads_lane` change moves -- and unlike rc347's lane gate it does not just
+#    check the ops that DECLARED. It derives the admissible set behaviourally
+#    over every op the argument provider can drive and asserts set equality in
+#    BOTH directions, so REGISTERING A NEW OP can take it red without touching
+#    a declaration: an op that is behaviourally frame-admissible and declares
+#    nothing fails §4. That is the point (`reads_lane` reached 9 of 655 ops in
+#    82 rcs by being opt-in), and it is also exactly the shape that belongs on
+#    the fast surface rather than in CI. Carries CEIL_FRAME_UNADJUDICATED.
+#    ~2 min, pure-Python, no native .so.
+tests/test_frame_scope_rc430.py
+
+# -- synthesised-argument provenance / `#T1094` (rc430) ----------------------
+#    Guards the every-tool smoke's ARGUMENTS, which are derived from the live
+#    ToolEntry set: a new op with an undeclared param type moves the
+#    UNSYNTHESIZABLE ceiling, and a new op with a path-shaped param moves the
+#    sandbox ceiling. It also re-checks that no synthesised path can write into
+#    the package tree, which is the defect (`#T1094`) that shipped a stray file
+#    named `a` for ~400 rcs. Depends on tests/example_args_ledger.ndjson and
+#    asserts that ledger is FRESH against the live schema, so an rc that edits
+#    any worked example takes it red until the ledger is re-run
+#    (`python3 tools/run_example_args.py --only-stale`). ~10 s, pure-Python.
+tests/test_synth_args_provenance_rc430.py
 
 # -- citation-contains-term (rc428, `#T1126`) --------------------------------
 #    The literature-citation gate. It rides here for a reason the other entries

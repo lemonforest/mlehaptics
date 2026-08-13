@@ -817,6 +817,17 @@ def describe() -> Dict[str, Any]:
                                        "reads": [<input>, ...]}, ...},
                         "worked_example": {...},
                         "granularity": {...}},
+              "frames": {"total": <int>,
+                         "by_scope": {"parametric"|"fixed": <count>, ...},
+                         "by_axis": {"modulus"|"generator": <count>, ...},
+                         "definitions": {<scope>: <means>, ...},
+                         "axes": {<axis>: <means>, ...},
+                         "verified_by": {"parametric": <str>, "fixed": <str>,
+                                         "rule": <str>, "test": <path>,
+                                         "instrument": <path>},
+                         "cannot_express": {<blind_spot>: <means>, ...},
+                         "ops": {<op>: {"scope": <scope>,
+                                        "axis": [<axis>, ...]}, ...}},
             }
 
     ``tools["registry"]`` / ``["resolve"]`` / ``["covers"]`` (rc407, `#T1076`)
@@ -1316,6 +1327,71 @@ def describe() -> Dict[str, Any]:
         _lane_inputs = dict(_LANE_IN)
     except Exception:  # pragma: no cover
         _lane_defs, _lane_inputs = {}, {}
+    # rc430 (`#T1127`) — the FRAME axis. Same construction discipline as the
+    # lane block above: DERIVED from the tool schema, never a second list, so
+    # the payload and the declarations cannot drift.
+    _frame_ops = {
+        e.name: {"scope": e.frame_scope, "axis": builtins.list(e.frame_axis)}
+        for e in schema.tools if e.frame_scope is not None
+    }
+    _by_scope: Dict[str, int] = {}
+    _by_axis: Dict[str, int] = {}
+    for _row in _frame_ops.values():
+        _by_scope[_row["scope"]] = _by_scope.get(_row["scope"], 0) + 1
+        for _ax in _row["axis"]:
+            _by_axis[_ax] = _by_axis.get(_ax, 0) + 1
+    try:
+        from ..introspect.tool_schema import (
+            FRAME_AXES as _FRAME_AX, FRAME_SCOPES as _FRAME_SC)
+        _frame_defs, _frame_axes = dict(_FRAME_SC), dict(_FRAME_AX)
+    except Exception:  # pragma: no cover
+        _frame_defs, _frame_axes = {}, {}
+    _frames: Dict[str, Any] = {
+        "total": len(_frame_ops),
+        "by_scope": dict(sorted(_by_scope.items())),
+        "by_axis": dict(sorted(_by_axis.items())),
+        "definitions": _frame_defs,
+        "axes": _frame_axes,
+        # The admission rule as DATA. An op that cannot be given a frame
+        # perturbation declares nothing — and the two things this axis CANNOT
+        # say ship beside the two it can, because a consumer that reads a
+        # missing declaration as "no frame" would be wrong half the time.
+        "verified_by": {
+            "parametric": ("sweeping the named parameter MOVES the output; "
+                           "f(x + n) == f(x) for every swept n; and no single "
+                           "constant period survives the sweep"),
+            "fixed": ("there is a least constant m > 1 with f(x + m) == f(x) "
+                      "across a DENSE range, no parameter supplies m, and the "
+                      "op is not constant along the coordinate"),
+            "rule": ("swept over a dense contiguous range, never sampled — a "
+                     "six-point sample called is_prime `fixed` with period 6"),
+            "test": "tests/test_frame_scope_rc430.py",
+            "instrument": "tools/frame_probe.py",
+        },
+        "cannot_express": {
+            "frame_free_vs_no_frame": (
+                "an op with no frame datum declares NOTHING, so a "
+                "carrier-level op (just_limit, exact rationals) and an op with "
+                "no frame concept at all (sha256_bytes) are indistinguishable "
+                "here. Absent is not a verdict"),
+            "non_affine_generator": (
+                "the generator axis is decidable only for ops AFFINE in the "
+                "frame coordinate; a non-affine op that hard-wires a generator "
+                "is undeclarable and counted in the ratchet's residual ceiling"),
+            "base_argument_dependence": (
+                "the roster is DERIVED by driving each op from one set of "
+                "example arguments, so an op whose frame only becomes visible "
+                "under other arguments can be missed. This is a measured "
+                "limitation, not a hypothetical: at rc430 the probe's "
+                "degeneracy screen also skipped the parametric sweep whenever "
+                "the base arguments made the op constant along the swept "
+                "coordinate, and srmech.math.cyclic.gcd was absent from the "
+                "roster for exactly that reason while its own delegating alias "
+                "srmech.cascade.cyclic_gcd was present. Repaired at the rc430 "
+                "repair; the ONE-ARGUMENT-SET bound itself remains"),
+        },
+        "ops": _frame_ops,
+    }
     _lanes: Dict[str, Any] = {
         "total": len(_lane_ops),
         "by_lane": dict(sorted(_by_lane.items())),
@@ -1470,6 +1546,14 @@ def describe() -> Dict[str, Any]:
         # `carriers`' what-each-operand-can-DO. Every declaration is verified
         # executably against a sigma flip and an Aut index relabel.
         "lanes": _lanes,
+        # The FRAME axis (rc430 `#T1127`) — whether the frame an op reduces in
+        # is an INPUT the consumer may choose, or is welded into the op. Lane
+        # says what an op READS of its operand; frame says what it reduces
+        # THAT read in, so the two are orthogonal and neither implies the
+        # other. Every declaration is verified executably by a dense
+        # translation sweep, and the two things the axis cannot express ship
+        # in the payload beside the two it can.
+        "frames": _frames,
     }
 
 

@@ -240,4 +240,6 @@ def test_describe_still_reports_the_rest_unchanged():
         "lanes",     # rc347 `#T985` — the OP-side complement of "carriers"
         "cascade_catalog",  # rc420 `#T1114` — ADR-0012 C6: the 20 [cascade]
                             # descriptors, countable at the root index at last
+        "frames",    # rc430 `#T1127` — the FRAME axis: is the frame this op
+                     # reduces in an INPUT ("parametric") or WELDED IN ("fixed")
     }

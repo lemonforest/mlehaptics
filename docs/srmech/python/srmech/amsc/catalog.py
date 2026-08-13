@@ -408,7 +408,24 @@ def _descriptors() -> Dict[str, Descriptor]:
 
     # Then external roots in registration order.
     for ext_path, ext_source in _REGISTERED_ROOTS:
-        if not ext_path.exists():
+        # A root that is not a usable DIRECTORY is skipped, exactly as a
+        # nonexistent one is. `register_attested_root` deliberately accepts a
+        # path that is not there yet (see
+        # test_register_attested_root_handles_nonexistent_path: registration is
+        # a stub and `_descriptors()` must not raise on it), and a path that
+        # exists but is a FILE is the same class of bad root — the tolerance
+        # simply never covered it.
+        #
+        # `not exists()` alone let a file-root through to `discover_descriptors`,
+        # which walks it and raises NotADirectoryError from three files away.
+        # Measured at rc430 (`#T1127`): the every-tool smoke synthesises one
+        # sandbox path per PARAMETER NAME, so the op that writes `path=` created
+        # a file at the same string `register_attested_root` was handed — and
+        # the bad root then persisted in module-global state for the rest of the
+        # session, reddening `test_dsl_list_ops_u4_rc46` (x4) and
+        # `test_descriptor_hash_selfhost_rc393` in a completely different file.
+        # An ordering-dependent failure invisible to any single-file run.
+        if not ext_path.is_dir():
             continue
         external = discover_descriptors(ext_path)
         for key, desc in external.items():
