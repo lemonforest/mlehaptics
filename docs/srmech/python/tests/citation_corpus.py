@@ -48,8 +48,8 @@ with an ASCII hyphen 164 times. An ASCII-only matcher sees 40% of it. Dash
 folding here is the same fold the manifest builder applies, so a term crosses
 the join intact.
 
-THE FIVE AXES
-=============
+THE AXES
+========
 Each is a SYNTACTIC subtraction, per the ``test_owner_axis_rc410.py`` model:
 no file is named, no line is named, there is no ``noqa``. Each exists because a
 measured false positive forced it, and none can delete a term from prose that
@@ -104,19 +104,40 @@ attributed claim looks like.
     *negative-existence* class the ADR bare-path survey found on its own side,
     arriving here from the citation direction.
 
-    Scoped WHOLE-CLAIM rather than per-occurrence, and the reason is stated
-    because it looks like the looser choice and is not: the Mal'cev paragraph
-    names the term twice, once inside quote marks reproducing the RETRACTED
-    claim and once under the negation. A per-occurrence rule silences the
-    second and fires on the first. The governing principle is that **a single
-    claim cannot coherently assert both that the source contains T at L and
-    that it contains no T** — when prose does both, it is a correction record
-    and the gate has nothing to falsify in it.
+    Scoped per SENTENCE — not per occurrence, and no longer whole-claim. The
+    governing principle is that **a single assertion cannot coherently claim
+    both that the source contains T at L and that it contains no T**; when
+    prose does both, it is a correction record and the gate has nothing to
+    falsify in it. That is why the axis is not per-occurrence: the Mal'cev
+    paragraph names the term twice, once inside quote marks reproducing the
+    RETRACTED claim and once under the negation, and a per-occurrence rule
+    would fire on the first.
+
+    ⚠️ It was WHOLE-CLAIM through rc429's first cut, and at that scope it
+    laundered a false citation. Claim scope ends at ``;`` or a blank line, so
+    it spans sentences — and ``"…§2 — the Moufang identities. There is no
+    Moufang loop structure on the sedenions."`` had a TRUE second sentence
+    about the mathematics silence a FALSE first one about a source. A sentence
+    is the largest unit over which "this text denies the source has T" stays
+    one assertion, so the coherence argument is applied there and stops at the
+    full stop. Control C22.
 
     It cannot launder a real defect: every one of the four genuine rc428
     findings (three Hopf-at-§4.x, one Fano-at-§4.1) carries no negation token
     anywhere in its claim, and :func:`_self_check` control C10 pins that a
     plain false claim still fires with this axis live.
+
+``A8`` WORD BOUNDARY IN THE ORIGINAL TEXT (rc429)
+    ``densify`` deletes whitespace, so a dense match may span a join that never
+    existed. Per-occurrence. See :func:`_bounded_occurrence`.
+
+``A9`` CODE IDENTIFIER (rc429)
+    A match inside ``moufang_residue`` or ``genome.cwf_consistency_mod2`` is a
+    cross-reference, not a claim. A8 alone accepts them, because ``_`` and
+    ``.`` are not alphanumeric and so read as word boundaries. Forced by a
+    MEASURED false positive: a strict-zero arm fired on a field whose only
+    match sat inside a dotted path. Per-occurrence. See
+    :func:`_identifier_adjacent`.
 
 WHAT THIS PARSER DELIBERATELY DOES NOT DO
 ==========================================
@@ -148,6 +169,18 @@ from typing import Dict, List, Optional, Sequence, Tuple
 import srmech
 
 #: The installed package root — the same anchor ``adr_corpus`` uses.
+#:
+#: ⚠️ ``srmech.__file__ is None`` means a NAMESPACE PACKAGE was imported, not
+#: the real one — the source-tree shadowing this project has been bitten by
+#: before (``[[feedback_verify_the_artifact_under_test_is_the_one_you_think]]``).
+#: Left unguarded it surfaced as a bare ``TypeError: expected str … not
+#: NoneType`` from inside ``pathlib``, which names neither the cause nor the
+#: fix. Measured while building the ``--validate`` entry point at rc429.
+if srmech.__file__ is None:                            # pragma: no cover
+    raise ImportError(
+        "srmech imported as a NAMESPACE PACKAGE (__file__ is None), so this "
+        "corpus would scan nothing. Put the package root on PYTHONPATH — e.g. "
+        "PYTHONPATH=<repo>/docs/srmech/python — and re-run.")
 PKG_ROOT = Path(srmech.__file__).resolve().parent
 
 #: ``python/`` — the package's parent, holding ``tests/`` and ``tools/``.
@@ -175,6 +208,15 @@ GENERATED_MODULES: Tuple[str, ...] = (
 #: and for the same measured reason: a stale session worktree under
 #: ``docs/srmech/.claude/worktrees/`` shadows ``tool_schema.py``, and a scanner
 #: that reads it reports a clean corpus from a snapshot months old.
+#:
+#: ⚠️ :func:`_excluded` matches ANY path component, so an EXCLUDED ANCESTOR
+#: zeroes the corpus — an ad-hoc script run from inside a session worktree
+#: scans nothing at all. That is the intended behaviour and not a hole in CI:
+#: the non-vacuity floors below (``>= 200`` modules, ``>= 100`` units, ``>= 15``
+#: sources) are real assertions that FAIL LOUD on an empty walk rather than
+#: reporting a clean tree. It is called out here because the symptom in a
+#: scratch measurement is a confident zero, and a zero from this cause looks
+#: exactly like a zero from a clean corpus.
 EXCLUDED_DIR_NAMES = frozenset({
     "__pycache__", ".claude", "worktrees", "build", "_skbuild",
     "site-packages", "node_modules", ".git", "dist", ".venv",
@@ -258,7 +300,23 @@ def densify(text: str) -> str:
 
 
 def term_pattern(term: str) -> str:
-    """Regex for ``term`` against DENSE text. Mirrors the manifest builder."""
+    """Regex for ``term`` against DENSE text. Mirrors the manifest builder.
+
+    ⚠️ The dash class is dash-**optional** (``[DASHES]*``), not dash-normalising,
+    and that is deliberate rather than a loose quantifier nobody chose. It is
+    forced by :func:`densify`: whitespace is DELETED before matching, so the
+    perfectly ordinary spelling ``Cayley Dickson`` arrives as ``CayleyDickson``
+    with no separator left to match. A ``?`` or a ``+`` would report that
+    correct spelling as absent, which is the false-negative half of the same
+    error A8's inflection arm was added to avoid.
+
+    The measured cost of ``*`` is that ``CayleyDickson`` — a typo, not a
+    spelling — also matches. That is accepted: this axis exists to make a
+    citation harder to falsely clear, and a typo matching its own term errs
+    toward EVALUATING a claim rather than silencing one. Control C25 pins both
+    halves, because a quantifier documented only in a maintainer's head is
+    indistinguishable from one that was never chosen.
+    """
     out: List[str] = []
     for ch in term:
         if ch in DASHES:
@@ -272,10 +330,158 @@ def term_pattern(term: str) -> str:
     return "".join(out)
 
 
+# ── axis A8: the match needs a word boundary in the ORIGINAL text ─────
+
+#: An English inflection the trailing boundary tolerates. Measured, and the
+#: measurement is the whole justification: with a STRICT trailing rule the
+#: shipped corpus carries **2** phantoms, one of which is a FALSE NEGATIVE —
+#: ``math/carrier_spectrum.py``'s "factorization of elliptic functions" stops
+#: matching the watchlist term ``elliptic function``, silencing a legitimate
+#: plural claim. With the inflection arm it carries **1**, the real one. A8 is
+#: therefore correct-in-BOTH-directions only with this arm, and the strict form
+#: is a measured false negative rather than a tighter gate.
+#:
+#: Deliberately NOT widened to ``-ian`` / ``-ic``: no site in this tree forces
+#: them, and an unforced widening is an exemption nobody measured.
+_INFLECTIONS: Tuple[str, ...] = ("'s", "’s", "es", "s")
+
+
+def _alnum(ch: str) -> bool:
+    return ch.isalnum()
+
+
+def _bounded_occurrence(text: str, lo: int, hi: int) -> bool:
+    """Axis A8 — does ``text[lo:hi]`` sit on a word boundary in the ORIGINAL?
+
+    ``densify`` DELETES whitespace, so a match found in the dense copy may span
+    a join that never existed in the source. :func:`term_pattern` builds a bare
+    regex with no boundary of its own, and the two together invent identifiers.
+    Measured LIVE in this tree, inside a string a citation unit really parses::
+
+        apokatastasis/riemann_theta.py — "…the dual of an operator-side honest…"
+        dense: "…thedual[ofano]perator-sidehonest…"   ⇒  contains "Fano"
+
+    That phantom is silent TODAY only because ``1009.0369`` is not attested, so
+    the unit sits in S4's coverage residual rather than in S1's strict-zero
+    population. S4 is a down-only CEIL **designed to drain by attesting
+    sources** — so the moment somebody performs the one action the gate asks
+    for, "Fano" is evaluated against a Riemann-theta / Schottky paper, reads 0,
+    and the STRICT-ZERO arm fires **on correct prose**. That is precisely the
+    rc427 failure this gate's own docstring forbids, armed and waiting behind
+    the gate's own drain path. It is a live defect, not a hypothetical.
+
+    The second measured phantom is ``Bott`` — S1's census found **33** dense
+    hits in the tree and **0** real ones: every occurrence is ``Bottom``.
+
+    SCOPED PER-OCCURRENCE, NOT WHOLE-CLAIM — and the difference from A6 is
+    deliberate rather than accidental. A6 is whole-claim because *a single
+    claim cannot coherently assert both that a source contains T and that it
+    contains none*, so a mixed claim is a correction record with nothing to
+    falsify. A8 has no such coherence argument available: a phantom is a
+    parsing accident with no relationship to the genuine occurrence beside it,
+    so a whole-claim veto would let one accidental substring silence a real
+    false citation in the same sentence. The two axes therefore run at
+    OPPOSITE scopes, on purpose, and control C18b pins the mixed case.
+    """
+    if lo > 0 and _alnum(text[lo - 1]):
+        return False
+    if hi >= len(text) or not _alnum(text[hi]):
+        return True
+    tail = text[hi:]
+    for suffix in _INFLECTIONS:
+        if tail.startswith(suffix):
+            after = hi + len(suffix)
+            if after >= len(text) or not _alnum(text[after]):
+                return True
+    return False
+
+
+# ── axis A9: a CODE IDENTIFIER is not a claim (rc429 repair) ──────────
+
+
+def _identifier_adjacent(text: str, lo: int, hi: int) -> bool:
+    """Axis A9 — is ``text[lo:hi]`` part of a longer CODE IDENTIFIER?
+
+    A8 asks for a word boundary and gets one from ``_`` and ``.``, because
+    neither is alphanumeric. So ``srmech.biology.genome.cwf_consistency_mod2``
+    contains a *bounded occurrence* of the term ``CWF``, and a cross-reference
+    to a sibling op is scored as a claim about a source.
+
+    THAT IS NOT HYPOTHETICAL, AND IT IS NOT SYMMETRIC WITH A8'S PHANTOM.
+    Measured on this tree at the rc428 state, arm S6 evaluated four ops across
+    ten emitted prose fields, and ``srmech.math.covering.linking_number_cwf ::
+    explanation`` carried **exactly one** occurrence of any CWF spelling — the
+    one inside that dotted path, in a ``SIBLINGS --`` cross-reference. The field
+    contained no claim at all, and a STRICT-ZERO arm fired on it and demanded a
+    prose edit.
+
+    That is the failure mode this whole arc exists to prevent, arriving from
+    the gate's own side: a provenance gate that fires on prose carrying no
+    claim applies steady pressure to bolt a plausible-looking reference onto
+    correct text. The gate's own failure message says so — *"If this fired on
+    prose that is CORRECT, the GATE is wrong: re-scope it by naming an axis"* —
+    so this is that axis, named, rather than a roster row quietly deleted or a
+    file exempted.
+
+    The rule is deliberately NARROW, and each clause is forced by a measured
+    spelling rather than chosen for symmetry:
+
+    * ``_`` on either side. Prose never puts an underscore against a word;
+      ``moufang_residue``, ``is_moufang`` and ``cwf_consistency_mod2`` all do.
+    * ``.`` on the LEFT with an alphanumeric or ``_`` before it — a dotted
+      continuation, as in ``genome.cwf_consistency_mod2``.
+
+    A trailing ``.`` is deliberately NOT a marker. In prose it is overwhelmingly
+    a sentence terminator, and treating it as an identifier join would silence
+    every claim term that happens to end a sentence — trading this false
+    positive for a far larger false negative.
+
+    Measured blast radius over the whole shipped corpus: **204** occurrences
+    removed, of which **0** sit inside a parsed citation ``Unit`` claim. Arms
+    S1/S2/S3/S4 read exactly the same numbers before and after; every removal is
+    a C symbol name or a dotted Python path. Control C20 pins the live site,
+    C21 pins the negative direction.
+    """
+    if lo > 0 and text[lo - 1] == "_":
+        return True
+    if hi < len(text) and text[hi] == "_":
+        return True
+    if (lo >= 2 and text[lo - 1] == "."
+            and (text[lo - 2].isalnum() or text[lo - 2] == "_")):
+        return True
+    return False
+
+
+def occurrences(text: str, term: str) -> List[Tuple[int, int]]:
+    """Every A8- and A9-bounded occurrence of ``term`` as ``(start, end)``.
+
+    THE single definition of what an occurrence IS. :func:`contains_term` and
+    :func:`asserts_absence` both route through it so the two axes cannot
+    disagree about what they are looking at — a disagreement there re-opens the
+    hole A6's control C10 closes, from the other side. A9 is applied HERE, at
+    the same per-occurrence scope as A8, for that same reason: an axis applied
+    on one side of that pair and not the other is how the two stop agreeing.
+    """
+    dense, idx = densify_indexed(text)
+    out: List[Tuple[int, int]] = []
+    for m in re.finditer(term_pattern(term), dense, re.IGNORECASE):
+        if m.start() >= len(idx):                      # pragma: no cover
+            continue
+        lo = idx[m.start()]
+        hi = idx[m.end() - 1] + 1
+        if _bounded_occurrence(text, lo, hi) and not _identifier_adjacent(
+                text, lo, hi):
+            out.append((lo, hi))
+    return out
+
+
 def contains_term(haystack: str, term: str) -> bool:
-    """Is ``term`` present in ``haystack``, dash- and whitespace-insensitively?"""
-    return re.search(term_pattern(term), densify(haystack),
-                     re.IGNORECASE) is not None
+    """Is ``term`` present in ``haystack``, dash- and whitespace-insensitively?
+
+    Axis A8 applies: a dense match with no word boundary in the ORIGINAL text
+    is a join artifact, not an occurrence.
+    """
+    return bool(occurrences(haystack, term))
 
 
 # ── axis A6: an absence-assertion is not a presence-assertion ─────────
@@ -285,8 +491,21 @@ def contains_term(haystack: str, term: str) -> bool:
 #: inside ``norm``, ``normalise``, ``nonzero`` and ``notation``, all of which
 #: occur in this tree's citation prose, and each such match would silence a
 #: real claim.
+#:
+#: ⚠️ ``"zero"`` was a token through rc429's first cut and is REMOVED, under
+#: this list's own stated standard. The A8 inflection note next door refuses to
+#: widen to ``-ian``/``-ic`` because *"no site in this tree forces them, and an
+#: unforced widening is an exemption nobody measured"* — and every token here
+#: SILENCES a claim, so an unforced token is that same exemption with more
+#: consequence. Measured: **0** live citation units in the shipped corpus have
+#: their absence-assertion resting on ``"zero"``; removing it moves no verdict.
+#: What it did carry was a false positive, in a tree where "zero" is a QUANTITY
+#: on nearly every line — ``"the ring has zero divisors, and the Moufang
+#: identities are established"`` read as an assertion that the source LACKS
+#: "Moufang", silencing a real claim that ordinary docstring prose would write
+#: by accident. Control C23 pins it.
 NEGATION_TOKENS: Tuple[str, ...] = (
-    "no", "not", "never", "none", "nor", "zero", "absent", "without",
+    "no", "not", "never", "none", "nor", "absent", "without",
 )
 
 _NEGATION = re.compile(
@@ -300,27 +519,80 @@ _NEGATION = re.compile(
 NEGATION_WINDOW = 60
 
 
+#: A sentence break in the ORIGINAL prose: a terminator followed by space.
+_SENTENCE_BREAK = re.compile(r"(?<=[.!?])\s")
+
+
+def _sentence_bounds(text: str, at: int) -> Tuple[int, int]:
+    """``(lo, hi)`` of the sentence containing offset ``at``."""
+    lo = 0
+    for m in _SENTENCE_BREAK.finditer(text[:at]):
+        lo = m.end()
+    nxt = _SENTENCE_BREAK.search(text, at)
+    return lo, (nxt.start() if nxt else len(text))
+
+
+def _negated_at(claim: str, at: int) -> bool:
+    """Is the occurrence at ``at`` governed by a negation token before it?"""
+    window = claim[max(0, at - NEGATION_WINDOW):at]
+    # A sentence terminator ends the governing clause.
+    for stop in (". ", ".\n", "! ", "? "):
+        cut = window.rfind(stop)
+        if cut != -1:
+            window = window[cut + len(stop):]
+    return _NEGATION.search(window) is not None
+
+
 def asserts_absence(claim: str, term: str) -> bool:
     """Axis A6 — does ``claim`` assert that the source LACKS ``term``?
 
-    True iff some occurrence of ``term`` is governed by a negation token
-    within :data:`NEGATION_WINDOW` characters BEFORE it, with no sentence
-    terminator in between. Backward-only: a negation governs what FOLLOWS it,
-    and scanning forward as well would let ``the Moufang identities. This does
-    not …`` silence a real claim from the next sentence.
+    True iff **every sentence of the claim that carries an occurrence of
+    ``term`` carries a NEGATED one.** Governing is backward-only within a
+    sentence: a negation governs what FOLLOWS it, and scanning forward as well
+    would let ``the Moufang identities. This does not …`` silence a real claim
+    from the next sentence.
+
+    ⚠️ **Whole-claim OR was the rc429 spelling and it laundered a false
+    citation. The scope is now the SENTENCE, and the reason is precisely the
+    coherence argument the OR was built on.** That argument — *a single claim
+    cannot coherently assert both that a source contains T and that it contains
+    none, so a mixed claim is a correction record with nothing to falsify* — is
+    sound, and it is why this is not simply an AND over occurrences. It has to
+    stay an OR *within* a sentence, or the tree's real correction records break:
+    ``cited here through rc426 for 'the Mal'cev tangent algebra' — contains NO
+    occurrence of Mal'cev in any spelling`` has a BARE first occurrence and a
+    negated second one, in one sentence, and it is exactly the paragraph written
+    to record a fix (control C10).
+
+    What the argument does NOT license is reaching across a full stop. Measured:
+
+        Baez arXiv:math/0105155, §2 — the Moufang identities. There is no
+        Moufang loop structure on the sedenions.
+
+    Sentence one is a false citation; sentence two is an independently TRUE
+    statement about the mathematics. Under whole-claim OR the true sentence
+    silenced the false citation, and the rc426 defect class re-opened wearing an
+    ordinary compound sentence. Sentence-scoped, sentence one carries a bare
+    occurrence, ``all()`` fails, and the claim is evaluated. Control C22.
+
+    This is the same distinction the S6 arm hit from the other side: field-scope
+    A6 silenced 7 of 16 sites because a whole docstring almost always contains a
+    negation about the MATHEMATICS somewhere. A sentence is the largest unit
+    over which "this text is denying the source has T" stays a single assertion.
+
+    Iterates the SAME A8/A9-bounded occurrences :func:`contains_term` sees. If
+    the two disagreed, a phantom could be read as a negated claim and silence a
+    real one — the C10 hole arriving from the other side.
     """
-    dense, idx = densify_indexed(claim)
-    for m in re.finditer(term_pattern(term), dense, re.IGNORECASE):
-        at = idx[m.start()]
-        window = claim[max(0, at - NEGATION_WINDOW):at]
-        # A sentence terminator ends the governing clause.
-        for stop in (". ", ".\n", "! ", "? "):
-            cut = window.rfind(stop)
-            if cut != -1:
-                window = window[cut + len(stop):]
-        if _NEGATION.search(window) is not None:
-            return True
-    return False
+    occ = occurrences(claim, term)
+    if not occ:
+        return False
+    by_sentence: Dict[Tuple[int, int], bool] = {}
+    for at, _end in occ:
+        span = _sentence_bounds(claim, at)
+        by_sentence[span] = by_sentence.get(span, False) or _negated_at(
+            claim, at)
+    return all(by_sentence.values())
 
 
 # ── the grammar ───────────────────────────────────────────────────────
@@ -437,33 +709,53 @@ def parse_units(text: str, path: str = "", line: int = 0) -> List[Unit]:
         stop = _SCOPE_END.search(rest)
         scope = rest[:stop.start()] if stop else rest
 
-        # ── A4: code spans are not prose.
-        scope = _strip_code_spans(scope)
+        # ── A4: code spans are not prose. Length-PRESERVING, so every offset
+        #        below indexes both copies identically.
+        raw_scope, scope = scope, _strip_code_spans(scope)
 
         locs = list(_LOCATOR.finditer(scope))
         if not locs:
-            units.append(Unit(sid, version, None, _claim_after(scope, 0),
+            units.append(Unit(sid, version, None,
+                              _claim_after(raw_scope, scope, 0),
                               path, line, scope[:160]))
             continue
 
         # ── A3: each locator owns the text up to the NEXT locator.
         for i, lm in enumerate(locs):
             end = locs[i + 1].start() if i + 1 < len(locs) else len(scope)
-            claim = _claim_after(scope, lm.end(), end)
+            claim = _claim_after(raw_scope, scope, lm.end(), end)
             for label in _expand_range(lm.group(1), lm.group(2)):
                 units.append(Unit(sid, version, label, claim, path, line,
                                   scope[lm.start():end][:160]))
     return units
 
 
-def _claim_after(scope: str, start: int, end: Optional[int] = None) -> str:
+def _claim_after(raw: str, stripped: str, start: int,
+                 end: Optional[int] = None) -> str:
     """Axis A2 — the attributed claim following an attribution MARK, or ``""``.
 
     Everything between ``start`` and the first mark is citation apparatus
     (``, §4.2``, ``[math.CA] (2017)``) and asserts nothing. If no mark is
     present the unit carries no claim, cannot be false, and is never evaluated.
+
+    ⚠️ **The mark is located in ``raw`` and the claim is taken from
+    ``stripped``**, and splitting the two is a repair rather than a nicety.
+    Both were read from the code-span-stripped copy through rc429, so a mark
+    that happened to fall INSIDE a code span was blanked with it — and since a
+    unit with no mark carries no claim, the entire following sentence left the
+    strict-zero population. Measured on ``arXiv:math/0105155, §3 `` ``—`` `` the
+    exceptional Jordan algebra is discussed at length``: the claim read ``''``
+    with the span and ``'the exceptional Jordan algebra is discussed at
+    length'`` without it. Real prose escaping S1 by construction is the same
+    class of hole as a false claim passing it, approached from the other end.
+
+    A4's actual purpose survives untouched: code-span CONTENTS are still not
+    claim terms, because the claim text still comes from ``stripped``.
+    :func:`_strip_code_spans` is length-preserving precisely so the two copies
+    share an index space and this split costs nothing. Control C24.
     """
-    window = scope[start:end if end is not None else len(scope)]
+    hi = end if end is not None else len(raw)
+    window = raw[start:hi]
     best = -1
     for mark in _ATTRIBUTION_MARKS:
         at = window.find(mark)
@@ -471,7 +763,7 @@ def _claim_after(scope: str, start: int, end: Optional[int] = None) -> str:
             best = at + len(mark)
     if best == -1:
         return ""
-    return window[best:].strip()
+    return stripped[start + best:hi].strip()
 
 
 def units_in(path: Path) -> List[Unit]:
@@ -608,5 +900,190 @@ def _self_check() -> None:
     assert not asserts_absence(
         "there is no associator. The Moufang identities hold", "Moufang")
 
+    # ── axis A8 (rc429, `#T1128`) ────────────────────────────────────
+    # C13 — THE LIVE PHANTOM, verbatim from apokatastasis/riemann_theta.py.
+    #       "…the dual of an operator-side honest…" densifies to
+    #       "…thedual[ofano]perator…" and matched the watchlist term "Fano"
+    #       before A8. Silent today only because 1009.0369 is unattested; the
+    #       moment S4 drains by attesting it, S1 fires on correct prose.
+    assert not contains_term("the dual of an operator-side honest", "Fano")
+
+    # C14 — "Bott" measured at 33 dense hits tree-wide and 0 real ones: every
+    #       occurrence is "Bottom".
+    assert not contains_term("Bottom of the ladder", "Bott")
+    assert not contains_term("the bottleneck", "Bott")
+
+    # C15 — the INFLECTION arm, on a real corpus string. Without it A8 is a
+    #       measured FALSE NEGATIVE: a legitimate plural claim stops matching.
+    assert contains_term("factorization of elliptic functions",
+                         "elliptic function")
+    assert contains_term("the Moufang identities' scope", "Moufang identities")
+
+    # C16 — A8 must not weaken C8. Dash / whitespace folding still holds.
+    assert contains_term("the Cayley–Dickson ladder", "Cayley-Dickson")
+    assert contains_term("Cayley-\n    Dickson", "Cayley-Dickson")
+
+    # C17 — A6 and A8 must agree on what an OCCURRENCE is. A phantom must not
+    #       be readable as a negated claim either, or the disagreement
+    #       re-opens C10's hole from the other side.
+    assert not asserts_absence("no operator of an operand", "Fano")
+    assert asserts_absence("contains no Moufang identity", "Moufang")
+
+    # C18 — NEGATIVE CONTROL on the predicate itself. _bounded_occurrence must
+    #       be able to return BOTH False and True, or it is not a measurement.
+    assert _bounded_occurrence("a Fano plane", 2, 6)
+    assert not _bounded_occurrence("ofanoperator", 1, 5)
+
+    # C18b — A8 is PER-OCCURRENCE, not a whole-claim veto. A claim carrying a
+    #        phantom AND a genuine occurrence of the same term must still be
+    #        evaluated on the genuine one. This is where A8 and A6 deliberately
+    #        run at OPPOSITE scopes; see _bounded_occurrence.
+    mixed = "the dual of an operator; the Fano plane at §2.1"
+    assert contains_term(mixed, "Fano"), mixed
+    assert len(occurrences(mixed, "Fano")) == 1, occurrences(mixed, "Fano")
+
+    # ── axis A9 (rc429 repair) ───────────────────────────────────────
+    # C20 — THE LIVE FALSE POSITIVE, verbatim from covering.py's rc428 state.
+    #       This was arm S6's ONLY occurrence in that field, and a strict-zero
+    #       arm fired on it and demanded an edit to prose carrying no claim.
+    sibling = ("SIBLINGS -- ``srmech.biology.genome.cwf_consistency_mod2`` "
+               "checks the same relation mod 2")
+    assert not contains_term(sibling, "CWF"), sibling
+    assert not contains_term("the moufang_residue helper", "Moufang")
+    assert not contains_term("whole-loop verdict: is_moufang", "Moufang")
+
+    # C21 — A9 must be able to return BOTH ways, or it is an exemption rather
+    #       than an axis. The SAME term in ordinary prose still matches, and
+    #       every roster op keeps a real prose occurrence somewhere.
+    assert contains_term("the CWF relation Lk = Tw + Wr", "CWF")
+    assert contains_term("all three Moufang identities", "Moufang")
+    assert _identifier_adjacent("genome.cwf_consistency_mod2", 7, 10)
+    assert not _identifier_adjacent("the CWF relation", 4, 7)
+    # A trailing full stop is a SENTENCE, not an identifier join.
+    assert contains_term("...hold on every Moufang.", "Moufang")
+
+    # ── axis A6, sentence scope (rc429 repair) ───────────────────────
+    # C22 — whole-claim OR laundered a false citation through a TRUE sentence
+    #       about the mathematics. Both halves, on one text.
+    launder = ("the Moufang identities. There is no Moufang loop structure "
+               "on the sedenions.")
+    assert contains_term(launder, "Moufang"), launder
+    assert not asserts_absence(launder, "Moufang"), launder
+    # …while the one-sentence correction record still reads as one.
+    assert asserts_absence(
+        "cited here through rc426 for 'the Mal'cev tangent algebra' — "
+        "contains NO occurrence of Mal'cev in any spelling", "Mal'cev")
+
+    # C23 — "zero" is a QUANTITY in this tree, not a negation. Removing it
+    #       moved 0 live verdicts and closed a false positive that ordinary
+    #       docstring prose writes by accident.
+    assert not asserts_absence(
+        "the ring has zero divisors, and the Moufang identities are "
+        "established", "Moufang")
+    assert "zero" not in NEGATION_TOKENS
+    # …and the tokens that ARE forced still fire.
+    assert asserts_absence("contains no Moufang identity", "Moufang")
+
+    # C24 — A2 x A4. A mark inside a code span must not blank the claim that
+    #       follows it, while the span's CONTENTS remain non-prose.
+    spanned_mark = ("arXiv:math/0105155, §3 ``—`` the exceptional Jordan "
+                    "algebra is discussed")
+    u = parse_units(spanned_mark)
+    assert u and contains_term(u[0].claim, "Jordan"), u
+    u = parse_units("arXiv:math/0105155, §2 — see ``Moufang`` below")
+    assert u and not contains_term(u[0].claim, "Moufang"), u
+
+    # C25 — term_pattern's dash quantifier, BOTH halves. The separator-free
+    #       form must match (densify deletes the space in "Cayley Dickson")…
+    assert contains_term("the Cayley Dickson ladder", "Cayley-Dickson")
+    assert contains_term("the CayleyDickson ladder", "Cayley-Dickson")
+    # …and the quantifier must not make the term match a different word.
+    assert not contains_term("the Cayley plane", "Cayley-Dickson")
+    assert not contains_term("Dickson's theorem", "Cayley-Dickson")
+
 
 _self_check()
+
+
+def _validate() -> int:                                # pragma: no cover
+    """``python3 tests/citation_corpus.py --validate`` — run every control.
+
+    Prints ONE LINE PER CONTROL with PASS/FAIL and exits **non-zero** on any
+    failure. It must never print a summary and return 0: rc428's ``main()``
+    did exactly that — it printed ``DEAD SEAM`` and returned success — and a
+    reporting entry point is how a dead control stays alive for a whole rc.
+    """
+    checks = [
+        ("C13 A8 live phantom (riemann_theta 'ofano')",
+         lambda: not contains_term("the dual of an operator-side honest",
+                                   "Fano")),
+        ("C14 A8 Bott/Bottom (33 dense, 0 real)",
+         lambda: not contains_term("Bottom of the ladder", "Bott")),
+        ("C15 A8 inflection arm (elliptic function/s)",
+         lambda: contains_term("factorization of elliptic functions",
+                               "elliptic function")),
+        ("C16 A8 does not weaken C8 (dash fold)",
+         lambda: contains_term("the Cayley–Dickson ladder", "Cayley-Dickson")),
+        ("C17 A6 and A8 agree on an occurrence",
+         lambda: not asserts_absence("no operator of an operand", "Fano")),
+        ("C18 negative control: predicate returns both ways",
+         lambda: _bounded_occurrence("a Fano plane", 2, 6)
+         and not _bounded_occurrence("ofanoperator", 1, 5)),
+        ("C18b A8 is per-occurrence, not a whole-claim veto",
+         lambda: len(occurrences(
+             "the dual of an operator; the Fano plane", "Fano")) == 1),
+        ("C20 A9 live false positive (covering.py SIBLINGS xref)",
+         lambda: not contains_term(
+             "SIBLINGS -- ``srmech.biology.genome.cwf_consistency_mod2`` "
+             "checks the same relation mod 2", "CWF")),
+        ("C21 A9 negative control: prose still matches",
+         lambda: contains_term("the CWF relation Lk = Tw + Wr", "CWF")
+         and contains_term("...hold on every Moufang.", "Moufang")
+         and not _identifier_adjacent("the CWF relation", 4, 7)),
+        ("C22 A6 sentence scope: cross-sentence launder fires",
+         lambda: not asserts_absence(
+             "the Moufang identities. There is no Moufang loop structure on "
+             "the sedenions.", "Moufang")
+         and asserts_absence("cited here through rc426 for 'the Mal'cev "
+                             "tangent algebra' — contains NO occurrence of "
+                             "Mal'cev in any spelling", "Mal'cev")),
+        ("C23 'zero' is a quantity, not a negation",
+         lambda: "zero" not in NEGATION_TOKENS and not asserts_absence(
+             "the ring has zero divisors, and the Moufang identities are "
+             "established", "Moufang")
+         and asserts_absence("contains no Moufang identity", "Moufang")),
+        ("C24 A2xA4: a code-span mark does not blank the claim",
+         lambda: contains_term(parse_units(
+             "arXiv:math/0105155, §3 ``—`` the exceptional Jordan algebra "
+             "is discussed")[0].claim, "Jordan")
+         and not contains_term(parse_units(
+             "arXiv:math/0105155, §2 — see ``Moufang`` below")[0].claim,
+             "Moufang")),
+        ("C25 term_pattern dash quantifier, both halves",
+         lambda: contains_term("the Cayley Dickson ladder", "Cayley-Dickson")
+         and not contains_term("Dickson's theorem", "Cayley-Dickson")),
+        ("corpus resolves and is non-empty",
+         lambda: len(shipped_modules()) >= 200),
+        ("units parse and are non-empty",
+         lambda: len(all_units()) >= 100),
+    ]
+    bad = 0
+    for label, fn in checks:
+        try:
+            ok = bool(fn())
+        except Exception as exc:                       # noqa: BLE001
+            ok, label = False, "%s  [%s: %s]" % (label, type(exc).__name__, exc)
+        print("%-4s %s" % ("PASS" if ok else "FAIL", label))
+        if not ok:
+            bad += 1
+    print("%d control(s) FAILED" % bad if bad else "all controls PASS")
+    return 1 if bad else 0
+
+
+if __name__ == "__main__":                             # pragma: no cover
+    import sys as _sys
+
+    if "--validate" not in _sys.argv[1:]:
+        print("usage: python3 tests/citation_corpus.py --validate")
+        raise SystemExit(2)
+    raise SystemExit(_validate())

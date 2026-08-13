@@ -273,8 +273,35 @@ from srmech.math.text import fold_marks, glyph_stream
 #:      tool list and the compiled-in C registry is content, not commentary.
 #: Re-measured the same way: FIFTEEN builds, three fresh interpreters, one
 #: hash, ``len(frames) == 684`` and ``(655, 29)`` every time.
+#: **RE-PINNED AGAIN at v0.9.0rc429 (`#T1128`).** rc428's value was
+#: ``91fb1c351e5bb855d338271b5a50cf6e50a5c38f18287de999e934e0f5e16f53``. This
+#: is the ELEVENTH consecutive re-pin and the THIRD in a row with **zero
+#: op-count change** — 684 = 655 ops + 29 carriers before and after, registry
+#: 655, ABI 14. rc429 is a PROVENANCE rc and registers no op.
+#:
+#: The two burdens this re-pin discharges:
+#:   1. **the op set did not move** — the decomposition is identical to rc427
+#:      and rc428, so nothing was added, renamed or dropped;
+#:   2. **the move has a named cause** — rc429 carried a provenance VERDICT into
+#:      the emitted prose fields that were shipping the claim without one. Four
+#:      ToolEntries moved: ``malcev_defect`` and ``moufang_residue``
+#:      (explanation, plus the latter's ``example['why']``),
+#:      ``genome.cwf_consistency_mod2`` (summary + explanation) and
+#:      ``covering.linking_number_cwf`` (summary + explanation). Two of those
+#:      edits also NARROWED prose that appealed to a named theorem as its own
+#:      warrant — "the theorem's content is" became "the asymmetry this op
+#:      measures is" — which is a content change by exactly the standard this
+#:      witness exists to enforce.
+#:
+#: That a +0-op rc moves this hash is the property the witness exists for:
+#: ToolEntry prose reaches users through ``describe()``, the MCP tool list and
+#: the compiled-in C registry, so a provenance verdict added there is content.
+#: Re-measured the same way BEFORE re-pinning: FIFTEEN builds on WSL2
+#: (numpy-absent) — five successive ``_build_frames('all')`` calls inside each
+#: of THREE fresh interpreters — one hash every time, ``len(frames) == 684``
+#: every time, and the ops/carriers sub-corpora summing to it on every build.
 WITNESS_RC416 = (
-    "91fb1c351e5bb855d338271b5a50cf6e50a5c38f18287de999e934e0f5e16f53")
+    "fec2cdcb48c29c1ffeef49cf4ada4b3049b267c91fb399bc82813d421d8f3033")
 
 #: The ASCII control set. These four queries are the ops the tokenizer work is
 #: ABOUT, so a regression on them would be the change eating its own subject.

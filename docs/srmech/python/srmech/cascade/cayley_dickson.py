@@ -2317,6 +2317,28 @@ def moufang_residue(x: Sequence[Any], y: Sequence[Any], z: Sequence[Any],
         the Class-K ⟨v,v⟩ magnitude²). NO new C symbol — ``composition_of_c``
         over the c_dispatched ``srmech_cd_mult`` / ``srmech_algebra_table_product``.
         Class M ∘ K.
+
+    Provenance (rc429, `#T1128`):
+        SSoT for the three identities: Schafer, R.D. (1966), *An Introduction
+        to Nonassociative Algebras*, ch. III eqns (7)–(9), read verbatim from
+        the public-domain text (Project Gutenberg #25156); Conway, J.H. &
+        Smith, D.A. (2003), *On Quaternions and Octonions*, ch. 6.
+        RE-VERIFIED at rc429 by extracting that TeX source directly
+        (226,706 chars, sha256 25ff18d3…): "Moufang" occurs 3×, and eqn (7)
+        is introduced with the words *"the Moufang identities"* — the
+        locator is correct as cited. Positive controls on the same
+        extraction: Schafer 15, alternative 44, Jordan 127; negative
+        controls 0; no U+FFFD.
+
+        ⚠️ This attribution shipped only in the registry ``summary`` through
+        rc428 while three other emitted fields carried the claim bare. A
+        verdict that reaches one artifact and not the others is the rc429
+        defect class; gated per FIELD by
+        ``tests/test_citation_manifest_rc428.py`` arm S6.
+
+        ATTESTATION FIX rc427 (`#T1130`), restated here so it travels with
+        the claim: Baez, *The Octonions*, arXiv:math/0105155 §2 was cited
+        for the Moufang identities through rc426 and does NOT state them.
     """
     mul, (a, b, c) = _loop_products(table, x, y, z)
 
@@ -2432,6 +2454,40 @@ def malcev_defect(x: Sequence[Any], y: Sequence[Any], z: Sequence[Any],
 
         SSoT for the ambient algebra: Schafer, R.D. (1966), *An Introduction
         to Nonassociative Algebras*, ch. III (Project Gutenberg #25156).
+
+        ⚠️ rc429 (`#T1128`) — **the paragraph above carries TWO claims and
+        they do not share a verdict.** One DERIVED-AND-MEASURED stamp over
+        both would launder the general one on the specific one's evidence:
+
+        **A. "The tangent algebra of a Moufang loop IS a Mal'cev algebra"
+        — UNSOURCED in this tree; standard background, retained
+        deliberately.** It is a general theorem over ALL Moufang loops, and
+        executing ``malcev_defect(e₁,e₂,e₄)`` establishes an INSTANCE on 𝕆,
+        not the theorem. It is kept because deleting it impoverishes the
+        docstring for the why-asker, and it is marked rather than removed
+        because an unsourced claim wearing a measured claim's verdict is the
+        defect this rc exists to close. **The Schafer line above is NOT
+        widened to cover it, and that was decided by extraction rather than
+        by preference**: the Project Gutenberg #25156 TeX source
+        (226,706 chars, sha256 25ff18d3…) contains **0** occurrences of
+        "Mal'cev" in any spelling, 0 of "Kuzmin", 0 of "tangent algebra" and
+        0 of "Moufang loop", on an extraction whose live positive controls
+        read Schafer 15 / alternative 44 / Moufang 3 / Jordan 127, whose
+        negative controls read 0, and which carries no U+FFFD — so those
+        zeroes are MEASUREMENTS, not silence. Schafer ch. III is alternative
+        algebras; the Moufang-tangent-algebra result is Mal'cev/Kuzmin, and
+        the only trace in that volume is a bibliography line ("A note on
+        Moufang-Lie rings", Proc. Amer. Math. Soc. **9** (1958)), which
+        states no theorem. No second citation is substituted.
+
+        **B. "jacobi = 144 at (e₁,e₂,e₄) … malcev is EXACTLY 0" —
+        DERIVED-AND-MEASURED**, per the verdict block above: these are the
+        two keys this op RETURNS, and ``tests/test_moufang_loop_rc398.py``
+        calls it and asserts them.
+
+        The same extraction independently VERIFIED the sibling citation on
+        :func:`moufang_residue`: the three Moufang identities really are
+        Schafer's eqns (7)–(9), quoted there verbatim.
     """
     mul, (a, b, c) = _loop_products(table, x, y, z)
 
