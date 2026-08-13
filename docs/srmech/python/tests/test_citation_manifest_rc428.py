@@ -252,6 +252,54 @@ def test_every_source_row_carries_a_live_positive_control() -> None:
             f"every zero derived from it is silence, not measurement")
 
 
+def test_every_shipped_row_obeys_the_schema_it_declares() -> None:
+    """The catalog's own ``row.schema.json`` must DESCRIBE the shipped rows.
+
+    ⚠️ **rc428 repair — the schema said ``additionalProperties: false`` and
+    nothing enforced it.** The repair pass added three fields to the source
+    row and the whole suite stayed green, because no read path validates
+    against this schema (a sibling catalog's test says so in as many words).
+    A contract document that the data may silently contradict is not a
+    contract; it is a comment with punctuation — and this rc is about exactly
+    that failure mode, so leaving it would have been committing the defect
+    while documenting it.
+
+    Checked by hand rather than with ``jsonschema``: that is not a dependency
+    of this package, and the properties worth enforcing here are structural.
+    """
+    schema = json.loads(
+        (MANIFEST_DIR / "row.schema.json").read_text(encoding="utf-8"))
+    declared = set(schema["properties"])
+    required = set(schema["required"])
+    assert schema.get("additionalProperties") is False, (
+        "the schema stopped forbidding undeclared properties — if that was "
+        "deliberate this test is the wrong shape, and if it was not, the "
+        "catalog just lost its only field-level contract")
+
+    rows = [json.loads(l) for l in
+            MANIFEST.read_text(encoding="utf-8").splitlines() if l.strip()]
+    assert rows, "no rows"
+    for i, row in enumerate(rows, 1):
+        undeclared = sorted(set(row) - declared)
+        assert not undeclared, (
+            f"row {i} ({row.get('row_type')}/{row.get('source_id')}) carries "
+            f"{undeclared}, which row.schema.json does not declare while "
+            f"setting additionalProperties=false. Declare the field or stop "
+            f"emitting it — a row that violates its own published schema is "
+            f"an attestation nobody can re-verify.")
+        missing = sorted(required - set(row))
+        assert not missing, f"row {i} is missing required {missing}"
+
+    # Non-vacuity: the fields the repair pass added must actually be present,
+    # or this test would pass just as happily against a schema describing rows
+    # that no longer exist.
+    src = [r for r in rows if r["row_type"] == "source"]
+    assert src, "no source rows"
+    for r in src:
+        for field in ("controls", "source_tex_encoding", "extraction_chars"):
+            assert field in r, (r["source_id"], field)
+
+
 def test_a7_a_claim_written_in_a_VARIANT_spelling_is_still_evaluated() -> None:
     """Axis A7 — the matcher and the manifest must share a vocabulary.
 
