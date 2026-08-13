@@ -216,6 +216,74 @@ def test_iir_front_door_refuses_what_its_c_peer_refuses(b, a, why):
     )
 
 
+@pytest.mark.parametrize(
+    "section, why",
+    [
+        ([1.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+         "a0 == 0 with an all-zero denominator"),
+        ([1.0, 0.0, 0.0, 0.0, 1.0, 0.0],
+         "a0 == 0 with a NON-zero tail -- not an empty-section special case"),
+    ],
+)
+def test_iir_biquad_branch_refuses_a0_zero_too(section, why):
+    """The SAME C predicate, on the branch the first repair did not cover.
+
+    rc431's first cut guarded only the direct ``(b, a)`` branch, on the argument
+    that the biquad branch always passes length-3 slices so a second guard would
+    be unreachable. That argument is true of the LENGTH predicate and false of
+    ``a[0] == 0``: no slice length constrains a VALUE. ``[1, 0, 0, 0, 0, 0]`` is
+    a well-formed 6-coefficient section whose ``a0`` is ``0.0``, and it still
+    reached ``_lfilter_direct`` and raised a raw ``ZeroDivisionError`` while
+    ``srmech_iir_lfilter_f64`` refuses the identical section with
+    ``SRMECH_ERR_BAD_INPUT``. The headline divergence survived the headline
+    repair, on the branch nobody probed.
+
+    Two predicates had been reasoned about as one. This is the second, and it is
+    asserted separately from the direct-form cases above so that a future repair
+    of one cannot be mistaken for a repair of both."""
+    from srmech.signal_processing.closed_form_ops import iir
+
+    with pytest.raises(ValueError) as excinfo:
+        iir.op([1.0, 2.0, 3.0], [1.0], [1.0], biquad_sections=[section])
+    assert "iir:" in str(excinfo.value), (
+        f"the guard must name the op in house style; got {excinfo.value!r} "
+        f"({why})"
+    )
+    assert "biquad section 0" in str(excinfo.value), (
+        "the message must locate WHICH section, since a cascade may hold many"
+    )
+
+
+def test_lll_reduce_shape_guard_does_not_eat_a_one_shot_basis():
+    """SILENT WRONG ANSWER regression guard for the GUARD itself (rc431 repair).
+
+    ``_lll_check_basis`` walks ``basis`` to validate it, which CONSUMES a
+    one-shot iterable. rc431's first cut called it for its exception only and
+    then passed the ORIGINAL object to the arms, so a generator basis arrived
+    exhausted and ``lll_reduce`` RETURNED ``[]`` -- for input rc430 reduced
+    correctly. A shape guard that silently deletes the caller's lattice is a
+    strictly worse defect than the bare ``TypeError`` it replaced.
+
+    Asserted against the list answer rather than a literal, so the case cannot
+    drift away from what the same basis reduces to when spelled as a list."""
+    from srmech.cascade.matrix_cascades import lll_reduce
+
+    rows = [[1, 1, 1], [-1, 0, 2], [3, 5, 6]]
+    expected = lll_reduce([list(r) for r in rows])
+    assert expected, "the control basis must reduce to something non-empty"
+
+    assert lll_reduce(iter([list(r) for r in rows])) == expected, (
+        "a one-shot BASIS was consumed by the shape guard and the arms saw an "
+        "exhausted iterator -- this returned [] instead of the reduced lattice"
+    )
+    assert lll_reduce([iter(r) for r in rows]) == expected, (
+        "one-shot ROWS were consumed by the shape guard"
+    )
+    assert lll_reduce(r for r in rows) == expected, (
+        "a generator EXPRESSION basis was consumed by the shape guard"
+    )
+
+
 def test_iir_still_filters_valid_input():
     """The repair must not have been bought by rejecting valid input -- the
     negative control for the guard above."""

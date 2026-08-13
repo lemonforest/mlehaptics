@@ -3162,7 +3162,25 @@ def _lll_gso(b: List[List[int]], m: int, n: int):
 
 
 def _lll_check_basis(basis):
-    """Shape guard for ``lll_reduce``'s ``basis`` -- returns the rows as a list.
+    """Shape guard for ``lll_reduce``'s ``basis`` -- returns the MATERIALISED rows.
+
+    ⚠️ **Every caller must USE the return value and pass it onward.** This guard
+    CONSUMES ``basis``: a one-shot iterable (generator, ``iter(...)``, ``map``,
+    ``zip``) is exhausted by the walk below, so a caller that validates ``basis``
+    and then hands the ORIGINAL object to the arms hands them an exhausted
+    iterator, which reads as the empty lattice and RETURNS ``[]``. rc431's first
+    cut did exactly that at the front door and turned a correct rc430 answer into
+    a silent wrong one:
+
+        rc430:  lll_reduce(iter([[1,1,1],[-1,0,2],[3,5,6]]))
+                    -> [[0,1,0],[1,0,1],[-1,0,2]]      (one pass, correct)
+        rc431a: same call                 -> []        (SILENTLY WRONG)
+
+    A shape guard that silently deletes the caller's data is a worse defect than
+    the bare ``TypeError`` it was written to replace -- the ``TypeError`` at least
+    told you something was wrong. Rows are materialised here (``list(row)``) for
+    the same reason one level down: a row that is itself one-shot must survive
+    being handed to whichever arm runs.
 
     Through rc430 ``basis`` was NOT guarded at all: both the pure body and the
     ctypes wrapper opened with ``[[int(x) for x in row] for row in basis]``, so a
@@ -3184,12 +3202,13 @@ def _lll_check_basis(basis):
         raise ValueError(
             f"lll_reduce: basis must be a sequence of equal-length integer "
             f"sequences; got {type(basis).__name__}")
-    rows = list(basis)
-    for idx, row in enumerate(rows):
+    rows = []
+    for idx, row in enumerate(basis):
         if isinstance(row, (str, bytes)) or not hasattr(row, "__iter__"):
             raise ValueError(
                 f"lll_reduce: basis must be a sequence of equal-length integer "
                 f"sequences; row {idx} is {type(row).__name__}")
+        rows.append(list(row))
     return rows
 
 
@@ -3326,7 +3345,11 @@ def lll_reduce(basis, delta=(3, 4)):
         not a sequence of sequences, or the basis is linearly dependent
         (degenerate — ``‖b*_j‖²`` vanished).
     """
-    _lll_check_basis(basis)     # co-equal shape guard, ahead of BOTH arms
+    # Co-equal shape guard, ahead of BOTH arms. The result MUST be rebound: the
+    # guard consumes `basis`, so passing the original object on would hand an
+    # exhausted iterator to whichever arm runs and RETURN [] for a valid
+    # one-shot basis. See the warning in _lll_check_basis.
+    basis = _lll_check_basis(basis)
     native = _native.lll_reduce_c(basis, delta) if _native.HAS_NATIVE else None
     if native is not None:
         return native

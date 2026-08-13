@@ -46,6 +46,39 @@ SSOT_CITATION = (
 )
 
 
+def _check_ba(b, a, where: str = ""):
+    """The C peer's own input domain, stated once and enforced at the front door.
+
+    ``srmech_iir_lfilter_f64`` (``c/src/srmech_iir.c:64-77``) refuses
+    ``nb == 0 || na == 0`` with ``SRMECH_ERR_NULL_ARG`` and ``a0 == 0.0`` with
+    ``SRMECH_ERR_BAD_INPUT``. The ctypes wrapper re-states that predicate and
+    returns ``None``, which ``op`` cannot distinguish from *"native absent"*, so
+    the guard is dead through the Python front door unless ``op`` states it too.
+
+    Called from BOTH branches of ``op``. rc431's first cut guarded only the
+    direct ``(b, a)`` branch on the argument that the biquad branch always passes
+    length-3 slices, so a second guard would be unreachable. **That argument
+    holds for the LENGTH predicate and does not hold for ``a[0] == 0``**, which
+    is a value predicate no slice length constrains: a section
+    ``[1, 0, 0, 0, 0, 0]`` is exactly 6 coefficients and drove
+    ``_lfilter_direct`` to a raw ``ZeroDivisionError`` at ``a0 = a[0]`` while the
+    C peer refuses the same section with ``SRMECH_ERR_BAD_INPUT``. Two predicates
+    were being reasoned about as one; the reachability argument was true of the
+    wrong one.
+    """
+    b = list(b)
+    a = list(a)
+    if len(b) == 0 or len(a) == 0:
+        raise ValueError(
+            f"iir: b and a must be non-empty coefficient sequences{where}; got "
+            f"len(b)={len(b)}, len(a)={len(a)}")
+    if a[0] == 0:
+        raise ValueError(
+            f"iir: a[0] must be non-zero{where} -- a[0] == 0 is not a valid "
+            f"recursion (the difference equation divides by it)")
+    return b, a
+
+
 def _lfilter_direct(b: Sequence[float], a: Sequence[float], x: Sequence[float]):
     """Direct-form-II transposed IIR filter (closed-form reference), numpy-free.
 
@@ -111,12 +144,14 @@ def op(
     Raises
     ------
     ValueError
-        A non-1-D ``signal``; an empty ``b`` or ``a``; ``a[0] == 0``; or a
-        ``biquad_sections`` entry that is not 6 coefficients.
+        A non-1-D ``signal``; an empty ``b`` or ``a``; ``a[0] == 0`` — in the
+        direct form OR in any ``biquad_sections`` entry, whose ``a0`` is
+        ``section[3]``; or a ``biquad_sections`` entry that is not 6
+        coefficients.
 
     Notes
     -----
-    The ``b`` / ``a`` domain guard below states the SAME predicate the C peer
+    The ``b`` / ``a`` domain guard (``_check_ba``) states the SAME predicate the C peer
     ``srmech_iir_lfilter_f64`` already enforces (``srmech_iir.c``: ``nb == 0 ||
     na == 0`` -> ``SRMECH_ERR_NULL_ARG``, ``a0 == 0.0`` -> ``SRMECH_ERR_BAD_INPUT``).
     Through rc430 that guard was DEAD through the Python front door: the ctypes
@@ -129,10 +164,21 @@ def op(
     the already-shipped, stricter, correct contract, and the capability is the
     invariant across co-equal projections
     (``[[user_stance_srmech_is_multi_implementation_not_python_with_c_accel]]``).
-    Guarding at ``op`` is sufficient AND necessary: the only other caller of
-    ``_lfilter_direct`` is the biquad branch below, which always passes
-    ``section[:3]`` / ``section[3:]`` of a length-6 section, so a second guard
-    inside ``_lfilter_direct`` would be a second unreachable one.
+
+    The guard belongs at ``op``, not inside ``_lfilter_direct``: only the PURE
+    arm runs that body, so a guard there would leave the native arm accepting
+    what the pure arm refuses — the same one-sided contract this repair exists
+    to remove. It is applied in ``op`` on BOTH branches. rc431's first cut
+    applied it to the direct ``(b, a)`` branch only, reasoning that the biquad
+    branch always passes length-3 slices of a length-6 section so a second guard
+    would be unreachable. **That is true of the LENGTH predicate and false of
+    ``a[0] == 0``**, which no slice length constrains: the section
+    ``[1, 0, 0, 0, 0, 0]`` is a well-formed 6-tuple, and through that cut it
+    still reached ``_lfilter_direct`` and raised a raw ``ZeroDivisionError``
+    while the C peer refuses the identical section with
+    ``SRMECH_ERR_BAD_INPUT``. The reachability argument was sound about the
+    wrong one of two predicates that had been reasoned about as one, so the
+    headline divergence survived on the branch nobody probed.
     """
     try:
         sig = [float(x) for x in signal]
@@ -140,16 +186,7 @@ def op(
         raise ValueError("iir expects a 1-D real signal") from exc
 
     if biquad_sections is None:
-        b = list(b)
-        a = list(a)
-        if len(b) == 0 or len(a) == 0:
-            raise ValueError(
-                f"iir: b and a must be non-empty coefficient sequences; got "
-                f"len(b)={len(b)}, len(a)={len(a)}")
-        if a[0] == 0:
-            raise ValueError(
-                "iir: a[0] must be non-zero -- a[0] == 0 is not a valid "
-                "recursion (the difference equation divides by it)")
+        b, a = _check_ba(b, a)
 
     from srmech import _native
 
@@ -157,14 +194,17 @@ def op(
         # Cascade of second-order sections (sosfilt): apply each in turn, each
         # dispatched to the c_dispatched srmech_iir_lfilter_f64 (else pure).
         out = list(sig)
-        for section in biquad_sections:
+        for idx, section in enumerate(biquad_sections):
             if len(section) != 6:
                 raise ValueError(
                     f"biquad section requires 6 coefficients; got "
                     f"{len(section)}"
                 )
-            b_s = list(section[:3])
-            a_s = list(section[3:])
+            # Same C domain, per section, BEFORE dispatch. The length half is
+            # unreachable here (the slices are always 3) but `a[0] == 0` is not:
+            # section [1, 0, 0, 0, 0, 0] is a well-formed 6-tuple whose a0 is 0.
+            b_s, a_s = _check_ba(section[:3], section[3:],
+                                 where=f" (biquad section {idx})")
             native = _native.iir_lfilter_f64_c(b_s, a_s, out)
             out = native if native is not None else _lfilter_direct(b_s, a_s, out)
         return out
