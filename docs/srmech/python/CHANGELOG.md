@@ -53,7 +53,9 @@ Every fix **re-points the locator**. None deletes a citation. Deleting one conve
 
 #### The arm that catches what rc427's own fix created
 
-rc427 removed the false Baez citation for "the Mal'cev tangent algebra" and wrote the reasoning into a `#` comment. **A comment does not ship.** The claim does — through `help()`, `describe()`, the MCP tool list and the C registry — and it shipped with no verdict attached. Arm **S3** requires a provenance verdict to travel in the SAME artifact as the claim it governs, and requires a `DERIVED-AND-MEASURED` verdict to name a test that EXECUTES the claim; without one it is `UNSOURCED` wearing a better word. `malcev_defect`'s docstring now carries the verdict and names `tests/test_loop_bind_moufang.py`. S3 residual: **0**.
+rc427 removed the false Baez citation for "the Mal'cev tangent algebra" and wrote the reasoning into a `#` comment. **A comment does not ship.** The claim does — through `help()`, `describe()`, the MCP tool list and the C registry — and it shipped with no verdict attached. Arm **S3** requires a provenance verdict to travel in the SAME artifact as the claim it governs, and requires a `DERIVED-AND-MEASURED` verdict to name a test that EXECUTES the claim; without one it is `UNSOURCED` wearing a better word. `malcev_defect`'s docstring now carries the verdict and names `tests/test_moufang_loop_rc398.py`. S3 residual: **0**.
+
+> ⚠️ **This paragraph named `tests/test_loop_bind_moufang.py` until the rc428 repair pass, and that was wrong** — that file contains **zero** occurrences of `malcev_defect`. It does verify the Mal'cev identity on 𝕆 by another route (the HDC loop-bind path), so the substantive claim was true, which is exactly why nothing caught it: **S3 asserted only that the named file EXISTS.** A path that resolves is not evidence that the thing at the end of it measures anything. S3 now also requires the named test to reference the op, and requires the shipped artifact and the gate's own row to agree on which test that is.
 
 #### The six axes, and why two of them exist
 
@@ -96,6 +98,30 @@ Also measured, and it changed the schema: arXiv's **old-scheme e-print endpoint 
 A scheduled network re-verify job is **deferred, not dropped**. There is a live signal — the tree spells Rosengren both `1608.06161` and `1608.06161v3` — but no measured defect yet traces to link rot or version drift, and a network workflow with nothing behind it adds a failure mode for free. When it lands it must be a non-blocking job that opens an issue, never a gate. Recorded in the catalog descriptor so it cannot be forgotten.
 
 **A note for the next builder**, carried forward from this round's measurements and not acted on here: `test_no_shipped_module_restates_the_registry_total` goes red on **39 of the next 105 registry totals, the first at 665 — ten registrations from the live 655** — and 27 of those are bare `#NNN` refs that `test_ref_notation_emitted_rc348.py` mandates. The two known blind spots are the same blind spot pointed at each other. `DOI 10.1109/53.665` and the SU(3) structure constant `f^{678}` are verified content and must not be edited to green a gate.
+
+#### The repair pass — the instrument had the defect it was built to detect
+
+Three independent verifiers read this rc's own instrument. Their merged findings were adjudicated and then re-measured here rather than accepted; six were confirmed and fixed at root, one was confirmed and re-scoped, one was a report-text slip. **The citations were re-verified first and none had been corrupted** — "Hopf" reads 0 in Baez §4.2 and **16** in §3.1; "Fano" reads 0 in §4.1 and **6** in §2.1; the *kept* half, 𝕆P² at §4.2, reads 1. Every rc428 re-pointing moved a locator off a zero-count section, and the correct half of the parenthesis survived.
+
+The load-bearing finding is that **`build_rows` computed four controls and read one.** `run_controls` returned `positive_control`, `multi_spelling`, `negative_verdict`/`always_true_terms` and `u_fffd_present`; the build path read `positive_control["count"]` and discarded the rest, and three of those keys were read **nowhere** in the tree (`grep` over `tests/` + `srmech/` = 0). The second backend's controls were computed into a **dropped return value**. That is this rc's own thesis — a seam that cannot fail is not a check — committed by the instrument written to detect it.
+
+It was not hypothetical. Measured on the real corpus, ghostscript text decoded as latin-1:
+
+| control | reads | |
+|---|---|---|
+| `octonion` (positive) | **172** | PASS — ASCII, sails through the misdecode |
+| `Cayley-Dickson` | **4** (floor 22) | the en-dashed spellings vanish |
+| U+FFFD present | **False** | the other tell does not fire either |
+
+The one control that would have caught it was computed and thrown away. A **2% truncation** of the same e-print is the same shape from the other side: the positive control still fires (`octonion`=1) while `Cayley-Dickson` and `Hopf` both read 0 — a page of false `REFUTED` verdicts, each of which **accuses a correct citation of being fabricated**.
+
+Fixed at root: `require_controls_usable` and `require_extraction_complete` abort the build on any failed control or a short read; all four controls now **ship in the source row** per backend, so arm **S5** can assert from outside the tool that produced them; `--validate` returns **1** instead of an unconditional 0 when F11 reports `DEAD SEAM`; LaTeX `%` comments are stripped before the section scan (a commented-out `\section{}` renumbered every label after it — measured by injection); `backend_tex` now **records** the encoding its docstring always claimed it recorded; and `backend_pypdf`'s docstring is corrected — it claimed pypdf "under-reports 22 → 16" and that agreement with ghostscript "is a finding worth chasing", but under the shipped dense matcher pypdf returns **22**, identical to gs. The 16 is a property of **naive** matching, and the docstring's own trigger was already satisfied.
+
+**Re-scoped by naming an axis, not by an exemption.** The first version of the multi-spelling guard demanded exact equality and immediately failed the build — correctly refusing to proceed, for the wrong reason. Rosengren's `Frenkel-Turaev` is 8 in the e-print and **9** in the rendering; all nine were inspected and are real (the PDF carries a table-of-contents line the body source lacks, and one occurrence loses its en-dash glyph). The expected counts are e-print-derived, so cross-backend equality tests the wrong proposition. The guard is now a **floor** — only a *collapse* is the encoding trap — and it discriminates on every shipped pair: Baez tex 22/22, gs 22/22; Rosengren tex 8/8, gs 9/8; **gs latin-1 4 < 22 ABORT.**
+
+Two repairs would otherwise have been invisible, and are gated so they are not. `_evaluate` matched the canonical spelling while the manifest counts variants, so a claim written "the octonionic projective plane" was **skipped entirely** — not judged and passed, but never judged. Measured, the fix changes nothing on this corpus (57 (unit, term) pairs before and after, 0 variant-only claims), so **axis A7** forces the distinction with a constructed unit rather than waiting for a real one; it fails against the unrepaired matcher naming the exact spelling. And **F11's fixture set exercised one of four guards** — all three cases aborted on the positive control — which is how two of the three verifiers concluded the instrument "ABORTS" on broken extractions when it did not. Three cases that keep the positive control **intact** were added, plus **F12**, which drives the completeness guard from the real extracted text.
+
+`row.ndjson` was rebuilt: **0** counts, section maps or spellings changed — only the three new fields. The comment-strip is therefore value-neutral here by measurement, not by assumption.
 
 ## [0.9.0rc427]
 

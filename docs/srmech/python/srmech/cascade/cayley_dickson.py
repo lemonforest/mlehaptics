@@ -2409,7 +2409,17 @@ def malcev_defect(x: Sequence[Any], y: Sequence[Any], z: Sequence[Any],
         — an unverified replacement would be the same defect wearing a
         different name. The verdict is DERIVED-AND-MEASURED because srmech
         computes it and a named test EXECUTES the claim:
-        ``tests/test_loop_bind_moufang.py`` runs ``malcev == 0`` on 𝕆.
+        ``tests/test_moufang_loop_rc398.py`` calls ``malcev_defect`` and
+        asserts ``d["malcev"] == 0`` on every octonion basis triple.
+
+        ⚠️ rc428 repair: this line named ``tests/test_loop_bind_moufang.py``,
+        which contains **zero** occurrences of ``malcev_defect``. That file
+        does verify the Mal'cev identity on 𝕆 through the HDC loop-bind path,
+        so the substantive claim was true — but it does not exercise THIS op,
+        and a DERIVED-AND-MEASURED verdict is a claim about what the named
+        test measures. Arm S3 asserted only that the named file EXISTS, so a
+        correct-looking path to a real file passed a check that was never
+        reading it; S3 now requires the named test to reference the op.
 
         ⚠️ rc427 removed the false citation and recorded that reasoning in a
         ``#`` comment above this function. A comment does not ship — the

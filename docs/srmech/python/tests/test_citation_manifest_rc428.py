@@ -172,9 +172,30 @@ def _evaluate(unit: CC.Unit) -> List[Tuple[str, int]]:
     """
     out: List[Tuple[str, int]] = []
     for term in _watchlist(unit.source_id):
-        if not CC.contains_term(unit.claim, term):
+        # ⚠️ rc428 repair: the matcher was ASYMMETRIC with the manifest. The
+        # manifest counts a term across its measured VARIANTS ("Cayley plane"
+        # is also spelled "octonionic projective plane", "\OP^2", "octonionic
+        # projective space"), but this loop matched the CANONICAL spelling
+        # alone. So a citation phrased in a variant was never evaluated at
+        # all — it fell through as though it made no claim, which is the
+        # SILENT direction: a false citation written the other way round is
+        # not merely missed, it is invisible to every arm.
+        #
+        # It is not a corner case in this corpus: "Cayley plane" occurs 0
+        # times in Baez under the canonical spelling and 14 times under the
+        # variants. Measured on the shipped tree the fix surfaces no NEW
+        # offender (variant-only claim rows = 0), so it closes a latent hole
+        # rather than papering over an active one — recorded as BOUNDED, not
+        # as a null result.
+        spellings = [term] + list(TERMS[(unit.source_id, term)].get(
+            "variants", []))
+        if not any(CC.contains_term(unit.claim, s) for s in spellings):
             continue
-        if CC.asserts_absence(unit.claim, term):
+        # Absence must be tested against the spelling the claim ACTUALLY
+        # uses; asking about the canonical one would re-introduce the same
+        # asymmetry inside axis A6.
+        if any(CC.asserts_absence(unit.claim, s) for s in spellings
+               if CC.contains_term(unit.claim, s)):
             continue
         out.append((term, _occurrences(unit.source_id, term, unit.locator)))
     return out
@@ -229,6 +250,119 @@ def test_every_source_row_carries_a_live_positive_control() -> None:
             f"{bare}: positive control {control.get('term')!r} reads "
             f"{control.get('occurrences')} — this extraction is BROKEN and "
             f"every zero derived from it is silence, not measurement")
+
+
+def test_a7_a_claim_written_in_a_VARIANT_spelling_is_still_evaluated() -> None:
+    """Axis A7 — the matcher and the manifest must share a vocabulary.
+
+    ⚠️ **This test exists because its fix would otherwise be invisible.**
+    ``_evaluate`` matched only the CANONICAL spelling while the manifest
+    counts each term across its measured variants. Repairing that asymmetry
+    changes **nothing** on the shipped corpus — measured: 57 (unit, term)
+    pairs matched before, 57 after, 0 variant-only claims — so the repaired
+    and unrepaired code are indistinguishable from the tree alone.
+
+    Shipping a guard no test can tell from its absence is precisely the
+    defect this rc is about, one level up. So the distinction is forced here
+    with a constructed unit rather than left to wait for a real one.
+
+    The hole is real even though it is currently unoccupied: "Cayley plane"
+    occurs **0** times in Baez under its canonical spelling and **63** across
+    its variants. A citation phrased "the octonionic projective plane @ §9"
+    named a term the manifest tracks, in a spelling the matcher could not
+    see, and was therefore skipped ENTIRELY — not judged and passed, but
+    never judged. That is the silent direction: invisible to every arm.
+    """
+    bare = "math/0105155"
+    row = TERMS[(bare, "Cayley plane")]
+    variants = [v for v in row["variants"] if v != "Cayley plane"]
+    assert variants, "fixture gone: the Cayley plane row has no variants"
+    assert int(row["occurrences_by_section"].get("§3.4", 0)) > 0
+
+    # Canonical spelling: matched before AND after the repair.
+    canonical = CC.Unit(bare, "", "§3.4", "the Cayley plane construction",
+                        "test", 0, "")
+    assert [t for t, _n in _evaluate(canonical)] == ["Cayley plane"]
+
+    # Variant spelling: skipped ENTIRELY before the repair, judged after.
+    for variant in variants:
+        unit = CC.Unit(bare, "", "§3.4", f"the {variant} construction",
+                       "test", 0, "")
+        named = [t for t, _n in _evaluate(unit)]
+        assert "Cayley plane" in named, (
+            f"a claim spelled {variant!r} names a term the manifest tracks "
+            f"under {variants!r}, but _evaluate did not evaluate it — the "
+            f"matcher and the manifest disagree about what the term IS")
+
+    # And a variant claim at a section where the term is genuinely ABSENT
+    # must be JUDGED (non-zero occurrences would make this vacuous).
+    absent_at = [s for s in SOURCES[bare]["sections"]
+                 if s not in row["occurrences_by_section"]]
+    assert absent_at, "fixture gone: the term occurs in every section"
+    unit = CC.Unit(bare, "", absent_at[0],
+                   f"the {variants[0]} construction", "test", 0, "")
+    # Membership, not list equality: "octonionic projective plane" legitimately
+    # also matches the SEPARATE watchlist term "projective plane", and both
+    # correctly read 0 here. Asserting the exact list would be asserting an
+    # accident of the watchlist rather than the property under test.
+    assert ("Cayley plane", 0) in _evaluate(unit), (
+        "a variant-spelled claim at a section the term is absent from must "
+        "evaluate to 0 — that is the offender this axis is meant to catch")
+
+
+def test_s5_every_control_the_builder_computed_is_carried_and_clean() -> None:
+    """Arm S5 — the controls must SHIP, and all of them must be clean.
+
+    ⚠️ **This arm exists because the rc that was written to detect dead seams
+    contained one.** ``run_controls`` computed four independent controls; the
+    build path read ``positive_control["count"]`` and discarded the rest.
+    Three of the four keys — ``negative_verdict``, ``always_true_terms``,
+    ``u_fffd_present`` — were read NOWHERE in the tree, and the second
+    backend's controls were computed into a dropped return value.
+
+    That was not theoretical. Ghostscript text decoded as latin-1 gives::
+
+        octonion       = 172  PASS   <- ASCII, sails through the misdecode
+        Cayley-Dickson = 4    (22)   <- the en-dashed spellings vanish
+        U+FFFD present = False       <- the other tell does not fire either
+
+    The one control that would have caught it was computed and thrown away.
+    A control the manifest does not CARRY is a control this gate cannot
+    CHECK, so the row now carries all four per backend and this arm asserts
+    them — which is what makes the guard falsifiable from outside the tool
+    that produced it.
+
+    ``collapsed`` rather than ``verdict`` is the asserted field, deliberately:
+    a rendered PDF may legitimately carry MORE occurrences than its e-print
+    (Rosengren's "Frenkel–Turaev" is 8 in LaTeX, 9 in ghostscript, all nine
+    real — the PDF has a table-of-contents line the body source lacks). Only
+    a collapse BELOW the floor is the encoding trap.
+    """
+    for bare, row in sorted(SOURCES.items()):
+        controls = row.get("controls") or {}
+        assert set(controls) >= {"tex", "gs"}, (
+            f"{bare}: source row carries controls for {sorted(controls)}; "
+            f"both backends must be represented or a backend's controls are "
+            f"being computed and discarded, which is this arm's whole subject")
+        for backend, c in sorted(controls.items()):
+            where = f"{bare}/{backend}"
+            assert int(c["positive_control"]["count"]) > 0, where
+            ms = c["multi_spelling"]
+            assert ms["collapsed"] is False, (
+                f"{where}: multi-spelling control {ms['term']!r} COLLAPSED to "
+                f"{ms['count']} below its floor {ms['expected']} "
+                f"({ms['by_dash_variant']}) — the encoding-trap signature. "
+                f"Every count from this extraction is untrustworthy.")
+            assert c["negative_verdict"] == "PASS", (
+                f"{where}: terms that must be absent were found "
+                f"({c['always_true_terms']}) — the matcher is always-true, so "
+                f"its PRESENCE findings carry no information")
+            assert c["u_fffd_present"] is False, (
+                f"{where}: U+FFFD in the extracted text — a zero is "
+                f"undecidable between 'absent' and 'mangled'")
+        # The encoding is RECORDED, not assumed. See backend_tex.
+        assert row.get("source_tex_encoding"), bare
+        assert int(row.get("extraction_chars", 0)) > 0, bare
 
 
 def test_source_rows_declare_their_section_attribution_and_hashes() -> None:
@@ -379,9 +513,21 @@ def test_s2_presence_only_claims_ceiling() -> None:
 #: A ``DERIVED-AND-MEASURED`` verdict also requires a NAMED TEST that EXECUTES
 #: the claim, recorded here. Without one it is ``UNSOURCED`` wearing a better
 #: word — an ASSERTED algebraic property is not a MEASURED one.
-S3_VERDICT_CLAIMS: Tuple[Tuple[str, str, str, str], ...] = (
-    ("Mal'cev", "DERIVED-AND-MEASURED", "tests/test_loop_bind_moufang.py",
-     "cascade/cayley_dickson.py"),
+#:
+#: ⚠️ **rc428 repair.** The row's fifth field — the OP the named test must
+#: actually call — is new, and it exists because the arm was checking the
+#: weakest possible thing. S3 asserted ``named_test.exists()`` and nothing
+#: more, so it could not distinguish "a test that measures this claim" from
+#: "any real file". The row named ``tests/test_loop_bind_moufang.py``, which
+#: contains **zero** occurrences of ``malcev_defect``; the file that calls the
+#: op and asserts ``d["malcev"] == 0`` is ``tests/test_moufang_loop_rc398.py``.
+#: The docstring's substantive claim was true — the named file does verify the
+#: Mal'cev identity on 𝕆 by another route — which is precisely why an
+#: existence check could not catch it. **A path that resolves is not evidence
+#: that the thing at the end of it measures anything.**
+S3_VERDICT_CLAIMS: Tuple[Tuple[str, str, str, str, str], ...] = (
+    ("Mal'cev", "DERIVED-AND-MEASURED", "tests/test_moufang_loop_rc398.py",
+     "cascade/cayley_dickson.py", "malcev_defect"),
 )
 
 #: The tokens that count as a verdict travelling with the claim.
@@ -397,11 +543,26 @@ def test_s3_a_derived_verdict_travels_with_the_claim_it_governs() -> None:
     file, and users never open the file.
     """
     offenders: List[str] = []
-    for term, verdict, named_test, rel in S3_VERDICT_CLAIMS:
-        assert (CC.PY_ROOT / named_test).exists(), (
+    for term, verdict, named_test, rel, op in S3_VERDICT_CLAIMS:
+        test_path = CC.PY_ROOT / named_test
+        assert test_path.exists(), (
             f"{term}: verdict {verdict} names {named_test}, which does not "
             f"exist. A DERIVED-AND-MEASURED verdict with no test that "
             f"EXECUTES the claim is UNSOURCED wearing a better word.")
+        # EXISTENCE IS NOT EXERCISE. The named test must actually call the op
+        # whose claim it vouches for — see the note on S3_VERDICT_CLAIMS.
+        test_src = test_path.read_text(encoding="utf-8")
+        assert op in test_src, (
+            f"{term}: verdict {verdict} names {named_test}, which exists but "
+            f"contains no occurrence of {op!r} — so it does not EXERCISE the "
+            f"claim it is cited as measuring. Name the test that calls the "
+            f"op, or downgrade the verdict to UNSOURCED.")
+        # And the shipped artifact must point at the SAME test, or the row and
+        # the docstring can drift apart while both look right in isolation.
+        shipped = (CC.PKG_ROOT / rel).read_text(encoding="utf-8")
+        assert named_test in shipped, (
+            f"{term}: {rel} does not name {named_test}. The row and the "
+            f"shipped claim must agree on which test measures it.")
         path = CC.PKG_ROOT / rel
         assert path.exists(), rel
         carriers = [text for _line, text in CC.string_constants(path)
