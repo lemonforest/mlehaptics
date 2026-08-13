@@ -13,6 +13,87 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc431]
+
+### The C guard no Python call can reach, and the gate that could not go red (`#T1129` / `#T1094`)
+
+**Registry stays 655. ABI stays 14. GENOME_FORMAT_VERSION stays 19.** No op is registered, no `ToolEntry` field is added, no C symbol is added or changed. `c/src/srmech_iir.c` was READ, not written.
+
+#### The defect: `None` means two things, and one of them gets lost
+
+A `*_c` ctypes wrapper returns `None` to mean *"native absent — run the pure body"*. But **90 wrapper predicates across 263 wrappers also return `None` from a test on their own ARGUMENTS**. Where the C peer returns an *error status* for that same input, `None` is **overloaded** — it carries both *"native absent"* and *"C refused this input"* — and the caller cannot tell them apart, so the invalidity signal is destroyed at the boundary. If the pure body then does not reject the input either, the C guard is **dead through the Python front door**: a defensive guard no Python call can cause to fire.
+
+`srmech.signal_processing.iir` was exactly that, measured:
+
+| input | C peer (`srmech_iir.c:64-77`) | Python, through rc430 |
+|---|---|---|
+| `b == []` | `SRMECH_ERR_NULL_ARG` | **RETURNED `[0.0] * len(signal)`** |
+| `a == []` | `SRMECH_ERR_NULL_ARG` | raw `IndexError` @ `iir.py:56` |
+| `a[0] == 0` | `SRMECH_ERR_BAD_INPUT` | raw `ZeroDivisionError` @ `iir.py:57` |
+
+The wrapper at `_native/__init__.py:10419` **re-states the C predicate** (`nb == 0 or na == 0 or a_list[0] == 0.0`) and then discards it by returning `None`, which `op()` reads as *"native absent"*. So the op answered an input its own co-equal projection calls invalid, with a plausible-looking all-zero signal.
+
+**Python moves to C, never the reverse.** C is the already-shipped, stricter, correct contract, and the capability is the invariant across co-equal projections. The guard now lives in `op()` **before dispatch**, so both arms refuse identically; it is deliberately NOT duplicated inside `_lfilter_direct`, whose only other caller is the biquad branch passing length-3 vectors — a second guard there would be a second unreachable one.
+
+#### The headline number is 1, and the brief expected a pattern
+
+`docs/srmech/notes/_p1_native_contract_divergence_rc431.py` censuses the triple intersection — *{input-shape `return None` wrappers} ∩ {C returns an error status} ∩ {pure body does not reject}* — with its criterion, both controls and its falsifier pre-registered before the scan ran.
+
+| | |
+|---|---|
+| `*_c` wrappers scanned | **263** |
+| candidate input-shape `return None` predicates | **90** |
+| `BENIGN_CAPABILITY` — C never refuses, or no shared guard atom | **62** |
+| `CONCURRING_GUARD` — both arms refuse | **2 → 3** |
+| `DIVERGENT_DEAD_GUARD` — **the defect**, after adjudication | **1 → 0** |
+| `UNDECIDED` — unreachable through any public caller | **25** |
+| null classification | **BOUNDED** |
+
+The arrows are the repair landing: on the rc430 tree `iir_lfilter_f64_c` classifies `DIVERGENT_DEAD_GUARD`; with the guard in place it classifies `CONCURRING_GUARD` and the divergent set is empty. **`iir` is both the instrument's positive control and this rc's headline repair**, so the control cannot keep firing once the fix lands — and an instrument that asserted "the control fired" would go red the moment its own finding was fixed, with deleting the control as the obvious way to quiet it. The run is therefore two-state and decides which state it is in **by execution**: `PRE_REPAIR` requires `iir` in the divergent set, `POST_REPAIR` requires it `CONCURRING` *and* the divergent set empty. Neither state passes by default.
+
+The scan flagged **3** mechanical divergences; **adjudication reduced them to 1**. The mechanical rule cannot separate *"the pure arm is answering nonsense"* from *"the pure arm is returning the CORRECT answer for a valid input the C kernel does not implement"* — both look like `SRMECH_ERR_BAD_INPUT` on one side and a value on the other. `svd_f64_c`'s `m < n` (a wide matrix is a valid SVD input; `mat_svd`'s own comment names the Gram route *"the COMPLETE alternative"*) and `sturm_isolate_c`'s `n < 1` (the 0×0 operator's spectrum IS `[]`) are capability floors, not defects. Each adjudication is recorded with its evidence in the artifact, and a mechanical divergence with no recorded adjudication **fails the run**.
+
+**So the brief's "it is a PATTERN, not a site" does not survive.** The 84-candidate count was a *candidate* count; the defect cardinality is **1**, bounded below — 25 predicates could not be reached through any public caller, so their pure arm was never exercised and no verdict is claimed for them.
+
+#### An instrument that recorded its own bug as a result
+
+The first run classified `bessel_j_fixed_c` as `CONCURRING_GUARD` — both arms refuse. They do not: the probe passed `scale_bits` positionally to a keyword-only parameter, and the resulting `TypeError` **from inside the harness** was recorded as the op refusing the input. The instrument now separates `HARNESS_ERROR` from `RAISED` and fails the run on any. With the probe fixed, `bessel_j_fixed_c` is genuinely `CONCURRING`. Both controls are now **executed** rather than read off the classification, because a control that passes because its probe never ran is not a measurement.
+
+#### The gate that could not go red
+
+`test_mcp.py::test_advertised_tool_invocable` asserts only that an op was **reached**. Measured by mutation:
+
+```
+CONTROL   (every op raises a binding TypeError):  617 failed,   0 passed
+MUTATION  (every op rejects every argument):        0 failed, 617 passed
+```
+
+Every one of the ~473 returns it observes could vanish and the suite would stay green. `tests/test_invocable_returned_floor_rc431.py` owns that number as a **SET of op names** in `tests/invocable_returned_rc431.txt`, not a cardinal — a count cannot say *which* op regressed, and cannot see a swap that leaves the total unchanged. It carries a mandatory in-test control that mutates `invoke_tool` to always raise and asserts zero RETURNED; without it the floor would be decorative.
+
+#### Two more contract repairs, and one brief claim corrected
+
+- **`cascade.matrix_cascades.lll_reduce`** — `basis` was not guarded at all. `lll_reduce(5)` / `lll_reduce([1, 2])` escaped as a bare `TypeError: 'int' object is not iterable` carrying no op name, while the sibling equal-length check four lines down already raised a house-style `ValueError`. The guard is at the **public front door**, ahead of both arms: `lll_reduce_c` performs the same coercion before any pure code runs, so a pure-side-only guard would leave the native arm raising `TypeError`. `lll_reduce([]) -> []` is unchanged — the empty lattice is degenerate-empty, not malformed.
+- **`cascade.signed_sum_squared`** — **the brief's claim was wrong and is corrected here.** It said the docstring promises `ValueError` for ragged input while the code raises `TypeError`. It does not: ragged raises `ValueError` at `composites.py:913`, empty at `:907`, non-0/1 just below — every declared case is enforced exactly as declared. The `TypeError` came from a **non-iterable ROW** (`signed_sum_squared([1, 0])`), a case the `Raises:` block was silent on. **The defect was UNDER-declaration, not mis-declaration**: no declared case behaved wrongly, a silent one did. Both the guard and the declaration now cover it.
+
+#### `#T1094` was already closed, and the filing was stale
+
+rc430 deleted the fall-through at `test_mcp.py:2098-2106`; the `str` row is `"srmech_synth"` (`:1945`) and path-shaped params divert to a sandbox. Live count of params receiving the literal `"a"`: **0**, with a planted-`"a"` control firing. The remaining ceiling is `CEIL_UNSYNTHESIZABLE_PARAMS = 52` over 34 ops, untouched by this rc.
+
+#### The census claim, unchanged and still BOUNDED
+
+**The srmech group/semigroup census is BOUNDED, not cardinal.** Its measured **floor is 31 of 245 Tier-A ops** (the rc427 carrier ladder ∪ the rc430 worked-example oracle ∪ `srmech.cascade.autocorrelation`), under a **hard cap of 141 of 245** — the ops for which any orbit-closure verdict is reachable at all. It is bounded because the verdict **depends on the seed set**, which is a **window**: the pre-registered control `cyclic_mod_add`, provably a permutation, returns GROUP seeded from the rc430 oracle and SEMIGROUP seeded from `srmech.dsl.list_catalog_ops`, and `srmech.math.text.fold_marks` flips in both directions across the same pair. rc430's claim that generation by `f` removes the window is **retracted**. **No cardinal may be stated for this census** until a seed-invariance criterion exists, and none does.
+
+A floor that only ever rises is not a measurement. If a later seed lowers it, the floor goes DOWN.
+
+#### Filed, not attempted
+
+- **`#T1131`** — the declared-vs-enforced `Raises:` census across the registry. Deliberately not run here: rc431 already carries one headline census, and a second differently-shaped instrument in the same rc is how instruments go unvalidated.
+- **`#T1132`** — the CONSTRUCTOR gap. **225 (op, param) pairs where a valid instance WAS observed and dropped** as unserializable (`HV` 42, `Mat` 40, `bytes` 29, `sequence` 29, `Sequence[HV]` 21). The worked-example oracle does **not** supply constructors as a side effect: it sees the value, records its *name*, and discards the *expression that built it*. Of the 52 UNSYNTHESIZABLE params, 10 are `OBSERVED_UNSERIALIZABLE`, 36 `NEVER_OBSERVED(no_worked_snippet)`, 6 `NEVER_OBSERVED(no_returning_call)`.
+
+#### What this rc still cannot see
+
+The census reads the C side statically and executes only the Python side, under `SRMECH_EXPECT_PURE=1` against a stale ABI-12 `.so` — **no C code was executed to produce any number here**. It therefore cannot see a divergence in which **both arms return a value and the values differ**, which is this project's worst defect class. The 44 rc430 acceptors that took every edge argument remain **UNADJUDICATED** on the value axis; this rc adjudicates only the subset where one arm *refuses*.
+
 ## [0.9.0rc430]
 
 ### The frame an op cannot tell you it is standing in — and a headline that did not survive being measured (`#T1127` / `#T1094`)
