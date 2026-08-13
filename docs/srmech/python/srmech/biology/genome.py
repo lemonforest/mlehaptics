@@ -1504,8 +1504,9 @@ def cwf_consistency_mod2(edges, gains, *, n: "int | None" = None,
       (:func:`discrete_writhe`), computed from GEOMETRY — **never** as
       ``Lk − Tw``. That geometric independence is what gives the check teeth:
       the writhe supplies the non-abelian Q₈ cocycle (e.g. ``i·i = −1``) that
-      the per-turn sign-sum ``Tw`` misses, exactly as CWF's writhe accounts
-      for the crossings a naive twist count omits.
+      the per-turn sign-sum ``Tw`` misses, and the returned ``consistent`` key
+      is the witness — three independently-computed reads agreeing, not one
+      read restated twice.
 
     **HONEST BOUNDING (form, not identity).** A finite group (Q₈) pins ``Lk``
     only **mod 2** (the center-parity) — NOT the unbounded integer Gauss
@@ -1539,6 +1540,36 @@ def cwf_consistency_mod2(edges, gains, *, n: "int | None" = None,
 
     Raises:
         ValueError: the graph does not have exactly one fundamental cycle.
+
+    Provenance — **DERIVED-AND-MEASURED, not cited** (rc429, `#T1128`):
+        "Călugăreanu–White–Fuller" is used here as the STANDARD NAME of the
+        relation ``Lk = Tw + Wr``, the way "Fourier transform" is used — and
+        through rc428 that name shipped across **11 carriers in three
+        spellings** (``Calugareanu`` / ``Călugăreanu`` / ``CWF``) with zero
+        identifiers and zero verdicts anywhere in the tree. rc428's citation
+        gate is blind to it by construction: **none of its 32 manifest terms
+        matches any spelling**, and a claim with no identifier parses to no
+        citation unit, so no arm could see it.
+
+        **No citation is minted, and that is a decision rather than an
+        omission.** The canonical sources — Călugăreanu (1959–61, *Czech.
+        Math. J.* / *Rev. Math. Pures Appl.*), White (1969, *Amer. J. Math.*)
+        and Fuller (1971, *PNAS*) — are paywalled-only or offline from here,
+        and per ``[[feedback_paywalled_doi_cannot_be_attested]]`` a
+        substituted second unverified citation is the same defect wearing a
+        different name.
+
+        The verdict is DERIVED-AND-MEASURED because this op does not ASSERT
+        the relation, it MATERIALISES it: ``lk_mod2``, ``tw_mod2`` and
+        ``wr_mod2`` are three INDEPENDENT computations — a Q₈ center-parity
+        holonomy, a per-turn sign accumulation, and a writhe read from
+        GEOMETRY (never as ``Lk − Tw``) — and ``consistent`` is the returned
+        witness that they agree. ``tests/test_discrete_writhe_cwf_rc313.py``
+        calls this op and asserts that agreement.
+
+        Scope is unchanged and stays honest: **mod 2 only.** Nothing here
+        claims the integer-level theorem, and the HONEST BOUNDING note above
+        governs.
     """
     edge_list = [tuple(e) for e in edges]
     if n is None:

@@ -287,7 +287,7 @@ def linking_number_cwf(twist: Tuple[int, int],
     """``Lk = Tw + Wr`` — the INTEGER invariant recovered from two frame-relative
     rationals (Călugăreanu–White–Fuller).
 
-    The theorem's content is an asymmetry the mod-2 shadow destroys: ``Tw`` and
+    The asymmetry this op measures is one the mod-2 shadow destroys: ``Tw`` and
     ``Wr`` are each **frame-relative reals** that move when the framing moves,
     while their sum ``Lk`` is a **topological integer** that does not. srmech
     already ships ``genome.cwf_consistency_mod2``, which checks the relation
@@ -317,6 +317,29 @@ def linking_number_cwf(twist: Tuple[int, int],
     Example:
         >>> linking_number_cwf((3, 2), (5, 2))["linking_number"]
         4
+
+    Provenance — **DERIVED-AND-MEASURED, not cited** (rc429, `#T1128`):
+        The same verdict, and for the same measured reasons, as
+        :func:`srmech.biology.genome.cwf_consistency_mod2`:
+        "Călugăreanu–White–Fuller" is the STANDARD NAME of ``Lk = Tw + Wr``,
+        the canonical sources are paywalled-only or offline, and under
+        ``[[feedback_paywalled_doi_cannot_be_attested]]`` **no citation is
+        substituted.**
+
+        ⚠️ This site was named by NEITHER of the two defects rc429 was
+        called for — it was found by walking the term through every emitted
+        field, and it shipped bare in ``docstring``, ``summary`` and
+        ``explanation``. A repair scoped to the two known sites would have
+        left it shipping. That is arm S6's whole subject, and it is also its
+        stated blind spot: S6 sees only claims someone has already
+        adjudicated onto its roster.
+
+        This prose previously opened "The theorem's content is …", which
+        appeals to what a NAMED THEOREM does as the warrant for this op's
+        design. rc429 narrows it to what the op itself measures: it returns
+        the exact rational sum and CERTIFIES integrality (``is_integer``)
+        rather than assuming it, and ``tests/test_covering_layer_rc422.py``
+        calls it and asserts both the integral and the non-integral branch.
     """
     def _q(pair, name):
         if (not isinstance(pair, (tuple, list)) or len(pair) != 2

@@ -92,7 +92,10 @@ was caught by review.
 
 from __future__ import annotations
 
+import ast
+import importlib
 import json
+import re
 from pathlib import Path
 from typing import Dict, List, Tuple
 
@@ -100,6 +103,7 @@ import pytest
 
 import srmech
 from srmech.amsc.format import read_ndjson
+from srmech.introspect.tool_schema import get_tool_schema, warmup_all
 
 import citation_corpus as CC
 
@@ -663,6 +667,453 @@ def test_s4_ceiling_is_not_slack() -> None:
                                     len(uncovered)))
 
 
+# ══ rc429 (`#T1128`) — S6 and S7 ══════════════════════════════════════
+#
+# WHAT rc428 COULD NOT SEE, AND WHAT rc429 DOES INSTEAD
+# =====================================================
+# rc428's gate verifies that a cited source CONTAINS the cited claim. A claim
+# with **no source** has nothing to check, so that gate cannot see the class by
+# construction — and the class is live, shipped, and one instance was created by
+# rc427's own fix.
+#
+# The obvious response — "gate every claim term that has no identifier" — was
+# measured and REJECTED. The population is ~1,420 string constants, and the
+# discriminators score like this on a 72-site hand-labelled sample:
+#
+#   bare-eponym-stating-a-relation   262 sites   precision  0/14   ⛔
+#   credit-verb ("due to"/"proved")   11 fires   precision  0/11   ⛔
+#   ref-block                          0 fires   cannot fire       ⛔
+#   auto-extracted eponym vocabulary  6,590 "terms" incl. ABOUT, Optional, Jun
+#
+# 66 of 72 hand-labelled sites are MENTIONS — using a standard name for a
+# standard object, the way "Fourier transform" is used. A gate demanding
+# citations on 1,420 sites would provoke bolting a plausible-looking reference
+# onto each, **manufacturing exactly the hallucinated-citation defect this arc
+# exists to eliminate.** So no attribution-vs-mention classifier ships.
+#
+# S6 subtracts MENTION **syntactically, by never including it**: its population
+# is ``roster × op-fields``, not "strings containing a term". A mention is out of
+# scope because nobody put it on the roster, not because a heuristic ruled on it.
+# The roster is a TEST-SIDE scope statement, not a source-side escape hatch — a
+# module cannot exempt itself, and there is no marker, no ``noqa`` and no opt-in
+# field a module can write about itself.
+
+#: The EMITTED PROSE fields of a registered op. Deliberately NOT the whole
+#: ``example`` dict.
+#:
+#: ⚠️ ``worked`` / ``input`` / ``output`` / ``setup`` are EXCLUDED, and the
+#: reason is a gate collision rather than taste: ``worked`` is EXECUTED by
+#: ``test_worked_examples_execute_rc354.py``, ``input`` is schema-validated by
+#: ``test_tool_example_input_schema_rc355.py``, and ``output`` is a literal
+#: transcript of what the op prints. A provenance verdict cannot legitimately be
+#: placed in any of them. Gating a field whose only repair another gate rejects
+#: is a gate demanding an edit the tree forbids — and the predictable escape
+#: from that is to weaken one of the two. These four are the fields where prose
+#: lives and where a verdict BELONGS.
+S6_PROSE_FIELDS: Tuple[str, ...] = ("docstring", "summary", "explanation",
+                                    "example.why")
+
+#: One hand-adjudicated claim: an op, the term naming it, every spelling the
+#: tree uses, the WARRANTS that discharge it, and the test that EXECUTES it.
+#:
+#: ``warrants`` is what makes this arm honest about ``moufang_residue``. Its
+#: summary carries a REAL attribution — *Schafer (1966), An Introduction to
+#: Nonassociative Algebras, ch. III eqns (7)–(9), read verbatim from Project
+#: Gutenberg #25156* — with a chapter-and-equation locator and a public-domain
+#: retrieval path. rc428's grammar recognises **arXiv identifiers only**, so it
+#: reads that field as bare. Firing there would demand a SECOND citation for a
+#: claim that already has a verified one, which is the citation-minting failure
+#: mode this whole arc exists to prevent. The row therefore declares ``Schafer``
+#: a warrant, and the repair CARRIES the existing attribution into the fields
+#: that lack it. **No citation is minted anywhere in this arm.**
+S6_ROSTER: Tuple[Tuple[str, str, Tuple[str, ...], Tuple[str, ...], str], ...] = (
+    # rc427 deleted a FALSE Baez attribution here and left the claim bare. The
+    # docstring and summary were repaired at rc428; the explanation was not.
+    ("srmech.cascade.malcev_defect", "Mal'cev", ("Mal'cev",),
+     ("DERIVED-AND-MEASURED", "UNSOURCED", "not cited",
+      "no attestation is claimed"),
+     "tests/test_moufang_loop_rc398.py"),
+    # ATTRIBUTED, not unsourced — see the note above. The defect here is that
+    # the attribution reaches the summary and not the other three fields.
+    ("srmech.cascade.moufang_residue", "Moufang", ("Moufang",),
+     ("Schafer", "DERIVED-AND-MEASURED", "UNSOURCED", "not cited",
+      "no attestation is claimed"),
+     "tests/test_moufang_loop_rc398.py"),
+    # The original `#T962` instance: three surnames, zero identifiers, and
+    # rc428's arm S3 has no row for it at all. The canonical CWF sources
+    # (Călugăreanu 1959–61, White 1969, Fuller 1971 PNAS) are paywalled-only or
+    # offline, so under [[feedback_paywalled_doi_cannot_be_attested]] a
+    # substituted second unverified citation would be the same defect wearing a
+    # different name. DERIVED-AND-MEASURED, and no citation is minted.
+    ("srmech.biology.genome.cwf_consistency_mod2", "Calugareanu",
+     ("Calugareanu", "Călugăreanu", "CWF"),
+     ("DERIVED-AND-MEASURED", "UNSOURCED", "not cited",
+      "no attestation is claimed"),
+     "tests/test_discrete_writhe_cwf_rc313.py"),
+    # A THIRD site the brief did not name. Any repair that fixed only the two
+    # briefed sites would have left this one shipping.
+    ("srmech.math.covering.linking_number_cwf", "Calugareanu",
+     ("Calugareanu", "Călugăreanu", "CWF"),
+     ("DERIVED-AND-MEASURED", "UNSOURCED", "not cited",
+      "no attestation is claimed"),
+     "tests/test_covering_layer_rc422.py"),
+)
+
+#: The measured row count. A roster that SHRINKS is a gate being edited toward
+#: green, so it is floored rather than trusted.
+S6_ROSTER_FLOOR = 4
+
+
+def _registry():
+    warmup_all()
+    return get_tool_schema()
+
+
+def _entry(name: str):
+    for tool in _registry().tools:
+        if tool.name == name:
+            return tool
+    raise AssertionError("%s is not in the live registry" % name)
+
+
+def _callable_for(name: str):
+    mod, _, attr = name.rpartition(".")
+    return getattr(importlib.import_module(mod), attr)
+
+
+def _emitted_fields(name: str) -> List[Tuple[str, str]]:
+    """``[(field label, text)]`` for every EMITTED PROSE field of one op."""
+    entry, fn = _entry(name), _callable_for(name)
+    example = entry.example or {}
+    return [("docstring", fn.__doc__ or ""),
+            ("summary", entry.summary or ""),
+            ("explanation", entry.explanation or ""),
+            ("example.why", str(example.get("why", "")))]
+
+
+def _term_present(text: str, spellings: Tuple[str, ...]) -> List[str]:
+    return [s for s in spellings if CC.contains_term(text, s)]
+
+
+def _is_attributed(text: str, present: List[str]) -> bool:
+    """Does an identifier-bearing citation in this field CLAIM the term?
+
+    Reuses axes A1–A6 wholesale by going through :func:`CC.parse_units`, so
+    source lists, no-claim citations, code spans and multi-locator binding are
+    subtracted for free.
+
+    ⚠️ A6 is applied at **CLAIM** scope, and the distinction is load-bearing
+    rather than pedantic — my own first probe ran it at FIELD scope, as the
+    architect spec specified, and MEASURED the cost: it silenced 7 of 16 sites,
+    including four of the five this rc was called for. A whole docstring almost
+    always carries one of the eight negation tokens within 60 characters of some
+    occurrence of the term, and here they were all statements about the
+    MATHEMATICS rather than about a source — "𝕊 is not even alternative, so not
+    Moufang", "nor an integer-level CWF", "never rounded". A6 asks whether a
+    CLAIM asserts a source LACKS a term; a whole emitted field is not a claim,
+    and running the axis there turns it from a subtraction into a blindfold.
+    """
+    for unit in CC.parse_units(text):
+        for spelling in present:
+            if not CC.contains_term(unit.claim, spelling):
+                continue
+            if CC.asserts_absence(unit.claim, spelling):
+                continue        # a negation RECORD, not an attribution
+            return True
+    return False
+
+
+def _s6_offenders() -> List[str]:
+    out: List[str] = []
+    for name, term, spellings, warrants, _test in S6_ROSTER:
+        for label, text in _emitted_fields(name):
+            present = _term_present(text, spellings)
+            if not present:
+                continue
+            if any(w in text for w in warrants):
+                continue
+            if _is_attributed(text, present):
+                continue
+            out.append(
+                "%s :: %s\n"
+                "    carries %r (spelled %s) with NO identifier and NO warrant\n"
+                "    this field SHIPS to users via help() / describe() / the "
+                "MCP tool list / the compiled-in C registry"
+                % (name, label, term, "/".join(present)))
+    return out
+
+
+def _ast_calls(path: Path, op: str) -> int:
+    """How many times ``path`` CALLS ``op`` — ``ast.Call``, never a substring.
+
+    rc428 caught arm S3 asserting ``named_test.exists()``, repaired it to
+    ``op in test_src`` — and that is a SUBSTRING match, which ``# see
+    malcev_defect`` satisfies. Four files in this tree name ``malcev_defect``
+    without calling it. A DERIVED-AND-MEASURED verdict is a claim about what a
+    test MEASURES, so the check has to be about execution.
+    """
+    tree = ast.parse(path.read_bytes(), filename=str(path))
+    n = 0
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        if isinstance(func, ast.Name) and func.id == op:
+            n += 1
+        elif isinstance(func, ast.Attribute) and func.attr == op:
+            n += 1
+    return n
+
+
+def test_s6_roster_is_not_vacuous() -> None:
+    """Three guards, ALL before any offender loop.
+
+    A roster row that no longer resolves, or whose claim has moved, would let
+    this arm pass by observing nothing — which is the failure mode the whole rc
+    is about, committed by the gate written to catch it.
+    """
+    assert len(S6_ROSTER) >= S6_ROSTER_FLOOR, (
+        "the S6 roster shrank to %d rows (floor %d). A row is removed only when "
+        "the CLAIM is gone, and then the term-presence guard below fails first. "
+        "A shrinking roster is a gate being edited toward green."
+        % (len(S6_ROSTER), S6_ROSTER_FLOOR))
+
+    live = {t.name for t in _registry().tools}
+    for name, term, spellings, _warrants, named_test in S6_ROSTER:
+        assert name in live, (
+            "%s is on the S6 roster but not in the live registry" % name)
+        fields = _emitted_fields(name)
+        assert any(_term_present(text, spellings) for _l, text in fields), (
+            "%s no longer carries a %r claim in any emitted prose field. If the "
+            "claim MOVED, move this row; if it was DELETED, delete this row. A "
+            "vacuously-passing arm is exactly what rc428 found in arm S3."
+            % (name, term))
+        path = CC.PY_ROOT / named_test
+        assert path.exists(), (name, named_test)
+        short = name.rpartition(".")[2]
+        assert _ast_calls(path, short) >= 1, (
+            "%s: %s does not CALL %s (ast.Call == 0). Existence is not "
+            "exercise and a substring is not a call — four files in this tree "
+            "name malcev_defect without calling it. Name the test that calls "
+            "the op, or downgrade the verdict to UNSOURCED."
+            % (name, named_test, short))
+
+
+def test_s6_call_counter_can_return_zero() -> None:
+    """NEGATIVE CONTROL on the ``ast.Call`` counter.
+
+    An instrument that cannot return otherwise is not a measurement. This pins
+    BOTH directions on the same fixture text: a file that only NAMES the op in a
+    string and a comment reads 0, and the real test reads more than 0.
+    """
+    named_only = ("# see malcev_defect for the tangent algebra\n"
+                  "DOC = 'malcev_defect returns jacobi and malcev'\n"
+                  "def test_x():\n"
+                  "    assert 'malcev_defect' in DOC\n")
+    tmp = CC.PY_ROOT / "tests" / "_s6_control_named_only.py"
+    tmp.write_text(named_only, encoding="utf-8")
+    try:
+        assert _ast_calls(tmp, "malcev_defect") == 0, (
+            "the ast.Call counter scored a file that only NAMES the op — it is "
+            "measuring substrings, which is the rc428 defect it replaces")
+    finally:
+        tmp.unlink()
+    real = CC.PY_ROOT / "tests" / "test_moufang_loop_rc398.py"
+    assert _ast_calls(real, "malcev_defect") >= 1, (
+        "the counter reads 0 on a file that demonstrably calls the op — it is "
+        "broken, and every zero it has reported is silence, not measurement")
+
+
+def test_s6_a_claim_with_no_identifier_carries_a_warrant() -> None:
+    """Arm S6 — STRICT ZERO, per emitted PROSE FIELD.
+
+    rc428's arm S3 is a hardcoded ONE-ROW tuple, keyed per FILE. Measured on the
+    live registry, it sees **1** of the bare (op, term, field) triples this arm
+    covers. Per-file is the wrong grain twice over: one verdict in one artifact
+    is read as covering several claims in several others, and a claim that ships
+    only through ``_tool_docs_curated.py`` is invisible because the file it is
+    keyed to looks clean.
+    """
+    assert S6_ROSTER, "the roster is empty"
+    offenders = _s6_offenders()
+    assert not offenders, (
+        "%d shipped prose field(s) carry a named-source claim with no "
+        "identifier and no warrant:\n\n%s\n\n"
+        "⚠️ FIX BY CARRYING THE VERDICT, NOT BY MINTING A CITATION. The repair "
+        "is to move the DERIVED-AND-MEASURED / UNSOURCED verdict (or an "
+        "attribution ALREADY VERIFIED in this tree) into the field that lacks "
+        "it. Do NOT type a DOI or an arXiv id from memory, and do NOT copy a "
+        "sibling op's citation because the surname matches — that is the rc426 "
+        "defect regenerating. If this fired on prose that is CORRECT, the GATE "
+        "is wrong: re-scope it by naming an axis in tests/citation_corpus.py, "
+        "or remove the roster row and say why in the commit."
+        % (len(offenders), "\n\n".join(offenders)))
+
+
+def test_s6_the_verdict_reaches_the_compiled_registry() -> None:
+    """C19 — the verdict must survive codegen into the artifacts users read.
+
+    ``srmech_tool_registry.c`` carries Mal'cev and CWF claim strings and is
+    compiled into the wheel, and ``citation_corpus`` walks ``*.py`` only — so
+    every arm of this gate is blind to it. The fix is NOT to extend the corpus
+    there: that double-counts (measured amplification ~1.94x) and invites a
+    hand-edit which the next ``regen_all`` silently reverts, the same trap
+    ``GENERATED_MODULES`` already documents for ``_tool_docs.py``.
+
+    Instead the composition ``curated seed → _tool_docs.py → ToolEntry →
+    srmech_tool_registry.c`` is ASSERTED rather than assumed. This is the only
+    place this file reads C, and it is READ-ONLY.
+    """
+    generated = CC.PKG_ROOT / "introspect" / "_tool_docs.py"
+    registry_c = CC.PKG_ROOT.parent.parent / "c" / "src" / "srmech_tool_registry.c"
+    assert generated.exists(), generated
+    assert registry_c.exists(), registry_c
+    gen_text = generated.read_text(encoding="utf-8")
+    c_text = registry_c.read_text(encoding="utf-8", errors="replace")
+
+    checked = 0
+    for name, term, _spellings, warrants, _test in S6_ROSTER:
+        explanation = _entry(name).explanation or ""
+        marker = next((w for w in warrants if w in explanation), None)
+        if marker is None:
+            continue
+        checked += 1
+        for artifact, text in (("_tool_docs.py", gen_text),
+                               ("srmech_tool_registry.c", c_text)):
+            assert marker in text, (
+                "%s: the %r warrant for %r is in the ToolEntry explanation but "
+                "NOT in %s. Fix the CURATED seed "
+                "(srmech/introspect/_tool_docs_curated.py) and run "
+                "tools/regen_all.py; NEVER hand-edit either generated file — "
+                "the next regen reverts it."
+                % (name, marker, term, artifact))
+    assert checked >= 1, (
+        "no roster row put a warrant in its explanation, so this control "
+        "asserted nothing — it cannot distinguish a working codegen path from "
+        "an absent one")
+
+
+# ── S7: identifier-free bibliographies (CEIL, COVERAGE) ───────────────
+
+#: Hand-written string constants carrying a parenthesised year and NO machine
+#: identifier anywhere in the constant. **DOWN ONLY.**
+#:
+#: ⚠️ This is a COVERAGE number, NOT a defect count. It is the class rc428's
+#: gate cannot read AT ALL: no identifier means no ``Unit``, so these are not
+#: even in S4's coverage residual. Per
+#: ``[[feedback_ungated_surfaces_trickle_gated_surfaces_race_to_100]]`` an
+#: ungated surface becomes BELIEVED ABSENT, which is why it is counted at all.
+#:
+#: Most of these are CORRECT. The sharpest example measured is
+#: ``_tool_docs_curated.py``'s *"Lenstra-Lenstra-Lovasz reduction (Math. Ann.
+#: 261 (1982) 515-534; Cohen, Algorithm 2.6.3)"* — a resolvable, unhallucinated
+#: bibliography this gate simply cannot machine-check.
+#:
+#: Precision at this scale is **UNSUPPORTED**: the year discriminator was
+#: measured at 100%/75% on THREE fires in a 72-site sample, not at n=250. A
+#: ceiling is a COUNT, which needs no precision — never restate it as a defect
+#: count.
+#:
+#: ⚠️ **Seeded at the POST-repair value, and the direction is instructive.**
+#: rc429 measured **250** before its own repair and **253** after. The repair
+#: minted no citation: it CARRIED an already-verified attribution (Schafer 1966
+#: ch. III eqns (7)–(9)) into the emitted fields that lacked it. S7 counts
+#: identifier-free string CONSTANTS, not distinct claims, so propagating one
+#: good attribution into three more artifacts necessarily raises it by three.
+#:
+#: That is not a regression, and reading it as one would invert the incentive:
+#: it would reward leaving a verdict stranded in a single artifact — which is
+#: precisely the defect arm S6 exists to catch. The two arms pull in opposite
+#: directions on purpose, and S7 is the one that must yield, because it is a
+#: COVERAGE count and S6 is a defect gate.
+CEIL_S7_IDENTIFIER_FREE_CITATION = 253
+
+#: A parenthesised year in the range a bibliography uses.
+_S7_YEAR = re.compile(r"\((?:1[6-9]\d\d|20[0-2]\d)\)")
+
+#: Any machine identifier. Its PRESENCE removes a constant from this class.
+_S7_IDENTIFIER = re.compile(r"arXiv:|10\.\d{4,}/|https?://|ISBN",
+                            re.IGNORECASE)
+
+
+def _s7_residual() -> List[str]:
+    out: List[str] = []
+    for path in CC.shipped_modules():
+        rel = path.relative_to(CC.PKG_ROOT).as_posix()
+        for line, value in CC.string_constants(path):
+            if _S7_YEAR.search(value) and not _S7_IDENTIFIER.search(value):
+                out.append("%s:%d" % (rel, line))
+    return out
+
+
+def test_s7_identifier_free_citation_ceiling() -> None:
+    """How many bibliographies ship that NO arm of this gate can verify.
+
+    ⚠️ **There is deliberately NO ``test_s7_ceiling_is_not_slack`` companion,
+    and saying why is more load-bearing than the guard would be.** S4 has one
+    because S4 drains by ATTESTING a source — a verification act, which is work
+    this project wants pressure toward. S7 would drain by ADDING IDENTIFIERS TO
+    PROSE — a MINTING act. A not-slack guard on a minting drain applies steady
+    pressure toward typing plausible-looking references, which is precisely the
+    hallucinated-citation defect this entire arc exists to eliminate. The
+    ratchet is one-directional on purpose.
+    """
+    residual = _s7_residual()
+    assert residual, (
+        "the S7 residual is ZERO — that is a broken scanner, not a clean tree. "
+        "80 modules carried this shape when the ceiling was seeded, and a "
+        "measurement that cannot return non-zero is not a measurement.")
+    assert len(residual) <= CEIL_S7_IDENTIFIER_FREE_CITATION, (
+        "S7 rose to %d identifier-free citations (ceiling %d). New: %s\n\n"
+        "⚠️ Lower this ONLY by verifying a source through "
+        "tools/build_citation_manifest.py and carrying the identifier IT "
+        "RETURNS. **Never type a DOI or an arXiv id from memory to drain this "
+        "number.** A ceiling drained with invented identifiers is worse than a "
+        "ceiling that never moved."
+        % (len(residual), CEIL_S7_IDENTIFIER_FREE_CITATION,
+           ", ".join(residual[:10])))
+
+
+def test_the_validate_entry_point_exits_nonzero_on_a_failing_control() -> None:
+    """``--validate`` must FAIL LOUD, not print a summary and return 0.
+
+    rc428's control runner printed ``DEAD SEAM`` and returned success. An entry
+    point that reports instead of exiting is how a dead control survives a whole
+    rc, so the exit path is pinned here rather than trusted.
+    """
+    import os
+    import subprocess
+    import sys
+
+    script = CC.PY_ROOT / "tests" / "citation_corpus.py"
+    env = dict(os.environ, PYTHONPATH=str(CC.PY_ROOT))
+    env_ok = subprocess.run([sys.executable, str(script), "--validate"],
+                            capture_output=True, text=True,
+                            cwd=str(CC.PY_ROOT), env=env)
+    assert env_ok.returncode == 0, (env_ok.returncode, env_ok.stdout,
+                                    env_ok.stderr)
+    assert "PASS" in env_ok.stdout, env_ok.stdout
+
+    # The namespace-shadowing trap must name itself. Without PYTHONPATH the
+    # source tree imports srmech as a NAMESPACE package (__file__ is None) and
+    # this used to surface as a bare pathlib TypeError.
+    shadowed = subprocess.run(
+        [sys.executable, str(script), "--validate"], capture_output=True,
+        text=True, cwd=str(CC.PY_ROOT),
+        env={k: v for k, v in os.environ.items() if k != "PYTHONPATH"})
+    if shadowed.returncode != 0:
+        assert "NAMESPACE PACKAGE" in shadowed.stderr, (
+            "the shadowed import failed WITHOUT naming the cause:\n"
+            + shadowed.stderr[-800:])
+
+    # And it must be ABLE to exit non-zero: no argument is a usage error.
+    bad = subprocess.run([sys.executable, str(script)], capture_output=True,
+                         text=True, cwd=str(CC.PY_ROOT), env=env)
+    assert bad.returncode != 0, (
+        "citation_corpus.py returned 0 without --validate — an entry point "
+        "that cannot exit non-zero cannot report a failing control either")
+
+
 # ── the both-sides bite test ──────────────────────────────────────────
 
 #: Four fixtures, all VERBATIM from the tree at rc426/rc427/rc428. No repo edit
@@ -759,6 +1210,125 @@ def test_the_bite_fixtures_exercise_both_directions() -> None:
     silents = [f for f in BITE_FIXTURES if not f[2]]
     assert len(fires) >= 2, "no FIRE fixtures — the gate's bite is unproven"
     assert len(silents) >= 4, "no SILENT fixtures — false positives unguarded"
+    s6_fires = [f for f in S6_BITE_FIXTURES if f[2]]
+    s6_silents = [f for f in S6_BITE_FIXTURES if not f[2]]
+    assert len(s6_fires) >= 4, "S6's bite is unproven"
+    assert len(s6_silents) >= 6, "S6's false positives are unguarded"
+
+
+# ── S6's own both-sides bite ──────────────────────────────────────────
+#
+# Every fixture is TREE TEXT — the four FIRE cases are the shipped prose as it
+# stood at rc428, so the bite survives its own repair. rc428 states the
+# principle and it applies with more force here: a gate whose bite depends on a
+# live defect stops biting the moment the defect is fixed, and this rc fixes all
+# four of them in the same commit.
+#
+# The SILENT cases are drawn from the 66 hand-labelled MENTIONS in rc429's
+# scope sample, cited by sample index. If S6 ever fires on one of them, the
+# roster has become a classifier and the arm is wrong.
+S6_BITE_FIXTURES: Tuple[Tuple[str, str, bool, Tuple[str, ...], str], ...] = (
+    ("site 1 — _tool_docs.py:233 explanation, rc428 state",
+     "The tangent algebra of a Moufang loop under the commutator bracket "
+     "[x,y]=x.y-y.x is a MAL'CEV algebra: anticommutative, but the Jacobi "
+     "identity FAILS -- replaced by the weaker Mal'cev identity "
+     "J(x,y,[x,z])=[J(x,y,z),x]",
+     True, ("Mal'cev",),
+     "Term present, no identifier, no verdict, no negation. This SHIPPED to "
+     "users via describe(), the MCP tool list and the compiled-in C registry."),
+    ("site 2 — tool_schema.py cwf summary, rc428 state",
+     "rc313 — the mod-2 Calugareanu-White-Fuller consistency check on a "
+     "strand: Lk == Tw + Wr (mod 2). Three INDEPENDENTLY-computed reads.",
+     True, ("Calugareanu", "Călugăreanu", "CWF"),
+     "11 of 11 CWF carriers were bare and rc428's arm S3 has no CWF row at "
+     "all, so no arm of the shipped gate could see this."),
+    ("site 3 — covering.py:288, the NON-ASCII spelling",
+     "``Lk = Tw + Wr`` — the INTEGER invariant recovered from two "
+     "frame-relative rationals (Călugăreanu–White–Fuller). The theorem's "
+     "content is an asymmetry the mod-2 shadow destroys",
+     True, ("Calugareanu", "Călugăreanu", "CWF"),
+     "The en-dashed, diacritic spelling. ZERO of rc428's 32 manifest terms "
+     "match any CWF spelling, so the vocabulary was blind to it by "
+     "construction. Neither briefed defect named this site."),
+    ("site 4 — moufang_residue explanation, rc428 state",
+     "WHAT: the Moufang defect of an ordered triple (x, y, z) -- the max, "
+     "over the three Moufang identities M1 x.(y.(x.z))=((x.y).x).z",
+     True, ("Moufang",),
+     "The fifth site, named by neither the brief nor the scope arms in full. "
+     "The Schafer attribution reached the summary and not this field."),
+    ("MENTION sample 16 — Frenkel–Turaev",
+     "the Frenkel–Turaev ₈ω₇ summation over a balanced very-well-poised "
+     "series",
+     False, ("Moufang", "Mal'cev", "Calugareanu"),
+     "A standard NAME for a standard object. Not on the roster, so out of "
+     "S6's population entirely — subtracted syntactically, not judged."),
+    ("MENTION sample 23 — Faddeev-Leverrier",
+     "the characteristic polynomial via Faddeev-Leverrier",
+     False, ("Moufang", "Mal'cev", "Calugareanu"), "MENTION."),
+    ("MENTION sample 21 — Apagodu-Zeilberger",
+     "Apagodu-Zeilberger creative telescoping over the summand",
+     False, ("Moufang", "Mal'cev", "Calugareanu"), "MENTION."),
+    ("AMBIGUOUS — cd_register.py:721, one of the sample's 2",
+     "capped at min(dim,8)−1 by Hurwitz",
+     False, ("Moufang", "Mal'cev", "Calugareanu"),
+     "If S6 fires here the roster has become a classifier and the arm is "
+     "wrong. It stays silent because no roster row names this op."),
+    ("the REPAIRED malcev summary — A6 must subtract it",
+     "The Mal'cev verdict is DERIVED-AND-MEASURED, not cited: rc427 verified "
+     "that Baez arXiv:math/0105155 — cited here through rc426 for 'the "
+     "Mal'cev tangent algebra' — contains NO occurrence of Mal'cev in any "
+     "spelling.",
+     False, ("Mal'cev",),
+     "Without A6 at CLAIM scope this reads as an attribution of Mal'cev to "
+     "Baez — the exact claim rc427 deleted — and S6 would score the FIX as "
+     "the defect."),
+    ("A8 — the live phantom",
+     "the dual of an operator-side honest",
+     False, ("Fano",),
+     "densify() joins 'of an o' into 'ofano'. Silent today only because "
+     "1009.0369 is unattested; attesting it would make S1 fire on correct "
+     "prose."),
+    ("A8 — the inflection arm, INVERSE polarity",
+     "factorization of elliptic functions",
+     False, ("Moufang",),
+     "Carries no roster term, so S6 is silent. Its A8 half — that "
+     "'elliptic function' MUST still match the plural — is control C15."),
+)
+
+
+@pytest.mark.parametrize("label,text,should_fire,spellings,why",
+                         S6_BITE_FIXTURES,
+                         ids=[f[0] for f in S6_BITE_FIXTURES])
+def test_s6_still_bites(label: str, text: str, should_fire: bool,
+                        spellings: Tuple[str, ...], why: str) -> None:
+    """Both sides of S6's predicate, on real tree text and with no repo edit.
+
+    The predicate is exercised directly rather than through the roster, because
+    the roster is a SCOPE statement and the thing under test is whether the rule
+    can tell a bare claim from an attributed one and from a mention.
+    """
+    present = _term_present(text, spellings)
+    warranted = any(w in text for w in ("DERIVED-AND-MEASURED", "UNSOURCED",
+                                        "not cited", "Schafer",
+                                        "no attestation is claimed"))
+    fired = bool(present) and not warranted and not _is_attributed(text, present)
+
+    if should_fire:
+        assert fired, (
+            f"{label}: S6 did NOT fire on prose known to carry a bare claim.\n"
+            f"  {why}\n  text: {text[:120]!r}\n"
+            f"  present={present} warranted={warranted}\n"
+            f"A guard that cannot fire is decorative, and every verdict this "
+            f"arm has rendered is downgraded to UNSUPPORTED.")
+    else:
+        assert not fired, (
+            f"{label}: S6 FIRED on prose known to be FINE {present!r}.\n"
+            f"  {why}\n  text: {text[:120]!r}\n"
+            f"⚠️ Do NOT add a citation to silence this. The ARM is wrong — "
+            f"either the roster has become a classifier, or an axis in "
+            f"tests/citation_corpus.py needs re-scoping. Minting a reference "
+            f"to make this green is the defect this whole arc exists to "
+            f"eliminate.")
 
 
 # ── the axes are exercised, not merely declared ───────────────────────

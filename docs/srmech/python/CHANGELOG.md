@@ -13,6 +13,81 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc429]
+
+### The claim with no source, and the axis that made the fix into the defect (`#T1128`)
+
+**Registry stays 655. ABI stays 14. GENOME_FORMAT_VERSION stays 19.** A provenance rc: no op is registered, no C signature moves, no wire contract changes. `c/src/srmech_tool_registry.c` moves by **7 lines** and `_tool_docs.py` by **4**, both because they embed ToolEntry prose that gained a provenance verdict.
+
+#### The hole rc428 could not see, and why the obvious gate was refused
+
+rc428 shipped a gate that verifies a cited source actually **contains** the cited claim. It works. But a claim with **no source** has nothing to check, so that gate cannot see the class *by construction* — and the class was live, shipped, and one instance was created by rc427's own fix. **Removing a false citation is not a fix; it is a change of defect class.** A false citation is falsifiable; an unsourced named-concept claim asserts authority with nothing behind it and no way to check.
+
+The obvious response — gate every claim term that carries no identifier — was **measured and REJECTED**. The population is ~1,420 string constants, and on a 72-site hand-labelled sample **66 are MENTIONS**: using a standard name for a standard object, the way "Fourier transform" is used. Every candidate discriminator failed:
+
+| candidate | population | measured precision | verdict |
+|---|---|---|---|
+| bare eponym stating a relation | **262** sites | **0/14** | ⛔ REJECTED |
+| credit verb ("due to" / "proved") | 11 fires | **0/11** | ⛔ REJECTED — the tree uses those verbs about its own ops |
+| reference-block shape | 0 fires | cannot fire | ⛔ REJECTED — the instrument could not return otherwise |
+| auto-extracted eponym vocabulary | 6,590 "terms" incl. `ABOUT`, `Optional`, `Jun` | — | ⛔ REJECTED twice, independently |
+
+A gate demanding citations on 1,420 mention sites would provoke bolting a plausible-looking reference onto each — **manufacturing exactly the hallucinated-citation defect this whole arc exists to eliminate.** So no attribution-vs-mention classifier ships, and the 262-site class is **deliberately ungated, with its refuting number written into the gate** so the next rc does not rebuild it.
+
+#### Axis A8 — a live defect, armed behind the gate's own drain path
+
+`citation_corpus.term_pattern` built a bare regex with no word boundary and ran it against `densify()`, which **deletes whitespace**. The two together invent identifiers. Measured live, inside a string that really parses as a citation unit:
+
+```
+apokatastasis/riemann_theta.py — "…the dual of an operator-side honest…"
+dense: "…thedual[ofano]perator-sidehonest…"   ⇒ contains_term(…, "Fano") == True
+```
+
+It was silent only because `1009.0369` is not attested, so the unit sat in S4's coverage residual. **S4 is a down-only CEIL designed to drain by attesting sources** — so the moment anyone performed the one action the gate asks for, "Fano" would be evaluated against a Riemann-theta paper, read 0, and the **strict-zero arm would fire on correct prose**. That is precisely the rc427 failure the gate's own docstring forbids, waiting behind the gate's own drain path. A second phantom: **`Bott` reads 33 dense hits tree-wide and 0 real ones — every occurrence is `Bottom`.**
+
+A8 requires a word boundary **in the original text**, per occurrence. Both directions were measured, and the strict form is a **measured false negative**: with a strict trailing rule the corpus carries 2 phantoms, one of which is legitimate prose (`"factorization of elliptic functions"` vs the term `elliptic function`); with an inflection-tolerant rule it carries 1, the real one. A8 is scoped **per-occurrence** while A6 is scoped **whole-claim** — deliberately opposite, because A6 has a coherence argument (a claim cannot assert both presence and absence) and A8 has none: a phantom is a parsing accident with no relationship to the genuine occurrence beside it.
+
+#### Arm S6 — verdict travel, per FIELD, over an adjudicated roster (STRICT ZERO)
+
+rc428's arm S3 is a hardcoded **one-row** tuple, keyed **per file**, scoped to `cascade/cayley_dickson.py`. Measured on the live registry it sees **1** of the bare `(op, term, field)` triples. S6 keys on **ops** and asserts **per emitted prose field**, over a hand-adjudicated roster. **MENTION is subtracted syntactically — by never being in the population** — rather than by classifying prose. The roster is a test-side scope statement: a module cannot exempt itself, and there is no marker, no `noqa` and no opt-in field.
+
+**Ten bare shipped prose fields across four ops** were found and repaired — including two sites **neither the brief nor the scope pass named in full**: `moufang_residue` and `covering.linking_number_cwf`. A repair scoped to the two known sites would have left both shipping.
+
+#### Two corrections this build made to its own specification
+
+1. **A6 must run at CLAIM scope, not FIELD scope.** The specification called for `asserts_absence(field, term)`. Measured: at field scope that axis **silenced 7 of 16 sites, including four of the five this rc was called for.** A whole docstring almost always carries one of the eight negation tokens within 60 characters of some occurrence of the term — and here every one was a statement about the *mathematics*, not about a source: *"𝕊 is not even alternative, so not Moufang"*, *"nor an integer-level CWF"*, *"never rounded"*. A6 asks whether a **claim** asserts a source lacks a term; an emitted field is not a claim, and running the axis there turns a subtraction into a blindfold.
+
+2. **`moufang_residue` is ATTRIBUTED, not unsourced.** Its summary carries *Schafer (1966), ch. III eqns (7)–(9), read verbatim from Project Gutenberg #25156* — a chapter-and-equation locator with a public-domain retrieval path. rc428's grammar recognises **arXiv identifiers only**, which is the sole reason it read bare. Firing there would demand a *second* citation for a claim that already has a verified one.
+
+#### The repair — and the extraction that decided it
+
+No citation is minted anywhere. `malcev_defect`'s docstring carried **two claims in one paragraph**, and a single verdict over both would launder the general one on the specific one's evidence:
+
+- **A.** *"The tangent algebra of a Moufang loop **is** a Mal'cev algebra"* — a general theorem the op does not measure. **UNSOURCED**, kept as standard background and *marked* rather than deleted.
+- **B.** *"jacobi = 144 … malcev is EXACTLY 0"* — the two keys the op **returns**. **DERIVED-AND-MEASURED.**
+
+Whether Schafer could be widened to cover claim A was **decided by extraction, not preference.** The Project Gutenberg #25156 TeX source (226,706 chars, sha256 `25ff18d3…`) contains **0** occurrences of "Mal'cev" in any spelling, **0** of "Kuzmin", **0** of "tangent algebra" and **0** of "Moufang loop" — on an extraction whose live positive controls read Schafer 15 / alternative 44 / Moufang 3 / Jordan 127, whose negative controls read 0, and which carries no U+FFFD. **Those zeroes are measurements, not silence** — the first attempt at this extraction 404'd and the positive control caught it. The same extraction independently **verified** the sibling citation: Schafer's eqns (7) and (9) really are introduced as *"the Moufang identities"*.
+
+For CWF the canonical sources (Călugăreanu 1959–61, White 1969, Fuller 1971) are paywalled-only or offline; per `[[feedback_paywalled_doi_cannot_be_attested]]` a substituted second unverified citation is the same defect wearing a different name. The verdict is DERIVED-AND-MEASURED because `cwf_consistency_mod2` does not **assert** `Lk = Tw + Wr` — it **materialises** it as three independently-computed keys plus a returned `consistent` witness.
+
+Three prose clauses that appealed to a **named theorem as their own warrant** were narrowed to what the op measures: *"exactly as CWF's writhe accounts for the crossings a naive twist count omits"*, *"The theorem's content is"*, and *"The theorem's whole content is"*.
+
+#### Arm S7 — identifier-free bibliographies (CEIL, COVERAGE)
+
+**250 string constants across 80 modules** carry a parenthesised year and no identifier at all. This is the class rc428's gate cannot read *at all*: no identifier means no citation unit, so these were not even counted in S4's residual — the tree's largest structural blind spot to its own citation gate.
+
+**Seeded at 253, the POST-repair value, and the direction is instructive.** Carrying an already-verified attribution into three more fields *raises* a count of identifier-free constants by three. Reading that as a regression would invert the incentive — it would reward leaving a verdict stranded in one artifact, which is the defect S6 exists to catch.
+
+⚠️ **There is deliberately no `not_slack` companion for S7, and saying why matters more than the guard would.** S4 has one because S4 drains by **attesting** — a verification act. S7 would drain by **adding identifiers to prose** — a minting act. A not-slack guard on a minting drain applies steady pressure toward typing plausible-looking references.
+
+#### Controls, and what this gate still cannot see
+
+Every control **raises at import** rather than reporting: C13 (the live `ofano` phantom), C14 (`Bott`/`Bottom`), C15 (the inflection arm), C16 (A8 does not weaken the dash fold), C17 (A6 and A8 agree on what an occurrence *is*), C18 + C18b (the predicate returns **both** ways, and is per-occurrence). C19 asserts that a verdict placed in the curated seed **reaches** `_tool_docs.py` *and* `srmech_tool_registry.c` — closing the C-registry hole with a falsifiable assertion instead of a corpus extension that would double-count and invite reverted hand-edits. A negative control pins that the `ast.Call` counter can return **0** on a file that only *names* an op — rc428's S3 used a substring match, which `# see malcev_defect` satisfies.
+
+`python3 tests/citation_corpus.py --validate` prints one line per control and **exits non-zero**; a test pins that exit path, because rc428's runner printed `DEAD SEAM` and returned success.
+
+**Four blind spots are written into the gate rather than left for rediscovery.** S6 sees only claims someone has already **adjudicated** — rc428 could not see an unsourced claim, rc429 cannot see an **un-adjudicated** one. S6 is op-keyed, so module-level prose is outside it. The 262-site bare-eponym class is ungated on measured evidence, with a cheap pre-registered falsifier stated (hand-label a fresh n≥30 draw and show ≥5 attributions). And S7 **counts, it does not judge** — its precision at that scale is UNSUPPORTED.
+
 ## [0.9.0rc428]
 
 ### The gate that reads the source, not the tree (`#T1126`)
