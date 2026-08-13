@@ -229,6 +229,31 @@ def test_iir_still_filters_valid_input():
                   biquad_sections=[[1.0, 0.0, 0.0, 1.0, 0.0, 0.0]]) == [1.0, 2.0]
 
 
+def test_vec_add_refuses_mismatched_lengths_in_both_orientations():
+    """SILENT WRONG ANSWER regression guard (rc431, `#T1129`).
+
+    ``srmech.cascade.vec_add`` ranged over ``len(a)`` alone, so
+    ``vec_add([1.0], [1.0, 2.0])`` RETURNED ``[2.0]`` -- ``b``'s tail dropped
+    with no error and a plausible-looking result, on a PUBLIC REGISTRY OP. The
+    mirror orientation leaked a bare ``IndexError`` instead, so the same
+    malformed call was silently wrong one way round and noisily wrong the other.
+    That asymmetry is why it went unnoticed: whichever orientation a caller hit
+    first, the other looked like a different bug.
+
+    BOTH orientations are asserted deliberately. A guard written against only
+    the orientation that raised would leave the silent one intact, which is the
+    half that actually corrupts data."""
+    from srmech.cascade import vec_add
+
+    with pytest.raises(ValueError, match="vec_add:"):
+        vec_add([1.0], [1.0, 2.0])          # was: RETURNED [2.0]
+    with pytest.raises(ValueError, match="vec_add:"):
+        vec_add([1.0, 2.0], [1.0])          # was: bare IndexError
+
+    assert vec_add([1.0, 2.0], [3.0, 4.0]) == [4.0, 6.0]
+    assert vec_add([], []) == []
+
+
 def test_lll_reduce_and_signed_sum_squared_refuse_shape_in_house_style():
     """The other two rc431 repairs: a shape defect must raise the ValueError the
     docstring promises, not a bare TypeError from a coercion comprehension."""

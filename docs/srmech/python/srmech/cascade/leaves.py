@@ -144,7 +144,31 @@ def vec_add(a: Sequence[float], b: Sequence[float]) -> List[float]:
     A LEFT fold from a zero seed reproduces the shipped ``acc[i] += term[i]``
     order bit-exactly (``0.0 + t == t``; then the identical per-slot add
     order).
+
+    Raises:
+        ValueError: ``a`` and ``b`` have different lengths. Elementwise
+            addition of mismatched vectors is undefined, and the two
+            orientations were not even failing the same way.
+
+    Note:
+        rc431 (`#T1129`) -- **this was a silent wrong answer**, the worst defect
+        class this project recognises. The body ranged over ``len(a)`` alone, so
+        ``vec_add([1.0], [1.0, 2.0])`` RETURNED ``[2.0]``: ``b``'s tail was
+        dropped with no error, no warning and a plausible-looking result, on a
+        public registry op. The mirror orientation
+        ``vec_add([1.0, 2.0], [1.0])`` leaked a bare ``IndexError`` from the
+        comprehension instead -- so the same malformed call was silently wrong
+        one way round and noisily wrong the other, which is why neither
+        orientation had ever been noticed. Guarding on equal length is the only
+        answer that is correct in both: there is no length at which dropping a
+        tail is the right elementwise sum. Repair precedent: ``coupled.py:187``
+        (``all streams must have equal length``).
     """
+    if len(a) != len(b):
+        raise ValueError(
+            f"vec_add: a and b must have equal length; got {len(a)} and "
+            f"{len(b)} (elementwise addition of mismatched vectors is "
+            f"undefined -- this silently truncated to len(a) before rc431)")
     return [a[i] + b[i] for i in range(len(a))]
 
 
