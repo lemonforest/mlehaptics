@@ -1,0 +1,214 @@
+# Literature Claims Catalogue — the source-contains-the-claim attestation
+# layer for srmech's MPM discipline (v0.9.0rc428, `#T1126`).
+#
+# WHY THIS CATALOG EXISTS
+# ------------------------
+# srmech's MPM discipline says *a citation without attestation is not real; an
+# attestation that can't be re-verified is broken.* Measured at rc428, it had
+# no mechanical check for the thing that matters most: **whether the cited
+# source actually CONTAINS the cited claim.**
+#
+# Zero gates covered literature citations in shipped package source. Every
+# identifier-bearing citation in the package — and its copies inside the
+# generated artifacts that reach users through `describe()`, the MCP tool list
+# and the compiled-in C registry — was entirely ungated. That is how six
+# citation defects reached published wheels while every attestation gate
+# stayed green. Two of those gates were worse than absent: six tests assert
+# `source_url == "https://arxiv.org/abs/math/0105155"`, the tree asserting
+# that the tree says what it says, and that literal IS the citation that was
+# false at `cascade/cayley_dickson.py`.
+#
+# This catalog is the missing external truth. Each row records what an
+# attested source DOES contain, section by section, so
+# `tests/test_citation_manifest_rc428.py` can join a shipped citation to it
+# and fail the build when the source does not support the claim.
+#
+# WHY MPR v1 NEEDED NO CHANGE
+# ----------------------------
+# An earlier reading concluded MPR v1 could not host this, on two grounds:
+# that no attestation field carries a claim term, and that the unit is wrong
+# (data rows vs docstrings). Both dissolve once the record's SUBJECT is set
+# correctly. **A row here describes A SOURCE, not a docstring.** Then
+# `attestation.response_sha256` is the hash of the fetched e-print bytes,
+# `source_url` the e-print URL, `parser_version` the extractor — and the claim
+# term is DOMAIN PAYLOAD, which is exactly what `data` is for, in every other
+# attested catalog in this package. Docstrings never become MPRRecords; the
+# manifest attests sources and the GATE joins docstrings to it.
+# `MPR_SCHEMA_VERSION` stays "1.0". No new record kind. No new mandatory field.
+#
+# ROW SHAPE — TWO KINDS, AND WHY ABSENCE IS DECIDABLE
+# ----------------------------------------------------
+# `row_type = "source"`  one per source: the Class-A hashes, the version, the
+#                        positive control, and `sections` — the COMPLETE
+#                        ordered list of addressable labels in the document.
+# `row_type = "term"`    one per (source, term): `occurrences_by_section` for
+#                        the NONZERO sections only, plus the document total.
+#
+# So "term T is absent at section S" is decided as: the term row exists (T was
+# measured), S appears in `sections` (S was measured), and S is not a key of
+# `occurrences_by_section`. Both quantifiers are written down, so a missing
+# key can never be confused with an unmeasured one.
+#
+# The first build emitted the full (source, section, term) cross-product —
+# 789 rows, 541 KB, every row repeating both sha256s. This shape is 34 rows
+# and 16 KB with the same decidability.
+#
+# THE FAILURE MODE THIS CATALOG IS BUILT AGAINST IS THE FALSE NULL
+# -----------------------------------------------------------------
+# rc428 produced FOUR distinct false nulls in its own instruments before any
+# of this shipped: a `timeout` that returned 0 and read as a clean result; an
+# unescaped `]` that closed a character class early and yielded 0 DOIs from a
+# tree with 37; a minimal-match regex that reported the strict-zero population
+# EMPTY and would have killed the gate as unbuildable; and an extraction that
+# returned 0 for BOTH "Moufang" and "octonion" from a paper titled *The
+# Octonions*. Every one was caught by a control; none by review.
+#
+# Hence `positive_control` is MANDATORY on every source row, and the builder
+# ABORTS rather than emit a row when it fails. An instrument that can return a
+# spurious zero silently blesses every citation in the tree.
+#
+# ⚠️ AND THE POSITIVE CONTROL IS NOT ENOUGH ON ITS OWN — measured, not feared.
+# Through the first rc428 push this was the ONLY control the build path read.
+# The builder computed three more and discarded them, and the discarded ones
+# are the ones that catch the two failures the positive control cannot see:
+#
+#   * the ENCODING TRAP. Ghostscript text decoded as latin-1 keeps `octonion`
+#     alive at 172 — it is ASCII, so a misdecode cannot touch it — while
+#     "Cayley-Dickson" collapses 22 -> 4. Only the multi-spelling control
+#     notices, and U+FFFD stays false throughout.
+#   * a TRUNCATED read. The real Baez e-print cut to 2% still fires the
+#     positive control (`octonion` = 1) while every claim term reads 0 — a
+#     page of false REFUTED verdicts, each accusing a CORRECT citation.
+#
+# So every source row now carries ALL FOUR controls per backend under
+# `controls`, the builder aborts on any of them, and the gate asserts them
+# (arm S5). A control the manifest does not CARRY is a control nothing can
+# CHECK — which is the same false-null failure one level up, committed by the
+# instrument built to detect it.
+#
+# THE ENCODING TRAP, AND WHY A SINGLE-SPELLING CONTROL CANNOT CATCH IT
+# ---------------------------------------------------------------------
+# `pdftotext` emits Latin-1 by default; decoding as UTF-8 mangles every
+# en-dash, and a "Cayley-Dickson" search then matches only the 4 ASCII
+# spellings out of 22. Reproduced on different tooling here: 4 vs 22. The part
+# worth stating is that the misdecode emits **zero U+FFFD** — Latin-1 never
+# raises and never substitutes — so "no replacement characters appeared" is
+# NOT evidence of a good extraction. Only a MULTI-SPELLING control catches it,
+# and the collapsed value differs per term (Baez's "Cayley–Dickson" collapses
+# to 4; Rosengren's "Frenkel–Turaev" is 8 en-dashes with no ASCII spelling and
+# collapses to 0). The trap signature is therefore "the control missed its
+# expected count", never a hardcoded number.
+#
+# WHY TWO SOURCES AND NOT ONE
+# ----------------------------
+# The extractor's own stated bound is *"validated against exactly ONE source;
+# every new source needs its own positive control."* A single-source manifest
+# cannot distinguish "the schema works" from "the schema fits Baez". Rosengren
+# is the negative control on the manifest design itself: a different subtree, a
+# different document structure (chapters, so `\section` numbers as C.S), and
+# its own positive control chosen and recorded BEFORE extraction.
+#
+# SOURCES AND VERDICT VOCABULARY
+# -------------------------------
+# Both sources are arXiv e-prints, and that is not incidental — an arXiv
+# e-print is the AUTHOR'S OWN LaTeX, not a rendering, and `\section{}` is
+# structural markup rather than a guess about which line looked like a
+# heading. `section_attribution = "EXACT"` on a row means precisely that.
+# A source with no retrievable e-print supports presence/absence claims only
+# and must never carry a section-scoped verdict.
+#
+# Per `[[feedback_paywalled_doi_cannot_be_attested]]`, a paywalled-only source
+# is REJECTED as attestation outright. It gets DERIVED-AND-MEASURED (srmech
+# computes the claim AND a NAMED TEST executes it) or UNSOURCED — never a
+# substituted second unverified citation, which only moves the defect.
+#
+# WHAT RE-VERIFIES THIS, AND WHY IT IS NOT A GATE
+# ------------------------------------------------
+# `python/tools/build_citation_manifest.py --build` writes `row.ndjson`;
+# `--check` re-derives from cached e-prints and byte-compares. It is
+# NETWORK-TOUCHING, offline of CI, and NOT in the wheel (`tools/` is not
+# packaged). CI consumes the committed bytes, exactly as `srmech.amsc.format`
+# states the discipline: *we trust the committed bytes at runtime and never
+# recompute*.
+#
+# A scheduled network RE-VERIFY job is deliberately DEFERRED rather than
+# dropped. There is a live signal for it — the tree cites Rosengren as both
+# `1608.06161` and `1608.06161v3`, and a source can gain a version whose
+# section numbering moves — but no measured defect yet traces to link rot or
+# version drift, and shipping a network workflow with nothing behind it adds a
+# failure mode for free. When it lands it must be a NON-BLOCKING job that
+# opens an issue, never a gate: a gate that depends on the network is a gate
+# that goes red for reasons that have nothing to do with the tree.
+#
+# An unreachable source is never silently blessed and never forced into a lie:
+# its row is simply not written, and its citations fall to the gate's coverage
+# ceiling (arm S4), which drains monotonically over rcs.
+
+[source]
+key = "literature_claims"
+human_readable_name = "Literature Claims Catalogue — attested per-section term occurrences for the literature sources srmech cites, so a shipped citation can be mechanically checked against what the source actually contains"
+purpose = "external-truth layer for the citation-contains-term gate: for each attested source, the complete addressable section list, a mandatory positive control, and the per-section occurrence count of every term some shipped srmech citation attributes to that source; lets tests/test_citation_manifest_rc428.py fail the build when a citation names a claim the cited section does not support, and lets it stay SILENT on the section-anchored citations that are correct (existence proves nothing; TOPICALITY decides)"
+license = "CC0-1.0 (measurement metadata over openly-licensed arXiv e-prints; the counts are facts about public documents, not reproductions of them)"
+homepage = "https://github.com/lemonforest/mlehaptics/blob/main/docs/srmech/srmech_research_notebook.md"
+canonical_doi = ""
+
+# canonical_doi is deliberately EMPTY, not a placeholder. This catalog is
+# measurement metadata over two arXiv e-prints; it has no DOI of its own, and
+# minting a plausible-looking placeholder is the citation-fabrication reflex
+# this whole rc exists to stop. Each row carries its own `source_url` and the
+# sha256 of the exact bytes measured, which is the attestation that matters.
+
+[fetch]
+adapter = "literature_curated"
+ndjson_path = "row.ndjson"
+
+[parse]
+# The sources are arXiv e-prints. arXiv DOIs (10.48550/arXiv.*) exist, but
+# asserting one this build never resolved would be exactly the unverified
+# attribution the gate exists to catch, so per-row DOI is OFF and the arXiv
+# identifier + the e-print sha256 carry the provenance instead.
+require_per_row_source_doi = false
+require_per_row_published_date = true
+require_per_row_entered_locally_at = true
+
+[schema]
+data_schema_id = "literature_claims.row.v1"
+data_schema_path = "row.schema.json"
+
+[rendering]
+cite_as_template = "srmech Literature Claims Catalogue (per-section term occurrences extracted from arXiv LaTeX e-prints, dual-backend, positive-control-gated); revision retrieved {retrieved_at:%Y-%m-%d}."
+purpose_template = "attested per-section occurrence record for the terms srmech citations attribute to {schema.source_id}"
+
+[attestation]
+hash_response = true
+hash_algorithm = "sha256"
+required_fields = [
+    "license",
+    "retrieved_at",
+    "response_sha256",
+    "parser_version",
+    "parser_rule_hash",
+    "collector_descriptor_path",
+    "collector_descriptor_hash",
+]
+
+[gap_targeting]
+# Not gap-targeting in the dynamical-regime classifier sense — the content is
+# provenance measurement over text, not empirical dynamical-regime sampling.
+# The closest existing label is used rather than inventing one.
+regime_labels = [
+    "rigid_body_action_angle_stable",
+]
+
+[catalog]
+chain_schema_version = 1
+
+# No [[catalog.operator_chain]] is declared, and that is a deliberate
+# statement rather than an omission. The sibling `asymptotic_calculus` catalog
+# declares chains because its rows are SELF-VALIDATING — each expected output
+# is recomputable from the Class N + Class J primitives at consumer time. These
+# rows are not: they are measurements of an EXTERNAL document, and no cascade
+# of the fourteen can re-derive how many times Baez wrote "Moufang" without
+# the paper in hand. Declaring a chain here would claim a self-validation this
+# catalog cannot have. Re-derivation is `build_citation_manifest.py --check`,
+# which needs the network and therefore lives outside CI.

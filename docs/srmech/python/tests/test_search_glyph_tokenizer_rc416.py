@@ -251,8 +251,30 @@ from srmech.math.text import fold_marks, glyph_stream
 #: (7× → 22×). That a +0-op rc moves this hash is the property the witness
 #: exists for. Re-measured the same way: FIFTEEN builds, three fresh
 #: interpreters, one hash, ``len(frames) == 684`` every time.
+#:
+#: MOVED AGAIN at rc428 (`#T1126`), again with **zero op-count change**
+#: (684 = 655 + 29 before and after; the citation rc registers no op, so the
+#: registry stays 655 and ABI stays 14). Exactly ONE ToolEntry's prose moved:
+#: ``srmech.cascade.octonion_hopf_base``, whose SSoT read
+#: "arXiv:math/0105155 §4.1–§4.2 (the octonionic Hopf fibration S⁷↪S¹⁵↠S⁸,
+#: 𝕆P¹≅S⁸)" through rc427 and was FALSE at both endpoints — §4.1 is G₂, §4.2 is
+#: F₄, and "Hopf" occurs 0 times in either; the fibration is set out in §3.1
+#: "Projective Lines". The entry now cites §3.1 and records the correction
+#: inline, so the prose grew and the corpus hash moved with it.
+#:
+#: The two burdens this re-pin discharges, per the pin discipline:
+#:   1. **the op set did not move** — 655 ops + 29 carriers = 684 frames, the
+#:      same decomposition as rc427, so nothing was added, renamed or dropped;
+#:   2. **the move has a named cause** — a single ToolEntry's SSoT string,
+#:      changed because ``tests/test_citation_manifest_rc428.py`` measured it
+#:      false against the attested source. The hash moving on a +0-op rc whose
+#:      only edit is a corrected citation is precisely the property the witness
+#:      exists for: prose that reaches users through ``describe()``, the MCP
+#:      tool list and the compiled-in C registry is content, not commentary.
+#: Re-measured the same way: FIFTEEN builds, three fresh interpreters, one
+#: hash, ``len(frames) == 684`` and ``(655, 29)`` every time.
 WITNESS_RC416 = (
-    "a97c05f9969a23cf872ff6f9860161af93bf6a8eb9eae532d496de56aa425110")
+    "91fb1c351e5bb855d338271b5a50cf6e50a5c38f18287de999e934e0f5e16f53")
 
 #: The ASCII control set. These four queries are the ops the tokenizer work is
 #: ABOUT, so a regression on them would be the change eating its own subject.

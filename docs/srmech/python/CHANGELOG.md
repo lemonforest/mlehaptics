@@ -13,6 +13,116 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc428]
+
+### The gate that reads the source, not the tree (`#T1126`)
+
+**Registry stays 655. ABI stays 14.** This rc registers **no op** — it is a provenance rc. Nothing crosses the wire, no C symbol is added, and the four-generated-file ripple is not entered. One generated file moved (`c/src/srmech_tool_registry.c`) because it EMBEDS ToolEntry prose and one citation inside that prose was corrected.
+
+#### The hole
+
+srmech's MPM discipline says *a citation without attestation is not real; an attestation that can't be re-verified is broken.* Measured this rc: **zero gates covered literature citations in shipped package source.** Every identifier-bearing citation in the package — and its copies inside `_tool_docs.py` and the compiled-in C tool registry, which reach users through `describe()` and the MCP tool list — was entirely ungated. That is how six citation defects reached published wheels while every attestation gate stayed green.
+
+Two of those gates were **worse than absent**. Six tests assert `source_url == "https://arxiv.org/abs/math/0105155"` — the tree asserting that the tree says what it says. That literal *is* the citation that was false at `cascade/cayley_dickson.py` through rc426, and all six were green throughout. An attestation gate that reads only the tree cannot discriminate.
+
+#### What ships
+
+| Artifact | What it is |
+|---|---|
+| `srmech/amsc/attested/literature_claims/` | A normal AMSC catalog: 34 rows, 16 KB. For each attested source, the complete addressable section list, a mandatory positive control, and the per-section occurrence count of every term some shipped citation attributes to it |
+| `tools/build_citation_manifest.py` | The extraction instrument, promoted out of `docs/srmech/notes/`. `--build` / `--check` / `--validate`. Network-touching, offline of CI, **not in the wheel** |
+| `tests/citation_corpus.py` | The AST citation parser and its six axes — sibling of `tests/adr_corpus.py`, sharing nothing but the pattern |
+| `tests/test_citation_manifest_rc428.py` | The gate: arms S1–S4, an eight-fixture both-sides bite test, and non-vacuity guards |
+
+**MPR v1 needed no change.** An earlier reading concluded it could not host this, on two grounds: no attestation field carries a claim term, and the unit is wrong (data rows vs docstrings). Both dissolve once the record's SUBJECT is set correctly — **a row describes A SOURCE, not a docstring.** Then `response_sha256` is the hash of the fetched e-print bytes and the claim term is domain payload, which is what `data` is for in every other attested catalog here. Docstrings never become MPRRecords; the manifest attests sources and the gate joins docstrings to it. `MPR_SCHEMA_VERSION` stays `"1.0"`. No new record kind, no new mandatory field.
+
+#### Four citations were false, and none was the one we went looking for
+
+| Site | Cited | Actually |
+|---|---|---|
+| `cascade/cayley_plane.py` module docstring | §4.2 | **§3.1** — the octonionic Hopf fibration |
+| `cascade/cayley_plane.py:octonion_hopf_base` | §4.1–§4.2 | **§3.1** |
+| `introspect/tool_schema.py` — the same op's ToolEntry | §4.1–§4.2 | **§3.1** |
+| `cascade/cayley_dickson.py:cd_three_form` | §4.1 | **§2.1** — the Fano plane |
+
+"Hopf" occurs **0 times** in Baez §4.1 or §4.2 — §4.1 is G₂ and §4.2 is F₄ — while the fibration table and `𝕆P¹ ≅ S⁸` are both set in §3.1 "Projective Lines". "Fano" occurs 0 times in §4.1; the Fano plane is §2.1. Positive control on the same extraction: "octonion" 172×, so every zero is a measurement rather than silence.
+
+**The first of these sat inside a parenthesis whose other half is correct.** §4.2 really is where Baez says F₄'s 16-dimensional projective plane "is none other than 𝕆P²". rc427 verified that half and rightly left it alone; the Hopf half rode along in the same parenthesis and nothing looked at it. The brief for this rc asserted those citations were correct and must survive — half of that was right, and the half that was wrong is the more instructive one: **a partially-verified citation reads as a verified one.**
+
+Every fix **re-points the locator**. None deletes a citation. Deleting one converts a false citation into an UNSOURCED claim — a change of defect class, not a fix.
+
+#### The arm that catches what rc427's own fix created
+
+rc427 removed the false Baez citation for "the Mal'cev tangent algebra" and wrote the reasoning into a `#` comment. **A comment does not ship.** The claim does — through `help()`, `describe()`, the MCP tool list and the C registry — and it shipped with no verdict attached. Arm **S3** requires a provenance verdict to travel in the SAME artifact as the claim it governs, and requires a `DERIVED-AND-MEASURED` verdict to name a test that EXECUTES the claim; without one it is `UNSOURCED` wearing a better word. `malcev_defect`'s docstring now carries the verdict and names `tests/test_moufang_loop_rc398.py`. S3 residual: **0**.
+
+> ⚠️ **This paragraph named `tests/test_loop_bind_moufang.py` until the rc428 repair pass, and that was wrong** — that file contains **zero** occurrences of `malcev_defect`. It does verify the Mal'cev identity on 𝕆 by another route (the HDC loop-bind path), so the substantive claim was true, which is exactly why nothing caught it: **S3 asserted only that the named file EXISTS.** A path that resolves is not evidence that the thing at the end of it measures anything. S3 now also requires the named test to reference the op, and requires the shipped artifact and the gate's own row to agree on which test that is.
+
+#### The six axes, and why two of them exist
+
+Each is a syntactic subtraction on the `test_owner_axis_rc410.py` model — no file named, no line named, no `noqa`. Two exist because the gate fired on prose that is **correct**:
+
+* **A1 source-list separator.** `cd_register.py` reads `Hurwitz (1898); Baez arXiv:math/0105155; Kanerva (2009)` — three sources, each correctly attributed. A fixed-width window read Kanerva as a claim *about* Baez. That is trap 2 committed by the instrument measuring trap 2, and it is exactly the batch fix that would have broken a working citation.
+* **A6 negated claim.** Two shipped paragraphs RECORD the rc427 fix, and both say the term is absent. Without A6 the gate fires on the paragraph written to record the fix. Scoped whole-claim rather than per-occurrence: a single claim cannot coherently assert both that the source contains T and that it contains no T, and when prose does both it is a correction record.
+
+Two **declared vocabulary variants** were also forced, and they ship inside the manifest so a reader can audit them. Baez writes "Cayley plane" **nowhere** (0 occurrences) — he writes "octonionic projective plane"; and he uses "alternative" where the tree says "alternativity". The rule: **a variant must be another spelling or standard synonym of the same named object, verified by reading.** It may never be a different object sharing a word — "Moufang identities" may not be varianted into "Moufang plane", which is the rc426 defect itself.
+
+#### Only one arm is strict zero, and the split is measured
+
+`S1` strict zero over the 31 units carrying identifier + locator + attributed claim on an attested source. `S2` / `S3` / `S4` are down-only CEILs at **0 / 0 / 22**. Corpus-wide strict zero would be dishonest: only ~10% of citation units carry all three parts, and **53% make no attributed claim at all**.
+
+#### The instruments lied four times, and no review caught any of them
+
+Every one was caught by a control: a `timeout` that returned 0 and read as a clean result; an unescaped `]` that closed a character class early and yielded 0 DOIs from a tree with 37; a minimal-match regex that reported the strict-zero population EMPTY and would have killed this gate as unbuildable; and an extraction returning 0 for **both** "Moufang" and "octonion" from a paper titled *The Octonions*. So the parser's controls are inline and they **raise at import** (`citation_corpus._self_check`, C1–C12), and the manifest builder ABORTS rather than emit a row when a positive control fails.
+
+Three further instrument findings worth keeping:
+
+* **The encoding trap emits zero U+FFFD.** Latin-1 never raises and never substitutes, so "no replacement characters appeared" is not evidence of a good extraction. Only a multi-spelling control catches it — and the collapsed value differs per term, so the trap signature is "the control missed its expected count", never a hardcoded 4.
+* **The unit must be an AST string constant, not a line.** A line scan of this tree reports four truncated DOIs that do not exist; all four are Python implicit concatenation. It also cannot see a citation whose identifier and claim sit on different lines, which is the normal shape of a wrapped docstring.
+* **Dash folding is load-bearing inside the tree, not only in PDFs.** `Cayley–Dickson` is spelled with an en-dash 248 times here and with an ASCII hyphen 164. An ASCII-only matcher sees 40% of the most-cited concept in the package.
+
+#### Two structural facts the section map had to be built around
+
+Baez's e-print has 5 sections and **16 subsections**, so every locator the tree cites — §2.4, §3.1, §4.1, §4.2 — is a *subsection*; a section-only map resolves none of them. Rosengren's has **4 chapters** and 24 sections and no subsections, so its sections number as `C.S`. The map is therefore level-aware (the top level PRESENT starts the numbering) and matching is by **dotted prefix**: §3 covers §3.1…§3.4, §4.2 covers §4.2 and deeper but not §4. That rule decides verdicts rather than tidying them — "exceptional Jordan" reads 3 in §3's own prose and 4 more in §3.4, so a §3 citation of it is VERIFIED at 7 under prefix matching and REFUTED at 3 under equality.
+
+**Two sources, not one.** The extractor's own bound was *"validated against exactly ONE source."* Rosengren is the negative control on the manifest design: different subtree, different structure, its own positive control chosen before extraction.
+
+Also measured, and it changed the schema: arXiv's **old-scheme e-print endpoint ignores a version suffix** — `…/e-print/math/0105155v4` returns a 225-byte error page, not the 70969-byte submission. The version is therefore attested by the **sha256 of the fetched bytes** rather than pinned in a URL, which is the stronger mechanism anyway: a new upstream version turns `--check` red instead of silently re-deriving against different text.
+
+#### Also fixed
+
+* `signal_processing/path_b_ops/hdc_truncation.py` — the Kanerva DOI was **hard-wrapped across a newline** in the module docstring, shipping as an unresolvable identifier, while line 58 of the same file spells it correctly. An identifier is the one string in a citation that must never be broken for line width.
+* **`tests/test_owner_axis_rc410.py` was in neither `tools/ripple_gates.txt` nor `FROZEN_KNOWN_GATES`** — the fifth instance of the unlisted-gate shape, and the costliest: it took six CI cells red at rc427. Both it and the new gate are now listed and frozen.
+
+#### One thing this rc deliberately did not do
+
+A scheduled network re-verify job is **deferred, not dropped**. There is a live signal — the tree spells Rosengren both `1608.06161` and `1608.06161v3` — but no measured defect yet traces to link rot or version drift, and a network workflow with nothing behind it adds a failure mode for free. When it lands it must be a non-blocking job that opens an issue, never a gate. Recorded in the catalog descriptor so it cannot be forgotten.
+
+**A note for the next builder**, carried forward from this round's measurements and not acted on here: `test_no_shipped_module_restates_the_registry_total` goes red on **39 of the next 105 registry totals, the first at 665 — ten registrations from the live 655** — and 27 of those are bare `#NNN` refs that `test_ref_notation_emitted_rc348.py` mandates. The two known blind spots are the same blind spot pointed at each other. `DOI 10.1109/53.665` and the SU(3) structure constant `f^{678}` are verified content and must not be edited to green a gate.
+
+#### The repair pass — the instrument had the defect it was built to detect
+
+Three independent verifiers read this rc's own instrument. Their merged findings were adjudicated and then re-measured here rather than accepted; six were confirmed and fixed at root, one was confirmed and re-scoped, one was a report-text slip. **The citations were re-verified first and none had been corrupted** — "Hopf" reads 0 in Baez §4.2 and **16** in §3.1; "Fano" reads 0 in §4.1 and **6** in §2.1; the *kept* half, 𝕆P² at §4.2, reads 1. Every rc428 re-pointing moved a locator off a zero-count section, and the correct half of the parenthesis survived.
+
+The load-bearing finding is that **`build_rows` computed four controls and read one.** `run_controls` returned `positive_control`, `multi_spelling`, `negative_verdict`/`always_true_terms` and `u_fffd_present`; the build path read `positive_control["count"]` and discarded the rest, and three of those keys were read **nowhere** in the tree (`grep` over `tests/` + `srmech/` = 0). The second backend's controls were computed into a **dropped return value**. That is this rc's own thesis — a seam that cannot fail is not a check — committed by the instrument written to detect it.
+
+It was not hypothetical. Measured on the real corpus, ghostscript text decoded as latin-1:
+
+| control | reads | |
+|---|---|---|
+| `octonion` (positive) | **172** | PASS — ASCII, sails through the misdecode |
+| `Cayley-Dickson` | **4** (floor 22) | the en-dashed spellings vanish |
+| U+FFFD present | **False** | the other tell does not fire either |
+
+The one control that would have caught it was computed and thrown away. A **2% truncation** of the same e-print is the same shape from the other side: the positive control still fires (`octonion`=1) while `Cayley-Dickson` and `Hopf` both read 0 — a page of false `REFUTED` verdicts, each of which **accuses a correct citation of being fabricated**.
+
+Fixed at root: `require_controls_usable` and `require_extraction_complete` abort the build on any failed control or a short read; all four controls now **ship in the source row** per backend, so arm **S5** can assert from outside the tool that produced them; `--validate` returns **1** instead of an unconditional 0 when F11 reports `DEAD SEAM`; LaTeX `%` comments are stripped before the section scan (a commented-out `\section{}` renumbered every label after it — measured by injection); `backend_tex` now **records** the encoding its docstring always claimed it recorded; and `backend_pypdf`'s docstring is corrected — it claimed pypdf "under-reports 22 → 16" and that agreement with ghostscript "is a finding worth chasing", but under the shipped dense matcher pypdf returns **22**, identical to gs. The 16 is a property of **naive** matching, and the docstring's own trigger was already satisfied.
+
+**Re-scoped by naming an axis, not by an exemption.** The first version of the multi-spelling guard demanded exact equality and immediately failed the build — correctly refusing to proceed, for the wrong reason. Rosengren's `Frenkel-Turaev` is 8 in the e-print and **9** in the rendering; all nine were inspected and are real (the PDF carries a table-of-contents line the body source lacks, and one occurrence loses its en-dash glyph). The expected counts are e-print-derived, so cross-backend equality tests the wrong proposition. The guard is now a **floor** — only a *collapse* is the encoding trap — and it discriminates on every shipped pair: Baez tex 22/22, gs 22/22; Rosengren tex 8/8, gs 9/8; **gs latin-1 4 < 22 ABORT.**
+
+Two repairs would otherwise have been invisible, and are gated so they are not. `_evaluate` matched the canonical spelling while the manifest counts variants, so a claim written "the octonionic projective plane" was **skipped entirely** — not judged and passed, but never judged. Measured, the fix changes nothing on this corpus (57 (unit, term) pairs before and after, 0 variant-only claims), so **axis A7** forces the distinction with a constructed unit rather than waiting for a real one; it fails against the unrepaired matcher naming the exact spelling. And **F11's fixture set exercised one of four guards** — all three cases aborted on the positive control — which is how two of the three verifiers concluded the instrument "ABORTS" on broken extractions when it did not. Three cases that keep the positive control **intact** were added, plus **F12**, which drives the completeness guard from the real extracted text.
+
+`row.ndjson` was rebuilt: **0** counts, section maps or spellings changed — only the three new fields. The comment-strip is therefore value-neutral here by measurement, not by assumption.
+
 ## [0.9.0rc427]
 
 ### The arrow that had no name, the censuses that were counting instead of comparing, and a citation that shipped false (`#T1130`)

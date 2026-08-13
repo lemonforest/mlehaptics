@@ -133,6 +133,31 @@ FROZEN_KNOWN_GATES = frozenset({
     #    the `== <total>` count-pin grep every rc runs cannot see it -- the one
     #    count-pin the standard predicate structurally misses. ---------------
     "tests/test_op_name_set_witness_rc361.py",
+    # -- owner axis / registry-total restatement (rc428, `#T1126`) ------------
+    #    THE FIFTH INSTANCE of the unlisted-gate shape this frozen set exists
+    #    to prevent, and the costliest so far: it took SIX CI cells red at
+    #    rc427 while appearing in NEITHER the manifest nor this set. Frozen
+    #    rather than merely listed because its collision surface is scheduled,
+    #    not hypothetical -- measured forward over the next 105 registry
+    #    totals, 39 (37%) take it red, the FIRST at 665, ten registrations from
+    #    the live 655. Twenty-seven of those 39 are bare `#NNN` refs that
+    #    test_ref_notation_emitted_rc348.py MANDATES, so the two known blind
+    #    spots are the same blind spot pointed at each other. A gate that can
+    #    be quietly dropped from the manifest is that failure one level up.
+    "tests/test_owner_axis_rc410.py",
+    # -- citation-contains-term (rc428, `#T1126`) ----------------------------
+    #    Frozen for the reason the gate exists. Its subject is CITATION PROSE
+    #    inside ToolEntry summaries and module docstrings -- prose that is
+    #    EMITTED into `_tool_docs.py` and compiled into
+    #    `srmech_tool_registry.c`, and therefore edited on ordinary op rcs by
+    #    authors not thinking about attestation. Measured at rc428: a FALSE
+    #    Baez citation shipped inside published wheels and reached users via
+    #    describe() and the MCP tool list while SIX attestation tests stayed
+    #    green, because all six asserted `source_url == "<that same url>"` --
+    #    the tree asserting the tree. This is the only gate that reads an
+    #    EXTERNAL measurement of the cited source, so dropping it from the
+    #    manifest restores exactly the ungated surface that shipped the defect.
+    "tests/test_citation_manifest_rc428.py",
 })
 
 

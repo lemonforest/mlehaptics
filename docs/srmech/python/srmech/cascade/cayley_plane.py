@@ -44,8 +44,27 @@ Canonical SSoT (cited technically, no lineage claims per
   ``J₃(𝕆)``, rank-1 idempotents and 𝕆P² (already cited in-tree in
   ``cayley_dickson.py``).
 - J.C. Baez (2002), *The Octonions*, Bull. AMS **39** 145–205,
-  arXiv:math/0105155, §3 (the exceptional Jordan algebra) + §4.2 (the Cayley
-  plane 𝕆P², the octonionic Hopf fibration ``S⁷ ↪ S¹⁵ ↠ S⁸``, ``𝕆P¹ ≅ S⁸``).
+  arXiv:math/0105155, §3 (the exceptional Jordan algebra) + §3.1 (the
+  octonionic Hopf fibration ``S⁷ ↪ S¹⁵ ↠ S⁸`` and ``𝕆P¹ ≅ S⁸``) + §4.2 (𝕆P²
+  as the 16-dimensional projective plane F₄ is the isometry group of).
+
+⚠️ ATTESTATION FIX, rc428 (`#T1126`). Through rc427 the second locator above
+read "**§4.2** (the Cayley plane 𝕆P², the octonionic Hopf fibration
+``S⁷ ↪ S¹⁵ ↠ S⁸``, ``𝕆P¹ ≅ S⁸``)" — one parenthesis carrying two claims with
+**opposite verdicts**:
+
+* the 𝕆P² half is CORRECT. §4.2 is "$\\F_4$", and it states there that F₄ "is
+  the isometry group of a 16-dimensional projective plane … this plane is none
+  other than 𝕆P²". rc427 checked exactly this half and rightly left it alone.
+* the **Hopf half is FALSE at that locator**. "Hopf" occurs **0 times in
+  §4.2**; the fibration table ``𝕆: S⁷ ↪ S¹⁵ → S⁸`` and ``𝕆P¹ ≅ S⁸`` are both
+  set in **§3.1 "Projective Lines"**, verbatim.
+
+The Hopf claim rode along inside a parenthesis whose other half had been
+verified, which is why rc427 did not see it and why the rc428 gate binds each
+claim to ITS OWN locator (axis A3). The fix RE-POINTS the locator; it does not
+remove the citation. Positive control on the same extraction: "octonion"
+occurs 172× in that paper, so the zero is a measurement, not silence.
 """
 
 from __future__ import annotations
@@ -357,9 +376,16 @@ def octonion_hopf_base(x: Sequence[Any]) -> Dict[str, Any]:
         over ``cd_mult`` / ``cd_conjugate`` / ``cd_norm_sq``; NO new C symbol.
         Class M ∘ C ∘ K.
 
-    Canonical SSoT: Baez (2002), *The Octonions*, arXiv:math/0105155, §4.1–§4.2
+    Canonical SSoT: Baez (2002), *The Octonions*, arXiv:math/0105155, §3.1
     (the octonionic Hopf fibration ``S⁷ ↪ S¹⁵ ↠ S⁸`` and ``𝕆P¹ ≅ S⁸``);
     Springer & Veldkamp (2000), ch. 5.
+
+    ⚠️ ATTESTATION FIX, rc428 (`#T1126`). This read **§4.1–§4.2** through
+    rc427 and was false at BOTH endpoints — §4.1 is "$\\G_2$" and §4.2 is
+    "$\\F_4$", and "Hopf" occurs 0 times in either. The fibration this op
+    computes is set out in **§3.1 "Projective Lines"**. The locator was
+    re-pointed, not removed: this citation is the SSoT for what the op does,
+    so deleting it would leave the op's defining claim unsourced.
     """
     el = _as_elem(x)
     if len(el) != 16:
