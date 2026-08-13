@@ -1,0 +1,447 @@
+{
+ "definitions": {
+  "AMBIGUOUS": "cannot be decided from the string alone whether the name carries warrant or names an object",
+  "ATTRIBUTION": "the prose credits a specific result, theorem or claim to a named source or person AS ITS WARRANT - the reader is being told the claim is true because that authority established it",
+  "MENTION": "the named term is used as the STANDARD NAME of a standard object; whatever is asserted is asserted by srmech, not by a source",
+  "term_status.PHANTOM": "the match is a MATCHER ARTIFACT - a whitespace-joined cross-word accident, or the term inside a code identifier",
+  "term_status.REAL": "the matched manifest term occurs as prose"
+ },
+ "labeller": "rc429 S1 sizing agent, hand-read from the tree",
+ "labels": {
+  "01deb1b85e5c6ca7": {
+   "index": 14,
+   "label": "ATTRIBUTION",
+   "note": "'(Kaneko & Zagier, *The Moduli Space of Curves*, Progr. Math. 129 (1995), pp. 165-172; Zagier, *Elliptic Modular Forms and Their Applications*, Springer (2008), Sec 5.3)' - full bibliographic warrant, NO machine identifier",
+   "term_status": "REAL"
+  },
+  "0328542f2da56178": {
+   "index": 30,
+   "label": "MENTION",
+   "note": "'NO matrix, NO determinant'; 'the Sec 76 Gosper dispersion' names an algorithm",
+   "term_status": "REAL"
+  },
+  "07b5cea3706a6af2": {
+   "index": 7,
+   "label": "MENTION",
+   "note": "'when you want a Moufang loop rather than a group' - object name",
+   "term_status": "REAL"
+  },
+  "0af168c693a209b6": {
+   "index": 59,
+   "label": "MENTION",
+   "note": "'the elliptic Cauchy determinant' - object name",
+   "term_status": "REAL"
+  },
+  "0ccd959437b11a18": {
+   "index": 34,
+   "label": "MENTION",
+   "note": "bare dotted path",
+   "term_status": "PHANTOM"
+  },
+  "0cd4a748856923a3": {
+   "index": 27,
+   "label": "MENTION",
+   "note": "'type-A_n very-well-poised elliptic Jackson identity' - standard name",
+   "term_status": "REAL"
+  },
+  "0cf97bc3668028fc": {
+   "index": 9,
+   "label": "MENTION",
+   "note": "'everything triality-side is fast afterwards' - object name",
+   "term_status": "REAL"
+  },
+  "0d0750609ae16125": {
+   "index": 53,
+   "label": "MENTION",
+   "note": "'Spin(8) generators are not block-diagonal' - error text, object name",
+   "term_status": "REAL"
+  },
+  "103cec7876435780": {
+   "index": 32,
+   "label": "MENTION",
+   "note": "output dump; associator_defect identifier",
+   "term_status": "PHANTOM"
+  },
+  "109c50dd60b5024f": {
+   "index": 54,
+   "label": "MENTION",
+   "note": "bare identifier quasimodular_represent",
+   "term_status": "PHANTOM"
+  },
+  "1498e3e15e0d2b9a": {
+   "index": 62,
+   "label": "MENTION",
+   "note": "'the Cayley-Dickson cocycle sign table', 'the Fano +-structure' - object names, DERIVED not cited",
+   "term_status": "REAL"
+  },
+  "1d6ae703c5b91a8e": {
+   "index": 5,
+   "label": "MENTION",
+   "note": "worked-example code; 'Hopf' only inside octonion_hopf_base",
+   "term_status": "PHANTOM"
+  },
+  "1eb49af4d24968db": {
+   "index": 47,
+   "label": "MENTION",
+   "note": "C symbol name",
+   "term_status": "PHANTOM"
+  },
+  "2414dd0455a9f034": {
+   "index": 43,
+   "label": "MENTION",
+   "note": "'the discrete octonion Moufang loop over 4-bit bytes' - object name; ADR-0010 is a LOCAL ref",
+   "term_status": "REAL"
+  },
+  "24b0f2c9ca17d848": {
+   "index": 3,
+   "label": "MENTION",
+   "note": "Z3 reading-frame monodromy explanation; 'triality' occurs only inside an identifier",
+   "term_status": "PHANTOM"
+  },
+  "2590c59daedbc226": {
+   "index": 22,
+   "label": "MENTION",
+   "note": "'the Class-C sector flip of the Cayley-Dickson block'; the *emphasis* markup is rst, not a title",
+   "term_status": "REAL"
+  },
+  "2f13ad00aaa86fab": {
+   "index": 25,
+   "label": "MENTION",
+   "note": "octonion bind explanation; 'associator' only inside an identifier",
+   "term_status": "PHANTOM"
+  },
+  "3c559289f2bee940": {
+   "index": 33,
+   "label": "MENTION",
+   "note": "bare identifier",
+   "term_status": "PHANTOM"
+  },
+  "3ce9eaabc851d2b7": {
+   "index": 71,
+   "label": "MENTION",
+   "note": "'efficient decimation or interpolation' - common noun",
+   "term_status": "REAL"
+  },
+  "3e63504e2ef2b11f": {
+   "index": 37,
+   "label": "MENTION",
+   "note": "the whole constant is the key string 'hurwitz'",
+   "term_status": "REAL"
+  },
+  "3f679a585bec698c": {
+   "index": 23,
+   "label": "MENTION",
+   "note": "'exact determinant = (-1)^n*cn' - common noun",
+   "term_status": "REAL"
+  },
+  "42c8cb3a804f0f06": {
+   "index": 13,
+   "label": "MENTION",
+   "note": "bare dotted path",
+   "term_status": "PHANTOM"
+  },
+  "4495fac97add4e26": {
+   "index": 39,
+   "label": "MENTION",
+   "note": "'the Gell-Mann SU(3) structure constants'; F_4 matched inside f_458",
+   "term_status": "PHANTOM"
+  },
+  "44a138bd3f566b98": {
+   "index": 45,
+   "label": "MENTION",
+   "note": "'modular exponentiation by square-and-multiply'; 'a Fermat or Euler witness test' names tests, credits nothing",
+   "term_status": "REAL"
+  },
+  "4aaf9e5054b3be6e": {
+   "index": 29,
+   "label": "MENTION",
+   "note": "'the spin-1/2 Clifford algebra', 'the largest Frobenius deviation' - standard names",
+   "term_status": "REAL"
+  },
+  "4ab68b8972dc50fe": {
+   "index": 63,
+   "label": "MENTION",
+   "note": "'promote an element UP the Hurwitz ladder' - object name",
+   "term_status": "REAL"
+  },
+  "4c595b0a1a2ef89d": {
+   "index": 24,
+   "label": "AMBIGUOUS",
+   "note": "'capped at min(dim,8)-1 by Hurwitz' invokes the theorem as the REASON for a bound (warrant-shaped), while 'past the Hurwitz wall' in the same string is pure object-naming",
+   "term_status": "REAL"
+  },
+  "553e7b1a76e837a3": {
+   "index": 21,
+   "label": "MENTION",
+   "note": "'Apagodu-Zeilberger multivariate sums-of-sums creative telescoping' - the algorithm's standard name",
+   "term_status": "REAL"
+  },
+  "5852558f3e6c9584": {
+   "index": 10,
+   "label": "MENTION",
+   "note": "'the order-3 triality (F220 - ...)'; F220 is a LOCAL finding ref, not literature",
+   "term_status": "REAL"
+  },
+  "5d207a55eb0335d6": {
+   "index": 19,
+   "label": "MENTION",
+   "note": "'Project a Cayley-Dickson element DOWN one doubling' - object name",
+   "term_status": "REAL"
+  },
+  "5fa7446ed592ca8c": {
+   "index": 49,
+   "label": "MENTION",
+   "note": "'a WEIGHT-axis sibling of the modular-forms generators' - object name",
+   "term_status": "REAL"
+  },
+  "67587709fe4dd8f7": {
+   "index": 18,
+   "label": "MENTION",
+   "note": "output dump listing op names",
+   "term_status": "PHANTOM"
+  },
+  "678db62acaab24d0": {
+   "index": 67,
+   "label": "MENTION",
+   "note": "'four exact 2D orientation determinants decide the crossing' - common noun; the CWF attribution in this same file is at a DIFFERENT constant",
+   "term_status": "REAL"
+  },
+  "6961b71accbfb43e": {
+   "index": 44,
+   "label": "MENTION",
+   "note": "'the triality-fixed subgroup of Z(Spin(8)) is trivial' - a MEASURED claim, object names only",
+   "term_status": "REAL"
+  },
+  "6ada152728c0fbcd": {
+   "index": 11,
+   "label": "AMBIGUOUS",
+   "note": "'All four Plate/Kanerva BSC identities hold at once' - two personal names in credit position, but 'Plate/Kanerva BSC identities' is also the object's standard name. Undecidable from the string",
+   "term_status": "REAL"
+  },
+  "744aa4bdea381215": {
+   "index": 60,
+   "label": "MENTION",
+   "note": "'the Cayley-Dickson rung above genome_fiber_holonomy' - object name",
+   "term_status": "REAL"
+  },
+  "75058f0db0439362": {
+   "index": 17,
+   "label": "MENTION",
+   "note": "C symbol name in an error string",
+   "term_status": "PHANTOM"
+  },
+  "7875f681a318840d": {
+   "index": 65,
+   "label": "MENTION",
+   "note": "'elliptic_cauchy_determinant' identifier; rst emphasis only",
+   "term_status": "PHANTOM"
+  },
+  "792496f12216504b": {
+   "index": 46,
+   "label": "MENTION",
+   "note": "bare identifier associator_defect",
+   "term_status": "PHANTOM"
+  },
+  "7a14a47aa3ae7167": {
+   "index": 58,
+   "label": "MENTION",
+   "note": "bare dotted path",
+   "term_status": "PHANTOM"
+  },
+  "7ae52e8a5f0e15b9": {
+   "index": 50,
+   "label": "MENTION",
+   "note": "'applies the up interpolation gain' - common noun",
+   "term_status": "REAL"
+  },
+  "7c6927c9f4b38584": {
+   "index": 38,
+   "label": "MENTION",
+   "note": "'the unit Moufang loop', 'IS the associator' - object names in measured claims",
+   "term_status": "REAL"
+  },
+  "80296e7def7b413c": {
+   "index": 56,
+   "label": "MENTION",
+   "note": "'their commutator reproduces the associator exactly' - measured claim",
+   "term_status": "REAL"
+  },
+  "86b79d273ebc87e0": {
+   "index": 12,
+   "label": "MENTION",
+   "note": "'the pair generates S3 = Out(Spin(8))' - object name in a MEASURED claim",
+   "term_status": "REAL"
+  },
+  "890194fd77f99789": {
+   "index": 15,
+   "label": "MENTION",
+   "note": "'is the zero vector (no Moufang inverse)' - error text",
+   "term_status": "REAL"
+  },
+  "8b6756457106bacc": {
+   "index": 36,
+   "label": "ATTRIBUTION",
+   "note": "'Lenstra-Lenstra-Lovasz reduction (Math. Ann. 261 (1982) 515-534; Cohen, A Course in Computational Algebraic Number Theory, Algorithm 2.6.3)' - a real unsourced attribution whose MANIFEST-term match is a phantom inside 'unimodular'. The vocabulary and the defect class are ORTHOGONAL",
+   "term_status": "PHANTOM"
+  },
+  "8ea7946ec9d6dc00": {
+   "index": 69,
+   "label": "MENTION",
+   "note": "'the DEFAULT Fano line (1,2,3)', 'the Cayley-Dickson doubling seam' - object names",
+   "term_status": "REAL"
+  },
+  "90115aead08cd9ed": {
+   "index": 1,
+   "label": "MENTION",
+   "note": "'for the fixed Cayley-Dickson convention' - names the convention srmech uses; asserts nothing about a source",
+   "term_status": "REAL"
+  },
+  "939822f0e79811cf": {
+   "index": 66,
+   "label": "MENTION",
+   "note": "'Bott' inside 'Bottom-k modes'; 'a Gershgorin upper bound' is an unmatched eponym MENTION",
+   "term_status": "PHANTOM"
+  },
+  "97d55be3a5f754d1": {
+   "index": 31,
+   "label": "MENTION",
+   "note": "'turn every Fano plane through I_n by theta' - object name",
+   "term_status": "REAL"
+  },
+  "9cb8c54c741d4924": {
+   "index": 57,
+   "label": "MENTION",
+   "note": "'products of the small interpolation primes' - common noun",
+   "term_status": "REAL"
+  },
+  "a1e30b8726dd7265": {
+   "index": 51,
+   "label": "MENTION",
+   "note": "C symbol name",
+   "term_status": "PHANTOM"
+  },
+  "a4b44fab682b805b": {
+   "index": 70,
+   "label": "MENTION",
+   "note": "'mat_norm is the scalar Frobenius/2-norm' - standard name",
+   "term_status": "REAL"
+  },
+  "a7e53adfcd6f8eb9": {
+   "index": 16,
+   "label": "MENTION",
+   "note": "'the Frenkel-Turaev 8w7 / 10E9 very-well-poised summation' - standard name of the summation",
+   "term_status": "REAL"
+  },
+  "ad9833b46a683046": {
+   "index": 20,
+   "label": "ATTRIBUTION",
+   "note": "'a normed division algebra (Hurwitz 1898)' - a THEOREM credited to a person and a year as the warrant for the claim; no identifier",
+   "term_status": "REAL"
+  },
+  "af85f9c7f5a734c1": {
+   "index": 8,
+   "label": "MENTION",
+   "note": "'Fano' is the letters of o[f a no]n-negative joined by whitespace deletion",
+   "term_status": "PHANTOM"
+  },
+  "b1b2e8ef1c904ec3": {
+   "index": 42,
+   "label": "MENTION",
+   "note": "'a Fano associative 3-plane' - object name in an output line",
+   "term_status": "REAL"
+  },
+  "bb85ff96f4347b81": {
+   "index": 6,
+   "label": "MENTION",
+   "note": "'the definite Cayley-Dickson ladder rung dim' - object name",
+   "term_status": "REAL"
+  },
+  "d01b6f45b6a7949b": {
+   "index": 26,
+   "label": "MENTION",
+   "note": "bare identifier triality_fixed_subgroup",
+   "term_status": "PHANTOM"
+  },
+  "d445d7f29558e3c9": {
+   "index": 41,
+   "label": "MENTION",
+   "note": "C symbol name",
+   "term_status": "PHANTOM"
+  },
+  "da5c832b378163c1": {
+   "index": 55,
+   "label": "MENTION",
+   "note": "print('Fano lines   ', ...) - worked-example label",
+   "term_status": "REAL"
+  },
+  "e1de202984ebe8ce": {
+   "index": 2,
+   "label": "MENTION",
+   "note": "worked-example OUTPUT dump: 'triality shape = (28, 28)'; non-prose",
+   "term_status": "REAL"
+  },
+  "e288dd43f2f2e6a9": {
+   "index": 61,
+   "label": "ATTRIBUTION",
+   "note": "'Glass, *Compositio Mathematica* 40 (1980) Sec 3 ...; Fiorentino-Salvati Manni, *SIGMA* 16 (2020) 057, Sec 1-2; Igusa, *Theta Functions* (1972) Sec IV/V' - three journal/book credits with section locators, NO machine identifier",
+   "term_status": "REAL"
+  },
+  "e36b936d8f10bf72": {
+   "index": 40,
+   "label": "MENTION",
+   "note": "'the octonion associator's symmetry algebra' - object name; the row is explicitly labelled an HONEST TIERED TEST",
+   "term_status": "REAL"
+  },
+  "e81e05b95c4f8f5d": {
+   "index": 35,
+   "label": "MENTION",
+   "note": "'klein4_triality_correct' identifier inside prose",
+   "term_status": "PHANTOM"
+  },
+  "eb6c38401b801a9c": {
+   "index": 28,
+   "label": "MENTION",
+   "note": "bare dotted path",
+   "term_status": "PHANTOM"
+  },
+  "efadbdf08a109d18": {
+   "index": 52,
+   "label": "MENTION",
+   "note": "C symbol name",
+   "term_status": "PHANTOM"
+  },
+  "f116da2d7becd0b3": {
+   "index": 4,
+   "label": "MENTION",
+   "note": "the bare dotted path srmech.physics.qm.triality.spin8_center",
+   "term_status": "PHANTOM"
+  },
+  "f1adf50b72d2cb94": {
+   "index": 72,
+   "label": "MENTION",
+   "note": "bare identifier triality_not_identity",
+   "term_status": "PHANTOM"
+  },
+  "f6277708bbc8d93a": {
+   "index": 48,
+   "label": "MENTION",
+   "note": "psk_qam worked example; 'Bott' inside 'bottom row'",
+   "term_status": "PHANTOM"
+  },
+  "fc4bf51edc9f09a8": {
+   "index": 68,
+   "label": "MENTION",
+   "note": "'a weight-k level-1 modular form' - object name",
+   "term_status": "REAL"
+  },
+  "fe8337b229d16d13": {
+   "index": 64,
+   "label": "MENTION",
+   "note": "bare identifier moufang_residue",
+   "term_status": "PHANTOM"
+  }
+ },
+ "rc": "rc429",
+ "task": "#T1132",
+ "unit": "one ast string constant in hand-written shipped srmech source"
+}

@@ -1,0 +1,535 @@
+### 90115aead08cd9ed  math/laplacian.py:3750  terms=['Cayley-Dickson']
+Assemble the ``4n×4n`` real-symmetric quaternion gain Laplacian as a
+    nested ``list[list[float]]`` (numpy-free).
+
+    Per edge ``k = (u, v, w, g)`` (``g`` an already-unit quaternion): the
+    ``(u, v)`` block accumulates ``−(w/2)·L(g)``, the ``(v, u)`` block
+    ``−(w/2)·L(conj g)`` — and ``L(conj g) == L(g)ᵀ`` for the fixed
+    Cayley–Dickson convention, so ``L[bu+a, bv+b] == L[bv+b, bu+a]`` term by
+    term (the matrix is EXACTLY symmetric, no float asymmetry). Each endpoint's
+    diagonal block gains ``(w/2)·I₄``; the accumulated ``deg[r]·I₄`` mirrors
+    :func:`magnetic_laplacian`'s per-edge ``w/2`` magnitude scale.
+    ``L(g)`` = :func:`srmech.physics.qm.quaternion.quaternion_left_mult` (Class-M bind,
+    native-dispatched); ``conj`` = :func:`srmech.physics.qm.quaternion.quaternion_conjugate`
+    (Class C).
+    
+
+### e1de202984ebe8ce  introspect/_tool_docs_curated.py:2276  terms=['Spin(8)', 'triality']
+order_two_atoms = ('pin_slot_at_zero', 'reorient', 'magnitude', 'chiral_flip', 'chiral_dual', 'net_chirality')
+order_three_primitive = srmech.physics.qm.triality.triality_automorphism
+triality shape = (28, 28)
+  certificate.abelian_group_order = 8
+  certificate.chirality_complete_core = 7
+  certificate.lagrange_obstruction = True
+  certificate.n_order_two_atoms = 6
+  certificate.three_divides_group_order = False
+  certificate.three_divides_triality_order = True
+  certificate.triality_not_identity = 6.48074069840786
+  certificate.triality_order = 3
+  certificate.triality_order_residual = 0.0
+  certificate.triality_squared_not_identity = 6.48074069840786
+attestation.response_sha256 = 2e22d89664e1d0a1bc8d80f6159193e1c1c732796a96e2c8d5f738714a27e675
+framework key present (labelled not-derived): framework-reading, not derived | endianness in Class C in Klein-4 in Spin(8) triality
+
+### 24b0f2c9ca17d848  introspect/_tool_docs_curated.py:1962  terms=['triality']
+WHAT it computes — the Z3 reading-frame MONODROMY of a circular strand (genome.py:2276): the integer L mod 3 in {0,1,2}, where L is the number of base symbols. Going once around a circular strand shifts the reading frame by L, so this is the frame shift accrued per lap. Zero means the frame CLOSES and a circular open reading frame reads in one consistent frame indefinitely; 1 or 2 mean each lap lands somewhere else. q8_project_v4 is applied so L counts sign-free BASE symbols (the projection preserves length and also validates the bytes). A pure read; stores nothing. WHEN to reach for it — before trusting any circular-strand codon read, and whenever you need to know if a loop is frame-coherent. It looks trivial enough that the standing temptation is to write len(strand) % 3 inline and move on; do not — that skips the projection, so it accepts malformed bytes silently and gives a length for a Q8 strand that the codon layer would have rejected. It also loses the C peer srmech_genome_codon_frame_monodromy. SIBLINGS — this is one of THREE distinct cyclic structures on the same strand and the one most often conflated with the other two, so name them explicitly rather than re-deriving a second copy: codon_frame_monodromy is the Z3 READING FRAME; klein4_triality_cycle (hdc.py:2326) is the base-axis automorphism; and the winding Lk lives in the Q8 SIGN bit, read by cwf_consistency_mod2 (genome.py:1481). There is no codon-layer copy of the integer Lk — the codon layer is frame topology in Z3, nothing more. codon_read (genome.py:2211) is the consumer that takes phase as an argument.
+
+### f116da2d7becd0b3  introspect/tool_schema.py:12617  terms=['triality']
+srmech.physics.qm.triality.spin8_center
+
+### 1d6ae703c5b91a8e  introspect/_tool_docs_curated.py:1663  terms=['Hopf']
+from srmech.cascade import octonion_hopf_base, cd_basis
+e = [list(cd_basis(8, i)) for i in range(8)]
+# x = (e1, e4) in O^2 -> the S^8 base; the norm identity is EXACT.
+h = octonion_hopf_base(e[1] + e[4])
+print("on_s8:", h["on_s8"], " base_R:", h["base_R"], " norm_sq:", h["norm_sq"])
+# x in H^2 collapses base_O into H (seam half zero).
+hH = octonion_hopf_base([1,2,3,4,0,0,0,0] + [5,6,7,8,0,0,0,0])
+print("reduces_to_h:", hH["reduces_to_h"], " on_s8:", hH["on_s8"])
+
+### bb85ff96f4347b81  cascade/cayley_dickson.py:2489  terms=['Cayley-Dickson']
+The full unit loop as an ORDERED list ``[+e₀,…,+e_{d-1},−e₀,…,−e_{d-1}]``,
+    tied to the actual :func:`closure` result (positives-then-negatives read).
+
+    ``table=None`` is the definite Cayley–Dickson ladder rung ``dim``; a
+    supplied monomial structure table names its own algebra and ``dim`` is
+    ignored in favour of ``len(table)``.
+
+### 07b5cea3706a6af2  introspect/_tool_docs_curated.py:8220  terms=['Moufang']
+WHAT — it returns the dihedral group D_n of order 2n as a Cayley table, with its element labels, identity, rotation indices and reflection indices. Exact integers throughout; the only sign handling is a Class-K pin-slot followed by Class-C re-entry into the cyclic lane, never abs() and never a negative int, which ``cyclic_mod_add`` correctly refuses. WHEN — reach for it when a census needs a non-abelian carrier whose order is not a power of two. No such group was reachable from srmech at all: ``unit_loop`` yields order 2·dim for a power-of-two dim (4, 8, 16, 32, 64, … up to 512) — ALWAYS a power of two, so never 12 or 24 — and ``group_algebra_table`` raises on 3, 5, 12 and 24 and is abelian by construction besides. That is the whole justification and it is enough. The ``convention`` parameter is REQUIRED and is honestly a LABELLING decision, not a structural one: the two conventions are isomorphic via x -> x^-1 on 576/576 products of D_12, with identical class sizes, while the identity map is not — so the check can return otherwise. SIBLINGS: ``srmech.cascade.conjugacy_census``, ``srmech.cascade.reversal_law_census`` and ``srmech.cascade.anti_automorphism_witnesses`` all eat the ``cayley_table`` this returns, and ``srmech.cascade.unit_loop`` is the power-of-two loop peer — reach for that one instead when you want a Moufang loop rather than a group.
+
+### af85f9c7f5a734c1  apokatastasis/thetasum.py:1654  terms=['Fano']
+The exact integer square root of a non-negative ``int``, or ``None`` if ``n`` is
+    not a perfect square. Class-K (no abs); a negative input has no real sqrt -> None.
+
+### 0cf97bc3668028fc  introspect/_tool_docs_curated.py:2265  terms=['triality']
+WHAT: a 21-dimensional basis of so(7) = ker(S_B - I), the fixed space of the Z2 companion involution - the D4 -> B3 Dynkin fold. Returned as 21 antisymmetric 8x8 real Mat, obtained as a deterministic SVD nullspace and re-expressed from the shared E_pq coordinate frame back to matrices. Memoised; fresh copy per call. Building it forces the companion-map solve, so the FIRST call is the expensive one (tens of seconds); everything triality-side is fast afterwards. WHEN: you want the middle rung of the 14 < 21 < 28 ladder, or a concrete so(7) to restrict something to. The E_pq frame is just the strict upper triangle in (p<q) lexicographic order - the worked run spells it out so you never need a private helper to move between a Mat and its 28-vector. SIBLINGS you would otherwise re-derive: triality_swap() is the S_B whose fixed space this is - do not compute a nullspace yourself; g2_subalgebra() is the 14-dim Fix of the ORDER-3 tau and sits INSIDE this 21; so8_adjoint_basis() is the full 28. CAUTION: triality_companions(M)[0] is NOT S_B applied to M as a matrix map - the companion solve pins gauge-free columns to zero and can carry a symmetric part that the E_pq (antisymmetric) coordinates discard, so the fixed-space test must be done in COORDINATES, as shown.
+
+### 5852558f3e6c9584  cascade/parallel.py:575  terms=['triality']
+the order-3 triality (F220 — not reachable by composing order-2 sectors)
+
+### 6ada152728c0fbcd  introspect/_tool_docs_curated.py:2509  terms=['Kanerva']
+All four Plate/Kanerva BSC identities hold at once on real spectral handles: self-inverse, commutative, zero on identical input, and symmetric in its arguments.
+
+### 86b79d273ebc87e0  introspect/_tool_docs_curated.py:2282  terms=['Spin(8)']
+S_B squares to the identity EXACTLY and its fixed space reads 21.0 on the nose - and recovering the SECOND involution as S_C = S_B tau shows the pair generates S3 = Out(Spin(8)).
+
+### 42c8cb3a804f0f06  introspect/tool_schema.py:12590  terms=['triality']
+srmech.physics.qm.triality.lean_isa_seventh_primitive
+
+### 01deb1b85e5c6ca7  introspect/tool_schema.py:6020  terms=['modular']
+The level-1 QUASIMODULAR-forms-ring MEMBERSHIP DECISION — the Kaneko–Zagier ring M̃_*(SL₂(ℤ)) = ℂ[E₂,E₄,E₆] made executable (Kaneko & Zagier, *The Moduli Space of Curves*, Progr. Math. 129 (1995), pp. 165–172; Zagier, *Elliptic Modular Forms and Their Applications*, in *The 1-2-3 of Modular Forms*, Springer (2008), §5.3). The WEIGHT-axis REDUCER one generator up from the rc84 modular_forms_ring_represent (it ADDS E₂, the weight-2 quasimodular generator E₂ = 1 − 24·Σσ₁(n)qⁿ); the analog of the §76 Σ-row gosper/zeilberger/wz_certificate reducers. Given an exact q-series (a list of exact-ℚ / int / (num,den) coefficients) claimed to be a weight-k quasimodular form, SOLVES the exact-ℚ linear system Σ_{a,b,c} c_{a,b,c}·(E₂^a E₄^b E₆^c)[n] = f[n] over the weight-k monomial basis {(a,b,c): 2a+4b+6c=k} (built from the E₂/E₄/E₆ q-series + exact-ℚ truncated q-series multiply), VERIFIES the solution reproduces EVERY provided term, and returns the UNIQUE exact-ℚ polynomial rep {(a,b,c): Q} — or None when no representation exists. The construction/solve IS the decision (decompose-and-compute over the monomial basis via exact Gauss-Jordan, QMat — NOT a search). This ring genuinely EXTENDS the modular ℂ[E₄,E₆] (the a=0 subring): e.g. E₂² at weight 4 → {(2,0,0):1} here, but rc84 represent → None. KEYSTONES (Ramanujan's Serre-derivative identities, D=q·d/dq): DE₂=(E₂²−E₄)/12 @4 → {(2,0,0):1/12,(0,1,0):−1/12}; DE₄=(E₂E₄−E₆)/3 @6 → {(1,1,0):1/3,(0,0,1):−1/3}; DE₆=(E₂E₆−E₄²)/2 @8 → {(1,0,1):1/2,(0,2,0):−1/2}. The honest OPENs are the Jacobi-form (τ–z two-variable) + level (N>1) boundaries. ≥ di
+
+### 890194fd77f99789  math/hdc.py:3266  terms=['Moufang']
+ is the zero vector (no Moufang inverse)
+
+### a7e53adfcd6f8eb9  math/dispatch.py:378  terms=['Frenkel-Turaev', 'well-poised']
+The elliptic-hypergeometric Σ sub-row — the Frenkel–Turaev ₈ω₇ / ₁₀E₉
+    very-well-poised summation (the TOP of the base-axis degeneration tower
+    ordinary → q → elliptic). The ₈ω₇ term-ratio (an ``EllRatio``) under
+    ``elliptic_term_ratio`` routes to ``elliptic_wz_certificate`` (the identity
+    PROOF; accepted ONLY when its own ``verified`` flag is True — the same
+    anti-hallucination gate as the ordinary / q ``wz_certificate``). The reduced
+    payload carries the closed form ``cf(n)``. Returns the reduced dict, or
+    ``None`` to fall through to OPEN.
+
+### 75058f0db0439362  _native/__init__.py:14975  terms=['interpolation']
+thetasum_is_zero_interpolation_c: exps row length != n_syms
+
+### 67587709fe4dd8f7  introspect/_tool_docs_curated.py:4029  terms=['triality']
+n_reached 4, n_rejected 5. reached: ['spin8', 'spin3', 'q8_v4', 'circle_z'] with centre orders [4, 2, 2, 0]. rejected: ['octonion_frame_read_s3_fiber', 'cayley_dickson_rung_bump', 'g2_der_octonions', 'hermitian_spectrum', 'triality_automorphism'] on clauses ['(ii)', '(ii)', '(ii)', '(iii)', '(i)'].
+
+### 5d207a55eb0335d6  cascade/cayley_dickson.py:525  terms=['Bott', 'Cayley-Dickson']
+Project a Cayley–Dickson element DOWN one doubling (dim ``d`` → ``d/2``)
+    by REALIFYING IFF the higher (imaginary-doubling) half all vanish — the
+    inverse of :func:`cd_promote`.
+
+    ``x`` is a power-of-two-length element (dim ``d ≥ 2``). If the top half
+    ``x[d/2:]`` is all zero, returns the bottom half ``x[:d/2]`` (the element
+    genuinely lives in the ``d/2`` subalgebra: e.g. a complex ``(a, 0)`` IS the
+    real ``a``). If any higher component is genuinely present, raises a
+    coherency ``ValueError`` NAMING the first such component (never a silent
+    truncation — the rc104 lesson; dropping a present component would change the
+    number). A real (dim 1) element has no higher half → ``ValueError``.
+
+    ``cd_project(cd_promote(x, 2·d)) == x`` EXACT (promote zero-pads exactly the
+    half this drops). Exact-rational; the vanishing test is a ``Q != 0``
+    Class-K comparison. No float, no ``abs()``, no numpy / ``math``.
+
+### ad9833b46a683046  introspect/tool_schema.py:10618  terms=['Cayley-Dickson', 'Hurwitz']
+True iff the dim-D Cayley–Dickson algebra is a normed division algebra (Hurwitz 1898): the reversible interior is exactly dims 1, 2, 4, 8. The boundary between the simulable ≤𝕆 substrate and the open exterior (≥16).
+
+### 553e7b1a76e837a3  introspect/_tool_docs_curated.py:2313  terms=['three-term', 'well-poised']
+WHAT — Apagodu-Zeilberger multivariate 'sums of sums' creative telescoping: the double-sum generalisation of ``zeilberger``. Given a proper hypergeometric term ``F(n,j,k)`` by its THREE term ratios r_n, r_j, r_k (six ``TriPoly``: num/den each), it returns the minimal-order recurrence ``sum_i a_i(n)·f(n+i) = 0`` for the DEFINITE DOUBLE sum ``f(n) = sum_{j,k} F(n,j,k)``, plus the two rational certificates ``certificate_j`` and ``certificate_k``. Defined at ``srmech/apokatastasis/apagodu_zeilberger.py:142``. WHEN — reach for it whenever the sum has TWO summation indices. What you would otherwise wrongly hand-roll: reducing the inner k-sum first and then calling ``zeilberger`` on the outer one. That composition only works when the inner sum happens to be hypergeometric-closed; for a genuinely 2D non-separable term (r_n, r_j, r_k each coupling j and k) there is no inner closed form to reduce, and the two-step route silently has nothing to hand the outer call. SIBLINGS — the multivariate rung directly above ``zeilberger`` (``srmech/apokatastasis/zeilberger.py:256``); it consumes ``TriPoly`` from ``srmech.math.tripoly.tripoly_from_coeffs`` (``srmech/amsc/tripoly.py:567``) exactly as ``zeilberger`` consumes ``BiPoly``. The q and elliptic rows do NOT currently carry a double-sum peer of this op — their multivariate surface is the Jackson family (``srmech/apokatastasis/elliptic_jackson.py:99`` and ``srmech/apokatastasis/elliptic_jackson_an.py:142``), which reduces a specific very-well-poised multisum rather than deriving a recurrence.
+
+### 2590c59daedbc226  math/hdc.py:1028  terms=['Cayley-Dickson']
+The **(1,3,7,3) sector frame** of dimension ``D`` — the substrate's own
+    period-14 Klein-4 position structure.
+
+    Position ``j`` carries the Class-C sector flip of the Cayley–Dickson block
+    that slot ``j mod 14`` belongs to: ℂ → ``iω₇`` (1), ℍ → ``γ₅`` (2),
+    𝕆 → CPT (3). These are the framework's own ``klein4_chirality_flip_*``
+    involutions, not an invented lattice.
+
+    **Why the partition enters as a MASK and not as vector content.** The
+    ``One``'s 14-D adjoint carries only TWO independent transcendental values
+    plus a sign — ten of its fourteen slots are θ-constant, slots 3 and 7 are
+    both ``cos θ`` and slots 4 and 12 are ``±sin θ``. So (1,3,7,3) is not
+    vector structure that a projection could preserve; it is OPERATOR structure
+    — how ``G(σ,θ)`` ACTS — while any projection target is an operand. Tiling
+    the 14 slots into D positions is measurably catastrophic (0.82 mean
+    similarity, 1054 collisions across 120 θ, and a wrong-coupling cross-read
+    that returns the true leaf at 64/64). As a period-14 SECTOR MASK the
+    partition is instead well-defined at EVERY D, which is why nothing here
+    requires D divisible by 14 — and nothing gains from it either (measured
+    across 56/64, 112/128, 224/256, 448/512, 896/1024, the means agree to
+    ~0.001).
+
+    **Honest disclosure: the frame is STATISTICALLY INERT.** XOR-by-constant is
+    a Hamming isometry, so masking changes no pairwise statistic whatsoever
+    (measured: mask-vs-no-mask distributions identical). It is carried for
+    STRUCTURAL LEGIBILITY and ATTESTATION — it makes a maske
+
+### 3f679a585bec698c  introspect/tool_schema.py:3457  terms=['determinant']
+Exact integer characteristic polynomial det(xI - A) via Faddeev-Leverrier. For an INTEGER matrix returns the EXACT integer coefficients (monic, high->low [1, c1, ..., cn]) in arbitrary-precision integer arithmetic — the exact ALGEBRAIC substrate of the eigenproblem: exact trace = -c1, exact determinant = (-1)^n*cn, all elementary symmetric functions of the spectrum, NO floating point. The eigenvalues are the ROOTS of this exact polynomial (extract them with eigvals_exact, which avoids the Wilkinson ill-conditioning of float root-finding by staying in exact arithmetic). Non-integer matrices fall back to a float Faddeev-Leverrier. Class L (algebraic content) + Class M (matrix-product/trace accumulate) + Class K (exact //k step division).
+
+### 4c595b0a1a2ef89d  cascade/cd_register.py:721  terms=['Cayley-Dickson', 'Hurwitz']
+Construct a :class:`CDRegister` — the **general N-slot** Cayley–Dickson
+    addressable RBS-HDC register (rc297; `#934`). ``dim`` named slots
+    ``e0..e{dim-1}`` for any power of two in ``[1, CD_MAX_DIM]``; ``e0..e7`` is the
+    octonion reversible working block at every rung and the remainder is the
+    carry/EC block.
+
+    The CORE **addressing** layer (``write`` / ``read`` / ``navmap`` / ``navigate``
+    / ``is_navigable``) is always on and content-agnostic. The two OPTIONAL layers
+    are off by default: ``coupling=True`` enables the reversible working word
+    (``couple_working`` / ``uncouple_working``, Class M, capped at ``min(dim, 8) −
+    1`` by Hurwitz); ``error_correction=True`` enables the Hamming EC block
+    (``carry`` / ``correct``, a separate axis from ``dim``). A bare register is a
+    pure signed-pointer addressing object.
+
+    Generalises the 16-slot
+    :func:`~srmech.cascade.sedenion_register.sedenion_register` — the slot
+    bound is the only difference; every sign and index rule is shared through
+    :func:`cd_basis_product`. ``namespace="SEDENION"`` at ``dim=16`` reproduces the
+    shipped register bit-exactly at every ``D`` (the faithfulness gate).
+
+    Legitimate past the Hurwitz wall because addressing rides on the basis product
+    being a signed permutation, which zero divisors (built from *sums* of basis
+    elements) do not touch — see :func:`cd_navmap_is_signed_permutation`.
+    
+
+### 2f13ad00aaa86fab  introspect/_tool_docs_curated.py:2360  terms=['associator']
+WHAT — the elementwise octonion bind ``out[i] = oct_mult(turn[i], one[i])`` over two equal-length octonion byte buffers (``srmech/math/octonion.py:202``): ``oct_mult`` in its buffer form, Class M. Same-rc C peer ``srmech_oct_bind``, which documents the out-aliasing contract; byte-exact against the pure path. WHEN — reach for it to couple or decouple a whole octonion-carrier strand in one call. TWO CONTRACTS, both measured above and both different from the abelian reflex: the decouple is ``oct_bind(out, conj(one))`` and not a second bind with ``one``; and because the loop is non-associative, BRACKETING is content — the same three buffers give ``+e₇`` left-associated and ``−e₇`` right-associated. A cascade that regroups a chain of these binds for convenience has changed the answer. What you would otherwise wrongly hand-roll is a Python loop over ``oct_mult``, which gives up native dispatch and the length check, or a Klein-4-style XOR bind, which is not this operation at all. SIBLINGS — ``oct_mult`` (``srmech/math/octonion.py:139``) is the scalar product; ``oct_conjugate`` (``:176``) supplies the decoupling operand; ``srmech.biology.q8.q8_bind`` (``srmech/biology/q8.py:195``) is the rung below, associative and cheaper, and is the right choice whenever every index stays in ``e0..e3``; ``srmech.biology.genome.genome_octonion_holonomy`` (``srmech/biology/genome.py:1873``) is the ORDERED fold of this product along a stored strand and ``srmech.biology.genome.genome_octonion_associator`` (``:1910``) is the op that measures the bracketing defect — do not re-derive either from this bi
+
+### d01b6f45b6a7949b  physics/qm/triality.py:1053  terms=['triality']
+triality_fixed_subgroup
+
+### 0cd4a748856923a3  introspect/_tool_docs_curated.py:2321  terms=['well-poised']
+WHAT — builds the explicit LEFT-hand side of the type-A_n very-well-poised elliptic Jackson identity as an additive ``ThetaSum``, one summand per composition (2 terms at n=2, N=1; 3 at N=2). Defined at ``srmech/apokatastasis/elliptic_jackson_an.py:193``. WHEN — reach for it as the independent oracle for the A_n reduction, or when you need the individual summands. What you would otherwise wrongly hand-roll: the composition loop plus the type-A Vandermonde factor over every variable pair. The A_n summand's cross-variable structure is not the C_n one — the two root systems give genuinely different summands — so porting a C_n hand-roll across is a silent wrong answer rather than an error. SIBLINGS — the LHS peer of ``multivariate_elliptic_jackson_an`` (``srmech/apokatastasis/elliptic_jackson_an.py:142``); the type-C analog pair is ``cn_vwp_multisum_lhs`` (``srmech/apokatastasis/elliptic_jackson.py:165``) with ``multivariate_elliptic_jackson`` (``srmech/apokatastasis/elliptic_jackson.py:99``). Note the argument shapes differ between the two families (lists ``z``/``a`` here, six scalar parameters there), so they are not interchangeable. Shares the ``srmech.apokatastasis.thetasum.ThetaSum`` additive carrier with ``elliptic_partial_fraction`` (``srmech/apokatastasis/elliptic_partial_fraction.py:60``).
+
+### eb6c38401b801a9c  introspect/tool_schema.py:12556  terms=['triality']
+srmech.physics.qm.triality.triality_apply
+
+### 4aaf9e5054b3be6e  introspect/_tool_docs_curated.py:2272  terms=['Clifford algebra', 'Frobenius']
+WHAT: the packaged self-check of the spin-1/2 Clifford algebra. Returns (max_anticomm_dev, max_comm_dev): the largest Frobenius deviation over ALL i,j from {sigma_i, sigma_j} = 2 delta_ij I (6 pairs incl. the three squares) and over the three cyclic [sigma_i, sigma_j] = 2i eps_ijk sigma_k. Every product is a Class-L mat_matmul and every norm the Class-N mat_norm, so there is no numpy and no abs() anywhere. WHEN: as a smoke test that a build's Pauli constants are sound (native vs pure), or as the reference for how to write a residual in this codebase. This is the op that stops you writing your own double loop over sigma products - that hand-rolled version is exactly where an abs() and a numpy import creep back in. SIBLINGS you would otherwise re-derive: srmech.physics.qm.relativistic.clifford_residuals() is the SAME idea one tier up for the 4x4 Dirac gammas ({gamma^mu, gamma^nu} = 2 eta^munu I); srmech.physics.qm.gauge.lie_algebra_residual(gens, f) is the COMMUTATOR-only peer for a general Lie algebra (su(2)/su(3)) and takes generators as arguments, where this one is zero-arg and pinned to the Pauli triple; srmech.physics.qm.so9.spin9_gamma_matrices() asserts its own Clifford residual internally. Do not build a fourth variant.
+
+### 0328542f2da56178  math/poly.py:543  terms=['determinant']
+The EXACT resultant ``Res(self, other)`` as a ``Q``, via the
+        subresultant-style **polynomial-remainder sequence** — NO matrix, NO
+        determinant. The resultant is zero iff the two polynomials share a
+        non-constant common factor, and it is the substrate the §76 Gosper
+        **dispersion** rides on (the dispersion is the non-negative integer roots
+        of ``Res_k(p(k), q(k+h))`` as a polynomial in ``h``).
+
+        Reduction recurrence (each step exact over ℚ): for ``deg p = m ≥ deg q =
+        n ≥ 1`` and ``r = p mod q``, ``Res(p, q) = (-1)^(m·n) · lc(q)^(m - deg r)
+        · Res(q, r)``; the base cases are ``Res(p, c) = c^deg p`` for a constant
+        ``c``, ``Res(p, q) = (-1)^(m·n) Res(q, p)`` when ``deg p < deg q``, and a
+        zero result the instant a remainder vanishes (a shared factor). The sign
+        is the **Class-K** pin-slot (an integer ``±1`` from the parity of ``m·n``,
+        never an ALU ``abs()``). Exact, bigint, no float; matches the
+        product-of-differences definition ``lc(p)^deg q · ∏ q(roots of p)``.
+
+### 97d55be3a5f754d1  cascade/one.py:682  terms=['Fano', 'Hurwitz']
+The 14×14 block-diagonal operator ``G(σ,θ)`` as a numpy-free
+        :class:`~srmech.math.mat.Mat` (real).
+
+        ``G`` is ``⨁_n (1 ⊕ σ R_n(θ))`` — the identity on each ``ℝ·1`` axis
+        and ``σ`` times the octonion-native rotation ``R_n(θ)`` on each
+        ``Im 𝔸_n`` (turn every Fano plane through ``Î_n`` by θ; fix ``Î_n``
+        and the real axis). Applying ``G`` to the canonical seed (real ``1``,
+        imaginary ``e₁``) reproduces :meth:`to_flat_rational`. For 𝕆 this is
+        a genuine **3-plane** rotation (eigenvalues ``{1, e^{±iθ}×3}`` on the
+        imaginary part). This is the matrix the qm-peer
+        :mod:`srmech.physics.qm.hurwitz` must agree with (the Rosetta parity).
+        
+
+### 103cec7876435780  introspect/_tool_docs_curated.py:1977  terms=['associator']
+base blocks = 4; after genome_add_octonion_fiber = 5 (one trailing octonion FIBER cap); reading it back gives holonomy [7, 8, 7, 2, 0, 0, 0, 0], recomputed identical, consistent True, and associator_defect [1, 0, 1, 0, 0, 0, 0, 0]
+
+### 3c559289f2bee940  physics/qm/triality.py:1174  terms=['triality']
+triality_relation_residual
+
+### 0ccd959437b11a18  introspect/_tool_docs_curated.py:2279  terms=['triality']
+srmech.physics.qm.triality.triality_companions
+
+### e81e05b95c4f8f5d  introspect/tool_schema.py:3673  terms=['triality']
+Recover a NUCLEAR chromosome's GLOBAL orientation + p:q arm-ratio from its centromere (§95a) — the inverse read of the centromere anchor. Scans the strand for the interior 0x58 cap, majority-decodes the global 4-way orientation from its alpha-satellite repeat-array (the EC read — klein4_triality_correct's 2-of-3 generalised to R), and reads the p:q arm-ratio from the cap's POSITION: p = data turns BEFORE it (the short arm), q = data turns AFTER (the long arm). Position IS the arm-ratio (biology: the centromere position defines the arms), so nothing double-encodes. Returns None for a Tier-1 plasmid chromosome (no centromere). NEVER MUTATES (a READ). Native-dispatched (the C peer srmech_genome_centromere_of does the majority + arm-ratio scan byte-identically; the handle/repeats are read inline in Python — the composition).
+
+### 8b6756457106bacc  introspect/_tool_docs_curated.py:1907  terms=['modular']
+WHAT: exact-Q Lenstra-Lenstra-Lovasz reduction of an integer lattice basis (Math. Ann. 261 (1982) 515-534; Cohen, A Course in Computational Algebraic Number Theory, Algorithm 2.6.3). Integer rows in, integer rows out, SAME lattice (a unimodular change of basis, det = +/-1), size-reduced |mu_kj| <= 1/2 for j<k, Lovasz-satisfying at delta, so b_1 is provably short (||b_1|| <= 2^((m-1)/2)*lambda_1). The engine is exact throughout: a Gram-matrix Gram-Schmidt over Q, size reduction by exact nearest-integer rounding round(a/b) = floor((2a+b)/(2b)) with the |mu| <= 1/2 guard a Class-K sign branch on 2*num vs den (never a float rint, never abs()), and the Lovasz swap decided on the exact Q inequality. delta = (num, den) in (1/4, 1], default (3,4); (1,1) is the strongest classical reduction. Native-dispatched (srmech_lll_reduce), byte-identical to the pure body because both are exact. WHEN: find short or near-orthogonal vectors in an integer lattice, detect an integer relation, or clean up a basis handed to you in a bad frame - and as the recombination step that supersedes the exponential Zassenhaus subset search in polynomial factorisation. Do NOT hand-roll a Gram-Schmidt-and-round loop in floats: the size-reduction rounding is precisely where a float implementation silently leaves the lattice. SIBLINGS: char_poly on the reduced Gram gives the lattice invariants exactly (above: x^2 - 4x + 3, det 3). gf_rref reduces the same integer matrix modulo one prime - a third, cheaper question again. And the distinction that matters: QMat.rref (qmat.py:389) / QMat.nullspace (:615) answer the 
+
+### 3e63504e2ef2b11f  introspect/carrier_schema.py:610  terms=['Hurwitz']
+hurwitz
+
+### 7c6927c9f4b38584  introspect/_tool_docs_curated.py:1493  terms=['Fano', 'Moufang', 'associator']
+WHAT: the loop-theory invariants of the unit Moufang loop plus the generators of its multiplication group Mlt(L). Over the ordered unit loop L (unit_loop) it returns the nucleus (the associative centre {a : associator(a,x,y)=0 for all x,y} -- for M16 exactly {+-1}, so the loop is as non-associative as a Moufang loop gets), the commutant ({a : [a,x]=0 for all x} -- for M16 also {+-1}), the center (nucleus intersect commutant), and left_translations / right_translations -- the generators of Mlt(L)=<La, Ra>, each a permutation of the loop given as an elements-index list (La=a.x, Ra=x.a). WHEN: reach for it to read the structural invariants of the octonion loop, or to get the translation maps whose products generate its multiplication group. It surfaces the identity associator(a,x,b) = -[La, R_b].x -- the commutator of a left and a right translation IS the associator, up to sign, which is exactly how a Moufang loop's non-associativity and its translation group connect. What you would otherwise WRONGLY assume: that the nucleus of a non-associative loop is empty -- for M16 it is {+-1}, the elements that associate with everything. SIBLINGS: unit_loop is the loop + Cayley table it reads; associator / cd_commutator are the two instruments the nucleus / commutant are measured with; the continuous math.hdc loop_left_op / loop_right_op are the R^8 linear extensions of these discrete translations. NO new C symbol -- composition_of_c over associator / cd_commutator and the integer loop cocycle.
+
+### 4495fac97add4e26  introspect/_tool_docs_curated.py:2189  terms=['F_4']
+# SUBJECT: the Gell-Mann SU(3) structure constants. f_458 = f_678 = sqrt(3)/2
+#   is the only irrational entry in the table srmech.physics.qm.gauge already ships.
+from srmech.math.rational import sqrt, hypot
+from srmech.physics.qm import gauge
+
+sqrt(3.0)
+float(sqrt(3.0)) / 2.0
+f = gauge.su3_structure_constants()
+f[3][4][7], f[5][6][7]        # 0-based f_458 and f_678
+
+sqrt(2.0)                     # default K=27 cascade, C-bit-exact
+sqrt(2.0, precision=200)      # the bignum reference, num/den lengthen
+hypot(3.0, 4.0)               # the two-leg composition, one rounding
+
+### e36b936d8f10bf72  introspect/_tool_docs_curated.py:2267  terms=['Cayley-Dickson', 'associator']
+WHAT: an HONEST TIERED TEST - not a result - of whether the octonion associator's symmetry algebra reappears as a Spin(9) holonomy at the sedenion rung. Returns verdict 'PARTIAL' with three explicitly labelled tiers: RECOGNIZED (dim Delta_9 = 16 = dim_R sedenions, a shared O + O carrier and nothing more), DERIVED (Der(S) = g2 persists and embeds in spin(9) as diag(D, D); all 14 lifts have sedenion-Leibniz residual exactly 0; the intersection dimension is 14), and NULL (only 14 of 36 spin(9) directions preserve sedenion multiplication; 0 of the 36 individual generators are derivations; a block-mixing generator has residual 80.0). Every number is exact-integer or an exact-Q rank. WHEN: cite it as an open question with measured bounds, or as the model for how a negative / partial finding should be shipped - the bound Spin(9) is not Aut(S) is established CONSTRUCTIVELY here rather than assumed. DO NOT quote the DERIVED tier without the NULL tier: the 16 = 16 dimension match is a shared carrier, not a shared symmetry, and the framework_reading key says so in as many words. SIBLINGS you would otherwise re-derive: spin9_spinor_generators() and srmech.physics.qm.so8.g2_subalgebra() are the inputs; srmech.cascade.cd_zero_divisor_witness() is the other half of the sedenion story (zero divisors appear at dim 16); srmech.cascade.cd_register / the Cayley-Dickson tower ops are where the sedenion multiplication itself lives. This op is the SLOWEST-reading in the family in interpretive terms and the cheapest in compute - about a second.
+
+### d445d7f29558e3c9  _native/__init__.py:5858  terms=['modular']
+srmech_modular_forms_ring_represent
+
+### b1b2e8ef1c904ec3  introspect/_tool_docs_curated.py:2030  terms=['Fano']
+1.0   (a Fano associative 3-plane; 7 of the 35 basis triples are nonzero)
+
+### 2414dd0455a9f034  math/__init__.py:1  terms=['Moufang', 'modular']
+``srmech.math`` — the GENERAL-ALGEBRA / A–N-PRIMITIVE domain.
+
+ADR-0010 (*namespace declustering*) splits ``srmech`` into **domains** (named by
+field), **structure-homes** (named by what they *are*), **provenance**
+(``amsc``, shrunk back to attestation) and **cross-cutting meta**
+(``introspect``). ``srmech.math`` is a *domain* home — A.2's SECOND-largest
+destination (**22 modules**): the 14 A–N primitives, the general carriers, and
+the general-purpose mathematics (``rational`` / ``primes`` / ``laplacian`` /
+``cyclic`` / ``poly`` and kin) that ``amsc`` accreted but never was.
+
+It is named by what the field IS — general mathematics — rather than by any one
+mechanism, the domain-vs-structure distinction ADR-0010 draws (``srmech.cascade``
+is a structure home; this is a domain, like ``srmech.apokatastasis``).
+
+**This slice (rc372) opens the namespace with its general-ALGEBRA roster** — the
+three modules whose mathematics is domain-neutral algebra rather than a
+special-functions family: ``octonion`` (the discrete octonion Moufang loop over
+4-bit bytes), ``kepler`` (the Class-K equation-of-centre / pin-slot shape
+projection), and ``modular_linalg`` (GF(p) finite-field linear algebra). The
+last is the **apokatastasis over-count reassignment** ADR-0010 Amendment H.2
+recorded: A.2 lumped ``modular_linalg`` into the elliptic/modular-forms count by
+name-similarity, but its mathematics is 𝔽_p Gaussian elimination — a general
+math primitive — so it lands HERE, not in ``srmech.apokatastasis``.
+
+The new-namespace template (rc370's ``srmech.apokatastasis``, `#T1034`) holds:
+
+1. **A slice re
+
+### 6961b71accbfb43e  introspect/_tool_docs_curated.py:4035  terms=['Spin(8)', 'triality']
+Five rejections against four acceptances. A census that accepted every candidate would not be a finding, and the g2 rejection is MEASURED (the triality-fixed subgroup of Z(Spin(8)) is trivial), not asserted.
+
+### 44a138bd3f566b98  introspect/_tool_docs_curated.py:1945  terms=['modular']
+WHAT - modular exponentiation (a ** k) mod n by square-and-multiply (Class I), bounded by uint64 on all three arguments. k = 0 returns 1 (the empty product) for every a, including a = 0. Roughly log2(k) modular squarings, each one a mod_mul, so it inherits that op's overflow contract exactly. WHEN - anywhere a repeated group action must be evaluated without iterating it: a Fermat or Euler witness test, an RSA-style power, the k-th step of a cyclic dial in one call, a discrete-log probe, or checking whether a proposed multiplicative order actually closes. NEVER write pow(a, k) % n - the intermediate is astronomically large and the naive loop is linear in k where this is logarithmic. Python's own three-argument pow(a, k, n) IS the same algorithm, but the bare builtin is invisible to the DSL declarer, the tool schema and the introspect writer, and does not carry to the C host. SIBLINGS - mod_mul (cyclic.py:213) is this op's inner step and shares its uint64 cap; mod_add (:192) the additive peer; mod_inv (:257) the multiplicative inverse, which for a PRIME modulus is exactly mod_pow(a, n - 2, n) - so having both is not redundancy, it is the composite case. primes.cyclic_period (primes.py:180) is the INVERSE question - the smallest k with a**k congruent to 1 - and it is the op to reach for rather than looping mod_pow yourself. srmech.cascade.cyclic_mod_pow (srmech/cascade/compose.py:358) is the SAME function under its cascade name.
+
+### 792496f12216504b  biology/genome.py:2198  terms=['associator']
+associator_defect
+
+### 1eb49af4d24968db  _native/__init__.py:6636  terms=['interpolation']
+srmech_thetasum_is_zero_interpolation_ws_bound
+
+### f6277708bbc8d93a  introspect/_tool_docs_curated.py:6896  terms=['Bott']
+from srmech.signal_processing import psk_qam
+
+# QPSK: the four symbol indices land on the four
+# unit-circle quadrant points.
+pts = psk_qam([0, 1, 2, 3], modulation="psk", M=4)
+[(round(z.real, 6), round(z.imag, 6)) for z in pts]
+# -> [(1.0, 0.0), (0.0, 1.0), (-1.0, 0.0), (-0.0, -1.0)]
+
+# push every point well off its ideal position, then
+# ask the decision regions to place it again:
+noisy = [z + complex(0.12, -0.09) for z in pts]
+psk_qam(noisy, modulation="psk", M=4, demodulate=True)
+# -> [0, 1, 2, 3]      every symbol recovered
+
+# the square 16-QAM grid, bottom row first (Q = -3):
+grid = psk_qam([0, 1, 2, 3], modulation="qam", M=16)
+[(g.real, g.imag) for g in grid]
+# -> [(-3.0, -3.0), (-1.0, -3.0), (1.0, -3.0), (3.0, -3.0)]
+psk_qam([complex(0.9, -2.7)], modulation="qam", M=16,
+        demodulate=True)
+# -> [2]      nearest grid point is (1, -3)
+
+### 5fa7446ed592ca8c  introspect/_tool_docs_curated.py:2341  terms=['modular']
+WHAT — constructs a unary theta series carrier ``UnaryTheta`` from a character spec, the grade ``j``, the quadratic-exponent data ``(a, b, D)`` giving the exponent ``(a·n² + b·n)/D``, and a support ('all' or 'positive'). The WEIGHT is derived as ``1/2 + j``, not supplied. Defined at ``srmech/apokatastasis/unary_theta.py:504``. WHEN — reach for it whenever you need a weight-(1/2 + j) unary theta as an object rather than a coefficient list: most importantly as the SHADOW argument of ``harmonic_maass`` (``srmech/apokatastasis/harmonic_maass.py:481``), where the weight relation ``weight + shadow.weight == 2`` is enforced. What you would otherwise wrongly hand-roll: a list comprehension summing ``chi(n)·n**j·q**((a n² + b n)/D)``. Three things go wrong: the character table, the support convention (positive-only versus all n, which changes every coefficient by a factor of 2 on the symmetric cases), and the weight bookkeeping the Maass constructor needs. SIBLINGS — pairs with ``theta_coefficients`` (``srmech/apokatastasis/unary_theta.py:528``), which is the ONLY way to get the q-expansion out of this carrier — do not reimplement the expansion, call that. Consumed by ``harmonic_maass`` (``srmech/apokatastasis/harmonic_maass.py:481``). It is a WEIGHT-axis sibling of the modular-forms generators used by ``modular_forms_ring_represent`` (``srmech/apokatastasis/modular_forms_ring.py:510``) and ``quasimodular_represent`` (``srmech/apokatastasis/quasimodular_forms_ring.py:588``), but half-integral weight — those two take an integer weight k and will not accept this.
+
+### 7ae52e8a5f0e15b9  introspect/_tool_docs_curated.py:6532  terms=['interpolation']
+WHAT -- returns the signal resampled by the exact rational ratio ``up/down``. It inserts ``up - 1`` zeros between samples, low-pass filters (a 41-tap Hamming-windowed sinc by default, or whatever ``filter_taps`` you pass), keeps every ``down``-th sample, and applies the ``up`` interpolation gain. ``up == down == 1`` short-circuits to a plain copy with no filtering. WHEN -- reach for it whenever one rate has to become another and the ratio is rational, which covers essentially every practical conversion. Be aware that the DEFAULT taps are a real filter with a real transition width: on a short signal the 41-tap impulse response dominates the output and the answer will not look like the input at all. That is the filter being honest, not a bug -- pass your own ``filter_taps`` when you want a result you can check by eye. SIBLINGS -- ``polyphase`` is this same conversion factored into ``L`` branches so that no multiply is ever spent on an inserted zero; ``farrow`` is the case where the shift is a fraction of a sample rather than a ratio of rates; ``sinc_interp`` is the ideal-band-limit reconstruction that also accepts non-uniform target times; ``fir`` is the plain convolution all four ride on. Do not hand-roll the insert-filter-decimate sequence around ``fir``: the interpolation gain and the "same"-mode centring are precisely the two steps that go quietly wrong.
+
+### a1e30b8726dd7265  _native/__init__.py:3216  terms=['triality']
+srmech_klein4_triality_correct
+
+### efadbdf08a109d18  _native/__init__.py:5852  terms=['modular']
+srmech_modular_forms_ring_entry_cap
+
+### 0d0750609ae16125  physics/qm/so9.py:591  terms=['Spin(8)']
+Spin(8) generators are not block-diagonal
+
+### 109c50dd60b5024f  apokatastasis/quasimodular_forms_ring.py:141  terms=['modular']
+quasimodular_represent
+
+### da5c832b378163c1  introspect/_tool_docs_curated.py:2237  terms=['Fano']
+from srmech.physics.qm.octonion import octonion_mult_table
+from srmech.physics.qm.quaternion import quaternion_mult_table
+from srmech.cascade import algebra_table
+
+C = octonion_mult_table()
+print("shape        ", len(C), len(C[0]), len(C[0][0]))
+print("e1*e2        ", C[1][2])                       # +e3
+print("e1^2         ", C[1][1])                       # -e0
+print("== algebra_table(8):", C == algebra_table(8))
+Q = quaternion_mult_table()
+print("restricts to H:", all(C[i][j][k] == Q[i][j][k]
+                             for i in range(4) for j in range(4)
+                             for k in range(4)))
+print("index lane i XOR j:", all(C[i][j][i ^ j] != 0
+                                 for i in range(8) for j in range(8)))
+print("fresh copy each call:", C is not octonion_mult_table(),
+      C == octonion_mult_table())
+lines = sorted({tuple(sorted((a, b, k)))
+                for a in range(1, 8) for b in range(1, 8)
+                for k in range(1, 8) if a != b and C[a][b][k]})
+print("Fano lines   ", len(lines), lines[:3])
+
+### 80296e7def7b413c  introspect/_tool_docs_curated.py:2069  terms=['associator']
+L_a is neither R_a nor its transpose, and their commutator reproduces the associator exactly — one measurement tying all three ops together.
+
+### 9cb8c54c741d4924  apokatastasis/thetasum.py:436  terms=['interpolation']
+The DISTINCT primes dividing any numerator/denominator of a prefactor coeff OR a
+    theta-argument coeff across the 0-variable leaf's terms, sorted ascending. Class-J
+    trial-division factoring on the EXACT integers (no float); the ``|x|`` magnitude is a
+    Class-K sign branch, never ``abs()``. Bounded by the integers' size (the leaf's
+    constants are products of the small interpolation primes).
+
+### 7a14a47aa3ae7167  introspect/_tool_docs_curated.py:1991  terms=['associator']
+srmech.biology.genome.genome_octonion_associator
+
+### 0af168c693a209b6  introspect/tool_schema.py:7299  terms=['determinant']
+the parameter t of the elliptic Cauchy determinant (an EllMonomial over the exact-ℚ argument-lattice)
+
+### 744aa4bdea381215  biology/genome.py:1912  terms=['Cayley-Dickson']
+The strand's ORDERED accumulated OCTONION holonomy — the 𝕆 FIBER / gauge, the
+    Cayley–Dickson rung above :func:`genome_fiber_holonomy`.
+
+    Folds the ordered per-slot octonion product of the coupled turns along the strand:
+    ``acc[s] = oct_mult(...oct_mult(oct_mult(0, turns[0][s]), turns[1][s])...,
+    turns[n-1][s])`` (identity ``+e₀`` == byte 0), REUSING :func:`~srmech.math.octonion.oct_mult`
+    (via :func:`~srmech.math.octonion.oct_bind`) — NOT a reimplemented product. Because 𝕆 is
+    NON-commutative AND NON-associative, REORDERING the turns CHANGES the result — the fiber
+    the winding-INVARIANT per-turn coupled store (:func:`_oct_couple`) cannot carry. Class-M
+    (octonion bind) ordered fold; no ``abs()`` — the sign is a group ⊕-bit.
+
+    Args:
+        turns: the stored/coupled data turns — a FLAT ``bytes`` of ``n_turns * leaf_dim``
+            octonion bytes (``leaf_dim`` required) OR a sequence of per-turn buffers
+            (``HV`` / ``bytes`` / ``list[int]`` of ``leaf_dim`` octonion bytes).
+        leaf_dim: the per-turn width (keyword; inferred from the first buffer when a
+            sequence of buffers is given).
+
+    Returns:
+        ``bytes`` of length ``leaf_dim`` — the accumulated per-slot octonion holonomy.
+
+    Raises:
+        ValueError: a non-octonion byte, a width mismatch, or a missing ``leaf_dim``.
+    
+
+### e288dd43f2f2e6a9  apokatastasis/riemann_theta.py:4244  terms=['Frobenius', 'theta function']
+rc78's EXACT CORE — the genus-3 FROBENIUS / GÖPEL quadratic theta-null syzygy
+
+            θ²[a]·θ²[b]  =  θ²[c]·θ²[d]  +  θ²[e]·θ²[f]  −  θ²[g]·θ²[h]
+
+        holds EXACTLY as a truncated exact-integer multivariate q-series, for ALL ``Ω``
+        (the genus-3 specialization of the Riemann theta relation among theta squares —
+        Glass, *Compositio Mathematica* 40 (1980) §3, the type-(2) "products of squares
+        of theta constants" relations, coefficients ±1; Fiorentino–Salvati Manni, *SIGMA*
+        16 (2020) 057, §1–2; Igusa, *Theta Functions* (1972) §IV/V). No transcendental
+        evaluation, no float, no tolerance. It DISPATCHES the exact comparison to the
+        native ``srmech_riemann_theta_g3_goepel`` C peer when loaded (a 1:1 exact-integer
+        mirror, trusted only on a native hit); else the pure-Python body (the COMPLETE
+        alternative + the parity oracle).
+
+        GENUINELY NEW — DISTINCT FROM rc75 DUPLICATION, rc77 ADDITION, AND rc76 χ₁₈ (see
+        :meth:`goepel_is_distinct_from_duplication_addition_and_chi18` for the no-shell
+        proof). This is a relation among even theta-nulls all at the SAME Ω (no
+        Ω-doubling), whereas BOTH duplication (``θ[0;0]² = Σ_c θ[c;0](2Ω)²``) and
+        addition (``θ[a]θ[b] = Σ_r θ[…](2Ω)θ[…](2Ω)``) relate the nulls at Ω to nulls at
+        2Ω; and it is a POLYNOMIAL relation among a SUBSET (8) of the even nulls, NOT the
+        full 36-null χ₁₈ product.
+
+        THE GENUS-3 SHAPE: a 4-PAIR / 8-NULL relation (vs genus-2's 3-pair / 6-null) —
+        the genus-2-style 6-null lift does NOT hold for genus
+
+### 1498e3e15e0d2b9a  math/octonion.py:88  terms=['Cayley-Dickson', 'Fano']
+The ``8×8`` Cayley–Dickson cocycle sign table ``F`` (cached).
+
+    ``F[x_a][x_b] = 1`` iff the basis product ``e_{x_a} · e_{x_b}`` carries the
+    ``−1`` sign — DERIVED from
+    :func:`srmech.cascade.cayley_dickson.cd_basis_product` at ``dim=8``
+    (the SAME generative cocycle ``qm.octonion`` builds its structure from), so
+    there is no hand-entered constant to drift. The result index is always
+    ``x_a ⊕ x_b`` (the Fano ⊕-structure), which this module relies on for the
+    index lane; the sign is the only non-trivial content, and it is exactly
+    ``F``. The ``dim=4`` restriction of THIS table is exactly Q₈'s ``F``.
+    
+
+### 4ab68b8972dc50fe  introspect/_tool_docs_curated.py:1756  terms=['Hurwitz']
+WHAT — promote an element UP the Hurwitz ladder ℝ↪ℂ↪ℍ↪𝕆↪𝕊 by the trivial SUBALGEBRA EMBEDDING x ↦ (x, 0), one or more rungs at a time. TOTAL, and a no-op when the target dim already matches. WHEN — reach for it before an operation that needs both operands at the same rung, or to check that a lower-rung answer is the higher rung's answer. What you would otherwise wrongly hand-roll is ``list(x) + [0]*(dim-len(x))`` — which is the right bytes and the wrong claim, because the content of this op is that the padding is a SUBALGEBRA embedding: as measured here on the Q8 generators i and j, the product computed at ℍ and then promoted equals the product computed at 𝕆, so ℍ really is the top-4 of 𝕆 under the shared cocycle. SIBLINGS — ``cd_project`` is the exact inverse and the one that can refuse; ``carrier_ladder.poly_promote`` / ``qpoly_promote`` are the same MOVE on the VARIABLE ladder (Poly→BiPoly→TriPoly), a different ladder entirely — do not reach for one expecting the other; ``cd_register(dim)`` chooses a rung at construction rather than moving between them.
+
+### fe8337b229d16d13  cascade/__init__.py:492  terms=['Moufang']
+moufang_residue
+
+### 7875f681a318840d  mcp/_coercion.py:595  terms=['determinant']
+Coerce a JSON value to an ``EllMonomial``-typed param (rc94
+    ``elliptic_cauchy_determinant`` variable / parameter; rc227
+    ``elliptic_jackson_an`` z / a / q vectors).
+
+    An ``EllMonomial`` is a signed exact-``ℚ`` Laurent monomial ``c·∏ sym^e`` over the
+    modified-theta algebra. Four exact JSON forms coerce (rc231):
+
+    * a **symbol NAME string** (``"x0"``, ``"t"``, ``"z1"``, …) → :meth:`EllMonomial.symbol`
+      (the natural minimal operand for a variable — the Aₙ z / a vectors, the
+      ``elliptic_cauchy_determinant`` xs / ys are all symbols);
+    * an **int** → the constant :meth:`EllMonomial.scalar` ``Q(n, 1)``;
+    * an **exact ``[num, den]`` pair** → the rational constant ``Q(num, den)``;
+    * the **GENERAL dict** ``{"coeff": <int | [num, den]>, "exponents": {sym: exp}}``
+      → ``c·∏ sym^e`` — so a bare host can round-trip an ARBITRARY monomial
+      (everything-mirrors), not only the symbol / scalar shorthands. ``coeff``
+      defaults to 1, ``exponents`` to ``{}``.
+
+    An ``EllMonomial`` passes through unchanged. Never a float — a coefficient must
+    be exact.
+
+### 939822f0e79811cf  biology/coupling.py:559  terms=['Bott']
+Pure-Python COMPLETE streaming k-extreme read (the no-native alternative,
+    and the value oracle). Bottom-k modes of L via the shift σI−L (σ = 2·max_deg
+    + 1, a Gershgorin upper bound on λ_max), then top-k modes of L, each deflated
+    against ALL modes found so far (so bottom/top never re-find each other and,
+    when 2k ≥ n, the union is the full spectrum). Returns a list of distinct
+    ``(tension, unit-eigvec)`` pairs in found order (unsorted).
+
+### 678db62acaab24d0  biology/genome.py:1317  terms=['determinant']
+The EXACT-rational DIRECTIONAL discrete writhe of a polygonal backbone.
+
+    Given a caller-supplied 3D embedding of the strand (each vertex an EXACT
+    RATIONAL — an ``int``, a ``Fraction``, or a ``(num, den)`` pair per
+    coordinate), this computes the DISCRETE Gauss double-sum over non-adjacent
+    backbone segment PAIRS in the projection that drops ``z``:
+
+        ``Wr = Σ_{i<j, non-adjacent} ε_ij`` ,  ``ε_ij = sign(T_ij)`` when
+        segments ``i, j`` cross in the ``xy``-projection (four exact 2D
+        orientation determinants decide the crossing), else ``0``;
+        ``T_ij = (B−A)·((D−C)×(C−A))`` is the scalar triple product
+        (``A=P_i, B=P_{i+1}, C=P_j, D=P_{j+1}``).
+
+    **What this IS and is NOT (honest bounding).** This is the *directional*
+    (single-projection) discrete writhe — the **signed crossing number** of the
+    diagram, an exact INTEGER. It is **not** the smooth solid-angle Gauss
+    writhe, which is transcendental and *cannot* be a rational; that smooth
+    value is this integer's average over the direction sphere (arccos /
+    solid-angles — outside the exact-rational, libm-free scope). The mod-2 CWF
+    check (:func:`cwf_consistency_mod2`) uses only the writhe's **parity**,
+    where ``+1 ≡ −1``, so the absolute sign convention is immaterial there.
+
+    **Exactness (W4).** Every crossing decision and every ``ε`` is the SIGN of
+    an INTEGER determinant (the four pair-vertices are scaled to a common
+    positive integer denominator per axis) — computed on the ``srmech_bigint``
+    surface in C, or Python big-ints in the pure path — so n
+
+### fc4bf51edc9f09a8  introspect/tool_schema.py:5992  terms=['modular']
+the q-series claimed to be a weight-k level-1 modular form — a list of exact-ℚ Q / int / (num, den) pairs (no float), ascending q-power; needs ≥ dim(k)+2 terms
+
+### 8ea7946ec9d6dc00  introspect/tool_schema.py:9501  terms=['Cayley-Dickson', 'Fano']
+which of the 28 well-posed frames to read on (keyword-only). Either a bare int ℓ — the splitting unit on the DEFAULT Fano line (1,2,3), i.e. the ℍ base {e0,e1,e2,e3}, valid 4/5/6/7 — or an explicit 4-sequence (i,j,k,ℓ) naming a Fano line and its splitting unit. Default 4 = the Cayley–Dickson doubling seam, unchanged in meaning and value. Rejected with a reason: ℓ inside its own base (e0 always; 1/2/3 under the bare-int spelling, which cannot change the base), a triple that is not a Fano line of this table, or an ℓ that fails to carry the base onto the seam.
+
+### a4b44fab682b805b  introspect/_tool_docs_curated.py:2093  terms=['Frobenius']
+WHAT: elementwise sqrt(arr_i) for a non-negative real array via the Class-N rational sqrt cascade (integer-isqrt, native srmech_rational_sqrt), SHAPE-POLYMORPHIC and rank-preserving. Round-off-faithful to numpy's sqrt and BIT-EXACT whenever the element is a perfect square. WHEN: taking the root of a whole array of magnitudes-squared / variances / probabilities. SIBLINGS: elementwise_hypot is the two-argument companion (sqrt(a^2+b^2)) and is what you want for a complex magnitude; mat_norm is the scalar Frobenius/2-norm; srmech.math.rational.sqrt is the scalar exact form. The domain is arr_i >= 0 — this op is not a complex sqrt.
+
+### 3ce9eaabc851d2b7  introspect/tool_schema.py:15223  terms=['interpolation']
+Polyphase decomposition for efficient decimation or interpolation — split the filter into L sub-filters so that no multiplication is ever performed against a sample that is about to be discarded, or against a zero that was just inserted. It computes exactly what the naive multirate chain computes and simply declines to do the wasted work, which is a factor-of-L saving. IDENTITY: Class L (the sub-filter bank structure) composed with Class N (the rational phase assignment). RELATION: same values as multirate, restructured.
+
+### f1adf50b72d2cb94  physics/qm/triality.py:695  terms=['triality']
+triality_not_identity
