@@ -67,6 +67,25 @@
 # ABORTS rather than emit a row when it fails. An instrument that can return a
 # spurious zero silently blesses every citation in the tree.
 #
+# ⚠️ AND THE POSITIVE CONTROL IS NOT ENOUGH ON ITS OWN — measured, not feared.
+# Through the first rc428 push this was the ONLY control the build path read.
+# The builder computed three more and discarded them, and the discarded ones
+# are the ones that catch the two failures the positive control cannot see:
+#
+#   * the ENCODING TRAP. Ghostscript text decoded as latin-1 keeps `octonion`
+#     alive at 172 — it is ASCII, so a misdecode cannot touch it — while
+#     "Cayley-Dickson" collapses 22 -> 4. Only the multi-spelling control
+#     notices, and U+FFFD stays false throughout.
+#   * a TRUNCATED read. The real Baez e-print cut to 2% still fires the
+#     positive control (`octonion` = 1) while every claim term reads 0 — a
+#     page of false REFUTED verdicts, each accusing a CORRECT citation.
+#
+# So every source row now carries ALL FOUR controls per backend under
+# `controls`, the builder aborts on any of them, and the gate asserts them
+# (arm S5). A control the manifest does not CARRY is a control nothing can
+# CHECK — which is the same false-null failure one level up, committed by the
+# instrument built to detect it.
+#
 # THE ENCODING TRAP, AND WHY A SINGLE-SPELLING CONTROL CANNOT CATCH IT
 # ---------------------------------------------------------------------
 # `pdftotext` emits Latin-1 by default; decoding as UTF-8 mangles every
