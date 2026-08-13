@@ -1,0 +1,832 @@
+{"advertised": 651, "note": "consumer-side scope of the synth-args gate. Every row is a measurement; falsifiers are pre-registered in the module docstring of _s2_synth_args_rc431.py. Positive controls are recorded as rows, not asserted in prose.", "phase": "scope", "rc": "rc431", "record": "meta", "registry_total": 655, "srmech_version": "0.9.0rc430", "task": "T1094"}
+{"pf": "PF1", "phase": "args", "planted_detected": ["planted"], "stage": "positive_control", "verdict": "CONTROL_FIRES"}
+{"n_literal_a": 0, "pf": "PF1", "phase": "args", "sample": [], "stage": "live", "verdict": "REFUTED"}
+{"harvest": 531, "n_advertised": 651, "n_required": 1063, "n_skipped_ops": 34, "pf": "tiers", "phase": "args", "sandbox": 30, "table": 450, "unsat": 52, "unsat_by_type": {"BiPoly | TriPoly": 1, "EllMonomial": 16, "EllRatio | EllMonomial | Theta": 5, "MockQSeries": 1, "Poly": 5, "Poly | BiPoly": 1, "QPoly | Poly": 2, "QPoly | QBiPoly": 1, "RecoverableFold": 2, "Sequence[EllMonomial]": 4, "Sequence[int]": 4, "list[list[float]]": 1, "list[list[list[int]]]": 3, "list[tuple[EllMonomial\u00d74]]": 2, "list[tuple[list[int], list[int]]]": 1, "list|str": 3}}
+{"by_tier": {"harvest": 33, "sandbox": 27, "table": 23}, "by_value": {"/tmp/srmech_synth_ma5utdv0/srmech_synth_": 27, "8v": 2, "A": 1, "Genome": 2, "L": 2, "M_W": 1, "aij,bji->ab": 1, "cosmos_validation": 3, "ephemerides-spectral": 1, "exp_i": 1, "forte": 2, "friedmann_dark_fraction": 1, "hello": 2, "srmech_synth": 23, "\u0915\u094d\u0937\u093f": 2}, "n_required_str": 83, "pf": "str_population", "phase": "args"}
+{"op": "srmech.amsc.catalog.get_attested_dataset", "param": "source_key", "pf": "str_param", "phase": "args", "tier": "harvest", "type": "str", "value": "cosmos_validation"}
+{"op": "srmech.amsc.catalog.register_attested_root", "param": "source", "pf": "str_param", "phase": "args", "tier": "harvest", "type": "str", "value": "ephemerides-spectral"}
+{"op": "srmech.amsc.catalog.list_catalog_chains", "param": "source_key", "pf": "str_param", "phase": "args", "tier": "harvest", "type": "str", "value": "cosmos_validation"}
+{"op": "srmech.amsc.catalog.run_catalog_chain", "param": "source_key", "pf": "str_param", "phase": "args", "tier": "harvest", "type": "str", "value": "cosmos_validation"}
+{"op": "srmech.amsc.catalog.run_catalog_chain", "param": "chain_name", "pf": "str_param", "phase": "args", "tier": "harvest", "type": "str", "value": "friedmann_dark_fraction"}
+{"op": "srmech.math.text.fold_marks", "param": "text", "pf": "str_param", "phase": "args", "tier": "harvest", "type": "str", "value": "\u0915\u094d\u0937\u093f"}
+{"op": "srmech.math.text.glyph_stream", "param": "text", "pf": "str_param", "phase": "args", "tier": "harvest", "type": "str", "value": "\u0915\u094d\u0937\u093f"}
+{"op": "srmech.math.laplacian.write_packed_graph", "param": "path", "pf": "str_param", "phase": "args", "tier": "sandbox", "type": "str", "value": "/tmp/srmech_synth_ma5utdv0/srmech_synth_path"}
+{"op": "srmech.math.laplacian.fiedler_sparse_file", "param": "graph_path", "pf": "str_param", "phase": "args", "tier": "sandbox", "type": "str", "value": "/tmp/srmech_synth_ma5utdv0/srmech_synth_graph_path"}
+{"op": "srmech.math.laplacian.elementwise_transcendental", "param": "op_name", "pf": "str_param", "phase": "args", "tier": "harvest", "type": "str", "value": "exp_i"}
+{"op": "srmech.music.harmonics.classify_harmonic", "param": "class_letter", "pf": "str_param", "phase": "args", "tier": "harvest", "type": "str", "value": "A"}
+{"op": "srmech.cascade.matrix_cascades.einsum", "param": "subscripts", "pf": "str_param", "phase": "args", "tier": "harvest", "type": "str", "value": "aij,bji->ab"}
+{"op": "srmech.biology.genome.telomere", "param": "label", "pf": "str_param", "phase": "args", "tier": "harvest", "type": "str", "value": "L"}
+{"op": "srmech.biology.genome.active_telomere", "param": "label", "pf": "str_param", "phase": "args", "tier": "harvest", "type": "str", "value": "L"}
+{"op": "srmech.biology.genome.genome_genes_expressed", "param": "path", "pf": "str_param", "phase": "args", "tier": "sandbox", "type": "str", "value": "/tmp/srmech_synth_ma5utdv0/srmech_synth_path"}
+{"op": "srmech.biology.genome.amplify", "param": "label", "pf": "str_param", "phase": "args", "tier": "table", "type": "str", "value": "srmech_synth"}
+{"op": "srmech.biology.genome.copy_number_of", "param": "label", "pf": "str_param", "phase": "args", "tier": "table", "type": "str", "value": "srmech_synth"}
+{"op": "srmech.biology.genome.genome_save", "param": "path", "pf": "str_param", "phase": "args", "tier": "sandbox", "type": "str", "value": "/tmp/srmech_synth_ma5utdv0/srmech_synth_path"}
+{"op": "srmech.biology.genome.upgrade_v15_to_v16", "param": "path", "pf": "str_param", "phase": "args", "tier": "sandbox", "type": "str", "value": "/tmp/srmech_synth_ma5utdv0/srmech_synth_path"}
+{"op": "srmech.biology.genome.genome_load", "param": "path", "pf": "str_param", "phase": "args", "tier": "sandbox", "type": "str", "value": "/tmp/srmech_synth_ma5utdv0/srmech_synth_path"}
+{"op": "srmech.biology.genome.genome_catalog", "param": "path", "pf": "str_param", "phase": "args", "tier": "sandbox", "type": "str", "value": "/tmp/srmech_synth_ma5utdv0/srmech_synth_path"}
+{"op": "srmech.biology.genome.genome_census", "param": "path", "pf": "str_param", "phase": "args", "tier": "sandbox", "type": "str", "value": "/tmp/srmech_synth_ma5utdv0/srmech_synth_path"}
+{"op": "srmech.biology.genome.genome_content", "param": "path", "pf": "str_param", "phase": "args", "tier": "sandbox", "type": "str", "value": "/tmp/srmech_synth_ma5utdv0/srmech_synth_path"}
+{"op": "srmech.biology.genome.genome_registry", "param": "root", "pf": "str_param", "phase": "args", "tier": "sandbox", "type": "str", "value": "/tmp/srmech_synth_ma5utdv0/srmech_synth_root"}
+{"op": "srmech.biology.genome.genome_append", "param": "path", "pf": "str_param", "phase": "args", "tier": "sandbox", "type": "str", "value": "/tmp/srmech_synth_ma5utdv0/srmech_synth_path"}
+{"op": "srmech.biology.genome.genome_append", "param": "label", "pf": "str_param", "phase": "args", "tier": "table", "type": "str", "value": "srmech_synth"}
+{"op": "srmech.biology.genome.genome_window", "param": "path", "pf": "str_param", "phase": "args", "tier": "sandbox", "type": "str", "value": "/tmp/srmech_synth_ma5utdv0/srmech_synth_path"}
+{"op": "srmech.biology.genome.genome_window", "param": "label", "pf": "str_param", "phase": "args", "tier": "table", "type": "str", "value": "srmech_synth"}
+{"op": "srmech.biology.genome.genome_genes", "param": "path", "pf": "str_param", "phase": "args", "tier": "sandbox", "type": "str", "value": "/tmp/srmech_synth_ma5utdv0/srmech_synth_path"}
+{"op": "srmech.biology.genome.genome_genes", "param": "label", "pf": "str_param", "phase": "args", "tier": "table", "type": "str", "value": "srmech_synth"}
+{"op": "srmech.biology.genome.genome_remove", "param": "path", "pf": "str_param", "phase": "args", "tier": "sandbox", "type": "str", "value": "/tmp/srmech_synth_ma5utdv0/srmech_synth_path"}
+{"op": "srmech.biology.genome.genome_remove", "param": "label", "pf": "str_param", "phase": "args", "tier": "table", "type": "str", "value": "srmech_synth"}
+{"op": "srmech.biology.genome.genome_replace", "param": "path", "pf": "str_param", "phase": "args", "tier": "sandbox", "type": "str", "value": "/tmp/srmech_synth_ma5utdv0/srmech_synth_path"}
+{"op": "srmech.biology.genome.genome_replace", "param": "label", "pf": "str_param", "phase": "args", "tier": "table", "type": "str", "value": "srmech_synth"}
+{"op": "srmech.biology.genome.genome_export", "param": "path", "pf": "str_param", "phase": "args", "tier": "sandbox", "type": "str", "value": "/tmp/srmech_synth_ma5utdv0/srmech_synth_path"}
+{"op": "srmech.biology.genome.genome_export", "param": "label", "pf": "str_param", "phase": "args", "tier": "table", "type": "str", "value": "srmech_synth"}
+{"op": "srmech.biology.genome.genome_export", "param": "out", "pf": "str_param", "phase": "args", "tier": "sandbox", "type": "str", "value": "/tmp/srmech_synth_ma5utdv0/srmech_synth_out"}
+{"op": "srmech.biology.genome.genome_import", "param": "chr_path", "pf": "str_param", "phase": "args", "tier": "sandbox", "type": "str", "value": "/tmp/srmech_synth_ma5utdv0/srmech_synth_chr_path"}
+{"op": "srmech.biology.genome.genome_import", "param": "dest", "pf": "str_param", "phase": "args", "tier": "sandbox", "type": "str", "value": "/tmp/srmech_synth_ma5utdv0/srmech_synth_dest"}
+{"op": "srmech.biology.genome.genome_explode", "param": "path", "pf": "str_param", "phase": "args", "tier": "sandbox", "type": "str", "value": "/tmp/srmech_synth_ma5utdv0/srmech_synth_path"}
+{"op": "srmech.biology.genome.genome_explode", "param": "out_dir", "pf": "str_param", "phase": "args", "tier": "sandbox", "type": "str", "value": "/tmp/srmech_synth_ma5utdv0/srmech_synth_out_dir"}
+{"op": "srmech.biology.genome.genome_pack", "param": "loose_dir", "pf": "str_param", "phase": "args", "tier": "sandbox", "type": "str", "value": "/tmp/srmech_synth_ma5utdv0/srmech_synth_loose_dir"}
+{"op": "srmech.biology.genome.genome_pack", "param": "dest", "pf": "str_param", "phase": "args", "tier": "sandbox", "type": "str", "value": "/tmp/srmech_synth_ma5utdv0/srmech_synth_dest"}
+{"op": "srmech.biology.genome.genome_register_attested", "param": "chr_dir", "pf": "str_param", "phase": "args", "tier": "sandbox", "type": "str", "value": "/tmp/srmech_synth_ma5utdv0/srmech_synth_chr_dir"}
+{"op": "srmech.biology.genome.genome_register_attested", "param": "amsc_root", "pf": "str_param", "phase": "args", "tier": "sandbox", "type": "str", "value": "/tmp/srmech_synth_ma5utdv0/srmech_synth_amsc_root"}
+{"op": "srmech.biology.genome.genome_register_attested", "param": "source", "pf": "str_param", "phase": "args", "tier": "table", "type": "str", "value": "srmech_synth"}
+{"op": "srmech.biology.genome.genome_append_kernel", "param": "path", "pf": "str_param", "phase": "args", "tier": "sandbox", "type": "str", "value": "/tmp/srmech_synth_ma5utdv0/srmech_synth_path"}
+{"op": "srmech.biology.genome.genome_append_kernel", "param": "label", "pf": "str_param", "phase": "args", "tier": "table", "type": "str", "value": "srmech_synth"}
+{"op": "srmech.biology.genome.graph_to_kernel", "param": "label", "pf": "str_param", "phase": "args", "tier": "table", "type": "str", "value": "srmech_synth"}
+{"op": "srmech.biology.plasmid.plasmid_extract", "param": "section_store", "pf": "str_param", "phase": "args", "tier": "table", "type": "str", "value": "srmech_synth"}
+{"op": "srmech.biology.plasmid.section_counts", "param": "section_store", "pf": "str_param", "phase": "args", "tier": "table", "type": "str", "value": "srmech_synth"}
+{"op": "srmech.biology.plasmid.genome_integrate_plasmids", "param": "section_store", "pf": "str_param", "phase": "args", "tier": "table", "type": "str", "value": "srmech_synth"}
+{"op": "srmech.biology.plasmid.add_plasmid", "param": "section_store", "pf": "str_param", "phase": "args", "tier": "table", "type": "str", "value": "srmech_synth"}
+{"op": "srmech.math.hdc.klein4_role", "param": "role", "pf": "str_param", "phase": "args", "tier": "harvest", "type": "str", "value": "M_W"}
+{"op": "srmech.introspect.op_provenance.carry", "param": "op", "pf": "str_param", "phase": "args", "tier": "harvest", "type": "str", "value": "srmech.math.rational.best_rational"}
+{"op": "srmech.introspect.op_provenance.lossy_projection_record", "param": "op", "pf": "str_param", "phase": "args", "tier": "harvest", "type": "str", "value": "srmech.biology.coupling.fold_encode"}
+{"op": "srmech.apokatastasis.ellbase.half_shift_response", "param": "axis", "pf": "str_param", "phase": "args", "tier": "table", "type": "str", "value": "srmech_synth"}
+{"op": "srmech.apokatastasis.unary_theta.unary_theta", "param": "char", "pf": "str_param", "phase": "args", "tier": "table", "type": "str", "value": "srmech_synth"}
+{"op": "srmech.cascade.str_concat", "param": "prefix", "pf": "str_param", "phase": "args", "tier": "harvest", "type": "str", "value": "LoE.content."}
+{"op": "srmech.cascade.str_concat", "param": "text", "pf": "str_param", "phase": "args", "tier": "harvest", "type": "str", "value": "hello"}
+{"op": "srmech.cascade.utf8_encode", "param": "text", "pf": "str_param", "phase": "args", "tier": "harvest", "type": "str", "value": "hello"}
+{"op": "srmech.cascade.odft_summand", "param": "form", "pf": "str_param", "phase": "args", "tier": "harvest", "type": "str", "value": "two_sided"}
+{"op": "srmech.cascade.odft_summand", "param": "bracketing", "pf": "str_param", "phase": "args", "tier": "harvest", "type": "str", "value": "left_associated"}
+{"op": "srmech.cascade.dihedral_group", "param": "convention", "pf": "str_param", "phase": "args", "tier": "harvest", "type": "str", "value": "reflection_first"}
+{"op": "srmech.cascade.frame_carrier.frame_carrier", "param": "func", "pf": "str_param", "phase": "args", "tier": "table", "type": "str", "value": "srmech_synth"}
+{"op": "srmech.cascade.frame_carrier.frame_carrier_compare", "param": "func", "pf": "str_param", "phase": "args", "tier": "table", "type": "str", "value": "srmech_synth"}
+{"op": "srmech.physics.qm.triality.triality_cycle", "param": "frame", "pf": "str_param", "phase": "args", "tier": "harvest", "type": "str", "value": "8v"}
+{"op": "srmech.physics.qm.triality.triality_apply", "param": "from_frame", "pf": "str_param", "phase": "args", "tier": "harvest", "type": "str", "value": "8v"}
+{"op": "srmech.physics.qm.triality.triality_apply", "param": "to_frame", "pf": "str_param", "phase": "args", "tier": "harvest", "type": "str", "value": "8s"}
+{"op": "srmech.introspect.search.search", "param": "query", "pf": "str_param", "phase": "args", "tier": "harvest", "type": "str", "value": "winding number"}
+{"op": "srmech.dsl.run_toml_chain", "param": "spec", "pf": "str_param", "phase": "args", "tier": "harvest", "type": "str", "value": "\n[chain]\nname = \"metonic\"\n\n[[stage]]\nop = \"best_rational_signed\"\nmax_denominator = 64\n"}
+{"op": "srmech.dsl.run_cascade_chain", "param": "op_name", "pf": "str_param", "phase": "args", "tier": "harvest", "type": "str", "value": "cyclic_gcd"}
+{"op": "srmech.dsl.describe_class", "param": "name", "pf": "str_param", "phase": "args", "tier": "harvest", "type": "str", "value": "Genome"}
+{"op": "srmech.dsl.generate_class_descriptor", "param": "name", "pf": "str_param", "phase": "args", "tier": "harvest", "type": "str", "value": "Genome"}
+{"op": "srmech.rbs_lm.encode_aboutness", "param": "text", "pf": "str_param", "phase": "args", "tier": "table", "type": "str", "value": "srmech_synth"}
+{"op": "srmech.signal_processing.cascade_dispatcher.dispatch", "param": "op_name", "pf": "str_param", "phase": "args", "tier": "table", "type": "str", "value": "srmech_synth"}
+{"op": "srmech.signal_processing.cascade_dispatcher.resolve_path", "param": "op_name", "pf": "str_param", "phase": "args", "tier": "harvest", "type": "str", "value": "form_function_rotate"}
+{"op": "srmech.signal_processing.path_registry.has_path", "param": "op_name", "pf": "str_param", "phase": "args", "tier": "table", "type": "str", "value": "srmech_synth"}
+{"op": "srmech.signal_processing.path_registry.has_path", "param": "path", "pf": "str_param", "phase": "args", "tier": "sandbox", "type": "str", "value": "/tmp/srmech_synth_ma5utdv0/srmech_synth_path"}
+{"op": "srmech.music.normal_order", "param": "convention", "pf": "str_param", "phase": "args", "tier": "harvest", "type": "str", "value": "forte"}
+{"op": "srmech.music.prime_form", "param": "convention", "pf": "str_param", "phase": "args", "tier": "harvest", "type": "str", "value": "forte"}
+{"op": "srmech.chemistry.parse_formula", "param": "formula", "pf": "str_param", "phase": "args", "tier": "harvest", "type": "str", "value": "Ca3(PO4)2"}
+{"op": "srmech.bus.by_name", "param": "name", "pf": "str_param", "phase": "args", "tier": "table", "type": "str", "value": "srmech_synth"}
+{"pf": "PF4", "phase": "args", "stage": "positive_control", "str_row": [true, "abc"], "verdict": "CONTROL_FIRES"}
+{"n_str_params_fed_the_abc_literal": 24, "pf": "PF4", "phase": "args", "sample": [{"op": "srmech.biology.genome.amplify", "param": "label", "type": "str", "val": "abc"}, {"op": "srmech.biology.genome.copy_number_of", "param": "label", "type": "str", "val": "abc"}, {"op": "srmech.biology.genome.genome_append", "param": "label", "type": "str", "val": "abc"}, {"op": "srmech.biology.genome.genome_window", "param": "label", "type": "str", "val": "abc"}, {"op": "srmech.biology.genome.genome_genes", "param": "label", "type": "str", "val": "abc"}, {"op": "srmech.biology.genome.genome_remove", "param": "label", "type": "str", "val": "abc"}, {"op": "srmech.biology.genome.genome_replace", "param": "label", "type": "str", "val": "abc"}, {"op": "srmech.biology.genome.genome_export", "param": "label", "type": "str", "val": "abc"}, {"op": "srmech.biology.genome.genome_register_attested", "param": "source", "type": "str", "val": "abc"}, {"op": "srmech.biology.genome.genome_append_kernel", "param": "label", "type": "str", "val": "abc"}, {"op": "srmech.biology.genome.graph_to_kernel", "param": "label", "type": "str", "val": "abc"}, {"op": "srmech.biology.plasmid.plasmid_extract", "param": "section_store", "type": "str", "val": "abc"}, {"op": "srmech.biology.plasmid.section_counts", "param": "section_store", "type": "str", "val": "abc"}, {"op": "srmech.biology.plasmid.genome_integrate_plasmids", "param": "section_store", "type": "str", "val": "abc"}, {"op": "srmech.biology.plasmid.add_plasmid", "param": "section_store", "type": "str", "val": "abc"}, {"op": "srmech.apokatastasis.ellbase.half_shift_response", "param": "axis", "type": "str", "val": "abc"}, {"op": "srmech.apokatastasis.unary_theta.unary_theta", "param": "char", "type": "str", "val": "abc"}, {"op": "srmech.cascade.frame_carrier.frame_carrier", "param": "func", "type": "str", "val": "abc"}, {"op": "srmech.cascade.frame_carrier.frame_carrier_compare", "param": "func", "type": "str", "val": "abc"}, {"op": "srmech.rbs_lm.encode_aboutness", "param": "text", "type": "str", "val": "abc"}], "stage": "live", "verdict": "CONFIRMED"}
+{"n_advertised_with_hint": 46, "n_entries_with_hint": 46, "n_required_str_params_hinted": 4, "pf": "PF5", "phase": "args", "sample": [{"hint": "'LoE.content.'", "op": "srmech.cascade.str_concat", "param": "prefix"}, {"hint": "'hello'", "op": "srmech.cascade.str_concat", "param": "text"}, {"hint": "'hello'", "op": "srmech.cascade.utf8_encode", "param": "text"}, {"hint": "'reflection_first'", "op": "srmech.cascade.dihedral_group", "param": "convention"}], "verdict": "SUPPLY_EXISTS"}
+{"pf": "PF3", "phase": "strings", "recovered": ["forte", "rahn", "srmech_rc431_nonsense_token"], "stage": "positive_control", "verdict": "CONTROL_FIRES"}
+{"by_class": {"FREE_TEXT": 18, "NAME_ACCEPTED": 3, "OPAQUE_REJECT": 19, "PATH": 26, "SELECTOR": 14, "SELECTOR_UNCONFIRMED": 1}, "n_str_params_probed": 81, "pf": "PF3", "phase": "strings", "stage": "live"}
+{"cls": "FREE_TEXT", "op": "srmech.amsc.catalog.get_attested_dataset", "param": "source_key", "pf": "str_class", "phase": "strings", "shipped": "cosmos_validation", "shipped_returns": true}
+{"cls": "FREE_TEXT", "op": "srmech.amsc.catalog.register_attested_root", "param": "source", "pf": "str_class", "phase": "strings", "shipped": "ephemerides-spectral", "shipped_returns": true}
+{"cls": "FREE_TEXT", "op": "srmech.amsc.catalog.list_catalog_chains", "param": "source_key", "pf": "str_class", "phase": "strings", "shipped": "cosmos_validation", "shipped_returns": true}
+{"cls": "OPAQUE_REJECT", "err": "\"unknown source_key 'srmech_rc431_nonsense_token'\"", "op": "srmech.amsc.catalog.run_catalog_chain", "param": "source_key", "pf": "str_class", "phase": "strings", "shipped": "cosmos_validation"}
+{"cls": "OPAQUE_REJECT", "err": "\"catalog 'cosmos_validation' has no chain named 'srmech_rc431_nonsense_token'; available: ['friedmann_dark_fraction']\"", "op": "srmech.amsc.catalog.run_catalog_chain", "param": "chain_name", "pf": "str_class", "phase": "strings", "shipped": "friedmann_dark_fraction"}
+{"cls": "FREE_TEXT", "op": "srmech.math.text.fold_marks", "param": "text", "pf": "str_class", "phase": "strings", "shipped": "\u0915\u094d\u0937\u093f", "shipped_returns": true}
+{"cls": "FREE_TEXT", "op": "srmech.math.text.glyph_stream", "param": "text", "pf": "str_class", "phase": "strings", "shipped": "\u0915\u094d\u0937\u093f", "shipped_returns": true}
+{"cls": "PATH", "op": "srmech.math.laplacian.write_packed_graph", "param": "path", "pf": "str_class", "phase": "strings", "shipped": "/tmp/srmech_synth_sx2k3rha/srmech_synth_path"}
+{"cls": "PATH", "op": "srmech.math.laplacian.fiedler_sparse_file", "param": "graph_path", "pf": "str_class", "phase": "strings", "shipped": "/tmp/srmech_synth_sx2k3rha/srmech_synth_graph_path"}
+{"candidates": ["cos", "exp", "exp_i", "log", "sin"], "cls": "SELECTOR", "confirmed_returns": true, "err": "unknown op_name 'srmech_rc431_nonsense_token'; legal: ['cos', 'exp', 'exp_i', 'log', 'sin']", "op": "srmech.math.laplacian.elementwise_transcendental", "param": "op_name", "pf": "str_class", "phase": "strings", "shipped": "exp_i", "shipped_ok": true}
+{"cls": "NAME_ACCEPTED", "err": "classify_harmonic: class_letter must be a single A\u2013N letter; got 'srmech_rc431_nonsense_token'", "op": "srmech.music.harmonics.classify_harmonic", "param": "class_letter", "pf": "str_class", "phase": "strings", "shipped": "A"}
+{"cls": "OPAQUE_REJECT", "err": "einsum: 1 operand specs but 0 operands", "op": "srmech.cascade.matrix_cascades.einsum", "param": "subscripts", "pf": "str_class", "phase": "strings", "shipped": "aij,bji->ab"}
+{"cls": "FREE_TEXT", "op": "srmech.biology.genome.telomere", "param": "label", "pf": "str_class", "phase": "strings", "shipped": "L", "shipped_returns": true}
+{"cls": "FREE_TEXT", "op": "srmech.biology.genome.active_telomere", "param": "label", "pf": "str_class", "phase": "strings", "shipped": "L", "shipped_returns": true}
+{"cls": "PATH", "op": "srmech.biology.genome.genome_genes_expressed", "param": "path", "pf": "str_class", "phase": "strings", "shipped": "/tmp/srmech_synth_sx2k3rha/srmech_synth_path"}
+{"cls": "OPAQUE_REJECT", "err": "amplify: no plain gene labeled 'srmech_rc431_nonsense_token' in the strand (amplify records the copy number on a plain GENE cap 0x47 \u2014 build one with chromosome", "op": "srmech.biology.genome.amplify", "param": "label", "pf": "str_class", "phase": "strings", "shipped": "srmech_synth"}
+{"cls": "OPAQUE_REJECT", "err": "copy_number_of: no plain gene labeled 'srmech_rc431_nonsense_token' in the strand (the copy-number axis is carried on a plain GENE cap 0x47; a plain / un-amplif", "op": "srmech.biology.genome.copy_number_of", "param": "label", "pf": "str_class", "phase": "strings", "shipped": "srmech_synth"}
+{"cls": "PATH", "op": "srmech.biology.genome.genome_save", "param": "path", "pf": "str_class", "phase": "strings", "shipped": "/tmp/srmech_synth_sx2k3rha/srmech_synth_path"}
+{"cls": "PATH", "op": "srmech.biology.genome.upgrade_v15_to_v16", "param": "path", "pf": "str_class", "phase": "strings", "shipped": "/tmp/srmech_synth_sx2k3rha/srmech_synth_path"}
+{"cls": "PATH", "op": "srmech.biology.genome.genome_load", "param": "path", "pf": "str_class", "phase": "strings", "shipped": "/tmp/srmech_synth_sx2k3rha/srmech_synth_path"}
+{"cls": "PATH", "op": "srmech.biology.genome.genome_catalog", "param": "path", "pf": "str_class", "phase": "strings", "shipped": "/tmp/srmech_synth_sx2k3rha/srmech_synth_path"}
+{"cls": "PATH", "op": "srmech.biology.genome.genome_census", "param": "path", "pf": "str_class", "phase": "strings", "shipped": "/tmp/srmech_synth_sx2k3rha/srmech_synth_path"}
+{"cls": "PATH", "op": "srmech.biology.genome.genome_content", "param": "path", "pf": "str_class", "phase": "strings", "shipped": "/tmp/srmech_synth_sx2k3rha/srmech_synth_path"}
+{"cls": "PATH", "op": "srmech.biology.genome.genome_registry", "param": "root", "pf": "str_class", "phase": "strings", "shipped": "/tmp/srmech_synth_sx2k3rha/srmech_synth_root"}
+{"cls": "PATH", "op": "srmech.biology.genome.genome_append", "param": "path", "pf": "str_class", "phase": "strings", "shipped": "/tmp/srmech_synth_sx2k3rha/srmech_synth_path"}
+{"cls": "OPAQUE_REJECT", "err": "[Errno 2] No such file or directory: '/tmp/srmech_synth_sx2k3rha/srmech_synth_path/turns.bin'", "op": "srmech.biology.genome.genome_append", "param": "label", "pf": "str_class", "phase": "strings", "shipped": "srmech_synth"}
+{"cls": "PATH", "op": "srmech.biology.genome.genome_window", "param": "path", "pf": "str_class", "phase": "strings", "shipped": "/tmp/srmech_synth_sx2k3rha/srmech_synth_path"}
+{"cls": "OPAQUE_REJECT", "err": "genome at '/tmp/srmech_synth_sx2k3rha/srmech_synth_path' has no manifest.json and no coupling= was given: \u00a744 makes the manifest an optional .fai cache, but reb", "op": "srmech.biology.genome.genome_window", "param": "label", "pf": "str_class", "phase": "strings", "shipped": "srmech_synth"}
+{"cls": "PATH", "op": "srmech.biology.genome.genome_genes", "param": "path", "pf": "str_class", "phase": "strings", "shipped": "/tmp/srmech_synth_sx2k3rha/srmech_synth_path"}
+{"cls": "OPAQUE_REJECT", "err": "genome at '/tmp/srmech_synth_sx2k3rha/srmech_synth_path' has no manifest.json and no coupling= was given: \u00a744 makes the manifest an optional .fai cache, but reb", "op": "srmech.biology.genome.genome_genes", "param": "label", "pf": "str_class", "phase": "strings", "shipped": "srmech_synth"}
+{"cls": "PATH", "op": "srmech.biology.genome.genome_remove", "param": "path", "pf": "str_class", "phase": "strings", "shipped": "/tmp/srmech_synth_sx2k3rha/srmech_synth_path"}
+{"cls": "OPAQUE_REJECT", "err": "genome at '/tmp/srmech_synth_sx2k3rha/srmech_synth_path' has no manifest.json and no coupling= was given: \u00a744 makes the manifest an optional .fai cache, but reb", "op": "srmech.biology.genome.genome_remove", "param": "label", "pf": "str_class", "phase": "strings", "shipped": "srmech_synth"}
+{"cls": "PATH", "op": "srmech.biology.genome.genome_replace", "param": "path", "pf": "str_class", "phase": "strings", "shipped": "/tmp/srmech_synth_sx2k3rha/srmech_synth_path"}
+{"cls": "OPAQUE_REJECT", "err": "[Errno 2] No such file or directory: '/tmp/srmech_synth_sx2k3rha/srmech_synth_path/turns.bin'", "op": "srmech.biology.genome.genome_replace", "param": "label", "pf": "str_class", "phase": "strings", "shipped": "srmech_synth"}
+{"cls": "PATH", "op": "srmech.biology.genome.genome_export", "param": "path", "pf": "str_class", "phase": "strings", "shipped": "/tmp/srmech_synth_sx2k3rha/srmech_synth_path"}
+{"cls": "OPAQUE_REJECT", "err": "genome at '/tmp/srmech_synth_sx2k3rha/srmech_synth_path' has no manifest.json and no coupling= was given: \u00a744 makes the manifest an optional .fai cache, but reb", "op": "srmech.biology.genome.genome_export", "param": "label", "pf": "str_class", "phase": "strings", "shipped": "srmech_synth"}
+{"cls": "PATH", "op": "srmech.biology.genome.genome_export", "param": "out", "pf": "str_class", "phase": "strings", "shipped": "/tmp/srmech_synth_sx2k3rha/srmech_synth_out"}
+{"cls": "PATH", "op": "srmech.biology.genome.genome_import", "param": "chr_path", "pf": "str_class", "phase": "strings", "shipped": "/tmp/srmech_synth_sx2k3rha/srmech_synth_chr_path"}
+{"cls": "PATH", "op": "srmech.biology.genome.genome_import", "param": "dest", "pf": "str_class", "phase": "strings", "shipped": "/tmp/srmech_synth_sx2k3rha/srmech_synth_dest"}
+{"cls": "PATH", "op": "srmech.biology.genome.genome_explode", "param": "path", "pf": "str_class", "phase": "strings", "shipped": "/tmp/srmech_synth_sx2k3rha/srmech_synth_path"}
+{"cls": "PATH", "op": "srmech.biology.genome.genome_explode", "param": "out_dir", "pf": "str_class", "phase": "strings", "shipped": "/tmp/srmech_synth_sx2k3rha/srmech_synth_out_dir"}
+{"cls": "PATH", "op": "srmech.biology.genome.genome_pack", "param": "loose_dir", "pf": "str_class", "phase": "strings", "shipped": "/tmp/srmech_synth_sx2k3rha/srmech_synth_loose_dir"}
+{"cls": "PATH", "op": "srmech.biology.genome.genome_pack", "param": "dest", "pf": "str_class", "phase": "strings", "shipped": "/tmp/srmech_synth_sx2k3rha/srmech_synth_dest"}
+{"cls": "PATH", "op": "srmech.biology.genome.genome_register_attested", "param": "chr_dir", "pf": "str_class", "phase": "strings", "shipped": "/tmp/srmech_synth_sx2k3rha/srmech_synth_chr_dir"}
+{"cls": "PATH", "op": "srmech.biology.genome.genome_register_attested", "param": "amsc_root", "pf": "str_class", "phase": "strings", "shipped": "/tmp/srmech_synth_sx2k3rha/srmech_synth_amsc_root"}
+{"cls": "OPAQUE_REJECT", "err": "genome_register_attested: no .chr files in '/tmp/srmech_synth_sx2k3rha/srmech_synth_chr_dir'", "op": "srmech.biology.genome.genome_register_attested", "param": "source", "pf": "str_class", "phase": "strings", "shipped": "srmech_synth"}
+{"cls": "OPAQUE_REJECT", "err": "'int' object is not iterable", "op": "srmech.biology.genome.graph_to_kernel", "param": "label", "pf": "str_class", "phase": "strings", "shipped": "srmech_synth"}
+{"cls": "OPAQUE_REJECT", "err": "plasmid_extract: leaf_dim (len(coupling)) is 8; the \u00a789 KERNEL section header needs leaf_dim >= 52 (a plasmid section is a kernel chromosome). Use a wider coupl", "op": "srmech.biology.plasmid.plasmid_extract", "param": "section_store", "pf": "str_class", "phase": "strings", "shipped": "srmech_synth"}
+{"cls": "OPAQUE_REJECT", "err": "genome at 'srmech_rc431_nonsense_token' has no manifest.json and no coupling= was given: \u00a744 makes the manifest an optional .fai cache, but rebuilding it by sca", "op": "srmech.biology.plasmid.section_counts", "param": "section_store", "pf": "str_class", "phase": "strings", "shipped": "srmech_synth"}
+{"candidates": ["srmech_rc431_nonsense_token/turns.bin"], "cls": "SELECTOR", "confirmed_returns": false, "err": "[Errno 2] No such file or directory: 'srmech_rc431_nonsense_token/turns.bin'", "op": "srmech.biology.plasmid.genome_integrate_plasmids", "param": "section_store", "pf": "str_class", "phase": "strings", "shipped": "srmech_synth", "shipped_ok": false}
+{"cls": "OPAQUE_REJECT", "err": "plasmid_extract: leaf_dim (len(coupling)) is 8; the \u00a789 KERNEL section header needs leaf_dim >= 52 (a plasmid section is a kernel chromosome). Use a wider coupl", "op": "srmech.biology.plasmid.add_plasmid", "param": "section_store", "pf": "str_class", "phase": "strings", "shipped": "srmech_synth"}
+{"cls": "FREE_TEXT", "op": "srmech.math.hdc.klein4_role", "param": "role", "pf": "str_class", "phase": "strings", "shipped": "M_W", "shipped_returns": true}
+{"cls": "OPAQUE_REJECT", "err": "op_provenance: unknown op 'srmech_rc431_nonsense_token' \u2014 the carry() registry covers the rc117 value-inexact (asymptotic-tower) frontier only; a lossy-PROJECTI", "op": "srmech.introspect.op_provenance.carry", "param": "op", "pf": "str_class", "phase": "strings", "shipped": "srmech.math.rational.best_rational"}
+{"cls": "FREE_TEXT", "op": "srmech.introspect.op_provenance.lossy_projection_record", "param": "op", "pf": "str_class", "phase": "strings", "shipped": "srmech.biology.coupling.fold_encode", "shipped_returns": true}
+{"candidates": ["real", "2K", "nome", "\" (the nome 2iK\u2032 half-beat)", "2iK'"], "cls": "SELECTOR", "confirmed_returns": true, "err": "half-shift axis 'srmech_rc431_nonsense_token' not recognised; use 'real'/'2K' (the real 2K half-beat) or 'nome'/\"2iK'\" (the nome 2iK\u2032 half-beat)", "op": "srmech.apokatastasis.ellbase.half_shift_response", "param": "axis", "pf": "str_class", "phase": "strings", "shipped": "srmech_synth", "shipped_ok": false}
+{"cls": "OPAQUE_REJECT", "err": "unrecognised character spec: 'srmech_rc431_nonsense_token'", "op": "srmech.apokatastasis.unary_theta.unary_theta", "param": "char", "pf": "str_class", "phase": "strings", "shipped": "srmech_synth"}
+{"cls": "FREE_TEXT", "op": "srmech.cascade.str_concat", "param": "prefix", "pf": "str_class", "phase": "strings", "shipped": "LoE.content.", "shipped_returns": true}
+{"cls": "FREE_TEXT", "op": "srmech.cascade.str_concat", "param": "text", "pf": "str_class", "phase": "strings", "shipped": "hello", "shipped_returns": true}
+{"cls": "FREE_TEXT", "op": "srmech.cascade.utf8_encode", "param": "text", "pf": "str_class", "phase": "strings", "shipped": "hello", "shipped_returns": true}
+{"cls": "FREE_TEXT", "op": "srmech.cascade.odft_summand", "param": "form", "pf": "str_class", "phase": "strings", "shipped": "two_sided", "shipped_returns": true}
+{"cls": "FREE_TEXT", "op": "srmech.cascade.odft_summand", "param": "bracketing", "pf": "str_class", "phase": "strings", "shipped": "left_associated", "shipped_returns": true}
+{"candidates": ["reflection_first", "rotation_first"], "cls": "SELECTOR", "confirmed_returns": true, "err": "dihedral_group: convention must be one of ('reflection_first', 'rotation_first'); got 'srmech_rc431_nonsense_token'", "op": "srmech.cascade.dihedral_group", "param": "convention", "pf": "str_class", "phase": "strings", "shipped": "reflection_first", "shipped_ok": true}
+{"candidates": ["sin", "cos"], "cls": "SELECTOR", "confirmed_returns": true, "err": "frame_carrier: func must be one of ('sin', 'cos') (the 2\u03c0-periodic series that HAVE a beat seam); got 'srmech_rc431_nonsense_token'", "op": "srmech.cascade.frame_carrier.frame_carrier", "param": "func", "pf": "str_class", "phase": "strings", "shipped": "srmech_synth", "shipped_ok": false}
+{"candidates": ["sin", "cos"], "cls": "SELECTOR", "confirmed_returns": true, "err": "frame_carrier: func must be one of ('sin', 'cos') (the 2\u03c0-periodic series that HAVE a beat seam); got 'srmech_rc431_nonsense_token'", "op": "srmech.cascade.frame_carrier.frame_carrier_compare", "param": "func", "pf": "str_class", "phase": "strings", "shipped": "srmech_synth", "shipped_ok": false}
+{"candidates": ["v", "s", "c", "8v", "8s", "8c"], "cls": "SELECTOR", "confirmed_returns": true, "err": "unknown triality frame 'srmech_rc431_nonsense_token'; expected one of 'v'/'s'/'c' or '8v'/'8s'/'8c'", "op": "srmech.physics.qm.triality.triality_cycle", "param": "frame", "pf": "str_class", "phase": "strings", "shipped": "8v", "shipped_ok": true}
+{"candidates": ["v", "s", "c", "8v", "8s", "8c"], "cls": "SELECTOR", "confirmed_returns": true, "err": "unknown triality frame 'srmech_rc431_nonsense_token'; expected one of 'v'/'s'/'c' or '8v'/'8s'/'8c'", "op": "srmech.physics.qm.triality.triality_apply", "param": "from_frame", "pf": "str_class", "phase": "strings", "shipped": "8v", "shipped_ok": true}
+{"candidates": ["v", "s", "c", "8v", "8s", "8c"], "cls": "SELECTOR", "confirmed_returns": true, "err": "unknown triality frame 'srmech_rc431_nonsense_token'; expected one of 'v'/'s'/'c' or '8v'/'8s'/'8c'", "op": "srmech.physics.qm.triality.triality_apply", "param": "to_frame", "pf": "str_class", "phase": "strings", "shipped": "8s", "shipped_ok": true}
+{"cls": "FREE_TEXT", "op": "srmech.introspect.search.search", "param": "query", "pf": "str_class", "phase": "strings", "shipped": "winding number", "shipped_returns": true}
+{"cls": "NAME_ACCEPTED", "err": "Expected '=' after a key in a key/value pair (at end of document)", "op": "srmech.dsl.run_toml_chain", "param": "spec", "pf": "str_class", "phase": "strings", "shipped": "\n[chain]\nname = \"metonic\"\n\n[[stage]]\nop = \"best_rational_sig"}
+{"candidates": ["autocorrelation", "best_rational_signed", "chiral_dual", "chiral_flip", "cyclic_gcd", "cyclic_mod_add", "cyclic_mod_inv", "cyclic_mod_mul"], "cls": "SELECTOR", "confirmed_returns": false, "err": "unknown cascade op 'srmech_rc431_nonsense_token'; catalog: ['autocorrelation', 'best_rational_signed', 'chiral_dual', 'chiral_flip', 'cyclic_gcd', 'cyclic_mod_a", "op": "srmech.dsl.run_cascade_chain", "param": "op_name", "pf": "str_class", "phase": "strings", "shipped": "cyclic_gcd", "shipped_ok": true}
+{"candidates": ["Genome", "Hurwitz", "One", "SedenionRegister"], "cls": "SELECTOR", "confirmed_returns": true, "err": "unknown srmech class 'srmech_rc431_nonsense_token'; catalog: ['Genome', 'Hurwitz', 'One', 'SedenionRegister']", "op": "srmech.dsl.describe_class", "param": "name", "pf": "str_class", "phase": "strings", "shipped": "Genome", "shipped_ok": true}
+{"candidates": ["Genome", "Hurwitz", "One", "SedenionRegister"], "cls": "SELECTOR", "confirmed_returns": true, "err": "unknown srmech class 'srmech_rc431_nonsense_token'; catalog: ['Genome', 'Hurwitz', 'One', 'SedenionRegister']", "op": "srmech.dsl.generate_class_descriptor", "param": "name", "pf": "str_class", "phase": "strings", "shipped": "Genome", "shipped_ok": true}
+{"cls": "FREE_TEXT", "op": "srmech.rbs_lm.encode_aboutness", "param": "text", "pf": "str_class", "phase": "strings", "shipped": "srmech_synth", "shipped_returns": true}
+{"cls": "OPAQUE_REJECT", "err": "signal_processing op 'srmech_rc431_nonsense_token' not registered. Phase 1 (v0.4.2rc1) scaffolding ships no operations; Phase 2+ populates Path A; Phase 4+ popu", "op": "srmech.signal_processing.cascade_dispatcher.dispatch", "param": "op_name", "pf": "str_class", "phase": "strings", "shipped": "srmech_synth"}
+{"cls": "FREE_TEXT", "op": "srmech.signal_processing.cascade_dispatcher.resolve_path", "param": "op_name", "pf": "str_class", "phase": "strings", "shipped": "form_function_rotate", "shipped_returns": true}
+{"candidates": ["A", "B"], "cls": "SELECTOR_UNCONFIRMED", "confirmed_returns": false, "err": "has_path: path must be 'A' or 'B'; got '/tmp/srmech_synth_sx2k3rha/srmech_synth_path'", "op": "srmech.signal_processing.path_registry.has_path", "param": "op_name", "pf": "str_class", "phase": "strings", "shipped": "srmech_synth", "shipped_ok": false}
+{"cls": "PATH", "op": "srmech.signal_processing.path_registry.has_path", "param": "path", "pf": "str_class", "phase": "strings", "shipped": "/tmp/srmech_synth_sx2k3rha/srmech_synth_path"}
+{"candidates": ["forte", "rahn"], "cls": "SELECTOR", "confirmed_returns": true, "err": "convention must be one of ('forte', 'rahn'); got 'srmech_rc431_nonsense_token'. There is NO DEFAULT on purpose: Forte (1973) and Rahn (1980) disagree on 6 of th", "op": "srmech.music.normal_order", "param": "convention", "pf": "str_class", "phase": "strings", "shipped": "forte", "shipped_ok": true}
+{"candidates": ["forte", "rahn"], "cls": "SELECTOR", "confirmed_returns": true, "err": "convention must be one of ('forte', 'rahn'); got 'srmech_rc431_nonsense_token'. There is NO DEFAULT on purpose: Forte (1973) and Rahn (1980) disagree on 6 of th", "op": "srmech.music.prime_form", "param": "convention", "pf": "str_class", "phase": "strings", "shipped": "forte", "shipped_ok": true}
+{"cls": "NAME_ACCEPTED", "err": "parse_formula: unexpected character 's' at position 0 in 'srmech_rc431_nonsense_token' (an element must start with an uppercase letter)", "op": "srmech.chemistry.parse_formula", "param": "formula", "pf": "str_class", "phase": "strings", "shipped": "Ca3(PO4)2"}
+{"cls": "FREE_TEXT", "op": "srmech.bus.by_name", "param": "name", "pf": "str_class", "phase": "strings", "shipped": "srmech_synth", "shipped_returns": true}
+{"counts": {"INVOKE_TIMEOUT": 5, "RETURNED": 450, "RETURNED_TYPE_UNASSERTABLE": 23, "SKIP_UNSYNTHESIZABLE": 34, "TOLERATED_AssertionError": 2, "TOLERATED_AttributeError": 3, "TOLERATED_BioTotpFormatError": 1, "TOLERATED_ChainSpecError": 1, "TOLERATED_FileExistsError": 1, "TOLERATED_FileNotFoundError": 4, "TOLERATED_GenomeBoundingError": 12, "TOLERATED_KeyError": 1, "TOLERATED_NotADirectoryError": 3, "TOLERATED_RuntimeError": 1, "TOLERATED_TypeError": 17, "TOLERATED_UnknownOperationError": 1, "TOLERATED_ValueError": 91, "TOLERATED_ZeroDivisionError": 1}, "n_advertised": 651, "n_gate_fail": 0, "n_returned": 473, "n_skipped": 34, "n_tolerated": 139, "pct_gate_observes_a_return": 72.7, "pf": "PF2", "phase": "invoke"}
+{"op": "srmech.amsc.format.sha256_bytes", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.amsc.format.sha256_batch", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.amsc.format.read_ndjson", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED_TYPE_UNASSERTABLE"}
+{"op": "srmech.amsc.descriptor.descriptor_hash", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_FileNotFoundError"}
+{"op": "srmech.amsc.catalog.list_attested_sources", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.amsc.catalog.get_attested_dataset", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.amsc.catalog.register_attested_root", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED_TYPE_UNASSERTABLE"}
+{"op": "srmech.amsc.catalog.list_catalog_chains", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.amsc.catalog.run_catalog_chain", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_RuntimeError"}
+{"op": "srmech.cascade.compose.parse_chain_spec", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ChainSpecError"}
+{"op": "srmech.cascade.compose.parse_catalog_chains", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.compose.resolve_chain", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED_TYPE_UNASSERTABLE"}
+{"op": "srmech.cascade.compose.run_chain", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED_TYPE_UNASSERTABLE"}
+{"op": "srmech.math.cyclic.gcd", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.cyclic.lcm", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.cyclic.mod_add", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.cyclic.mod_mul", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.cyclic.mod_pow", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.cyclic.mod_inv", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.cyclic.bigint_mul", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.cyclic.mod_mul_wide", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.cyclic.primitive_integer_vector", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.modular_linalg.gf_rref", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.modular_linalg.gf_solve", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.modular_linalg.gf_nullspace", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.modular_linalg.crt_combine", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.dense_adjacency", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.text.fold_marks", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.text.glyph_stream", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.text.cooccurrence_edges", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_TypeError"}
+{"op": "srmech.math.text.cooccurrence_topk", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_TypeError"}
+{"op": "srmech.math.laplacian.dense_laplacian", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.normalized_laplacian", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.mass_normalized_laplacian", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.cotangent_weights", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.signed_laplacian", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.magnetic_laplacian", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.quaternion_laplacian", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.octonion_laplacian", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.hypercomplex_perspectives", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.math.laplacian.klein4_gain_laplacian", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.klein4_relational_structure", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.cycle_holonomy", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.eulerian_path", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.eulerian_circuit", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.recover_check", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.recover_check_structural", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.recover_check_spectral", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.order_fingerprint", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.recover_check_order", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.heat_trace", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.ground_state_flux_response", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.propagate", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.math.laplacian.eph_harvest", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.math.laplacian.propagate_sparse", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.propagate_wound", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.math.laplacian.responsion", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.math.laplacian.fiedler_vector", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.fiedler_sparse", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.normalized_cut_bisect", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.write_packed_graph", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.fiedler_sparse_file", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_FileNotFoundError"}
+{"op": "srmech.math.laplacian.recursive_cut", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.jacobi_eigvals", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.spectral_block_dispatch", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_TypeError"}
+{"op": "srmech.math.laplacian.dense_solve", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.math.laplacian.schur_complement", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.math.laplacian.dirichlet_to_neumann", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.math.laplacian.hermitian_eigendecompose", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.symmetric_eigendecompose", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.mat_matmul", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.mat_solve", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.mat_lstsq", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.mat_hermitian_eigendecompose", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.mat_eigvals", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.mat_svd", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.mat_norm", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.mat_dot", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.mat_matvec", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.mat_outer", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.elementwise_multiply_complex", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.elementwise_transcendental", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.elementwise_hypot", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.elementwise_sqrt", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.primes.is_prime", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.primes.factor", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.primes.cyclic_period", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.primes.next_prime", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.tlv.tlv_pack", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.tlv.tlv_unpack", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.math.search.byte_search", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED_TYPE_UNASSERTABLE"}
+{"op": "srmech.math.dispatch.match", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED_TYPE_UNASSERTABLE"}
+{"op": "srmech.introspect.naming.lookup", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED_TYPE_UNASSERTABLE"}
+{"op": "srmech.music.harmonics.classify_harmonic", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.music.harmonics.classify_chirality_harmonic", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.dispatch.mirror_pattern", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.introspect.naming.reverse_order", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.search.byte_search_backward", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED_TYPE_UNASSERTABLE"}
+{"op": "srmech.math.cyclic.three_cycle", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.three_fold_eigvec_groups", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.spectral_spine", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.laplacian.relational_structure", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.template.render", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.rational.continued_fraction", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.rational.best_rational", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.rational.scale_round_half_even", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.rational.rational_reconstruct", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED_TYPE_UNASSERTABLE"}
+{"op": "srmech.math.rational.exp_series_truncate", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.rational.rational_add", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.rational.rational_mul", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.rational.rational_div", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.rational.rational_pow_uint", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.rational.sin_series_truncate", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.rational.cos_series_truncate", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.rational.log1p_series_truncate", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.rational.atan_series_truncate", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.rational.jacobi_sncndn_series_truncate", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.rational.relative_writhe", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.rational.cos", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.rational.sin", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.rational.tan", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.rational.atan", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.rational.atan2", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.rational.exp", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.rational.log", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.rational.cexp", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.rational.complex_exp", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.rational.sqrt", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.rational.hypot", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.spectral_cascades.dft", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.spectral_cascades.idft", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.spectral_cascades.fft", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.spectral_cascades.ifft", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.spectral_cascades.kron", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.exact_dft.exact_dft", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.exact_dft.exact_idft", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.exact_dft.lift", "params": ["spectrum"], "pf": "op_verdict", "phase": "invoke", "verdict": "SKIP_UNSYNTHESIZABLE"}
+{"op": "srmech.cascade.matrix_cascades.qr", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.matrix_cascades.svd", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.matrix_cascades.lstsq", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.cascade.matrix_cascades.einsum", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.cascade.matrix_cascades.eigvals", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.matrix_cascades.char_poly", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.matrix_cascades.eigvals_exact", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.matrix_cascades.lll_reduce", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.rational.continued_fraction_convergents", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.rational.pi_cascade_digits", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.rational.pi_chudnovsky_digits", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.biology.genome.encode_shape", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.biology.genome.quad_turn", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.biology.genome.telomere", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.biology.genome.active_telomere", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.biology.genome.telomere_tick", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.biology.genome.gene_express", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.biology.genome.gene_express_levels", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.biology.genome.gene_express_plan", "params": ["strand_or_path"], "pf": "op_verdict", "phase": "invoke", "verdict": "SKIP_UNSYNTHESIZABLE"}
+{"op": "srmech.biology.genome.genome_genes_expressed", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_NotADirectoryError"}
+{"op": "srmech.biology.genome.modulator_recover", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.biology.genome.modulator_consistent", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.biology.genome.modulator_constraint", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.biology.genome.modulator_constraint_satisfies", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.biology.genome.chromosome", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.biology.genome.centromere", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.biology.genome.centromere_of", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_AttributeError"}
+{"op": "srmech.biology.genome.diploid", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.biology.genome.recover_diploid", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.biology.genome.condense", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.biology.genome.decondense", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_AttributeError"}
+{"op": "srmech.biology.genome.chromatin_of", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_AttributeError"}
+{"op": "srmech.biology.genome.accessible", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.biology.genome.mint", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.biology.genome.mint_plan", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.biology.genome.integrate", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.biology.genome.amplify", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.biology.genome.copy_number_of", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.biology.genome.recall", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.biology.genome.genes", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.biology.genome.genome", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.biology.genome.plasmid", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.biology.genome.partition", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.biology.genome.genome_save", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_FileExistsError"}
+{"op": "srmech.biology.genome.upgrade_v15_to_v16", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_GenomeBoundingError"}
+{"op": "srmech.biology.genome.genome_load", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_GenomeBoundingError"}
+{"op": "srmech.biology.genome.genome_catalog", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_GenomeBoundingError"}
+{"op": "srmech.biology.genome.genome_census", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_GenomeBoundingError"}
+{"op": "srmech.biology.genome.genome_content", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_GenomeBoundingError"}
+{"op": "srmech.biology.genome.genome_registry", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_GenomeBoundingError"}
+{"op": "srmech.biology.genome.genome_append", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_NotADirectoryError"}
+{"op": "srmech.biology.genome.genome_window", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_GenomeBoundingError"}
+{"op": "srmech.biology.genome.genome_genes", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_GenomeBoundingError"}
+{"op": "srmech.biology.genome.genome_remove", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_GenomeBoundingError"}
+{"op": "srmech.biology.genome.genome_replace", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_NotADirectoryError"}
+{"op": "srmech.biology.genome.genome_export", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_GenomeBoundingError"}
+{"op": "srmech.biology.genome.genome_import", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_FileNotFoundError"}
+{"op": "srmech.biology.genome.genome_explode", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_GenomeBoundingError"}
+{"op": "srmech.biology.genome.genome_pack", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.biology.genome.genome_register_attested", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.biology.genome.kernel_pack", "params": ["data"], "pf": "op_verdict", "phase": "invoke", "verdict": "SKIP_UNSYNTHESIZABLE"}
+{"op": "srmech.biology.genome.kernel_unpack", "params": ["strand_or_path"], "pf": "op_verdict", "phase": "invoke", "verdict": "SKIP_UNSYNTHESIZABLE"}
+{"op": "srmech.biology.genome.genome_append_kernel", "params": ["hv"], "pf": "op_verdict", "phase": "invoke", "verdict": "SKIP_UNSYNTHESIZABLE"}
+{"op": "srmech.biology.genome.graph_to_kernel", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_TypeError"}
+{"op": "srmech.biology.genome.kernel_to_graph", "params": ["chroms"], "pf": "op_verdict", "phase": "invoke", "verdict": "SKIP_UNSYNTHESIZABLE"}
+{"op": "srmech.biology.plasmid.plasmid_extract", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.biology.plasmid.section_counts", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_GenomeBoundingError"}
+{"op": "srmech.biology.plasmid.conserved_core", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.biology.plasmid.genome_integrate_plasmids", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_FileNotFoundError"}
+{"op": "srmech.biology.plasmid.add_plasmid", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.biology.genome.mint_strand", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.biology.genome.genome_partition", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_TypeError"}
+{"op": "srmech.biology.genome.genome_from_graph", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_TypeError"}
+{"op": "srmech.biology.genome.discrete_writhe", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.biology.genome.cwf_consistency_mod2", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.biology.genome.codon_read", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.biology.genome.codon_frame_monodromy", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.biology.genome.genome_fiber_holonomy", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.biology.genome.genome_add_fiber", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_TypeError"}
+{"op": "srmech.biology.genome.genome_read_fiber", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_TypeError"}
+{"op": "srmech.biology.genome.genome_octonion_holonomy", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.biology.genome.genome_octonion_associator", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.biology.genome.split_defect", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.biology.genome.genome_add_octonion_fiber", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_TypeError"}
+{"op": "srmech.biology.genome.genome_read_octonion_fiber", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_TypeError"}
+{"op": "srmech.math.kepler.pin_slot", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.kepler.kepler_solve", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.kepler.equation_of_centre", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.bind", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.bundle", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.math.hdc.permute", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.similarity", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.hamming", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.polar_random", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.polar_bind", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.math.hdc.polar_unbind", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.math.hdc.polar_bundle", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.math.hdc.polar_similarity", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.math.hdc.polar_density", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.math.hdc.polar_from_real", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.klein4_expand", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.klein4_address", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.klein4_role", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.klein4_sector_frame", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.klein4_from_one", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.klein4_bind", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.klein4_unbind", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.klein4_unbundle", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.klein4_bundle", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.klein4_phase_key", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.klein4_phase_bind", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.klein4_chunk_bundle", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.klein4_chunk_resolve", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.math.hdc.klein4_encode_bytes", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.klein4_compose", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.klein4_similarity", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.klein4_match_count", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.klein4_bundle_accumulate", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.klein4_bundle_resolve", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.klein4_bundle_sector_scores", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.cooccurrence_fold", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.klein4_chirality_flip_gamma5", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.klein4_chirality_flip_omega7", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.klein4_cpt_mirror", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.klein4_project_axis", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.klein4_triality_cycle", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.klein4_sector_count", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.klein4_holographic_encode", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.klein4_holographic_decode", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.klein4_triality_encode", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.klein4_triality_correct", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.math.hdc.loop_bind", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.loop_conj", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.loop_inv", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.loop_left_op", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.loop_right_op", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.loop_associator", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.cross7", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.g2_three_form", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.loop_bind_hd", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.loop_unbind_hd", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.loop_conj_hd", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.loop_inv_hd", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.loop_runbind_hd", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.biology.coupling.signed_sum_squared", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.biology.coupling.resonant_spectrum", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.biology.coupling.resonant_spectrum_sparse", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.biology.coupling.from_bodies", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.biology.coupling.fractal_spectrum", "params": ["R"], "pf": "op_verdict", "phase": "invoke", "verdict": "SKIP_UNSYNTHESIZABLE"}
+{"op": "srmech.biology.coupling.fold_encode", "params": ["R"], "pf": "op_verdict", "phase": "invoke", "verdict": "SKIP_UNSYNTHESIZABLE"}
+{"op": "srmech.biology.coupling.fold_spectrum", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.biology.coupling.fold_encode_recoverable", "params": ["R"], "pf": "op_verdict", "phase": "invoke", "verdict": "SKIP_UNSYNTHESIZABLE"}
+{"op": "srmech.biology.coupling.fold_identity", "params": ["a", "b"], "pf": "op_verdict", "phase": "invoke", "verdict": "SKIP_UNSYNTHESIZABLE"}
+{"op": "srmech.apokatastasis.gosper.gosper", "params": ["den", "num"], "pf": "op_verdict", "phase": "invoke", "verdict": "SKIP_UNSYNTHESIZABLE"}
+{"op": "srmech.apokatastasis.zeilberger.zeilberger", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.apokatastasis.wz_certificate.wz_certificate", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.apokatastasis.modular_forms_ring.modular_forms_ring_represent", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.apokatastasis.quasimodular_forms_ring.quasimodular_represent", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.apokatastasis.apagodu_zeilberger.apagodu_zeilberger", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.poly.poly_from_coeffs", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.qpoly.qpoly_from_coeffs", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.qbipoly.qbipoly_from_coeffs", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.apokatastasis.zeilberger.bipoly_from_coeffs", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED_TYPE_UNASSERTABLE"}
+{"op": "srmech.math.tripoly.tripoly_from_coeffs", "params": ["coeffs"], "pf": "op_verdict", "phase": "invoke", "verdict": "SKIP_UNSYNTHESIZABLE"}
+{"op": "srmech.math.carrier_ladder.poly_promote", "params": ["p"], "pf": "op_verdict", "phase": "invoke", "verdict": "SKIP_UNSYNTHESIZABLE"}
+{"op": "srmech.math.carrier_ladder.poly_project", "params": ["p"], "pf": "op_verdict", "phase": "invoke", "verdict": "SKIP_UNSYNTHESIZABLE"}
+{"op": "srmech.math.carrier_ladder.qpoly_promote", "params": ["p"], "pf": "op_verdict", "phase": "invoke", "verdict": "SKIP_UNSYNTHESIZABLE"}
+{"op": "srmech.math.carrier_ladder.qpoly_project", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_TypeError"}
+{"op": "srmech.math.carrier_ladder.carrier_ladder_descriptor", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.introspect.carrier_schema.carrier_schema", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.introspect.responsion_schema.responsion_schema", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.introspect.op_provenance.carry", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.introspect.op_provenance.op_provenance_hash", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.introspect.op_provenance.op_verdict", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.introspect.op_provenance.family_verdict", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.introspect.op_provenance.reproject", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.introspect.op_provenance.lossy_projection_record", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.apokatastasis.q_gosper.q_gosper", "params": ["rn_den", "rn_num"], "pf": "op_verdict", "phase": "invoke", "verdict": "SKIP_UNSYNTHESIZABLE"}
+{"op": "srmech.apokatastasis.q_zeilberger.q_zeilberger", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.apokatastasis.q_wz_certificate.q_wz_certificate", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.apokatastasis.elliptic_gosper.elliptic_gosper", "params": ["r"], "pf": "op_verdict", "phase": "invoke", "verdict": "SKIP_UNSYNTHESIZABLE"}
+{"op": "srmech.apokatastasis.ellbase.half_shift_response", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.apokatastasis.ellbase.chirality_parity", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.apokatastasis.ellbase.beat_relation_residue", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED_TYPE_UNASSERTABLE"}
+{"op": "srmech.apokatastasis.elliptic_recurrence.elliptic_recurrence_8w7", "params": ["r"], "pf": "op_verdict", "phase": "invoke", "verdict": "SKIP_UNSYNTHESIZABLE"}
+{"op": "srmech.apokatastasis.elliptic_zeilberger.elliptic_zeilberger", "params": ["r"], "pf": "op_verdict", "phase": "invoke", "verdict": "SKIP_UNSYNTHESIZABLE"}
+{"op": "srmech.apokatastasis.elliptic_wz_certificate.elliptic_wz_certificate", "params": ["r"], "pf": "op_verdict", "phase": "invoke", "verdict": "SKIP_UNSYNTHESIZABLE"}
+{"op": "srmech.apokatastasis.elliptic_determinant.elliptic_cauchy_determinant", "params": ["t", "xs", "ys"], "pf": "op_verdict", "phase": "invoke", "verdict": "SKIP_UNSYNTHESIZABLE"}
+{"op": "srmech.apokatastasis.elliptic_partial_fraction.elliptic_partial_fraction", "params": ["x", "ys", "zs"], "pf": "op_verdict", "phase": "invoke", "verdict": "SKIP_UNSYNTHESIZABLE"}
+{"op": "srmech.apokatastasis.elliptic_jackson.multivariate_elliptic_jackson", "params": ["a", "b", "c", "d", "q", "x"], "pf": "op_verdict", "phase": "invoke", "verdict": "SKIP_UNSYNTHESIZABLE"}
+{"op": "srmech.apokatastasis.elliptic_jackson.cn_vwp_multisum_lhs", "params": ["a", "b", "c", "d", "q", "x"], "pf": "op_verdict", "phase": "invoke", "verdict": "SKIP_UNSYNTHESIZABLE"}
+{"op": "srmech.apokatastasis.elliptic_jackson_an.multivariate_elliptic_jackson_an", "params": ["q"], "pf": "op_verdict", "phase": "invoke", "verdict": "SKIP_UNSYNTHESIZABLE"}
+{"op": "srmech.apokatastasis.elliptic_jackson_an.an_vwp_multisum_lhs", "params": ["q"], "pf": "op_verdict", "phase": "invoke", "verdict": "SKIP_UNSYNTHESIZABLE"}
+{"op": "srmech.apokatastasis.riemann_theta_multisum.multivariate_riemann_theta_sum", "params": ["points"], "pf": "op_verdict", "phase": "invoke", "verdict": "SKIP_UNSYNTHESIZABLE"}
+{"op": "srmech.apokatastasis.riemann_theta_multisum.riemann_theta_multisum_lhs", "params": ["points"], "pf": "op_verdict", "phase": "invoke", "verdict": "SKIP_UNSYNTHESIZABLE"}
+{"op": "srmech.math.dispatch.infer", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.carrier_spectrum.carrier_spectrum", "params": ["r"], "pf": "op_verdict", "phase": "invoke", "verdict": "SKIP_UNSYNTHESIZABLE"}
+{"op": "srmech.apokatastasis.unary_theta.unary_theta", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_TypeError"}
+{"op": "srmech.apokatastasis.unary_theta.theta_coefficients", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.apokatastasis.harmonic_maass.harmonic_maass", "params": ["hol"], "pf": "op_verdict", "phase": "invoke", "verdict": "SKIP_UNSYNTHESIZABLE"}
+{"op": "srmech.cascade.pin_slot_at_zero", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.reorient", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED_TYPE_UNASSERTABLE"}
+{"op": "srmech.cascade.magnitude", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.best_rational_signed", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.cyclic_gcd", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.cyclic_mod_mul", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.cyclic_mod_add", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.cyclic_mod_pow", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.cyclic_mod_inv", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.cyclic_mod_mul_wide", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.seq_len", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.seq_get", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED_TYPE_UNASSERTABLE"}
+{"op": "srmech.cascade.pair", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.str_concat", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.utf8_encode", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.byte_slice", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.int_parse_le", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.f64_add", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.vec_add", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.vec_scale", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.dead_band", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED_TYPE_UNASSERTABLE"}
+{"op": "srmech.cascade.orientation_compose", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.compensated_sum", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.correlation_product", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.kuramoto_inv_n", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.kuramoto_sin_term", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.kuramoto_out_simple", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.kuramoto_gen_term", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.kuramoto_gen_out", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.as_quat4", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.as_oct8", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.qdft_resolve_mu", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.odft_resolve_mu", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.dft_sigma", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.dft_scale", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.qdft_summand", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.odft_summand", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.kuramoto_step", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.autocorrelation", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.quaternion_dft", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_TypeError"}
+{"op": "srmech.cascade.octonion_dft", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_TypeError"}
+{"op": "srmech.cascade.phase_coherent_peak", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.hypercomplex_couple", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.hypercomplex_exp", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.hamming_encode", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.hamming_syndrome", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.hamming_decode_correct", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.cd_mult", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.cascade.cd_conjugate", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.cascade.cd_norm_sq", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.cascade.cd_basis_product", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.cascade.inertia_signature", "params": ["table"], "pf": "op_verdict", "phase": "invoke", "verdict": "SKIP_UNSYNTHESIZABLE"}
+{"op": "srmech.cascade.algebra_table", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.table_product", "params": ["table"], "pf": "op_verdict", "phase": "invoke", "verdict": "SKIP_UNSYNTHESIZABLE"}
+{"op": "srmech.cascade.associator", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.cascade.cd_commutator", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.cascade.cd_cycle_holonomy", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.cascade.cd_three_form", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.cascade.flip_pair", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.group_algebra_table", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.defect_ladder", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.cascade.octonion_frame_read", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.moufang_residue", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.cascade.is_moufang", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.malcev_defect", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.cascade.unit_loop", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.loop_invariants", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.cyclic.mod_mul_arrow", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.finite_semiflow", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.conjugacy_census", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.reversal_law_census", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.anti_automorphism_witnesses", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.dihedral_group", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.jordan_product", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.cascade.cayley_plane_point", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.cascade.cayley_plane_incidence", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.cascade.octonion_hopf_base", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.math.laplacian.generalized_ngon", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.biology.q8.q8_mult", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.biology.q8.q8_conjugate", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.biology.q8.q8_bind", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.biology.q8.q8_project_v4", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.biology.q8.q8_from_one", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.octonion.oct_mult", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.octonion.oct_conjugate", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.octonion.oct_bind", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.math.octonion.oct_torsor_act", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.octonion.oct_torsor_div", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.cd_promote", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.cascade.cd_project", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.cascade.cd_zero_divisor_witness", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.cd_zero_divisor_witnesses", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.left_mult_kernel", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.cascade.left_mult_is_invertible", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.cascade.is_division_algebra_dim", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.sedenion_register", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED_TYPE_UNASSERTABLE"}
+{"op": "srmech.cascade.cd_register", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED_TYPE_UNASSERTABLE"}
+{"op": "srmech.cascade.cd_navmap", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.cascade.cd_navigate", "params": ["signs", "slots"], "pf": "op_verdict", "phase": "invoke", "verdict": "SKIP_UNSYNTHESIZABLE"}
+{"op": "srmech.cascade.cd_navmap_is_signed_permutation", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.cd_couple_working", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.cd_uncouple_working", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.cd_carry", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.cascade.cd_correct", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.cascade.signed_sum_squared", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_TypeError"}
+{"op": "srmech.cascade.top_k_by_score", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.hdc.bundle_with_ties", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_TypeError"}
+{"op": "srmech.cascade.the_one", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED_TYPE_UNASSERTABLE"}
+{"op": "srmech.cascade.winding_fold", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.frame_carrier.frame_carrier", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.cascade.frame_carrier.frame_carrier_compare", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.cascade.chiral_flip", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED_TYPE_UNASSERTABLE"}
+{"op": "srmech.cascade.chiral_dual", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED_TYPE_UNASSERTABLE"}
+{"op": "srmech.cascade.net_chirality", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.parallel_sector_dispatch", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.coupled.coupled_wave", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.cascade.coupled.multiplex_streams", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_TypeError"}
+{"op": "srmech.spectral.decompose", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.spectral.delta", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.spectral.recompose", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.spectral.similarity", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.spectral.predict", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.spectral.prediction_error", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.spectral.truncate_sparse", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.physics.qm.single_particle.tdse_evolve", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.single_particle.tise_solve", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.single_particle.commutator", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.single_particle.heisenberg_evolve", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.single_particle.lattice_momentum", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.physics.qm.single_particle.clock_operator", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.single_particle.shift_operator", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.single_particle.density_matrix", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.single_particle.liouville_evolve", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.spin.pauli_matrices", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.spin.pauli_identity", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.spin.pauli_clifford_residuals", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.spin.pauli_spin_operator", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.bell.chsh_pauli_combination", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.bell.chsh_operator", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.bell.operator_norm", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.bell.chsh_pauli_combination_norm", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.bell.chsh_operator_norm", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.bell.tsirelson_bound", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.bell.classical_chsh_bound", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.bell.verify_chsh", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.potentials.hydrogen_radial", "pf": "op_verdict", "phase": "invoke", "verdict": "INVOKE_TIMEOUT"}
+{"op": "srmech.physics.qm.potentials.harmonic_oscillator_ladder", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.potentials.harmonic_oscillator_hamiltonian", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.relativistic.minkowski_metric", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.relativistic.gamma_matrices", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.relativistic.gamma_5", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.relativistic.clifford_residuals", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.relativistic.weyl_left_projector", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.relativistic.weyl_right_projector", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.relativistic.charge_conjugation_matrix", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.relativistic.dirac_operator_momentum_space", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.physics.qm.relativistic.klein_gordon_dispersion", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.physics.qm.relativistic.four_momentum_squared", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.physics.qm.propagators.feynman_scalar_propagator", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.physics.qm.propagators.feynman_fermion_propagator", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.physics.qm.propagators.feynman_photon_propagator", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.propagators.feynman_massive_vector_propagator", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.physics.qm.pseudo_hermitian.inner_product_eta", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.pseudo_hermitian.expectation_eta", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.pseudo_hermitian.is_pseudo_hermitian", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.pseudo_hermitian.construct_eta_from_eigendecomposition", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ZeroDivisionError"}
+{"op": "srmech.physics.qm.pseudo_hermitian.pseudo_hermitian_eigenvalues_real", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.gauge.su2_generators", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.gauge.su2_structure_constants", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.gauge.su3_gell_mann_matrices", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.gauge.su3_generators", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.gauge.su3_structure_constants", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.gauge.lie_algebra_residual", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.physics.qm.gauge.casimir_operator", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_AssertionError"}
+{"op": "srmech.physics.qm.gauge.casimir_eigenvalue", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_AssertionError"}
+{"op": "srmech.physics.qm.gauge.gauge_connection_matrix", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.physics.qm.gauge.gauge_path_segment", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.physics.qm.gauge.wilson_loop_from_segments", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.physics.qm.sm.higgs_potential", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.sm.higgs_vev", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.sm.weak_mixing_angle", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.sm.w_boson_mass", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.sm.z_boson_mass", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.sm.weinberg_relation_residual", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.sm.electroweak_summary", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.sm.fermion_mass_from_yukawa", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.sm.ckm_matrix", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.sm.ckm_unitarity_residual", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.octonion.octonion_mult_table", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.octonion.octonion_table_attestation", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.octonion.octonion_left_mult", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.octonion.octonion_right_mult", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.octonion.octonion_conjugate", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.octonion.octonion_norm", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.octonion.octonion_exp", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.octonion.octonion_exp_series_truncate", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.octonion.octonion_twiddle", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.quaternion.quaternion_mult_table", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.quaternion.quaternion_table_attestation", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.quaternion.quaternion_left_mult", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.quaternion.quaternion_right_mult", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.quaternion.quaternion_conjugate", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.quaternion.quaternion_norm", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.quaternion.quaternion_exp", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.quaternion.quaternion_log", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.physics.qm.quaternion.quaternion_slerp", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.physics.qm.quaternion.quaternion_exp_series_truncate", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.quaternion.quaternion_twiddle", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.quaternion.quaternion_cycle_holonomy", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.hurwitz.hurwitz_planes", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.so8.so8_adjoint_basis", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.so8.g2_subalgebra", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.so8.so7_subalgebra", "pf": "op_verdict", "phase": "invoke", "verdict": "INVOKE_TIMEOUT"}
+{"op": "srmech.physics.qm.so8.an_embedding", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.so8.quaternion_subalgebra_stabilizer", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.triality.triality_automorphism", "pf": "op_verdict", "phase": "invoke", "verdict": "INVOKE_TIMEOUT"}
+{"op": "srmech.physics.qm.triality.triality_swap", "pf": "op_verdict", "phase": "invoke", "verdict": "INVOKE_TIMEOUT"}
+{"op": "srmech.physics.qm.triality.triality_cycle", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.triality.triality_apply", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.triality.triality_companions", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.physics.qm.triality.triality_relation_residual", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.physics.qm.triality.lean_isa_seventh_primitive", "pf": "op_verdict", "phase": "invoke", "verdict": "INVOKE_TIMEOUT"}
+{"op": "srmech.physics.qm.triality.spin8_center", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.triality.triality_rep_dictionary", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.covering.center_parity", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.covering.center_lift", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.covering.lift_fibre", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.covering.linking_number_cwf", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.math.covering.covering_catalog", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.so9.so9_adjoint_basis", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.so9.spin9_gamma_matrices", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.so9.spin9_spinor_generators", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.so9.spin8_in_spin9_branching", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.physics.qm.so9.sedenion_holonomy_conjecture", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.introspect.list", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.introspect.by_pid", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.introspect.describe", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.introspect.search.search", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.introspect.tool_schema.get_tool_schema", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED_TYPE_UNASSERTABLE"}
+{"op": "srmech.introspect.tool_schema.tool_schema_view", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.dsl.run_toml_chain", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED_TYPE_UNASSERTABLE"}
+{"op": "srmech.dsl.list_catalog_ops", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.dsl.run_cascade_chain", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_KeyError"}
+{"op": "srmech.dsl.list_ops", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.dsl.list_class_surface", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.dsl.describe_class", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.dsl.generate_class_descriptor", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.rbs_lm.encode_aboutness", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.signal_processing.cascade_dispatcher.dispatch", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_UnknownOperationError"}
+{"op": "srmech.signal_processing.cascade_dispatcher.end_cascade", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED_TYPE_UNASSERTABLE"}
+{"op": "srmech.signal_processing.cascade_dispatcher.resolve_path", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.signal_processing.cascade_dispatcher.is_dispatch_table_locked", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.signal_processing.path_registry.has_path", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.signal_processing.path_registry.registered_ops", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED_TYPE_UNASSERTABLE"}
+{"op": "srmech.signal_processing.music_doa", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.signal_processing.dct", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.signal_processing.stft", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.signal_processing.spectrogram", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.signal_processing.cross_spectral", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.signal_processing.multitaper", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.signal_processing.rfft", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.signal_processing.wavelet", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.signal_processing.fir", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.signal_processing.iir", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.signal_processing.allpass", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.signal_processing.matched_filter", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.signal_processing.wiener", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.signal_processing.sign_quantise", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.signal_processing.heat_kernel", "params": ["laplacian"], "pf": "op_verdict", "phase": "invoke", "verdict": "SKIP_UNSYNTHESIZABLE"}
+{"op": "srmech.signal_processing.spectral_subtraction", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.signal_processing.huffman", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.signal_processing.arithmetic_coding", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.signal_processing.lz77", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.signal_processing.rle", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.signal_processing.jpeg", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.signal_processing.hdc_truncation", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.signal_processing.vector_quantisation", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.signal_processing.psk_qam", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.signal_processing.fsk", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.signal_processing.ofdm", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_ValueError"}
+{"op": "srmech.signal_processing.mimo_svd", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.signal_processing.viterbi", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.signal_processing.mlse", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.signal_processing.multirate", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.signal_processing.polyphase", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.signal_processing.farrow", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.signal_processing.sinc_interp", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.signal_processing.beamforming_fixed", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.signal_processing.esprit", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.signal_processing.ica_jade", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.signal_processing.lmmse", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.signal_processing.map_ml", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.music.spectrum_tier", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.music.commensurability_verdict", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.music.common_period", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.music.bell_partials", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.music.equal_temperament_partials", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.music.stiff_string_partials", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.music.membrane_partials", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.music.bessel_j_fixed", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.music.bessel_zero_fixed", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.music.just_limit", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.music.comma_of_chain", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.music.tempers_out", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.music.interval_vector", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.music.normal_order", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.music.prime_form", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.chemistry.balance_reaction", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.chemistry.conservation_laws", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.chemistry.deficiency", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.chemistry.parse_formula", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.bus.decode_splice", "pf": "op_verdict", "phase": "invoke", "verdict": "TOLERATED_BioTotpFormatError"}
+{"op": "srmech.bus.list_endpoints", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"op": "srmech.bus.by_name", "pf": "op_verdict", "phase": "invoke", "verdict": "RETURNED"}
+{"failed": 617, "mutation": "CONTROL_binding_TypeError", "passed": 0, "pf": "PF2_vacuity", "phase": "vacuity", "skipped": 34}
+{"failed": 0, "mutation": "MUTATION_every_op_rejects", "passed": 617, "pf": "PF2_vacuity", "phase": "vacuity", "skipped": 34}
+{"control_failed": 617, "mutation_failed": 0, "pf": "PF2_vacuity", "phase": "vacuity", "stage": "verdict", "verdict": "CONFIRMED_gate_passes_under_universal_rejection"}
+{"coverage": {"FULL": {"n": 259, "pct": 98.5, "returned": 255}, "NONE": {"n": 275, "pct": 46.9, "returned": 129}, "PARTIAL": {"n": 46, "pct": 52.2, "returned": 24}}, "finding": "value is concentrated in FULL tuples; PARTIAL (52.2%) barely beats NONE (46.9%), so a per-PARAM map buys almost nothing", "pf": "PF6", "phase": "summary", "stage": "summary"}
+{"finding": "a valid instance was OBSERVED and dropped for these params; the ledger carries the NAME but not a constructor", "ledger_statuses": {"needs_subprocess": 4, "no_jsonable_arg": 103, "no_returning_call": 83, "no_worked_snippet": 85, "ok": 379, "timeout": 1}, "pf": "PF7", "phase": "summary", "stage": "summary", "unserializable_params": 225}
+{"by_class": {"FREE_TEXT": {"n": 18, "returned": 18}, "NAME_ACCEPTED": {"n": 3, "returned": 3}, "OPAQUE_REJECT": {"n": 19, "returned": 0}, "PATH": {"n": 26, "returned": 1}, "SELECTOR": {"n": 14, "returned": 9}, "SELECTOR_UNCONFIRMED": {"n": 1, "returned": 0}}, "finding": "four distinct treatments, not one supply: FREE_TEXT 100% return, SELECTOR 64%, PATH 4%, OPAQUE_REJECT 0%", "pf": "PF3", "phase": "summary", "stage": "summary"}
