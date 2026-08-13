@@ -3161,6 +3161,38 @@ def _lll_gso(b: List[List[int]], m: int, n: int):
     return mu, B
 
 
+def _lll_check_basis(basis):
+    """Shape guard for ``lll_reduce``'s ``basis`` -- returns the rows as a list.
+
+    Through rc430 ``basis`` was NOT guarded at all: both the pure body and the
+    ctypes wrapper opened with ``[[int(x) for x in row] for row in basis]``, so a
+    non-iterable ``basis`` (``lll_reduce(5)``) or a non-iterable ROW
+    (``lll_reduce([1, 2])``) escaped as a bare ``TypeError: 'int' object is not
+    iterable`` carrying no op name -- while the sibling equal-length check four
+    lines further down already raised a house-style ``ValueError``. Same
+    function, same defect class, two different exception types; ``ValueError``
+    is the consistent one and the one the docstring promises.
+
+    This lives at the PUBLIC front door rather than in ``_lll_reduce_pure``
+    because ``lll_reduce_c`` performs the same coercion before any pure code
+    runs, so a guard on the pure side alone would leave the native arm raising
+    ``TypeError`` -- the two projections are co-equal and must refuse
+    identically. ``lll_reduce([]) -> []`` is unchanged: the empty lattice is
+    degenerate-empty, not malformed.
+    """
+    if isinstance(basis, (str, bytes)) or not hasattr(basis, "__iter__"):
+        raise ValueError(
+            f"lll_reduce: basis must be a sequence of equal-length integer "
+            f"sequences; got {type(basis).__name__}")
+    rows = list(basis)
+    for idx, row in enumerate(rows):
+        if isinstance(row, (str, bytes)) or not hasattr(row, "__iter__"):
+            raise ValueError(
+                f"lll_reduce: basis must be a sequence of equal-length integer "
+                f"sequences; row {idx} is {type(row).__name__}")
+    return rows
+
+
 def _lll_reduce_pure(basis, delta):
     """Pure exact-ℚ LLL body — the complete, native-independent alternative AND
     the byte-identity parity oracle for the C peer. See :func:`lll_reduce`.
@@ -3179,7 +3211,7 @@ def _lll_reduce_pure(basis, delta):
     if dd <= 0 or not (dn * 4 > dd and dn <= dd):
         raise ValueError(
             f"lll_reduce: delta {dn}/{dd} must lie in (1/4, 1]")
-    b = [[int(x) for x in row] for row in basis]
+    b = [[int(x) for x in row] for row in _lll_check_basis(basis)]
     m = len(b)
     if m == 0:
         return []
@@ -3290,9 +3322,11 @@ def lll_reduce(basis, delta=(3, 4)):
     in H. Cohen, *A Course in Computational Algebraic Number Theory* (1993),
     Algorithm 2.6.3.
 
-    :raises ValueError: if ``delta ∉ (1/4, 1]``, rows are ragged, or the basis is
-        linearly dependent (degenerate — ``‖b*_j‖²`` vanished).
+    :raises ValueError: if ``delta ∉ (1/4, 1]``, rows are ragged, ``basis`` is
+        not a sequence of sequences, or the basis is linearly dependent
+        (degenerate — ``‖b*_j‖²`` vanished).
     """
+    _lll_check_basis(basis)     # co-equal shape guard, ahead of BOTH arms
     native = _native.lll_reduce_c(basis, delta) if _native.HAS_NATIVE else None
     if native is not None:
         return native

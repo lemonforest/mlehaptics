@@ -107,11 +107,49 @@ def op(
     -------
     list
         Filtered output; numpy-free (#564).
+
+    Raises
+    ------
+    ValueError
+        A non-1-D ``signal``; an empty ``b`` or ``a``; ``a[0] == 0``; or a
+        ``biquad_sections`` entry that is not 6 coefficients.
+
+    Notes
+    -----
+    The ``b`` / ``a`` domain guard below states the SAME predicate the C peer
+    ``srmech_iir_lfilter_f64`` already enforces (``srmech_iir.c``: ``nb == 0 ||
+    na == 0`` -> ``SRMECH_ERR_NULL_ARG``, ``a0 == 0.0`` -> ``SRMECH_ERR_BAD_INPUT``).
+    Through rc430 that guard was DEAD through the Python front door: the ctypes
+    wrapper re-stated the predicate and returned ``None``, which ``op`` reads as
+    *"native absent"*, so the pure body ran instead -- and for ``b == []`` the
+    pure body RETURNED ``[0.0] * len(signal)`` by zero-padding to ``len(a)``,
+    answering an input the co-equal C projection calls invalid (``na == 0`` and
+    ``a[0] == 0`` escaped as a raw ``IndexError`` / ``ZeroDivisionError`` from
+    inside ``_lfilter_direct``). Python moves to C here, never the reverse: C is
+    the already-shipped, stricter, correct contract, and the capability is the
+    invariant across co-equal projections
+    (``[[user_stance_srmech_is_multi_implementation_not_python_with_c_accel]]``).
+    Guarding at ``op`` is sufficient AND necessary: the only other caller of
+    ``_lfilter_direct`` is the biquad branch below, which always passes
+    ``section[:3]`` / ``section[3:]`` of a length-6 section, so a second guard
+    inside ``_lfilter_direct`` would be a second unreachable one.
     """
     try:
         sig = [float(x) for x in signal]
     except TypeError as exc:  # nested sequence -> not 1-D
         raise ValueError("iir expects a 1-D real signal") from exc
+
+    if biquad_sections is None:
+        b = list(b)
+        a = list(a)
+        if len(b) == 0 or len(a) == 0:
+            raise ValueError(
+                f"iir: b and a must be non-empty coefficient sequences; got "
+                f"len(b)={len(b)}, len(a)={len(a)}")
+        if a[0] == 0:
+            raise ValueError(
+                "iir: a[0] must be non-zero -- a[0] == 0 is not a valid "
+                "recursion (the difference equation divides by it)")
 
     from srmech import _native
 
