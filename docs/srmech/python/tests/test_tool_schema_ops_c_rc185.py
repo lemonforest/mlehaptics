@@ -107,6 +107,15 @@ def _schema_from_jsonable(d: dict) -> ToolSchema:
             # reconstructing a valid-looking entry.
             reads_lane=t.get("reads_lane"),
             reads_input=tuple(t.get("reads_input", ())),
+            # rc430 (`#T1127`): the frame axis — same key-omission contract as
+            # the lane pair above, and read for the same reason. This helper is
+            # the one place a NEW ToolEntry field is caught by round-trip
+            # rather than by byte comparison: the canonical JSON was already
+            # byte-identical across Python and C, and this still failed,
+            # because a reconstruction that silently drops a field rebuilds a
+            # valid-LOOKING entry that is not the one it parsed.
+            frame_scope=t.get("frame_scope"),
+            frame_axis=tuple(t.get("frame_axis", ())),
         ))
     return ToolSchema(
         srmech_version=d["srmech_version"],

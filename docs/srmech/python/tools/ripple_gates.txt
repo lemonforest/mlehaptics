@@ -252,6 +252,31 @@ tests/test_op_name_set_witness_rc361.py
 #    visible on the fast surface instead of in CI. Whole file, pure-Python.
 tests/test_owner_axis_rc410.py
 
+# -- frame axis: declared-vs-measured + declared==admissible (rc430, `#T1127`)
+#    A new ToolEntry FIELD, so it moves the same four generated artifacts every
+#    `reads_lane` change moves -- and unlike rc347's lane gate it does not just
+#    check the ops that DECLARED. It derives the admissible set behaviourally
+#    over every op the argument provider can drive and asserts set equality in
+#    BOTH directions, so REGISTERING A NEW OP can take it red without touching
+#    a declaration: an op that is behaviourally frame-admissible and declares
+#    nothing fails §4. That is the point (`reads_lane` reached 9 of 655 ops in
+#    82 rcs by being opt-in), and it is also exactly the shape that belongs on
+#    the fast surface rather than in CI. Carries CEIL_FRAME_UNADJUDICATED.
+#    ~2 min, pure-Python, no native .so.
+tests/test_frame_scope_rc430.py
+
+# -- synthesised-argument provenance / `#T1094` (rc430) ----------------------
+#    Guards the every-tool smoke's ARGUMENTS, which are derived from the live
+#    ToolEntry set: a new op with an undeclared param type moves the
+#    UNSYNTHESIZABLE ceiling, and a new op with a path-shaped param moves the
+#    sandbox ceiling. It also re-checks that no synthesised path can write into
+#    the package tree, which is the defect (`#T1094`) that shipped a stray file
+#    named `a` for ~400 rcs. Depends on tests/example_args_ledger.ndjson and
+#    asserts that ledger is FRESH against the live schema, so an rc that edits
+#    any worked example takes it red until the ledger is re-run
+#    (`python3 tools/run_example_args.py --only-stale`). ~10 s, pure-Python.
+tests/test_synth_args_provenance_rc430.py
+
 # -- citation-contains-term (rc428, `#T1126`) --------------------------------
 #    The literature-citation gate. It rides here for a reason the other entries
 #    do not share: it does not move on op COUNT, it moves on op PROSE. Its

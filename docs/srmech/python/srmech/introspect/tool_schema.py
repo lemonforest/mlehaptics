@@ -241,6 +241,58 @@ LANE_INPUTS: Dict[str, str] = {
         "not claimed as the same object"),
 }
 
+# ── rc430 (`#T1127`) — the FRAME axis ─────────────────────────────────
+# An op that reduces modulo something is working in a FRAME. The question this
+# axis answers is not "what is the frame" but "is the frame an INPUT, or is it
+# WELDED INTO THE OP" — because a consumer composing two ops needs to know
+# whether it may choose the frame or must accept one it cannot see.
+#
+# The distinction is BEHAVIOURAL, never name-derived. Measured at rc430: 67 ops
+# take an int parameter from the modulus name-family (`n`, `mod`, `modulus`,
+# `period`, `order`) and MOST OF THEM ARE NOT FRAMES — `is_prime(n)`,
+# `factor(n)`, `dense_laplacian(n=|V|)`, `cooccurrence_edges(window)`. A
+# name-derived roster would force a false declaration on roughly 58 ops, which
+# is worse than declaring nothing: a wrong constraint makes a consumer
+# synthesize a confidently invalid argument.
+
+#: The closed frame-scope vocabulary. Not free text — an unknown scope is a
+#: registration error, exactly as an unknown lane is in :data:`LANES`.
+#:
+#: There is deliberately NO ``"free"`` value. An op that accepts no frame datum
+#: at all cannot be CONTRADICTED on one, so by the same admission rule that
+#: governs `reads_lane` it declares nothing. ``just_limit`` (genuinely
+#: carrier-level: ℚ⁺, no modulus anywhere) and ``sha256_bytes`` (no frame
+#: concept whatever) are therefore BOTH ``None``, and this field cannot tell
+#: them apart. That is a real blind spot, stated rather than papered over —
+#: see :attr:`ToolEntry.frame_scope`.
+FRAME_SCOPES: Dict[str, str] = {
+    "parametric": (
+        "the frame datum is an INPUT: sweeping that parameter MOVES the "
+        "output, the output is invariant under translating a frame-carrying "
+        "input by THAT parameter's value, and no single constant period "
+        "survives the sweep. The consumer chooses the frame"),
+    "fixed": (
+        "the frame datum is NOT an input: the output is invariant under "
+        "translating a frame-carrying input by a CONSTANT period, which is "
+        "the behavioural witness that the frame is welded in. The consumer "
+        "inherits a frame it cannot see and cannot change"),
+}
+
+#: WHAT the frame datum is. A separate axis from the scope, for the same
+#: reason `reads_input` is separate from `reads_lane`: two ops can share a
+#: scope while the thing welded in (or exposed) is a different object.
+FRAME_AXES: Dict[str, str] = {
+    "modulus": (
+        "the cyclic order the op reduces by — the size of the carrier its "
+        "arithmetic closes over"),
+    "generator": (
+        "the step the op advances the frame coordinate by. Decidable ONLY "
+        "for ops AFFINE in that coordinate (a constant first difference IS "
+        "the generator); a non-affine op that hard-wires a generator stays "
+        "undeclarable and is counted in the residual ceiling. This axis "
+        "NARROWS the rc427 G3b blind spot, it does not close it"),
+}
+
 
 # ──────────────────────────────────────────────────────────────────────
 # Data shape
@@ -348,13 +400,47 @@ class ToolEntry:
     #: whenever it is not — a lane with no input is half a declaration.
     #: C-mirrored (``srmech_tool_entry_t.reads_input``).
     reads_input: Tuple[str, ...] = ()
+    #: v0.9.0rc430 (`#T1127`) — the FRAME axis: is the frame this op reduces
+    #: in an INPUT (:data:`FRAME_SCOPES` ``"parametric"``) or WELDED IN
+    #: (``"fixed"``)? ``None`` when the op declares no frame, which is the
+    #: correct default and the honest one for most of the surface.
+    #:
+    #: TWO BLIND SPOTS, both real, both stated here rather than discovered by
+    #: a consumer:
+    #:
+    #: 1. **It cannot distinguish FRAME-FREE from NO-FRAME.** ``just_limit``
+    #:    (carrier-level ℚ⁺, no modulus) and ``sha256_bytes`` (no frame
+    #:    concept at all) are both ``None``, because neither can be perturbed
+    #:    on a frame axis and a declaration no measurement can contradict is
+    #:    the exact defect this field's ratchet exists to prevent. rc426's
+    #:    reading of ``just_limit`` as a chart is therefore DISSOLVED, not
+    #:    corrected — the op makes no claim on this axis.
+    #: 2. **The generator axis is NARROWED, not closed.** It is decidable only
+    #:    for ops affine in the frame coordinate; a non-affine op that
+    #:    hard-wires a generator remains undeclarable and is counted in the
+    #:    ratchet's residual ceiling.
+    #:
+    #: Verified executably by ``tests/test_frame_scope_rc430.py``, which
+    #: sweeps every declaring op over a modulus set and a frame-coordinate set
+    #: and fails the build on a mismatch — and which derives the ADMISSIBLE
+    #: set behaviourally and asserts it EQUALS the declared set in both
+    #: directions, so a declaration cannot escape by not opting in.
+    #: C-mirrored (``srmech_tool_entry_t.frame_scope``).
+    frame_scope: Optional[str] = None
+    #: v0.9.0rc430 (`#T1127`) — WHAT the frame datum is, drawn from
+    #: :data:`FRAME_AXES`. A tuple because an op can expose a modulus while
+    #: welding in a generator. Empty iff ``frame_scope`` is ``None``; non-empty
+    #: whenever it is not — a scope with no axis is half a declaration.
+    #: C-mirrored (``srmech_tool_entry_t.frame_axis``).
+    frame_axis: Tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
-        """Reject a malformed lane declaration AT REGISTRATION.
+        """Reject a malformed lane / frame declaration AT REGISTRATION.
 
         A closed vocabulary is only closed if something closes it. Both halves
         must be present together: a lane with no input names a behaviour with
         no subject, and an input with no lane names a subject with no claim.
+        The frame axis carries the identical rule for the identical reason.
         """
         if self.reads_lane is not None and self.reads_lane not in LANES:
             raise ToolSchemaValidationError(
@@ -371,6 +457,22 @@ class ToolEntry:
                 f"{self.name}: reads_lane and reads_input must be declared "
                 f"together or not at all; got reads_lane="
                 f"{self.reads_lane!r}, reads_input={self.reads_input!r}")
+        # rc430 (`#T1127`): the frame axis, same three rules.
+        if self.frame_scope is not None and self.frame_scope not in FRAME_SCOPES:
+            raise ToolSchemaValidationError(
+                f"{self.name}: frame_scope {self.frame_scope!r} is not in "
+                f"FRAME_SCOPES ({sorted(FRAME_SCOPES)}) — a scope must be one "
+                f"a perturbation can contradict")
+        for axis in self.frame_axis:
+            if axis not in FRAME_AXES:
+                raise ToolSchemaValidationError(
+                    f"{self.name}: frame_axis {axis!r} is not in FRAME_AXES "
+                    f"({sorted(FRAME_AXES)})")
+        if (self.frame_scope is None) != (not self.frame_axis):
+            raise ToolSchemaValidationError(
+                f"{self.name}: frame_scope and frame_axis must be declared "
+                f"together or not at all; got frame_scope="
+                f"{self.frame_scope!r}, frame_axis={self.frame_axis!r}")
 
     def to_jsonable(self) -> Dict[str, Any]:
         """Render as a JSON-serialisable dict. Used by
@@ -408,6 +510,16 @@ class ToolEntry:
         if self.reads_lane is not None:
             out["reads_input"] = list(self.reads_input)
             out["reads_lane"] = self.reads_lane
+        # rc430 (`#T1127`): the frame axis. Optional keys, omitted when the op
+        # declares no frame — the same key-omission the C serialiser mirrors
+        # (ts_emit_frame), so the byte-identity contract holds. Under
+        # sort_keys=True both land between "explanation" and "mcp_callable",
+        # which is where ts_emit_frame is called from; the insertion order
+        # here is irrelevant to the hash and follows the append-optionals
+        # style of the block above.
+        if self.frame_scope is not None:
+            out["frame_axis"] = list(self.frame_axis)
+            out["frame_scope"] = self.frame_scope
         return out
 
 
@@ -1107,6 +1219,9 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.math.cyclic.mod_add", owner="srmech", category="cyclic",
+            # rc430 (`#T1127`) — the FRAME axis, DERIVED behaviourally and
+            # verified executably by tests/test_frame_scope_rc430.py.
+            frame_scope="parametric", frame_axis=("modulus",),
             summary="(a + b) mod n — overflow-safe modular addition.",
             parameters=(P("a", "int", True), P("b", "int", True),
                         P("n", "int", True, "modulus > 0")),
@@ -1114,6 +1229,9 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.math.cyclic.mod_mul", owner="srmech", category="cyclic",
+            # rc430 (`#T1127`) — the FRAME axis, DERIVED behaviourally and
+            # verified executably by tests/test_frame_scope_rc430.py.
+            frame_scope="parametric", frame_axis=("modulus",),
             summary="Modular multiply — (a * b) mod n — overflow-safe via "
                     "russian-peasant doubling; portable across platforms "
                     "without __int128. Capped at uint64; use mod_mul_wide for "
@@ -1124,6 +1242,9 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.math.cyclic.mod_pow", owner="srmech", category="cyclic",
+            # rc430 (`#T1127`) — the FRAME axis, DERIVED behaviourally and
+            # verified executably by tests/test_frame_scope_rc430.py.
+            frame_scope="parametric", frame_axis=("modulus",),
             summary="Modular exponentiation — (a ** k) mod n — via "
                     "square-and-multiply. Bounded by uint64.",
             parameters=(P("a", "int", True), P("k", "int", True),
@@ -1151,6 +1272,9 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.math.cyclic.mod_mul_wide", owner="srmech",
+            # rc430 (`#T1127`) — the FRAME axis, DERIVED behaviourally and
+            # verified executably by tests/test_frame_scope_rc430.py.
+            frame_scope="parametric", frame_axis=("modulus",),
             category="cyclic",
             summary="Wide modular multiply — (a * b) mod n with NO uint64 cap "
                     "(the 128-bit-capable modular multiply). Routes the "
@@ -2981,6 +3105,9 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.math.cyclic.three_cycle", owner="srmech", category="cyclic",
+            # rc430 (`#T1127`) — the FRAME axis, DERIVED behaviourally and
+            # verified executably by tests/test_frame_scope_rc430.py.
+            frame_scope="fixed", frame_axis=("modulus",),
             summary="Harmonic-3 Z/3 cyclic shift (F150): (value+1)%3 on {0,1,2}; "
                     "period-3 order-3 generator. Companion to the modular ops.",
             parameters=(P("value", "int", True, "any non-negative int; read mod 3"),),
@@ -3145,6 +3272,9 @@ def _register_primitive_class_tools() -> None:
         # ────────────────────────────────────────────────────────────
         ToolEntry(
             name="srmech.math.rational.rational_reconstruct", owner="srmech",
+            # rc430 (`#T1127`) — the FRAME axis, DERIVED behaviourally and
+            # verified executably by tests/test_frame_scope_rc430.py.
+            frame_scope="parametric", frame_axis=("modulus",),
             category="rational",
             summary="Recover the rational p/q congruent to a residue modulo M — "
                     "rational reconstruction (cf. Wang 1981, *An improved Monte "
@@ -3608,6 +3738,9 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.biology.genome.modulator_constraint_satisfies", owner="srmech", category="genome",
+            # rc430 (`#T1127`) — the FRAME axis, DERIVED behaviourally and
+            # verified executably by tests/test_frame_scope_rc430.py.
+            frame_scope="fixed", frame_axis=("modulus",),
             summary="MODULATOR-CONSTRAINT M3 checker (UPSTREAM §133 / #733) — does a candidate cell_state satisfy an M3 constraint? The runnable predicate that makes the SOUND-AND-COMPLETE claim TESTABLE. Evaluates the WHOLE constraint modulator_constraint returned: the floor pins ((cs & certain_on) == certain_on AND (cs & certain_off) == 0) AND every nand clause ((cs & any_absent) != any_absent OR (cs & any_present) != 0) AND every or_terms clause (>= 1 term fully matches: (cs & present) == present AND (cs & absent) == 0) AND every E4 inequality (Sum w_i*bit_i(cs) >= threshold for sense '>=', < threshold for sense '<') AND every E3 level (Sum >= 1 for positive, Sum <= 0 else), ALL ANDed. On the COMPLETE gate-types this EQUALS modulator_consistent(strand, coupling, expressed_labels, candidate) == 'CONSISTENT' exactly; for a SOUND-ONLY cross-type-OR label it is a sound over-approximation (True for every consistent state, possibly True for a few inconsistent ones — the dropped disjunct). NEVER MUTATES anything (a READ). candidate_cell_state is a non-negative exact int (Class-I bitwise; no float, never abs). Native-dispatched (the C peer srmech_genome_modulator_constraint_satisfies checks the BOOLEAN part byte-identically; the inequality / level checks are the exact pure Class-N path). The inequality SENSE is a Class-K sign-branch, never abs. Returns bool. Attests GRN-inference consistency-checking of a regulatory state against the recovered constraint as ONE FACET (#728 discipline): Marbach et al., Nature Methods 9(8):796-804 (2012), DOI 10.1038/nmeth.2016 (OA: NIH PMC3512113).",
             parameters=(P("constraint", "dict", True, "the constraint dict modulator_constraint returned (certain_on / certain_off / clauses / inequalities / levels)"),
                         P("candidate_cell_state", "int", True, "the candidate cell-state bitmask to check (Class-I bitwise; non-negative; no float)")),
@@ -8040,6 +8173,9 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.cascade.cyclic_gcd", owner="srmech",
+            # rc430 (`#T1127`) — the FRAME axis, DERIVED behaviourally and
+            # verified executably by tests/test_frame_scope_rc430.py.
+            frame_scope="parametric", frame_axis=("modulus",),
             category="cascade",
             summary="Class I cyclic gcd (delegates to srmech.math.cyclic.gcd). "
                     "The cascade-named alias for reaching the Class I primitive "
@@ -8055,6 +8191,9 @@ def _register_primitive_class_tools() -> None:
         # operands (`b`/`k`/`n`) are bound stage kwargs.
         ToolEntry(
             name="srmech.cascade.cyclic_mod_mul", owner="srmech",
+            # rc430 (`#T1127`) — the FRAME axis, DERIVED behaviourally and
+            # verified executably by tests/test_frame_scope_rc430.py.
+            frame_scope="parametric", frame_axis=("modulus",),
             category="cascade",
             summary="Modular multiply as a cascade stage — (a * b) mod n "
                     "(delegates to srmech.math.cyclic.mod_mul). The DSL-"
@@ -8070,6 +8209,9 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.cascade.cyclic_mod_add", owner="srmech",
+            # rc430 (`#T1127`) — the FRAME axis, DERIVED behaviourally and
+            # verified executably by tests/test_frame_scope_rc430.py.
+            frame_scope="parametric", frame_axis=("modulus",),
             category="cascade",
             summary="Modular addition as a cascade stage — (a + b) mod n "
                     "(delegates to srmech.math.cyclic.mod_add). The DSL-"
@@ -8085,6 +8227,9 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.cascade.cyclic_mod_pow", owner="srmech",
+            # rc430 (`#T1127`) — the FRAME axis, DERIVED behaviourally and
+            # verified executably by tests/test_frame_scope_rc430.py.
+            frame_scope="parametric", frame_axis=("modulus",),
             category="cascade",
             summary="Modular exponentiation as a cascade stage — (a ** k) mod "
                     "n via square-and-multiply (delegates to "
@@ -8114,6 +8259,9 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.cascade.cyclic_mod_mul_wide", owner="srmech",
+            # rc430 (`#T1127`) — the FRAME axis, DERIVED behaviourally and
+            # verified executably by tests/test_frame_scope_rc430.py.
+            frame_scope="parametric", frame_axis=("modulus",),
             category="cascade",
             summary="Wide modular multiply as a cascade stage — (a * b) mod n "
                     "with NO uint64 cap (delegates to "
@@ -8487,6 +8635,9 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.cascade.qdft_summand", owner="srmech",
+            # rc430 (`#T1127`) — the FRAME axis, DERIVED behaviourally and
+            # verified executably by tests/test_frame_scope_rc430.py.
+            frame_scope="parametric", frame_axis=("modulus",),
             category="cascade",
             summary="Class M: ONE (k, m) summand of the QDFT — W(σ·2πkm/n) "
                     "applied to x[m] on the declared side (twiddle → 4×4 "
@@ -8506,6 +8657,9 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.cascade.odft_summand", owner="srmech",
+            # rc430 (`#T1127`) — the FRAME axis, DERIVED behaviourally and
+            # verified executably by tests/test_frame_scope_rc430.py.
+            frame_scope="parametric", frame_axis=("modulus",),
             category="cascade",
             summary="Class M: ONE (k, m) summand of the ODFT, including the "
                     "DECLARED two-sided bracketing order (F378 — the "
@@ -9782,6 +9936,9 @@ def _register_primitive_class_tools() -> None:
         # ────────────────────────────────────────────────────────────
         ToolEntry(
             name="srmech.math.cyclic.mod_mul_arrow", owner="srmech",
+            # rc430 (`#T1127`) — the FRAME axis, DERIVED behaviourally and
+            # verified executably by tests/test_frame_scope_rc430.py.
+            frame_scope="parametric", frame_axis=("modulus",),
             category="cyclic",
             summary="The eventual SHAPE of the self-map T_c(x) = (c·x) mod n — "
                     "an ARROW on Z/n whenever gcd(c, n) > 1 — in CLOSED FORM, "
@@ -12710,6 +12867,9 @@ def _register_qm_tools() -> None:
         # ────────────────────────────────────────────────────────────
         ToolEntry(
             name="srmech.math.covering.center_parity", owner="srmech",
+            # rc430 (`#T1127`) — the FRAME axis, DERIVED behaviourally and
+            # verified executably by tests/test_frame_scope_rc430.py.
+            frame_scope="fixed", frame_axis=("modulus",),
             category="covering",
             summary="The ℤ/2 central sign (−1)^winding of an integer winding: "
                     "±1 — THE ONE BIT WHERE AN INTEGER LIVED. This is the single "
@@ -12769,6 +12929,9 @@ def _register_qm_tools() -> None:
         ),
         ToolEntry(
             name="srmech.math.covering.lift_fibre", owner="srmech",
+            # rc430 (`#T1127`) — the FRAME axis, DERIVED behaviourally and
+            # verified executably by tests/test_frame_scope_rc430.py.
+            frame_scope="parametric", frame_axis=("modulus",),
             category="covering",
             summary="The integer lifts a centre-shadow does NOT determine — the "
                     "fibre over a shadow, a coset of center_order·ℤ, ENUMERATED "
@@ -16012,6 +16175,9 @@ def _register_music_tools() -> None:
         ),
         ToolEntry(
             name="srmech.music.interval_vector", owner="srmech",
+            # rc430 (`#T1127`) — the FRAME axis, DERIVED behaviourally and
+            # verified executably by tests/test_frame_scope_rc430.py.
+            frame_scope="fixed", frame_axis=("modulus",),
             category="music",
             summary="The INTERVAL-CLASS VECTOR of a pitch-class set — how a set "
                     "relates to ITSELF at every interval class. Entry i counts "
@@ -16048,6 +16214,9 @@ def _register_music_tools() -> None:
         ),
         ToolEntry(
             name="srmech.music.normal_order", owner="srmech",
+            # rc430 (`#T1127`) — the FRAME axis, DERIVED behaviourally and
+            # verified executably by tests/test_frame_scope_rc430.py.
+            frame_scope="fixed", frame_axis=("modulus",),
             category="music",
             summary="The NORMAL ORDER of a pitch-class set — the most compact "
                     "rotation — with the convention REQUIRED, never defaulted. "
@@ -16083,6 +16252,9 @@ def _register_music_tools() -> None:
         ),
         ToolEntry(
             name="srmech.music.prime_form", owner="srmech",
+            # rc430 (`#T1127`) — the FRAME axis, DERIVED behaviourally and
+            # verified executably by tests/test_frame_scope_rc430.py.
+            frame_scope="fixed", frame_axis=("modulus",),
             category="music",
             summary="The PRIME FORM of a pitch-class set — the canonical "
                     "representative of its set class under Tn/TnI — with the "

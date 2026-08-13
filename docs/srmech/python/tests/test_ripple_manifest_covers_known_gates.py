@@ -158,6 +158,18 @@ FROZEN_KNOWN_GATES = frozenset({
     #    EXTERNAL measurement of the cited source, so dropping it from the
     #    manifest restores exactly the ungated surface that shipped the defect.
     "tests/test_citation_manifest_rc428.py",
+    # -- the FRAME axis + synthesised-argument provenance (rc430, `#T1127` /
+    #    `#T1094`). Frozen together because they share one piece of machinery:
+    #    the (op, param) argument provider. Both are ToolEntry-derived, so a
+    #    new op moves them WITHOUT any declaration being edited --
+    #    test_frame_scope_rc430 derives its admissible set behaviourally and
+    #    asserts set equality in both directions, which is precisely how it
+    #    avoids `reads_lane`'s fate (9 declarers in 82 rcs, because opt-in).
+    #    A gate that can be quietly dropped from the manifest is that same
+    #    opt-in failure one level up, which is why they are pinned here rather
+    #    than left to a future manifest edit.
+    "tests/test_frame_scope_rc430.py",
+    "tests/test_synth_args_provenance_rc430.py",
 })
 
 

@@ -237,10 +237,11 @@ def generate() -> str:
 
     # Per-entry composes / preserves string arrays (rc305 #T943; only for
     # composite ops — a leaf op emits NULL + 0 in the table row below).
-    b("/* Per-entry composes / preserves / reads_input string arrays")
-    b(" * (rc305 #T943; reads_input rc347 #T985). */")
+    b("/* Per-entry composes / preserves / reads_input / frame_axis string")
+    b(" * arrays (rc305 #T943; reads_input rc347 #T985; frame_axis rc430")
+    b(" * #T1127). */")
     for idx, t in enumerate(tools):
-        for field_name in ("composes", "preserves", "reads_input"):
+        for field_name in ("composes", "preserves", "reads_input", "frame_axis"):
             seq = getattr(t, field_name, ()) or ()
             if not seq:
                 continue
@@ -291,6 +292,13 @@ def generate() -> str:
         b("        %s, %du," % (
             f"ts_reads_input_{idx}" if reads_input else "NULL",
             len(reads_input)))
+        # rc430 (#T1127): the frame axis. frame_scope NULL + frame_axis NULL/0
+        # for the (majority) undeclared case; both together otherwise.
+        frame_axis = getattr(t, "frame_axis", ()) or ()
+        b(f"        {hoist.opt_expr(getattr(t, 'frame_scope', None))},")
+        b("        %s, %du," % (
+            f"ts_frame_axis_{idx}" if frame_axis else "NULL",
+            len(frame_axis)))
         b("    },")
     b("};")
     b("")

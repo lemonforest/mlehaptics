@@ -13,6 +13,67 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc430]
+
+### The frame an op cannot tell you it is standing in — and a headline that did not survive being measured (`#T1127` / `#T1094`)
+
+**Registry stays 655. ABI stays 14. GENOME_FORMAT_VERSION stays 19.** No op is registered; one field pair is appended to `ToolEntry` and to `srmech_tool_entry_t`.
+
+#### The retraction comes first, because the field shipped and its stated reason did not
+
+`#T1127` opened on the claim that the **semigroup census** — how many srmech ops actually destroy information — is permanently bounded by `ToolParameter` publishing no domain constraint. Census instrument v1 was refuted by its own pre-registered negative control: `cyclic_mod_add`, provably a permutation, classified `SEMIGROUP_NOT_GROUP` because the sweep bound a modulus **smaller than the carrier it enumerated**.
+
+**That is a defect in the instrument, not in the registry, and the measurement says so:**
+
+| | |
+|---|---|
+| Tier A measurable self-maps, rc427 carrier ladder | **15 / 245** |
+| Tier A under window-free **orbit closure** over arguments already published in `example["worked"]` | **30** |
+| Tier B, same repair | **UNSUPPORTED → 50 / 289** |
+| `cyclic_mod_add` — the control that refuted v1 | **returns GROUP** |
+| What a per-parameter domain field would add on top | **+8 on a denominator of 245** |
+
+The largest available step needs **no registry change at all**. And the relation claim does not survive either: two independent extractors agree that **exactly two ordering relations exist in the whole registry** (`log1p` / `atan_series_truncate`, the Taylor radius) and **neither is a modulus-vs-carrier-size bound**; only **40 / 655** ops carry any inter-parameter relation at all. The vocabulary *can* say `le_param`. **The constraint the census needed is not in the code.**
+
+So the `ToolParameter` domain field is **DEFERRED to rc431** with its evidence written down (`docs/srmech/notes/rc430_deferral_T1127_param_domain.md`), and this rc ships the two things that *were* justified. The deferral is not cosmetic: appending to `srmech_tool_param_t` would **bump ABI 14 → 15**, because callers stride that array themselves (`srmech_invoke.c:1589`, `:1606`, `:1612`; there is no `srmech_tool_param_get`) — measured `sizeof` 32 → 40, `params[1]` moving with it — and it would move **602 of 655 entries** in canonical JSON (`asdict(p)` has no key omission) for **+19,860** pre-image bytes. `frame_scope` moved **20**.
+
+#### `frame_scope` / `frame_axis` — is the frame an INPUT, or welded into the op?
+
+New `ToolEntry` fields, C-mirrored on `srmech_tool_entry_t`, keys sorting between `explanation` and `mcp_callable`, **omitted entirely when undeclared** so only declaring rows move bytes. `FRAME_SCOPES` = `parametric` / `fixed`; `FRAME_AXES` = `modulus` / `generator`. Validated at registration, both halves together or not at all.
+
+**There is deliberately no `"free"`.** An op that accepts no frame datum cannot be *contradicted* on one, so it declares nothing — the rc347 admission rule. That is a real blind spot and it ships as data in `describe()["frames"]["cannot_express"]`: `just_limit` (carrier-level ℚ⁺) and `sha256_bytes` (no frame concept at all) are both `None` and this field cannot tell them apart. rc426's reading of `just_limit` as a chart is **dissolved, not corrected** — the op makes no claim on this axis.
+
+**The roster is DERIVED, never declared.** `reads_lane` reached **9 of 655 ops (1.4%) in 82 rcs** because it was opt-in; a field nothing computes the roster *for* is an `__all__`-shaped escape hatch. So `tests/test_frame_scope_rc430.py` derives the admissible set behaviourally over every op the argument provider can drive and asserts `declared == admissible` **in both directions**, with the unreachable ops counted under `CEIL_FRAME_UNADJUDICATED`. It found **20 declarers** — 6 `fixed`, 14 `parametric` — and only 3 of them were in the hand-written seed roster this rc started from.
+
+**Names were measured and refused as a source.** 67 ops take an int parameter from the modulus name-family and most are not frames — `is_prime(n)`, `factor(n)`, `dense_laplacian(n=|V|)`, `cooccurrence_edges(window)`. A name-derived roster would have forced a false declaration on roughly 58 ops.
+
+**The generator axis ships EMPTY, and that is a result, not an omission.** Every generator the census found is supplied by a parameter, so zero ops declare it. It stays in the vocabulary because the `LEAK_B` control exercises it in-test, and because it **narrows** rc427's G3b blind spot rather than closing it: it is decidable only for ops *affine* in the frame coordinate. A docstring claiming G3b closed would be false.
+
+#### Four instrument defects found by measuring the instrument
+
+Each was produced by the tool built to prevent that exact class, which is the reason they are listed rather than quietly fixed:
+
+1. **`is_prime` classified `fixed`, period 6.** A six-point sample agreed by chance. Repaired structurally — a dense contiguous sweep with a confirmation floor, not a bigger sample — and `test_the_period_finder_rejects_a_coincidence` re-derives `is_prime → no period` on every run.
+2. **`LEAK_B` read CLEAN.** Its first differences over ℤ are `7, 7, −5, 7, …` — every wraparound breaks constancy — so the generator clause returned `None` and the negative control passed as clean, reproducing rc426's F12b blind spot exactly. Reduced mod the frame the difference is a constant 7.
+3. **`crt_combine` classified `fixed`, period 5.** The period was supplied by `moduli[0]`, and the carry-check looked only at scalar parameters. A false `fixed` on a shipped op.
+4. **`mod_mul` reported `generator: 0`, and a caller-supplied generator as welded-in.** Fixed by rejecting 0/1 and testing carriage *up to congruence mod the frame* — `mod_mul(a=19, n=12)` advances by 7 and no parameter equals 7.
+
+A fifth was found by the ratchet itself: `fiedler_sparse_file` harvested `path='/tmp/…/codon.graph'`, a file its own snippet created, so the census answered `BASE_RAISES` on one run and `NOT_ADMISSIBLE` on the next. **A harvested argument must be reproducible**; path parameters are no longer harvested at all.
+
+#### `#T1094` — the literal `"a"` that wrote a file, closed
+
+`_synth_value_for_type` ended in `return table.get(type_string, "a")`. Every parameter whose type the 61-row table did not name got the literal `"a"` — **including filesystem paths** — so the every-tool smoke called `genome_save(path="a")` and wrote a stray 16-byte file into the package directory. The blind fall-through is **deleted**.
+
+Arguments are now keyed by **(op, param)**, harvested from each op's own `example["worked"]`: a value from a call that RETURNED is valid by construction. New `tools/example_args.py` + `tools/run_example_args.py` + `tests/example_args_ledger.ndjson`, with a freshness gate so the ledger cannot become a dead seam. Measured coverage of the **1063** required parameters: **531 harvested · 450 tabled · 30 sandbox · 52 unsynthesizable**, and **0 receive the literal `"a"`**.
+
+**Two things this fix is NOT, stated because the numbers say so.** The harvest closes only **3 of 33** path-ish parameters — the genome snippets deliberately leave `path` unbound, and `worked_examples_result.ndjson` has been recording that as `NameError: name 'path' is not defined` all along — so the sandbox tier does most of the work on that class. And **34 ops are now SKIPPED** rather than invoked with a guess. That trade was checked: the **binding** axis those ops covered is guarded for all 655 entries by the static `test_schema_signature_alignment_no_drift`, and their 52 parameters are undeclared carrier types (`EllMonomial`, `Poly`, `Theta`) whose old `"a"` raised a tolerated `TypeError` *before reaching the op*. They were counted as invoked without being invoked. The skip is bounded by a down-only ceiling so the missing table rows drain.
+
+#### Also
+
+- `describe()["frames"]` — derived from the schema, never a second list, and it publishes what the axis **cannot** express beside what it can.
+- `srmech.h`: the rc347 lane block ended with the bare sentence **"SRMECH_ABI_VERSION STAYS 10."** — a stale renumbering that reads as a live claim about the current value. Repaired in place.
+- Both new gates are added to `tools/ripple_gates.txt` **and** frozen in `FROZEN_KNOWN_GATES` in the same commit. Five CI-red rounds have been caused by omitting exactly that.
+
 ## [0.9.0rc429]
 
 ### The claim with no source, and the axis that made the fix into the defect (`#T1128`)

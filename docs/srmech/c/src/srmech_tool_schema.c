@@ -262,6 +262,26 @@ static void ts_emit_lane(ts_emit_t *e, const srmech_tool_entry_t *t)
     ts_json_string(e, t->reads_lane);
 }
 
+/* rc430 (#T1127): the FRAME axis keys. Factored out for the same JPL Rule 4
+ * reason as ts_emit_lane above. Key order is load-bearing: "explanation" <
+ * "frame_axis" < "frame_scope" < "mcp_callable", so both land between those
+ * two neighbours, in that order. Emitted together or not at all, mirroring
+ * ToolEntry.to_jsonable's key omission, so the byte-identity contract with
+ * json.dumps(..., sort_keys=True) holds. */
+static void ts_emit_frame(ts_emit_t *e, const srmech_tool_entry_t *t)
+{
+    assert(e != NULL);
+    assert(t != NULL);
+    assert(t->frame_scope != NULL || t->frame_axis_count == 0u);
+    if (t->frame_scope == NULL) {
+        return;
+    }
+    ts_cstr(e, ",\"frame_axis\":");
+    ts_emit_str_array(e, t->frame_axis, t->frame_axis_count);
+    ts_cstr(e, ",\"frame_scope\":");
+    ts_json_string(e, t->frame_scope);
+}
+
 /* Emit one entry object: keys in sorted order, optional keys omitted
  * when absent (mirroring ToolEntry.to_jsonable). */
 static void ts_emit_entry(ts_emit_t *e, const srmech_tool_entry_t *t)
@@ -284,6 +304,7 @@ static void ts_emit_entry(ts_emit_t *e, const srmech_tool_entry_t *t)
         ts_cstr(e, ",\"explanation\":");
         ts_json_string(e, t->explanation);
     }
+    ts_emit_frame(e, t);        /* rc430 (#T1127); see ts_emit_frame on order */
     ts_cstr(e, ",\"mcp_callable\":");
     ts_cstr(e, t->mcp_callable ? "true" : "false");
     if (t->mcp_unavailable_reason != NULL) {

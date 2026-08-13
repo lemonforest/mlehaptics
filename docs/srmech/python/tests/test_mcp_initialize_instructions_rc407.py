@@ -112,13 +112,24 @@ def test_instructions_only_promise_mcp_callable_tools() -> None:
 
     The wording was re-pointed at ``tool_schema_view`` rather than at
     ``get_tool_schema``, and that choice is load-bearing rather than
-    cosmetic. Measured on this tree: over MCP, ``get_tool_schema``'s result
-    serialises through ``dataclasses.asdict`` (2,572,811 bytes) and carries
-    FIVE keys — ``composes`` / ``preserves`` / ``reads_input`` / ``reads_lane``
-    / ``mcp_unavailable_reason`` — that the canonical ``to_jsonable`` rendering
-    behind ``tool_schema_view`` (2,501,642 bytes) deliberately omits. Two
-    disagreeing renderings of one registry over one protocol; the instructions
-    must name the canonical one.
+    cosmetic. Over MCP, ``get_tool_schema``'s result serialises through
+    ``dataclasses.asdict`` and carries keys that the canonical ``to_jsonable``
+    rendering behind ``tool_schema_view`` deliberately omits. Two disagreeing
+    renderings of one registry over one protocol; the instructions must name
+    the canonical one.
+
+    ⚠️ **The count in this paragraph read FIVE until rc430, and it was stale in
+    both directions.** Re-measured at rc430 — asdict **3,026,848** bytes vs
+    view **2,923,519** — the per-entry omission covers **NINE** keys:
+    ``composes`` (452 entries) · ``frame_axis`` (635) · ``frame_scope`` (635) ·
+    ``mcp_unavailable_reason`` (651) · ``preserves`` (592) · ``reads_input``
+    (646) · ``reads_lane`` (646) · ``returns`` (1) · ``smoke_test_hint`` (609).
+    Two of those are rc430's frame axis; but ``returns`` and
+    ``smoke_test_hint`` were in the class all along and the rc411 list simply
+    missed them, because it enumerated the always-empty-default fields and not
+    the ``Optional`` ones. The rc411 byte figures are kept nowhere — they were
+    a live claim, not a dated ledger entry, so they are replaced rather than
+    struck.
 
     ``get_tool_schema`` was deliberately left ``mcp_callable`` (the default):
     flipping it would make it the FIRST ``mcp_callable=False`` row in the

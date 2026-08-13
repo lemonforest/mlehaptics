@@ -61,7 +61,7 @@ WHAT V5 IS FOR, AND WHY IT NEVER FAILS
 that is roughly 5/17 signal, and **its clearest hit is a repair**: ADR-0013
 `:186` cites `tool_schema.py:314` and `:318` — deliberate pointers at the two
 individual sentences whose excision caused the §1.7.1 defect, both interior to
-the `#:` block that starts at `:313`. A strict block-start rule would flag the
+the `#:` block that starts at `:365`. A strict block-start rule would flag the
 sentence written to fix the defect. So it reports and never asserts.
 
 INJECTION PROOFS — RUN, NOT DESCRIBED
@@ -451,11 +451,20 @@ def test_the_citation_scan_is_not_vacuous() -> None:
     than reporting a clean corpus.
 
     Clause 4 is the part that makes this a measurement rather than a shape
-    check: ADR-0013 §1.7.1's anchor citation, `introspect/tool_schema.py:313`,
-    has a KNOWN correct answer — the `#:` block containing 313 starts at
-    exactly 313 — and the gate cannot report a green corpus without having
+    check: ADR-0013 §1.7.1's anchor citation, `introspect/tool_schema.py:365`,
+    has a KNOWN correct answer — the `#:` block containing 365 starts at
+    exactly 365 — and the gate cannot report a green corpus without having
     looked at it. The computed block start is printed on every run, so a
     regression in the widener is visible even when nothing fails.
+
+    **The address was 313 through rc429.** rc430 inserted `FRAME_SCOPES` /
+    `FRAME_AXES` above the dataclass and the `frame_scope` / `frame_axis`
+    fields inside it, which renumbered everything below by 52 lines. The
+    docstring below says to CHECK before adjusting this number rather than
+    adjusting it to make the gate green, and the check was made: the block is
+    the same `#: v0.9.0rc305 (#T943)` comment, still whole, still ADR-0013
+    §1.7.1's subject, and the ADR citation moved with it in the same commit.
+    A renumbering is the one legitimate reason this constant changes.
     """
     files = all_markdown()
     cits = all_citations()
@@ -474,9 +483,9 @@ def test_the_citation_scan_is_not_vacuous() -> None:
         f"lost a token.")
 
     anchor = [c for c in cits
-              if c.path.endswith("tool_schema.py") and c.start_line == 313]
+              if c.path.endswith("tool_schema.py") and c.start_line == 365]
     assert anchor, (
-        "the ADR-0013 §1.7.1 anchor citation `introspect/tool_schema.py:313` "
+        "the ADR-0013 §1.7.1 anchor citation `introspect/tool_schema.py:365` "
         "is NOT in the extracted set. That citation is this gate's known-"
         "answer probe: without it the gate can report a clean corpus without "
         "having looked at the one address whose correct value is known.")
@@ -490,9 +499,9 @@ def test_the_citation_scan_is_not_vacuous() -> None:
     print(f"\n[rc415] §1.7.1 anchor {cit.path}:{cit.start_line} — its `#:` "
           f"block is {lo}..{hi}; the ast scope V3 actually widens to is "
           f"{scope[0]}..{scope[1]}.")
-    assert lo == 313, (
-        f"the `#:` block containing {cit.path}:313 now starts at {lo}, not "
-        f"313. That block is ADR-0013 §1.7.1's subject: the defect it records "
+    assert lo == 365, (
+        f"the `#:` block containing {cit.path}:365 now starts at {lo}, not "
+        f"365. That block is ADR-0013 §1.7.1's subject: the defect it records "
         f"was two sentences excised from its middle, and the 2d2c13a50 repair "
         f"restored them. A moved block start means either the repair was "
         f"undone or the block was re-cut — check before adjusting this "
@@ -679,7 +688,7 @@ def test_mid_block_citations_are_reported() -> None:
     Never a failure, and the reason is the corpus's clearest example: ADR-0013
     `:186` cites `tool_schema.py:314` and `:318`, two deliberate pointers at
     the individual sentences whose excision caused the §1.7.1 defect. Both are
-    interior to the `#:` block starting at `:313`. A strict block-start rule
+    interior to the `#:` block starting at `:365`. A strict block-start rule
     flags the sentence written to FIX the defect — which is a good working
     definition of a rule that should not be a gate.
     """

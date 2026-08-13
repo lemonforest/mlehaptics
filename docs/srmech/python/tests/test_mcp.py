@@ -13,6 +13,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import pathlib
 import re
 import subprocess
 import sys
@@ -29,6 +30,13 @@ import srmech.bus  # noqa: F401 — import side-effect
 
 import srmech
 from srmech.introspect.tool_schema import get_tool_schema, warmup_all
+
+# rc430 (`#T1094`) — the (op, param)-keyed valid-argument provider. Lives in
+# tools/ (not in the package) because test_selfhosting_import_ban holds a
+# down-only CEIL on `json` imports under srmech/; same sys.path.insert(TOOLS)
+# pattern as tests/test_worked_examples_execute_rc354.py.
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "tools"))
+import example_args as _ea  # noqa: E402
 from srmech.mcp import (
     MCP_PROTOCOL_VERSION,
     MCPError,
@@ -1919,8 +1927,13 @@ def _synth_value_for_type(type_string: str) -> Any:
         "Optional[float]": 1.0,
         "number": 1.0,
         "bool": True,
-        "str": "a",
-        "Optional[str]": "a",
+        # rc430 (`#T1094`): was ``"a"``. Any literal is equally arbitrary for a
+        # label-shaped string, but a SELF-DESCRIBING one is traceable: if this
+        # value ever escapes into a file, a log or an error message, its name
+        # says where it came from. Path-shaped params never reach this row —
+        # tier 3 of ``_synth_args_for_entry`` diverts them to a sandbox path.
+        "str": "srmech_synth",
+        "Optional[str]": "srmech_synth",
         "bytes": b64,
         "complex": [1.0, 0.0],
         # ndarray: a 2x2 identity (square — satisfies the most ops; the
@@ -2032,6 +2045,12 @@ def _synth_value_for_type(type_string: str) -> Any:
         # (so the laplacian ops, whose `n` synths to 1, return cleanly).
         "list[tuple[int, int]]": [[0, 0]],
         "tuple[int, int]": [1, 1],
+        # rc430 (`#T1094`): kept as the declared row, but it is no longer what
+        # a Path param actually receives — ``_synth_args_for_entry`` tier 3
+        # overrides every path-SHAPED param with a sandbox path. A bare
+        # relative filename here would be created in whatever directory the
+        # suite happens to run from, which is the same defect as ``"a"``
+        # wearing a longer name.
         # JSON-native-ish.
         "dict": {},
         "Optional[dict]": {},
@@ -2066,18 +2085,64 @@ def _synth_value_for_type(type_string: str) -> Any:
         "SpectralHandle | bytes": b64,
         "numpy.random.Generator": None,
     }
-    return table.get(type_string, "a")
+    # rc430 (`#T1094`): the blind fall-through is GONE. It was
+    # ``table.get(type_string, "a")``, which handed the literal ``"a"`` to
+    # every type this table does not name — including filesystem paths, so a
+    # smoke run wrote a stray 16-byte file named ``a`` into the package
+    # directory. Substituting a plausible-looking value for a type nobody
+    # declared is not a default, it is a silent guess, and the guess was
+    # destructive. An unnamed type is now VISIBLE and COUNTED (the caller
+    # skips and records the reason) rather than papered over.
+    return table.get(type_string, _ea.UNSYNTHESIZABLE)
 
 
 def _synth_args_for_entry(entry: Any) -> Dict[str, Any]:
     """Build a minimal valid args dict for one ToolEntry: fill every
     REQUIRED param with a synth value; omit optionals (we are testing the
-    minimal-required call path)."""
+    minimal-required call path).
+
+    rc430 (`#T1094`) — THREE TIERS, most-justified first:
+
+    1. **The harvest**, keyed by ``(op, param)``. An argument recorded from
+       this op's own published worked example, in a call that RETURNED, is
+       valid BY CONSTRUCTION. This is the only tier that can tell
+       ``cyclic_mod_add``'s ``n`` from ``is_prime``'s ``n``, or
+       ``genome_save``'s ``path`` from ``normal_order``'s ``convention`` —
+       a type-keyed table cannot, which is why this one accreted 61 rows.
+    2. **The type table** above, for the types it names.
+    3. **A sandbox path** for anything path-SHAPED, so the op may write and
+       the write lands in a temp directory nothing reads. Measured at rc430:
+       the harvest closes only **3 of 33** path-ish parameters, because the
+       genome worked snippets deliberately leave ``path`` unbound (the
+       shipped ``worked_examples_result.ndjson`` has been recording that as
+       ``NameError: name 'path' is not defined`` all along). So tier 3 is not
+       a nicety — without it this fix would cover a tenth of its own subject.
+
+    Anything left is :data:`UNSYNTHESIZABLE`, and the caller SKIPS with a
+    recorded reason. Absence is a value here; a fabricated argument is not.
+    """
+    prov = _ea.provider()
     args: Dict[str, Any] = {}
     for p in entry.parameters:
-        if p.required:
-            args[p.name] = _synth_value_for_type(p.type)
+        if not p.required:
+            continue
+        val = prov.get(entry.name, p.name)                       # tier 1
+        if val is _ea.UNSYNTHESIZABLE:
+            val = _synth_value_for_type(p.type)                  # tier 2
+        if val is _ea.UNSYNTHESIZABLE or _ea.is_path_shaped(p.name, p.type):
+            # tier 3 — path-shaped wins over the table, because the table's
+            # ``pathlib.Path`` row is a bare relative filename and creating
+            # THAT in the package directory is the same defect wearing a
+            # longer name.
+            if _ea.is_path_shaped(p.name, p.type):
+                val = _ea.sandbox_path(p.name)
+        args[p.name] = val
     return args
+
+
+def _unsynthesizable_params(args: Dict[str, Any]) -> List[str]:
+    """Params in a synth map with no justified value (rc430, `#T1094`)."""
+    return sorted(k for k, v in args.items() if v is _ea.UNSYNTHESIZABLE)
 
 
 def _is_binding_error(exc: BaseException) -> bool:
@@ -2134,6 +2199,19 @@ def test_advertised_tool_invocable(entry: Any) -> None:
     from srmech.mcp._tools import _coerce_arguments
 
     synth = _synth_args_for_entry(entry)
+
+    # rc430 (`#T1094`): a param with no justified value is SKIPPED and NAMED,
+    # never filled with a guess. The population of such params is held under a
+    # down-only ceiling by tests/test_synth_args_provenance_rc430.py, so this
+    # skip cannot quietly become the normal case — which is the only thing
+    # that would make it worse than the literal ``"a"`` it replaces.
+    missing = _unsynthesizable_params(synth)
+    if missing:
+        pytest.skip(
+            f"{entry.name}: no justified value for required param(s) "
+            f"{missing} — types {[p.type for p in entry.parameters if p.name in missing]}. "
+            f"Counted by test_synth_args_provenance_rc430.py "
+            f"(CEIL_UNSYNTHESIZABLE); NOT silently defaulted.")
 
     # Phase 1 — coercion in isolation. A failure here means the advertised
     # wire-encoding for some declared type does not coerce to the native type

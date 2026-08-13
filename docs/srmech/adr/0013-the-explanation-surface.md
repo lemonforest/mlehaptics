@@ -77,7 +77,7 @@ Every row below is a real capability that ships. Verified on this branch by dire
 | `math.gcd` | `srmech.math.cyclic.gcd` | `lookup()` OK |
 | filed `mat_rank` as a **GAP** — because numpy has `matrix_rank`, so srmech was assumed not to | **`QMat.rank(self, *, method: str = "auto")`** — `srmech/math/qmat.py:447` | method exists; `resolve_all('rank')` → **`()`** |
 | wrote `srmech.math.rational.Q` — "rational" is the *world's* word (`fractions`, `sympy.Rational`) | **`srmech.math.q.Q`** — `srmech/math/q.py:234` | correct module confirmed |
-| guessed `all_entries()` / `REGISTRY` / `ENTRIES` — the names *libraries* use | `get_tool_schema()` (`introspect/tool_schema.py:673`) · `tool_schema_view()` (`:697`) | `all_entries` → **no such name** |
+| guessed `all_entries()` / `REGISTRY` / `ENTRIES` — the names *libraries* use | `get_tool_schema()` (`introspect/tool_schema.py:785`) · `tool_schema_view()` (`:809`) | `all_entries` → **no such name** |
 
 **The `mat_rank` row is the sharpest and deserves its own sentence**, because it is not a retrieval
 failure at all — it is the index being scoped narrower than the capability surface, and saying so in a
@@ -184,7 +184,7 @@ radically different states:
 | **PER-OP** — what one op is, means, and demonstrates | `summary` + `explanation` + `example` | **COMPLETE** — 559/559 on all three post-rc411, ~2.05 M chars, floor-enforced (§4) |
 | **DECOMPOSITION** — what sub-ops this op is built from | `composes` | **9 / 559** post-rc412 (was 2/559); set derivable, order hand-traced — see §1.7.1. ⚠️ **Superseded by rc423 (`#T1113`): 164 / 605** — the POPULATION pass, adjudicated by tier rather than hand-traced row by row (§1.7.2) |
 | **INVARIANT** — what guarantees this op maintains | `preserves` | ~~**2 / 559**, deliberately held pending a taxonomy~~; *not* the same grain as `composes` — see §1.7.1. ⚠️ **The HOLD is LIFTED at rc423 (`#T1113`)**: **13 / 605** rows (the count moved with the registry, not with a population drive), and the taxonomy the hold was waiting for now exists — **10 kinds DERIVED from the shipped rows**, all 21 invariant strings classified with no residue, enforced at **strict zero** by `tests/test_preserves_taxonomy_rc423.py`. The *"not the same grain as `composes`"* half of this row still stands (§1.7.2) |
-| **PER-TASK** — which ops go together to do X | `composes`, **lateral branch** | **1 / 559** — `best_rational_signed` only; the branch is declared by the field contract (`tool_schema.py:314`, `:318`) and almost unpopulated. This row read **"NO HOME — does not exist anywhere"** until §1.7.1a retracted it — see §1.7.1 |
+| **PER-TASK** — which ops go together to do X | `composes`, **lateral branch** | **1 / 559** — `best_rational_signed` only; the branch is declared by the field contract (`tool_schema.py:366`, `:370`) and almost unpopulated. This row read **"NO HOME — does not exist anywhere"** until §1.7.1a retracted it — see §1.7.1 |
 
 #### 1.7.1 ⚠️ CORRECTION (2026-08-07) — this table originally named the wrong home
 
@@ -194,7 +194,7 @@ It would not.** Corrected on measurement (rc412 design research, run `wf_a0dd4fb
 adversarial verification; the leg that first raised it was itself returned `holds=false`, so the
 structural core below is carried as the synthesis pass's own re-derivation, not that leg's claim).
 
-**The contract is the dataclass field comments at `introspect/tool_schema.py:313-331` — the SSoT,
+**The contract is the dataclass field comments at `introspect/tool_schema.py:365-383` — the SSoT,
 not CHANGELOG prose. Quoted in full, because a truncated quotation of it is what produced the
 retracted claim below:**
 
@@ -348,7 +348,7 @@ the tier boundary.
 
 ⚠️ **And the field is unread.** `srmech/introspect/search.py::_op_fields` indexes exactly `name`,
 `category`, `summary`, `explanation`, `example.*`. **rc411's search surface does not index `composes`
-or `preserves`.** Their only consumers are `to_jsonable` (`tool_schema.py:400-401`), the curated merge
+or `preserves`.** Their only consumers are `to_jsonable` (`tool_schema.py:503-505`), the curated merge
 (`_apply_docs`, `:578-581`), and the C serialiser. Populating an unread field moves a hash and nothing else — which is
 why any rc that populates them must ship a **reader** first.
 
@@ -753,8 +753,8 @@ Grepped across the whole `srmech/` package for any reference to `.explanation` /
 
 | touch point | file:line | what it does |
 |---|---|---|
-| **ingress** | `srmech/introspect/tool_schema.py:562-586` (`_apply_docs`) | merges the curated docs onto the entry **at registration** |
-| **egress** | `srmech/introspect/tool_schema.py:390-393` (`to_jsonable`) | copies both fields into the JSON blob **on serialisation** |
+| **ingress** | `srmech/introspect/tool_schema.py:674-698` (`_apply_docs`) | merges the curated docs onto the entry **at registration** |
+| **egress** | `srmech/introspect/tool_schema.py:492-495` (`to_jsonable`) | copies both fields into the JSON blob **on serialisation** |
 
 **Nothing in between ever reads them.** No search, no filter, no render, no selection, no accessor. The
 payload goes in at registration and out at serialisation and is never *consulted*. `srmech/introspect/
@@ -765,7 +765,7 @@ different field on a different registry; it is not a consumer of this surface.)*
 
 ### 6.2 `resolve` matches whole dotted segments only
 
-`ToolSchema.resolve_all` (`tool_schema.py:474-485`) is, in full:
+`ToolSchema.resolve_all` (`tool_schema.py:586-597`) is, in full:
 
 ```python
 suffix = "." + name
@@ -1231,7 +1231,7 @@ Also verified for §1.2, each by direct lookup: `srmech.math.rational.log` and
 `…rational.log1p_series_truncate` both resolve; `QMat.rank(self, *, method="auto")` exists at
 `srmech/math/qmat.py:447` while `resolve_all('rank')` returns `()`; `Q` is defined at
 `srmech/math/q.py:234` (so `srmech.math.q.Q`, not `…rational.Q`); `tool_schema_view` exists at
-`introspect/tool_schema.py:697` and `all_entries` exists nowhere.
+`introspect/tool_schema.py:809` and `all_entries` exists nowhere.
 
 Everything else in the brief verified exactly, including the three file sizes, the five `example`
 sub-key populations, the three char censuses, `509/545`, `resolve('winding')` with 26 mentions,
@@ -1241,7 +1241,7 @@ sub-key populations, the three char censuses, `509/545`, `resolve('winding')` wi
 
 Demonstrated incidentally while measuring §6.3, and recorded here **only as a cross-reference**:
 
-- **`srmech.introspect.tool_schema._REGISTRY` (`tool_schema.py:550`) is a plain module-level `dict`
+- **`srmech.introspect.tool_schema._REGISTRY` (`tool_schema.py:662`) is a plain module-level `dict`
   with no write guard** — no `MappingProxyType`, no lock, no freeze. It is not in `__all__`, but it is
   imported by name across modules (`introspect/carrier_schema.py:981`,
   `introspect/responsion_schema.py:406`). A direct `_REGISTRY[name] = tampered` **bypasses
@@ -1277,7 +1277,7 @@ rewrite would target, and because §3 establishes that this payload is *inside t
 `srmech/mcp/_tools.py:395-402` (the `description` assembly that omits the prose) ·
 `srmech/cli/*.py` (the 57 hand-authored help strings; `cli/mcp.py:7` for the "nothing is
 hand-authored" docstring) ·
-`c/include/srmech.h:5509-5550` (`srmech_tool_entry_t`; the "documentation-hint fields" wording at
+`c/include/srmech.h:5509-5584` (`srmech_tool_entry_t`; the "documentation-hint fields" wording at
 `:5489`; `explanation` at `:5522`; the byte-identity/hash contract at `:5483-5493`) ·
 `c/tools/gen_tool_registry.py:265,:276,:277,:278` (where `summary` / `example` / `smoke_test_hint` /
 `explanation` are baked into C) ·
