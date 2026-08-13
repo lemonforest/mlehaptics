@@ -188,6 +188,26 @@ FROZEN_KNOWN_GATES = frozenset({
     #    than left to a future manifest edit.
     "tests/test_frame_scope_rc430.py",
     "tests/test_synth_args_provenance_rc430.py",
+    # -- the native EXCEPTION-contract axis + the invocable OUTCOME set
+    #    (rc431, `#T1129` / `#T1094`). Frozen together because each closes a
+    #    surface that was BELIEVED GATED and was not.
+    #    test_native_contract_parity_rc431 derives from live `*_c` wrapper
+    #    source and live `c/src/` guard blocks, so it moves on any op with a
+    #    native peer and on any C guard edit -- neither of which touches a
+    #    declaration an author would think to re-run. It exists because
+    #    `signal_processing.iir` returned [0.0]*n for `b == []`, an input its
+    #    own C peer refuses with SRMECH_ERR_NULL_ARG, while the ctypes wrapper
+    #    re-stated that predicate and threw it away as `None` -- which the op
+    #    reads as "native absent".
+    #    test_invocable_returned_floor_rc431 is frozen for the sharper reason:
+    #    its parametrized sibling in test_mcp.py CANNOT GO RED on the property
+    #    this one owns. rc431 measured the shipped gate staying green (0 failed,
+    #    617 passed) under a mutation where every op rejects every argument, so
+    #    every one of the ~473 observed returns could vanish unnoticed. Dropping
+    #    this file from the manifest restores exactly that blindness, and the
+    #    blindness is invisible -- the suite stays green either way.
+    "tests/test_native_contract_parity_rc431.py",
+    "tests/test_invocable_returned_floor_rc431.py",
 })
 
 
