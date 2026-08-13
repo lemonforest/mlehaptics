@@ -19,6 +19,21 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 
 **Registry stays 655. ABI stays 14. GENOME_FORMAT_VERSION stays 19.** No op is registered, no `ToolEntry` field is added, no C symbol is added or changed. `c/src/srmech_iir.c` was READ, not written.
 
+#### A SILENT WRONG ANSWER, which preempted everything else
+
+`srmech.cascade.vec_add` — a **public registry op returning a wrong value with no error**:
+
+```
+vec_add([1.0], [1.0, 2.0])  ->  [2.0]        b's tail dropped, silently
+vec_add([1.0, 2.0], [1.0])  ->  IndexError   bare, from the comprehension
+```
+
+The body ranged over `len(a)` alone. **The asymmetry is why it survived**: the same malformed call was silently wrong one way round and noisily wrong the other, so whichever orientation a caller hit first, the other looked like a different bug. Guarding on equal length is the only answer correct in both — there is no length at which dropping a tail is the right elementwise sum.
+
+Verified not to be a truncation anything depended on: `vec_add` is the declared `fold_op` of the quaternion and octonion DFT chains, and `test_cascade_catalog_executable_rc420.py` stays green (99 passed) — those folds always pass equal-width slots. The regression guard asserts **both** orientations, because a guard written against only the one that raised would leave the silent half — the half that corrupts data — intact.
+
+This is the defect class this whole arc exists to catch, and it was found by *probing what the ops actually do* rather than by reading their declarations.
+
 #### The defect: `None` means two things, and one of them gets lost
 
 A `*_c` ctypes wrapper returns `None` to mean *"native absent — run the pure body"*. But **90 wrapper predicates across 263 wrappers also return `None` from a test on their own ARGUMENTS**. Where the C peer returns an *error status* for that same input, `None` is **overloaded** — it carries both *"native absent"* and *"C refused this input"* — and the caller cannot tell them apart, so the invalidity signal is destroyed at the boundary. If the pure body then does not reject the input either, the C guard is **dead through the Python front door**: a defensive guard no Python call can cause to fire.
