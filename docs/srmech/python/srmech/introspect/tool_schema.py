@@ -15109,9 +15109,13 @@ def _register_closed_form_path_a_tools() -> None:
                 P("block_size", "int", False, "tile edge in pixels; default 8"),
                 _D,
             ),
-            returns=R("list",
-                      "when encoding, the quantised coefficient blocks; when "
-                      "decoding, the reconstructed image"),
+            returns=R("tuple | list",
+                      "when encoding, the quantised coefficient blocks (a "
+                      "tuple); when decoding, the reconstructed image (a "
+                      "list). Declared bare `list` through rc430, which was "
+                      "wrong for the ENCODE path — and encode is the default "
+                      "(`decode=False`). Measured on both branches at the "
+                      "rc430 repair (`#T1127`)."),
             composes=("srmech.signal_processing.dct",),
             preserves=_DISC,
         ),

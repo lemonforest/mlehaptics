@@ -126,6 +126,13 @@ CEIL_FRAME_UNADJUDICATED = {
     "NO_INT_INPUT": 152,    # nothing translatable along a frame axis
     "BASE_RAISES": 56,      # harvested binding does not execute
     "SLOW_SKIP": 15,        # measured-slow, skipped BY NAME with a number
+    # rc430 repair (`#T1127`): ops whose parameter carries a documented domain
+    # contract the sweep cannot honour (the three GF(p) ops need PRIME p). The
+    # native peer asserts it and CI took SIGABRT; the pure body silently
+    # computes a wrong answer instead, which is why no local run saw it.
+    # Drains when the rc431 per-parameter domain field lands and the probe can
+    # READ the contract instead of being told it by name.
+    "CONTRACT_SKIP": 3,
 }
 
 _CENSUS_CACHE: Dict[str, Any] = {}
@@ -434,6 +441,21 @@ def test_unadjudicated_ops_are_counted_under_a_down_only_ceiling() -> None:
             f"less. Drain NO_ARG by making the op's worked example bind its "
             f"arguments; drain BASE_RAISES the same way. Raising a CEIL needs "
             f"a reason in the same diff.")
+    # CONTRACT_SKIP is the one residual class a future rc could quietly abuse
+    # to make a red go away, so it is held to its stated reason: every entry
+    # must be a REGISTERED op that really does document the contract claimed
+    # for it. A name that is not in the registry, or one whose declaration says
+    # nothing about primality, is a skip with no evidence behind it.
+    for name, reason in fp.CONTRACT_SKIP.items():
+        entry = get_tool_schema().lookup(name)
+        assert entry is not None, f"CONTRACT_SKIP names an unregistered op: {name}"
+        assert "PRIME" in reason.upper(), reason
+        declared_text = " ".join(p.summary or "" for p in entry.parameters)
+        assert "prime" in declared_text.lower(), (
+            f"{name} is skipped for a primality contract, but no parameter of "
+            f"its own declaration mentions one: {declared_text!r}. Either the "
+            f"skip is wrong or the declaration is.")
+
     reached = counts.get("ADMISSIBLE", 0) + counts.get("NOT_ADMISSIBLE", 0)
     assert reached >= 130, (
         f"only {reached} ops were actually DRIVEN. §4 compares two sets the "

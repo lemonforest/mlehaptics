@@ -104,6 +104,35 @@ NS = (5, 7, 9, 11, 12)
 #: All of them classify NOT_ADMISSIBLE anyway (dense-matrix ops with no frame
 #: coordinate to translate), so skipping costs no verdict; it is recorded as
 #: its own residual class rather than folded into a passing one.
+#: Ops whose parameter carries a DOCUMENTED domain contract the translation
+#: sweep cannot honour. Skipped by name with the contract quoted, and counted as
+#: its own residual class — never folded into a passing one.
+#:
+#: rc430 shipped without this and CI aborted (`#T1127`). `gf_rref` documents
+#: "a prime with 2 <= p < 2**31 … primality is the caller's contract", and the
+#: sweep drives `p` over NS = (5, 7, 9, 11, 12) — 9 and 12 are composite — plus
+#: the whole translation walk. `_check_field` enforces the RANGE, not primality,
+#: exactly as documented, so the pure body just computes a wrong answer quietly;
+#: but the native peer `assert()`s it, and under the asserts-live CI job the
+#: process took SIGABRT. Every one of the 20 parametrized ratchet cases then
+#: reported CRASHED, because they share one cached census — the abort happened
+#: inside the first call, on an op that is not in the roster at all.
+#:
+#: This is the INSTRUMENT violating a contract the op states plainly, not a
+#: defect in the op. The general repair is the per-parameter domain field
+#: deferred to rc431 (`docs/srmech/notes/rc430_deferral_T1127_param_domain.md`);
+#: until it exists there is nothing for the probe to read, so the three ops
+#: carrying this contract are named here.
+CONTRACT_SKIP: Dict[str, str] = {
+    "srmech.math.modular_linalg.gf_rref":
+        "p must be PRIME (2 <= p < 2**31); the sweep drives composite p and the "
+        "native peer asserts — SIGABRT under the asserts-live CI job",
+    "srmech.math.modular_linalg.gf_solve":
+        "p must be PRIME (2 <= p < 2**31); same contract as gf_rref",
+    "srmech.math.modular_linalg.gf_nullspace":
+        "p must be PRIME (2 <= p < 2**31); same contract as gf_rref",
+}
+
 SLOW_SKIP: Dict[str, str] = {
     "srmech.math.laplacian.recover_check": "1332 s measured (50 calls) — dense recover",
     "srmech.math.laplacian.recover_check_spectral": "dense recover (rwe: 244 s)",
@@ -361,6 +390,10 @@ def classify(name: str, base: Dict[str, Any], fn) -> Dict[str, Any]:
     named, never quietly dropped.
     """
     rec: Dict[str, Any] = {"op": name, "verdict": "", "findings": []}
+    if name in CONTRACT_SKIP:
+        rec["verdict"] = "CONTRACT_SKIP"
+        rec["reason"] = CONTRACT_SKIP[name]
+        return rec
     if name in SLOW_SKIP:
         rec["verdict"] = "SLOW_SKIP"
         rec["reason"] = SLOW_SKIP[name]

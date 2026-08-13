@@ -150,6 +150,41 @@ def test_register_attested_root_handles_nonexistent_path(
     assert isinstance(found, dict)
 
 
+def test_register_attested_root_handles_a_path_that_is_a_FILE(
+    tmp_path: Path,
+) -> None:
+    """rc430 repair (`#T1127`) — the case the tolerance above did not cover.
+
+    The sibling test pins that a NONEXISTENT root is skipped rather than
+    raising. A root that exists but is a **file** is the same class of bad root,
+    and `_descriptors()` walked it anyway: the guard read ``not exists()``, a
+    file passes that, and ``discover_descriptors`` raised NotADirectoryError.
+
+    This is not hypothetical. rc430's every-tool smoke synthesises ONE sandbox
+    path per parameter NAME, so the op that writes to ``path=`` created a file
+    at exactly the string ``register_attested_root`` was handed. The bad root
+    then sat in module-global state for the remainder of the session and
+    reddened five tests across two OTHER files — an ordering-dependent failure
+    no single-file run can see, and one that CI caught while every local gate
+    was green.
+    """
+    a_file = tmp_path / "not_a_directory"
+    a_file.write_text("this is a file, not an attested-root directory")
+
+    result = catalog.register_attested_root(a_file, source="file-root")
+    assert result["ok"] is True, "registration itself stays permissive"
+
+    # The whole point: enumeration must SKIP it, not explode on it.
+    found = catalog._descriptors()
+    assert isinstance(found, dict)
+
+    # NON-VACUITY: the file really is registered, so the skip above is what
+    # kept this green — not an empty root list.
+    assert any(Path(r["path"]) == a_file.resolve()
+               for r in catalog.list_registered_roots()
+               if r.get("path")), catalog.list_registered_roots()
+
+
 # ──────────────────────────────────────────────────────────────────────
 # Conflict handling — duplicate source_key
 # ──────────────────────────────────────────────────────────────────────
