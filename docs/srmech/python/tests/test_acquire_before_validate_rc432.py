@@ -567,7 +567,7 @@ def test_s7a_caller_named_work_dir_is_left_alone_by_contract(
     )
 
 
-def test_s7b_work_dir_none_leaks_no_unnameable_scratch_dir() -> None:
+def test_s7b_work_dir_none_leaks_no_unnameable_scratch_dir(tmp_path) -> None:
     """S7b — S7's REAL defect, and the one the read-only triage could not see.
 
     With ``work_dir=None`` the scratch directory's name is minted by ``mkdtemp``
@@ -577,25 +577,48 @@ def test_s7b_work_dir_none_leaks_no_unnameable_scratch_dir() -> None:
     strictly worse than a caller-named directory left behind, and it is why S7's
     two branches got opposite rulings from one repair.
 
-    Not a sandbox probe — the subject is the system temp area itself, which is the
-    whole point."""
-    tmp_root = Path(tempfile.gettempdir())
-    before = {p.name for p in tmp_root.glob("srmech_cut_*")}
+    ⚠️ **The default temp location is REDIRECTED for this probe, and that is a
+    correctness requirement, not tidiness.** The op resolves its scratch through
+    ``tempfile.mkdtemp(prefix=...)`` with no ``dir=``, so pointing
+    ``tempfile.tempdir`` at this test's own ``tmp_path`` exercises exactly the
+    same code path while making the observation PRIVATE.
 
-    install, restore = _inject_makedirs(2)
-    install()
-    raised = None
+    rc432 globbed the real shared ``tempfile.gettempdir()`` and then
+    ``rmtree``'d everything matching ``srmech_cut_*`` that appeared during its
+    window. Under CI's ``-n auto`` that window overlaps other workers:
+    ``test_recursive_cut_rc169.py`` alone calls ``recursive_cut`` **eight** times
+    with ``work_dir`` omitted, each minting a ``srmech_cut_*`` in the very same
+    directory. So the probe could (a) count a stranger's live scratch as its own
+    leak and red on it, and (b) DELETE that scratch out from under a passing
+    test, which then fails with a ``FileNotFoundError`` pointing nowhere near the
+    cause. A test whose oracle is a shared mutable namespace is measuring the
+    other workers as much as its subject — the same cross-subject lesson as
+    ``CTRL_X`` above, arriving from the opposite direction."""
+    tmp_root = Path(tmp_path) / "tempdir"
+    tmp_root.mkdir()
+    prior_tempdir = tempfile.tempdir
+    tempfile.tempdir = str(tmp_root)
     try:
-        L.recursive_cut(4, [(0, 1), (2, 3)], max_tome=2, work_dir=None)
-    except BaseException as exc:                       # noqa: BLE001
-        raised = f"{type(exc).__name__}: {exc}"
-    finally:
-        restore()
+        assert Path(tempfile.gettempdir()) == tmp_root, (
+            "the redirect did not take; this probe would otherwise glob and "
+            "DELETE inside the shared system temp area")
+        before = {p.name for p in tmp_root.glob("srmech_cut_*")}
+        assert before == set(), "the private temp root should start empty"
 
-    after = {p.name for p in tmp_root.glob("srmech_cut_*")}
-    leaked = sorted(after - before)
-    for name in leaked:                                # never leave our own mess
-        shutil.rmtree(tmp_root / name, ignore_errors=True)
+        install, restore = _inject_makedirs(2)
+        install()
+        raised = None
+        try:
+            L.recursive_cut(4, [(0, 1), (2, 3)], max_tome=2, work_dir=None)
+        except BaseException as exc:                   # noqa: BLE001
+            raised = f"{type(exc).__name__}: {exc}"
+        finally:
+            restore()
+
+        after = {p.name for p in tmp_root.glob("srmech_cut_*")}
+        leaked = sorted(after - before)
+    finally:
+        tempfile.tempdir = prior_tempdir
 
     assert raised is not None and raised.startswith("OSError"), (
         f"the injected fault did not reach recursive_cut; got {raised!r}")

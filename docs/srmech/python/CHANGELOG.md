@@ -76,7 +76,7 @@ A scan of all `tests/*.py` for a positive `.exists()` assertion within twelve li
 
 #### Two new ratchets — and the non-claim that matters more
 
-`tests/test_c_resource_ownership_rc432.py` and `tests/test_unowned_acquisition_rc432.py`. Both are in `tools/ripple_gates.txt` **and** `FROZEN_KNOWN_GATES`, in the same commit as the files themselves; the manifest-omission law is at seven instances.
+`tests/test_c_resource_ownership_rc432.py` and `tests/test_unowned_acquisition_rc432.py`. Both are in `tools/ripple_gates.txt` **and** `FROZEN_KNOWN_GATES`, in the same commit as the files themselves; the manifest-omission law is at seven instances. (The driven third file, `tests/test_acquire_before_validate_rc432.py`, was added to both lists by the repairs below — see *What the corrections did not touch*.)
 
 ⚠️ **NEITHER GATE WOULD HAVE CAUGHT THE SEED DEFECT.** The C gate's subject is held handles, and `srmech_genome.c` holds none — it makes zero `mkdir` calls, so the seed has no C referent at all. Its sibling needs two `mkdir`s in one function; the seed makes one. The Python ceiling is seeded at a population that *includes* the repaired sites and therefore can only fire on GROWTH. **These gates detect the REGRESSION, never the original.** No prose in this release may claim they catch the class that took rc431's CI red. The gates pin the result; the repairs produce it, and the repairs are strictly stronger.
 
@@ -84,13 +84,13 @@ The C file is **srmech-local, and explicitly not "JPL Rule 11"** — Holzmann's 
 
 The Python file ships an **allowlist plus a down-only ceiling, never strict zero**, and says why: three `bus/_transport.py::bind` sites create the shared, idempotent `~/.srmech/` that every bus op wants to exist. They are structurally indistinguishable from an orphan; only the contract separates them, and forcing them to zero would mean wrapping correct code in a scope it does not need. Its predicate's soundness rests on requiring the acquisition to be a **simple statement at function-body depth 0**: top-level statements run in source order, so if a lexically-later raise fires, the resource was already acquired — a proof about ordering given firing, not a guess about reachability.
 
-Six blind spots are written into that gate's own docstring, including the arithmetic: **it saw 7 of the 12 confirmed lines.** Loop bodies, branch-local acquisitions and attribute-call raisers are permanent misses — so the `genome_import` repair is ungated, and the prior-data-destruction hazard is outside it entirely. Both are covered instead by `tests/test_acquire_before_validate_rc432.py`, which drives all eight sites down their real error paths and is the stronger of the three files.
+Seven blind spots are written into that gate's own docstring (the seventh added by the repairs below — the gate measures NESTING and has no notion of ownership), including the arithmetic: **it saw 7 of the 12 confirmed lines.** Loop bodies, branch-local acquisitions and attribute-call raisers are permanent misses — so the `genome_import` repair is ungated, and the prior-data-destruction hazard is outside it entirely. Both are covered instead by `tests/test_acquire_before_validate_rc432.py`, which drives all eight sites down their real error paths and is the stronger of the three files.
 
 One finding the design phase did not anticipate: `_ownedfs.owned_scratch_dir` — the helper that *implements* this invariant — trips its own gate, because acquire-at-top-level-then-raise-below **is** the ownership construct. A gate cannot tell the mechanism from the defect by shape alone. It is an allowlist entry with its own tag rather than a predicate special case, so the collision is recorded rather than hidden.
 
 #### Instruments that were wrong before they were right
 
-Three, this release, which is the norm here and is recorded because two were invisible to their own controls.
+Three during the build, which is the norm here and is recorded because two were invisible to their own controls. The repairs below found **four more in the shipped gates themselves**, all green at the time — which is the same lesson at one remove: an instrument's own controls are written by whoever held the instrument's assumptions.
 
 1. The S1 falsifier's first build raised `TypeError` on every case including the valid ones, and returned a confident "no delta" that was a **false negative**.
 2. The C scanner's comment strip collapsed multi-line blocks and shifted every line after them, placing `rcut_setup` 362 lines from where it lives — **in a scanner whose six planted controls were all green.** No control could see it; an external oracle caught it. The fix is newline-preserving substitution, and the falsifier now shipped is a general invariant rather than a pinned literal: every line the scanner reports must, read back from the real file, contain the token claimed for it. Rules 1/3 get away with the naive strip only because they `findall` — they report *that*, never *where*. **A rule that reports a SITE cannot reuse it.**
@@ -99,6 +99,51 @@ Three, this release, which is the norm here and is recorded because two were inv
 #### Deferred, named and costed
 
 `#T1133`: the C half of the `rcut_setup` / `recursive_cut` pair (two new PAL symbols, `rcut_setup` rollback, the three-platform pedantic matrix; ABI stays 14 — pinned by `CEIL_CREATED_NODE_ROLLBACK`); `write_ndjson` atomic write-and-replace; and `genome_register_attested`'s stale-label residual, which is catalog staleness rather than resource ownership. Each is stated as a docstring boundary at the site it belongs to, not left implicit.
+
+### Repairs — the helper written to close a class re-opened it on one platform (`#T1132`)
+
+Eleven defects, found by adjudicating the release against CI. Two were CI-red; the rest were **green**, which is the part worth reading.
+
+#### The helper failed on EVERY absolute path on Windows
+
+`created_dirs` walks a path to its root and `os.mkdir`s each level, treating `FileExistsError` as "already there". On Windows `_levels_to_root` always reaches the drive root, and **`os.mkdir("C:\\")` raises `PermissionError [WinError 5]`, not `FileExistsError`** — so the helper raised on the first level of every absolute path it was ever given, taking `genome_register_attested` and native `genome_import` with it. **15 Windows CI failures.** POSIX hid it completely, because `os.mkdir("/")` there raises `FileExistsError` like any other existing directory: the existence check was spelled as an exception TYPE, and that spelling is not portable.
+
+The same line carried a second defect that no platform reported. Given a path that already exists **as a FILE**, `except FileExistsError: continue` swallowed the error and yielded, so the caller received a path it believed was a directory and was not — measured `isdir=False, isfile=True`, where `os.makedirs(exist_ok=True)` raises. **That is rc431's own defect class inverted** — rc431 was a directory found where a file was wanted; this is a file accepted where a directory was promised — re-introduced by the helper written to close it. The docstring's claim that the success path is "indistinguishable from `os.makedirs(path, exist_ok=True)`" was, as written, false.
+
+Both close with one construct: `FileExistsError` continues only when the node `isdir`, and a non-`EEXIST` `OSError` is tolerated only when the level is already the directory wanted. **The rollback stays exact** — a level joins the removal list only when its `mkdir` RETURNED, so the two new `isdir` probes decide raise-versus-continue and can never enrol a pre-existing directory for deletion. Seven falsifiers (nested create, exact rollback, pre-existing preservation, file-as-leaf parity, file-as-intermediate, drive-root traversal, body-evidence survival) pass on Windows **and** Linux.
+
+#### A stale ADR citation, red in all six test cells
+
+`adr/0011-single-encoding-no-cache.md:102` cited `genome.py:9353-9358` as where `body_sha256` disagreement raises. The reorder moved it to **9407-9412**, out of the evidence window, and `test_adr_citation_integrity_rc415`'s V3 token-evidence count rose 7 → 8. The citation was fixed, not the ceiling: the prose was wrong and the gate was right.
+
+#### Four gates that could not fail
+
+- **One allowlist key exempted an unbounded number of sites.** `_residual()` filtered every row matching `(file, qualname, kind)`, so three keys were silently absorbing **seven** rows — `bind` 3, `_recursive_cut_impl` 3, `owned_scratch_dir` 1. A new, genuinely unowned `mkdir` added anywhere inside `bind` would have inherited a rationale written about its neighbours, which asserts "It is idempotent". Entries now declare an exact count, enforced in **both** directions: growth pushes the overflow into the residual (measured: 3 → 4, breaching the ceiling), and shrinkage fires too, because an over-declaring entry pre-approves the next acquisition to land on that key.
+- **C1 was blind to the success-path close of both streaming readers.** When the unclosed `return` sits at the function body's minimum depth, the walk-back's stop condition can never trigger, so it scanned back past the acquisition and accepted a release from inside a mutually exclusive `if`. Deleting `srmech_ndjson.c:239` or `srmech_laplacian.c:2049` — an unconditional fd leak on **every successful call** — produced **zero findings**. The covering release must now sit at the return's own block depth; both leaks are detected with correct names and lines, and the clean tree stays strict-zero. Note that the shipped positive control deleted an *error*-path close and fired correctly: **one control passed and one did not, on the same gate, in the same file.** "The positive control passes" is not the claim "the gate sees the defect class", and a second control now covers the sharper half.
+- **The C brace counter believed braces inside char literals.** `srmech_genome.c::genome_json_object_span` — a ~25-line function whose whole job is to scan for `'{'` / `'}'` — produced a span of **7,610 lines**, and since `_function_spans` resumes past a span's end, everything it swallowed was skipped: **76 spans where `test_jpl_audit.py::_scan_functions` finds 295 in that file**, 219 function starts lost with C1 reporting a clean zero over all of them. Literal contents are now blanked with delimiters kept, which also fixes the quieter twin (a brace inside a string constant). After the fix the two independently-written scanners agree on the function NAME SET in **every one of the 137 C files, with zero divergence** — and that cross-check now ships, because a second scanner is the only control that could ever have caught this. Every control in that file had been a short synthetic string, and this file's own docstring already records the same class of miss once before (a 362-line comment-strip offset that six green controls could not see).
+- **`_has_rollback` scanned the whole function**, contradicting its own docstring's "after the first create". Planting `srmech_plat_file_remove("unrelated")` one line **above** `rcut_setup`'s first `mkdir` flipped it to exempt — which would have drained C2's ceiling to 0 and then, via the headroom assert, demanded the CEIL be lowered, **silently discharging the `#T1133` obligation the ceiling exists to hold open.** The window now starts after the first create, with a control on both arms so the fix cannot be over-tightened into a ratchet no real repair can satisfy.
+
+#### Dead and non-discriminating instrumentation
+
+`assert <expr> or True` cannot fail on any input; its own trailing comment conceded it was "not a check". Deleted rather than repaired — it was a comment wearing an assertion's clothes.
+
+Two of the five control negatives did not measure what their labels said. Strip the ownership out of the `with-owned` and `try/finally` arms — a `with` holding an unrelated read handle, a `finally: pass` — and the scanner is **still silent**, because condition (2) skips ANY nesting and the gate has no notion of ownership at all. Their silence was never evidence that an owner is recognised. The arms stay (they are still true statements about shapes that must not flag) and the false implication is replaced by a test that measures the real property and pins it as **blind spot 7**: every genuinely unowned acquisition inside an `if` or a `try` is invisible to that gate.
+
+#### A test that could delete a concurrent worker's live directory
+
+S7b's oracle was the **shared** system temp dir: glob `srmech_cut_*`, diff, then `rmtree` everything new. Under CI's `-n auto` that window overlaps other workers, and `test_recursive_cut_rc169.py` alone calls `recursive_cut` **eight** times with `work_dir` omitted, each minting `srmech_cut_*` in exactly that directory. Driven rather than argued: a stand-in worker's scratch was reported as this test's own leak **and destroyed**, which reds S7b *and* an unrelated passing test with a `FileNotFoundError` pointing nowhere near the cause. The default temp location is now redirected to the test's own `tmp_path` — the op still resolves through `mkdtemp` with no `dir=`, so the same code path runs while the observation becomes private and the destructive `rmtree` disappears. **The same cross-subject lesson as `CTRL_X`, arriving from the opposite direction:** a test whose oracle is a shared mutable namespace is measuring the other workers as much as its subject.
+
+#### Smaller, and one non-defect
+
+A shipped comment in `mcp/_mcpb.py` named the wrong quantity — the registry is **655**; 651 is the advertised-def count.
+
+**Reported and rejected:** `_ownedfs.py` was flagged as the only LF-only source file in an all-CRLF checkout. It is not a defect. `git ls-files --eol` reports `i/lf` for **every** file in the tree; the working-tree difference is a checkout-filter artifact of `core.autocrlf=true` (files authored in WSL never passed through it). Normalising would have made these the only CRLF-in-blob files in the repository. **A measurement of the working tree was mistaken for a property of the repository.**
+
+#### What the corrections did not touch
+
+Four artifacts are deliberately partial and stay that way: `test_ctrl_x_same_subject_arm_passes_and_is_therefore_blind` (which asserts its own blindness on purpose), the `genome_save` / `genome_explode` / `genome_pack` residual (left out of the allowlist because "we chose not to extend scope" is not "this is benign"), `CEIL_CREATED_NODE_ROLLBACK = 1` (the `#T1133` pin), and **the non-claim that neither new ratchet would have caught the seed defect**. Restoring a deliberate partial that someone "fixed" outranks every other repair; none had been.
+
+`tests/test_acquire_before_validate_rc432.py` now rides in `tools/ripple_gates.txt` **and** `FROZEN_KNOWN_GATES`, joining its two siblings. It broke no rule by being absent — the law constrains the frozen set, and the two scanners were correctly listed — but it drives all 12 confirmed lines where the scanner sees 7, and three repairs (`genome_import`'s native branch, the loop-body sites) are ungated anywhere else. **That is the manifest-omission law arriving from its blind side: not a gate someone forgot to list, but the strongest gate in the release going unlisted because nothing required it.**
 
 ## [0.9.0rc431]
 

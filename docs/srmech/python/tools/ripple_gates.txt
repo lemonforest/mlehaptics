@@ -399,3 +399,20 @@ tests/test_unowned_acquisition_rc432.py
 #    NON-CLAIM, stated in its docstring: NEITHER gate would have caught the
 #    seed defect. They detect the REGRESSION, never the original.
 tests/test_c_resource_ownership_rc432.py
+
+# -- acquire-before-validate, DRIVEN per site (rc432, `#T1132`) -------------
+#    The other two rc432 gates SCAN; this one EXECUTES. Each of the eight
+#    repaired sites is driven to its own error path and the filesystem is read
+#    back, so it asserts the two things a scanner cannot: the op still RAISES
+#    with the same exception class, and nothing survives the raise.
+#    It rides here because it drives five package ops across four modules --
+#    biology/genome.py, math/laplacian.py, mcp/_mcpb.py, amsc/format.py -- and
+#    reds on a regression in any of them.
+#    Listed on its MERITS, not on a rule: the frozen-gate law constrains only
+#    FROZEN_KNOWN_GATES, and rc432 broke no rule by omitting it. But it covers
+#    all 12 confirmed lines where test_unowned_acquisition_rc432 sees 7, and
+#    three of the repairs (genome_import's native branch, the loop-body sites)
+#    are UNGATED anywhere else -- a regression in them reds nothing without it.
+#    That is the manifest-omission law arriving from its blind side: a gate
+#    nobody listed because nothing required it.
+tests/test_acquire_before_validate_rc432.py

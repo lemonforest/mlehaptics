@@ -226,6 +226,23 @@ FROZEN_KNOWN_GATES = frozenset({
     #    failure is invisible because the suite stays green either way.
     "tests/test_unowned_acquisition_rc432.py",
     "tests/test_c_resource_ownership_rc432.py",
+    #    test_acquire_before_validate_rc432 is the DRIVEN peer of those two, and
+    #    it is frozen for the reason the pair above cannot cover: they SCAN, and
+    #    a scanner sees only the shapes its predicate admits. Measured --
+    #    test_unowned_acquisition_rc432 sees 7 of the 12 confirmed lines; this
+    #    file drives all 12, including genome_import's native branch and the
+    #    three loop-body sites, which are PERMANENT misses for the scanner by its
+    #    own documented blind spots 1 and 2. A regression in those three repairs
+    #    reds nothing anywhere else in the tree.
+    #    It also asserts the half a scanner structurally cannot: that each site
+    #    still RAISES, with the class the code is written around. rc432's own
+    #    S2 probe went green while measuring a path the op never takes, and only
+    #    an exception-TYPE assertion caught it.
+    #    Neither of the two above was a rule violation to omit and neither was
+    #    this -- the law here constrains this set, and rc432 satisfied it. Frozen
+    #    anyway, because "no rule required it" is exactly the shape in which the
+    #    strongest gate in a release goes unlisted.
+    "tests/test_acquire_before_validate_rc432.py",
 })
 
 
