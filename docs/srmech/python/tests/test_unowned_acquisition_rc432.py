@@ -274,15 +274,27 @@ def scan_source(source: str, relpath: str) -> list[dict]:
     return found
 
 
+#: Memo for :func:`_scan_package`. FIVE tests in this file need the identical
+#: full-package AST walk, at ~8s each in the fork-isolated cell, and the walk is
+#: a pure read of a tree no test mutates. Caching it is not a shortcut around a
+#: measurement — every test still evaluates its own predicate over the same
+#: rows; it just stops paying four times for one traversal.
+_SCAN_CACHE: list[dict] | None = None
+
+
 def _scan_package() -> list[dict]:
-    rows: list[dict] = []
-    for p in sorted(_PKG.rglob("*.py")):
-        rel = str(p.relative_to(_PKG.parent)).replace("\\", "/")
-        try:
-            rows.extend(scan_source(p.read_text(encoding="utf-8"), rel))
-        except SyntaxError:                                  # pragma: no cover
-            continue
-    return rows
+    global _SCAN_CACHE
+    if _SCAN_CACHE is None:
+        rows: list[dict] = []
+        for p in sorted(_PKG.rglob("*.py")):
+            rel = str(p.relative_to(_PKG.parent)).replace("\\", "/")
+            try:
+                rows.extend(scan_source(p.read_text(encoding="utf-8"), rel))
+            except SyntaxError:                              # pragma: no cover
+                continue
+        _SCAN_CACHE = rows
+    # a fresh list per caller, so no test can perturb another's population
+    return list(_SCAN_CACHE)
 
 
 def _residual() -> list[dict]:
