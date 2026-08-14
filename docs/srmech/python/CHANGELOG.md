@@ -139,6 +139,16 @@ A shipped comment in `mcp/_mcpb.py` described `build_manifest` as walking "the 6
 
 **Reported and rejected:** `_ownedfs.py` was flagged as the only LF-only source file in an all-CRLF checkout. It is not a defect. `git ls-files --eol` reports `i/lf` for **every** file in the tree; the working-tree difference is a checkout-filter artifact of `core.autocrlf=true` (files authored in WSL never passed through it). Normalising would have made these the only CRLF-in-blob files in the repository. **A measurement of the working tree was mistaken for a property of the repository.**
 
+#### A gate that stopped reporting because it ran out of clock
+
+The `asserts-live FULL suite, fork-isolated` cell came back **cancelled, not red** — and a cancelled gate says nothing at all about the class it exists for, which is the worst failure mode a gate has, arriving disguised as a scheduling artifact.
+
+Measured: `timeout-minutes` was **30**, set at rc357 from a then-max of **19:10**. On this branch the pre-repair commit took **29:39** — *twenty-one seconds* under the cap — and the next commit, six added tests, hit 30:00 and was killed. The headroom rc357 left had already been spent by 75 rcs of test growth; this rc was only the commit that arrived after it ran out. Raised to **45** on the same rule rc357 used — measure the max, leave real headroom. The cell is the expensive one *by design*: `--forked` pays a process spawn ~14,900 times, and it grows with the suite while its budget does not.
+
+Separately, `_scan_package` is now memoised: five tests were each paying for an identical full-package AST walk of a tree no test mutates. Every test still evaluates its own predicate over the same rows — **39.4s → 16.6s**, 10 passed before and after. Honest bound: this does **not** help the asserts-live cell, because `--forked` fills the cache in a child and discards it; it helps every cell where tests share a process.
+
+**Explicitly not done:** narrowing that run with `-k` or a file list to fit the clock. Coverage == collection is the invariant the cell exists to hold, and buying time by measuring less is the gate lying rather than the gate working.
+
 #### What the corrections did not touch
 
 Four artifacts are deliberately partial and stay that way: `test_ctrl_x_same_subject_arm_passes_and_is_therefore_blind` (which asserts its own blindness on purpose), the `genome_save` / `genome_explode` / `genome_pack` residual (left out of the allowlist because "we chose not to extend scope" is not "this is benign"), `CEIL_CREATED_NODE_ROLLBACK = 1` (the `#T1133` pin), and **the non-claim that neither new ratchet would have caught the seed defect**. Restoring a deliberate partial that someone "fixed" outranks every other repair; none had been.
