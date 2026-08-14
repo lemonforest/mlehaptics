@@ -330,8 +330,7 @@ def pack_mcpb(
 
     # `#T1132`: the mkdir sat ABOVE this call, so a rejected ``server_type`` left
     # ``out_dir`` behind while raising. ``build_manifest`` is filesystem-free —
-    # measured, not assumed: it walks the 655-entry registry, advertising the 651
-    # that carry a def, and touches no path —
+    # measured, not assumed: it walks the registry and touches no path —
     # so the acquisition moves below it with no change to the success path.
     manifest = build_manifest(
         name=name, server_type=server_type, name_filter=name_filter

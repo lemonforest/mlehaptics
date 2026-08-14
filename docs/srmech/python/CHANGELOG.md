@@ -135,7 +135,7 @@ S7b's oracle was the **shared** system temp dir: glob `srmech_cut_*`, diff, then
 
 #### Smaller, and one non-defect
 
-A shipped comment in `mcp/_mcpb.py` named the wrong quantity — the registry is **655**; 651 is the advertised-def count.
+A shipped comment in `mcp/_mcpb.py` described `build_manifest` as walking "the 651-entry registry". The finding was right — 651 is the advertised-def count, not the registry size — but **the obvious correction was itself a defect, and a shipped gate caught it.** Writing the true total as a literal trips `test_owner_axis_rc410::test_no_shipped_module_restates_the_registry_total`, which exists precisely because such a number travels inside the wheel and goes stale on the next op registered. It red five CI cells. The count is now simply **gone**: the comment's load-bearing claim is that `build_manifest` is filesystem-free, and no number was ever carrying it — the original 651 was the same stale-prone literal, merely one the gate does not scan for. *A correct diagnosis does not certify the repair prescribed with it.*
 
 **Reported and rejected:** `_ownedfs.py` was flagged as the only LF-only source file in an all-CRLF checkout. It is not a defect. `git ls-files --eol` reports `i/lf` for **every** file in the tree; the working-tree difference is a checkout-filter artifact of `core.autocrlf=true` (files authored in WSL never passed through it). Normalising would have made these the only CRLF-in-blob files in the repository. **A measurement of the working tree was mistaken for a property of the repository.**
 
