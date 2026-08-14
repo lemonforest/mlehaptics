@@ -45,7 +45,7 @@ def g4_fold(concepts):
     sectors (the chirality bit) via `chirality.structural_poles` (the Class-L signed-Laplacian partition, F1138) —
     so the flat-collapsed metamer becomes distinguishable, the which-way preserved. Returns ``{word: sector 0|1}``
     for the folded (chirality-preserved) words, or ``{}`` if the cycle has no motif (stays flat). SELECTIVE: only
-    a metamer cycle folds; the full Klein-4 carrier (`srmech.amsc.hdc.klein4_bind` on the sector key) realizes it
+    a metamer cycle folds; the full Klein-4 carrier (`srmech.math.hdc.klein4_bind` on the sector key) realizes it
     in HDC, the sector bit here IS the load-bearing chirality (F132)."""
     motif = g4_motif(concepts)
     if not motif:

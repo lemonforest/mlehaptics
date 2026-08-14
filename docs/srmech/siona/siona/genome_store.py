@@ -34,9 +34,9 @@ srmech primitives (``gene_express`` / ``genome_append``) have no ``element_type`
 """
 import json as _json
 
-import srmech.amsc.genome as _G
-from srmech.amsc import hdc as _hdc
-from srmech.amsc import cascade as _cascade
+import srmech.biology.genome as _G
+from srmech.math import hdc as _hdc
+from srmech import cascade as _cascade
 
 # §Q8 (srmech rc311): the genome's element_type selector, re-exported so a caller opts in
 # without importing genome internals — ``pack_instrument(..., element_type=ELEMENT_TYPE_Q8)``.

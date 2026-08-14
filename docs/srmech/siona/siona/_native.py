@@ -1,6 +1,6 @@
 """siona._native — the ctypes shim for Siona's native plugin (libsiona_native.so).
 
-Mirrors srmech's own ``srmech.amsc._native`` pattern: locate the shared library
+Mirrors srmech's own ``srmech._native`` pattern: locate the shared library
 inside the package's ``_native/`` dir, verify the ABI handshake, expose
 ``HAS_NATIVE`` + wrapped symbols, and provide a pure-Python REFERENCE twin for
 every native op so the surface works identically with or without the ``.so``
@@ -283,9 +283,9 @@ def cooccurrence_laplacian(token_ids, doc_ends, subset, window=2, vocab_size=Non
     into an ``array('d')`` that IS srmech's ``Mat`` wire form (wrapped zero-copy). The
     pure-Python fallback composes ``cooccurrence_edges_parallel`` + ``dense_laplacian``
     to the SAME Mat (bit-for-bit; integer counts are exact float64). Returns the ``Mat``,
-    ready for ``srmech.amsc.laplacian.symmetric_eigendecompose``.
+    ready for ``srmech.math.laplacian.symmetric_eigendecompose``.
     """
-    from srmech.amsc.mat import Mat
+    from srmech.math.mat import Mat
     token_ids, doc_ends, subset = list(token_ids), list(doc_ends), list(subset)
     n_sub = len(subset)
     if vocab_size is None:
@@ -306,7 +306,7 @@ def cooccurrence_laplacian(token_ids, doc_ends, subset, window=2, vocab_size=Non
         return Mat(out_L, n_sub, n_sub)
 
     # fallback: compose cooccurrence + dense_laplacian to the same Mat
-    from srmech.amsc import laplacian as _lap
+    from srmech.math import laplacian as _lap
     pos = {vid: k for k, vid in enumerate(subset)}
     ii, jj, ww = cooccurrence_edges_parallel(token_ids, doc_ends, window)
     edges, weights = [], []

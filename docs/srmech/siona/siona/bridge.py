@@ -3,7 +3,7 @@ path (F825), pure-Python and exact. Symbol-agnostic — operates on integer ids,
 DNA bases (de Bruijn graphs ARE genome assembly), or any discrete stream.
 
 rc1 recalls from the loose RBS-HDC instrument (an NDJSON of per-body shapes + a title→offset index). A native
-single-file srmech genome (`srmech.amsc.genome`, PKG-3/F832/F833) was prototyped and recalls exactly, but the genome
+single-file srmech genome (`srmech.biology.genome`, PKG-3/F832/F833) was prototyped and recalls exactly, but the genome
 format is blocked at corpus scale on two counts — it stores each 2-bit Klein-4 lane as a full byte (a flat 4× bloat)
 and `genome_pack` is O(n²) in chromosome count — both filed upstream (UPSTREAM_NOTES §55). Native-genome bodies are
 revisited once those land; rc1 ships on the loose store. The Klein-4 HV of a token is a deterministic *projection*
@@ -103,7 +103,7 @@ def _delens_bundle(tokens, mass):
     if _CS is None:
         from srmech.rbs_lm.substrate import ContextSubstrate
         _CS = ContextSubstrate(D=_SUBSTRATE_D, hex_chars=16)
-    from srmech.amsc import hdc
+    from srmech.math import hdc
     content = sorted({w for w in tokens if w not in mass and len(w) >= DELENS_MIN_LEN})
     if not content:
         return None
@@ -120,7 +120,7 @@ def route(query_tokens, candidates, mass=frozenset()):
     [(label, score), ...] sorted high→low. De-lensing sharpens aboutness (F853 80%->90%); this is the
     COARSE pass of scale-covariant recall — pair with walk-mode recall() for the fine reconstruction.
     Do NOT use this for walk-position routing — that stays full-metric (F853 §CORRECTION)."""
-    from srmech.amsc import hdc
+    from srmech.math import hdc
     q = _delens_bundle(query_tokens, mass)
     if q is None:
         return []

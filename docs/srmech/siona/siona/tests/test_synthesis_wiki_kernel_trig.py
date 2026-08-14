@@ -77,7 +77,7 @@ def test_register_conversion_ladder_rc117():
     and the register holds a lower one on the same ladder, siona auto-PROMOTES via the srmech
     carrier_ladder_descriptor (#1248). A Poly in hand reaches a BiPoly|TriPoly consumer."""
     import importlib.util
-    if importlib.util.find_spec("srmech.amsc.carrier_ladder") is None:
+    if importlib.util.find_spec("srmech.math.carrier_ladder") is None:
         import pytest
         pytest.skip("carrier_ladder (srmech rc117+) not on this floor")
     s = siona.Session()
@@ -94,7 +94,7 @@ def test_cd_ladder_auto_promote_rc117():
     (rung = its length) is lifted UP to a Hurwitz consumer's rung (the algebra NAME is the rung:
     octonion == dim 8). quaternion_exp -> a rung-4 quaternion -> octonion op promotes 4->8."""
     import importlib.util
-    if importlib.util.find_spec("srmech.amsc.carrier_ladder") is None:
+    if importlib.util.find_spec("srmech.math.carrier_ladder") is None:
         import pytest
         pytest.skip("carrier_ladder (srmech rc117+) not on this floor")
     s = siona.Session()
@@ -113,7 +113,7 @@ def test_cd_explicit_dim_promotion_rc117():
     element) binds to cd_promote's x AS-IS and the target dim rides the utterance (algebra word or
     'to N'), not the op name. The _fit refactor: a ref-fit param is excluded from operand accounting."""
     import importlib.util
-    if importlib.util.find_spec("srmech.amsc.carrier_ladder") is None:
+    if importlib.util.find_spec("srmech.math.carrier_ladder") is None:
         import pytest
         pytest.skip("carrier_ladder (srmech rc117+) not on this floor")
     s = siona.Session()
@@ -130,17 +130,17 @@ def test_cd_rung_read_from_declared_contract_rc120():
     carrier_ladder_descriptor()['ops']. Siona READS the consumer's rung from it (octonion_conjugate
     -> 8) instead of name-mapping 'octonion'->8. The name-map survives only as the pre-rc120 fallback."""
     import importlib.util
-    if importlib.util.find_spec("srmech.amsc.carrier_ladder") is None:
+    if importlib.util.find_spec("srmech.math.carrier_ladder") is None:
         import pytest
         pytest.skip("carrier_ladder not on this floor")
-    from srmech.amsc.carrier_ladder import carrier_ladder_descriptor
+    from srmech.math.carrier_ladder import carrier_ladder_descriptor
     if "ops" not in carrier_ladder_descriptor():
         import pytest
         pytest.skip("per-op contract (ops map, #1254/rc120) not on this floor")
     s = siona.Session()
-    assert s._op_consume_rung("srmech.qm.octonion.octonion_conjugate") == 8   # READ, not name-mapped
-    assert s._op_consume_rung("srmech.qm.quaternion.quaternion_norm") == 4
-    assert s._op_consume_rung("srmech.amsc.cascade.cd_promote") is None       # 'any' -> not a fixed rung
+    assert s._op_consume_rung("srmech.physics.qm.octonion.octonion_conjugate") == 8   # READ, not name-mapped
+    assert s._op_consume_rung("srmech.physics.qm.quaternion.quaternion_norm") == 4
+    assert s._op_consume_rung("srmech.cascade.cd_promote") is None       # 'any' -> not a fixed rung
     # and the auto-promote still lands (4->8) driven by the contract-read rung
     s.turn("compute the quaternion exp of 0.5")
     _, tag, out = s.turn("compute the octonion conjugate of it")
@@ -152,9 +152,9 @@ def test_genome_store_pack_load_instrument_rc123():
     genome via kernel_pack/unpack (§60, rc123+) -- dim-agnostic, exact round-trip, bit-packed ~2
     bits/symbol. Replaces the loose NDJSON+index; the corrected SPARSE store (no dense blow-up)."""
     import importlib.util, tempfile, os
-    if importlib.util.find_spec("srmech.amsc.genome") is None:
+    if importlib.util.find_spec("srmech.biology.genome") is None:
         import pytest; pytest.skip("genome surface absent")
-    import srmech.amsc.genome as G
+    import srmech.biology.genome as G
     if not hasattr(G, "kernel_pack"):
         import pytest; pytest.skip("kernel_pack (§60, rc123+) not on this floor")
     from siona import genome_store as GS
@@ -179,12 +179,12 @@ def test_genome_store_add_kernel_o1_teach_rc123():
     genome (F1044 tail-extend; prior bytes untouched). Header-less append recovers the exact D via
     kernel_unpack's §60 back-compat (D = n_leaves × leaf_dim; siona's D=8192 = 32×256, no padding)."""
     import importlib.util, tempfile
-    if importlib.util.find_spec("srmech.amsc.genome") is None:
+    if importlib.util.find_spec("srmech.biology.genome") is None:
         import pytest; pytest.skip("genome surface absent")
-    import srmech.amsc.genome as G
+    import srmech.biology.genome as G
     if not hasattr(G, "kernel_pack"):
         import pytest; pytest.skip("kernel_pack (§60, rc123+) not on this floor")
-    from srmech.amsc import hdc
+    from srmech.math import hdc
     from siona import genome_store as GS
     d = tempfile.mkdtemp(prefix="siona_teach_")
     GS.pack_instrument([("seed", hdc.klein4_encode_bytes(b"fixture-1", 8192))], d)
@@ -219,7 +219,7 @@ def test_photosynth_two_axis_harvest_rc135():
     """F1066/F1069: the two-axis harvest carries the winding w WHOLE -- the PHASE axis == the single fold
     (lossless regroup), and the WINDING axis stratifies the answer by scale (multiple ascending levels)."""
     from siona import photosynth as P
-    from srmech.amsc.cascade import the_one
+    from srmech.cascade import the_one
     s = siona.Session()
     inst = P.from_session(s, limit=70)
     one = the_one(1, 11, 7, 24)  # coherent (θ≈π/2)
@@ -450,7 +450,7 @@ def test_planner_run_rc135_1108():
     [poly_promote x2], RUNS it (threading the value), returns the TriPoly + a provenance record per step; a
     no-route goal is honest OPEN."""
     from siona import planner as P
-    import srmech.amsc.poly as poly
+    import srmech.math.poly as poly
     r = P.run(poly.Poly([1, 2, 3]), "TriPoly")
     assert r["ran"] and r["carrier"] == "TriPoly", r
     assert [s["op"].split(".")[-1] for s in r["steps"]] == ["poly_promote", "poly_promote"], r
@@ -462,7 +462,7 @@ def test_planner_run_goal_nl_rc135_1109():
     """F1109 (#255): the NL-goal end -- goal_typing.goal_carrier types an English goal to a carrier, and
     planner.run_goal types-then-plans-then-runs. 'three-variable polynomial' + a Poly -> TriPoly; 'vague' -> untyped."""
     from siona import planner as P, goal_typing as G
-    import srmech.amsc.poly as poly
+    import srmech.math.poly as poly
     assert G.goal_carrier("I want a three-variable polynomial") == "TriPoly"
     assert G.goal_carrier("give me the scalar magnitude") == "float"
     assert G.goal_carrier("something vague") is None                      # honest untyped

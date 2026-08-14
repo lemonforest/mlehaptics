@@ -47,7 +47,7 @@ def residue(topic, *, k=20, edge=0.04, spine_k=5, aspect_max=6):
     (dominant-eigenvector key concepts) and the ASPECTS (low-eigenvector community groups) off it — the SAME
     residue read as `couple()`, sourced from co-incidence instead of morphology. Returns ``{"topic", "spine",
     "aspects"}`` or ``None``. (English `relate` is the default corpus; another analytic language supplies its own.)"""
-    from srmech.amsc import laplacian as L
+    from srmech.math import laplacian as L
     nb = [w for w in relate.neighbors(topic) if w not in _STOP and len(w) > 2 and w != topic][:k]
     field = [topic] + nb
     n = len(field)

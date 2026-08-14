@@ -20,7 +20,7 @@ import itertools
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from srmech.amsc import hdc                                       # noqa: E402
+from srmech.math import hdc                                       # noqa: E402
 
 D = 2048
 BS = 8                       # octonion block size

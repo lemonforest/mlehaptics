@@ -13,7 +13,7 @@ a query to the nearest op. numpy-free.
 """
 import importlib
 import inspect
-from srmech.amsc import hdc as _hdc
+from srmech.math import hdc as _hdc
 
 __all__ = ["introspect_srmech", "introspect_carriers", "introspect_patterns", "introspect_carrier_examples",
            "PATTERNS", "Tooling", "SRMECH_MODULES", "TIERS"]
@@ -31,15 +31,29 @@ TIERS = {
 }
 
 SRMECH_MODULES = [
-    "srmech.amsc.genome", "srmech.amsc.laplacian", "srmech.amsc.hdc", "srmech.amsc.cascade",
-    "srmech.amsc.rational", "srmech.amsc.format", "srmech.amsc.cyclic", "srmech.calculus",
-    "srmech.amsc.coupling", "srmech.amsc.carrier_ladder",
+    # ADR-0010 declustering (srmech 0.9.0rc364-rc377) drained srmech.amsc to its FOUR attestation
+    # keepers (format / catalog / descriptor / gap_suggester); everything else re-homed by DOMAIN.
+    # Every path below was verified importable against 0.9.0rc432 — not inferred from the changelog.
+    "srmech.biology.genome", "srmech.math.laplacian", "srmech.math.hdc", "srmech.cascade",
+    "srmech.math.rational", "srmech.amsc.format", "srmech.math.cyclic", "srmech.calculus",
+    "srmech.math.carrier_ladder",
+    # "srmech.amsc.coupling" was listed here and resolves in NO namespace — it is not an ADR-0010
+    # casualty, it never existed. Siona was carrying a phantom module in her self-knowledge; a
+    # tier that teaches must not name a thing that cannot be imported. Removed, not repointed.
+    #
+    # The domains ADR-0010 OPENED, which Siona's list has never seen — the identical blind spot the
+    # F1204 note below records for qm, and it recurs every time srmech grows a namespace:
+    "srmech.math.octonion", "srmech.math.covering", "srmech.math.text", "srmech.math.search",
+    "srmech.biology.q8", "srmech.spectral", "srmech.chemistry", "srmech.music",
+    "srmech.apokatastasis",
+    # ...and the introspection surface itself, so she can answer "how do I find an op":
+    "srmech.introspect.tool_schema", "srmech.introspect.search",
     # The qm / QFT / Standard-Model physics layer (F1204): srmech's _REGISTRY (409 ops) has these, but Siona's
     # introspection omitted them — she couldn't answer "how do I compute the weak mixing angle" because her
-    # self-knowledge never mined srmech.qm.*. The Standard Model (qm.sm) was INVISIBLE to her. Now included.
-    "srmech.qm.single_particle", "srmech.qm.spin", "srmech.qm.potentials", "srmech.qm.relativistic",
-    "srmech.qm.propagators", "srmech.qm.pseudo_hermitian", "srmech.qm.gauge", "srmech.qm.sm",
-    "srmech.qm.so8", "srmech.qm.triality",
+    # self-knowledge never mined srmech.physics.qm.*. The Standard Model (qm.sm) was INVISIBLE to her. Now included.
+    "srmech.physics.qm.single_particle", "srmech.physics.qm.spin", "srmech.physics.qm.potentials", "srmech.physics.qm.relativistic",
+    "srmech.physics.qm.propagators", "srmech.physics.qm.pseudo_hermitian", "srmech.physics.qm.gauge", "srmech.physics.qm.sm",
+    "srmech.physics.qm.so8", "srmech.physics.qm.triality",
 ]
 
 
@@ -76,7 +90,7 @@ def introspect_carriers():
     HONEST caveat (F1110): grounding separates the DISTINCT types (Mat / float / octonion) but not the
     variable-COUNT (Poly vs BiPoly vs TriPoly differ only by a rung NUMBER surface-word grounding can't weight —
     the structure-not-surface lesson of F1100); the number-sensitive typing lives in ``goal_typing`` (the cue)."""
-    import srmech.amsc.carrier_ladder as _cl
+    import srmech.math.carrier_ladder as _cl
     d = _cl.carrier_ladder_descriptor()
     out = {}
     for nm, c in d["carriers"].items():
@@ -100,12 +114,17 @@ def introspect_carriers():
 PATTERNS = {
     "build_wiki_corpus_genome": (
         "build a wiki/corpus DIRECTED Class-L genome (the #231 store) — the NATIVE srmech rc253 pipeline, the way "
-        "the simplewiki body instrument was made (F1232/F1233): (1) tokenize each doc with srmech.amsc.text.tokenize; "
-        "(2) n,edges,metric,charge = srmech.amsc.text.cooccurrence_edges(docs, window=4, vocab=V, directed=True) — "
-        "metric=w_fwd+w_bwd, charge=w_fwd-w_bwd (the direction); (3) strand,n_syms = srmech.amsc.genome.graph_to_kernel"
-        "(n, edges, metric, charge, leaf_dim=64, label='graph', the_one=COUPLE); genome_save(strand,dir,COUPLE,"
+        "the simplewiki body instrument was made (F1232/F1233): (1) tokenize each doc with siona._native.tokenize "
+        "— srmech.math.text.tokenize was DELETED at srmech rc287 (it carried Latin-shaped assumptions: a "
+        "2-codepoint floor, a universal lower(), an isascii() gate); srmech's surviving segmenters are "
+        "glyph_stream (UAX #29 extended grapheme clusters) and fold_marks, NOT a word tokenizer; "
+        "(2) n,edges,metric,charge = srmech.math.text.cooccurrence_edges(docs, window=4, vocab=V, directed=True) — "
+        "metric=w_fwd+w_bwd, charge=w_fwd-w_bwd (the direction); (3) strand,n_syms = srmech.biology.genome.graph_to_kernel"
+        "(n, edges, metric, charge, leaf_dim=64, label='graph', coupling=COUPLE) — the kwarg is coupling=, NOT "
+        "the_one= (upstream renamed it; a coupling routed through an RNG must never wear the resonant name); "
+        "genome_save(strand,dir,COUPLE,"
         "labels=['graph']) then genome_append_kernel(dir,'vocab', vocab-as-klein4-syms) = ONE content-addressed genome "
-        "(graph + vocab chromosomes), NOT loose JSON; (4) verify with srmech.amsc.laplacian.recover_check_structural "
+        "(graph + vocab chromosomes), NOT loose JSON; (4) verify with srmech.math.laplacian.recover_check_structural "
         "(sparse, any vocab) + recover_check_spectral(max_dim=256). Store the directed Laplacian + fiber, NEVER Klein-4 "
         "HVs (F1221). Load for reads via siona.corpus_store.prepare(dir) -> neighbors('X') = 'what is X seen-with'. "
         "(5) for FAST serving, build the DEMAND-LOAD read layer once: siona.corpus_store.build_reads(dir) writes "
@@ -148,7 +167,7 @@ def introspect_carrier_examples():
     the ops (F1086/F1110). Attested (sha256) upstream, so it composes with the AMSC/MPM discipline. Import-guarded:
     no-ops on an srmech without the layer (pre-rc241), like ``introspect_carriers`` guards its own import."""
     try:
-        from srmech.amsc._carrier_examples import CARRIER_EXAMPLES
+        from srmech.introspect._carrier_examples import CARRIER_EXAMPLES
     except Exception:
         return {}                                                   # pre-rc241 srmech: the layer isn't there yet
     out = {}

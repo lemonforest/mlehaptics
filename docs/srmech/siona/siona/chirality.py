@@ -99,7 +99,7 @@ def structural_poles(words):
     Coverage/accuracy are bounded by the opponent-edge data (words with no antonym drop out; sparse/noisy edges
     can misplace a node). The mechanism — structural derivation + propagation — is the point; Class-O dissolved
     into Class-L as this signed variant."""
-    from srmech.amsc import laplacian as _L
+    from srmech.math import laplacian as _L
     field = [w for w in dict.fromkeys((x or "").strip().lower() for x in words) if poles(w)]
     if len(field) < 3:
         return {}

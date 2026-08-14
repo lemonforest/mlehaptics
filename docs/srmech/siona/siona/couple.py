@@ -25,7 +25,7 @@ coupling roles (so the graph carries the op(x)operand structure, not bare co-occ
                         coupling structure stays visible in the one object (not hidden inside the matrix)
 
 Every field above comes from the SAME ``(evals, evecs)`` pair — one `dense_laplacian` + one
-`symmetric_eigendecompose`, never a second decomposition. srmech-native (`srmech.amsc.laplacian` ONLY), numpy-free,
+`symmetric_eigendecompose`, never a second decomposition. srmech-native (`srmech.math.laplacian` ONLY), numpy-free,
 sparse (edge-lists / dicts, no dense hand-built matrix — `dense_laplacian` builds its matrix internally). No
 Python's magnitude builtin: eigenvector ranking uses ``x*x`` as a Class-K sort key, never that primitive.
 """
@@ -154,7 +154,7 @@ def couple(raw_glyph_lines, *, community_bits=4, top_k=8, max_formula_size=12):
                              coupling that DERIVED part of the graph, kept visible as edge annotations
       ``evals``            — the raw eigenvalues (ascending), for anyone who wants a further residue read-out
     """
-    from srmech.amsc import laplacian as L
+    from srmech.math import laplacian as L
 
     vocab, edges, weights, coupling_edges = _build_graph(raw_glyph_lines)
     n = len(vocab)

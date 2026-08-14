@@ -22,7 +22,7 @@ Scale note: ``symmetric_eigendecompose`` is native up to n≤256; a corpus-scale
 ``fiedler_sparse`` / a Lanczos low-mode basis (the follow-on). The eigenbasis is precomputed ONCE per
 instrument; each query is then just a seed + a projection (cheap).
 """
-from srmech.amsc import laplacian as _L, hdc as _hdc
+from srmech.math import laplacian as _L, hdc as _hdc
 from srmech import calculus as _C
 
 __all__ = ["Instrument", "from_session"]

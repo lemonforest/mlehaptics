@@ -40,7 +40,7 @@ class Grounding:
 
     def __init__(self, D=8192):
         from srmech.rbs_lm.substrate import ContextSubstrate
-        from srmech.amsc import hdc
+        from srmech.math import hdc
         self._hdc = hdc
         self.D = D
         self.cs = ContextSubstrate(D=D, hex_chars=16)
@@ -49,7 +49,7 @@ class Grounding:
 
     def refresh(self):
         """(Re)build the index from the LIVE registry — call after registering new tools."""
-        from srmech.amsc import tool_schema as ts
+        from srmech.introspect import tool_schema as ts
         self.tools = {t.name: t for t in ts.get_tool_schema().tools}
         nt = len(self.tools)
         self._nm = {n: _toks(n.split(".")[-1]) for n in self.tools}
@@ -129,10 +129,10 @@ class Grounding:
 
 def _register_self_tools():
     """Register siona's own surface into srmech's registry (F1011). Idempotent."""
-    from srmech.amsc import tool_schema as ts
+    from srmech.introspect import tool_schema as ts
     if any(t.owner == "siona" for t in ts.get_tool_schema().tools):
         return
-    from srmech.amsc.tool_schema import ToolEntry, ToolParameter, ToolReturn
+    from srmech.introspect.tool_schema import ToolEntry, ToolParameter, ToolReturn
 
     def T(name, summary):
         return ToolEntry(
@@ -560,7 +560,7 @@ class Session:
     def _ladder(self):
         if getattr(self, "_ladder_cache", None) is None:
             try:
-                from srmech.amsc.carrier_ladder import carrier_ladder_descriptor
+                from srmech.math.carrier_ladder import carrier_ladder_descriptor
                 self._ladder_cache = carrier_ladder_descriptor()
             except Exception:
                 self._ladder_cache = {"carriers": {}, "ladders": {}}
@@ -591,7 +591,7 @@ class Session:
         This is what lets siona READ the rung instead of name-mapping 'octonion'->8."""
         if getattr(self, "_ops_cache", None) is None:
             try:
-                from srmech.amsc.carrier_ladder import carrier_ladder_descriptor
+                from srmech.math.carrier_ladder import carrier_ladder_descriptor
                 self._ops_cache = carrier_ladder_descriptor().get("ops", {})
             except Exception:
                 self._ops_cache = {}
@@ -638,7 +638,7 @@ class Session:
             return None
         if tgt == rung:
             return list(obj)               # dims already match -- bind as-is
-        from srmech.amsc.cascade import cd_promote    # rung -> tgt (one call handles multi-rung)
+        from srmech.cascade import cd_promote    # rung -> tgt (one call handles multi-rung)
         return list(cd_promote(list(obj), tgt))
 
     def _promote_ref(self, tp):
@@ -1174,7 +1174,7 @@ class Session:
         return max(vocab, key=lambda w: self.g.sim(probe, self.g.vec(w)))
 
     def _help(self, text=""):
-        from srmech.amsc import tool_schema as ts
+        from srmech.introspect import tool_schema as ts
         live = [t for t in ts.get_tool_schema().tools if t.owner == "siona"]  # LIVE = Class-H
         return "my commands (%d, from my live schema): %s" % (
             len(live), ", ".join(t.name.split(".")[-1] for t in live))
@@ -1226,7 +1226,7 @@ class Session:
         return None
 
     def _answer(self, text):
-        from srmech.amsc import cyclic
+        from srmech.math import cyclic
         ws = _toks(text)
         if any(w in self.board.comparison_words for w in ws):
             return self._compare(text)          # multi-note synthesis (F774 compare op)
@@ -1415,7 +1415,7 @@ class Session:
         if not self.attestations:
             return "(nothing acquired to pack)"
         import json as _json
-        from srmech.amsc import text as stext, laplacian as L
+        from srmech.math import text as stext, laplacian as L
         out = text.strip() or "siona_knowledge_pack.json"
         notes = [self.mem[a["note_index"]] for a in self.attestations]
         docs = [n.split() for n in notes]

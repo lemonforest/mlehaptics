@@ -16,9 +16,9 @@ import os
 import struct
 from pathlib import Path
 
-from srmech.amsc import genome as _G
-from srmech.amsc import hdc as _H
-from srmech.amsc import laplacian as _L          # NATIVE Class-L recursion: recursive_cut / fiedler_sparse (srmech gh#1097 / §52)
+from srmech.biology import genome as _G
+from srmech.math import hdc as _H
+from srmech.math import laplacian as _L          # NATIVE Class-L recursion: recursive_cut / fiedler_sparse (srmech gh#1097 / §52)
 
 LEAF = 64
 # F1304: the coupling is the SANDROING/UNESCO-00073 SOURCE — so it is content-addressed (the "knowledge it

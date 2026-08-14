@@ -15,7 +15,7 @@ by the k=3 independent perspectives that did NOT drift together, F1131).
 srmech-native Class-L (`dense_laplacian` / `jacobi_eigvals` / `fiedler_vector`). Pass any neighbor-lookup; the
 co-occurrence graph (`relate.neighbors`, dense) gives cleaner communities than the star-shaped typed graph.
 """
-from srmech.amsc import laplacian as L
+from srmech.math import laplacian as L
 
 __all__ = ["scan"]
 

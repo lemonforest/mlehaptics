@@ -18,7 +18,7 @@ construction. This is novel-reduction-on-request (F1042): novel COMPOSITION of k
 """
 import collections
 
-import srmech.amsc.carrier_ladder as _CL
+import srmech.math.carrier_ladder as _CL
 
 __all__ = ["plan", "run", "run_goal", "plan_nl", "run_nl", "extract_value", "carrier_graph"]
 
@@ -153,7 +153,7 @@ def extract_value(operand_text, carrier):
         return None
     nums = [int(t) if "." not in t else float(t) for t in toks]
     if carrier == "Poly":
-        import srmech.amsc.poly as _poly
+        import srmech.math.poly as _poly
         return _poly.Poly(nums)
     if carrier == "float":
         return float(nums[0])

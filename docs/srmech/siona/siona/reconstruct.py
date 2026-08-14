@@ -22,7 +22,7 @@ surface `couple()` uses). numpy-free; sparse (edge-lists / dicts, no dense hand-
 overlap is the attested edge); no Python magnitude builtin (nearest-in-embedding uses a squared Class-K distance
 ``(a−b)·(a−b)``, never that primitive); no Python ``abs`` builtin; no ``Counter`` (a plain-dict tally, deterministically tie-broken).
 """
-from srmech.amsc import laplacian as L
+from srmech.math import laplacian as L
 
 __all__ = ["group", "family", "reconstruct", "genre_template"]
 

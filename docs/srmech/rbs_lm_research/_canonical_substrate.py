@@ -48,7 +48,8 @@ class _NumpyProxy:
 
 np = _NumpyProxy()
 
-from srmech.amsc import hdc, format as amsc_format
+from srmech.math import hdc
+from srmech.amsc import format as amsc_format
 
 # ─── REPOINTED TO srmech.rbs_lm (F1287) ────────────────────────────────────────────────────────
 # These seven surfaces used to be DEFINED here. srmech ships them now (F1286's adoption screen),

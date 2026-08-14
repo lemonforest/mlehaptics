@@ -1,7 +1,7 @@
 """siona.dataset — the DATASET-AGNOSTIC describe (F1167/F1168): couple()'s residue applied to ANY statistical
 relational dataset, not just language.
 
-`couple()`'s residue-read is pure spectral structure (signed Class-L over edges + weights, `srmech.amsc.laplacian`);
+`couple()`'s residue-read is pure spectral structure (signed Class-L over edges + weights, `srmech.math.laplacian`);
 it does not know what "language" is. So a language is just a special case of a relational dataset, and the SAME
 read gives the SPINE (structurally-central items) and the COMMUNITIES (clusters) of any dataset expressible as a
 co-incidence / correlation / similarity graph — gene co-expression, citation networks, planetary physics, market
@@ -34,7 +34,7 @@ def residue(items, features, *, spine_k=3):
     of the signed Class-L graph, and reads the SPINE (dominant-mode central items) + COMMUNITIES (Fiedler split)
     off the residue — the SAME read as `couple()`/`analytic.residue`, sourced from feature-similarity. Returns
     ``{"spine", "communities"}`` or ``None`` (< 3 items)."""
-    from srmech.amsc import laplacian as L
+    from srmech.math import laplacian as L
     n = len(items)
     if n < 3:
         return None

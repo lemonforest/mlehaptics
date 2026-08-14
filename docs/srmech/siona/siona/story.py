@@ -14,7 +14,7 @@ Jungian / D&D set) need the further Form-space axes (chirality / valence, F1073)
 srmech-native: Class-L ``dense_laplacian`` + ``symmetric_eigendecompose`` for the communities; the rest is
 integer graph structure. numpy-free.
 """
-from srmech.amsc import laplacian as _L
+from srmech.math import laplacian as _L
 
 __all__ = ["character_signatures", "classify_story"]
 

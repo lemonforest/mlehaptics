@@ -19,7 +19,7 @@ numpy-free; order-carrying Klein-4 (NEVER a bag — order is content, per discip
 """
 import re
 
-from srmech.amsc import hdc
+from srmech.math import hdc
 from srmech.rbs_lm import substrate as _S
 
 __all__ = ["comprehend", "render", "translate", "docf_gate", "mnn_invariant", "D"]

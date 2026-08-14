@@ -30,8 +30,8 @@ srmech-native: Class-M ``klein4_similarity`` coupling; Class-I integer register 
 """
 import re as _re
 
-from srmech.amsc import hdc as _hdc
-from srmech.amsc import laplacian as _L
+from srmech.math import hdc as _hdc
+from srmech.math import laplacian as _L
 
 __all__ = ["classify", "classify_spectral", "classify_register", "coupling_coherence",
            "REGISTER_BITS", "NARRATIVE", "ATTESTED", "FORMAL", "DISCRETE"]

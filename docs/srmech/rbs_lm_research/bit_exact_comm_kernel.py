@@ -21,7 +21,7 @@ no Workflow; no sub-agents.
 """
 import math
 import srmech
-from srmech.amsc import cascade
+from srmech import cascade
 from srmech.amsc import format as fmt
 
 

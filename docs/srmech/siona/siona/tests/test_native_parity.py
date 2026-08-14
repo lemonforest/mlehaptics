@@ -106,7 +106,7 @@ def test_cooccurrence_laplacian_parity():
     """The fused native Laplacian == cooccurrence_edges + dense_laplacian, bit-for-bit,
     and the eigen-spectrum is identical."""
     pytest.importorskip("srmech")
-    from srmech.amsc import laplacian as L
+    from srmech.math import laplacian as L
     import random
     if not _native.HAS_NATIVE:
         pytest.skip("native absent; fused path is the pure-Python compose fallback")

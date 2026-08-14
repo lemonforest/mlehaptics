@@ -74,7 +74,7 @@ def load_or_build(grounder, path, *, modules=None):
 # query-relevant module(s) — RAM touches the subset, not the whole genome (the demand-load, F1094/F1095).
 import re as _re
 
-import srmech.amsc.genome as _G
+import srmech.biology.genome as _G
 
 _MODULE_ORDER = [m.split(".")[-1] for m in _I.SRMECH_MODULES] + ["carrier", "pattern"]
 MODULE_BITS = {m: (1 << i) for i, m in enumerate(_MODULE_ORDER)}
