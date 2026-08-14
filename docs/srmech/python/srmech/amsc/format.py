@@ -370,13 +370,32 @@ def write_ndjson(
     if sort_key is not None:
         materialised.sort(key=lambda r: _resolve_sort_key(r, sort_key))
 
+    # `#T1132` — SERIALISE EVERY LINE BEFORE TOUCHING THE FILESYSTEM.
+    #
+    # The old shape mkdir'd, then OPENED FOR WRITE — which TRUNCATES — and only
+    # then entered the serialise loop. So a record that failed to serialise took
+    # out a PRE-EXISTING GOOD NDJSON on its way past. Measured: a 114-byte valid
+    # file came back as 108 bytes of a DIFFERENT file, with the caller holding a
+    # ``TypeError`` that says nothing about the data it just destroyed.
+    #
+    # Destroying prior data outranks orphaning a fresh node, and it is the harder
+    # of the two to notice: a probe on a fresh path cannot see it at all, because
+    # there is nothing there to lose. ``materialised`` already holds every record
+    # in memory (the sort requires it), so buffering the lines costs no new order
+    # of memory — only the order of the two loops changes.
+    #
+    # BOUNDARY, stated so it is not mistaken for more than it is: this fixes
+    # SERIALISATION failure, not WRITE failure. An ENOSPC part-way through
+    # ``writelines`` still truncates the prior file. That is the crash-durability
+    # class, owned by atomic write-and-replace, and it is deferred (`#T1133`) with
+    # its own falsifier — a ``kill -9`` mid-write — which this rc did not measure.
+    lines = [record.to_json_line() + "\n" for record in materialised]
+
     path.parent.mkdir(parents=True, exist_ok=True)
     # NDJSON is byte-stable — write LF line endings explicitly so
     # Windows checkouts produce identical SHA-256 to Linux.
     with path.open("w", encoding="utf-8", newline="\n") as f:
-        for record in materialised:
-            f.write(record.to_json_line())
-            f.write("\n")
+        f.writelines(lines)
     return len(materialised)
 
 
