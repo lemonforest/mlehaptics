@@ -1,0 +1,12 @@
+{"n_negative": 5, "n_negative_true": 0, "n_positive": 6, "n_positive_true": 6, "null_classification": "EMPTY (real absence \u2014 detector demonstrably fires elsewhere)", "python": "3.10.12", "record": "control_meta", "srmech_version": "0.9.0rc432"}
+{"arm": "positive", "declared": ["OverflowError", "RuntimeError", "TypeError", "ValueError"], "doc_len": 1781, "has_raises_block": true, "op": "srmech.math.cyclic.lcm", "resolved": true}
+{"arm": "positive", "declared": ["OverflowError", "RuntimeError", "TypeError", "ValueError"], "doc_len": 1831, "has_raises_block": true, "op": "srmech.math.primes.factor", "resolved": true}
+{"arm": "positive", "declared": ["TypeError", "ValueError", "ZeroDivisionError"], "doc_len": 2602, "has_raises_block": true, "op": "srmech.math.rational.rational_div", "resolved": true}
+{"arm": "positive", "declared": ["ValueError"], "doc_len": 912, "has_raises_block": true, "op": "srmech.biology.q8.q8_mult", "resolved": true}
+{"arm": "positive", "declared": ["TypeError", "ValueError"], "doc_len": 2020, "has_raises_block": true, "op": "srmech.math.rational.continued_fraction_convergents", "resolved": true}
+{"arm": "positive", "declared": ["TypeError", "UnknownOperationError", "ValueError"], "doc_len": 1333, "has_raises_block": true, "op": "srmech.signal_processing.path_registry.lookup", "resolved": true}
+{"arm": "negative", "declared": [], "doc_len": 264, "has_raises_block": false, "op": "srmech.math.mat.Mat.from_rows", "resolved": true}
+{"arm": "negative", "declared": [], "doc_len": 202, "has_raises_block": false, "op": "srmech.math.vec.Vec.__getitem__", "resolved": true}
+{"arm": "negative", "declared": [], "doc_len": 660, "has_raises_block": false, "op": "srmech.math.hdc.loop_bind_hd", "resolved": true}
+{"arm": "negative", "declared": [], "doc_len": 1139, "has_raises_block": false, "op": "srmech.math.laplacian.mat_matmul", "resolved": true}
+{"arm": "negative", "declared": [], "doc_len": 531, "has_raises_block": false, "op": "srmech.physics.qm.bell.operator_norm", "resolved": true}
