@@ -58,7 +58,7 @@ Exception types follow **grepped tree precedent**, not invention. `IndexError` f
 
 Two of these are the **third instance of the rc431 inversion**: the assert broke the contract in the DEFAULT mode while `-O` behaved correctly. The square-matrix guard in `operator_norm` is therefore **deleted** — `mat_hermitian_eigendecompose` already raises a `ValueError` that names the offending shape — and what is pinned is the `-O` INVARIANCE, not either mode's behaviour.
 
-#### The eight siblings no test pinned
+#### The ten siblings no test pinned
 
 Fixing only what a test pins is the failure mode this project keeps hitting: **the test coverage decides what gets repaired.** `assert isinstance(..., Mat)` appears identically in six Class-L ops and only `mat_matmul` was pinned. All six are promoted to `TypeError`, with tests for the five that had none.
 
@@ -81,7 +81,7 @@ Eight controls ship with it, spanning both directions — including a synthetic 
 
 Both are **srmech-local invariants**. Neither is "Rule 11" — Holzmann's Power of Ten has exactly ten rules and `tests/test_jpl_audit.py` iterates `range(1, 11)`.
 
-`tests/test_input_contracts_rc431.py` §1 gains **26 rows**, one per promoted contract, on the shipped `-O`-invariance roster that already carries a passing negative control. No new whole-suite `-O` CI cell was added: CI already runs the full suite three times, and the roster covers the entire population such a cell would exercise.
+`tests/test_input_contracts_rc431.py` §1 gains **25 rows** (6 → 31), one per promoted contract, on the shipped `-O`-invariance roster that already carries a passing negative control. No new whole-suite `-O` CI cell was added: CI already runs the full suite three times, and the roster covers the entire population such a cell would exercise.
 
 #### Correction to the brief
 
