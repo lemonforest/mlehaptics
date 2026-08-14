@@ -121,14 +121,50 @@ class Bindings(ast.NodeVisitor):
         self.generic_visit(node)
 
 
-def _local_defs(fn_node):
-    """Names ``def``-ed or assigned INSIDE the enclosing test function."""
+def _local_defs(fn_node, module_origin):
+    """Names bound INSIDE the enclosing test function.
+
+    Tracks THREE bindings, not one. The first draft tracked only ``def``/``class``
+    and that was a real gap, caught by NC-1 on a SHIPPED site:
+    ``test_frame_scope_rc430.py:615`` binds ``census = _census()`` and then uses
+    ``census[name]`` inside the guarded body. With only def/class tracked,
+    ``census`` resolved UNKNOWN, the fail-loud rule promoted it to
+    CANDIDATE_DEFECT, and a legitimate class-(c) meta-gate was flagged. The
+    conservative direction meant the gap surfaced as a false RED rather than a
+    silent miss — which is the right failure mode — but it still had to be fixed
+    before the gate could ship.
+
+    Local assignments propagate origin the same way module-level ones do: a name
+    assigned from a TEST_LOCAL value is TEST_LOCAL, from a PACKAGE value PACKAGE.
+    """
     out = {}
     for n in ast.walk(fn_node):
         if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n is not fn_node:
             out[n.name] = TEST_LOCAL
         elif isinstance(n, ast.ClassDef):
             out[n.name] = TEST_LOCAL
+    # second pass: assignments, now that nested defs are known
+    scope = dict(module_origin)
+    scope.update(out)
+    for n in ast.walk(fn_node):
+        if isinstance(n, (ast.Assign, ast.AnnAssign)):
+            value = n.value
+            if value is None:
+                continue
+            src = _root_name(value)
+            kind = scope.get(src) if src else None
+            if kind is None and isinstance(value, (ast.Dict, ast.List, ast.Tuple,
+                                                   ast.Set, ast.Constant,
+                                                   ast.DictComp, ast.ListComp,
+                                                   ast.SetComp)):
+                kind = TEST_LOCAL          # a literal/comprehension is not package state
+            if kind is None:
+                continue
+            targets = n.targets if isinstance(n, ast.Assign) else [n.target]
+            for t in targets:
+                if isinstance(t, ast.Name):
+                    out[t.id] = kind
+                    scope[t.id] = kind
     return out
 
 
@@ -190,7 +226,7 @@ def classify_file(path, src=None):
                     continue
                 scope = dict(b.origin)
                 if self.fn is not None:
-                    scope.update(_local_defs(self.fn))
+                    scope.update(_local_defs(self.fn, b.origin))
                 subs = _subjects(node.body)
                 kinds = {}
                 for s in subs:
@@ -210,6 +246,49 @@ def classify_file(path, src=None):
                     "file": os.path.relpath(path, ROOT).replace(os.sep, "/"),
                     "line": ctx.lineno,
                     "enclosing": self.fn.name if self.fn else "<module>",
+                    "subjects": kinds,
+                    "package_subjects": sorted(pkg),
+                    "unknown_subjects": sorted(unk),
+                    "exempt_reason": reason,
+                    "gate_verdict": verdict,
+                })
+            self.generic_visit(node)
+
+        def visit_Try(self, node):
+            """The EVASION ROUTE. ``pytest.raises`` is not the only spelling —
+
+                try:
+                    op(bad_input)
+                except AssertionError:
+                    pass
+
+            pins exactly the same contract and a gate that only sees
+            ``pytest.raises`` would be trivially side-stepped by writing it this
+            way. The handler is classified by the SUBJECT of the ``try`` body,
+            using the identical resolution rule.
+            """
+            for h in node.handlers:
+                if h.type is None or "AssertionError" not in _names(h.type):
+                    continue
+                scope = dict(b.origin)
+                if self.fn is not None:
+                    scope.update(_local_defs(self.fn, b.origin))
+                subs = _subjects(node.body)
+                kinds = {s: scope.get(s, UNKNOWN) for s in subs}
+                pkg = [s for s, k in kinds.items() if k == PACKAGE]
+                unk = [s for s, k in kinds.items() if k == UNKNOWN]
+                verdict = "CANDIDATE_DEFECT" if (pkg or unk) else "META_GATE_OK"
+                idx = h.lineno - 1
+                line = src_lines[idx] if 0 <= idx < len(src_lines) else ""
+                mx = EXEMPT_RE.search(line)
+                reason = mx.group(1).strip() if mx else None
+                if reason and verdict == "CANDIDATE_DEFECT":
+                    verdict = "EXEMPTED"
+                hits.append({
+                    "file": os.path.relpath(path, ROOT).replace(os.sep, "/"),
+                    "line": h.lineno,
+                    "enclosing": self.fn.name if self.fn else "<module>",
+                    "shape": "except_handler",
                     "subjects": kinds,
                     "package_subjects": sorted(pkg),
                     "unknown_subjects": sorted(unk),
@@ -268,6 +347,13 @@ GROUND_TRUTH = {
     ("tests/test_octonion_carrier_rc324.py", 355): "META_GATE_OK",
     ("tests/test_owner_axis_rc410.py", 659): "META_GATE_OK",
     ("tests/test_vec_carrier_rc129.py", 90): "CANDIDATE_DEFECT",
+    # the three `except AssertionError` handlers — all TEST-LOCAL subjects, so
+    # all class (c). Adjudicated by reading each: :543 and :615 catch the
+    # test-local `assert_declaration_matches`; :72 catches the test-local
+    # `_resolve` helper. None involves a shipped op's input contract.
+    ("tests/test_frame_scope_rc430.py", 543): "META_GATE_OK",
+    ("tests/test_frame_scope_rc430.py", 615): "META_GATE_OK",
+    ("tests/test_registry_smoke_rc127.py", 72): "META_GATE_OK",
 }
 
 # --------------------------------------------------------------------------
@@ -329,6 +415,36 @@ def test_a_bare_pragma_must_not_exempt():
 '''
 
 
+NC7_TRY_EXCEPT_EVASION = '''
+import pytest
+from srmech.math.vec import Vec
+
+def test_written_as_try_except_instead():
+    """The same defect, spelled so a pytest.raises-only gate would miss it."""
+    v = Vec.from_sequence([1.0, 2.0])
+    try:
+        _ = v[9]
+        raise SystemExit("should not get here")
+    except AssertionError:
+        pass
+'''
+
+NC8_TRY_EXCEPT_META = '''
+import pytest
+
+def _planted(x):
+    assert x == 1, "planted"
+    return x
+
+def test_try_except_over_a_local_subject():
+    """Class (c) in the try/except spelling — must stay GREEN."""
+    try:
+        _planted(2)
+    except AssertionError:
+        pass
+'''
+
+
 def main():
     recs = []
     hits = []
@@ -360,6 +476,8 @@ def main():
             ("NC-4 module-attr DEFECT", NC4_SYNTHETIC_INDIRECT_DEFECT, "CANDIDATE_DEFECT"),
             ("NC-5 pragma EXEMPTS", NC5_EXEMPT_PRAGMA, "EXEMPTED"),
             ("NC-6 reasonless pragma", NC6_REASONLESS_PRAGMA, "CANDIDATE_DEFECT"),
+            ("NC-7 try/except EVASION", NC7_TRY_EXCEPT_EVASION, "CANDIDATE_DEFECT"),
+            ("NC-8 try/except meta-gate", NC8_TRY_EXCEPT_META, "META_GATE_OK"),
     ):
         with tempfile.NamedTemporaryFile("w", suffix=".py", delete=False,
                                          encoding="utf-8") as fh:
