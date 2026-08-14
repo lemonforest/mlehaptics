@@ -139,10 +139,19 @@ SITES = [
         precedent="srmech/math/vec.py:203 'Vec elementwise length mismatch {n} vs {m}'",
         in_registry=True,
         cost_pkg_lines=9, cost_test_lines=1, cost_doc_lines=0,
-        note="THREE sibling asserts share this shape; promote all three in one pass or "
-             "the two untested ones stay broken. NATIVE HAZARD: the assert sits ABOVE "
-             "_try_native_*; under -O with libsrmech present a mismatched pair reaches "
-             "the C kernel. Not observable here (no .so built) — flagged, not measured.",
+        note="THREE sibling asserts share this shape (loop_bind_hd :3197, "
+             "loop_unbind_hd :3216, loop_runbind_hd :3286); promote all three in one "
+             "pass or the two untested ones stay broken.",
+        retracted_claim="A first draft of this spec flagged a NATIVE HAZARD here — "
+                        "'the assert sits above _try_native_*, so under -O with "
+                        "libsrmech present a mismatched pair reaches the C kernel'. "
+                        "REFUTED by reading all five wrappers: _try_native_loop_bind_hd "
+                        ":2822, _loop_unbind_hd :2881, _loop_conj_hd :2844, _loop_inv_hd "
+                        ":2863 and _loop_runbind_hd :2901 EACH re-check `n % LOOP_DIM` "
+                        "and (where binary) `len(b_) != n`, returning None so the pure "
+                        "path runs. No C kernel is reached with bad input in either "
+                        "interpreter mode. Recorded because the claim was written before "
+                        "it was checked.",
     ),
     dict(
         site="tests/test_loop_hd_native_parity.py:178",
