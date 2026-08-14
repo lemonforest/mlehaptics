@@ -127,8 +127,12 @@ def test_continued_fraction_convergents_wrong_type_raises() -> None:
     """Non-list / wrong-typed entries rejected."""
     with pytest.raises(TypeError):
         continued_fraction_convergents("not a list")  # type: ignore[arg-type]
-    with pytest.raises(AssertionError):
-        # Python's assert catches mixed type entries
+    with pytest.raises(TypeError):
+        # rc431 (`#T1129`): was AssertionError, and that expectation was
+        # itself the defect being asserted -- the assert it named SHADOWED
+        # the TypeError the docstring declares, so the shipped contract
+        # only held under `python -O`, which strips asserts. The assert is
+        # gone; the raise it was shadowing names WHICH index and WHICH type.
         continued_fraction_convergents([1, 2, "3"])  # type: ignore[list-item]
 
 

@@ -13,6 +13,190 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc431]
+
+### The C guard no Python call can reach, and the gate that could not go red (`#T1129` / `#T1094`)
+
+**Registry stays 655. ABI stays 14. GENOME_FORMAT_VERSION stays 19.** No op is registered, no `ToolEntry` field is added, no C symbol is added or changed. `c/src/srmech_iir.c` was READ, not written.
+
+#### A SILENT WRONG ANSWER, which preempted everything else
+
+`srmech.cascade.vec_add` — a **public registry op returning a wrong value with no error**:
+
+```
+vec_add([1.0], [1.0, 2.0])  ->  [2.0]        b's tail dropped, silently
+vec_add([1.0, 2.0], [1.0])  ->  IndexError   bare, from the comprehension
+```
+
+The body ranged over `len(a)` alone. **The asymmetry is why it survived**: the same malformed call was silently wrong one way round and noisily wrong the other, so whichever orientation a caller hit first, the other looked like a different bug. Guarding on equal length is the only answer correct in both — there is no length at which dropping a tail is the right elementwise sum.
+
+Verified not to be a truncation anything depended on: `vec_add` is the declared `fold_op` of the quaternion and octonion DFT chains, and `test_cascade_catalog_executable_rc420.py` stays green (99 passed) — those folds always pass equal-width slots. The regression guard asserts **both** orientations, because a guard written against only the one that raised would leave the silent half — the half that corrupts data — intact.
+
+This is the defect class this whole arc exists to catch, and it was found by *probing what the ops actually do* rather than by reading their declarations.
+
+#### The defect: `None` means two things, and one of them gets lost
+
+A `*_c` ctypes wrapper returns `None` to mean *"native absent — run the pure body"*. But **90 wrapper predicates across 263 wrappers also return `None` from a test on their own ARGUMENTS**. Where the C peer returns an *error status* for that same input, `None` is **overloaded** — it carries both *"native absent"* and *"C refused this input"* — and the caller cannot tell them apart, so the invalidity signal is destroyed at the boundary. If the pure body then does not reject the input either, the C guard is **dead through the Python front door**: a defensive guard no Python call can cause to fire.
+
+`srmech.signal_processing.iir` was exactly that, measured:
+
+| input | C peer (`srmech_iir.c:64-77`) | Python, through rc430 |
+|---|---|---|
+| `b == []` | `SRMECH_ERR_NULL_ARG` | **RETURNED `[0.0] * len(signal)`** |
+| `a == []` | `SRMECH_ERR_NULL_ARG` | raw `IndexError` @ `iir.py:56` |
+| `a[0] == 0` | `SRMECH_ERR_BAD_INPUT` | raw `ZeroDivisionError` @ `iir.py:57` |
+
+The wrapper at `_native/__init__.py:10419` **re-states the C predicate** (`nb == 0 or na == 0 or a_list[0] == 0.0`) and then discards it by returning `None`, which `op()` reads as *"native absent"*. So the op answered an input its own co-equal projection calls invalid, with a plausible-looking all-zero signal.
+
+**Python moves to C, never the reverse.** C is the already-shipped, stricter, correct contract, and the capability is the invariant across co-equal projections. The guard lives in `op()` **before dispatch**, so both arms refuse identically — and it is applied on **both** branches of `op()`, direct and biquad. ⚠️ The first cut applied it to the direct `(b, a)` branch alone, reasoning that the biquad branch always passes length-3 slices of a length-6 section so a second guard would be unreachable. **That is true of the LENGTH predicate and false of `a[0] == 0`** — see the repair section at the foot of this entry.
+
+#### The headline number is 1, and the brief expected a pattern
+
+`docs/srmech/notes/_p1_native_contract_divergence_rc431.py` censuses the triple intersection — *{input-shape `return None` wrappers} ∩ {C returns an error status} ∩ {pure body does not reject}* — with its criterion, both controls and its falsifier pre-registered before the scan ran.
+
+| | |
+|---|---|
+| `*_c` wrappers scanned | **263** |
+| candidate input-shape `return None` predicates | **90** |
+| `BENIGN_CAPABILITY` — C never refuses, or no shared guard atom | **62** |
+| `CONCURRING_GUARD` — both arms refuse | **2 → 3** |
+| `DIVERGENT_DEAD_GUARD` — **the defect**, after adjudication | **1 → 0** |
+| `UNDECIDED` — unreachable through any public caller | **25** |
+| null classification | **BOUNDED** |
+
+The arrows are the repair landing: on the rc430 tree `iir_lfilter_f64_c` classifies `DIVERGENT_DEAD_GUARD`; with the guard in place it classifies `CONCURRING_GUARD` and the divergent set is empty. **`iir` is both the instrument's positive control and this rc's headline repair**, so the control cannot keep firing once the fix lands — and an instrument that asserted "the control fired" would go red the moment its own finding was fixed, with deleting the control as the obvious way to quiet it. The run is therefore two-state and decides which state it is in **by execution**: `PRE_REPAIR` requires `iir` in the divergent set, `POST_REPAIR` requires it `CONCURRING` *and* the divergent set empty. Neither state passes by default.
+
+The scan flagged **3** mechanical divergences; **adjudication reduced them to 1**. The mechanical rule cannot separate *"the pure arm is answering nonsense"* from *"the pure arm is returning the CORRECT answer for a valid input the C kernel does not implement"* — both look like `SRMECH_ERR_BAD_INPUT` on one side and a value on the other. `svd_f64_c`'s `m < n` (a wide matrix is a valid SVD input; `mat_svd`'s own comment names the Gram route *"the COMPLETE alternative"*) and `sturm_isolate_c`'s `n < 1` (the 0×0 operator's spectrum IS `[]`) are capability floors, not defects. Each adjudication is recorded with its evidence in the artifact, and a mechanical divergence with no recorded adjudication **fails the run**.
+
+**So the brief's "it is a PATTERN, not a site" does not survive.** The 84-candidate count was a *candidate* count; the defect cardinality is **1**, bounded below — 25 predicates could not be reached through any public caller, so their pure arm was never exercised and no verdict is claimed for them.
+
+#### An instrument that recorded its own bug as a result
+
+The first run classified `bessel_j_fixed_c` as `CONCURRING_GUARD` — both arms refuse. They do not: the probe passed `scale_bits` positionally to a keyword-only parameter, and the resulting `TypeError` **from inside the harness** was recorded as the op refusing the input. The instrument now separates `HARNESS_ERROR` from `RAISED` and fails the run on any. With the probe fixed, `bessel_j_fixed_c` is genuinely `CONCURRING`. Both controls are now **executed** rather than read off the classification, because a control that passes because its probe never ran is not a measurement.
+
+#### The gate that could not go red
+
+`test_mcp.py::test_advertised_tool_invocable` asserts only that an op was **reached**. Measured by mutation:
+
+```
+CONTROL   (every op raises a binding TypeError):  617 failed,   0 passed
+MUTATION  (every op rejects every argument):        0 failed, 617 passed
+```
+
+Every one of the ~473 returns it observes could vanish and the suite would stay green. `tests/test_invocable_returned_floor_rc431.py` owns that number as a **SET of op names** in `tests/invocable_returned_rc431.txt`, not a cardinal — a count cannot say *which* op regressed, and cannot see a swap that leaves the total unchanged. It carries a mandatory in-test control that mutates `invoke_tool` to always raise and asserts zero RETURNED; without it the floor would be decorative.
+
+#### Two more contract repairs, and one brief claim corrected
+
+- **`cascade.matrix_cascades.lll_reduce`** — `basis` was not guarded at all. `lll_reduce(5)` / `lll_reduce([1, 2])` escaped as a bare `TypeError: 'int' object is not iterable` carrying no op name, while the sibling equal-length check four lines down already raised a house-style `ValueError`. The guard is at the **public front door**, ahead of both arms: `lll_reduce_c` performs the same coercion before any pure code runs, so a pure-side-only guard would leave the native arm raising `TypeError`. `lll_reduce([]) -> []` is unchanged — the empty lattice is degenerate-empty, not malformed.
+- **`cascade.signed_sum_squared`** — **the brief's claim was wrong and is corrected here.** It said the docstring promises `ValueError` for ragged input while the code raises `TypeError`. It does not: ragged raises `ValueError` at `composites.py:913`, empty at `:907`, non-0/1 just below — every declared case is enforced exactly as declared. The `TypeError` came from a **non-iterable ROW** (`signed_sum_squared([1, 0])`), a case the `Raises:` block was silent on. **The defect was UNDER-declaration, not mis-declaration**: no declared case behaved wrongly, a silent one did. Both the guard and the declaration now cover it.
+
+#### `#T1094` was already closed, and the filing was stale
+
+rc430 deleted the fall-through at `test_mcp.py:2098-2106`; the `str` row is `"srmech_synth"` (`:1945`) and path-shaped params divert to a sandbox. Live count of params receiving the literal `"a"`: **0**, with a planted-`"a"` control firing. The remaining ceiling is `CEIL_UNSYNTHESIZABLE_PARAMS = 52` over 34 ops, untouched by this rc.
+
+#### The census claim, unchanged and still BOUNDED
+
+**The srmech group/semigroup census is BOUNDED, not cardinal.** Its measured **floor is 31 of 245 Tier-A ops** (the rc427 carrier ladder ∪ the rc430 worked-example oracle ∪ `srmech.cascade.autocorrelation`), under a **hard cap of 141 of 245** — the ops for which any orbit-closure verdict is reachable at all. It is bounded because the verdict **depends on the seed set**, which is a **window**: the pre-registered control `cyclic_mod_add`, provably a permutation, returns GROUP seeded from the rc430 oracle and SEMIGROUP seeded from `srmech.dsl.list_catalog_ops`, and `srmech.math.text.fold_marks` flips in both directions across the same pair. rc430's claim that generation by `f` removes the window is **retracted**. **No cardinal may be stated for this census** until a seed-invariance criterion exists, and none does.
+
+A floor that only ever rises is not a measurement. If a later seed lowers it, the floor goes DOWN.
+
+#### Filed, not attempted
+
+- **`#T1131`** — the declared-vs-enforced `Raises:` census across the registry. Deliberately not run here: rc431 already carries one headline census, and a second differently-shaped instrument in the same rc is how instruments go unvalidated.
+- **`#T1132`** — the CONSTRUCTOR gap. **225 (op, param) pairs where a valid instance WAS observed and dropped** as unserializable (`HV` 42, `Mat` 40, `bytes` 29, `sequence` 29, `Sequence[HV]` 21). The worked-example oracle does **not** supply constructors as a side effect: it sees the value, records its *name*, and discards the *expression that built it*. Of the 52 UNSYNTHESIZABLE params, 10 are `OBSERVED_UNSERIALIZABLE`, 36 `NEVER_OBSERVED(no_worked_snippet)`, 6 `NEVER_OBSERVED(no_returning_call)`.
+
+#### What this rc still cannot see
+
+The census reads the C side statically and executes only the Python side, under `SRMECH_EXPECT_PURE=1` against a stale ABI-12 `.so` — **no C code was executed to produce any number here**. It therefore cannot see a divergence in which **both arms return a value and the values differ**, which is this project's worst defect class. The 44 rc430 acceptors that took every edge argument remain **UNADJUDICATED** on the value axis; this rc adjudicates only the subset where one arm *refuses*.
+
+### The repair pass — two of the four repairs were themselves wrong (`#T1129`)
+
+The triage of this rc found three confirmed defects, **two of them introduced by rc431's own repairs**. That is the expected failure mode of an rc whose subject is input-domain guards: a guard is code, and code written to reject bad input can reject good input or eat it.
+
+**1. The shape guard that ate the lattice — a NEW silent wrong answer, the same class as `vec_add`.** `_lll_check_basis` *walks* `basis` in order to validate it, which **consumes a one-shot iterable**. The first cut called it for its exception only and then handed the **original** object to the arms, so a generator basis arrived exhausted, read as the empty lattice, and `lll_reduce` **RETURNED `[]`** — for input rc430 reduced correctly:
+
+```
+rc430   lll_reduce(iter([[1,1,1],[-1,0,2],[3,5,6]]))  ->  [[0,1,0],[1,0,1],[-1,0,2]]
+rc431a  same call                                     ->  []          SILENTLY WRONG
+```
+
+A shape guard that silently deletes the caller's data is strictly worse than the bare `TypeError` it was written to replace — the `TypeError` at least said something was wrong. The guard now **materialises** rows and the front door **rebinds** `basis` to its return, so both arms receive real data. The regression test asserts a one-shot basis, one-shot rows and a generator expression all equal the list answer — compared against `lll_reduce` of the same lattice spelled as lists, never against a literal, so the case cannot drift.
+
+**2. The headline divergence survived the headline repair, on the branch nobody probed.** `iir`'s guard was placed only on the direct `(b, a)` branch, justified by "the biquad branch always passes length-3 slices, so a second guard would be unreachable". **Two predicates were being reasoned about as one, and the reachability argument was sound about the wrong one:** no slice length constrains a *value*. `[1, 0, 0, 0, 0, 0]` is a well-formed 6-coefficient section whose `a0` is `0.0`, and it still reached `_lfilter_direct` and raised a raw `ZeroDivisionError` while `srmech_iir_lfilter_f64` refuses the identical section with `SRMECH_ERR_BAD_INPUT`. The C domain is now stated once in `_check_ba` and enforced on **both** branches, per section, naming which section. The `Raises:` block says so. The two axes are asserted in **separate** tests so that repairing one can never be mistaken for repairing both.
+
+**3. `tools/ripple_gates.txt` lost its backticked tokens to shell command substitution.** The rc431 block was appended through a heredoc, and `` `#T1129` ``, `` `#T1094` ``, `` `*_c` `` and `` `signal_processing.iir` `` were executed and replaced by nothing — leaving `(rc431, )` and "A  wrapper" and "measured at rc431 on  (b == [])". Every other entry in the file uses backticks, so the loss was silent and local. Restored, with the mechanism named in-file so the next appender sees it.
+
+**The fixture audit that closes the loop.** `docs/srmech/notes/_k3_fixture_audit_rc431.py` mutation-tests every assertion this rc added: apply the minimal mutation the assertion claims to catch, and require it to **fail**. **12 fixtures audited, 0 DEAD**, and the auditor carries a **planted dead fixture** — an assertion that says nothing about its subject — which it must report `DEAD` or the whole run is void. It did. The residual ratchet is reported rather than mutated and is **TIGHT**: residual 25, ceil 25, slack 0. Null classification **BOUNDED** — the audit covers assertions for which an in-process subject mutation exists, and the rows outside that bound are named individually.
+
+### The four tiny repairs, and three claims in the brief that did not survive being run (`#T1129`)
+
+Four input-domain repairs whose common property is that **nothing in the tree could have told you they were needed, and nothing would have told you if they were undone**. No registry count, ABI number or content-address moves — so every ordinary ratchet is blind to all four. They are gated at their axis in `tests/test_input_contracts_rc431.py` (21 assertions, all four mutation-killed, listed in `tools/ripple_gates.txt`).
+
+#### The silent wrong answer was already closed — and had no gate
+
+`vec_add`'s equal-length guard landed earlier in this rc (`2c2fdf857`). What it did **not** have was a regression gate, so the worst-class defect in the rc was protected by nothing but the commit that fixed it. It now asserts **both** orientations plus the valid case, and mutation-testing confirms deleting the guard turns the gate red.
+
+The caveat attached to that repair is discharged by measurement rather than argument: `vec_add` is the declared `fold_op` of both hypercomplex DFT chains, so a guard on it could in principle have broken a caller relying on ragged input. **Falsifier pre-registered, then run** — `test_hypercomplex_dft.py` + `test_octonion_dft_rc111.py` + `test_cascade_catalog_executable_rc420.py`: **231 passed, 1 skipped**, and forward/inverse round-trips recover their input on both rungs. The ragged-caller hypothesis is **REFUTED**, not merely unobserved.
+
+#### Two `assert`s doing input validation — which failed in OPPOSITE interpreter modes
+
+The brief described both as *"the declared contract vanishes under `python -O`"*. Run both ways, that is **true of one and inverted for the other**:
+
+| site | `python3` | `python3 -O` | declared |
+|---|---|---|---|
+| `continued_fraction_convergents:2416` | `AssertionError` | **`TypeError`** ✓ | `TypeError` |
+| `path_registry.lookup:257` | `AssertionError` | **`UnknownOperationError`** | *(undeclared)* |
+
+`continued_fraction_convergents` already had a real `raise TypeError` loop **below** the assert, reporting which index and which type. So `-O` was the mode that behaved CORRECTLY, and the assert PREEMPTED the declared contract in the DEFAULT mode — the strictly worse half, since almost nobody runs `-O`. Its companion `assert coef_list is not None` was plainly dead: the `isinstance(coef_list, list)` check above it already rejects `None`.
+
+`path_registry.lookup` is the shape the brief described, and its consequence is the sharper one: with the assert stripped, a malformed argument fell through to the registry miss and was **misreported as a lookup failure**, sending the caller hunting for a registration that was never the problem. It now raises `TypeError` for a non-`str` and `ValueError` for `""`, per the measured house convention (TypeError = wrong TYPE; ValueError = right type, wrong value), and the `Raises:` block says so.
+
+**Because the two failed in opposite modes, the gate asserts `-O` INVARIANCE rather than either mode's behaviour** — a single-mode gate would have passed on one of the two defects. It carries a planted-assert control proving the probe can distinguish the modes at all; a subprocess is structural here, since `assert` is stripped at COMPILE time and no in-process test can observe it.
+
+**The `continued_fraction_convergents` repair broke a shipped test, and the new gate could not see it.** `tests/test_pi_cascade_primitives.py:130` asserted `pytest.raises(AssertionError)` for `continued_fraction_convergents([1, 2, "3"])`, with the comment *"Python's assert catches mixed type entries"* — it was pinning the defect as the contract. Removing the assert turns that into `TypeError: coef_list[2] must be int; got str` and the file goes **1 failed, 38 passed**. `tools/ripple_check.py` stayed green throughout (758 passed / 184 skipped) because that file is not in `tools/ripple_gates.txt`, and `tests/test_input_contracts_rc431.py` asserts the same axis on a *different* input, so neither instrument could report it. Baseline-confirmed against the merge-base (`a3f9fc847`, rc430): **39 passed** there, **1 failed** at rc431 — caused by this rc, not pre-existing. CI runs `pytest tests/` as a directory (`.github/workflows/srmech-ci.yml:184` and `:452`), so it would have gone red in all four native cells and all six pure shards. The expectation is corrected to `TypeError`; the comment now records why it was wrong. A repository-wide scan found **18** `pytest.raises(AssertionError)` sites BEFORE this repair, and this was the only one naming a symbol this rc touched. ⚠️ *That sentence was written in live tense and stopped being true the moment the repair landed — the fold-in re-measured it and got 17, then had to reconcile the gap rather than assume one of the two numbers was sloppy.* Predicate stated, since an unstated one cannot be re-measured: `pytest.raises(AssertionError` (no closing paren — the exact-paren form misses four `match=` spellings and returns **13**), `--include=*.py`, excluding `node_modules/`. **Live at the fold-in: 17**, all inside `docs/srmech/python/tests/`, across 12 files. 18 − 1 = 17 IS the site repaired here; the counts agree once the predicate and the timestamp are both pinned.
+
+#### The shipped generator literal — real hardening, zero artifact delta
+
+`tools/gen_tool_docs.py:152` still held `"str": (True, "abc")` after rc430 fixed the same literal in `tests/test_mcp.py`. This is the **second, independent** synthesizer and the one whose output is committed into `srmech/introspect/_tool_docs.py` and **ships in the wheel**. Measured: **24 required `str` params** received `"abc"`, and `_build_example` **executed** with it (2 `executed`, 5 `failed`, 17 `unverifiable`). Now `"srmech_synth"`, matching rc430 — a value that escapes into a file, a log or an error message names its own origin.
+
+⚠️ **The brief's warning that this moves the introspect search-corpus content-address is FALSE at rc431, and the reason is worth recording.** `regen_all.py` reports **0 files changed**, idempotent across two passes. Only 2 of the 24 ops produce a different `_build_example` output (`bus.by_name`, `rbs_lm.encode_aboutness`) — and **both carry CURATED examples that take precedence**, so no synthesised value was reaching the committed bytes in the first place. The corpus witness was re-measured the documented way anyway — **15 builds, 3 fresh interpreters** — and is `50ee7c0d…c476` every time, `len(frames) == 684`, ops 655 + carriers 29: **unchanged, so NOT re-pinned**. A digest re-pinned without a measured mover is a pin that has stopped meaning anything.
+
+So the fix hardens a genuinely executed path while moving no shipped byte. That is a weaker result than the brief expected and is stated as such rather than dressed up.
+
+**Scope, measured rather than assumed:** the sibling `"list[str]"` row (`["a", "b"]`) carries the same weakness in principle but is **DEAD** — 0 of 655 registry entries reach it — so changing it would move nothing. The `bytes` row's `b"abc"` is live (33 params) but is an opaque payload, not a name that can be mistaken for one.
+
+#### Three under-declared `Raises:` blocks — docstrings only, no code path touched
+
+`lcm`, `factor` and `rational_div` each declared exactly ONE exception while raising two or three. Every row below was executed before it was written:
+
+| op | declared through rc430 | actually raises |
+|---|---|---|
+| `lcm` | `OverflowError` | `TypeError` (non-int), `ValueError` (negative / out of uint64), `OverflowError` (**result** overflows) |
+| `factor` | `OverflowError` | `TypeError`, `ValueError`, `OverflowError` |
+| `rational_div` | `ZeroDivisionError` | `TypeError` (not a 2-tuple), `ValueError` (non-positive denominator), `ZeroDivisionError` |
+
+Two of these are worse than a mere omission. **`factor` declared only the exception its own next sentence says cannot happen**, while both reachable ones went undeclared — and its "Returns `[]` for `n < 2`" reads as though it covers `n = -6`, which instead **raises** (`factor(0)` and `factor(1)` do return `[]`; verified). **`rational_div`'s single declared exception is the LAST of its three checks**, so a caller passing a malformed pair hit an undeclared contract before the declared one could apply. `lcm`'s ValueError/OverflowError split is the load-bearing half: ValueError means an *operand* is out of range, OverflowError means both operands were fine and their lcm is not.
+
+#### Also corrected in this brief
+
+- **`test_describe_registry_pointer_rc407.py` and `test_domain_classes_rc298.py` are NOT missing from `tools/ripple_gates.txt`.** The brief said both were absent and must be run by hand; they were manifested at lines 112–113 by the rc430 repair (`13a312103`). Run by hand regardless — green.
+- **`path_registry` has FOUR MORE assert-based input checks** this rc did not touch. ⚠️ *This line said "two MORE" and named only `register_lazy_loader:142` and `register:196` — it under-counted by half, and a disclosure that under-counts is worse than none, because it is read as a completed survey.* Measured, the module carries four: `register_lazy_loader:142` and `register:196` (both the same `assert isinstance(op_name, str) and op_name` as the repaired `lookup`), plus `register_lazy_loader:145` (`assert callable(loader)`) and `register:205` (`assert callable(impl)`) — the same class, input validation on a caller argument, deleted by `-O`. They are on the REGISTRATION side rather than the query side, so their `-O` behaviour is a different question (a bad key or a non-callable gets stored rather than misreported, and surfaces later as a `TypeError` at dispatch with no trace back to the bad registration) and they were out of the brief's scope. Named here so the surface is not believed clean by anyone reading the `lookup` repair as having closed the module. Tree-wide context, predicate stated because an unstated one cannot be re-measured: `grep -rn "assert isinstance" srmech/ --include=*.py` → **41** sites. Note that predicate does NOT match two of the four above (`assert callable(...)` is the same defect class but a different spelling), so 41 is a FLOOR on the surface, not a census of it — the same shape of undercount this bullet is correcting.
+
+#### Verifier fold-in — a ratchet pointing the wrong way, and three claims stronger than their measurements (`#T1129`)
+
+Two independent verification passes read this rc. The one CI-red they found — `tests/test_pi_cascade_primitives.py` pinning the removed assert AS the contract — was fixed at `f73b1c5ef` and is written up above; both passes reproduced the merge-base baseline (39 passed at rc430, 1 failed at rc431) and the `758 passed / 184 skipped` `ripple_check`, independently. This entry covers what the fold-in repaired afterwards. The three headline repairs were re-measured here rather than accepted on report, in both `python3` and `python3 -O`: `vec_add` refuses **both** orientations with `ValueError`; `continued_fraction_convergents` and `path_registry.lookup` return byte-identical `TypeError`/`ValueError` in the two modes; and `srmech/introspect/_tool_docs.py` contains `"abc"` **0** times.
+
+**A gate that fires on an improvement.** `tests/test_input_contracts_rc431.py` asserted `len(named) >= 20` over the required `str` params still receiving the *synthesised* literal, measured at 24 — slack 4. But a harvested value from an op's own worked example takes PRECEDENCE over the type table, so curating five more examples — an unambiguous improvement — drops the count to 19 and turns the gate red on correct code. Re-scoped by naming the AXIS, per the `test_owner_axis_rc410.py` model, never by exempting anything: *every string the generator SYNTHESISES carries the self-describing literal*, with harvested values excluded by construction rather than by threshold. Count-free, so it holds at 24, at 2, and vacuously at 0 — and the surviving `len(strings) >= 20` reach control is what keeps 0 honest. It is stricter on PARTIAL drift, the case a census cannot see — demonstrated, not argued: drifting exactly four of the 24 synthesised params (`ellbase.half_shift_response.axis`, `unary_theta.char`, `genome.amplify.label`, `genome.copy_number_of.label`) gives `named == 20`, so `len(named) >= 20` **PASSES** while the new strict-zero predicate **FAILS** and names which four. A first attempt at this measurement drifted 11 and failed both, which proves nothing; the regime only separates below the threshold's slack. ⚠️ *A first draft of this paragraph also claimed the census missed TOTAL drift — it does not, and the mutation audit is what caught the overclaim before it shipped: flipping the table row to `"zzz"` sends `named` to 0, so the old assertion fails too. The claim had been written before it was run; it is corrected rather than quietly dropped.* Mutation-audited both ways: `"zzz"` (non-anonymous drift) and `"abc"` (the old literal) each turn the new gate red, 3 passed restored, generator file sha256-verified byte-identical after each.
+
+**"SHIPS IN THE WHEEL" was doing work the measurement does not support.** The CHANGELOG disclosed the zero artifact delta (above); the docstring left in `tools/gen_tool_docs.py` did not, and it contrasts the DEAD `list[str]` row with this LIVE one immediately after saying the output ships — so a reader concludes 24 `"abc"` values were shipping. They never were. The symmetric control was run, not just the forward one: `regen_all.py --check` is green with EITHER literal. The docstring now states the zero delta and that this is preventive hardening for the next op registered without a curated example.
+
+**Two `Raises:` blocks written this rc still under-declared.** `lcm` and `factor` each omitted the `RuntimeError` their native branches raise (`cyclic.py`, `primes.py`) — three and six lines respectively from the `OverflowError` they DO declare, on the same `HAS_NATIVE` branch. That is a milder form of the exact defect the rc was correcting in `factor` (declaring the unreachable exception while omitting reachable ones), left behind by the fix for it. Both rows added, marked NATIVE-PATH-ONLY, because a caller who exercised only a pure build has never seen one.
+
+**`rational_div`'s coercion is now declared, and the choice not to change it is recorded as a choice.** Entries are read with `int()`, not type-checked: `rational_div((1, 2.5), (1, 1))` returns `(1, 2)` — `1/2.5` answered as `1/2`, no error. That is the same class as this rc's own headline. It is DECLARED rather than repaired because the coercion is a family convention shared with `rational_add` and `rational_mul`, so rejecting non-`int` entries is a behaviour change to three public ops and belongs to a directed follow-up. A non-numeric entry also raises `ValueError` **from the coercion**, which is why the existing ValueError row could not be read as "non-positive denominator" alone.
+
+**An error message advertising a command that errors.** `tests/test_invocable_returned_floor_rc431.py` told the reader to regenerate the floor with `pytest … --regen-floor`, which is not a pytest option; the real path is the file's own `__main__` block. Corrected — a recovery instruction that fails is worse than none.
+
+
 ## [0.9.0rc430]
 
 ### The frame an op cannot tell you it is standing in — and a headline that did not survive being measured (`#T1127` / `#T1094`)

@@ -314,3 +314,53 @@ tests/test_synth_args_provenance_rc430.py
 #    stayed green through six attestation tests. Reads the committed
 #    `literature_claims` manifest; no network, no native .so. ~20 s.
 tests/test_citation_manifest_rc428.py
+
+# -- native contract parity (rc431, `#T1129`) --------------------------------
+#    An op owns its EXCEPTION contract, and its C peer's. A `*_c` wrapper
+#    returns None to mean "native absent -- run the pure body", but many also
+#    return None from a predicate on their own ARGUMENTS; where the C peer
+#    returns an error status for that same input, None is OVERLOADED and the
+#    invalidity signal dies at the boundary. If the pure body then does not
+#    reject it either, the C guard is DEAD through the Python front door and the
+#    op answers an input its co-equal projection calls invalid -- measured at
+#    rc431 on `signal_processing.iir` (b == [] RETURNED [0.0]*n). It rides here
+#    because the scan derives from LIVE wrapper source and LIVE C guard blocks:
+#    registering an op with a native peer moves it, and so does editing any
+#    guard in c/src/. Strict-zero on the adjudicated divergence + a down-only
+#    CEIL_UNDECIDED on the unreachable residual. ~200 s, pure-Python, no .so.
+#    (These four comment lines lost their backticked tokens -- `#T1129`, `*_c`,
+#    `signal_processing.iir` -- to shell command substitution when the block was
+#    first appended through a heredoc; restored in the rc431 repair. Every other
+#    entry in this file uses backticks, so the loss was silent and local.)
+tests/test_native_contract_parity_rc431.py
+
+# -- invocable RETURNED floor (rc431, `#T1129` + `#T1094`) -------------------
+#    The OUTCOME set under the synth-args consumer. Its parametrized sibling
+#    test_mcp.py::test_advertised_tool_invocable asserts only that an op was
+#    REACHED, and rc431 proved by mutation that it stays fully green when every
+#    op rejects every argument (0 failed, 617 passed) -- so the ~473 returns it
+#    observes sat under no floor at all. This gate owns that number as a SET of
+#    op names, not a cardinal: a count cannot name which op regressed, nor see a
+#    swap that leaves the total unchanged. It rides here because it derives from
+#    the live advertised entry set, so any registration moves it. Carries a
+#    mandatory in-test control that mutates invoke_tool to always raise and
+#    asserts zero RETURNED. Depends on tests/invocable_returned_rc431.txt.
+tests/test_invocable_returned_floor_rc431.py
+
+# -- input contracts + the shipped generator literal (rc431, `#T1129`) ------
+#    Four repairs whose defects NOTHING in the tree could surface. Two were
+#    `assert`s doing input validation, and they failed in OPPOSITE interpreter
+#    modes -- `continued_fraction_convergents` had a real `raise` below the
+#    assert, so `-O` was CORRECT and the DEFAULT mode broke the declared
+#    contract; `path_registry.lookup` had nothing below it, so `-O` dropped the
+#    check and misreported a type error as a registry miss. A gate asserting
+#    either single mode would have passed on one of the two, so this one
+#    asserts `-O` INVARIANCE, with a planted-assert control proving the probe
+#    can tell the modes apart at all.
+#    It rides in this manifest for its FOURTH axis: `tools/gen_tool_docs.py`'s
+#    `_synth_arg` is the second, wheel-shipping example synthesizer (its output
+#    is committed to `srmech/introspect/_tool_docs.py`), so any registration
+#    change moves what it synthesises and executes. Strict zero on anonymous
+#    placeholder literals, with a reach control so the zero cannot be a false
+#    null from a scanner that visited nothing.
+tests/test_input_contracts_rc431.py

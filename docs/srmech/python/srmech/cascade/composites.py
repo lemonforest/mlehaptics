@@ -900,9 +900,33 @@ def signed_sum_squared(sources: Sequence[Sequence[int]]) -> List[int]:
         ``list[int]`` — the per-position squared signed-sum.
 
     Raises:
-        ValueError: empty ``sources``, ragged lengths, or a non-0/1 bit.
+        ValueError: a non-iterable ``sources`` or a non-iterable ROW, empty
+            ``sources``, ragged lengths, or a non-0/1 bit.
+
+    Note:
+        The non-iterable cases are named explicitly because through rc430 they
+        were the one gap between the DECLARED and the ENFORCED contract here.
+        Every case the ``Raises:`` block listed was in fact enforced with a
+        ``ValueError`` — empty at ``:907``, ragged at ``:913``, non-0/1 just
+        below — but ``rows = [list(s) for s in sources]`` ran BEFORE all of
+        them, so ``signed_sum_squared([1, 0])`` (a non-iterable row) escaped as
+        a bare ``TypeError: 'int' object is not iterable``. The defect was
+        UNDER-declaration, not mis-declaration: no declared case behaved wrongly,
+        a silent one did. The enforced contract now matches the declared one and
+        the declaration now covers what is enforced.
     """
-    rows = [list(s) for s in sources]
+    if isinstance(sources, (str, bytes)) or not hasattr(sources, "__iter__"):
+        raise ValueError(
+            f"signed_sum_squared: sources must be a sequence of equal-length "
+            f"0/1 bit sequences; got {type(sources).__name__}")
+    rows = []
+    for i, s in enumerate(sources):
+        if isinstance(s, (str, bytes)) or not hasattr(s, "__iter__"):
+            raise ValueError(
+                f"signed_sum_squared: sources must be a sequence of "
+                f"equal-length 0/1 bit sequences; source {i} is "
+                f"{type(s).__name__}")
+        rows.append(list(s))
     if not rows:
         raise ValueError("signed_sum_squared: sources must be non-empty")
     width = len(rows[0])

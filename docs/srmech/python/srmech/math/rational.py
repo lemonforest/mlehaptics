@@ -781,6 +781,55 @@ def rational_div(a: Tuple[int, int], b: Tuple[int, int]) -> Tuple[int, int]:
 
     Pure-Python bignum-capable; C path (`srmech_rational_div`) for
     u64-fit inputs. Raises ZeroDivisionError if b_num == 0.
+
+    Raises
+    ------
+    TypeError
+        If ``a`` or ``b`` is not a 2-element tuple/list ``(num, den)``.
+    ValueError
+        If either denominator is non-positive. The canonical form keeps
+        ``den > 0``, so sign lives entirely in the numerator; ``(1, -2)`` is
+        rejected rather than silently normalised to ``(-1, 2)``.
+    ZeroDivisionError
+        If ``b_num == 0``.
+
+    Coercion (declared because it is otherwise SILENT)
+    --------------------------------------------------
+    Entries are read with ``int()``, not type-checked, so a non-``int`` entry
+    does not raise on its own account:
+
+    * a ``float`` is **TRUNCATED toward zero** — ``rational_div((1, 2.5),
+      (1, 1))`` returns ``(1, 2)``, i.e. ``1/2.5`` answered as ``1/2``, with
+      no error. This is a wrong answer, not a rejected call.
+    * a non-numeric entry raises ``ValueError`` **from the coercion**, not
+      from the denominator check — ``rational_div(("a", "b"), (1, 1))`` gives
+      ``invalid literal for int() with base 10: 'a'``, which is why the
+      ValueError row above cannot be read as "non-positive denominator" alone.
+
+    Note
+    ----
+    rc431 repair (`#T1129`) — the Coercion block above was added after the
+    first pass declared three exceptions and stopped. Measured, the block as
+    first written was falsifiable two ways: it attributed ValueError SOLELY
+    to a non-positive denominator, and it said nothing at all about the
+    truncation. The truncation is the same class as this rc's own headline
+    (``vec_add`` returning a silently truncated vector) — a real call, a
+    plausible-looking answer, no signal.
+
+    The ``int()`` coercion is a FAMILY convention shared with ``rational_add``
+    (:735) and ``rational_mul`` (:762), not a defect local to this op, so it
+    is DECLARED here rather than changed: making the three reject non-``int``
+    entries is a behaviour change to three public ops and belongs to a
+    directed follow-up, not to a docstring repair. Recorded so the choice is
+    visible as a choice.
+
+    rc431 (`#T1129`) — docstring only; no code path changed. ZeroDivisionError
+    was the sole declared exception, and it is the LAST of the three checks the
+    function runs: a caller who passed a malformed pair got TypeError or
+    ValueError from an undeclared contract before the declared one could apply.
+    Measured — ``rational_div(5, (1, 1))`` -> TypeError,
+    ``rational_div((1, -2), (1, 1))`` -> ValueError,
+    ``rational_div((1, 2), (0, 1))`` -> ZeroDivisionError.
     """
     if not (isinstance(a, (tuple, list)) and len(a) == 2):
         raise TypeError(f"a must be 2-tuple (num, den); got {a!r}")
@@ -2412,10 +2461,25 @@ def continued_fraction_convergents(
         raise TypeError(
             f"coef_list must be list[int]; got {type(coef_list).__name__}"
         )
-    assert coef_list is not None, "coef_list must not be None"
-    assert all(isinstance(c, int) for c in coef_list), (
-        "every coef_list entry must be int"
-    )
+    # rc431 (`#T1129`): two asserts stood here, and MEASURING them inverted
+    # the diagnosis they were filed under. The filing read "the declared
+    # TypeError is enforced by an assert, which ``python -O`` DELETES, so the
+    # shipped contract vanishes in optimized mode". Executed both ways, the
+    # truth is the reverse: the per-entry ``raise TypeError`` loop below
+    # already enforces the contract, so ``-O`` was the mode that behaved
+    # CORRECTLY, and the assert PREEMPTED that raise in the DEFAULT mode --
+    #     python3    -> AssertionError: every coef_list entry must be int
+    #     python3 -O -> TypeError: coef_list[1] must be int; got float
+    # The docstring promises TypeError. So the contract was not vanishing
+    # under ``-O``; it was being broken everywhere ELSE, which is the strictly
+    # worse half because almost nobody runs ``-O``. The repair is the same
+    # (the assert goes) but for the opposite reason, and nothing replaces it:
+    # the raise it was shadowing is already there, and it reports WHICH index
+    # and WHICH type, which the assert never did.
+    #
+    # The ``coef_list is not None`` assert goes with it as plainly dead --
+    # ``isinstance(coef_list, list)`` above already rejects ``None`` with the
+    # declared TypeError, so that assert could never fire.
     if len(coef_list) == 0:
         raise ValueError("coef_list must be non-empty")
     if len(coef_list) > _CF_CONVERGENTS_MAX_COEFS:

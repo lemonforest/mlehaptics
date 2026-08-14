@@ -136,6 +136,42 @@ def _synth_arg(type_str: str, param_name: str = "",
     could never be byte-identical twice and would take
     ``test_regen_all_rc346``'s idempotence gate red. The MCP smoke, whose
     output is ephemeral, uses the sandbox instead and keeps full coverage.
+
+    rc431 (`#T1129`) — the ``str`` row is now ``"srmech_synth"``, matching the
+    rc430 convention already shipped in ``tests/test_mcp.py``. rc430 fixed the
+    literal in ONE of the two synthesizers; this is the OTHER one, and it is
+    the one that matters most, because its output is committed into
+    ``srmech/introspect/_tool_docs.py`` and SHIPS IN THE WHEEL, where
+    ``describe()`` and the MCP tool list read it back. Measured at rc431:
+    **24 required ``str`` params** were being fed the bare literal ``"abc"``
+    and EXECUTED with it (``genome.amplify``/``genome_append``/… ``label``,
+    ``plasmid`` ``section_store``, ``rbs_lm.encode_aboutness`` ``text``,
+    ``bus.by_name`` ``name``, …). The argument for a self-describing literal
+    is rc430's and unchanged: any value this table hands out can escape into a
+    file, a log or an error message, and ``"abc"`` says nothing about where it
+    came from while ``"srmech_synth"`` names its own origin.
+
+    ⚠️ **Measured, and weaker than the paragraph above reads on its own: the
+    flip moves ZERO committed bytes.** ``regen_all.py --check`` is green with
+    EITHER literal (both directions run, not just this one), and
+    ``srmech/introspect/_tool_docs.py`` contains ``"abc"`` 0 times and
+    ``"srmech_synth"`` 0 times. Only 2 of the 24 ops produce a different
+    ``_build_example`` output, and both carry CURATED examples that take
+    precedence over this table — so no synthesised ``str`` ever reached the
+    committed artifact. "SHIPS IN THE WHEEL" is the reason this generator is
+    worth hardening AT ALL; it is NOT a claim that 24 ``"abc"`` values were
+    shipping. This is preventive hardening for the next op registered without
+    a curated example. Stated plainly because the scope note below contrasts
+    the DEAD ``list[str]`` row with this LIVE one, and a reader who takes
+    "live" to mean "reached the wheel" concludes the opposite of the
+    measurement.
+
+    Scope note, measured rather than assumed: the sibling ``"list[str]"`` row
+    (``["a", "b"]``) carries the same weakness in principle but is **DEAD** —
+    zero required params across all 655 registry entries resolve to it — so
+    changing it would move no committed byte and it is left alone. The
+    ``bytes`` row's ``b"abc"`` is live (33 params) but is an opaque payload,
+    not a label that can be mistaken for a name, so it is out of scope here.
     """
     if op_name and param_name:
         harvested = _ea.provider().get(op_name, param_name)
@@ -148,7 +184,11 @@ def _synth_arg(type_str: str, param_name: str = "",
         "int": (True, 3),
         "float": (True, 1.0),
         "bool": (True, True),
-        "str": (True, "abc"),
+        # rc431 (`#T1129`): was ``"abc"``. See the docstring — this generator's
+        # output SHIPS IN THE WHEEL, and a self-describing literal names its
+        # own origin if it ever escapes. Path-shaped params never reach this
+        # row; they are refused above.
+        "str": (True, "srmech_synth"),
         "bytes": (True, b"abc"),
         "list[int]": (True, [1, 2, 3]),
         "list[float]": (True, [1.0, 2.0, 3.0]),

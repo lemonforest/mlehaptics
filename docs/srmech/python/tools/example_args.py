@@ -478,7 +478,45 @@ def sandbox_dir() -> Path:
     return _SANDBOX
 
 
+#: Monotonic per-call counter — see :func:`sandbox_path`. Never reset: reuse of
+#: a slot is exactly the defect this counter exists to make impossible.
+_SANDBOX_SEQ = 0
+
+
 def sandbox_path(param_name: str) -> str:
-    """A nonexistent, writable-if-touched path inside :func:`sandbox_dir`."""
+    """A nonexistent, writable-if-touched path inside :func:`sandbox_dir`.
+
+    NONEXISTENT IS THE CONTRACT, AND IT IS PER CALL (rc431 `#T1129`).
+
+    Through rc431 this keyed the path on the PARAMETER NAME alone --
+    ``<sandbox>/srmech_synth_path`` for every op with a param called ``path``
+    -- so the whole process shared ONE filesystem node per param name. The
+    docstring's "nonexistent" was then true only of the FIRST call: every
+    later one handed out a path some earlier op had already created, and
+    whichever op got there first decided what KIND of node it was.
+
+    That made the node a shared mutable resource across ops that disagree
+    about its type. Measured on the rc431 tree: ``genome_save`` does
+    ``path.mkdir(...)`` (it wants a DIRECTORY) *before* the validation that
+    then rejects the synthetic genome, so it leaves a directory behind even
+    though it raises; ``laplacian.write_packed_graph`` does ``open(path,
+    "wb")`` (it wants a FILE). Run in that order they collide with
+    ``IsADirectoryError`` -- and the order is not a property of either op, it
+    is a property of which pytest nodes happened to land in which xdist
+    worker. CI shard 3 (``-n auto --dist load``) put
+    ``test_immolation.py::test_advertised_return_type_is_honest
+    [srmech.biology.genome.genome_save]`` in the same worker process, ahead of
+    ``test_invocable_returned_floor_rc431.py``, and the floor gate reported
+    ``write_packed_graph`` as a regression against an op that had not changed.
+
+    A measurement whose answer depends on what ran before it in the same
+    process is not a measurement. Each call therefore gets its OWN slot, so no
+    two calls -- for the same param name, the same op, or different ops -- can
+    ever name the same node. The param name is kept in the filename because a
+    value that escapes into a log or an error message should still say where
+    it came from.
+    """
+    global _SANDBOX_SEQ
+    _SANDBOX_SEQ += 1
     safe = "".join(c if (c.isalnum() or c in "._-") else "_" for c in param_name)
-    return str(sandbox_dir() / f"srmech_synth_{safe}")
+    return str(sandbox_dir() / f"srmech_synth_{_SANDBOX_SEQ:05d}_{safe}")

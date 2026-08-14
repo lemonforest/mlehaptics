@@ -3161,6 +3161,57 @@ def _lll_gso(b: List[List[int]], m: int, n: int):
     return mu, B
 
 
+def _lll_check_basis(basis):
+    """Shape guard for ``lll_reduce``'s ``basis`` -- returns the MATERIALISED rows.
+
+    ⚠️ **Every caller must USE the return value and pass it onward.** This guard
+    CONSUMES ``basis``: a one-shot iterable (generator, ``iter(...)``, ``map``,
+    ``zip``) is exhausted by the walk below, so a caller that validates ``basis``
+    and then hands the ORIGINAL object to the arms hands them an exhausted
+    iterator, which reads as the empty lattice and RETURNS ``[]``. rc431's first
+    cut did exactly that at the front door and turned a correct rc430 answer into
+    a silent wrong one:
+
+        rc430:  lll_reduce(iter([[1,1,1],[-1,0,2],[3,5,6]]))
+                    -> [[0,1,0],[1,0,1],[-1,0,2]]      (one pass, correct)
+        rc431a: same call                 -> []        (SILENTLY WRONG)
+
+    A shape guard that silently deletes the caller's data is a worse defect than
+    the bare ``TypeError`` it was written to replace -- the ``TypeError`` at least
+    told you something was wrong. Rows are materialised here (``list(row)``) for
+    the same reason one level down: a row that is itself one-shot must survive
+    being handed to whichever arm runs.
+
+    Through rc430 ``basis`` was NOT guarded at all: both the pure body and the
+    ctypes wrapper opened with ``[[int(x) for x in row] for row in basis]``, so a
+    non-iterable ``basis`` (``lll_reduce(5)``) or a non-iterable ROW
+    (``lll_reduce([1, 2])``) escaped as a bare ``TypeError: 'int' object is not
+    iterable`` carrying no op name -- while the sibling equal-length check four
+    lines further down already raised a house-style ``ValueError``. Same
+    function, same defect class, two different exception types; ``ValueError``
+    is the consistent one and the one the docstring promises.
+
+    This lives at the PUBLIC front door rather than in ``_lll_reduce_pure``
+    because ``lll_reduce_c`` performs the same coercion before any pure code
+    runs, so a guard on the pure side alone would leave the native arm raising
+    ``TypeError`` -- the two projections are co-equal and must refuse
+    identically. ``lll_reduce([]) -> []`` is unchanged: the empty lattice is
+    degenerate-empty, not malformed.
+    """
+    if isinstance(basis, (str, bytes)) or not hasattr(basis, "__iter__"):
+        raise ValueError(
+            f"lll_reduce: basis must be a sequence of equal-length integer "
+            f"sequences; got {type(basis).__name__}")
+    rows = []
+    for idx, row in enumerate(basis):
+        if isinstance(row, (str, bytes)) or not hasattr(row, "__iter__"):
+            raise ValueError(
+                f"lll_reduce: basis must be a sequence of equal-length integer "
+                f"sequences; row {idx} is {type(row).__name__}")
+        rows.append(list(row))
+    return rows
+
+
 def _lll_reduce_pure(basis, delta):
     """Pure exact-ℚ LLL body — the complete, native-independent alternative AND
     the byte-identity parity oracle for the C peer. See :func:`lll_reduce`.
@@ -3179,7 +3230,7 @@ def _lll_reduce_pure(basis, delta):
     if dd <= 0 or not (dn * 4 > dd and dn <= dd):
         raise ValueError(
             f"lll_reduce: delta {dn}/{dd} must lie in (1/4, 1]")
-    b = [[int(x) for x in row] for row in basis]
+    b = [[int(x) for x in row] for row in _lll_check_basis(basis)]
     m = len(b)
     if m == 0:
         return []
@@ -3290,9 +3341,15 @@ def lll_reduce(basis, delta=(3, 4)):
     in H. Cohen, *A Course in Computational Algebraic Number Theory* (1993),
     Algorithm 2.6.3.
 
-    :raises ValueError: if ``delta ∉ (1/4, 1]``, rows are ragged, or the basis is
-        linearly dependent (degenerate — ``‖b*_j‖²`` vanished).
+    :raises ValueError: if ``delta ∉ (1/4, 1]``, rows are ragged, ``basis`` is
+        not a sequence of sequences, or the basis is linearly dependent
+        (degenerate — ``‖b*_j‖²`` vanished).
     """
+    # Co-equal shape guard, ahead of BOTH arms. The result MUST be rebound: the
+    # guard consumes `basis`, so passing the original object on would hand an
+    # exhausted iterator to whichever arm runs and RETURN [] for a valid
+    # one-shot basis. See the warning in _lll_check_basis.
+    basis = _lll_check_basis(basis)
     native = _native.lll_reduce_c(basis, delta) if _native.HAS_NATIVE else None
     if native is not None:
         return native
