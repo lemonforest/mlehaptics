@@ -97,10 +97,11 @@ def created_dirs(path) -> Iterator[str]:
 
     The success path is indistinguishable from ``os.makedirs(path,
     exist_ok=True)``: same directories, same permissions, same result when the
-    tree already exists. Only the ERROR path differs, and that is the point.
+    tree already exists — **and the same REJECTIONS**, which points 3 and 4
+    below are what buy. Only the ERROR path differs, and that is the point.
 
-    TWO IMPLEMENTATION POINTS THAT ARE LOAD-BEARING AND MUST NOT BE "SIMPLIFIED"
-    ---------------------------------------------------------------------------
+    FOUR IMPLEMENTATION POINTS THAT ARE LOAD-BEARING AND MUST NOT BE "SIMPLIFIED"
+    ----------------------------------------------------------------------------
     1. **Per-level ``os.mkdir`` in a ``try/except FileExistsError``, NOT
        ``os.makedirs(exist_ok=True)``.** ``exist_ok=True`` cannot report
        created-versus-existed, and a rollback that cannot tell them apart deletes
@@ -121,6 +122,34 @@ def created_dirs(path) -> Iterator[str]:
        the rollback error is mandatory — a rollback failure must not replace, or
        chain onto, the original exception the caller needs to see.
 
+    3. **``FileExistsError`` is only "already done" when the node is a
+       DIRECTORY.** rc432 shipped a bare ``except FileExistsError: continue``,
+       and it was WRONG in a way that matters here more than anywhere: given a
+       path that already exists as a FILE, it swallowed the error and yielded,
+       so the caller received a path it believed was a directory and was not
+       (measured: ``isdir=False, isfile=True``, where ``os.makedirs(exist_ok=
+       True)`` raises). That is rc431's own defect class INVERTED — rc431 was a
+       directory found where a file was wanted; this was a file accepted where a
+       directory was promised — re-introduced by the helper written to close it.
+       An ``isdir`` re-check costs one syscall and restores makedirs parity.
+
+    4. **A non-``EEXIST`` ``OSError`` is tolerated ONLY if the level is already
+       the directory we wanted.** On Windows :func:`_levels_to_root` always
+       reaches the drive root, and ``os.mkdir("C:\\\\")`` raises
+       ``PermissionError [WinError 5]``, NOT ``FileExistsError`` — so the rc432
+       build shipped a helper that failed on EVERY absolute path on Windows, and
+       with it ``genome_register_attested`` and native ``genome_import``. POSIX
+       hid it completely, because ``os.mkdir("/")`` there raises
+       ``FileExistsError`` like any other existing directory. A cross-platform
+       existence check cannot be spelled with an exception TYPE.
+
+    ⚠️ **The rollback stays exact, and this is the invariant to preserve if these
+    clauses are ever touched:** a level joins ``made`` only when its ``os.mkdir``
+    RETURNED. The ``isdir`` probes added by points 3 and 4 decide raise-versus-
+    continue and NOTHING else, so they can never enrol a pre-existing directory
+    for deletion. Point 1's atomicity argument is about what we DELETE, and it is
+    untouched.
+
     Yields the absolute path as a ``str``.
     """
     made: List[str] = []
@@ -129,7 +158,18 @@ def created_dirs(path) -> Iterator[str]:
             try:
                 os.mkdir(level)
             except FileExistsError:
+                # The node is there. It is only "already done" if it is a
+                # DIRECTORY — see point 3.
+                if not os.path.isdir(level):
+                    raise
                 continue
+            except OSError:
+                # Point 4: a level that exists but refuses mkdir for a reason
+                # other than EEXIST. Tolerated ONLY when it is already the
+                # directory we wanted; any other OSError is the caller's to see.
+                if os.path.isdir(level):
+                    continue
+                raise
             made.append(level)
         yield os.path.abspath(os.fspath(path))
     except BaseException:
