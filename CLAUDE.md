@@ -174,6 +174,25 @@ Per `[[project_srmech_foundational_cascade_operations_catalog]]`: cascade-helper
 
 **Ops that exist but are NOT registered** (so `resolve` returns nothing and they are invisible to search) — verified rc432: `srmech.cascade.cayley_dickson.cd_add`, `srmech.cascade.one.separate_winding_curvature`, `srmech.rbs_lm.substrate.sim_k4_batch`. Import them directly; they work. Tracked on gh #1530.
 
+### The 4D irrep is ADOPTED — as a `(frame, lane)` PERSPECTIVE, never as the carrier (F1338, 2026-08-14)
+
+Per user direction *"adopt the 4D irrep now that the lane surface answers it, **but only as a perspective**"*. A carrier declares a **pair**, not a basis:
+
+| field | range | what it selects |
+|---|---|---|
+| **frame** | 1..**28** = 7 Fano lines × 4 splitting units | which ℍ-in-𝕆 perspective the read is taken from (`octonion_frame_read(x, frame=(i,j,k,ℓ))`) |
+| **lane** | `index` / `sign` / `both` | which half is read (`describe()["lanes"]`) |
+
+Five measured consequences, all through shipped rc432 ops:
+
+1. **The 4-cube is a READ-OUT, never the storage.** 28 frames give **28 distinct reads of the same octonion** and **one** invariant norm. Storing one frame's coordinates stores 1 of 28 equally valid answers.
+2. **Only invariants carry a cross-perspective claim.** `cd_norm_sq` and φ survive a frame change; a base does not. "This strand *is* X" must be phrased in an invariant, or it is a claim about the frame.
+3. **`ab:bc:ca || c:a:b` is an IDENTITY, not an analogy.** On **7/7** Fano lines the pair-product IS the complementary single up to a Class-K sign. **Naming any two names the third** — the third is implied, not stored. Storing all three of a Fano triple stores a redundancy.
+4. **Index lane = unbounded shadow; sign lane = where every ceiling lives** (F1337). A carrier that stores only the index lane has stored the shadow — cheap, useful, and it must be **labelled as such**.
+5. **An address is basepoint-relative.** In the seam torsor the label **SET** is invariant (always the whole group) but the **ASSIGNMENT** is a choice — every basepoint labels *itself* `0`. Two carriers may disagree on every label and be the same object; **test agreement on the invariant, never on the labels.**
+
+**We never leave a tower rung, we nest it.** `Der(𝕊) = Der(𝕆) = g₂ = 14` — the 𝕊 rung adds no new symmetry; measured, `𝕊` is one 𝕆 that closes (49/49) plus one 𝕆-shaped coset that does not (64/64). srmech's own tier text: *"both are 𝕆 ⊕ 𝕆"*. ⚠️ The tie to a **triality generator** is **[SPECULATIVE]** and stays FORM-only — `triality_automorphism` is `τ³=I` on 𝔰𝔬(8), not a permutation of an octonion triple (notebook §3.46.11).
+
 ### Cascade-honesty discipline (load-bearing)
 
 Per `[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]`:
