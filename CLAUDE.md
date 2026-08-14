@@ -144,14 +144,35 @@ A citation without attestation is not real; an attestation that can't be re-veri
 | Content-addressing / hash | `srmech.amsc.format.sha256_bytes` | **A** |
 | Cyclic / modular gcd | `srmech.math.cyclic.gcd` | **I** |
 | Rational anchor (best-rational) | `srmech.math.rational.best_rational(num: int, denom: int, max_d: int)` | **N** |
-| Cascade primitives (planned) | `srmech.amsc.cascade.*` (precursor at `docs/unsolved-maths/_cascade_helpers.py`) | foundational |
-| TOML cascade-runner (planned; NOT yet packaged — no `srmech.cosmos` module exists; F178) | `srmech.amsc.cascade.*` are the shipped cascade primitives | composition |
-| Spectral decompose / delta / recompose / similarity | `srmech.signal_processing.*` (v0.4.2+) | spectral |
-| AMSC catalogs (attested data) | `srmech.amsc.tool_schema` for catalog creation | provenance |
+| Cascade primitives | `srmech.cascade.*` — SHIPPED, a real top-level namespace since rc364/rc377 (precursor at `docs/unsolved-maths/_cascade_helpers.py`). `magnitude` / `net_chirality` / `the_one` / `cd_mult` / `associator` / `winding_fold` / `inertia_signature` all live here | foundational |
+| TOML cascade-runner | `srmech.dsl.run_cascade_chain` + the 20 descriptors under `srmech/cascade/catalogs/cascade_catalog/`; live count at `describe()["cascade_catalog"]`. (Still NO `srmech.cosmos` module — F178) | composition |
+| Spectral decompose / delta / recompose / similarity | `srmech.signal_processing.*` (v0.4.2+); `srmech.spectral.*` is the newer peer | spectral |
+| AMSC catalogs (attested data) | `srmech.amsc.catalog.{get_attested_dataset, iter_attested_dataset, register_attested_root}` — this row named `tool_schema` for years, which is the **introspection** surface, not the catalog one | provenance |
+| **Find an op when you don't know its name** | `srmech.introspect.search.search(query, k=10)` → ranked hits each carrying a `reach` field = the literal import line. Use it INSTEAD of guessing a module path | E |
+| Op registry / fully-qualified names | `srmech.introspect.tool_schema.get_tool_schema()` → `ToolSchema` with `.tools` / `.resolve(name)` / `.resolve_all(name)` / `.by_owner`. **Renamed from `tool_schema()`, no back-compat alias** | H |
 | Calculus (trig / transcendentals / calculus) | `srmech.calculus.*` (**renamed from `asymptotic_calculus` — "it's just calculus" now, user direction 2026-06-05; `asymptotic_calculus.*` + `srmech.trigonometry.*` survive as back-compat shims — all three verified importable on rc432**) — thin re-exports of the **Class-N** primitives in `srmech.math.rational` (`sin/cos/exp/log1p/atan_series_truncate(numerator, denominator, num_terms)` → exact `(num, den)` rational; the substrate-native "continuous" trig). Attested worked-instances at `srmech/amsc/attested/asymptotic_calculus/` | math |
-| Cosmos catalogs (packaged under `srmech.amsc.attested.*`) | `srmech.amsc.attested.{cosmos_validation, cmb_polarisation_spectra, cmb_bispectrum, cmb_lensing, cmb_low_ell_maps, cosmic_birefringence}` (Friedmann dark-fraction + TE/EE/BB / fNL / lensing / low-ℓ maps + **the parity-odd surface, new in the rc432 batch** — these ARE packaged; there is just no `srmech.cosmos` module) | astrophysical |
+| Cosmos catalogs (packaged under `srmech.amsc.attested.*`) | `srmech.amsc.attested.{cosmos_validation, cmb_polarisation_spectra, cmb_bispectrum, cmb_lensing, cmb_low_ell_maps, cosmic_birefringence}` (Friedmann dark-fraction + TE/EE/BB / fNL / lensing / low-ℓ maps + **the parity-odd β-posterior surface — shipped since 0.5.0rc20, 4 PDF-verified posteriors** — these ARE packaged; there is just no `srmech.cosmos` module) | astrophysical |
 
 Per `[[project_srmech_foundational_cascade_operations_catalog]]`: cascade-helpers replacing Python math modules should land as srmech catalog peers to `calculus` (renamed from `asymptotic_calculus`) and `trigonometry`.
+
+### ⚠️ ADR-0010 declustering — `srmech.amsc.*` is NOT where the maths lives any more
+
+**Completed at v0.9.0rc377.** `srmech.amsc` drained to its **four attestation keepers** — `format` / `catalog` / `descriptor` / `gap_suggester` (plus `attested/` + `adapters/`). Everything else re-homed **by domain**. There is **no back-compat alias**: an old path raises `ModuleNotFoundError`, which is at least loud.
+
+| was | is now |
+|---|---|
+| `srmech.amsc.{cyclic, rational, laplacian, hdc, text, search, tlv, dispatch, template, primes, kepler, mat, vec, hv, q, qi, complex128, poly, octonion, carrier_ladder, covering}` | **`srmech.math.*`** |
+| `srmech.amsc.cascade.*` — incl. `one`, `cayley_dickson`, `sedenion_register`, `compose` | **`srmech.cascade.*`** (top-level) |
+| `srmech.amsc.{tool_schema, naming, responsion_schema, op_provenance, carrier_schema, _carrier_examples}` | **`srmech.introspect.*`** |
+| `srmech.amsc.{genome, q8, plasmid}` | **`srmech.biology.*`** |
+| `srmech.amsc.harmonics` | **`srmech.music.harmonics`** |
+| `srmech.amsc.elliptic_partial_fraction` | **`srmech.apokatastasis.*`** |
+| `srmech.amsc._native` | **`srmech._native`** (a package now) |
+| `srmech.qm.*` | **`srmech.physics.qm.*`** — old spelling REMOVED at rc382, clean break |
+
+**Do not reconstruct this table from memory or from the changelog.** Resolve the actual name: `get_tool_schema().resolve_all("<op>")` returns the fully-qualified path, or `srmech.introspect.search.search("<what you want>")` returns a `reach` line you can paste. Schema names are **fully qualified** — a bare-name lookup returns nothing and looks like a coverage gap that isn't one.
+
+**Ops that exist but are NOT registered** (so `resolve` returns nothing and they are invisible to search) — verified rc432: `srmech.cascade.cayley_dickson.cd_add`, `srmech.cascade.one.separate_winding_curvature`, `srmech.rbs_lm.substrate.sim_k4_batch`. Import them directly; they work. Tracked on gh #1530.
 
 ### Cascade-honesty discipline (load-bearing)
 
