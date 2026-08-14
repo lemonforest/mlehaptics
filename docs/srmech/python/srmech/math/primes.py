@@ -98,9 +98,19 @@ def factor(n: int) -> List[Tuple[int, int]]:
     OverflowError
         If the C path's ``FACTOR_MAX_DISTINCT_PRIMES`` buffer is exceeded
         (unreachable for in-range ``uint64`` input, as described above).
+    RuntimeError
+        NATIVE PATH ONLY (``HAS_NATIVE``): if ``srmech_factor`` returns a
+        non-OK status other than ``SRMECH_ERR_OVERFLOW``. Unreachable on the
+        pure-Python path, which has no status channel.
 
     Note
     ----
+    rc431 repair (`#T1129`) — the RuntimeError row above was added after the
+    first pass. Without it this block still declared the unreachable
+    ``OverflowError`` while omitting a REACHABLE sibling raised six lines
+    later on the same native branch — a milder form of exactly the defect the
+    note below describes, left behind by the fix for it.
+
     rc431 (`#T1129`) — docstring only; no code path changed. The declared
     contract named ONLY the OverflowError the same paragraph then explains
     cannot happen, while omitting the two exceptions that actually fire. So

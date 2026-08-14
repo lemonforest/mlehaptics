@@ -151,6 +151,21 @@ def _synth_arg(type_str: str, param_name: str = "",
     file, a log or an error message, and ``"abc"`` says nothing about where it
     came from while ``"srmech_synth"`` names its own origin.
 
+    ⚠️ **Measured, and weaker than the paragraph above reads on its own: the
+    flip moves ZERO committed bytes.** ``regen_all.py --check`` is green with
+    EITHER literal (both directions run, not just this one), and
+    ``srmech/introspect/_tool_docs.py`` contains ``"abc"`` 0 times and
+    ``"srmech_synth"`` 0 times. Only 2 of the 24 ops produce a different
+    ``_build_example`` output, and both carry CURATED examples that take
+    precedence over this table — so no synthesised ``str`` ever reached the
+    committed artifact. "SHIPS IN THE WHEEL" is the reason this generator is
+    worth hardening AT ALL; it is NOT a claim that 24 ``"abc"`` values were
+    shipping. This is preventive hardening for the next op registered without
+    a curated example. Stated plainly because the scope note below contrasts
+    the DEAD ``list[str]`` row with this LIVE one, and a reader who takes
+    "live" to mean "reached the wheel" concludes the opposite of the
+    measurement.
+
     Scope note, measured rather than assumed: the sibling ``"list[str]"`` row
     (``["a", "b"]``) carries the same weakness in principle but is **DEAD** —
     zero required params across all 655 registry entries resolve to it — so

@@ -793,8 +793,36 @@ def rational_div(a: Tuple[int, int], b: Tuple[int, int]) -> Tuple[int, int]:
     ZeroDivisionError
         If ``b_num == 0``.
 
+    Coercion (declared because it is otherwise SILENT)
+    --------------------------------------------------
+    Entries are read with ``int()``, not type-checked, so a non-``int`` entry
+    does not raise on its own account:
+
+    * a ``float`` is **TRUNCATED toward zero** — ``rational_div((1, 2.5),
+      (1, 1))`` returns ``(1, 2)``, i.e. ``1/2.5`` answered as ``1/2``, with
+      no error. This is a wrong answer, not a rejected call.
+    * a non-numeric entry raises ``ValueError`` **from the coercion**, not
+      from the denominator check — ``rational_div(("a", "b"), (1, 1))`` gives
+      ``invalid literal for int() with base 10: 'a'``, which is why the
+      ValueError row above cannot be read as "non-positive denominator" alone.
+
     Note
     ----
+    rc431 repair (`#T1129`) — the Coercion block above was added after the
+    first pass declared three exceptions and stopped. Measured, the block as
+    first written was falsifiable two ways: it attributed ValueError SOLELY
+    to a non-positive denominator, and it said nothing at all about the
+    truncation. The truncation is the same class as this rc's own headline
+    (``vec_add`` returning a silently truncated vector) — a real call, a
+    plausible-looking answer, no signal.
+
+    The ``int()`` coercion is a FAMILY convention shared with ``rational_add``
+    (:735) and ``rational_mul`` (:762), not a defect local to this op, so it
+    is DECLARED here rather than changed: making the three reject non-``int``
+    entries is a behaviour change to three public ops and belongs to a
+    directed follow-up, not to a docstring repair. Recorded so the choice is
+    visible as a choice.
+
     rc431 (`#T1129`) — docstring only; no code path changed. ZeroDivisionError
     was the sole declared exception, and it is the LAST of the three checks the
     function runs: a caller who passed a malformed pair got TypeError or

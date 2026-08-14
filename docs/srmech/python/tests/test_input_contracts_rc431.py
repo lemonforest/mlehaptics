@@ -270,7 +270,55 @@ def test_the_literal_scan_actually_reaches_string_params():
     assert len(strings) >= 20, (
         f"only {len(strings)} string synths reached — the scan has stopped "
         f"seeing its own subject and the strict-zero test above is vacuous")
-    named = [t for t in strings if t[2] == "srmech_synth"]
-    assert len(named) >= 20, (
-        f"only {len(named)} params carry the self-describing literal; the "
-        f"rc430/rc431 convention has drifted")
+
+
+def test_every_synthesised_string_carries_the_self_describing_literal():
+    """The convention axis — stated as a PREDICATE, never as a census.
+
+    rc431 repair (`#T1129`): this assertion was written as
+    ``len(named) >= 20`` over the params still receiving the *synthesised*
+    literal, measured at 24. That is a ratchet pointing the wrong way. A
+    harvested value from the op's own worked example takes PRECEDENCE over
+    the type table (``_synth_arg`` consults ``_ea.provider()`` first), so
+    curating five more examples — an unambiguous improvement — drops the
+    count to 19 and turns the gate red on correct code. A gate that fires
+    on an improvement teaches people to weaken gates.
+
+    The axis it was reaching for is not "how many params are synthesised"
+    but "every string this generator SYNTHESISES names its own origin".
+    That is count-free: it holds at 24 synthesised params, at 2, and
+    vacuously at 0 — and the reach control above is what keeps 0 honest.
+
+    It is also stricter on PARTIAL drift, which is the case the census could
+    not see. Demonstrated by construction, not argued: drifting exactly four
+    of the 24 synthesised params leaves ``named == 20``, so
+    ``len(named) >= 20`` PASSES, while the predicate below is strict-zero per
+    param and fails, naming which four. (A first attempt drifted 11 and
+    failed both — the two only separate BELOW the threshold's slack, which is
+    the whole objection to writing the gate as a threshold.) (A first draft of this docstring claimed the census also missed
+    TOTAL drift — that was wrong and the mutation audit caught it: flipping
+    the table row to ``"zzz"`` sends ``named`` to 0 and the old assertion
+    does fail. Recorded because the claim was written before it was run.)
+    """
+    g = _synth_arg_provider()
+    import example_args as _ea
+
+    offenders = []
+    for op, param, val in _required_param_synths():
+        if not isinstance(val, str):
+            continue
+        if _ea.provider().get(op, param) is not _ea.UNSYNTHESIZABLE:
+            continue  # curated/harvested — valid by construction, not our axis
+        offenders.append((op, param, val))
+    bad = [t for t in offenders if t[2] != "srmech_synth"]
+    assert not bad, (
+        f"{len(bad)} synthesised string(s) do not carry the self-describing "
+        f"literal 'srmech_synth'; the rc430/rc431 convention has drifted: "
+        f"{bad[:10]}")
+
+    # The type table is the single source of the literal — pin it directly so
+    # the predicate above cannot pass merely because nothing is synthesised.
+    good, val = g._synth_arg("str", "label", "")
+    assert good and val == "srmech_synth", (
+        f"the generator's 'str' row is {val!r}; the self-describing "
+        f"convention has been edited out of the table itself")

@@ -242,9 +242,14 @@ def test_invocable_returned_floor_holds():
     returned, tolerated, skipped = _classify(entries, invoke_tool, _safe_synth)
 
     assert FLOOR_PATH.exists(), (
-        f"{FLOOR_PATH.name} is missing -- regenerate it with "
-        f"`python3 -m pytest {pathlib.Path(__file__).name} --regen-floor` or by "
-        f"running the census note, and commit it"
+        # rc431 repair (`#T1129`): this said `pytest ... --regen-floor`, which
+        # is not a pytest option -- the advertised recovery command ERRORS with
+        # "unrecognized arguments". The real regeneration path is this file's
+        # own __main__ block. An error message that hands the reader a command
+        # that fails is worse than one that hands them nothing.
+        f"{FLOOR_PATH.name} is missing -- regenerate it by running this file "
+        f"directly (`python3 tests/{pathlib.Path(__file__).name}`, the "
+        f"__main__ block writes the floor), then commit it"
     )
     floor = {
         line.strip()

@@ -173,9 +173,23 @@ def lcm(a: int, b: int) -> int:
         If ``a`` or ``b`` is negative, or is itself outside uint64 range.
     OverflowError
         If the RESULT exceeds uint64 range, both operands being in range.
+    RuntimeError
+        NATIVE PATH ONLY (``HAS_NATIVE``): if ``srmech_lcm`` returns a non-OK
+        status other than ``SRMECH_ERR_OVERFLOW``. Unreachable on the
+        pure-Python path, which has no status channel — so a caller who
+        exercised only a pure build has never seen it and will not have
+        handled it.
 
     Note
     ----
+    rc431 repair (`#T1129`) — the RuntimeError row above was added after the
+    first pass declared TypeError/ValueError/OverflowError and stopped. That
+    left the block committing the SAME asymmetry it was written to correct in
+    ``factor``: it declared ``OverflowError``, whose own note calls it a
+    guard, while omitting a sibling raise on the very same branch. The two
+    are three lines apart in the native block, so an enumeration that names
+    one and not the other is not an oversight a reader can infer past.
+
     rc431 (`#T1129`) — docstring only; no code path changed. The declared
     contract was OverflowError alone, which named the one failure the C parity
     surface reports and silently omitted the two this function raises FIRST,
