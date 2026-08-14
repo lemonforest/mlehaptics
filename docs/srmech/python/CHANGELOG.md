@@ -13,6 +13,93 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc432]
+
+### The orphan the raise does not mention (`#T1132`)
+
+**Registry stays 655. ABI stays 14. GENOME_FORMAT_VERSION stays 19.** No op is registered, no `ToolEntry` field is added, and **no C source is touched at all** — `c/include/srmech.h` moves only its two version macros. Every change is a reorder, a scope, a private helper, or a test.
+
+#### The defect class
+
+An op that **acquires a resource before it finishes validating** leaves that resource behind on the error path. The raise is loud; the orphaned node is silent, and nothing in the traceback mentions it.
+
+This is not hypothetical. `genome_save` did `path.mkdir(...)` as the **first statement of its body**, above every validation — so a REJECTED save still left a directory at the target path. `write_packed_graph` then did `open(path, "wb")` on that same node and died on `IsADirectoryError`. Both ops were individually correct; the SUPPLY was wrong. rc431 fixed the supply (a per-call sandbox slot). rc432 fixes the acquire-before-validate sites themselves.
+
+#### The ruling this implements
+
+**Do not port the JPL Power-of-Ten rules into Python. Port the INVARIANT they buy** — every acquisition is released on every exit. Python's `with` / `try/finally` is *stronger* than C's hand-placed release, because it cannot be forgotten at a `return` a later edit adds.
+
+The design note worth carrying: in C, **Rule 3 (no malloc) is what made Rule 1 (no goto) survivable** — remove the resource and the cleanup problem mostly disappears. New `srmech/_ownedfs.py` is the same *move* rather than the same *rule*: it does not police where an acquisition may appear, it makes the acquisition owned by something that cannot forget to release it. Stdlib-only, importing no srmech module, so all four repaired modules take it cycle-free.
+
+⚠️ **Rule 5 (≥2 asserts per function) is deliberately NOT ported.** `python -O` deletes asserts, so validation placed in one vanishes in optimized mode — which is the `#T1131` defect exactly. The transferable principle is the DISTINCTION: **assertions are for invariants believed impossible to violate; `raise` is for inputs expected to be wrong.**
+
+Two implementation points in `_ownedfs.created_dirs` are load-bearing. It uses per-level `os.mkdir` in a `try/except FileExistsError`, **not** `makedirs(exist_ok=True)`, because `exist_ok` cannot report created-versus-existed and a rollback that cannot tell them apart deletes the caller's pre-existing directory — strictly worse than the orphan it fixes. And it rolls back with `os.rmdir`, deepest-first, each error swallowed: `rmdir` fails on a non-empty directory, and that is the fail-safe rather than a limitation — **this helper never deletes content.**
+
+**Five of the eight repairs are plain reorders and import nothing from the new module.** Wrapping a site that a three-line move fixes is complexity for uniformity's sake.
+
+#### The eight sites
+
+| Site | Repair | What used to survive the raise |
+|---|---|---|
+| `genome_save` | reorder | the target directory |
+| `genome_import` (native) | scope | `dest/` |
+| `genome_explode` | reorder | `out/` |
+| `genome_register_attested` | two-pass | `amsc/` |
+| `pack_mcpb` | reorder + `assert`→`raise` | `out/` |
+| `write_ndjson` | serialise-first | `sub/`, a partial file, **and prior data** |
+| `recursive_cut` (`work_dir=None`) | scope | an **unnameable** temp dir |
+| `genome_register_attested` (inner loop) | two-pass | earlier bundles' dirs + both files |
+
+Three of these deserve their own paragraph.
+
+**`genome_save`'s `_manifest_record` hoist was measured, not assumed.** Moving that call above the native branch makes the native path run a validation it previously skipped — a real behaviour change. Pre-registered falsifier: drive `genome_save` with `has_native_genome` forced True and `genome_save_c` stubbed, across an eleven-case attestation corpus, and assert no new raise. **Result: zero deltas.** Every rejection `_manifest_record` can produce was already produced by `_resolve_attestation` one line above, which both paths always ran. (The falsifier's *first* build returned a false "no delta" — every case raised `TypeError`, valid ones included, because the fixture was wrong. An instrument that cannot return otherwise is not a measurement.)
+
+**`write_ndjson` had a second, worse hazard that the read-only triage could not see.** `open(path, "w")` **truncates**, and it sat above the serialise loop — so a record that failed to serialise **destroyed a pre-existing good NDJSON**. Measured: 114 valid bytes in, 108 bytes of a *different* file out. Destroying prior data outranks orphaning a fresh node, and a probe on a fresh path is blind to it entirely, because there is nothing there to lose. Every line is now serialised before anything is created or truncated. **Boundary, stated rather than implied:** this fixes *serialisation* failure, not *write* failure — an ENOSPC mid-write still truncates. That is the crash-durability class, deferred to `#T1133` with its own falsifier (`kill -9` mid-write) that this rc did not run.
+
+**`recursive_cut` got a SPLIT ruling, and the two halves are opposites.** A **caller-named** `work_dir` keeps everything it created, even on a raise: you own it, it is reused across calls, and the tomes already written are the bounded record — deleting it would be the framework destroying data it does not own. That is now stated in the docstring rather than left as behaviour. But `work_dir=None` is the opposite case: `mkdtemp` mints a name that reaches the caller **only through a return value that never arrives**, so a failing call hands back an orphan the caller *cannot name*, that no party could ever remove. That branch is now scoped. Implemented by extracting a private `_recursive_cut_impl` rather than re-indenting ~150 CRLF lines; the public name, signature and docstring are unchanged.
+
+#### `pack_mcpb`'s `assert` → `raise`, and why the usual argument does not apply
+
+`build_manifest` validated `server_type` with an `assert`, but **this is not a `#T1131` instance**: under `python -O` the site still rejected, because `_server_block` raises `ValueError` further down. What was actually wrong is that **the exception TYPE was interpreter-mode-dependent** — `AssertionError` normally, `ValueError` under `-O` — so a caller's `except ValueError` worked in optimized mode and not otherwise. Both modes now raise `ValueError`, and a subprocess test asserts the invariance. It is also the exact distinction in the standing ruling: `server_type` is a caller input expected to be wrong.
+
+#### No contract break — and the one that WOULD have been
+
+**The success path is byte-identical at all eight sites.** Each op still creates the same directories and writes the same bytes; only the ORDER of validation-versus-acquisition moves, and only the ERROR path's filesystem state changes.
+
+The break that would have existed is adopting the C convention of caller-owns-creation. `srmech_genome.c` makes **zero** `srmech_plat_mkdir` calls across all ten write entry points — the caller creates the directory, and the C harness calls `ensure_dir()` before every call. Adopting that in Python would break callers at 194 sites, and the convention is stated **nowhere** but the C harness's own helper: it is an implementation habit, not a documented contract. **Ruled against.** If a later rc adopts it, it routes as a BREAK.
+
+A scan of all `tests/*.py` for a positive `.exists()` assertion within twelve lines after a `pytest.raises` returns exactly one hit, unrelated to all eight sites.
+
+#### The gate that was already lying
+
+`test_bad_override_writes_nothing_to_disk` is named for a claim it did not check. Its docstring says "no half-written genome"; its only assertion was that `manifest.json` is absent. Driven at rc431, the rejected call left its target directory behind — **the gate was green on the defect it appears to cover**, and had been since rc304. Strengthened with `assert not d.exists()`. This is not "editing correct prose to make a gate green": the prose was already false and the assertion was already too weak.
+
+#### Two new ratchets — and the non-claim that matters more
+
+`tests/test_c_resource_ownership_rc432.py` and `tests/test_unowned_acquisition_rc432.py`. Both are in `tools/ripple_gates.txt` **and** `FROZEN_KNOWN_GATES`, in the same commit as the files themselves; the manifest-omission law is at seven instances.
+
+⚠️ **NEITHER GATE WOULD HAVE CAUGHT THE SEED DEFECT.** The C gate's subject is held handles, and `srmech_genome.c` holds none — it makes zero `mkdir` calls, so the seed has no C referent at all. Its sibling needs two `mkdir`s in one function; the seed makes one. The Python ceiling is seeded at a population that *includes* the repaired sites and therefore can only fire on GROWTH. **These gates detect the REGRESSION, never the original.** No prose in this release may claim they catch the class that took rc431's CI red. The gates pin the result; the repairs produce it, and the repairs are strictly stronger.
+
+The C file is **srmech-local, and explicitly not "JPL Rule 11"** — Holzmann's Power of Ten has exactly ten rules, and `test_jpl_audit.py` iterates `range(1, 11)` to prove the audit document covers all of them. Naming a local invariant "Rule 11" would invent an external authority for a decision this project made on its own. Its C1 half is STRICT ZERO, affordable because the C error paths are clean *by measurement* — zero handle leaks across every held-handle PAL site — while `test_jpl_audit.py` checks Rules 1/3/4/5/8 only, leaving acquire/release symmetry clean by discipline rather than enforcement. Its C2 half carries `CEIL_CREATED_NODE_ROLLBACK = 1`, which **is** the pin on the `#T1133` C deferral: `rcut_setup` makes three sequential creates with no rollback, and repairing it needs *two* new PAL symbols, because the PAL has no `rmdir` at all and `srmech_plat_mkdir` maps `EEXIST` to `SRMECH_OK` — so C cannot tell "I created it" from "it was already there". Both additive; ABI stays 14. A deferral a gate reports every run is an obligation; one in a comment is debt.
+
+The Python file ships an **allowlist plus a down-only ceiling, never strict zero**, and says why: three `bus/_transport.py::bind` sites create the shared, idempotent `~/.srmech/` that every bus op wants to exist. They are structurally indistinguishable from an orphan; only the contract separates them, and forcing them to zero would mean wrapping correct code in a scope it does not need. Its predicate's soundness rests on requiring the acquisition to be a **simple statement at function-body depth 0**: top-level statements run in source order, so if a lexically-later raise fires, the resource was already acquired — a proof about ordering given firing, not a guess about reachability.
+
+Six blind spots are written into that gate's own docstring, including the arithmetic: **it saw 7 of the 12 confirmed lines.** Loop bodies, branch-local acquisitions and attribute-call raisers are permanent misses — so the `genome_import` repair is ungated, and the prior-data-destruction hazard is outside it entirely. Both are covered instead by `tests/test_acquire_before_validate_rc432.py`, which drives all eight sites down their real error paths and is the stronger of the three files.
+
+One finding the design phase did not anticipate: `_ownedfs.owned_scratch_dir` — the helper that *implements* this invariant — trips its own gate, because acquire-at-top-level-then-raise-below **is** the ownership construct. A gate cannot tell the mechanism from the defect by shape alone. It is an allowlist entry with its own tag rather than a predicate special case, so the collision is recorded rather than hidden.
+
+#### Instruments that were wrong before they were right
+
+Three, this release, which is the norm here and is recorded because two were invisible to their own controls.
+
+1. The S1 falsifier's first build raised `TypeError` on every case including the valid ones, and returned a confident "no delta" that was a **false negative**.
+2. The C scanner's comment strip collapsed multi-line blocks and shifted every line after them, placing `rcut_setup` 362 lines from where it lives — **in a scanner whose six planted controls were all green.** No control could see it; an external oracle caught it. The fix is newline-preserving substitution, and the falsifier now shipped is a general invariant rather than a pinned literal: every line the scanner reports must, read back from the real file, contain the token claimed for it. Rules 1/3 get away with the naive strip only because they `findall` — they report *that*, never *where*. **A rule that reports a SITE cannot reuse it.**
+3. The Python predicate filtered nested `def`s when pushing children rather than when popping, so a closure sitting directly in a function body had its `raise` counted as the enclosing function's. A planted negative control failed loudly.
+
+#### Deferred, named and costed
+
+`#T1133`: the C half of the `rcut_setup` / `recursive_cut` pair (two new PAL symbols, `rcut_setup` rollback, the three-platform pedantic matrix; ABI stays 14 — pinned by `CEIL_CREATED_NODE_ROLLBACK`); `write_ndjson` atomic write-and-replace; and `genome_register_attested`'s stale-label residual, which is catalog staleness rather than resource ownership. Each is stated as a docstring boundary at the site it belongs to, not left implicit.
+
 ## [0.9.0rc431]
 
 ### The C guard no Python call can reach, and the gate that could not go red (`#T1129` / `#T1094`)

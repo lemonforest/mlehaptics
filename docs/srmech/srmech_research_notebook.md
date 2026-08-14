@@ -7890,6 +7890,30 @@ An op that reduces modulo something works in a **frame**. The question worth pub
 
 ---
 
+## §3.54 Clean by discipline is not clean by enforcement — and a gate that pins a result never produces it (2026-08-14; `#T1132`; MEASURED, shipped v0.9.0rc432)
+
+Two findings here are general enough to outlive the rc that produced them, and both are easy to lose because each one looks, at a glance, like good news.
+
+**Finding 1 — the C error paths are correct, and that fact was carrying no weight.** srmech's C library holds **zero handle leaks** across every held-handle PAL site, with zero `goto` / `setjmp` / `longjmp`, using three deliberate idioms: a guard return before the acquisition succeeded, an inline release on the return's own block, and capture-status-then-release-once-then-branch. That is affordable for a structural reason worth stating on its own: **Rule 3 (no malloc) is what made Rule 1 (no goto) survivable.** Remove the resource and the cleanup problem mostly disappears — `goto cleanup;` exists almost entirely to free things a JPL-clean C program never allocates.
+
+But `tests/test_jpl_audit.py` mechanically checks Rules 1/3/4/5/8 **only**. Acquire/release symmetry was **ungated**. The surface was clean *by discipline*, and a surface that is clean by discipline is one edit away from decaying in a way that looks exactly like working code — there is no symptom, no failing test, and no reader who happens to look. This is `[[feedback_ungated_surfaces_trickle_gated_surfaces_race_to_100]]` in its quieter form: not a surface that fails to grow, but a surface that is *already perfect* and therefore attracts no instrument, and so becomes **believed** perfect rather than **measured** perfect. The distinction only becomes visible when it stops being true.
+
+**Finding 2 — the gates rc432 shipped cannot detect the defect rc432 repaired, and saying so is the finding.** Three ratchets landed. None of them would have caught the seed. The C held-handle gate's subject is handles, and the op at fault creates a *node* — `srmech_genome.c` makes zero `mkdir` calls, so there is nothing in C for it to look at. Its created-node sibling requires two creates in one function; the seed makes one. And the Python ceiling is seeded at a population that **includes** the repaired sites, so it can only fire on growth.
+
+The honest claim is therefore narrower than a green run suggests: **these gates detect the REGRESSION, never the original.** A ceiling seeded at the live population is a claim about the future, not a detection of the past. That is not a defect in the gates — it is what a ratchet *is* — but prose that says a new gate "catches the class that caused the outage" is false whenever the ceiling was seeded after the repair, which is nearly always. The repairs produce the result; the gates only pin it, and **the repairs are strictly stronger than the gates**.
+
+The corollary is the one to carry: when a ratchet cannot see the original, something else must. Here that was a file that *drives* each repaired site down its real error path and asserts the sandbox is byte-unchanged — which also covered the five of twelve confirmed sites the source scanner permanently misses (loop bodies, branch-local acquisitions, attribute-call raisers). Had the rc shipped only what the scanner can see, it would have repaired seven of twelve and the ratchet would have reported green over the other five indefinitely.
+
+**A third observation, smaller but sharp.** The helper written to *implement* the ownership invariant trips the gate that measures it: acquire-at-top-level-then-raise-below **is** the ownership construct, and a source scanner cannot distinguish the mechanism from the defect by shape alone. It was recorded as an allowlist entry with its own reason rather than special-cased in the predicate, because a predicate that quietly knows about its own tooling stops being a statement about the tree. Compare `[[feedback_an_instrument_that_cannot_return_otherwise_is_not_a_measurement]]`: the failure mode is the same shape one level up.
+
+**Method note.** Three instruments were wrong before they were right, and **two were invisible to their own controls** — a false "no delta" from a fixture that made every case fail identically, and a comment-stripping regex that shifted every reported line number by 362 while six planted controls stayed green. The second is the transferable one: a rule that reports a **site** cannot reuse a comment strip written for a rule that only reports **existence**. The falsifier now shipped is stated as an invariant rather than a pinned literal — every line a scanner reports must, read back from the real file, contain the token claimed for it — so it cannot rot as the source moves.
+
+**Provenance.** `notes/_s1_acquire_sites_rc432.{py,ndjson}` (the pre-repair oracle: 8/8 sites confirmed by execution, 7 planted controls) · `notes/_s1_acquire_sites_rc432_postfix.ndjson` (the same oracle re-run against the repaired tree, so the flip is a measurement rather than a claim) · `notes/_s2_instrument_design_rc432.{py,ndjson}`. Gates: `tests/test_acquire_before_validate_rc432.py`, `tests/test_unowned_acquisition_rc432.py`, `tests/test_c_resource_ownership_rc432.py`. **Status:** MEASURED, shipped v0.9.0rc432.
+
+**Cross-references.** §3.53 (the rc430 round whose gate-blind-spot lesson this extends). Memory: `[[feedback_an_instrument_that_cannot_return_otherwise_is_not_a_measurement]]`, `[[feedback_ungated_surfaces_trickle_gated_surfaces_race_to_100]]`, `[[feedback_false_green_comments_and_dead_instrumentation_seams]]`, `[[feedback_a_filter_that_hides_ripple_is_the_gate_lying]]`, `[[feedback_dont_ship_partial_unproven_difficulty_is_not_an_excuse]]`.
+
+---
+
 ## §4 Open research questions
 
 ### 4.1 Additional spectral graphic operations the architecture should learn to absorb
