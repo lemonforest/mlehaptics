@@ -208,6 +208,24 @@ FROZEN_KNOWN_GATES = frozenset({
     #    blindness is invisible -- the suite stays green either way.
     "tests/test_native_contract_parity_rc431.py",
     "tests/test_invocable_returned_floor_rc431.py",
+    # -- resource ownership, both projections (rc432, `#T1132`). Frozen
+    #    together because they are one invariant in two languages: every
+    #    acquisition is released on every exit.
+    #    test_unowned_acquisition_rc432 scans EVERY package module, so any new
+    #    op that touches the filesystem moves its population without editing a
+    #    declaration anybody would think to re-run. Its ceiling is the only
+    #    thing standing between the tree and a quiet return of the shape that
+    #    took rc431's CI red -- genome_save's mkdir above its own validation,
+    #    leaving a DIRECTORY where write_packed_graph wanted a file.
+    #    test_c_resource_ownership_rc432 is the c/src peer and follows
+    #    test_jpl_audit.py's shape; its C2 ceiling of 1 is the PIN on the
+    #    `#T1133` C deferral, which is an obligation only for as long as a gate
+    #    reports it every run. In a comment it would be debt.
+    #    Frozen rather than merely listed for the reason this whole set exists,
+    #    now at SEVEN instances: an unlisted gate is not a gate, and the
+    #    failure is invisible because the suite stays green either way.
+    "tests/test_unowned_acquisition_rc432.py",
+    "tests/test_c_resource_ownership_rc432.py",
 })
 
 
