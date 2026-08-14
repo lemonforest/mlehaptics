@@ -128,8 +128,20 @@ def test_mat_matmul_zero_inner_dim_is_zero_matrix():
 
 
 def test_mat_matmul_rejects_non_mat():
-    with pytest.raises(AssertionError):
-        mat_matmul([[1.0]], [[1.0]])  # plain lists are not Mat
+    """A real ``TypeError`` (rc433, `#T1131`).
+
+    As an ``assert`` this vanished under ``python -O`` and the list reached the
+    body, which died with ``AttributeError: 'list' object has no attribute
+    'n_rows'`` — the callee's PRIVATE attribute name leaking out as if it were
+    the contract. Both operand positions are covered, since a mixed
+    ``(Mat, list)`` call failed the same way.
+    """
+    with pytest.raises(TypeError, match="must be Mat"):
+        mat_matmul([[1.0]], [[1.0]])          # plain lists are not Mat
+    with pytest.raises(TypeError, match="must be Mat"):
+        mat_matmul(Mat.from_rows([[1.0]]), [[1.0]])   # mixed
+    with pytest.raises(TypeError, match="must be Mat"):
+        mat_matmul([[1.0]], Mat.from_rows([[1.0]]))   # mixed, other side
 
 
 def test_mat_matmul_registered_in_all_and_ops():

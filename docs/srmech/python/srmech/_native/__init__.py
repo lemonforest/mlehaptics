@@ -9986,11 +9986,24 @@ def bigq_reduce_c(num: int, den: int) -> "tuple[int, int] | None":
     """``_reduce_rational`` on the C bignum: reduce ``num/den`` to lowest terms
     with positive denominator via ``srmech_bigint_gcd`` + two exact divisions.
     ``None`` when native is absent / arena overflow (pure Python takes over).
-    Byte-identical to the pure body (same gcd, same exact quotients)."""
+    Byte-identical to the pure body (same gcd, same exact quotients).
+
+    Raises:
+        ZeroDivisionError: if ``den`` is zero.
+
+    rc433 (`#T1131`) — was a bare ``assert``, which ``python -O`` strips. The
+    validation is now ABOVE the native check on purpose: whether an argument
+    is valid cannot depend on whether an accelerator happens to be loaded, and
+    with the check below it the guard was unreachable (and untestable) in any
+    native-absent environment. No shipped caller is affected — both public
+    entry points (``_reduce_rational``, ``rational_div``) already raise
+    ``ZeroDivisionError`` for this input BEFORE dispatching here, so this is
+    defense-in-depth at a directly-callable module entry point."""
     global BIGQ_DISPATCH_COUNT
+    if den == 0:
+        raise ZeroDivisionError("bigq_reduce_c requires den != 0")
     if not has_native_bigq():
         return None
-    assert den != 0, "bigq_reduce_c requires den != 0"
     num_bi, _kn = _bigint_from_int(num, _bigq_limbs(num) + 1)
     den_bi, _kd = _bigint_from_int(den, _bigq_limbs(den) + 1)
     out = _bigq_reduce_inplace(num_bi, den_bi)
@@ -10092,11 +10105,20 @@ def bigq_div_c(a_num: int, a_den: int, b_num: int,
     """The WHOLE big-ℚ divide on srmech's C bignum:
     ``(a_num·b_den) / (a_den·b_num)``, sign-normalised + gcd-reduced.
     ``None`` when native absent / arena overflow. ``b_num`` must be nonzero
-    (the caller raises ZeroDivisionError first); denominators positive."""
+    (the caller raises ZeroDivisionError first); denominators positive.
+
+    Raises:
+        ZeroDivisionError: if ``b_num`` is zero.
+
+    rc433 (`#T1131`) — was a bare ``assert``, hoisted above the native check
+    for the same reason as :func:`bigq_reduce_c`: argument validity must not
+    depend on whether the accelerator loaded, and below the check the guard
+    was unreachable in a native-absent environment."""
     global BIGQ_DISPATCH_COUNT
+    if b_num == 0:
+        raise ZeroDivisionError("bigq_div_c requires b_num != 0")
     if not has_native_bigq():
         return None
-    assert b_num != 0, "bigq_div_c requires b_num != 0"
     an_bi, _k1 = _bigint_from_int(a_num, _bigq_limbs(a_num) + 1)
     ad_bi, _k2 = _bigint_from_int(a_den, _bigq_limbs(a_den) + 1)
     bn_bi, _k3 = _bigint_from_int(b_num, _bigq_limbs(b_num) + 1)

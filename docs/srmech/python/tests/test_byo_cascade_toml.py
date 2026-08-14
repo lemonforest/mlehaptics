@@ -153,8 +153,33 @@ def test_missing_name_fails_at_load(tmp_path):
 
 
 def test_register_dir_rejects_nonexistent_path(tmp_path):
-    with pytest.raises(AssertionError):
+    """A real ``FileNotFoundError``, and the global stays CLEAN (rc433,
+    `#T1131`).
+
+    The promotion here is about WHEN, not WHETHER. Under ``python -O`` the
+    assert vanished, this call RETURNED CLEANLY, and the bad path was appended
+    to the module-global ``_USER_CATALOG_DIRS``; the error surfaced only at the
+    next ``load_catalog()`` — after the mutation, and then on every subsequent
+    catalog load for the life of the process. So the second assertion below is
+    the load-bearing half: rejecting the path is not enough, it must also not
+    have been REGISTERED.
+    """
+    before = list(_catalog._USER_CATALOG_DIRS)
+    with pytest.raises(FileNotFoundError, match="not an existing directory"):
         dsl.register_catalog_dir(str(tmp_path / "does_not_exist"))
+    assert list(_catalog._USER_CATALOG_DIRS) == before, (
+        "a rejected path was still appended to the module-global registry")
+
+
+def test_register_dir_rejects_a_path_that_is_a_file(tmp_path):
+    """The other half of the same input class (rc433, `#T1131`) — ``p.exists()``
+    is true but ``p.is_dir()`` is false. Nothing pinned this."""
+    f = tmp_path / "not_a_dir.toml"
+    f.write_text("# not a directory\n", encoding="utf-8")
+    before = list(_catalog._USER_CATALOG_DIRS)
+    with pytest.raises(FileNotFoundError, match="not an existing directory"):
+        dsl.register_catalog_dir(str(f))
+    assert list(_catalog._USER_CATALOG_DIRS) == before
 
 
 def test_shipped_catalog_intact_and_describe_unchanged():

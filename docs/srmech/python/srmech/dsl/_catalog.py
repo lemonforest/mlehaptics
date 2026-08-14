@@ -99,11 +99,24 @@ def register_catalog_dir(path: Any) -> None:
     ``[composite]`` body whose ``[[composite.stage]]`` array is a chain of named
     ops — no Python) or a primitive (needs a matching ``srmech.cascade``
     callable). A user op-name may NOT shadow a shipped one.
+
+    Raises:
+        FileNotFoundError: if ``path`` does not exist, or exists but is not a
+            directory. :func:`load_catalog` already DECLARES this same error
+            for the same condition, and raises it a few lines below.
+
+    A real ``raise``, not an ``assert`` (rc433, `#T1131`): the promotion here
+    is about WHEN, not WHETHER. Under ``python -O`` the assert vanished, this
+    function RETURNED CLEANLY, and the bad path was appended to the
+    module-global ``_USER_CATALOG_DIRS``. The error then surfaced at the next
+    :func:`load_catalog` — after the global mutation, and on EVERY subsequent
+    catalog load for the life of the process. A caller error became persistent
+    global-state poisoning.
     """
     p = Path(path)
-    assert p.exists() and p.is_dir(), (
-        f"register_catalog_dir: not an existing directory: {p}"
-    )
+    if not (p.exists() and p.is_dir()):
+        raise FileNotFoundError(
+            f"register_catalog_dir: not an existing directory: {p}")
     if p not in _USER_CATALOG_DIRS:
         _USER_CATALOG_DIRS.append(p)
     load_catalog.cache_clear()

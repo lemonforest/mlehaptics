@@ -175,5 +175,9 @@ def test_inv_hd_zero_block_raises_through_fallback():
     # falls through to the per-block Python path, which asserts on the zero.
     assert hdc._try_native_loop_inv_hd(x) is None or not hdc._loop_native_ready(
         "srmech_loop_inv_hd_f64")
-    with pytest.raises(AssertionError, match="zero vector"):
+    # rc433 (`#T1131`): a real ZeroDivisionError, which is what ``python -O``
+    # already produced here (``1.0/nsq`` on a zero norm) — the assert fired
+    # FIRST in default mode and MASKED the ruled-correct type. Promoting rather
+    # than deleting keeps the diagnostic that names WHICH block is zero.
+    with pytest.raises(ZeroDivisionError, match="zero vector"):
         hdc.loop_inv_hd(x)

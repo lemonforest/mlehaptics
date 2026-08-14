@@ -327,22 +327,52 @@ def test_operator_norm_identity():
 
 
 def test_operator_norm_rejects_non_square():
-    """``operator_norm`` asserts a square ``Mat``."""
+    """``operator_norm`` rejects a non-square ``Mat`` with ``ValueError``.
+
+    rc433 (`#T1131`): the redundant ``assert`` above the real check is GONE,
+    not re-typed. ``mat_hermitian_eigendecompose`` already raised
+    ``ValueError("...H must be square; got (3, 4)")`` for exactly this input,
+    so ``python -O`` behaved CORRECTLY here and the assert broke the declared
+    contract in the DEFAULT mode — the worse half, since almost nobody runs
+    ``-O``. Deleting it makes the two modes agree on the BETTER message (it
+    names the offending shape), which is what this now pins.
+
+    A nonzero matrix is used deliberately: the all-zero fixture this test
+    carried through rc432 would also pass against a degenerate path that never
+    looked at the values.
+    """
     non_square = Mat.from_rows(
-        [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]], is_complex=True
+        [[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]], is_complex=True
     )
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError, match="square"):
         bell.operator_norm(non_square)
 
 
 def test_operator_norm_rejects_non_2d():
-    """``operator_norm`` asserts 2-D input for array-likes carrying ``ndim``."""
+    """``operator_norm`` rejects a declared-1-D array-like with ``TypeError``.
+
+    rc433 (`#T1131`): promoted rather than deleted. A GENUINE 1-D iterable
+    already died downstream (``'float' object is not iterable``), but that is
+    an accident of ``list()``, not a stated contract — and an object that LIES
+    about ``ndim`` while yielding 2-D rows RETURNED 1.0 under ``python -O``.
+    The liar is the residual this guard exists for, so it is tested.
+    """
 
     class _Fake1D:
         ndim = 1
 
-    with pytest.raises(AssertionError):
+    with pytest.raises(TypeError, match="2-D"):
         bell.operator_norm(_Fake1D())
+
+    class _LiesAboutNdim:
+        """Declares 1-D, yields 2-D rows — the silent-1.0 case under ``-O``."""
+        ndim = 1
+
+        def __iter__(self):
+            return iter([[1.0, 0.0], [0.0, 1.0]])
+
+    with pytest.raises(TypeError, match="2-D"):
+        bell.operator_norm(_LiesAboutNdim())
 
 
 # =========================================================================

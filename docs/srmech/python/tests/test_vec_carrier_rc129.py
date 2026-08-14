@@ -85,10 +85,23 @@ def test_equality_against_vec_and_sequence():
 
 
 def test_negative_index_and_out_of_range():
+    """BOTH out-of-range halves, and a real ``IndexError`` (rc433, `#T1131`).
+
+    This pinned ``AssertionError`` through rc432 and drove only the POSITIVE
+    overflow. Under ``python -O`` the two halves diverged: ``v[3]`` still died
+    (``array index out of range`` from the backing buffer) but ``v[-5]``
+    SILENTLY ALIASED to ``v[1]`` — a plausible wrong number, no error. The
+    untested half was the dangerous one.
+
+    ``IndexError`` follows :meth:`srmech.math.qmat.QMat._norm_row`, the exact
+    structural twin already in the tree, and the sequence protocol.
+    """
     v = Vec.from_sequence([10.0, 20.0, 30.0])
     assert v[-1] == 30.0 and v[-3] == 10.0
-    with pytest.raises(AssertionError):
+    with pytest.raises(IndexError):
         _ = v[3]
+    with pytest.raises(IndexError):
+        _ = v[-5]        # the half that silently returned v[1] under -O
 
 
 def test_tobytes_and_buffer_contract():
