@@ -1,9 +1,31 @@
 name: srmech-ci
 
-# Per-PR build + test for the srmech package. srmech is pure-Python
-# (no native binary, no cibuildwheel matrix); the CI shape mirrors
-# ephemerides-spectral-ci.yml's `build-and-test` job at a 4-cell
-# always-on matrix plus a `pure-wheel build` smoke test.
+# Per-PR build + test for the srmech package.
+#
+# srmech is a NATIVE-C-ACCELERATED package with TWO co-equal projections of one
+# capability set (ADR-0009): a compiled projection (137 C sources, 801 exported
+# srmech_* symbols by `nm -D`, ABI 12, built through scikit-build-core +
+# cibuildwheel) and a pure /
+# scripting projection (the `pyproject-pure.toml` hatchling wheel that Pyodide,
+# WASM and toolchain-less sdist installs get). Neither is "the fallback for" the
+# other; a capability missing from either is a defect.
+#
+# This header used to read "srmech is pure-Python (no native binary, no
+# cibuildwheel matrix)" — false since the C library shipped, and self-contradicting
+# inside a file that runs a cibuildwheel-backed build and a 3-cell pedantic C
+# matrix. rc351 (task `#T1004`) corrected it, because the wrong description and the
+# missing gate below were the SAME root: a maintainer who believes there is only
+# one path does not add a cell for the second one, and for the whole life of the C
+# library no cell ever ran the suite with `HAS_NATIVE=False`. A pure install could
+# save a fiber-bearing genome and never load it back, on a clean tree, with every
+# job green.
+#
+# The jobs:
+#   build-and-test              4-cell always-on matrix, NATIVE library present
+#   fallback-no-native          the same suite with HAS_NATIVE=False (rc351)
+#   pure-wheel-build            builds the py3-none-any wheel + import smoke
+#   pedantic-build              3-cell C build, warnings-as-errors (JPL Rule 10)
+#   asserts-live-smoke          full suite against an asserts-live C build
 #
 # Triggers: pull_request changes under docs/srmech/python/**, push
 # to main affecting srmech, OR a manual workflow_dispatch.
@@ -13,11 +35,18 @@ on:
     branches: [main]
     paths:
       - "docs/srmech/python/**"
+      # rc351 (`#T1004`): the C tree was NOT in the path filter, so a C-only change
+      # ran neither the pedantic matrix nor the parity suite this file exists for —
+      # the same "this workflow does not know it has a C library" root as the header.
+      - "docs/srmech/c/**"
+      - "docs/srmech/CMakeLists.txt"
       - ".github/workflows/srmech-ci.yml"
   pull_request:
     branches: [main]
     paths:
       - "docs/srmech/python/**"
+      - "docs/srmech/c/**"
+      - "docs/srmech/CMakeLists.txt"
       - ".github/workflows/srmech-ci.yml"
   workflow_dispatch: {}
 
@@ -40,6 +69,26 @@ jobs:
     # tomllib / typing regressions that only surface on the floor.
     name: ${{ matrix.os }} • py${{ matrix.python }}
     runs-on: ${{ matrix.os }}
+    # HANG GUARD, not a performance budget (rc352; local task `#T951`). Every
+    # job in this file previously ran to GitHub's 360-minute default. If a cell
+    # ever legitimately grows past its guard, RAISE THE NUMBER — do not narrow
+    # the job. A tight per-job budget would fail a genuinely slow run and force
+    # it to restart from zero, which is worse than the risk it removes.
+    # `timeout-minutes` is a JOB-level key (the workflow `defaults:` block covers
+    # only `run:` settings — shell / working-directory), so it is repeated on
+    # every job.
+    #
+    # rc357 (`#T951`): rc352 set a UNIFORM 60 sized to the slowest cell, which
+    # left the four fast jobs guarded at 30–70x their runtime. Each job is now
+    # DERIVED from its own measured max over 13 srmech-ci runs:
+    #   T = ceil(max_observed) + max(ceil(0.5 * max_observed), 10 min)
+    # The 50% term covers growth across an rc sprint; the 10-minute FLOOR exists
+    # because the measured p50→max spread is ≤2 min in ABSOLUTE terms on every
+    # job regardless of length (a slow pip/apt/image fetch costs minutes whether
+    # the job runs 30s or 45min), so purely proportional headroom would make the
+    # SHORTEST jobs the tightest and turn the guard into a flake source.
+    # build-and-test: max 15:17 (ubuntu py3.10 leg) → 26.
+    timeout-minutes: 26
     strategy:
       fail-fast: false
       matrix:
@@ -73,7 +122,7 @@ jobs:
         shell: bash
         continue-on-error: true
         run: |
-          python -c "from srmech.amsc import _native; \
+          python -c "from srmech import _native; \
             s=_native.native_status() if hasattr(_native,'native_status') else {}; \
             print('HAS_NATIVE', _native.HAS_NATIVE); \
             print('SHA-NI host:', _native.has_shani())"
@@ -127,7 +176,464 @@ jobs:
         # starts to bind past ~6 workers, so it does not limit any cell here.
         #
         # Coverage is UNCHANGED — same tests, same assertions, distributed.
-        run: pytest tests/ -q -n auto --dist loadfile
+        #
+        # `--durations=30` (rc352; local task `#T1007`) so the pure cell's
+        # per-file profile has a BASELINE to be compared against. One-sided
+        # numbers would only say the pure run is slow, which is already known;
+        # the useful question is which files diverge and by how much.
+        run: pytest tests/ -q --durations=30 -n auto --dist loadfile
+
+  fallback-no-native:
+    # rc351 (task `#T1004`) — THE CELL THAT DID NOT EXIST.
+    #
+    # Every other job here runs with a native library loaded. `pure-wheel-build`
+    # builds the py3-none-any wheel and smoke-imports it, but never runs pytest
+    # against it. So for the whole life of the C library, NO cell executed the test
+    # suite with `HAS_NATIVE=False`, and every pure-only code path in srmech was
+    # structurally invisible to CI.
+    #
+    # What that cost: `genome_load`'s no-native streaming reader — the decoder a
+    # Pyodide / WASM / toolchain-less install actually runs — carried a hand-copied
+    # block-marker list that had never learned about the §Q8-FIBER (0x46) and
+    # §𝕆-FIBER (0x4F) caps. A pure install could SAVE a fiber-bearing genome and
+    # then raise `GenomeBoundingError: unrecognised block kind byte 70` loading it
+    # back. Red on a clean tree, shipped, invisible. Under ADR-0009 that is a parity
+    # break with the polarity INVERTED — the scripting projection was the one
+    # missing the capability, which is precisely the direction a native-first CI
+    # shape cannot see.
+    #
+    # METHOD. Install through the `pyproject-pure.toml` (hatchling) backend, the
+    # same swap `pure-wheel-build` uses. No CMake runs, so no `srmech/_native/`
+    # directory is ever created and `_find_library()` finds nothing. The
+    # HAS_NATIVE=False assertion below is NOT decoration: without it a leaked
+    # library would silently turn this cell into a duplicate of `build-and-test`
+    # that reports green while observing nothing — the exact failure mode that let
+    # the defect ship.
+    #
+    # SCOPE — the WHOLE tests/ tree, no `-k`, no file list.
+    #   COVERED: every pure implementation the suite reaches, plus every
+    #     native-vs-pure differential's pure oracle.
+    #   NOT COVERED, and why:
+    #     * The C implementations themselves. By construction — that is what the
+    #       4-cell `build-and-test` matrix and `pedantic-build` are for. This cell
+    #       is the OTHER projection, not a replacement for them.
+    #     * The ~275 `skipif(not …native…)` rows, which skip here. They are
+    #       C-differentials with nothing to compare against; a differential that
+    #       asserted its own library into existence would just be red for a reason
+    #       unrelated to the code (two such rows were fixed in rc351). The step
+    #       below PRINTS the skip count so this blind spot stays a visible number
+    #       rather than an assumption.
+    #     * The 20 tests gated by `require_native()` (`tests/_native_gate.py`).
+    #       These are the ANTI-FALSE-CLAIM guards of tasks `#T843` / `#918` / `#939`
+    #       — "the claim and the code must agree" — and they are written to FAIL,
+    #       not skip, when the library is missing, so a broken C build cannot pass
+    #       quietly. That is correct everywhere except here, where the library is
+    #       absent ON PURPOSE. `HAS_NATIVE == False` cannot tell "the build broke"
+    #       from "we removed it deliberately", so this cell STATES its intent with
+    #       `SRMECH_EXPECT_PURE=1` — the only place in the repo that sets it — and
+    #       those gates skip instead of failing. Nothing else changes anywhere.
+    #       The excuse is then AUDITED (last step): the set of gates that fired must
+    #       equal the set declared in the tree, so it can neither grow silently nor
+    #       quietly stop firing. It also cannot excuse a pure-path DEFECT — a gate
+    #       runs before its test body and cannot turn a failure into a skip.
+    #   A narrower selection was considered and rejected. A `-k` filter is how a
+    #   green gate lies: it hides ripple, and the pure paths worth defending are
+    #   spread across genome / carriers / cascade / qm / hashing, not one subtree.
+    #   The `asserts-live-smoke` job below already reversed exactly this decision
+    #   (#937: "coverage == COLLECTION") and runs the FULL suite per-PR under
+    #   `--forked`, which is heavier than this plain run. Under the `#T1007` 6-shard
+    #   split each shard collects only its 1/6, so "collected ~= disk" cannot be
+    #   asserted per-shard; the anti-narrowing guard MOVES to the dedicated
+    #   `fallback-shard-coverage-union` job, which proves the 6 groups PARTITION the
+    #   full collection (union == full AND pairwise-disjoint). A `-k` or file-list
+    #   creeping into the shard run would break that partition invariant and turn
+    #   that job red — the same "coverage == collection" contract, shard-aware.
+    #
+    # Linux only: the pure path is stdlib Python: there is no per-OS pure behaviour
+    # to catch, and the cross-platform burden is already carried by the matrix above.
+    #
+    # `#T1007` — 6-SHARD MATRIX. Parametrizing the two monster per-op tests (below)
+    # and switching to `--dist load` was the necessary PREREQUISITE but, MEASURED on
+    # CI, gave NO wall-clock speedup on its own: this cell is CPU-bound and `-n auto`
+    # only gets ONE runner's ~2 vCPUs, so ~90 core-min of pure-Python compute stayed
+    # ~45 min of wall time regardless of dist mode. The fix is more CORES, which on
+    # GitHub means more MACHINES. pytest-split partitions collection into 6 DISJOINT
+    # groups (`--splits 6 --group N`), each group runs on its own runner, and xdist
+    # (`-n auto --dist load`) then spreads that group across the runner's cores —
+    # total_CPU / (6 runners x ~2 cores) ~= 8-10 min/shard. This ONLY beats the old
+    # ~30-min atomic-test floor because those two tests are now individual nodes; the
+    # parametrization had to land first. Equal-COUNT partitioning (no committed
+    # `.test_durations` file) is an acceptable first cut now that the monsters are
+    # many small nodes; a durations file for TIME-balance is a later optional
+    # refinement (the per-shard `--durations` output below is the raw material for it).
+    #
+    # TWO discipline gates that were per-run are now SHARD-AWARE, in dedicated jobs:
+    #   * anti-narrowing / coverage (#937) -> `fallback-shard-coverage-union` proves
+    #     the 6 groups exactly PARTITION the full collection (union == full AND
+    #     pairwise-disjoint), so no test can fall through a shard boundary. A per-shard
+    #     "collected ~= disk" check is meaningless here (a shard collects its subset).
+    #   * pure-by-design skip audit (`#T1004`) -> `fallback-skip-audit` fans in over
+    #     all 6 shard logs so it still sees every fired require_native() gate once.
+    name: fallback (pure-Python, no native) • shard ${{ matrix.shard }}/6
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6]
+    # `#T1007` — the pure-suite split has LANDED, so the rc357 judgment call (a
+    # single 70-min guard over the whole ~45-min monolith) is reversed as that note
+    # said it should be. This is a PER-SHARD guard: ~2-min install + this shard's
+    # 1/6 of the suite.
+    #
+    # rc411 (`#T1086`) — RAISED 25 -> 40, and the rationale REWRITTEN, because every
+    # premise of the old one had gone false. This supersedes `#T1007`'s sizing
+    # assumption (NOT its split decision, which stands and is what made the shards
+    # measurable in the first place). The old text said each shard was "~8-10 min",
+    # that 25 was "generous headroom", and that a false trip "only costs one ~10-min
+    # shard". MEASURED, shard 3, four consecutive runs:
+    #
+    #     main a963bd46 (no rc411)   21m18s   success   <- the CONTROL
+    #     rc411 50a6acec8            21m09s   success
+    #     rc411 f51e2bcf4            21m26s   success
+    #     rc411 7ea15a035            30m      KILLED at the 25-min guard
+    #
+    # So the slowest shard is a ~21-MINUTE shard, not a ~10-minute one; 25 over
+    # 21m18s is ~17% headroom, which is the opposite of generous; and a false trip
+    # costs 21 minutes plus the two fan-in jobs that consume all six shard logs
+    # (skip-audit + durations-merge), which FAIL for missing input and make one slow
+    # runner look like three red jobs. 40 gives ~88% headroom over the measured
+    # worst shard.
+    #
+    # NOT CAUSED BY rc411, and the control row above is why this is stated rather
+    # than assumed: rc411 moves shard 3 by 0-17s (inside run-to-run noise), and its
+    # three new ops were measured directly in the exhaustive per-op MCP smoke at
+    # ~1s total. The raise rides in rc411 because rc411 cannot go green without it
+    # and the flake will hit any branch, not because rc411 caused it.
+    #
+    # STILL UNEXPLAINED, and deliberately not papered over by this raise: rounds 1
+    # and 2 ran ~21m and round 3 hit 30m — a ~43% jump on a diff measured at ~1s.
+    # Raising the ceiling makes that survivable; it does NOT diagnose it. Runner
+    # noise (these ran immediately after a multi-hour GitHub Actions outage) is
+    # plausible and UNPROVEN. It could not be narrowed further: a job killed at the
+    # guard uploads NO artifact (the "Preserve this shard's pure-suite log" step
+    # never runs) and GitHub serves no log for it, so there is no per-test evidence
+    # to separate "uniformly slower" from "hung on one test". That is itself an
+    # argument for the raise — a shard that COMPLETES uploads its `--durations=0`
+    # log, so the next occurrence is diagnosable where this one was not. If it
+    # recurs at 40, the cause is not variance and this number is not the fix.
+    #
+    # RELATED, not addressed here: `#T1051` records that the pure-CI floor is five
+    # slow ops. A worst shard sitting at 85% of budget ON MAIN is that same problem
+    # surfacing as flakiness rather than as duration. Lowering the floor is the real
+    # fix; this guard only stops it from being reported as a test failure.
+    #
+    # If a shard legitimately grows past this, RAISE the number — do not narrow.
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install via the pure (hatchling) backend — no C build
+        working-directory: docs/srmech/python
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The swap is what makes this cell pure: scikit-build-core would run
+          # CMake and produce srmech/_native/libsrmech.so, and the cell would then
+          # test the native path under a misleading name.
+          #
+          # An editable install resolves `srmech` back to THIS source tree, so a
+          # stale hand-placed library here would pre-empt the (absent) installed
+          # one and HAS_NATIVE would come back True — the same `rm -rf` the
+          # asserts-live cell below does, for the same reason. A fresh checkout has
+          # no such directory (it is gitignored build output); this makes the cell
+          # correct rather than merely lucky, and the assertion two steps down
+          # still fires if anything recreates it.
+          rm -f srmech/_native/*.so srmech/_native/*.dll srmech/_native/*.dylib srmech/_native/*.dll.a srmech/_native/*.lib srmech/_native/*.pyd  # rc376: keep the shim __init__.py; drop only binaries
+          mv pyproject.toml pyproject.toml.platform
+          cp pyproject-pure.toml pyproject.toml
+          trap 'mv pyproject.toml.platform pyproject.toml' EXIT
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Verify HAS_NATIVE is False (a leaked library must fail LOUDLY)
+        working-directory: docs/srmech/python
+        shell: bash
+        run: |
+          python3 -c "
+          from srmech import _native
+          assert _native.HAS_NATIVE is False, (
+              f'expected HAS_NATIVE=False from a hatchling install, got '
+              f'{_native.HAS_NATIVE!r} — a native library leaked in and this cell is '
+              f'silently a duplicate of build-and-test. Resolved library: '
+              f'{_native._find_library()!r}')
+          assert _native._find_library() is None, (
+              f'_find_library() resolved {_native._find_library()!r} — a stale '
+              f'srmech/_native/ directory is polluting the search path')
+          assert not _native.has_native_genome(), 'genome C peers must be absent here'
+          print('OK: HAS_NATIVE=False; LOAD_ERROR=', repr(_native.LOAD_ERROR))
+          "
+
+      # (The per-run "coverage tracks collection" guard moved to the dedicated
+      #  `fallback-shard-coverage-union` job — a shard collects only its 1/6, so the
+      #  file-count check is meaningless here; the partition-union proof replaces it.)
+
+      - name: Run this shard's 1/6 of the suite with no native library
+        working-directory: docs/srmech/python
+        shell: bash
+        env:
+          # THE INTENT DECLARATION. Read once, at import, by tests/_native_gate.py.
+          # Set here and NOWHERE else in the repo: it is what distinguishes "the
+          # library is absent because we removed it" from "the library is absent
+          # because the build broke". Without it, every `require_native()` gate
+          # FAILS exactly as it does today (task `#T843`).
+          SRMECH_EXPECT_PURE: "1"
+        # `-rsfE`, not `-rs`: `-r` REPLACES the default report characters, so the
+        # first cut of this cell (`-rs` alone) silently dropped the `FAILED …` summary
+        # lines and its 26 failures had to be reconstructed from tracebacks. `s` lists
+        # the skips (the blind spot stays a number in every log), `f`/`E` keep the
+        # failure summary that `-q` would otherwise give for free.
+        #
+        # `tee` to a PER-SHARD log because the audit is now a FAN-IN job
+        # (`fallback-skip-audit`) that concatenates all 6 shard logs and audits the
+        # UNION of fired require_native() gates. Without `pipefail` the tee would
+        # mask a red suite.
+        #
+        # `--splits 6 --group N` (pytest-split) + `-n auto --dist load` (xdist) —
+        # local task `#T1007`. pytest-split filters COLLECTION to this shard's group
+        # (equal-COUNT 1/6, no committed `.test_durations`); xdist then distributes
+        # that group across this runner's cores. `--dist load` (NOT `loadfile`) is
+        # load-bearing WITH the parametrization: the two former monsters —
+        # `test_mcp.py::test_every_advertised_tool_invocable` (~1789 s) and
+        # `test_immolation.py::test_every_advertised_return_type_is_honest`
+        # (~1583 s) — are now one node PER advertised tool, and `load` spreads those
+        # nodes by NODE (loadfile would pin the whole file to one worker and
+        # re-serialise them). The 6-way machine split × per-runner cores turns a
+        # ~45-min monolith into ~8-10 min/shard. Only this pure cell shards; the
+        # native `build-and-test` cell keeps `loadfile` deliberately (chdir/environ
+        # confinement; its slowest-file floor is not binding on a ~6:45 suite). The
+        # suite is order- and worker-independent (conftest.py autouse fixtures
+        # snapshot the signal_processing registry per-test and give each bus module a
+        # private HOME), which is what makes both node-distribution AND the arbitrary
+        # shard partition safe.
+        #
+        # `--durations=30` STAYS per shard: its slowest-node table is exactly the raw
+        # material for a future committed `.test_durations` file (the TIME-balance
+        # refinement noted at the job header; equal-count is the acceptable first cut).
+        #
+        # `-p no:randomly` is a CORRECTNESS pin, not decoration (`#T1007`). pytest-split
+        # partitions by COLLECTION ORDER, and all 6 shards + the coverage-union guard
+        # are separate processes that MUST agree on that order or a test silently runs
+        # zero times or twice. Measured: srmech's collection order is already identical
+        # across processes (no `pytest-randomly` in the dep tree; order is stable even
+        # under a random PYTHONHASHSEED), so this is a no-op TODAY. It is here so that
+        # ADDING `pytest-randomly` later — whose whole job is to shuffle collection per
+        # run by a per-process seed — cannot silently break the partition; it would just
+        # be pinned off in this cell (exactly as the asserts-live cell already does).
+        # Applied IDENTICALLY here and in the guard's collect() below (they must match).
+        # This is deliberately NOT `PYTHONHASHSEED=0`: a fixed hash seed is unnecessary
+        # (order is already stable) and would risk the `#T931`/`#T980` hash-salted tests.
+        #
+        # `--durations-path .test_durations` (`#T1007`) makes the split TIME-balanced,
+        # not equal-count: pytest-split READS the committed `.test_durations` (if
+        # present) to place slow tests across shards. (READ is xdist-safe; pytest-split's
+        # `--store-durations` WRITE is NOT — under `-n auto` it silently writes nothing,
+        # confirmed in CI — so durations are harvested from the log instead.)
+        # `--durations=0` prints EVERY node's call/setup/teardown time to this shard's
+        # log (xdist aggregates correctly); `fallback-durations-merge` parses all six
+        # logs, sums per node, and unions them into a complete `.test_durations` a
+        # maintainer commits to refresh the balance. BOOTSTRAP: the first run has no
+        # committed file, so pytest-split falls back to equal-count; that run's merged
+        # log-durations are what get committed to flip every later run to time-balanced.
+        run: |
+          set -o pipefail
+          pytest tests/ -q -rsfE -p no:randomly --durations=0 -n auto --dist load \
+            --splits 6 --group ${{ matrix.shard }} \
+            --durations-path .test_durations \
+            2>&1 | tee pytest-pure-shard-${{ matrix.shard }}.log
+
+      # rc357 (`#T951`) / `#T1007` — keep the evidence, now PER SHARD. Each shard's
+      # `tee`'d log is uploaded (`if: always()`) so (a) a RED shard's output survives
+      # in an artifact rather than only the web log, and (b) the `fallback-skip-audit`
+      # fan-in job below can reassemble the whole run's skip set from all 6. The pure
+      # suite has no C asserts (no native library), so a shard cannot SIGABRT — a red
+      # shard is a plain test failure whose log is exactly the one worth having.
+      - name: Preserve this shard's pure-suite log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-pure-log-shard-${{ matrix.shard }}
+          path: docs/srmech/python/pytest-pure-shard-${{ matrix.shard }}.log
+          if-no-files-found: warn
+          retention-days: 14
+
+  fallback-durations-merge:
+    # `#T1007` — build the committed `.test_durations` from the six shard LOGS.
+    # pytest-split's `--store-durations` does NOT work under xdist (writes nothing;
+    # confirmed in CI — the first cut got 0 files), so each shard runs `--durations=0`
+    # (every node's call/setup/teardown time, which xdist DOES aggregate) and tees it
+    # to its log. This job parses all six logs, sums per node, and writes the union.
+    # Commit the uploaded `test-durations-merged` artifact to
+    # `docs/srmech/python/.test_durations` to flip every later run from equal-count to
+    # TIME-balanced (the one-time bootstrap). Each node runs in exactly one shard, so
+    # the union is complete iff all six logs are present — which this job asserts.
+    # Idempotent: re-run any time to refresh the balance as tests are added/removed.
+    name: fallback durations merge (build committed .test_durations)
+    needs: [fallback-no-native]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Download the 6 shard logs
+        uses: actions/download-artifact@v4
+        with:
+          pattern: pytest-pure-log-shard-*
+          path: logs
+      - name: Parse per-node durations from the logs + fail if incomplete
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, glob, re
+          # pytest --durations=0 line: "<secs>s <phase>    <nodeid>". The nodeid can
+          # contain spaces (parametrized ids), so capture to end-of-line, not \S+.
+          pat = re.compile(r'^([0-9.]+)s\s+(call|setup|teardown)\s+(tests/.+?)\s*$')
+          dur = {}
+          logs = sorted(glob.glob('logs/**/pytest-pure-shard-*.log', recursive=True))
+          for lg in logs:
+              for line in open(lg, encoding='utf-8', errors='replace'):
+                  m = pat.match(line.rstrip('\n'))
+                  if m:
+                      dur[m.group(3)] = dur.get(m.group(3), 0.0) + float(m.group(1))
+          json.dump(dur, open('.test_durations', 'w'), indent=0, sort_keys=True)
+          mins = round(sum(dur.values()) / 60, 1)
+          print(f'parsed {len(logs)} shard log(s) -> {len(dur)} node durations, {mins} min CPU')
+          if len(logs) < 6:
+              raise SystemExit(
+                  f'::error::expected 6 shard logs, got {len(logs)} - the union is '
+                  'INCOMPLETE and would mis-balance the split')
+          if len(dur) < 500:
+              raise SystemExit(
+                  f'::error::only {len(dur)} node durations parsed from 6 logs - the '
+                  'parse regex likely no longer matches pytest --durations output')
+          PY
+      - name: Upload the merged .test_durations (commit this to enable time-balance)
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-durations-merged
+          path: .test_durations
+          retention-days: 14
+
+  fallback-shard-coverage-union:
+    # `#T1007` — SHARD-AWARE anti-narrowing guard (#937 "coverage == COLLECTION",
+    # reshaped for the 6-way split). A per-shard "collected files ~= disk files" check
+    # is meaningless (a shard is 1/6 by construction), so the invariant that actually
+    # matters is proved ONCE here: the 6 pytest-split groups must exactly PARTITION the
+    # full collection — union == the full set AND pairwise-disjoint — so no test can
+    # fall through a shard boundary (dropped) or run in two shards (double-counted).
+    # The threshold is DERIVED from the live full collection, never a frozen number:
+    # equality of three counts (sum-of-group-sizes == union-size == full-size) IS the
+    # partition proof (union==full ⇒ complete; sum==union ⇒ disjoint). A `-k`/file-list
+    # creeping into the shard run would break it and turn this job red. Lightweight:
+    # collect-only, no test executes.
+    name: fallback shard coverage-union (partition guard)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install via the pure (hatchling) backend — no C build
+        working-directory: docs/srmech/python
+        shell: bash
+        # Same pure swap as the shards, so pytest-split resolves from the hatchling
+        # `[dev]` extra and collection sees exactly the shards' environment.
+        run: |
+          set -euo pipefail
+          rm -f srmech/_native/*.so srmech/_native/*.dll srmech/_native/*.dylib srmech/_native/*.dll.a srmech/_native/*.lib srmech/_native/*.pyd  # rc376: keep the shim __init__.py; drop only binaries
+          mv pyproject.toml pyproject.toml.platform
+          cp pyproject-pure.toml pyproject.toml
+          trap 'mv pyproject.toml.platform pyproject.toml' EXIT
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Prove the 6 groups PARTITION the full collection
+        working-directory: docs/srmech/python
+        shell: bash
+        run: |
+          set -euo pipefail
+          # `-p no:randomly` MUST match the shard run's flag exactly (see that step):
+          # the guard certifies the partition the shards actually execute, so both
+          # processes have to collect in the same order. Measured stable already; this
+          # keeps guard and shard on identical footing so the guard cannot certify a
+          # partition that differs from what runs.
+          collect() { pytest tests/ --collect-only -q -p no:cacheprovider -p no:randomly "$@" 2>/dev/null \
+            | grep -E '^tests/.+::' | sort -u; }
+          collect > full.ids
+          FULL=$(wc -l < full.ids)
+          : > union.raw
+          SUM=0
+          for K in 1 2 3 4 5 6; do
+            collect --splits 6 --group "$K" > "group-$K.ids"
+            N=$(wc -l < "group-$K.ids")
+            echo "group $K: $N node ids"
+            SUM=$((SUM + N))
+            cat "group-$K.ids" >> union.raw
+          done
+          UNION=$(sort -u union.raw | wc -l)
+          echo "full=$FULL  sum-of-groups=$SUM  union=$UNION"
+          if [ "$UNION" -ne "$FULL" ] || [ "$SUM" -ne "$FULL" ]; then
+            echo "::error::the 6 pytest-split groups do NOT partition the full collection (need union==full AND sum==full; got full=$FULL union=$UNION sum=$SUM). union<full ⇒ a test falls through a shard boundary; sum>union ⇒ a test runs in two shards."
+            echo "--- in FULL but no group (DROPPED) ---"; comm -23 full.ids <(sort -u union.raw) | head -20
+            echo "--- in a group but not FULL (collection drifted) ---"; comm -13 full.ids <(sort -u union.raw) | head -20
+            exit 1
+          fi
+          [ "$FULL" -gt 50 ] || { echo "::error::full collection ($FULL) implausibly small — collection is broken."; exit 1; }
+          echo "OK: the 6 groups partition the full collection ($FULL nodes) — complete and disjoint."
+
+  fallback-skip-audit:
+    # `#T1007` — FAN-IN of the pure-by-design skip audit (`#T1004`) over all 6 shards.
+    # A `require_native()` gate fires in whichever shard holds its test, so no single
+    # shard log is complete. This job downloads all 6 shard logs, concatenates them,
+    # and runs the SAME audit on the UNION — so every DECLARED gate must be OBSERVED
+    # exactly once across the six, the "the excuse must not become a mute button"
+    # contract rc351 shipped, now shard-aware. `if: always()` so a red shard still gets
+    # audited (a gate that stopped firing because its shard died is itself worth
+    # surfacing). The audit tool is pure stdlib — no srmech install needed here.
+    name: fallback pure-by-design skip audit (fan-in over 6 shards)
+    needs: [fallback-no-native]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Download all 6 shard logs
+        uses: actions/download-artifact@v4
+        with:
+          pattern: pytest-pure-log-shard-*
+          path: shard-logs
+          merge-multiple: true
+
+      - name: Audit the UNION of every shard's pure-by-design skips
+        working-directory: docs/srmech/python
+        shell: bash
+        run: |
+          set -o pipefail
+          mapfile -t logs < <(find "$GITHUB_WORKSPACE/shard-logs" -name 'pytest-pure-shard-*.log' | sort)
+          if [ "${#logs[@]}" -eq 0 ]; then
+            echo "::error::no shard logs downloaded — every shard failed before producing a log?"
+            exit 1
+          fi
+          echo "auditing ${#logs[@]} shard logs:"; printf '  %s\n' "${logs[@]}"
+          cat "${logs[@]}" > pytest-pure-union.log
+          python3 tools/audit_pure_by_design_skips.py pytest-pure-union.log tests
 
   pure-wheel-build:
     # Always-on lightweight build of the py3-none-any wheel via the
@@ -139,6 +645,8 @@ jobs:
     # path stays healthy.
     name: pure-wheel build
     runs-on: ubuntu-latest
+    # rc357 (`#T951`) — max 0:51 → 11 (floor-dominated); see build-and-test.
+    timeout-minutes: 11
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -214,18 +722,25 @@ jobs:
               register_attested_root, list_registered_roots,
           )
           # the Class-N cascade core must work numpy-free
-          from srmech.amsc import rational
+          from srmech.math import rational
           assert rational.best_rational(22, 7, 100) == (22, 7)
-          # the srmech.qm SUBPACKAGE is fully numpy-free (#564): every submodule
+          # the srmech.physics.qm SUBPACKAGE is fully numpy-free (#564): every submodule
           # imports + runs with numpy absent, over the Mat carrier + cascades.
-          import srmech.qm  # noqa: F401  (subpackage import must NOT require numpy)
-          from srmech.qm import spin, bell, single_particle, relativistic, gauge, potentials
+          import srmech.physics.qm  # noqa: F401  (subpackage import must NOT require numpy)
+          from srmech.physics.qm import spin, bell, single_particle, relativistic, gauge, potentials
+          # rc382 (`#T1056`): srmech.qm was REMOVED — the ADR-0010 physics slice is a HARD
+          # break (no legacy path). The old dotted path must now fail cleanly.
+          try:
+              import srmech.qm  # noqa: F401
+              raise AssertionError('srmech.qm should be gone in rc382 (clean break, no alias)')
+          except ModuleNotFoundError:
+              pass
           assert type(spin.pauli_matrices()[0]).__name__ == 'Mat', 'spin not numpy-free'
           verified, primary, _ = bell.verify_chsh()
           assert verified and abs(primary) < 1e-13, (verified, primary)  # within-tol: chsh_pauli_combination_norm via C Hermitian eig (rc152), not exact-0
           # single_particle (rc117) is numpy-free: a tiny Hermitian Mat eigensolves
           # to a (n,1) real eigval Mat + complex unitary Mat, no numpy.
-          from srmech.amsc.mat import Mat
+          from srmech.math.mat import Mat
           _ev, _V = single_particle.tise_solve(
               Mat.from_rows([[2.0, 1j], [-1j, 3.0]], is_complex=True))
           assert type(_ev).__name__ == 'Mat' and _ev.shape == (2, 1), 'single_particle not numpy-free'
@@ -246,26 +761,26 @@ jobs:
           # connected component flips together. octonion L-mult is a real Mat;
           # the 14 g2 derivations are real 8x8 Mats; the order-3 triality tau is
           # a 28x28 real Mat with tau^3 = I (~0). No numpy on any path.
-          from srmech.qm import octonion, so8, triality
+          from srmech.physics.qm import octonion, so8, triality
           assert type(octonion.octonion_left_mult([1.0,0,0,0,0,0,0,0])).__name__ == 'Mat', 'octonion not numpy-free'
           _g2 = so8.g2_subalgebra()
           assert len(_g2) == 14 and type(_g2[0]).__name__ == 'Mat', 'so8 not numpy-free'
           _tau = triality.triality_automorphism()
-          from srmech.amsc.laplacian import mat_matmul, mat_norm
+          from srmech.math.laplacian import mat_matmul, mat_norm
           _t3 = mat_matmul(mat_matmul(_tau, _tau), _tau)
           _id = Mat.from_rows([[1.0 if i==j else 0.0 for j in range(28)] for i in range(28)])
           _d = Mat.from_rows([[_t3[i,j]-_id[i,j] for j in range(28)] for i in range(28)])
           assert _tau.shape == (28, 28) and mat_norm(_d) < 1e-9, 'triality tau^3 != I'
           # hdc loop family + hypercomplex_dft (rc125) are numpy-free too.
-          from srmech.amsc import hdc
+          from srmech.math import hdc
           assert type(hdc.loop_bind([1.0,0,0,0,0,0,0,0],[0,1.0,0,0,0,0,0,0])).__name__ == 'list', 'hdc loop not numpy-free'
           assert hdc.polar_random(8, seed=1).typecode == 'b', 'hdc polar not numpy-free'
-          from srmech.amsc.cascade import quaternion_dft
+          from srmech.cascade import quaternion_dft
           assert len(quaternion_dft([[1.0,0,0,0]])) == 1, 'hypercomplex_dft not numpy-free'
           # propagators (rc123) is numpy-free: the Feynman propagators are built
           # over the numpy-free Mat carrier (scalar -> complex, the 4x4 numerators
           # -> Mat via mat_matmul outer / the relativistic Dirac+metric producers).
-          from srmech.qm import propagators
+          from srmech.physics.qm import propagators
           _G = propagators.feynman_scalar_propagator(k_squared=10.0, m=1.0)
           assert abs(_G - 1j/9.0) < 1e-12, 'propagators scalar pole wrong'
           _SF = propagators.feynman_fermion_propagator([3.0,1.0,0.0,0.0], m=1.0)
@@ -273,8 +788,8 @@ jobs:
           # pseudo_hermitian (rc124) is numpy-free: η = (V V†)⁻¹ built from the
           # general non-Hermitian eigenvectors of a real-spectrum O (null vectors
           # of O − λI off mat_eigvals) makes O η-pseudo-Hermitian (O† η = η O).
-          # This is the LAST qm carrier — srmech.qm is now fully numpy-free.
-          from srmech.qm import pseudo_hermitian
+          # This is the LAST qm carrier — srmech.physics.qm is now fully numpy-free.
+          from srmech.physics.qm import pseudo_hermitian
           _O = Mat.from_rows([[1.0,0.5,0.0],[0.0,2.0,0.5],[0.0,0.0,3.0]], is_complex=True)
           _eta = pseudo_hermitian.construct_eta_from_eigendecomposition(_O)
           assert type(_eta).__name__ == 'Mat' and pseudo_hermitian.is_pseudo_hermitian(_O, _eta, atol=1e-8), 'pseudo_hermitian not numpy-free'
@@ -287,7 +802,7 @@ jobs:
           assert type(_S).__name__ == 'Mat' and type(_W).__name__ == 'Mat' and _W.shape == (2, 2), 'ica_jade not numpy-free'
           # #564: numpy is GONE — there is no [scientific] tier and no numpy export
           # boundary. The_one generates the 14 substrate as a real Mat (no to_numpy).
-          from srmech.amsc.cascade.one import the_one
+          from srmech.cascade.one import the_one
           _G = the_one(1, 0, 1).to_matrix()
           assert type(_G).__name__ == 'Mat' and _G.shape == (14, 14), 'the_one not numpy-free'
           # COMPREHENSIVE registry walk (#564 / rc127): prove the SHIPPED WHEEL
@@ -296,7 +811,7 @@ jobs:
           # module was omitted from the wheel (packaging gap), or a class that
           # fails to describe, fails HERE on the real install rather than silently.
           import importlib
-          from srmech.amsc import tool_schema as _ts
+          from srmech.introspect import tool_schema as _ts
           from srmech.introspect import describe as _describe
           from srmech import dsl as _dsl
           _tools = _ts.tool_schema_view()['tools']
@@ -343,12 +858,22 @@ jobs:
     # ephemerides-spectral-ci's pedantic-build job (their Tasks
     # #105–#110 audit work).
     #
-    # Smoke target only — produces the shared library and the
-    # ephemerides-style test binary (when present). Doesn't ship a
-    # wheel; the wheel-build matrix in srmech-publish.yml does that
-    # at tag time.
+    # Produces the shared library and the C test binaries, and — since
+    # rc356 (`#T953`) — RUNS them. Doesn't ship a wheel; the wheel-build
+    # matrix in srmech-publish.yml does that at tag time.
+    #
+    # rc356: this job was Configure + Build with NO run step, and no
+    # workflow in this repo had one, so 0 of the 30 c/test/*.c binaries
+    # were executed by any automation. Compiling a test proves that it
+    # compiles. `test_srmech_progress_tick` was RED for ~48 rcs behind
+    # that gap (rc307 flipped the fiedler ws_len unit and left one caller
+    # on the old convention); CI built it every time and discarded the
+    # binary. ADR-0003's "the C host stands alone" was, in its entirety,
+    # not a claim automation could check.
     name: pedantic C build • ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    # rc357 (`#T951`) — max 1:47 (windows leg) → 12; see build-and-test.
+    timeout-minutes: 12
     strategy:
       fail-fast: false
       matrix:
@@ -363,6 +888,17 @@ jobs:
       - name: Build (warnings = errors)
         working-directory: docs/srmech
         run: cmake --build build --config Release
+
+      # rc356 (`#T953`) — RUN the C tests. Not `|| true`: a C test that
+      # cannot fail the build is the compile-only gate this step exists to
+      # replace. (chess-spectral-ci.yml:103 uses `|| true` because its
+      # ctest preset may not exist; ours is declared unconditionally under
+      # SRMECH_PEDANTIC, which this job always sets, so there is nothing to
+      # be tolerant of.) --output-on-failure so a red cell shows WHICH
+      # assertion went, not just a name.
+      - name: Run C tests (ctest)
+        working-directory: docs/srmech
+        run: ctest --test-dir build --build-config Release --output-on-failure
 
   asserts-live-smoke:
     # rc289 — the cell that gives JPL Rule 5 teeth.
@@ -417,6 +953,25 @@ jobs:
     # matrix above already carries the cross-platform C burden.
     name: asserts-live FULL suite, fork-isolated (JPL Rule 5 with teeth, #937)
     runs-on: ubuntu-latest
+    # rc357 (`#T951`) — max 19:10 → 30; see build-and-test. This is the cell
+    # that caught `#T980`, so its guard stays generous.
+    #
+    # rc432 (`#T1132`) — 30 → 45, on the same rule rc357 used: measure the max,
+    # then leave real headroom. The headroom was GONE. Measured on this branch:
+    # 29:39 at the pre-repair commit, i.e. **21 seconds** under the cap, and the
+    # very next commit (six added tests) hit 30:00 and was killed twice.
+    # A timeout is not a failure — the step is CANCELLED, every assertion in the
+    # suite goes unreported, and the cell can no longer say anything about the
+    # defect class it exists for. That is the worst failure mode a gate has, and
+    # it arrives silently as "cancelled" rather than red.
+    #
+    # This cell is the expensive one BY DESIGN: `--forked` runs one fork per
+    # test, so it pays a process spawn ~14,900 times, and it grows with the
+    # suite while the wall-clock budget does not. 19:10 -> 29:39 is what 75 rcs
+    # of test growth cost. Re-measure and re-raise when it next approaches the
+    # cap; do NOT narrow the run with `-k` or a file list to fit — coverage ==
+    # collection is the #937 invariant this cell exists to hold.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -448,7 +1003,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           # No stale hand-placed library may pre-empt the installed one.
-          rm -rf srmech/_native
+          rm -f srmech/_native/*.so srmech/_native/*.dll srmech/_native/*.dylib srmech/_native/*.dll.a srmech/_native/*.lib srmech/_native/*.pyd  # rc376: keep the shim __init__.py; drop only binaries
           python -m pip install -e ".[dev]" --config-settings=cmake.build-type=Debug
 
       - name: Verify the asserts really ARE live
@@ -463,9 +1018,9 @@ jobs:
         # failure of this cell legible in one read rather than a mystery, so it
         # stays even now that the install produces only one library.
         run: |
-          LIB=$(python -c "from srmech.amsc import _native; print(_native._find_library())")
+          LIB=$(python -c "from srmech import _native; print(_native._find_library())")
           echo "resolved library: $LIB"
-          python -c "from srmech.amsc import _native; assert _native.HAS_NATIVE, 'no native library loaded — this cell cannot trip a C assert'; print('HAS_NATIVE', _native.HAS_NATIVE)"
+          python -c "from srmech import _native; assert _native.HAS_NATIVE, 'no native library loaded — this cell cannot trip a C assert'; print('HAS_NATIVE', _native.HAS_NATIVE)"
           nm -u "$LIB" | grep -q __assert_fail \
             || { echo "::error::$LIB has NO __assert_fail reference — it was built with NDEBUG and every assert was stripped. This cell would pass without testing anything."; exit 1; }
           echo "OK: asserts are live in the library that actually loads."

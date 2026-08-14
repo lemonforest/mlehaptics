@@ -1,0 +1,95 @@
+# Cascade catalog entry: cyclic_mod_mul_wide
+# v0.9.0rc302 (§112 / #1462) — the 128-bit-capable modular multiply, so the
+# raw PCG64 LCG step is a DECLARABLE cascade. Peer of cyclic_mod_mul.
+
+[cascade]
+name = "cyclic_mod_mul_wide"
+class_composition = "I"
+kind = "stage"
+purpose = "Class I uncapped modular multiply (a * b) mod n — the multiply-reduce half of a wide (128-bit) LCG / the PCG64 step."
+description = """
+Cascade-namespace alias for the 128-bit-capable modular multiply
+srmech.math.cyclic.mod_mul_wide: (a * b) mod n with NO uint64 cap. Where
+cyclic_mod_mul binds the fixed-64-bit ABI srmech_mod_mul, this routes the
+product through srmech's own C bignum (srmech_bigint_mul, via
+srmech.math.cyclic.bigint_mul) and reduces mod n — so a > 64-bit modulus is
+expressible. Following the DSL chain contract the piped value is the first
+positional argument `a` (the LCG state) and `b`/`n` are bound stage kwargs:
+
+    .then("cyclic_mod_mul_wide", b=MULT, n=1<<128)
+
+is exactly the multiply-and-reduce half of the raw PCG64 step
+`state <- (state * MULT + INC) mod 2**128` (numpy's PCG64 default multiplier
+0x2360ed051fc65da44385df649fccf645 overflows any 64-bit register, so the capped
+cyclic_mod_mul cannot express it — this can).
+
+composition_of_c: it composes the c_dispatched srmech.math.cyclic.bigint_mul
+(srmech_bigint_mul) plus a Python mod-reduce — packaging an EXISTING capability,
+not a new C symbol (ABI stays 8).
+"""
+
+[cascade.signature]
+input = "a: int (positional; the piped LCG state, ANY width); b: int multiplier (keyword-only, required, ANY width); n: int modulus > 0 (keyword-only, required, ANY width, e.g. 2**128)."
+output = "int in [0, n) — (a * b) mod n"
+operation = "(a * b) mod n, product on the C bignum"
+non_negative_only = true
+uint64_bounded = false
+requires_n_positive = true
+dsl_stage = "data-first; op=\"cyclic_mod_mul_wide\" with b=<multiplier> and n=<modulus> bound"
+
+[cascade.native]
+# Composes the c_dispatched cyclic.bigint_mul (srmech_bigint_mul); the mod-reduce
+# is a Python arbitrary-precision divmod (CPython's own C PyLong divmod). The DSL
+# native chain-run engine has no leaf for this op, so a chain over it defers to
+# the pure runner (rc103 inform-don't-limit) while the op itself still reaches C
+# for the wide product.
+status = "composition_of_c — composes srmech.math.cyclic.bigint_mul (srmech_bigint_mul) + a Python mod-reduce; no dedicated cascade C symbol"
+abi_version = 8
+
+[cascade.delegates_to]
+class = "I"
+primitive_c_symbol = "srmech_bigint_mul"
+primitive_python = "srmech.math.cyclic.mod_mul_wide"
+rationale = """
+The wide product is srmech's own caller-arena C bignum multiply
+srmech_bigint_mul (reached through srmech.math.cyclic.bigint_mul); the modular
+reduction is a Python divmod. The cascade wrapper exists to make the wide
+modular multiply DSL-declarable + tool_schema-discoverable so the PCG64 step is
+a composable cascade, not only hand-written Python. Rosetta: composition_of_c.
+"""
+
+[cascade.boundary_cases]
+zero_modulus = "n <= 0 raises ValueError (forwarded from cyclic.mod_mul_wide)."
+negative_operand = "a or b < 0 raises ValueError (non-negative operand domain)."
+native_absent = "with the native library absent the product falls back to CPython's arbitrary-precision a * b (the COMPLETE alternative); byte-identical."
+
+[cascade.attestation]
+author = "Steven Kirkland"
+license = "MIT"
+parser_version = "srmech-cascade 0.9.0rc302"
+canonical_landings = [
+  "§112 / #1462 — the 128-bit-capable modular multiply becomes DSL-declarable (rc302)",
+  "srmech.math.cyclic.mod_mul_wide — the registered Class-I primitive home (composition_of_c over srmech_bigint_mul)",
+  "srmech.math.cyclic.bigint_mul — the c_dispatched raw bignum product it composes",
+  "cyclic_mod_mul.toml — the uint64-capped sibling",
+  "user_stance_cross_substrate_cascade_matching_as_research_method — the PCG64 LCG step as one 14-class cascade shape",
+]
+
+# ── rc420 (`#T1114`): the EXECUTABLE chain — ADR-0008 §2 (schema v2).
+# Delegation-shaped over the Class-I primitive srmech.math.cyclic.mod_mul_wide.
+[[cascade.chain]]
+chain_schema_version = 2
+summary = "Class-I delegation: cyclic_mod_mul_wide(a, b, n) IS srmech.math.cyclic.mod_mul_wide(a, b, n)."
+returns = "int  # (a * b) mod n with a 128-bit-wide intermediate, in [0, n)"
+
+[[cascade.chain.steps]]
+class = "I"
+op = "mod_mul_wide"
+args = { a = "@input.a", b = "@input.b", n = "@input.n" }
+
+[[cascade.chain.proof_cases]]
+covers = "sweep"
+inputs = { a = 7, b = 8, n = 12 }
+[[cascade.chain.proof_cases]]
+covers = "wide_product"
+inputs = { a = 9223372036854775806, b = 9223372036854775805, n = 9223372036854775807 }

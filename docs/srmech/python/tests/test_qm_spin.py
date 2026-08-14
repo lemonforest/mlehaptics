@@ -1,11 +1,11 @@
-"""Tests for srmech.qm.spin (Pauli matrices, Clifford algebra).
+"""Tests for srmech.physics.qm.spin (Pauli matrices, Clifford algebra).
 
 numpy-FREE end to end (v0.7.5rc115, #564): ``pauli_matrices`` /
-``pauli_identity`` / ``pauli_spin_operator`` return :class:`~srmech.amsc.mat.Mat`,
+``pauli_identity`` / ``pauli_spin_operator`` return :class:`~srmech.math.mat.Mat`,
 and **these tests use no numpy** — the eigenvalue checks go through the
 framework's own Class-L numpy-free Hermitian eigendecomposition
-(:func:`srmech.amsc.laplacian.mat_hermitian_eigendecompose`), matrix products
-through :func:`~srmech.amsc.laplacian.mat_matmul`, and every matrix-equality
+(:func:`srmech.math.laplacian.mat_hermitian_eigendecompose`), matrix products
+through :func:`~srmech.math.laplacian.mat_matmul`, and every matrix-equality
 check is a direct ``Mat``-entry comparison. A test for a numpy-free module must
 itself run with numpy genuinely absent — there is no ``.to_numpy()`` here
 (numpy is not a validation reference;
@@ -16,8 +16,8 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc.laplacian import mat_hermitian_eigendecompose, mat_matmul
-from srmech.qm import spin
+from srmech.math.laplacian import mat_hermitian_eigendecompose, mat_matmul
+from srmech.physics.qm import spin
 
 
 # ---------------------------------------------------------------------------

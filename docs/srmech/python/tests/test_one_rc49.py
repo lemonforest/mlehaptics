@@ -1,17 +1,18 @@
 """The One — S(σ,θ) generator (v0.7.0rc49; #887).
 
 Tests the cascade-native, numpy-free, exact-rational generator
-``srmech.amsc.cascade.one.the_one`` that holds the entire 1+3+7+3 = 14
+``srmech.cascade.one.the_one`` that holds the entire 1+3+7+3 = 14
 A–N substrate as a single (σ, θ)-parameterised object.
 """
 
 import importlib
+from pathlib import Path
 
 import pytest
 
-from srmech.amsc.cascade import the_one, s_generator, One, Block
-from srmech.amsc.cascade import one as one_mod
-from srmech.amsc.rational import cos_series_truncate, sin_series_truncate
+from srmech.cascade import the_one, s_generator, One, Block
+from srmech.cascade import one as one_mod
+from srmech.math.rational import cos_series_truncate, sin_series_truncate
 
 
 # ── structure: the 1+3+7+3 = 14 partition ─────────────────────────────
@@ -50,6 +51,157 @@ def test_an_slots_tile_the_14_classes():
     # every class A–N appears exactly once across imaginary ∪ grammar
     full = sorted(imag_slots + list(s.grammar_slots))
     assert full == list("ABCDEFGHIJKLMN")
+
+
+# ── rc355 (`#T1017`) — the SHAPE guard behind the value pin above ─────
+#
+# ``test_an_slots_tile_the_14_classes`` is a LITERAL VALUE PIN on the shipped
+# table. It cannot survive a refactor that edits the constant and the literal
+# in lockstep, it says nothing about ``Block`` construction, and it pins the
+# ORDER — the one thing the framework has never derived. Falsified on the
+# rc354 tree: injecting an 8-label heptad for 7 axes, an all-empty table, a
+# duplicate-label table and a garbage-label table were ALL ACCEPTED by
+# ``the_one``; a 2-block table raised a bare ``IndexError`` from tuple
+# indexing at ``one.py`` ``_blocks_from_flat`` / ``_adjoint_blocks_pure``,
+# which is an accident, not a guard.
+#
+# ⛔ THE CONSTRAINT THAT MAKES THIS SAFE: the heptad ordering ``D,E,F,G,K,L,M``
+# is ALPHABETICAL and underived. The guard must never see it. The first test
+# below is the load-bearing one — it mechanises that constraint so a later
+# "tightening" of ``_validate_slot_shape`` into an ordering claim turns red.
+
+
+#: The shipped tables, captured before any test rebinds them.
+_SHIPPED_IMAG = one_mod.AN_IMAG_SLOTS
+_SHIPPED_GRAMMAR = one_mod.GRAMMAR_SLOTS
+
+
+def _patched_slots(monkeypatch, imag=None, grammar=None):
+    """Rebind the module-level slot tables, then re-run the shape guard."""
+    if imag is not None:
+        monkeypatch.setattr(one_mod, "AN_IMAG_SLOTS", imag)
+    if grammar is not None:
+        monkeypatch.setattr(one_mod, "GRAMMAR_SLOTS", grammar)
+    one_mod._validate_slot_shape()
+
+
+def test_slot_shape_guard_is_order_blind(monkeypatch):
+    """A PERMUTED table must PASS. This is the ⛔ constraint, mechanised.
+
+    Which A–N class sits on which imaginary axis was never derived — the
+    within-block order is alphabetical because someone typed it that way. A
+    guard that rejected a permutation would mint a claim the framework has
+    not made, so the bijection check in ``_validate_slot_shape`` is
+    ``sorted(...)`` on purpose. If this test ever goes red, the guard grew an
+    ordering claim: revert the guard, do not "fix" this test.
+    """
+    _patched_slots(
+        monkeypatch,
+        imag=(("A",), ("J", "C", "I"), ("M", "L", "K", "G", "F", "E", "D")),
+        grammar=("N", "H", "B"),
+    )
+
+
+def test_slot_shape_guard_rejects_wrong_length(monkeypatch):
+    """Counts that contradict IMAG_DIMS / BLOCK_DIMS / GRAMMAR_SLOTS."""
+    with pytest.raises(ValueError, match="must equal IMAG_DIMS"):
+        _patched_slots(monkeypatch, imag=(
+            ("A",), ("I", "C", "J"), tuple("DEFGKLMZ")))       # 8 for 7 axes
+    with pytest.raises(ValueError, match="must equal IMAG_DIMS"):
+        _patched_slots(monkeypatch, imag=((), (), ()))
+    with pytest.raises(ValueError, match="must hold 3 blocks"):
+        _patched_slots(monkeypatch, imag=(("A",), ("I", "C", "J")))
+    # NB monkeypatch is function-scoped, so the rebinding above is STILL in
+    # effect here — restore the shipped table explicitly or this case reports
+    # the previous failure and silently proves nothing.
+    with pytest.raises(ValueError, match="one ℝ·1 anchor per block"):
+        _patched_slots(monkeypatch, imag=_SHIPPED_IMAG, grammar=("B", "H"))
+
+
+def test_slot_shape_guard_rejects_non_an_labels(monkeypatch):
+    """Garbage, duplicates, and a grammar/imaginary collision."""
+    with pytest.raises(ValueError, match="bijection onto A..N"):
+        _patched_slots(monkeypatch, imag=(
+            ("zz",), ("1", "2", "3"), tuple("0000000")))
+    with pytest.raises(ValueError, match="bijection onto A..N"):
+        _patched_slots(monkeypatch, imag=(
+            ("A",), ("A", "A", "A"), tuple("AAAAAAA")))
+    with pytest.raises(ValueError, match="bijection onto A..N"):
+        _patched_slots(monkeypatch, grammar=("A", "H", "N"))   # A is Im ℂ's
+
+
+def test_slot_shape_guard_mechanises_the_carrier_operator_hinge(monkeypatch):
+    """``1 + len(Im block)`` must equal BLOCK_DIMS — the one place the CARRIER
+    (2+4+8) and OPERATOR (1+3+7+3) partitions of the same 14 are forced to
+    agree. Before rc355 that hinge existed only as prose, and the prose said
+    ``2+4+8`` and ``1+3+7+3`` without ever saying they were the same 14.
+
+    Reached by moving one axis between blocks: the total stays 11, the
+    bijection still holds, and only the hinge notices.
+    """
+    monkeypatch.setattr(one_mod, "IMAG_DIMS", (1, 4, 6))
+    with pytest.raises(ValueError, match="carrier/operator hinge"):
+        _patched_slots(monkeypatch, imag=(
+            ("A",), ("I", "C", "J", "D"), ("E", "F", "G", "K", "L", "M")))
+
+
+def test_slot_shape_guard_actually_RUNS_at_import():
+    """The guard is WIRED, not merely defined.
+
+    This test exists because writing the previous four exposed the exact
+    defect this rc is about. With ``_validate_slot_shape()``'s call site
+    commented out, all four of them still PASSED — they call the function
+    directly, so they verify its logic and say nothing about whether anything
+    invokes it. A guard nobody calls is prose.
+
+    So: take the module's real source, mutate the shipped heptad literal to
+    eight labels, exec it in a fresh namespace, and require ``ValueError``.
+    That fails if the call line is deleted, moved above the constants, or
+    wrapped in a swallowing ``try``.
+
+    It also states the guard's honest LIMIT. ``_validate_slot_shape`` runs
+    ONCE, at import, over the constants as written in the file. It cannot see
+    a post-import rebinding — monkeypatching ``AN_IMAG_SLOTS`` to garbage
+    labels after import still builds (only :class:`Block`'s per-axis length
+    check fires there). That is the right scope: the failure mode is a wrong
+    constant COMMITTED to the source, which is exactly what import-time
+    catches. Monkeypatching is a test technique, not a shipping hazard.
+    """
+    source = Path(one_mod.__file__).read_text(encoding="utf-8")
+    shipped = '("D", "E", "F", "G", "K", "L", "M"),'
+    assert source.count(shipped) == 1, (
+        "the heptad literal moved; re-anchor this test on the real source")
+    mutated = source.replace(shipped, '("D", "E", "F", "G", "K", "L", "M", "Z"),')
+
+    # ``@dataclass`` resolves ``sys.modules[cls.__module__]``, so the exec
+    # namespace must name a module that really exists; the real one is used
+    # read-only and the namespace itself is thrown away.
+    def _namespace():
+        return {"__name__": one_mod.__name__, "__file__": one_mod.__file__,
+                "__package__": one_mod.__package__}
+
+    with pytest.raises(ValueError, match="must equal IMAG_DIMS"):
+        exec(compile(mutated, one_mod.__file__, "exec"), _namespace())
+
+    # control: the UNmutated source execs clean, so the raise above is the
+    # mutation and not an artefact of exec'ing the module out of tree.
+    exec(compile(source, one_mod.__file__, "exec"), _namespace())
+
+
+def test_block_rejects_label_axis_mismatch():
+    """``Block`` construction is guarded directly — ``_validate_slot_shape``
+    only sees the module constants, not a hand-built block."""
+    axes = ((1, 1),) * 7
+    with pytest.raises(ValueError, match="8 A–N slot labels for 7"):
+        Block(algebra="O", n=3, real=(1, 1), imag=axes,
+              an_imag_slots=tuple("DEFGKLMZ"))
+    with pytest.raises(ValueError, match="0 A–N slot labels for 7"):
+        Block(algebra="O", n=3, real=(1, 1), imag=axes, an_imag_slots=())
+    # matched, and PERMUTED-matched, both construct (order-blind).
+    assert Block(algebra="O", n=3, real=(1, 1), imag=axes,
+                 an_imag_slots=tuple("DEFGKLM")).dim == 8
+    assert Block(algebra="O", n=3, real=(1, 1), imag=axes,
+                 an_imag_slots=tuple("MLKGFED")).dim == 8
 
 
 def test_real_anchors_are_unit():
@@ -180,7 +332,7 @@ def test_module_has_no_module_level_numpy_import():
     # FunctionDef/ClassDef and correctly excluded; docstrings aren't imports).
     import ast
 
-    src = importlib.util.find_spec("srmech.amsc.cascade.one").origin
+    src = importlib.util.find_spec("srmech.cascade.one").origin
     with open(src, encoding="utf-8") as fh:
         tree = ast.parse(fh.read())
     for node in tree.body:

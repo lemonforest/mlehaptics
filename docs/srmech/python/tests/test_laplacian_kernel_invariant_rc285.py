@@ -59,9 +59,9 @@ import itertools
 
 import pytest
 
-from srmech.amsc.cascade.matrix_cascades import eigvals as cascade_eigvals
-from srmech.amsc.cascade.matrix_cascades import qr as cascade_qr
-from srmech.amsc.laplacian import (
+from srmech.cascade.matrix_cascades import eigvals as cascade_eigvals
+from srmech.cascade.matrix_cascades import qr as cascade_qr
+from srmech.math.laplacian import (
     _MAT_EIG_DEFLATE_TOL,
     _PI,
     _balance_radix2,
@@ -81,8 +81,8 @@ from srmech.amsc.laplacian import (
     mat_matmul,
     symmetric_eigendecompose,
 )
-from srmech.amsc.mat import Mat
-from srmech.amsc.rational import cos as _q_cos
+from srmech.math.mat import Mat
+from srmech.math.rational import cos as _q_cos
 
 # FPU tolerance for a float eigensolve. NOT loosened for any solver: the
 # measured worst case across every case below is ~1e-13, so 1e-9 is slack, not a
@@ -789,10 +789,10 @@ def test_isolated_vertex_star(solver):
 
 def test_every_shipped_eigensolver_is_covered():
     """Coverage ratchet: if a new public eigensolver lands in
-    ``srmech.amsc.laplacian``, it must be added to ``_SOLVERS`` here. #1440
+    ``srmech.math.laplacian``, it must be added to ``_SOLVERS`` here. #1440
     existed because one solver of four sat outside everyone's mental test
     matrix."""
-    import srmech.amsc.laplacian as _lap
+    import srmech.math.laplacian as _lap
 
     shipped = {
         name for name in _lap.__all__
@@ -803,7 +803,7 @@ def test_every_shipped_eigensolver_is_covered():
     missing = shipped - covered
     assert not missing, (
         f"eigensolver(s) {sorted(missing)} are exported from "
-        f"srmech.amsc.laplacian but are NOT covered by the λ_min == 0 ratchet. "
+        f"srmech.math.laplacian but are NOT covered by the λ_min == 0 ratchet. "
         f"Add them to _SOLVERS in this module — #1440 is exactly what happens "
         f"when a solver sits outside the test matrix."
     )

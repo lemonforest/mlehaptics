@@ -42,7 +42,7 @@ from __future__ import annotations
 import ctypes
 from typing import List
 
-from srmech.amsc import _native
+from srmech import _native
 
 OPERATION_NAME = "sign_quantise"
 CLASS_COMPOSITION = ("K", "M")

@@ -13,7 +13,7 @@ against the concrete rc236 op. numpy-free.
 """
 from __future__ import annotations
 
-from srmech.amsc.responsion_schema import (
+from srmech.introspect.responsion_schema import (
     _COMMUTATIVE_CARRIERS,
     _curvature_class,
     _pure_responsion_schema,
@@ -54,7 +54,7 @@ def test_trace_read_is_flat_even_on_mat():
     the trace responsion is FLAT even on the NON-commutative Mat operator
     carrier — the one Mat edge that is flat."""
     schema = _pure_responsion_schema()
-    trace = schema["srmech.amsc.laplacian.heat_trace|Mat"][0]
+    trace = schema["srmech.math.laplacian.heat_trace|Mat"][0]
     assert trace["kind"] == "trace"
     assert trace["curvature"] == "flat"
 
@@ -66,7 +66,7 @@ def test_heat_trace_is_the_only_flat_mat_edge():
     schema = _pure_responsion_schema()
     flat_mat = [(k, r["kind"]) for k, v in schema.items() for r in v
                 if r["carrier"] == "Mat" and r["curvature"] == "flat"]
-    assert flat_mat == [("srmech.amsc.laplacian.heat_trace|Mat", "trace")]
+    assert flat_mat == [("srmech.math.laplacian.heat_trace|Mat", "trace")]
 
 
 # ── the CURVED pairings (frame-dependent holonomy) ───────────────────────────
@@ -76,7 +76,7 @@ def test_the_one_on_One_is_curved_the_F2_holonomy():
     F2 (separate_winding_curvature) decomposes as its curvature. The two faces
     of rc237 agree: the One's responsion is frame-DEPENDENT."""
     schema = _pure_responsion_schema()
-    edge = schema["srmech.amsc.cascade.the_one|One"][0]
+    edge = schema["srmech.cascade.the_one|One"][0]
     assert edge["carrier"] == "One"
     assert edge["curvature"] == "curved"
 
@@ -85,14 +85,14 @@ def test_propagator_and_resolvent_are_curved():
     """The Laplace-dual pair e^{−zL}·u0 / (zI−L)^{-1}·u0 carry the coherence-dial
     phase (the frame) → CURVED."""
     schema = _pure_responsion_schema()
-    for r in schema["srmech.amsc.laplacian.responsion|Mat"]:
+    for r in schema["srmech.math.laplacian.responsion|Mat"]:
         assert r["kind"] in ("propagator", "resolvent")
         assert r["curvature"] == "curved"
 
 
 def test_flux_response_curve_is_curved():
     schema = _pure_responsion_schema()
-    flux = schema["srmech.amsc.laplacian.ground_state_flux_response|Mat"][0]
+    flux = schema["srmech.math.laplacian.ground_state_flux_response|Mat"][0]
     assert flux["curvature"] == "curved"        # the flux gauge is the frame
 
 
@@ -100,9 +100,9 @@ def test_open_sustain_on_operator_carrier_is_curved():
     """The honest-OPEN residues on the non-commutative operator carriers (Mat /
     One) are curved; on the commutative carriers they are flat."""
     schema = _pure_responsion_schema()
-    assert schema["srmech.amsc.dispatch.infer|Mat"][0]["curvature"] == "curved"
-    assert schema["srmech.amsc.dispatch.infer|One"][0]["curvature"] == "curved"
-    assert schema["srmech.amsc.dispatch.infer|EllRatio"][0]["curvature"] == "flat"
+    assert schema["srmech.math.dispatch.infer|Mat"][0]["curvature"] == "curved"
+    assert schema["srmech.math.dispatch.infer|One"][0]["curvature"] == "curved"
+    assert schema["srmech.math.dispatch.infer|EllRatio"][0]["curvature"] == "flat"
 
 
 # ── the classifier is a pure (carrier, kind) function ────────────────────────
@@ -123,7 +123,7 @@ def test_rc236_grounds_the_flat_vs_curved_split():
     """The schema's flat/curved lift must agree with rc236's concrete is_flat on
     the same distinction: commuting/1×1/symmetric-commuting pairing → flat;
     non-commuting (σx, σz) → curved."""
-    from srmech.amsc.cascade.matrix_cascades import separate_frame_curvature
+    from srmech.cascade.matrix_cascades import separate_frame_curvature
 
     # non-commuting operator pairing → curved (is_flat False)
     sx, sz = [[0, 1], [1, 0]], [[1, 0], [0, -1]]

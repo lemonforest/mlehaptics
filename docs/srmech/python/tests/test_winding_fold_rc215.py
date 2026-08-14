@@ -41,9 +41,9 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc import laplacian as L
-from srmech.amsc.cascade import winding_fold
+from srmech import _native
+from srmech.math import laplacian as L
+from srmech.cascade import winding_fold
 
 
 # ── helpers (no numpy) ──────────────────────────────────────────────────
@@ -272,7 +272,7 @@ def test_winding_feeds_the_one_metacycle_dial():
     """The fold's w lifts straight into the One: the_one(+1, 0, 1,
     w=(w,0,0)) reports the tower-graded sigma_effective and the double-cover
     spinor_sign for THIS winding (never re-derived)."""
-    from srmech.amsc.cascade.one import the_one, winding_tower
+    from srmech.cascade.one import the_one, winding_tower
     for theta in (44.0 / 3.0, 44.0, 100.5, -100.5):
         w, _tr = winding_fold(theta)
         one = the_one(+1, 0, 1, w=(w, 0, 0))
@@ -321,15 +321,15 @@ def test_pure_path_contracts_match():
 
 def test_registration_and_count():
     import srmech
-    from srmech.amsc import cascade
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech import cascade
+    from srmech.introspect.tool_schema import get_tool_schema
     schema = get_tool_schema()
     names = {t.name for t in schema.tools}
-    assert "srmech.amsc.cascade.winding_fold" in names
-    assert len(schema.tools) == 509
-    assert srmech.describe()["tools"]["total"] == 509
+    assert "srmech.cascade.winding_fold" in names
+    assert len(schema.tools) == 655
+    assert srmech.describe()["tools"]["total"] == 655
     assert "winding_fold" in cascade.__all__
-    entry = schema.lookup("srmech.amsc.cascade.winding_fold")
+    entry = schema.lookup("srmech.cascade.winding_fold")
     assert entry.category == "cascade"
     assert entry.owner == "srmech"
     assert [p.name for p in entry.parameters] == ["theta"]

@@ -2,10 +2,10 @@
 telescoping ``apagodu_zeilberger.apagodu_zeilberger``.
 
 The op that CLOSES the multivariate F929 reduction row: the double-sum
-generalization of :func:`srmech.amsc.zeilberger.zeilberger`. Given a proper
+generalization of :func:`srmech.apokatastasis.zeilberger.zeilberger`. Given a proper
 hypergeometric term ``F(n,j,k)`` by its THREE term ratios ``r_n = F(n+1,j,k)/
 F(n,j,k)``, ``r_j = F(n,j+1,k)/F(n,j,k)``, ``r_k = F(n,j,k+1)/F(n,j,k)`` (each a
-trivariate exact-``ℚ[n,j,k]`` :class:`~srmech.amsc.tripoly.TriPoly`), it returns the
+trivariate exact-``ℚ[n,j,k]`` :class:`~srmech.math.tripoly.TriPoly`), it returns the
 minimal-order linear recurrence with polynomial coefficients
 ``Σ_i a_i(n) f(n+i) = 0`` satisfied by the definite DOUBLE sum
 ``f(n) = Σ_{j,k} F(n,j,k)``, plus the two rational certificates.
@@ -33,10 +33,10 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc.poly import Poly
-from srmech.amsc.q import Q
-from srmech.amsc.tripoly import TriPoly
-from srmech.amsc.apagodu_zeilberger import apagodu_zeilberger
+from srmech.math.poly import Poly
+from srmech.math.q import Q
+from srmech.math.tripoly import TriPoly
+from srmech.apokatastasis.apagodu_zeilberger import apagodu_zeilberger
 
 
 # ── helpers (Fraction + Q only; no numpy, no math) ────────────────────────────
@@ -147,7 +147,7 @@ def test_case_iterable_agrees_with_composed_zeilberger():
     Zeilberger-ing the outer: the inner sum gives f(n)=Σ_j C(n,j)2^j, whose ratios
     r_n=(n+1)/(n+1−j), r_j=2(n−j)/(j+1) feed plain ``zeilberger`` to the SAME
     order-1 recurrence f(n+1)−3f(n)=0. Cross-checks (a) against the bivariate op."""
-    from srmech.amsc.zeilberger import BiPoly, zeilberger
+    from srmech.apokatastasis.zeilberger import BiPoly, zeilberger
     # the reduced single sum f(n) = Σ_j C(n,j)·2^j = 3^n.
     rn_num = BiPoly([Poly.from_coeffs([1, 1])])                 # n + 1   (here k≡j)
     rn_den = BiPoly([Poly.from_coeffs([1, 1]), Poly.from_coeffs([-1])])  # n+1 − j
@@ -266,8 +266,8 @@ def test_native_matches_pure_when_present():
     for this degree-2 system swells past the ceiling → it declines), so this pins the
     value-equivalence of the dispatch either way — fast (the iterable r_n depends only
     on j, so its exact-ℚ system is small)."""
-    from srmech.amsc import _native as nat
-    from srmech.amsc.apagodu_zeilberger import _apagodu_pure, _coerce_tri
+    from srmech import _native as nat
+    from srmech.apokatastasis.apagodu_zeilberger import _apagodu_pure, _coerce_tri
     if not nat.has_native_apagodu_zeilberger():
         pytest.skip("native srmech_apagodu_zeilberger not present in this environment")
 
@@ -290,8 +290,8 @@ def test_native_c_peer_executes_and_matches_pure():
     the pure-Python body — the proof the C path RUNS (not merely declines). Opt-in
     (the dense exact-ℚ RREF arena is large + slow); skip-clean when no native lib OR
     when the C declines the system (a low-memory environment)."""
-    from srmech.amsc import _native as nat
-    from srmech.amsc.apagodu_zeilberger import _apagodu_pure, _coerce_tri, _tri_pairs
+    from srmech import _native as nat
+    from srmech.apokatastasis.apagodu_zeilberger import _apagodu_pure, _coerce_tri, _tri_pairs
     if not nat.has_native_apagodu_zeilberger():
         pytest.skip("native srmech_apagodu_zeilberger not present in this environment")
 

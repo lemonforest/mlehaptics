@@ -1,6 +1,6 @@
 """rc167 — streaming / bounded top-K co-occurrence (UPSTREAM §52 / F793).
 
-``srmech.amsc.text.cooccurrence_topk`` is the LOW-RAM ENCODE peer of the all-in-
+``srmech.math.text.cooccurrence_topk`` is the LOW-RAM ENCODE peer of the all-in-
 RAM ``cooccurrence_edges``: it streams the documents (never all resident) and
 keeps only a bounded top-K-per-node store via chunked merge, so the encode peak
 is ``O(vocab × k·cap_slack)`` instead of the full ~9 M-edge list. These tests
@@ -17,8 +17,8 @@ reference is built from the package's own ``cooccurrence_edges``).
 import random
 from collections import defaultdict
 
-from srmech.amsc import text as T
-from srmech.amsc import laplacian as L
+from srmech.math import text as T
+from srmech.math import laplacian as L
 
 
 def _two_topic_corpus(seed=11, n_docs=400):

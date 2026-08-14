@@ -289,11 +289,11 @@ def _matches_token(raw: Any, token: str):
     """Does ``raw`` match ONE simple advertised type token (carrier-aware)?
     Returns ``True`` / ``False``, or ``None`` if the token is not assertable."""
     # Lazy import so conftest stays cheap and srmech-load-order clean.
-    from srmech.amsc.mat import Mat
-    from srmech.amsc.vec import Vec
-    from srmech.amsc.hv import HV
-    from srmech.amsc.q import Q
-    from srmech.amsc.complex128 import Complex128
+    from srmech.math.mat import Mat
+    from srmech.math.vec import Vec
+    from srmech.math.hv import HV
+    from srmech.math.q import Q
+    from srmech.math.complex128 import Complex128
 
     token = token.strip()
     if token == "...":
@@ -316,13 +316,13 @@ def _matches_token(raw: Any, token: str):
     # isinstance); Poly gets its own genuine check too (it was previously an
     # unassertable None-skip).
     if token.startswith("QBiPoly"):
-        from srmech.amsc.qbipoly import QBiPoly
+        from srmech.math.qbipoly import QBiPoly
         return isinstance(raw, QBiPoly)
     if token.startswith("QPoly"):
-        from srmech.amsc.qpoly import QPoly
+        from srmech.math.qpoly import QPoly
         return isinstance(raw, QPoly)
     if token.startswith("Poly"):
-        from srmech.amsc.poly import Poly
+        from srmech.math.poly import Poly
         return isinstance(raw, Poly)
     if token.startswith("Q"):
         return isinstance(raw, Q)
@@ -393,7 +393,7 @@ def riemann_theta_force_pure(mp: "pytest.MonkeyPatch") -> List[str]:
 
     Returns the (initially empty) list the sentinel appends to — after the
     pure-path work, assert it is still empty (``assert hits == []``)."""
-    from srmech.amsc import _native as _n
+    from srmech import _native as _n
 
     hits: List[str] = []
 
@@ -541,20 +541,22 @@ import pkgutil as _pkgutil
 import textwrap as _textwrap
 
 _ROSETTA_FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
-# rc177 annex: mirror the test_rosetta_completeness._ROOTS extension to bus/dsl so
-# the shared non_compute live-count walk (owed ceiling / composes_c reachability /
-# dev_tooling allowlist) sees the +39 bus/dsl rows as live.
-# rc183 HOST-GLUE annex: mirror the extension to mcp/cli/llm so the shared walk
-# sees the +24 mcp/cli/llm rows as live too.
-# rc218 PARITY-COMPLETENESS annex: mirror the extension to spectral/rbs_lm/
-# introspect/profile_loader so the shared walk sees the +30 rows as live too.
-_ROSETTA_ROOTS = (
-    "srmech.amsc", "srmech.qm", "srmech.signal_processing",
-    "srmech.bus", "srmech.dsl",
-    "srmech.mcp", "srmech.cli", "srmech.llm",
-    "srmech.spectral", "srmech.rbs_lm",
-    "srmech.introspect", "srmech.profile_loader",
-)
+
+# rc361 (`#T1034`) — the walk roots are SINGLE-SOURCED in tests/rosetta_roots.py.
+# They used to be a hardcoded 12-tuple here AND in test_rosetta_completeness.py
+# AND in test_rosetta_transitive_standalone.py AND in notes/_rosetta_inventory.py,
+# each carrying a comment asking the next author to keep all four in step. All
+# four were measured identical before the collapse; ADR-0010 now moves ~73
+# modules between namespaces and needs to edit the denominator ONCE.
+#
+# The sys.path guard is the same one test_rosetta_completeness.py uses for
+# `from conftest import`: tests/ is a package, so pytest's prepend import-mode
+# does not put this directory on sys.path, and conftest itself is imported as
+# `tests.conftest` — under which a bare `import rosetta_roots` would fail.
+_TESTS_DIR_FOR_ROOTS = str(Path(__file__).resolve().parent)
+if _TESTS_DIR_FOR_ROOTS not in _sys.path:
+    _sys.path.insert(0, _TESTS_DIR_FOR_ROOTS)
+from rosetta_roots import ROSETTA_ROOTS as _ROSETTA_ROOTS  # noqa: E402
 
 # Buckets that are NOT standalone-C-ready.
 ROSETTA_NOT_READY = frozenset(
@@ -743,7 +745,7 @@ def rosetta_reached_ledger_ops(start, cls):
 # opening through ``builtins.open`` where the suite was hooking ``Path.open``.
 # ──────────────────────────────────────────────────────────────────────
 
-from srmech.amsc import genome as _G
+from srmech.biology import genome as _G
 
 
 
@@ -788,7 +790,7 @@ class BodyReadProbe:
         attributed to one or the other. ``force_pure`` pins the pure path, since the C
         path reads the same bytes by construction but does so through its own fopen,
         invisible to a Python seam."""
-        from srmech.amsc import _native
+        from srmech import _native
 
         orig_open = _G._open_body_ro
         orig_catalog = _G._catalog_data

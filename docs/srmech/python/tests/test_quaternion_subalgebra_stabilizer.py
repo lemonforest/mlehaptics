@@ -1,10 +1,10 @@
 """Bit-exact acceptance tests for the quaternion-subalgebra stabiliser voxel.
 
 Per issue #759 (srmech MS#20 / F215). The new
-``srmech.qm.so8.quaternion_subalgebra_stabilizer`` exposes the 6-dim
+``srmech.physics.qm.so8.quaternion_subalgebra_stabilizer`` exposes the 6-dim
 ``so(4) = su(2) ⊕ su(2)`` subalgebra of ``g2 = Der(O)`` that stabilises a
 quaternion subalgebra ``H ⊂ O`` — the ℍ-reading SIBLING of
-``srmech.qm.so8.an_embedding`` (the su(3) ⊕ 3 ⊕ 3bar ℂ-reading).
+``srmech.physics.qm.so8.an_embedding`` (the su(3) ⊕ 3 ⊕ 3bar ℂ-reading).
 
 The tests prove the invariant CERTIFICATE:
 
@@ -21,7 +21,7 @@ The tests prove the invariant CERTIFICATE:
 6. ``srmech.introspect.describe()["tools"]["total"]`` matches the registry.
 
 ALL deviations are reduced through the **scalar** Class K pin-slot
-magnitude (:func:`srmech.amsc.cascade.magnitude`) — NEVER Python ``abs()``
+magnitude (:func:`srmech.cascade.magnitude`) — NEVER Python ``abs()``
 per ``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]`` — by
 first reducing a matrix / scalar deviation to a Python float, then passing
 it to ``magnitude`` (scalar-only; it raises on an array).
@@ -30,10 +30,10 @@ Determinism: every basis extraction is a deterministic SVD / Gram-Schmidt
 (no RNG), so the certificate is reproducible.
 
 rc123 (numpy-free, #564): this test is itself numpy-FREE —
-``quaternion_subalgebra_stabilizer`` returns :class:`srmech.amsc.mat.Mat`
+``quaternion_subalgebra_stabilizer`` returns :class:`srmech.math.mat.Mat`
 (the ``killing_spectrum`` a sorted ``list``); norms / matmuls route through
 ``mat_norm`` / ``mat_matmul``, span ranks through the float-tolerant
-:func:`srmech.qm.so8._rank_float`, with no numpy oracle and no ``.to_numpy()``
+:func:`srmech.physics.qm.so8._rank_float`, with no numpy oracle and no ``.to_numpy()``
 (per ``[[feedback_test_for_numpy_free_module_must_itself_be_numpy_free]]``).
 
 F215 (surfaced under the separately-keyed ``framework_so4_reading``): this
@@ -46,10 +46,10 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc.cascade import magnitude
-from srmech.amsc.laplacian import mat_matmul, mat_norm
-from srmech.amsc.mat import Mat
-from srmech.qm import so8
+from srmech.cascade import magnitude
+from srmech.math.laplacian import mat_matmul, mat_norm
+from srmech.math.mat import Mat
+from srmech.physics.qm import so8
 
 _TOL = 1e-9
 _BIT_EXACT = 1e-10
@@ -240,19 +240,46 @@ def test_killing_spectrum_is_two_triplets():
 
 
 def test_h_choice_invariance_spectrum_bit_identical():
-    """The Killing spectrum is bit-identical across different ℍ choices.
+    """The Killing spectrum is ℍ-choice-invariant to ``_BIT_EXACT``.
 
     The 7 Fano-line quaternion subalgebras are g2 = Aut(O)-conjugate, so
     their stabilisers are isomorphic; with the orthonormalised generator
-    basis the invariant Killing spectrum is bit-identical (the same
+    basis the invariant Killing spectrum agrees across every ℍ (the same
     so(4) = su(2) ⊕ su(2) algebra-type for every ℍ).
+
+    **The name over-claims and is kept only because it is the shipped one.**
+    "bit-identical" is NOT what holds: measured across ℍ = 2..7 the honest
+    residual is ``1.776e-15`` and **0 of 36 entries satisfy
+    ``reference[i] == spectrum[i]``**. The invariant is tolerance-exact at
+    ``_BIT_EXACT`` (1e-10), not exact. Tightening the assertion to ``== 0.0``
+    to match the name would turn this red on honest input — the name is the
+    thing that is wrong, not the tolerance.
+
+    **rc355 — the fold, not the tolerance, was the defect.** This line read
+    ``_scalar(max(reference[i] - spectrum[i] for i in range(6)))``: the
+    Class-K magnitude sat OUTSIDE the fold, so ``max`` ran over **signed**
+    differences and only rectified the already-selected extremum. Because the
+    spectrum is ``sorted()`` and every eigenvalue is negative, any UPWARD
+    corruption re-sorts to the top and leaves the leading signed differences
+    at ~0 while the outlier lands at a large NEGATIVE value — which ``max``
+    discards. The guard was therefore **one-sided**: it could only ever fire
+    on downward drift. Measured on the shipped form, ``+1e6``, ``+1e-6`` and
+    ``+1e-9`` injected on ``killing_spectrum[0]`` all reported deviation
+    ``1.776e-15`` and PASSED. Magnitude now folds per element — max-of-
+    magnitudes, which is what "worst deviation" means — and the same three
+    corruptions fail at ``9.99999e+05 / 9.99999e-07 / 9.99998e-10``.
+
+    Class-K discipline is unchanged: still ``cascade.magnitude`` via
+    :func:`_scalar`, never ``abs()``. Only the fold order moved.
     """
     reference = sorted(so8.quaternion_subalgebra_stabilizer(1)["killing_spectrum"])
     for quaternion_index in range(2, 8):
         spectrum = sorted(
             so8.quaternion_subalgebra_stabilizer(quaternion_index)["killing_spectrum"]
         )
-        deviation = _scalar(max(reference[i] - spectrum[i] for i in range(6)))
+        # Class-K magnitude INSIDE the fold: max-of-magnitudes, not
+        # magnitude-of-max. The latter is one-sided (see the docstring).
+        deviation = max(_scalar(reference[i] - spectrum[i]) for i in range(6))
         assert deviation < _BIT_EXACT, (
             f"ℍ index {quaternion_index} spectrum differs by {deviation}"
         )
@@ -357,15 +384,15 @@ def test_framework_so4_reading_is_distinct_from_atoms():
 def test_introspect_tools_total_matches_live():
     import srmech.introspect as introspect
 
-    assert introspect.describe()["tools"]["total"] == 509
+    assert introspect.describe()["tools"]["total"] == 655
 
 
 def test_tool_entry_registered():
     """The new op is a registered ToolEntry in the qm.so8 category."""
-    from srmech.amsc import tool_schema
+    from srmech.introspect import tool_schema
 
     schema = tool_schema.get_tool_schema()
-    name = "srmech.qm.so8.quaternion_subalgebra_stabilizer"
+    name = "srmech.physics.qm.so8.quaternion_subalgebra_stabilizer"
     entry = schema.lookup(name)
     assert entry is not None
     assert entry.name == name

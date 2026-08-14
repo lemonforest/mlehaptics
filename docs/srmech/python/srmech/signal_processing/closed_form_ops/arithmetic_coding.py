@@ -19,7 +19,7 @@ from __future__ import annotations
 import ctypes
 from typing import Dict, List, Optional, Tuple
 
-from srmech.amsc import _native
+from srmech import _native
 
 OPERATION_NAME = "arithmetic_coding"
 CLASS_COMPOSITION = ("N",)
@@ -52,7 +52,7 @@ def _encode_native(data_bytes, cum, total):
     ``(num, den)`` pair equals the Python Fraction exactly. Returns ``None`` (→
     pure) on an out-of-table symbol (the pure path raises the same ValueError),
     an unbuildable total, or an arena overflow on a pathologically long input."""
-    from srmech.amsc.q import Q, to_q
+    from srmech.math.q import Q, to_q
 
     if not _native.has_native_arithmetic_encode():
         return None
@@ -122,7 +122,7 @@ def op(
     Encode: ``(lo, hi, freq)`` — narrowed rational interval as Fraction pair.
     Decode: ``bytes`` of recovered symbols.
     """
-    from srmech.amsc.q import Q, to_q
+    from srmech.math.q import Q, to_q
 
     if decode:
         if freq is None or length is None:

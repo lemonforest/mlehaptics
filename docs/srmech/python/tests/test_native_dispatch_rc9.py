@@ -7,7 +7,7 @@ produced the same bytes." A silent regression that left the dispatch guard
 mis-wired (or bound the C function at import time so a later swap is missed)
 would pass every parity test while never touching the C library.
 
-This module spies the native entrypoints in ``srmech.amsc._native`` and asserts
+This module spies the native entrypoints in ``srmech._native`` and asserts
 the **public Python PyPI surface dispatches into C** when the shared library is
 present — i.e. when NOT pure-Python, the native calls are genuinely made. It is
 native-gated: it SKIPS in a numpy-/native-absent dev env and on the pure-wheel
@@ -19,10 +19,10 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.amsc import format as _format
-from srmech.amsc import rational as R
-from srmech.amsc.q import Q
+from srmech.math import rational as R
+from srmech.math.q import Q
 
 native_trans = pytest.mark.skipif(
     not _native.has_native_trans_q61(),

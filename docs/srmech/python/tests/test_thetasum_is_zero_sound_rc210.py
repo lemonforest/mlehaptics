@@ -19,7 +19,7 @@ certified provably-NONZERO objects as zero through two unsound devices —
       (a duplicate node under-counts the interpolation).
 
 rc210 replaced the True side WHOLESALE with the sound certificate recursion
-(``srmech.amsc.thetasum._decide_struct``): True ⟺ Z1 exact cancellation / Z2
+(``srmech.apokatastasis.thetasum._decide_struct``): True ⟺ Z1 exact cancellation / Z2
 Weierstrass ±-pair reduction to the empty normal form / Z3s all character
 components proven zero / Z4 per-character interpolation at D+1 distinct nodes.
 There is NO numeric band anywhere on the True side; False = "not proven".
@@ -33,9 +33,9 @@ families are committed below (computational-provenance discipline).
 from fractions import Fraction
 
 from srmech.amsc import ThetaSum
-from srmech.amsc.ellbase import EllMonomial as M, Theta
-from srmech.amsc.q import Q
-from srmech.amsc.thetasum import (
+from srmech.apokatastasis.ellbase import EllMonomial as M, Theta
+from srmech.math.q import Q
+from srmech.apokatastasis.thetasum import (
     _NONZERO, _UNKNOWN, _ZERO, _Q_ZERO,
     _decide_thetasum, _struct_pexp_mul, _struct_theta_p, _term_char_v,
 )
@@ -429,7 +429,7 @@ def test_all_constant_native_interp_no_stale_exps_rc254():
     Z5 then Z6 on the constant leaf, so a single Weierstrass seam is PROVEN True
     (was a decline). Loop to catch the (pre-fix) intermittency; the native gate
     keeps it a no-op assert on a pure build."""
-    from srmech.amsc import _native as _nat
+    from srmech import _native as _nat
     native = _nat.has_native_thetasum_interpolation()
     for _ in range(50):
         w = ThetaSum.three_term(M.scalar(Q(2, 1)), M.scalar(Q(3, 1)),
@@ -451,7 +451,7 @@ def test_large_coeff_constant_leaf_decided_rc256():
     ``True`` now. Also a ``3**41`` scale (a large odd-prime-power coefficient the int64
     path could not factor). This is the completeness win — verdicts are unchanged (the
     scaled identity was always zero), the native peer just no longer defers it."""
-    from srmech.amsc import _native as _nat
+    from srmech import _native as _nat
     A = ThetaSum.three_term(M.scalar(Q(2, 1)), M.scalar(Q(5, 1)), M.scalar(Q(7, 1)),
                             x=M.scalar(Q(3, 1)))
     for factor in (Q(2 ** 70, 1), Q(3 ** 41, 1), Q(2 ** 64, 1)):

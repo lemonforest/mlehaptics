@@ -39,7 +39,7 @@ from __future__ import annotations
 import math
 import random
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.signal_processing.closed_form_ops import dct, jpeg
 
 # native availability (the differential tests run regardless — with native

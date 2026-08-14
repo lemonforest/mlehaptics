@@ -32,10 +32,11 @@ import random
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc import laplacian as LP
-from srmech.amsc.laplacian import dense_laplacian, mat_eigvals
-from srmech.amsc.mat import Mat
+from tests._native_gate import require_native
+from srmech import _native
+from srmech.math import laplacian as LP
+from srmech.math.laplacian import dense_laplacian, mat_eigvals
+from srmech.math.mat import Mat
 
 
 HAVE_C = (
@@ -80,8 +81,13 @@ def test_the_c_symbol_exists_and_is_reachable():
 
     If this fails, ``mat_eigvals`` is classified ``c_dispatched`` while no C
     entry point backs it — the exact false-claim shape this rc exists to end.
+
+    rc351 (`#T1004`): the "is there a library at all" half moved to
+    :func:`require_native`, which still FAILS (task `#T843`) unless the run has
+    explicitly declared itself pure. The SYMBOL claim below is untouched — that is
+    this test's own claim to make, and no signal can excuse it.
     """
-    assert _native.HAS_NATIVE, "native library not loaded"
+    require_native("the mat_eigvals c_dispatched claim")
     assert hasattr(_native.LIB, "srmech_mat_eigvals_ws"), (
         "mat_eigvals is classified c_dispatched but srmech_mat_eigvals_ws is "
         "absent from the built library"

@@ -183,6 +183,9 @@ def _namespace_from_native(payload: bytes) -> argparse.Namespace:
     coercing the numeric-typed fields to match ``type=int`` / ``type=float``."""
     import json
 
+    # stdlib json by PROTOCOL-BOUNDARY decision, not neglect (`#T1008`): this parses
+    # user-supplied CLI input (argv / a named file / stdin), not an srmech-authored
+    # descriptor. The READ self-host deliberately stops at the process boundary.
     ns = json.loads(payload.decode("utf-8"))
     for key in ("pid", "limit"):
         if ns.get(key) is not None:
@@ -202,7 +205,7 @@ def _native_dispatch(argv_list: List[str]) -> Optional[tuple]:
     pure argparse then emits byte-identical help/version/error text + exit code).
     """
     try:
-        from srmech.amsc import _native
+        from srmech import _native
     except Exception:  # pragma: no cover — _native always imports
         return None
     parsed = _native.cli_parse_c(argv_list)

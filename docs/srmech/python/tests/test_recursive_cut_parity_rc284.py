@@ -17,8 +17,8 @@ import os
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc import laplacian
+from srmech import _native
+from srmech.math import laplacian
 
 
 pytestmark = pytest.mark.skipif(

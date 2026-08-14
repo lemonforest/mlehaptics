@@ -1,0 +1,84 @@
+# Cascade catalog entry: cyclic_mod_inv
+# v0.9.0rc302 (§110 / #1460) — the modular-inverse (un-do) stage. Peer of
+# cyclic_mod_mul.
+
+[cascade]
+name = "cyclic_mod_inv"
+class_composition = "I"
+kind = "stage"
+purpose = "Class I modular inverse a**-1 mod n via extended Euclidean."
+description = """
+Cascade-namespace alias for the Class I modular inverse
+srmech.math.cyclic.mod_inv: the multiplicative inverse of `a` in Z/nZ via the
+extended Euclidean algorithm — the un-do stage of a modular cascade (recovering
+a factor a multiply stage applied). Following the DSL chain contract the piped
+value is the first positional argument `a` and the modulus `n` is a bound stage
+kwarg, so an inverse stage reads `.then("cyclic_mod_inv", n=MOD)`.
+
+Requires gcd(a, n) == 1 (raises ValueError otherwise) and n <= INT64_MAX on
+the C path; n >= 2. Thin delegation to the already-c_dispatched
+srmech.math.cyclic.mod_inv (routes to srmech_mod_inv); no native dispatch and
+no new C symbol of its own (composition_of_c).
+"""
+
+[cascade.signature]
+input = "a: int (positional; the piped value to invert); n: int modulus >= 2 (keyword-only, required). Both in uint64 range (n <= INT64_MAX on the C path)."
+output = "int in [1, n) — a**-1 mod n"
+operation = "a**-1 mod n"
+non_negative_only = true
+uint64_bounded = true
+requires_coprime = true
+dsl_stage = "data-first; op=\"cyclic_mod_inv\" with n=<modulus> bound"
+
+[cascade.native]
+status = "delegation (no dedicated cascade C symbol); the Class-I primitive srmech.math.cyclic.mod_inv dispatches to srmech_mod_inv"
+abi_version = 8
+
+[cascade.delegates_to]
+class = "I"
+primitive_c_symbol = "srmech_mod_inv"
+primitive_python = "srmech.math.cyclic.mod_inv"
+rationale = """
+The Class I primitive srmech.math.cyclic.mod_inv owns the extended-Euclidean
+inverse and its native dispatch to srmech_mod_inv. The cascade wrapper exists
+to make the op DSL-declarable + tool_schema-discoverable. Rosetta:
+composition_of_c.
+"""
+
+[cascade.boundary_cases]
+no_inverse = "gcd(a, n) != 1 raises ValueError (no multiplicative inverse)."
+degenerate_modulus = "n in {0, 1} raises ValueError (n >= 2 required)."
+out_of_int64 = "n beyond INT64_MAX raises OverflowError on the C path (pure fallback via pow(a, -1, n) is unbounded)."
+
+[cascade.attestation]
+author = "Steven Kirkland"
+license = "MIT"
+parser_version = "srmech-cascade 0.9.0rc302"
+canonical_landings = [
+  "§110 / #1460 — the Class-I modular family becomes DSL-declarable (rc302)",
+  "srmech.math.cyclic.mod_inv — the registered Class-I primitive home (c_dispatched via srmech_mod_inv)",
+  "cyclic_mod_mul.toml — the multiply stage this inverts",
+  "user_stance_cross_substrate_cascade_matching_as_research_method — modular inversion as one 14-class cascade shape",
+]
+
+# ── rc420 (`#T1114`): the EXECUTABLE chain — ADR-0008 §2 (schema v2).
+# Delegation-shaped over the Class-I primitive srmech.math.cyclic.mod_inv.
+[[cascade.chain]]
+chain_schema_version = 2
+summary = "Class-I delegation: cyclic_mod_inv(a, n) IS srmech.math.cyclic.mod_inv(a, n)."
+returns = "int  # the multiplicative inverse of a mod n, in [1, n)"
+
+[[cascade.chain.steps]]
+class = "I"
+op = "mod_inv"
+args = { a = "@input.a", n = "@input.n" }
+
+[[cascade.chain.proof_cases]]
+covers = "sweep"
+inputs = { a = 3, n = 7 }
+[[cascade.chain.proof_cases]]
+covers = "sweep"
+inputs = { a = 5, n = 12 }
+[[cascade.chain.proof_cases]]
+covers = "self_inverse"
+inputs = { a = 1, n = 13 }

@@ -1,43 +1,58 @@
-"""Control-flow primitives for the cascade DSL runner: loop / fold / reduce / parallel.
+"""Control-flow primitives for the cascade DSL runner: loop / fold / reduce / parallel / map_indexed.
 
 ADR-0002 Phase 2-v2 (task #235) — adds the three composition primitives
 that turn a flat ``chain().then(...).then(...)`` pipeline into a real
 DSL with iteration + accumulation. v0.6.0rc11 (MS #20) adds the fourth,
-``parallel`` (the Klein-4 four-sector fan-out). Each helper returns a
-closure that takes one input value and produces one output value,
-matching the ``Chain._stages`` per-stage callable contract.
+``parallel`` (the Klein-4 four-sector fan-out); v0.9.0rc420 (`#T1114`)
+adds the sixth form, ``map_indexed`` (the general indexed map). Each
+helper returns a closure that takes one input value and produces one
+output value, matching the ``Chain._stages`` per-stage callable contract.
 
 Design notes
 ------------
 * **No new srmech-level primitive class.** Loop / fold / reduce /
-  parallel are *composition operators* (control-flow special forms) —
-  they sequence existing A–N primitives; they don't introduce a new
-  class. ``loop`` IS Class I (cyclic repetition); ``fold`` and
-  ``reduce`` are Class M (cross-class bind: accumulator + element each
-  step); ``parallel`` is Class C (the Klein-4 chirality-sector fan-out
-  of :func:`srmech.amsc.cascade.parallel_sector_dispatch`).
+  parallel / map_indexed are *composition operators* (control-flow
+  special forms) — they sequence existing A–N primitives; they don't
+  introduce a new class. ``loop`` IS Class I (cyclic repetition);
+  ``fold`` and ``reduce`` are Class M (cross-class bind: accumulator +
+  element each step); ``parallel`` is Class C (the Klein-4
+  chirality-sector fan-out of
+  :func:`srmech.cascade.parallel_sector_dispatch`); ``map_indexed`` is
+  Class E ∘ M (indexed lookup fanned across a sized frame).
 * **The combinator set is a CLOSED, FINITE kernel — the two-tier SSoT
   boundary.** ``then`` (apply) + ``loop`` + ``fold`` + ``reduce`` +
-  ``parallel`` are the *five* control-flow special forms, matched 1:1 by
-  exactly five stage-discriminators in the TOML reader (``op`` /
-  ``loop_n``+``sub_chain`` / ``fold_init``+``fold_op`` / ``reduce_op`` /
-  ``parallel_body``). They are the Bird-Meertens recursion schemes (apply
-  / bounded-iterate / catamorphism-with-seed / catamorphism / Klein-4
-  map-fan-out): the finite **anharmonic kernel**, HARDCODED here (and
-  mirrored co-equally in C). The asymptotic *cascade instances* the five
+  ``parallel`` + ``map_indexed`` are the *six* control-flow special
+  forms, matched 1:1 by exactly six stage-discriminators in the TOML
+  reader (``op`` / ``loop_n``+``sub_chain`` / ``fold_init``+``fold_op``
+  / ``reduce_op`` / ``parallel_body`` / ``map_op``). They are the
+  Bird-Meertens recursion schemes (apply / bounded-iterate /
+  catamorphism-with-seed / catamorphism / Klein-4 map-fan-out /
+  indexed map): the finite **anharmonic kernel**, HARDCODED here (and
+  mirrored co-equally in C). The asymptotic *cascade instances* the six
   forms sequence are NOT hardcoded — they live as TOML op-descriptors in
   the cascade catalog ("you can't hardcode a continuum"). Kernel in code,
   continuum in catalog: the package's substrate-native ``1 + 3 + 7 + 3``
   discipline turned on its own op-surface. The closure is pinned by
-  ``tests/test_combinator_kernel_closure.py`` (five-builder vs
-  five-discriminator bijection; no hidden sixth form).
+  ``tests/test_combinator_kernel_closure.py`` (six-builder vs
+  six-discriminator bijection; no hidden seventh form; PLUS — new at the
+  rc420 widening — a cross-language pin over the C dispatcher's own
+  discriminator array, which the measured gap showed nothing else held).
 * **Closure is DESIGN-ENFORCED, not mathematically inevitable.**
   Data-dependent iteration (``while`` / ``unfold`` — loop *until* a
   predicate rather than a fixed ``n``) is deliberately EXILED to the
   op-instance layer: a body op decides when to stop, keeping the
-  combinator kernel total-by-construction at five forms. A future
-  ``while`` / ``unfold`` special form would be a *sixth* combinator and a
-  conscious widening of the kernel — never a silent addition.
+  combinator kernel total-by-construction at six forms. ``map_indexed``
+  (rc420) was a CONSCIOUS widening, executed with the closure test
+  updated in the same change exactly as this note demands — and it
+  respects the exile line: the map is data-SIZED (``n = len(input)``
+  fixed at entry, unsized iterables rejected), never data-DEPENDENT (no
+  predicate decides continuation), the SAME totality class as ``fold``'s
+  ``for elem in input_seq``. A future ``while`` / ``unfold`` special
+  form would be a *seventh* combinator and another conscious widening —
+  never a silent addition. (`#T1114` rung 4 measured the shipped
+  corpus: every ``while`` in all 41 closed_form_ops modules is
+  structurally fuel-bounded; the true exile class — predicate-only
+  unbounded iteration — is EMPTY in shipped code.)
 * **Why ``parallel`` is a special form, not a plain ``op``.** A plain
   ``op`` stage is a 1→1 ``value → value`` map. ``parallel`` is a 1→N
   *fan-out*: it runs a caller-named *body* op across the ≤4 Klein-4
@@ -58,7 +73,7 @@ Design notes
 
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, Iterable
+from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
 
 def make_loop_stage(n_times: int, sub_chain: "Any") -> Callable[[Any], Any]:
@@ -104,6 +119,7 @@ def make_loop_stage(n_times: int, sub_chain: "Any") -> Callable[[Any], Any]:
 
 def make_fold_stage(
     init: Any, op_fn: Callable, kwargs: Dict[str, Any],
+    arg_names: "Optional[Tuple[str, str]]" = None,
 ) -> Callable[[Iterable], Any]:
     """Build a stage callable that folds ``op_fn`` over the input sequence.
 
@@ -119,6 +135,17 @@ def make_fold_stage(
         Binary callable: ``(accumulator, element) -> new_accumulator``.
     kwargs
         Static kwargs passed to each ``op_fn`` invocation.
+    arg_names
+        Optional ``(acc_name, elem_name)`` keyword names for the two fold
+        slots. **The rc420 fold-contract fix (`#T1114`):** the positional
+        ``op_fn(acc, elem)`` call could not bind a kw-only binary op —
+        measured, ``make_fold_stage(1, atoms.reorient, {})([1, -1, 1])``
+        raised ``TypeError: reorient() takes 1 positional argument but 2
+        were given`` — so the one surface that HAD fold could not bind the
+        canonical Class-C atom as shipped. Passing
+        ``arg_names=("value", "orientation")`` calls
+        ``op_fn(value=acc, orientation=elem, **kwargs)`` instead, binding
+        any keyword signature without changing the shipped op.
 
     Returns
     -------
@@ -128,6 +155,11 @@ def make_fold_stage(
 
     def fold_fn(input_seq):
         acc = init
+        if arg_names is not None:
+            acc_name, elem_name = arg_names
+            for elem in input_seq:
+                acc = op_fn(**{acc_name: acc, elem_name: elem}, **kwargs)
+            return acc
         for elem in input_seq:
             if kwargs:
                 acc = op_fn(acc, elem, **kwargs)
@@ -188,7 +220,7 @@ def make_parallel_stage(
     The ``parallel`` special form (v0.6.0rc11; rc12 composability). The
     piped value is run through ``body_fn`` across its ``n_sectors`` (≤ 4)
     Klein-4 chirality sectors via
-    :func:`srmech.amsc.cascade.parallel_sector_dispatch`. A GIL-releasing
+    :func:`srmech.cascade.parallel_sector_dispatch`. A GIL-releasing
     body (native / IO / numpy) lets the ≤4 sectors genuinely overlap.
 
     ``combine`` decides the stage's OUTPUT SHAPE (the rc12 §11.3 fix):
@@ -216,7 +248,7 @@ def make_parallel_stage(
         element; 8+ needs the order-3 triality, F220).
     combine
         Recombine for the sector results: a
-        :data:`srmech.amsc.cascade.COMBINE_REDUCERS` name (``"bundle"`` /
+        :data:`srmech.cascade.COMBINE_REDUCERS` name (``"bundle"`` /
         ``"mean"`` / ``"sector0"`` / ``"concat"``) or a callable → a single
         composable value; ``None`` → the per-sector list (terminal). Default
         ``"bundle"``.
@@ -246,9 +278,9 @@ def make_parallel_stage(
 
     def parallel_fn(input_value):
         # Lazy import (cycle-safe — mirrors _catalog.lookup_cascade_op):
-        # srmech.amsc.cascade pulls srmech.introspect which can pull
+        # srmech.cascade pulls srmech.introspect which can pull
         # srmech.dsl in some test configurations, so resolve at call time.
-        from srmech.amsc.cascade import parallel_sector_dispatch
+        from srmech.cascade import parallel_sector_dispatch
         result = parallel_sector_dispatch(
             body_fn, input_value, n_sectors=n_sectors, combine=combine,
         )
@@ -261,9 +293,61 @@ def make_parallel_stage(
     return parallel_fn
 
 
+def make_map_indexed_stage(
+    body_fn: Callable, kwargs: Dict[str, Any],
+) -> Callable[[Any], Any]:
+    """Build a stage callable for the SIXTH combinator: the indexed map.
+
+    ``input -> [body_fn(input, k, **kwargs) for k in range(len(input))]``
+    — the general ``out[k] = f(whole_input, k)`` form the `#T1114` census
+    measured as the single dominant missing recursion scheme (BLK-ITER-
+    INDEXED: it blocked 4 of the 20 cascade-catalog descriptors and 19 of
+    the 41 closed_form_ops modules at the scheme level; rung 4 measured
+    the form closing all four blocked descriptors bit-identically, 42/42).
+
+    BODY CONTRACT — DATA-FIRST, a deliberate departure from the rung-4
+    prototype's ``body(k, input)``: the DSL's stage discipline pipes the
+    stream into the FIRST positional argument (the v0.7.0rc22 ``reorient``
+    signature precedent — a data-first op is what ``op=`` /
+    ``parallel_body=`` stages can bind), so the body here is
+    ``body(input_seq, k)``. Registered data-first leaves like
+    :func:`srmech.cascade.leaves.seq_get` bind directly (the identity
+    map is ``map_indexed("seq_get")``).
+
+    TOTALITY (the invariant the closed kernel protects): ``n =
+    len(input_seq)`` is fixed BEFORE the first body call — an unsized
+    iterable raises ``TypeError`` at entry rather than iterating — and
+    the body is total ⇒ the stage is total. The map is data-SIZED, not
+    data-DEPENDENT: no predicate decides continuation, which is exactly
+    the boundary that keeps ``while``/``unfold`` exiled to the
+    op-instance layer.
+
+    Parameters
+    ----------
+    body_fn
+        Callable ``(input_seq, k, **kwargs) -> value``.
+    kwargs
+        Static kwargs passed to each ``body_fn`` invocation.
+
+    Returns
+    -------
+    callable
+        A unary ``input -> list`` stage callable.
+    """
+
+    def map_fn(input_value):
+        n = len(input_value)          # fixed BEFORE the first body call
+        if kwargs:
+            return [body_fn(input_value, k, **kwargs) for k in range(n)]
+        return [body_fn(input_value, k) for k in range(n)]
+
+    return map_fn
+
+
 __all__ = [
     "make_loop_stage",
     "make_fold_stage",
     "make_reduce_stage",
     "make_parallel_stage",
+    "make_map_indexed_stage",
 ]

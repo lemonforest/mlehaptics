@@ -1,5 +1,5 @@
 /*
- * srmech_phase_coherent.c — C parity for srmech.amsc.cascade.phase_coherent_peak
+ * srmech_phase_coherent.c — C parity for srmech.cascade.phase_coherent_peak
  * (0.9.0rc112; issue #1234 Item 1d, the F1000->F1001->F1002 refinement):
  * the LIGHTWEIGHT matched-filter PEAK READ over a rung/mode ladder — the
  * READ counterpart to the full srmech_quaternion_dft / srmech_octonion_dft

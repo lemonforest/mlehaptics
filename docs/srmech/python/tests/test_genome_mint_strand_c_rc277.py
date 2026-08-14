@@ -23,9 +23,9 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc import genome as G
-from srmech.amsc import _native
-from srmech.amsc.hdc import klein4_expand
+from srmech.biology import genome as G
+from srmech import _native
+from srmech.math.hdc import klein4_expand
 
 _DIM = 64
 

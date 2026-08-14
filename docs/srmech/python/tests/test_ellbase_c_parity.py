@@ -2,9 +2,9 @@
 EllMonomial canon shared with the rc63 ThetaSum peer).
 
 The native ``srmech_ellratio_is_elliptic`` is a 1:1 STRUCTURAL MIRROR of the pure-Python
-:meth:`srmech.amsc.ellbase.EllRatio.is_elliptic` — the COMPLETE balancing / very-well-
+:meth:`srmech.apokatastasis.ellbase.EllRatio.is_elliptic` — the COMPLETE balancing / very-well-
 poised predicate ``is_elliptic() == (pshift() == self)``, decided by the exact
-:meth:`~srmech.amsc.ellbase.Theta.canonicalize` quasi-periodicity rewrites (NOT a
+:meth:`~srmech.apokatastasis.ellbase.Theta.canonicalize` quasi-periodicity rewrites (NOT a
 bounded / numeric shell; no convergence threshold on any decision path). This suite
 asserts the C verdict EQUALS the Python verdict byte-for-byte on:
 
@@ -24,9 +24,9 @@ is_elliptic (not a silent Python fallback)."""
 
 import pytest
 
-from srmech.amsc.ellbase import EllMonomial as M, Theta, EllRatio as R
-from srmech.amsc.q import Q
-from srmech.amsc import _native
+from srmech.apokatastasis.ellbase import EllMonomial as M, Theta, EllRatio as R
+from srmech.math.q import Q
+from srmech import _native
 
 _A, _B, _C = M.symbol("a"), M.symbol("b"), M.symbol("c")
 _X, _Y = M.symbol("x"), M.symbol("y")
@@ -197,14 +197,14 @@ def test_has_native_ellratio_flag_present():
 # rc67 — the elliptic_lagrange_basis C-peer PARITY suite.
 #
 # srmech_elliptic_lagrange_basis is a 1:1 STRUCTURAL MIRROR of the pure-Python
-# srmech.amsc.ellbase.elliptic_lagrange_basis (the rc66 carrier op, shipped Python-
+# srmech.apokatastasis.ellbase.elliptic_lagrange_basis (the rc66 carrier op, shipped Python-
 # only; its C peer is owed by the everything-mirrors same-rc discipline). This suite
 # asserts the returned basis EllRatios are BYTE-EXACT EQUAL between the Python-only
 # path and the native path, for BOTH var=_X and var=_Y, across k ∈ {1, 2, 3} and
 # symbolic + specialized interpolation points. A divergence on ANY case is a BLOCKER.
 # ════════════════════════════════════════════════════════════════════════════════
 
-from srmech.amsc.ellbase import (                                    # noqa: E402
+from srmech.apokatastasis.ellbase import (                                    # noqa: E402
     elliptic_lagrange_basis,
     _elliptic_lagrange_basis_py,
     _elliptic_lagrange_basis_c,

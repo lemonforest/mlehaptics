@@ -3,10 +3,10 @@
 Verifies the v0.7.0rc33 routing of the real-symmetric / complex-Hermitian
 eigendecomposition (and ica_jade's atan2/cos/sin) onto srmech's own A-N cascade
 primitives in the four closed-form ops ``esprit`` / ``heat_kernel`` /
-``ica_jade`` / ``music``:
+``ica_jade`` / ``music_doa``:
 
-- Routing A: eigh -> ``srmech.amsc.laplacian.hermitian_eigendecompose``
-- Routing B: arctan2/cos/sin -> ``srmech.amsc.rational.atan2/cos/sin``
+- Routing A: eigh -> ``srmech.math.laplacian.hermitian_eigendecompose``
+- Routing B: arctan2/cos/sin -> ``srmech.math.rational.atan2/cos/sin``
 
 numpy-FREE (#564): numpy is GONE from srmech. ``hermitian_eigendecompose``
 returns plain Python lists, and the four closed-form ops consume / return plain
@@ -23,13 +23,13 @@ import cmath
 import math
 import random
 
-from srmech.amsc.cascade.matrix_cascades import eigvals, eigvals_exact
-from srmech.amsc.laplacian import hermitian_eigendecompose
+from srmech.cascade.matrix_cascades import eigvals, eigvals_exact
+from srmech.math.laplacian import hermitian_eigendecompose
 from srmech.signal_processing.closed_form_ops import (
     esprit,
     heat_kernel,
     ica_jade,
-    music,
+    music_doa,
 )
 
 
@@ -68,8 +68,8 @@ def _rand_int_sym(n, seed, complex_=False):
 
 def test_hermitian_eig_real_symmetric_parity():
     """Eigenvalues match the exact ``eigvals_exact`` oracle; H reconstructs."""
-    from srmech.amsc.mat import Mat
-    from srmech.amsc.vec import Vec
+    from srmech.math.mat import Mat
+    from srmech.math.vec import Vec
     H = _rand_int_sym(6, seed=1)
     n = len(H)
     ev_ref = sorted(eigvals_exact(H))
@@ -115,13 +115,13 @@ def test_hermitian_eig_complex_hermitian_parity():
 
 
 # ---------------------------------------------------------------------------
-# Routing B — ica_jade trig parity (srmech.amsc.rational vs libm)
+# Routing B — ica_jade trig parity (srmech.math.rational vs libm)
 # ---------------------------------------------------------------------------
 
 
 def test_rational_trig_parity_with_libm():
     """The Class-N trig used by ica_jade matches libm to its documented bound."""
-    from srmech.amsc import rational as _srn
+    from srmech.math import rational as _srn
 
     # 13 points over [-1.5, 1.5] (numpy-free linspace).
     thetas = [-1.5 + 3.0 * i / 12 for i in range(13)]
@@ -169,7 +169,7 @@ def test_music_peak_at_true_angle():
     grid = [-1.0 + 2.0 * i / (n_grid - 1) for i in range(n_grid)]
     # Steering matrix A: rows = sensors (M), cols = grid.
     A = [[cmath.exp(1j * math.pi * k * g) for g in grid] for k in range(M)]
-    psd = music.op(R, A, n_sources=1)
+    psd = music_doa.op(R, A, n_sources=1)
     assert isinstance(psd, list) and len(psd) == n_grid  # rc99: numpy-free list
     assert all(v > 0 for v in psd)
     peak_omega = grid[max(range(len(psd)), key=lambda i: psd[i])]  # pure-Python argmax

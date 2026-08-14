@@ -21,12 +21,12 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc.cascade.frame_carrier import (
+from srmech.cascade.frame_carrier import (
     frame_carrier,
     frame_carrier_compare,
 )
-from srmech.amsc.laplacian import _EPH_TWO_PI
-from srmech.amsc.rational import sin_series_truncate, cos_series_truncate
+from srmech.math.laplacian import _EPH_TWO_PI
+from srmech.math.rational import sin_series_truncate, cos_series_truncate
 
 # 2π and π as the EXACT Machin rationals the fold uses (den = 2^80). Building the
 # across-seam arguments from these keeps the whole test exact-rational.
@@ -198,14 +198,14 @@ def test_frame_carrier_rejects_bad_input(bad):
 def test_registration_and_coverage():
     from srmech import introspect
     schema = introspect.describe()
-    assert schema["tools"]["total"] == 509
+    assert schema["tools"]["total"] == 655
 
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     reg = {t.name for t in get_tool_schema().tools}
-    assert "srmech.amsc.cascade.frame_carrier.frame_carrier" in reg
-    assert "srmech.amsc.cascade.frame_carrier.frame_carrier_compare" in reg
+    assert "srmech.cascade.frame_carrier.frame_carrier" in reg
+    assert "srmech.cascade.frame_carrier.frame_carrier_compare" in reg
 
 
 def test_module_all_is_exactly_the_two_public_ops():
-    import srmech.amsc.cascade.frame_carrier as fc
+    import srmech.cascade.frame_carrier as fc
     assert set(fc.__all__) == {"frame_carrier", "frame_carrier_compare"}

@@ -21,7 +21,7 @@ import importlib
 import types
 
 from srmech import dsl
-from srmech.amsc import tool_schema as ts
+from srmech.introspect import tool_schema as ts
 from srmech.introspect import describe
 
 
@@ -74,7 +74,7 @@ def test_every_registered_tool_resolves_numpy_free():
             continue
         # A tool target is normally a callable. A few dotted names collide with a
         # submodule of the same leaf name (e.g. the ``sedenion_register`` factory
-        # re-exported on ``srmech.amsc.cascade`` vs the ``...cascade.sedenion_register``
+        # re-exported on ``srmech.cascade`` vs the ``...cascade.sedenion_register``
         # MODULE). The greedy resolver lands on the module; the registered callable
         # still exists on the parent package, so a module leaf is acceptable.
         if not callable(obj) and not is_module:

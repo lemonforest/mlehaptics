@@ -35,8 +35,8 @@ Machin-2π (``_EPH_TWO_PI``) — no forked constant in the test either.
 """
 import cmath
 
-from srmech.amsc import _native
-from srmech.amsc import laplacian as L
+from srmech import _native
+from srmech.math import laplacian as L
 
 
 # ── helpers (no numpy) ──────────────────────────────────────────────────
@@ -226,7 +226,7 @@ def test_crank_readouts_match_the_one():
     """The wound readouts ARE the One's readouts: for each mode,
     the_one(+1, 0, 1, w=(w_k, 0, 0)) reports the SAME sigma_effective and
     spinor_sign (the reuse contract — never re-derived)."""
-    from srmech.amsc.cascade.one import the_one
+    from srmech.cascade.one import the_one
     r = L.propagate_wound(_L2(), [1.0, 0.0], 44.0j / 3.0)
     for lam, w, th, sig, spin in _modes_sorted(r):
         one = the_one(+1, 0, 1, w=(w, 0, 0))
@@ -340,9 +340,9 @@ def test_json_native_types():
 
 def test_registration_and_count():
     import srmech
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
-    assert "srmech.amsc.laplacian.propagate_wound" in names
-    assert len(get_tool_schema().tools) == 509
-    assert srmech.describe()["tools"]["total"] == 509
+    assert "srmech.math.laplacian.propagate_wound" in names
+    assert len(get_tool_schema().tools) == 655
+    assert srmech.describe()["tools"]["total"] == 655
     assert "propagate_wound" in L.LAPLACIAN_OPS

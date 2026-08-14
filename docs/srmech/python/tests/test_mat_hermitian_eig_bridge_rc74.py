@@ -33,10 +33,10 @@ import textwrap
 
 import pytest
 
-from srmech.amsc.laplacian import mat_hermitian_eigendecompose, LAPLACIAN_OPS
-from srmech.amsc import laplacian as _lap
-from srmech.amsc.mat import Mat
-from srmech.amsc.cascade.matrix_cascades import eigvals_exact
+from srmech.math.laplacian import mat_hermitian_eigendecompose, LAPLACIAN_OPS
+from srmech.math import laplacian as _lap
+from srmech.math.mat import Mat
+from srmech.cascade.matrix_cascades import eigvals_exact
 
 
 # ── numpy-free correctness helpers (no numpy in the asserts themselves) ──
@@ -189,9 +189,9 @@ def test_mat_herm_eig_computes_numpy_free_native_and_fallback():
     proc = _run_numpy_free(
         """
         import sys
-        from srmech.amsc.laplacian import mat_hermitian_eigendecompose
-        from srmech.amsc import laplacian as lap
-        from srmech.amsc.mat import Mat
+        from srmech.math.laplacian import mat_hermitian_eigendecompose
+        from srmech.math import laplacian as lap
+        from srmech.math.mat import Mat
         assert "numpy" not in sys.modules, "import pulled numpy in"
 
         H = Mat.from_rows([[2.0+0j, 1.0+1j, 0+0j],

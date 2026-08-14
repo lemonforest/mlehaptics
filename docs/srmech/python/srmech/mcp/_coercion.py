@@ -85,7 +85,7 @@ from typing import Any, Callable, Dict, List, Tuple
 
 # numpy-FREE (#564): the wire form for a former ``np.ndarray`` param/return is a
 # plain nested JSON ``list`` (the numpy-free ops consume/return plain Python
-# lists / :class:`srmech.amsc.mat.Mat` / :class:`srmech.amsc.hv.HV` / ``complex``
+# lists / :class:`srmech.math.mat.Mat` / :class:`srmech.math.hv.HV` / ``complex``
 # now). No ``import numpy`` here — this was the LAST top-level numpy carrier.
 
 # ``binascii.Error`` is what ``base64.b64decode(validate=True)`` raises on
@@ -187,7 +187,7 @@ def _to_ndarray(value: Any, *, param: str = "") -> list:
 
 
 def _to_mat(value: Any, *, param: str = "") -> Any:
-    """Coerce a nested JSON list-of-rows to a real :class:`srmech.amsc.mat.Mat`
+    """Coerce a nested JSON list-of-rows to a real :class:`srmech.math.mat.Mat`
     (the numpy-free 2-D carrier; v0.7.5rc72 ``mat_matmul`` bridge). A value
     already a ``Mat`` passes through unchanged.
 
@@ -196,7 +196,7 @@ def _to_mat(value: Any, *, param: str = "") -> Any:
     a length-2 complex vector, so the generic JSON path never guesses imaginary
     parts); genuine-complex ``Mat`` work rides the in-process / by-reference
     handle path, not the JSON MCP path."""
-    from srmech.amsc.mat import Mat  # numpy-free carrier; lazy to avoid a cycle
+    from srmech.math.mat import Mat  # numpy-free carrier; lazy to avoid a cycle
     if isinstance(value, Mat):
         return value
     if not isinstance(value, (list, tuple)):
@@ -218,7 +218,7 @@ def _to_vec(value: Any, *, param: str = "") -> Any:
     Python structure (a ``list``) and lets the op's own acceptance handle the
     final carrier — never wraps numpy. A value already a ``Vec`` (an in-process
     caller) passes through unchanged."""
-    from srmech.amsc.vec import Vec  # numpy-free 1-D carrier; lazy to avoid a cycle
+    from srmech.math.vec import Vec  # numpy-free 1-D carrier; lazy to avoid a cycle
     if isinstance(value, Vec):
         return value
     if isinstance(value, tuple):
@@ -238,7 +238,7 @@ def _to_hv(value: Any, *, param: str = "") -> Any:
     minimal coercer produces the flat Python structure (a ``list``) and lets the
     op's own acceptance build the final ``HV`` / ``array('B')`` / ``list[float]``.
     A value already an ``HV`` (an in-process caller) passes through unchanged."""
-    from srmech.amsc.hv import HV  # numpy-free hypervector carrier; lazy
+    from srmech.math.hv import HV  # numpy-free hypervector carrier; lazy
     if isinstance(value, HV):
         return value
     if isinstance(value, tuple):
@@ -250,14 +250,14 @@ def _to_poly(value: Any, *, param: str = "") -> Any:
     """Coerce a JSON value to the **natural ascending-degree coefficient form** for
     a ``Poly``-typed param (rc41 ``gosper`` term-ratio operands).
 
-    The op's ``Poly`` acceptance (:meth:`srmech.amsc.poly.Poly.from_coeffs`) is
+    The op's ``Poly`` acceptance (:meth:`srmech.math.poly.Poly.from_coeffs`) is
     AGNOSTIC about input: it iterates a coefficient sequence where each entry is
     an exact-rational coefficient — an ``int``, or a ``[num, den]`` integer pair
     (a 2-list JSON carries naturally). So the honest, minimal coercer produces the
     flat Python list and lets ``Poly.from_coeffs`` build the carrier — never a
     float (a Poly coefficient must be exact). A value already a ``Poly`` (an
     in-process caller) passes through unchanged."""
-    from srmech.amsc.poly import Poly  # exact-ℚ polynomial carrier; lazy
+    from srmech.math.poly import Poly  # exact-ℚ polynomial carrier; lazy
     if isinstance(value, Poly):
         return value
     if isinstance(value, tuple):
@@ -270,16 +270,16 @@ def _to_bipoly(value: Any, *, param: str = "") -> Any:
     ``zeilberger`` bivariate term-ratio operands).
 
     A ``BiPoly`` is a polynomial in ``k`` whose coefficients are
-    :class:`~srmech.amsc.poly.Poly` in ``n``. The op's coercion
-    (:meth:`srmech.amsc.zeilberger.BiPoly.coerce`) accepts: a ``BiPoly`` (passes
+    :class:`~srmech.math.poly.Poly` in ``n``. The op's coercion
+    (:meth:`srmech.apokatastasis.zeilberger.BiPoly.coerce`) accepts: a ``BiPoly`` (passes
     through); a ``Poly`` (read as a polynomial in ``k`` alone); or a
     ``k``-ascending list whose entries are each a Poly-in-n (an ``n``-coefficient
     list). So the honest, minimal coercer hands the natural nested list through —
     a JSON ``[[a, b], [c]]`` rides as k-slot 0 = Poly-in-n ``[a, b]``, k-slot 1 =
     ``[c]`` — and lets ``BiPoly.coerce`` build the carrier (never a float; a
     coefficient must be exact). A ``BiPoly`` / ``Poly`` / tuple passes naturally."""
-    from srmech.amsc.zeilberger import BiPoly  # exact-ℚ bivariate carrier; lazy
-    from srmech.amsc.poly import Poly
+    from srmech.apokatastasis.zeilberger import BiPoly  # exact-ℚ bivariate carrier; lazy
+    from srmech.math.poly import Poly
     if isinstance(value, (BiPoly, Poly)):
         return value
     if isinstance(value, tuple):
@@ -292,15 +292,15 @@ def _to_tripoly(value: Any, *, param: str = "") -> Any:
     ``apagodu_zeilberger`` trivariate term-ratio operands).
 
     A ``TriPoly`` is a polynomial in ``ℚ[n,j,k]`` — a ``j``-ascending tuple of
-    :class:`~srmech.amsc.zeilberger.BiPoly` in ``(n,k)``. The op's coercion
-    (:meth:`srmech.amsc.tripoly.TriPoly._as_tripoly`) accepts a ``TriPoly`` (passes
+    :class:`~srmech.apokatastasis.zeilberger.BiPoly` in ``(n,k)``. The op's coercion
+    (:meth:`srmech.math.tripoly.TriPoly._as_tripoly`) accepts a ``TriPoly`` (passes
     through), a lower carrier (``BiPoly`` in ``(n,k)`` / ``Poly`` in ``k``), or the
     natural nested list. So the honest, minimal coercer hands the value through
     (tuple→list) and lets the op build the carrier (never a float; a coefficient
     must be exact). A ``TriPoly`` / ``BiPoly`` / ``Poly`` / tuple passes naturally."""
-    from srmech.amsc.tripoly import TriPoly  # exact-ℚ trivariate carrier; lazy
-    from srmech.amsc.zeilberger import BiPoly
-    from srmech.amsc.poly import Poly
+    from srmech.math.tripoly import TriPoly  # exact-ℚ trivariate carrier; lazy
+    from srmech.apokatastasis.zeilberger import BiPoly
+    from srmech.math.poly import Poly
     if isinstance(value, (TriPoly, BiPoly, Poly)):
         return value
     if isinstance(value, tuple):
@@ -313,15 +313,15 @@ def _to_qpoly(value: Any, *, param: str = "") -> Any:
     ``q_gosper`` q-hypergeometric term-ratio operands).
 
     A ``QPoly`` is a Laurent polynomial in ``x = qⁿ`` over ``ℚ[q]`` — an
-    ascending-x sequence of :class:`~srmech.amsc.poly.Poly`-in-``q`` cells. The op's
-    coercion (:func:`srmech.amsc.q_gosper._coerce_qpoly`) accepts a ``QPoly`` (passes
+    ascending-x sequence of :class:`~srmech.math.poly.Poly`-in-``q`` cells. The op's
+    coercion (:func:`srmech.apokatastasis.q_gosper._coerce_qpoly`) accepts a ``QPoly`` (passes
     through), a lower carrier (a ``Poly`` in ``q`` → an ``x**0`` cell), or the
     natural nested-list form (an ascending-x list of ``ℚ[q]`` coefficient cells). So
     the honest, minimal coercer hands the value through (tuple→list) and lets the op
     build the carrier (never a float; a coefficient must be exact). A ``QPoly`` /
     ``Poly`` / tuple passes naturally."""
-    from srmech.amsc.qpoly import QPoly  # exact-ℚ[q] q-shift carrier; lazy
-    from srmech.amsc.poly import Poly
+    from srmech.math.qpoly import QPoly  # exact-ℚ[q] q-shift carrier; lazy
+    from srmech.math.poly import Poly
     if isinstance(value, (QPoly, Poly)):
         return value
     if isinstance(value, tuple):
@@ -329,22 +329,35 @@ def _to_qpoly(value: Any, *, param: str = "") -> Any:
     return value
 
 
+def _to_qpoly_or_qbipoly(value: Any, *, param: str = "") -> Any:
+    """``QPoly | QBiPoly`` (rc363) — ``carrier_ladder.qpoly_promote``'s operand.
+
+    Promote is IDEMPOTENT at the top rung: handed an already-rung-2 ``QBiPoly``
+    it returns it unchanged, which is why the declared type names both. Both
+    carriers ride through untouched; a bare nested list is left for the op to
+    build into the LOWEST rung (a ``QPoly``), which is the rung the promote is
+    normally asked to raise. Delegating to :func:`_to_qpoly` keeps the list
+    behaviour identical to the one-carrier form — the union widened the DECLARED
+    type to match the code, it did not change what the code does."""
+    return _to_qpoly(value, param=param)
+
+
 def _to_qbipoly(value: Any, *, param: str = "") -> Any:
     """Coerce a JSON value to the natural form for a ``QBiPoly``-typed param (rc56
     ``q_zeilberger`` bivariate-q term-ratio operands).
 
     A ``QBiPoly`` is the q-analog of ``BiPoly`` — a polynomial in ``Y = qᵏ`` whose
-    coefficients are :class:`~srmech.amsc.qpoly.QPoly` in ``X = qⁿ`` (over ``ℚ[q]``).
-    The op's coercion (:meth:`srmech.amsc.qbipoly.QBiPoly.coerce`) accepts a
+    coefficients are :class:`~srmech.math.qpoly.QPoly` in ``X = qⁿ`` (over ``ℚ[q]``).
+    The op's coercion (:meth:`srmech.math.qbipoly.QBiPoly.coerce`) accepts a
     ``QBiPoly`` (passes through), a ``QPoly`` (read as a polynomial in ``Y`` alone), a
     ``Poly`` in ``q`` (a scalar), or the natural nested-``Y``-degree list whose entries
     are each a ``QPoly``-in-``X`` (or QPoly-coercible cell). So the honest, minimal
     coercer hands the value through (tuple→list) and lets the op build the carrier
     (never a float; a coefficient must be exact). A ``QBiPoly`` / ``QPoly`` / ``Poly``
     / tuple passes naturally."""
-    from srmech.amsc.qbipoly import QBiPoly  # exact bivariate-ℚ[q] carrier; lazy
-    from srmech.amsc.qpoly import QPoly
-    from srmech.amsc.poly import Poly
+    from srmech.math.qbipoly import QBiPoly  # exact bivariate-ℚ[q] carrier; lazy
+    from srmech.math.qpoly import QPoly
+    from srmech.math.poly import Poly
     if isinstance(value, (QBiPoly, QPoly, Poly)):
         return value
     if isinstance(value, tuple):
@@ -353,7 +366,7 @@ def _to_qbipoly(value: Any, *, param: str = "") -> Any:
 
 
 def _to_one(value: Any, *, param: str = "") -> Any:
-    """Coerce a JSON value to a :class:`~srmech.amsc.cascade.one.One` for a
+    """Coerce a JSON value to a :class:`~srmech.cascade.one.One` for a
     ``One``-typed param (rc290 ``hdc.klein4_from_one``).
 
     The One's canonical JSON-native form is the DICT its own
@@ -368,7 +381,7 @@ def _to_one(value: Any, *, param: str = "") -> Any:
     receives a float), so a float theta component is rejected rather than
     silently truncated.
     """
-    from srmech.amsc.cascade.one import One, one_from_jsonable  # lazy
+    from srmech.cascade.one import One, one_from_jsonable  # lazy
     if isinstance(value, One):
         return value
     if not isinstance(value, dict):
@@ -379,6 +392,43 @@ def _to_one(value: Any, *, param: str = "") -> Any:
     return one_from_jsonable(value)
 
 
+def _to_chain_spec(value: Any, *, param: str = "") -> Any:
+    """Coerce a JSON object to a :class:`~srmech.cascade.compose.ChainSpec`
+    (rc414, `#T1092`) — ``run_chain`` / ``resolve_chain``'s ``spec``.
+
+    A live ``ChainSpec`` (an in-process caller) passes through unchanged;
+    a JSON object is parsed by the op family's OWN parser,
+    :func:`srmech.cascade.compose.parse_chain_spec`, so there is exactly one
+    definition of what a chain is and the coercer cannot drift from it. A
+    malformed chain therefore raises the parser's own ``ChainSpecError``,
+    naming the offending step and key, rather than an
+    ``AttributeError: 'dict' object has no attribute 'steps'`` from deep
+    inside the runner.
+    """
+    from srmech.cascade.compose import ChainSpec, parse_chain_spec  # lazy
+    if isinstance(value, ChainSpec):
+        return value
+    if not isinstance(value, dict):
+        return value
+    return parse_chain_spec(value)
+
+
+def _to_recoverable_fold(value: Any, *, param: str = "") -> Any:
+    """Coerce a JSON object to a :class:`RecoverableFold` (rc414, `#T1092`) —
+    ``coupling.fold_identity``'s two operands. A live fold passes through; the
+    generating-input object ``{"R", "branches", "dim", "seed"}`` is re-encoded
+    through the op family's own ``fold_encode_recoverable``, so the wire form
+    and the constructor cannot drift apart. (The paired outbound half is
+    :func:`_wire_recoverable_fold`, defined with the other carrier wire forms
+    below; it is resolved at call time.)"""
+    from srmech.biology.coupling import RecoverableFold  # lazy
+    if isinstance(value, RecoverableFold):
+        return value
+    if not isinstance(value, dict):
+        return value
+    return _unwire_recoverable_fold(value)
+
+
 def _to_poly_or_bipoly(value: Any, *, param: str = "") -> Any:
     """Coerce a JSON value for a poly-ladder PROMOTE param (``Poly | BiPoly``;
     rc116 ``carrier_ladder.poly_promote``). The op restructures an
@@ -386,9 +436,9 @@ def _to_poly_or_bipoly(value: Any, *, param: str = "") -> Any:
     ``TriPoly`` passes straight through; a bare list is built into the lowest
     rung (a ``Poly``) so a from-scratch caller can promote a coefficient list.
     Never a float (a coefficient must be exact)."""
-    from srmech.amsc.poly import Poly
-    from srmech.amsc.zeilberger import BiPoly
-    from srmech.amsc.tripoly import TriPoly
+    from srmech.math.poly import Poly
+    from srmech.apokatastasis.zeilberger import BiPoly
+    from srmech.math.tripoly import TriPoly
     if isinstance(value, (Poly, BiPoly, TriPoly)):
         return value
     return _to_poly(value, param=param)
@@ -399,12 +449,117 @@ def _to_bipoly_or_tripoly(value: Any, *, param: str = "") -> Any:
     TriPoly``; rc116 ``carrier_ladder.poly_project``). An already-built
     ordinary-ladder carrier passes straight through; a bare nested list is
     built into a ``BiPoly``. Never a float (a coefficient must be exact)."""
-    from srmech.amsc.poly import Poly
-    from srmech.amsc.zeilberger import BiPoly
-    from srmech.amsc.tripoly import TriPoly
+    from srmech.math.poly import Poly
+    from srmech.apokatastasis.zeilberger import BiPoly
+    from srmech.math.tripoly import TriPoly
     if isinstance(value, (Poly, BiPoly, TriPoly)):
         return value
     return _to_bipoly(value, param=param)
+
+
+def _to_q(value: Any, *, param: str = "") -> Any:
+    """Coerce a JSON value to a ``Q``-typed param — srmech's exact-ℚ carrier.
+
+    ⚠️ v0.9.0rc362: this closes a ROUND-TRIP ASYMMETRY, not merely a missing key.
+    :func:`serialise_native` has emitted ``Q -> [numerator, denominator]`` since
+    rc231, and its own comment calls that form "the inverse of the inbound
+    ``_seq_charge`` ``[num, den] -> Q``". But that inbound half only ever existed
+    INSIDE a list coercer: every other srmech carrier (``Mat`` / ``Vec`` / ``HV``
+    / ``Poly`` / ``BiPoly`` / ``TriPoly`` / ``QPoly`` / ``QBiPoly`` / ``EllRatio``
+    / ``EllMonomial`` / ``One``) had a scalar coercer and ``Q``, the most basic of
+    them, did not. No op had ever advertised a bare ``Q`` param, so the gap was
+    real and unreachable at the same time; ``music.stiff_string_partials``
+    ``inharmonicity`` is the first, and the exhaustiveness ratchet in
+    ``tests/test_mcp.py`` found it immediately, which is what that ratchet is for.
+
+    Accepts a live ``Q`` (pass-through), a bare ``int`` (``Q(n, 1)``), or the
+    canonical ``[numerator, denominator]`` 2-int pair. A ``float`` is passed
+    THROUGH UNCHANGED rather than silently rationalised: the ops that take an
+    exact ``Q`` refuse floats on purpose (a float B collapses the Tier-1/Tier-2
+    distinction ``stiff_string_partials`` exists to expose), and manufacturing an
+    exact rational here would defeat the refusal at the one layer the caller
+    cannot see. Let the op raise its own explanatory ``TypeError``."""
+    from srmech.math.q import Q  # exact-ℚ carrier; lazy (no import cost when unused)
+    if isinstance(value, Q):
+        return value
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int):
+        return Q(value, 1)
+    if (isinstance(value, (list, tuple)) and len(value) == 2
+            and isinstance(value[0], int) and not isinstance(value[0], bool)
+            and isinstance(value[1], int) and not isinstance(value[1], bool)
+            and value[1] != 0):
+        return Q(int(value[0]), int(value[1]))
+    return value
+
+
+def _to_ratio(value: Any, *, param: str = "") -> Any:
+    """``int | Sequence[int] | Q`` -> a single exact ratio (v0.9.0rc424).
+
+    The rc424 music-RELATIONS family takes ONE ratio where the rc362 acoustic
+    family took a SEQUENCE of them, so :func:`_seq_q_or_int` is the wrong
+    shape and :func:`_to_q` is the wrong contract: these ops accept a bare
+    ``int``, an exact ``[num, den]`` pair, or a live ``Q``, and they do their
+    own coercion (``relations._as_ratio``) because they must be able to REFUSE
+    a float with an explanatory message.
+
+    So this coercer is deliberately near-transparent: it turns JSON's list
+    into the tuple the ops read most naturally, and passes everything else
+    through UNCHANGED. In particular a ``float`` is NOT rationalised here —
+    the ops reject floats on purpose (``81/80`` and ``1/1`` are different
+    intervals, and a float that rounds one to the other has erased a comma),
+    and manufacturing an exact value at this layer would defeat that refusal
+    where the caller cannot see it. Let the op raise its own ``TypeError``.
+    """
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, list) and len(value) == 2:
+        return tuple(value)
+    return value
+
+
+def _seq_q_or_int(value: Any, *, param: str = "") -> Any:
+    """``Sequence[int | Q | Qalg]`` -> list of ``int`` / ``Q`` / ``Qalg``
+    (v0.9.0rc362).
+
+    The wire form of an ACOUSTIC SPECTRUM: the ``partials`` argument of
+    ``music.spectrum_tier`` / ``commensurability_verdict`` / ``common_period``,
+    a sequence of partial-to-fundamental frequency RATIOS. Each element rides as
+    a bare JSON integer or as the canonical exact ``[numerator, denominator]``
+    pair — the same encoding :func:`serialise_native` emits outbound, so a
+    spectrum round-trips exactly and never through a float.
+
+    ⚠️ WHY ``Qalg`` IS NAMED IN THE TYPE THOUGH IT CANNOT RIDE JSON. The ops
+    accept ``Qalg``, the exact ALGEBRAIC-IRRATIONAL carrier — that is the whole
+    point of Tier 2 — and it has no JSON form, so an MCP caller cannot put one on
+    the wire. It is named in the declared type ANYWAY, and the first draft of
+    this rc left it out for the plausible reason that the wire contract should
+    not promise what it cannot carry. That was wrong, and the reason is worth
+    keeping: a ToolEntry type string is the OPERAND DECLARATION that
+    ``carrier_schema``'s back-index token-scans to build each carrier's
+    ``consumes`` list — not only the wire contract. Omitting ``Qalg`` is exactly
+    what kept it out of the carrier registry from rc22 to rc362 while the human
+    descriptions had said "each Q, Qalg, int or an (int, int) pair" all along.
+    The wire limitation belongs in ``_tools._ENCODING_HINT``, and is stated
+    there. A live ``Qalg`` from an in-process caller passes through this coercer
+    untouched; an MCP caller that wants a Tier-2 spectrum builds one with
+    ``equal_temperament_partials`` / ``stiff_string_partials`` and passes the
+    result on directly.
+
+    ⚠️ AND WHY NO FLOAT ARM. ``_seq_charge`` (the nearest sibling — per-edge
+    ``cycle_holonomy`` charges) lets a bare float through because its op projects
+    to a rational. These ops REFUSE floats, deliberately and with a long error
+    message: every float IS a rational, so a float spectrum is unconditionally
+    Tier 1 and unconditionally "harmonic", which is the exact silent
+    harmonisation the family exists to make impossible. A float therefore passes
+    through unconverted and the op raises. Do not add a float arm here."""
+    if not isinstance(value, (list, tuple)):
+        raise ValueError(
+            f"expected a list of frequency ratios (int / [num, den]) for param "
+            f"{param or '<partials>'!r}; got {type(value).__name__}"
+        )
+    return [_to_q(v, param=param) for v in value]
 
 
 def _to_ellratio(value: Any, *, param: str = "") -> Any:
@@ -413,7 +568,7 @@ def _to_ellratio(value: Any, *, param: str = "") -> Any:
 
     An ``EllRatio`` is a theta-quotient ``∏θ(αx;p)/∏θ(βx;p)`` over an exact-``ℚ``
     monomial prefactor. The op's coercion
-    (:func:`srmech.amsc.elliptic_gosper._coerce_ratio`) accepts an ``EllRatio``
+    (:func:`srmech.apokatastasis.elliptic_gosper._coerce_ratio`) accepts an ``EllRatio``
     (passes through) or a lower carrier (an ``EllMonomial`` → a pure-monomial ratio;
     a ``Theta`` → a single numerator theta). For a JSON caller the natural minimal
     operand is a single exact-``ℚ`` SCALAR (the elliptic-geometric constant ratio
@@ -421,8 +576,8 @@ def _to_ellratio(value: Any, *, param: str = "") -> Any:
     builds the scalar ``EllRatio.monomial(EllMonomial.scalar(z))``. An ``EllRatio`` /
     ``EllMonomial`` / ``Theta`` passes through (never a float; a coefficient must be
     exact)."""
-    from srmech.amsc.ellbase import EllMonomial, EllRatio, Theta  # exact carrier; lazy
-    from srmech.amsc.q import Q
+    from srmech.apokatastasis.ellbase import EllMonomial, EllRatio, Theta  # exact carrier; lazy
+    from srmech.math.q import Q
     if isinstance(value, (EllRatio, EllMonomial, Theta)):
         return value
     if isinstance(value, bool):
@@ -456,13 +611,31 @@ def _to_ellmonomial(value: Any, *, param: str = "") -> Any:
 
     An ``EllMonomial`` passes through unchanged. Never a float — a coefficient must
     be exact."""
-    from srmech.amsc.ellbase import EllMonomial  # exact carrier; lazy
-    from srmech.amsc.q import Q
+    from srmech.apokatastasis.ellbase import EllMonomial  # exact carrier; lazy
+    from srmech.math.q import Q
     if isinstance(value, EllMonomial):
         return value
     if isinstance(value, bool):
         return value
     if isinstance(value, str):
+        # rc414 (`#T1092`) — REJECT a repr, do not read it as a symbol NAME.
+        # Before rc414 an EllMonomial serialised OUT as its repr, and this
+        # branch read that repr straight back IN as a symbol: the wire string
+        # "EllMonomial(1·q^2)" became the monomial
+        # EllMonomial(1·EllMonomial(1·q^2)^1) — a DIFFERENT, well-formed
+        # monomial, silently, with no exception anywhere. The outbound
+        # envelope removes the input; this closes the door behind it, because
+        # a symbol NAME is a bare identifier and never contains a bracket or
+        # the repr's centre dot.
+        if "(" in value or ")" in value or "·" in value:
+            raise ValueError(
+                f"EllMonomial param {param or '<ell-monomial>'!r}: "
+                f"{value!r} is a repr / structured token, not a symbol name. "
+                f"A symbol is a bare identifier ('x0', 't', 'z1'); an "
+                f"arbitrary monomial rides as its "
+                f'{{"coeff": [num, den], "exponents": {{sym: exp}}}} object '
+                f"(or the $srmech_carrier envelope a producer emits)."
+            )
         return EllMonomial.symbol(value)
     if isinstance(value, int):
         return EllMonomial.scalar(Q(value, 1))
@@ -545,7 +718,7 @@ def _seq_int_or_pair(value: Any, *, param: str = "") -> List[Any]:
 
 def _seq_charge(value: Any, *, param: str = "") -> List[Any]:
     """``list[int | Q | float]`` (rc231; ``cycle_holonomy`` per-edge ``charges`` in
-    turns) -> list of int / float / srmech :class:`~srmech.amsc.q.Q`.
+    turns) -> list of int / float / srmech :class:`~srmech.math.q.Q`.
 
     A charge is an exact ``int`` / ``Q`` (turns) or a ``float`` (projected to a
     rational by the op). JSON has no rational, so an exact rational charge rides as a
@@ -554,7 +727,7 @@ def _seq_charge(value: Any, *, param: str = "") -> List[Any]:
     carrier, was ``fractions.Fraction``); a bare JSON int / float passes through (the
     op's ``_to_fraction`` accepts both). ``None`` is handled by
     :func:`coerce_param`'s null-passthrough (the all-zero / balanced default)."""
-    from srmech.amsc.q import Q
+    from srmech.math.q import Q
     if not isinstance(value, (list, tuple)):
         raise ValueError(
             f"expected a list of charges (int / float / [num, den]) for param "
@@ -577,13 +750,13 @@ def _to_mock_q_series(value: Any, *, param: str = "") -> Any:
 
     A ``MockQSeries`` is the holomorphic part ``f⁺`` of a harmonic Maass form (a
     leading ``q``-power + a finite generating rule). The op
-    (:func:`srmech.amsc.harmonic_maass.harmonic_maass`) accepts the STRING
+    (:func:`srmech.apokatastasis.harmonic_maass.harmonic_maass`) accepts the STRING
     ``'eulerian_f'`` (Ramanujan's order-3 ``f(q)``, the #9 keystone) directly, so
     for a JSON caller the natural minimal operand is that string — passed through.
     A coefficient list (a JSON array of ``[num, den]`` pairs, or ints) builds a
     closed-form ``qpoly`` mock part; a ``MockQSeries`` passes through (never a
     float; a coefficient must be exact)."""
-    from srmech.amsc.harmonic_maass import MockQSeries  # exact carrier; lazy
+    from srmech.apokatastasis.harmonic_maass import MockQSeries  # exact carrier; lazy
     if isinstance(value, MockQSeries):
         return value
     if isinstance(value, str):
@@ -611,7 +784,7 @@ def _to_unary_theta(value: Any, *, param: str = "") -> Any:
     ``'minus12'``) builds ``unary_theta('minus12', 1, 1, 0, 24, support='positive')``
     (Zagier, Astérisque 326, p. 150, the #9 mock-theta shadow). A
     ``UnaryTheta`` passes through unchanged."""
-    from srmech.amsc.unary_theta import UnaryTheta, unary_theta  # exact carrier; lazy
+    from srmech.apokatastasis.unary_theta import UnaryTheta, unary_theta  # exact carrier; lazy
     if isinstance(value, UnaryTheta):
         return value
     if isinstance(value, str) and value in ("g3", "g_3", "minus12", "(-12/.)"):
@@ -937,6 +1110,61 @@ def _to_uint32_acc(value: Any, *, param: str = "") -> Any:
     )
 
 
+def _to_species(value: Any, *, param: str = "") -> Any:
+    """``srmech.chemistry.balance_reaction`` ``species`` (v0.9.0rc379).
+
+    A list whose entries are formula strings (``"H2O"``) and/or
+    ``{element: count}`` dicts — both JSON-native — or a live element×species
+    ``QMat`` (in-process only; JSON cannot carry it by value). A live QMat passes
+    through; a list is returned as-is, because the op parses the formula strings
+    and reads the count dicts itself."""
+    from srmech.math.qmat import QMat  # exact-ℚ matrix carrier; lazy
+    if isinstance(value, QMat):
+        return value
+    if isinstance(value, (list, tuple)):
+        return list(value)
+    return value
+
+
+def _to_qmat_rows(value: Any, *, param: str = "") -> Any:
+    """``srmech.chemistry.conservation_laws`` ``N`` (v0.9.0rc379).
+
+    The species×reaction stoichiometric matrix: a live ``QMat`` (pass-through),
+    or a nested sequence whose entries are bare JSON ints or the canonical
+    ``[numerator, denominator]`` exact-``Q`` pair (the same encoding
+    :func:`serialise_native` emits). Rebuilds each ``[num, den]`` leaf to a
+    ``Q`` and returns the nested int/``Q`` rows the op feeds straight to
+    ``QMat``."""
+    from srmech.math.q import Q       # exact-ℚ carrier; lazy
+    from srmech.math.qmat import QMat
+    if isinstance(value, QMat):
+        return value
+    rows = []
+    for row in value:
+        out = []
+        for x in row:
+            if (isinstance(x, (list, tuple)) and len(x) == 2
+                    and isinstance(x[0], int) and not isinstance(x[0], bool)
+                    and isinstance(x[1], int) and not isinstance(x[1], bool)
+                    and x[1] != 0):
+                out.append(Q(int(x[0]), int(x[1])))
+            else:
+                out.append(x)
+        rows.append(out)
+    return rows
+
+
+def _to_reactions(value: Any, *, param: str = "") -> Any:
+    """``srmech.chemistry.deficiency`` ``reactions`` (v0.9.0rc379).
+
+    A list of ``(reactant, product)`` pairs; over JSON each pair rides as a
+    2-element list and each complex as a ``{species: coeff}`` dict (or a bare
+    species-name str, or ``null`` for the zero complex). Rebuild each pair as a
+    tuple so the op's ``reactant, product = rxn`` unpacking is unambiguous; the
+    op normalizes the complexes itself."""
+    return [tuple(pair) for pair in value]
+
+
 #: Declared-type-string -> inbound coercer. Pass-through (``_identity``)
 #: entries are JSON-native or opaque-handle types that ``invoke_tool``
 #: cannot meaningfully coerce — they are listed EXPLICITLY (not defaulted)
@@ -957,13 +1185,46 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     "TriPoly": _to_tripoly,    # 0.9.0rc53: exact-ℚ[n,j,k] trivariate carrier (apagodu_zeilberger ratios)
     "QPoly": _to_qpoly,        # 0.9.0rc55: exact-ℚ[q] q-shift carrier (q_gosper q-term ratios)
     "QBiPoly": _to_qbipoly,    # 0.9.0rc56: exact bivariate-ℚ[q] carrier (q_zeilberger ratios)
+    # ── 0.9.0rc363: the C2 (ADR-0012 §3.1) TYPE-HONESTY widenings.
+    #    Each of these unions was ALREADY what the op accepted and already what
+    #    its own coercion raise text and prose said; only the machine-readable
+    #    `.type` withheld it, so `carrier_schema()`'s ops back-index and the
+    #    rc205 drift ratchet — both derived from that field — could not see it.
+    #    The coercers below are the SAME functions the one-carrier keys map to:
+    #    nothing about the wire behaviour changed, the declaration caught up. ──
+    "QPoly | Poly": _to_qpoly,               # q_gosper.rn_num / rn_den
+    "QPoly | QBiPoly": _to_qpoly_or_qbipoly,  # carrier_ladder.qpoly_promote.p
     # 0.9.0rc116 (#1248 / F1038): the carrier-ladder promote/project inputs —
     # a poly-ladder carrier passes through; a bare (nested) list builds the
     # lowest rung. Return-side union types (Poly | BiPoly / QPoly …) need no
     # coercer (only PARAM types are coerced).
     "Poly | BiPoly": _to_poly_or_bipoly,
     "BiPoly | TriPoly": _to_bipoly_or_tripoly,
+    # 0.9.0rc362: srmech's exact-ℚ carrier, the LAST carrier without a scalar
+    # coercer. serialise_native has emitted Q -> [num, den] since rc231 and calls
+    # that the inverse of an inbound coercion that only existed inside a list
+    # handler; music.stiff_string_partials `inharmonicity` is the first param to
+    # advertise a bare Q and the first to need it. See _to_q on why a float is
+    # passed through rather than rationalised.
+    "Q": _to_q,
+    # 0.9.0rc379 (`#T1050`): the srmech.chemistry reaction-network ops. Their
+    # operands ride JSON as formula strings / {element:count} dicts, nested
+    # int/[num,den] stoichiometric rows, and (reactant, product) complex-dict
+    # pairs; the coercers rebuild the exact-Q leaves and the pair tuples, and a
+    # live QMat passes through (in-process only). See srmech/chemistry/.
+    "Sequence[str | dict[str,int]] | QMat": _to_species,        # balance_reaction species
+    "QMat | Sequence[Sequence[int | Q]]": _to_qmat_rows,        # conservation_laws N
+    "Sequence[tuple[dict[str,int], dict[str,int]]]": _to_reactions,  # deficiency reactions
     "EllRatio": _to_ellratio,  # 0.9.0rc61: exact modified-theta-quotient carrier (elliptic_gosper term ratio)
+    # 0.9.0rc363: the same coercer, under the honest union name. _to_ellratio has
+    # accepted (EllRatio, EllMonomial, Theta) since rc61 — five ops declared only
+    # the first arm while their own prose said "an EllMonomial / Theta is lifted".
+    "EllRatio | EllMonomial | Theta": _to_ellratio,
+    # 0.9.0rc363: a THRESHOLD that is decided in the rationals. Both ops promote
+    # an int / float to exact ℚ at the comparison boundary and accept a live Q;
+    # `float` / `number` alone said the boundary was decided in binary.
+    "float | Q": _to_q,        # harmonics.classify_chirality_harmonic.dc_threshold
+    "number | Q": _to_q,       # coupling.fold_spectrum.margin_floor
     "One": _to_one,            # 0.9.0rc290: the S(σ,θ) generator, via its own
                                # canonical (sigma, theta, terms) dict
                                # (hdc.klein4_from_one / ONE-A14)
@@ -987,6 +1248,21 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     "Sequence[Vec]": _seq_vec,   # v0.7.5rc132: coupling.signed_sum_squared sources
     "Sequence[HV]": _seq_hv,     # v0.7.5rc132: genome / hdc bundle hypervector lists
     "Sequence[str]": _identity,  # v0.7.5rc155: hdc.cooccurrence_fold `tokens` (JSON-native)
+    # 0.9.0rc362: the ACOUSTIC SPECTRUM operand — music.spectrum_tier /
+    # commensurability_verdict / common_period `partials`. Over JSON each ratio
+    # rides as a bare int or an exact [num, den] pair. The declared type ALSO
+    # names Qalg, which has no JSON form: that arm is IN-PROCESS ONLY and a live
+    # Qalg passes through untouched. It is named anyway because the type string
+    # is the operand declaration the carrier back-index reads, not only the wire
+    # contract — leaving it out is what hid Qalg from the carrier registry until
+    # rc362 (see the carrier_schema module docstring). The wire limitation is
+    # stated in _tools._ENCODING_HINT, which is where it belongs.
+    # No float arm — see _seq_q_or_int.
+    "Sequence[int | Q | Qalg]": _seq_q_or_int,
+    # v0.9.0rc424: the music-RELATIONS family's SINGLE-ratio operand — the
+    # scalar peer of the sequence key above (just_limit / comma_of_chain /
+    # tempers_out).
+    "int | Sequence[int] | Q": _to_ratio,
     # v0.7.5rc155: the §50 holographic-bundle accumulator (klein4_bundle_accumulate
     # /_resolve) — a (1+2*D) uint32 array, or None for the create case.
     "array('I')": _to_uint32_acc,
@@ -1009,6 +1285,11 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     # ── JSON-native-ish that still want a light shape fix ──
     "pathlib.Path": _to_path,
     "tuple[int, int]": _to_int_tuple,
+    # 0.9.0rc408 (`#T1078`): cascade.the_one `w` — the WINDING TRIAD
+    # (n_sigma, n_theta, n_phi). ``_to_int_tuple`` is arity-agnostic (it turns
+    # the JSON list into a tuple; the op validates the length), so the pair
+    # coercer above serves the triad unchanged.
+    "tuple[int, int, int]": _to_int_tuple,
     "list[tuple[int, int]]": _identity,   # nested lists JSON-native
     "list[tuple[int, int, int]]": _identity,  # v0.9.0rc328: cotangent_weights `triangles` — (i,j,k) vertex-index triples, JSON-native nested list
     # 0.9.0rc231 (#810 / #687): the V₄-gain-graph odd/even-channel ops.
@@ -1034,10 +1315,25 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     "Optional[dict]": _identity,
     "list": _identity,
     "list[int]": _identity,
+    "list[float]": _identity,     # rc420 (`#T1114`): the cascade leaf inventory's float-vector params (vec_add / vec_scale / compensated_sum / the kuramoto+DFT leaves) — JSON-native, like list[int]
+    "object": _identity,          # rc420 (`#T1114`): a declared ANY-JSON-VALUE param (cascade.pair assembles two arbitrary values) — the explicit spelling of "passes through unchanged"
     "Optional[list[float]]": _identity,
     "iterable[int]": _identity,
     "sequence": _identity,
     "Sequence[int]": _identity,   # v0.9.0rc121: genome.kernel_pack `data` (flat Klein-4 kernel; JSON-native)
+    # v0.9.0rc352 (`#T997` / `#T1001`): the OPTIONAL twins of two keys already
+    # above. No new handler — the payloads are the same JSON-native shapes
+    # ``Sequence[int]`` and ``list[list[list[int]]]`` already ride, and ``None``
+    # passes through to mean "the default algebra" (the definite Cayley–Dickson
+    # ladder for `gammas`, the shipped CD product for `table`). Registered
+    # explicitly because the lookup is by exact type-string, which is why
+    # ``Optional[int]`` sits beside ``int`` and ``Optional[list[float]]`` beside
+    # its own twin: an op whose declared type has no key is REGISTERED BUT
+    # UNCALLABLE over MCP.
+    #   algebra_table `gammas`, cd_norm_sq `gammas`
+    "Sequence[int] | None": _identity,
+    #   left_mult_kernel / left_mult_is_invertible `table`
+    "list[list[list[int]]] | None": _identity,
     "list|str": _identity,        # v0.9.0rc121: genome.kernel_unpack `strand_or_path` (strand list OR path str; both JSON-native)
     "int | float | str | list | dict": _identity,
     # v0.9.0rc268 (§98 chromatin): genome.condense `state` (True/False OR a (num,den) level — a
@@ -1048,10 +1344,29 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     # `fluxes` — a scalar diffusion-time/flux OR a list of them; both forms are
     # JSON-native (the op itself dispatches scalar → float, sequence → Vec).
     "float | Sequence[float]": _identity,
-    # ── opaque in-process handle types (cannot ride JSON; the schema
-    #    renders them as objects and an in-process caller passes the real
-    #    object through). Listed so the ratchet stays exhaustive. ──
-    "ChainSpec": _identity,
+    # 0.9.0rc421 (`#T1122`): cascade.octonion_frame_read `frame` — either a bare
+    # int (a splitting unit on the default Fano line) or a 4-sequence
+    # (i, j, k, ℓ) naming a line and its splitting unit. Both arms are
+    # JSON-native; the op's own validator is the canonical checker and names the
+    # specific defect, so nothing is coerced away from it here.
+    "int | Sequence[int]": _identity,
+    # 0.9.0rc414 (`#T1092`): ChainSpec was the LAST ``_identity`` row that was
+    # not actually a pass-through decision — it was the reason ``run_chain`` and
+    # ``resolve_chain`` looked non-callable. The advertised JSON schema publishes
+    # ``spec: "object"``, so a schema-obedient client sends a JSON object; the
+    # object then arrived RAW and the op raised
+    # ``AttributeError: 'dict' object has no attribute 'steps'``. That is the
+    # rc408 anti-pattern verbatim (telling a client to send a value that cannot
+    # work is worse than telling it to send nothing) and it is a MISSING
+    # COERCER, not a missing capability: ``parse_chain_spec`` is itself
+    # MCP-callable and returns a structured dict. A live ChainSpec still passes
+    # through untouched for the in-process caller.
+    "ChainSpec": _to_chain_spec,
+    # 0.9.0rc414 (`#T1092`): coupling.fold_identity's two operands. The op was
+    # shipped and __all__-exported since `#T723` but carried no ToolEntry, so
+    # this is the first rc in which the type is ADVERTISED and therefore the
+    # first in which it needs a handler.
+    "RecoverableFold": _to_recoverable_fold,
     # ── rc16 by-reference handle dual-grammar (was _identity in rc14/15;
     #    now REAL resolvers — the $srmech_handle envelope -> live object). ──
     "SpectralHandle": _resolve_spectral_handle,
@@ -1063,6 +1378,17 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     "operator_name": _resolve_operator_name,
     "callable": _identity,
     "numpy.random.Generator": _identity,
+    # 0.9.0rc408 (`#T1078`): the HOST-SIDE operand types. Both publish
+    # JSON-schema "null" (srmech.mcp._tools._TYPE_LEXICON), so the ONLY value
+    # that can arrive here over the wire is ``None`` — and ``coerce_param``
+    # short-circuits ``None`` before ever reaching this table. The identity
+    # entries therefore exist for the IN-PROCESS path (a Python caller passing
+    # a real callback / Generator through invoke_tool) and to satisfy the
+    # ``has_coercer`` exhaustiveness ratchet, which requires every ADVERTISED
+    # param type to have an explicit handler. Identity is the correct handler:
+    # a live host object is already the native form and must not be touched.
+    "host_callable": _identity,
+    "host_rng": _identity,
 }
 
 
@@ -1083,13 +1409,496 @@ def coerce_param(value: Any, type_string: str, *, param: str = "") -> Any:
     it means "absent / use the default" for an ``Optional[...]`` param,
     regardless of the declared element type (so an explicit ``null`` for
     an ``Optional[np.ndarray]`` stays ``None``, not a 0-d object array).
+
+    rc414 (`#T1092`): a ``$srmech_carrier`` envelope is rebuilt STRUCTURALLY
+    first (:func:`deserialise_native`), so a carrier a producer emitted —
+    at the top level OR nested inside a ``dict`` / ``list`` the declared
+    type-string does not describe — arrives as the live carrier. Every
+    ``_to_*`` coercer passes a live carrier through unchanged, so the two
+    stages compose: structural rebuild, then declared-type coercion.
     """
     if value is None:
         return None
+    value = deserialise_native(value)
     coercer = _PARAM_COERCERS.get(type_string)
     if coercer is None:
         return value
     return coercer(value, param=param)
+
+
+# ──────────────────────────────────────────────────────────────────────
+# rc414 (`#T1092`) — the SELF-DESCRIBING CARRIER ENVELOPE
+#
+# THE STRUCTURAL ASYMMETRY THIS CLOSES. ``serialise_native`` is STRUCTURAL
+# (it walks the value); ``coerce_param`` is DECLARED-TYPE (a table read off
+# ``returns.type``). Before rc414 there was no structural inverse, so a
+# carrier nested inside a ``dict`` / ``list`` / ``tuple`` was serialised out
+# and could never be reconstructed in — and that is exactly where the
+# mathematical content lives. ``zeilberger`` handed its ``certificate`` back
+# as the STRING ``"BiPoly(k_degree=1, exact-ℚ[n,k])"``; that certificate is
+# the entire point of the op. 119 registered ops declare a bare ``dict``,
+# 39 a ``list``, 23 a ``tuple``.
+#
+# THE FORM. A carrier rides as ``{"$srmech_carrier": "<name>", "value": …}``
+# — the shape ``_handles.HANDLE_ENVELOPE_KEY`` (``"$srmech_handle"``) already
+# establishes for the by-reference grammar. This is its BY-VALUE peer: the
+# handle envelope says "the object stayed here, here is its address"; the
+# carrier envelope says "here is the object, exactly". Both are namespaced
+# with a leading ``$`` so they are unambiguous against every other wire shape
+# in play.
+#
+# THE VALUE PAYLOAD IS NOT NEW GRAMMAR. Each ``value`` is the wire form the
+# COMPILED implementation already reads — ``srmech_carrier_marshal`` has
+# consumed exactly these nested exact-ℚ shapes since rc191/rc223
+# (``SRMECH_CARRIER_POLY`` / ``_BIPOLY`` / ``_SCALAR`` / ``_TRIPOLY`` /
+# ``_QBIPOLY`` / ``_ELLRATIO``, ``c/include/srmech.h``), and the Python
+# ``_*_pairs`` / ``_*_from_pairs`` bridges that feed it are the SAME pair
+# functions used here. So the envelope adds a self-describing TAG around a
+# payload both implementations already agree on, rather than minting a
+# second, divergent encoding of the same object. That is what makes the
+# ADR-0009 C-parity obligation a tag-reader, not a re-implementation.
+#
+# SCOPE, STATED SO IT IS CHECKABLE. The envelope is applied to exactly the
+# carriers that TODAY degrade to ``repr(obj)`` in ``_tools._json_fallback``.
+# Carriers with an established, tested wire form — ``Q`` -> ``[num, den]``,
+# ``Mat`` / ``Vec`` -> nested list, ``HV`` -> list[int], ``bytes`` -> base64,
+# ``complex`` -> ``[re, im]`` — are NOT wrapped: their forms round-trip today
+# and re-tagging them would be a gratuitous wire break. Nothing that works
+# before rc414 changes shape; only lossy repr strings become structure.
+# ──────────────────────────────────────────────────────────────────────
+
+#: Sentinel key tagging a BY-VALUE carrier on the JSON wire — the by-value
+#: peer of :data:`srmech._handles.HANDLE_ENVELOPE_KEY`.
+CARRIER_ENVELOPE_KEY: str = "$srmech_carrier"
+
+
+def encode_carrier_envelope(name: str, value: Any) -> Dict[str, Any]:
+    """Build the on-wire carrier object ``{"$srmech_carrier": name,
+    "value": value}``."""
+    assert name, "encode_carrier_envelope: name must be non-empty"
+    return {CARRIER_ENVELOPE_KEY: name, "value": value}
+
+
+def is_carrier_envelope(value: Any) -> bool:
+    """True iff ``value`` is a by-value carrier object carrying the
+    :data:`CARRIER_ENVELOPE_KEY` sentinel."""
+    return (isinstance(value, dict)
+            and CARRIER_ENVELOPE_KEY in value
+            and isinstance(value.get(CARRIER_ENVELOPE_KEY), str))
+
+
+# ── the per-carrier VALUE forms (the shipped C-bridge pair shapes) ────────
+
+def _wire_poly(p: Any) -> Any:
+    """``Poly`` -> ascending-degree ``[[num, den], …]``. The
+    ``SRMECH_CARRIER_POLY`` shape; ``srmech.math.poly._pairs`` verbatim."""
+    return [[c.numerator, c.denominator] for c in p.coeffs]
+
+
+def _unwire_poly(v: Any) -> Any:
+    from srmech.math.poly import Poly
+    return Poly.from_coeffs(v)
+
+
+def _wire_bipoly(b: Any) -> Any:
+    """``BiPoly`` -> k-ascending list of Poly-in-n coefficient lists. The
+    ``SRMECH_CARRIER_BIPOLY`` shape; ``zeilberger._bi_pairs`` verbatim."""
+    return [_wire_poly(kp) for kp in b.terms]
+
+
+def _unwire_bipoly(v: Any) -> Any:
+    from srmech.apokatastasis.zeilberger import BiPoly
+    return BiPoly.coerce(v)
+
+
+def _wire_tripoly(t: Any) -> Any:
+    """``TriPoly`` -> the j-major ``[[[num, den], …]_n]_k]_j`` nest. The
+    ``SRMECH_CARRIER_TRIPOLY`` shape; ``tripoly._tri_pairs`` verbatim."""
+    return [_wire_bipoly(bib) for bib in t.blocks]
+
+
+def _unwire_tripoly(v: Any) -> Any:
+    from srmech.math.tripoly import _tri_from_pairs
+    return _tri_from_pairs(v)
+
+
+def _wire_qpoly(p: Any) -> Any:
+    """``QPoly`` -> ``[x_low, [[[num, den], …]_q]_x]``.
+
+    ``x_low`` is the Laurent tail offset and it is CARRIED. Before rc414 the
+    outbound form was a repr string and the inbound ``_to_qpoly`` accepted only
+    the bare cell list, while ``QPoly.from_coeffs(seq, x_low=0)`` takes
+    ``x_low`` as a SEPARATE parameter — so a Laurent ``QPoly`` could not be
+    expressed in EITHER direction. This is ``qpoly._qp_pairs`` verbatim, i.e.
+    the ``[x_low, rows]`` pair the ``SRMECH_CARRIER_QBIPOLY`` reader already
+    consumes per Y-cell."""
+    from srmech.math.qpoly import _qp_pairs
+    x_low, rows = _qp_pairs(p)
+    return [x_low, [[[n, d] for n, d in run] for run in rows]]
+
+
+def _unwire_qpoly(v: Any) -> Any:
+    from srmech.math.qpoly import _qp_from_pairs
+    return _qp_from_pairs((int(v[0]), v[1]))
+
+
+def _wire_qbipoly(b: Any) -> Any:
+    """``QBiPoly`` -> ``[[x_low, rows], …]_Y`` — one ``_wire_qpoly`` payload
+    per Y-cell. The ``SRMECH_CARRIER_QBIPOLY`` shape (``qbipoly._qb_pairs``
+    carries the per-Y ``x_low`` list for exactly this reason)."""
+    return [_wire_qpoly(cell) for cell in b.terms]
+
+
+def _unwire_qbipoly(v: Any) -> Any:
+    from srmech.math.qbipoly import QBiPoly
+    return QBiPoly([_unwire_qpoly(cell) for cell in v])
+
+
+def _wire_ellmonomial(m: Any) -> Any:
+    """``EllMonomial`` -> ``{"coeff": [num, den], "exponents": {sym: exp}}``.
+
+    Not invented here: ``_to_ellmonomial``'s GENERAL dict arm has specified
+    this exact shape since rc231, and its own docstring calls it the form that
+    lets "a bare host round-trip an ARBITRARY monomial (everything-mirrors)".
+    Only the outbound branch was missing."""
+    c = m.coeff
+    return {"coeff": [c.numerator, c.denominator], "exponents": dict(m.exps)}
+
+
+def _unwire_ellmonomial(v: Any) -> Any:
+    return _to_ellmonomial(v)
+
+
+def _wire_theta(t: Any) -> Any:
+    """``Theta`` -> ``{"arg": <EllMonomial form>}``. Composes from the monomial
+    leaf with zero new grammar (a ``Theta`` is exactly its argument)."""
+    return {"arg": _wire_ellmonomial(t.arg)}
+
+
+def _unwire_theta(v: Any) -> Any:
+    from srmech.apokatastasis.ellbase import Theta
+    return Theta(_unwire_ellmonomial(v["arg"]))
+
+
+def _wire_ellratio(r: Any) -> Any:
+    """``EllRatio`` -> ``{"prefactor": <mono>, "num": [<theta>…],
+    "den": [<theta>…]}``. Composes from the monomial + theta leaves — again
+    zero new grammar."""
+    return {
+        "prefactor": _wire_ellmonomial(r.prefactor),
+        "num": [_wire_theta(t) for t in r.num],
+        "den": [_wire_theta(t) for t in r.den],
+    }
+
+
+def _unwire_ellratio(v: Any) -> Any:
+    from srmech.apokatastasis.ellbase import EllRatio
+    return EllRatio(
+        _unwire_ellmonomial(v.get("prefactor", 1)),
+        [_unwire_theta(t) for t in v.get("num", ())],
+        [_unwire_theta(t) for t in v.get("den", ())],
+    )
+
+
+def _wire_qmat(m: Any) -> Any:
+    """``QMat`` -> nested ``[[[num, den], …], …]`` — the exact-ℚ peer of the
+    ``Mat`` branch's nested float list. The inbound half already existed
+    (``_to_qmat_rows``, registered under the union key
+    ``"QMat | Sequence[Sequence[int | Q]]"``); only the outbound was missing."""
+    return [[[q.numerator, q.denominator] for q in row] for row in m._rows]
+
+
+def _unwire_qmat(v: Any) -> Any:
+    from srmech.math.qmat import QMat
+    return QMat.from_rows(v)
+
+
+def _wire_qalg(a: Any) -> Any:
+    """``Qalg`` -> ``{"m": [int, …], "coords": [[num, den], …]}`` — the minimal
+    polynomial's integer coefficient list plus the exact-ℚ coordinate vector in
+    the power basis ``1, α, α², …``.
+
+    Those two ARE the element (``Σ coords[i]·αⁱ`` in ``ℚ[x]/(m)``), so the pair
+    is complete. This is the carrier that made ADR-0012 clause C5 false on its
+    own marquee exhibit: ``music.equal_temperament_partials`` returns
+    ``ratios`` as ``Qalg``, and feeding them straight back into
+    ``music.spectrum_tier`` over the wire raised ``TypeError: expected Q, Qalg,
+    int or an (int, int) pair; got str``, because ``Q`` gained its
+    ``[num, den]`` branch at rc231 and the algebraic peer never did."""
+    return {
+        "m": [int(c) for c in a._m],
+        "coords": [[q.numerator, q.denominator] for q in a._coords],
+    }
+
+
+def _unwire_qalg(v: Any) -> Any:
+    from srmech.math.q import Q
+    from srmech.math.qalg import Qalg
+    return Qalg([int(c) for c in v["m"]],
+                [Q(int(c[0]), int(c[1])) for c in v["coords"]])
+
+
+def _wire_carrier_spectrum(cs: Any) -> Any:
+    """``CarrierSpectrum`` -> ``{"element": <EllRatio form>}``.
+
+    A ``CarrierSpectrum`` is a pure DERIVATION of its ``EllRatio`` element (the
+    cyclic σ-spectrum and the p-character blocks are both read FROM it on
+    construction), so the element is the whole state and re-deriving on read is
+    exact. Shipping the derived channels too would be a second source of truth
+    for facts the element already determines."""
+    return {"element": _wire_ellratio(cs.element)}
+
+
+def _unwire_carrier_spectrum(v: Any) -> Any:
+    from srmech.math.carrier_spectrum import CarrierSpectrum
+    return CarrierSpectrum(_unwire_ellratio(v["element"]))
+
+
+def _wire_theta_sum(s: Any) -> Any:
+    """``ThetaSum`` -> ``{"terms": [{"prefactor": <mono>, "thetas": [<theta>…]}],
+    "den_prefactor": <mono>, "den_thetas": [<theta>…]}``.
+
+    The numerator terms carry their exact ``Q`` coefficient folded INTO the
+    prefactor monomial (that is the carrier's own canonical form), so no
+    separate coefficient field is emitted and the rebuild passes coefficient 1."""
+    return {
+        "terms": [{"prefactor": _wire_ellmonomial(pref),
+                   "thetas": [_wire_theta(t) for t in thetas]}
+                  for pref, thetas in s.terms],
+        "den_prefactor": _wire_ellmonomial(s.den_prefactor),
+        "den_thetas": [_wire_theta(t) for t in s.den_thetas],
+    }
+
+
+def _unwire_theta_sum(v: Any) -> Any:
+    from srmech.apokatastasis.thetasum import ThetaSum
+    from srmech.math.q import Q
+    return ThetaSum(
+        terms=[(Q(1, 1), _unwire_ellmonomial(t["prefactor"]),
+                [_unwire_theta(th) for th in t.get("thetas", ())])
+               for t in v.get("terms", ())],
+        den_prefactor=_unwire_ellmonomial(v.get("den_prefactor", 1)),
+        den_thetas=[_unwire_theta(th) for th in v.get("den_thetas", ())],
+    )
+
+
+def _wire_theta_bracket_sum(s: Any) -> Any:
+    """``ThetaBracketSum`` -> ``[{"bracket": [[sym, exp], …], "coeff":
+    [num, den]}, …]``.
+
+    Internally a ``{monomial_key: Q}`` dict where a monomial_key is a sorted
+    tuple of canonical bracket-argument keys. JSON has no tuple key, so each
+    entry rides as an explicit object and the key tuple is rebuilt on read —
+    the ordering is canonical on both sides, so the round-trip is exact."""
+    return [{"bracket": [list(k) for k in key],
+             "coeff": [c.numerator, c.denominator]}
+            for key, c in s._terms.items()]
+
+
+def _unwire_theta_bracket_sum(v: Any) -> Any:
+    from srmech.apokatastasis.riemann_theta_multisum import ThetaBracketSum
+    from srmech.math.q import Q
+    terms = {}
+    for row in v:
+        key = tuple(tuple(k) for k in row["bracket"])
+        terms[key] = Q(int(row["coeff"][0]), int(row["coeff"][1]))
+    return ThetaBracketSum(terms)
+
+
+def _wire_mock_q_series(s: Any) -> Any:
+    """``MockQSeries`` -> ``{"kind": str, "leading": [num, den],
+    "coeffs": [[num, den], …] | null}`` — the constructor's own three
+    parameters. ``_to_mock_q_series`` already names both rule arms inbound."""
+    coeffs = getattr(s, "_coeffs", None)
+    return {
+        "kind": s._kind,
+        "leading": [s._leading.numerator, s._leading.denominator],
+        "coeffs": (None if not coeffs
+                   else [[c.numerator, c.denominator] for c in coeffs]),
+    }
+
+
+def _unwire_mock_q_series(v: Any) -> Any:
+    from srmech.apokatastasis.harmonic_maass import MockQSeries
+    from srmech.math.q import Q
+    lead = v["leading"]
+    return MockQSeries(
+        v["kind"], Q(int(lead[0]), int(lead[1])),
+        None if v.get("coeffs") is None
+        else [(int(c[0]), int(c[1])) for c in v["coeffs"]],
+    )
+
+
+def _wire_one(o: Any) -> Any:
+    """``One`` -> its OWN canonical ``_to_jsonable()`` dict.
+
+    Before rc414 a ``One`` reached ``_json_fallback``'s dataclass arm, which
+    emitted a six-key ``dataclasses.asdict`` view that is NOT the canonical
+    shape and that ``one_from_jsonable`` does not read — so an MCP caller
+    could SET the winding triad (rc408 made ``w`` a declared, pinned param)
+    and could never READ it back. Routing through the canonical pair, which
+    rc414 teaches to carry the winding, closes both halves."""
+    return o._to_jsonable()
+
+
+def _unwire_one(v: Any) -> Any:
+    from srmech.cascade.one import one_from_jsonable
+    return one_from_jsonable(v)
+
+
+def _wire_recoverable_fold(f: Any) -> Any:
+    """``RecoverableFold`` -> ``{"R": <Poly form>, "branches": int, "dim": int,
+    "seed": int}``.
+
+    The four generating inputs, and ONLY those: the lossy Klein-4 bundle is a
+    pure deterministic function of them (``fold_encode(R, branches, dim=dim,
+    seed=seed)``), so shipping the bundle's D-wide store over the wire would be
+    both enormous and redundant. This is the same set ``RecoverableFold.identity()``
+    hashes, which is what makes the round-trip provably identity-preserving
+    rather than merely plausible — ``fold_identity(orig, rebuilt)`` returns
+    ``EQUAL``.
+    """
+    return {
+        "R": _wire_poly(f.exact_seed_R),
+        "branches": f.branches,
+        "dim": f.dim,
+        "seed": f._seed,
+    }
+
+
+def _unwire_recoverable_fold(v: Any) -> Any:
+    from srmech.biology.coupling import fold_encode_recoverable
+    return fold_encode_recoverable(
+        _unwire_poly(v["R"]), int(v["branches"]),
+        dim=int(v["dim"]), seed=int(v.get("seed", 0)),
+    )
+
+
+def _wire_chainspec(spec: Any) -> Any:
+    """``ChainSpec`` -> the dict ``parse_chain_spec`` ACCEPTS.
+
+    The dataclass arm emitted the field name ``class_id`` while the parser
+    requires the key ``class`` (``srmech/cascade/compose.py``), so a
+    ``ChainSpec`` did not round-trip through its own parser. The step key is
+    re-spelled here, at the wire boundary, rather than renaming the dataclass
+    field."""
+    return {
+        "name": spec.name,
+        "summary": spec.summary,
+        "returns": spec.returns,
+        "on_error": spec.on_error,
+        "steps": [
+            {
+                "class": st.class_id,
+                "op": st.op,
+                "args": serialise_native(st.args),
+                **({} if st.on_error is None else {"on_error": st.on_error}),
+            }
+            for st in spec.steps
+        ],
+    }
+
+
+def _unwire_chainspec(v: Any) -> Any:
+    from srmech.cascade.compose import parse_chain_spec
+    return parse_chain_spec(v)
+
+
+#: class NAME -> (outbound value-form, inbound rebuild). Keyed by name rather
+#: than by type object so the table costs no imports until a value of that
+#: class actually crosses.
+_CARRIER_WIRE: Dict[str, Any] = {
+    "Poly": (_wire_poly, _unwire_poly),
+    "BiPoly": (_wire_bipoly, _unwire_bipoly),
+    "TriPoly": (_wire_tripoly, _unwire_tripoly),
+    "QPoly": (_wire_qpoly, _unwire_qpoly),
+    "QBiPoly": (_wire_qbipoly, _unwire_qbipoly),
+    "EllMonomial": (_wire_ellmonomial, _unwire_ellmonomial),
+    "Theta": (_wire_theta, _unwire_theta),
+    "EllRatio": (_wire_ellratio, _unwire_ellratio),
+    "One": (_wire_one, _unwire_one),
+    "ChainSpec": (_wire_chainspec, _unwire_chainspec),
+    "RecoverableFold": (_wire_recoverable_fold, _unwire_recoverable_fold),
+    "QMat": (_wire_qmat, _unwire_qmat),
+    "Qalg": (_wire_qalg, _unwire_qalg),
+    "CarrierSpectrum": (_wire_carrier_spectrum, _unwire_carrier_spectrum),
+    "ThetaSum": (_wire_theta_sum, _unwire_theta_sum),
+    "ThetaBracketSum": (_wire_theta_bracket_sum, _unwire_theta_bracket_sum),
+    "MockQSeries": (_wire_mock_q_series, _unwire_mock_q_series),
+}
+
+#: Carriers that are HANDLE-shaped, not value-shaped: each holds a ``D``-wide
+#: hypervector store and exposes MUTATING methods (``write`` / ``carry`` /
+#: ``couple_working`` / ``navigate``), so "the value" is not what a consumer
+#: wants back — the LIVE object is. Both inherit object identity
+#: (``CDRegister.__eq__ is object.__eq__``), which makes a by-value form
+#: un-gateable as well as wrong. They ride the rc16 ``$srmech_handle``
+#: envelope instead — the same mechanism that took the 7 ``srmech.spectral.*``
+#: tools from uncallable to ``handle_pending: 0``.
+_HANDLE_SHAPED_CARRIERS: Dict[str, str] = {
+    "CDRegister": "cd-register",
+    "SedenionRegister": "sedenion-register",
+}
+
+
+def serialise_carrier(value: Any) -> Any:
+    """Return the wire object for a framework carrier, or ``None`` when
+    ``value`` is not one this layer owns.
+
+    ``None`` (rather than a raised error) is the "not mine" signal so the
+    caller falls through to the existing structural branches untouched.
+    """
+    name = type(value).__name__
+    kind = _HANDLE_SHAPED_CARRIERS.get(name)
+    if kind is not None:
+        from srmech._handles import encode_envelope, get_handle_registry
+
+        uuid_hex, handle_name = get_handle_registry().register(value, kind=kind)
+        return encode_envelope(uuid_hex, handle_name, kind)
+    entry = _CARRIER_WIRE.get(name)
+    if entry is None:
+        return None
+    # Guard against a same-named foreign class: the encoder must actually
+    # apply. A failure here is a bug in the pairing, not a caller error, so
+    # it degrades to "not mine" and the historical path still runs.
+    try:
+        return encode_carrier_envelope(name, entry[0](value))
+    except (AttributeError, TypeError, ValueError):
+        return None
+
+
+def deserialise_native(value: Any) -> Any:
+    """The STRUCTURAL inverse of :func:`serialise_native` for tagged carriers.
+
+    Walks ``value`` and rebuilds every ``$srmech_carrier`` envelope it finds —
+    at the top level or nested at any depth inside a ``dict`` / ``list``. This
+    is the half that did not exist before rc414, and its absence is why a
+    carrier inside a ``dict``-declared return could be emitted and never
+    reconstructed.
+
+    Anything untagged is returned unchanged (containers are rebuilt only when
+    a descendant actually changed, so the common no-carrier case allocates
+    nothing new).
+    """
+    if is_carrier_envelope(value):
+        name = value[CARRIER_ENVELOPE_KEY]
+        entry = _CARRIER_WIRE.get(name)
+        if entry is None:
+            # An envelope this build does not know: hand back the payload
+            # rather than the wrapper, so the caller sees data, not a tag.
+            return value.get("value")
+        return entry[1](deserialise_native(value.get("value")))
+    if isinstance(value, dict):
+        rebuilt = {k: deserialise_native(v) for k, v in value.items()}
+        return rebuilt if any(
+            rebuilt[k] is not value[k] for k in value
+        ) else value
+    if isinstance(value, list):
+        rebuilt_l = [deserialise_native(v) for v in value]
+        return rebuilt_l if any(
+            a is not b for a, b in zip(rebuilt_l, value)
+        ) else value
+    return value
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -1108,7 +1917,7 @@ def serialise_native(value: Any) -> Any:
     value.
 
     * ``bytes`` -> base64 ``str``
-    * :class:`srmech.amsc.mat.Mat` -> nested list (complex -> ``[re, im]`` leaves)
+    * :class:`srmech.math.mat.Mat` -> nested list (complex -> ``[re, im]`` leaves)
     * ``complex`` -> ``[re, im]``
     * tuples / lists / sets -> list (recursed)
     * dicts -> dict (values recursed; keys base64'd if bytes)
@@ -1135,6 +1944,16 @@ def serialise_native(value: Any) -> Any:
 
         uuid_hex, name = get_handle_registry().register(value, kind="spectral")
         return encode_envelope(uuid_hex, name, "spectral")
+    # rc414 (`#T1092`) — the framework CARRIERS that previously fell all the way
+    # through to _json_fallback's ``return repr(obj)``. Checked here, immediately
+    # after the SpectralHandle interception and BEFORE the dict / sequence
+    # branches, because several carriers ARE dict- or sequence-shaped internally
+    # and would otherwise be walked as plain containers. Returns None for
+    # anything this layer does not own, so every historical branch below is
+    # reached unchanged.
+    _carrier_wire = serialise_carrier(value)
+    if _carrier_wire is not None:
+        return _carrier_wire
     # bytes -> base64
     if isinstance(value, (bytes, bytearray)):
         return base64.b64encode(bytes(value)).decode("ascii")
@@ -1148,24 +1967,24 @@ def serialise_native(value: Any) -> Any:
     # (never a lossy float, never a bare repr string). Keyed by TYPE, unambiguous
     # with complex's [re, im] (which is keyed by the declared `complex` param type
     # on the inbound side).
-    from srmech.amsc.q import Q as _Q
+    from srmech.math.q import Q as _Q
     if isinstance(value, _Q):
         return [value.numerator, value.denominator]
     # srmech HV handle (numpy-free Klein-4 carrier, v0.7.0rc29) -> list[int].
     # The core ops return HV; cross JSON-RPC by value as a plain integer list.
-    from srmech.amsc.hv import HV as _HV
+    from srmech.math.hv import HV as _HV
     if isinstance(value, _HV):
         return value.tolist()
     # srmech Mat (numpy-free 2-D carrier, v0.7.5rc72) -> nested list. A complex
     # Mat serialises each entry as a ``[re, im]`` leaf via the recursion on the
     # nested list (Mat.tolist() yields a list[list[complex]]).
-    from srmech.amsc.mat import Mat as _Mat
+    from srmech.math.mat import Mat as _Mat
     if isinstance(value, _Mat):
         return serialise_native(value.tolist())
     # srmech Vec (numpy-free 1-D carrier, rc129) -> flat list. A complex Vec
     # serialises each entry as a ``[re, im]`` leaf via the recursion (Vec.tolist()
     # yields a flat list[float] / list[complex]). The 1-D peer of the Mat branch.
-    from srmech.amsc.vec import Vec as _Vec
+    from srmech.math.vec import Vec as _Vec
     if isinstance(value, _Vec):
         return serialise_native(value.tolist())
     # stdlib array.array -> flat list (rc295). The §50 accumulator family is the
@@ -1213,6 +2032,12 @@ __all__ = [
     "has_coercer",
     "serialise_native",
     "complex_pairs_to_ndarray",
+    # rc414 (`#T1092`) — the by-value carrier envelope + its structural inverse
+    "CARRIER_ENVELOPE_KEY",
+    "encode_carrier_envelope",
+    "is_carrier_envelope",
+    "serialise_carrier",
+    "deserialise_native",
 ]
 
 

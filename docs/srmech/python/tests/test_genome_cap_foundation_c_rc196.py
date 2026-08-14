@@ -23,8 +23,8 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc import genome
-from srmech.amsc import _native
+from srmech.biology import genome
+from srmech import _native
 
 
 _NS = ([1, 2, 3, 255, 256, 257, 512, 1023, 1024, 1025, 4095, 4096, 4097, 5000,
@@ -53,9 +53,9 @@ def test_cap_foundation_symbols_present():
     assert _native.has_native_genome_telomere()
     assert _native.genome_encode_shape_c(5000) == (20, 3)   # ceil(5000/256)=20, log4→3
     assert _native.genome_telomere_c("chrX", 64) is not None
-    # ABI is 10 as of rc307 (the fiedler_sparse ws_len BYTES unification; this
+    # ABI is 13 as of rc418 (`#T1108` widened nine exported signatures; this
     # genome surface is additive-unchanged).
-    assert _native.EXPECTED_ABI_VERSION == 10
+    assert _native.EXPECTED_ABI_VERSION == 14
 
 
 # ── (i) srmech_genome_encode_shape → the dict is BYTE-IDENTICAL native-vs-pure ─

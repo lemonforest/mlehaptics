@@ -15,8 +15,8 @@ catalogs validate — those catalogs are this scalar's target test.
 
 import pytest
 
-from srmech.amsc.cascade import the_one, to_scalar
-from srmech.amsc.cascade.one import One
+from srmech.cascade import the_one, to_scalar
+from srmech.cascade.one import One
 
 
 # ── trace: Tr G(σ,θ) = 3 + 3σ + 8σ·cos θ (the rotation character) ──────
@@ -34,7 +34,7 @@ def test_trace_theta_zero_sigma_minus():
 def test_trace_uses_the_same_catalog_cos():
     # The trig / asymptotic_calculus catalogs are the target test: trace is
     # correct iff their cos is. Re-derive from the catalog primitive directly.
-    from srmech.amsc.rational import cos_series_truncate, _reduce_rational
+    from srmech.math.rational import cos_series_truncate, _reduce_rational
     cn, cd = cos_series_truncate(1, 4, 24)
     expect = _reduce_rational((3 + 3) * cd + 8 * cn, cd)        # σ=+1
     assert to_scalar(the_one(1, 1, 4, terms=24), mode="trace") == expect
@@ -46,7 +46,7 @@ def test_sqnorm_is_exact_integer_pair():
     sq = to_scalar(the_one(1, 1, 3, terms=24), mode="sqnorm")
     # v0.9.0: to_scalar returns the exact Q scalar-rational carrier (the raw
     # (num, den) integer pair is recoverable). Float never enters.
-    from srmech.amsc.q import Q
+    from srmech.math.q import Q
     assert isinstance(sq, Q)
     num, den = sq                       # Q unpacks to the exact int pair
     assert isinstance(num, int) and isinstance(den, int)
@@ -136,8 +136,8 @@ def test_non_one_rejected():
 # ── bindable for a TOML class (the genome class-from-TOML chaining) ────
 
 def test_to_scalar_is_importable_by_dotted_path():
-    # The op a [class.method] can bind: op = "srmech.amsc.cascade.to_scalar".
+    # The op a [class.method] can bind: op = "srmech.cascade.to_scalar".
     import importlib
-    mod = importlib.import_module("srmech.amsc.cascade")
+    mod = importlib.import_module("srmech.cascade")
     fn = getattr(mod, "to_scalar")
     assert fn(the_one(1, 0, 1), mode="trace") == (14, 1)

@@ -36,9 +36,9 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc.poly import Poly
-from srmech.amsc.q import Q
-from srmech.amsc.zeilberger import BiPoly, zeilberger
+from srmech.math.poly import Poly
+from srmech.math.q import Q
+from srmech.apokatastasis.zeilberger import BiPoly, zeilberger
 
 
 # ── helpers (Fraction + Q only; no numpy, no math) ────────────────────────────
@@ -131,7 +131,7 @@ def test_zeilberger_crt_route_byte_identical_to_dense():
     We force the two paths by toggling the auto-by-size threshold around the
     kernel solve — ``threshold = -1`` forces CRT on every solve, a huge threshold
     forces dense — and assert the results are byte-for-byte equal."""
-    import srmech.amsc.zeilberger as Z
+    import srmech.apokatastasis.zeilberger as Z
     cases = [_ratios_binomial(), _ratios_binomial_squared()]
     saved = Z._CRT_KERNEL_CELL_THRESHOLD
     try:
@@ -151,7 +151,7 @@ def test_zeilberger_crt_forced_recurrence_cross_checked():
     """With the CRT path FORCED on every kernel solve, the rc42 recurrences still
     hold under concrete summation (the answer is correct, not just self-consistent
     with the dense path)."""
-    import srmech.amsc.zeilberger as Z
+    import srmech.apokatastasis.zeilberger as Z
     saved = Z._CRT_KERNEL_CELL_THRESHOLD
     try:
         Z._CRT_KERNEL_CELL_THRESHOLD = -1                 # force CRT

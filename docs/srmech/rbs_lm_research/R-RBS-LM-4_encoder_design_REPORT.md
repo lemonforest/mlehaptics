@@ -13,7 +13,7 @@
 | field | value |
 |---|---|
 | internal sources | `R-RBS-LM-2_methodology_selection_REPORT.md` §6.1 (Path B chosen) + §7.2 (encoder design 4-step process); `R-RBS-LM-3_baseline_REPORT.md` §4 (GPT-2-small selected) + §7.1 (encoder implications) |
-| srmech ops used | `srmech.amsc.hdc.bind/bundle/permute/similarity`; `srmech.signal_processing.rbs_hdc_instrument.mint_vector` — same ops as RBS-NN |
+| srmech ops used | `srmech.math.hdc.bind/bundle/permute/similarity`; `srmech.signal_processing.rbs_hdc_instrument.mint_vector` — same ops as RBS-NN |
 | inherited recipes | R-RBS-NN-2 §3 (Class A content-mint); R-RBS-NN-5 §3.1 (Kanerva sequence representation); R-RBS-NN-7 §3.2 (hierarchical bundling pattern for n > MAX_BUNDLE_N); R-RBS-NN-3b §6 (4-class Level-1 inference recipe — guides query() shape) |
 | empirical artefacts | `docs/srmech/rbs_lm_research/rbs_lm_encoder.py` (the encoder module); inline algebraic POC output captured in §7 |
 | repo commit | `b0309393` at REPORT-write |

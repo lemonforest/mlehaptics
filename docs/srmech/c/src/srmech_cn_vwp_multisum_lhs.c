@@ -1,6 +1,6 @@
 /*
  * srmech_cn_vwp_multisum_lhs.c -- the 1:1 native C peer of
- * srmech.amsc.elliptic_jackson.cn_vwp_multisum_lhs (rc216), the SYMBOLIC Cn
+ * srmech.apokatastasis.elliptic_jackson.cn_vwp_multisum_lhs (rc216), the SYMBOLIC Cn
  * very-well-poised (VWP) elliptic multisum LHS builder: the exact ThetaSum
  * construction of the LEFT-hand side of the Cn elliptic Jackson summation.
  *

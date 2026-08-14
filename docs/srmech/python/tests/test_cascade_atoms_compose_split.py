@@ -1,16 +1,24 @@
-"""Tests for the cascade.atoms / cascade.compose two-tier split.
+"""Tests for the cascade.atoms / cascade.composites two-tier split.
+
+⚠️ rc377 (`#T1034`, ADR-0010) renamed the composites tier from ``compose`` to
+``composites`` on the move out of ``srmech.amsc.cascade``: a ``compose.py`` (the
+ADR-0002 chain ENGINE — ``run_chain`` / ``parse_chain_spec``) already lived in
+``srmech.cascade``, so the lean-ISA composites had to take a distinct name. The
+two are different modules and must not collapse — ``cascade.composites`` is the
+atoms+composites tier this file exercises; ``cascade.compose`` is the chain
+engine.
 
 Per issue #751 (F208 / MS #20 forward-architecture). The single
-``srmech.amsc.cascade`` module is split into two tiers:
+``srmech.cascade`` module is split into two tiers:
 
-- :mod:`srmech.amsc.cascade.atoms` — the 6 silicon-able 1:1 ISA
+- :mod:`srmech.cascade.atoms` — the 6 silicon-able 1:1 ISA
   intrinsics (``pin_slot_at_zero``, ``reorient``, ``magnitude``,
   ``chiral_flip``, ``chiral_dual``, ``net_chirality``).
-- :mod:`srmech.amsc.cascade.compose` — the 2 iterative algorithms
+- :mod:`srmech.cascade.composites` — the 2 iterative algorithms
   (``cyclic_gcd``, ``best_rational_signed``) + the 2 module constants
   (``DEFAULT_MAX_DENOMINATOR``, ``DEFAULT_FINE_SCALE``).
 
-The flat ``srmech.amsc.cascade.<op>`` public surface must stay
+The flat ``srmech.cascade.<op>`` public surface must stay
 byte-identical (every flat name IS the same object as its submodule
 home), ``CASCADE_OPS`` unchanged, and ``srmech.introspect.describe()``
 must report 176 tools (174 at rc1 + 1 for the rc2 so(4) stabiliser voxel
@@ -20,9 +28,9 @@ This is a behaviour-preserving refactor.
 
 from __future__ import annotations
 
-import srmech.amsc.cascade as cascade
-import srmech.amsc.cascade.atoms as atoms_mod
-import srmech.amsc.cascade.compose as compose_mod
+import srmech.cascade as cascade
+import srmech.cascade.atoms as atoms_mod
+import srmech.cascade.composites as compose_mod
 
 
 # ----------------------------------------------------------------------
@@ -31,7 +39,7 @@ import srmech.amsc.cascade.compose as compose_mod
 
 
 def test_atoms_submodule_imports():
-    from srmech.amsc.cascade.atoms import (  # noqa: F401
+    from srmech.cascade.atoms import (  # noqa: F401
         pin_slot_at_zero,
         reorient,
         magnitude,
@@ -47,7 +55,7 @@ def test_atoms_submodule_imports():
 
 
 def test_compose_submodule_imports():
-    from srmech.amsc.cascade.compose import (  # noqa: F401
+    from srmech.cascade.composites import (  # noqa: F401
         cyclic_gcd,
         best_rational_signed,
         DEFAULT_MAX_DENOMINATOR,
@@ -87,11 +95,15 @@ def test_back_compat_aliases_unchanged():
 
 def test_submodules_exposed_as_attributes():
     assert cascade.atoms is atoms_mod
-    assert cascade.compose is compose_mod
+    assert cascade.composites is compose_mod
+    # the chain ENGINE is a DISTINCT module (rc377 rename) — never composites
+    import srmech.cascade.compose as chain_engine
+    assert cascade.compose is chain_engine
+    assert cascade.compose is not compose_mod
 
 
-def test_atom_in_compose_is_same_object():
-    # compose imports the atoms it builds over from .atoms — they must be
+def test_atom_in_composites_is_same_object():
+    # composites imports the atoms it builds over from .atoms — they must be
     # the exact same objects, not copies.
     assert compose_mod.pin_slot_at_zero is atoms_mod.pin_slot_at_zero
     assert compose_mod.reorient is atoms_mod.reorient
@@ -126,7 +138,7 @@ def test_cascade_ops_unchanged():
 def test_introspect_tools_total_matches_live():
     import srmech.introspect as introspect
 
-    assert introspect.describe()["tools"]["total"] == 509
+    assert introspect.describe()["tools"]["total"] == 655
 
 
 # ----------------------------------------------------------------------

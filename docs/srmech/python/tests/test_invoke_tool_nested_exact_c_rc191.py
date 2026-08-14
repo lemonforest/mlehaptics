@@ -31,7 +31,7 @@ import json
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 
 _needs_native = pytest.mark.skipif(
     not _native.has_native_carrier_marshal(),

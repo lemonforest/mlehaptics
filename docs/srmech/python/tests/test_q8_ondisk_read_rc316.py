@@ -34,12 +34,12 @@ import tempfile
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc import genome as G
-from srmech.amsc.cascade.one import the_one
-from srmech.amsc.hdc import klein4_from_one
-from srmech.amsc.hv import HV
-from srmech.amsc.q8 import q8_from_one, q8_project_v4
+from srmech import _native
+from srmech.biology import genome as G
+from srmech.cascade.one import the_one
+from srmech.math.hdc import klein4_from_one
+from srmech.math.hv import HV
+from srmech.biology.q8 import q8_from_one, q8_project_v4
 
 Q8 = G.ELEMENT_TYPE_Q8
 K4 = G.ELEMENT_TYPE_KLEIN4

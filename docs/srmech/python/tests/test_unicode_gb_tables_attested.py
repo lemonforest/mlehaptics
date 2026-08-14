@@ -52,7 +52,7 @@ import re
 
 import pytest
 
-from srmech.amsc import _unicode_gb_tables as gbt
+from srmech.math import _unicode_gb_tables as gbt
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))            # docs/srmech
@@ -182,7 +182,7 @@ def test_hangul_jamo_ARE_present_as_rows():
     and drops Jamo Extended-A/B entirely — it cost 4 conformance cases when
     tried. Jamo is ~8 ranges, so the saving would have been negligible anyway.
     """
-    from srmech.amsc import text as T
+    from srmech.math import text as T
     V = gbt.GBP_TAGS.index("V")
     assert (T._gb_prop(0x1160) & gbt.PROP_GBP_MASK) == V
     L = gbt.GBP_TAGS.index("L")
@@ -193,7 +193,7 @@ def test_hangul_jamo_ARE_present_as_rows():
 
 def test_hangul_syllable_algebra_is_exact():
     """Spot-check the derived LV/LVT alternation at the block edges."""
-    from srmech.amsc import text as T
+    from srmech.math import text as T
     LV = gbt.GBP_TAGS.index("LV")
     LVT = gbt.GBP_TAGS.index("LVT")
     assert (T._gb_prop(0xAC00) & gbt.PROP_GBP_MASK) == LV     # 가, T-index 0

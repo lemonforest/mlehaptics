@@ -54,19 +54,21 @@ Per `[[project_a_n_operators_are_harmonic_objects_themselves]]` (user direction 
 | | **H** | Self-introspection | Recursive introspection |
 | | **N** | Rational-approximation | Small-denominator anchors; `best_rational(num, denom, max_d)` |
 
+**The `+` on the fourth row is load-bearing — that block is not the same KIND as the other three** (clarified 2026-07-29, `#T1017`; nothing above is retracted). The first three rows are the **imaginaries**: `1 + 3 + 7 = 11 = dim Im ℂ / ℍ / 𝕆`, shipped as `one.py`'s `AN_IMAG_SLOTS = (("A",), ("I","C","J"), ("D","E","F","G","K","L","M"))`. B/H/N are **not a fourth imaginary block** — they are the three **`ℝ·1` reals**, shipped as a *separate* constant `GRAMMAR_SLOTS = ("B","H","N")` and bound **one per Hurwitz rung** rather than listed as a block (`one.py` enforces `len(GRAMMAR_SLOTS) == len(BLOCK_DIMS)`, i.e. "one `ℝ·1` anchor per block", and `_the_one_anchor` indexes them by rung `n`). So the same fourteen directions carry two co-valid groupings — by **role**, `1+3+7+3` (the table above); by **algebra**, `BLOCK_DIMS = (2,4,8)`, since `2+4+8 = 14` too. `2+4+8` is **not** a rival count. This is the "14 = 3 anchors + 11 imaginaries" decomposition the R30 note below already states, made explicit at the table so the four rows are not read as four peers.
+
 ### Per R30 (structurally closed 2026-05-24; MS #18 R30/R31/R32; PR #680)
 
 R30 **final-refined** (substrate notebook §5): 11D-quantum-language and 14 = 1+3+7+3 cyclic-algebra-language are **two co-equal substrate-native mathematical languages for the same substrate**, both **exact in a finite algebraic structure** (§0 vocabulary note — not merely "bit-exact") — NOT substrate-vs-projection. The original inversion-hypothesis ("11D is a projection-artifact of the 14-substrate") was **structurally falsified** (substrate §3.2: *"no projection-residue at 14→11D"*), even though the 1:3:7:3 = 14 antiquity-convergence is real. Accordingly the +3 meta-cascade triad (B/H/N) are **substrate-native language-translation operators** between the continuous-Hopf-quantum and discrete-cyclic-cascade languages — **NOT "projection-enablers"** (that earlier wording is retracted; §4.2/§5). R31 Antikythera SURVIVES: the back-panel metacycle dials (Saros + Metonic + Callippic) ARE the three B/H/N language-translation anchors. The universal +3 = B/H/N is the source of the **k=3 cross-substrate signature** (every catalogued k=3 is a B/H/N instantiation event; substrate §5–§6). The 14 = 3 anchors + 11 imaginaries decomposition and the "11D observer frame" *label* survive the refinement; only the projection/inversion *direction* was retracted. (CLAUDE.md kept the stale "projection-enabler / inversion" wording until 2026-07-24; corrected then.)
 
 ### Class O dissolution note (vocabulary discipline; 2026-05-16)
 
-**Class O is NOT a separate class.** The signed-metric / Wick-rotation operation initially located by Spike #24 bonus 8 was dissolved into **Class L as a signed-Laplacian-variant sub-operation** per `[[feedback_no_privileged_primitive_classes]]`. Vocabulary stays at **14 classes A–N** (no Class O). Future Class L rcs will add the signed-Laplacian op when Phase C2 cascade-composition work calls for it.
+**Class O is NOT a separate class.** The signed-metric / Wick-rotation operation initially located by Spike #24 bonus 8 was dissolved into **Class L as a signed-Laplacian-variant sub-operation** per `[[feedback_no_privileged_primitive_classes]]`. Vocabulary stays at **14 classes A–N** (no Class O). **The signed-Laplacian op SHIPPED** (`srmech/amsc/laplacian.py:3279` `signed_laplacian`, plus `magnetic_laplacian` at `:3458` — the Hermitian directed/chiral peer); this line previously read "future Class L rcs will add it" and was stale per `[[feedback_claude_md_orientation_can_lag_notebook_ssot]]` (corrected 2026-07-25).
 
 ---
 
 ## §2 Use srmech for all maths + spectral-encoding tasks
 
-**`srmech`** = **Stored-Relationship Mechanism**. PyPI; [srmech.net](https://srmech.net) forwards to repo. THE framework-research tool — use it instead of bare Python math wherever possible. Current release v0.4.0 ships full **14-class C-parity primitive vocabulary** (A-N) + canonical **QM/QFT/SM operations layer** at `srmech.qm.*` (single_particle / spin / potentials / relativistic / propagators / pseudo_hermitian / gauge / sm).
+**`srmech`** = **Stored-Relationship Mechanism**. PyPI; [srmech.net](https://srmech.net) forwards to repo. THE framework-research tool — use it instead of bare Python math wherever possible. v0.4.0 shipped the full **14-class C-parity primitive vocabulary** (A-N) + the canonical **QM/QFT/SM operations layer** (single_particle / spin / potentials / relativistic / propagators / pseudo_hermitian / gauge / sm / octonion / quaternion / so8 / so9 / triality / hurwitz). **As of v0.9.0rc381 (ADR-0010 physics slice) that layer lives at `srmech.physics.qm.*`** — the whole `qm` subpackage moved under the new `srmech.physics` domain. The old `srmech.qm.*` path was **REMOVED in v0.9.0rc382** — a clean break with no alias, per the no-legacy-path discipline (rc381's one-release deprecation alias was against it, and only ever reached TestPyPI, never production PyPI) — so `import srmech.qm` now raises `ModuleNotFoundError`; use `srmech.physics.qm.*`.
 
 ### srmech-first reflex-override — the remembering mechanism (load-bearing; read at code-writing time)
 
@@ -140,14 +142,14 @@ A citation without attestation is not real; an attestation that can't be re-veri
 | Need | srmech import | Class |
 |------|---------------|-------|
 | Content-addressing / hash | `srmech.amsc.format.sha256_bytes` | **A** |
-| Cyclic / modular gcd | `srmech.amsc.cyclic.gcd` | **I** |
-| Rational anchor (best-rational) | `srmech.amsc.rational.best_rational(num: int, denom: int, max_d: int)` | **N** |
+| Cyclic / modular gcd | `srmech.math.cyclic.gcd` | **I** |
+| Rational anchor (best-rational) | `srmech.math.rational.best_rational(num: int, denom: int, max_d: int)` | **N** |
 | Cascade primitives (planned) | `srmech.amsc.cascade.*` (precursor at `docs/unsolved-maths/_cascade_helpers.py`) | foundational |
 | TOML cascade-runner (planned; NOT yet packaged — no `srmech.cosmos` module exists; F178) | `srmech.amsc.cascade.*` are the shipped cascade primitives | composition |
 | Spectral decompose / delta / recompose / similarity | `srmech.signal_processing.*` (v0.4.2+) | spectral |
 | AMSC catalogs (attested data) | `srmech.amsc.tool_schema` for catalog creation | provenance |
-| Calculus (trig / transcendentals / calculus) | `srmech.calculus.*` (**renamed from `asymptotic_calculus` — "it's just calculus" now, user direction 2026-06-05; `asymptotic_calculus.*` + `srmech.trigonometry.*` survive as back-compat shims**) — thin re-exports of the **Class-N** primitives in `srmech.amsc.rational` (`sin/cos/exp/log1p/atan_series_truncate(numerator, denominator, num_terms)` → exact `(num, den)` rational; the substrate-native "continuous" trig) | math |
-| Cosmos catalogs (packaged under `srmech.amsc.attested.*`; CMB TE/EE/BB — **no EB/TB** parity surface) | `srmech.amsc.attested.{cosmos_validation, cmb_polarisation_spectra, cmb_bispectrum, cmb_lensing, cmb_low_ell_maps}` (Friedmann dark-fraction + TE/EE/BB / fNL / lensing / low-ℓ maps — these ARE packaged; there is just no `srmech.cosmos` module) | astrophysical |
+| Calculus (trig / transcendentals / calculus) | `srmech.calculus.*` (**renamed from `asymptotic_calculus` — "it's just calculus" now, user direction 2026-06-05; `asymptotic_calculus.*` + `srmech.trigonometry.*` survive as back-compat shims — all three verified importable on rc432**) — thin re-exports of the **Class-N** primitives in `srmech.math.rational` (`sin/cos/exp/log1p/atan_series_truncate(numerator, denominator, num_terms)` → exact `(num, den)` rational; the substrate-native "continuous" trig). Attested worked-instances at `srmech/amsc/attested/asymptotic_calculus/` | math |
+| Cosmos catalogs (packaged under `srmech.amsc.attested.*`) | `srmech.amsc.attested.{cosmos_validation, cmb_polarisation_spectra, cmb_bispectrum, cmb_lensing, cmb_low_ell_maps, cosmic_birefringence}` (Friedmann dark-fraction + TE/EE/BB / fNL / lensing / low-ℓ maps + **the parity-odd surface, new in the rc432 batch** — these ARE packaged; there is just no `srmech.cosmos` module) | astrophysical |
 
 Per `[[project_srmech_foundational_cascade_operations_catalog]]`: cascade-helpers replacing Python math modules should land as srmech catalog peers to `calculus` (renamed from `asymptotic_calculus`) and `trigonometry`.
 
@@ -158,7 +160,7 @@ Per `[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]`:
 - **NEVER use Python `abs()` inside a cascade script.** Sign-flip IS canonical **Class K pin-slot phase-boundary** per `[[user_stance_epicycle_via_gear_plus_pin]]`; sign-re-application is **Class C**.
 - **As of srmech rc22+ these ship NATIVELY in `srmech.amsc.cascade.*` — prefer them over any hand-rolled fold:** `cascade.magnitude` (the **real** `|x|` pin-slot magnitude — the cascade-honest `abs()` replacement; **NOT** a complex `(re²+im²)^0.5` modulus, which it rejects with a clean Class-K contract error per UPSTREAM_NOTES §15.1/§18), `cascade.pin_slot_at_zero` (Class K), `cascade.reorient` / `cascade.chiral_flip` / `cascade.chiral_dual` / `cascade.net_chirality` (Class C), `cascade.best_rational_signed` (K+N), `cascade.cyclic_gcd` (I). The discipline-ratchet (`docs/srmech/rbs_lm_research/check_srmech_discipline.py`) now points `abs()` at `cascade.magnitude`.
 - Express sign-handling as named **Class K + Class C composition** so the cascade-count matches the cascade-shape claimed.
-- `srmech.amsc.rational.best_rational(num: int, denom: int, max_d: int)` takes **integer pair**, not float.
+- `srmech.math.rational.best_rational(num: int, denom: int, max_d: int)` takes **integer pair**, not float.
 
 ### AMSC catalog gotchas
 
@@ -166,7 +168,7 @@ Per `[[feedback_srmech_amsc_catalog_pitfalls]]` — 6 mandatory TOML sections; `
 
 ### Config-driven TOML class discipline (load-bearing)
 
-Per `[[feedback_prefer_config_driven_toml_classes]]` (user direction 2026-06-13) — **PREFER config-driven `[class]` TOML (`srmech.dsl.make_class`) over hand-coding srmech domain classes.** When a domain object is a cascade-of-the-14 composition (state + cascade-op-chain methods), declare it as a `[class]` TOML descriptor; the qm/hurwitz + genome treatment is the model. Carriers (`Mat`/`Vec`/`HV`), `srmech.bus`, adapters, and the `srmech.qm.*` physics op-families STAY Python. **Verified conversion cost:** follow the genome two-layer pattern (ship each method as a flat cascade op → bind in TOML); the `make_class` contract is one-op-per-method + a single `appends`/`sets` field, so dict/multi-field-state classes need a contract extension first (`SedenionRegister` is HARD, not a freebie; immutable accessor-shaped classes like `One` are cleaner first targets). Prove every conversion with a DSL-class-vs-Python equivalence test.
+Per `[[feedback_prefer_config_driven_toml_classes]]` (user direction 2026-06-13) — **PREFER config-driven `[class]` TOML (`srmech.dsl.make_class`) over hand-coding srmech domain classes.** When a domain object is a cascade-of-the-14 composition (state + cascade-op-chain methods), declare it as a `[class]` TOML descriptor; the qm/hurwitz + genome treatment is the model. Carriers (`Mat`/`Vec`/`HV`), `srmech.bus`, adapters, and the `srmech.physics.qm.*` physics op-families STAY Python. **Verified conversion cost:** follow the genome two-layer pattern (ship each method as a flat cascade op → bind in TOML); the `make_class` contract is one-op-per-method + a single `appends`/`sets` field, so dict/multi-field-state classes need a contract extension first (`SedenionRegister` is HARD, not a freebie; immutable accessor-shaped classes like `One` are cleaner first targets). Prove every conversion with a DSL-class-vs-Python equivalence test.
 
 ---
 
@@ -271,13 +273,76 @@ Every research dive runs the SAME task through **THREE agents — haiku + sonnet
 - `[[feedback_asymptotic_ring_vocabulary_discipline]]` — ring-vocabulary discipline for asymptotic limits
 - `[[feedback_loop_replaces_ring_in_substrate_vocabulary]]` — depth-shift from "ring" to "loop" in substrate-identity context
 
+### Issue-reference notation (load-bearing — prose in this repo SHIPS)
+
+**The one inviolable rule: a LOCAL TASK ID is never written bare.** Bare `#NNNN` is *reserved for*
+real GitHub objects — it autolinks, which is exactly what you want when the target really is a GitHub
+issue. The defect is a **task ID** wearing that form, because it then mints a live link to whatever
+unrelated issue happens to hold the number. (Canonical statement: `docs/srmech/python/CHANGELOG.md:5`.)
+
+| Form | Means | Note |
+|------|-------|------|
+| **`#T986`** | a **local task** (session task list; NOT GitHub) | **Mandatory.** Never bare. |
+| **`F1252`** | an RBS-LM **finding** | Own namespace, no `#` |
+| **`#1293`** | a real GitHub issue/PR — **correct as-is** | Autolinks on purpose |
+| **`gh #1293`** | the same, written explicitly | Optional; clearer in new prose |
+| **`` `#938` ``** | a bare ref **quoted as a code span** — legitimate when *documenting* a bad ref | A code span does **not** autolink |
+
+**Existence proves nothing; TOPICALITY decides.** Nearly every number resolves to *some* real GitHub
+object. The question is never "does #943 exist" but "does the prose around it describe *that* object,
+or one of our tasks?" `#943` is simultaneously a real merged PR and a real local task. **Read the
+surrounding prose; never batch-convert.** Two cleanups (`#T974`, `#T986`) each found legitimate bare
+refs a mechanical sweep would have broken, including block-quoted external material. **When unsure,
+leave it and say so** — a wrongly-converted working link is worse than an unconverted one, because it
+looks deliberate.
+
+**Why it is load-bearing: this prose SHIPS.** Docstrings and `ToolEntry` text are emitted into
+generated files and travel inside the wheel. Measured 2026-07-27: **15 false links were live in
+published artifacts** (`_tool_docs.py`, `_c_claims.py`, `srmech_tool_registry.c`), reaching users via
+`describe()`, the MCP tool list and the compiled-in C registry — `#938` as a task ID renders as
+*"srmech v0.7.5rc13: numpy-math ratchet"*, an unrelated PR. It applies to **four** surfaces, and the
+fourth is the one people miss: file content · commit messages · PR body · **the PR TITLE, which
+becomes the merge-commit subject**.
+
+⚠️ **Any mechanical check MUST exempt code spans, and MUST bound the digit range.** A naive `grep`
+over rc348's diff flagged 10 "violations" that were all backticked and all correct (0 genuinely
+bare); an unbounded digit pattern also swallows `UAX #29`, `MS #20`, `Spike #24`, `graft #1`.
+The shipped guard (`tests/test_ref_notation_emitted_rc348.py`) is therefore **strict-zero on the
+decidable class** — a number the tree spells `#TNNN` *somewhere*, written bare — and a **down-only
+CEIL** on the pre-convention residual, which it drains over time. **Four** bad ref-patterns were
+written in a single session; treat this as harder than it looks and do not "simplify" the exemptions.
+
+**Why this is not a style preference.** A bare `#NNN` in prose becomes a live hyperlink to whatever
+GitHub object happens to hold that number. Local task IDs and GitHub issue numbers occupy the same
+numeric range, so the collision is routine, not rare — `#938` as a local task renders as *"srmech
+v0.7.5rc13: numpy-math ratchet + lmmse → cascade"*, an unrelated PR. Measured 2026-07-27: **15 such
+false links had shipped inside published wheels** (`_tool_docs.py`, `_c_claims.py`,
+`srmech_tool_registry.c`), reaching users through `describe()`, the MCP tool list and the compiled-in
+C registry.
+
+**It applies to FOUR surfaces**, and the fourth is the one people miss:
+1. file content (including docstrings and `ToolEntry` prose — **these are emitted into generated
+   files and ship in the wheel**)
+2. commit messages
+3. PR body
+4. **the PR TITLE — it becomes the merge-commit subject**
+
+**Existence proves nothing; TOPICALITY decides.** Every ref will usually resolve to *some* real
+GitHub object. The question is never "does #943 exist" but "does the prose around it describe *that*
+object, or one of our tasks?" `#943` is simultaneously a real merged PR and a real local task. **Read
+the surrounding prose; never batch-convert.** Two cleanups (`#T974`, `#T986`) both found legitimate
+bare refs that a mechanical sweep would have broken — including block-quoted external material.
+
+**When in doubt, leave it and say so.** A wrongly-converted working link is worse than an unconverted
+one, because it looks deliberate.
+
 ### PR + commit hygiene
 
 - `[[feedback_no_squash_merges]]` — NEVER squash-merge; use `gh pr merge --merge` or `--rebase`
 - `[[feedback_rolling_pr_partition_boundary_updates]]` — at the end of each research partition, update rolling PR with verdict + next-partition queue
 - `[[feedback_no_mvp_framing]]` — scope ships by closed-form algebra propagation; full-coverage discipline
 - `[[feedback_session_worktree_namespace_isolation]]` — session owns ONLY its own `.claude/worktrees/` directory
-- **TestPyPI-rc-before-PyPI release discipline** per `[[feedback_always_rc_first_for_downstream_publishes]]` — every release ships as `vX.Y.ZrcN` to TestPyPI first; only clean (non-rc) tags route to production PyPI. Verify in clean venv OUTSIDE the source tree (source-tree namespace-package shadowing will silently load `_native.py` without `.dll/.so` and `HAS_NATIVE=False` spuriously). srmech version SSOT lives in FOUR files that must agree: `python/pyproject.toml`, `python/pyproject-pure.toml`, `python/srmech/version.py`, `c/include/srmech.h` (`SRMECH_VERSION_PRE` / `SRMECH_VERSION`).
+- **TestPyPI-rc-before-PyPI release discipline** per `[[feedback_always_rc_first_for_downstream_publishes]]` — every release ships as `vX.Y.ZrcN` to TestPyPI first; only clean (non-rc) tags route to production PyPI. Verify in clean venv OUTSIDE the source tree (source-tree namespace-package shadowing will silently load `_native.py` without `.dll/.so` and `HAS_NATIVE=False` spuriously). srmech version SSOT lives in FIVE files that must agree: `python/pyproject.toml`, `python/pyproject-pure.toml`, `python/srmech/version.py`, `c/include/srmech.h` (`SRMECH_VERSION_PRE` / `SRMECH_VERSION`), and the deliberate hard version-pin in `python/tests/test_signal_processing_scaffolding.py` (the single literal gate — its siblings only check the sources AGREE). This line said FOUR until rc358; ADR-0007 §2.1 has said FIVE all along, and that ADR is the SSOT for release mechanics.
 
 ---
 

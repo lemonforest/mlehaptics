@@ -248,3 +248,160 @@ srmech_status_t srmech_three_cycle(uint64_t value, uint64_t *out)
     assert(*out < 3u);
     return SRMECH_OK;
 }
+
+/* ------------------------------------------------------------------ *
+ * Class I ∘ K ∘ C — primitive integer vector (0.9.0rc378, task T1049).
+ *
+ * The smallest integer vector on the same ray as a rational vector:
+ * clear denominators by their LCM (Class I), strip the content = gcd of
+ * the entry magnitudes (Class I / Class K magnitude), then pin the first
+ * nonzero entry positive (Class K pin-slot + Class C reorient — NEVER an
+ * abs()). Signed int64 FAST PATH: any entry == INT64_MIN, or any int64
+ * intermediate overflow, returns SRMECH_ERR_OVERFLOW so the caller's
+ * arbitrary-precision pure-Python body takes over (bit-identical result).
+ * INT64_MIN is out of domain so every internal negation is representable.
+ * ------------------------------------------------------------------ */
+
+/* a * b into int64 with an overflow guard. Returns SRMECH_ERR_OVERFLOW when
+ * the exact product leaves [INT64_MIN, INT64_MAX]. Magnitude test in uint64,
+ * then the sign is re-applied (Class K pin-slot ∘ Class C reorient, no abs). */
+static srmech_status_t srmech_piv_mul_checked(int64_t a, int64_t b,
+                                              int64_t *out)
+{
+    assert(out != NULL);
+    assert(a != INT64_MIN && b != INT64_MIN);
+    if (out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (a == 0 || b == 0) {
+        *out = 0;
+        return SRMECH_OK;
+    }
+    uint64_t ma = (uint64_t)(a < 0 ? -a : a);
+    uint64_t mb = (uint64_t)(b < 0 ? -b : b);
+    int neg = (a < 0) ^ (b < 0);
+    /* Cap the MAGNITUDE at INT64_MAX for BOTH signs: a product of exactly
+     * 2^63 would force a later -(INT64_MIN) (signed overflow / UB), so it is
+     * treated as overflow → the caller's exact bignum path handles it. */
+    if (ma > (uint64_t)INT64_MAX / mb) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    uint64_t prod = ma * mb;
+    *out = neg ? -(int64_t)prod : (int64_t)prod;
+    return SRMECH_OK;
+}
+
+/* LCM of the denominator MAGNITUDES (Class I) into *lcm_out, int64-bounded
+ * (SRMECH_ERR_OVERFLOW past INT64_MAX). dens[i] is validated != 0, != MIN. */
+static srmech_status_t srmech_piv_dens_lcm(const int64_t *dens, size_t n,
+                                           int64_t *lcm_out)
+{
+    assert(dens != NULL);
+    assert(lcm_out != NULL);
+    uint64_t acc = 1;
+    for (size_t i = 0; i < n; i++) {
+        uint64_t dmag = (uint64_t)(dens[i] < 0 ? -dens[i] : dens[i]);
+        uint64_t l = 0;
+        srmech_status_t st = srmech_lcm(acc, dmag, &l);
+        if (st != SRMECH_OK) {
+            return st;
+        }
+        if (l > (uint64_t)INT64_MAX) {
+            return SRMECH_ERR_OVERFLOW;
+        }
+        acc = l;
+    }
+    *lcm_out = (int64_t)acc;
+    return SRMECH_OK;
+}
+
+/* Fill out[] with the denominator-cleared integer vector: for each i,
+ * eff_num = (den<0 ? -num : num), scale = L / |den| (exact), out[i] =
+ * eff_num * scale. Any overflow propagates SRMECH_ERR_OVERFLOW. */
+static srmech_status_t srmech_piv_clear(const int64_t *nums,
+                                        const int64_t *dens, size_t n,
+                                        int64_t denom_lcm, int64_t *out)
+{
+    assert(nums != NULL && dens != NULL && out != NULL);
+    assert(denom_lcm > 0);
+    for (size_t i = 0; i < n; i++) {
+        int64_t dmag = dens[i] < 0 ? -dens[i] : dens[i];
+        int64_t eff_num = dens[i] < 0 ? -nums[i] : nums[i];
+        int64_t scale = denom_lcm / dmag;      /* exact; dmag | denom_lcm */
+        srmech_status_t st = srmech_piv_mul_checked(eff_num, scale, &out[i]);
+        if (st != SRMECH_OK) {
+            return st;
+        }
+    }
+    return SRMECH_OK;
+}
+
+/* Content = gcd of the cleared magnitudes; strip it and pin the first nonzero
+ * entry positive (Class K pin-slot ∘ Class C reorient). Writes *out_content. */
+static srmech_status_t srmech_piv_strip_and_pin(int64_t *out, size_t n,
+                                                int64_t *out_content)
+{
+    assert(out != NULL);
+    assert(out_content != NULL);
+    uint64_t g = 0;
+    for (size_t i = 0; i < n; i++) {
+        uint64_t mag = (uint64_t)(out[i] < 0 ? -out[i] : out[i]);
+        srmech_status_t st = srmech_gcd(g, mag, &g);
+        if (st != SRMECH_OK) {
+            return st;
+        }
+    }
+    if (g == 0) {                              /* the all-zero ray */
+        *out_content = 0;
+        return SRMECH_OK;
+    }
+    int neg = 0;                               /* first-nonzero orientation */
+    for (size_t i = 0; i < n; i++) {
+        if (out[i] != 0) { neg = out[i] < 0; break; }
+    }
+    int64_t gi = (int64_t)g;                    /* g <= INT64_MAX (MIN excl.) */
+    for (size_t i = 0; i < n; i++) {
+        int64_t v = out[i] / gi;               /* exact; g | out[i] */
+        out[i] = neg ? -v : v;
+    }
+    *out_content = neg ? -gi : gi;
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_primitive_integer_vector(const int64_t *nums,
+                                                const int64_t *dens, size_t n,
+                                                int64_t *out,
+                                                int64_t *out_content)
+{
+    assert(out_content != NULL);
+    assert(n == 0 || (nums != NULL && dens != NULL && out != NULL));
+    if (out_content == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    *out_content = 0;
+    if (n == 0) {
+        return SRMECH_OK;
+    }
+    if (nums == NULL || dens == NULL || out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    /* Reject INT64_MIN (magnitude/negation would overflow) + den == 0. */
+    for (size_t i = 0; i < n; i++) {
+        if (dens[i] == 0) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        if (nums[i] == INT64_MIN || dens[i] == INT64_MIN) {
+            return SRMECH_ERR_OVERFLOW;
+        }
+    }
+    int64_t denom_lcm = 0;
+    srmech_status_t st = srmech_piv_dens_lcm(dens, n, &denom_lcm);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    st = srmech_piv_clear(nums, dens, n, denom_lcm, out);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    return srmech_piv_strip_and_pin(out, n, out_content);
+}

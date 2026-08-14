@@ -1,6 +1,6 @@
 """rc202 — run_class_method -> C: the STATELESS one-shot, proven vs the pure surface.
 
-srmech_run_class_method (bound as srmech.amsc._native.run_class_method_c) is the C
+srmech_run_class_method (bound as srmech._native.run_class_method_c) is the C
 peer of srmech.dsl._class_surface.run_class_method — the FINAL owed_orchestration
 row (its discharge takes CEIL_NON_COMPUTE_OWED 1 -> 0, the everything-to-C program
 complete). A bare-C host RESOLVES a class NAME to its packaged [class] descriptor
@@ -29,9 +29,9 @@ import json
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc.cascade.one import the_one
-from srmech.amsc.cascade.sedenion_register import SedenionRegister
+from srmech import _native
+from srmech.cascade.one import the_one
+from srmech.cascade.sedenion_register import SedenionRegister
 from srmech.dsl import make_class, run_class_method
 
 pytestmark = pytest.mark.skipif(
@@ -78,6 +78,142 @@ def test_class_descriptor_lookup_resolves_in_c():
         assert got.startswith(b"#") or b"[class]" in got  # the descriptor text
     assert lib.srmech_class_descriptor_lookup(b"NotARealClass",
                                               ctypes.byref(n)) is None
+
+
+# ── rc359 (`#T1009`): the descriptor BODY, not just the NAME ──────────────────
+#
+# The test ABOVE is a NAME witness: it asserts a blob comes back and that the
+# blob starts with `#` or contains `[class]`. Every descriptor in the tree
+# satisfies that, and would keep satisfying it if its CONTENT rotted entirely.
+#
+# That gap is load-bearing rather than cosmetic. The four class TOMLs bake 29
+# DOTTED OP REFS into the C registry, all under `srmech.biology.genome.*` or
+# `srmech.cascade.*`. If those prefixes are ever renamed and the class
+# registry is not regenerated (or the .so not rebuilt), C keeps resolving
+# "One" to a descriptor whose op refs point at names that no longer exist,
+# `b"[class]" in got` still passes, and the PURE path keeps answering because
+# srmech/dsl reads the TOML off disk. C dispatch is broken; nothing is red.
+#
+# Carrier and responsion have had byte-identity ratchets since rc205 / rc225.
+# These three give CLASS the same standard.
+
+def _catalog_dir():
+    """The packaged class_catalog directory, via the package itself.
+
+    Deliberately NOT a `parents[2]` reach: resolving through the imported
+    package keeps this test inside `docs/srmech/python/**` for the rc359
+    SCAN_ROOTS / CI-trigger invariant.
+    """
+    from pathlib import Path
+    from srmech.cascade.catalogs import class_catalog
+    return Path(class_catalog.__file__).resolve().parent
+
+
+def _on_disk_descriptors():
+    return {p.stem: p.read_text(encoding="utf-8")
+            for p in sorted(_catalog_dir().glob("*.toml"))}
+
+
+@pytest.mark.skipif(not _native.has_native_class_registry(),
+                    reason="rc359 class-registry enumeration accessors not built")
+def test_c_class_registry_enumerates_exactly_the_shipped_catalog():
+    """C must carry the SAME SET of classes the catalog ships.
+
+    Lookup-by-name can only confirm names the caller already holds, so it can
+    never see a class that exists on disk but was never compiled in (or the
+    reverse). Enumeration can.
+    """
+    names_c = _native.class_registry_names_c()
+    assert names_c is not None
+    disk = _on_disk_descriptors()
+    # The TOML stem is snake_case; the [class].name is CamelCase. Compare on
+    # the descriptor TEXT's own declared name to avoid encoding a mapping.
+    assert len(names_c) == len(disk), (
+        f"C carries {len(names_c)} class descriptors {sorted(names_c)} but the "
+        f"catalog ships {len(disk)} TOMLs {sorted(disk)} — one side is stale. "
+        f"Regenerate (python3 tools/regen_all.py) AND rebuild the library.")
+    assert len(set(names_c)) == len(names_c), "duplicate class name in the C table"
+
+
+@pytest.mark.skipif(not _native.has_native_class_registry(),
+                    reason="rc359 class-registry enumeration accessors not built")
+def test_c_class_descriptor_bodies_are_byte_identical_to_the_catalog():
+    """CONTENT ratchet: the compiled bytes ARE the on-disk descriptor.
+
+    This is the assertion a stale `.so` cannot survive — and the one a
+    prefix-rename that skips the class registry cannot survive either.
+    """
+    disk_texts = set(_on_disk_descriptors().values())
+    n = _native.class_registry_count_c()
+    for i in range(n):
+        d = _native.class_descriptor_c(i)
+        assert d is not None
+        assert d["toml_len"] == len(d["toml"].encode("utf-8")), (
+            f"{d['name']}: declared toml_len {d['toml_len']} != actual "
+            f"{len(d['toml'].encode('utf-8'))} bytes")
+        assert d["toml"] in disk_texts, (
+            f"the COMPILED descriptor for {d['name']!r} is not byte-identical "
+            f"to any on-disk .toml. Either c/src/srmech_class_registry.c is "
+            f"stale against the catalog (run tools/regen_all.py), or the "
+            f"LIBRARY is stale against the generated .c (rebuild + reinstall "
+            f"libsrmech). The name still resolves, which is why nothing else "
+            f"fails.")
+
+
+@pytest.mark.skipif(not _native.has_native_class_registry(),
+                    reason="rc359 class-registry enumeration accessors not built")
+def test_every_dotted_op_ref_baked_into_c_still_resolves():
+    """ADR-0010's PREREQUISITE, stated as a test.
+
+    The op refs compiled into the C registry must name callables that exist.
+    A rename of `srmech.biology.genome.*` / `srmech.cascade.*` that updates
+    the Python surface but not this table leaves C dispatching to dead names;
+    this is the assertion that goes red for it.
+
+    It must land BEFORE that rename, not with it: an instrument built in the
+    same change it is meant to police has no green baseline, so a red would be
+    unattributable.
+    """
+    import importlib
+    import re as _re
+
+    refs = set()
+    for i in range(_native.class_registry_count_c()):
+        d = _native.class_descriptor_c(i)
+        # No trailing `.`: these refs appear in prose as well as in `op =`
+        # values, so a greedy `[A-Za-z0-9_.]+` swallows sentence-ending periods
+        # and invents refs like `srmech.biology.genome.` that never existed.
+        # The prefix tracks where ADR-0010 moved the class-descriptor op refs:
+        # the amsc-era ops now live under ``srmech.cascade.*`` (rc364/rc377 —
+        # One / SedenionRegister / Hurwitz bind cascade ops) and
+        # ``srmech.biology.*`` (rc375 — Genome). Was ``srmech\.amsc\.`` before
+        # the arc drained amsc; keeping it would make this scan go blind.
+        refs.update(_re.findall(
+            r"srmech\.(?:cascade|biology)\.[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)*",
+            d["toml"]))
+    assert refs, "decoded no dotted op refs at all — the scan has gone blind"
+
+    broken = []
+    for ref in sorted(refs):
+        module, _, attr = ref.rpartition(".")
+        try:
+            mod = importlib.import_module(module)
+        except ImportError:
+            try:
+                importlib.import_module(ref)      # ref IS a module
+                continue
+            except ImportError:
+                broken.append(f"  {ref}: module {module!r} not importable")
+                continue
+        if not hasattr(mod, attr):
+            broken.append(f"  {ref}: {module!r} has no attribute {attr!r}")
+
+    assert not broken, (
+        f"{len(broken)} op ref(s) baked into the C class registry no longer "
+        f"resolve:\n" + "\n".join(broken)
+        + "\n\nC dispatches on these names with no Python present. The pure "
+          "path reads the TOML off disk and keeps answering, so this is the "
+          "only surface that fails.")
 
 
 # ── One (plain-op batch): the 5 inline-constant accessors ──────────────────────

@@ -1,10 +1,10 @@
 """srmech.dsl — cascade DSL (v0.5.0rc8; task #235 / ADR-0002 Phase 2-v2).
 
 The fluent :func:`chain` builder composes the 11 cascade-catalog ops
-(``srmech.amsc.cascade.*``) + the loop / fold / reduce control-flow
+(``srmech.cascade.*``) + the loop / fold / reduce control-flow
 primitives into a single executable pipeline. The runner reads the TOML
 cascade-catalog descriptors at construction time and dispatches through
-the corresponding ``srmech.amsc.cascade.*`` Python entry points (which
+the corresponding ``srmech.cascade.*`` Python entry points (which
 themselves route to C peers when ``HAS_NATIVE`` is True).
 
 Per-stage events emit ``dsl.<chain_name>.stage.<N>`` lines to the
@@ -73,7 +73,15 @@ from ._class_surface import (
     list_class_surface,
     run_class_method,
 )
-from ._alias import alias, build_aliases_from_toml_str, load_aliases_toml
+from ._alias import (
+    ALIAS_CATALOG_DIR,
+    alias,
+    build_aliases_from_toml_str,
+    list_alias_descriptors,
+    load_aliases_toml,
+    register_alias_dir,
+    resolve_alias_descriptor,
+)
 from ._tool_surface import list_catalog_ops, list_ops, run_toml_chain
 from ._toml_chain import (
     build_chain_from_dict,
@@ -81,6 +89,10 @@ from ._toml_chain import (
     build_chain_from_toml_str,
     load_chain_toml,
 )
+# rc420 (`#T1114`): the cascade-catalog EXECUTABLE-CHAIN surface — every
+# [cascade] descriptor now declares an ADR-0008 §2 chain or an explicit
+# LEAF; this runs the declared chain through the schema-v2 engine.
+from ._cascade_chain import run_cascade_chain
 
 __all__ = [
     # Fluent builder
@@ -102,6 +114,9 @@ __all__ = [
     # Declarative one-shot surface (v0.5.0rc12 — LLM tool entry points)
     "run_toml_chain",
     "list_catalog_ops",
+    # rc420 (`#T1114`): run a [cascade] descriptor's DECLARED chain — the
+    # catalog made executable (the 17-executable / 3-LEAF inversion).
+    "run_cascade_chain",
     # §17 U3 (rc45): unified op-discovery — cascade-ops + catalog-chains in one list
     "list_ops",
     # rc261 (§95.2 / #1407): config-driven FUNCTION ALIASING — bind a user's own name to
@@ -109,6 +124,14 @@ __all__ = [
     "alias",
     "build_aliases_from_toml_str",
     "load_aliases_toml",
+    # rc364 (ADR-0010 amendment B): the naming layer gets the same catalog shape the
+    # class layer already had — a shipped descriptor dir + a registration API. Without
+    # it, rc362's and rc271's alias descriptors landed in tests/data/ by default rather
+    # than by decision, and tests/** is NOT in the wheel.
+    "ALIAS_CATALOG_DIR",
+    "register_alias_dir",
+    "list_alias_descriptors",
+    "resolve_alias_descriptor",
     # User-declared classes from [class] TOML (#962 Part 2; rc39) — declarative,
     # generic runtime objects; methods bind to cascade ops by dotted path.
     "make_class",

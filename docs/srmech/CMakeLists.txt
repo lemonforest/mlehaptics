@@ -110,6 +110,30 @@ if(SRMECH_SRCS)
     # keep their dev-time/WSL2 run convention.)
     # ─────────────────────────────────────────────────────────────────
     if(SRMECH_PEDANTIC)
+        # ─────────────────────────────────────────────────────────────
+        # rc356 (`#T953`) — the C tests are now RUN, not just compiled.
+        #
+        # Before this line existed there was no enable_testing(), no
+        # add_test() and no ctest step in any workflow, so **0 of the 30
+        # c/test/*.c binaries were executed by any automation, local or
+        # CI.** The nine below were built by the pedantic matrix and the
+        # binaries thrown away. That is the guard-that-never-fires shape,
+        # and it did what that shape always does: rc307 reinterpreted the
+        # fiedler `ws_len` unit (DOUBLES -> BYTES, ABI 9 -> 10) and left
+        # test_srmech_progress_tick.c behind on the old convention. It
+        # returned SRMECH_ERR_BAD_INPUT instead of SRMECH_CANCELLED for
+        # ~48 rcs, and nothing noticed, because compiling a test proves
+        # only that it compiles. ADR-0003 says the C host stands alone;
+        # that claim was not verifiable by automation in its entirety.
+        #
+        # The `make test` target (c/Makefile) is the OTHER half of this
+        # fix and covers all 30 on POSIX. This block deliberately carries
+        # only the tests already proven to build on the 3-OS matrix (plus
+        # genome, see below) — see tests/test_c_test_wiring_rc356.py, the
+        # down-only ratchet that drains the remainder.
+        # ─────────────────────────────────────────────────────────────
+        enable_testing()
+
         add_executable(test_srmech_trans_q61 c/test/test_srmech_trans_q61.c)
         target_link_libraries(test_srmech_trans_q61 PRIVATE srmech ${SRMECH_MATH_LIB})
 
@@ -189,6 +213,105 @@ if(SRMECH_SRCS)
         add_executable(test_srmech_text_fold c/test/test_srmech_text_fold.c)
         target_include_directories(test_srmech_text_fold PRIVATE c/src)
         target_link_libraries(test_srmech_text_fold PRIVATE srmech ${SRMECH_MATH_LIB})
+
+        # rc356 (`#T953`): §41 genome persistence — the test the finding was
+        # filed against. It was buildable all along (0 warnings, 231 assertions
+        # green), but could not join this matrix because its ensure_dir() was a
+        # NO-OP under _WIN32 ("the parity harness runs on Linux"), so every save
+        # would have failed on windows-latest. rc356 gives it a real _mkdir and
+        # drops the shell-out entirely, which is what makes this line safe.
+        add_executable(test_srmech_genome c/test/test_srmech_genome.c)
+        target_link_libraries(test_srmech_genome PRIVATE srmech ${SRMECH_MATH_LIB})
+
+        # rc391 (`#T907` slice 1): the srmech_toml_parse_arena_bytes sizer +
+        # a parse round-trip smoke. Public-API only (srmech.h), so it links the
+        # shipped lib like the others and needs no c/src include. Joins the
+        # -Werror/-WX gate AND the ctest run so the new C symbol is exercised on
+        # all three OSes. Run it: ./build/test_srmech_toml_arena (exit 0 = pass)
+        add_executable(test_srmech_toml_arena c/test/test_srmech_toml_arena.c)
+        target_link_libraries(test_srmech_toml_arena PRIVATE srmech ${SRMECH_MATH_LIB})
+
+        # rc397 (`#T1066`): the correctly-rounded, libm-free srmech_toml
+        # decimal->double parse (Clinger fast path + srmech_bigint exact tail).
+        # Compares the parser's SRMECH_TOML_FLOAT value BIT-FOR-BIT against the
+        # host compiler's own double literals (correctly rounded), plus the
+        # denormal / overflow->inf / underflow->0 boundaries built from bit
+        # patterns. Public-API only (srmech.h), joins the -Werror/-WX gate AND
+        # the ctest run so the fix is proven on all three OSes. Run it:
+        #   ./build/test_srmech_toml_float        (exit 0 = all pass)
+        add_executable(test_srmech_toml_float c/test/test_srmech_toml_float.c)
+        target_link_libraries(test_srmech_toml_float PRIVATE srmech ${SRMECH_MATH_LIB})
+
+        # rc402 (`#T1068`): the srmech_json number-scanner + integer-range
+        # correctness gate. Before rc402 an out-of-int64 integer returned
+        # SRMECH_OK with the value CLAMPED to INT64_MAX (strtoll's ERANGE was
+        # never read), a malformed literal like `--1` or `1e` returned
+        # SRMECH_OK with an invented value, and a NUL-bearing object key came
+        # back silently TRUNCATED. All three now DECLINE with a status the
+        # caller can see. This test fails 20 of its 45 assertions against the
+        # pre-rc402 parser, so it is a real instrument rather than a
+        # rubber-stamp. Public-API only (srmech.h), joins the -Werror/-WX gate
+        # AND the ctest run so the fix is proven on all three OSes. Run it:
+        #   ./build/test_srmech_json_number_rc402   (exit 0 = all pass)
+        add_executable(test_srmech_json_number_rc402
+                       c/test/test_srmech_json_number_rc402.c)
+        target_link_libraries(test_srmech_json_number_rc402
+                              PRIVATE srmech ${SRMECH_MATH_LIB})
+
+        # rc403 (`#T1071`): the Ryu-class shortest-round-trip double->decimal
+        # writer. TWO halves, because a bare-C host has no CPython to ask.
+        # Half (A) PROVES shortest-round-trip: emit the decimal, parse it back
+        # with srmech's own libm-free correctly-rounded decimal->double (rc397,
+        # via srmech_toml_parse), require bit-identity, then require that
+        # NEITHER one-digit-shorter neighbour round-trips. Half (B) pins the
+        # SPELLING against CPython repr(float) literals — which is also the
+        # platform-independence gate, since %.17g of 1e17 is "1e+017" on Windows
+        # and "1e+17" on Linux, and this runs on all three OSes.
+        #
+        # It is a real instrument, not a rubber stamp: run against the
+        # PRE-rc403 library it exits 1 with 109 failures (87042 values checked),
+        # while 3,000,000 uniformly random bit patterns found ZERO — the defect
+        # lived in the zero-mantissa class, which random sampling never hits.
+        # Public-API only (srmech.h). ~0.95 s. Run it:
+        #   ./build/test_srmech_ryu_repr_rc403     (exit 0 = all pass)
+        add_executable(test_srmech_ryu_repr_rc403
+                       c/test/test_srmech_ryu_repr_rc403.c)
+        target_link_libraries(test_srmech_ryu_repr_rc403
+                              PRIVATE srmech ${SRMECH_MATH_LIB})
+
+        # rc404 (`#T1069`): the SRMECH_ERR_OVERFLOW / SRMECH_ERR_LIMIT
+        # discriminator. Asserts that a caller can tell "grow your arena and
+        # retry" from "this bound is structural, retrying is futile" — which
+        # through rc403 it could not, because both returned status 4.
+        #
+        # A real instrument, measured against both libraries: rc403 exits 1
+        # with 5 of 12 rows failing (the five NOT_RETRYABLE rows whose sites
+        # rc404 moves); rc404 exits 0. The negative-control rows return
+        # BAD_INPUT in BOTH builds, so the gate is not "everything returns
+        # OVERFLOW", and the valid-document rows pass in both, so it is not
+        # "everything is broken". Adding the enum constant alone does NOT
+        # satisfy it — only re-statusing the sites does.
+        # Public-API only (srmech.h). ~0 s. Run it:
+        #   ./build/test_srmech_status_discrimination_rc404   (exit 0 = pass)
+        add_executable(test_srmech_status_discrimination_rc404
+                       c/test/test_srmech_status_discrimination_rc404.c)
+        target_link_libraries(test_srmech_status_discrimination_rc404
+                              PRIVATE srmech ${SRMECH_MATH_LIB})
+
+        # THE RUN STEP. Every executable above is registered with ctest, so
+        # `ctest --output-on-failure` in .github/workflows/srmech-ci.yml
+        # actually executes them on all three OSes. Whole set = 551 ms wall on
+        # WSL2, so there is no runtime argument against running them.
+        foreach(t
+            test_srmech_trans_q61 test_srmech_modular_linalg
+            test_srmech_crt_reconstruct test_srmech_qmat_crt test_srmech_carrier
+            test_srmech_progress test_srmech_bigint test_srmech_progress_tick
+            test_srmech_text_fold test_srmech_genome test_srmech_toml_arena
+            test_srmech_toml_float test_srmech_json_number_rc402
+            test_srmech_ryu_repr_rc403
+            test_srmech_status_discrimination_rc404)
+            add_test(NAME ${t} COMMAND ${t})
+        endforeach()
     endif()
 else()
     # Phase B1 only: no .c files yet. Emit a status line so the

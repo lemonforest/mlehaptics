@@ -67,8 +67,8 @@ srmech.amsc.laplacian.elementwise_transcendental
 srmech.amsc.laplacian.hermitian_eigendecompose
 srmech.amsc.laplacian.jacobi_eigvals
 srmech.amsc.laplacian.normalized_laplacian
-srmech.amsc.naming.lookup
-srmech.amsc.naming.reverse_order
+srmech.introspect.naming.lookup
+srmech.introspect.naming.reverse_order
 srmech.amsc.primes.cyclic_period
 srmech.amsc.primes.factor
 srmech.amsc.primes.is_prime
@@ -160,7 +160,7 @@ srmech.qm.triality.triality_cycle
 srmech.qm.triality.triality_relation_residual
 srmech.signal_processing.closed_form_ops.hdc_truncation.op
 srmech.signal_processing.closed_form_ops.heat_kernel.op
-srmech.signal_processing.closed_form_ops.music.op
+srmech.signal_processing.closed_form_ops.music_doa.op
 srmech.signal_processing.cascade_compose_rotations
 srmech.signal_processing.form_function_rotate
 srmech.signal_processing.inverse_form_function_rotate
@@ -278,8 +278,8 @@ srmech.amsc.hdc.polar_similarity
 srmech.amsc.hdc.polar_unbind
 srmech.amsc.laplacian.symmetric_eigendecompose
 srmech.amsc.laplacian.three_fold_eigvec_groups
-srmech.amsc.coupling.signed_sum_squared
-srmech.amsc.harmonics.classify_chirality_harmonic
+srmech.biology.coupling.signed_sum_squared
+srmech.music.harmonics.classify_chirality_harmonic
 srmech.amsc.compose.greedy_bipartite_alignment
 srmech.amsc.cascade.hypercomplex_couple
 srmech.amsc.cascade.octonion_dft
@@ -365,7 +365,7 @@ srmech.amsc.write_ndjson
 srmech.amsc.gap_suggester.register_classifier
 srmech.amsc.gap_suggester.register_probes
 srmech.amsc.gap_suggester.suggest_gap_collections
-srmech.amsc.harmonics.classify_harmonic
+srmech.music.harmonics.classify_harmonic
 srmech.amsc.tool_schema.get_tool_schema
 srmech.amsc.tool_schema.load_extension_file
 srmech.amsc.tool_schema.register_profile_tools

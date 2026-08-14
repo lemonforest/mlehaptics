@@ -9,7 +9,8 @@ import struct
 
 import pytest
 
-from srmech.amsc import _native, search, tlv
+from srmech import _native
+from srmech.math import search, tlv
 
 
 # ---------------------------------------------------------------------
@@ -121,7 +122,7 @@ def test_introspection_version_native_matches():
     # srmech_bus_subscriber_callback_t delivery typedef);
     # v0.9.0rc242 bumped ABI 4 → 5 (the C progress / introspection callback +
     # the new srmech_progress_cb_t dispatch-observer typedef, #840).
-    assert _native.NATIVE_ABI_VERSION == 10
+    assert _native.NATIVE_ABI_VERSION == 14
 
 
 # ---------------------------------------------------------------------

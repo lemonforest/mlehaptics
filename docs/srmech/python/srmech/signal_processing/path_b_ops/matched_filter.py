@@ -123,7 +123,7 @@ def op(
     # (ValueError on nested/2-D / empty input) and return a list (the conjugate
     # is the element's own ``.conjugate()``, no ``np.conj``); the matmul path is
     # within-tol (not byte-identical).
-    from srmech.amsc import _native
+    from srmech import _native
 
     if (
         _native.HAS_NATIVE

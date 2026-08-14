@@ -1,6 +1,7 @@
 # ADR-0001: The srmech profile pattern — domain-specific extension as configuration
 
-**Status:** ⏳ Draft (Task #199 design phase; not yet implemented).
+**Status:** 🟢 **Implementing** (`#T199`) — execution arc OPEN, shape still being learned, so this ADR stays revisable in place rather than being superseded to change. **The loader is real and shipped**: `srmech/profile_loader.py` (989 lines) implements descriptor validation, entry-point enumeration, the smoke gate, the cache and `Profile` activation, with two test files and two downstream profiles (`ephemerides-spectral`, `chess-spectral`) exercising it. *(This line read "⏳ Draft … not yet implemented" until rc409 — false for the loader as a whole, which is why the status moved.)* **What is genuinely NOT implemented is narrower and is the open question:** of the six `[profile]` blocks the companion `0001-profile-pattern.schema.json` declares, the loader validates three (`catalogs`, `bridge`, `native`) and reads **`cli` and `smoke_test` nowhere** — yet both real downstream profiles ship a `_srmech_smoke.py` and declare `[profile.smoke_test] callable = …` that srmech never invokes (and `callable` is not even a schema key). **To-implement-or-delete on those two blocks is the decision this ADR is still learning**; it is what gates promotion to ✅ Accepted.
+**Clauses:** audited.
 **Date:** 2026-05-14.
 **Authors:** Steven Kirkland + Claude Opus 4.7.
 **Supersedes:** none.
@@ -18,7 +19,7 @@ Sister packages in the spectral-research portfolio currently consume srmech as a
 - **`chess-spectral`** — chess piece-graph spectra, D₄/B₄ irrep decomposition, `qm_*.py` kinematics/dynamics modules, channel-decomposition framework.
 - **`antikythera-spectral`** — bronze gear-DAG, cyclic-group algebra, Almagest/Freeth parameter sets.
 
-Task #199 names these three as candidates for collapse "into srmech configs, not separate packages." That collapse, naively executed, would:
+`#T199` names these three as candidates for collapse "into srmech configs, not separate packages." That collapse, naively executed, would:
 
 1. **Reduce maintenance overhead** — one publish workflow, one cibuildwheel matrix, one version cadence across the portfolio.
 2. **Centralise the substrate** — research code shares the AMSC framework + native-dispatch infrastructure naturally.
@@ -330,16 +331,34 @@ When Task #198's tool_schema lands, srmech's introspection surface (`srmech --to
 
 CLI help integration is the same shape: `srmech --help` lists the base srmech commands first, then each active profile's commands grouped under its profile name. Plugins extending the help menu is mechanical, not policy-laden.
 
-### Loader-side JPL ratchet test
+### Loader-side JPL ratchet test — SPECIFIED, **NOT BUILT**
 
-Mirroring `tests/test_jpl_audit.py` for srmech's C, srmech v0.3.0 ships a `tests/test_loader_discipline.py` that ratchets:
+> ⚠️ **This section asserted a shipped ratchet that has never existed** (corrected v0.9.0rc415,
+> `#T1098`). It read *"srmech v0.3.0 ships a `tests/test_loader_discipline.py` that ratchets: …"* and
+> closed with *"PRs that introduce a regression fail CI."* — both in the present perfect, both false.
+> `git grep -ln test_loader_discipline` returns **this ADR as the sole hit in the whole tree**, and
+> `git log --all -S"test_loader_discipline"` returns no commit that ever added such a file. The
+> cited peer `tests/test_jpl_audit.py` **does** resolve, which is exactly what made the pairing read
+> as real: one live pointer lends its credibility to the dead one beside it.
+>
+> The text below is restated as the **design**, which is what it always was. It is not deleted —
+> deleting it is ADR-0012 §3.2's forbidden discharge, where non-compliance is disposed of by making
+> the claim disappear rather than by instrumenting or withdrawing it. The clause row at the bottom
+> of this section carries the deadline.
+
+Mirroring `tests/test_jpl_audit.py` for srmech's C, the loader tier **is specified to** ratchet:
 
 - No unbounded loops in the loader (no `while True`; bounded iteration count for all enumeration passes).
 - No `eval` / `exec` in the loader path.
 - All profile-supplied strings consumed via `importlib`-family safe APIs.
 - Smoke-test cache file format is validated by JSON Schema at read time.
 
-This is the loader's analog of the C-side `SRMECH_PEDANTIC=ON` build. PRs that introduce a regression fail CI.
+This is the loader's analog of the C-side `SRMECH_PEDANTIC=ON` build. **Today nothing enforces any of
+the four**, so a PR introducing a regression against them passes CI.
+
+| § | clause | instrument | status |
+|---|---|---|---|
+| §5.5 | the loader tier holds the four JPL-analog properties above | **none** — `tests/test_loader_discipline.py` does not exist and never has | **UNGATED — deferred.** `expiry: rc425`. Per ADR-0012 §3.2 the two admissible discharges are (1) build the ratchet, or (3) withdraw the clause and accept that this ADR then claims strictly less. Restating the four properties as an aspiration is **not** a discharge |
 
 ## 5.6. Interpreted-runtime plugins (future tier; reserved in v0.3.0 schema, not implemented)
 
@@ -431,7 +450,7 @@ This is the third-party-publishable property. The ADR locks it in as a primary r
 
 ### Step 1 — chess-spectral as the simple-profile POC (validates §5 simple tier)
 
-`chess-spectral` is the smallest of the three named in Task #199 and is structurally simpler (smaller native library footprint; fewer cross-channel surfaces). Migration:
+`chess-spectral` is the smallest of the three named in `#T199` and is structurally simpler (smaller native library footprint; fewer cross-channel surfaces). Migration:
 
 1. Add `srmech_profile.toml` at the chess-spectral repo root (or under the package; placement TBD).
 2. Add the `[project.entry-points."srmech.profiles"]` declaration to `chess-spectral`'s pyproject.toml.
@@ -504,7 +523,7 @@ Things explicitly left open for future ADRs or research spikes:
 
 ## 11. Decision
 
-**Adopt the two-tier profile pattern as the design target for Task #199.** Implement in the order:
+**Adopt the two-tier profile pattern as the design target for `#T199`.** Implement in the order:
 
 1. This ADR + the JSON Schema for `srmech_profile.toml`.
 2. Task #198 (`tool_schema`).
@@ -548,7 +567,7 @@ urgent to think about:
 
 - Task #197 — AMSC-to-srmech refactor (the substrate's existing scope).
 - Task #198 — srmech.amsc.tool_schema (the prerequisite for this ADR).
-- Task #199 — Config-driven srmech profile pattern (this ADR is its design).
+- `#T199` — Config-driven srmech profile pattern (this ADR is its design).
 - `docs/srmech/srmech_research_notebook.md` §0 — three-layer architecture; profiles live at L1+L2 boundary.
 - `docs/srmech/CLAUDE.md` — session-level brief on srmech's current state and conventions.
 - ephemerides-spectral's `_native_bip.py` — model of the ctypes binding pattern a plugin profile will follow.

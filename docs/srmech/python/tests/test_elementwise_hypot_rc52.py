@@ -21,14 +21,14 @@ import math
 
 import pytest
 
-from srmech.amsc import laplacian
-from srmech.amsc.laplacian import elementwise_hypot
+from srmech.math import laplacian
+from srmech.math.laplacian import elementwise_hypot
 
 _TOL = 1e-9
 
 
 def test_hypot_close_to_stdlib():
-    from srmech.amsc.vec import Vec
+    from srmech.math.vec import Vec
     a = [3.0, -5.0, 0.0, 1.5, 8.0]
     b = [4.0, 12.0, 7.0, 2.0, 15.0]
     out = elementwise_hypot(a, b)
@@ -72,10 +72,10 @@ def test_hypot_in_all_and_laplacian_ops():
 
 
 def test_hypot_tool_entry_registered():
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
 
     names = {t.name for t in get_tool_schema().tools}
-    assert "srmech.amsc.laplacian.elementwise_hypot" in names
+    assert "srmech.math.laplacian.elementwise_hypot" in names
 
 
 def test_no_np_hypot_callsites_remain():

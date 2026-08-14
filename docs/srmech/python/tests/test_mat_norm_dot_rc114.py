@@ -16,8 +16,8 @@ import sys
 
 import pytest
 
-from srmech.amsc.laplacian import mat_norm, mat_dot, mat_dot
-from srmech.amsc.mat import Mat
+from srmech.math.laplacian import mat_norm, mat_dot, mat_dot
+from srmech.math.mat import Mat
 
 _TOL = 1e-9
 
@@ -91,8 +91,8 @@ class _Block(importlib.abc.MetaPathFinder):
 sys.meta_path.insert(0, _Block())
 for _m in [m for m in sys.modules if m == 'numpy' or m.startswith('numpy.')]:
     del sys.modules[_m]
-from srmech.amsc.laplacian import mat_norm, mat_dot, mat_dot
-from srmech.amsc.mat import Mat
+from srmech.math.laplacian import mat_norm, mat_dot, mat_dot
+from srmech.math.mat import Mat
 assert mat_norm([3.0, 4.0]) == 5.0, mat_norm([3.0, 4.0])
 assert mat_norm(Mat.from_rows([[1.0, 0.0], [0.0, 1.0]])) == 2.0 ** 0.5 or True
 assert mat_dot([1.0, 2.0], [3.0, 4.0]) == 11.0

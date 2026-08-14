@@ -7,7 +7,7 @@
  *   srmech_hermitian_eigendecompose_ws — COMPLEX HERMITIAN only (complex Jacobi)
  *   srmech_eigvec_exact / srmech_complex_isolate — EXACT, INTEGER matrices only
  *
- * while `srmech.amsc.laplacian.mat_eigvals` — the general non-Hermitian float
+ * while `srmech.math.laplacian.mat_eigvals` — the general non-Hermitian float
  * solver — was classified `composition_of_c`, a bucket whose annotation reads
  * "standalone-ready". It was not: its balancing, Hessenberg reduction,
  * deflation loop, Wilkinson shift ladder and {QR} were Python-only, and it has

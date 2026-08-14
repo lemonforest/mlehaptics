@@ -52,10 +52,11 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc import ThetaSum, _native
-from srmech.amsc.ellbase import EllMonomial as M, Theta
-from srmech.amsc.q import Q
-from srmech.amsc.thetasum import (
+from srmech.amsc import ThetaSum
+from srmech import _native
+from srmech.apokatastasis.ellbase import EllMonomial as M, Theta
+from srmech.math.q import Q
+from srmech.apokatastasis.thetasum import (
     _NONZERO, _UNKNOWN, _ZERO, _decide_thetasum, _joint_char, _term_char_v,
 )
 

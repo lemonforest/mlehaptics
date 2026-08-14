@@ -39,10 +39,10 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc import genome as G
-from srmech.amsc import _native
-from srmech.amsc.cascade.cayley_dickson import cd_mult
-from srmech.amsc.genome import (
+from srmech.biology import genome as G
+from srmech import _native
+from srmech.cascade.cayley_dickson import cd_mult
+from srmech.biology.genome import (
     ELEMENT_TYPE_KLEIN4, ELEMENT_TYPE_OCTONION, OCTONION_SECTORS, QUAD,
     FIBER_CAP_MARKER, OCT_FIBER_CAP_MARKER, GENOME_FORMAT_VERSION,
     genome_octonion_holonomy, genome_octonion_associator,
@@ -50,8 +50,8 @@ from srmech.amsc.genome import (
     genome_add_fiber, genome_read_fiber,
     chromosome, recall, telomere, codon_read, _cap_kind, _hv_bytes,
 )
-from srmech.amsc.octonion import oct_bind, oct_mult
-from srmech.amsc.hv import HV
+from srmech.math.octonion import oct_bind, oct_mult
+from srmech.math.hv import HV
 
 
 # leaf_dim ≥ 24 so the default "octonion" (8-char) label + 4-bit-packed holonomy fits
@@ -251,6 +251,10 @@ def test_f3_pre_rc325_fmt17_body_still_opens(tmp_path):
 
 
 # ── F4 — native == pure ──────────────────────────────────────────────────────
+# rc351 (task `#T1004`): skip rather than assert the native lib into existence — see the
+# matching note in test_genome_fiber_channel_rc322.py.
+@pytest.mark.skipif(not _native.has_native_genome_octonion_holonomy(),
+                    reason="native octonion-holonomy symbol required for the differential")
 def test_f4_native_equals_pure_random_strands(monkeypatch):
     assert _native.has_native_genome_octonion_holonomy()
     rng = random.Random(32502)
@@ -318,8 +322,8 @@ def test_octonion_fiber_ops_are_public_and_registered():
                  "genome_add_octonion_fiber", "genome_read_octonion_fiber",
                  "OCT_FIBER_CAP_MARKER"):
         assert name in G.__all__
-    from srmech.amsc import tool_schema
+    from srmech.introspect import tool_schema
     tools = {t.name for t in tool_schema.get_tool_schema().tools}
     for op in ("genome_octonion_holonomy", "genome_octonion_associator",
                "genome_add_octonion_fiber", "genome_read_octonion_fiber"):
-        assert f"srmech.amsc.genome.{op}" in tools
+        assert f"srmech.biology.genome.{op}" in tools

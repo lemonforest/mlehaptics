@@ -36,14 +36,14 @@ from __future__ import annotations
 import json
 import random
 from fractions import Fraction
-from srmech.amsc.q import Q  # #845: outputs are now Q, not Fraction
+from srmech.math.q import Q  # #845: outputs are now Q, not Fraction
 from pathlib import Path
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc.cascade import matrix_cascades as mc
-from srmech.amsc.cascade.matrix_cascades import eigvals_exact
+from srmech import _native
+from srmech.cascade import matrix_cascades as mc
+from srmech.cascade.matrix_cascades import eigvals_exact
 
 
 def _force(has_native: bool, fn, *args, **kw):
@@ -215,4 +215,4 @@ def test_rosetta_eigvals_is_c_dispatched():
     fixture = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
     rows = {json.loads(l)["defined_at"]: json.loads(l)["bucket"]
             for l in fixture.read_text(encoding="utf-8").splitlines() if l.strip()}
-    assert rows["srmech.amsc.cascade.matrix_cascades.eigvals_exact"] == "c_dispatched"
+    assert rows["srmech.cascade.matrix_cascades.eigvals_exact"] == "c_dispatched"

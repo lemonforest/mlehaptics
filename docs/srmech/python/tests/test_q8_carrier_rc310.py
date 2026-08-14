@@ -1,11 +1,11 @@
 """rc310 — the DISCRETE quaternion group Q8 = {±1, ±i, ±j, ±k} as 3-bit bytes:
-the discrete peer of the continuous ℍ surface (``srmech.qm.quaternion``).
+the discrete peer of the continuous ℍ surface (``srmech.physics.qm.quaternion``).
 
 The load-bearing proofs:
 
 - ``test_q8_is_genuine_q8_vs_cd_basis_product`` — the Q8 product byte-table IS
   the signed-basis multiplication of the shipped Cayley–Dickson cocycle
-  ``srmech.amsc.cascade.cayley_dickson.cd_basis_product`` at dim 4 (non-abelian,
+  ``srmech.cascade.cayley_dickson.cd_basis_product`` at dim 4 (non-abelian,
   i²=j²=k²=−1, associative over all 8×8×8).
 - ``test_pi_homomorphism_differential_contract`` — the abelian projection is
   EXACT: ``(q8_mult(a,b) & 3) == ((a&3) ^ (b&3))`` for all a,b, i.e. ``V4 = q&3``
@@ -27,10 +27,11 @@ import ctypes
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc import q8
-from srmech.amsc.cascade.cayley_dickson import cd_basis_product
-from srmech.amsc.hdc import klein4_bind
+from tests._native_gate import require_native
+from srmech import _native
+from srmech.biology import q8
+from srmech.cascade.cayley_dickson import cd_basis_product
+from srmech.math.hdc import klein4_bind
 
 ALL8 = range(8)
 
@@ -180,13 +181,14 @@ def _all_results():
 
 def test_native_is_actually_loaded():
     # a meaningful parity gate needs the native peers present
-    assert _native.HAS_NATIVE and _native.LIB is not None
+    require_native("the Q₈ carrier's C peers")
     for sym in ("srmech_q8_mult", "srmech_q8_conjugate",
                 "srmech_q8_bind", "srmech_q8_project_v4"):
         assert hasattr(_native.LIB, sym), sym
 
 
 def test_native_equals_pure_byte_for_byte(monkeypatch):
+    require_native("the Q₈ native-vs-pure differential")
     native = _all_results()
     assert _native.HAS_NATIVE  # sanity: the first pass used the C peers
     monkeypatch.setattr(_native, "HAS_NATIVE", False)
@@ -248,13 +250,13 @@ def test_buffer_rejects_non_q8_byte():
 # =====================================================================
 def test_registration_ratchet():
     import srmech
-    assert srmech.describe()["tools"]["total"] == 509
+    assert srmech.describe()["tools"]["total"] == 655
     for name in ("q8_mult", "q8_conjugate", "q8_bind", "q8_project_v4"):
         assert name in q8.__all__
 
 
 def test_tool_schema_entries_present():
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
     for op in ("q8_mult", "q8_conjugate", "q8_bind", "q8_project_v4"):
-        assert f"srmech.amsc.q8.{op}" in names
+        assert f"srmech.biology.q8.{op}" in names

@@ -1,7 +1,7 @@
 /* srmech_infer.c — the F929 OPEN/infer ROUTER in C (0.9.0rc176; the
  * ORCHESTRATION->C spine, batch 6; the CARRIER-FFI foundation).
  *
- * The C peer of srmech.amsc.dispatch.infer — the META-dispatcher over srmech's
+ * The C peer of srmech.math.dispatch.infer — the META-dispatcher over srmech's
  * shipped closed-form reduction-theory rows (F929: the 14 A-N classes ARE a
  * DISPATCH TABLE over reduction theories humans already built). Given a STORED
  * RELATIONSHIP marshalled as JSON, DETECT which row its operand structure
@@ -73,7 +73,7 @@
 #include "srmech.h"
 
 #define INF_ONE_DIM  14u        /* the One's 1+3+7+3 = 14 flat rationals   */
-#define INF_ONE_TERMS 24u       /* DEFAULT_TERMS in srmech.amsc.cascade.one */
+#define INF_ONE_TERMS 24u       /* DEFAULT_TERMS in srmech.cascade.one */
 
 /* ------------------------------------------------------------------
  * Bump arena — forward-only carve, void*-aligned (the srmech_compose_run
@@ -333,7 +333,7 @@ static srmech_status_t inf_gosper(const srmech_json_value_t *root, inf_bump_t *b
 /* ------------------------------------------------------------------
  * SIGMA-DEFINITE row (wz_certificate) — rc192, the #796 payoff. Consumes the
  * rc191 PUBLIC srmech_carrier_read_bipoly reader for the four (n,k) BiPoly
- * term-ratios, then reproduces srmech.amsc.wz_certificate.wz_certificate in C:
+ * term-ratios, then reproduces srmech.apokatastasis.wz_certificate.wz_certificate in C:
  *   FIND  — srmech_zeilberger at max_order=1 (the forced f(n+1)-f(n)=0
  *           recurrence); accept only its WZ shape a_0(n)+a_1(n)=0 with a_0,a_1
  *           NONZERO constants in n.
@@ -1392,7 +1392,7 @@ static srmech_status_t inf_emit(char *out, size_t out_cap, size_t *out_len,
  * relationship whose largest operand carries `max_terms` coefficients (the
  * gosper term-ratio degree; 1 for cyclic). The gosper ws grows super-linearly in
  * the DEGREE, so the arena is sized on the ACTUAL coefficient count, NOT on
- * rel_len (bytes) — exactly as srmech.amsc._native.gosper_c sizes ws from
+ * rel_len (bytes) — exactly as srmech._native.gosper_c sizes ws from
  * max(n_num, n_den). A generous static over-approximation; too small ->
  * OVERFLOW -> the pure path. No malloc; the caller owns the arena. */
 size_t srmech_infer_arena_bytes(size_t rel_len, size_t max_terms)

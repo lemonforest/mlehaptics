@@ -1,9 +1,9 @@
 """rc63 — the ThetaSum ``is_zero`` C-peer PARITY suite.
 
 The native ``srmech_thetasum_is_zero`` is a 1:1 STRUCTURAL MIRROR of the pure-Python
-:meth:`srmech.amsc.thetasum.ThetaSum.is_zero` — the EXACT Weierstrass three-term
+:meth:`srmech.apokatastasis.thetasum.ThetaSum.is_zero` — the EXACT Weierstrass three-term
 reduction partitioned by quasi-periodicity class (Rosengren arXiv:1608.06161v3 §1.4
-Eq. 1.12 + §1.3 Lemma 1.3.2, MPM-verified in :mod:`srmech.amsc.thetasum`). This suite
+Eq. 1.12 + §1.3 Lemma 1.3.2, MPM-verified in :mod:`srmech.apokatastasis.thetasum`). This suite
 asserts the C verdict EQUALS the Python verdict byte-for-byte on:
 
   (a) the GENUINE theta-telescoper keystone residual ``R(qx)·r − R − 1`` (is_zero=True)
@@ -22,9 +22,9 @@ peer actually decides the keystone (not a silent Python fallback)."""
 import pytest
 
 from srmech.amsc import ThetaSum
-from srmech.amsc.ellbase import EllMonomial as M, Theta, EllRatio as R
-from srmech.amsc.q import Q
-from srmech.amsc import _native
+from srmech.apokatastasis.ellbase import EllMonomial as M, Theta, EllRatio as R
+from srmech.math.q import Q
+from srmech import _native
 
 _A, _B, _C, _D, _E = (M.symbol("a"), M.symbol("b"), M.symbol("c"),
                       M.symbol("d"), M.symbol("e"))

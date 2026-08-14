@@ -35,9 +35,9 @@ import time
 
 import pytest
 
-from srmech.amsc import genome as G
-from srmech.amsc import _native
-from srmech.amsc.hv import HV
+from srmech.biology import genome as G
+from srmech import _native
+from srmech.math.hv import HV
 
 # aligned (256/8192), the classic non-multiple (1000), a tiny one (1), and an
 # odd non-aligned mid-size (65537) — the true D self-records, so trim is exact.

@@ -1,6 +1,6 @@
 """Jacobi elliptic sn/cn/dn Maclaurin truncation — exact-Q + C-parity tests.
 
-``srmech.amsc.rational.jacobi_sncndn_series_truncate(p, q, m_p, m_q, N)`` is the
+``srmech.math.rational.jacobi_sncndn_series_truncate(p, q, m_p, m_q, N)`` is the
 "rotation-last" exact-rational sibling of ``sin_series_truncate`` /
 ``cos_series_truncate``: it builds the Maclaurin coefficient sequences of the
 three Jacobi elliptic functions sn/cn/dn from the coupled power-series ODE
@@ -28,8 +28,8 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc import rational
+from srmech import _native
+from srmech.math import rational
 
 
 _JS = rational.jacobi_sncndn_series_truncate
@@ -173,7 +173,7 @@ def _pure(p, q, mp, mq, n):
     not _native.has_native_jacobi_sncndn(),
     reason=(
         "native srmech_jacobi_sncndn not loaded; the pure-Python bignum path "
-        "in srmech.amsc.rational is the only path (and the parity oracle). "
+        "in srmech.math.rational is the only path (and the parity oracle). "
         "Skipped — never xfailed."
     ),
 )

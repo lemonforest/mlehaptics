@@ -139,9 +139,9 @@ def test_the_ledger_does_not_go_stale():
     reintroduced, and the test above starts forbidding correct advice about
     a symbol that exists. The ledger has to stay honest to stay useful.
     """
-    import srmech.amsc.hdc as hdc
-    import srmech.amsc.laplacian as laplacian
-    import srmech.amsc.text as text
+    import srmech.math.hdc as hdc
+    import srmech.math.laplacian as laplacian
+    import srmech.math.text as text
 
     # Every module a ledger row can name must be checked here, or the row is
     # recorded but never validated. rc292 added ``hdc`` for exactly that
@@ -162,7 +162,7 @@ def test_the_rc287_sites_now_name_the_replacement():
     A regression here is a real user-facing one, so it is worth naming the
     sites rather than relying on the general scan alone.
     """
-    import srmech.amsc.text as text
+    import srmech.math.text as text
 
     with pytest.raises(TypeError) as topk:
         text.cooccurrence_topk("a raw string, not tokens")

@@ -16,7 +16,7 @@ rational. The insight is framework-wide now, so the module is simply
 ``calculus`` (see ``docs/srmech/notes/continuous_math_as_14_class_cascade.md``:
 every continuous op is a composition of the 14 A–N class operations).
 
-The implementations live in :mod:`srmech.amsc.rational` (Class N — the
+The implementations live in :mod:`srmech.math.rational` (Class N — the
 rational-anchor / best-rational home, native-C-accelerated). This module is
 a thin, stable re-export so the documented ``srmech.calculus.*`` import path
 resolves directly; the attested catalog of worked instances ships at
@@ -55,7 +55,7 @@ Example
 """
 from __future__ import annotations
 
-from srmech.amsc.rational import (
+from srmech.math.rational import (
     best_rational,
     continued_fraction,
     continued_fraction_convergents,

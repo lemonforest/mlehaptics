@@ -69,10 +69,10 @@ R-RBS-NN closed structurally with 9/10 partitions (R-RBS-NN-4 literature attesta
 ### §3.1 srmech infrastructure (verified bit-exact in RBS-NN worked examples)
 
 - Class A content-mint: `srmech.signal_processing.rbs_hdc_instrument.mint_vector(name, D=8192)` — SHA-256 chain mint; deterministic per Spike #170 invariant 1.
-- Class M ops: `srmech.amsc.hdc` — `bind`, `bundle` (odd-N majority), `permute` (cyclic shift), `similarity` (Hamming → [-1, +1]).
+- Class M ops: `srmech.math.hdc` — `bind`, `bundle` (odd-N majority), `permute` (cyclic shift), `similarity` (Hamming → [-1, +1]).
 - Class I cyclic shift via `permute` with stride coprime to D (Spike #170 stride = 257).
 - Class K via integer-Hamming argmin (R-RBS-NN-3a §7 Demo 6 — no FPU operation in the path).
-- Class N: `srmech.amsc.rational.best_rational` (Stern-Brocot best-rational; not required for Level-1 RBS-LM but available).
+- Class N: `srmech.math.rational.best_rational` (Stern-Brocot best-rational; not required for Level-1 RBS-LM but available).
 
 ### §3.2 The ephemerides precedent
 

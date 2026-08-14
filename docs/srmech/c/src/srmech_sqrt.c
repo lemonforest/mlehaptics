@@ -1,7 +1,7 @@
 /* srmech_sqrt.c — Class-N rational sqrt cascade for the NATIVE (executable)
  * tier (v0.7.0rc45; C-transpile triality coherence, rc42->rc46 arc step 3).
  *
- * The Python `srmech.amsc.rational.sqrt` computes sqrt as an INTEGER
+ * The Python `srmech.math.rational.sqrt` computes sqrt as an INTEGER
  * floor-isqrt on a scaled radicand — `isqrt(xn*2^(2b)/xd) / 2^b` — Class N
  * rational arithmetic ∘ Class K sqrt-convergence (asymptotic-DoF), no float
  * `math.sqrt`. rc40 routed the Python callers onto it; this file gives the C

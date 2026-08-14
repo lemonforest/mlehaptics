@@ -2,7 +2,7 @@
  * srmech_sedenion.c — the sedenion-addressable hyper-loop address layer in C.
  *
  * Standalone-complete C peer of the SedenionRegister "address algebra"
- * (UPSTREAM §31 / F465 + F468; Python srmech.amsc.cascade.sedenion_register):
+ * (UPSTREAM §31 / F465 + F468; Python srmech.cascade.sedenion_register):
  * the navigation + reversibility-gate operations a C-only host (no Python)
  * needs to run "Siona's address layer."
  *

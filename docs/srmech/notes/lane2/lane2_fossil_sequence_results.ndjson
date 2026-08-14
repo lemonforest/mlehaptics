@@ -1,0 +1,120 @@
+{"part": "B_negctl", "carrier": "KLEIN4_abelian", "LD": 16, "k": 3, "kfact": 6, "cand": "endpoint", "max_classes": 1}
+{"part": "B_negctl", "carrier": "KLEIN4_abelian", "LD": 16, "k": 3, "kfact": 6, "cand": "cumsign", "max_classes": 6}
+{"part": "B_negctl", "carrier": "KLEIN4_abelian", "LD": 16, "k": 3, "kfact": 6, "cand": "prefix_sign_word", "max_classes": 6}
+{"part": "B_negctl", "carrier": "KLEIN4_abelian", "LD": 16, "k": 3, "kfact": 6, "cand": "trajectory", "max_classes": 6}
+{"part": "B_negctl", "carrier": "KLEIN4_abelian", "LD": 16, "k": 3, "kfact": 6, "cand": "sha_chain_EMPTY_CTL", "max_classes": 6}
+{"part": "B_negctl", "carrier": "KLEIN4_abelian", "LD": 16, "k": 4, "kfact": 24, "cand": "endpoint", "max_classes": 1}
+{"part": "B_negctl", "carrier": "KLEIN4_abelian", "LD": 16, "k": 4, "kfact": 24, "cand": "cumsign", "max_classes": 24}
+{"part": "B_negctl", "carrier": "KLEIN4_abelian", "LD": 16, "k": 4, "kfact": 24, "cand": "prefix_sign_word", "max_classes": 24}
+{"part": "B_negctl", "carrier": "KLEIN4_abelian", "LD": 16, "k": 4, "kfact": 24, "cand": "trajectory", "max_classes": 24}
+{"part": "B_negctl", "carrier": "KLEIN4_abelian", "LD": 16, "k": 4, "kfact": 24, "cand": "sha_chain_EMPTY_CTL", "max_classes": 24}
+{"part": "B_negctl", "carrier": "KLEIN4_abelian", "LD": 16, "k": 5, "kfact": 120, "cand": "endpoint", "max_classes": 1}
+{"part": "B_negctl", "carrier": "KLEIN4_abelian", "LD": 16, "k": 5, "kfact": 120, "cand": "cumsign", "max_classes": 120}
+{"part": "B_negctl", "carrier": "KLEIN4_abelian", "LD": 16, "k": 5, "kfact": 120, "cand": "prefix_sign_word", "max_classes": 120}
+{"part": "B_negctl", "carrier": "KLEIN4_abelian", "LD": 16, "k": 5, "kfact": 120, "cand": "trajectory", "max_classes": 120}
+{"part": "B_negctl", "carrier": "KLEIN4_abelian", "LD": 16, "k": 5, "kfact": 120, "cand": "sha_chain_EMPTY_CTL", "max_classes": 120}
+{"part": "C_adversarial_uniform_slots", "carrier": "Q8", "LD": 64, "k": 3, "kfact": 6, "cand": "endpoint", "classes": 2, "turn_indices": [1, 2, 3]}
+{"part": "C_adversarial_uniform_slots", "carrier": "Q8", "LD": 64, "k": 3, "kfact": 6, "cand": "cumsign", "classes": 1, "turn_indices": [1, 2, 3]}
+{"part": "C_adversarial_uniform_slots", "carrier": "Q8", "LD": 64, "k": 3, "kfact": 6, "cand": "prefix_sign_word", "classes": 2, "turn_indices": [1, 2, 3]}
+{"part": "C_adversarial_uniform_slots", "carrier": "Q8", "LD": 64, "k": 3, "kfact": 6, "cand": "prefix_v4_word", "classes": 6, "turn_indices": [1, 2, 3]}
+{"part": "C_adversarial_uniform_slots", "carrier": "Q8", "LD": 64, "k": 3, "kfact": 6, "cand": "trajectory", "classes": 6, "turn_indices": [1, 2, 3]}
+{"part": "C_adversarial_uniform_slots", "carrier": "Q8", "LD": 64, "k": 4, "kfact": 24, "cand": "endpoint", "classes": 2, "turn_indices": [1, 2, 3, 1]}
+{"part": "C_adversarial_uniform_slots", "carrier": "Q8", "LD": 64, "k": 4, "kfact": 24, "cand": "cumsign", "classes": 4, "turn_indices": [1, 2, 3, 1]}
+{"part": "C_adversarial_uniform_slots", "carrier": "Q8", "LD": 64, "k": 4, "kfact": 24, "cand": "prefix_sign_word", "classes": 7, "turn_indices": [1, 2, 3, 1]}
+{"part": "C_adversarial_uniform_slots", "carrier": "Q8", "LD": 64, "k": 4, "kfact": 24, "cand": "prefix_v4_word", "classes": 12, "turn_indices": [1, 2, 3, 1]}
+{"part": "C_adversarial_uniform_slots", "carrier": "Q8", "LD": 64, "k": 4, "kfact": 24, "cand": "trajectory", "classes": 12, "turn_indices": [1, 2, 3, 1]}
+{"part": "C_adversarial_uniform_slots", "carrier": "Q8", "LD": 64, "k": 5, "kfact": 120, "cand": "endpoint", "classes": 2, "turn_indices": [1, 2, 3, 1, 2]}
+{"part": "C_adversarial_uniform_slots", "carrier": "Q8", "LD": 64, "k": 5, "kfact": 120, "cand": "cumsign", "classes": 5, "turn_indices": [1, 2, 3, 1, 2]}
+{"part": "C_adversarial_uniform_slots", "carrier": "Q8", "LD": 64, "k": 5, "kfact": 120, "cand": "prefix_sign_word", "classes": 15, "turn_indices": [1, 2, 3, 1, 2]}
+{"part": "C_adversarial_uniform_slots", "carrier": "Q8", "LD": 64, "k": 5, "kfact": 120, "cand": "prefix_v4_word", "classes": 30, "turn_indices": [1, 2, 3, 1, 2]}
+{"part": "C_adversarial_uniform_slots", "carrier": "Q8", "LD": 64, "k": 5, "kfact": 120, "cand": "trajectory", "classes": 30, "turn_indices": [1, 2, 3, 1, 2]}
+{"part": "G_mint_cascade", "k": 3, "kfact": 6, "ordered": false, "classes": 1}
+{"part": "G_mint_cascade", "k": 3, "kfact": 6, "ordered": true, "classes": 6}
+{"part": "G_mint_cascade", "k": 4, "kfact": 24, "ordered": false, "classes": 1}
+{"part": "G_mint_cascade", "k": 4, "kfact": 24, "ordered": true, "classes": 24}
+{"part": "G_mint_cascade", "k": 5, "kfact": 120, "ordered": false, "classes": 1}
+{"part": "G_mint_cascade", "k": 5, "kfact": 120, "ordered": true, "classes": 120}
+{"part": "H_INCARRIER_ABELIAN_CTL", "carrier": "Q8 turns in <i>=Z4", "LD": 16, "k": 3, "kfact": 6, "cand": "endpoint", "max_classes": 1, "verdict": "clean"}
+{"part": "H_INCARRIER_ABELIAN_CTL", "carrier": "Q8 turns in <i>=Z4", "LD": 16, "k": 3, "kfact": 6, "cand": "cumsign", "max_classes": 6, "verdict": "PROBE BROKEN (separates on a commuting fold)"}
+{"part": "H_INCARRIER_ABELIAN_CTL", "carrier": "Q8 turns in <i>=Z4", "LD": 16, "k": 3, "kfact": 6, "cand": "prefix_sign_word", "max_classes": 6, "verdict": "PROBE BROKEN (separates on a commuting fold)"}
+{"part": "H_INCARRIER_ABELIAN_CTL", "carrier": "Q8 turns in <i>=Z4", "LD": 16, "k": 3, "kfact": 6, "cand": "prefix_v4_word", "max_classes": 6, "verdict": "PROBE BROKEN (separates on a commuting fold)"}
+{"part": "H_INCARRIER_ABELIAN_CTL", "carrier": "Q8 turns in <i>=Z4", "LD": 16, "k": 3, "kfact": 6, "cand": "trajectory", "max_classes": 6, "verdict": "PROBE BROKEN (separates on a commuting fold)"}
+{"part": "H_INCARRIER_ABELIAN_CTL", "carrier": "Q8 turns in <i>=Z4", "LD": 16, "k": 3, "kfact": 6, "cand": "sha_chain_EMPTY_CTL", "max_classes": 6, "verdict": "PROBE BROKEN (separates on a commuting fold)"}
+{"part": "H_INCARRIER_ABELIAN_CTL", "carrier": "Q8 turns in <i>=Z4", "LD": 16, "k": 4, "kfact": 24, "cand": "endpoint", "max_classes": 1, "verdict": "clean"}
+{"part": "H_INCARRIER_ABELIAN_CTL", "carrier": "Q8 turns in <i>=Z4", "LD": 16, "k": 4, "kfact": 24, "cand": "cumsign", "max_classes": 24, "verdict": "PROBE BROKEN (separates on a commuting fold)"}
+{"part": "H_INCARRIER_ABELIAN_CTL", "carrier": "Q8 turns in <i>=Z4", "LD": 16, "k": 4, "kfact": 24, "cand": "prefix_sign_word", "max_classes": 24, "verdict": "PROBE BROKEN (separates on a commuting fold)"}
+{"part": "H_INCARRIER_ABELIAN_CTL", "carrier": "Q8 turns in <i>=Z4", "LD": 16, "k": 4, "kfact": 24, "cand": "prefix_v4_word", "max_classes": 24, "verdict": "PROBE BROKEN (separates on a commuting fold)"}
+{"part": "H_INCARRIER_ABELIAN_CTL", "carrier": "Q8 turns in <i>=Z4", "LD": 16, "k": 4, "kfact": 24, "cand": "trajectory", "max_classes": 24, "verdict": "PROBE BROKEN (separates on a commuting fold)"}
+{"part": "H_INCARRIER_ABELIAN_CTL", "carrier": "Q8 turns in <i>=Z4", "LD": 16, "k": 4, "kfact": 24, "cand": "sha_chain_EMPTY_CTL", "max_classes": 24, "verdict": "PROBE BROKEN (separates on a commuting fold)"}
+{"part": "H_INCARRIER_ABELIAN_CTL", "carrier": "Q8 turns in <i>=Z4", "LD": 16, "k": 5, "kfact": 120, "cand": "endpoint", "max_classes": 1, "verdict": "clean"}
+{"part": "H_INCARRIER_ABELIAN_CTL", "carrier": "Q8 turns in <i>=Z4", "LD": 16, "k": 5, "kfact": 120, "cand": "cumsign", "max_classes": 120, "verdict": "PROBE BROKEN (separates on a commuting fold)"}
+{"part": "H_INCARRIER_ABELIAN_CTL", "carrier": "Q8 turns in <i>=Z4", "LD": 16, "k": 5, "kfact": 120, "cand": "prefix_sign_word", "max_classes": 120, "verdict": "PROBE BROKEN (separates on a commuting fold)"}
+{"part": "H_INCARRIER_ABELIAN_CTL", "carrier": "Q8 turns in <i>=Z4", "LD": 16, "k": 5, "kfact": 120, "cand": "prefix_v4_word", "max_classes": 120, "verdict": "PROBE BROKEN (separates on a commuting fold)"}
+{"part": "H_INCARRIER_ABELIAN_CTL", "carrier": "Q8 turns in <i>=Z4", "LD": 16, "k": 5, "kfact": 120, "cand": "trajectory", "max_classes": 120, "verdict": "PROBE BROKEN (separates on a commuting fold)"}
+{"part": "H_INCARRIER_ABELIAN_CTL", "carrier": "Q8 turns in <i>=Z4", "LD": 16, "k": 5, "kfact": 120, "cand": "sha_chain_EMPTY_CTL", "max_classes": 120, "verdict": "PROBE BROKEN (separates on a commuting fold)"}
+{"part": "H_INCARRIER_ABELIAN_CTL", "carrier": "Q8 turns in <i>=Z4", "LD": 64, "k": 3, "kfact": 6, "cand": "endpoint", "max_classes": 1, "verdict": "clean"}
+{"part": "H_INCARRIER_ABELIAN_CTL", "carrier": "Q8 turns in <i>=Z4", "LD": 64, "k": 3, "kfact": 6, "cand": "cumsign", "max_classes": 6, "verdict": "PROBE BROKEN (separates on a commuting fold)"}
+{"part": "H_INCARRIER_ABELIAN_CTL", "carrier": "Q8 turns in <i>=Z4", "LD": 64, "k": 3, "kfact": 6, "cand": "prefix_sign_word", "max_classes": 6, "verdict": "PROBE BROKEN (separates on a commuting fold)"}
+{"part": "H_INCARRIER_ABELIAN_CTL", "carrier": "Q8 turns in <i>=Z4", "LD": 64, "k": 3, "kfact": 6, "cand": "prefix_v4_word", "max_classes": 6, "verdict": "PROBE BROKEN (separates on a commuting fold)"}
+{"part": "H_INCARRIER_ABELIAN_CTL", "carrier": "Q8 turns in <i>=Z4", "LD": 64, "k": 3, "kfact": 6, "cand": "trajectory", "max_classes": 6, "verdict": "PROBE BROKEN (separates on a commuting fold)"}
+{"part": "H_INCARRIER_ABELIAN_CTL", "carrier": "Q8 turns in <i>=Z4", "LD": 64, "k": 3, "kfact": 6, "cand": "sha_chain_EMPTY_CTL", "max_classes": 6, "verdict": "PROBE BROKEN (separates on a commuting fold)"}
+{"part": "H_INCARRIER_ABELIAN_CTL", "carrier": "Q8 turns in <i>=Z4", "LD": 64, "k": 4, "kfact": 24, "cand": "endpoint", "max_classes": 1, "verdict": "clean"}
+{"part": "H_INCARRIER_ABELIAN_CTL", "carrier": "Q8 turns in <i>=Z4", "LD": 64, "k": 4, "kfact": 24, "cand": "cumsign", "max_classes": 24, "verdict": "PROBE BROKEN (separates on a commuting fold)"}
+{"part": "H_INCARRIER_ABELIAN_CTL", "carrier": "Q8 turns in <i>=Z4", "LD": 64, "k": 4, "kfact": 24, "cand": "prefix_sign_word", "max_classes": 24, "verdict": "PROBE BROKEN (separates on a commuting fold)"}
+{"part": "H_INCARRIER_ABELIAN_CTL", "carrier": "Q8 turns in <i>=Z4", "LD": 64, "k": 4, "kfact": 24, "cand": "prefix_v4_word", "max_classes": 24, "verdict": "PROBE BROKEN (separates on a commuting fold)"}
+{"part": "H_INCARRIER_ABELIAN_CTL", "carrier": "Q8 turns in <i>=Z4", "LD": 64, "k": 4, "kfact": 24, "cand": "trajectory", "max_classes": 24, "verdict": "PROBE BROKEN (separates on a commuting fold)"}
+{"part": "H_INCARRIER_ABELIAN_CTL", "carrier": "Q8 turns in <i>=Z4", "LD": 64, "k": 4, "kfact": 24, "cand": "sha_chain_EMPTY_CTL", "max_classes": 24, "verdict": "PROBE BROKEN (separates on a commuting fold)"}
+{"part": "H_INCARRIER_ABELIAN_CTL", "carrier": "Q8 turns in <i>=Z4", "LD": 64, "k": 5, "kfact": 120, "cand": "endpoint", "max_classes": 1, "verdict": "clean"}
+{"part": "H_INCARRIER_ABELIAN_CTL", "carrier": "Q8 turns in <i>=Z4", "LD": 64, "k": 5, "kfact": 120, "cand": "cumsign", "max_classes": 120, "verdict": "PROBE BROKEN (separates on a commuting fold)"}
+{"part": "H_INCARRIER_ABELIAN_CTL", "carrier": "Q8 turns in <i>=Z4", "LD": 64, "k": 5, "kfact": 120, "cand": "prefix_sign_word", "max_classes": 120, "verdict": "PROBE BROKEN (separates on a commuting fold)"}
+{"part": "H_INCARRIER_ABELIAN_CTL", "carrier": "Q8 turns in <i>=Z4", "LD": 64, "k": 5, "kfact": 120, "cand": "prefix_v4_word", "max_classes": 120, "verdict": "PROBE BROKEN (separates on a commuting fold)"}
+{"part": "H_INCARRIER_ABELIAN_CTL", "carrier": "Q8 turns in <i>=Z4", "LD": 64, "k": 5, "kfact": 120, "cand": "trajectory", "max_classes": 120, "verdict": "PROBE BROKEN (separates on a commuting fold)"}
+{"part": "H_INCARRIER_ABELIAN_CTL", "carrier": "Q8 turns in <i>=Z4", "LD": 64, "k": 5, "kfact": 120, "cand": "sha_chain_EMPTY_CTL", "max_classes": 120, "verdict": "PROBE BROKEN (separates on a commuting fold)"}
+{"part": "J_capacity", "leaf_dim_bits": 1, "max_turns_whose_full_order_fits": 2, "note": "k! <= 2^D; the endpoint holds exactly D bits of order"}
+{"part": "J_capacity", "leaf_dim_bits": 4, "max_turns_whose_full_order_fits": 3, "note": "k! <= 2^D; the endpoint holds exactly D bits of order"}
+{"part": "J_capacity", "leaf_dim_bits": 8, "max_turns_whose_full_order_fits": 5, "note": "k! <= 2^D; the endpoint holds exactly D bits of order"}
+{"part": "J_capacity", "leaf_dim_bits": 16, "max_turns_whose_full_order_fits": 8, "note": "k! <= 2^D; the endpoint holds exactly D bits of order"}
+{"part": "J_capacity", "leaf_dim_bits": 32, "max_turns_whose_full_order_fits": 12, "note": "k! <= 2^D; the endpoint holds exactly D bits of order"}
+{"part": "J_capacity", "leaf_dim_bits": 64, "max_turns_whose_full_order_fits": 20, "note": "k! <= 2^D; the endpoint holds exactly D bits of order"}
+{"part": "J_capacity", "leaf_dim_bits": 128, "max_turns_whose_full_order_fits": 34, "note": "k! <= 2^D; the endpoint holds exactly D bits of order"}
+{"part": "J_capacity", "leaf_dim_bits": 256, "max_turns_whose_full_order_fits": 57, "note": "k! <= 2^D; the endpoint holds exactly D bits of order"}
+{"part": "J_capacity", "leaf_dim_bits": 8192, "max_turns_whose_full_order_fits": 966, "note": "k! <= 2^D; the endpoint holds exactly D bits of order"}
+{"part": "J_n40", "n": 40, "log2_40fact_floor": 159, "bits_needed": 160, "note": "T979's 159 bits reproduced exactly"}
+{"part": "K_polymer", "k": 3, "kfact": 6, "packed_strand_bytes_classes": 6, "body_sha256_classes": 6, "multiset_bag_classes": 1, "fiber_holonomy_classes": 6, "strand_bytes": 48}
+{"part": "K_polymer", "k": 4, "kfact": 24, "packed_strand_bytes_classes": 24, "body_sha256_classes": 24, "multiset_bag_classes": 1, "fiber_holonomy_classes": 24, "strand_bytes": 64}
+{"part": "K_polymer", "k": 5, "kfact": 120, "packed_strand_bytes_classes": 120, "body_sha256_classes": 120, "multiset_bag_classes": 1, "fiber_holonomy_classes": 108, "strand_bytes": 80}
+{"part": "L_const", "LEAF_CAP": 256, "GENOME_FORMAT_VERSION": 19}
+{"part": "L_manifest_keys", "keys": ["attestation", "data", "data_schema_id", "mpr_version", "rendering"]}
+{"part": "L_wire", "k": 3, "kfact": 6, "turns_bin_classes": 6, "manifest_body_sha256_classes": 6, "genome_load_recovered_order_classes": 6, "fiber_holonomy_classes": 6, "fiber_CAP_readback_classes": 6, "turns_bin_bytes": 37}
+{"part": "L_manifest_keys", "keys": ["attestation", "data", "data_schema_id", "mpr_version", "rendering"]}
+{"part": "L_wire", "k": 4, "kfact": 24, "turns_bin_classes": 24, "manifest_body_sha256_classes": 24, "genome_load_recovered_order_classes": 24, "fiber_holonomy_classes": 24, "fiber_CAP_readback_classes": 24, "turns_bin_bytes": 44}
+{"part": "M_rank", "k": 3, "C_k_2": 3, "leaf_dim": 16, "achieved_f2_rank": 3, "full_order_channel": true}
+{"part": "M_rank", "k": 3, "C_k_2": 3, "leaf_dim": 64, "achieved_f2_rank": 3, "full_order_channel": true}
+{"part": "M_rank", "k": 3, "C_k_2": 3, "leaf_dim": 8192, "achieved_f2_rank": 3, "full_order_channel": true}
+{"part": "M_rank", "k": 4, "C_k_2": 6, "leaf_dim": 16, "achieved_f2_rank": 6, "full_order_channel": true}
+{"part": "M_rank", "k": 4, "C_k_2": 6, "leaf_dim": 64, "achieved_f2_rank": 6, "full_order_channel": true}
+{"part": "M_rank", "k": 4, "C_k_2": 6, "leaf_dim": 8192, "achieved_f2_rank": 6, "full_order_channel": true}
+{"part": "M_rank", "k": 5, "C_k_2": 10, "leaf_dim": 16, "achieved_f2_rank": 10, "full_order_channel": true}
+{"part": "M_rank", "k": 5, "C_k_2": 10, "leaf_dim": 64, "achieved_f2_rank": 10, "full_order_channel": true}
+{"part": "M_rank", "k": 5, "C_k_2": 10, "leaf_dim": 8192, "achieved_f2_rank": 10, "full_order_channel": true}
+{"part": "M_rank", "k": 8, "C_k_2": 28, "leaf_dim": 16, "achieved_f2_rank": 16, "full_order_channel": false}
+{"part": "M_rank", "k": 8, "C_k_2": 28, "leaf_dim": 64, "achieved_f2_rank": 28, "full_order_channel": true}
+{"part": "M_rank", "k": 8, "C_k_2": 28, "leaf_dim": 8192, "achieved_f2_rank": 28, "full_order_channel": true}
+{"part": "M_rank", "k": 11, "C_k_2": 55, "leaf_dim": 16, "achieved_f2_rank": 16, "full_order_channel": false}
+{"part": "M_rank", "k": 11, "C_k_2": 55, "leaf_dim": 64, "achieved_f2_rank": 55, "full_order_channel": true}
+{"part": "M_rank", "k": 11, "C_k_2": 55, "leaf_dim": 8192, "achieved_f2_rank": 55, "full_order_channel": true}
+{"part": "M_rank", "k": 12, "C_k_2": 66, "leaf_dim": 16, "achieved_f2_rank": 16, "full_order_channel": false}
+{"part": "M_rank", "k": 12, "C_k_2": 66, "leaf_dim": 64, "achieved_f2_rank": 64, "full_order_channel": false}
+{"part": "M_rank", "k": 12, "C_k_2": 66, "leaf_dim": 8192, "achieved_f2_rank": 66, "full_order_channel": true}
+{"part": "M_rank", "k": 20, "C_k_2": 190, "leaf_dim": 16, "achieved_f2_rank": 16, "full_order_channel": false}
+{"part": "M_rank", "k": 20, "C_k_2": 190, "leaf_dim": 64, "achieved_f2_rank": 64, "full_order_channel": false}
+{"part": "M_rank", "k": 20, "C_k_2": 190, "leaf_dim": 8192, "achieved_f2_rank": 190, "full_order_channel": true}
+{"part": "M_rank", "k": 40, "C_k_2": 780, "leaf_dim": 16, "achieved_f2_rank": 16, "full_order_channel": false}
+{"part": "M_rank", "k": 40, "C_k_2": 780, "leaf_dim": 64, "achieved_f2_rank": 64, "full_order_channel": false}
+{"part": "M_rank", "k": 40, "C_k_2": 780, "leaf_dim": 8192, "achieved_f2_rank": 780, "full_order_channel": true}
+{"part": "M_law", "leaf_dim": 16, "max_turns_fiber_endpoint_fully_orders": 6, "note": "largest n with C(n,2) <= leaf_dim"}
+{"part": "M_law", "leaf_dim": 32, "max_turns_fiber_endpoint_fully_orders": 8, "note": "largest n with C(n,2) <= leaf_dim"}
+{"part": "M_law", "leaf_dim": 64, "max_turns_fiber_endpoint_fully_orders": 11, "note": "largest n with C(n,2) <= leaf_dim"}
+{"part": "M_law", "leaf_dim": 128, "max_turns_fiber_endpoint_fully_orders": 16, "note": "largest n with C(n,2) <= leaf_dim"}
+{"part": "M_law", "leaf_dim": 256, "max_turns_fiber_endpoint_fully_orders": 23, "note": "largest n with C(n,2) <= leaf_dim"}
+{"part": "M_law", "leaf_dim": 8192, "max_turns_fiber_endpoint_fully_orders": 128, "note": "largest n with C(n,2) <= leaf_dim"}

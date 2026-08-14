@@ -1,4 +1,4 @@
-"""rc76 — Igusa's χ₁₈ on ``srmech.amsc.riemann_theta.RiemannThetaG3``.
+"""rc76 — Igusa's χ₁₈ on ``srmech.apokatastasis.riemann_theta.RiemannThetaG3``.
 
 The genus-3 hyperelliptic / vanishing-theta-null structure, realized as Igusa's χ₁₈ —
 the weight-18 degree-3 Siegel cusp form DEFINED AS THE PRODUCT OF ALL 36 EVEN
@@ -37,8 +37,8 @@ import tokenize
 
 import pytest
 
-from srmech.amsc.riemann_theta import RiemannTheta, RiemannThetaG3
-from srmech.amsc import _native
+from srmech.apokatastasis.riemann_theta import RiemannTheta, RiemannThetaG3
+from srmech import _native
 
 
 THETA3_Q20 = [1, 2, 0, 0, 2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0]
@@ -231,7 +231,7 @@ def test_chi18_rejects_bad_box():
 # ── gate (6): the carrier source is numpy / math / abs() free ────────────────
 def test_riemann_theta_source_is_numpy_math_abs_free():
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    src = os.path.join(here, "srmech", "amsc", "riemann_theta.py")
+    src = os.path.join(here, "srmech", "apokatastasis", "riemann_theta.py")
     with tokenize.open(src) as fh:
         text = fh.read()
     assert "import numpy" not in text

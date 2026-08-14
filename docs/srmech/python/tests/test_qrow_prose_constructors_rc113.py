@@ -75,10 +75,10 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc.poly import Poly, poly_from_coeffs
-from srmech.amsc.qpoly import QPoly, qpoly_from_coeffs
-from srmech.amsc.qbipoly import QBiPoly, qbipoly_from_coeffs
-from srmech.amsc.unary_theta import UnaryTheta, theta_coefficients, unary_theta
+from srmech.math.poly import Poly, poly_from_coeffs
+from srmech.math.qpoly import QPoly, qpoly_from_coeffs
+from srmech.math.qbipoly import QBiPoly, qbipoly_from_coeffs
+from srmech.apokatastasis.unary_theta import UnaryTheta, theta_coefficients, unary_theta
 from srmech.mcp import invoke_tool
 
 
@@ -261,11 +261,11 @@ def test_capstone_q_binomial_certified_recurrence_via_registry():
     lists = _q_binomial_operand_lists()
     # step 1: prose-side construction through the REGISTRY (the tool entries).
     rn_num, rn_den, rk_num, rk_den = (
-        invoke_tool("srmech.amsc.qbipoly.qbipoly_from_coeffs", {"coeffs": c})
+        invoke_tool("srmech.math.qbipoly.qbipoly_from_coeffs", {"coeffs": c})
         for c in lists)
     # step 2: the returned carriers chain — the result register — into the
     # q-row engine, also through the REGISTRY.
-    res = invoke_tool("srmech.amsc.q_zeilberger.q_zeilberger",
+    res = invoke_tool("srmech.apokatastasis.q_zeilberger.q_zeilberger",
                       {"rn_num": rn_num, "rn_den": rn_den,
                        "rk_num": rk_num, "rk_den": rk_den, "max_order": 3})
     assert res is not None, "the q-binomial theorem sum must have a q-recurrence"
@@ -294,11 +294,11 @@ def test_capstone_euler_q_exponential_honest_open_via_registry():
     q-hypergeometric antidifference — Σ_k 1/(q;q)_k = 1/(q;q)_∞ (Euler), a
     genuine q-series; the q-analog of the rc41 gosper harmonic→None acceptance
     case. The pipeline answers the honest OPEN: q_gosper → None."""
-    num = invoke_tool("srmech.amsc.qpoly.qpoly_from_coeffs", {"coeffs": [1]})
-    den = invoke_tool("srmech.amsc.qpoly.qpoly_from_coeffs",
+    num = invoke_tool("srmech.math.qpoly.qpoly_from_coeffs", {"coeffs": [1]})
+    den = invoke_tool("srmech.math.qpoly.qpoly_from_coeffs",
                       {"coeffs": [1, [0, -1]]})       # 1 − q·x
     assert isinstance(num, QPoly) and isinstance(den, QPoly)
-    res = invoke_tool("srmech.amsc.q_gosper.q_gosper",
+    res = invoke_tool("srmech.apokatastasis.q_gosper.q_gosper",
                       {"rn_num": num, "rn_den": den})
     assert res is None, (
         "Σ 1/(q;q)_k has no q-hypergeometric antidifference — the honest OPEN")
@@ -311,9 +311,9 @@ def test_mock_theta_term_ratio_constructs_and_round_trips_via_registry():
     t(k+1)/t(k) = q·x²/(1+q·x)² (x = qᵏ). Both sides constructed VIA the
     registry from INTEGER LEAVES and round-tripped exactly against the
     in-process carrier algebra ((1+qx)² computed as a genuine QPoly square)."""
-    num = invoke_tool("srmech.amsc.qpoly.qpoly_from_coeffs",
+    num = invoke_tool("srmech.math.qpoly.qpoly_from_coeffs",
                       {"coeffs": [0, 0, [0, 1]]})     # q·x²
-    den = invoke_tool("srmech.amsc.qpoly.qpoly_from_coeffs",
+    den = invoke_tool("srmech.math.qpoly.qpoly_from_coeffs",
                       {"coeffs": [1, [0, 2], [0, 0, 1]]})  # 1 + 2qx + q²x²
     # num == q·x² built in-process
     assert num == QPoly.from_q_poly(Poly.monomial(1), 2)
@@ -332,7 +332,7 @@ def test_mock_theta_bounded_certificate_probe_is_honest_none(monkeypatch):
     here; the bounded probe proves exactly what it says. The mathematics says
     no certificate exists at ANY degree (a mock theta is genuinely mock
     modular — Zagier, Astérisque 326 (2009), Exp. 986)."""
-    import srmech.amsc.q_gosper as QG
+    import srmech.apokatastasis.q_gosper as QG
     num = qpoly_from_coeffs([0, 0, [0, 1]])
     den = qpoly_from_coeffs([1, [0, 2], [0, 0, 1]])
     monkeypatch.setattr(QG, "_MAX_Y_DEGREE", 5)
@@ -347,21 +347,21 @@ def test_capstone_shadow_side_register_chain_exact_ints():
     unary_theta (prose-drivable since rc70) → its RETURNED UnaryTheta chained
     verbatim into theta_coefficients → exact integers, verified against an
     INDEPENDENT hand computation of the Zagier g₃ coefficients."""
-    g3 = invoke_tool("srmech.amsc.unary_theta.unary_theta",
+    g3 = invoke_tool("srmech.apokatastasis.unary_theta.unary_theta",
                      {"char": "minus12", "j": 1, "a": 1, "b": 0, "D": 24,
                       "support": "positive"})
     assert isinstance(g3, UnaryTheta)
-    got = invoke_tool("srmech.amsc.unary_theta.theta_coefficients",
+    got = invoke_tool("srmech.apokatastasis.unary_theta.theta_coefficients",
                       {"theta": g3, "n_max": 26})
     assert got == _g3_hand(26)
     # the leading Zagier window, hard-pinned (Astérisque 326 p. 150):
     assert got[:8] == [1, -5, -7, 0, 0, 11, 0, 13]
     assert got[12] == -17 and got[15] == -19 and got[22] == 23 and got[26] == 25
     # θ₃, the weight-1/2 anchor, against its own hand computation.
-    th3 = invoke_tool("srmech.amsc.unary_theta.unary_theta",
+    th3 = invoke_tool("srmech.apokatastasis.unary_theta.unary_theta",
                       {"char": "trivial", "j": 0, "a": 1, "b": 0, "D": 1,
                        "support": "all"})
-    got3 = invoke_tool("srmech.amsc.unary_theta.theta_coefficients",
+    got3 = invoke_tool("srmech.apokatastasis.unary_theta.theta_coefficients",
                        {"theta": th3, "n_max": 9})
     assert got3 == _theta3_hand(9) == [1, 2, 0, 0, 2, 0, 0, 0, 0, 2]
 
@@ -369,7 +369,7 @@ def test_capstone_shadow_side_register_chain_exact_ints():
 def test_theta_coefficients_named_shadow_string_coerces():
     """A JSON caller may pass theta='g3' — the MCP coercer builds the named
     shadow (the same object the register-chained path reads)."""
-    via_string = invoke_tool("srmech.amsc.unary_theta.theta_coefficients",
+    via_string = invoke_tool("srmech.apokatastasis.unary_theta.theta_coefficients",
                              {"theta": "g3", "n_max": 7})
     assert via_string == [1, -5, -7, 0, 0, 11, 0, 13]
 
@@ -392,11 +392,11 @@ def test_theta_coefficients_native_equals_pure_byte_identical(monkeypatch):
     rc70 ``srmech_unary_theta`` C peer when present — assert the dispatched
     read equals the FORCED-pure read byte-identically (ints, ``==``). Skips
     cleanly when no native lib is present (the pure path is the oracle)."""
-    from srmech.amsc import _native
+    from srmech import _native
     probe = getattr(_native, "has_native_unary_theta", None)
     if probe is None or not probe():
         pytest.skip("no native srmech_unary_theta (pure-Python path is the oracle)")
-    import srmech.amsc.unary_theta as UT
+    import srmech.apokatastasis.unary_theta as UT
     g3 = unary_theta("minus12", 1, 1, 0, 24, support="positive")
     native_read = theta_coefficients(g3, 40)
     monkeypatch.setattr(UT, "_native", lambda: None)  # force the pure path
@@ -410,19 +410,19 @@ def test_tools_total_matches_live():
     """rc113 ships 4 genuinely NEW public ops (3 builders + the theta reader)
     → +4 ToolEntries (363 → 367)."""
     from srmech import introspect
-    assert introspect.describe()["tools"]["total"] == 509
+    assert introspect.describe()["tools"]["total"] == 655
 
 
 def test_new_tool_entries_present_with_declared_types():
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     schema = get_tool_schema()
     expected = {
-        "srmech.amsc.poly.poly_from_coeffs": ("poly", {"coeffs": "list[int]"}),
-        "srmech.amsc.qpoly.qpoly_from_coeffs": (
+        "srmech.math.poly.poly_from_coeffs": ("poly", {"coeffs": "list[int]"}),
+        "srmech.math.qpoly.qpoly_from_coeffs": (
             "qpoly", {"coeffs": "list", "x_low": "int"}),
-        "srmech.amsc.qbipoly.qbipoly_from_coeffs": (
+        "srmech.math.qbipoly.qbipoly_from_coeffs": (
             "qbipoly", {"coeffs": "list[list[int]]"}),
-        "srmech.amsc.unary_theta.theta_coefficients": (
+        "srmech.apokatastasis.unary_theta.theta_coefficients": (
             "unary_theta", {"theta": "UnaryTheta", "n_max": "int"}),
     }
     for name, (category, params) in expected.items():
@@ -442,10 +442,10 @@ def test_rosetta_buckets_builders_non_compute_reader_c_dispatched():
     rows = {r["defined_at"]: r["bucket"]
             for r in (json.loads(l) for l in
                       ledger.read_text(encoding="utf-8").splitlines() if l.strip())}
-    assert rows["srmech.amsc.poly.poly_from_coeffs"] == "non_compute"
-    assert rows["srmech.amsc.qpoly.qpoly_from_coeffs"] == "non_compute"
-    assert rows["srmech.amsc.qbipoly.qbipoly_from_coeffs"] == "non_compute"
-    assert rows["srmech.amsc.unary_theta.theta_coefficients"] == "c_dispatched"
+    assert rows["srmech.math.poly.poly_from_coeffs"] == "non_compute"
+    assert rows["srmech.math.qpoly.qpoly_from_coeffs"] == "non_compute"
+    assert rows["srmech.math.qbipoly.qbipoly_from_coeffs"] == "non_compute"
+    assert rows["srmech.apokatastasis.unary_theta.theta_coefficients"] == "c_dispatched"
 
 
 def test_mcp_wire_types_are_coercible_and_arrays():
@@ -465,10 +465,10 @@ def test_mcp_wire_types_are_coercible_and_arrays():
 # ── (8) hygiene: numpy-free / math-free / abs()-free sources ─────────────────
 
 def test_touched_modules_are_numpy_math_abs_free():
-    import srmech.amsc.poly as P
-    import srmech.amsc.qpoly as QP
-    import srmech.amsc.qbipoly as QB
-    import srmech.amsc.unary_theta as UT
+    import srmech.math.poly as P
+    import srmech.math.qpoly as QP
+    import srmech.math.qbipoly as QB
+    import srmech.apokatastasis.unary_theta as UT
     for mod in (P, QP, QB, UT):
         text = open(mod.__file__, encoding="utf-8").read()
         assert "import numpy" not in text

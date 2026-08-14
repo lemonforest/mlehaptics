@@ -1,5 +1,5 @@
 """rc117 — OPERATORS⊗OPERANDS as ONE addressable object: the op-carrying
-carrier (`srmech.amsc.op_provenance`; dives #718/#719 + the joint review).
+carrier (`srmech.introspect.op_provenance`; dives #718/#719 + the joint review).
 
 The value of an inexact-frontier op is a PROJECTION; the exact generating
 operation is the SSOT. rc117 ships five genuinely NEW public ops
@@ -46,18 +46,18 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc.op_provenance import (
+from srmech.introspect.op_provenance import (
     carry,
     family_verdict,
     op_provenance_hash,
     op_verdict,
     reproject,
 )
-from srmech.amsc.rational import best_rational, sin_series_truncate
+from srmech.math.rational import best_rational, sin_series_truncate
 
-SIN_OP = "srmech.amsc.rational.sin_series_truncate"
-BR_OP = "srmech.amsc.rational.best_rational"
-JAC_OP = "srmech.amsc.laplacian.jacobi_eigvals"
+SIN_OP = "srmech.math.rational.sin_series_truncate"
+BR_OP = "srmech.math.rational.best_rational"
+JAC_OP = "srmech.math.laplacian.jacobi_eigvals"
 
 # The P4 path-graph Laplacian — exact integer entries (a NAMED target).
 P4 = [[1, -1, 0, 0], [-1, 2, -1, 0], [0, -1, 2, -1], [0, 0, -1, 1]]
@@ -87,7 +87,7 @@ def test_coincidental_value_from_different_op_is_unknown():
     verdict EQUAL — different provenance, honestly UNKNOWN."""
     s1 = carry(SIN_OP, {"numerator": 0, "denominator": 1},
                {"num_terms": 3})
-    s2 = carry("srmech.amsc.rational.atan_series_truncate",
+    s2 = carry("srmech.math.rational.atan_series_truncate",
                {"numerator": 0, "denominator": 1}, {"num_terms": 3})
     assert s1["value"] == s2["value"] == (0, 1)      # values coincide
     assert op_verdict(s1, s2) == "UNKNOWN"           # never a false EQUAL
@@ -284,7 +284,7 @@ def test_bigint_leaves_are_tagged_and_hash_cleanly():
            "input_sha256": []}
     assert len(op_provenance_hash(rec)) == 64
     # heat_trace with an exact rational time: Fraction leaf stays exact.
-    c = carry("srmech.amsc.laplacian.heat_trace",
+    c = carry("srmech.math.laplacian.heat_trace",
               {"L": [[1, -1], [-1, 1]], "t": Fraction(1, 2)})
     assert c["provenance"]["leaves_exact"] is True
     assert c["inputs"]["t"] == {"__rational__": [1, 2]}
@@ -296,7 +296,7 @@ def _native_hash(record_bytes: bytes):
     """Call the C peer directly on raw record bytes; None when no native."""
     import ctypes
 
-    from srmech.amsc import _native
+    from srmech import _native
     if not (_native.HAS_NATIVE and _native.LIB is not None
             and hasattr(_native.LIB, "srmech_op_provenance_hash")
             and hasattr(_native.LIB, "srmech_op_provenance_hash_arena_bytes")):
@@ -312,7 +312,7 @@ def _native_hash(record_bytes: bytes):
 
 
 def _require_native():
-    from srmech.amsc import _native
+    from srmech import _native
     if not (_native.HAS_NATIVE and _native.LIB is not None
             and hasattr(_native.LIB, "srmech_op_provenance_hash")):
         pytest.skip("native srmech_op_provenance_hash not available")
@@ -323,7 +323,7 @@ def test_python_c_hash_parity_on_identical_records():
     (indented, unsorted keys, a chain_sha256 cache to strip): the C peer
     parses ANY formatting and re-emits canonically."""
     _require_native()
-    record = {"op": "srmech.amsc.rational.sin_series_truncate",
+    record = {"op": "srmech.math.rational.sin_series_truncate",
               "params": {"num_terms": 3},
               "input_sha256": ["ab" * 32, "cd" * 32],
               "family": {"target_id": "sin(1/1)", "tower_kind": "interior"},
@@ -375,23 +375,23 @@ def test_unknown_op_raises_naming_the_registry():
 def test_tools_total_matches_live():
     """rc117 ships 5 genuinely NEW public ops → +5 ToolEntries (376 → 381)."""
     from srmech import introspect
-    assert introspect.describe()["tools"]["total"] == 509
+    assert introspect.describe()["tools"]["total"] == 655
 
 
 def test_new_tool_entries_present_with_declared_types():
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     schema = get_tool_schema()
     expected = {
-        "srmech.amsc.op_provenance.carry": (
+        "srmech.introspect.op_provenance.carry": (
             {"op": "str", "inputs": "dict", "params": "dict",
              "family": "dict"}),
-        "srmech.amsc.op_provenance.op_provenance_hash": (
+        "srmech.introspect.op_provenance.op_provenance_hash": (
             {"record": "dict"}),
-        "srmech.amsc.op_provenance.op_verdict": (
+        "srmech.introspect.op_provenance.op_verdict": (
             {"p1": "dict", "p2": "dict"}),
-        "srmech.amsc.op_provenance.family_verdict": (
+        "srmech.introspect.op_provenance.family_verdict": (
             {"p1": "dict", "p2": "dict"}),
-        "srmech.amsc.op_provenance.reproject": (
+        "srmech.introspect.op_provenance.reproject": (
             {"provenance": "dict", "overrides": "dict", "inputs": "dict"}),
     }
     for name, params in expected.items():
@@ -413,9 +413,9 @@ def test_rosetta_buckets():
                       ledger.read_text(encoding="utf-8").splitlines()
                       if l.strip())}
     assert rows.get(
-        "srmech.amsc.op_provenance.op_provenance_hash") == "c_dispatched"
+        "srmech.introspect.op_provenance.op_provenance_hash") == "c_dispatched"
     for leaf in ("carry", "op_verdict", "family_verdict", "reproject"):
-        assert rows.get(f"srmech.amsc.op_provenance.{leaf}") == "non_compute"
+        assert rows.get(f"srmech.introspect.op_provenance.{leaf}") == "non_compute"
 
 
 def test_new_param_types_are_coercible():
@@ -427,7 +427,7 @@ def test_new_param_types_are_coercible():
 # ── (8) hygiene: numpy-free / math-free / abs()-free source ──────────────────
 
 def test_module_is_numpy_math_abs_free():
-    import srmech.amsc.op_provenance as OP
+    import srmech.introspect.op_provenance as OP
     text = open(OP.__file__, encoding="utf-8").read()
     assert "import numpy" not in text
     assert "import math" not in text

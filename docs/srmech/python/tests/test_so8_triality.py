@@ -13,10 +13,10 @@ The six acceptance tests prove the construction is the genuine
 6. octonion convention attested + reproducible (same convention -> same tau).
 
 ALL deviations are reduced through the **scalar** Class K pin-slot
-magnitude (:func:`srmech.amsc.cascade.magnitude`) — NEVER Python ``abs()``
+magnitude (:func:`srmech.cascade.magnitude`) — NEVER Python ``abs()``
 per ``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]`` — by
 first reducing the matrix to a scalar Frobenius norm via the numpy-free
-Class-N :func:`srmech.amsc.laplacian.mat_norm`, then passing that Python
+Class-N :func:`srmech.math.laplacian.mat_norm`, then passing that Python
 float to ``magnitude`` (which is scalar-only; it raises on an array).
 
 Determinism: every basis extraction uses a deterministic rank-revealing
@@ -24,10 +24,10 @@ greedy column subset / SVD nullspace (no RNG), so the killer test is
 reproducible.
 
 rc123 (numpy-free, #564): this test is itself numpy-FREE — the so(8)/triality
-surfaces return :class:`srmech.amsc.mat.Mat`; the rank checks ride the EXACT
-rational :func:`srmech.qm.so8._rank_exact`, the matmuls / norms the numpy-free
+surfaces return :class:`srmech.math.mat.Mat`; the rank checks ride the EXACT
+rational :func:`srmech.physics.qm.so8._rank_exact`, the matmuls / norms the numpy-free
 ``mat_matmul`` / ``mat_norm``, and the nullspace dim the cascade SVD
-(:func:`srmech.qm.so8._svd_nullspace`). No numpy oracle, no ``.to_numpy()``
+(:func:`srmech.physics.qm.so8._svd_nullspace`). No numpy oracle, no ``.to_numpy()``
 (per ``[[feedback_test_for_numpy_free_module_must_itself_be_numpy_free]]``).
 """
 
@@ -35,11 +35,11 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc.cascade import magnitude
+from srmech.cascade import magnitude
 from srmech.amsc.format import sha256_bytes
-from srmech.amsc.laplacian import mat_matmul, mat_norm
-from srmech.amsc.mat import Mat
-from srmech.qm import octonion, so8, triality
+from srmech.math.laplacian import mat_matmul, mat_norm
+from srmech.math.mat import Mat
+from srmech.physics.qm import octonion, so8, triality
 
 _TOL = 1e-9
 
@@ -90,7 +90,7 @@ def _coords_of(generators) -> list:
 
 def _nullspace_dim(operator: Mat) -> int:
     """Dimension of ``ker(operator - I)`` as ``n − rank(operator − I)``, with the
-    rank taken EXACTLY over ℚ (:func:`srmech.qm.so8._rank_exact`) — robust to
+    rank taken EXACTLY over ℚ (:func:`srmech.physics.qm.so8._rank_exact`) — robust to
     the cascade-SVD small-σ floor that a float-tolerance count would trip on
     (per ``[[feedback_cascade_svd_nullspace_accuracy_not_route_matrix_rank]]``).
     Numpy-free."""
@@ -121,7 +121,7 @@ def _rank_float(columns: list) -> int:
     (``1e-6·σ_max``) counts the genuine rank: a same-span stack has its trailing
     singular values collapse to the floor while the leading 14 (resp. 21) stay
     O(1). Numpy-free."""
-    from srmech.amsc.laplacian import mat_svd
+    from srmech.math.laplacian import mat_svd
     rows = [[columns[c][r] for c in range(len(columns))]
             for r in range(len(columns[0]))]
     _, S, _ = mat_svd(Mat.from_rows(rows))
@@ -164,7 +164,7 @@ def test_killer_fix_tau_is_g2_dim14():
     * ``rank([g2_basis | ker(tau - I)]) == 14`` (the stacked rank does not
       grow — the two 14-dim spaces are the SAME space).
 
-    The rank checks are EXACT over ℚ (:func:`srmech.qm.so8._rank_exact`),
+    The rank checks are EXACT over ℚ (:func:`srmech.physics.qm.so8._rank_exact`),
     NOT a cascade-SVD tolerance count. Plus a bidirectional projection
     residual: ``g2 ⊆ Fix`` AND ``Fix ⊆ g2`` (each direction's max projection
     residual < 1e-12).

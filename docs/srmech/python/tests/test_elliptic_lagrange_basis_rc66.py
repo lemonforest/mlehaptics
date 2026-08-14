@@ -15,10 +15,10 @@ factorization f = C*theta(x/a_1,...,x/a_k;p) with (-1)^k a_1...a_k = t) and Eq. 
 
 import pytest
 
-from srmech.amsc.ellbase import (EllMonomial as M, Theta, EllRatio as R, _X, _P,
+from srmech.apokatastasis.ellbase import (EllMonomial as M, Theta, EllRatio as R, _X, _P,
                                  elliptic_lagrange_basis)
-from srmech.amsc.thetasum import _Y
-from srmech.amsc.q import Q
+from srmech.apokatastasis.thetasum import _Y
+from srmech.math.q import Q
 
 _x = M.symbol(_X)
 _y = M.symbol(_Y)

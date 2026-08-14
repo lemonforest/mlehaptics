@@ -27,7 +27,7 @@ import time
 
 import pytest
 
-from srmech.amsc.cascade.matrix_cascades import (
+from srmech.cascade.matrix_cascades import (
     eig_exact,
     eigvals_exact,
 )

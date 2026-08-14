@@ -1,4 +1,4 @@
-"""rc81 — ``srmech.amsc.riemann_theta.SchottkyFormG4``, the GENUS-4 CAPSTONE.
+"""rc81 — ``srmech.apokatastasis.riemann_theta.SchottkyFormG4``, the GENUS-4 CAPSTONE.
 
 The genus-4 SCHOTTKY FORM **J** — the χ₁₈-analog at g = 4, the Siegel cusp form whose
 vanishing cuts the genus-4 Jacobian locus ``J₄ ⊂ A₄`` (the Schottky problem's g = 4
@@ -32,8 +32,8 @@ import tokenize
 
 import pytest
 
-from srmech.amsc.riemann_theta import RiemannThetaG4, SchottkyFormG4
-from srmech.amsc import _native
+from srmech.apokatastasis.riemann_theta import RiemannThetaG4, SchottkyFormG4
+from srmech import _native
 
 
 # the famous genus-4 first-difference representation counts (exact, verified at build)
@@ -282,7 +282,7 @@ def test_repr():
 # ── gate (6b): the carrier source is numpy / math / abs() / float free ────────
 def test_riemann_theta_source_is_numpy_math_abs_free():
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    src = os.path.join(here, "srmech", "amsc", "riemann_theta.py")
+    src = os.path.join(here, "srmech", "apokatastasis", "riemann_theta.py")
     with tokenize.open(src) as fh:
         text = fh.read()
     assert "import numpy" not in text

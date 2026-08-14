@@ -29,7 +29,7 @@
  * arena `ws` (no malloc, JPL Rule 3) — front half parses, tail half holds
  * the writer scratch + the canonical bytes. Size `ws` from
  * srmech_op_provenance_hash_arena_bytes(record_len). The Python op
- * `srmech.amsc.op_provenance.op_provenance_hash` is the COMPLETE
+ * `srmech.introspect.op_provenance.op_provenance_hash` is the COMPLETE
  * alternative implementation for no-C hosts (value-parity, not a rescue).
  *
  * JPL Power-of-Ten compliance:
@@ -186,11 +186,11 @@ srmech_status_t srmech_op_provenance_hash(const char *record_json,
  * hash): the srmech_json parser / canonical writer / builder,
  * srmech_sha256_hex (Class A), and srmech_op_provenance_hash (the rc117
  * canonical chain hasher). They back
- *   srmech.amsc.op_provenance.op_verdict              -> srmech_op_verdict
- *   srmech.amsc.op_provenance.family_verdict          -> srmech_family_verdict
- *   srmech.amsc.op_provenance.carry (the RECORD)      -> srmech_op_carry
- *   srmech.amsc.op_provenance.lossy_projection_record -> srmech_lossy_projection_record
- *   srmech.amsc.op_provenance.reproject (the RE-VERIFY)-> srmech_op_reproject
+ *   srmech.introspect.op_provenance.op_verdict              -> srmech_op_verdict
+ *   srmech.introspect.op_provenance.family_verdict          -> srmech_family_verdict
+ *   srmech.introspect.op_provenance.carry (the RECORD)      -> srmech_op_carry
+ *   srmech.introspect.op_provenance.lossy_projection_record -> srmech_lossy_projection_record
+ *   srmech.introspect.op_provenance.reproject (the RE-VERIFY)-> srmech_op_reproject
  * The Python ops dispatch to these under HAS_NATIVE (hasattr-guarded) and
  * carry the COMPLETE alternative pure path for no-C hosts (value-parity,
  * never a rescue). JPL-clean: caller-arena only (no malloc), <=60-line

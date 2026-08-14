@@ -116,7 +116,7 @@ def test_version_is_0_7_0rc10():
 
     Prior v0.7.0rc8 — MS #21 rc8 voxel: the Class-L circular autocorrelation
     primitive (the F290 §C un-flatten Wiener-Khinchin op) shipped CO-EQUAL
-    in Python AND C. ``srmech.amsc.cascade.autocorrelation(x)`` returns the
+    in Python AND C. ``srmech.cascade.autocorrelation(x)`` returns the
     circular autocorrelation r[k] = Σ_i x[i]·x[(i+k) mod n] (r[0] = Σ x² =
     energy) = Re(IFFT(|FFT(x)|²)) — the Wiener-Khinchin identity that makes
     it Class L. The Python wrapper uses the fast numpy FFT; the native peer
@@ -132,7 +132,7 @@ def test_version_is_0_7_0rc10():
     the dim-8 octonion (Cayley-Dickson) product loop_bind + loop_conj / loop_inv /
     cross7 / g2_three_form to native ``srmech_loop_*_f64`` symbols — recursion-free
     (a fixed real→complex→quaternion→octonion call DAG), bit-exact with the Python
-    ``_loop_bind_raw``. ``srmech.amsc.hdc`` dispatches the five public ops to C for
+    ``_loop_bind_raw``. ``srmech.math.hdc`` dispatches the five public ops to C for
     the n==8 octonion; the HD block wrappers inherit native per-block for free. New
     symbols only ⟹ ABI stays 3 (additive); no new ToolEntry ⟹ ``describe()`` stays
     192. JPL Power-of-Ten clean (no recursion/malloc/goto; ≤60-line functions; ≥2
@@ -151,7 +151,7 @@ def test_version_is_0_7_0rc10():
 
     Prior v0.7.0rc5 — MS #21 rc5 voxel: the per-block HD Moufang-division family +
     the loop_inv/loop_conj HD footgun guard (F-§12.1 / §12.2). Adds to
-    ``srmech.amsc.hdc``: ``loop_conj_hd`` (the missing per-block conjugate atom),
+    ``srmech.math.hdc``: ``loop_conj_hd`` (the missing per-block conjugate atom),
     ``loop_inv_hd`` (per-block Moufang inverse), and ``loop_runbind_hd`` (per-block
     RIGHT-division b_k·conj(a_k) — peels the right factor for a left-fold sequence
     store; runbind recovers v to <1e-15). The single-element ``loop_inv`` /
@@ -162,7 +162,7 @@ def test_version_is_0_7_0rc10():
     C peer is the arc's transpile-to-C step).
 
     Prior v0.7.0rc4 — MS #21 rc4 voxel: the block-octonion HD tiling (#811) +
-    capacity-free vs Klein-4 (#812). Adds to ``srmech.amsc.hdc``: ``loop_bind_hd``
+    capacity-free vs Klein-4 (#812). Adds to ``srmech.math.hdc``: ``loop_bind_hd``
     = the direct sum ⊕ of 256 independent dim-8 octonion loop_binds (D=2048;
     block-DIAGONAL, no coupling — block err 0.0) and ``loop_unbind_hd`` = per-block
     Moufang left-division (recovers v to 2.9e-15 on unit blocks). Ground-truth
@@ -176,8 +176,8 @@ def test_version_is_0_7_0rc10():
     Prior v0.7.0rc3 — MS #21 rc3 voxel: the loop-bind family slots into the compose
     engine (#813). PROOF, no new surface: the octonion ops resolve dynamically as
     ``class="M", op="<name>"`` against ``DEFAULT_CLASS_REGISTRY`` (M →
-    ``srmech.amsc.hdc``), so ``loop_bind`` / ``loop_conj`` / ``loop_associator`` /
-    ``cross7`` / ``g2_three_form`` run through ``srmech.amsc.compose.run_chain``
+    ``srmech.math.hdc``), so ``loop_bind`` / ``loop_conj`` / ``loop_associator`` /
+    ``cross7`` / ``g2_three_form`` run through ``srmech.cascade.compose.run_chain``
     (the M∘C-with-K-residue cascade #813 describes; a multi-step ``@step[0]`` M∘C
     chain included). Test-only voxel: NO new ToolEntries (``describe()`` stays
     187), NO new class, ABI stays 3 (pure-Python). The shipped cascade-catalog
@@ -186,7 +186,7 @@ def test_version_is_0_7_0rc10():
 
     Prior v0.7.0rc2 — MS #21 rc2 voxel: the 7-D cross product + the G₂ associative
     3-form, the gauge ARITHMETIC's companion invariants (#813 / F281). Adds to
-    ``srmech.amsc.hdc``: ``cross7(x,y) = Im(loop_bind(x,y))`` (M∘C) and
+    ``srmech.math.hdc``: ``cross7(x,y) = Im(loop_bind(x,y))`` (M∘C) and
     ``g2_three_form(x,y,z) = ⟨x, cross7(y,z)⟩`` ((M∘C)∘⟨·,·⟩) — ground-truth
     computed FROM the shipped loop_bind, so both agree with the rc1 bind by
     construction (no convention guess). The owned triality VERDICT lands as a
@@ -197,7 +197,7 @@ def test_version_is_0_7_0rc10():
 
     Prior v0.7.0rc1 — MS #21 loop-bind (Moufang) voxel: the k=7 gauge ARITHMETIC
     the triality SYMMETRY is blind to (#814 / F271). The first v0.7.0 voxel
-    ports the ``loop_bind_moufang.py`` research oracle into ``srmech.amsc.hdc``:
+    ports the ``loop_bind_moufang.py`` research oracle into ``srmech.math.hdc``:
     ``loop_bind`` (the octonion / Cayley-Dickson product), ``loop_conj``,
     ``loop_inv`` (the Moufang-division unbind), ``loop_left_op``/``loop_right_op``
     (the (4:3)|(3:4) L/R order-chirality), and ``loop_associator`` (the Class-K
@@ -212,7 +212,7 @@ def test_version_is_0_7_0rc10():
     graduation entry, and the full pedantic-C + test + pure-wheel CI matrix
     re-verifies the 0.6.0 build before the production tag. The arc: the
     ``cascade.atoms`` / ``cascade.compose`` two-tier lean-ISA split (#751); the
-    ``srmech.qm.so8`` / ``srmech.qm.triality`` engine (28-dim adjoint + order-3
+    ``srmech.physics.qm.so8`` / ``srmech.physics.qm.triality`` engine (28-dim adjoint + order-3
     outer automorphism + ``Fix(tau)=g₂=14`` + ``quaternion_subalgebra_stabilizer``
     + ``lean_isa_seventh_primitive``); the reentrant C core (#772); the Klein-4
     four-sector ``parallel_sector_dispatch`` (+ C peer) made chainable; the
@@ -243,7 +243,7 @@ def test_version_is_0_7_0rc10():
 
     Prior v0.6.0rc19 — MS #20 triality S₃=Aut(V₄) worked-instance voxel (the
     continuum-tier instantiation): a worked cascade INSTANCE
-    (``_research/worked_instances/triality_s3_klein4.toml``) + its executable
+    (``cascade/catalogs/worked_instances/triality_s3_klein4.toml``) + its executable
     attestation (``test_triality_s3_worked_instance.py``) showing
     ``klein4_triality_cycle`` IS the order-3 generator of Aut(V₄)=S₃ — via the
     conjugation ``T ∘ XOR_a ∘ T⁻¹ = XOR_{T(a)}`` cyclically permuting the three
@@ -262,10 +262,10 @@ def test_version_is_0_7_0rc10():
     total stays 179). NEVER a Python callback.
 
     Prior v0.6.0rc17 — MS #20 klein4-triality-cycle voxel (the A-arc's first code):
-    ``srmech.amsc.hdc.klein4_triality_cycle`` — the order-3 ``S₃ = Aut(V₄)``
+    ``srmech.math.hdc.klein4_triality_cycle`` — the order-3 ``S₃ = Aut(V₄)``
     generator cycling the three Klein-4 involutions ``iω₇(1) → γ₅(2) → CPT(3)``
     (identity fixed), the V₄-carrier image of the so(8) ``8v → 8s → 8c``
-    triality (``srmech.qm.triality.triality_cycle``). The "third axis" (F182)
+    triality (``srmech.physics.qm.triality.triality_cycle``). The "third axis" (F182)
     the three order-2 flips cannot reach — order-3 cycling, NOT a fourth
     order-2 chirality. Class I; pure uint8 relabel (no sign / no ``abs()``);
     ``T∘T∘T = id``, ``T² = T⁻¹``. Pure-Python (co-equal C peer is rc18); +1
@@ -308,7 +308,7 @@ def test_version_is_0_7_0rc10():
     + Class-C/M pin).
 
     Prior v0.6.0rc13 — MS #20 klein4 sectors-flag voxel (§11.3 forward-ask):
-    the ``srmech.amsc.hdc.klein4_bind`` / ``klein4_bundle`` / ``klein4_similarity``
+    the ``srmech.math.hdc.klein4_bind`` / ``klein4_bundle`` / ``klein4_similarity``
     HDC ops get an optional ``sectors=`` / ``parallel=`` / ``mode=`` flag that
     fans the op across ≤4 concurrent lanes (default-ON when ``os.cpu_count() >=
     4``). TWO modes: ``mode="chunk"`` (default) data-parallel position-slices,
@@ -366,7 +366,7 @@ def test_version_is_0_7_0rc10():
     theta_i <- theta_i + dt*(omega_i + (K/n)*Σ_j sin(theta_j - theta_i));
     O(n²) sin-coupling native, libm sin like kepler.c; JPL-clean, no
     malloc/goto, ≥2 asserts) + the Python peer
-    srmech.amsc.cascade.kuramoto_step (dispatch-to-C when HAS_NATIVE,
+    srmech.cascade.kuramoto_step (dispatch-to-C when HAS_NATIVE,
     pure-Python fallback; libm-trig TOLERANCE parity, same coupling-sum
     index order). Honest cascade shape: Class I cyclic phase + sin coupling
     + sum-reduce + Class-C Euler add; NOT a new privileged primitive. No
@@ -403,7 +403,7 @@ def test_version_is_0_7_0rc10():
     177; ABI unchanged at 3 (additive symbol). Closes #771.
 
     Prior v0.6.0rc6 — MS #20 parallel-dispatch voxel (F233 / #778): pure-Python
-    srmech.amsc.cascade.parallel_sector_dispatch(body, x) — runs a cascade
+    srmech.cascade.parallel_sector_dispatch(body, x) — runs a cascade
     across its ≤4 Klein-4 chirality sectors (γ₅± × iω₇±) CONCURRENTLY on a
     ThreadPoolExecutor, capped at 4 (the order-3 triality is the only escape
     past 4, F220). Each sector reconstructs from its OWN sector-transformed
@@ -434,7 +434,7 @@ def test_version_is_0_7_0rc10():
     verified already correct as of rc18 — W5/W6b/W6c.) Closes #738.
 
     Prior v0.6.0rc3 — MS #20 forward-arch voxel #761 (F220): the order-3 triality
-    surfaced as the 7th lean-ISA primitive — srmech.qm.triality.
+    surfaced as the 7th lean-ISA primitive — srmech.physics.qm.triality.
     lean_isa_seventh_primitive(). The chirality-complete A–N core = 6 order-2
     cascade.atoms + 1 order-3 triality (triality_automorphism, τ³=I) = 7 — the
     only access to the 3rd chiral axis. BIT-EXACT certificate: τ has order
@@ -445,7 +445,7 @@ def test_version_is_0_7_0rc10():
     175 → 176. Pure-Python; ABI unchanged at 3; no abs() (Class K pin-slot,
     scalar cascade.magnitude). Closes #761.
 
-    Prior v0.6.0rc2 — MS #20 forward-arch voxel #759: new srmech.qm.so8 op
+    Prior v0.6.0rc2 — MS #20 forward-arch voxel #759: new srmech.physics.qm.so8 op
     quaternion_subalgebra_stabilizer() — the bit-exact 6-dim so(4)=su(2)⊕su(2)
     G₂-stabiliser of a quaternion ℍ⊂𝕆 (the ℍ-reading sibling of an_embedding;
     F215). Keeps the Lie SYMMETRY surface (so(4)⊂g₂) distinct from the
@@ -453,7 +453,7 @@ def test_version_is_0_7_0rc10():
     ToolEntry → describe() tool total 174 → 175. Pure-Python; ABI unchanged
     at 3; no abs() (Class K pin-slot). Closes #759.
 
-    Prior v0.6.0rc1 — MS #20 forward-arch voxel #751: srmech.amsc.cascade split
+    Prior v0.6.0rc1 — MS #20 forward-arch voxel #751: srmech.cascade split
     into a two-tier lean-ISA package — cascade.atoms.* (6 silicon-able 1:1
     intrinsics: pin_slot_at_zero, reorient, magnitude, chiral_flip,
     chiral_dual, net_chirality) vs cascade.compose.* (2 iterative algorithms:
@@ -486,7 +486,7 @@ def test_version_is_0_7_0rc10():
     (Prior rc21 — the su(3) ⊕ 3 ⊕ 3bar Lie decomposition of g2 = Der(O)
     (issue #744, wishlist).
 
-    Added a new pure-Python qm operator ``srmech.qm.so8.an_embedding`` that
+    Added a new pure-Python qm operator ``srmech.physics.qm.so8.an_embedding`` that
     exposes the bit-exact su(3)-module structure of the 14 g2 = Der(O)
     generators: the Lie-algebra branching 14 = 8 + 3 + 3bar (su(3) adjoint +
     fundamental + antifundamental; the 7-dim octonion-vector branches
@@ -529,7 +529,7 @@ def test_version_is_0_7_0rc10():
     Prior rc18 — the downstream-wishlist + hygiene + perf CLEANUP rc.
 
     Carries the rc17 SO(8) TRIALITY voxel forward with the deterministic
-    constant-returning ``srmech.qm.{octonion,so8,triality}`` builders now
+    constant-returning ``srmech.physics.qm.{octonion,so8,triality}`` builders now
     module-level cached (the public surfaces return DEFENSIVE COPIES, so the
     six bit-exact acceptance tests pass identically). Doc/accuracy fixes for
     the downstream RBS-LM wishlist (``sha256_bytes`` returns the hex digest;
@@ -537,7 +537,7 @@ def test_version_is_0_7_0rc10():
     radians; ``_native.ABI_VERSION`` back-compat alias; cosmos references).
     Pure-Python; ABI stays 3. (The rc17 SO(8) TRIALITY voxel — three new
     qm-layer surfaces
-    (``srmech.qm.octonion`` / ``srmech.qm.so8`` / ``srmech.qm.triality``)
+    (``srmech.physics.qm.octonion`` / ``srmech.physics.qm.so8`` / ``srmech.physics.qm.triality``)
     expose the octonion Cayley-Dickson-from-H table, the 28-generator
     ``so(8)`` adjoint (14 g2 + 7 L + 7 R), and the ``28x28`` order-3 outer
     automorphism ``tau`` with ``Fix(tau) = g2`` (dim 14 = the A-N
@@ -601,8 +601,8 @@ def test_version_is_0_7_0rc10():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.9.0rc336", (
-        f"expected srmech.__version__ == '0.9.0rc336'; got "
+    assert srmech.__version__ == "0.9.0rc432", (
+        f"expected srmech.__version__ == '0.9.0rc432'; got "
         f"{srmech.__version__!r}"
     )
 

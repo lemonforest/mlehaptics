@@ -2,10 +2,14 @@
 
 > **Renumbered 2026-07-17** from ADR-0002 (filename collision with `0002-catalog-as-computation`). Older CHANGELOG / design-note references to `0002-phase-1-operator-chain-schema` point here.
 
-**Status:** 🔄 Proposed — Phase 1 candidate (schema v1). Schema is a candidate-not-endorsed under
-`[[feedback_no_lineage_claims_in_notebook]]`'s humility discipline; Phase 2 implementation
-validation will exercise the shape and surface revisions.
-**Date:** 2026-05-16.
+**Status:** ✅ Accepted — the rc420 execution (`#T1114`, Amendment A below) is what earned it: the
+schema stopped being a candidate when the engine's v2 superset shipped, all 20 cascade-catalog
+descriptors became executable-or-LEAF under it, and every declared chain was EXECUTED bit-identical
+to its shipped op. The v1 candidate text below is kept as written (it is the accepted shape's
+history); Amendment A states what v2 added and why, and the clause table binds the remaining
+Phase-2 scope to instruments.
+**Clauses:** audited.
+**Date:** 2026-05-16 (accepted 2026-08-09, v0.9.0rc420).
 **Authors:** Steven Kirkland + Claude Opus 4.7 (concertmaster dispatch).
 **Status of parent ADR:** ADR-0002 (catalog-as-computation) Draft.
 **Relates to:** ADR-0002 §3 (the sketch this document formalises),
@@ -601,3 +605,73 @@ items. Phase 2 (composition engine implementation) and Phase 3
 (auto-derived tool-schema) will exercise the schema in earnest;
 revisions land as cumulative rcs on the active sprint per
 `[[feedback_rc_stacking_versioning]]`.
+
+*(The paragraph above is the 2026-05-16 status and stands as history;
+the live status is the header + Amendment A below.)*
+
+## Amendment A (v0.9.0rc420, `#T1114`) — schema v2, the executable catalog, and Accepted
+
+**What earned the promotion.** Through rc419 this ADR's schema had run 51 `[catalog]` worked-example
+chains, but the 20 `srmech/cascade/catalogs/cascade_catalog/` descriptors — the catalog the DSL
+itself loads — were prose records: zero carried an executable step list. The `#T1114` census
+(rungs 1–4; committed under `docs/srmech/notes/`) measured the distance as SIX distinct blockers,
+converged by attempt 15 of 20, and rc420 closed them all:
+
+1. **BLK-REGMAP** → dotted op addressing (`op = "srmech.cascade.leaves.seq_len"`): `class` is
+   CLASSIFICATION, the dotted name is ADDRESSING; the letter→module registry stays the resolution
+   for bare names (the §17 U2 dsl dotted-op resolver, generalised to this surface).
+2. **BLK-ITER-INDEXED** → the MAP step form `{map_over, index, bind, body}` — the general indexed
+   map, with `n = len(resolve(map_over))` FIXED AT ENTRY.
+3. **BLK-ITER-COMPOSE** → the FOLD step form `{fold_class, fold_op, fold_init, over, fold_args}`;
+   `fold_args` also fixes the measured fold-contract defect (a binary-positional fold could not
+   bind the shipped kw-only `reorient`).
+4. **BLK-FRAMING / BLK-N-SCALE-ROUND** → the registered leaf inventory (`srmech.cascade.leaves` +
+   `scale_round_half_even` + the shipped-op leaves the chains name — 29 registrations).
+5. **BLK-HIGHER-ORDER** → the `@op.<dotted>` reference form: a descriptor names an op AS A VALUE
+   (measured at rung 3: a runtime callable already threaded through `@input`; the gap was naming).
+
+**The scoping decision, stated** (§3.7 never had to answer it): a map body's `@step[N]` is
+BODY-LOCAL — a body is a chain in miniature, so the §7 static bounds check applies recursively —
+and outer data enters ONLY through `@bind` / `@idx`, resolved at map entry. That is §3.2's
+explicit-only rule applied at the map boundary: no implicit closure over outer steps.
+
+**The totality argument, auditable.** The map is data-SIZED, never data-DEPENDENT: `n` is pinned
+before the first body run (unsized iterables rejected at entry), the body is a descriptor-static
+step list, nesting depth is descriptor-static, and no predicate anywhere decides continuation —
+the SAME totality class as the shipped DSL fold's `for elem in input_seq`. The exile boundary
+(`while` / predicate iteration stays in the op-instance layer) is UNMOVED, and the rung-4 census
+measured the shipped corpus's true exile class — predicate-only unbounded iteration — as EMPTY.
+
+**Co-equal projections (ADR-0009).** The DSL combinator kernel widened 5 → 6 (`map_indexed`)
+CONSCIOUSLY, on BOTH projections in one change: `_control_flow.py` + `Chain` + the `map_op` TOML
+discriminator in Python, `dsl_run_map_indexed` + the widened `disc[7]` array in
+`srmech_dsl_chain_run.c` — and the closure ratchet now CROSS-READS the C discriminator array, so
+the next widening cannot ship half-mirrored (the array was previously pinned by nothing). ABI is
+UNCHANGED at 13: no new symbol, no signature change, no callback typedef. The §2 compose peer's C
+parse takes the PYTHON-FIRST guard: any v2 form skips `srmech_chain_spec_parse`, because its
+required-keys check would silently discard v2 keys riding a valid v1 skeleton.
+
+**v1 compatibility.** v2 is a strict superset; `SUPPORTED_SCHEMA_VERSIONS = (1, 2)` and every v1
+catalog parses and runs unchanged (clause row 1).
+
+**Phase 2 remaining scope, as clauses.** The rung-4 scheme census over the 41
+`closed_form_ops` modules measured exactly two recursion schemes still missing after the indexed
+map: **scan** (mapAccumL — 8 modules) and **fuel-bounded consume** (structural-progress unfold —
+3 modules; union 9). Both are totality-preserving widenings when they come; until then the
+populations are pinned DOWN-ONLY (clause rows 6–7), which is what makes the scope auditable
+rather than aspirational.
+
+## Clause table
+
+*(LIVE — deliberately outside the Amendment A pinned span above: an amendment is a dated record,
+while these rows are the ADR's standing claims and must keep driving the derived status.)*
+
+| clause | instrument | status |
+|---|---|---|
+| v2 is a strict superset of v1 (every v1 chain parses + runs unchanged) | `tests/test_compose.py::test_run_chain_linear_pipeline_threads_step_outputs` | **GATED** — the v1 engine suite runs against the v2 engine unchanged |
+| every cascade-catalog descriptor is executable-or-LEAF, NO third state | `tests/test_cascade_catalog_executable_rc420.py::test_no_third_state_strict_zero` | **GATED — strict-zero, no ceiling** |
+| every declared chain is EXECUTED bit-identical to its shipped op, per authored proof case incl. the descriptor's documented boundary cases | `tests/test_cascade_catalog_executable_rc420.py::test_declared_chain_is_bit_identical_to_shipped_op` | **GATED** — 91 proof cases, pure projection, canonical byte compare |
+| the map form is TOTAL (data-sized: n pinned at entry, unsized rejected, no predicate continuation) | `tests/test_combinator_kernel_closure.py::test_map_indexed_runs_and_is_total` | **GATED** |
+| the combinator kernel closure holds at SIX on both projections (Python dispatcher ↔ C discriminator array) | `tests/test_combinator_kernel_closure.py::test_c_discriminator_table_matches_python` | **GATED** — cross-language, strict equality both directions |
+| Phase 2: the SCAN form (mapAccumL) — its blocked closed_form_ops population drains down-only | `tests/test_cascade_catalog_executable_rc420.py::test_closed_form_ops_scheme_gap_ratchet` | **GATED** — 8 modules pinned by name; landing the form drains the set in the same commit |
+| Phase 2: the FUEL-BOUNDED CONSUME form — its blocked population drains down-only | `tests/test_cascade_catalog_executable_rc420.py::test_closed_form_ops_scheme_gap_ratchet` | **GATED** — 3 modules pinned by name (union 9 = the census `modules_not_closed` figure) |

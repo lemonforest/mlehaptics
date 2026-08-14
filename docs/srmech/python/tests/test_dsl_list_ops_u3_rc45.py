@@ -86,7 +86,7 @@ def test_list_ops_includes_rc44_encode_loe_content():
 
 
 def test_list_ops_tool_entry_registered():
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
 
     names = {t.name for t in get_tool_schema().tools}
     assert "srmech.dsl.list_ops" in names

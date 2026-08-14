@@ -1,4 +1,4 @@
-"""0.9.0rc109 — ``srmech.qm.quaternion``: the 4×4 left/right multiplication
+"""0.9.0rc109 — ``srmech.physics.qm.quaternion``: the 4×4 left/right multiplication
 operators + the hypercomplex ``exp(μθ)`` twiddle — the QDFT/ODFT foundation
 (issue #1234 Item 1a, re-raise of #863 BX-5/6/7; F380 / the in-repo R21 proof).
 
@@ -34,12 +34,12 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc import hdc
-from srmech.amsc.mat import Mat
-from srmech.qm import octonion as octo
-from srmech.qm import quaternion as quat
-from srmech.qm.quaternion import (
+from srmech import _native
+from srmech.math import hdc
+from srmech.math.mat import Mat
+from srmech.physics.qm import octonion as octo
+from srmech.physics.qm import quaternion as quat
+from srmech.physics.qm.quaternion import (
     quaternion_conjugate,
     quaternion_exp,
     quaternion_exp_series_truncate,
@@ -480,17 +480,17 @@ def test_tools_total_matches_live():
     """rc109 added the 9 qm.quaternion ToolEntries (350 → 359); the live
     pin tracks later rcs (rc111: +3 qm.octonion twiddle-family → 362)."""
     from srmech import introspect
-    assert introspect.describe()["tools"]["total"] == 509
+    assert introspect.describe()["tools"]["total"] == 655
 
 
 def test_quaternion_tool_entries_registered():
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
     for op in ("quaternion_mult_table", "quaternion_table_attestation",
                "quaternion_left_mult", "quaternion_right_mult",
                "quaternion_conjugate", "quaternion_norm", "quaternion_exp",
                "quaternion_exp_series_truncate", "quaternion_twiddle"):
-        assert f"srmech.qm.quaternion.{op}" in names, f"missing ToolEntry: {op}"
+        assert f"srmech.physics.qm.quaternion.{op}" in names, f"missing ToolEntry: {op}"
 
 
 def test_attestation_is_deterministic_and_content_addressed():

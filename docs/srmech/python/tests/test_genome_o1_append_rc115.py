@@ -30,10 +30,10 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc import genome as G
-from srmech.amsc import _native
+from srmech.biology import genome as G
+from srmech import _native
 from srmech.amsc.format import sha256_bytes
-from srmech.amsc.hdc import klein4_expand
+from srmech.math.hdc import klein4_expand
 
 _DIM = 24
 
@@ -344,6 +344,7 @@ def test_c_helper_sizes_append_arena(tmp_path):
         out = ctypes.c_size_t(0)
         rc = lib.srmech_genome_append_arena_bytes(
             str(g).encode("utf-8"), ctypes.c_size_t(4096),
+            ctypes.c_size_t(0),          # `#T1108` attestation_len: no override
             ctypes.cast(scratch, ctypes.c_void_p), ctypes.c_size_t(man_sz + 1),
             ctypes.byref(out))
         assert rc == 0, f"srmech_genome_append_arena_bytes rc={rc}"

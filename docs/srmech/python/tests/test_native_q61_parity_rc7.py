@@ -1,7 +1,7 @@
 """0.9.0rc7 — native Q61 transcendental dispatch is byte-exact with the pure cascade.
 
 The Class-N transcendentals ``rational.{sin,cos,atan,exp,log,sqrt}`` return an
-exact :class:`~srmech.amsc.q.Q` (F868 stay-rational). On a native install they
+exact :class:`~srmech.math.q.Q` (F868 stay-rational). On a native install they
 dispatch to the C peers ``srmech_*_q61`` (which return the int64 Q61 pieces
 BEFORE the float projection); off-native they run the pure-Python Q61 cascade.
 This test pins the two paths together: for the SAME input the assembled ``Q``
@@ -17,9 +17,9 @@ import math
 
 import pytest
 
-from srmech.amsc import rational as R
-from srmech.amsc import _native
-from srmech.amsc.q import Q
+from srmech.math import rational as R
+from srmech import _native
+from srmech.math.q import Q
 
 
 _ONE_OUT = ("sin", "cos", "atan")

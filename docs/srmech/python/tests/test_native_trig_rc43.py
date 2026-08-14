@@ -8,7 +8,7 @@ import math
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 
 
 pytestmark = pytest.mark.skipif(not _native.HAS_NATIVE, reason="native library absent")

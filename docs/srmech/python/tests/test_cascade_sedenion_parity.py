@@ -17,10 +17,10 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc._native import HAS_NATIVE
-from srmech.amsc.cascade import cayley_dickson as cd
-from srmech.amsc.cascade.sedenion_register import SedenionRegister, NUM_SLOTS
+from srmech import _native
+from srmech._native import HAS_NATIVE
+from srmech.cascade import cayley_dickson as cd
+from srmech.cascade.sedenion_register import SedenionRegister, NUM_SLOTS
 
 _SED_NATIVE = (
     HAS_NATIVE
@@ -66,7 +66,7 @@ def _c_is_navigable(int_vec):
 
 
 def _clear_denominators(x):
-    from srmech.amsc.cyclic import gcd
+    from srmech.math.cyclic import gcd
     den = 1
     for v in x:
         den = den * v.denominator // gcd(den, v.denominator)
@@ -118,7 +118,7 @@ def test_is_navigable_parity_vs_fraction_oracle():
                 v = [Fraction(0)] * NUM_SLOTS
                 v[i] = Fraction(1); v[j] = Fraction(s)
                 cases.append(tuple(v))
-    w = cd.sedenion_zero_divisor_witness()                      # the zero divisor (False)
+    w = cd.cd_zero_divisor_witness(16)                      # the zero divisor (False)
     cases.append(w["x"]); cases.append(w["y"])
     for x in cases:
         # the Fraction-nullspace reference (NOT the dispatching wrapper).

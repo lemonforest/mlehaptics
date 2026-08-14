@@ -38,7 +38,7 @@ def build_parser() -> argparse.ArgumentParser:
         prog="srmech-mcp",
         description=(
             "MCP (Model Context Protocol) server adapter for srmech. "
-            "Exposes srmech.amsc.tool_schema registrations as MCP "
+            "Exposes srmech.introspect.tool_schema registrations as MCP "
             "tools to Claude Code (and any other MCP-aware LLM "
             "client). v0.5.0rc6."
         ),
@@ -92,7 +92,7 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="GLOB",
         help=(
             "Only expose tools whose name matches GLOB (fnmatch-style; "
-            "e.g. 'srmech.amsc.cascade.*'). Default: expose everything."
+            "e.g. 'srmech.cascade.*'). Default: expose everything."
         ),
     )
     parser.add_argument(

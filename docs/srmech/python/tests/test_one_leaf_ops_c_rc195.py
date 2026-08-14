@@ -2,7 +2,7 @@
 
 The FIRST leaf-batch of the make_class → C arc. The one.toml / hurwitz.toml
 [class] descriptors bind accessor methods to the module-level flat ops in
-``srmech.amsc.cascade.one``; two of those are genuine COMPUTE leaves that
+``srmech.cascade.one``; two of those are genuine COMPUTE leaves that
 assemble the S(σ,θ) generator into a scalar / matrix, and rc195 ships their C
 peers so a bare-C host (no Python) runs One.scalar() / One.matrix() without
 shelling out per method:
@@ -29,11 +29,11 @@ import struct
 
 import pytest
 
-from srmech.amsc.cascade import the_one
-from srmech.amsc.cascade.one import to_scalar
-from srmech.amsc.rational import cos_series_truncate, sin_series_truncate
-from srmech.amsc.cascade.one import _chiral_scale, _reduce_rational
-from srmech.amsc import _native
+from srmech.cascade import the_one
+from srmech.cascade.one import to_scalar
+from srmech.math.rational import cos_series_truncate, sin_series_truncate
+from srmech.cascade.one import _chiral_scale, _reduce_rational
+from srmech import _native
 
 
 _SIGMAS = [+1, -1]
@@ -218,7 +218,7 @@ def test_one_dict_roundtrip_contract():
     # flat rationals). blocks/spinor are pure derivations; winding is the separate
     # w-blind gh#1276 surface (NOT in the DICT).
     import json
-    from srmech.amsc.cascade.one import one_from_jsonable
+    from srmech.cascade.one import one_from_jsonable
     for sigma in _SIGMAS:
         for tn, td in _THETAS:
             o = the_one(sigma, tn, td)
@@ -232,16 +232,57 @@ def test_one_dict_roundtrip_contract():
             assert r._to_jsonable() == d
 
 
-def test_one_dict_contract_is_the_three_adjoint_fields_only():
-    # The 6-field One dataclass serialises to EXACTLY the 3 adjoint fields — the
-    # batch-boundary invariant the leaf ops depend on.
+def test_one_dict_carries_the_three_adjoint_fields_and_the_winding():
+    # rc414 (`#T1092`) — this assertion USED to read
+    # ``assert set(d) == {"sigma", "theta", "terms"}`` for a WOUND One, i.e. it
+    # pinned the winding's ABSENCE as the contract. That was the defect, held in
+    # place by its own gate: rc408 (`#T1078`) made ``w`` a declared, pinned
+    # parameter of ``cascade.the_one``, so from rc408 an MCP caller could SET the
+    # winding triad and could never READ it back — the round-trip silently
+    # returned a different, well-formed One at rest.
+    #
+    # What that assertion was really protecting is kept, and is the rest of this
+    # test: the ADJOINT is determined by exactly (sigma, theta, terms), and every
+    # leaf op is w-BLIND at the batch boundary. Both still hold. What changed is
+    # only that non-adjoint state may now RIDE ALONGSIDE the adjoint fields
+    # instead of being dropped.
     o = the_one(+1, 7, 3, w=(5, 7, 2))            # a WOUND One
     d = o._to_jsonable()
-    assert set(d) == {"sigma", "theta", "terms"}
-    # every leaf op is w-BLIND: the wound One's scalar/flat match the at-rest One.
+    assert {"sigma", "theta", "terms"} <= set(d)
+    assert d["winding"] == [5, 7, 2]
+    # THE ADJOINT IS STILL w-BLIND — the property the old key-set assertion was
+    # standing in for. Every leaf op reads (sigma, theta, terms) and nothing else,
+    # so the wound One's scalar / flat match the at-rest One exactly.
     base = the_one(+1, 7, 3)
     assert to_scalar(o, mode="trace") == to_scalar(base, mode="trace")
     assert o.to_flat_rational() == base.to_flat_rational()
+    assert {k: v for k, v in d.items() if k != "winding"} == base._to_jsonable()
+
+
+def test_unwound_one_dict_is_byte_identical_to_pre_rc414():
+    # The winding key is spent ONLY when it carries something (the
+    # ``genome.amplify`` precedent: ``n == 1`` is byte-identical to a plain
+    # gene). So the agreement with the compiled object-model engine is preserved
+    # EXACTLY where it already held, and the new key appears only in the case
+    # that previously could not be expressed at all.
+    for sigma in _SIGMAS:
+        for tn, td in _THETAS:
+            d = the_one(sigma, tn, td)._to_jsonable()
+            assert set(d) == {"sigma", "theta", "terms"}, d
+
+
+def test_wound_one_round_trips_whole_including_spinor():
+    # The rc414 closure, stated as its own assertion: a WOUND One survives the
+    # canonical dict round-trip with its triad, its spinor and the (−1)^Σw
+    # double-cover sign intact. Before rc414 every one of these came back at rest.
+    from srmech.cascade.one import one_from_jsonable
+    for w in [(1, 0, 1), (5, 2, 7), (0, 0, 3), (2, 2, 2)]:
+        o = the_one(+1, 1, 4, w=w)
+        r = one_from_jsonable(o._to_jsonable())
+        assert r.winding == o.winding, w
+        assert r.spinor == o.spinor, w
+        assert r.spinor_sign == o.spinor_sign, w
+        assert r == o, w
 
 
 # ── numpy-absent guard (the whole module runs with numpy uninstalled) ─────────

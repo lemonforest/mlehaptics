@@ -1,5 +1,5 @@
 """rc221 — the exact-ℚ LLL lattice-basis reduction op
-(``srmech.amsc.cascade.matrix_cascades.lll_reduce`` + the byte-identical C peer
+(``srmech.cascade.matrix_cascades.lll_reduce`` + the byte-identical C peer
 ``srmech_lll_reduce``): the classic Lenstra–Lenstra–Lovász (1982) reduction, the
 foundation for a future van Hoeij polynomial-factorization knapsack.
 
@@ -35,9 +35,9 @@ from pathlib import Path
 import pytest
 
 from srmech import introspect
-from srmech.amsc import _native
-from srmech.amsc.cascade import matrix_cascades as mc
-from srmech.amsc.cascade.matrix_cascades import lll_reduce
+from srmech import _native
+from srmech.cascade import matrix_cascades as mc
+from srmech.cascade.matrix_cascades import lll_reduce
 
 
 # ── arm helpers ────────────────────────────────────────────────────────────────
@@ -320,9 +320,9 @@ def test_delta_one_terminates_and_reduces(arm):
 def test_registration():
     assert "lll_reduce" in mc.__all__
     schema = introspect.describe()
-    assert schema["tools"]["total"] == 509
-    from srmech.amsc.tool_schema import get_tool_schema
-    name = "srmech.amsc.cascade.matrix_cascades.lll_reduce"
+    assert schema["tools"]["total"] == 655
+    from srmech.introspect.tool_schema import get_tool_schema
+    name = "srmech.cascade.matrix_cascades.lll_reduce"
     entries = [t for t in get_tool_schema().tools if t.name == name]
     assert len(entries) == 1
     entry = entries[0]

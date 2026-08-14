@@ -1,7 +1,7 @@
 """§50 (rc155): the streaming holographic Klein-4 bundle-accumulate primitives.
 
 ``klein4_bundle_accumulate`` / ``klein4_bundle_resolve`` are the INCREMENTAL form
-of the batch :func:`srmech.amsc.hdc.klein4_bundle` — they fold one Klein-4 vector
+of the batch :func:`srmech.math.hdc.klein4_bundle` — they fold one Klein-4 vector
 at a time into a fixed-width ``(1 + 2*D)`` uint32 accumulator, so a holographic
 store of N relationships never materialises the N inputs and stays fixed-width
 (it grows with the #coordinates ``D``, not the #folded vectors — the fix for "why
@@ -19,8 +19,8 @@ import array
 
 import pytest
 
-import srmech.amsc._native as _native
-from srmech.amsc.hdc import (
+import srmech._native as _native
+from srmech.math.hdc import (
     klein4_expand,
     klein4_bundle,
     klein4_bundle_accumulate,

@@ -1,11 +1,11 @@
 """S3 = Aut(V4) triality worked-instance verification (v0.6.0rc19, MS #20).
 
 The continuum-tier worked instance
-``srmech/amsc/_research/worked_instances/triality_s3_klein4.toml`` documents
+``srmech/cascade/catalogs/worked_instances/triality_s3_klein4.toml`` documents
 that ``klein4_triality_cycle`` (T) is the order-3 generator of Aut(V4) = S3,
 via the automorphism conjugation ``T . XOR_a . T^-1 = XOR_{T(a)}`` (T cyclically
 permutes the three order-2 chirality flips iw7 -> g5 -> cpt). The klein4 ops are
-kernel-tier (srmech.amsc.hdc) and deliberately NOT in the srmech.dsl cascade
+kernel-tier (srmech.math.hdc) and deliberately NOT in the srmech.dsl cascade
 catalog, so this instance is verified HERE in Python against the real ops
 (rather than via run_toml_chain). This test IS the worked instance's executable
 attestation — the TOML's documented claims are checked against the ops.
@@ -20,7 +20,7 @@ import sys
 from pathlib import Path
 
 import srmech
-from srmech.amsc import hdc
+from srmech.math import hdc
 
 if sys.version_info >= (3, 11):
     import tomllib as _toml
@@ -30,7 +30,7 @@ else:  # pragma: no cover — 3.10 back-port branch
 
 _TOML_PATH = (
     Path(srmech.__file__).resolve().parent
-    / "amsc" / "_research" / "worked_instances" / "triality_s3_klein4.toml"
+    / "cascade" / "catalogs" / "worked_instances" / "triality_s3_klein4.toml"
 )
 
 # XOR-mask <-> named flip (the three V4 translations / order-2 involutions).

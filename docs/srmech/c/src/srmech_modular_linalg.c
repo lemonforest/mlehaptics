@@ -12,10 +12,15 @@
  *
  * srmech_gf_rref reduces a caller-supplied int64 matrix to reduced row-echelon
  * form over the field GF(p) IN PLACE, writing the rank + the pivot columns. All
- * arithmetic is bounded machine-int: 2 < p < 2**31 guarantees a*b fits uint64,
+ * arithmetic is bounded machine-int: 2 <= p < 2**31 guarantees a*b fits uint64,
  * so the modular multiply needs no russian-peasant doubling -- a single 64-bit
  * intermediate. There is NO fraction growth and NO bignum -- that bound is the
  * whole point of the row.
+ *
+ * rc350 (task #T1003) admitted p = 2 (see the note on the domain guard in
+ * srmech_gf_rref below). GF(2) is the grading field of every Cayley-Dickson
+ * rung srmech ships -- e_i * e_j lands on index i XOR j at every dim in
+ * CD_DIMS -- so char 2 is a first-class field for this kernel, not a corner.
  *
  * Sign/zero handling is Class-K: every decision is a compare-to-0 over residues
  * already reduced into [0, p); there is no abs() anywhere (the residues are
@@ -59,7 +64,7 @@ static uint64_t gf_add(uint64_t a, uint64_t b, uint64_t p)
 {
     uint64_t out = 0u;
     srmech_status_t st;
-    assert(p > 2u);
+    assert(p >= 2u);
     assert(a < p && b < p);
     st = srmech_mod_add(a, b, p, &out);
     assert(st == SRMECH_OK);
@@ -72,7 +77,7 @@ static uint64_t gf_mul(uint64_t a, uint64_t b, uint64_t p)
 {
     uint64_t out = 0u;
     srmech_status_t st;
-    assert(p > 2u);
+    assert(p >= 2u);
     assert(a < p && b < p);
     st = srmech_mod_mul(a, b, p, &out);
     assert(st == SRMECH_OK);
@@ -88,7 +93,7 @@ static uint64_t gf_inv(uint64_t a, uint64_t p)
 {
     uint64_t out = 0u;
     srmech_status_t st;
-    assert(p > 2u);
+    assert(p >= 2u);
     assert(a % p != 0u);
     st = srmech_mod_inv(a, p, &out);
     assert(st == SRMECH_OK);
@@ -148,7 +153,7 @@ static void gf_canonicalize(int64_t *m, uint32_t n_rows, uint32_t n_cols,
 {
     uint64_t total = (uint64_t)n_rows * (uint64_t)n_cols;
     assert(m != NULL);
-    assert(p > 2u);
+    assert(p >= 2u);
     for (uint64_t i = 0; i < total; i++) {
         int64_t v = m[i];
         int64_t r = v % (int64_t)p;
@@ -159,6 +164,21 @@ static void gf_canonicalize(int64_t *m, uint32_t n_rows, uint32_t n_cols,
     }
 }
 
+/* THE DOMAIN GUARD BELOW, and why its lower bound moved (rc350, task #T1003).
+ *
+ * The guard read `p <= 2u` from rc44 to rc349, and its comment gave the reason
+ * as "so a*b fits uint64 AND Fermat inversion is valid" -- gf_inv was then a
+ * private a**(p-2) power. rc49 replaced that with the extended-Euclidean
+ * srmech_mod_inv, which dissolved the Fermat half of the rationale, but the
+ * bound was never revisited. Only the CEILING was ever an arithmetic-domain
+ * fact. GF(2) is a field and this kernel is correct on it with NO special case:
+ * gf_inv(1, 2) = 1, and gf_eliminate's neg = (p - sv) % p is already the char-2
+ * XOR. (The four `assert(p >= 2u)` above read `p > 2u` until rc350; with the
+ * guard widened and the asserts left alone, a debug build ABORTED in
+ * gf_canonicalize at p=2 while a -DNDEBUG build passed -- measured.)
+ *
+ * This comment lives outside the function body on purpose: inlined it pushed
+ * srmech_gf_rref to 64 lines and broke the down-only JPL Rule 4 ratchet. */
 srmech_status_t srmech_gf_rref(int64_t  *matrix,
                                uint32_t  n_rows,
                                uint32_t  n_cols,
@@ -172,10 +192,10 @@ srmech_status_t srmech_gf_rref(int64_t  *matrix,
     if (matrix == NULL || out_pivots == NULL || out_rank == NULL) {
         return SRMECH_ERR_NULL_ARG;
     }
-    /* p must be an odd prime in (2, 2**31) so a*b fits uint64 and Fermat
-     * inversion is valid. The caller (Python next_prime / a prime table)
-     * guarantees primality; here we only guard the arithmetic domain. */
-    if (p <= 2u || p >= (1ull << 31)) {
+    /* p must be a prime in [2, 2**31) so a*b fits uint64 (see the note above).
+     * The caller (Python next_prime / a prime table) guarantees primality; here
+     * we only guard the arithmetic domain. */
+    if (p < 2u || p >= (1ull << 31)) {
         return SRMECH_ERR_BAD_INPUT;
     }
     *out_rank = 0;

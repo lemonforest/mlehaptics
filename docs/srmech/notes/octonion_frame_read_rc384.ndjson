@@ -1,0 +1,12 @@
+{"section": "H_subalgebra_coherence", "h_base_indices": [0, 1, 2, 3], "associator_nonzero": 0, "of": 64, "coherent": true}
+{"section": "O_seam_confinement", "associator_nonzero": 168, "of": 512, "seam_crossing": 168, "non_seam": 0, "all_seam_confined": true}
+{"section": "frame_read_sphere_identity", "x": [1, 2, -3, 1, 2, -1, 1, 4], "base_H": ["2", "36", "4", "-2"], "base_R": "-7", "norm_sq": "37", "sphere_holds": true}
+{"section": "frame_read_fiber_invariance", "unit_lambda": "(1/2)(1,1,1,1)", "lambda_norm_sq": "1", "base_H_unchanged_under_unit_fiber": true, "base_R_unchanged_under_unit_fiber": true, "norm_sq_unchanged": true, "writhe_changed_under_fiber": true, "projective_base_invariant_under_fiber": true, "base_changed_under_nonfiber_move": true}
+{"section": "frame_read_degenerate", "q1_zero": true, "writhe_none": true, "canonical_affine_none": true, "base_R_eq_norm_sq": true}
+{"section": "laplacian_gauge_O", "graph": "triangle", "n": 3, "gauge_deviation": 0.4895329271595852, "gauge_invariant": false}
+{"section": "laplacian_gauge_H_control", "graph": "triangle", "n": 3, "gauge_deviation": 8.025154038416283e-16, "gauge_invariant": true}
+{"section": "laplacian_gauge_O", "graph": "path3", "n": 3, "gauge_deviation": 9.249003003894775e-15, "gauge_invariant": true}
+{"section": "laplacian_gauge_H_control", "graph": "path3", "n": 3, "gauge_deviation": 9.022600198469249e-16, "gauge_invariant": true}
+{"section": "laplacian_gauge_O", "graph": "4cycle", "n": 4, "gauge_deviation": 0.8055154520443513, "gauge_invariant": false}
+{"section": "laplacian_gauge_H_control", "graph": "4cycle", "n": 4, "gauge_deviation": 1.5265566588595902e-15, "gauge_invariant": true}
+{"section": "ceiling", "O_gauge_dev_min": 9.249003003894775e-15, "O_gauge_dev_max": 0.8055154520443513, "H_gauge_dev_max": 1.5265566588595902e-15, "O_spectrum_gauge_invariant": false, "H_spectrum_gauge_invariant": true, "finding": "the frame-committed SPECTRAL read does NOT recover a gauge-invariant \ud835\udd46 spectrum (associator leak, ~0.1); the coherence that survives is the \u210d-valued ELEMENT Hopf base of octonion_frame_read, frame-free UNDER the S\u00b3 fiber"}

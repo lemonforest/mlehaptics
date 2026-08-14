@@ -23,8 +23,8 @@ DISPATCHED (not merely present in the lib).
 """
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc import genome
+from srmech import _native
+from srmech.biology import genome
 
 
 # ---------------------------------------------------------------------------
@@ -201,12 +201,12 @@ def test_rc329_peers_declared_whole_op():
     test_rosetta_transitive_standalone.py; this is a local coherence pin for THESE ops only, so
     it does NOT re-pin the global ceiling to its rc329-era value.)"""
     rosetta = _load_rosetta()
-    assert rosetta._WHOLE_OP_C_PEER["srmech.amsc.genome.active_telomere"] == \
+    assert rosetta._WHOLE_OP_C_PEER["srmech.biology.genome.active_telomere"] == \
         "srmech_genome_active_telomere"
-    assert rosetta._WHOLE_OP_C_PEER["srmech.amsc.genome.mint_plan"] == \
+    assert rosetta._WHOLE_OP_C_PEER["srmech.biology.genome.mint_plan"] == \
         "srmech_genome_mint_plan"
-    assert "srmech.amsc.genome.active_telomere" not in rosetta._KNOWN_GLUE_GAPS
-    assert "srmech.amsc.genome.mint_plan" not in rosetta._KNOWN_GLUE_GAPS
+    assert "srmech.biology.genome.active_telomere" not in rosetta._KNOWN_GLUE_GAPS
+    assert "srmech.biology.genome.mint_plan" not in rosetta._KNOWN_GLUE_GAPS
     assert len(rosetta._KNOWN_GLUE_GAPS) == rosetta.CEIL_WIRE_GLUE_GAPS
 
 

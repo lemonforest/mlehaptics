@@ -1,4 +1,4 @@
-"""Tests for ``srmech.amsc.compose`` — ADR-0002 Phase 2 composition engine.
+"""Tests for ``srmech.cascade.compose`` — ADR-0002 Phase 2 composition engine.
 
 Schema v1 candidate per
 ``docs/srmech/adr/0002-phase-1-operator-chain-schema.md`` (Phase 1 ship)
@@ -17,7 +17,7 @@ if sys.version_info >= (3, 11):
 else:  # pragma: no cover
     import tomli as tomllib  # type: ignore
 
-from srmech.amsc import compose
+from srmech.cascade import compose
 
 
 # ---------------------------------------------------------------------
@@ -233,7 +233,9 @@ def test_parse_catalog_chains_rejects_unsupported_version():
             ])],
         },
     }
-    with pytest.raises(compose.ChainSpecError, match="implements v1"):
+    # rc420 (`#T1114`): the engine implements (1, 2) — v2 is a strict
+    # superset of v1 — so the rejection names the supported TUPLE now.
+    with pytest.raises(compose.ChainSpecError, match="implements \\(1, 2\\)"):
         compose.parse_catalog_chains(toml)
 
 

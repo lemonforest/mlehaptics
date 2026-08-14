@@ -28,9 +28,9 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc.q import Q
-from srmech.amsc.qpoly import QPoly
-from srmech.amsc.q_gosper import q_gosper
+from srmech.math.q import Q
+from srmech.math.qpoly import QPoly
+from srmech.apokatastasis.q_gosper import q_gosper
 
 
 # ── helpers (Fraction + Q only; no numpy, no math) ────────────────────────────
@@ -185,7 +185,7 @@ def test_certificate_is_one_over_q_minus_one():
 def test_coercion_forms_accepted():
     """The term-ratio operands accept a ``Poly``-in-q and the nested-list ℚ[q] form,
     not just ``QPoly`` handles — value-identical to the explicit QPoly."""
-    from srmech.amsc.poly import Poly
+    from srmech.math.poly import Poly
     # r=2: a Poly-in-q [2] (a constant) as numerator, [1] as denominator.
     a = q_gosper(Poly.from_coeffs([2]), Poly.from_coeffs([1]))
     b = q_gosper(QPoly.from_dict({(0, 0): Q(2, 1)}), QPoly.one())
@@ -208,8 +208,8 @@ def test_native_matches_pure_when_present():
     """When the native srmech_q_gosper is loaded, its certificate is byte-identical
     to the pure-Python body (the parity oracle) on the constant-ratio (native-scope)
     cases. Skip-clean when no native lib."""
-    from srmech.amsc import _native as nat
-    from srmech.amsc.q_gosper import _q_gosper_pure, _coerce_qpoly
+    from srmech import _native as nat
+    from srmech.apokatastasis.q_gosper import _q_gosper_pure, _coerce_qpoly
     if not nat.has_native_q_gosper():
         pytest.skip("native srmech_q_gosper not present in this environment")
 

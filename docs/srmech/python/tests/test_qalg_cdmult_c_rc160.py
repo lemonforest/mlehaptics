@@ -36,11 +36,11 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc.cascade import cayley_dickson as cd
-from srmech.amsc import rational as _rational
-from srmech.qm import octonion as octo
-from srmech.qm import quaternion as quat
+from srmech import _native
+from srmech.cascade import cayley_dickson as cd
+from srmech.math import rational as _rational
+from srmech.physics.qm import octonion as octo
+from srmech.physics.qm import quaternion as quat
 
 
 def _force(has_native: bool, fn, *args, **kw):
@@ -186,7 +186,7 @@ def test_left_mult_matrix_unit_is_signed_permutation():
 def test_left_mult_kernel_native_equals_pure():
     # a division-algebra element (empty kernel) + a sedenion zero divisor
     # (non-empty kernel): both byte-identical native == pure.
-    w = cd.sedenion_zero_divisor_witness()
+    w = cd.cd_zero_divisor_witness(16)
     cases = [
         [F(1), F(2), F(3), F(4), F(5), F(6), F(7), F(8)],   # invertible octonion
         list(w["x"]),                                        # zero divisor (dim 16)
@@ -201,7 +201,7 @@ def test_left_mult_kernel_native_equals_pure():
 def test_left_mult_kernel_zero_divisor_nonempty_invertible_empty():
     # The §VII.6.23.4 falsifier: a sedenion zero divisor has NO backward
     # direction (non-empty left-mult kernel); a division-algebra element does.
-    w = cd.sedenion_zero_divisor_witness()
+    w = cd.cd_zero_divisor_witness(16)
     ker = cd.left_mult_kernel(list(w["x"]))
     assert len(ker) >= 1                          # left zero divisor
     # y (the witness partner) is annihilated: x·y = 0, so y ∈ ker(L(x)).
@@ -284,11 +284,11 @@ def test_ledger_rows():
     fixture = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
     rows = {json.loads(l)["defined_at"]: json.loads(l)["bucket"]
             for l in fixture.read_text(encoding="utf-8").splitlines() if l.strip()}
-    assert rows.get("srmech.amsc.cascade.cayley_dickson.cd_mult") == "c_dispatched"
+    assert rows.get("srmech.cascade.cayley_dickson.cd_mult") == "c_dispatched"
     for da in (
-        "srmech.amsc.cascade.cayley_dickson.left_mult_matrix",
-        "srmech.amsc.cascade.cayley_dickson.left_mult_kernel",
-        "srmech.qm.octonion.octonion_exp_series_truncate",
-        "srmech.qm.quaternion.quaternion_exp_series_truncate",
+        "srmech.cascade.cayley_dickson.left_mult_matrix",
+        "srmech.cascade.cayley_dickson.left_mult_kernel",
+        "srmech.physics.qm.octonion.octonion_exp_series_truncate",
+        "srmech.physics.qm.quaternion.quaternion_exp_series_truncate",
     ):
         assert rows.get(da) == "composition_of_c", (da, rows.get(da))

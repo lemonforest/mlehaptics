@@ -67,30 +67,30 @@ from .format import (
 # The exact number-field carrier Qalg = ℚ[x]/(m) — the generalisation of the
 # Gaussian-rational Qi (= Qalg over x²+1). Exact-substrate algebraic numbers
 # (rotation-last roadmap rc-C). A carrier, not a ToolEntry (mirrors Qi).
-from .qalg import Qalg
+from ..math.qalg import Qalg
 # The exact prime-coordinate carrier Qprime — a positive int as its exponent
 # vector {prime: exponent} of n = ∏ pᵉ (FTA). The Class-J exact carrier
 # (multiply=add-exponents, gcd=min, lcm=max, multiplicative-order period); the
 # F923 / §74 capstone that closes the last harmonic-ladder rung. A carrier, not
 # a ToolEntry (mirrors Qi / Qalg).
-from .qprime import Qprime
+from ..math.qprime import Qprime
 # The exact-rational matrix carrier QMat — the bigint peer of the float64 Mat
 # (exact dense linear algebra over ℚ, no magnitude ceiling). A carrier, not a
 # ToolEntry, mirrors Qi / Qalg / Qprime.
-from .qmat import QMat
+from ..math.qmat import QMat
 # The exact-rational polynomial carrier Poly — the 1-D polynomial peer of QMat
 # (exact univariate algebra over ℚ: long division, monic GCD, dispersion shift,
 # Horner eval; no magnitude ceiling). The FOUNDATION carrier of the §76 telescope
 # Σ-row prover (rc39+). A carrier, not a ToolEntry, mirrors Qi / Qalg / Qprime /
 # QMat.
-from .poly import Poly
+from ..math.poly import Poly
 # The exact-rational TRIVARIATE polynomial carrier TriPoly — the 3-variable
 # sibling of BiPoly (exact ℚ[n,j,k]: the free variable n + two summation
 # variables j, k, with shift_n/shift_j/shift_k + delta_j/delta_k difference
 # operators). The foundation of the multivariate "sums of sums" creative-
 # telescoping row (the rc53 apagodu_zeilberger op consumes it). A carrier, not a
 # ToolEntry, mirrors Poly / QMat / Qi / Qalg / Qprime.
-from .tripoly import TriPoly
+from ..math.tripoly import TriPoly
 # The exact ADDITIVE theta-function carrier ThetaSum — a ℚ(q,p)-linear SUM of
 # theta-products over a single theta-product denominator. The additive layer over
 # the multiplicative EllRatio (rc60) that GENUINE elliptic creative telescoping
@@ -98,14 +98,14 @@ from .tripoly import TriPoly
 # identities EXACTLY by the elliptic degree bound (quasi-periodicity grouping + the
 # Fundamental Theorem of Elliptic Functions). A carrier, not a ToolEntry, mirrors
 # EllRatio / QMat / Poly / TriPoly.
-from .thetasum import ThetaSum
+from ..apokatastasis.thetasum import ThetaSum
 # rc72 — the exact genus-2 Riemann theta-CONSTANT carrier RiemannTheta, the FIRST
 # RUNG of the GENUS axis. The elliptic/theta carriers (EllRatio/ThetaSum/UnaryTheta)
 # all live on a genus-1 torus; RiemannTheta augments the ladder with a genus axis
 # (the exact-integer (A,B,C) exponent lattice over the quarter-nome base, the
 # cross-term C carrying the genus-2 denominator-4 clearing). A carrier, not a
 # ToolEntry, mirrors ThetaSum / EllRatio / QMat / Poly. C peer srmech_riemann_theta.
-from .riemann_theta import RiemannTheta
+from ..apokatastasis.riemann_theta import RiemannTheta
 # rc82 — the exact Dedekind-ETA-QUOTIENT carrier EtaQuotient, a WEIGHT-axis operand
 # carrier. Q(τ) = ∏_d η(dτ)^{r_d} as an EXACT q-series modular object: the integer
 # q-series + the half-integral weight are COMPUTED from the exponents exactly, and
@@ -114,7 +114,7 @@ from .riemann_theta import RiemannTheta
 # eta-quotient?" (a proper subspace; no finite cutter) — dual of the Schottky
 # membership decision. A carrier, not a ToolEntry, mirrors UnaryTheta / RiemannTheta /
 # ThetaSum. C peer srmech_eta_quotient_qseries.
-from .eta_quotient import EtaQuotient
+from ..apokatastasis.eta_quotient import EtaQuotient
 # rc83 — the exact-RATIONAL EISENSTEIN-SERIES carrier Eisenstein, the SECOND rung
 # of the WEIGHT axis (after rc82 eta-quotient). E_k(τ) = 1 − (2k/B_k)·Σ σ_{k−1}(n) qⁿ
 # as an EXACT-Q q-series modular form: the rational q-series (e.g. E₁₂ has c₁ =
@@ -125,7 +125,7 @@ from .eta_quotient import EtaQuotient
 # level>1 (E_{k,χ}) — dual of the eta-quotient-subspace / Schottky OPENs. A
 # carrier, not a ToolEntry, mirrors EtaQuotient / UnaryTheta / RiemannTheta /
 # ThetaSum. C peer srmech_eisenstein_qseries.
-from .eisenstein import Eisenstein
+from ..apokatastasis.eisenstein import Eisenstein
 # rc84 — the level-1 ℂ[E₄,E₆] MODULAR-FORMS-RING carrier ModularFormsRing (the
 # THIRD WEIGHT-axis rung, after rc82 eta-quotient + rc83 Eisenstein) + its exact
 # MEMBERSHIP DECISION. The structure theorem M_*(SL₂(ℤ)) = ℂ[E₄,E₆] made
@@ -139,7 +139,7 @@ from .eisenstein import Eisenstein
 # weight_monomials/dim and the carrier constructor are pure accessors (NOT
 # ToolEntries). C peer srmech_modular_forms_ring_represent (dispatches to the
 # existing srmech_qmat_solve).
-from .modular_forms_ring import (
+from ..apokatastasis.modular_forms_ring import (
     ModularForm,
     ModularFormsRing,
     modular_forms_ring,
@@ -161,17 +161,19 @@ from .modular_forms_ring import (
 # WEIGHT-axis analog of the Σ-row reducers); eisenstein_e2 + weight_monomials/dim +
 # the carrier constructor are pure accessors (NOT ToolEntries). C peer
 # srmech_quasimodular_forms_ring_represent (dispatches to srmech_qmat_solve).
-from .quasimodular_forms_ring import (
+from ..apokatastasis.quasimodular_forms_ring import (
     QuasiModularForm,
     QuasiModularFormsRing,
     eisenstein_e2,
     quasimodular_forms_ring,
     quasimodular_represent,
 )
-# v0.3.0 — tool_schema introspection (Task #198) registers srmech's
-# own AMSC tools at import time. Profile-contributed tools register
-# later, at profile-activation time via profile_loader.
-from . import tool_schema  # noqa: F401  (side effect: register tools)
+# rc376 (ADR-0010 Amendment M) — ``tool_schema`` MOVED to
+# :mod:`srmech.introspect.tool_schema`. Its import-time tool registration now
+# fires from :func:`srmech.introspect.tool_schema.warmup_all`, called at the
+# end of ``srmech/__init__.py`` — so importing ``srmech.amsc`` (which runs the
+# parent ``srmech`` init first) still yields a fully-registered schema, and
+# amsc no longer imports a module it does not own.
 
 __all__ = [
     # format

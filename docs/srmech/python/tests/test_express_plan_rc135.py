@@ -33,8 +33,8 @@ import tempfile
 
 import pytest
 
-from srmech.amsc import genome as G
-from srmech.amsc import _native
+from srmech.biology import genome as G
+from srmech import _native
 
 # rc282 — make this tests/ directory importable when this module is collected
 # ALONE. ``tests/`` is a package (``__init__.py`` present), so pytest's prepend

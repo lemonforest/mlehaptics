@@ -40,10 +40,10 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc.carrier_ladder import carrier_ladder_descriptor
-from srmech.amsc.tool_schema import get_tool_schema
-from srmech.amsc.cascade import cd_promote
-from srmech.qm.octonion import octonion_conjugate
+from srmech.math.carrier_ladder import carrier_ladder_descriptor
+from srmech.introspect.tool_schema import get_tool_schema
+from srmech.cascade import cd_promote
+from srmech.physics.qm.octonion import octonion_conjugate
 from srmech.mcp import invoke_tool
 
 
@@ -250,7 +250,7 @@ def test_producers_declare_the_rung_they_emit():
 
 def test_ops_view_reachable_via_the_registry():
     d = invoke_tool(
-        "srmech.amsc.carrier_ladder.carrier_ladder_descriptor", {})
+        "srmech.math.carrier_ladder.carrier_ladder_descriptor", {})
     assert "ops" in d
     assert d["ops"]["octonion_conjugate"]["consumes"]["rung"] == 8
 
@@ -259,7 +259,7 @@ def test_tools_total_matches_live():
     """FORM (2): the contract is a descriptor FIELD, not a new callable → 0 delta
     on tools.total (no new ToolEntry, no rosetta / coverage change)."""
     from srmech import introspect
-    assert introspect.describe()["tools"]["total"] == 509
+    assert introspect.describe()["tools"]["total"] == 655
 
 
 def test_descriptor_shape_still_has_carriers_and_ladders():
@@ -283,7 +283,7 @@ def test_ops_view_is_mutation_safe():
 # ── (5) hygiene: numpy-free / math-free / abs()-free source ───────────────────
 
 def test_carrier_ladder_module_is_numpy_math_abs_free():
-    import srmech.amsc.carrier_ladder as CL
+    import srmech.math.carrier_ladder as CL
     text = open(CL.__file__, encoding="utf-8").read()
     assert "import numpy" not in text
     assert "import math" not in text

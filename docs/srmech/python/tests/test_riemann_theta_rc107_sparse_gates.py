@@ -45,9 +45,9 @@ import os
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc import riemann_theta as rt
-from srmech.amsc.riemann_theta import (RiemannTheta, RiemannThetaG3,
+from srmech import _native
+from srmech.apokatastasis import riemann_theta as rt
+from srmech.apokatastasis.riemann_theta import (RiemannTheta, RiemannThetaG3,
                                        RiemannThetaG4, RiemannThetaG5)
 
 FULL = os.environ.get("SRMECH_THETA_SPARSE_FULL", "") == "1"
@@ -531,4 +531,4 @@ def test_sparse_cross_slots_shape():
 def test_tools_total_unchanged():
     """Gate internals, not new ops: tools.total stays 362."""
     import srmech
-    assert srmech.describe()["tools"]["total"] == 509
+    assert srmech.describe()["tools"]["total"] == 655

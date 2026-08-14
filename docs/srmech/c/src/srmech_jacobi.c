@@ -1,7 +1,7 @@
 /*
  * srmech_jacobi.c — BIGNUM-EXACT Jacobi elliptic sn/cn/dn Maclaurin truncation
  * on the caller-arena srmech_bigint (the C peer of
- * srmech.amsc.rational.jacobi_sncndn_series_truncate).
+ * srmech.math.rational.jacobi_sncndn_series_truncate).
  *
  * The Python op is the exact-rational "rotation-last" sibling of
  * sin/cos_series_truncate: it builds the Maclaurin coefficient sequences of

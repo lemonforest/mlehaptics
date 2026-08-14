@@ -65,12 +65,12 @@ _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 # list_attested_sources classified composes_c directly, consistent with the
 # already-composes_c get_attested_dataset / get_attested_descriptor) → moved
 # owed_orchestration → composes_c (owed 15→9, composes_c 70→76; sum stays 114).
-# rc173: the amsc.compose chain-runner PARSE half — parse_chain_spec +
+# rc173: the cascade.compose chain-runner PARSE half — parse_chain_spec +
 # parse_catalog_chains earned C peers (srmech_chain_spec_parse /
 # srmech_chain_catalog_parse) → moved owed_orchestration → composes_c
 # (owed 9→7, composes_c 76→78; sum stays 114). resolve_chain / run_chain stay
 # owed (arbitrary-op FFI over the live object graph → rc174).
-# rc174: the amsc.compose chain-runner RUN LOOP — resolve_chain + run_chain
+# rc174: the cascade.compose chain-runner RUN LOOP — resolve_chain + run_chain
 # earned a C peer (srmech_chain_run runs the whole shipped apparatus — pi /
 # series / Friedmann — end-to-end in C to byte-identical OUTPUT; the pure path
 # runs any out-of-table op / non-raise policy / @catalog ref) → moved
@@ -186,7 +186,7 @@ _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 # (canonical JSON byte-identical to the pure path, sha256 hash-ratcheted); the
 # pure derivation is the complete fallback. NOT owed_orchestration (CEIL stays 0).
 # composes_c 117 -> 118; sum 176 -> 177.
-# rc217 (gh #1360): the 3 srmech.amsc.text ops (tokenize / cooccurrence_edges /
+# rc217 (gh #1360): the 3 srmech.math.text ops (tokenize / cooccurrence_edges /
 # cooccurrence_topk) were MIS-CLASSIFIED non_compute/composes_c — they are
 # genuine pure-Python COMPUTE kernels (the enwiki-encode hot loop) that reach
 # no ledger op, so the composes_c transitive walk could not see them (the
@@ -305,11 +305,70 @@ _EXPECTED_SPLIT = {
     # fiber cap ASSEMBLE / READ ops, each composes the c_dispatched genome_octonion_holonomy
     # + pure cap byte-framing, sibling-consistent with the rc322 Q8 fiber ops). composes_c
     # 133 -> 136; total 205 -> 208.
-    "composes_c": 136,
+    # rc364 (ADR-0010's first execution slice): the alias layer gets the catalog
+    # shape the [class] layer has had since rc39 — a shipped descriptor
+    # directory plus a registration API. THREE rows, and the split across them
+    # is the part worth reading, because it is NOT the obvious one.
+    #
+    #   +1 host_glue   — dsl.resolve_alias_descriptor. Name-or-path -> the
+    #                    descriptor's Path. This is descriptor FS DISCOVERY,
+    #                    the first phrase in the host_glue definition, and a
+    #                    capability a bare-C host genuinely owes: it must FIND
+    #                    the file before srmech_toml can parse it. The
+    #                    load_catalog / load_class_catalog / get_descriptor
+    #                    precedent. host_glue 21 -> 22.
+    #   +2 dev_tooling — dsl.list_alias_descriptors + dsl.register_alias_dir.
+    #                    BROWSE and CONFIGURE. A bare-C host resolves the one
+    #                    name it was handed; it never enumerates the
+    #                    alternatives and never mutates a process-local search
+    #                    path. Exact peers of list_cascade_ops / list_classes
+    #                    and register_catalog_dir / register_class_dir, all
+    #                    four already dev_tooling. dev_tooling 51 -> 53.
+    #   composes_c UNMOVED at 138 — none of the three composes a C op. The
+    #                    alias layer's composes_c rows are the rc261 PARSE ops
+    #                    (build_aliases_from_toml_str / load_aliases_toml,
+    #                    which route through the C srmech_toml); a resolver
+    #                    that returns a Path parses nothing.
+    #
+    # ⚠️ THE DISCRIMINATOR IS *NOT* "DOES IT TOUCH THE FILESYSTEM" — all three
+    # do. It is LOAD/GET vs BROWSE/CONFIGURE, and srmech.dsl already encodes
+    # that split over the SAME directory: `load_class_catalog` reads it
+    # (host_glue), `list_classes` browses it (dev_tooling). rc364 first shipped
+    # list_alias_descriptors as host_glue by reasoning from the mechanism (it
+    # calls glob) rather than from the capability, which made it the only
+    # host_glue `list_*` in srmech.dsl against five dev_tooling siblings. CI
+    # reported the count (21 -> 23 / 51 -> 52); the fix was the CLASSIFICATION,
+    # not the pin, and the corrected split is 22 / 53. Total 210 -> 213.
+    # rc407 (`#T1076`): host_glue 22 -> 21, total 213 -> 212. `srmech.introspect`
+    # stopped exporting the PRIVATE name `_maybe_auto_publish` from its
+    # `__all__` (it also exported `_PublishHandle`; neither belongs on a public
+    # surface). `_live_ops()` walks `__all__`, falling back to non-underscore
+    # `dir()` — so an underscore name absent from `__all__` is off the tracked
+    # surface by BOTH routes, and its rosetta_classification.ndjson row went
+    # stale (`test_no_stale_classification` said so by name). The FUNCTION is
+    # untouched and still reached by direct attribute access from
+    # `srmech/__init__.py:63`, which `__all__` does not govern — what changed is
+    # the PUBLISHED surface, which is what this census counts.
+    # rc411 (`#T1086`): composes_c 138 -> 139 — `srmech.introspect.search.search`,
+    # the need-shaped INDEX over the tool + carrier registries. A pure ACCESSOR
+    # over the two registries plus a rank, hiding no kernel: every ledger op it
+    # reaches is standalone-ready (tlv_pack / sha256_bytes / byte_search are
+    # c_dispatched; get_tool_schema / carrier_schema / top_k_by_score are
+    # non_compute leaves), which is what
+    # `test_non_compute_composes_c_is_transitively_reachable` checks. It is NOT
+    # zero-reach, so it needs no COMPOSES_C_ZERO_REACH_PINNED entry — the
+    # reachability walk sees it. Total 212 -> 213.
+    # rc420 (local task T1114): composes_c 139 -> 140 —
+    # `srmech.dsl.run_cascade_chain`, the cascade-catalog declared-chain
+    # runner. The exact run_toml_chain precedent: a runner that parses the
+    # descriptor's [[cascade.chain]] steps through the schema-v2 compose
+    # engine and composes whatever registered ops the chain names, itself
+    # computing nothing. Total 213 -> 214.
+    "composes_c": 140,
     "host_glue": 21,
-    "dev_tooling": 51,
+    "dev_tooling": 53,
 }
-_TOTAL_NON_COMPUTE = 208        # rc325 (§𝕆-FIBER/v18): 205 -> 208, genome.genome_octonion_associator + genome_add_octonion_fiber + genome_read_octonion_fiber (rc322 §Q8-FIBER/v17: 203 -> 205, genome.genome_add_fiber + genome_read_fiber; rc312 §Q8/v16: 202 -> 203, genome.upgrade_v15_to_v16)
+_TOTAL_NON_COMPUTE = 214          # rc420 (local task T1114): 213 -> 214, dsl.run_cascade_chain (composes_c; see the split note in the annex files)  # rc411 (`#T1086`): 212 -> 213, the introspect INDEX `srmech.introspect.search.search` (composes_c; see the split note above)  # rc407 (`#T1076`): 213 -> 212, srmech.introspect dropped the private `_maybe_auto_publish` from __all__ (see the split note above)  # rc364 (ADR-0010 first execution slice): 210 -> 213, the three srmech.dsl alias-catalog rows (resolve_alias_descriptor -> host_glue; list_alias_descriptors + register_alias_dir -> dev_tooling; see the split note above)  # rc325 (§𝕆-FIBER/v18): 205 -> 208, genome.genome_octonion_associator + genome_add_octonion_fiber + genome_read_octonion_fiber (rc322 §Q8-FIBER/v17: 203 -> 205, genome.genome_add_fiber + genome_read_fiber; rc312 §Q8/v16: 202 -> 203, genome.upgrade_v15_to_v16)  # rc345 (task T964): 208 -> 209, genome.genome_content
 
 
 def _rows():

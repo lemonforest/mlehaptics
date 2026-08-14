@@ -82,7 +82,7 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="GLOB",
         help=(
             "Only expose tools whose srmech-name matches GLOB "
-            "(fnmatch-style; e.g. 'srmech.amsc.cascade.*'). Default: "
+            "(fnmatch-style; e.g. 'srmech.cascade.*'). Default: "
             "expose everything (~149 tools)."
         ),
     )

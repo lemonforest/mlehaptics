@@ -20,7 +20,12 @@ both ``byteglyph`` and ``wordhash``) because it lacks the three levers F1008
 
 Plus **letter-digit tokenization** (``klein4`` → ``klein 4``, ``sha256`` → ``sha
 256``) on both sides so a query that spells ``klein-4`` aligns with the ``klein4``
-in an op name.
+in an op name. **rc416 (`#T1102`) re-spelled that split as the PROPERTY it was
+approximating** — a LETTER↔NUMBER boundary read from the vendored UCD 16.0.0
+word table, over UAX #29 glyph clusters — rather than the ``[a-z][0-9]`` regex
+pair it shipped as. The regex that mattered was the third one, ``[^a-z0-9]+``,
+which did not merely fail to split non-ASCII text: it DELETED it (``'語言'`` →
+``[]``) or TRUNCATED it into a confident wrong answer (``'groß'`` → ``['gro']``).
 
 Structure-bearing, NOT high-diffusion (F1260)
 ---------------------------------------------
@@ -30,7 +35,7 @@ that a word-hashed / SHA-seeded Klein-4 vector (``klein4_random(seed=sha256(w))`
 orthogonality floor: ``cat``/``cats`` is then indistinguishable from ``cat``/``dog``
 (the SHA avalanche destroys morphology — high diffusion makes a good ADDRESS and
 disqualifies it as a REPRESENTATION). So the DEFAULT token backend here is the
-COMPOSED regime :func:`srmech.amsc.hdc.klein4_encode_bytes` (byte-position-bound
+COMPOSED regime :func:`srmech.math.hdc.klein4_encode_bytes` (byte-position-bound
 bundle), which restores morphology — ``cat``/``cats`` ≈ 0.66 while ``cat``/``dog``
 stays ≈ 0.25 — keeping the encoder on the structure-bearing side of the F1260
 axis. ``token_mode="address"`` is offered as the F1008 fast/orthogonal dual
@@ -52,35 +57,85 @@ numpy-free; no ``abs()`` / ``Counter`` / bag.
 """
 from __future__ import annotations
 
-import re
-
-from srmech.amsc import hdc
-from srmech.amsc.hv import HV
+from srmech.math import hdc
+from srmech.math.hv import HV
 
 __all__ = [
     "encode_aboutness",
     "ground_tool_schema",
 ]
 
-# Letter-digit split BOTH sides (klein4 -> klein 4, sha256 -> sha 256) so a
-# query spelled "klein-4" aligns with the "klein4" of an op name (F1008 iter 2).
-_LD_ALPHA_DIGIT = re.compile(r"([a-z])([0-9])")
-_LD_DIGIT_ALPHA = re.compile(r"([0-9])([a-z])")
-_NON_ALNUM = re.compile(r"[^a-z0-9]+")
-
 
 def _aboutness_tokens(text):
-    """Lower-case, letter-digit-split, non-alphanumeric-split tokenizer.
+    """Lower-case, letter-digit-split, separator-split GLYPH tokenizer.
 
-    Drops length-1 alphabetic noise (``a``, ``x``) but keeps bare digits
-    (``4``, ``256``). Deterministic; the SAME split is applied to both the op
-    name/summary side and the query side so their tokens align. PRIVATE glue —
-    no compute, no C dispatch, kept off the public surface so the rosetta ledger
-    never has to account for a bare tokenizer as a compute op."""
-    s = (text or "").lower()
-    s = _LD_ALPHA_DIGIT.sub(r"\1 \2", s)
-    s = _LD_DIGIT_ALPHA.sub(r"\1 \2", s)
-    return [w for w in _NON_ALNUM.split(s) if len(w) > 1 or w.isdigit()]
+    ⚠️ **rc416 (`#T1102`) — this was the SECOND ASCII-locked tokenizer.** Until
+    rc416 the body was three regexes, ``([a-z])([0-9])`` / ``([0-9])([a-z])``
+    / ``[^a-z0-9]+``, and the last one deleted content rather than declining
+    it: ``'語言'`` tokenized to ``[]`` and ``'groß'`` to ``['gro']`` — a
+    TRUNCATED prefix, which is a confident wrong answer rather than a miss.
+    ``srmech.introspect.search._tokenize`` carried the identical failure from
+    an independent authorship. Two of two natural-language retrieval surfaces
+    ASCII-locked is convergence, not a slip, which is why both were fixed in
+    one rc rather than the one that was noticed first.
+
+    The replacement composes shipped ops and decides nothing here:
+    :func:`~srmech.math.text.fold_marks` (vendored UCD 16.0.0 fold table),
+    :func:`~srmech.math.text.glyph_stream` (UAX #29 extended grapheme
+    clusters) and the vendored word-kind predicate. A token is a maximal run
+    of word glyphs, split at every LETTER↔NUMBER boundary — which is the
+    ``klein4`` → ``klein 4`` alignment (F1008 iter 2) with its ``[a-z][0-9]``
+    spelling replaced by the property it was approximating, so it now fires
+    for ``κ4`` and ``٤ب`` too. Nothing calls ``str.isalnum()``: that pins the
+    answer to the HOST's UCD (13.0.0 here against the tables' 16.0.0) and a
+    bare-C host cannot ask it at all.
+
+    **The length floor is GONE, and that is a contract decision, not a
+    tidy-up.** The old rule dropped length-1 alphabetic tokens (``a``, ``x``)
+    as noise. Re-derived in glyphs it does not survive contact: ``中 国`` is two
+    one-glyph words, ``κ4`` is a one-glyph Greek variable, ``2π`` is a
+    one-glyph constant — a floor of 2 deletes all three, which is the rc287
+    deletion reproduced one layer down. There is no floor value that keeps
+    ``a``/``x`` out without taking those with it, because "is this one glyph"
+    is not the question; "is this catalog-wide glue" is.
+
+    That question already has an instrument here: the **F768/F984
+    doc-frequency gate** drops any token appearing in more than ``func_frac``
+    of the catalog, measured FROM the corpus rather than from a hand-tuned
+    rule. ``a`` and ``x`` are exactly what it is for. So the floor is removed
+    and the gate is left to do the job it was built for — the same trade
+    :func:`srmech.introspect.search._tokenize` makes with ``_MIN_GLYPHS = 1``,
+    for the same reason. What it costs is measured rather than assumed: the
+    shipped ``ground_tool_schema`` top-1 is unchanged by the removal.
+
+    Deterministic; the SAME split is applied to both the op name/summary side
+    and the query side so their tokens align. PRIVATE glue — no compute, no C
+    dispatch, kept off the public surface so the rosetta ledger never has to
+    account for a bare tokenizer as a compute op.
+    """
+    from srmech.math.text import (_WORD_KIND_NONE, _glyph_kind, fold_marks,
+                                  glyph_stream)
+
+    s = (text or "")
+    s = (s.lower() if s.isascii() else fold_marks(s).lower())
+    out, buf, buf_kind = [], [], _WORD_KIND_NONE
+
+    def _flush():
+        nonlocal buf_kind
+        if buf:
+            out.append("".join(buf))
+        del buf[:]
+        buf_kind = _WORD_KIND_NONE
+
+    for cluster in glyph_stream(s):
+        kind = _glyph_kind(cluster)
+        if kind == _WORD_KIND_NONE or (buf and kind != buf_kind):
+            _flush()                      # separator, or a LETTER↔NUMBER edge
+        if kind != _WORD_KIND_NONE:
+            buf.append(cluster)
+            buf_kind = kind
+    _flush()
+    return out
 
 
 def _doc_frequencies(documents):
@@ -118,7 +173,7 @@ def encode_aboutness(text, *, D, df=None, n_docs=None, name=None,
     This is the reusable grounding PRIMITIVE (F1008 recipe): encode an op's
     ``name`` + ``summary`` this way to build the retrieval index, and encode a
     user utterance the SAME way (``name=None``) to query it; the nearest tool by
-    :func:`srmech.amsc.hdc.klein4_similarity` is the grounded op.
+    :func:`srmech.math.hdc.klein4_similarity` is the grounded op.
 
     Args:
         text: the description / summary / utterance body. Its tokens are
@@ -137,9 +192,9 @@ def encode_aboutness(text, *, D, df=None, n_docs=None, name=None,
         name_bigram_weight: bigram repeat count for name tokens (default 2).
         func_frac: gate threshold as a fraction of ``n_docs`` (default 0.35).
         token_mode: per-token vector backend. ``"byteglyph"`` (default) =
-            :func:`~srmech.amsc.hdc.klein4_encode_bytes`, the STRUCTURE-BEARING
+            :func:`~srmech.math.hdc.klein4_encode_bytes`, the STRUCTURE-BEARING
             COMPOSED regime that preserves morphology (F1260). ``"address"`` =
-            :func:`~srmech.amsc.hdc.klein4_address`, the F1008 fast ADDRESSED
+            :func:`~srmech.math.hdc.klein4_address`, the F1008 fast ADDRESSED
             dual (orthogonal per token, NO morphology — not structure-bearing).
 
     Returns:
@@ -216,11 +271,11 @@ def ground_tool_schema(utterance, *, D=8192, k=3, token_mode="byteglyph"):
     name-leaf + summary is a document), encodes every tool with
     :func:`encode_aboutness` (name-weighted), encodes the ``utterance`` as a
     gated query, and returns the top-``k`` ``(tool_name, similarity)`` by
-    :func:`~srmech.amsc.hdc.klein4_similarity`, best first. This is the F1009
+    :func:`~srmech.math.hdc.klein4_similarity`, best first. This is the F1009
     "srmech-drive" grounding surface built on the encoder primitive — a helper,
     not a separate registered tool.
     """
-    from srmech.amsc import tool_schema as ts
+    from srmech.introspect import tool_schema as ts
 
     tools = ts.get_tool_schema().tools
     docs = [_aboutness_tokens(t.name.split(".")[-1]) + _aboutness_tokens(t.summary)

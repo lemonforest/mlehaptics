@@ -3,7 +3,7 @@
 The native transform for a Klein-4 object: its ℍ coefficient algebra resolves
 BOTH Z₂ chirality axes the complex FFT collapses (the flat shadow). Klein-4 =
 Q₈/{±1} ≅ Z₂×Z₂. These are composites over the qm.octonion left/right-mult
-atoms — scientific tier (§22: numpy on call), but `import srmech.amsc.cascade`
+atoms — scientific tier (§22: numpy on call), but `import srmech.cascade`
 stays numpy-free.
 """
 import math
@@ -11,7 +11,7 @@ import sys
 
 import pytest
 
-from srmech.amsc.cascade import quaternion_dft, octonion_dft, hypercomplex_couple
+from srmech.cascade import quaternion_dft, octonion_dft, hypercomplex_couple
 
 
 # --- Klein-4 <-> quaternion encoding (bit0 -> i-comp sign, bit1 -> j-comp sign) ---
@@ -33,12 +33,12 @@ def _dec(q):
 def test_cascade_import_is_numpy_free():
     """The hypercomplex_dft module is numpy-FREE (rc125 #564): the DFT
     composites carry their octonion vectors as ``list[float]`` and the
-    octonion-rep operators as the numpy-free :class:`srmech.amsc.mat.Mat`, so
+    octonion-rep operators as the numpy-free :class:`srmech.math.mat.Mat`, so
     the module source has ZERO numpy — no top-level import, no ``np.`` callsite,
     no lazy proxy."""
     import inspect
     import re
-    from srmech.amsc.cascade import hypercomplex_dft
+    from srmech.cascade import hypercomplex_dft
     src = inspect.getsource(hypercomplex_dft)
     assert "import numpy" not in src, "hypercomplex_dft imports numpy"
     assert not re.search(r"\bnp\.", src), "hypercomplex_dft has an np. callsite"

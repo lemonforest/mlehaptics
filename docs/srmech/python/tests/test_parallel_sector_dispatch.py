@@ -1,7 +1,7 @@
 """Acceptance tests for the Klein-4 four-sector PARALLEL dispatch voxel.
 
 Per srmech MS#20 rc6 (F233 / R-RBS-LM-FINDING_233). The new
-``srmech.amsc.cascade.parallel_sector_dispatch`` runs ONE caller-supplied
+``srmech.cascade.parallel_sector_dispatch`` runs ONE caller-supplied
 cascade ``body`` across its ≤4 Klein-4 chirality sectors CONCURRENTLY
 (``concurrent.futures.ThreadPoolExecutor``, ``max_workers=4``) and returns a
 structured, self-describing result.
@@ -35,8 +35,8 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc import cascade
-from srmech.amsc.cascade import (
+from srmech import cascade
+from srmech.cascade import (
     KLEIN4_SECTOR_CAP,
     Z4_DISPATCH_SLOTS,
     chiral_dual,
@@ -211,7 +211,7 @@ def test_cap_certificate():
     assert cap["beyond_4_is_order_3_triality"] is True
     assert cap["triality_not_implemented_here"] is True
     assert cap["beyond_4_needs"] == (
-        "srmech.qm.triality.lean_isa_seventh_primitive"
+        "srmech.physics.qm.triality.lean_isa_seventh_primitive"
     )
 
 
@@ -272,7 +272,7 @@ def test_collapse_lattice_bi_symmetric_collapses_to_1():
 def test_introspect_tools_total_matches_live():
     import srmech.introspect as introspect
 
-    assert introspect.describe()["tools"]["total"] == 509
+    assert introspect.describe()["tools"]["total"] == 655
 
 
 # ----------------------------------------------------------------------
@@ -281,10 +281,10 @@ def test_introspect_tools_total_matches_live():
 
 
 def test_tool_entry_registered():
-    from srmech.amsc import tool_schema
+    from srmech.introspect import tool_schema
 
     schema = tool_schema.get_tool_schema()
-    name = "srmech.amsc.cascade.parallel_sector_dispatch"
+    name = "srmech.cascade.parallel_sector_dispatch"
     entry = schema.lookup(name)
     assert entry is not None
     assert entry.name == name
@@ -445,7 +445,7 @@ def test_combine_invalid_raises():
 def test_sectorize_returns_composable_unary():
     """sectorize wraps a body as a unary seq->combined callable; the result
     composes (it is a flat stream, not the dict)."""
-    from srmech.amsc.cascade import sectorize
+    from srmech.cascade import sectorize
 
     sf = sectorize(_biaxial, combine="bundle")
     out = sf(_X)
@@ -457,7 +457,7 @@ def test_sectorize_nests():
     """A sectorized cascade nests inside another sector dispatch — the
     4-way splay carries THROUGH (rc11 crashed on the nested non-flat
     value)."""
-    from srmech.amsc.cascade import sectorize
+    from srmech.cascade import sectorize
 
     inner = sectorize(_bi_symmetric, combine="bundle")
     d = parallel_sector_dispatch(inner, _X, combine="bundle")
@@ -466,7 +466,7 @@ def test_sectorize_nests():
 
 
 def test_sectorize_rejects_combine_none():
-    from srmech.amsc.cascade import sectorize
+    from srmech.cascade import sectorize
 
     with pytest.raises(ValueError, match="single value|combine"):
         sectorize(_biaxial, combine=None)

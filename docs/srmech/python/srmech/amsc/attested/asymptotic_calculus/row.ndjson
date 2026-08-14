@@ -25,7 +25,7 @@
 # atan, Bessel, Γ, ζ, and calculus ops (forward_difference / riemann_sum).
 #
 # All `expected_*` values were produced by running srmech v0.4.1rc6's
-# `srmech.amsc.rational.exp_series_truncate` at catalog author time
+# `srmech.math.rational.exp_series_truncate` at catalog author time
 # (2026-05-16). The catalog's purpose is to FALSIFY any drift in that
 # function: CI re-runs the chain at consumer time and bit-exact-compares.
 

@@ -6,7 +6,7 @@ zero ``math.pi`` invocations): the decimal expansion of π is the
 **downstream projection** of the substrate-level cascade composition.
 
 The Path A implementation is a thin wrapper over the existing
-``srmech.amsc.rational.pi_cascade_digits`` (Milestone #4; rc13 cap = 1000
+``srmech.math.rational.pi_cascade_digits`` (Milestone #4; rc13 cap = 1000
 digits, depth/precision auto-scaled per ``_pi_cascade_auto_params``). As
 of rc20 that primitive computes π via the **two-sided Pfaff–Archimedes
 chiral pair** — Pfaff's 1800 reformulation of the c. 250 BCE Archimedes
@@ -29,7 +29,7 @@ signal-processing op so the dual-path dispatcher can route
 
 For the canonical *exact-substrate* π digit stream — a bit-exact integer
 body with ONE terminal rotation — use
-``srmech.amsc.rational.pi_chudnovsky_digits``; it is the digit SSoT the
+``srmech.math.rational.pi_chudnovsky_digits``; it is the digit SSoT the
 chiral pair is cross-checked against. The chiral pair is the *studied
 ordered cycle-of-cycles pattern* (a per-step integer √, and π is
 transcendental, so it is an intrinsic-float LIMIT rather than an avoidable
@@ -70,7 +70,7 @@ Canonical SSoT
   perimeter-bracketing method (n=6 → 12 → 24 → 48 → 96 → ...), reformulated
   by J. F. Pfaff (1800) as the recurrent harmonic/geometric mean pair the
   rc20 chiral-pair cascade implements.
-- ``srmech.amsc.rational.pi_chudnovsky_digits`` — the canonical
+- ``srmech.math.rational.pi_chudnovsky_digits`` — the canonical
   exact-substrate π digit SSoT (bit-exact body, ONE terminal rotation) the
   chiral pair is cross-checked against (rc19).
 - ``docs/srmech/notes/pi_cascade_digits_benchmark_2026-05-17.md`` —
@@ -81,7 +81,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from srmech.amsc.rational import pi_cascade_digits as _amsc_pi_cascade_digits
+from srmech.math.rational import pi_cascade_digits as _amsc_pi_cascade_digits
 
 OPERATION_NAME = "pi_cascade"
 CLASS_COMPOSITION = ("N", "I", "C")
@@ -90,7 +90,7 @@ SSOT_CITATION = (
     "Milestone #4; [[user_stance_pi_as_projection]]; Spike #32 "
     "(pi as spectral shape; cascade-emergent across hexagon/square/"
     "triangle substrates, PR #460). Underlying primitive: "
-    "srmech.amsc.rational.pi_cascade_digits (rc13 cap=1000)."
+    "srmech.math.rational.pi_cascade_digits (rc13 cap=1000)."
 )
 
 
@@ -103,7 +103,7 @@ def op(
 ) -> str:
     """Compute π to ``num_digits`` decimal digits via Path A cascade.
 
-    Thin wrapper over :func:`srmech.amsc.rational.pi_cascade_digits`.
+    Thin wrapper over :func:`srmech.math.rational.pi_cascade_digits`.
     The ``D`` kwarg is accepted for cross-path API consistency with the
     dual-path dispatcher; the Path A closed-form algebra does not use
     it (D parameterises the RBS-HDC bound-vector substrate on Path B).

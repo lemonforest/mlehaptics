@@ -1,6 +1,6 @@
 /*
  * srmech_poly.c — EXACT-RATIONAL univariate polynomial over srmech_bigint
- * (the C peer of srmech.amsc.poly.Poly; the §76 "telescope" Sigma-row
+ * (the C peer of srmech.math.poly.Poly; the §76 "telescope" Sigma-row
  * foundation).
  *
  * A polynomial is carried in ASCENDING degree as two parallel caller-owned
@@ -10,7 +10,7 @@
  * trailing-zero (high-degree) coefficients, so the zero polynomial has n == 0.
  *
  * Each op below computes the SAME exact rational coefficients the Python
- * srmech.amsc.poly.Poly computes — Class-N rational arithmetic over Class-J
+ * srmech.math.poly.Poly computes — Class-N rational arithmetic over Class-J
  * prime-field reduction — over caller-arena srmech_bigint (NO malloc, JPL Rule
  * 3), and returns each output coefficient reduced to lowest terms with positive
  * denominator. Byte-identical to Python's (num, den) at ANY magnitude (the

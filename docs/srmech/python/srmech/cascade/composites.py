@@ -1,0 +1,998 @@
+"""Cascade **composites** — iterative algorithms over the atoms.
+
+The two cascade ops in this tier are iterative *algorithms* built over
+the silicon-able atoms in :mod:`srmech.cascade.atoms` — they are
+NOT single 1:1 ISA intrinsics (per F208 / MS #20 forward-architecture):
+
+- :func:`cyclic_gcd` — Euclid's algorithm (Class I; iterative remainder
+  loop, delegating to ``srmech.math.cyclic.gcd``).
+- :func:`best_rational_signed` — the Class K ∘ N ∘ C continued-fraction
+  loop (sign-strip at the :func:`~srmech.cascade.atoms.pin_slot_at_zero`
+  atom, Class N best-rational anchor of the magnitude, then re-sign at the
+  :func:`~srmech.cascade.atoms.reorient` atom).
+
+The 1:1 ISA intrinsics these compose over live in the sibling
+:mod:`srmech.cascade.atoms` module.
+
+**No ``abs()``** anywhere — sign is handled as the canonical Class K
+pin-slot + Class C re-orientation per
+``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]``.
+
+Each composite carries a dedicated C symbol in
+``libsrmech.{so,dll,dylib}`` (the cascade ``cyclic_gcd`` wrapper is a
+pure-delegation alias for the Class I ``srmech_gcd`` primitive; the
+``best_rational_signed`` C peer delegates its Class N stage to
+``srmech_best_rational``) AND a TOML descriptor under
+``srmech/cascade/catalogs/cascade_catalog/``.
+"""
+
+from __future__ import annotations
+
+import ctypes
+from typing import List, Sequence, Tuple
+
+from srmech import _native
+from srmech.math.cyclic import gcd as _cyclic_gcd
+from srmech.math.cyclic import mod_add as _cyclic_mod_add
+from srmech.math.cyclic import mod_mul as _cyclic_mod_mul
+from srmech.math.cyclic import mod_pow as _cyclic_mod_pow
+from srmech.math.cyclic import mod_inv as _cyclic_mod_inv
+from srmech.math.cyclic import mod_mul_wide as _cyclic_mod_mul_wide
+from srmech.math.rational import best_rational as _best_rational
+from srmech.math.rational import sin as _rsin  # §22: Class-N rational trig, not libm
+
+from .atoms import pin_slot_at_zero, reorient, _ZERO_BAND
+
+# v0.4.6rc2 — introspection emit hook. Zero-cost when not publishing.
+# We use ``_is_publishing()`` (a single thread-local attribute lookup)
+# as the gate so the per-op ``describe_shape()`` cost only fires when
+# a publishing context is active. ``emit_if_publishing()`` itself does
+# the same check internally, but routing through the explicit gate
+# here lets us skip the kwarg-bundle + the shape evaluation entirely.
+from srmech.introspect._writer import (
+    _is_publishing as _is_pub,
+    emit_if_publishing as _emit,
+)
+from srmech.introspect._event import describe_shape as _shape
+
+#: Default small-denominator ceiling for ``best_rational_signed`` (the
+#: Class N rational anchor). Matches the precursor cascade-helper default.
+DEFAULT_MAX_DENOMINATOR = 100
+
+#: Default fine-scaling factor turning a float magnitude into the integer
+#: pair ``srmech.math.rational.best_rational`` consumes.
+DEFAULT_FINE_SCALE = 1_000_000
+
+
+def compensated_sum(values: Sequence[float]) -> float:
+    """Class M: Kahan–Babuška–Neumaier compensated summation —
+    substrate-native (rc13 replaces the stdlib ``math.fsum``; PUBLIC since
+    v0.9.0rc420 so the ``autocorrelation.toml`` declared chain's Σ step
+    names a registered op — the `#T1114` BLK-REGMAP resolution).
+
+    Keeps a per-bin running sum well-conditioned with NO maths library: the
+    larger-magnitude term is selected by a **square** comparison
+    (``s*s >= v*v`` — no ``abs()``, Class-K honest), and the bits lost at each
+    add are accumulated in a separate compensation term recovered at the end.
+    Near-exact for the well-conditioned autocorrelation sums it backs (the
+    stdlib ``math.fsum`` is exactly-rounded; Neumaier matches it to ~1 ulp).
+
+    Structurally this IS a fold with a ``(sum, compensation)`` PAIR
+    accumulator plus a final combine — declaratively expressible once the
+    pair/framing inventory exists, but shipped as one leaf so the float-op
+    order stays pinned to this exact body (the `#T1114` rung-4 delegation,
+    recorded rather than hidden)."""
+    s = 0.0
+    c = 0.0                                        # running compensation
+    for v in values:
+        t = s + v
+        if s * s >= v * v:                         # |s| >= |v| via squares
+            c += (s - t) + v
+        else:
+            c += (v - t) + s
+        s = t
+    return s + c
+
+
+#: Private spelling kept for the module's own internal call sites; the op
+#: itself is the public :func:`compensated_sum` (v0.9.0rc420).
+_compensated_sum = compensated_sum
+
+
+def _try_native_best_rational_signed(x, max_denominator, fine_scale):
+    """Native dispatch for the Class K ∘ Class N ∘ Class C cascade.
+
+    Returns ``(int, int)`` on success or ``None`` to signal the caller
+    should fall through to the Python composition path. Only pure-Python
+    ``float`` ``x`` + pure-Python ``int`` kwargs (not bool) within int64
+    range dispatch through native. Out-of-range kwargs or non-float ``x``
+    (int, numpy scalar, Decimal, ...) stay on the Python path so the
+    public API behaviour is preserved exactly.
+
+    Banker's-rounding parity: the C peer uses a libm-free round-half-
+    to-even branch (v0.9.0rc210; formerly ``llrint()`` under the
+    default IEEE-754 ``FE_TONEAREST`` mode — byte-identical on the fed
+    range), which matches Python's built-in ``round()`` at the ``.5``
+    boundary bit-exactly. C99 ``round()`` would diverge (round-half-
+    AWAY-from-zero); the cascade wrapper deliberately avoids it.
+    Products ``>= 2**63`` overflow the int64 ABI: the C peer returns a
+    non-OK status and this dispatch falls through to the Python
+    reference path below (exact up to uint64 numerators; ValueError
+    beyond, same as the pure-Python surface).
+    """
+    if not (_native.HAS_NATIVE and _native.LIB is not None):
+        return None
+    # Strict type check — bool is a subclass of int and must NOT take
+    # the native path (matches the cascade-dispatch discipline). Only
+    # pure Python float dispatches through native.
+    if type(x) is not float:
+        return None
+    if type(max_denominator) is not int or isinstance(max_denominator, bool):
+        return None
+    if type(fine_scale) is not int or isinstance(fine_scale, bool):
+        return None
+    if max_denominator < 1 or fine_scale < 1:
+        # Let the caller hit the Python path which raises ValueError
+        # with the proper message.
+        return None
+    INT64_MAX = (2 ** 63) - 1
+    if max_denominator > INT64_MAX or fine_scale > INT64_MAX:
+        return None
+    if not hasattr(_native.LIB, "srmech_cascade_best_rational_signed_f64"):
+        return None
+    out_num = ctypes.c_int64(0)
+    out_den = ctypes.c_int64(0)
+    rc = _native.LIB.srmech_cascade_best_rational_signed_f64(
+        ctypes.c_double(x),
+        ctypes.c_int64(max_denominator),
+        ctypes.c_int64(fine_scale),
+        ctypes.byref(out_num),
+        ctypes.byref(out_den),
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    return int(out_num.value), int(out_den.value)
+
+
+def best_rational_signed(
+    x: float,
+    *,
+    max_denominator: int = DEFAULT_MAX_DENOMINATOR,
+    fine_scale: int = DEFAULT_FINE_SCALE,
+) -> Tuple[int, int]:
+    """Class K ∘ Class N ∘ Class C: float → signed small-denominator rational.
+
+    The full cross-domain anchor cascade: strip the sign at the Class K
+    pin-slot, find the Class N best-rational of the non-negative magnitude
+    (via ``srmech.math.rational.best_rational``, which takes an integer pair),
+    then re-apply the sign as Class C. No ``abs()``; the sign lives in the
+    Class K / Class C pair end-to-end.
+
+    v0.4.5rc7: dispatches through the native C variant
+    ``srmech_cascade_best_rational_signed_f64`` when ``HAS_NATIVE`` is
+    True, ``x`` is a pure-Python ``float``, and ``max_denominator`` /
+    ``fine_scale`` are pure-Python ``int`` (not bool) in int64 range. The
+    C peer delegates the Class N stage to the existing
+    ``srmech_best_rational`` primitive; the Class K + Class C stages are
+    inlined (one comparison branch + one sign flip each). Python fallback
+    handles numpy scalars, Decimal, larger-than-int64 kwargs, and any
+    other shape the strict native ABI doesn't cover.
+
+    Banker's-rounding parity: the C peer uses a libm-free round-half-
+    to-even branch (v0.9.0rc210; formerly ``llrint()`` under the
+    default IEEE-754 ``FE_TONEAREST`` mode — byte-identical on the fed
+    range), so the ``round(magnitude * fine_scale)`` step matches
+    Python's built-in ``round()`` at the ``.5`` boundary bit-exactly.
+
+    Args:
+        x: A real value (the irrational/float to anchor).
+        max_denominator: Class N small-denominator ceiling.
+        fine_scale: Integer scale turning the float magnitude into the
+            ``(numerator, denominator)`` pair ``best_rational`` consumes.
+
+    Returns:
+        ``(signed_numerator, denominator)`` — the Class N convergent of
+        ``x`` with the Class C sign re-applied. The origin and sub-dead-band
+        magnitudes map to ``(0, 1)``. NaN also maps to ``(0, 1)`` via the
+        Class K dead-band.
+
+    Raises:
+        ValueError: if ``max_denominator < 1`` or ``fine_scale < 1``.
+    """
+    if _is_pub(): _emit("cascade.best_rational_signed", class_="K∘N∘C", input_shape=_shape(x))
+    if max_denominator < 1:
+        raise ValueError(
+            f"cascade.best_rational_signed: max_denominator must be >= 1; "
+            f"got {max_denominator}"
+        )
+    if fine_scale < 1:
+        raise ValueError(
+            f"cascade.best_rational_signed: fine_scale must be >= 1; "
+            f"got {fine_scale}"
+        )
+    native = _try_native_best_rational_signed(x, max_denominator, fine_scale)
+    if native is not None:
+        return native
+    # Python fallback path.
+    # Class K — pin-slot at zero (sign-strip).
+    orientation, mag = pin_slot_at_zero(x)
+    if orientation == 0 or mag < _ZERO_BAND:
+        return 0, 1
+    num_pos = int(round(mag * fine_scale))
+    if num_pos == 0:
+        return 0, 1
+    # Class N — best-rational anchor of the non-negative magnitude.
+    nf, df = _best_rational(num_pos, fine_scale, max_denominator)
+    # Class C — re-apply the captured orientation.
+    return reorient(int(nf), orientation=orientation), int(df)
+
+
+def _try_native_cyclic_gcd(a, b):
+    """Native dispatch for cyclic_gcd via the cascade-namespace wrapper.
+
+    The cascade wrapper ``srmech_cascade_cyclic_gcd_u64`` is itself a
+    pure-delegation alias for the Class I primitive ``srmech_gcd``; we
+    dispatch through the cascade-namespace symbol (not the Class I
+    primitive directly) so the cascade-catalog naming stays uniform per
+    the v0.4.5rc6 directive *"delegate to A-N C peers; cascade-level C
+    wrapper + TOML"*. The Python ``srmech.math.cyclic.gcd`` reaches the
+    same C primitive through its OWN ctypes binding — both surfaces
+    coexist in libsrmech.
+
+    Returns ``int`` on success or ``None`` to signal the caller should
+    fall through to the Python path. Only pure Python ``int`` inputs in
+    ``[0, 2**64 - 1]`` (the uint64 range matched by the cascade C ABI)
+    dispatch through native — bool is rejected by ``type(x) is int``,
+    and negatives / out-of-uint64 bigints fall through to the Python
+    fallback which itself raises ``ValueError`` (mirroring the Python
+    ref ``srmech.math.cyclic.gcd`` behaviour exactly).
+    """
+    if not (_native.HAS_NATIVE and _native.LIB is not None):
+        return None
+    # Strict isinstance check — bool is a subclass of int and must NOT
+    # take the native path (matches the rcN cascade-dispatch discipline).
+    if type(a) is not int or isinstance(a, bool):
+        return None
+    if type(b) is not int or isinstance(b, bool):
+        return None
+    UINT64_MAX = (2 ** 64) - 1
+    if a < 0 or b < 0:
+        return None
+    if a > UINT64_MAX or b > UINT64_MAX:
+        return None
+    if not hasattr(_native.LIB, "srmech_cascade_cyclic_gcd_u64"):
+        return None
+    out = ctypes.c_uint64(0)
+    rc = _native.LIB.srmech_cascade_cyclic_gcd_u64(
+        ctypes.c_uint64(a),
+        ctypes.c_uint64(b),
+        ctypes.byref(out),
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    return int(out.value)
+
+
+def cyclic_gcd(a: int, b: int) -> int:
+    """Class I cyclic gcd. Delegates to ``srmech.math.cyclic.gcd``.
+
+    A cascade-named alias so number-theoretic cascades reach for the Class I
+    primitive by its cascade name rather than ``math.gcd``. The cascade-
+    catalog entry IS the Class I primitive (Euclid's algorithm); the
+    wrapper exists for namespace consistency, not for additional math.
+
+    v0.4.5rc6: dispatches through the native cascade-namespace wrapper
+    ``srmech_cascade_cyclic_gcd_u64`` when ``HAS_NATIVE`` is True, both
+    inputs are pure Python ``int`` (not bool) in the uint64 range
+    ``[0, 2**64 - 1]``. Falls back to the Python ``srmech.math.cyclic.gcd``
+    path for bool, negative, and out-of-uint64 inputs — which itself
+    raises ``ValueError`` for negative / oversized inputs, preserving the
+    pre-rc6 public API exactly. The cascade wrapper is a pure-delegation
+    alias for the Class I primitive ``srmech_gcd``; dispatching through
+    the cascade-namespace symbol keeps the cascade-catalog naming uniform
+    per the rc6 directive *"delegate to A-N C peers; cascade-level C
+    wrapper + TOML"*.
+
+    Args:
+        a: non-negative ``int`` in uint64 range.
+        b: non-negative ``int`` in uint64 range.
+
+    Returns:
+        The Euclidean ``gcd(a, b)`` (non-negative). ``gcd(0, 0)`` is
+        ``0`` (the gcd identity); ``gcd(a, 0)`` is ``a``.
+
+    Raises:
+        ValueError: forwarded from ``srmech.math.cyclic.gcd`` for negative
+            inputs or inputs exceeding the uint64 parity surface.
+    """
+    if _is_pub(): _emit("cascade.cyclic_gcd", class_="I", input_shape=f"{_shape(a)}+{_shape(b)}")
+    native = _try_native_cyclic_gcd(a, b)
+    if native is not None:
+        return native
+    return _cyclic_gcd(a, b)
+
+
+# ── Class I modular-arithmetic cascade ops (0.9.0rc302; §110 / #1460) ────────
+# The cascade-namespace face of the Class-I modular family so a modular-
+# arithmetic cascade (an LCG, a hash, the PCG64 step) can be DECLARED via the
+# DSL — `chain().then("cyclic_mod_mul", b=MULT, n=MOD)` — and DISCOVERED in the
+# tool_schema, not only hand-composed in Python. Each is a THIN delegation to
+# the already-``c_dispatched`` `srmech.math.cyclic.*` primitive (which routes to
+# its own `srmech_mod_*` C symbol); these wrappers add NO native dispatch and
+# NO new C symbol — they are the cascade-catalog / DSL-registration layer
+# (`composition_of_c`). Following the DSL chain contract, the piped value is the
+# first positional arg (`a`) and the operands (`b`/`k`/`n`) are bound kwargs
+# (`.then("cyclic_mod_mul", b=MULT, n=MOD)`), exactly as schur_complement binds
+# `boundary_idx`.
+
+
+def cyclic_mod_mul(a: int, b: int, n: int) -> int:
+    """Class I modular multiply ``(a * b) mod n`` (delegates to
+    ``srmech.math.cyclic.mod_mul``).
+
+    The cascade-named alias for the Class-I modular multiply so a modular
+    cascade (e.g. an LCG step ``mod_mul`` ∘ ``mod_add``) can be declared in the
+    DSL. Overflow-safe via russian-peasant doubling in C; the modulus and
+    operands are bounded by ``uint64`` (use :func:`cyclic_mod_mul_wide` for a
+    wider modulus). ``n`` must be ``> 0``.
+
+    Args:
+        a: non-negative ``int`` in ``uint64`` range (the piped cascade value).
+        b: non-negative ``int`` in ``uint64`` range (the multiplier).
+        n: modulus ``> 0`` in ``uint64`` range.
+
+    Returns:
+        ``(a * b) mod n`` in ``[0, n)``.
+    """
+    if _is_pub(): _emit("cascade.cyclic_mod_mul", class_="I", input_shape=_shape(a))
+    return _cyclic_mod_mul(a, b, n)
+
+
+def cyclic_mod_add(a: int, b: int, n: int) -> int:
+    """Class I modular addition ``(a + b) mod n`` (delegates to
+    ``srmech.math.cyclic.mod_add``).
+
+    The cascade-named alias for the Class-I modular addition — the
+    increment stage of an LCG cascade. Operands and modulus are bounded by
+    ``uint64``; ``n`` must be ``> 0``.
+
+    Args:
+        a: non-negative ``int`` in ``uint64`` range (the piped cascade value).
+        b: non-negative ``int`` in ``uint64`` range (the addend).
+        n: modulus ``> 0`` in ``uint64`` range.
+
+    Returns:
+        ``(a + b) mod n`` in ``[0, n)``.
+    """
+    if _is_pub(): _emit("cascade.cyclic_mod_add", class_="I", input_shape=_shape(a))
+    return _cyclic_mod_add(a, b, n)
+
+
+def cyclic_mod_pow(a: int, k: int, n: int) -> int:
+    """Class I modular exponentiation ``(a ** k) mod n`` via
+    square-and-multiply (delegates to ``srmech.math.cyclic.mod_pow``).
+
+    The cascade-named alias for the Class-I modular power — the core of a
+    modular-exponentiation cascade (multiplicative hashing, RSA-style
+    powering). Operands and modulus are bounded by ``uint64``; ``n`` must be
+    ``> 0`` (returns ``0`` for ``n == 1``).
+
+    Args:
+        a: non-negative ``int`` in ``uint64`` range (the piped base).
+        k: non-negative ``int`` exponent in ``uint64`` range.
+        n: modulus ``> 0`` in ``uint64`` range.
+
+    Returns:
+        ``(a ** k) mod n`` in ``[0, n)``.
+    """
+    if _is_pub(): _emit("cascade.cyclic_mod_pow", class_="I", input_shape=_shape(a))
+    return _cyclic_mod_pow(a, k, n)
+
+
+def cyclic_mod_inv(a: int, n: int) -> int:
+    """Class I modular inverse of ``a`` in ``Z/nZ`` via extended Euclidean
+    (delegates to ``srmech.math.cyclic.mod_inv``).
+
+    The cascade-named alias for the Class-I modular inverse — the un-do stage
+    of a modular cascade (recovering a multiplicative factor). Requires
+    ``gcd(a, n) == 1`` (raises ``ValueError`` otherwise) and ``n <= INT64_MAX``
+    on the C path.
+
+    Args:
+        a: non-negative ``int`` in ``uint64`` range (the piped value to invert).
+        n: modulus ``>= 2`` in ``uint64`` range.
+
+    Returns:
+        The inverse ``a**-1 mod n`` in ``[1, n)``.
+    """
+    if _is_pub(): _emit("cascade.cyclic_mod_inv", class_="I", input_shape=_shape(a))
+    return _cyclic_mod_inv(a, n)
+
+
+def cyclic_mod_mul_wide(a: int, b: int, n: int) -> int:
+    """Class I **uncapped** modular multiply ``(a * b) mod n`` (delegates to
+    ``srmech.math.cyclic.mod_mul_wide``).
+
+    The cascade-named alias for the 128-bit-capable modular multiply — the
+    multiply-and-reduce half of a wide LCG (the raw PCG64 step at
+    ``n = 2**128``). The product rides srmech's own C bignum
+    (``srmech_bigint_mul``); ``composition_of_c``, no uint64 cap. ``a`` / ``b``
+    non-negative, ``n > 0``, all of arbitrary width.
+
+    Args:
+        a: non-negative ``int`` of ANY width (the piped LCG state).
+        b: non-negative ``int`` of ANY width (the multiplier).
+        n: modulus ``> 0`` of ANY width (e.g. ``2**128``).
+
+    Returns:
+        ``(a * b) mod n`` in ``[0, n)``.
+    """
+    if _is_pub(): _emit("cascade.cyclic_mod_mul_wide", class_="I", input_shape=_shape(a))
+    return _cyclic_mod_mul_wide(a, b, n)
+
+
+def _try_native_kuramoto_step(theta, omega, coupling, dt):
+    """Native dispatch for the Kuramoto forward-Euler step.
+
+    Returns ``list[float]`` on success or ``None`` to fall through to the
+    Python composition path. Coerces ``theta`` / ``omega`` to float lists
+    (numpy arrays, generators, etc. coerce via ``float(...)``); any
+    coercion failure, a length mismatch, or a missing native symbol falls
+    back to Python so the public behaviour is preserved exactly.
+    """
+    if not (_native.HAS_NATIVE and _native.LIB is not None):
+        return None
+    if not hasattr(_native.LIB, "srmech_cascade_kuramoto_step_f64"):
+        return None
+    try:
+        th = [float(v) for v in theta]
+        om = [float(v) for v in omega]
+        k = float(coupling)
+        h = float(dt)
+    except (TypeError, ValueError):
+        return None
+    n = len(th)
+    if len(om) != n:
+        return None  # the Python path raises the ValueError with the message
+    Arr = ctypes.c_double * n if n > 0 else ctypes.c_double * 1
+    c_th = Arr(*th) if n > 0 else Arr()
+    c_om = Arr(*om) if n > 0 else Arr()
+    c_out = Arr()
+    rc = _native.LIB.srmech_cascade_kuramoto_step_f64(
+        ctypes.cast(c_th, ctypes.POINTER(ctypes.c_double)),
+        ctypes.cast(c_om, ctypes.POINTER(ctypes.c_double)),
+        ctypes.c_size_t(n),
+        ctypes.c_double(k),
+        ctypes.c_double(h),
+        ctypes.cast(c_out, ctypes.POINTER(ctypes.c_double)),
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    return [float(c_out[i]) for i in range(n)]
+
+
+def _try_native_kuramoto_step_general(
+    theta, omega, adjacency_flat, coupling, alpha, pin_anchor, pin_strength, dt,
+):
+    """Native dispatch for the GENERALISED Kuramoto-Sakaguchi step (rc14).
+
+    ``adjacency_flat`` is a row-major length-n² float list or ``None``;
+    ``pin_anchor`` / ``pin_strength`` are length-n float lists or ``None``.
+    Returns ``list[float]`` on success or ``None`` to fall through to the
+    Python composition path (missing symbol / coercion failure). The C peer
+    runs the identical step with NO host Python (co-equal parity).
+    """
+    if not (_native.HAS_NATIVE and _native.LIB is not None):
+        return None
+    if not hasattr(_native.LIB, "srmech_cascade_kuramoto_step_general_f64"):
+        return None
+    n = len(theta)
+    DblP = ctypes.POINTER(ctypes.c_double)
+
+    def _buf(seq, length):
+        if seq is None:
+            return DblP()  # NULL
+        Arr = ctypes.c_double * length if length > 0 else ctypes.c_double * 1
+        c = Arr(*[float(v) for v in seq]) if length > 0 else Arr()
+        return ctypes.cast(c, DblP)
+
+    Arr = ctypes.c_double * n if n > 0 else ctypes.c_double * 1
+    c_th = Arr(*[float(v) for v in theta]) if n > 0 else Arr()
+    c_om = Arr(*[float(v) for v in omega]) if n > 0 else Arr()
+    c_out = Arr()
+    rc = _native.LIB.srmech_cascade_kuramoto_step_general_f64(
+        ctypes.cast(c_th, DblP),
+        ctypes.cast(c_om, DblP),
+        ctypes.c_size_t(n),
+        _buf(adjacency_flat, n * n),
+        ctypes.c_double(float(coupling)),
+        ctypes.c_double(float(alpha)),
+        _buf(pin_anchor, n),
+        _buf(pin_strength, n),
+        ctypes.c_double(float(dt)),
+        ctypes.cast(c_out, DblP),
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    return [float(c_out[i]) for i in range(n)]
+
+
+def _try_native_autocorrelation(x):
+    """Native dispatch for the circular autocorrelation (the direct O(n²) sum).
+
+    Returns ``list[float]`` on success or ``None`` to fall through to the
+    numpy-FFT Python path. A coercion failure or a missing native symbol falls
+    back so the public behaviour is preserved exactly.
+    """
+    if not (_native.HAS_NATIVE and _native.LIB is not None):
+        return None
+    if not hasattr(_native.LIB, "srmech_autocorrelation_f64"):
+        return None
+    try:
+        xs = [float(v) for v in x]
+    except (TypeError, ValueError):
+        return None
+    n = len(xs)
+    if n == 0:
+        return []
+    Arr = ctypes.c_double * n
+    c_x = Arr(*xs)
+    c_out = Arr()
+    rc = _native.LIB.srmech_autocorrelation_f64(
+        ctypes.cast(c_x, ctypes.POINTER(ctypes.c_double)),
+        ctypes.c_size_t(n),
+        ctypes.cast(c_out, ctypes.POINTER(ctypes.c_double)),
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    return [float(c_out[i]) for i in range(n)]
+
+
+def autocorrelation(x: Sequence[float]) -> List[float]:
+    """Class L (Wiener-Khinchin): the circular autocorrelation of ``x``.
+
+        r[k] = Σ_i x[i] · x[(i + k) mod n],   r[0] = Σ x² = energy
+
+    The Wiener-Khinchin spectral object ``r = Re(IFFT(|FFT(x)|²))`` (the
+    circular-convolution theorem) — that identity is WHY autocorrelation is
+    **Class L** (the spectral side: autocorrelation ↔ power spectrum). The
+    F290 §C "un-flatten" composite (``autocorr → difference-graph →
+    conservation-validate``) consumes ``r`` (notably the ``r[0]`` energy for
+    the conservation check); shipping this primitive lets the rest of that
+    catalog be authored as pure-TOML composites.
+
+    HONEST CASCADE SHAPE: Class L (the spectral reading); computationally a
+    Σ-reduce of products — **no ``abs()``**, no sign branch. NOT a new
+    privileged primitive class.
+
+    Dispatches to the native **direct O(n²) sum** peer
+    (``srmech_autocorrelation_f64``) when ``HAS_NATIVE`` — that sum is the SAME
+    object as the FFT route (no FFT in C, so JPL-clean: no recursion, no
+    transcendentals), parity to FFT roundoff (~1e-12). The pure-Python fallback
+    is the SAME direct O(n²) circular-autocorrelation sum (numpy-free, so the
+    cascade layer runs with numpy absent — UPSTREAM §22). ``n == 0 → []``.
+
+    Args:
+        x: the real sequence (length ``n``).
+
+    Returns:
+        ``list[float]`` of length ``n`` — the circular autocorrelation.
+    """
+    if _is_pub(): _emit("cascade.autocorrelation", class_="L", input_shape=_shape(x))
+    native = _try_native_autocorrelation(x)
+    if native is not None:
+        return native
+    # Numpy-free fallback (UPSTREAM §22): the direct circular autocorrelation
+    # r[k] = Σ_n x[n]·x[(n+k) mod n] — identically IFFT(|FFT(x)|²) for real x,
+    # but with no FFT / no numpy. compensated_sum (Neumaier) keeps the per-bin
+    # sum well-conditioned — substrate-native, no stdlib math.fsum.
+    # v0.9.0rc420 (`#T1114`): the per-(i, j) product is the PUBLIC op
+    # correlation_product and this loop CALLS it — the declared chain in
+    # autocorrelation.toml and this fallback share one body (float() is
+    # idempotent on the pre-coerced xs, so the op order is unchanged).
+    xs = [float(v) for v in x]
+    n = len(xs)
+    if n == 0:
+        return []
+    return [
+        compensated_sum([correlation_product(xs, i, (i + k) % n)
+                         for i in range(n)])
+        for k in range(n)
+    ]
+
+
+def correlation_product(x: Sequence[float], i: int, j: int) -> float:
+    """Class L: ONE ``(i, j)`` product of the circular autocorrelation —
+    ``float(x[i]) * float(x[j])``.
+
+    The pointwise body of :func:`autocorrelation`'s Σ (which CALLS this op
+    since v0.9.0rc420, so the declared chain and the shipped fallback share
+    one body). Class L because the product IS the spectral pairing the
+    Wiener-Khinchin identity sums; the ``j = (i + k) mod n`` index
+    arithmetic arrives from the REGISTERED Class-I ``mod_add`` step — the
+    index math needs no leaf of its own. Pointwise and total; the ``i``/``k``
+    iteration lives in the chain's indexed-map combinator layer.
+    """
+    return float(x[i]) * float(x[j])
+
+
+def kuramoto_inv_n(coupling: float, n: int) -> float:
+    """Class N: the Kuramoto mean-field scale ``K/n`` (``0.0`` when
+    ``n == 0``).
+
+    The ``inv_n = (float(coupling) / n) if n > 0 else 0.0`` line of both
+    :func:`kuramoto_step` paths, exiled to its own op instance (the
+    ``n == 0`` guard is descriptor-static; the empty-roster chain maps over
+    nothing, but the scale step must still be total on ``n >= 0``).
+    """
+    return (float(coupling) / n) if n > 0 else 0.0
+
+
+def kuramoto_sin_term(theta: Sequence[float], i: int, j: int) -> float:
+    """Class N: ONE ``(i, j)`` coupling term of the SIMPLE Kuramoto path —
+    ``sin(theta[j] - theta[i])`` via the shipped Class-N rational sin.
+
+    The simple path weights the SUM (``inv_n * S``), not the terms — this op
+    is the unweighted term, preserving the shipped float-op order exactly
+    (:func:`kuramoto_step`'s simple fallback CALLS it since v0.9.0rc420;
+    ``float()`` is idempotent on the pre-coerced phases). Pointwise and
+    total; the all-to-all ``(i, j)`` iteration lives in the chain's
+    indexed-map combinator layer.
+    """
+    return _rsin(float(theta[j]) - float(theta[i]))
+
+
+def kuramoto_out_simple(theta: Sequence[float], omega: Sequence[float],
+                        i: int, s: float, inv_n: float, dt: float) -> float:
+    """Class C: the SIMPLE-path Kuramoto Euler combine —
+    ``theta[i] + dt * (omega[i] + inv_n * s)``.
+
+    The shipped simple-path output line, exiled to its own op instance with
+    the identical expression order (:func:`kuramoto_step`'s simple fallback
+    CALLS it since v0.9.0rc420). Class C per the shipped op's own
+    classification of the Euler add (``I ∘ sin ∘ Σ ∘ C``).
+    """
+    h = float(dt)
+    theta_i = float(theta[i])
+    return float(theta_i + h * (float(omega[i]) + inv_n * s))
+
+
+def kuramoto_gen_term(theta: Sequence[float], adjacency, coupling: float,
+                      inv_n: float, alpha: float, i: int, j: int) -> float:
+    """Class N: ONE ``(i, j)`` term of the GENERAL Kuramoto-Sakaguchi path —
+    ``w * sin(theta[j] - theta[i] - alpha)`` with ``w = K * A[i][j]``
+    (the rc15 §32 fix: the global coupling SCALES the matrix) when an
+    adjacency is given, else the mean-field ``inv_n``.
+
+    The general path weights each TERM (unlike the simple path's
+    weighted-sum), matching the shipped float-op order exactly
+    (:func:`kuramoto_step`'s general fallback CALLS it since v0.9.0rc420).
+    The adjacency-vs-mean-field selection is a descriptor-static branch and
+    lives INSIDE this op instance (the exile discipline). Pointwise and
+    total.
+    """
+    a = float(alpha)
+    kc = float(coupling)
+    w = (kc * float(adjacency[i][j])) if adjacency is not None else inv_n
+    return w * _rsin(float(theta[j]) - float(theta[i]) - a)
+
+
+def kuramoto_gen_out(theta: Sequence[float], omega: Sequence[float],
+                     i: int, s: float, psi, ps, dt: float) -> float:
+    """Class C: the GENERAL-path Kuramoto-Sakaguchi Euler combine —
+    ``f = omega[i] + s``; ``+ ps[i] * sin(psi[i] - theta[i])`` when pinned;
+    ``theta[i] + dt * f``.
+
+    The shipped general-path output line, exiled to its own op instance
+    (:func:`kuramoto_step`'s general fallback CALLS it since v0.9.0rc420).
+    The ``psi is None`` (no-pinning) branch is descriptor-static and lives
+    INSIDE this op instance — the exile-to-op-instance pattern, not hidden
+    iteration. ``ps`` may be a length-``n`` sequence or a broadcast scalar.
+    """
+    theta_i = float(theta[i])
+    f = float(omega[i]) + s
+    if psi is not None:
+        p_i = float(ps[i]) if hasattr(ps, "__len__") else float(ps)
+        f += p_i * _rsin(float(psi[i]) - theta_i)
+    return float(theta_i + float(dt) * f)
+
+
+def kuramoto_step(
+    theta: Sequence[float],
+    omega: Sequence[float],
+    *,
+    coupling: float = 1.0,
+    dt: float = 0.01,
+    adjacency=None,
+    alpha: float = 0.0,
+    pin_anchor=None,
+    pin_strength=1.0,
+) -> List[float]:
+    """Class I ∘ sin ∘ Σ ∘ C: one forward-Euler Kuramoto step.
+
+    One forward-Euler step of the canonical Kuramoto coupled-oscillator
+    model (Kuramoto 1975; Acebrón et al. 2005, *Rev. Mod. Phys.* 77:137)::
+
+        theta_i <- theta_i + dt * ( omega_i
+                                    + (coupling / n) * Σ_j sin(theta_j - theta_i) )
+
+    The dispatch-clock / coupled-oscillator Euler step the spectral-research
+    arc hand-rolled in Python (F141 / F231 / R-95 / F234) — now with a
+    native C peer (``srmech_cascade_kuramoto_step_f64``) so srmech runs the
+    Kuramoto step with **NO host Python** (the full-parity commitment). The
+    O(n²) sin-coupling runs natively (libm sin, as ``srmech.math.kepler``
+    does upstream).
+
+    HONEST CASCADE SHAPE. This is a *composition* of existing class
+    operations, NOT a new privileged primitive: Class I (the cyclic phase
+    ``theta`` on the circle) + the sin coupling (asymptotic-calculus
+    transcendental) + a sum-reduce over ``j`` + a Class-C Euler add
+    (``theta + dt·f``). **No ``abs()``.**
+
+    v0.6.0rc9: dispatches through the native C peer when ``HAS_NATIVE`` is
+    True and ``theta`` / ``omega`` coerce to equal-length float sequences;
+    pure-Python fallback otherwise. Parity is to **libm-trig tolerance**,
+    NOT bit-exact across platforms (the kepler trig discipline) — the C
+    peer and the Python fallback sum the coupling in the SAME index order.
+
+    v0.6.0rc14 (§11.1): the GENERALISED Kuramoto-Sakaguchi step. Pass any of
+    ``adjacency`` (a row-major ``n×n`` coupling matrix — ``A[i][j]`` weights
+    ``sin(θ_j − θ_i)`` for oscillator ``i``; a **non-symmetric** matrix is
+    DIRECTED / one-way coupling, a graph Laplacian is graph-structured
+    coupling), ``alpha`` (the Sakaguchi phase frustration
+    ``sin(θ_j − θ_i − α)``), and/or ``pin_anchor`` + ``pin_strength`` (a
+    per-oscillator pinning term ``+ p_i·sin(ψ_i − θ_i)``) to move past the
+    plain all-to-all mean-field. With all three at their defaults the step is
+    byte-for-byte the original. A **co-equal C peer**
+    (``srmech_cascade_kuramoto_step_general_f64`` — additive, ABI stays 3)
+    runs the identical generalised step with NO host Python; pure-Python
+    fallback otherwise (libm-trig tolerance). **No ``abs()``.**
+
+    Args:
+        theta: current phases (radians), length ``n``.
+        omega: natural frequencies, length ``n`` (must match ``theta``).
+        coupling: the global coupling constant ``K`` (default ``1.0``); the
+            uniform mean-field weight ``K/n`` used when ``adjacency`` is None.
+        dt: the forward-Euler time step (default ``0.01``).
+        adjacency: optional ``n×n`` coupling matrix (None → all-to-all uniform
+            ``K/n``). The effective weight on ``sin(θ_j − θ_i − α)`` for
+            oscillator ``i`` is ``coupling · A[i][j]`` — the global ``K`` scales
+            the matrix (matching the all-to-all ``K/n`` branch, so ``coupling=0``
+            zeroes the term and ``coupling`` tunes global strength);
+            non-symmetric → directed coupling. (§32 fix, v0.7.5rc15: prior to
+            rc15 the adjacency branch dropped ``coupling`` — ``coupling=0`` and
+            ``coupling=3`` gave identical trajectories.)
+        alpha: Sakaguchi phase frustration in radians (default ``0.0``).
+        pin_anchor: optional length-``n`` anchor phases ``ψ`` (None → no
+            pinning).
+        pin_strength: pinning strength ``p`` — a scalar (broadcast) or a
+            length-``n`` sequence; used only when ``pin_anchor`` is given
+            (default ``1.0``).
+
+    Returns:
+        ``list[float]`` — the ``n`` phases after one forward-Euler step.
+        ``n == 1`` is pure drift (the coupling sum ``sin(0)`` vanishes);
+        ``n == 0`` is ``[]``.
+
+    Raises:
+        ValueError: if ``len(omega) != len(theta)``, or ``adjacency`` is not
+            ``n×n``, or ``pin_anchor`` / ``pin_strength`` length ≠ ``n``.
+    """
+    if _is_pub(): _emit("cascade.kuramoto_step", class_="I∘sin∘Σ∘C", input_shape=_shape(theta))
+    theta_list = list(theta)
+    omega_list = list(omega)
+    n = len(theta_list)
+    if len(omega_list) != n:
+        raise ValueError(
+            f"cascade.kuramoto_step: omega length {len(omega_list)} != "
+            f"theta length {n}"
+        )
+
+    # rc14 §11.1: the GENERALISED Kuramoto-Sakaguchi step is taken iff any of
+    # adjacency / alpha / pin_anchor departs from the plain all-to-all uniform
+    # mean-field. Otherwise the exact-back-compat simple path (with its own
+    # native peer) runs unchanged.
+    use_general = (adjacency is not None or float(alpha) != 0.0
+                   or pin_anchor is not None)
+    if not use_general:
+        native = _try_native_kuramoto_step(theta_list, omega_list, coupling, dt)
+        if native is not None:
+            return native
+        # Python fallback — the SAME composition + the SAME coupling-sum index
+        # order as the C peer (so same-platform results match to the last bit).
+        # v0.9.0rc420 (`#T1114`): the per-(i, j) term and the per-i combine are
+        # the PUBLIC ops kuramoto_sin_term / kuramoto_out_simple and this loop
+        # CALLS them — the declared chain in kuramoto_step.toml and this
+        # fallback share one body (float() is idempotent on the pre-coerced
+        # phases, so the float-op order is unchanged; measured bit-identical,
+        # `#T1114` rung 4, 7/7).
+        inv_n = kuramoto_inv_n(coupling, n)
+        out: List[float] = []
+        for i in range(n):
+            coupling_sum = 0.0
+            for j in range(n):
+                coupling_sum += kuramoto_sin_term(theta_list, i, j)
+            # Kuramoto phase step — float to match the native peer + List[float]
+            # contract (the integrator is an FPU dynamical system; the sin
+            # coupling flowed Q, collapsing at this per-step boundary).
+            out.append(kuramoto_out_simple(theta_list, omega_list, i,
+                                           coupling_sum, inv_n, dt))
+        return out
+
+    # ── generalised path: validate + dispatch (native or Python) ──────────
+    adj_flat = None
+    if adjacency is not None:
+        rows = [list(r) for r in adjacency]
+        if len(rows) != n or any(len(r) != n for r in rows):
+            raise ValueError(
+                f"cascade.kuramoto_step: adjacency must be {n}×{n}"
+            )
+        adj_flat = [float(rows[i][j]) for i in range(n) for j in range(n)]
+    psi = None
+    if pin_anchor is not None:
+        psi = [float(v) for v in pin_anchor]
+        if len(psi) != n:
+            raise ValueError(
+                f"cascade.kuramoto_step: pin_anchor length {len(psi)} != "
+                f"theta length {n}"
+            )
+    ps = None
+    if pin_anchor is not None:
+        if hasattr(pin_strength, "__len__"):
+            ps = [float(v) for v in pin_strength]
+            if len(ps) != n:
+                raise ValueError(
+                    f"cascade.kuramoto_step: pin_strength length {len(ps)} != "
+                    f"theta length {n}"
+                )
+        else:
+            ps = [float(pin_strength)] * n
+
+    native = _try_native_kuramoto_step_general(
+        theta_list, omega_list, adj_flat, coupling, alpha, psi, ps, dt,
+    )
+    if native is not None:
+        return native
+    # Python fallback for the generalised step — SAME index order as the C
+    # peer. No abs(): sin coupling (Class I/J) + Σ-reduce + Class-C Euler add;
+    # the Sakaguchi α is a Class-C phase offset; pinning is a Class-C/M anchor.
+    # v0.9.0rc420 (`#T1114`): the per-(i, j) term (which carries the §32
+    # K·A_ij weight fix as a descriptor-static branch) and the per-i combine
+    # (which carries the psi-None branch) are the PUBLIC ops
+    # kuramoto_gen_term / kuramoto_gen_out and this loop CALLS them — the
+    # declared chain in kuramoto_step.toml and this fallback share one body
+    # (float() is idempotent on the pre-coerced rows/phases; measured
+    # bit-identical, `#T1114` rung 4, 4/4).
+    adj_rows = ([[adj_flat[i * n + j] for j in range(n)] for i in range(n)]
+                if adj_flat is not None else None)
+    inv_n = kuramoto_inv_n(coupling, n)
+    out2: List[float] = []
+    for i in range(n):
+        s = 0.0
+        for j in range(n):
+            s += kuramoto_gen_term(theta_list, adj_rows, coupling, inv_n,
+                                   alpha, i, j)
+        out2.append(kuramoto_gen_out(theta_list, omega_list, i, s,
+                                     psi, ps, dt))
+    return out2
+
+
+def signed_sum_squared(sources: Sequence[Sequence[int]]) -> List[int]:
+    """Element-wise squared signed-sum across a stack of bit sources — the
+    coupling-score composite (UPSTREAM_NOTES §1.2).
+
+    For each position ``j``::
+
+        s_j = Σ_sources (2·bit − 1)         # Class K bipolar transform {0,1}→{−1,+1}
+        out_j = s_j²                         # Class L signed-magnitude-square
+
+    The squared signed-sum is the **coupling score**: it is large where the
+    sources agree (coherent, |Σ| ≈ N) and ~0 where they cancel (incoherent). It
+    is **Class K** (the bipolar sign-flip per
+    ``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]``) ∘ **Class L**
+    (the signed-magnitude-square / energy) — **no ``abs()``**, the square carries
+    the sign boundary. Operates on a *stack of source arrays*, not a single graph.
+
+    Args:
+        sources: a non-empty sequence of equal-length 0/1 bit sequences.
+
+    Returns:
+        ``list[int]`` — the per-position squared signed-sum.
+
+    Raises:
+        ValueError: a non-iterable ``sources`` or a non-iterable ROW, empty
+            ``sources``, ragged lengths, or a non-0/1 bit.
+
+    Note:
+        The non-iterable cases are named explicitly because through rc430 they
+        were the one gap between the DECLARED and the ENFORCED contract here.
+        Every case the ``Raises:`` block listed was in fact enforced with a
+        ``ValueError`` — empty at ``:907``, ragged at ``:913``, non-0/1 just
+        below — but ``rows = [list(s) for s in sources]`` ran BEFORE all of
+        them, so ``signed_sum_squared([1, 0])`` (a non-iterable row) escaped as
+        a bare ``TypeError: 'int' object is not iterable``. The defect was
+        UNDER-declaration, not mis-declaration: no declared case behaved wrongly,
+        a silent one did. The enforced contract now matches the declared one and
+        the declaration now covers what is enforced.
+    """
+    if isinstance(sources, (str, bytes)) or not hasattr(sources, "__iter__"):
+        raise ValueError(
+            f"signed_sum_squared: sources must be a sequence of equal-length "
+            f"0/1 bit sequences; got {type(sources).__name__}")
+    rows = []
+    for i, s in enumerate(sources):
+        if isinstance(s, (str, bytes)) or not hasattr(s, "__iter__"):
+            raise ValueError(
+                f"signed_sum_squared: sources must be a sequence of "
+                f"equal-length 0/1 bit sequences; source {i} is "
+                f"{type(s).__name__}")
+        rows.append(list(s))
+    if not rows:
+        raise ValueError("signed_sum_squared: sources must be non-empty")
+    width = len(rows[0])
+    if width == 0:
+        raise ValueError("signed_sum_squared: source rows must be non-empty")
+    for i, r in enumerate(rows):
+        if len(r) != width:
+            raise ValueError(
+                f"signed_sum_squared: source {i} has length {len(r)}, "
+                f"expected {width}"
+            )
+        for b in r:
+            if b != 0 and b != 1:
+                raise ValueError(f"signed_sum_squared: bits must be 0/1; got {b!r}")
+    out: List[int] = []
+    for j in range(width):
+        s = 0
+        for r in rows:
+            s += (2 * r[j] - 1)          # Class K bipolar; no abs()
+        out.append(s * s)               # Class L square
+    return out
+
+
+def top_k_by_score(scores: Sequence[float], k: int, *, largest: bool = True) -> List[int]:
+    """Indices of the ``k`` highest- (or lowest-) scoring items — the catalog
+    selection composite (UPSTREAM_NOTES §1.3).
+
+    **Class E** (sorted-key ordering, ``srmech.introspect.naming``) ∘ **Class K**
+    (sparse truncate — keep the top/bottom ``k``, drop the rest). Stable: ties in
+    score keep ascending index order. The everyday band-selection / weak-coupling-
+    prune step (top-K bands by magnitude; bottom-K bits by coupling-square).
+
+    Args:
+        scores: a sequence of comparable scores (one per item).
+        k: how many indices to return (``0 ≤ k ≤ len(scores)``).
+        largest: ``True`` (default) returns the highest ``k``; ``False`` the lowest.
+
+    Returns:
+        ``list[int]`` — ``k`` indices, ordered best-first (descending score for
+        ``largest=True``, ascending for ``largest=False``).
+
+    Raises:
+        ValueError: ``k`` not an int in ``[0, len(scores)]``.
+    """
+    sc = list(scores)
+    n = len(sc)
+    if type(k) is not int or not (0 <= k <= n):
+        raise ValueError(
+            f"top_k_by_score: k must be an int in [0, {n}]; got {k!r}"
+        )
+    order = sorted(range(n), key=lambda i: sc[i], reverse=bool(largest))
+    return order[:k]
+
+
+__all__ = [
+    "DEFAULT_MAX_DENOMINATOR",
+    "DEFAULT_FINE_SCALE",
+    "cyclic_gcd",
+    "cyclic_mod_mul",
+    "cyclic_mod_add",
+    "cyclic_mod_pow",
+    "cyclic_mod_inv",
+    "cyclic_mod_mul_wide",
+    "best_rational_signed",
+    "kuramoto_step",
+    "autocorrelation",
+    "signed_sum_squared",
+    "top_k_by_score",
+]

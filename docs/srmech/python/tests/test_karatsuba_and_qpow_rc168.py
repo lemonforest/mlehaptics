@@ -34,8 +34,8 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc.q import Q
+from srmech import _native
+from srmech.math.q import Q
 
 _HAS_KARA = bool(
     _native.HAS_NATIVE and _native.LIB is not None

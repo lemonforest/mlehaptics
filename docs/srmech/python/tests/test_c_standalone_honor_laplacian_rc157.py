@@ -16,9 +16,9 @@ n = 300 > 256 (the old cap), native vs the pure-Python alternative.
 Per [[feedback_c_must_be_standalone_complete_no_python_fallback]]. numpy-free.
 """
 
-from srmech.amsc import _native
-from srmech.amsc import laplacian as L
-from srmech.amsc.mat import Mat
+from srmech import _native
+from srmech.math import laplacian as L
+from srmech.math.mat import Mat
 
 
 def _mat_equal(a, b, tol=0.0):

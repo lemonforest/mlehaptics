@@ -12,7 +12,7 @@ keystone identity = the Frenkel–Turaev ₁₀E₉ sum).
 
 Numpy-free + math-free + abs()-free in the engine source: the certificate ``R`` is
 verified to satisfy the elliptic Gosper equation ``R(qx)·r − R = 1`` EXACTLY via the
-additive :attr:`~srmech.amsc.thetasum.ThetaSum.is_zero` (structural; the theta-
+additive :attr:`~srmech.apokatastasis.thetasum.ThetaSum.is_zero` (structural; the theta-
 quotient carrier is multiplicatively but NOT additively closed, so the additive ``−``
 lives in ``ThetaSum`` — never a converging-eval witness). The keystone cases:
 
@@ -28,9 +28,9 @@ import os
 import re
 import tokenize
 
-from srmech.amsc.ellbase import EllMonomial as M, Theta, EllRatio as R, _X, _Q_SYM
-from srmech.amsc.elliptic_gosper import elliptic_gosper
-from srmech.amsc.q import Q
+from srmech.apokatastasis.ellbase import EllMonomial as M, Theta, EllRatio as R, _X, _Q_SYM
+from srmech.apokatastasis.elliptic_gosper import elliptic_gosper
+from srmech.math.q import Q
 
 _A, _B = M.symbol("a"), M.symbol("b")
 _x = M.symbol(_X)
@@ -102,7 +102,7 @@ def test_genuine_keystone_certificate_satisfies_gosper_equation():
     """The returned certificate satisfies the elliptic Gosper equation
     ``R(qx)·r − R == 1`` EXACTLY, decided structurally by ``ThetaSum.is_zero``
     (the additive carrier; never a converging eval)."""
-    from srmech.amsc.thetasum import ThetaSum
+    from srmech.apokatastasis.thetasum import ThetaSum
     r, _Rc = _genuine_keystone()
     res = elliptic_gosper(r)
     assert res is not None
@@ -160,7 +160,7 @@ def test_geometric_constant_ratio_is_summable():
     R·(z − 1) = 1, exact). The genuine finder is COMPLETE — it certifies BOTH the
     genuine theta keystone AND the geometric-constant core (the elliptic analogue of
     Σ zⁿ)."""
-    from srmech.amsc.thetasum import ThetaSum
+    from srmech.apokatastasis.thetasum import ThetaSum
     r = R.monomial(M.scalar(Q(5, 2)))
     assert r.is_elliptic() is True
     res = elliptic_gosper(r)
@@ -191,7 +191,7 @@ def test_coerces_ellmonomial_and_scalar():
 # ── discipline: no numpy / no math / no abs() in the engine source ────────────
 def test_elliptic_gosper_source_is_numpy_math_abs_free():
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    src = os.path.join(here, "srmech", "amsc", "elliptic_gosper.py")
+    src = os.path.join(here, "srmech", "apokatastasis", "elliptic_gosper.py")
     with tokenize.open(src) as fh:
         text = fh.read()
     assert "import numpy" not in text
@@ -201,6 +201,6 @@ def test_elliptic_gosper_source_is_numpy_math_abs_free():
 
 # ── the ToolEntry is registered + invocable ───────────────────────────────────
 def test_tool_entry_registered():
-    from srmech.amsc import tool_schema
+    from srmech.introspect import tool_schema
     names = {t.name for t in tool_schema.get_tool_schema().tools}
-    assert "srmech.amsc.elliptic_gosper.elliptic_gosper" in names
+    assert "srmech.apokatastasis.elliptic_gosper.elliptic_gosper" in names

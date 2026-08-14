@@ -1,4 +1,4 @@
-"""Tests for srmech.qm.gauge (Yang-Mills, Casimirs, Wilson loops).
+"""Tests for srmech.physics.qm.gauge (Yang-Mills, Casimirs, Wilson loops).
 
 numpy-FREE (v0.7.5rc119, #564): gauge flipped onto the framework-native
 ``Mat`` carrier, so this test runs with numpy GENUINELY ABSENT — there is no
@@ -13,9 +13,9 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc.laplacian import mat_matmul
-from srmech.amsc.mat import Mat
-from srmech.qm import gauge
+from srmech.math.laplacian import mat_matmul
+from srmech.math.mat import Mat
+from srmech.physics.qm import gauge
 
 
 # ----------------------------------------------------------------------
@@ -200,7 +200,7 @@ def test_gauge_path_segment_diagonal_connection_analytic():
     exp(i g c λ^3) = diag(e^{igc}, e^{-igc}, 1) — an INDEPENDENT analytic
     oracle (Class-N rational.cexp on scalars; no eigendecomposition in the
     reference)."""
-    from srmech.amsc import rational as _srn
+    from srmech.math import rational as _srn
 
     gens = gauge.su3_gell_mann_matrices()
     g, c = 0.8, 0.37

@@ -1,4 +1,4 @@
-"""rc82 — ``srmech.amsc.eta_quotient.EtaQuotient``, a WEIGHT-axis operand carrier.
+"""rc82 — ``srmech.apokatastasis.eta_quotient.EtaQuotient``, a WEIGHT-axis operand carrier.
 
 The build gates (the no-shell proof; construction IS the answer, no search):
 
@@ -23,9 +23,9 @@ import tokenize
 
 import pytest
 
-from srmech.amsc.eta_quotient import EtaQuotient, eta_quotient
-from srmech.amsc.q import Q
-from srmech.amsc import _native
+from srmech.apokatastasis.eta_quotient import EtaQuotient, eta_quotient
+from srmech.math.q import Q
+from srmech import _native
 
 
 # the verified oracle (hardcoded known coefficients — NOT the carrier itself)
@@ -221,7 +221,7 @@ def test_construction_rejects_bad_inputs():
 # ── gate (f): the carrier source is numpy / math / abs() free ────────────────
 def test_eta_quotient_source_is_numpy_math_abs_free():
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    src = os.path.join(here, "srmech", "amsc", "eta_quotient.py")
+    src = os.path.join(here, "srmech", "apokatastasis", "eta_quotient.py")
     with tokenize.open(src) as fh:
         text = fh.read()
     assert "import numpy" not in text
@@ -233,10 +233,15 @@ def test_eta_quotient_source_is_numpy_math_abs_free():
 # ── gate (g): a CARRIER — NO ToolEntry, tools.total UNCHANGED ─────────────────
 def test_eta_quotient_is_a_carrier_no_tool_entry():
     """EtaQuotient is a CARRIER (like Poly / RiemannTheta) → it registers NO
-    ToolEntry, so the shipped tool count is UNCHANGED at 342."""
-    from srmech.amsc.tool_schema import get_tool_schema
-    shipped = [t for t in get_tool_schema().tools if not t.name.startswith("test.")]
-    assert len(shipped) == 509
+    ToolEntry, so the shipped tool count is UNCHANGED by it.
+
+    (This read "UNCHANGED at 342" until rc410 (`#T1085`), one line above the
+    real assertion — the cardinal belongs there, not in prose where it rots.)"""
+    from srmech.introspect.tool_schema import get_tool_schema
+    # rc410 (`#T1085`): filter by OWNER, not by name-prefix — see
+    # tests/_profile_probe.py for why the prefix axis was the wrong question.
+    shipped = list(get_tool_schema().by_owner("srmech"))
+    assert len(shipped) == 655
     names = {t.name for t in shipped}
     # no eta_quotient ToolEntry leaked in
     assert not any("eta_quotient" in nm for nm in names)

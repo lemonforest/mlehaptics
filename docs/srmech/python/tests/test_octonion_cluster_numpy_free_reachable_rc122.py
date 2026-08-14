@@ -2,8 +2,8 @@
 numpy-FREE (#564).
 
 The carrier-removal arc flips the octonion connected component together:
-``amsc/hdc.py`` (the Moufang loop-bind family) → ``qm/octonion.py`` →
-{``qm/so8.py``, ``qm/triality.py``, ``amsc/cascade/hypercomplex_dft.py``}. After
+``math/hdc.py`` (the Moufang loop-bind family) → ``qm/octonion.py`` →
+{``qm/so8.py``, ``qm/triality.py``, ``cascade/hypercomplex_dft.py``}. After
 the flip EVERY module imports AND runs with numpy genuinely absent.
 
 Proving this needs a SUBPROCESS that blocks numpy at ``sys.meta_path`` BEFORE
@@ -60,7 +60,7 @@ def test_octonion_imports_and_runs_numpy_free():
     """``qm.octonion`` imports + the table / L-mult / norm run numpy-absent."""
     proc = _run_numpy_free(
         """
-        from srmech.qm import octonion
+        from srmech.physics.qm import octonion
         tbl = octonion.octonion_mult_table()
         assert isinstance(tbl, list) and tbl[1][2][3] == 1, tbl[1][2][3]
         L = octonion.octonion_left_mult([1.0, 0, 0, 0, 0, 0, 0, 0])
@@ -80,7 +80,7 @@ def test_so8_imports_and_runs_numpy_free():
     """``qm.so8`` imports + g2 / so8-adjoint / an_embedding run numpy-absent."""
     proc = _run_numpy_free(
         """
-        from srmech.qm import so8
+        from srmech.physics.qm import so8
         g2 = so8.g2_subalgebra()
         assert len(g2) == 14 and type(g2[0]).__name__ == "Mat", len(g2)
         adj = so8.so8_adjoint_basis()
@@ -100,9 +100,9 @@ def test_triality_imports_and_runs_numpy_free():
     """``qm.triality`` imports + the order-3 tau / companions run numpy-absent."""
     proc = _run_numpy_free(
         """
-        from srmech.qm import triality
-        from srmech.amsc.laplacian import mat_matmul, mat_norm
-        from srmech.amsc.mat import Mat
+        from srmech.physics.qm import triality
+        from srmech.math.laplacian import mat_matmul, mat_norm
+        from srmech.math.mat import Mat
         tau = triality.triality_automorphism()
         assert type(tau).__name__ == "Mat" and tau.shape == (28, 28)
         t3 = mat_matmul(mat_matmul(tau, tau), tau)
@@ -122,7 +122,7 @@ def test_hdc_loop_family_imports_and_runs_numpy_free():
     """``amsc.hdc`` imports + the loop / polar families run numpy-absent."""
     proc = _run_numpy_free(
         """
-        from srmech.amsc import hdc
+        from srmech.math import hdc
         c = hdc.loop_bind([1.0, 2, 3, 4, 5, 6, 7, 8], [8.0, 7, 6, 5, 4, 3, 2, 1])
         assert isinstance(c, list) and len(c) == 8, type(c)
         L = hdc.loop_left_op([1.0, 0, 0, 0, 0, 0, 0, 0])
@@ -149,7 +149,7 @@ def test_hypercomplex_dft_imports_and_runs_numpy_free():
     """``amsc.cascade.hypercomplex_dft`` imports + QDFT / coupler run numpy-absent."""
     proc = _run_numpy_free(
         """
-        from srmech.amsc.cascade import quaternion_dft, octonion_dft, hypercomplex_couple
+        from srmech.cascade import quaternion_dft, octonion_dft, hypercomplex_couple
         X = quaternion_dft([[1.0, 0, 0, 0], [0, 1.0, 0, 0]])
         assert len(X) == 2 and len(X[0]) == 4, X
         # forward then inverse round-trips (both Z2 axes).

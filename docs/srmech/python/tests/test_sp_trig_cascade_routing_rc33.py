@@ -2,7 +2,7 @@
 
 Verifies that the window / DCT-basis / rotation trig in six
 ``signal_processing`` modules routes through srmech's own
-``srmech.amsc.rational.cos/sin`` (Class-N rational cascade) instead of
+``srmech.math.rational.cos/sin`` (Class-N rational cascade) instead of
 ``np.cos`` / ``np.sin`` / ``math.cos`` / ``math.sin`` — and that the routed
 values are numerically identical (to ~libm precision) to a pure-Python libm
 trig reference.
@@ -30,7 +30,7 @@ import random
 
 import pytest
 
-from srmech.amsc import rational as _srn
+from srmech.math import rational as _srn
 
 
 # ----------------------------------------------------------------------

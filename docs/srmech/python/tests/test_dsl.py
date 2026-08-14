@@ -17,7 +17,6 @@ Coverage:
 from __future__ import annotations
 
 import json
-import math
 import subprocess
 import sys
 import textwrap
@@ -52,7 +51,7 @@ class TestCatalogLoader:
     quaternion/octonion DFT composites (#863) + the v0.7.1rc2
     schur_complement Class-L boundary-reduction stage (#897 §26). The
     non-atom ops are catalogued for discovery (``srmech dsl ops`` +
-    descriptor render) and resolve to their ``srmech.amsc.cascade``
+    descriptor render) and resolve to their ``srmech.cascade``
     callables (schur_complement resolves to the laplacian-registered op
     re-exported flat for the chain contract);
     parallel_sector_dispatch is higher-order (a body-callback orchestrator,

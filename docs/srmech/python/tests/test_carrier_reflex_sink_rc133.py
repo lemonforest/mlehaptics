@@ -17,9 +17,9 @@ Runs with numpy genuinely absent (it is part of the numpy-FREE surface it certif
 
 import builtins
 
-from srmech.amsc import laplacian as Lp
-from srmech.amsc.mat import Mat
-from srmech.amsc.vec import Vec
+from srmech.math import laplacian as Lp
+from srmech.math.mat import Mat
+from srmech.math.vec import Vec
 
 
 def _the_17_idioms():

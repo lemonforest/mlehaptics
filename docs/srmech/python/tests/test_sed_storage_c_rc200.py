@@ -25,10 +25,10 @@ import contextlib
 import json
 from pathlib import Path
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.signal_processing import mint_vector
 from srmech.signal_processing._paths import D_MIN
-from srmech.amsc.cascade.sedenion_register import (
+from srmech.cascade.sedenion_register import (
     SedenionRegister,
     sed_write, sed_materialize, sed_read_unbind, sed_clean,
 )
@@ -213,7 +213,7 @@ def test_storage_leaves_ledger_classification():
                   / "rosetta_classification.ndjson").read_text(
                       encoding="utf-8").splitlines() if l.strip()
     }
-    base = "srmech.amsc.cascade.sedenion_register."
+    base = "srmech.cascade.sedenion_register."
     for leaf in ("sed_write", "sed_materialize", "sed_read_unbind", "sed_clean"):
         assert rows[base + leaf]["bucket"] == "composition_of_c"
     # the foundation earned its dedicated C peer -> c_dispatched

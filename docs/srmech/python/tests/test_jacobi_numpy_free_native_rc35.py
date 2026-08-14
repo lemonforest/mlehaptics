@@ -16,8 +16,8 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc import laplacian as _lap
+from srmech import _native
+from srmech.math import laplacian as _lap
 
 _S = [[3.0, 1.0, 0.0], [1.0, 2.0, -1.0], [0.0, -1.0, 4.0]]
 # Oracle: srmech's OWN pure-Python Jacobi cascade (the substrate-native
@@ -51,7 +51,7 @@ def test_numpy_free_branch_dispatches_and_is_correct():
     returns the ascending eigenvalues as a numpy-free 1-D ``Vec`` (``.shape`` +
     scalar ``v[i]``) — via the native list-marshal when ``HAS_NATIVE``, else
     srmech's pure-Python Jacobi cascade. Either way: no numpy, correct."""
-    from srmech.amsc.vec import Vec
+    from srmech.math.vec import Vec
     assert not hasattr(_lap, "np")     # numpy is gone, not merely monkeypatched
     ev = _lap.jacobi_eigvals([row[:] for row in _S], 100, 1e-12)
     assert isinstance(ev, Vec) and ev.shape == (3,)   # rc129: Vec eigenvalues

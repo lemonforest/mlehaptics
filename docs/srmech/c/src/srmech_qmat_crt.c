@@ -11,7 +11,7 @@
  *           srmech_rational_reconstruct  -- half-GCD (Wang) recovery
  *   rung 4  the descending prime walk    -- srmech_is_prime over odd candidates
  *
- * It is BYTE-IDENTICAL to the pure-Python srmech.amsc.qmat.QMat.rref_crt
+ * It is BYTE-IDENTICAL to the pure-Python srmech.math.qmat.QMat.rref_crt
  * (_rref_crt_rows with n_cols_left == n_cols): descending odd primes from
  * 2**31 - 2, skip a prime dividing any denominator, gf_rref per prime over
  * GF(p), unlucky-prime rank-consensus (max (rank, pivots) dominates; a strictly

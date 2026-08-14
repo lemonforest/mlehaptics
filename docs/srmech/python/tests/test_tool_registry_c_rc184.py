@@ -1,7 +1,11 @@
 """rc184 — the C tool-schema registry FOUNDATION GATE.
 
-A bare-C host (no Python) must produce the ~403-tool registry DATA and
-the canonical ``tool_schema_sha256`` attestation with no interpreter.
+A bare-C host (no Python) must produce the registry DATA and the canonical
+``tool_schema_sha256`` attestation with no interpreter. (This said "~403-tool"
+from rc184 until rc410 (`#T1085`); the registry has since grown well past that
+and the cardinal served no purpose here — the same rot rc409 stripped from
+``gen_tool_registry.py:10``. The live number is
+``len(get_tool_schema().by_owner("srmech"))``.)
 This test pins:
 
 1. **The hash-ratchet (THE gate).** ``srmech_tool_schema_to_json()`` emits
@@ -35,8 +39,12 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc.tool_schema import get_tool_schema, warmup_all
+from srmech import _native
+from srmech.introspect.tool_schema import (
+    RESERVED_OWNERS,
+    get_tool_schema,
+    warmup_all,
+)
 
 warmup_all()
 
@@ -182,10 +190,35 @@ def test_codegen_is_idempotent() -> None:
     )
 
 
-def test_generated_table_declares_403_entries() -> None:
+def _owned_entry_count() -> int:
+    """The number of rows srmech itself owns — the basis the generated C table
+    is written on.
+
+    v0.9.0rc410 (`#T1085`) — this was ``len(get_tool_schema().tools)``, the
+    UNFILTERED total. That is a basis mismatch against the artifact it is
+    compared to: post-rc409 ``gen_tool_registry.py`` REFUSES to emit a
+    profile-owned row (raises ``ToolSchemaValidationError``), so owner-purity is
+    an ENFORCED write-side invariant and the C table can only ever contain
+    srmech's own entries. Counting the unfiltered live registry therefore asks a
+    question the artifact cannot answer: with any profile active the live side
+    reads N+1 while the table correctly holds N, and the gate reports staleness
+    that does not exist.
+
+    Extracted to module level so ``tests/test_owner_axis_rc410.py`` can measure
+    the SHIPPED expression rather than re-implementing it.
+    """
+    return sum(1 for t in get_tool_schema().tools if t.owner in RESERVED_OWNERS)
+
+
+def test_generated_table_declares_every_entry() -> None:
     """The generated .c mentions the registry size the Python SSoT has
-    (a coarse sanity pin independent of the native lib)."""
-    n = len(get_tool_schema().tools)
+    (a coarse sanity pin independent of the native lib).
+
+    Renamed from ``test_generated_table_declares_403_entries`` in rc410
+    (`#T1085`): the node never asserted 403 — it has always been dynamic — and
+    the frozen cardinal in the NAME was the same rot rc409 stripped from
+    ``gen_tool_registry.py:10``."""
+    n = _owned_entry_count()
     text = _C_SRC.read_text(encoding="utf-8")
     # Every entry carries an `/* <idx> */` marker; the last is n-1.
     assert f"/* {n - 1} */" in text

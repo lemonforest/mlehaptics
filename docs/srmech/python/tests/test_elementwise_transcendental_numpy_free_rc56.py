@@ -23,8 +23,8 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc import laplacian as L
-from srmech.amsc.laplacian import elementwise_transcendental as et
+from srmech.math import laplacian as L
+from srmech.math.laplacian import elementwise_transcendental as et
 
 _TOL = 1e-9
 
@@ -92,7 +92,7 @@ def test_complex_path_matches_stdlib(op):
 
 
 def test_complex_input_returns_complex_vec():
-    from srmech.amsc.vec import Vec
+    from srmech.math.vec import Vec
     z = [1 + 1j, 2 - 0.5j, -0.3 + 0.8j, 0.6 + 0.0j]
     out = et(z, "exp")
     # rc129: 1-D complex input → complex Vec carrier (NOT a bare list)

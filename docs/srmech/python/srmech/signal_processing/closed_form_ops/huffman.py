@@ -20,7 +20,7 @@ import ctypes
 import heapq
 from typing import Dict, List, Optional, Tuple
 
-from srmech.amsc import _native
+from srmech import _native
 
 OPERATION_NAME = "huffman"
 CLASS_COMPOSITION = ("E", "B")

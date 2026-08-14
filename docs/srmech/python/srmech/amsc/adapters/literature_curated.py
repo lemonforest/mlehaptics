@@ -39,12 +39,12 @@ References
 
 from __future__ import annotations
 
-import json
 import sys
 from typing import Any, Dict, Iterator
 
 from ..descriptor import Descriptor
 from . import _base
+from srmech import _json as _srmech_json
 
 ADAPTER_NAME = "literature_curated"
 
@@ -110,8 +110,8 @@ def parse(
         if not stripped or stripped.startswith("#"):
             continue
         try:
-            row = json.loads(stripped)
-        except json.JSONDecodeError as exc:
+            row = _srmech_json.loads(stripped)
+        except _srmech_json.JSONDecodeError as exc:
             raise _base.AdapterError(
                 f"literature_curated: NDJSON parse error at line "
                 f"{line_index} in {descriptor.path.name!r}: {exc}"

@@ -1,6 +1,6 @@
 """Bit-exact acceptance tests for the su(3) ⊕ 3 ⊕ 3bar voxel (rc21).
 
-``srmech.qm.so8.an_embedding`` exposes the genuine su(3)-module structure
+``srmech.physics.qm.so8.an_embedding`` exposes the genuine su(3)-module structure
 of the 14 ``g2 = Der(O)`` generators: the Lie-algebra branching
 ``14 = 8 + 3 + 3bar`` (su(3) adjoint + fundamental + antifundamental). This
 is a DIFFERENT 14-decomposition from the partitioned ``so8_adjoint_basis``
@@ -20,19 +20,19 @@ load-bearing REVISE fixes asserted explicitly:
   (the greedy mutually-commuting subset would spuriously return 1).
 
 ALL residuals are reduced through the **scalar** Class K pin-slot magnitude
-(:func:`srmech.amsc.cascade.magnitude`) — NEVER Python ``abs()`` per
+(:func:`srmech.cascade.magnitude`) — NEVER Python ``abs()`` per
 ``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]`` — by first
 reducing the matrix to a scalar Frobenius norm via the numpy-free Class-N
-:func:`srmech.amsc.laplacian.mat_norm`, then passing that Python float to
+:func:`srmech.math.laplacian.mat_norm`, then passing that Python float to
 ``magnitude`` (scalar-only; it raises on an array).
 
 Determinism: every basis extraction uses a deterministic SVD / Gram-Schmidt /
 eig (no RNG), so the build is reproducible and byte-identical across calls.
 
 rc123 (numpy-free, #564): this test is itself numpy-FREE — ``an_embedding``
-returns :class:`srmech.amsc.mat.Mat` (the ``weights`` a nested ``list``);
+returns :class:`srmech.math.mat.Mat` (the ``weights`` a nested ``list``);
 matmuls / norms route through ``mat_matmul`` / ``mat_norm``, span ranks
-through the float-tolerant :func:`srmech.qm.so8._rank_float`, with no numpy
+through the float-tolerant :func:`srmech.physics.qm.so8._rank_float`, with no numpy
 oracle and no ``.to_numpy()`` (per
 ``[[feedback_test_for_numpy_free_module_must_itself_be_numpy_free]]``).
 """
@@ -41,11 +41,11 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc.cascade import magnitude
-from srmech.amsc.laplacian import mat_matmul, mat_norm
-from srmech.amsc.mat import Mat
-from srmech.qm import so8
-from srmech.qm.so8 import an_embedding
+from srmech.cascade import magnitude
+from srmech.math.laplacian import mat_matmul, mat_norm
+from srmech.math.mat import Mat
+from srmech.physics.qm import so8
+from srmech.physics.qm.so8 import an_embedding
 
 _TOL = 1e-9
 
@@ -108,7 +108,7 @@ def _coords_of(generators) -> list:
 def _max_closure_residual(inner, outer) -> float:
     """Max residual of ``[X, Y]`` projected onto ``span(outer)`` over X∈inner,
     Y∈outer — the closure test ``[inner, outer] ⊆ span(outer)``. The projection
-    rides the numpy-free :func:`srmech.qm.so8._max_projection_residual`
+    rides the numpy-free :func:`srmech.physics.qm.so8._max_projection_residual`
     (orthonormal Gram-Schmidt projector). Reduced through Class K magnitude."""
     outer_coords = _coords_of(outer)
     brackets = []

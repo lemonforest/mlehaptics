@@ -1,7 +1,7 @@
 /*
  * srmech_qalg.c — EXACT algebraic-number linear algebra: the Qalg NUMBER-FIELD
  * carrier (ℚ[x]/(m)) + the exact EIGENVECTOR null space of A − λI over ℚ(λ)
- * (the C peer of srmech.amsc.cascade.matrix_cascades.eigvec_exact /
+ * (the C peer of srmech.cascade.matrix_cascades.eigvec_exact /
  * eigvec_exact_float; Qalg TAIL Batch 7a).
  *
  * An algebraic eigenvalue λ is a root of an IRREDUCIBLE monic integer polynomial
@@ -879,7 +879,7 @@ srmech_status_t srmech_eigvec_exact(
 /* ==================================================================== *
  * Qalg TAIL Batch 7b — the exact JORDAN CHAINS (generalized eigenvectors)
  * of an integer/rational matrix for an eigenvalue λ, over ℚ(λ) = ℚ[x]/(m):
- * the C peer of srmech.amsc.cascade.matrix_cascades.jordan_chains_exact.
+ * the C peer of srmech.cascade.matrix_cascades.jordan_chains_exact.
  *
  * With N = A − λI (Qalg entries over ℚ(λ)), the generalized eigenspace
  * null(Nᵘ) has dimension μ and N is nilpotent on it. The Jordan structure is

@@ -30,7 +30,7 @@ import random
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.mcp._tools import invoke_tool, serialise_result
 
 _needs_native = pytest.mark.skipif(
@@ -39,38 +39,38 @@ _needs_native = pytest.mark.skipif(
 )
 
 _BATCH_TOOLS = [
-    "srmech.amsc.cascade.magnitude",
-    "srmech.amsc.cascade.pin_slot_at_zero",
-    "srmech.amsc.cascade.net_chirality",
+    "srmech.cascade.magnitude",
+    "srmech.cascade.pin_slot_at_zero",
+    "srmech.cascade.net_chirality",
 ]
 
 # Dispatched (on-boundary) cases — the C invoke MUST run and match pure.
 _DISPATCH_CASES = [
-    ("srmech.amsc.cascade.magnitude", {"x": 2.5}),
-    ("srmech.amsc.cascade.magnitude", {"x": -2.5}),
-    ("srmech.amsc.cascade.magnitude", {"x": 0.0}),
-    ("srmech.amsc.cascade.magnitude", {"x": 3.0}),
-    ("srmech.amsc.cascade.pin_slot_at_zero", {"x": 2.5}),
-    ("srmech.amsc.cascade.pin_slot_at_zero", {"x": -2.5}),
-    ("srmech.amsc.cascade.pin_slot_at_zero", {"x": 0.0}),
-    ("srmech.amsc.cascade.net_chirality", {"orientations": [1, -1, -1]}),
-    ("srmech.amsc.cascade.net_chirality", {"orientations": [1, 0, -1]}),
-    ("srmech.amsc.cascade.net_chirality", {"orientations": [-1, -1]}),
-    ("srmech.amsc.cascade.net_chirality", {"orientations": []}),
-    ("srmech.amsc.cascade.net_chirality", {"orientations": [1, 1, 1, 1]}),
+    ("srmech.cascade.magnitude", {"x": 2.5}),
+    ("srmech.cascade.magnitude", {"x": -2.5}),
+    ("srmech.cascade.magnitude", {"x": 0.0}),
+    ("srmech.cascade.magnitude", {"x": 3.0}),
+    ("srmech.cascade.pin_slot_at_zero", {"x": 2.5}),
+    ("srmech.cascade.pin_slot_at_zero", {"x": -2.5}),
+    ("srmech.cascade.pin_slot_at_zero", {"x": 0.0}),
+    ("srmech.cascade.net_chirality", {"orientations": [1, -1, -1]}),
+    ("srmech.cascade.net_chirality", {"orientations": [1, 0, -1]}),
+    ("srmech.cascade.net_chirality", {"orientations": [-1, -1]}),
+    ("srmech.cascade.net_chirality", {"orientations": []}),
+    ("srmech.cascade.net_chirality", {"orientations": [1, 1, 1, 1]}),
 ]
 
 # Off-boundary cases — the C thunk DEFERS (pure is the complete fallback).
 _DEFER_CASES = [
     # a JSON int for a float atom -> pure returns an INT magnitude (repr "5", not
     # "5.0"); the thunk defers to stay byte-identical.
-    ("srmech.amsc.cascade.magnitude", {"x": 5}),
-    ("srmech.amsc.cascade.pin_slot_at_zero", {"x": 5}),
+    ("srmech.cascade.magnitude", {"x": 5}),
+    ("srmech.cascade.pin_slot_at_zero", {"x": 5}),
     # a bool element -> the op's own native guard rejects bools (False == 0
     # short-circuits via the Python loop); the thunk defers.
-    ("srmech.amsc.cascade.net_chirality", {"orientations": [True, 1]}),
+    ("srmech.cascade.net_chirality", {"orientations": [True, 1]}),
     # an out-of-int8 element -> the op takes the pure sign-normalising path.
-    ("srmech.amsc.cascade.net_chirality", {"orientations": [1, 200]}),
+    ("srmech.cascade.net_chirality", {"orientations": [1, 200]}),
 ]
 
 
@@ -114,19 +114,19 @@ def test_native_invoke_matches_pure_random() -> None:
     for _ in range(200):
         x = rng.uniform(-1e6, 1e6)
         args = {"x": x}
-        disp, text = _native.invoke_tool_c("srmech.amsc.cascade.magnitude", args)
+        disp, text = _native.invoke_tool_c("srmech.cascade.magnitude", args)
         assert disp and text == serialise_result(
-            invoke_tool("srmech.amsc.cascade.magnitude", args)), args
+            invoke_tool("srmech.cascade.magnitude", args)), args
         disp, text = _native.invoke_tool_c(
-            "srmech.amsc.cascade.pin_slot_at_zero", args)
+            "srmech.cascade.pin_slot_at_zero", args)
         assert disp and text == serialise_result(
-            invoke_tool("srmech.amsc.cascade.pin_slot_at_zero", args)), args
+            invoke_tool("srmech.cascade.pin_slot_at_zero", args)), args
         orients = [rng.randint(-128, 127) for _ in range(rng.randint(0, 12))]
         args = {"orientations": orients}
         disp, text = _native.invoke_tool_c(
-            "srmech.amsc.cascade.net_chirality", args)
+            "srmech.cascade.net_chirality", args)
         assert disp and text == serialise_result(
-            invoke_tool("srmech.amsc.cascade.net_chirality", args)), args
+            invoke_tool("srmech.cascade.net_chirality", args)), args
 
 
 def test_helper_degrades_without_native() -> None:
@@ -135,7 +135,7 @@ def test_helper_degrades_without_native() -> None:
     accelerator, never a gate."""
     if not _native.has_native_invoke():
         assert _native.invoke_tool_c(
-            "srmech.amsc.cascade.magnitude", {"x": 2.5}) == (False, None)
+            "srmech.cascade.magnitude", {"x": 2.5}) == (False, None)
     # The pure op answers regardless of the native peer.
     assert serialise_result(
-        invoke_tool("srmech.amsc.cascade.magnitude", {"x": 2.5})) == "2.5"
+        invoke_tool("srmech.cascade.magnitude", {"x": 2.5})) == "2.5"

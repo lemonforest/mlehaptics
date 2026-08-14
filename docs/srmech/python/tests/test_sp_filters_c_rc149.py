@@ -22,17 +22,25 @@ proves:
    classification as the F1 FFT / F2 SVD / B4a numeric batches.
 
 This module is **numpy-free** (a test for a numpy-free surface must itself be
-numpy-free) — the reference maths is stdlib ``math`` / ``cmath`` only.
+numpy-free) — the reference maths is builtin arithmetic + stdlib ``random``
+only.
+
+(This sentence read "the reference maths is stdlib ``math`` / ``cmath`` only"
+from rc149 until rc407. It was false when the file was BORN: ``git log -S'math.'``
+on this file returns zero commits and ``cmath`` was never imported at all. It is
+a single-file copy-paste from ``test_sp_transform_c_rc148.py:23``, where the
+identical sentence is TRUE; the other four siblings carrying the template are
+true as well, so this is not a template defect and they are not touched. Nothing
+changed here — the description was simply never accurate.)
 """
 
 from __future__ import annotations
 
-import math
 import random
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.signal_processing.closed_form_ops import allpass, fir, iir, matched_filter
 from srmech.signal_processing.path_b_ops import matched_filter as matched_filter_b
 

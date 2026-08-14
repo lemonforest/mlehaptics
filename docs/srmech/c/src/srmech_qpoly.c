@@ -1,6 +1,6 @@
 /*
  * srmech_qpoly.c — EXACT q-shift CARRIER over srmech_bigint (the C peer of
- * srmech.amsc.qpoly.QPoly; the q-hypergeometric F929 reduction-row foundation,
+ * srmech.math.qpoly.QPoly; the q-hypergeometric F929 reduction-row foundation,
  * the q-analog of the srmech_poly.c univariate polynomial carrier).
  *
  * A QPoly is a LAURENT polynomial in the formal variable x = q^n whose

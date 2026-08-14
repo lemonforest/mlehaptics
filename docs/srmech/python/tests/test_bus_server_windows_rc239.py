@@ -40,7 +40,7 @@ import uuid
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 
 _NATIVE = _native.HAS_NATIVE
 

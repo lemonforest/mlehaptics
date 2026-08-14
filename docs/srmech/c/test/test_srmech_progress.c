@@ -12,7 +12,7 @@
  *   1. OFF BY DEFAULT — a dispatch with no callback registered emits nothing.
  *   2. REGISTER — a dispatch fires the callback EXACTLY once with the canonical
  *      event {"category": "cascade", "mpr_version": "1.0",
- *             "op_name": "srmech.amsc.cascade.net_chirality"} (sorted keys,
+ *             "op_name": "srmech.cascade.net_chirality"} (sorted keys,
  *      ", " / ": " separators — byte-identical to the Python introspect
  *      serialize shape via srmech_json_write_ws).
  *   3. CLEAR — srmech_set_progress_cb returns the PREVIOUS callback, and after
@@ -66,11 +66,11 @@ int main(void)
 {
     /* net_chirality: an int8-range plain-int LIST in, one int out -- always a
      * clean batch-1 C dispatch (cf. c/test parity + the Python rc231 test). */
-    const char *name = "srmech.amsc.cascade.net_chirality";
+    const char *name = "srmech.cascade.net_chirality";
     const char *args = "{\"orientations\": [1, -1, -1]}";
     const char *expect =
         "{\"category\": \"cascade\", \"mpr_version\": \"1.0\", "
-        "\"op_name\": \"srmech.amsc.cascade.net_chirality\"}";
+        "\"op_name\": \"srmech.cascade.net_chirality\"}";
     static unsigned char ws[131072];
     srmech_progress_cb_t prev;
 

@@ -54,7 +54,7 @@ import hashlib
 import os
 import re
 
-from srmech.amsc import _unicode_fold_tables as fdt
+from srmech.math import _unicode_fold_tables as fdt
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))            # docs/srmech

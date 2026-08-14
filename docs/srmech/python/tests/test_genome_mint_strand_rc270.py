@@ -22,9 +22,9 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc import genome as G
-from srmech.amsc import _native
-from srmech.amsc.hdc import klein4_expand
+from srmech.biology import genome as G
+from srmech import _native
+from srmech.math.hdc import klein4_expand
 
 _DIM = 64
 
@@ -243,22 +243,32 @@ def test_unminted_strand_is_never_mutated():
 # ── 7. registration ─────────────────────────────────────────────────────────
 
 def test_mint_strand_registered_and_total_matches_live():
-    from srmech.amsc.tool_schema import get_tool_schema, warmup_all
+    from srmech.introspect.tool_schema import get_tool_schema, warmup_all
     warmup_all()
     names = [t.name for t in get_tool_schema().tools]
-    assert "srmech.amsc.genome.mint_strand" in names
-    assert len(names) == 509
+    assert "srmech.biology.genome.mint_strand" in names
+    assert len(names) == 655
     assert "mint_strand" in G.__all__
 
 
 def test_mint_strand_tool_has_docs():
-    from srmech.amsc.tool_schema import get_tool_schema, warmup_all
+    from srmech.introspect.tool_schema import get_tool_schema, warmup_all
     warmup_all()
     entry = next(t for t in get_tool_schema().tools
-                 if t.name == "srmech.amsc.genome.mint_strand")
+                 if t.name == "srmech.biology.genome.mint_strand")
     assert entry.explanation and entry.explanation.strip()
     assert entry.example
-    assert len(entry.parameters) == 6
+    # rc340 (#T965): 6 -> 7 — the shared ET_PARAM (element_type) is now published on
+    # the MCP surface for every genome op whose Python surface accepts it, so a
+    # remote caller can pick the carrier rung instead of silently getting klein4.
+    # rc408 (`#T1078`): 7 -> 8 — `progress`, the §101 per-call heartbeat, was a real
+    # parameter of mint_strand's signature that the ToolEntry did not declare. It is
+    # now declared (typed host_callable, publishing JSON-schema "null", so no client
+    # can be told to fill it) rather than hidden. NOT a new capability: the kwarg has
+    # been accepted since §101 / ABI v6 — only the contract caught up.
+    assert len(entry.parameters) == 8
+    assert any(p.name == "element_type" for p in entry.parameters)
+    assert any(p.name == "progress" for p in entry.parameters)
 
 
 # ── 8. 1:1 C<->Python byte-parity of the spliced cap (native-gated) ─────────

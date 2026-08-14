@@ -1,4 +1,4 @@
-"""Unit tests for srmech.profile_loader (Task #199, ADR-0001).
+"""Unit tests for srmech.profile_loader (`#T199`, ADR-0001).
 
 The loader is tested without actually installing a real profile-bearing
 package — instead, tests fabricate _EnumeratedDescriptor records directly
@@ -278,11 +278,24 @@ def test_entry_point_form_1_package_only(tmp_path: Path) -> None:
     """Form 1: entry-point value is a package name. Loader uses
     importlib.resources.files(package) to locate srmech_profile.toml.
 
-    We can't easily exercise the full entry-point machinery in a unit
-    test without pip-installing a fixture package, so we test the
-    underlying resolver against a synthesised module-with-resources
-    pattern: directly stub the entry-point's load() result and verify
-    _resolve_entry_point_toml handles ModuleType targets.
+    This test covers the RESOLVER only: it stubs the entry-point's load()
+    result and verifies _resolve_entry_point_toml handles ModuleType
+    targets. That is a deliberate unit scope, not a limitation.
+
+    rc409 (`#T1080`) — THIS DOCSTRING USED TO CLAIM A BLOCKER THAT DOES NOT
+    EXIST: "We can't easily exercise the full entry-point machinery in a
+    unit test without pip-installing a fixture package." **Refuted by
+    execution.** A hand-written `fakeprof-1.0.0.dist-info/` (METADATA +
+    entry_points.txt) on a `sys.path` directory drives the whole real path —
+    discovery, resolve, validate, smoke, cache, `Profile` — with the standard
+    library alone: no pip, no network, no install. See
+    `tests/test_profile_entrypoint_discovery_rc409.py`, which also carries the
+    negative control (rename the group, everything goes quiet).
+
+    The correction matters beyond accuracy: a COST had been written into the
+    tree as a BLOCKER, and for many rcs it deterred anyone from covering
+    `entry_points()`, the `MAX_ENUMERATED_PROFILES` cap, or the activation
+    body — none of which had a single reference in `tests/` before rc409.
     """
     from srmech.profile_loader import _resolve_entry_point_toml
     import types
@@ -402,7 +415,7 @@ def test_entry_point_unknown_type_rejected() -> None:
 def test_tool_schema_extension_loaded_at_activation(tmp_path: Path) -> None:
     """When a profile declares [profile.tool_schema].extension_file,
     the loader reads the TOML at activation time and registers each
-    [[tools]] block into srmech.amsc.tool_schema with the profile's
+    [[tools]] block into srmech.introspect.tool_schema with the profile's
     name as the owner.
 
     Synthesises a minimal package on disk with both descriptor +
@@ -410,7 +423,7 @@ def test_tool_schema_extension_loaded_at_activation(tmp_path: Path) -> None:
     """
     import sys as _sys
     import importlib
-    from srmech.amsc import tool_schema as ts
+    from srmech.introspect import tool_schema as ts
     from srmech.profile_loader import Profile
 
     # Build the fake package.
@@ -465,7 +478,7 @@ def test_tool_schema_extension_loaded_at_activation(tmp_path: Path) -> None:
         assert fakets_tools[0].owner == "fakets"
     finally:
         # Always unregister so test ordering is stable.
-        from srmech.amsc.tool_schema import unregister_profile_tools
+        from srmech.introspect.tool_schema import unregister_profile_tools
         unregister_profile_tools("fakets")
         _sys.path.remove(str(tmp_path))
         _sys.modules.pop("fake_ts_pkg", None)

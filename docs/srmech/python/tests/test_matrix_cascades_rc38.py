@@ -20,8 +20,8 @@ import random
 
 import pytest
 
-from srmech.amsc.cascade.matrix_cascades import qr, svd
-from srmech.amsc.laplacian import hermitian_eigendecompose
+from srmech.cascade.matrix_cascades import qr, svd
+from srmech.math.laplacian import hermitian_eigendecompose
 
 _SHAPES = [(4, 4), (6, 3), (3, 6), (1, 1), (5, 2), (2, 5), (7, 7)]
 
@@ -154,7 +154,7 @@ def test_matrix_cascades_no_abs_no_nplinalg():
     import ast
     import inspect
 
-    from srmech.amsc.cascade import matrix_cascades as mc
+    from srmech.cascade import matrix_cascades as mc
 
     src = inspect.getsource(mc)
     tree = ast.parse(src)

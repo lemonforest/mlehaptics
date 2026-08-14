@@ -3,7 +3,7 @@
  * on the caller-arena srmech_bigint (the standalone-honor closure for the
  * exact-rational series).
  *
- * The Python `srmech.amsc.rational.{exp,sin,cos,log1p,atan}_series_truncate`
+ * The Python `srmech.math.rational.{exp,sin,cos,log1p,atan}_series_truncate`
  * + `rational_pow_uint` are exact-rational-IN -> exact-rational-OUT with NO
  * magnitude ceiling (CPython arbitrary-precision int). The int64/Q61 C peers
  * in srmech_rational.c cap at int64 (SRMECH_ERR_OVERFLOW past it), so a
@@ -621,4 +621,185 @@ srmech_status_t srmech_rational_pow_uint_big(const srmech_bigint_t *base_num,
     st = bigexp_pow(&c, &c.den, base_den, exp_val);   /* q^n */
     if (st != SRMECH_OK) { return st; }
     return bigexp_reduce_out(&c, out_num, out_den);
+}
+
+/* ------------------------------------------------------------------ *
+ * srmech_bessel_j_fixed_big — the FIXED-POINT Bessel J_k kernel
+ * (v0.9.0rc362; the srmech.music membrane spectrum).
+ *
+ * The C peer of srmech.music.bessel_j_fixed. DLMF 10.2.2 / Watson (1922)
+ * Sec 3.1 ascending series
+ *
+ *     J_k(x) = SUM_m (-1)^m (x/2)^(2m+k) / (m! (m+k)!)
+ *
+ * summed by the exact integer recurrence t_{m+1} = t_m*(x/2)^2 /
+ * ((m+1)(m+k+1)) in a DECLARED 2^-scale_bits fixed-point grid. The result is
+ * out_num over the implicit denominator 2^scale_bits.
+ *
+ * WHY THIS IS NOT THE *_series_truncate_big CONTRACT. Its siblings above
+ * return an exact REDUCED rational partial sum. This op returns a value on a
+ * declared fixed-point grid, because that is what the membrane spectrum needs
+ * and what the promoted Python computes. The two contracts share this file
+ * because they share the caller-arena bigint context, not because they are
+ * the same shape.
+ *
+ * BIT-IDENTITY BY CONSTRUCTION. The running term is a NON-NEGATIVE magnitude
+ * and the series alternation is carried as an explicit orientation applied at
+ * the accumulation (Class-K sign-flip, Class-C re-application). Every shift
+ * and divide therefore runs on a magnitude, where C truncation and Python
+ * floor agree exactly. The research note this was promoted from wrote the
+ * alternation as -((t*H2) >> b) // d, which leans on the negative-floor
+ * semantics of Python and could NOT be matched by a sign-magnitude bignum
+ * without emulating them.
+ *
+ * NO transcendence claim is made or implied about any Bessel zero.
+ *
+ * Carrier-internal (like srmech_pi and the *_big series above): NOT a Rosetta
+ * ledger op. Additive symbols -> SRMECH_ABI_VERSION unchanged.
+ * ------------------------------------------------------------------ */
+
+#define BESSEL_MAX_ORDER  64u
+#define BESSEL_MAX_TERMS  4000u
+#define BESSEL_MAX_SCALE  4096u
+
+/* Per-carrier limb cap: the widest live value is term*half_sq (and the
+ * leading (x/2)^k build), about 2*scale_bits plus the operand widths, before
+ * the shift brings it back. Budget generously — over-sizing a caller arena
+ * costs nothing, under-sizing returns OVERFLOW. */
+static size_t bessel_cap_for(size_t num_limbs, size_t den_limbs,
+                             uint32_t scale_bits, uint32_t order)
+{
+    size_t s = (size_t)scale_bits / 32u + 2u;
+    size_t f = bigexp_factorial_limbs(order);
+    size_t cap = s * 4u + num_limbs * 2u + den_limbs * 2u + f + 32u;
+    assert(cap > s);
+    assert(cap >= 32u);
+    return cap;
+}
+
+size_t srmech_bessel_j_fixed_ws_bound(size_t num_limbs, size_t den_limbs,
+                                      uint32_t scale_bits, uint32_t order)
+{
+    size_t cap = bessel_cap_for(num_limbs, den_limbs, scale_bits, order);
+    size_t carriers = cap * (size_t)BIGEXP_N_CARRIERS;
+    size_t words = carriers + cap * 8u + 256u;
+    assert(cap >= 32u);
+    assert(words > carriers);
+    return words * sizeof(uint32_t);
+}
+
+/* half = (x_num << S) / (2*x_den) into c->den; (half^2 >> S) into c->t1. */
+static srmech_status_t bessel_prepare(bigexp_ctx_t *c,
+                                      const srmech_bigint_t *x_num,
+                                      const srmech_bigint_t *x_den,
+                                      uint32_t scale_bits)
+{
+    srmech_status_t st;
+    assert(c != NULL);
+    assert(x_num != NULL && x_den != NULL);
+    st = srmech_bigint_shl_bits(&c->t3, x_num, scale_bits);
+    if (st != SRMECH_OK) { return st; }
+    st = srmech_bigint_shl_bits(&c->pw, x_den, 1u);
+    if (st != SRMECH_OK) { return st; }
+    st = srmech_bigint_divmod(&c->den, &c->rem, &c->t3, &c->pw,
+                              c->scratch, c->scratch_len);
+    if (st != SRMECH_OK) { return st; }
+    st = bigexp_mul(c, &c->t3, &c->den, &c->den);
+    if (st != SRMECH_OK) { return st; }
+    return srmech_bigint_shr_bits(&c->t1, &c->t3, scale_bits);
+}
+
+/* term = (x/2)^order / order! into c->t2, and total = term into c->num. */
+static srmech_status_t bessel_lead_term(bigexp_ctx_t *c, uint32_t order,
+                                        uint32_t scale_bits)
+{
+    srmech_status_t st;
+    uint32_t j;
+    assert(c != NULL);
+    assert(order <= BESSEL_MAX_ORDER);
+    st = srmech_bigint_set_i64(&c->t3, 1);
+    if (st != SRMECH_OK) { return st; }
+    st = srmech_bigint_shl_bits(&c->t2, &c->t3, scale_bits);
+    if (st != SRMECH_OK) { return st; }
+    for (j = 0u; j < order; j++) {
+        st = bigexp_mul(c, &c->t3, &c->t2, &c->den);
+        if (st != SRMECH_OK) { return st; }
+        st = srmech_bigint_shr_bits(&c->t2, &c->t3, scale_bits);
+        if (st != SRMECH_OK) { return st; }
+    }
+    st = bigexp_set_factorial(c, order);          /* order! -> c->t4 */
+    if (st != SRMECH_OK) { return st; }
+    st = srmech_bigint_divmod(&c->t3, &c->rem, &c->t2, &c->t4,
+                              c->scratch, c->scratch_len);
+    if (st != SRMECH_OK) { return st; }
+    st = srmech_bigint_copy(&c->t2, &c->t3);
+    if (st != SRMECH_OK) { return st; }
+    return srmech_bigint_copy(&c->num, &c->t2);
+}
+
+/* One recurrence step: term <- (term*half_sq >> S) / ((m+1)(m+order+1)),
+ * then total <- total +/- term per the alternating orientation. */
+static srmech_status_t bessel_step(bigexp_ctx_t *c, uint32_t order,
+                                   uint32_t scale_bits, uint32_t m,
+                                   int orientation)
+{
+    srmech_status_t st;
+    uint32_t rem32 = 0u;
+    assert(c != NULL);
+    assert(orientation == 1 || orientation == -1);
+    st = bigexp_mul(c, &c->t3, &c->t2, &c->t1);
+    if (st != SRMECH_OK) { return st; }
+    st = srmech_bigint_shr_bits(&c->t2, &c->t3, scale_bits);
+    if (st != SRMECH_OK) { return st; }
+    /* floor(floor(a/b)/d) == floor(a/(b*d)) for positive integers, so these
+     * two small divides are exactly the single divide by the product. */
+    st = srmech_bigint_divmod_small(&c->t3, &rem32, &c->t2, m + 1u);
+    if (st != SRMECH_OK) { return st; }
+    st = srmech_bigint_divmod_small(&c->t2, &rem32, &c->t3, m + order + 1u);
+    if (st != SRMECH_OK) { return st; }
+    if (orientation > 0) {
+        st = srmech_bigint_add(&c->pw, &c->num, &c->t2);
+    } else {
+        st = srmech_bigint_sub(&c->pw, &c->num, &c->t2);
+    }
+    if (st != SRMECH_OK) { return st; }
+    return srmech_bigint_copy(&c->num, &c->pw);
+}
+
+srmech_status_t srmech_bessel_j_fixed_big(uint32_t order,
+                                          const srmech_bigint_t *x_num,
+                                          const srmech_bigint_t *x_den,
+                                          uint32_t scale_bits,
+                                          srmech_bigint_t *out_num,
+                                          void *ws, size_t ws_len)
+{
+    bigexp_ctx_t c;
+    srmech_status_t st;
+    uint32_t cap, m;
+    int orientation = 1;
+    assert(out_num != NULL);
+    assert(x_num != NULL && x_den != NULL);
+    if (out_num == NULL || x_num == NULL || x_den == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (x_den->sign <= 0 || x_num->sign < 0) { return SRMECH_ERR_BAD_INPUT; }
+    if (order > BESSEL_MAX_ORDER) { return SRMECH_ERR_BAD_INPUT; }
+    if (scale_bits < 8u || scale_bits > BESSEL_MAX_SCALE) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    cap = (uint32_t)bessel_cap_for(x_num->n, x_den->n, scale_bits, order);
+    st = bigexp_ctx_init(&c, cap, ws, ws_len);
+    if (st != SRMECH_OK) { return st; }
+    st = bessel_prepare(&c, x_num, x_den, scale_bits);
+    if (st != SRMECH_OK) { return st; }
+    st = bessel_lead_term(&c, order, scale_bits);
+    if (st != SRMECH_OK) { return st; }
+    for (m = 0u; m < BESSEL_MAX_TERMS; m++) {
+        if (srmech_bigint_is_zero(&c.t2)) { break; }
+        orientation = -orientation;
+        st = bessel_step(&c, order, scale_bits, m, orientation);
+        if (st != SRMECH_OK) { return st; }
+    }
+    if (m >= BESSEL_MAX_TERMS) { return SRMECH_ERR_BAD_INPUT; }
+    return srmech_bigint_copy(out_num, &c.num);
 }

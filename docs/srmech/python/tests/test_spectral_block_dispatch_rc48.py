@@ -17,7 +17,7 @@ import itertools
 
 import pytest
 
-from srmech.amsc.laplacian import (
+from srmech.math.laplacian import (
     MAX_NATIVE_NODES,
     jacobi_eigvals,
     spectral_block_dispatch,
@@ -101,7 +101,7 @@ def test_deterministic():
 
 
 def test_tool_entry_registered():
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
 
     names = {t.name for t in get_tool_schema().tools}
-    assert "srmech.amsc.laplacian.spectral_block_dispatch" in names
+    assert "srmech.math.laplacian.spectral_block_dispatch" in names

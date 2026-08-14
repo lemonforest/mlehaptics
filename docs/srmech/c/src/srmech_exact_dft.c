@@ -2,7 +2,7 @@
  * srmech_exact_dft.c — exact cyclotomic-integer DFT (Class I ∘ K ∘ M).
  *
  * v0.7.5rc29 ([#928](https://github.com/lemonforest/mlehaptics/issues/928)).
- * The native twin of srmech.amsc.cascade.exact_dft. A DFT's twiddle factors
+ * The native twin of srmech.cascade.exact_dft. A DFT's twiddle factors
  * e^{-2πi·j/N} are roots of unity = algebraic integers in the cyclotomic ring
  * ℤ[ζ_N]. For a power-of-two N the cyclotomic polynomial is Φ_N(x)=x^{N/2}+1,
  * so ζ^{N/2} = -1 (a Class-K pin-slot sign-flip, never abs/fabs) and the ring

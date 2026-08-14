@@ -1,0 +1,90 @@
+# Cascade catalog entry: magnitude
+# v0.4.5rc3 of the cascade-catalog C-parity + TOML retrofit — continues
+# the carve-out correction (op 3 of 8).
+
+[cascade]
+name = "magnitude"
+class_composition = "K"
+purpose = "Class K pin-slot magnitude-only projection — |x| but cascade-honest."
+description = """
+The cascade-honest replacement for Python abs() when only the magnitude
+is needed. Class K pin-slot magnitude (composes pin_slot_at_zero, discards
+the orientation). NaN maps to 0.0 (Class K dead-band) — same as
+pin_slot_at_zero — preserving Python parity. +/-Inf preserve magnitude.
+"""
+
+[cascade.signature]
+input = "float"
+output = "float"
+operation = "pin_slot_at_zero(x)[1]"
+nonnegative = true
+nan_maps_to_dead_band = true
+inf_preserved = true
+
+[cascade.composes]
+# Documented composition: magnitude IS Class K magnitude-only,
+# equivalent to pin_slot_at_zero(x)[1]. The dedicated C symbol is a
+# fast-path optimisation, not a separate primitive class.
+canonical_form = "pin_slot_at_zero ∘ project_magnitude"
+class_op = "K"
+
+[cascade.native]
+c_symbol_f64 = "srmech_cascade_magnitude_f64"
+abi_version = 2
+
+[cascade.attestation]
+author = "Steven Kirkland"
+license = "MIT"
+parser_version = "srmech-cascade 0.4.5rc3"
+canonical_landings = [
+  "MFO §VII.6.x (Class K canonical pin-slot phase-boundary)",
+  "user_stance_epicycle_via_gear_plus_pin — sign-flip IS the Class K phase-boundary",
+  "feedback_sign_handling_is_class_k_pin_slot_not_alu_abs — no abs() inside cascade scripts",
+  "docs/unsolved-maths/_cascade_helpers.py — original precursor",
+]
+
+# ── rc420 (`#T1114`): the EXECUTABLE chain — ADR-0008 §2 (schema v2).
+# The measured 2-step idiom (rung 3, bit-identical 10/10 incl. -0.0/NaN/inf):
+# SELECT is soluble in-schema — the literal [1] indexer picks the magnitude
+# out of the pin-slot pair, and the identity reorient (orientation = 1)
+# carries it as the final step. No select op was needed (contrast: PACK was —
+# see best_rational_signed's Class-B pair step).
+[[cascade.chain]]
+chain_schema_version = 2
+summary = "Class-K decomposition: magnitude(x) IS pin_slot_at_zero(x)[1], carried by the identity Class-C reorient."
+returns = "float  # |x| as the Class-K pin-slot magnitude (NaN -> 0.0 dead-band)"
+
+[[cascade.chain.steps]]
+class = "K"
+op = "srmech.cascade.atoms.pin_slot_at_zero"
+args = { x = "@input.x" }
+
+[[cascade.chain.steps]]
+class = "C"
+op = "srmech.cascade.atoms.reorient"
+args = { value = "@step[0].output[1]", orientation = 1 }
+
+[[cascade.chain.proof_cases]]
+covers = "negative"
+inputs = { x = -3.5 }
+[[cascade.chain.proof_cases]]
+covers = "origin"
+inputs = { x = 0.0 }
+[[cascade.chain.proof_cases]]
+covers = "negative_zero"
+inputs = { x = -0.0 }
+[[cascade.chain.proof_cases]]
+covers = "nan_dead_band"
+inputs = { x = nan }
+[[cascade.chain.proof_cases]]
+covers = "inf"
+inputs = { x = inf }
+[[cascade.chain.proof_cases]]
+covers = "inf"
+inputs = { x = -inf }
+[[cascade.chain.proof_cases]]
+covers = "sweep"
+inputs = { x = 2.25 }
+[[cascade.chain.proof_cases]]
+covers = "sub_band_passthrough"
+inputs = { x = -1e-13 }

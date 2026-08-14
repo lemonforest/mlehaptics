@@ -12,13 +12,11 @@ numpy-FREE (#564): numpy is GONE from srmech — these return plain Python lists
 * eigvals → the exact ``eigvals_exact`` (integer-entried) eigenvalue multiset,
   plus the closed-form 2×2 case. No numpy anywhere.
 """
-import cmath
-import math
 import random
 
 import pytest
 
-from srmech.amsc.cascade.matrix_cascades import char_poly, eigvals, einsum, lstsq
+from srmech.cascade.matrix_cascades import char_poly, eigvals, einsum, lstsq
 
 
 # ── numpy-free list helpers ────────────────────────────────────────────
@@ -274,7 +272,7 @@ def test_no_abs_no_nplinalg_eig():
     import ast
     import inspect
 
-    from srmech.amsc.cascade import matrix_cascades as mc
+    from srmech.cascade import matrix_cascades as mc
 
     tree = ast.parse(inspect.getsource(mc))
     assert not [

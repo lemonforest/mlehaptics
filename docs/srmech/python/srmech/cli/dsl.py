@@ -107,7 +107,7 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
         help="List cascade-catalog ops available to chain().then(...).",
         description=(
             "Read all TOML descriptors under "
-            "srmech/amsc/_research/cascade_catalog/ and print the "
+            "srmech/cascade/catalogs/cascade_catalog/ and print the "
             "available op names + their class composition."
         ),
     ).add_argument(
@@ -185,6 +185,9 @@ def run_run(args: argparse.Namespace) -> int:
 
     if args.input is not None:
         try:
+            # stdlib json by PROTOCOL-BOUNDARY decision, not neglect (`#T1008`): this parses
+            # user-supplied CLI input (argv / a named file / stdin), not an srmech-authored
+            # descriptor. The READ self-host deliberately stops at the process boundary.
             input_value = json.loads(args.input)
         except json.JSONDecodeError as exc:
             print(
@@ -207,9 +210,11 @@ def run_run(args: argparse.Namespace) -> int:
                     raw = raw.strip()
                     if not raw:
                         continue
+                    # stdlib json: same protocol-boundary decision as above.
                     input_value.append(json.loads(raw))
         else:
             with open(in_path, "rb") as fh:
+                # stdlib json: same protocol-boundary decision as above.
                 input_value = json.loads(fh.read())
     else:
         print(

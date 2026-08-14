@@ -28,9 +28,9 @@ import math
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc.mat import Mat
-from srmech.amsc.laplacian import (
+from srmech import _native
+from srmech.math.mat import Mat
+from srmech.math.laplacian import (
     quaternion_laplacian,
     hypercomplex_perspectives,
     dense_laplacian,
@@ -41,8 +41,8 @@ from srmech.amsc.laplacian import (
     _quaternion_laplacian_blocks,
     _validate_edges_weights_py,
 )
-import srmech.amsc.laplacian as _lap
-from srmech.qm.quaternion import quaternion_left_mult, quaternion_conjugate
+import srmech.math.laplacian as _lap
+from srmech.physics.qm.quaternion import quaternion_left_mult, quaternion_conjugate
 
 
 # A fixed non-trivial ℍ-gain graph (3 nodes, 3 edges = one triangle; mixed
@@ -286,8 +286,8 @@ def test_registration_all_and_laplacian_ops():
 
 
 def test_registration_tool_schema_entries_present():
-    from srmech.amsc.tool_schema import get_tool_schema, warmup_all
+    from srmech.introspect.tool_schema import get_tool_schema, warmup_all
     warmup_all()
     names = {t.name for t in get_tool_schema().tools}
     for op in ("quaternion_laplacian", "hypercomplex_perspectives"):
-        assert f"srmech.amsc.laplacian.{op}" in names, f"{op} ToolEntry missing"
+        assert f"srmech.math.laplacian.{op}" in names, f"{op} ToolEntry missing"

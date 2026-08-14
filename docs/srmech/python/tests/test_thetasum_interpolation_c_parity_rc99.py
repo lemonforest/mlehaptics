@@ -2,9 +2,9 @@
 
 The native ``srmech_thetasum_is_zero_interpolation`` is the COMPLETE multi-variable
 elliptic decision — a 1:1 STRUCTURAL MIRROR of the pure-Python
-:meth:`srmech.amsc.thetasum.ThetaSum._is_zero_interpolation` (Rosengren
+:meth:`srmech.apokatastasis.thetasum.ThetaSum._is_zero_interpolation` (Rosengren
 arXiv:1608.06161v3 Prop 1.6.1 / eq 1.22 + Cor 1.3.5; MPM-verified in
-:mod:`srmech.amsc.thetasum`). Unlike the rc63 ±-pair peer (SOUND fast path only),
+:mod:`srmech.apokatastasis.thetasum`). Unlike the rc63 ±-pair peer (SOUND fast path only),
 this peer's verdict is trusted DIRECTLY — True AND False — so this suite asserts
 FULL parity ``c == py`` (not just the no-false-accept invariant):
 
@@ -26,9 +26,9 @@ import random
 import pytest
 
 from srmech.amsc import ThetaSum
-from srmech.amsc.ellbase import EllMonomial as M, Theta, EllRatio as R
-from srmech.amsc.q import Q
-from srmech.amsc import _native
+from srmech.apokatastasis.ellbase import EllMonomial as M, Theta, EllRatio as R
+from srmech.math.q import Q
+from srmech import _native
 
 _A, _B, _C, _D = M.symbol("a"), M.symbol("b"), M.symbol("c"), M.symbol("d")
 _X, _Y = M.symbol("x"), M.symbol("y")

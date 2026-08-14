@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from fractions import Fraction as F
 
-from srmech.amsc.q import Q, to_q
+from srmech.math.q import Q, to_q
 
 
 # ── 1. to_q parity with one-arg Fraction ─────────────────────────────────────
@@ -62,7 +62,7 @@ def test_q_fraction_comparison_and_equality():
 
 # ── 3. migrated ops EMIT Q, still ACCEPT Fraction input ──────────────────────
 def test_cayley_dickson_emits_q_accepts_fraction():
-    from srmech.amsc.cascade import cayley_dickson as C
+    from srmech.cascade import cayley_dickson as C
     prod = C.cd_mult([1, 2, 3, 4], [4, 3, 2, 1])           # quaternion product
     assert all(isinstance(v, Q) for v in prod)
     n = C.cd_norm_sq([F(1, 2), F(1, 3), 0, 0])             # Fraction INPUT
@@ -70,7 +70,7 @@ def test_cayley_dickson_emits_q_accepts_fraction():
 
 
 def test_dense_solve_and_schur_emit_q():
-    from srmech.amsc.laplacian import dense_solve, schur_complement, dense_laplacian
+    from srmech.math.laplacian import dense_solve, schur_complement, dense_laplacian
     X = dense_solve([[2, 0], [0, 4]], [[2], [8]], exact=True)
     assert all(isinstance(v, Q) for row in X for v in row)
     assert X == [[Q(1)], [Q(2)]]
@@ -79,7 +79,7 @@ def test_dense_solve_and_schur_emit_q():
 
 
 def test_cycle_holonomy_emits_q_accepts_fraction_charges():
-    from srmech.amsc.laplacian import cycle_holonomy
+    from srmech.math.laplacian import cycle_holonomy
     res = cycle_holonomy([(0, 1), (1, 2), (2, 0)], charges=[F(1, 3), 0, 0], n=3)
     assert all(isinstance(h, Q) for h in res["holonomies"])
     assert res["holonomies"] == [Q(1, 3)]
@@ -91,11 +91,11 @@ def test_negative_float_snaps_via_signed_cascade():
     # best_rational rejects a negative numerator (octonion structure constants
     # are {-1,0,+1}; charges/eigenvalues can be negative), so they route the
     # SIGNED Class-K∘N∘C best_rational_signed.
-    from srmech.amsc.laplacian import _to_fraction, cycle_holonomy
+    from srmech.math.laplacian import _to_fraction, cycle_holonomy
     assert _to_fraction(-0.25) == Q(-1, 4)
     res = cycle_holonomy([(0, 1), (1, 2), (2, 0)], charges=[-0.25, 0.0, 0.0], n=3)
     assert all(isinstance(h, Q) for h in res["holonomies"])
-    from srmech.qm.so8 import _rank_exact, g2_subalgebra
+    from srmech.physics.qm.so8 import _rank_exact, g2_subalgebra
     assert _rank_exact([[-4, 2], [1, -1], [0, 3]]) == 2   # negative coords
     assert len(g2_subalgebra()) == 14                     # the CI capstone path
 
@@ -103,7 +103,7 @@ def test_negative_float_snaps_via_signed_cascade():
 def test_op_provenance_rational_roundtrip_is_q():
     # a stdlib Fraction canonicalises via the duck-typed numerator/denominator
     # branch, and decanon rebuilds the exact rational as a srmech Q (#845).
-    from srmech.amsc.op_provenance import _canon, _decanon
+    from srmech.introspect.op_provenance import _canon, _decanon
     canon, exact = _canon(F(1, 2))                         # Fraction INPUT
     assert exact and canon == {"__rational__": [1, 2]}
     back = _decanon(canon)

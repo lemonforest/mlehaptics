@@ -9,9 +9,9 @@ from array import array
 
 import pytest
 
-from srmech.amsc import hdc
-from srmech.amsc.q import Q
-from srmech.amsc._native import HAS_NATIVE
+from srmech.math import hdc
+from srmech.math.q import Q
+from srmech._native import HAS_NATIVE
 
 
 def _circ_dist(df: float) -> float:
@@ -96,7 +96,7 @@ def test_phase_ops_public_and_counted():
 @pytest.mark.skipif(not HAS_NATIVE, reason="native lib absent")
 def test_phase_key_native_matches_pure():
     # the C srmech_klein4_phase_key fill is bit-identical to the pure window
-    from srmech.amsc.hdc import _klein4_phase_key_core, _klein4_phase_start
+    from srmech.math.hdc import _klein4_phase_key_core, _klein4_phase_start
     for D, frac, elem, width in [(64, 0.3, 2, None), (100, 0.9, 1, 25), (8, 0.0, 3, 4)]:
         w = D // 2 if width is None else width
         start = _klein4_phase_start(D, frac)

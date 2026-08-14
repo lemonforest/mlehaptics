@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc.hdc import klein4_expand
+from srmech.math.hdc import klein4_expand
 from srmech.dsl import (
     get_class_descriptor,
     list_classes,
@@ -103,7 +103,7 @@ coupling = "hv"
 strands = "list"
 
 [class.method.pack]
-op = "srmech.amsc.genome.chromosome"
+op = "srmech.biology.genome.chromosome"
 binds = ["leaves", "coupling"]
 appends = "strands"
 """

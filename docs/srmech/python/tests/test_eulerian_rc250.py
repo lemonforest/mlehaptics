@@ -12,8 +12,8 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc import laplacian as L
+from srmech import _native
+from srmech.math import laplacian as L
 
 NATIVE = _native.has_native_eulerian()
 
@@ -79,10 +79,10 @@ def test_start_ignored_for_path():
 
 
 def test_registered_in_tool_schema():
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
-    assert "srmech.amsc.laplacian.eulerian_path" in names
-    assert "srmech.amsc.laplacian.eulerian_circuit" in names
+    assert "srmech.math.laplacian.eulerian_path" in names
+    assert "srmech.math.laplacian.eulerian_circuit" in names
 
 
 def test_non_integer_nodes_pure_path():
@@ -97,12 +97,12 @@ def test_non_integer_nodes_pure_path():
 @pytest.mark.skipif(not NATIVE, reason="rc250 eulerian C peer not loaded")
 def test_native_symbol_bound():
     assert hasattr(_native.LIB, "srmech_eulerian_walk")
-    assert _native.NATIVE_ABI_VERSION == 10
+    assert _native.NATIVE_ABI_VERSION == 14
 
 
 @pytest.mark.skipif(not NATIVE, reason="rc250 eulerian C peer not loaded")
 def test_native_equals_pure():
-    import srmech.amsc._native as N
+    import srmech._native as N
     cases = [
         [(0, 1), (1, 2), (2, 0)],
         [(0, 1), (1, 0), (0, 2), (2, 0)],

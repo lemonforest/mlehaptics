@@ -41,10 +41,32 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Tuple
 
-if sys.version_info >= (3, 11):
-    import tomllib
-else:  # pragma: no cover
-    import tomli as tomllib  # type: ignore
+# srmech's own internal TOML front door (`#T907` slice 3). Native `srmech_toml`
+# parser first, stdlib ``tomllib`` (3.11+) / ``tomli`` (3.10) floor otherwise —
+# the attested descriptors now self-host on the C parser wherever it is present.
+# A float-bearing descriptor is DECLINED by the C path and rides the bit-exact
+# stdlib parser, so the parsed dict — and therefore ``descriptor_hash``'s
+# ``json.dumps(sort_keys=True)`` SHA — is byte-identical to the previous
+# stdlib-only parse either way (the load-bearing attestation invariant).
+#
+# rc407 (`#T1076`): the module-top ``tomllib`` / ``tomli`` version branch is
+# GONE. It survived solely to name the type in ``except tomllib.TOMLDecodeError``
+# below — an import of the banned module purely to spell an exception. The front
+# door now owns its own exception contract, so the clause reads
+# ``_srmech_toml.TOMLDecodeError`` and the error contract is unchanged (that
+# alias is bound from the same backend the parse rides).
+# ``srmech._toml`` is a leaf module (it imports ``srmech._native`` lazily inside
+# ``loads()``), so this module-top import introduces no package-init cycle.
+#
+# The alias is ``_srmech_toml`` (leading underscore), NOT ``srmech_toml``, ON
+# PURPOSE: ``descriptor_hash`` is a ``c_dispatched`` op (it routes its SHA through
+# ``sha256_bytes``), so ``tools/gen_c_claims.py`` scans its bytecode for
+# ``srmech_*`` tokens. A bare ``srmech_toml`` global name matches that pattern and
+# would register as an OFF-HEADER C-dispatch claim (there is no ``srmech_toml``
+# symbol — the header exports ``srmech_toml_parse`` etc.), reddening
+# ``test_c_claim_resolution_rc300``. The leading underscore dodges the anchored
+# ``^srmech_`` matcher. Do NOT "normalise" this back to ``srmech_toml``.
+from srmech import _toml as _srmech_toml
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -95,6 +117,7 @@ KNOWN_ADAPTERS: Tuple[str, ...] = (
     "geotiff_bbox",
     "literature_curated",
     "substrate_parameterization",
+    "mpr_committed",
 )
 """Adapter categories. The first five shipped in v0.25.0. The sixth
 (``literature_curated``) shipped after v0.26.0 to support per-body
@@ -108,8 +131,16 @@ parameter set lives in nested ``[fetch.substrate_parameterization.*]``
 sub-tables surfaced as typed sub-dataclasses
 (``srmech.amsc.adapters.substrate_parameterization.config_for``), and
 ``fetch``/``parse`` pass through the committed measurement NDJSON (no
-per-row DOI — the rows are computed outputs). New adapter types require
-a new module under ``srmech/amsc/adapters/`` + entry here."""
+per-row DOI — the rows are computed outputs). The eighth
+(``mpr_committed``, srmech 0.9.0rc418 / `#T1108`) is the ENVELOPE-shaped
+peer of ``literature_curated``: same no-network committed-NDJSON model,
+but each line is already a whole MPR v1 record, so its attestation is the
+attestation of record and is read back verbatim rather than synthesised.
+The distinction is load-bearing, not cosmetic — declaring an
+envelope-shaped catalog as ``literature_curated`` makes the reader
+manufacture a fresh attestation over a row that already carries a true
+one. New adapter types require a new module under
+``srmech/amsc/adapters/`` + entry here."""
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -201,8 +232,8 @@ def load_descriptor(
 
     raw = path.read_bytes()
     try:
-        parsed = tomllib.loads(raw.decode("utf-8"))
-    except tomllib.TOMLDecodeError as exc:
+        parsed = _srmech_toml.loads(raw.decode("utf-8"))
+    except _srmech_toml.TOMLDecodeError as exc:
         raise DescriptorValidationError(
             f"{path}: TOML parse error: {exc}"
         ) from exc
@@ -331,14 +362,21 @@ def descriptor_hash(path: Path) -> str:
     Used by adapters' ``attest()`` step to populate the per-row
     ``collector_descriptor_hash`` attestation field.
 
-    Task #201 Phase B5: the canonical-serialisation step stays in
-    Python (TOML parsing + ``json.dumps(sort_keys=True)`` is small
-    and already C-accelerated inside CPython's json module). The
-    final SHA-256 routes through ``sha256_bytes`` which dispatches
-    to the native C implementation when available.
+    The TOML parse routes through ``srmech._toml.loads`` (`#T907`
+    slice 3): the native ``srmech_toml`` parser when the C library is
+    present, the stdlib ``tomllib`` / ``tomli`` floor otherwise (or when
+    the C parser DECLINES a construct — e.g. a float — and rides the
+    stdlib parse for bit-exact fidelity). Either way the parsed dict is
+    identical, so ``json.dumps(sort_keys=True)`` — and thus this hash —
+    is byte-identical across the native and pure paths: the attestation
+    ``collector_descriptor_hash`` is invariant to which parser ran. The
+    ``json.dumps`` canonicalisation stays in Python (CPython's json is
+    already C-accelerated) and the final SHA-256 routes through
+    ``sha256_bytes`` which dispatches to the native C implementation when
+    available.
     """
     from .format import sha256_bytes  # local import; avoids cycle
-    parsed = tomllib.loads(path.read_bytes().decode("utf-8"))
+    parsed = _srmech_toml.loads(path.read_bytes().decode("utf-8"))
     canonical = json.dumps(
         parsed, sort_keys=True, ensure_ascii=False
     ).encode("utf-8")

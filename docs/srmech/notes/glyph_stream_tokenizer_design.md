@@ -448,7 +448,7 @@ halves. Evidence gathered by direct code read.
 A turn is coupled to a *shared global invariant*, not to its neighbour:
 
 ```python
-# python/srmech/amsc/genome.py:770
+# python/srmech/biology/genome.py:770
 def quad_turn(turn, coupling):
     return _klein4_bind(turn, coupling)
 ```

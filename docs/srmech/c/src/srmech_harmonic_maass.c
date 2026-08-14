@@ -1,7 +1,7 @@
 /*
  * srmech_harmonic_maass.c — the EXACT-INTEGER q-series of the HOLOMORPHIC mock
  * part of a HARMONIC (weak) MAASS form (the C peer of
- * srmech.amsc.harmonic_maass.HarmonicMaass / MockQSeries; the pair carrier that
+ * srmech.apokatastasis.harmonic_maass.HarmonicMaass / MockQSeries; the pair carrier that
  * makes research item #9 a finite exact object).
  *
  * A harmonic Maass form f of weight k is determined by the PAIR (f+ holomorphic

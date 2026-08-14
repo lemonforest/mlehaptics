@@ -28,9 +28,9 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc.hdc import KLEIN4_STATES
-from srmech.amsc.q import Q
-from srmech.amsc.qi import Qi
+from srmech.math.hdc import KLEIN4_STATES
+from srmech.math.q import Q
+from srmech.math.qi import Qi
 
 
 def test_numpy_is_absent_so_this_runs_not_skips():

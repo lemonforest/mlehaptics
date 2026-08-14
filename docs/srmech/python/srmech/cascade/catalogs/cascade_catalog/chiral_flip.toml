@@ -1,0 +1,53 @@
+# Cascade catalog entry: chiral_flip
+# Generated as part of the v0.4.5rc1 C-parity + TOML retrofit; corrects
+# the v0.4.3rc6 / v0.4.4rc1 carve-out that shipped cascade ops Python-only.
+
+[cascade]
+name = "chiral_flip"
+class_composition = "C"
+purpose = "Class C orientation reversal of a sequence — the value-level Class C cascade-orientation operator."
+description = """
+Reverses the traversal order of a sequence. At the FFT level this is the
+chirality operator: same magnitude spectrum, orientation-flipped phase
+(MFO §VIII.31.11 §(5b); verified across all 14 A–N operators in
+docs/srmech/notes/spike_chiral_an_spectral_shape.py).
+"""
+
+[cascade.signature]
+input = "sequence[int64|float64]"
+output = "sequence[same-dtype-as-input]"
+operation = "seq[::-1]"
+preserves_shape = true
+preserves_magnitude_spectrum = true
+inverts_phase_orientation = true
+in_place_safe = true
+
+[cascade.native]
+c_symbol_i64 = "srmech_cascade_chiral_flip_i64"
+c_symbol_f64 = "srmech_cascade_chiral_flip_f64"
+abi_version = 2
+
+[cascade.attestation]
+author = "Steven Kirkland"
+license = "MIT"
+parser_version = "srmech-cascade 0.4.5rc1"
+canonical_landings = [
+  "MFO §VIII.31.11 §(5b) — chiral dual same shape inverse",
+  "docs/srmech/notes/spike_chiral_an_spectral_shape.py — 14-operator sweep",
+  "docs/srmech/rbs_research_notebook.md §2.2 — cascade-rate gain reading",
+  "docs/srmech/srmech_research_notebook.md §3.27 — recursive-Hopf catalog",
+]
+
+# ── rc420 (`#T1114`): EXPLICIT leaf declaration — silence is not a leaf claim.
+[cascade.leaf]
+irreducible = true
+reason = """
+The atom IS the Class-C primitive (the orientation reversal seq[::-1]);
+nothing lower-level is registered to compose it. Measured at `#T1114`
+rung 3: correctly irreducible — even self-delegation is not a
+decomposition. It is ALSO expressible as one indexed-map body
+(out[k] = seq[n-1-k]; measured at rung 4), but that spelling composes
+the atom out of an index mirror it would itself have to provide — the
+atom is the floor, not a composite.
+"""
+declared = "0.9.0rc420"

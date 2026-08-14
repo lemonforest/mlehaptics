@@ -13,7 +13,7 @@ via a TOML chain, and the old positional call is gone.
 
 import pytest
 
-from srmech.amsc import cascade
+from srmech import cascade
 from srmech.dsl import Chain, run_toml_chain
 
 
@@ -59,7 +59,7 @@ orientation = -1
 def test_omega7_axis_still_negates_per_element():
     # The internal iω₇ stream-transform (_transform_omega7 = per-element
     # reorient(orientation=-1)) is unaffected by the arg reorder.
-    from srmech.amsc.cascade.parallel import _transform_omega7
+    from srmech.cascade.parallel import _transform_omega7
     assert list(_transform_omega7([1, -2, 3])) == [-1, 2, -3]
 
 

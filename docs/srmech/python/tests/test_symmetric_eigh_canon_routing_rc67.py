@@ -22,9 +22,9 @@ from __future__ import annotations
 import re
 import pathlib
 
-from srmech.amsc import laplacian
-from srmech.amsc.cascade.matrix_cascades import eigvals_exact
-from srmech.amsc.laplacian import _canonicalize_eigenvector_signs
+from srmech.math import laplacian
+from srmech.cascade.matrix_cascades import eigvals_exact
+from srmech.math.laplacian import _canonicalize_eigenvector_signs
 
 
 # ── numpy-free helpers ────────────────────────────────────────────────
@@ -82,8 +82,8 @@ def _cases():
 
 def test_symmetric_eigendecompose_real_and_reconstructs_incl_degenerate():
     """Real float V, ascending eigvals == eigvals_exact, exact reconstruction."""
-    from srmech.amsc.mat import Mat
-    from srmech.amsc.vec import Vec
+    from srmech.math.mat import Mat
+    from srmech.math.vec import Vec
     for label, L in _cases():
         n = len(L)
         w, V = laplacian.symmetric_eigendecompose(L)
@@ -150,7 +150,7 @@ def test_no_residual_np_linalg_eigh_in_symmetric_eigendecompose():
     to hermitian_eigendecompose."""
     import srmech
 
-    src = (pathlib.Path(srmech.__file__).parent / "amsc" / "laplacian.py").read_text(
+    src = (pathlib.Path(srmech.__file__).parent / "math" / "laplacian.py").read_text(
         encoding="utf-8"
     )
     # isolate the symmetric_eigendecompose function body

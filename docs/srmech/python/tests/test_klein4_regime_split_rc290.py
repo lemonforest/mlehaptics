@@ -33,8 +33,9 @@ import json
 
 import pytest
 
-from srmech.amsc import _native, hdc
-from srmech.amsc.cascade.one import the_one
+from srmech import _native
+from srmech.math import hdc
+from srmech.cascade.one import the_one
 
 D = 64
 
@@ -124,8 +125,8 @@ def test_klein4_random_is_gone_entirely_rc292():
     assert not hasattr(hdc, "klein4_random")
     assert "klein4_random" not in hdc.__all__
     # No silent re-export anywhere on the public surface.
-    from srmech.amsc import tool_schema
-    assert all(e.name != "srmech.amsc.hdc.klein4_random"
+    from srmech.introspect import tool_schema
+    assert all(e.name != "srmech.math.hdc.klein4_random"
                for e in tool_schema.get_tool_schema().tools)
     # The documented replacement composition works and is genuinely per-run.
     import os
@@ -389,8 +390,8 @@ def test_the_renamed_c_symbol_is_present_and_the_old_one_is_gone():
     # ABI has since advanced past rc290's 8 (rc306 = 9, section_counts caller-arena;
     # rc307 = 10, fiedler_sparse ws_len unified to BYTES); this pins the CURRENT
     # value so a stale lib is still caught.
-    assert _native.EXPECTED_ABI_VERSION == 10
-    assert _native.NATIVE_ABI_VERSION == 10
+    assert _native.EXPECTED_ABI_VERSION == 14
+    assert _native.NATIVE_ABI_VERSION == 14
 
 
 # ── the genome slot rename ────────────────────────────────────────────────
@@ -400,7 +401,7 @@ def test_genome_takes_coupling_and_the_one_is_gone():
     a reader. With ONE-A14 the slot holds something DERIVED FROM the One but not
     the One, so the old name got MORE misleading, not less. No alias: a caller
     who passes ``the_one=`` must see a failure, not a silent success."""
-    from srmech.amsc import genome as G
+    from srmech.biology import genome as G
     one = the_one(1, 1, 4)
     coupling = hdc.klein4_from_one(one, 64)
     leaves = [hdc.klein4_expand(64, s) for s in range(3)]
@@ -414,7 +415,7 @@ def test_one_a14_works_as_a_genome_coupling_end_to_end():
     """The whole point: a genome whose coupling is a DECLARED FUNCTION of
     (sigma, theta, terms) rather than a magic integer — reproducible from the
     parameters alone, with no stored key."""
-    from srmech.amsc import genome as G
+    from srmech.biology import genome as G
     leaves = [hdc.klein4_expand(64, s) for s in range(5)]
     c1 = hdc.klein4_from_one(the_one(1, 1, 4), 64)
     strand = G.chromosome(leaves, c1, label="astronomy")

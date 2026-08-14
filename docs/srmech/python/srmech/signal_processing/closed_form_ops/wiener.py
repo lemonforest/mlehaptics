@@ -30,7 +30,7 @@ Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Wiener
 
 from __future__ import annotations
 
-from srmech.amsc.cascade import spectral_cascades as _sc
+from srmech.cascade import spectral_cascades as _sc
 
 OPERATION_NAME = "wiener"
 CLASS_COMPOSITION = ("L", "N")

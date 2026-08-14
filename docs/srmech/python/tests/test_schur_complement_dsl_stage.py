@@ -1,10 +1,10 @@
 """v0.7.1rc2 — ``schur_complement`` is a data-first DSL chain stage.
 
 #897 §26: the Class-L Schur-complement / Dirichlet-to-Neumann op shipped in
-v0.7.1rc1 at ``srmech.amsc.laplacian.schur_complement`` but was not reachable
+v0.7.1rc1 at ``srmech.math.laplacian.schur_complement`` but was not reachable
 from the chain DSL — the chain runner resolves stage ops via
-``getattr(srmech.amsc.cascade, name)`` and the op lived only on the laplacian
-module. rc2 wires it: the op is re-exported flat onto ``srmech.amsc.cascade``
+``getattr(srmech.cascade, name)`` and the op lived only on the laplacian
+module. rc2 wires it: the op is re-exported flat onto ``srmech.cascade``
 (DSL resolution alias, not a second primitive) and a cascade-catalog
 descriptor (``schur_complement.toml``) threads ``boundary_idx`` (required) +
 ``exact`` (default False) through the chain contract as non-reserved bound
@@ -20,7 +20,8 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc import cascade, laplacian
+from srmech import cascade
+from srmech.math import laplacian
 from srmech.dsl import (
     Chain,
     get_descriptor,
@@ -38,6 +39,12 @@ _PATH4_L = [
     [0, -1, 2, -1],
     [0, 0, -1, 1],
 ]
+# An INDEPENDENT expected value, written from scratch in stdlib `Fraction` and
+# never produced by srmech — which is why this file's ban-list allowance is
+# `_ORACLE` (rc407, `#T1076`). The `Fraction(g)` in `_assert_exact_equals` below
+# is an out-projection of the srmech result so it can be compared against THIS
+# constant; it is not srmech grading itself. Borderline-by-review, because the
+# out-projection also reads like interchange — the from-scratch constant decides.
 _THIRD = Fraction(1, 3)
 _EXPECTED_S = [[_THIRD, -_THIRD], [-_THIRD, _THIRD]]
 
@@ -61,7 +68,7 @@ def test_schur_complement_is_in_cascade_catalog():
 
 
 def test_lookup_resolves_to_the_laplacian_op():
-    # The flat re-export on srmech.amsc.cascade IS the laplacian-registered
+    # The flat re-export on srmech.cascade IS the laplacian-registered
     # callable — same object, reached for the chain contract.
     fn = lookup_cascade_op("schur_complement")
     assert callable(fn)
@@ -111,7 +118,7 @@ def test_schur_then_stage_float_path():
     # (§564; dense_solve rides mat_solve). It returns the numpy-free Mat carrier
     # (rc131 carrier-format law); verify against the exact-Fraction path
     # element-wise via Mat indexing, NO numpy.
-    from srmech.amsc.mat import Mat
+    from srmech.math.mat import Mat
     ch = Chain("dtn-f").then("schur_complement", boundary_idx=[0, 3])
     S = ch.run([[float(x) for x in row] for row in _PATH4_L])
     assert isinstance(S, Mat) and S.shape == (2, 2)

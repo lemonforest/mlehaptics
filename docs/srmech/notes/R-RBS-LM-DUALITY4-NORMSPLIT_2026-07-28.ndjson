@@ -1,0 +1,9 @@
+{"kind": "M6a_unit_action", "dim": 2, "trials": 0, "norm_preserved": 0, "real_line_MOVED": 0, "note": "norm conserved by every one; the 1+n split destroyed by every one"}
+{"kind": "M6a_unit_action", "dim": 4, "trials": 3, "norm_preserved": 3, "real_line_MOVED": 3, "note": "norm conserved by every one; the 1+n split destroyed by every one"}
+{"kind": "M6a_unit_action", "dim": 8, "trials": 21, "norm_preserved": 21, "real_line_MOVED": 21, "note": "norm conserved by every one; the 1+n split destroyed by every one"}
+{"kind": "M6b_sedenion_norm_not_multiplicative", "dim": 16, "x": ["-1", "-2", "0", "2", "-3", "-3", "3", "1", "-3", "-1", "1", "-3", "1", "-2", "-3", "-3"], "y": ["0", "0", "-3", "-2", "-3", "1", "0", "-3", "3", "1", "-3", "-2", "2", "2", "1", "-3"], "N_xy": "3936", "N_x_times_N_y": "5840", "equal": false}
+{"kind": "M6b_control_dim8", "trials": 400, "multiplicative": 400}
+{"kind": "M6c_norm_blind_to_split", "dim": 2, "N_real_unit": "1", "N_imag_unit": "1", "norm_distinguishes_them": false, "trace_real": "1", "trace_imag": "-1", "trace_distinguishes_them": true}
+{"kind": "M6c_norm_blind_to_split", "dim": 4, "N_real_unit": "1", "N_imag_unit": "1", "norm_distinguishes_them": false, "trace_real": "1", "trace_imag": "-1", "trace_distinguishes_them": true}
+{"kind": "M6c_norm_blind_to_split", "dim": 8, "N_real_unit": "1", "N_imag_unit": "1", "norm_distinguishes_them": false, "trace_real": "1", "trace_imag": "-1", "trace_distinguishes_them": true}
+{"kind": "M6c_norm_blind_to_split", "dim": 16, "N_real_unit": "1", "N_imag_unit": "1", "norm_distinguishes_them": false, "trace_real": "1", "trace_imag": "-1", "trace_distinguishes_them": true}

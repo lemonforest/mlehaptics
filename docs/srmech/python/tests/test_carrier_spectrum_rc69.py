@@ -21,11 +21,11 @@ import tokenize
 
 import pytest
 
-from srmech.amsc.ellbase import EllMonomial as M, Theta, EllRatio as R, _X, _Q_SYM
-from srmech.amsc.thetasum import ThetaSum, _Y, _net_period_multiplier_exps
-from srmech.amsc.q import Q
-from srmech.amsc import carrier_spectrum as csmod
-from srmech.amsc.carrier_spectrum import CarrierSpectrum, carrier_spectrum
+from srmech.apokatastasis.ellbase import EllMonomial as M, Theta, EllRatio as R, _X, _Q_SYM
+from srmech.apokatastasis.thetasum import ThetaSum, _Y, _net_period_multiplier_exps
+from srmech.math.q import Q
+from srmech.math import carrier_spectrum as csmod
+from srmech.math.carrier_spectrum import CarrierSpectrum, carrier_spectrum
 
 
 def _make_8w7():
@@ -172,7 +172,7 @@ def test_non_carrier_raises():
 
 # ── Python==C parity on the spectrum (skipped when native absent) ───────────────────
 def _has_native():
-    from srmech.amsc import _native
+    from srmech import _native
     return getattr(_native, "has_native_carrier_spectrum", lambda: False)()
 
 
@@ -182,7 +182,7 @@ def _has_native():
 def test_python_equals_c_spectrum():
     """Drive BOTH the C and pure paths on the ₈ω₇ and compare the spectrum (channels) —
     do NOT trust the C (the rc67 hardening lesson)."""
-    from srmech.amsc import _native
+    from srmech import _native
     rk = _make_8w7()
     form = csmod._ratio_to_form(rk)
     c_got = _native.carrier_spectrum_c(form)
@@ -196,7 +196,7 @@ def test_python_equals_c_spectrum():
 # ── discipline: no numpy / math / abs() in the op source ────────────────────────────
 def test_source_is_numpy_math_abs_free():
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    src = os.path.join(here, "srmech", "amsc", "carrier_spectrum.py")
+    src = os.path.join(here, "srmech", "math", "carrier_spectrum.py")
     with tokenize.open(src) as fh:
         text = fh.read()
     assert "import numpy" not in text
@@ -206,6 +206,6 @@ def test_source_is_numpy_math_abs_free():
 
 # ── the ToolEntry is registered + invocable ─────────────────────────────────────────
 def test_tool_entry_registered():
-    from srmech.amsc import tool_schema
+    from srmech.introspect import tool_schema
     names = {t.name for t in tool_schema.get_tool_schema().tools}
-    assert "srmech.amsc.carrier_spectrum.carrier_spectrum" in names
+    assert "srmech.math.carrier_spectrum.carrier_spectrum" in names

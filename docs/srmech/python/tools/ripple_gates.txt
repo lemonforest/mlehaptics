@@ -1,0 +1,418 @@
+# ripple_gates.txt -- the FAST dispatch-surface gate set (`#T1063`)
+#
+# SSOT for `python3 tools/ripple_check.py`. One pytest target per line (a file,
+# or a `file::node` id). Blank lines and `#` comments are ignored. Targets are
+# resolved relative to the package root (docs/srmech/python).
+#
+# Run this before pushing any rc that registers/edits an op or a ToolEntry.
+# See tests/RIPPLE_GATES.md for the when/why and the regen preamble.
+# The meta-test tests/test_ripple_manifest_covers_known_gates.py guarantees this
+# list cannot silently drop a known family.
+#
+# EXCLUDED on purpose (documented in RIPPLE_GATES.md):
+#   test_mcp.py as a WHOLE FILE -- it spins a real socket SSE server + subprocess
+#     round-trips that hang a fast runner (measured: >90s, no clean exit). But
+#     TWO of its tests ARE included below by NODE-ID (the coercer + signature-
+#     drift gates) -- those run pure (~sub-second, no server / no fixture). The
+#     rest of the MCP ripple is covered by the server-free test_mcpb_emit + the
+#     three fast MCP C-marshalling gates (marshal / sse / stdio, ~10s each).
+#   test_rosetta_roots_single_source_rc361 -- guards test-infra root-sourcing, not
+#     a new op's dispatch surface (and ~35s).
+
+# -- C tool registry / schema / invoke ---------------------------------------
+tests/test_tool_registry_c_rc184.py
+tests/test_tool_schema_ops_c_rc185.py
+tests/test_invoke_tool_c_rc188.py
+
+# -- carrier schema ----------------------------------------------------------
+tests/test_carrier_schema_rc205.py
+
+# -- rosetta (standalone-C reachability + classification completeness) --------
+tests/test_rosetta_transitive_standalone.py
+tests/test_rosetta_completeness.py
+
+# -- c-claims resolution -----------------------------------------------------
+tests/test_c_claim_resolution_rc300.py
+
+# -- MCP surface (bundle emitter + the three fast MCP C-marshalling gates) ----
+tests/test_mcpb_emit.py
+tests/test_mcp_marshal_c_rc187.py
+tests/test_mcp_sse_c_rc194.py
+tests/test_mcp_stdio_c_rc186.py
+
+# -- MCP coercer + signature drift (fast NODE-IDS carved out of test_mcp.py;
+#    catches the rc273/rc328 class -- novel param TYPE with no _PARAM_COERCERS
+#    handler, and declared-params-vs-signature drift. test_mcp.py's SERVER tests
+#    stay excluded; these two run pure, no server / no fixture) -----------------
+tests/test_mcp.py::test_all_param_types_json_coercible
+tests/test_mcp.py::test_schema_signature_alignment_no_drift
+
+# -- regen-all idempotence / codegen graph -----------------------------------
+tests/test_regen_all_rc346.py
+
+# -- worked-example family (strict-zero AND executed ledger AND the
+#    example["input"]-vs-inputSchema cross-check). The input-schema sibling
+#    (rc355, `#T993`) pins that every ToolEntry.example["input"] is a valid
+#    kwargs map against its own rendered inputSchema -- a new op with a
+#    mistyped/misnamed example key trips it. It caught rc388 only via the full
+#    suite; it belongs on the fast surface. Pure-Python, sub-second. ----------
+tests/test_worked_examples_strict_zero_rc353.py
+tests/test_worked_examples_execute_rc354.py
+tests/test_tool_example_input_schema_rc355.py
+
+# -- composes: declaration drift + verifiability (rc412, `#T1093`) -----------
+#    The `composes` field is edited in the SAME curated file as explanation /
+#    example, so an rc touching a ToolEntry can move it by accident -- and the
+#    rc305 sweep cannot see a declaration DISAPPEAR (a strict-zero check over a
+#    shrinking set is vacuously true; measured: deleting one left rc305 fully
+#    green). This pins the declaring set against a reviewed roster and checks
+#    every declared sub-op is actually CALLED. ~13 s, pure-Python. -----------
+tests/test_composes_grain_rc412.py
+
+# -- composes: POPULATION + the down-only ratchet (rc423, `#T1113`) ----------
+#    The grain gate above pins WHAT is declared; this pins HOW MUCH, which is
+#    the axis that had no instrument and so trickled 9 -> 16 across ~45 rcs.
+#    It re-derives every LEAF and SINGLE row from source, so it goes red when
+#    an rc changes an op's call structure WITHOUT re-running the census --
+#    exactly the drift a curated-file edit produces by accident. It also
+#    carries CEIL_UNADJUDICATED, which a new op with two-plus call edges and
+#    no traced order trips immediately. ~25 s, pure-Python. ------------------
+tests/test_composes_population_rc423.py
+
+# -- preserves: taxonomy enforcement (rc423, `#T1113`) -----------------------
+#    Strict-zero: every shipped `preserves` string must classify into a
+#    declared kind. Classification is keyed by the FULL sentence, so REWORDING
+#    an invariant (a routine prose edit in the same curated file) invalidates
+#    its kind and lands here rather than in a CI round. ~20 s, pure-Python. --
+tests/test_preserves_taxonomy_rc423.py
+
+# -- mcp_callable / advertised-catalog surface (rc414, `#T1092`) -------------
+#    rc414 ships the FIRST mcp_callable=False entry since the field existed, and
+#    measured that ripple_check went GREEN on the flip while CI went red: none of
+#    these three targets was in this manifest. The two files are cheap and pure;
+#    test_mcp.py is added by NODE ID only (the whole file spins an SSE server).
+#    NOTE the compiled registry is the LIVE path on a native host — a Python-only
+#    flip is a silent no-op on the actually-advertised catalog until
+#    srmech_tool_registry.c is regenerated AND libsrmech rebuilt.
+tests/test_mcp_initialize_instructions_rc407.py
+tests/test_llm_anthropic.py
+tests/test_mcp.py::test_handle_pending_absent_from_advertised_catalogs
+
+# -- describe() TOP-LEVEL KEY SET (rc430 repair, `#T1127`) -------------------
+#    The same failure the rc414 block above records, recurring: rc430 added the
+#    13th top-level describe() key ("frames") and shipped with THREE pin sites
+#    red behind a GREEN ripple_check. Only test_mcp.py was named here, and only
+#    by node ids that do not run the pin -- so the sweep could not have caught
+#    it even in principle. The other two files appeared nowhere in this file.
+#    Any rc adding/removing a top-level describe() key moves ALL of these.
+#    tests/test_describe_key_set_pins_rc430.py DERIVES this roster from the tree
+#    and fails if a pin site is missing here, so this list cannot go stale
+#    silently the way the rc414 one did.
+tests/test_mcp.py::test_describe_shape
+tests/test_describe_registry_pointer_rc407.py
+tests/test_domain_classes_rc298.py
+tests/test_describe_key_set_pins_rc430.py
+
+# -- advertised returns.type vs the type actually returned (rc430 repair) -----
+#    THE SAME MAP GAP, one file over. rc430's `#T1094` replaced type-synthesised
+#    arguments with harvested ones, which un-blocked all six ops this file's
+#    retro-check pins -- the check fired exactly as designed and NOTHING RAN IT,
+#    because the file was not listed here. Found only by re-running it by hand
+#    during the rc430 repair triage; three independent reviews missed it.
+#    It also holds the only returns.type-vs-observed gates driven by REAL args,
+#    so any rc touching a `returns=` declaration or the arg provider moves it.
+tests/test_arrow_and_censuses_rc427.py
+
+# -- wire round-trip gate (rc414, `#T1092`) ----------------------------------
+#    The OUTBOUND converse of test_mcp.py::test_all_param_types_json_coercible
+#    (which is the inbound half and already listed above). An rc that adds a
+#    carrier return type, or changes serialise_native / the coercer table, moves
+#    this. Pure-Python, sub-second.
+tests/test_wire_round_trip_rc414.py
+
+# -- count-pin describe()["tools"]["total"] (cheap representatives) -----------
+tests/test_registry_smoke_rc127.py
+tests/test_rc15_describe_resolve.py
+tests/test_carrier_contract_rc120.py
+
+# -- class-TOML op-ref guard (#T930 -- the third generated C table) ----------
+tests/test_class_catalog_oprefs_resolve_930.py
+
+# -- ref-notation emitted-artifact guard (bare-#NNN autolink) ----------------
+tests/test_ref_notation_emitted_rc348.py
+
+# -- registration surface: allowlist / return-type honesty -------------------
+# ADDED rc425 (`#T1112`), same reason as the citation gate below. CI's second
+# red on this rc was four tests over three causes and NONE of them were on this
+# list, so a green unfiltered sweep meant nothing about any of them:
+#   * 40 allowlist rows stopped being gaps (the registered ops closed them) --
+#     test_registry_completeness_rc416.py is the registration-surface gate by
+#     name, and registering ops is precisely what invalidates its rows. ~46s.
+#   * six ops advertised `list` and return `tuple`.
+#
+# ⚠️ The return-type half is DELIBERATELY NOT ADDED, and saying why matters more
+# than adding it. `test_immolation.py::test_advertised_return_type_is_honest`
+# invokes every advertised tool; measured on this tree it runs >10 min even as a
+# single node, which is the same order as the whole-file test_mcp.py exclusion
+# documented above. Putting it here would make the FAST set not fast, and a
+# pre-push gate people stop running is worse than one that never claimed to
+# cover this. It stays CI-only. What closes the loop locally instead is
+# EXECUTING the contract when you author a `returns=` -- rc425 measured all 47
+# signal_processing entries through the gate's own helpers in ~10s once the
+# population was already imported, which is the cheap way to get the same
+# answer.
+tests/test_registry_completeness_rc416.py
+
+# -- ADR citation integrity (`path:line` drift) ------------------------------
+# ADDED rc425 (`#T1112`), and the reason is the rc that added it. Registering
+# 37 ToolEntries inserted 28 lines into c/include/srmech.h and 145 into
+# test_composes_grain_rc412.py, which moved 12 ADR citations and took 5 of them
+# over CEIL_TOKEN_EVIDENCE. Two full unfiltered ripple_check runs came back
+# green and CI still went red, because this gate was not in this list -- so the
+# ONE gate that observes the surface a bulk registration is guaranteed to
+# disturb was the one the pre-push sweep could not see.
+#
+# It belongs here on the list's own terms: "run this before pushing any rc that
+# registers/edits an op or a ToolEntry" is exactly the change that shifts line
+# numbers in every cited file below the insertion. ~39s, no server, no fixture.
+tests/test_adr_citation_integrity_rc415.py
+
+# -- JPL Power-of-Ten C audit ratchet ----------------------------------------
+tests/test_jpl_audit.py
+
+# -- version pin (the single hard version-literal gate) ----------------------
+tests/test_signal_processing_scaffolding.py
+
+# -- non_compute / annex classification ratchets -----------------------------
+tests/test_non_compute_ratchet_rc170.py
+tests/test_annex_ratchet_rc177.py
+tests/test_annex_ratchet_rc183.py
+
+# -- self-hosting import ban (`#T1073`) --------------------------------------
+#    The ONE table-driven ban list: numpy / math / fractions / decimal (engine
+#    bans) + json / tomllib / tomli (front-door ledgers). A new op-rc's new TEST
+#    FILE reaching for stdlib `fractions` trips it (#845 / #870) — that cost
+#    rc386 a full CI-red round because the runner did not include it — and a new
+#    package module reaching for ANY banned engine trips it too. Absorbed
+#    test_no_stdlib_fractions_import + test_no_stdlib_math_import +
+#    test_numpy_carrier_ratchet at rc405. Pure-Python, no native `.so`.
+tests/test_selfhosting_import_ban.py
+
+# -- decode-aware namespace population pin ------------------------------------
+#    Adding a cascade op bumps the `srmech.cascade` DECODED-channel population
+#    (the ratchet's population half, invisible to a text grep). rc387 had to run
+#    this MANUALLY (it bumped the count 100 -> 102). Pure-Python (reads the
+#    regen'd artifacts + decodes their byte arrays), ~seconds; no native .so.
+tests/test_namespace_prefix_decode_aware_rc361.py
+
+# -- ctest wiring: every built C test is also REGISTERED with ctest ----------
+#    Added rc404 (`#T1069`), which ships a new C test. The failure mode it
+#    covers is the quiet one: a `c/test/*.c` gets an add_executable but is left
+#    out of the `foreach(t ...)` list, so it joins the -Werror/`/WX` build and
+#    then NEVER RUNS. This gate is strict-zero on add_executable minus add_test
+#    and fires loudly -- but it was absent from this manifest, so only the full
+#    CI suite caught it and `ripple_check.py` could not. Pure-Python (parses
+#    CMakeLists.txt + lists c/test/), ~seconds, no native .so.
+tests/test_c_test_wiring_rc356.py
+
+# -- README currency (rc422, `#T1123`) ---------------------------------------
+#    The README is the PyPI long-description AND it names two live values: the
+#    tool-registry cardinal and the worked `native_status()` block's
+#    native_version. Both move on an op-registering rc and on every version
+#    bump -- i.e. on essentially every rc this runner exists for. Measured at
+#    rc422: this runner went GREEN on the full manifest while the README still
+#    said "598-entry tool registry" (live: 605) and native_version 0.9.0rc421
+#    (live: rc422), because the file was not listed here. Same shape rc421
+#    fixed for the search-corpus witness one entry below, and the same cost if
+#    left: a CI-red round for two one-line prose facts. Whole file, ~14 s,
+#    pure-Python, no native .so.
+tests/test_readme_currency_rc419.py
+
+# -- search-corpus witness (rc421, `#T1122`) ---------------------------------
+#    The introspect search corpus is BUILT FROM ToolEntry prose, so its
+#    content-address moves whenever an rc edits a summary, a parameter blurb or
+#    a curated explanation — i.e. on essentially every op-touching rc. It has
+#    now moved four rcs running (rc416/419/420/421), and on rc421 this runner
+#    went GREEN (388 passed) while four native cells + pure shard 6 went red on
+#    it, purely because this file was not listed here. Whole file, ~13 s,
+#    pure-Python, no native .so.
+tests/test_search_glyph_tokenizer_rc416.py
+
+# -- notebook currency (rc427, `#T1130`) -------------------------------------
+#    THE THIRD INSTANCE OF THE SAME SHAPE, and it cost a CI-red round again.
+#    `srmech_research_notebook.md` carries `Live at rcNNN:` currency stamps and
+#    two live cardinals (the registry total and the cascade-descriptor count).
+#    The gate asserts the stamp SET equals the pinned release, so it moves on
+#    EVERY rc -- version bump alone is enough, no op required. Measured at
+#    rc427: this runner went GREEN on the full manifest while the notebook
+#    still said "Live at rc425 ... holds 649 entries" (live: rc427 / 655), and
+#    CI went red on two one-line prose facts. rc422 fixed exactly this for the
+#    README two entries up and rc421 for the search corpus one entry up; the
+#    notebook is the same axis and was simply never listed. Whole file, ~10 s,
+#    pure-Python, no native .so.
+tests/test_notebook_currency_rc420.py
+
+# -- op-name-set witness (rc427, `#T1130`) -----------------------------------
+#    `EXPECTED_N` + the sha256-pinned op-name MANIFEST. A new op moves both,
+#    and the count assignment is a bare `EXPECTED_N = <n>`, which the usual
+#    `== <total>` count-pin grep CANNOT match -- so it is invisible to the one
+#    predicate a build brief is most likely to run. It moved 13 lines at rc427
+#    and passed only because the round ran it by hand. Same unlisted-gate shape
+#    as the three entries above, caught before it billed a round rather than
+#    after. Whole file, ~30 s, pure-Python, no native .so.
+tests/test_op_name_set_witness_rc361.py
+
+# -- owner axis / registry-total restatement (rc428, `#T1126`) ---------------
+#    THE FIFTH INSTANCE OF THE UNLISTED-GATE SHAPE, and the most expensive one
+#    yet: this gate took SIX CI cells red at rc427 and is in neither this
+#    manifest nor FROZEN_KNOWN_GATES. It scans 261 shipped modules for a bare
+#    restatement of the registry total, so it moves on any rc that registers an
+#    op AND on any rc whose prose happens to contain the new total. Measured
+#    forward over the next 105 candidate totals: 39 of them (37%) take it RED,
+#    the first at 665 -- TEN registrations from the live 655 -- and 27 of those
+#    39 are explained entirely by bare `#NNN` issue refs, which
+#    test_ref_notation_emitted_rc348.py MANDATES as the correct spelling for a
+#    real GitHub object. The two gates are the same blind spot pointed at each
+#    other. Listing it does not fix that collision; it makes the collision
+#    visible on the fast surface instead of in CI. Whole file, pure-Python.
+tests/test_owner_axis_rc410.py
+
+# -- frame axis: declared-vs-measured + declared==admissible (rc430, `#T1127`)
+#    A new ToolEntry FIELD, so it moves the same four generated artifacts every
+#    `reads_lane` change moves -- and unlike rc347's lane gate it does not just
+#    check the ops that DECLARED. It derives the admissible set behaviourally
+#    over every op the argument provider can drive and asserts set equality in
+#    BOTH directions, so REGISTERING A NEW OP can take it red without touching
+#    a declaration: an op that is behaviourally frame-admissible and declares
+#    nothing fails §4. That is the point (`reads_lane` reached 9 of 655 ops in
+#    82 rcs by being opt-in), and it is also exactly the shape that belongs on
+#    the fast surface rather than in CI. Carries CEIL_FRAME_UNADJUDICATED.
+#    ~2 min, pure-Python, no native .so.
+tests/test_frame_scope_rc430.py
+
+# -- synthesised-argument provenance / `#T1094` (rc430) ----------------------
+#    Guards the every-tool smoke's ARGUMENTS, which are derived from the live
+#    ToolEntry set: a new op with an undeclared param type moves the
+#    UNSYNTHESIZABLE ceiling, and a new op with a path-shaped param moves the
+#    sandbox ceiling. It also re-checks that no synthesised path can write into
+#    the package tree, which is the defect (`#T1094`) that shipped a stray file
+#    named `a` for ~400 rcs. Depends on tests/example_args_ledger.ndjson and
+#    asserts that ledger is FRESH against the live schema, so an rc that edits
+#    any worked example takes it red until the ledger is re-run
+#    (`python3 tools/run_example_args.py --only-stale`). ~10 s, pure-Python.
+tests/test_synth_args_provenance_rc430.py
+
+# -- citation-contains-term (rc428, `#T1126`) --------------------------------
+#    The literature-citation gate. It rides here for a reason the other entries
+#    do not share: it does not move on op COUNT, it moves on op PROSE. Its
+#    subject is the SSoT / citation text inside ToolEntry summaries and module
+#    docstrings, which is edited on essentially every op-touching rc and which
+#    is EMITTED into `_tool_docs.py` and the compiled-in C tool registry. A
+#    citation edited during an op rc reaches users through describe(), the MCP
+#    tool list and `srmech_tool_registry.c` -- measured at rc428, that is
+#    exactly how a FALSE Baez citation shipped inside published wheels and
+#    stayed green through six attestation tests. Reads the committed
+#    `literature_claims` manifest; no network, no native .so. ~20 s.
+tests/test_citation_manifest_rc428.py
+
+# -- native contract parity (rc431, `#T1129`) --------------------------------
+#    An op owns its EXCEPTION contract, and its C peer's. A `*_c` wrapper
+#    returns None to mean "native absent -- run the pure body", but many also
+#    return None from a predicate on their own ARGUMENTS; where the C peer
+#    returns an error status for that same input, None is OVERLOADED and the
+#    invalidity signal dies at the boundary. If the pure body then does not
+#    reject it either, the C guard is DEAD through the Python front door and the
+#    op answers an input its co-equal projection calls invalid -- measured at
+#    rc431 on `signal_processing.iir` (b == [] RETURNED [0.0]*n). It rides here
+#    because the scan derives from LIVE wrapper source and LIVE C guard blocks:
+#    registering an op with a native peer moves it, and so does editing any
+#    guard in c/src/. Strict-zero on the adjudicated divergence + a down-only
+#    CEIL_UNDECIDED on the unreachable residual. ~200 s, pure-Python, no .so.
+#    (These four comment lines lost their backticked tokens -- `#T1129`, `*_c`,
+#    `signal_processing.iir` -- to shell command substitution when the block was
+#    first appended through a heredoc; restored in the rc431 repair. Every other
+#    entry in this file uses backticks, so the loss was silent and local.)
+tests/test_native_contract_parity_rc431.py
+
+# -- invocable RETURNED floor (rc431, `#T1129` + `#T1094`) -------------------
+#    The OUTCOME set under the synth-args consumer. Its parametrized sibling
+#    test_mcp.py::test_advertised_tool_invocable asserts only that an op was
+#    REACHED, and rc431 proved by mutation that it stays fully green when every
+#    op rejects every argument (0 failed, 617 passed) -- so the ~473 returns it
+#    observes sat under no floor at all. This gate owns that number as a SET of
+#    op names, not a cardinal: a count cannot name which op regressed, nor see a
+#    swap that leaves the total unchanged. It rides here because it derives from
+#    the live advertised entry set, so any registration moves it. Carries a
+#    mandatory in-test control that mutates invoke_tool to always raise and
+#    asserts zero RETURNED. Depends on tests/invocable_returned_rc431.txt.
+tests/test_invocable_returned_floor_rc431.py
+
+# -- input contracts + the shipped generator literal (rc431, `#T1129`) ------
+#    Four repairs whose defects NOTHING in the tree could surface. Two were
+#    `assert`s doing input validation, and they failed in OPPOSITE interpreter
+#    modes -- `continued_fraction_convergents` had a real `raise` below the
+#    assert, so `-O` was CORRECT and the DEFAULT mode broke the declared
+#    contract; `path_registry.lookup` had nothing below it, so `-O` dropped the
+#    check and misreported a type error as a registry miss. A gate asserting
+#    either single mode would have passed on one of the two, so this one
+#    asserts `-O` INVARIANCE, with a planted-assert control proving the probe
+#    can tell the modes apart at all.
+#    It rides in this manifest for its FOURTH axis: `tools/gen_tool_docs.py`'s
+#    `_synth_arg` is the second, wheel-shipping example synthesizer (its output
+#    is committed to `srmech/introspect/_tool_docs.py`), so any registration
+#    change moves what it synthesises and executes. Strict zero on anonymous
+#    placeholder literals, with a reach control so the zero cannot be a false
+#    null from a scanner that visited nothing.
+tests/test_input_contracts_rc431.py
+
+# -- unowned filesystem acquisitions (rc432, `#T1132`) ---------------------
+#    An acquisition -- mkdir / makedirs / mkdtemp / write-mode open -- at a
+#    function's top level with a raise after it and nothing owning it in
+#    between. When that raise fires the resource was already taken and nobody
+#    removes it: the raise is loud, the orphan silent. It was genome_save's
+#    mkdir-at-line-one that left a DIRECTORY where write_packed_graph wanted a
+#    file (the rc431 CI red). AST-based, so condition (2) -- simple statement
+#    at function-body depth 0 -- is a SOUND ordering implication rather than a
+#    reachability guess. It rides this manifest because it scans every package
+#    module, so any new op that touches the filesystem moves its population.
+#    ALLOWLIST + down-only CEIL, never strict zero: the benign-by-contract
+#    class is real (3 bus bind() sites creating the shared ~/.srmech/) and
+#    forcing it to zero would mean wrapping correct code to satisfy a gate.
+#    Carries six named blind spots in its docstring, incl. that it saw only
+#    7 of the 12 confirmed lines rc432 repaired.
+tests/test_unowned_acquisition_rc432.py
+
+# -- C resource ownership: srmech-LOCAL, NOT a JPL rule (rc432, `#T1132`) ---
+#    Two ratchets over c/src/*.c. C1: every return between a held-handle
+#    acquire and its function's end carries the matching release -- STRICT
+#    ZERO, affordable because the C side is clean by MEASUREMENT (zero leaks
+#    across all held-handle PAL sites) and accepting the three deliberate
+#    idioms rather than exempting them. C2: a function with >=2
+#    srmech_plat_mkdir calls must roll back earlier creates -- CEIL 1, which
+#    PINS the `#T1133` C deferral (the PAL has no rmdir, and mkdir maps EEXIST
+#    to OK so it cannot report created-vs-existed).
+#    It rides here alongside test_jpl_audit.py, whose shape it follows: a
+#    C-source ratchet that any new C op moves.
+#    Validated by a PLANTED LEAK IN A REAL FILE, not a synthetic string --
+#    and carries the line-number self-check that caught a 362-line offset bug
+#    six green synthetic controls could not see.
+#    NON-CLAIM, stated in its docstring: NEITHER gate would have caught the
+#    seed defect. They detect the REGRESSION, never the original.
+tests/test_c_resource_ownership_rc432.py
+
+# -- acquire-before-validate, DRIVEN per site (rc432, `#T1132`) -------------
+#    The other two rc432 gates SCAN; this one EXECUTES. Each of the eight
+#    repaired sites is driven to its own error path and the filesystem is read
+#    back, so it asserts the two things a scanner cannot: the op still RAISES
+#    with the same exception class, and nothing survives the raise.
+#    It rides here because it drives five package ops across four modules --
+#    biology/genome.py, math/laplacian.py, mcp/_mcpb.py, amsc/format.py -- and
+#    reds on a regression in any of them.
+#    Listed on its MERITS, not on a rule: the frozen-gate law constrains only
+#    FROZEN_KNOWN_GATES, and rc432 broke no rule by omitting it. But it covers
+#    all 12 confirmed lines where test_unowned_acquisition_rc432 sees 7, and
+#    three of the repairs (genome_import's native branch, the loop-body sites)
+#    are UNGATED anywhere else -- a regression in them reds nothing without it.
+#    That is the manifest-omission law arriving from its blind side: a gate
+#    nobody listed because nothing required it.
+tests/test_acquire_before_validate_rc432.py

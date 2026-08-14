@@ -1,7 +1,7 @@
-"""Tests for srmech.qm.single_particle.
+"""Tests for srmech.physics.qm.single_particle.
 
 numpy-FREE (v0.7.5rc117, #564): the single-particle ops hold their working
-matrices in :class:`~srmech.amsc.mat.Mat` and return ``Mat`` / plain
+matrices in :class:`~srmech.math.mat.Mat` and return ``Mat`` / plain
 ``complex`` lists; these tests use **no numpy** — Hermitian inputs come from
 a tiny deterministic PRNG, the time-evolution phase from the Class-N
 ``rational`` cascade, and every assertion is a canonical *physical identity*
@@ -14,10 +14,10 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc import rational as _srn
-from srmech.amsc.laplacian import mat_matmul, mat_norm
-from srmech.amsc.mat import Mat
-from srmech.qm import single_particle as sp
+from srmech.math import rational as _srn
+from srmech.math.laplacian import mat_matmul, mat_norm
+from srmech.math.mat import Mat
+from srmech.physics.qm import single_particle as sp
 
 
 # ----------------------------------------------------------------------

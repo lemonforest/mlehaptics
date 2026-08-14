@@ -1,8 +1,8 @@
 """§𝕆 / rc324 — the ELEMENT_TYPE_OCTONION genome carrier PROVE-GATES.
 
 The discrete octonion Moufang loop ``{±e₀, …, ±e₇}`` as 4-bit bytes
-(:mod:`srmech.amsc.octonion`) is wired into the GENOME as a NEW ``element_type``
-path (:data:`~srmech.amsc.genome.ELEMENT_TYPE_OCTONION`) — the Cayley–Dickson rung
+(:mod:`srmech.math.octonion`) is wired into the GENOME as a NEW ``element_type``
+path (:data:`~srmech.biology.genome.ELEMENT_TYPE_OCTONION`) — the Cayley–Dickson rung
 ABOVE Q₈, and it COEXISTS with the shipped klein4 (type 0) + Q₈ (type 1) paths,
 byte-untouched. 𝕆 is globally NON-associative, but each slot holds ONE signed basis
 unit and the Moufang loop has the INVERSE PROPERTY ``(x·y)·y⁻¹ = x``, so the
@@ -38,11 +38,12 @@ import random
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc import genome as G
-from srmech.amsc import octonion as O
-from srmech.amsc.cascade.cayley_dickson import cd_basis_product, cd_mult
-from srmech.amsc.genome import (
+from tests._native_gate import require_native
+from srmech import _native
+from srmech.biology import genome as G
+from srmech.math import octonion as O
+from srmech.cascade.cayley_dickson import cd_basis_product, cd_mult
+from srmech.biology.genome import (
     ELEMENT_TYPE_KLEIN4,
     ELEMENT_TYPE_OCTONION,
     ELEMENT_TYPE_Q8,
@@ -54,10 +55,10 @@ from srmech.amsc.genome import (
     recall,
     telomere,
 )
-from srmech.amsc.hdc import klein4_bind
-from srmech.amsc.hv import HV
-from srmech.amsc.octonion import oct_bind, oct_conjugate, oct_mult
-from srmech.amsc.q8 import q8_bind
+from srmech.math.hdc import klein4_bind
+from srmech.math.hv import HV
+from srmech.math.octonion import oct_bind, oct_conjugate, oct_mult
+from srmech.biology.q8 import q8_bind
 
 ALL16 = range(16)
 
@@ -211,7 +212,7 @@ def test_empty_and_validation():
 # 2. PYTHON ↔ C PARITY
 # =====================================================================
 def test_native_is_actually_loaded():
-    assert _native.HAS_NATIVE and _native.LIB is not None
+    require_native("the octonion carrier's C peers")
     for sym in ("srmech_oct_mult", "srmech_oct_conjugate", "srmech_oct_bind"):
         assert hasattr(_native.LIB, sym), sym
 
@@ -225,6 +226,7 @@ def _all_scalar_results():
 
 
 def test_native_equals_pure_byte_for_byte(monkeypatch):
+    require_native("the octonion native-vs-pure differential")
     native = _all_scalar_results()
     assert _native.HAS_NATIVE                      # sanity: the first pass used the C peers
     monkeypatch.setattr(_native, "HAS_NATIVE", False)
@@ -233,6 +235,7 @@ def test_native_equals_pure_byte_for_byte(monkeypatch):
 
 
 def test_c_bind_out_may_alias_in_place():
+    require_native("the C srmech_oct_bind out-aliasing contract")
     n = 8
     turn_vals = [0, 1, 2, 7, 8, 12, 14, 15]
     one_vals = [1, 1, 2, 2, 3, 4, 5, 6]
@@ -245,6 +248,7 @@ def test_c_bind_out_may_alias_in_place():
 
 
 def test_c_null_arg_rejected():
+    require_native("the C srmech_oct_bind NULL-arg rejection")
     n = 4
     out = (ctypes.c_uint8 * n)()
     one = (ctypes.c_uint8 * n)()
@@ -434,16 +438,16 @@ def test_pre_rc324_strand_still_opens():
 # =====================================================================
 def test_registration_ratchet():
     import srmech
-    assert srmech.describe()["tools"]["total"] == 509
+    assert srmech.describe()["tools"]["total"] == 655
     for name in ("oct_mult", "oct_conjugate", "oct_bind"):
         assert name in O.__all__
 
 
 def test_tool_schema_entries_present():
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
     for op in ("oct_mult", "oct_conjugate", "oct_bind"):
-        assert f"srmech.amsc.octonion.{op}" in names
+        assert f"srmech.math.octonion.{op}" in names
 
 
 def test_element_type_registration():

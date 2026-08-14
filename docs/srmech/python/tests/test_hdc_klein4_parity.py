@@ -3,7 +3,7 @@
 Klein-4 (v0.4.3rc2) is rank-2 abelian Class M over (F₂)² = Z₂×Z₂: uint8
 hypervectors over {0,1,2,3}, bind = component-wise XOR (self-inverse, abelian,
 identity 0), bundle = per-bit majority (ties → 0). The four states map to the
-four (γ₅, iω₇) chirality sectors. See ``srmech.amsc.hdc.klein4_*`` +
+four (γ₅, iω₇) chirality sectors. See ``srmech.math.hdc.klein4_*`` +
 UPSTREAM_NOTES §4.
 
 Two tiers: numpy-FREE property tests (always run) + C↔Python bit-exact parity
@@ -23,9 +23,9 @@ import random
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc import hdc
-from srmech.amsc.q import Q
+from srmech import _native
+from srmech.math import hdc
+from srmech.math.q import Q
 
 
 _K4_NATIVE = _native.HAS_NATIVE and hasattr(_native.LIB, "srmech_klein4_bind")
@@ -223,7 +223,7 @@ def test_klein4_parallel_alias_and_default_on():
     assert hdc.klein4_bind(a, b, parallel=False) == serial
     assert hdc.klein4_bind(a, b) == serial  # default-on path
     # default sectors policy: 4 when >=4 cores else 1.
-    from srmech.amsc.hdc import _klein4_default_sectors
+    from srmech.math.hdc import _klein4_default_sectors
     import os
     assert _klein4_default_sectors() == (4 if (os.cpu_count() or 1) >= 4 else 1)
 

@@ -94,7 +94,15 @@ static srmech_status_t toml_arena_alloc(toml_arena_t *a, size_t nbytes,
     assert(out != NULL);
     *out = NULL;
     size_t want = (nbytes == 0u) ? SRMECH_TOML_ALIGN : toml_align_up(nbytes);
-    if (want == SIZE_MAX || want > a->len - a->used) {
+    /* rc404 (`#T1069`): a saturated toml_align_up means the REQUEST itself
+     * cannot be represented in a size_t — no arena of any size satisfies it,
+     * so it is LIMIT. Genuine exhaustion below stays OVERFLOW: it is the ONE
+     * surviving retryable return in this file, and every caller grow-loop
+     * keys on it. */
+    if (want == SIZE_MAX) {
+        return SRMECH_ERR_LIMIT;
+    }
+    if (want > a->len - a->used) {
         return SRMECH_ERR_OVERFLOW;
     }
     uint8_t *p = a->base + a->used;
@@ -611,94 +619,353 @@ static srmech_status_t toml_str_to_i64(const char *buf, int64_t *out)
             return SRMECH_ERR_BAD_INPUT;
         }
         uint64_t d = (uint64_t)(buf[k] - '0');
+        /* rc404 (`#T1069`): uint64 digit accumulation saturating is a VALUE
+         * range, not an arena — LIMIT. */
         if (mag > (UINT64_MAX - d) / 10u) {
-            return SRMECH_ERR_OVERFLOW;
+            return SRMECH_ERR_LIMIT;
         }
         mag = mag * 10u + d;
     }
     uint64_t limit = neg ? (uint64_t)INT64_MAX + 1u : (uint64_t)INT64_MAX;
+    /* rc404 (`#T1069`): THIS IS THE ~537 MiB DEFECT. An integer outside int64
+     * declined at status 4, so toml_loads_c's grow-loop doubled its arena 13
+     * times for a verdict fixed by the literal's own digits. */
     if (mag > limit) {
-        return SRMECH_ERR_OVERFLOW;
+        return SRMECH_ERR_LIMIT;
     }
     *out = neg ? -(int64_t)mag : (int64_t)mag;
     return SRMECH_OK;
 }
 
-/* Apply a decimal exponent (the chars after 'e'/'E' at buf[off..]) to
- * *value by repeated multiply/divide by 10 (no libm). */
-static srmech_status_t toml_apply_exponent(const char *buf, size_t off,
-                                           double *value)
+/* ================================================================== *
+ * Correctly-rounded decimal -> double (rc397, #T1066).
+ *
+ * The token is parsed into a sign, an integer significand `D` (all mantissa
+ * digits, point removed, leading + trailing zeros trimmed) and a net base-10
+ * exponent `E`, so value = (+/-) D * 10^E. Two paths, both libm-free:
+ *
+ *   Clinger fast path (Clinger, PLDI 1990, "How to Read Floating Point Numbers
+ *   Accurately"): when D is exactly representable (D <= 2^53) AND |E| <= 22, a
+ *   SINGLE IEEE multiply/divide by an exact power of ten is provably correctly
+ *   rounded — return (double)D * 10^E (or / 10^-E).
+ *
+ *   Exact slow path (everything else): compute the correctly-rounded double of
+ *   the exact rational D * 10^E via srmech_bigint (num/den, one big divmod,
+ *   round-to-nearest-EVEN on the halfway tie), assembling the IEEE bit pattern
+ *   directly so normals, denormals, underflow (-> +/-0) and overflow (-> +/-inf)
+ *   all round exactly. No malloc (fixed caller-owned limb storage), no libm,
+ *   no goto, no recursion.
+ * ================================================================== */
+
+/* 10^0 .. 10^22 — each exactly representable in an IEEE double. */
+static const double TOML_POW10[23] = {
+    1e0,  1e1,  1e2,  1e3,  1e4,  1e5,  1e6,  1e7,  1e8,  1e9,  1e10, 1e11,
+    1e12, 1e13, 1e14, 1e15, 1e16, 1e17, 1e18, 1e19, 1e20, 1e21, 1e22
+};
+
+/* Point a srmech_bigint carrier at caller-owned limb storage (value 0). */
+static void toml_bi_init(srmech_bigint_t *bi, uint32_t *limbs, uint32_t cap)
 {
-    assert(buf != NULL);
-    assert(value != NULL);
-    size_t k = off;
-    bool eneg = false;
-    if (buf[k] == '+' || buf[k] == '-') {
-        eneg = (buf[k] == '-');
-        k++;
+    assert(bi != NULL && limbs != NULL);
+    assert(cap > 0u);
+    bi->sign = 0;
+    bi->n = 0u;
+    bi->cap = cap;
+    bi->limbs = limbs;
+}
+
+/* Bit length of |a| (0 for a == 0). */
+static uint32_t toml_bi_bitlen(const srmech_bigint_t *a)
+{
+    uint32_t top, bits = 0u;
+    assert(a != NULL);
+    assert(a->n == 0u || a->limbs != NULL);
+    if (a->n == 0u) {
+        return 0u;
     }
-    if (buf[k] == '\0') {
-        return SRMECH_ERR_BAD_INPUT;
+    top = a->limbs[a->n - 1u];
+    while (top != 0u) {
+        bits++;
+        top >>= 1;
     }
-    int exp = 0;
-    for (; buf[k] != '\0'; k++) {
-        if (buf[k] < '0' || buf[k] > '9') {
-            return SRMECH_ERR_BAD_INPUT;
+    return (a->n - 1u) * 32u + bits;
+}
+
+/* Low 64 bits of |a| (a must fit in <= 2 limbs). */
+static uint64_t toml_bi_lo64(const srmech_bigint_t *a)
+{
+    uint64_t v;
+    assert(a != NULL);
+    assert(a->n <= 2u);
+    if (a->n == 0u) {
+        return 0u;
+    }
+    v = (uint64_t)a->limbs[0];
+    if (a->n == 2u) {
+        v |= ((uint64_t)a->limbs[1]) << 32;
+    }
+    return v;
+}
+
+/* Assemble the double value = (neg?-1:+1) * m * 2^q from its IEEE bit pattern.
+ * m == 0 -> +/-0; m >= 2^52 -> normal (or +/-inf on exponent overflow);
+ * 0 < m < 2^52 -> denormal (q is then the fixed -1074 floor). */
+static double toml_f64_assemble(int neg, uint64_t m, int q)
+{
+    uint64_t bits, frac;
+    double out;
+    int biased = 0;
+    assert(m <= ((uint64_t)1u << 53));
+    assert(q >= -1074);
+    if (m == 0u) {
+        bits = 0u;
+    } else if ((m >> 52) != 0u) {
+        biased = q + 1075;
+        if (biased >= 2047) {
+            bits = (uint64_t)2047u << 52;              /* overflow -> inf */
+        } else {
+            assert(biased >= 1);
+            frac = m & (((uint64_t)1u << 52) - 1u);
+            bits = ((uint64_t)(unsigned int)biased << 52) | frac;
         }
-        exp = exp * 10 + (buf[k] - '0');
-        if (exp > 308) {
-            return SRMECH_ERR_OVERFLOW;  /* beyond double range */
-        }
+    } else {
+        bits = m;                                      /* denormal (biased 0) */
     }
-    for (int e = 0; e < exp; e++) {
-        *value = eneg ? (*value / 10.0) : (*value * 10.0);
+    if (neg) {
+        bits |= (uint64_t)1u << 63;
     }
+    memcpy(&out, &bits, sizeof(out));
+    return out;
+}
+
+/* A = num << sn ; B = den << sd (exactly one of sn,sd is 0), then
+ * *M = floor(A / B), *rem = A - (*M)*B. B is the effective denominator the
+ * caller compares against for the half-ulp round. */
+static srmech_status_t toml_f64_scaled_div(
+        srmech_bigint_t *A, srmech_bigint_t *B,
+        const srmech_bigint_t *num, const srmech_bigint_t *den,
+        uint32_t sn, uint32_t sd, srmech_bigint_t *M, srmech_bigint_t *rem,
+        void *ws, size_t ws_len)
+{
+    srmech_status_t st;
+    assert(A != NULL && B != NULL && num != NULL && den != NULL);
+    assert(M != NULL && rem != NULL);
+    st = srmech_bigint_copy(A, num);
+    if (st != SRMECH_OK) { return st; }
+    if (sn != 0u) {
+        st = srmech_bigint_shl_bits(A, A, sn);
+        if (st != SRMECH_OK) { return st; }
+    }
+    st = srmech_bigint_copy(B, den);
+    if (st != SRMECH_OK) { return st; }
+    if (sd != 0u) {
+        st = srmech_bigint_shl_bits(B, B, sd);
+        if (st != SRMECH_OK) { return st; }
+    }
+    return srmech_bigint_divmod(M, rem, A, B, ws, ws_len);
+}
+
+/* Correctly round value = num/den (both > 0) to a double, round-to-nearest,
+ * ties-to-even. neg carries the sign. */
+static srmech_status_t toml_f64_round(
+        srmech_bigint_t *num, srmech_bigint_t *den, int neg, double *out,
+        srmech_bigint_t *A, srmech_bigint_t *B, srmech_bigint_t *M,
+        srmech_bigint_t *rem, srmech_bigint_t *r2, void *ws, size_t ws_len)
+{
+    int q, iter, cmp;
+    uint64_t m64 = 0u;
+    srmech_status_t st;
+    assert(num != NULL && den != NULL && out != NULL);
+    assert(A != NULL && B != NULL && M != NULL && rem != NULL && r2 != NULL);
+    q = (int)toml_bi_bitlen(num) - (int)toml_bi_bitlen(den) - 52;
+    if (q < -1074) { q = -1074; }
+    for (iter = 0; iter < 8; iter++) {
+        uint32_t sn = (q < 0) ? (uint32_t)(-q) : 0u;
+        uint32_t sd = (q > 0) ? (uint32_t)q : 0u;
+        st = toml_f64_scaled_div(A, B, num, den, sn, sd, M, rem, ws, ws_len);
+        if (st != SRMECH_OK) { return st; }
+        assert(M->n <= 2u);
+        m64 = toml_bi_lo64(M);
+        if (m64 >= ((uint64_t)1u << 53)) { q += 1; continue; }
+        if (m64 < ((uint64_t)1u << 52) && q > -1074) { q -= 1; continue; }
+        break;
+    }
+    assert(iter < 8);
+    st = srmech_bigint_add(r2, rem, rem);              /* r2 = 2 * rem */
+    if (st != SRMECH_OK) { return st; }
+    cmp = srmech_bigint_cmp(r2, B);                     /* vs the denominator */
+    if (cmp > 0 || (cmp == 0 && (m64 & 1u) != 0u)) {
+        m64 += 1u;
+        if (m64 == ((uint64_t)1u << 53)) { m64 = (uint64_t)1u << 52; q += 1; }
+    }
+    *out = toml_f64_assemble(neg, m64, q);
     return SRMECH_OK;
 }
 
-/* Parse a cleaned decimal-float token (sign, digits, '.', exponent) to
- * double. No libm; a bounded accumulator. */
+/* Build the exact rational num/den for <dig[0..ndig)> * 10^E (dig are ASCII
+ * digits, ndig > 0). E >= 0 folds into num as trailing zeros; E < 0 into den. */
+static srmech_status_t toml_f64_build_frac(const char *dig, int ndig, int E,
+                                           srmech_bigint_t *num,
+                                           srmech_bigint_t *den)
+{
+    char tmp[420];
+    int i, z;
+    srmech_status_t st;
+    assert(dig != NULL && num != NULL && den != NULL);
+    assert(ndig > 0 && ndig < 64);
+    if (E >= 0) {
+        assert(ndig + E < (int)sizeof(tmp));
+        for (i = 0; i < ndig; i++) { tmp[i] = dig[i]; }
+        for (z = 0; z < E; z++) { tmp[ndig + z] = '0'; }
+        st = srmech_bigint_from_dec(num, tmp, (size_t)(ndig + E));
+        if (st != SRMECH_OK) { return st; }
+        return srmech_bigint_set_i64(den, 1);
+    }
+    st = srmech_bigint_from_dec(num, dig, (size_t)ndig);
+    if (st != SRMECH_OK) { return st; }
+    assert(1 - E < (int)sizeof(tmp));
+    tmp[0] = '1';
+    for (z = 0; z < -E; z++) { tmp[1 + z] = '0'; }
+    return srmech_bigint_from_dec(den, tmp, (size_t)(1 - E));
+}
+
+/* Exact slow path: correctly-rounded double of <dig> * 10^E over srmech_bigint,
+ * with fixed caller-owned limb storage (JPL Rule 3: no malloc). */
+static srmech_status_t toml_f64_bignum(const char *dig, int ndig, int E,
+                                       int neg, double *out)
+{
+    uint32_t l_num[48], l_den[48], l_A[64], l_B[64], l_M[6], l_rem[64], l_r2[66];
+    uint32_t ws[256];
+    srmech_bigint_t num, den, A, B, M, rem, r2;
+    srmech_status_t st;
+    assert(dig != NULL && out != NULL);
+    assert(ndig > 0);
+    toml_bi_init(&num, l_num, 48u);
+    toml_bi_init(&den, l_den, 48u);
+    toml_bi_init(&A, l_A, 64u);
+    toml_bi_init(&B, l_B, 64u);
+    toml_bi_init(&M, l_M, 6u);
+    toml_bi_init(&rem, l_rem, 64u);
+    toml_bi_init(&r2, l_r2, 66u);
+    st = toml_f64_build_frac(dig, ndig, E, &num, &den);
+    if (st != SRMECH_OK) { return st; }
+    return toml_f64_round(&num, &den, neg, out, &A, &B, &M, &rem, &r2,
+                          ws, sizeof(ws));
+}
+
+/* Parse the exponent tail (chars after 'e'/'E') to a signed int, saturating
+ * the magnitude so the range clamp in the caller decides inf/zero. */
+static srmech_status_t toml_f64_scan_exp(const char *s, int *pexpo)
+{
+    int j = 0, esign = 1, expo = 0, seen = 0;
+    assert(s != NULL && pexpo != NULL);
+    if (s[0] == '+' || s[0] == '-') {
+        esign = (s[0] == '-') ? -1 : 1;
+        j = 1;
+    }
+    for (; s[j] != '\0'; j++) {
+        if (s[j] < '0' || s[j] > '9') { return SRMECH_ERR_BAD_INPUT; }
+        expo = expo * 10 + (s[j] - '0');
+        if (expo > 100000) { expo = 100000; }
+        seen = 1;
+    }
+    if (seen == 0) { return SRMECH_ERR_BAD_INPUT; }
+    assert(expo >= 0 && expo <= 100000);
+    *pexpo = esign * expo;
+    return SRMECH_OK;
+}
+
+/* Scan a cleaned float token into sign, significand digits (point removed,
+ * leading + trailing zeros trimmed) and a net base-10 exponent E such that
+ * value = (neg?-1:+1) * <dig[0..*pndig)> * 10^E. *pndig == 0 means the value is
+ * +/- zero. */
+static srmech_status_t toml_f64_scan(const char *buf, char *dig, int dcap,
+                                     int *pndig, int *pE, int *pneg)
+{
+    char raw[64];
+    int nraw = 0, frac = 0, seen = 0, dot = 0, k = 0, had_exp = 0;
+    int lo, hi, i, E;
+    srmech_status_t st;
+    assert(buf != NULL && dig != NULL && pndig != NULL);
+    assert(pE != NULL && pneg != NULL && dcap >= 64);
+    *pneg = 0;
+    if (buf[0] == '+' || buf[0] == '-') { *pneg = (buf[0] == '-'); k = 1; }
+    for (; buf[k] != '\0'; k++) {
+        char c = buf[k];
+        if (c >= '0' && c <= '9') {
+            if (nraw < (int)sizeof(raw)) { raw[nraw++] = c; }
+            if (dot) { frac++; }
+            seen = 1;
+        } else if (c == '.') {
+            if (dot) { return SRMECH_ERR_BAD_INPUT; }
+            dot = 1;
+        } else if (c == 'e' || c == 'E') {
+            had_exp = 1;
+            k++;
+            break;
+        } else {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+    }
+    if (seen == 0) { return SRMECH_ERR_BAD_INPUT; }
+    E = -frac;
+    if (had_exp) {
+        int expo = 0;
+        st = toml_f64_scan_exp(buf + k, &expo);
+        if (st != SRMECH_OK) { return st; }
+        E += expo;
+    }
+    lo = 0;
+    while (lo < nraw && raw[lo] == '0') { lo++; }
+    hi = nraw - 1;
+    while (hi >= lo && raw[hi] == '0') { hi--; }
+    if (hi < lo) { *pndig = 0; *pE = 0; return SRMECH_OK; }   /* all zero */
+    E += (nraw - 1 - hi);                                      /* trailing 0s */
+    /* rc404 (`#T1069`): a FIXED digit capacity -> LIMIT. The condition itself
+     * is untouched — rc397 red'd the pedantic build here when `dcap` became
+     * assert-only under -DNDEBUG, so this stays a LIVE bound (not assert-only)
+     * and `dcap` keeps a non-assert reader on every build. */
+    if (hi - lo + 1 > dcap) { return SRMECH_ERR_LIMIT; }        /* live dcap bound (not assert-only) */
+    for (i = 0; i <= hi - lo; i++) { dig[i] = raw[lo + i]; }
+    *pndig = hi - lo + 1;
+    *pE = E;
+    return SRMECH_OK;
+}
+
+/* Parse a cleaned decimal-float token to a correctly-rounded double. */
 static srmech_status_t toml_str_to_f64(const char *buf, double *out)
 {
-    assert(buf != NULL);
-    assert(out != NULL);
-    size_t k = 0u;
-    double sign = 1.0;
-    if (buf[0] == '+' || buf[0] == '-') {
-        sign = (buf[0] == '-') ? -1.0 : 1.0;
-        k = 1u;
+    char dig[64];
+    int ndig = 0, E = 0, neg = 0, i;
+    uint64_t D;
+    srmech_status_t st;
+    assert(buf != NULL && out != NULL);
+    st = toml_f64_scan(buf, dig, (int)sizeof(dig), &ndig, &E, &neg);
+    if (st != SRMECH_OK) { return st; }
+    assert(ndig >= 0 && ndig < 64);
+    if (ndig == 0) {                                   /* +/- zero */
+        *out = neg ? -0.0 : 0.0;
+        return SRMECH_OK;
     }
-    double mant = 0.0;
-    int seen = 0;
-    while (buf[k] >= '0' && buf[k] <= '9') {
-        mant = mant * 10.0 + (double)(buf[k] - '0');
-        k++;
-        seen++;
+    if (E >= 309) {                                    /* >= 10^309 -> inf */
+        *out = toml_f64_assemble(neg, (uint64_t)1u << 52, 4000);
+        return SRMECH_OK;
     }
-    double scale = 1.0;
-    if (buf[k] == '.') {
-        k++;
-        while (buf[k] >= '0' && buf[k] <= '9') {
-            mant = mant * 10.0 + (double)(buf[k] - '0');
-            scale *= 10.0;
-            k++;
-            seen++;
+    if (E <= -400) {                                   /* < half min-denormal */
+        *out = neg ? -0.0 : 0.0;
+        return SRMECH_OK;
+    }
+    if (ndig <= 19) {                                  /* Clinger fast path */
+        D = 0u;
+        for (i = 0; i < ndig; i++) { D = D * 10u + (uint64_t)(dig[i] - '0'); }
+        if (D <= ((uint64_t)1u << 53) && E >= -22 && E <= 22) {
+            double v = (double)D;
+            v = (E >= 0) ? (v * TOML_POW10[E]) : (v / TOML_POW10[-E]);
+            *out = neg ? -v : v;
+            return SRMECH_OK;
         }
     }
-    if (seen == 0) {
-        return SRMECH_ERR_BAD_INPUT;
-    }
-    double value = sign * mant / scale;
-    if (buf[k] == 'e' || buf[k] == 'E') {
-        srmech_status_t st = toml_apply_exponent(buf, k + 1u, &value);
-        if (st != SRMECH_OK) {
-            return st;
-        }
-    } else if (buf[k] != '\0') {
-        return SRMECH_ERR_BAD_INPUT;
-    }
-    *out = value;
-    return SRMECH_OK;
+    return toml_f64_bignum(dig, ndig, E, neg, out);
 }
 
 /* Parse a numeric value (int or float) at p->i. */
@@ -731,6 +998,54 @@ static srmech_status_t toml_parse_number(toml_parser_t *p,
     out->type = SRMECH_TOML_INT;
     out->u.i = v;
     return SRMECH_OK;
+}
+
+/* Match a TOML 1.0 SPECIAL FLOAT (`inf` / `nan`, optionally signed) at
+ * p->i (rc420, `#T1114`). The cascade-catalog descriptors' proof cases
+ * carry the DOCUMENTED NaN / infinity boundary inputs (`x = nan` in
+ * best_rational_signed.toml, `x = inf` in magnitude.toml), so the shipped
+ * corpus now exercises the special-float grammar this tokenizer lacked —
+ * the rc391/rc397 corpus gates rightly treat a DECLINE as a regression.
+ * Bit-exact with the tomllib oracle: `nan`/`+nan` -> the positive quiet
+ * NaN 0x7ff8000000000000, `-nan` -> its sign-flipped twin, `inf`/`+inf`/
+ * `-inf` -> the IEEE infinities. The literal must be TERMINATED (not the
+ * prefix of a longer bare token); anything else is left untouched for
+ * toml_parse_number to adjudicate. */
+static bool toml_parse_special_float(toml_parser_t *p,
+                                     srmech_toml_value_t *out)
+{
+    assert(p != NULL);
+    assert(out != NULL);
+    size_t j = p->i;
+    bool neg = false;
+    uint64_t bits;
+    double f;
+    if (j < p->n && (p->s[j] == '+' || p->s[j] == '-')) {
+        neg = (p->s[j] == '-');
+        j++;
+    }
+    if (p->n - j < 3u) {
+        return false;
+    }
+    if (strncmp(p->s + j, "inf", 3u) == 0) {
+        bits = (uint64_t)0x7ff0000000000000ULL;
+    } else if (strncmp(p->s + j, "nan", 3u) == 0) {
+        bits = (uint64_t)0x7ff8000000000000ULL;
+    } else {
+        return false;
+    }
+    j += 3u;
+    if (j < p->n && toml_is_bare_key_char(p->s[j])) {
+        return false;                /* prefix of a longer token — not ours */
+    }
+    if (neg) {
+        bits |= (uint64_t)1u << 63;
+    }
+    memcpy(&f, &bits, sizeof f);
+    out->type = SRMECH_TOML_FLOAT;
+    out->u.f = f;
+    p->i = j;
+    return true;
 }
 
 /* Match the literal `lit` at p->i; on success advance past it. */
@@ -787,8 +1102,9 @@ static srmech_status_t toml_parse_key_path(toml_parser_t *p, const char **segs,
     assert(segs != NULL && n_seg != NULL);
     uint32_t count = 0u;
     for (uint32_t guard = 0; guard <= cap; guard++) {
+        /* rc404 (`#T1069`): a caller-fixed key-path segment cap -> LIMIT. */
         if (count >= cap) {
-            return SRMECH_ERR_OVERFLOW;
+            return SRMECH_ERR_LIMIT;
         }
         uint32_t klen = 0u;
         srmech_status_t st = toml_parse_bare_key(p, &segs[count], &klen);
@@ -888,14 +1204,30 @@ static srmech_status_t toml_dup_value(toml_parser_t *p,
 
 /* Parse `[ v, v, ... ]` (opening '[' already consumed). Array elements
  * are values that are themselves already finalised (scalars, nested
- * arrays, inline tables) — no deferred builder tables appear here. */
+ * arrays, inline tables) — no deferred builder tables appear here.
+ *
+ * rc404 (`#T1069`): the depth guard below returns SRMECH_ERR_LIMIT.
+ * SRMECH_TOML_MAX_DEPTH is compiled in, not the caller's arena, so growing the
+ * arena cannot help. THIS IS THE ~677 MiB DEFECT — a depth-80 array declined
+ * here at status 4, which toml_loads_c's grow-loop could not tell from
+ * exhaustion, so it doubled its arena 13 times and re-parsed at every step
+ * before returning the same verdict.
+ *
+ * The trailing `return SRMECH_ERR_LIMIT` at the end of the function is the
+ * JPL-Rule-2 loop-guard fallthrough, also moved off status 4. HONESTY NOTE:
+ * it is UN-GATED — the guard bound is the input length and each iteration
+ * consumes >= 1 byte, so the loop always exits through a return above and no
+ * test can distinguish that line before or after.
+ *
+ * (Both notes live out here rather than at their guards because JPL Rule 4
+ * caps this function at 60 lines and it sits close to that bound.) */
 static srmech_status_t toml_parse_array(toml_parser_t *p,
                                         srmech_toml_value_t *out, int depth)
 {
     assert(p != NULL);
     assert(out != NULL);
     if (depth >= SRMECH_TOML_MAX_DEPTH) {
-        return SRMECH_ERR_OVERFLOW;
+        return SRMECH_ERR_LIMIT;   /* structural cap; see note above */
     }
     /* Collect elements into an arena linked list (like the builder tables) —
      * NO fixed staging array, so the element count is bounded only by the
@@ -942,7 +1274,7 @@ static srmech_status_t toml_parse_array(toml_parser_t *p,
             p->i++;
         }
     }
-    return SRMECH_ERR_OVERFLOW;
+    return SRMECH_ERR_LIMIT;   /* rc404: loop-guard fallthrough; see note above */
 }
 
 /* Parse `{ k = v, ... }` (opening '{' already consumed) into a builder
@@ -953,8 +1285,9 @@ static srmech_status_t toml_parse_inline_table(toml_parser_t *p,
 {
     assert(p != NULL);
     assert(out != NULL);
+    /* rc404 (`#T1069`): compiled-in depth cap -> LIMIT (inline-table half). */
     if (depth >= SRMECH_TOML_MAX_DEPTH) {
-        return SRMECH_ERR_OVERFLOW;
+        return SRMECH_ERR_LIMIT;
     }
     toml_btable_t *t = NULL;
     srmech_status_t st = toml_btable_new(p, true, &t);
@@ -1000,7 +1333,9 @@ static srmech_status_t toml_parse_inline_table(toml_parser_t *p,
             toml_skip_ws_nl(p);
         }
     }
-    return SRMECH_ERR_OVERFLOW;
+    /* rc404 (`#T1069`): loop-guard fallthrough -> LIMIT. UN-GATED, same
+     * reasoning as the array half above. */
+    return SRMECH_ERR_LIMIT;
 }
 
 /* ================================================================== *
@@ -1035,6 +1370,9 @@ static srmech_status_t toml_parse_value(toml_parser_t *p,
     if (toml_match_literal(p, "false")) {
         out->type = SRMECH_TOML_BOOL;
         out->u.b = 0;
+        return SRMECH_OK;
+    }
+    if (toml_parse_special_float(p, out)) {   /* rc420: inf / nan (signed) */
         return SRMECH_OK;
     }
     return toml_parse_number(p, out);
@@ -1116,8 +1454,9 @@ static srmech_status_t toml_finalize_btable(toml_parser_t *p,
 {
     assert(p != NULL);
     assert(t != NULL && out != NULL);
+    /* rc404 (`#T1069`): compiled-in depth cap -> LIMIT (finalise half). */
     if (depth >= SRMECH_TOML_MAX_DEPTH) {
-        return SRMECH_ERR_OVERFLOW;
+        return SRMECH_ERR_LIMIT;
     }
     const char **keys = NULL;
     srmech_toml_value_t **vals = NULL;
@@ -1424,6 +1763,19 @@ static srmech_status_t toml_finalize_root(toml_parser_t *p, toml_btable_t *root,
     }
     *out = rootv;
     return SRMECH_OK;
+}
+
+/* Safe upper bound for the parse arena (see srmech.h for the contract). The
+ * transient builder tree and the finalised value tree both live in `ws`, so the
+ * cost is linear in the source length; the constant floor covers a tiny doc's
+ * fixed root overhead. 256 bytes/source-byte is the same parse-only budget
+ * srmech_dsl_toml_chain_to_json carves internally, and it dwarfs the ~56
+ * bytes/source-byte a densest-possible `a=1\n` corpus actually consumes. */
+size_t srmech_toml_parse_arena_bytes(size_t src_len)
+{
+    assert(sizeof(srmech_toml_value_t) <= 256u);
+    assert(sizeof(toml_bvalue_t) <= 256u);
+    return 256u * src_len + 65536u;
 }
 
 srmech_status_t srmech_toml_parse(const char *src, size_t len,

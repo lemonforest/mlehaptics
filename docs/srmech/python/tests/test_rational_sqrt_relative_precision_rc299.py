@@ -1,6 +1,6 @@
 """rc299 (`#919`) — the exact-rational √ cascade is RELATIVE-precision, not absolute.
 
-``srmech.amsc.rational._sqrt_rational`` floors ``√(num/den)`` onto a FIXED
+``srmech.math.rational._sqrt_rational`` floors ``√(num/den)`` onto a FIXED
 ``2^-k`` grid. With the shipped default ``k = 54`` that is an **absolute**
 precision, and both public consumers of the exact-rational root — ``hypot``
 (always) and ``sqrt`` (on a ``Q`` input) — inherited it:
@@ -36,15 +36,15 @@ import math
 
 import pytest
 
-from srmech.amsc.q import Q
-from srmech.amsc.rational import (
+from srmech.math.q import Q
+from srmech.math.rational import (
     _SQRT_Q_K,
     _sqrt_rational,
     _sqrt_relative_k,
     hypot,
     sqrt,
 )
-from srmech.amsc.laplacian import _fhypot
+from srmech.math.laplacian import _fhypot
 
 
 # ── the pre-rc299 behaviour, kept executable so the ratchet can be shown red ──

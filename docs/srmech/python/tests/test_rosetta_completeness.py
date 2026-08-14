@@ -9,7 +9,7 @@ libm ratchet that went 23 -> 0): the ``python_only_debt`` and
 
 How it works:
   1. Enumerate the live public-op surface (every public callable defined in
-     ``srmech.amsc`` / ``srmech.qm`` / ``srmech.signal_processing``), keyed by
+     ``srmech.amsc`` / ``srmech.physics.qm`` / ``srmech.signal_processing``), keyed by
      its canonical ``defined_at`` = ``<module>.<qualname>`` (re-export-stable).
   2. Load the committed classification (``rosetta_classification.ndjson``) — one
      of six buckets per op (see ROSETTA_LEDGER.md §"The classification").
@@ -65,6 +65,7 @@ from conftest import (  # noqa: E402
     rosetta_live_objects,
     rosetta_reached_ledger_ops,
 )
+from rosetta_roots import ROSETTA_ROOTS  # noqa: E402
 
 # #564 (numpy out the door): the qm / signal_processing surfaces are numpy-free
 # now, and this audit walks them with stdlib importlib / inspect / pkgutil only
@@ -97,17 +98,16 @@ _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 # loader). The +30 rows: 8 spectral + 8 rbs_lm + 11 introspect + 3 profile_loader
 # (7 spectral + 8 rbs_lm compute rows are composition_of_c — every kernel routes
 # through already-C-backed ops; the 15 non_compute rows split 6 host_glue +
-# 5 composes_c + 4 dev_tooling). No new C symbol; all ceilings HOLD at 0. The
-# conftest _ROSETTA_ROOTS + the transitive-standalone _ROOTS + the
-# notes/_rosetta_inventory.py ROOTS mirror this extension so all four walks agree
-# on the live surface.
-_ROOTS = (
-    "srmech.amsc", "srmech.qm", "srmech.signal_processing",
-    "srmech.bus", "srmech.dsl",
-    "srmech.mcp", "srmech.cli", "srmech.llm",
-    "srmech.spectral", "srmech.rbs_lm",
-    "srmech.introspect", "srmech.profile_loader",
-)
+# 5 composes_c + 4 dev_tooling). No new C symbol; all ceilings HOLD at 0.
+#
+# rc361 (`#T1034`): the tuple that used to be spelled out here — and separately
+# in conftest.py, in test_rosetta_transitive_standalone.py, and in
+# notes/_rosetta_inventory.py — is now SINGLE-SOURCED in tests/rosetta_roots.py.
+# All four sites were measured identical before the collapse. The annex history
+# above is kept because it explains WHY the root set is 12 and not 3; the value
+# itself has exactly one definition now, so the ADR-0010 rename edits one tuple
+# instead of four that agree only by convention.
+_ROOTS = ROSETTA_ROOTS
 
 # ----- the down-only debt ceilings (rc7 baseline; issue #928) -----------
 # LOWER these as ops gain C twins. NEVER raise them.
@@ -679,8 +679,8 @@ CEIL_BIGNUM_REFERENCE = 0
 # a pure filter/sort/project, consistent with the already-composes_c
 # get_attested_dataset / get_attested_descriptor). The 2 chain-runner-dependent
 # catalog ops (list_catalog_chains / run_catalog_chain) stay owed — the
-# amsc.compose chain-runner is not in C yet (rc173+). 15 → 9.
-# rc173 (2026-07-07): the amsc.compose chain-runner PARSE half earned C — the
+# cascade.compose chain-runner is not in C yet (rc173+). 15 → 9.
+# rc173 (2026-07-07): the cascade.compose chain-runner PARSE half earned C — the
 # 2 parse ops moved owed_orchestration → composes_c (parse_chain_spec →
 # srmech_chain_spec_parse; parse_catalog_chains → srmech_chain_catalog_parse;
 # JSON-in / normalized-canonical-JSON-out, args re-attached from the original
@@ -691,7 +691,7 @@ CEIL_BIGNUM_REFERENCE = 0
 # bounded cascade atoms; confirmed run_chain invokes any of the 14 class
 # modules by name). The 2 catalog dependents (list_catalog_chains /
 # run_catalog_chain) also stay owed until the run loop lands. 9 → 7.
-# rc174 (2026-07-07): the amsc.compose chain-runner RUN LOOP earned C — the
+# rc174 (2026-07-07): the cascade.compose chain-runner RUN LOOP earned C — the
 # 2 run ops moved owed_orchestration → composes_c. srmech_chain_run RUNS a
 # validated chain end-to-end in C to byte-identical OUTPUT: it resolves each
 # step's @row/@input/@step[N] arg references + dispatches the BOUNDED Class-N
@@ -927,15 +927,15 @@ CEIL_NON_COMPUTE_OWED = 0
 # (with the same justification burden); a control-logic op does NOT belong here —
 # it is owed_orchestration and counts against CEIL_NON_COMPUTE_OWED instead.
 NON_COMPUTE_DEV_TOOLING_EXEMPT = frozenset({
-    "srmech.amsc.carrier_ladder.carrier_ladder_descriptor",
+    "srmech.math.carrier_ladder.carrier_ladder_descriptor",
     "srmech.amsc.gap_suggester.register_classifier",
     "srmech.amsc.gap_suggester.register_probes",
     "srmech.amsc.gap_suggester.suggest_gap_collections",
-    "srmech.amsc.tool_schema.load_extension_file",
-    "srmech.amsc.tool_schema.register_profile_tools",
-    "srmech.amsc.tool_schema.register_tool",
-    "srmech.amsc.tool_schema.unregister_profile_tools",
-    "srmech.amsc.tool_schema.warmup_all",
+    "srmech.introspect.tool_schema.load_extension_file",
+    "srmech.introspect.tool_schema.register_profile_tools",
+    "srmech.introspect.tool_schema.register_tool",
+    "srmech.introspect.tool_schema.unregister_profile_tools",
+    "srmech.introspect.tool_schema.warmup_all",
     "srmech.signal_processing.cascade_dispatcher.begin_cascade",
     "srmech.signal_processing.cascade_dispatcher.current_cascade",
     "srmech.signal_processing.cascade_dispatcher.dispatch",
@@ -978,14 +978,37 @@ NON_COMPUTE_DEV_TOOLING_EXEMPT = frozenset({
     # name-binding (bind a user's name to a srmech.* fn); a bare-C host never aliases
     # Python functions, so it is a justified dev/LLM affordance (ADR-0004).
     "srmech.dsl._alias.alias",
+    # rc364 (ADR-0010 first execution slice): the alias layer's BROWSE-and-
+    # CONFIGURE half. Both are the exact peers of entries already above —
+    # register_alias_dir of register_catalog_dir / register_class_dir,
+    # list_alias_descriptors of list_cascade_ops / list_classes — and both are
+    # justified on the same grounds those are: a bare-C host resolves the ONE
+    # descriptor name it was handed, it never browses the catalog and never
+    # mutates a process-local search path.
+    #
+    # ⚠️ THE SIBLING THAT IS DELIBERATELY *NOT* HERE IS THE POINT.
+    # `resolve_alias_descriptor` is host_glue, not dev_tooling, and the line
+    # between them is NOT "does it touch the filesystem" — all three do. It is
+    # LOAD/GET vs BROWSE/CONFIGURE, which is the split srmech.dsl already
+    # encodes over the SAME directory: `load_class_catalog` reads it (host_glue)
+    # while `list_classes` browses it (dev_tooling). A C host must FIND the
+    # descriptor it was told to load, so the resolver is a capability it owes;
+    # it need not enumerate the alternatives.
+    #
+    # rc364 first shipped `list_alias_descriptors` as host_glue by reasoning
+    # from the mechanism (it calls glob) instead of from the capability, which
+    # made it the ONLY host_glue `list_*` in srmech.dsl against five dev_tooling
+    # siblings. CI caught the count; the fix was the classification.
+    "srmech.dsl._alias.list_alias_descriptors",
+    "srmech.dsl._alias.register_alias_dir",
     # rc271 (§96 / F1251): the value-alias PRESENTATION setters — install / clear a
     # canonical→preferred cap_kind display mapping (e.g. restore the pre-rc271
     # stick/minted names). Pure Python session-state; a bare-C host emits only the
     # canonical plasmid/nuclear output and never re-presents it, so these are a
     # justified dev affordance (the dsl.alias precedent). load_type_aliases_toml is
     # composes_c (it parses the TOML via the C srmech_toml), not dev_tooling.
-    "srmech.amsc.genome.set_type_aliases",
-    "srmech.amsc.genome.clear_type_aliases",
+    "srmech.biology.genome.set_type_aliases",
+    "srmech.biology.genome.clear_type_aliases",
     # rc183 HOST-GLUE annex (srmech.llm) — 3 LLM-agent affordances a bare-C host
     # never needs. HONEST-DEFAULT: classified dev_tooling pending a user decision
     # on whether to build a C Anthropic agent (a separate C-HTTPS/TLS Messages-API
@@ -1291,7 +1314,7 @@ def test_non_compute_composes_c_is_transitively_reachable():
 # The reachability guard above has a structural blind spot: a SELF-CONTAINED
 # pure-Python COMPUTE KERNEL calls no other srmech op, so its transitive walk
 # reaches NOTHING — it cannot trip the not-ready-leaf assert no matter how much
-# compute it hides. That is exactly how the 3 srmech.amsc.text kernels
+# compute it hides. That is exactly how the 3 srmech.math.text kernels
 # (tokenize / cooccurrence_edges / cooccurrence_topk — the enwiki-encode hot
 # loop, a measured multi-DAY Python cost at corpus scale) sat mis-classified
 # as non_compute/composes_c while CEIL_PYTHON_ONLY_DEBT read 0.
@@ -1305,15 +1328,15 @@ def test_non_compute_composes_c_is_transitively_reachable():
 # extending this allowlist, i.e. answering "is this really not a compute
 # kernel?" at classification time — the question text.py never got asked.
 COMPOSES_C_ZERO_REACH_PINNED = frozenset({
-    "srmech.amsc.carrier_ladder.poly_project",
-    "srmech.amsc.carrier_ladder.poly_promote",
-    "srmech.amsc.carrier_ladder.qpoly_project",
-    "srmech.amsc.carrier_ladder.qpoly_promote",
+    "srmech.math.carrier_ladder.poly_project",
+    "srmech.math.carrier_ladder.poly_promote",
+    "srmech.math.carrier_ladder.qpoly_project",
+    "srmech.math.carrier_ladder.qpoly_promote",
     # cd_project / cd_promote LEFT the zero-reach set in 0.9.0rc263 (#845): they
     # now build the CD element carrier ``Q`` (was a pure-Python ``Fraction(0)``
     # pad), and ``Q``'s constructor reaches the c_dispatched rational-reduce
     # symbol — so they are composes_c WITH C reach now, no longer zero-reach.
-    "srmech.amsc.cascade.cayley_dickson.is_division_algebra_dim",
+    "srmech.cascade.cayley_dickson.is_division_algebra_dim",
     # cd_register (v0.9.0rc297, `#934`) — a CONSTRUCTOR, not a kernel, and the
     # question this pin exists to force was asked: it allocates a CDRegister with
     # an empty slot-map and codebook and computes NOTHING. Every compute path in
@@ -1322,50 +1345,49 @@ COMPOSES_C_ZERO_REACH_PINNED = frozenset({
     # (real C peers: srmech_cd_navmap, srmech_cd_navigate,
     # srmech_cd_navmap_is_signed_permutation). Exactly the shape of the
     # sedenion_register row below, which it generalises.
-    "srmech.amsc.cascade.cd_register.cd_register",
-    "srmech.amsc.cascade.compose.top_k_by_score",
-    "srmech.amsc.cascade.one.one_dim",
-    "srmech.amsc.cascade.one.one_flat_rational",
-    "srmech.amsc.cascade.one.one_grammar_slots",
-    "srmech.amsc.cascade.one.one_imag_dims",
-    "srmech.amsc.cascade.one.one_partition",
-    "srmech.amsc.cascade.one.one_plane_counts",
-    "srmech.amsc.cascade.sedenion_register.sed_slots",
-    "srmech.amsc.cascade.sedenion_register.sedenion_register",
+    "srmech.cascade.cd_register.cd_register",
+    "srmech.cascade.composites.top_k_by_score",
+    "srmech.cascade.one.one_dim",
+    "srmech.cascade.one.one_flat_rational",
+    "srmech.cascade.one.one_grammar_slots",
+    "srmech.cascade.one.one_imag_dims",
+    "srmech.cascade.one.one_partition",
+    "srmech.cascade.one.one_plane_counts",
+    "srmech.cascade.sedenion_register.sed_slots",
+    "srmech.cascade.sedenion_register.sedenion_register",
     "srmech.amsc.catalog.list_registered_roots",
     "srmech.amsc.catalog.use_local_kernel",
-    "srmech.amsc.compose.parse_chain_spec",
-    "srmech.amsc.compose.resolve_chain",
-    "srmech.amsc.coupling.fold_encode",
-    "srmech.amsc.coupling.fold_identity",
-    "srmech.amsc.coupling.fractal_spectrum",
-    "srmech.amsc.coupling.from_bodies",
+    "srmech.cascade.compose.parse_chain_spec",
+    "srmech.cascade.compose.resolve_chain",
+    "srmech.biology.coupling.fold_encode",
+    "srmech.biology.coupling.fold_identity",
+    "srmech.biology.coupling.fractal_spectrum",
+    "srmech.biology.coupling.from_bodies",
     "srmech.amsc.descriptor.load_descriptor",
     "srmech.amsc.descriptor.render_template",
-    "srmech.amsc.dispatch.infer",
-    "srmech.amsc.ellbase.chirality_parity",
+    "srmech.math.dispatch.infer",
+    "srmech.apokatastasis.ellbase.chirality_parity",
     "srmech.amsc.format.validate_mpr_record",
     "srmech.amsc.format.write_ndjson",
-    "srmech.amsc.harmonics.classify_harmonic",
-    "srmech.amsc.hdc.klein4_project_axis",
-    "srmech.amsc.laplacian.write_packed_graph",
+    "srmech.math.hdc.klein4_project_axis",
+    "srmech.math.laplacian.write_packed_graph",
     # hypercomplex_perspectives (v0.9.0rc308, #944) — the quaternion_laplacian /
     # magnetic_laplacian eigenvector channel reader. A pure STRUCTURAL split: it
     # indexes an already-decomposed eigenvector Mat and copies each dim-block's
     # scalar/imaginary components into channel lists. It computes nothing and
     # calls no ledger op (only Mat.__getitem__ + complex()), so the AST walk
     # reaches zero — the write_packed_graph accessor precedent above.
-    "srmech.amsc.laplacian.hypercomplex_perspectives",
-    "srmech.amsc.modular_forms_ring.modular_forms_ring",
-    "srmech.amsc.op_provenance.family_verdict",
-    "srmech.amsc.poly.poly_from_coeffs",
-    "srmech.amsc.qbipoly.qbipoly_from_coeffs",
-    "srmech.amsc.qpoly.qpoly_from_coeffs",
-    "srmech.amsc.quasimodular_forms_ring.quasimodular_forms_ring",
-    "srmech.amsc.tlv.tlv_unpack",
-    "srmech.amsc.tool_schema.get_tool_schema",
-    "srmech.amsc.tripoly.tripoly_from_coeffs",
-    "srmech.amsc.zeilberger.bipoly_from_coeffs",
+    "srmech.math.laplacian.hypercomplex_perspectives",
+    "srmech.apokatastasis.modular_forms_ring.modular_forms_ring",
+    "srmech.introspect.op_provenance.family_verdict",
+    "srmech.math.poly.poly_from_coeffs",
+    "srmech.math.qbipoly.qbipoly_from_coeffs",
+    "srmech.math.qpoly.qpoly_from_coeffs",
+    "srmech.apokatastasis.quasimodular_forms_ring.quasimodular_forms_ring",
+    "srmech.math.tlv.tlv_unpack",
+    "srmech.introspect.tool_schema.get_tool_schema",
+    "srmech.math.tripoly.tripoly_from_coeffs",
+    "srmech.apokatastasis.zeilberger.bipoly_from_coeffs",
     "srmech.bus._server.serve",
     "srmech.cli.bus.add_arguments",
     "srmech.cli.bus.run_list",
@@ -1381,7 +1403,7 @@ COMPOSES_C_ZERO_REACH_PINNED = frozenset({
     "srmech.dsl._chain.chain",
     "srmech.mcp._sse.serve_http_sse",
     "srmech.mcp._stdio.serve_stdio",
-    "srmech.qm.bell.classical_chsh_bound",
+    "srmech.physics.qm.bell.classical_chsh_bound",
     "srmech.signal_processing.closed_form_ops.polyphase.decompose",
     # rc218 PARITY-COMPLETENESS annex — 4 justified zero-reach introspect rows:
     # native_status is a pure read-out of the _native module's load state (HAS_
@@ -1393,6 +1415,23 @@ COMPOSES_C_ZERO_REACH_PINNED = frozenset({
     "srmech.introspect._event.parse",
     "srmech.introspect._event.serialize",
     "srmech.introspect.native_status",
+    # v0.9.0rc362 — a pure exact-DATA constructor, not a kernel. It
+    # returns the five Fletcher & Rossing sec. 21.3 tuned-bell tuning
+    # TARGETS as literal Q ratios (1/2, 1, 6/5, 3/2, 2) plus their
+    # names and citation; there is no loop, no recurrence and no
+    # arithmetic beyond constructing the rationals, so reaching zero
+    # ledger ops is the correct and complete description of it. The
+    # question this pin exists to force — "is this really not a compute
+    # kernel?" — is answered by reading the body: it is a table.
+    "srmech.music._instruments.bell_partials",
+    # v0.9.0rc366 — the F150 chirality-harmonic static map, RELOCATED from
+    # srmech.amsc.harmonics by ADR-0010's first module-moving slice (the leaf
+    # name is kept; only the parent namespace moved). Still a pure STATIC
+    # dict lookup from an A–N class letter to its 1/2/3 chirality-order rung —
+    # zero compute, zero ledger reach — so it stays composes_c/zero-reach and
+    # simply carries its new dotted name. NOTE this "harmonic" is the CHIRALITY
+    # order, NOT the acoustic sense of its new music siblings above.
+    "srmech.music.harmonics.classify_harmonic",
 })
 
 
@@ -1400,7 +1439,7 @@ def test_composes_c_zero_reach_rows_are_pinned():
     """Every ``composes_c`` row whose transitive walk reaches ZERO ledger ops
     is on the pinned allowlist above — so a self-contained pure-Python compute
     kernel can never again hide in ``composes_c`` unnoticed (the rc217
-    srmech.amsc.text lesson: the reachability guard only fires on rows that
+    srmech.math.text lesson: the reachability guard only fires on rows that
     REACH a not-ready leaf; a kernel that calls nothing reaches nothing).
     A stale entry (row moved bucket / gained a reached op / was removed) must
     leave the pin, so the set stays exact in both directions."""

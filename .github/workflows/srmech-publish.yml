@@ -59,6 +59,15 @@ jobs:
     # containerisation.
     name: wheel • ${{ matrix.os }} • py${{ matrix.python }}
     runs-on: ${{ matrix.os }}
+    # rc357 (`#T951`) — hang guard. Derived, not felt:
+    #   T = ceil(max_observed) + max(ceil(0.5 * max_observed), 10 min)
+    # over 12 srmech-publish runs. The 10-minute FLOOR is the load-bearing part:
+    # the measured p50→max spread is ≤2 min in ABSOLUTE terms on every job here
+    # regardless of its length (a slow pip/apt/image fetch costs minutes whether
+    # the job runs 30s or 45min), so a purely proportional headroom would make
+    # the SHORTEST jobs the tightest and turn this guard into a flake source.
+    # max 4:08 (windows leg) → 15. Was: none, i.e. GitHub's 360-minute default.
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -123,6 +132,8 @@ jobs:
   build-sdist:
     name: sdist
     runs-on: ubuntu-latest
+    # rc357 (`#T951`) — max 0:32 → 11 by the rule above (floor-dominated).
+    timeout-minutes: 11
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -155,6 +166,8 @@ jobs:
     # restored. Same mechanism ephemerides-spectral uses.
     name: pure-python wheel
     runs-on: ubuntu-latest
+    # rc357 (`#T951`) — max 0:29 → 11 by the rule above (floor-dominated).
+    timeout-minutes: 11
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -275,6 +288,9 @@ jobs:
       }})
     needs: [build-wheels, build-sdist, build-pure-wheel]
     runs-on: ubuntu-latest
+    # rc357 (`#T951`) — max 1:43 → 12 by the rule above. This is the job rc354
+    # actually died in, and it had no guard at all.
+    timeout-minutes: 12
     if: >-
       github.event_name == 'workflow_dispatch'
       || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/srmech-v'))
@@ -341,7 +357,35 @@ jobs:
           find artifacts -name '*.tar.gz' -exec cp {} dist/ \;
           ls -la dist/
 
+      # rc357 (`#T951`) — ONE retry, on the TestPyPI leg only, for the
+      # mechanically-transient class ONLY. rc354 died here: the action resolved
+      # to `ghcr.io/pypa/gh-action-pypi-publish:release-v1` (its `action.yml` is
+      # a composite that generates a Docker trampoline) and the runner failed
+      # the image pull with `net/http: request canceled (Client.Timeout awaiting
+      # headers)` 19s in — before the entrypoint ran, with zero bytes uploaded.
+      #
+      # "Transient" is defined mechanically, three CONJUNCTIVE conditions, all
+      # satisfied by rc354 and none by a mid-upload or credential failure:
+      #   1. POSITION  — failed during image resolution/fetch, before the
+      #                  action's entrypoint ran.
+      #   2. EFFECT    — no bytes uploaded, so a retry resumes from an
+      #                  identical state.
+      #   3. SIGNATURE — a TRANSPORT error, not an HTTP application error.
+      #                  A 400/403/409 from TestPyPI is NOT transient.
+      #
+      # The load-bearing property: this CANNOT convert red→green for a
+      # deterministic failure. A bad token, bad metadata or a duplicate filename
+      # fails attempt 2 identically and the job goes red, costing one extra
+      # ~1:23 attempt. Only a non-deterministic failure is absorbed. A partial
+      # upload also stays red (attempt 2 hits "file already exists"), which is
+      # no worse than today. This is deliberately NOT a blanket retry: across the
+      # three most recent red srmech-ci runs, all 11 failed jobs were REAL build
+      # or test failures and NONE were transient, so a blanket retry would mask
+      # true reds and double the cost of each.
       - name: Publish to TestPyPI
+        id: tpypi_1
+        # Swallowed for attempt 1 ONLY, so the retry below can observe it.
+        continue-on-error: true
         if: >-
           (github.event_name == 'workflow_dispatch' && inputs.target == 'testpypi')
           || (github.event_name == 'push' && contains(github.ref_name, 'rc'))
@@ -349,7 +393,36 @@ jobs:
         with:
           repository-url: https://test.pypi.org/legacy/
           packages-dir: dist
+          # rc384 (`#T1061`): attempt 1 can PARTIALLY upload (N of the matrix)
+          # before a transient failure. skip-existing lets the retry finish the
+          # rest instead of 400-ing on the files attempt 1 already landed.
+          skip-existing: true
 
+      # rc384 (`#T1061`): attempt 1 also writes `dist/*.publish.attestation` as a
+      # side effect; if it dies mid-run those files persist, and the retry's
+      # attestation generation aborts with "distributions already have publish
+      # attestations" — a RED on an otherwise-recoverable partial upload. Clear
+      # them so the retry regenerates cleanly. Gated on the attempt-1 failure.
+      - name: Clear stale publish attestations before the TestPyPI retry
+        if: steps.tpypi_1.outcome == 'failure'
+        run: rm -f dist/*.publish.attestation
+
+      # `outcome` is the pre-continue-on-error result, so this fires only on a
+      # genuine attempt-1 failure. When the routing `if` above skips attempt 1
+      # its outcome is 'skipped', not 'failure', and this stays skipped too.
+      # No `continue-on-error` here: if attempt 2 fails, the job goes RED.
+      - name: Publish to TestPyPI (retry — transient registry/transport failure)
+        if: steps.tpypi_1.outcome == 'failure'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: dist
+          # Skip the files attempt 1 already landed; upload only the remainder.
+          skip-existing: true
+
+      # Deliberately SINGLE-SHOT — no retry on the production leg. Clean releases
+      # are rare and human-gated, so a failure here should surface to a human
+      # rather than be absorbed automatically (rc357, `#T951`).
       - name: Publish to PyPI
         if: >-
           (github.event_name == 'workflow_dispatch' && inputs.target == 'pypi')

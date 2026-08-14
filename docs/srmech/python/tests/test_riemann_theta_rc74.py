@@ -41,8 +41,8 @@ import tokenize
 
 import pytest
 
-from srmech.amsc.riemann_theta import RiemannTheta
-from srmech.amsc import _native
+from srmech.apokatastasis.riemann_theta import RiemannTheta
+from srmech import _native
 
 
 def _t00() -> RiemannTheta:
@@ -324,7 +324,7 @@ def test_branch_point_recovery_is_documented_open_not_a_number():
 # ── gate (5): the carrier source is numpy / math / abs() / float free ─────────
 def test_riemann_theta_source_is_numpy_math_abs_free():
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    src = os.path.join(here, "srmech", "amsc", "riemann_theta.py")
+    src = os.path.join(here, "srmech", "apokatastasis", "riemann_theta.py")
     with tokenize.open(src) as fh:
         text = fh.read()
     assert "import numpy" not in text

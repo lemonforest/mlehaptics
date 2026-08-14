@@ -1,4 +1,4 @@
-"""F929 — the OPEN/infer ROUTER (``srmech.amsc.dispatch.infer``).
+"""F929 — the OPEN/infer ROUTER (``srmech.math.dispatch.infer``).
 
 The meta-dispatcher that makes srmech's three shipped closed-form
 reduction-theory rows (cyclic / spectral / Σ) ONE callable. Given an arbitrary
@@ -14,7 +14,12 @@ reduction it did not verify — the executable no-magic-numbers / no-hallucinati
 discipline. This test pins exactly that.
 
 This test is numpy-FREE and math-FREE (no ``import numpy`` / ``import math``): it
-uses only the srmech carriers + plain Python arithmetic + ``fractions.Fraction``.
+uses only the srmech carriers + plain Python arithmetic. (Until rc406 this line
+also claimed ``fractions.Fraction`` and the file carried a matching
+``from fractions import Fraction`` — both were false: the name was never used,
+and the DEAD import was silently holding the file's ``_INTERCHANGE`` allowance
+open in the self-hosting ban table. Deleted together, which is what the new
+dead-import guard exists to force.)
 
 Coverage:
   (a) a graph relationship → routes to SPECTRAL, verified, closed_form is the
@@ -27,13 +32,11 @@ Coverage:
       without the reducer's verification actually being True.
 """
 
-from fractions import Fraction
-
 import pytest
 
-from srmech.amsc.dispatch import infer
-from srmech.amsc.poly import Poly
-from srmech.amsc.zeilberger import BiPoly
+from srmech.math.dispatch import infer
+from srmech.math.poly import Poly
+from srmech.apokatastasis.zeilberger import BiPoly
 
 
 # ── the canonical Σ-row term-ratios for Σ_k C(n,k) = 2ⁿ ──────────────────────
@@ -270,7 +273,7 @@ def test_module_is_numpy_and_math_free():
     """The router source imports neither numpy nor math (the §2 discipline)."""
     import re
 
-    import srmech.amsc.dispatch as d
+    import srmech.math.dispatch as d
     src = d.__file__
     with open(src, "r", encoding="utf-8") as fh:
         text = fh.read()
@@ -283,10 +286,10 @@ def test_module_is_numpy_and_math_free():
 
 
 # ── rc58: the two post-§76 Σ sub-rows now auto-join the dispatch table ────────
-from srmech.amsc.tripoly import TriPoly
-from srmech.amsc.qpoly import QPoly
-from srmech.amsc.qbipoly import QBiPoly
-from srmech.amsc.q import Q
+from srmech.math.tripoly import TriPoly
+from srmech.math.qpoly import QPoly
+from srmech.math.qbipoly import QBiPoly
+from srmech.math.q import Q
 
 
 def _tp(d):

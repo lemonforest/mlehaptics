@@ -14,7 +14,7 @@
 |---|---|
 | internal sources | `R-RBS-NN-1_mfo_two_level_REPORT.md` §4.2 (positional encoding placement); `R-RBS-NN-2_user_lexicon_REPORT.md` (content-addressing baseline); `R-RBS-NN-3b_transformer_cascade_REPORT.md` §5–§6 (Level-1 substitution map) |
 | MFO source | `mfo_spectral_research_notebook.md` §VII.1.3 lines 735–761 (three-mechanism asymmetry); line 743 (`[[user_stance_rotation_is_class_k_pin_slot]]` — rotation IS Class K); line 686 (`L∘K∘C∘I` cascade) |
-| srmech infra | `srmech/amsc/hdc.py` permute (Class C cyclic rotation); `srmech/signal_processing/form_function_rotation.py` form_function_rotate (Class A→Class C composition); `srmech/amsc/cyclic.py` Class I coprime shift |
+| srmech infra | `srmech/math/hdc.py` permute (Class C cyclic rotation); `srmech/signal_processing/form_function_rotation.py` form_function_rotate (Class A→Class C composition); `srmech/math/cyclic.py` Class I coprime shift |
 | Spike refs (internal repo) | Spike #142 (bind self-inverse); Spike #159 (Class I coprime shift; D=8192 stride=257); Spike #173 (chess natural-stride orthogonality); Spike #176 (rotation IS Class K at machine ε) |
 | repo commit | `2e4657fc` at REPORT-write |
 | reproducibility | `PYTHONPATH=docs/srmech/python python3 docs/srmech/rbs_nn_research/worked_example_position_binding.py` |
@@ -73,7 +73,7 @@ This is the canonical Kanerva HDC sequence representation (Kanerva 1988, 2009; P
 
 ### §3.2 Scheme B — Discrete cyclic shift (Class I) — alternative Level-1 form
 
-Per `srmech/amsc/hdc.py:permute` and Spike #159 coprime-shift work, a position can be encoded as a cyclic bit-rotation of a base token:
+Per `srmech/math/hdc.py:permute` and Spike #159 coprime-shift work, a position can be encoded as a cyclic bit-rotation of a base token:
 
 ```
 positioned_k = permute(token, k * stride)
@@ -116,7 +116,7 @@ Operationally: **rotate-overlay takes a single token and overlays it with its ro
 
 ### §4.2 Why rotate-overlay lifts to FPU (the user's "we know exactly why")
 
-The lift is **not** because rotate-overlay requires floating-point arithmetic — the rotation itself (`permute` per `srmech/amsc/hdc.py`) is integer-byte cyclic shift, Level 1. The lift is because rotate-overlay is **ontologically Level-2 by assignment**: it is a substrate-to-shadow projection per MFO line 743. The Class K per-position-selection IS the projection event — what surfaces from substrate (single-view bit-exact content) into shadow (multi-view envelope visible in the dominant projection per bin).
+The lift is **not** because rotate-overlay requires floating-point arithmetic — the rotation itself (`permute` per `srmech/math/hdc.py`) is integer-byte cyclic shift, Level 1. The lift is because rotate-overlay is **ontologically Level-2 by assignment**: it is a substrate-to-shadow projection per MFO line 743. The Class K per-position-selection IS the projection event — what surfaces from substrate (single-view bit-exact content) into shadow (multi-view envelope visible in the dominant projection per bin).
 
 Compute-wise, you CAN execute the rotate-overlay using only integer operations:
 1. `v_rot = permute(v, stride)` — Level 1 ALU, byte XOR / integer cyclic shift

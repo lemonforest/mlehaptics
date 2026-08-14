@@ -107,7 +107,7 @@ def op(
     # the c_dispatched srmech_dense_matmul_complex (Toeplitz matvec) when the
     # native lib is present; else the complete numpy-free pure cascade. Within-tol
     # (not byte-identical): the matmul float accumulation may FMA-fuse ~1 ULP.
-    from srmech.amsc import _native
+    from srmech import _native
 
     _convolve = (
         _dsp.convolve_matmul

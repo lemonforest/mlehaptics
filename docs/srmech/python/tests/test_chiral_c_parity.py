@@ -23,7 +23,8 @@ from __future__ import annotations
 
 import random
 
-from srmech.amsc import cyclic, dispatch, search, _native
+from srmech import _native
+from srmech.math import cyclic, dispatch, search
 
 
 _SEED = 20260602

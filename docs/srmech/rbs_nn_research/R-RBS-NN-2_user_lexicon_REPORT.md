@@ -12,7 +12,7 @@
 
 | field | value |
 |---|---|
-| primary sources | `srmech/signal_processing/rbs_hdc_instrument.py` (mint_vector); `srmech/amsc/hdc.py` (bind, bundle, similarity, permute); `srmech/amsc/format.py` (sha256_bytes); `srmech/notes/spike170_loe_rbs_hdc_architecture_design.md` (10 strict-spec invariants) |
+| primary sources | `srmech/signal_processing/rbs_hdc_instrument.py` (mint_vector); `srmech/math/hdc.py` (bind, bundle, similarity, permute); `srmech/amsc/format.py` (sha256_bytes); `srmech/notes/spike170_loe_rbs_hdc_architecture_design.md` (10 strict-spec invariants) |
 | MFO source | `docs/antikythera-maths/mfo_spectral_research_notebook.md` §VII.1.3 (three-mechanism asymmetry, lines 735–761) — verified verbatim in R-RBS-NN-1 |
 | repo commit | `1c725c1d` at REPORT-write; rolling-PR branch `claude/strange-elgamal-feac0c` |
 | license | per repo |
@@ -76,7 +76,7 @@ def mint_vector(name: str, *, D: int = D_DEFAULT) -> bytes:
 
 ### §3.2 Class M HDC ops — `bind` / `bundle` / `permute` / `similarity`
 
-`srmech/amsc/hdc.py` — all four are Class M canonical ops:
+`srmech/math/hdc.py` — all four are Class M canonical ops:
 
 ```python
 def bind(a: bytes, b: bytes) -> bytes:

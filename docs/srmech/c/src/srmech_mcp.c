@@ -316,6 +316,31 @@ static void mcp_build_tools_list(mcp_emit_t *e, const srmech_json_value_t *id)
     mcp_cstr(e, "}}");
 }
 
+/* The `instructions` field of the initialize result (rc407, `#T1076`).
+ * BYTE-IDENTICAL to srmech.mcp._server.MCP_INSTRUCTIONS — ADR-0009 makes the
+ * capability the invariant and the two projections co-equal, so this literal
+ * and its Python peer must be edited in BOTH or neither;
+ * tests/test_mcp_initialize_instructions_rc407.py parses it out of this file
+ * and asserts the equality, so a one-sided edit fails the build.
+ * A file-scope const rather than a #define: a multi-line macro would violate
+ * JPL Power-of-Ten Rule 8, and those violations only ever go DOWN.
+ * Not an exported symbol, no wire format change: SRMECH_ABI_VERSION stays. */
+static const char srmech_mcp_instructions[] =
+    "srmech exposes its capabilities through a registered tool registry. "
+    "START HERE: call `srmech.introspect.describe` for the capability index "
+    "(shape and counts), then `srmech.introspect.search.search` when you know "
+    "what you want but not what it is called - it ranks the whole registry "
+    "over its authored prose and hands back the importable call form. Tool "
+    "descriptions in tools/list carry the `summary` field only; each op also "
+    "has `example` and `explanation`, which tools/list does not carry - reach "
+    "them over MCP with `srmech.introspect.tool_schema.tool_schema_view`, the "
+    "canonical JSON rendering of the whole registry, or ask `search` first, "
+    "which returns the matching excerpt inline. Carrier CLASSES and "
+    "their methods (Mat, QMat, Q, One, ...) are NOT registered tools: they are "
+    "published by `srmech.introspect.carrier_schema.carrier_schema` and in "
+    "describe()['carriers'], so a lookup miss for a class method is not "
+    "evidence the capability is absent.";
+
 static void mcp_build_initialize(mcp_emit_t *e, const srmech_json_value_t *id,
                                  const srmech_json_value_t *params)
 {
@@ -335,7 +360,13 @@ static void mcp_build_initialize(mcp_emit_t *e, const srmech_json_value_t *id,
     mcp_json_str(e, SRMECH_MCP_SERVER_NAME);
     mcp_cstr(e, ",\"version\":");
     mcp_json_str(e, srmech_version());
-    mcp_cstr(e, "},\"capabilities\":{\"tools\":{}}}}");
+    /* rc407 (`#T1076`): the start-here pointer. BYTE-IDENTICAL to the Python
+     * peer srmech.mcp._server.MCP_INSTRUCTIONS (ADR-0009: the capability is
+     * the invariant, the two projections are co-equal), pinned by
+     * tests/test_mcp_initialize_instructions_rc407.py. Edit BOTH or neither. */
+    mcp_cstr(e, "},\"capabilities\":{\"tools\":{}},\"instructions\":");
+    mcp_json_str(e, srmech_mcp_instructions);
+    mcp_cstr(e, "}}");
 }
 
 /* True iff a srmech_json STRING value equals the NUL-terminated `lit`. */

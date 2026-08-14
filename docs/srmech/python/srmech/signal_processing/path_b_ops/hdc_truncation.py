@@ -35,8 +35,13 @@ Canonical SSoT
 --------------
 - Kanerva (2009), 'Hyperdimensional computing: An introduction to
   computing in distributed representation with high-dimensional random
-  vectors', Cognitive Computation 1, 139-159. DOI 10.1007/s12559-009-
-  9009-8.
+  vectors', Cognitive Computation 1, 139-159.
+  DOI 10.1007/s12559-009-9009-8.
+  (rc428 `#T1126`: this DOI was hard-wrapped ACROSS A NEWLINE here and
+  therefore shipped as the unresolvable `10.1007/s12559-009- 9009-8` in
+  the module docstring, while line 58 below spells it correctly in the
+  same file. An identifier is the one string in a citation that must never
+  be broken for line width.)
 - Plate (1995), *Holographic Reduced Representations*, IEEE TNN 6, 623.
 - Rachkovskij (2001), Neural Comput. Appl. 9, 322 — sparse distributed
   codes.
@@ -100,7 +105,7 @@ def op(
         Bundled (and optionally truncated) vector. D1 algebra-identical
         to :func:`srmech.signal_processing.closed_form_ops.hdc_truncation.op`.
     """
-    from srmech.amsc.hdc import bundle as hdc_bundle
+    from srmech.math.hdc import bundle as hdc_bundle
 
     # Class M side: HDC bundle is Path B-native (Phase 3 surface).
     bundled = hdc_bundle(vectors)

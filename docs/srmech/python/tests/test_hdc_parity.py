@@ -14,7 +14,8 @@ import random
 
 import pytest
 
-from srmech.amsc import _native, hdc
+from srmech import _native
+from srmech.math import hdc
 
 
 def _rand_vector(n_bytes: int, rng: random.Random) -> bytes:

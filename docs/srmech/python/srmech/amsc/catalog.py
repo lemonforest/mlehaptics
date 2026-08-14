@@ -63,6 +63,24 @@ from .descriptor import (
 )
 from .format import MPRRecord, read_ndjson
 
+# srmech's own internal TOML front door (`#T907` slice 3). The descriptor read
+# behind ``_catalog_toml_dict`` (which feeds ``parse_catalog_chains`` over the
+# ``[[catalog.operator_chain]]`` bridge) now self-hosts on the native
+# ``srmech_toml`` parser wherever the C library is present, with the stdlib
+# ``tomllib`` / ``tomli`` floor otherwise (or when the C parser DECLINES a
+# construct — e.g. a float — and rides the bit-exact stdlib parse). The parsed
+# dict is identical to the previous stdlib-only parse either way. ``srmech._toml``
+# is a leaf module (it imports ``srmech._native`` lazily inside ``loads()``), so
+# this module-top import introduces no package-init cycle.
+#
+# The alias is ``_srmech_toml`` (leading underscore), NOT ``srmech_toml``, to match
+# ``amsc/descriptor.py`` and to stay clear of ``tools/gen_c_claims.py``'s
+# ``srmech_*`` bytecode scan: ``_catalog_toml_dict`` is an underscore-prefixed
+# helper the C-claim walker follows into, and a bare ``srmech_toml`` global would
+# read as an off-header C-dispatch claim. Do NOT rename it back to ``srmech_toml``.
+from srmech import _toml as _srmech_toml
+from srmech import _json as _srmech_json
+
 
 # ──────────────────────────────────────────────────────────────────────
 # rc172 — the catalog REGISTRY / KERNEL-STATE / AUDIT logic dispatches to C
@@ -81,7 +99,7 @@ from .format import MPRRecord, read_ndjson
 def _catalog_lib(*symbols: str):
     """Return the native LIB iff HAS_NATIVE and every named rc172 symbol is
     bound (a stale ABI-3 lib missing them → ``None`` → pure path)."""
-    from . import _native
+    from .. import _native
     if not (_native.HAS_NATIVE and _native.LIB is not None):
         return None
     lib = _native.LIB
@@ -106,7 +124,7 @@ def _registered_roots_native(
     if lib is None:
         return None
     import ctypes
-    from . import _native
+    from .. import _native
     rp = root_path.encode("utf-8")
     rs = root_source.encode("utf-8")
     ext = json.dumps(ext_pairs, ensure_ascii=False).encode("utf-8")
@@ -121,7 +139,7 @@ def _registered_roots_native(
         ws, ws_bytes, out, out_cap, ctypes.byref(out_len))
     if rc != _native.SRMECH_OK:
         return None
-    return json.loads(out.raw[:out_len.value].decode("utf-8"))
+    return _srmech_json.loads(out.raw[:out_len.value].decode("utf-8"))
 
 
 def _local_kernel_state_native(
@@ -136,7 +154,7 @@ def _local_kernel_state_native(
     if lib is None:
         return None
     import ctypes
-    from . import _native
+    from .. import _native
     ps = json.dumps(per_source, ensure_ascii=False).encode("utf-8")
     pb = _opt_bytes(path)
     ab = _opt_bytes(adapter_class)
@@ -153,7 +171,7 @@ def _local_kernel_state_native(
         ws, ws_bytes, out, out_cap, ctypes.byref(out_len))
     if rc != _native.SRMECH_OK:
         return None
-    return json.loads(out.raw[:out_len.value].decode("utf-8"))
+    return _srmech_json.loads(out.raw[:out_len.value].decode("utf-8"))
 
 
 def _use_local_kernel_native(
@@ -169,7 +187,7 @@ def _use_local_kernel_native(
     if lib is None:
         return None
     import ctypes
-    from . import _native
+    from .. import _native
     pb = _opt_bytes(resolved)
     ab = _opt_bytes(adapter_class)
     pl = len(pb) if pb is not None else 0
@@ -184,39 +202,52 @@ def _use_local_kernel_native(
         ws, ws_bytes, out, out_cap, ctypes.byref(out_len))
     if rc != _native.SRMECH_OK:
         return None
-    return json.loads(out.raw[:out_len.value].decode("utf-8"))
+    return _srmech_json.loads(out.raw[:out_len.value].decode("utf-8"))
 
 
 def _attestation_audit_native(
-    source_key: str, ndjson: Path
+    source_key: str, descriptor: Descriptor, ndjson: Path
 ) -> Optional[Dict[str, Any]]:
-    """Native ``attestation_audit``: iterate the NDJSON bytes + project the
-    per-row attestation metadata (composes the srmech_json parser). Returns
-    ``None`` on any read / parse issue so the caller runs the pure path
+    """Native ``attestation_audit``: the compiled peer of the whole op —
+    per-row attestation projection through the SAME adapter dispatch the
+    scripting projection uses.
+
+    ``#T1108`` gave this call the descriptor BYTES (ABI 12 → 13). Before that it
+    took ``(source_key, ndjson, ws, out)`` and could therefore only project what
+    each committed line already carried — which for the eight data-only
+    ``literature_curated`` sources is nothing, so it emitted eight empty strings
+    per row and agreed byte-for-byte with a Python peer doing the same wrong
+    thing. Synthesising the curated block needs the descriptor's ``[source]`` /
+    ``[parse]`` / ``[schema]`` tables and the descriptor's own canonical hash, so
+    the descriptor is now a parameter rather than something the C side has to do
+    without.
+
+    Returns ``None`` on any read / parse issue so the caller runs the pure path
     (which raises MPRValidationError on a genuinely malformed line)."""
     lib = _catalog_lib("srmech_catalog_attestation_audit",
                        "srmech_catalog_attestation_audit_arena_bytes")
     if lib is None:
         return None
     import ctypes
-    from . import _native
+    from .. import _native
     try:
         nd = ndjson.read_bytes()
+        desc = descriptor.path.read_bytes()
     except OSError:
         return None
     sk = source_key.encode("utf-8")
     ws_bytes = int(lib.srmech_catalog_attestation_audit_arena_bytes(
-        len(nd), len(sk)))
+        len(nd), len(desc), len(sk)))
     ws = (ctypes.c_char * ws_bytes)()
-    out_cap = 2 * len(nd) + 4096
+    out_cap = 4 * len(nd) + 8 * len(desc) + 8192
     out = (ctypes.c_char * out_cap)()
     out_len = ctypes.c_size_t()
     rc = lib.srmech_catalog_attestation_audit(
-        sk, len(sk), nd, len(nd), ws, ws_bytes, out, out_cap,
+        sk, len(sk), desc, len(desc), nd, len(nd), ws, ws_bytes, out, out_cap,
         ctypes.byref(out_len))
     if rc != _native.SRMECH_OK:
         return None
-    return json.loads(out.raw[:out_len.value].decode("utf-8"))
+    return _srmech_json.loads(out.raw[:out_len.value].decode("utf-8"))
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -377,7 +408,24 @@ def _descriptors() -> Dict[str, Descriptor]:
 
     # Then external roots in registration order.
     for ext_path, ext_source in _REGISTERED_ROOTS:
-        if not ext_path.exists():
+        # A root that is not a usable DIRECTORY is skipped, exactly as a
+        # nonexistent one is. `register_attested_root` deliberately accepts a
+        # path that is not there yet (see
+        # test_register_attested_root_handles_nonexistent_path: registration is
+        # a stub and `_descriptors()` must not raise on it), and a path that
+        # exists but is a FILE is the same class of bad root — the tolerance
+        # simply never covered it.
+        #
+        # `not exists()` alone let a file-root through to `discover_descriptors`,
+        # which walks it and raises NotADirectoryError from three files away.
+        # Measured at rc430 (`#T1127`): the every-tool smoke synthesises one
+        # sandbox path per PARAMETER NAME, so the op that writes `path=` created
+        # a file at the same string `register_attested_root` was handed — and
+        # the bad root then persisted in module-global state for the rest of the
+        # session, reddening `test_dsl_list_ops_u4_rc46` (x4) and
+        # `test_descriptor_hash_selfhost_rc393` in a completely different file.
+        # An ordering-dependent failure invisible to any single-file run.
+        if not ext_path.is_dir():
             continue
         external = discover_descriptors(ext_path)
         for key, desc in external.items():
@@ -644,6 +692,20 @@ def _resolved_ndjson_path(descriptor: Descriptor) -> Path:
     return _ndjson_path(descriptor)
 
 
+#: Adapters whose committed NDJSON is DATA-ONLY, so srmech must SYNTHESISE the
+#: attestation at read time. Everything else commits whole MPR v1 envelopes and
+#: is read back verbatim — the attestation on disk IS the attestation of record.
+#:
+#: This set exists as a named constant rather than an inline ``==`` because
+#: ``attestation_audit`` now shares the same dispatch (`#T1108`). Before rc418 the
+#: audit called ``read_ndjson`` directly and therefore reported an EMPTY
+#: attestation for all eight data-only sources — 180 of 181 rows blank — while
+#: ``get_attested_dataset`` returned the synthesised block for the very same rows.
+#: One reader, two answers, and no differential test could see it because both
+#: PROJECTIONS of each reader agreed with each other.
+_SYNTHESISING_ADAPTERS = frozenset(("literature_curated",))
+
+
 def _iter_records_for_descriptor(
     descriptor: Descriptor, ndjson: Path
 ) -> Iterator[MPRRecord]:
@@ -652,10 +714,13 @@ def _iter_records_for_descriptor(
     Two on-disk formats are recognised, dispatched on adapter type:
 
     * **Live-fetcher adapters** (html_scraper, json_api, csv_bulk,
-      netcdf_grid, geotiff_bbox) — committed NDJSON is the byte-exact
-      output of a prior ``_base.run()`` invocation: full MPRRecord
-      shape per line (data + attestation + rendering). Read via
-      ``read_ndjson()``.
+      netcdf_grid, geotiff_bbox) and **mpr_committed** — committed NDJSON is
+      full MPRRecord shape per line (data + attestation + rendering): for the
+      live fetchers, the byte-exact output of a prior ``_base.run()``
+      invocation; for ``mpr_committed``, a curator-authored envelope whose
+      attestation was minted when the upstream response was captured. Either
+      way the attestation is ALREADY the attestation of record, so it is read
+      back verbatim via ``read_ndjson()`` and nothing is manufactured over it.
     * **literature_curated** — committed NDJSON is curator-friendly
       data-only (one row's data block per line; no attestation /
       rendering). Synthesise the full MPRRecord at read time using
@@ -665,11 +730,17 @@ def _iter_records_for_descriptor(
       ``get_attested_dataset()`` returns full attestation + rendering
       blocks.
 
+    **Synthesis is legitimate ONLY where nothing true was committed**, which is
+    the whole reason the two shapes need two adapter names. Reading an envelope
+    through the synthesising branch would manufacture a ``response_sha256`` over
+    the row's own JSON on top of one that already hashes the real upstream
+    response — the read-side mirror of the write-side substitution `#T1108`
+    closes.
+
     For unknown adapter names, falls back to read_ndjson() — same
     behaviour as before this dispatch was introduced.
     """
-    adapter_name = descriptor.adapter_name
-    if adapter_name == "literature_curated":
+    if descriptor.adapter_name in _SYNTHESISING_ADAPTERS:
         yield from _iter_literature_curated_records(descriptor, ndjson)
     else:
         yield from read_ndjson(ndjson)
@@ -787,9 +858,14 @@ ADAPTER_CLASSES: Dict[str, frozenset] = {
         "geotiff_bbox",
     }),
     # Literature-curated adapters. No network fetch; rows committed
-    # directly with per-row source DOI; useful for offline-first
-    # workflows and per-body literature catalogues.
-    "curated": frozenset({"literature_curated"}),
+    # directly; useful for offline-first workflows and per-body
+    # literature catalogues. TWO members since v0.9.0rc418 (`#T1108`) —
+    # they share the no-network committed-NDJSON model and differ on
+    # WHERE the attestation lives: ``literature_curated`` commits
+    # data-only rows carrying a per-row source DOI and srmech
+    # synthesises the block at read time, ``mpr_committed`` commits
+    # whole MPR envelopes whose attestation is read back verbatim.
+    "curated": frozenset({"literature_curated", "mpr_committed"}),
 }
 
 
@@ -1118,13 +1194,50 @@ def get_attested_descriptor(source_key: str) -> Dict[str, Any]:
     }
 
 
+#: The attestation fields ``attestation_audit`` projects per row, in emission
+#: order. ``source_doi`` / ``source_url`` / ``license`` joined the projection at
+#: v0.9.0rc418 (`#T1108`): the audit's whole purpose is that a consumer can
+#: "reproduce the row's provenance trail", and a trail with no DOI is not one.
+#: The omission was self-concealing — 51 of 180 readable rows were short of
+#: EXACTLY ``source_doi`` and the audit could not have reported it either way.
+AUDIT_PROJECTED_FIELDS: Tuple[str, ...] = (
+    "source_doi",
+    "source_url",
+    "license",
+    "response_sha256",
+    "retrieved_at",
+    "parser_version",
+    "parser_rule_hash",
+    "collector_descriptor_hash",
+)
+
+
 def attestation_audit(source_key: str) -> Dict[str, Any]:
     """Return per-row attestation metadata (no data payload).
 
-    Cheap; paper-appendix-ready. Each row returns its
-    ``response_sha256``, ``retrieved_at``, ``parser_version``,
-    ``parser_rule_hash``, ``collector_descriptor_hash`` so a
-    downstream consumer can reproduce the row's provenance trail.
+    Cheap; paper-appendix-ready. Each row returns the eight
+    :data:`AUDIT_PROJECTED_FIELDS` — ``source_doi``, ``source_url``,
+    ``license``, ``response_sha256``, ``retrieved_at``, ``parser_version``,
+    ``parser_rule_hash``, ``collector_descriptor_hash`` — so a downstream
+    consumer can reproduce the row's provenance trail.
+
+    **The reported attestation is the SAME one the reader returns.** This op
+    goes through :func:`_iter_records_for_descriptor`, exactly as
+    :func:`get_attested_dataset` and :func:`iter_attested_dataset` do, so a
+    data-only ``literature_curated`` row is reported with its SYNTHESISED block
+    and an ``mpr_committed`` / live-fetcher row with its COMMITTED one. That
+    equality is the op's contract and is pinned by
+    ``tests/test_attestation_of_record_rc418.py``.
+
+    **What it did before v0.9.0rc418, stated because the wrong answer shipped.**
+    The audit read the NDJSON raw, bypassing the dispatch. For the eight
+    data-only sources — every source but ``genetic_code`` — the committed lines
+    carry no ``attestation`` key at all, so every projected field came back as
+    the empty string: measured at rc417, **180 of 181 rows blank, 8 of 9 sources
+    entirely blank, and `ok: True` on all nine**. It was invisible to the
+    differential suite because the C peer projected the identical blanks, so the
+    two projections agreed perfectly on the wrong answer, and
+    ``tests/test_catalog_c_rc172.py`` compared them only to each other.
     """
     descriptors = _descriptors()
     if source_key not in descriptors:
@@ -1144,23 +1257,17 @@ def attestation_audit(source_key: str) -> Dict[str, Any]:
             "note": "no committed NDJSON; first T1 collection pending",
         }
 
-    native = _attestation_audit_native(source_key, ndjson)
+    native = _attestation_audit_native(source_key, descriptor, ndjson)
     if native is not None:
         return native
 
     rows: List[Dict[str, str]] = []
-    for record in read_ndjson(ndjson):
+    for record in _iter_records_for_descriptor(descriptor, ndjson):
         attestation = dict(record.attestation)
-        rows.append({
-            "data_schema_id": record.data_schema_id,
-            "response_sha256": attestation.get("response_sha256", ""),
-            "retrieved_at": attestation.get("retrieved_at", ""),
-            "parser_version": attestation.get("parser_version", ""),
-            "parser_rule_hash": attestation.get("parser_rule_hash", ""),
-            "collector_descriptor_hash": attestation.get(
-                "collector_descriptor_hash", ""
-            ),
-        })
+        row: Dict[str, str] = {"data_schema_id": record.data_schema_id}
+        for field in AUDIT_PROJECTED_FIELDS:
+            row[field] = attestation.get(field, "")
+        rows.append(row)
     return {
         "ok": True,
         "source_key": source_key,
@@ -1209,25 +1316,20 @@ def _catalog_toml_dict(source_key: str) -> tuple[Descriptor, Dict[str, Any]]:
     if source_key not in descriptors:
         raise KeyError(f"unknown source_key {source_key!r}")
     descriptor = descriptors[source_key]
-    import sys
-    if sys.version_info >= (3, 11):
-        import tomllib
-    else:  # pragma: no cover
-        import tomli as tomllib  # type: ignore
     raw = descriptor.path.read_bytes()
-    return descriptor, tomllib.loads(raw.decode("utf-8"))
+    return descriptor, _srmech_toml.loads(raw.decode("utf-8"))
 
 
 def _load_catalog_chains(source_key: str) -> List[Any]:
     """Parse all ``[[catalog.operator_chain]]`` entries from a descriptor.
 
-    Returns a list of :class:`srmech.amsc.compose.ChainSpec`. Empty
+    Returns a list of :class:`srmech.cascade.compose.ChainSpec`. Empty
     list when the descriptor declares no chains. Raises
     ``ChainSpecError`` on a malformed declaration.
     """
     _descriptor, toml_dict = _catalog_toml_dict(source_key)
     # Lazy import to avoid circular bootstrap.
-    from . import compose as _compose
+    from ..cascade import compose as _compose
     return _compose.parse_catalog_chains(toml_dict)
 
 
@@ -1265,7 +1367,7 @@ def _list_catalog_chains_native(
     if lib is None:
         return None
     import ctypes
-    from . import _native
+    from .. import _native
     payload_obj = {
         "chain_schema_version": catalog.get("chain_schema_version"),
         "operator_chain": chains_raw,
@@ -1284,7 +1386,7 @@ def _list_catalog_chains_native(
         ctypes.byref(out_len))
     if rc != _native.SRMECH_OK:
         return None
-    chains = json.loads(out.raw[:out_len.value].decode("utf-8"))
+    chains = _srmech_json.loads(out.raw[:out_len.value].decode("utf-8"))
     return {"ok": True, "source_key": source_key,
             "n_chains": len(chains), "chains": chains}
 
@@ -1298,7 +1400,7 @@ def _run_catalog_chain_native(
     ``_RUN_NATIVE_MISS`` (→ pure). Mirrors the rc174 chain-run eligibility
     (all-Class-N, "raise"-policy, referenced ints fit int64); anything else →
     MISS so the pure path runs the chain over the live object graph."""
-    from . import compose as _compose
+    from ..cascade import compose as _compose
     if not (_compose._chain_c_eligible(spec)
             and _compose._run_ints_fit_i64(spec, row, inputs or {})):
         return _RUN_NATIVE_MISS
@@ -1307,14 +1409,21 @@ def _run_catalog_chain_native(
     if lib is None:
         return _RUN_NATIVE_MISS
     import ctypes
-    from . import _native
+    from .. import _native
     # Serialise the WHOLE catalog's chains so the C find-by-name genuinely
     # resolves the named chain among its peers (asymptotic_calculus has 5).
     payload_obj = {
         "chain_schema_version": 1,
         "operator_chain": [_compose._spec_to_chain_dict(c) for c in chains],
     }
-    ctx = {"row": row, "inputs": inputs or {}}
+    # rc402 (`#T1068`): drop UNREFERENCED out-of-int64 columns before marshalling,
+    # exactly as _compose._run_chain_native does. srmech_json now DECLINES such a
+    # literal rather than silently clamping it to INT64_MAX, so leaving one in
+    # would cost the C fast path over a field the chain never reads. The
+    # _run_ints_fit_i64 gate above has already proven every READ int fits.
+    ctx, ctx_ok = _compose._drop_oversized_ints({"row": row, "inputs": inputs or {}})
+    if not ctx_ok:
+        return _RUN_NATIVE_MISS
     try:
         cat_json = json.dumps(payload_obj, ensure_ascii=False).encode("utf-8")
         ctx_json = json.dumps(ctx, ensure_ascii=False).encode("utf-8")
@@ -1333,7 +1442,7 @@ def _run_catalog_chain_native(
         ctypes.byref(out_len))
     if rc != _native.SRMECH_OK:
         return _RUN_NATIVE_MISS
-    desc = json.loads(out.raw[:out_len.value].decode("utf-8"))
+    desc = _srmech_json.loads(out.raw[:out_len.value].decode("utf-8"))
     return _compose._reconstruct_value(desc)
 
 
@@ -1368,7 +1477,7 @@ def list_catalog_chains(source_key: str) -> Dict[str, Any]:
     native = _list_catalog_chains_native(source_key, toml_dict)
     if native is not None:
         return native
-    from . import compose as _compose
+    from ..cascade import compose as _compose
     chains = _compose.parse_catalog_chains(toml_dict)
     return {
         "ok": True,
@@ -1447,7 +1556,7 @@ def run_catalog_chain(
     native = _run_catalog_chain_native(chains, chain_name, spec, row, inputs or {})
     if native is not _RUN_NATIVE_MISS:
         return native
-    from . import compose as _compose
+    from ..cascade import compose as _compose
     return _compose.run_chain(spec, row=row, inputs=inputs or {})
 
 

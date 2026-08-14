@@ -3,7 +3,7 @@
  *
  * The first leaf-batch of the make_class -> C arc (#887 / the DSL [class] object
  * model). The one.toml [class] One binds accessor methods to module-level flat
- * ops in srmech.amsc.cascade.one; two of those are genuine COMPUTE leaves that
+ * ops in srmech.cascade.one; two of those are genuine COMPUTE leaves that
  * assemble the S(sigma,theta) generator into a matrix / scalar, and this TU is
  * their C peer so a bare-C host (no Python) runs One.matrix() / One.scalar()
  * without shelling out per method.

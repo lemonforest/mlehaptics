@@ -1,4 +1,4 @@
-"""C/Python parity tests for srmech.amsc.cascade.reorient.
+"""C/Python parity tests for srmech.cascade.reorient.
 
 v0.4.5rc4 continues the v0.4.5rc1 + rc2 + rc3 cascade-catalog C-parity
 correction by retrofitting reorient (Class C cascade-orientation
@@ -29,8 +29,9 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc import _native, cascade
-from srmech.amsc._native import HAS_NATIVE
+from srmech import _native
+from srmech import cascade
+from srmech._native import HAS_NATIVE
 
 
 SKIP_IF_NO_NATIVE = pytest.mark.skipif(

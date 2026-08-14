@@ -92,7 +92,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Optional, Tuple
 
-from ..amsc import _native
+from .. import _native
 from ..amsc.format import sha256_bytes
 
 #: int64 range guard — the native Bio-TOTP C peer takes ``int64_t`` time /
@@ -604,6 +604,9 @@ def _plaintext_binds_to_nonce(
         # accept (opaque payload).
         return not strict
     try:
+        # stdlib json by PROTOCOL-BOUNDARY decision, not neglect (`#T1008`): the bus wire
+        # carries payloads from other processes. External input on a protocol contract
+        # is out of scope for the READ self-host.
         payload = json.loads(decoded)
     except (json.JSONDecodeError, ValueError):
         # Not JSON. Same logic: strict mode requires bus-Event JSON.

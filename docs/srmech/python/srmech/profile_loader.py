@@ -1,4 +1,4 @@
-"""srmech profile loader — Task #199 implementation (ADR-0001).
+"""srmech profile loader — `#T199` implementation (ADR-0001).
 
 Loads `srmech_profile.toml` descriptors declared by installed packages
 via the ``srmech.profiles`` entry-point group, validates each against
@@ -51,10 +51,21 @@ import warnings
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-if sys.version_info >= (3, 11):
-    import tomllib
-else:  # pragma: no cover  (py3.10 only)
-    import tomli as tomllib  # type: ignore[no-redef]
+# srmech's own internal TOML front door (`#T907` slice 4, final). The native
+# ``srmech_toml`` parser first, stdlib ``tomllib`` (3.11+) / ``tomli`` (3.10)
+# floor otherwise (or when the C parser DECLINES a document). Imported as
+# ``_toml`` (leading underscore) — NOT ``srmech_toml`` — so the leaf-module name
+# never matches the ``gen_c_claims`` ``^srmech_`` C-symbol scan; ``srmech._toml``
+# is a leaf that imports ``_native`` lazily, so no import cycle.
+from srmech import _toml
+
+# rc407 (`#T1076`): the ``tomllib`` / ``tomli`` version branch that used to sit
+# here is GONE. It was RETAINED solely to name the type in the
+# ``except tomllib.TOMLDecodeError`` clause in ``_read_smoke_cache`` — an import
+# of the banned module purely to spell an exception. The front door now owns its
+# exception contract, so that clause reads ``_toml.TOMLDecodeError``; the alias
+# is bound from the same backend ``_toml.load`` rides, so the contract is
+# unchanged.
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -211,6 +222,20 @@ def _validate_descriptor(data: Dict[str, Any], source_hint: str) -> None:
              f"^[a-z][a-z0-9_-]*$ (lowercase, alphanumeric + dash/underscore)")
     _require(1 <= len(name) <= 64,
              f"{source_hint}: [profile].name length must be 1..64")
+
+    # v0.9.0rc409 (`#T1080`) — ROOT CAUSE of the reserved-owner hole.
+    # `_NAME_PATTERN` above matches "srmech", and a profile's name becomes the
+    # `owner` tag on every tool it registers. `owner == "srmech"` is a decision
+    # predicate at six shipped sites (get_tool_schema's split; four native
+    # fast-path gates), so a profile claiming the name would inject rows that
+    # every one of them reads as srmech's own. Refuse it HERE, where the name
+    # enters the system, rather than only at the points that consume it.
+    from .introspect.tool_schema import RESERVED_OWNERS
+    _require(name not in RESERVED_OWNERS,
+             f"{source_hint}: [profile].name {name!r} is RESERVED — it tags "
+             f"srmech's own tools and is what the registry split and the "
+             f"native fast-path gates key on. Reserved: "
+             f"{sorted(RESERVED_OWNERS)}. Choose a different profile name.")
 
     version = p["version"]
     _require(isinstance(version, str) and _VERSION_PATTERN.match(version),
@@ -402,7 +427,7 @@ def _read_descriptor(toml_path: Path, source_hint: str) -> Dict[str, Any]:
     _require(toml_path.exists(),
              f"{source_hint}: profile descriptor {toml_path} does not exist")
     with toml_path.open("rb") as f:
-        return tomllib.load(f)
+        return _toml.load(f)
 
 
 def _enumerate_profiles() -> Dict[str, _EnumeratedDescriptor]:
@@ -524,8 +549,8 @@ def _read_smoke_cache(profile_name: str, profile_version: str) \
         return None
     try:
         with p.open("rb") as f:
-            return tomllib.load(f)
-    except (OSError, tomllib.TOMLDecodeError):
+            return _toml.load(f)
+    except (OSError, _toml.TOMLDecodeError):
         return None
 
 
@@ -715,7 +740,7 @@ class Profile:
     def _load_tool_schema_extension(self) -> None:
         """If ``[profile.tool_schema].extension_file`` is declared,
         locate the TOML inside the profile's package and register every
-        ``[[tools]]`` entry into ``srmech.amsc.tool_schema`` with
+        ``[[tools]]`` entry into ``srmech.introspect.tool_schema`` with
         ``owner = self.name``.
 
         Wired in v0.3.1rc2 after the chess-spectral simple-profile POC
@@ -748,7 +773,7 @@ class Profile:
             )
 
         # Delegate to the canonical loader.
-        from .amsc.tool_schema import (
+        from .introspect.tool_schema import (
             load_extension_file,
             register_profile_tools,
         )

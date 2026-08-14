@@ -28,7 +28,8 @@ import json
 
 import pytest
 
-from srmech.amsc import _native
+from tests._native_gate import require_native
+from srmech import _native
 from srmech.amsc import catalog
 
 NATIVE = _native.HAS_NATIVE and _native.LIB is not None
@@ -107,6 +108,7 @@ def test_register_duplicate_is_idempotent(tmp_path):
 
 
 def test_use_get_clear_kernel_roundtrip_native_pure(tmp_path):
+    require_native("the use/get/clear local-kernel C peer")
     overlay = tmp_path / "kern"
     overlay.mkdir()
 
@@ -145,6 +147,11 @@ def test_use_kernel_with_adapter_class_scope_native_pure(tmp_path):
 
 
 def test_kernel_state_inactive_native_pure():
+    # Gated individually, NOT inside _native_then_pure: several callers of that helper
+    # pass fine with no library (their thunk never reaches a C peer), and gating the
+    # shared helper would skip those too — over-skipping is the mute button this
+    # mechanism exists to avoid (rc351, `#T1004`).
+    require_native("the kernel-state C peer")
     native, pure = _native_then_pure(catalog.get_local_kernel_state)
     assert native == pure
     assert pure["active"] is False and pure["path"] is None
@@ -156,6 +163,7 @@ def test_kernel_state_inactive_native_pure():
 def test_get_local_kernel_state_cache_hash_matches_manual(tmp_path):
     """When overlays exist, the C-derived cache_hash equals the manual join
     hash — the Class-A composition is byte-exact."""
+    require_native("the C-derived kernel cache_hash")
     overlay = tmp_path / "kern_overlay"
     # build an overlay tree matching a real registered source's key/table.
     src = catalog.list_attested_sources()["sources"]
@@ -187,6 +195,7 @@ def _first_real_source_key():
 
 
 def test_attestation_audit_real_source_native_pure():
+    require_native("the attestation-audit C peer")
     key = _first_real_source_key()
     if key is None:
         pytest.skip("no attested sources in this build")
@@ -196,14 +205,18 @@ def test_attestation_audit_real_source_native_pure():
     assert pure["source_key"] == key
     assert pure["n_rows"] == len(pure["rows"])
     for row in pure["rows"]:
-        # every projected row carries exactly the six attestation fields.
-        assert set(row) == {
-            "data_schema_id", "response_sha256", "retrieved_at",
-            "parser_version", "parser_rule_hash", "collector_descriptor_hash",
-        }
+        # every projected row carries data_schema_id + the EIGHT attestation
+        # fields. It was SIX until v0.9.0rc418 (`#T1108`): source_doi /
+        # source_url / license were missing from an op whose stated contract is
+        # that a consumer can reproduce the row's provenance trail. This pin
+        # HELD THE DEFECT IN PLACE, so it moves with the fix rather than being
+        # worked around.
+        assert set(row) == {"data_schema_id"} | set(
+            catalog.AUDIT_PROJECTED_FIELDS)
 
 
 def test_attestation_audit_all_real_sources_native_pure():
+    require_native("the attestation-audit C peer, over every source")
     sources = catalog.list_attested_sources()["sources"]
     if not sources:
         pytest.skip("no attested sources in this build")
@@ -223,7 +236,20 @@ def test_attestation_audit_unknown_source_key():
 @needs_native
 def test_attestation_audit_c_peer_populated_mpr():
     """Direct C-peer test over a synthetic FULL-MPR NDJSON (populated
-    attestation blocks + a comment header + a blank + a data-only row)."""
+    attestation blocks + a comment header + a blank + a data-only row).
+
+    ABI 13 (`#T1108`): the call now takes the DESCRIPTOR bytes as well, and
+    that is what makes the second row's blank projection legitimate instead of
+    a silent wrong answer. The descriptor below declares an ``mpr_committed``
+    adapter — committed envelopes, read back verbatim — so a line that carries
+    no attestation genuinely HAS none and blank is the truth about it.
+
+    Pointed at a ``literature_curated`` descriptor the same C peer now DECLINES
+    with SRMECH_ERR_NOT_IMPL rather than projecting blanks, because there the
+    attestation must be SYNTHESISED and the compiled projection cannot do that
+    yet. That decline is asserted below; it is the named ADR-0009 capability gap
+    this rc opens deliberately in place of the wrong answer it replaces.
+    """
     lib = _native.LIB
     nd = (
         b"# comment header line\n"
@@ -237,27 +263,46 @@ def test_attestation_audit_c_peer_populated_mpr():
         b'   {"data":{"only":"data-row"}}\n'
     )
     sk = b"mysrc"
-    ws_bytes = int(lib.srmech_catalog_attestation_audit_arena_bytes(
-        len(nd), len(sk)))
-    ws = (ctypes.c_char * ws_bytes)()
-    out = (ctypes.c_char * (2 * len(nd) + 4096))()
-    out_len = ctypes.c_size_t()
-    rc = lib.srmech_catalog_attestation_audit(
-        sk, len(sk), nd, len(nd), ws, ws_bytes, out, len(out),
-        ctypes.byref(out_len))
+    verbatim = b'[fetch]\nadapter = "mpr_committed"\n'
+    synthesising = b'[fetch]\nadapter = "literature_curated"\n'
+
+    def call(desc):
+        ws_bytes = int(lib.srmech_catalog_attestation_audit_arena_bytes(
+            len(nd), len(desc), len(sk)))
+        ws = (ctypes.c_char * ws_bytes)()
+        out = (ctypes.c_char * (4 * len(nd) + 8 * len(desc) + 8192))()
+        out_len = ctypes.c_size_t()
+        rc = lib.srmech_catalog_attestation_audit(
+            sk, len(sk), desc, len(desc), nd, len(nd), ws, ws_bytes,
+            out, len(out), ctypes.byref(out_len))
+        if rc != _native.SRMECH_OK:
+            return rc, None
+        return rc, json.loads(out.raw[:out_len.value].decode("utf-8"))
+
+    rc, got = call(verbatim)
     assert rc == _native.SRMECH_OK
-    got = json.loads(out.raw[:out_len.value].decode("utf-8"))
+    blank = {f: "" for f in catalog.AUDIT_PROJECTED_FIELDS}
     assert got == {
         "ok": True, "source_key": "mysrc", "n_rows": 2, "rows": [
-            {"data_schema_id": "src.tab.v1", "response_sha256": "deadbeef",
-             "retrieved_at": "2026-01-01T00:00:00Z",
-             "parser_version": "srmech 0.9", "parser_rule_hash": "rr",
-             "collector_descriptor_hash": "cc"},
-            {"data_schema_id": "", "response_sha256": "", "retrieved_at": "",
-             "parser_version": "", "parser_rule_hash": "",
-             "collector_descriptor_hash": ""},
+            dict(blank, **{
+                "data_schema_id": "src.tab.v1",
+                "response_sha256": "deadbeef",
+                "retrieved_at": "2026-01-01T00:00:00Z",
+                "parser_version": "srmech 0.9",
+                "parser_rule_hash": "rr",
+                "collector_descriptor_hash": "cc"}),
+            dict(blank, **{"data_schema_id": ""}),
         ],
     }
+
+    # â  NEGATIVE CONTROL. Same bytes, synthesising adapter -> the C must
+    # DECLINE, not project the blanks above. Without this clause the descriptor
+    # parameter could be ignored entirely and every assertion here would still
+    # pass, which is exactly how the blank projection survived eleven releases.
+    rc, _ = call(synthesising)
+    assert rc == _native.SRMECH_ERR_NOT_IMPL, (
+        "the C peer projected a literature_curated catalogue instead of "
+        "declining; its committed rows carry no attestation to project")
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -280,8 +325,15 @@ def test_list_attested_sources_native_pure():
 def test_list_attested_sources_adapter_class_filter():
     curated = catalog.list_attested_sources(adapter_class="curated")
     assert curated["adapter_class"] == "curated"
+    # rc418 (`#T1108`): "curated" is the NO-NETWORK class and has two members.
+    # They share the committed-NDJSON model and split on where the attestation
+    # lives — literature_curated synthesises it at read time, mpr_committed
+    # reads back the one already committed. Pinning the class to a single name
+    # made the taxonomy a synonym for one adapter, which is not what a class is.
+    assert set(catalog.ADAPTER_CLASSES["curated"]) == {
+        "literature_curated", "mpr_committed"}
     for s in curated["sources"]:
-        assert s["adapter"] == "literature_curated"
+        assert s["adapter"] in catalog.ADAPTER_CLASSES["curated"]
     with pytest.raises(ValueError):
         catalog.list_attested_sources(adapter_class="not_a_real_class")
 

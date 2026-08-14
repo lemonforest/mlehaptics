@@ -1,7 +1,7 @@
 /*
  * srmech_gosper.c -- Gosper's indefinite hypergeometric summation (the FIRST
  * public op of the section 76 "telescope" Sigma-row closed-form prover, F929). The C
- * peer of srmech.amsc.gosper.gosper.
+ * peer of srmech.apokatastasis.gosper.gosper.
  *
  * Input: the TERM RATIO t(k+1)/t(k) = num(k)/den(k) as two exact-rational
  * polynomials over Q[k] (parallel srmech_bigint coefficient arrays, ascending

@@ -20,9 +20,9 @@ import gc
 import random
 
 from srmech.amsc import ThetaSum
-from srmech.amsc.ellbase import EllMonomial as M, Theta, EllRatio as R
-from srmech.amsc.thetasum import _Y, _VERIFY_POINTS, _VERIFY_TRUNC
-from srmech.amsc.q import Q
+from srmech.apokatastasis.ellbase import EllMonomial as M, Theta, EllRatio as R
+from srmech.apokatastasis.thetasum import _Y, _VERIFY_POINTS, _VERIFY_TRUNC
+from srmech.math.q import Q
 
 _A, _B, _C, _D = M.symbol("a"), M.symbol("b"), M.symbol("c"), M.symbol("d")
 _X = M.symbol("x")
@@ -102,7 +102,7 @@ def test_three_term_fast_path_regression():
 def test_lemma22_multivariate_cn_identity_is_zero():
     cert = _lemma22_cert()
     # the ±-pair fast path alone cannot prove it (cross-variable √a obstruction) ...
-    from srmech.amsc.thetasum import _net_period_multiplier_exps, _class_is_zero
+    from srmech.apokatastasis.thetasum import _net_period_multiplier_exps, _class_is_zero
     classes = {}
     for pref, th in cert._terms:
         classes.setdefault(_net_period_multiplier_exps(th), []).append((pref, th))

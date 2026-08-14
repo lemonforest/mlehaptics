@@ -1,6 +1,6 @@
 """rc166 — the §51 sparse / iterative normalized-cut Fiedler (issue #1097).
 
-``srmech.amsc.laplacian.fiedler_sparse`` is the ``n``-unbounded peer of the dense
+``srmech.math.laplacian.fiedler_sparse`` is the ``n``-unbounded peer of the dense
 ``fiedler_vector`` / ``symmetric_eigendecompose`` path: power iteration on the
 normalized operator ``B = I + D^-1/2 W D^-1/2``, deflating the √deg mode. These
 tests prove (1) its **sign partition** agrees with the trusted dense
@@ -15,8 +15,8 @@ reference is the package's own eigensolver, never numpy).
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc import laplacian as L
+from srmech import _native
+from srmech.math import laplacian as L
 
 
 def _dense_normalized_fiedler_sign(n, edges, weights):

@@ -16,8 +16,8 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc import text as T
+from srmech import _native
+from srmech.math import text as T
 
 
 @pytest.fixture(params=["scripting", "compiled"])

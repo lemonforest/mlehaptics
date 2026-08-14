@@ -3,7 +3,7 @@ KEY hygiene.
 
 ``ThetaSum._is_zero_py`` groups the cleared numerator's terms by QUASI-PERIODICITY CLASS
 before the ±-pair three-term FAST PATH. The class key used to be the FULL net
-period-multiplier monomial :func:`~srmech.amsc.thetasum._net_period_multiplier_exps`
+period-multiplier monomial :func:`~srmech.apokatastasis.thetasum._net_period_multiplier_exps`
 (Rosengren Eq. 1.6 via :meth:`Theta.canonicalize`) — which carries, besides the genuine
 period-lattice ``x``/``y`` exponents, the UNIT exponents of the nome ``p``, the base ``q``,
 and the elliptic parameters ``a, b, c, …``. Those units are INDEPENDENCE-BLIND (invertible
@@ -11,7 +11,7 @@ in the coefficient field ``ℚ(q,p)(params)``), so including them SPLIT one genu
 quasi-periodicity character across buckets (the spurious ``p^{−k(k−1)/2}`` power +
 parameter powers).
 
-The fix: the fast path now keys on :func:`~srmech.amsc.thetasum._quasi_period_class_key`,
+The fix: the fast path now keys on :func:`~srmech.apokatastasis.thetasum._quasi_period_class_key`,
 which keeps ONLY the ``x``/``y`` exponents.
 
 Two guarantees are tested here:
@@ -30,14 +30,14 @@ Two guarantees are tested here:
 
   * NON-REGRESSION — :func:`_net_period_multiplier_exps` still returns the FULL monomial
     (its ``p``-coordinate is the Class-L p-character block label
-    :func:`~srmech.amsc.carrier_spectrum._block_of_thetas` needs); only the fast-path
+    :func:`~srmech.math.carrier_spectrum._block_of_thetas` needs); only the fast-path
     CONSUMER was repointed.
 """
 
 from srmech.amsc import ThetaSum
-from srmech.amsc.ellbase import EllMonomial as M, Theta, EllRatio as R
-from srmech.amsc.q import Q
-from srmech.amsc.thetasum import (
+from srmech.apokatastasis.ellbase import EllMonomial as M, Theta, EllRatio as R
+from srmech.math.q import Q
+from srmech.apokatastasis.thetasum import (
     _net_period_multiplier_exps, _quasi_period_class_key, _class_is_zero,
     _recover_pairs, _Y,
 )

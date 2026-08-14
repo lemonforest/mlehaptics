@@ -22,7 +22,7 @@ import importlib
 
 import pytest
 
-from srmech.amsc import hdc
+from srmech.math import hdc
 from srmech.rbs_lm import encode_word_k4, sim_k4_batch
 
 _D = 256
@@ -77,21 +77,21 @@ def test_sim_k4_batch_ranking_matches_exact_similarity():
 # ──────────────────────────────────────────────────────────────────────
 
 _DELETED = {
-    "srmech.amsc.hdc": (
+    "srmech.math.hdc": (
         "_as_klein4",
         "_klein4_chirality_duals",
         "_klein4_similarity_native",
     ),
-    "srmech.amsc.mat": ("_flat_index",),  # Mat method (checked on the class below)
-    "srmech.qm.so8": ("_mat_rows",),
-    "srmech.amsc.rational": (
+    "srmech.math.mat": ("_flat_index",),  # Mat method (checked on the class below)
+    "srmech.physics.qm.so8": ("_mat_rows",),
+    "srmech.math.rational": (
         "_principal_angle_anchor",
         "_q_scale2",
         "_q_pow2",
         "_rational_sqrt_midpoint",
         "_TRIG_FLOAT_ANCHOR_DEN",
     ),
-    "srmech.amsc.laplacian": (
+    "srmech.math.laplacian": (
         "_vec_to_interleaved_cbuf",
         "_vec_from_interleaved_cbuf",
     ),
@@ -117,7 +117,7 @@ def test_deleted_symbol_is_gone(mod_name, sym):
 
 def test_mat_flat_index_method_gone():
     """``Mat._flat_index`` was a dead method — gone from the class."""
-    from srmech.amsc.mat import Mat
+    from srmech.math.mat import Mat
     assert not hasattr(Mat, "_flat_index")
 
 
@@ -125,10 +125,10 @@ def test_live_siblings_survive():
     """The live siblings the deletions sit next to are untouched."""
     assert hasattr(hdc, "_as_klein4_buf")          # live (the alias's target)
     assert hasattr(hdc, "_klein4_match_count_native")
-    from srmech.amsc import laplacian
+    from srmech.math import laplacian
     assert hasattr(laplacian, "_mat_to_interleaved_cbuf")    # live Mat twins
     assert hasattr(laplacian, "_mat_from_interleaved_cbuf")
-    from srmech.amsc import rational
+    from srmech.math import rational
     assert hasattr(rational, "_TRIG_FLOAT_TERMS")            # live sibling consts
     assert hasattr(rational, "_ATAN_FLOAT_TERMS")
     assert hasattr(rational, "pi_cascade_digits")            # live (stale ref fixed)

@@ -57,6 +57,7 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple
+from srmech import _json as _srmech_json
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -131,9 +132,25 @@ class MPRRecord:
 
     @classmethod
     def from_json_line(cls, line: str) -> "MPRRecord":
-        payload = json.loads(line)
+        payload = _srmech_json.loads(line)
         if not isinstance(payload, dict):
             raise ValueError("MPR line is not a JSON object")
+        # `#T1108`: the three block keys are TYPE-CHECKED before the ``dict()``
+        # coercion, not after. A ``dict()`` over a JSON list / number / bool /
+        # null raises a bare ``TypeError``, which ``read_ndjson``'s handler does
+        # not catch — so seven of the twelve malformed shapes escaped as a
+        # ``TypeError`` with NO LINE NUMBER instead of the documented
+        # ``MPRValidationError``. (A JSON *string* did not escape, because
+        # ``dict('abc')`` raises ``ValueError``, which IS caught — so the defect
+        # was invisible to any probe that only tried a string.) A TypeError
+        # without a line number is not a diagnosis; it is a stack trace.
+        for key in ("data", "attestation", "rendering"):
+            block = payload.get(key, {})
+            if not isinstance(block, dict):
+                raise ValueError(
+                    f"MPR {key!r} must be a JSON object, got "
+                    f"{type(block).__name__}"
+                )
         return cls(
             mpr_version=str(payload.get("mpr_version", "")),
             data=dict(payload.get("data", {})),
@@ -263,7 +280,22 @@ def read_ndjson(path: Path) -> Iterator[MPRRecord]:
     that the catalog-discovery path quietly tolerates.
 
     Raises ``MPRValidationError`` on a malformed (non-comment,
-    non-empty) line, with the line number for diagnostics.
+    non-empty) line, with the line number for diagnostics. Since
+    v0.9.0rc418 (`#T1108`) that promise holds for EVERY malformed
+    shape: a line whose ``data`` / ``attestation`` / ``rendering`` is a
+    JSON list, number, bool or null used to escape as a bare
+    ``TypeError`` with no line number (seven of the twelve
+    key-by-value-type combinations), because the ``dict()`` coercion in
+    :meth:`MPRRecord.from_json_line` ran before any type check. The
+    check now runs first and the raise is typed in all twelve.
+
+    What this does NOT raise on is a WELL-FORMED line that is a flat
+    data dict — a ``literature_curated`` catalogue's committed row. That
+    yields a structurally valid but EMPTY record, and it is CORRECT AS
+    DESIGNED: the attestation for such a row is synthesised at read time
+    by :func:`catalog.get_attested_dataset` from the descriptor, which is
+    why that is the op to reach for. See the "THE TRAP FIRST" note in
+    the tool docs.
 
     Task #201 Phase B4 — when the native library is available, the
     file-IO + line tokenisation runs in C (``srmech_ndjson_iter``)
@@ -271,7 +303,7 @@ def read_ndjson(path: Path) -> Iterator[MPRRecord]:
     with the pure-Python path is pinned by
     ``tests/test_native_ndjson.py``.
     """
-    from . import _native
+    from .. import _native
     if _native.HAS_NATIVE:
         # Native path: C reads + tokenises, Python parses JSON.
         try:
@@ -338,13 +370,32 @@ def write_ndjson(
     if sort_key is not None:
         materialised.sort(key=lambda r: _resolve_sort_key(r, sort_key))
 
+    # `#T1132` — SERIALISE EVERY LINE BEFORE TOUCHING THE FILESYSTEM.
+    #
+    # The old shape mkdir'd, then OPENED FOR WRITE — which TRUNCATES — and only
+    # then entered the serialise loop. So a record that failed to serialise took
+    # out a PRE-EXISTING GOOD NDJSON on its way past. Measured: a 114-byte valid
+    # file came back as 108 bytes of a DIFFERENT file, with the caller holding a
+    # ``TypeError`` that says nothing about the data it just destroyed.
+    #
+    # Destroying prior data outranks orphaning a fresh node, and it is the harder
+    # of the two to notice: a probe on a fresh path cannot see it at all, because
+    # there is nothing there to lose. ``materialised`` already holds every record
+    # in memory (the sort requires it), so buffering the lines costs no new order
+    # of memory — only the order of the two loops changes.
+    #
+    # BOUNDARY, stated so it is not mistaken for more than it is: this fixes
+    # SERIALISATION failure, not WRITE failure. An ENOSPC part-way through
+    # ``writelines`` still truncates the prior file. That is the crash-durability
+    # class, owned by atomic write-and-replace, and it is deferred (`#T1133`) with
+    # its own falsifier — a ``kill -9`` mid-write — which this rc did not measure.
+    lines = [record.to_json_line() + "\n" for record in materialised]
+
     path.parent.mkdir(parents=True, exist_ok=True)
     # NDJSON is byte-stable — write LF line endings explicitly so
     # Windows checkouts produce identical SHA-256 to Linux.
     with path.open("w", encoding="utf-8", newline="\n") as f:
-        for record in materialised:
-            f.write(record.to_json_line())
-            f.write("\n")
+        f.writelines(lines)
     return len(materialised)
 
 
@@ -385,10 +436,10 @@ def sha256_bytes(data: bytes) -> str:
     ``attest()`` step to fingerprint upstream response bytes.
 
     Task #201 Phase B3 — dispatches to the native C implementation
-    (``srmech.amsc._native.sha256_hex_c``) when the shared library
+    (``srmech._native.sha256_hex_c``) when the shared library
     is available, otherwise uses stdlib ``hashlib``. v0.7.0rc18 (F292
     graft #3) prefers the SHA-NI single-stream peer
-    (``srmech.amsc._native.sha256_shani_c``) when the rc18 symbol is
+    (``srmech._native.sha256_shani_c``) when the rc18 symbol is
     present — on hosts that carry the Intel SHA Extensions this runs the
     SHA-NI kernel, and on hosts without it the symbol runs the scalar path
     *inside the C call*, so every dispatch arm is byte-identical (all
@@ -406,7 +457,7 @@ def sha256_bytes(data: bytes) -> str:
     # Lazy import to keep srmech.amsc.format importable on platforms
     # where _native fails to load — the module always exposes a
     # HAS_NATIVE flag, even when the .so is absent.
-    from . import _native
+    from .. import _native
     if _native.HAS_NATIVE:
         if (getattr(_native, "LIB", None) is not None
                 and hasattr(_native.LIB, "srmech_sha256_shani")):
@@ -426,7 +477,7 @@ def sha256_batch(datas: "list[bytes]") -> "list[str]":
     upstream response bytes at once), not a new content-address shape.
 
     v0.7.0rc10 (F292 graft #1) — dispatches to the native **N-way SIMD**
-    peer (``srmech.amsc._native.sha256_batch_c``; AVX2 8-way / SSE2 4-way
+    peer (``srmech._native.sha256_batch_c``; AVX2 8-way / SSE2 4-way
     on x86, scalar elsewhere) when the shared library carries the rc10
     symbol, otherwise a stdlib ``hashlib`` loop. The two paths are
     byte-identical (pinned by ``tests/test_sha256_batch.py``).
@@ -437,7 +488,7 @@ def sha256_batch(datas: "list[bytes]") -> "list[str]":
     Returns:
         ``list[str]`` of 64-char lowercase hex digests, one per input.
     """
-    from . import _native
+    from .. import _native
     if (_native.HAS_NATIVE and getattr(_native, "LIB", None) is not None
             and hasattr(_native.LIB, "srmech_sha256_batch")):
         return _native.sha256_batch_c(list(datas))

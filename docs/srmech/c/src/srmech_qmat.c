@@ -1,13 +1,13 @@
 /*
  * srmech_qmat.c — EXACT-RATIONAL dense matrix over srmech_bigint (the C peer of
- * srmech.amsc.qmat.QMat; the exact ℚ-linear-algebra carrier the §76 gosper
+ * srmech.math.qmat.QMat; the exact ℚ-linear-algebra carrier the §76 gosper
  * undetermined-coefficient solve needs in C).
  *
  * A matrix is carried ROW-MAJOR as two parallel caller-owned arrays of
  * srmech_bigint: nums[r*ncols + c] / dens[r*ncols + c] is the exact-rational
  * entry at (r, c) (dens > 0, gcd(|nums|, dens) == 1; the zero entry is 0/1).
  * Every op below computes the SAME exact rational entries the Python
- * srmech.amsc.qmat.QMat computes — exact Gauss-Jordan over ℚ on the shared
+ * srmech.math.qmat.QMat computes — exact Gauss-Jordan over ℚ on the shared
  * _rref_augmented kernel (the same elimination, over plain Q) — over
  * caller-arena srmech_bigint (NO malloc, JPL Rule 3), reduced to lowest terms
  * with positive denominator. Byte-identical to Python's (num, den) at ANY
@@ -959,7 +959,7 @@ srmech_status_t srmech_qmat_nullspace(const srmech_bigint_t *a_n,
  * arithmetic is NOT duplicated (the 1:1-mirror discipline forbids two copies
  * of one algebra). Byte-identical to Python's fractions.Fraction (num, den)
  * at any magnitude. Rosetta peers of
- * srmech.amsc.cascade.cayley_dickson.{cd_basis, cd_conjugate, cd_add,
+ * srmech.cascade.cayley_dickson.{cd_basis, cd_conjugate, cd_add,
  * cd_norm_sq}. JPL-clean: caller arena (no malloc), <=60-line funcs, >=2
  * asserts, no goto/recursion/abs/libm.
  * ==================================================================== */
@@ -1115,7 +1115,7 @@ srmech_status_t srmech_cd_qnorm_sq(const srmech_bigint_t *x_n,
  * BYTE-IDENTICAL (reduced num/den) to Python's recursive _mult at ANY
  * sedenion+ magnitude (bilinearity: the recursion and the cocycle-sum
  * are the same rational, both reduced to canonical Fraction form).
- * Rosetta peer of srmech.amsc.cascade.cayley_dickson.cd_mult; the 1-D
+ * Rosetta peer of srmech.cascade.cayley_dickson.cd_mult; the 1-D
  * accumulation profile (each output slot sums exactly `dim` products)
  * matches srmech_cd_qnorm_sq, so it shares srmech_cd_qvec_ws_bound /
  * srmech_cd_qvec_entry_cap sizing. JPL-clean: caller arena (no malloc),
@@ -1188,6 +1188,141 @@ srmech_status_t srmech_cd_mult(const srmech_bigint_t *x_n,
             st = cd_mult_accum(&c, sgn, &x_n[ii], &x_d[ii], &y_n[jj], &y_d[jj],
                                &out_n[(size_t)idx], &out_d[(size_t)idx]);
             if (st != SRMECH_OK) { return st; }
+        }
+    }
+    return SRMECH_OK;
+}
+
+/* ==================================================================== *
+ * srmech_algebra_table_product — the TABLE-DRIVEN exact-Q product
+ * (v0.9.0rc352, `#T997`). srmech_cd_mult's sibling: same exact-Q scalar
+ * machinery (qmat_q_mul / qmat_q_add / qmat_q_reduce over the qmat_ctx_t
+ * roster), but the structure constants come from a CALLER-SUPPLIED rank-3
+ * table instead of the hard-wired Cayley-Dickson cocycle:
+ *
+ *     (x*y)_k = sum_{i,j} table[(i*dim + j)*dim + k] * x_i * y_j
+ *
+ * Handing srmech_algebra_table's output to this op reproduces srmech_cd_mult
+ * exactly when gammas == NULL -- the two are the SAME bilinear form, one
+ * reading a table and one calling the cocycle, which is what makes them a
+ * differential rather than a duplicate. Every SPLIT twist, and every
+ * hand-built control table, is reachable here and nowhere else.
+ *
+ * The table is INTEGER by contract (a structure constant is exact or it is
+ * not a structure constant); the ELEMENTS are arbitrary exact rationals, so
+ * the domain is exactly srmech_cd_mult's -- no decline, no int64 ceiling.
+ * JPL-clean: caller arena (no malloc), <=60-line funcs, >=2 asserts,
+ * no goto/recursion/abs/libm.
+ * ==================================================================== */
+
+size_t srmech_algebra_table_product_ws_bound(size_t coeff_limbs, size_t dim)
+{
+    size_t span, cap, carriers, scratch;
+    assert(dim >= 1u);
+    assert(dim <= (size_t)SRMECH_ALGEBRA_TABLE_MAX_DIM);
+    /* A DENSE table may steer all dim*dim products into ONE output slot (the
+     * cocycle can only steer dim of them), so the accumulation span is
+     * dim*dim, not dim. Only the scalar carriers + the gcd/divmod tail are
+     * needed -- there is no working matrix on this path, which is why this
+     * does not route through srmech_qmat_ws_bound the way the Qvec bound
+     * does (that would over-provision dim*dim matrix cells). */
+    span = dim * dim + 2u;
+    cap = qmat_cap_for(coeff_limbs, span);
+    carriers = cap * (size_t)QMAT_N_CARRIERS;
+    scratch = cap * 8u + 256u;
+    return (carriers + scratch + 16u) * sizeof(uint32_t);
+}
+
+size_t srmech_algebra_table_product_entry_cap(size_t coeff_limbs, size_t dim)
+{
+    size_t cap;
+    assert(dim >= 1u);
+    assert(dim <= (size_t)SRMECH_ALGEBRA_TABLE_MAX_DIM);
+    cap = qmat_cap_for(coeff_limbs, dim * dim + 2u);
+    assert(cap >= coeff_limbs);
+    return cap;
+}
+
+/* One table term: acc += coeff * (x_i * y_j), exact Q. The integer structure
+ * constant rides the pr_n/pr_d carriers as the rational coeff/1 (pr is the
+ * determinant running-product pair, unused on this path), so its SIGN travels
+ * inside the bigint and there is no ALU abs and no separate sign branch. The
+ * out carrier of qmat_q_mul / qmat_q_add may not alias an input, hence the
+ * qb -> fa -> qb shuffle. */
+static srmech_status_t table_prod_accum(qmat_ctx_t *c, int64_t coeff,
+                                        const srmech_bigint_t *xn,
+                                        const srmech_bigint_t *xd,
+                                        const srmech_bigint_t *yn,
+                                        const srmech_bigint_t *yd,
+                                        srmech_bigint_t *acc_n,
+                                        srmech_bigint_t *acc_d)
+{
+    srmech_status_t st;
+    assert(c != NULL && acc_n != NULL && acc_d != NULL);
+    assert(coeff != 0);
+    st = qmat_q_mul(c, &c->qb_n, &c->qb_d, xn, xd, yn, yd);   /* qb = x_i*y_j */
+    if (st != SRMECH_OK) { return st; }
+    st = srmech_bigint_set_i64(&c->pr_n, coeff);              /* pr = coeff/1 */
+    if (st != SRMECH_OK) { return st; }
+    st = srmech_bigint_set_i64(&c->pr_d, 1);
+    if (st != SRMECH_OK) { return st; }
+    st = qmat_q_mul(c, &c->fa_n, &c->fa_d, &c->qb_n, &c->qb_d,
+                    &c->pr_n, &c->pr_d);                      /* fa = qb*pr   */
+    if (st != SRMECH_OK) { return st; }
+    st = qmat_q_add(c, &c->qb_n, &c->qb_d, acc_n, acc_d,
+                    &c->fa_n, &c->fa_d, 0);                   /* qb = acc+fa  */
+    if (st != SRMECH_OK) { return st; }
+    st = srmech_bigint_copy(acc_n, &c->qb_n);
+    if (st != SRMECH_OK) { return st; }
+    return srmech_bigint_copy(acc_d, &c->qb_d);
+}
+
+srmech_status_t srmech_algebra_table_product(const int64_t *table, int dim,
+                                             const srmech_bigint_t *x_n,
+                                             const srmech_bigint_t *x_d,
+                                             const srmech_bigint_t *y_n,
+                                             const srmech_bigint_t *y_d,
+                                             srmech_bigint_t *out_n,
+                                             srmech_bigint_t *out_d,
+                                             void *ws, size_t ws_len)
+{
+    qmat_ctx_t c;
+    srmech_status_t st;
+    size_t clx, cly, cl, cap, k, d, ii, jj, kk, base;
+    int64_t coeff;
+    assert(table != NULL && x_n != NULL && x_d != NULL);
+    assert(y_n != NULL && y_d != NULL && out_n != NULL && out_d != NULL);
+    if (table == NULL || x_n == NULL || x_d == NULL || y_n == NULL
+            || y_d == NULL || out_n == NULL || out_d == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (dim < 1 || dim > (int)SRMECH_ALGEBRA_TABLE_MAX_DIM) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    d = (size_t)dim;
+    clx = qmat_max_coeff_limbs(x_n, x_d, d);
+    cly = qmat_max_coeff_limbs(y_n, y_d, d);
+    cl = (cly > clx) ? cly : clx;
+    cap = qmat_cap_for(cl, d * d + 2u);
+    st = qmat_ctx_init(&c, (uint32_t)cap, ws, ws_len);
+    if (st != SRMECH_OK) { return st; }
+    for (k = 0u; k < d; k++) {                        /* out[k] = 0/1 */
+        st = srmech_bigint_set_i64(&out_n[k], 0);
+        if (st != SRMECH_OK) { return st; }
+        st = srmech_bigint_set_i64(&out_d[k], 1);
+        if (st != SRMECH_OK) { return st; }
+    }
+    for (ii = 0u; ii < d; ii++) {
+        for (jj = 0u; jj < d; jj++) {
+            base = (ii * d + jj) * d;
+            for (kk = 0u; kk < d; kk++) {
+                coeff = table[base + kk];
+                if (coeff == 0) { continue; }
+                st = table_prod_accum(&c, coeff, &x_n[ii], &x_d[ii],
+                                      &y_n[jj], &y_d[jj],
+                                      &out_n[kk], &out_d[kk]);
+                if (st != SRMECH_OK) { return st; }
+            }
         }
     }
     return SRMECH_OK;

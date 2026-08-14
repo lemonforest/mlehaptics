@@ -10,7 +10,7 @@ import pathlib
 
 import pytest
 
-import srmech.amsc.laplacian as L
+import srmech.math.laplacian as L
 
 
 # --- the srmech Jacobi cascade == the numpy/native eigenvalue path -----------
@@ -62,8 +62,8 @@ def test_real_core_numpy_absent():
     ``{0, 0.690983, 1.909830, 3.0, 3.690983}`` (Spielman, Spectral Graph
     Theory, path-graph eigenpairs)."""
     # numpy is absent: there is NO laplacian.np attribute.
-    from srmech.amsc.mat import Mat
-    from srmech.amsc.vec import Vec
+    from srmech.math.mat import Mat
+    from srmech.math.vec import Vec
     assert not hasattr(L, "np")
 
     edges = _ref_path_graph_laplacian(5)
@@ -91,8 +91,8 @@ def test_scientific_tier_ops_run_without_numpy():
     (The old ``test_scientific_tier_raises_clean_without_numpy`` asserted a
     ``_require_np`` ImportError guard; that guard was deleted with numpy, so
     this now pins the inverse contract: the ops succeed numpy-free.)"""
-    from srmech.amsc.mat import Mat
-    from srmech.amsc.vec import Vec
+    from srmech.math.mat import Mat
+    from srmech.math.vec import Vec
     w, V = L.hermitian_eigendecompose([[1.0, 0.0], [0.0, 1.0]])
     assert isinstance(w, Vec) and list(w) == [1.0, 1.0]   # rc129: Vec eigenvalues
     assert isinstance(V, Mat) and V.shape == (2, 2)        # rc129: Mat eigenvectors
@@ -113,7 +113,7 @@ def test_hermitian_eigendecompose_degenerate_numpy_free():
     embedding columns at the same eigenvalue for an independent reconstruction.
     Pin: a unitary basis + exact reconstruction ``V·diag(λ)·Vᴴ = H`` on three
     degenerate complex-Hermitian matrices, numpy-free."""
-    from srmech.amsc.mat import Mat
+    from srmech.math.mat import Mat
 
     cases = [
         [[1.0, 0.0], [0.0, 1.0]],                       # identity: λ = {1, 1}
@@ -177,7 +177,7 @@ def test_no_abs_calls_anywhere_in_srmech():
 def test_no_math_sqrt_hypot_anywhere_in_srmech():
     """RATCHET (v0.7.0rc40): no ``math.sqrt`` / ``math.hypot`` CALL exists in any
     srmech source file. The ``math`` module's scalar roots have an exact Class-N
-    srmech peer (``srmech.amsc.rational.sqrt`` / ``.hypot``) — route scalar roots
+    srmech peer (``srmech.math.rational.sqrt`` / ``.hypot``) — route scalar roots
     through the cascade, not libm (the §22 "never use numpy/libm math when srmech
     can cascade" discipline; cf. the rc32 abs-sweep / rc33 numpy-math-sweep).
     ``cmath.sqrt`` (genuine complex root, no rational peer) and ``np.sqrt`` on a
@@ -201,7 +201,7 @@ def test_no_math_sqrt_hypot_anywhere_in_srmech():
                 offenders.append(f"{path.name}:{node.lineno} math.{node.func.attr}(")
     assert not offenders, (
         "math.sqrt / math.hypot calls found in srmech — route scalar roots through "
-        "srmech.amsc.rational.{sqrt,hypot} (the Class-N cascade), not libm:\n  "
+        "srmech.math.rational.{sqrt,hypot} (the Class-N cascade), not libm:\n  "
         + "\n  ".join(offenders)
     )
 
@@ -221,7 +221,7 @@ def test_no_math_trig_pi_anywhere_in_srmech():
     """RATCHET (v0.7.0rc41): no ``math.{sin,cos,tan,atan,atan2,exp,pi,tau}``
     reference (call OR bare constant) exists in any srmech source file. The
     libm trig / π family each has an exact Class-N srmech peer
-    (``srmech.amsc.rational.{sin,cos,tan,atan,atan2,exp}`` + the
+    (``srmech.math.rational.{sin,cos,tan,atan,atan2,exp}`` + the
     ``pi_cascade``) — route continuous trig / π through the cascade, not libm
     (the §22 "never use numpy/libm math when srmech can cascade" discipline;
     cf. the rc40 ``math.sqrt`` sweep). The "continuous" number line is a
@@ -248,6 +248,6 @@ def test_no_math_trig_pi_anywhere_in_srmech():
                 offenders.append(f"{path.name}:{node.lineno} math.{node.attr}")
     assert not offenders, (
         "math trig / π references found in srmech — route continuous trig / π "
-        "through srmech.amsc.rational.{sin,cos,tan,atan,atan2,exp} + the "
+        "through srmech.math.rational.{sin,cos,tan,atan,atan2,exp} + the "
         "pi_cascade (the Class-N cascade), not libm:\n  " + "\n  ".join(offenders)
     )

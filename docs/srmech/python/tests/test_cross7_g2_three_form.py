@@ -26,14 +26,14 @@ never abs() (``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]``).
 import itertools
 import random
 
-from srmech.amsc.cascade import matrix_cascades as mc
-from srmech.amsc.hdc import (
+from srmech.cascade import matrix_cascades as mc
+from srmech.math.hdc import (
     LOOP_DIM,
     cross7,
     g2_three_form,
     loop_bind,
 )
-from srmech.qm.so8 import _rank_exact
+from srmech.physics.qm.so8 import _rank_exact
 
 DIM = 8
 SEED = 12345

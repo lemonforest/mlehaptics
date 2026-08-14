@@ -1,0 +1,117 @@
+# srmech ACOUSTIC / MUSIC domain naming (v0.9.0rc362) — the first `[[alias]]`
+# descriptor shipped in the tree.
+#
+# ⚠️ v0.9.0rc364 — MOVED, and the move is the point. This file was written to
+# `tests/data/` because there was nowhere else: `srmech.dsl` had no
+# ALIAS_CATALOG_DIR, so a descriptor landed in the test fixtures BY DEFAULT
+# rather than by decision. `tests/**` is in `sdist.include` and NOT in the
+# wheel, so "the first [[alias]] descriptor shipped in the tree" shipped to
+# nobody. ADR-0010's first execution slice gave the naming layer a packaged
+# home (this directory) and a registration API, so it now ships and resolves
+# by BARE NAME — the one-liner below works from a plain `pip install`.
+#
+# rc261 shipped the config-TOML FUNCTION-ALIASING subsystem (`srmech.dsl.alias`
+# / `build_aliases_from_toml_str` / `load_aliases_toml`) but no descriptor ever
+# shipped with it, so the layer had an API and no worked example. This file is
+# that example, and it is the mechanism the acoustic domain uses for its own
+# vocabulary: the general ops keep general names, and the domain words are a
+# CONFIG BINDING over them.
+#
+# The point, in the user's words: "changing the TOML entry changes the domain
+# referenced name without touching source code, no recompile."
+#
+#     from srmech.dsl import load_aliases_toml
+#     names = load_aliases_toml("music_domain_aliases")     # bare name; rc364+
+#     names["partials"]()            # == srmech.music.bell_partials()
+#     names["overtone_period"](rs)   # == srmech.music.common_period(rs)
+#
+# Rename `partials` to `teilton` here and the domain name changes on the next
+# load. No source edit, no rebuild, no new symbol — and therefore no C-parity
+# obligation either: `srmech.dsl.alias` returns a `functools.wraps` duplicate of
+# a callable that already exists on every implementation, so it mints no new
+# op. (The rosetta ledger classifies the alias layer `dev_tooling` = never-owed
+# C; see ADR-0010's correction note on why this layer is NOT a namespace seam.)
+#
+# ⚠️ Every name below is the ACOUSTIC sense of its word. "harmonic" here means
+# partials/overtones — never the chirality order `classify_harmonic` indexes.
+
+# ── the tuned-bell founder's vocabulary ──────────────────────────────────────
+# hum / prime / tierce / quint / nominal are the five partials a bell founder
+# tunes (Fletcher & Rossing 1998 sec. 21.3). They are the NAMES of the ratios
+# `bell_partials` returns, carried in the "names" field, so the domain word for
+# the constructor itself is what gets bound here.
+[[alias]]
+name = "partials"
+target = "srmech.music.bell_partials"
+
+[[alias]]
+name = "bell_tuning"
+target = "srmech.music.bell_partials"
+
+# ── the general spectrum surface, under domain words ─────────────────────────
+[[alias]]
+name = "overtone_series"
+target = "srmech.music.stiff_string_partials"
+
+[[alias]]
+name = "drum_modes"
+target = "srmech.music.membrane_partials"
+
+[[alias]]
+name = "temperament"
+target = "srmech.music.equal_temperament_partials"
+
+[[alias]]
+name = "is_inharmonic"
+target = "srmech.music.commensurability_verdict"
+
+[[alias]]
+name = "overtone_period"
+target = "srmech.music.common_period"
+
+[[alias]]
+name = "exactness"
+target = "srmech.music.spectrum_tier"
+
+# -- rc424 (`#T1113`): the RELATIONAL lane's domain words --------------------
+# The acoustic block above names things you HEAR; these name relations you
+# RECKON. Same mechanism, same point: the general ops keep general names and
+# the domain word is a config binding over them.
+[[alias]]
+name = "p_limit"
+target = "srmech.music.just_limit"
+
+[[alias]]
+name = "comma"
+target = "srmech.music.comma_of_chain"
+
+[[alias]]
+name = "tempers"
+target = "srmech.music.tempers_out"
+
+[[alias]]
+name = "interval_content"
+target = "srmech.music.interval_vector"
+
+[[alias]]
+name = "compact_rotation"
+target = "srmech.music.normal_order"
+
+[[alias]]
+name = "set_class"
+target = "srmech.music.prime_form"
+
+# THE Z/7 WALK, and why it is a BINDING rather than an op. Notebook 3.46.2
+# reads the circle of fifths as a single +4 step in Z/7 (the fourth is +3, and
+# 4 + 3 = 7 is the conserved octave). That walk is exactly one cyclic_mod_add
+# call and carries NO decision, so registering it would add registry surface
+# for zero capability -- it was costed and REJECTED as an op alongside
+# interval_invert / pitch_class_transpose / pitch_class_invert. What it DOES
+# earn is its domain name, which is what this layer exists to give:
+#
+#     names = load_aliases_toml("music_domain_aliases")
+#     names["scale_step"](6, 4, 7)   # F -> C, the fifth, == 3
+#
+[[alias]]
+name = "scale_step"
+target = "srmech.cascade.cyclic_mod_add"

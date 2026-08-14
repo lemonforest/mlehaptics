@@ -1,7 +1,7 @@
 """rc171 — the ORCHESTRATION→C spine, batch 1: the op-provenance verdict /
 carry / re-verify logic gains C peers (v0.9.0rc171).
 
-The five ``srmech.amsc.op_provenance`` verdict/carry ops move
+The five ``srmech.introspect.op_provenance`` verdict/carry ops move
 ``owed_orchestration`` → ``composes_c`` — each now dispatches its provenance
 LOGIC to a C peer so a bare-C host (no Python, no ``json.dumps``) builds +
 compares op-provenance records:
@@ -29,8 +29,8 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc import op_provenance as op
+from srmech import _native
+from srmech.introspect import op_provenance as op
 
 _HAS_NATIVE = _native.HAS_NATIVE and _native.LIB is not None
 
@@ -96,17 +96,17 @@ def _values_close(a, b, tol=1e-9):
 # The registered carry ops exercised (an INTERIOR series tower, an EDGE
 # CF tower, and the Class-L float-leaf frontier).
 _CARRY_CASES = [
-    ("srmech.amsc.rational.sin_series_truncate",
+    ("srmech.math.rational.sin_series_truncate",
      {"numerator": 1, "denominator": 1}, {"num_terms": 8}),
-    ("srmech.amsc.rational.cos_series_truncate",
+    ("srmech.math.rational.cos_series_truncate",
      {"numerator": 2, "denominator": 3}, {"num_terms": 10}),
-    ("srmech.amsc.rational.exp_series_truncate",
+    ("srmech.math.rational.exp_series_truncate",
      {"numerator": -1, "denominator": 4}, {"num_terms": 12}),
-    ("srmech.amsc.rational.best_rational",
+    ("srmech.math.rational.best_rational",
      {"numerator": 355, "denominator": 113}, {"max_denominator": 1000}),
-    ("srmech.amsc.laplacian.jacobi_eigvals",
+    ("srmech.math.laplacian.jacobi_eigvals",
      {"matrix": [[2.0, -1.0, 0.0], [-1.0, 2.0, -1.0], [0.0, -1.0, 2.0]]}, None),
-    ("srmech.amsc.laplacian.symmetric_eigendecompose",
+    ("srmech.math.laplacian.symmetric_eigendecompose",
      {"matrix": [[4.0, 0.0], [0.0, 9.0]]}, None),
 ]
 
@@ -129,14 +129,14 @@ _LOSSY_INPUTS = [
 
 @pytest.mark.skipif(not _HAS_NATIVE, reason="native lib absent")
 def test_native_peers_are_exercised():
-    r = op.carry("srmech.amsc.rational.sin_series_truncate",
+    r = op.carry("srmech.math.rational.sin_series_truncate",
                  {"numerator": 1, "denominator": 1}, {"num_terms": 8})
     prov = r["provenance"]
     assert op._verdict_native(prov, prov) == "EQUAL"
     assert op._family_verdict_native(prov, prov) == "SAME_TARGET"
     assert op._reproject_verify_native(prov, r["inputs"]) is True
     cn = op._carry_record_native(
-        "srmech.amsc.rational.sin_series_truncate", r["inputs"],
+        "srmech.math.rational.sin_series_truncate", r["inputs"],
         prov["params"], prov["family"], prov["rung"])
     assert isinstance(cn, dict) and cn == prov
     ln = op._lossy_record_native("o.p", {"a": 1}, "hdc")
@@ -163,7 +163,7 @@ def test_carry_native_equals_pure(opname, inp, params):
 
 def test_carry_family_override_native_equals_pure():
     nat, pure = _both(lambda: op.carry(
-        "srmech.amsc.rational.best_rational",
+        "srmech.math.rational.best_rational",
         {"numerator": 1, "denominator": 1}, {"max_denominator": 50},
         family={"target_id": "sin(1/1)"}))
     assert nat["provenance"] == pure["provenance"]
@@ -174,7 +174,7 @@ def test_carry_family_override_native_equals_pure():
 def test_carry_float_leaf_marks_inexact_and_no_family():
     # a float-leaf matrix is an UNNAMED target: leaves_exact False, family None.
     nat, pure = _both(lambda: op.carry(
-        "srmech.amsc.laplacian.jacobi_eigvals",
+        "srmech.math.laplacian.jacobi_eigvals",
         {"matrix": [[2.0, -1.0], [-1.0, 2.0]]}))
     assert nat["provenance"] == pure["provenance"]
     assert nat["provenance"]["leaves_exact"] is False
@@ -207,13 +207,13 @@ def test_lossy_nested_inexact_leaf_detected():
 # ──────────────────────────────────────────────────────────────────────
 
 def test_op_verdict_equal_and_unknown_native_equals_pure():
-    a = op.carry("srmech.amsc.rational.sin_series_truncate",
+    a = op.carry("srmech.math.rational.sin_series_truncate",
                  {"numerator": 1, "denominator": 1}, {"num_terms": 8})
-    b = op.carry("srmech.amsc.rational.sin_series_truncate",
+    b = op.carry("srmech.math.rational.sin_series_truncate",
                  {"numerator": 1, "denominator": 1}, {"num_terms": 8})
-    c = op.carry("srmech.amsc.rational.sin_series_truncate",
+    c = op.carry("srmech.math.rational.sin_series_truncate",
                  {"numerator": 1, "denominator": 1}, {"num_terms": 9})
-    d = op.carry("srmech.amsc.rational.exp_series_truncate",
+    d = op.carry("srmech.math.rational.exp_series_truncate",
                  {"numerator": 1, "denominator": 1}, {"num_terms": 8})
     for x, y, want in [(a, b, "EQUAL"), (a, c, "UNKNOWN"), (a, d, "UNKNOWN")]:
         nat, pure = _both(lambda x=x, y=y: op.op_verdict(x, y))
@@ -225,13 +225,13 @@ def test_op_verdict_equal_and_unknown_native_equals_pure():
 # ──────────────────────────────────────────────────────────────────────
 
 def test_family_verdict_native_equals_pure():
-    a = op.carry("srmech.amsc.rational.sin_series_truncate",
+    a = op.carry("srmech.math.rational.sin_series_truncate",
                  {"numerator": 1, "denominator": 1}, {"num_terms": 8})
-    c = op.carry("srmech.amsc.rational.sin_series_truncate",
+    c = op.carry("srmech.math.rational.sin_series_truncate",
                  {"numerator": 1, "denominator": 1}, {"num_terms": 9})
-    d = op.carry("srmech.amsc.rational.cos_series_truncate",
+    d = op.carry("srmech.math.rational.cos_series_truncate",
                  {"numerator": 1, "denominator": 1}, {"num_terms": 8})
-    j = op.carry("srmech.amsc.laplacian.jacobi_eigvals",
+    j = op.carry("srmech.math.laplacian.jacobi_eigvals",
                  {"matrix": [[2.0, -1.0], [-1.0, 2.0]]})
     # same target, different rung -> SAME_TARGET; different target -> UNKNOWN;
     # unnamed (float-leaf) family None -> UNKNOWN.
@@ -247,20 +247,20 @@ def test_family_verdict_native_equals_pure():
 # ──────────────────────────────────────────────────────────────────────
 
 def test_reproject_verbatim_and_override_native_equals_pure():
-    a = op.carry("srmech.amsc.rational.sin_series_truncate",
+    a = op.carry("srmech.math.rational.sin_series_truncate",
                  {"numerator": 1, "denominator": 1}, {"num_terms": 8})
     nat, pure = _both(lambda: op.reproject(a))
     assert nat["provenance"] == pure["provenance"] == a["provenance"]
     nato, pureo = _both(lambda: op.reproject(a, num_terms=12))
     assert nato["provenance"] == pureo["provenance"]
     assert op.family_verdict(a, nato) == "SAME_TARGET"
-    expect = op.carry("srmech.amsc.rational.sin_series_truncate",
+    expect = op.carry("srmech.math.rational.sin_series_truncate",
                       {"numerator": 1, "denominator": 1}, {"num_terms": 12})
     assert nato["value"] == expect["value"]
 
 
 def test_reproject_mismatched_inputs_raises_both_paths():
-    a = op.carry("srmech.amsc.rational.sin_series_truncate",
+    a = op.carry("srmech.math.rational.sin_series_truncate",
                  {"numerator": 1, "denominator": 1}, {"num_terms": 8})
     bare = copy.deepcopy(a["provenance"])
     with pytest.raises(ValueError):

@@ -19,8 +19,8 @@ import math
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc.cascade.exact_dft import (
+from srmech import _native
+from srmech.cascade.exact_dft import (
     ExactSpectrum,
     _exact_dft_core,
     _exact_dft_core_native,

@@ -1,4 +1,4 @@
-"""rc70 — ``srmech.amsc.unary_theta.UnaryTheta``, the FIRST WEIGHT-GRADED carrier.
+"""rc70 — ``srmech.apokatastasis.unary_theta.UnaryTheta``, the FIRST WEIGHT-GRADED carrier.
 
 The build gates (the no-shell proof):
 
@@ -23,11 +23,11 @@ import tokenize
 
 import pytest
 
-from srmech.amsc.unary_theta import (
+from srmech.apokatastasis.unary_theta import (
     Character, UnaryTheta, unary_theta, _kronecker_minus12,
 )
-from srmech.amsc.q import Q
-from srmech.amsc import _native
+from srmech.math.q import Q
+from srmech import _native
 
 
 # the two anchors, reused across the gates
@@ -193,7 +193,7 @@ def test_pure_python_oracle_matches_targets_without_native():
 
 # ── the existing carriers are now weight-annotated (weight-0) ─────────────────
 def test_ellratio_weight_balanced_is_zero():
-    from srmech.amsc.ellbase import EllRatio, EllMonomial, Theta
+    from srmech.apokatastasis.ellbase import EllRatio, EllMonomial, Theta
     a = EllMonomial.symbol("a")
     b = EllMonomial.symbol("b")
     balanced = EllRatio(num=(Theta(a),), den=(Theta(b),))
@@ -204,8 +204,8 @@ def test_ellratio_weight_balanced_is_zero():
 
 
 def test_thetasum_weight_is_zero():
-    from srmech.amsc.ellbase import EllMonomial, Theta
-    from srmech.amsc.thetasum import ThetaSum
+    from srmech.apokatastasis.ellbase import EllMonomial, Theta
+    from srmech.apokatastasis.thetasum import ThetaSum
     a = EllMonomial.symbol("a")
     ts = ThetaSum(terms=[(Q(1, 1), EllMonomial.one(), (Theta(a),))])
     assert ts.weight == Q(0, 1)
@@ -233,7 +233,7 @@ def test_character_trivial_and_table():
 # ── gate (e): the carrier source is numpy / math / abs() free ────────────────
 def test_unary_theta_source_is_numpy_math_abs_free():
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    src = os.path.join(here, "srmech", "amsc", "unary_theta.py")
+    src = os.path.join(here, "srmech", "apokatastasis", "unary_theta.py")
     with tokenize.open(src) as fh:
         text = fh.read()
     assert "import numpy" not in text
@@ -244,22 +244,33 @@ def test_unary_theta_source_is_numpy_math_abs_free():
 
 # ── the ToolEntry registration + the running count ───────────────────────────
 def test_unary_theta_tool_entry_registered():
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
-    assert "srmech.amsc.unary_theta.unary_theta" in names
+    assert "srmech.apokatastasis.unary_theta.unary_theta" in names
 
 
 def test_introspect_tools_total_matches_live():
-    """The canonical shipped tool count after the rc71 ``harmonic_maass`` op (339 →
-    340; the rc70 ``unary_theta`` op took it 338 → 339). Counted over the SHIPPED
-    surface only — other tests (e.g. ``test_tool_schema.py``) imperatively
-    ``register_tool`` throwaway ``test.*`` entries into the global schema singleton
-    that they do not (cleanly) remove, so the raw ``describe()`` total drifts up by
-    those leaks depending on test order. We exclude the ``test.``-namespaced
-    injections (the shipped surface is what this invariant is about)."""
-    from srmech.amsc.tool_schema import get_tool_schema
-    shipped = [t for t in get_tool_schema().tools if not t.name.startswith("test.")]
-    assert len(shipped) == 509
+    """The canonical shipped tool count (the rc70 ``unary_theta`` op took it
+    338 → 339; rc71's ``harmonic_maass`` 339 → 340). The live value is the assertion below.
+
+    Counted over the surface SRMECH OWNS, because that is what the invariant is
+    about — a tool count is a statement about srmech's own registry, not about
+    whatever else happens to be in the process.
+
+    rc410 (`#T1085`) corrected BOTH the axis and this docstring. It previously
+    said other tests "imperatively ``register_tool`` throwaway ``test.*``
+    entries ... that they do not (cleanly) remove". That is no longer true and
+    it justified the wrong filter twice over: the two ``test.*`` injections in
+    ``test_tool_schema.py`` are owner ``"srmech"`` and have been
+    ``try``/``finally``-protected since rc409, so they do not leak — while the
+    one genuinely unprotected leak in that file registers owner ``"gamma"``,
+    which a ``test.``-prefix test does not match. The prefix filter was
+    therefore neither necessary nor sufficient; the owner filter is both."""
+    from srmech.introspect.tool_schema import get_tool_schema
+    # rc410 (`#T1085`): filter by OWNER, not by name-prefix — see
+    # tests/_profile_probe.py for why the prefix axis was the wrong question.
+    shipped = list(get_tool_schema().by_owner("srmech"))
+    assert len(shipped) == 655
     names = {t.name for t in shipped}
-    assert "srmech.amsc.unary_theta.unary_theta" in names
-    assert "srmech.amsc.harmonic_maass.harmonic_maass" in names
+    assert "srmech.apokatastasis.unary_theta.unary_theta" in names
+    assert "srmech.apokatastasis.harmonic_maass.harmonic_maass" in names

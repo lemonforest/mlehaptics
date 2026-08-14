@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""gen_tool_docs.py — GENERATE the introspection docs floor (rc240, #838).
+"""gen_tool_docs.py — GENERATE the introspection docs floor (rc240, #T838).
 
-Emits ``srmech/amsc/_tool_docs.py`` — a generated literal module holding
+Emits ``srmech/introspect/_tool_docs.py`` — a generated literal module holding
 ``TOOL_DOCS: dict[name -> {"explanation": str, "example": dict}]`` — the
 auto-seeded EXPLANATION (from each op's docstring) + EXAMPLE (executed where
 safe, else an honest signature usage-snippet) for every registered tool.
@@ -11,11 +11,20 @@ Curation-preserving: hand-written high-quality entries live in the sibling
 the auto-seed so regeneration never clobbers curation. Byte-deterministic
 (sorted keys) so a codegen-idempotence test can pin drift.
 
-Run:  python tools/gen_tool_docs.py   (from docs/srmech/python)
+Run:  python3 tools/regen_all.py      (from docs/srmech/python)
+
+**This generator MUST run first** (rc346, `#T975`). ``tool_schema`` merges
+the ``TOOL_DOCS`` it writes into every ``ToolEntry.explanation`` /
+``.example``, and ``gen_tool_registry.py`` then bakes that merged prose into
+a C const table — so running the registry first leaves it stale against the
+very docs it contains. Measured: 14 bytes injected here propagated exactly,
+moving ``srmech_tool_registry.c`` 827380 -> 827394. ``regen_all.py`` derives
+the order from ``codegen_manifest.py``; a direct run of this script refuses
+unless ``--standalone`` is passed.
 The auto-seed NEVER fabricates an output — if an op cannot be safely executed
 its example is a ``{"call": "..."}`` usage snippet keyed off the signature.
 
-**The un-rederivable-prose guard (rc291, #916).** The merge above only
+**The un-rederivable-prose guard (rc291, #T916).** The merge above only
 protects text that lives in ``_tool_docs_curated.py``. Between rc274 and
 rc290 twenty genome/plasmid/text explanations were hand-written straight
 into the GENERATED ``_tool_docs.py`` instead, so every regeneration
@@ -32,7 +41,7 @@ text into ``_tool_docs_curated.py`` (the fix, when it is curation) or
 re-runs with ``--accept-seed-drift`` (when a docstring legitimately
 changed). Silent loss is no longer reachable.
 
-**Stale executed-I/O examples (rc294, `#924`).** "Never fabricates an output"
+**Stale executed-I/O examples (rc294, `#T924`).** "Never fabricates an output"
 above was true of examples this generator BUILDS and false of ones it
 PRESERVES. Executed-I/O examples ({"input"/"output"}) are kept verbatim across
 runs because they cannot be re-derived from a signature — but "not re-derivable"
@@ -54,9 +63,15 @@ from __future__ import annotations
 import io
 import json
 import importlib
+import sys
 from contextlib import redirect_stdout, redirect_stderr
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
+
+# rc430 (`#T1094`) — the (op, param)-keyed valid-argument provider, a sibling
+# in this same tools/ directory.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import example_args as _ea  # noqa: E402
 
 # ── explanation extraction ────────────────────────────────────────────
 
@@ -98,15 +113,82 @@ def _resolve_callable(name: str) -> Optional[Any]:
 
 # ── example synthesis ─────────────────────────────────────────────────
 
-def _synth_arg(type_str: str) -> Tuple[bool, Any]:
+def _synth_arg(type_str: str, param_name: str = "",
+               op_name: str = "") -> Tuple[bool, Any]:
     """A trivially-safe sample value for a scalar/list parameter type, or
-    (False, None) if the type is a carrier / opaque / not auto-synthesizable."""
+    (False, None) if the type is a carrier / opaque / not auto-synthesizable.
+
+    rc430 (`#T1094`) — two changes, both about the fact that ``_build_example``
+    **executes** what this returns:
+
+    * the HARVEST is consulted first, keyed by ``(op, param)``. A value taken
+      from this op's own worked example, in a call that returned, is valid by
+      construction — strictly better than a per-type guess, and deterministic
+      because it comes from the committed ledger.
+    * a path-SHAPED parameter with no harvested value is REFUSED. The old
+      ``"str": "abc"`` row was executed, so ``genome_save(path="abc")`` wrote
+      a file named ``abc`` into whatever directory the generator ran from —
+      the `#T1094` defect with a different literal.
+
+    Refusal rather than a sandbox path is deliberate here, and it is the one
+    place the two consumers of the provider differ: this generator's output is
+    COMMITTED, and a temp directory name changes every run, so a sandbox path
+    could never be byte-identical twice and would take
+    ``test_regen_all_rc346``'s idempotence gate red. The MCP smoke, whose
+    output is ephemeral, uses the sandbox instead and keeps full coverage.
+
+    rc431 (`#T1129`) — the ``str`` row is now ``"srmech_synth"``, matching the
+    rc430 convention already shipped in ``tests/test_mcp.py``. rc430 fixed the
+    literal in ONE of the two synthesizers; this is the OTHER one, and it is
+    the one that matters most, because its output is committed into
+    ``srmech/introspect/_tool_docs.py`` and SHIPS IN THE WHEEL, where
+    ``describe()`` and the MCP tool list read it back. Measured at rc431:
+    **24 required ``str`` params** were being fed the bare literal ``"abc"``
+    and EXECUTED with it (``genome.amplify``/``genome_append``/… ``label``,
+    ``plasmid`` ``section_store``, ``rbs_lm.encode_aboutness`` ``text``,
+    ``bus.by_name`` ``name``, …). The argument for a self-describing literal
+    is rc430's and unchanged: any value this table hands out can escape into a
+    file, a log or an error message, and ``"abc"`` says nothing about where it
+    came from while ``"srmech_synth"`` names its own origin.
+
+    ⚠️ **Measured, and weaker than the paragraph above reads on its own: the
+    flip moves ZERO committed bytes.** ``regen_all.py --check`` is green with
+    EITHER literal (both directions run, not just this one), and
+    ``srmech/introspect/_tool_docs.py`` contains ``"abc"`` 0 times and
+    ``"srmech_synth"`` 0 times. Only 2 of the 24 ops produce a different
+    ``_build_example`` output, and both carry CURATED examples that take
+    precedence over this table — so no synthesised ``str`` ever reached the
+    committed artifact. "SHIPS IN THE WHEEL" is the reason this generator is
+    worth hardening AT ALL; it is NOT a claim that 24 ``"abc"`` values were
+    shipping. This is preventive hardening for the next op registered without
+    a curated example. Stated plainly because the scope note below contrasts
+    the DEAD ``list[str]`` row with this LIVE one, and a reader who takes
+    "live" to mean "reached the wheel" concludes the opposite of the
+    measurement.
+
+    Scope note, measured rather than assumed: the sibling ``"list[str]"`` row
+    (``["a", "b"]``) carries the same weakness in principle but is **DEAD** —
+    zero required params across all 655 registry entries resolve to it — so
+    changing it would move no committed byte and it is left alone. The
+    ``bytes`` row's ``b"abc"`` is live (33 params) but is an opaque payload,
+    not a label that can be mistaken for a name, so it is out of scope here.
+    """
+    if op_name and param_name:
+        harvested = _ea.provider().get(op_name, param_name)
+        if harvested is not _ea.UNSYNTHESIZABLE:
+            return True, harvested
+    if param_name and _ea.is_path_shaped(param_name, (type_str or "").strip()):
+        return False, None
     t = (type_str or "").strip().lower()
     table = {
         "int": (True, 3),
         "float": (True, 1.0),
         "bool": (True, True),
-        "str": (True, "abc"),
+        # rc431 (`#T1129`): was ``"abc"``. See the docstring — this generator's
+        # output SHIPS IN THE WHEEL, and a self-describing literal names its
+        # own origin if it ever escapes. Path-shaped params never reach this
+        # row; they are refused above.
+        "str": (True, "srmech_synth"),
         "bytes": (True, b"abc"),
         "list[int]": (True, [1, 2, 3]),
         "list[float]": (True, [1.0, 2.0, 3.0]),
@@ -134,7 +216,7 @@ def _build_example(entry) -> Tuple[Dict[str, Any], str]:
 
     ``verdict`` says what the EXECUTION attempt found, which the caller needs in
     order to decide whether a previously-committed executed-I/O example is still
-    true (rc294, `#924`):
+    true (rc294, `#T924`):
 
       ``"executed"``     the call ran here and this is its real output.
       ``"failed"``       the call was attempted and RAISED. Any committed
@@ -178,7 +260,7 @@ def _build_example(entry) -> Tuple[Dict[str, Any], str]:
         for p in entry.parameters:
             if not p.required:
                 continue
-            good, val = _synth_arg(p.type)
+            good, val = _synth_arg(p.type, p.name, entry.name)
             if not good:
                 ok = False
                 break
@@ -213,17 +295,40 @@ def build_docs() -> Tuple[Dict[str, Dict[str, Any]], Dict[str, Dict[str, Any]],
     if str(python_dir) not in sys.path:
         sys.path.insert(0, str(python_dir))
     import srmech  # noqa: F401
-    from srmech.amsc.tool_schema import get_tool_schema, warmup_all
+    from srmech.introspect.tool_schema import get_tool_schema, warmup_all
     warmup_all()
 
     try:
-        from srmech.amsc._tool_docs_curated import CURATED
+        from srmech.introspect._tool_docs_curated import CURATED
     except Exception:
         CURATED = {}
 
+    # rc409 (`#T1080`) — the SECOND generator that walks the live mutable
+    # registry, and the one whose output ships INSIDE THE WHEEL
+    # (`srmech/introspect/_tool_docs.py`, read back by `describe()` and the MCP
+    # tool list). A profile active in the generating interpreter would have its
+    # tools baked in as srmech's own. Same guard, same reason, same house
+    # exception type as the C-side generator; see `_reject_profile_tools` in
+    # `c/tools/gen_tool_registry.py` for the full rationale.
+    from srmech.introspect.tool_schema import (
+        RESERVED_OWNERS, ToolSchemaValidationError,
+    )
+    _all_tools = list(get_tool_schema().tools)
+    _intruders = [t for t in _all_tools if t.owner not in RESERVED_OWNERS]
+    if _intruders:
+        raise ToolSchemaValidationError(
+            f"refusing to build tool docs: {len(_intruders)} of "
+            f"{len(_all_tools)} entries are PROFILE-owned and would ship in "
+            f"the wheel as srmech's own.\n"
+            + "\n".join(f"    {t.name!r} owner={t.owner!r}"
+                        for t in _intruders[:10])
+            + ("\n    ..." if len(_intruders) > 10 else "")
+            + "\n\nRegenerate from a clean interpreter with no profile active."
+        )
+
     docs: Dict[str, Dict[str, Any]] = {}
     seed: Dict[str, Dict[str, Any]] = {}
-    for t in get_tool_schema().tools:
+    for t in _all_tools:
         fn = _resolve_callable(t.name)
         expl = _clean_doc(getattr(fn, "__doc__", None)) if fn is not None else None
         entry: Dict[str, Any] = {}
@@ -241,7 +346,7 @@ def build_docs() -> Tuple[Dict[str, Dict[str, Any]], Dict[str, Dict[str, Any]],
         # Executed-I/O examples ({"input"/"output"}) are NOT derivable — keep
         # those, UNLESS re-execution has since shown them to be false.
         #
-        # rc294 (`#924`): "not re-derivable" and "still true" are different
+        # rc294 (`#T924`): "not re-derivable" and "still true" are different
         # claims, and preserving on the first was silently asserting the second.
         # When _build_example actually ATTEMPTED the call and it RAISED
         # ("failed"), the committed executed-I/O example records an outcome the
@@ -268,7 +373,7 @@ def build_docs() -> Tuple[Dict[str, Dict[str, Any]], Dict[str, Dict[str, Any]],
     return docs, seed, dict(CURATED)
 
 
-# ── the un-rederivable-prose guard (rc291, #916) ──────────────────────
+# ── the un-rederivable-prose guard (rc291, #T916) ──────────────────────
 
 def load_committed(path: Path) -> Dict[str, Dict[str, Any]]:
     """``TOOL_DOCS`` from the committed generated module, imported as DATA.
@@ -299,6 +404,37 @@ def unrederivable_fields(
 
     A non-empty result means regeneration would DESTROY text — the rc274→rc290
     defect. Empty is the healthy state and the round-trip test pins it.
+
+    RE-DERIVABLE MEANS RE-DERIVABLE (rc353, `#T1006`). A committed value is
+    safe to overwrite in exactly two cases: the regeneration reproduces it
+    (``value == cur.get(field, sed.get(field))``, nothing changes), or the
+    fresh auto-seed reproduces it (``value == sed[field]`` — it is machine
+    output, authored by nobody, and the generator can rebuild it at will).
+    Anything else is text that exists ONLY inside the generated
+    ``DO NOT EDIT`` file, which is the rc274 casualty this guard was built for.
+
+    Until rc353 the second clause was missing: the predicate asked only "does
+    the merged output still equal what is committed?", so it also fired on
+    every legitimate curation ADDITION — new curation differs by definition
+    from the auto-seed it supersedes. MEASURED while curating the 25-op
+    Cayley–Dickson family: 50 fields across 25 tools refused, of which 48 were
+    byte-equal to the freshly-computed seed (nothing to lose) and 2 were
+    ``the_one``'s own CURATED entry being edited by its author. The only way
+    through was ``--accept-seed-drift``, which disables the check for the
+    WHOLE run — so the over-fire trained authors to disarm the guard at
+    precisely the moment the most prose was in flight.
+
+    THE FIX THAT WAS TRIED AND REJECTED, because it matters that it is not
+    this: "a field is safe when ``CURATED`` owns it" (``field not in cur``).
+    It reads plausibly — the curated value is the SSoT and wins the merge — and
+    it is wrong. It makes a hand-edit INVISIBLE whenever curation happens to
+    touch the same field, which is not a corner case: a concurrent authoring
+    run was caught mid-flight writing worked examples straight into
+    ``_tool_docs.py`` for ``laplacian`` ops that CURATED already had entries
+    for. Under the ownership rule the generator would have shrugged and eaten
+    them; under the rule below it names them. Editing an EXISTING curated entry
+    still costs one ``--accept-seed-drift``, and that is the correct price:
+    the author is replacing authored text and should say so once.
     """
     lost: Dict[str, list] = {}
     for name, entry in committed.items():
@@ -306,18 +442,53 @@ def unrederivable_fields(
         sed = seed.get(name, {})
         gone = sorted(
             field for field, value in entry.items()
-            if cur.get(field, sed.get(field)) != value
+            if cur.get(field, sed.get(field)) != value and sed.get(field) != value
         )
         if gone:
             lost[name] = gone
     return lost
 
 
+def _py_literal(obj: Any) -> str:
+    """Serialise a doc payload as a PYTHON literal, key-sorted for determinism.
+
+    v0.9.0rc419 (`#T1110`) — this used to be ``json.dumps(..., sort_keys=True,
+    ensure_ascii=False)``, and the output is written into ``_tool_docs.py``,
+    which is then EXECUTED as Python by :func:`load_committed`. JSON and Python
+    literals agree on strings, numbers, lists and dicts, so that worked for
+    every payload the tree happened to contain — and diverges on exactly three
+    tokens: ``null`` / ``true`` / ``false``.
+
+    The first curated ``example`` to carry a ``None`` VALUE (``end_cascade``'s
+    ``{'ctx': None}`` — the op's documented "flush the innermost" argument)
+    therefore emitted ``{"ctx": null}`` and the next generator pass died with
+    ``NameError: name 'null' is not defined``. It failed LOUDLY, at generation,
+    which is the only reason this was a five-minute bug rather than a shipped
+    one; but it was latent for as long as the file has existed, and it was
+    invisible because no test could see a state the data had never held.
+
+    ``repr`` is the correct emitter for a Python source file. Key order is
+    normalised here rather than being left to insertion order so the generated
+    file stays byte-stable across runs (``regen_all.py --check`` compares
+    content).
+    """
+    if isinstance(obj, dict):
+        inner = ", ".join(f"{_py_literal(k)}: {_py_literal(obj[k])}"
+                          for k in sorted(obj, key=str))
+        return "{" + inner + "}"
+    if isinstance(obj, (list, tuple)):
+        return "[" + ", ".join(_py_literal(v) for v in obj) + "]"
+    return repr(obj)
+
+
 def render(docs: Dict[str, Dict[str, Any]]) -> str:
     lines = [
         '"""_tool_docs.py — GENERATED by tools/gen_tool_docs.py. DO NOT EDIT.',
         "",
-        "The rc240 (#838) introspection docs floor: per-tool EXPLANATION",
+        "Regenerate with:",
+        "  python3 tools/regen_all.py            (from docs/srmech/python)",
+        "",
+        "The rc240 (#T838) introspection docs floor: per-tool EXPLANATION",
         "(docstring-seeded) + EXAMPLE (executed input->output where safe, else an",
         "honest signature usage-snippet). Hand-curation lives in",
         "_tool_docs_curated.py (CURATED) and is merged OVER this at generation.",
@@ -338,7 +509,7 @@ def render(docs: Dict[str, Dict[str, Any]]) -> str:
         "TOOL_DOCS: Dict[str, Dict[str, Any]] = {",
     ]
     for name in sorted(docs):
-        payload = json.dumps(docs[name], sort_keys=True, ensure_ascii=False)
+        payload = _py_literal(docs[name])
         lines.append(f"    {json.dumps(name)}: {payload},")
     lines.append("}")
     lines.append("")
@@ -362,7 +533,7 @@ def main() -> None:
         for name in sorted(lost):
             print(f"    {name}: {', '.join(lost[name])}", file=sys.stderr)
         print("  If this is hand-written curation (the usual cause): move it "
-              "into srmech/amsc/_tool_docs_curated.py, which IS merged over "
+              "into srmech/introspect/_tool_docs_curated.py, which IS merged over "
               "the auto-seed and therefore survives.", file=sys.stderr)
         print("  If a docstring legitimately changed and the old seed is "
               "simply stale: re-run with --accept-seed-drift.", file=sys.stderr)
@@ -378,4 +549,10 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    import sys as _sys
+
+    _sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from codegen_manifest import require_regen_all
+
+    require_regen_all("gen_tool_docs")
     main()

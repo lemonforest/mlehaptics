@@ -4,7 +4,7 @@ C path — ``bignum_reference → c_dispatched`` / ``composition_of_c``.
 The NEW C kernel ``srmech_pi_archimedes`` runs the WHOLE Pfaff–Archimedes
 two-mean chiral-pair loop (per-step harmonic-mean ``srmech_bigint_divmod`` +
 geometric-mean ``srmech_bigint_isqrt``) on the caller-arena ``srmech_bigint``, so
-``srmech.amsc.rational.pi_cascade_digits`` DISPATCHES to it, and its two
+``srmech.math.rational.pi_cascade_digits`` DISPATCHES to it, and its two
 signal-processing wrappers
 (``signal_processing.{closed_form_ops,path_b_ops}.pi_cascade.op``) free-ride.
 
@@ -30,8 +30,8 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc import rational as R
+from srmech import _native
+from srmech.math import rational as R
 from srmech.signal_processing.closed_form_ops import pi_cascade as _cf_pi
 from srmech.signal_processing.path_b_ops import pi_cascade as _pb_pi
 
@@ -108,7 +108,7 @@ def test_ledger_rows():
     fixture = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
     rows = {json.loads(l)["defined_at"]: json.loads(l)["bucket"]
             for l in fixture.read_text(encoding="utf-8").splitlines() if l.strip()}
-    assert rows.get("srmech.amsc.rational.pi_cascade_digits") == "c_dispatched"
+    assert rows.get("srmech.math.rational.pi_cascade_digits") == "c_dispatched"
     assert rows.get(
         "srmech.signal_processing.closed_form_ops.pi_cascade.op"
     ) == "composition_of_c"

@@ -44,9 +44,9 @@ from pathlib import Path
 import pytest
 
 from srmech import introspect
-from srmech.amsc.dispatch import _OPEN_HINTS, infer
-from srmech.amsc.ellbase import EllMonomial as M, EllRatio
-from srmech.amsc.elliptic_jackson_an import (
+from srmech.math.dispatch import _OPEN_HINTS, infer
+from srmech.apokatastasis.ellbase import EllMonomial as M, EllRatio
+from srmech.apokatastasis.elliptic_jackson_an import (
     an_vwp_multisum_lhs,
     multivariate_elliptic_jackson_an,
     _an_lhs_thetasum,
@@ -59,8 +59,8 @@ from srmech.amsc.elliptic_jackson_an import (
     _verify_an_reduction,
     _VERIFY_MAX_COMPOSITIONS,
 )
-from srmech.amsc.q import Q
-from srmech.amsc.thetasum import ThetaSum
+from srmech.math.q import Q
+from srmech.apokatastasis.thetasum import ThetaSum
 
 
 def _operand(n):
@@ -181,7 +181,7 @@ def test_balancing_w_is_computed_product():
 # ── (5) native == pure parity (both ops), clean decline when absent ─────────────────────
 @pytest.mark.parametrize("n,N", [(1, 1), (2, 1), (2, 2), (3, 1)])
 def test_native_matches_pure_lhs(n, N):
-    from srmech.amsc import _native as _nat
+    from srmech import _native as _nat
     z, a, q = _operand(n)
     zz, aa = tuple(z), tuple(a)
     pure = _an_lhs_thetasum(zz, aa, q, N)
@@ -196,7 +196,7 @@ def test_native_matches_pure_lhs(n, N):
 
 @pytest.mark.parametrize("n,N", [(1, 1), (2, 1), (2, 2), (3, 1)])
 def test_native_matches_pure_rhs(n, N):
-    from srmech.amsc import _native as _nat
+    from srmech import _native as _nat
     z, a, q = _operand(n)
     zz, aa = tuple(z), tuple(a)
     pure = _multivariate_elliptic_jackson_an_py(zz, aa, q, N)
@@ -314,26 +314,26 @@ def test_open_hints_updated_on_both_rows():
 
 # ── (8) registration: ToolEntry ×2 + tools.total == 418 + Rosetta rows + __all__ ────────
 def test_registration():
-    import srmech.amsc.elliptic_jackson_an as eja
+    import srmech.apokatastasis.elliptic_jackson_an as eja
     assert "multivariate_elliptic_jackson_an" in eja.__all__
     assert "an_vwp_multisum_lhs" in eja.__all__
     schema = introspect.describe()
-    assert schema["tools"]["total"] == 509
-    from srmech.amsc.tool_schema import get_tool_schema
+    assert schema["tools"]["total"] == 655
+    from srmech.introspect.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
-    assert ("srmech.amsc.elliptic_jackson_an.multivariate_elliptic_jackson_an"
+    assert ("srmech.apokatastasis.elliptic_jackson_an.multivariate_elliptic_jackson_an"
             in names)
-    assert "srmech.amsc.elliptic_jackson_an.an_vwp_multisum_lhs" in names
-    for nm in ("srmech.amsc.elliptic_jackson_an.multivariate_elliptic_jackson_an",
-               "srmech.amsc.elliptic_jackson_an.an_vwp_multisum_lhs"):
+    assert "srmech.apokatastasis.elliptic_jackson_an.an_vwp_multisum_lhs" in names
+    for nm in ("srmech.apokatastasis.elliptic_jackson_an.multivariate_elliptic_jackson_an",
+               "srmech.apokatastasis.elliptic_jackson_an.an_vwp_multisum_lhs"):
         entry = next(t for t in get_tool_schema().tools if t.name == nm)
         assert "0305379" in entry.summary              # the MPM-verified keystone
     # the Rosetta ledger rows (the #928 everything-mirrors ratchet feed)
     ndjson = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
     rows = [json.loads(line) for line in
             ndjson.read_text(encoding="utf-8").splitlines() if line.strip()]
-    for nm in ("srmech.amsc.elliptic_jackson_an.multivariate_elliptic_jackson_an",
-               "srmech.amsc.elliptic_jackson_an.an_vwp_multisum_lhs"):
+    for nm in ("srmech.apokatastasis.elliptic_jackson_an.multivariate_elliptic_jackson_an",
+               "srmech.apokatastasis.elliptic_jackson_an.an_vwp_multisum_lhs"):
         mine = [r for r in rows if r["exposed_as"] == nm]
         assert len(mine) == 1 and mine[0]["bucket"] == "c_dispatched"
 
@@ -341,14 +341,14 @@ def test_registration():
 # ── (9) the rc225 responsion edges: the new verified reducer edge + the row's
 #        honest-OPEN edge (answers_with VERBATIM from _OPEN_HINTS) ──────────────────────
 def test_responsion_edges():
-    from srmech.amsc.responsion_schema import responsion_schema
+    from srmech.introspect.responsion_schema import responsion_schema
     schema = responsion_schema()
-    v_key = ("srmech.amsc.elliptic_jackson_an.multivariate_elliptic_jackson_an"
+    v_key = ("srmech.apokatastasis.elliptic_jackson_an.multivariate_elliptic_jackson_an"
              "|EllMonomial")
     assert v_key in schema
     assert any(r["kind"] == "closed_form" and r["status"] == "verified"
                for r in schema[v_key])
-    open_key = "srmech.amsc.dispatch.infer|EllMonomial"
+    open_key = "srmech.math.dispatch.infer|EllMonomial"
     assert open_key in schema
     answers = [r["answers_with"] for r in schema[open_key]
                if r.get("status") == "open"]

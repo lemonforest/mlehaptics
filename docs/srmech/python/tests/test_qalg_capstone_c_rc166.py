@@ -44,8 +44,8 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc.cascade.matrix_cascades import eig_exact, jordan_form_exact
+from srmech import _native
+from srmech.cascade.matrix_cascades import eig_exact, jordan_form_exact
 
 
 def test_numpy_is_absent_so_this_runs_not_skips():
@@ -210,8 +210,8 @@ def _ledger_rows():
 
 def test_rosetta_rows_are_composition_of_c():
     rows = {r["defined_at"]: r["bucket"] for r in _ledger_rows()}
-    for key in ("srmech.amsc.cascade.matrix_cascades.eig_exact",
-                "srmech.amsc.cascade.matrix_cascades.jordan_form_exact"):
+    for key in ("srmech.cascade.matrix_cascades.eig_exact",
+                "srmech.cascade.matrix_cascades.jordan_form_exact"):
         assert rows[key] == "composition_of_c", (
             f"{key} should be composition_of_c after rc166; got {rows[key]}")
 

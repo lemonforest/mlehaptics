@@ -1,4 +1,4 @@
-"""Convert :class:`srmech.amsc.tool_schema.ToolEntry` -> MCP tool defs.
+"""Convert :class:`srmech.introspect.tool_schema.ToolEntry` -> MCP tool defs.
 
 The MCP tool definition shape (per the spec)::
 
@@ -38,13 +38,13 @@ which the dispatcher converts to a JSON-RPC error response.
 
 from __future__ import annotations
 
-import importlib
 import inspect
 import json
 import re
 from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple
 
-from ..amsc.tool_schema import (
+from .._resolve import DottedNameError, resolve_dotted_callable
+from ..introspect.tool_schema import (
     ToolEntry,
     ToolParameter,
     get_tool_schema,
@@ -57,7 +57,7 @@ from ._coercion import coerce_param, serialise_native
 # ensure every downstream tool_schema registration fired before any MCP
 # consumer queried the registry. Those are now funnelled through the
 # single canonical entry-point ``warmup_all()`` (in
-# ``srmech.amsc.tool_schema``) — same effect (registry fully populated
+# ``srmech.introspect.tool_schema``) — same effect (registry fully populated
 # before ``get_tool_schema()``), but the warmup list is now maintained
 # in ONE place. ``srmech.__init__`` already calls ``warmup_all()`` at
 # import; calling it again here is idempotent and keeps the MCP wrapper
@@ -103,6 +103,23 @@ _TYPE_LEXICON: Dict[str, str] = {
     # lists; also the rc44 gf_rref `rows` matrix, which previously degraded to
     # the "string" fallback).
     "list[list[int]]": "array",
+    # 0.9.0rc362: srmech's exact-ℚ carrier and the acoustic-spectrum sequence
+    # over it. Both are ARRAYS on the wire — a Q rides as [num, den] (the form
+    # serialise_native already emits outbound), a spectrum as a list of those.
+    # Registered here as well as in _coercion so the advertised inputSchema and
+    # the runtime coercion agree; a coercer without a lexicon entry degrades the
+    # schema to "string" and tells a client the opposite of what it must send.
+    "Q": "array",
+    "Sequence[int | Q | Qalg]": "array",
+    # 0.9.0rc363: the C2 (ADR-0012 §3.1) type-honesty widenings keep the JSON-schema
+    # token their pre-widening spelling advertised, so no client sees a narrower
+    # schema than before. Both params are NUMBERS on the wire; the exact-ℚ arm
+    # rides as the [num, den] pair `_to_q` already accepts, and (like the rc362
+    # `Qalg` arm) is primarily an in-process form. A single-token lexicon cannot
+    # express the union — recording that here is more honest than picking the
+    # rarer arm and telling a schema-obedient client the wrong thing.
+    "float | Q": "number",     # harmonics.classify_chirality_harmonic
+    "number | Q": "number",    # coupling.fold_spectrum
     "Mapping[bytes, bytes]": "object",
     "dict": "object",
     "Optional[dict]": "object",
@@ -110,6 +127,18 @@ _TYPE_LEXICON: Dict[str, str] = {
     "sequence": "array",
     "iterable[int]": "array",
     "tuple[int, int]": "array",
+    # 0.9.0rc408 (`#T1078`): cascade.the_one `w`, the winding triad. An ARRAY,
+    # like its pair sibling above — without this row it would default to
+    # "string" and tell a schema-obedient client to send text for three ints.
+    "tuple[int, int, int]": "array",
+    # 0.9.0rc408: `Sequence[tuple]` has had a coercer (_seq_tuple) since
+    # v0.7.5rc134 but never a lexicon row, so genome.chromosome `genes` and
+    # plasmid `chromosomes` have been publishing "string" for what is plainly a
+    # nested ARRAY — the ADR-0012 §4.2 silent-degradation row, found while
+    # declaring genome.genome `chromosomes` against the same type. Fixed here
+    # rather than deferred: it is a falsehood in a schema this rc is already
+    # editing, and it costs one row.
+    "Sequence[tuple]": "array",
     # numpy-free carrier-spirit param types (v0.7.5rc132) — all ride JSON as a
     # nested (Mat / Mat-tuple) or flat (Vec / HV) array; never named numpy.
     "Mat": "array",
@@ -141,6 +170,37 @@ _TYPE_LEXICON: Dict[str, str] = {
     "SpectralHandle": "object",
     "SpectralHandle | bytes": "object",
     "numpy.random.Generator": "object",
+    # ── 0.9.0rc408 (`#T1078`): the HOST-SIDE types. These publish JSON-schema
+    #    ``"null"``, and they are the only types in the lexicon that do.
+    #
+    #    A host-side operand is a live Python object — a callback, an RNG — that
+    #    cannot cross a process boundary by ANY encoding. There is no base64
+    #    form, no name to resolve, no handle: the value IS the caller's own
+    #    function or generator state. So the honest published type is the one
+    #    JSON value a client may legally send: ``null``, meaning "absent", which
+    #    ``coerce_param`` already passes through unchanged and which runs the op
+    #    exactly as if the parameter had been omitted.
+    #
+    #    WHY NOT ``"string"`` (what the generic ``callable`` key publishes).
+    #    ``callable`` means "rides as a NAME a registry resolves" — the
+    #    ``operator_name`` pattern. A ``progress`` tick has no such registry, so
+    #    publishing ``"string"`` would tell a schema-obedient client to send
+    #    text that the op would then try to CALL: a guaranteed TypeError in a
+    #    tool that works fine today. Telling a client to send a value that
+    #    cannot work is worse than telling it to send nothing.
+    #
+    #    WHY DECLARE THEM AT ALL, then. Because ``parameters`` is the API
+    #    CONTRACT, not only the wire schema — the same argument rc362 made for
+    #    naming the in-process ``Qalg`` arm of ``Sequence[int | Q | Qalg]``.
+    #    Omitting a host-side param hides a real capability from every consumer
+    #    of the registry, INCLUDING the in-process Python callers who can
+    #    actually pass it. rc408 measured 13 such parameters hidden across 13
+    #    entries; §101 ``progress`` was 11 of them, and for a multi-hour genome
+    #    encode it is the ONLY channel that reports working status or accepts a
+    #    cancel. The wire limitation is a fact about the TYPE; it was never a
+    #    licence to hide the PARAMETER.
+    "host_callable": "null",
+    "host_rng": "null",
 }
 
 
@@ -188,6 +248,37 @@ _ENCODING_HINT: Dict[str, str] = {
         "nested JSON array of integer lists (rows / coefficient cells)"
     ),
     "Sequence[bytes]": "array of base64-encoded byte strings",
+    # 0.9.0rc408 (`#T1078`): the host-side operands. Both publish JSON-schema
+    # "null" (see _TYPE_LEXICON) — this is the prose half, telling a consumer
+    # WHY the only legal wire value is absence and what to do instead.
+    "host_callable": (
+        "a HOST-SIDE callable, supplied by the calling process. It cannot "
+        "cross a process boundary in any encoding — there is no name to "
+        "resolve and no serialised form — so over MCP / JSON-RPC the only "
+        "legal value is null (absent), and the op then runs with the callback "
+        "disabled, which is its default. In-process Python callers pass a real "
+        "function; each parameter's own summary gives the exact signature"
+    ),
+    "host_rng": (
+        "a HOST-SIDE random generator (``random.Random``, or a numpy "
+        "``Generator``), supplied by the calling process. Generator STATE has "
+        "no JSON form, so over MCP / JSON-RPC the only legal value is null "
+        "(absent) — pass the integer ``seed`` parameter instead, which is "
+        "advertised alongside it and gives a reproducible stream"
+    ),
+    # 0.9.0rc362: the exact-ℚ carrier + the acoustic-spectrum sequence over it.
+    "Q": (
+        "[numerator, denominator] as exact integers, or a bare integer; never "
+        "a float (an exact rational is required)"
+    ),
+    "Sequence[int | Q | Qalg]": (
+        "array of frequency ratios, each a bare integer or an exact "
+        "[numerator, denominator] pair; never a float. The Qalg arm of the "
+        "declared type (the exact algebraic-irrational carrier) has no JSON "
+        "form and is reachable IN-PROCESS ONLY — over the wire, build a Tier-2 "
+        "spectrum with equal_temperament_partials / stiff_string_partials and "
+        "pass its result on directly"
+    ),
     # legacy numpy-free wire-form keys (no param advertises them now).
     "np.ndarray": (
         "nested JSON array, row-major; complex elements as [re, im]"
@@ -224,7 +315,7 @@ _ENCODING_HINT: Dict[str, str] = {
     ),
     "operator_name": (
         "dotted import path of a unary sequence->sequence srmech operator, "
-        'e.g. "srmech.amsc.cascade.chiral_flip"'
+        'e.g. "srmech.cascade.chiral_flip"'
     ),
 }
 
@@ -329,12 +420,30 @@ def tool_entries_to_mcp_defs(
     """Yield an MCP tool definition for every ADVERTISED registered
     ToolEntry.
 
-    v0.5.0rc15 — entries marked ``mcp_callable=False`` (the 7
-    ``srmech.spectral.*`` handle-pending tools) are EXCLUDED here so a
+    Entries marked ``mcp_callable=False`` are EXCLUDED here so a
     ``tools/list`` consumer is never offered a tool it cannot actually
     call. They remain in ``get_tool_schema().tools`` for introspection
     (``srmech.introspect.describe`` reports them under
     ``handle_pending``); only the advertised catalog hides them.
+
+    The exclusion is LIVE as of v0.9.0rc414 (`#T1092`). It was a no-op from
+    rc16 (when the ``$srmech_handle`` grammar returned the 7
+    ``srmech.spectral.*`` tools to callable) until rc414, which excluded the
+    first entry that no encoder can rescue — a context manager, whose
+    obstruction is its shape in TIME rather than its type: a ``with``-block
+    scope cannot span two JSON-RPC calls. Every entry excluded here MUST carry
+    an ``mcp_unavailable_reason``, so a consumer that notices the absence can
+    always find out why; that invariant is gated, and it is stated as an
+    invariant precisely so no COUNT is restated in this docstring, where two
+    previous literals went stale.
+
+    (rc410, `#T1085`: an earlier version of this paragraph was self-refuting —
+    it promised the literal was gone in the sentence after restating it. The
+    literal is now actually gone, and ``tests/test_owner_axis_rc410.py``
+    enforces that no shipped module restates it. The live values are
+    ``len(get_tool_schema().by_owner("srmech"))`` for the registry and
+    ``sum(1 for t in get_tool_schema().tools if t.mcp_callable)`` for the
+    advertised catalog.)
 
     Parameters
     ----------
@@ -369,12 +478,16 @@ def _native_mcp_defs() -> Optional[List[Dict[str, Any]]]:
     list of MCP tool-def dicts, or ``None`` when the native peer is
     unavailable / returns non-OK (caller uses the pure per-entry path)."""
     try:
-        from ..amsc import _native
+        from .. import _native
     except Exception:  # pragma: no cover — defensive; _native always imports
         return None
     raw = _native.tool_entries_to_mcp_defs_c()
     if raw is None:
         return None
+    # stdlib json by PROTOCOL-BOUNDARY decision, not neglect (`#T1008`): this is the
+    # MCP JSON-RPC wire — untrusted external input on a published protocol contract.
+    # Self-hosting it onto srmech._json is a separate decision with a different risk
+    # profile from reading srmech's own descriptors, so the READ self-host stops here.
     return json.loads(raw.decode("utf-8"))
 
 
@@ -389,7 +502,7 @@ def compile_filter(pattern: Optional[str]) -> Optional[Callable[[str], bool]]:
     Patterns:
 
     * ``None`` (default) -> ``None`` (no filter).
-    * ``"srmech.amsc.cascade.*"`` -> matches the cascade sub-tree.
+    * ``"srmech.cascade.*"`` -> matches the cascade sub-tree.
     * ``"srmech.amsc.*"`` -> matches everything under AMSC.
     * A bare prefix without ``"*"`` -> exact-name match.
 
@@ -406,60 +519,15 @@ def compile_filter(pattern: Optional[str]) -> Optional[Callable[[str], bool]]:
 
 # ──────────────────────────────────────────────────────────────────────
 # Resolution: dotted name -> live callable
+#
+# rc413 (`#T1094`): the walker itself now lives in ``srmech._resolve`` — core,
+# not this adapter. It had two CORE callers (``srmech._handles`` and
+# ``srmech.dsl._alias``) importing upward into ``srmech.mcp``, which made the
+# ADR-0009 §4 host-glue layer non-removable. ``invoke_tool`` below re-wraps the
+# core :class:`DottedNameError` as :class:`MCPToolError` so the JSON-RPC
+# dispatcher's ``except MCPToolError`` keeps catching resolution failures
+# unchanged; the MCP error type stays an MCP-layer concern.
 # ──────────────────────────────────────────────────────────────────────
-
-
-def _resolve_dotted_callable(name: str) -> Callable[..., Any]:
-    """Walk a dotted name to its live callable.
-
-    For ``a.b.c.d``: try ``import a.b.c`` then ``getattr(mod, "d")``;
-    fall back to splitting at the last ``.`` and importing whatever
-    prefix imports cleanly. Raises :class:`MCPToolError` on failure.
-    """
-    assert name, "resolve: name must be non-empty"
-    parts = name.split(".")
-    if len(parts) < 2:
-        raise MCPToolError(
-            f"tool name {name!r} has no module prefix; "
-            f"cannot resolve to a Python callable"
-        )
-
-    # Try the most-specific module prefix first, then back off.
-    # e.g. for "srmech.amsc.cascade.chiral_flip" we try
-    # importing "srmech.amsc.cascade" then attr "chiral_flip".
-    for split_idx in range(len(parts) - 1, 0, -1):
-        mod_name = ".".join(parts[:split_idx])
-        attr_path = parts[split_idx:]
-        try:
-            mod = importlib.import_module(mod_name)
-        except ImportError:
-            continue
-        obj: Any = mod
-        try:
-            for a in attr_path:
-                obj = getattr(obj, a)
-        except AttributeError:
-            continue
-        if not callable(obj):
-            # Name-collision case: a submodule whose name equals a
-            # re-exported callable (e.g. ``cascade.sedenion_register`` the
-            # MODULE vs the ``sedenion_register`` factory). Importing the
-            # submodule makes Python rebind the package attribute from the
-            # re-exported function to the module object, so ``getattr`` here
-            # yields a non-callable module. Prefer the same-named callable
-            # defined inside it — the "module X re-exports callable X"
-            # convention — so the registry's flat ``...sedenion_register``
-            # ToolEntry resolves regardless of import order (the W7
-            # schema/signature drift this otherwise trips post-import).
-            if inspect.ismodule(obj):
-                inner = getattr(obj, attr_path[-1], None)
-                if callable(inner):
-                    return inner
-            continue
-        return obj
-    raise MCPToolError(
-        f"tool name {name!r} did not resolve to any importable callable"
-    )
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -531,7 +599,13 @@ def invoke_tool(name: str, arguments: Dict[str, Any]) -> Any:
     """
     entry = _entry_by_name(name)
     coerced = _coerce_arguments(entry, arguments or {})
-    fn = _resolve_dotted_callable(name)
+    try:
+        fn = resolve_dotted_callable(name)
+    except DottedNameError as exc:
+        # Preserve the MCP-layer contract: _server.handle / anthropic_agent
+        # both catch MCPToolError to turn a resolution failure into a
+        # JSON-RPC error response rather than a traceback.
+        raise MCPToolError(str(exc)) from exc
 
     # Variadic dispatch: ``fn(**coerced)`` cannot call a function with a
     # ``*args`` (VAR_POSITIONAL) parameter — Python raises
@@ -597,10 +671,26 @@ def _json_fallback(obj: Any) -> Any:
     consumer still sees the value without losing the call."""
     # serialise_native already covers ndarray / numpy-scalar / bytes /
     # complex / tuple / set / Path; re-run it defensively in case a
-    # nested ``default=`` invocation surfaces one of those.
+    # nested ``default=`` invocation surfaces one of those. Since rc414 it
+    # also covers the framework carriers (the ``$srmech_carrier`` envelope),
+    # so most of what used to reach the ``repr`` line below no longer does.
     prepared = serialise_native(obj)
     if prepared is not obj:
         return prepared
+    # rc414 (`#T1092`) — an object that ships its OWN canonical JSON view
+    # uses it, ahead of the generic dataclass arm. The motivating case is
+    # ``ToolSchema``: ``dataclasses.asdict`` rendered it with FIVE extra keys
+    # and at a different size from the canonical ``to_jsonable`` (2,572,811 vs
+    # 2,501,642 bytes), so the same object had two disagreeing renderings and
+    # the one a consumer got depended on which door it came through. The
+    # canonical view is the API contract (ADR-0012); ``asdict`` is a Python
+    # implementation detail leaking through the wire.
+    to_jsonable = getattr(obj, "to_jsonable", None)
+    if callable(to_jsonable) and not isinstance(obj, type):
+        try:
+            return serialise_native(to_jsonable())
+        except TypeError:
+            pass          # a to_jsonable that needs arguments is not this one
     # Dataclasses -> their asdict view if available.
     import dataclasses
     if dataclasses.is_dataclass(obj) and not isinstance(obj, type):

@@ -27,8 +27,8 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc.laplacian import (
+from srmech import _native
+from srmech.math.laplacian import (
     klein4_gain_laplacian,
     klein4_relational_structure,
     cycle_holonomy,
@@ -44,7 +44,7 @@ from srmech.amsc.laplacian import (
     _normalize_gains_py,
     _validate_edges_weights_py,
 )
-import srmech.amsc.laplacian as _lap
+import srmech.math.laplacian as _lap
 
 _SECTORS = ("chi00", "chi01", "chi10", "chi11")
 
@@ -206,7 +206,7 @@ def test_proof6c_holonomy_sees_what_the_spectrum_cannot():
 # ── native == pure parity ───────────────────────────────────────────────
 def test_klein4_native_equals_pure():
     """The C peer builds byte-identical sector Laplacians to the pure cascade."""
-    from srmech.amsc.mat import Mat
+    from srmech.math.mat import Mat
     el, wl = _validate_edges_weights_py(_N, _EDGES, _WEIGHTS)
     gl = _normalize_gains_py(_GAINS, len(el))
     pure = _klein4_gain_laplacian_py(_N, el, wl, gl)
@@ -308,14 +308,14 @@ def test_registration_all_and_laplacian_ops():
 
 
 def test_registration_tool_schema_total_matches_live():
-    from srmech.amsc.tool_schema import get_tool_schema, warmup_all
+    from srmech.introspect.tool_schema import get_tool_schema, warmup_all
     warmup_all()
     schema = get_tool_schema()
-    assert len(schema.tools) == 509
+    assert len(schema.tools) == 655
     names = {t.name for t in schema.tools}
     for op in ("klein4_gain_laplacian", "klein4_relational_structure",
                "cycle_holonomy"):
-        assert f"srmech.amsc.laplacian.{op}" in names, f"{op} ToolEntry missing"
+        assert f"srmech.math.laplacian.{op}" in names, f"{op} ToolEntry missing"
 
 
 def test_registration_native_helpers_present():

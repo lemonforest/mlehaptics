@@ -29,8 +29,8 @@ import random
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc.cascade import matrix_cascades as mc
+from srmech import _native
+from srmech.cascade import matrix_cascades as mc
 
 HAS_QR = _native.has_native_qr_f64()
 HAS_SVD = _native.has_native_svd_f64()

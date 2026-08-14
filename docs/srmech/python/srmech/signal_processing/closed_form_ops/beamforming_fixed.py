@@ -23,9 +23,9 @@ Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Van Veen
 
 from __future__ import annotations
 
-from srmech.amsc.laplacian import mat_matvec as _mat_matvec
-from srmech.amsc.mat import Mat as _Mat
-from srmech.amsc.vec import Vec as _Vec
+from srmech.math.laplacian import mat_matvec as _mat_matvec
+from srmech.math.mat import Mat as _Mat
+from srmech.math.vec import Vec as _Vec
 
 OPERATION_NAME = "beamforming_fixed"
 CLASS_COMPOSITION = ("L", "N")
@@ -88,7 +88,7 @@ def op(array_signals, *, delays_samples, weights=None, D: int = 8192):
     # ``D[i][m] = sig[m][delay[m]+i]`` is the delay-aligned window matrix (the
     # per-mic time-shift is exact integer indexing glue). So the Class-M
     # scale-and-accumulate bundle rides the c_dispatched
-    # ``srmech.amsc.laplacian.mat_matvec`` (over ``mat_matmul`` /
+    # ``srmech.math.laplacian.mat_matvec`` (over ``mat_matmul`` /
     # ``srmech_dense_matmul_complex``) — a ``composition_of_c`` op, within-tol.
     D = [[sig[m][d[m] + i] for m in range(n_mics)] for i in range(out_len)]
     out_vec = _mat_matvec(_Mat.from_rows(D, is_complex=True),

@@ -2,7 +2,7 @@
 
 Registers the UTLP Bio-TOTP wire-format decoder
 (:func:`srmech.bus._bio_totp.decode_splice`) as a
-:class:`srmech.amsc.tool_schema.ToolEntry` so LLM / agent consumers
+:class:`srmech.introspect.tool_schema.ToolEntry` so LLM / agent consumers
 can introspect (and call) the cipher's pure decoder surface without
 reading the implementation. Load-bearing for the rc6 MCP-adapter
 work where the bus apparatus is exposed to Claude Code over MCP.
@@ -19,7 +19,7 @@ catalog substrate-self-recognition (Class A + E).
 
 from __future__ import annotations
 
-from ..amsc.tool_schema import (
+from ..introspect.tool_schema import (
     ToolEntry,
     ToolParameter,
     ToolReturn,

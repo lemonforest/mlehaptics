@@ -17,8 +17,8 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc import genome as G
-from srmech.amsc.hdc import klein4_expand
+from srmech.biology import genome as G
+from srmech.math.hdc import klein4_expand
 
 
 def _one(seed=7):

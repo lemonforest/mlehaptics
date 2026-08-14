@@ -7,7 +7,7 @@
  * cpuminer's N-way SIMD exploits: N independent units advanced in lockstep
  * across SIMD lanes. The block-diagonal structure F289 established is a SIMD
  * invitation — the cpuminer N-way mindset applied to the octonion substrate.
- * Until now `loop_bind_hd` (srmech.amsc.hdc) looped over the NB blocks in
+ * Until now `loop_bind_hd` (srmech.math.hdc) looped over the NB blocks in
  * PYTHON, one ctypes call per block; this collapses it to ONE native call
  * that processes W blocks per SIMD pass.
  *

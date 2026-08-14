@@ -1,0 +1,6 @@
+adapters/
+attested/
+catalog
+descriptor
+format
+gap_suggester

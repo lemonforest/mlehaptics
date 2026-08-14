@@ -1,6 +1,7 @@
 # ADR-0002: Catalog-as-computation — primitive-class closure with plugins as optimization backends
 
 **Status:** ⏳ Draft (proposal phase; supersedes the extension-mechanism interpretation of ADR-0001 but not the integration mechanism itself).
+**Clauses:** unaudited.
 **Date:** 2026-05-16.
 **Authors:** Steven Kirkland + Claude Opus 4.7.
 **Supersedes:** none (refines and reframes ADR-0001 §1–2 scope without superseding the profile-loader machinery).

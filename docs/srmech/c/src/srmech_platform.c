@@ -1107,8 +1107,12 @@ srmech_status_t srmech_plat_file_size(const char *path, size_t *out_size)
 srmech_status_t srmech_plat_mkdir(const char *path)
 {
     assert(path != NULL);
-    assert(path[0] != '\0');
+    /* rc357 (`#T980`): assert BELOW the guard — an empty path is a recoverable
+     * SRMECH_ERR_BAD_INPUT, so asserting its negation above would abort the
+     * host on the very input the guard exists to handle. Latent only because
+     * no test drives an empty path; same shape as srmech_rational.c:121. */
     if (path == NULL || path[0] == '\0') { return SRMECH_ERR_BAD_INPUT; }
+    assert(path[0] != '\0');
 #if defined(_WIN32) || defined(_WIN64)
     if (CreateDirectoryA(path, NULL)) { return SRMECH_OK; }
     /* already-there is SUCCESS: the os.makedirs(exist_ok=True) semantic. */
@@ -1122,8 +1126,9 @@ srmech_status_t srmech_plat_mkdir(const char *path)
 srmech_status_t srmech_plat_file_remove(const char *path)
 {
     assert(path != NULL);
-    assert(path[0] != '\0');
+    /* rc357 (`#T980`): assert BELOW the guard — see srmech_plat_mkdir above. */
     if (path == NULL || path[0] == '\0') { return SRMECH_ERR_BAD_INPUT; }
+    assert(path[0] != '\0');
     if (remove(path) == 0) { return SRMECH_OK; }
     /* MISSING is SUCCESS — the caller wanted it gone and it is gone. */
     return (errno == ENOENT) ? SRMECH_OK : SRMECH_ERR_IO;
@@ -1131,9 +1136,15 @@ srmech_status_t srmech_plat_file_remove(const char *path)
 
 srmech_status_t srmech_plat_file_replace(const char *src, const char *dst)
 {
-    assert(src != NULL && src[0] != '\0');
-    assert(dst != NULL && dst[0] != '\0');
+    /* rc357 (`#T980`): this one was STRICTLY WORSE than its two peers above —
+     * the asserts demanded non-empty src/dst while the guard checked only NULL,
+     * so an empty string aborted the host with no recoverable peer AT ALL. The
+     * empty-path case now returns BAD_INPUT, matching srmech_plat_mkdir and
+     * srmech_plat_file_remove; the asserts move below the guards they duplicate. */
     if (src == NULL || dst == NULL) { return SRMECH_ERR_NULL_ARG; }
+    if (src[0] == '\0' || dst[0] == '\0') { return SRMECH_ERR_BAD_INPUT; }
+    assert(src[0] != '\0');
+    assert(dst[0] != '\0');
 #if defined(_WIN32) || defined(_WIN64)
     /* Win32 rename() FAILS on an existing dst; MoveFileEx replaces it. */
     if (MoveFileExA(src, dst, MOVEFILE_REPLACE_EXISTING)) { return SRMECH_OK; }

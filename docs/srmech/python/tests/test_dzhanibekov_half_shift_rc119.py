@@ -20,14 +20,14 @@ EXACT numbers; the probes are cited as the oracle throughout.
 
 import pytest
 
-from srmech.amsc.ellbase import (
+from srmech.apokatastasis.ellbase import (
     EllMonomial as M, Theta, EllRatio as R,
     half_shift_response, chirality_parity, beat_relation_residue,
     _half_shift_response_py, _half_shift_response_c, _normalize_half_axis,
 )
-from srmech.amsc.q import Q
-from srmech.amsc import _native
-from srmech.amsc.tool_schema import get_tool_schema
+from srmech.math.q import Q
+from srmech import _native
+from srmech.introspect.tool_schema import get_tool_schema
 
 ONE = Q(1, 1)
 M_ONE = M.one()
@@ -253,10 +253,10 @@ def test_has_native_flag_present():
 def test_tools_total_matches_live():
     """rc119 ships 3 genuinely NEW public ops → +3 ToolEntries (381 → 384)."""
     import srmech.introspect as introspect
-    assert introspect.describe()["tools"]["total"] == 509
+    assert introspect.describe()["tools"]["total"] == 655
 
 
 def test_three_ops_registered():
     names = {t.name for t in get_tool_schema().tools}
     for op in ("half_shift_response", "chirality_parity", "beat_relation_residue"):
-        assert f"srmech.amsc.ellbase.{op}" in names, op
+        assert f"srmech.apokatastasis.ellbase.{op}" in names, op

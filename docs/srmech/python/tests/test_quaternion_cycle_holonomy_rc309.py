@@ -1,7 +1,7 @@
 """rc309 (#944 follow-on) — quaternion_cycle_holonomy: the k=2 discrete
 holonomy channel over the quaternion units Q8 (the ℍ which-way / Lk-analog
 reader). The NON-ABELIAN generalization of the abelian
-``srmech.amsc.laplacian.cycle_holonomy``.
+``srmech.math.laplacian.cycle_holonomy``.
 
 The load-bearing test is ``test_regauge_invariance_proof_gate`` — the rc309
 PROOF GATE. Only the *conjugacy class* of a non-abelian cycle product is
@@ -24,8 +24,8 @@ import random
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.qm import quaternion as Q
+from srmech import _native
+from srmech.physics.qm import quaternion as Q
 
 # ── The eight Q8 unit quaternions (scalar-first (w, x, y, z)) ─────────────────
 ONE = [1.0, 0.0, 0.0, 0.0]
@@ -301,13 +301,13 @@ def test_empty_graph():
 # =====================================================================
 def test_registration_ratchet():
     import srmech
-    assert srmech.describe()["tools"]["total"] == 509
+    assert srmech.describe()["tools"]["total"] == 655
     assert "quaternion_cycle_holonomy" in Q.__all__
     assert "quaternion_conjugate" in Q.__all__
 
 
 def test_tool_schema_entry_present():
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
-    assert "srmech.qm.quaternion.quaternion_cycle_holonomy" in names
-    assert "srmech.qm.quaternion.quaternion_conjugate" in names
+    assert "srmech.physics.qm.quaternion.quaternion_cycle_holonomy" in names
+    assert "srmech.physics.qm.quaternion.quaternion_conjugate" in names

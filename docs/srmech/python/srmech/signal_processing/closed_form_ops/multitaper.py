@@ -39,8 +39,8 @@ from __future__ import annotations
 
 from typing import List
 
-from srmech.amsc import rational as _srn
-from srmech.amsc.cascade import spectral_cascades as _sc
+from srmech.math import rational as _srn
+from srmech.cascade import spectral_cascades as _sc
 
 OPERATION_NAME = "multitaper"
 CLASS_COMPOSITION = ("L", "M")
@@ -62,7 +62,7 @@ def _csin(a):
     """Elementwise substrate-native sine (Class-N rational cascade), numpy-free.
 
     Replaces ``np.sin`` on the cosine-taper angle array — routes each angle
-    through ``srmech.amsc.rational.sin`` (pi-free range reduction); no ``np.sin``
+    through ``srmech.math.rational.sin`` (pi-free range reduction); no ``np.sin``
     / ``math.sin`` in the call graph. ``rational.sin`` returns an exact ``Q``;
     the taper bank is a real FPU windowing array that multiplies the complex
     signal, so collapse to ``float`` here (the last-mile rotate — ``Q × complex``

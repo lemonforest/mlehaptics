@@ -592,8 +592,11 @@ def test_discovery_iterates_uds_socket_files(unique_name):
     files on POSIX (they're stat-type ``S_IFSOCK``, not ``S_IFREG``).
     Effect: every ``by_name()`` / ``list_endpoints()`` call returned
     empty on POSIX even though the socket existed and was connectable.
-    The ``_wait_for_endpoint`` helper used by 40+ bus tests therefore
-    timed out on every POSIX CI cell across the rc1–rc9 series. Fixed
+    The ``_wait_for_endpoint`` helper — 14 call sites across 13 tests
+    in this module — therefore timed out on every POSIX CI cell across
+    the rc1–rc9 series. (This read "40+ bus tests" until rc404
+    (`#T1069`); the real figure is a third of that, and the same false
+    claim had been quoted into ``test_cli_bus.py`` in rc402.) Fixed
     by inverting the directory check (skip dirs, accept everything
     else). Windows passes irrespective because its ``.txt`` registry
     file IS a regular file.
@@ -1011,11 +1014,12 @@ def test_handler_exception_still_propagates_to_client(unique_name):
 def test_native_bus_symbols_present():
     """rc2 adds five public bus C symbols + one helper. Verify the
     Python ctypes binding picked them up when HAS_NATIVE is True."""
-    from srmech.amsc import _native
+    from srmech import _native
     if not _native.HAS_NATIVE:
         pytest.skip("native not loaded; nothing to verify")
-    assert _native.NATIVE_ABI_VERSION == 10, (
-        f"ABI 10 expected (rc307 fiedler_sparse ws_len unified to BYTES); "
+    assert _native.NATIVE_ABI_VERSION == 14, (
+        f"ABI 13 expected (rc418 `#T1108` gave the genome write ops + the catalog "
+        f"audit a caller-attestation / descriptor channel, 12 -> 13); "
         f"got {_native.NATIVE_ABI_VERSION}"
     )
     for sym in (
@@ -1034,7 +1038,7 @@ def test_native_bus_symbols_present():
 def test_bus_handler_callback_typedef_constructible():
     """The CFUNCTYPE trampoline must be constructible (matches the
     C-side srmech_bus_handler_callback_t typedef wire format)."""
-    from srmech.amsc import _native
+    from srmech import _native
     cb_type = _native.BUS_HANDLER_CALLBACK
     assert cb_type is not None
     # Build a no-op trampoline to confirm CFUNCTYPE accepts the shape.
@@ -1051,9 +1055,9 @@ def test_abi_version_is_7():
     v0.9.0rc242 ABI bump: 4 → 5 (the C progress / introspection callback +
     the new srmech_progress_cb_t dispatch-observer typedef, #840).
     """
-    from srmech.amsc import _native
-    assert _native.EXPECTED_ABI_VERSION == 10, (
-        f"EXPECTED_ABI_VERSION should be 10; got "
+    from srmech import _native
+    assert _native.EXPECTED_ABI_VERSION == 14, (
+        f"EXPECTED_ABI_VERSION should be 12; got "
         f"{_native.EXPECTED_ABI_VERSION}"
     )
 
@@ -1432,7 +1436,7 @@ def test_decode_splice_registered_as_tool_entry():
     """decode_splice must be registered as a srmech ToolEntry on
     `import srmech.bus`."""
     import srmech.bus  # noqa: F401 — ensure registration fires
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     schema = get_tool_schema()
     entry = schema.lookup("srmech.bus.decode_splice")
     assert entry is not None, "srmech.bus.decode_splice not registered"

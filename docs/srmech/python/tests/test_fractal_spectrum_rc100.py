@@ -34,9 +34,9 @@ import tokenize
 
 import pytest
 
-from srmech.amsc import coupling
-from srmech.amsc.poly import Poly
-from srmech.amsc.q import Q
+from srmech.biology import coupling
+from srmech.math.poly import Poly
+from srmech.math.q import Q
 
 
 def _abs(x):
@@ -150,10 +150,10 @@ def test_rejects_uncoercible_R():
 # (e) the op is REGISTERED (tool schema; tools.total == 381)
 # ─────────────────────────────────────────────────────────────────────
 def test_registered_in_tool_schema():
-    from srmech.amsc import tool_schema
+    from srmech.introspect import tool_schema
 
     schema = tool_schema.get_tool_schema()
-    entry = schema.lookup("srmech.amsc.coupling.fractal_spectrum")
+    entry = schema.lookup("srmech.biology.coupling.fractal_spectrum")
     assert entry is not None
     assert entry.owner == "srmech"
     assert entry.category == "coupling"
@@ -167,7 +167,7 @@ def test_registered_in_tool_schema():
 def test_tools_total_matches_live():
     from srmech import introspect
 
-    assert introspect.describe()["tools"]["total"] == 509
+    assert introspect.describe()["tools"]["total"] == 655
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -175,7 +175,7 @@ def test_tools_total_matches_live():
 # ─────────────────────────────────────────────────────────────────────
 def test_coupling_source_is_numpy_math_abs_free():
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    src = os.path.join(here, "srmech", "amsc", "coupling.py")
+    src = os.path.join(here, "srmech", "biology", "coupling.py")
     with tokenize.open(src) as fh:
         text = fh.read()
     # Real import STATEMENTS only (line-anchored) — the module docstring may name

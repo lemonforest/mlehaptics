@@ -81,15 +81,18 @@ _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 # cross-walk consistency).
 # rc218 PARITY-COMPLETENESS annex: mirror the extension to spectral/rbs_lm/
 # introspect/profile_loader (the spectral + rbs_lm compute rows ARE
-# composition_of_c, so this ratchet now walks them for hidden non-ready leaves;
-# kept identical across all four walk sites).
-_ROOTS = (
-    "srmech.amsc", "srmech.qm", "srmech.signal_processing",
-    "srmech.bus", "srmech.dsl",
-    "srmech.mcp", "srmech.cli", "srmech.llm",
-    "srmech.spectral", "srmech.rbs_lm",
-    "srmech.introspect", "srmech.profile_loader",
-)
+# composition_of_c, so this ratchet now walks them for hidden non-ready leaves).
+#
+# rc361 (`#T1034`): "kept identical across all four walk sites" is no longer a
+# request to the next author — the tuple is SINGLE-SOURCED in
+# tests/rosetta_roots.py and the other three sites import it. The four copies
+# were measured identical before the collapse.
+import os as _os  # noqa: E402
+import sys as _sys  # noqa: E402
+_TESTS_DIR = _os.path.dirname(_os.path.abspath(__file__))
+if _TESTS_DIR not in _sys.path:
+    _sys.path.insert(0, _TESTS_DIR)
+from rosetta_roots import ROSETTA_ROOTS as _ROOTS  # noqa: E402
 
 # Buckets that are NOT standalone-C-ready (a composition_of_c op must not reach
 # one transitively).
@@ -308,14 +311,14 @@ _HEADER = Path(__file__).resolve().parents[2] / "c" / "include" / "srmech.h"
 
 #: Modules whose ``composition_of_c`` ops lay out srmech's own on-disk / on-wire
 #: byte structures. Every op these modules expose is in scope.
-_WIRE_FORMAT_MODULES = ("srmech.amsc.genome", "srmech.amsc.plasmid")
+_WIRE_FORMAT_MODULES = ("srmech.biology.genome", "srmech.biology.plasmid")
 
 #: Individually-named in-scope ops that live OUTSIDE those modules. ``recursive_cut``
 #: is the out-of-core recursive spectral bisection driver: it manages on-disk TOMES,
 #: so it is a wire-format orchestrator even though it sits in ``laplacian``. Its
 #: in-memory siblings there (``mat_norm``, ``normalized_cut_bisect``, …) are pure
 #: carrier math and stay out of scope.
-_WIRE_FORMAT_EXTRA = frozenset({"srmech.amsc.laplacian.recursive_cut"})
+_WIRE_FORMAT_EXTRA = frozenset({"srmech.math.laplacian.recursive_cut"})
 
 # ── (a) the VERIFIED whole-op C peers ────────────────────────────────────────
 #: ``defined_at`` -> the single C entry point that performs the WHOLE operation.
@@ -323,65 +326,65 @@ _WIRE_FORMAT_EXTRA = frozenset({"srmech.amsc.laplacian.recursive_cut"})
 #: in c/include/srmech.h, and it must actually be reachable through the op's dispatch
 #: glue. A declaration alone proves nothing — that was the rc273 failure mode.
 _WHOLE_OP_C_PEER = {
-    "srmech.amsc.genome.accessible":       "srmech_genome_chromatin_access",
+    "srmech.biology.genome.accessible":       "srmech_genome_chromatin_access",
     # rc329 (§102 G7): the ACTIVE-TELOMERE packer earned its whole-op C peer
     # srmech_genome_active_telomere — the op⊗operand Hayflick cap pack (marker + label
     # + NUL + count, NUL-padded), factored out of srmech_genome_telomere_tick so a
     # bare-C host builds ONE active cap with no daughter-minting.
-    "srmech.amsc.genome.active_telomere":  "srmech_genome_active_telomere",
-    "srmech.amsc.genome.amplify":          "srmech_genome_amplify",       # rc281 (G6)
-    "srmech.amsc.genome.centromere_of":    "srmech_genome_centromere_of",
-    "srmech.amsc.genome.chromatin_of":     "srmech_genome_chromatin_of",
-    "srmech.amsc.genome.chromosome":       "srmech_genome_chromosome",
+    "srmech.biology.genome.active_telomere":  "srmech_genome_active_telomere",
+    "srmech.biology.genome.amplify":          "srmech_genome_amplify",       # rc281 (G6)
+    "srmech.biology.genome.centromere_of":    "srmech_genome_centromere_of",
+    "srmech.biology.genome.chromatin_of":     "srmech_genome_chromatin_of",
+    "srmech.biology.genome.chromosome":       "srmech_genome_chromosome",
     # rc332 (§102 G7): the chromatin CONDENSE/DECONDENSE pair earned their whole-op C peers —
     # srmech_genome_condense (the shared label -> chromatin-range find + region resolution -> the
     # cap-splice insert index) and srmech_genome_decondense (the inverse per-block keep-mask). The
     # cap BYTES were already native (srmech_genome_chromatin); this rc lifts the Python-only
     # _chrom_range + region resolution into C, so a bare-C host runs each end-to-end.
-    "srmech.amsc.genome.condense":         "srmech_genome_condense",
-    "srmech.amsc.genome.copy_number_of":   "srmech_genome_copy_number",   # rc281 (G6)
-    "srmech.amsc.genome.decondense":       "srmech_genome_decondense",
-    "srmech.amsc.genome.genome":           "srmech_genome_mint",
+    "srmech.biology.genome.condense":         "srmech_genome_condense",
+    "srmech.biology.genome.copy_number_of":   "srmech_genome_copy_number",   # rc281 (G6)
+    "srmech.biology.genome.decondense":       "srmech_genome_decondense",
+    "srmech.biology.genome.genome":           "srmech_genome_mint",
     # rc333 (§102 G7): the GENES FAMILY earned its whole-op C peers — the per-gene
     # (label, leaves) BOUNDARY-PRESERVING read that srmech_genome_recall FLATTENS and
     # srmech_genome_gene_express_plan returns as SPANS. srmech_genome_genes is the in-memory
     # split; srmech_genome_genome_genes pages one chromosome's region off disk and splits it;
     # srmech_genome_genes_expressed is the demand-load orchestration (plan-walk + region-page +
     # gene_express collect). All three emit ONE shared (label, leaves) structure.
-    "srmech.amsc.genome.genes":            "srmech_genome_genes",
+    "srmech.biology.genome.genes":            "srmech_genome_genes",
     # rc327 (§100 G2): the GAP-2 flagship builder earned its whole-op C peer
     # srmech_genome_from_graph — the G3 partition + per-group induced-subgraph relabel +
     # graph_to_kernel -> mint_strand loop + strand assembly, ALL in C. The LAST §100
     # G-series parity gap (the sibling of G3 below).
-    "srmech.amsc.genome.genome_from_graph": "srmech_genome_from_graph",
-    "srmech.amsc.genome.genome_genes":     "srmech_genome_genome_genes",   # rc333 (§102 G7)
-    "srmech.amsc.genome.genome_genes_expressed":
+    "srmech.biology.genome.genome_from_graph": "srmech_genome_from_graph",
+    "srmech.biology.genome.genome_genes":     "srmech_genome_genome_genes",   # rc333 (§102 G7)
+    "srmech.biology.genome.genome_genes_expressed":
         "srmech_genome_genes_expressed",                                   # rc333 (§102 G7)
     # rc321 (§100 G3): the GRAPH partition earned its whole-op C peer
     # srmech_genome_graph_partition (recursive_cut + the exact-integer participation +
     # the antimode DECISION + per-node classify + group assembly, all in C). NOT the
     # strand-recovery `partition` below, which shares the DIFFERENT C name
     # srmech_genome_partition.
-    "srmech.amsc.genome.genome_partition": "srmech_genome_graph_partition",
+    "srmech.biology.genome.genome_partition": "srmech_genome_graph_partition",
     # `mint` is a pure delegation to `genome` (its whole body is `return genome(...)`),
     # so it inherits that op's entry point rather than owning a second one.
-    "srmech.amsc.genome.mint":             "srmech_genome_mint",
+    "srmech.biology.genome.mint":             "srmech_genome_mint",
     # rc329 (§102 G7): the MINT-PLAN read loop earned its whole-op C peer
     # srmech_genome_mint_plan — encode_shape (plasmid-vs-nuclear) + the content-address
     # orientation per kernel, the WHOLE assembling loop in C (the per-step primitive was
     # already native; the loop that assembles the plan was not).
-    "srmech.amsc.genome.mint_plan":        "srmech_genome_mint_plan",
-    "srmech.amsc.genome.partition":        "srmech_genome_partition",
-    "srmech.amsc.genome.plasmid":          "srmech_genome_genome",
+    "srmech.biology.genome.mint_plan":        "srmech_genome_mint_plan",
+    "srmech.biology.genome.partition":        "srmech_genome_partition",
+    "srmech.biology.genome.plasmid":          "srmech_genome_genome",
     # `quad_turn` is a pure delegation to the reversible Klein-4 bind primitive — the
     # whole op IS that one C call, so it is trivially C-runnable.
-    "srmech.amsc.genome.quad_turn":        "srmech_klein4_bind",
-    "srmech.amsc.genome.recall":           "srmech_genome_recall",
-    "srmech.amsc.laplacian.recursive_cut":
+    "srmech.biology.genome.quad_turn":        "srmech_klein4_bind",
+    "srmech.biology.genome.recall":           "srmech_genome_recall",
+    "srmech.math.laplacian.recursive_cut":
         "srmech_laplacian_recursive_cut",                                 # rc284
-    "srmech.amsc.plasmid.genome_integrate_plasmids":
+    "srmech.biology.plasmid.genome_integrate_plasmids":
         "srmech_genome_integrate_plasmids",                               # rc279
-    "srmech.amsc.plasmid.plasmid_extract": "srmech_genome_plasmid_extract",
+    "srmech.biology.plasmid.plasmid_extract": "srmech_genome_plasmid_extract",
     # rc334 (§102 G7): add_plasmid — the LAST wire-glue gap — earned its whole-op C peer
     # srmech_genome_add_plasmid: the incremental CONSERVE (merge the section-count
     # accumulator + srmech_genome_conserved_core) + ORGANIZE (page every section off
@@ -390,7 +393,7 @@ _WHOLE_OP_C_PEER = {
     # so a bare-C host runs one incremental add end-to-end. This DROPS
     # CEIL_WIRE_GLUE_GAPS 1 -> 0 and empties _KNOWN_GLUE_GAPS: the enumerated genome
     # wire-glue gap list is now EMPTY (the ADR-0003 genome-in-C commitment is met).
-    "srmech.amsc.plasmid.add_plasmid":     "srmech_genome_add_plasmid",
+    "srmech.biology.plasmid.add_plasmid":     "srmech_genome_add_plasmid",
 }
 
 # ── (b) the DOWN-ONLY known-gap allowlist ────────────────────────────────────
@@ -514,7 +517,7 @@ def _glue_c_symbols(fn, hops=2):
     is never buried deeper than a thin wrapper), collects the ``_native`` dispatcher
     names, and reads each dispatcher's own source for the C symbol it calls.
     """
-    from srmech.amsc import _native
+    from srmech import _native
     names, frontier, seen = set(_dispatcher_names(fn)), [fn], set()
     for _ in range(hops):
         nxt = []
@@ -640,14 +643,14 @@ def test_ratchet_catches_a_new_un_c_reachable_wire_op():
     list, must be FLAGGED. Without this test the ratchet could silently degrade to a
     no-op and nobody would know."""
     cls = dict(_load_classification())
-    cls["srmech.amsc.genome.sneaky_new_op"] = "composition_of_c"
+    cls["srmech.biology.genome.sneaky_new_op"] = "composition_of_c"
     missing = _unaccounted(cls, _WHOLE_OP_C_PEER, _KNOWN_GLUE_GAPS)
-    assert "srmech.amsc.genome.sneaky_new_op" in missing, (
+    assert "srmech.biology.genome.sneaky_new_op" in missing, (
         "the wire-format ratchet did NOT flag a new un-C-reachable genome op — the "
         "check has degraded to a no-op")
     # …and a NON-wire op (pure carrier math) is correctly left alone.
-    cls["srmech.amsc.laplacian.mat_norm"] = "composition_of_c"
-    assert "srmech.amsc.laplacian.mat_norm" not in _unaccounted(
+    cls["srmech.math.laplacian.mat_norm"] = "composition_of_c"
+    assert "srmech.math.laplacian.mat_norm" not in _unaccounted(
         cls, _WHOLE_OP_C_PEER, _KNOWN_GLUE_GAPS), (
         "the ratchet over-reached into pure carrier math — scope creep")
 
@@ -659,9 +662,9 @@ def test_ratchet_catches_a_peer_declared_with_a_nonexistent_symbol():
     declared = set(re.findall(r"\bsrmech_[a-z0-9_]+\b", header))
     assert "srmech_genome_totally_invented_peer" not in declared
     fake = dict(_WHOLE_OP_C_PEER)
-    fake["srmech.amsc.genome.sneaky_new_op"] = "srmech_genome_totally_invented_peer"
+    fake["srmech.biology.genome.sneaky_new_op"] = "srmech_genome_totally_invented_peer"
     absent = [op for op, sym in fake.items() if sym not in declared]
-    assert absent == ["srmech.amsc.genome.sneaky_new_op"]
+    assert absent == ["srmech.biology.genome.sneaky_new_op"]
 
 
 def test_ratchet_catches_a_peer_that_is_declared_but_not_dispatched():
@@ -669,10 +672,10 @@ def test_ratchet_catches_a_peer_that_is_declared_but_not_dispatched():
     calls. The dispatch check must catch that too — this is precisely the rc273 error
     (a real C surface nearby, no path from the op to it)."""
     objs = _live_objects()
-    gap_op = "srmech.amsc.genome.mint_plan"        # a known Python-only-glue op
+    gap_op = "srmech.biology.genome.mint_plan"        # a known Python-only-glue op
     fn = objs.get(gap_op)
     if fn is None:
-        pytest.skip("srmech.amsc.genome.mint_plan not importable in this env")
+        pytest.skip("srmech.biology.genome.mint_plan not importable in this env")
     # srmech_genome_amplify is real (rc281) but mint_plan has no path to it.
     assert "srmech_genome_amplify" not in _glue_c_symbols(fn), (
         "expected mint_plan to have NO path to the amplify peer — if this changed, "

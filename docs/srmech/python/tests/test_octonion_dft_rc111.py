@@ -65,12 +65,12 @@ from pathlib import Path
 
 import pytest
 
-import srmech.amsc.cascade.hypercomplex_dft as hd
-from srmech.amsc import _native
-from srmech.amsc.cascade import octonion_dft, quaternion_dft
-from srmech.amsc.mat import Mat
-from srmech.qm import octonion as oct_mod
-from srmech.qm.octonion import (
+import srmech.cascade.hypercomplex_dft as hd
+from srmech import _native
+from srmech.cascade import octonion_dft, quaternion_dft
+from srmech.math.mat import Mat
+from srmech.physics.qm import octonion as oct_mod
+from srmech.physics.qm.octonion import (
     octonion_conjugate,
     octonion_exp,
     octonion_exp_series_truncate,
@@ -465,7 +465,7 @@ def test_tools_total_matches_live():
     the octonion_dft ToolEntry pre-existed (v0.7.0rc31 — graduation updates
     the entry + its Rosetta bucket, it does not add a tool)."""
     from srmech import introspect
-    assert introspect.describe()["tools"]["total"] == 509
+    assert introspect.describe()["tools"]["total"] == 655
 
 
 def test_rosetta_buckets():
@@ -474,27 +474,27 @@ def test_rosetta_buckets():
             fixture.read_text(encoding="utf-8").splitlines() if l.strip()]
     buckets = {r["defined_at"]: r["bucket"] for r in rows}
     assert buckets[
-        "srmech.amsc.cascade.hypercomplex_dft.octonion_dft"
+        "srmech.cascade.hypercomplex_dft.octonion_dft"
     ] == "c_dispatched"
-    assert buckets["srmech.qm.octonion.octonion_exp"] == "c_dispatched"
-    assert buckets["srmech.qm.octonion.octonion_twiddle"] == "c_dispatched"
+    assert buckets["srmech.physics.qm.octonion.octonion_exp"] == "c_dispatched"
+    assert buckets["srmech.physics.qm.octonion.octonion_twiddle"] == "c_dispatched"
     # rc160 (Qalg TAIL Batch 4): octonion_exp_series_truncate LEFT
     # bignum_reference — it only packs the already-c_dispatched
     # rational.{cos,sin}_series_truncate into the Euler-formula 8-tuple, so it is
     # a composition_of_c (the compute already reaches C; the parked-oracle label
     # was the last thing to correct).
     assert buckets[
-        "srmech.qm.octonion.octonion_exp_series_truncate"
+        "srmech.physics.qm.octonion.octonion_exp_series_truncate"
     ] == "composition_of_c"
 
 
 def test_octonion_twiddle_family_tool_entries_registered():
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     schema = get_tool_schema()
     for name in (
-        "srmech.qm.octonion.octonion_exp",
-        "srmech.qm.octonion.octonion_exp_series_truncate",
-        "srmech.qm.octonion.octonion_twiddle",
+        "srmech.physics.qm.octonion.octonion_exp",
+        "srmech.physics.qm.octonion.octonion_exp_series_truncate",
+        "srmech.physics.qm.octonion.octonion_twiddle",
     ):
         entry = schema.lookup(name)
         assert entry is not None

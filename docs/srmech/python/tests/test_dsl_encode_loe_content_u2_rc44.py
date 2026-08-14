@@ -1,7 +1,7 @@
 """v0.7.5rc44 — §17 U2: register the text→instrument encoder as a DSL cascade-op.
 
 The rc44 dotted-`op=` resolver lets a cascade-catalog descriptor name an
-EXISTING callable that lives outside `srmech.amsc.cascade` (here
+EXISTING callable that lives outside `srmech.cascade` (here
 `srmech.signal_processing.encode_loe_content`). This makes
 `[[stage]] op="encode_loe_content"` legal — any catalog's text rows get a
 one-line kernel chain — without re-exporting the op into `amsc.cascade`.

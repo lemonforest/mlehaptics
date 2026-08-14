@@ -20,7 +20,7 @@ from __future__ import annotations
 import ctypes
 from typing import List, Optional, Tuple
 
-from srmech.amsc import _native
+from srmech import _native
 
 OPERATION_NAME = "lz77"
 CLASS_COMPOSITION = ("A", "G", "B")

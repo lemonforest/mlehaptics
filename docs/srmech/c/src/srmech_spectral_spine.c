@@ -20,7 +20,7 @@
  *
  * The signed degree D̄_ii = Σ_j |A_ij| uses the Class-K magnitude of each
  * coupling (an explicit sign branch, NOT fabs) so L is PSD even with negative
- * (frustrated) edges (mirrors srmech.amsc.laplacian.signed_laplacian). The
+ * (frustrated) edges (mirrors srmech.math.laplacian.signed_laplacian). The
  * top-k selection ranks by |component|² = re²+im² (a Class-K magnitude-square,
  * NO fabs / NO sqrt), descending, ties broken by ascending index — bit-matching
  * the Python op's sort key.
@@ -72,7 +72,7 @@ static double *spine_bump(double *ws, size_t ws_cap, size_t *off, size_t need)
 /* Build the interleaved-complex signed Laplacian L_il (2·n·n doubles, row-
  * major (re, im) pairs, imag == 0) from the real adjacency A (n·n row-major).
  * L_ii = D̄_ii = Σ_{c≠i} |A_ic| (Class-K magnitude, explicit sign branch — NOT
- * fabs); L_ic = −A_ic for c≠i. Mirrors srmech.amsc.laplacian.signed_laplacian
+ * fabs); L_ic = −A_ic for c≠i. Mirrors srmech.math.laplacian.signed_laplacian
  * exactly (the A diagonal / self-loop term is dropped, as the Python op does). */
 static void spine_signed_laplacian_il(uint32_t n, const double *A, double *L_il)
 {

@@ -1,0 +1,121 @@
+# Cascade catalog entry: encode_loe_content (RBS-LM UPSTREAM §17 U2).
+#
+# Registers the EXISTING, verified text→instrument encoder
+# `srmech.signal_processing.encode_loe_content` as a DSL cascade-op via the
+# rc44 dotted-`op=` resolver — so `[[stage]] op="encode_loe_content"` is legal
+# and ANY catalog's text rows get a one-line kernel chain. The primitive
+# already works (self-sim 1.000, vs-unrelated −0.007); this is the cheapest,
+# highest-leverage of the §17 catalog→kernel→DSL unification asks: it makes the
+# text→instrument step nameable in a chain without re-exporting the op into
+# `srmech.cascade`.
+
+[cascade]
+name = "encode_loe_content"
+op = "srmech.signal_processing.encode_loe_content"
+class_composition = "A∘C∘M"
+purpose = "Mode-B text→instrument encode: content string → D-bit LoE fingerprint (Class A content-address ∘ Class C cyclic permute ∘ Class M XOR-fold)."
+description = """
+The verified text→instrument encoder, surfaced as a DSL cascade-op (§17 U2).
+A unary `str -> bytes` stage: mint a Class A content-addressed vector, apply a
+Class C substrate-natural cyclic permute, and Class M XOR-fold against the
+substrate's class-operator vector. Stage kwargs `D=` (fingerprint bit-width)
+and `substrate=` pass straight through. Same content under different substrate
+strides produces orthogonal fingerprints (Spike #173 R3). numpy-tier
+(`srmech[scientific]`); the op already ships in `srmech.signal_processing`.
+"""
+
+[cascade.signature]
+input = "str"
+output = "bytes"
+operation = "encode_loe_content(content, *, D=8192, substrate='default')"
+unary_stage = true
+
+[cascade.attestation]
+author = "Steven Kirkland"
+license = "MIT"
+parser_version = "srmech-cascade 0.7.5rc44"
+canonical_landings = [
+  "RBS-LM UPSTREAM_NOTES §17 U2 — register the text→instrument encoder as a DSL cascade-op",
+  "srmech.signal_processing.rbs_hdc_instrument.encode_loe_content — the shipped primitive (self-sim 1.000)",
+  "[[user_stance_loe_as_rbs_hdc_instrument_meta_recursive]] — Mode-B encode chain",
+]
+
+# ── rc420 (`#T1114`): the EXECUTABLE chain — ADR-0008 §2 (schema v2).
+# The Mode-B pipeline as steps. The two rung-3 blockers are closed by
+# registered leaves: the byte-slice / int-parse stride framing (BLK-FRAMING:
+# utf8_encode + byte_slice + int_parse_le) and the reachability of
+# mint_vector / permute / bind via dotted addressing (BLK-REGMAP). The
+# stride's mod-D reduction runs on the REGISTERED Class-I mod_add (b = 0 is
+# the additive identity, so mod_add(v, 0, D) IS v mod D).
+[[cascade.chain]]
+chain_schema_version = 2
+summary = "Mode-B LoE encode as steps: mint -> content-derived stride (sha256 framing) -> Class-C permute -> substrate anchor -> Class-M bind."
+returns = "bytes  # the D/8-byte content fingerprint"
+
+[[cascade.chain.steps]]
+class = "F"
+op = "srmech.cascade.leaves.str_concat"
+args = { prefix = "LoE.content.", text = "@input.content" }
+
+[[cascade.chain.steps]]
+class = "A"
+op = "srmech.signal_processing.rbs_hdc_instrument.mint_vector"
+args = { name = "@step[0].output", D = "@input.D" }
+
+[[cascade.chain.steps]]
+class = "B"
+op = "srmech.cascade.leaves.utf8_encode"
+args = { text = "@input.content" }
+
+[[cascade.chain.steps]]
+class = "A"
+op = "sha256_raw"
+args = { data = "@step[2].output" }
+
+[[cascade.chain.steps]]
+class = "B"
+op = "srmech.cascade.leaves.byte_slice"
+args = { data = "@step[3].output", start = 0, stop = 8 }
+
+[[cascade.chain.steps]]
+class = "B"
+op = "srmech.cascade.leaves.int_parse_le"
+args = { data = "@step[4].output" }
+
+[[cascade.chain.steps]]
+class = "I"
+op = "mod_add"
+args = { a = "@step[5].output", b = 0, n = "@input.D" }
+
+[[cascade.chain.steps]]
+class = "C"
+op = "srmech.math.hdc.permute"
+args = { a = "@step[1].output", rotate_bits = "@step[6].output" }
+
+[[cascade.chain.steps]]
+class = "F"
+op = "srmech.cascade.leaves.str_concat"
+args = { prefix = "LoE.substrate.", text = "@input.substrate" }
+
+[[cascade.chain.steps]]
+class = "A"
+op = "srmech.signal_processing.rbs_hdc_instrument.mint_vector"
+args = { name = "@step[8].output", D = "@input.D" }
+
+[[cascade.chain.steps]]
+class = "M"
+op = "srmech.math.hdc.bind"
+args = { a = "@step[7].output", b = "@step[9].output" }
+
+[[cascade.chain.proof_cases]]
+covers = "sweep"
+inputs = { content = "hello", D = 8192, substrate = "default" }
+[[cascade.chain.proof_cases]]
+covers = "small_D"
+inputs = { content = "the pattern under the pattern", D = 256, substrate = "default" }
+[[cascade.chain.proof_cases]]
+covers = "substrate_anchor"
+inputs = { content = "hello", D = 256, substrate = "audio" }
+[[cascade.chain.proof_cases]]
+covers = "unicode_content"
+inputs = { content = "θ-cascade ∘ 中文", D = 256, substrate = "default" }

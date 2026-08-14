@@ -45,10 +45,10 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc.carrier_schema import _CARRIERS
-from srmech.amsc.dispatch import _OPEN_HINTS
-from srmech.amsc.responsion_schema import (
+from srmech import _native
+from srmech.introspect.carrier_schema import _CARRIERS
+from srmech.math.dispatch import _OPEN_HINTS
+from srmech.introspect.responsion_schema import (
     _CONTINUOUS_VERIFIED,
     _DISCRETE_VERIFIED,
     _INFER_OP,
@@ -56,7 +56,7 @@ from srmech.amsc.responsion_schema import (
     _pure_responsion_schema,
     responsion_schema,
 )
-from srmech.amsc.tool_schema import get_tool_schema, warmup_all
+from srmech.introspect.tool_schema import get_tool_schema, warmup_all
 
 warmup_all()
 
@@ -131,7 +131,7 @@ def test_operator_refs_resolve_in_tool_schema() -> None:
 
 
 def test_carrier_refs_resolve_in_carrier_schema() -> None:
-    from srmech.amsc.carrier_schema import carrier_schema
+    from srmech.introspect.carrier_schema import carrier_schema
 
     carriers = set(carrier_schema())
     assert carriers == set(_CARRIERS)
@@ -144,7 +144,7 @@ def test_carrier_refs_resolve_in_carrier_schema() -> None:
 
 def test_dangling_ref_raises_at_derivation() -> None:
     """A dangling ref is a BUG, not a payload: the derivation itself raises."""
-    from srmech.amsc import responsion_schema as rs
+    from srmech.introspect import responsion_schema as rs
 
     bogus = (("cyclic", "srmech.amsc.no_such.op", "One", "x"),)
     real = rs._DISCRETE_VERIFIED
@@ -169,7 +169,7 @@ def test_propagator_resolvent_laplace_dual_pair_on_one_edge() -> None:
     ride the SAME (laplacian.responsion, Mat) edge — the unity held, not
     split into two flat rows."""
     schema = _pure_responsion_schema()
-    edge = schema["srmech.amsc.laplacian.responsion|Mat"]
+    edge = schema["srmech.math.laplacian.responsion|Mat"]
     kinds = {r["kind"]: r for r in edge}
     assert set(kinds) == {"propagator", "resolvent"}
     for r in kinds.values():
@@ -182,29 +182,29 @@ def test_propagator_resolvent_laplace_dual_pair_on_one_edge() -> None:
 
 def test_continuous_response_family_edges_present() -> None:
     schema = _pure_responsion_schema()
-    assert ("srmech.amsc.laplacian.propagate|Mat" in schema)
-    trace = schema["srmech.amsc.laplacian.heat_trace|Mat"][0]
+    assert ("srmech.math.laplacian.propagate|Mat" in schema)
+    trace = schema["srmech.math.laplacian.heat_trace|Mat"][0]
     assert trace["kind"] == "trace"
     assert "Tr" in trace["answers_with"]
-    flux = schema["srmech.amsc.laplacian.ground_state_flux_response|Mat"][0]
+    flux = schema["srmech.math.laplacian.ground_state_flux_response|Mat"][0]
     assert flux["kind"] == "response_curve"
 
 
 def test_discrete_verified_rows_cover_the_f929_reducers() -> None:
     schema = _pure_responsion_schema()
     expected = {
-        "srmech.amsc.cascade.the_one|One",
-        "srmech.amsc.coupling.resonant_spectrum|Mat",
-        "srmech.amsc.gosper.gosper|Poly",
-        "srmech.amsc.zeilberger.zeilberger|BiPoly",
-        "srmech.amsc.wz_certificate.wz_certificate|BiPoly",
-        "srmech.amsc.apagodu_zeilberger.apagodu_zeilberger|TriPoly",
-        "srmech.amsc.q_gosper.q_gosper|QPoly",
-        "srmech.amsc.q_zeilberger.q_zeilberger|QBiPoly",
-        "srmech.amsc.q_wz_certificate.q_wz_certificate|QBiPoly",
-        "srmech.amsc.elliptic_wz_certificate.elliptic_wz_certificate"
+        "srmech.cascade.the_one|One",
+        "srmech.biology.coupling.resonant_spectrum|Mat",
+        "srmech.apokatastasis.gosper.gosper|Poly",
+        "srmech.apokatastasis.zeilberger.zeilberger|BiPoly",
+        "srmech.apokatastasis.wz_certificate.wz_certificate|BiPoly",
+        "srmech.apokatastasis.apagodu_zeilberger.apagodu_zeilberger|TriPoly",
+        "srmech.apokatastasis.q_gosper.q_gosper|QPoly",
+        "srmech.apokatastasis.q_zeilberger.q_zeilberger|QBiPoly",
+        "srmech.apokatastasis.q_wz_certificate.q_wz_certificate|QBiPoly",
+        "srmech.apokatastasis.elliptic_wz_certificate.elliptic_wz_certificate"
         "|EllRatio",
-        "srmech.amsc.elliptic_jackson.multivariate_elliptic_jackson"
+        "srmech.apokatastasis.elliptic_jackson.multivariate_elliptic_jackson"
         "|EllMonomial",
     }
     assert expected <= set(schema)
@@ -283,8 +283,8 @@ def test_registry_count_and_keys_round_trip() -> None:
 @_needs_native
 def test_registry_find_first_class_fields() -> None:
     schema = _pure_responsion_schema()
-    for probe in ("srmech.amsc.laplacian.responsion|Mat",
-                  "srmech.amsc.gosper.gosper|Poly",
+    for probe in ("srmech.math.laplacian.responsion|Mat",
+                  "srmech.apokatastasis.gosper.gosper|Poly",
                   f"{_INFER_OP}|EllRatio"):
         found = _native.responsion_registry_find_c(probe)
         assert found is not None
@@ -357,12 +357,12 @@ def test_generated_table_holds_every_edge() -> None:
 
 def test_tool_entry_registered_and_total_matches_live() -> None:
     schema = get_tool_schema()
-    entry = schema.lookup("srmech.amsc.responsion_schema.responsion_schema")
+    entry = schema.lookup("srmech.introspect.responsion_schema.responsion_schema")
     assert entry is not None
     assert entry.category == "responsion_schema"
     assert "k=3" in entry.summary
     assert "EDGE" in entry.summary
-    assert len(schema.tools) == 509
+    assert len(schema.tools) == 655
 
 
 def test_rosetta_row_is_composes_c() -> None:
@@ -371,7 +371,7 @@ def test_rosetta_row_is_composes_c() -> None:
             fixture.read_text(encoding="utf-8").splitlines() if l.strip()]
     row = [r for r in rows
            if r["defined_at"]
-           == "srmech.amsc.responsion_schema.responsion_schema"]
+           == "srmech.introspect.responsion_schema.responsion_schema"]
     assert len(row) == 1
     assert row[0]["bucket"] == "non_compute"
     assert row[0]["non_compute_kind"] == "composes_c"
@@ -380,7 +380,7 @@ def test_rosetta_row_is_composes_c() -> None:
 def test_describe_total_matches_live() -> None:
     from srmech import introspect
 
-    assert introspect.describe()["tools"]["total"] == 509
+    assert introspect.describe()["tools"]["total"] == 655
 
 
 def test_within_edge_order_is_deterministic() -> None:

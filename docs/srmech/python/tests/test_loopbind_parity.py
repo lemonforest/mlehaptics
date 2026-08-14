@@ -2,7 +2,7 @@
 
 The native C peer (srmech_loop_*_f64 in c/src/srmech_loopbind.c) is the
 dim-8 octonion product + companions; the Python wrappers in
-srmech.amsc.hdc dispatch to it when HAS_NATIVE. These tests assert the
+srmech.math.hdc dispatch to it when HAS_NATIVE. These tests assert the
 native path matches the pure-Python reference (the ``_loop_*_raw`` helpers,
 which bypass native). The Cayley-Dickson operand order is identical at every
 level, so the C is exact in real arithmetic — but a compiler that contracts
@@ -23,8 +23,9 @@ import random
 
 import pytest
 
-from srmech.amsc.laplacian import mat_dot, mat_norm
-from srmech.amsc import _native, hdc
+from srmech.math.laplacian import mat_dot, mat_norm
+from srmech import _native
+from srmech.math import hdc
 
 _HAS_C = (
     _native.HAS_NATIVE

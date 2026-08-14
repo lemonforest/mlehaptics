@@ -1,6 +1,6 @@
 /*
  * srmech_eisenstein.c — the EXACT-RATIONAL q-series of a normalized EISENSTEIN
- * SERIES E_k (the C peer of srmech.amsc.eisenstein.Eisenstein; the SECOND rung
+ * SERIES E_k (the C peer of srmech.apokatastasis.eisenstein.Eisenstein; the SECOND rung
  * of the WEIGHT axis, after the rc82 eta-quotient).
  *
  * The normalized Eisenstein series of even weight k >= 4 is
@@ -501,7 +501,7 @@ srmech_status_t srmech_eisenstein_qseries(
      * SAME normalized-Eisenstein formula at k=2: pref -4/B_2 = -24; E_2 is the
      * weight-2 quasimodular generator. The modular/quasimodular DECISION stays
      * Python-side — the Eisenstein(k) carrier still rejects k=2; E_2 enters only
-     * through srmech.amsc.quasimodular_forms_ring). k=4,6,... are the modular E_k. */
+     * through srmech.apokatastasis.quasimodular_forms_ring). k=4,6,... are the modular E_k. */
     if (n_terms < 1u || k < 2u || (k % 2u) != 0u) {
         return SRMECH_ERR_BAD_INPUT;
     }

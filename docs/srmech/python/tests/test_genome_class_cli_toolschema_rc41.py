@@ -13,7 +13,7 @@ import json
 from contextlib import redirect_stdout
 
 from srmech import introspect
-from srmech.amsc.tool_schema import get_tool_schema
+from srmech.introspect.tool_schema import get_tool_schema
 from srmech.cli.main import main as cli_main
 
 
@@ -68,4 +68,4 @@ def test_introspect_tools_total_matches_live():
     # no C peer) — 330→331.
     # rc258 (§95a / #1407): the 4 genome-architecture ops — centromere,
     # centromere_of, mint, mint_plan — 432→436.
-    assert introspect.describe()["tools"]["total"] == 509
+    assert introspect.describe()["tools"]["total"] == 655

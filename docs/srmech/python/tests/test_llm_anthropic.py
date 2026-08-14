@@ -14,7 +14,6 @@ the flag (and the fake module) for one specific test.
 
 from __future__ import annotations
 
-import json
 import os
 import sys
 import types
@@ -27,7 +26,7 @@ import pytest
 # MCP adapter sees in production. Same pattern as test_mcp.py.
 import srmech.bus  # noqa: F401 — import side-effect
 
-from srmech.amsc.tool_schema import get_tool_schema
+from srmech.introspect.tool_schema import get_tool_schema
 from srmech.llm import anthropic_agent as aa
 from srmech.llm.anthropic_agent import (
     ANTHROPIC_TOOL_NAME_MAX_LEN,
@@ -221,9 +220,19 @@ def test_tool_catalog_includes_every_advertised_tool(mock_sdk) -> None:
     )
     # Same count as the MCP adapter's advertised surface.
     assert len(agent.tools) == len(list(tool_entries_to_mcp_defs()))
-    # rc16 — the full registry equals the advertised surface (no
-    # handle-pending tools remain).
-    assert len(schema.tools) == expected + 0
+    # rc414 (`#T1092`) — this read ``len(schema.tools) == expected + 0``, where
+    # the ``+ 0`` WAS the strict-zero: it asserted the registry and the
+    # advertised catalog are the same size, i.e. nothing is ever excluded.
+    # rc414 excludes ``srmech.introspect.publish`` (a with-block scope has no
+    # wire form), so the relation is derived live on both sides instead of
+    # pinned to a literal.
+    n_excluded = sum(1 for e in schema.tools if not e.mcp_callable)
+    assert len(schema.tools) == expected + n_excluded
+    # Every exclusion is explained — the same invariant
+    # test_mcp_initialize_instructions_rc407 gates, asserted here too because
+    # this is the seam Claude actually reads.
+    assert all(e.mcp_unavailable_reason
+               for e in schema.tools if not e.mcp_callable)
 
 
 def test_handle_pending_tools_excluded_from_anthropic_catalog(
@@ -235,13 +244,30 @@ def test_handle_pending_tools_excluded_from_anthropic_catalog(
     ``mcp_callable=True`` once the by-reference ``$srmech_handle`` grammar
     landed, so there are ZERO handle-pending tools and all 7 spectral names
     ARE present in the Anthropic catalog Claude sees (both the reverse name
-    map AND the synthesised name list)."""
+    map AND the synthesised name list).
+
+    v0.9.0rc414 (`#T1092`) — the strict-zero ``pending == set()`` is replaced by
+    the property it stood for. rc414 ships the first genuine exclusion
+    (``srmech.introspect.publish``), so "zero excluded" is no longer true; what
+    must stay true is that an excluded tool is ABSENT from the catalog Claude
+    reads, and that the 7 spectral tools the ``$srmech_handle`` grammar rescued
+    are still PRESENT in it. Both are asserted below."""
     mock_sdk([])
     agent = AnthropicAgent()
     schema = get_tool_schema()
     pending = {e.name for e in schema.tools if not e.mcp_callable}
-    assert pending == set(), (
-        f"rc16 expects ZERO handle-pending tools; still pending: {pending}"
+
+    # An excluded tool must not reach Claude through EITHER Anthropic-side
+    # surface — the reverse name map or the synthesised catalog.
+    assert not (pending & set(agent._name_map.values())), (
+        f"excluded entries leaked into the Anthropic reverse name map: "
+        f"{pending & set(agent._name_map.values())}"
+    )
+    leaked_syn = {n.replace(".", "_") for n in pending} & {
+        t["name"] for t in agent.tools}
+    assert leaked_syn == set(), (
+        f"excluded entries leaked into the synthesised Anthropic catalog: "
+        f"{leaked_syn}"
     )
 
     spectral_names = {

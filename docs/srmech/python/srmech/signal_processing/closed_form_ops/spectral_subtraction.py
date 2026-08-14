@@ -42,8 +42,8 @@ from __future__ import annotations
 
 from typing import List
 
-from srmech.amsc import rational as _srn
-from srmech.amsc.cascade import spectral_cascades as _sc
+from srmech.math import rational as _srn
+from srmech.cascade import spectral_cascades as _sc
 
 OPERATION_NAME = "spectral_subtraction"
 CLASS_COMPOSITION = ("L", "N")

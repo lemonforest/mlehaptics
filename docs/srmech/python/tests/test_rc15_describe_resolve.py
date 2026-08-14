@@ -12,7 +12,7 @@ from collections import Counter
 import pytest
 
 import srmech
-from srmech.amsc.tool_schema import get_tool_schema, warmup_all
+from srmech.introspect.tool_schema import get_tool_schema, warmup_all
 
 
 def _schema():

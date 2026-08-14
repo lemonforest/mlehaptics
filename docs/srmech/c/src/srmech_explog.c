@@ -1,7 +1,7 @@
 /* srmech_explog.c — Class-N rational exp/log cascade for the NATIVE (executable)
  * tier (v0.7.0rc46; C-transpile triality coherence, the rc42->rc46 closeout).
  *
- * The Python `srmech.amsc.rational.{exp,log}` compute exp/log as the Class-N
+ * The Python `srmech.math.rational.{exp,log}` compute exp/log as the Class-N
  * rational Taylor cascade (reduce, truncated series, project to float LAST).
  * `srmech_rational.c` already shipped `srmech_exp_series_truncate` (the exact
  * rational exp partial-sum). This file adds the double->double wrappers

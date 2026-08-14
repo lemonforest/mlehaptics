@@ -24,9 +24,9 @@ import json
 
 import pytest
 
-from srmech.amsc.cascade import the_one, One, winding_tower
-from srmech.amsc.cascade import one as one_mod
-from srmech.amsc.rational import cos_series_truncate, sin_series_truncate
+from srmech.cascade import the_one, One, winding_tower
+from srmech.cascade import one as one_mod
+from srmech.math.rational import cos_series_truncate, sin_series_truncate
 
 
 # ── (i) the SPINOR state shows the winding — the (−1)^w double cover ───────────
@@ -66,7 +66,7 @@ def test_trace_spinor_shows_the_winding():
     # trace_spinor is the SU(2)-style 2·cos(θ/2), distinct from the full-angle
     # to_scalar trace (which is w-blind); both are exact (num, den).
     two_cos = cos_series_truncate(tn, 2 * td, terms)
-    from srmech.amsc.cascade.one import _reduce_rational
+    from srmech.cascade.one import _reduce_rational
     assert base == _reduce_rational(2 * two_cos[0], two_cos[1])
 
 
@@ -273,7 +273,7 @@ def test_repr_mentions_winding():
 
 
 def test_the_one_alias_carries_winding():
-    from srmech.amsc.cascade import s_generator
+    from srmech.cascade import s_generator
     assert s_generator(+1, 1, 1, w=(3, 0, 0)).winding == (3, 0, 0)
 
 
@@ -284,12 +284,12 @@ def test_the_one_alias_carries_winding():
 # to force each path and compare, the same discipline test_cyclic_parity uses.
 
 import random                                            # noqa: E402
-from srmech.amsc import _native                          # noqa: E402
+from srmech import _native                          # noqa: E402
 
 
 @pytest.mark.skipif(not _native.HAS_NATIVE, reason="native lib not loaded")
 def test_winding_tower_native_equals_pure_byte_identical():
-    from srmech.amsc.cascade import winding_tower as wt
+    from srmech.cascade import winding_tower as wt
     rng = random.Random(20260705)
     saved = _native.HAS_NATIVE
     try:
@@ -336,7 +336,7 @@ def test_winding_readouts_native_equal_pure_byte_identical():
 def test_winding_ops_match_independent_reference():
     # Independent (bin()-based) reference — proves whichever path runs is correct,
     # native or pure. winding_tower is LSB-first bits of |w|.
-    from srmech.amsc.cascade import winding_tower as wt
+    from srmech.cascade import winding_tower as wt
     for w in (0, 1, 2, 5, 7, 13, 223, -7):
         ref = tuple(int(b) for b in bin(w if w >= 0 else -w)[2:][::-1]) if w != 0 else ()
         assert wt(w) == ref

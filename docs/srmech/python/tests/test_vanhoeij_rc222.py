@@ -45,9 +45,10 @@ from math import comb
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc.cascade import matrix_cascades as mc
-from srmech.amsc.cascade.matrix_cascades import factor_integer_poly, lll_reduce
+from tests._native_gate import require_native
+from srmech import _native
+from srmech.cascade import matrix_cascades as mc
+from srmech.cascade.matrix_cascades import factor_integer_poly, lll_reduce
 
 
 def test_numpy_is_absent_so_this_runs_not_skips():
@@ -271,6 +272,7 @@ def test_lll_incremental_native_pure_identity_on_knapsack_shape():
     """A knapsack-shaped lattice ([[C·I | cuts], [0 | p^e·I]]) — native and
     pure incremental LLL must agree entry-for-entry (the rc221 identity
     contract, now on the rc222 shape)."""
+    require_native("the incremental-LLL native-vs-pure identity")
     import random
     rng = random.Random(20260711)
     n, s, cs, pe = 10, 3, 2, 3 ** 9

@@ -1,7 +1,7 @@
 /*
  * srmech_riemann_theta.c — the EXACT-INTEGER (A, B, C) EXPONENT LATTICE of a
  * GENUS-2 RIEMANN THETA-CONSTANT (the C peer of
- * srmech.amsc.riemann_theta.RiemannTheta; the FIRST RUNG of the GENUS axis).
+ * srmech.apokatastasis.riemann_theta.RiemannTheta; the FIRST RUNG of the GENUS axis).
  *
  * The genus-2 Riemann theta-constant with binary characteristic [eps'; eps]
  * (entries in {0,1}; Grushevsky arXiv:1009.0369 eq.1; Eilers arXiv:1707.08855
@@ -33,7 +33,7 @@
  * theta-CONSTANT are small integer lattice counts (each term contributes +-1), so
  * int64 is exact with no ceiling (no bignum needed). The caller (the Python
  * marshaller) accumulates the quadruples into the canonical {(A,B,C): coeff} dict
- * — byte-identical to the pure-Python srmech.amsc.riemann_theta._lattice_py. The
+ * — byte-identical to the pure-Python srmech.apokatastasis.riemann_theta._lattice_py. The
  * accumulation is trivial bookkeeping; the genuinely-new exact-integer A/B/C
  * clearing + the Class-K sign is what this peer mirrors.
  *
@@ -199,7 +199,7 @@ srmech_status_t srmech_riemann_theta_lattice(
 /* ================================================================== *
  *  rc87: EXACT theta evaluation at a RATIONAL argument (the genus-axis
  *  Fay-trisecant / KP-Hirota FOUNDATION). C peer of
- *  srmech.amsc.riemann_theta.RiemannTheta.theta_at.
+ *  srmech.apokatastasis.riemann_theta.RiemannTheta.theta_at.
  * ================================================================== *
  *
  * The genus-2 theta at a RATIONAL argument z = z_num/z_den (z_den even = 2N) is
@@ -213,7 +213,7 @@ srmech_status_t srmech_riemann_theta_lattice(
  * one [A, B, C, e_mod, sign] QUINTUPLE per lattice point |n_i| <= box, row-major
  * (n1,n2); the Python marshaller accumulates sign * zeta_m^{e_mod} into the canonical
  * {(A,B,C): cyclotomic-coeff} lattice by looking each zeta_m^{e_mod} up in the REUSED
- * exact-DFT cyclotomic power basis (srmech.amsc.cascade.exact_dft) -- byte-identical to
+ * exact-DFT cyclotomic power basis (srmech.cascade.exact_dft) -- byte-identical to
  * the pure-Python theta_at. Caller-owned out[] (no malloc), like the lattice peer.
  * Additive symbols -> ABI unchanged (stays 3). */
 
@@ -693,7 +693,7 @@ srmech_status_t srmech_riemann_theta_eta_char(
  * coefficients are small integer lattice counts (each term contributes +-1), so
  * int64 is exact with no ceiling (no bignum). The caller accumulates the septuples
  * into the canonical {(A1,A2,A3,C12,C13,C23): coeff} dict -- byte-identical to the
- * pure-Python srmech.amsc.riemann_theta.RiemannThetaG3._lattice_py.
+ * pure-Python srmech.apokatastasis.riemann_theta.RiemannThetaG3._lattice_py.
  *
  * Caller-arena / caller-owned (like the genus-2 peer); no malloc. Additive symbol
  * -> ABI unchanged (stays 3). */
@@ -775,7 +775,7 @@ srmech_status_t srmech_riemann_theta_g3_lattice(
 
 /* ================================================================== *
  *  rc87: GENUS-3 EXACT theta evaluation at a RATIONAL argument. C peer of
- *  srmech.amsc.riemann_theta.RiemannThetaG3.theta_at (the genus-3 analog of
+ *  srmech.apokatastasis.riemann_theta.RiemannThetaG3.theta_at (the genus-3 analog of
  *  srmech_riemann_theta_at, ONE genus up).
  * ================================================================== */
 
@@ -881,7 +881,7 @@ srmech_status_t srmech_riemann_theta_g3_at(
  * {(A1,A2,A3,C12,C13,C23): coeff} lattice -- the EXACT leading part, NONZERO, at
  * diagonal quarter-order 48 (= 12 in q_i). Coefficients fit int64 (max |coeff| =
  * 2^34, well within int64). Byte-identical to the pure-Python
- * srmech.amsc.riemann_theta.RiemannThetaG3._chi18_leading_part_py.
+ * srmech.apokatastasis.riemann_theta.RiemannThetaG3._chi18_leading_part_py.
  *
  * Caller-arena / caller-owned: the caller passes ONE int64 work arena (sized via
  * srmech_riemann_theta_g3_chi18_count); the convolution ping-pongs two halves of it.
@@ -1324,7 +1324,7 @@ srmech_status_t srmech_riemann_theta_g3_eighth_lattice(
 
 /* ------------------------------------------------------------------ *
  * rc78: the genus-3 GÖPEL / FROBENIUS quadratic theta-null SYZYGY gate — the C peer
- * of srmech.amsc.riemann_theta.RiemannThetaG3.goepel_holds.
+ * of srmech.apokatastasis.riemann_theta.RiemannThetaG3.goepel_holds.
  *
  * The genus-3 GÖPEL/FROBENIUS quadratic relation among the even theta-NULLS (the
  * genus-3 analog of the genus-2 rc74 Göpel syzygy). It is a 4-PAIR / 8-NULL relation
@@ -1561,7 +1561,7 @@ srmech_status_t srmech_riemann_theta_g3_goepel(
 
 /* ------------------------------------------------------------------ *
  * rc80 (NEXT GENUS RUNG, the SCHOTTKY FRONTIER): the GENUS-4 EXACT-INTEGER EXPONENT
- * LATTICE -- the C peer of srmech.amsc.riemann_theta.RiemannThetaG4, the genus-4
+ * LATTICE -- the C peer of srmech.apokatastasis.riemann_theta.RiemannThetaG4, the genus-4
  * analog of the rc75 genus-3 peer. The genus-4 theta-constant theta[ep'; e](0|Omega)
  * (Grushevsky arXiv:1009.0369 eq.1, the g=4 specialization; binary characteristic
  * [ep1,ep2,ep3,ep4; e1,e2,e3,e4], eight bits in {0,1}) is a lattice sum over n in Z^4
@@ -1669,7 +1669,7 @@ srmech_status_t srmech_riemann_theta_g4_lattice(
 
 /* ------------------------------------------------------------------ *
  * rc86 (NEXT GENUS RUNG, PAST the SCHOTTKY FRONTIER): the GENUS-5 EXACT-INTEGER EXPONENT
- * LATTICE -- the C peer of srmech.amsc.riemann_theta.RiemannThetaG5, the genus-5 analog
+ * LATTICE -- the C peer of srmech.apokatastasis.riemann_theta.RiemannThetaG5, the genus-5 analog
  * of the rc80 genus-4 peer. The genus-5 theta-constant theta[ep'; e](0|Omega)
  * (Grushevsky arXiv:1009.0369 eq.1, the g=5 specialization; binary characteristic
  * [ep1..ep5; e1..e5], ten bits in {0,1}) is a lattice sum over n in Z^5 of
@@ -1797,7 +1797,7 @@ srmech_status_t srmech_riemann_theta_g5_lattice(
 
 /* ================================================================== *
  *  rc85: the genus-4 Sp(8,Z) MODULAR ACTION KIT -- the C peers of
- *  srmech.amsc.riemann_theta.RiemannThetaG4.{transform, goepel_holds} (the g=3->g=4
+ *  srmech.apokatastasis.riemann_theta.RiemannThetaG4.{transform, goepel_holds} (the g=3->g=4
  *  parametric extension of the rc77/rc78 genus-3 peers). gamma is the 64 int64 entries
  *  (A,B,C,D 4x4 blocks row-major); 4-vectors over an 8x8 symplectic gamma. Caller-owned
  *  out[] / caller arena; no malloc. Additive symbols -> ABI unchanged (stays 3).
@@ -2023,7 +2023,7 @@ srmech_status_t srmech_riemann_theta_g4_eighth_lattice(
 
 /* ------------------------------------------------------------------ *
  * rc85: the genus-4 GÖPEL universal quadratic theta-null relation gate -- the C peer of
- * srmech.amsc.riemann_theta.RiemannThetaG4.goepel_holds. A 4-PAIR / 8-NULL same-Omega
+ * srmech.apokatastasis.riemann_theta.RiemannThetaG4.goepel_holds. A 4-PAIR / 8-NULL same-Omega
  * relation theta^2[a]theta^2[b] = theta^2[c]theta^2[d] + theta^2[e]theta^2[f]
  * - theta^2[g]theta^2[h] among eight even nulls all summing to [1,1,1,1;1,1,1,1] (a
  * genus-4 Goepel/azygetic system). The genus-4 instance of the same goepel_holds surface
@@ -2262,7 +2262,7 @@ srmech_status_t srmech_riemann_theta_g4_goepel(
 /* ------------------------------------------------------------------ *
  * rc81 (the GENUS-4 CAPSTONE): the SCHOTTKY FORM J = theta^4(E8+E8) - theta^4(E16)
  * representation-number COUNTER -- the C peer of
- * srmech.amsc.riemann_theta.SchottkyFormG4.{_count_gram_py, _full_shell_grams_py}.
+ * srmech.apokatastasis.riemann_theta.SchottkyFormG4.{_count_gram_py, _full_shell_grams_py}.
  *
  * The Schottky form J (weight-8 degree-4 level-1 Siegel CUSP form; Schottky 1888,
  * Igusa 1981, Poor-Yuen 1996) is the difference of the genus-4 theta-SERIES of the two
@@ -2628,7 +2628,7 @@ size_t srmech_riemann_theta_g4_schottky_shell_count(int genus)
  * doubled inners in {-8,-4,0,4,8}). *out_len <- the number of int64 written. The pattern
  * is enumerated by mixed-radix over the 5 classes; each count reuses the rtsch counters
  * (the bitset table is built ONCE). arena per srmech_riemann_theta_g4_schottky_arena(n).
- * Mirrors srmech.amsc.riemann_theta.SchottkyFormG4._full_shell_grams_py. */
+ * Mirrors srmech.apokatastasis.riemann_theta.SchottkyFormG4._full_shell_grams_py. */
 srmech_status_t srmech_riemann_theta_g4_schottky_shell(
     const int64_t *vecs, size_t n, size_t dim, int genus,
     uint64_t *arena, size_t arena_cap, int64_t *out, size_t out_cap,
@@ -2683,7 +2683,7 @@ srmech_status_t srmech_riemann_theta_g4_schottky_shell(
 /* ------------------------------------------------------------------ *
  * rc107: the generic SPARSE SAFE-SUPPORT GATE DECISION kernel — the ONE C peer of
  * ALL the genus-axis theta identity/distinctness gates (g in {2..5}) of
- * srmech.amsc.riemann_theta (duplication_holds / addition_holds / goepel_holds +
+ * srmech.apokatastasis.riemann_theta (duplication_holds / addition_holds / goepel_holds +
  * the *_is_distinct_* gates) — the #707 dive's SAFE-REGION PUSH-DOWN.
  *
  * The mathematics (the soundness argument, same as the shipped _diag_restrict):
@@ -3162,7 +3162,7 @@ srmech_status_t srmech_riemann_theta_gate_decide(
 /* ================================================================== *
  *  rc226: srmech_riemann_theta_fay_certificate — the C peer of the
  *  genus-2 Fay/KP RE-INDEXING CERTIFICATE
- *  (srmech.amsc.riemann_theta.RiemannTheta.fay_reindexing_certificate).
+ *  (srmech.apokatastasis.riemann_theta.RiemannTheta.fay_reindexing_certificate).
  * ================================================================== *
  *
  * The certificate upgrades the rc73 addition_holds SAFE-REGION boolean into an

@@ -26,9 +26,9 @@ import random
 from dataclasses import dataclass, field
 from typing import List, Mapping, Sequence
 
-from srmech.amsc import hdc, rational
-from srmech.amsc.hv import HV
-from srmech.amsc.q import Q
+from srmech.math import hdc, rational
+from srmech.math.hv import HV
+from srmech.math.q import Q
 
 from . import substrate as cs
 
@@ -75,7 +75,7 @@ class CoherenceReadout:
     classify a recall step COHERENT / BRANCH / STOP without re-probing ``M``:
 
     * ``candidates_topk`` / ``raw_sims_topk`` — the top-k atoms + their RAW
-      ``klein4_similarity`` scores (exact :class:`~srmech.amsc.q.Q`), sorted
+      ``klein4_similarity`` scores (exact :class:`~srmech.math.q.Q`), sorted
       descending by the exact rational (Class-K pin-slot compare — never a
       ``float`` sort key on the decision path).
     * ``noise_floor`` — the principled, attested floor (``Q(1, 4)`` chance
@@ -153,7 +153,7 @@ class RBSLMInferenceSubstrate:
         ``substrate.enc_mode`` selects the word encoder: ``"byteglyph"``
         (default — the C1 byte/glyph LM object, F916) or ``"wordhash"`` (the
         prior whole-word sha256 atom; pin it to reproduce pre-rc17 numerics)."""
-        from srmech.amsc._native import HAS_NATIVE, NATIVE_ABI_VERSION
+        from srmech._native import HAS_NATIVE, NATIVE_ABI_VERSION
         from srmech import __version__ as SRMECH_VERSION
 
         sub = params["substrate"]

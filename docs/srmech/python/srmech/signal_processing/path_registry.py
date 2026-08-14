@@ -40,7 +40,7 @@ Discipline anchors:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Callable, Dict, Iterator, Optional, Tuple
+from typing import Callable, Dict, Optional, Tuple
 
 from ._paths import PATH_A, PATH_B, VALID_PATHS
 
@@ -249,14 +249,43 @@ def register(
 def lookup(op_name: str) -> OperationEntry:
     """Return the :class:`OperationEntry` for ``op_name``.
 
-    Raises :class:`UnknownOperationError` if the op isn't registered.
-
     Phase 1 stub: no ops are registered; this raises for all callers.
     Phase 2+ populates registrations as modules import.
+
+    Raises
+    ------
+    TypeError
+        If ``op_name`` is not a ``str``.
+    ValueError
+        If ``op_name`` is the empty string.
+    UnknownOperationError
+        If ``op_name`` is a well-formed name that is not registered.
+
+    Note
+    ----
+    rc431 (`#T1129`) — the type/emptiness check was an ``assert``, and
+    ``python -O`` deletes it. Unlike its sibling in
+    ``continued_fraction_convergents``, nothing downstream re-enforced the
+    claim, so under ``-O`` a malformed argument fell through to the registry
+    miss and was reported as the WRONG failure entirely:
+
+        python3     lookup(123) -> AssertionError: op_name must be non-empty string
+        python3 -O  lookup(123) -> UnknownOperationError: op 123 not registered
+
+    Reporting a type error as a lookup miss sends the caller hunting for a
+    missing registration that was never the problem. Both branches now raise
+    for real, and the split follows the measured house convention: TypeError
+    is the wrong TYPE, ValueError is the right type carrying a wrong value.
+    ``""`` is a genuine ``str``, so it is a ValueError, not a TypeError — and
+    it is separated from the registry miss because an empty name is malformed
+    input, not an op someone forgot to register.
     """
-    assert isinstance(op_name, str) and op_name, (
-        "lookup: op_name must be non-empty string"
-    )
+    if not isinstance(op_name, str):
+        raise TypeError(
+            f"lookup: op_name must be str; got {type(op_name).__name__}"
+        )
+    if not op_name:
+        raise ValueError("lookup: op_name must be a non-empty string")
     _ensure_loaded(op_name)  # rc71: import-on-demand for lazily-registered ops
     entry = _REGISTRY.get(op_name)
     if entry is None:
@@ -284,16 +313,30 @@ def has_path(op_name: str, path: str) -> bool:
     return entry.path_b is not None
 
 
-def registered_ops() -> Iterator[str]:
-    """Iterate over all known op_names — eagerly-registered first (in
-    registration order), then any lazily-registrable ops not yet loaded.
+def registered_ops() -> Tuple[str, ...]:
+    """All known op_names — eagerly-registered first (in registration order),
+    then any lazily-registrable ops not yet loaded.
 
     rc71: declarative — a lazily-registrable op (e.g. ``matched_filter``) is
     listed as a known op without forcing its (numpy-pulling) import. The op
-    materialises in ``_REGISTRY`` on first :func:`lookup` / :func:`has_path`."""
+    materialises in ``_REGISTRY`` on first :func:`lookup` / :func:`has_path`.
+
+    v0.9.0rc419 (`#T1110`): returns the concrete tuple rather than
+    ``iter(...)`` over it. Through rc418 the annotation was ``Iterator[str]``
+    and the body built ``loaded + pending`` in full and then WRAPPED it in
+    ``iter()`` — so the laziness bought nothing and cost the obvious call:
+    ``len(registered_ops())`` raised ``TypeError: object of type 'list_iterator'
+    has no len()``. "How many ops are registered" is the first question a
+    consumer asks of a registry read-surface, and it was the one call the
+    surface could not answer. A tuple is still iterable, so every existing
+    ``set(...)`` / ``tuple(...)`` / ``for`` caller is unaffected; it is
+    additionally ``len()``-able, indexable and re-iterable. Returning a fresh
+    tuple each call also keeps the result an immutable SNAPSHOT — a caller
+    cannot mutate the registry through it, and a later registration does not
+    retroactively change a value already handed out."""
     loaded = tuple(_REGISTRY.keys())
     pending = tuple(name for name in _LAZY_LOADERS if name not in _REGISTRY)
-    return iter(loaded + pending)
+    return loaded + pending
 
 
 def clear_registry() -> None:

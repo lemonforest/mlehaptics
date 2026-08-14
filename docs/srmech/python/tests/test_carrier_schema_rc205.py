@@ -44,15 +44,17 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc.carrier_ladder import carrier_ladder_descriptor
-from srmech.amsc.carrier_schema import (
+from srmech import _native
+from srmech.math.carrier_ladder import carrier_ladder_descriptor
+from srmech.introspect.carrier_schema import (
     _CARRIERS,
     _LADDER_RUNG_CARRIERS,
     _pure_carrier_schema,
     carrier_schema,
 )
-from srmech.amsc.tool_schema import get_tool_schema, warmup_all
+from srmech.introspect.tool_schema import get_tool_schema, warmup_all
+
+from coercion_boundary import NON_CARRIER_CLASSES
 
 warmup_all()
 
@@ -69,17 +71,22 @@ _needs_native = pytest.mark.skipif(
 # (typing / infra / handle types — NOT operand carriers). The drift ratchet
 # below allows exactly these; anything else capitalized that names a srmech
 # class must join the carrier registry.
-_NON_CARRIER_TYPE_TOKENS = frozenset({
+#: Typing / stdlib spellings that appear in a declared type string and name no
+#: srmech class at all. These are specific to THIS gate, which scans free-form
+#: type STRINGS; the use-derivation gate resolves names against a live module
+#: namespace and so never sees them.
+_TYPING_TOKENS = frozenset({
     "Any", "Callable", "Iterator", "Mapping", "None", "Optional", "Path",
     "Sequence",
     "I",                 # array('I') typecode, not a type name
-    "ChainSpec",         # compose chain-spec IR (orchestration, not operand)
-    "Endpoint",          # bus endpoint handle
-    "MPRRecord",         # provenance record envelope
-    "RecoverableFold",   # coupling pair-carrier handle (in-process only)
-    "Run",               # typing artifact of "Runnable"-style summaries
-    "SpectralHandle",    # by-reference spectral handle (rc16 envelope)
 })
+
+#: The srmech-class half is SHARED with the rc363 use-derivation gate rather
+#: than re-typed here (rc363; ADR-0012 §3.1 C3): the two gates ask "is this an operand
+#: carrier?" from opposite channels — declared strings vs. what the callable
+#: branches on — and an exemption granted on one channel must be visible on the
+#: other. Before rc363 this list held its own copy of the six.
+_NON_CARRIER_TYPE_TOKENS = _TYPING_TOKENS | NON_CARRIER_CLASSES
 
 
 def _canonical_payload() -> bytes:
@@ -161,24 +168,24 @@ def test_ladder_rungs_agree_with_carrier_ladder_descriptor() -> None:
 
 def test_ops_back_index_known_relations() -> None:
     schema = _pure_carrier_schema()
-    assert "srmech.amsc.gosper.gosper" in schema["Poly"]["ops"]["consumes"]
-    assert ("srmech.amsc.apagodu_zeilberger.apagodu_zeilberger"
+    assert "srmech.apokatastasis.gosper.gosper" in schema["Poly"]["ops"]["consumes"]
+    assert ("srmech.apokatastasis.apagodu_zeilberger.apagodu_zeilberger"
             in schema["TriPoly"]["ops"]["consumes"])
-    assert ("srmech.amsc.tripoly.tripoly_from_coeffs"
+    assert ("srmech.math.tripoly.tripoly_from_coeffs"
             in schema["TriPoly"]["ops"]["produces"])
     # The rc120 contract union: the CD ops' ToolEntry types say list[float] /
     # HV, but the contract indexes them under the rung carriers.
-    assert ("srmech.qm.octonion.octonion_conjugate"
+    assert ("srmech.physics.qm.octonion.octonion_conjugate"
             in schema["octonion"]["ops"]["consumes"])
-    assert ("srmech.qm.quaternion.quaternion_twiddle"
+    assert ("srmech.physics.qm.quaternion.quaternion_twiddle"
             in schema["quaternion"]["ops"]["produces"])
-    assert ("srmech.amsc.cascade.cd_mult"
+    assert ("srmech.cascade.cd_mult"
             in schema["sedenion"]["ops"]["consumes"])
     # Token derivation: Mat flows through the dense-LA surface.
-    assert "srmech.amsc.laplacian.mat_matmul" in schema["Mat"]["ops"]["consumes"]
-    assert "srmech.amsc.laplacian.mat_matmul" in schema["Mat"]["ops"]["produces"]
+    assert "srmech.math.laplacian.mat_matmul" in schema["Mat"]["ops"]["consumes"]
+    assert "srmech.math.laplacian.mat_matmul" in schema["Mat"]["ops"]["produces"]
     # Word-boundary discipline: gosper takes Poly, NOT QPoly.
-    assert ("srmech.amsc.gosper.gosper"
+    assert ("srmech.apokatastasis.gosper.gosper"
             not in schema["QPoly"]["ops"]["consumes"])
 
 
@@ -287,11 +294,11 @@ def test_generated_table_holds_every_carrier() -> None:
 
 def test_tool_entry_registered_and_total_matches_live() -> None:
     schema = get_tool_schema()
-    entry = schema.lookup("srmech.amsc.carrier_schema.carrier_schema")
+    entry = schema.lookup("srmech.introspect.carrier_schema.carrier_schema")
     assert entry is not None
     assert entry.category == "carrier_schema"
     assert "DUAL of tool_schema" in entry.summary
-    assert len(schema.tools) == 509
+    assert len(schema.tools) == 655
 
 
 def test_rosetta_row_is_composes_c() -> None:
@@ -299,7 +306,7 @@ def test_rosetta_row_is_composes_c() -> None:
     rows = [json.loads(l) for l in
             fixture.read_text(encoding="utf-8").splitlines() if l.strip()]
     row = [r for r in rows
-           if r["defined_at"] == "srmech.amsc.carrier_schema.carrier_schema"]
+           if r["defined_at"] == "srmech.introspect.carrier_schema.carrier_schema"]
     assert len(row) == 1
     assert row[0]["bucket"] == "non_compute"
     assert row[0]["non_compute_kind"] == "composes_c"
@@ -326,7 +333,7 @@ def test_every_tool_type_carrier_token_is_registered() -> None:
     assert not unknown, (
         f"ToolEntry type strings name types absent from the carrier registry "
         f"and the non-carrier allowlist: {sorted(unknown)} — add each to "
-        f"srmech.amsc.carrier_schema._CARRIERS (with a genuine description) "
+        f"srmech.introspect.carrier_schema._CARRIERS (with a genuine description) "
         f"or, if it is NOT an operand carrier, to "
         f"_NON_CARRIER_TYPE_TOKENS here (with justification)"
     )

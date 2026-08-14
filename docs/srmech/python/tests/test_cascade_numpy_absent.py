@@ -11,7 +11,7 @@ numpy oracle and no numpy-marshalling native callback path left. The former
 ``test_chiral_dual_native_degrades_without_numpy`` (an obsolete numpy callback
 path, ``_try_native_chiral_dual``, that no longer exists) have been deleted.)
 """
-from srmech.amsc.cascade import compose as _compose
+from srmech.cascade import composites as _compose
 
 
 def _ref_autocorr(x):
@@ -52,7 +52,10 @@ def test_cyclic_primes_rational_format_import_numpy_free():
     (audit-lock: they must stay numpy-free)."""
     import importlib
     import inspect
-    for name in ("cyclic", "primes", "rational", "format"):
-        mod = importlib.import_module(f"srmech.amsc.{name}")
+    # cyclic / primes / rational moved to srmech.math (ADR-0010, rc373); format
+    # keeps in srmech.amsc (attestation). Address each at its real home.
+    for dotted in ("srmech.math.cyclic", "srmech.math.primes",
+                   "srmech.math.rational", "srmech.amsc.format"):
+        mod = importlib.import_module(dotted)
         src = inspect.getsource(mod)
-        assert "import numpy" not in src, f"srmech.amsc.{name} gained an import numpy"
+        assert "import numpy" not in src, f"{dotted} gained an import numpy"

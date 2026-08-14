@@ -454,7 +454,7 @@ decrements it).
   quad-turn unit). Watch the regex ratchet: a `numpy.linalg.eigh` MENTION in a
   new comment counts — write "the LAPACK `eigh` path" (no `numpy.linalg.`).
 - **rc37 (done) — genome-storage surface, brick 1 (#962 Part 2; F711–F715).**
-  New module `srmech.amsc.genome` (biological-structure names as cascade names):
+  New module `srmech.biology.genome` (biological-structure names as cascade names):
   `encode_shape(n)` — the encode CRITERION (tome ≤256 / mobius ≤1024 / quad_strand
   >1024; `depth = ceil(log4(ceil(n/256)))` in pure integer arithmetic, no float
   log) → bucket `non_compute`; `quad_turn(turn, the_one)` — the reversible Klein-4
@@ -466,7 +466,7 @@ decrements it).
   has none). No C twin yet (the quad-turn is pure-Python reversible XOR); the
   chromosome (telomere-capped strand) + genome (multi-kernel) assemble next.
 - **rc38 (done) — genome-storage surface, brick 2: the chromosome (#962 Part 2).**
-  `srmech.amsc.genome` gains the LAYER-1 cascade primitives: `telomere(label,
+  `srmech.biology.genome` gains the LAYER-1 cascade primitives: `telomere(label,
   dim)` — the non-data content-address cap (sha256_bytes → seed → Klein-4
   sentinel; Class A ∘ M) → `composition_of_c`; `chromosome(leaves, the_one,
   label=)` — pack a kernel into a telomere-capped strand of quad-turns →
@@ -513,7 +513,7 @@ decrements it).
   `test_introspection_version_native_matches` false-fail is the stale hand-built
   DLL (version string vs a fresh CI build), not a regression.
 - **rc42 (done) — genome-storage brick 3: multi-kernel `genome` + `partition`
-  (#962 Part 2).** `srmech.amsc.genome.genome(kernels, the_one)` packs many
+  (#962 Part 2).** `srmech.biology.genome.genome(kernels, the_one)` packs many
   `{label: leaves}` kernels into ONE telomere-partitioned strand (each a
   telomere-capped `chromosome` coupled through `the_one`, concatenated); the
   inverse `partition(strand, the_one, labels)` knows ALL caps so it never
@@ -525,7 +525,7 @@ decrements it).
   c_dispatched `klein4_bind`, with a content-address cap from `sha256_bytes`) —
   no debt-bucket growth. ABI 3; numpy not required.
 - **rc43 (done) — text→graph stage primitives (RBS-LM UPSTREAM §17 U1; #855
-  R3 U1).** `srmech.amsc.laplacian.tokenize(text, *, stopwords=, min_len=,
+  R3 U1).** `srmech.math.laplacian.tokenize(text, *, stopwords=, min_len=,
   pattern=)` (Class B/G text-segmentation) + `cooccurrence_edges(tokens, *,
   window=, vocab_size=) -> (n, edges, weights)` (Class-L precursor) — the only
   links between raw text and the already-shipped `dense_laplacian`. The K1
@@ -599,7 +599,7 @@ decrements it).
   leaves shipped in `laplacian` but failed §40 on Unicode (ASCII `\w+` truncated
   café→caf, dropped Cyrillic/CJK) / silent `vocab_size=1000` cap (the F708
   pre-encode quantization bug as a default) / no document-boundary window reset.
-  rc50 **relocates** them to a dedicated ingestion module `srmech.amsc.text`
+  rc50 **relocates** them to a dedicated ingestion module `srmech.math.text`
   (laplacian stays purely spectral) and fixes all three: Unicode-aware
   (`unicodedata` L/M + casefold), full vocab by default (cap = explicit logged
   opt-in), `docs: Sequence[Sequence[str]]` so the window resets per document.
@@ -841,7 +841,7 @@ decrements it).
   spine foundations gating the qm/so8/spectral consumer-flips (rc115+). A workflow
   ground-truthed the remaining 15 carriers + caught the trap: `dense_norm`/`dense_dot_*`
   are numpy CARRIERS (np.ascontiguousarray/iscomplexobj) that RAISE numpy-absent (rc70
-  runnable≠loadable). Add to `amsc/laplacian.py` (+`__all__`×2): `mat_norm` = √(Σ|xᵢ|²)
+  runnable≠loadable). Add to `math/laplacian.py` (+`__all__`×2): `mat_norm` = √(Σ|xᵢ|²)
   pure-Python (complex |z|²=re²+im², no abs/hypot) ∘ Class-N rational.sqrt; `mat_dot_real`
   /`mat_dot_complex` = plain bilinear Σaᵢbᵢ (matches numpy a·b, NOT vdot) over a shared
   `_iter_mat_scalars` (Mat interleaved-complex / HV / sequence). Value-faithful to dense_*/
@@ -1457,7 +1457,7 @@ decrements it).
   2-D `Mat` carrier + down-only carrier ratchet.** The numpy-MATH sweep
   (rc53–rc68) is floored; what's left is numpy-as-CARRIER — 61 submodules still
   `import numpy` at module level (lazy submodule imports; the package imports
-  numpy-free). New `srmech.amsc.mat.Mat`: the 2-D peer of the `HV` carrier — a
+  numpy-free). New `srmech.math.mat.Mat`: the 2-D peer of the `HV` carrier — a
   dense matrix over a flat `array('d')`, **row-major, interleaved `(re,im)`**
   for complex (C99 `double _Complex` layout → `.buffer` directly ctypes-castable
   to the native dense kernels, no copy/no numpy on HAS_NATIVE). numpy-free at
@@ -1566,7 +1566,7 @@ decrements it).
   "NumPy X". **numpy-math ratchet linalg_fft 61 → 32.** No rosetta / ToolEntry
   change (describe tools.total stays 285). ABI 3. rc63b/c: the delicate svd /
   matrix_rank / inv / eig / eigh / solve / lstsq / pinv (mostly qm/so8.py +
-  amsc/laplacian.py), with sign/order handling per callsite.
+  math/laplacian.py), with sign/order handling per callsite.
 - **rc62 (done) — DRAIN the np.fft.* family (linalg_fft decrement).** New
   `signal_processing/_fft_carrier.py` lifts the 1-D `spectral_cascades` fft/ifft
   to NumPy's ndarray + n= (zero-pad / truncate) + axis= contract (NumPy a

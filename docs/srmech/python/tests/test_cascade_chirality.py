@@ -1,4 +1,4 @@
-"""Tests for the v0.4.4 chirality mini-set in srmech.amsc.cascade.
+"""Tests for the v0.4.4 chirality mini-set in srmech.cascade.
 
 chiral_flip (Class C orientation reversal), chiral_dual (Class C ∘ op ∘ Class C),
 net_chirality (Class C net-handedness invariant). The chiral dual of an A-N
@@ -17,7 +17,7 @@ import statistics
 
 import pytest
 
-from srmech.amsc import cascade
+from srmech import cascade
 
 
 # ── pure-Python DFT oracle (numpy-free) ─────────────────────────────────
@@ -144,7 +144,7 @@ def test_cascade_ops_includes_chirality():
 
 
 def test_chirality_ops_have_tool_entries():
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     schema = get_tool_schema()
     for op in ("chiral_flip", "chiral_dual", "net_chirality"):
-        assert schema.lookup(f"srmech.amsc.cascade.{op}") is not None
+        assert schema.lookup(f"srmech.cascade.{op}") is not None

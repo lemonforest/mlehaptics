@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from typing import List
 
-from srmech.amsc import rational as _srn
+from srmech.math import rational as _srn
 
 OPERATION_NAME = "dct"
 CLASS_COMPOSITION = ("L",)
@@ -79,7 +79,7 @@ def _matvec(m: List[List[float]], x) -> List[float]:
     a plain ``list[float]`` (real basis · real signal → real coeffs; the
     last-mile rotate to float for the downstream JPEG ``round`` quantiser).
     """
-    from srmech.amsc.laplacian import mat_matvec
+    from srmech.math.laplacian import mat_matvec
 
     return [float(v) for v in mat_matvec(m, list(x))]
 

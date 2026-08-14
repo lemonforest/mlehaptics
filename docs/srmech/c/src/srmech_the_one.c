@@ -1,7 +1,7 @@
 /*
  * srmech_the_one.c — the S(sigma,theta) ADJOINT generator in C (rc138; #743).
  *
- * The FLAGSHIP C:Python-parity backfill. srmech.amsc.cascade.one.the_one builds
+ * The FLAGSHIP C:Python-parity backfill. srmech.cascade.one.the_one builds
  * the single generator S(sigma,theta) of the 1+3+7+3 = 14 substrate: the
  * octonion-native epicycle e^{I_n theta} = cos(theta) + I_n sin(theta) tiled
  * across the Hurwitz ladder (C / H / O) by the fixed Fano-plane orientations.

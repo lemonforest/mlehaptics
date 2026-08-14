@@ -5,7 +5,7 @@ surfaces a complex value belongs in — and that exactness is preserved where th
 surface is exact, and collapses cleanly where the surface is float:
 
   1. **The Cayley–Dickson ℂ rung.** ``Qi`` IS the dim-2 (ℂ) element of the
-     Cayley–Dickson ladder, so :func:`srmech.amsc.cascade.cayley_dickson.cd_mult`
+     Cayley–Dickson ladder, so :func:`srmech.cascade.cayley_dickson.cd_mult`
      / ``cd_add`` / ``cd_conjugate`` / ``cd_norm_sq`` consume ``[z.real, z.imag]``
      (two ``Q``) and return **bit-identical** exact rationals to ``Qi``'s own
      ``*`` / ``+`` / ``conjugate`` / ``norm_sq``. The ℂ norm is multiplicative,
@@ -33,15 +33,15 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc.cascade.cayley_dickson import (
+from srmech.cascade.cayley_dickson import (
     cd_add,
     cd_conjugate,
     cd_mult,
     cd_norm_sq,
 )
-from srmech.amsc.complex128 import Complex128
-from srmech.amsc.q import Q
-from srmech.amsc.qi import Qi
+from srmech.math.complex128 import Complex128
+from srmech.math.q import Q
+from srmech.math.qi import Qi
 
 
 def test_numpy_is_absent_so_this_runs_not_skips():

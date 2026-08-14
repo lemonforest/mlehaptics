@@ -19,9 +19,9 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc import genome as G
-from srmech.amsc.hdc import klein4_expand
+from srmech import _native
+from srmech.biology import genome as G
+from srmech.math.hdc import klein4_expand
 from srmech.amsc.format import MPRRecord, MPRValidationError, validate_mpr_record
 
 _DIM = 64
@@ -160,7 +160,7 @@ def test_encoder_fields_stay_srmech_owned(tmp_path):
     _build(tmp_path / "g", attestation=_SIMPLEWIKI)
     att = _manifest_attestation(tmp_path / "g")
     assert att["parser_version"].startswith("srmech ")
-    assert att["collector_descriptor_path"] == "srmech/amsc/genome.py"
+    assert att["collector_descriptor_path"] == "srmech/biology/genome.py"
     assert len(att["parser_rule_hash"]) == 64
     assert len(att["collector_descriptor_hash"]) == 64
 
@@ -190,13 +190,20 @@ def test_default_manifest_native_equals_pure(tmp_path, monkeypatch):
     assert native_bytes == pure_bytes
 
 
-def test_override_manifest_native_equals_pure(tmp_path, monkeypatch):
-    _build(tmp_path / "native", attestation=_SIMPLEWIKI)
-    native_bytes = (tmp_path / "native" / "manifest.json").read_bytes()
-    _force_pure(monkeypatch)
-    _build(tmp_path / "pure", attestation=_SIMPLEWIKI)
-    pure_bytes = (tmp_path / "pure" / "manifest.json").read_bytes()
-    assert native_bytes == pure_bytes
+# ``test_override_manifest_native_equals_pure`` lived here and was DELETED at
+# v0.9.0rc418 (`#T1108`). It built a "native" arm and a "pure" arm and asserted
+# byte-equal manifests — but with an attestation present, ``genome_save`` forced
+# the PURE branch in BOTH arms (the compiled ``srmech_genome_save`` took no
+# attestation at all), so it compared pure to pure and could not fail. Measured:
+# ``genome_save_c`` was entered ONCE with the attestation omitted and ZERO times
+# with it present. Its sibling ``test_default_manifest_native_equals_pure`` above
+# is real; the asymmetry sat exactly on the capability C lacked.
+#
+# A parity test that cannot enter C is not a parity test. rc418 gives the C the
+# channel and the replacement lives in
+# ``tests/test_attestation_of_record_rc418.py`` — which parametrises the same
+# comparison across every mutating op AND spies on the compiled entry point, so
+# it cannot silently re-become the pure-vs-pure vacuum.
 
 
 def test_turns_bin_identical_with_and_without_attestation(tmp_path):
@@ -243,12 +250,30 @@ def test_reject_non_string_value(tmp_path):
 
 
 def test_bad_override_writes_nothing_to_disk(tmp_path):
-    """A malformed override RAISES before any bytes hit disk — no half-written genome."""
+    """A malformed override RAISES before any bytes hit disk — no half-written genome.
+
+    ⚠️ **THIS GATE WAS GREEN ON THE DEFECT IT APPEARS TO COVER, from rc304 to
+    rc431 (`#T1132`).** Its name says *nothing* is written and its docstring says
+    *no half-written genome*, but its only assertion was that ``manifest.json``
+    is absent. Driven at rc431, the rejected call left ``d`` behind as an EMPTY
+    DIRECTORY — ``genome_save``'s ``mkdir`` was the first statement of its body,
+    above every validation — and this test passed anyway. That orphaned directory
+    is the node ``write_packed_graph`` later opened as a file and died on.
+
+    The strengthening below is NOT 'editing correct prose to make a gate green'.
+    The prose was already false and the assertion was already too weak: it named
+    a claim it did not check. After the rc432 reorder the test stays green and
+    the sentence becomes TRUE."""
     d = tmp_path / "g"
     with pytest.raises(ValueError):
         _build(d, attestation={"source_uri": "typo"})
     # genome_from_graph builds the strand then saves; a rejected save leaves no manifest.
     assert not (d / "manifest.json").exists()
+    assert not d.exists(), (
+        f"the rejected save left its target directory behind: "
+        f"{sorted(p.name for p in d.iterdir())}. An acquisition above a "
+        f"validation is an orphan on the error path (`#T1132`)."
+    )
 
 
 # ── genome_save direct (the underlying path genome_from_graph composes) ───────

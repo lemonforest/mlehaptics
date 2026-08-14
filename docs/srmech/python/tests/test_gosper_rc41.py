@@ -24,9 +24,9 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc.gosper import gosper
-from srmech.amsc.poly import Poly
-from srmech.amsc.q import Q
+from srmech.apokatastasis.gosper import gosper
+from srmech.math.poly import Poly
+from srmech.math.q import Q
 
 
 # ── helpers (Fraction + Q only; no numpy, no math) ────────────────────────────
@@ -175,8 +175,8 @@ def test_zero_denominator_rejected():
 def test_native_matches_pure_when_present():
     """When the native srmech_gosper is loaded, its certificate is byte-identical
     to the pure-Python body (the parity oracle). Skip-clean when no native lib."""
-    from srmech.amsc import _native as nat
-    from srmech.amsc.gosper import _gosper_pure, _as_poly
+    from srmech import _native as nat
+    from srmech.apokatastasis.gosper import _gosper_pure, _as_poly
     if not nat.has_native_gosper():
         pytest.skip("native srmech_gosper not present in this environment")
 

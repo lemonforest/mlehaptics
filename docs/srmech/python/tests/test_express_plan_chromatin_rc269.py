@@ -38,8 +38,8 @@ import tempfile
 
 import pytest
 
-from srmech.amsc import genome as G
-from srmech.amsc import _native
+from srmech.biology import genome as G
+from srmech import _native
 
 # rc282 — make this tests/ directory importable when this module is collected
 # ALONE. ``tests/`` is a package (``__init__.py`` present), so pytest's prepend
@@ -260,4 +260,4 @@ def test_read_only():
 def test_no_format_or_abi_or_toolcount_change():
     assert G.GENOME_FORMAT_VERSION == 19
     import srmech.introspect as introspect
-    assert introspect.describe()["tools"]["total"] == 509
+    assert introspect.describe()["tools"]["total"] == 655

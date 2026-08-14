@@ -72,19 +72,39 @@ def _start_server(
 
 
 def _wait_for_endpoint(name: str, *, timeout_s: float = 8.0) -> bool:
-    """Poll ``srmech bus list`` until ``name`` appears (or timeout)."""
+    """Poll the bus discovery layer until ``name`` is up (or timeout).
+
+    This probes **in-process** via :func:`srmech.bus.by_name` — the same
+    discovery + liveness call ``srmech bus list`` itself makes (see
+    ``cli/bus.py:run_list``) — rather than spawning ``python -m srmech
+    bus list --json`` per sample. It matches the helper of the same name
+    in :mod:`tests.test_bus`, which has 14 call sites across 13 tests.
+    (rc402 wrote "40+ bus tests already use", quoting a claim that was
+    itself wrong at ``test_bus.py``; rc404 (`#T1069`) corrected both.)
+
+    Why (rc402, a measured Windows flake): a subprocess sample costs a
+    whole interpreter start + ``srmech`` import — **measured 0.67–1.25 s
+    on an idle Windows box, vs 0.6–2.8 ms in-process, a 400–1000×
+    gap**. The instrument cost the same order as the thing it measured,
+    so an 8 s deadline bought only ~8 samples idle and ~2–3 on a 2-core
+    CI runner under xdist load — while the server being waited for paid
+    that identical startup cost. That is a sampling-rate defect, not a
+    deadline that is too short, so the deadline below is deliberately
+    UNCHANGED: this fix raises the sample count inside the same 8 s,
+    it does not buy more time.
+
+    CLI coverage is unaffected — ``bus list`` / ``bus list --json`` /
+    ``bus list --all --json`` keep their own dedicated subprocess tests
+    below; this helper is readiness scaffolding, not the assertion.
+    """
+    from srmech.bus import by_name
+
     deadline = time.monotonic() + timeout_s
     while time.monotonic() < deadline:
-        out = _run_cli("bus", "list", "--json")
-        if out.returncode == 0:
-            try:
-                data = json.loads(out.stdout or "[]")
-            except json.JSONDecodeError:
-                data = []
-            for ep in data:
-                if ep.get("name") == name and ep.get("alive"):
-                    return True
-        time.sleep(0.1)
+        ep = by_name(name)
+        if ep is not None and ep.alive:
+            return True
+        time.sleep(0.02)
     return False
 
 
@@ -130,26 +150,106 @@ def server_name() -> str:
     return f"clitest-{uuid.uuid4().hex[:10]}"
 
 
+def _require_endpoint(name: str, proc, *, timeout_s: float = 8.0) -> None:
+    """FAIL (never skip) when a server WE spawned did not come up.
+
+    rc404 (`#T1069`) flipped this from ``pytest.skip`` to ``pytest.fail``, to
+    reconcile a contract this module held two ways at once. Readiness for the
+    SAME condition was adjudicated differently depending on where it was
+    checked: six sites already hard-assert it (``assert _wait_for_endpoint(...)``
+    at lines ~360, ~392, ~417, ~456, ~457, ~563), while the ``echo_server``
+    fixture skipped — silently removing seven tests from the run.
+
+    A skip is the right verdict for "this environment cannot host the test"
+    (no native lib, no socket support). It is the WRONG verdict for "a server
+    this fixture itself launched failed to start", which is a defect in the
+    thing under test, reported as absence.
+
+    THE DECIDING EVIDENCE. CI run 30970524301 red'd at
+    ``test_cli_bus.py:342`` — "broadcaster did not appear" — at an ASSERT
+    site, and that red is what produced rc402. The identical condition at the
+    SKIP site would have quietly passed seven tests and left the defect in the
+    tree. So the measured 0 firings across 89 of 90 ``srmech-ci`` runs is not
+    evidence that this never happens; it is evidence that the one time it did,
+    it happened where someone could see it.
+
+    Margin, measured: fixture setup takes 0.16-0.19 s against an 8.0 s
+    deadline (~42x), and rc402 already fixed the sampling-rate half of the
+    flake (~8 -> ~364 samples in the same window). ``pytest.fail`` is used
+    rather than a bare ``assert`` because an ``assert`` raised in fixture
+    setup reports as ERROR rather than FAILED, and because it matches the
+    sibling idiom at ``test_bus.py:106``.
+    """
+    if _wait_for_endpoint(name, timeout_s=timeout_s):
+        return
+    # Capture early stderr to make the failure debuggable.
+    err = ""
+    try:
+        _, err = proc.communicate(timeout=0.5)
+    except subprocess.TimeoutExpired:
+        pass
+    except (ValueError, OSError):
+        pass
+    _stop_server(proc, name=name)
+    pytest.fail(f"echo server did not appear in time; stderr={err!r}")
+
+
 @pytest.fixture
 def echo_server(server_name: str):
     """Spawn an echo bus server; yield (name, proc); auto-teardown."""
     proc = _start_server(server_name, echo=True)
-    appeared = _wait_for_endpoint(server_name)
-    if not appeared:
-        # Capture early stderr to make failure debuggable.
-        out, err = "", ""
-        try:
-            out, err = proc.communicate(timeout=0.5)
-        except subprocess.TimeoutExpired:
-            pass
-        _stop_server(proc, name=server_name)
-        pytest.skip(
-            f"echo server did not appear in time; stderr={err!r}",
-        )
+    _require_endpoint(server_name, proc)
     try:
         yield server_name, proc
     finally:
         _stop_server(proc, name=server_name)
+
+
+class _DeadProc:
+    """A process that is already gone, for exercising the failure path."""
+
+    def communicate(self, timeout=None):
+        return ("", "")
+
+    def poll(self):
+        return 0
+
+    def terminate(self):
+        pass
+
+    def kill(self):
+        pass
+
+    def wait(self, timeout=None):
+        return 0
+
+
+def test_readiness_timeout_is_a_failure_not_a_skip() -> None:
+    """A server that never appears must RED, not vanish into the skip count.
+
+    SCOPE, stated plainly: this is a FORWARD REGRESSION GUARD, not a
+    discriminator against rc403. ``_require_endpoint`` is introduced by rc404
+    (`#T1069`), so there is no earlier revision to run it against — "swap the
+    expectation to ``Skipped`` and it passes on rc403" is not a testable
+    claim, because on rc403 the function does not exist. What it does buy is
+    real and narrow: the skip-vs-fail decision now has a test holding it, so a
+    future edit cannot quietly restore ``pytest.skip`` and take seven tests
+    out of the run with it.
+
+    ``timeout_s`` is deliberately tiny. The production default is 8.0 s, and
+    calling it here would add ~8 s of wall time to the flakiest cell in the
+    matrix to observe a decision that needs none of it.
+    """
+    from _pytest.outcomes import Failed, Skipped
+
+    with pytest.raises(Failed):
+        _require_endpoint(
+            "never-exists-" + uuid.uuid4().hex, _DeadProc(), timeout_s=0.05
+        )
+
+    # And it must not be raising Skipped-that-happens-to-look-like-Failed:
+    # the two are unrelated classes, so pin the negative directly.
+    assert not issubclass(Failed, Skipped)
 
 
 # ──────────────────────────────────────────────────────────────────────

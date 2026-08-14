@@ -1231,7 +1231,7 @@ Per `[[feedback_rolling_pr_partition_boundary_updates]]`: working-note items for
 
 8. **srmech.amsc.cascade module promotion** — `_cascade_helpers.py` → `srmech.amsc.cascade.*` per `[[project_srmech_foundational_cascade_operations_catalog]]`. Foundational catalog peer to `asymptotic_calculus` + `trigonometry`.
 
-9. **TOML-configurable cascade-runner** — `srmech.cosmos.cascade` config-driven runner consuming `[cascade] classes = [...] operations = [...]` declarations. Per project memory roadmap.
+9. **TOML-configurable cascade-runner** — `srmech.dsl`, the config-driven operator-chain runner consuming `[cascade] classes = [...] operations = [...]` TOML descriptors from `srmech/cascade/catalogs/cascade_catalog/` (shipped since v0.5.0). *Module name corrected (`#T1031`); this bullet formerly cited `srmech.cosmos.cascade`, a dead name — `import srmech.cosmos` raises `ModuleNotFoundError` and there is no `srmech/cosmos/` package. Same correction as the substrate-native notebook §4.4.*
 
 10. **A-N harmonic-objects 14-class structure formalization** — `[[project_a_n_operators_are_harmonic_objects_themselves]]` §A predicts 1+3+7+3 = 14; empirical cross-substrate canvass at PR #677 partition 6 + Lehmer (partition 21) confirms count. Spike candidate: explicit Hurwitz-bounded composition algebra on A-N classes.
 

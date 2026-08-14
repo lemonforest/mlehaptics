@@ -27,8 +27,8 @@ import struct
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc import rational as R
+from srmech import _native
+from srmech.math import rational as R
 
 
 def _bits(value: float) -> str:

@@ -2,7 +2,7 @@
  * srmech_text.c — text → tokens → co-occurrence-edge ingestion C peers
  * (v0.9.0rc217; gh #1360).
  *
- * The C mirror of `srmech.amsc.text` — the §40/§52 text→graph leaves of the
+ * The C mirror of `srmech.math.text` — the §40/§52 text→graph leaves of the
  * RBS-LM K1 presence-kernel chain `text → glyph_stream → cooccurrence_edges →
  * dense_laplacian`. These three ops shipped rc50/§52 as pure-Python kernels
  * and were MIS-CLASSIFIED non_compute/composes_c in the Rosetta ledger (the
@@ -20,7 +20,7 @@
  *   - srmech_text_cooccurrence_topk_extract : per-node top-K + edge read-out
  *
  * BYTE-IDENTICAL parity contract (the correctness gate): every op reproduces
- * the pure-Python `srmech.amsc.text` result EXACTLY — token stream, integer
+ * the pure-Python `srmech.math.text` result EXACTLY — token stream, integer
  * pair counts, deterministic tie-breaks ((-weight, index) ranking, first-seen
  * edge weights, lexicographic edge order) — or the downstream Laplacian would
  * differ between hosts.

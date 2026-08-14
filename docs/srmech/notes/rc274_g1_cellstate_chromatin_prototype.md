@@ -338,7 +338,7 @@ params are ALL wire-serialisable (`strand: Sequence[HV]`, `cell_state: int`, `co
 apply; a `cell_state` int is fine — only a caller-supplied *callable* would have to be a Python-only kwarg).
 Mirror `gene_express`'s MCP registration exactly.
 
-1. `tool_schema.py` — add `ToolEntry(name="srmech.amsc.genome.accessible", category="genome", …)`, params as
+1. `tool_schema.py` — add `ToolEntry(name="srmech.biology.genome.accessible", category="genome", …)`, params as
    above, `returns=R("tuple","(num, den) — the computed accessibility level; num>0 is open")`.
 2. `_tool_docs.py` — add the `accessible` doc block (satisfies `test_tool_docs_coverage_rc240`).
 3. **Regen `srmech_tool_registry.c`** (tool registry mirror).

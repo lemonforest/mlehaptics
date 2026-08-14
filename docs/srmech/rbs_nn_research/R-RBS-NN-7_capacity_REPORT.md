@@ -13,7 +13,7 @@
 | field | value |
 |---|---|
 | internal sources | `R-RBS-NN-2_user_lexicon_REPORT.md` §6 (two-capacity reading + Kanerva/Plate scaling table); `R-RBS-NN-2` §7 Demo 6 (D=8192 single-D capacity scan); `R-RBS-NN-6` §6 (catalog-organization 1:3:7:3 layout) |
-| srmech infra | `srmech/amsc/hdc.py` MAX_BUNDLE_N = 257 (lines 35–40); `srmech/signal_processing/_paths.py` D_DEFAULT = 8192 (lines 40–50); Spike #170 (architecture design); Spike #147 (D=8192 baseline) |
+| srmech infra | `srmech/math/hdc.py` MAX_BUNDLE_N = 257 (lines 35–40); `srmech/signal_processing/_paths.py` D_DEFAULT = 8192 (lines 40–50); Spike #170 (architecture design); Spike #147 (D=8192 baseline) |
 | ephemerides precedent | `docs/antikythera-maths/ephemerides_spectral_research_notebook.md` §1.4 + v0.1.0 release notes (256 KB ALU-native BIP encoder; 52-body / 3.3 GB compression) |
 | external (named; deferred to R-RBS-NN-4) | Kanerva 1988/2009 (sparse distributed memory; capacity formula); Plate 1995 (HRR capacity); Anthony-Bartlett 1999 (VC dimension for binary perceptrons) |
 | repo commit | `2adfca86` at REPORT-write |
@@ -54,7 +54,7 @@ The substrate is content-addressed by string per R-RBS-NN-2 §7 Demo 3. Each use
 
 Per the empirical scan (§4 below) at D ∈ {8192, 16384, 32768, 65536} sweeping n ∈ {3, 9, 33, 65, 129, 257}: cleanup margin stays positive through n=257 (srmech's hard cap `MAX_BUNDLE_N = 257`) at all tested D values. The empirical inflection (where margin crosses zero) is **beyond what srmech currently allows in a single bundle**.
 
-This identifies the **srmech-current cleanup capacity bottleneck**: it is the `MAX_BUNDLE_N = 257` design choice (`srmech/amsc/hdc.py` lines 35–40), not the D dimension. For RBS-NN instances requiring n > 257 cleanup in a single bundle, the structural options are:
+This identifies the **srmech-current cleanup capacity bottleneck**: it is the `MAX_BUNDLE_N = 257` design choice (`srmech/math/hdc.py` lines 35–40), not the D dimension. For RBS-NN instances requiring n > 257 cleanup in a single bundle, the structural options are:
 
 1. **Hierarchical bundling** — bundle items in sub-groups of ≤257, then bundle the sub-bundles. Capacity grows multiplicatively per level. No srmech modification required.
 2. **Class L Laplacian sub-decomposition** — bundle items along an explicit graph structure, use Laplacian eigenbasis for cleanup. R-RBS-NN-6 §6 catalog layout names a slot for this.

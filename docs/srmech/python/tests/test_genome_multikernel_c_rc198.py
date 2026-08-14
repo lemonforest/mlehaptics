@@ -24,9 +24,9 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc import genome
-from srmech.amsc import _native
-from srmech.amsc.hdc import klein4_expand
+from srmech.biology import genome
+from srmech import _native
+from srmech.math.hdc import klein4_expand
 
 
 _DIMS = [8, 16, 64]
@@ -74,7 +74,7 @@ def _dict_bytes(d):
 def test_multikernel_symbols_present():
     assert _native.has_native_genome_genome()
     assert _native.has_native_genome_partition()
-    assert _native.EXPECTED_ABI_VERSION == 10
+    assert _native.EXPECTED_ABI_VERSION == 14
 
 
 # ── (i) srmech_genome_genome → the strand is BYTE-IDENTICAL native-vs-pure ─────

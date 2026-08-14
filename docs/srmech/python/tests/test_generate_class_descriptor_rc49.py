@@ -79,7 +79,7 @@ def test_genome_emit_parses_to_valid_descriptor_shape():
     assert cls["kind"] == "storage"
     assert cls["field"] == {"coupling": "hv", "chromosomes": "list"}
     assert cls["method"]["add_chromosome"]["appends"] == "chromosomes"
-    assert cls["method"]["shape"]["op"] == "srmech.amsc.genome.encode_shape"
+    assert cls["method"]["shape"]["op"] == "srmech.biology.genome.encode_shape"
 
 
 def test_introspection_doc_kind_overrides():
@@ -93,7 +93,7 @@ def test_introspection_doc_kind_overrides():
 
 _WIDGET_METHODS = {
     "shape": {
-        "op": "srmech.amsc.genome.encode_shape",
+        "op": "srmech.biology.genome.encode_shape",
         "binds": ["n"],
         "doc": "Decide the encode shape for a kernel of size n.",
     },
@@ -140,14 +140,14 @@ def test_describe_class_agrees_with_emitted_components(isolated_class_catalog, t
     assert d["name"] == "AgreeRC49"
     assert d["kind"] == "demo"
     assert d["fields"] == {"label": "str"}
-    assert d["methods"]["shape"]["op"] == "srmech.amsc.genome.encode_shape"
+    assert d["methods"]["shape"]["op"] == "srmech.biology.genome.encode_shape"
     assert d["methods"]["shape"]["binds"] == ["n"]
     assert d["provenance"] == "user"
 
 
 def test_appends_and_sets_routing_roundtrip(isolated_class_catalog, tmp_path):
     methods = {
-        "cap": {"op": "srmech.amsc.genome.telomere", "binds": ["label"],
+        "cap": {"op": "srmech.biology.genome.telomere", "binds": ["label"],
                 "sets": "last_cap", "doc": "cap"},
     }
     text = generate_class_descriptor(
@@ -216,7 +216,7 @@ def test_non_dict_method_spec_rejected():
 # ── tool-schema registration ──
 
 def test_tool_entry_registered():
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
 
     names = {t.name for t in get_tool_schema().tools}
     assert "srmech.dsl.generate_class_descriptor" in names

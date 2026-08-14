@@ -18,8 +18,8 @@ import random
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc import hdc
+from srmech import _native
+from srmech.math import hdc
 
 D = 512
 SEEDS = [0, 1, 2, 255, 256, 0x10000, 0x10005, 12345, 2**31, 2**32, 2**33 + 7,

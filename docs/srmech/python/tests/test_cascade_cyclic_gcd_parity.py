@@ -1,4 +1,4 @@
-"""C/Python parity tests for srmech.amsc.cascade.cyclic_gcd.
+"""C/Python parity tests for srmech.cascade.cyclic_gcd.
 
 v0.4.5rc6 continues the v0.4.5rc1..rc5 cascade-catalog C-parity
 correction by retrofitting cyclic_gcd (Class I cyclic-group gcd) with a
@@ -14,7 +14,7 @@ wrapper symbol AND the underlying Class I primitive symbol are exposed
 (so application code can choose which surface to call).
 
 The reference Python impl (cascade.py) falls through to
-srmech.amsc.cyclic.gcd which is itself C-backed via srmech_gcd. The
+srmech.math.cyclic.gcd which is itself C-backed via srmech_gcd. The
 native cascade-wrapper path (rc6) routes through
 srmech_cascade_cyclic_gcd_u64 which internally calls srmech_gcd. Both
 paths must produce bit-identical results.
@@ -22,7 +22,7 @@ paths must produce bit-identical results.
 Boundary cases:
   - gcd(0, 0) = 0; gcd(a, 0) = a; gcd(0, b) = b (gcd identity).
   - Negative input: Python fallback raises ValueError (matches
-    srmech.amsc.cyclic.gcd uint64 surface).
+    srmech.math.cyclic.gcd uint64 surface).
   - Out-of-uint64: UNCAPPED (v0.9.0) — big-int Euclid (native serves uint64).
   - Bool input: Python fallback accepts (isinstance(True, int) is True);
     native rejects via `type(x) is int` (bool subclass check).
@@ -31,8 +31,9 @@ import random
 
 import pytest
 
-from srmech.amsc import _native, cascade
-from srmech.amsc._native import HAS_NATIVE
+from srmech import _native
+from srmech import cascade
+from srmech._native import HAS_NATIVE
 
 
 SKIP_IF_NO_NATIVE = pytest.mark.skipif(

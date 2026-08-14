@@ -37,7 +37,7 @@ import random
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.signal_processing.closed_form_ops import multirate, polyphase, wiener
 from srmech.signal_processing.path_b_ops import wiener as wiener_b
 

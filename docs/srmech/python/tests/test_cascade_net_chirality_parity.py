@@ -1,4 +1,4 @@
-"""C/Python parity tests for srmech.amsc.cascade.net_chirality.
+"""C/Python parity tests for srmech.cascade.net_chirality.
 
 v0.4.5rc5 continues the v0.4.5rc1 + rc2 + rc3 + rc4 cascade-catalog
 C-parity correction by retrofitting net_chirality (Class C net handedness
@@ -37,8 +37,9 @@ import random
 
 import pytest
 
-from srmech.amsc import _native, cascade
-from srmech.amsc._native import HAS_NATIVE
+from srmech import _native
+from srmech import cascade
+from srmech._native import HAS_NATIVE
 
 
 SKIP_IF_NO_NATIVE = pytest.mark.skipif(

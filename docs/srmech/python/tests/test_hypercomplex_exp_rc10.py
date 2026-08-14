@@ -4,7 +4,7 @@ hypercomplex twiddle, native-vs-pure byte-exact (F882, srmech #205).
 ``hypercomplex_exp(theta, k_axes)`` is the GENUINE hypercomplex exponential
 ``exp(μθ) = cos θ + μ·sin θ`` where ``μ`` is the equal-weight UNIT pure-imaginary
 over the first ``k_axes`` octonion axes (``k_axes ∈ {1,3,7}`` = ℂ/ℍ/𝕆). It
-returns 8 exact :class:`~srmech.amsc.q.Q` over ``2**61`` (Q61):
+returns 8 exact :class:`~srmech.math.q.Q` over ``2**61`` (Q61):
 ``[cos θ, sin θ/√k ×k_axes, 0 ×(7−k_axes)]``, ``|q| = 1``. On a native install
 it dispatches to the C peer ``srmech_hypercomplex_exp_q61`` (the int64 Q61 pieces
 BEFORE any float projection); off-native it runs the pure-Python Q61 cascade
@@ -24,9 +24,9 @@ import math
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc.q import Q
-from srmech.amsc.cascade import hypercomplex_exp, cd_mult
+from srmech import _native
+from srmech.math.q import Q
+from srmech.cascade import hypercomplex_exp, cd_mult
 
 
 _K_AXES = (1, 3, 7)               # ℂ / ℍ / 𝕆

@@ -29,7 +29,7 @@ Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Haar (1910)
 
 from __future__ import annotations
 
-from srmech.amsc import rational as _srn
+from srmech.math import rational as _srn
 
 OPERATION_NAME = "wavelet"
 CLASS_COMPOSITION = ("L", "N")
@@ -83,7 +83,7 @@ def op(signal, *, levels: int = 3, wavelet: str = "haar", D: int = 8192):
     except TypeError as exc:  # nested sequence -> not 1-D
         raise ValueError("wavelet expects a 1-D real signal") from exc
     inv_sqrt2 = 1.0 / float(_srn.sqrt(2.0))   # float scale for the recursive DWT
-    from srmech.amsc.laplacian import mat_matvec  # lazy: avoid import cycle
+    from srmech.math.laplacian import mat_matvec  # lazy: avoid import cycle
 
     details = []
     for _ in range(levels):

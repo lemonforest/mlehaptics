@@ -34,9 +34,9 @@ import ctypes
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc import laplacian as L
-from srmech.amsc import rational as R
+from srmech import _native
+from srmech.math import laplacian as L
+from srmech.math import rational as R
 
 
 # ── helpers (no numpy, no abs()) ────────────────────────────────────────
@@ -386,12 +386,12 @@ def test_empty_spectrum_gives_zero_theta():
 
 
 def test_registered_in_tool_schema():
-    from srmech.amsc import tool_schema
+    from srmech.introspect import tool_schema
 
     schema = tool_schema.get_tool_schema()
     for name in (
-        "srmech.amsc.laplacian.heat_trace",
-        "srmech.amsc.laplacian.ground_state_flux_response",
+        "srmech.math.laplacian.heat_trace",
+        "srmech.math.laplacian.ground_state_flux_response",
     ):
         entry = schema.lookup(name)
         assert entry is not None
@@ -402,4 +402,4 @@ def test_registered_in_tool_schema():
 def test_tools_total_matches_live():
     from srmech import introspect
 
-    assert introspect.describe()["tools"]["total"] == 509
+    assert introspect.describe()["tools"]["total"] == 655

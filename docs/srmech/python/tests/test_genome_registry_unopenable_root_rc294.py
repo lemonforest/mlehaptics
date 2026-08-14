@@ -78,10 +78,10 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc import genome as G
-from srmech.amsc import hdc
-from srmech.amsc.genome import GenomeBoundingError
+from srmech import _native
+from srmech.biology import genome as G
+from srmech.math import hdc
+from srmech.biology.genome import GenomeBoundingError
 
 
 # ── helpers (the rc289 fixtures, same shapes so the two files stay comparable) ─

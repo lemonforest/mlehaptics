@@ -5,7 +5,7 @@ The fibration has TWO sides; the register must hold BOTH and reconstruct the gau
   BASE  (sequence)  — the per-turn coupled store (quad_turn, element_type=q8) RE-STAMPS
       stored[i]=q8_mult(turn[i], one[i]) — a function of turn i + the shared `one` ALONE,
       never of prior turns — so it is winding-INVARIANT: a reorder is a PURE positional
-      permutation (the #914 order-discard). KEPT byte-identical.
+      permutation (the #T914 order-discard). KEPT byte-identical.
   FIBER (topology) — genome_fiber_holonomy folds the ORDERED non-abelian Q8 product along
       the strand. Q8 is non-abelian (i.j=+k, j.i=-k), so REORDER CHANGES it — the
       accumulated holonomy = the gauge = the accumulated Lk (Lk=Tw+Wr).
@@ -30,16 +30,16 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc import genome as G
-from srmech.amsc import _native
-from srmech.amsc.genome import (
+from srmech.biology import genome as G
+from srmech import _native
+from srmech.biology.genome import (
     ELEMENT_TYPE_Q8, FIBER_CAP_MARKER, GENOME_FORMAT_VERSION,
     genome_fiber_holonomy, genome_add_fiber, genome_read_fiber,
     quad_turn, chromosome, codon_read, cwf_consistency_mod2, _cap_kind, _hv_bytes,
 )
-from srmech.amsc.q8 import q8_from_one, q8_bind, q8_project_v4
-from srmech.amsc.cascade.one import the_one
-from srmech.amsc.hv import HV
+from srmech.biology.q8 import q8_from_one, q8_bind, q8_project_v4
+from srmech.cascade.one import the_one
+from srmech.math.hv import HV
 
 
 _LD = 16
@@ -200,6 +200,13 @@ def test_f3_format_version_is_17():
 
 
 # ── F4 — native == pure ──────────────────────────────────────────────────────
+# rc351 (task `#T1004`): a native-vs-pure differential has nothing to compare when there is
+# no native lib, so it SKIPS rather than asserting the lib into existence. Before this, the
+# no-native run of the suite was red on these two rows for a reason that had nothing to do
+# with the code under test — which is part of why nobody ran it (see the new
+# `fallback (pure-Python, no native)` CI cell in .github/workflows/srmech-ci.yml).
+@pytest.mark.skipif(not _native.has_native_genome_fiber_holonomy(),
+                    reason="native fiber-holonomy symbol required for the differential")
 def test_f4_native_equals_pure_random_strands():
     assert _native.has_native_genome_fiber_holonomy()
     rng = random.Random(1234)
@@ -258,7 +265,7 @@ def test_fiber_ops_are_public_and_registered():
     for name in ("genome_fiber_holonomy", "genome_add_fiber", "genome_read_fiber",
                  "FIBER_CAP_MARKER"):
         assert name in G.__all__
-    from srmech.amsc import tool_schema
+    from srmech.introspect import tool_schema
     tools = {t.name for t in tool_schema.get_tool_schema().tools}
     for op in ("genome_fiber_holonomy", "genome_add_fiber", "genome_read_fiber"):
-        assert f"srmech.amsc.genome.{op}" in tools
+        assert f"srmech.biology.genome.{op}" in tools

@@ -7,7 +7,7 @@ multivariable elliptic summation formula conjectured by Warnaar", arXiv:math/010
 ``Λ_{nN} = {N ≥ λ₁ ≥ … ≥ λₙ ≥ 0}``, built SYMBOLICALLY as an exact ``ThetaSum`` — has
 existed since rc96 as the PRIVATE ``_cn_lhs_thetasum`` (the rc96 test oracle → rc101
 symbolic-verify engine). rc216 promotes it to the public op
-``srmech.amsc.elliptic_jackson.cn_vwp_multisum_lhs`` with a same-rc 1:1 C peer
+``srmech.apokatastasis.elliptic_jackson.cn_vwp_multisum_lhs`` with a same-rc 1:1 C peer
 ``srmech_cn_vwp_multisum_lhs`` (the rc95 elliptic_partial_fraction multi-term wire form).
 
 What this suite pins:
@@ -35,8 +35,8 @@ from pathlib import Path
 import pytest
 
 from srmech import introspect
-from srmech.amsc.ellbase import EllMonomial as M, EllRatio
-from srmech.amsc.elliptic_jackson import (
+from srmech.apokatastasis.ellbase import EllMonomial as M, EllRatio
+from srmech.apokatastasis.elliptic_jackson import (
     cn_vwp_multisum_lhs,
     multivariate_elliptic_jackson,
     _cn_lhs_thetasum,
@@ -44,8 +44,8 @@ from srmech.amsc.elliptic_jackson import (
     _max_thetas_per_side,
     _num_partitions,
 )
-from srmech.amsc.q import Q
-from srmech.amsc.thetasum import ThetaSum
+from srmech.math.q import Q
+from srmech.apokatastasis.thetasum import ThetaSum
 
 
 def _syms():
@@ -106,7 +106,7 @@ def test_n1_lambda0_term_is_one():
 #        when absent ───────────────────────────────────────────────────────────────────
 @pytest.mark.parametrize("n,N", [(1, 1), (2, 1), (2, 2)])
 def test_native_matches_pure(n, N):
-    from srmech.amsc import _native as _nat
+    from srmech import _native as _nat
     a, b, c, d, x, q = _syms()
     pure = _cn_lhs_thetasum(a, b, c, d, x, q, N, n)
     native = _cn_vwp_multisum_lhs_c(a, b, c, d, x, q, N, n)
@@ -146,15 +146,15 @@ def test_sizing_helpers():
 
 # ── (5) registration: ToolEntry + tools.total == 418 + Rosetta row + __all__ ───────────
 def test_registration():
-    import srmech.amsc.elliptic_jackson as ej
+    import srmech.apokatastasis.elliptic_jackson as ej
     assert "cn_vwp_multisum_lhs" in ej.__all__
     schema = introspect.describe()
-    assert schema["tools"]["total"] == 509
-    from srmech.amsc.tool_schema import get_tool_schema
+    assert schema["tools"]["total"] == 655
+    from srmech.introspect.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
-    assert "srmech.amsc.elliptic_jackson.cn_vwp_multisum_lhs" in names
+    assert "srmech.apokatastasis.elliptic_jackson.cn_vwp_multisum_lhs" in names
     entry = next(t for t in get_tool_schema().tools
-                 if t.name == "srmech.amsc.elliptic_jackson.cn_vwp_multisum_lhs")
+                 if t.name == "srmech.apokatastasis.elliptic_jackson.cn_vwp_multisum_lhs")
     assert "0101073" in entry.summary                          # the MPM-verified keystone
     assert entry.returns.type == "ThetaSum"
     # the Rosetta ledger row (the #928 everything-mirrors ratchet feed)
@@ -162,5 +162,5 @@ def test_registration():
     rows = [json.loads(line) for line in
             ndjson.read_text(encoding="utf-8").splitlines() if line.strip()]
     mine = [r for r in rows
-            if r["exposed_as"] == "srmech.amsc.elliptic_jackson.cn_vwp_multisum_lhs"]
+            if r["exposed_as"] == "srmech.apokatastasis.elliptic_jackson.cn_vwp_multisum_lhs"]
     assert len(mine) == 1 and mine[0]["bucket"] == "c_dispatched"

@@ -31,8 +31,9 @@ import ctypes
 
 import pytest
 
-from srmech.amsc import _native, cascade
-from srmech.amsc.cascade.cayley_dickson import (
+from srmech import _native
+from srmech import cascade
+from srmech.cascade.cayley_dickson import (
     ALGEBRA_NAMES,
     CD_DENSE_MAX_DIM,
     CD_DIMS,
@@ -41,7 +42,7 @@ from srmech.amsc.cascade.cayley_dickson import (
     cd_basis_product,
     cd_mult,
 )
-from srmech.amsc.cascade.cd_register import (
+from srmech.cascade.cd_register import (
     cd_navmap,
     cd_navmap_is_signed_permutation,
 )

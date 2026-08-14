@@ -1,5 +1,5 @@
 """UPSTREAM §41 — genome persistence (disk save / load / catalog / append /
-window). The 6-point acceptance bar for ``srmech.amsc.genome.genome_*``.
+window). The 6-point acceptance bar for ``srmech.biology.genome.genome_*``.
 
 The genome helix grows ON DISK: a genome directory holds a fixed-width
 append-only body (``turns.bin`` — every strand element a ``leaf_dim``-byte
@@ -31,10 +31,10 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc import genome
+from srmech import _native
+from srmech.biology import genome
 from srmech.amsc.format import MPRRecord, validate_mpr_record
-from srmech.amsc.hdc import klein4_expand
+from srmech.math.hdc import klein4_expand
 
 
 # ── shared fixtures: a 3-chromosome genome strand ────────────────────────────

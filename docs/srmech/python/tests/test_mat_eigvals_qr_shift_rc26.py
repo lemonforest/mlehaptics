@@ -1,6 +1,6 @@
 """0.9.0rc26 — `mat_eigvals` shifted-QR EXCEPTIONAL-SHIFT bug fix.
 
-The float-QR ``mat_eigvals`` (``srmech/amsc/laplacian.py``) STALLED and returned
+The float-QR ``mat_eigvals`` (``srmech/math/laplacian.py``) STALLED and returned
 **all-zeros** on cyclic-permutation / equal-modulus-spectrum matrices — e.g. the
 companion matrices of ``xⁿ − 1`` (the roots of unity). Root cause: the single-shift
 Wilkinson loop computed ``μ`` from the trailing 2×2, which for a companion block is
@@ -28,9 +28,9 @@ import importlib.util
 
 import pytest
 
-from srmech.amsc.cascade.matrix_cascades import eigvals_exact
-from srmech.amsc.laplacian import jacobi_eigvals, mat_eigvals
-from srmech.amsc.mat import Mat
+from srmech.cascade.matrix_cascades import eigvals_exact
+from srmech.math.laplacian import jacobi_eigvals, mat_eigvals
+from srmech.math.mat import Mat
 
 _TOL = 1e-9
 

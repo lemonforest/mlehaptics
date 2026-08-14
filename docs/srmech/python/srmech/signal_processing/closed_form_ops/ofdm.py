@@ -28,8 +28,8 @@ Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Bingham
 
 from __future__ import annotations
 
-from srmech.amsc.rational import hypot as _rhypot
-from srmech.amsc.cascade import spectral_cascades as _sc
+from srmech.math.rational import hypot as _rhypot
+from srmech.cascade import spectral_cascades as _sc
 
 OPERATION_NAME = "ofdm"
 CLASS_COMPOSITION = ("I", "L", "K")

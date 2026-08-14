@@ -77,16 +77,48 @@ def _advertised_tool_defs(
     return list(tool_entries_to_mcp_defs(name_filter=name_filter))
 
 
-def _tool_schema_hash() -> str:
-    """Content-address the FULL declared tool schema (stable, sorted)
-    via :func:`srmech.amsc.format.sha256_bytes` — the AMSC attestation
-    hash. Routes native dispatch; no new ``hashlib.sha256`` call."""
-    from ..amsc.format import sha256_bytes
-    from ..amsc.tool_schema import get_tool_schema
+def _owned_tool_schema():
+    """The live tool schema RESTRICTED to rows srmech itself owns.
+
+    v0.9.0rc410 (`#T1085`) — the attestation block may only speak for what
+    srmech OWNS. ``get_tool_schema()`` deliberately publishes
+    ``srmech_tools + profile_tools`` (see its docstring), so on a host with any
+    profile active the unfiltered schema carries third-party rows. An
+    attestation computed over those rows claims *someone else's* tool surface
+    under srmech's own ``parser_version`` stamp — and, decisively, it is **not
+    re-verifiable**: a consumer re-running the hash against a plain ``pip
+    install srmech`` can never reproduce it, because the profile is not part of
+    srmech. Per the MPM discipline an attestation that cannot be re-verified is
+    broken, so the filter is a correctness requirement, not a preference.
+
+    NOTE this is a NO-OP on a clean tree — the owner census there has the single
+    key ``'srmech'``, so owned == total and the emitted bytes are identical.
+    That is proven, not assumed, by
+    ``tests/test_owner_axis_rc410.py::test_the_owner_filter_is_a_byte_level_noop_on_a_clean_registry``.
+    """
+    from dataclasses import replace
+
+    from ..introspect.tool_schema import RESERVED_OWNERS, get_tool_schema
 
     schema = get_tool_schema()
+    return replace(
+        schema,
+        tools=tuple(t for t in schema.tools if t.owner in RESERVED_OWNERS),
+    )
+
+
+def _tool_schema_hash() -> str:
+    """Content-address srmech's OWN declared tool schema (stable, sorted)
+    via :func:`srmech.amsc.format.sha256_bytes` — the AMSC attestation
+    hash. Routes native dispatch; no new ``hashlib.sha256`` call.
+
+    Hashes :func:`_owned_tool_schema`, NOT the unfiltered view — see there for
+    why. Byte-identical to the unfiltered pre-image whenever no profile is
+    active, which is every srmech CI run."""
+    from ..amsc.format import sha256_bytes
+
     payload = json.dumps(
-        schema.to_jsonable(), sort_keys=True, separators=(",", ":")
+        _owned_tool_schema().to_jsonable(), sort_keys=True, separators=(",", ":")
     ).encode("utf-8")
     return sha256_bytes(payload)  # 64 lowercase hex
 
@@ -184,13 +216,34 @@ def build_manifest(
         Optional ``str -> bool`` predicate; only matching tool names are
         advertised. Wired to the ``--filter`` CLI flag.
     """
-    assert server_type in ("uv", "python"), (
-        "server_type must be 'uv' or 'python'"
-    )
+    # `#T1132` — this was an ``assert`` through rc431, and the argument for
+    # converting it is NOT the usual one. It is not a `#T1131` instance: under
+    # ``python -O`` the site still rejects, because ``_server_block`` raises
+    # ``ValueError: unsupported server_type 'bogus'`` further down. What was wrong
+    # is that the exception TYPE was interpreter-mode-dependent — ``AssertionError``
+    # normally, ``ValueError`` under ``-O`` — so a caller's ``except ValueError``
+    # worked in optimized mode and not otherwise. It is also the exact distinction
+    # in the standing ruling: an assertion is for an invariant believed impossible
+    # to violate, a ``raise`` for an input expected to be wrong, and ``server_type``
+    # is a caller input.
+    if server_type not in ("uv", "python"):
+        raise ValueError(
+            f"build_manifest: server_type must be 'uv' or 'python'; "
+            f"got {server_type!r}"
+        )
     from ..version import __version__ as srmech_version
-    from ..amsc.tool_schema import get_tool_schema
+    from ..introspect.tool_schema import get_tool_schema
 
     defs = _advertised_tool_defs(name_filter=name_filter)
+    # v0.9.0rc410 (`#T1085`) — the ATTESTED count. `defs` is the ADVERTISED
+    # surface, which legitimately includes any active profile's tools: the
+    # server really will serve them, and the spec's `tools[]` must describe what
+    # is served. The attestation is a different claim with a different scope —
+    # it says what SRMECH vouches for — so it counts only rows srmech owns.
+    # The two are equal on every clean host; they differ exactly when a profile
+    # is active, which is precisely the case the old `len(defs)` got wrong.
+    _owned_names = {t.name for t in _owned_tool_schema().tools}
+    owned_def_count = sum(1 for d in defs if d["name"] in _owned_names)
 
     manifest: Dict[str, Any] = {
         "manifest_version": _MANIFEST_VERSION,
@@ -236,7 +289,7 @@ def build_manifest(
             "mpr_version": "1.0",
             "srmech_version": srmech_version,
             "tool_schema_version": get_tool_schema().tool_schema_version,
-            "tool_count": len(defs),
+            "tool_count": owned_def_count,
             "tool_schema_sha256": _tool_schema_hash(),  # 64-hex
             "parser_version": f"srmech {srmech_version}",
             "generated_at": _utc_now_iso(),
@@ -274,11 +327,15 @@ def pack_mcpb(
     Returns the ABSOLUTE :class:`~pathlib.Path` of the written artifact
     (the ``.mcpb`` normally; ``manifest.json`` when ``manifest_only``)."""
     out = Path(out_dir).expanduser().resolve()
-    out.mkdir(parents=True, exist_ok=True)
 
+    # `#T1132`: the mkdir sat ABOVE this call, so a rejected ``server_type`` left
+    # ``out_dir`` behind while raising. ``build_manifest`` is filesystem-free —
+    # measured, not assumed: it walks the registry and touches no path —
+    # so the acquisition moves below it with no change to the success path.
     manifest = build_manifest(
         name=name, server_type=server_type, name_filter=name_filter
     )
+    out.mkdir(parents=True, exist_ok=True)
     manifest_bytes = (
         json.dumps(manifest, indent=2, sort_keys=False) + "\n"
     ).encode("utf-8")

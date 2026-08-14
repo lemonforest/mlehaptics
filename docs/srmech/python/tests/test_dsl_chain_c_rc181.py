@@ -21,7 +21,7 @@ import math
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.dsl import chain
 from srmech.dsl._chain import _NATIVE_MISS, _desc_to_value, _value_to_desc
 
@@ -68,7 +68,7 @@ def _pure(ch, inp):
 def test_symbols_bound_and_abi_5():
     assert hasattr(_native.LIB, "srmech_dsl_chain_run")
     assert hasattr(_native.LIB, "srmech_dsl_chain_run_arena_bytes")
-    assert _native.NATIVE_ABI_VERSION == 10
+    assert _native.NATIVE_ABI_VERSION == 14
 
 
 # ─────────────────────────────────────────────────────────────────────

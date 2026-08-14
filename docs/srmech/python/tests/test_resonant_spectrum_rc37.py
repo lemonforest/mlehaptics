@@ -19,9 +19,11 @@ import ctypes
 
 import pytest
 
-from srmech.amsc import coupling, laplacian as La, _native
-from srmech.amsc.mat import Mat
-from srmech.amsc.vec import Vec
+from srmech.biology import coupling
+from srmech import _native
+from srmech.math import laplacian as La
+from srmech.math.mat import Mat
+from srmech.math.vec import Vec
 
 
 # The F928 Jupiter + Galilean-moon illustrative parameters (JPL fact-sheet

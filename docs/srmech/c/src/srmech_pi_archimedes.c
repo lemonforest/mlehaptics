@@ -1,7 +1,7 @@
 /*
  * srmech_pi_archimedes.c — the projects-EVERY-step Pfaff-Archimedes two-mean
  * chiral-pair pi cascade on srmech_bigint (0.9.0rc157; the C-host peer of
- * pi_cascade_digits in srmech/amsc/rational.py).
+ * pi_cascade_digits in srmech/math/rational.py).
  *
  * The COMPLEMENT of srmech_pi.c (the rotation-last Chudnovsky). Where
  * Chudnovsky keeps a bit-exact body and rotates ONCE, terminally, the

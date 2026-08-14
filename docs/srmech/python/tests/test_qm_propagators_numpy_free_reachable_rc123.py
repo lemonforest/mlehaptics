@@ -1,9 +1,9 @@
-"""rc123 — ``srmech.qm.propagators`` is IMPORT+RUN-reachable numpy-FREE (#564).
+"""rc123 — ``srmech.physics.qm.propagators`` is IMPORT+RUN-reachable numpy-FREE (#564).
 
 The carrier-removal arc flips ``qm/propagators.py`` (Feynman scalar / fermion /
 photon / massive-vector propagators) onto the framework-native ``Mat`` carrier:
 the scalar propagator ``i/(k²−m²+iε)`` is a plain ``complex``, the 4×4 numerators
-are ``Mat`` (consumed straight from the numpy-free :mod:`srmech.qm.relativistic`
+are ``Mat`` (consumed straight from the numpy-free :mod:`srmech.physics.qm.relativistic`
 producers), and the ``kᵘkᵛ`` outer product rides the column·row Class-L
 ``mat_matmul`` cascade. After the flip propagators imports AND runs with numpy
 genuinely absent.
@@ -66,10 +66,10 @@ def test_propagators_imports_and_runs_numpy_free():
     """``qm.propagators`` imports + all four propagators run numpy-absent."""
     proc = _run_numpy_free(
         """
-        from srmech.qm import propagators as prop
-        from srmech.amsc.laplacian import mat_matmul, mat_norm
-        from srmech.amsc.mat import Mat
-        from srmech.qm import relativistic as rel
+        from srmech.physics.qm import propagators as prop
+        from srmech.math.laplacian import mat_matmul, mat_norm
+        from srmech.math.mat import Mat
+        from srmech.physics.qm import relativistic as rel
 
         # scalar propagator i/(k²−m²) is a plain complex (no numpy)
         G = prop.feynman_scalar_propagator(k_squared=10.0, m=1.0)

@@ -11,7 +11,7 @@ proof exists — the tighten is provably unsound — so Σe² stays.
 
 ## The two bound sites (both use Σe²; neither was changed)
 
-- `srmech/amsc/thetasum.py`
+- `srmech/apokatastasis/thetasum.py`
   - `_struct_one_var` (single-variable base case): `k = max(Σe² − 1, 0) + _STRUCT_MARGIN` is the
     **p-order band** for the exact-ℚ q-expansion (`degree = max_term Σ_a e_a(w)²`).
   - `_structural_is_zero._deg`: `d = max_term Σ_a e_a(v)²`; the interpolation substitutes

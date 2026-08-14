@@ -41,8 +41,8 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc._c_claims import (
+from srmech import _native
+from srmech.introspect._c_claims import (
     C_CLAIMS,
     UNVERIFIABLE_CEILING,
     UNVERIFIABLE_CLAIMS,
@@ -70,7 +70,7 @@ def test_manifest_matches_a_fresh_extraction():
     claims, unverifiable, off_header = gen.extract()
 
     assert claims == dict(C_CLAIMS), (
-        "srmech/amsc/_c_claims.py is STALE — the live dispatch surface no longer "
+        "srmech/introspect/_c_claims.py is STALE — the live dispatch surface no longer "
         "matches the committed manifest. Rerun: python3 tools/gen_c_claims.py"
     )
     assert unverifiable == UNVERIFIABLE_CLAIMS, (
@@ -81,7 +81,7 @@ def test_manifest_matches_a_fresh_extraction():
     # is worth a look, because a typo'd dispatch symbol can never resolve and
     # would pure-path forever in total silence.
     assert off_header == {
-        "srmech.amsc.coupling.resonant_spectrum_sparse": ["srmech_kext_"],
+        "srmech.biology.coupling.resonant_spectrum_sparse": ["srmech_kext_"],
     }, f"unexpected non-header srmech_* token(s): {off_header}"
 
 
@@ -115,7 +115,7 @@ def test_the_rc299_eigvals_claim_specifically_resolves():
     site could silently pure-path. `#918` had the parallel defect of
     ``CEIL_WIRE_GLUE_GAPS`` never having ``mat_eigvals`` in scope AT ALL, so
     naming it explicitly here is the guard against a repeat."""
-    key = "srmech.amsc.laplacian.mat_eigvals"
+    key = "srmech.math.laplacian.mat_eigvals"
     assert key in C_CLAIMS, f"{key} is not covered by the claim manifest"
     assert "srmech_mat_eigvals_ws" in C_CLAIMS[key]
     for sym in C_CLAIMS[key]:
@@ -155,7 +155,7 @@ def test_report_detects_a_hidden_symbol(monkeypatch):
         "hiding a claimed symbol did NOT make the report inconsistent — the "
         "check is not actually looking at the library"
     )
-    key = "srmech.amsc.laplacian.mat_eigvals"
+    key = "srmech.math.laplacian.mat_eigvals"
     assert key in report["unresolved"]
     assert hidden in report["unresolved"][key]
 
@@ -176,7 +176,7 @@ def test_describe_surfaces_the_inconsistency(monkeypatch):
 
     claims = srmech.describe()["c_claims"]
     assert claims["consistent"] is False
-    assert "srmech.amsc.laplacian.mat_eigvals" in claims["unresolved"]
+    assert "srmech.math.laplacian.mat_eigvals" in claims["unresolved"]
 
 
 # ── 4. the pure path must not be broken by any of this ────────────────────────
@@ -220,7 +220,7 @@ def test_c_claims_module_imports_without_a_library():
 
     It ships in the pure wheel too, so an import-time dependency on the native
     shim's loaded state would break that wheel."""
-    import srmech.amsc._c_claims as mod
+    import srmech.introspect._c_claims as mod
 
     assert isinstance(mod.C_CLAIMS, dict) and mod.C_CLAIMS
     assert all(isinstance(v, tuple) and v for v in mod.C_CLAIMS.values())

@@ -33,7 +33,8 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc import catalog, compose
+from srmech.amsc import catalog
+from srmech.cascade import compose
 
 # Is the rc175 native chain-orchestration bound? (A stale ABI-3 lib / pure wheel
 # / numpy-absent-but-no-.so env keeps the pure path — parity still holds.)
@@ -277,7 +278,7 @@ def test_infer_still_routes_each_row_and_open_unchanged():
     """infer STILL routes each F929 row + the honest OPEN residue (unchanged by
     this rc). A spectral (edges) row, a cyclic (σ,θ) row, and an unrecognizable
     input → OPEN; the anti-hallucination invariant holds."""
-    from srmech.amsc.dispatch import infer
+    from srmech.math.dispatch import infer
 
     spec = infer({"edges": [(0, 1), (1, 2), (2, 3)], "n": 4})
     assert spec["reducible"] is True and spec["row"] == "spectral"

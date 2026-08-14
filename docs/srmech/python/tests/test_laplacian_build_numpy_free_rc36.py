@@ -15,8 +15,8 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc import laplacian as _lap
+from srmech import _native
+from srmech.math import laplacian as _lap
 
 _EDGES = [(0, 1), (1, 2), (2, 3), (0, 3), (1, 3)]
 _WTS = [1.0, 2.0, 1.5, 0.5, 3.0]
@@ -82,7 +82,7 @@ def test_numpy_free_build_dispatches_and_is_correct():
     """Post-#564 the public builders are numpy-free by default; rc129 each
     returns a numpy-free ``Mat`` (``.shape`` + ``m[i, j]``) — native list-marshal
     when HAS_NATIVE, else pure Python — matching the hand-computed matrix."""
-    from srmech.amsc.mat import Mat
+    from srmech.math.mat import Mat
     assert not hasattr(_lap, "np")     # numpy is gone, not merely monkeypatched
     for fn, pub in _FNS.items():
         out = pub(_N, _EDGES, _WTS)

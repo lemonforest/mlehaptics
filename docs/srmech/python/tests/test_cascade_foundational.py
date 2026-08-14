@@ -1,6 +1,6 @@
 """Tests for the v0.4.3rc6 foundational cross-domain cascade catalog.
 
-``srmech.amsc.cascade`` promotes the cascades imported across 20+
+``srmech.cascade`` promotes the cascades imported across 20+
 unsolved-maths scripts (precursor ``docs/unsolved-maths/_cascade_helpers.py``)
 into srmech as a composition catalog. Coverage:
 
@@ -22,7 +22,7 @@ import math
 
 import pytest
 
-from srmech.amsc import cascade
+from srmech import cascade
 
 
 # ----------------------------------------------------------------------

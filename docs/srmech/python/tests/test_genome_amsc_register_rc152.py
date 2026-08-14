@@ -20,8 +20,8 @@ import pytest
 
 from srmech.amsc import catalog
 from srmech.amsc import descriptor as D
-from srmech.amsc import genome as G
-from srmech.amsc.hdc import klein4_expand
+from srmech.biology import genome as G
+from srmech.math.hdc import klein4_expand
 
 DIM = 16
 

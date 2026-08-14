@@ -29,7 +29,8 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc import _native, hdc
+from srmech import _native
+from srmech.math import hdc
 from srmech.rbs_lm.substrate import (
     ContextSubstrate,
     _sector_const,

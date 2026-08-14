@@ -27,9 +27,9 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc import genome as G
-from srmech.amsc import _native
-from srmech.amsc.hv import HV
+from srmech.biology import genome as G
+from srmech import _native
+from srmech.math.hv import HV
 
 
 def _one(dim=96):

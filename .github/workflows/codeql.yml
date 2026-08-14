@@ -46,6 +46,13 @@ jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
     runs-on: ubuntu-latest
+    # rc357 (`#T951`) — hang guard. This is a DELIBERATE OVERRIDE of the
+    # derivation rule (see srmech-publish.yml `build-wheels`), flagged rather
+    # than silently fudged: the rule gives 12 from max 1:37 over n=24, but
+    # CodeQL's runtime scales with TREE GROWTH rather than per-run variance, and
+    # 24 samples of a growing repo is weak evidence for the ceiling. 20 buys
+    # room for the tree to grow without re-deriving every rc.
+    timeout-minutes: 20
     permissions:
       security-events: write   # upload SARIF
       packages: read

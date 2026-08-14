@@ -89,10 +89,15 @@ static int test_fiedler_cancel(void)
         return 1;
     }
     double out[4] = { 9.0, 9.0, 9.0, 9.0 };
-    double ws[36];
+    double ws[8 * 4];   /* 8 length-n vectors = arena_bytes(4) exactly */
+    /* ws_len is BYTES (rc307 flipped the three fiedler guards off the old
+     * DOUBLES-count contract; this test was written at rc275 and kept passing
+     * the doubles count, which now under-sizes the arena 8x -> BAD_INPUT before
+     * the tick loop is ever entered — the cancel channel was never reached). */
     g_ev_bad = 0; g_last_done = 0u; g_want_phase = (uint32_t)SRMECH_PHASE_PARTITIONING;
     srmech_status_t st = srmech_laplacian_fiedler_sparse_file_progress(
-        4u, path, 250u, out, ws, 36u, fiedler_tick, NULL);
+        4u, path, 250u, out, ws,
+        srmech_laplacian_fiedler_sparse_arena_bytes(4u), fiedler_tick, NULL);
     remove(path);
     if (st != SRMECH_CANCELLED) {
         fprintf(stderr, "test_fiedler_cancel: status=%d (want SRMECH_CANCELLED=%d)\n",

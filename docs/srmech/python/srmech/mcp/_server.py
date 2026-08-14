@@ -46,6 +46,48 @@ MCP_PROTOCOL_VERSION: str = "2024-11-05"
 This is the version Claude Code (circa late-2024 / 2025) speaks."""
 
 
+MCP_INSTRUCTIONS: str = (
+    "srmech exposes its capabilities through a registered tool registry. "
+    "START HERE: call `srmech.introspect.describe` for the capability index "
+    "(shape and counts), then `srmech.introspect.search.search` when you know "
+    "what you want but not what it is called - it ranks the whole registry "
+    "over its authored prose and hands back the importable call form. Tool "
+    "descriptions in tools/list carry the `summary` field only; each op also "
+    "has `example` and `explanation`, which tools/list does not carry - reach "
+    "them over MCP with `srmech.introspect.tool_schema.tool_schema_view`, the "
+    "canonical JSON rendering of the whole registry, or ask `search` first, "
+    "which returns the matching excerpt inline. Carrier CLASSES and "
+    "their methods (Mat, QMat, Q, One, ...) are NOT registered tools: they are "
+    "published by `srmech.introspect.carrier_schema.carrier_schema` and in "
+    "describe()['carriers'], so a lookup miss for a class method is not "
+    "evidence the capability is absent."
+)
+"""The ``instructions`` field of the ``initialize`` result (rc407, `#T1076`).
+
+An MCP client gets no start-here pointer before its first tool call unless the
+handshake carries one, and MCP has no other channel for it: ``resources/*``,
+``prompts/*``, ``completion/*`` and ``logging/*`` all return "unknown method".
+
+Every claim here is CHECKED, because an MCP-only client cannot verify any of
+them. ``srmech.introspect.describe`` and
+``srmech.introspect.carrier_schema.carrier_schema`` are registered and
+``mcp_callable``; ``get_tool_schema`` is deliberately named as a PYTHON route
+because it is NOT a registered tool (no ToolEntry's last segment is
+``get_tool_schema``), so telling an MCP-only client to call it would be a lie.
+
+**Byte-identical to the C peer** ``mcp_build_initialize``
+(``c/src/srmech_mcp.c``) per ADR-0009 — the capability is the invariant and the
+two projections are co-equal, so this string must be edited in BOTH or neither.
+``tests/test_mcp_initialize_instructions_rc407.py`` pins that equality by
+parsing the literal out of the C source.
+
+Deliberately NOT appended: the ``explanation`` prose itself. ``tools/list`` is
+already 776,020 bytes (~194k tokens) and total explanation prose is 743,164
+bytes, so a catalog-wide append reaches ~1.52 MB (~379k tokens). That is
+correct-by-design, not neglect; a scoped accessor is the follow-up.
+"""
+
+
 MCP_SERVER_NAME: str = "srmech-mcp"
 """Default server name advertised in ``initialize.serverInfo``."""
 
@@ -104,7 +146,7 @@ def build_attestation(
 
     ``retrieved_at`` defaults to the current UTC time; a caller (e.g. the
     rc186 C-peer byte-parity test) may pin it to make the block
-    reproducible. The C peer ``srmech.amsc._native.mcp_build_attestation_c``
+    reproducible. The C peer ``srmech._native.mcp_build_attestation_c``
     produces the byte-identical JSON for the same pinned timestamp.
     """
     parser_version = f"srmech {_srmech_version}"
@@ -264,7 +306,7 @@ class MCPServer:
                 or self._invoke is not invoke_tool):
             return _PURE_FALLBACK
         try:
-            from ..amsc import _native
+            from .. import _native
         except Exception:  # pragma: no cover — defensive; _native always imports
             return _PURE_FALLBACK
         result = _native.mcp_handle_c(
@@ -280,6 +322,10 @@ class MCPServer:
                 self._initialized = True
             return None
         if kind == _native.MCP_KIND_RESPONSE and resp is not None:
+            # stdlib json by PROTOCOL-BOUNDARY decision, not neglect (`#T1008`): this is the
+            # MCP JSON-RPC wire — untrusted external input on a published protocol contract.
+            # Self-hosting it onto srmech._json is a separate decision with a different risk
+            # profile from reading srmech's own descriptors, so the READ self-host stops here.
             return json.loads(resp.decode("utf-8"))
         return _PURE_FALLBACK
 
@@ -298,7 +344,7 @@ class MCPServer:
                 or self._invoke is not invoke_tool):
             return None
         try:
-            from ..amsc import _native
+            from .. import _native
         except Exception:  # pragma: no cover — defensive; _native always imports
             return None
         dispatched, text = _native.invoke_tool_c(name, arguments)
@@ -328,6 +374,12 @@ class MCPServer:
                 # itself comes via tools/list.
                 "tools": {},
             },
+            # rc407 (`#T1076`): the start-here pointer. Without it a client
+            # gets no route to the capability index before its first tool
+            # call, and MCP offers no other channel — resources/prompts/
+            # completion/logging all return "unknown method" here. Byte-
+            # identical to the C peer; see MCP_INSTRUCTIONS.
+            "instructions": MCP_INSTRUCTIONS,
         }
 
     def _handle_tools_list(self, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -429,6 +481,7 @@ __all__ = [
     "JSONRPC_INVALID_REQUEST",
     "JSONRPC_METHOD_NOT_FOUND",
     "JSONRPC_PARSE_ERROR",
+    "MCP_INSTRUCTIONS",
     "MCP_PROTOCOL_VERSION",
     "MCP_SERVER_NAME",
     "MCP_TOOL_ERROR",

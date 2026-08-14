@@ -65,7 +65,7 @@ PATH_A_OP_MODULES = (
     "sinc_interp",
     "beamforming_fixed",
     "ica_jade",
-    "music",
+    "music_doa",
     "esprit",
     "lmmse",
     "map_ml",
@@ -473,6 +473,98 @@ def test_mlse_smoke():
     assert isinstance(syms, list) and len(syms) == 4
 
 
+def test_mlse_agrees_with_exhaustive_maximum_likelihood_rc425():
+    """THE WOULD-HAVE-CAUGHT-IT GATE for `#T1112` — mlse against BRUTE FORCE.
+
+    MLSE is DEFINED as the argmin over all candidate sequences of
+    ``sum_t |obs[t] - sum_k taps[k]*alpha[s_{t-k}]|**2``. For a short sequence
+    the exhaustive search IS the ground truth, with no free parameter and no
+    tolerance to argue about — so a disagreement is a defect in the trellis,
+    not a modelling choice.
+
+    WHY THIS TEST EXISTS. Through rc424 the trellis held L-1 state symbols and
+    applied taps[0] and taps[1] to the SAME one, so it decoded as if the
+    channel were ``[h0+h1, h2, ...]`` with the memory shifted a step. On
+    noiseless input, where the transmitted sequence scores EXACTLY 0.0, it
+    returned a sequence scoring 13.0. Nothing raised.
+
+    ``test_mlse_smoke`` above could not have caught it, and the reason is worth
+    stating: it exercises only the single-tap path (which bypasses the trellis
+    entirely) and asserts only ``isinstance(syms, list)``. A test that checks a
+    return TYPE cannot fail on a wrong VALUE, so the op was ungated on the only
+    axis that distinguishes it from a plain symbol-by-symbol slicer.
+
+    ⚠️ THE POST-CURSOR CHANNELS ARE THE LOAD-BEARING ROWS. The rc424 kernel
+    agreed with brute force on every cursor-dominant channel — which is exactly
+    the regime where a slicer is also right, so the error hid wherever mlse was
+    not earning its keep. A suite of only minimum-phase channels would have
+    stayed green through the whole defect. Do not "simplify" this list by
+    dropping the post-cursor rows.
+    """
+    import itertools
+
+    from srmech.signal_processing.closed_form_ops import mlse as m
+
+    alphabet = [-1.0 + 0j, 1.0 + 0j]
+    true_seq = [0, 1, 1, 0, 1, 0, 0, 1]
+
+    def channel(seq, taps):
+        out = []
+        for t in range(len(seq)):
+            acc = 0j
+            for k in range(len(taps)):
+                if t - k >= 0:
+                    acc += taps[k] * alphabet[seq[t - k]]
+            out.append(acc)
+        return out
+
+    def cost(seq, obs, taps):
+        total = 0.0
+        for got, want in zip(obs, channel(seq, taps)):
+            e = complex(got) - complex(want)
+            # |z|**2 = re**2 + im**2 — no abs(), Class-K discipline.
+            total += e.real * e.real + e.imag * e.imag
+        return total
+
+    def brute(obs, taps):
+        best, best_c = None, None
+        for cand in itertools.product(range(len(alphabet)), repeat=len(obs)):
+            c = cost(list(cand), obs, taps)
+            if best_c is None or c < best_c - 1e-12:
+                best, best_c = list(cand), c
+        return best
+
+    channels = [
+        [1.0],                    # no ISI — the slicer path
+        [1.0, 0.6],               # cursor-dominant
+        [0.8, 0.6],               # cursor-dominant
+        [1.0, 0.9],               # near-equal
+        [0.5, 1.0],               # POST-cursor — rc424 returned cost 13.0 here
+        [0.3, 1.0],               # POST-cursor
+        [1.0, 0.5, 0.25],         # 3-tap cursor-dominant
+        [0.4, 1.0, 0.4],          # 3-tap centre-dominant — rc424 wrong
+        [0.2, 0.5, 1.0],          # 3-tap post-dominant — rc424 wrong
+    ]
+
+    wrong = []
+    for taps in channels:
+        obs = channel(true_seq, taps)
+        want = brute(obs, taps)
+        got = list(m.op(obs, taps, alphabet))
+        # Noiseless, so the transmitted sequence is itself the ML answer and
+        # scores exactly zero. Both statements are asserted: agreeing with a
+        # brute force that had itself gone wrong would prove nothing.
+        assert want == true_seq, (taps, want)
+        assert cost(true_seq, obs, taps) == 0.0, taps
+        if got != want:
+            wrong.append((taps, got, want, cost(got, obs, taps)))
+
+    assert not wrong, (
+        "mlse disagrees with exhaustive maximum-likelihood decoding on "
+        f"{len(wrong)} of {len(channels)} channels "
+        "(taps, mlse, ML, mlse_cost): " + repr(wrong))
+
+
 def test_multirate_smoke():
     from srmech.signal_processing.closed_form_ops import multirate as m
 
@@ -543,7 +635,7 @@ def test_ica_jade_smoke():
 
 
 def test_music_smoke():
-    from srmech.signal_processing.closed_form_ops import music as m
+    from srmech.signal_processing.closed_form_ops import music_doa as m
 
     M = 4
     # Build a covariance matrix with one strong eigenvalue: R = 0.1·I + a·aᴴ.

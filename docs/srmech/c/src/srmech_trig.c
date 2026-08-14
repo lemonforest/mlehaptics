@@ -1,7 +1,7 @@
 /* srmech_trig.c — Class-N rational trig cascade for the NATIVE (executable)
  * tier (v0.7.0rc43; C-transpile triality coherence, the rc42->rc46 arc).
  *
- * The Python `srmech.amsc.rational.{sin,cos,atan,atan2}` compute trig as the
+ * The Python `srmech.math.rational.{sin,cos,atan,atan2}` compute trig as the
  * Class-N rational Taylor cascade (range-reduce the angle, then a truncated
  * Taylor series, project to float as the LAST step). rc40/rc41 routed the
  * PYTHON callers onto that cascade, but on a native install the C peers
@@ -27,7 +27,7 @@
  *
  * Constant attestation (derive-and-assert, the rc19 HAL discipline). The two
  * cascade constants below are derived from the Archimedes pi-cascade
- * (`srmech.amsc.rational._pi_rational(50)`, no libm):
+ * (`srmech.math.rational._pi_rational(50)`, no libm):
  *   TWO_OVER_PI_Q64 = round((2/pi) * 2^64) = 11743562013128004906
  *   HALF_PI_Q61     = round((pi/2) * 2^61) = 3622009729038561421
  * `srmech_trig_self_check()` re-derives the sin/cos identity at runtime

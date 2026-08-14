@@ -1,6 +1,6 @@
 /*
  * srmech_factor_poly.c — EXACT integer-polynomial factorization (Zassenhaus):
- * the C peer of srmech.amsc.cascade.matrix_cascades.factor_integer_poly
+ * the C peer of srmech.cascade.matrix_cascades.factor_integer_poly
  * (Qalg TAIL Batch 8). Factors an integer polynomial into its irreducible
  * factors over ℚ (Gauss's lemma: factoring over ℚ ≡ factoring over ℤ).
  *
@@ -929,7 +929,7 @@ static int fac_reduce_mod_p(uint64_t *out, const srmech_bigint_t *f, int lf,
     return fp_trim(out, lf);
 }
 
-/* True iff n (< 2^32) is prime (trial division; matches srmech.amsc.primes). */
+/* True iff n (< 2^32) is prime (trial division; matches srmech.math.primes). */
 static int fac_is_prime(uint64_t n)
 {
     uint64_t d;

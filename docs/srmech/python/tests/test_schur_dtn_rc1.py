@@ -12,11 +12,11 @@ oracle), not numpy. The DtN-property and area-law invariants are checked with th
 exact Class-L ``dense_solve`` + stdlib list arithmetic.
 """
 from fractions import Fraction
-from srmech.amsc.q import Q  # #845: outputs are now Q, not Fraction
+from srmech.math.q import Q  # #845: outputs are now Q, not Fraction
 
 import pytest
 
-from srmech.amsc.laplacian import (
+from srmech.math.laplacian import (
     dense_laplacian,
     schur_complement,
     dirichlet_to_neumann,
@@ -58,7 +58,7 @@ def test_float_path_matches_exact() -> None:
     """The default float path equals the exact-Fraction reference (numpy-free:
     the EXACT path is the oracle, not numpy). The float ``S`` returns in the
     numpy-free ``Mat`` carrier (rc131 carrier-format law), NOT a bare list."""
-    from srmech.amsc.mat import Mat
+    from srmech.math.mat import Mat
     L = dense_laplacian(*PATH4)
     S = schur_complement(L, [0, 3])  # default: numpy-free Mat carrier
     assert isinstance(S, Mat) and S.shape == (2, 2)
@@ -137,8 +137,8 @@ def test_validation_errors() -> None:
 
 def test_registered_in_tool_schema() -> None:
     """Both names carry a ToolEntry (the tool-schema coverage ratchet)."""
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
 
     schema = get_tool_schema()
-    assert schema.lookup("srmech.amsc.laplacian.schur_complement") is not None
-    assert schema.lookup("srmech.amsc.laplacian.dirichlet_to_neumann") is not None
+    assert schema.lookup("srmech.math.laplacian.schur_complement") is not None
+    assert schema.lookup("srmech.math.laplacian.dirichlet_to_neumann") is not None

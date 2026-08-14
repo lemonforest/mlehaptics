@@ -38,9 +38,9 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc import plasmid as P
-from srmech.amsc.hdc import klein4_expand
+from srmech import _native
+from srmech.biology import plasmid as P
+from srmech.math.hdc import klein4_expand
 
 _DIM = 64                                           # >= 52 (the §89 kernel header)
 _CORE = ["alpha", "beta", "gamma", "delta"]         # the PLANTED conserved core
@@ -231,9 +231,9 @@ def test_ratchet_add_plasmid_declared_and_gap_list_empty():
     right symbol, the header declares it, and the DOWN-ONLY ceiling is now 0 with an
     EMPTY gap list — the enumerated genome wire-glue surface is fully C-reachable."""
     r = _load_rosetta()
-    assert (r._WHOLE_OP_C_PEER["srmech.amsc.plasmid.add_plasmid"]
+    assert (r._WHOLE_OP_C_PEER["srmech.biology.plasmid.add_plasmid"]
             == "srmech_genome_add_plasmid")
-    assert "srmech.amsc.plasmid.add_plasmid" not in r._KNOWN_GLUE_GAPS
+    assert "srmech.biology.plasmid.add_plasmid" not in r._KNOWN_GLUE_GAPS
     assert set(r._KNOWN_GLUE_GAPS) == set()
     assert len(r._KNOWN_GLUE_GAPS) == r.CEIL_WIRE_GLUE_GAPS == 0
     header = (Path(__file__).resolve().parents[2] / "c" / "include" / "srmech.h"

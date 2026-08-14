@@ -1,7 +1,7 @@
 """C/Python parity for the Hamming / GF(2) block-code family (#910 / §30).
 
 v0.7.2rc2 ships the CARRY/EC half of the sedenion front-loader (F442/F449) as a
-Rosetta pair: the pure-Python spec ``srmech.amsc.cascade.hamming_*`` and the
+Rosetta pair: the pure-Python spec ``srmech.cascade.hamming_*`` and the
 JPL-clean C peer ``srmech_hamming_{encode,syndrome,decode_correct}``. This test
 fixes the Python behaviour with a from-scratch reference (no srmech import) and
 attests the C peer bit-exact against it across the 2ⁿ−1 ladder.
@@ -14,8 +14,9 @@ import random
 
 import pytest
 
-from srmech.amsc import _native, cascade
-from srmech.amsc._native import HAS_NATIVE
+from srmech import _native
+from srmech import cascade
+from srmech._native import HAS_NATIVE
 
 
 _HAMMING_NATIVE = (

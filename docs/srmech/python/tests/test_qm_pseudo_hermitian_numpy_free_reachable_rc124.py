@@ -1,4 +1,4 @@
-"""rc124 — ``srmech.qm.pseudo_hermitian`` is IMPORT+RUN-reachable numpy-FREE (#564).
+"""rc124 — ``srmech.physics.qm.pseudo_hermitian`` is IMPORT+RUN-reachable numpy-FREE (#564).
 
 The carrier-removal arc flips ``qm/pseudo_hermitian.py`` (η-pseudo-Hermitian /
 PT-symmetric framework) onto the framework-native ``Mat`` carrier: matrices are
@@ -6,7 +6,7 @@ PT-symmetric framework) onto the framework-native ``Mat`` carrier: matrices are
 ``mat_eigvals``, the η = (V V†)⁻¹ metric inverse from the well-conditioned HPD
 ``mat_solve``, and the general non-Hermitian eigenVECTORS (for the η
 construction) are the null vectors of ``O − λI`` via deterministic Gaussian
-elimination. This is the LAST qm carrier, so ``srmech.qm`` is now fully
+elimination. This is the LAST qm carrier, so ``srmech.physics.qm`` is now fully
 numpy-free. After the flip pseudo_hermitian imports AND runs with numpy
 genuinely absent.
 
@@ -57,8 +57,8 @@ def test_pseudo_hermitian_imports_and_runs_numpy_free():
     """``qm.pseudo_hermitian`` imports + every public op runs numpy-absent."""
     proc = _run_numpy_free(
         """
-        from srmech.qm import pseudo_hermitian as ph
-        from srmech.amsc.mat import Mat
+        from srmech.physics.qm import pseudo_hermitian as ph
+        from srmech.math.mat import Mat
 
         I3 = Mat.from_rows(
             [[1.0 if i == j else 0.0 for j in range(3)] for i in range(3)],
@@ -106,16 +106,16 @@ def test_pseudo_hermitian_imports_and_runs_numpy_free():
 
 
 def test_full_qm_subpackage_imports_numpy_free():
-    """Every ``srmech.qm`` submodule imports numpy-absent — pseudo_hermitian was
+    """Every ``srmech.physics.qm`` submodule imports numpy-absent — pseudo_hermitian was
     the last qm carrier, so the whole subpackage is now numpy-free."""
     proc = _run_numpy_free(
         """
-        from srmech.qm import (
+        from srmech.physics.qm import (
             spin, bell, sm, single_particle, relativistic, gauge, potentials,
             octonion, so8, triality, propagators, pseudo_hermitian,
         )  # noqa: F401
         print("QM_ALL_OK")
         """
     )
-    assert proc.returncode == 0, f"srmech.qm not fully numpy-free:\n{proc.stderr}"
+    assert proc.returncode == 0, f"srmech.physics.qm not fully numpy-free:\n{proc.stderr}"
     assert "QM_ALL_OK" in proc.stdout, proc.stdout

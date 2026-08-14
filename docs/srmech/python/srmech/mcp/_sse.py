@@ -226,6 +226,10 @@ def _make_handler_class(
             content_length = int(self.headers.get("Content-Length") or 0)
             raw = self.rfile.read(content_length)
             try:
+                # stdlib json by PROTOCOL-BOUNDARY decision, not neglect (`#T1008`): this is the
+                # MCP JSON-RPC wire — untrusted external input on a published protocol contract.
+                # Self-hosting it onto srmech._json is a separate decision with a different risk
+                # profile from reading srmech's own descriptors, so the READ self-host stops here.
                 request = json.loads(raw.decode("utf-8"))
             except (UnicodeDecodeError, json.JSONDecodeError) as exc:
                 # JSON parse error rides over SSE per spec.
@@ -333,7 +337,7 @@ def serve_http_sse(
     # methods and DEFERS tools/call (the pure path here keeps the full
     # invoke_tool, so the default background=True server is unchanged).
     if not background and server is None and name == "srmech-mcp":
-        from ..amsc import _native
+        from .. import _native
 
         if _native.has_native_mcp_sse():
             rc = _native.mcp_serve_http_sse_c(host, port)

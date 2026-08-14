@@ -107,7 +107,7 @@ def test_publish_no_file_when_off(fake_home):
 
 def test_emit_noop_when_not_publishing(fake_home):
     """Cascade ops called outside publish() must NOT write."""
-    from srmech.amsc.cascade import chiral_flip
+    from srmech.cascade import chiral_flip
     chiral_flip([1, 2, 3])
     assert not list(fake_home.glob("run-*.ndjson"))
 
@@ -162,7 +162,7 @@ def test_publish_reentrant_no_op(fake_home):
 
 def test_emit_inside_cascade_op(fake_home):
     """Calling ``cascade.chiral_flip`` inside publish() emits an event."""
-    from srmech.amsc.cascade import chiral_flip
+    from srmech.cascade import chiral_flip
     with publish() as handle:
         chiral_flip([1, 2, 3])
     events = [parse(L) for L in handle.file_path.read_bytes().splitlines() if L.strip()]
@@ -172,7 +172,7 @@ def test_emit_inside_cascade_op(fake_home):
 
 
 def test_emit_inside_pin_slot_at_zero(fake_home):
-    from srmech.amsc.cascade import pin_slot_at_zero
+    from srmech.cascade import pin_slot_at_zero
     with publish() as handle:
         pin_slot_at_zero(-3.5)
         pin_slot_at_zero(0.0)
@@ -503,7 +503,7 @@ def test_env_var_auto_publish(tmp_path):
         # Stub Path.home() via env to keep it portable.
         "import srmech;"
         "import srmech.introspect as I;"
-        "from srmech.amsc.cascade import chiral_flip;"
+        "from srmech.cascade import chiral_flip;"
         "chiral_flip([1,2,3]);"
         "w = I._writer.get_active_writer();"
         "print('FILE:' + str(w.file_path) if w else 'NOFILE');"
@@ -593,7 +593,7 @@ def test_describe_shape_handles_common_inputs():
     # a 2-D shaped carrier — numpy-free (#564): describe_shape duck-types
     # `.shape`, so the numpy-free Mat (shape (4, 4)) exercises the same branch
     # an ndarray used to. (numpy is GONE from srmech and its test oracle.)
-    from srmech.amsc.mat import Mat
+    from srmech.math.mat import Mat
     s = describe_shape(Mat.from_rows([[0.0] * 4 for _ in range(4)]))
     assert "(4, 4)" in s
 
@@ -619,7 +619,7 @@ def test_describe_shape_never_raises():
 def test_native_status():
     """``srmech.native_status()`` is the discoverable native-dispatch check.
 
-    The post-rc18 replacement for poking ``srmech.amsc._native.HAS_NATIVE``
+    The post-rc18 replacement for poking ``srmech._native.HAS_NATIVE``
     in the TestPyPI-before-PyPI verification recipe (issue #733): a single
     top-level call, surfaced where ``dir(srmech)`` finds it, returning a
     fixed-shape dict that mirrors ``describe()['native']``.
@@ -660,10 +660,10 @@ def test_native_status():
 
     # expected_abi is the compiled-against ABI (rc275: 6 — the §101 encode-progress /
     # graceful-abort callback typedef bumped it 5 → 6, #886; rc242 had bumped 4 → 5, #840).
-    assert status["expected_abi"] == 10
+    assert status["expected_abi"] == 14
 
     # Agrees with describe()['native'] on the shared fields (single source
-    # of truth: both read srmech.amsc._native).
+    # of truth: both read srmech._native).
     native = srmech.introspect.describe()["native"]
     assert status["has_native"] == native["has_native"]
     assert status["abi_version"] == native["abi_version"]

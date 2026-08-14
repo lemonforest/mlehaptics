@@ -1,6 +1,6 @@
 /*
  * srmech_elliptic_partial_fraction.c -- the 1:1 native C peer of
- * srmech.amsc.elliptic_partial_fraction.elliptic_partial_fraction (rc95), the
+ * srmech.apokatastasis.elliptic_partial_fraction.elliptic_partial_fraction (rc95), the
  * ELLIPTIC PARTIAL-FRACTION expansion: the reduction ENGINE of the multivariable
  * (root-system Cn) elliptic reduction row.
  *

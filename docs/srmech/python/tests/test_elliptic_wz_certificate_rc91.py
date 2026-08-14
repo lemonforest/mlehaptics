@@ -29,12 +29,12 @@ import tokenize
 
 import pytest
 
-from srmech.amsc.ellbase import EllMonomial as M, Theta, EllRatio as R, _X, _Q_SYM
-from srmech.amsc.q import Q
-from srmech.amsc.thetasum import ThetaSum, _Y
-from srmech.amsc import elliptic_recurrence as er
-from srmech.amsc.elliptic_zeilberger import _connection_split_certificate
-from srmech.amsc.elliptic_wz_certificate import elliptic_wz_certificate
+from srmech.apokatastasis.ellbase import EllMonomial as M, Theta, EllRatio as R, _X, _Q_SYM
+from srmech.math.q import Q
+from srmech.apokatastasis.thetasum import ThetaSum, _Y
+from srmech.apokatastasis import elliptic_recurrence as er
+from srmech.apokatastasis.elliptic_zeilberger import _connection_split_certificate
+from srmech.apokatastasis.elliptic_wz_certificate import elliptic_wz_certificate
 
 
 def _make_8w7():
@@ -151,7 +151,7 @@ def test_zero_ratio_is_none():
 
 # ── (d) Python==C parity (the certificate decision) ─────────────────────────────────
 def _has_native():
-    from srmech.amsc import _native
+    from srmech import _native
     return _native.has_native_elliptic_wz_certificate()
 
 
@@ -162,7 +162,7 @@ def test_python_equals_c_verdict():
     """Drive the C peer on the canonical ₈ω₇ and a non-₈ω₇; the native verdict must match
     the op (the C recognizes + decides the certificate ≡ 0; the op re-decides cert.is_zero
     in exact ℚ before returning)."""
-    from srmech.amsc import _native
+    from srmech import _native
     rk = _make_8w7()
     got = _native.elliptic_wz_certificate_c(er._ratio_to_form(rk))
     assert got is not None
@@ -182,7 +182,7 @@ def test_python_equals_c_verdict():
 # ── discipline: no numpy / no math / no abs() in the op source ───────────────────────
 def test_source_is_numpy_math_abs_free():
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    src = os.path.join(here, "srmech", "amsc", "elliptic_wz_certificate.py")
+    src = os.path.join(here, "srmech", "apokatastasis", "elliptic_wz_certificate.py")
     with tokenize.open(src) as fh:
         text = fh.read()
     assert "import numpy" not in text
@@ -192,6 +192,6 @@ def test_source_is_numpy_math_abs_free():
 
 # ── the ToolEntry is registered ─────────────────────────────────────────────────────
 def test_tool_entry_registered():
-    from srmech.amsc import tool_schema
+    from srmech.introspect import tool_schema
     names = {t.name for t in tool_schema.get_tool_schema().tools}
-    assert "srmech.amsc.elliptic_wz_certificate.elliptic_wz_certificate" in names
+    assert "srmech.apokatastasis.elliptic_wz_certificate.elliptic_wz_certificate" in names

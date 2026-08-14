@@ -326,7 +326,10 @@ builders (`genome_build_the_one` /
 `_chrom` / `_data` / `_attest` / `_render` / `_manifest` / `_manifest_tree`), the
 §44 inline-cap body scan (`genome_decode_label` / `genome_scan_chroms`) + the
 string-block fill (`genome_fill_strings`, `genome_hex`), the §44 manifest-optional
-acquirer (`genome_obtain_manifest` — parse if present, else rebuild by scan), the
+acquirer (`genome_obtain_manifest` — parse if present, else rebuild by scan — and
+its rc338/#T956 rebuild tail `genome_rebuild_manifest_tree`, split out so the
+scan's `genome_strings_t` can be arena-resident rather than a stack local the
+returned tree would outlive), the
 catalog/load/window/append entries + their accessors (`genome_data_get` /
 `genome_str_eq` / `genome_find_chrom` / `genome_check_new_label` /
 `genome_read_bound_body` / `genome_grow_body` / `genome_save_validate`), the §45
@@ -669,7 +672,7 @@ the toolchain-level Rule-10 ratchet.
   macros only). No new mechanical violations; ratchet stays at 0.
 
 - **§41 genome-persistence disk surface — `srmech_genome.c`.** The C mirror
-  of `srmech.amsc.genome`'s disk `save` / `load` / `catalog` / `append` /
+  of `srmech.biology.genome`'s disk `save` / `load` / `catalog` / `append` /
   `window`. A genome directory holds `manifest.json` (an MPRRecord, MPR v1,
   built with the `srmech_json` BUILDER + serialised with `srmech_json_write`,
   BYTE-IDENTICAL to the Python `genome_save` manifest's

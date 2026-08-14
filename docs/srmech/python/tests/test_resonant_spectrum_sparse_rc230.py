@@ -36,10 +36,10 @@ import random
 from pathlib import Path
 
 from srmech import introspect
-from srmech.amsc import coupling as C
-from srmech.amsc import laplacian as L
-from srmech.amsc import _native
-from srmech.amsc.tool_schema import get_tool_schema, warmup_all
+from srmech.biology import coupling as C
+from srmech.math import laplacian as L
+from srmech import _native
+from srmech.introspect.tool_schema import get_tool_schema, warmup_all
 
 warmup_all()
 
@@ -240,11 +240,11 @@ def test_runs_and_matches_past_256():
 
 def test_registration():
     assert "resonant_spectrum_sparse" in C.__all__
-    assert introspect.describe()["tools"]["total"] == 509
+    assert introspect.describe()["tools"]["total"] == 655
     names = {t.name for t in get_tool_schema().tools}
-    assert "srmech.amsc.coupling.resonant_spectrum_sparse" in names
+    assert "srmech.biology.coupling.resonant_spectrum_sparse" in names
     entry = next(t for t in get_tool_schema().tools
-                 if t.name == "srmech.amsc.coupling.resonant_spectrum_sparse")
+                 if t.name == "srmech.biology.coupling.resonant_spectrum_sparse")
     assert entry.category == "coupling"
     assert "#698" in entry.summary
     # the Rosetta ledger row (c_dispatched — routes to the C peer).
@@ -252,7 +252,7 @@ def test_registration():
     rows = [json.loads(line) for line in
             ndjson.read_text(encoding="utf-8").splitlines() if line.strip()]
     mine = [r for r in rows
-            if r["exposed_as"] == "srmech.amsc.coupling.resonant_spectrum_sparse"]
+            if r["exposed_as"] == "srmech.biology.coupling.resonant_spectrum_sparse"]
     assert len(mine) == 1 and mine[0]["bucket"] == "c_dispatched"
 
 

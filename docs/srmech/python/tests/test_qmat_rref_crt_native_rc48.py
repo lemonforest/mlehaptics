@@ -29,10 +29,10 @@ import sys
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc import qmat as _qmat
-from srmech.amsc.q import Q
-from srmech.amsc.qmat import QMat
+from srmech import _native
+from srmech.math import qmat as _qmat
+from srmech.math.q import Q
+from srmech.math.qmat import QMat
 
 _HAVE_NATIVE = _native.HAS_NATIVE and _native.has_native_qmat_rref_crt()
 
@@ -216,8 +216,8 @@ def _franel_order2_rows():
     """Assemble the order-2 Franel (``Σ_k C(n,k)^3``) creative-telescoping
     homogeneous system — the real 484x154 system. Reuses the rc46 test's builder
     path via the ``zeilberger`` internals."""
-    from srmech.amsc.poly import Poly
-    from srmech.amsc.zeilberger import (BiPoly, _ansatz_n_degree,
+    from srmech.math.poly import Poly
+    from srmech.apokatastasis.zeilberger import (BiPoly, _ansatz_n_degree,
                                         _ansatz_x_degree, _assemble_rows,
                                         _bi_exact_div, _rho)
 

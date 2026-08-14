@@ -1,0 +1,220 @@
+# SPIKE ARTIFACT — `#T1114` rung 3 (census).  NOT a shipped descriptor.
+#
+# Executable ADR-0008 §2 inversions for every cascade-catalog descriptor
+# that CAN be written as a linear chain at all.  Descriptors that cannot
+# (indexed iteration / higher-order body / missing framing ops) are
+# recorded structurally by `_t1114_rung3_census_all20_rc419.py`, which
+# also executes this file and measures exactly where each chain stops.
+#
+# Granularity rule (stated so the census is not mush): each descriptor is
+# inverted at the granularity its own `class_composition` declares.
+# Single-letter delegating descriptors invert as a 1-step delegation to
+# the registered class primitive; multi-letter descriptors must decompose
+# into (at least) one step per composed class; atoms invert as 1-step
+# self-delegation and are classified LEAF, not PASS.
+
+[catalog]
+chain_schema_version = 1
+
+# ── CONTROL 1: cyclic_gcd — pure Class-I delegation ──────────────────
+# Descriptor: class_composition = "I"; delegates_to.primitive_python =
+# "srmech.math.cyclic.gcd".  DEFAULT registry: I -> srmech.math.cyclic.
+[[catalog.operator_chain]]
+name = "inv_cyclic_gcd"
+summary = "cyclic_gcd inverted: 1-step Class-I delegation to srmech.math.cyclic.gcd (the descriptor's own delegates_to target)."
+returns = "int  # uint64 gcd; gcd(0,0)=0"
+on_error = "raise"
+
+[[catalog.operator_chain.steps]]
+class = "I"
+op = "gcd"
+args = { a = "@input.a", b = "@input.b" }
+
+# ── CONTROL 2: schur_complement — the one op reachable by name ───────
+[[catalog.operator_chain]]
+name = "inv_schur_complement"
+summary = "schur_complement inverted: 1-step Class-L delegation; the ONLY cascade-catalog op reachable from DEFAULT_CLASS_REGISTRY by its own name."
+returns = "Mat  # |boundary| x |boundary| Dirichlet-to-Neumann operator"
+on_error = "raise"
+
+[[catalog.operator_chain.steps]]
+class = "L"
+op = "schur_complement"
+args = { L = "@input.lap", boundary_idx = "@input.boundary_idx" }
+
+# ── cyclic_mod_* family — Class-I delegations, mod_* primitive names ─
+[[catalog.operator_chain]]
+name = "inv_cyclic_mod_add"
+summary = "cyclic_mod_add inverted: 1-step I.mod_add."
+returns = "int  # (a + b) mod n"
+on_error = "raise"
+
+[[catalog.operator_chain.steps]]
+class = "I"
+op = "mod_add"
+args = { a = "@input.a", b = "@input.b", n = "@input.n" }
+
+[[catalog.operator_chain]]
+name = "inv_cyclic_mod_mul"
+summary = "cyclic_mod_mul inverted: 1-step I.mod_mul."
+returns = "int  # (a * b) mod n"
+on_error = "raise"
+
+[[catalog.operator_chain.steps]]
+class = "I"
+op = "mod_mul"
+args = { a = "@input.a", b = "@input.b", n = "@input.n" }
+
+[[catalog.operator_chain]]
+name = "inv_cyclic_mod_pow"
+summary = "cyclic_mod_pow inverted: 1-step I.mod_pow."
+returns = "int  # (a ** k) mod n"
+on_error = "raise"
+
+[[catalog.operator_chain.steps]]
+class = "I"
+op = "mod_pow"
+args = { a = "@input.a", k = "@input.k", n = "@input.n" }
+
+[[catalog.operator_chain]]
+name = "inv_cyclic_mod_inv"
+summary = "cyclic_mod_inv inverted: 1-step I.mod_inv."
+returns = "int  # a**-1 mod n"
+on_error = "raise"
+
+[[catalog.operator_chain.steps]]
+class = "I"
+op = "mod_inv"
+args = { a = "@input.a", n = "@input.n" }
+
+[[catalog.operator_chain]]
+name = "inv_cyclic_mod_mul_wide"
+summary = "cyclic_mod_mul_wide inverted: 1-step I.mod_mul_wide."
+returns = "int  # (a * b) mod n via bignum product"
+on_error = "raise"
+
+[[catalog.operator_chain.steps]]
+class = "I"
+op = "mod_mul_wide"
+args = { a = "@input.a", b = "@input.b", n = "@input.n" }
+
+# ── magnitude — 2-step decomposition, IN-SCHEMA select idiom ─────────
+# Descriptor operation = "pin_slot_at_zero(x)[1]".  The chain returns
+# only its last step's output, so the [1] selection must be a STEP.
+# No select/identity op is registered — but none is NEEDED: the arg
+# resolver's "@step[0].output[1]" indexing + reorient(orientation=1)
+# (Class-C sign-re-application with positive orientation = identity on
+# the value) express the selection with SHIPPED ops only.  Under the
+# DEFAULT registry this chain still fails: K -> srmech.math.kepler has
+# no pin_slot_at_zero (BLK-REGMAP).
+[[catalog.operator_chain]]
+name = "inv_magnitude_idiom"
+summary = "magnitude inverted: K.pin_slot_at_zero -> C.reorient(value=@step[0].output[1], orientation=1); the select-by-indexing + identity-reorient idiom, shipped ops only."
+returns = "float  # magnitude(x)"
+on_error = "raise"
+
+[[catalog.operator_chain.steps]]
+class = "K"
+op = "pin_slot_at_zero"
+args = { x = "@input.x" }
+
+[[catalog.operator_chain.steps]]
+class = "C"
+op = "reorient"
+args = { value = "@step[0].output[1]", orientation = 1 }
+
+# ── LEAF atoms — 1-step self-delegation (the atom IS the primitive) ──
+[[catalog.operator_chain]]
+name = "leaf_chiral_flip"
+summary = "chiral_flip self-delegation: the atom is the Class-C primitive; nothing lower-level is registered to compose."
+returns = "sequence  # seq[::-1]"
+on_error = "raise"
+
+[[catalog.operator_chain.steps]]
+class = "C"
+op = "chiral_flip"
+args = { seq = "@input.seq" }
+
+[[catalog.operator_chain]]
+name = "leaf_pin_slot_at_zero"
+summary = "pin_slot_at_zero self-delegation: the atom is the Class-K primitive."
+returns = "tuple[int, float]  # (sign, magnitude)"
+on_error = "raise"
+
+[[catalog.operator_chain.steps]]
+class = "K"
+op = "pin_slot_at_zero"
+args = { x = "@input.x" }
+
+[[catalog.operator_chain]]
+name = "leaf_reorient"
+summary = "reorient self-delegation: the atom is the Class-C primitive."
+returns = "int|float  # value if orientation >= 0 else -value"
+on_error = "raise"
+
+[[catalog.operator_chain.steps]]
+class = "C"
+op = "reorient"
+args = { value = "@input.value", orientation = "@input.orientation" }
+
+# ── chiral_dual with the body FIXED — shows the residue is precisely
+#    the op-valued parameter ────────────────────────────────────────
+# Descriptor operation = "chiral_flip(op(chiral_flip(x)))" where `op`
+# is a PARAMETER.  With op fixed to chiral_flip the 3-step chain below
+# is writable; the descriptor's actual contract (arbitrary op) is not,
+# because a step's `op` field is a static name (compose.py:398) and the
+# reference grammar has no @op namespace (compose.py:107).
+[[catalog.operator_chain]]
+name = "inv_chiral_dual_fixed_body"
+summary = "chiral_dual with body FIXED to chiral_flip: C.chiral_flip x3. Demonstrates the only irreducible residue is the op-valued parameter."
+returns = "sequence  # chiral_flip(chiral_flip(chiral_flip(x)))"
+on_error = "raise"
+
+[[catalog.operator_chain.steps]]
+class = "C"
+op = "chiral_flip"
+args = { seq = "@input.x" }
+
+[[catalog.operator_chain.steps]]
+class = "C"
+op = "chiral_flip"
+args = { seq = "@step[0].output" }
+
+[[catalog.operator_chain.steps]]
+class = "C"
+op = "chiral_flip"
+args = { seq = "@step[1].output" }
+
+# ── parallel_sector_dispatch — delegation with the body injected as a
+#    RUNTIME VALUE through @input ────────────────────────────────────
+# kind = "combinator".  The TOML cannot NAME a body op, but the arg
+# resolver will happily thread a CALLABLE passed as a runtime input.
+# This measures the exact boundary: op-as-value works at runtime;
+# op-as-descriptor-name does not exist in the schema.
+[[catalog.operator_chain]]
+name = "del_parallel_sector_dispatch"
+summary = "parallel_sector_dispatch 1-step delegation with body supplied as a runtime callable via @input.body (labelled: runtime injection, NOT descriptor-expressible)."
+returns = "dict  # sectors / combined / z4_dispatch_slots / ..."
+on_error = "raise"
+
+[[catalog.operator_chain.steps]]
+class = "C"
+op = "parallel_sector_dispatch"
+args = { body = "@input.body", x = "@input.x", combine = "sector0" }
+
+# ── encode_loe_content — 1-step delegation (override-only) ───────────
+# Home module is srmech.signal_processing.rbs_hdc_instrument, which no
+# A-N letter reaches.  The DECOMPOSITION (A mint -> A stride -> C
+# permute -> M bind) stops at two structural gaps recorded by the
+# script: mint_vector unreachable (BLK-REGMAP) and no registered
+# byte-slice/int-parse op for the stride (BLK-FRAMING).
+[[catalog.operator_chain]]
+name = "del_encode_loe_content"
+summary = "encode_loe_content 1-step delegation; resolvable only under an override registry pointing M at srmech.signal_processing.rbs_hdc_instrument (labelled see-past)."
+returns = "bytes  # D/8-byte fingerprint"
+on_error = "raise"
+
+[[catalog.operator_chain.steps]]
+class = "M"
+op = "encode_loe_content"
+args = { content = "@input.content" }

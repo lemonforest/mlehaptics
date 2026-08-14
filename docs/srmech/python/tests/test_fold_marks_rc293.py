@@ -1,4 +1,4 @@
-"""rc293 (#928 / F1258 / UPSTREAM_NOTES §106) — ``srmech.amsc.text.fold_marks``.
+"""rc293 (#928 / F1258 / UPSTREAM_NOTES §106) — ``srmech.math.text.fold_marks``.
 
 THE NAME IS PART OF THE CONTRACT, SO IT IS TESTED
 -------------------------------------------------
@@ -26,9 +26,9 @@ import unicodedata
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc import text as T
-from srmech.amsc import _unicode_fold_tables as fdt
+from srmech import _native
+from srmech.math import text as T
+from srmech.math import _unicode_fold_tables as fdt
 
 
 # ── the naming argument, as an executable claim ───────────────────────────
@@ -239,7 +239,7 @@ def test_rosetta_bucket_is_c_dispatched():
             if line:
                 r = json.loads(line)
                 rows[r["exposed_as"]] = r["bucket"]
-    assert rows.get("srmech.amsc.text.fold_marks") == "c_dispatched"
+    assert rows.get("srmech.math.text.fold_marks") == "c_dispatched"
 
 
 @pytest.mark.skipif(not _native.HAS_NATIVE, reason="no native lib loaded")
@@ -259,9 +259,9 @@ def test_the_c_peer_is_actually_REACHABLE_not_merely_exported():
 
 
 def test_registered_in_the_tool_schema():
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     entry = next((t for t in get_tool_schema().tools
-                  if t.name == "srmech.amsc.text.fold_marks"), None)
+                  if t.name == "srmech.math.text.fold_marks"), None)
     assert entry is not None, "fold_marks is not registered"
     assert entry.category == "text"
     assert [p.name for p in entry.parameters] == ["text"]

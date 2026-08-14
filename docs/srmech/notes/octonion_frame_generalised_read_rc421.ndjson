@@ -1,0 +1,19 @@
+{"n_frames": 7, "record": "probe", "x": [1, 2, 3, 5, 7, 11, 13, 17]}
+{"base_H": ["306", "34", "-26", "50"], "base_R": "-589", "bit_exact_vs_shipped_op": true, "ell": 4, "line": [1, 2, 3], "record": "q2_backcompat_cd_frame"}
+{"base_H": ["306", "34", "-26", "50"], "base_R": "-589", "ell": 4, "line": [1, 2, 3], "norm_sq": "667", "record": "frame_read"}
+{"base_H": ["-530", "-46", "-110", "222"], "base_R": "-317", "ell": 2, "line": [1, 4, 5], "norm_sq": "667", "record": "frame_read"}
+{"base_H": ["582", "50", "190", "-22"], "base_R": "259", "ell": 2, "line": [1, 6, 7], "norm_sq": "667", "record": "frame_read"}
+{"base_H": ["262", "-502", "282", "14"], "base_R": "-211", "ell": 1, "line": [2, 4, 6], "norm_sq": "667", "record": "frame_read"}
+{"base_H": ["-314", "546", "122", "-58"], "base_R": "173", "ell": 1, "line": [2, 5, 7], "norm_sq": "667", "record": "frame_read"}
+{"base_H": ["-562", "-178", "-182", "246"], "base_R": "61", "ell": 1, "line": [3, 4, 7], "norm_sq": "667", "record": "frame_read"}
+{"base_H": ["630", "206", "-62", "22"], "base_R": "-35", "ell": 1, "line": [3, 5, 6], "norm_sq": "667", "record": "frame_read"}
+{"distinct_reads": 7, "interpretation": "each frame is a GENUINELY DIFFERENT read of the same octonion; the shared norm_sq is the frame-independent scale", "n_frames": 7, "norm_sq": ["667"], "norm_sq_shared_across_all_frames": true, "record": "q1_frames_are_distinct"}
+{"ell": 4, "fiber_move_preserves_base_up_to_scale": true, "line": [1, 2, 3], "non_fiber_control_changes_base": true, "record": "q3_fiber_invariance"}
+{"ell": 2, "fiber_move_preserves_base_up_to_scale": true, "line": [1, 4, 5], "non_fiber_control_changes_base": true, "record": "q3_fiber_invariance"}
+{"ell": 2, "fiber_move_preserves_base_up_to_scale": true, "line": [1, 6, 7], "non_fiber_control_changes_base": true, "record": "q3_fiber_invariance"}
+{"ell": 1, "fiber_move_preserves_base_up_to_scale": true, "line": [2, 4, 6], "non_fiber_control_changes_base": true, "record": "q3_fiber_invariance"}
+{"ell": 1, "fiber_move_preserves_base_up_to_scale": true, "line": [2, 5, 7], "non_fiber_control_changes_base": true, "record": "q3_fiber_invariance"}
+{"ell": 1, "fiber_move_preserves_base_up_to_scale": true, "line": [3, 4, 7], "non_fiber_control_changes_base": true, "record": "q3_fiber_invariance"}
+{"ell": 1, "fiber_move_preserves_base_up_to_scale": true, "line": [3, 5, 6], "non_fiber_control_changes_base": true, "record": "q3_fiber_invariance"}
+{"all_frames_nontautological": true, "record": "q3_verdict"}
+{"q1_frames_distinct": true, "q2_backcompat_bit_exact": true, "q3_guard_survives": true, "record": "VERDICT", "ship": "YES - widen `frame=` to a Fano line; seven distinct reads, bit-exact back-compat at the CD frame, fiber guard intact"}

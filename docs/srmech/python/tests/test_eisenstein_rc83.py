@@ -1,4 +1,4 @@
-"""rc83 — ``srmech.amsc.eisenstein.Eisenstein``, the SECOND WEIGHT-axis carrier.
+"""rc83 — ``srmech.apokatastasis.eisenstein.Eisenstein``, the SECOND WEIGHT-axis carrier.
 
 The build gates (the no-shell proof; construction IS the answer, no search):
 
@@ -23,10 +23,10 @@ import tokenize
 
 import pytest
 
-from srmech.amsc.eisenstein import Eisenstein, eisenstein
-from srmech.amsc.eta_quotient import EtaQuotient
-from srmech.amsc.q import Q
-from srmech.amsc import _native
+from srmech.apokatastasis.eisenstein import Eisenstein, eisenstein
+from srmech.apokatastasis.eta_quotient import EtaQuotient
+from srmech.math.q import Q
+from srmech import _native
 
 
 # the verified oracle (hardcoded known coefficients — NOT the carrier itself)
@@ -201,7 +201,7 @@ def test_equality_and_prefactor():
 # ── gate (h): the carrier source is numpy / math / abs() free ────────────────
 def test_eisenstein_source_is_numpy_math_abs_free():
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    src = os.path.join(here, "srmech", "amsc", "eisenstein.py")
+    src = os.path.join(here, "srmech", "apokatastasis", "eisenstein.py")
     with tokenize.open(src) as fh:
         text = fh.read()
     assert "import numpy" not in text
@@ -213,10 +213,17 @@ def test_eisenstein_source_is_numpy_math_abs_free():
 # ── gate (i): a CARRIER — NO ToolEntry, tools.total UNCHANGED ─────────────────
 def test_eisenstein_is_a_carrier_no_tool_entry():
     """Eisenstein is a CARRIER (like Poly / EtaQuotient) → it registers NO
-    ToolEntry, so the shipped tool count is UNCHANGED at 342."""
-    from srmech.amsc.tool_schema import get_tool_schema
-    shipped = [t for t in get_tool_schema().tools if not t.name.startswith("test.")]
-    assert len(shipped) == 509
+    ToolEntry, so the shipped tool count is UNCHANGED by it.
+
+    (This read "UNCHANGED at 342" until rc410 (`#T1085`) — a present-tense
+    claim, stale by 200+ ops, sitting one line above the real assertion. The
+    point of the gate is that Eisenstein does not MOVE the count; the value
+    itself belongs in the assertion, not restated in prose where it rots.)"""
+    from srmech.introspect.tool_schema import get_tool_schema
+    # rc410 (`#T1085`): filter by OWNER, not by name-prefix — see
+    # tests/_profile_probe.py for why the prefix axis was the wrong question.
+    shipped = list(get_tool_schema().by_owner("srmech"))
+    assert len(shipped) == 655
     names = {t.name for t in shipped}
     assert not any("eisenstein" in nm for nm in names)
 

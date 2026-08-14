@@ -1,7 +1,7 @@
 /*
  * srmech_elliptic_recurrence.c -- the ELLIPTIC Sigma-row ORDER-1 RECURRENCE op for the
  * Frenkel-Turaev 8w7 summation (the C peer of
- * srmech.amsc.elliptic_recurrence.elliptic_recurrence_8w7). A 1:1 STRUCTURAL MIRROR of
+ * srmech.apokatastasis.elliptic_recurrence.elliptic_recurrence_8w7). A 1:1 STRUCTURAL MIRROR of
  * the pure-Python recognize-decompose-construct pipeline -- NOT a coefficient nullspace
  * solve (which is provably dead for the elliptic case; the anti-brute-force discipline).
  *

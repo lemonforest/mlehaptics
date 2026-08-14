@@ -1,6 +1,7 @@
 # ADR-0009: srmech is a multi-implementation codebase — the capability is the invariant, each implementation is a coherency projection
 
 **Status:** ✅ Accepted — **standing policy** (governs every rc, every op, every review).
+**Clauses:** unaudited.
 **Date:** 2026-07-19.
 **Authors:** Steven Kirkland + Claude Opus 4.8.
 **Supersedes:** none.
@@ -98,13 +99,13 @@ Each verified against the tree at v0.9.0rc280:
    independently in both trees."** The classification literally cannot say the thing this
    project wants said.
 
-   The live exhibit: `srmech.amsc.genome.amplify` is classified `composition_of_c`, a bucket
+   The live exhibit: `srmech.biology.genome.amplify` is classified `composition_of_c`, a bucket
    whose own docstring annotates it *"(standalone-ready)"*, while no `srmech_genome_amplify`
    symbol exists. The label is not a lie about the row's own definition — it is a true
    statement in a vocabulary that cannot distinguish "composes C parts" from "a C host can
    run this."
 
-   **The defect is not confined to `composition_of_c`.** `srmech.amsc.plasmid.section_counts`
+   **The defect is not confined to `composition_of_c`.** `srmech.biology.plasmid.section_counts`
    is classified **`c_dispatched`** — the *strongest* label the taxonomy has, "routes to a
    `srmech_*` C symbol (standalone-ready)" — and it does route to one. That C implementation
    also declines above ~11,000 sections against a 240,881-section corpus (§1.2). Both facts are

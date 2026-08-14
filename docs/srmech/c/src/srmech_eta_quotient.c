@@ -1,6 +1,6 @@
 /*
  * srmech_eta_quotient.c — the EXACT-INTEGER q-series of a DEDEKIND-ETA QUOTIENT
- * (the C peer of srmech.amsc.eta_quotient.EtaQuotient; a WEIGHT-axis operand
+ * (the C peer of srmech.apokatastasis.eta_quotient.EtaQuotient; a WEIGHT-axis operand
  * carrier).
  *
  * A Dedekind-eta quotient is
@@ -14,7 +14,7 @@
  * coefficients out[0..n_terms-1] of SUM_e c_e q^e. Each out[e] is a full
  * srmech_bigint (no int64 ceiling: the coefficients GROW -- e.g. the Ramanujan
  * tau -- so the magnitude has no compiled-in cap) and is byte-identical to the
- * Python srmech.amsc.eta_quotient.EtaQuotient q-series.
+ * Python srmech.apokatastasis.eta_quotient.EtaQuotient q-series.
  *
  * Anchors (the build gates):
  *   eta^24 = Delta : ds={1}, rs={24}        -> [1,-24,252,-1472,4830,-6048,-16744,..]

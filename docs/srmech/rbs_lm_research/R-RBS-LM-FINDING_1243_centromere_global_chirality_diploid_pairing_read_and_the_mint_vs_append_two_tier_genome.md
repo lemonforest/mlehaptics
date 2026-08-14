@@ -4,7 +4,7 @@
 
 ## 0. What our genome IS today (confirmed by introspection, srmech 0.9.0rc253)
 
-**Haploid, single-copy, telomere-capped, no centromere, no pairing.** `srmech.amsc.genome`: `genome(kernels=[(label, leaves)])` makes ONE chromosome per label; `chromosome(genes=[…])` puts several genes on ONE strand (F730) but still single-copy. Present: `telomere` / `active_telomere` / `telomere_tick` / senescence markers (the **ends**). **Absent:** `centromere`, and any `pair`/`diploid`/`homolog`/`allele`/`chromatid`. So biology's diploid pair (maternal + paternal homologs) and its interior anchor (centromere) are both unmodelled.
+**Haploid, single-copy, telomere-capped, no centromere, no pairing.** `srmech.biology.genome`: `genome(kernels=[(label, leaves)])` makes ONE chromosome per label; `chromosome(genes=[…])` puts several genes on ONE strand (F730) but still single-copy. Present: `telomere` / `active_telomere` / `telomere_tick` / senescence markers (the **ends**). **Absent:** `centromere`, and any `pair`/`diploid`/`homolog`/`allele`/`chromatid`. So biology's diploid pair (maternal + paternal homologs) and its interior anchor (centromere) are both unmodelled.
 
 ## 1. Centromere = GLOBAL orientation-chirality, cheaply — the two-level distinction
 

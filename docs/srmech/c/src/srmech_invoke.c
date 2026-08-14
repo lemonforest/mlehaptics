@@ -365,31 +365,31 @@ static srmech_status_t iv_call_uN(const char *nm, uint64_t x0, uint64_t x1,
 {
     assert(nm != NULL && r != NULL);
     assert(argc >= 1u && argc <= 3u);
-    if (argc == 2u && strcmp(nm, "srmech.amsc.cyclic.gcd") == 0) {
+    if (argc == 2u && strcmp(nm, "srmech.math.cyclic.gcd") == 0) {
         return srmech_gcd(x0, x1, r);
     }
-    if (argc == 2u && strcmp(nm, "srmech.amsc.cascade.cyclic_gcd") == 0) {
+    if (argc == 2u && strcmp(nm, "srmech.cascade.cyclic_gcd") == 0) {
         return srmech_cascade_cyclic_gcd_u64(x0, x1, r);
     }
-    if (argc == 2u && strcmp(nm, "srmech.amsc.cyclic.lcm") == 0) {
+    if (argc == 2u && strcmp(nm, "srmech.math.cyclic.lcm") == 0) {
         return srmech_lcm(x0, x1, r);
     }
-    if (argc == 3u && strcmp(nm, "srmech.amsc.cyclic.mod_add") == 0) {
+    if (argc == 3u && strcmp(nm, "srmech.math.cyclic.mod_add") == 0) {
         return srmech_mod_add(x0, x1, x2, r);
     }
-    if (argc == 3u && strcmp(nm, "srmech.amsc.cyclic.mod_mul") == 0) {
+    if (argc == 3u && strcmp(nm, "srmech.math.cyclic.mod_mul") == 0) {
         return srmech_mod_mul(x0, x1, x2, r);
     }
-    if (argc == 3u && strcmp(nm, "srmech.amsc.cyclic.mod_pow") == 0) {
+    if (argc == 3u && strcmp(nm, "srmech.math.cyclic.mod_pow") == 0) {
         return srmech_mod_pow(x0, x1, x2, r);
     }
-    if (argc == 2u && strcmp(nm, "srmech.amsc.cyclic.mod_inv") == 0) {
+    if (argc == 2u && strcmp(nm, "srmech.math.cyclic.mod_inv") == 0) {
         return srmech_mod_inv(x0, x1, r);
     }
-    if (argc == 1u && strcmp(nm, "srmech.amsc.cyclic.three_cycle") == 0) {
+    if (argc == 1u && strcmp(nm, "srmech.math.cyclic.three_cycle") == 0) {
         return srmech_three_cycle(x0, r);
     }
-    if (argc == 1u && strcmp(nm, "srmech.amsc.primes.next_prime") == 0) {
+    if (argc == 1u && strcmp(nm, "srmech.math.primes.next_prime") == 0) {
         return srmech_next_prime(x0, r);
     }
     return SRMECH_ERR_NOT_IMPL;
@@ -424,7 +424,7 @@ static srmech_status_t iv_shape_u_to_bool(const srmech_tool_entry_t *e,
     uint64_t n = 0u; bool r = false; srmech_status_t st;
     assert(e != NULL && argv != NULL && a != NULL && out != NULL);
     assert(argc >= 1u);
-    if (argc != 1u || strcmp(e->name, "srmech.amsc.primes.is_prime") != 0) {
+    if (argc != 1u || strcmp(e->name, "srmech.math.primes.is_prime") != 0) {
         return SRMECH_ERR_NOT_IMPL;
     }
     if (!iv_arg_u64(argv[0], &n)) { return SRMECH_ERR_NOT_IMPL; }
@@ -495,7 +495,7 @@ static srmech_status_t iv_shape_u_to_pair(const srmech_tool_entry_t *e,
      * iv_dispatch passes entry->param_count as argc, so BOTH arities are live
      * (3 = a pre-rc336 registry, 4 = current). */
     if ((argc != 3u && argc != 4u)
-        || strcmp(e->name, "srmech.amsc.rational.best_rational") != 0) {
+        || strcmp(e->name, "srmech.math.rational.best_rational") != 0) {
         return SRMECH_ERR_NOT_IMPL;
     }
     if (!iv_arg_u64(argv[0], &p) || !iv_arg_u64(argv[1], &q)
@@ -531,7 +531,7 @@ static srmech_status_t iv_shape_u_to_factor(const srmech_tool_entry_t *e,
     srmech_mval_t *lst; srmech_status_t st;
     assert(e != NULL && argv != NULL && a != NULL && out != NULL);
     assert(argc >= 1u);
-    if (argc != 1u || strcmp(e->name, "srmech.amsc.primes.factor") != 0) {
+    if (argc != 1u || strcmp(e->name, "srmech.math.primes.factor") != 0) {
         return SRMECH_ERR_NOT_IMPL;
     }
     if (!iv_arg_u64(argv[0], &n)) { return SRMECH_ERR_NOT_IMPL; }
@@ -586,7 +586,7 @@ static srmech_status_t iv_shape_to_bytes(const srmech_tool_entry_t *e,
     srmech_status_t st; uint32_t written = 0u;
     assert(e != NULL && argv != NULL && a != NULL && out != NULL);
     assert(argc >= 1u);
-    if (argc == 2u && strcmp(nm, "srmech.amsc.tlv.tlv_pack") == 0) {
+    if (argc == 2u && strcmp(nm, "srmech.math.tlv.tlv_pack") == 0) {
         if (!iv_arg_u64(argv[0], &tag) || tag > 255u) { return SRMECH_ERR_NOT_IMPL; }
         if (!iv_arg_bytes(argv[1], &pb, &lb)) { return SRMECH_ERR_NOT_IMPL; }
         ob = iv_carve(a, (size_t)lb + 5u);
@@ -594,7 +594,7 @@ static srmech_status_t iv_shape_to_bytes(const srmech_tool_entry_t *e,
         st = srmech_tlv_pack((uint8_t)tag, pb, lb, ob, lb + 5u, &written);
         if (st != SRMECH_OK) { return SRMECH_ERR_NOT_IMPL; }
         *out = iv_bytes(a, ob, written);
-    } else if (argc == 2u && strcmp(nm, "srmech.amsc.hdc.bind") == 0) {
+    } else if (argc == 2u && strcmp(nm, "srmech.math.hdc.bind") == 0) {
         if (!iv_arg_bytes(argv[0], &pa, &la) || !iv_arg_bytes(argv[1], &pb, &lb)) {
             return SRMECH_ERR_NOT_IMPL;
         }
@@ -604,7 +604,7 @@ static srmech_status_t iv_shape_to_bytes(const srmech_tool_entry_t *e,
         st = srmech_hdc_bind(pa, pb, la, ob);
         if (st != SRMECH_OK) { return SRMECH_ERR_NOT_IMPL; }
         *out = iv_bytes(a, ob, la);
-    } else if (argc == 2u && strcmp(nm, "srmech.amsc.hdc.permute") == 0) {
+    } else if (argc == 2u && strcmp(nm, "srmech.math.hdc.permute") == 0) {
         if (!iv_arg_bytes(argv[0], &pa, &la) || la == 0u) { return SRMECH_ERR_NOT_IMPL; }
         if (!iv_arg_u64(argv[1], &rot) || rot > (uint64_t)INT32_MAX) {
             return SRMECH_ERR_NOT_IMPL;
@@ -614,7 +614,7 @@ static srmech_status_t iv_shape_to_bytes(const srmech_tool_entry_t *e,
         st = srmech_hdc_permute(pa, la, (int32_t)rot, ob);
         if (st != SRMECH_OK) { return SRMECH_ERR_NOT_IMPL; }
         *out = iv_bytes(a, ob, la);
-    } else if (argc == 1u && strcmp(nm, "srmech.amsc.dispatch.mirror_pattern") == 0) {
+    } else if (argc == 1u && strcmp(nm, "srmech.math.dispatch.mirror_pattern") == 0) {
         if (!iv_arg_bytes(argv[0], &pa, &la) || la == 0u) { return SRMECH_ERR_NOT_IMPL; }
         ob = iv_carve(a, la);
         if (ob == NULL) { return SRMECH_ERR_OVERFLOW; }
@@ -644,17 +644,17 @@ static srmech_status_t iv_shape_bytes2_to_int(const srmech_tool_entry_t *e,
     if (!iv_arg_bytes(argv[0], &pa, &la) || !iv_arg_bytes(argv[1], &pb, &lb)) {
         return SRMECH_ERR_NOT_IMPL;
     }
-    if (strcmp(nm, "srmech.amsc.hdc.hamming") == 0) {
+    if (strcmp(nm, "srmech.math.hdc.hamming") == 0) {
         if (la == 0u || la != lb) { return SRMECH_ERR_NOT_IMPL; }
         st = srmech_hdc_hamming(pa, pb, la, &ham);
         if (st != SRMECH_OK) { return SRMECH_ERR_NOT_IMPL; }
         *out = iv_int(a, (int64_t)ham);
-    } else if (strcmp(nm, "srmech.amsc.search.byte_search") == 0) {
+    } else if (strcmp(nm, "srmech.math.search.byte_search") == 0) {
         st = srmech_byte_search(pa, la, pb, lb, &off);
         if (st != SRMECH_OK) { return SRMECH_ERR_NOT_IMPL; }
         *out = (off == 0xFFFFFFFFu) ? iv_new(a, SRMECH_MVAL_NONE)
                                     : iv_int(a, (int64_t)off);
-    } else if (strcmp(nm, "srmech.amsc.search.byte_search_backward") == 0) {
+    } else if (strcmp(nm, "srmech.math.search.byte_search_backward") == 0) {
         st = srmech_byte_search_backward(pa, la, pb, lb, &off);
         if (st != SRMECH_OK) { return SRMECH_ERR_NOT_IMPL; }
         *out = (off == 0xFFFFFFFFu) ? iv_new(a, SRMECH_MVAL_NONE)
@@ -822,13 +822,13 @@ static srmech_status_t iv_call_rat2(const char *nm, int64_t an, uint64_t ad,
 {
     assert(nm != NULL && rn != NULL && rd != NULL);
     assert(ad > 0u && bd > 0u);                     /* positive denominators (pre-guarded) */
-    if (strcmp(nm, "srmech.amsc.rational.rational_add") == 0) {
+    if (strcmp(nm, "srmech.math.rational.rational_add") == 0) {
         return srmech_rational_add(an, ad, bn, bd, rn, rd);
     }
-    if (strcmp(nm, "srmech.amsc.rational.rational_mul") == 0) {
+    if (strcmp(nm, "srmech.math.rational.rational_mul") == 0) {
         return srmech_rational_mul(an, ad, bn, bd, rn, rd);
     }
-    if (strcmp(nm, "srmech.amsc.rational.rational_div") == 0) {
+    if (strcmp(nm, "srmech.math.rational.rational_div") == 0) {
         return srmech_rational_div(an, ad, bn, bd, rn, rd);
     }
     return SRMECH_ERR_NOT_IMPL;
@@ -866,7 +866,7 @@ static srmech_status_t iv_shape_rat_pow(const srmech_tool_entry_t *e,
     assert(e != NULL && argv != NULL && a != NULL && out != NULL);
     assert(argc >= 1u);
     if (argc != 2u
-        || strcmp(e->name, "srmech.amsc.rational.rational_pow_uint") != 0) {
+        || strcmp(e->name, "srmech.math.rational.rational_pow_uint") != 0) {
         return SRMECH_ERR_NOT_IMPL;
     }
     if (!iv_arg_rat(argv[0], &bn, &bd) || !iv_arg_i64(argv[1], &exp)) {
@@ -891,7 +891,7 @@ static srmech_status_t iv_shape_cf(const srmech_tool_entry_t *e,
     assert(e != NULL && argv != NULL && a != NULL && out != NULL);
     assert(argc >= 1u);
     if (argc != 2u
-        || strcmp(e->name, "srmech.amsc.rational.continued_fraction") != 0) {
+        || strcmp(e->name, "srmech.math.rational.continued_fraction") != 0) {
         return SRMECH_ERR_NOT_IMPL;
     }
     if (!iv_arg_u64(argv[0], &p) || !iv_arg_u64(argv[1], &q)) { return SRMECH_ERR_NOT_IMPL; }
@@ -924,7 +924,7 @@ static srmech_status_t iv_shape_cf_convergents(const srmech_tool_entry_t *e,
     assert(e != NULL && argv != NULL && a != NULL && out != NULL);
     assert(argc >= 1u);
     if (argc != 1u
-        || strcmp(e->name, "srmech.amsc.rational.continued_fraction_convergents") != 0) {
+        || strcmp(e->name, "srmech.math.rational.continued_fraction_convergents") != 0) {
         return SRMECH_ERR_NOT_IMPL;
     }
     lin = argv[0];
@@ -969,7 +969,7 @@ static srmech_status_t iv_shape_cyclic_period(const srmech_tool_entry_t *e,
     uint64_t av = 0u, nv = 0u, mk = 0u, g = 0u, period = 0u; srmech_status_t st;
     assert(e != NULL && argv != NULL && a != NULL && out != NULL);
     assert(argc >= 1u);
-    if (argc != 3u || strcmp(e->name, "srmech.amsc.primes.cyclic_period") != 0) {
+    if (argc != 3u || strcmp(e->name, "srmech.math.primes.cyclic_period") != 0) {
         return SRMECH_ERR_NOT_IMPL;
     }
     if (!iv_arg_u64(argv[0], &av) || !iv_arg_u64(argv[1], &nv)) { return SRMECH_ERR_NOT_IMPL; }
@@ -995,7 +995,7 @@ static srmech_status_t iv_shape_bundle(const srmech_tool_entry_t *e,
     uint32_t n, nb, i; srmech_status_t st;
     assert(e != NULL && argv != NULL && a != NULL && out != NULL);
     assert(argc >= 1u);
-    if (argc != 1u || strcmp(e->name, "srmech.amsc.hdc.bundle") != 0) {
+    if (argc != 1u || strcmp(e->name, "srmech.math.hdc.bundle") != 0) {
         return SRMECH_ERR_NOT_IMPL;
     }
     lst = argv[0];
@@ -1081,7 +1081,7 @@ static srmech_status_t iv_shape_dispatch_match(const srmech_tool_entry_t *e,
     srmech_mval_t *tup, *bn, *tn; srmech_status_t st;
     assert(e != NULL && argv != NULL && a != NULL && out != NULL);
     assert(argc >= 1u);
-    if (argc != 2u || strcmp(e->name, "srmech.amsc.dispatch.match") != 0) {
+    if (argc != 2u || strcmp(e->name, "srmech.math.dispatch.match") != 0) {
         return SRMECH_ERR_NOT_IMPL;
     }
     if (!iv_arg_bytes(argv[0], &inp, &il)) { return SRMECH_ERR_NOT_IMPL; }
@@ -1115,7 +1115,7 @@ static srmech_status_t iv_shape_naming_lookup(const srmech_tool_entry_t *e,
     bool found = false; srmech_status_t st;
     assert(e != NULL && argv != NULL && a != NULL && out != NULL);
     assert(argc >= 1u);
-    if (argc != 2u || strcmp(e->name, "srmech.amsc.naming.lookup") != 0) {
+    if (argc != 2u || strcmp(e->name, "srmech.introspect.naming.lookup") != 0) {
         return SRMECH_ERR_NOT_IMPL;
     }
     if (!iv_arg_bytes(argv[0], &kp, &kl)) { return SRMECH_ERR_NOT_IMPL; }
@@ -1153,7 +1153,7 @@ static srmech_status_t iv_shape_template_render(const srmech_tool_entry_t *e,
     uint32_t tl = 0u, n, i, cap, vt = 0u, written = 0u; srmech_status_t st;
     assert(e != NULL && argv != NULL && a != NULL && out != NULL);
     assert(argc >= 1u);
-    if (argc != 2u || strcmp(e->name, "srmech.amsc.template.render") != 0) {
+    if (argc != 2u || strcmp(e->name, "srmech.math.template.render") != 0) {
         return SRMECH_ERR_NOT_IMPL;
     }
     if (!iv_arg_bytes(argv[0], &tp, &tl)) { return SRMECH_ERR_NOT_IMPL; }
@@ -1211,7 +1211,7 @@ static srmech_status_t iv_shape_mat_matmul(const srmech_tool_entry_t *e,
     srmech_status_t st;
     assert(e != NULL && argv != NULL && a != NULL && out != NULL);
     assert(argc >= 1u);
-    if (argc != 2u || strcmp(e->name, "srmech.amsc.laplacian.mat_matmul") != 0) {
+    if (argc != 2u || strcmp(e->name, "srmech.math.laplacian.mat_matmul") != 0) {
         return SRMECH_ERR_NOT_IMPL;
     }
     if (!iv_arg_mat(argv[0], &m, &k, &pa) || !iv_arg_mat(argv[1], &k2, &n, &pb)) {
@@ -1245,7 +1245,7 @@ static srmech_status_t iv_shape_mat_matvec(const srmech_tool_entry_t *e,
     srmech_mval_t *vec; srmech_status_t st;
     assert(e != NULL && argv != NULL && a != NULL && out != NULL);
     assert(argc >= 1u);
-    if (argc != 2u || strcmp(e->name, "srmech.amsc.laplacian.mat_matvec") != 0) {
+    if (argc != 2u || strcmp(e->name, "srmech.math.laplacian.mat_matvec") != 0) {
         return SRMECH_ERR_NOT_IMPL;
     }
     if (!iv_arg_mat(argv[0], &m, &k, &pm)) { return SRMECH_ERR_NOT_IMPL; }
@@ -1283,7 +1283,7 @@ static srmech_status_t iv_shape_mat_outer(const srmech_tool_entry_t *e,
     uint32_t an, bn, i, j; const double *pa, *pb; double *re;
     assert(e != NULL && argv != NULL && a != NULL && out != NULL);
     assert(argc >= 1u);
-    if (argc != 2u || strcmp(e->name, "srmech.amsc.laplacian.mat_outer") != 0) {
+    if (argc != 2u || strcmp(e->name, "srmech.math.laplacian.mat_outer") != 0) {
         return SRMECH_ERR_NOT_IMPL;
     }
     if (!iv_vec_reals(argv[0], a, &pa, &an)) { return SRMECH_ERR_NOT_IMPL; }
@@ -1319,7 +1319,7 @@ static srmech_status_t iv_shape_magnitude(const srmech_tool_entry_t *e,
     assert(e != NULL && argv != NULL && a != NULL && out != NULL);
     assert(argc >= 1u);
     if (argc != 1u || argv[0] == NULL
-        || strcmp(e->name, "srmech.amsc.cascade.magnitude") != 0) {
+        || strcmp(e->name, "srmech.cascade.magnitude") != 0) {
         return SRMECH_ERR_NOT_IMPL;
     }
     if (argv[0]->kind != SRMECH_MVAL_FLOAT) { return SRMECH_ERR_NOT_IMPL; }
@@ -1341,7 +1341,7 @@ static srmech_status_t iv_shape_pin_slot(const srmech_tool_entry_t *e,
     assert(e != NULL && argv != NULL && a != NULL && out != NULL);
     assert(argc >= 1u);
     if (argc != 1u || argv[0] == NULL
-        || strcmp(e->name, "srmech.amsc.cascade.pin_slot_at_zero") != 0) {
+        || strcmp(e->name, "srmech.cascade.pin_slot_at_zero") != 0) {
         return SRMECH_ERR_NOT_IMPL;
     }
     if (argv[0]->kind != SRMECH_MVAL_FLOAT) { return SRMECH_ERR_NOT_IMPL; }
@@ -1372,7 +1372,7 @@ static srmech_status_t iv_shape_net_chirality(const srmech_tool_entry_t *e,
     assert(e != NULL && argv != NULL && a != NULL && out != NULL);
     assert(argc >= 1u);
     if (argc != 1u || argv[0] == NULL
-        || strcmp(e->name, "srmech.amsc.cascade.net_chirality") != 0) {
+        || strcmp(e->name, "srmech.cascade.net_chirality") != 0) {
         return SRMECH_ERR_NOT_IMPL;
     }
     v = argv[0];
@@ -1404,48 +1404,48 @@ typedef srmech_status_t (*iv_thunk_t)(const srmech_tool_entry_t *,
 typedef struct { const char *name; iv_thunk_t thunk; } iv_vtable_row_t;
 
 static const iv_vtable_row_t IV_VTABLE[] = {
-    { "srmech.amsc.cyclic.gcd",              iv_shape_uN_to_u },
-    { "srmech.amsc.cyclic.lcm",              iv_shape_uN_to_u },
-    { "srmech.amsc.cyclic.mod_add",          iv_shape_uN_to_u },
-    { "srmech.amsc.cyclic.mod_mul",          iv_shape_uN_to_u },
-    { "srmech.amsc.cyclic.mod_pow",          iv_shape_uN_to_u },
-    { "srmech.amsc.cyclic.mod_inv",          iv_shape_uN_to_u },
-    { "srmech.amsc.cyclic.three_cycle",      iv_shape_uN_to_u },
-    { "srmech.amsc.cascade.cyclic_gcd",      iv_shape_uN_to_u },
-    { "srmech.amsc.primes.next_prime",       iv_shape_uN_to_u },
-    { "srmech.amsc.primes.is_prime",         iv_shape_u_to_bool },
-    { "srmech.amsc.rational.best_rational",  iv_shape_u_to_pair },
-    { "srmech.amsc.primes.factor",           iv_shape_u_to_factor },
+    { "srmech.math.cyclic.gcd",              iv_shape_uN_to_u },
+    { "srmech.math.cyclic.lcm",              iv_shape_uN_to_u },
+    { "srmech.math.cyclic.mod_add",          iv_shape_uN_to_u },
+    { "srmech.math.cyclic.mod_mul",          iv_shape_uN_to_u },
+    { "srmech.math.cyclic.mod_pow",          iv_shape_uN_to_u },
+    { "srmech.math.cyclic.mod_inv",          iv_shape_uN_to_u },
+    { "srmech.math.cyclic.three_cycle",      iv_shape_uN_to_u },
+    { "srmech.cascade.cyclic_gcd",      iv_shape_uN_to_u },
+    { "srmech.math.primes.next_prime",       iv_shape_uN_to_u },
+    { "srmech.math.primes.is_prime",         iv_shape_u_to_bool },
+    { "srmech.math.rational.best_rational",  iv_shape_u_to_pair },
+    { "srmech.math.primes.factor",           iv_shape_u_to_factor },
     { "srmech.amsc.format.sha256_bytes",     iv_shape_bytes_to_hex },
-    { "srmech.amsc.tlv.tlv_pack",            iv_shape_to_bytes },
-    { "srmech.amsc.hdc.bind",                iv_shape_to_bytes },
-    { "srmech.amsc.hdc.permute",             iv_shape_to_bytes },
-    { "srmech.amsc.dispatch.mirror_pattern", iv_shape_to_bytes },
-    { "srmech.amsc.hdc.hamming",             iv_shape_bytes2_to_int },
-    { "srmech.amsc.search.byte_search",      iv_shape_bytes2_to_int },
-    { "srmech.amsc.search.byte_search_backward", iv_shape_bytes2_to_int },
+    { "srmech.math.tlv.tlv_pack",            iv_shape_to_bytes },
+    { "srmech.math.hdc.bind",                iv_shape_to_bytes },
+    { "srmech.math.hdc.permute",             iv_shape_to_bytes },
+    { "srmech.math.dispatch.mirror_pattern", iv_shape_to_bytes },
+    { "srmech.math.hdc.hamming",             iv_shape_bytes2_to_int },
+    { "srmech.math.search.byte_search",      iv_shape_bytes2_to_int },
+    { "srmech.math.search.byte_search_backward", iv_shape_bytes2_to_int },
     /* rc189 CLEAN BATCH 2 */
-    { "srmech.amsc.rational.rational_add",   iv_shape_rat2_to_rat },
-    { "srmech.amsc.rational.rational_mul",   iv_shape_rat2_to_rat },
-    { "srmech.amsc.rational.rational_div",   iv_shape_rat2_to_rat },
-    { "srmech.amsc.rational.rational_pow_uint", iv_shape_rat_pow },
-    { "srmech.amsc.rational.continued_fraction", iv_shape_cf },
-    { "srmech.amsc.rational.continued_fraction_convergents", iv_shape_cf_convergents },
-    { "srmech.amsc.primes.cyclic_period",    iv_shape_cyclic_period },
-    { "srmech.amsc.hdc.bundle",              iv_shape_bundle },
+    { "srmech.math.rational.rational_add",   iv_shape_rat2_to_rat },
+    { "srmech.math.rational.rational_mul",   iv_shape_rat2_to_rat },
+    { "srmech.math.rational.rational_div",   iv_shape_rat2_to_rat },
+    { "srmech.math.rational.rational_pow_uint", iv_shape_rat_pow },
+    { "srmech.math.rational.continued_fraction", iv_shape_cf },
+    { "srmech.math.rational.continued_fraction_convergents", iv_shape_cf_convergents },
+    { "srmech.math.primes.cyclic_period",    iv_shape_cyclic_period },
+    { "srmech.math.hdc.bundle",              iv_shape_bundle },
     { "srmech.amsc.format.sha256_batch",     iv_shape_sha256_batch },
-    { "srmech.amsc.dispatch.match",          iv_shape_dispatch_match },
-    { "srmech.amsc.naming.lookup",           iv_shape_naming_lookup },
-    { "srmech.amsc.template.render",         iv_shape_template_render },
+    { "srmech.math.dispatch.match",          iv_shape_dispatch_match },
+    { "srmech.introspect.naming.lookup",     iv_shape_naming_lookup },
+    { "srmech.math.template.render",         iv_shape_template_render },
     /* rc190 FLOAT-CARRIER BATCH — Mat/Vec (real) via the dense kernel / a lone
      * multiply; the result serialises repr-exact via srmech_double_repr. */
-    { "srmech.amsc.laplacian.mat_matmul",    iv_shape_mat_matmul },
-    { "srmech.amsc.laplacian.mat_matvec",    iv_shape_mat_matvec },
-    { "srmech.amsc.laplacian.mat_outer",     iv_shape_mat_outer },
+    { "srmech.math.laplacian.mat_matmul",    iv_shape_mat_matmul },
+    { "srmech.math.laplacian.mat_matvec",    iv_shape_mat_matvec },
+    { "srmech.math.laplacian.mat_outer",     iv_shape_mat_outer },
     /* rc231 CASCADE-ATOM BATCH (#810) — scalar Class-K / Class-C atoms */
-    { "srmech.amsc.cascade.magnitude",       iv_shape_magnitude },
-    { "srmech.amsc.cascade.pin_slot_at_zero", iv_shape_pin_slot },
-    { "srmech.amsc.cascade.net_chirality",   iv_shape_net_chirality },
+    { "srmech.cascade.magnitude",       iv_shape_magnitude },
+    { "srmech.cascade.pin_slot_at_zero", iv_shape_pin_slot },
+    { "srmech.cascade.net_chirality",   iv_shape_net_chirality },
 };
 
 static iv_thunk_t iv_vtable_lookup(const char *name)

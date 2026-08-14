@@ -34,15 +34,14 @@ from __future__ import annotations
 
 import importlib.util
 import json
-from fractions import Fraction
 from pathlib import Path
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc.qalg import Qalg
-from srmech.amsc.cascade import matrix_cascades as mc
-from srmech.amsc.cascade.matrix_cascades import (
+from srmech import _native
+from srmech.math.qalg import Qalg
+from srmech.cascade import matrix_cascades as mc
+from srmech.cascade.matrix_cascades import (
     eigvec_exact,
     eigvec_exact_float,
 )
@@ -245,8 +244,8 @@ def test_rosetta_rows_are_c_dispatched():
     fixture = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
     rows = {json.loads(l)["defined_at"]: json.loads(l)["bucket"]
             for l in fixture.read_text(encoding="utf-8").splitlines() if l.strip()}
-    for op in ("srmech.amsc.cascade.matrix_cascades.eigvec_exact",
-               "srmech.amsc.cascade.matrix_cascades.eigvec_exact_float"):
+    for op in ("srmech.cascade.matrix_cascades.eigvec_exact",
+               "srmech.cascade.matrix_cascades.eigvec_exact_float"):
         assert rows[op] == "c_dispatched", (op, rows.get(op))
 
 
@@ -264,8 +263,3 @@ def test_reducible_m_raises_via_pure_fallback():
         _force(True, eigvec_exact, A, bad)       # C -> BAD_INPUT -> pure raises
     with pytest.raises(ValueError):
         _force(False, eigvec_exact, A, bad)
-
-
-def test_unused_fraction_import():
-    """Keep the Fraction import live (exact-rational substrate marker)."""
-    assert Fraction(3, 4) + Fraction(1, 4) == 1

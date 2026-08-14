@@ -3,7 +3,7 @@
  *
  * The winding w lifts SO -> Spin (the double cover). These are the exact
  * INTEGER readouts of the winding TRIAD carried WHOLE by
- * srmech.amsc.cascade.one.One. They do NOT touch the S(sigma,theta) adjoint
+ * srmech.cascade.one.One. They do NOT touch the S(sigma,theta) adjoint
  * generator (a separate owed-C item; the winding ops are independent of it).
  * Every op here is exact-integer -> BYTE-IDENTICAL to the Python (no float,
  * in contrast to the numeric srmech_eph_propagate).

@@ -40,9 +40,9 @@ import tokenize
 
 import pytest
 
-from srmech.amsc.riemann_theta import (RiemannTheta, RiemannThetaG3,
+from srmech.apokatastasis.riemann_theta import (RiemannTheta, RiemannThetaG3,
                                        _cyc_mul, _cyc_mul_py, _cyclotomic_ring)
-from srmech.amsc import _native
+from srmech import _native
 import srmech.introspect as introspect
 
 
@@ -130,7 +130,7 @@ def test_z_den_6_is_rational_z_den_7_is_not():
 def test_box_stability_g2_generic():
     """The exact LHS restricted to the box-2 safe region is identical computed at box 2 and
     box 3 (the safe inner region is box-stable) — so the gate's verdict is box-independent."""
-    from srmech.amsc.riemann_theta import _restrict_diag
+    from srmech.apokatastasis.riemann_theta import _restrict_diag
     t = RiemannTheta.theta_constant((0, 0), (1, 0))
     l2 = _restrict_diag(t.addition_at_lhs((1, 2), (3, 1), 7, 2), 16, 2)
     l3 = _restrict_diag(t.addition_at_lhs((1, 2), (3, 1), 7, 3), 16, 2)
@@ -170,7 +170,7 @@ def test_addition_holds_at_input_validation():
 
 # ── gate (4a): tools.total is UNCHANGED (a CARRIER verifier method, not a ToolEntry) ─
 def test_addition_holds_at_is_a_carrier_method_total_matches_live():
-    assert introspect.describe()["tools"]["total"] == 509
+    assert introspect.describe()["tools"]["total"] == 655
 
 
 # ── gate (4b): Python == C byte-exact parity for the cyclotomic-multiply kernel ──────
@@ -221,7 +221,7 @@ def test_rc88_source_is_numpy_math_abs_float_free():
     no ``float(`` in the carrier (the (−1)^{ε·α} sign is the Class-K pin-slot; the phase is
     the exact Class-I cyclic exponent over the cyclotomic ring)."""
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    src = os.path.join(here, "srmech", "amsc", "riemann_theta.py")
+    src = os.path.join(here, "srmech", "apokatastasis", "riemann_theta.py")
     with tokenize.open(src) as fh:
         text = fh.read()
     assert "import numpy" not in text

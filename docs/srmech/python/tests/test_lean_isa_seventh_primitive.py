@@ -1,14 +1,14 @@
 """Bit-exact acceptance tests for the lean-ISA seventh-primitive voxel.
 
 Per issue #761 (srmech MS#20 / F220 / R-RBS-LM-FINDING_220). The new
-``srmech.qm.triality.lean_isa_seventh_primitive`` presents the order-3
+``srmech.physics.qm.triality.lean_isa_seventh_primitive`` presents the order-3
 **triality** operator as the 7th lean-ISA primitive — making the
 chirality-complete A-N core explicit: **6 order-2 cascade.atoms + 1 order-3
 triality = 7**, the only access to the 3rd chiral axis.
 
 The tests prove the certificate:
 
-1. the 6 order-2 atoms are named + reference ``srmech.amsc.cascade.atoms``.
+1. the 6 order-2 atoms are named + reference ``srmech.cascade.atoms``.
 2. the order-3 7th primitive is the triality automorphism, with the order
    of ``τ`` EXACTLY 3 BIT-EXACT (``‖τ³ − I‖ ≈ 0``, ``τ ≠ I``, ``τ² ≠ I``).
 3. the F220 ``|G| = 8`` / no-order-3 / Lagrange (``3 ∤ 8``) certificate +
@@ -21,7 +21,7 @@ The tests prove the certificate:
    total after the rc6 parallel_sector_dispatch +1 ToolEntry).
 
 ALL deviations are reduced through the **scalar** Class K pin-slot magnitude
-(:func:`srmech.amsc.cascade.magnitude`) — NEVER Python ``abs()`` per
+(:func:`srmech.cascade.magnitude`) — NEVER Python ``abs()`` per
 ``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]``.
 
 HONESTY SPLIT (mirrors the so8 ``an_embedding`` discipline): the order of
@@ -31,7 +31,7 @@ is a documented framework-reading (surfaced only under the framework field),
 NOT labelled bit-exact derived.
 
 rc123 (numpy-free, #564): this test is itself numpy-FREE —
-``lean_isa_seventh_primitive``'s ``triality`` is a :class:`srmech.amsc.mat.Mat`;
+``lean_isa_seventh_primitive``'s ``triality`` is a :class:`srmech.math.mat.Mat`;
 matmuls / norms route through ``mat_matmul`` / ``mat_norm`` with no numpy
 oracle and no ``.to_numpy()`` (per
 ``[[feedback_test_for_numpy_free_module_must_itself_be_numpy_free]]``).
@@ -39,11 +39,11 @@ oracle and no ``.to_numpy()`` (per
 
 from __future__ import annotations
 
-from srmech.amsc.cascade import magnitude
-from srmech.amsc.laplacian import mat_matmul, mat_norm
-from srmech.amsc.mat import Mat
-from srmech.qm import triality
-from srmech.qm.triality import lean_isa_seventh_primitive
+from srmech.cascade import magnitude
+from srmech.math.laplacian import mat_matmul, mat_norm
+from srmech.math.mat import Mat
+from srmech.physics.qm import triality
+from srmech.physics.qm.triality import lean_isa_seventh_primitive
 
 _TOL = 1e-9
 _BIT_EXACT = 1e-10
@@ -95,15 +95,15 @@ def test_six_order_two_atoms_are_named():
 
 
 def test_atom_names_reference_cascade_atoms_module():
-    """Each named atom is a real callable in srmech.amsc.cascade.atoms."""
-    from srmech.amsc.cascade import atoms as cascade_atoms
+    """Each named atom is a real callable in srmech.cascade.atoms."""
+    from srmech.cascade import atoms as cascade_atoms
 
     for name in lean_isa_seventh_primitive()["order_two_atoms"]:
         assert hasattr(cascade_atoms, name)
         assert callable(getattr(cascade_atoms, name))
     # The framework reading points at the atoms module by name.
     reading = lean_isa_seventh_primitive()["framework_chirality_complete_reading"]
-    assert reading["atoms_module"] == "srmech.amsc.cascade.atoms"
+    assert reading["atoms_module"] == "srmech.cascade.atoms"
 
 
 # ----------------------------------------------------------------------
@@ -116,7 +116,7 @@ def test_seventh_primitive_is_triality_automorphism():
     result = lean_isa_seventh_primitive()
     assert (
         result["order_three_primitive"]
-        == "srmech.qm.triality.triality_automorphism"
+        == "srmech.physics.qm.triality.triality_automorphism"
     )
     tau = result["triality"]
     assert tau.shape == (28, 28)
@@ -274,15 +274,15 @@ def test_framework_reading_is_distinct_and_not_load_bearing():
 def test_introspect_tools_total_matches_live():
     import srmech.introspect as introspect
 
-    assert introspect.describe()["tools"]["total"] == 509
+    assert introspect.describe()["tools"]["total"] == 655
 
 
 def test_tool_entry_registered():
     """The new op is a registered ToolEntry in the qm.triality category."""
-    from srmech.amsc import tool_schema
+    from srmech.introspect import tool_schema
 
     schema = tool_schema.get_tool_schema()
-    name = "srmech.qm.triality.lean_isa_seventh_primitive"
+    name = "srmech.physics.qm.triality.lean_isa_seventh_primitive"
     entry = schema.lookup(name)
     assert entry is not None
     assert entry.name == name

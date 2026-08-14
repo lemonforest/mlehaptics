@@ -6,7 +6,7 @@ have radius of convergence 1. Before v0.7.5rc1 they silently returned a
 ``log1p(799/1)`` → blow-up). They now refuse the out-of-domain input loudly
 with a Class-N domain ``ValueError`` (the §15.1/§18 Class-K contract-error
 pattern). These exact-rational ops cannot range-reduce (π is irrational); the
-float projection :func:`srmech.amsc.rational.atan` IS band-reduced and stays
+float projection :func:`srmech.math.rational.atan` IS band-reduced and stays
 the path for ``|x| > 1``.
 """
 
@@ -16,7 +16,7 @@ import math
 
 import pytest
 
-from srmech.amsc import rational as r
+from srmech.math import rational as r
 
 
 # ---- in-domain still works (incl. the |x| = 1 conditional boundary) --------

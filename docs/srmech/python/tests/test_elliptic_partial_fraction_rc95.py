@@ -8,9 +8,9 @@ exact-ℚ sample points (the 1/θ(Y/Z) factor is load-bearing). numpy-free.
 
 import pytest
 
-from srmech.amsc.ellbase import EllMonomial as M, Theta
-from srmech.amsc.q import Q
-from srmech.amsc.elliptic_partial_fraction import elliptic_partial_fraction
+from srmech.apokatastasis.ellbase import EllMonomial as M, Theta
+from srmech.math.q import Q
+from srmech.apokatastasis.elliptic_partial_fraction import elliptic_partial_fraction
 
 _TRUNC = 20
 _ZV = [Q(2, 3), Q(5, 4), Q(9, 8), Q(7, 11)]

@@ -1,6 +1,6 @@
 """0.9.0rc19 — the ROTATION-LAST Chudnovsky π operator + its native dispatch.
 
-``srmech.amsc.rational.pi_chudnovsky_digits`` runs the Chudnovsky linear series
+``srmech.math.rational.pi_chudnovsky_digits`` runs the Chudnovsky linear series
 as an EXACT-integer body (arbitrary-precision ``int`` in Python; the caller-arena
 ``srmech_bigint`` in C) and performs the SINGLE continuous projection ONCE,
 terminally — the rotation-last cascade shape. The pure-Python body is BOTH the
@@ -14,8 +14,8 @@ silent drift in either cascade fails here.
 
 from __future__ import annotations
 
-from srmech.amsc import _native
-from srmech.amsc.rational import pi_cascade_digits, pi_chudnovsky_digits
+from srmech import _native
+from srmech.math.rational import pi_cascade_digits, pi_chudnovsky_digits
 
 import pytest
 

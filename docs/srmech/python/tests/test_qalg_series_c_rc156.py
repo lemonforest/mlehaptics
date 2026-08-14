@@ -2,10 +2,10 @@
 ``srmech_bigint``-backed C path — ``bignum_reference → c_dispatched``.
 
 The 5 exact-rational Taylor oracles
-``srmech.amsc.rational.{exp,sin,cos,log1p,atan}_series_truncate`` now dispatch to
+``srmech.math.rational.{exp,sin,cos,log1p,atan}_series_truncate`` now dispatch to
 the caller-arena ``srmech_bigint`` C peers
 ``srmech_{exp,sin,cos,log1p,atan}_series_truncate_big`` (byte-identical ``(num,
-den)`` at ANY magnitude — no int64/Q61 ceiling), and ``srmech.qm.bell.
+den)`` at ANY magnitude — no int64/Q61 ceiling), and ``srmech.physics.qm.bell.
 tsirelson_bound`` (2√2) reaches C because ``rational.sqrt``'s precision integer-
 sqrt path (``_integer_sqrt`` for ``n >= 2**128``) now dispatches to
 ``srmech_bigint_isqrt``.
@@ -31,9 +31,9 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc import rational as R
-from srmech.qm import bell
+from srmech import _native
+from srmech.math import rational as R
+from srmech.physics.qm import bell
 
 
 # (name, fn, max_terms) for the 5 series ops.
@@ -71,11 +71,64 @@ def test_native_symbols_present():
     assert _native.bigint_isqrt_c(2 ** 129) == R._py_isqrt(2 ** 129)
 
 
+#: rc357 (`#T980`) — a LITERAL per-op seed. This was
+#: ``0xC156 ^ hash(name) & 0xFFFF``, and ``hash(str)`` is PYTHONHASHSEED-salted.
+#: Nothing pins that seed: CI runs ``pytest tests/ -q -n auto --forked
+#: -p no:randomly`` (``.github/workflows/srmech-ci.yml:743``), and
+#: ``-p no:randomly`` disables the one plugin that would have set it. So the 120
+#: draws below were a FRESH RANDOM SAMPLE in every process — this was never a
+#: fixed-seed test. The consequence is not merely academic: a red run could not
+#: be reproduced from its own failure report, which is the whole "same commit,
+#: red then green" signature. Measured before the fix: PYTHONHASHSEED=21 →
+#: 8/8 SIGABRT, PYTHONHASHSEED=22 → 8/8 pass. Deterministic per seed, a lottery
+#: across seeds. These literals keep the per-op stream distinct while making
+#: every failure replayable from the test id alone.
+_SERIES_SEED = {
+    "exp": 0xC156, "sin": 0xC157, "cos": 0xC158, "log1p": 0xC159, "atan": 0xC15A,
+}
+
+#: rc357 (`#T980`) — the exp inputs that ABORTED an asserts-live build at
+#: ``c/src/srmech_rational.c:121``, pinned so they run in EVERY process instead
+#: of ~6% of them. For these the common-denominator term
+#: ``|p|^k · q^(N−k) · (N!/k!)`` lands in ``(INT64_MAX, UINT64_MAX]``: it fits
+#: u64, so every ``exp_series_mul_u64`` overflow check passes, but it exceeds
+#: i64 — which is the in-contract "too big for the int64 tier, fall through to
+#: bignum" signal (``srmech/math/rational.py:505``). The old assert stated the
+#: NEGATION of that supported outcome ABOVE the guard that returns it, so an
+#: asserts-live build called ``abort()`` on a supported input while NDEBUG
+#: returned the correct answer — one projection right, the other killing the
+#: host. Randomness found these only by luck; as pins they are checked always.
+_EXP_ASSERT_ABORT_PINS = [(-40, 1, 12), (-28, 1, 16), (-32, 25, 14), (34, 32, 9)]
+
+
+@pytest.mark.skipif(not _native.HAS_NATIVE, reason="native lib not loaded")
+@pytest.mark.parametrize("num,den,terms", _EXP_ASSERT_ABORT_PINS)
+def test_exp_int64_overflow_band_is_recoverable_not_abort(num, den, terms):
+    """An int64-overflowing exp term is a RESULT, not a crash (`#T980`).
+
+    On an asserts-live build this aborted the interpreter (SIGABRT, exit 134)
+    before rc357 moved the assert below its guard. It therefore fails LOUDLY
+    and by name if the assert is ever hoisted back above the recoverable path.
+    """
+    saved = _native.HAS_NATIVE
+    try:
+        _native.HAS_NATIVE = True
+        nat = R.exp_series_truncate(num, den, terms)
+        _native.HAS_NATIVE = False
+        pure = R.exp_series_truncate(num, den, terms)
+    finally:
+        _native.HAS_NATIVE = saved
+    # The C tier signals OVERFLOW and the wrapper completes on the bignum path,
+    # so the native answer must still be byte-identical to the pure one.
+    assert nat == pure, (num, den, terms, nat, pure)
+    assert nat[1] > 0
+
+
 @pytest.mark.skipif(not _native.HAS_NATIVE, reason="native lib not loaded")
 @pytest.mark.parametrize("name,fn,max_terms", _SERIES)
 def test_series_native_equals_pure_byte_identical(name, fn, max_terms):
     """native == FORCED-PURE EXACT (num, den) across a range of inputs."""
-    rng = random.Random(0xC156 ^ hash(name) & 0xFFFF)
+    rng = random.Random(_SERIES_SEED[name])
     saved = _native.HAS_NATIVE
     try:
         for _ in range(120):
@@ -183,11 +236,11 @@ def test_ledger_rows_are_c_dispatched():
     rows = {json.loads(l)["defined_at"]: json.loads(l)["bucket"]
             for l in fixture.read_text(encoding="utf-8").splitlines() if l.strip()}
     for da in (
-        "srmech.amsc.rational.exp_series_truncate",
-        "srmech.amsc.rational.sin_series_truncate",
-        "srmech.amsc.rational.cos_series_truncate",
-        "srmech.amsc.rational.log1p_series_truncate",
-        "srmech.amsc.rational.atan_series_truncate",
-        "srmech.qm.bell.tsirelson_bound",
+        "srmech.math.rational.exp_series_truncate",
+        "srmech.math.rational.sin_series_truncate",
+        "srmech.math.rational.cos_series_truncate",
+        "srmech.math.rational.log1p_series_truncate",
+        "srmech.math.rational.atan_series_truncate",
+        "srmech.physics.qm.bell.tsirelson_bound",
     ):
         assert rows.get(da) == "c_dispatched", (da, rows.get(da))

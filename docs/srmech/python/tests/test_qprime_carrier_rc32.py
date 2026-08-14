@@ -22,9 +22,10 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc import cyclic, harmonics, primes
-from srmech.amsc.q import Q
-from srmech.amsc.qprime import Qprime
+from srmech.math import cyclic, primes
+from srmech.music import harmonics
+from srmech.math.q import Q
+from srmech.math.qprime import Qprime
 
 
 # ── the 200-pair deterministic exact battery ──────────────────────────────

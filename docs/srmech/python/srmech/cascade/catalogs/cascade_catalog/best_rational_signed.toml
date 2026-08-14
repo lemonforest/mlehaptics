@@ -1,0 +1,198 @@
+# Cascade catalog entry: best_rational_signed
+# v0.4.5rc7 of the cascade-catalog C-parity + TOML retrofit — op 7 of 8.
+# Multi-class K∘N∘C cascade with delegation to the Class N primitive.
+
+[cascade]
+name = "best_rational_signed"
+class_composition = "K∘N∘C"
+purpose = "Float → signed small-denominator rational via Class K ∘ N ∘ C cascade."
+description = """
+Three-stage cascade composing the three sign-handling A–N classes:
+- Class K: pin_slot_at_zero strips the orientation (sign-flip IS the
+  canonical Class K phase-boundary per
+  [[user_stance_epicycle_via_gear_plus_pin]]; the inline branch
+  mirrors srmech_cascade_pin_slot_at_zero_f64 exactly).
+- Class N: best_rational anchors the non-negative magnitude (delegates
+  to the existing Class N primitive srmech.math.rational.best_rational
+  / srmech_best_rational).
+- Class C: reorient re-applies the orientation to the numerator
+  (mirrors srmech_cascade_reorient_i64 semantics; negate iff
+  orientation < 0).
+
+The cascade-honest replacement for ad-hoc float-to-rational routines
+that scatter abs() and sign flips through their internals per
+[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]. The dead-
+band at 1e-12 matches the canonical Class K phase-boundary; NaN and
+origin both map to (0, 1).
+
+Banker's-rounding parity: the C peer uses a LIBM-FREE round-half-to-
+even branch (v0.9.0rc210; formerly llrint() under the default IEEE-754
+FE_TONEAREST mode — byte-identical on the fed range 0 <= v < 2^63),
+which matches Python's built-in round() at the .5 boundary bit-exactly.
+C99 round() would diverge (round-half-AWAY-from-zero); the cascade
+wrapper deliberately avoids it for parity discipline. Products >= 2^63
+overflow the int64 ABI: the C peer returns SRMECH_ERR_BAD_INPUT and the
+Python dispatch falls through to the Python reference path.
+"""
+
+[cascade.signature]
+input = "float (+ kwarg int max_denominator >= 1, kwarg int fine_scale >= 1)"
+output = "tuple[int, int] — (signed_numerator, positive_denominator)"
+operation = "pin_slot_at_zero -> best_rational(round(magnitude * fine_scale), fine_scale, max_denominator) -> reorient"
+dead_band = 1e-12
+nan_maps_to = "(0, 1)"
+origin_maps_to = "(0, 1)"
+sub_dead_band_maps_to = "(0, 1)"
+
+[cascade.native]
+c_symbol_f64 = "srmech_cascade_best_rational_signed_f64"
+abi_version = 2
+
+[cascade.composes]
+# The cascade composes three A–N stages. Two are inlined (Class K and
+# Class C are trivial — one comparison branch + one sign flip each);
+# the load-bearing Class N stage delegates to the existing primitive.
+class_k_stage = "inline pin_slot_at_zero (positive/negative/else branch; NaN falls through to the dead-band)"
+class_n_stage = "delegate to srmech_best_rational (continued-fraction convergent under small-denominator ceiling)"
+class_c_stage = "inline reorient (negate numerator iff orientation < 0)"
+
+[cascade.delegates_to]
+# The cascade composes 3 A–N stages; the C peer delegates the LOAD-
+# BEARING Class N stage to the existing primitive symbol and inlines
+# the trivial Class K + Class C stages.
+class_n_primitive_c_symbol = "srmech_best_rational"
+class_n_python = "srmech.math.rational.best_rational"
+class_k_inline = "if x > 0: (+1, x); elif x < 0: (-1, -x); else: (0, 0)"
+class_c_inline = "if orientation < 0: -nf else: nf"
+rationale = """
+The cascade-catalog wrapper composes three A–N stages: the Class N
+stage carries the math (continued-fraction convergent under the small-
+denominator ceiling) and delegates to the existing primitive
+srmech_best_rational. The Class K (sign-strip) and Class C (sign-re-
+apply) stages are trivial single-branch / single-flip operations
+inlined in the C peer to avoid the cost of two additional indirect
+calls to srmech_cascade_pin_slot_at_zero_f64 and
+srmech_cascade_reorient_i64. Inlined-vs-delegated is an
+implementation detail; semantically the cascade is still the full
+K∘N∘C composition.
+
+This is the SECOND of the delegating cascade ops in the v0.4.5rcN arc
+(after cyclic_gcd / rc6 which was pure delegation to a single Class I
+primitive). rc7's multi-class K∘N∘C delegation pattern generalises rc6's
+single-class delegation pattern to the multi-stage case.
+"""
+
+[cascade.rounding]
+# Banker's rounding parity. Python's built-in round() uses round-half-
+# to-even (banker's rounding) under PEP 3141 semantics; C99 round()
+# uses round-half-AWAY-from-zero. These diverge at the .5 boundary —
+# e.g. round(0.5) == 0 in Python (banker's), round(0.5) == 1 in C99.
+# The cascade C peer uses the LIBM-FREE Class-K/N round-half-to-even
+# branch _cascade_brs_round_half_even (v0.9.0rc210; formerly llrint()
+# under the default IEEE-754 FE_TONEAREST mode, which llrint delegated
+# to the FPU — the branch is byte-identical to it across the fed range
+# 0 <= v < 2^63) for bit-exact parity with Python's round() at the .5
+# boundary, with no libm import left in libsrmech.
+mode = "banker's rounding (round-half-to-even)"
+c_function = "_cascade_brs_round_half_even (static, libm-free; formerly llrint)"
+c_fenv_mode = "independent of fenv (v0.9.0rc210); matches the FE_TONEAREST default llrint relied on"
+why_not_c99_round = "C99 round() is round-half-AWAY-from-zero, diverges from Python's round() at the .5 boundary"
+
+[cascade.boundary_cases]
+origin = "x == 0 (also -0.0) -> (0, 1) via Class K dead-band"
+nan = "float('nan') -> (0, 1) via Class K dead-band (both `x > 0` and `x < 0` evaluate false for NaN under IEEE-754)"
+sub_dead_band = "|x| < 1e-12 -> (0, 1) via Class K _ZERO_BAND"
+negative_input = "negative x -> orientation = -1; Class N anchors |x|; Class C re-applies negation to numerator"
+boundary_half = "magnitude * fine_scale landing exactly on .5 -> banker's-rounded to the nearest even (libm-free C branch = Python round(); formerly llrint's FE_TONEAREST default)"
+invalid_kwargs = "max_denominator < 1 or fine_scale < 1 -> ValueError raised at Python dispatch layer; native path skipped"
+larger_than_int64_kwargs = "max_denominator or fine_scale > INT64_MAX -> native path skipped; Python bignum path handles via srmech.math.rational.best_rational"
+bool_kwargs = "isinstance(True, int) is True but type(True) is bool — native rejects via `type(x) is int` (bool subclass check); Python ref accepts (True coerces to 1, False to 0 which triggers the >= 1 guard)"
+
+[cascade.attestation]
+author = "Steven Kirkland"
+license = "MIT"
+parser_version = "srmech-cascade 0.4.5rc7"
+canonical_landings = [
+  "Khinchin (1964), Continued Fractions — Class N best-rational primitive attestation",
+  "Euclid, Elements VII.1-2 — Class I gcd (underlies the Class N best-rational continued-fraction recurrence)",
+  "feedback_sign_handling_is_class_k_pin_slot_not_alu_abs — no abs() inside cascade scripts; sign is Class K pin-slot + Class C re-orientation",
+  "user_stance_epicycle_via_gear_plus_pin — sign-flip IS the canonical Class K phase-boundary",
+  "Python Language Reference §6.13 (built-in round()) — banker's-rounding semantics the C peer matches via its libm-free round-half-to-even branch (formerly llrint() / FE_TONEAREST)",
+  "IEEE 754-2008 §4.3.1 — roundTiesToEven (the FE_TONEAREST default mode)",
+]
+
+# ── rc420 (`#T1114`): the EXECUTABLE chain — ADR-0008 §2 (schema v2).
+# The rung-1/rung-3 5-step chain (219/219 bit-identical with external stubs)
+# with its two stubs now REGISTERED (scale_round_half_even — BLK-N-SCALE-ROUND;
+# pair — BLK-FRAMING), PLUS the Class-K dead_band step the naive chain lacked:
+# measured at rc420, without it the chain diverges from the shipped op in the
+# (sub-dead-band magnitude x huge fine_scale x huge max_denominator) corner —
+# the shipped _ZERO_BAND branch is real, so the declared chain carries it.
+[[cascade.chain]]
+chain_schema_version = 2
+summary = "The full K∘N∘C cascade as steps: pin-slot -> dead-band -> banker's scale-round -> best_rational -> reorient -> pair."
+returns = "tuple[int, int]  # (signed_numerator, positive_denominator)"
+
+[[cascade.chain.steps]]
+class = "K"
+op = "srmech.cascade.atoms.pin_slot_at_zero"
+args = { x = "@input.x" }
+
+[[cascade.chain.steps]]
+class = "K"
+op = "srmech.cascade.leaves.dead_band"
+args = { value = "@step[0].output[1]", band = 1e-12 }
+
+[[cascade.chain.steps]]
+class = "N"
+op = "scale_round_half_even"
+args = { value = "@step[1].output", scale = "@input.fine_scale" }
+
+[[cascade.chain.steps]]
+class = "N"
+op = "best_rational"
+args = { numerator = "@step[2].output", denominator = "@input.fine_scale", max_denominator = "@input.max_denominator" }
+
+[[cascade.chain.steps]]
+class = "C"
+op = "srmech.cascade.atoms.reorient"
+args = { value = "@step[3].output[0]", orientation = "@step[0].output[0]" }
+
+[[cascade.chain.steps]]
+class = "B"
+op = "srmech.cascade.leaves.pair"
+args = { first = "@step[4].output", second = "@step[3].output[1]" }
+
+[[cascade.chain.proof_cases]]
+covers = "sweep"
+inputs = { x = 3.14159265358979, fine_scale = 1000000, max_denominator = 100 }
+[[cascade.chain.proof_cases]]
+covers = "negative_input"
+inputs = { x = -3.14159265358979, fine_scale = 1000000, max_denominator = 100 }
+[[cascade.chain.proof_cases]]
+covers = "origin"
+inputs = { x = 0.0, fine_scale = 1000000, max_denominator = 100 }
+[[cascade.chain.proof_cases]]
+covers = "origin"
+inputs = { x = -0.0, fine_scale = 1000000, max_denominator = 100 }
+[[cascade.chain.proof_cases]]
+covers = "nan"
+inputs = { x = nan, fine_scale = 1000000, max_denominator = 100 }
+[[cascade.chain.proof_cases]]
+covers = "sub_dead_band"
+inputs = { x = 5e-13, fine_scale = 1000000, max_denominator = 100 }
+[[cascade.chain.proof_cases]]
+covers = "sub_dead_band"
+# The rc420 dead-band corner: fine_scale + max_denominator large enough that
+# a chain WITHOUT the Class-K dead_band step would return (1, 2000000000000)
+# where the shipped op's _ZERO_BAND branch returns (0, 1).
+inputs = { x = 5e-13, fine_scale = 10000000000000, max_denominator = 1000000000000 }
+[[cascade.chain.proof_cases]]
+covers = "boundary_half"
+inputs = { x = 5e-7, fine_scale = 1000000, max_denominator = 100 }
+[[cascade.chain.proof_cases]]
+covers = "boundary_half"
+inputs = { x = 1.5e-6, fine_scale = 1000000, max_denominator = 100 }
+[[cascade.chain.proof_cases]]
+covers = "sweep"
+inputs = { x = -0.6180339887498949, fine_scale = 1000000, max_denominator = 50 }

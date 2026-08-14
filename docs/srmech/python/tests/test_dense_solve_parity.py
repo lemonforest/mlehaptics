@@ -1,4 +1,4 @@
-"""v0.7.1rc3 — ``srmech.amsc.laplacian.dense_solve`` (#897 §26).
+"""v0.7.1rc3 — ``srmech.math.laplacian.dense_solve`` (#897 §26).
 
 The reusable Class-L dense linear solve ``A · X = B`` the Schur-complement /
 DtN float path composes over. Tests two things:
@@ -20,8 +20,9 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc import _native, laplacian  # noqa: F401
-from srmech.amsc.laplacian import dense_solve, schur_complement
+from srmech import _native
+from srmech.math import laplacian  # noqa: F401
+from srmech.math.laplacian import dense_solve, schur_complement
 
 # Native available AND the additive rc3 symbol present (a stale ABI-3 lib
 # built before this rc lacks it — hasattr-guarded everywhere).
@@ -125,7 +126,7 @@ def test_dense_solve_float_matches_exact():
 def test_dense_solve_vector_rhs_shape():
     """A 1-D RHS yields a 1-D ``Vec`` carrier of the right length (rc131 carrier-
     format law — NOT a bare list); values match exact."""
-    from srmech.amsc.vec import Vec
+    from srmech.math.vec import Vec
     A = [[3.0, 1.0], [1.0, 2.0]]
     b = [9.0, 8.0]
     x = dense_solve(A, b)

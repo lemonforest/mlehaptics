@@ -8,7 +8,7 @@ read, exact WHEN the fold has capacity, honest-``unrecovered`` below the
 the exact complement (the generating decimation ``R``) — the field–excitation
 recoverability principle: a lossy projection is recoverable iff you attach the
 exact complement it dropped. The pair MIRRORS
-``srmech.amsc.harmonic_maass.HarmonicMaass(hol, shadow)`` (rc71):
+``srmech.apokatastasis.harmonic_maass.HarmonicMaass(hol, shadow)`` (rc71):
 ``lossy_bundle ↔ hol``, ``exact_seed_R ↔ shadow`` — "storing R IS storing the
 recovery" (as "storing the shadow IS storing the completion").
 
@@ -45,9 +45,9 @@ import tokenize
 
 import pytest
 
-from srmech.amsc import coupling
-from srmech.amsc import op_provenance
-from srmech.amsc.coupling import (
+from srmech.biology import coupling
+from srmech.introspect import op_provenance
+from srmech.biology.coupling import (
     RecoverableFold,
     fold_encode,
     fold_encode_recoverable,
@@ -55,8 +55,8 @@ from srmech.amsc.coupling import (
     fold_spectrum,
     fractal_spectrum,
 )
-from srmech.amsc.poly import Poly
-from srmech.amsc.q import Q
+from srmech.math.poly import Poly
+from srmech.math.q import Q
 
 # The Sierpinski gasket decimation R(z)=z(5−4z): 4 bound pairs → capacity floor
 # 4·4 = 16, so dim=8 is BELOW it (the rc124 bare read fails there).
@@ -261,14 +261,14 @@ def test_lossy_projection_record_shape():
     projection_kind='hdc' (the genuine non-asymptotic kind — never a faked
     interior/edge tower), leaves_exact True, a 64-hex chain hash."""
     rec = op_provenance.lossy_projection_record(
-        "srmech.amsc.coupling.fold_encode",
+        "srmech.biology.coupling.fold_encode",
         {"R": [Q(0, 1), Q(5, 1), Q(-4, 1)], "branches": 3},
     )
     assert rec["family"] is None
     assert rec["rung"] == {}
     assert rec["projection_kind"] == "hdc"
     assert rec["leaves_exact"] is True
-    assert rec["op"] == "srmech.amsc.coupling.fold_encode"
+    assert rec["op"] == "srmech.biology.coupling.fold_encode"
     assert isinstance(rec["chain_sha256"], str) and len(rec["chain_sha256"]) == 64
     # re-verify: the hash is op_provenance_hash of the record (excl. chain field)
     assert op_provenance.op_provenance_hash(rec) == rec["chain_sha256"]
@@ -279,7 +279,7 @@ def test_lossy_projection_record_hash_agrees_with_fold_identity():
     over (R.coeffs, branches)."""
     rf = fold_encode_recoverable(_GASKET, 3, dim=64)
     rec = op_provenance.lossy_projection_record(
-        "srmech.amsc.coupling.fold_encode",
+        "srmech.biology.coupling.fold_encode",
         {"R": list(Poly.from_coeffs(_GASKET).coeffs), "branches": 3},
     )
     assert rf.identity() == rec["chain_sha256"]
@@ -299,17 +299,46 @@ def test_lossy_projection_record_validates():
 # ─────────────────────────────────────────────────────────────────────
 def test_tools_total_matches_live():
     from srmech import introspect
-    assert introspect.describe()["tools"]["total"] == 509
+    assert introspect.describe()["tools"]["total"] == 655
 
 
-def test_new_ops_registered_fold_identity_exempt():
-    from srmech.amsc import tool_schema
+def test_all_three_ops_are_registered_including_fold_identity():
+    """rc414 (`#T1092`) — this test was named
+    ``test_new_ops_registered_fold_identity_exempt`` and its final clause
+    asserted ``schema.lookup("...fold_identity") is None``, i.e. it PINNED THE
+    ABSENCE as intended. The stated warrant was that "its RecoverableFold
+    operands cannot ride JSON".
+
+    **The exemption itself was the defect, and the warrant was false.** A
+    ``RecoverableFold`` is fully determined by its four generating inputs
+    ``(R, branches, dim, seed)`` — which is exactly what
+    ``RecoverableFold.identity()`` hashes — so it rides JSON perfectly well as
+    ``{"R": <Poly form>, "branches": int, "dim": int, "seed": int}`` and is
+    rebuilt through the op family's own ``fold_encode_recoverable``. rc414 adds
+    that coercer and registers the op.
+
+    The cost of the exemption was not hypothetical. ``fold_identity`` was
+    shipped, ``coupling.__all__``-exported and named in ``RecoverableFold``'s
+    own class docstring, but invisible to ``describe()``, to the MCP tool list
+    and to every registry-driven census — and a research leg reading this module
+    concluded ``RecoverableFold`` "cannot be gated" while its purpose-built
+    three-valued gate sat 215 lines below the line being read. For an LLM
+    consumer, an op absent from introspection is an op that does not exist.
+
+    What the original test was really protecting is KEPT and is now applied to
+    all three ops rather than two: every op this rc-line added is registered,
+    srmech-owned, correctly categorised, and has a real inbound coercer for
+    every declared param type — that last clause being the one that would have
+    caught the exemption's warrant, had it been applied.
+    """
+    from srmech.introspect import tool_schema
     from srmech.mcp._coercion import has_coercer
 
     schema = tool_schema.get_tool_schema()
     for name, cat in (
-        ("srmech.amsc.coupling.fold_encode_recoverable", "coupling"),
-        ("srmech.amsc.op_provenance.lossy_projection_record", "op_provenance"),
+        ("srmech.biology.coupling.fold_encode_recoverable", "coupling"),
+        ("srmech.biology.coupling.fold_identity", "coupling"),
+        ("srmech.introspect.op_provenance.lossy_projection_record", "op_provenance"),
     ):
         entry = schema.lookup(name)
         assert entry is not None, f"{name} not registered"
@@ -318,13 +347,27 @@ def test_new_ops_registered_fold_identity_exempt():
         for p in entry.parameters:
             assert has_coercer(p.type), f"{name}:{p.name} type {p.type!r} uncoercible"
 
-    # fold_identity is EXEMPT (its RecoverableFold operands cannot ride JSON) —
-    # a public + tested verdict op, NOT an MCP ToolEntry.
-    assert schema.lookup("srmech.amsc.coupling.fold_identity") is None
     assert hasattr(coupling, "fold_identity")
 
-    enc = schema.lookup("srmech.amsc.coupling.fold_encode_recoverable")
+    enc = schema.lookup("srmech.biology.coupling.fold_encode_recoverable")
     assert {p.name: p.type for p in enc.parameters}["R"] == "Poly"
+
+    # The claim that replaced the exemption, asserted rather than described:
+    # a RecoverableFold DOES ride JSON, and the round trip preserves IDENTITY
+    # (which is the only property that matters here — the carrier has no
+    # __eq__, so `==` is object identity and would answer False regardless).
+    fid = schema.lookup("srmech.biology.coupling.fold_identity")
+    assert {p.name: p.type for p in fid.parameters} == {
+        "a": "RecoverableFold", "b": "RecoverableFold"}
+
+    from srmech._json import loads
+    from srmech.mcp._coercion import coerce_param
+    from srmech.mcp._tools import serialise_result
+
+    fold = coupling.fold_encode_recoverable(
+        Poly.from_coeffs([Q(0, 1), Q(5, 1), Q(-4, 1)]), 3, dim=64, seed=0)
+    back = coerce_param(loads(serialise_result(fold)), "RecoverableFold")
+    assert coupling.fold_identity(fold, back) == "EQUAL"
 
 
 def test_rosetta_rows_are_non_compute():
@@ -334,9 +377,9 @@ def test_rosetta_rows_are_non_compute():
     rows = {r["defined_at"]: r["bucket"]
             for r in (json.loads(l) for l in
                       ledger.read_text(encoding="utf-8").splitlines() if l.strip())}
-    for op in ("srmech.amsc.coupling.fold_encode_recoverable",
-               "srmech.amsc.coupling.fold_identity",
-               "srmech.amsc.op_provenance.lossy_projection_record"):
+    for op in ("srmech.biology.coupling.fold_encode_recoverable",
+               "srmech.biology.coupling.fold_identity",
+               "srmech.introspect.op_provenance.lossy_projection_record"):
         assert rows.get(op) == "non_compute", op
 
 
@@ -344,8 +387,8 @@ def test_rosetta_rows_are_non_compute():
 # (h) discipline — the touched sources stay abs()-free
 # ─────────────────────────────────────────────────────────────────────
 @pytest.mark.parametrize("rel", [
-    ("srmech", "amsc", "coupling.py"),
-    ("srmech", "amsc", "op_provenance.py"),
+    ("srmech", "biology", "coupling.py"),
+    ("srmech", "introspect", "op_provenance.py"),  # moved amsc->introspect (rc369)
 ])
 def test_source_is_numpy_math_abs_free(rel):
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

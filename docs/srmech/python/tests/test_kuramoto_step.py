@@ -17,8 +17,8 @@ import math
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc.cascade import kuramoto_step
+from srmech import _native
+from srmech.cascade import kuramoto_step
 
 
 def _reference_step(theta, omega, coupling, dt):
@@ -118,7 +118,7 @@ def test_c_matches_python_to_tolerance():
 def test_native_shim_direct():
     """The _try_native helper returns a value (not None) when the symbol is
     present — confirming the native path is actually exercised."""
-    from srmech.amsc.cascade.compose import _try_native_kuramoto_step
+    from srmech.cascade.composites import _try_native_kuramoto_step
     res = _try_native_kuramoto_step([0.0, 1.0], [1.0, 2.0], 1.0, 0.1)
     assert res is not None
     assert res == pytest.approx(_reference_step([0.0, 1.0], [1.0, 2.0], 1.0, 0.1),
@@ -131,10 +131,10 @@ def test_native_shim_direct():
 
 
 def test_tool_entry_registered():
-    from srmech.amsc import tool_schema
+    from srmech.introspect import tool_schema
 
     schema = tool_schema.get_tool_schema()
-    name = "srmech.amsc.cascade.kuramoto_step"
+    name = "srmech.cascade.kuramoto_step"
     entry = schema.lookup(name)
     assert entry is not None
     assert entry.category == "cascade"
@@ -251,7 +251,7 @@ def test_native_general_parity():
     reason="native srmech_cascade_kuramoto_step_general_f64 unavailable",
 )
 def test_native_general_shim_direct():
-    from srmech.amsc.cascade.compose import _try_native_kuramoto_step_general
+    from srmech.cascade.composites import _try_native_kuramoto_step_general
     res = _try_native_kuramoto_step_general(
         [0.0, 1.0], [1.0, 2.0], None, 1.0, 0.2, None, None, 0.1,
     )

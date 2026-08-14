@@ -18,14 +18,14 @@ import math
 
 import pytest
 
-from srmech.amsc.cascade.exact_dft import (
+from srmech.cascade.exact_dft import (
     _cyclotomic_reduction,
     _exact_transform,
     exact_dft,
     exact_idft,
     lift,
 )
-from srmech.amsc.cascade.spectral_cascades import dft, fft
+from srmech.cascade.spectral_cascades import dft, fft
 
 GENERAL_N = [3, 5, 6, 7, 9, 10, 11, 12, 14, 15, 18, 24]
 

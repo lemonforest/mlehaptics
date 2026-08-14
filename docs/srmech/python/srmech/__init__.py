@@ -1,39 +1,74 @@
 """srmech — Stored-Relationship Mechanism research package.
 
-Phase 2 (Task #197) ships srmech as the home of the Attested
-Multi-Source Collector/Catalog (AMSC) framework — previously living
-inside ephemerides-spectral's ``_research/`` mirror. The framework
-is the mechanical-provenance discipline (every ground-proof row
-carries mandatory attestation) generalised so downstream packages
-can declare their own catalog SSOTs and consume them through one
-universal bridge surface (``srmech.amsc.catalog``).
-
-**Naming note — Collector or Catalog?** Both work. At collection
-time (T1 / T3 lifecycle stages), AMSC is *collecting* attested rows
-from upstream archives via its adapter classes — *Attested Multi-
-Source Collector*. After collection, when the rows are committed
-as NDJSON SSOTs and downstream consumers read them through the
-universal bridge, AMSC is also a *Catalog* of attested data —
-*Attested Multi-Source Catalog*. Both names abbreviate to AMSC and
-both are correct; pick whichever fits the lifecycle stage you're
-describing.
-
-The Phase 3 cutover (planned) rewires ephemerides-spectral's bridge
-to import from ``srmech.amsc.*`` instead of its in-tree mirror; the
-catalog SSOTs do NOT migrate (ephemerides's 19 catalogs stay where
-they are, registered into srmech via
-``register_attested_root(path, source=...)`` at package-import time).
-
 Public surfaces
 ---------------
-* ``srmech.amsc`` — Attested Multi-Source Collector framework.
+* ``srmech.describe()`` — **START HERE**: the capability index
+  (shape/counts). Drill into
+  ``srmech.introspect.tool_schema.get_tool_schema()`` for the per-op
+  registry. The same object is bound as ``srmech.describe`` and as
+  ``srmech.introspect.describe``; since rc407 the payload's ``tools``
+  block carries that drill-down route in-band, so a JSON / MCP
+  consumer — which has no ``dir()`` — is told where the registry
+  lives. It is a Python import route: ``get_tool_schema`` is not
+  itself a registered tool, so an MCP-only client reads it as a
+  location, not as a call.
+* ``srmech.introspect`` — the self-recognition package. It holds the
+  op registry (``tool_schema``), the operand carriers
+  (``carrier_schema``), the responsion surface
+  (``responsion_schema``), and the out-of-band "talk to a running
+  srmech by PID" API (``publish`` / ``list`` / ``by_pid``), which is
+  OFF by default and writes no file on import.
+* ``srmech.native_status`` — the one call that answers whether
+  ``libsrmech`` loaded, ABI-matched, and is really dispatching, as
+  against the pure-Python fallback. ``srmech.describe()['native']``
+  is the same status folded into the index.
+* ``srmech.warmup_all`` — THE registration entry point: it imports
+  every submodule that registers ops, so the registry is complete no
+  matter how srmech was entered (library / CLI / MCP / Anthropic
+  adapter). Package import already calls it; call it again yourself
+  only after registering something new.
+* ``srmech.amsc`` — the Attested Multi-Source Collector/Catalog
+  framework, and the on-disk crystallisation of the Mathematical
+  Provenance Method: every ground-proof row carries a mandatory
+  attestation block, and a downstream package declares its own
+  catalog SSOT through
+  ``srmech.amsc.catalog.register_attested_root(path, source=...)``.
+* **The profile loader** — ``srmech.profile`` activates a named
+  profile and ``srmech.list_profiles`` enumerates the installed ones;
+  ``srmech.Profile`` and ``srmech.ProfileStatus`` are the records they
+  hand back. Every failure is a ``srmech.ProfileError`` or a subclass
+  of it: ``srmech.ProfileNotFoundError``,
+  ``srmech.InvalidProfileError``,
+  ``srmech.ProfileSchemaVersionError``,
+  ``srmech.SmokeTestFailedError``, ``srmech.AbiMismatchError``.
 * ``srmech.__version__`` — package version string (SSOT in
   ``srmech.version``).
+
+**Naming note — Collector or Catalog?** Both work, and both
+abbreviate to AMSC. At collection time the adapters are *collecting*
+attested rows from upstream archives — *Attested Multi-Source
+Collector*. Once those rows are committed as NDJSON SSOTs and read
+back through the universal bridge, the same object is a *Catalog* of
+attested data. Pick whichever fits the lifecycle stage you are
+describing.
+
+**Why this index is written out here** and not left to
+``help(srmech)``. It is not that pydoc hides anything — it renders
+``__all__`` regardless, and ``describe`` appears 13 times in the dump.
+The defect this replaces was BURIAL and CURATION. Measured rc407: the
+pydoc dump of this package is ~45,900 characters over ~1,018 lines;
+the DESCRIPTION block a reader actually scans is characters 122-2,283;
+and the first FUNCTIONS entry for ``describe()`` sits at character
+~19,600, 43% in, below nine profile-loader symbols. A reader who scans
+the top and stops sees exactly what this docstring lists — and through
+rc406 it listed two things, ``srmech.amsc`` and ``srmech.__version__``,
+so a census over the 15 names in ``__all__`` found ONE of them here.
+The entry point is now first, and every exported name is present.
 """
 
 from .version import __version__
 
-# v0.3.0 — Task #199 profile pattern. Top-level `srmech.profile("name")`
+# v0.3.0 — `#T199` profile pattern. Top-level `srmech.profile("name")`
 # is the activation API; `srmech.list_profiles()` enumerates installed
 # profiles. The loader walks `importlib.metadata.entry_points(group=
 # "srmech.profiles")` eagerly on first access (ADR-0001 §5.5).
@@ -64,7 +99,7 @@ _introspect._maybe_auto_publish()
 
 __all__ = [
     "__version__",
-    # profile loader API (Task #199, ADR-0001)
+    # profile loader API (`#T199`, ADR-0001)
     "AbiMismatchError",
     "InvalidProfileError",
     "Profile",
@@ -94,7 +129,7 @@ introspect = _introspect
 # v0.5.0rc19 — top-level native-dispatch status (issue #733). The
 # discoverable one-call check that ``libsrmech`` is loaded + ABI-matched
 # + actually dispatching (vs. the pure-Python fallback). The native shim
-# lives at ``srmech.amsc._native``; this surfaces it where ``dir(srmech)``
+# lives at ``srmech._native``; this surfaces it where ``dir(srmech)``
 # finds it. Equivalent to ``describe()['native']`` plus expected-ABI +
 # dispatching + load-error fields.
 native_status = _introspect.native_status
@@ -116,9 +151,9 @@ describe = _introspect.describe
 # permanently closing the orphan-registration bug class (the rc9 bus
 # miss). Placed at the END of package init (after ``__version__`` /
 # profile loader / introspect are all set up) so the
-# ``from .amsc.tool_schema import warmup_all`` import — which fully
+# ``from .introspect.tool_schema import warmup_all`` import — which fully
 # initialises ``srmech.amsc`` — sees a complete core ``srmech``
 # namespace and cannot trip an import cycle.
-from .amsc.tool_schema import warmup_all  # noqa: E402
+from .introspect.tool_schema import warmup_all  # noqa: E402
 
 warmup_all()

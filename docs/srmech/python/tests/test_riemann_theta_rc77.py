@@ -33,8 +33,8 @@ import tokenize
 
 import pytest
 
-from srmech.amsc.riemann_theta import RiemannTheta, RiemannThetaG3
-from srmech.amsc import _native
+from srmech.apokatastasis.riemann_theta import RiemannTheta, RiemannThetaG3
+from srmech import _native
 
 
 def _t000() -> RiemannThetaG3:
@@ -405,7 +405,7 @@ def test_pure_python_alone_passes_new_gates(pure_riemann_theta):
 # ── gate (E): the carrier source is numpy / math / abs() free ────────────────
 def test_riemann_theta_source_is_numpy_math_abs_free():
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    src = os.path.join(here, "srmech", "amsc", "riemann_theta.py")
+    src = os.path.join(here, "srmech", "apokatastasis", "riemann_theta.py")
     with tokenize.open(src) as fh:
         text = fh.read()
     assert "import numpy" not in text

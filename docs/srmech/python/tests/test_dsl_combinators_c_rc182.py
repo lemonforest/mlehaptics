@@ -28,13 +28,49 @@ import math
 
 import pytest
 
-from srmech.amsc import _native
+import ctypes
+
+from srmech import _native
 from srmech.dsl import chain, run_toml_chain
 from srmech.dsl._chain import _NATIVE_MISS
-from srmech.dsl._toml_chain import (
-    _toml_loads_native,
-    build_chain_from_toml_str,
-)
+from srmech.dsl._toml_chain import build_chain_from_toml_str
+
+
+def _dsl_toml_bridge_c(spec: str):
+    """Directly exercise the C ``srmech_dsl_toml_chain_to_json`` bridge — the DSL
+    chain-spec TOML->canonical-JSON front-end for a C-only / MCU host (no Python
+    TOML hop). Returns the parsed dict on native accept, or ``None`` when native
+    is absent / the C parser declines.
+
+    rc400 (`#T1067`) collapsed the DUPLICATE native-first TOML path onto
+    ``srmech._toml`` and DELETED ``srmech.dsl._toml_chain._toml_loads_native`` (the
+    production module no longer round-trips TOML through this bridge — the chain
+    PARSE now rides ``srmech._toml.loads`` like every other loader). This probe —
+    the bridge's only committed parity coverage — moved here so the C symbol keeps
+    being exercised even though no production Python path calls it any more. The
+    ``None``-on-decline contract is identical to the retired probe's.
+    """
+    if not (_native.HAS_NATIVE and _native.LIB is not None):
+        return None
+    lib = _native.LIB
+    if not (hasattr(lib, "srmech_dsl_toml_chain_to_json")
+            and hasattr(lib, "srmech_dsl_toml_chain_to_json_arena_bytes")):
+        return None
+    src = spec.encode("utf-8")
+    ws_bytes = int(lib.srmech_dsl_toml_chain_to_json_arena_bytes(len(src)))
+    ws = (ctypes.c_char * ws_bytes)()
+    out_cap = max(ws_bytes, 16384)
+    out = (ctypes.c_char * out_cap)()
+    out_len = ctypes.c_size_t()
+    rc = lib.srmech_dsl_toml_chain_to_json(
+        src, len(src), ws, ws_bytes, out, out_cap, ctypes.byref(out_len))
+    if rc != _native.SRMECH_OK:
+        return None
+    try:
+        data = json.loads(out.raw[:out_len.value].decode("utf-8"))
+    except (ValueError, UnicodeDecodeError):
+        return None
+    return data if isinstance(data, dict) else None
 
 _HAS = (
     _native.HAS_NATIVE
@@ -77,7 +113,7 @@ def _pure(ch, inp):
 def test_toml_bridge_symbols_bound_and_abi_5():
     assert hasattr(_native.LIB, "srmech_dsl_toml_chain_to_json")
     assert hasattr(_native.LIB, "srmech_dsl_toml_chain_to_json_arena_bytes")
-    assert _native.NATIVE_ABI_VERSION == 10
+    assert _native.NATIVE_ABI_VERSION == 14
 
 
 def test_no_combinator_defer_pin_present():
@@ -276,7 +312,7 @@ max_denominator = 50
 @_needs_toml
 def test_toml_bridge_emits_the_build_chain_from_dict_ir():
     """The C bridge parses TOML → the exact build_chain_from_dict IR (dict)."""
-    data = _toml_loads_native(_LOOP_TOML)
+    data = _dsl_toml_bridge_c(_LOOP_TOML)
     assert data == {
         "chain": {"name": "demo"},
         "stage": [
@@ -295,7 +331,7 @@ def test_toml_bridge_matches_tomllib():
     else:
         import tomli as toml
     for spec in (_LOOP_TOML, _FOLD_TOML, _KWARGS_TOML):
-        assert _toml_loads_native(spec) == toml.loads(spec)
+        assert _dsl_toml_bridge_c(spec) == toml.loads(spec)
 
 
 @_needs_native
@@ -333,7 +369,7 @@ def test_toml_syntax_error_falls_back_and_raises():
     else:
         import tomli as toml
     bad = "[chain]\nname = \nthis is not toml"
-    assert _toml_loads_native(bad) is None      # C parser declines
+    assert _dsl_toml_bridge_c(bad) is None      # C parser declines
     with pytest.raises(toml.TOMLDecodeError):
         build_chain_from_toml_str(bad)
 

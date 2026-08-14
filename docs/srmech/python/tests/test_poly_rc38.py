@@ -23,8 +23,8 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc.poly import Poly
-from srmech.amsc.q import Q
+from srmech.math.poly import Poly
+from srmech.math.q import Q
 
 
 # ── a tiny Fraction-list polynomial oracle (independent reimplementation) ──────
@@ -329,7 +329,7 @@ def _native_poly():
     """Return the native ``_poly`` parity helper module, or ``None`` if the C
     peer is absent (no-C / pre-rc38 lib)."""
     try:
-        from srmech.amsc import _native
+        from srmech import _native
     except ImportError:
         return None
     if not getattr(_native, "has_native_poly", lambda: False)():

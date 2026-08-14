@@ -23,7 +23,9 @@ from __future__ import annotations
 
 import random
 
-from srmech.amsc import laplacian, naming, _native
+from srmech import _native
+from srmech.math import laplacian
+from srmech.introspect import naming
 
 
 _SEED = 20260602

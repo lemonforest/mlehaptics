@@ -16,8 +16,8 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc.laplacian import jacobi_eigvals
-from srmech.amsc.vec import Vec
+from srmech.math.laplacian import jacobi_eigvals
+from srmech.math.vec import Vec
 
 
 def _approx_equal(a, b, tol=1e-9) -> bool:

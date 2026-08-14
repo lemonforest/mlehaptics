@@ -1,4 +1,4 @@
-"""rc173 — the amsc.compose LINEAR CHAIN-RUNNER PARSE+VALIDATE → C parity.
+"""rc173 — the cascade.compose LINEAR CHAIN-RUNNER PARSE+VALIDATE → C parity.
 
 The ORCHESTRATION→C spine, batch 3: ``parse_chain_spec`` +
 ``parse_catalog_chains`` earned C peers (``srmech_chain_spec_parse`` /
@@ -28,7 +28,7 @@ if sys.version_info >= (3, 11):
 else:  # pragma: no cover
     import tomli as tomllib  # type: ignore
 
-from srmech.amsc import compose
+from srmech.cascade import compose
 
 _ATTESTED = Path(__file__).resolve().parent.parent / "srmech" / "amsc" / "attested"
 
@@ -266,9 +266,9 @@ def test_parse_catalog_chains_missing_version_defers_to_pure():
 
 def test_parse_catalog_chains_bad_version_defers_to_pure():
     toml = _catalog([_VALID_CHAINS["single_step"]], version=99)
-    with pytest.raises(compose.ChainSpecError, match="implements v1"):
+    with pytest.raises(compose.ChainSpecError, match=r"implements \(1, 2\)"):
         compose.parse_catalog_chains(toml)
-    with pytest.raises(compose.ChainSpecError, match="implements v1"):
+    with pytest.raises(compose.ChainSpecError, match=r"implements \(1, 2\)"):
         _force_pure(compose.parse_catalog_chains, toml)
 
 

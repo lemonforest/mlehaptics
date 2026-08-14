@@ -152,6 +152,143 @@ The notebook uses two compatible notations for the 11D substrate components. The
 
 **Hopf-name correction (2026-07-24).** The `7D_g` fibration `S³ → S⁷ → S⁴` is the **quaternionic** Hopf bundle (fiber `S³ = ℍ = SU(2)`, base `S⁴ = ℍP¹`), **not** the octonionic Hopf (which is `S⁷ → S¹⁵ → S⁸`). The octonion association is still exact — the **total space** `S⁷` IS the octonion unit sphere (`7D_g = Im 𝕆`) — but the *bundle realizing it* is the quaternionic Hopf, consistent with the framework's own `SU(2)_L from the ℍ ⊂ 𝕆 quaternion subalgebra` reading (§2.5 prose below). The earlier "octonionic Hopf-bundle" label was a standing misnomer (`[[feedback_science_is_ssot_not_project]]`; sister MFO §I.4 / §VIII.31.19).
 
+### §2.5.1 `ℍ ⊗ ℍℓ` — the Cayley–Dickson doubling, and why the two triples are not interchangeable
+
+**The lowercase cursive `ℓ` marks the second copy as *carried*, not co-equal.** Written out, the
+octonion rung is `𝕆 = ℍ ⊕ ℍe` — one copy of ℍ and one copy of ℍ multiplied through by a chosen
+imaginary `e`. Those two copies are **structurally different in kind**, and `ℓ` is the flag that
+says so:
+
+| Block | Content | Closes under multiplication? | Role |
+|---|---|---|---|
+| `1` | the real unit | — | canonical **non-ringing**; frame-free |
+| **start 3** | `Im(ℍ) = {i, j, k}` | **YES** — `i·j = k` stays inside | associative subalgebra; the **base** |
+| **middle 1** | the chosen `e` | — | the **frame commitment**; the axis rotated *about* |
+| **end 3** | `Im(ℍ)·e = {ie, je, ke}` | **NO** — `(ie)(je)` lands back in ℍ | coset / module; the **fiber** |
+
+**Reading rule.** `ℍ ⊗ ℍℓ` is *not* a symmetric tensor of two equal ℍ's. The doubling is asymmetric
+by construction: one factor is a subalgebra, the other is only a module over it. When the `ℓ` is
+dropped, that asymmetry is exactly what gets lost.
+
+**`1 + 7` and `1 + (3 + 1 + 3)` are the same eight, differently framed.** `3 + 1 + 3 = 7`, so the
+counts never conflicted — the confusion is that **the middle `1` is a distinguished *imaginary*,
+not the real unit.** Before an axis is chosen the seven imaginaries are interchangeable, and `1+7`
+is **frame-free** (the algebra itself distinguishes the real). After choosing `e`, the seven split
+and the chosen axis reads as non-ringing *in that frame only* — an axis does not rotate under its
+own rotation. So `1+(3+1+3)` is **frame-committed**. This is not a fractal; it is one frame
+commitment per level. Consistent with `#T959` (3+1+3 is a frame commitment) and `#T944`
+(𝕆 measured to have **no frame-free invariant**).
+
+**Why `ℓ` is load-bearing rather than decorative: it marks where associativity dies.** Because the
+end-3 do not close, 𝕆 is not a matrix algebra, so Artin–Wedderburn does not apply to it — the same
+boundary that stops block-decomposition at the ℍ→𝕆 rung. `ℓ` and the ℍ→𝕆 loss are the same fact
+written two ways.
+
+⚠️ **Do not confuse three different symbols in this tree.** `H ⊗ H` elsewhere in the portfolio is
+**Hadamard** tensor Hadamard (`notes/spike128_2_cluster_state_mbqc_deutsch_jozsa.md:285`, QFT on 2
+qubits), which is the (ℤ/2)^d character-table construction and a *different* object. Standalone `ℓ`
+in MFO is the CMB **multipole** index; `Cℓ(p,q)` is a **Clifford** algebra. Only `ℍℓ` in the
+doubling sense is this entry.
+
+#### F1336 — the FOURTH sense of "the cube": a unit LABEL is not a basis DIRECTION
+
+rc353 shipped a collision note in `describe()["lanes"]["granularity"]["collision_note"]`
+separating three senses of a small power of two. That note is **true and incomplete**, and an
+incomplete note is as dangerous as a false one the moment a planner acts on the gap. The missing
+sense is the one that makes the *tesseract specifically* ambiguous.
+
+**The rule.** An algebra of real dimension `n` does not have `n` units. It has **`2n` signed
+units** (`±e_0 … ±e_{n-1}`), and labelling one takes **`log2(n) + 1` bits** — `log2(n)` for the
+index and **one more for the sign**. The grading cube never carries that extra bit, so the two
+cubes have different vertex counts for the same algebra:
+
+| Algebra | real dim `n` | grading cube `(ℤ/2)^log2(n)` — basis **DIRECTIONS** | signed units `2n` | unit-label cube — signed **UNITS** |
+|---|---|---|---|---|
+| ℂ | 2 | 2 vertices (a segment) | 4 | **2-cube** (a square) |
+| ℍ | 4 | 4 vertices (a **square**) | 8 | **3-CUBE** |
+| 𝕆 | 8 | 8 vertices (a 3-cube) | 16 | **4-CUBE — a TESSERACT** |
+| 𝕊 | 16 | 16 vertices (a **tesseract**) | 32 | 5-cube |
+
+**So there are two different 16s sitting on the same tesseract.** 𝕊 has 16 basis DIRECTIONS;
+𝕆 has 16 signed UNITS. rc353 named only the first. (A third 16 already in the note — the 16
+half-integer Hurwitz unit *points* of ℝ⁴ — is a fourth object again, and is not a cube in either
+sense: 128 of its 256 products leave the set.)
+
+**This is why 8 is the middle ground.** 𝕆 addresses **16 units in 4 bits** *and* contains ℍ
+**seven times over** — the seven Fano lines `{1,2,3} {1,4,5} {1,6,7} {2,4,6} {2,5,7} {3,4,7}
+{3,5,6}`, each of which spans a closed 4-dimensional subalgebra with the real unit (verified, not
+asserted, against `cascade.cd_basis_product`). Both halves land on 𝕆 and on nothing else in the
+tower.
+
+**The shadow result — where the flat hypercube is WRONG.** Take the `(log2(n)+1)`-bit label
+seriously and ask whether the product of two signed units is the XOR of their labels:
+
+- the **low `log2(n)` bits XOR exactly** — `e_i · e_j` is always `±e_(i⊕j)`, with **zero**
+  violations at every rung measured;
+- the **top (sign) bit does NOT**. The violating ordered pairs of signed units number exactly
+  **`2·dim·(dim−1)`**.
+
+The derivation is three lines: `e_0 = 1` is a two-sided identity so nothing through it violates;
+`e_a² = −1` for `a ≠ 0` gives `dim−1` violating index pairs; and for `a ≠ b` both nonzero the basis
+elements **anticommute**, so of the ordered pair `(a,b)`/`(b,a)` exactly one carries the minus —
+another `(dim−1)(dim−2)/2`. The cocycle sign is independent of the input signs, so each violating
+index pair lifts to 4 signed pairs, giving `4·[(dim−1) + (dim−1)(dim−2)/2] = 2·dim·(dim−1)`.
+
+| `dim` | signed pairs `(2·dim)²` | index-lane violations | sign-lane violations | fraction wrong `(dim−1)/(2·dim)` |
+|---|---|---|---|---|
+| 2 | 16 | **0** | 4 | 1/4 |
+| 4 | 64 | **0** | 24 | 3/8 |
+| 8 | 256 | **0** | 112 | 7/16 |
+| 16 | 1024 | **0** | 480 | 15/32 |
+| 32 | 4096 | **0** | 1984 | 31/64 |
+| 64 | 16384 | **0** | 8064 | 63/128 |
+
+**THE FLAT HYPERCUBE IS WRONG EXACTLY WHERE THE ALGEBRA ANTICOMMUTES**, and the fraction
+`(dim−1)/(2·dim) → 1/2` — it worsens monotonically up the ladder toward a coin flip. This is the
+same index-lane / sign-lane split §3 already carries: the index lane is abelian, order-blind and
+exact at every rung; every ceiling srmech publishes lives in the sign lane. The unit-label cube
+makes that split visible *on the labels themselves*.
+
+⚠️ **Bounds — read these before quoting any number above.**
+
+1. The closed form is **DERIVED and then CHECKED at six rungs** (dim 2, 4, 8, 16, 32, 64). It is
+   **not proved for all `n`**; nothing here is a theorem about the whole tower.
+2. **"𝕆 is THE right carrier" is a DESIGN argument**, built from the two facts above — **not a
+   measurement**. Nothing measured here selects a carrier, and the sentence should not be quoted
+   as if something did.
+3. **`(dim−1)/(2·dim)` is about BASIS-PAIR PRODUCTS under a flat XOR label.** It is **not** a
+   strand-misread rate, not an encoder error rate, and not a probability of anything in a running
+   cascade. It must not enter an error budget.
+
+Generating code: [`notes/unit_label_cube_rc354.py`](notes/unit_label_cube_rc354.py) (measured on
+`cascade.cd_basis_product`; also emitted into `describe()["lanes"]["granularity"]["unit_label_cube"]`
+so a planner reading the introspection surface sees it without reading this notebook).
+
+**Provenance, stated plainly.** This notation was used conversationally and **never written down** —
+a tree-wide search on 2026-07-28 found no `ℍℓ` and no cursive-`ℓ` doubling use, so the entry above
+is *reconstructed from the structure it describes*, not recovered from a prior source. The
+structural content (which triple closes, which does not) is textbook Cayley–Dickson and is
+independently checkable from the shipped `algebra_table`; the *notation* is ours and is recorded
+here so it stops being re-derived each session. ~~**Open and unresolved:** `#T982` — `one.py:1` and
+`one.py:10` still contradict each other on which partition is the carrier `(1+1)+(1+3)+(1+7) = 2+4+8`
+and which is the operator `1+3+7+3 = 14`; until that closes, conflating these partitions is a
+hazard the tree creates, not a reader error.~~
+
+> ✅ **SUPERSEDED at rc420 (`#T1114`) — `#T982` CLOSED at v0.9.0rc355; the struck text above was
+> 65 rcs stale.** The code was never wrong; what was missing was the **naming hinge**, and
+> `one.py`'s module docstring now supplies it in both directions: the **CARRIER partition**
+> `(1+1) + (1+3) + (1+7) = 2 + 4 + 8` groups the fourteen by *which algebra* a direction lives in
+> (read ACROSS the rows; the constant `BLOCK_DIMS`), and the **OPERATOR partition** `1 + 3 + 7 + 3`
+> groups the SAME fourteen by *what role* a direction plays (read DOWN the columns; `One.partition`).
+> **Neither refines the other and neither is *the* partition** — they are the row-sums and the
+> column-sums of one table, not rival totals. `_validate_slot_shape` mechanises the hinge
+> (`1 + len(Im block) == BLOCK_DIMS`) so the two cannot drift apart silently again. The root cause
+> is worth keeping, stated with its pre-rc355 scope: `BLOCK_DIMS` drove **none of the matrix
+> builds** (`to_matrix` / `_blocks_from_flat` / `_adjoint_blocks_pure` are driven by `IMAG_DIMS`
+> alone), so nothing forced the two groupings to be named apart — `_validate_slot_shape` is
+> precisely the consumer rc355 added to close that. Restated at §3.46.9 and §2.6.5; the record is
+> kept rather than deleted so the falsification trail survives.
+
 Sister-notebook MFO carries the same notation-key in its Part I framing.
 
 ---
@@ -204,7 +341,7 @@ The alphabetical surface lives at §3.8 (canonical srmech enumeration) and in th
 
 ### §2.6.5 The observer-frame reordering — `3 + 1 + 3 + 7` (the same loop, cut at the projection)
 
-The `1 + 3 + 7 + 3` partition above is the **substrate / construction frame**: it builds real-first (the `{A}` content-anchor), then the imaginary grades `Im ℍ` and `Im 𝕆`, and closes the **winding** `{B, H, N}` last — the same order the One assembles, `S(σ,θ,w) = ⨁_{n=1}^{3}(ℝ·1 ⊕ σ·e^{Î_nθ}·Im 𝔸_n)`, `dim = 1 + 3 + 7 + 3` (which is why that construction order is left untouched — see §3.41.5 / the `qm.hurwitz` peer). An **observer** does not build the loop; the observer reads it, and reads it from the other side — the operators that *make the projection* first, and the content-anchor as the shadow the loop casts rather than its seed:
+The `1 + 3 + 7 + 3` partition above is the **substrate / construction frame**: it builds real-first (the `{A}` content-anchor), then the imaginary grades `Im ℍ` and `Im 𝕆`, and closes the **winding** `{B, H, N}` last — the same order the One assembles, `S(σ,θ,w) = ⨁_{n=1}^{3}(ℝ·1 ⊕ σ·e^{Î_nθ}·Im 𝔸_n)`, `dim = 1 + 3 + 7 + 3` (which is why that construction order is left untouched — see §3.41.5 / the ~~`qm.hurwitz`~~ **`physics.qm.hurwitz`** peer — path corrected at rc420, `#T1114`; `srmech.qm.*` was REMOVED at rc382, and note that the peer op is `hurwitz_planes`, `hurwitz_matrix` having been retired outright, §3.48.6). An **observer** does not build the loop; the observer reads it, and reads it from the other side — the operators that *make the projection* first, and the content-anchor as the shadow the loop casts rather than its seed:
 
 | Slot | Classes | Observer role |
 |---|---|---|
@@ -314,7 +451,7 @@ This is the deepest answer to the unification question: srmech is not "the proje
 
 #### §3.5.1 The shipped Class-L surface IS the discrete Laplace–Beltrami operator (2026-07-18)
 
-The §3.5 slot is not only architectural — it is the *literal* shipped `srmech.amsc.laplacian` surface. `dense_laplacian(n, edges, weights=…)` and `fiedler_sparse` already accept **per-edge weights**, and a metric-derived weighting turns the combinatorial graph Laplacian into the discrete Laplace–Beltrami operator. This is an attested mathematical **FACT** — a convergence, not a framework-validation claim (the epistemic ceiling holds: form, not identity):
+The §3.5 slot is not only architectural — it is the *literal* shipped `srmech.math.laplacian` surface. `dense_laplacian(n, edges, weights=…)` and `fiedler_sparse` already accept **per-edge weights**, and a metric-derived weighting turns the combinatorial graph Laplacian into the discrete Laplace–Beltrami operator. This is an attested mathematical **FACT** — a convergence, not a framework-validation claim (the epistemic ceiling holds: form, not identity):
 
 - **Mesh (cotangent) form.** The cotangent-weighted Laplacian is the *standard* discrete LB on a triangulated manifold — edge weight `w_ij = ½(cot α_ij + cot β_ij)`, the two angles opposite edge `ij` (Pinkall & Polthier, *Computing Discrete Minimal Surfaces and Their Conjugates*, Experimental Mathematics 2(1):15–36, 1993; the Voronoi mass matrix is Meyer–Desbrun–Schröder–Barr 2003). **No trig library is needed:** for the two edge vectors `u, v` meeting at the opposite vertex, `cot θ = (u·v)/|u×v|` — dot over cross. In 2D this is *fully rational* in the vertex coordinates (Class-N exact; the signed-area sign is a Class-K pin-slot, never `abs()`); in 3D the only irrationality is a single algebraic `√` per triangle, `|u×v| = √(|u|²|v|²−(u·v)²) = 2·Area`, never a transcendental. Equivalently `cot γ = (b²+c²−a²)/(4·Area)` from the squared edge lengths.
 - **Point-cloud form.** A graph Laplacian with heat-kernel weights `w_ij = exp(−‖x_i−x_j‖²/(4t))` converges pointwise to Δ as `t→0, n→∞` (Belkin & Niyogi, *Laplacian Eigenmaps for Dimensionality Reduction and Data Representation*, Neural Computation 15(6):1373–1396, 2003; convergence-to-Δ in *Towards a Theoretical Foundation for Laplacian-Based Manifold Methods*, COLT 2005 / JCSS 74(8):1289–1308, 2008).
@@ -628,19 +765,19 @@ Task #217 Phase C1 (srmech v0.4.0) shipped every class with a native C surface (
 | # | Class | Operation | Canonical example | srmech module | Phase |
 |---|---|---|---|---|---|
 | A | content-addressing | hash bytes → fixed-length digest | SHA-256 (FIPS 180-4) over byte buffer | `srmech.amsc.format.sha256_bytes` | B3 |
-| B | tagged-tuple / TLV | byte-canonical record packing | `[u8 tag][u32 length BE][value]` | `srmech.amsc.tlv.tlv_pack` | C1 rc4 |
+| B | tagged-tuple / TLV | byte-canonical record packing | `[u8 tag][u32 length BE][value]` | `srmech.math.tlv.tlv_pack` | C1 rc4 |
 | C | streaming iteration | line-by-line tokenisation of a stream | NDJSON line iter with `lineno` callback | `srmech.amsc.format.read_ndjson` | B4 |
-| D | late-binding dispatch | multi-needle pattern match → tag | byte-pattern dispatcher | `srmech.amsc.dispatch.match` | C1 rc5 |
+| D | late-binding dispatch | multi-needle pattern match → tag | byte-pattern dispatcher | `srmech.math.dispatch.match` | C1 rc5 |
 | E | catalog / naming | sorted-key binary-search lookup | `(key, value)` registry | `srmech.amsc.naming.lookup` | C1 rc5 |
-| F | substitution / templating | `{key}` placeholder render | parameterised string interpolation | `srmech.amsc.template.render` | C1 rc5 |
-| G | discovery / search | byte-pattern find within haystack | `bytes.find(...)`-shaped operation | `srmech.amsc.search.byte_search` | C1 rc4 |
+| F | substitution / templating | `{key}` placeholder render | parameterised string interpolation | `srmech.math.template.render` | C1 rc5 |
+| G | discovery / search | byte-pattern find within haystack | `bytes.find(...)`-shaped operation | `srmech.math.search.byte_search` | C1 rc4 |
 | H | self-introspection | version / ABI / capability accessors | `srmech_version()` + `srmech_abi_version()` | (C meta) | C1 rc4 ack |
-| I | cyclic-group / modular | GCD, LCM, mod-add/mul/pow/inv on uint64 | `(Z/nZ)*` arithmetic | `srmech.amsc.cyclic.*` | C1 rc1 |
-| J | prime-factorisation / period | is_prime, factor, multiplicative order | trial-division + multiplicative order | `srmech.amsc.primes.*` | C1 rc3 |
-| K | equation-of-centre / pin-slot | Kepler-shape continuous projection | `phi = atan2(i sin θ, d + i cos θ)`; Newton-Raphson on `M = E − e sin E`; Fourier ν − M | `srmech.amsc.kepler.*` | C1 rc7 |
-| L | graph Laplacian | adjacency / Laplacian / normalized Laplacian / Jacobi eigvals (pi-free) | spectral decomposition of `L = D − A` | `srmech.amsc.laplacian.*` | C1 rc2 |
-| M | HDC bind / bundle / permute / similarity | binary spatter codes (Kanerva 2009) | XOR bind + majority bundle + bit-rotate permute + Hamming-similarity | `srmech.amsc.hdc.*` | C1 rc8 |
-| N | rational-approximation | continued-fraction expansion + best p′/q′ under denominator bound | Stern-Brocot mediant convergents | `srmech.amsc.rational.*` | C1 rc6 |
+| I | cyclic-group / modular | GCD, LCM, mod-add/mul/pow/inv on uint64 | `(Z/nZ)*` arithmetic | `srmech.math.cyclic.*` | C1 rc1 |
+| J | prime-factorisation / period | is_prime, factor, multiplicative order | trial-division + multiplicative order | `srmech.math.primes.*` | C1 rc3 |
+| K | equation-of-centre / pin-slot | Kepler-shape continuous projection | `phi = atan2(i sin θ, d + i cos θ)`; Newton-Raphson on `M = E − e sin E`; Fourier ν − M | `srmech.math.kepler.*` | C1 rc7 |
+| L | graph Laplacian | adjacency / Laplacian / normalized Laplacian / Jacobi eigvals (pi-free) | spectral decomposition of `L = D − A` | `srmech.math.laplacian.*` | C1 rc2 |
+| M | HDC bind / bundle / permute / similarity | binary spatter codes (Kanerva 2009) | XOR bind + majority bundle + bit-rotate permute + Hamming-similarity | `srmech.math.hdc.*` | C1 rc8 |
+| N | rational-approximation | continued-fraction expansion + best p′/q′ under denominator bound | Stern-Brocot mediant convergents | `srmech.math.rational.*` | C1 rc6 |
 
 **Composable derived operations** (the 14 base classes compose; common composites are named below for cross-notebook reference):
 
@@ -653,6 +790,16 @@ Task #217 Phase C1 (srmech v0.4.0) shipped every class with a native C surface (
 - **Class D ∘ Class C ∘ Class L** — net-chirality cascade. Per Spike #74 (2026-05-17) NET-CHIRALITY-DOES-NOT-EMERGE on smooth substrate: 6,680 compositions tested; bit-exact algebraic forcing via D·C·D antisymmetry shows chirality is balanced by construction on smooth substrates. Chirality is real-arithmetic; complex-phase shifts out of A-N scope to the operations layer per `[[feedback_science_is_ssot_not_project]]`. Vocabulary stays at 14 classes A-N.
 
 ### §3.8.2 Canonical QM/QFT/SM operations layer on top of the 14 classes (Phase C1 rc9-rc11)
+
+> ⚠️ **PATH CURRENCY (added rc420, `#T1114`).** Every `srmech.qm.<name>` in this subsection —
+> the framing sentence and all eight table rows — is **as-shipped-at-v0.4.0** and is kept
+> because this is a dated Phase-C1 record. **The live prefix is `srmech.physics.qm.*`**:
+> ADR-0010's physics slice moved the whole `qm` subpackage at v0.9.0rc381, and the old spelling
+> was **REMOVED** at v0.9.0rc382 — a clean break with no alias — so `import srmech.qm` raises
+> `ModuleNotFoundError`. Read every row below as `srmech.physics.qm.<name>`; the *module names*
+> after the prefix are unchanged. This banner exists because the table reads as a live API
+> surface rather than a release record, and a session has already lifted a path out of a
+> comparable table into a technical answer as though it still resolved.
 
 Per `[[feedback_science_is_ssot_not_project]]`, srmech v0.4.0 ships a canonical physics-operations layer at `srmech.qm.*` — each operation sourced from the physics literature (Schrödinger / Heisenberg / Dirac / Yang-Mills / Glashow-Weinberg-Salam / Higgs / Cabibbo-Kobayashi-Maskawa / Mostafazadeh / Bender-Boettcher) and dissolved into the 14-class vocabulary above. **No new primitive classes** — every QM/QFT/SM operation is a composite of A–N.
 
@@ -667,7 +814,7 @@ Per `[[feedback_science_is_ssot_not_project]]`, srmech v0.4.0 ships a canonical 
 | `srmech.qm.gauge` | SU(2)/SU(3) Gell-Mann generators, structure constants, Casimirs, Wilson loops | Class M (Lie-algebra binding) + Class L (matrix exponential) + Class C (path-ordered iteration) | Yang-Mills (1954); Gell-Mann (1962); Wilson (1974); Peskin-Schroeder §§15-17 |
 | `srmech.qm.sm` | Higgs vev, weak mixing angle, W/Z masses, Weinberg relation, Yukawa, CKM | Class K (continuous projection of vev → mass relations) + Class M (CKM unitary mixing) | Glashow (1961); Weinberg (1967); Salam (1968); Higgs (1964); Cabibbo (1963); Kobayashi-Maskawa (1973); Peskin-Schroeder Chs 20-21 |
 
-`srmech.amsc.tool_schema` registers ~87 entries covering every public callable across `srmech.amsc.*` (14-class primitives) + `srmech.qm.*` (operations layer) for LLM-friendly introspection. Coverage ratchet test (`tests/test_tool_schema_coverage.py`) walks `srmech` via `pkgutil` + `inspect` and asserts each public function has a registered entry.
+`srmech.amsc.tool_schema` registers ~87 entries covering every public callable across `srmech.amsc.*` (14-class primitives) + `srmech.qm.*` (operations layer) for LLM-friendly introspection. *(**As-of-v0.4.0**, and dated rather than bumped like its sibling rows. Live at rc432: the registry is at **`srmech.introspect.tool_schema.get_tool_schema`** and holds **655** entries — `len(get_tool_schema().tools)`, equal to `describe()["tools"]["total"]`. Read the live value, never a literal; see the §3.28.3 ledger bullet, which carries the same correction for the same reason.)* Coverage ratchet test (`tests/test_tool_schema_coverage.py`) walks `srmech` via `pkgutil` + `inspect` and asserts each public function has a registered entry.
 
 **Stoichiometry hope (Phase 8) → resolved (Phase 9).** Phase 8 hoped that stoichiometry's integer-ratio algebra + reaction-network hypergraph structure + Feinberg deficiency theorem might surface a *genuinely new* primitive class. Phase 9's full investigation found instead that stoichiometry's algebra theory IS the existing primitive vocabulary instantiated at the chemistry-dynamics substrate. Every well-posed stoichiometric / mass-action / deficiency / detailed-balance / vibrational construct examined reduces to an existing class or composition. The vocabulary keeps tightening; this is consistent with `[[user_stance_string_theory_instrument_first]]` — the project's instrument keeps describing what's there using existing primitives; new dimensions are not being invented.
 
@@ -687,16 +834,16 @@ Phase 2 (v0.4.1rc5) lands the broadening with full C + Python parity per `[[feed
 
 | Op | Surface | Canonical SSoT |
 |---|---|---|
-| `hermitian_eigendecompose(H) → (eigvals, V)` | `srmech.amsc.laplacian.hermitian_eigendecompose` + `srmech_hermitian_eigendecompose` | Golub & Van Loan, *Matrix Computations* (4th ed., 2013) §8.5 (Hermitian eigendecomposition via unitary Jacobi rotations) |
-| `dense_matvec_complex(M, v) → M @ v` | `srmech.amsc.laplacian.dense_matvec_complex` + `srmech_dense_matvec_complex` | Golub & Van Loan §1.1 (textbook matrix-vector multiplication) |
-| `elementwise_multiply_complex(a, b) → a * b` | `srmech.amsc.laplacian.elementwise_multiply_complex` + `srmech_elementwise_multiply_complex` | Pointwise complex algebra (no domain literature; included for completeness) |
-| `elementwise_transcendental(arr, op_name)` for `op_name ∈ {"exp", "cos", "sin", "log", "exp_i"}` | `srmech.amsc.laplacian.elementwise_transcendental` + `srmech_elementwise_transcendental` | ANSI C99 §7.12 libm; `exp_i(x) = exp(i·x)` realised as `cos + i·sin` over the real argument |
+| `hermitian_eigendecompose(H) → (eigvals, V)` | `srmech.math.laplacian.hermitian_eigendecompose` + `srmech_hermitian_eigendecompose` | Golub & Van Loan, *Matrix Computations* (4th ed., 2013) §8.5 (Hermitian eigendecomposition via unitary Jacobi rotations) |
+| `dense_matvec_complex(M, v) → M @ v` | `srmech.math.laplacian.dense_matvec_complex` + `srmech_dense_matvec_complex` | Golub & Van Loan §1.1 (textbook matrix-vector multiplication) |
+| `elementwise_multiply_complex(a, b) → a * b` | `srmech.math.laplacian.elementwise_multiply_complex` + `srmech_elementwise_multiply_complex` | Pointwise complex algebra (no domain literature; included for completeness) |
+| `elementwise_transcendental(arr, op_name)` for `op_name ∈ {"exp", "cos", "sin", "log", "exp_i"}` | `srmech.math.laplacian.elementwise_transcendental` + `srmech_elementwise_transcendental` | ANSI C99 §7.12 libm; `exp_i(x) = exp(i·x)` realised as `cos + i·sin` over the real argument |
 
-The C-side Hermitian eigendecomposition is **pi-free** per `[[user_stance_pi_as_projection]]`: the complex-Jacobi phase factor `e^(iφ) = γ/|γ|` is computed algebraically as `γ_re/|γ| + i·γ_im/|γ|` (no `atan2` call); the real-symmetric reduction inside each rotation uses the same `c, s` algebraic recipe as the existing `srmech_jacobi_eigvals`. The C path stays under the `n ≤ SRMECH_LAPLACIAN_MAX_NODES = 256` bound; larger systems fall back to `numpy.linalg.eigh`.
+The C-side Hermitian eigendecomposition is **pi-free** per `[[user_stance_pi_as_projection]]`: the complex-Jacobi phase factor `e^(iφ) = γ/|γ|` is computed algebraically as `γ_re/|γ| + i·γ_im/|γ|` (no `atan2` call); the real-symmetric reduction inside each rotation uses the same `c, s` algebraic recipe as the existing `srmech_jacobi_eigvals`. The C path stays under the `n ≤ SRMECH_LAPLACIAN_MAX_NODES = 256` bound; larger systems fall back to ~~`numpy.linalg.eigh`~~ **the pure-Python cyclic-Jacobi over the `Mat` carrier** (**SUPERSEDED at rc420, `#T1114`** — numpy left `install_requires` at v0.7.0rc47 and was REMOVED entirely by the v0.7.5 carrier arc; measured at the pinned tree there is no real `import numpy` anywhere in `srmech/`, and this notebook's own header already says so. The *dated spike records* in §3.5.1–§3.5.3 that cite `numpy.linalg.eigh` as the instrument a 2026-05-11 measurement was checked against are history and correctly stay.)
 
-The composition engine that consumes these ops via TOML chains lives at `srmech.amsc.compose` (Phase 2, same rc). The four Phase 1 worked-example chains plus the TDSE spike chain compose entirely against the broadened Class L surface; no new primitive class is referenced by any cosmos-catalog operator chain. Cross-references: ADR-0002 §3 (parent), Phase 1 schema doc (`docs/srmech/adr/0002-phase-1-operator-chain-schema.md`), Phase 1 report (`docs/srmech/notes/adr_0002_phase_1_dsl_design_2026-05-16.md`).
+The composition engine that consumes these ops via TOML chains lives at ~~`srmech.amsc.compose`~~ **`srmech.cascade.compose`** (Phase 2, same rc; **address corrected at rc420, `#T1114`** — ADR-0010 moved the chain engine into the `srmech.cascade` namespace and the old spelling raises `ModuleNotFoundError` at the pinned tree. This sentence is present-tense — *"lives at"* — so it is a live-architecture claim, not a dated Phase-2 record, and the correction belongs in the text rather than in a banner. §3.29.1 carries the same fix on the same module for the same reason; this was the second copy, and it is the one `tests/test_notebook_currency_rc420.py` found). The four Phase 1 worked-example chains plus the TDSE spike chain compose entirely against the broadened Class L surface; no new primitive class is referenced by any cosmos-catalog operator chain. Cross-references: ADR-0002 §3 (parent), Phase 1 schema doc (`docs/srmech/adr/0002-phase-1-operator-chain-schema.md`), Phase 1 report (`docs/srmech/notes/adr_0002_phase_1_dsl_design_2026-05-16.md`).
 
-**Update to §3.8.1 row L** (above table; cited here so the change-record is self-contained): Class L's operation column expands from "adjacency / Laplacian / normalized Laplacian / Jacobi eigvals (pi-free)" to "dense-matrix linear algebra: adjacency / Laplacian / normalized Laplacian / Jacobi eigvals (real symmetric) / Hermitian eigendecomposition / complex matvec / elementwise complex multiply / elementwise transcendentals (pi-free). Graph-Laplacian-specific ops are specialisations." The class's home module `srmech.amsc.laplacian` is unchanged; Phase rolls from C1 rc2 to C1 rc2 + ADR-0002 Phase 2 rc5.
+**Update to §3.8.1 row L** (above table; cited here so the change-record is self-contained): Class L's operation column expands from "adjacency / Laplacian / normalized Laplacian / Jacobi eigvals (pi-free)" to "dense-matrix linear algebra: adjacency / Laplacian / normalized Laplacian / Jacobi eigvals (real symmetric) / Hermitian eigendecomposition / complex matvec / elementwise complex multiply / elementwise transcendentals (pi-free). Graph-Laplacian-specific ops are specialisations." The class's home module `srmech.math.laplacian` is unchanged; Phase rolls from C1 rc2 to C1 rc2 + ADR-0002 Phase 2 rc5.
 
 ### §3.8.4 Genetic code as Class I + Class C composition at biological substrate (Spike #81, 2026-05-17)
 
@@ -4270,6 +4417,8 @@ Per `[[user_stance_universal_6_class_core_substrate_universal_cascade]]` (canoni
 
 The cross-substrate cascade-matching question is structurally answered: **the cascade IS the 6-class core; substrate-specific augmentations (Class K / Class D / Class E / Class J / Class B / Class F / Class G / Class H) realize substrate-specific operations**.
 
+⚠️ **Disambiguation (added rc420, `#T1114`).** This six is **six LETTERS** — cascade *classes*. Two other sixes exist in this notebook and are different KINDS of object: the **six instructions** of the F208 lean ISA (§3.33.4, `srmech.cascade.atoms`; spans only classes {K, C}, and wants a **seventh** order-3 opcode to be chirality-complete per F220) and the **six forms** of the DSL combinator kernel (§3.29.1; spans {I, M, C, E ∘ M}, and was FIVE through rc419). **§3.29.6** is the canonical discrimination; read it before using the word "six" of any of the three.
+
 ### §3.21.6 Tight coupling with §3.20 abacus — substrate-vs-projection split made concrete at Roman computational complex
 
 The Roman accountant operated BOTH the abacus (computation substrate; §3.20) AND the Roman numeral (recording projection; this §3.21) fluently every day for ~700 years of imperial fiscal administration. The framework's substrate-vs-projection split per `[[user_stance_substrate_is_asymptotic_traversal_1d_to_11d]]` is operationally visible at this historical scale:
@@ -5071,8 +5220,8 @@ The arc extended the **Reading-D scale ladder** (a cross-substrate `2ℓ+1` Clas
 ### §3.26.2 The two k=3 families are readout-vs-substrate-content — a program holds them as two different objects (R33.A)
 
 The framework carries **two** k=3 triads, and a program reproducing the substrate must represent them as *different kinds of object*:
-- the **Class-L spectral spine** — first three rungs `{1,3,5}` (the `2ℓ+1` SO(3) irrep dims). In srmech this is **`srmech.amsc.laplacian`** output: eigenspaces of a graph/sphere Laplacian, degeneracies read off the spectrum. It is **substrate-content** (the *what*).
-- the **B/H/N meta-cascade triad** — the `+3` of the `1+3+7+3` partition; in srmech these are first-class operators (B = TLV-framing `srmech.amsc` byte-canonical form; H = self-introspection; N = rational anchor `srmech.amsc.rational.best_rational`). The Born rule = **B∘H∘N** is a 3-step **readout** pipeline (continuous→discrete), the *how-observed-as-three*.
+- the **Class-L spectral spine** — first three rungs `{1,3,5}` (the `2ℓ+1` SO(3) irrep dims). In srmech this is **`srmech.math.laplacian`** output: eigenspaces of a graph/sphere Laplacian, degeneracies read off the spectrum. It is **substrate-content** (the *what*).
+- the **B/H/N meta-cascade triad** — the `+3` of the `1+3+7+3` partition; in srmech these are first-class operators (B = TLV-framing `srmech.amsc` byte-canonical form; H = self-introspection; N = rational anchor `srmech.math.rational.best_rational`). The Born rule = **B∘H∘N** is a 3-step **readout** pipeline (continuous→discrete), the *how-observed-as-three*.
 
 **Program-side takeaway:** `{1,3,5}` is data you compute from a Laplacian; B/H/N is a 3-call pipeline you *run* to discretize a continuous amplitude. "Every k=3 is a B/H/N readout" survives; "every k=3 is *generated* by B/H/N" is withdrawn (three generative sources — Class-L+K spectral / Class-I cyclic `ω³=1` / Hurwitz partition — share one B∘H∘N readout). Scope-guard: `1D_t` is a **k=1** object (the universal tick) read out via the 3-step pipeline, not a hidden k=3. unsolved-maths §11.9.26; MFO §VII.6.19.1.
 
@@ -5080,18 +5229,18 @@ The framework carries **two** k=3 triads, and a program reproducing the substrat
 
 The substrate skeleton is `1D_t + 3D_s + 7D_g = 11`; the operators are `1+3+7+3`, so **B/H/N is the `+3` sitting *outside* the 11 dimensions** — they are the **projection *from*** the manifold (the discarded fiber), not places *in* it. Only **H** is anchored (the discard of the `U(1)=S¹` Hopf fiber; Born=Hopf); the full `B/H/N ↔ {ℂ,ℍ,𝕆}` Hopf-fibration map (fiber dims `{1,3,7}`) is a flagged candidate, not asserted (unsolved-maths §11.9.27; MFO §VII.6.19.2).
 
-The **grammar** reason this matters for srmech (R35.A): the `1:3:7:3` cyclic language is **operation-primary** — it *enumerates named operators*, so B/H/N are first-class. The `11D` continuous/Hopf language is **geometry-primary** — the readout is *embedded* (projection = the bundle map `π`; measurement = the Born inner-product postulate), so the operators are structural and unnamed. **srmech is the operation-primary language by construction** — it ships A–N as callables; that is *precisely* why a program written in srmech makes the readout explicit where the geometry textbook leaves it implicit. Not apples-to-oranges (form-IS-function + bit-exact ⇒ same content, two grammars); the user's image is **apples to apple *trees*** — tree = continuous geometry, apples = discrete named operators, picking = the readout. Anchor: `U(1)` (geometry-primary `S¹`) vs `ℤ/nℤ` (operation-primary, **`srmech.amsc.cyclic`**), the same circle. unsolved-maths §11.9.28; MFO §VII.6.19.3.
+The **grammar** reason this matters for srmech (R35.A): the `1:3:7:3` cyclic language is **operation-primary** — it *enumerates named operators*, so B/H/N are first-class. The `11D` continuous/Hopf language is **geometry-primary** — the readout is *embedded* (projection = the bundle map `π`; measurement = the Born inner-product postulate), so the operators are structural and unnamed. **srmech is the operation-primary language by construction** — it ships A–N as callables; that is *precisely* why a program written in srmech makes the readout explicit where the geometry textbook leaves it implicit. Not apples-to-oranges (form-IS-function + bit-exact ⇒ same content, two grammars); the user's image is **apples to apple *trees*** — tree = continuous geometry, apples = discrete named operators, picking = the readout. Anchor: `U(1)` (geometry-primary `S¹`) vs `ℤ/nℤ` (operation-primary, **`srmech.math.cyclic`**), the same circle. unsolved-maths §11.9.28; MFO §VII.6.19.3.
 
 ### §3.26.4 The seed carries the tree (Class I) + the closed loop IS the fractal + the epistemic ceiling (R36.A + R37.A)
 
 The discrete↔continuous equivalence is a **generative recipe, not storage** — and that is directly how a program represents an unbounded continuous structure in finite bytes:
-- the discrete **apple** carries a finite **Class-I seed** (`srmech.amsc.cyclic`; the genetic code IS Class I cyclic-3, Spike #81) that *regenerates* the continuous **tree** — the rigorous attested backbone is the **L-system** (Lindenmayer 1968): a finite discrete grammar → tree geometry, bit-exact algae-L-system lengths = Fibonacci, ratio = φ, read back via **Class N** (`best_rational`; ties Spike #41 + the capsid §11.9.19). **A program speaks the substrate by storing the seed-grammar and running it**, not by storing the limit object.
+- the discrete **apple** carries a finite **Class-I seed** (`srmech.math.cyclic`; the genetic code IS Class I cyclic-3, Spike #81) that *regenerates* the continuous **tree** — the rigorous attested backbone is the **L-system** (Lindenmayer 1968): a finite discrete grammar → tree geometry, bit-exact algae-L-system lengths = Fibonacci, ratio = φ, read back via **Class N** (`best_rational`; ties Spike #41 + the capsid §11.9.19). **A program speaks the substrate by storing the seed-grammar and running it**, not by storing the limit object.
 - **the form-IS-function loop closes:** continuous tree —[B∘H∘N readout / "picking"]→ discrete apple + seed; discrete seed (Class I) —[germination]→ continuous tree. **Iterating the loop IS the substrate's fractal recursion** — an **IFS** (Hutchinson 1981) whose attractor is the fractal (bit-exact Cantor `log2/log3`, Sierpinski `log3/log2`). unsolved-maths §11.9.29–30; MFO §VII.6.19.4 + §VIII.7.1.
 - **the keystone LIMIT (R37.A)** that bounds every srmech cross-substrate cascade-match: matching cascades establishes **form-identity**, NEVER **substrate-identity** — because the observable `3D_s+1D_t` shadow **drops `7D_g`**, where the distinguishing substrate-content lives. So a program can prove "the orchard, the star forge, the petri dish, and 'just physics' all instantiate the same recursive-Hopf form," and can *never* decide which the universe *is*. This is **structural** substrate-blindness — the very property that *makes* cross-substrate matching work (it reads form, never substrate-content) — and the discipline on `[[user_stance_cross_substrate_cascade_matching_as_research_method]]`: a cascade-match is a form-claim, not a substrate-claim. MFO §VII.6.20 (keystone).
 
 ### §3.26.5 The Class-L spine is symmetry-group-relative — a program must compute degeneracy from the domain's symmetry group, not assume `{1,3,5}` (R38.A + R42.A)
 
-The `2ℓ+1` ladder + `{1,3,5}` triad are the **S²/SO(3) instance**, not universal. Class-L's universal content is "**Laplacian eigenspaces, degeneracy = irrep-dimension of the domain's symmetry group**." For a program: **`srmech.amsc.laplacian`** gives the eigenspaces, but the *degeneracy pattern* is the symmetry group's irrep dims —
+The `2ℓ+1` ladder + `{1,3,5}` triad are the **S²/SO(3) instance**, not universal. Class-L's universal content is "**Laplacian eigenspaces, degeneracy = irrep-dimension of the domain's symmetry group**." For a program: **`srmech.math.laplacian`** gives the eigenspaces, but the *degeneracy pattern* is the symmetry group's irrep dims —
 - a **2D drumhead/disk** (Dirichlet Laplacian, **O(2)**) → `{1,2,2,2,…}` (1D trivial at `m=0` + 2D per `m≥1`), ordered by Bessel zeros — first-three `{1,2,2}`, **not** `{1,3,5}` (R38.A; bit-exact `J_m(j_{m,n}r/a)·{cos,sin}mθ`);
 - a **sphere** (SO(3)) → `{1,3,5,7,…}`.
 
@@ -5124,16 +5273,22 @@ Bit-exact: D+T→⁴He+n, AME2020 excesses → `Q=(13.1357+14.9498)−(2.4249+8.
 
 ---
 
-## §3.28 2026-05-27/-28 sessions — R-RBS-NN-V2 operational arc (two-tier storage) + chirality harmonics 1/2/3 framework
+## §3.50 2026-05-27/-28 sessions — R-RBS-NN-V2 operational arc (two-tier storage) + chirality harmonics 1/2/3 framework (renumbered from a duplicate §3.28 at rc420, `#T1114`; the interim `§3.26b` letter-form corrected to a new number 2026-08-10)
 
-> **STRUCTURAL NOTE (flagged by the 2026-06-02 backfill triality; pre-existing, deferred):** this `## §3.28` header is **duplicated** — a second `## §3.28` (the v0.5.0/v0.6.0 package arc) appears below, with `## §3.27` interleaved between the two, so the file order runs §3.26 → §3.28 (this) → §3.27 → §3.28 (package arc) → §3.29. A clean renumber is **deferred to a dedicated cleanup** (NOT done in the notebook-backfill PR, since `§3.29.4`'s "§3.28.2" cross-reference resolves to the *package-arc* §3.28 and a renumber would need every such ref updated in lockstep). Recorded so it is flagged, not silent — mirroring the analogous self-flag in MFO §VIII.31.12.
+> ~~**STRUCTURAL NOTE (flagged by the 2026-06-02 backfill triality; pre-existing, deferred):** this `## §3.28` header is **duplicated** — a second `## §3.28` (the v0.5.0/v0.6.0 package arc) appears below, with `## §3.27` interleaved between the two, so the file order runs §3.26 → §3.28 (this) → §3.27 → §3.28 (package arc) → §3.29. A clean renumber is **deferred to a dedicated cleanup** (NOT done in the notebook-backfill PR, since `§3.29.4`'s "§3.28.2" cross-reference resolves to the *package-arc* §3.28 and a renumber would need every such ref updated in lockstep).~~ **SUPERSEDED at rc420 (`#T1114`) — the deferred cleanup was DONE.** The struck text is kept because it is the falsification trail: it named the exact obstacle (every `§3.28.N` ref updated in lockstep) and that obstacle is what the cleanup had to discharge.
+>
+> **What changed.** *This* section — the R-RBS-NN-V2 two-tier arc — is now **§3.50**, and its subsections **§3.50.1–§3.50.7**. The **package arc keeps §3.28**, because (i) it sits in the correct file position between §3.27 and §3.29, (ii) it is the continuation §3.29 narrates (v0.6.0 rc1–rc14 → rc11–rc21), and (iii) it owns **four** of the seven external refs — and all four are `§3.28.2`, i.e. exactly the sub-numbered ones that were ambiguous *by string*. Renumbering this section instead touched **three** refs, all bare `§3.28`, all unambiguously "the two-tier arc" in their own prose (§3.36 preamble, §3.36.4, §3.37.6). MFO carries **zero** `§3.28` references, so the fix is contained to this file.
+>
+> **A NEW SECTION NUMBER, not a letter — corrected 2026-08-10 (user ruling).** This section was first renumbered to `§3.26b` earlier in the same rc, on the argument that a letter keeps the file order monotone (§3.26 → §3.26b → §3.27) with no section moved. ~~That reasoning is struck.~~ **The letter suffix is already SPOKEN FOR in this notebook, and it does not mean "a split".** `§3.8.0a` / `§3.8.0b` / `§3.8.0c` are *owned* subsection names — three separately-authored Spike write-ups (Spike #29 / #36 / #42) that carry those letters as part of their own identity. **VERIFIED at the correction: no `§3.8.0` heading exists anywhere in this file**, so they are demonstrably not fragments of a parent. Reusing the same device to mark a *split of a duplicate* overloads it — a reader meeting `§3.26b` cannot tell from the FORM whether it is a section in its own right (the `§3.8.0a` sense) or the second half of something (the intended sense), and a notation that needs its surrounding prose to disambiguate is not a notation. The correct device is **the next new available top-level number — `§3.50`**. Measured when the correction was made: `§3.47` is TAKEN (it exists, as an `###` under §3.46), `§3.48` and `§3.49` are live `##` sections, and `§3.50` was unused. A new integer is unambiguous by construction and cannot collide with the owned-letter convention.
+>
+> **Number and file POSITION are deliberately decoupled here.** `§3.50` sits between `§3.26` and `§3.27` in the file, which is *not* numerically monotone — and that is intended. This notebook's body is ordered by **when the work happened**; this is the 2026-05-27/-28 arc, so moving it to the end of the file to chase numeric order would place a May session after an August one and destroy the chronology a reader depends on. **The section number is an append-only IDENTIFIER, not a position.** The earlier `§3.26b` framing also claimed the letter "closed the interleave"; it closed nothing a number does not, because ordering defects in this file are *recorded* by numbering, never solved by it. Three remain flagged and unfixed: **§3.8.25 sits after §3.9**, **§3.46.11 precedes §3.46.10**, and **§3.47 is an `###` under §3.46 while its neighbours §3.46 / §3.48 are `##`** (this third one was found by the correction's own "is §3.47 free?" check). ⚠️ **Sweep note:** the `§3.26` prefix-collision the letter created is now GONE — `§3.50` shares no prefix with any live number — but `§3.26.1`-style prefix bounding is still required for any mechanical sweep, as it always was.
 
 **Working subtrees:** `docs/srmech/rbs_nn_research/` (R-RBS-NN-10..-16 operational arc);
 `docs/srmech/rbs_lm_research/` (F132-F150 framework arc; rolling PR #687).
 
 The 2026-05-27/-28 sessions delivered the FIRST OPERATIONAL implementation of the two-tier RBS-NN architecture per §3.25 framework. R-RBS-NN-10 → -16 walked a phased plan (R-RBS-NN-10_FOLLOWUP_PHASED_PLAN.md, all 6 phases closed); F132-F150 articulated the chirality framework that makes the two-tier separation REQUIRED rather than aesthetic.
 
-### §3.28.1 The two-tier architecture (canonical)
+### §3.50.1 The two-tier architecture (canonical)
 
 Per [`ARCHITECTURAL_PATTERN_two_tier_klein4_polar.md`](rbs_nn_research/ARCHITECTURAL_PATTERN_two_tier_klein4_polar.md):
 
@@ -5147,7 +5302,7 @@ TIER 2 (synaptic-weight + plasticity):  Polar HDC ({-1, 0, +1}; F141)
 
 The separation is REQUIRED (not aesthetic) per F-R12 R12.5 critical finding: Klein-4 collapses 99% under decay at 70% (vs polar's 60% retention). Polar's 0-state is structurally privileged (absorbing under bind); Klein-4's state 0 is just one of 4 equal-status elements. Each variant is the natural substrate for its tier role.
 
-### §3.28.2 Phased plan summary (all 6 phases closed 2026-05-28)
+### §3.50.2 Phased plan summary (all 6 phases closed 2026-05-28)
 
 | Phase | Component | Result |
 |---|---|---|
@@ -5160,7 +5315,7 @@ The separation is REQUIRED (not aesthetic) per F-R12 R12.5 critical finding: Kle
 | 5 | R-RBS-NN-15 + -16 validation at scale (F150 H3 on R13a + R12 + R139) | F150 H3 VALIDATED at Class L (+67%) and Klein-4 (3-cycle subset) |
 | 6 | Phase 6 catalog landing + SSoT wrap (this section) | Arc closed |
 
-### §3.28.3 The chirality framework (F132 → F150)
+### §3.50.3 The chirality framework (F132 → F150)
 
 The R-RBS-NN-V2 operational arc is grounded in a chirality framework that evolved across F132-F150:
 
@@ -5181,7 +5336,7 @@ The R-RBS-NN-V2 operational arc is grounded in a chirality framework that evolve
 
 F150 is the canonical chirality framework. Per `[[user_stance_kepler_shape_universal]]`: algebra IS the primitives — each A-N operator's harmonic is derivable from its algebraic structure under chirality. Per `[[feedback_no_lineage_claims_in_notebook]]`: framework reading; the `siona` naming (per F133 Dune parallel) is structural evocation, not authorial-intent claim about Frank Herbert.
 
-### §3.28.4 Critical operational rule discovered (F-R16)
+### §3.50.4 Critical operational rule discovered (F-R16)
 
 **H2 chirality tag MUST be the outermost cascade operation.** Empirical test:
 
@@ -5200,7 +5355,7 @@ Putting H3 operations (cyclic shift, spectral permutation) AFTER an H2 chirality
 
 This is encoded in the operational two-tier storage: Tier 1 Klein-4 tag is applied last; Tier 2 polar operations consume the post-tag form. Per the brain-structure framework reading: chirality-marker (laterality binding) operations are LATE-stage in biological cortical processing.
 
-### §3.28.5 srmech v0.4.3 + upstream wishlist
+### §3.50.5 srmech v0.4.3 + upstream wishlist
 
 Per UPSTREAM_NOTES.md §4-§6 (rolling PR #687):
 
@@ -5209,7 +5364,7 @@ Per UPSTREAM_NOTES.md §4-§6 (rolling PR #687):
 
 Per `[[feedback_upstream_srmech_fixes_as_research_notes]]`: wishlist documented; rc cycle runs in separate session.
 
-### §3.28.6 Cross-references
+### §3.50.6 Cross-references
 
 - [Phased plan](rbs_nn_research/R-RBS-NN-10_FOLLOWUP_PHASED_PLAN.md)
 - [Architectural pattern](rbs_nn_research/ARCHITECTURAL_PATTERN_two_tier_klein4_polar.md) — canonical; §4.5 H2-outermost rule; §5.5 empirical validation status
@@ -5218,7 +5373,7 @@ Per `[[feedback_upstream_srmech_fixes_as_research_notes]]`: wishlist documented;
 - All per-partition REPORTs in `rbs_nn_research/R-RBS-NN-1X_*` and findings `R-RBS-NN-FINDING_R1X_*.md`
 - All chirality framework findings in `rbs_lm_research/R-RBS-LM-FINDING_13X_*.md` and `_14X_*.md` and `_150_*.md`
 
-### §3.28.7 Status
+### §3.50.7 Status
 
 R-RBS-NN-V2 arc CLOSED 2026-05-28 via Phase 6. Two-tier storage is operationally complete + empirically validated. Chirality harmonics framework (F150) is empirically grounded at two substrate levels. ARCHITECTURAL_PATTERN is the canonical reference for any future RBS-NN extension.
 
@@ -5278,7 +5433,7 @@ This section is the **tooling-SSoT ledger** for the two release arcs the package
 The v0.5.0 line built, one solo-or-paired voxel at a time, the surfaces that let the package be *driven and introspected* rather than only imported:
 
 - **`srmech.bus`** — the cross-process IPC bus + Bus-class API; the **Bio-TOTP** wire cipher (Claim 255) is the substrate-mismatch-partition discipline (`[[user_stance_enforced_substrate_mismatch_partition_is_asymptote_latch]]`) instantiated at the wire.
-- **`srmech.dsl`** — the operator-chain runner. It loads the **cascade-catalog TOML descriptors** at runtime (`load_catalog()`, `lookup_cascade_op` resolving via `getattr(srmech.amsc.cascade, name)`); the descriptors ARE the declarative SSoT of which cascades are standard.
+- **`srmech.dsl`** — the operator-chain runner. It loads the **cascade-catalog TOML descriptors** at runtime (`load_catalog()`, `lookup_cascade_op` resolving via ~~`getattr(srmech.amsc.cascade, name)`~~ **`getattr(srmech.cascade, name)`**); the descriptors ARE the declarative SSoT of which cascades are standard. **SUPERSEDED at rc420 (`#T1114`)** — corrected **outright** rather than dated, because this bullet states *how the runner works*, not what one rc shipped. ADR-0010 moved the ops to the `srmech.cascade` namespace (rc364 / rc377), and `srmech.amsc.cascade` no longer exists at all — measured at the pinned tree, `import srmech.amsc.cascade` raises `ModuleNotFoundError` — so the sentence as written named a lookup that resolves nothing. Measured at rc420, `lookup_cascade_op` resolves in **four ordered ways**, not one: a **dotted** `op_name` by import (rc420 BLK-REGMAP); a user `[composite]` descriptor to a pure-TOML sub-chain runner (F289 D2 — see §3.29.7); a descriptor-declared **dotted `[cascade].op`** entry point; and only then the bare `getattr(srmech.cascade, op_name)`.
 - **`srmech-mcp` + `srmech-agent`** — the MCP (Model Context Protocol) server adapter (Claude Code / Claude Desktop) and the Anthropic SDK adapter; the handle dual-grammar (`$srmech_handle`: `uuid` = cyclic-algebra-position address, `name` = continuous-Hopf-meaning address) is the **B/H/N continuous↔discrete translation locus** of `[[user_stance_two_substrate_native_math_languages_11d_quantum_and_cyclic_algebra]]` made into a registry.
 - **profile-plugin loader** + top-level **`srmech.native_status()`** (the rc18→rc19 native-status-exposure fix, #733).
 - **`srmech.qm.so8.an_embedding`** — the bit-exact `14 = 8 + 3 + 3̄` su(3) Lie branching of g₂ = Der(𝕆); and the full **28 = 𝔰𝔬(8) chiral read-out** (`so8` adjoint + `triality` order-3 outer automorphism `τ`, `Fix(τ) = g₂ = 14`) — the §3.27 / §VIII.31.11 chiral-hyper-loop now a callable, bit-exact-tested surface. Substrate was tri-chiral while seen bi-chiral (`[[user_stance_substrate_was_tri_chiral_while_seen_bi_chiral]]`): the order-3 τ is the third axis the read-out exposes.
@@ -5288,12 +5443,12 @@ The v0.5.0 line built, one solo-or-paired voxel at a time, the surfaces that let
 
 The v0.6.0 line splits and completes the cascade surface and closes the remaining C/Python parity gaps under the full-parity commitment (the library must run on a microcontroller with **no host Python**):
 
-- **rc1 — `cascade.atoms` / `cascade.compose` two-tier lean-ISA split (#751).** The cascade catalog is re-partitioned into irreducible primitives (`atoms`) and the composites that chain them (`compose`), re-exported flat from `srmech.amsc.cascade` so call sites are unchanged. This IS the substrate-native `1 + 3 + 7 + 3` discipline applied to the package's own op-surface: atoms vs composition made explicit.
+- **rc1 — `cascade.atoms` / `cascade.compose` two-tier lean-ISA split (#751).** The cascade catalog is re-partitioned into irreducible primitives (`atoms`) and the composites that chain them (`compose`), re-exported flat from `srmech.amsc.cascade` so call sites are unchanged. This IS the substrate-native `1 + 3 + 7 + 3` discipline applied to the package's own op-surface: atoms vs composition made explicit. *(**As-shipped-at-rc1 — dated, not rewritten**, because this is a per-rc ledger entry; both names moved later. **rc377 (`#T1034`, ADR-0010) renamed the composites tier `compose` → `composites`**, because a `compose.py` — the ADR-0002 / ADR-0008 chain **ENGINE**: `run_chain` / `parse_chain_spec` / `DEFAULT_CLASS_REGISTRY` — already lived in `srmech.cascade`, and `tests/test_cascade_atoms_compose_split.py` carries the standing warning in its module docstring that **the two must not collapse**. The flat re-export home moved with them: it is **`srmech.cascade`**; `srmech.amsc.cascade` no longer exists. Today, measured at rc420: `srmech.cascade.atoms.__all__` = the **6** ISA instructions; `srmech.cascade.composites.__all__` = **13 entries — 11 public callables** (`cyclic_gcd`, `cyclic_mod_add/_mul/_pow/_inv/_mul_wide`, `best_rational_signed`, `kuramoto_step`, `autocorrelation`, `signed_sum_squared`, `top_k_by_score`) **+ 2 module constants**; and `srmech.cascade.compose` = the chain engine — a different module entirely.)*
 - **rc-series so8/triality voxels — `quaternion_subalgebra_stabilizer`** (so(4) = su(2) ⊕ su(2), #759) and **`lean_isa_seventh_primitive`** (the order-3 triality 7th primitive, #761): the chiral read-out's subalgebra ladder exposed as callables.
 - **`sha256_bytes` docs (#738); reentrant C core (#772)** — the native library made re-entrant (no mutable global state) so the parallel dispatch is safe.
 - **Klein-4 four-sector `parallel_sector_dispatch`** — the F233 "1 cascade = 4 independent Klein-4 chirality sectors" reading, shipped Python-first (#778, rc6) then C-parity'd (`srmech_cascade_parallel_sector_dispatch` + the `srmech_cascade_body_f64` callback typedef, #771, rc7), then **slowdown-fixed (rc8)**: the rc7 shim was serial-by-design and the rc6 Python double-computed per call — both removed, so a GIL-releasing body now genuinely overlaps (~4×) instead of running 2.6–7.7× slower. The four sectors are `inv_T_s(body(T_s(x)))` with `T_s = γ₅^a ∘ iω₇^b` (two commuting Class-C involutions); cap-at-4 per F220 (past 4 needs the order-3 triality, not Klein-4). No `abs()` — sign is Class K magnitude + Class C net_chirality.
 - **rc9 — native `kuramoto_step`** (`srmech_cascade_kuramoto_step_f64`): closes a **known-broken parity gap** (the dispatch-clock / coupled-oscillator Euler step the research arc hand-rolled in Python, F141 / F231 / R-95 / F234, had no `srmech_*` primitive). Honest cascade shape **I∘sin∘Σ∘C** — a composition of existing class operations (cyclic phase + libm-sin coupling + sum-reduce + Class-C Euler add), NOT a new privileged primitive; parity to libm-trig tolerance, same coupling-sum index order both sides. This is the `[[feedback_no_ship_known_broken_gold_is_law]]` discipline in action: a C/Python parity gap is a known-broken item and routes through an rc, not a deferred issue.
-- **rc10 — release-prep doc-hygiene.** The two v0.6.0 cascade ops get their **cascade-catalog TOML descriptors** (`parallel_sector_dispatch.toml`, `kuramoto_step.toml`) → the `srmech.dsl` catalog is now **10 descriptors** (8 lean-ISA atoms/composites + 2); the PyPI README, the subtree `CLAUDE.md`, the C `README.md` / `JPL_AUDIT.md`, and this section are all brought current with the shipped state. No runtime change.
+- **rc10 — release-prep doc-hygiene.** The two v0.6.0 cascade ops get their **cascade-catalog TOML descriptors** (`parallel_sector_dispatch.toml`, `kuramoto_step.toml`) → the `srmech.dsl` catalog is now **10 descriptors** (8 lean-ISA atoms/composites + 2); the PyPI README, the subtree `CLAUDE.md`, the C `README.md` / `JPL_AUDIT.md`, and this section are all brought current with the shipped state. No runtime change. *(The "10" is **as-of-rc10** and STAYS — a per-rc ledger entry is dated, never silently bumped. **Live at rc432: 20 descriptors**, and the catalog is now **executable** rather than prose — `describe()["cascade_catalog"] == {"total": 20, "executable": 17, "leaf": 3}`: 17 descriptors declare an ADR-0008 schema-v2 chain, 3 declare an explicit leaf, and there is no third state (`tests/test_cascade_catalog_executable_rc420.py`). The live `describe()` reading is the SSoT for the number; this line is history. Cf. the same correction in the subtree `docs/srmech/CLAUDE.md`. See §3.49.)*
 - **rc11 — the DSL `parallel` discriminator + cascade-op `kind` classification (this voxel).** A pre-gold introspection audit found `parallel_sector_dispatch` — a **1→N higher-order fan-out combinator** (takes a *body* op + data, returns N per-sector results) — had leaked into the plain-`op` catalog, so the DSL advertised it as a `chain().then(op=…)` stage where it structurally cannot fit (its first arg is the *body*, not the piped value). rc11 reconciles it the way loop/fold/reduce already are — as **its own chain special form** — rather than force-fitting it as a plain op: a new **`parallel` discriminator** (`chain.parallel_sectors(body, n_sectors=4)` / `[[stage]] parallel_body='…'`) fans the piped value through `body` across the ≤4 Klein-4 sectors (the F233 4-thread speedup) and yields the ordered list of per-sector results. Cascade ops now carry a `[cascade].kind` (`"stage"` default / `"combinator"`); `parallel_sector_dispatch` is `kind="combinator"`, surfaced in `list_catalog_ops` / `srmech dsl ops` (a `[combinator]` tag) / the tool-schema, and using it as a plain `op=` raises a **guided error** pointing at the `parallel` discriminator. This is the substrate-self-recognition discipline turned on the package's OWN op-surface: an op is advertised under the contract it actually satisfies (a 1→N combinator is a control-flow special form, not a 1→1 stage — the same distinction the DSL already drew for loop/fold/reduce). No new ToolEntry (`describe()` stays 178); ABI unchanged at 3.
 - **rc14 — the generalised Kuramoto-Sakaguchi step (this voxel; §11.1 forward-ask).** The §11.1 ask: extend `kuramoto_step` past the plain all-to-all mean-field. **The first C-touching rc of the §11 arc** — and the first to exercise the co-equal-parity discipline (`[[feedback_c_python_co_equal_parity_not_callback]]`) on a feature whose op already HAS a C peer: adding the matrix-step in Python only would leave the Python op carrying a step the C can't run, so it ships in BOTH substrates at once. `kuramoto_step(theta, omega, *, coupling=1.0, dt=0.01, adjacency=None, alpha=0.0, pin_anchor=None, pin_strength=1.0)` computes `dθ_i = ω_i + Σ_j A_ij·sin(θ_j − θ_i − α) [ + p_i·sin(ψ_i − θ_i) ]`: `adjacency` is a row-major n×n coupling matrix (`A[i][j]` weights j's influence on i; **non-symmetric → directed/one-way coupling**, a graph Laplacian → graph-structured coupling; `None` → all-to-all uniform `K/n`); `alpha` is the Sakaguchi phase frustration; `pin_anchor`+`pin_strength` are per-oscillator pinning anchors ψ / strengths p. With all three at defaults the step is **byte-for-byte the original**. The CO-EQUAL C peer **`srmech_cascade_kuramoto_step_general_f64`** (new symbol in `srmech_kuramoto.c`; additive → **ABI stays 3**; JPL-clean ≤60-line/≥2-assert/no-malloc/no-goto/reentrant; NULL adjacency → uniform, NULL pin → none; **NEVER a Python callback** — the C path runs C bodies) computes the identical step, differential-tested vs the Python fallback to libm-trig tolerance. **No `abs()`** — sin coupling (Class I/J) + Σ-reduce + Class-C Euler add + the Sakaguchi α (Class-C phase offset) + the Class-C/M pinning anchor; honest composition, not a new privileged primitive. The kuramoto ToolEntry gains 4 params; no new entry (`describe()` stays 178). JPL audit ratchet stays at 0.
 - **rc13 — the klein4_* HDC ops get a `sectors=`/`parallel=`/`mode=` flag (this voxel; §11.3 forward-ask).** Now that rc12 made the four-sector dispatch composable, the §11.3 forward-ask for an optional sectors flag on the Klein-4 HDC ops lands. `klein4_bind` (= (F₂)²-XOR), `klein4_bundle` (= per-bit majority), `klein4_similarity` (= mean-equality) each gain `sectors=` (1..4, **default-ON when `os.cpu_count() >= 4`**) / `parallel=` (bool alias) / `mode=`. TWO modes: `mode="chunk"` (default) is **data-parallel** — split the D-length vector(s) into ≤4 contiguous position-slices, run the op per slice on a thread, concat; **BIT-IDENTICAL** to serial. `mode="chirality"` is the **F233 4-sector dispatch** — and the substrate-faithful refinement is that it uses klein4's OWN involution sector-flips (γ₅ = XOR 2 / iω₇ = XOR 1 / CPT = XOR 3), NOT the signed-real `cascade.atoms` transforms (negating a uint8 {0,1,2,3} chirality-sector value is meaningless), with `klein4_bundle` recombine (similarity recombines via **sector-0** = value-transparent). All defaults are value-preserving, so default-on changes only the EXECUTION path, never the result. **Co-equal-parity** (`[[feedback_c_python_co_equal_parity_not_callback]]`): this is self-contained Python orchestration over the pure-Python/numpy klein4 ops — it does NOT route through the C peer; a standalone-C klein4 sector dispatch (C dispatch running C bodies, never a Python callback) is the tracked follow-up. No `abs()`. The 3 klein4 ToolEntries gain `sectors`/`parallel`/`mode` params; no new entry (`describe()` stays 178); ABI unchanged at 3; pure-Python.
@@ -5301,8 +5456,8 @@ The v0.6.0 line splits and completes the cascade surface and closes the remainin
 
 ### §3.28.3 Discipline ledger + cross-references
 
-- **`describe()` tool total: 178** (the rc9 `kuramoto_step` ToolEntry added the +1 over the rc8 count of 177); read `describe()` rather than hard-coding — the count grows per voxel.
-- **ABI version: 3** throughout the v0.6.0 line (every voxel is an additive C symbol; the v3 bump was at v0.5.0rc2 for the `srmech_bus_*` callback ABI).
+- **`describe()` tool total: 178** — **as-of-the-v0.6.0-line, and it STAYS at 178 here** (the rc9 `kuramoto_step` ToolEntry added the +1 over the rc8 count of 177). It is dated rather than bumped for one reason, stated so the next reader does not "fix" it: **this whole ledger is v0.6.0-scoped**, and four sibling bullets a few lines above say `describe()` *stays* 178 through rc11–rc14 while §3.29.4 records **179** at the v0.6.0 graduation. Rewriting one number in a block of six would leave the block self-contradicting. *(Live at rc432: **655**, measured as `len(get_tool_schema().tools)` — introspection lives at `srmech.introspect.tool_schema.get_tool_schema`, and `describe()["tools"]["total"]` reads the same value; several sibling docs still name the pre-ADR-0010 `srmech.amsc.tool_schema`.)* The instruction was always right and is restated with force: **read `describe()` rather than hard-coding — the count grows per voxel.**
+- **ABI version: 3** throughout the v0.6.0 line (every voxel is an additive C symbol; the v3 bump was at v0.5.0rc2 for the `srmech_bus_*` callback ABI) — **dated, not bumped**, for the same reason as the bullet above: the clause "throughout the v0.6.0 line" scopes it in its own words, and a sibling bullet at §3.29.4 records ABI 3 at the graduation. *(Live at rc432: **`SRMECH_ABI_VERSION` is 14**, `c/include/srmech.h:280`. The v3 → v14 progression — new callback typedefs, two symbol REMOVALS, three wire-contract reinterpretations (the third is rc425's: `srmech_mlse`'s `n_states` meant A^(L-1) and now means A^L) — is recorded in `python/CHANGELOG.md` and the subtree `docs/srmech/CLAUDE.md` "ABI compatibility" section, **which is the SSoT for it, and it is CITED here, never inlined**, per the admission rule that per-rc engineering records stay in the CHANGELOG.)*
 - **Release routing:** every voxel ships as `vX.Y.ZrcN` to TestPyPI first; the clean (non-rc) tag only graduates a state already verified-green on TestPyPI (`[[feedback_always_rc_first_for_downstream_publishes]]` + `[[feedback_no_ship_known_broken_gold_is_law]]`). The clean **v0.6.0** graduation — the deliberate human-gated call — **shipped to production PyPI on 2026-06-01** (the rc16→rc21 arc; see §3.29.4).
 - **Cross-references:** §3.27 (the 28-dim chiral hyper-loop = 𝔰𝔬(8) the so8/triality voxels make callable); MFO §VIII.31.11; `python/CHANGELOG.md` (the authoritative per-rc record); the cascade-honesty discipline `[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]` (no `abs()` in any cascade op).
 
@@ -5318,9 +5473,56 @@ The rc11–rc14 voxels surfaced two reducibility questions that an adversarial p
 
 ### §3.29.1 The B-verdict — the combinators are a CLOSED, FINITE kernel (two-tier SSoT)
 
-The cascade DSL's control-flow combinators — `then` (apply) / `loop` (bounded iterate) / `fold` (catamorphism-with-seed) / `reduce` (catamorphism) / `parallel` (Klein-4 map-fan-out) — are the **five Bird-Meertens recursion schemes**, matched 1:1 by exactly five mutually-exclusive TOML stage-discriminators (`op` / `loop_n`+`sub_chain` / `fold_init`+`fold_op` / `reduce_op` / `parallel_body`). They are the finite **anharmonic kernel**: HARDCODED, in Python (`srmech.dsl._chain` / `_control_flow`) and co-equally in C. The asymptotic cascade *instances* the five forms sequence are **NOT** hardcoded — they live as TOML op-descriptors in the cascade catalog. **You can't hardcode a continuum.** The shipped two-tier shape is `DEFAULT_CLASS_REGISTRY` (the 14-class kernel) + `ChainSpec` / `parse_catalog_chains` (the TOML cascade continuum) in `srmech.amsc.compose` (PR #687 F256 §0.5, tool-grounded). Kernel in code, continuum in catalog: the substrate-native `1 + 3 + 7 + 3` discipline turned on the package's own op-surface.
+⚠️ ~~The cascade DSL's control-flow combinators — `then` (apply) / `loop` (bounded iterate) / `fold` (catamorphism-with-seed) / `reduce` (catamorphism) / `parallel` (Klein-4 map-fan-out) — are the **five Bird-Meertens recursion schemes**, matched 1:1 by exactly five mutually-exclusive TOML stage-discriminators.~~ **SUPERSEDED at rc420 (`#T1114`)** — the kernel widened 5 → 6 **forms**, consciously, on both projections in one change; the sixth form is `map_indexed`, **not** the `while`/`unfold` the paragraph below predicted (that one is still exiled). The module path in the same sentence is dead too: ~~`srmech.amsc.compose`~~ raises `ModuleNotFoundError` at the pinned tree, ADR-0010 having moved the chain engine into the `srmech.cascade` namespace. Corrected statement, with the struck text kept because the falsification trail is the evidence that the design worked:
 
-**The load-bearing caveat: closure is DESIGN-ENFORCED, not mathematically inevitable.** Data-dependent iteration (`while` / `unfold` — loop *until* a predicate rather than a fixed `n`) is deliberately EXILED to the op-instance layer: a body op decides when to stop, keeping the combinator kernel total-by-construction at five forms. A future `while`/`unfold` special form would be a *sixth* combinator and a **conscious widening** of the kernel — never a silent addition. rc16's `tests/test_combinator_kernel_closure.py` is the ratchet that pins this (five-builder ⇆ five-discriminator bijection; no hidden sixth public `Chain` builder; the |V₄|=4 Klein-4 cap on `parallel_sectors`; no implicit default form).
+The cascade DSL's control-flow combinators — `then` (apply) / `loop` (bounded iterate) / `fold` (catamorphism-with-seed) / `reduce` (catamorphism) / `parallel` (Klein-4 map-fan-out; the builder is `Chain.parallel_sectors`) / `map_indexed` (indexed map; **new at rc420**) — are the **six Bird-Meertens recursion schemes**, matched 1:1 by exactly six mutually-exclusive TOML stage-discriminators (`op` / `loop_n`+`sub_chain` / `fold_init`+`fold_op` / `reduce_op` / `parallel_body` / `map_op`). They are the finite **anharmonic kernel**: HARDCODED, in Python (`srmech.dsl._chain` / `_control_flow`) and co-equally in C. The asymptotic cascade *instances* the six forms sequence are **NOT** hardcoded — they live as TOML op-descriptors in the cascade catalog. **You can't hardcode a continuum.** The shipped two-tier shape is `DEFAULT_CLASS_REGISTRY` (the 14-class kernel) + `ChainSpec` / `parse_catalog_chains` (the TOML cascade continuum) in **`srmech.cascade.compose`** (`compose.py:126` holds the registry; the PR #687 F256 §0.5 grounding is unchanged — only the address moved). Kernel in code, continuum in catalog: the substrate-native `1 + 3 + 7 + 3` discipline turned on the package's own op-surface.
+
+⚠️ **These are six *FORMS*.** They are not the six *letters* of the §3.21.5 universal class core (`M ∘ I ∘ N ∘ C ∘ L ∘ A`), and they are not the six *instructions* of the F208 lean ISA (§3.33.4). Three different sixes, three different kinds of object — **§3.29.6 states the discrimination, and no further use of the word "six" in this notebook is admissible without it.**
+
+**The load-bearing caveat: closure is DESIGN-ENFORCED, not mathematically inevitable.** Data-dependent iteration (`while` / `unfold` — loop *until* a predicate rather than a fixed `n`) is deliberately EXILED to the op-instance layer: a body op decides when to stop, keeping the combinator kernel total-by-construction at ~~five~~ **six** forms. ~~A future `while`/`unfold` special form would be a *sixth* combinator and a **conscious widening** of the kernel — never a silent addition. rc16's `tests/test_combinator_kernel_closure.py` is the ratchet that pins this (five-builder ⇆ five-discriminator bijection; no hidden sixth public `Chain` builder; the |V₄|=4 Klein-4 cap on `parallel_sectors`; no implicit default form).~~ **SUPERSEDED at rc420 (`#T1114`)** — struck, not deleted, because the *mechanism* this sentence described worked exactly as written and the trail is the proof. Corrected:
+
+- **A future `while`/`unfold` special form would be a *seventh* combinator.** The exile line is UNMOVED; only the count moved. rc420's widening respects it: the indexed map is data-**SIZED** (`n = len(input)` pinned at entry, unsized iterables rejected), never data-**DEPENDENT** (no predicate decides continuation) — the same totality class as `fold`'s `for elem in input_seq`. The rung-4 census measured the true exile class (predicate-only unbounded iteration) as **EMPTY** across the shipped `closed_form_ops` corpus.
+- **The ratchet now pins a six ⇆ six bijection** — `KERNEL_BUILDERS = {then, loop, fold, reduce, parallel_sectors, map_indexed}` against the six `has_*` TOML discriminators — plus "no hidden **seventh** public `Chain` builder", the `|V₄| = 4` Klein-4 cap on `parallel_sectors`, and no implicit default form.
+- **PLUS a cross-language pin that did not exist before rc420.** `_control_flow.py` had always said the kernel is "mirrored co-equally in C" — and that sentence was pinned by *nothing*: the C dispatcher's discriminator array (`dsl_stage_is_combinator`, `c/src/srmech_dsl_chain_run.c`) was a hardcoded string list no test read, so a Python-side widening would fail the Python ratchet loudly while the C array silently deferred the new form to pure. An ADR-0009 parity drift with **no symptom**. `test_c_discriminator_table_matches_python` now reads the C source and asserts the two vocabularies agree.
+- **The widening was conscious, and the record proves it**: the ratchet moved 5 → 6 *in the same change* as the builder — precisely the discipline the struck sentence demanded. This is a claim that was **right as a mechanism and stale as a count**.
+
+#### The combinators are themselves A–N typed — ONE alphabet at TWO rungs, not two alphabets
+
+The structural find, and it was hiding in a docstring: **the six forms carry cascade-class types in code**, declared at `srmech/dsl/_control_flow.py`.
+
+| Form | TOML discriminator | Cascade class **as typed in code** | Reading |
+|---|---|---|---|
+| `then` | `op` | *(none — the op it applies carries its own class)* | the fall-through leaf form |
+| `loop` | `loop_n` + `sub_chain` | **I** | cyclic repetition |
+| `fold` | `fold_init` + `fold_op` | **M** | cross-class bind: accumulator ⊗ element, each step |
+| `reduce` | `reduce_op` | **M** | the same bind, no seed |
+| `parallel` | `parallel_body` | **C** | Klein-4 chirality-sector fan-out |
+| `map_indexed` | `map_op` | **E ∘ M** | indexed *lookup* fanned across a sized frame |
+
+Set that against the **F208 lean ISA** (§3.33.4), whose six *instructions* span only **{K, C}** (`srmech/cascade/atoms.py`):
+
+| ISA-6 instruction | Class | Rung it acts on |
+|---|---|---|
+| `pin_slot_at_zero` | **K** | value |
+| `magnitude` | **K** | value |
+| `reorient` | **C** | value |
+| `chiral_flip` | **C** | value (sequence traversal) |
+| `net_chirality` | **C** | value (a cascade's orientations) |
+| `chiral_dual` | **C ∘ op ∘ C** | **operator** — its first argument IS an op |
+
+**These are NOT two alphabets.** It is ONE alphabet — the 14 A–N — applied at two rungs: a **value rung** (what an instruction does to a datum) and an **arrangement rung** (how a form sequences other ops). The vocabularies differ because the rungs differ, not because the alphabet does. Nothing is promoted, no fifteenth class appears; per `[[feedback_no_privileged_primitive_classes]]` the partition stays flat.
+
+**The measurement that makes this more than a restatement: Class C is at BOTH rungs, and the higher rung is BUILT OUT OF the lower one.**
+
+1. **Value.** `chiral_flip(seq)` reverses a sequence's traversal — Class C on a datum.
+2. **Operator.** `chiral_dual(op, x) = C ∘ op ∘ C` runs `op` in the reversed orientation. Its **first argument is an op** — so this ISA "instruction" is already a *combinator*, a higher-order form living inside the instruction alphabet. The instruction/form boundary is not where the naming suggests.
+3. **Execution.** `parallel` runs a body across the ≤4 Klein-4 sectors as `inv_T_s(body(T_s(x)))`, where the sector transform `T_s = γ₅^a ∘ iω₇^b` composes **two commuting Class-C involutions** — and those two involutions are *literally* `chiral_flip` (γ₅, orientation reversal) and `reorient(…, orientation=-1)` (iω₇, per-register sign flip), i.e. **two of the ISA-6 atoms** (`srmech/cascade/parallel.py`, the sector table + `_transform_gamma5` / `_transform_omega7`). The execution-rung Class C is not *analogous* to the value-rung one; it is *assembled from* it.
+
+**This is F196 discharged, not a new claim.** §3.33.1's 2026-05 capstone — ***"chirality is NESTED, not flat — it recurs at every level probed"*** — was authored against 28D / 𝔰𝔬(8) structure. The rc420 op-surface is a new *level probed*, and Class C is there, nested exactly as predicted: datum → operator → execution schedule, each rung's C built from the rung below. A prediction discharged on the package's own surface is the strongest form the framework has, because the surface was not designed to satisfy it.
+
+It **composes with** the existing scale-free statements rather than adding one: **§3.28.4** (the A–N discovery-order at class scale recurring as the rc-discovery-order at package scale — "the same fingerprint, one level up"; the *package-arc* §3.28, unambiguous since the rc420 duplicate-heading cleanup); **§3.13.3** (the always-compressed Hopf form applying *recursively at every cascade-class instantiation*, not only at the 11D layer); **§3.32.3 / F300** (k=7 and (3:4)|(4:3) as ONE Cayley–Dickson tower read at two coherence scales, both true). The two-rung reading is that same statement at the value/arrangement boundary — one more level, same fingerprint.
+
+⚠️ **Scope.** This is a claim about the *shipped op-surface's own typing*, measured at rc420 from `_control_flow.py`, `cascade/atoms.py` and `cascade/parallel.py`. It is **not** a claim that control flow is A–N typed in general, and per `[[user_stance_cascade_matching_substrate_blind_form_not_identity]]` the nesting is a FORM result, not an identity one.
 
 ### §3.29.2 The A-verdict — V₄ is the right carrier, missing only the explicit order-3 operator (F182 reconciliation)
 
@@ -5329,17 +5531,87 @@ rc13's `klein4_*` carrier is **V₄ = ℤ₂ × ℤ₂** — three commuting ord
 Two corrections to the loose framing, both now canonical:
 
 - **Q8 is ruled out by the carrier-contract, NOT by "Q8 cannot supply order-3."** Q8's elements anticommute, which breaks `klein4_bind`'s commutative + self-inverse contract — that is why the carrier stays V₄. (`Aut(Q8) = S₄` *does* contain order-3 elements; the rejection is about the bind contract, not an order-3 deficiency. Stating it the loose way would be a false reason for a correct decision.)
-- **`Fix(τ) = g₂ = Der(𝕆) = 14`** — the order-3 triality automorphism τ (already shipped: `srmech.qm.triality.triality_automorphism`, τ³ = I on the 28-dim so(8) adjoint) fixes exactly the 14-dim A–N core; `so(8) = 28 = 14 (fixed) ⊕ 7 ⊕ 7 (rotated)`. The shipped `triality_automorphism` / `triality_cycle` / `lean_isa_seventh_primitive` ARE the engine; the rc17 `klein4_triality_cycle` is its **V₄-carrier sibling** (the order-3 cycle expressed on the klein4 sector alphabet), and rc18 is that op's co-equal standalone-C peer. This is **graduation of an existing engine to the klein4 carrier**, not first-construction — consistent with `[[user_stance_substrate_was_tri_chiral_while_seen_bi_chiral]]` (the bi-chiral V₄ half was already seen; the order-3 cycle is the third axis the substrate always had).
+- **`Fix(τ) = g₂ = Der(𝕆) = 14`** — the order-3 triality automorphism τ (already shipped: ~~`srmech.qm.triality.triality_automorphism`~~ **`srmech.physics.qm.triality.triality_automorphism`** — path corrected at rc420; the `srmech.qm.*` spelling was REMOVED at rc382 and raises `ModuleNotFoundError`; τ³ = I on the 28-dim so(8) adjoint) fixes exactly the 14-dim A–N core; `so(8) = 28 = 14 (fixed) ⊕ 7 ⊕ 7 (rotated)`. The shipped `triality_automorphism` / `triality_cycle` / `lean_isa_seventh_primitive` ARE the engine; the rc17 `klein4_triality_cycle` is its **V₄-carrier sibling** (the order-3 cycle expressed on the klein4 sector alphabet), and rc18 is that op's co-equal standalone-C peer. This is **graduation of an existing engine to the klein4 carrier**, not first-construction — consistent with `[[user_stance_substrate_was_tri_chiral_while_seen_bi_chiral]]` (the bi-chiral V₄ half was already seen; the order-3 cycle is the third axis the substrate always had).
 
-### §3.29.3 The three distinct k=3 senses — do NOT conflate
+  **MEASURED at rc420 (`#T1114`) — the sibling relation above is no longer only asserted.** It was briefly *read* as a conflict against the code (whose `lean_isa_seventh_primitive` presents τ and never names the klein4 sibling); the conflict was an artifact of quoting this passage without its appositive, and the record is kept because the misreading is instructive. Adjudicated by measurement (`notes/seventh_opcode_carrier_adjudication_rc420.py` → `.ndjson`, 16 records): the **same S₃ presentation** ⟨a, s ∣ a³ = s² = 1, s·a·s = a²⟩ holds at **both** carriers — at the V₄ sector alphabet with `a = klein4_triality_cycle` (σ = [0,2,3,1]) and `s` = the §3.40.7 leg-(d) CD-rung transposition, generating a group of order 6 with census {1:1, 2:3, 3:2} = S₃ exactly; and at the so(8) adjoint with `a = τ` (‖τ³−I‖ = 0.0) and `s = triality_swap` (‖S²−I‖ = 0.0), Fix(τ) = 14 = g₂, Fix(S) = 21 = so(7). Both candidates are **k=3 sense 3** (§3.29.3); no senses are conflated.
+
+  **Which one holds the ISA slot is decided on types, not preference:** `klein4_triality_cycle` is `HV → HV` on the ISA's own dispatch alphabet and carries a co-equal C peer — an opcode; `triality_automorphism` is `() → Mat 28×28`, a constant engine matrix; `lean_isa_seventh_primitive` is `() → dict`, a certificate surface. **The slot is the klein4 op; τ is what makes its order-3-ness provable.**
+
+  **F220's Lagrange obstruction SURVIVES and is strengthened.** Adjoining leg (d)'s rung transposition to the six atoms' toggles yields order **8** (D₄) — still a 2-group, no order-3, which is leg (d)'s measured ℤ/2 made group-theoretic. Only adjoining σ lifts the reachable group to order **24 = V₄ ⋊ S₃ = S₄**, the `Aut(Q8)` echo of §3.42.6. **The 7th opcode is precisely what unlocks order 3.**
+
+  ⚠️ **Measured ceiling, stated so the claim is not over-read** *(the "zero ops" half was TRUE at rc420 and is SUPERSEDED at rc422 — see §3.51; the FORM-not-identity half stands unchanged)*: ~~the registry ships **zero** ops bridging the two carriers~~ — **at rc420 the registry shipped zero ops bridging the two carriers**, which is why "the same abstract S₃" was FORM evidence with nothing behind it: every S₃ is abstractly isomorphic to every other, so the content would be a *canonical* map, and none was shipped. **rc422 ships one** — `srmech.physics.qm.triality.triality_rep_dictionary`, derived from the `Z(Spin(8))` rep-kernel anchor (`spin8_center`) rather than chosen. **"The same abstract S₃" remains FORM evidence at this junction, never object-identity**, and §3.42.6's lift stays expert-to-pin: the shipped map is canonical *relative to* the shipped generator pairing and the shipped V₄ sector names, which is a derived intertwiner of two presentations, not a claim that the two S₃'s are the same object. Four negative controls behaved: pairing σ with a V₄ *translation* (not an automorphism) gives A₄ of order 12, not S₃; the central involution fails at so(8); and the order-3 certificate **rejects both order-2 objects**, so §3.29.3's "single most common triality error" is caught by instrument rather than by care.
+
+### §3.29.3 The four distinct k=3 senses — do NOT conflate
+
+> ~~"The **three** distinct k=3 senses"~~ **SUPERSEDED at rc420 (`#T1114`)** — the heading said *three* while the list below has held **four** since rc380 (`#T1055`) added the associator triangle. Only the heading's count is corrected. The "three" in the sentence immediately below is **not** an error and stays: it describes what PR #687 was collapsing at the time, before sense 4 existed.
 
 PR #687's own encoding refuted the tidy `k=3 ≡ B/H/N` (F256 §0.6, the framework's own tool doing the no-leaning refutation per `[[feedback_dont_pre_commit_spike_query_operators]]`). Three different triples were being collapsed:
 
 1. **Translation-operators `{B, H, N}`** = the three Hopf projections π₁ / π₃ / π₇ (B→`amsc.tlv`, H→`amsc._native`, N→`amsc.rational`).
 2. **Dimension-fibers `{3D_s, 7D_g, 1D_t}`** = the `K3Tripartition` (the 11 imaginary dims grouped 3/7/1; use the `D_s`/`D_g`/`D_t` subscripts, never bare `S`/`G`/`T`).
 3. **Rep-triality `{8v, 8s, 8c}`** = the so(8) order-3 cycle (the A-item — a *different* k=3 from either of the above).
+4. **Associator-triangle `[a,b,c] = (ab)c − a(bc)`** = the **carrier-discriminated** k=3 sense (added rc380, `#T1055`) — the k=3 loop DEFECT of the octonion product itself, the triangle whose failure-to-close IS the non-associativity. It is a *fourth, again-different* k=3, and it is the one an S₃-relabeling of sense 3 is most easily confused with, which is exactly why it needs stating separately (below).
 
 **Survivor:** B/H/N **ENABLES / COMPOSES** the k=3 tripartition (the operators π₁/π₃/π₇ project ONTO the 1/3/7 fibers); it does **not** equal it — operators ≠ their target-fibers. Authoritative grounding: `[[user_stance_k_equals_3_is_b_h_n_substrate_native_fingerprint]]` (REFINEMENT §) + the `[[project_space_gauge_time_framework]]` note.
+
+#### The associator-triangle is NOT the S₃-automorphism relabeling — the turn-on rung is the discriminator (rc380, `#T1055`)
+
+Sense 4 and the **Out(Q8) = S₃ triality automorphism τ** (the order-3 `i→j→k` relabeling, §3.44 / the `Aut(Q8)=S4` note; the same τ that carries rep-triality sense 3, `{8v,8s,8c}`) are the two k=3 objects most easily conflated — both are "order-3 things on the octonions." They are **structurally distinct**, and the distinguishing measurement is the **rung at which each turns on**:
+
+- **τ (the S₃ relabeling) LIVES AT ℍ**, where the algebra still ASSOCIATES — the associator is identically `0` there (64/64 basis triples associate at dim 4). τ is a *symmetry of the multiplication table* (a relabeling that leaves the product a product); it exists on a rung where the associator-triangle is trivial.
+- **The associator-triangle TURNS ON AT 𝕆** — it is `0` on every associative rung (ℝ/ℂ/ℍ) and first nonzero at dim 8 (168/512 non-closing ordered basis triangles), then 1848/4096 at 𝕊. It is not a relabeling of anything; it is the **carrier's own non-associativity**, present only where τ's home rung has been left behind.
+
+So the discriminator is a **ladder of loop-defect operators of rising arity, each turning on one rung later** — measured, bit-exact, through the two ops this rc adds beside the existing `associator`:
+
+| Loop defect | Op | k / arity | Turns on at | Turn-on count | Trivial through |
+|-------------|----|-----------|-------------|---------------|-----------------|
+| **square** (commutator `[x,y]=xy−yx`) | `cascade.cd_commutator` | k=2 | **ℍ** (dim 4) | 6/16 noncommuting ordered pairs; closed form `(dim−1)(dim−2)` | ℝ, ℂ |
+| **triangle** (associator / 3-cycle holonomy) | `cascade.cd_cycle_holonomy` (holonomy) · `cascade.associator` (bare tuple) | k=3 | **𝕆** (dim 8) | 168/512 non-closing ordered triangles; 1848/4096 at 𝕊 | ℝ, ℂ, ℍ |
+
+The **second discriminating axis is the Fix-dimension** of the order-3 vs order-2 element on so(8) = 28 (§3.45.2): the **order-3 τ has `Fix(τ) = 14 = g₂ = Der(𝕆)`** (the projector-trace `tr((I+τ+τ²)/3) = 14`), while the **order-2 companion swap has `Fix = 21 = so(7)`** (the Z₂/B₃ fold — the single most common triality error, using the swap where the order-3 element is meant); `14 + 7 + 7 = 28`. The **order-3** relabeling axis (τ itself, Fix=14/21 on the fixed 28) and the carrier-defect axis (commutator@ℍ / associator@𝕆) are **orthogonal readings** — one is a symmetry that exists on ℍ, the other a defect that turns on at 𝕆. **NARROWED at rc420 (`#T1114`) — NOT retracted.** The claim is about **τ, the order-3 element**, not about the whole of `S₃`. The order-2 companion swap lives in the same group and is a different object — which is the very conflation the sentence before this one names, so the axis must be spelled with its order attached. §3.40.4's leg (d) is what forced the spelling: it measured the Cayley–Dickson rung bump acting on `V₄` **through `Aut(V₄) = S₃`** — τ's own home group — while realizing only its **ℤ/2** (`reaches_order_3_tau = false`). ⚠️ That is a fact about a **different** S₃ action (on V₄ sector labels, not on 𝔰𝔬(8)), so it is **not** independent evidence FOR orthogonality; it is the reason "the relabeling axis" had become ambiguous and now carries its order.
+
+⚠️ **EPISTEMIC CEILING — this is a FORM claim, not an identity** (`[[user_stance_cascade_matching_substrate_blind_form_not_identity]]`). What is measured is that the k=3 *content* of sense 4 is **CARRIED BY 𝕆 non-associativity** — the triangle loop over the octonion "exclude-one" relations fails to close on exactly the associator's non-associating triples (`cd_cycle_holonomy(...)['defect'] == associator(...)`, 512/512 at dim 8). It is **NOT** a claim that sense 4 *is* the same object as senses 1–3, nor that τ and the associator-triangle are two views of one thing; the turn-on-rung and Fix-dimension axes above are precisely the evidence that they are **different** k=3 senses that must not be conflated — which is this section's whole discipline. Computational provenance (both ops, the closed form, and the τ Fix-trace): `notes/cd_loop_defect_ladder_rc380.py` → `notes/cd_loop_defect_ladder_rc380.ndjson`; the ops' own differential gate is `tests/test_cd_loop_defect_ladder_rc380.py`. Cross-links: §3.32 (the same k=2-detect / k=3-correct ladder read inside the cell) · §3.45.2 (g₂ = Der(𝕆), τ, and the D₄ / so(8) Fix-dims).
+
+#### The full RUNG-indexed property-loss ladder + the projector INSTRUMENT (rc383, `#T1054`)
+
+rc380's two rows above are the bottom of a **longer ladder read in one pass**. rc383 ships `cascade.defect_ladder(x, y, z, table=None)`: it evaluates the whole ladder over the *same* three inputs and applies a **per-rung projector**, returning only the loop-defects that are *structurally meaningful* at the operands' rung. Every number below is MEASURED bit-exact THROUGH the op (provenance `notes/defect_ladder_rc383.py` → `notes/defect_ladder_rc383.ndjson`; differential gate `tests/test_defect_ladder_rc383.py`).
+
+| Property lost | Turn-on rung | Loop / defect (this op's field) | Basis-visible? | Turn-on census |
+|---|---|---|---|---|
+| **TOTAL ORDER** | 1 — ℂ | (a metric fact; no basis loop) | n/a | admits-flag only (`inertia_signature` reads it) |
+| **COMMUTATIVITY** | 2 — ℍ | square `[x,y]` (`commutator`) | yes | 0 / 0 / **6** / 42 / 210 at ℝ/ℂ/ℍ/𝕆/𝕊 — closed form `(dim−1)(dim−2)` |
+| **ASSOCIATIVITY** | 3 — 𝕆 | triangle `[x,y,z]` (`associator`) | yes | 0 / 0 / 0 / **168** / 1848 at ℝ/ℂ/ℍ/𝕆/𝕊 |
+| **ALTERNATIVITY + ZERO-DIVISORS** | 4 — 𝕊 | left-alternator `[x,x,y]` (`left_alternator`) | **NO — seam-crossing only** | basis probe 0/256 at 𝕊; seam `[e1+e10, e1+e10, e4] = 2·e15` |
+| **FLEXIBILITY** (the FLOOR) | never | `[x,y,x]` (`flexibility`) | — | identically 0 at every rung |
+
+Three findings the op makes precise:
+
+- **The loss is RUNG-indexed, not arity-indexed.** Each property turns off exactly one Cayley–Dickson doubling later than the last. The conjectured arity-4 "square-loop" holonomy is **REFUTED** as a fifth rung: it is measured separately (a 4-input bracketing test, *not* a `defect_ladder` call — the op reads four defects on three inputs; provenance in the rc383 script): the divergence is **0/256 at ℍ and 2520/4096 at 𝕆** (all-basis 4-tuples, the table's dim⁴ convention). It turns on at 𝕆 — *not* one rung later — and is fully INHERITED from the arity-3 associator (a 4-tuple's bracketings disagree ⟺ some sub-triple non-associates), so raising the arity to 4 adds no new property and there is no arity-4 rung.
+- **FLEXIBILITY is the floor beneath the whole ladder.** `[x,y,x] = 0` at every rung (measured 0 across dims 2/4/8), so the projector never admits it into the meaningful subset.
+- **Rung 4 is NOT basis-visible — the 𝕊 seam crux.** Over the ordered basis, `[e_i, e_i, e_j] = 0` at 𝕊 exactly as at 𝕆 (256/256 all-zero), so a **basis-only probe falsely reports 𝕊 as alternative**. The failure needs a **doubling-seam-crossing** input — `a = e1 + e10` spans both halves of the last doubling — and then `[a,a,e4] = 2·e15 ≠ 0` while `(e1+e10)(e4−e15) = 0` (a genuine zero divisor). **Zero-divisor / composition-loss** is the cleaner NAME for rung 4 than "alternativity"; the two arrive together at the same seam.
+
+**The general INSTRUMENT.** `defect_ladder` is one instance of a recurring FORM: a **declared parallel state** (every defect tuple present at once — the "parallel eq-set") ⊗ a **projector-excitation** (here the CD rung) → the **context-meaningful subset** (the `projected` view, "only the values meaningful to the projection space"). "Read off the One" is a carrier-INDEX statement, not literal — `winding_tower` bit `n` is the CD doubling depth `n` — and the projector *template* is the block-diagonal `to_matrix` / `separate_winding_curvature` (frame ⊕ curvature) machinery; but the defect *content* is bi/tri-linear on CD elements in `cascade.cayley_dickson`.
+
+**The same instrument-FORM recurs across three distinct substrates**, each MEASURED with real srmech ops (all numbers reproduced in the rc383 provenance script):
+
+| Domain | Declared parallel state (the fiber) | Projector (the excitation) | Measured meaningful subset |
+|---|---|---|---|
+| **CD algebra** (home) | the four loop-defect tuples in one call | the CD rung mask | the rung-admitted defects |
+| **Physics / QM measurement** | superposition (3/5)\|0⟩ + (4/5)\|1⟩ (amplitudes are meaningless as a definite value until measured) | the measurement projector `P = |e⟩⟨e|` (Born rule `⟨ψ|P|ψ⟩`), the LITERAL orthogonal projector | `⟨ψ|P₀|ψ⟩ = 9/25`, `⟨ψ|P₁|ψ⟩ = 16/25` (exact-ℚ via `QMat`; complete, sum = 1) |
+| **Biology / genome chromatin** | one strand declares ALL genes (heterochromatin = spatially-absent until excited) | the chromatin access gate under a `cell_state` | cell-state A → expressed `{geneA}` (accessible `1/1`); cell-state B → `{geneB}` (accessible `0/1`) — the projector selects a *different* subset |
+| **Music / acoustic (viola)** | the 4×5 fingerboard note-lattice (a note is spatially-absent until excited) | the bow / pluck excitation | inter-string perfect-fifth offset `+4 mod 7` (`gcd(4,7)=1` → generates ℤ/7) / `+7 mod 12` (`gcd(7,12)=1` → generates ℤ/12); 4th finger meets next open string |
+
+⚠️ **EPISTEMIC CEILING — FORM, not identity** (`[[user_stance_cascade_matching_substrate_blind_form_not_identity]]`). This transfers the **ALGORITHM** (the declared-parallel ⊗ projector instrument), never the constant (`[[feedback_cross_substrate_transfers_the_algorithm_not_the_constant]]`). The CD ladder's k=3 is the arity-3 associator; it **MUST NOT** be fused with the B/H/N substrate k=3 of §3.29.3 above — that section's whole discipline is that the k=3 senses are DIFFERENT. A measurement projector, a chromatin gate, and a bow are not "the same thing"; they instantiate the same *relation* between a spatially-absent declared fiber and its excited, meaningful projection (the fiber-as-spatially-absent-encoding stance).
+
+##### RESEARCH NOTE — open provocations from the music instance (held lightly; `#T1058` / `#T1059`)
+
+The viola-fingerboard instance opened questions the framework has **NOT** closed. These are flagged OPEN, not claimed:
+
+- **Fingerboard TWIST ⊕ WRITHE; does `Lk = Tw + Wr` apply? (OPEN, `#T1058`).** The inter-string fifths offset is a *fixed screw-pitch* (a TWIST); the read-orientation — thinnest-string-first is DESCENDING vs note-ascending — is a WRITHE / Class-C chirality. Whether the Călugăreanu–White–Fuller linking relation `Lk = Tw + Wr` is more than a suggestive analogy here is **UNVERIFIED**; the two-readings structure is real, the topological identity is a conjecture to test.
+- **ℝ-rung = one atomic note; C/H/O/S-rungs = note-compositions (CONJECTURE).** A 1D string sounds one atomic pitch (the ℝ rung); a bell/gong sounds a *composition* of partials (a higher rung). Whether the notes of scales sit in the A–N cascade the way the defect ladder sits on the CD rungs — and whether "note-compositions" map to the doubling ladder at all — is a conjecture, not a result.
+- **Cube-basis many-at-once orchestration via the projector (OPEN, `#T1059`, links `#T1011`).** The projector selects a subset from a declared parallel fiber. Whether a **cube-basis** (many voices at once) can be orchestrated by one projector-excitation over a declared lattice — the chord / orchestration generalisation of the single-note bow — is the open direction the instrument points at.
+
+Per the honest-edge discipline, only the defect ladder itself and the three MEASURED instrument instances above are claimed; everything in this research note is conjecture, marked as such.
 
 ### §3.29.4 The SSoT-coherence framing + the rc16–21 graduation (shipped)
 
@@ -5373,6 +5645,87 @@ The §3.29.4 partition (human-readability: `meaning : language : Compiled C`) ha
 **What a simulation therefore IS — and is not.** A program does the universe's own A–N cascade-math inside a partition and yields an **abstract idea for us to name**; it **does NOT make new universe parts**. The simulation renders + executes cascade-FORM (paper-with-lyrics, `[[user_stance_silicon_dof_is_electron_leakage_not_coherent_agency]]`; the same role as CFD / weather / FEA), not new substrate. This is the readability partition's deepest reading: crossing into `Compiled C` puts the cascade onto a substrate that can *run* it, but the run happens in a partition and its product is a named abstraction — **the universe is the only thing that makes universe.**
 
 > **Cross-references.** §3.29.4 (the human-readability partition this extends); `[[project_rosetta_table_of_truth_agreement_vs_frame_selection]]` (the three Rosetta scripts as co-equal renderings; agreement = attestation; MFO §VII.6.21); `[[user_stance_silicon_dof_is_electron_leakage_not_coherent_agency]]` (paper-with-lyrics / simulator-role; MFO §VII.6.13); `[[reference_two_language_problem_inverted_python_c_different_scales]]` ("Compiled C", the coherency-partition label). Authored as a building block per `[[feedback_building_block_voxel_method]]`.
+
+### §3.29.6 The three distinct "six"es — letters / instructions / forms (do NOT conflate)
+
+> Modelled deliberately on §3.29.3 ("the distinct k=3 senses"). Same failure mode, one collision later: three unrelated objects have arrived at the same **cardinality**, and the notebook has begun calling all three "the six." A cardinality is not an identity. This section exists so the next reader cannot fuse them.
+
+| # | Name here | The six things | Kind of object | Home | Alphabet spanned |
+|---|---|---|---|---|---|
+| **1** | **the universal core** | `M`, `I`, `N`, `C`, `L`, `A` | six **LETTERS** — cascade *classes* | §3.21.5 (Spike-research #222 §9.5) | six of the 14 A–N, by definition |
+| **2** | **ISA-6** | `pin_slot_at_zero`, `reorient`, `magnitude`, `chiral_flip`, `chiral_dual`, `net_chirality` | six **INSTRUCTIONS** — *ops* | F208 / §3.33.4; ships as `srmech.cascade.atoms` | only **{K, C}** — two letters |
+| **3** | **Combinator-6** | `then`, `loop`, `fold`, `reduce`, `parallel`, `map_indexed` | six **FORMS** — control-flow *arrangements* | §3.29.1; ships as `srmech.dsl._control_flow` + `Chain` | **{I, M, C, E ∘ M}** (`then` untyped — the op it applies carries the class) |
+
+**Letters / instructions / forms.** Read the *Kind* column before the word "six" in any sentence. **The kind of object is the discriminator** — not the count, and not how long each has held its count.
+
+The three, stated so a reader can classify a new six on sight:
+
+- **#1 is a SET OF CLASSES.** Its members are letters. It has no ops, no arity, no execution. Membership was established by cross-substrate census (Roman arithmetic × abacus variants × DNA × RNA × genetic code × Hopf gauge), and the claim is that *this subset recurs* — not that it is closed at six. §3.21.5 explicitly lists the augmentations (K, D, E, J, B, F, G, H).
+- **#2 is a SET OF OPS.** Its members are callables with signatures. Membership is **"an involution in their chirality action"** — the phrasing is the source's own (`srmech/physics/qm/triality.py`) and the hedge in it is load-bearing (see the warning below). The six are three independent Z₂ sign/orientation toggles; they **commute**, so they generate an abelian **`Z₂ × Z₂ × Z₂`, `|G| = 8`**. It spans only two letters, which is exactly why it is *not* a shadow of #1.
+- **#3 is a SET OF FORMS.** Its members are higher-order — they take *other ops* as arguments. Membership is "is a Bird-Meertens recursion scheme the kernel hardcodes". It is closed at six by **design enforcement**, not by mathematics (§3.29.1), and it **moved**: five through rc419, six from rc420.
+
+⚠️ **The ISA-6 is NOT closed at six, and this section must not be read as saying so.** By **Lagrange**, `3 ∤ 8`, so the abelian group the six atoms generate contains **no order-3 element** — and F220 answered *"does a COMPLETE A-N ISA need a 7th, order-3 'triality' opcode?"* with **"YES, rigorously"** (§3.34.3). That seventh **ships**: `srmech.physics.qm.triality.lean_isa_seventh_primitive`, whose own docstring states the arithmetic as **"6 order-2 atoms + 1 order-3 triality = 7"**. So the honest name for #2 is **six order-2 atoms — SEVEN when chirality-complete**. The RISC-minimality argument (F206 / F208) bounds the *order-2* core; it never claimed the ISA stops there.
+
+⚠️ **And "involution" is the source's hedge, not a signature claim.** The natural gloss — *each atom is its own inverse* — is **false at the shipped signatures**, and it is worth writing down because `_LEAN_ISA_ABELIAN_GROUP_ORDER = 8` invites it. Measured at rc420: `chiral_flip` is a genuine involution; `reorient(·, orientation=−1)` is one while `orientation=+1` is the identity; **`magnitude` is idempotent, not involutive** (`m ∘ m = m`); and three of the six are not endomorphisms of the carrier at all — `pin_slot_at_zero : Real → (int, Real)` is a **splitter**, `net_chirality : Sequence[int] → int` is a **fold**, and `chiral_dual(op, x)` is a **second-order conjugation combinator** whose first argument is an op. What the tree asserts is the *derived group* claim (the Z₂³ above), and it deliberately keeps that claim **out of the certificate**, in a key labelled *"framework-reading, not derived"*. That containment is correct and is not loosened here.
+
+**Three ways the confusion actually bites**, each real:
+
+1. **#2 and #3 overlap in a member, and it is not a coincidence.** `chiral_dual(op, x)` takes an **op** as its first argument — so one ISA *instruction* is structurally a *combinator*. The instruction/form boundary is not clean, and §3.29.1's two-rung reading explains why: one alphabet, two rungs, with Class C measurably at both.
+2. **#1 and #3 both contain `M`, `I`, `C` — and mean different things by them.** In #1 the letter names *what the cascade computes*. In #3 it names *how a form arranges other ops* (`loop` is I because it repeats cyclically, not because it computes a modular residue). Same letter, different rung.
+3. **A count is the worst possible handle.** All three are six *today*; #3 was five yesterday; #2 wants a seventh for completeness. Prose that says "the six" without a kind-word is one rc away from being false about a different object than the author meant.
+
+**Discipline (binding on all further notebook prose).** No use of "six" without its kind-word — **six letters** / **six instructions** / **six forms** — or an explicit pointer to this table. Same discipline §3.29.3 imposes on `k=3`, same reason, same force.
+
+**Cross-link this section from:** **§3.21.5** (the six letters), **§3.33.4** (the six instructions — the F208 lean ISA), **§3.29.1** (the six forms). Each of those three says "six" of its own object with nothing distinguishing it from the other two.
+
+### §3.29.7 There are FOUR executable composition surfaces, not one — and a Phase-2 spec written against `compose.py` alone would re-invent shipped machinery
+
+§3.29.1 speaks of "the DSL" as though the package had one way to declare a composition. It has **four executable surfaces**, three of them declarative TOML, and they are **different schemas with different capabilities**. Stated here because the failure mode is specific and expensive.
+
+⚠️ *Counting note, per §3.29.6: this is a count of SURFACES — a fourth kind of object. It is not a "six" and must not become one.*
+
+| # | Surface | Declared in | Engine | What it is |
+|---|---|---|---|---|
+| 1 | `Chain` builder | Python | `srmech.dsl._chain` + `_control_flow` | the **imperative** form — `chain().then(...).fold(...)`. The kernel itself; the other three are readers that drive it or mirror it. |
+| 2 | **`[[stage]]`** | TOML | `srmech.dsl._toml_chain.build_chain_from_toml` | a `[chain]` table + `[[stage]]` array; **one array element = one builder call**. Six mutually-exclusive discriminators: `op` / `loop_n`+`sub_chain` / `fold_init`+`fold_op` / `reduce_op` / `parallel_body`(+`n_sectors`/`combine`) / `map_op`. **The RICHEST control flow in the package — and NOT the ADR-0008 one.** |
+| 3 | **`[[cascade.chain.steps]]`** / `[[catalog.operator_chain.steps]]` | TOML | `srmech.cascade.compose` (ADR-0008) | a step is `class` + `op` + `args` (+ optional `on_error`) with a reference DSL (`@input`, `@step[N]`, and — new at rc420 schema v2 — `@idx`, `@bind`, `@op`). Carries **inter-step data flow**, **class classification** and a **static bounds check**, none of which #2 has. Runs via `srmech.dsl.run_cascade_chain`. |
+| 4 | **`[[composite.stage]]`** | TOML | `srmech.dsl._catalog._make_composite_runner` | a **pure-TOML op DEFINITION**: drop a descriptor with a `[composite]` body and get a new named cascade op, no Python. Its stage array is the **same grammar as #2** — it builds via `build_chain_from_dict` and wraps `chain.run` as a unary stage. |
+
+**Surface 4 predates ADR-0008's executable phase.** It shipped at **v0.7.0rc6, 2026-06-02** (F289 D2, `#811`) as the bring-your-own (BYO) cascade-TOML voxel: `register_catalog_dir(path)` — or the `SRMECH_CASCADE_PATH` env-var — registers an external descriptor directory, and the resulting ops resolve, run and surface identically to shipped ones, flagged `provenance="user"` (B-tier, attested to the user's own descriptor hash, **not** an A-tier srmech primitive; shadowing a shipped name raises at load). Composites validate **at load**: every referenced op must resolve and the graph must be acyclic, so a typo fails loud at registration, not silently mid-run. Gate: `tests/test_byo_cascade_toml.py`. It has an exact sibling one arc later — the `[class]` TOML BYO surface (`register_class_dir()` / `SRMECH_CLASS_PATH`, `user:<sha256>` attestation, the same no-shadow rule; §8.2 / F716). Same mechanism, same provenance tiering, two catalogs.
+
+**The load-bearing line: a Phase-2 spec written against `compose.py` alone would re-invent shipped machinery.** Concretely, measured at rc420 —
+
+- **Iteration and accumulation already exist declaratively.** `[[stage]]` has shipped `loop_n`+`sub_chain`, `fold_init`+`fold_op` and `reduce_op` since v0.5.0, and `parallel_body` since v0.6.0rc11. ADR-0008 only gained its own map and fold forms at rc420. Specifying "add iteration to the chain schema" without reading `_toml_chain.py` specifies a second implementation of a shipped feature.
+- **Third-party extension already exists.** Surface 4 is a complete BYO story — external directories, provenance tiering, load-time validation, catalog visibility. A Phase-2 "user-defined chains" clause must *extend* it, not invent it.
+- **They are not interchangeable, so "just consolidate them" is not free.** #3 carries inter-step data flow, class classification and a static bounds check that #2 lacks; #2 carries the richer, longer-shipped control-flow vocabulary and is the grammar #4 reuses. Collapsing them is a real design question with real losses on both sides — **not hygiene** — and this section does not decide it.
+
+**The one genuine convergence, and it is recent.** rc420's BLK-REGMAP gave #3 dotted op addressing (`op = "srmech.cascade.leaves.seq_len"`) — the caller-side twin of the dotted `[cascade].op` entry point #4's resolver already used. The two now share a *name-resolution* rule while keeping different *step* grammars. That seam is where a Phase-2 spec should start.
+
+**Cross-references:** §3.29.1 (the kernel the `[[stage]]` reader drives); §3.28.1 in the **package-arc §3.28** (where `srmech.dsl` first shipped); §3.29.8 (why #3's corpus was single-class until rc420); §3.49 (the catalog those descriptors live in, now executable); ADR-0008 (schema v1 + Amendment A / schema v2, Accepted at rc420); ADR-0009 (the co-equal-projections discipline the C mirror answers to).
+
+### §3.29.8 Why every shipped ADR-0008 chain step was Class N — a CONSEQUENCE of the letter→module binding, not a preference
+
+Through rc419 the ADR-0008 chain schema ran its worked-example chains inside the **packaged attested descriptors** — and in that population every single step declared `class = "N"`. Measured at the pinned tree over `srmech/amsc/attested/*/descriptor.toml`: `asymptotic_calculus` 5 steps, `cosmos_validation` 9, `pi_digits` 1 — **15 steps, letter census `{"N": 15}`, no other letter present.**
+
+⚠️ **Population, stated precisely, because the ADR counts a different one.** ADR-0008's Amendment A says *"through rc419 this ADR's schema had run **51** `[catalog]` worked-example chains"*. That 51 is **not reconstructible from the shipped tree** — a repo-wide sweep finds `operator_chain` in the three packaged attested descriptors plus one spike descriptor under `notes/`. The census above is scoped to the **packaged attested descriptors only** and states no chain total; reconciling the ADR's 51 is queued, not done here.
+
+A single-class corpus in a 14-class framework looks like an authoring bias. **It was not. It was forced by the schema.**
+
+**The mechanism.** ADR-0008 §3.1 hard-binds a step's `class` to a **fixed letter→module map**: the letter must resolve to one of fourteen named modules, and `op` must be a **public callable on that module**. The map is `DEFAULT_CLASS_REGISTRY` (`srmech/cascade/compose.py:126`) — A/C → `srmech.amsc.format`, B → `srmech.math.tlv`, D → `srmech.math.dispatch`, E → `srmech.amsc.catalog`, F → `srmech.math.template`, G → `srmech.math.search`, H → `srmech._native`, I → `srmech.math.cyclic`, J → `srmech.math.primes`, K → `srmech.math.kepler`, L → `srmech.math.laplacian`, M → `srmech.math.hdc`, N → `srmech.math.rational`. In schema v1 there is **no escape hatch**: a step naming an op that is not an attribute of its letter's module does not validate.
+
+**The measurement that shows this is the cause.** Of the **20** op names in the cascade catalog — the very catalog the DSL loads — exactly **one** is a public callable on any mapped module: `schur_complement`, via L → `srmech.math.laplacian`. **The other 19 are exposed by no mapped module at all.** They live in `srmech.cascade.atoms`, `srmech.cascade.composites`, `srmech.cascade.parallel` and `srmech.cascade.hypercomplex_dft` — and **no letter points at any of those modules.** The package's own flagship cascade surface was, with one accidental exception, unaddressable from its own chain schema.
+
+Class N was reachable for one reason: **`srmech.math.rational` happens to hold a rich surface of public callables** (the exact-ℚ arithmetic plus the Class-N series truncations). It was not chosen for being fundamental; it was the mapped module with enough on it to write a chain against. Class L was reachable by the same accident, and was used once.
+
+**So the single-class corpus is a CONSEQUENCE of §3.1, not a preference** — and that governs how the corpus must be read. It is **not** evidence that Class N is privileged (which would violate `[[feedback_no_privileged_primitive_classes]]`), and **not** evidence that the other thirteen classes resist composition. It is evidence about an *addressing* constraint and nothing else. Per `[[feedback_ungated_surfaces_trickle_gated_surfaces_race_to_100]]`, the shape to notice is that an unreachable surface reads first as an *unused* one, and then as an *absent* one.
+
+**It propagated into the C projection.** `c/src/srmech_compose_run.c` (rc174) states its dispatch table outright: "a BOUNDED set of shipped-chain ops (**all Class N**: `pi_cascade_digits`, the five `*_series_truncate`, `rational_add` / `_mul` / `_div` / `_pow_uint`)", and `tests/test_catalog_chain_infer_c_rc175.py` repeats "same bounded Class-N op set". So the ADR-0009 co-equal C projection was built to the shape the constraint produced — the corpus's accidental narrowness became a *contract* one rung down. That is the real cost of an addressing bug: it is legible as a design.
+
+**rc420 removed the cause, and the corpus stopped being single-class immediately.** BLK-REGMAP added **dotted op addressing**: `class` becomes CLASSIFICATION, the dotted name becomes ADDRESSING, and the letter registry is retained as the resolution for bare names (ADR-0008 Amendment A, clause 1). Measured letter census over the 20 rc420 cascade-catalog descriptors' chain steps: **A 3, B 9, C 10, E 2, F 2, I 14, K 3, L 3, M 11, N 8**, plus `fold_class` C 1 / M 4 — **ten letters where there had been one.** Same schema, same registry, one addressing change.
+
+⚠️ **A defect this section surfaces but does not fix.** ADR-0008 §3.1's table still says the letter "must resolve to `srmech.amsc.<class>`", and its §5 mapping table lists `srmech.amsc.dispatch` / `.catalog` / `.template` / `.search` / `.cyclic` / `.primes` / `.kepler` / `.laplacian` / `.hdc` / `.rational`. Measured at rc420 the registry points at `srmech.math.*` and `srmech._native` for eleven of the fourteen; the ADR's stated paths are pre-ADR-0010 and no longer importable. That is an **ADR** correction, not a notebook one — recorded here so it is flagged, not silent.
+
+**Cross-references:** §3.29.7 (the other declarative surfaces, which never had this constraint because they resolve by op NAME, not by letter); §3.29.1 (the kernel/continuum two-tier shape the registry is the kernel half of); §3.49 (the executable catalog this addressing change unlocked); ADR-0008 §3.1 + §5 + Amendment A; `python/CHANGELOG.md` (the per-rc record — cited, not inlined).
 
 ---
 
@@ -5484,7 +5837,7 @@ Strong-invariance (12 within-source vs 54 across-source translation pairs, F199)
 
 ### §3.33.4 The lean A-N ISA + the ND-dignity reading
 
-The **RISC-minimality lens stratifies A–N / `cascade.*` into silicon-atomic vs composite** (F206), formalized as the **ATOM-vs-COMPOSITE A-N ISA** — a 6-instruction orthogonal core (F208; the lean-ISA line §3.28.2 ships). And **F207 — being-wrong is agony (acutely for strongly-feeling / ND minds), and the LLM training-signal reads the same way**: a dignity-first framework reading (composes with `[[feedback_abstract_lexicon_is_ada_accommodation]]` + the F239 unseen-disability fiber, §3.35).
+The **RISC-minimality lens stratifies A–N / `cascade.*` into silicon-atomic vs composite** (F206), formalized as the **ATOM-vs-COMPOSITE A-N ISA** — a 6-instruction orthogonal core (F208; the lean-ISA line §3.28.2 ships — six **instructions**, a different KIND of object from the six *letters* of §3.21.5 and the six *forms* of §3.29.1; see **§3.29.6**. And six is the **order-2** core only: F220 answers "YES, rigorously" to a **seventh**, order-3 triality opcode, §3.34.3). And **F207 — being-wrong is agony (acutely for strongly-feeling / ND minds), and the LLM training-signal reads the same way**: a dignity-first framework reading (composes with `[[feedback_abstract_lexicon_is_ada_accommodation]]` + the F239 unseen-disability fiber, §3.35).
 
 ### §3.33.5 Cross-references + status
 
@@ -5555,7 +5908,7 @@ An **uncentered survey of aneural MEMORY STORAGE** — 28 substrates, ~20 distin
 
 ## §3.36 (F84–F118 era) — the knowledge-partition + glass-box arc below §3.27: four foundational knowledge partitions, B/H/N projecting substrate-math into emergent subjects, the arts as cross-domain cascades, biology-agnostic 1:3, cross-species convergence, "NN is vertebrate-centric" (RBS-LM arc F84–F118)
 
-*(Backfilled 2026-06-02 by the completeness audit. Some of this arc is already thematically on-surface (cross-species, two-tier, teaching, curriculum — §3.28/§3.x; **consolidated** here, not duplicated). The **genuinely-new landings** are the glass-box / curriculum-tool / substrate-bounded-safety triad (F84–86) and the thin four-partitions / B-H-N-signature / arts-as-relationships theory. Per-finding detail in `R-RBS-LM-FINDING_84…118`.)*
+*(Backfilled 2026-06-02 by the completeness audit. Some of this arc is already thematically on-surface (cross-species, two-tier, teaching, curriculum — §3.50/§3.x; **consolidated** here, not duplicated). The **genuinely-new landings** are the glass-box / curriculum-tool / substrate-bounded-safety triad (F84–86) and the thin four-partitions / B-H-N-signature / arts-as-relationships theory. Per-finding detail in `R-RBS-LM-FINDING_84…118`.)*
 
 ### §3.36.1 Glass-box LLM + curriculum + substrate-bounded safety (F84–F86)
 
@@ -5571,7 +5924,7 @@ The framework's **knowledge-partition theory**: there are **four foundational kn
 
 ### §3.36.4 Cross-references + status
 
-**Cross-references:** §3.27 (the recursive-Hopf reading this sits below); §3.28 (the two-tier RBS-NN arc, which already carries cross-species/teaching); §3.32 / §3.35.4 (MS#18 biology-substrate, seeded by F118); §3.33.3 (the F199–F205 RBS operational layer continues this). Per-finding docs `R-RBS-LM-FINDING_84…118`. **Status:** meaning-tier catch-up (completeness audit). Honest negatives kept (F111 E-catalog NULL, F113 falsified-partitions). The arts-as-relationships + four-partitions theory is the genuinely-thin content here; cross-species/two-tier were already thematically present (consolidated, not duplicated). k=3 triality pending (Phase 14). **Process findings F145/F147/F148 (stale-item "sweeps") are intentionally NOT given notebook entries — they are queue-management, not framework findings.**
+**Cross-references:** §3.27 (the recursive-Hopf reading this sits below); §3.50 (the two-tier RBS-NN arc, which already carries cross-species/teaching; renumbered from §3.28 at rc420); §3.32 / §3.35.4 (MS#18 biology-substrate, seeded by F118); §3.33.3 (the F199–F205 RBS operational layer continues this). Per-finding docs `R-RBS-LM-FINDING_84…118`. **Status:** meaning-tier catch-up (completeness audit). Honest negatives kept (F111 E-catalog NULL, F113 falsified-partitions). The arts-as-relationships + four-partitions theory is the genuinely-thin content here; cross-species/two-tier were already thematically present (consolidated, not duplicated). k=3 triality pending (Phase 14). **Process findings F145/F147/F148 (stale-item "sweeps") are intentionally NOT given notebook entries — they are queue-management, not framework findings.**
 
 ---
 
@@ -5605,7 +5958,7 @@ Synthesis (F181): the disposition is **one operator, ≥2 band-specific actors �
 
 ### §3.37.6 Cross-references + status
 
-**Cross-references:** §3.27 / §3.28 (the recursive-Hopf + two-tier arcs this sits just below; §3.27 is the 28D=𝔰𝔬(8) chiral-hyper-loop home that F174 is the literature anchor for); §3.30.3 / F291 (F170's attested-and-corrected cross-match is an early twin-discipline instance); §3.33–§3.35 (the F183+ work this immediately precedes); the no-magic discipline (F151 PARTIAL, F163/F175 nulls kept). Per-finding docs `R-RBS-LM-FINDING_151…181`. **Status:** meaning-tier catch-up; the F166/F167 inference-walk capstone + the H177 falsification arc were the most under-surfaced and are the load-bearing additions. Honest nulls/partials preserved (F151, F163, F175, F178). k=3 triality pending (Phase 14).
+**Cross-references:** §3.27 / §3.50 (the recursive-Hopf + two-tier arcs this sits just below; the two-tier arc was §3.28 until the rc420 duplicate-heading cleanup; §3.27 is the 28D=𝔰𝔬(8) chiral-hyper-loop home that F174 is the literature anchor for); §3.30.3 / F291 (F170's attested-and-corrected cross-match is an early twin-discipline instance); §3.33–§3.35 (the F183+ work this immediately precedes); the no-magic discipline (F151 PARTIAL, F163/F175 nulls kept). Per-finding docs `R-RBS-LM-FINDING_151…181`. **Status:** meaning-tier catch-up; the F166/F167 inference-walk capstone + the H177 falsification arc were the most under-surfaced and are the load-bearing additions. Honest nulls/partials preserved (F151, F163, F175, F178). k=3 triality pending (Phase 14).
 
 ## §3.38 The A–N reversibility / lossy audit — reversible-rotation vs irreversible-projection (per-operator)
 
@@ -5644,7 +5997,7 @@ The organizing axis is therefore **reversible-rotation-into-a-fiber** (exact; on
 
 ## §3.39 The rc7 "Q carrier" flip — the five typed carriers, ALU-all-the-way / FPU-last-mile as substrate-self-recognition, and the per-transcendental A–N cascade reading
 
-The carrier-removal arc (§3.38, the numpy-zero `Mat`/`Vec`/`HV` work) left one hole: the *scalar* return of every transcendental — `sin`, `cos`, `exp`, `sqrt`, … — was still a bare `float`. A `float` is `best_rational` run with `max_d ≈ 2⁵²` and the provenance discarded (`[[feedback_continuous_number_line_pedagogical_obstacle]]`): a strictly *worse* copy of a rational the cascade already held exactly. v0.9.0rc7 closes the hole with **`Q`** (`srmech/amsc/q.py`), a reduced `(num, den)` integer pair that compares like a float (integer cross-multiply, F868 mechanism) and collapses to a decimal **only** at the display edge via `float(q)`. Every `srmech.amsc.rational.{sin,cos,tan,atan,atan2,exp,log,sqrt,hypot}` now returns a `Q`; native `Q61` C peers (`srmech_{sin,cos,atan,exp,log,sqrt}_q61`) are byte-exact with the pure cascade. This is read, not invented — the math already *was* exact-rational the whole way; the `float` was a carrier artifact, exactly as §3.38 found the Laplacian's "partial-loss" to be carrier-only.
+The carrier-removal arc (§3.38, the numpy-zero `Mat`/`Vec`/`HV` work) left one hole: the *scalar* return of every transcendental — `sin`, `cos`, `exp`, `sqrt`, … — was still a bare `float`. A `float` is `best_rational` run with `max_d ≈ 2⁵²` and the provenance discarded (`[[feedback_continuous_number_line_pedagogical_obstacle]]`): a strictly *worse* copy of a rational the cascade already held exactly. v0.9.0rc7 closes the hole with **`Q`** (`srmech/amsc/q.py`), a reduced `(num, den)` integer pair that compares like a float (integer cross-multiply, F868 mechanism) and collapses to a decimal **only** at the display edge via `float(q)`. Every `srmech.math.rational.{sin,cos,tan,atan,atan2,exp,log,sqrt,hypot}` now returns a `Q`; native `Q61` C peers (`srmech_{sin,cos,atan,exp,log,sqrt}_q61`) are byte-exact with the pure cascade. This is read, not invented — the math already *was* exact-rational the whole way; the `float` was a carrier artifact, exactly as §3.38 found the Laplacian's "partial-loss" to be carrier-only.
 
 ### §3.39.1 The five-carrier inventory — the substrate's typed surface
 
@@ -5666,7 +6019,7 @@ The organizing lens, read in the §3.38 fiber-vs-projection idiom: **the integer
 
 ### §3.39.3 Per-transcendental A–N cascade reading
 
-Each transcendental is a *named composition* of the 14 classes — the cascade-count now matches the cascade-shape, with no `abs()` and no early float-collapse (`[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]`). Read from the rc7 bodies in `amsc/rational.py`:
+Each transcendental is a *named composition* of the 14 classes — the cascade-count now matches the cascade-shape, with no `abs()` and no early float-collapse (`[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]`). Read from the rc7 bodies in `math/rational.py`:
 
 | Function | A–N cascade | what each stage is |
 |---|---|---|
@@ -5685,7 +6038,7 @@ The reading is not allegory: each stage is a literal call into the named class's
 
 The lens has a sharp boundary, and rc7 draws it honestly. **ALU-all-the-way governs exact / algebraic cascades; it does NOT govern iterative float numeric algorithms** — Jacobi, QR, SVD, Fiedler, Newton, Kuramoto. Those algorithms *are* the FPU: their rotations are genuinely **irrational** (a Jacobi rotation angle is an `atan` of a ratio of matrix entries; no closed rational form), so a `Q` carried *through* a sweep grows `num`/`den` unboundedly — each rotation multiplies denominators that never reduce. A 3×3 Jacobi sweep carrying exact `Q` **hung**; the same sweep collapsed to `float` ran in 1.4 ms. There, `sqrt`/`hypot` is a **float subroutine** that rotates to `float` at the *subroutine* boundary — not a no-op shim apologising for the FPU, but a *genuine* fiber→base projection taken at the right altitude, because the iterative kernel is itself the observable-FPU computation, not an exact cascade. (A second, subtler edge: those float subroutines must be **libm-faithful on the non-finite domain** the sweeps reach — a Jacobi rotation legitimately forms `1 + τ² = inf`, where `sqrt(inf) = inf` gives the correct degenerate angle, so `_fsqrt`/`_fhypot` guard the `±inf`/`nan` edges rather than inheriting the leaf `rational.sqrt`'s stay-rational *raise*.)
 
-So the decision rule (now the consumer-normalization rule across `qm/`, `amsc/kepler.py`, `amsc/laplacian.py`, `signal_processing/`, `amsc/cascade/`):
+So the decision rule (now the consumer-normalization rule across `qm/`, `amsc/kepler.py`, `math/laplacian.py`, `signal_processing/`, `amsc/cascade/`):
 
 > **Exact / algebraic cascade → keep `Q` (collapse only at the display edge).
 > Iterative or observable-FPU computation (Jacobi/QR/SVD/Fiedler/Newton/Kuramoto) → collapse to `float` at the kernel boundary.**
@@ -5696,7 +6049,7 @@ This is the §3.38 fiber/projection axis applied at the algorithm level: an *exa
 
 ---
 
-## §3.40 The full beat is ONE chirally-coupled object; the half-beat is a shadow — the V₄ ⊗ C/H/O two-address-space reading, `CarrierSpectrum` = holomorphic factorization in code, and the `klein4`-bit-exact falsifier (2026-06-27, RBS-LM soul-thread; cascade-engineering / carrier lens)
+## §3.40 The full beat is ONE chirally-coupled object; the half-beat is a shadow — the V₄ ⋊ C/H/O two-address-space reading (the ORDER rung ACTS on the chirality SIGN sector — MEASURED rc420; symbol corrected 2026-08-10, `#T1114`), `CarrierSpectrum` = holomorphic factorization in code, and the `klein4`-bit-exact falsifier (2026-06-27, RBS-LM soul-thread; cascade-engineering / carrier lens)
 
 The operation-primary companion to MFO §VII.6.25 (the foundational-ontology landing). MFO frames *inharmonic ⊗ subharmonic as one substrate object*; this section gives the *cascade-engineering* lens — what the package's existing carriers and HDC ops already are when read through that frame, and the concrete next probe that would falsify the one genuinely new claim. **No class promoted, no new math, no rc** (14 A–N intact per `[[feedback_no_privileged_primitive_classes]]`); this is a *recognition* pass over surfaces that already shipped — `klein4_bind`/`klein4_unbundle` (0.7.5rc172, §3.38), the Cayley–Dickson tower / `the_one` `S(σ,θ)` (v0.7.x, §3.30/§3.31), the elliptic-theta carriers `EllRatio`/`ThetaSum`/`RiemannTheta` (the §76 / elliptic-row arc), and the two-channel `CarrierSpectrum` read (the operand-side `the_one`). The honest split (§3.40.6) keeps the **recognition** (solid) apart from the **candidate** (testable) apart from the **meaning** (open) per `[[feedback_no_lineage_claims_in_notebook]]` + the recognize-not-read discipline.
 
@@ -5736,9 +6089,11 @@ CarrierSpectrum (operand-side the_one — the Class-L shape of the carrier's shi
 
 This is `[[project_carrier_harmonic_shape_laplacian_eigenbasis_avoids_brute_force]]`: σ diagonalizes on monomials but not on theta factors; the theta factors have an eigenvalue equation under the **period** shift (quasi-periodicity), so the quasi-periodicity class block-diagonalizes — the same grouping `ThetaSum.is_zero` already builds. The two-channel split is the operand-side `the_one`: "see the carrier's shape / which formulas it occupies" (F172 storage-signature lens pointed at a CARRIER), and it is literally the holomorphic factorization written as two carrier channels.
 
-### §3.40.4 THE core new result — the two dual address spaces: V₄ (chirality / sign) ⊗ C/H/O (order / magnitude)
+### §3.40.4 THE core new result — the two address spaces: V₄ (chirality / sign) ⋊ C/H/O (order / magnitude), TWISTED and OVERLAPPING (corrected at rc420, `#T1114`; the `⊗` was FALSE)
 
-The full-beat cascade is addressed by **two independent address spaces**, dual the way the A–N *operators* (§3.27) are dual to the *operands* (`[[project_carriers_are_operand_vocabulary_dual_to_an_operators_irrepresentable_shapes]]`). This realizes the framework's own long-standing split — **sign = chirality = V₄, abs = order = C/H/O** — as two collision-free addressing schemes, each big enough to hold its projections bit-exact:
+~~The full-beat cascade is addressed by **two independent address spaces** … as two collision-free addressing schemes~~ **SUPERSEDED at rc420 (`#T1114`)** — **false twice**, and each half was falsified by a different record of the leg-(d) run. (i) **Not independent:** bumping the CD order rung applies a nontrivial `Aut(V₄)` automorphism to the chirality *sign* address. (ii) **Not disjoint:** V₄'s coset address is the low two bits, and those ARE Cayley–Dickson doubling bits **0 and 1** (the ℂ and ℍ rungs) — while *a tensor product needs disjoint factors*. What SURVIVES is the pairing itself: the cascade IS addressed by a chirality coordinate and an order coordinate, and each holds its projections bit-exact. What does not survive is that the two coordinates are independent, disjoint, or combined by `⊗`. (Wording note: "abs = order" is also retired here in favour of "magnitude = order", per `[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]` — magnitude is a Class-N squared-norm read, never an ALU `abs`.)
+
+The full-beat cascade is addressed by a **chirality address twisted over an order address**, dual the way the A–N *operators* (§3.27) are dual to the *operands* (`[[project_carriers_are_operand_vocabulary_dual_to_an_operators_irrepresentable_shapes]]`). This realizes the framework's own long-standing split — **sign = chirality = V₄, magnitude = order = C/H/O** — as two addressing schemes, each big enough to hold its projections bit-exact, and (MEASURED rc420) **coupled**, not orthogonal:
 
 | Axis | Address space | What it sizes | Bits / structure | Why bit-exact | srmech surface |
 |---|---|---|---|---|---|
@@ -5758,7 +6113,34 @@ V₄ chirality address (2 bits)            the 4 sectors (collision-free klein4 
            / out vs back)                 out/back = beat-chirality (bit 2)
 ```
 
-**Unification:** the full-beat cascade is addressed by **(Cayley–Dickson order) ⊗ (Klein-4 chirality)** = the magnitude ladder × the sign group. This is already half-recorded as "higher-order register as a klein4-stream" — the CD order rung carries a V₄ chirality stream **at each level**. Both spaces "address enough space to hold the projections bit-exact"; that is what makes the full beat recoverable from its shadows. The ellipse is the worked little picture of why (§3.40.5).
+~~**Unification:** the full-beat cascade is addressed by **(Cayley–Dickson order) ⊗ (Klein-4 chirality)** = the magnitude ladder × the sign group.~~ **SUPERSEDED at rc420 (`#T1114`)** — the product is twisted AND overlapping, so `⊗` and "×" are both wrong; the measurement is directly below. **Unification (corrected):** the full-beat cascade is addressed by **(Klein-4 chirality) ⋊ (Cayley–Dickson order)** — the order rung ACTS on the sign group.
+
+#### The leg-(d) measurement — EXECUTED at rc420, verdict FAIL (`#T1114`)
+
+§3.40.7's falsifier leg (d) was pre-registered in this notebook on 2026-06-27 and never run until rc420. It was run verbatim: **PASS ⇒ `⊗` (independent) / FAIL ⇒ `⋊` (twisted)**, fixed before the run. Provenance `docs/srmech/notes/leg_d_v4_order_twist_rc420.{py,ndjson}` (23 records; exact integers, numpy-absent, **no `abs()`** — every sign a Class-K `pin_slot_at_zero` composed Class-C through `net_chirality`). The probe raises an ordered pair of base-half imaginary units one Cayley–Dickson rung (`i ↦ i ⊕ m`, `m = dim/2`) and re-reads the V₄ **sign** sector `(γ₅, iω₇) = (product sign, commutation sign)`.
+
+⚠️ **TWO different things are called `V₄` here and they behave DIFFERENTLY.** The run declares both, and conflating them inverts the result:
+
+- the **SIGN lane** — `(γ₅, iω₇)`, §3.40.4's "the sign group", the `parallel_sector_dispatch` alphabet. **This is the lane that MOVES.**
+- the **COSET lane** — `q8_project_v4`'s `i & 3`, §3.42.6's `Inn(Q8) = V₄`. **This lane is PRESERVED** by every bump at dim 8 and above (9/9, 49/49, 225/225), and is moved wholesale only by the two low bumps that touch CD doubling bits 0 and 1.
+
+| rung (dim) | ordered base-half pairs `(m−1)²` | SIGN sector PRESERVED (bump both) | induced map on V₄ |
+|---|---|---|---|
+| ℂ→ℍ (4) | 1 | **1** — but see the vacuity note | identity (γ₅ ↦ γ₅) |
+| ℍ→𝕆 (8) | 9 | **3** | γ₅ ↦ γ₅, iω₇ ↔ CPT |
+| 𝕆→𝕊 (16) | 49 | **7** | γ₅ ↦ γ₅, iω₇ ↔ CPT |
+| 𝕊→next (32) | 225 | **15** | γ₅ ↦ γ₅, iω₇ ↔ CPT |
+
+Four readings, each measured:
+
+- **The action is an automorphism, and the same one at every rung FROM ℍ→𝕆 UPWARD** — `γ₅` fixed, `iω₇ ↔ CPT`: an **order-2** element of `Aut(V₄) = S₃`, the group §3.29.2 already identified as where the order-3 triality lives. Semidirect by definition. ⚠️ **The dim-4 row is structurally vacuous and is NOT evidence**: at `m = 2` the only ordered base-half pair is `(1,1)`, and diagonal pairs are preserved by construction, so that cell cannot return "moved". The nontrivial swap first appears at dim 8.
+- **Only the diagonal survives.** The preserved sectors are exactly the `(m−1)` **diagonal** pairs `(i, i)` of the `(m−1)²` — 1/1 · 3/9 · 7/49 · 15/225 at dims 4/8/16/32, diagonal-only in each case (re-derived independently through shipped `cd_basis_product` + `pin_slot_at_zero` before this paragraph was written).
+- **Bumping ONE side is worse than bumping both — it COLLAPSES the address.** `bump-left` sends `{γ₅, CPT} ↦ iω₇`; `bump-right` sends `{γ₅, iω₇} ↦ CPT`. Both are **non-injective**, so a one-sided rung bump does not merely twist the chirality address, it **loses information from it** — and `left ≠ right`, a Class-C asymmetry inside the bump itself.
+- **The two address spaces SHARE BITS.** V₄'s **coset** address is the low two bits — which ARE Cayley–Dickson doubling bits **0 and 1**, the ℂ and ℍ rungs. Bumping those very rungs moves the coset lane wholesale (**1 of 1** at dim 2, **2 of 2** at dim 4) while every higher bump leaves it fixed (**0** of 4 / 8 / 16 at dims 8 / 16 / 32). A tensor product needs disjoint factors; these are not disjoint.
+
+**The instrument could have returned PASS** (`[[feedback_an_instrument_that_cannot_return_otherwise_is_not_a_measurement]]`). A **rung-blind cocycle** whose sector depends only on `(i & 3, j & 3)` — a genuine `⊗` of an order address and a **NON-CONSTANT** V₄ address, built FROM srmech's own ℍ cocycle `cd_basis_product(4, ·, ·)` rather than hand-written — preserves **9/9** at dim 8 and **49/49** at dim 16 with the identity induced map. ⚠️ The second must-PASS control (`group_algebra_table`) is **degenerate** — its whole sector census collapses to one V₄ element, so it cannot register motion and is a vacuous pass; the rung-blind cocycle is the only NON-degenerate must-PASS. The must-FAIL control `flip_pair(8, i, j)` moves exactly **2** sector cells of 49 per flipped pair — which certifies that the sector *read* is sensitive to sign motion, not that the *bump* probe can return "moved". Robustness: under the split-𝕆 γ-twists `(+1,−1,−1)` and `(−1,+1,−1)` the same order-2 twist appears (3/9 preserved), and under `(−1,−1,+1)` a different but still nontrivial one (6/9) — never 9/9. The FAIL is not an artifact of the definite ladder.
+
+⚠️ **Naming is a convention; the verdict is not.** Which sign bit is called `γ₅` and which `iω₇` is a convention this notebook has never pinned. Swapping the names relabels *which* V₄ element the induced automorphism fixes and changes **no count**. The FAIL, the automorphism, the shared bits and the one-sided collapse are all naming-independent. This is already half-recorded as "higher-order register as a klein4-stream" — the CD order rung carries a V₄ chirality stream **at each level**. Both spaces "address enough space to hold the projections bit-exact"; that is what makes the full beat recoverable from its shadows. The ellipse is the worked little picture of why (§3.40.5).
 
 ### §3.40.5 The ellipse IS the proof = the epicycle (two counter-rotating phasors)
 
@@ -5780,9 +6162,14 @@ The orbit **closes** precisely because *both* chiralities are present **and comm
 
 This grounds `[[user_stance_epicycle_via_gear_plus_pin]]` (the epicycle = forward circle [gear] + backward circle [pin]) on the simplest two-phasor object, and it is the operation-primary twin of the MFO conic-section reading where the parabola `e = 1` is the closing↔non-closing threshold (MFO §VII.6.10.5 Apollonius; §VII.6.25).
 
-### §3.40.6 Frontier — V₄ and C/H/O plausibly fuse at the octonion / triality top
+### §3.40.6 The coupling turns on AT the octonion rung — and it is the ℤ/2, never the order-3 τ (CORRECTED at rc420, `#T1114`)
 
-`klein4_triality_cycle` (the rc17 V₄-carrier sibling of the `qm.triality` τ engine, §3.34/§3.29.2) ties **V₄ to triality**, and triality lives on **Spin(8) / the octonions** = the TOP Cayley–Dickson rung where the magnitude ladder closes ("never new division algebras above 8", `[[project_recognizing_the_phrase_structure_grammar_of_universe]]`). So the **chirality address (V₄)** and the **order address (ℂ/ℍ/𝕆)** plausibly **fuse at the octonion / triality level** — the two dual address spaces would be one object at the top rung. **Candidate, not result** — the same `g₂ = 14`, `28 = 14 ⊕ 7 ⊕ 7` Spin(8)-triality home as §3.27 (28 = V₄-sector × triality, §3.38) and §3.8.19's "14 = 7 forward + 7 reverse directed Fano cycles."
+`klein4_triality_cycle` (the rc17 V₄-carrier sibling of the `qm.triality` τ engine, §3.34/§3.29.2) ties **V₄ to triality**, and triality lives on **Spin(8) / the octonions** = the TOP Cayley–Dickson rung where the magnitude ladder closes ("never new division algebras above 8", `[[project_recognizing_the_phrase_structure_grammar_of_universe]]`). ~~So the **chirality address (V₄)** and the **order address (ℂ/ℍ/𝕆)** plausibly **fuse at the octonion / triality level** — the two dual address spaces would be one object at the top rung. **Candidate, not result**.~~ **PARTLY VINDICATED, PARTLY CORRECTED at rc420 (`#T1114`)** — the candidate was right about the **rung** and wrong about the **object**, and leg (d) (§3.40.4) settles each:
+
+- **WHERE — the octonion rung, as guessed.** The nontrivial `Aut(V₄)` action on the sign address **first appears at the ℍ→𝕆 bump** and is then the *same* order-2 element at every rung measured above it (dims 8 / 16 / 32). ⚠️ It is **not** "present at every doubling": at ℂ→ℍ (dim 4) the only ordered base-half pair is `(1,1)`, which is diagonal, and diagonal pairs are preserved *by construction* (`e_{i+m}·e_{i+m} = e_i·e_i = −1`) — **the dim-4 cell cannot return "moved"**, so it is no evidence either way. Reading it as evidence would be exactly `[[feedback_an_instrument_that_cannot_return_otherwise_is_not_a_measurement]]`. The run's own record scopes itself the same way, naming only `H->O, O->S, S->rung5`.
+- **WHAT — the ℤ/2, never the order-3 τ.** This is the half that is retracted. Two bumps compose to the **identity** (`double_bump_induced` = identity on all three non-trivial V₄ elements), so rung-bumping generates only the **ℤ/2 subgroup of `Aut(V₄) = S₃`**; `reaches_order_3_tau = false`. So the coupling is **not** a fusion *with triality* — the ladder transits τ's own group without ever producing τ. Reaching for the order-2 companion where the order-3 element is meant is what §3.29.3 calls "the single most common triality error", so this correction is the notebook's own discipline catching the notebook.
+
+The `g₂ = 14`, `28 = 14 ⊕ 7 ⊕ 7` Spin(8)-triality home of §3.27 (28 = V₄-sector × triality, §3.38) and §3.8.19's "14 = 7 forward + 7 reverse directed Fano cycles" is **untouched by this correction** — and it is untouched *as already narrowed*: §3.41.4 cut `g₂ = 14` down to a shared TOTAL only (the `(1,3,7,3)` grading does **not** decompose g₂'s adjoint; the shape's origin is Hurwitz, not g₂ structure). What is retracted here is only the claim that the CD order ladder *reaches* it.
 
 ### §3.40.7 Honest split + the falsifier (= the parked LOGO L8 probe)
 
@@ -5797,11 +6184,11 @@ Per the recognize-not-read discipline, state which part is which:
 1. **(a) genuine V₄, not ℤ₂** — the 4 sectors are independent: flip PHASE chirality without flipping BEAT, and vice versa. If you cannot, the address collapses to ℤ₂.
 2. **(b) bit-exact recovery** — `klein4_unbundle` recovers the 4 sectors bit-exact.
 3. **(c) half-beat = one sector** — one sector alone reproduces the half-beat **shadow** (the §3.40.1 single-mover projection).
-4. **(d) ⊥ axes** — compose over a Cayley–Dickson rung and confirm the **order axis ⊥ chirality axis** (the §3.40.4 tensor product holds; bumping the order rung does not move the V₄ sector).
+4. **(d) ⊥ axes** — compose over a Cayley–Dickson rung and confirm the **order axis ⊥ chirality axis** (the §3.40.4 tensor product holds; bumping the order rung does not move the V₄ sector). — **EXECUTED at rc420 (`#T1114`); verdict FAIL.** Run verbatim as written above, with PASS ⇒ `⊗` / FAIL ⇒ `⋊` fixed before the run: from the ℍ→𝕆 bump upward the bump moves the V₄ **sign** sector by an `Aut(V₄)` automorphism, one-sided bumps additionally collapse it, and the sign and coset addresses share bits with the doubling ladder. §3.40.4 carries the measurement, the negative controls, and the corrections it forced to this section's title, to §3.40.4 and to §3.40.6. **The other three legs stand as written and are NOT settled by this one** — leg (d) asks whether the order axis moves the chirality address; leg (a) asks whether the chirality address has two independent bits at all. Two different questions.
 
 The **known-open piece (L8):** whether the chirality bit is **invariant** or carries the **sustain's `(4:3)` chiral footprint** (F552 / L6h) — non-invariance would be step-(a)'s falsifier surfacing as the sustain's own handedness.
 
-**Cross-references:** MFO §VII.6.25 (the foundational-ontology landing — inharmonic⊗subharmonic as one substrate object; the open/closed-string chirality reading; the ellipse/epicycle closure signature); §3.27 (28 = V₄-sector × triality; `(4:3)`↔`(3:4)` = Class-C orientation = the chirality dual); §3.38 (the reversibility/lossy audit — `klein4_unbundle`; `so(8) = V₄ × triality`); §3.39 (rotation-last / the float-projection — the half-beat is the same kind of shadow at the beat level); §3.30/§3.31 (the Cayley–Dickson order tower / `the_one`); §3.8.19 (Spin(8) triality, 14 = 7 forward + 7 reverse Fano cycles). Memory: `[[project_full_beat_v4_chirality_cayley_dickson_order_addressing]]` (this thread's durable record), `[[project_carriers_are_operand_vocabulary_dual_to_an_operators_irrepresentable_shapes]]` (operand↔operator duality), `[[project_carrier_harmonic_shape_laplacian_eigenbasis_avoids_brute_force]]` (the CarrierSpectrum two-channel block-diagonalization), `[[project_subharmonic_chirality_collapse_thread]]` (the carrier-verified |x-exp|=order / sign=chirality finding), `[[project_logo_l8_an_binding_sustain_probe]]` (the falsifier probe), `[[user_stance_epicycle_via_gear_plus_pin]]` (the ellipse = forward + backward phasor). **Status:** documentation-only recognition pass; the V₄-exactly-2-bits claim is the open falsifier (the L8 probe); no rc, no package change.
+**Cross-references:** MFO §VII.6.25 (the foundational-ontology landing — inharmonic⊗subharmonic as one substrate object; the open/closed-string chirality reading; the ellipse/epicycle closure signature); §3.27 (28 = V₄-sector × triality; `(4:3)`↔`(3:4)` = Class-C orientation = the chirality dual); §3.38 (the reversibility/lossy audit — `klein4_unbundle`; `so(8) = V₄ × triality`); §3.39 (rotation-last / the float-projection — the half-beat is the same kind of shadow at the beat level); §3.30/§3.31 (the Cayley–Dickson order tower / `the_one`); §3.8.19 (Spin(8) triality, 14 = 7 forward + 7 reverse Fano cycles). Memory: `[[project_full_beat_v4_chirality_cayley_dickson_order_addressing]]` (this thread's durable record), `[[project_carriers_are_operand_vocabulary_dual_to_an_operators_irrepresentable_shapes]]` (operand↔operator duality), `[[project_carrier_harmonic_shape_laplacian_eigenbasis_avoids_brute_force]]` (the CarrierSpectrum two-channel block-diagonalization), `[[project_subharmonic_chirality_collapse_thread]]` (the carrier-verified |x-exp|=order / sign=chirality finding), `[[project_logo_l8_an_binding_sustain_probe]]` (the falsifier probe), `[[user_stance_epicycle_via_gear_plus_pin]]` (the ellipse = forward + backward phasor). **Status:** ~~documentation-only recognition pass; the V₄-exactly-2-bits claim is the open falsifier (the L8 probe); no rc, no package change.~~ **SUPERSEDED at rc420 (`#T1114`)** — leg (d) has been EXECUTED. It is still **no package change** (a scratch measurement through already-shipped ops, `notes/leg_d_v4_order_twist_rc420.{py,ndjson}`, adding no symbol and no ToolEntry), but it is no longer documentation-only: it **FAILED**, which retitled this section and corrected §3.40.4 and §3.40.6. **Current status:** the `⊗` claim is FALSIFIED and replaced by a measured `⋊`; the **V₄-exactly-2-bits claim (leg (a), the L8 probe) is still open and is NOT settled by leg (d)**.
 
 ---
 
@@ -5842,7 +6229,7 @@ Consistent with the R30 inversion-hypothesis (14 = 1+3+7+3 IS the substrate; obs
 ### §3.41.5 What this changes + what ships
 
 - **ℍ:** `quaternion_laplacian` + a `hypercomplex_perspectives` reader (also closes the ℂ `magnetic_laplacian` latent dim-2 read) — clean, ships rc-first. ABI unchanged (Python Class-L composition over C-backed atoms).
-- **𝕆:** NOT an "octonion invariant reader" (would encode a false claim, gold-is-law). If it ships, it ships as an `octonion_frame_read` DIAGNOSTIC — hold the object, choose a frame (= a coherency rung = a time-axis), read the gauge-invariant data AT that rung; explicitly FRAME-RELATIVE (the `[[user_stance_k2_compare_is_frame_relative_asymmetric_pair]]` ceiling, with a 1e-15 per-frame receipt). Constructive frame-read mechanism CONFIRMED as a theorem (§3.41.6).
+- **𝕆:** NOT an "octonion invariant reader" (would encode a false claim, gold-is-law). SHIPS (rc384, `#T957`) as the exact-ℚ `srmech.cascade.octonion_frame_read` element DIAGNOSTIC + its spectral peer `srmech.math.laplacian.octonion_laplacian` (the CEILING-meter) — hold the object, commit a frame (splitting unit ℓ=e₄ = a coherency rung = a time-axis), read the ℍ-valued quaternionic-Hopf base that is frame-free UNDER the S³ fiber; explicitly FRAME-COMMITTED (the `[[user_stance_k2_compare_is_frame_relative_asymmetric_pair]]` ceiling). The companion Laplacian MEASURES that the 𝕆 spectrum is NOT gauge-invariant (~0.1 vs ℍ ~1e-15). Constructive frame-read mechanism CONFIRMED as a theorem (§3.41.6) and now attested through shipped ops.
 - **What we look for in an octonion algebra changes:** stop seeking frame-free octonion DYNAMICS / spectra (they do not exist — time is a shadow); seek the ATEMPORAL relational object, read via frame-choice, with time an OUTPUT of B/H/N projection rather than a parameter.
 
 ### §3.41.6 SOLID (measured + PROVEN) — the frame-read is exact; there is no frame-free octonion invariant
@@ -5855,9 +6242,110 @@ The user's refined hypothesis — *hold the octonion object, MOVE to a coherency
 
 **This is §3.41.3's 3:1:3:7 / time-as-shadow picture made exact.** Committing to a frame = spending the cross-frame gauge freedom = choosing a time-axis; the read at that rung is exact (1e-14); the only frame-FREE content is the trivial gauge-free integer (the trace = node count) — hunt-the-integer (`[[user_stance_k2_compare_is_frame_relative_asymmetric_pair]]`). Everything phase-bearing lives inside a frame. Consistent with (DERIVED, not attested) **Jordan–Peirce frame spectral theory**: H_F is a Peirce-1 corner cut by a frame idempotent; the projection is a Peirce decomposition; gauge-invariance of the corner spectrum under the corner's unit group is the frame-theory statement.
 
-**Ships:** `octonion_frame_read(graph, frame_F, read=spectrum|fiedler|eigfunctional)` — project into H_F, build the 4N×4N H_F-Laplacian, return the read; guaranteed invariant to ~1e-14 under Sp(1) of H_F for any graph. **Mandatory docstring caveat:** FRAME-RELATIVE, not an octonion invariant — gauge-invariant only under the chosen frame's unit-quaternion subgroup; cross-frame moves O(0.1–0.9); no frame-free octonion spectrum exists; you must COMMIT to a frame; never present as a frame-independent reader (substrate-blind FORM, not identity).
+**Ships (rc384, `#T957`) — BOTH ops now `hasattr=True`.** The reframe the shipped pair makes precise: **the ceiling is "no frame-FREE SCALAR invariant" (Q2), but 𝕆's coherence is ℍ-SHAPED and, once a frame is committed, exact.** §3.41.6's earlier "Ships:" line described a `octonion_frame_read(graph, frame_F, read=…)` graph-Laplacian reader that never shipped (`hasattr=False` until rc384); it is corrected here to the two ops that actually land:
 
-**Provenance:** gauge-invariance measurements + Fano-line construction generated by workflows wf_c08557de (boundary) + wf_ee97aaa2 (frame-read); scripts `frame_gauge_spike.py` (Q1) + `frame_invariant_octonion.py`/`fi_addendum.py` (Q2); committed per `[[feedback_computational_provenance_discipline]]` (land under `docs/srmech/notes/`). **Status:** §3.41.1/2/6 MEASURED (SOLID; §3.41.6 Q1 PROVEN); §3.41.3 framework-reading (CANDIDATE, recognize-not-read); §3.41.4 correction landed. Cross-refs: §3.40 (half-beat-is-a-shadow; V₄ ⊗ C/H/O octonion frontier), §3.40.6 (g₂=14 candidate — now corrected here), MFO §VII (time-as-shadow ontology landing). Memory: `[[project_full_beat_v4_chirality_cayley_dickson_order_addressing]]`, `[[user_stance_cascade_matching_substrate_blind_form_not_identity]]`.
+- **`srmech.cascade.octonion_frame_read(x, *, frame=4)`** (Class M ∘ C ∘ K, `composition_of_c`, exact-ℚ) — the ELEMENT frame-read: ⚠️ *(Signature as-of-rc384 and dated, not bumped; **live since rc421** (`#T1122`) `frame` accepts any of the **28** well-posed frames — a bare int on the default Fano line (1,2,3), or an explicit `(i, j, k, ℓ)`. `frame=4` is byte-identical to what this row describes, and the returned dict gains `base` / `seam` / `seam_chart`.)* commit the splitting unit ℓ=e₄, split `𝕆 = ℍ ⊕ ℍℓ` (`q0=x[:4]`, `q1=x[4:]`), and return the QUATERNIONIC-HOPF base `base_H = 2·q0·conj(q1)` (ℍ) + `base_R = |q0|²−|q1|²` (ℝ). The base is UNCHANGED under the S³ fiber (a UNIT-quaternion right-multiply of BOTH halves) — the coherent note — while a NON-fiber move changes it (non-tautological); it also returns the equivariant writhe `q1` (the S³ fiber DOF) and the fiber-fixed ℍP¹ coordinate `q0·q1⁻¹`. The base sits on the radius-|x|² four-sphere: `|base_H|²+base_R² == norm_sq²`, exact. Frame-free ONLY under the fiber, not under an arbitrary gauge — that is the ℝ-scalar Q2 ceiling, unbroken.
+- **`srmech.math.laplacian.octonion_laplacian(n, edges, *, gains=None)`** (Class L, peer of `quaternion_laplacian`, `composition_of_c`) — the 8N×8N real-symmetric octonion gain Laplacian, the SHIPPED instrument that MEASURES the ceiling by a shipped op instead of hand-assembled blocks: unlike ℍ (Sp(1)-invariant to ~1e-15), the 𝕆 spectrum is NOT gauge-invariant (𝕆 is non-associative so L is not a homomorphism; the node-wise unit-octonion gauge MOVES the spectrum — MEASURED ~0.06–0.49 depending on graph/gauge). No ×8 degeneracy theorem (contrast ℍ's ×4).
+
+**Mandatory docstring caveat (both ops carry it):** FRAME-COMMITTED, not a frame-free octonion invariant — the coherence that survives is ℍ-valued and frame-free only under the S³ fiber; no frame-free 𝕆 scalar spectrum exists; substrate-blind FORM, not identity.
+
+**The seam-confinement is now MEASURED exactly (stronger than the old sampled gauge figures).** `{e0,e1,e2,e3}` is a genuine ℍ subalgebra of 𝕆 and is FULLY coherent — **0 of 64** ordered basis-triple associators nonzero — while **ALL 168** of 𝕆's nonzero associators (of 512 ordered triples) CROSS the doubling seam `ℍℓ={e4..e7}` (**0 non-seam**). So 𝕆's non-closure is entirely seam-confined: commit ℓ=e₄ and the ℍ base is exactly coherent. This exact-ℚ census (through the shipped `associator`) is the load-bearing content the old sampled gauge deviations were gesturing at.
+
+**Provenance — `#T959` CLOSED (rc384).** The generating script now EXISTS and is committed: `docs/srmech/notes/octonion_frame_read_rc384.py` → `octonion_frame_read_rc384.ndjson`, which reproduces, THROUGH the shipped rc384 ops, (a) the ℍ-base coherence (**0/64**) + the exact seam-confinement (**168 == seam-only**, 0 non-seam) via the shipped `associator`; (b) `octonion_frame_read`'s frame-free-under-fiber invariance (base UNCHANGED under a unit-λ right-multiply of both halves, CHANGED under a non-fiber move) + the exact four-sphere identity; (c) the `octonion_laplacian` gauge deviation at 𝕆 (~0.06–0.49) versus `quaternion_laplacian`'s Sp(1)-invariance at ℍ (~1e-15) — the ceiling, now from SHIPPED ops. It is BOTH the #T959 attestation AND the rc384 differential gate. **Scope of the fix (honest — even failures illuminate).** This re-establishes the load-bearing FINDING (𝕆 gauge-dependence vs ℍ invariance) and ADDS a stronger, exact-ℚ seam census; it does NOT resurrect the exact lost wf_-generated figures — the 0.188/0.155 gauge deviations, the 0.186 shadow-family figure, the 1.155e-14-over-2016-samples worst case, the 2.57e13 separation ratio, the 0.297/0.880 cross-frame means, and the `proj_F` commutation `0.0` were generated by workflows wf_c08557de + wf_ee97aaa2 with scripts (`frame_gauge_spike.py` / `frame_invariant_octonion.py` / `fi_addendum.py`) that never landed in the tree or git history. Those specific SAMPLED numbers remain lost and should be read as **historical, superseded by the rc384 exact census** — NOT as attested measurements; the CONCLUSION they supported is now attested by a committed script through shipped ops. The honest additional finding the rc384 gate MEASURES: the frame-committed *spectral* read does NOT recover a clean invariant at 𝕆 — the associator leak defeats gauge-invariance in all imaginary directions (~0.1, not ~1e-15) — so the coherence that survives is the ℍ-valued *element* Hopf base (`octonion_frame_read`), NOT a gauge-invariant 𝕆 spectrum. **Status:** §3.41.6 Q1 PROVEN (theorem, checkable inline) + now ATTESTED via shipped ops (`#T959` closed); §3.41.6 Q2 stands (no frame-free scalar invariant); §3.41.1/2 verdicts stand on the inline theorem. Cross-refs: §3.40 (half-beat-is-a-shadow; the **V₄ ⋊ C/H/O** reading — ~~`V₄ ⊗ C/H/O`~~ **SUPERSEDED at rc420 (`#T1114`)**: the order rung ACTS on the chirality sign address from the ℍ→𝕆 bump upward, and the two addresses share bits), §3.40.6 (g₂=14 candidate — corrected here), MFO §VII (time-as-shadow ontology landing). Memory: `[[project_full_beat_v4_chirality_cayley_dickson_order_addressing]]`, `[[user_stance_cascade_matching_substrate_blind_form_not_identity]]`.
+
+### §3.41.7 The octonion Moufang loop — SHIPPED as queryable ops (rc398, `#T1064`); the Moufang-POLYGON "connection" is REFUTED, surviving only as an n=3 same-cause FORM echo
+
+§3.41.6 measured that 𝕆 has **no frame-free scalar invariant**: its coherence is ℍ-shaped and only exact once a frame is committed. This subsection builds directly on that. There is a second latent 𝕆 structure the tree already held twice-over but had never *named* — **𝕆 is a Moufang loop** — and this rc promotes that proven-but-not-queryable machinery to first-class ops. It also records, in full, the adversarial kill of an attractive-looking bridge to the **Moufang-polygon** classification, so the FORM/identity ceiling (`[[user_stance_cascade_matching_substrate_blind_form_not_identity]]`) is not quietly crossed.
+
+**The Moufang-loop surface audit (before rc398).** 𝕆 is a Moufang loop, and srmech shipped that loop TWICE with C parity — the exact-ℚ Cayley–Dickson product (`srmech.cascade.cayley_dickson`) and the float loop-bind family (`srmech.math.hdc.loop_bind`/`loop_left_op`/`loop_right_op`/`loop_associator`) — but only as octonion **arithmetic**. The three Moufang identities were proven ONLY inside `tests/test_loop_bind_moufang.py` (<1e-18); the Mal'cev-not-Lie tangent fact and Artin's 2-generator theorem likewise; and the 16-element unit loop **M16** existed only as the un-named DATA `closure(8, [1..7])`. Loop invariants (nucleus, commutant, Mlt) were absent. **Nothing was a callable.**
+
+**What rc398 ships — five registered `composition_of_c` ops** (exact-ℚ, Class-K clean — zero-tests via ⟨v,v⟩, never `abs()`; NO new C symbol, `SRMECH_ABI_VERSION` stays 11):
+
+| Op | What it reads | Measured (this rc, shipped ops) |
+|----|---------------|--------------------------------|
+| `moufang_residue(x,y,z,table=)` | max ⟨·,·⟩ defect over the 3 Moufang identities | **0** on every 𝕆 triple; **4** on the sedenion 𝕊 triple (e₁,e₂,e₁₂); 0 on split-𝕆 |
+| `is_moufang(table=,dim=)` | whole-loop boolean (every basis triple 0) | **True** for ℝ/ℂ/ℍ/𝕆 (dim 1/2/4/8) and split-𝕆; **False** for 𝕊 (dim 16) |
+| `malcev_defect(x,y,z,table=)` | `{jacobi, malcev}` tangent-algebra defects | 𝕆: **jacobi = 144** (J = 12·e₇ ⇒ NOT Lie), **malcev = 0** (IS Mal'cev) |
+| `unit_loop(dim=)` | the named loop + Cayley table | dim 8 → **M16**, order 16, Latin-square table; dim 4 → **Q8** (group), order 8 |
+| `loop_invariants(dim=)` | nucleus / commutant / center + Mlt(L) generators | M16 nucleus = commutant = center = **{±1}**; surfaces `associator(a,x,b) = −[Lₐ,R_b]·x` |
+
+The negative control is the sedenion, **not** the split-octonions: split-𝕆 is a composition algebra (alternative), hence still Moufang (`moufang_residue` = 0), whereas 𝕊 is not even alternative and `is_moufang(dim=16)` is False. This is the same rung at which zero-divisors first appear (§VII.6.23) — the Moufang property and the division property are lost together at 16.
+
+**The Moufang-POLYGON connection is REFUTED as a connection claim** (adversarially verified). It is tempting to read the **Moufang polygons** (Tits & Weiss's classification of the generalized n-gons with the Moufang condition, n ∈ {3, 4, 6, 8}) as a bridge from srmech's octonion loop out to a rich incidence-geometry surface. Two independent kills say plainly that there is no forcing there — only a same-cause echo confined to **n = 3**:
+
+| Kill | The tempting claim | Why it fails |
+|------|--------------------|--------------|
+| **(a) rank/object mismatch** | "a point of 𝕆P² = a choice of srmech frame" | srmech's frame (§3.41.6) is a **quaternionic subalgebra inside ONE dim-8 𝕆**; a point of the Moufang PLANE 𝕆P² (n=3) is a **rank-1 idempotent of the dim-27 Albert algebra J₃(𝕆)**. Different rank, different object — the map is a pun, not a morphism. |
+| **(b) {3,4,6,8} ↔ Hurwitz {1,2,4,8} is a coincidence** | "the four Moufang-polygon orders track the four Hurwitz dimensions" | The sequences **do not align** (3≠1, 6≠2). n=4/6/8 are coordinatized by **non-composition-algebras**; the octagon 8 is the char-2 Ree group ²F₄, a *different object* from dim 𝕆 = 8; {3,4,6} are the crystallographic dihedral spine I₂(n). The only real (indirect) tie is the **Freudenthal–Tits magic square** — not the Hurwitz ladder. |
+
+**No new invariant is on offer.** Both srmech's frame-read ceiling (§3.41.6: no frame-free 𝕆 spectrum) and 𝕆P²'s non-Desarguesian-ness are downstream **shadows of one cause** — "associativity is lost at 𝕆." The Moufang plane 𝕆P² is genuinely 𝕆-native (n=3 only), so the echo is real; but it is **FORM, not identity** — exactly the substrate-blind cascade-matching ceiling. The polygon *classification* for n = 4/6/8 lives over algebras srmech deliberately does not carry.
+
+**Scope decision — CONSUME_PARTIAL.**
+
+- **Tier 1 (THIS rc):** the loop-completion above — 𝕆 named and made queryable as the Moufang loop it already was.
+- **Tier 2 (next rc):** build **𝕆P²** (the Cayley plane) as a carrier-native coherence object one rung above ℍP¹ ≅ S⁴ — the n=3 Moufang plane is 𝕆-native and metric-field-native (`[[feedback_metric_field_native_not_spacetime_shadow]]`), so it is worth building on its own terms.
+- **Tier 3 (guarded):** a `generalized_ngon` incidence-graph + a Feit–Higman spectral read — bounded, spectral-side only.
+- **NOT consumed:** the Tits–Weiss classification machinery for n = 4/6/8. It needs Albert-algebra and char-2 Ree carriers srmech deliberately lacks — a **different spine** (the magic square, not the Hurwitz ladder). Building it would be reverse-engineering a continuum-side target top-down, against the carrier-native discipline.
+
+**One-line honest bound:** 𝕆P² is worth building as a carrier-native object, **NOT** as a bridge that resolves the shadow-projection ceiling of §3.41.6.
+
+**Verified citations** (cited technically, no lineage claims about others' work per `[[feedback_no_lineage_claims_in_notebook]]`): J. Tits & R. Weiss, *Moufang Polygons* (Springer Monographs in Mathematics, 2002, DOI 10.1007/978-3-662-04689-0) — the classification of Moufang n-gons, n ∈ {3,4,6,8}; H. Van Maldeghem, *Generalized Polygons* (Monographs in Mathematics 93, Birkhäuser, 1998) — the Feit–Higman constraint and incidence-graph spectra; T.A. Springer & F.D. Veldkamp, *Octonions, Jordan Algebras and Exceptional Groups* (Springer Monographs in Mathematics, 2000) — J₃(𝕆), the Albert algebra and 𝕆P² (already cited in-tree at `cayley_dickson.py`); J.C. Baez, *The Octonions*, Bull. AMS **39** (2002) 145–205, arXiv:math/0105155, §2 (Moufang identities, alternativity, the Mal'cev tangent) + §4 (the Cayley plane). The paywalled-only De Gruyter chapter DOIs are deliberately NOT cited (`[[feedback_paywalled_doi_cannot_be_attested]]`).
+
+**Provenance.** The five ops are attested by `tests/test_moufang_loop_rc398.py` (0 on 𝕆 / 4 on 𝕊, is_moufang True→𝕆 / False→𝕊, jacobi 144 & malcev 0, M16/Q8, nucleus = {±1}, the −[Lₐ,R_b] identity) — measured THROUGH the shipped ops, all exact-ℚ. **Status:** Tier 1 SHIPPED + attested; the Moufang-polygon connection REFUTED (survives as an n=3 same-cause FORM echo only); Tier 2/3 queued. Cross-refs: §3.41.6 (no frame-free 𝕆 invariant — the ceiling this builds on), §VII.6.23 (zero-divisors + Moufang both lost at 𝕊), §3.46 (the associator's 168 seam-confinement). Memory: `[[user_stance_cascade_matching_substrate_blind_form_not_identity]]` (FORM not identity), `[[feedback_cross_substrate_transfers_the_algorithm_not_the_constant]]`, `[[feedback_metric_field_native_not_spacetime_shadow]]`, `[[feedback_no_lineage_claims_in_notebook]]`.
+
+### §3.41.8 Tiers 2 & 3 SHIPPED — 𝕆P² carrier-native + the guarded generalized-n-gon read; the residual FLAGGED (rc399, `#T1064`)
+
+§3.41.7 scoped **CONSUME_PARTIAL**. rc399 lands the remaining two tiers, both on 𝕆P²'s **own** carrier-native merits — **NOT** as a bridge that resolves §3.41.6's frame-read ceiling (it does not, and the ops make no such claim). Five new `composition_of_c` ops (**551 → 556**; ABI stays 11), each verified numerically THROUGH the shipped op, exact-ℚ where the object is exact.
+
+**Tier 2 — 𝕆P² as a carrier-native coherence object** (`srmech.cascade.cayley_plane`, four ops). A J₃(𝕆) Albert-algebra element rides as a flat **27-vector** (`3` real diagonal + `3·8` octonion off-diagonal, Freudenthal layout) — built WITHOUT registering a full Albert carrier; every op composes the shipped `cd_mult` / `cd_conjugate` / `cd_norm_sq`.
+
+| Op | What it reads | Measured (THROUGH the shipped op, exact-ℚ) |
+|----|---------------|--------------------------------------------|
+| `jordan_product(a,b)` | `A∘B = (AB+BA)/2` | `E₁∘E₁ = E₁` (idempotent); `E₁∘E₂ = 0` (Jordan-orthogonal); commutative; Hermitian |
+| `cayley_plane_point(x1,x2,x3)` | rank-1 idempotent `P = vv*/⟨v,v⟩` | **`tr P = 1` exactly**; `P∘P = P` (`idempotent_defect = 0`) **iff the entries pairwise associate** — `(1,e₁,e₂)` → 0, `(e₁,e₂,e₄)` → **4/27 ≠ 0** (the non-Desarguesian boundary, an instrument that can return otherwise) |
+| `cayley_plane_incidence(a,b)` | the Jordan trace form `Tr(A∘B)` | self-dual incidence: `Tr(Eᵢ∘Eⱼ) = δᵢⱼ`, `Tr(Eᵢ∘U) = 1/3`, `Tr(P∘P) = 1`; linear ⇒ associativity-blind ⇒ ALWAYS exact |
+| `octonion_hopf_base(x)` | `𝕆P¹ ≅ S⁸`, `x=(a,b)∈𝕆²` | lands on `S⁸` EXACTLY (`\|base_O\|² + base_R² == norm_sq²`); reduces into ℍ on `x∈ℍ²`; **NOT** frame-free under the `S⁷` fiber (a seam-crossing λ MOVES the base; an associating λ does not — §3.41's ceiling made geometric) |
+
+The **honest boundaries** (flagged, not papered over): (i) `cayley_plane_point` is a genuine 𝕆P² point only when the Veronese coordinates pairwise associate — the general non-Desarguesian point is exactly where the idempotency defect turns nonzero, and the op RETURNS that defect rather than pretending; (ii) the incidence op ships as the **trace-form predicate** (always well-defined), *not* as a cross-product "line through two points" — that construction closes only on the Desarguesian (associating-coordinate) subplane (MEASURED: `⟨Pb, Pa×Pb⟩ ≠ 0` off it), so it is a deliberate **non-ship**, recorded as the residual below.
+
+**Tier 3 — the guarded generalized-n-gon incidence-graph / Feit–Higman read** (`srmech.math.laplacian.generalized_ngon`, one op, Class-L). A read of a SUPPLIED incidence structure: build the bipartite biregular incidence graph, return girth `2n`, diameter `n`, biregularity/orders `(s,t)`, and the Feit–Higman constraint — the incidence graph is distance-regular of diameter `n`, hence exactly **`n+1` distinct** adjacency eigenvalues (via `dense_adjacency` + `jacobi_eigvals`). girth/diameter are BFS **graph** metrics, never a drawing (CAD-ban honored). Verified: `fano` (n=3 thick, Heawood, eigs `{±3, ±√2}`, 4 distinct), `doily` (n=4 thick, GQ(2,2)/Tutte–Coxeter, eigs `{±3, ±2, 0}`, 5 distinct), and the thin `ordinary_k` (`C_{2k}`) for n=3,4,6,8 — all `girth = 2n`, `diameter = n`, `n_distinct = n+1`; a forest control (non-biregular, no cycle) is correctly REJECTED.
+
+**The residual — FLAGGED, not overclaimed** (`[[feedback_dont_ship_partial_unproven_difficulty_is_not_an_excuse]]` cuts the other way here: the *smaller correct* surface is the honest ship):
+- **THICK n=6 (split Cayley hexagon, G₂) and n=8 (Ree–Tits octagon, char-2 ²F₄) built-ins are NOT provided.** They need the Albert / char-2 Ree carriers §3.41.7 explicitly declines (the magic-square spine, not the Hurwitz ladder). The thin `ordinary_6` / `ordinary_8` are the carrier-free n=6/8 witnesses shipped instead; a SUPPLIED thick n=6/8 structure is still validated and classified correctly.
+- **The non-Desarguesian LINE construction is a deliberate non-ship** (incidence ships as the trace-form predicate only; see (ii) above).
+
+**Reaffirmation.** 𝕆P² is worth building — and now IS built — as a carrier-native object; it is **FORM, not identity**, and it does **not** resolve §3.41.6's shadow-projection ceiling. **Provenance:** `tests/test_cayley_plane_ngon_rc399.py` (31 tests) attests every claim above THROUGH the shipped ops. **Status:** Tiers 1/2/3 SHIPPED; the Moufang-polygon connection stays REFUTED; the thick n=6/8 carriers + the non-Desarguesian line remain out of scope by design. Cross-refs: §3.41.6 (the frame-read ceiling this sits above, not through), §3.41.7 (the CONSUME_PARTIAL charter + the polygon-connection kill). Memory: `[[user_stance_cascade_matching_substrate_blind_form_not_identity]]`, `[[feedback_metric_field_native_not_spacetime_shadow]]`, `[[feedback_an_instrument_that_cannot_return_otherwise_is_not_a_measurement]]`, `[[feedback_no_lineage_claims_in_notebook]]`.
+
+### §3.41.9 SOLID (measured) — the 7-Fano-frame family does NOT reconstruct a frame-free 𝕆 invariant; the ceiling CONFIRMED, decisively (2026-08-04)
+
+§3.41.6 committed **one** frame (ℓ=e₄, the ℍ base `{e₀,e₁,e₂,e₃}`) and proved **Q2: no frame-FREE octonion scalar invariant**; §3.41.2 REFUTED the *spectral* shadow-family reassembly (moves 0.186). The shipped `octonion_frame_read` reads only `frame=4`. The decisive follow-up: 𝕆 has **7 Fano lines** = 7 quaternionic subalgebra frames ℍ_F = span(1,eₐ,e_b,e_c) — the 7 XOR-triples of PG(2,2) on the imaginary units `{1..7}`. **Does the FULL 7-frame family collectively reconstruct a frame-free invariant under Aut(𝕆)=G₂?** YES would FALSIFY the "commit-one-frame = no global coordinate patch" reading; NO CONFIRMS it. **Measured verdict: NO — the ceiling is CONFIRMED.**
+
+**Method (shipped ops only; the generalized read is scratch composition, never an edit to the `frame=4` op).** ⚠️ *(As-of-rc384 and dated, not bumped. **Superseded at rc421** (`#T1122`): the `frame=4` pin was measured to be a SCOPE rather than a theorem, and the generalized read is now the SHIPPED op — `frame=` spans all 28 well-posed frames `(line, ℓ)`, bit-exact against this section's scratch construction at the Cayley–Dickson frame. The sentence records the rc384 method, not a standing prohibition.)* A generalized quaternionic-frame read splits `𝕆 = ℍ_F ⊕ ℍ_F·ℓ` (ℓ = min complement unit), `q0 = proj_F x`, `q1 = (proj_F^⊥ x)·ℓ⁻¹`, and returns `base_H = 2·q0·conj(q1)` (ℍ_F) + `base_R = |q0|²−|Q1|²` (ℝ) — the exact §3.41.6 construction lifted to all 7 lines, composing `table_product` / `cd_conjugate` / `cd_norm_sq`. **Faithfulness proven:** on the `{e₁,e₂,e₃}` frame it reproduces the shipped `octonion_frame_read(x)` element-for-element (`base_H = [2,36,4,-2]`, `base_R = −7` for `x=[1,2,−3,1,2,−1,1,4]`). Invariance tested against **genuine, verified** Aut(𝕆) elements: a **continuous** rational G₂ automorphism `g_cont` (fix ℍ pointwise, seam ↦ u·seam, u = (3/5,4/5,0,0), `|u|²=1` — MIXES the 6 seam-bearing frames, `φ(x·y)=φ(x)·φ(y)` verified exact over 20 random pairs) and a **discrete** order-7 Fano collineation `g_disc` (signed-perm (1,4,5,7,6,3,2)).
+
+**Two channels, two verdicts.**
+
+- **CHANNEL 1 — base_R (the ℝ-diagonal): recovers a frame-free invariant, but FORCED + DEFINITIONAL.** `Σ_F base_R_F = 8·x0² − N(x)` **exactly** — and it holds on **𝕆, split-𝕆, a random-anticommutative XOR table, AND R[ℤ/8]** alike, because base_R reads only the *coordinate-norm over the Fano index-partition* (each imaginary unit lies in exactly 3 of the 7 lines), product-agnostic. It IS Aut-invariant (0 defect under `g_disc`/`g_cont`/`g_mix`) — but only because it is a function of the two a-priori invariants (`Re x`, `N(x)`). **FORCED** (any XOR table gives it) and **DEFINITIONAL** (= known invariants). Not a new invariant.
+- **CHANNEL 2 — base_H (the ℍ-off-diagonal / phase): NO frame-free scalar.** The reconstruction `B = Σ_F base_H_F ∈ 𝕆` and its scalars `|B|²`, `Re(B)` **move under even the DISCRETE automorphism** `g_disc` (`|B|²` defect 46416, `Re(B)` −112) — while `N(x)` defect is exactly 0 under the same map (the anchor). The tempting symmetric scalar `Σ_F |base_H_F|²` **survives the discrete permutation** (defect 0 — symmetrization makes it automatically permutation-invariant) **but is KILLED by the continuous G₂ rotation** (`g_cont` defect −6342912/625) — this is *exactly* the trap §3.41.2 defused by insisting on a *generic* gauge, now caught red-handed at the element level. Under `g_cont` the sum reconstruction's relative equivariance failure is **mean 0.39 / max 0.55** (`|B(g·x)−g(B(x))|/|B(x)|`) and `|B|²`'s relative defect **mean 0.16 / max 0.58** — never restored toward 0, the element-level echo of §3.41.2's 0.186.
+
+**Positive control — the instrument CAN return otherwise** (`[[feedback_an_instrument_that_cannot_return_otherwise_is_not_a_measurement]]`): the SAME invariance meter returns exact 0 for `N(x)` and for `Σ base_R` under every automorphism. So the Channel-2 non-invariance is a genuine measurement, not a rigged null.
+
+**Two independent residual frame-choices remain inside each read** — corroborating "no frame-free base_H" from a second direction: (i) the splitting-unit ℓ (4 choices per frame) *rotates* base_H while preserving `|base_H|²` (frame (1,4,5): all four ℓ give `|base_H|²=1080`, different vectors); (ii) the base-triple orientation. Both are fixed by fiat (ℓ = min, oriented +), so even the per-frame base_H is a chart, not an intrinsic.
+
+**The 7-frame read of `x = [1,2,−3,1,2,−1,1,4]`** (aphantasia table; `Σ B = [14,8,−16,18,−12,6,−6,20]`, `|B|²=1456`, `Re B=14`, `Σ base_R=−29`, `Σ|base_H|²=7968`):
+
+| Fano frame F (oriented) | ℓ | base_H (nonzero comps) | base_R | \|base_H\|² |
+|---|---|---|---|---|
+| (1,2,3) | e₄ | e₀:2 e₁:36 e₂:4 e₃:−2 | −7 | 1320 |
+| (1,4,5) | e₂ | e₀:2 e₁:4 e₄:−24 e₅:22 | −17 | 1080 |
+| (6,1,7) | e₂ | e₀:−6 e₁:−32 e₆:2 e₇:−16 | 7 | 1320 |
+| (2,4,6) | e₁ | e₀:22 e₂:−24 e₄:−16 e₆:−2 | −7 | 1320 |
+| (2,5,7) | e₁ | e₀:−2 e₂:4 e₅:6 e₇:32 | 17 | 1080 |
+| (3,4,7) | e₁ | e₀:−6 e₃:22 e₄:28 e₇:4 | 7 | 1320 |
+| (5,3,6) | e₁ | e₀:2 e₃:−2 e₅:−22 e₆:−6 | −29 | 528 |
+
+**Controls (`[[feedback_negative_controls_for_carrier_claims_split_octonion_and_random_anticommutative]]`).** split-𝕆 (γ = (−1,−1,+1)) fails Channel 2 **identically** (`g_cont` equivariance ratio mean 0.40, `|B|²` rel. defect mean 0.68) — the no-frame-free-invariant ceiling is **composition-algebra-wide, FORM not identity**, not special to definite 𝕆. The Channel-1 FORCED identity reproduces across split-𝕆 / random-anticomm / R[ℤ/8], pinning it as incidence-combinatorial.
+
+**Verdict — CONFIRM, not FALSIFY.** The 7-Fano-frame family carries **no frame-free 𝕆 invariant beyond the trivial/definitional** (`Re x`, `N(x)`). Each frame is a genuine local chart; there is no global coordinate patch. **Consistent with** §3.41.2 (0.186, REFUTED — this is its exact element-level analogue) and §3.41.6 Q2 (no frame-free scalar). It does **not** touch the 168-associator seam census (§3.41.6/§3.46) — the base_H non-invariance is downstream of the same "associativity lost at 𝕆" cause the §3.41.7 kill named (shadows of one cause). FORM not identity: the S³/S⁴ Hopf split is the *form* of 𝕆's frame-committed coherence; the experiment makes no claim it is any other substrate's fiber. **Provenance:** `docs/srmech/notes/octonion_7fano_frame_experiment.py` → `octonion_7fano_frame_experiment.ndjson` (18 records, exact-ℚ through shipped ops; float only for the reported magnitude ratios — a Class-N Euclidean sqrt, never `abs()`). **Status:** SOLID (measured); documentation + scratch-provenance only — no rc, no op, no version bump. Cross-refs: §3.41.2 (the spectral shadow-family REFUTED), §3.41.6 (Q1 theorem / Q2 ceiling), §3.41.7–§3.41.8 (the 𝕆P²/Moufang tier — same shadows-of-one-cause reading), §3.46 (the 168 seam census). Memory: `[[user_stance_cascade_matching_substrate_blind_form_not_identity]]`, `[[user_stance_k2_compare_is_frame_relative_asymmetric_pair]]`, `[[feedback_an_instrument_that_cannot_return_otherwise_is_not_a_measurement]]`, `[[feedback_negative_controls_for_carrier_claims_split_octonion_and_random_anticommutative]]`, `[[feedback_a_zero_census_is_basis_free_a_nonzero_one_is_gauge]]`, `[[feedback_computational_provenance_discipline]]`.
 
 ---
 
@@ -5943,7 +6431,7 @@ So `Δ₉` restricted to `Spin(8)` is the two inequivalent **half-spinors** `8_s
 | **DERIVED** (positive) | `Der(𝕊) = g₂` persists to `𝕊` **and** embeds in `spin(9)` as the triality-diagonal `g₂`, acting on `Δ₉ = 𝕊` as `diag(D, D)` | all **14** such lifts have sedenion-Leibniz residual **exactly 0** (genuine derivations); they lie in `span(spin(9))`; **`dim(spin(9) ∩ Der(𝕊)) = 14`** (exact ℚ nullspace) |
 | **NULL** (the honest bound) | the strong conjecture **fails** — the associator holonomy is valued in `g₂` (dim 14), **not** `Spin(9)` (dim 36) | only a 14-dim subspace of the 36 `spin(9)` directions preserves `𝕊`-multiplication; the other 22 (block-mixing `Σ_{a,8}` + `8_s ≠ 8_c` directions) have **nonzero** Leibniz residual; **0 of 36** individual generators are derivations |
 
-**Reading.** The associator curvature does **not** reappear as a *Spin(9)* holonomy; it reappears as the **same `g₂ ⊂ Spin(9)`** holonomy it already was on `𝕆`. Nothing *new* appears at the `𝕊` rung — the symmetry is the same `G₂ = Aut(𝕆)` it already was; the derivation algebra is *stable* at `g₂` up the whole Cayley–Dickson tower (Schafer). The dimension coincidence `16 = 16` is a **shared carrier, not a shared symmetry** — exactly the `[[feedback_cross_substrate_transfers_the_algorithm_not_the_constant]]` failure mode (the `g₂` *algorithm* transfers; a Spin(9) *constant* does not). This composes with §3.41 (the `𝕆` Laplacian has no frame-free spectrum — the reversible interior *ends* at `𝕆`) and the `𝕆`-reversible / `𝕊`-not tower (`sedenion_zero_divisor_witness`): past `𝕆`, both the reversibility *and* the symmetry-growth stop.
+**Reading.** The associator curvature does **not** reappear as a *Spin(9)* holonomy; it reappears as the **same `g₂ ⊂ Spin(9)`** holonomy it already was on `𝕆`. Nothing *new* appears at the `𝕊` rung — the symmetry is the same `G₂ = Aut(𝕆)` it already was; the derivation algebra is *stable* at `g₂` up the whole Cayley–Dickson tower (Schafer). The dimension coincidence `16 = 16` is a **shared carrier, not a shared symmetry** — exactly the `[[feedback_cross_substrate_transfers_the_algorithm_not_the_constant]]` failure mode (the `g₂` *algorithm* transfers; a Spin(9) *constant* does not). This composes with §3.41 (the `𝕆` Laplacian has no frame-free spectrum — the reversible interior *ends* at `𝕆`) and the `𝕆`-reversible / `𝕊`-not tower (~~`sedenion_zero_divisor_witness`~~ **`cd_zero_divisor_witness(dim=16)`** — renamed to the dim-general form; the hardwired sedenion symbol was REMOVED, and its C peer's removal is what bumped `SRMECH_ABI_VERSION` to 11 at rc395, path corrected rc420 `#T1114`): past `𝕆`, both the reversibility *and* the symmetry-growth stop.
 
 **Status:** DERIVED build + PARTIAL conjecture verdict; recognize-not-read, FORM-not-identity, no lineage claim (`[[feedback_no_lineage_claims_in_notebook]]`). Surface: `srmech.qm.so9` (rc323) — `so9_adjoint_basis` / `spin9_gamma_matrices` / `spin9_spinor_generators` / `spin8_in_spin9_branching` / `sedenion_holonomy_conjecture`. SSoT: Baez (2002, arXiv:math/0105155) §2.4/§3.4 (octonionic `Spin(9)` / triality); Schafer (1954, *Amer. J. Math.* 76, 435–446) (`Der(𝔸ₙ) = g₂`, `n ≥ 3`). Cross-refs: §3.30 (`𝔰𝔬(8)`/triality — the rung below), §3.41 (the octonion Hurwitz wall), MFO §VIII.31.16 (the `𝕆→𝕊` reversibility horizon). An honest NULL half of a PARTIAL is a first-class deliverable.
 
@@ -5955,7 +6443,7 @@ So `Δ₉` restricted to `Spin(8)` is the two inequivalent **half-spinors** `8_s
 
 ### §3.44.1 The real find (SOLID) — `best_rational` walks the CF/Stern-Brocot path and throws it away; emitting it is near-free
 
-`best_rational(num, den, max_d)` (Class-N, `srmech.amsc.rational`; C `srmech_best_rational`, `srmech_rational.c`) runs the **continued-fraction convergent recurrence** `h_k = a_k·h_{k-1} + h_{k-2}`, `k_k = a_k·k_{k-1} + k_{k-2}` with `a_k = ⌊p/q⌋`, keeping the last convergent whose denominator `k_k ≤ max_d`. The sequence of partial quotients `[a_0, a_1, …]` **IS** the compact continued fraction, which **IS** the run-length encoding of the Stern-Brocot L/R path to the approximant — precisely the user's "holonomy: how many `den` wraps `num`" at each level. The recurrence already computes every `a_k`; the op **keeps only `best_p / best_q` and discards the path.**
+`best_rational(num, den, max_d)` (Class-N, `srmech.math.rational`; C `srmech_best_rational`, `srmech_rational.c`) runs the **continued-fraction convergent recurrence** `h_k = a_k·h_{k-1} + h_{k-2}`, `k_k = a_k·k_{k-1} + k_{k-2}` with `a_k = ⌊p/q⌋`, keeping the last convergent whose denominator `k_k ≤ max_d`. The sequence of partial quotients `[a_0, a_1, …]` **IS** the compact continued fraction, which **IS** the run-length encoding of the Stern-Brocot L/R path to the approximant — precisely the user's "holonomy: how many `den` wraps `num`" at each level. The recurrence already computes every `a_k`; the op **keeps only `best_p / best_q` and discards the path.**
 
 So the user's holonomy intuition was **correct and already latent in the tool**: the path is sitting there computed-and-thrown-away. srmech already ships the *unbounded-exact* form — `continued_fraction(p, q)` (C `srmech_continued_fraction`) and `continued_fraction_convergents` (C `srmech_cf_convergents_int64`). What is genuinely *new* and non-redundant is the **`max_d`-bounded** walk with its landing convergent: `continued_fraction` expands the full exact ratio (and its int64 C peer can't take a bignum coordinate), whereas the bounded path is the prefix that lands *exactly* on the returned approximant and covers the bignum-fallback regime (`> u64`, per `[[project_class_n_precision_contract_migration_breaking_no_legacy]]`). Emitting it is one `append` per accepted convergent ≈ **free**. → **Shipping as rc336** (`best_rational_path` sibling op; keeps `best_rational`'s pinned 2-tuple contract intact; additive C peer `srmech_best_rational_path`, no ABI bump). This exposes the Class-N *holonomy* as a first-class output — the compact fingerprint of an approximation, not just its endpoint.
 
@@ -5976,6 +6464,1453 @@ The intuition that the Stern-Brocot path is the "natural" packing is **wrong for
 The framing — a tri-state packed `Q` as "the uniform layer between all functions being also bignum native" — is a **null as posed**, because the uniformity it seeks **already exists**: srmech's Class-N ops already take/return `(num, den)` tuples, and Python ints are already arbitrary-precision, so `den = 1` plain-int passthrough already works. A packed fixnum *adds* a third representation every function must destructure. Measured cost of the packed form: **~50× slower reads** (decode per access), **not** faster hashing, and **arithmetic ~47× slower** (unpack → rational-arith → repack — confirming the win is transport, never arithmetic). The only genuine benefit is C-level inline 8-byte alloc-free storage, and **no C-side bottleneck was demonstrated** to motivate it. Per `[[user_stance_srmech_is_multi_implementation_not_python_with_c_accel]]` the capability (a rational carrier) is already the invariant; a packed projection that reads 50× slower is not a co-equal projection, it is a pessimization.
 
 **Boundary.** The find applies to small-den `best_rational` *approximants*, **not** exact bignum rationals — `One.scalar`'s ~249-bit numerator always takes the bignum escape (rc335). Composes with §3.26.6 (the combination principle = Class-N differences-of-anchors — the *ladder* whose rungs `best_rational` anchors), §3.38 (the reversibility audit, where `best_rational` is the lossy continuous→discrete projection), and §3.39.3 (the per-transcendental Class-N cascade reading). The `gcd`-reduce inside a rational is *projectivization*, **not** the Hopf principle (`[[reference_hopf_fibration_names_quaternionic_not_octonionic]]`) — the earlier fibration-vs-Class-N workflow null. **Status:** MEASURED; one SOLID find shipping as rc336, one NICHE codec deferred, one honest NULL — a full-coverage spike verdict per `[[feedback_dont_pre_commit_spike_query_operators]]` (null findings count).
+
+---
+
+## §3.45 USAGE EXAMPLES — the introspect surface in natural language, organised by SUBJECT (2026-07-28; rc353 `#T1006`; EXECUTED)
+
+**Status:** MEASURED. Every output below was executed on WSL2 (Python 3.10.12, srmech 0.9.0rc352 from the source tree, **numpy absent**) and pasted verbatim. Nothing here is typed from memory; where a number looked surprising it was re-run rather than corrected.
+
+> ⚠️ **PATH-CURRENCY BANNER (added rc420, `#T1114`).** The measured outputs below are **history
+> and stay** — they were captured at 0.9.0rc352, and editing them to today's values would
+> fabricate a re-measurement that did not happen. The **import paths are API**, and they had gone
+> dead. Four module moves plus one op removal account for all of it: `srmech.qm.*` →
+> **`srmech.physics.qm.*`** (ADR-0010 physics slice; the old path was REMOVED at rc382 with no
+> alias); `srmech.amsc.cascade.*` → **`srmech.cascade.*`**; `srmech.amsc.poly` →
+> **`srmech.math.poly`**; `srmech.amsc.qmat` → **`srmech.math.qmat`**; and
+> `sedenion_zero_divisor_witness` was replaced by the dim-general
+> **`cd_zero_divisor_witness(dim=16)`**. **Ten import statements and one call were dead in this
+> section; all are corrected in place.**
+>
+> **Why this section in particular.** §3.45.0 exists to record the *phantom-gap failure* — a
+> reader concluding a capability is absent because they could not find it. Ten non-importable
+> lines inside the section written to cure that failure is the failure recurring one level up:
+> a reader who pastes them gets `ModuleNotFoundError` and reads it as a broken install rather
+> than a moved module. Measured at the pinned tree, every one of the ten raises.
+>
+> **What was re-verified and what was not — the weaker claim named as weaker.** §3.45.1, §3.45.2
+> and §3.45.6 were re-executed with the corrected paths and reproduce their shipped output
+> **byte-identically**, including `cd_zero_divisor_witness()` returning the same
+> `e1 + e10 * e4 - e15` witness under its new name. So the outputs were never stale; only the
+> routes to them were. §3.45.3/.4/.5/.7/.8 were **not** re-executed: their imports are corrected
+> and every op they call was verified present at rc420, which is a weaker claim and is stated as
+> such. Two path citations inside §3.45.0's rc352-era narrative are left as written on purpose
+> (`srmech/amsc/qmat.py:447` is now `srmech/math/qmat.py:447` — same line number;
+> `c/include/srmech.h:11761` is now `:12126`), because that table is a dated account of a past
+> session, not a live instruction.
+
+### 3.45.0 Why this section exists — the phantom-gap failure
+
+srmech's `describe()` / `EXAMPLES` / `EXPLAIN` surface exists so that a reader — human or agent — can see **what the package already does** without reading 513 op sources. Through rc352 it did not do that. All 513 `example` fields were signature echoes, 356 of them literal type stencils:
+
+```
+algebra_table(dim=<int>, gammas=<Sequence[int] | None>) -> list
+```
+
+That is the function's declaration re-rendered. It carries no argument values, no output, and no relation to any neighbouring op. `tool_schema.py:481` states the design intent as *"EXAMPLE (executed I/O where safe, else …)"* — the executed-I/O half was never delivered and the fallback shipped universally.
+
+**The cost is measured, not hypothetical.** In one session an Opus-5 agent, reading this same source tree, queued **two phantom gaps against already-delivered code** and came close to rebuilding both:
+
+| Phantom gap queued | What already shipped |
+|---|---|
+| `mat_rank` | `QMat.rank` at `srmech/amsc/qmat.py:447`, C peer `srmech_qmat_rank` at `c/include/srmech.h:11761` |
+| an enumeration primitive | already present seven times over in the C layer |
+
+So the bar for an example is not "documented". It is: **a competent reader cannot fail to see the op already does this job.** That requires three things a signature echo cannot supply — a worked call across a few coherent invocations, its real captured output, and prose naming the siblings so a neighbour cannot be re-derived by accident.
+
+The organising principle of this section follows the same logic. Examples are grouped **by research subject**, not by module. An agent looking for "how do I read the genetic code's own symmetry" should not have to already know that the answer lives in **`srmech.cascade`** (written `amsc.cascade` through rc381; corrected at rc420, `#T1114` — `srmech.amsc.cascade` no longer exists).
+
+---
+
+### 3.45.1 Standard Model — gauge algebra, electroweak sector, flavour mixing
+
+The SU(3) generators are not asserted to be normalised; the normalisation is **measured** by contracting them against themselves, and the colour factor falls out with no eigendecomposition anywhere.
+
+```python
+from srmech.physics.qm.gauge import (su3_generators, su3_gell_mann_matrices,
+                                     su3_structure_constants, casimir_eigenvalue,
+                                     lie_algebra_residual)
+from srmech.cascade.matrix_cascades import einsum
+
+lam = su3_gell_mann_matrices()
+L = [[[complex(M[i, j]) for j in range(3)] for i in range(3)] for M in lam]
+G = einsum("aij,bji->ab", L, L)          # Tr(lambda_a lambda_b) = 2 delta_ab
+print("Tr(l_a l_b) row0 :", [round(G[0][b].real, 12) for b in range(8)])
+print("C_F              :", casimir_eigenvalue(su3_generators()))
+print("f_458            :", su3_structure_constants()[3][4][7])
+print("bracket residual :", lie_algebra_residual(su3_generators(),
+                                                 su3_structure_constants()))
+```
+
+```
+Tr(l_a l_b) row0 : [2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+C_F              : 1.3333333333333333
+f_458            : 0.8660254037844386
+bracket residual : 1.570092458683775e-16
+```
+
+**Why this sequence.** The four calls close a loop: the Gram row *measures* `Tr(λ_a λ_b) = 2δ_ab`; `C_F = 4/3` is `(N²−1)/2N` to the last bit with no eigensolver; `f_458 = √3/2` comes through the Class-N rational `sqrt` cascade rather than libm; and feeding the generators back with their own structure constants closes `[T^a,T^b] = i f^abc T^c` at the float floor. The residual is `1.57e-16` and **not** `0.0` — that non-zero *is* √3/2 entering float64. A `0.0` there would mean the su(2) constants had been passed by mistake.
+
+**The disambiguation that matters.** `su3_gell_mann_matrices()` and `su3_generators()` differ by exactly the factor 2. Passing the λ's to `casimir_eigenvalue` returns 16/3, not 4/3. The two ops sit next to each other in the registry precisely so that difference is visible before it is discovered by a wrong number.
+
+The electroweak sector is one call from couplings to observables:
+
+```python
+from srmech.physics.qm.sm import electroweak_summary, ckm_matrix, ckm_unitarity_residual
+s = electroweak_summary(0.65, 0.357, 246.0)
+print("M_W, M_Z         :", s["M_W"], s["M_Z"])
+print("sin^2 theta_W    :", s["sin_theta_W"] ** 2)
+print("weinberg residual:", s["weinberg_residual"])
+V = ckm_matrix(0.2265, 0.0037, 0.0405, 1.2)
+print("|V_us|           :", V[0, 1].real)
+print("CKM unitarity    :", ckm_unitarity_residual(V))
+```
+
+```
+M_W, M_Z         : 79.95 91.21501203749304
+sin^2 theta_W    : 0.23174694380751668
+weinberg residual: 1.1553233228276613e-15
+|V_us|           : 0.22456676458114508
+CKM unitarity    : 1.1699998969206036e-16
+```
+
+**Why.** `sin²θ_W = 0.2317` sits beside the PDG on-shell ~0.231 — and this is the trap the example exists to flag: `weak_mixing_angle` returns the **angle in radians** (0.5022…), not `sin²θ_W`. Comparing 0.502 against 0.231 and concluding the op is broken is the predictable misread. The Weinberg residual at 1.16e-15 shows `M_W = M_Z cos θ_W` closing as an algebraic identity rather than a fit; the Cabibbo angle appears where it should; and unitarity holds at 1.17e-16.
+
+---
+
+### 3.45.2 Standard Model, exceptional side — g₂ = Der(𝕆), triality, and the D₄ folds
+
+```python
+from srmech.physics.qm.so8 import g2_subalgebra, so8_adjoint_basis
+from srmech.physics.qm.triality import triality_automorphism
+from srmech.math.laplacian import mat_matmul, mat_norm
+
+g2, B = g2_subalgebra(), so8_adjoint_basis()
+print("dim g2 / so8   :", len(g2), len(B))
+print("g2 IS B[:14]   :", all(B[k].tolist() == g2[k].tolist() for k in range(14)))
+print("max ||D e0||   :", max(mat_norm([g[i, 0] for i in range(8)]) for g in g2))
+print("L_e1 moves e0  :", [B[14][i, 0] for i in range(8)])
+
+tau = triality_automorphism()
+I = [[1.0 if i == j else 0.0 for j in range(28)] for i in range(28)]
+t2 = mat_matmul(tau, tau); t3 = mat_matmul(t2, tau)
+n = lambda M: mat_norm([M[i, j] - I[i][j] for i in range(28) for j in range(28)])
+print("||tau^3 - I||  :", n(t3))
+print("||tau   - I||  :", n(tau))
+print("dim Fix(tau)   :", sum((I[i][i] + tau[i, i] + t2[i, i]) / 3.0 for i in range(28)))
+```
+
+```
+dim g2 / so8   : 14 28
+g2 IS B[:14]   : True
+max ||D e0||   : 0.0
+L_e1 moves e0  : [0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+||tau^3 - I||  : 0.0
+||tau   - I||  : 6.48074069840786
+dim Fix(tau)   : 13.999999999999995
+```
+
+**Why.** The `28 = 14 + 7 + 7` partition is not a label but a **testable property**: the first 14 generators annihilate the octonion identity `e₀` (residual exactly `0.0` — they are derivations), and the L-type coset directions do not (`L_e1` moves `e₀`). Then `τ³ − I` is **exactly** `0.0` while `τ − I` is 6.48 away, because the companion solve underneath is exact-rational — there is no residual to tolerate. Finally `dim Fix(τ) = tr((I + τ + τ²)/3) = 14`, the projector-trace idiom that reads a fixed-space dimension with no eigensolver at all.
+
+**The trap.** Taking the A→B companion map alone as "triality" gives an **involution** with a 21-dimensional fixed space (that is `so(7)`, the Z₂ / B₃ fold). The order-3 element is the *product* of the two companion involutions. `triality_swap` and `triality_automorphism` are separate ops for exactly this reason, and using the first where the second is meant yields `Fix = 21` instead of 14 — the single most common triality error.
+
+---
+
+### 3.45.3 Biology — the attested Standard Genetic Code as a 64-slot Cayley–Dickson register
+
+Subject: the sha256-attested NCBI translation table 1 shipped in the wheel at `srmech/amsc/attested/genetic_code/row.ndjson`, `attestation.response_sha256 = ddda97af80cf929bcf22de86d80547e05da0f4eb24fa275e8869c51e63cb10d6`. Nothing below is typed — the 21 families are **derived** by calling the shipped op `genome.codon_read` on all 64 codons.
+
+```python
+from srmech.biology import genome as G
+from srmech.cascade import (cd_basis_product, cd_navmap, cd_navigate,
+                            cd_couple_working, cd_uncouple_working)
+BASES = "TCAG"                                  # the attested base order
+codon = lambda i: BASES[i // 16] + BASES[(i // 4) % 4] + BASES[i % 4]
+FAM = {}
+for i in range(64):
+    FAM.setdefault(G.codon_read(bytes([i // 16, (i // 4) % 4, i % 4])), []).append(i)
+print("families / codons:", len(FAM), sum(len(v) for v in FAM.values()))
+print("6-fold families  :", sorted(a for a in FAM if len(FAM[a]) == 6))
+print("Rumer x e63      :", [(codon(i), codon(cd_basis_product(64, i, 63)[0]),
+                              cd_basis_product(64, i, 63)[1]) for i in (0, 21, 42, 63)])
+nm = cd_navmap(64, 63)
+print("navmap bijection :", sorted(v[0] for v in nm.values()) == list(range(64)),
+      "| negative signs:", sum(1 for v in nm.values() if v[1] < 0))
+print("navigate         :", cd_navigate(64, 63, [0, 21, 42, 63], [1, 1, 1, 1]))
+print("twice            :", cd_navigate(64, 63, *cd_navigate(64, 63,
+                                        [0, 21, 42, 63], [1, 1, 1, 1])))
+```
+
+```
+families / codons: 21 64
+6-fold families  : ['L', 'R', 'S']
+Rumer x e63      : [('TTT', 'GGG', 1), ('CCC', 'AAA', -1), ('AAA', 'CCC', 1), ('GGG', 'TTT', -1)]
+navmap bijection : True | negative signs: 32
+navigate         : ([63, 42, 21, 0], [1, -1, 1, -1])
+twice            : ([0, 21, 42, 63], [-1, -1, -1, -1])
+```
+
+**Why.** The 64 codons are indexed `16·b₀ + 4·b₁ + b₂` over TCAG, i.e. a **6-bit address**, so a 64-slot Cayley–Dickson register addresses the code one codon per slot. Multiplying by `e₆₃` is XOR-by-63 on the index lane, and because `b → 3 − b` is `b XOR 3` in each 2-bit position, **that direction IS the Rumer involution T↔G / C↔A** on all 64 codons. `cd_navmap(64, 63)` is therefore the whole Rumer map in one call: a verified bijection, with 32 of the 64 moves carrying a negative Class-C sign.
+
+**The fourth call is the load-bearing one.** Going round twice restores every codon to its own slot but brings the whole occupancy back with sign −1, because `e₆₃·e₆₃ = −1`. Rumer is an order-2 involution on the **index** lane and not on the **sign** lane. A hand-rolled index-only permutation would report an identity here and lose exactly that residue — which is the case for reaching for `cd_navigate` instead of writing a dict of codon swaps.
+
+The same attested table drives the reversible coupler, on a quantity re-derived from it rather than invented:
+
+```python
+cnt = [0, 0, 0]                     # synonymous single substitutions by codon position
+for i in range(64):
+    aa_i = G.codon_read(bytes([i // 16, (i // 4) % 4, i % 4]))
+    for p in range(3):
+        for b in range(4):
+            j = i + (b - ((i // (4 ** (2 - p))) % 4)) * (4 ** (2 - p))
+            if j != i and G.codon_read(bytes([j // 16, (j // 4) % 4, j % 4])) == aa_i:
+                cnt[p] += 1
+print("synonymous by pos:", cnt, "of 192 each")
+w = cd_couple_working([float(c) for c in cnt], dim=8)
+print("couple->uncouple :", cd_uncouple_working(w))
+```
+
+```
+synonymous by pos: [8, 2, 128] of 192 each
+couple->uncouple : [8.000000000000002, 1.999999999999995, 128.00000000000003]
+```
+
+**Why.** Redundancy in the genetic code is **concentrated in the third base** — 128 of 192 possible third-position substitutions are synonymous, against 8 and 2 at the first and second. Those three measured streams bind into one quaternion word and come back to ~1e-15. The bind is capped at `min(dim, 8) − 1 = 7` streams **derived from Hurwitz, never hardcoded**: asking a dim-16 register for 8 streams raises rather than silently spilling, because reversibility stops at 𝕆.
+
+> **Convention note.** The 8 / 2 / 128 counts hold under the convention that stop↔stop counts as synonymous. The strict convention gives 8 / 0 / 126 — the entire "2" at the middle position is the TAA↔TGA pair. The generating loop is shown above so the convention is inspectable rather than assumed.
+
+One rung **below** the float register sits the discrete byte carrier a Q8 genome strand is actually stored on, and it is where the code's *orientation* lives:
+
+```python
+from srmech.biology.q8 import q8_mult, q8_bind, q8_project_v4
+from srmech.math.octonion import oct_mult
+from srmech.math.hdc import klein4_bind
+B = {b: i for i, b in enumerate("TCAG")}        # T:+1  C:+i  A:+j  G:+k
+
+acc = 0
+for c in [B[x] for x in "ATG"]:
+    acc = q8_mult(acc, c)
+acc2 = 0
+for c in [B[x] for x in "GTA"]:                 # the SAME codon, read backwards
+    acc2 = q8_mult(acc2, c)
+print("ATG -> %d, GTA -> %d : coset %d, signs %d vs %d"
+      % (acc, acc2, acc & 3, acc >> 2, acc2 >> 2))
+
+a, b = bytes([2, 3, 1, 1]), bytes([1, 2, 3, 0])
+print("pi(bind) == klein4_bind(pi,pi):",
+      bytes(q8_project_v4(q8_bind(a, b)))
+      == bytes(klein4_bind(q8_project_v4(a), q8_project_v4(b))))
+print("unprojected bind             :", list(q8_bind(a, b)))
+print("octonion associator triples  :",
+      sum(1 for x in range(1, 8) for y in range(1, 8) for z in range(1, 8)
+          if oct_mult(oct_mult(x, y), z) != oct_mult(x, oct_mult(y, z))), "of 343")
+```
+
+```
+ATG -> 1, GTA -> 5 : coset 1, signs 0 vs 1
+pi(bind) == klein4_bind(pi,pi): True
+unprojected bind             : [7, 5, 6, 1]
+octonion associator triples  : 168 of 343
+```
+
+**Why the sign lane is the whole point.** The four bases *are* a Klein-4 group, and a Klein-4 XOR carries the base identity perfectly — but ATG and its reversal GTA fold to the **same coset and opposite signs**, so reading direction is recoverable from the Q8 product and irrecoverable from the abelian shadow. `q8_project_v4` is an exact homomorphism onto that shadow (`π(bind(a,b)) = klein4_bind(πa, πb)`), which is precisely why it is a *quotient*: `[7, 5, 6, 1]` collapses to `[3, 1, 2, 1]` and the winding is gone. Project **last**, never first.
+
+**And the rung above has a cost.** 168 of the 343 imaginary octonion triples break associativity, so a cascade that regroups a chain of `oct_bind`s for convenience has changed the number. The op to reach for is `genome.genome_octonion_associator`, which measures that defect per slot on a stored strand — an all-zero result means the strand never left the quaternion subalgebra and the cheaper Q8 fiber carries the same information.
+
+---
+
+### 3.45.4 Cosmology — the Planck 2018 Friedmann dark fraction as an exact-rational cascade
+
+Subject: the attested `cosmos_validation` catalog (Planck 2018 VI, Aghanim+ 2020, A&A 641:A6, `doi:10.1051/0004-6361/201833910`). Each row carries its **own expected answer**, so the example is self-falsifying: the chain re-derives what the catalog already committed.
+
+```python
+from srmech.amsc.catalog import (get_attested_dataset, list_catalog_chains,
+                                 run_catalog_chain)
+c = get_attested_dataset("cosmos_validation")
+print("cosmos rows:", c["total"], "| tier:", c["tier"])
+ch = list_catalog_chains("cosmos_validation")["chains"][0]
+print("chain:", ch["name"], "| steps:", ch["n_steps"], "| classes:", "".join(ch["classes"]))
+for i in (0, 4, 8, 10):
+    dd = c["rows"][i]["data"]
+    v = run_catalog_chain("cosmos_validation", "friedmann_dark_fraction", row_index=i)
+    print("  %-12s -> %-46s attested=%s" %
+          (dd["row_label"], v, v == (dd["expected_num"], dd["expected_den"])))
+```
+
+```
+cosmos rows: 11 | tier: T0+T1+T2
+chain: friedmann_dark_fraction | steps: 9 | classes: NNNNNNNNN
+  a_inv_1e5    -> (53000000000000137, 2062800000000000137)       attested=True
+  z_4          -> (4508, 5333)                                   attested=True
+  z_0          -> (9500, 9991)                                   attested=True
+  z_neg0p9     -> (68526500, 68531401)                           attested=True
+```
+
+**Why.** `list_catalog_chains` publishes the **class sequence** `NNNNNNNNN` before anything runs: nine steps, every one Class-N, so the whole dark fraction is exact rational arithmetic and touches no float. That is the cheapest honest answer to "is this cascade exact?", and you get it without executing. Then all four rows re-derive bit-exactly, including the 17- and 19-digit deep-radiation-era integers a float chain would silently destroy.
+
+**The anti-duplication point.** The formula is *already declared by the catalog* and ships with its own oracle. Re-implementing `f_dark` in Python floats is both more work and strictly less true. `run_catalog_chain` is the top of that ladder; reach for it before writing the arithmetic.
+
+The same subject at the **gravitational** rung: a body set becomes a coupling graph, and the graph is read as a *stored* object with no excitation applied. Subject is the F928 prototype — Jupiter with the four Galilean moons, masses in Jupiter masses and semi-major axes in 10³ km.
+
+```python
+from srmech.biology.coupling import (from_bodies, resonant_spectrum,
+                                  resonant_spectrum_sparse, fractal_spectrum)
+from srmech.math.laplacian import dense_laplacian
+from srmech.math.poly import poly_from_coeffs
+
+n, edges, w = from_bodies([1.0, 4.704e-5, 2.528e-5, 7.804e-5, 5.667e-5],
+                          [0.0, 421.8, 671.1, 1070.4, 1882.7])
+rs = resonant_spectrum(dense_laplacian(n, edges, w))
+print("n, |E|     :", (n, len(edges)))
+print("tensions   :", ["%.6e" % t for t in rs["tensions"]])
+print("resonances :", [(r["pair"], r["ratio"], r["locked"]) for r in rs["resonances"]])
+
+wn = [x / max(w) for x in w]                       # UNIT-SCALE before streaming
+sp = resonant_spectrum_sparse(edges, wn, k=3, n=n)
+dn = resonant_spectrum(dense_laplacian(n, edges, wn))
+print("sparse==dense:", sp["resonances"] == dn["resonances"])
+
+fs = fractal_spectrum(poly_from_coeffs([0, 5, -4]), 3)      # Sierpinski gasket
+print("gasket     :", (fs["scale"], fs["self_similarity_dim"],
+                       fs["q_octaves_per_level"]))
+print("open       :", fs["spectrum_open"][:46] + "...")
+```
+
+```
+n, |E|     : (5, 10)
+tensions   : ['3.651355e-27', '1.920345e-11', '6.104595e-11', '1.118584e-10', '6.172438e-10']
+resonances : [((1, 2), (11, 35), True), ((2, 3), (6, 11), False), ((3, 4), (2, 11), False)]
+sparse==dense: True
+gasket     : (Q(5, 1), (827395733, 606056420), 3)
+open       : the full spectrum = the JULIA SET of the decim...
+```
+
+**Why this sequence.** `resonant_spectrum` is the *stored* read — no `u0`, no pluck — and its product is not the eigenvalues but the **verdict** on each adjacent ratio: `11/35` has the smooth denominator `5·7` and locks on the Laplace ladder, while `6/11` and `2/11` carry the large prime 11 and are libration off-lock. That is a Class-N `best_rational` anchor plus a Class-J prime-coordinate read, and it does not survive being retyped as a float comparison.
+
+**The trap this pair exists to expose.** The streaming peer agrees with the dense read *exactly* — same tensions, same three verdicts — but only after the weights are unit-scaled. The Rayleigh convergence floor is relative to `1 + |λ|`, so on the raw ~1e-10 Newtonian weights the iteration stops before the tensions have a single significant digit and the two reads silently disagree. The resonance ratios are scale-invariant, so scaling costs nothing.
+
+**And the honest non-answer.** `fractal_spectrum` returns the gasket's exact decimation scale `5`, its spectral dimension as the rational anchor `827395733/606056420 ≈ 1.365 = 2 log 3 / log 5`, and three `|q|`-octaves per level — then declines to return a spectrum at all, because the full spectrum *is* the Julia set of the decimation map and no finite exact carrier decides membership. A version of this op that returned a list of numbers there would be claiming something the mathematics does not support.
+
+---
+
+### 3.45.5 Antikythera — the gear train as a Class-L graph, and the dials as Class-N ratios
+
+Subject: the Metonic + Saros train, topology and tooth counts from Freeth 2021 (*Sci. Rep.* **11**:5821) as recorded in `docs/antikythera-maths/research/gear_database.py:404`.
+
+```python
+from srmech.math.laplacian import (dense_laplacian, jacobi_eigvals,
+                                   signed_laplacian, spectral_spine)
+E = [(0,1),(1,2),(2,3),(3,4),(4,5),(5,6),(6,7),(7,8),(3,9),(9,10),(10,11)]
+AXLE = {0, 4, 6, 9}                    # shared arbors; the other 7 are gear MESHES
+ev = jacobi_eigvals(dense_laplacian(n=12, edges=E))
+print("lambda_0/1     :", round(ev[0], 12), round(ev[1], 6))
+print("spine top-3    :", spectral_spine(edges=E, k=3))
+sense = [(1.0 if k in AXLE else -1.0) for k in range(len(E))]
+print("signed lam_min :", round(jacobi_eigvals(
+        signed_laplacian(n=12, edges=E, weights=sense))[0], 12))
+```
+
+```
+lambda_0/1     : 0.0 0.106314
+spine top-3    : [3, 4, 2]
+signed lam_min : 0.0
+```
+
+**Why.** One zero mode says the train is connected; the spectral spine lands on node 3 — **e5, the 53-tooth Metonic/Saros bridge**, the physical branch point of the mechanism. Then the mesh-vs-arbor rotation sense goes in as real edge signs (an external mesh reverses rotation, a shared arbor carries it through) and `λ_min = 0` reports the signed graph is **balanced**. That is the honest reading and also the honest limitation: a tree is never frustrated, so on this graph the signed operator is spectrally indistinguishable from the unsigned one. The discriminating case is a closed loop — a triangle with one negative edge gives `λ_min = 1.0`.
+
+The calendrical dials are the Class-N side of the same object:
+
+```python
+from srmech.math.rational import (continued_fraction, best_rational,
+                                  continued_fraction_convergents)
+print("CF(235/19)     :", continued_fraction(235, 19))
+print("CF(940/76)     :", continued_fraction(940, 76))
+print("best_rational  :", best_rational(365242200, 29530588, 19))
+print("convergents    :", continued_fraction_convergents(
+        continued_fraction(365242200, 29530588))[:7])
+```
+
+```
+CF(235/19)     : [12, 2, 1, 2, 2]
+CF(940/76)     : [12, 2, 1, 2, 2]
+best_rational  : (235, 19)
+convergents    : [(12, 1), (25, 2), (37, 3), (99, 8), (136, 11), (235, 19), (4131, 334)]
+```
+
+**Why.** The Metonic 235/19 and the Callippic 940/76 have the **identical** continued fraction — the ×4 is invisible to the expansion, which is what makes the CF the ratio's own identity rather than its written form. And handed the *modern* synodic-months-per-tropical-year ratio under a denominator budget of 19, `best_rational` returns **(235, 19)**: the op reproduces a real Antikythera design choice rather than illustrating one.
+
+The convergent ladder also **reproduces a standing falsification in one call**. `docs/antikythera-maths/antikythera_spectral_research_notebook.md:112` (hypothesis A-H1) predicted ≥90% of cycles inside the top-3 CF convergents of their astronomical ratio, and records the computed answer as 2/13 = 15%, with the note that *"most mechanism ratios are at CF rank 4–5"*. Measured here: (235, 19) sits at convergent index **5**. Rank 5, not top-3 — the notebook's own negative result, re-derived from the shipped op rather than quoted.
+
+---
+
+### 3.45.6 Hurwitz structure — where the tower stops, and the three ceilings that are not the same number
+
+```python
+from srmech.cascade import (is_division_algebra_dim, cd_navmap_is_signed_permutation,
+                            cd_zero_divisor_witness, left_mult_is_invertible,
+                            left_mult_kernel, algebra_table, inertia_signature,
+                            cd_mult, cd_norm_sq)
+Z = cd_zero_divisor_witness()          # rc420: the dim-general successor of the
+                                       # removed hardwired sedenion_zero_divisor_witness;
+                                       # dim defaults to 16 — same witness, same output
+print("Hurwitz dims   :", [(d, is_division_algebra_dim(d)) for d in (1,2,4,8,16,32,64)])
+print("addressing     :", [(d, cd_navmap_is_signed_permutation(d)) for d in (2,4,8,16,32,64)])
+print("witness        :", Z["x_form"], "*", Z["y_form"], "| norms",
+      Z["x_norm_sq"], Z["y_norm_sq"], "| product zero:", Z["product_is_zero"])
+print("x invertible   :", left_mult_is_invertible(Z["x"]),
+      "| kernel dim:", len(left_mult_kernel(Z["x"])))
+print("N(x)N(y) vs N(xy):", cd_norm_sq(Z["x"]) * cd_norm_sq(Z["y"]),
+      cd_norm_sq(cd_mult(Z["x"], Z["y"])))
+O8, S8 = algebra_table(8), algebra_table(8, gammas=[1, -1, -1])
+print("O vs split-O   :", inertia_signature(O8)["signature"],
+      inertia_signature(S8)["signature"])
+print("entries moved  :", sum(1 for i in range(8) for j in range(8) for k in range(8)
+                              if O8[i][j][k] != S8[i][j][k]), "of 512")
+```
+
+```
+Hurwitz dims   : [(1, True), (2, True), (4, True), (8, True), (16, False), (32, False), (64, False)]
+addressing     : [(2, True), (4, True), (8, True), (16, True), (32, True), (64, True)]
+witness        : e1 + e10 * e4 - e15 | norms 2 2 | product zero: True
+x invertible   : False | kernel dim: 4
+N(x)N(y) vs N(xy): 4 0
+O vs split-O   : (1, 7, 0) (5, 3, 0)
+entries moved  : 16 of 512
+```
+
+**Why — and this is the disambiguation the whole section is for.** The first two rows are the point side by side: **composition dies at dim 16 while addressing survives at 16, 32 and 64.** Zero divisors are built from *sums* of basis elements; addressing is about a *single* basis pair. That is why a 64-slot `cd_register` addressing the genetic code (§3.45.3) is legitimate even though the algebra is not a division algebra there.
+
+The witness makes the wall concrete: two norm-2 sedenions whose product is exactly zero, found by searching **our own multiplication table**, not transcribed. The composition law `N(xy) = N(x)N(y)` visibly fails — 0 against 4. And the negative control that `[[feedback_negative_controls_for_carrier_claims_split_octonion_and_random_anticommutative]]` makes mandatory is one argument away: `gammas=[1,-1,-1]` gives split-𝕆, whose trace form reads `(5,3,0)` against 𝕆's `(1,7,0)` — differing in exactly **16 of 512** table entries, which is why eyeballing a table tells you nothing and `inertia_signature` does.
+
+`describe()` publishes the three ceilings so none of this has to be rediscovered:
+
+```python
+import srmech.introspect as I
+for cap, spec in I.describe()["limits"]["capabilities"].items():
+    print("  %-8s max_dim %-4s holds_through %-9s beyond %s" %
+          (cap, spec["max_dim"], spec.get("holds_through"), spec.get("beyond_ceiling")))
+```
+
+```
+  address  max_dim 256  holds_through octonion  beyond None
+  compose  max_dim 8    holds_through octonion  beyond zero_divisors
+  turn     max_dim 4    holds_through q8        beyond abelian_only
+```
+
+**256 / 8 / 4 are three different numbers for three different capabilities.** The permissive 256 is an *addressing* number and says nothing about turning.
+
+---
+
+### 3.45.7 Music and the nucleosome — the 12-EDO circle of fifths as a spectral substrate, and the 147-bp helical relock
+
+Subject: the twelve pitch classes joined by the **circle of fifths** (`pc → pc+7 mod 12`; a single 12-cycle because `gcd(7, 12) = 1`), with the C-major and A-minor triads as node-domain states. The whole `srmech.spectral` cascade — decompose, delta, similarity, predict, gate, truncate — runs on that one graph.
+
+```python
+from srmech.spectral import (decompose, recompose, delta, similarity, predict,
+                             prediction_error, truncate_sparse)
+from srmech.math.laplacian import dense_laplacian
+
+FIFTHS = sorted({(min(i, (i + 7) % 12), max(i, (i + 7) % 12)) for i in range(12)})
+L = dense_laplacian(12, FIFTHS, [1.0] * len(FIFTHS))
+CMAJ = [1.0 if i in (0, 4, 7) else 0.0 for i in range(12)]     # C E G
+AMIN = [1.0 if i in (9, 0, 4) else 0.0 for i in range(12)]     # A C E
+
+h, h2 = decompose(CMAJ, L), decompose(AMIN, L)
+print("C major content_sha :", h.content_sha)
+print("A minor content_sha :", h2.content_sha)
+print("same substrate hash :", h.substrate_descriptor_hash == h2.substrate_descriptor_hash)
+print("similarity          :", similarity(h, h2), "=", float(similarity(h, h2)))
+
+mg = lambda t: t if t >= 0 else -t                    # Class-K, never abs()
+back = recompose(h, L)
+print("round-trip error    : %.3e" % max(mg(back[i].real - CMAJ[i]) for i in range(12)))
+
+p1 = predict(h, L, steps=1)
+err = prediction_error(p1, h2)
+pc = sum(bin(x).count("1") for x in err)
+print("error density       : %d/%d = %.6f" % (pc, 8 * len(err), pc / (8 * len(err))))
+print("gated at 0.5        :", set(prediction_error(p1, h2, threshold=0.5)) == {0})
+print("keep_k=12 identity  :", truncate_sparse(h, keep_k=12).content_sha == h.content_sha)
+```
+
+```
+C major content_sha : 6027e7a6c85c5252362700443bc1529224b33366ed551c9a068b848d5f343eb3
+A minor content_sha : f98eecc90c8698a679ff937aa3f2d6cc4f9d5f58421aaa57fbfb847bc8881e82
+same substrate hash : True
+similarity          : 169/256 = 0.66015625
+round-trip error    : 5.773e-15
+error density       : 718/1536 = 0.467448
+gated at 0.5        : True
+keep_k=12 identity  : True
+```
+
+**Why the two hashes are two different jobs.** `substrate_descriptor_hash` keys the cached eigendecomposition and depends only on the Laplacian and the encoder tag — so both triads share it and the eigensolve runs once — while `content_sha` is the integrity address of the coefficients and differs per state. Confusing them is the predictable misread, and it costs a re-solve per call.
+
+**The similarity is an exact rational, and it is hand-checkable.** `169/256` is `(1536 − 2·261)/1536` from the delta popcount: `D` is 1536 bits, the Hamming distance 261. A float would keep the value and throw away the denominator, which is what carries the dimension. The honest bound rides with it — this is a Hamming read on an IEEE float encoding, so it measures byte-level agreement, not spectral distance.
+
+**The prediction gate runs the other way round from the intuition.** The threshold is on the density of *differing* bits, so a LOW density means the prediction was good and gets suppressed. At `0.467448` the same error passes a `0.1` threshold unchanged and is gated to all-zero at `0.5`.
+
+The nucleosome is the same *reading* on a physical substrate, and it needs no transform at all:
+
+```python
+from srmech.cascade import autocorrelation, top_k_by_score
+contacts = {(k * 51) // 5 for k in range(15)}     # h_s = 51/5 = 10.2 bp/turn
+track = [1.0 if i in contacts else 0.0 for i in range(147)]
+r = autocorrelation(track)
+print("r[0]        :", r[0])
+print("r[10], r[5] :", (r[10], r[5]))
+print("r[51] / nbrs:", (r[51], r[50], r[52]))
+print("top-5 lags  :", [i + 1 for i in top_k_by_score(r[1:], k=5)])
+```
+
+```
+r[0]        : 15.0
+r[10], r[5] : (12.0, 1.0)
+r[51] / nbrs: (10.0, 0.0, 0.0)
+top-5 lags  : [10, 137, 51, 96, 20]
+```
+
+**Why this is the same subject.** 147 bp of nucleosomal DNA with the surface helical repeat `h_s = 51/5 = 10.2 bp/turn` (Segura 2018) is a *detuned* period — 147/10.2 = 14.412 turns — that relocks **exactly** every five turns because 10.2 is the rational 51/5. Both facts fall out of a 0/1 integer contact track with no trigonometry anywhere: lag 10 (one turn) peaks at 12.0, the half-turn lag 5 is only 1.0, and lag 51 is a one-base-wide spike of 10.0 with both neighbours at exactly 0.0. It is the same commensuration problem 12-EDO solves for the fifth — a small-denominator rational chosen so a detuned step closes after a whole number of turns — and `best_rational` is the op on both sides.
+
+**Read the circularity honestly.** `r` is the *circular* autocorrelation, so lag 137 = 147 − 10 mirrors lag 10 and both appear in the top-5. It is one fact, not two.
+
+---
+
+### 3.45.8 The self-recognition entry point — read the index before writing the op
+
+```python
+import srmech.introspect as I
+from srmech.math.qmat import QMat
+d = I.describe()
+print("version:", d["srmech_version"], "| tools:", d["tools"]["total"],
+      "| categories:", len(d["categories"]))
+print("biggest:", sorted(d["tools"]["by_category"].items(), key=lambda kv: -kv[1])[:4])
+lam3 = QMat.from_rows([[1, 0, 0], [0, -1, 0], [0, 0, 0]])   # SU(3) generator lambda_3
+print("QMat.rank(lambda_3):", lam3.rank(), "| det:", lam3.det())
+```
+
+```
+version: 0.9.0rc352 | tools: 513 | categories: 74
+biggest: [('cascade', 70), ('genome', 68), ('hdc', 57), ('laplacian', 56)]
+QMat.rank(lambda_3): 2 | det: 0
+```
+
+**Why this is the first call in any session.** `describe()` is an **index**, and one drill-down from it lands on the exact op whose absence was hallucinated: `laplacian` already holds 56 entries, and `QMat.rank` returns the exact rank **2** of the SU(3) colour generator λ₃ over ℚ — no float SVD, no thresholding of singular values. The float route (`svd(λ₃)` → singular values `[1.0, 1.0, 0.0]`) is the numerical *shadow* of that exact integer, which is why no `mat_rank` op exists and none should be added.
+
+**This is the pattern to copy, not the anecdote to admire:** read the index → see the count already in your category → drill in → find it shipping. `rbs_lm.encode_aboutness` searches the same registry by natural-language intent when the category is unguessable, with the honest bound that it grounds only what is *registered* — a method like `QMat.rank` is not a `ToolEntry`, so a low top-1 score means "ask again / grep", never "it does not exist".
+
+---
+
+### 3.45.9 The ledger — CLOSED, and what the gate does and does not certify
+
+The gate at `docs/srmech/python/tests/test_worked_examples_strict_zero_rc353.py` is **strict zero with no ceiling and no allowlist**, so it enumerates the remaining work every time it runs rather than leaving it to prose.
+
+| Measured | (A) `=<` stencil | (B) no captured output | (C) explanation bar | of 513 |
+|---|---|---|---|---|
+| rc352 (the false green) | 356 | 513 | 513 | 513 |
+| rc353 pass 1 | 149 | 170 | 243 | 513 |
+| **rc353 close-out** | **0** | **0** | **0** | **513** |
+
+The three sets are strictly nested (A ⊂ B ⊂ C), which is why (A) alone was never sufficient: 21 of the residue were zero-argument signature echoes carrying no `=<` at all, and a further 73 carried real executed output under a pre-rc353 docstring-grade explanation. The final family closed the last 31 — `carrier_ladder` (5), `coupling` (8), `q8` (5), `octonion` (3), `srmech.spectral` (7), plus `carrier_schema` / `carrier_spectrum` / `responsion_schema`. Explanation length across all 513 now runs min 510 / median 1341 / max 2476 characters against a 400 floor.
+
+**What the gate certifies:** three properties readable off the registry with no re-execution — no type stencil, a non-empty captured output, and an explanation carrying all three perspectives above a length floor. It runs in milliseconds and cannot flake.
+
+**What it deliberately does NOT certify, and this is the load-bearing sentence:** it is *not* a truth guard. It cannot distinguish a captured output from a typed one. Only re-execution can, and that is the authoring verifier's job — for this final family every shipped `output` was diffed byte-for-byte against a fresh interpreter run of its own `worked` transcript (31/31, zero mismatches). A gate believed to check more than it does is the next false green, so the closure claimed here is *decidable-property* closure, not a claim that every one of the 513 has been independently re-executed.
+
+**The residue that remains, named rather than waived.** Four bare `#NNNN` refs still ship in `_tool_docs.py` (`#437`, `#447`, `#460`, `#812`), each adjudicated TOPICAL and each awaiting a `gh ` prefix in its upstream prose — except `#437`, which reaches the wheel through `dsl.list_ops`'s **captured output** and must be fixed at `srmech/amsc/attested/cosmos_validation/descriptor.toml`, never in the emitted example. With the arc landed, the down-only ratchet in `tests/test_ref_notation_emitted_rc348.py` was lowered once from the final post-arc regen: `_tool_docs.py` 75 → 7 and `srmech_tool_registry.c` 199 → 131, measured by ref multiset (DRAINED 72, ADDED 4 on both), so the gain cannot be given back.
+
+---
+
+## §3.46 CAPSTONE — music is Cayley–Dickson carrier architecture; the octonion Hurwitz wall is the coherence ceiling, read four independent ways (the shadow-irrep synthesis) (2026-08-03; `#T1058` / `#T1059` / `#T1060` / `#T1062`; MEASURED + CONJECTURE, tiered)
+
+> **§3.46.11 (2026-08-03) closes the "symphony-of-symphonies" thread** with a MEASURED find + an honest self-refutation: the two triple-product regroupings `(ab)c` and `a(bc)` share the **scalar** G₂ 3-form φ + norm N — NOT the vector Hopf base, which LEAKS (the earlier vector-base guess is refuted). The shadow is the scalar invariant. ~~`#T1062` queues the exact-ℚ `cd_three_form` (Re scalar twin of the shipped `associator`; no new C symbol; consistency oracle already converged).~~ **SUPERSEDED at rc420 (`#T1114`)** — `#T1062` **SHIPPED** the exact-ℚ `srmech.cascade.cd_three_form` at v0.9.0rc386 (Re scalar twin of `associator`; no new C symbol; the oracle had converged pre-ship). The §3.46 preamble carried "queues" for the same reason §3.46.11 did.
+
+This section weaves one connective thesis out of arcs already in the tree (§3.29.3, §3.41, §3.42, §3.43, §3.45.6, §3.45.7, §5.2 / §3.45.7), and it is deliberately **a notebook synthesis, NOT a manufactured op** — the arc's own finding is that nothing here needs a new wheel symbol; it needs the shipped surface read *whole*. Every load-bearing number below is reproduced THROUGH a shipped rc384 op in the committed provenance script `notes/music_shadow_irrep_synthesis_rc384.py` → `notes/music_shadow_irrep_synthesis_rc384.ndjson` (10 records, run against 0.9.0rc384).
+
+**The thesis.** Music is **carrier** architecture that maps onto the Cayley–Dickson tower. One 1-D ℝ-string sounds **one atomic note** (the ℝ rung); *many 1-D strings at once* — a chord, a symphony — is the CD-tower **automorphism gauge**; the "coherent note" that gauge projects is the **frame-free invariant**; and the **octonion Hurwitz wall is the coherence ceiling**. The organizing lens is `[[user_stance_observation_is_a_shadow_irrep_under_perspective_shift]]`: **every observation is a shadow-irrep** — a projection of a relational object into a chosen coherency. The invariant is shadow-free; below 𝕆 a canonical shadow exists; **at 𝕆 there is no canonical shadow**, and that single fact is what the four independent readings of §3.46.6 all measure.
+
+⚠️ **EPISTEMIC CEILING — FORM, not identity, throughout** (`[[user_stance_cascade_matching_substrate_blind_form_not_identity]]`). "Symphony / note / coherent" is a music **reading** laid on real algebra; what transfers cross-substrate is the **algorithm, never the constant** (`[[feedback_cross_substrate_transfers_the_algorithm_not_the_constant]]`). The CD ladder's k=3 here is the **arity-3 associator** (the 3-cycle triangle); it **MUST NOT** be fused with the B/H/N substrate k=3 of §3.29.3 — that section's whole discipline is that the k=3 senses are different. Only what is measured is claimed; every conjecture is flagged as such.
+
+### §3.46.1 The dictionary — the map, stated once
+
+| Music object | Cayley–Dickson carrier | What is measured | Reproduced in |
+|---|---|---|---|
+| one 1-D ℝ-string → one atomic pitch | the **ℝ rung** | (definitional) | §3.46.8 |
+| the note-alphabet **A…G** | **ℤ/7** | circle of fifths = a cyclic generator | §3.46.2 |
+| fifth ⟷ fourth under read-reversal | the Class-C sign lane | interval inversion, 4+3=7 | §3.46.3 |
+| a chord / symphony (many strings at once) | the **automorphism gauge** Aut(𝔸) | Aut(ℍ)=SO(3) vs Aut(𝕆)=G₂=14 | §3.46.5 |
+| the "coherent note" you hear | the **gauge-invariant** (frame-free) datum | ℍ Sp(1)-invariant; 𝕆 has no frame-free scalar | §3.46.5–6 |
+| the ceiling on coherence | the **octonion Hurwitz wall** | the associativity break, read four ways | §3.46.6 |
+
+### §3.46.2 The note-alphabet IS ℤ/7; the circle of fifths is its generator (`#T1058`; MEASURED)
+
+The seven letters index **ℤ/7** (A=1 … G=7 — the abelian alphabet). The **circle of fifths** F·C·G·D·A·E·B is a single 7-cycle stepping **+4 mod 7**; the reproduce-through-op run walks it exactly: `cyclic_mod_add(6, 4, 7) = 3` (F→C), and the full cycle `["F","C","G","D","A","E","B"]` returns from the op. The fourths cycle (the reverse read) steps **+3 mod 7**.
+
+- **The odd modulus FORCES the split.** `7/2 = 3.5` has no integer half, so the octave cannot be bisected; the two coprime generators an odd modulus admits are +4 (the fifth) and +3 (the fourth), and **`gcd(4, 7) = gcd(3, 7) = 1`** — both generate all of ℤ/7 (measured). `4 + 3 = 7` is the octave, the **conserved quantity** (the Lk-analog).
+- **The user's "−3 if left bigger, +4 if right bigger" IS `+4 mod 7`** in balanced-residue form: `(−3) mod 7 = 4`, so the wrap face (−3) and the no-wrap face (+4) are the *same* ℤ/7 step (measured: `plus4 == minus3` across all residues).
+- **Where the asymmetry lives.** The abelian ℤ/7 alphabet carries **no** chirality; the chirality is the **odd-modulus-forced** fifth/fourth generator pair — a **Class-C sign lane**, not the alphabet. (This is §3.45.7's `pc → pc+7 mod 12` reading transposed to the letter-name layer; `gcd(7,12)=1` there, `gcd(4,7)=1` here — same "coprime step generates the whole cycle" fact on a different modulus.)
+
+### §3.46.3 Violin fifths vs double-bass fourths — interval inversion under a read-direction WRITHE (`#T1058`; MEASURED find + CONJECTURE flag)
+
+Violin strings **G·D·A·E** ascend by fifths (**+4 mod 7**, measured). The double bass is the violin **reversed**, **E·A·D·G**, ascending by fourths (**+3 mod 7**, measured — `bass == violin[::-1]`). Reversing the read direction (a **writhe**) inverts the interval (a **twist**): +4 ↔ +3, and the two sum to the octave 7.
+
+- **The fingering reading (prose; kept out of the model).** For fifths the **4th finger** meets the next open string; for fourths the **3rd finger** meets it and the 4th overshoots — which is why the bass frees the pinky. This is a physical performance fact, stated factually and **not modelled**: fingerboard geometry is CAD-grade scope and stays out (§4 CAD-scope ban, `[[feedback_metric_field_native_not_spacetime_shadow]]`).
+- ⚠️ **CONJECTURE — `Lk = Tw + Wr` as a topological identity.** `4 + 3 = 7` is a genuine **interval inversion** (the fifth and its inversion the fourth sum to the octave — standard music theory). Whether the Călugăreanu–White–Fuller linking relation `Lk = Tw + Wr` is *more than a suggestive analogy* here is **unverified**: the two-readings (fixed screw-pitch twist ⊕ read-orientation writhe) structure is real, but the linking identity needs Tw/Wr definitions a fingerboard may not support. Flagged open, not claimed.
+
+### §3.46.4 The shadow-irrep MECHANISM — vertex-views of the k=3 triangle (`#T1054`; MEASURED)
+
+This is the organizing lens made concrete, and it is the mechanism the whole section turns on. Take the triangle of a non-associating triple `{a, b, c}`. **Observe vertex `b`** → you see its two incident edges `a·b` and `b·c`, and you **infer** the opposite edge `c·a` — *that inferred edge is the shadow*. Triality's 3-cycle `a→b→c` **cycles which edge is the shadow**. Whether the inferred shadow is **consistent across all three vertex-views** ⟺ whether the 3-cycle **closes** ⟺ whether the **associator is zero** — read straight off `cd_cycle_holonomy(a,b,c)['closed']`.
+
+| Triple | Lives in | `closed` | defect | Shadow |
+|---|---|---|---|---|
+| `(e1, e2, e3)` | the ℍ subalgebra | **True** | all-zero | **canonical, frame-free** |
+| `(e1, e2, e4)` | crosses the 𝕆 seam | **False** | nonzero | **perspective-relative — none is canonical** |
+
+Both rows are MEASURED. **ℍ has a canonical shadow** (every vertex-view agrees), so its observations are frame-free; **𝕆's non-associating triple has none** — the shadow you infer depends on which vertex you stood at. That is the shadow-irrep stance at the machine floor: an observation is a projection into a chosen coherency, and at 𝕆 the choice cannot be undone.
+
+### §3.46.5 The symphony = the automorphism gauge; the coherent note = the invariant; the wall = Aut(𝕆)=G₂ (MEASURED; re-reads §3.41 — zero new physics)
+
+"Many 1-D strings at once" is the **automorphism gauge** of the rung: the group of relabelings that leave the multiplication a multiplication. Its **dimension is the coherence ceiling** of the rung.
+
+- **Aut(ℍ) = SO(3)** (dim 3); **Aut(𝕆) = G₂ = Der(𝕆)** (dim **14**, measured `len(g2_subalgebra()) = 14`). The `an_embedding` branches the 14 as **8 + 3 + 3̄** su(3) (measured `decomposition.adjoint_14 == (8, 3, 3)`), and the order-3 triality **τ** on 𝔰𝔬(8)=28 has **τ³ = I** (Frobenius residual `0.0`, measured) with **Fix(τ) = 14** (the projector trace `tr((I+τ+τ²)/3) = 14.0`, measured) — the same 14 three independent ways (§3.45.2).
+- **The "coherent note" = the gauge-invariant Laplacian spectrum.** For the associative rungs the spectrum is a genuine invariant; at 𝕆 it is not (below). This is a music **reading** on the §3.41 measured boundary and adds **zero new physics** — its value is the carrier reading, not a new result. (Honest per `[[feedback_name_the_gap_plainly_dont_hedge_or_document_away]]`.)
+
+### §3.46.6 Four independent readings that all land on the SAME associativity break
+
+The load-bearing figure of the section: four different instruments, one wall. Each row is MEASURED through the named op in the provenance script.
+
+| # | Reading | Op(s) | How the ceiling shows | Measured |
+|---|---|---|---|---|
+| **1** | **3-cycle shadow closure** | `cd_cycle_holonomy` | 𝕆 triple fails to close | ℍ `(e1,e2,e3)` closed; 𝕆 `(e1,e2,e4)` **not** |
+| **2** | **automorphism gauge** | `g2_subalgebra` / `an_embedding` / `triality_automorphism` | Aut jumps to G₂ | `14` / `(8,3,3̄)` / `Fix(τ)=14`, `τ³=I` |
+| **3** | **Laplacian spectrum** | `quaternion_laplacian` / `octonion_laplacian` | 𝕆 spectrum is gauge-DEPENDENT, and only on **cycles** | ℍ ≤ 1.6e-15 everywhere; 𝕆 tree **9.2e-15**, triangle **0.490**, 4-cycle **0.806** |
+| **4** | **frame-committed element read** | `octonion_frame_read` | the ℍ base is frame-free **only under the S³ fiber** | base unchanged under a unit-λ fiber move, changed under a non-fiber move; four-sphere identity exact; no frame-free 𝕆 scalar |
+
+**Reading 3 ties back to reading 1.** The 𝕆 Laplacian's gauge-dependence is **localized to cycles**: on a **tree** (path₃) the gauge deviation is `9.2e-15` — the gains are gauge-*removable*, so the spectrum is invariant — while on the **triangle** (`0.490`) and **4-cycle** (`0.806`) it is not. A cycle is exactly where **holonomy** must be well-defined, and holonomy is well-defined only where the loop associates. So the spectral wall (reading 3) and the 3-cycle non-closure (reading 1) are **the same wall**, seen through a heat/wave read versus a bracket read. ℍ passes both (Sp(1)-invariant, ~1e-15); 𝕆 fails both, on cycles.
+
+**And a fifth witness from §3.41.6 the same number confirms:** all **168** of 𝕆's non-closing ordered basis triangles (of 512) **cross the doubling seam** — `{e0..e3}` is fully coherent (0/64), every leak is seam-confined. The frame-committed **element** read (`octonion_frame_read`, reading 4) recovers the ℍ-valued Hopf base **frame-free under the S³ fiber** — the coherent note — but the frame-committed **spectral** read (reading 3) does **not** recover a clean invariant, because the associator leak defeats gauge-invariance in all imaginary directions (~0.1–0.8, not ~1e-15). The coherence that survives is the ℍ-valued *element*, never a gauge-invariant 𝕆 spectrum.
+
+### §3.46.7 The genuinely NEW object — the ladder-to-ladder parallel (commensurability ↔ Hurwitz) (MEASURED; the strong write-up)
+
+`srmech.music` ships a basis-free **3-tier commensurability ladder** — measured verdicts through `commensurability_verdict` / `common_period` / `spectrum_tier`:
+
+| Tier | Carrier | Instrument | Verdict | `common_period` |
+|---|---|---|---|---|
+| **1 — ℚ / harmonic-fused** | `Q` / int | integer series `1,2,3,4,5,6` | **harmonic**, integer-series | exists (**k = 1**) |
+| **2 — algebraic / stiff-string** | `Qalg` | 12-EDO `equal_temperament_partials(12)` | **inharmonic** (field degree **12**) | **raises** — no period |
+| **3 — transcendental / membrane** | none (declared) | `membrane_partials(3,3)` (Bessel zeros) | **open** | **raises** — no period |
+
+The load-bearing move: **set this ladder against the Hurwitz dimension ladder** ℝ/ℂ/ℍ → 𝕆 (§3.45.6). Both are *"basis-free coherence with a ceiling"* — the commensurability ladder's invariant is **field degree / rational rank** (ℚ-membership inside ℚ[x]/(m), basis-free), the Hurwitz ladder's is **algebra dimension** (division/composition, basis-free). A **common period** exists at the harmonic tier (the coherent-note analog) and **provably does not** at the transcendental tier — the field-degree parallel of the octonion wall: `common_period` *raises* rather than hand back a false period, exactly as 𝕆 has no frame-free scalar. **field-degree ↔ Hurwitz dimension; the ceiling on each is where coherence stops being frame-free.**
+
+⚠️ **The refuted alternative, named.** **Kuramoto is NOT this parallel.** Coupled oscillators cohere as a **frame-relative mean** (an order parameter) with **no ceiling** — raise the coupling and they always lock; there is no dimension/field-degree past which coherence is structurally impossible. The commensurability ladder and the Hurwitz ladder both have a *hard* ceiling; Kuramoto has a soft threshold. FORM, not identity: what transfers is the "basis-free coherence with a hard ceiling" *algorithm*, not any constant.
+
+### §3.46.8 cube→sign SHIPS; cube→note is the OPEN conjecture (`#T1059`, links `#T1011`)
+
+The **projector instrument** of §3.29.3 (declared parallel state ⊗ projector-excitation → context-meaningful subset) points at a cube-basis note generalisation. What SHIPS today is **cube→sign**: `winding_tower(w)` is the `(ℤ/2)^d` hypercube coordinate (LSB-first / little-endian), and its **popcount parity is the scalar sign** — measured `winding_tower(5) = (1,0,1)` → popcount 2 → **+1**; `winding_tower(7) = (1,1,1)` → popcount 3 → **−1**, matching the shipped `One.sigma_effective()` (which returns ±1 with **no `abs()`** — Class-K pin ∘ Class-C reorientation). The bare quotient `w mod 2` would **conflate** 5 and 7 (both ≡ 1); the tower **distinguishes** them (measured).
+
+- ⚠️ **CONJECTURE — cube→full NOTE via alternating endianness.** cube→sign ships; **cube→full note** (pitch + loudness + phase, `#T1011`) via **alternating endianness** is the open conjecture. Endianness is a **Class-C chirality with two semantics** (encapsulate-endings vs fast-read = order-carrying vs order-independent, `#T914`); the **projector/constructor dual** — projection reads a declared state (we live in projection space), construction builds from parts (biology/genome, little-endian LSB-up) — is the candidate missing-instrument dual, itself conjecture.
+- ⚠️ **CONJECTURE — recursive / fractal note⇄symphony; ℝ-rung = one-note.** The Hopf-nested fibrated Hurwitz tower S¹→S³→S⁷ (`[[project_h_genome_is_fibrated_hurwitz_tower]]`) makes note⇄symphony **self-similar** — a resonant bell is a *symphony of modes one rung down* (its inharmonic partials, §3.45.7). Whether the ℝ-rung = one atomic note and C·H·O·S-rungs = note-compositions map onto the doubling ladder at all is **conjecture**, not a result.
+
+### §3.46.9 The index lane vs the sign lane — where the asymmetry actually lives (`#T1060`; MEASURED, scratch-provenance)
+
+The deepest disambiguation the arc supplies, and it canonizes the load-bearing part of the `#T1060` scratch work. The Cayley–Dickson product factors into **two lanes**:
+
+- **The INDEX lane** — `e_i · e_j → e_{i XOR j}`. It is **abelian and order-blind**: a labeling / **gauge** below the multiplication ladder. Measured (`notes/lane1_epsilon_placement_2026-07-29.ndjson`): `index_lane_is_XOR = true` at every rung ℝ/ℂ/ℍ/𝕆/𝕊. The A–N alphabet **and** the note-alphabet live here — all **168 = |GL(3,2)|** construction orders of the octonion heptad are isomorphic; the heptad's alphabetical order is one gauge choice (zero-consumers), no more privileged than any other.
+- **The SIGN lane** — the **cocycle** `ε`. It is **order-bearing**: anticommutation and non-associativity live here. Measured: the 2-cocycle defect `δε` is **0 for ℝ/ℂ/ℍ** (`is_2_cocycle = true`), then **168 at 𝕆** and **1848 at 𝕊** (`is_2_cocycle = false`). **That 168 is the SAME 168** as the associator non-closures (§3.41.6) — the sign-lane cocycle failure and the 3-cycle non-closure are one object counted twice. And `octonion_left_mult` stops being a homomorphism at exactly this rung (**42 of 64** ordered pairs fail, `notes/lane1_block_diagonalisation_2026-07-28.ndjson`).
+
+**The flat hypercube is exact on the index lane and wrong on the sign lane, exactly where the algebra anticommutes** — the fraction of anticommuting off-diagonal basis pairs is `(dim−1)/2·dim → ½` as dim grows (`notes/unit_label_cube_rc354.py`, finding **F1336**). ~~The invariant that survives any relabeling is the **Fano-incidence `φ = det₃` over F₂** (support **168**, basis-free, with the degree-2 shadow `q(x) = ε(x,x)`) together with **flexibility** (the floor of the defect ladder, §3.29.3).~~ **SUPERSEDED at rc420 (`#T1114`)** — wrong on the word and wrong on the symbol. The count **168** was right, and the reason it is right is now measured. **Corrected:** the invariant that survives any relabeling is the **F₂ linear-INDEPENDENCE indicator `ι = det₃` over F₂** (support **168** ordered, basis-free, with the degree-2 shadow `q(x) = ε(x,x)`) together with **flexibility** (the floor of the defect ladder, §3.29.3). Two fixes, both load-bearing:
+
+- **`det₃ = 1` is NON-incidence.** A triple of nonzero `F₂³` vectors has `det₃ = 1` exactly when it is linearly **independent** — that is, exactly when the three points are **NOT** collinear, i.e. **not** a Fano line. "Fano-incidence" names the complement of what the determinant detects, so the old wording pointed the reader at the 7 lines while the number 168 counts the 28 non-lines.
+- **The symbol `φ` COLLIDES with §3.46.11's φ — and the two are COMPLEMENTARY.** §3.46.11's φ is the G₂ associative 3-form, whose support IS the 7 Fano lines (**42 ordered** = 7 × 6; **7 of 35** unordered). `det₃`'s support is the **28 non-lines** (**168 ordered** = 28 × 6). Measured count identities: **42 + 168 = 210 = 7·6·5** and **35 = 7 + 28**. Writing both as `φ` two subsections apart made a set and its complement look like one object read twice. The determinant is renamed **`ι`** here; §3.46.11's φ keeps the letter.
+
+**And the coincidence of the two 168s has a reason.** `GL(3,2)` acts **simply transitively on the ordered bases of F₂³**, so **`|GL(3,2)| = 168` IS the number of ordered independent triples**. Measured through the ops in `notes/phi_pair_cycle_factorisation_rc420.{py,ndjson}` (`kind="B4_reconciliation"`, via the shipped `gf_rref`): `det3-support == assoc-support == |GL(3,2)|`. The bridge to the associator — a distinct imaginary triple associates exactly when it is a Fano line (collinear ⇒ dependent) and non-associates exactly when it is independent — is a **derivation** from that standard fact, not a separately committed set-membership check; the committed record attests the **counts**. §3.46.11's "168 counted four ways" table lists the sightings; this is the identity underneath them, and it is why the coincidence is not one. One consequence for CLAUDE.md §1's two co-valid groupings: the **cube-basis** decomposition `2 + 4 + 8` (by *algebra*, the carrier) is **not** the A–N `1 + 3 + 7 + 3` (by *role*, the operator) — the note-alphabet's ℤ/7 is an index-lane gauge; the coherence ceiling is a sign-lane fact.
+
+### §3.46.11 The Re/Im split of the octonion triple product — the shadow is the SCALAR, not the vector base (`#T1062`; MEASURED find + honest REFUTATION)
+
+The section's closing move, and the one that resolves the user's "symphony-of-symphonies vs symphonies-of-symphony" idea — *a relationship-of-three that is itself `ab:bc:ca`-shaped*. It also **corrects an earlier guess of this arc**, which is itself the finding. Every number below is reproduced THROUGH a shipped op in `notes/symphony_reim_split_rc385.py` → `notes/symphony_reim_split_rc385.ndjson` (19 records, run against 0.9.0rc384). Exact ℚ throughout; **no `abs()`** — a magnitude is only ever a Class-N Euclidean *squared* norm (a sum of squares, `cd_norm_sq` / `⟨v,v⟩`), a sign only ever a Class-K pin (equality against the negation, or a product-of-signs test).
+
+**The two regroupings ARE the two symphonies.** A triple product of three carriers can be nested two ways, and they are the user's two objects:
+
+| Nesting | The user's name | What it is |
+|---|---|---|
+| `(ab)c` | **symphony-of-symphonies** | bind the pair first, then bind the third to the result |
+| `a(bc)` | **symphonies-of-symphony** | bind the third pair first, then bind `a` to it |
+
+Below 𝕆 these are equal (ℍ associates); at 𝕆 they **differ by exactly the associator** `[a,b,c] = (ab)c − a(bc)`. The user's question is the right one: *is there a single shadow-irrep that describes BOTH?* There is — but it is **not** where this arc first guessed.
+
+#### The refutation, stated first (it IS the finding)
+
+The earlier reading of this arc guessed the shared shadow was the **vector** quaternionic-Hopf base (the `base_H` / `base_R` of `octonion_frame_read`, §3.46.6 reading 4). **Measured — that guess is REFUTED.** Over 19 generic octonion triples (both Hopf halves nonzero), the Hopf base is regrouping-invariant on **0 of 19** for `base_H` and **0 of 19** for `base_R`; worse, `base_R` even **flips sign on 11 of 19** while the total norm is preserved. The base LEAKS. The shadow relocates **from the vector base to the SCALAR**: what `(ab)c` and `a(bc)` genuinely share is the **G₂ associative 3-form φ = Re(triple product)** together with the **norm N** — both regrouping-safe — while the associator is the pure-**imaginary** regrouping-defect.
+
+| Candidate shadow | Op | Regrouping-invariant? | Measured |
+|---|---|---|---|
+| scalar `Re((ab)c)` = φ | `cd_mult`∘`cd_conjugate`∘Re | **YES** | `Re((ab)c)==Re(a(bc))` **19/19** generic; `Re(associator)==0` **343/343** imaginary basis |
+| norm `N` | `cd_norm_sq` | **YES** (composition algebra) | `N((ab)c)==N(a(bc))` **19/19** generic |
+| vector base `base_H` | `octonion_frame_read` | **NO** | invariant **0/19** |
+| vector base `base_R` | `octonion_frame_read` | **NO** | invariant **0/19**; sign-flips **11/19** at equal norm |
+
+**Why the base moves — and why the instrument COULD have said otherwise.** A coordinate census of the associator over all 512 ordered basis triples: 344 associate; of the 168 nonzero associators, **72 land in the base-half `{e₁,e₂,e₃}`, 96 in the seam `{e₄..e₇}`, 0 mixed**. The associator is therefore **not seam-confined** — those 72 base-half components make `q0` (which is linear in the associator) move, so the whole `S⁴` base point shifts. Had the associator been seam-only, the base would have been regrouping-invariant and the earlier guess would have held; it is not, and it is not. A real refutation, not a definitional one.
+
+⚠️ **REFINED at rc420 (`#T1114`) — the headline "0/19" CONFLATES TWO AXES, and only one of them is the k=3 defect.** The refutation above is a **regrouping** statement — `(ab)c` versus `a(bc)` — but the same "0/19" reads as though the base leaked under *any* rearrangement of the three slots. Separating the axes needs a control this section never had: an **associator-FREE** subalgebra that nonetheless **spans the doubling seam**, so `octonion_frame_read` is non-degenerate on it. (The `H-embedded` control above cannot do it — it is degenerate, `q1 == 0`, so it could not decide anything.) 𝕆's **seven** ℍ subalgebras are its seven Fano lines, and **six of the seven span the ℓ = e₄ seam** — each verified closed-under-product and associative — so any of those six is the control. Measured on `span{e₀} + (1,4,5)`, `(2,4,6)` and `(3,4,7)`, over the same 19 generic triples, exact ℚ, no `abs()`; provenance `docs/srmech/notes/phi_base_leak_axes_rc420.{py,ndjson}` (7 records):
+
+| axis moved | generic 𝕆 (associator ON — 0/19 zero) | associator-FREE ℍ ⊂ 𝕆, seam-spanning (19/19 zero) | what it reads as |
+|---|---|---|---|
+| **REGROUPING** `(ab)c` ↔ `a(bc)` | base invariant **0/19**; `base_R` sign-flips **11/19** | base invariant **19/19**; `base_R` sign-flips **0/19** | **entirely the associator** — the leak switches ON with the k=3 defect and OFF without it |
+| **PERMUTATION** — cyclic `a→b→c` | base invariant **0/19**; `base_R` sign-flips **14/19** | base invariant **0/19**; `base_R` sign-flips **7/19** | **NOT the k=3 defect** — it survives with ZERO associator |
+| **PERMUTATION** — transposition | base invariant **0/19** | base invariant **0/19** | same — not the k=3 defect |
+
+So this section's refutation **stands, and is now sharper**: the base's *regrouping* leak IS the associator (19/19 → 0/19 the moment it turns on, with the 11/19 sign-flips arriving alongside it). What must **not** be read off the same "0/19" is that the base is unstable under *permutation* for the same reason — it is not. ⚠️ **What that residual permutation motion IS was not measured here.** The natural reading is plain non-commutativity (k=2) — the ℍ control is non-commutative, and §3.29.3's defect ladder already turns the commutator on at ℍ and the associator at 𝕆 — but a **commutative** control would be needed to establish it, and none is available here. ⚠️ *(Reason corrected at rc421, `#T1122`: this read "`octonion_frame_read`'s seam pin makes one unavailable", which is no longer the reason and was never the whole of it. The pin is gone — `frame=` now spans all 28 well-posed frames — and widening it supplies **no** commutative control anyway, because **all seven** of 𝕆's ℍ subalgebras are non-commutative. The verdict stands; only its justification was wrong, and it would have read as closable-by-widening.)* Recorded as a reading, not a measurement. Two controls behaved: the **norm** is invariant on every axis in every row (19/19 throughout), and the **scalar** φ is invariant under cyclic rotation and under regrouping (19/19) but **0/19** under transposition — which is φ doing exactly what §3.46.11 says it does (`φ(b,a,c) = −φ(a,b,c)`, a Class-K sign), not a leak.
+
+**One REPORTABLE GAP, not routed around — ✅ CLOSED at rc421 (`#T1122`).** *(As written at rc420:)* the third question — *is the leak a frame artifact?* — could **not** be answered through the shipped op: `octonion_frame_read` was hard-pinned to the standard doubling seam `ℓ = e₄` and rejected `frame=2` outright. 𝕆 has seven ℍ subalgebras; the op read one. No foreign module was substituted to manufacture an answer, so the axis was recorded as **unmeasured** (`kind="B3_frame_variation_unavailable"`) rather than silently omitted.
+
+**rc421 removed the obstacle rather than the question.** The pin turned out to be a **SCOPE, not a theorem**, and the validator's supporting argument carried a shipped falsehood: measured against `cd_mult`, the standard ℍ base admits **four** valid splitting units `{e₄,e₅,e₆,e₇}`, not one ("not an independent seam generator" and "not a valid splitting unit" are different claims). `frame=` now accepts any of the **28** well-posed frames — **7** Fano lines × **4** splitting units, all 28 reads of one octonion DISTINCT, so a frame is the `(line, ℓ)` **pair** — via a bare `int` on the default line or an explicit `(i, j, k, ℓ)`. The artifact test is therefore now runnable through the shipped op; the rc420 NDJSON stands as the dated record of what was true then. (Do **not** read this 28 as §3.46.9's 28 non-lines, nor as rc388's 28 seams — the latter collapse to 7 distinct `(H,T)` set-decompositions, because `ℓ` fixes the seam half's *identification* with ℍ, `x = q₀ + q₁·ℓ`, not merely its span.) Generating scripts: `docs/srmech/notes/octonion_frame_{seven_frames,generalised_read,ell_within_line}_rc421.{py,ndjson}`.
+
+⚠️ **Clarify vs §3.46.6 reading 4 — two DIFFERENT operations, do not conflate.** §3.46.6/§3.41's `octonion_frame_read` result is that the base is **frame-free under the `S³` FIBER** — a *single* octonion, moved by a unit-λ fiber right-multiplication, keeps its base. That is TRUE and stands. It is a **different** operation from **regrouping-invariance**, which asks whether `(ab)c` and `a(bc)` — *two different octonions* — share a base. They do not. "Frame-free under the fiber" ≠ "regrouping-invariant"; the earlier guess silently swapped the first (true) for the second (false).
+
+#### φ IS the `ab:bc:ca` ternary object
+
+The scalar 3-form `φ(a,b,c) = Re(conj(a)·(b·c)) = ⟨a, b×c⟩` (Harvey–Lawson calibration; the scalar triple product on Im 𝕆 = ℝ⁷) is **totally antisymmetric** — which is *exactly* the `ab:bc:ca` cyclic shape the user described:
+
+- **ℤ/3-cyclic:** `φ(a,b,c)=φ(b,c,a)=φ(c,a,b)` on **343/343** ordered imaginary basis triples;
+- **transposition sign-flip:** `φ(b,a,c)=−φ(a,b,c)` on **343/343** (Class-K sign);
+- **alternating:** `φ(a,a,b)=0` on **49/49** (vanishes on any repeated argument).
+
+Its support is the **Fano plane**: exactly **7 of the C(7,3)=35** unordered imaginary triples carry `φ=±1` (ordered support **42 = 7×6**):
+
+| φ = +1 | φ = −1 |
+|---|---|
+| `123`, `145`, `246`, `257`, `347` | `167`, `356` |
+
+Both φ (the scalar) and the associator (the vector) are **alternating**, and both are separated **by Re/Im, NOT by an `a↔c` symmetry** — measured: `Re(associator)=0` **343/343**, and the `a↔c` transposition antisymmetry holds **343/343** for the associator AND **343/343** for φ. So `(ab)c` and `a(bc)` split cleanly: the imaginary lane carries the regrouping-defect (the associator), the real lane carries the regrouping-safe companion (φ).
+
+#### The stabilizer of φ is G₂, bit-exact
+
+Infinitesimal invariance `φ(Da,b,c)+φ(a,Db,c)+φ(a,b,Dc)=0` holds on **84/84** (all 14 `g2_subalgebra()` generators × 6 triples). So the `ab:bc:ca` 3-form's symmetry group **IS** the "symphony-of-symphonies" gauge: `stab(φ) = Aut(𝕆) = G₂`, dim **14** (`len(g2_subalgebra())=14`).
+
+#### The closure — one object, three ways, one wall
+
+The `ab:bc:ca` heart closes on itself as a single object read three ways, and it caps at the **same** G₂ that Cayley–Dickson doubling caps at:
+
+| Reading | Object | Measured |
+|---|---|---|
+| the ternary heart | φ (the 3-form) | totally antisymmetric, Fano support 7 lines |
+| the gauge | `Aut(𝕆) = G₂ = stab(φ)` | dim 14 |
+| the tower cap | `Der(𝕊) = g₂ = Der(𝕆)` | `dim(spin(9)∩Der(𝕊)) = 14 ≪ 36`; **0/36** spin(9) generators are sedenion derivations ⟹ `Spin(9) ≠ Aut(𝕊)` |
+
+The last row (via `sedenion_holonomy_conjecture()`, verdict PARTIAL) is the wall re-hit from above: the symphony-of-symphonies = gauge-of-gauge does not grow a bigger symmetry at the 𝕊 rung — it stays G₂. **Two roads (gauge-of-gauge, and CD doubling) reach the same wall.** Ties to §3.43 (Der stays g₂ above 𝕆).
+
+#### The 168, now counted four ways
+
+The Fano support of φ supplies a **new** sighting of the notebook's recurring 168, joining the two prior ones (aphantasia — as a table):
+
+| # | Reading | Where | Count |
+|---|---|---|---|
+| 1 | associator non-closures (of 512 ordered basis triples) | §3.41.6 (re-measured here) | **168** |
+| 2 | sign-lane 2-cocycle defect δε at 𝕆 | §3.46.9 | **168** |
+| 3 | \|Aut(Fano)\| — automorphism group of φ's 7-line support | §3.46.11 (this section, NEW) | **168** |
+| 4 | \|GL(3,2)\| = \|PSL(2,7)\| — the classical order of that same group | textbook identity (`(2³−1)(2³−2)(2³−4)`, computed) | **168** |
+
+Rows 1 and 4 are measured here (`associator_nonzero_512 = 168`; `gl_3_2_order = 7×6×4 = 168`); rows 2 and 3 are cross-referenced (δε=168 measured in §3.46.9; `|Aut(Fano)|=168` is the classical Fano-plane automorphism count). Rows 3–4 are the same group — the automorphism group of φ's support IS `GL(3,2) ≅ PSL(2,7)` — read two ways. **One object, four counts.**
+
+#### The `cd_cycle_holonomy` witness — one clean ℍ-vs-𝕆 line
+
+The regrouping split shows cleanest through the holonomy op, which asks whether the two nests agree:
+
+| Carrier | Triple | `closed`? | defect |
+|---|---|---|---|
+| ℍ | `(e₁,e₂,e₃)` | **True** | `0` (both nests agree) |
+| 𝕆 | `(e₁,e₂,e₄)` | **False** | `2·e₇` (the two orderings disagree by the associator) |
+
+Ties to §3.46.4 (the shadow-mechanism: whether the 3-cycle closes ⟺ whether the associator is zero).
+
+#### Op status + the queued rc
+
+φ **ships** as the float `srmech.math.hdc.g2_three_form` (with `loop_associator` its float associator-residue peer and `cross7` the 7-D cross product). ~~The exact-ℚ Cayley–Dickson surface ships `associator()` (the Im peer) **but not its Re scalar twin** — there is no exact-ℚ `cd_three_form` op today. That gap is queued as `#T1062` (an exact-ℚ `cd_three_form` = `composition_of_c`, a pure composition over `cd_mult`/`cd_conjugate`; **no new C symbol**).~~ **SUPERSEDED at rc420 (`#T1114`) — the gap is CLOSED, and has been since rc386.** **`srmech.cascade.cd_three_form(x, y, z, *, table=None)` SHIPS** (`#T1062`; v0.9.0rc386 — see CHANGELOG `[0.9.0rc386]`; `composition_of_c`, exact-ℚ, a pure composition over `cd_mult`/`cd_conjugate`, **no new C symbol**), is registered in the tool schema, and was verified present at the rc420 tree — it is the op through which both rc420 measurements in this section were taken. The **consistency oracle had already converged** before it shipped, which is why it could land as a pure composition (`[[user_stance_co_equal_dual_construction_is_a_consistency_oracle]]`): exact-ℚ φ `==` float `g2_three_form` on **35/35** unordered (and **343/343** ordered), exact-ℚ `associator` `==` float `loop_associator` on **343/343**, and `φ(a,b,c) = ⟨a, cross7(b,c)⟩` on **343/343** — so the queued exact-ℚ twin is a re-expression of an already-attested surface, not a new capability.
+
+#### Honest bounds — flagged, not asserted
+
+- ⚠️ **CONJECTURE / FORM-only — the triality ↔ regrouping tie.** "a→b→c cycling = which-pair-is-nested-first" is an **order-3 ANALOGY** (`τ³=I` on the 28-dim 𝔰𝔬(8) ↔ the `ab:bc:ca` 3-cycle), **NOT** a measured identity: `triality_automorphism` is `τ³=I` on 𝔰𝔬(8), not a permutation of the octonion triple. The `ab:bc:ca` cyclic shape of φ and the triality 3-cycle share a FORM (both order-3), and no more is claimed (`[[user_stance_cascade_matching_substrate_blind_form_not_identity]]`; `[[feedback_cross_substrate_transfers_the_algorithm_not_the_constant]]`).
+- ⚠️ **NOT BUILT — the coassociative 4-form ψ = ∗φ.** The Hodge-dual `ψ = ∗φ` (the coassociative calibration) is **not** constructed here, and the natural next measurement `⟨associator, ·⟩ ↔ ψ` (does the associator's imaginary defect pair to ψ?) needs a dedicated op. Flagged open, not asserted.
+- **FORM, not identity, throughout.** The organizing lens is still `[[user_stance_observation_is_a_shadow_irrep_under_perspective_shift]]` — but note the refinement this section forces: **the shadow here is the SCALAR invariant (φ + N), not the vector base**. The earlier vector-base intuition is corrected, and the correction is the result.
+
+**Cross-references.** §3.41.6 (the 168 seam-confinement of the associator) · §3.46.4 (the shadow mechanism = whether the 3-cycle closes ⟺ associator zero) · §3.46.6 (reading 4's "frame-free under the S³ fiber" — the operation this section is careful NOT to conflate with regrouping-invariance) · §3.46.9 (the sign-lane cocycle δε = the same 168) · §3.43 (Der stays g₂ above 𝕆).
+
+### §3.46.12 φ and the associator part company at 𝕊 — the S₃ slot-content asymmetry (2026-08-10; rc420, `#T1114`; MEASURED)
+
+> *Placement note: this file already runs §3.46.11 before §3.46.10 (a pre-existing ordering defect, flagged at the §3.50 renumber record and deliberately not fixed there). This subsection sits after §3.46.11 so the two stay adjacent, which puts the §3.46.10 ledger last.*
+
+§3.46.11 leaves an obvious next question and the user asked it: φ's structure holds **three pairwise (k=2) relations arranged in a (k=3) cycle** — do the two halves come apart? Does **naming a pair first** change what the cycle reports?
+
+**At 𝕆 the answer is already in this notebook, and is NOT restated as new here.** §3.46.11 measures φ as ℤ/3-cyclic on **343/343** ordered imaginary basis triples and transposition-antisymmetric on **343/343** — which is precisely "φ carries a 1-dimensional character of `S₃`", i.e. the `S₃` action factors through the abelianisation `S₃/A₃ = ℤ/2`. The rc420 run reproduces it and adds the same result for the **vector associator** (343/343 one-dim character at dim 8). ⚠️ *Factoring through an abelianisation is **not** a tensor decomposition — the word `⊗` is not earned here, and `S₃ = ℤ/3 ⋊ ℤ/2` is itself semidirect.*
+
+The second half of the question lands the same way: over the same 19 generic triples §3.46.11 uses, all **six** nestings (`(ab)c`, `c(ab)`, `a(bc)`, `(bc)a`, `b(ca)`, `(ca)b`) agree on the scalar (**19/19**) and on the norm (**19/19**) and disagree on the vector Hopf base (**0/19**) — the Re/Im split §3.46.11 already established, now read through the pair-naming axis. Both must-FACTOR controls return 19/19, including the **non-degenerate** `group_algebra_table(8)` one, which is the control §3.46.11's degenerate `H-embedded` row could not supply.
+
+**What IS new is at 𝕊, and it is an asymmetry between the two objects.** Over all 3375 ordered imaginary triples at dim 16:
+
+| carrier | ordered imaginary triples | φ carries a 1-dim `S₃` character | associator carries one |
+|---|---|---|---|
+| **ℍ** (dim 4) — must-FACTOR control | 27 | 27/27 | 27/27 |
+| **𝕆** (dim 8) | 343 | 343/343 | 343/343 |
+| `flip_pair(8,1,2)` — must-NOT-FACTOR control | 343 | 337/343 | 277/343 |
+| **𝕊** (dim 16) | 3375 | **3375/3375** | **2367/3375** |
+
+**It is the ASSOCIATOR that breaks, not φ.** The scalar keeps its character on all 3375; the vector loses it on 1008. The seam-crossing probe says the same, and it is the probe that can (§3.29.3 rung 4: a basis-only probe at 𝕊 is known to lie): on `a = e₁+e₁₀`, `b = e₂+e₉`, `c = e₄` the associator's sign character holds only **4 of 6** permutations while φ's holds **6 of 6**.
+
+**Why it breaks is already recorded, one section away, and this is a corroboration rather than a discovery.** 𝕆 is alternative and 𝕊 is not (§3.41.7 measures `is_moufang(dim=16)` False; §3.29.3's defect ladder puts ALTERNATIVITY + ZERO-DIVISORS at rung 4 = 𝕊). The associator is the object alternativity is *about*, so it is the object that loses its symmetry there; φ, a scalar calibration, does not. The finding is the **asymmetry** — the two are separable at 𝕊 in a way they are not at 𝕆.
+
+⚠️ **Nothing stronger is claimed, and in particular no link to leg (d).** §3.40.4's leg (d) moves a **different** object (the CD order rung acting on `V₄` sector labels, §3.29.3 sense 3) through a **different** group action, and reaches only an order-2 element. This subsection moves the `S₃` acting on the three slots of `φ(a,b,c)` (sense 4, the associator triangle). The two were never in a configuration where they could agree or disagree, so **no relation between k=3 sense 3 and k=3 sense 4 is claimed or refuted here** — that is the §3.29.3 do-not-conflate rule holding, not a result. Per `[[user_stance_cascade_matching_substrate_blind_form_not_identity]]` this is a FORM result, not an identity one.
+
+**Cross-references.** §3.46.11 (φ, the associator, the 343/343 antisymmetry and the 19 generic triples this reuses) · §3.46.9 (`ι = det₃`, φ's complementary indicator) · §3.29.3 (the four k=3 senses; the alternativity rung) · §3.41.7 (𝕊 is not alternative) · §3.40.4 (leg (d) — a different object, cited so it is not fused with this one). **Provenance:** `docs/srmech/notes/phi_pair_cycle_factorisation_rc420.{py,ndjson}` (16 records), run against 0.9.0rc420, registry 598, numpy absent, exact arithmetic, no `abs()`.
+
+### §3.46.10 The honest ledger — MEASURED vs CONJECTURE — and provenance
+
+| Claim | Status | Evidence (op / file) |
+|---|---|---|
+| note-alphabet = ℤ/7; circle of fifths = +4 generator; `gcd(4,7)=gcd(3,7)=1`; 4+3=7 | **MEASURED** | `cyclic_mod_add`, `gcd` |
+| violin fifths (+4) / bass fourths (+3); interval inversion under read-reversal | **MEASURED** | `cyclic_mod_add` |
+| `Lk = Tw + Wr` as a topological identity on the fingerboard | **CONJECTURE** | — (two-readings structure real; identity unverified) |
+| ℍ 3-cycle closes / 𝕆 non-associating triple does not (the shadow mechanism) | **MEASURED** | `cd_cycle_holonomy` |
+| Aut(𝕆)=G₂=14; `an_embedding`=(8,3,3̄); `τ³=I`, `Fix(τ)=14` | **MEASURED** | `g2_subalgebra`, `an_embedding`, `triality_automorphism` |
+| ℍ Laplacian Sp(1)-invariant (~1e-15); 𝕆 gauge-dependent **on cycles only** | **MEASURED** | `quaternion_laplacian`, `octonion_laplacian` |
+| `octonion_frame_read` ℍ base frame-free under the S³ fiber; no frame-free 𝕆 scalar | **MEASURED** | `octonion_frame_read` |
+| the 3-tier commensurability ladder ↔ the Hurwitz dimension ladder (both hard-ceiling) | **MEASURED** (verdicts) + reading (parallel) | `commensurability_verdict` / `common_period`; Kuramoto = refuted alt |
+| cube→sign (`winding_tower`→`sigma_effective`) | **MEASURED** | `winding_tower`, `One.sigma_effective` |
+| cube→full-note via alternating endianness; ℝ-rung=one-note; projector/constructor dual | **CONJECTURE** | — |
+| index lane = XOR gauge (168=\|GL(3,2)\|); sign lane cocycle δε = 168 at 𝕆 = the associator 168 | **MEASURED** | `notes/lane1_*`, `unit_label_cube_rc354` (F1336) |
+| **§3.46.11** Re/Im split: `Re((ab)c)==Re(a(bc))` (φ) + `N` regrouping-invariant (19/19); `Re(associator)=0` (343/343) | **MEASURED** | `cd_mult`/`cd_conjugate`/`cd_norm_sq`/`associator` |
+| **§3.46.11** the vector Hopf base LEAKS (`base_H`/`base_R` invariant 0/19; `base_R` sign-flips 11/19; 72 base-half assoc components) — the earlier vector-base guess | **MEASURED (REFUTATION)** | `octonion_frame_read`, `associator` |
+| **§3.46.11** φ totally antisymmetric (ℤ/3 343/343, transposition 343/343, alternating 49/49); Fano support 7 of 35 | **MEASURED** | `cd_mult`/`cd_conjugate` (φ) |
+| **§3.46.11** `stab(φ) = G₂` (infinitesimal invariance 84/84) | **MEASURED** | `g2_subalgebra`; `sedenion_holonomy_conjecture` (tower cap) |
+| **§3.46.11** the 168 counted four ways (assoc non-closure = \|GL(3,2)\|=\|PSL(2,7)\|=\|Aut(Fano)\| = δε) | **MEASURED** | `associator` census + integer `\|GL(3,2)\|` |
+| **§3.46.11** consistency oracle: exact-ℚ φ==`g2_three_form` 35/35; `associator`==`loop_associator` 343/343 | **MEASURED** | `g2_three_form`, `loop_associator`, `cross7` |
+| **§3.46.11** the exact-ℚ `cd_three_form` Re scalar twin (`#T1062`; no new C symbol) | ~~**QUEUED**~~ **SHIPPED v0.9.0rc386** (row corrected rc420, `#T1114`) | `srmech.cascade.cd_three_form` — registered; oracle converged pre-ship |
+| **§3.46.11** triality ↔ regrouping (a→b→c cycling = which-pair-nested-first) | **CONJECTURE (FORM-only)** | `triality_automorphism` `τ³=I` — order-3 analogy, not identity |
+| **§3.46.11** the coassociative 4-form ψ=∗φ; `⟨associator,·⟩ ↔ ψ` | **NOT BUILT** | — (dedicated measurement needed) |
+| **§3.46.9** `det₃` over F₂ is the **independence** indicator (renamed `ι`), support **168** ordered = the 28 NON-lines; §3.46.11's φ is its **complement** (42 ordered = the 7 lines); 42+168=210, 35=7+28 | **MEASURED (CORRECTION)** — counts measured; the set-level collinear⇒dependent bridge is a derivation | `cd_three_form`, `associator`, `gf_rref` — `phi_pair_cycle_factorisation_rc420` `B4_reconciliation` |
+| **§3.46.11** the 0/19 base leak splits by AXIS: the REGROUPING leak is entirely the associator (19/19 → 0/19 as it turns on); the PERMUTATION leak survives with ZERO associator | **MEASURED (REFINEMENT)** — the k=2 attribution of the residual is a READING, no commutative control available | `octonion_frame_read`, `associator`, `cd_three_form` — `phi_base_leak_axes_rc420` |
+| **§3.46.11** frame-variation of the leak (the artifact test) | **GAP CLOSED at rc421** (`#T1122`) — was UNMEASURED because `octonion_frame_read` was hard-pinned to `ℓ = e₄`; the pin was a SCOPE, not a theorem, and `frame=` now spans all **28** well-posed frames (7 Fano lines × 4 splitting units, 28 DISTINCT reads ⇒ a frame is the `(line, ℓ)` pair). The artifact test is runnable through the shipped op; it was never routed around | `octonion_frame_read`, `cd_basis_product`, `associator` — `octonion_frame_{seven_frames,generalised_read,ell_within_line}_rc421` |
+| **§3.46.12** φ keeps its 1-dim `S₃` character at 𝕊 (3375/3375) while the associator loses it (2367/3375); at 𝕆 both hold 343/343 (= §3.46.11's antisymmetry rows, cross-referenced not re-claimed) | **MEASURED** | `cd_three_form`, `associator` — `phi_pair_cycle_factorisation_rc420` `B1` |
+| **§3.40** (cross-listed) §3.40.7 leg (d) EXECUTED at rc420 — FAIL; from the ℍ→𝕆 bump upward the CD rung acts on the `V₄` SIGN lane by an order-2 `Aut(V₄)` automorphism; the coset lane is preserved at dim 8+; the two addresses share bits | **MEASURED (REFUTATION)** | `cd_basis_product`, `CDRegister.navigate`, `q8_project_v4`, `flip_pair` — `leg_d_v4_order_twist_rc420` |
+
+**Provenance.** `notes/music_shadow_irrep_synthesis_rc384.py` → `notes/music_shadow_irrep_synthesis_rc384.ndjson` reproduces sections 1–8 above through the shipped rc384 ops; **§3.46.11's Re/Im-split numbers are reproduced in `notes/symphony_reim_split_rc385.py` → `notes/symphony_reim_split_rc385.ndjson` (19 records, exact ℚ, no `abs()`)**; the `#T1060` index/sign-lane numbers carry their own committed scratch provenance (`notes/lane1_epsilon_placement_2026-07-29`, `notes/lane1_block_diagonalisation_2026-07-28`, `notes/associator_symmetry_type_rung_by_rung`, `notes/unit_label_cube_rc354`, `notes/lane2_resonance_fossil`). **rc420 additions (`#T1114`):** `notes/leg_d_v4_order_twist_rc420.{py,ndjson}` (23 records — §3.40.7 leg (d)), `notes/phi_pair_cycle_factorisation_rc420.{py,ndjson}` (16 records — §3.46.12, plus the `B4_reconciliation` that fixes §3.46.9's `ι`/φ collision), and `notes/phi_base_leak_axes_rc420.{py,ndjson}` (7 records — the §3.46.11 base-leak axis split). All three run against 0.9.0rc420 with registry 598, numpy absent, exact integer / exact-ℚ arithmetic, no `abs()` (every sign a Class-K `pin_slot_at_zero` composed Class-C through `net_chirality`), and every number taken through a shipped op. ⚠️ Each file's `env` record stamps a worktree path that no longer exists; the version and registry stamps match the pinned tree, and the path is left as-run rather than rewritten. Only what is measured is claimed; everything else is conjecture, marked as such.
+
+**Cross-references.** §3.29.3 (the k=3 loop-defect ladder + the declared-parallel ⊗ projector instrument — the viola/fingerboard instance and its open provocations this section closes into a synthesis) · §3.41 / §3.41.6 (the octonion Laplacian has no frame-free spectrum; `octonion_frame_read` + the 168 seam-confinement) · §3.42 (the substrate self-encoding tetrad — the constitutive `1+3` the alphabet gauge sits below) · §3.43 (the 𝕊 rung — Der stays g₂; nothing new appears above 𝕆) · §3.45.6 (the three Hurwitz ceilings that are different numbers) · §3.45.7 / §5.2 (Music theory IS cyclic-group theory: ℤ₁₂ / D₁₂ / Tonnetz — the 12-EDO peer of this section's ℤ/7 letter layer). Memory: `[[user_stance_observation_is_a_shadow_irrep_under_perspective_shift]]` (the organizing lens), `[[user_stance_cascade_matching_substrate_blind_form_not_identity]]`, `[[feedback_cross_substrate_transfers_the_algorithm_not_the_constant]]`, `[[project_h_genome_is_fibrated_hurwitz_tower]]`. Ontology landing: MFO §VII (time-as-shadow; substrate-vs-excitation).
+
+### §3.47 The seam coset is an ℍ-torsor — 3+4 is the structure, 3+1+3 is a seam artifact (`#T963`; MEASURED, shipped rc388)
+
+The octonion product `oct_mult` (§3.46) reads as a **group action** once you commit a quaternion subalgebra. Take `H = {±e₀..±e₃}` (a Fano line's `{e0}∪±L`, 8 signed bytes) and its **set-complement** — the seam coset `T = H·e = {±e₄..±e₇}`. `T` has no distinguished identity, yet `H` acts on it **simply transitively**: `T` is a **principal right ℍ-torsor**. Two ops ship this (`srmech.math.octonion.oct_torsor_act` / `oct_torsor_div`, `composition_of_c`, **no new C symbol** — both ride the c_dispatched `srmech_oct_mult`; `SRMECH_ABI_VERSION` stays 10):
+
+| op | definition | class | integer ops | what it is |
+|----|------------|-------|-------------|------------|
+| `oct_torsor_act(t, g)` | `oct_mult(t, g)` | M ∘ I | 9 | the RIGHT action `t <| g` |
+| `oct_torsor_div(t1, t2)` | `oct_mult(t1 ^ 8, t2)` | C ∘ M | 10 | the unique `g` with `t1 <| g == t2` |
+
+The `^8` in `div` **IS** `oct_conjugate` on `T` because every seam byte is imaginary (`idx(t) = t&7 ∈ {4,5,6,7} ≠ 0`, verified **224/224**) — that precondition is exactly what makes `div` 10 ops, not the 11 of a branching conjugate; `div` asserts it and refuses the real center `e0`.
+
+**The load-bearing correction: the torsor is the 4-index coset, NOT the strict 3-index set.** Enumerated over the **28 seams** (7 Fano lines × 4 complement generators; only **7 distinct** `(H,T)` since `T` is always `H`'s complement — so the 1792 counts below are honestly **448 × 4**):
+
+| torsor candidate | H-stability | verdict |
+|------------------|-------------|---------|
+| **4-index coset `H·e`** (8 signed bytes) | **1792/1792** | closes — the torsor |
+| strict 3-index set (drop the generator `e`) | **1008/1344** | LEAKS — a seam artifact |
+
+First escape of the 3-index set: `L=(1,2,3), e=4, g=+e₁, t=+e₅ → byte 4 = +e₄` — it escapes to **the seam unit `e₄` itself**, which the strict set `{e₅,e₆,e₇}` excludes. (The shipped RIGHT action is `oct_mult(t,g) = e₅·e₁ = +e₄`; the ephemeral brief's `−e₄`/byte 12 is the *reversed* order `e₁·e₅` — a convention slip, not a different fact.) **So 3+4 is the structure of 𝕆 = ℍ ⊕ ℍ·e; 3+1+3 manufactures a seam artifact.**
+
+**The ratchet pins BOTH the law AND the defect** (a closure-only pin misses a false green — the *wrong* composition order still lands in `T` **14336/14336** while being the wrong element):
+
+| identity | count |
+|----------|-------|
+| action law `(t<|g)<|h == t<|(h·g)` | **14336/14336** ✓ |
+| naive `t<|(g·h)` (convention flip) | **8960/14336** ✗ |
+| `R_g == L_{conj g}` on `T` | 1792/1792 |
+| `oct_torsor_act == oct_mult` (all pairs) | 256/256 |
+
+**Composition is native to the 𝕆 rung** (matching `#1514`: **turns → ℍ, composition → 𝕆**). The action law needs an **associative group**: sampled as signed-basis torsor triples it holds **200/200** at dim 8, and a quaternion-group torsor keeps holding **200/200** even embedded at dim 16 (the group's associativity carries it); it degrades only when the group itself is pushed up to the non-associative 𝕆 (dim-16 group = 𝕆, 136/200). ⚠️ **Honest note:** the ephemeral brief's clean "0/200 at dim 16" is **not reproducible** through the shipped `cd_mult` — no natural construction gives an all-fail — so it is replaced here by the reproducible structure (the associative-group requirement), per `[[feedback_computational_provenance_discipline]]`. And the phrase "seam-independent W" is **LABELLED tautological** — `pack_word` never reads a seam, so seam-independence is true by construction, not a finding.
+
+**Provenance.** `notes/oct_torsor_rc388.py` → `.ndjson` (6 findings, all through the shipped ops; no `abs()` — sign is the Class-K pin bit `b>>3` re-applied by a Class-C XOR; no stdlib `fractions`). Differential gate: `tests/test_oct_torsor_rc388.py` (the 4-point ratchet + the 3-index/4-index correction + the pure-vs-c_dispatched byte-identity oracle).
+
+**Cross-references.** §3.46 (the octonion carrier + the associator's 168 seam-confinement `T` rests on) · §3.41.6 (`{e0..e3}` fully coherent, every leak seam-crossing) · §3.45.6 (the three Hurwitz ceilings that are different numbers — turns/composition/addressing). Memory: `[[user_stance_cascade_matching_substrate_blind_form_not_identity]]` (FORM, not identity), `[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]`, `[[project_h_genome_is_fibrated_hurwitz_tower]]`.
+
+---
+
+## §3.48 Continuous math IS a cascade of the 14 A–N classes — the linear-algebra half, termination DERIVED from a declared precision, and the machine-code coherence tier (2026-06-04 → 2026-08-10; MEASURED, shipped)
+
+The framework's longest-standing assumption about a "scientific tier" was that certain operations —
+`svd` / `qr` / `eig` / `lstsq` / `einsum` / `kron` / complex-`exp` / `FFT` — are **primitives srmech
+lacks**, so a numerical library must supply them. That assumption is **falsified**, and the *shape*
+of the error is the load-bearing content, not the list of ops:
+
+> **It was a missing COMPOSITION mistaken for a missing CAPABILITY.**
+
+There are exactly 14 irrep class operations (§2.6). A "continuous" operation is not a fifteenth kind
+of thing; it is a **chain of the 14**. The same error had already been made once and corrected once —
+the asymptotic trig "couldn't replace numpy" until it was derived — and the general case is recorded
+here so the pattern is recognisable the next time a surface looks absent. This composes exactly with
+`[[feedback_ungated_surfaces_trickle_gated_surfaces_race_to_100]]`: an underived op becomes BELIEVED
+ABSENT, and belief is what has to be falsified, not the op.
+
+The living derivation record is [`notes/continuous_math_as_14_class_cascade.md`](notes/continuous_math_as_14_class_cascade.md).
+That note is history — the per-rc route by which each op was derived. **This section is what survived
+falsification**, restated against the shipped tree at v0.9.0rc420.
+
+### §3.48.1 The transcendental half is already established — read §3.39, not this
+
+The per-transcendental reading (`sin` / `cos` / `tan` / `atan` / `atan2` / `exp` / `log` / `sqrt` /
+`hypot`, each as a named A–N composition) is **§3.39.3** and is correct as written. The
+float-as-projection lens is **§3.39.2** (ALU-all-the-way / FPU-last-mile), and the honest boundary —
+where a `Q` carried *through* a Jacobi sweep **hung**, because an iterative kernel's rotations are
+genuinely irrational per step — is **§3.39.4**. Nothing here revises any of that; it is forward-linked,
+not repeated. What §3.39 does *not* cover is the **linear-algebra half**. That is below.
+
+### §3.48.2 The linear-algebra half — every "scientific tier" op as a named A–N chain
+
+Each row is a *composition*, not a new primitive. No class is promoted; the 14 stay flat
+(`[[feedback_no_privileged_primitive_classes]]`).
+
+| op | A–N cascade | what each stage IS | shipped surface |
+|---|---|---|---|
+| **DFT** `X_k = Σ_n x_n·e^(−2πi·kn/N)` | **M ∘ {N∘C} ∘ I** | **I** the index `kn mod N` (the cyclic group ℤ/N) · **N∘C** the twiddle = Class-N trig composed with the Class-C i-rotation, i.e. one `cexp` · **M** the `Σ_n` **bundle**: N rotated copies of the signal superposed | `srmech.cascade.spectral_cascades.dft` / `idft` |
+| **FFT** (radix-2) | **M ∘ {N∘C} ∘ I ∘ J ∘ K** | the DFT chain **plus J** — the radix split `N = N₁·N₂` is a *factorization* — **plus K**, the butterfly recursion depth read as asymptotic-DoF divide-and-conquer | `…spectral_cascades.fft` / `ifft`; direct-`dft` fallback at every non-power-of-2 `N` |
+| **kron** `A ⊗ B` | **I ∘ M** | **I** the mixed-radix index decomposition (ℤ/p factor arithmetic) · **M** the element products. A container plus Class-I indexing | `…spectral_cascades.kron` |
+| **QR** `A = QR` | **M ∘ C ∘ N ∘ K** | `Q` is a *product* (**M**) of elementary orthogonal transforms. The **shipped** route is a **Householder** reflection `H = I − 2vvᵀ/(vᵀv)` = **K** (sign-flip across a hyperplane) ∘ **M** (the outer-product `vvᵀ` bind) ∘ **N** (`1/(vᵀv)`) | `srmech.cascade.matrix_cascades.qr` (Householder; reduced + complete) |
+| **SVD** `A = UΣVᵀ` | **L ∘ (N∘K) ∘ M ∘ N** | `V, Σ²` = the eigendecomposition of `AᵀA` — that is **L**, and srmech already had it · `Σ = √λ` = **N∘K** · `U = A·V·Σ⁻¹` = **M** (matrix bind) ∘ **N** (reciprocal) | `…matrix_cascades.svd` (Gram-matrix route through `hermitian_eigendecompose`) |
+| **eig** (non-Hermitian) `A = VΛV⁻¹` | **K ∘ L ∘ {QR} ∘ C** | the QR algorithm `A ← RQ` converging to Schur form: **K** iterate-to-convergence (asymptotic-DoF) · **L** the spectral content · **{QR}** the per-step chain above · **C** the spectral shifts | `…matrix_cascades.eigvals` (shifted-QR) |
+| **lstsq** `min‖Ax − b‖` | **{QR} ∘ M ∘ I** | solve `Rx = Qᵀb`: the **{QR}** factorization ∘ **M** (the `Qᵀb` product) ∘ **I** — back-substitution is an *ordered* triangular solve | `…matrix_cascades.lstsq` |
+| **einsum** (tensor contraction) | **B/D ∘ I ∘ M** | the contraction string is a **typed spec** — **B** (TLV-framing) / **D** (index-pattern match); the contraction itself is **I** (iterate index tuples) ∘ **M** (the sum-of-products bundle) | `…matrix_cascades.einsum` |
+| **Hermitian eig** | **L** | the cyclic Jacobi — the already-shipped special case the whole SVD row leans on | `srmech.math.laplacian.hermitian_eigendecompose` |
+
+**The DFT row is the keystone, and it is not a metaphor.** `X_k = Σ_n x_n·e^(−2πi·kn/N)` is a
+*bundle of rotating phasors* — which is the Antikythera epicycle-sum
+(`[[user_stance_epicycle_via_gear_plus_pin]]`) written in another alphabet. The shipped
+`spectral_cascades.dft` annotates its own lines that way (`# Class I: cyclic index`, `# Class N
+twiddle angle`, `# Class C rotation, Class M bundle`). Deriving `cexp` is what unlocked the whole
+column: once the twiddle is a cascade, the transform is an **M**-bundle over **I**-indexed rotations,
+and the fast variant only adds **J** and **K**.
+
+**Honest bounds on the table.** (i) These are *derivations plus shipped surfaces*, not a claim that
+the shipped chain is the numerically best route. (ii) General mixed-radix FFT is a **stated future
+refinement**, not a shipped row — the shipped `fft` is radix-2 with a direct-`dft` fallback. (iii) A
+**Givens** rotation `[[c,−s],[s,c]]` is likewise **C** built from **N** (`c = a/r`, `s = b/r`), and
+it is the natural derivation to reach for on the QR row — but srmech ships **no Givens QR**. Its
+Givens rotations live in the Jacobi sweep of `srmech.math.laplacian`, i.e. on the **Hermitian-eig**
+row. Stated because the derivation is right and the attribution would have been wrong.
+
+### §3.48.3 Termination is DERIVED FROM a declared precision — not a declared parameter
+
+This is the one statement of the reading that has lived **only in code**, and it is the statement most
+often got backwards. The surface is **two-layered**, and the layers take different things:
+
+| layer | surface | what it takes | bound |
+|---|---|---|---|
+| **exact-rational REFERENCE** | `exp_series_truncate` / `sin_` / `cos_` / `log1p_` / `atan_series_truncate(numerator, denominator, num_terms)` | `num_terms` — an integer count, **positional** | capped at **512**; over-cap raises `ValueError` |
+| **PROJECTION** | `exp` / `log` / `cos` / `sin` / `tan` / `atan` / `atan2` / `sqrt` / `hypot` / `cexp` | **no term count at all** — a keyword-only `precision: int \| None`, a **bit budget** | `precision=None` selects the byte-identical Q61 fast path; `precision=P` lengthens the working bignum |
+
+At the projection layer, `_num_terms_for(bnum, bden, target_bits, shape)` **derives** the smallest
+`N` whose truncation remainder is below `2**-P`, from the reduced-argument bound and the series shape.
+The derivation is itself pure integer: term magnitudes are tracked as an **unreduced** integer pair,
+bit-length differences *are* the true `log₂` regardless of common factors, and **no float sizes the
+count**. That closes the loop with the Class-N module's own founding statement — *"no infinity invoked
+at any step, no floating-point at any step"*.
+
+**The `terms=` kwarg is gone from the projection layer** (v0.9.0rc320, breaking, **no** legacy alias):
+passing it now raises `TypeError`. It had been a *dead* keyword — the docstrings claimed it selected an
+arbitrary-precision reference surface and the body never read it — so the migration replaced a fiction
+with a live contract rather than renaming a working knob. This is the **dual-precision contract**: one
+knob, two co-equal projections of the *same* rational — `precision=None` → platform-bounded (a
+`best_rational` anchor riding a native int64 word, float-free); `precision=P` → srmech-native bigint,
+with the stated remainder bound tightening monotonically as `P` rises.
+
+⚠️ **Read the boundary precisely — `terms=` is not gone from the tree.** `the_one(σ, θ_num, θ_den,
+terms=24, w=…)` still carries an explicit Class-N Taylor depth, because it is a *generator over the
+exact layer*, not a projection. "Termination is derived" is a statement about the **projection** layer
+only; the exact-rational layer's `num_terms` is, and remains, a declared parameter. **A sweep that
+deleted every `terms=` would break the One.**
+
+### §3.48.4 The machine-code tier had to be measured separately — the `libm` divergence
+
+§3.29.4 already establishes the coherence partition this depends on — **one SSoT, three coherences**
+(`MFO + srmech notebook` = *meaning* : `Python` / `C` source = *language* : `Compiled C` = *machine
+code*), and it is not restated here. What §3.48 adds is the *finding that partition made visible*, and
+it could not have been found any other way.
+
+The discipline sweeps that routed Python scalar math onto the Class-N cascade all walked `*.py`. That
+left a gap the Python source **cannot** expose: on a native install the Kepler / Kuramoto /
+signed-Laplacian ops dispatched to **C** peers that still called `libm`. The meaning and language tiers
+said "Class-N cascade"; the machine-code tier ran `libm`. They agreed *numerically* — rational
+trig/sqrt ≡ `libm` to machine ε, which is exactly why the C-parity tests passed and **masked it** — but
+the C was not a faithful transpile of the same cascade. This is
+`[[feedback_false_green_comments_and_dead_instrumentation_seams]]` at library scale: a green parity
+suite certifying a *number* while the *identity* claim quietly failed.
+
+**What survived: the executable now runs the cascade.** `srmech_{sin,cos,atan,atan2}`, a C
+`pi_cascade`, `srmech_rational_sqrt` (two-limb integer isqrt), `srmech_exp` / `srmech_log` (Q61 integer
+exp-Taylor; Q61 integer `atanh` series `log(m) = 2·atanh((m−1)/(m+1))`), and the last `fabs` replaced
+by an explicit **Class-K sign-branch**. The ratchet that measures it
+(`tests/test_c_cascade_coherence.py`) is down-only in the `test_jpl_audit.py` shape, extends to the C99
+**complex** `libm` so no future complex op can silently reintroduce it, and its baseline is
+**`_BASELINE_TOTAL = 0`** — MEASURED at the pinned tree. **The shipped `libsrmech` holds no `libm`
+transcendental.** All three tiers agree.
+
+The method generalises past this instance: *a ratchet that walks only one language certifies only that
+language.* Per `[[reference_two_language_problem_inverted_python_c_different_scales]]`, Python and C
+are the same problem at different scales — so a gap between them is invisible until an instrument is
+pointed at the tier below both.
+
+### §3.48.5 "The One" `S(σ,θ,w)` — the same 14, read GENERATIVELY
+
+Everything above runs **decomposition**-ward: each continuous op factors *into* the 14. The One closes
+the loop from the other end — a single parameterised object that **IS** the 14-dimensional A–N space.
+Its grading, and the two co-valid partitions of one fourteen, are already established at **§2.6.5**
+(construction frame) and **§3.46.9** (carrier vs operator); they are not restated here.
+
+What *is* new to this notebook is the **plane count**, and it is a structural read rather than a
+choice. `e^{Î_n θ}` is not an abstract single-plane rotation: it is the algebra's **own** rotation
+(conjugation by `cos(θ/2) + Î_n sin(θ/2)`), which fixes the axis `Î_n = e_{2ⁿ−1}` and turns **every
+Fano-triple plane through `Î_n`** by `θ` *at once*. The count is `(2ⁿ⁻¹−1)`:
+
+| `n` | `𝔸ₙ` | planes turned by ONE θ-turn | `Im 𝔸ₙ` rotation eigenvalues |
+|---|---|---|---|
+| 1 | ℂ | **0** — no plane to turn; only the Class-K sign `σ` survives | `{1}` (1-dimensional `Im ℂ`; the axis is the whole space) |
+| 2 | ℍ | **1** | `{1, e^{±iθ}}` |
+| 3 | 𝕆 | **3** (the Fano triples through `e₇`) | `{1, e^{±iθ}, e^{±iθ}, e^{±iθ}}` |
+
+Two structural reads fall out, neither imposed:
+
+1. **At `n=1` the epicycle degenerates to the sign.** The `Im ℂ` seed *is* the rotation axis, so `θ`
+   is inert and the only freedom is the Class-K sign `σ`. The epicycle **is** the sign-flip at the
+   foundational algebra (`[[user_stance_epicycle_via_gear_plus_pin]]`); rotational richness then grows
+   `0 → 1 → 3` up the ladder.
+2. **The `7` carries a `1 + 3·2`.** The octonion imaginary is not a featureless heptad under the One's
+   rotation — it is one fixed axis plus three 2-planes spinning in lockstep. **The `3` of the `1:3:7`
+   reappears *inside* the `7`** as the plane count, and `2·(planes) + 1` reproduces `1, 3, 7` exactly.
+
+MEASURED at the pinned tree: `hurwitz_planes()` **derives** those planes from the attested octonion
+multiplication table and equals `srmech.cascade.one.FANO_PLANES`, which hard-codes them —
+`((), ((1,2,1),), ((1,6,−1),(2,5,1),(3,4,1)))`, plane counts `[0, 1, 3]`. Two independent routes to one
+object, which is what makes it a cross-derivation rather than a restatement. Note the orientation is
+**not** sign-uniform (`e₁e₆ = −e₇`) — the classic error when planes are copied off a diagram instead of
+read out of the table.
+
+So `S(σ,θ,w)` adds the *generative* direction to the decomposition above: the 14 are the block-graded
+pieces of **one turning object**, and turning its single angle realises the epicycle simultaneously at
+three scales `0 / 1 / 3` — the octonion dial driving three hands at once.
+
+### §3.48.6 The corrections this integration carries — the note's paths are rc-era
+
+The source note is dated to the v0.7.0rc3x–rc5x era and every module path in it has since moved. The
+note stays as written (living history); the current truth is here.
+
+| the note spells | current, MEASURED at v0.9.0rc420 | why it moved |
+|---|---|---|
+| `srmech.amsc.rational.*` | **`srmech.math.rational.*`**, publicly re-exported as **`srmech.calculus.*`** | ADR-0010 namespace declustering |
+| `srmech.amsc.cascade.{spectral_cascades, matrix_cascades, one}` | **`srmech.cascade.{…}`** | `srmech.cascade` is ADR-0010's first new top-level namespace |
+| `srmech.amsc.laplacian.hermitian_eigendecompose` | **`srmech.math.laplacian.hermitian_eigendecompose`** | same |
+| `srmech.qm.hurwitz.hurwitz_matrix` (+ the `np.array_equal` parity read) | **RETIRED, no replacement.** `srmech.physics.qm.hurwitz.hurwitz_planes` survives | it was a *float* duplicate of `One.to_matrix` — continuous-float math that sums error every op. The surviving cross-derivation is `FANO_PLANES == hurwitz_planes()`; the float 14×14 is the opt-in lossy export, never the math path |
+| `srmech.qm.*` generally | **`srmech.physics.qm.*`** | ADR-0010; the old spelling was REMOVED (clean break, no alias) — `import srmech.qm` raises `ModuleNotFoundError` |
+| `srmech.asymptotic_calculus` | **`srmech.calculus`** — the alias is **retained**, no-break | the "asymptotic" qualifier singled out one module while the whole framework (trig, exp, the eigen ops, the FFT-as-epicycle-sum) is equally substrate-native asymptotic-rational |
+| numpy as "a temporary fallback behind the `srmech[scientific]` extra" | **numpy is GONE** — no extra, no `import numpy` anywhere in `srmech/`; the carriers are `Mat` / `Vec` / `HV` / `Q` | the carrier-removal arc (§3.38, §3.39) went past optional to absent |
+
+⚠️ **`hurwitz_matrix` is RETIRED, not renamed** — the row above cannot be discharged by repathing.
+Measured: `srmech.physics.qm.hurwitz` exposes only `hurwitz_planes` and `octonion_mult_table`. Anyone
+updating the note's Rosetta pair by changing `srmech.qm` → `srmech.physics.qm` would ship a call that
+does not exist.
+
+### §3.48.7 Cross-references + status
+
+**Cross-references:** §3.39.2 / §3.39.3 / §3.39.4 (the float-as-projection lens, the per-transcendental
+table, and the iterative-kernel boundary — the transcendental half, not repeated here); §3.29.4 (the
+three-coherence partition §3.48.4 depends on); §3.38 (the reversibility / lossy audit); §2.6 (the
+`1 + 3 + 7 + 3` partition every row above composes from); §2.6.5 + §3.46.9 (the One's grading, and the
+carrier-vs-operator partitions of one fourteen); §3.49 (the executable cascade catalog — where a
+*declared* chain became a *run* chain). Source note:
+[`notes/continuous_math_as_14_class_cascade.md`](notes/continuous_math_as_14_class_cascade.md).
+Per-rc engineering record: `python/CHANGELOG.md` (cited, not inlined). Memory:
+`[[feedback_continuous_number_line_pedagogical_obstacle]]`; `[[user_stance_alu_all_the_way_fpu_last_mile]]`;
+`[[user_stance_epicycle_via_gear_plus_pin]]` (the DFT row);
+`[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]` (no `abs()` anywhere in these chains);
+`[[feedback_no_privileged_primitive_classes]]`;
+`[[feedback_ungated_surfaces_trickle_gated_surfaces_race_to_100]]`.
+
+**Status:** MEASURED + shipped. Every surface named above imports and runs at the pinned tree; the C
+coherence ratchet baseline is `0`. **Honest residuals:** general mixed-radix FFT is a stated future
+refinement, not a shipped row; the QR row's Givens derivation is derivation-only (Householder ships);
+and the table certifies *derivability + a shipped surface*, not that each shipped chain is the
+numerically optimal route.
+
+---
+
+## §3.49 The cascade catalog became EXECUTABLE — declared-vs-run, the two-state contract, and the grammar/op boundary (`#T1114`; MEASURED, shipped v0.9.0rc420)
+
+A descriptor that *describes* a cascade and a descriptor that *runs* one are different objects, and the
+distance between them is measurable. The `[cascade]` catalog under
+`srmech/cascade/catalogs/cascade_catalog/` spent its whole life on the first side: **20 descriptors,
+prose records of hand-rolled ops, zero carrying an executable step list**, and — measured by ADR-0012's
+clause C6 — with literally zero `describe()` visibility. `#T1114` inverted both. What follows is what is
+*true* about the catalog now; the per-rc route is in `python/CHANGELOG.md`.
+
+> ⚠️ **Three different "six"es live in this notebook and they are three different KINDS of object.**
+> **§3.21.5's universal core `M I N C L A`** is six **letters** (classes). **ISA-6** (F208, §3.33.4)
+> is six **instructions** (ops), spanning only classes {K, C} — and it is the *order-2* core only, F220
+> asking a **seventh**, order-3 opcode. **Combinator-6** (`then`, `loop`, `fold`, `reduce`, `parallel`,
+> `map_indexed`) is six **forms**, typed by classes {I, M, C, E∘M}. Letters / instructions / forms;
+> §3.29.6 is the canonical discrimination. This section uses the last two; it never uses the first.
+
+### §3.49.1 The two-state contract — executable or leaf, and NO THIRD STATE
+
+The catalog's twenty descriptors partition **20 = 17 executable + 3 leaf**, and the partition is
+*total by gate*, not by convention:
+
+- **EXECUTABLE** — the descriptor declares at least one chain, and every declared chain is **EXECUTED**
+  against its authored proof cases (including each descriptor's own documented boundary cases) and
+  compared **bit-for-bit** — a canonical byte encoding, so NaN payloads and signed zeros distinguish —
+  against the shipped op.
+- **LEAF** — the descriptor declares irreducibility explicitly, with a machine-readable reason.
+- **There is no third state.** *Silence is not a leaf declaration.* The gate is strict-zero with no
+  ceiling to drain.
+
+The equivalence is run on the **pure** projection, and the reason is a real one rather than
+convenience: several shipped ops dispatch whole-transform C kernels whose parity to the Python
+composition is a *documented tolerance*, not bit-exactness, so a native-projection bit-compare would
+assert something the tree explicitly does not promise. The chains' claim is about the **cascade** — the
+composition the descriptor documents — and the pure path IS that composition; each projection's own
+native parity is gated by its op's existing differential tests (ADR-0009).
+
+This is the discipline of `[[feedback_false_green_comments_and_dead_instrumentation_seams]]` applied to
+a catalog: prose describing a cascade is not a test of it. The descriptors did not become *more correct*
+at rc420 — they became **falsifiable**.
+
+### §3.49.2 The three declared leaves are three of the ISA-6 instructions — a PARTIAL agreement, stated honestly
+
+The three descriptors that declare irreducibility are **`chiral_flip`**, **`pin_slot_at_zero`** and
+**`reorient`** — three of the six **instructions** of the ATOM-vs-COMPOSITE A-N ISA (F208, §3.33.4).
+The RISC-minimality lens said those instructions are silicon-atomic; the executability census, run for
+an entirely different reason, independently landed on three of them as the descriptors that *cannot*
+decompose into a chain of registered ops.
+
+⚠️ **This is a 3-of-6 partial agreement, not a convergence, and the two instruments do not measure the
+same predicate.** F208 declared all six silicon-able; the census finds three irreducible, because the
+remaining three (`magnitude`, `chiral_dual`, `net_chirality`) **are** expressible as chains. And
+"atomic" means different things on the two axes: F208's sense is *has a dedicated C kernel* (five of
+the six do), while the census's sense is *not expressible as a chain of registered ops*. So F208's
+block claim is **partly refuted** on the census's axis, and "atomic" is a per-instruction fact, not a
+property of the ISA as a block. Two instruments agreeing on three of six is worth recording; calling it
+one answer would be the same category error §3.29.6 exists to prevent.
+
+### §3.49.3 `@idx.k` is UNSPELLABLE — the boundary between the two rungs
+
+The sharpest structural find is a *negative* one. The reference grammar's `[N]` indexer is
+**literal-only**: a descriptor can spell `@step[0].output[1]`, but it can never spell `x[@idx.k]`. So a
+**computed index cannot enter a chain as grammar at all** — it can only enter **as an op** (`seq_get`,
+Class-E: lookup-by-position is the degenerate catalog lookup, where the catalog is the sequence and the
+key is the index).
+
+That is a genuine boundary between the two rungs, not a gap to be closed. Grammar is the layer whose
+bounds are checkable *statically*; an op is the layer where a value decides something. Admitting a
+computed index into the grammar would move a data-dependent decision into the statically-audited layer,
+which is precisely what the totality argument below depends on **not** happening. The registered leaf
+inventory (`srmech/cascade/leaves.py` — **12** leaves: `seq_len`, `seq_get`, `pair`, `str_concat`,
+`utf8_encode`, `byte_slice`, `int_parse_le`, `f64_add`, `vec_add`, `vec_scale`, `dead_band`,
+`orientation_compose`) is what the exile lands in. **Class letters are CLASSIFICATION, not addressing**:
+these are reachable from a step by dotted op name regardless of which letter the step declares (§3.29.8).
+
+Two of those leaves exist because a naive chain **measurably diverged** from its shipped op, and both
+divergences are Class-K facts:
+
+- **`dead_band`** — the shipped `best_rational_signed` applies its Class-K dead-band **before** scaling.
+  Without the leaf, a declared chain diverges in the sub-dead-band-magnitude × huge-scale corner.
+- **`orientation_compose`** — MEASURED: a bare fold of `reorient` is **not** value-identical to
+  `net_chirality`. `net_chirality([0, −1]) == 0`, but folding `reorient` gives `−1`, because
+  `reorient`'s `orientation == 0` branch is a **no-op** while the shipped loop's zero guard is
+  **absorbing**. "Zero is absorbing" is FALSE for the bare atom — the absorbing branch is
+  descriptor-static, so it exiles into an op instance, which then folds correctly.
+
+That second one is the section's best single lesson: **the divergence was invisible until the chain was
+executed.** Prose could not have found it; a proof case did.
+
+### §3.49.4 What the engine had to gain, and what it deliberately did not
+
+The census measured the distance as a small set of distinct blockers, closed at root rather than worked
+around: **dotted op addressing** (`class` is classification, the dotted name is addressing); a **MAP
+step form** `{map_over, index, bind, body}`; a **FOLD step form** whose named argument slots fix a real
+contract defect (a binary-positional fold could not bind a keyword-only atom); the registered leaf
+inventory above; and a **`@op.<dotted>`** reference form so a descriptor can name an op **as a value**.
+Schema **v2 is a strict superset of v1** — every v1 catalog parses and runs unchanged.
+
+**The scoping decision, stated once.** A map body's `@step[N]` is **body-local** — a body is a chain in
+miniature, so the static bounds check applies recursively — and outer data enters **only** through the
+bind and index namespaces. That is the engine's explicit-only data-flow rule applied at the map
+boundary: **no implicit closure over outer steps.**
+
+**The totality argument, and it is auditable.** The map is data-**SIZED**, never data-**DEPENDENT**:
+`n` is pinned before the first body run (unsized iterables rejected at entry), the body is a
+descriptor-static step list, nesting depth is descriptor-static, and **no predicate anywhere decides
+continuation**. That is the same totality class the existing fold already had. The exile boundary —
+predicate-driven unbounded iteration stays in the op-instance layer — is **unmoved**; and the census
+measured the shipped corpus's true exile class (predicate-only unbounded iteration) as **EMPTY**.
+
+**The residual, stated as the census stated it.** The rung-4 scheme census named **three** still-missing
+populations, not two: *higher-order* (n=2), *scan* / mapAccumL (n=8), and *fuel-bounded consume* (n=3);
+divide-and-conquer measured n=0. The **higher-order** one is CLOSED at rc420 by the `@op.<dotted>`
+reference form — `parallel_sector_dispatch` now spells its body as
+`body = "@op.srmech.cascade.atoms.chiral_flip"` and both of its ops are among the 17 executable. So
+**two** populations remain, and they are bound as **down-only named populations** with their blocked
+module sets pinned by name — which is what makes the remaining Phase-2 surface auditable rather than
+aspirational.
+
+### §3.49.5 The combinator kernel closes at six FORMS — on BOTH projections
+
+The DSL's control-flow kernel widened from five forms to **six** (`map_indexed`, the general indexed
+map), **consciously**, and — this is the part that is structural rather than procedural — **on both
+co-equal projections in one change**: the Python builder and TOML discriminator, and the C discriminator
+array and its map runner. Per
+`[[user_stance_srmech_is_multi_implementation_not_python_with_c_accel]]`, capability is the invariant
+and the projections are co-equal, so a half-mirrored widening is a capability divergence, not a
+performance detail. (§3.29.1 carries the correction this forced to the shipped "five" claim.)
+
+**Found while widening: the C discriminator array was pinned by NOTHING.** The closure ratchet was
+Python-only, so a half-mirrored widening would have silently deferred to the pure path **with no
+symptom** — a green suite, a correct answer, and a broken co-equality claim. The ratchet now cross-reads
+the C array with strict equality in both directions. This is the same failure family as §3.48.4's `libm`
+divergence: *an instrument that walks one language certifies one language.*
+
+The widening added no C symbol, changed no signature, and added no callback typedef, so **the ABI did
+not move**.
+
+### §3.49.6 The catalog now counts itself — `describe()`'s twelfth key
+
+`describe()` grew a twelfth top-level key, **`cascade_catalog`**, carrying `{total, executable, leaf,
+status, run, enumerate}` — a live per-descriptor status map plus the names of the runner
+(`srmech.dsl.run_cascade_chain`) and the enumerator (`srmech.dsl.list_catalog_ops`). Before this, the
+only statement anywhere of how many cascade descriptors exist was a **prose sentence in a
+non-hygiene-gated orientation file** — which is exactly how that sentence had already gone stale by a
+factor of two. The live count is now the SSoT and the prose defers to it (see the dated rc10 bullet in
+the package-arc §3.28.2).
+
+That closes ADR-0012 C6's cascade_catalog front, and it is the general shape of
+`[[project_introspect_surface_is_the_api_contract_not_documentation]]`: a surface the introspection
+contract cannot see is a surface that drifts, and the fix is never a better sentence — it is making the
+object count itself.
+
+### §3.49.7 Cross-references + status
+
+**Cross-references:** ADR-0008 — **✅ Accepted**, with an audited clause table binding every standing
+claim to a resolving test node, and Amendment A stating what schema v2 added and why; ADR-0009 (co-equal
+projections — why the widening had to land on both); ADR-0012 (introspect as the API contract — the C6
+clause this closes on one front); §3.33.4 (the ATOM-vs-COMPOSITE A-N ISA, whose three atomic
+instructions are the three declared leaves); §3.21.5 (the universal core — six **letters**, a different
+object; see the disambiguation above); §3.29.6 (the three sixes); §3.29.7 (the four executable
+composition surfaces this catalog is one consumer of); §3.29.8 (why the corpus was single-class before
+the addressing change); §3.48 (the continuous-math derivations these descriptors document). Per-rc
+record: `python/CHANGELOG.md` (cited, not inlined). Census provenance: the `#T1114` rung NDJSON +
+generating scripts under `docs/srmech/notes/`, per `[[feedback_computational_provenance_discipline]]`.
+
+**Status:** MEASURED + shipped. The two-state gate is strict-zero with no ceiling; the bit-identity is
+executed rather than asserted; the kernel closure is cross-read across both projections. **Honest
+residuals:** two recursion schemes (scan, fuel-bounded consume) are still missing from the form set and
+are pinned as down-only named populations, not claimed as closed; and the bit-identity gate certifies
+the **pure** projection — each projection's native parity remains the responsibility of its op's own
+differential tests.
+
+---
+
+## §3.51 The CENTRE / COVERING layer — the global datum a local object structurally cannot hold; and the V₄ ↔ so(8) bridge derived, 3 → 1 (2026-08-11; `#T1123`; MEASURED, shipped v0.9.0rc422)
+
+**The gap, stated once.** srmech carries **algebras and finite groups** — local and quotient objects.
+It had no way to carry the **global (π₁ / centre) datum a local object cannot hold**. The shape had
+surfaced at least six times and been hand-rolled independently every time:
+
+| where it surfaced | what survived |
+|---|---|
+| `so(8)` / `Spin(8)` | the algebra cannot see `Z(Spin(8)) = V₄` — and that centre IS `π₁(PSO(8))` |
+| `genome.cwf_consistency_mod2` | its own bounding: `Q₈` pins `Lk` only **mod 2**; it returns `lk_center_parity` |
+| `q8.q8_project_v4` | its own docstring: *"Drops the center sign bit"* |
+| `quaternion_cycle_holonomy` | `center_parity ∈ {+1, −1, 0}` |
+| `One.spinor_sign` | `(−1)^Σw` — "the genuine Spin→SO 2:1 lift" |
+| `laplacian.cycle_holonomy` | the holonomy **mod 1**; the integer winding is what it cannot return |
+
+In every case the survivor is the same object: **the centre-parity — one bit where an integer lived.**
+One structure underneath all six: a central extension `1 → Z → G̃ → G → 1`, in which a closed loop in
+`G` lifts to a **monodromy** in `Z`. When `Z ≅ ℤ` the datum is an *integer* (a winding, a linking
+number); when `Z` is finite of order `n` only the residue survives, and at `n = 2` that residue is one
+bit. `srmech.math.covering` is that surface: `center_parity`, `center_lift`, `lift_fibre`,
+`linking_number_cwf`, `covering_catalog`.
+
+⚠️ **The trap, named because it looks like a refutation.** "Compute the centre of `so(8)`" returns the
+**zero object**, and that is *correct* — `so(8)` is semisimple. The Klein four-group is `Z(Spin(8))`,
+a property of the simply-connected **GROUP**; the same algebra belongs to `Spin(8)`, `SO(8)` **and**
+`PSO(8)` and structurally cannot distinguish them, because a centre is **global** data where a Lie
+algebra is **local** data. A category distinction, not a limitation to engineer around — and precisely
+*why* the datum needs a carrier of its own. `spin8_center()` returns that zero explicitly as
+`algebra_centre_dim`, and the gate pins it as an EXPECTED value.
+
+**`lift_fibre` is the instrument half, and it is the one that makes the claim falsifiable.** "The
+finite group can only pin this mod n" is a sentence no test can contradict — it is a claim, not a
+measurement, and *an instrument that cannot return otherwise is not a measurement*. With
+`center_order=0` (the universal ℤ cover) the same call returns a fibre of size 1 and
+`determined=True`. It demonstrably **can** come out the other way.
+
+### §3.51.1 The census REJECTS more than it accepts
+
+The fit predicate was stated **before** the candidates were scored: reached iff (i) a base object the
+shipped op computes in, (ii) a covering with **non-trivial** centre `Z`, and (iii) an output that is
+the image of a `Z`-torsor-valued quantity. `π₁(base) = 0` or `Z` trivial ⇒ REJECT.
+
+**Reached (4):** `spin8` (`Z = V₄`, derived below) · `spin3` (`Z(SU(2)) = {±1}`) · `q8_v4` ·
+`circle_z` (deck group ℤ — the `#T1005` row: the genome accumulates in the finite group where a helix
+accumulates in its universal cover, so the loss is a statement about *which accumulator was kept*).
+
+**Rejected (5), each on a named clause.** Two are load-bearing. The **S³ fibre writhe** of
+`octonion_frame_read` fails clause (ii) because **`π₁(S³) = 0`** — a simply connected fibre carries no
+covering datum at all, so `q₁` is a frame-relative continuous residue, not a discrete monodromy class.
+(Push the read down to `SO(3) = S³/{±1}` and a ℤ/2 *does* appear — but that is the `spin3` row, a
+**different object**, and merging them is exactly the form-vs-identity error the layer is bound by.)
+And **`g₂ = Der(𝕆)`** fails it on a **MEASURED** basis: the triality-fixed subgroup of `Z(Spin(8))` is
+trivial, so `g₂ = Fix(τ)` inherits no centre. That is the rejection proving the predicate
+discriminates — `g₂` sits *inside* a reached row and is still correctly rejected on its own. Also
+rejected: the CD rung bump (doubling is not a covering map), the Hermitian spectrum (eigenvalues are
+conjugation-invariant — no monodromy is encoded, and the odd channel that *is* lost is already the
+`circle_z` row, so admitting it would double-count one loss as two), and `τ` itself (an automorphism
+**acts on** a centre; being adjacent to the datum is not holding it).
+
+**PREVIEWED but NOT shipped as rows — two candidates that fit in FORM and fail on instantiation, not
+on structure.** The distinction matters and is kept explicit rather than folded into either bucket: a
+`reached` row must name live registered srmech ops (the gate resolves every one against the registry),
+so a structure with no srmech op to name cannot be a row however well it fits.
+
+- **`#T990` — the exeligmos screw** (`Lk = Tw + Wr` as integer-invariant ⊕ frame-relative reals). The
+  structure fits the `circle_z` row exactly: a dial is `ℝ → ℝ/Tℤ`, the deck group is `ℤ`, the pointer
+  reads the quotient and the **turn count is the cover datum** — the triple-Saros exeligmos exists
+  precisely because one Saros leaves a frame-relative ~8 h residue that three cancel to an integer
+  day. But the base object lives in the Antikythera / ephemerides subtree, not in srmech, so clause
+  (i) has no srmech op to point at. **`linking_number_cwf` is the op that would carry it** once one
+  exists. ⚠️ Note the bound even then: the deck group there is `π₁(S¹) = ℤ`, an **abelian** covering
+  and not the centre of a non-abelian group — the FORM matches, the object does not.
+- **`#T1058` — the fingerboard `Lk = Tw + Wr`** (§3.46.3 / §3.46.10, tiered **CONJECTURE**: "the
+  two-readings structure is real; the identity is unverified"). Fails clause (i) for the same reason
+  *and* fails on its own terms — the base is a conjectured structure, not a computed one. The useful
+  outcome is that it is now **testable**: `linking_number_cwf` returns `is_integer=False` with the
+  exact rational preserved, so the conjecture has an instrument that can refute it rather than a
+  prose analogy that cannot.
+
+### §3.51.2 The bridge: residual ambiguity 3 → 1, DERIVED not chosen
+
+rc421 measured the V₄ ↔ so(8) bridge **NOT canonical as shipped**, residual ambiguity **3**, and named
+the reason as arithmetic rather than carelessness: both carriers' order-3 generators are 3-cycles on a
+3-element set, and **the centralizer of a 3-cycle in `Sym(3)` has order 3**, so an order-3 generator
+*alone* cannot pin a bijection. It priced the route and left one thing unverified — whether
+`octonion_left_mult` / `octonion_right_mult` suffice. rc422 walks it; they do (both regenerate every
+structure constant, so the construction is bottom-up FROM the carrier).
+
+1. **`spin8_center()`** solves `Z(Spin(8))` off the octonion multiplication table — the four scalar
+   triples satisfying `g_v(x·y) = g_s(x)·g_c(y)` on **all 64** basis pairs. The constraint
+   `ε_v = ε_s·ε_c` is **FOUND, not imposed**, and each non-identity element acts trivially on exactly
+   ONE of `{8v, 8s, 8c}`. **The kernels ARE the dictionary**, forced by structure.
+2. With the reps labelled, the shipped 28×28 `τ` and `S_B` acquire a readable **label action** — the
+   exact object rc421 measured unreachable. `τ` cycles `v → s → c` (agreeing independently with
+   `triality_cycle`'s documented direction); `S_B` exchanges `v ↔ s` and **fixes `c`**.
+3. Requiring a bijection to intertwine **both** shipped generator pairs cuts 3 survivors to **1**:
+
+> **`iω₇ ↔ 8s` · `γ₅ ↔ 8c` · `CPT ↔ 8v`**
+
+**The honest bound belongs beside the result, not below it.** The dictionary is canonical **relative
+to** the shipped generator pairing and the shipped V₄ sector names. Each carrier ships exactly one
+order-3 and one order-2 automorphism, so nothing was picked from a menu of equals — but a *different*
+order-2 yields a *different* dictionary (control D), and §3.40.4 records that which sign bit is called
+`γ₅` and which `iω₇` is a convention this notebook has never pinned. So it is a **derived intertwiner
+of two shipped S₃ presentations: FORM, never object-identity**
+(`[[user_stance_cascade_matching_substrate_blind_form_not_identity]]`). §3.42.6's lift stays
+expert-to-pin. §3.29.2's "the registry ships zero ops bridging the two carriers" was true at rc420 and
+is superseded here — one is shipped, and it is derived rather than chosen.
+
+**What separates DERIVED from PICKED is the anti-pick control**: exchange the two companion slots and
+the dictionary moves by *exactly* the `s↔c` relabel. A chosen dictionary would not move at all. Four
+negative controls behave, including §3.29.3's named **"single most common triality error"** (an
+order-2 object where the order-3 element is meant → 0 survivors, both sides) and the vacuous-constraint
+control (identity → all 6, proving the order-3 cut to 3 was a real cut). The label actions are re-read
+**independently** by exact characteristic polynomial off the 28×28 matrices, using only their values
+and never their construction — a co-equal second construction, so a disagreement would be the finding
+(`[[user_stance_co_equal_dual_construction_is_a_consistency_oracle]]`).
+
+**Shipped prose corrected.** `klein4_triality_cycle`'s docstring opened *"The V₄-carrier image of the
+so(8) triality `8v → 8s → 8c`"* directly above the `iω₇ → γ₅ → CPT` cycle — which reads as
+`iω₇↔8v, γ₅↔8s, CPT↔8c`. It asserted a specific dictionary while none was pinned, **and the dictionary
+it reads as is not the one that holds**. Corrected, gated, and pointed at the deriving op.
+
+**Generating code + NDJSON:** `docs/srmech/notes/v4_so8_bridge_derivation_rc422.{py,ndjson}` (the walk)
+and `v4_so8_bridge_canonicity_rc422.{py,ndjson}` (rc421's pricing run). Gate:
+`tests/test_covering_layer_rc422.py`. **Status:** MEASURED, shipped v0.9.0rc422.
+
+---
+
+## §3.52 The §3.46.2 two-lane reading became SIX OPS — and the comma is exactly what the disagreement measures (2026-08-11; `#T1113`; MEASURED, shipped v0.9.0rc424)
+
+§3.46.2 measured that the note-alphabet is **ℤ/7** with the fifth as `+4` and the fourth as `+3`, `4 + 3 = 7` the conserved octave; §3.46.9 then separated the **index lane** from the **sign lane**. rc424 ships the consequence: the relational reading is now six executable ops, and the thing the two lanes disagree *about* turns out to have a name and an exact value.
+
+**The two lanes, and why they cannot be reconciled.** The **frequency lane** is ℚ⁺ under multiplication; the **modular lane** is ℤ/n under addition. A chain of just fifths **always** closes in the modular lane — a generator coprime to the modulus generates the whole cycle, which is exactly §3.46.2's `gcd(4,7) = gcd(3,7) = 1`. It **never** closes in the frequency lane: `(3/2)**n = 2**m` has no solution for `n > 0`, because the prime supports `{3}` and `{2}` are disjoint. That is **Class J deciding a question Class I cannot even pose**, and it is not an approximation failure — the residue is structural. Swept `n = 1..59` through the shipped op: **zero closures**.
+
+**The residue IS the comma, and it is DERIVED, never tabulated.** `comma_of_chain(gen, n, period)` stacks the generator and folds by whole periods; what is left over is exact. Both famous commas come out of the one op with no stored constant — `(3/2)` stacked 12× against the octave gives `531441/524288` (Pythagorean), `(3/2)` stacked 4× against `5/1` gives `81/80` (syntonic). `tempers_out` then asks which equal temperaments annihilate it, **without a logarithm**: `k = round(n·log2 p)` iff `2**(2k−1) ≤ p**(2n) < 2**(2k+1)`, a comparison between two exact integers. 12-EDO tempers out both; 5-EDO tempers out the syntonic and **not** the Pythagorean, so the two questions are genuinely independent rather than two names for one.
+
+**A live scholarly disagreement, measured rather than copied.** `prime_form` and `normal_order` take a **required** `convention` and have no default. Enumerating every set class of cardinality 2..10 and comparing Forte (1973, packs left) against Rahn (1980, packs right) row by row gives **exactly 6 disagreements out of 208**: 5-20, 6-Z29, 6-31, **7-Z18**, 7-20, 8-26. ⚠️ **The figure usually quoted is FIVE** — Straus's list omits 7-Z18 — so a tree that copied the number would have shipped a wrong one; independent open set-class tables list six. This is `[[feedback_pdf_extraction_citation_discipline]]` applied to a *count*: the enumeration IS the citation.
+
+**The bounded-enrichment principle, found three times in one rc.** Three shipped call paths raised and destroyed a correct answer in order to report an *optional* field: `commensurability_verdict` twice (an operand-bound `ValueError` reached via `membrane_partials`, a result-bound `OverflowError` reached via `best_rational`) and `comma_of_chain` once (`factor` refusing a 41-fifth residue's 20-digit numerator). The rule adopted and now applied uniformly: **the op whose entire answer IS the bounded quantity keeps raising** (`common_period`, `just_limit`); **the op for which it is only an enrichment reports the absence instead** (`period_unavailable`, `factorisation_unavailable`). The fixed-width 2⁶⁴ bounds themselves are real C-parity contracts and were **not** relaxed.
+
+**Honest null.** The Fano falsifier queued alongside this work returned a **basis-free NULL**. The 7 associating octonion triples ARE the 7 Fano lines (measured through the shipped `associator`; 35 = 7 + 28), but the pre-registered predicate *"the loop-edge defect lies on a Fano line"* is **VACUOUS** — every pair of distinct points lies on exactly one line, by a projective-plane axiom, so it is true by construction. The 5040-bijection gauge sweep then found `P2` discriminating on 42/5040 and `P3` on 0/5040 — middling and zero, i.e. **gauge, not content**. Recorded as a non-result per `[[feedback_an_instrument_that_cannot_return_otherwise_is_not_a_measurement]]` and `[[feedback_a_zero_census_is_basis_free_a_nonzero_one_is_gauge]]`.
+
+**Three candidates REJECTED on evidence.** `interval_invert`, `pitch_class_transpose` and `pitch_class_invert` are each a single `cyclic_mod_add` call carrying no decision, so each would have added registry surface for zero capability. The ℤ/7 walk of §3.46.2 ships as a worked example and an `[[alias]]` entry for the same reason.
+
+**Scope.** Psychoacoustics, timbre perception and fingerboard **geometry** stay out — the last by the CAD-scope ban, which §3.46.3 already states in those words.
+
+**Provenance.** `notes/music_relations_spec_rc424.{py,ndjson}` (39 records) + `notes/music_optheory_costing_rc424.{py,ndjson}` (57 records) — the read-only research phase, every candidate prototyped over shipped primitives so its A–N composition is a measured fact rather than an assertion. Gate: `tests/test_music_relations_rc424.py` (59 tests, including the six-disagreement enumeration and the three crash regressions). **Status:** MEASURED, shipped v0.9.0rc424.
+
+**Cross-references.** §3.46.2 (ℤ/7, the coprime generator pair, `4+3=7`) · §3.46.3 (interval inversion under read-reversal; the CAD line) · §3.46.9 (index lane vs sign lane) · §3.46.7 (the commensurability ↔ Hurwitz ladder parallel this carries into ops). Memory: `[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]`, `[[feedback_paywalled_doi_cannot_be_attested]]`, `[[feedback_fix_known_flakes_dont_route_around_them]]`, `[[feedback_computational_provenance_discipline]]`, `[[feedback_an_instrument_that_cannot_return_otherwise_is_not_a_measurement]]`.
+
+---
+
+## §3.53 The frame an op cannot tell you it is standing in — and the headline that did not survive (2026-08-13; `#T1127` / `#T1094`; MEASURED, shipped v0.9.0rc430)
+
+An op that reduces modulo something works in a **frame**. The question worth publishing is not *what* the frame is but **whether it is an INPUT or welded into the op**, because a consumer composing two ops needs to know whether it may choose. rc430 ships that as `ToolEntry.frame_scope` / `.frame_axis` — and, more importantly, ships the retraction of the reason it was asked for.
+
+**The headline did not survive measurement.** `#T1127` opened on the claim that the semigroup census — how many srmech ops actually destroy information — is bounded by `ToolParameter` publishing no domain constraint. It is not. The rc427 instrument's own negative control refuted it: `cyclic_mod_add`, provably a permutation, classified `SEMIGROUP_NOT_GROUP` because the sweep bound **a modulus smaller than the carrier it enumerated**. Replacing the carrier ladder with window-free **orbit closure** over arguments already published in `example["worked"]` moves Tier A **15 → 30** and Tier B **UNSUPPORTED → 50**, and returns `cyclic_mod_add` to GROUP — **with no registry change at all**. A per-parameter domain field would add **+8 on a denominator of 245**, and its price is an ABI bump (14 → 15, because callers stride `srmech_tool_param_t` themselves) plus 602 of 655 entries moving in canonical JSON. Deferred to rc431 with the evidence written down (`notes/rc430_deferral_T1127_param_domain.md`).
+
+**The relation claim died too, from two directions.** Own-body AST extraction finds 24 relational constraints, **17** of them the `len(a) != len(b)` shape guard, and **exactly two ordering relations in the whole registry** (`log1p` / `atan_series_truncate`, the Taylor radius) — **neither a modulus-vs-carrier bound**. An independent delegation-depth-3 pass agrees: **40 / 655**. The vocabulary *can* express `le_param`; the constraint the census needed **is not in the code**.
+
+**The roster is DERIVED, and that is the design.** `reads_lane` (rc347) is the one shipped field that verifies its declaration rather than storing it — and it reached **9 of 655 ops (1.4%) in 82 rcs**, because it was opt-in. A field nothing computes the roster *for* is an `__all__`-shaped escape hatch: the surfaces that most need it are the least likely to volunteer. So the rc430 gate derives the admissible set **behaviourally** over every op it can drive and asserts `declared == admissible` **in both directions**. Result: **20 declarers** (6 `fixed`, 14 `parametric`), of which only 3 were in the hand-written seed roster the round began with. Names were measured and refused as a source — 67 ops take a modulus-family-named int and most are not frames (`is_prime(n)`, `dense_laplacian(n=|V|)`), so a name-derived roster would have forced ~58 false declarations.
+
+**Five instrument defects, each produced by the tool built to prevent that class.** A six-point sample called `is_prime` **`fixed` with period 6**; the repair is a dense contiguous sweep with a confirmation floor, not a bigger sample. The `LEAK_B` negative control — generator 7 welded in — **read CLEAN**, because over ℤ its first differences are `7, 7, −5, 7, …` and every wraparound breaks constancy; reduced mod the frame it is a constant 7. That is rc426's F12b blind spot reproduced inside the instrument written to narrow it. `crt_combine` classified `fixed` because the carry-check ignored sequence *elements* (`moduli[0]` supplied the period). `mod_mul` reported `generator: 0`, and reported a caller-supplied generator as welded-in until carriage was tested up to congruence. And the ratchet itself caught the fifth: `fiedler_sparse_file` harvested `path='/tmp/…/codon.graph'`, a file its own snippet created, so the census answered differently on two runs of the same tree — **a harvested argument must be reproducible**.
+
+**What the axis CANNOT say ships beside what it can**, in `describe()["frames"]["cannot_express"]`. There is deliberately no `"free"`: an op accepting no frame datum cannot be contradicted on one, so `just_limit` (carrier-level ℚ⁺) and `sha256_bytes` (no frame concept at all) are both `None` and this field cannot separate them. rc426's reading of `just_limit` as a chart is therefore **dissolved, not corrected**. The generator axis is decidable only for ops **affine** in the frame coordinate, so rc427's G3b blind spot is **narrowed, not closed** — and it ships with **zero declarers**, classified **EMPTY, not absent** (every generator the census found is caller-supplied; the `LEAK_B` control exercises the axis in-test).
+
+**`#T1094`, closed.** `_synth_value_for_type` ended in `table.get(type_string, "a")`, handing the literal `"a"` to every unnamed type **including filesystem paths**, so the every-tool smoke wrote a stray file named `a` into the package tree. Arguments are now keyed by **(op, param)** and harvested from each op's own worked example — valid by construction. Of 1063 required parameters: **531 harvested · 450 tabled · 30 sandbox · 52 unsynthesizable**, and **0** receive `"a"`. The honest bound: the harvest closes only **3 of 33** path-ish parameters, because the genome snippets deliberately leave `path` unbound — `worked_examples_result.ndjson` has been recording that as `NameError: name 'path' is not defined` all along.
+
+`describe()` gained a thirteenth top-level key, **`frames`**, derived from the tool schema rather than kept as a second list. *(§3.49.6's sentence about `cascade_catalog` now reads "grew a twelfth top-level key" rather than "gained": it is a DATED record of what rc420 added, and the live-total claim belongs on the current sentence, which is this one.)*
+
+**Provenance.** `notes/_frame_scope_census_rc430.{py,ndjson}` (655 op records + the instrument-revision trail, so the five defects above can be judged rather than trusted) · `notes/_s1_guard_extraction_rc430.{py,ndjson}` · `notes/_s2_census_precondition_rc430.{py,ndjson}` · `notes/rc430_deferral_T1127_param_domain.md`. Instrument: `python/tools/frame_probe.py`, shared by the census and the gate so they cannot disagree by being separately hand-rolled. Gates: `tests/test_frame_scope_rc430.py`, `tests/test_synth_args_provenance_rc430.py`. **Status:** MEASURED, shipped v0.9.0rc430.
+
+**Cross-references.** §3.46.9 (index lane vs sign lane — the axis `frame_scope` is orthogonal to, asserted in the gate) · §3.49.6 (`describe()`'s twelfth key) · §3.52 (the two-lane reading; `just_limit` and the comma ops live there). Memory: `[[feedback_an_instrument_that_cannot_return_otherwise_is_not_a_measurement]]`, `[[feedback_ungated_surfaces_trickle_gated_surfaces_race_to_100]]`, `[[feedback_a_guard_that_fires_is_evidence_not_an_obstacle]]`, `[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]`, `[[feedback_scratch_measurements_must_use_srmech_or_gaps_stay_invisible]]`.
+
+---
+
+## §3.54 Clean by discipline is not clean by enforcement — and a gate that pins a result never produces it (2026-08-14; `#T1132`; MEASURED, shipped v0.9.0rc432)
+
+Two findings here are general enough to outlive the rc that produced them, and both are easy to lose because each one looks, at a glance, like good news.
+
+**Finding 1 — the C error paths are correct, and that fact was carrying no weight.** srmech's C library holds **zero handle leaks** across every held-handle PAL site, with zero `goto` / `setjmp` / `longjmp`, using three deliberate idioms: a guard return before the acquisition succeeded, an inline release on the return's own block, and capture-status-then-release-once-then-branch. That is affordable for a structural reason worth stating on its own: **Rule 3 (no malloc) is what made Rule 1 (no goto) survivable.** Remove the resource and the cleanup problem mostly disappears — `goto cleanup;` exists almost entirely to free things a JPL-clean C program never allocates.
+
+But `tests/test_jpl_audit.py` mechanically checks Rules 1/3/4/5/8 **only**. Acquire/release symmetry was **ungated**. The surface was clean *by discipline*, and a surface that is clean by discipline is one edit away from decaying in a way that looks exactly like working code — there is no symptom, no failing test, and no reader who happens to look. This is `[[feedback_ungated_surfaces_trickle_gated_surfaces_race_to_100]]` in its quieter form: not a surface that fails to grow, but a surface that is *already perfect* and therefore attracts no instrument, and so becomes **believed** perfect rather than **measured** perfect. The distinction only becomes visible when it stops being true.
+
+**Finding 2 — the gates rc432 shipped cannot detect the defect rc432 repaired, and saying so is the finding.** Three ratchets landed. None of them would have caught the seed. The C held-handle gate's subject is handles, and the op at fault creates a *node* — `srmech_genome.c` makes zero `mkdir` calls, so there is nothing in C for it to look at. Its created-node sibling requires two creates in one function; the seed makes one. And the Python ceiling is seeded at a population that **includes** the repaired sites, so it can only fire on growth.
+
+The honest claim is therefore narrower than a green run suggests: **these gates detect the REGRESSION, never the original.** A ceiling seeded at the live population is a claim about the future, not a detection of the past. That is not a defect in the gates — it is what a ratchet *is* — but prose that says a new gate "catches the class that caused the outage" is false whenever the ceiling was seeded after the repair, which is nearly always. The repairs produce the result; the gates only pin it, and **the repairs are strictly stronger than the gates**.
+
+The corollary is the one to carry: when a ratchet cannot see the original, something else must. Here that was a file that *drives* each repaired site down its real error path and asserts the sandbox is byte-unchanged — which also covered the five of twelve confirmed sites the source scanner permanently misses (loop bodies, branch-local acquisitions, attribute-call raisers). Had the rc shipped only what the scanner can see, it would have repaired seven of twelve and the ratchet would have reported green over the other five indefinitely.
+
+**A third observation, smaller but sharp.** The helper written to *implement* the ownership invariant trips the gate that measures it: acquire-at-top-level-then-raise-below **is** the ownership construct, and a source scanner cannot distinguish the mechanism from the defect by shape alone. It was recorded as an allowlist entry with its own reason rather than special-cased in the predicate, because a predicate that quietly knows about its own tooling stops being a statement about the tree. Compare `[[feedback_an_instrument_that_cannot_return_otherwise_is_not_a_measurement]]`: the failure mode is the same shape one level up.
+
+**Method note.** Three instruments were wrong before they were right, and **two were invisible to their own controls** — a false "no delta" from a fixture that made every case fail identically, and a comment-stripping regex that shifted every reported line number by 362 while six planted controls stayed green. The second is the transferable one: a rule that reports a **site** cannot reuse a comment strip written for a rule that only reports **existence**. The falsifier now shipped is stated as an invariant rather than a pinned literal — every line a scanner reports must, read back from the real file, contain the token claimed for it — so it cannot rot as the source moves.
+
+**Provenance.** `notes/_s1_acquire_sites_rc432.{py,ndjson}` (the pre-repair oracle: 8/8 sites confirmed by execution, 7 planted controls) · `notes/_s1_acquire_sites_rc432_postfix.ndjson` (the same oracle re-run against the repaired tree, so the flip is a measurement rather than a claim) · `notes/_s2_instrument_design_rc432.{py,ndjson}`. Gates: `tests/test_acquire_before_validate_rc432.py`, `tests/test_unowned_acquisition_rc432.py`, `tests/test_c_resource_ownership_rc432.py`. **Status:** MEASURED, shipped v0.9.0rc432.
+
+**Cross-references.** §3.53 (the rc430 round whose gate-blind-spot lesson this extends). Memory: `[[feedback_an_instrument_that_cannot_return_otherwise_is_not_a_measurement]]`, `[[feedback_ungated_surfaces_trickle_gated_surfaces_race_to_100]]`, `[[feedback_false_green_comments_and_dead_instrumentation_seams]]`, `[[feedback_a_filter_that_hides_ripple_is_the_gate_lying]]`, `[[feedback_dont_ship_partial_unproven_difficulty_is_not_an_excuse]]`.
 
 ---
 
@@ -6237,7 +8172,7 @@ This reading has **living, still-practiced human attestation** — the "living s
 
 ### §8.2 — Where Siona learns: the genome storage substrate + the self-naming class layer (F716/F717; srmech 0.7.5rc42)
 
-§8.1 said *thinking is a grounded path*. This subsection lands **where that path is stored and learned into** — the storage substrate Siona accumulates onto — now shipped as a first-class srmech surface (`srmech.amsc.genome.*` + the class-from-TOML loader, srmech 0.7.5rc42, verified F716). The whole storage object, validated as F711–F715 on the research subtree, is now the package:
+§8.1 said *thinking is a grounded path*. This subsection lands **where that path is stored and learned into** — the storage substrate Siona accumulates onto — now shipped as a first-class srmech surface (`srmech.biology.genome.*` + the class-from-TOML loader, srmech 0.7.5rc42, verified F716). The whole storage object, validated as F711–F715 on the research subtree, is now the package:
 
 > **GENOME** (multi-kernel strand) → **CHROMOSOMES** (one kernel's strand, telomere-capped) → **helix of QUAD-TURNS** (the kernel's history; RAM-bounded, disk-paged) → **QUAD-TURN** = one native 4-sector biaxial "+" (`cascade.parallel_sector_dispatch`, CAP=4) + a base-4 leaf address (radix 4ᵏ) → **LEAF ≤ 256 = 2⁸** (a dense "tome") — **every turn coupled through `the_one`** (native `klein4_bind`, reversible), **telomeres** the non-data content-address caps that partition the chromosomes.
 
@@ -6279,7 +8214,7 @@ This reading has **living, still-practiced human attestation** — the "living s
 
 **Where it sits in the three-faced result.** This capacity law is one of three faces of a single object — **the operand-irrepresentable f⁻ shadow** — surfaced by the same delta dive: (Q1) the capacity **ceiling** here; (Q2) `fractal_spectrum` as the **reader** that diagnoses why symmetric folds are useless (Ch-1 isometry, no new mode) and asymmetric folds separate the distribution (Ch-2 decimation, distinct `d_s`/`|q|` rungs); (Q3) the elliptic quasi-periodicity multiplier `−z⁻¹` as the **exact** per-level form of the asymmetric fold (F995), exact up to the mock-theta shadow. The exact-operations machinery **formalises the representable skeleton and names the shadow each time** — F996's "operations bit-exact / information continuous" made formal (Q1), instrumental (Q2), and exact (Q3).
 
-*Composes F996 (the ontological inversion) + F991 (tome-size = resonant-mode capacity lever) + F896 (the capacity wall) + F552 (the model↔biology gap = the continuous substrate) + F172 (the Laplacian eigenspectrum IS the srmech-native storage signature, Class L) + F971/F968–970 (harmonic-Maass f⁺/f⁻; the mock-theta residue = the discarded f⁻) + the DUALITY.md/TRIALITY.md field/continuous-vs-excitation/discrete layer (F400 reading: duality = the fibration of triality). srmech surfaces: `srmech.amsc.coupling.fractal_spectrum` (0.9.0rc100, the Ch-2 subharmonic reader) + `resonant_spectrum` (the Ch-1 harmonic reader) + `carrier_spectrum` (0.9.0rc69, the two channels). Delta-dive probe: `scratchpad/delta_probe.py` (committed to the dive record). Candidate reading; held open (F394).*
+*Composes F996 (the ontological inversion) + F991 (tome-size = resonant-mode capacity lever) + F896 (the capacity wall) + F552 (the model↔biology gap = the continuous substrate) + F172 (the Laplacian eigenspectrum IS the srmech-native storage signature, Class L) + F971/F968–970 (harmonic-Maass f⁺/f⁻; the mock-theta residue = the discarded f⁻) + the DUALITY.md/TRIALITY.md field/continuous-vs-excitation/discrete layer (F400 reading: duality = the fibration of triality). srmech surfaces: `srmech.biology.coupling.fractal_spectrum` (0.9.0rc100, the Ch-2 subharmonic reader) + `resonant_spectrum` (the Ch-1 harmonic reader) + `carrier_spectrum` (0.9.0rc69, the two channels). Delta-dive probe: `scratchpad/delta_probe.py` (committed to the dive record). Candidate reading; held open (F394).*
 
 
 ## How to cite this notebook

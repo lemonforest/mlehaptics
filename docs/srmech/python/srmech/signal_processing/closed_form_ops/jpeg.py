@@ -106,7 +106,7 @@ def _native_encode(img, h, w, qt, bs):
     ``bs×bs`` integer list-of-lists) or ``None`` (caller runs the pure path).
     The DCT-II basis is built ONCE through the byte-exact Class-N
     ``rational.cos`` cascade (the SAME basis the pure per-block path uses)."""
-    from srmech.amsc import _native
+    from srmech import _native
 
     if not _native.has_native_jpeg_f64():
         return None
@@ -138,7 +138,7 @@ def _native_decode(quant_blocks, bh, bw, qt, bs):
     """Dispatch the whole decode pipeline to the c_dispatched
     ``srmech_jpeg_decode_f64`` (rc213) — returns the reconstructed 2-D image
     ``list`` or ``None`` (caller runs the pure path)."""
-    from srmech.amsc import _native
+    from srmech import _native
 
     if not _native.has_native_jpeg_f64():
         return None

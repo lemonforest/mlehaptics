@@ -9,10 +9,10 @@ A researcher authors a ``[class]`` TOML descriptor (fields + methods-as-cascade-
 op-refs) and this loader constructs a generic, class-aware :class:`CatalogClass`
 from it — **zero user Python, 100% declarative**. Each method ``binds`` to a
 shipped cascade op resolved by dotted srmech path (e.g.
-``srmech.amsc.genome.chromosome``); the genome surface's flat functions are the
+``srmech.biology.genome.chromosome``); the genome surface's flat functions are the
 primitives the methods compose. The genome/chromosome/telomere storage class
 ships as the built-in seed worked-instance
-(``srmech/amsc/_research/class_catalog/genome.toml``).
+(``srmech/cascade/catalogs/class_catalog/genome.toml``).
 
 Discovery mirrors :mod:`srmech.dsl._catalog` exactly: the packaged catalog
 (A-tier) PLUS any external dirs from ``SRMECH_CLASS_PATH`` /
@@ -30,19 +30,29 @@ from __future__ import annotations
 
 import importlib
 import os
-import sys
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Tuple
 
-if sys.version_info >= (3, 11):
-    import tomllib as _toml
-else:  # pragma: no cover — 3.10-only branch
-    import tomli as _toml  # type: ignore[no-redef]
+# srmech's own internal TOML front door (`#T907` slice 2). Native `srmech_toml`
+# parser first, stdlib ``tomllib`` (3.11+) / ``tomli`` (3.10) floor otherwise —
+# the [class] catalog descriptors now self-host on the C parser wherever it is
+# present. The parsed value — and any ``TOMLDecodeError`` on a malformed
+# descriptor — is identical to the previous stdlib-only parse either way (a
+# float-bearing doc, should one appear, is DECLINED by the C path and rides the
+# bit-exact stdlib parser). ``srmech._toml`` is a leaf module (it imports
+# ``srmech._native`` lazily inside ``loads()``), so this introduces no cycle.
+from srmech import _toml as srmech_toml
 
 #: On-disk directory housing the packaged [class] TOML descriptors.
+#:
+#: Moved out of ``srmech/amsc/_research/`` by ADR-0010's first execution slice
+#: (rc364): the composition layer owns the built-in catalogs, and ``amsc`` is
+#: reserved for the collector/catalog/attestation framework it was named for.
+#: The LOADER stays here in ``srmech.dsl`` — the ADR moves descriptors, not
+#: functions.
 CLASS_CATALOG_DIR: Path = (
-    Path(__file__).parent.parent / "amsc" / "_research" / "class_catalog"
+    Path(__file__).parent.parent / "cascade" / "catalogs" / "class_catalog"
 )
 
 _PROVENANCE_SHIPPED = "srmech"
@@ -110,7 +120,7 @@ def load_class_catalog() -> Dict[str, Dict[str, Any]]:
             )
         for toml_path in sorted(base.glob("*.toml")):
             raw = toml_path.read_bytes()
-            desc = _toml.loads(raw.decode("utf-8"))
+            desc = srmech_toml.loads(raw.decode("utf-8"))
             class_section = desc.get("class")
             if not isinstance(class_section, dict):
                 raise ValueError(
@@ -141,7 +151,7 @@ def load_class_catalog() -> Dict[str, Dict[str, Any]]:
 
 @lru_cache(maxsize=None)
 def _resolve_op(dotted: str) -> Callable:
-    """Resolve a dotted srmech path (e.g. ``srmech.amsc.genome.chromosome``) to
+    """Resolve a dotted srmech path (e.g. ``srmech.biology.genome.chromosome``) to
     its callable. Split on the last dot → ``import_module(parent)`` + getattr."""
     if "." not in dotted:
         raise ValueError(f"class method op must be a dotted path; got {dotted!r}")

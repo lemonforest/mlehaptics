@@ -1,0 +1,91 @@
+# Class catalog entry: Genome (the seed worked-instance; gh #962 Part 2 / #566).
+#
+# A user-authored [class] descriptor — the names of the biological structures
+# (genome / chromosome / telomere) used as the cascade names of a storage class.
+# srmech's config-driven loader (srmech.dsl.make_class) constructs a generic,
+# class-aware CatalogClass from this TOML: zero user Python, 100% declarative.
+# Each method binds to a shipped cascade op (resolved by dotted srmech path);
+# the genome surface's flat functions (srmech.biology.genome.*) are the primitives
+# these methods compose.
+#
+# This is the built-in seed. A researcher drops their own [class].toml in a dir
+# registered via srmech.dsl.register_class_dir() / SRMECH_CLASS_PATH and gets the
+# identical class-aware surface (the cascade-catalog register_catalog_dir pattern
+# lifted from ops to classes). A user class-name may NOT shadow a shipped one.
+
+[class]
+name = "Genome"
+kind = "storage"
+doc = """
+A telomere-partitioned genome of chromosomes (F711-F715). Hold coupling (the
+shared invariant every helix turn is coupled through) and accumulate
+telomere-capped chromosome strands; recall any kernel by its strand + cap.
+The biological-structure names ARE the cascade names — substrate-self-recognition.
+"""
+
+# Instance state. A "list*"-typed field defaults to []; others default to None
+# and are supplied at construction (e.g. Genome(coupling=...)).
+[class.field]
+coupling = "hv"            # the held invariant (a Klein-4 vector)
+chromosomes = "list"      # accumulated telomere-capped strands
+
+# Methods. Each binds to a shipped cascade op by dotted path; `binds` names are
+# resolved positionally from the call kwargs first, then the instance fields;
+# any leftover call kwarg passes through (e.g. label=). `appends`/`sets` route
+# the op result back into a field.
+[class.method.shape]
+op = "srmech.biology.genome.encode_shape"
+binds = ["n"]
+doc = "Decide the encode shape (tome / mobius / quad_strand) for a kernel of size n."
+
+[class.method.cap]
+op = "srmech.biology.genome.telomere"
+binds = ["label"]
+doc = "Make the telomere content-address cap for a chromosome label."
+
+[class.method.add_chromosome]
+op = "srmech.biology.genome.chromosome"
+binds = ["leaves", "coupling"]
+appends = "chromosomes"
+doc = "Pack a kernel into a telomere-capped chromosome (coupled through coupling) and append it."
+
+[class.method.recall]
+op = "srmech.biology.genome.recall"
+binds = ["strand", "coupling", "telomere"]
+doc = "Recover a kernel's leaves from a chromosome strand (re-bind coupling; skip the cap)."
+
+[class.method.assemble]
+op = "srmech.biology.genome.genome"
+binds = ["kernels", "coupling"]
+doc = "Pack many kernels {label: leaves} into ONE telomere-partitioned genome strand (the chromosome set)."
+
+[class.method.partition]
+op = "srmech.biology.genome.partition"
+binds = ["strand", "coupling", "labels"]
+doc = "Recover {label: leaves} from a multi-kernel genome strand by its telomere labels."
+
+# ── UPSTREAM §41 — genome persistence (disk save / load / catalog / append) ──
+# The helix grows ON DISK: a genome directory holds a self-describing
+# append-only body (turns.bin; §55/v3 bit-packs data turns 4 Klein-4
+# symbols/byte) plus an MPR-attested manifest catalog. Reads are paged +
+# bounded (every read re-hashes the bytes it touched vs the manifest).
+
+[class.method.save]
+op = "srmech.biology.genome.genome_save"
+binds = ["strand", "path", "coupling", "labels"]
+doc = "Persist a genome strand to path/ (turns.bin body + MPR manifest catalog); coupling bound from the field. Returns the manifest dict."
+
+[class.method.load]
+op = "srmech.biology.genome.genome_load"
+binds = ["path"]
+doc = "Reconstruct (strand, coupling, labels) from path/; labels=None loads all (streamed), else only those chromosomes (paged). Bounded by re-hash."
+
+[class.method.catalog]
+op = "srmech.biology.genome.genome_catalog"
+binds = ["path"]
+doc = "Read ONLY the manifest catalog at path/ (leaf_dim, per-chromosome cap_sha256/leaf_count/byte_offset/byte_len, body_sha256) — never opens turns.bin."
+
+[class.method.append]
+op = "srmech.biology.genome.genome_append"
+binds = ["path", "label", "leaves", "coupling"]
+doc = "Append ONE chromosome to the genome at path/ (the helix grows; append-only body; prior entries unchanged); coupling bound from the field. Returns the updated manifest."

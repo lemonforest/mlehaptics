@@ -49,7 +49,12 @@ beyond a single-file read.
   has both a native C surface (`libsrmech.{so,dll,dylib}`) and a
   Python wrapper (`srmech.amsc.<class>`); pure-Python fallback for
   Pyodide / WASM environments.
-- The **canonical QM/QFT/SM operations layer** at `srmech.qm.*`
+- The **canonical QM/QFT/SM operations layer** at `srmech.physics.qm.*`
+  (moved there from `srmech.qm.*` by the ADR-0010 physics slice,
+  v0.9.0rc381; the old `srmech.qm.*` path was REMOVED in v0.9.0rc382 —
+  a clean break, no alias, per the no-legacy-path discipline — so
+  `import srmech.qm` now raises `ModuleNotFoundError`; use
+  `srmech.physics.qm.*`)
   (Task #217 Phase C1 rc9-rc11) — single_particle (TDSE/TISE/Heisenberg
   /commutator/density-matrix/Liouville-vN), spin (Pauli + Cl(0,3)),
   potentials (hydrogen radial + harmonic oscillator), relativistic
@@ -62,13 +67,23 @@ beyond a single-file read.
   `[[feedback_science_is_ssot_not_project]]`.
 - **Tool-schema introspection** at `srmech.amsc.tool_schema` —
   ~87 ToolEntry registrations covering every public callable in
-  `srmech.amsc.*` and `srmech.qm.*` with canonical-SSoT-cited
+  `srmech.amsc.*` and `srmech.physics.qm.*` with canonical-SSoT-cited
   summaries (Task #217 Phase C1 rc12 / Tasks #219 + #220).
 - The dependency surface that downstream spectral-research
   packages (`ephemerides-spectral` today; more later) register
   their catalog SSOTs with via `srmech.amsc.catalog.register_attested_root()`.
 
 **What shipped since v0.4.0 — the v0.5.0 and v0.6.0 arcs:**
+
+> ⚠️ **Paths in this release narrative are AS-SHIPPED-THEN, not as-importable-now.**
+> The `qm` subpackage moved to `srmech.physics.qm.*` (ADR-0010, v0.9.0rc381) and
+> the old `srmech.qm.*` spelling was REMOVED at v0.9.0rc382 — `import srmech.qm`
+> raises `ModuleNotFoundError` today. Five entries below named the dead path with
+> nothing marking it dead, and they read as live API; rc406 (`#T1074`) gives each
+> one its current spelling inline. Measured cost of leaving it: a session read
+> line 86 and repeated `srmech.qm.so8.an_embedding` into a technical answer as a
+> live path. This file is loaded as orientation every session and is explicitly
+> NOT hygiene-gated, so a stale path here PROPAGATES rather than sitting inert.
 
 - **v0.5.0 (graduated to production PyPI)** — the rc9–rc22 voxel
   arc, srmech recognising its own shape voxel-by-voxel. It adds:
@@ -78,16 +93,21 @@ beyond a single-file read.
   descriptors; the **`srmech-mcp`** Model Context Protocol server
   adapter (for Claude Code) and the **`srmech-agent`** Anthropic
   SDK adapter; the **profile-plugin loader**; a top-level
-  **`srmech.native_status()`**; **`srmech.qm.so8.an_embedding`**
+  **`srmech.native_status()`**; **`an_embedding`** — shipped as
+  `srmech.qm.so8.an_embedding`, now **`srmech.physics.qm.so8.an_embedding`**
   (14 = 8 + 3 + 3̄ su(3) branching of g₂ = Der(𝕆)); the full
-  **28 = 𝔰𝔬(8) chiral read-out** (`srmech.qm.so8` adjoint +
-  `srmech.qm.triality` order-3 outer automorphism); and
+  **28 = 𝔰𝔬(8) chiral read-out** (then `srmech.qm.so8` / `srmech.qm.triality`,
+  now **`srmech.physics.qm.so8`** adjoint +
+  **`srmech.physics.qm.triality`** order-3 outer automorphism); and
   **`srmech mcp emit-mcpb`** (emits a Claude Desktop `.mcpb`
   bundle from introspection).
 - **v0.6.0 (rc1–rc14 to date; rc14 dev head)** — the lean-ISA arc.
   It adds: the **`cascade.atoms` / `cascade.compose`** two-tier
-  lean-ISA split (#751); **`srmech.qm.so8.quaternion_subalgebra_stabilizer`**
-  so(4) = su(2) ⊕ su(2) (#759); **`srmech.qm.triality.lean_isa_seventh_primitive`**
+  lean-ISA split (#751); **`quaternion_subalgebra_stabilizer`** — shipped as
+  `srmech.qm.so8.*`, now **`srmech.physics.qm.so8.quaternion_subalgebra_stabilizer`**
+  — so(4) = su(2) ⊕ su(2) (#759); **`lean_isa_seventh_primitive`** — shipped as
+  `srmech.qm.triality.*`, now
+  **`srmech.physics.qm.triality.lean_isa_seventh_primitive`** —
   order-3 triality 7th primitive (#761); `sha256_bytes` docs
   (#738); a **reentrant C core** (#772 — thread-local scratch; note the
   caveat reconciled in rc306 below); the Klein-4 four-sector
@@ -152,7 +172,7 @@ beyond a single-file read.
 The carrier-removal arc, done one-rc-per-module, **left a duplication
 debt**: it was meant to be *numpy-spirited* (one dtype-transparent
 carrier op per operation), but each flip *added* a kernel. The
-`srmech.amsc.laplacian` Class-L surface ended up with the same op in
+`srmech.math.laplacian` Class-L surface ended up with the same op in
 two-to-four forms. The consolidation hard-removes the redundancy down
 to one dtype-polymorphic `mat_*` op each (user 2026-06-13: "we messed
 up big time with numpy-removal inflation … fix this pollution"; **hard
@@ -190,7 +210,20 @@ STAYS (elementwise ops use it). Each removal also touches: laplacian
 `__all__` (×2: the top list + `LAPLACIAN_OPS`), the `ToolEntry` in
 `tool_schema.py`, the `rosetta_classification.ndjson` ledger, the
 **#928 down-only Rosetta ratchet**, the `describe()["tools"]["total"]`
-count in the **five** duplicated count-tests, and `_native.py`.
+count in the duplicated count-tests, and `_native.py`.
+
+⚠️ **This line said "the FIVE duplicated count-tests" until rc362 — that was stale
+and it mis-scoped a build brief.** Measured **at rc414, predicate stated**:
+`git grep -c "== <total>"` over `tests/` only → **73 lines across 66 test
+files**, PLUS `EXPECTED_N` in `tests/test_op_name_set_witness_rc361.py`, which
+that predicate cannot match (it is a bare assignment, not a comparison) and
+which also needs the manifest rewritten and its sha256 re-pinned in the same
+commit. The rc362 figure written here was "61 sites across ~54 files" with no
+predicate given — and an unstated predicate is why a re-measurement cannot be
+reproduced. "Five" was true around rc135 and
+the surface has grown by an order of magnitude since. Do not brief a count-bumping
+change as a five-file edit. Re-measure before quoting a number here — this file is
+explicitly NOT hygiene-gated, so nothing else will catch it going stale again.
 **C/Python 1:1 parity (user directive):** `srmech_dense_matmul_complex`
 stays — it still backs `mat_matmul`; but the now-orphaned
 `srmech_dense_matvec_complex` kernel is **removed** from the C surface
@@ -243,18 +276,44 @@ docs/srmech/
     │   │   ├── catalog.py             ← register_attested_root, bridge surfaces
     │   │   ├── _native.py             ← ctypes shim; HAS_NATIVE / sha256_hex_c / ndjson_lines_c
     │   │   ├── gap_suggester.py
-    │   │   ├── adapters/              ← html / json / csv / netcdf / geotiff / literature_curated
-    │   │   └── _research/cascade_catalog/  ← 10 TOML cascade descriptors (lean-ISA atoms/composites + parallel_sector_dispatch + kuramoto_step), loaded by srmech.dsl
+    │   │   └── adapters/              ← html / json / csv / netcdf / geotiff / literature_curated
+    │   ├── cascade/                    ← ADR-0010's FIRST new top-level namespace (rc364)
+    │   │   └── catalogs/               ← the built-in descriptor catalogs, moved out of amsc/_research/
+    │   │       ├── class_catalog/      ←  4 [class] TOML descriptors, loaded by srmech.dsl.make_class
+    │   │       ├── cascade_catalog/    ← 20 [cascade] TOML descriptors, loaded by srmech.dsl
+    │   │       ├── alias_catalog/      ←  2 alias descriptors ([[alias]] + [genome.type_aliases]); NEW rc364
+    │   │       └── worked_instances/   ←  1 worked-instance descriptor
     │   └── _native/                   ← (wheel install only) libsrmech.so/.dll/.dylib
     └── tests/                         ← pytest suite
 ```
 
 The **`srmech.dsl`** operator-chain runner loads the cascade
-descriptors under `srmech/amsc/_research/cascade_catalog/` — now
-**10 TOML descriptors**: the 8 lean-ISA atoms/composites
-(`chiral_flip`, `pin_slot_at_zero`, `magnitude`, `reorient`,
-`net_chirality`, `cyclic_gcd`, `best_rational_signed`,
-`chiral_dual`) plus `parallel_sector_dispatch` and `kuramoto_step`.
+descriptors under `srmech/cascade/catalogs/cascade_catalog/`.
+
+⚠️ **This line said "10 TOML descriptors" until rc363 — measured on the
+rc363 branch: 20.** The 10 named below are the v0.6.0-era set (the 8
+lean-ISA atoms/composites `chiral_flip`, `pin_slot_at_zero`, `magnitude`,
+`reorient`, `net_chirality`, `cyclic_gcd`, `best_rational_signed`,
+`chiral_dual`, plus `parallel_sector_dispatch` and `kuramoto_step`); the
+catalog has since doubled. Re-count before quoting a number here — this
+file is explicitly NOT hygiene-gated, which is exactly how the sibling
+"five duplicated count-tests" line reached a 12× under-scope (ADR-0012
+§1.1). ~~**And nothing else can catch it**: ADR-0012 §3.4 (clause C6)
+measures that the 20 cascade descriptors have ZERO `describe()`
+visibility — `json.dumps(describe())` contains `"cascade_catalog"` 0
+times — so this prose sentence is currently the tree's only statement of
+how many there are.~~ **SUPERSEDED at rc420 (`#T1114`)**: C6's
+cascade_catalog front is CLOSED — `describe()["cascade_catalog"]` now
+counts the catalog live (`total` / `executable` / `leaf` + a
+per-descriptor status map; 20 = 17 executable + 3 explicit leaves at
+rc420), every descriptor declares an executable ADR-0008 chain or an
+explicit leaf (`tests/test_cascade_catalog_executable_rc420.py`, no
+third state), and `srmech.dsl.run_cascade_chain` runs a declared chain.
+This prose is no longer the only statement of how many there are — the
+live count is the SSoT and this sentence defers to it. The `[class]`
+catalog next door was always counted
+(`describe()["classes"]["toml_total"] == 4`); the asymmetry C6 named is
+gone on this front (the `[[alias]]` layer's axis is still open).
 
 **Discipline — PREFER config-driven `[class]` TOML over hand-coded
 domain classes** (`[[feedback_prefer_config_driven_toml_classes]]`,
@@ -262,9 +321,9 @@ user direction 2026-06-13). When a domain object is a
 cascade-of-the-14 composition (state + cascade-op-chain methods),
 declare it as a `[class]` TOML descriptor consumed by
 `srmech.dsl.make_class` / `register_class_dir` (descriptors live
-under `srmech/amsc/_research/class_catalog/`; the seeds are
+under `srmech/cascade/catalogs/class_catalog/`; the seeds are
 `genome.toml` + `hurwitz.toml`). The `Mat`/`Vec`/`HV` carriers,
-`srmech.bus`, the `adapters/`, and the `srmech.qm.*` physics
+`srmech.bus`, the `adapters/`, and the `srmech.physics.qm.*` physics
 op-families STAY hand-coded Python. **Conversion follows the genome
 two-layer pattern** — ship each method as a flat cascade op, then
 bind it in the TOML; the `make_class` contract is one-op-per-method
@@ -332,9 +391,16 @@ remaining classes K/M/N ship in subsequent rc additions under
 signed-metric / Wick-rotation operation located by Spike #24
 bonus 8 and narrowed by bonus 9 was **dissolved into Class L
 as a signed-Laplacian-variant sub-operation** per
-`[[feedback_no_privileged_primitive_classes]]`. Future Class L rcs
-will add the signed-Laplacian op when Phase C2 cascade-composition
-work calls for it. Vocabulary stays at 14 classes A–N.
+`[[feedback_no_privileged_primitive_classes]]`. **The signed-Laplacian
+op SHIPPED** — `signed_laplacian` at `srmech/math/laplacian.py:3279`
+(real symmetric PSD, Class-K magnitude degree; Kunegis et al. SDM 2010),
+with `magnetic_laplacian` at `:3458` as the Hermitian directed / chiral
+peer (per-edge `charges=` mode; Lieb & Loss, *Duke Math. J.* **71**
+(1993) 337–363, arXiv:cond-mat/9209031; Reff, *LAA* **436** (2012)
+3165–3176, arXiv:1110.4554). This passage previously read "future
+Class L rcs will add the signed-Laplacian op" and was stale per
+`[[feedback_claude_md_orientation_can_lag_notebook_ssot]]` — corrected
+2026-07-25. Vocabulary stays at 14 classes A–N.
 
 Each class follows the same ratchet — parity test + JPL Power-of-Ten
 audit + cibuildwheel matrix update + TestPyPI rc verification per
@@ -576,9 +642,17 @@ calls** — go through `sha256_bytes` (Phase B5 discipline).
 
 ### ABI compatibility
 
-C ABI version is currently **9** (`SRMECH_ABI_VERSION = 9` in
-`c/include/srmech.h`; `EXPECTED_ABI_VERSION = 9` in
-`python/srmech/amsc/_native.py`). **Bump in lockstep** whenever
+C ABI version is currently **14** (`SRMECH_ABI_VERSION = 14` in
+`c/include/srmech.h`; `EXPECTED_ABI_VERSION = 14` in
+*(this line said 12 until rc420 and 13 until rc425 — one bump behind on both
+occasions, the exact staleness shape the rc404 note below records; the v13 bump
+was rc418's, the v14 bump is rc425's `srmech_mlse` wire-contract change)*
+`python/srmech/_native/__init__.py`). *(These three lines said ABI **9** and
+pointed at `python/srmech/amsc/_native.py` until rc404 (`#T1069`) — two stale
+facts in three lines: the version was three bumps behind, and ADR-0010 moved
+the shim, so the named path had ceased to exist. This file is NOT
+hygiene-gated, so nothing but a reader catches that.)* **Bump in lockstep**
+whenever
 the wire format of any existing exported function changes. Adding
 a new symbol does NOT bump ABI (the Python shim just doesn't bind
 unknown symbols) — EXCEPT that, by standing precedent, adding a new
@@ -610,6 +684,41 @@ gained `(void *ws, size_t ws_len)` caller-arena params (removing its
 32 MiB static catalog arena / static count table / static window — the
 ~11k-section corpus cap AND the non-reentrancy), with the paired ctypes
 argtypes updated in lockstep. `GENOME_FORMAT_VERSION` stays 15.
+**v10 (v0.9.0rc307)** reinterpreted the `fiedler_sparse` family's
+`ws_len` UNIT from a count-of-doubles to BYTES — no signature changed shape,
+but the CONTRACT of an existing param did. **v11 (v0.9.0rc395, `#T1000`)**
+removed `srmech_cd_zero_divisor_witness` (a removal always bumps).
+**v12 (v0.9.0rc404, `#T1069`)** is the second bump of the v10 kind: no
+signature changed, but `srmech_json_parse` / `srmech_toml_parse` now RETURN a
+different status (the new `SRMECH_ERR_LIMIT = 8`) for a class of input that
+returned `SRMECH_ERR_OVERFLOW = 4` through rc403. The status block in
+`srmech.h` states outright that non-zero values "form part of the wire
+contract with the Python ctypes binding", so reinterpreting one is a
+wire-contract change. It is load-bearing rather than ceremonial here: rc404
+also deletes the rc401 Python pre-scan that existed only because the two
+conditions shared a status, and a stale rc403 `.so` reports ABI 11 — so
+without the bump it would still LOAD and silently cost ~512 MiB on an
+out-of-int64 literal (the answer stays correct; only the cost is wrong).
+`GENOME_FORMAT_VERSION` stays 19 throughout v10–v12.
+
+**v14 (v0.9.0rc425, `#T1112`)** is the THIRD bump of the v10 / v12 kind: no
+signature changed shape, but an existing parameter's CONTRACT did.
+`srmech_mlse`'s `n_states` meant `A^(L-1)` through rc424 and now means `A^L`.
+The trellis state must span the whole tap window, because `y_t = Σ_k taps[k]·s_{t-k}`
+reads all `L` symbols and a state-emission Viterbi cannot express an emission
+that depends on a symbol outside its state. The rc424 kernel held `L-1` and
+folded `taps[0]` and `taps[1]` onto the SAME symbol, so it decoded a different
+channel — `[h0+h1, h2, …]` with the memory shifted a step — and returned a wrong
+sequence **with no error signal**. Measured against an exhaustive
+maximum-likelihood search it disagreed on **4 of 9** test channels, returning a
+sequence of cost 13.0 where the transmitted one scored exactly 0.0; it agreed
+only where the cursor tap dominates, which is precisely the regime in which a
+plain slicer is also right, so the error hid wherever the op was not earning its
+keep. Fixed in BOTH projections and differential-tested (60 random channels,
+zero Python/C divergence). Load-bearing rather than ceremonial: a stale rc424
+`.so` would still LOAD into rc425 Python, which now sizes its scratch arena for
+`A^L` states, and the stale lib would carve `tup`/`ntup` at the old width against
+that larger arena. `GENOME_FORMAT_VERSION` stays 19 — no on-disk format moves.
 
 **#772 reconciliation (rc306).** The "reentrant C core" claim (#772) rests
 on the `SRMECH_THREAD_LOCAL` thread-local-storage scratch. `srmech_genome_section_counts`

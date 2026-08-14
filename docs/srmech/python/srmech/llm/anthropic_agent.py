@@ -15,7 +15,7 @@ SECONDARY for users who:
 * Don't have Claude Code in their workflow.
 
 Same tool catalog as MCP (the ~149 :class:`ToolEntry` registrations
-in :mod:`srmech.amsc.tool_schema`); same MPR attestation discipline
+in :mod:`srmech.introspect.tool_schema`); same MPR attestation discipline
 per tool call (re-uses :func:`srmech.mcp._server.build_attestation`
 so the two adapters emit byte-identical attestation envelopes for
 the same tool/result pair).
@@ -163,7 +163,7 @@ class AnthropicAgentConfig:
 
 
 class AnthropicAgent:
-    """Build the tool catalog from :mod:`srmech.amsc.tool_schema`,
+    """Build the tool catalog from :mod:`srmech.introspect.tool_schema`,
     hand to the Anthropic SDK, run the tool_use message-loop, return
     the final assistant message + per-tool-call MPR attestation
     transcript.
@@ -224,7 +224,7 @@ class AnthropicAgent:
             ``name_map`` is the Anthropic-name -> srmech-name reverse
             lookup used by :meth:`_invoke_tool`.
         """
-        from ..amsc.tool_schema import get_tool_schema
+        from ..introspect.tool_schema import get_tool_schema
         from ..mcp._tools import tool_entry_to_mcp_def
 
         ts = get_tool_schema()

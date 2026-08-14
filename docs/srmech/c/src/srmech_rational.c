@@ -54,7 +54,7 @@
 
 /* exp_series_truncate bound: 20! = 2.4e18 < UINT64_MAX = 1.8e19. At
  * num_terms=21 the factorial overflows u64 (21! = 5.1e19). Python
- * srmech.amsc.rational.exp_series_truncate handles larger N via bignum. */
+ * srmech.math.rational.exp_series_truncate handles larger N via bignum. */
 #define SRMECH_EXP_SERIES_MAX_TERMS 20
 
 /* Helper — Euclidean GCD on uint64. Used by exp_series_truncate for the
@@ -118,10 +118,18 @@ static srmech_status_t exp_series_accumulate(int64_t *sum_num,
                                              bool     term_negative)
 {
     assert(sum_num != NULL);
-    assert(term_abs <= (uint64_t)INT64_MAX || term_abs == 0);
+    /* rc357 (`#T980`): a term in (INT64_MAX, UINT64_MAX] is an EXPECTED,
+     * in-contract input — it is exactly the "too big for the int64 tier, use
+     * bignum" signal the two-tier design rests on, and rational.py:505 acts on
+     * it ("On overflow, fall through to bignum path"). Asserting its negation
+     * ABOVE the guard made the supported outcome abort the host on an
+     * asserts-live build while NDEBUG returned the right answer. The assert is
+     * right in content and was wrong in POSITION; below the guard it states an
+     * invariant that holds by construction. */
     if (term_abs > (uint64_t)INT64_MAX) {
         return SRMECH_ERR_OVERFLOW;
     }
+    assert(term_abs <= (uint64_t)INT64_MAX);
     int64_t term_signed = term_negative
                           ? -(int64_t)term_abs
                           :  (int64_t)term_abs;
@@ -412,7 +420,7 @@ static void exp_series_reduce(int64_t   sum_num,
  * Final result reduced by gcd(|sum_num|, sum_den).
  *
  * Bounded to num_terms ≤ 20 (20! fits u64). Python wrapper falls back
- * to bignum (srmech.amsc.rational.exp_series_truncate) when inputs
+ * to bignum (srmech.math.rational.exp_series_truncate) when inputs
  * exceed this bound or any intermediate overflows. Per
  * [[feedback_no_binding_layer_carveout]] the C library is usable
  * STANDALONE — no Python required for catalog-row-shaped inputs.

@@ -1,6 +1,6 @@
 """rc320 — Class-N precision-contract migration WAVE 2 prove-gates.
 
-The seven Q61 float-projection ops (:func:`~srmech.amsc.rational.cos` / ``sin`` /
+The seven Q61 float-projection ops (:func:`~srmech.math.rational.cos` / ``sin`` /
 ``tan`` / ``atan`` / ``atan2`` / ``exp`` / ``log``) trade their DEAD ``terms``
 keyword for a LIVE ``precision``:
 
@@ -41,9 +41,10 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc import rational as R
-from srmech.amsc.rational import (
+from tests._native_gate import require_native
+from srmech import _native
+from srmech.math import rational as R
+from srmech.math.rational import (
     cos, sin, tan, atan, atan2, exp, log, _classn_working,
 )
 
@@ -188,7 +189,7 @@ def _assert_g1_bit_identity():
 
 
 def test_g1_bit_identity_native():
-    assert _native.HAS_NATIVE, "expected the built .so present (native gate)"
+    require_native("the G1 native bit-identity baseline")
     _assert_g1_bit_identity()
 
 

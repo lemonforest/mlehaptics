@@ -17,7 +17,7 @@ import tempfile
 
 import pytest
 
-from srmech.amsc import laplacian as L
+from srmech.math import laplacian as L
 
 
 # A two-community graph: triangles {0,1,2} and {3,4,5} + one weak bridge 2—3.

@@ -43,10 +43,10 @@ from fractions import Fraction
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc import q as _q_mod
-from srmech.amsc import rational as _rational
-from srmech.amsc.q import Q, _coprime_product
+from srmech import _native
+from srmech.math import q as _q_mod
+from srmech.math import rational as _rational
+from srmech.math.q import Q, _coprime_product
 
 
 def test_numpy_is_absent_so_this_runs_not_skips():

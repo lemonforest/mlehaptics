@@ -6,9 +6,9 @@ elementwise transcendental on the eigenvalue spectrum. The denoised signal
 is ``V·diag(exp(-t*lambda))·V^H·signal``.
 
 Carrier-removal #564 (rc100): numpy-FREE — the eigendecomposition routes through
-the native :func:`~srmech.amsc.laplacian.mat_hermitian_eigendecompose`, the
+the native :func:`~srmech.math.laplacian.mat_hermitian_eigendecompose`, the
 spectral filter ``exp(-t*lambda)`` through the Class-N
-:func:`srmech.amsc.rational.exp` cascade (real eigenvalues; dispatches to native
+:func:`srmech.math.rational.exp` cascade (real eigenvalues; dispatches to native
 ``srmech_exp``), and the project / reconstruct matvecs are pure-Python sums over
 the eigenvector ``Mat``. No top-level ``import numpy``.
 
@@ -23,9 +23,9 @@ from __future__ import annotations
 
 from typing import List
 
-from srmech.amsc.laplacian import mat_hermitian_eigendecompose
-from srmech.amsc.mat import Mat
-from srmech.amsc.rational import exp as _rexp  # Class-N exp cascade, not libm
+from srmech.math.laplacian import mat_hermitian_eigendecompose
+from srmech.math.mat import Mat
+from srmech.math.rational import exp as _rexp  # Class-N exp cascade, not libm
 
 OPERATION_NAME = "heat_kernel"
 CLASS_COMPOSITION = ("L",)
@@ -48,7 +48,7 @@ def op(signal, laplacian, *, t: float = 1.0, D: int = 8192) -> List[complex]:
         ``(n,)`` real or complex node-domain state (a 1-D sequence / ndarray /
         anything with ``tolist()`` — coerced numpy-free).
     laplacian:
-        ``(n, n)`` Hermitian graph Laplacian (a :class:`~srmech.amsc.mat.Mat`,
+        ``(n, n)`` Hermitian graph Laplacian (a :class:`~srmech.math.mat.Mat`,
         nested sequence, or ``tolist()``-able).
     t:
         Diffusion time (larger ``t`` -> more smoothing). Default 1.0.

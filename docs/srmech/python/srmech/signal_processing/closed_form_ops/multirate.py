@@ -36,7 +36,7 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from srmech.amsc import rational as _srn
+from srmech.math import rational as _srn
 from srmech.signal_processing import _dsp_cascades as _dsp
 
 OPERATION_NAME = "multirate"
@@ -149,7 +149,7 @@ def op(
     # srmech_dense_matmul_complex (_dsp.convolve_matmul); otherwise the complete
     # numpy-free pure cascade. Both return a list; the matmul path is within-tol
     # (not byte-identical).
-    from srmech.amsc import _native
+    from srmech import _native
 
     _convolve = (
         _dsp.convolve_matmul

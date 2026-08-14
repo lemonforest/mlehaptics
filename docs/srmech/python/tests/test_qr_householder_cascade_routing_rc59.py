@@ -2,7 +2,7 @@
 
 The 8 ``matrix_cascades`` QR-internal matmul callsites (the Householder
 reflector matvecs/outers, the self-binds, and the lstsq back-solve) route onto
-the existing value-faithful ``dense_*`` kernels in ``srmech.amsc.laplacian``.
+the existing value-faithful ``dense_*`` kernels in ``srmech.math.laplacian``.
 The kernels are value-faithful, so the decomposition INVARIANTS are preserved —
 this test pins them across real/complex and 1-D / multi-column right-hand sides,
 and asserts ``matrix_cascades`` no longer contributes any matmul-ledger token.
@@ -24,8 +24,8 @@ import re
 
 import pytest
 
-from srmech.amsc.cascade import matrix_cascades as mc
-from srmech.amsc.laplacian import hermitian_eigendecompose
+from srmech.cascade import matrix_cascades as mc
+from srmech.math.laplacian import hermitian_eigendecompose
 
 
 _SHAPES = [(5, 5), (6, 3), (4, 4), (7, 2), (3, 3), (8, 5), (2, 2)]

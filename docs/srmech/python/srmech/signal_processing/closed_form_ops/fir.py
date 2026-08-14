@@ -62,7 +62,7 @@ def op(signal, coefficients, *, mode: str = "full", D: int = 8192):
     # srmech_dense_matmul_complex; otherwise the complete numpy-free pure
     # cascade. Both coerce to 1-D lists (ValueError on nested/2-D / empty input)
     # and return a list; the matmul path is within-tol (not byte-identical).
-    from srmech.amsc import _native
+    from srmech import _native
 
     if (
         _native.HAS_NATIVE

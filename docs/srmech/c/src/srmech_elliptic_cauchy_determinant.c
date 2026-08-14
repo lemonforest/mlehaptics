@@ -1,6 +1,6 @@
 /*
  * srmech_elliptic_cauchy_determinant.c -- the 1:1 native C peer of
- * srmech.amsc.elliptic_determinant.elliptic_cauchy_determinant (rc94), the
+ * srmech.apokatastasis.elliptic_determinant.elliptic_cauchy_determinant (rc94), the
  * ELLIPTIC-DETERMINANT primitive: Frobenius's elliptic Cauchy determinant
  * evaluation, the foundation of the multivariable (root-system Cn) elliptic
  * reduction row.

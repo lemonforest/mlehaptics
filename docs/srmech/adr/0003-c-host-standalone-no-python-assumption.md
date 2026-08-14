@@ -1,6 +1,7 @@
 # ADR-0003: srmech is a C-host-standalone deliverable — never assume a Python environment
 
 **Status:** ✅ Accepted — **standing policy** (governs every rc, every op, every review).
+**Clauses:** unaudited.
 **Date:** 2026-07-16.
 **Authors:** Steven Kirkland + Claude Opus 4.8.
 **Supersedes:** none.

@@ -20,14 +20,14 @@ import math
 
 import pytest
 
-from srmech.amsc import laplacian
-from srmech.amsc.laplacian import elementwise_sqrt
+from srmech.math import laplacian
+from srmech.math.laplacian import elementwise_sqrt
 
 _TOL = 1e-9
 
 
 def test_sqrt_close_to_stdlib():
-    from srmech.amsc.vec import Vec
+    from srmech.math.vec import Vec
     a = [2.0, 3.0, 5.0, 7.5, 10.0, 0.0]
     out = elementwise_sqrt(a)
     assert isinstance(out, Vec)                  # rc129: 1-D input → Vec carrier
@@ -61,9 +61,9 @@ def test_sqrt_in_all_and_laplacian_ops():
 
 
 def test_sqrt_tool_entry_registered():
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
-    assert "srmech.amsc.laplacian.elementwise_sqrt" in names
+    assert "srmech.math.laplacian.elementwise_sqrt" in names
 
 
 def test_no_np_sqrt_callsites_remain():
@@ -88,8 +88,8 @@ def test_potentials_ladder_still_correct():
     # the number operator N = a†a is the native `mat_matmul`, checked by direct
     # Mat-entry against diag(0,1,2,3,4); no numpy (the op is numpy-free, so its
     # consumer-check must be too — feedback_test_for_numpy_free_module...).
-    from srmech.qm.potentials import harmonic_oscillator_ladder
-    from srmech.amsc.laplacian import mat_matmul
+    from srmech.physics.qm.potentials import harmonic_oscillator_ladder
+    from srmech.math.laplacian import mat_matmul
     a, a_dag = harmonic_oscillator_ladder(5)
     N = mat_matmul(a_dag, a)
     for i in range(5):
@@ -100,6 +100,6 @@ def test_potentials_ladder_still_correct():
 def test_relativistic_dispersion_still_correct():
     # E = √(|k|² + m²) via rational.sqrt; 3-4-5 → √(9+16)=5 at m=4, k=(3,0,0).
     # relativistic is numpy-free (rc118) — the 3-momentum is a plain float list.
-    from srmech.qm.relativistic import klein_gordon_dispersion
+    from srmech.physics.qm.relativistic import klein_gordon_dispersion
     e = klein_gordon_dispersion([3.0, 0.0, 0.0], 4.0)
     assert abs(e - 5.0) < 1e-9

@@ -1,7 +1,7 @@
 """v0.7.0rc1 — the Moufang loop-bind (k=7 gauge arithmetic; MS #21 / #814).
 
 Ports the F271/F272 reference self-tests (the `loop_bind_moufang.py` oracle)
-against the PRODUCTION `srmech.amsc.hdc` loop-bind family:
+against the PRODUCTION `srmech.math.hdc` loop-bind family:
 
   - exactly 7 associator-zero basis triples = the associative 3-planes (Fano lines)
   - L_a != R_a != R_aᵀ, and [L_a, R_b]·x == -loop_associator(a, x, b)
@@ -14,7 +14,7 @@ Class-K clean throughout: zero-tests via the inner-product norm² ⟨v,v⟩, nev
 abs() (`[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]`).
 
 rc125 (numpy-free, #564): this test is itself numpy-FREE — the loop family
-returns ``list[float]`` (single-element) / :class:`srmech.amsc.mat.Mat` (the
+returns ``list[float]`` (single-element) / :class:`srmech.math.mat.Mat` (the
 L/R operators); operator products / matvecs route through ``mat_matmul``,
 norms through ``mat_norm``, and the random vectors come from stdlib
 ``random.Random`` (no numpy oracle, per
@@ -23,9 +23,9 @@ norms through ``mat_norm``, and the random vectors come from stdlib
 import itertools
 import random
 
-from srmech.amsc.laplacian import mat_matmul, mat_norm
-from srmech.amsc.mat import Mat
-from srmech.amsc.hdc import (
+from srmech.math.laplacian import mat_matmul, mat_norm
+from srmech.math.mat import Mat
+from srmech.math.hdc import (
     LOOP_DIM,
     loop_associator,
     loop_bind,

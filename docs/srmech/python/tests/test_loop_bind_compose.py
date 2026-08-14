@@ -1,8 +1,8 @@
 """v0.7.0rc3 — the loop-bind family slots into the compose engine (MS #21 #813).
 
 #813 asks HOW the octonion loop-bind composes in srmech's operator-chain surface
-(``srmech.amsc.compose.run_chain`` against ``DEFAULT_CLASS_REGISTRY``). The answer:
-it is ALREADY reachable — registry ``M`` → ``srmech.amsc.hdc``, and ops resolve
+(``srmech.cascade.compose.run_chain`` against ``DEFAULT_CLASS_REGISTRY``). The answer:
+it is ALREADY reachable — registry ``M`` → ``srmech.math.hdc``, and ops resolve
 dynamically by name — so ``loop_bind`` / ``loop_conj`` / ``loop_associator`` /
 ``cross7`` / ``g2_three_form`` run as ``class="M", op="<name>"`` steps with NO new
 registration. This test is the worked proof: M (bind) composes, C (loop_conj
@@ -15,8 +15,8 @@ numpy-free: octonion basis vectors are plain length-8 Python lists with a single
 1.0 (``_e(i)``); the ops take and return plain lists; equality is an element-wise
 ``abs(a-b) < tol`` loop.
 """
-from srmech.amsc import compose
-from srmech.amsc import hdc
+from srmech.cascade import compose
+from srmech.math import hdc
 
 
 def _e(i):

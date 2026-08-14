@@ -24,7 +24,7 @@ from array import array
 
 import pytest
 
-from srmech.amsc.vec import Vec
+from srmech.math.vec import Vec
 
 
 def test_from_sequence_real_shape_and_access():
@@ -127,7 +127,7 @@ _BLOCK_NUMPY = textwrap.dedent(
 
 
 def test_vec_imports_and_runs_numpy_free():
-    """``srmech.amsc.vec`` imports + the full ``Vec`` surface runs numpy-absent."""
+    """``srmech.math.vec`` imports + the full ``Vec`` surface runs numpy-absent."""
     script = _BLOCK_NUMPY + textwrap.dedent(
         """
         try:
@@ -135,7 +135,7 @@ def test_vec_imports_and_runs_numpy_free():
             raise SystemExit("numpy importable - block failed")
         except ModuleNotFoundError:
             pass
-        from srmech.amsc.vec import Vec
+        from srmech.math.vec import Vec
         v = Vec.from_sequence([1.0, 2.0, 3.0])
         assert v.shape == (3,) and v[1] == 2.0 and list(v) == [1.0, 2.0, 3.0]
         c = Vec.from_sequence([1 + 2j, 3 - 4j])

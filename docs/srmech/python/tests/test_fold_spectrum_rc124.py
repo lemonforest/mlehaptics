@@ -46,9 +46,9 @@ import tokenize
 
 import pytest
 
-from srmech.amsc import coupling
-from srmech.amsc.poly import Poly
-from srmech.amsc.q import Q
+from srmech.biology import coupling
+from srmech.math.poly import Poly
+from srmech.math.q import Q
 
 # A dim comfortably above the HDC bundle-capacity floor (4·n_pairs; the gasket
 # has 4 bound pairs → floor 16) for confident recovery; and a degenerate dim
@@ -256,12 +256,12 @@ def test_fold_encode_coerces_coeff_sequence():
 # (i) both ops REGISTERED (tool schema; param types coercible; total 388)
 # ─────────────────────────────────────────────────────────────────────
 def test_registered_in_tool_schema():
-    from srmech.amsc import tool_schema
+    from srmech.introspect import tool_schema
     from srmech.mcp._coercion import has_coercer
 
     schema = tool_schema.get_tool_schema()
-    for name in ("srmech.amsc.coupling.fold_encode",
-                 "srmech.amsc.coupling.fold_spectrum"):
+    for name in ("srmech.biology.coupling.fold_encode",
+                 "srmech.biology.coupling.fold_spectrum"):
         entry = schema.lookup(name)
         assert entry is not None, f"{name} not registered"
         assert entry.owner == "srmech"
@@ -270,16 +270,16 @@ def test_registered_in_tool_schema():
         for p in entry.parameters:
             assert has_coercer(p.type), f"{name}:{p.name} type {p.type!r} uncoercible"
 
-    enc = schema.lookup("srmech.amsc.coupling.fold_encode")
+    enc = schema.lookup("srmech.biology.coupling.fold_encode")
     assert {p.name: p.type for p in enc.parameters}["R"] == "Poly"
-    rd = schema.lookup("srmech.amsc.coupling.fold_spectrum")
+    rd = schema.lookup("srmech.biology.coupling.fold_spectrum")
     assert {p.name: p.type for p in rd.parameters}["fold"] == "dict"
 
 
 def test_tools_total_matches_live():
     from srmech import introspect
 
-    assert introspect.describe()["tools"]["total"] == 509
+    assert introspect.describe()["tools"]["total"] == 655
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -287,7 +287,7 @@ def test_tools_total_matches_live():
 # ─────────────────────────────────────────────────────────────────────
 def test_coupling_source_is_numpy_math_abs_free():
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    src = os.path.join(here, "srmech", "amsc", "coupling.py")
+    src = os.path.join(here, "srmech", "biology", "coupling.py")
     with tokenize.open(src) as fh:
         text = fh.read()
     assert re.search(r"(?m)^\s*(import|from)\s+numpy\b", text) is None

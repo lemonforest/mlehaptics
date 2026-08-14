@@ -1,10 +1,10 @@
 """Fluent cascade-composition builder for the v0.5.0rc8 DSL.
 
 The :class:`Chain` builder composes cascade-catalog ops
-(``srmech.amsc.cascade.*``) + control-flow primitives (loop / fold /
+(``srmech.cascade.*``) + control-flow primitives (loop / fold /
 reduce) into a single executable pipeline. The runner reads the TOML
 cascade-catalog descriptors at construction time and dispatches through
-the matching ``srmech.amsc.cascade`` Python entry points (which
+the matching ``srmech.cascade`` Python entry points (which
 themselves route to C peers when ``HAS_NATIVE`` is True).
 
 Per-stage events are emitted to the introspection bus when active
@@ -31,6 +31,7 @@ from ._catalog import cascade_op_kind, lookup_cascade_op
 from ._control_flow import (
     make_fold_stage,
     make_loop_stage,
+    make_map_indexed_stage,
     make_parallel_stage,
     make_reduce_stage,
 )
@@ -121,7 +122,7 @@ def _then_native_desc(op_name: str, kwargs: dict) -> Optional[dict]:
         stage[kk] = vv
     return stage
 
-# Introspection emit hook — same gating pattern as srmech.amsc.cascade.
+# Introspection emit hook — same gating pattern as srmech.cascade.
 # The DSL emits ``dsl.<chain_name>.stage.<N>`` / ``dsl.<chain_name>
 # .complete`` events when a publish context is active; otherwise the
 # hook is a zero-cost no-op (thread-local check first, then bail).
@@ -129,13 +130,14 @@ from srmech.introspect._writer import (
     _is_publishing as _is_pub,
     emit_if_publishing as _emit,
 )
+from srmech import _json as _srmech_json
 
 
 def _describe_shape(value: Any) -> str:
     """Best-effort shape descriptor for event payloads.
 
     Mirrors the cascade-emit shape contract used in
-    :mod:`srmech.amsc.cascade`. Returns a short string suitable for the
+    :mod:`srmech.cascade`. Returns a short string suitable for the
     ``input_shape`` / ``output_shape`` event fields — avoids
     serialising arbitrary numpy / list payloads through the wire.
     """
@@ -217,7 +219,7 @@ class Chain:
 
         ``op_name`` must match a ``[cascade].name`` field in one of the
         on-disk TOML descriptors under
-        ``srmech/amsc/_research/cascade_catalog/``.
+        ``srmech/cascade/catalogs/cascade_catalog/``.
 
         Extra ``kwargs`` are passed straight through to the resolved
         callable; cascade ops with keyword-only options
@@ -278,7 +280,8 @@ class Chain:
         return self
 
     def fold(
-        self, init: Any, op_name: str, **kwargs: Any,
+        self, init: Any, op_name: str,
+        arg_names: Optional[Tuple[str, str]] = None, **kwargs: Any,
     ) -> "Chain":
         """Fold over the input sequence: ``acc = op(acc, elem)`` with seed.
 
@@ -286,21 +289,29 @@ class Chain:
         2-argument callable, e.g. ``cyclic_gcd``). ``init`` is the
         seed accumulator; an empty input sequence yields ``init``
         unchanged.
+
+        ``arg_names`` (rc420, the `#T1114` fold-contract fix): an optional
+        ``(acc_name, elem_name)`` keyword pair so a KW-ONLY binary op binds
+        — measured, ``fold(1, "reorient")`` raised ``TypeError`` because
+        the shipped ``reorient(value, *, orientation=)`` cannot take the
+        fold's two slots positionally. ``fold(1, "reorient",
+        arg_names=("value", "orientation"))`` binds it as shipped.
         """
         self._guard_not_terminal()
         op_fn = lookup_cascade_op(op_name)
-        stage_fn = make_fold_stage(init, op_fn, dict(kwargs))
+        stage_fn = make_fold_stage(init, op_fn, dict(kwargs), arg_names)
         self._stages.append((
             f"fold(init, {op_name})",
             stage_fn,
             {},
         ))
         # C combinator IR: {"fold_init": <F1 scalar>, "fold_op": op}. Nativizable
-        # only for a scalar seed + no extra kwargs (the C binary body — cyclic_gcd —
-        # takes none); anything else defers to pure.
+        # only for a scalar seed + no extra kwargs + no arg_names rebinding (the
+        # C binary body — cyclic_gcd — takes none); anything else defers to pure.
         self._native_ir.append(
             {"fold_init": init, "fold_op": op_name}
-            if (not kwargs and _is_c_scalar(init)) else None
+            if (not kwargs and arg_names is None and _is_c_scalar(init))
+            else None
         )
         return self
 
@@ -335,7 +346,7 @@ class Chain:
         The ``parallel`` special form (v0.6.0rc11; rc12 composability). The
         stage runs the piped value through the ``body`` op across
         ``n_sectors`` (≤ 4) Klein-4 sectors via
-        :func:`srmech.amsc.cascade.parallel_sector_dispatch`. A GIL-releasing
+        :func:`srmech.cascade.parallel_sector_dispatch`. A GIL-releasing
         body (native / IO / numpy) lets the ≤4 sectors genuinely overlap —
         the F233 4-thread speedup — instead of running serially. Reach for
         it when you have an independent cascade body to fan out rather than
@@ -399,6 +410,46 @@ class Chain:
             )
         return self
 
+    def map_indexed(self, body: str, **kwargs: Any) -> "Chain":
+        """The SIXTH combinator (v0.9.0rc420, `#T1114`): the indexed map.
+
+        ``input -> [body(input, k, **kwargs) for k in range(len(input))]``
+        — every output element sees its own index ``k`` AND the whole
+        input, the ``out[k] = f(whole_input, k)`` recursion scheme the
+        `#T1114` census measured as the dominant missing form (it blocked
+        4 of 20 cascade-catalog descriptors and 19 of 41 closed_form_ops
+        modules; the plain elementwise map, the indexed circular
+        correlation, and the DFT twiddle-sum are all instances).
+
+        ``body`` is the dotted-or-bare NAME of a DATA-FIRST op —
+        ``body(input_seq, k)`` — resolved through the cascade catalog like
+        every other builder's op (dotted names reach any module). The
+        identity map is ``map_indexed("srmech.cascade.leaves.seq_get")``.
+
+        TOTALITY: ``n = len(input)`` is fixed at entry (an unsized
+        iterable raises at the stage boundary); the body is
+        descriptor-static. The map is data-SIZED, never data-DEPENDENT —
+        no predicate decides continuation — the same totality class as
+        :meth:`fold`'s ``for elem in input_seq``. This widening was made
+        CONSCIOUSLY, with ``tests/test_combinator_kernel_closure.py``
+        updated in the same change, per that ratchet's own contract.
+        """
+        self._guard_not_terminal()
+        body_fn = lookup_cascade_op(body)
+        stage_fn = make_map_indexed_stage(body_fn, dict(kwargs))
+        self._stages.append((
+            f"map_indexed({body})",
+            stage_fn,
+            {},
+        ))
+        # C combinator IR: {"map_op": body}. Nativizable only with no extra
+        # kwargs and a body in the C map-body table (currently seq_get);
+        # anything else defers to pure (the rc103 inform-don't-limit shape).
+        self._native_ir.append(
+            {"map_op": body} if not kwargs else None
+        )
+        return self
+
     # ── execution ──────────────────────────────────────────────────
 
     def _native_stage_list(self) -> Optional[List[dict]]:
@@ -431,7 +482,7 @@ class Chain:
         -binary-body whether it is C-backed; a non-C leaf / non-C fold body /
         unsupported carrier returns non-OK → pure (rc103 inform-don't-limit).
         """
-        from srmech.amsc import _native
+        from srmech import _native
         if not (_native.HAS_NATIVE and _native.LIB is not None):
             return _NATIVE_MISS
         lib = _native.LIB
@@ -463,7 +514,7 @@ class Chain:
             ws, ws_bytes, out, out_cap, ctypes.byref(out_len))
         if rc != _native.SRMECH_OK:
             return _NATIVE_MISS
-        desc = json.loads(out.raw[:out_len.value].decode("utf-8"))
+        desc = _srmech_json.loads(out.raw[:out_len.value].decode("utf-8"))
         return _desc_to_value(desc)
 
     def run(self, input_value: Any) -> Any:

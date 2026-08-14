@@ -101,13 +101,13 @@ Spike anchors
 from __future__ import annotations
 
 # Scientific tier: numpy is optional as of v0.7.0 (the cascade core is numpy-
-# free). As of rc71 the eager package-level ``_require_numpy`` gate is GONE:
-# op-registration is now lazy (the FFT family imports + runs numpy-free; numpy
-# ops import numpy only on first access, raising the clean ``[scientific]`` hint
-# then via ``closed_form_ops`` / ``path_b_ops`` ``__getattr__``). So
+# free). As of rc71 the eager package-level ``_require_numpy`` gate is GONE and
+# op-registration is lazy; since #564 completed there are no numpy ops left at
+# all, so the ``closed_form_ops`` / ``path_b_ops`` ``__getattr__`` are plain
+# lazy imports with no ``[scientific]`` hint to raise. So
 # ``import srmech.signal_processing`` succeeds with numpy ABSENT — the infra
-# surface (dispatcher / registry / profiling / Path-B core) + the numpy-free
-# FFT family are reachable, and only a numpy op forces the hint.
+# surface (dispatcher / registry / profiling / Path-B core) and every op
+# family are reachable numpy-free.
 
 # Re-export the locked architectural constants for ergonomic access.
 from ._paths import (
@@ -175,6 +175,81 @@ from . import form_function_rotation as _form_function_rotation  # noqa: F401
 # module-load time. Phase 2's broader 38-op Path A registration script
 # remains deferred per the implementation plan.
 from . import path_b_ops as _path_b_ops  # noqa: F401
+
+# rc424 (`#T1113`) — music_doa is Path-A-ONLY (no Path B dual until Phase 6),
+# so no path_b_ops sidecar imports it and closed_form_ops is PEP-562 lazy;
+# without this line its module-load `_register()` would never fire and the op
+# would stay undispatchable. Imported EAGERLY rather than through a lazy
+# loader on purpose: `test_path_registry_registered_ops_iteration` pins that
+# the only PENDING lazy ops are the three numpy-shaped ones, and a fourth
+# lazy loader would trip it. The module is numpy-free and pulls only carriers
+# already loaded, so the eager cost is nil.
+from .closed_form_ops import music_doa as _cf_music_doa  # noqa: F401
+
+#: MUSIC (MUltiple SIgnal Classification) direction-of-arrival estimation.
+#: Bound at PACKAGE level, not left inside ``closed_form_ops``, because rc424
+#: registers it as ``srmech.signal_processing.music_doa`` and a ToolEntry name
+#: must resolve to a live object. The module keeps its ``op`` spelling for
+#: symmetry with its 40 Path-A siblings; this is the advertised public path.
+music_doa = _cf_music_doa.op
+
+# ──────────────────────────────────────────────────────────────────────
+# rc425 (`#T1112`) — the other 37 Path-A ops reach the package surface.
+#
+# WHY A LAZY __getattr__ AND NOT 37 MORE EAGER IMPORTS. rc424 bound
+# ``music_doa`` eagerly for a reason that does NOT generalise: that module
+# (with ``pi_cascade``) is one of only two under ``closed_form_ops`` carrying a
+# module-load ``_register()`` against ``path_registry``, so an import is what
+# makes it dispatchable. Measured at rc425: the other 37 modules register
+# nothing at import time, so eager-importing them would buy no dispatch and
+# would spend the very cost ``closed_form_ops``'s own PEP-562 loader exists to
+# avoid. They resolve through this ``__getattr__`` instead — which is enough,
+# because a ToolEntry name only has to resolve to a live object when something
+# asks for it, and ``srmech._resolve.resolve_dotted_callable`` walks attributes
+# with ``getattr``.
+#
+# The name bound is the module's ``op`` callable, NOT the module: a ToolEntry
+# name must resolve to the thing that gets CALLED. The modules keep their ``op``
+# spelling internally for symmetry across all 41 siblings; these are the
+# advertised public paths, and they are what the registry registers.
+# ──────────────────────────────────────────────────────────────────────
+_CLOSED_FORM_PUBLIC = (
+    "allpass", "arithmetic_coding", "beamforming_fixed", "cross_spectral",
+    "dct", "esprit", "farrow", "fir", "fsk", "hdc_truncation", "heat_kernel",
+    "huffman", "ica_jade", "iir", "jpeg", "lmmse", "lz77", "map_ml",
+    "matched_filter", "mimo_svd", "mlse", "multirate", "multitaper", "ofdm",
+    "polyphase", "psk_qam", "rfft", "rle", "sign_quantise", "sinc_interp",
+    "spectral_subtraction", "spectrogram", "stft", "vector_quantisation",
+    "viterbi", "wavelet", "wiener",
+)
+
+
+def __getattr__(name):
+    """Resolve a Path-A op name to its ``op`` callable, importing on demand.
+
+    ``fft`` / ``ifft`` / ``pi_cascade`` are deliberately ABSENT from
+    ``_CLOSED_FORM_PUBLIC``: each is value-identical (measured bit-exact at
+    rc425 over integer, float, complex, power-of-two and non-power-of-two
+    inputs) to an op the registry already ships — ``srmech.cascade.
+    spectral_cascades.fft`` / ``.ifft`` and ``srmech.math.rational.
+    pi_cascade_digits`` — so binding them here would advertise a second public
+    path to the same values. They stay reachable at
+    ``srmech.signal_processing.closed_form_ops.<name>``.
+    """
+    if name in _CLOSED_FORM_PUBLIC:
+        import importlib
+        mod = importlib.import_module(
+            f".closed_form_ops.{name}", __name__)
+        fn = mod.op
+        globals()[name] = fn
+        return fn
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def __dir__():
+    return sorted(set(globals()) | set(_CLOSED_FORM_PUBLIC))
+
+
 from .rbs_hdc_instrument import (
     CANONICAL_CASCADES,
     CLASS_DEFINITIONS,
@@ -248,6 +323,48 @@ __all__ = [
     "RegistryError",
     "DuplicateRegistrationError",
     "UnknownOperationError",
+    # Closed-form ops promoted to the package surface (rc424, `#T1113`)
+    "music_doa",
+    # The other 37 Path-A ops (rc425, `#T1112`) — lazy via __getattr__.
+    # fft / ifft / pi_cascade are deliberately absent: each is value-identical
+    # to an op the registry already ships under another name.
+    "allpass",
+    "arithmetic_coding",
+    "beamforming_fixed",
+    "cross_spectral",
+    "dct",
+    "esprit",
+    "farrow",
+    "fir",
+    "fsk",
+    "hdc_truncation",
+    "heat_kernel",
+    "huffman",
+    "ica_jade",
+    "iir",
+    "jpeg",
+    "lmmse",
+    "lz77",
+    "map_ml",
+    "matched_filter",
+    "mimo_svd",
+    "mlse",
+    "multirate",
+    "multitaper",
+    "ofdm",
+    "polyphase",
+    "psk_qam",
+    "rfft",
+    "rle",
+    "sign_quantise",
+    "sinc_interp",
+    "spectral_subtraction",
+    "spectrogram",
+    "stft",
+    "vector_quantisation",
+    "viterbi",
+    "wavelet",
+    "wiener",
     # Profiling API
     "record_profile",
     "iter_records",

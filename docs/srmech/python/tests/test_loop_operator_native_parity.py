@@ -11,7 +11,7 @@ pure-Python recursion engine — the Rosetta agreement-attestation. Skip with a 
 when the native lib is absent (the pure-Python path is covered elsewhere).
 
 rc125 (numpy-free, #564): this test is itself numpy-FREE — the loop family
-returns ``list[float]`` (single-element) / :class:`srmech.amsc.mat.Mat` (the
+returns ``list[float]`` (single-element) / :class:`srmech.math.mat.Mat` (the
 L/R operators); column extraction / norms use the ``Mat`` API + ``mat_norm``,
 random vectors come from stdlib ``random.Random`` (no numpy oracle, per
 `[[feedback_test_for_numpy_free_module_must_itself_be_numpy_free]]`).
@@ -21,10 +21,10 @@ import random
 
 import pytest
 
-from srmech.amsc.laplacian import mat_norm
-from srmech.amsc.mat import Mat
-from srmech.amsc import hdc
-from srmech.amsc.hdc import LOOP_DIM
+from srmech.math.laplacian import mat_norm
+from srmech.math.mat import Mat
+from srmech.math import hdc
+from srmech.math.hdc import LOOP_DIM
 
 
 def _require_native(symbol):

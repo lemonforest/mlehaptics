@@ -31,7 +31,7 @@ import struct
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.mcp._server import MCPServer, build_attestation
 from srmech.mcp._tools import invoke_tool, serialise_result
 
@@ -118,17 +118,17 @@ def test_double_repr_non_finite_defers() -> None:
 
 _BATCH_CASES = [
     # (Mat, Mat) -> Mat
-    ("srmech.amsc.laplacian.mat_matmul", {"a": [[1, 2], [3, 4]], "b": [[5, 6], [7, 8]]}),
-    ("srmech.amsc.laplacian.mat_matmul", {"a": [[1]], "b": [[1]]}),
-    ("srmech.amsc.laplacian.mat_matmul",
+    ("srmech.math.laplacian.mat_matmul", {"a": [[1, 2], [3, 4]], "b": [[5, 6], [7, 8]]}),
+    ("srmech.math.laplacian.mat_matmul", {"a": [[1]], "b": [[1]]}),
+    ("srmech.math.laplacian.mat_matmul",
      {"a": [[0.1, 0.2], [0.3, 0.4]], "b": [[1.5], [2.5]]}),
-    ("srmech.amsc.laplacian.mat_matmul", {"a": [[2, 0, 1]], "b": [[1], [2], [3]]}),
+    ("srmech.math.laplacian.mat_matmul", {"a": [[2, 0, 1]], "b": [[1], [2], [3]]}),
     # (Mat, Vec) -> Vec
-    ("srmech.amsc.laplacian.mat_matvec", {"m": [[1, 2, 3], [4, 5, 6]], "v": [7, 8, 9]}),
-    ("srmech.amsc.laplacian.mat_matvec", {"m": [[0.1, 0.2]], "v": [0.3, 0.7]}),
+    ("srmech.math.laplacian.mat_matvec", {"m": [[1, 2, 3], [4, 5, 6]], "v": [7, 8, 9]}),
+    ("srmech.math.laplacian.mat_matvec", {"m": [[0.1, 0.2]], "v": [0.3, 0.7]}),
     # (Vec, Vec) -> Mat
-    ("srmech.amsc.laplacian.mat_outer", {"a": [1, 2, 3], "b": [4, 5]}),
-    ("srmech.amsc.laplacian.mat_outer", {"a": [0.5, -0.25], "b": [2.0, 3.0, 0.1]}),
+    ("srmech.math.laplacian.mat_outer", {"a": [1, 2, 3], "b": [4, 5]}),
+    ("srmech.math.laplacian.mat_outer", {"a": [0.5, -0.25], "b": [2.0, 3.0, 0.1]}),
 ]
 
 _BATCH_TOOLS = sorted({name for name, _ in _BATCH_CASES})
@@ -147,9 +147,9 @@ def test_native_invoke_matches_pure(name, args) -> None:
 def test_batch_dispatches_three_float_carrier_tools() -> None:
     """The rc190 batch dispatches the 3 dense-kernel Mat/Vec tools in C."""
     assert _BATCH_TOOLS == [
-        "srmech.amsc.laplacian.mat_matmul",
-        "srmech.amsc.laplacian.mat_matvec",
-        "srmech.amsc.laplacian.mat_outer",
+        "srmech.math.laplacian.mat_matmul",
+        "srmech.math.laplacian.mat_matvec",
+        "srmech.math.laplacian.mat_outer",
     ]
 
 
@@ -163,21 +163,21 @@ def test_native_invoke_matches_pure_random() -> None:
         A = [[rng.uniform(-4, 4) for _ in range(k)] for _ in range(m)]
         B = [[rng.uniform(-4, 4) for _ in range(n)] for _ in range(k)]
         args = {"a": A, "b": B}
-        disp, text = _native.invoke_tool_c("srmech.amsc.laplacian.mat_matmul", args)
+        disp, text = _native.invoke_tool_c("srmech.math.laplacian.mat_matmul", args)
         assert disp and text == serialise_result(
-            invoke_tool("srmech.amsc.laplacian.mat_matmul", args)), args
+            invoke_tool("srmech.math.laplacian.mat_matmul", args)), args
         Mm = [[rng.uniform(-4, 4) for _ in range(k)] for _ in range(m)]
         v = [rng.uniform(-4, 4) for _ in range(k)]
         args = {"m": Mm, "v": v}
-        disp, text = _native.invoke_tool_c("srmech.amsc.laplacian.mat_matvec", args)
+        disp, text = _native.invoke_tool_c("srmech.math.laplacian.mat_matvec", args)
         assert disp and text == serialise_result(
-            invoke_tool("srmech.amsc.laplacian.mat_matvec", args)), args
+            invoke_tool("srmech.math.laplacian.mat_matvec", args)), args
         a = [rng.uniform(-4, 4) for _ in range(rng.randint(1, 6))]
         b = [rng.uniform(-4, 4) for _ in range(rng.randint(1, 6))]
         args = {"a": a, "b": b}
-        disp, text = _native.invoke_tool_c("srmech.amsc.laplacian.mat_outer", args)
+        disp, text = _native.invoke_tool_c("srmech.math.laplacian.mat_outer", args)
         assert disp and text == serialise_result(
-            invoke_tool("srmech.amsc.laplacian.mat_outer", args)), args
+            invoke_tool("srmech.math.laplacian.mat_outer", args)), args
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -186,19 +186,19 @@ def test_native_invoke_matches_pure_random() -> None:
 
 _DEFER_CASES = [
     # dim / shape mismatch → pure raises the ValueError
-    ("srmech.amsc.laplacian.mat_matmul", {"a": [[1, 2]], "b": [[1, 2]]}),
-    ("srmech.amsc.laplacian.mat_matvec", {"m": [[1, 2]], "v": [1, 2, 3]}),
+    ("srmech.math.laplacian.mat_matmul", {"a": [[1, 2]], "b": [[1, 2]]}),
+    ("srmech.math.laplacian.mat_matvec", {"m": [[1, 2]], "v": [1, 2, 3]}),
     # empty operand → pure
-    ("srmech.amsc.laplacian.mat_matmul", {"a": [[1]], "b": [[]]}),
-    ("srmech.amsc.laplacian.mat_outer", {"a": [], "b": [1]}),
+    ("srmech.math.laplacian.mat_matmul", {"a": [[1]], "b": [[]]}),
+    ("srmech.math.laplacian.mat_outer", {"a": [], "b": [1]}),
     # complex-via-JSON ([re,im] leaf) → the pure complex path
-    ("srmech.amsc.laplacian.mat_matmul", {"a": [[[1, 2]]], "b": [[1]]}),
-    ("srmech.amsc.laplacian.mat_outer", {"a": [[1, 2]], "b": [1]}),
+    ("srmech.math.laplacian.mat_matmul", {"a": [[[1, 2]]], "b": [[1]]}),
+    ("srmech.math.laplacian.mat_outer", {"a": [[1, 2]], "b": [1]}),
     # a Mat carrier tool with NO C thunk this rc → defer
-    ("srmech.amsc.laplacian.mat_eigvals", {"a": [[1, 0], [0, 2]]}),
-    ("srmech.amsc.laplacian.mat_svd", {"a": [[1, 0], [0, 1]]}),
+    ("srmech.math.laplacian.mat_eigvals", {"a": [[1, 0], [0, 2]]}),
+    ("srmech.math.laplacian.mat_svd", {"a": [[1, 0], [0, 1]]}),
     # a "Mat | Vec" param is not marshalled this rc → defer
-    ("srmech.amsc.laplacian.dense_solve",
+    ("srmech.math.laplacian.dense_solve",
      {"A": [[2, 0], [0, 2]], "B": [2, 4], "exact": False}),
 ]
 
@@ -237,9 +237,9 @@ def test_helper_degrades_without_native() -> None:
     present, mat_matmul dispatches the [[1.0]] identity product in C."""
     if _native.has_native_invoke():
         assert _native.invoke_tool_c(
-            "srmech.amsc.laplacian.mat_matmul", {"a": [[1]], "b": [[1]]}) == (
+            "srmech.math.laplacian.mat_matmul", {"a": [[1]], "b": [[1]]}) == (
             True, "[[1.0]]")
     else:
         assert _native.invoke_tool_c(
-            "srmech.amsc.laplacian.mat_matmul", {"a": [[1]], "b": [[1]]}) == (
+            "srmech.math.laplacian.mat_matmul", {"a": [[1]], "b": [[1]]}) == (
             False, None)

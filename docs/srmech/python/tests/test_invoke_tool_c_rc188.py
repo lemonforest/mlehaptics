@@ -27,7 +27,7 @@ import json
 
 import pytest
 
-from srmech.amsc import _native
+from srmech import _native
 from srmech.mcp._server import MCPServer, build_attestation
 from srmech.mcp._tools import invoke_tool, serialise_result
 
@@ -46,66 +46,66 @@ def _b64(bs: bytes) -> str:
 # is the reference the C result text must match byte-for-byte.
 _BATCH_CASES = [
     # uN -> u  (int result)
-    ("srmech.amsc.cyclic.gcd", {"a": 48, "b": 36}),
-    ("srmech.amsc.cyclic.gcd", {"a": 0, "b": 0}),
-    ("srmech.amsc.cyclic.lcm", {"a": 4, "b": 6}),
-    ("srmech.amsc.cyclic.mod_add", {"a": 5, "b": 7, "n": 9}),
-    ("srmech.amsc.cyclic.mod_mul", {"a": 5, "b": 7, "n": 9}),
-    ("srmech.amsc.cyclic.mod_pow", {"a": 3, "k": 4, "n": 7}),
-    ("srmech.amsc.cyclic.mod_inv", {"a": 3, "n": 7}),
-    ("srmech.amsc.cyclic.three_cycle", {"value": 5}),
-    ("srmech.amsc.cascade.cyclic_gcd", {"a": 24, "b": 36}),
-    ("srmech.amsc.primes.next_prime", {"n": 100}),
+    ("srmech.math.cyclic.gcd", {"a": 48, "b": 36}),
+    ("srmech.math.cyclic.gcd", {"a": 0, "b": 0}),
+    ("srmech.math.cyclic.lcm", {"a": 4, "b": 6}),
+    ("srmech.math.cyclic.mod_add", {"a": 5, "b": 7, "n": 9}),
+    ("srmech.math.cyclic.mod_mul", {"a": 5, "b": 7, "n": 9}),
+    ("srmech.math.cyclic.mod_pow", {"a": 3, "k": 4, "n": 7}),
+    ("srmech.math.cyclic.mod_inv", {"a": 3, "n": 7}),
+    ("srmech.math.cyclic.three_cycle", {"value": 5}),
+    ("srmech.cascade.cyclic_gcd", {"a": 24, "b": 36}),
+    ("srmech.math.primes.next_prime", {"n": 100}),
     # u -> bool
-    ("srmech.amsc.primes.is_prime", {"n": 97}),
-    ("srmech.amsc.primes.is_prime", {"n": 100}),
+    ("srmech.math.primes.is_prime", {"n": 97}),
+    ("srmech.math.primes.is_prime", {"n": 100}),
     # uN -> (int, int) pair  (container result, DEFAULT separators)
-    ("srmech.amsc.rational.best_rational",
+    ("srmech.math.rational.best_rational",
      {"numerator": 22, "denominator": 7, "max_denominator": 100}),
-    ("srmech.amsc.rational.best_rational",
+    ("srmech.math.rational.best_rational",
      {"numerator": 355, "denominator": 113, "max_denominator": 50}),
     # rc336 — the OPTIONAL 4th param `with_path`. The registry now carries 4
     # params, and iv_dispatch passes entry->param_count as argc, so the thunk
     # must accept BOTH arities: absent / false -> the pinned (p', q') pair;
     # true -> the (p', q', path) triple carrying the Stern-Brocot / CF
     # partial quotients (the Class-N approximation holonomy).
-    ("srmech.amsc.rational.best_rational",
+    ("srmech.math.rational.best_rational",
      {"numerator": 22, "denominator": 7, "max_denominator": 100,
       "with_path": False}),
-    ("srmech.amsc.rational.best_rational",
+    ("srmech.math.rational.best_rational",
      {"numerator": 22, "denominator": 7, "max_denominator": 100,
       "with_path": True}),
-    ("srmech.amsc.rational.best_rational",
+    ("srmech.math.rational.best_rational",
      {"numerator": 13, "denominator": 8, "max_denominator": 8,
       "with_path": True}),                       # full CF [1,1,1,1,2]
-    ("srmech.amsc.rational.best_rational",
+    ("srmech.math.rational.best_rational",
      {"numerator": 1, "denominator": 2, "max_denominator": 1,
       "with_path": True}),                       # only the trivial [0] fits
     # u -> list[(int, int)]  (container result)
-    ("srmech.amsc.primes.factor", {"n": 360}),
-    ("srmech.amsc.primes.factor", {"n": 1}),
-    ("srmech.amsc.primes.factor", {"n": 97}),
+    ("srmech.math.primes.factor", {"n": 360}),
+    ("srmech.math.primes.factor", {"n": 1}),
+    ("srmech.math.primes.factor", {"n": 97}),
     # bytes -> hex str
     ("srmech.amsc.format.sha256_bytes", {"data": _b64(b"abc")}),
     ("srmech.amsc.format.sha256_bytes", {"data": _b64(b"")}),
     # ... -> bytes  (base64 string result)
-    ("srmech.amsc.tlv.tlv_pack", {"tag": 7, "value": _b64(b"hello")}),
-    ("srmech.amsc.tlv.tlv_pack", {"tag": 0, "value": _b64(b"")}),
-    ("srmech.amsc.hdc.bind",
+    ("srmech.math.tlv.tlv_pack", {"tag": 7, "value": _b64(b"hello")}),
+    ("srmech.math.tlv.tlv_pack", {"tag": 0, "value": _b64(b"")}),
+    ("srmech.math.hdc.bind",
      {"a": _b64(bytes([1, 2, 3])), "b": _b64(bytes([4, 5, 6]))}),
-    ("srmech.amsc.hdc.permute", {"a": _b64(bytes([1, 2, 3, 4])), "rotate_bits": 3}),
-    ("srmech.amsc.dispatch.mirror_pattern", {"pattern": _b64(bytes([1, 2, 3]))}),
+    ("srmech.math.hdc.permute", {"a": _b64(bytes([1, 2, 3, 4])), "rotate_bits": 3}),
+    ("srmech.math.dispatch.mirror_pattern", {"pattern": _b64(bytes([1, 2, 3]))}),
     # bytes, bytes -> int | null
-    ("srmech.amsc.hdc.hamming", {"a": _b64(bytes([0, 1])), "b": _b64(bytes([0, 3]))}),
-    ("srmech.amsc.search.byte_search",
+    ("srmech.math.hdc.hamming", {"a": _b64(bytes([0, 1])), "b": _b64(bytes([0, 3]))}),
+    ("srmech.math.search.byte_search",
      {"haystack": _b64(b"abcabc"), "needle": _b64(b"b")}),
-    ("srmech.amsc.search.byte_search",
+    ("srmech.math.search.byte_search",
      {"haystack": _b64(b"abc"), "needle": _b64(b"xyz")}),          # miss -> null
-    ("srmech.amsc.search.byte_search",
+    ("srmech.math.search.byte_search",
      {"haystack": _b64(b"abc"), "needle": _b64(b"")}),             # empty needle -> 0
-    ("srmech.amsc.search.byte_search_backward",
+    ("srmech.math.search.byte_search_backward",
      {"haystack": _b64(b"abcabc"), "needle": _b64(b"b")}),
-    ("srmech.amsc.search.byte_search_backward",
+    ("srmech.math.search.byte_search_backward",
      {"haystack": _b64(b"abc"), "needle": _b64(b"z")}),            # miss -> null
 ]
 
@@ -135,15 +135,15 @@ def test_batch_covers_twenty_distinct_tools() -> None:
 # Cases the C spine must DEFER (return (False, None)) — the pure path is the
 # complete fallback (never a wrong answer). Each pairs with the pure behaviour.
 _DEFER_CASES = [
-    ("srmech.qm.bell.tsirelson_bound", {}),                  # float, no C kernel
-    ("srmech.amsc.laplacian.mat_eigvals", {"m": [[1, 0], [0, 2]]}),  # Mat carrier, no C thunk (rc190 dispatches mat_matmul/matvec/outer, not eigvals)
+    ("srmech.physics.qm.bell.tsirelson_bound", {}),                  # float, no C kernel
+    ("srmech.math.laplacian.mat_eigvals", {"m": [[1, 0], [0, 2]]}),  # Mat carrier, no C thunk (rc190 dispatches mat_matmul/matvec/outer, not eigvals)
     ("no.such.tool", {"x": 1}),                              # unregistered
-    ("srmech.amsc.cyclic.gcd", {"a": 12, "b": 8, "z": 1}),   # extra arg
-    ("srmech.amsc.cyclic.gcd", {"a": 12}),                   # missing required arg
-    ("srmech.amsc.cyclic.gcd", {"a": -1, "b": 8}),           # negative -> pure raises
-    ("srmech.amsc.cyclic.mod_add", {"a": 5, "b": 7, "n": 0}),  # n==0 -> pure raises
+    ("srmech.math.cyclic.gcd", {"a": 12, "b": 8, "z": 1}),   # extra arg
+    ("srmech.math.cyclic.gcd", {"a": 12}),                   # missing required arg
+    ("srmech.math.cyclic.gcd", {"a": -1, "b": 8}),           # negative -> pure raises
+    ("srmech.math.cyclic.mod_add", {"a": 5, "b": 7, "n": 0}),  # n==0 -> pure raises
     ("srmech.amsc.format.sha256_bytes", {"data": "@@@@"}),   # bad base64
-    ("srmech.amsc.hdc.bind", {"a": _b64(b"ab"), "b": _b64(b"abc")}),  # len mismatch
+    ("srmech.math.hdc.bind", {"a": _b64(b"ab"), "b": _b64(b"abc")}),  # len mismatch
 ]
 
 
@@ -183,21 +183,21 @@ def test_mcp_handle_call_result_and_defer() -> None:
     """The bare-C srmech_mcp_handle routes tools/call → CALL_RESULT (a batch tool;
     buf = the result text the caller wraps) / DEFER_CALL (a non-batch tool)."""
     req = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "tools/call",
-                      "params": {"name": "srmech.amsc.cyclic.gcd",
+                      "params": {"name": "srmech.math.cyclic.gcd",
                                  "arguments": {"a": 48, "b": 36}}}).encode("utf-8")
     kind, text = _native.mcp_handle_c(req)
     assert kind == _native.MCP_KIND_CALL_RESULT
     assert text == b"12"
     # a container-result batch tool
     req_f = json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/call",
-                        "params": {"name": "srmech.amsc.primes.factor",
+                        "params": {"name": "srmech.math.primes.factor",
                                    "arguments": {"n": 360}}}).encode("utf-8")
     kind_f, text_f = _native.mcp_handle_c(req_f)
     assert kind_f == _native.MCP_KIND_CALL_RESULT
     assert text_f == b"[[2, 3], [3, 2], [5, 1]]"
     # a non-batch tool -> DEFER_CALL (the Python host runs pure invoke_tool)
     req_d = json.dumps({"jsonrpc": "2.0", "id": 3, "method": "tools/call",
-                        "params": {"name": "srmech.qm.bell.tsirelson_bound",
+                        "params": {"name": "srmech.physics.qm.bell.tsirelson_bound",
                                    "arguments": {}}}).encode("utf-8")
     assert _native.mcp_handle_c(req_d) == (_native.MCP_KIND_DEFER_CALL, None)
 
@@ -220,10 +220,10 @@ def test_null_arg_graceful() -> None:
         None, args, len(args), ws_p, 4096, out_p, 256,
         ctypes.byref(got), ctypes.byref(kind)) == _native.SRMECH_ERR_NULL_ARG
     assert _native.LIB.srmech_invoke_tool(
-        b"srmech.amsc.cyclic.gcd", args, len(args), ws_p, 4096, out_p, 256,
+        b"srmech.math.cyclic.gcd", args, len(args), ws_p, 4096, out_p, 256,
         None, ctypes.byref(kind)) == _native.SRMECH_ERR_NULL_ARG
     assert _native.LIB.srmech_invoke_tool(
-        b"srmech.amsc.cyclic.gcd", args, len(args), ws_p, 4096, out_p, 256,
+        b"srmech.math.cyclic.gcd", args, len(args), ws_p, 4096, out_p, 256,
         ctypes.byref(got), None) == _native.SRMECH_ERR_NULL_ARG
 
     # a too-small out buffer for a DISPATCHED result -> OVERFLOW (no over-write).
@@ -241,7 +241,7 @@ def test_helper_degrades_without_native() -> None:
     """With the C peer absent, invoke_tool_c returns (False, None) (pure fallback)."""
     if _native.has_native_invoke():
         assert _native.invoke_tool_c(
-            "srmech.amsc.cyclic.gcd", {"a": 6, "b": 4}) == (True, "2")
+            "srmech.math.cyclic.gcd", {"a": 6, "b": 4}) == (True, "2")
     else:
         assert _native.invoke_tool_c(
-            "srmech.amsc.cyclic.gcd", {"a": 6, "b": 4}) == (False, None)
+            "srmech.math.cyclic.gcd", {"a": 6, "b": 4}) == (False, None)

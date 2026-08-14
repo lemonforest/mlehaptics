@@ -13,6 +13,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import pathlib
 import re
 import subprocess
 import sys
@@ -28,7 +29,14 @@ import pytest
 import srmech.bus  # noqa: F401 — import side-effect
 
 import srmech
-from srmech.amsc.tool_schema import get_tool_schema
+from srmech.introspect.tool_schema import get_tool_schema, warmup_all
+
+# rc430 (`#T1094`) — the (op, param)-keyed valid-argument provider. Lives in
+# tools/ (not in the package) because test_selfhosting_import_ban holds a
+# down-only CEIL on `json` imports under srmech/; same sys.path.insert(TOOLS)
+# pattern as tests/test_worked_examples_execute_rc354.py.
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "tools"))
+import example_args as _ea  # noqa: E402
 from srmech.mcp import (
     MCP_PROTOCOL_VERSION,
     MCPError,
@@ -64,6 +72,49 @@ import sys as _sys
 _TESTS_DIR = _os.path.dirname(_os.path.abspath(__file__))
 if _TESTS_DIR not in _sys.path:
     _sys.path.insert(0, _TESTS_DIR)
+
+
+# ──────────────────────────────────────────────────────────────────────
+# `#T1007` — the advertised-tool list, computed ONCE at COLLECTION time.
+#
+# The two exhaustive per-op smokes (this file's every-tool invocation smoke
+# and test_immolation's return-type honesty gate) used to be a SINGLE function
+# each, looping ``for entry in advertised: invoke_tool(...)`` over every
+# ``mcp_callable`` ToolEntry. That is one atomic pytest node ~30 min long that
+# ``--dist loadfile`` pins to ONE xdist worker and no runner-matrix can split —
+# the single most expensive thing in the pure-Python CI cell. Parametrising
+# over this list makes EACH advertised tool its own node (spread across workers
+# under ``--dist load``), and a broken tool NAMES itself instead of hiding in an
+# accumulated list.
+#
+# ``warmup_all()`` guarantees the registry is fully populated regardless of the
+# order pytest happens to collect test modules in, so the parametrised node set
+# equals the live ``describe()`` surface (and matches test_immolation, which
+# imports this same list). It is idempotent (the whole suite calls it).
+warmup_all()
+_ADVERTISED = [e for e in get_tool_schema().tools if e.mcp_callable]
+
+# rc414 (`#T1092`) — a FLOOR on the parametrisation size.
+#
+# ``_ADVERTISED`` drives the every-tool invocation smoke here and (imported)
+# the return-type honesty sweep in test_immolation.py. It is a FILTER on
+# ``mcp_callable``, so flipping an op to False silently removes it from both
+# sweeps — and until rc414 nothing asserted the parametrised set had any
+# particular size. Coverage could therefore drain away one flip at a time with
+# every remaining test still green, which is the "a filter that hides ripple is
+# the gate lying" shape.
+#
+# The floor is deliberately a floor and not an equality: ops are ADDED every
+# rc, and an equality here would be one more count-pin to bump (there are 73
+# of those already). It is set just under the live value so a mass exclusion
+# trips it while ordinary growth does not.
+assert len(_ADVERTISED) >= 550, (
+    f"only {len(_ADVERTISED)} entries are mcp_callable — the every-tool "
+    f"invocation smoke and test_immolation's return-type sweep are both "
+    f"parametrised over this list, so a drop here silently shrinks TWO "
+    f"coverage surfaces at once. If ops were legitimately excluded, lower "
+    f"this floor deliberately and say why in the rc's CHANGELOG entry."
+)
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -112,7 +163,7 @@ def test_tool_entry_to_mcp_def_known_shape() -> None:
 # Property-key validity ratchet (v0.5.0rc10)
 #
 # BUG 1 (found by a LIVE Anthropic API test of the rc9 adapter, NOT by
-# the mocks): ``srmech.amsc.hdc.polar_bundle`` / ``klein4_bundle`` were
+# the mocks): ``srmech.math.hdc.polar_bundle`` / ``klein4_bundle`` were
 # registered with the param name ``*vectors`` — the Python varargs sigil
 # leaked into the ToolParameter NAME, so the MCP/Anthropic input_schema
 # carried a property KEY ``*vectors``. Anthropic rejected the WHOLE
@@ -170,9 +221,9 @@ def test_required_keys_reference_real_properties() -> None:
 def test_filter_predicate_compiles_glob() -> None:
     """``compile_filter`` builds a callable that matches fnmatch
     patterns."""
-    pred = compile_filter("srmech.amsc.cascade.*")
+    pred = compile_filter("srmech.cascade.*")
     assert pred is not None
-    assert pred("srmech.amsc.cascade.chiral_flip")
+    assert pred("srmech.cascade.chiral_flip")
     assert not pred("srmech.amsc.format.sha256_bytes")
     assert compile_filter(None) is None
 
@@ -180,11 +231,11 @@ def test_filter_predicate_compiles_glob() -> None:
 def test_filter_reduces_exposed_tool_count() -> None:
     """``tool_entries_to_mcp_defs`` honours the filter predicate."""
     all_defs = list(tool_entries_to_mcp_defs())
-    pred = compile_filter("srmech.amsc.cascade.*")
+    pred = compile_filter("srmech.cascade.*")
     cascade_defs = list(tool_entries_to_mcp_defs(name_filter=pred))
     assert 0 < len(cascade_defs) < len(all_defs)
     for d in cascade_defs:
-        assert d["name"].startswith("srmech.amsc.cascade.")
+        assert d["name"].startswith("srmech.cascade.")
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -195,7 +246,7 @@ def test_filter_reduces_exposed_tool_count() -> None:
 def test_invoke_tool_chiral_flip_roundtrips() -> None:
     """A simple known tool round-trips through invoke_tool."""
     result = invoke_tool(
-        "srmech.amsc.cascade.chiral_flip",
+        "srmech.cascade.chiral_flip",
         {"seq": [1, 2, 3, 4]},
     )
     assert result == [4, 3, 2, 1]
@@ -250,7 +301,7 @@ def test_invoke_tool_polar_bundle_variadic_dispatches() -> None:
 
     This is the test that would have caught BUG 2.
     """
-    from srmech.amsc import hdc
+    from srmech.math import hdc
     from srmech.mcp._tools import MCPToolError
 
     # JSON arrays decode to Python lists; emulate that wire form (numpy-free:
@@ -259,7 +310,7 @@ def test_invoke_tool_polar_bundle_variadic_dispatches() -> None:
     vectors = [hdc.polar_random(16, seed=11 + i).tolist() for i in range(3)]
     try:
         result = invoke_tool(
-            "srmech.amsc.hdc.polar_bundle", {"vectors": vectors}
+            "srmech.math.hdc.polar_bundle", {"vectors": vectors}
         )
     except (TypeError, MCPToolError) as exc:  # pragma: no cover
         pytest.fail(f"variadic dispatch broke: {type(exc).__name__}: {exc}")
@@ -275,7 +326,7 @@ def test_invoke_tool_polar_bundle_variadic_dispatches() -> None:
 def test_invoke_tool_klein4_bundle_variadic_dispatches() -> None:
     """``hdc.klein4_bundle`` (a ``*vectors`` variadic) invokes cleanly
     through ``invoke_tool``. Companion to the polar test for BUG 2."""
-    from srmech.amsc import hdc
+    from srmech.math import hdc
     from srmech.mcp._tools import MCPToolError
 
     # numpy-free wire form: seeded klein4 vectors, ``.tolist()``'d off the HV
@@ -283,7 +334,7 @@ def test_invoke_tool_klein4_bundle_variadic_dispatches() -> None:
     vectors = [hdc.klein4_expand(16, 11 + i).tolist() for i in range(3)]
     try:
         result = invoke_tool(
-            "srmech.amsc.hdc.klein4_bundle", {"vectors": vectors}
+            "srmech.math.hdc.klein4_bundle", {"vectors": vectors}
         )
     except (TypeError, MCPToolError) as exc:  # pragma: no cover
         pytest.fail(f"variadic dispatch broke: {type(exc).__name__}: {exc}")
@@ -298,11 +349,11 @@ def test_invoke_tool_variadic_tolerates_legacy_sigil_key() -> None:
     """Belt-and-braces: a caller that still sends the historical
     sigil-prefixed key (``*vectors``) is tolerated (the dispatcher
     falls back to it), so no in-flight client breaks on the rename."""
-    from srmech.amsc import hdc
+    from srmech.math import hdc
 
     vectors = [hdc.polar_random(8, seed=7 + i).tolist() for i in range(3)]
     result = invoke_tool(
-        "srmech.amsc.hdc.polar_bundle", {"*vectors": vectors}
+        "srmech.math.hdc.polar_bundle", {"*vectors": vectors}
     )
     res = list(result)
     assert len(res) == 8
@@ -331,7 +382,7 @@ def test_serialise_result_matrices_and_lists() -> None:
     ``serialise_result`` renders a ``Mat`` via ``.tolist()`` and a nested
     list straight to JSON text — the wire form is identical to what the old
     ndarray ``tolist()`` fallback produced."""
-    from srmech.amsc.mat import Mat
+    from srmech.math.mat import Mat
 
     # A Mat (numpy-free dense matrix) is .tolist()'d to nested JSON arrays.
     out = serialise_result(Mat.from_rows([[1.0, 2.0, 3.0]]))
@@ -387,19 +438,19 @@ def test_tools_list_returns_all_tools() -> None:
     tools = resp["result"]["tools"]
     assert len(tools) > 50
     names = {t["name"] for t in tools}
-    assert "srmech.amsc.cascade.chiral_flip" in names
+    assert "srmech.cascade.chiral_flip" in names
 
 
 def test_tools_list_honours_filter() -> None:
     """tools/list honours the constructor's name_filter."""
-    pred = compile_filter("srmech.amsc.cascade.*")
+    pred = compile_filter("srmech.cascade.*")
     srv = MCPServer(name_filter=pred)
     resp = srv.handle({
         "jsonrpc": "2.0", "id": 1, "method": "tools/list",
     })
     assert resp is not None
     tools = resp["result"]["tools"]
-    assert all(t["name"].startswith("srmech.amsc.cascade.") for t in tools)
+    assert all(t["name"].startswith("srmech.cascade.") for t in tools)
 
 
 def test_tools_call_invokes_tool_and_returns_attestation() -> None:
@@ -408,7 +459,7 @@ def test_tools_call_invokes_tool_and_returns_attestation() -> None:
     resp = srv.handle({
         "jsonrpc": "2.0", "id": 3, "method": "tools/call",
         "params": {
-            "name": "srmech.amsc.cascade.chiral_flip",
+            "name": "srmech.cascade.chiral_flip",
             "arguments": {"seq": [1, 2, 3]},
         },
     })
@@ -419,7 +470,7 @@ def test_tools_call_invokes_tool_and_returns_attestation() -> None:
     assert json.loads(result["content"][0]["text"]) == [3, 2, 1]
     att = result["attestation"]
     assert att["mpr_version"] == "1.0"
-    assert att["tool_name"] == "srmech.amsc.cascade.chiral_flip"
+    assert att["tool_name"] == "srmech.cascade.chiral_flip"
     assert att["parser_version"].startswith("srmech ")
     assert len(att["response_sha256"]) == 64
 
@@ -443,7 +494,7 @@ def test_tools_call_filtered_tool_returns_method_not_found() -> None:
     resp = srv.handle({
         "jsonrpc": "2.0", "id": 5, "method": "tools/call",
         "params": {
-            "name": "srmech.amsc.cascade.chiral_flip",
+            "name": "srmech.cascade.chiral_flip",
             "arguments": {"seq": [1, 2, 3]},
         },
     })
@@ -475,7 +526,7 @@ def test_tools_call_runtime_exception_returns_is_error_response() -> None:
     resp = srv.handle({
         "jsonrpc": "2.0", "id": 7, "method": "tools/call",
         "params": {
-            "name": "srmech.amsc.cascade.chiral_flip",
+            "name": "srmech.cascade.chiral_flip",
             "arguments": {"not_the_param_name": 123},
         },
     })
@@ -570,7 +621,7 @@ def test_stdio_subprocess_full_handshake() -> None:
         call_resp = _send_one_recv_one(p, {
             "jsonrpc": "2.0", "id": 3, "method": "tools/call",
             "params": {
-                "name": "srmech.amsc.cascade.chiral_flip",
+                "name": "srmech.cascade.chiral_flip",
                 "arguments": {"seq": [10, 20, 30]},
             },
         })
@@ -761,7 +812,7 @@ def test_bus_endpoint_invoke_proxies_through_bus(tmp_path) -> None:
         resp = srv.handle({
             "jsonrpc": "2.0", "id": 1, "method": "tools/call",
             "params": {
-                "name": "srmech.amsc.cascade.chiral_flip",
+                "name": "srmech.cascade.chiral_flip",
                 "arguments": {"seq": [1, 2]},
             },
         })
@@ -772,7 +823,7 @@ def test_bus_endpoint_invoke_proxies_through_bus(tmp_path) -> None:
         resp["result"]["content"][0]["text"]
     ) == ["pretend", "result"]
     assert len(invocations) == 1
-    assert invocations[0]["name"] == "srmech.amsc.cascade.chiral_flip"
+    assert invocations[0]["name"] == "srmech.cascade.chiral_flip"
     assert invocations[0]["arguments"] == {"seq": [1, 2]}
 
 
@@ -808,7 +859,7 @@ def test_cli_filter_flag_subprocess() -> None:
     """``srmech-mcp --filter`` only exposes matching tools end-to-end."""
     p = subprocess.Popen(
         [sys.executable, "-m", "srmech.mcp._cli",
-         "--filter", "srmech.amsc.cascade.*"],
+         "--filter", "srmech.cascade.*"],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -828,7 +879,7 @@ def test_cli_filter_flag_subprocess() -> None:
             "jsonrpc": "2.0", "id": 2, "method": "tools/list",
         })
         tools = list_resp["result"]["tools"]
-        assert all(t["name"].startswith("srmech.amsc.cascade.") for t in tools)
+        assert all(t["name"].startswith("srmech.cascade.") for t in tools)
     finally:
         if p.stdin is not None:
             p.stdin.close()
@@ -843,14 +894,14 @@ def test_cli_filter_flag_subprocess() -> None:
 #
 # Regression tests for the discoverability gap caught 2026-05-28: the
 # MCP wrapper at ``srmech.mcp._tools`` only imported
-# ``srmech.amsc.tool_schema`` and never triggered the side-effect
+# ``srmech.introspect.tool_schema`` and never triggered the side-effect
 # imports of ``srmech.bus._tool_schema`` (which registers the bus
 # tools) — so the bus discovery + decode surfaces and the introspect
 # read surfaces were silently missing from the LLM-facing catalog.
 #
 # The fix: side-effect imports at the top of ``srmech.mcp._tools``
 # plus two new ``register_tool`` calls in each of
-# ``srmech.amsc.tool_schema._register_introspect_tools`` and
+# ``srmech.introspect.tool_schema._register_introspect_tools`` and
 # ``srmech.bus._tool_schema._register_bus_tools``.
 #
 # These five tests lock the fix in — they all assert via
@@ -872,7 +923,7 @@ def _names_after_mcp_import() -> set:
     # import isn't optimised away by a linter; same pattern as the
     # production code.
     from srmech.mcp import _tools  # noqa: F401 — side effect under test
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     schema = get_tool_schema()
     return {e.name for e in schema.tools}
 
@@ -951,7 +1002,7 @@ def test_bus_by_name_in_tool_schema_via_mcp_import() -> None:
 
 def test_mcp_import_chain_does_not_loop() -> None:
     """``srmech.mcp._tools`` import must not trigger a circular
-    import via ``srmech.bus`` -> ``srmech.amsc.tool_schema`` ->
+    import via ``srmech.bus`` -> ``srmech.introspect.tool_schema`` ->
     ``srmech.bus`` (the cycle the fix was careful to avoid)."""
     # If a cycle existed, this import would raise ImportError or
     # AttributeError on first import in a fresh interpreter. The
@@ -960,7 +1011,7 @@ def test_mcp_import_chain_does_not_loop() -> None:
     # that the side-effect imports complete cleanly and the expected
     # tools are present.
     from srmech.mcp import _tools  # noqa: F401
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     schema = get_tool_schema()
     # The full v0.5.0rc9 discoverability set is present in one shot.
     required = {
@@ -997,7 +1048,7 @@ def test_warmup_all_populates_registry() -> None:
     bus + introspect tools are present in the tool schema regardless of
     entry-path. Closes the orphan-registration bug class (rc9 bus miss).
     """
-    from srmech.amsc.tool_schema import get_tool_schema, warmup_all
+    from srmech.introspect.tool_schema import get_tool_schema, warmup_all
 
     warmup_all()  # idempotent
     names = {e.name for e in get_tool_schema().tools}
@@ -1022,7 +1073,7 @@ def test_describe_shape() -> None:
     """``srmech.introspect.describe()`` returns the self-shape dict with
     all expected keys; the counts are internally consistent and agree
     with the live tool schema."""
-    from srmech.amsc.tool_schema import get_tool_schema
+    from srmech.introspect.tool_schema import get_tool_schema
     from srmech.introspect import describe
 
     d = describe()
@@ -1030,7 +1081,19 @@ def test_describe_shape() -> None:
     # the user-declared "classes" surface — #962 Part 2; rc298 adds "carriers",
     # the operand nouns to tools' verbs — `#936`; rc300 adds "c_claims", which
     # answers what "native" cannot — whether the loaded library actually holds
-    # the C symbols our c_dispatched ops claim to route to — `#938`).
+    # the C symbols our c_dispatched ops claim to route to — `#938`; rc347 adds
+    # "lanes", the OP-side complement of "carriers": what each op READS —
+    # `#T985`; rc420 adds "cascade_catalog", the [cascade] descriptor state —
+    # ADR-0012 clause C6 closed under local task `#T1114`; rc430 adds "frames",
+    # the FRAME axis — whether the frame an op reduces in is an INPUT
+    # ("parametric") or welded into the op ("fixed") — local task `#T1127`).
+    #
+    # This set is pinned EXHAUSTIVELY in THREE files, and all three must move
+    # together: here, tests/test_describe_registry_pointer_rc407.py and
+    # tests/test_domain_classes_rc298.py. rc430 shipped a green local ripple
+    # sweep with all three red, because the ripple manifest named only the
+    # first — see tests/test_describe_key_set_pins_rc430.py, which now derives
+    # the pin sites instead of trusting a hand-maintained list.
     assert set(d.keys()) == {
         "srmech_version",
         "tool_schema_version",
@@ -1039,9 +1102,12 @@ def test_describe_shape() -> None:
         "handle_pending",
         "categories",
         "classes",
+        "cascade_catalog",
         "carriers",
         "limits",
         "c_claims",
+        "lanes",
+        "frames",
     }
     # Version agrees with the package attribute (no hardcoded literal).
     assert d["srmech_version"] == srmech.__version__
@@ -1089,7 +1155,7 @@ def test_describe_registered_as_tool() -> None:
     (so MCP / Anthropic consumers can call the self-recognition root),
     with no parameters (keeps the property-key ratchet trivially happy).
     """
-    from srmech.amsc.tool_schema import get_tool_schema, warmup_all
+    from srmech.introspect.tool_schema import get_tool_schema, warmup_all
 
     warmup_all()
     entry = get_tool_schema().lookup("srmech.introspect.describe")
@@ -1171,7 +1237,7 @@ def test_dsl_run_toml_chain_one_shot_via_mcp_invoke() -> None:
 # ``klein4_expand``; ``klein4_random`` is STOCHASTIC-only and refuses a
 # seed. These tests target the op that now carries each regime.
 #
-# BUG B — ``srmech.amsc.naming.lookup``'s ToolEntry declared a param
+# BUG B — ``srmech.introspect.naming.lookup``'s ToolEntry declared a param
 # (``entries``) the shipped ``lookup(key, pairs)`` does not accept, so the
 # tool was uncallable (``TypeError: unexpected keyword argument 'entries'``).
 # Fix: align the SCHEMA to the shipped signature (``pairs``).
@@ -1189,7 +1255,7 @@ def test_klein4_expand_seed_reproducible() -> None:
     ``seed=`` to ``klein4_random``, which fixed the capability and created
     F1259's defect — an op named 'random' that was not. The deterministic
     regime is now ``klein4_expand`` and the wire path targets it."""
-    from srmech.amsc import hdc
+    from srmech.math import hdc
 
     # Direct: identical vectors for the same seed (numpy-free — compare the
     # plain-list contents of the HV carrier).
@@ -1199,8 +1265,8 @@ def test_klein4_expand_seed_reproducible() -> None:
     assert set(a) <= {0, 1, 2, 3}
 
     # Through invoke_tool twice (the wire path): also identical.
-    r1 = list(invoke_tool("srmech.amsc.hdc.klein4_expand", {"D": 8, "seed": 42}))
-    r2 = list(invoke_tool("srmech.amsc.hdc.klein4_expand", {"D": 8, "seed": 42}))
+    r1 = list(invoke_tool("srmech.math.hdc.klein4_expand", {"D": 8, "seed": 42}))
+    r2 = list(invoke_tool("srmech.math.hdc.klein4_expand", {"D": 8, "seed": 42}))
     assert r1 == r2
     # And invoke_tool agrees bit-exactly with the direct seeded call.
     assert r1 == a
@@ -1214,15 +1280,15 @@ def test_polar_random_seed_reproducible() -> None:
     """Companion to klein4: ``hdc.polar_random(seed=...)`` is deterministic
     directly and through ``invoke_tool`` (the second ``*_random`` op fixed
     for BUG A)."""
-    from srmech.amsc import hdc
+    from srmech.math import hdc
 
     a = list(hdc.polar_random(8, seed=7))
     b = list(hdc.polar_random(8, seed=7))
     assert a == b
     assert set(a) <= {-1, 0, 1}
 
-    r1 = list(invoke_tool("srmech.amsc.hdc.polar_random", {"D": 8, "seed": 7}))
-    r2 = list(invoke_tool("srmech.amsc.hdc.polar_random", {"D": 8, "seed": 7}))
+    r1 = list(invoke_tool("srmech.math.hdc.polar_random", {"D": 8, "seed": 7}))
+    r2 = list(invoke_tool("srmech.math.hdc.polar_random", {"D": 8, "seed": 7}))
     assert r1 == r2
     assert r1 == a
 
@@ -1239,7 +1305,7 @@ def test_random_ops_rng_takes_precedence_over_seed() -> None:
     `[[feedback_test_for_numpy_free_module_must_itself_be_numpy_free]]`)."""
     import random
 
-    from srmech.amsc import hdc
+    from srmech.math import hdc
 
     # rng= path still works (back-compat) — stdlib Random.
     p = hdc.polar_random(8, rng=random.Random(0))
@@ -1259,21 +1325,41 @@ def test_random_ops_rng_takes_precedence_over_seed() -> None:
 
 
 def test_random_ops_schema_drops_unserialisable_rng() -> None:
-    """The DETERMINISTIC mint ToolEntries advertise the JSON-friendly
-    ``seed`` and NO un-serialisable ``rng`` Generator (a Generator has no
-    valid JSON-Schema type and must never reach the MCP / Anthropic schema).
+    """The DETERMINISTIC mint ToolEntries advertise the JSON-friendly ``seed``,
+    and no client can ever be told to send an un-serialisable ``rng`` Generator
+    (generator STATE has no JSON form).
 
     rc290: ``klein4_random`` left this set — it is the STOCHASTIC regime and
-    has no ``seed`` to advertise. ``klein4_expand`` took its place."""
+    has no ``seed`` to advertise. ``klein4_expand`` took its place.
+
+    rc408 (`#T1078`) — HOW that is enforced changed. This test used to assert
+    ``rng`` appeared in NO entry's ``parameters``. ``klein4_expand(D, seed)``
+    has no ``rng`` at all, so for it the assertion is unchanged; but
+    ``polar_random(D, rng=None, seed=None)`` DOES accept one, and omitting it
+    from the contract hid a real capability from every in-process Python caller
+    while the wire was already safe by other means. The honest split: the
+    parameter is DECLARED, never REQUIRED, and publishes JSON-schema ``"null"``
+    — so a schema-obedient client's only legal value is ``null``, which coerces
+    to "absent" and runs the op on the ``seed`` path exactly as before. The wire
+    limitation is a fact about the TYPE, not a licence to hide the PARAMETER.
+    """
+    from srmech.mcp._tools import _json_schema_type_for
+
     schema = get_tool_schema()
-    for name in ("srmech.amsc.hdc.klein4_expand",
-                 "srmech.amsc.hdc.polar_random"):
+    for name in ("srmech.math.hdc.klein4_expand",
+                 "srmech.math.hdc.polar_random"):
         entry = schema.lookup(name)
         assert entry is not None, f"{name} not registered"
-        param_names = {p.name for p in entry.parameters}
-        assert "seed" in param_names, f"{name} must advertise `seed`"
-        assert "rng" not in param_names, (
-            f"{name} must NOT advertise the un-serialisable `rng` Generator"
+        by_name = {p.name: p for p in entry.parameters}
+        assert "seed" in by_name, f"{name} must advertise `seed`"
+        rng = by_name.get("rng")
+        if rng is None:
+            continue                       # klein4_expand has no rng to declare
+        assert not rng.required, f"{name}: `rng` must never be required"
+        assert _json_schema_type_for(rng.type) == "null", (
+            f"{name} must not advertise a fillable `rng` Generator; its "
+            f"declared type {rng.type!r} publishes "
+            f"{_json_schema_type_for(rng.type)!r}, want 'null'"
         )
 
 
@@ -1287,18 +1373,18 @@ def test_klein4_random_is_not_registered_rc292() -> None:
     ``rng=`` parameter the schema was hiding. Hiding a parameter from one
     projection is not removing a defect — it is removing the evidence.
     """
-    assert get_tool_schema().lookup("srmech.amsc.hdc.klein4_random") is None
+    assert get_tool_schema().lookup("srmech.math.hdc.klein4_random") is None
 
 
 def test_klein4_regime_ops_are_registered_and_invokable() -> None:
     """rc290 — every regime op, the (1,3,7,3) frame and ONE-A14 are
     registered and callable over the MCP / Anthropic wire path."""
     schema = get_tool_schema()
-    for name in ("srmech.amsc.hdc.klein4_expand",
-                 "srmech.amsc.hdc.klein4_address",
-                 "srmech.amsc.hdc.klein4_role",
-                 "srmech.amsc.hdc.klein4_sector_frame",
-                 "srmech.amsc.hdc.klein4_from_one"):
+    for name in ("srmech.math.hdc.klein4_expand",
+                 "srmech.math.hdc.klein4_address",
+                 "srmech.math.hdc.klein4_role",
+                 "srmech.math.hdc.klein4_sector_frame",
+                 "srmech.math.hdc.klein4_from_one"):
         assert schema.lookup(name) is not None, f"{name} not registered"
 
     # ADDRESSED: same content -> same vector over the wire; different content
@@ -1306,52 +1392,52 @@ def test_klein4_regime_ops_are_registered_and_invokable() -> None:
     # documented base64 wire form.
     cat = base64.b64encode(b"cat").decode("ascii")
     dog = base64.b64encode(b"dog").decode("ascii")
-    a = list(invoke_tool("srmech.amsc.hdc.klein4_address",
+    a = list(invoke_tool("srmech.math.hdc.klein4_address",
                          {"D": 16, "content": cat}))
-    b = list(invoke_tool("srmech.amsc.hdc.klein4_address",
+    b = list(invoke_tool("srmech.math.hdc.klein4_address",
                          {"D": 16, "content": cat}))
     assert a == b and set(a) <= {0, 1, 2, 3}
-    assert a != list(invoke_tool("srmech.amsc.hdc.klein4_address",
+    assert a != list(invoke_tool("srmech.math.hdc.klein4_address",
                                  {"D": 16, "content": dog}))
 
     # ROLE: distinct role names give distinct keys; `base` re-namespaces.
-    r1 = list(invoke_tool("srmech.amsc.hdc.klein4_role",
+    r1 = list(invoke_tool("srmech.math.hdc.klein4_role",
                           {"D": 32, "role": "subject"}))
-    r2 = list(invoke_tool("srmech.amsc.hdc.klein4_role",
+    r2 = list(invoke_tool("srmech.math.hdc.klein4_role",
                           {"D": 32, "role": "object"}))
-    r3 = list(invoke_tool("srmech.amsc.hdc.klein4_role",
+    r3 = list(invoke_tool("srmech.math.hdc.klein4_role",
                           {"D": 32, "role": "subject", "base": 7}))
     assert r1 != r2 and r1 != r3
 
     # The (1,3,7,3) frame is period-14 at ANY D (no 14-divisibility needed).
-    f = list(invoke_tool("srmech.amsc.hdc.klein4_sector_frame", {"D": 30}))
+    f = list(invoke_tool("srmech.math.hdc.klein4_sector_frame", {"D": 30}))
     assert f[:14] == f[14:28]
     assert f[:14] == [1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3]
 
 
 def test_naming_lookup_callable_via_invoke_tool() -> None:
-    """``srmech.amsc.naming.lookup`` is callable through ``invoke_tool``
+    """``srmech.introspect.naming.lookup`` is callable through ``invoke_tool``
     and returns a real result — NOT a ``TypeError`` from a phantom param
     name. This is the BUG B acceptance test (the schema declared a param
     the shipped ``lookup(key, pairs)`` does not accept)."""
     pairs = [(b"a", b"x"), (b"b", b"y"), (b"c", b"z")]  # pre-sorted
     result = invoke_tool(
-        "srmech.amsc.naming.lookup", {"key": b"b", "pairs": pairs}
+        "srmech.introspect.naming.lookup", {"key": b"b", "pairs": pairs}
     )
     assert result == b"y"
     # A miss returns None (still a real result, no TypeError).
     miss = invoke_tool(
-        "srmech.amsc.naming.lookup", {"key": b"zzz", "pairs": pairs}
+        "srmech.introspect.naming.lookup", {"key": b"zzz", "pairs": pairs}
     )
     assert miss is None
 
 
 def test_template_render_callable_via_invoke_tool() -> None:
-    """``srmech.amsc.template.render`` is callable through ``invoke_tool``
+    """``srmech.math.template.render`` is callable through ``invoke_tool``
     with the real ``mapping`` param — the second schema/signature drift the
     rc13 ratchet surfaced (the schema declared ``substitutions``)."""
     result = invoke_tool(
-        "srmech.amsc.template.render",
+        "srmech.math.template.render",
         {"template_bytes": b"hi {n}", "mapping": {b"n": b"there"}},
     )
     assert result == b"hi there"
@@ -1373,14 +1459,14 @@ def test_schema_signature_alignment_no_drift() -> None:
     This test would have caught both naming.lookup (``entries``) and
     template.render (``substitutions``). It guards all ~158 tools at once.
     """
-    from srmech.mcp._tools import _resolve_dotted_callable
+    from srmech._resolve import resolve_dotted_callable
 
     schema = get_tool_schema()
     assert len(schema.tools) > 50, "tool registry unexpectedly small"
 
     drift: List[Tuple[str, str, List[str]]] = []
     for entry in schema.tools:
-        fn = _resolve_dotted_callable(entry.name)
+        fn = resolve_dotted_callable(entry.name)
         sig = __import__("inspect").signature(fn)
         params = sig.parameters.values()
         Parameter = __import__("inspect").Parameter
@@ -1461,7 +1547,7 @@ def test_coercion_roundtrips_scalar_leaf_types() -> None:
     returns that nested list UNCHANGED. Complex matrices serialise as
     ``[re, im]`` leaves and rebuild via the explicit
     ``complex_pairs_to_ndarray`` (now returning a ``list[complex]``)."""
-    from srmech.amsc.mat import Mat
+    from srmech.math.mat import Mat
     from srmech.mcp._coercion import (
         coerce_param,
         complex_pairs_to_ndarray,
@@ -1504,7 +1590,7 @@ def test_serialise_native_emits_json_serialisable() -> None:
     The matrix carrier is ``Mat`` (``.tolist()``'d, complex entries → ``[re,
     im]`` leaves); scalars are plain Python ``int`` / ``float`` / ``complex``;
     containers (tuple / list / dict, incl. bytes keys) recurse."""
-    from srmech.amsc.mat import Mat
+    from srmech.math.mat import Mat
     from srmech.mcp._coercion import serialise_native
 
     samples: List[Any] = [
@@ -1568,7 +1654,7 @@ def test_invoke_naming_lookup_base64_params() -> None:
     """``naming.lookup`` with base64 key + base64 (key, value) pairs
     returns the matching value — no TypeError — and serialises to JSON."""
     raw = invoke_tool(
-        "srmech.amsc.naming.lookup",
+        "srmech.introspect.naming.lookup",
         {
             "key": _b64(b"A"),
             "pairs": [[_b64(b"A"), _b64(b"content-addressing")]],
@@ -1584,7 +1670,7 @@ def test_invoke_template_render_base64_mapping() -> None:
     import base64
 
     raw = invoke_tool(
-        "srmech.amsc.template.render",
+        "srmech.math.template.render",
         {"template_bytes": _b64(b"Class {x}"), "mapping": {_b64(b"x"): _b64(b"A")}},
     )
     assert raw == b"Class A"
@@ -1602,7 +1688,7 @@ def test_invoke_hdc_bind_base64_roundtrips() -> None:
     a = bytes([1, 2, 3, 4])
     b = bytes([5, 6, 7, 8])
     raw = invoke_tool(
-        "srmech.amsc.hdc.bind", {"a": _b64(a), "b": _b64(b)}
+        "srmech.math.hdc.bind", {"a": _b64(a), "b": _b64(b)}
     )
     assert raw == bytes(x ^ y for x, y in zip(a, b))
     text = serialise_result(raw)
@@ -1621,14 +1707,14 @@ def test_invoke_jacobi_eigvals_nested_list_matrix() -> None:
         [0.0, -1.0, 2.0],
     ]
     raw = invoke_tool(
-        "srmech.amsc.laplacian.jacobi_eigvals", {"matrix": matrix}
+        "srmech.math.laplacian.jacobi_eigvals", {"matrix": matrix}
     )
     vals = sorted(raw)
     assert len(vals) == 3
     # Oracle = the substrate-native EXACT real-symmetric eigvals cascade
     # (``eigvals_exact``, numpy-free), NOT np.linalg.eigvalsh. (The closed form
     # of this tridiagonal is 2 ± √2, 2: {0.5858…, 2.0, 3.4142…}.)
-    from srmech.amsc.cascade.matrix_cascades import eigvals_exact
+    from srmech.cascade.matrix_cascades import eigvals_exact
 
     expected = sorted(eigvals_exact(matrix))
     assert len(expected) == 3
@@ -1642,7 +1728,7 @@ def test_invoke_higgs_potential_complex_phi() -> None:
     """``qm.sm.higgs_potential`` with phi=[re, im] returns a real float;
     the result is JSON-serialisable."""
     raw = invoke_tool(
-        "srmech.qm.sm.higgs_potential",
+        "srmech.physics.qm.sm.higgs_potential",
         {"phi": [1.0, 0.5], "mu_squared": 2.0, "lam": 1.0},
     )
     # V = -mu^2 |phi|^2 + lam |phi|^4; |phi|^2 = 1.25.
@@ -1655,7 +1741,7 @@ def test_invoke_dispatch_match_base64_rules() -> None:
     """``dispatch.match`` with base64 input + [base64, int] rules returns
     a serialisable result (the (matched, tag) tuple -> JSON list)."""
     raw = invoke_tool(
-        "srmech.amsc.dispatch.match",
+        "srmech.math.dispatch.match",
         {"input_bytes": _b64(b"hello"), "rules": [[_b64(b"he"), 1], [_b64(b"xyz"), 2]]},
     )
     _assert_json_serialisable(raw)
@@ -1667,10 +1753,10 @@ def test_invoke_klein4_expand_seed_reproducible_rc14_path() -> None:
     retargets it from ``klein4_random(seed=)`` to ``klein4_expand`` — the
     same MT19937 stream under the name that describes it."""
     r1 = serialise_result(
-        invoke_tool("srmech.amsc.hdc.klein4_expand", {"D": 8, "seed": 42})
+        invoke_tool("srmech.math.hdc.klein4_expand", {"D": 8, "seed": 42})
     )
     r2 = serialise_result(
-        invoke_tool("srmech.amsc.hdc.klein4_expand", {"D": 8, "seed": 42})
+        invoke_tool("srmech.math.hdc.klein4_expand", {"D": 8, "seed": 42})
     )
     assert r1 == r2
     assert set(json.loads(r1)) <= {0, 1, 2, 3}
@@ -1699,22 +1785,22 @@ def test_schema_renders_encoding_hints() -> None:
     assert "base64" in p["description"]
 
     # np.ndarray -> array + nested-array hint.
-    p = _prop("srmech.amsc.laplacian.jacobi_eigvals", "matrix")
+    p = _prop("srmech.math.laplacian.jacobi_eigvals", "matrix")
     assert p["type"] == "array"
     assert "nested JSON array" in p["description"]
 
     # complex -> array + [real, imaginary] hint.
-    p = _prop("srmech.qm.sm.higgs_potential", "phi")
+    p = _prop("srmech.physics.qm.sm.higgs_potential", "phi")
     assert p["type"] == "array"
     assert "real, imaginary" in p["description"]
 
     # Mapping[bytes, bytes] -> object + base64 key/value hint.
-    p = _prop("srmech.amsc.template.render", "mapping")
+    p = _prop("srmech.math.template.render", "mapping")
     assert p["type"] == "object"
     assert "base64" in p["description"]
 
     # list[tuple[bytes, int]] -> array + [base64, integer] hint.
-    p = _prop("srmech.amsc.dispatch.match", "rules")
+    p = _prop("srmech.math.dispatch.match", "rules")
     assert p["type"] == "array"
     assert "base64" in p["description"]
 
@@ -1779,6 +1865,51 @@ def _synth_spectral_handle_envelope() -> Dict[str, Any]:
     return serialise_native(handle)
 
 
+def _synth_chain_spec_wire() -> Dict[str, Any]:
+    """A GENUINE minimal chain — one Class-I step, ``gcd(12, 18)`` -> 6 — as the
+    JSON object a client puts on the wire for a ``ChainSpec`` param.
+
+    rc414 (`#T1092`) — this row was ``"ChainSpec": {}``, an empty dict, and it
+    was adequate ONLY because nothing downstream validated it: ``coerce_param``
+    mapped ``ChainSpec`` to the ``_identity`` pass-through, so ``{}`` sailed
+    through coercion and the op then raised a TOLERATED domain error. rc414
+    gives the type a real coercer (``_to_chain_spec`` -> ``parse_chain_spec``),
+    and a real coercer correctly REJECTS ``{}`` with
+    ``ChainSpecError: chain entry missing required key 'name'``.
+
+    THE FIX IS THE SYNTH VALUE, NOT THE COERCER. Widening ``_to_chain_spec`` to
+    accept ``{}`` would restore the exact anti-pattern rc408 named — advertising
+    a value that cannot work — one layer further down, and it is the anti-pattern
+    this whole rc exists to remove.
+
+    THIS IS THE THIRD INSTANCE OF THE SAME SHAPE. ``"callable": "abs"`` became
+    ``"operator_name": "srmech.cascade.chiral_flip"`` at rc16 for exactly this
+    reason (a str that is not callable, tolerated as a TypeError), and
+    ``SpectralHandle`` became a freshly-minted registered envelope in the same
+    rc. A placeholder is only ever "fine" until something starts checking it,
+    and then it reads as a product bug rather than as test scaffolding.
+
+    The same table has a fourth, still-live instance, tracked separately as
+    `#T1094`: the fall-through ``return table.get(type_string, "a")`` hands the
+    literal ``"a"`` to EVERY undeclared string param — including filesystem
+    paths — so a smoke run writes a stray 16-byte file named ``a`` into the
+    package directory. Not fixed here; it needs its own rc, and gitignoring the
+    file would close the symptom while preserving the defect.
+
+    The chain is chosen so it genuinely EXECUTES: class ``I`` resolves to
+    ``srmech.math.cyclic`` (not ``srmech.cascade`` — the class registry maps
+    letters to owning modules), ``gcd`` is a real op on it, and both consumers
+    of this value work — ``run_chain`` returns ``6`` and ``resolve_chain``
+    returns a callable that returns ``6``.
+    """
+    return {
+        "name": "smoke_gcd",
+        "summary": "one Class-I step: gcd(12, 18)",
+        "returns": "int",
+        "steps": [{"class": "I", "op": "gcd", "args": {"a": 12, "b": 18}}],
+    }
+
+
 def _synth_value_for_type(type_string: str) -> Any:
     """Synthesise ONE minimal, schema-valid JSON-wire value for a declared
     ToolEntry param type, using the rc14 coercion encodings.
@@ -1806,8 +1937,13 @@ def _synth_value_for_type(type_string: str) -> Any:
         "Optional[float]": 1.0,
         "number": 1.0,
         "bool": True,
-        "str": "a",
-        "Optional[str]": "a",
+        # rc430 (`#T1094`): was ``"a"``. Any literal is equally arbitrary for a
+        # label-shaped string, but a SELF-DESCRIBING one is traceable: if this
+        # value ever escapes into a file, a log or an error message, its name
+        # says where it came from. Path-shaped params never reach this row —
+        # tier 3 of ``_synth_args_for_entry`` diverts them to a sandbox path.
+        "str": "srmech_synth",
+        "Optional[str]": "srmech_synth",
         "bytes": b64,
         "complex": [1.0, 0.0],
         # ndarray: a 2x2 identity (square — satisfies the most ops; the
@@ -1850,6 +1986,17 @@ def _synth_value_for_type(type_string: str) -> Any:
         # this same value, so len(a) != len(z)+1 is a TOLERATED domain ValueError
         # (the op was CALLED with bindable + coercible args — the property tested).
         "list[EllMonomial]": ["z0", "z1"],
+        # rc362 music.stiff_string_partials `inharmonicity`: the exact-ℚ carrier
+        # rides as [num, den]. B = 1/1000 is a realistic piano stiffness and is
+        # in-domain (B >= 0), so the op returns a genuine Tier-2 spectrum rather
+        # than a tolerated domain error.
+        "Q": [1, 1000],
+        # rc362 the acoustic-spectrum wire form (music.spectrum_tier /
+        # commensurability_verdict / common_period `partials`): the Fletcher &
+        # Rossing tuned-bell profile — hum 1/2, prime 1, tierce 6/5, quint 3/2,
+        # nominal 2. In-domain for all three ops, so each returns a real answer
+        # (tier 1 / verdict "harmonic" / period 10) instead of raising.
+        "Sequence[int | Q | Qalg]": [[1, 2], [1, 1], [6, 5], [3, 2], [2, 1]],
         "np.ndarray": mat2,
         "Optional[np.ndarray]": mat2,
         # v0.7.5rc72 Mat carrier (mat_matmul): a 2x2 list-of-rows -> real Mat;
@@ -1908,6 +2055,12 @@ def _synth_value_for_type(type_string: str) -> Any:
         # (so the laplacian ops, whose `n` synths to 1, return cleanly).
         "list[tuple[int, int]]": [[0, 0]],
         "tuple[int, int]": [1, 1],
+        # rc430 (`#T1094`): kept as the declared row, but it is no longer what
+        # a Path param actually receives — ``_synth_args_for_entry`` tier 3
+        # overrides every path-SHAPED param with a sandbox path. A bare
+        # relative filename here would be created in whatever directory the
+        # suite happens to run from, which is the same defect as ``"a"``
+        # wearing a longer name.
         # JSON-native-ish.
         "dict": {},
         "Optional[dict]": {},
@@ -1918,16 +2071,20 @@ def _synth_value_for_type(type_string: str) -> Any:
         "sequence": [1, 2, 3],
         "pathlib.Path": "smoke_nonexistent_path.toml",
         "int | float | str | list | dict": 1,
-        # opaque in-process handles. ``ChainSpec`` / ``callable`` /
-        # ``numpy.random.Generator`` bind as a dict / name / None and let the
-        # op raise a tolerated DOMAIN error.
-        "ChainSpec": {},
+        # opaque in-process handles. ``callable`` / ``numpy.random.Generator``
+        # bind as a name / None and let the op raise a tolerated DOMAIN error.
+        # rc414 (`#T1092`) — ``ChainSpec`` synths to a GENUINE, EXECUTABLE chain
+        # (was ``{}``, adequate only while the coercer was the ``_identity``
+        # pass-through; a real coercer rightly rejects an empty dict). See
+        # ``_synth_chain_spec_wire`` for why the synth value is the fix and
+        # widening the coercer would not be.
+        "ChainSpec": _synth_chain_spec_wire(),
         "callable": "abs",
         # rc16 — ``operator_name`` synths to a GENUINE unary seq->seq op so
         # chiral_dual is driven cleanly (was the old "callable"->"abs"
         # str-not-callable tolerated TypeError). The srmech-namespace
         # allow-list resolves it; chiral_flip is a real seq->seq operator.
-        "operator_name": "srmech.amsc.cascade.chiral_flip",
+        "operator_name": "srmech.cascade.chiral_flip",
         # rc16 — a SpectralHandle synths to a FRESHLY-MINTED, registered
         # by-reference id envelope so recompose/predict/truncate_sparse bind
         # + RESOLVE a genuine handle (any descriptor-hash mismatch vs the 2x2
@@ -1938,18 +2095,64 @@ def _synth_value_for_type(type_string: str) -> Any:
         "SpectralHandle | bytes": b64,
         "numpy.random.Generator": None,
     }
-    return table.get(type_string, "a")
+    # rc430 (`#T1094`): the blind fall-through is GONE. It was
+    # ``table.get(type_string, "a")``, which handed the literal ``"a"`` to
+    # every type this table does not name — including filesystem paths, so a
+    # smoke run wrote a stray 16-byte file named ``a`` into the package
+    # directory. Substituting a plausible-looking value for a type nobody
+    # declared is not a default, it is a silent guess, and the guess was
+    # destructive. An unnamed type is now VISIBLE and COUNTED (the caller
+    # skips and records the reason) rather than papered over.
+    return table.get(type_string, _ea.UNSYNTHESIZABLE)
 
 
 def _synth_args_for_entry(entry: Any) -> Dict[str, Any]:
     """Build a minimal valid args dict for one ToolEntry: fill every
     REQUIRED param with a synth value; omit optionals (we are testing the
-    minimal-required call path)."""
+    minimal-required call path).
+
+    rc430 (`#T1094`) — THREE TIERS, most-justified first:
+
+    1. **The harvest**, keyed by ``(op, param)``. An argument recorded from
+       this op's own published worked example, in a call that RETURNED, is
+       valid BY CONSTRUCTION. This is the only tier that can tell
+       ``cyclic_mod_add``'s ``n`` from ``is_prime``'s ``n``, or
+       ``genome_save``'s ``path`` from ``normal_order``'s ``convention`` —
+       a type-keyed table cannot, which is why this one accreted 61 rows.
+    2. **The type table** above, for the types it names.
+    3. **A sandbox path** for anything path-SHAPED, so the op may write and
+       the write lands in a temp directory nothing reads. Measured at rc430:
+       the harvest closes only **3 of 33** path-ish parameters, because the
+       genome worked snippets deliberately leave ``path`` unbound (the
+       shipped ``worked_examples_result.ndjson`` has been recording that as
+       ``NameError: name 'path' is not defined`` all along). So tier 3 is not
+       a nicety — without it this fix would cover a tenth of its own subject.
+
+    Anything left is :data:`UNSYNTHESIZABLE`, and the caller SKIPS with a
+    recorded reason. Absence is a value here; a fabricated argument is not.
+    """
+    prov = _ea.provider()
     args: Dict[str, Any] = {}
     for p in entry.parameters:
-        if p.required:
-            args[p.name] = _synth_value_for_type(p.type)
+        if not p.required:
+            continue
+        val = prov.get(entry.name, p.name)                       # tier 1
+        if val is _ea.UNSYNTHESIZABLE:
+            val = _synth_value_for_type(p.type)                  # tier 2
+        if val is _ea.UNSYNTHESIZABLE or _ea.is_path_shaped(p.name, p.type):
+            # tier 3 — path-shaped wins over the table, because the table's
+            # ``pathlib.Path`` row is a bare relative filename and creating
+            # THAT in the package directory is the same defect wearing a
+            # longer name.
+            if _ea.is_path_shaped(p.name, p.type):
+                val = _ea.sandbox_path(p.name)
+        args[p.name] = val
     return args
+
+
+def _unsynthesizable_params(args: Dict[str, Any]) -> List[str]:
+    """Params in a synth map with no justified value (rc430, `#T1094`)."""
+    return sorted(k for k, v in args.items() if v is _ea.UNSYNTHESIZABLE)
 
 
 def _is_binding_error(exc: BaseException) -> bool:
@@ -1973,17 +2176,31 @@ def _is_binding_error(exc: BaseException) -> bool:
     return any(m in msg for m in binding_markers)
 
 
-def test_every_advertised_tool_invocable() -> None:
-    """§10.1 — THE EVERY-TOOL INVOCATION SMOKE.
+def test_advertised_tool_registry_not_small() -> None:
+    """Aggregate guard split out of the (now parametrized) every-tool smoke
+    (`#T1007`): the advertised registry must not have silently shrunk. The
+    per-op nodes below name any single broken tool; this asserts the SET is
+    the expected size (the old ``assert len(advertised) > 50``)."""
+    assert len(_ADVERTISED) > 50, "advertised tool registry unexpectedly small"
 
-    For EVERY ``mcp_callable=True`` ToolEntry: synthesise minimal valid
-    args from its schema (rc14 encodings per declared type), then invoke it
-    via ``invoke_tool``. Assert no BINDING error (the schema declares a
-    param the callable can't bind) and no COERCION error (the advertised
-    encoding doesn't round-trip). DOMAIN errors (ValueError, non-square
-    matrix, length mismatch, ZeroDivision, op-internal AssertionError) are
-    TOLERATED — they prove the tool was CALLED with bindable + coercible
-    args (we test callability, not domain validity).
+
+@pytest.mark.parametrize("entry", _ADVERTISED, ids=lambda e: e.name)
+def test_advertised_tool_invocable(entry: Any) -> None:
+    """§10.1 — THE EVERY-TOOL INVOCATION SMOKE, one node PER advertised tool
+    (`#T1007`; was a single ~30-min loop over every ``mcp_callable`` ToolEntry —
+    an atomic node ``--dist loadfile`` could not split).
+
+    For THIS ``mcp_callable=True`` ToolEntry: synthesise minimal valid args from
+    its schema (rc14 encodings per declared type), then invoke it via
+    ``invoke_tool``. FAIL on a BINDING error (the schema declares a param the
+    callable can't bind), a COERCION error (the advertised encoding doesn't
+    round-trip), a non-serialisable result, or a RETURN-TYPE mismatch. DOMAIN
+    errors (ValueError, non-square matrix, length mismatch, ZeroDivision,
+    op-internal AssertionError / TypeError) are TOLERATED — they prove the tool
+    was CALLED with bindable + coercible args (we test callability, not domain
+    validity). The tolerance logic and the exact fail conditions are UNCHANGED
+    from the pre-`#T1007` accumulate-then-assert loop; only the granularity is
+    finer (a broken tool NAMES itself instead of hiding in an accumulated list).
 
     This is the empirical complement to the rc14 ``has_coercer`` ratchet,
     which could not tell a real coercer from the ``_identity`` pass-through
@@ -1991,96 +2208,74 @@ def test_every_advertised_tool_invocable() -> None:
     """
     from srmech.mcp._tools import _coerce_arguments
 
-    schema = get_tool_schema()
-    advertised = [e for e in schema.tools if e.mcp_callable]
-    assert len(advertised) > 50, "advertised tool registry unexpectedly small"
+    synth = _synth_args_for_entry(entry)
 
-    failures: List[Tuple[str, Dict[str, Any], str]] = []
-    invoked_ok = 0
+    # rc430 (`#T1094`): a param with no justified value is SKIPPED and NAMED,
+    # never filled with a guess. The population of such params is held under a
+    # down-only ceiling by tests/test_synth_args_provenance_rc430.py, so this
+    # skip cannot quietly become the normal case — which is the only thing
+    # that would make it worse than the literal ``"a"`` it replaces.
+    missing = _unsynthesizable_params(synth)
+    if missing:
+        pytest.skip(
+            f"{entry.name}: no justified value for required param(s) "
+            f"{missing} — types {[p.type for p in entry.parameters if p.name in missing]}. "
+            f"Counted by test_synth_args_provenance_rc430.py "
+            f"(CEIL_UNSYNTHESIZABLE); NOT silently defaulted.")
 
-    for entry in advertised:
-        synth = _synth_args_for_entry(entry)
-
-        # Phase 1 — coercion in isolation. A failure here means the
-        # advertised wire-encoding for some declared type does not coerce
-        # to the native type (a real, fixable surface bug).
-        try:
-            _coerce_arguments(entry, synth)
-        except Exception as exc:  # noqa: BLE001 — classify below
-            failures.append(
-                (entry.name, synth, f"COERCION {type(exc).__name__}: {exc}")
-            )
-            continue
-
-        # Phase 2 — full invoke (coerce + resolve + call). Tolerate domain
-        # errors; flag only binding errors. The result itself must
-        # JSON-serialise (the server slot is textual JSON) — a result that
-        # cannot serialise is also a real surface bug.
-        try:
-            raw = invoke_tool(entry.name, synth)
-        except TypeError as exc:
-            if _is_binding_error(exc):
-                failures.append(
-                    (entry.name, synth, f"BINDING TypeError: {exc}")
-                )
-            else:
-                invoked_ok += 1  # op-internal TypeError == reached the op
-            continue
-        except Exception:  # noqa: BLE001 — tolerated domain error
-            # ValueError / numpy LinAlgError / ZeroDivisionError /
-            # AssertionError / MCPToolError-from-domain etc. — the tool WAS
-            # called with bindable + coercible args. That is the property
-            # under test; the domain rejection is expected for synth data.
-            invoked_ok += 1
-            continue
-
-        # Reached the op AND returned — the result must be serialisable.
-        try:
-            serialise_result(raw)
-        except Exception as exc:  # noqa: BLE001
-            failures.append(
-                (entry.name, synth,
-                 f"RESULT not serialisable {type(exc).__name__}: {exc}")
-            )
-            continue
-
-        # rc131 — RETURN-TYPE AGREEMENT. The harness already holds ``raw``; the
-        # gap §10.1 historically left open was never asserting that ``type(raw)``
-        # AGREES with the advertised ``returns.type``. Assert it here too (the
-        # immolation gate owns the canonical guard; this folds the inspection
-        # into the existing every-tool harness). ``None`` agreement (an
-        # unassertable handle / unknown type) is skipped, exactly as the
-        # immolation gate skips it.
-        if entry.returns is not None:
-            from conftest import return_type_agrees
-            agrees = return_type_agrees(raw, entry.returns.type)
-            if agrees is False:
-                failures.append(
-                    (entry.name, synth,
-                     f"RETURN-TYPE mismatch: observed "
-                     f"{type(raw).__name__!r} does not match advertised "
-                     f"{entry.returns.type!r}")
-                )
-                continue
-        invoked_ok += 1
-
-    print(
-        f"\n{invoked_ok}/{len(advertised)} advertised tools invocable "
-        f"(binding+coercion+return-type clean)"
-    )
-    assert not failures, (
-        "every-tool invocation smoke found tools that are advertised but "
-        "NOT invocable with their advertised schema (binding / coercion / "
-        "non-serialisable-result — the gap the static has_coercer ratchet "
-        f"missed):\n"
-        + "\n".join(
-            f"  - {name}: {err}\n      args={args!r}"
-            for name, args, err in failures
+    # Phase 1 — coercion in isolation. A failure here means the advertised
+    # wire-encoding for some declared type does not coerce to the native type
+    # (a real, fixable surface bug).
+    try:
+        _coerce_arguments(entry, synth)
+    except Exception as exc:  # noqa: BLE001 — classify below
+        pytest.fail(
+            f"{entry.name}: COERCION {type(exc).__name__}: {exc}\n"
+            f"      args={synth!r}"
         )
-    )
-    # All advertised tools reached their op (or returned) — none failed on
-    # binding/coercion.
-    assert invoked_ok == len(advertised)
+
+    # Phase 2 — full invoke (coerce + resolve + call). Tolerate domain errors;
+    # flag only binding errors. The result itself must JSON-serialise (the
+    # server slot is textual JSON) — a result that cannot serialise is also a
+    # real surface bug.
+    try:
+        raw = invoke_tool(entry.name, synth)
+    except TypeError as exc:
+        if _is_binding_error(exc):
+            pytest.fail(
+                f"{entry.name}: BINDING TypeError: {exc}\n      args={synth!r}"
+            )
+        return  # op-internal TypeError == reached the op (tolerated domain)
+    except Exception:  # noqa: BLE001 — tolerated domain error
+        # ValueError / ZeroDivisionError / AssertionError /
+        # MCPToolError-from-domain etc. — the tool WAS called with bindable +
+        # coercible args. That is the property under test; the domain rejection
+        # is expected for synth data.
+        return
+
+    # Reached the op AND returned — the result must be serialisable.
+    try:
+        serialise_result(raw)
+    except Exception as exc:  # noqa: BLE001
+        pytest.fail(
+            f"{entry.name}: RESULT not serialisable "
+            f"{type(exc).__name__}: {exc}\n      args={synth!r}"
+        )
+
+    # rc131 — RETURN-TYPE AGREEMENT. Assert ``type(raw)`` AGREES with the
+    # advertised ``returns.type`` (the immolation gate owns the canonical
+    # guard; this folds the inspection into the every-tool harness). ``None``
+    # agreement (an unassertable handle / unknown type) is skipped, exactly as
+    # the immolation gate skips it.
+    if entry.returns is not None:
+        from conftest import return_type_agrees
+        agrees = return_type_agrees(raw, entry.returns.type)
+        if agrees is False:
+            pytest.fail(
+                f"{entry.name}: RETURN-TYPE mismatch: observed "
+                f"{type(raw).__name__!r} does not match advertised "
+                f"{entry.returns.type!r}\n      args={synth!r}"
+            )
 
 
 def test_handle_pending_absent_from_advertised_catalogs() -> None:
@@ -2091,11 +2286,32 @@ def test_handle_pending_absent_from_advertised_catalogs() -> None:
     spectral names are PRESENT in BOTH advertised surfaces (MCP ``tools/list``
     via ``tool_entries_to_mcp_defs`` AND the Anthropic ``_build_tool_catalog``
     seam). (If a residual handle-pending tool is ever introduced later, a
-    fresh exclusion assertion can be re-added for it.)"""
+    fresh exclusion assertion can be re-added for it.)
+
+    v0.9.0rc414 (`#T1092`) — that parenthetical is now cashed in. The rc16
+    assertion was ``pending == set()``, i.e. "zero excluded, forever"; rc414
+    excludes ``srmech.introspect.publish``, whose obstruction is not a type an
+    encoder can fix but a SHAPE IN TIME (a ``with``-block scope cannot span two
+    JSON-RPC calls). The rc16 property that actually matters — the 7 spectral
+    tools are PRESENT in both advertised surfaces, because the ``$srmech_handle``
+    grammar rescued them — is untouched below and is what this test still
+    guards. What replaces the strict-zero is the EXCLUSION-IS-HONOURED pair:
+    whatever is excluded must be absent from BOTH advertised catalogs (not
+    merely flagged in the registry), so the field and the seams cannot drift
+    apart."""
     schema = get_tool_schema()
     pending = {e.name for e in schema.tools if not e.mcp_callable}
-    assert pending == set(), (
-        f"rc16 expects ZERO handle-pending tools; still pending: {pending}"
+
+    # THE EXCLUSION IS HONOURED, not just declared. A flip that the seams
+    # ignore is worse than no flip: the tool stays advertised while the
+    # registry says it is not callable.
+    advertised_mcp = {d["name"] for d in tool_entries_to_mcp_defs()}
+    leaked = pending & advertised_mcp
+    assert leaked == set(), (
+        f"entries marked mcp_callable=False are STILL advertised over MCP: "
+        f"{leaked}. The exclusion filter did not take effect — on a native "
+        f"host the compiled registry is the live path, so this also means "
+        f"srmech_tool_registry.c needs regenerating and libsrmech rebuilding."
     )
 
     spectral_names = {
@@ -2124,6 +2340,25 @@ def test_handle_pending_absent_from_advertised_catalogs() -> None:
     assert spectral_names <= anthropic_srmech_names, (
         f"spectral tools missing from the Anthropic catalog: "
         f"{spectral_names - anthropic_srmech_names}"
+    )
+    assert not (pending & anthropic_srmech_names), (
+        f"excluded entries leaked into the Anthropic catalog seam: "
+        f"{pending & anthropic_srmech_names}"
+    )
+
+    # rc414 — the advertised catalog is EXACTLY the callable subset. rc16's
+    # ``spectral_names <= mcp_names`` is a SUBSET check over 7 hardcoded names,
+    # so it cannot see the advertised catalog silently losing entries it does
+    # not name. (Measured during the rc414 research: a stale libsrmech
+    # advertised 556 against a 559-entry registry, and no gate reported it —
+    # two of the three missing names were ops MCP_INSTRUCTIONS tells a client
+    # to call.) This equality is the missing half.
+    assert advertised_mcp == {
+        e.name for e in schema.tools if e.mcp_callable
+    }, (
+        "the advertised MCP catalog is not exactly the mcp_callable subset; "
+        "on a native host this usually means the compiled registry in "
+        "libsrmech is stale against the Python registry — rebuild it"
     )
 
 
@@ -2177,21 +2412,21 @@ def test_spectral_handle_or_bytes_discriminates() -> None:
 
 
 def test_operator_name_param_resolves_callable() -> None:
-    """``coerce_param('srmech.amsc.cascade.chiral_flip', 'operator_name')``
+    """``coerce_param('srmech.cascade.chiral_flip', 'operator_name')``
     returns a callable; ``invoke_tool`` drives chiral_dual end-to-end with
     NO TypeError (the rc15 over-advertisement is now honest); an unknown /
     out-of-namespace op name raises a clean error."""
     from srmech.mcp._coercion import coerce_param
 
-    fn = coerce_param("srmech.amsc.cascade.chiral_flip", "operator_name")
+    fn = coerce_param("srmech.cascade.chiral_flip", "operator_name")
     assert callable(fn)
 
     # End-to-end through invoke_tool: chiral_dual(chiral_flip, [1,2,3]) =
     # chiral_flip(chiral_flip(chiral_flip(x))) — three reversals net to ONE
     # reversal, so the result is the reversed sequence.
     res = invoke_tool(
-        "srmech.amsc.cascade.chiral_dual",
-        {"op": "srmech.amsc.cascade.chiral_flip", "x": [1.0, 2.0, 3.0]},
+        "srmech.cascade.chiral_dual",
+        {"op": "srmech.cascade.chiral_flip", "x": [1.0, 2.0, 3.0]},
     )
     assert list(res) == [3.0, 2.0, 1.0]
 

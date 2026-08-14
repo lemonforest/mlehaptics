@@ -44,7 +44,7 @@ discriminators tell ``build_chain_from_toml`` which builder to invoke:
 
 The ``parallel`` discriminator (v0.6.0rc11; rc12 composability) is the
 chain face of the Klein-4 four-sector fan-out
-(:func:`srmech.amsc.cascade.parallel_sector_dispatch`): it runs the piped
+(:func:`srmech.cascade.parallel_sector_dispatch`): it runs the piped
 value through the ``parallel_body`` op across ≤4 chirality sectors. A
 special form like loop/fold/reduce, NOT a plain ``op`` (which is why
 ``op = "parallel_sector_dispatch"`` is rejected with a guided error
@@ -60,16 +60,25 @@ cascade op (``max_denominator``, ``fine_scale``, …).
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 from typing import Any, Dict, List, Union
 
+# srmech's own internal TOML front door (`#T907` self-host arc, `#T1067` last
+# tail). Native ``srmech_toml`` parser first, stdlib ``tomllib`` (3.11+) /
+# ``tomli`` (3.10) floor otherwise — the ONE native-first TOML implementation in
+# the tree. Before rc400 this module carried its OWN stdlib-``tomllib`` parse floor
+# plus a ``_toml_loads_native`` native-first probe (which fronted the DISTINCT C symbol
+# ``srmech_dsl_toml_chain_to_json``); both are gone — the chain-spec PARSE now
+# routes through ``srmech._toml`` like every other loader. The
+# ``srmech_dsl_toml_chain_to_json`` C symbol is UNCHANGED — it stays the
+# C-only-host chain-spec TOML->canonical-JSON front-end (no Python TOML hop),
+# exercised directly by ``tests/test_dsl_combinators_c_rc182.py``. The alias
+# ``_srmech_toml`` (leading underscore) dodges the anchored ``^srmech_``
+# ``gen_c_claims`` matcher; do NOT normalise it to ``srmech_toml``. ``srmech._toml``
+# is a leaf module (it imports ``srmech._native`` lazily inside ``loads()``), so
+# this module-top import introduces no package-init cycle.
+from srmech import _toml as _srmech_toml
 from ._chain import Chain, chain as _chain_factory
-
-if sys.version_info >= (3, 11):
-    import tomllib as _toml
-else:  # pragma: no cover — 3.10-only branch
-    import tomli as _toml  # type: ignore[no-redef]
 
 
 # Keys the TOML schema reserves as discriminators / control words —
@@ -77,50 +86,11 @@ else:  # pragma: no cover — 3.10-only branch
 _RESERVED_STAGE_KEYS = frozenset({
     "op",
     "loop_n", "sub_chain",
-    "fold_init", "fold_op",
+    "fold_init", "fold_op", "fold_args",
     "reduce_op",
     "parallel_body", "n_sectors", "combine",
+    "map_op",
 })
-
-
-def _toml_loads_native(spec: str) -> "Any":
-    """Parse a TOML chain spec via the C ``srmech_dsl_toml_chain_to_json`` bridge.
-
-    Returns the parsed dict (the ``build_chain_from_dict`` IR) when the native
-    lib is present AND the C ``srmech_toml`` parser accepts the document, else
-    ``None`` so :func:`build_chain_from_toml_str` falls back to the stdlib
-    ``tomllib`` parse (rc103 inform-don't-limit — the C parser is the DEFAULT
-    path, the pure parser the fallback; both yield the same dict / raise the same
-    ``TOMLDecodeError`` on genuine syntax errors). numpy-free, no import cost when
-    native is absent.
-    """
-    try:
-        from srmech.amsc import _native
-    except Exception:
-        return None
-    if not (_native.HAS_NATIVE and _native.LIB is not None):
-        return None
-    lib = _native.LIB
-    if not (hasattr(lib, "srmech_dsl_toml_chain_to_json")
-            and hasattr(lib, "srmech_dsl_toml_chain_to_json_arena_bytes")):
-        return None
-    import ctypes
-    import json
-    src = spec.encode("utf-8")
-    ws_bytes = int(lib.srmech_dsl_toml_chain_to_json_arena_bytes(len(src)))
-    ws = (ctypes.c_char * ws_bytes)()
-    out_cap = max(ws_bytes, 16384)
-    out = (ctypes.c_char * out_cap)()
-    out_len = ctypes.c_size_t()
-    rc = lib.srmech_dsl_toml_chain_to_json(
-        src, len(src), ws, ws_bytes, out, out_cap, ctypes.byref(out_len))
-    if rc != _native.SRMECH_OK:
-        return None
-    try:
-        data = json.loads(out.raw[:out_len.value].decode("utf-8"))
-    except (ValueError, UnicodeDecodeError):
-        return None
-    return data if isinstance(data, dict) else None
 
 
 def load_chain_toml(path: Union[str, Path]) -> Dict[str, Any]:
@@ -128,20 +98,21 @@ def load_chain_toml(path: Union[str, Path]) -> Dict[str, Any]:
 
     Separated from :func:`build_chain_from_toml` so callers (tests,
     ``visualize``) can inspect / mutate the parsed dict before
-    materialising it.
+    materialising it. The parse routes through :func:`srmech._toml.load`
+    (native ``srmech_toml`` first, stdlib ``tomllib`` / ``tomli`` floor).
     """
     path = Path(path)
     with open(path, "rb") as fh:
-        return _toml.load(fh)
+        return _srmech_toml.load(fh)
 
 
 def build_chain_from_toml(path: Union[str, Path]) -> Chain:
     """Load a TOML chain spec from disk and build the matching Chain.
 
     The host reads the file bytes (unavoidable host I/O); the TOML PARSE then
-    routes through :func:`build_chain_from_toml_str` — the C
-    ``srmech_dsl_toml_chain_to_json`` bridge when native is present (rc182), the
-    stdlib ``tomllib`` otherwise.
+    routes through :func:`build_chain_from_toml_str` — i.e. through
+    :func:`srmech._toml.loads` (native ``srmech_toml`` parser first, stdlib
+    ``tomllib`` / ``tomli`` floor).
     """
     spec = Path(path).read_text(encoding="utf-8")
     return build_chain_from_toml_str(spec)
@@ -183,13 +154,13 @@ def build_chain_from_toml_str(spec: str) -> Chain:
             f"build_chain_from_toml_str: spec must be a str of TOML; "
             f"got {type(spec).__name__}"
         )
-    # rc182: the TOML parse routes through the C srmech_toml parser (the
-    # build_chain_from_dict IR emitted as canonical JSON); a native-absent build
-    # or a C-parser decline falls back to the stdlib tomllib (same dict / same
-    # TOMLDecodeError on a genuine syntax error).
-    data = _toml_loads_native(spec)
-    if data is None:
-        data = _toml.loads(spec)
+    # `#T1067`: the TOML parse routes through srmech._toml (the ONE native-first
+    # TOML loader — native srmech_toml parser first, stdlib tomllib / tomli floor
+    # otherwise; same dict / same TOMLDecodeError on a genuine syntax error). The
+    # build_chain_from_dict IR is then materialised in Python. (The C-only-host
+    # path keeps its dedicated srmech_dsl_toml_chain_to_json bridge — TOML->IR-JSON
+    # with no Python — unchanged.)
+    data = _srmech_toml.loads(spec)
     return build_chain_from_dict(data)
 
 
@@ -256,17 +227,19 @@ def _apply_stage_to_chain(
     has_fold = "fold_init" in stage or "fold_op" in stage
     has_reduce = "reduce_op" in stage
     has_parallel = "parallel_body" in stage
-    chosen = sum([has_op, has_loop, has_fold, has_reduce, has_parallel])
+    has_map = "map_op" in stage
+    chosen = sum([has_op, has_loop, has_fold, has_reduce, has_parallel,
+                  has_map])
     if chosen == 0:
         raise ValueError(
             f"stage {idx} has no discriminator; expected one of "
             f"`op`, `loop_n`+`sub_chain`, `fold_init`+`fold_op`, "
-            f"`reduce_op`, or `parallel_body`"
+            f"`reduce_op`, `parallel_body`, or `map_op`"
         )
     if chosen > 1:
         raise ValueError(
             f"stage {idx} has multiple discriminators "
-            f"(op / loop_n / fold_op / reduce_op / parallel_body); "
+            f"(op / loop_n / fold_op / reduce_op / parallel_body / map_op); "
             f"pick exactly one"
         )
 
@@ -323,7 +296,30 @@ def _apply_stage_to_chain(
                 f"stage {idx} `fold_op` must be a string; got "
                 f"{type(fold_op).__name__}"
             )
-        ch.fold(stage["fold_init"], fold_op, **kwargs)
+        # rc420 (`#T1114` fold-contract fix): `fold_args = ["value",
+        # "orientation"]` names the two fold slots as KWARGS so a kw-only
+        # binary op (the shipped reorient) binds from TOML too.
+        fold_args = stage.get("fold_args")
+        if fold_args is not None:
+            if (not isinstance(fold_args, list) or len(fold_args) != 2
+                    or not all(isinstance(a, str) for a in fold_args)):
+                raise ValueError(
+                    f"stage {idx} `fold_args` must be a pair of kwarg "
+                    f"names [acc_name, elem_name]; got {fold_args!r}"
+                )
+            fold_args = (fold_args[0], fold_args[1])
+        ch.fold(stage["fold_init"], fold_op, arg_names=fold_args, **kwargs)
+        return
+
+    if has_map:
+        map_op = stage["map_op"]
+        if not isinstance(map_op, str):
+            raise ValueError(
+                f"stage {idx} `map_op` must be a string (the NAME of a "
+                f"data-first body op `body(input_seq, k)`); got "
+                f"{type(map_op).__name__}"
+            )
+        ch.map_indexed(map_op, **kwargs)
         return
 
     if has_reduce:

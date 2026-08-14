@@ -54,16 +54,16 @@ import os
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.amsc import dispatch
-from srmech.amsc.dispatch import infer, _marshal_relationship
-from srmech.amsc.poly import Poly
-from srmech.amsc.q import Q
-from srmech.amsc.qpoly import QPoly
-from srmech.amsc.qbipoly import QBiPoly
-from srmech.amsc.tripoly import TriPoly
-from srmech.amsc.ellbase import EllMonomial as M, Theta, EllRatio as R, _X, _Q_SYM
-from srmech.amsc.thetasum import _Y
+from srmech import _native
+from srmech.math import dispatch
+from srmech.math.dispatch import infer, _marshal_relationship
+from srmech.math.poly import Poly
+from srmech.math.q import Q
+from srmech.math.qpoly import QPoly
+from srmech.math.qbipoly import QBiPoly
+from srmech.math.tripoly import TriPoly
+from srmech.apokatastasis.ellbase import EllMonomial as M, Theta, EllRatio as R, _X, _Q_SYM
+from srmech.apokatastasis.thetasum import _Y
 
 
 # ── fixtures: sigma_multivar ──────────────────────────────────────────────────

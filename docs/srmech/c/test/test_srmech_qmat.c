@@ -1,6 +1,6 @@
 /*
  * test_srmech_qmat.c — standalone C smoke for the exact-rational matrix carrier
- * srmech_qmat_* (the C peer of srmech.amsc.qmat.QMat; the §76 gosper exact-ℚ
+ * srmech_qmat_* (the C peer of srmech.math.qmat.QMat; the §76 gosper exact-ℚ
  * solve foundation). Proves the C-only host computes the same exact-Q entries the
  * Python QMat does — rref / rank / det / inverse / solve / nullspace — over
  * caller-arena srmech_bigint, with NO Python present.

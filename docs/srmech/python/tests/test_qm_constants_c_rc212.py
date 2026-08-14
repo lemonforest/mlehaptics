@@ -41,10 +41,10 @@ import struct
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.qm import gauge as G
-from srmech.qm import relativistic as R
-from srmech.qm import spin as S
+from srmech import _native
+from srmech.physics.qm import gauge as G
+from srmech.physics.qm import relativistic as R
+from srmech.physics.qm import spin as S
 
 
 _QM_CONST_SYMBOLS = (
@@ -193,7 +193,7 @@ def test_gamma_exact_oracle():
 def test_gell_mann_lambda8_exact_normaliser():
     """λ⁸ = (1/√3)·diag(1, 1, -2) with the normaliser byte-equal to the
     Class-N rational-sqrt cascade (the C path routes the SAME cascade)."""
-    from srmech.amsc import rational as _srn
+    from srmech.math import rational as _srn
 
     lam8 = G.su3_gell_mann_matrices()[7]
     s = 1.0 / float(_srn.sqrt(3.0))
@@ -203,7 +203,7 @@ def test_gell_mann_lambda8_exact_normaliser():
 def test_structure_constants_exact_oracle():
     """ε^{abc} + the f^{abc} seeds equal Peskin-Schroeder eq 15.4 / 17.34
     exactly (f^{458} = f^{678} = √3/2 through the rational-sqrt cascade)."""
-    from srmech.amsc import rational as _srn
+    from srmech.math import rational as _srn
 
     eps = G.su2_structure_constants()
     assert eps[0][1][2] == 1.0 and eps[1][0][2] == -1.0

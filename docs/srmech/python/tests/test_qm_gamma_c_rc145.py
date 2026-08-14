@@ -39,9 +39,9 @@ import contextlib
 
 import pytest
 
-from srmech.amsc import _native
-from srmech.qm import relativistic as R
-from srmech.qm import spin as S
+from srmech import _native
+from srmech.physics.qm import relativistic as R
+from srmech.physics.qm import spin as S
 
 
 requires_native = pytest.mark.skipif(
@@ -162,7 +162,7 @@ def test_pauli_clifford_residuals_exact_zero():
 def test_gamma5_involutive_and_anticommuting():
     """A second independent structural check the C-dispatched matmul must
     satisfy: γ₅² = I₄ EXACTLY and {γ₅, γ^μ} = 0 EXACTLY (numpy-free)."""
-    from srmech.amsc.laplacian import mat_matmul, mat_norm
+    from srmech.math.laplacian import mat_matmul, mat_norm
 
     g5 = R.gamma_5()
     i4 = R._eye4()

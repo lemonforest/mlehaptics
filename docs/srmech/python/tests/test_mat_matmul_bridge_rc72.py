@@ -26,9 +26,9 @@ import textwrap
 
 import pytest
 
-from srmech.amsc.laplacian import mat_matmul, LAPLACIAN_OPS
-from srmech.amsc import laplacian as _lap
-from srmech.amsc.mat import Mat
+from srmech.math.laplacian import mat_matmul, LAPLACIAN_OPS
+from srmech.math import laplacian as _lap
+from srmech.math.mat import Mat
 
 
 def _oracle(A_rows, B_rows):
@@ -167,9 +167,9 @@ def test_mat_matmul_computes_numpy_free_native_and_fallback():
         """
         import sys
         assert "numpy" not in sys.modules
-        from srmech.amsc.laplacian import mat_matmul
-        from srmech.amsc import laplacian as lap
-        from srmech.amsc.mat import Mat
+        from srmech.math.laplacian import mat_matmul
+        from srmech.math import laplacian as lap
+        from srmech.math.mat import Mat
         assert "numpy" not in sys.modules, "import pulled numpy in"
 
         Ac = Mat.from_rows([[1+1j, 2+0j],[0+1j, 1-1j]])
