@@ -112,14 +112,34 @@ class Vec:
     def __getitem__(self, i):
         """``vec[i]`` → a PLAIN ``float`` / ``complex`` scalar (negatives OK);
         ``vec[a:b]`` → a sub-:class:`Vec` (the rc133 slice idiom — so ``v[:2]`` /
-        ``v[-1]`` route through srmech instead of bailing to numpy)."""
+        ``v[-1]`` route through srmech instead of bailing to numpy).
+
+        Raises:
+            IndexError: if ``i`` falls outside ``[-n, n)``.
+
+        ``IndexError`` (not ``ValueError``) FOLLOWS tree precedent rather than
+        departing from it: :meth:`srmech.math.qmat.QMat._norm_row` is the exact
+        structural twin — same ``i += n`` then range check — and already raises
+        ``IndexError``; the sequence protocol is defined in those terms too.
+
+        A real ``raise``, not an ``assert`` (rc433, `#T1131`): the two halves
+        of the domain failed DIFFERENTLY under ``python -O``. ``i >= n`` still
+        crashed (``array index out of range`` from the backing buffer), but
+        ``i < -n`` SILENTLY ALIASED — ``v[-5]`` on a 3-vector returned
+        ``v[1]``, a plausible wrong number with no error. The shipped test
+        drove only the noisy half."""
         if isinstance(i, slice):
             return Vec.from_sequence(
                 [self[k] for k in range(*i.indices(self._n))], is_complex=self._complex)
-        i = int(i)
+        i = requested = int(i)
         if i < 0:
             i += self._n
-        assert 0 <= i < self._n, "Vec index out of range"
+        if not 0 <= i < self._n:
+            # Report the index the CALLER passed, not the normalised one — the
+            # negative-overflow half is the silent-aliasing case, and "-2" for
+            # a requested "-5" reads as a different bug than the one you have.
+            raise IndexError(
+                f"Vec index out of range: {requested} against length {self._n}")
         if self._complex:
             return complex(self._buf[2 * i], self._buf[2 * i + 1])
         return float(self._buf[i])

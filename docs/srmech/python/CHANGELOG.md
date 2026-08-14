@@ -13,6 +13,80 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc433]
+
+### The guard that is not there when it counts (`#T1131`)
+
+**Registry stays 655. ABI stays 14. GENOME_FORMAT_VERSION stays 19.** No op is registered and no `ToolEntry` field is added; `c/include/srmech.h` moves only its two version macros. Every change is a promoted guard, a test, or a gate.
+
+#### The mechanism
+
+**Pytest's assertion rewriter defeats `python -O`, and it defeats it asymmetrically.** Pytest compiles test modules itself, replacing each `assert` with explicit raising bytecode; package modules get no such treatment. So under `-O`:
+
+| Where the `assert` lives | Under `python -O` |
+|---|---|
+| a **TEST** module | **SURVIVES** — pytest rewrote it |
+| a **PACKAGE** module | **VANISHES** — `-O` stripped it |
+
+The consequence is the defect class this rc closes. A test written as `with pytest.raises(AssertionError): shipped_op(bad_input)` certifies a guard **that does not exist in an optimized interpreter** — while the test's own asserts keep working, so the suite looks fine.
+
+Two silent-wrong-answers measured at rc432, pure path:
+
+```
+python3 -O:  v[-5] on a 3-vector                  -> 20.0   (== v[1]; no error)
+python3 -O:  Mat.from_rows([[1.0],[2.0,3.0]])     -> shape (2,1), [[1.0],[2.0]]
+                                                     (3.0 SILENTLY DROPPED)
+```
+
+Both raise `AssertionError` in the default mode. Silent-wrong-answer is the top defect class in this project, so this rc removes it rather than tidying style.
+
+#### The twelve promoted guards
+
+Exception types follow **grepped tree precedent**, not invention. `IndexError` for `Vec.__getitem__` follows `QMat._norm_row` (`qmat.py:260`), the exact structural twin — same `i += n` then range check — which already raises `IndexError`. `ZeroDivisionError` for a zero denominator is the standing ruling.
+
+| Op | `-O` behaviour at rc432 | Now raises |
+|---|---|---|
+| `Mat.from_rows` (ragged) | short-row-first → shape (2,1), **value dropped**; long-row-first → crash in `tolist()` | `ValueError` |
+| `Vec.__getitem__` | `v[-5]` on n=3 **returned `v[1]`**; `v[3]` crashed | `IndexError` |
+| `loop_bind_hd` / `loop_unbind_hd` / `loop_conj_hd` / `loop_inv_hd` / `loop_runbind_hd` (length) | **silent truncation** 25 → 24 | `ValueError` |
+| `loop_bind_hd` / `loop_unbind_hd` / `loop_runbind_hd` (equal length) | `IndexError` from the block loop | `ValueError` |
+| `loop_inv_hd` / `loop_inv` (zero norm) | already `ZeroDivisionError` — the assert **masked** it in the default mode | `ZeroDivisionError` |
+| `register_catalog_dir` | **returned cleanly** and appended the bad path to the module-global `_USER_CATALOG_DIRS` | `FileNotFoundError` |
+| `mat_matmul` (non-`Mat`) | `AttributeError: 'list' object has no attribute 'n_rows'` | `TypeError` |
+| `operator_norm` (non-square) | already `ValueError` — assert **deleted**, not re-typed | `ValueError` (downstream) |
+| `operator_norm` (`ndim == 1`) | genuine 1-D → `TypeError`; **lying** ndim → **returned 1.0** | `TypeError` |
+
+Two of these are the **third instance of the rc431 inversion**: the assert broke the contract in the DEFAULT mode while `-O` behaved correctly. The square-matrix guard in `operator_norm` is therefore **deleted** — `mat_hermitian_eigendecompose` already raises a `ValueError` that names the offending shape — and what is pinned is the `-O` INVARIANCE, not either mode's behaviour.
+
+#### The ten siblings no test pinned
+
+Fixing only what a test pins is the failure mode this project keeps hitting: **the test coverage decides what gets repaired.** `assert isinstance(..., Mat)` appears identically in six Class-L ops and only `mat_matmul` was pinned. All six are promoted to `TypeError`, with tests for the five that had none.
+
+| Sibling | Was pinned? | Now |
+|---|---|---|
+| `mat_solve`, `mat_lstsq`, `mat_hermitian_eigendecompose`, `mat_eigvals`, `mat_svd` | **no** | `TypeError` + tests |
+| `loop_bind_hd` / `loop_unbind_hd` equal-length | **no** (only `loop_runbind_hd` was) | `ValueError` + tests |
+| `loop_inv` (single-element zero) | **no** (only `loop_inv_hd` was) | `ZeroDivisionError` + test |
+| `bigq_reduce_c` (`den != 0`), `bigq_div_c` (`b_num != 0`) | **no** | `ZeroDivisionError` + tests |
+
+The two big-ℚ checks were additionally **hoisted above the `has_native_bigq()` early return**: whether an argument is valid cannot depend on whether an accelerator happens to be loaded, and below that return the guard was unreachable — and therefore untestable — in any native-absent environment. Stated openly: both public entry points (`_reduce_rational`, `rational_div`) already raise `ZeroDivisionError` for this input before dispatching, so this is defense-in-depth at a directly-callable module entry point rather than a reachable-from-the-API defect.
+
+#### The gates
+
+`tests/test_assert_contract_gate_rc433.py` — a **strict-zero** AST gate over `tests/`, discriminating by **subject resolution**: a guarded body whose subject resolves to package code is a defect; one whose subjects are all test-local is a legitimate meta-gate. **An unresolvable subject counts as PACKAGE**, so a new spelling turns the gate red rather than silently exempting a defect. The `try: … except AssertionError:` evasion route is covered under the identical rule — that is why the real population is **19**, not the 16 a `pytest.raises`-only scan reports. The exemption pragma is `# t1131-exempt: <reason>`; a pragma with **no reason does not exempt**, and **the exemption table ships empty**.
+
+Eight controls ship with it, spanning both directions — including a synthetic meta-gate the gate must **NOT** catch, without which "flag everything" would score perfectly.
+
+`CEIL_INPUT_SHAPED_PACKAGE_ASSERTS = 41` — a **down-only** ratchet on the ungated remainder: a package `assert` in the prologue of a public callable that names one of its own parameters. That shape IS an input contract and every one evaporates under `-O`. rc432 measured **49**; the twelve promotions took it to **41**. This is **debt being drained, not an accepted level.**
+
+Both are **srmech-local invariants**. Neither is "Rule 11" — Holzmann's Power of Ten has exactly ten rules and `tests/test_jpl_audit.py` iterates `range(1, 11)`.
+
+`tests/test_input_contracts_rc431.py` §1 gains **25 rows** (6 → 31), one per promoted contract, on the shipped `-O`-invariance roster that already carries a passing negative control. No new whole-suite `-O` CI cell was added: CI already runs the full suite three times, and the roster covers the entire population such a cell would exercise.
+
+#### Correction to the brief
+
+`_tool_docs_curated.py` is **hand-curated, not generated** — it is an *input* to `gen_tool_docs.py`, not an output of it. The generated set is `_tool_docs.py`, `_c_claims.py`, and four C registries.
+
 ## [0.9.0rc432]
 
 ### The orphan the raise does not mention (`#T1132`)

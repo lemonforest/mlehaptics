@@ -62,6 +62,94 @@ _O_INVARIANT_CASES = [
      "f(None)", "TypeError"),
     ("from srmech.signal_processing.path_registry import lookup as f",
      "f('')", "ValueError"),
+
+    # ── rc433 (`#T1131`) — the twelve promotions + their unpinned siblings.
+    # Every row below returned SOMETHING WRONG, or the wrong exception type,
+    # under `-O` at rc432. The measured before-states are named per row.
+
+    # Mat.from_rows ragged. BOTH orientations: short-row-first was the silent
+    # one (shape (2,1), 3.0 dropped, no error); long-row-first crashed in
+    # tolist(). Only the noisy orientation had a test.
+    ("from srmech.math.mat import Mat",
+     "Mat.from_rows([[1.0], [2.0, 3.0]])", "ValueError"),
+    ("from srmech.math.mat import Mat",
+     "Mat.from_rows([[1.0, 2.0], [3.0]])", "ValueError"),
+
+    # Vec.__getitem__. v[-5] on n=3 RETURNED v[1] == 20.0 under -O.
+    ("from srmech.math.vec import Vec",
+     "Vec.from_sequence([10.0, 20.0, 30.0])[-5]", "IndexError"),
+    ("from srmech.math.vec import Vec",
+     "Vec.from_sequence([10.0, 20.0, 30.0])[3]", "IndexError"),
+
+    # _as_hd — ONE helper behind five ops. Each silently truncated 25 -> 24.
+    ("from srmech.math import hdc",
+     "hdc.loop_bind_hd([1.0]*25, [1.0]*25)", "ValueError"),
+    ("from srmech.math import hdc",
+     "hdc.loop_unbind_hd([1.0]*25, [1.0]*25)", "ValueError"),
+    ("from srmech.math import hdc",
+     "hdc.loop_conj_hd([1.0]*25)", "ValueError"),
+    ("from srmech.math import hdc",
+     "hdc.loop_inv_hd([1.0]*25)", "ValueError"),
+    ("from srmech.math import hdc",
+     "hdc.loop_runbind_hd([1.0]*25, [1.0]*25)", "ValueError"),
+
+    # The equal-length guards — three siblings, one of which had a test.
+    ("from srmech.math import hdc",
+     "hdc.loop_bind_hd([1.0]*56, [1.0]*48)", "ValueError"),
+    ("from srmech.math import hdc",
+     "hdc.loop_unbind_hd([1.0]*56, [1.0]*48)", "ValueError"),
+    ("from srmech.math import hdc",
+     "hdc.loop_runbind_hd([1.0]*56, [1.0]*48)", "ValueError"),
+
+    # Zero-norm inverse. -O already gave ZeroDivisionError from 1.0/nsq; the
+    # assert MASKED the ruled-correct type in the DEFAULT mode.
+    ("from srmech.math import hdc",
+     "hdc.loop_inv_hd([0.0]*24)", "ZeroDivisionError"),
+    ("from srmech.math import hdc",
+     "hdc.loop_inv([0.0]*8)", "ZeroDivisionError"),
+
+    # register_catalog_dir — under -O this RETURNED CLEANLY and poisoned the
+    # module-global _USER_CATALOG_DIRS with the bad path.
+    ("from srmech import dsl",
+     "dsl.register_catalog_dir('/definitely/not/a/real/path/t1131')",
+     "FileNotFoundError"),
+
+    # The six identical isinstance(..., Mat) guards. Five had no test at all;
+    # every one of them leaked AttributeError on a private attribute under -O.
+    ("from srmech.math import laplacian as L",
+     "L.mat_matmul([[1.0]], [[1.0]])", "TypeError"),
+    ("from srmech.math import laplacian as L",
+     "L.mat_solve([[1.0]], [[1.0]])", "TypeError"),
+    ("from srmech.math import laplacian as L",
+     "L.mat_lstsq([[1.0]], [[1.0]])", "TypeError"),
+    ("from srmech.math import laplacian as L",
+     "L.mat_hermitian_eigendecompose([[1.0]])", "TypeError"),
+    ("from srmech.math import laplacian as L",
+     "L.mat_eigvals([[1.0]])", "TypeError"),
+    ("from srmech.math import laplacian as L",
+     "L.mat_svd([[1.0]])", "TypeError"),
+
+    # operator_norm. The SQUARE assert was DELETED (a real ValueError already
+    # sat below it, so -O was the CORRECT half and the assert broke the
+    # contract in the default mode — the third instance of the rc431
+    # inversion). The NDIM assert was PROMOTED, because an object that lies
+    # about ndim while yielding 2-D rows RETURNED 1.0 under -O.
+    ("from srmech.physics.qm import bell\n"
+     "from srmech.math.mat import Mat",
+     "bell.operator_norm(Mat.from_rows([[1.0,2.0,3.0],[4.0,5.0,6.0]]))",
+     "ValueError"),
+    ("from srmech.physics.qm import bell\n"
+     "class _L:\n"
+     "    ndim = 1\n"
+     "    def __iter__(self):\n"
+     "        return iter([[1.0, 0.0], [0.0, 1.0]])",
+     "bell.operator_norm(_L())", "TypeError"),
+
+    # The two big-ℚ zero-denominator guards, hoisted above the native check.
+    ("from srmech import _native",
+     "_native.bigq_reduce_c(5, 0)", "ZeroDivisionError"),
+    ("from srmech import _native",
+     "_native.bigq_div_c(1, 2, 0, 1)", "ZeroDivisionError"),
 ]
 
 

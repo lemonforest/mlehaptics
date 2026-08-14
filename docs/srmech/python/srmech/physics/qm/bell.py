@@ -271,14 +271,35 @@ def operator_norm(H) -> float:
 
     Returns:
         Largest absolute eigenvalue (non-negative float).
+
+    Raises:
+        TypeError: if ``H`` declares ``ndim`` other than 2.
+        ValueError: if ``H`` is not square — raised by
+            :func:`~srmech.math.laplacian.mat_hermitian_eigendecompose`
+            below, which states the offending shape.
+
+    rc433 (`#T1131`) — the two guards here were asserts, and they failed in
+    OPPOSITE directions:
+
+    * the SQUARE assert was pure redundancy that INVERTED the contract. A real
+      ``ValueError`` already sits below it in ``mat_hermitian_eigendecompose``
+      ("H must be square; got (2, 3)"), so ``python -O`` behaved CORRECTLY and
+      the assert broke the declared contract in the DEFAULT mode — the worse
+      half, since almost nobody runs ``-O``. It is DELETED, and the ``-O``
+      INVARIANCE is what is pinned.
+    * the NDIM assert was mostly redundant (a genuine 1-D iterable dies with
+      ``TypeError`` in ``list(row)``) but not entirely: an object that LIES
+      about ``ndim`` while yielding 2-D rows RETURNED 1.0 under ``-O``. It is
+      promoted rather than deleted, because the downstream ``TypeError`` is an
+      accident of ``list()`` rather than a stated contract.
     """
     if isinstance(H, Mat):
         Hm = H
     else:
         ndim = getattr(H, "ndim", None)
-        assert ndim is None or ndim == 2, "operator_norm: H must be 2-D"
+        if not (ndim is None or ndim == 2):
+            raise TypeError(f"operator_norm: H must be 2-D; got ndim {ndim!r}")
         Hm = Mat.from_rows([list(row) for row in H], is_complex=True)
-    assert Hm.n_rows == Hm.n_cols, "operator_norm: H must be square"
     evals, _V = mat_hermitian_eigendecompose(Hm)   # (n,1) REAL Mat, ascending
     # Class-K magnitude via explicit sign-branch (no abs()); eigvals real (Hermitian).
     eigs = [evals[i, 0] for i in range(evals.n_rows)]

@@ -1,0 +1,20 @@
+{"n_parse_errors": 0, "n_py_files_walked": 920, "parse_errors": [], "python": "3.10.12", "record": "census_meta", "root": "/mnt/d/GitHub/mlehaptics/docs/srmech/python"}
+{"enclosing": "test_operator_norm_rejects_non_square", "file": "tests/test_bell_chsh.py", "line": 334, "shape": "with_raises", "text": "with pytest.raises(AssertionError):"}
+{"enclosing": "test_operator_norm_rejects_non_2d", "file": "tests/test_bell_chsh.py", "line": 344, "shape": "with_raises", "text": "with pytest.raises(AssertionError):"}
+{"enclosing": "test_register_dir_rejects_nonexistent_path", "file": "tests/test_byo_cascade_toml.py", "line": 156, "shape": "with_raises", "text": "with pytest.raises(AssertionError):"}
+{"enclosing": "test_every_false_scope_fails_the_ratchet", "file": "tests/test_frame_scope_rc430.py", "line": 543, "shape": "except_handler", "text": "except AssertionError:"}
+{"enclosing": "test_gate_fires_on_a_planted_defect", "file": "tests/test_frame_scope_rc430.py", "line": 587, "shape": "with_raises", "text": "with pytest.raises(AssertionError):"}
+{"enclosing": "test_the_planted_axis_also_fails_the_ratchet", "file": "tests/test_frame_scope_rc430.py", "line": 615, "shape": "except_handler", "text": "except AssertionError:"}
+{"enclosing": "test_p5_wrong_coupling_side_fails_loudly", "file": "tests/test_genome_q8_coupling_rc311.py", "line": 233, "shape": "with_raises", "text": "with pytest.raises(AssertionError):"}
+{"enclosing": "test_length_must_be_multiple_of_eight", "file": "tests/test_loop_bind_hd.py", "line": 115, "shape": "with_raises", "text": "with pytest.raises(AssertionError):"}
+{"enclosing": "test_length_must_be_multiple_of_eight", "file": "tests/test_loop_bind_hd.py", "line": 117, "shape": "with_raises", "text": "with pytest.raises(AssertionError):"}
+{"enclosing": "test_hd_unary_requires_multiple_of_8", "file": "tests/test_loop_hd_division.py", "line": 186, "match": "positive multiple", "shape": "with_raises", "text": "with pytest.raises(AssertionError, match=\"positive multiple\"):"}
+{"enclosing": "test_loop_runbind_hd_requires_multiple_of_8_and_equal_length", "file": "tests/test_loop_hd_division.py", "line": 192, "match": "positive multiple", "shape": "with_raises", "text": "with pytest.raises(AssertionError, match=\"positive multiple\"):"}
+{"enclosing": "test_loop_runbind_hd_requires_multiple_of_8_and_equal_length", "file": "tests/test_loop_hd_division.py", "line": 195, "match": "equal length", "shape": "with_raises", "text": "with pytest.raises(AssertionError, match=\"equal length\"):"}
+{"enclosing": "test_inv_hd_zero_block_raises_through_fallback", "file": "tests/test_loop_hd_native_parity.py", "line": 178, "match": "zero vector", "shape": "with_raises", "text": "with pytest.raises(AssertionError, match=\"zero vector\"):"}
+{"enclosing": "test_ragged_rows_rejected", "file": "tests/test_mat_carrier_rc69.py", "line": 72, "shape": "with_raises", "text": "with pytest.raises(AssertionError):"}
+{"enclosing": "test_mat_matmul_rejects_non_mat", "file": "tests/test_mat_matmul_bridge_rc72.py", "line": 131, "shape": "with_raises", "text": "with pytest.raises(AssertionError):"}
+{"enclosing": "test_wrong_coupling_side_fails_loudly", "file": "tests/test_octonion_carrier_rc324.py", "line": 355, "shape": "with_raises", "text": "with pytest.raises(AssertionError):"}
+{"enclosing": "test_a_failing_unregister_test_cleans_up_after_itself", "file": "tests/test_owner_axis_rc410.py", "line": 659, "shape": "with_raises", "text": "with pytest.raises(AssertionError):"}
+{"enclosing": "test_every_registered_tool_resolves_numpy_free", "file": "tests/test_registry_smoke_rc127.py", "line": 72, "shape": "except_handler", "text": "except AssertionError as exc:"}
+{"enclosing": "test_negative_index_and_out_of_range", "file": "tests/test_vec_carrier_rc129.py", "line": 90, "shape": "with_raises", "text": "with pytest.raises(AssertionError):"}

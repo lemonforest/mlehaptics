@@ -3055,7 +3055,9 @@ def loop_inv(x):
     _reject_hd_block_misuse(arr, "loop_inv")
     from srmech.math.laplacian import mat_dot  # numpy-free inner product
     nsq = mat_dot(arr, arr)
-    assert nsq > 0.0, "loop_inv: zero vector has no inverse (Moufang division)"
+    if not nsq > 0.0:
+        raise ZeroDivisionError(
+            "loop_inv: zero vector has no inverse (Moufang division)")
     native = _try_native_loop_inv(arr)
     if native is not None:
         return native
@@ -3158,11 +3160,22 @@ def g2_three_form(x, y, z):
 
 def _as_hd(v, op: str) -> "list":
     """Coerce ``v`` to a flat ``list[float]`` whose length is a positive
-    multiple of LOOP_DIM (the HD block-octonion carrier). Numpy-free."""
+    multiple of LOOP_DIM (the HD block-octonion carrier). Numpy-free.
+
+    Raises:
+        ValueError: if the length is 0, or not a multiple of ``LOOP_DIM``.
+
+    ONE real ``raise`` here covers FIVE public ops (``loop_bind_hd`` /
+    ``loop_unbind_hd`` / ``loop_conj_hd`` / ``loop_inv_hd`` /
+    ``loop_runbind_hd``). As an ``assert`` it vanished under ``python -O`` and
+    every one of the five SILENTLY TRUNCATED to the largest whole number of
+    blocks — a length-25 operand returned a length-24 answer, dropping an
+    element without a word (rc433, `#T1131`)."""
     arr = [float(x) for x in v]
     n = len(arr)
-    assert n and n % LOOP_DIM == 0, (
-        f"{op}: length must be a positive multiple of {LOOP_DIM}")
+    if not n or n % LOOP_DIM:
+        raise ValueError(
+            f"{op}: length must be a positive multiple of {LOOP_DIM}; got {n}")
     return arr
 
 
@@ -3194,7 +3207,10 @@ def loop_bind_hd(x, y):
     rc125 (numpy-free): operates on ``list[float]`` (was an ndarray)."""
     a_ = _as_hd(x, "loop_bind_hd")
     b_ = _as_hd(y, "loop_bind_hd")
-    assert len(a_) == len(b_), "loop_bind_hd: operands must have equal length"
+    if len(a_) != len(b_):
+        raise ValueError(
+            f"loop_bind_hd: operands must have equal length; "
+            f"got {len(a_)} vs {len(b_)}")
     native = _try_native_loop_bind_hd(a_, b_)
     if native is not None:
         return native
@@ -3213,7 +3229,10 @@ def loop_unbind_hd(a, b):
     rc125 (numpy-free): operates on ``list[float]`` (was an ndarray)."""
     a_ = _as_hd(a, "loop_unbind_hd")
     b_ = _as_hd(b, "loop_unbind_hd")
-    assert len(a_) == len(b_), "loop_unbind_hd: operands must have equal length"
+    if len(a_) != len(b_):
+        raise ValueError(
+            f"loop_unbind_hd: operands must have equal length; "
+            f"got {len(a_)} vs {len(b_)}")
     native = _try_native_loop_unbind_hd(a_, b_)
     if native is not None:
         return native
@@ -3262,8 +3281,9 @@ def loop_inv_hd(x):
     for k in range(len(xb)):
         blk = xb[k]
         nsq = mat_dot(blk, blk)
-        assert nsq > 0.0, (
-            f"loop_inv_hd: block {k} is the zero vector (no Moufang inverse)")
+        if not nsq > 0.0:
+            raise ZeroDivisionError(
+                f"loop_inv_hd: block {k} is the zero vector (no Moufang inverse)")
         out.append(_vscale(_loop_conj_raw(blk), 1.0 / nsq))
     return _concat(out)
 
@@ -3283,7 +3303,10 @@ def loop_runbind_hd(a, b):
     rc125 (numpy-free): operates on ``list[float]`` (was an ndarray)."""
     a_ = _as_hd(a, "loop_runbind_hd")
     b_ = _as_hd(b, "loop_runbind_hd")
-    assert len(a_) == len(b_), "loop_runbind_hd: operands must have equal length"
+    if len(a_) != len(b_):
+        raise ValueError(
+            f"loop_runbind_hd: operands must have equal length; "
+            f"got {len(a_)} vs {len(b_)}")
     native = _try_native_loop_runbind_hd(a_, b_)
     if native is not None:
         return native

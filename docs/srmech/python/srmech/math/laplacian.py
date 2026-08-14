@@ -1763,11 +1763,20 @@ def mat_matmul(a: "Mat", b: "Mat") -> "Mat":
 
     Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
     Hopkins, 2013) §1.1 (textbook matrix multiplication).
+
+    Raises:
+        TypeError: if either operand is not a :class:`~srmech.math.mat.Mat`.
+
+    A real ``raise``, not an ``assert`` (rc433, `#T1131`). Under ``python -O``
+    the assert vanished and a list-of-rows reached the body, which then died
+    with ``AttributeError: 'list' object has no attribute 'n_rows'`` — the
+    callee's PRIVATE attribute name leaking out as if it were the contract.
     """
     from .mat import Mat
-    assert isinstance(a, Mat) and isinstance(b, Mat), (
-        "mat_matmul operands must be Mat (the numpy-free 2-D carrier)"
-    )
+    if not (isinstance(a, Mat) and isinstance(b, Mat)):
+        raise TypeError(
+            "mat_matmul operands must be Mat (the numpy-free 2-D carrier); "
+            f"got {type(a).__name__} and {type(b).__name__}")
     m, k = a.n_rows, a.n_cols
     k2, n = b.n_rows, b.n_cols
     if k2 != k:
@@ -1838,11 +1847,17 @@ def mat_solve(a: "Mat", b: "Mat") -> "Mat":
 
     Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
     Hopkins, 2013) §3.4 (Gaussian elimination with partial pivoting).
+
+    Raises:
+        TypeError: if either operand is not a :class:`~srmech.math.mat.Mat`.
+            (rc433, `#T1131` — was a bare ``assert``, so ``python -O`` let a
+            list through to an ``AttributeError`` on a private attribute.)
     """
     from .mat import Mat
-    assert isinstance(a, Mat) and isinstance(b, Mat), (
-        "mat_solve operands must be Mat (the numpy-free 2-D carrier)"
-    )
+    if not (isinstance(a, Mat) and isinstance(b, Mat)):
+        raise TypeError(
+            "mat_solve operands must be Mat (the numpy-free 2-D carrier); "
+            f"got {type(a).__name__} and {type(b).__name__}")
     if a.is_complex or b.is_complex:
         # Complex solve via the real 2n×2n block embedding (rc95), riding the
         # native real path below — numpy-free, value-faithful for well-
@@ -1962,11 +1977,17 @@ def mat_lstsq(a: "Mat", b: "Mat") -> "Mat":
 
     Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
     Hopkins, 2013) §5.3 (normal-equations least squares).
+
+    Raises:
+        TypeError: if either operand is not a :class:`~srmech.math.mat.Mat`.
+            (rc433, `#T1131` — was a bare ``assert``, so ``python -O`` let a
+            list through to an ``AttributeError`` on a private attribute.)
     """
     from .mat import Mat
-    assert isinstance(a, Mat) and isinstance(b, Mat), (
-        "mat_lstsq operands must be Mat (the numpy-free 2-D carrier)"
-    )
+    if not (isinstance(a, Mat) and isinstance(b, Mat)):
+        raise TypeError(
+            "mat_lstsq operands must be Mat (the numpy-free 2-D carrier); "
+            f"got {type(a).__name__} and {type(b).__name__}")
     m, n = a.n_rows, a.n_cols
     if m < n:
         raise ValueError(
@@ -2109,11 +2130,17 @@ def mat_hermitian_eigendecompose(h: "Mat") -> Tuple["Mat", "Mat"]:
 
     Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
     Hopkins, 2013) §8.5 (Hermitian eigenproblem via unitary Jacobi rotations).
+
+    Raises:
+        TypeError: if ``h`` is not a :class:`~srmech.math.mat.Mat`.
+            (rc433, `#T1131` — was a bare ``assert``, so ``python -O`` let a
+            list through to an ``AttributeError`` on a private attribute.)
     """
     from .mat import Mat
-    assert isinstance(h, Mat), (
-        "mat_hermitian_eigendecompose operand must be Mat (numpy-free 2-D carrier)"
-    )
+    if not isinstance(h, Mat):
+        raise TypeError(
+            "mat_hermitian_eigendecompose operand must be Mat (numpy-free 2-D "
+            f"carrier); got {type(h).__name__}")
     n = h.n_rows
     if h.n_cols != n:
         raise ValueError(
@@ -2557,11 +2584,17 @@ def mat_eigvals(a: "Mat", *, max_sweeps: int = 500) -> List[complex]:
     practical QR algorithm with Wilkinson shifts) + §7.5.1 (balancing); Parlett &
     Reinsch, "Balancing a matrix for calculation of eigenvalues and
     eigenvectors", *Numer. Math.* **13** (1969) 293–304.
+
+    Raises:
+        TypeError: if ``a`` is not a :class:`~srmech.math.mat.Mat`.
+            (rc433, `#T1131` — was a bare ``assert``, so ``python -O`` let a
+            list through to an ``AttributeError`` on a private attribute.)
     """
     from .mat import Mat
-    assert isinstance(a, Mat), (
-        "mat_eigvals operand must be Mat (the numpy-free 2-D carrier)"
-    )
+    if not isinstance(a, Mat):
+        raise TypeError(
+            "mat_eigvals operand must be Mat (the numpy-free 2-D carrier); "
+            f"got {type(a).__name__}")
     n = a.n_rows
     if a.n_cols != n:
         raise ValueError(f"mat_eigvals: A must be square; got {a.shape}")
@@ -2752,11 +2785,17 @@ def mat_svd(a: "Mat") -> Tuple["Mat", List[float], "Mat"]:
 
     Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
     Hopkins, 2013) §8.6 (SVD) + §5.4 (the AᴴA eigen-route and its conditioning).
+
+    Raises:
+        TypeError: if ``a`` is not a :class:`~srmech.math.mat.Mat`.
+            (rc433, `#T1131` — was a bare ``assert``, so ``python -O`` let a
+            list through to an ``AttributeError`` on a private attribute.)
     """
     from .mat import Mat
-    assert isinstance(a, Mat), (
-        "mat_svd operand must be Mat (the numpy-free 2-D carrier)"
-    )
+    if not isinstance(a, Mat):
+        raise TypeError(
+            "mat_svd operand must be Mat (the numpy-free 2-D carrier); "
+            f"got {type(a).__name__}")
     m, n = a.n_rows, a.n_cols
     if m == 0 or n == 0:
         raise ValueError(f"mat_svd: A must be a non-empty 2-D matrix; got {a.shape}")
