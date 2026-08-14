@@ -604,14 +604,25 @@ print(json.dumps(out, sort_keys=True))
 
 
 def dash_o_record() -> None:
-    """`#T1132` x `#T1131`: S5's validation IS an `assert`. Under ``python -O``
-    the assert is deleted, so the guard that makes the site raise disappears —
-    the orphan stops being an orphan because the call stops failing, and a
-    rejected server_type is ACCEPTED instead. Measured, not asserted: the same
-    call is run under -O in a subprocess and the outcome recorded. This is the
-    evidence for the standing ruling that Rule 5 (>=2 asserts per function) must
-    NOT be ported to Python — validation placed in an assert vanishes in
-    optimized mode."""
+    """`#T1132` x `#T1131`: S5's validation IS an `assert`, so the same call is
+    run under ``python -O`` in a subprocess and the outcome recorded.
+
+    ⚠️ THIS PROBE REFUTED ITS OWN PREMISE, and the premise is left here marked
+    rather than deleted, because a prediction that failed is worth more than a
+    docstring that never made one. **What this docstring predicted:** *"under -O
+    the assert is deleted, so the guard disappears — the orphan stops being an
+    orphan because the call stops failing, and a rejected server_type is ACCEPTED
+    instead."* **What the probe measured:** the `-O` arm RAISES, because
+    `_server_block` has a real `ValueError` below the assert. The site rejects in
+    BOTH modes.
+
+    So S5 is **not** a `#T1131` instance. The real defect is narrower and easier
+    to miss: the exception TYPE was interpreter-mode-dependent — `AssertionError`
+    normally, `ValueError` under `-O` — so a caller's `except ValueError` worked
+    in optimized mode and not otherwise. rc432 converts the assert to a `raise`
+    on that ground, which is still the standing ruling's own distinction (an
+    input expected to be wrong belongs in a `raise`), just not the `-O`-deletion
+    argument this docstring reached for first."""
     import subprocess
     for level, flags in (("plain", []), ("dash_O", ["-O"])):
         try:
