@@ -208,6 +208,41 @@ FROZEN_KNOWN_GATES = frozenset({
     #    blindness is invisible -- the suite stays green either way.
     "tests/test_native_contract_parity_rc431.py",
     "tests/test_invocable_returned_floor_rc431.py",
+    # -- resource ownership, both projections (rc432, `#T1132`). Frozen
+    #    together because they are one invariant in two languages: every
+    #    acquisition is released on every exit.
+    #    test_unowned_acquisition_rc432 scans EVERY package module, so any new
+    #    op that touches the filesystem moves its population without editing a
+    #    declaration anybody would think to re-run. Its ceiling is the only
+    #    thing standing between the tree and a quiet return of the shape that
+    #    took rc431's CI red -- genome_save's mkdir above its own validation,
+    #    leaving a DIRECTORY where write_packed_graph wanted a file.
+    #    test_c_resource_ownership_rc432 is the c/src peer and follows
+    #    test_jpl_audit.py's shape; its C2 ceiling of 1 is the PIN on the
+    #    `#T1133` C deferral, which is an obligation only for as long as a gate
+    #    reports it every run. In a comment it would be debt.
+    #    Frozen rather than merely listed for the reason this whole set exists,
+    #    now at SEVEN instances: an unlisted gate is not a gate, and the
+    #    failure is invisible because the suite stays green either way.
+    "tests/test_unowned_acquisition_rc432.py",
+    "tests/test_c_resource_ownership_rc432.py",
+    #    test_acquire_before_validate_rc432 is the DRIVEN peer of those two, and
+    #    it is frozen for the reason the pair above cannot cover: they SCAN, and
+    #    a scanner sees only the shapes its predicate admits. Measured --
+    #    test_unowned_acquisition_rc432 sees 7 of the 12 confirmed lines; this
+    #    file drives all 12, including genome_import's native branch and the
+    #    three loop-body sites, which are PERMANENT misses for the scanner by its
+    #    own documented blind spots 1 and 2. A regression in those three repairs
+    #    reds nothing anywhere else in the tree.
+    #    It also asserts the half a scanner structurally cannot: that each site
+    #    still RAISES, with the class the code is written around. rc432's own
+    #    S2 probe went green while measuring a path the op never takes, and only
+    #    an exception-TYPE assertion caught it.
+    #    Neither of the two above was a rule violation to omit and neither was
+    #    this -- the law here constrains this set, and rc432 satisfied it. Frozen
+    #    anyway, because "no rule required it" is exactly the shape in which the
+    #    strongest gate in a release goes unlisted.
+    "tests/test_acquire_before_validate_rc432.py",
 })
 
 

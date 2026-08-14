@@ -216,9 +216,21 @@ def build_manifest(
         Optional ``str -> bool`` predicate; only matching tool names are
         advertised. Wired to the ``--filter`` CLI flag.
     """
-    assert server_type in ("uv", "python"), (
-        "server_type must be 'uv' or 'python'"
-    )
+    # `#T1132` — this was an ``assert`` through rc431, and the argument for
+    # converting it is NOT the usual one. It is not a `#T1131` instance: under
+    # ``python -O`` the site still rejects, because ``_server_block`` raises
+    # ``ValueError: unsupported server_type 'bogus'`` further down. What was wrong
+    # is that the exception TYPE was interpreter-mode-dependent — ``AssertionError``
+    # normally, ``ValueError`` under ``-O`` — so a caller's ``except ValueError``
+    # worked in optimized mode and not otherwise. It is also the exact distinction
+    # in the standing ruling: an assertion is for an invariant believed impossible
+    # to violate, a ``raise`` for an input expected to be wrong, and ``server_type``
+    # is a caller input.
+    if server_type not in ("uv", "python"):
+        raise ValueError(
+            f"build_manifest: server_type must be 'uv' or 'python'; "
+            f"got {server_type!r}"
+        )
     from ..version import __version__ as srmech_version
     from ..introspect.tool_schema import get_tool_schema
 
@@ -315,11 +327,15 @@ def pack_mcpb(
     Returns the ABSOLUTE :class:`~pathlib.Path` of the written artifact
     (the ``.mcpb`` normally; ``manifest.json`` when ``manifest_only``)."""
     out = Path(out_dir).expanduser().resolve()
-    out.mkdir(parents=True, exist_ok=True)
 
+    # `#T1132`: the mkdir sat ABOVE this call, so a rejected ``server_type`` left
+    # ``out_dir`` behind while raising. ``build_manifest`` is filesystem-free —
+    # measured, not assumed: it walks the registry and touches no path —
+    # so the acquisition moves below it with no change to the success path.
     manifest = build_manifest(
         name=name, server_type=server_type, name_filter=name_filter
     )
+    out.mkdir(parents=True, exist_ok=True)
     manifest_bytes = (
         json.dumps(manifest, indent=2, sort_keys=False) + "\n"
     ).encode("utf-8")

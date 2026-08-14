@@ -98,8 +98,8 @@ from __future__ import annotations
 import ctypes
 import os  # §52 Part 2: disk-backed work queue + tome files for the out-of-core driver
 import struct  # §52 Part 2: pack/unpack the on-disk edge records for the out-of-core Fiedler
-import tempfile  # §52 Part 2: default scratch dir for recursive_cut
 from array import array  # §564: numpy-free 2-D Mat carrier buffer (interleaved-complex)
+from srmech._ownedfs import owned_scratch_dir as _owned_scratch_dir  # `#T1132`
 from srmech.math.q import Q, to_q  # §26: exact-rational interior solve (Class-N), no float
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
@@ -7180,6 +7180,23 @@ def recursive_cut(
         Scratch directory for the on-disk graph / queue / tomes. ``None`` → a fresh
         temp dir (the caller owns it; it is NOT auto-deleted — the tome files live
         there). Reused across calls if given.
+
+        **The two cases differ on the ERROR path, and only there (`#T1132`).**
+        On SUCCESS both are exactly as described above and nothing has changed.
+
+        * A **caller-named** ``work_dir`` keeps everything this call created, even
+          when the call raises. That is deliberate, not an oversight: you own the
+          directory, it is reused across calls, and the tomes already written to it
+          are the bounded record of how far the partition got. Deleting your
+          directory on the way out would be the framework destroying data it does
+          not own.
+        * ``work_dir=None`` is the opposite case and gets the opposite treatment.
+          The name is minted INSIDE this call by ``mkdtemp`` and reaches you only
+          through the return value — so when the call raises, the return never
+          arrives and you are left holding an orphan you **cannot name**, let alone
+          clean up. There is no party who could ever remove it. That directory is
+          therefore removed if the call raises, including on ``KeyboardInterrupt``,
+          which is precisely the interruption a long cut invites.
     max_iters : int
         Per-bisection power-iteration cap (forwarded to :func:`fiedler_sparse_file`).
     max_depth : int
@@ -7194,9 +7211,43 @@ def recursive_cut(
         lists (a partition of the ``n`` nodes, so ``O(n)`` total — the same floor as
         the Fiedler vectors).
     """
+    # `#T1132` — a thin OWNER over the implementation, rather than a
+    # ``try/except BaseException`` wrapped round the whole ~150-line body. Same
+    # invariant, a diff a reviewer can actually read, and it leaves the validation
+    # provably above every acquisition where it already was.
     edge_list, w_list = _validate_edges_weights_py(n, edges, weights)
-    if work_dir is None:
-        work_dir = tempfile.mkdtemp(prefix="srmech_cut_")
+    if work_dir is not None:
+        return _recursive_cut_impl(
+            n, edge_list, w_list, work_dir, max_tome=max_tome,
+            max_iters=max_iters, max_depth=max_depth, progress=progress)
+    with _owned_scratch_dir("srmech_cut_") as scratch:
+        return _recursive_cut_impl(
+            n, edge_list, w_list, scratch, max_tome=max_tome,
+            max_iters=max_iters, max_depth=max_depth, progress=progress)
+
+
+def _recursive_cut_impl(
+    n: int,
+    edge_list,
+    w_list,
+    work_dir: str,
+    *,
+    max_tome: int,
+    max_iters: int,
+    max_depth: int,
+    progress=None,
+) -> Dict[str, object]:
+    """The out-of-core partition itself, over an ALREADY-VALIDATED edge list and an
+    ALREADY-DECIDED ``work_dir`` (`#T1132`).
+
+    Split out of :func:`recursive_cut` so that function can be a thin owner: it
+    validates, then chooses whether the scratch directory is the caller's to keep or
+    ours to remove. This half performs the acquisitions and never decides their
+    ownership — which is the whole point, since an op that both creates a resource
+    and decides its lifetime is the shape that leaks.
+
+    Private. :func:`recursive_cut` is the public surface and keeps its name,
+    signature and docstring."""
     os.makedirs(work_dir, exist_ok=True)
     queue_dir = os.path.join(work_dir, "queue")
     tomes_dir = os.path.join(work_dir, "tomes")

@@ -53,6 +53,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from srmech import _native
+from srmech._ownedfs import created_dirs as _created_dirs
 from srmech.math.cyclic import gcd as _gcd
 from srmech.amsc.format import MPRRecord as _MPRRecord
 from srmech.amsc.format import MPRValidationError as _MPRValidationError
@@ -8977,7 +8978,6 @@ def genome_save(strand, path, coupling, labels=None, *, attestation=None,
     given it VALIDATES the scanned chromosome set matches.
     """
     path = Path(path)
-    path.mkdir(parents=True, exist_ok=True)
 
     leaf_dim = len(list(coupling))
     chroms = _split_into_chromosomes(strand, labels)
@@ -9044,6 +9044,33 @@ def genome_save(strand, path, coupling, labels=None, *, attestation=None,
     # the same comment said so outright. rc418 gives the C the channel, so the sentence is
     # now TRUE and a real gate can hold it (test_attestation_of_record_rc418.py).
     resolved = _resolve_attestation(path, attestation)
+
+    # Build + VALIDATE the record BEFORE any bytes hit disk, so a malformed caller
+    # attestation is rejected (no half-written genome). attestation=None reproduces the
+    # default record exactly.
+    #
+    # `#T1132` — THIS OP'S mkdir USED TO BE THE FIRST STATEMENT OF THE BODY, above every
+    # validation above. A mkdir is an ACQUISITION, and an acquisition placed above a
+    # validation is an ORPHAN on the error path: a REJECTED save still left a directory
+    # at the target path, the raise said nothing about it, and the next op to touch that
+    # node inherited a filesystem no caller had asked for. That is not hypothetical —
+    # ``write_packed_graph`` then did ``open(path, "wb")`` on exactly such a node and died
+    # on ``IsADirectoryError`` (the rc431 CI red). Both ops were individually correct; the
+    # SUPPLY was wrong. rc431 fixed the supply; this moves the acquisition itself to the
+    # one point that is below ALL validation and above the first consumer that needs the
+    # directory to exist (the native call immediately below).
+    #
+    # ``_manifest_record`` is hoisted above the native branch DELIBERATELY, so the pure
+    # path's own validation also sits above the acquisition rather than below it. That
+    # makes the native path run a validation it previously skipped, which is a real
+    # behaviour change and was therefore MEASURED before being accepted: driven with
+    # ``has_native_genome`` forced True and ``genome_save_c`` stubbed, across an
+    # eleven-case attestation corpus, the hoist introduced ZERO new raises — every
+    # rejection ``_manifest_record`` can produce was already produced by
+    # ``_resolve_attestation`` one line above, which both paths always ran.
+    record = _manifest_record(head, attestation=resolved)
+    path.mkdir(parents=True, exist_ok=True)
+
     if _native.has_native_genome():
         try:
             _native.genome_save_c(str(path), body_bytes, leaf_dim,
@@ -9052,10 +9079,6 @@ def genome_save(strand, path, coupling, labels=None, *, attestation=None,
         except _native.NativeGenomeError as exc:
             _raise_native_genome(exc)
 
-    # Build + VALIDATE the record BEFORE any bytes hit disk, so a malformed caller
-    # attestation is rejected (no half-written genome). attestation=None reproduces the
-    # default record exactly.
-    record = _manifest_record(head, attestation=resolved)
     (path / _BODY_NAME).write_bytes(body_bytes)
     _write_manifest(path, record)                     # v12: HEAD-ONLY on disk
     return data
@@ -11596,14 +11619,27 @@ def genome_import(chr_path, dest, *, coupling=None, attestation=None) -> dict:
     # manifest for the return). A native non-OK status is an integrity bound →
     # GenomeBoundingError (flipped byte / coupling mismatch / leaf_dim mismatch).
     if _native.has_native_genome():
+        # `#T1132` — the mkdir here is an ACQUISITION that CANNOT be reordered below its
+        # consumer: the native SEED save needs the directory to already exist. A reorder
+        # is the right repair only where one is available; here the acquisition gets an
+        # OWNER instead. ``_created_dirs`` removes exactly the nodes it created (never a
+        # pre-existing one, and never one with content in it) if the block raises, so a
+        # ``NativeGenomeError`` routed to ``_raise_native_genome`` no longer leaves
+        # ``dest`` behind as an empty directory.
+        #
+        # Two orderings below are load-bearing and are not stylistic:
+        #  * the ``with`` is INSIDE the ``try`` so ``__exit__`` runs as the exception
+        #    propagates, i.e. before the handler converts it;
+        #  * ``_catalog_data`` is OUTSIDE the ``with`` — inside, a read failure on a
+        #    genome the C call had legitimately seeded would roll back REAL data.
         try:
-            dest.mkdir(parents=True, exist_ok=True)   # native SEED save needs the dir
-            _native.genome_import_c(
-                str(chr_path), str(dest), _coupling_bytes_or_empty(coupling),
-                attestation=attestation)
-            return _catalog_data(dest, coupling)    # full derived catalog
+            with _created_dirs(dest):
+                _native.genome_import_c(
+                    str(chr_path), str(dest), _coupling_bytes_or_empty(coupling),
+                    attestation=attestation)
         except _native.NativeGenomeError as exc:
             _raise_native_genome(exc)
+        return _catalog_data(dest, coupling)    # full derived catalog
     # pure-Python alternative (no C present) — full integrity bounds on the already-read
     # bundle, then SEED or APPEND.
     region = bytes.fromhex(cdata["region"]["hex"])
@@ -11677,7 +11713,6 @@ def genome_explode(path, out_dir, *, coupling=None) -> list:
     path = Path(path)
     out_dir = Path(out_dir)
     data = _catalog_data(path, coupling)
-    out_dir.mkdir(parents=True, exist_ok=True)
     labels = [e["label"] for e in data["chromosomes"]]
     for label in labels:
         if "/" in label or "\\" in label or label in ("", ".", ".."):
@@ -11685,6 +11720,10 @@ def genome_explode(path, out_dir, *, coupling=None) -> list:
                 f"genome_explode: chromosome label {label!r} is not filename-safe "
                 f"(cannot become a <label>.chr loose object)"
             )
+    # `#T1132`: the mkdir sat ABOVE this label-safety loop, so a genome carrying one
+    # unsafe label left ``out_dir`` behind while raising. The loop reads only ``labels``,
+    # derived from ``_catalog_data`` above, so the acquisition moves below it unchanged.
+    out_dir.mkdir(parents=True, exist_ok=True)
     # §49/rc154: native C explode (one MPR-attested <label>.chr per chromosome, byte-
     # identical); Python re-reads each bundle's region hash for the returned list.
     # Native is authoritative when present (no fallback).
@@ -11914,7 +11953,27 @@ def genome_register_attested(chr_dir, amsc_root, *, source) -> dict:
     Returns ``{"ok", "amsc_root", "source", "chromosomes": [{"label", "source_key",
     "descriptor_path", "row_path", "region_sha256"}, ...], "register": {...}}``.
     Raises ``ValueError`` if ``chr_dir`` holds no ``.chr`` files or a chromosome
-    label is not a filename-safe AMSC source key."""
+    label is not a filename-safe AMSC source key.
+
+    **TWO-PASS, and the split is the point (`#T1132`).** Pass 1 READS and VALIDATES
+    every bundle and serialises both output texts into memory; pass 2 ACQUIRES and
+    WRITES. Nothing on disk moves until every ``ValueError`` this op can raise has had
+    its chance to fire. The single-pass shape it replaces had TWO measured symptoms:
+    ``amsc_root`` was created above the per-bundle label check, and — worse, because a
+    loop hides it — a rejected label in bundle *k* left bundles *0..k-1* fully written,
+    with their directories, ``descriptor.toml`` and ``row.ndjson`` all surviving the
+    raise. Partial-loop orphaning is the same defect with a multiplier.
+
+    **DOCUMENTED RESIDUAL, stated rather than silently fixed.** Pass 2 can still fail
+    part-way on an I/O FAULT (ENOSPC, a revoked permission), leaving earlier label
+    directories behind. That is the I/O-fault class, not the acquire-before-validate
+    class this repair closes, and the mitigation is real rather than notional: every
+    pass-2 write is deterministic in its pass-1 buffer and every ``mkdir`` is
+    ``exist_ok=True``, so **the op is idempotent on re-run** — re-running after a fault
+    converges on the same tree. A second residual is deferred and named: an aborted pass
+    2 leaves label directories that a later ``register_attested_root`` will still
+    register, even if the ``.chr`` has since been removed from ``chr_dir``. That is
+    catalog staleness, not resource ownership (`#T1133`)."""
     from srmech.amsc.catalog import register_attested_root
 
     chr_dir = Path(chr_dir)
@@ -11924,8 +11983,9 @@ def genome_register_attested(chr_dir, amsc_root, *, source) -> dict:
         raise ValueError(
             f"genome_register_attested: no .chr files in {str(chr_dir)!r}"
         )
-    amsc_root.mkdir(parents=True, exist_ok=True)
-    chromosomes = []
+
+    # ---- PASS 1: read + validate + serialise. NO acquisition of any kind. ----
+    staged = []
     for cf in chr_files:
         record = _read_chr(cf)
         label = record.data["label"]
@@ -11937,11 +11997,6 @@ def genome_register_attested(chr_dir, amsc_root, *, source) -> dict:
         leaf_dim = int(record.data["leaf_dim"])
         region_sha = record.data["region"]["sha256"]
         one_sha = record.data["coupling"]["sha256"]
-        src_dir = amsc_root / label
-        src_dir.mkdir(parents=True, exist_ok=True)
-        (src_dir / "descriptor.toml").write_text(
-            _chr_descriptor_toml(label, leaf_dim), encoding="utf-8", newline="\n"
-        )
         row = {
             "row_label": label,
             "leaf_dim": leaf_dim,
@@ -11950,18 +12005,33 @@ def genome_register_attested(chr_dir, amsc_root, *, source) -> dict:
             "chr_filename": cf.name,
             "data_schema_id": record.data_schema_id,
         }
-        (src_dir / "row.ndjson").write_text(
-            json.dumps(row, sort_keys=True, ensure_ascii=False) + "\n",
-            encoding="utf-8", newline="\n",
-        )
-        chromosomes.append({
+        staged.append({
             "label": label,
-            "source_key": label,
-            "descriptor_path": str(src_dir / "descriptor.toml"),
-            "row_path": str(src_dir / "row.ndjson"),
-            "region_sha256": region_sha,
+            "region_sha": region_sha,
+            "descriptor_text": _chr_descriptor_toml(label, leaf_dim),
+            "row_text": json.dumps(row, sort_keys=True, ensure_ascii=False) + "\n",
         })
-    register = register_attested_root(amsc_root, source=str(source))
+
+    # ---- PASS 2: acquire + write. NO validation. ----
+    chromosomes = []
+    with _created_dirs(amsc_root):
+        for item in staged:
+            src_dir = amsc_root / item["label"]
+            src_dir.mkdir(parents=True, exist_ok=True)
+            (src_dir / "descriptor.toml").write_text(
+                item["descriptor_text"], encoding="utf-8", newline="\n"
+            )
+            (src_dir / "row.ndjson").write_text(
+                item["row_text"], encoding="utf-8", newline="\n",
+            )
+            chromosomes.append({
+                "label": item["label"],
+                "source_key": item["label"],
+                "descriptor_path": str(src_dir / "descriptor.toml"),
+                "row_path": str(src_dir / "row.ndjson"),
+                "region_sha256": item["region_sha"],
+            })
+        register = register_attested_root(amsc_root, source=str(source))
     return {
         "ok": True,
         "amsc_root": str(amsc_root),

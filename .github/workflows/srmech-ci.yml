@@ -955,7 +955,23 @@ jobs:
     runs-on: ubuntu-latest
     # rc357 (`#T951`) — max 19:10 → 30; see build-and-test. This is the cell
     # that caught `#T980`, so its guard stays generous.
-    timeout-minutes: 30
+    #
+    # rc432 (`#T1132`) — 30 → 45, on the same rule rc357 used: measure the max,
+    # then leave real headroom. The headroom was GONE. Measured on this branch:
+    # 29:39 at the pre-repair commit, i.e. **21 seconds** under the cap, and the
+    # very next commit (six added tests) hit 30:00 and was killed twice.
+    # A timeout is not a failure — the step is CANCELLED, every assertion in the
+    # suite goes unreported, and the cell can no longer say anything about the
+    # defect class it exists for. That is the worst failure mode a gate has, and
+    # it arrives silently as "cancelled" rather than red.
+    #
+    # This cell is the expensive one BY DESIGN: `--forked` runs one fork per
+    # test, so it pays a process spawn ~14,900 times, and it grows with the
+    # suite while the wall-clock budget does not. 19:10 -> 29:39 is what 75 rcs
+    # of test growth cost. Re-measure and re-raise when it next approaches the
+    # cap; do NOT narrow the run with `-k` or a file list to fit — coverage ==
+    # collection is the #937 invariant this cell exists to hold.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

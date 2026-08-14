@@ -250,12 +250,30 @@ def test_reject_non_string_value(tmp_path):
 
 
 def test_bad_override_writes_nothing_to_disk(tmp_path):
-    """A malformed override RAISES before any bytes hit disk — no half-written genome."""
+    """A malformed override RAISES before any bytes hit disk — no half-written genome.
+
+    ⚠️ **THIS GATE WAS GREEN ON THE DEFECT IT APPEARS TO COVER, from rc304 to
+    rc431 (`#T1132`).** Its name says *nothing* is written and its docstring says
+    *no half-written genome*, but its only assertion was that ``manifest.json``
+    is absent. Driven at rc431, the rejected call left ``d`` behind as an EMPTY
+    DIRECTORY — ``genome_save``'s ``mkdir`` was the first statement of its body,
+    above every validation — and this test passed anyway. That orphaned directory
+    is the node ``write_packed_graph`` later opened as a file and died on.
+
+    The strengthening below is NOT 'editing correct prose to make a gate green'.
+    The prose was already false and the assertion was already too weak: it named
+    a claim it did not check. After the rc432 reorder the test stays green and
+    the sentence becomes TRUE."""
     d = tmp_path / "g"
     with pytest.raises(ValueError):
         _build(d, attestation={"source_uri": "typo"})
     # genome_from_graph builds the strand then saves; a rejected save leaves no manifest.
     assert not (d / "manifest.json").exists()
+    assert not d.exists(), (
+        f"the rejected save left its target directory behind: "
+        f"{sorted(p.name for p in d.iterdir())}. An acquisition above a "
+        f"validation is an orphan on the error path (`#T1132`)."
+    )
 
 
 # ── genome_save direct (the underlying path genome_from_graph composes) ───────

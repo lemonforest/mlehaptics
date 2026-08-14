@@ -364,3 +364,55 @@ tests/test_invocable_returned_floor_rc431.py
 #    placeholder literals, with a reach control so the zero cannot be a false
 #    null from a scanner that visited nothing.
 tests/test_input_contracts_rc431.py
+
+# -- unowned filesystem acquisitions (rc432, `#T1132`) ---------------------
+#    An acquisition -- mkdir / makedirs / mkdtemp / write-mode open -- at a
+#    function's top level with a raise after it and nothing owning it in
+#    between. When that raise fires the resource was already taken and nobody
+#    removes it: the raise is loud, the orphan silent. It was genome_save's
+#    mkdir-at-line-one that left a DIRECTORY where write_packed_graph wanted a
+#    file (the rc431 CI red). AST-based, so condition (2) -- simple statement
+#    at function-body depth 0 -- is a SOUND ordering implication rather than a
+#    reachability guess. It rides this manifest because it scans every package
+#    module, so any new op that touches the filesystem moves its population.
+#    ALLOWLIST + down-only CEIL, never strict zero: the benign-by-contract
+#    class is real (3 bus bind() sites creating the shared ~/.srmech/) and
+#    forcing it to zero would mean wrapping correct code to satisfy a gate.
+#    Carries six named blind spots in its docstring, incl. that it saw only
+#    7 of the 12 confirmed lines rc432 repaired.
+tests/test_unowned_acquisition_rc432.py
+
+# -- C resource ownership: srmech-LOCAL, NOT a JPL rule (rc432, `#T1132`) ---
+#    Two ratchets over c/src/*.c. C1: every return between a held-handle
+#    acquire and its function's end carries the matching release -- STRICT
+#    ZERO, affordable because the C side is clean by MEASUREMENT (zero leaks
+#    across all held-handle PAL sites) and accepting the three deliberate
+#    idioms rather than exempting them. C2: a function with >=2
+#    srmech_plat_mkdir calls must roll back earlier creates -- CEIL 1, which
+#    PINS the `#T1133` C deferral (the PAL has no rmdir, and mkdir maps EEXIST
+#    to OK so it cannot report created-vs-existed).
+#    It rides here alongside test_jpl_audit.py, whose shape it follows: a
+#    C-source ratchet that any new C op moves.
+#    Validated by a PLANTED LEAK IN A REAL FILE, not a synthetic string --
+#    and carries the line-number self-check that caught a 362-line offset bug
+#    six green synthetic controls could not see.
+#    NON-CLAIM, stated in its docstring: NEITHER gate would have caught the
+#    seed defect. They detect the REGRESSION, never the original.
+tests/test_c_resource_ownership_rc432.py
+
+# -- acquire-before-validate, DRIVEN per site (rc432, `#T1132`) -------------
+#    The other two rc432 gates SCAN; this one EXECUTES. Each of the eight
+#    repaired sites is driven to its own error path and the filesystem is read
+#    back, so it asserts the two things a scanner cannot: the op still RAISES
+#    with the same exception class, and nothing survives the raise.
+#    It rides here because it drives five package ops across four modules --
+#    biology/genome.py, math/laplacian.py, mcp/_mcpb.py, amsc/format.py -- and
+#    reds on a regression in any of them.
+#    Listed on its MERITS, not on a rule: the frozen-gate law constrains only
+#    FROZEN_KNOWN_GATES, and rc432 broke no rule by omitting it. But it covers
+#    all 12 confirmed lines where test_unowned_acquisition_rc432 sees 7, and
+#    three of the repairs (genome_import's native branch, the loop-body sites)
+#    are UNGATED anywhere else -- a regression in them reds nothing without it.
+#    That is the manifest-omission law arriving from its blind side: a gate
+#    nobody listed because nothing required it.
+tests/test_acquire_before_validate_rc432.py
