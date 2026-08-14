@@ -9989,7 +9989,8 @@ def bigq_reduce_c(num: int, den: int) -> "tuple[int, int] | None":
     Byte-identical to the pure body (same gcd, same exact quotients).
 
     Raises:
-        ZeroDivisionError: if ``den`` is zero.
+        ZeroDivisionError: if ``den`` is zero — matching :func:`_reduce_rational`,
+            of which this function is the native projection.
 
     rc433 (`#T1131`) — was a bare ``assert``, which ``python -O`` strips. The
     validation is now ABOVE the native check on purpose: whether an argument
@@ -9998,7 +9999,27 @@ def bigq_reduce_c(num: int, den: int) -> "tuple[int, int] | None":
     native-absent environment. No shipped caller is affected — both public
     entry points (``_reduce_rational``, ``rational_div``) already raise
     ``ZeroDivisionError`` for this input BEFORE dispatching here, so this is
-    defense-in-depth at a directly-callable module entry point."""
+    defense-in-depth at a directly-callable module entry point.
+
+    WHY ``ZeroDivisionError`` AND NOT ``ValueError``, adjudicated explicitly.
+    The tree draws a real two-way distinction — an op that DIVIDES raises
+    ``ZeroDivisionError``; an op merely VALIDATING an input pair raises
+    ``ValueError`` (``discrete_writhe`` and its geometry peers do exactly
+    that). Read mechanically, this op looks like the second kind: inside
+    ``_bigq_reduce_inplace`` the denominator is a DIVIDEND (it is divided by
+    the gcd), never a divisor, so a zero ``den`` is not a division by zero —
+    it silently yields the malformed rational ``(±1, 0)``.
+
+    The twin-projection constraint outranks that reading. This function IS
+    ``_reduce_rational`` on the C bignum — the docstring above says
+    "byte-identical to the pure body", and ``_reduce_rational``
+    (``rational.py:662``) raises ``ZeroDivisionError`` for this exact
+    condition. srmech is multi-implementation with CO-EQUAL projections, so
+    the two must agree; diverging here would make the raised type depend on
+    whether ``libsrmech`` loaded, which is the very failure the hoist above
+    was made to prevent. The general rule is right for the ops it was
+    measured on; the more specific precedent — the same operation's other
+    projection — wins."""
     global BIGQ_DISPATCH_COUNT
     if den == 0:
         raise ZeroDivisionError("bigq_reduce_c requires den != 0")

@@ -101,9 +101,51 @@ def test_the_same_ops_still_accept_a_real_mat(op_name):
 
 
 def test_bigq_reduce_c_rejects_a_zero_denominator():
-    """``ZeroDivisionError`` per the standing ruling for a zero denominator."""
+    """``ZeroDivisionError``, matching the pure projection of the same op."""
     with pytest.raises(ZeroDivisionError, match="den"):
         _native.bigq_reduce_c(5, 0)
+
+
+def test_the_two_rational_reduce_projections_agree_on_a_zero_denominator():
+    """CO-EQUAL PROJECTIONS must raise the SAME type (rc433, `#T1131`).
+
+    This is the load-bearing one, and it is why ``bigq_reduce_c`` raises
+    ``ZeroDivisionError`` rather than ``ValueError``.
+
+    The tree draws a real distinction — an op that DIVIDES raises
+    ``ZeroDivisionError``, an op merely VALIDATING an input pair raises
+    ``ValueError``. Read mechanically, ``bigq_reduce_c`` looks like the second
+    kind: inside ``_bigq_reduce_inplace`` the denominator is a DIVIDEND
+    (divided by the gcd), never a divisor.
+
+    But ``bigq_reduce_c`` IS ``_reduce_rational`` on the C bignum — its
+    docstring declares the two byte-identical — and ``_reduce_rational``
+    (``rational.py:662``) raises ``ZeroDivisionError`` here. srmech is
+    multi-implementation with co-equal projections, so a divergence would make
+    the raised type depend on whether ``libsrmech`` happened to load.
+
+    FALSIFIER: re-type either projection alone and this fails. It compares the
+    two to EACH OTHER rather than pinning a literal, so it stays correct even
+    if the pair is later moved to a different type together.
+    """
+    from srmech.math import rational
+
+    pure, native = None, None
+    try:
+        rational._reduce_rational(5, 0)
+    except BaseException as exc:  # noqa: BLE001
+        pure = type(exc)
+    try:
+        _native.bigq_reduce_c(5, 0)
+    except BaseException as exc:  # noqa: BLE001
+        native = type(exc)
+
+    assert pure is not None and native is not None, (
+        f"one projection did not raise at all: pure={pure}, native={native}")
+    assert pure is native, (
+        f"the pure projection raises {pure.__name__} but the native dispatch "
+        f"raises {native.__name__} for the same (5, 0) — co-equal projections "
+        f"of one op must agree, or the type depends on whether libsrmech loaded")
 
 
 def test_bigq_div_c_rejects_a_zero_divisor_numerator():
