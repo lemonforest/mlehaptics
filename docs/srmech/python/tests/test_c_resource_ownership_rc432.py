@@ -351,7 +351,7 @@ def test_c1_fires_on_a_planted_leak_in_a_real_file() -> None:
             tmp.unlink()
 
 
-def test_c1_fires_on_a_deleted_success_path_close() -> None:
+def test_c1_fires_on_a_deleted_success_path_close(tmp_path: Path) -> None:
     """C1's SECOND positive control, and the one that matters more.
 
     The control above deletes an ERROR-path close — a leak on an unusual path.
@@ -371,7 +371,14 @@ def test_c1_fires_on_a_deleted_success_path_close() -> None:
 
     One control fired and one did not, on the same gate, in the same file — which
     is why "the positive control passes" is not the same claim as "the gate
-    sees the defect class"."""
+    sees the defect class".
+
+    The mutant is written under ``tmp_path``, not beside the original.
+    :func:`_unsafe_returns_in_file` reads whatever path it is handed, so nothing
+    requires the probe to live in ``c/src`` — and this rc removed another test
+    that wrote into a directory it shared with the rest of the suite. A control
+    that leaves debris in the source tree when it is interrupted is a small
+    version of the same mistake."""
     for fname, close_call in (("srmech_ndjson.c", "srmech_plat_rstream_close"),
                               ("srmech_laplacian.c", "srmech_plat_rstream_close")):
         src = _C_SRC_DIR / fname
@@ -390,18 +397,14 @@ def test_c1_fires_on_a_deleted_success_path_close() -> None:
             f"deleting it — the defect class it guards did not go away.")
 
         mutated = lines[:idx[0]] + lines[idx[0] + 1:]
-        tmp = src.with_name("_rc432_success_close_probe.c.tmp")
-        try:
-            tmp.write_text("\n".join(mutated), encoding="utf-8")
-            found = _unsafe_returns_in_file(tmp)
-            assert found, (
-                f"C1 did NOT fire after deleting {fname}'s success-path "
-                f"{close_call}. That is an unconditional handle leak on every "
-                f"successful call, and a strict-zero gate that cannot see it is "
-                f"reporting a zero it did not measure (`#T1132`).")
-        finally:
-            if tmp.exists():
-                tmp.unlink()
+        tmp = tmp_path / fname
+        tmp.write_text("\n".join(mutated), encoding="utf-8")
+        found = _unsafe_returns_in_file(tmp)
+        assert found, (
+            f"C1 did NOT fire after deleting {fname}'s success-path "
+            f"{close_call}. That is an unconditional handle leak on every "
+            f"successful call, and a strict-zero gate that cannot see it is "
+            f"reporting a zero it did not measure (`#T1132`).")
 
 
 def test_function_spans_agree_with_the_jpl_scanner() -> None:
