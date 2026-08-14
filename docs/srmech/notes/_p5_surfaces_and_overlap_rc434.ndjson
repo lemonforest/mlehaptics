@@ -1,0 +1,317 @@
+{"has_native": false, "python": "3.10.12", "record": "meta", "srmech_file": "/mnt/d/GitHub/mlehaptics/docs/srmech/python/srmech/__init__.py", "srmech_version": "0.9.0rc432"}
+{"degree": 2, "detail": "built Qalg sqrt(2)", "is_rational": false, "record": "note"}
+{"detail": "spectrum_tier on the irrational spectrum", "record": "note", "tier": "{'tier': 2, 'tier_name': 'algebraic', 'exact': True, 'n_partials': 2, 'per_partial': [{'index': 0, 'carrier': 'Q', 'tier': 1, 'tier_name': 'rational', 'field_degree': 1, 'in_rationals': True}, {'index': 1, 'carrier': 'Qalg', 'tier': 2, 'tier_name': 'algebraic', 'field_degree': 2, 'in_rationals': Fal"}
+{"declared": "ValueError", "message": "common_period: spectrum is INHARMONIC \u2014 partial indices [1] are provably NOT in the rationals (field-degree oracle), so they share no period with the fundamental at any multiple. Class-N best_rational must NOT be used to gauge this. It does", "mro": ["ValueError", "Exception", "BaseException", "object"], "observed": "ValueError", "outcome": "ENFORCED", "probe_id": "common_period/inharmonic-REAL", "record": "probe"}
+{"declared": "ValueError", "message": "common_period: spectrum is OPEN at partial indices [0] (Tier 3). at least one partial is Tier 3: no finite exact carrier holds its value, so its \u211a-membership is UNDECIDED. The number present is a rational of DECLARED PRECISION standing in f", "mro": ["ValueError", "Exception", "BaseException", "object"], "observed": "ValueError", "outcome": "ENFORCED", "probe_id": "common_period/open-REAL", "record": "probe"}
+{"declared": "OverflowError", "message": "lcm(614889782588491410, 53) overflows uint64", "mro": ["OverflowError", "ArithmeticError", "Exception", "BaseException", "object"], "observed": "OverflowError", "outcome": "ENFORCED", "probe_id": "common_period/OVERFLOW-undeclared", "record": "probe"}
+{"n_tools": 655, "record": "registry_meta"}
+{"agrees_with_docstring": true, "callable_declared_block": [], "callable_prose": ["MPRValidationError", "TypeError"], "exceptions_in_prose": ["MPRValidationError"], "in_explanation": ["MPRValidationError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.amsc.format.read_ndjson"}
+{"agrees_with_docstring": true, "callable_declared_block": [], "callable_prose": ["ValueError"], "exceptions_in_prose": ["ValueError"], "in_explanation": ["ValueError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.amsc.catalog.list_attested_sources"}
+{"agrees_with_docstring": true, "callable_declared_block": [], "callable_prose": ["Conflict"], "exceptions_in_prose": ["Conflict"], "in_explanation": [], "in_summary": ["Conflict"], "record": "toolentry_prose", "resolved": true, "tool": "srmech.amsc.catalog.register_attested_root"}
+{"agrees_with_docstring": true, "callable_declared_block": [], "callable_prose": ["RuntimeError"], "exceptions_in_prose": ["KeyError", "IndexError", "RuntimeError"], "in_explanation": ["KeyError", "IndexError", "RuntimeError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.amsc.catalog.run_catalog_chain"}
+{"agrees_with_docstring": false, "callable_declared_block": [], "callable_prose": [], "exceptions_in_prose": ["ChainSpecError"], "in_explanation": ["ChainSpecError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.cascade.compose.parse_catalog_chains"}
+{"agrees_with_docstring": true, "callable_declared_block": [], "callable_prose": ["ChainSpecError"], "exceptions_in_prose": ["ChainSpecError"], "in_explanation": [], "in_summary": ["ChainSpecError"], "record": "toolentry_prose", "resolved": true, "tool": "srmech.cascade.compose.resolve_chain"}
+{"agrees_with_docstring": false, "callable_declared_block": [], "callable_prose": [], "exceptions_in_prose": ["NotImplementedError"], "in_explanation": ["NotImplementedError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.cascade.compose.run_chain"}
+{"agrees_with_docstring": false, "callable_declared_block": [], "callable_prose": [], "exceptions_in_prose": ["ValueError"], "in_explanation": ["ValueError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.math.cyclic.gcd"}
+{"agrees_with_docstring": true, "callable_declared_block": [], "callable_prose": ["ValueError"], "exceptions_in_prose": ["ValueError"], "in_explanation": ["ValueError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.math.cyclic.mod_inv"}
+{"agrees_with_docstring": true, "callable_declared_block": ["ValueError"], "callable_prose": ["ValueError"], "exceptions_in_prose": ["ValueError"], "in_explanation": [], "in_summary": ["ValueError"], "record": "toolentry_prose", "resolved": true, "tool": "srmech.math.laplacian.propagate_sparse"}
+{"agrees_with_docstring": true, "callable_declared_block": ["ValueError", "ZeroDivisionError"], "callable_prose": ["ZeroDivisionError", "ValueError"], "exceptions_in_prose": ["ZeroDivisionError"], "in_explanation": [], "in_summary": ["ZeroDivisionError"], "record": "toolentry_prose", "resolved": true, "tool": "srmech.math.laplacian.responsion"}
+{"agrees_with_docstring": true, "callable_declared_block": [], "callable_prose": ["ValueError"], "exceptions_in_prose": ["ValueError"], "in_explanation": ["ValueError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.math.laplacian.fiedler_vector"}
+{"agrees_with_docstring": false, "callable_declared_block": [], "callable_prose": [], "exceptions_in_prose": ["ComplexWarning"], "in_explanation": [], "in_summary": ["ComplexWarning"], "record": "toolentry_prose", "resolved": true, "tool": "srmech.math.laplacian.symmetric_eigendecompose"}
+{"agrees_with_docstring": true, "callable_declared_block": [], "callable_prose": ["ZeroDivisionError", "ValueError"], "exceptions_in_prose": ["ZeroDivisionError"], "in_explanation": ["ZeroDivisionError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.math.laplacian.mat_solve"}
+{"agrees_with_docstring": true, "callable_declared_block": [], "callable_prose": ["ValueError", "ZeroDivisionError"], "exceptions_in_prose": ["ValueError", "ZeroDivisionError"], "in_explanation": ["ValueError", "ZeroDivisionError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.math.laplacian.mat_lstsq"}
+{"agrees_with_docstring": true, "callable_declared_block": [], "callable_prose": ["ValueError", "OverflowError"], "exceptions_in_prose": ["ValueError"], "in_explanation": ["ValueError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.math.primes.cyclic_period"}
+{"agrees_with_docstring": false, "callable_declared_block": [], "callable_prose": [], "exceptions_in_prose": ["ValueError"], "in_explanation": ["ValueError"], "in_summary": ["ValueError"], "record": "toolentry_prose", "resolved": true, "tool": "srmech.math.template.render"}
+{"agrees_with_docstring": true, "callable_declared_block": ["TypeError", "ValueError", "ZeroDivisionError"], "callable_prose": ["ZeroDivisionError", "TypeError", "ValueError"], "exceptions_in_prose": ["ZeroDivisionError"], "in_explanation": ["ZeroDivisionError"], "in_summary": ["ZeroDivisionError"], "record": "toolentry_prose", "resolved": true, "tool": "srmech.math.rational.rational_div"}
+{"agrees_with_docstring": false, "callable_declared_block": [], "callable_prose": [], "exceptions_in_prose": ["ValueError"], "in_explanation": [], "in_summary": ["ValueError"], "record": "toolentry_prose", "resolved": true, "tool": "srmech.math.rational.log"}
+{"agrees_with_docstring": false, "callable_declared_block": [], "callable_prose": [], "exceptions_in_prose": ["ValueError"], "in_explanation": ["ValueError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.cascade.exact_dft.exact_idft"}
+{"agrees_with_docstring": true, "callable_declared_block": [], "callable_prose": ["ValueError"], "exceptions_in_prose": ["ValueError"], "in_explanation": ["ValueError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.biology.genome.telomere_tick"}
+{"agrees_with_docstring": true, "callable_declared_block": [], "callable_prose": ["GenomeBoundingError"], "exceptions_in_prose": ["GenomeBoundingError"], "in_explanation": ["GenomeBoundingError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.biology.genome.genome_genes_expressed"}
+{"agrees_with_docstring": false, "callable_declared_block": [], "callable_prose": [], "exceptions_in_prose": ["ValueError"], "in_explanation": ["ValueError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.biology.genome.centromere"}
+{"agrees_with_docstring": true, "callable_declared_block": [], "callable_prose": ["ValueError"], "exceptions_in_prose": ["ValueError"], "in_explanation": ["ValueError"], "in_summary": ["ValueError"], "record": "toolentry_prose", "resolved": true, "tool": "srmech.biology.genome.recover_diploid"}
+{"agrees_with_docstring": true, "callable_declared_block": [], "callable_prose": ["ValueError"], "exceptions_in_prose": ["ValueError"], "in_explanation": [], "in_summary": ["ValueError"], "record": "toolentry_prose", "resolved": true, "tool": "srmech.biology.genome.amplify"}
+{"agrees_with_docstring": true, "callable_declared_block": [], "callable_prose": ["ValueError"], "exceptions_in_prose": ["ValueError"], "in_explanation": ["ValueError"], "in_summary": ["ValueError"], "record": "toolentry_prose", "resolved": true, "tool": "srmech.biology.genome.copy_number_of"}
+{"agrees_with_docstring": false, "callable_declared_block": [], "callable_prose": [], "exceptions_in_prose": ["ValueError"], "in_explanation": ["ValueError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.biology.genome.genes"}
+{"agrees_with_docstring": true, "callable_declared_block": [], "callable_prose": ["GenomeBoundingError"], "exceptions_in_prose": ["GenomeBoundingError"], "in_explanation": ["GenomeBoundingError"], "in_summary": ["GenomeBoundingError"], "record": "toolentry_prose", "resolved": true, "tool": "srmech.biology.genome.genome_load"}
+{"agrees_with_docstring": true, "callable_declared_block": [], "callable_prose": ["GenomeBoundingError"], "exceptions_in_prose": ["GenomeBoundingError"], "in_explanation": [], "in_summary": ["GenomeBoundingError"], "record": "toolentry_prose", "resolved": true, "tool": "srmech.biology.genome.genome_content"}
+{"agrees_with_docstring": true, "callable_declared_block": [], "callable_prose": ["GenomeBoundingError", "FileNotFoundError"], "exceptions_in_prose": ["GenomeBoundingError"], "in_explanation": ["GenomeBoundingError"], "in_summary": ["GenomeBoundingError"], "record": "toolentry_prose", "resolved": true, "tool": "srmech.biology.genome.genome_registry"}
+{"agrees_with_docstring": true, "callable_declared_block": [], "callable_prose": ["GenomeBoundingError"], "exceptions_in_prose": ["GenomeBoundingError"], "in_explanation": [], "in_summary": ["GenomeBoundingError"], "record": "toolentry_prose", "resolved": true, "tool": "srmech.biology.genome.genome_window"}
+{"agrees_with_docstring": true, "callable_declared_block": [], "callable_prose": ["ValueError", "GenomeBoundingError"], "exceptions_in_prose": ["ValueError"], "in_explanation": ["ValueError"], "in_summary": ["ValueError"], "record": "toolentry_prose", "resolved": true, "tool": "srmech.biology.genome.genome_genes"}
+{"agrees_with_docstring": true, "callable_declared_block": [], "callable_prose": ["GenomeBoundingError", "ValueError"], "exceptions_in_prose": ["GenomeBoundingError", "ValueError"], "in_explanation": ["ValueError"], "in_summary": ["GenomeBoundingError", "ValueError"], "record": "toolentry_prose", "resolved": true, "tool": "srmech.biology.genome.genome_remove"}
+{"agrees_with_docstring": true, "callable_declared_block": [], "callable_prose": ["GenomeBoundingError", "ValueError"], "exceptions_in_prose": ["GenomeBoundingError", "ValueError"], "in_explanation": [], "in_summary": ["GenomeBoundingError", "ValueError"], "record": "toolentry_prose", "resolved": true, "tool": "srmech.biology.genome.genome_replace"}
+{"agrees_with_docstring": true, "callable_declared_block": [], "callable_prose": ["ValueError", "GenomeBoundingError"], "exceptions_in_prose": ["ValueError"], "in_explanation": [], "in_summary": ["ValueError"], "record": "toolentry_prose", "resolved": true, "tool": "srmech.biology.genome.genome_export"}
+{"agrees_with_docstring": true, "callable_declared_block": [], "callable_prose": ["GenomeBoundingError"], "exceptions_in_prose": ["GenomeBoundingError"], "in_explanation": ["GenomeBoundingError"], "in_summary": ["GenomeBoundingError"], "record": "toolentry_prose", "resolved": true, "tool": "srmech.biology.genome.genome_import"}
+{"agrees_with_docstring": true, "callable_declared_block": [], "callable_prose": ["ValueError", "GenomeBoundingError"], "exceptions_in_prose": ["ValueError"], "in_explanation": ["ValueError"], "in_summary": ["ValueError"], "record": "toolentry_prose", "resolved": true, "tool": "srmech.biology.genome.genome_explode"}
+{"agrees_with_docstring": true, "callable_declared_block": [], "callable_prose": ["GenomeBoundingError", "ValueError"], "exceptions_in_prose": ["GenomeBoundingError", "ValueError"], "in_explanation": ["GenomeBoundingError", "ValueError"], "in_summary": ["GenomeBoundingError", "ValueError"], "record": "toolentry_prose", "resolved": true, "tool": "srmech.biology.genome.genome_pack"}
+{"agrees_with_docstring": true, "callable_declared_block": [], "callable_prose": ["ValueError"], "exceptions_in_prose": ["ValueError"], "in_explanation": ["ValueError"], "in_summary": ["ValueError"], "record": "toolentry_prose", "resolved": true, "tool": "srmech.biology.genome.genome_register_attested"}
+{"agrees_with_docstring": false, "callable_declared_block": [], "callable_prose": [], "exceptions_in_prose": ["ValueError"], "in_explanation": ["ValueError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.biology.genome.kernel_pack"}
+{"agrees_with_docstring": true, "callable_declared_block": [], "callable_prose": ["ValueError"], "exceptions_in_prose": ["ValueError"], "in_explanation": [], "in_summary": ["ValueError"], "record": "toolentry_prose", "resolved": true, "tool": "srmech.biology.genome.genome_append_kernel"}
+{"agrees_with_docstring": true, "callable_declared_block": [], "callable_prose": ["SectionCountsCancelled"], "exceptions_in_prose": ["SectionCountsCancelled"], "in_explanation": [], "in_summary": ["SectionCountsCancelled"], "record": "toolentry_prose", "resolved": true, "tool": "srmech.biology.plasmid.section_counts"}
+{"agrees_with_docstring": false, "callable_declared_block": [], "callable_prose": [], "exceptions_in_prose": ["ValueError"], "in_explanation": ["ValueError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.biology.genome.mint_strand"}
+{"agrees_with_docstring": true, "callable_declared_block": ["ValueError"], "callable_prose": ["ValueError"], "exceptions_in_prose": ["ValueError"], "in_explanation": ["ValueError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.biology.genome.discrete_writhe"}
+{"agrees_with_docstring": true, "callable_declared_block": ["ValueError", "RuntimeError"], "callable_prose": ["ValueError", "RuntimeError"], "exceptions_in_prose": ["RuntimeError"], "in_explanation": ["RuntimeError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.math.kepler.kepler_solve"}
+{"agrees_with_docstring": true, "callable_declared_block": ["ValueError"], "callable_prose": ["ValueError"], "exceptions_in_prose": ["ValueError"], "in_explanation": ["ValueError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.math.hdc.bundle"}
+{"agrees_with_docstring": true, "callable_declared_block": ["NotImplementedError", "ValueError"], "callable_prose": ["NotImplementedError", "ValueError"], "exceptions_in_prose": ["NotImplementedError"], "in_explanation": ["NotImplementedError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.math.hdc.klein4_triality_correct"}
+{"agrees_with_docstring": true, "callable_declared_block": [], "callable_prose": ["TypeError"], "exceptions_in_prose": ["TypeError"], "in_explanation": ["TypeError"], "in_summary": ["TypeError"], "record": "toolentry_prose", "resolved": true, "tool": "srmech.math.poly.poly_from_coeffs"}
+{"agrees_with_docstring": false, "callable_declared_block": [], "callable_prose": [], "exceptions_in_prose": ["TypeError"], "in_explanation": [], "in_summary": ["TypeError"], "record": "toolentry_prose", "resolved": true, "tool": "srmech.math.qpoly.qpoly_from_coeffs"}
+{"agrees_with_docstring": false, "callable_declared_block": [], "callable_prose": [], "exceptions_in_prose": ["TypeError"], "in_explanation": [], "in_summary": ["TypeError"], "record": "toolentry_prose", "resolved": true, "tool": "srmech.math.qbipoly.qbipoly_from_coeffs"}
+{"agrees_with_docstring": true, "callable_declared_block": [], "callable_prose": ["TypeError"], "exceptions_in_prose": ["TypeError"], "in_explanation": [], "in_summary": ["TypeError"], "record": "toolentry_prose", "resolved": true, "tool": "srmech.apokatastasis.zeilberger.bipoly_from_coeffs"}
+{"agrees_with_docstring": true, "callable_declared_block": [], "callable_prose": ["TypeError"], "exceptions_in_prose": ["TypeError"], "in_explanation": [], "in_summary": ["TypeError"], "record": "toolentry_prose", "resolved": true, "tool": "srmech.math.tripoly.tripoly_from_coeffs"}
+{"agrees_with_docstring": true, "callable_declared_block": [], "callable_prose": ["ValueError"], "exceptions_in_prose": ["ValueError"], "in_explanation": ["ValueError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.apokatastasis.ellbase.half_shift_response"}
+{"agrees_with_docstring": true, "callable_declared_block": ["TypeError"], "callable_prose": ["TypeError"], "exceptions_in_prose": ["TypeError"], "in_explanation": ["TypeError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.cascade.magnitude"}
+{"agrees_with_docstring": true, "callable_declared_block": ["ValueError"], "callable_prose": ["ValueError"], "exceptions_in_prose": ["ValueError"], "in_explanation": ["ValueError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.cascade.best_rational_signed"}
+{"agrees_with_docstring": true, "callable_declared_block": ["ValueError"], "callable_prose": ["ValueError"], "exceptions_in_prose": ["ValueError"], "in_explanation": ["ValueError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.cascade.cyclic_gcd"}
+{"agrees_with_docstring": false, "callable_declared_block": [], "callable_prose": [], "exceptions_in_prose": ["ValueError"], "in_explanation": ["ValueError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.cascade.cyclic_mod_mul"}
+{"agrees_with_docstring": true, "callable_declared_block": [], "callable_prose": ["ValueError"], "exceptions_in_prose": ["ValueError"], "in_explanation": ["ValueError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.cascade.cyclic_mod_inv"}
+{"agrees_with_docstring": false, "callable_declared_block": [], "callable_prose": [], "exceptions_in_prose": ["ValueError"], "in_explanation": ["ValueError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.cascade.cyclic_mod_mul_wide"}
+{"agrees_with_docstring": false, "callable_declared_block": [], "callable_prose": [], "exceptions_in_prose": ["NotImplementedError"], "in_explanation": ["NotImplementedError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.cascade.octonion_dft"}
+{"agrees_with_docstring": false, "callable_declared_block": [], "callable_prose": [], "exceptions_in_prose": ["ValueError"], "in_explanation": ["ValueError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.cascade.hamming_encode"}
+{"agrees_with_docstring": false, "callable_declared_block": [], "callable_prose": [], "exceptions_in_prose": ["ValueError"], "in_explanation": ["ValueError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.cascade.hamming_syndrome"}
+{"agrees_with_docstring": true, "callable_declared_block": ["TypeError", "ValueError"], "callable_prose": ["TypeError", "ValueError"], "exceptions_in_prose": ["TypeError", "ValueError"], "in_explanation": ["TypeError", "ValueError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.cascade.winding_fold"}
+{"agrees_with_docstring": true, "callable_declared_block": ["ValueError"], "callable_prose": ["ValueError"], "exceptions_in_prose": ["ValueError"], "in_explanation": ["ValueError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.cascade.parallel_sector_dispatch"}
+{"agrees_with_docstring": true, "callable_declared_block": ["ValueError"], "callable_prose": ["ValueError"], "exceptions_in_prose": ["ValueError"], "in_explanation": ["ValueError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.physics.qm.spin.pauli_spin_operator"}
+{"agrees_with_docstring": false, "callable_declared_block": ["ValueError"], "callable_prose": ["ValueError"], "exceptions_in_prose": ["ZeroDivisionError"], "in_explanation": ["ZeroDivisionError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.physics.qm.propagators.feynman_scalar_propagator"}
+{"agrees_with_docstring": false, "callable_declared_block": [], "callable_prose": [], "exceptions_in_prose": ["ValueError"], "in_explanation": ["ValueError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.physics.qm.gauge.su2_structure_constants"}
+{"agrees_with_docstring": false, "callable_declared_block": [], "callable_prose": [], "exceptions_in_prose": ["ValueError"], "in_explanation": ["ValueError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.physics.qm.gauge.lie_algebra_residual"}
+{"agrees_with_docstring": false, "callable_declared_block": [], "callable_prose": [], "exceptions_in_prose": ["ValueError"], "in_explanation": ["ValueError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.physics.qm.gauge.casimir_operator"}
+{"agrees_with_docstring": false, "callable_declared_block": [], "callable_prose": [], "exceptions_in_prose": ["ValueError"], "in_explanation": ["ValueError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.physics.qm.gauge.gauge_connection_matrix"}
+{"agrees_with_docstring": false, "callable_declared_block": [], "callable_prose": [], "exceptions_in_prose": ["ValueError"], "in_explanation": ["ValueError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.physics.qm.gauge.wilson_loop_from_segments"}
+{"agrees_with_docstring": false, "callable_declared_block": [], "callable_prose": [], "exceptions_in_prose": ["ValueError"], "in_explanation": ["ValueError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.physics.qm.sm.higgs_vev"}
+{"agrees_with_docstring": true, "callable_declared_block": ["ValueError"], "callable_prose": ["ValueError"], "exceptions_in_prose": ["ValueError"], "in_explanation": ["ValueError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.physics.qm.quaternion.quaternion_conjugate"}
+{"agrees_with_docstring": true, "callable_declared_block": ["ValueError"], "callable_prose": ["ValueError"], "exceptions_in_prose": ["ValueError"], "in_explanation": ["ValueError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.physics.qm.triality.triality_cycle"}
+{"agrees_with_docstring": false, "callable_declared_block": [], "callable_prose": [], "exceptions_in_prose": ["TypeError"], "in_explanation": ["TypeError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.introspect.tool_schema.tool_schema_view"}
+{"agrees_with_docstring": true, "callable_declared_block": ["TypeError", "ValueError"], "callable_prose": ["TypeError", "ValueError"], "exceptions_in_prose": ["ValueError"], "in_explanation": ["ValueError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.dsl.run_toml_chain"}
+{"agrees_with_docstring": true, "callable_declared_block": ["UnknownOperationError", "DispatcherNotImplementedError"], "callable_prose": ["UnknownOperationError", "DispatcherNotImplementedError"], "exceptions_in_prose": ["UnknownOperationError"], "in_explanation": ["UnknownOperationError"], "in_summary": ["UnknownOperationError"], "record": "toolentry_prose", "resolved": true, "tool": "srmech.signal_processing.cascade_dispatcher.dispatch"}
+{"agrees_with_docstring": false, "callable_declared_block": ["ValueError"], "callable_prose": ["ValueError"], "exceptions_in_prose": ["DispatchError"], "in_explanation": ["DispatchError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.signal_processing.cascade_dispatcher.resolve_path"}
+{"agrees_with_docstring": false, "callable_declared_block": [], "callable_prose": [], "exceptions_in_prose": ["ValueError", "UnknownOperationError"], "in_explanation": ["ValueError", "UnknownOperationError"], "in_summary": ["ValueError"], "record": "toolentry_prose", "resolved": true, "tool": "srmech.signal_processing.path_registry.has_path"}
+{"agrees_with_docstring": true, "callable_declared_block": ["TypeError", "ValueError", "UnknownOperationError"], "callable_prose": ["TypeError", "ValueError", "UnknownOperationError", "AssertionError"], "exceptions_in_prose": ["UnknownOperationError"], "in_explanation": ["UnknownOperationError"], "in_summary": ["UnknownOperationError"], "record": "toolentry_prose", "resolved": true, "tool": "srmech.signal_processing.path_registry.lookup"}
+{"agrees_with_docstring": false, "callable_declared_block": [], "callable_prose": [], "exceptions_in_prose": ["NotImplementedError"], "in_explanation": ["NotImplementedError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.signal_processing.dct"}
+{"agrees_with_docstring": false, "callable_declared_block": [], "callable_prose": [], "exceptions_in_prose": ["ValueError"], "in_explanation": ["ValueError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.signal_processing.stft"}
+{"agrees_with_docstring": false, "callable_declared_block": [], "callable_prose": [], "exceptions_in_prose": ["ValueError"], "in_explanation": ["ValueError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.signal_processing.cross_spectral"}
+{"agrees_with_docstring": false, "callable_declared_block": [], "callable_prose": [], "exceptions_in_prose": ["TypeError", "ValueError"], "in_explanation": ["TypeError", "ValueError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.signal_processing.rfft"}
+{"agrees_with_docstring": false, "callable_declared_block": [], "callable_prose": [], "exceptions_in_prose": ["NotImplementedError"], "in_explanation": ["NotImplementedError"], "in_summary": [], "record": "toolentry_prose", "resolved": true, "tool": "srmech.signal_processing.wavelet"}
+{"agrees_with_docstring": false, "callable_declared_block": [], "callable_prose": [], "exceptions_in_prose": ["TypeError"], "in_explanation": [], "in_summary": ["TypeError"], "record": "toolentry_prose", "resolved": true, "tool": "srmech.music.normal_order"}
+{"n_tools_naming_an_exception": 86, "record": "toolentry_summary"}
+{"declared": ["MPRValidationError", "TypeError"], "raises_undeclared": ["OSError"], "record": "registry_omission", "tool": "srmech.amsc.format.read_ndjson"}
+{"declared": ["RuntimeError"], "raises_undeclared": ["IndexError", "KeyError"], "record": "registry_omission", "tool": "srmech.amsc.catalog.run_catalog_chain"}
+{"declared": [], "raises_undeclared": ["ChainSpecError"], "record": "registry_omission", "tool": "srmech.cascade.compose.parse_catalog_chains"}
+{"declared": [], "raises_undeclared": ["RuntimeError", "TypeError", "ValueError"], "record": "registry_omission", "tool": "srmech.math.cyclic.gcd"}
+{"declared": ["ValueError"], "raises_undeclared": ["RuntimeError"], "record": "registry_omission", "tool": "srmech.math.cyclic.mod_add"}
+{"declared": ["ValueError"], "raises_undeclared": ["RuntimeError"], "record": "registry_omission", "tool": "srmech.math.cyclic.mod_mul"}
+{"declared": ["ValueError"], "raises_undeclared": ["RuntimeError"], "record": "registry_omission", "tool": "srmech.math.cyclic.mod_pow"}
+{"declared": ["ValueError"], "raises_undeclared": ["OverflowError", "RuntimeError"], "record": "registry_omission", "tool": "srmech.math.cyclic.mod_inv"}
+{"declared": [], "raises_undeclared": ["TypeError", "ValueError"], "record": "registry_omission", "tool": "srmech.math.modular_linalg.gf_solve"}
+{"declared": [], "raises_undeclared": ["TypeError"], "record": "registry_omission", "tool": "srmech.math.text.fold_marks"}
+{"declared": [], "raises_undeclared": ["TypeError"], "record": "registry_omission", "tool": "srmech.math.text.glyph_stream"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.math.text.cooccurrence_edges"}
+{"declared": [], "raises_undeclared": ["TypeError", "ValueError"], "record": "registry_omission", "tool": "srmech.math.text.cooccurrence_topk"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.math.laplacian.mass_normalized_laplacian"}
+{"declared": ["ValueError"], "raises_undeclared": ["TypeError"], "record": "registry_omission", "tool": "srmech.math.laplacian.magnetic_laplacian"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.math.laplacian.cycle_holonomy"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.math.laplacian.write_packed_graph"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.math.laplacian.mat_matmul"}
+{"declared": ["ValueError", "ZeroDivisionError"], "raises_undeclared": ["RuntimeError"], "record": "registry_omission", "tool": "srmech.math.laplacian.mat_solve"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.math.laplacian.mat_hermitian_eigendecompose"}
+{"declared": ["ValueError"], "raises_undeclared": ["RuntimeError"], "record": "registry_omission", "tool": "srmech.math.laplacian.mat_eigvals"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.math.laplacian.mat_matvec"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.math.laplacian.elementwise_multiply_complex"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.math.laplacian.elementwise_transcendental"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.math.laplacian.elementwise_hypot"}
+{"declared": [], "raises_undeclared": ["RuntimeError"], "record": "registry_omission", "tool": "srmech.math.primes.is_prime"}
+{"declared": ["OverflowError", "ValueError"], "raises_undeclared": ["RuntimeError"], "record": "registry_omission", "tool": "srmech.math.primes.cyclic_period"}
+{"declared": [], "raises_undeclared": ["OverflowError", "RuntimeError", "TypeError", "ValueError"], "record": "registry_omission", "tool": "srmech.math.primes.next_prime"}
+{"declared": [], "raises_undeclared": ["RuntimeError", "TypeError", "ValueError"], "record": "registry_omission", "tool": "srmech.math.tlv.tlv_pack"}
+{"declared": ["ValueError"], "raises_undeclared": ["TypeError"], "record": "registry_omission", "tool": "srmech.math.tlv.tlv_unpack"}
+{"declared": [], "raises_undeclared": ["RuntimeError", "TypeError", "ValueError"], "record": "registry_omission", "tool": "srmech.math.search.byte_search"}
+{"declared": [], "raises_undeclared": ["RuntimeError", "TypeError"], "record": "registry_omission", "tool": "srmech.math.dispatch.match"}
+{"declared": [], "raises_undeclared": ["RuntimeError", "TypeError"], "record": "registry_omission", "tool": "srmech.introspect.naming.lookup"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.music.harmonics.classify_harmonic"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.music.harmonics.classify_chirality_harmonic"}
+{"declared": [], "raises_undeclared": ["RuntimeError", "TypeError"], "record": "registry_omission", "tool": "srmech.math.dispatch.mirror_pattern"}
+{"declared": [], "raises_undeclared": ["RuntimeError"], "record": "registry_omission", "tool": "srmech.introspect.naming.reverse_order"}
+{"declared": [], "raises_undeclared": ["RuntimeError", "TypeError", "ValueError"], "record": "registry_omission", "tool": "srmech.math.search.byte_search_backward"}
+{"declared": [], "raises_undeclared": ["RuntimeError", "TypeError", "ValueError"], "record": "registry_omission", "tool": "srmech.math.cyclic.three_cycle"}
+{"declared": [], "raises_undeclared": ["RuntimeError"], "record": "registry_omission", "tool": "srmech.math.laplacian.three_fold_eigvec_groups"}
+{"declared": [], "raises_undeclared": ["OverflowError", "RuntimeError", "TypeError", "ValueError"], "record": "registry_omission", "tool": "srmech.math.template.render"}
+{"declared": ["ValueError"], "raises_undeclared": ["RuntimeError"], "record": "registry_omission", "tool": "srmech.math.rational.continued_fraction"}
+{"declared": ["ValueError"], "raises_undeclared": ["RuntimeError"], "record": "registry_omission", "tool": "srmech.math.rational.best_rational"}
+{"declared": [], "raises_undeclared": ["TypeError", "ValueError"], "record": "registry_omission", "tool": "srmech.math.rational.rational_reconstruct"}
+{"declared": ["TypeError", "ValueError"], "raises_undeclared": ["RuntimeError"], "record": "registry_omission", "tool": "srmech.math.rational.exp_series_truncate"}
+{"declared": [], "raises_undeclared": ["TypeError", "ValueError"], "record": "registry_omission", "tool": "srmech.math.rational.rational_add"}
+{"declared": [], "raises_undeclared": ["TypeError", "ValueError"], "record": "registry_omission", "tool": "srmech.math.rational.rational_mul"}
+{"declared": [], "raises_undeclared": ["RuntimeError", "TypeError", "ValueError"], "record": "registry_omission", "tool": "srmech.math.rational.rational_pow_uint"}
+{"declared": [], "raises_undeclared": ["TypeError", "ValueError"], "record": "registry_omission", "tool": "srmech.math.rational.jacobi_sncndn_series_truncate"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.math.rational.cos"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.math.rational.sin"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.math.rational.tan"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.math.rational.atan"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.math.rational.atan2"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.math.rational.exp"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.math.rational.log"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.math.rational.sqrt"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.cascade.matrix_cascades.qr"}
+{"declared": [], "raises_undeclared": ["NotImplementedError"], "record": "registry_omission", "tool": "srmech.cascade.matrix_cascades.svd"}
+{"declared": [], "raises_undeclared": ["NotImplementedError"], "record": "registry_omission", "tool": "srmech.cascade.matrix_cascades.lstsq"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.cascade.matrix_cascades.einsum"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.cascade.matrix_cascades.eigvals"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.cascade.matrix_cascades.char_poly"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.cascade.matrix_cascades.eigvals_exact"}
+{"declared": ["TypeError", "ValueError"], "raises_undeclared": ["RuntimeError"], "record": "registry_omission", "tool": "srmech.math.rational.continued_fraction_convergents"}
+{"declared": ["TypeError", "ValueError"], "raises_undeclared": ["RuntimeError"], "record": "registry_omission", "tool": "srmech.math.rational.pi_cascade_digits"}
+{"declared": ["TypeError", "ValueError"], "raises_undeclared": ["RuntimeError"], "record": "registry_omission", "tool": "srmech.math.rational.pi_chudnovsky_digits"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.biology.genome.encode_shape"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.biology.genome.gene_express"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.biology.genome.gene_express_levels"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.biology.genome.modulator_consistent"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.biology.genome.modulator_constraint_satisfies"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.biology.genome.chromosome"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.biology.genome.diploid"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.biology.genome.condense"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.biology.genome.integrate"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.biology.genome.recall"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.biology.genome.genome"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.biology.genome.plasmid"}
+{"declared": [], "raises_undeclared": ["GenomeBoundingError"], "record": "registry_omission", "tool": "srmech.biology.genome.upgrade_v15_to_v16"}
+{"declared": ["GenomeBoundingError"], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.biology.genome.genome_load"}
+{"declared": ["GenomeBoundingError"], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.biology.genome.genome_window"}
+{"declared": ["GenomeBoundingError"], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.biology.genome.genome_import"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.biology.genome.kernel_pack"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.biology.genome.kernel_unpack"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.biology.genome.graph_to_kernel"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.biology.plasmid.plasmid_extract"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.biology.plasmid.conserved_core"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.biology.genome.mint_strand"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.biology.genome.genome_partition"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.biology.genome.genome_from_graph"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.math.hdc.polar_random"}
+{"declared": [], "raises_undeclared": ["TypeError", "ValueError"], "record": "registry_omission", "tool": "srmech.math.hdc.klein4_expand"}
+{"declared": [], "raises_undeclared": ["TypeError", "ValueError"], "record": "registry_omission", "tool": "srmech.math.hdc.klein4_address"}
+{"declared": [], "raises_undeclared": ["TypeError", "ValueError"], "record": "registry_omission", "tool": "srmech.math.hdc.klein4_role"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.math.hdc.klein4_sector_frame"}
+{"declared": [], "raises_undeclared": ["TypeError", "ValueError"], "record": "registry_omission", "tool": "srmech.math.hdc.klein4_from_one"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.math.hdc.klein4_bind"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.math.hdc.klein4_bundle"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.math.hdc.klein4_phase_key"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.math.hdc.klein4_chunk_bundle"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.math.hdc.klein4_chunk_resolve"}
+{"declared": [], "raises_undeclared": ["TypeError", "ValueError"], "record": "registry_omission", "tool": "srmech.math.hdc.klein4_encode_bytes"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.math.hdc.klein4_compose"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.math.hdc.klein4_bundle_accumulate"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.math.hdc.klein4_bundle_resolve"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.math.hdc.klein4_bundle_sector_scores"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.math.hdc.cooccurrence_fold"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.math.hdc.klein4_holographic_encode"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.biology.coupling.from_bodies"}
+{"declared": [], "raises_undeclared": ["TypeError"], "record": "registry_omission", "tool": "srmech.math.qpoly.qpoly_from_coeffs"}
+{"declared": [], "raises_undeclared": ["TypeError"], "record": "registry_omission", "tool": "srmech.math.qbipoly.qbipoly_from_coeffs"}
+{"declared": [], "raises_undeclared": ["TypeError", "ValueError"], "record": "registry_omission", "tool": "srmech.math.carrier_ladder.poly_promote"}
+{"declared": ["ValueError"], "raises_undeclared": ["TypeError"], "record": "registry_omission", "tool": "srmech.math.carrier_ladder.poly_project"}
+{"declared": [], "raises_undeclared": ["TypeError", "ValueError"], "record": "registry_omission", "tool": "srmech.math.carrier_ladder.qpoly_promote"}
+{"declared": ["ValueError"], "raises_undeclared": ["TypeError"], "record": "registry_omission", "tool": "srmech.math.carrier_ladder.qpoly_project"}
+{"declared": ["ValueError"], "raises_undeclared": ["TypeError"], "record": "registry_omission", "tool": "srmech.apokatastasis.ellbase.half_shift_response"}
+{"declared": [], "raises_undeclared": ["TypeError"], "record": "registry_omission", "tool": "srmech.apokatastasis.ellbase.chirality_parity"}
+{"declared": [], "raises_undeclared": ["TypeError"], "record": "registry_omission", "tool": "srmech.apokatastasis.ellbase.beat_relation_residue"}
+{"declared": ["ValueError"], "raises_undeclared": ["TypeError"], "record": "registry_omission", "tool": "srmech.apokatastasis.elliptic_jackson.multivariate_elliptic_jackson"}
+{"declared": [], "raises_undeclared": ["TypeError"], "record": "registry_omission", "tool": "srmech.math.dispatch.infer"}
+{"declared": [], "raises_undeclared": ["TypeError", "ValueError"], "record": "registry_omission", "tool": "srmech.apokatastasis.unary_theta.theta_coefficients"}
+{"declared": [], "raises_undeclared": ["TypeError", "ValueError"], "record": "registry_omission", "tool": "srmech.apokatastasis.harmonic_maass.harmonic_maass"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.cascade.as_quat4"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.cascade.as_oct8"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.cascade.qdft_resolve_mu"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.cascade.quaternion_dft"}
+{"declared": [], "raises_undeclared": ["NotImplementedError", "ValueError"], "record": "registry_omission", "tool": "srmech.cascade.octonion_dft"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.cascade.phase_coherent_peak"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.cascade.hypercomplex_couple"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.cascade.hamming_encode"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.cascade.cd_mult"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.cascade.cd_basis_product"}
+{"declared": ["TypeError", "ValueError"], "raises_undeclared": ["AssertionError"], "record": "registry_omission", "tool": "srmech.cascade.inertia_signature"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.math.cyclic.mod_mul_arrow"}
+{"declared": [], "raises_undeclared": ["TypeError", "ValueError"], "record": "registry_omission", "tool": "srmech.cascade.dihedral_group"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.math.laplacian.generalized_ngon"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.cascade.cd_promote"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.cascade.cd_navmap"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.cascade.cd_navigate"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.cascade.cd_couple_working"}
+{"declared": [], "raises_undeclared": ["TypeError", "ValueError"], "record": "registry_omission", "tool": "srmech.cascade.the_one"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.cascade.coupled.coupled_wave"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.cascade.coupled.multiplex_streams"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.physics.qm.single_particle.tdse_evolve"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.physics.qm.single_particle.tise_solve"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.physics.qm.single_particle.commutator"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.physics.qm.single_particle.heisenberg_evolve"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.physics.qm.single_particle.lattice_momentum"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.physics.qm.single_particle.density_matrix"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.physics.qm.single_particle.liouville_evolve"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.physics.qm.potentials.hydrogen_radial"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.physics.qm.potentials.harmonic_oscillator_ladder"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.physics.qm.relativistic.dirac_operator_momentum_space"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.physics.qm.relativistic.klein_gordon_dispersion"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.physics.qm.relativistic.four_momentum_squared"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.physics.qm.propagators.feynman_fermion_propagator"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.physics.qm.propagators.feynman_photon_propagator"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.physics.qm.propagators.feynman_massive_vector_propagator"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.physics.qm.pseudo_hermitian.expectation_eta"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.physics.qm.pseudo_hermitian.is_pseudo_hermitian"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.physics.qm.gauge.lie_algebra_residual"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.physics.qm.gauge.casimir_operator"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.physics.qm.gauge.gauge_connection_matrix"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.physics.qm.gauge.wilson_loop_from_segments"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.physics.qm.sm.higgs_potential"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.physics.qm.sm.higgs_vev"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.physics.qm.sm.weak_mixing_angle"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.physics.qm.sm.w_boson_mass"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.physics.qm.sm.z_boson_mass"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.physics.qm.sm.fermion_mass_from_yukawa"}
+{"declared": [], "raises_undeclared": ["TypeError", "ValueError"], "record": "registry_omission", "tool": "srmech.introspect.search.search"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.dsl.run_cascade_chain"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.dsl.generate_class_descriptor"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.rbs_lm.encode_aboutness"}
+{"declared": ["DispatcherNotImplementedError", "UnknownOperationError"], "raises_undeclared": ["DispatchError"], "record": "registry_omission", "tool": "srmech.signal_processing.cascade_dispatcher.dispatch"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.signal_processing.path_registry.has_path"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.signal_processing.music_doa"}
+{"declared": [], "raises_undeclared": ["NotImplementedError", "ValueError"], "record": "registry_omission", "tool": "srmech.signal_processing.dct"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.signal_processing.stft"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.signal_processing.cross_spectral"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.signal_processing.multitaper"}
+{"declared": [], "raises_undeclared": ["NotImplementedError", "ValueError"], "record": "registry_omission", "tool": "srmech.signal_processing.wavelet"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.signal_processing.allpass"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.signal_processing.wiener"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.signal_processing.heat_kernel"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.signal_processing.spectral_subtraction"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.signal_processing.huffman"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.signal_processing.arithmetic_coding"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.signal_processing.jpeg"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.signal_processing.vector_quantisation"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.signal_processing.psk_qam"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.signal_processing.fsk"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.signal_processing.ofdm"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.signal_processing.mimo_svd"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.signal_processing.viterbi"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.signal_processing.mlse"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.signal_processing.multirate"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.signal_processing.polyphase"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.signal_processing.farrow"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.signal_processing.sinc_interp"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.signal_processing.beamforming_fixed"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.signal_processing.esprit"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.signal_processing.ica_jade"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.signal_processing.lmmse"}
+{"declared": [], "raises_undeclared": ["ValueError"], "record": "registry_omission", "tool": "srmech.signal_processing.map_ml"}
+{"declared": [], "raises_undeclared": ["TypeError", "ValueError"], "record": "registry_omission", "tool": "srmech.music.comma_of_chain"}
+{"declared": [], "raises_undeclared": ["TypeError", "ValueError"], "record": "registry_omission", "tool": "srmech.music.tempers_out"}
+{"declared": ["BioTotpDecryptError", "BioTotpFormatError"], "raises_undeclared": ["TypeError"], "record": "registry_omission", "tool": "srmech.bus.decode_splice"}
+{"n_registered_tools": 655, "n_with_undeclared_own_body_raise": 209, "record": "registry_omission_summary"}
+{"declared_block": [], "has_raises_block": false, "op": "srmech.physics.qm.bell.operator_norm", "overlaps_t1130": false, "prose_exceptions": [], "record": "t1131_overlap", "resolved": true}
+{"declared_block": [], "has_raises_block": false, "op": "srmech.dsl._catalog.register_catalog_dir", "overlaps_t1130": false, "prose_exceptions": [], "record": "t1131_overlap", "resolved": true}
+{"declared_block": [], "has_raises_block": false, "op": "srmech.math.hdc.loop_bind_hd", "overlaps_t1130": false, "prose_exceptions": [], "record": "t1131_overlap", "resolved": true}
+{"declared_block": [], "has_raises_block": false, "op": "srmech.math.hdc.loop_unbind_hd", "overlaps_t1130": false, "prose_exceptions": [], "record": "t1131_overlap", "resolved": true}
+{"declared_block": [], "has_raises_block": false, "op": "srmech.math.hdc.loop_conj_hd", "overlaps_t1130": false, "prose_exceptions": [], "record": "t1131_overlap", "resolved": true}
+{"declared_block": [], "has_raises_block": false, "op": "srmech.math.hdc.loop_inv_hd", "overlaps_t1130": false, "prose_exceptions": [], "record": "t1131_overlap", "resolved": true}
+{"declared_block": [], "has_raises_block": false, "op": "srmech.math.hdc.loop_runbind_hd", "overlaps_t1130": false, "prose_exceptions": [], "record": "t1131_overlap", "resolved": true}
+{"declared_block": [], "has_raises_block": false, "op": "srmech.math.mat.Mat.from_rows", "overlaps_t1130": false, "prose_exceptions": [], "record": "t1131_overlap", "resolved": true}
+{"declared_block": [], "has_raises_block": false, "op": "srmech.math.laplacian.mat_matmul", "overlaps_t1130": false, "prose_exceptions": [], "record": "t1131_overlap", "resolved": true}
+{"declared_block": [], "has_raises_block": false, "op": "srmech.math.vec.Vec.__getitem__", "overlaps_t1130": false, "prose_exceptions": [], "record": "t1131_overlap", "resolved": true}
+{"declared_block": [], "has_raises_block": false, "op": "srmech.biology.genome._q8_couple", "overlaps_t1130": false, "prose_exceptions": [], "record": "t1131_overlap", "resolved": true}
+{"declared_block": [], "has_raises_block": false, "op": "srmech.biology.genome._oct_couple", "overlaps_t1130": false, "prose_exceptions": [], "record": "t1131_overlap", "resolved": true}
+{"classification": "EMPTY", "n_ops_checked": 12, "n_with_raises_block": 0, "record": "t1131_overlap_summary"}
