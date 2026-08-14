@@ -128,6 +128,59 @@ A shape guard that silently deletes the caller's data is strictly worse than the
 
 **The fixture audit that closes the loop.** `docs/srmech/notes/_k3_fixture_audit_rc431.py` mutation-tests every assertion this rc added: apply the minimal mutation the assertion claims to catch, and require it to **fail**. **12 fixtures audited, 0 DEAD**, and the auditor carries a **planted dead fixture** — an assertion that says nothing about its subject — which it must report `DEAD` or the whole run is void. It did. The residual ratchet is reported rather than mutated and is **TIGHT**: residual 25, ceil 25, slack 0. Null classification **BOUNDED** — the audit covers assertions for which an in-process subject mutation exists, and the rows outside that bound are named individually.
 
+### The four tiny repairs, and three claims in the brief that did not survive being run (`#T1129`)
+
+Four input-domain repairs whose common property is that **nothing in the tree could have told you they were needed, and nothing would have told you if they were undone**. No registry count, ABI number or content-address moves — so every ordinary ratchet is blind to all four. They are gated at their axis in `tests/test_input_contracts_rc431.py` (21 assertions, all four mutation-killed, listed in `tools/ripple_gates.txt`).
+
+#### The silent wrong answer was already closed — and had no gate
+
+`vec_add`'s equal-length guard landed earlier in this rc (`2c2fdf857`). What it did **not** have was a regression gate, so the worst-class defect in the rc was protected by nothing but the commit that fixed it. It now asserts **both** orientations plus the valid case, and mutation-testing confirms deleting the guard turns the gate red.
+
+The caveat attached to that repair is discharged by measurement rather than argument: `vec_add` is the declared `fold_op` of both hypercomplex DFT chains, so a guard on it could in principle have broken a caller relying on ragged input. **Falsifier pre-registered, then run** — `test_hypercomplex_dft.py` + `test_octonion_dft_rc111.py` + `test_cascade_catalog_executable_rc420.py`: **231 passed, 1 skipped**, and forward/inverse round-trips recover their input on both rungs. The ragged-caller hypothesis is **REFUTED**, not merely unobserved.
+
+#### Two `assert`s doing input validation — which failed in OPPOSITE interpreter modes
+
+The brief described both as *"the declared contract vanishes under `python -O`"*. Run both ways, that is **true of one and inverted for the other**:
+
+| site | `python3` | `python3 -O` | declared |
+|---|---|---|---|
+| `continued_fraction_convergents:2416` | `AssertionError` | **`TypeError`** ✓ | `TypeError` |
+| `path_registry.lookup:257` | `AssertionError` | **`UnknownOperationError`** | *(undeclared)* |
+
+`continued_fraction_convergents` already had a real `raise TypeError` loop **below** the assert, reporting which index and which type. So `-O` was the mode that behaved CORRECTLY, and the assert PREEMPTED the declared contract in the DEFAULT mode — the strictly worse half, since almost nobody runs `-O`. Its companion `assert coef_list is not None` was plainly dead: the `isinstance(coef_list, list)` check above it already rejects `None`.
+
+`path_registry.lookup` is the shape the brief described, and its consequence is the sharper one: with the assert stripped, a malformed argument fell through to the registry miss and was **misreported as a lookup failure**, sending the caller hunting for a registration that was never the problem. It now raises `TypeError` for a non-`str` and `ValueError` for `""`, per the measured house convention (TypeError = wrong TYPE; ValueError = right type, wrong value), and the `Raises:` block says so.
+
+**Because the two failed in opposite modes, the gate asserts `-O` INVARIANCE rather than either mode's behaviour** — a single-mode gate would have passed on one of the two defects. It carries a planted-assert control proving the probe can distinguish the modes at all; a subprocess is structural here, since `assert` is stripped at COMPILE time and no in-process test can observe it.
+
+#### The shipped generator literal — real hardening, zero artifact delta
+
+`tools/gen_tool_docs.py:152` still held `"str": (True, "abc")` after rc430 fixed the same literal in `tests/test_mcp.py`. This is the **second, independent** synthesizer and the one whose output is committed into `srmech/introspect/_tool_docs.py` and **ships in the wheel**. Measured: **24 required `str` params** received `"abc"`, and `_build_example` **executed** with it (2 `executed`, 5 `failed`, 17 `unverifiable`). Now `"srmech_synth"`, matching rc430 — a value that escapes into a file, a log or an error message names its own origin.
+
+⚠️ **The brief's warning that this moves the introspect search-corpus content-address is FALSE at rc431, and the reason is worth recording.** `regen_all.py` reports **0 files changed**, idempotent across two passes. Only 2 of the 24 ops produce a different `_build_example` output (`bus.by_name`, `rbs_lm.encode_aboutness`) — and **both carry CURATED examples that take precedence**, so no synthesised value was reaching the committed bytes in the first place. The corpus witness was re-measured the documented way anyway — **15 builds, 3 fresh interpreters** — and is `50ee7c0d…c476` every time, `len(frames) == 684`, ops 655 + carriers 29: **unchanged, so NOT re-pinned**. A digest re-pinned without a measured mover is a pin that has stopped meaning anything.
+
+So the fix hardens a genuinely executed path while moving no shipped byte. That is a weaker result than the brief expected and is stated as such rather than dressed up.
+
+**Scope, measured rather than assumed:** the sibling `"list[str]"` row (`["a", "b"]`) carries the same weakness in principle but is **DEAD** — 0 of 655 registry entries reach it — so changing it would move nothing. The `bytes` row's `b"abc"` is live (33 params) but is an opaque payload, not a name that can be mistaken for one.
+
+#### Three under-declared `Raises:` blocks — docstrings only, no code path touched
+
+`lcm`, `factor` and `rational_div` each declared exactly ONE exception while raising two or three. Every row below was executed before it was written:
+
+| op | declared through rc430 | actually raises |
+|---|---|---|
+| `lcm` | `OverflowError` | `TypeError` (non-int), `ValueError` (negative / out of uint64), `OverflowError` (**result** overflows) |
+| `factor` | `OverflowError` | `TypeError`, `ValueError`, `OverflowError` |
+| `rational_div` | `ZeroDivisionError` | `TypeError` (not a 2-tuple), `ValueError` (non-positive denominator), `ZeroDivisionError` |
+
+Two of these are worse than a mere omission. **`factor` declared only the exception its own next sentence says cannot happen**, while both reachable ones went undeclared — and its "Returns `[]` for `n < 2`" reads as though it covers `n = -6`, which instead **raises** (`factor(0)` and `factor(1)` do return `[]`; verified). **`rational_div`'s single declared exception is the LAST of its three checks**, so a caller passing a malformed pair hit an undeclared contract before the declared one could apply. `lcm`'s ValueError/OverflowError split is the load-bearing half: ValueError means an *operand* is out of range, OverflowError means both operands were fine and their lcm is not.
+
+#### Also corrected in this brief
+
+- **`test_describe_registry_pointer_rc407.py` and `test_domain_classes_rc298.py` are NOT missing from `tools/ripple_gates.txt`.** The brief said both were absent and must be run by hand; they were manifested at lines 112–113 by the rc430 repair (`13a312103`). Run by hand regardless — green.
+- **`path_registry` has two MORE assert-based input checks** this rc did not touch — `register_lazy_loader:142` and `register:196`, both the same `assert isinstance(op_name, str) and op_name` as the repaired `lookup`. They are on the REGISTRATION side rather than the query side, so their `-O` behaviour is a different question (a bad key gets stored rather than misreported) and they were out of the brief's scope. Named here so the surface is not believed clean by anyone reading the `lookup` repair as having closed the module.
+
+
 ## [0.9.0rc430]
 
 ### The frame an op cannot tell you it is standing in — and a headline that did not survive being measured (`#T1127` / `#T1094`)

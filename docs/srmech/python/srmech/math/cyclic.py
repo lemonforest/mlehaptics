@@ -164,6 +164,26 @@ def gcd(a: int, b: int) -> int:
 def lcm(a: int, b: int) -> int:
     """LCM via ``a / gcd(a, b) * b``. Raises ``OverflowError`` if the
     result exceeds uint64 range (matches the C side's ERR_OVERFLOW).
+
+    Raises
+    ------
+    TypeError
+        If ``a`` or ``b`` is not an ``int`` (from ``_ensure_uint64``).
+    ValueError
+        If ``a`` or ``b`` is negative, or is itself outside uint64 range.
+    OverflowError
+        If the RESULT exceeds uint64 range, both operands being in range.
+
+    Note
+    ----
+    rc431 (`#T1129`) — docstring only; no code path changed. The declared
+    contract was OverflowError alone, which named the one failure the C parity
+    surface reports and silently omitted the two this function raises FIRST,
+    on inputs that never reach the arithmetic. The ValueError/OverflowError
+    split is the load-bearing half: ValueError means an OPERAND is out of
+    range, OverflowError means both operands were fine and their lcm is not.
+    Measured — ``lcm(-1, 2)`` -> ValueError, ``lcm(2.5, 2)`` -> TypeError,
+    ``lcm(2**65, 2)`` -> ValueError, ``lcm(2**63, 2**63 - 1)`` -> OverflowError.
     """
     a = _ensure_uint64("a", a)
     b = _ensure_uint64("b", b)

@@ -346,3 +346,21 @@ tests/test_native_contract_parity_rc431.py
 #    mandatory in-test control that mutates invoke_tool to always raise and
 #    asserts zero RETURNED. Depends on tests/invocable_returned_rc431.txt.
 tests/test_invocable_returned_floor_rc431.py
+
+# -- input contracts + the shipped generator literal (rc431, `#T1129`) ------
+#    Four repairs whose defects NOTHING in the tree could surface. Two were
+#    `assert`s doing input validation, and they failed in OPPOSITE interpreter
+#    modes -- `continued_fraction_convergents` had a real `raise` below the
+#    assert, so `-O` was CORRECT and the DEFAULT mode broke the declared
+#    contract; `path_registry.lookup` had nothing below it, so `-O` dropped the
+#    check and misreported a type error as a registry miss. A gate asserting
+#    either single mode would have passed on one of the two, so this one
+#    asserts `-O` INVARIANCE, with a planted-assert control proving the probe
+#    can tell the modes apart at all.
+#    It rides in this manifest for its FOURTH axis: `tools/gen_tool_docs.py`'s
+#    `_synth_arg` is the second, wheel-shipping example synthesizer (its output
+#    is committed to `srmech/introspect/_tool_docs.py`), so any registration
+#    change moves what it synthesises and executes. Strict zero on anonymous
+#    placeholder literals, with a reach control so the zero cannot be a false
+#    null from a scanner that visited nothing.
+tests/test_input_contracts_rc431.py

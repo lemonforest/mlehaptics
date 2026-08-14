@@ -88,6 +88,28 @@ def factor(n: int) -> List[Tuple[int, int]]:
     ``OverflowError`` if the C path's fixed buffer (`FACTOR_MAX_DISTINCT_PRIMES`)
     is exceeded; this cannot happen for valid ``uint64`` inputs (≤15
     distinct primes) but the safety guard is documented.
+
+    Raises
+    ------
+    TypeError
+        If ``n`` is not an ``int`` (from ``_ensure_uint64``).
+    ValueError
+        If ``n`` is negative, or exceeds uint64 range.
+    OverflowError
+        If the C path's ``FACTOR_MAX_DISTINCT_PRIMES`` buffer is exceeded
+        (unreachable for in-range ``uint64`` input, as described above).
+
+    Note
+    ----
+    rc431 (`#T1129`) — docstring only; no code path changed. The declared
+    contract named ONLY the OverflowError the same paragraph then explains
+    cannot happen, while omitting the two exceptions that actually fire. So
+    every failure a caller can realistically provoke was undeclared and the
+    only declared one was the unreachable one. Note in particular that a
+    NEGATIVE ``n`` raises rather than returning ``[]``: the "Returns ``[]`` for
+    ``n < 2``" sentence reads as though it covers ``n = -6``, and it does not.
+    Measured — ``factor(-6)`` -> ValueError, ``factor(2.5)`` -> TypeError,
+    ``factor(2**65)`` -> ValueError, ``factor(0)`` and ``factor(1)`` -> ``[]``.
     """
     n = _ensure_uint64("n", n)
     if _native.HAS_NATIVE and _native.LIB is not None:

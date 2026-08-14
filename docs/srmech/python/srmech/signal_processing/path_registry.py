@@ -249,14 +249,43 @@ def register(
 def lookup(op_name: str) -> OperationEntry:
     """Return the :class:`OperationEntry` for ``op_name``.
 
-    Raises :class:`UnknownOperationError` if the op isn't registered.
-
     Phase 1 stub: no ops are registered; this raises for all callers.
     Phase 2+ populates registrations as modules import.
+
+    Raises
+    ------
+    TypeError
+        If ``op_name`` is not a ``str``.
+    ValueError
+        If ``op_name`` is the empty string.
+    UnknownOperationError
+        If ``op_name`` is a well-formed name that is not registered.
+
+    Note
+    ----
+    rc431 (`#T1129`) — the type/emptiness check was an ``assert``, and
+    ``python -O`` deletes it. Unlike its sibling in
+    ``continued_fraction_convergents``, nothing downstream re-enforced the
+    claim, so under ``-O`` a malformed argument fell through to the registry
+    miss and was reported as the WRONG failure entirely:
+
+        python3     lookup(123) -> AssertionError: op_name must be non-empty string
+        python3 -O  lookup(123) -> UnknownOperationError: op 123 not registered
+
+    Reporting a type error as a lookup miss sends the caller hunting for a
+    missing registration that was never the problem. Both branches now raise
+    for real, and the split follows the measured house convention: TypeError
+    is the wrong TYPE, ValueError is the right type carrying a wrong value.
+    ``""`` is a genuine ``str``, so it is a ValueError, not a TypeError — and
+    it is separated from the registry miss because an empty name is malformed
+    input, not an op someone forgot to register.
     """
-    assert isinstance(op_name, str) and op_name, (
-        "lookup: op_name must be non-empty string"
-    )
+    if not isinstance(op_name, str):
+        raise TypeError(
+            f"lookup: op_name must be str; got {type(op_name).__name__}"
+        )
+    if not op_name:
+        raise ValueError("lookup: op_name must be a non-empty string")
     _ensure_loaded(op_name)  # rc71: import-on-demand for lazily-registered ops
     entry = _REGISTRY.get(op_name)
     if entry is None:
