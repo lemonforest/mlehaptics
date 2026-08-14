@@ -62,6 +62,15 @@ same reason: a package-wide bare-name lookup cross-contaminates.
    INCLUDES every present instance and can only fire on GROWTH.
 6. **Dead-code ``raise`` statements** produce sound-but-unreachable flags. That is
    a different defect.
+7. **The gate has NO notion of ownership** — it measures NESTING. Condition (2)
+   skips every acquisition below function-body depth 0, owned or not, so a
+   genuinely unowned ``mkdir`` inside an ``if`` or a ``try`` is invisible. This
+   is the same fact as blind spot 2, stated from the other side, and it is
+   written twice on purpose: rc432's control docstring named a ``with``-owned
+   and a ``try/finally`` negative as though their silence demonstrated the gate
+   recognising an owner. It does not, and
+   :func:`test_the_nested_arms_are_silent_for_nesting_not_for_ownership`
+   measures it by stripping the ownership out and observing the same silence.
 
 **Coverage arithmetic: this gate saw 7 of the 12 confirmed lines. An rc that
 repairs only what it can see repairs 7 of 12 and the ratchet reports green over
@@ -97,18 +106,34 @@ ALLOWED_TAGS = frozenset({
 })
 
 #: Keyed ``(relpath, qualname, kind)`` — **never line numbers, they rot.**
-#: Every entry carries a tag from :data:`ALLOWED_TAGS` and a non-empty prose
-#: rationale, and :func:`test_allowlist_entries_are_all_justified` enforces both.
+#: Every entry carries a tag from :data:`ALLOWED_TAGS`, a non-empty prose
+#: rationale, **and the exact number of sites it covers**;
+#: :func:`test_allowlist_entries_are_all_justified` enforces all three.
 #: That is the mechanism that makes "a bare allowlist with no reasons"
 #: structurally impossible, following ``RULE_5_EXEMPT_FUNCTIONS``.
-ALLOWED_UNOWNED_ACQUISITIONS: dict[tuple[str, str, str], tuple[str, str]] = {
+#:
+#: ⚠️ **THE COUNT IS NOT DECORATION — it is the whole difference between an
+#: exemption and a hole.** rc432 shipped this dict keyed on
+#: ``(file, qualname, kind)`` with no multiplicity, and :func:`_residual`
+#: filtered EVERY row matching a key. Measured: 3 keys were absorbing **7**
+#: rows — ``bind`` 3, ``_recursive_cut_impl`` 3, ``owned_scratch_dir`` 1. So a
+#: NEW, genuinely unowned ``mkdir`` added anywhere inside ``bind`` would have
+#: been exempted silently, under a rationale whose text describes one specific
+#: idempotent directory and asserts "It is idempotent". An allowlist that
+#: exempts a site nobody has read is indistinguishable from no allowlist at
+#: all, and it fails in the direction that stays green.
+ALLOWED_UNOWNED_ACQUISITIONS: dict[tuple[str, str, str], tuple[str, str, int]] = {
     ("srmech/bus/_transport.py", "bind", "mkdir"): (
         "SHARED_IDEMPOTENT",
         "Creates ~/.srmech/, the shared socket-and-state root that EVERY bus op "
         "wants to exist. It is idempotent, it is not this call's to own, and "
         "removing it on a bind failure would break every other live bus client. "
         "Structurally identical to an orphan; only the contract separates them, "
-        "which is exactly why strict zero is impossible on this axis.",
+        "which is exactly why strict zero is impossible on this axis. The three "
+        "covered sites are the socket-root creates on bind's own paths; a "
+        "FOURTH acquisition in this function is not covered by that reasoning "
+        "and must be read before it is exempted.",
+        3,
     ),
     ("srmech/math/laplacian.py", "_recursive_cut_impl", "makedirs"): (
         "CALLER_OWNS_SCRATCH",
@@ -117,7 +142,9 @@ ALLOWED_UNOWNED_ACQUISITIONS: dict[tuple[str, str, str], tuple[str, str]] = {
         "level up in recursive_cut, which keeps a CALLER-NAMED work_dir (the "
         "caller owns it, the tomes in it are the bounded record) and wraps a "
         "work_dir=None scratch in _ownedfs.owned_scratch_dir. Giving this half "
-        "an owner too would delete the caller's directory.",
+        "an owner too would delete the caller's directory. Three sites, one per "
+        "level of the work_dir tree this impl lays out.",
+        3,
     ),
     ("srmech/_ownedfs.py", "owned_scratch_dir", "mkdtemp"): (
         "IS_THE_OWNER",
@@ -127,7 +154,8 @@ ALLOWED_UNOWNED_ACQUISITIONS: dict[tuple[str, str, str], tuple[str, str]] = {
         "acquires, yields, and rmtree's on any BaseException. A gate cannot "
         "distinguish the mechanism from the defect by shape alone, so this is "
         "an allowlist entry rather than a predicate special case, and it is "
-        "recorded rather than hidden.",
+        "recorded rather than hidden. Exactly one site: the single mkdtemp.",
+        1,
     ),
 }
 
@@ -258,9 +286,21 @@ def _scan_package() -> list[dict]:
 
 
 def _residual() -> list[dict]:
-    return [r for r in _scan_package()
-            if (r["file"], r["qualname"], r["kind"])
-            not in ALLOWED_UNOWNED_ACQUISITIONS]
+    """Rows no allowlist entry accounts for.
+
+    ⚠️ **An entry exempts its DECLARED NUMBER of rows and no more.** Rows beyond
+    that count fall through to the residual and press on the ceiling, which is
+    the only reason a growing exemption is visible at all. rc432 filtered on key
+    membership alone, so one entry covered an unbounded number of sites."""
+    remaining = {k: v[2] for k, v in ALLOWED_UNOWNED_ACQUISITIONS.items()}
+    out: list[dict] = []
+    for r in _scan_package():
+        key = (r["file"], r["qualname"], r["kind"])
+        if remaining.get(key, 0) > 0:
+            remaining[key] -= 1
+            continue
+        out.append(r)
+    return out
 
 
 # ────────────────────────────────────────────────────────────────────────
@@ -296,19 +336,25 @@ def test_unowned_acquisition_ceiling_holds() -> None:
 
 
 def test_allowlist_entries_are_all_justified() -> None:
-    """Every allowlist entry carries an in-enum tag AND real prose.
+    """Every allowlist entry carries an in-enum tag, real prose, AND a count.
 
     This is the mechanism that makes a bare allowlist structurally impossible,
     and it is the same one ``RULE_5_EXEMPT_FUNCTIONS`` uses. An exemption whose
     reason is not written down is indistinguishable from a defect somebody got
-    tired of."""
+    tired of.
+
+    (rc432 carried an ``assert <expr> or True`` here, which its own trailing
+    comment conceded was "not a check". It could not fail on any input, so it
+    was not an assertion — it was a comment wearing one's clothes. Deleted
+    rather than repaired: the property it gestured at, that a relpath may carry
+    ``rcNNN``, is not one anything needs to enforce.)"""
     for key, value in ALLOWED_UNOWNED_ACQUISITIONS.items():
         assert isinstance(key, tuple) and len(key) == 3, key
         relpath, qualname, kind = key
-        assert not any(ch.isdigit() for ch in relpath.rsplit("/", 1)[-1][:-3]) \
-            or True                        # (paths may carry rcNNN; not a check)
-        assert isinstance(value, tuple) and len(value) == 2, key
-        tag, rationale = value
+        assert isinstance(value, tuple) and len(value) == 3, (
+            f"{key}: entries are (tag, rationale, expected_count); got "
+            f"{len(value) if isinstance(value, tuple) else type(value)}.")
+        tag, rationale, expected = value
         assert tag in ALLOWED_TAGS, (
             f"{key}: tag {tag!r} is outside the closed set {sorted(ALLOWED_TAGS)}. "
             f"Extending the enum is a deliberate commit — a member with no "
@@ -316,7 +362,38 @@ def test_allowlist_entries_are_all_justified() -> None:
         assert len(rationale.split()) >= 20, (
             f"{key}: rationale is {len(rationale.split())} words. An exemption "
             f"needs a reason a reader can evaluate, not a label.")
-        assert qualname and kind
+        assert isinstance(expected, int) and expected >= 1, (
+            f"{key}: expected_count must be a positive int; got {expected!r}.")
+        assert relpath and qualname and kind
+
+
+def test_allowlist_multiplicity_matches_the_live_site_count() -> None:
+    """Each entry covers EXACTLY the number of sites it declares.
+
+    Fires in BOTH directions on purpose. Upward: a new acquisition lands inside
+    an already-exempt function and would otherwise inherit an exemption written
+    for its neighbours — the hole measured in rc432, where 3 keys silently
+    absorbed 7 rows. Downward: a repair removed a covered site and the entry now
+    over-declares, which pre-approves the next acquisition to land on that key.
+    """
+    live: dict[tuple[str, str, str], int] = {}
+    for r in _scan_package():
+        key = (r["file"], r["qualname"], r["kind"])
+        live[key] = live.get(key, 0) + 1
+
+    wrong = []
+    for key, (_tag, _why, expected) in ALLOWED_UNOWNED_ACQUISITIONS.items():
+        got = live.get(key, 0)
+        if got != expected:
+            wrong.append(f"{key}: declares {expected}, {got} live")
+    assert not wrong, (
+        "allowlist multiplicity no longer matches the tree:\n  "
+        + "\n  ".join(wrong)
+        + "\n\nIf a site was ADDED, read it — the existing rationale was written "
+          "about its neighbours, not about it. If a site was REMOVED, lower the "
+          "count so the entry stops covering ground that no longer exists "
+          "(`#T1132`)."
+    )
 
 
 def test_every_allowlist_entry_still_matches_a_real_site() -> None:
@@ -443,7 +520,17 @@ def test_control_negatives_are_all_silent() -> None:
     documented false-positive class verbatim, where an acquisition in one branch
     was paired with a raise in the mutually exclusive sibling. The first build of
     this predicate walked INTO compound statements and flagged it. Condition (2)
-    is what fixed it, and this control is what caught it."""
+    is what fixed it, and this control is what caught it.
+
+    ⚠️ **Only three of these five DISCRIMINATE.** ``raise-before-acquire``,
+    ``sibling-branch`` and ``closure-raise`` each go silent for the reason their
+    name gives, and each has a neighbouring mutant that DOES flag. The other two
+    do not — see
+    :func:`test_the_nested_arms_are_silent_for_nesting_not_for_ownership`, which
+    measures why and pins it as a blind spot. They stay here because they are
+    still true statements about shapes that must not flag; they are simply not
+    evidence that ownership is recognised, and rc432's docstring implied they
+    were."""
     for label, src in (("with-owned", _NEG_WITH_OWNED),
                        ("try/finally", _NEG_TRY_FINALLY),
                        ("raise-before-acquire", _NEG_RAISE_BEFORE_ACQUIRE),
@@ -452,6 +539,58 @@ def test_control_negatives_are_all_silent() -> None:
         assert scan_source(src, "ctl.py") == [], (
             f"{label}: flagged a shape that is not the defect — this is how a "
             f"gate starts getting edited around instead of trusted.")
+
+
+#: The ``with``/``try`` negatives with the OWNERSHIP REMOVED. A ``with`` block
+#: that owns something unrelated, and a ``finally`` that releases nothing.
+_MUT_WITH_OWNS_NOTHING = """
+import os
+def f(p, log):
+    with open(log, "r") as fh:
+        os.mkdir(p)
+    raise ValueError("bad")
+"""
+
+_MUT_FINALLY_RELEASES_NOTHING = """
+import os
+def f(p):
+    try:
+        os.mkdir(p)
+        raise ValueError("bad")
+    finally:
+        pass
+"""
+
+
+def test_the_nested_arms_are_silent_for_nesting_not_for_ownership() -> None:
+    """The ``with-owned`` / ``try-finally`` negatives do NOT test ownership.
+
+    Measured, not argued: strip the ownership out of both — a ``with`` holding an
+    unrelated read handle, a ``finally: pass`` that releases nothing — and the
+    scanner is still silent. The acquisition is now genuinely unowned and
+    genuinely followed by a raise, which is the defect exactly, and the predicate
+    says nothing.
+
+    **The reason is condition (2), and it is by design.** The gate skips ANY
+    acquisition that is not a simple statement at function-body depth 0, whether
+    something owns it or not. It has no notion of ownership at all. rc432's
+    docstring named those two arms as if their silence were evidence the gate
+    recognises an owner; this test replaces that implication with the true
+    statement and pins it, so a later reader does not re-derive the gate's
+    coverage from a label.
+
+    This is BLIND SPOT 7 in the module docstring, and it is the largest one:
+    every genuinely-unowned acquisition that happens to sit inside an ``if`` or a
+    ``try`` is invisible here. ``test_acquire_before_validate_rc432.py`` is what
+    covers those sites, by DRIVING them."""
+    for label, src in (("with-owns-nothing", _MUT_WITH_OWNS_NOTHING),
+                       ("finally-releases-nothing", _MUT_FINALLY_RELEASES_NOTHING)):
+        assert scan_source(src, "ctl.py") == [], (
+            f"{label}: the gate flagged a nested acquisition. That would be a "
+            f"WIDENING of condition (2), not a fix — and condition (2) is the "
+            f"whole soundness argument. State the new argument before accepting "
+            f"it, and re-check the sibling-branch control, which is what "
+            f"condition (2) exists to keep silent.")
 
 
 def test_control_tier1_resolves_one_hop_and_no_further() -> None:

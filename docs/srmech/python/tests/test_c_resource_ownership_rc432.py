@@ -82,7 +82,7 @@ pytestmark = pytest.mark.skipif(
 # ────────────────────────────────────────────────────────────────────────
 
 def _strip_comments_preserving_lines(text: str) -> str:
-    """Blank out comments WITHOUT moving a single line.
+    """Blank out comments AND literal contents WITHOUT moving a single line.
 
     ⚠️ THIS IS THE FUNCTION THAT WAS WRONG, AND IT WAS WRONG INVISIBLY.
 
@@ -98,6 +98,27 @@ def _strip_comments_preserving_lines(text: str) -> str:
     ``findall`` — they report THAT a match exists, never WHERE. **A rule that
     reports a SITE cannot reuse it.** Every newline inside a comment is kept here,
     so a byte offset may move but a line number never does.
+
+    ⚠️ IT WAS WRONG A SECOND TIME, AND FOR A SECOND INVISIBLE REASON
+    ----------------------------------------------------------------
+    rc432 blanked comments and stopped. But C source is full of braces that are
+    not braces — ``if (c == '{') { depth++; }`` — and the downstream brace
+    counter believed every one of them. Measured on the rc432 tree:
+    ``srmech_genome.c::genome_json_object_span``, a ~25-line function whose whole
+    job is to scan for ``'{'`` / ``'}'``, produced a span of **7,610 lines**
+    (2426→10036) because its own char literals never let the depth return to
+    zero. Since :func:`_function_spans` resumes at ``end + 1``, everything that
+    runaway swallowed was skipped outright: **76 spans found where
+    ``test_jpl_audit.py::_scan_functions`` finds 295 in the same file** — 219
+    function starts lost, silently, with C1 reporting a clean zero over all of
+    them.
+
+    So literal CONTENTS are blanked too, delimiters kept. This also fixes the
+    quieter twin, a brace inside a string constant (``char *s = "}";``).
+    :func:`test_function_spans_agree_with_the_jpl_scanner` is the cross-check
+    that would have caught both on the day they were written — an independent
+    scanner over the same files, which is the thing no synthetic control could
+    supply.
     """
     out = []
     i = 0
@@ -113,6 +134,21 @@ def _strip_comments_preserving_lines(text: str) -> str:
             j = n if j == -1 else j
             out.append(" " * (j - i))
             i = j
+        elif text[i] in "'\"":
+            # A char or string literal. Keep both delimiters so the token still
+            # looks like a literal, blank the interior so no brace, quote,
+            # ``return`` or symbol name inside it can be mistaken for code.
+            quote = text[i]
+            j = i + 1
+            while j < n and text[j] != quote and text[j] != "\n":
+                j += 2 if text[j] == "\\" else 1
+            out.append(quote)
+            out.append("".join(ch if ch == "\n" else " " for ch in text[i + 1:j]))
+            if j < n and text[j] == quote:
+                out.append(quote)
+                i = j + 1
+            else:                        # unterminated at EOL/EOF — leave as-is
+                i = j
         else:
             out.append(text[i])
             i += 1
@@ -234,12 +270,19 @@ def _unsafe_returns_in_file(path: Path) -> list[str]:
                     # return's innermost enclosing block.
                     if has_release:
                         continue
+                    # shape (b), STRICTLY: the release must sit at the return's
+                    # OWN block depth. A release deeper than the return is
+                    # inside a nested block the return does not pass through —
+                    # a mutually exclusive path — and accepting it is how rc432
+                    # went blind to the success-path close (see the docstring of
+                    # test_c1_fires_on_a_deleted_success_path_close).
                     my_depth = depths[k - body]
                     covered = False
                     for b in range(k - 1, j, -1):
                         if depths[b - body] < my_depth:
                             break
-                        if release + "(" in lines[b]:
+                        if release + "(" in lines[b] \
+                                and depths[b - body] == my_depth:
                             covered = True
                             break
                     if not covered:
@@ -308,6 +351,143 @@ def test_c1_fires_on_a_planted_leak_in_a_real_file() -> None:
             tmp.unlink()
 
 
+def test_c1_fires_on_a_deleted_success_path_close() -> None:
+    """C1's SECOND positive control, and the one that matters more.
+
+    The control above deletes an ERROR-path close — a leak on an unusual path.
+    This deletes the **success-path** close, which is a leak on EVERY successful
+    call: strictly the more consequential defect, and the one rc432 could not
+    see. Measured on the shipped gate: deleting
+    ``srmech_ndjson.c``'s ``srmech_plat_rstream_close(&rs);`` at the end of
+    ``srmech_ndjson_iter`` produced **zero findings**, as did the identical
+    deletion in ``srmech_laplacian.c::fiedler_file_scan``.
+
+    THE MECHANISM, because it is subtle and a future edit will re-introduce it:
+    when the unclosed ``return`` sits at the function body's MINIMUM depth, the
+    walk-back's ``depths[b] < my_depth`` stop condition can never trigger, so it
+    scanned back to the acquisition and accepted an error-path release from
+    inside a mutually exclusive ``if`` block. Requiring the covering release to
+    sit at the return's OWN depth is the fix.
+
+    One control fired and one did not, on the same gate, in the same file — which
+    is why "the positive control passes" is not the same claim as "the gate
+    sees the defect class"."""
+    for fname, close_call in (("srmech_ndjson.c", "srmech_plat_rstream_close"),
+                              ("srmech_laplacian.c", "srmech_plat_rstream_close")):
+        src = _C_SRC_DIR / fname
+        assert _unsafe_returns_in_file(src) == [], (
+            f"the UNMUTATED {fname} already reports a leak; this control cannot "
+            f"distinguish its planted defect from a real one")
+
+        lines = src.read_text(encoding="utf-8").split("\n")
+        # the success-path close: at function-body depth (4-space indent), as
+        # opposed to the deeper error-path ones inside guard blocks.
+        marker = "    " + close_call + "(&rs);"
+        idx = [i for i, ln in enumerate(lines) if ln == marker]
+        assert idx, (
+            f"{fname}: no success-path {close_call} written at body depth any "
+            f"more. Re-point this control at the current spelling rather than "
+            f"deleting it — the defect class it guards did not go away.")
+
+        mutated = lines[:idx[0]] + lines[idx[0] + 1:]
+        tmp = src.with_name("_rc432_success_close_probe.c.tmp")
+        try:
+            tmp.write_text("\n".join(mutated), encoding="utf-8")
+            found = _unsafe_returns_in_file(tmp)
+            assert found, (
+                f"C1 did NOT fire after deleting {fname}'s success-path "
+                f"{close_call}. That is an unconditional handle leak on every "
+                f"successful call, and a strict-zero gate that cannot see it is "
+                f"reporting a zero it did not measure (`#T1132`).")
+        finally:
+            if tmp.exists():
+                tmp.unlink()
+
+
+def test_function_spans_agree_with_the_jpl_scanner() -> None:
+    """CROSS-CHECK against an INDEPENDENT scanner over the same files.
+
+    Every control in this file was, until now, a short synthetic string. That
+    class of control is structurally unable to catch a scanner that mis-parses
+    real source — which is the failure this file's own top docstring records
+    happening once already (the 362-line comment-strip offset), and which
+    happened a second time in rc432: char literals such as ``c == '{'`` were fed
+    to the brace counter, so ``srmech_genome.c::genome_json_object_span`` claimed
+    a 7,610-line body and :func:`_function_spans` skipped everything inside it.
+    **76 spans where the JPL scanner finds 295, in one file, with C1 reporting a
+    clean zero over the 219 functions it had lost.**
+
+    ``test_jpl_audit.py::_scan_functions`` was written independently, for a
+    different rule family, and reads the same files. Agreement on the NAME SET
+    per file is the assertion: counts differ harmlessly (the two disagree on
+    duplicate spellings), but a function that one finds and the other does not is
+    a parser defect in whichever is wrong. A second scanner is the only control
+    that could ever have caught this, so it is the one that ships."""
+    import test_jpl_audit as _jpl
+
+    divergent = []
+    for path in sorted(_C_SRC_DIR.glob("*.c")):
+        text = _strip_comments_preserving_lines(
+            path.read_text(encoding="utf-8", errors="replace"))
+        ours = {name for name, _b, _e in _function_spans(text.split("\n"))}
+        theirs = {row[0] for row in _jpl._scan_functions(path)}
+        if ours != theirs:
+            divergent.append(
+                f"{path.name}: jpl-only={sorted(theirs - ours)[:5]} "
+                f"c1-only={sorted(ours - theirs)[:5]}")
+
+    assert not divergent, (
+        "the two function scanners disagree about what functions exist:\n  "
+        + "\n  ".join(divergent)
+        + "\n\nOne of them is mis-parsing. Find out which BEFORE trusting any "
+          "zero this file reports — a span that swallows its neighbours makes "
+          "them invisible rather than clean (`#T1132`)."
+    )
+
+
+def test_literals_cannot_move_a_function_span() -> None:
+    """The specific defect above, isolated and driven.
+
+    A function whose body contains ``'{'`` as a char literal must have a span
+    that ends where its closing brace is — not one that runs to end-of-file. The
+    naive comment-only strip is reproduced inline so the contrast is measured
+    here rather than asserted in prose.
+
+    (Names are >= 2 characters because ``def_pat`` spells the identifier
+    ``[a-zA-Z_][a-zA-Z_0-9]+``, which cannot match a one-letter function. The
+    first draft of this control used ``f``/``g`` and found NOTHING in either
+    mode — a control that returns empty for a reason unrelated to its subject,
+    which is precisely the false-REFUTED shape. Recorded because the same trap
+    is waiting for the next person who writes a synthetic C fixture here.)"""
+    # The literal must be UNBALANCED — a '{' with no matching '}' literal. A
+    # fixture carrying both cancels out and the naive scan gets the right answer
+    # by luck, which is how the first draft of this control passed while
+    # demonstrating nothing. srmech_genome.c's real shape is unbalanced.
+    src = (
+        "static int probe_brace(const char *s)\n"
+        "{\n"
+        "    if (s[0] == '{') { return 1; }\n"
+        "    return 0;\n"
+        "}\n"
+        "static int probe_after(int x)\n"
+        "{\n"
+        "    return x;\n"
+        "}\n"
+    )
+    want = ["probe_brace", "probe_after"]
+    spans = _function_spans(_strip_comments_preserving_lines(src).split("\n"))
+    assert [n for n, _b, _e in spans] == want, (
+        f"literal braces moved a span boundary: {spans}. `probe_after` is "
+        f"invisible when `probe_brace` runs away, and an invisible function "
+        f"reports no leaks.")
+
+    naive = _function_spans(src.split("\n"))          # the rc432 behaviour
+    assert [n for n, _b, _e in naive] != want, (
+        "the naive literal-blind scan now agrees, so this control no longer "
+        "demonstrates anything — re-point it at a shape that still separates "
+        "them rather than deleting it.")
+
+
 # ────────────────────────────────────────────────────────────────────────
 # C2 — created-node rollback
 # ────────────────────────────────────────────────────────────────────────
@@ -356,21 +536,37 @@ def _mkdir_sites() -> list[tuple[str, str, list[int]]]:
     return out
 
 
+ROLLBACK_TOKENS = ("srmech_plat_rmdir", "rcut_rollback", "srmech_plat_file_remove")
+
+
 def _has_rollback(path: Path, name: str) -> bool:
     """Does ``name`` undo an earlier create when a later one fails?
 
-    Any removal primitive appearing after the first create counts. Kept broad on
-    purpose: the point is to notice the ABSENCE of any undo, and a gate that
+    Any removal primitive appearing **after the first create** counts. Kept broad
+    on purpose: the point is to notice the ABSENCE of any undo, and a gate that
     demanded one exact spelling would go stale the moment the repair picked
-    another."""
+    another.
+
+    ⚠️ **"After the first create" is enforced, not merely described.** rc432 said
+    exactly that in this docstring and then scanned the WHOLE function, so a
+    removal call sitting ABOVE the first ``mkdir`` — necessarily for some other
+    resource, since nothing has been created yet — exempted the function. Driven,
+    not argued: planting ``srmech_plat_file_remove("unrelated")`` one line above
+    ``rcut_setup``'s first create flipped it to ``True``, which would have
+    drained C2's ceiling to 0 and then, via the headroom assert, demanded the
+    CEIL be lowered — silently discharging the `#T1133` obligation the ceiling
+    exists to hold open. A gate that can be switched off by an unrelated line is
+    worse than no gate, because it reports the absence it was built to detect."""
     raw = path.read_text(encoding="utf-8", errors="replace")
     lines = _strip_comments_preserving_lines(raw).split("\n")
     for fn, body, end in _function_spans(lines):
         if fn != name:
             continue
-        region = "\n".join(lines[body:end + 1])
-        return any(tok in region for tok in
-                   ("srmech_plat_rmdir", "rcut_rollback", "srmech_plat_file_remove"))
+        creates = [j for j in range(body, end + 1) if MKDIR_CALL + "(" in lines[j]]
+        if not creates:
+            return False
+        region = "\n".join(lines[creates[0] + 1:end + 1])
+        return any(tok in region for tok in ROLLBACK_TOKENS)
     return False
 
 
@@ -395,6 +591,53 @@ def test_c2_multi_mkdir_functions_roll_back_earlier_creates() -> None:
         f"{len(unsafe)}. If `#T1133` landed the rmdir/mkdir_ex pair and fixed "
         f"rcut_setup, this becomes STRICT ZERO."
     )
+
+
+def test_c2_rollback_must_follow_the_first_create_not_merely_exist(
+        tmp_path: Path) -> None:
+    """A removal token ABOVE the first create must NOT exempt a function.
+
+    Both directions, driven on the real ``rcut_setup``:
+
+    * plant ``srmech_plat_file_remove`` one line ABOVE the first ``mkdir`` —
+      necessarily about some other resource, since nothing has been created yet
+      — and the function must stay unsafe;
+    * plant the same token BELOW the last ``mkdir`` and it must count, because
+      that is what a real rollback looks like.
+
+    The first arm is the one that was broken: rc432 scanned the whole function
+    body, so an unrelated line switched C2 off. The second arm is here so the
+    fix cannot be over-tightened into a gate that no genuine repair can satisfy —
+    a ratchet nobody can discharge gets deleted rather than obeyed."""
+    sites = [s for s in _mkdir_sites() if s[0] == "srmech_laplacian.c"]
+    assert sites, "rcut_setup is no longer C2's live site; re-point this control"
+    fname, fn, hits = sites[0]
+    src = _C_SRC_DIR / fname
+    lines = src.read_text(encoding="utf-8").split("\n")
+
+    assert not _has_rollback(src, fn), (
+        f"{fn} already reports a rollback; this control cannot distinguish its "
+        f"planted token from a real repair")
+
+    token = '    (void)srmech_plat_file_remove("unrelated");'
+
+    above = tmp_path / fname
+    above.write_text("\n".join(lines[:hits[0] - 1] + [token]
+                              + lines[hits[0] - 1:]), encoding="utf-8")
+    assert not _has_rollback(above, fn), (
+        "a removal call placed ABOVE the first create exempted the function. "
+        "Nothing had been created yet, so it cannot be undoing one of these "
+        "creates — and C2's ceiling would drain to 0 on it, whereupon the "
+        "headroom assert demands the CEIL be lowered and `#T1133`'s obligation "
+        "quietly disappears (`#T1132`).")
+
+    below = tmp_path / ("below_" + fname)
+    below.write_text("\n".join(lines[:hits[-1]] + [token]
+                               + lines[hits[-1]:]), encoding="utf-8")
+    assert _has_rollback(below, fn), (
+        "a removal call placed BELOW the last create did NOT count as a "
+        "rollback. The window is now too narrow for a real repair to satisfy, "
+        "which is a different way for the same ratchet to stop working.")
 
 
 def test_c2_population_is_the_one_deferral_we_named() -> None:
