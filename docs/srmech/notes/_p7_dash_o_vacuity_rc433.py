@@ -1,5 +1,29 @@
 """`#T1131` P7 — HOW MUCH OF THE SUITE EVAPORATES UNDER ``-O``.
 
+.. warning::
+
+   **THIS FILE'S CONCLUSION IS RETRACTED. Its MEASUREMENT stands.**
+
+   The numbers below are correct for what they measure: the builtin ``compile()``
+   erases 100% of both corpora's ``assert`` statements under ``-O``. The
+   CONCLUSION drawn from them — "a whole-suite ``-O`` cell would run with the
+   suite's own assertions inert, so it can see almost nothing" — is WRONG,
+   because pytest does not let the interpreter compile test modules. Its
+   assertion-rewriting import hook replaces every ``assert`` in a collected TEST
+   module with explicit raising bytecode, which ``-O`` cannot strip.
+
+   Measured in ``_p9_pytest_rewrite_vs_dash_o_rc433.py``: under ``pytest -O`` an
+   assert written IN a test module still fires, and an assert in a
+   non-rewritten (package-like) module does not. So the real split is
+
+       TEST-module asserts  SURVIVE ``-O``
+       PACKAGE asserts      VANISH under ``-O``
+
+   The run refuted this file before the reasoning did — all four class-(c)
+   meta-gates were predicted to fail under ``-O`` and every one PASSED. Kept
+   rather than deleted because the retraction is the finding: the ``-O`` boundary
+   falls exactly on the PACKAGE / TEST_LOCAL line the P4 gate already uses.
+
 THE QUESTION THIS SETTLES
 =========================
 The scope asks whether a whole-suite ``-O`` CI cell is worth its cost. The naive

@@ -26,7 +26,14 @@ import re
 import sys
 
 OUT = "/mnt/d/GitHub/mlehaptics/docs/srmech/notes/_p3_suite_prediction_rc433.ndjson"
-LOG = "/mnt/d/GitHub/mlehaptics/docs/srmech/notes/_p3_suite_dashO_rc433.log"
+#: The POPULATION-file arms are the scoreable pair — both modes measured, so a
+#: failure present in BOTH is environmental (this box has no libsrmech.so) and
+#: only the DELTA is attributable to ``-O``. The whole-suite ``-O`` log is kept
+#: as a raw upper bound; its default-mode twin was killed at the summary line
+#: after ~65 min, so the suite-wide baseline is NOT known and the suite-wide
+#: figure must not be quoted as an ``-O`` count.
+LOG = "/mnt/d/GitHub/mlehaptics/docs/srmech/notes/_p3_suite_population_dashO_rc433.log"
+LOG_DEFAULT = "/mnt/d/GitHub/mlehaptics/docs/srmech/notes/_p3_suite_population_default_rc433.log"
 
 #: Predicted to FAIL under -O, with the reason. One row per test FUNCTION
 #: (parametrized cases collapse to their function).
@@ -71,19 +78,32 @@ PREDICTED_VACUOUS = [
 _FAILLINE = re.compile(r"^(?:FAILED|ERROR)\s+(\S+)")
 
 
-def score():
+def _failed_set(path):
     try:
-        with open(LOG, "r", encoding="utf-8", errors="replace") as fh:
+        with open(path, "r", encoding="utf-8", errors="replace") as fh:
             log = fh.read()
     except OSError:
-        print("log not present yet")
-        return None
+        return None, ""
     got = set()
     for ln in log.splitlines():
         m = _FAILLINE.match(ln.strip())
         if m:
-            nodeid = m.group(1)
-            got.add(nodeid.split("[")[0])
+            got.add(m.group(1).split("[")[0])
+    return got, log
+
+
+def score():
+    got_o, log = _failed_set(LOG)
+    got_d, _ = _failed_set(LOG_DEFAULT)
+    if got_o is None or got_d is None:
+        print("logs not present yet")
+        return None
+    env = sorted(got_o & got_d)
+    print("failures in BOTH modes (environmental, native-absent): %d" % len(env))
+    for e in env:
+        print("      %s" % e)
+    got = got_o - got_d
+    print("\n-O-ATTRIBUTABLE failures (the delta): %d" % len(got))
     pred = set(PREDICTED_FAIL)
     hit = sorted(pred & got)
     missed = sorted(pred - got)
@@ -102,7 +122,40 @@ def score():
     for t in tail:
         print("   " + t)
     rec = {"record": "score", "n_predicted": len(pred), "n_measured": len(got),
-           "hit": hit, "missed": missed, "extra": extra, "log_tail": tail}
+           "hit": hit, "missed": missed, "extra": extra, "log_tail": tail,
+           "environmental_both_modes": env,
+           "why_the_misses": (
+               "All four MISSES are the class-(c) meta-gates, and they were "
+               "mispredicted for one reason, measured in P9: pytest's assertion "
+               "REWRITER replaces every `assert` in a collected TEST module with "
+               "explicit raising bytecode, so `-O` has nothing to strip there. "
+               "Test-module asserts SURVIVE `-O`; package asserts do not. The "
+               "prediction assumed the P7 `compile()` result described pytest, and "
+               "it does not. The consequence is favourable for the gate: the `-O` "
+               "boundary falls EXACTLY on the PACKAGE / TEST_LOCAL line P4 already "
+               "uses, so the gate's rule tracks the mechanism rather than "
+               "approximating it."),
+           }
+    # The whole-suite `-O` arm: the run reached the end of execution but was
+    # killed before the summary line flushed, so the tally is recovered from the
+    # progress GLYPH stream (one glyph per test). The `.log` files are gitignored,
+    # so the tally is written HERE and nothing dangles.
+    whole = _glyph_tally(
+        "/mnt/d/GitHub/mlehaptics/docs/srmech/notes/_p3_suite_dashO_rc433.log")
+    if whole:
+        print("\nWHOLE-SUITE -O tally (from the progress glyph stream): %s" % whole)
+        print("  ^ UPPER BOUND on `-O`-attributable failures, NOT the count: the "
+              "whole-suite DEFAULT arm was killed before reporting, so the "
+              "native-absent baseline is unknown. In the population files that "
+              "baseline was 4 of 15.")
+        rec["whole_suite_dash_O_glyph_tally"] = whole
+        rec["whole_suite_caveat"] = (
+            "Execution completed; the summary line did not flush before the job "
+            "was killed. Tally recovered from progress glyphs. The default-mode "
+            "whole-suite twin was never obtained, so this is an UPPER BOUND on "
+            "`-O`-attributable failures, not a count — this environment has no "
+            "libsrmech.so and native-absent tests fail identically in BOTH modes.")
+
     with open(OUT, "w", encoding="utf-8", newline="\n") as fh:
         fh.write(json.dumps({"record": "prediction",
                              "predicted_fail": PREDICTED_FAIL,
@@ -112,6 +165,22 @@ def score():
         fh.write(json.dumps(rec, sort_keys=True) + "\n")
     print("\nwrote", OUT)
     return rec
+
+
+def _glyph_tally(path):
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as fh:
+            s = fh.read()
+    except OSError:
+        return None
+    s = re.sub(r"\[\s*\d+%\]", "", s)
+    glyphs = [ch for ch in s if ch in ".sFEx"]
+    out = {}
+    for ch in glyphs:
+        out[ch] = out.get(ch, 0) + 1
+    return {"passed": out.get(".", 0), "skipped": out.get("s", 0),
+            "failed": out.get("F", 0), "errored": out.get("E", 0),
+            "total_glyphs": len(glyphs)}
 
 
 if __name__ == "__main__":
