@@ -232,6 +232,100 @@ def test_skipped_bucket_is_populated_not_decorative():
     )
 
 
+def _sandbox_values(synth):
+    """Every synthesised value that points into the sandbox directory."""
+    import test_mcp
+
+    root = str(test_mcp._ea.sandbox_dir())
+    return [v for v in (synth or {}).values()
+            if isinstance(v, str) and v.startswith(root)]
+
+
+def test_synthesised_sandbox_paths_are_virgin_after_prior_invocation():
+    """CONTROL for ORDER-INDEPENDENCE -- the axis this whole file is measured on.
+
+    A floor is a claim about the TREE. The moment an op's classification
+    depends on which other ops ran earlier in the same process, the number
+    stops being a property of the tree and becomes a property of the pytest
+    scheduler -- and this file's floor is then a photograph of one scheduling,
+    not a measurement.
+
+    That is not hypothetical; it is why this control exists. rc431 CI shard 3
+    (``-n auto --dist load``) reported ``laplacian.write_packed_graph`` as a
+    regression while the op was byte-identical to the one that had produced
+    the committed set. ``tools/example_args.sandbox_path`` keyed its synthetic
+    path on the PARAMETER NAME alone, so every op with a param called ``path``
+    was handed the SAME filesystem node for the life of the process.
+    ``genome_save`` ``mkdir``s that node (it wants a directory) before the
+    validation that then rejects the synthetic genome, so it leaves a
+    directory behind even while raising; ``write_packed_graph`` ``open``s it
+    ``"wb"`` (it wants a file) and dies on ``IsADirectoryError``. Both ops were
+    correct. The SUPPLY was serving one mutable node to consumers that
+    disagreed about its type, and which one won was decided by xdist worker
+    assignment -- shard 3 put ``test_immolation.py::
+    test_advertised_return_type_is_honest[srmech.biology.genome.genome_save]``
+    (collection index 711) ahead of this file (index 1415) in one worker.
+
+    The repair names the AXIS rather than exempting the op: ``sandbox_path``
+    now hands out a fresh slot per CALL, so no two synthesised paths can ever
+    collide. This control holds that axis. It invokes every sandbox-path-taking
+    op -- deliberately dirtying the sandbox -- and then asserts that a FRESHLY
+    synthesised path is still nonexistent, which is exactly what
+    ``sandbox_path``'s docstring has always promised and what the shared-name
+    scheme could only deliver on its first call.
+    """
+    from srmech.mcp._tools import invoke_tool
+
+    entries = _advertised_entries()
+    path_ops = [e for e in entries if _sandbox_values(_safe_synth(e))]
+
+    # NON-VACUITY 1 -- an empty population would make every clause below true
+    # for the trivial reason.
+    assert path_ops, (
+        "no advertised op receives a synthesised sandbox path, so this control "
+        "asserts nothing. Either the sandbox tier stopped being used (check "
+        "CEIL_SANDBOX_FALLBACK_PARAMS in test_synth_args_provenance_rc430.py, "
+        "which counts the same population) or _sandbox_values no longer "
+        "recognises the values the consumer hands out."
+    )
+
+    for entry in path_ops:
+        try:
+            invoke_tool(entry.name, _safe_synth(entry))
+        except Exception:                                   # noqa: BLE001
+            pass                                            # dirtying, not measuring
+
+    import test_mcp
+    root = pathlib.Path(str(test_mcp._ea.sandbox_dir()))
+
+    # NON-VACUITY 2 -- "no freshly synthesised path exists" is also what a run
+    # that never reached a single write would report. The clause is only a
+    # measurement if the loop above genuinely created something.
+    created = sorted(p.name for p in root.rglob("*"))
+    assert created, (
+        f"invoking {len(path_ops)} sandbox-path-taking op(s) created nothing "
+        f"under {root}, so the virginity clause below is vacuous -- the ops "
+        f"stopped reaching their filesystem effect, or the sandbox moved."
+    )
+
+    stale = [
+        f"{entry.name}: {v}"
+        for entry in path_ops
+        for v in _sandbox_values(_safe_synth(entry))
+        if pathlib.Path(v).exists()
+    ]
+    assert not stale, (
+        f"{len(stale)} freshly synthesised sandbox path(s) ALREADY EXIST after "
+        f"other ops ran in this process:\n  " + "\n  ".join(sorted(stale)[:10])
+        + f"\n\n(created during this test: {created[:8]})\n\n"
+        "sandbox_path is handing the same filesystem node to more than one "
+        "call, so an op's RETURNED/TOLERATED classification depends on what "
+        "ran before it -- and the floor below is then a photograph of one "
+        "pytest scheduling, not a measurement of the tree. Give each call its "
+        "own slot; do NOT exempt the ops that collide."
+    )
+
+
 def test_invocable_returned_floor_holds():
     """Every op in the committed set must still RETURN.
 
