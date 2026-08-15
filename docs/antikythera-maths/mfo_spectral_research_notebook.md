@@ -7005,7 +7005,7 @@ The document should be self-sufficient for regenerating these scripts without co
 
 ---
 
-## §XIV — The MFO world-kernel + the navigation triality (RBS-LM PR #687 sweep, F627–F688) + the resonant-BODY close-out (§XIV.8; F1179–F1186; #243 / F1070) + the composition-law entry (§XIV.9; F1350/F1351)
+## §XIV — The MFO world-kernel + the navigation triality (RBS-LM PR #687 sweep, F627–F688) + the resonant-BODY close-out (§XIV.8; F1179–F1186; #243 / F1070) + the composition-law entry (§XIV.9; F1350/F1351) + the free/paid seam + observer correction (§XIV.10; F1352/F1353)
 
 *Swept 2026-06-08 (breadcrumb-web discipline; landed-where). This notebook had lagged the rolling RBS-LM PR ([#687](https://github.com/lemonforest/mlehaptics/pull/687)) at ~F369; this section lands the recent MFO-world-kernel + navigation-triality arc. The fuller back-sweep (F370–F626) remains the **CL-1 closeout audit** (queued).*
 
@@ -7204,6 +7204,46 @@ Every **odd**-order symmetry is realizable as a plain relabelling; **no even-ord
 **Backlinks:** findings **F1350**, **F1351**; generating scripts `R-RBS-LM-TENSORVSCD_ladder_vs_tensor_product.py` (40 checks) and `R-RBS-LM-FUREYALG_the_tensor_product_from_the_thesis_body_and_the_sedenion_decision.py` (13 checks); attestation `R-RBS-LM-ATTEST_furey_1611_09182.md`. The bijection-bound table above was measured in this repository against srmech 0.9.0rc434.
 
 ---
+
+### XIV.10 The free/paid seam, found in an encoding — and the observer who records a travelling wave as disorder (F1352 / F1353, 2026-08-15)
+
+**Ontology-side reading only.** The measurements live in srmech §3.58 and are not restated in full; this section takes what they mean for the substrate framing and marks where the inference stops.
+
+**The question this answers, in the user's words.** *"If the computational cost of doing math on projection information, frame by frame, is why we have ASIC and GPU compute, then biology surely prefers the lower metabolic cost … the way information is handled between all the things inside the cell can show us what the cell has to compute itself … vs automatic/self-assembly-like just happens"* — and then, sharper: *the finite value-list *"will likely look projection like but … substrate operations that we don't see happening should show up indirectly in the way information is encoded."*
+
+**Both halves hold, measured.** The DNA value-set is exactly the projection-shaped half: four values forming `V₄ = (ℤ/2)²`, with **Watson–Crick complementarity literally XOR 2** on the base index, and amino-acid identity **blind to the sign bit on all 64×8**. But the code is **order-carrying** — only 4 of 20 base multisets are order-blind, and they are the four that *have* no order. **The operation that is acting is not among the values being acted on.** That is the indirect trace, and it is what the substrate-operation question was asking for.
+
+> **The alphabet is free because it is order-blind. Everything the alphabet cannot say is what has a bound — and a bound is where you pay.**
+
+**The MFO-relevant consequence: an ordinary-language label can hide a cost split.** A pre-registered classification predicts NTP cost from structure alone on **11/13** processes; the misses are the two registered stress cases, both order-**blind** yet ATP-costing, and both suppressing a competing *spontaneous* outcome. Applied to germination:
+
+> **The waiting is free; holding the gate closed is what costs.** Chilling accumulation is spontaneous — nothing is spent to experience winter. Dormancy *maintenance* is an actively held Class-K gate suppressing a germination that would otherwise proceed.
+
+So *"the seed is waiting"* decomposes into two operations with **opposite** costs. An operation that looks like many things **is** many things, and the cost predicate is what separates them. This is the two-level ontology of §VII.1.1 arriving as a **billing** question rather than a descriptive one.
+
+#### The observer correction — and it applies to this notebook's own instrument
+
+The cnidarian pacemaker ring (8 rhopalia, ring topology, **no brain** — so the swim rhythm cannot be centrally computed) was used to calibrate, and it broke the observable. At one coupling the ring is **perfectly frequency-locked** (spread 2.25e-08) with **winding q = +1.0000 exactly**, while the Kuramoto order parameter reads **r = 0.187**.
+
+| | reads | sees a twist? |
+|---|---|---|
+| phase coherence `r` | averages the phases — **order-blind** | **no** |
+| winding number `q` | an **integer**, topological | **yes** |
+
+**`r` is the index-lane read.** It is structurally unable to see a twist, and the twist requires a **cycle** to exist in — the complete graph and the cut chain both give `q = 0`. So the twist is a property of the **sparse cyclic** topology, which is both the metabolically cheap one and the only one that can carry a winding.
+
+⚠️ **This applies retroactively to §XIV.8.** The resonant-body work (F1183/F1184) reports coherence `r` as evidence of substrate locking on all-to-all coupling, where `r` is adequate — there is no cycle to wind around, so nothing is missed. **But any future sparse-cyclic coupling in this notebook must pair `r` with a winding count**, or a locked twisted state will be recorded as disorder. Nothing in §XIV.8 is retracted; its instrument is confirmed sufficient *for its topology* and insufficient beyond it.
+
+> `q = 0` and `q = 1` are **both** coordinated behaviour — a synchronous pulse versus a wave travelling the rim. **An observer with only a coherence meter records the travelling wave as disorder.** That is `[[user_stance_no_information_without_value]]` with a concrete instrument attached, and it is the third time in two days that the fix was **the read**, not the object (cf. §XIV.9's involution caution).
+
+**Honest scope.** The load-bearing inference — *a ceiling implies a metabolic cost* — is **NOT established**; the lane surface measures bounds, not joules. The ATP column and the biological framing (rhopalia count, ring arrangement, wobble tolerance) are **textbook-level, not MPM-attested** — a GAP, and the ATP column is the *observable being predicted*, so its provenance matters more than usual. The winding work is a simulation of an **8-cycle**, not of any animal; no biological parameter was fitted. **11/13 is the honest headline**, not the 13/13 the two-term predicate reaches, because the second term was written down *because* the first was expected to fail. And nothing here says biology **uses** this structure: a shared free/paid seam is FORM, per `[[user_stance_cascade_matching_substrate_blind_form_not_identity]]`.
+
+**The next question, handed on** (`[[user_stance_framework_hands_the_next_question_to_the_expert]]`): the selection term predicts that a process's NTP cost tracks **the size of the alternative it suppresses**. Falsifiable, and beyond a code table — it needs real kinetics.
+
+**Cross-arc anchors:** srmech §3.58 (the measurements) · §XIV.9 (the instrument lesson this repeats) · §XIV.8 (the resonant body — instrument caveat above) · §VII.1.1 (substrate↔excitation, read here as a cost split) · F126 (cnidarian = Class I) · F1348 (split vs non-split) · F1337 (the lane surface).
+
+**Backlinks:** findings **F1352**, **F1353**; generating script `R-RBS-LM-GENOMELANE_the_alphabet_is_the_index_lane_and_order_is_what_the_cell_pays_for.py` (33 checks). *Research trail followed; nothing forgotten; landed-where.*
+
 
 ## How to cite this notebook
 
