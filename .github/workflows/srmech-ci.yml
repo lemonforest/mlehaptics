@@ -245,9 +245,20 @@ jobs:
     #   split each shard collects only its 1/6, so "collected ~= disk" cannot be
     #   asserted per-shard; the anti-narrowing guard MOVES to the dedicated
     #   `fallback-shard-coverage-union` job, which proves the 6 groups PARTITION the
-    #   full collection (union == full AND pairwise-disjoint). A `-k` or file-list
+    #   full collection (union == full AND pairwise-disjoint) — the same
+    #   "coverage == collection" contract, shard-aware.
+    #   ⚠️ CORRECTION (`#T1136`). This paragraph used to end "A `-k` or file-list
     #   creeping into the shard run would break that partition invariant and turn
-    #   that job red — the same "coverage == collection" contract, shard-aware.
+    #   that job red." That is FALSE. The guard RE-DERIVES its own groups by
+    #   collecting independently, so a narrowing planted in the SHARD step never
+    #   enters its arithmetic — full == sum == union still holds and it reports
+    #   success. MEASURED on this tree: `-k genome` in one shard takes it from 3743
+    #   nodes to 309 (a 92% narrowing) with the guard GREEN. What that guard really
+    #   proves is that the SPLIT ARITHMETIC is sound, not that the shard command
+    #   line is unfiltered. `asserts-live-shard-coverage-union` does it the other
+    #   way — each shard records the ids it actually ran and the guard fans those
+    #   in — and DOES go red under the same planted filter; porting that shape here
+    #   is a separate change against a working 6-shard gate.
     #
     # Linux only: the pure path is stdlib Python: there is no per-OS pure behaviour
     # to catch, and the cross-platform burden is already carried by the matrix above.
@@ -534,9 +545,22 @@ jobs:
     # fall through a shard boundary (dropped) or run in two shards (double-counted).
     # The threshold is DERIVED from the live full collection, never a frozen number:
     # equality of three counts (sum-of-group-sizes == union-size == full-size) IS the
-    # partition proof (union==full ⇒ complete; sum==union ⇒ disjoint). A `-k`/file-list
-    # creeping into the shard run would break it and turn this job red. Lightweight:
+    # partition proof (union==full ⇒ complete; sum==union ⇒ disjoint). Lightweight:
     # collect-only, no test executes.
+    #
+    # ⚠️ HONEST BOUND (`#T1136`) — this comment used to claim "a `-k`/file-list
+    # creeping into the shard run would break it and turn this job red". It would
+    # NOT. This job collects its own groups, so it never sees the shard step's
+    # arguments; a filter planted there leaves all three counts equal and this job
+    # GREEN. MEASURED: `-k genome` takes a shard from 3743 nodes to 309 — a 92%
+    # narrowing, the exact #937 defect class — with this guard reporting success.
+    # It proves the SPLIT ARITHMETIC is sound (pytest-split really does partition),
+    # which is worth having; it does not prove the shards ran unfiltered.
+    # `asserts-live-shard-coverage-union` is the construction that does: the shards
+    # RECORD the ids they run and this kind of job fans those recordings in.
+    # Porting that shape here is a separate change (it touches a working 6-shard
+    # gate and the two fan-in jobs already hanging off it) and is the right
+    # follow-up; do not close this note by deleting it.
     name: fallback shard coverage-union (partition guard)
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -938,21 +962,153 @@ jobs:
     # a test boundary — where the fork happens — so no lock is held, no TLS shared).
     #
     # NARROWING GUARD — the run takes a DIRECTORY (tests/), never a -k or a single
-    # file; the "coverage tracks collection" step below asserts it collects from
-    # ~every test file, so re-introducing a filter (the #937 mechanism) turns this
-    # cell RED instead of silently shrinking.
+    # file. Until `#T1136` an in-cell "coverage tracks collection" step asserted it
+    # collected from ~every test file, so re-introducing a filter (the #937
+    # mechanism) turned this cell RED instead of silently shrinking. That step is
+    # MEANINGLESS under a split — each shard collects only its 1/4 BY CONSTRUCTION —
+    # so it MOVES to `asserts-live-shard-coverage-union` below. The invariant does
+    # not weaken; see that job for how, and read the next paragraph before assuming
+    # the obvious construction is the right one.
+    #
+    # `#T1136` — 4-SHARD MATRIX, and the ONE trap in it. The pure cell's
+    # `fallback-shard-coverage-union` is the obvious model, but copying it here
+    # would have shipped a guard that CANNOT SEE the thing it exists to catch, and
+    # this is MEASURED, not reasoned. That guard RE-DERIVES its own groups by
+    # collecting independently, so a `-k` planted in the SHARD step never enters its
+    # arithmetic: full == sum == union still holds and it stays GREEN. Measured on
+    # this tree (srmech's 14,971 collected node ids, `-k genome` planted in shard 1):
+    #
+    #     construction                          shard 1 runs   guard verdict
+    #     fallback-shaped (guard re-derives)      309 / 3743    GREEN   <- BLIND
+    #     fan-in (guard reads what shards ran)    309 / 3743    RED     <- correct
+    #
+    # 309 of 3743 is a 92% narrowing — exactly the #937 defect class — and the
+    # re-deriving guard reports success. So this cell's guard is a FAN-IN: each shard
+    # RECORDS the node ids its own `$SHARD_SELECT` collects and uploads them, and the
+    # union job proves those RECORDED sets partition a collection it takes fresh and
+    # unfiltered. Do not "simplify" it back to a re-derivation. (The pure cell has
+    # the same blind spot; its comment at :528 is corrected to say so, and the fix
+    # there is a separate change against a working 6-shard gate.)
+    #
+    # THE GATE HAS FIRED, IN CI, ON PURPOSE. A guard that has never fired is not
+    # evidence, so `-k genome` was planted in `$SHARD_SELECT` and pushed (commit
+    # fc1e4d326, run 31859207920). Result, and note WHICH job went red:
+    #
+    #     asserts-live shard 1..4         PASS   (309/309/309/307 nodes each)
+    #     asserts-live coverage-union     FAIL   full=14971 sum=union=1234,
+    #                                            13737 dropped ids enumerated, 0 drifted
+    #
+    # The shards passing is CORRECT, not a miss: their own executed==recorded check
+    # compares the run against the SAME narrowed recording, so it agrees. A filter
+    # planted in the shared variable is the UNION job's to catch; a filter welded
+    # onto the run line, bypassing the variable, is the per-shard junitxml check's.
+    # Two mechanisms, two different holes, and the planting exercised the first.
+    # The planting was reverted in the next commit.
     #
     # COST — the full forked suite is heavier than one file (fork+report per test).
-    # It runs per-PR here so this rc MEASURES the real cost; if that proves too
-    # heavy a follow-up reroutes the full sweep to nightly + on-rc-tag and keeps a
-    # changed-scope forked subset per PR (the routing is a measured decision, not a
-    # guess).
+    # rc289 shipped it per-PR to MEASURE the real cost, and said that if it proved
+    # too heavy a follow-up would reroute the full sweep to nightly + on-rc-tag with
+    # a changed-scope subset per PR. It DID prove too heavy — 30.4 min, the longest
+    # cell in this file, killed twice at a 30-min cap before rc432 raised it to 45 —
+    # but that routing is NOT the fix taken, and deliberately so: both halves of it
+    # (nightly, changed-scope) weaken coverage == COLLECTION, which is the whole
+    # point of the cell. Sharding buys the same wall-clock without touching the
+    # invariant. MEASURED baseline (run 31847773434): install-Debug 0.4 + liveness
+    # 0.1 + collection-guard 0.3 + SUITE 29.2 = 30.4 min.
     #
     # Linux/gcc only. The defect class is compiler-independent (it is our own
     # assert predicate, not a toolchain behaviour), and the pedantic-build
     # matrix above already carries the cross-platform C burden.
-    name: asserts-live FULL suite, fork-isolated (JPL Rule 5 with teeth, #937)
+    name: asserts-live FULL suite, fork-isolated • shard ${{ matrix.shard }}/4 (JPL Rule 5 with teeth, #937)
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    # `#T1136` — WHY 4 AND NOT 6. The pure cell uses 6; this one is deliberately
+    # different, because the two cells are bounded by different things.
+    #
+    #   N   wall/shard        runner-min   peak concurrent jobs in this file
+    #   -   ---------------   ----------   ---------------------------------
+    #   1   30.4 min MEASURED     31            16   (today)
+    #   4   11.8 min MEASURED     ~40           19   <- chosen
+    #   6    ~7.9 min projected   ~50           21
+    #
+    # (The N=4 row was projected at ~8.2 min / ~35 runner-min when this was
+    # written; the sharded runs came back at 11.8 / ~40 and the row is corrected
+    # to the measurement. The N=6 row is scaled from that and stays a projection.
+    # Runner-min is billed per job rounded UP to the minute, plus the union job.
+    # This repo is PUBLIC, so ubuntu-latest minutes are free and the ~9-min
+    # increase is a resource statement, not a cost one — it is not the reason
+    # N=4 was chosen over N=6, the concurrency cap below is.)
+    #
+    # Wall-clock does NOT discriminate: this file's critical path is the pure
+    # `fallback-no-native` shards at ~21 min, so anything at or below ~12 min here
+    # is free — which is exactly where N=4 lands, so N=6 would buy nothing on the
+    # critical path. Concurrency DOES. Only two jobs in this file have `needs:`, so
+    # everything else starts at once — 4 build-and-test + 6 fallback + 3 pedantic +
+    # pure-wheel + fallback-union + this cell = 16 today. GitHub's documented
+    # concurrency cap for a PUBLIC repo on the Free plan is 20 jobs; N=4 lands at
+    # 19 and N=6 at 21, and a 21st job does not run in parallel — it QUEUES, which
+    # re-serialises the very shard the split exists to parallelise. N=4 is the
+    # largest split that fits under the cap with a job to spare. If this account
+    # is on a higher plan the cap is larger and N=6 becomes available; the number
+    # to re-check is the cap, not the arithmetic.
+    #
+    # MEASURED over THREE sharded runs — and the projection above was WRONG in the
+    # direction that matters, so it is corrected here rather than left as the
+    # number someone plans against. Job wall, identical selection every time:
+    #
+    #     shard   31858558122   31859722143   31860852158    mean
+    #       1        11:12          8:41         11:05       10:19
+    #       2         7:30          7:49          6:50        7:23
+    #       3         6:42          8:25          8:52        8:00
+    #       4        11:46         11:36          8:35       10:39
+    #     per-run max   sh4           sh4           sh1
+    #
+    # READ THIS CAREFULLY, because two runs said something three runs do not.
+    # After runs 1 and 2 the obvious reading was "shard 4 is the max in both, so
+    # it is a property of that shard". Run 3 REFUTED it: shard 4 came in at 8:35
+    # and shard 1 took the max. What survives three runs is weaker and truer:
+    #   * a per-shard cost TENDENCY — shards 1 and 4 mean ~10.3-10.7 min, shards
+    #     2 and 3 mean ~7.4-8.0. Equal-COUNT is not equal-TIME.
+    #   * RUNNER VARIANCE of ±2.5 min that REORDERS them run to run. No single
+    #     run's ordering is structure, and neither is two runs' agreement.
+    # The timeout below is therefore derived from the max over all TWELVE
+    # observations (11:46), not from "the slow shard" — there isn't a stable one.
+    # Run 1 suite-step sum was 32.6 min against 29.2 unsharded: ~11% fixed-cost
+    # overhead from paying pytest startup + collection 4 times.
+    #
+    # The cell still goes 30.4 -> ~11.7 min, which is the point, but the "cost is
+    # ~14,900 uniform fork spawns" reasoning below is only APPROXIMATELY true —
+    # per-test work varies enough to matter at this granularity. The refinement
+    # that follows is NOT to adopt the pure cell's durations (see the next
+    # paragraph, which the same runs confirm); it is to harvest THIS cell's own
+    # durations the way `fallback-durations-merge` does for the pure one, and
+    # balance against those. Until that exists, equal-count is the honest default:
+    # it is the profile-free split, and it is measurably better than the wrong
+    # profile.
+    #
+    # DELIBERATELY NOT TIME-BALANCED, and this needed measuring rather than
+    # asserting. pytest-split's `--durations-path` DEFAULTS to
+    # `os.getcwd()/.test_durations` — and `docs/srmech/python/.test_durations` is
+    # COMMITTED (the pure cell's bootstrap, `#T1007`). So `--splits/--group` alone
+    # would have SILENTLY time-balanced this cell against the PURE cost profile.
+    # That profile is wrong here: the pure shards are imbalanced because `#T1051`'s
+    # five slow ops are atomic Python heavyweights, and in THIS cell those ops
+    # dispatch to C and vanish — the cost is ~14,900 near-uniform `--forked`
+    # process spawns. Measured, N=4, this tree:
+    #
+    #     durations source            group sizes                spread
+    #     committed .test_durations   3785 / 4158 / 3441 / 3587   717 nodes (19%)
+    #     absent (equal-count)        3743 / 3743 / 3743 / 3742     1 node
+    #
+    # With uniform per-node cost a 19% node-count spread IS a 19% wall-clock
+    # spread, so inheriting that file would actively MIS-balance this cell. The
+    # `--durations-path` below therefore names a path that DOES NOT EXIST, on
+    # purpose: pytest-split falls back to equal-count and says so in the log
+    # ("No test durations found"). Do not "fix" it by pointing it at the real file.
+    #
     # rc357 (`#T951`) — max 19:10 → 30; see build-and-test. This is the cell
     # that caught `#T980`, so its guard stays generous.
     #
@@ -971,7 +1127,42 @@ jobs:
     # of test growth cost. Re-measure and re-raise when it next approaches the
     # cap; do NOT narrow the run with `-k` or a file list to fit — coverage ==
     # collection is the #937 invariant this cell exists to hold.
-    timeout-minutes: 45
+    #
+    # `#T1136` — 45 → 22, RE-DERIVED for a SHARD rather than inherited from the
+    # monolith. The 45 sized a 30.4-min cell; carrying it onto an ~12-min shard
+    # would guard at ~4x and make the number meaningless. Same rule this file uses
+    # everywhere: `T = ceil(max) + max(ceil(0.5*max), 10)` over the MEASURED max,
+    # which is 11:46 — the largest of TWELVE observations across three runs, not
+    # "the slow shard", because the table above shows the max MOVES between shards
+    # run to run → `ceil(11.77) + max(ceil(5.88), 10) = 12 + 10 = 22`.
+    #
+    # This number was 19 for exactly one run and that was a PROJECTION, from
+    # "29.2 min / 4 shards ≈ 7.3 + overhead ≈ 8.2". The measurement came back at
+    # 11:46 — 44% over the projection — because equal-count is not equal-time (see
+    # the table in the job header). 19 would have survived, but at 62% budget use
+    # on the first run, which is the rc432 failure shape exactly: rc432 raised this
+    # cell 30 → 45 only after a cell sitting at 99% of budget got killed twice.
+    # Deriving from the projection instead of the measurement is how a guard
+    # arrives pre-tightened; the fix is to measure first, which is what the 19 →
+    # 22 change is.
+    #
+    # The 45 is not "lowered"; it is REPLACED, because the thing it measured no
+    # longer exists. The rc432 lesson stands unchanged and applies per shard: if a
+    # shard approaches this, RAISE it — never narrow the run to fit.
+    timeout-minutes: 22
+    env:
+      # THIS SHARD'S SELECTION, DEFINED EXACTLY ONCE. The "record" step and the
+      # run step below BOTH expand `$SHARD_SELECT`, which is what makes the
+      # partition guard's evidence trustworthy: the ids it fans in over are
+      # collected by the same argument string that executes, so the two cannot
+      # drift. Plant a `-k` here and the recorded ids shrink with the run, the
+      # union stops covering the full collection, and the guard goes RED — which
+      # is the property a re-deriving guard does not have (see the job header).
+      SHARD_SELECT: >-
+        tests/
+        -p no:randomly
+        --splits 4 --group ${{ matrix.shard }}
+        --durations-path .test_durations.asserts-live-DELIBERATELY-ABSENT
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -1025,35 +1216,210 @@ jobs:
             || { echo "::error::$LIB has NO __assert_fail reference — it was built with NDEBUG and every assert was stripped. This cell would pass without testing anything."; exit 1; }
           echo "OK: asserts are live in the library that actually loads."
 
-      - name: Coverage tracks collection (anti-narrowing guard, #937)
+      # (The per-run "coverage tracks collection" guard that stood here until
+      #  `#T1136` is REPLACED, not dropped — a shard collects its 1/4 by
+      #  construction, so a "collected ~= disk" count says nothing. The step below
+      #  RECORDS what this shard collects; `asserts-live-shard-coverage-union`
+      #  fans the four recordings in and proves they partition the full tree. Same
+      #  #937 contract — coverage == COLLECTION — now stated over the union.)
+      - name: Record the node ids this shard will actually run (guard evidence)
         working-directory: docs/srmech/python
-        # #937's root cause was a FIXED selection. Defend "asserts-live coverage
-        # == full collection" as a number that cannot silently drop: the forked
-        # run below takes the whole tests/ tree, and here we assert it COLLECTS
-        # from ~every test file. If a future edit re-adds a -k or a single-file
-        # path (the exact #937 mechanism), the collected-file count falls and this
-        # step fails — narrowing becomes a red build, not an unobserved regression.
-        # The threshold is derived from the tree (files on disk), never a frozen
-        # number (that would be the #935 mistake).
+        # `$SHARD_SELECT` — the SAME string the run step expands. That identity is
+        # the whole point: this file is not a claim about what the shard runs, it
+        # is the shard's own collection under its own arguments, so a narrowing
+        # planted in `SHARD_SELECT` lands in here too and the union job sees it.
+        # `-p no:cacheprovider` keeps a stray .pytest_cache out of the image; it
+        # does not affect selection.
         run: |
-          FILES=$(ls tests/test_*.py | wc -l)
-          COLLECTED=$(pytest tests/ --collect-only -q -p no:cacheprovider 2>/dev/null \
-            | grep -oE "tests/test_[A-Za-z0-9_]+\.py" | sort -u | wc -l)
-          echo "test files on disk: $FILES ; files pytest collects: $COLLECTED"
-          # tolerate a handful of files that legitimately collect no test item
-          [ "$COLLECTED" -ge "$((FILES - 6))" ] \
-            || { echo "::error::asserts-live collection ($COLLECTED files) is materially below the tree ($FILES) — a filter/narrowing crept into the run. #937 forbids this."; exit 1; }
-          echo "OK: asserts-live run covers the full collection."
+          set -euo pipefail
+          pytest $SHARD_SELECT --collect-only -q -p no:cacheprovider 2>/dev/null \
+            | grep -E '^tests/.+::' | sort -u > asserts-live-shard-${{ matrix.shard }}.ids
+          echo "shard ${{ matrix.shard }} will run $(wc -l < asserts-live-shard-${{ matrix.shard }}.ids) node ids"
 
-      - name: Asserts-live FULL suite, fork-isolated
+      - name: Upload this shard's node ids
+        uses: actions/upload-artifact@v4
+        with:
+          name: asserts-live-shard-ids-${{ matrix.shard }}
+          path: docs/srmech/python/asserts-live-shard-${{ matrix.shard }}.ids
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Asserts-live suite (this shard's 1/4), fork-isolated
         working-directory: docs/srmech/python
         env:
           SRMECH_ASSERTS_LIVE: "1"
-        # The WHOLE suite under the asserts-live build, one fork per test so a live
+        # The suite under the asserts-live build, one fork per test so a live
         # C abort is a single failed test, not a destroyed session (see ISOLATION
-        # above). No -k, no single file — coverage == collection (#937). -n auto
-        # for speed; --forked composes with xdist because the fork boundary is
-        # INSIDE each worker (a SIGABRT kills only the worker's short-lived
-        # fork-child, so the execnet session that the #923 KeyError destroyed is
-        # never touched).
-        run: pytest tests/ -q -n auto --forked -p no:randomly
+        # above). No -k, no single file — coverage == collection (#937), now held
+        # across the four shards by the union job. -n auto for speed; --forked
+        # composes with xdist because the fork boundary is INSIDE each worker (a
+        # SIGABRT kills only the worker's short-lived fork-child, so the execnet
+        # session that the #923 KeyError destroyed is never touched).
+        #
+        # `--junitxml` is not decoration: the next step compares the number of
+        # test cases this run REPORTED against the ids recorded above. That closes
+        # the one hole the shared `$SHARD_SELECT` leaves open — a filter welded
+        # directly onto THIS line, bypassing the variable — because the executed
+        # count would then fall below the recorded count and the step fails.
+        # `tee` (with pipefail, so a red suite cannot be masked) keeps a failing
+        # shard's output as an artifact instead of only in the web log, which is
+        # what a cancelled rc432 run did not have.
+        run: |
+          set -o pipefail
+          pytest $SHARD_SELECT -q -n auto --forked \
+            --junitxml=asserts-live-shard-${{ matrix.shard }}.xml \
+            2>&1 | tee asserts-live-shard-${{ matrix.shard }}.log
+
+      - name: Executed == recorded (a filter on the run line must fail here)
+        if: always()
+        working-directory: docs/srmech/python
+        run: |
+          set -euo pipefail
+          RECORDED=$(wc -l < asserts-live-shard-${{ matrix.shard }}.ids)
+          EXECUTED=$(python3 -c "
+          import xml.etree.ElementTree as ET
+          r = ET.parse('asserts-live-shard-${{ matrix.shard }}.xml').getroot()
+          ts = r if r.tag == 'testsuite' else r.find('testsuite')
+          print(ts.get('tests'))
+          ")
+          echo "recorded ids: $RECORDED ; test cases reported by the run: $EXECUTED"
+          [ "$EXECUTED" -eq "$RECORDED" ] \
+            || { echo "::error::this shard reported $EXECUTED test cases but recorded $RECORDED node ids — the run selected a DIFFERENT set than the guard has evidence for. A -k/file-list on the run line (bypassing \$SHARD_SELECT) is the #937 mechanism; a shortfall can also mean an xdist worker died without reporting."; exit 1; }
+          echo "OK: this shard ran exactly the set the partition guard will check."
+
+      - name: Preserve this shard's asserts-live log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: asserts-live-log-shard-${{ matrix.shard }}
+          path: docs/srmech/python/asserts-live-shard-${{ matrix.shard }}.log
+          if-no-files-found: warn
+          retention-days: 14
+
+  asserts-live-shard-coverage-union:
+    # `#T1136` — SHARD-AWARE anti-narrowing guard for the asserts-live cell
+    # (#937 "coverage == COLLECTION", reshaped for the 4-way split). A per-shard
+    # "collected files ~= disk files" check is meaningless (a shard is 1/4 by
+    # construction), so the invariant that actually matters is proved ONCE here:
+    # the four groups the shards ACTUALLY RAN must exactly PARTITION the full
+    # collection — union == the full set AND pairwise-disjoint — so no test can
+    # fall through a shard boundary (dropped) or run in two shards (double-counted).
+    #
+    # THIS IS A FAN-IN, NOT A RE-DERIVATION, and that difference is the entire
+    # value of the job. `fallback-shard-coverage-union` re-derives its own groups
+    # by collecting independently, which makes it BLIND to a `-k` planted in the
+    # shard step: its three counts still agree and it reports success while the
+    # shard silently runs 8% of its group (measured on this tree — see the shard
+    # job's header table). This job instead downloads the ids each shard recorded
+    # under its own `$SHARD_SELECT` and checks THOSE against a collection it takes
+    # fresh, unfiltered, and hardcoded HERE. The `full.ids` line below is the one
+    # place that must never grow a selection argument; everything else is evidence.
+    #
+    # The threshold is DERIVED from the live full collection, never a frozen number:
+    # equality of three counts (sum-of-group-sizes == union-size == full-size) IS the
+    # partition proof (union==full ⇒ complete; sum==union ⇒ disjoint).
+    #
+    # `if: always()` so a RED shard is still audited — a shard that failed its
+    # tests still recorded and uploaded its ids, and a missing artifact (a shard
+    # cancelled at its timeout) is itself worth surfacing as a hard error rather
+    # than a quietly smaller union.
+    name: asserts-live shard coverage-union (partition guard, #937)
+    needs: [asserts-live-smoke]
+    if: always()
+    runs-on: ubuntu-latest
+    # `#T1136` — derived per this file's rule from the MEASURED max: run
+    # 31858558122 took 1:10 (install ~0.5 min + 4 artifact downloads + one
+    # collection), so `ceil(1.17) + max(ceil(0.58), 10) = 2 + 10 = 12`. The
+    # 10-minute FLOOR dominates for a job this short, exactly as it does for the
+    # other fan-in jobs.
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install with the C library built ASSERTS-LIVE (no NDEBUG)
+        working-directory: docs/srmech/python
+        # The SAME install as the shards, Debug and all. Collection is not known to
+        # differ between the native and pure paths (no module-level importorskip on
+        # the library, no collect_ignore), but the guard's job is to certify the
+        # partition the shards ACTUALLY execute, so it collects in the shards'
+        # environment rather than one that merely ought to match. It costs ~24 s.
+        run: |
+          python -m pip install --upgrade pip
+          rm -f srmech/_native/*.so srmech/_native/*.dll srmech/_native/*.dylib srmech/_native/*.dll.a srmech/_native/*.lib srmech/_native/*.pyd
+          python -m pip install -e ".[dev]" --config-settings=cmake.build-type=Debug
+
+      - name: Download every shard's recorded node ids
+        uses: actions/download-artifact@v4
+        with:
+          pattern: asserts-live-shard-ids-*
+          path: shard-ids
+          merge-multiple: true
+
+      - name: Prove the 4 shards PARTITION the full collection
+        working-directory: docs/srmech/python
+        shell: bash
+        run: |
+          set -euo pipefail
+          # THE CANONICAL FULL COLLECTION. No --splits, no -k, no file list — this
+          # is the set the four shards must between them cover. `-p no:randomly`
+          # matches `$SHARD_SELECT` so guard and shards agree on collection order;
+          # measured stable already, pinned so that adding pytest-randomly later
+          # cannot silently repartition anything.
+          pytest tests/ --collect-only -q -p no:cacheprovider -p no:randomly 2>/dev/null \
+            | grep -E '^tests/.+::' | sort -u > full.ids
+          FULL=$(wc -l < full.ids)
+
+          : > union.raw
+          SUM=0
+          for K in 1 2 3 4; do
+            F="$GITHUB_WORKSPACE/shard-ids/asserts-live-shard-$K.ids"
+            [ -s "$F" ] || { echo "::error::shard $K uploaded no node ids — it was cancelled (timeout) or died before recording. The union is INCOMPLETE and cannot certify anything; this is a hard failure, not a smaller union."; exit 1; }
+            N=$(wc -l < "$F")
+            echo "shard $K: $N node ids"
+            SUM=$((SUM + N))
+            cat "$F" >> union.raw
+          done
+          sort -u union.raw > union.ids
+          UNION=$(wc -l < union.ids)
+          echo "full=$FULL  sum-of-shards=$SUM  union=$UNION"
+
+          if [ "$UNION" -ne "$FULL" ] || [ "$SUM" -ne "$FULL" ]; then
+            echo "::error::the 4 asserts-live shards do NOT partition the full collection (need union==full AND sum==full; got full=$FULL union=$UNION sum=$SUM). union<full ⇒ a test is run by NO shard, so its C asserts are unobserved — that is #937 recurring; sum>union ⇒ a test runs in two shards."
+            # `comm ... > file` then `head file`, NOT `comm ... | head`. Under the
+            # `set -o pipefail` above, `head -20` closing the pipe kills `comm` with
+            # SIGPIPE, the step exits 141 mid-diagnostic, and the SECOND comm never
+            # runs — so the one line that says whether the collection drifted is
+            # lost exactly when it is needed. MEASURED while building this job: the
+            # planted-narrowing control exited 141 with half its diagnosis missing.
+            # Writing to a file also lets each line report a TOTAL, which 20
+            # unlabelled node ids do not.
+            comm -23 full.ids union.ids > dropped.ids || true
+            comm -13 full.ids union.ids > drifted.ids || true
+            echo "--- in FULL but in no shard (DROPPED — #937): $(wc -l < dropped.ids) total, first 20 ---"
+            head -20 dropped.ids
+            echo "--- in a shard but not in FULL (collection drifted): $(wc -l < drifted.ids) total, first 20 ---"
+            head -20 drifted.ids
+            exit 1
+          fi
+          [ "$FULL" -gt 50 ] || { echo "::error::full collection ($FULL) implausibly small — collection is broken."; exit 1; }
+
+          # Equal-COUNT is a DELIBERATE choice here (see the shard job header): the
+          # committed .test_durations describes the PURE cell's cost profile and
+          # would mis-balance this one by ~19%. If the shards ever silently pick it
+          # up — the default --durations-path is $CWD/.test_durations, which EXISTS
+          # — the group sizes stop being near-equal, and this catches that drift
+          # before it shows up as one shard timing out.
+          MIN=$FULL; MAX=0
+          for K in 1 2 3 4; do
+            N=$(wc -l < "$GITHUB_WORKSPACE/shard-ids/asserts-live-shard-$K.ids")
+            [ "$N" -lt "$MIN" ] && MIN=$N || true
+            [ "$N" -gt "$MAX" ] && MAX=$N || true
+          done
+          echo "group sizes: min=$MIN max=$MAX spread=$((MAX - MIN))"
+          [ "$((MAX - MIN))" -le 1 ] \
+            || { echo "::error::group sizes differ by $((MAX - MIN)) (min=$MIN max=$MAX) — this cell is meant to split by equal COUNT, so a spread >1 means pytest-split found a durations file and time-balanced against the PURE cell's profile. Check --durations-path in \$SHARD_SELECT."; exit 1; }
+
+          echo "OK: the 4 asserts-live shards partition the full collection ($FULL nodes) — complete, disjoint, and equal-count."

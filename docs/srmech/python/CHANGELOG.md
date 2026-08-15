@@ -8,6 +8,43 @@ All notable changes to this package will be documented here. The format follows 
 
 _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffer (mmap, for >1k events/sec). It stays deferred until an op proves the need — no consumer in the RBS-LM pipeline yet exceeds the Tier-1 flush-per-write rate. (The C-side `srmech_progress_cb_t` callback ABI — the OTHER deferred half — shipped in rc242 below.)_
 
+**`#T1136` — the asserts-live cell is partitioned into 4 shards (CI topology only — NO version bump, no wheel, no package code).** The tree stays at `0.9.0rc434`; registry stays 655; ABI stays 14. Nothing in `srmech/` or `c/` is touched. Recorded here rather than in an rc block because it ships no artifact.
+
+`asserts-live FULL suite, fork-isolated (JPL Rule 5 with teeth, #937)` was the longest cell in `srmech-ci.yml` at **30.4 min** (29.2 of it the `--forked` suite, ~14,900 process spawns), and had been killed twice at a 30-min cap before rc432 raised it to 45. A timeout there is the worst failure mode the gate has: the step is CANCELLED, every assertion goes unreported, and it arrives as "cancelled" rather than red. It is now a 4-way `pytest-split` matrix with the `#937` "coverage == COLLECTION" invariant moved — not weakened — into a new `asserts-live shard coverage-union (partition guard, #937)` job.
+
+**The load-bearing finding is that the obvious construction does not work.** The pure cell's `fallback-shard-coverage-union` is the natural model, but it **RE-DERIVES** its own groups by collecting independently, so a `-k` planted in the *shard* step never enters its arithmetic. Measured on this tree (14,971 collected node ids):
+
+| Construction | shard 1 actually runs | guard verdict |
+|---|---|---|
+| re-deriving (the pure cell's shape) | 309 / 3743 | **GREEN** — blind |
+| fan-in (shards record what they ran) | 309 / 3743 | **RED** — correct |
+
+309 of 3743 is a **92% narrowing** — the exact `#937` defect class — reported as success. The asserts-live guard is therefore a **fan-in**: each shard records the node ids its own `$SHARD_SELECT` collects, uploads them, and the union job checks those recordings against a collection it takes fresh and unfiltered (`sum == union == full` ⇒ complete and disjoint). The pure cell's guard carries the same blind spot; its comment claimed otherwise and is **corrected in place** — porting the fan-in shape there is a tracked follow-up against a working 6-shard gate, not part of this change.
+
+**The gate was then fired in CI, on purpose** — `-k genome` planted in `$SHARD_SELECT` and pushed (run 31859207920), reverted in the next commit. The four shards **passed** on 309/309/309/307 nodes while `asserts-live shard coverage-union` went **red**: `full=14971`, `sum=union=1234`, 13,737 dropped ids enumerated, 0 drifted. The shards passing is correct rather than a miss — their own `executed == recorded` check compares the run against the *same* narrowed recording, so it agrees. A filter in the shared variable is the union job's to catch; a filter welded onto the run line is the per-shard junitxml check's. Two mechanisms, two holes.
+
+**A second trap, also measured.** pytest-split's `--durations-path` defaults to `$CWD/.test_durations`, and `docs/srmech/python/.test_durations` **is committed** (the pure cell's `#T1007` bootstrap). Adding `--splits/--group` alone would have silently time-balanced this cell against the *pure* cost profile — wrong here, because the pure shards are imbalanced by `#T1051`'s five atomic Python heavyweights and in this cell those ops dispatch to C and vanish:
+
+| durations source | group sizes (N=4) | spread |
+|---|---|---|
+| committed `.test_durations` | 3785 / 4158 / 3441 / 3587 | **717 nodes (19%)** |
+| absent → equal-count | 3743 / 3743 / 3743 / 3742 | **1 node** |
+
+The shards therefore name a `--durations-path` that does not exist, on purpose, and the union job asserts the resulting group sizes differ by ≤ 1 so the drift cannot return silently.
+
+**What the sharded runs falsified — twice, and the second time it falsified me.** Equal-count is not equal-time. Job wall, identical selection every run:
+
+| shard | 31858558122 | 31859722143 | 31860852158 | mean |
+|---|---|---|---|---|
+| 1 | 11:12 | 8:41 | **11:05** | 10:19 |
+| 2 | 7:30 | 7:49 | 6:50 | 7:23 |
+| 3 | 6:42 | 8:25 | 8:52 | 8:00 |
+| 4 | **11:46** | **11:36** | 8:35 | 10:39 |
+
+After runs 1 and 2 the obvious reading was "shard 4 is the max in both, so it is a property of that shard", and that is what the run-2 commit said. **Run 3 refuted it** — shard 4 came in at 8:35 and shard 1 took the max. What survives three runs is weaker and truer: a per-shard cost **tendency** (shards 1 and 4 mean ~10.3–10.7 min, shards 2 and 3 ~7.4–8.0) plus **runner variance of ±2.5 min that reorders them**. No single run's ordering is structure, and neither is two runs' agreement. Run 1's suite-step sum was 32.6 min against 29.2 unsharded — ~11% fixed-cost overhead from paying pytest startup and collection four times. The cell still goes **30.4 → ~11.7 min** wall. But the "~14,900 uniform fork spawns" premise is only approximately true, so the per-shard `timeout-minutes` is **22**, derived from the largest of the twelve observations above — 11:46 (`ceil(11.77) + max(ceil(5.88), 10)`) — not from the projection and not from "the slow shard", since there is no stable one — a projected 19 would have shipped a guard at 62% budget use on its first run, which is the rc432 failure shape. The follow-up this points at is harvesting *this* cell's own durations the way `fallback-durations-merge` does for the pure one; adopting the pure cell's file remains wrong for the reason measured above.
+
+Every shard keeps the full liveness check — `HAS_NATIVE` plus `nm -u "$LIB" | grep -q __assert_fail`, against the library `_find_library()` actually resolves. Dropping it per-shard to save seconds would make the whole cell vacuous. Each shard additionally compares the test-case count its `--junitxml` reports against the ids it recorded, which closes the one hole a shared variable leaves open (a filter welded onto the run line, bypassing it).
+
 **#693 determination (documentation only — NO version bump; no behavior change).** Investigated whether the `ThetaSum.is_zero` interpolation degree bound can be tightened from **Σe²** to **Σ|e|**. **Verdict: UNSOUND — NOT adopted; the conservative Σe² is retained** at both bound sites (`thetasum._struct_one_var` base-case p-order band + `thetasum._structural_is_zero._deg` node count) and the C peer (`srmech_thetasum_interp.c` `ti_deg`). Rationale: the node count / p-band must bound the **true elliptic degree** of a theta-product in the interpolation variable = the quasi-period index = zeros-per-annulus, which is **Σe²** (a factor `θ(c·vᵉ;p)` gains multiplier `v^{−e²}` under `v↦p·v`, from Rosengren Eq. 1.6 / `ellbase.Theta.canonicalize`; confirmed by an independent explicit root count). Since `e² > |e|` for `|e| ≥ 2`, `Σ|e|` sits **below** the true degree and under-provisions the prover → a genuinely non-zero elliptic function can be falsely proved `≡ 0` (a **false theorem**). Explicit witness (single var, e=3): `N(x) = 2·θ(2x³) −27·θ(3x³) +120·θ(4x³) −250·θ(5x³) +270·θ(6x³) −147·θ(7x³) +32·θ(8x³)` (all `;p`) is exactly non-zero (lowest q-expansion coeff `(p⁶,x⁻⁹)=−1/112`; stable `0.180756` at `p=½,x=¾`), yet Σ|e| (band `k=5`) misses the `p⁶` term while Σe² (band `k=11`) correctly returns `False`. (Distinct from #692, which sized the **arena/ws_bound memory** band — this is the **soundness** degree band.) Full analysis: `docs/srmech/notes/thetasum_is_zero_degree_bound_693.md`; standing regression guard: `tests/test_thetasum_degree_bound_soundness_693.py`.
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
