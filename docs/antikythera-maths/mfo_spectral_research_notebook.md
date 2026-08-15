@@ -7105,6 +7105,10 @@ The mechanism is one structural fact, available before any physics is attached: 
 
 This is the substrate-side statement of "the real part and the rotation part are representations of the same thing": they are the two eigenspaces of a single involution, not two separately-constituted objects that happen to sit together.
 
+> ⚠️ **But the TWO is the instrument, not the object — and the wording above must not be read as a measurement of two-ness.** `cd_conjugate` is an **involution**: measured, `K∘K = id` on every basis element at dims 2/4/8/16, so over a field of characteristic ≠ 2 its eigenvalue set is `{+1, −1}` **by construction**. It cannot report three. So "one object, two reads" is honest about the SUBJECT — one basis set, decomposed rather than assembled — and is a statement about the ADDRESS, not about the addressee, on the read count. The precise phrasing is *one object, **addressed by a 2-valued involution***. Asking "is it really two?" of an order-2 operator is asking a question whose answer was fixed before the object was consulted (`[[feedback_an_instrument_that_cannot_return_otherwise_is_not_a_measurement]]`).
+
+**The 3-phase question this opens is genuinely OPEN and testable, and is not answered here.** An order-3 operator on a related object returns three, not two: `triality_cycle` gives `v→s→c→v`, a 3-cycle rather than a 2-split. Whether the `1 + (n−1)` anchor/imaginary decomposition is itself the shadow of a 3-phase structure — the shape `[[project_op_operand_responsion_triality_continuous_form]]` and the k=3 cross-substrate signature would predict — requires putting an order-3 operator on **the algebra basis itself**, not on the so(8) frame labels where triality already acts. That is a different object and the substitution is not automatic. Recorded as a question, with the instrument caution attached, precisely so the 2-split is not later cited as evidence against it.
+
 #### The `ab:bc:ca ‖ c:a:b` duality — real, and bijective ONLY at ℍ
 
 A second and *independent* sense in which "real and rotation are one thing" is available, and it needs a bound stated with it or it will be over-read.
