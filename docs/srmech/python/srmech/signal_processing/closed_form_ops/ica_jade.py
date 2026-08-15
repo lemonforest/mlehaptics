@@ -201,6 +201,26 @@ def op(
     # Whitening via PCA (Class L: covariance eigendecomposition). ``cov`` is a
     # REAL symmetric covariance; the whitening arithmetic is real, so take the
     # (mathematically exact) real part of the always-complex eigenvectors.
+    #
+    # rc435 (`#T1140`) NOTE — this carrier is deliberately LEFT complex, and the
+    # reason is measured, not stylistic. ``cov`` IS provably real by construction
+    # (the ``float(v)`` coercion above makes Xc real unconditionally and ``s`` is
+    # an explicit real accumulator), so by the gh #1530 §N SPACE rule it "should"
+    # ride a real carrier. But on the numpy-free fallback path ``is_complex`` is
+    # not a storage declaration — it is an ALGORITHM SELECTOR: ``_hermitian_eig_py``
+    # sends a real carrier to the direct n×n Jacobi and a complex one to the real
+    # 2n×2n embedding. Those are different rotation sequences, so the eigenVECTOR
+    # basis they return differs at ~1e-14 (the eigenVALUES are bit-identical).
+    # Downstream, the JADE Givens sweep is threshold-driven (``_abs(theta) < tol``
+    # decides whether a rotation happens at all), so a 1e-14 perturbation of the
+    # whitening basis is AMPLIFIED to an O(1) change in the returned W and S:
+    # measured W[0][0] = -0.01280 before vs 0.13968 after, on the pure arm. The
+    # separation stays valid (ICA is defined only up to permutation/sign/scale)
+    # and every shipped test still passes, but that is a reproducibility change
+    # for numpy-free hosts, not a storage-only one — so it does not ride an rc
+    # whose entire safety argument is bit-identity. See
+    # tests/test_carrier_real_not_complex_rc435.py, which PINS this measurement
+    # so the reason survives, and gh #1530 §N.
     cov = [[0.0] * p for _ in range(p)]
     for a in range(p):
         for b in range(a, p):

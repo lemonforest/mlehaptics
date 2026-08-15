@@ -106,7 +106,10 @@ def hydrogen_radial(
     inv_2dr2 = 1.0 / (2.0 * dr * dr)
     lcent = l_quantum * (l_quantum + 1)
     # Build the real-symmetric tridiagonal Hamiltonian as a nested list, then a
-    # COMPLEX Mat so it feeds mat_hermitian_eigendecompose. Diagonal:
+    # REAL Mat — every entry is real BY CONSTRUCTION (the diagonal and the two
+    # off-diagonals are float arithmetic over a real grid; no input can make them
+    # complex), so declaring a complex carrier would hand the container twice the
+    # degrees of freedom the object has (gh #1530 §N, SPACE half). Diagonal:
     #   2·inv_2dr2 + l(l+1)/(2 r_i²) − 1/r_i ; off-diagonals −inv_2dr2 on k=±1.
     rows = [[0.0] * n_grid for _ in range(n_grid)]
     for i in range(n_grid):
@@ -115,11 +118,25 @@ def hydrogen_radial(
         if i + 1 < n_grid:
             rows[i][i + 1] = -inv_2dr2
             rows[i + 1][i] = -inv_2dr2
-    H = Mat.from_rows(rows, is_complex=True)
-    # Class-L Hermitian eigendecomposition (srmech's own primitive). H here is
-    # real-symmetric, so the eigenvectors are real; the cascade carries them in a
-    # complex container — take the value-preserving real part (mathematically
-    # exact for real-symmetric input) and return them as a real Mat.
+    H = Mat.from_rows(rows, is_complex=False)
+    # Class-L Hermitian eigendecomposition (srmech's own primitive). It accepts a
+    # real Mat and ALWAYS returns complex eigenvectors regardless of the input
+    # carrier (see its docstring: "``eigvecs`` … **always** complex"), so the
+    # real-part extraction below stays load-bearing — it is what makes the
+    # returned Mat real, and is NOT made redundant by the real input carrier.
+    # H is real-symmetric, so that real part is mathematically exact.
+    #
+    # rc435 (`#T1140`) MEASURED, because the flag is NOT purely storage here: on
+    # the numpy-free path it SELECTS the algorithm (_hermitian_eig_py sends a real
+    # carrier to the direct n×n Jacobi, a complex one to the real 2n×2n
+    # embedding). The ENERGIES are bit-identical across both carriers and both
+    # arms. The eigenVECTOR basis moves ~1e-14 on the pure arm — inside this op's
+    # stated contract ("eigenvalues + reconstruction + unitarity, NOT element-wise
+    # parity") and TOWARD the native answer, so the flip closes a pure/native
+    # projection gap rather than opening one. On the native arm nothing moves at
+    # all: the C entry widens unconditionally and ignores the flag, so the win
+    # there is the 2× buffer only, never time. Pinned by
+    # tests/test_carrier_real_not_complex_rc435.py.
     eigvals_mat, eigvecs_mat = mat_hermitian_eigendecompose(H)
     n = eigvecs_mat.n_rows
     eigenvectors = Mat.from_rows(
