@@ -1,4 +1,4 @@
-{"n": 570, "native": false, "python": "3.10", "record": "meta"}
+{"n": 571, "native": false, "python": "3.10", "record": "meta"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.amsc.catalog.get_attested_dataset", "problems": [], "src_sha256": "58d42a7869396586ee1363c377b8b1abf02bf5febea9d695f6aa4e49b8e26a99", "statements": 9, "status": "ok"}
 {"markers_fired": [{"exc": "ValueError", "line": 20}], "n_markers": 1, "name": "srmech.amsc.catalog.list_attested_sources", "problems": [], "src_sha256": "986c4bccd23f665bd00f8d91187777f98acfd091cbc9a95550c36560c3546452", "statements": 9, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.amsc.catalog.list_catalog_chains", "problems": [], "src_sha256": "80aee0a39a7344378b831ef74cb41d64bce16527865a2f790c433220b1390bac", "statements": 7, "status": "ok"}
@@ -169,6 +169,7 @@
 {"markers_fired": [], "n_markers": 0, "name": "srmech.cascade.matrix_cascades.svd", "problems": [], "src_sha256": "9b8d47ee33adfc8a3a2e75efc5c50c8d049ebd2b83594c0932c2c4c4f06acecc", "statements": 12, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.cascade.moufang_residue", "problems": [], "src_sha256": "1eb7e6ef3b211a4c5e6ec8523570f347f5b23dc7317dcdb0b624a414f3a114cb", "statements": 6, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.cascade.net_chirality", "problems": [], "src_sha256": "f25d979e8d7ed5a8ab9b23bbf33c7d813dadaa1a12bd4b1ff8af94ec4ab46274", "statements": 9, "status": "ok"}
+{"markers_fired": [], "n_markers": 0, "name": "srmech.cascade.octonion_associator_support", "problems": [], "src_sha256": "41c113a74fc36320fe9d95ca4bfa885704f30b0968ca0c87db33e82f7c3303c5", "statements": 10, "status": "ok"}
 {"markers_fired": [{"exc": "NotImplementedError", "line": 24}], "n_markers": 1, "name": "srmech.cascade.octonion_dft", "problems": [], "src_sha256": "fb67b20a44e8303e5c669e0bf3bfa59940197fec28a04ff84b23d7d4433ef77d", "statements": 14, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.cascade.octonion_frame_read", "problems": [], "src_sha256": "c5e59b1ffa731d987f82e159d630815c1e99b89cb78f2da7eab40adae4a54eef", "statements": 15, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.cascade.octonion_hopf_base", "problems": [], "src_sha256": "4964fc9ff967f6cb50ec3799e9461d10265737a661742d6d1c5049ad9b056c7e", "statements": 6, "status": "ok"}

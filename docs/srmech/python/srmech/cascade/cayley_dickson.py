@@ -1134,6 +1134,160 @@ def associator(x: Sequence[Any], y: Sequence[Any], z: Sequence[Any],
     return tuple(a - b for a, b in zip(left, right))
 
 
+# rc436 (`#T1141`): the associator's SUPPORT as a first-class SET, not another
+# count. The COUNT 168 was already pinned at five sites before this op existed
+# (`associator`'s own census 512 - 344, `cd_cycle_holonomy`'s 168/512,
+# `oct_mult`'s 168/343, `octonion_frame_read`'s seam read, and
+# `group_algebra_table`'s labelled tautology). What was NOT shipped anywhere is
+# the SET those counts count, nor the closed-form PREDICATE that reproduces it.
+def octonion_associator_support() -> Dict[str, Any]:
+    """The 168 ordered imaginary triples on which 𝕆's associator is NONZERO —
+    as a SET, with the Fano predicate that reproduces it (rc436, `#T1141`).
+
+    Class **A** (a content-addressed invariant: the set is fixed, so it is
+    hashed once and carried with its digest) ∘ Class **E** (the catalog read —
+    the seven Fano lines come from :func:`_octonion_fano_lines`, which DERIVES
+    them from :func:`cd_basis_product` rather than tabulating them).
+
+    **The count is not the contribution; the SET and the PREDICATE are.**
+    ``168`` was already pinned at five sites in this tree before this op
+    existed, and this op REPRODUCES it rather than moving it — the same
+    discipline :func:`associator` states for the per-rung census. What no
+    surface shipped was the set itself, or a closed form for membership.
+
+    **The predicate, MEASURED to reproduce the support as a SET (not merely as
+    a count)**::
+
+        nonzero associator  ⟺  the three indices are distinct imaginary units
+                               AND do not all lie on one Fano line
+
+        7·6·5 − 7·3! = 210 − 42 = 168
+
+    Ordered triples of distinct imaginary units number ``7·6·5 = 210``; each of
+    the 7 Fano lines contributes ``3! = 6`` orderings that DO associate (a line
+    spans an ℍ subalgebra, which is associative), and 210 − 42 = 168 remain.
+    Set equality against the measured support is asserted by
+    ``tests/test_octonion_associator_support_rc436.py``, not assumed here.
+
+    **Why the three published denominators all give the same 168.** 𝕆 is an
+    ALTERNATIVE algebra, so its associator is alternating: it vanishes whenever
+    any two arguments coincide, and it vanishes whenever any argument is ``e₀``.
+    Hence the support over all ``8³ = 512`` ordered basis triples, over the
+    ``7³ = 343`` imaginary ones with repeats allowed, and over the ``210``
+    distinct imaginary ones is **literally the same set of 168 triples** —
+    measured, and the reason "168 of 512", "168 of 343" and "168 of 210" are
+    three readings of one object rather than three coincidences.
+
+    ⚠️ **COLLISION NOTE — ``168`` means at least two different things in this
+    tree, and they are not related.** Check which one a number is before
+    comparing:
+
+    * **this op** — the 168 ordered imaginary triples where 𝕆's associator is
+      nonzero (dimension **8**, the octonion rung, a NON-ASSOCIATIVITY census);
+    * :func:`cd_zero_divisor_witnesses` at ``dim=16`` — the 168 basis-pair
+      zero-divisor witnesses ``(eᵢ + eⱼ)(e_k + s·e_l) = 0`` (dimension **16**,
+      the SEDENION rung, a ZERO-DIVISOR census). This is the sense
+      :func:`inertia_signature`'s docstring uses when it writes "168 at dim 16".
+
+    Same integer, different rung, different phenomenon, no derivation connecting
+    them. A cross-reference between the two would be a numerology error.
+
+    **NUMERICAL ADJACENCY, stated and NOT used.** ``|Aut(Fano)| = |PGL(3,2)| =
+    |PSL(2,7)| = 168`` as well, and standard finite geometry says that group
+    acts simply transitively on the ordered non-collinear point-triples — which
+    would make this support a torsor under it. That is DERIVED FROM THE
+    LITERATURE, **not measured here**, and nothing in this op depends on it. It
+    is recorded so the coincidence is not re-discovered as a finding.
+
+    Returns:
+        A ``dict``:
+
+        * ``dim`` — 8.
+        * ``count`` — 168, the size of the support.
+        * ``ordered_distinct_imaginary`` — 210, the population it sits in.
+        * ``triples`` — the SET: a sorted tuple of 168 ``(i, j, k)`` int
+          triples. This is the payload; the digest below is a convenience, not
+          a replacement for it.
+        * ``fano_lines`` — the 7 lines read from :func:`cd_basis_product`.
+        * ``associating`` — the sorted 42 ordered triples that DO associate
+          (the Fano-line orderings), so both halves of the partition ship.
+        * ``predicate`` — the membership rule as prose.
+        * ``arithmetic`` — ``"7*6*5 - 7*3! = 210 - 42 = 168"``.
+        * ``sha256`` — Class-A content address over the canonical serialisation
+          of ``triples`` (``"i,j,k"`` joined by ``";"``, ASCII), via
+          :func:`srmech.amsc.format.sha256_bytes` so native dispatch is picked
+          up transparently.
+        * ``collision_note`` — the two-sense warning above, as a string, so a
+          caller reading the dict alone still meets it.
+
+    Note:
+        No new C symbol and none is owed: this COMPOSES the already
+        c_dispatched :func:`associator` (which is itself ``composition_of_c``
+        over ``srmech_cd_mult``) and :func:`srmech.amsc.format.sha256_bytes`.
+        ``composition_of_c``. Exact end to end — no float, no ``abs()``.
+
+    Canonical SSoT:
+    - Baez, J.C. (2002), *The Octonions*, Bull. AMS **39** 145–205,
+      arXiv:math/0105155, **§2.1** — the Fano plane and its seven lines as the
+      ℍ subalgebras of 𝕆.
+    - Baez, *op. cit.*, arXiv:math/0105155, **§1.1** — alternativity, hence that
+      the associator is alternating. rc436 repointed this locator: it read
+      **§2.1**, which carries the Fano plane but contains the term ZERO times,
+      while §1.1 carries it 6 times (`srmech/amsc/attested/literature_claims`,
+      verdict VERIFIED). The claim was right and its address was wrong.
+    - Schafer, R.D. (1966), *An Introduction to Nonassociative Algebras*,
+      **ch. III** — the textbook treatment of alternative algebras.
+    """
+    from srmech.amsc.format import sha256_bytes  # Class A; native-dispatched
+
+    lines = _octonion_fano_lines()
+    line_sets = {frozenset(line) for line in lines}
+    basis = [cd_basis(8, i) for i in range(8)]
+
+    support: List[Tuple[int, int, int]] = []
+    associating: List[Tuple[int, int, int]] = []
+    for i in range(1, 8):
+        for j in range(1, 8):
+            if j == i:
+                continue
+            for k in range(1, 8):
+                if k == i or k == j:
+                    continue
+                defect = associator(basis[i], basis[j], basis[k])
+                if any(v != 0 for v in defect):
+                    support.append((i, j, k))
+                else:
+                    associating.append((i, j, k))
+
+    support_t = tuple(sorted(support))
+    payload = ";".join("%d,%d,%d" % t for t in support_t).encode("ascii")
+    return {
+        "dim": 8,
+        "count": len(support_t),
+        "ordered_distinct_imaginary": 7 * 6 * 5,
+        "triples": support_t,
+        "fano_lines": lines,
+        "associating": tuple(sorted(associating)),
+        "predicate": ("distinct imaginary indices, not all three on one "
+                      "Fano line"),
+        "arithmetic": "7*6*5 - 7*3! = 210 - 42 = 168",
+        "sha256": sha256_bytes(payload),
+        "collision_note": (
+            "168 has TWO unrelated senses in srmech: (a) THIS op -- the "
+            "ordered imaginary triples where the dim-8 octonion associator is "
+            "nonzero (a non-associativity census); (b) "
+            "cd_zero_divisor_witnesses(16) -- the basis-pair zero-divisor "
+            "witnesses at the dim-16 sedenion rung (a zero-divisor census), "
+            "which is the sense inertia_signature's docstring uses. Different "
+            "rung, different phenomenon, no derivation connects them. "
+            "|Aut(Fano)| = 168 as well, which is literature-derived adjacency "
+            "and is NOT measured or used here."),
+        "line_membership_reproduces_support": (
+            tuple(sorted(t for t in support_t if frozenset(t) not in line_sets))
+            == support_t),
+    }
+
+
 def cd_commutator(x: Sequence[Any], y: Sequence[Any],
                   table: Any = None) -> Tuple[Q, ...]:
     """``x·y − y·x`` — the COMMUTATIVITY DEFECT, exact ℚ, any rung (rc380,

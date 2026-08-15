@@ -3426,7 +3426,7 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.math.rational.relative_writhe", owner="srmech", category="rational",
-            summary="rc317 (#1308) — Fuller's Second-Theorem exact-rational RELATIVE WRITHE Wr(C)-Wr(C0), the single-integral peer of the O(n^2) discrete_writhe double sum. Given two closed polygonal curves as EXACT-RATIONAL 3D vertices (int / Fraction / (num,den) per coord; floats rejected), reference=C0 (base) and embedding=C (deformed), it evaluates Fuller's single integral (1/2pi) oint (t0 x t).d(t0+t)/(1+t0.t) ds over the closed polygon, t0/t the central-difference UNIT tangents. CERTIFIED TRUNCATION, NOT the exact writhe: the true relative writhe is generically TRANSCENDENTAL (the pi normalisation + irrational unit-tangent lengths), so it returns an EXACT rational + a STATED remainder_bound on |value-true| — a Class-N best_rational anchor across the writhe's inharmonic responsion seam (F1308). DUAL-PRECISION contract (rc317 PILOT): precision=None -> PLATFORM-BOUNDED (value's num/den ride a native int64 word; the fast hardware-last-mile read; FLOAT-FREE, a bounded rational); precision=P int -> SRMECH-NATIVE BIGINT lengthed by P (remainder_bound ~ 2^-P tightening MONOTONICALLY; the bigint num/den lengthen with P). The +/-2 obstruction (antipodal_events flags the near-antipodal band 1+t0.t < 2^-4; for TRUE unit tangents 1+t0.t in [0,2], =0 only at the exact measure-zero antipode, so the literal <=0 the float spike reads via FP rounding is degenerate under exact rationals) IS the SAME Z->>Z/2 (kernel 2Z) reduction cwf_consistency_mod2 reads via the Q8 center-parity — the SO(3)/SU(2) double cover, a writhe +/-2 vs a spinor sign (DERIVED/argued; the integer lift needs the O(n^2) discrete_writhe). Class N (rational sqrt / pi-cascade / best_rational) . Class K (sign-branch magnitudes + antipodal pole detection, never abs()) . Class I (cyclic wrap); float NOWHERE (atan2 excluded — it projects to float; atan_series_truncate's angle reformulation is a different discretisation). composition_of_c (sqrt/pi/best_rational are C-backed): NO new C symbol, ABI stays 10, GENOME_FORMAT_VERSION stays 16 (a pure geometry READ). CAD-ban-clear: closed-form on the integer ALU, NOT mesh/FEA/GPU. Cites F. Brock Fuller PNAS 68(4):815-819 (1971, doi 10.1073/pnas.68.4.815, PMC389050) + PNAS 75(8):3557-3561 (1978, doi 10.1073/pnas.75.8.3557, PMC392823), both OA.",
+            summary="rc317 (#1308) — Fuller's Second-Theorem exact-rational RELATIVE WRITHE Wr(C)-Wr(C0), the single-integral peer of the O(n^2) discrete_writhe double sum. Given two closed polygonal curves as EXACT-RATIONAL 3D vertices (int / Fraction / (num,den) per coord; floats rejected), reference=C0 (base) and embedding=C (deformed), it evaluates Fuller's single integral (1/2pi) oint (t0 x t).d(t0+t)/(1+t0.t) ds over the closed polygon, t0/t the central-difference UNIT tangents. CERTIFIED TRUNCATION, NOT the exact writhe: the true relative writhe is generically TRANSCENDENTAL (the pi normalisation + irrational unit-tangent lengths), so it returns an EXACT rational + a STATED remainder_bound on |value-true| — a Class-N best_rational anchor across the writhe's inharmonic responsion seam (F1308). DUAL-PRECISION contract (rc317 PILOT): precision=None -> PLATFORM-BOUNDED (value's num/den ride a native int64 word; the fast hardware-last-mile read; FLOAT-FREE, a bounded rational); precision=P int -> SRMECH-NATIVE BIGINT lengthed by P (remainder_bound ~ 2^-P tightening MONOTONICALLY; the bigint num/den lengthen with P). The +/-2 obstruction (antipodal_events flags the near-antipodal band 1+t0.t < 2^-4; for TRUE unit tangents 1+t0.t in [0,2], =0 only at the exact measure-zero antipode, so the literal <=0 the float spike reads via FP rounding is degenerate under exact rationals) IS the SAME Z->>Z/2 (kernel 2Z) reduction cwf_consistency_mod2 reads via the Q8 center-parity — the SO(3)/SU(2) double cover, a writhe +/-2 vs a spinor sign (DERIVED/argued; the integer lift needs the O(n^2) discrete_writhe). Class N (rational sqrt / pi-cascade / best_rational) . Class K (sign-branch magnitudes + antipodal pole detection, never abs()) . Class I (cyclic wrap); float NOWHERE (atan2 excluded — it projects to float; atan_series_truncate's angle reformulation is a different discretisation). composition_of_c (sqrt/pi/best_rational are C-backed): NO new C symbol, ABI stays 10, GENOME_FORMAT_VERSION stays 16 (a pure geometry READ). CAD-ban-clear: closed-form on the integer ALU, NOT mesh/FEA/GPU. Cites F. Brock Fuller PNAS 68(4):815-819 (1971, doi 10.1073/pnas.68.4.815, PMC389050) + PNAS 75(8):3557-3561 (1978, doi 10.1073/pnas.75.8.3557, PMC392823). Both are FREE-TO-READ at PMC and NEITHER is in the PMC Open Access Subset (NCBI oa.fcgi returns idIsNotOpenAccess for both IDs). rc436 corrected this line, which said \"both OA\" from rc317: PMC hosting is a RETRIEVABILITY fact, not a LICENCE one, and conflating them is what let the tree hold two contradictory beliefs about the 1971 paper for four releases. Retrievability is what [[feedback_paywalled_doi_cannot_be_attested]] keys on, and the 1971 paper is separately attested from the author's institutional repository (response_sha256 c39705fe50088020f37d946c5f9753470fa0659e11221fd32c0f98fae03a6a7d).",
             parameters=(P("embedding", "list", True, "the deformed curve C — vertices [(x,y,z), ...]; each coordinate an int / fractions.Fraction / (num,den) integer pair (exact rational — floats rejected)"),
                         P("reference", "list", True, "the base curve C0 — SAME vertex count as embedding (Fuller's integral pairs t0_i with t_i by index)"),
                         P("closed", "bool", False, "keyword-only; True (default) wraps the polygon (central-difference tangents with the P[n-1]<->P[0] closure); False = an open polyline"),
@@ -4700,7 +4700,7 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.biology.genome.cwf_consistency_mod2", owner="srmech", category="genome",
-            summary="rc313 — the mod-2 Calugareanu-White-Fuller consistency check on a strand: Lk == Tw + Wr (mod 2). Three INDEPENDENTLY-computed reads: Lk = the intrinsic mod-2 center-parity holonomy (rc309) — the center_parity of the strand's single fundamental cycle from quaternion_cycle_holonomy over the Q8 gains (center_parity -1 -> Lk==1; +1 -> Lk==0; 0 = pure-imaginary NON-central holonomy -> mod-2 Lk UNDEFINED, flagged); Tw = the framing twist read from the Q8 SIGN accumulation (parity of the count of negative-coset {-1,-i,-j,-k} gains); Wr = the directional writhe of the supplied embedding (discrete_writhe), computed from GEOMETRY, NEVER as Lk-Tw. The geometric independence gives the check teeth: the writhe supplies the non-abelian Q8 cocycle (e.g. i.i=-1) that the per-turn sign-sum Tw misses. HONEST BOUNDING (form not identity): a finite group (Q8) pins Lk only MOD 2 (center-parity), NOT the integer Gauss linking number; the Tw<->Q8-sign map is UNPINNED at integer level (parity only); no claim that DNA IS a quaternion or an integer-level CWF. No-embedding path: returns ONLY the intrinsic mod-2 Lk (+ Tw); wr / wr_mod2 / consistent are None, no Wr fabricated. Composition of C: quaternion_cycle_holonomy . discrete_writhe (both C-dispatched) . mod-2 integer arithmetic. PROVENANCE (rc429, `#T1128`): Calugareanu-White-Fuller is used as the STANDARD NAME of Lk = Tw + Wr; the verdict is DERIVED-AND-MEASURED, not cited. The op does not ASSERT the relation, it MATERIALISES it as three INDEPENDENT computations (lk_mod2 / tw_mod2 / wr_mod2) plus the returned `consistent` witness, and tests/test_discrete_writhe_cwf_rc313.py calls it and asserts that agreement. The canonical CWF sources (Calugareanu 1959-61, White 1969, Fuller 1971) are paywalled-only or offline, so no attestation is claimed for the name and none is substituted unverified.",
+            summary="rc313 — the mod-2 Calugareanu-White-Fuller consistency check on a strand: Lk == Tw + Wr (mod 2). Three INDEPENDENTLY-computed reads: Lk = the intrinsic mod-2 center-parity holonomy (rc309) — the center_parity of the strand's single fundamental cycle from quaternion_cycle_holonomy over the Q8 gains (center_parity -1 -> Lk==1; +1 -> Lk==0; 0 = pure-imaginary NON-central holonomy -> mod-2 Lk UNDEFINED, flagged); Tw = the framing twist read from the Q8 SIGN accumulation (parity of the count of negative-coset {-1,-i,-j,-k} gains); Wr = the directional writhe of the supplied embedding (discrete_writhe), computed from GEOMETRY, NEVER as Lk-Tw. The geometric independence gives the check teeth: the writhe supplies the non-abelian Q8 cocycle (e.g. i.i=-1) that the per-turn sign-sum Tw misses. HONEST BOUNDING (form not identity): a finite group (Q8) pins Lk only MOD 2 (center-parity), NOT the integer Gauss linking number; the Tw<->Q8-sign map is UNPINNED at integer level (parity only); no claim that DNA IS a quaternion or an integer-level CWF. No-embedding path: returns ONLY the intrinsic mod-2 Lk (+ Tw); wr / wr_mod2 / consistent are None, no Wr fabricated. Composition of C: quaternion_cycle_holonomy . discrete_writhe (both C-dispatched) . mod-2 integer arithmetic. PROVENANCE (rc429, `#T1128`): Calugareanu-White-Fuller is used as the STANDARD NAME of Lk = Tw + Wr; the verdict is DERIVED-AND-MEASURED, not cited. The op does not ASSERT the relation, it MATERIALISES it as three INDEPENDENT computations (lk_mod2 / tw_mod2 / wr_mod2) plus the returned `consistent` witness, and tests/test_discrete_writhe_cwf_rc313.py calls it and asserts that agreement. All three canonical CWF sources ARE retrievable; Fuller 1971 is additionally ATTESTED here, and the other two are simply not yet content-addressed. A 2026-08-15 four-route sweep found each on the first search -- Fuller at the Caltech authors repository, White 1969 in the Edinburgh archive, Calugareanu 1959-61 in DML-CZ -- so there is NO residual not-retrievable list. \"We could not retrieve it\" is a fact about the ATTEMPT, never about the SOURCE, and a publisher 403 is bot-blocking rather than evidence. RETRIEVABILITY AND LICENCE ARE DIFFERENT QUESTIONS and this line keeps them apart, because both of the tree's earlier answers got one of them wrong. Fuller 1971 (PNAS 68(4):815-819, doi 10.1073/pnas.68.4.815) is FREE-TO-READ at PMC389050 but is NOT in the PMC Open Access Subset -- NCBI oa.fcgi returns idIsNotOpenAccess for it -- so calling it OA is a LICENCE claim that fails, while calling it unretrievable is a RETRIEVABILITY claim that also fails. [[feedback_paywalled_doi_cannot_be_attested]] keys on RETRIEVABILITY, so the paper is attestable: the primary route is the author's institutional repository, https://authors.library.caltech.edu/records/0wq4z-dv964/files/FULpnas71.pdf (HTTP 200, 874,619 bytes, PDF 1.3, 5 pages, response_sha256 c39705fe50088020f37d946c5f9753470fa0659e11221fd32c0f98fae03a6a7d), whose first page reads Proc. Nat. Acad. Sci. USA Vol. 68 No. 4 pp. 815-819 April 1971, The Writhing Number of a Space Curve, F. BROCK FULLER, Sloan Laboratory, California Institute of Technology. What that attests is BIBLIOGRAPHIC IDENTITY + RETRIEVABILITY, content-addressed; the body mathematics was NOT extracted, so it is still not a content attestation that the PDF states the relation in the form written here, and the verdict below never rested on any source. rc436: through rc435 this sentence called all three unretrievable, and relative_writhe simultaneously called this paper OA; both were wrong, in opposite directions.",
             parameters=(P("edges", "list", True, "the strand connectivity [(u,v), ...] — a single fundamental cycle"),
                         P("gains", "list", True, "per-edge unit-quaternion Q8 gains (4-vectors) parallel to edges — the stored physical turns"),
                         P("n", "int", False, "keyword-only; node count (inferred from the edges when None)"),
@@ -9306,6 +9306,53 @@ def _register_primitive_class_tools() -> None:
             returns=R("tuple", "dim-tuple of exact Q — the all-zero tuple iff "
                                "the ordered triple (x, y, z) associates"),
         ),
+        # rc436 (`#T1141`): the SUPPORT of the op above, as a SET. The COUNT
+        # 168 was already pinned at five sites (associator's own 512 - 344
+        # census, cd_cycle_holonomy 168/512, oct_mult 168/343,
+        # octonion_frame_read's seam read, group_algebra_table's labelled
+        # tautology); the SET those counts count, and the closed-form Fano
+        # predicate that reproduces it, shipped nowhere.
+        ToolEntry(
+            name="srmech.cascade.octonion_associator_support", owner="srmech",
+            category="cascade",
+            summary="The 168 ordered imaginary triples on which 𝕆's associator "
+                    "is NONZERO — shipped as a SET, with the closed-form "
+                    "predicate that reproduces it: distinct imaginary indices "
+                    "NOT all on one Fano line, i.e. 7·6·5 − 7·3! = 210 − 42 = "
+                    "168. Set equality against the measured support is gated, "
+                    "not assumed. Reproduces a count already pinned at five "
+                    "sites rather than moving it; what is new is the SET, the "
+                    "predicate and a Class-A content address over them. 𝕆 is "
+                    "ALTERNATIVE, so the associator is alternating and the "
+                    "supports over 512, 343 and 210 ordered triples are "
+                    "literally the same 168 — three readings of one object. "
+                    "⚠️ COLLISION: 168 also counts cd_zero_divisor_witnesses(16) "
+                    "at the dim-16 SEDENION rung (a zero-divisor census, the "
+                    "sense inertia_signature uses) — different rung, different "
+                    "phenomenon, no derivation connects them; |Aut(Fano)| = 168 "
+                    "is literature adjacency, not measured here. Class A "
+                    "(content-addressed invariant) ∘ Class E (the Fano lines "
+                    "are DERIVED from cd_basis_product, not tabulated). "
+                    "composition_of_c over the c_dispatched associator + "
+                    "sha256_bytes: NO new C symbol, ABI stays 14. SSoT: Baez, "
+                    "*The Octonions*, Bull. AMS 39 (2002) 145–205, "
+                    "arXiv:math/0105155 — §2.1 (the Fano plane) and §1.1 "
+                    "(alternativity; rc436 repointed this from §2.1, which "
+                    "contains the term zero times while §1.1 contains it six, "
+                    "per the committed literature_claims manifest); Schafer "
+                    "(1966) ch. III (alternative algebras)."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(),
+            returns=R("dict",
+                      "{dim:8, count:168, ordered_distinct_imaginary:210, "
+                      "triples: the sorted 168-tuple of (i,j,k) — THE PAYLOAD, "
+                      "fano_lines: the 7 derived lines, associating: the "
+                      "complementary 42, predicate/arithmetic: the closed form, "
+                      "sha256: Class-A address over triples, collision_note, "
+                      "line_membership_reproduces_support: bool}"),
+            composes=("srmech.cascade.associator",
+                      "srmech.amsc.format.sha256_bytes"),
+        ),
         # rc380 (`#T1055`): the k=2 SQUARE-LOOP peer of the associator. The
         # Cayley–Dickson property-loss ladder is a ladder of loop defects of
         # rising arity, each turning on one rung later: commutator at ℍ,
@@ -13003,10 +13050,20 @@ def _register_qm_tools() -> None:
                     "DERIVED-AND-MEASURED, not cited — the op returns the "
                     "exact rational sum and CERTIFIES integrality rather "
                     "than assuming it, and tests/test_covering_layer_rc422.py "
-                    "calls it and asserts both branches. The canonical CWF "
-                    "sources are paywalled-only or offline, so no "
-                    "attestation is claimed and none is substituted "
-                    "unverified.",
+                    "calls it and asserts both branches. Of the canonical CWF "
+                    "sources Fuller 1971 is RETRIEVABLE and attested (PNAS "
+                    "68(4):815-819, doi 10.1073/pnas.68.4.815; free-to-read at "
+                    "PMC389050 but NOT in the PMC Open Access Subset -- NCBI "
+                    "oa.fcgi returns idIsNotOpenAccess, so OA would be a "
+                    "LICENCE claim that fails while retrievability holds); "
+                    "Calugareanu 1959-61 (DML-CZ) and White 1969 (Edinburgh "
+                    "archive) are retrievable too -- a 2026-08-15 four-route "
+                    "sweep found all three on the first search, so there is no "
+                    "residual not-retrievable list; they are simply not yet "
+                    "content-addressed. Fuller is attested for BIBLIOGRAPHIC IDENTITY + "
+                    "RETRIEVABILITY via the author's institutional repository, "
+                    "never for content, so the relation still carries no "
+                    "content attestation and none is substituted unverified.",
             parameters=(P("twist", "tuple[int, int]", True,
                           "Tw as an exact (num, den) integer pair"),
                         P("writhe", "tuple[int, int]", True,

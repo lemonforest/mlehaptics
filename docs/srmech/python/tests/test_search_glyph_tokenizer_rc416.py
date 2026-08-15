@@ -349,8 +349,36 @@ from srmech.math.text import fold_marks, glyph_stream
 #: tool-docs generator seeds ``explanation`` from a docstring's FIRST paragraph
 #: only, and curated text wins the merge. Contract documentation appended below
 #: the opening paragraph reaches neither surface.
+#: **RE-PINNED AGAIN at v0.9.0rc436 (local task T1141).** rc435's value was
+#: ``af759315d6043541938bfc9618635bf959d059f3d79928957b753946a96e44d7``. This is
+#: the POPULATION kind rather than the pure-prose kind: rc436 registers ONE new
+#: op, ``srmech.cascade.octonion_associator_support``, so the frame set moves
+#: **684 -> 685 = 656 ops + 29 carriers** and ``describe()['tools']['total']``
+#: moves 655 -> 656. Its ToolEntry summary and its curated
+#: explanation/why/worked blocks all land in the corpus by construction. The rc
+#: ALSO edits ToolEntry and docstring prose on four existing surfaces (the
+#: Fuller-1971 retrievability repair), which is the prose kind arriving in the
+#: same commit -- both branches of this constant's own failure message at once.
+#:
+#: ⚠️ **The value moved a SECOND time inside rc436**, and saying why matters:
+#: the first rc436 value was
+#: ``fb949e35ff814848739ce32c25bfdde5a32ff47539ffb5ae6011a78c22110f37``, taken
+#: before the item-1 rework. That rework rewrote the Fuller-1971 provenance
+#: prose on four ToolEntry surfaces — twice, once when NCBI ``oa.fcgi`` showed
+#: "OA" was a false LICENCE claim, and again when a four-route sweep showed the
+#: not-retrievable list was empty. The corpus is BUILT FROM ToolEntry prose, so
+#: each rewrite moved the digest by construction. This is the pure-prose branch
+#: of this constant's own failure message arriving three times in one rc, which
+#: is exactly why the re-pin is done LAST, after the prose has settled.
+#:
+#: Determinism re-established independently at this value BEFORE re-pinning:
+#: FIVE successive ``_build_frames('all')`` builds in FIVE FRESH interpreters on
+#: WSL2 (numpy-absent) produced this one digest, with the frame counts
+#: 685 / 656 / 29 identical on every build. The drift branch is ruled out by
+#: measurement, again.
+#:
 WITNESS_RC416 = (
-    "af759315d6043541938bfc9618635bf959d059f3d79928957b753946a96e44d7")
+    "5bc75ac156b85b6580cd47e8a1077fea67fa90e45c00e16f60be28b9482e4272")
 
 #: The ASCII control set. These four queries are the ops the tokenizer work is
 #: ABOUT, so a regression on them would be the change eating its own subject.

@@ -1096,6 +1096,35 @@ def jacobi_eigvals(
       "exact-substrate-achievable" case). The return is the same contract as
       the float path: a 1-D :class:`~srmech.math.vec.Vec` of ``n`` ascending
       eigenvalues, **with multiplicity**.
+
+    Why the exact route exists — float-Jacobi cannot terminate exactly, even at n = 3
+    ------------------------------------------------------------------------------
+    A Jacobi sweep annihilates one off-diagonal pair at a time with a plane
+    rotation whose entries are built from **square roots only**. Every value the
+    rotation basis can reach therefore lies in a tower of quadratic extensions:
+    ``[ℚ(α):ℚ] = 2ᵏ``. An eigenvalue is a root of the characteristic polynomial,
+    and a generic rational symmetric matrix has an **irreducible cubic** there —
+    degree 3, which is odd and so divides no ``2ᵏ``. The rotations converge
+    toward such a root without ever reaching it, no matter how many sweeps run.
+
+    Measured on the shipped ops, not asserted: ``[[2, 1, 1], [1, 3, 1],
+    [1, 1, 5]]`` has characteristic polynomial ``x³ − 10x² + 28x − 22``, and
+    ``srmech.cascade.matrix_cascades.factor_integer_poly([-22, 28, -10, 1])``
+    returns it as a SINGLE multiplicity-1 factor — irreducible over ℚ. So the
+    float path is an ITERATIVE APPROXIMATION **by construction**, not by
+    implementation shortcut, and ``exact=True`` is the route that does not
+    pretend otherwise: it leaves the rotation basis entirely for the exact
+    substrate (Faddeev–LeVerrier → Yun → Sturm → ``Q`` bisection) and stays
+    exact until the single terminal float lift.
+
+    ⚠️ **NON-CLAIM: this is not Abel–Ruffini.** The obstruction above is about
+    SQUARE-ROOT TOWERS, not solvability by radicals, and it bites at ``n = 3``
+    where radicals *do* suffice — the cubic is solvable, just not inside a
+    2-power tower. Nothing here concerns degree ≥ 5. This paragraph was added at
+    rc436 (`#T1141`) after a tracker entry framed the gap as a false
+    Abel–Ruffini claim in this docstring; measured, no such claim was ever
+    present — "Abel", "Ruffini" and "quintic" occur nowhere in this function.
+    The gap was the ABSENCE of a stated reason for ``exact=``, not a wrong one.
     """
     if exact:
         return _jacobi_eigvals_exact(matrix)

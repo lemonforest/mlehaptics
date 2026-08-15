@@ -217,6 +217,7 @@ srmech.cascade.matrix_cascades.qr
 srmech.cascade.matrix_cascades.svd
 srmech.cascade.moufang_residue
 srmech.cascade.net_chirality
+srmech.cascade.octonion_associator_support
 srmech.cascade.octonion_dft
 srmech.cascade.octonion_frame_read
 srmech.cascade.octonion_hopf_base

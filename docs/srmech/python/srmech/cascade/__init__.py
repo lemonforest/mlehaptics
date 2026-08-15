@@ -261,6 +261,10 @@ from .cayley_dickson import (
     group_algebra_table,
     table_product,
     associator,
+    # rc436 (`#T1141`): the associator's SUPPORT as a SET + the Fano
+    # predicate that reproduces it (the count 168 was already pinned at
+    # five sites; the SET and the predicate were not).
+    octonion_associator_support,
     cd_commutator,
     cd_cycle_holonomy,
     cd_three_form,
@@ -476,6 +480,8 @@ __all__ = [
     "table_product",
     # The associativity DEFECT (rc360; `#T1032`)
     "associator",
+    # rc436 (`#T1141`) -- the 168-triple associator support as a SET
+    "octonion_associator_support",
     # The k=2 / k=3 loop-defect ladder — commutator + 3-cycle holonomy (rc380; `#T1055`)
     "cd_commutator",
     "cd_cycle_holonomy",

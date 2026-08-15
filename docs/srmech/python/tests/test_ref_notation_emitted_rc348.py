@@ -698,6 +698,15 @@ _WORKFLOWS = _REPO_ROOT / ".github" / "workflows"
 #: the filename. `parents[2]` from a test file is `docs/srmech`; anything
 #: deeper than `docs/srmech/python` can escape the srmech-ci trigger.
 SCAN_ROOTS = {
+    # rc436 (`#T1141`): the citation-CONTRADICTION gate reads the compiled-in C
+    # tool registry alongside every package module, because the contradiction it
+    # is strict-zero on shipped in BOTH -- the rc429 Fuller-1971 claim reached
+    # users through `describe()`, the MCP tool list and
+    # `c/src/srmech_tool_registry.c` (4 occurrences there alone). Scanning only
+    # python/ would have missed the surface with the most copies of the defect,
+    # so reaching into c/ is the POINT of the gate, not an accident of layout.
+    "tests/test_citation_contradiction_rc436.py": (
+        "docs/srmech/python", "docs/srmech/c"),
     # THE WIDE ONE: rglobs the entire subtree to derive the `#TNNN` vocabulary.
     "tests/test_ref_notation_emitted_rc348.py": ("docs/srmech",),
     # rc407 (`#T1076`): the ADR-0009 MCP parity gate reads the C source to
