@@ -124,7 +124,15 @@ def gcd(a: int, b: int) -> int:
     discipline (`[[feedback_c_must_be_standalone_complete_no_python_fallback]]`,
     `[[project_c_standalone_honor_drift_backlog]]`): a fixed-width-int's full
     domain IS its width; arbitrary precision is a different numeric domain the
-    pure path owns. Non-negative integer domain (gcd of magnitudes)."""
+    pure path owns. Non-negative integer domain (gcd of magnitudes).
+
+    Raises:
+        TypeError: ``a`` or ``b`` is not an ``int``.
+        ValueError: ``a`` or ``b`` is negative. **Not** for large values — the
+            no-upper-cap paragraph above is the contract, and the ToolEntry
+            text that claimed an oversize ``ValueError`` was the stale surface
+            (corrected 0.9.0rc434, `#T1130`).
+    """
     if not isinstance(a, int) or not isinstance(b, int):
         raise TypeError("gcd: a and b must be int")
     if a < 0 or b < 0:

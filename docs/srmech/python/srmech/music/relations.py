@@ -528,6 +528,18 @@ def normal_order(pcs: Sequence[int], convention: str) -> Tuple[int, ...]:
         :func:`prime_form` for that).
 
     Exact integer; numpy-free; no ``abs()``.
+
+    Raises:
+        TypeError: ``pcs`` is not a sequence of ``int`` (a ``str`` is a
+            sequence, so this is a typed refusal), or an element is not an
+            ``int``.
+        ValueError: ``pcs`` is empty, or ``convention`` is not ``"forte"`` /
+            ``"rahn"``.
+
+    (Added 0.9.0rc434, `#T1130`. The registry text said "omitting it is a
+    TypeError", which is true but describes CPython's ARITY check, not a
+    contract this function enforces; the two clauses above are the ones its
+    own body raises, measured.)
     """
     _check_convention(convention)
     s = _as_pcs(pcs)

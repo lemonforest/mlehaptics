@@ -285,25 +285,35 @@ def cyclic_gcd(a: int, b: int) -> int:
     ``srmech_cascade_cyclic_gcd_u64`` when ``HAS_NATIVE`` is True, both
     inputs are pure Python ``int`` (not bool) in the uint64 range
     ``[0, 2**64 - 1]``. Falls back to the Python ``srmech.math.cyclic.gcd``
-    path for bool, negative, and out-of-uint64 inputs — which itself
-    raises ``ValueError`` for negative / oversized inputs, preserving the
-    pre-rc6 public API exactly. The cascade wrapper is a pure-delegation
+    path for bool, negative, and out-of-uint64 inputs — which raises
+    ``ValueError`` for negatives and, since 0.9.0rc167 (gh #765), runs the
+    **uncapped** big-int Euclid for anything past ``2**64 - 1`` rather than
+    rejecting it. **There is no upper cap on this alias either**: the
+    ~100-digit ``One``-scale rationals depend on that, and ``gcd``'s own
+    docstring states the contract ("No upper cap (arbitrary precision)").
+    This wrapper's prose claimed an oversize ``ValueError`` through
+    0.9.0rc433 — measured false at three magnitudes up to ``2**200``
+    (`#T1130`). The cascade wrapper is a pure-delegation
     alias for the Class I primitive ``srmech_gcd``; dispatching through
     the cascade-namespace symbol keeps the cascade-catalog naming uniform
     per the rc6 directive *"delegate to A-N C peers; cascade-level C
     wrapper + TOML"*.
 
     Args:
-        a: non-negative ``int`` in uint64 range.
-        b: non-negative ``int`` in uint64 range.
+        a: non-negative ``int`` of ANY width. Inside ``[0, 2**64 - 1]`` the
+            native cascade symbol serves it; above that the pure big-int
+            Euclid does, with the same value.
+        b: non-negative ``int`` of ANY width (as ``a``).
 
     Returns:
         The Euclidean ``gcd(a, b)`` (non-negative). ``gcd(0, 0)`` is
         ``0`` (the gcd identity); ``gcd(a, 0)`` is ``a``.
 
     Raises:
+        TypeError: forwarded from ``srmech.math.cyclic.gcd`` when ``a`` or
+            ``b`` is not an ``int``.
         ValueError: forwarded from ``srmech.math.cyclic.gcd`` for negative
-            inputs or inputs exceeding the uint64 parity surface.
+            inputs. **Not** for large ones — see the no-upper-cap note above.
     """
     if _is_pub(): _emit("cascade.cyclic_gcd", class_="I", input_shape=f"{_shape(a)}+{_shape(b)}")
     native = _try_native_cyclic_gcd(a, b)
@@ -343,6 +353,13 @@ def cyclic_mod_mul(a: int, b: int, n: int) -> int:
 
     Returns:
         ``(a * b) mod n`` in ``[0, n)``.
+
+    Raises:
+        TypeError: forwarded from ``srmech.math.cyclic.mod_mul`` when an
+            argument is not an ``int``.
+        ValueError: ``n <= 0``, or an argument is negative or past
+            ``2**64 - 1``. This cap is REAL here — unlike ``cyclic_gcd``,
+            which has none (added 0.9.0rc434, `#T1130`).
     """
     if _is_pub(): _emit("cascade.cyclic_mod_mul", class_="I", input_shape=_shape(a))
     return _cyclic_mod_mul(a, b, n)
@@ -426,6 +443,13 @@ def cyclic_mod_mul_wide(a: int, b: int, n: int) -> int:
 
     Returns:
         ``(a * b) mod n`` in ``[0, n)``.
+
+    Raises:
+        TypeError: forwarded from ``srmech.math.cyclic.mod_mul_wide`` when an
+            argument is not an ``int``.
+        ValueError: ``n <= 0``, or ``a`` / ``b`` is negative. There is no
+            WIDTH bound here — that is the whole point of the ``_wide`` peer
+            (added 0.9.0rc434, `#T1130`).
     """
     if _is_pub(): _emit("cascade.cyclic_mod_mul_wide", class_="I", input_shape=_shape(a))
     return _cyclic_mod_mul_wide(a, b, n)

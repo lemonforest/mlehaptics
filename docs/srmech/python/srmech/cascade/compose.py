@@ -73,6 +73,7 @@ import json
 import logging
 import re
 import warnings
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Tuple
 from srmech import _json as _srmech_json
@@ -1413,8 +1414,33 @@ def parse_catalog_chains(
     ``toml_dict["catalog"]["operator_chain"]``. Validates that the
     catalog declares ``chain_schema_version = 1`` when any chain is
     present.
+
+    Raises:
+        ChainSpecError: ``toml_dict`` (or its ``[catalog]`` table) is not a
+            mapping, or a chain is present without a supported
+            ``[catalog].chain_schema_version``. ``ChainSpecError`` subclasses
+            ``ValueError``, so existing ``except ValueError`` callers are
+            unaffected.
+
+    0.9.0rc434 (`#T1134`): the two shape guards below are new. Through
+    0.9.0rc433 a non-mapping argument reached ``.get`` and leaked a bare
+    ``AttributeError("'str' object has no attribute 'get'")`` out of a PUBLIC
+    entry point — an ambush whose TYPE misattributes a caller's malformed
+    input to an internal fault in srmech. Ruling (a): the CODE was wrong, so
+    the code is what changed.
     """
+    if not isinstance(toml_dict, Mapping):
+        raise ChainSpecError(
+            "parse_catalog_chains: expected a parsed TOML mapping; got "
+            f"{type(toml_dict).__name__}. Parse the descriptor first "
+            "(tomllib.loads / tomli.loads) and pass the resulting dict."
+        )
     catalog = toml_dict.get("catalog", {})
+    if not isinstance(catalog, Mapping):
+        raise ChainSpecError(
+            "parse_catalog_chains: [catalog] must be a table; got "
+            f"{type(catalog).__name__}"
+        )
     chains_raw = catalog.get("operator_chain", [])
     if not chains_raw:
         return []

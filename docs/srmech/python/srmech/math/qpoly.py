@@ -646,7 +646,13 @@ def qpoly_from_coeffs(coeffs, x_low: int = 0) -> QPoly:
     cell coercion: there a 2-int list is a ``(num, den)`` rational pair; HERE a
     list is ALWAYS ascending-q-degree ints (unambiguous prose grammar; exact
     rationals enter via the in-process constructor). No float, no ``abs()``,
-    no numpy / ``math``."""
+    no numpy / ``math``.
+
+    Raises:
+        TypeError: ``coeffs`` is not an ascending-x list of integer cells
+            (``int``, or an ascending-q list of ``int``). A ``str`` is the
+            common case — it is a sequence, so the failure has to be typed
+            rather than inferred (added 0.9.0rc434, `#T1130`)."""
     if isinstance(coeffs, tuple):
         coeffs = list(coeffs)
     if not isinstance(coeffs, list):

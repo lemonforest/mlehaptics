@@ -13,6 +13,72 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc434]
+
+### The prose that promises an exception the code never raises (`#T1130`, `#T1134`)
+
+**Registry stays 655. ABI stays 14. GENOME_FORMAT_VERSION stays 19.** No callable is registered. One code path changes (`parse_catalog_chains`); everything else is a declaration brought into line with measured behaviour, plus the gate that keeps it there.
+
+#### The shape of the defect
+
+A `Raises:` block is prose. Nothing computes over it, so it can be false for as long as nobody fires the input it names. rc434 fired them: an AST walk over **4762 callables** found **181** declaring a `Raises:` block across **254** clauses, and **111 probes** were executed against the shipped ops.
+
+The load-bearing finding is **where** the falsehood lives:
+
+> `ValueError: ... for negative inputs **or** inputs exceeding the uint64 parity surface.`
+
+Two clauses, one exception name, and only the first clause is true. Any instrument comparing the SET OF NAMES a docstring declares against the SET OF NAMES a body raises sees `{ValueError}` on both sides and reports CLEAN. **Name-level comparison is structurally blind to a false clause.**
+
+A static gate was therefore built, measured and **rejected**: precision **0/7** (every flag a false positive, cleared by execution) and recall **0/1** (it missed the real defect entirely). What ships instead is the execution corpus, under a coverage **FLOOR that rises** — `tests/declared_raises_covered_rc434.txt`, **83 of 254 clauses** today. Not a defect CEIL: a CEIL would imply the defect population is knowable, and would go green by deleting probes.
+
+#### Family 1 — rc167 removed a cap and left four pieces of prose false
+
+rc167 (gh #765) removed `cyclic.gcd`'s compiled-in `2**64` rejection under the standalone-honor no-compiled-in-caps discipline. `cyclic_gcd(2**64, 5)` returns `1`, confirmed at three magnitudes up to `2**200`. Four surfaces still claimed a `ValueError`:
+
+| Surface | Kind |
+|---|---|
+| `srmech/cascade/composites.py` `cyclic_gcd` — `Raises:` block + body prose | authored |
+| `srmech/introspect/_tool_docs_curated.py:1789` (`cascade.cyclic_gcd`) | authored |
+| `srmech/introspect/_tool_docs_curated.py:1965` (`math.cyclic.gcd`) | authored |
+| `_tool_docs.py` + `c/src/srmech_tool_registry.c` | regenerated |
+
+**Why editing prose to match code is the right call here and is not a document-away.** `gcd`'s own docstring already states *"No upper cap (arbitrary precision)"*, so the registry was contradicting the same op's docstring — the docstring is the witness that the registry is stale, not the other way round. Re-adding the cap would break the ~100-digit `One`-scale rationals that depend on the big-int Euclid. The removal was a deliberate design decision with its own rc; only the prose failed to follow.
+
+#### Family 2 — declarations that were missing, not wrong (ruling: ADD)
+
+Ten ops raise from their own body what no `Raises:` block declared. Each is measured, not adopted from the registry's word:
+
+`math.cyclic.gcd` · `cascade.exact_dft.exact_idft` · `biology.genome.centromere` · `cascade.cyclic_mod_mul` · `cascade.cyclic_mod_mul_wide` · `cascade.hamming_syndrome` · `math.qpoly.qpoly_from_coeffs` · `math.qbipoly.qbipoly_from_coeffs` · `music.normal_order` · `music.common_period`
+
+`common_period` is the sharpest: it raises `OverflowError("lcm(614889782588491410, 53) overflows uint64")` on a **harmonic** 30-partial spectrum while declaring only `ValueError`/`TypeError`. `_CLASS_I_PARITY_MAX` is a real C-parity contract the module documents and does not relax, and a non-raising sibling (`_period_multiplier_or_unavailable`) exists precisely to report the condition instead — so the code is right and the declaration was incomplete.
+
+`math.rational.continued_fraction` joins them for the opposite reason: it DOES cap at `2**64`, and its undeclared second clause raises the SAME `ValueError` as its declared one — the exact clause-level blindness above, in a single docstring.
+
+#### Two claims that did NOT survive re-measurement
+
+Both were filed as defects and are **not**:
+
+* **`introspect.tool_schema.tool_schema_view`** — filed as raising an undeclared `TypeError`. It takes **zero arguments** and raises nothing; the observed `TypeError` was CPython's arity error from the probe passing an argument. The registry sentence is about `json.dumps(get_tool_schema())` — a claim about the *sibling* op. Same false-positive MODE as the `feynman_scalar_propagator` sentence *"writing `1j/(k2 - m*m)` yourself produces a ZeroDivisionError"*, which describes the naive alternative, not a contract.
+* **`math.rational.best_rational`** — flagged for an oversize claim. The sentence is about the sibling `continued_fraction`, and it is **true** (measured: `ValueError` at `rational.py:112`).
+
+The filed scope was **15 mismatches in 4 families**; measured, it is **5 defects in 2 families** plus the additions above. Both retractions are encoded as negative controls in the gate.
+
+#### `#T1134` — a public entry point leaking `AttributeError` (ruling: FIX THE CODE)
+
+`parse_catalog_chains("...")` reached `.get` on a `str` and leaked `AttributeError: 'str' object has no attribute 'get'`. This is the ambush direction *with a type that misattributes a caller's malformed input to an internal fault in srmech*. Now `ChainSpecError` (the module's own class, already a `ValueError` subclass, so `except ValueError` callers are unaffected), with a matching guard on a non-table `[catalog]`.
+
+#### Also fixed: a generator writing to a path ADR-0010 retired
+
+`tools/gen_tool_docs.py` derived `out_path` as `srmech/amsc/_tool_docs.py` — a directory that exists with no such file in it. rc404 (`#T1069`) fixed exactly this in the sibling `gen_c_claims.py` and missed this site. `regen_all.py` reads the authoritative path from `codegen_manifest.py`, so the shipped tree was never mis-written; the damage was confined to running the script directly, where `load_committed` on a non-existent file returns empty — silently disarming the un-rederivable-prose guard — and the write mints a phantom file nothing imports.
+
+#### The gate (`tests/test_declared_raises_execution_rc434.py`)
+
+- **111 probes**, each firing one declared trigger against the shipped op. Five pin an ABSENCE — the rc167 no-upper-cap contract — because that is the half four pieces of prose contradicted.
+- **Coverage FLOOR as a SET**, not a cardinal (following `test_invocable_returned_floor_rc431.py`): *counts are not sets*, and a cardinal cannot name which clause lost coverage. Coverage is intersected with the declared population by construction, so the floor cannot be grown by writing probes instead of declarations.
+- **BIN-1 strict-zero**: a declared name that resolves to no exception class is a typo. One allowlist entry — `TOMLDecodeError`, a real `tomllib`/`tomli` class — with a paired test asserting the entry is still *real* and still *load-bearing*, so the allowlist cannot silently accumulate masks.
+- It is an **srmech-local** invariant and is deliberately NOT numbered as an eleventh Power-of-Ten rule; Holzmann has exactly ten and `test_jpl_audit.py` iterates `range(1, 11)`.
+- Six negative controls, including the two retracted instruments above and an empty-corpus mutation (*an instrument that cannot return otherwise is not a measurement*).
+
 ## [0.9.0rc433]
 
 ### The guard that is not there when it counts (`#T1131`)

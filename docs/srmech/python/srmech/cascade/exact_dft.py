@@ -336,6 +336,14 @@ def exact_idft(signal: Sequence) -> ExactSpectrum:
 
     Unnormalised: the ``1/N`` scale is a Class-N rational applied at :func:`lift`
     time (``lift(exact_idft(x), scale=N)``), keeping this core integer.
+
+    Raises:
+        ValueError: forwarded from :func:`exact_dft` — non-integral input (use
+            :func:`~srmech.cascade.spectral_cascades.dft` for float signals),
+            or ``N < 2``. Declared here rather than left to the delegate
+            because this is a public entry point in its own right (added
+            0.9.0rc434, `#T1130`: the registry named the exception, the
+            docstring did not).
     """
     return exact_dft(signal, inverse=True)
 

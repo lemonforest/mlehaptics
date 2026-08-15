@@ -313,7 +313,13 @@ def qbipoly_from_coeffs(coeffs) -> QBiPoly:
     unreachable by prose. A **non_compute BUILDER** (the
     ``coupling.from_bodies`` / ``text.cooccurrence_edges`` precedent): it
     constructs an operand; every computation lives in the ops that consume it.
-    No float, no ``abs()``, no numpy / ``math``."""
+    No float, no ``abs()``, no numpy / ``math``.
+
+    Raises:
+        TypeError: ``coeffs`` is not a Y-ascending list of x-cell lists. As in
+            :func:`~srmech.math.qpoly.qpoly_from_coeffs`, a ``str`` is a
+            sequence and so must be refused by type (added 0.9.0rc434,
+            `#T1130`)."""
     from .qpoly import _prose_qcell
     if isinstance(coeffs, tuple):
         coeffs = list(coeffs)

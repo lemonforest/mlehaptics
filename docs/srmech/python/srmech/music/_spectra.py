@@ -432,6 +432,16 @@ def common_period(partials: Sequence,
         ValueError: the spectrum is ``"inharmonic"`` or ``"open"`` — the message
             names the offending partial indices and why no period exists.
         TypeError: as :func:`spectrum_tier`.
+        OverflowError: the spectrum is HARMONIC but the Class-I ``lcm`` of the
+            reduced denominators leaves the uint64 parity surface, so there is
+            an integer ``k`` and this op cannot name it. Reach for
+            :func:`_period_multiplier_or_unavailable` when you want that
+            reported rather than raised. Measured with a 30-partial
+            reciprocal-prime spectrum: ``lcm(614889782588491410, 53)``
+            overflows (added 0.9.0rc434, `#T1130` — ENFORCED-NOT-DECLARED;
+            ``_CLASS_I_PARITY_MAX`` is a real C-parity contract this module
+            documents and does NOT relax, so the code was right and the
+            declaration was missing).
     """
     rows, opened = _read(partials, open_partials)
     incommensurable = tuple(int(r["index"]) for r in rows
