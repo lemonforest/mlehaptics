@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""F1343 — the square-class datum, DECLARED as config-driven TOML, not hand-rolled.
+"""F1344 — the FULL square_class op, DECLARED as config-driven TOML. F1343 retracted.
 
 User (2026-08-15):
   "can we use the sequenced cascade generator or some other part of the make_class to
@@ -62,31 +62,54 @@ print("""
 """)
 
 print("=" * 80)
-print("3 - WHAT IS NOT DECLARABLE, and exactly why")
+print("3 - THE FULL OP -- and the RETRACTION of F1343's 'missing leaf' claim")
 print("=" * 80)
-import srmech.cascade.leaves as L
-leaves = [n for n in dir(L) if not n.startswith("_") and not n[0].isupper()
-          and n != "annotations"]
-print(f"    the 13 shipped leaves: {leaves}\n")
+print("""  F1343 (mine, hours ago) said collapsing the parity vector to the squarefree
+  INTEGER needed a leaf that did not exist. THAT WAS WRONG, and it was reasoning
+  rather than measurement. Two things I had not checked:
 
-ck("no integer POW leaf (needed for p**(e mod 2))",
-   any("pow" in n for n in leaves), False)
-ck("no integer XOR leaf (needed for the F_2 rank elimination)",
-   any("xor" in n for n in leaves), False)
+    1. `dead_band` IS a Class-K integer gate. Its own docstring opens
+       "Class K (pin-slot dead-band): gate a non-negative magnitude at a band."
+       I asserted no Class-K leaf took an integer while one was in the list I printed.
+
+    2. A chain step may name ANY op by DOTTED PATH -- it is not limited to the 13
+       leaves at all. My own working descriptor already did this
+       (op = "srmech.cascade.leaves.seq_get"), so the evidence against my claim was
+       inside the artifact I used to make it.
+
+  And the gate that actually does the job is Class N:
+      rational_pow_uint((p, 1), parity)  ->  (p, 1) if parity==1, (1, 1) if parity==0
+  Raising to a BIT *is* "admit this prime, or admit the identity". Arithmetic
+  selection, no branch -- so the chain stays data-SIZED, never data-DEPENDENT.
+""")
+
+full = [(1001000, 10010), (254000, 635), (9081000, 10090), (36, 1),
+        (13, 13), (62750, 2510), (1, 1), (4, 1), (2510, 2510)]
+for n, want in full:
+    got = tuple(D.run_cascade_chain("square_class", {"n": n}))
+    ck(f"square_class({n})", got, (want, 1))
 
 print("""
-  So the ladder stops in a precise place:
-    DECLARABLE TODAY  the parity VECTOR  (this descriptor)     <- the F_2 datum
-    NEEDS ONE LEAF    collapse to the squarefree INTEGER: p**(e mod 2) is a value
-                      GATED ON A BIT -- a Class-K pin-slot shape, and no Class-K
-                      leaf takes an integer. With it, the collapse is a fold of
-                      the EXISTING bigint_mul.
-    NEEDS ONE LEAF    the F_2 RANK: Gaussian elimination is XOR-reduce, and there
-                      is no integer XOR leaf (orientation_compose is signs,
-                      vec_add is floats).
+  THE WHOLE OP, declared: J factor -> E seq_get x3 -> I mod_add(e,0,2)
+                          -> E pair -> N rational_pow_uint -> N rational_mul FOLD.
+  Nine A-N steps, zero Python, zero new C symbols.
+""")
 
-  Two leaves, both Class-I/K integer primitives, and F1342's whole ask becomes a
-  TOML declaration with no new Python and no new C symbol.
+print("=" * 80)
+print("4 - WHAT IS STILL UNBUILT -- and this time WHY, not a guess")
+print("=" * 80)
+print("""  The F_2 RANK is NOT built here, and the obstacle is NOT a missing op:
+  XOR on parity bits is already `mod_add(a, b, 2)`, which ships.
+
+  The obstacle is a DELIBERATE guarantee. compose.py states the MAP form is
+  "data-SIZED, never data-DEPENDENT: no predicate decides continuation" -- that is
+  a TOTALITY invariant, not an oversight. Textbook Gaussian elimination branches on
+  whether a leading bit is set, so it is out of the form BY DESIGN.
+
+  A branchless fixed-size elimination (mask-multiply instead of if) would be
+  data-sized and should therefore fit. I HAVE NOT TRIED IT. That is an untested
+  conjecture, not a limitation -- recorded that way precisely because the last
+  thing I recorded as a limitation turned out to be one I had not tried.
 """)
 
 print("=" * 80)

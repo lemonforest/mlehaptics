@@ -1,0 +1,107 @@
+# R-RBS-LM cascade descriptor — the FULL square class of n (F1344).
+#
+# F1343 claimed this needed a missing "bit-gate" leaf. That was WRONG: Class-N
+# `rational_pow_uint((p,1), parity)` IS the gate -- it returns (p,1) when parity
+# is 1 and (1,1) when parity is 0. The whole op is declarable with shipped ops.
+
+[cascade]
+name = "square_class"
+class_composition = "J o E o I o N"
+purpose = "The SQUAREFREE PART of n — its square class in Q*/(Q*)^2, as an exact rational (s, 1)."
+description = """
+J factor -> E seq_get the (p,e) pair and its parts -> I mod_add(e,0,2) for the
+parity -> N rational_pow_uint((p,1), parity) which yields (p,1) when the exponent
+is ODD and the multiplicative identity (1,1) when it is EVEN. A Class-N
+rational_mul fold over that list collapses to the squarefree part.
+
+The parity gate is the Class-K pin-slot idea realised in Class N: raising to a
+BIT is exactly "admit this prime or admit the identity". No Python `%`, and
+no ALU absolute-value call, no branch -- the selection is arithmetic, so the chain stays
+data-SIZED and never data-DEPENDENT (the totality invariant the MAP form
+protects).
+"""
+
+[cascade.signature]
+input = "int  # n > 0"
+output = "tuple[int, int]  # (squarefree part of n, 1)"
+operation = "prod over p | n of p**(v_p(n) mod 2)"
+
+[cascade.attestation]
+author = "Steven Kirkland"
+license = "MIT"
+canonical_landings = [
+  "F1341/F1342 — the tier-2 frame-change group is (Z/2)^k from square classes",
+  "F1343 — the parity VECTOR declared (this op's predecessor)",
+  "F1344 — the FULL op declared; F1343's 'missing leaf' claim retracted",
+  "Kummer theory (n=2): Q*/(Q*)^2 is an F_2 vector space",
+]
+
+[[cascade.chain]]
+chain_schema_version = 2
+summary = "J factor -> per-prime N gate p**(e mod 2) -> N rational_mul fold."
+returns = "tuple[int, int]  # (squarefree part, 1)"
+
+[[cascade.chain.steps]]
+class = "J"
+op = "factor"
+args = { n = "@input.n" }
+
+[[cascade.chain.steps]]
+map_over = "@step[0].output"
+index = "k"
+bind = { pairs = "@step[0].output" }
+
+[[cascade.chain.steps.body]]
+class = "E"
+op = "srmech.cascade.leaves.seq_get"
+args = { seq = "@bind.pairs", i = "@idx.k" }
+
+[[cascade.chain.steps.body]]
+class = "E"
+op = "srmech.cascade.leaves.seq_get"
+args = { seq = "@step[0].output", i = 0 }
+
+[[cascade.chain.steps.body]]
+class = "E"
+op = "srmech.cascade.leaves.seq_get"
+args = { seq = "@step[0].output", i = 1 }
+
+[[cascade.chain.steps.body]]
+class = "I"
+op = "mod_add"
+args = { a = "@step[2].output", b = 0, n = 2 }
+
+[[cascade.chain.steps.body]]
+class = "E"
+op = "srmech.cascade.leaves.pair"
+args = { first = "@step[1].output", second = 1 }
+
+[[cascade.chain.steps.body]]
+class = "N"
+op = "rational_pow_uint"
+args = { base = "@step[4].output", exp = "@step[3].output" }
+
+[[cascade.chain.steps]]
+fold_class = "N"
+fold_op = "srmech.math.rational.rational_mul"
+fold_init = [1, 1]
+over = "@step[1].output"
+
+[[cascade.chain.proof_cases]]
+covers = "all_odd_exponents"
+inputs = { n = 1001000 }
+[[cascade.chain.proof_cases]]
+covers = "mixed_parity"
+inputs = { n = 254000 }
+[[cascade.chain.proof_cases]]
+covers = "mixed_parity"
+inputs = { n = 9081000 }
+[[cascade.chain.proof_cases]]
+covers = "perfect_square"
+inputs = { n = 36 }
+[[cascade.chain.proof_cases]]
+covers = "prime"
+inputs = { n = 13 }
+[[cascade.chain.proof_cases]]
+covers = "sweep"
+inputs = { n = 62750 }
