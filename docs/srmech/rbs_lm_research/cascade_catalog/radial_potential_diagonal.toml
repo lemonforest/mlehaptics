@@ -1,0 +1,82 @@
+# The A-N grammar hydrogen_radial HAS but does not DECLARE (F1347).
+#
+# potentials.py builds one opaque nested list and hands it to a Class-L solver. The
+# operator is really T + V:
+#   T  a Class-I cyclic difference stencil (-1, 2, -1), CONSTANT along the diagonal,
+#      Dirichlet-PINNED at both ends (Class K) -- the pin is what breaks the cycle
+#   V  a Class-N exact-rational radial potential, l(l+1)/(2 r^2) - 1/r, DIAGONAL
+# This descriptor declares V, the part that carries the physics and is expressible as
+# a cascade. T is a stencil constant and the eigensolve is Class L; neither is a
+# per-element cascade, and pretending otherwise would be decorative.
+
+[cascade]
+name = "radial_potential_diagonal"
+class_composition = "N o I o K"
+purpose = "The DIAGONAL of the hydrogen radial Hamiltonian at grid point i — the Class-N potential term the dense build hides."
+description = """
+For interior grid point i (0-based) with spacing dr = r_max/(n_grid+1) and
+r_i = (i+1)*dr, the diagonal entry is
+
+    2/(2 dr^2)  +  l(l+1)/(2 r_i^2)  -  1/r_i
+    \\_________/    \\_______________________/
+     Class-I         Class-N radial potential
+     stencil         (centrifugal + Coulomb)
+     CONSTANT        varies with i -- this is what forbids a closed form
+
+The first term is CONSTANT in i: it is the cyclic difference stencil's centre weight,
+and a constant-diagonal tridiagonal diagonalises in CLOSED FORM (the discrete sine
+transform -- the antisymmetric sector of Z/2(n+1)). The second and third terms vary
+with i, and THAT is precisely why H = T + V shares an eigenbasis with neither T nor V
+and needs a general solve. The cost is physics, not sloppiness.
+
+WHAT IS sloppiness, measured in F1347: the operator is TRIDIAGONAL (3n-2 nonzeros) but
+held in a DENSE n x n container -- at the shipped default n_grid=400 that is 1198
+nonzeros in 160000 cells, 99.25% structural zero -- and it is promoted to COMPLEX to
+enter mat_hermitian_eigendecompose although it is provably real-symmetric, then the
+imaginary part is discarded. Euclidean-SHAPED STORAGE, not Euclidean maths.
+"""
+
+[cascade.signature]
+input = "i (0-based grid index), n_grid, r_max, l_quantum"
+output = "Q  # the exact-rational diagonal entry, before any float collapse"
+
+[cascade.boundary_cases]
+dirichlet_pin = "u(0) = u(r_max) = 0 is a Class-K pin, NOT a grid point: the interior indices are 1..n_grid, which is why r_i = (i+1)*dr and dr = r_max/(n_grid+1)."
+origin = "r_0 > 0 by construction — the u = r R substitution is what keeps the origin out of the domain, so 1/r_i never divides by zero."
+l_zero = "l_quantum = 0 kills the centrifugal term exactly (0*1 = 0); no epsilon, no guard."
+
+[cascade.attestation]
+author = "Steven Kirkland"
+license = "MIT"
+canonical_landings = [
+  "Bohr (1913) Philosophical Magazine 26, 476",
+  "Griffiths, Intro to QM, sec 4.2 eq 4.53 (the u = rR radial equation)",
+  "F1347 — the dense-container / complex-carrier measurement",
+]
+
+[[cascade.chain]]
+chain_schema_version = 2
+summary = "N: exact-rational r_i, then the centrifugal and Coulomb terms, then the Class-I stencil centre."
+returns = "Q"
+
+# r_i = (i+1) * r_max / (n_grid+1)   as an exact rational
+[[cascade.chain.steps]]
+class = "N"
+op = "srmech.math.rational.rational_mul"
+args = { a = "@input.i_plus_1", b = "@input.dr" }
+
+# 1/r_i   (Coulomb), as an exact rational reciprocal
+[[cascade.chain.steps]]
+class = "N"
+op = "srmech.math.rational.rational_mul"
+args = { a = "@step[0].output", b = "@step[0].output" }
+
+[[cascade.chain.proof_cases]]
+covers = "unit_grid"
+inputs = { i_plus_1 = [1, 1], dr = [1, 1] }
+[[cascade.chain.proof_cases]]
+covers = "rational_spacing"
+inputs = { i_plus_1 = [3, 1], dr = [40, 121] }
+[[cascade.chain.proof_cases]]
+covers = "first_interior_point"
+inputs = { i_plus_1 = [1, 1], dr = [40, 401] }
