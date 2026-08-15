@@ -1055,21 +1055,27 @@ jobs:
     # is on a higher plan the cap is larger and N=6 becomes available; the number
     # to re-check is the cap, not the arithmetic.
     #
-    # MEASURED over TWO sharded runs — and the projection above was WRONG in the
+    # MEASURED over THREE sharded runs — and the projection above was WRONG in the
     # direction that matters, so it is corrected here rather than left as the
-    # number someone plans against. Job wall, both runs:
+    # number someone plans against. Job wall, identical selection every time:
     #
-    #     shard   run 31858558122   run 31859722143
-    #       1          11:12              8:41
-    #       2           7:30              7:49
-    #       3           6:42              8:25
-    #       4          11:46             11:36     <- max in BOTH runs
+    #     shard   31858558122   31859722143   31860852158    mean
+    #       1        11:12          8:41         11:05       10:19
+    #       2         7:30          7:49          6:50        7:23
+    #       3         6:42          8:25          8:52        8:00
+    #       4        11:46         11:36          8:35       10:39
+    #     per-run max   sh4           sh4           sh1
     #
-    # Two things separate here, and one run could not have told them apart:
-    #   * a REAL per-shard cost difference — shard 4 is the max in both runs, at
-    #     11:46 and 11:36. Equal-COUNT is not equal-TIME.
-    #   * RUNNER VARIANCE — shards 1 and 3 move by 2.5 min between runs on an
-    #     identical selection. Do not read a single run's ordering as structure.
+    # READ THIS CAREFULLY, because two runs said something three runs do not.
+    # After runs 1 and 2 the obvious reading was "shard 4 is the max in both, so
+    # it is a property of that shard". Run 3 REFUTED it: shard 4 came in at 8:35
+    # and shard 1 took the max. What survives three runs is weaker and truer:
+    #   * a per-shard cost TENDENCY — shards 1 and 4 mean ~10.3-10.7 min, shards
+    #     2 and 3 mean ~7.4-8.0. Equal-COUNT is not equal-TIME.
+    #   * RUNNER VARIANCE of ±2.5 min that REORDERS them run to run. No single
+    #     run's ordering is structure, and neither is two runs' agreement.
+    # The timeout below is therefore derived from the max over all TWELVE
+    # observations (11:46), not from "the slow shard" — there isn't a stable one.
     # Run 1 suite-step sum was 32.6 min against 29.2 unsharded: ~11% fixed-cost
     # overhead from paying pytest startup + collection 4 times.
     #
@@ -1126,9 +1132,9 @@ jobs:
     # monolith. The 45 sized a 30.4-min cell; carrying it onto an ~12-min shard
     # would guard at ~4x and make the number meaningless. Same rule this file uses
     # everywhere: `T = ceil(max) + max(ceil(0.5*max), 10)` over the MEASURED max,
-    # which is shard 4 at 11:46 (run 31858558122; it repeated at 11:36 in run
-    # 31859722143, so the max is a real property of that shard and not one slow
-    # runner) → `ceil(11.77) + max(ceil(5.88), 10) = 12 + 10 = 22`.
+    # which is 11:46 — the largest of TWELVE observations across three runs, not
+    # "the slow shard", because the table above shows the max MOVES between shards
+    # run to run → `ceil(11.77) + max(ceil(5.88), 10) = 12 + 10 = 22`.
     #
     # This number was 19 for exactly one run and that was a PROJECTION, from
     # "29.2 min / 4 shards ≈ 7.3 + overhead ≈ 8.2". The measurement came back at
