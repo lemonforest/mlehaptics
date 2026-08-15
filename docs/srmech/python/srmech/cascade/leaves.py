@@ -40,14 +40,21 @@ step declares. The honest classifications are recorded per-op below.
 dotted form resolves by IMPORT, not by membership of this file — ANY
 importable callable is reachable that way, and the twelve functions here
 carry no privileged status beyond being the framing / access / assembly
-helpers the `#T1114` census happened to measure missing. Reading "these
-leaves are reachable by dotted name" as "the dotted-addressable set IS these
-leaves" is the inversion to avoid: it has twice produced outside reports of
-srmech "missing" an op that ships. The declarable cascade vocabulary is the
-TOML catalog (``srmech/cascade/catalogs/cascade_catalog/``, the SSoT for
-bare names); the dotted arm's scope, purpose and bound are stated at
-:mod:`srmech.dsl._catalog`. What this module is NOT: a registry, a
-completeness claim, or a limit on what a chain step may name.
+helpers the `#T1114` census happened to measure missing. Reachable is the
+WHOLE grant, though, and it is a costed one: a dotted step arrives with no
+descriptor, no provenance tier, no ``ToolEntry`` under that spelling, and
+it evicts its chain from the native run loops — the catalog's guarantees do
+NOT follow a callable through the dotted arm (each of these is measured at
+:mod:`srmech.dsl._catalog`, which states the arm's scope, purpose and
+bound). Reading "these leaves are reachable by dotted name" as "the
+dotted-addressable set IS these leaves" is the inversion to avoid: it has
+twice produced outside reports of srmech "missing" an op that ships. The
+declarable cascade vocabulary is the TOML catalog
+(``srmech/cascade/catalogs/cascade_catalog/``, the SSoT for bare names).
+What this module is NOT: a registry, a completeness claim, or a limit on
+what a chain step may name — the limits on a dotted step are the costs
+just stated plus the import-and-callable guard, not membership of this
+file.
 
 **No ``abs()``** anywhere, per
 ``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]``; no

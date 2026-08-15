@@ -33,13 +33,33 @@ resolver ran, and the only instrument that reports that is running it.
 
 DIRECTION
 =========
-These are EQUALITIES, not ratchets. Each asserts the measured rc434 behaviour;
-a change in either direction is a real change to the DSL's naming contract and
-must be a deliberate edit here plus the three docstrings above, together.
+These are EQUALITIES, not ratchets — with ONE deliberate exception: the
+introspection-visibility census is DOWN-ONLY (see its docstring), because
+there the code side is a defect we want drained, not a contract we want
+frozen. Every other test asserts the measured rc434 behaviour; a change in
+either direction is a real change to the DSL's naming contract and must be a
+deliberate edit here plus the three docstrings above, together.
+
+`#T1137` ADJUDICATION (third pass)
+==================================
+The visibility gate originally here asserted
+``resolve("srmech.cascade.leaves.seq_len") is None`` — green exactly while
+the alias gap SURVIVES, red the day it is fixed: a ratchet aimed at its own
+correction, pinning a false doc sentence ("visibility follows the TARGET")
+with a true measurement. It is re-aimed below at the MECHANISM
+(spelling-keyed resolution) plus a down-only, doc-synced census. The
+adjudication also measured the dropped claim (b) TRUE at the CHAIN level (a
+dotted spelling evicts the whole chain from both native run loops; the op
+object is spelling-independent, which is all the earlier pass measured),
+promoted "catalog names never contain a dot" from an observation to a
+load-time guard (pre-guard, an importable dotted ``[cascade].name`` loaded,
+listed, introspected as the user's descriptor and silently RAN the shipped
+import), and pinned the ``[composite]``-body boundary of the dotted arm.
 """
 
 from __future__ import annotations
 
+import importlib
 import os
 import textwrap
 
@@ -172,23 +192,163 @@ def test_dotted_step_has_no_descriptor_and_so_no_provenance_tier():
         get_descriptor("srmech.cascade.magnitude")
 
 
-def test_introspect_visibility_follows_the_target_not_the_dotted_form():
-    """`srmech/dsl/_catalog.py`: a dotted step is not INHERENTLY invisible.
+# ── census machinery for the visibility gate ──────────────────────────────
 
-    The tempting overcorrection — "dotted steps have no ToolEntry, so they are
-    invisible to describe() / MCP" — is FALSE as a general claim and was
-    measured false before the docstring was written. Visibility is a property
-    of the target's own registration.
+#: Step keys that can name an op inside a declared [[cascade.chain]].
+_CHAIN_OP_KEYS = ("op", "fold_op", "reduce_op", "parallel_body", "map_op",
+                  "body_op")
+
+
+def _walk_chain_ops(node, sink):
+    """Collect every dotted op-naming value under a chain dict, recursively
+    (plain steps, fold steps, map bodies at any depth)."""
+    if isinstance(node, dict):
+        for k, v in node.items():
+            if k in _CHAIN_OP_KEYS and isinstance(v, str) and "." in v:
+                sink.add(v)
+            _walk_chain_ops(v, sink)
+    elif isinstance(node, list):
+        for item in node:
+            _walk_chain_ops(item, sink)
+
+
+def _shipped_dotted_chain_spellings():
+    """Every distinct dotted spelling in the shipped [[cascade.chain]]s."""
+    dotted: set = set()
+    for desc in _catalog.load_catalog().values():
+        _walk_chain_ops(desc.get("cascade", {}).get("chain", []), dotted)
+    return dotted
+
+
+def _import_spelling(name):
+    """The object a dotted spelling imports to, or None."""
+    mod_path, _, attr = name.rpartition(".")
+    if not mod_path:
+        return None
+    try:
+        mod = importlib.import_module(mod_path)
+    except ImportError:
+        return None
+    return getattr(mod, attr, None)
+
+
+#: rc434 census — shipped chain-step spellings that return ``None`` from
+#: ``resolve()`` while the SAME object is registered under another name (in
+#: every current case: its published ``srmech.cascade.<name>`` re-export).
+#: DOWN-ONLY. Fixing the gap — respelling descriptors to the published form,
+#: or object-aware resolution — DRAINS this set: the subset assert stays
+#: green, and only the doc-sync figures in ``srmech/dsl/_catalog.py`` go
+#: red, in the same commit, on purpose. A NEW invisible spelling fails here.
+_INVISIBLE_WHILE_TARGET_REGISTERED_RC434 = frozenset({
+    "srmech.cascade.atoms.chiral_flip",
+    "srmech.cascade.atoms.pin_slot_at_zero",
+    "srmech.cascade.atoms.reorient",
+    "srmech.cascade.composites.autocorrelation",
+    "srmech.cascade.composites.compensated_sum",
+    "srmech.cascade.composites.correlation_product",
+    "srmech.cascade.composites.kuramoto_gen_out",
+    "srmech.cascade.composites.kuramoto_gen_term",
+    "srmech.cascade.composites.kuramoto_inv_n",
+    "srmech.cascade.composites.kuramoto_out_simple",
+    "srmech.cascade.composites.kuramoto_sin_term",
+    "srmech.cascade.hypercomplex_dft.as_oct8",
+    "srmech.cascade.hypercomplex_dft.as_quat4",
+    "srmech.cascade.hypercomplex_dft.dft_scale",
+    "srmech.cascade.hypercomplex_dft.dft_sigma",
+    "srmech.cascade.hypercomplex_dft.odft_resolve_mu",
+    "srmech.cascade.hypercomplex_dft.odft_summand",
+    "srmech.cascade.hypercomplex_dft.qdft_resolve_mu",
+    "srmech.cascade.hypercomplex_dft.qdft_summand",
+    "srmech.cascade.leaves.byte_slice",
+    "srmech.cascade.leaves.dead_band",
+    "srmech.cascade.leaves.f64_add",
+    "srmech.cascade.leaves.int_parse_le",
+    "srmech.cascade.leaves.orientation_compose",
+    "srmech.cascade.leaves.pair",
+    "srmech.cascade.leaves.seq_get",
+    "srmech.cascade.leaves.seq_len",
+    "srmech.cascade.leaves.str_concat",
+    "srmech.cascade.leaves.utf8_encode",
+    "srmech.cascade.leaves.vec_add",
+    "srmech.cascade.leaves.vec_scale",
+    "srmech.cascade.parallel.parallel_sector_dispatch",
+})
+
+
+def test_dotted_visibility_is_spelling_keyed_and_the_shipped_gap_drains():
+    """`srmech/dsl/_catalog.py`: visibility is keyed by the SPELLING.
+
+    Re-aimed by the `#T1137` adjudication. The gate this replaces asserted
+    ``resolve("srmech.cascade.leaves.seq_len") is None`` — an equality that
+    would go RED the day the alias gap is FIXED: a ratchet aimed at its own
+    correction. The doc's actual claims are (1) a MECHANISM — resolution
+    answers name strings (exact, or a dotted-suffix shortening), never the
+    callable behind them — and (2) a dated CENSUS of the gap that mechanism
+    leaves across the shipped descriptors. (1) is pinned as an equality;
+    (2) as a down-only subset plus a doc-sync, so a fix drains the census
+    and reddens only the stale docstring figures, never the fix itself.
     """
     from srmech.introspect.tool_schema import get_tool_schema
     schema = get_tool_schema()
 
-    entry = schema.resolve("srmech.cascade.magnitude")
-    assert entry is not None and entry.name == "srmech.cascade.magnitude"
+    dotted = _shipped_dotted_chain_spellings()
+    assert dotted, "census walker found no dotted spellings — walker broke"
 
-    # ...while an unregistered target — shipped or not — has none.
-    assert schema.resolve("srmech.cascade.leaves.seq_len") is None
+    obj_to_names: dict = {}
+    for t in schema.tools:
+        obj = _import_spelling(t.name)
+        if obj is not None:
+            obj_to_names.setdefault(id(obj), []).append(t.name)
+
+    resolving, invisible, unregistered = set(), set(), set()
+    for op in sorted(dotted):
+        entry = schema.resolve(op)
+        if entry is not None:
+            # (1) MECHANISM: a hit is the exact spelling, never a rename onto
+            # the target's other alias. (resolve() also answers dotted-suffix
+            # SHORTENINGS like "cascade.magnitude", but a RUNNABLE spelling
+            # is a full import path, which can only hit by exact match.)
+            assert entry.name == op, (
+                f"resolve({op!r}) returned {entry.name!r}: resolution "
+                f"followed the OBJECT, not the spelling — the resolver "
+                f"contract changed; rewrite the _catalog.py docstring and "
+                f"this gate together, deliberately")
+            resolving.add(op)
+            continue
+        obj = _import_spelling(op)
+        assert obj is not None and callable(obj), (
+            f"shipped chain step {op!r} does not even import — an "
+            f"install-integrity break, not a visibility gap")
+        if obj_to_names.get(id(obj)):
+            invisible.add(op)
+        else:
+            unregistered.add(op)
+
+    # negative control for the mechanism claim: an importable callable with
+    # no registration anywhere resolves to nothing.
     assert schema.resolve("builtins.set") is None
+
+    # (2) CENSUS — down-only.
+    new = invisible - _INVISIBLE_WHILE_TARGET_REGISTERED_RC434
+    assert not new, (
+        f"NEW introspection-invisible chain-step spellings shipped: "
+        f"{sorted(new)}. Use the published re-export spelling in the "
+        f"descriptor, register the spelling, or (deliberately) extend the "
+        f"pinned census AND the _catalog.py docstring figures together.")
+
+    # (3) DOC-SYNC — the docstring's census figures must match the measured
+    # census, so a DRAIN reddens the stale prose, not the fix.
+    doc = _catalog.__doc__ or ""
+    assert f"the {len(dotted)} distinct dotted spellings" in doc, (
+        f"_catalog.py docstring census stale: measured {len(dotted)} "
+        f"distinct dotted spellings in shipped [[cascade.chain]] steps")
+    assert f"{len(resolving)} resolve, {len(invisible)} return ``None``" in doc, (
+        f"_catalog.py docstring census stale: measured {len(resolving)} "
+        f"resolving / {len(invisible)} invisible-while-target-registered — "
+        f"update the docstring figures in the same commit")
+    assert f"and {len(unregistered)} (the RBS-HDC" in doc, (
+        f"_catalog.py docstring census stale: measured {len(unregistered)} "
+        f"genuinely unregistered chain-step spelling(s)")
 
 
 # ── 2. the two step grammars, executed side by side ───────────────────────
@@ -304,3 +464,118 @@ def test_leaves_module_is_not_the_declarable_vocabulary():
     assert lookup_cascade_op("srmech.cascade.leaves.seq_len") is leaves.seq_len
     assert callable(lookup_cascade_op("srmech.cascade.atoms.chiral_flip"))
     assert callable(lookup_cascade_op("builtins.sorted"))
+
+
+# ── 5. `#T1137` adjudication gates ────────────────────────────────────────
+
+def test_dotted_catalog_name_is_rejected_at_load(tmp_path):
+    """`srmech/dsl/_catalog.py`: a dotted `[cascade].name` fails LOUD at load.
+
+    Measured pre-guard, a dotted name had two failure modes, both silent. An
+    unimportable one ("probe.dotted") loaded and listed but could never be
+    looked up. An IMPORTABLE one ("srmech.cascade.magnitude") was worse: it
+    loaded, listed, answered get_descriptor() with the USER descriptor — and
+    then RAN the shipped import (`chain().then(...).run(-5)` gave `5`, not
+    the descriptor's identity composite), because the dot routes resolution
+    to the import arm before any catalog consultation. The descriptor could
+    never win; introspection and execution disagreed about one name. The
+    guard turns both modes into this load error.
+    """
+    _write(tmp_path, "probe.toml", _DOUBLE_FLIP.replace(
+        'name = "probe_double_flip"', 'name = "probe.dotted"'))
+    dsl.register_catalog_dir(str(tmp_path))
+    with pytest.raises(ValueError, match="contains a dot"):
+        dsl.list_cascade_ops()
+
+    # the importable spelling — the silent-shadow mode — is equally rejected.
+    _catalog._USER_CATALOG_DIRS.clear()
+    _catalog.load_catalog.cache_clear()
+    hijack = tmp_path / "hijack"
+    hijack.mkdir()
+    _write(hijack, "hijack.toml", _DOUBLE_FLIP.replace(
+        'name = "probe_double_flip"', 'name = "srmech.cascade.magnitude"'))
+    dsl.register_catalog_dir(str(hijack))
+    with pytest.raises(ValueError, match="contains a dot"):
+        dsl.list_cascade_ops()
+
+    # strict-zero on the shipped catalog: the guarded invariant was already
+    # true of every shipped descriptor (this is what makes the guard a
+    # promotion of a true sentence, not a behaviour change for valid input).
+    _catalog._USER_CATALOG_DIRS.clear()
+    _catalog.load_catalog.cache_clear()
+    assert not [n for n in _catalog.load_catalog() if "." in n]
+
+
+def test_composite_descriptor_body_rejects_dotted_stage_ref(tmp_path):
+    """ADR-0008 boundary: the dotted arm is a BUILDER-surface property.
+
+    A dotted ref INSIDE a `[composite]` descriptor body never reaches
+    `lookup_cascade_op`: `_validate_composite` rejects any stage ref not in
+    the catalog at LOAD. The same spelling on the builder surface runs — the
+    control that pins WHERE the boundary sits, and keeps the ADR table's
+    "resolves by import" cell honest about its reach.
+    """
+    _write(tmp_path, "dotted_stage.toml", """
+        [cascade]
+        name = "probe_dotted_stage"
+        class_composition = "C"
+        purpose = "a composite stage naming a DOTTED op"
+        kind = "stage"
+
+        [composite]
+        [[composite.stage]]
+        op = "srmech.cascade.leaves.seq_len"
+    """)
+    dsl.register_catalog_dir(str(tmp_path))
+    with pytest.raises(ValueError, match="references unknown op"):
+        dsl.list_cascade_ops()
+
+    # CONTROL: the identical spelling runs on the builder surface.
+    _catalog._USER_CATALOG_DIRS.clear()
+    _catalog.load_catalog.cache_clear()
+    assert dsl.chain().then("srmech.cascade.leaves.seq_len").run([7, 7, 7]) == 3
+
+
+def test_dotted_spelling_evicts_chain_from_native_run_loop():
+    """`srmech/dsl/_catalog.py`: the run-loop cost of a dotted spelling.
+
+    The TRUE version of the adjudicated claim (b). The earlier pass measured
+    the OP — one self-routing object under either spelling — and stopped;
+    that layer is spelling-independent, and the claim as originally worded
+    ("no C peer => pure Python") is false there. The cost lives one level
+    up: both chain-level C engines key their dispatch on the BARE catalog
+    spelling (`_RUN_C_OPS` here; `dsl_leaf_dispatch` / `cr_dispatch` in C),
+    so ONE dotted step evicts the WHOLE chain from the C run loop. The
+    eligibility gate is pure-Python-decidable — no `.so` needed here; the C
+    leg was measured in the `#T1137` adjudication with an ABI-14 `.so`
+    (bare ran end-to-end in C, dotted was a native MISS, values identical).
+    Value parity is asserted on whichever engine runs: inform-don't-limit
+    means the eviction is a cost, never a wrong answer.
+    """
+    from srmech.cascade import compose as C
+
+    bare = {
+        "name": "probe_n_bare", "summary": "bare Class-N chain",
+        "returns": "q",
+        "steps": [{"class": "N", "op": "sin_series_truncate",
+                   "args": {"numerator": 1, "denominator": 3,
+                            "num_terms": 8}}],
+    }
+    dotted = {**bare, "name": "probe_n_dotted",
+              "steps": [{**bare["steps"][0],
+                         "op": "srmech.math.rational.sin_series_truncate"}]}
+    sb, sd = C.parse_chain_spec(bare), C.parse_chain_spec(dotted)
+
+    # the earlier pass's finding, kept: ONE callable under both spellings.
+    assert (C._resolve_step_op("p", 0, "N", "sin_series_truncate",
+                               C.DEFAULT_CLASS_REGISTRY)
+            is C._resolve_step_op("p", 0, "N",
+                                  "srmech.math.rational.sin_series_truncate",
+                                  C.DEFAULT_CLASS_REGISTRY))
+
+    # ...and yet only the bare spelling is C-run-eligible.
+    assert C._chain_c_eligible(sb) is True
+    assert C._chain_c_eligible(sd) is False
+
+    # the eviction never changes the VALUE (exact rational, both engines).
+    assert C.run_chain(sb, inputs={}) == C.run_chain(sd, inputs={})

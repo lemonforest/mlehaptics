@@ -22,8 +22,18 @@ descriptor declares ``seq_len``. That arm exists for ONE job — letting a
 descriptor or a chain step point at a **shipped srmech callable that has no
 descriptor of its own**, so the registered-leaf inventory
 (:mod:`srmech.cascade.leaves` and friends) is addressable without minting a
-descriptor per leaf. Catalog names never contain a dot, so the two forms
-cannot collide.
+descriptor per leaf. Catalog names never contain a dot —
+:func:`load_catalog` REJECTS a dotted ``[cascade].name`` at load (`#T1137`
+adjudication guard) — so the two forms cannot collide. Measured before the
+guard existed: an unimportable dotted name loaded as
+listed-but-unlookupable, and an IMPORTABLE one (``name =
+"srmech.cascade.magnitude"``) loaded, listed, answered
+:func:`get_descriptor` with the USER descriptor — and then ran the SHIPPED
+import instead (``chain().then("srmech.cascade.magnitude").run(-5)`` gave
+``5``, not the descriptor's chain), because the dot routes resolution to
+the import arm before any catalog consultation. A dotted catalog name was
+never a collision the user could win; the guard makes it a load error
+instead of a silent wrong answer.
 
 It is **NOT a general extension point**, and the catalog's guarantees do not
 follow the callable through it. MEASURED at rc434:
@@ -33,12 +43,35 @@ follow the callable through it. MEASURED at rc434:
   unknown cascade op`` — the A/B-tier attestation above is a property of the
   DESCRIPTOR, and a dotted step has none. (The bare name ``magnitude`` is
   A-tier; the dotted spelling of the SAME function is untiered.)
-- **Introspection visibility follows the TARGET, not the dotted form.**
-  ``get_tool_schema().resolve(...)`` finds a ``ToolEntry`` for
-  ``srmech.cascade.magnitude`` but returns ``None`` for
-  ``srmech.cascade.leaves.seq_len`` and for ``builtins.set``. So a dotted
-  step is not inherently invisible to ``describe()`` / MCP — it is visible
-  exactly when its target is separately registered.
+- **Introspection visibility is keyed by the SPELLING, not the callable.**
+  ``get_tool_schema().resolve(...)`` answers a registered name (or a
+  dotted-suffix shortening of one); it never follows a callable to its
+  other names. ``resolve("srmech.cascade.magnitude")`` HITs — that exact
+  string is a registered ``ToolEntry`` — while
+  ``resolve("srmech.cascade.leaves.seq_len")`` is ``None`` even though it
+  is the SAME object as the registered ``srmech.cascade.seq_len``.
+  Measured over the 35 distinct dotted spellings in shipped
+  ``[[cascade.chain]]`` steps: 2 resolve, 32 return ``None`` while their
+  target is registered under its published ``srmech.cascade.<name>``
+  re-export, and 1 (the RBS-HDC ``mint_vector``) is registered under NO
+  spelling. Every one of the 32 has
+  a published spelling that BOTH runs through this same import arm AND
+  resolves — prefer ``op = "srmech.cascade.chiral_flip"`` over
+  ``op = "srmech.cascade.atoms.chiral_flip"`` when a dotted step should
+  stay introspectable. (``describe()["cascade_catalog"]`` is a different
+  surface: it lists every DESCRIPTOR by bare name regardless of how its
+  chain steps are spelled.)
+- **A dotted step evicts the whole chain from BOTH native run loops.**
+  The op itself is ONE self-routing object under either spelling (its own
+  internal C kernel is unaffected) — but the chain-level engines key their
+  dispatch on the bare catalog spelling (``_RUN_C_OPS`` in
+  :mod:`srmech.cascade.compose`; ``dsl_leaf_dispatch`` /
+  ``cr_dispatch`` in C), so ONE dotted step makes the whole chain
+  ineligible and the pure loop runs. Measured at rc434 with an ABI-14
+  ``.so``: ``chain().then("magnitude")`` runs end-to-end in C;
+  ``chain().then("srmech.cascade.magnitude")`` is a native MISS with the
+  IDENTICAL value — the cost is the C fast path, never the answer (rc103
+  inform-don't-limit).
 - **Nothing constrains the target to srmech at all.**
   ``chain().then("builtins.set")`` resolves and runs, and it re-imports
   hash-order nondeterminism into the cascade: over ``PYTHONHASHSEED`` 0–3 a
@@ -179,9 +212,10 @@ def load_catalog() -> Dict[str, Dict[str, Any]]:
     FileNotFoundError
         If the packaged catalog dir, or a registered user dir, is missing.
     ValueError
-        On a missing ``[cascade].name``, a user op-name that shadows a shipped
-        or earlier op, or a composite body that references an unknown op /
-        forms a cycle (validated loudly here, not silently at run).
+        On a missing ``[cascade].name``, a DOTTED ``[cascade].name`` (see the
+        guard below), a user op-name that shadows a shipped or earlier op, or
+        a composite body that references an unknown op / forms a cycle
+        (validated loudly here, not silently at run).
     """
     if not CATALOG_DIR.exists() or not CATALOG_DIR.is_dir():
         raise FileNotFoundError(
@@ -210,6 +244,24 @@ def load_catalog() -> Dict[str, Dict[str, Any]]:
                 raise ValueError(
                     f"cascade-catalog descriptor {toml_path} is missing "
                     f"the required [cascade].name field"
+                )
+            if "." in op_name:
+                # `#T1137` adjudication guard: a dotted [cascade].name can
+                # NEVER be looked up — lookup_cascade_op routes any dotted
+                # name to the import arm before consulting the catalog. So
+                # a dotted name here is either listed-but-unlookupable (the
+                # module is not importable) or, worse, silently SHADOWED by
+                # the import (measured: a user descriptor named
+                # "srmech.cascade.magnitude" listed and introspected as the
+                # user's composite while chains ran the shipped op). Catalog
+                # names are BARE; the dotted form is a chain-step ADDRESS,
+                # not a declarable name.
+                raise ValueError(
+                    f"cascade-catalog descriptor {toml_path}: [cascade].name "
+                    f"{op_name!r} contains a dot; a dotted catalog name can "
+                    f"never be resolved (the dot routes lookup to the import "
+                    f"arm before any catalog consultation). Use a BARE name; "
+                    f"the dotted form is for chain-step addressing only."
                 )
             if op_name in catalog:
                 raise ValueError(
@@ -327,7 +379,8 @@ def lookup_cascade_op(op_name: str) -> Callable:
     # makes "dotted-or-bare NAME" true for every builder (`then` / `fold` /
     # `reduce` / `parallel_sectors` / `map_indexed`): any shipped registered
     # op can serve as a stage or combinator body without a catalog
-    # descriptor of its own. Catalog names never contain a dot, so the two
+    # descriptor of its own. Catalog names never contain a dot (load_catalog
+    # REJECTS a dotted [cascade].name — the `#T1137` guard), so the two
     # forms cannot collide.
     if "." in op_name:
         mod_path, _, attr = op_name.rpartition(".")

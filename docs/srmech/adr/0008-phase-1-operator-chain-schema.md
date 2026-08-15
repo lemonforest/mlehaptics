@@ -689,9 +689,29 @@ grammar.** MEASURED at rc434 with a user catalog dir holding a pure-TOML composi
   **parses, validates and cycle-checks**, then fails at RUN:
   `ChainSpecError: chain 'probe_chain' step[0]: op 'probe_double_flip' not found on
   'srmech.amsc.format'`. The failure names the **class letter's registered module**, because the
-  cascade catalog was never consulted. A dotted control step in the same grammar
-  (`op = "srmech.cascade.atoms.chiral_flip"`) runs fine, which isolates the cause to bare-name
-  resolution rather than to the grammar being broken.
+  cascade catalog was never consulted. A dotted CONTROL step in the same grammar runs, which
+  isolates the cause to bare-name resolution rather than to the grammar being broken.
+
+The control is **evidence, not a recommendation**. The submodule spelling it used
+(`op = "srmech.cascade.atoms.chiral_flip"`) runs — and is invisible to
+`get_tool_schema().resolve()` / MCP, because introspection visibility is keyed by the exact
+spelling and the registered spelling for that target is the published re-export
+`srmech.cascade.chiral_flip`, which runs through the SAME import arm AND resolves (measured
+`#T1137` adjudication: `run_chain` on the published spelling → `[3, 2, 1]`, `resolve()` → HIT).
+A dotted step that should stay introspectable uses the published spelling; the shipped
+descriptors' own chain steps currently use the submodule spellings — 32 of their 35 distinct
+dotted spellings are introspection-invisible while their targets are registered — which is the
+pinned-down-only gap in `tests/test_dsl_op_naming_boundaries.py`. The full cost-set a dotted
+step carries either way (no descriptor, no tier, chain evicted from the native run loops) is
+stated at `srmech/dsl/_catalog.py`.
+
+**One boundary the table's dotted cell compresses** (measured `#T1137` adjudication): the
+`[[composite.stage]]` column's "resolves by import" is a property of `lookup_cascade_op`,
+reached from `chain().then(...)` / `run_toml_chain` / the discriminators — a top-level TOML
+chain with a dotted stage runs. A dotted ref INSIDE a `[composite]` descriptor body never
+reaches that resolver: `_validate_composite` rejects any stage ref not present in the catalog
+at LOAD (`composite 'X' references unknown op 'srmech.cascade.leaves.seq_len'`), so the
+DESCRIPTOR surface of this grammar is bare-name-only today.
 
 ### The bound — a declared chain is a PROOF, never an execution path
 
@@ -731,3 +751,6 @@ while these rows are the ADR's standing claims and must keep driving the derived
 | the dotted arm resolves by import, in BOTH directions (a dotted step runs; a bare undeclared one is still rejected) | `tests/test_dsl_op_naming_boundaries.py::test_dotted_op_name_resolves_without_a_descriptor` | **GATED** — mutation-proved: disabling the arm reddens 3 tests |
 | descriptor-to-descriptor reference EXISTS on `[[composite.stage]]` and NOT in the `[[cascade.chain]]` grammar | `tests/test_dsl_op_naming_boundaries.py::test_cascade_chain_grammar_cannot_name_a_descriptor` | **GATED** — the same name executed on both grammars, with a dotted control isolating bare-name resolution |
 | a declared `[[cascade.chain]]` is a PROOF, never an execution path (chain-only descriptor is unrunnable, at BUILD time) | `tests/test_dsl_op_naming_boundaries.py::test_declared_chain_is_never_the_execution_path` | **GATED** — mutation-proved: making the chain an execution path reddens it |
+| introspection visibility of a chain-step spelling is keyed by the EXACT SPELLING, never by the callable; the shipped descriptors' invisible-while-target-registered spellings are pinned DOWN-ONLY and doc-synced | `tests/test_dsl_op_naming_boundaries.py::test_dotted_visibility_is_spelling_keyed_and_the_shipped_gap_drains` | **GATED** — census re-derived; a drain reddens only the docstring figures, never the fix |
+| a dotted `[cascade].name` is REJECTED at load (unlookupable at best, silently import-shadowed at worst) | `tests/test_dsl_op_naming_boundaries.py::test_dotted_catalog_name_is_rejected_at_load` | **GATED** — both failure modes executed pre-guard; shipped catalog strict-zero dotted names |
+| a dotted step evicts the whole chain from the native run loops; the VALUE never changes | `tests/test_dsl_op_naming_boundaries.py::test_dotted_spelling_evicts_chain_from_native_run_loop` | **GATED** — eligibility gate is pure-Python-decidable; value parity asserted; C leg measured with an ABI-14 `.so` (`#T1137` adjudication) |
