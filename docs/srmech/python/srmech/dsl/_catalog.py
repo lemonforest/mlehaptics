@@ -386,9 +386,9 @@ def list_cascade_ops() -> List[str]:
     Returns
     -------
     list[str]
-        Sorted ascending. The list is consumed by :func:`srmech.cli.dsl.ops`
-        (the ``srmech dsl ops`` subcommand) and by the test-suite's
-        descriptor-coverage check.
+        Sorted ascending. The list is consumed by
+        :func:`srmech.cli.dsl.run_ops` (the ``srmech dsl ops`` subcommand)
+        and by the test-suite's descriptor-coverage check.
     """
     return sorted(load_catalog())
 
