@@ -311,8 +311,18 @@ PROBES: list[tuple] = [
     ("genome.discrete_writhe/self-meet", "srmech.biology.genome.discrete_writhe",
      "ValueError", ([(0, 0, 0), (1, 0, 0), (0, 0, 0), (1, 0, 0)],), {},
      "strand meets itself in 3D"),
+    # `gains` MUST be a valid Q8 4-vector even though the clause under test is
+    # the zero-cycle one. rc434 first wrote this probe with `gains=[0]`, which
+    # PASSED on the pure path for the wrong reason -- the cycle check happens to
+    # run before the gains are read -- and failed on every NATIVE cell, where
+    # marshalling the gains first leaks `TypeError: 'int' object is not
+    # iterable`. A probe that fires a DIFFERENT error than the clause it names
+    # is not evidence about that clause, and here it made the corpus
+    # projection-dependent. With a valid gain BOTH projections raise the
+    # declared ValueError.
     ("genome.cwf_consistency_mod2/tree", "srmech.biology.genome.cwf_consistency_mod2",
-     "ValueError", ([(0, 1)], [0]), {"n": 2}, "tree has zero fundamental cycles"),
+     "ValueError", ([(0, 1)], [[1, 0, 0, 0]]), {"n": 2},
+     "tree has zero fundamental cycles"),
     ("genome.genome_fiber_holonomy/no-leaf-dim",
      "srmech.biology.genome.genome_fiber_holonomy",
      "ValueError", (b"\x00\x01",), {}, "missing leaf_dim"),
