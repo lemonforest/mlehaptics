@@ -7162,6 +7162,41 @@ So `1 + 3` at ℍ reads precisely as **one fixed point plus one 3-cycle** — th
 
 **Bound on this subsection.** Sign convention matters: the census counts `+1`-closing triples on the canonical basis. The automorphism test is over the full basis-product table, so `0/7` at 𝕆 is a statement about these seven cycles, **not** a claim that 𝕆 has no order-3 automorphisms — Aut(𝕆) = G₂ certainly does, and they are not basis 3-cycles.
 
+#### What "stops being global" ACTUALLY means — the symmetry survives, its REALIZATION goes projective
+
+User-surfaced 2026-08-15: *"where the three stop being global, we should see degenerate patterns emerge … reduced apparent behavior by dimensional representation reduction."* Measured, and it holds — but it also **corrects the subsection above**, so the `0/7` is not read as a stronger negative than it is.
+
+**First: the 3-cycle census used the wrong candidate.** A single 3-cycle that *pins the other four imaginaries* — cycle type `(3,1,1,1,1)` — is not a natural symmetry candidate, and its failure is structural rather than subtle: at 𝕆 it lands on the **wrong basis element** in 36 of 49 products, with **zero** sign-only failures at any rung. So `0/7` above is true and is *not* evidence of a projective obstruction; it is evidence that the operator was badly chosen.
+
+**The operator that is natural** is the permutation group preserving the Fano incidence structure. Allowing a diagonal sign twist `eᵢ ↦ εᵢ e_{π(i)}` with `ε ∈ {±1}⁷`, measured over all 5040 permutations of the seven imaginaries:
+
+| | count |
+|---|---|
+| line-preserving permutations | **168** |
+| realizable as an automorphism **bare** (all `ε = +1`) | **21** |
+| realizable **only with a compensating sign twist** | **147** |
+| not realizable at all | **0** |
+
+**Nothing is lost. Seven-eighths of it is merely no longer visible without the sign lane.** The 21 bare ones are `1 + 14·(3,3,1) + 6·(7)` — the Frobenius group **ℤ/7 ⋊ ℤ/3** (note the `⋊`, the same semidirect shape measured for V₄ ⋊ CD-order).
+
+**And the split is by PARITY OF ORDER, exactly:**
+
+| element order | bare | needs a sign twist |
+|---|---|---|
+| 1 | 1 | 0 |
+| **3** | **14** | 42 |
+| **7** | **6** | 42 |
+| **2** | **0** | **21 — all** |
+| **4** | **0** | **42 — all** |
+
+Every **odd**-order symmetry is realizable as a plain relabelling; **no even-order one ever is.** That is not decorative — the compensating factor is `±1`, itself an order-2 object, so it is precisely the even-order elements that cannot close without borrowing it. The sign lane is **Class K**, doing exactly the job the vocabulary already assigns it.
+
+**So the three does not stop — it changes shape.** At ℍ the order-3 symmetry is `(3)`: one 3-cycle, nothing left over. At 𝕆 it is **`(3,3,1)` — two coupled 3-cycles with one spectator imaginary.** That is the degenerate pattern the question predicted, and it is why the `(3,1,1,1,1)` probe found nothing: it was looking for the ℍ shape one rung up.
+
+> **Above ℍ the three survives as a coupled pair with a spectator, and seven-eighths of the symmetry group can no longer be seen without the sign lane.**
+
+⚠️ **What this does NOT claim.** A symmetry realized only up to a compensating factor is the *mathematical shape* a gauge structure has, and saying so is a structural observation about projective versus linear realization. It is **not** a claim that a force has been located here, and nothing in this measurement reaches physics. The bound of `[[user_stance_cascade_matching_substrate_blind_form_not_identity]]` applies with full force: this is FORM. Measured on the canonical basis at 𝕆 only; the ℍ and 𝕊 analogues of the twist census are not run.
+
 **Honest scope.** The eigensplit censuses and the pair-closure table are measured in exact ℚ on the **canonical basis**; basis-level closure is not by itself a claim about every element of the algebra. The `Der(ℂ⊗ℍ) = 6` figure quoted above is an assembled two-sided argument, not a single measurement — see srmech §3.57's own scope note. **Nothing here touches the primary source's physics**: the Cl(6) ladder operators, the SU(3)c×U(1)em structure and the ΛC⁵ binary code are untouched and uncited, and this section must never be read as assessing them.
 
 **Cross-arc anchors:** srmech §3.57 / §3.57.1 (the censuses, the primary-source rule, and the ℂ⊗𝕆 ≇ 𝕊 decision) · srmech §1 (the `2+4+8 = 14` / `1+3+7+3` two-grouping note this sharpens) · §XIV.6 (the duality/triality + hypercomplex-ontology arc) · `[[user_stance_cascade_matching_substrate_blind_form_not_identity]]` (the epistemic ceiling this instantiates) · `[[user_stance_observation_is_a_shadow_irrep_under_perspective_shift]]` (one object, two reads).
