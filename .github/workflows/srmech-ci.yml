@@ -1412,14 +1412,29 @@ jobs:
           # up — the default --durations-path is $CWD/.test_durations, which EXISTS
           # — the group sizes stop being near-equal, and this catches that drift
           # before it shows up as one shard timing out.
+          #
+          # The bound is DERIVED, not a constant (rc435, `#T1140`). Equal-count
+          # pytest-split gives the first k-1 groups ceil(FULL/k) and the last the
+          # remainder, so the spread is EXACTLY k*ceil(FULL/k) - FULL — a value in
+          # 0..k-1 that depends on FULL mod k, not on anything being wrong. This
+          # was hard-coded `-le 1`, which held only because rc434's 14971 nodes
+          # happen to give spread 1; adding 30 tests moved it to 15001 and the
+          # guard fired at spread 3 on a partition its own output showed was
+          # complete and disjoint (full=sum=union=15001). Comparing against the
+          # exact expected value keeps the real signal — a durations file
+          # time-balances to a spread in the hundreds (measured 717) — while not
+          # false-firing on arithmetic.
+          SHARDS=4
           MIN=$FULL; MAX=0
           for K in 1 2 3 4; do
             N=$(wc -l < "$GITHUB_WORKSPACE/shard-ids/asserts-live-shard-$K.ids")
             [ "$N" -lt "$MIN" ] && MIN=$N || true
             [ "$N" -gt "$MAX" ] && MAX=$N || true
           done
-          echo "group sizes: min=$MIN max=$MAX spread=$((MAX - MIN))"
-          [ "$((MAX - MIN))" -le 1 ] \
-            || { echo "::error::group sizes differ by $((MAX - MIN)) (min=$MIN max=$MAX) — this cell is meant to split by equal COUNT, so a spread >1 means pytest-split found a durations file and time-balanced against the PURE cell's profile. Check --durations-path in \$SHARD_SELECT."; exit 1; }
+          CEIL=$(( (FULL + SHARDS - 1) / SHARDS ))
+          WANT_SPREAD=$(( SHARDS * CEIL - FULL ))
+          echo "group sizes: min=$MIN max=$MAX spread=$((MAX - MIN)) (equal-count expects $WANT_SPREAD for FULL=$FULL over $SHARDS shards)"
+          [ "$((MAX - MIN))" -le "$WANT_SPREAD" ] \
+            || { echo "::error::group sizes differ by $((MAX - MIN)) (min=$MIN max=$MAX) but equal-count over $FULL nodes in $SHARDS shards expects a spread of $WANT_SPREAD — pytest-split found a durations file and time-balanced against the PURE cell's profile. Check --durations-path in \$SHARD_SELECT."; exit 1; }
 
           echo "OK: the 4 asserts-live shards partition the full collection ($FULL nodes) — complete, disjoint, and equal-count."
