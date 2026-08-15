@@ -100,6 +100,15 @@ _POW_CASES = [
     (7, 5, 40),       # KEYSTONE: ~113-bit
     (-3, 4, 33),      # KEYSTONE: negative base
     (10, 9, 100),     # KEYSTONE: ~333-bit
+    # `#T1139` — the ZERO BASE. This table carried no zero-base row at all,
+    # so the 0**0 == (1, 1) convention (see the pure-path pin in
+    # tests/test_rational_zero_pow_convention.py) had no Python-vs-C-bignum
+    # parity check: mutating it to (0, 1) left this whole module green AND
+    # made Python and C disagree. The r > 0 row is its discriminating peer —
+    # (0,1)**r is (0, 1) there, so the pair pins the STEP at r == 0 rather
+    # than a constant.
+    (0, 1, 0),        # 0**0 -> (1, 1) BY CONVENTION
+    (0, 1, 3),        # 0**3 -> (0, 1)
 ]
 
 
@@ -198,3 +207,85 @@ def test_native_bignum_matches_python_negative_and_zero():
         == (0, 1)
     assert _native._bigexp_call("srmech_cos_series_truncate_big", 0, 1, 5) \
         == (1, 1)
+
+
+# ──────────────────────────────────────────────────────────────────────
+# `#T1139` — the 0**0 convention at the TWO C surfaces DIRECTLY.
+#
+# srmech.math.rational.rational_pow_uint returns (1, 1) from an explicit
+# ``if exp == 0`` placed BEFORE the C dispatch, so the Python wrapper
+# structurally CANNOT observe a C disagreement at exp == 0 — every
+# wrapper-level test of 0**0 is really a test of that early return. And
+# srmech/cascade/compose.py's ``cr_op_pow`` calls the BIGNUM symbol
+# directly, bypassing the early return entirely, so the C values are
+# reachable in production without the wrapper ever being consulted.
+#
+# This test therefore goes around the wrapper: raw ctypes into
+# ``srmech_rational_pow_uint`` (u64) and ``srmech_rational_pow_uint_big``
+# (bignum). It is the only place either C value is asserted without
+# Python's early return standing in front of it.
+# ──────────────────────────────────────────────────────────────────────
+
+def test_zero_pow_convention_direct_c():
+    """0**0 == (1, 1) at BOTH C surfaces, called by raw ctypes.
+
+    The value is a DELIBERATE CONVENTION, not a derivation: the declared
+    formula (p/q)^n = p^n/q^n does not determine 0**0, and callers read the
+    numerator of (0/1)^r as an exact ``r == 0`` indicator. In the bignum
+    kernel it is also INCIDENTAL — ``bigexp_pow`` seeds ``out = 1`` and
+    skips the square-and-multiply loop at exp == 0, with no zero-base
+    special case anywhere — which is exactly why it needs pinning here
+    rather than trusting the source to keep looking deliberate.
+    """
+    import ctypes
+
+    lib = _native.LIB
+    assert lib is not None
+
+    # ---- surface 1: srmech_rational_pow_uint (int64/u64) --------------
+    assert hasattr(lib, "srmech_rational_pow_uint"), (
+        "the bignum peer is loaded but its u64 sibling is not; they ship "
+        "in the same libsrmech, so this is a build defect, not absence"
+    )
+    out_num = ctypes.c_int64(0)
+    out_den = ctypes.c_uint64(0)
+
+    # r > 0 is the discriminating peer: the convention is a STEP at r == 0,
+    # not a constant, so a mutant returning (1, 1) everywhere is caught too.
+    for exp_val, expected in ((0, (1, 1)), (3, (0, 1))):
+        rc = lib.srmech_rational_pow_uint(
+            ctypes.c_int64(0), ctypes.c_uint64(1), ctypes.c_uint32(exp_val),
+            ctypes.byref(out_num), ctypes.byref(out_den),
+        )
+        assert rc == _native.SRMECH_OK, (
+            f"srmech_rational_pow_uint status {rc} at exp={exp_val}")
+        got = (out_num.value, out_den.value)
+        assert got == expected, (
+            f"srmech_rational_pow_uint(0/1, {exp_val}) = {got}; "
+            f"expected {expected}"
+        )
+
+    # ---- surface 2: srmech_rational_pow_uint_big (caller-arena bignum) --
+    assert hasattr(lib, "srmech_rational_pow_uint_big")
+    for exp_val, expected in ((0, (1, 1)), (3, (0, 1))):
+        ws_len = int(lib.srmech_bigexp_ws_bound(
+            ctypes.c_size_t(4), ctypes.c_size_t(4), ctypes.c_uint32(exp_val),
+        ))
+        ws = (ctypes.c_uint8 * max(ws_len, 8))()
+        b_num, _bn = _native._bigint_from_int(0, 64)
+        b_den, _bd = _native._bigint_from_int(1, 64)
+        o_num, _on = _native._bigint_from_int(0, 64)
+        o_den, _od = _native._bigint_from_int(0, 64)
+        rc = lib.srmech_rational_pow_uint_big(
+            ctypes.byref(b_num), ctypes.byref(b_den),
+            ctypes.c_uint32(exp_val),
+            ctypes.byref(o_num), ctypes.byref(o_den),
+            ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+        )
+        assert rc == _native.SRMECH_OK, (
+            f"srmech_rational_pow_uint_big status {rc} at exp={exp_val}")
+        got = (_native._bigint_to_int(o_num), _native._bigint_to_int(o_den))
+        assert got == expected, (
+            f"srmech_rational_pow_uint_big(0/1, {exp_val}) = {got}; "
+            f"expected {expected}"
+        )
