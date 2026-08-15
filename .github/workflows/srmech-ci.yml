@@ -990,6 +990,21 @@ jobs:
     # the same blind spot; its comment at :528 is corrected to say so, and the fix
     # there is a separate change against a working 6-shard gate.)
     #
+    # THE GATE HAS FIRED, IN CI, ON PURPOSE. A guard that has never fired is not
+    # evidence, so `-k genome` was planted in `$SHARD_SELECT` and pushed (commit
+    # fc1e4d326, run 31859207920). Result, and note WHICH job went red:
+    #
+    #     asserts-live shard 1..4         PASS   (309/309/309/307 nodes each)
+    #     asserts-live coverage-union     FAIL   full=14971 sum=union=1234,
+    #                                            13737 dropped ids enumerated, 0 drifted
+    #
+    # The shards passing is CORRECT, not a miss: their own executed==recorded check
+    # compares the run against the SAME narrowed recording, so it agrees. A filter
+    # planted in the shared variable is the UNION job's to catch; a filter welded
+    # onto the run line, bypassing the variable, is the per-shard junitxml check's.
+    # Two mechanisms, two different holes, and the planting exercised the first.
+    # The planting was reverted in the next commit.
+    #
     # COST — the full forked suite is heavier than one file (fork+report per test).
     # rc289 shipped it per-PR to MEASURE the real cost, and said that if it proved
     # too heavy a follow-up would reroute the full sweep to nightly + on-rc-tag with
@@ -1126,7 +1141,6 @@ jobs:
       SHARD_SELECT: >-
         tests/
         -p no:randomly
-        -k genome
         --splits 4 --group ${{ matrix.shard }}
         --durations-path .test_durations.asserts-live-DELIBERATELY-ABSENT
     steps:
