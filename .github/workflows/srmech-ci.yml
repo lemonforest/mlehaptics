@@ -1031,6 +1031,30 @@ jobs:
     # is on a higher plan the cap is larger and N=6 becomes available; the number
     # to re-check is the cap, not the arithmetic.
     #
+    # MEASURED, first sharded run (31858558122) — and the projection above was
+    # WRONG in the direction that matters, so it is corrected here rather than
+    # left as the number someone plans against:
+    #
+    #     shard   suite step   job wall
+    #       1       10:01       11:12
+    #       2        6:27        7:30
+    #       3        5:29        6:42
+    #       4       10:38       11:46   <- max
+    #     ---------------------------------
+    #     sum      32.6 min    (vs 29.2 min unsharded: ~11% fixed-cost overhead
+    #                           from paying pytest startup + collection 4 times)
+    #
+    # So equal-COUNT is NOT equal-TIME here: max/min is 1.94x on the suite step
+    # and 1.76x on job wall, against a projection of ~7.3 min flat. The cell still
+    # goes 30.4 -> 11.8 min, which is the point, but the "cost is ~14,900 uniform
+    # fork spawns" reasoning below is only APPROXIMATELY true — per-test work
+    # varies enough to matter at this granularity. The refinement that follows
+    # from this is NOT to adopt the pure cell's durations (see the next paragraph,
+    # which the same run confirms); it is to harvest THIS cell's own durations the
+    # way `fallback-durations-merge` does for the pure one, and balance against
+    # those. Until that exists, equal-count is the honest default: it is the
+    # profile-free split, and it is measurably better than the wrong profile.
+    #
     # DELIBERATELY NOT TIME-BALANCED, and this needed measuring rather than
     # asserting. pytest-split's `--durations-path` DEFAULTS to
     # `os.getcwd()/.test_durations` — and `docs/srmech/python/.test_durations` is
@@ -1070,15 +1094,27 @@ jobs:
     # cap; do NOT narrow the run with `-k` or a file list to fit — coverage ==
     # collection is the #937 invariant this cell exists to hold.
     #
-    # `#T1136` — 45 → 19, RE-DERIVED for a SHARD rather than inherited from the
-    # monolith. The 45 sized a 30.4-min cell; carrying it onto an ~8-min shard
-    # would guard at ~5x and make the number meaningless. Same rule this file uses
-    # everywhere (`T = ceil(max) + max(ceil(0.5*max), 10)`), applied to the shard's
-    # own measured max — see the run's log for the number this was derived from.
+    # `#T1136` — 45 → 22, RE-DERIVED for a SHARD rather than inherited from the
+    # monolith. The 45 sized a 30.4-min cell; carrying it onto an ~12-min shard
+    # would guard at ~4x and make the number meaningless. Same rule this file uses
+    # everywhere: `T = ceil(max) + max(ceil(0.5*max), 10)` over the MEASURED max,
+    # which is shard 4 of run 31858558122 at 11:46 →
+    # `ceil(11.77) + max(ceil(5.88), 10) = 12 + 10 = 22`.
+    #
+    # This number was 19 for exactly one run and that was a PROJECTION, from
+    # "29.2 min / 4 shards ≈ 7.3 + overhead ≈ 8.2". The measurement came back at
+    # 11:46 — 44% over the projection — because equal-count is not equal-time (see
+    # the table in the job header). 19 would have survived, but at 62% budget use
+    # on the first run, which is the rc432 failure shape exactly: rc432 raised this
+    # cell 30 → 45 only after a cell sitting at 99% of budget got killed twice.
+    # Deriving from the projection instead of the measurement is how a guard
+    # arrives pre-tightened; the fix is to measure first, which is what the 19 →
+    # 22 change is.
+    #
     # The 45 is not "lowered"; it is REPLACED, because the thing it measured no
     # longer exists. The rc432 lesson stands unchanged and applies per shard: if a
     # shard approaches this, RAISE it — never narrow the run to fit.
-    timeout-minutes: 19
+    timeout-minutes: 22
     env:
       # THIS SHARD'S SELECTION, DEFINED EXACTLY ONCE. The "record" step and the
       # run step below BOTH expand `$SHARD_SELECT`, which is what makes the
@@ -1256,11 +1292,12 @@ jobs:
     needs: [asserts-live-smoke]
     if: always()
     runs-on: ubuntu-latest
-    # `#T1136` — derived per this file's rule from the measured max; ~0.5 min
-    # install + 4 artifact downloads + one collection. The 10-minute FLOOR in
-    # `T = ceil(max) + max(ceil(0.5*max), 10)` dominates for a job this short,
-    # exactly as it does for the other fan-in jobs.
-    timeout-minutes: 13
+    # `#T1136` — derived per this file's rule from the MEASURED max: run
+    # 31858558122 took 1:10 (install ~0.5 min + 4 artifact downloads + one
+    # collection), so `ceil(1.17) + max(ceil(0.58), 10) = 2 + 10 = 12`. The
+    # 10-minute FLOOR dominates for a job this short, exactly as it does for the
+    # other fan-in jobs.
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

@@ -30,6 +30,18 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 
 The shards therefore name a `--durations-path` that does not exist, on purpose, and the union job asserts the resulting group sizes differ by ≤ 1 so the drift cannot return silently.
 
+**What the first sharded run falsified.** Equal-count is not equal-time. Measured (run 31858558122):
+
+| shard | suite step | job wall |
+|---|---|---|
+| 1 | 10:01 | 11:12 |
+| 2 | 6:27 | 7:30 |
+| 3 | 5:29 | 6:42 |
+| 4 | 10:38 | **11:46** |
+| sum | 32.6 min | — |
+
+**max/min = 1.94×** on the suite step against a projected flat ~7.3 min. The cell still goes **30.4 → 11.8 min** wall, and the 32.6-min sum against a 29.2-min unsharded suite is ~11% fixed-cost overhead from paying pytest startup and collection four times. But the "~14,900 uniform fork spawns" premise is only approximately true, so the per-shard `timeout-minutes` is **22**, derived from the measured 11:46 (`ceil(11.77) + max(ceil(5.88), 10)`), not from the projection — a projected 19 would have shipped a guard at 62% budget use on its first run, which is the rc432 failure shape. The follow-up this points at is harvesting *this* cell's own durations the way `fallback-durations-merge` does for the pure one; adopting the pure cell's file remains wrong for the reason measured above.
+
 Every shard keeps the full liveness check — `HAS_NATIVE` plus `nm -u "$LIB" | grep -q __assert_fail`, against the library `_find_library()` actually resolves. Dropping it per-shard to save seconds would make the whole cell vacuous. Each shard additionally compares the test-case count its `--junitxml` reports against the ids it recorded, which closes the one hole a shared variable leaves open (a filter welded onto the run line, bypassing it).
 
 **#693 determination (documentation only — NO version bump; no behavior change).** Investigated whether the `ThetaSum.is_zero` interpolation degree bound can be tightened from **Σe²** to **Σ|e|**. **Verdict: UNSOUND — NOT adopted; the conservative Σe² is retained** at both bound sites (`thetasum._struct_one_var` base-case p-order band + `thetasum._structural_is_zero._deg` node count) and the C peer (`srmech_thetasum_interp.c` `ti_deg`). Rationale: the node count / p-band must bound the **true elliptic degree** of a theta-product in the interpolation variable = the quasi-period index = zeros-per-annulus, which is **Σe²** (a factor `θ(c·vᵉ;p)` gains multiplier `v^{−e²}` under `v↦p·v`, from Rosengren Eq. 1.6 / `ellbase.Theta.canonicalize`; confirmed by an independent explicit root count). Since `e² > |e|` for `|e| ≥ 2`, `Σ|e|` sits **below** the true degree and under-provisions the prover → a genuinely non-zero elliptic function can be falsely proved `≡ 0` (a **false theorem**). Explicit witness (single var, e=3): `N(x) = 2·θ(2x³) −27·θ(3x³) +120·θ(4x³) −250·θ(5x³) +270·θ(6x³) −147·θ(7x³) +32·θ(8x³)` (all `;p`) is exactly non-zero (lowest q-expansion coeff `(p⁶,x⁻⁹)=−1/112`; stable `0.180756` at `p=½,x=¾`), yet Σ|e| (band `k=5`) misses the `p⁶` term while Σe² (band `k=11`) correctly returns `False`. (Distinct from #692, which sized the **arena/ws_bound memory** band — this is the **soundness** degree band.) Full analysis: `docs/srmech/notes/thetasum_is_zero_degree_bound_693.md`; standing regression guard: `tests/test_thetasum_degree_bound_soundness_693.py`.
