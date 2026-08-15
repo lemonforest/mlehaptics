@@ -9,10 +9,47 @@ to a C peer when ``HAS_NATIVE``), or, for a user ``[composite]`` descriptor, a
 unary stage that runs its pure-TOML sub-chain (no Python required).
 
 The catalog IS the SSoT for which cascade ops exist — the DSL runner keeps no
-hard-coded name list. ``chain().then("foo")`` is rejected for any ``foo`` not
-declared in a descriptor. User descriptors are B-tier (``provenance="user"``,
-attested to their own descriptor hash) and may NOT shadow a shipped A-tier
-op-name (that raises at load).
+hard-coded name list. ``chain().then("foo")`` is rejected for any BARE ``foo``
+not declared in a descriptor. User descriptors are B-tier
+(``provenance="user"``, attested to their own descriptor hash) and may NOT
+shadow a shipped A-tier op-name (that raises at load).
+
+**The dotted arm, and its bound** (rc420 `#T1114` BLK-REGMAP). A step name
+containing a dot is NOT a catalog lookup at all: it resolves by import
+(``rpartition(".")`` + a callable guard, see :func:`lookup_cascade_op`), so
+``chain().then("srmech.cascade.leaves.seq_len")`` runs even though no
+descriptor declares ``seq_len``. That arm exists for ONE job — letting a
+descriptor or a chain step point at a **shipped srmech callable that has no
+descriptor of its own**, so the registered-leaf inventory
+(:mod:`srmech.cascade.leaves` and friends) is addressable without minting a
+descriptor per leaf. Catalog names never contain a dot, so the two forms
+cannot collide.
+
+It is **NOT a general extension point**, and the catalog's guarantees do not
+follow the callable through it. MEASURED at rc434:
+
+- **No descriptor, so no provenance tier.**
+  ``get_descriptor("srmech.cascade.magnitude")`` raises ``ValueError:
+  unknown cascade op`` — the A/B-tier attestation above is a property of the
+  DESCRIPTOR, and a dotted step has none. (The bare name ``magnitude`` is
+  A-tier; the dotted spelling of the SAME function is untiered.)
+- **Introspection visibility follows the TARGET, not the dotted form.**
+  ``get_tool_schema().resolve(...)`` finds a ``ToolEntry`` for
+  ``srmech.cascade.magnitude`` but returns ``None`` for
+  ``srmech.cascade.leaves.seq_len`` and for ``builtins.set``. So a dotted
+  step is not inherently invisible to ``describe()`` / MCP — it is visible
+  exactly when its target is separately registered.
+- **Nothing constrains the target to srmech at all.**
+  ``chain().then("builtins.set")`` resolves and runs, and it re-imports
+  hash-order nondeterminism into the cascade: over ``PYTHONHASHSEED`` 0–3 a
+  ``str`` payload came back in four different orders (``['b','a','d','c','e']``
+  / ``['a','e','b','d','c']`` / ``['d','e','a','c','b']`` /
+  ``['c','a','e','b','d']``). Small ints are stable, which is precisely why a
+  casual ``set`` → ``sorted`` smoke test does NOT surface the hazard.
+
+Reach for a descriptor — the shipped catalog for an A-tier op, a user
+``[composite]`` for a B-tier one — whenever the op is meant to BE cascade
+vocabulary. The dotted form is addressing, not declaration.
 
 The descriptors carry ``[cascade].name`` (the canonical op name) plus
 optional ``[cascade.native]`` C symbol names + ``[cascade.delegates_to]``

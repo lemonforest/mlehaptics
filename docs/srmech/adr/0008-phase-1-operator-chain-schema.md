@@ -661,6 +661,59 @@ map: **scan** (mapAccumL — 8 modules) and **fuel-bounded consume** (structural
 populations are pinned DOWN-ONLY (clause rows 6–7), which is what makes the scope auditable
 rather than aspirational.
 
+## The two step grammars answer op-naming DIFFERENTLY
+
+*(LIVE — outside the Amendment A pinned span above. Amendment A introduced the schema-v2 step
+forms; this section states a property of them that is discoverable only by reading two files side
+by side, and that a reader will otherwise generalise from whichever one they opened first.)*
+
+Schema v2 ships **two** step grammars, and they resolve a step's `op` through **different**
+resolvers. Both accept a dotted name; only one can see the cascade catalog.
+
+| | `[[composite.stage]]` — the DSL stage grammar | `[[cascade.chain.steps]]` — the ADR-0008 v2 proof grammar |
+|---|---|---|
+| resolver | `srmech.dsl._catalog.lookup_cascade_op` | `srmech.cascade.compose._resolve_step_op` |
+| dotted `op` | resolves by import | resolves by import |
+| bare `op` | **catalog lookup** — any descriptor name | **letter→module registry** — `getattr(reg[class], op)` |
+| names another DESCRIPTOR | **YES** | **NO** |
+| reached by | `chain().then(...)`, `run_toml_chain`, and the four other op-naming discriminators (`fold_op` / `reduce_op` / `map_op` / parallel `body`) — all five route through `lookup_cascade_op` | `run_chain` / `run_cascade_chain` |
+
+**Descriptor-to-descriptor reference exists on the composite surface and NOT in the chain
+grammar.** MEASURED at rc434 with a user catalog dir holding a pure-TOML composite
+`probe_double_flip` (two `chiral_flip` stages, no Python anywhere) and a second composite
+`probe_outer` whose only stage is `op = "probe_double_flip"`:
+
+- `chain().then("probe_outer").run([1,2,3])` → `[1, 2, 3]`. The composite stage resolved a
+  **sibling descriptor's sub-chain**.
+- the same name from the chain grammar — `steps = [{class="C", op="probe_double_flip", …}]` —
+  **parses, validates and cycle-checks**, then fails at RUN:
+  `ChainSpecError: chain 'probe_chain' step[0]: op 'probe_double_flip' not found on
+  'srmech.amsc.format'`. The failure names the **class letter's registered module**, because the
+  cascade catalog was never consulted. A dotted control step in the same grammar
+  (`op = "srmech.cascade.atoms.chiral_flip"`) runs fine, which isolates the cause to bare-name
+  resolution rather than to the grammar being broken.
+
+### The bound — a declared chain is a PROOF, never an execution path
+
+This is what makes the asymmetry non-obvious, and it cuts the other way. On the composite surface
+a bare name resolves in this order: `[composite]` sub-chain → dotted `[cascade].op` → the
+`srmech.cascade` Python callable. A descriptor's `[[cascade.chain]]` **is not in that list**. So:
+
+- `lookup_cascade_op("magnitude") is srmech.cascade.magnitude` → `True`. A stage naming
+  `magnitude` gets the shipped **callable**, never the two steps `magnitude.toml` declares.
+- a descriptor carrying a `[[cascade.chain]]` but no `[composite]` and no callable is
+  **unrunnable**: `RuntimeError: cascade-catalog has descriptor for 'probe_chainonly' but
+  srmech.cascade does not expose a matching callable (install integrity failure)` — and it
+  raises at BUILD time (`.then()`), not at run, because `lookup_cascade_op` is called when the
+  stage is appended.
+- across the 20 shipped descriptors, exactly ONE has no `srmech.cascade` attribute of its own —
+  `encode_loe_content`, which is reachable only because it declares the dotted
+  `[cascade].op = "srmech.signal_processing.encode_loe_content"`.
+
+`[[cascade.chain]]` therefore states what an op IS in the 14-class vocabulary and is gated
+bit-identical to the shipped op (clause row 3); it is documentation-with-teeth, not a
+replacement implementation. `[composite]` is the surface for a chain that IS the implementation.
+
 ## Clause table
 
 *(LIVE — deliberately outside the Amendment A pinned span above: an amendment is a dated record,
@@ -675,3 +728,6 @@ while these rows are the ADR's standing claims and must keep driving the derived
 | the combinator kernel closure holds at SIX on both projections (Python dispatcher ↔ C discriminator array) | `tests/test_combinator_kernel_closure.py::test_c_discriminator_table_matches_python` | **GATED** — cross-language, strict equality both directions |
 | Phase 2: the SCAN form (mapAccumL) — its blocked closed_form_ops population drains down-only | `tests/test_cascade_catalog_executable_rc420.py::test_closed_form_ops_scheme_gap_ratchet` | **GATED** — 8 modules pinned by name; landing the form drains the set in the same commit |
 | Phase 2: the FUEL-BOUNDED CONSUME form — its blocked population drains down-only | `tests/test_cascade_catalog_executable_rc420.py::test_closed_form_ops_scheme_gap_ratchet` | **GATED** — 3 modules pinned by name (union 9 = the census `modules_not_closed` figure) |
+| the dotted arm resolves by import, in BOTH directions (a dotted step runs; a bare undeclared one is still rejected) | `tests/test_dsl_op_naming_boundaries.py::test_dotted_op_name_resolves_without_a_descriptor` | **GATED** — mutation-proved: disabling the arm reddens 3 tests |
+| descriptor-to-descriptor reference EXISTS on `[[composite.stage]]` and NOT in the `[[cascade.chain]]` grammar | `tests/test_dsl_op_naming_boundaries.py::test_cascade_chain_grammar_cannot_name_a_descriptor` | **GATED** — the same name executed on both grammars, with a dotted control isolating bare-name resolution |
+| a declared `[[cascade.chain]]` is a PROOF, never an execution path (chain-only descriptor is unrunnable, at BUILD time) | `tests/test_dsl_op_naming_boundaries.py::test_declared_chain_is_never_the_execution_path` | **GATED** — mutation-proved: making the chain an execution path reddens it |
