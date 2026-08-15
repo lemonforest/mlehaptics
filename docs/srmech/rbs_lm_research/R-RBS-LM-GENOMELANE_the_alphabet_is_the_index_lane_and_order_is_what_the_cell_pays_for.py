@@ -350,7 +350,107 @@ print("""
 """)
 
 print("=" * 88)
-print("6 - WHAT IS AND IS NOT ESTABLISHED")
+print("6 - CNIDARIAN CALIBRATION -- and it CORRECTS the observable used above")
+print("=" * 88)
+print("""  User: "can't we look no further than the cnidarian for kuramoto calibration?"
+
+  Right, and it is a better instrument than section 5's arbitrary N=24 all-to-all, for
+  three reasons that are all structural rather than convenient:
+      N is ATTESTED    Aurelia carries 8 marginal pacemakers (rhopalia), not a chosen 24
+      the TOPOLOGY is attested   they sit in a RING around the bell rim, not all-to-all
+      there is NO BRAIN          so the swim rhythm cannot be centrally computed; whatever
+                                 coordinates it must be the coupling itself
+  F126 already lodged cnidarian = Class I. A ring of 8 IS Z/8 -- the cyclic group, in an
+  animal. [Rhopalia count and ring arrangement are TEXTBOOK-LEVEL, not MPM-attested.]
+""")
+
+N8 = 8
+# Adjacency written as CLASS-I MODULAR MEMBERSHIP, not an ALU distance. A ring IS Z/N,
+# so "neighbours" is (i-j) mod N in {1, N-1} -- the cyclic-group statement. (The discipline
+# ratchet rejected an abs()-based form here and was right: abs(i-j) was an ALU-shaped
+# workaround for what is natively a Z/N adjacency.)
+ring = [[1.0 if ((i - j) % N8) in (1, N8 - 1) else 0.0
+         for j in range(N8)] for i in range(N8)]
+complete = [[0.0 if i == j else 1.0 for j in range(N8)] for i in range(N8)]
+chain = [[1.0 if (i - j) in (1, -1) else 0.0 for j in range(N8)] for i in range(N8)]
+PI = 3.141592653589793
+
+
+def winding(th):
+    """Sum of WRAPPED neighbour phase differences / 2pi. An integer on a ring -- the
+    topological twist. Class-I modular wrap; no abs()."""
+    tot = 0.0
+    for i in range(len(th)):
+        d = th[(i + 1) % len(th)] - th[i]
+        tot += ((d + PI) % TWO_PI) - PI
+    return tot / TWO_PI
+
+
+def run_net(adj, K, n=N8, steps=3000):
+    th = [TWO_PI * ((i * PHI) % 1.0) for i in range(n)]
+    om = [2.0 * (((i * PHI * PHI) % 1.0) - 0.5) for i in range(n)]
+    for _ in range(steps):
+        th = kuramoto_step(th, om, coupling=K, dt=0.01, adjacency=adj)
+    prev = list(th)
+    for _ in range(100):
+        th = kuramoto_step(th, om, coupling=K, dt=0.01, adjacency=adj)
+    freqs = [th[i] - prev[i] for i in range(n)]
+    return order_parameter(th), winding(th), max(freqs) - min(freqs)
+
+
+print("    RING of 8 (the rhopalia):")
+print("      K       r        winding q    freq spread     verdict")
+twisted = None
+for K in (0.5, 1.0, 2.0, 3.0, 4.0, 6.0):
+    r_, q, spread = run_net(ring, K)
+    locked = spread < 1e-5
+    if locked and q > 0.5:
+        twisted = (K, r_, q, spread)
+    print(f"      {K:4.1f}   {r_:.4f}   {q:+.4f}      {spread:.2e}      "
+          f"{'LOCKED' if locked else 'free-running'}"
+          f"{'  <-- TWISTED' if locked and q > 0.5 else ''}")
+
+ck("the ring reaches a FREQUENCY-LOCKED state with a nonzero integer winding",
+   twisted is not None, True)
+K_t, r_t, q_t, s_t = twisted
+ck("...its winding is exactly +1 (an integer, not a fit)", round(q_t, 6), 1.0)
+ck("...it is genuinely locked (frequency spread < 1e-5)", s_t < 1e-5, True)
+ck("...and phase coherence r would have called it UNSYNCHRONISED", r_t < 0.3, True)
+
+print(f"""
+    AT K = {K_t} THE RING IS PERFECTLY LOCKED AND r SAYS IT IS NOT.
+        frequency spread {s_t:.2e}  -- every pacemaker at the SAME rate
+        winding q        {q_t:+.4f}     -- but the phases wind ONCE around the rim
+        r                {r_t:.4f}     -- which a coherence read calls "unsynchronised"
+
+    Both readings are correct about different things. SECTION 5'S INSTRUMENT WAS READING
+    ONLY THE INDEX LANE. Phase coherence r is order-blind -- it averages the phases and
+    cannot see a twist. The winding number is the SIGN-LANE read: an integer, topological,
+    and it does not come off. This is F1348's split-vs-non-split distinction arriving in a
+    coupled-oscillator ensemble without being sought.
+
+    And the twist needs a CYCLE to exist in:""")
+
+r_c, q_c, s_c = run_net(complete, 2.0)
+r_ch, q_ch, s_ch = run_net(chain, 2.0)
+print(f"      complete graph K=2.0:  r={r_c:.4f}  q={q_c:+.4f}  spread={s_c:.2e}")
+print(f"      OPEN chain   K=2.0:  r={r_ch:.4f}  q={q_ch:+.4f}  spread={s_ch:.2e}")
+ck("the all-to-all graph shows NO winding (no cycle to wind around)",
+   round(q_c, 6) == 0.0, True)
+print("""
+    Cut the ring and the twisted state has nowhere to live. The all-to-all graph never
+    twists either -- every node adjacent to every other leaves no cycle to wind around.
+    THE TWIST IS A PROPERTY OF THE SPARSE CYCLIC TOPOLOGY, which is exactly the topology a
+    brainless animal has and exactly the one that is metabolically cheap: 8 edges, not 28.
+
+    The biological reading, stated as a reading: q = 0 and q = 1 are BOTH coordinated
+    swimming, and they are different behaviours -- a synchronous pulse of the whole bell
+    versus a wave travelling around its rim. Distinguishing them REQUIRES the winding read.
+    An observer with only a coherence meter would record the travelling wave as disorder.
+""")
+
+print("=" * 88)
+print("7 - WHAT IS AND IS NOT ESTABLISHED")
 print("=" * 88)
 print("""  ESTABLISHED (measured on the shipped attested code table, exact integers)
     the base alphabet is V4 = (Z/2)^2 and Watson-Crick pairing IS XOR 2 on the base index
