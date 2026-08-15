@@ -32,17 +32,16 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 
 The shards therefore name a `--durations-path` that does not exist, on purpose, and the union job asserts the resulting group sizes differ by ≤ 1 so the drift cannot return silently.
 
-**What the first sharded run falsified.** Equal-count is not equal-time. Measured (run 31858558122):
+**What the sharded runs falsified.** Equal-count is not equal-time. Job wall over two runs:
 
-| shard | suite step | job wall |
+| shard | run 31858558122 | run 31859722143 |
 |---|---|---|
-| 1 | 10:01 | 11:12 |
-| 2 | 6:27 | 7:30 |
-| 3 | 5:29 | 6:42 |
-| 4 | 10:38 | **11:46** |
-| sum | 32.6 min | — |
+| 1 | 11:12 | 8:41 |
+| 2 | 7:30 | 7:49 |
+| 3 | 6:42 | 8:25 |
+| 4 | **11:46** | **11:36** |
 
-**max/min = 1.94×** on the suite step against a projected flat ~7.3 min. The cell still goes **30.4 → 11.8 min** wall, and the 32.6-min sum against a 29.2-min unsharded suite is ~11% fixed-cost overhead from paying pytest startup and collection four times. But the "~14,900 uniform fork spawns" premise is only approximately true, so the per-shard `timeout-minutes` is **22**, derived from the measured 11:46 (`ceil(11.77) + max(ceil(5.88), 10)`), not from the projection — a projected 19 would have shipped a guard at 62% budget use on its first run, which is the rc432 failure shape. The follow-up this points at is harvesting *this* cell's own durations the way `fallback-durations-merge` does for the pure one; adopting the pure cell's file remains wrong for the reason measured above.
+Two effects that one run could not separate: a **real** per-shard cost difference (shard 4 is the max in both runs) and **runner variance** (shards 1 and 3 move by 2.5 min between runs on an identical selection). Run 1's suite-step sum was 32.6 min against 29.2 unsharded — ~11% fixed-cost overhead from paying pytest startup and collection four times; max/min was 1.94× on the suite step against a projected flat ~7.3 min. The cell still goes **30.4 → ~11.7 min** wall. But the "~14,900 uniform fork spawns" premise is only approximately true, so the per-shard `timeout-minutes` is **22**, derived from the measured 11:46 (`ceil(11.77) + max(ceil(5.88), 10)`), not from the projection — a projected 19 would have shipped a guard at 62% budget use on its first run, which is the rc432 failure shape. The follow-up this points at is harvesting *this* cell's own durations the way `fallback-durations-merge` does for the pure one; adopting the pure cell's file remains wrong for the reason measured above.
 
 Every shard keeps the full liveness check — `HAS_NATIVE` plus `nm -u "$LIB" | grep -q __assert_fail`, against the library `_find_library()` actually resolves. Dropping it per-shard to save seconds would make the whole cell vacuous. Each shard additionally compares the test-case count its `--junitxml` reports against the ids it recorded, which closes the one hole a shared variable leaves open (a filter welded onto the run line, bypassing it).
 

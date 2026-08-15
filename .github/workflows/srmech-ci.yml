@@ -1028,15 +1028,24 @@ jobs:
     # `#T1136` — WHY 4 AND NOT 6. The pure cell uses 6; this one is deliberately
     # different, because the two cells are bounded by different things.
     #
-    #   N   wall/shard   runner-min   peak concurrent jobs in this file
-    #   -   ----------   ----------   ---------------------------------
-    #   1     30.4 min      31            16   (today)
-    #   4      ~8.2 min     ~35           19
-    #   6      ~5.6 min     ~39           21
+    #   N   wall/shard        runner-min   peak concurrent jobs in this file
+    #   -   ---------------   ----------   ---------------------------------
+    #   1   30.4 min MEASURED     31            16   (today)
+    #   4   11.8 min MEASURED     ~40           19   <- chosen
+    #   6    ~7.9 min projected   ~50           21
+    #
+    # (The N=4 row was projected at ~8.2 min / ~35 runner-min when this was
+    # written; the sharded runs came back at 11.8 / ~40 and the row is corrected
+    # to the measurement. The N=6 row is scaled from that and stays a projection.
+    # Runner-min is billed per job rounded UP to the minute, plus the union job.
+    # This repo is PUBLIC, so ubuntu-latest minutes are free and the ~9-min
+    # increase is a resource statement, not a cost one — it is not the reason
+    # N=4 was chosen over N=6, the concurrency cap below is.)
     #
     # Wall-clock does NOT discriminate: this file's critical path is the pure
-    # `fallback-no-native` shards at ~21 min, so anything at or below ~10 min here
-    # is free. Concurrency DOES. Only two jobs in this file have `needs:`, so
+    # `fallback-no-native` shards at ~21 min, so anything at or below ~12 min here
+    # is free — which is exactly where N=4 lands, so N=6 would buy nothing on the
+    # critical path. Concurrency DOES. Only two jobs in this file have `needs:`, so
     # everything else starts at once — 4 build-and-test + 6 fallback + 3 pedantic +
     # pure-wheel + fallback-union + this cell = 16 today. GitHub's documented
     # concurrency cap for a PUBLIC repo on the Free plan is 20 jobs; N=4 lands at
@@ -1046,29 +1055,33 @@ jobs:
     # is on a higher plan the cap is larger and N=6 becomes available; the number
     # to re-check is the cap, not the arithmetic.
     #
-    # MEASURED, first sharded run (31858558122) — and the projection above was
-    # WRONG in the direction that matters, so it is corrected here rather than
-    # left as the number someone plans against:
+    # MEASURED over TWO sharded runs — and the projection above was WRONG in the
+    # direction that matters, so it is corrected here rather than left as the
+    # number someone plans against. Job wall, both runs:
     #
-    #     shard   suite step   job wall
-    #       1       10:01       11:12
-    #       2        6:27        7:30
-    #       3        5:29        6:42
-    #       4       10:38       11:46   <- max
-    #     ---------------------------------
-    #     sum      32.6 min    (vs 29.2 min unsharded: ~11% fixed-cost overhead
-    #                           from paying pytest startup + collection 4 times)
+    #     shard   run 31858558122   run 31859722143
+    #       1          11:12              8:41
+    #       2           7:30              7:49
+    #       3           6:42              8:25
+    #       4          11:46             11:36     <- max in BOTH runs
     #
-    # So equal-COUNT is NOT equal-TIME here: max/min is 1.94x on the suite step
-    # and 1.76x on job wall, against a projection of ~7.3 min flat. The cell still
-    # goes 30.4 -> 11.8 min, which is the point, but the "cost is ~14,900 uniform
-    # fork spawns" reasoning below is only APPROXIMATELY true — per-test work
-    # varies enough to matter at this granularity. The refinement that follows
-    # from this is NOT to adopt the pure cell's durations (see the next paragraph,
-    # which the same run confirms); it is to harvest THIS cell's own durations the
-    # way `fallback-durations-merge` does for the pure one, and balance against
-    # those. Until that exists, equal-count is the honest default: it is the
-    # profile-free split, and it is measurably better than the wrong profile.
+    # Two things separate here, and one run could not have told them apart:
+    #   * a REAL per-shard cost difference — shard 4 is the max in both runs, at
+    #     11:46 and 11:36. Equal-COUNT is not equal-TIME.
+    #   * RUNNER VARIANCE — shards 1 and 3 move by 2.5 min between runs on an
+    #     identical selection. Do not read a single run's ordering as structure.
+    # Run 1 suite-step sum was 32.6 min against 29.2 unsharded: ~11% fixed-cost
+    # overhead from paying pytest startup + collection 4 times.
+    #
+    # The cell still goes 30.4 -> ~11.7 min, which is the point, but the "cost is
+    # ~14,900 uniform fork spawns" reasoning below is only APPROXIMATELY true —
+    # per-test work varies enough to matter at this granularity. The refinement
+    # that follows is NOT to adopt the pure cell's durations (see the next
+    # paragraph, which the same runs confirm); it is to harvest THIS cell's own
+    # durations the way `fallback-durations-merge` does for the pure one, and
+    # balance against those. Until that exists, equal-count is the honest default:
+    # it is the profile-free split, and it is measurably better than the wrong
+    # profile.
     #
     # DELIBERATELY NOT TIME-BALANCED, and this needed measuring rather than
     # asserting. pytest-split's `--durations-path` DEFAULTS to
@@ -1113,8 +1126,9 @@ jobs:
     # monolith. The 45 sized a 30.4-min cell; carrying it onto an ~12-min shard
     # would guard at ~4x and make the number meaningless. Same rule this file uses
     # everywhere: `T = ceil(max) + max(ceil(0.5*max), 10)` over the MEASURED max,
-    # which is shard 4 of run 31858558122 at 11:46 →
-    # `ceil(11.77) + max(ceil(5.88), 10) = 12 + 10 = 22`.
+    # which is shard 4 at 11:46 (run 31858558122; it repeated at 11:36 in run
+    # 31859722143, so the max is a real property of that shard and not one slow
+    # runner) → `ceil(11.77) + max(ceil(5.88), 10) = 12 + 10 = 22`.
     #
     # This number was 19 for exactly one run and that was a PROJECTION, from
     # "29.2 min / 4 shards ≈ 7.3 + overhead ≈ 8.2". The measurement came back at
