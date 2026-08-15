@@ -1552,13 +1552,31 @@ def cwf_consistency_mod2(edges, gains, *, n: "int | None" = None,
         matches any spelling**, and a claim with no identifier parses to no
         citation unit, so no arm could see it.
 
-        **No citation is minted, and that is a decision rather than an
-        omission.** The canonical sources — Călugăreanu (1959–61, *Czech.
-        Math. J.* / *Rev. Math. Pures Appl.*), White (1969, *Amer. J. Math.*)
-        and Fuller (1971, *PNAS*) — are paywalled-only or offline from here,
-        and per ``[[feedback_paywalled_doi_cannot_be_attested]]`` a
-        substituted second unverified citation is the same defect wearing a
-        different name.
+        **Fuller 1971 IS cited; the other two are not, and that split is a
+        decision rather than an omission.** Fuller (1971, *PNAS* 68(4):815–819,
+        ``doi:10.1073/pnas.68.4.815``, PMC389050) is openly retrievable and is
+        named here with its identifiers — the same ones
+        :func:`srmech.math.rational.relative_writhe` has shipped since rc317.
+        Călugăreanu (1959–61, *Czech. Math. J.* / *Rev. Math. Pures Appl.*) and
+        White (1969, *Amer. J. Math.*) are paywalled-only or offline from here,
+        and per ``[[feedback_paywalled_doi_cannot_be_attested]]`` a substituted
+        second unverified citation is the same defect wearing a different name.
+
+        ⚠️ **What Fuller's OA status does and does not buy.** VERIFIED: the
+        metadata (author, title, volume, issue, pages, year) and the OA
+        availability. NOT VERIFIED: that the PDF states ``Lk = Tw + Wr`` in the
+        form written here — the PMC landing page renders the mathematics as page
+        images. This is an ACCESS attestation, not a CONTENT one, and the
+        DERIVED-AND-MEASURED verdict below does not rest on it either way.
+
+        ⚠️ **rc436 (`#T1141`) — this paragraph shipped a falsehood from rc429 to
+        rc435.** It read "The canonical sources … are paywalled-only or offline",
+        naming Fuller among them, while ``relative_writhe``'s own ToolEntry
+        summary simultaneously shipped "doi 10.1073/pnas.68.4.815, PMC389050 …
+        both OA". Two shipped surfaces contradicted each other about one paper
+        across four releases. ``tests/test_citation_contradiction_rc436.py`` is
+        strict-zero on that class now: no source may be asserted OA and
+        unretrievable in the same wheel.
 
         The verdict is DERIVED-AND-MEASURED because this op does not ASSERT
         the relation, it MATERIALISES it: ``lk_mod2``, ``tw_mod2`` and
@@ -2732,7 +2750,37 @@ def _cap_kind(hv):
     rc351 (``#T1004``): the marker list is :data:`_LEAF_WIDE_BLOCK_MARKERS`, never a local
     copy — this function and :func:`_block_is_cap` are the ONLY two readers of it, and every
     "is this block a cap?" question in the module goes through one of them."""
-    first = int(hv[0]) if len(hv) else -1
+    # ── strand-shape contract (rc436, `#T1141`) ───────────────────────────
+    # THE SHARED BOUNDARY, on purpose. Measured at rc436: 30 REGISTERED public
+    # ops reach this line (every cap/data question in the module goes through
+    # _cap_kind or _block_is_cap, and _block_is_cap takes raw bytes), so a
+    # guard here is inherited by all 30. Fixing only genome_save -- the op the
+    # defect was reported against -- would be the MVP framing this project
+    # bans, and would leave 29 ops raising `int() argument must be ... not
+    # 'HV'` three frames down from a public call with no hint of the cause.
+    #
+    # PYTHON-ONLY, and the projection question is ANSWERED rather than skipped:
+    # the C peer `genome_cap_kind` (c/src/srmech_genome.c:287) is
+    # `static int genome_cap_kind(const unsigned char *block, size_t len)` -- a
+    # TYPED BUFFER. A nested sequence cannot be expressed in that calling
+    # convention at all, so the malformed input this guard names is
+    # UNREPRESENTABLE on the C projection and NO projection gap opens. Per
+    # ADR-0009 §5 no decline row is owed: a decline row records a capability
+    # one projection has and the other refuses, and the C side has no such
+    # input to refuse.
+    try:
+        first = int(hv[0]) if len(hv) else -1
+    except TypeError as exc:
+        inner = hv[0]
+        raise TypeError(
+            f"genome strand element 0 is {type(inner).__name__}, not a scalar "
+            f"byte: a strand must be a FLAT sequence of HVs, but this one holds "
+            f"a nested sequence of length {len(inner)}. You have most likely "
+            f"passed a LIST OF CHROMOSOMES where ONE strand was expected -- did "
+            f"you mean to concatenate them? "
+            f"e.g. strand = [hv for chrom in chromosomes for hv in chrom] "
+            f"(§44 scan classifier; genome_save/recall/genes and 27 other public "
+            f"ops reach this line)") from exc
     return first if first in _LEAF_WIDE_BLOCK_MARKERS else None
 
 

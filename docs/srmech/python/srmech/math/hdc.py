@@ -1095,9 +1095,13 @@ def klein4_from_one(one, D: int):
     DECLARED FUNCTION of the ``One``'s three canonical constructor integers,
     with no stored bytes, no seed table and no label:
 
-    1. **Class A** — canonical serialisation of ``one._to_jsonable()``
-       (``{"sigma", "terms", "theta"}``, sorted keys, no whitespace) →
-       :func:`klein4_address`.
+    1. **Class A** — canonical serialisation of the One's three coupling
+       fields, assembled HERE as ``{"sigma": σ, "terms": n, "theta": [num,
+       den]}`` (sorted keys, no whitespace) → :func:`klein4_address`. This op
+       does **not** call ``one._to_jsonable()``; it reads ``.sigma`` /
+       ``.theta`` / ``.terms`` off the operand and builds its own dict, which
+       is precisely why any object exposing those three attributes works (see
+       Args) rather than only a real :class:`~srmech.cascade.one.One`.
     2. **Class C** — XOR the period-14 :func:`klein4_sector_frame`, carrying the
        (1,3,7,3) partition as the substrate's own sector structure.
     3. **Class K/C** — σ enters through the ``One``'s own construction (the
@@ -1128,10 +1132,26 @@ def klein4_from_one(one, D: int):
     why the ``One``'s 14-D vector structure is inert for this purpose. A large
     bridge here would be a sign of something invented.
 
+    ⚠️ **Winding is deliberately NOT read, and saying so makes the flatness
+    visible rather than surprising.** ``One._to_jsonable()`` emits a FOURTH key
+    ``"winding"`` when the One is wound (rc414, `#T1092`) — measured: an
+    unwound One serialises to ``{sigma, terms, theta}`` and a wound one to
+    ``{sigma, terms, theta, winding}``. This preimage never carries it, so
+    ``klein4_from_one(rest, D) == klein4_from_one(wound, D)`` byte-for-byte for
+    two Ones differing only in ``w``. At rest the two dicts coincide exactly,
+    which is how the step-1 description above could name ``_to_jsonable()``
+    from rc414 to rc435 without anything ever diverging. The C peer
+    ``srmech_klein4_from_one`` takes ``(sigma, theta_num, theta_den, terms, D)``
+    and has no winding parameter either, so BOTH projections agree on the flat
+    triple — making the coupling winding-bearing would change the wire format
+    and cost an ABI bump. That is an OPEN DECISION, not an oversight, and it is
+    explicitly out of scope here: rc436 (`#T1141`) corrected the DESCRIPTION to
+    what the code does and changed no behaviour.
+
     Args:
         one: A :class:`~srmech.cascade.one.One` (read structurally: any
             object exposing ``.sigma``, ``.theta`` as a ``(num, den)`` pair, and
-            ``.terms``).
+            ``.terms``). A wound One is accepted; its ``w`` is ignored (above).
         D: Vector dimension (positive). Free — nothing requires, and nothing
             gains from, divisibility by 14.
     """

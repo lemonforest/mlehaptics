@@ -4700,7 +4700,7 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.biology.genome.cwf_consistency_mod2", owner="srmech", category="genome",
-            summary="rc313 — the mod-2 Calugareanu-White-Fuller consistency check on a strand: Lk == Tw + Wr (mod 2). Three INDEPENDENTLY-computed reads: Lk = the intrinsic mod-2 center-parity holonomy (rc309) — the center_parity of the strand's single fundamental cycle from quaternion_cycle_holonomy over the Q8 gains (center_parity -1 -> Lk==1; +1 -> Lk==0; 0 = pure-imaginary NON-central holonomy -> mod-2 Lk UNDEFINED, flagged); Tw = the framing twist read from the Q8 SIGN accumulation (parity of the count of negative-coset {-1,-i,-j,-k} gains); Wr = the directional writhe of the supplied embedding (discrete_writhe), computed from GEOMETRY, NEVER as Lk-Tw. The geometric independence gives the check teeth: the writhe supplies the non-abelian Q8 cocycle (e.g. i.i=-1) that the per-turn sign-sum Tw misses. HONEST BOUNDING (form not identity): a finite group (Q8) pins Lk only MOD 2 (center-parity), NOT the integer Gauss linking number; the Tw<->Q8-sign map is UNPINNED at integer level (parity only); no claim that DNA IS a quaternion or an integer-level CWF. No-embedding path: returns ONLY the intrinsic mod-2 Lk (+ Tw); wr / wr_mod2 / consistent are None, no Wr fabricated. Composition of C: quaternion_cycle_holonomy . discrete_writhe (both C-dispatched) . mod-2 integer arithmetic. PROVENANCE (rc429, `#T1128`): Calugareanu-White-Fuller is used as the STANDARD NAME of Lk = Tw + Wr; the verdict is DERIVED-AND-MEASURED, not cited. The op does not ASSERT the relation, it MATERIALISES it as three INDEPENDENT computations (lk_mod2 / tw_mod2 / wr_mod2) plus the returned `consistent` witness, and tests/test_discrete_writhe_cwf_rc313.py calls it and asserts that agreement. The canonical CWF sources (Calugareanu 1959-61, White 1969, Fuller 1971) are paywalled-only or offline, so no attestation is claimed for the name and none is substituted unverified.",
+            summary="rc313 — the mod-2 Calugareanu-White-Fuller consistency check on a strand: Lk == Tw + Wr (mod 2). Three INDEPENDENTLY-computed reads: Lk = the intrinsic mod-2 center-parity holonomy (rc309) — the center_parity of the strand's single fundamental cycle from quaternion_cycle_holonomy over the Q8 gains (center_parity -1 -> Lk==1; +1 -> Lk==0; 0 = pure-imaginary NON-central holonomy -> mod-2 Lk UNDEFINED, flagged); Tw = the framing twist read from the Q8 SIGN accumulation (parity of the count of negative-coset {-1,-i,-j,-k} gains); Wr = the directional writhe of the supplied embedding (discrete_writhe), computed from GEOMETRY, NEVER as Lk-Tw. The geometric independence gives the check teeth: the writhe supplies the non-abelian Q8 cocycle (e.g. i.i=-1) that the per-turn sign-sum Tw misses. HONEST BOUNDING (form not identity): a finite group (Q8) pins Lk only MOD 2 (center-parity), NOT the integer Gauss linking number; the Tw<->Q8-sign map is UNPINNED at integer level (parity only); no claim that DNA IS a quaternion or an integer-level CWF. No-embedding path: returns ONLY the intrinsic mod-2 Lk (+ Tw); wr / wr_mod2 / consistent are None, no Wr fabricated. Composition of C: quaternion_cycle_holonomy . discrete_writhe (both C-dispatched) . mod-2 integer arithmetic. PROVENANCE (rc429, `#T1128`): Calugareanu-White-Fuller is used as the STANDARD NAME of Lk = Tw + Wr; the verdict is DERIVED-AND-MEASURED, not cited. The op does not ASSERT the relation, it MATERIALISES it as three INDEPENDENT computations (lk_mod2 / tw_mod2 / wr_mod2) plus the returned `consistent` witness, and tests/test_discrete_writhe_cwf_rc313.py calls it and asserts that agreement. Of the three canonical CWF sources, Fuller 1971 IS openly retrievable and is cited as such (PNAS 68(4):815-819, doi 10.1073/pnas.68.4.815, PMC389050, free PDF) -- the same identifiers srmech.math.rational.relative_writhe already ships; Calugareanu 1959-61 and White 1969 remain paywalled-only or offline and carry no attestation. What is verified for Fuller is METADATA + OA STATUS, not content: the PMC landing page renders the mathematics as page images, so this is NOT a content attestation that the PDF states the relation in the form written here. rc436: this sentence previously asserted of all three that they \"are paywalled-only or offline\", which was FALSE for Fuller and contradicted relative_writhe's own shipped citation; the verdict below never rested on it and is unchanged.",
             parameters=(P("edges", "list", True, "the strand connectivity [(u,v), ...] — a single fundamental cycle"),
                         P("gains", "list", True, "per-edge unit-quaternion Q8 gains (4-vectors) parallel to edges — the stored physical turns"),
                         P("n", "int", False, "keyword-only; node count (inferred from the edges when None)"),
@@ -9306,6 +9306,50 @@ def _register_primitive_class_tools() -> None:
             returns=R("tuple", "dim-tuple of exact Q — the all-zero tuple iff "
                                "the ordered triple (x, y, z) associates"),
         ),
+        # rc436 (`#T1141`): the SUPPORT of the op above, as a SET. The COUNT
+        # 168 was already pinned at five sites (associator's own 512 - 344
+        # census, cd_cycle_holonomy 168/512, oct_mult 168/343,
+        # octonion_frame_read's seam read, group_algebra_table's labelled
+        # tautology); the SET those counts count, and the closed-form Fano
+        # predicate that reproduces it, shipped nowhere.
+        ToolEntry(
+            name="srmech.cascade.octonion_associator_support", owner="srmech",
+            category="cascade",
+            summary="The 168 ordered imaginary triples on which 𝕆's associator "
+                    "is NONZERO — shipped as a SET, with the closed-form "
+                    "predicate that reproduces it: distinct imaginary indices "
+                    "NOT all on one Fano line, i.e. 7·6·5 − 7·3! = 210 − 42 = "
+                    "168. Set equality against the measured support is gated, "
+                    "not assumed. Reproduces a count already pinned at five "
+                    "sites rather than moving it; what is new is the SET, the "
+                    "predicate and a Class-A content address over them. 𝕆 is "
+                    "ALTERNATIVE, so the associator is alternating and the "
+                    "supports over 512, 343 and 210 ordered triples are "
+                    "literally the same 168 — three readings of one object. "
+                    "⚠️ COLLISION: 168 also counts cd_zero_divisor_witnesses(16) "
+                    "at the dim-16 SEDENION rung (a zero-divisor census, the "
+                    "sense inertia_signature uses) — different rung, different "
+                    "phenomenon, no derivation connects them; |Aut(Fano)| = 168 "
+                    "is literature adjacency, not measured here. Class A "
+                    "(content-addressed invariant) ∘ Class E (the Fano lines "
+                    "are DERIVED from cd_basis_product, not tabulated). "
+                    "composition_of_c over the c_dispatched associator + "
+                    "sha256_bytes: NO new C symbol, ABI stays 14. SSoT: Baez, "
+                    "*The Octonions*, Bull. AMS 39 (2002) 145–205, "
+                    "arXiv:math/0105155, §2.1 (the Fano plane); Schafer (1966) "
+                    "ch. III (alternativity)."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(),
+            returns=R("dict",
+                      "{dim:8, count:168, ordered_distinct_imaginary:210, "
+                      "triples: the sorted 168-tuple of (i,j,k) — THE PAYLOAD, "
+                      "fano_lines: the 7 derived lines, associating: the "
+                      "complementary 42, predicate/arithmetic: the closed form, "
+                      "sha256: Class-A address over triples, collision_note, "
+                      "line_membership_reproduces_support: bool}"),
+            composes=("srmech.cascade.associator",
+                      "srmech.amsc.format.sha256_bytes"),
+        ),
         # rc380 (`#T1055`): the k=2 SQUARE-LOOP peer of the associator. The
         # Cayley–Dickson property-loss ladder is a ladder of loop defects of
         # rising arity, each turning on one rung later: commutator at ℍ,
@@ -13003,10 +13047,14 @@ def _register_qm_tools() -> None:
                     "DERIVED-AND-MEASURED, not cited — the op returns the "
                     "exact rational sum and CERTIFIES integrality rather "
                     "than assuming it, and tests/test_covering_layer_rc422.py "
-                    "calls it and asserts both branches. The canonical CWF "
-                    "sources are paywalled-only or offline, so no "
-                    "attestation is claimed and none is substituted "
-                    "unverified.",
+                    "calls it and asserts both branches. Of the canonical CWF "
+                    "sources Fuller 1971 IS open (PNAS 68(4):815-819, doi "
+                    "10.1073/pnas.68.4.815, PMC389050); Calugareanu 1959-61 "
+                    "and White 1969 are paywalled-only or offline. Fuller is "
+                    "verified for METADATA + OA STATUS only, never content "
+                    "(PMC renders the maths as page images), so the relation "
+                    "still carries no content attestation and none is "
+                    "substituted unverified.",
             parameters=(P("twist", "tuple[int, int]", True,
                           "Tw as an exact (num, den) integer pair"),
                         P("writhe", "tuple[int, int]", True,

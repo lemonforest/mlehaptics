@@ -162,6 +162,18 @@ ROSTER: Dict[str, Tuple[str, ...]] = {
         "srmech.biology.genome.discrete_writhe",
         "srmech.physics.qm.quaternion.quaternion_cycle_holonomy",
     ),
+    # ── rc436 (local task T1141) ──────────────────────────────────
+    # TRACED, not inferred: the sweep calls `associator` once per ordered
+    # distinct imaginary triple (210 calls, 168 of which land in the
+    # support) and BUILDS the set; only once the set is complete and
+    # sorted is it serialised and hashed, so `sha256_bytes` is called
+    # EXACTLY ONCE and strictly last. The order is forced by data
+    # dependence -- the digest is taken OVER the assembled set -- not by
+    # style, so it is not re-orderable without changing what is hashed.
+    "srmech.cascade.octonion_associator_support": (
+        "srmech.cascade.associator",
+        "srmech.amsc.format.sha256_bytes",
+    ),
     # ── rc412 ─────────────────────────────────────────────────────────
     # Class K pin-slot -> Class N anchor -> Class C re-orient. The op's own
     # docstring names the cascade; the native branch returns a finished

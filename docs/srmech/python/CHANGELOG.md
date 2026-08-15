@@ -50,6 +50,61 @@ Every shard keeps the full liveness check — `HAS_NATIVE` plus `nm -u "$LIB" | 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc436]
+
+Five items adjudicated in gh #1530, each verified by execution before it was written. Registry **655 -> 656**; **ABI stays 14**; **GENOME_FORMAT_VERSION stays 19**; no new C symbol.
+
+### The shipped falsehood about a citation (`#T1141`)
+
+From rc429 to rc435 the wheel asserted **both** of these about the same paper, and both shipped:
+
+| surface | claim |
+|---|---|
+| `math/rational.relative_writhe` ToolEntry (rc317) | *"Cites F. Brock Fuller PNAS 68(4):815-819 (1971, doi 10.1073/pnas.68.4.815, PMC389050) ... both OA"* |
+| the rc429 CWF provenance paragraph | *"The canonical CWF sources (Calugareanu 1959-61, White 1969, Fuller 1971) are paywalled-only or offline"* |
+
+Fuller 1971 is **OA** — `doi:10.1073/pnas.68.4.815`, PMC389050, free PDF — so the second claim was false, and it was live on **seven** source surfaces reaching users through `describe()`, the MCP tool list and the compiled-in C registry: `c/src/srmech_tool_registry.c` (x4), `CHANGELOG.md`, `biology/genome.py`, `introspect/tool_schema.py`, `introspect/_tool_docs.py`, `introspect/_tool_docs_curated.py`, `math/covering.py`.
+
+Repaired at the **hand-written sources** (`tool_schema.py` x2, `_tool_docs_curated.py`, `genome.py`, `covering.py`), then regenerated — `_tool_docs.py` and `srmech_tool_registry.c` are OUTPUT, and editing them directly is the defect rc291 fixed. **Calugareanu 1959-61 and White 1969 stay on the not-retrievable list**: nothing was verified about them, so no claim about them changed.
+
+**The residual is stated rather than glossed.** What is verified for Fuller is **metadata + OA status**, NOT content: the PMC landing page renders the mathematics as page images, so this is an ACCESS attestation, not a claim that the PDF states the relation in the form the docstring writes it. The DERIVED-AND-MEASURED verdict never rested on any source and is unchanged. The `CHANGELOG.md` occurrence is **annotated in place** rather than rewritten — a dated record keeps its history and gains its correction.
+
+**The string fix repairs one paper; the gate repairs the class.** `tests/test_citation_contradiction_rc436.py` is strict-zero on *any* source asserted both openly-retrievable and unretrievable in one wheel. Both halves are DERIVED from the tree — there is no roster to go stale — and resolution is per CLAUSE, since the corrected prose legitimately names all three sources in one sentence. `test_citation_manifest_rc428.py` could not have caught this: it asks whether a cited SOURCE contains the cited CLAIM, which needs an external measurement; this contradiction is decidable from the tree alone, because the tree disagreed with itself. Carries two planted-violation controls, including the verbatim rc429 sentence.
+
+### The genome strand-shape contract (`#T1141`)
+
+`genome_save([chromosome(...), chromosome(...)], ...)` died three frames down in a private function with `TypeError: int() argument must be ... not 'HV'` — a message naming `int()` and `HV`, but not the strand, the shape, or the likely intent.
+
+The guard lands on the **shared `_cap_kind` boundary**. Measured by static reachability over the module AST intersected with the live registry: **30 registered public ops reach that line** — the tracker said 13, and the tree says 30. Guarding only `genome_save` would have left 29 public entry points with the bare message. The new message names the shape and offers the fix (`[hv for chrom in chromosomes for hv in chrom]`).
+
+**Python-only, and the projection question is answered rather than skipped.** The C peer is `static int genome_cap_kind(const unsigned char *block, size_t len)` — a typed buffer. A nested sequence cannot be expressed in that calling convention, so the malformed input is UNREPRESENTABLE on the C projection, no capability diverges, and per ADR-0009 §5 no decline row is owed. That reasoning is in the code, not only here.
+
+### `octonion_associator_support` — one new op, Class A ∘ E (`#T1141`)
+
+The 168 ordered imaginary triples where 𝕆's associator is nonzero, shipped as a **SET** with the closed form that reproduces it: *distinct imaginary indices, not all three on one Fano line*, i.e. `7*6*5 - 7*3! = 210 - 42 = 168`. Set equality against the measured support is **gated, not assumed**, with a perturbation control (withhold one Fano line -> 174, and the SET diverges) so the claim cannot be vacuous.
+
+**The count is not the contribution.** 168 was already pinned at five sites (`associator`'s `512 - 344`, `cd_cycle_holonomy`'s `168/512`, `oct_mult`'s `168/343`, `octonion_frame_read`'s seam read, `group_algebra_table`'s labelled tautology); the op REPRODUCES it. What shipped nowhere was the SET and a membership rule.
+
+**Measured, and it explains why the published denominators differ while the answer does not:** 𝕆 is ALTERNATIVE, so the associator is alternating — it vanishes on any repeated argument and on `e_0`. The support over 512, over 343 and over 210 ordered triples is therefore *literally the same set*. Three readings of one object, not three results.
+
+**Named for the object, and the collision is shipped with it.** `168` also counts `cd_zero_divisor_witnesses(16)` — the basis-pair zero divisors at the dim-16 SEDENION rung, which is the sense `inertia_signature`'s docstring uses. Different rung, different phenomenon, no derivation connects them. `|Aut(Fano)| = |PGL(3,2)| = 168` too, recorded as literature-derived adjacency that is **not** measured or used here, so the coincidence is not re-discovered as a finding. `composition_of_c` over the already-c_dispatched `associator` + `sha256_bytes`.
+
+### `klein4_from_one` — the docstring described an op it does not call (`#T1141`)
+
+Step 1 claimed *"canonical serialisation of `one._to_jsonable()`"*. Measured: the implementation never calls it — it reads `.sigma` / `.theta` / `.terms` and builds its own three-key dict, which is exactly why any object exposing those three attributes works.
+
+**The tracker said `_to_jsonable()` returns four keys; the tree says it depends, and the dependence is the point.** An unwound `One` serialises to `{sigma, terms, theta}` and a **wound** one to `{sigma, terms, theta, winding}` (rc414). At rest the two dicts coincide, which is how the claim survived from rc414 to rc435 without diverging. So `klein4_from_one(rest, D) == klein4_from_one(wound, D)` byte-for-byte — winding is **deliberately not read**, and the docstring now says so rather than leaving the flatness to be discovered. The C peer `srmech_klein4_from_one(sigma, theta_num, theta_den, terms, D)` has no winding parameter either, so both projections agree; making the coupling winding-bearing would change the wire format and cost an ABI bump. **Behaviour is untouched** — that remains an open decision, explicitly out of scope.
+
+### `jacobi_eigvals` — why `exact=True` exists (`#T1141`)
+
+**The tracker framed this as correcting a false Abel-Ruffini claim. There is no such claim** — "Abel", "Ruffini" and "quintic" occur nowhere in that function. The gap was the ABSENCE of a stated reason for `exact=`, not a wrong one, and the new paragraph is written as the reason rather than as a correction.
+
+Jacobi rotations are built from square roots only, so every value the basis can reach lies in a tower `[Q(a):Q] = 2^k`. A generic rational symmetric matrix has an irreducible cubic characteristic polynomial — degree 3 is odd and divides no `2^k` — so **float-Jacobi cannot terminate exactly even at n = 3**. Measured through the shipped ops: `[[2,1,1],[1,3,1],[1,1,5]]` has char poly `x^3 - 10x^2 + 28x - 22`, and `factor_integer_poly([-22, 28, -10, 1])` returns it as a single multiplicity-1 factor, i.e. irreducible over Q. The float path is an iterative approximation **by construction**, and `exact=True` is the route that does not pretend otherwise. The paragraph carries an explicit NON-CLAIM: this is about square-root towers, **not** solvability by radicals — it bites at n = 3, where radicals do suffice.
+
+### Ripple
+
+73 `== 656` count pins across 66 test files (two `655`-shaped matches are coincidental — `65520/691` and `D_MAX == 65536` — and are untouched); `EXPECTED_N` + the sha256-pinned op-name manifest; the search-corpus witness re-pinned with determinism re-established across **five fresh interpreters** (frames `684 -> 685 = 656 ops + 29 carriers`); the `srmech.amsc.` CITATION ceilings raised `+3` with both of the gate's burdens discharged (decoded channel UNMOVED at 2, no op registered under `srmech.amsc`); a hand-traced `composes` ROSTER entry; the rosetta ledger row (`composition_of_c`); README + notebook currency. All three new gates are added to `tools/ripple_gates.txt` — the manifest's own record is five rcs that each ate a CI-red round on a gate nobody listed.
+
 ## [0.9.0rc435]
 
 ### The carrier flag that turned out to be an algorithm selector (`#T1140`, gh #1530 §N)
@@ -702,7 +757,7 @@ No citation is minted anywhere. `malcev_defect`'s docstring carried **two claims
 
 Whether Schafer could be widened to cover claim A was **decided by extraction, not preference.** The Project Gutenberg #25156 TeX source (226,706 chars, sha256 `25ff18d3…`) contains **0** occurrences of "Mal'cev" in any spelling, **0** of "Kuzmin", **0** of "tangent algebra" and **0** of "Moufang loop" — on an extraction whose live positive controls read Schafer 15 / alternative 44 / Moufang 3 / Jordan 127, whose negative controls read 0, and which carries no U+FFFD. **Those zeroes are measurements, not silence** — the first attempt at this extraction 404'd and the positive control caught it. The same extraction independently **verified** the sibling citation: Schafer's eqns (7) and (9) really are introduced as *"the Moufang identities"*.
 
-For CWF the canonical sources (Călugăreanu 1959–61, White 1969, Fuller 1971) are paywalled-only or offline; per `[[feedback_paywalled_doi_cannot_be_attested]]` a substituted second unverified citation is the same defect wearing a different name. The verdict is DERIVED-AND-MEASURED because `cwf_consistency_mod2` does not **assert** `Lk = Tw + Wr` — it **materialises** it as three independently-computed keys plus a returned `consistent` witness.
+For CWF the canonical sources (Călugăreanu 1959–61, White 1969, Fuller 1971) are paywalled-only or offline **[CORRECTED in rc436 (`#T1141`): FALSE for Fuller 1971, which is OA at `doi:10.1073/pnas.68.4.815` / PMC389050 — the identifiers `relative_writhe` was already shipping. Călugăreanu and White stand. See the rc436 entry.]**; per `[[feedback_paywalled_doi_cannot_be_attested]]` a substituted second unverified citation is the same defect wearing a different name. The verdict is DERIVED-AND-MEASURED because `cwf_consistency_mod2` does not **assert** `Lk = Tw + Wr` — it **materialises** it as three independently-computed keys plus a returned `consistent` witness.
 
 Three prose clauses that appealed to a **named theorem as their own warrant** were narrowed to what the op measures: *"exactly as CWF's writhe accounts for the crossings a naive twist count omits"*, *"The theorem's content is"*, and *"The theorem's whole content is"*.
 

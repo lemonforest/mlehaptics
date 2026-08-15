@@ -416,3 +416,33 @@ tests/test_c_resource_ownership_rc432.py
 #    That is the manifest-omission law arriving from its blind side: a gate
 #    nobody listed because nothing required it.
 tests/test_acquire_before_validate_rc432.py
+
+# -- citation CONTRADICTION (rc436, local task T1141) ------------------------
+#    The tree disagreeing with ITSELF, which needs no external measurement and
+#    so is decidable locally -- a different axis from
+#    test_citation_manifest_rc428.py, which asks whether a cited SOURCE contains
+#    the cited CLAIM. rc429 shipped "the canonical CWF sources ... are
+#    paywalled-only or offline" naming Fuller 1971, while relative_writhe had
+#    shipped "doi 10.1073/pnas.68.4.815, PMC389050 ... both OA" since rc317.
+#    Both rode inside the wheel for four releases across seven surfaces and
+#    NOTHING could see it. It rides this manifest because its subject is
+#    ToolEntry/docstring prose, which is edited on essentially every op rc and
+#    is EMITTED into _tool_docs.py and the compiled-in C registry -- the same
+#    reason the rc428 citation gate is here. Strict zero, with two planted
+#    controls. ~30 s, pure-Python, no native .so.
+tests/test_citation_contradiction_rc436.py
+
+# -- genome strand-shape contract (rc436, local task T1141) ------------------
+#    The guard sits on the SHARED _cap_kind boundary, which 30 registered
+#    public ops reach; the test DERIVES that reachability from the module AST
+#    rather than quoting it, so it moves when the call graph moves. Carries the
+#    negative control (a valid strand still round-trips) and the bare-int()
+#    control that proves the guard is what supplies the guidance. ~8 s.
+tests/test_strand_shape_contract_rc436.py
+
+# -- octonion associator SUPPORT (rc436, local task T1141) -------------------
+#    A new registered op, so it moves the count pins; but it rides here for its
+#    SET assertion, which is the thing the five pre-existing 168 sites could not
+#    state. Carries a perturbation control (withhold one Fano line -> 168 -> 174
+#    and the SET diverges) so the set-equality claim cannot be vacuous. ~14 s.
+tests/test_octonion_associator_support_rc436.py

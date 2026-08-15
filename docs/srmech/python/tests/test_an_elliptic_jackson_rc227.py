@@ -318,7 +318,7 @@ def test_registration():
     assert "multivariate_elliptic_jackson_an" in eja.__all__
     assert "an_vwp_multisum_lhs" in eja.__all__
     schema = introspect.describe()
-    assert schema["tools"]["total"] == 655
+    assert schema["tools"]["total"] == 656
     from srmech.introspect.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
     assert ("srmech.apokatastasis.elliptic_jackson_an.multivariate_elliptic_jackson_an"
