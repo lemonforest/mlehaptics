@@ -253,8 +253,25 @@ These reading-rules apply across ALL framework-research arcs. Per memory feedbac
 ### Citation + provenance
 
 - `[[feedback_pdf_extraction_citation_discipline]]` — extract actual PDF; verify authors + title + arXiv-ID; don't trust prior attributions
-- `[[feedback_paywalled_doi_cannot_be_attested]]` — paywalled-only DOI is REJECTED as framework attestation; use arXiv preprint / OA review / textbook attribution chain
+- `[[feedback_paywalled_doi_cannot_be_attested]]` — paywalled-only DOI is REJECTED as framework attestation; use arXiv preprint / OA review / textbook attribution chain. **"Paywalled-only" is now a CLAIM THAT MUST BE EARNED — see the four-route sweep immediately below.**
 - `[[feedback_computational_provenance_discipline]]` — load-bearing numerical results (p-values, effect sizes) MUST have generating code committed
+
+### An unverified NEGATIVE is still an unverified claim — the four-route retrievability sweep (F1354; user direction 2026-08-15)
+
+**The gap this closes.** The rules above govern *positive* claims about content ("this paper says X" — open it first) and said **nothing about negative claims about access** ("this paper cannot be opened"). That asymmetry is not theoretical: our own tracker ask said *"targeted attested research could not retrieve"* three CWF papers, srmech implemented it faithfully as *"paywalled-only or offline"*, and it shipped to **7 source surfaces including 4 occurrences in the compiled C registry** — reaching users through `describe()`, the MCP tool list and the C binary. **All three were retrievable; a sweep found every one on the first search.**
+
+**Before writing that a source is unretrievable, run all four routes:**
+
+| # | route | note |
+|---|---|---|
+| 1 | **publisher DOI** | a **403 here is bot-blocking, NOT evidence** — an automated client is not a reader |
+| 2 | **PMC / PubMed Central** | free-to-read and OA-subset are **different questions**; `oa.fcgi?id=PMCxxxxx` answers the second |
+| 3 | **search engine → the AUTHOR'S INSTITUTIONAL REPOSITORY** | **highest yield, and the one that worked 3/3.** Pre-internet papers have no arXiv and a hostile publisher, **but the author had an employer, and employers retro-deposit faculty work** (Fuller→Caltech, White→Edinburgh archive, Călugăreanu→DML-CZ) |
+| 4 | **Google Scholar / preprint servers / OA aggregators / national digital maths libraries** | DML-CZ, EuDML, EMIS and similar cover most pre-1990 European mathematics |
+
+**Only after all four fail may a source be called unretrievable — and the claim must NAME WHICH ROUTES WERE TRIED.** "We couldn't get it" is a fact about the attempt, never about the source; write it that way or don't write it.
+
+**⚠ RETRIEVABLE and REDISTRIBUTABLE are two questions — answer them separately.** Our attestation bar keys on **retrievability**, so a personal-use-only scan is perfectly attestable (URL + `response_sha256` + `retrieved_at` is the MPR record, and it is *stronger* than a secondary-review chain). But it is **not** an OA licence: **never write "OA" without checking, and never commit a retrieved PDF to the repo.** The original defect was exactly this conflation, made twice in opposite directions — one surface claimed "OA" (a false *licence* claim), another claimed "paywalled-only" (a false *retrievability* claim), about the same paper, in the same package.
 
 ### No magic numbers = attestation-to-source (the MPM applied to every constant)
 
