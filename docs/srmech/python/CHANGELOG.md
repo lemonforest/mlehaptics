@@ -50,6 +50,52 @@ Every shard keeps the full liveness check — `HAS_NATIVE` plus `nm -u "$LIB" | 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc435]
+
+### The carrier flag that turned out to be an algorithm selector (`#T1140`, gh #1530 §N)
+
+**Registry stays 655. ABI stays 14. GENOME_FORMAT_VERSION stays 19.** No callable is registered; `regen_all.py --check` reports all 6 generated files up to date. One carrier declaration changes.
+
+#### What was filed, and what it actually was
+
+gh #1530 §N states the rule in two halves: **SPACE** — the container must not declare more degrees of freedom than the object has; **TIME** — the computation must not materialise more frames than the question asks for. The filed exemplar was `physics/qm/potentials.py`'s `hydrogen_radial`, which builds a **provably real** tridiagonal Hamiltonian (exactly `3n-2` nonzeros; 1198 in 160,000 cells at the shipped `n_grid=400`, 99.25% structural zero) and then declared `is_complex=True` for it. It is real *by construction*, not merely on tested inputs: every entry is float arithmetic over a real grid and no argument can populate an imaginary axis.
+
+rc435 flips that one carrier to `is_complex=False`.
+
+#### The finding that bounds the fix, and it refutes the premise it was filed under
+
+The change was filed as **storage-only** — same algorithm, same steps, identical answers, so the ratchet could be `==`. **Measured, that premise is false on one of the two arms.**
+
+On the numpy-free path `is_complex` is not a storage declaration. It is an **ALGORITHM SELECTOR**: `_hermitian_eig_py` branches `if not h.is_complex` to the direct `n×n` Jacobi, else to the real `2n×2n` embedding. Different rotation sequences over different matrices accumulate rounding differently. Consequences, all measured on both arms:
+
+| quantity | pure arm | native arm |
+|---|---|---|
+| eigenVALUES across carriers | **bit-identical** (`==`) | **bit-identical** (`==`) |
+| eigenVECTORS across carriers | differ ~1e-14, **not merely by sign** | **bit-identical**, including `.tolist()` |
+| `hydrogen_radial` energies | unchanged, bit-for-bit | unchanged, bit-for-bit |
+| wall time, `n=120` | 32.96s → 7.67s (**4.30×**) | 0.227s → 0.233s (**0.98×**) |
+| wall time, `n=400` | does not finish in a sane window | 11.80s → 12.53s (**0.94×**) |
+| carrier buffer | 2.0× smaller at every `n` | 2.0× smaller at every `n` |
+
+So the eigenvector movement is real, and it is **inside this op's declared contract**, which pins "eigenvalues + reconstruction + unitarity, NOT element-wise parity — an eigenvector is fixed only up to a unit-modulus phase". It also moves the pure arm **toward** the native one: pure `eigvec[0][0]` read `0.5740264305118639` against native's `0.5740264305118833`, and after the flip reads `0.5740264305118833` — an exact match. **The flip CLOSES a pure/native projection gap rather than opening one.**
+
+#### The C peer ignores the flag — verified before any edit
+
+`mat_hermitian_eigendecompose`'s native branch does not test the carrier at all: `_mat_to_interleaved_cbuf` allocates `2n²` doubles unconditionally and fills the imaginary slots with `0.0`, then runs the complex Hermitian Jacobi either way. So the native arm is **byte-for-byte unchanged** by this rc (verified by diffing the op's full public output before and after), and **the time win exists only on hosts without the `.so`** — CI's numpy-absent cell, embedded, WASM/Pyodide. Reporting the 4.30× as a general speedup would be false. A real-symmetric C kernel (`srmech_jacobi_eigvals`) exists and is bound, but returns eigenvalues only, so routing to it needs a new eigenVECTOR entry point — ABI-additive C work, deliberately **not** in this rc.
+
+#### One site converted, one deliberately left — with the reason pinned
+
+`signal_processing/closed_form_ops/ica_jade.py`'s PCA covariance is equally provably real (its own comment already says so, and it takes `.real` off both outputs). It is **left on the complex carrier on purpose.** Flipping it perturbs the whitening basis by ~1e-14, and the JADE Givens sweep is threshold-driven (`_abs(theta) < tol` decides whether a rotation happens at all), so that perturbation is **amplified to an O(1) change in the returned `W` and `S`** — measured `W[0][0]` = `-0.01280` before, `0.13968` after, on the pure arm. The separation stays valid (ICA is defined only up to permutation/sign/scale) and every shipped test still passes, but that is a **reproducibility change for numpy-free hosts**, not a storage-only one, and it does not ride an rc whose entire safety argument is bit-identity. The reason is pinned by a test, so the site cannot read as an un-caught defect and get "fixed" again.
+
+#### Two claims in the filing that measurement corrected
+
+1. **"Delete the now-redundant `.real` extraction."** `mat_hermitian_eigendecompose` returns **always-complex** eigenvectors regardless of the input carrier — verified on both arms and now asserted. That extraction is what makes `hydrogen_radial`'s return real; deleting it as redundant would have broken the declared return type.
+2. **"Bit-identical on both arms."** True of the spectra, which is all that had been compared. False of the eigenvectors on the pure arm.
+
+#### The gate
+
+`tests/test_carrier_real_not_complex_rc435.py` — 9 tests, green on **both** arms. It ratchets eigenvalues by `==`, eigenvectors by the op's real contract (orthonormality + reconstruction), and deliberately does **not** assert element-wise eigenvector parity, because that is false on the pure arm and a gate asserting it would pin a coincidence. It carries a negative control (real-casting `σ_y` must move its spectrum from `{-1,+1}` to `{0,0}`, proving the discriminator is not merely permissive), and pins both the algorithm-selector branch and the ica_jade rationale so neither can be lost. Fired on purpose: perturbing a Hamiltonian value, re-promoting the carrier, breaking the return carrier, and flipping ica_jade each turn it red.
+
 ## [0.9.0rc434]
 
 ### The prose that promises an exception the code never raises (`#T1130`, `#T1134`)
