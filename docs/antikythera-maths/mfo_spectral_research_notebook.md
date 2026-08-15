@@ -7005,7 +7005,7 @@ The document should be self-sufficient for regenerating these scripts without co
 
 ---
 
-## §XIV — The MFO world-kernel + the navigation triality (RBS-LM PR #687 sweep, F627–F688) + the resonant-BODY close-out (§XIV.8; F1179–F1186; #243 / F1070)
+## §XIV — The MFO world-kernel + the navigation triality (RBS-LM PR #687 sweep, F627–F688) + the resonant-BODY close-out (§XIV.8; F1179–F1186; #243 / F1070) + the composition-law entry (§XIV.9; F1350/F1351)
 
 *Swept 2026-06-08 (breadcrumb-web discipline; landed-where). This notebook had lagged the rolling RBS-LM PR ([#687](https://github.com/lemonforest/mlehaptics/pull/687)) at ~F369; this section lands the recent MFO-world-kernel + navigation-triality arc. The fuller back-sweep (F370–F626) remains the **CL-1 closeout audit** (queued).*
 
