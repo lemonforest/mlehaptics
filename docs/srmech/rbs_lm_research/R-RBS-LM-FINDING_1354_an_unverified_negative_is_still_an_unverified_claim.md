@@ -1,4 +1,4 @@
-# F1354 — **we had a rule against citing what we hadn't opened, and no rule against asserting a thing *couldn't* be opened.** That asymmetry let an unverified negative — *"targeted attested research could not retrieve"* — propagate from our own tracker ask into **7 srmech source surfaces including 4 occurrences in the compiled C registry**, reaching users through `describe()`, the MCP tool list and the C binary. **All three named papers were retrievable the whole time — 3/3, each on the first search.** They are now attested with sha256s. And they are all **personal-use-only**, which is the second half of the lesson: *retrievable and redistributable are different questions, and the two shipped surfaces conflated them in opposite directions.*
+# F1354 — **we had a rule against citing what we hadn't opened, and no rule against asserting a thing *couldn't* be opened.** That asymmetry let an unverified negative — *"targeted attested research could not retrieve"* — propagate from our own tracker ask into **7 srmech source surfaces including 4 occurrences in the compiled C registry**, reaching users through `describe()`, the MCP tool list and the C binary. **All FOUR named papers were retrievable the whole time — 4/4.** They are now attested with sha256s. And they are all **personal-use-only**, which is the second half of the lesson: *retrievable and redistributable are different questions, and the two shipped surfaces conflated them in opposite directions.*
 
 **User (2026-08-15):** *"what if we used simple internet search engine for a list of additional hosting locations, like how sometimes it's on google schoolarly and a university and a journal"* — proposed, tested, and it worked immediately.
 
@@ -36,10 +36,21 @@ User direction: *"do run the same four route on the other unchecked you flagged.
 | **Fuller 1971** PNAS 68(4):815–819 | Caltech Authors (**the author's own institution**) | 874,619 / 5 | `c39705fe50088020f37d946c5f9753470fa0659e11221fd32c0f98fae03a6a7d` |
 | **Călugăreanu 1961** Czech. Math. J. 11(4):588–625 | **DML-CZ** (Czech Digital Mathematics Library) | 5,265,070 / 39 | `46e83f4b09b9de36d9a9e9dba8c45886e1e3f11406fdaa2614a75773c8debb9b` |
 | **White 1969** Amer. J. Math. 91(3):693–728 | **Edinburgh** maths server (Ranicki archive) | 1,085,689 / 37 | `420b9bb7952dd5bfac9be08768904fb21774d30937a8a3bcffbcb2e964ebcc9a` |
+| **Călugăreanu 1959** Rev. Math. Pures Appl. 4:5–20 | **Cluj** (`math.ubbcluj.ro/~calu/59gauss.pdf`) | 7,566,793 / 17 | `ef0772852bdace636de753bbb8800ab1ea9591ee46a55c05c69e3162eb2d75eb` |
 
 First-page text verified against the cited record for each — e.g. Călugăreanu's PDF opens *"Czechoslovak Mathematical Journal / G. Călugăreanu / Sur les classes d'isotopie des noeuds tridimensionnels et leurs invariants / Vol. 11 (1961), No. 4, 588–625"*; White's opens *"Self-Linking and the Gauss Integral in Higher Dimensions / James H. White / American Journal of Mathematics, Vol. 91, No. 3. (Jul., 1969), pp. 693-728"*.
 
-**So "paywalled-only or offline" is false for all three, not just for Fuller.** The generalisation I warned against in the first pass — *don't assume the other two are correctly described* — turned out to be the right caution, and the answer went the other way from the shipped claim in every case.
+**So "paywalled-only or offline" is false for ALL FOUR.** The generalisation I warned against in the first pass — *don't assume the others are correctly described* — was the right caution, and the answer went the other way from the shipped claim every single time.
+
+### ⚠ And the 1959 paper produced a SHARPER version of the same error — mine, one turn after lodging the rule
+
+The first pass swept three papers and left Călugăreanu **1959** flagged as "still unverified", sitting in a list beside two confirmed retrievals. User: *"we can't find the unswept paper or we haven't fanned out a search?"* **We had not searched.** And worse:
+
+> **`math.ubbcluj.ro/~calu/` was the FIRST search result in the 1961 query** — titled *"Homepage of Dr. Grigore Calugareanu"* — **and I went to DML-CZ instead and never opened it.** `59gauss.pdf` was one click away, on a page already in my hands, while I wrote "unverified" next to it.
+
+**A HIT LIST IS NOT A SEARCH.** Route 3 means *open the institutional page*, not *notice that one exists*. And "unswept" placed beside confirmed results reads as "unfindable" — which is the exact conflation F1354 exists to prevent, reproduced by its own author within one turn of writing it. Recorded rather than quietly fixed, because the recurrence is the evidence that the rule is needed.
+
+*(Minor, flagged not resolved: the scan's running head reads "Rev. **Roum.** Math. Pures et Appl., 4, 1959 p. 5—20" — the journal was renamed *Revue Roumaine* in 1964, so the offprint's head differs from the standard citation form. Volume, year and pages match exactly.)*
 
 ### ⚠ And the licence question is SEPARATE, and answers differently
 
@@ -75,7 +86,8 @@ We would never ship *"this paper says X"* without opening it. We shipped *"this 
 ## Honest scope
 
 - The **retrieval, hash, and both bibliographic records are measured.** The OA-subset verdict is the authoritative `oa.fcgi` answer.
-- **Călugăreanu 1961 and White 1969 are now SWEPT AND RETRIEVED too** — the earlier "unverified in both directions" caveat is discharged. What is **not** verified is Călugăreanu's *1959* paper (Rev. Math. Pures Appl. 4:5–20), a different item from the 1961 one; the rc429 paragraph writes "1959-61" as though it were one reference, and only the 1961 half is settled here.
+- **All four are now swept and retrieved.** Every "unverified" caveat from the earlier passes is discharged. The rc429 paragraph writes "1959-61" as though it were one reference; **both halves are separately confirmed** (1959 at Cluj, 1961 at DML-CZ).
+- **The 1959 scan has NO TEXT LAYER** — verification was by rendering page 1 and reading the image, not by `pdftotext`. That is a weaker automated check than the other three (which matched extracted text against the record) and is stated so it is not read as equivalent.
 - **Not claimed:** that PMC389050 is or is not free-to-read. I could not download from PMC (a guessed filename returned HTML), and the question is moot — retrievability is settled by route 3.
 - **Retrievable ≠ redistributable, and this is load-bearing.** All three carry non-OA terms, two of them explicitly personal-use-only. The sweep establishes *attestability*; it says nothing about reuse rights. **No PDF is committed to the repo.**
 - **Credit where due:** the srmech session caught the contradiction. The detector was that the same package asserted both — the cheapest possible check, and it only works because both surfaces ship.
