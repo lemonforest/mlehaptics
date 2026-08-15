@@ -7135,6 +7135,33 @@ A second and *independent* sense in which "real and rotation are one thing" is a
 
 Conflating the two would carry a 3-dimensional coincidence up the ladder as if it were structural. Keeping them apart is the whole content of this subsection.
 
+#### The 3-phase shape is a CYCLIC ORBIT — local at every rung, global at ℍ alone
+
+User-surfaced 2026-08-15, and it is a different and better object than "apply an order-3 operator": the triple `(1,2)→3, (2,3)→1, (3,1)→2` — `ij=k, jk=i, ki=j` — is not two things related, it is a **cyclic orbit already written in the multiplication table**. Nothing new needs to be applied to find it.
+
+**Measured** (canonical basis, `cd_basis_product`, srmech 0.9.0rc434). A triple *closes* when `ab=c`, `bc=a` and `ca=b` all hold with `+1` sign; the cycle `σ: a→b→c→a` is then tested for whether it is an automorphism of the **whole** algebra:
+
+| | closing triples | of which σ is a FULL algebra automorphism |
+|---|---|---|
+| ℍ | **1** | **1 — yes** |
+| 𝕆 | **7** | **0** |
+| 𝕊 | 35 | 0 |
+
+At ℍ the single triple **is** all three imaginaries, so cycling it permutes the entire algebra and `σ` is a genuine order-3 automorphism. At 𝕆 there are **seven** closing triples — exactly the Fano plane's seven lines — and cycling any one leaves the other four imaginaries fixed, which no longer respects products crossing between that line and the rest. **None extends to a whole-algebra automorphism.**
+
+**And this is the SAME structure as the bijection bound above, seen from the other side.** Each line `{a,b,c}` carries exactly three pairs — `{a,b}, {b,c}, {c,a}` — and `7 × 3 = 21`, which is precisely the pair count in the table above. Each point lies on three lines, so each imaginary receives three pairs. **The `3 : 1` ratio IS the seven lines.** Two measurements, one object.
+
+> **The object is covered by 3-cycles at every rung. Only at ℍ is there a single 3-cycle that governs the whole object.** Above ℍ there are seven overlapping *local* 3-phases and no global one.
+
+This places the two structures at different **levels** rather than in competition:
+
+- **conjugation** — `1 + (n−1)`, splits the anchor from the imaginaries, order-2, universal;
+- **the triple cycle** — order-3 *within* the imaginaries, local at every rung, **global at ℍ alone**.
+
+So `1 + 3` at ℍ reads precisely as **one fixed point plus one 3-cycle** — the cleanest available form of "a real and a rotation that are one object." At 𝕆 it reads as *one fixed point plus seven interlocking 3-cycles*, which is richer and is no longer summarisable as a single phase. That **7** is the k=3 count on that rung: seven k=3 objects, not one — which is the shape the k=3 cross-substrate signature would look for, appearing here without being sought.
+
+**Bound on this subsection.** Sign convention matters: the census counts `+1`-closing triples on the canonical basis. The automorphism test is over the full basis-product table, so `0/7` at 𝕆 is a statement about these seven cycles, **not** a claim that 𝕆 has no order-3 automorphisms — Aut(𝕆) = G₂ certainly does, and they are not basis 3-cycles.
+
 **Honest scope.** The eigensplit censuses and the pair-closure table are measured in exact ℚ on the **canonical basis**; basis-level closure is not by itself a claim about every element of the algebra. The `Der(ℂ⊗ℍ) = 6` figure quoted above is an assembled two-sided argument, not a single measurement — see srmech §3.57's own scope note. **Nothing here touches the primary source's physics**: the Cl(6) ladder operators, the SU(3)c×U(1)em structure and the ΛC⁵ binary code are untouched and uncited, and this section must never be read as assessing them.
 
 **Cross-arc anchors:** srmech §3.57 / §3.57.1 (the censuses, the primary-source rule, and the ℂ⊗𝕆 ≇ 𝕊 decision) · srmech §1 (the `2+4+8 = 14` / `1+3+7+3` two-grouping note this sharpens) · §XIV.6 (the duality/triality + hypercomplex-ontology arc) · `[[user_stance_cascade_matching_substrate_blind_form_not_identity]]` (the epistemic ceiling this instantiates) · `[[user_stance_observation_is_a_shadow_irrep_under_perspective_shift]]` (one object, two reads).
