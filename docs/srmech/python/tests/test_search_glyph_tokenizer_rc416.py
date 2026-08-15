@@ -360,6 +360,17 @@ from srmech.math.text import fold_marks, glyph_stream
 #: Fuller-1971 retrievability repair), which is the prose kind arriving in the
 #: same commit -- both branches of this constant's own failure message at once.
 #:
+#: ⚠️ **The value moved a SECOND time inside rc436**, and saying why matters:
+#: the first rc436 value was
+#: ``fb949e35ff814848739ce32c25bfdde5a32ff47539ffb5ae6011a78c22110f37``, taken
+#: before the item-1 rework. That rework rewrote the Fuller-1971 provenance
+#: prose on four ToolEntry surfaces — twice, once when NCBI ``oa.fcgi`` showed
+#: "OA" was a false LICENCE claim, and again when a four-route sweep showed the
+#: not-retrievable list was empty. The corpus is BUILT FROM ToolEntry prose, so
+#: each rewrite moved the digest by construction. This is the pure-prose branch
+#: of this constant's own failure message arriving three times in one rc, which
+#: is exactly why the re-pin is done LAST, after the prose has settled.
+#:
 #: Determinism re-established independently at this value BEFORE re-pinning:
 #: FIVE successive ``_build_frames('all')`` builds in FIVE FRESH interpreters on
 #: WSL2 (numpy-absent) produced this one digest, with the frame counts
@@ -367,7 +378,7 @@ from srmech.math.text import fold_marks, glyph_stream
 #: measurement, again.
 #:
 WITNESS_RC416 = (
-    "fb949e35ff814848739ce32c25bfdde5a32ff47539ffb5ae6011a78c22110f37")
+    "5bc75ac156b85b6580cd47e8a1077fea67fa90e45c00e16f60be28b9482e4272")
 
 #: The ASCII control set. These four queries are the ops the tokenizer work is
 #: ABOUT, so a regression on them would be the change eating its own subject.

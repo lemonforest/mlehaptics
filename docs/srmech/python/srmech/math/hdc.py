@@ -1132,8 +1132,9 @@ def klein4_from_one(one, D: int):
     why the ``One``'s 14-D vector structure is inert for this purpose. A large
     bridge here would be a sign of something invented.
 
-    ⚠️ **Winding is deliberately NOT read, and saying so makes the flatness
-    visible rather than surprising.** ``One._to_jsonable()`` emits a FOURTH key
+    ⚠️ **The preimage and ``_to_jsonable()`` DIVERGE on a wound One, and
+    which side is the defective one is OPEN.** ``One._to_jsonable()`` emits a
+    FOURTH key
     ``"winding"`` when the One is wound (rc414, `#T1092`) — measured: an
     unwound One serialises to ``{sigma, terms, theta}`` and a wound one to
     ``{sigma, terms, theta, winding}``. This preimage never carries it, so
@@ -1142,11 +1143,25 @@ def klein4_from_one(one, D: int):
     which is how the step-1 description above could name ``_to_jsonable()``
     from rc414 to rc435 without anything ever diverging. The C peer
     ``srmech_klein4_from_one`` takes ``(sigma, theta_num, theta_den, terms, D)``
-    and has no winding parameter either, so BOTH projections agree on the flat
-    triple — making the coupling winding-bearing would change the wire format
-    and cost an ABI bump. That is an OPEN DECISION, not an oversight, and it is
-    explicitly out of scope here: rc436 (`#T1141`) corrected the DESCRIPTION to
-    what the code does and changed no behaviour.
+    and has no winding parameter either, so both projections agree on the flat
+    triple and changing that would change the wire format and cost an ABI bump.
+
+    **Which side is wrong is NOT settled here, and this docstring does not
+    settle it.** The semantics the old step-1 text NAMED — serialise
+    ``_to_jsonable()``, winding included — were measured at rc435 against this
+    op's own acceptance bar and are statistically indistinguishable from the
+    ``theta`` axis (D=64, 7140 pairs, exact-rational means: theta control
+    0.24924, winding 0.24915, mixed 0.25057, ZERO identical pairs in every
+    census, against a ~0.25 bar where a structure-bearing leak reads 0.82 and
+    64/64). Structurally, winding never enters the ``One``'s 14-D adjoint at all
+    — the adjoint is w-invariant — so a winding-bearing preimage would add three
+    declared integers to the Class-A digest exactly as σ/θ/terms do and could
+    not reach the vector-structure tiling the directive above targets. So the
+    code may be the defective side rather than the docstring. **Whether the
+    coupling SHOULD read the winding is an open question, tracked at
+    gh #1530 §G.** rc436 (`#T1141`) is a doc-hygiene rc: it corrected the
+    DESCRIPTION to what the code does and changed no behaviour, deliberately
+    without ruling on which side should move.
 
     Args:
         one: A :class:`~srmech.cascade.one.One` (read structurally: any

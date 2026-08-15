@@ -1230,8 +1230,13 @@ def octonion_associator_support() -> Dict[str, Any]:
     - Baez, J.C. (2002), *The Octonions*, Bull. AMS **39** 145–205,
       arXiv:math/0105155, **§2.1** — the Fano plane and its seven lines as the
       ℍ subalgebras of 𝕆.
+    - Baez, *op. cit.*, arXiv:math/0105155, **§1.1** — alternativity, hence that
+      the associator is alternating. rc436 repointed this locator: it read
+      **§2.1**, which carries the Fano plane but contains the term ZERO times,
+      while §1.1 carries it 6 times (`srmech/amsc/attested/literature_claims`,
+      verdict VERIFIED). The claim was right and its address was wrong.
     - Schafer, R.D. (1966), *An Introduction to Nonassociative Algebras*,
-      **ch. III** — alternativity, hence that the associator is alternating.
+      **ch. III** — the textbook treatment of alternative algebras.
     """
     from srmech.amsc.format import sha256_bytes  # Class A; native-dispatched
 

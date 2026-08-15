@@ -1552,31 +1552,59 @@ def cwf_consistency_mod2(edges, gains, *, n: "int | None" = None,
         matches any spelling**, and a claim with no identifier parses to no
         citation unit, so no arm could see it.
 
-        **Fuller 1971 IS cited; the other two are not, and that split is a
-        decision rather than an omission.** Fuller (1971, *PNAS* 68(4):815–819,
-        ``doi:10.1073/pnas.68.4.815``, PMC389050) is openly retrievable and is
-        named here with its identifiers — the same ones
-        :func:`srmech.math.rational.relative_writhe` has shipped since rc317.
-        Călugăreanu (1959–61, *Czech. Math. J.* / *Rev. Math. Pures Appl.*) and
-        White (1969, *Amer. J. Math.*) are paywalled-only or offline from here,
-        and per ``[[feedback_paywalled_doi_cannot_be_attested]]`` a substituted
-        second unverified citation is the same defect wearing a different name.
+        **Fuller 1971 IS cited and attested; the other two are not, and that
+        split is a decision rather than an omission.** Fuller (1971, *PNAS*
+        68(4):815–819, ``doi:10.1073/pnas.68.4.815``) is **free-to-read** at
+        PMC389050 — and is **NOT** in the PMC Open Access Subset: NCBI
+        ``oa.fcgi`` returns ``idIsNotOpenAccess`` for that ID.
+        **Retrievability and licence are different questions**, and
+        ``[[feedback_paywalled_doi_cannot_be_attested]]`` keys on the first, so
+        the paper is attestable even though "OA" would be false of it. The
+        primary route is the author's own institutional repository —
+        ``https://authors.library.caltech.edu/records/0wq4z-dv964/files/FULpnas71.pdf``
+        (HTTP 200, 874,619 bytes, PDF 1.3, 5 pages, ``response_sha256
+        c39705fe50088020f37d946c5f9753470fa0659e11221fd32c0f98fae03a6a7d``), whose first page reads *"Proc. Nat. Acad. Sci.
+        USA / Vol. 68, No. 4, pp. 815-819, April 1971 / The Writhing Number of a
+        Space Curve / F. BROCK FULLER / Sloan Laboratory, California Institute
+        of Technology"*.
+        **And so are the other two — there is no residual list.** A
+        four-route retrievability sweep (2026-08-15) found all three on the
+        first search: White (1969, *Amer. J. Math.*) in the Edinburgh research
+        archive, Călugăreanu (1959–61, *Czech. Math. J.* / *Rev. Math. Pures
+        Appl.*) in DML-CZ. Only Fuller is content-addressed here, so only Fuller
+        carries an MPR-grade record; the other two are RETRIEVABLE and simply
+        not yet hashed, which is a different statement from "unavailable".
 
-        ⚠️ **What Fuller's OA status does and does not buy.** VERIFIED: the
-        metadata (author, title, volume, issue, pages, year) and the OA
-        availability. NOT VERIFIED: that the PDF states ``Lk = Tw + Wr`` in the
-        form written here — the PMC landing page renders the mathematics as page
-        images. This is an ACCESS attestation, not a CONTENT one, and the
+        ⚠️ **"We could not retrieve it" is a fact about the ATTEMPT, never about
+        the SOURCE** — write it that way or do not write it. A publisher 403 is
+        bot-blocking, not evidence: an automated client is not a reader. Through
+        rc435 this docstring made the source-level claim about all three, and it
+        was wrong three times.
+
+        ⚠️ **What the attestation does and does not buy.** VERIFIED:
+        bibliographic identity (author, title, journal, volume, issue, pages,
+        year) and RETRIEVABILITY, content-addressed by the sha256 above. NOT
+        VERIFIED: that the PDF states ``Lk = Tw + Wr`` in the form written here
+        — the body mathematics was never extracted. This is an
+        IDENTITY-plus-ACCESS attestation, not a CONTENT one, and the
         DERIVED-AND-MEASURED verdict below does not rest on it either way.
+        **Also NOT claimed: an open licence.** The paper is readable, not
+        OA-licensed, and this docstring says only the former.
 
-        ⚠️ **rc436 (`#T1141`) — this paragraph shipped a falsehood from rc429 to
-        rc435.** It read "The canonical sources … are paywalled-only or offline",
-        naming Fuller among them, while ``relative_writhe``'s own ToolEntry
-        summary simultaneously shipped "doi 10.1073/pnas.68.4.815, PMC389050 …
-        both OA". Two shipped surfaces contradicted each other about one paper
-        across four releases. ``tests/test_citation_contradiction_rc436.py`` is
-        strict-zero on that class now: no source may be asserted OA and
-        unretrievable in the same wheel.
+        ⚠️ **rc436 (`#T1141`) — BOTH shipped surfaces were wrong, in
+        OPPOSITE directions, and the correct statement is a third thing neither
+        made.** This paragraph read "The canonical sources … are paywalled-only
+        or offline", naming Fuller among them, while ``relative_writhe``'s
+        ToolEntry simultaneously shipped "PMC389050 … both OA". Measured against
+        NCBI E-utilities rather than against either surface: ``oa.fcgi`` returns
+        ``idIsNotOpenAccess``, so the paper is **free-to-read but not
+        OA-licensed** — the first surface understated its availability and the
+        second overstated its licence. Two surfaces contradicting each other
+        about one paper for four releases, with the truth in neither.
+        ``tests/test_citation_contradiction_rc436.py`` is strict-zero on the
+        contradiction AND on the conflation: no source may be asserted both
+        retrievable and unretrievable, and no PMC-hosted source may be called OA
+        without saying it is not in the Open Access Subset.
 
         The verdict is DERIVED-AND-MEASURED because this op does not ASSERT
         the relation, it MATERIALISES it: ``lk_mod2``, ``tw_mod2`` and

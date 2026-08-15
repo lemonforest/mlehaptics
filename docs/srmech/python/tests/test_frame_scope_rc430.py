@@ -122,7 +122,22 @@ REVIEWED_ROSTER: Dict[str, Tuple[str, Tuple[str, ...]]] = {
 #: not a pass — it is an unadjudicated one, and a ceiling is what stops the
 #: unadjudicated class from quietly becoming the whole registry.
 CEIL_FRAME_UNADJUDICATED = {
-    "NO_ARG": 274,          # no harvested argument binding at all
+    # rc436 (local task T1141): 274 -> 275 for
+    # `srmech.cascade.octonion_associator_support`. The gate's own advice is
+    # "drain NO_ARG by making the op's worked example bind its arguments",
+    # and that is NOT AVAILABLE HERE, which is why this is a raise and not a
+    # drain. MEASURED: the op takes ZERO parameters, so its harvested binding
+    # is `args: {}` (tests/example_args_ledger.ndjson, status
+    # no_jsonable_arg), and frame_probe.classify assigns NO_ARG on exactly
+    # `if not base`. There is no argument to bind, so no worked example can
+    # bind one.
+    #
+    # This is also the CORRECT verdict rather than a probe gap. The frame
+    # axis asks whether an op translates along a frame when an INTEGER INPUT
+    # is varied; an op with no inputs has nothing to vary, so it is genuinely
+    # not frame-adjudicable. It joins an established class: 54 registered ops
+    # are parameterless and all land here structurally.
+    "NO_ARG": 275,          # no harvested argument binding at all
     "NO_INT_INPUT": 152,    # nothing translatable along a frame axis
     "BASE_RAISES": 56,      # harvested binding does not execute
     "SLOW_SKIP": 15,        # measured-slow, skipped BY NAME with a number

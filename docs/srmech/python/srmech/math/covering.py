@@ -322,10 +322,15 @@ def linking_number_cwf(twist: Tuple[int, int],
         The same verdict, and for the same measured reasons, as
         :func:`srmech.biology.genome.cwf_consistency_mod2`:
         "Călugăreanu–White–Fuller" is the STANDARD NAME of ``Lk = Tw + Wr``;
-        Fuller 1971 IS openly retrievable and is cited
-        (``doi:10.1073/pnas.68.4.815``, PMC389050) for METADATA + OA STATUS
-        only, never content — the PMC landing page renders the mathematics as
-        page images — while Călugăreanu 1959–61 and White 1969 remain
+        Fuller 1971 IS retrievable and IS attested
+        (``doi:10.1073/pnas.68.4.815``; free-to-read at PMC389050, though **not**
+        in the PMC Open Access Subset — retrievability and licence are different
+        questions) for BIBLIOGRAPHIC IDENTITY + RETRIEVABILITY only, never
+        content — the body mathematics was never extracted — while Călugăreanu
+        1959–61 (DML-CZ) and White 1969 (Edinburgh archive) are retrievable too
+        — a 2026-08-15 four-route sweep found all three on the first search, so
+        there is no residual not-retrievable list; they are merely not yet
+        content-addressed, which is a different statement from
         paywalled-only or offline, and under
         ``[[feedback_paywalled_doi_cannot_be_attested]]`` **no citation is
         substituted for those two.** (rc436 `#T1141`: this line previously made
