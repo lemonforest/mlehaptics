@@ -664,6 +664,19 @@ srmech_status_t srmech_rational_pow_uint(int64_t   base_num,
     if (exp_val > 64) {
         return SRMECH_ERR_OVERFLOW;
     }
+    /* NOTE — 0**0 == 1 IS A LOAD-BEARING CONVENTION, not a derivation.
+     * The formula (p/q)^n = p^n/q^n does not determine 0**0; callers read
+     * the numerator of (0/1)^r as an exact r == 0 indicator, so returning
+     * 0 (or an error) here silently breaks every such membership gate with
+     * no exception raised. The bignum peer (bigexp_pow) and the Python
+     * wrapper agree by construction; changing ONE of the three is the
+     * hazard, and changing all three coherently still leaves the parity
+     * tests green — which is why the value is pinned directly.
+     * ⚠️ THIS u64 SITE IS GUARDED BY EXACTLY ONE TEST:
+     * tests/test_c_bignum_transcendentals_rc35.py::test_zero_pow_convention_direct_c,
+     * which calls srmech_rational_pow_uint through raw ctypes. The
+     * _POW_CASES rows cannot see it — they exercise the BIGNUM symbol.
+     * Delete that one test and a u64-only regression here goes unobserved. */
     if (exp_val == 0) {
         *out_num = 1;
         *out_den = 1;
