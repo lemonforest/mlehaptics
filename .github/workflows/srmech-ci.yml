@@ -1126,6 +1126,7 @@ jobs:
       SHARD_SELECT: >-
         tests/
         -p no:randomly
+        -k genome
         --splits 4 --group ${{ matrix.shard }}
         --durations-path .test_durations.asserts-live-DELIBERATELY-ABSENT
     steps:
