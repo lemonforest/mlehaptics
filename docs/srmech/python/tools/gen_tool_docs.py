@@ -520,7 +520,23 @@ def main() -> None:
     import sys
     accept_drift = "--accept-seed-drift" in sys.argv[1:]
     here = Path(__file__).resolve().parent
-    out_path = here.parent / "srmech" / "amsc" / "_tool_docs.py"
+    # rc434 (`#T1130`): was `srmech/amsc/_tool_docs.py` — a path ADR-0010
+    # retired. The shipped artifact is `srmech/introspect/_tool_docs.py`;
+    # `srmech/amsc/` has no `_tool_docs.py` at all. This is the SAME defect
+    # rc404 (`#T1069`) fixed in the sibling `gen_c_claims.py`, and this site
+    # was missed then.
+    #
+    # SCOPE, precisely: the AUTHORITATIVE path is the one in
+    # tools/codegen_manifest.py, and `regen_all.py` — the only supported
+    # entry point — reads it from there, so the shipped tree was never
+    # written to the wrong place. The damage was confined to running THIS
+    # script directly: `load_committed` on a non-existent file returns
+    # empty, which silently disarms the un-rederivable-prose guard (it can
+    # lose nothing if it believes nothing is committed), and the write then
+    # MINTS a phantom `srmech/amsc/_tool_docs.py` that nothing imports while
+    # the real one goes stale. Both failures are quiet, which is why the
+    # path is now derived the same way its sibling derives it.
+    out_path = here.parent / "srmech" / "introspect" / "_tool_docs.py"
     docs, seed, curated = build_docs()
 
     lost = unrederivable_fields(load_committed(out_path), seed, curated)

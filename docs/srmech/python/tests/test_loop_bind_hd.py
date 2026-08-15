@@ -111,11 +111,33 @@ def test_unbind_recovers_value():
 
 
 def test_length_must_be_multiple_of_eight():
+    """A real ``ValueError`` (rc433, `#T1131`).
+
+    Through rc432 this pinned ``AssertionError``, which ``python -O`` strips:
+    both ops then SILENTLY TRUNCATED a length-25 operand to 24 and returned a
+    24-element answer, dropping an element without a word.
+    """
     bad = [1.0] * (8 * 3 + 1)
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError, match="positive multiple"):
         hdc.loop_bind_hd(bad, bad)
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError, match="positive multiple"):
         hdc.loop_unbind_hd(bad, bad)
+
+
+def test_equal_length_required_on_bind_and_unbind():
+    """The SECOND contract on these two ops, which nothing pinned (rc433,
+    `#T1131`).
+
+    ``loop_runbind_hd``'s equal-length guard was tested; the identical guards
+    in ``loop_bind_hd`` and ``loop_unbind_hd`` were not. Under ``-O`` all three
+    reached the block loop with mismatched operand counts and died on an
+    ``IndexError('list index out of range')`` from indexing the shorter side.
+    """
+    a, b = [1.0] * 56, [1.0] * 48
+    with pytest.raises(ValueError, match="equal length"):
+        hdc.loop_bind_hd(a, b)
+    with pytest.raises(ValueError, match="equal length"):
+        hdc.loop_unbind_hd(a, b)
 
 
 def test_native_hd_batch_parity_all_nb():

@@ -84,12 +84,27 @@ class Mat:
 
         ``is_complex`` defaults to auto-detect (any ``complex`` element with a
         non-zero imaginary part forces the complex layout); pass it explicitly
-        to pin the layout regardless of the sampled values."""
+        to pin the layout regardless of the sampled values.
+
+        Raises:
+            ValueError: if ``rows`` is ragged (rows of unequal length).
+
+        The ragged check is a real ``raise``, not an ``assert`` (rc433,
+        `#T1131`): ``python -O`` strips asserts, and the SHORT-row-first
+        orientation then builds a Mat whose declared shape does not match its
+        buffer and SILENTLY DROPS the overflow — ``[[1.0], [2.0, 3.0]]``
+        returned ``shape (2, 1)`` / ``[[1.0], [2.0]]`` with no error at all.
+        The long-row-first orientation merely crashed later in ``tolist()``,
+        which is why the shipped test (driving only that orientation) never
+        showed the corrupting half."""
         rows = [list(r) for r in rows]
         n_rows = len(rows)
         n_cols = len(rows[0]) if n_rows else 0
         for r in rows:
-            assert len(r) == n_cols, "Mat.from_rows: ragged rows not allowed"
+            if len(r) != n_cols:
+                raise ValueError(
+                    f"Mat.from_rows: ragged rows not allowed; row of length "
+                    f"{len(r)} against n_cols {n_cols}")
         if is_complex is None:
             is_complex = any(
                 isinstance(x, complex) and x.imag != 0.0 for r in rows for x in r

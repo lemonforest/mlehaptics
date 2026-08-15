@@ -182,15 +182,18 @@ def test_single_octonion_loop_inv_conj_unchanged():
 
 @pytest.mark.parametrize("fn", ["loop_conj_hd", "loop_inv_hd"])
 def test_hd_unary_requires_multiple_of_8(fn):
+    """A real ``ValueError`` (rc433, `#T1131`) — as an ``assert`` this vanished
+    under ``python -O`` and both ops silently truncated 25 → 24."""
     bad = [1.0] * (8 * 3 + 1)  # 25, not a multiple of 8
-    with pytest.raises(AssertionError, match="positive multiple"):
+    with pytest.raises(ValueError, match="positive multiple"):
         getattr(hdc, fn)(bad)
 
 
 def test_loop_runbind_hd_requires_multiple_of_8_and_equal_length():
+    """Both contracts, now real ``ValueError``\\ s (rc433, `#T1131`)."""
     bad = [1.0] * (8 * 3 + 1)
-    with pytest.raises(AssertionError, match="positive multiple"):
+    with pytest.raises(ValueError, match="positive multiple"):
         hdc.loop_runbind_hd(bad, bad)
     a = _unit_blocks(7)
-    with pytest.raises(AssertionError, match="equal length"):
+    with pytest.raises(ValueError, match="equal length"):
         hdc.loop_runbind_hd(a, a[:-LOOP_DIM])

@@ -3624,7 +3624,14 @@ def centromere(orientation, *, repeats=CENTROMERE_DEFAULT_REPEATS, handle="cen",
     per-chromosome handle separate from the content-address). ``dim`` is the leaf width
     (match the turns; :func:`chromosome` passes ``len(coupling)`` automatically). Place it
     at mint time with ``chromosome(leaves, one, centromere=orientation)`` (or a lower-level
-    insert); recover it from a strand with :func:`centromere_of`. Same inputs → same cap."""
+    insert); recover it from a strand with :func:`centromere_of`. Same inputs → same cap.
+
+    Raises:
+        ValueError: ``orientation`` is not a Klein-4 sector ``0..3``, ``repeats``
+            is out of range, or ``handle`` is over-long. Both projections raise
+            it identically — the pure ``_pack_centromere`` is the parity oracle
+            for the native wrapper (added 0.9.0rc434, `#T1130`).
+    """
     # rc258 (#1407): DISPATCH the cap byte-framing to the srmech_genome_centromere C peer
     # when HAS_NATIVE (byte-identical bytes, then wrapped in the same HV(sectors=256)); the
     # pure _pack_centromere below is the numpy-free fallback + parity oracle (it raises the

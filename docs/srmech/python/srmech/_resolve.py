@@ -59,7 +59,9 @@ NOT one of them — ``srmech/cascade/__init__.py``'s ``from .sedenion_register
 import sedenion_register`` rebinds the package attribute back to the function,
 so that name resolves without the fallback. The fallback was justified by an
 example that had since stopped needing it, which is how it came to look dead.)
-:mod:`srmech.tests.test_resolve_dotted_callable_rc413` pins both survivors.
+``tests/test_resolve_dotted_callable_rc413.py`` pins both survivors. (That
+path is NOT importable as ``srmech.tests.*`` — the suite lives BESIDE the
+package, not inside it.)
 """
 
 from __future__ import annotations

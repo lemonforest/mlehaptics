@@ -130,6 +130,16 @@ def continued_fraction(numerator: int, denominator: int) -> List[int]:
     For ``p/q = [a_0; a_1, a_2, ...]``, returns ``[a_0, a_1, a_2, ...]``.
     Raises ``ValueError`` if ``denominator == 0``.
 
+    Raises:
+        ValueError: ``denominator == 0``, **or** either argument is outside
+            the uint64 parity surface. This op DOES carry a ``2**64`` cap —
+            the contrast with :func:`~srmech.math.cyclic.gcd`, which had its
+            cap removed in 0.9.0rc167, is deliberate and is why the sibling
+            :func:`best_rational` (uncapped) exists. The second clause was
+            enforced but undeclared through 0.9.0rc433; the name-level read
+            was CLEAN because both clauses raise ``ValueError``, which is
+            exactly the clause-level blindness `#T1130` measured.
+
     Both C and Python paths produce byte-exact identical results;
     pinned by ``tests/test_rational_parity.py``.
     """
@@ -867,6 +877,11 @@ def rational_pow_uint(base: Tuple[int, int], exp: int) -> Tuple[int, int]:
     (matches C surface's bounded loop; for larger exponents use the
     Python bignum path via direct exponentiation).
 
+    ``0**0`` is ``(1, 1)`` by DELIBERATE CONVENTION, not by derivation: the
+    formula ``(p/q)^n = p^n/q^n`` does not determine it, and callers read
+    ``numerator((0,1)**r)`` as an exact ``r == 0`` indicator. Pinned by
+    ``tests/test_rational_zero_pow_convention.py``; do not "fix" it to 0.
+
     Pure-Python bignum-capable; C path
     (`srmech_rational_pow_uint`) for u64-fit inputs + exp <= 64.
     """
@@ -879,6 +894,10 @@ def rational_pow_uint(base: Tuple[int, int], exp: int) -> Tuple[int, int]:
     p, q = int(base[0]), int(base[1])
     if q <= 0:
         raise ValueError("denominator must be positive")
+    # 0**0 == (1, 1) — the deliberate convention above, INCLUDING p == 0.
+    # It sits before the C dispatch, so this wrapper cannot observe a C
+    # disagreement at exp == 0; both C surfaces are pinned directly by
+    # tests/test_c_bignum_transcendentals_rc35.py instead.
     if exp == 0:
         return (1, 1)
     # Try C path for u64-fit inputs + bounded exp.

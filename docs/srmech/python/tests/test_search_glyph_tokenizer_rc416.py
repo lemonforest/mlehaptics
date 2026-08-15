@@ -320,8 +320,37 @@ from srmech.math.text import fold_marks, glyph_stream
 #: (numpy-absent) — five successive ``_build_frames('all')`` calls inside each of
 #: THREE fresh interpreters — ONE hash every time, ``len(frames) == 684`` every
 #: time, and ops (655) + carriers (29) summing to 684 on every build.
+#:
+#: **RE-PINNED AGAIN at v0.9.0rc434 (`#T1130`).** rc430's value was
+#: ``50ee7c0d5aedf0865cbe902f87949048a6c38872f6a2fabf4ac67f972827c476``. This is
+#: the TWELFTH consecutive re-pin and the FOURTH in a row with **zero op-count
+#: change** — 684 = 655 ops + 29 carriers before and after, registry 655, ABI 14.
+#: rc434 registers no op.
+#:
+#: The two burdens this re-pin discharges:
+#:   1. **the op set did not move** — the decomposition is identical to rc427
+#:      through rc430, so nothing was added, renamed or dropped;
+#:   2. **the move has a named cause, MEASURED not reasoned** — exactly TWO
+#:      ToolEntry ``explanation`` fields changed, ``srmech.cascade.cyclic_gcd``
+#:      and ``srmech.math.cyclic.gcd``, both of which claimed a ``ValueError``
+#:      for arguments past ``2**64``. rc167 (gh #765) removed that cap and the
+#:      registry never followed; ``cyclic_gcd(2**64, 5)`` returns ``1``,
+#:      confirmed at three magnitudes to ``2**200``. Located by probing the
+#:      built corpus rather than by inference — the frames are LOWER-CASED, so
+#:      a case-sensitive search for the new prose finds nothing and would have
+#:      supported a confident wrong cause. Searching the blobs as they are
+#:      actually stored gives: ``"uncapped big-int euclid"`` in 1 frame
+#:      (``cascade.cyclic_gcd``), ``"no upper cap"`` and ``"gh #765"`` in 1
+#:      frame (``math.cyclic.gcd``), and ``"0.9.0rc433"`` in exactly those 2.
+#:
+#: This rc also added ``Raises:`` blocks to eleven docstrings, and those did
+#: NOT move the hash — worth recording, because it is the same structural fact
+#: rc433 measured from the other side: the corpus carries ToolEntry prose, the
+#: tool-docs generator seeds ``explanation`` from a docstring's FIRST paragraph
+#: only, and curated text wins the merge. Contract documentation appended below
+#: the opening paragraph reaches neither surface.
 WITNESS_RC416 = (
-    "50ee7c0d5aedf0865cbe902f87949048a6c38872f6a2fabf4ac67f972827c476")
+    "af759315d6043541938bfc9618635bf959d059f3d79928957b753946a96e44d7")
 
 #: The ASCII control set. These four queries are the ops the tokenizer work is
 #: ABOUT, so a regression on them would be the change eating its own subject.

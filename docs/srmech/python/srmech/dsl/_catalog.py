@@ -9,10 +9,80 @@ to a C peer when ``HAS_NATIVE``), or, for a user ``[composite]`` descriptor, a
 unary stage that runs its pure-TOML sub-chain (no Python required).
 
 The catalog IS the SSoT for which cascade ops exist — the DSL runner keeps no
-hard-coded name list. ``chain().then("foo")`` is rejected for any ``foo`` not
-declared in a descriptor. User descriptors are B-tier (``provenance="user"``,
-attested to their own descriptor hash) and may NOT shadow a shipped A-tier
-op-name (that raises at load).
+hard-coded name list. ``chain().then("foo")`` is rejected for any BARE ``foo``
+not declared in a descriptor. User descriptors are B-tier
+(``provenance="user"``, attested to their own descriptor hash) and may NOT
+shadow a shipped A-tier op-name (that raises at load).
+
+**The dotted arm, and its bound** (rc420 `#T1114` BLK-REGMAP). A step name
+containing a dot is NOT a catalog lookup at all: it resolves by import
+(``rpartition(".")`` + a callable guard, see :func:`lookup_cascade_op`), so
+``chain().then("srmech.cascade.leaves.seq_len")`` runs even though no
+descriptor declares ``seq_len``. That arm exists for ONE job — letting a
+descriptor or a chain step point at a **shipped srmech callable that has no
+descriptor of its own**, so the registered-leaf inventory
+(:mod:`srmech.cascade.leaves` and friends) is addressable without minting a
+descriptor per leaf. Catalog names never contain a dot —
+:func:`load_catalog` REJECTS a dotted ``[cascade].name`` at load (`#T1137`
+adjudication guard) — so the two forms cannot collide. Measured before the
+guard existed: an unimportable dotted name loaded as
+listed-but-unlookupable, and an IMPORTABLE one (``name =
+"srmech.cascade.magnitude"``) loaded, listed, answered
+:func:`get_descriptor` with the USER descriptor — and then ran the SHIPPED
+import instead (``chain().then("srmech.cascade.magnitude").run(-5)`` gave
+``5``, not the descriptor's chain), because the dot routes resolution to
+the import arm before any catalog consultation. A dotted catalog name was
+never a collision the user could win; the guard makes it a load error
+instead of a silent wrong answer.
+
+It is **NOT a general extension point**, and the catalog's guarantees do not
+follow the callable through it. MEASURED at rc434:
+
+- **No descriptor, so no provenance tier.**
+  ``get_descriptor("srmech.cascade.magnitude")`` raises ``ValueError:
+  unknown cascade op`` — the A/B-tier attestation above is a property of the
+  DESCRIPTOR, and a dotted step has none. (The bare name ``magnitude`` is
+  A-tier; the dotted spelling of the SAME function is untiered.)
+- **Introspection visibility is keyed by the SPELLING, not the callable.**
+  ``get_tool_schema().resolve(...)`` answers a registered name (or a
+  dotted-suffix shortening of one); it never follows a callable to its
+  other names. ``resolve("srmech.cascade.magnitude")`` HITs — that exact
+  string is a registered ``ToolEntry`` — while
+  ``resolve("srmech.cascade.leaves.seq_len")`` is ``None`` even though it
+  is the SAME object as the registered ``srmech.cascade.seq_len``.
+  Measured over the 35 distinct dotted spellings in shipped
+  ``[[cascade.chain]]`` steps: 2 resolve, 32 return ``None`` while their
+  target is registered under its published ``srmech.cascade.<name>``
+  re-export, and 1 (the RBS-HDC ``mint_vector``) is registered under NO
+  spelling. Every one of the 32 has
+  a published spelling that BOTH runs through this same import arm AND
+  resolves — prefer ``op = "srmech.cascade.chiral_flip"`` over
+  ``op = "srmech.cascade.atoms.chiral_flip"`` when a dotted step should
+  stay introspectable. (``describe()["cascade_catalog"]`` is a different
+  surface: it lists every DESCRIPTOR by bare name regardless of how its
+  chain steps are spelled.)
+- **A dotted step evicts the whole chain from BOTH native run loops.**
+  The op itself is ONE self-routing object under either spelling (its own
+  internal C kernel is unaffected) — but the chain-level engines key their
+  dispatch on the bare catalog spelling (``_RUN_C_OPS`` in
+  :mod:`srmech.cascade.compose`; ``dsl_leaf_dispatch`` /
+  ``cr_dispatch`` in C), so ONE dotted step makes the whole chain
+  ineligible and the pure loop runs. Measured at rc434 with an ABI-14
+  ``.so``: ``chain().then("magnitude")`` runs end-to-end in C;
+  ``chain().then("srmech.cascade.magnitude")`` is a native MISS with the
+  IDENTICAL value — the cost is the C fast path, never the answer (rc103
+  inform-don't-limit).
+- **Nothing constrains the target to srmech at all.**
+  ``chain().then("builtins.set")`` resolves and runs, and it re-imports
+  hash-order nondeterminism into the cascade: over ``PYTHONHASHSEED`` 0–3 a
+  ``str`` payload came back in four different orders (``['b','a','d','c','e']``
+  / ``['a','e','b','d','c']`` / ``['d','e','a','c','b']`` /
+  ``['c','a','e','b','d']``). Small ints are stable, which is precisely why a
+  casual ``set`` → ``sorted`` smoke test does NOT surface the hazard.
+
+Reach for a descriptor — the shipped catalog for an A-tier op, a user
+``[composite]`` for a B-tier one — whenever the op is meant to BE cascade
+vocabulary. The dotted form is addressing, not declaration.
 
 The descriptors carry ``[cascade].name`` (the canonical op name) plus
 optional ``[cascade.native]`` C symbol names + ``[cascade.delegates_to]``
@@ -99,11 +169,24 @@ def register_catalog_dir(path: Any) -> None:
     ``[composite]`` body whose ``[[composite.stage]]`` array is a chain of named
     ops — no Python) or a primitive (needs a matching ``srmech.cascade``
     callable). A user op-name may NOT shadow a shipped one.
+
+    Raises:
+        FileNotFoundError: if ``path`` does not exist, or exists but is not a
+            directory. :func:`load_catalog` already DECLARES this same error
+            for the same condition, and raises it a few lines below.
+
+    A real ``raise``, not an ``assert`` (rc433, `#T1131`): the promotion here
+    is about WHEN, not WHETHER. Under ``python -O`` the assert vanished, this
+    function RETURNED CLEANLY, and the bad path was appended to the
+    module-global ``_USER_CATALOG_DIRS``. The error then surfaced at the next
+    :func:`load_catalog` — after the global mutation, and on EVERY subsequent
+    catalog load for the life of the process. A caller error became persistent
+    global-state poisoning.
     """
     p = Path(path)
-    assert p.exists() and p.is_dir(), (
-        f"register_catalog_dir: not an existing directory: {p}"
-    )
+    if not (p.exists() and p.is_dir()):
+        raise FileNotFoundError(
+            f"register_catalog_dir: not an existing directory: {p}")
     if p not in _USER_CATALOG_DIRS:
         _USER_CATALOG_DIRS.append(p)
     load_catalog.cache_clear()
@@ -129,9 +212,10 @@ def load_catalog() -> Dict[str, Dict[str, Any]]:
     FileNotFoundError
         If the packaged catalog dir, or a registered user dir, is missing.
     ValueError
-        On a missing ``[cascade].name``, a user op-name that shadows a shipped
-        or earlier op, or a composite body that references an unknown op /
-        forms a cycle (validated loudly here, not silently at run).
+        On a missing ``[cascade].name``, a DOTTED ``[cascade].name`` (see the
+        guard below), a user op-name that shadows a shipped or earlier op, or
+        a composite body that references an unknown op / forms a cycle
+        (validated loudly here, not silently at run).
     """
     if not CATALOG_DIR.exists() or not CATALOG_DIR.is_dir():
         raise FileNotFoundError(
@@ -160,6 +244,24 @@ def load_catalog() -> Dict[str, Dict[str, Any]]:
                 raise ValueError(
                     f"cascade-catalog descriptor {toml_path} is missing "
                     f"the required [cascade].name field"
+                )
+            if "." in op_name:
+                # `#T1137` adjudication guard: a dotted [cascade].name can
+                # NEVER be looked up — lookup_cascade_op routes any dotted
+                # name to the import arm before consulting the catalog. So
+                # a dotted name here is either listed-but-unlookupable (the
+                # module is not importable) or, worse, silently SHADOWED by
+                # the import (measured: a user descriptor named
+                # "srmech.cascade.magnitude" listed and introspected as the
+                # user's composite while chains ran the shipped op). Catalog
+                # names are BARE; the dotted form is a chain-step ADDRESS,
+                # not a declarable name.
+                raise ValueError(
+                    f"cascade-catalog descriptor {toml_path}: [cascade].name "
+                    f"{op_name!r} contains a dot; a dotted catalog name can "
+                    f"never be resolved (the dot routes lookup to the import "
+                    f"arm before any catalog consultation). Use a BARE name; "
+                    f"the dotted form is for chain-step addressing only."
                 )
             if op_name in catalog:
                 raise ValueError(
@@ -277,7 +379,8 @@ def lookup_cascade_op(op_name: str) -> Callable:
     # makes "dotted-or-bare NAME" true for every builder (`then` / `fold` /
     # `reduce` / `parallel_sectors` / `map_indexed`): any shipped registered
     # op can serve as a stage or combinator body without a catalog
-    # descriptor of its own. Catalog names never contain a dot, so the two
+    # descriptor of its own. Catalog names never contain a dot (load_catalog
+    # REJECTS a dotted [cascade].name — the `#T1137` guard), so the two
     # forms cannot collide.
     if "." in op_name:
         mod_path, _, attr = op_name.rpartition(".")
@@ -373,9 +476,9 @@ def list_cascade_ops() -> List[str]:
     Returns
     -------
     list[str]
-        Sorted ascending. The list is consumed by :func:`srmech.cli.dsl.ops`
-        (the ``srmech dsl ops`` subcommand) and by the test-suite's
-        descriptor-coverage check.
+        Sorted ascending. The list is consumed by
+        :func:`srmech.cli.dsl.run_ops` (the ``srmech dsl ops`` subcommand)
+        and by the test-suite's descriptor-coverage check.
     """
     return sorted(load_catalog())
 

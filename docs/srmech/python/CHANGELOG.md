@@ -8,10 +8,187 @@ All notable changes to this package will be documented here. The format follows 
 
 _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffer (mmap, for >1k events/sec). It stays deferred until an op proves the need — no consumer in the RBS-LM pipeline yet exceeds the Tier-1 flush-per-write rate. (The C-side `srmech_progress_cb_t` callback ABI — the OTHER deferred half — shipped in rc242 below.)_
 
+**`#T1136` — the asserts-live cell is partitioned into 4 shards (CI topology only — NO version bump, no wheel, no package code).** The tree stays at `0.9.0rc434`; registry stays 655; ABI stays 14. Nothing in `srmech/` or `c/` is touched. Recorded here rather than in an rc block because it ships no artifact.
+
+`asserts-live FULL suite, fork-isolated (JPL Rule 5 with teeth, #937)` was the longest cell in `srmech-ci.yml` at **30.4 min** (29.2 of it the `--forked` suite, ~14,900 process spawns), and had been killed twice at a 30-min cap before rc432 raised it to 45. A timeout there is the worst failure mode the gate has: the step is CANCELLED, every assertion goes unreported, and it arrives as "cancelled" rather than red. It is now a 4-way `pytest-split` matrix with the `#937` "coverage == COLLECTION" invariant moved — not weakened — into a new `asserts-live shard coverage-union (partition guard, #937)` job.
+
+**The load-bearing finding is that the obvious construction does not work.** The pure cell's `fallback-shard-coverage-union` is the natural model, but it **RE-DERIVES** its own groups by collecting independently, so a `-k` planted in the *shard* step never enters its arithmetic. Measured on this tree (14,971 collected node ids):
+
+| Construction | shard 1 actually runs | guard verdict |
+|---|---|---|
+| re-deriving (the pure cell's shape) | 309 / 3743 | **GREEN** — blind |
+| fan-in (shards record what they ran) | 309 / 3743 | **RED** — correct |
+
+309 of 3743 is a **92% narrowing** — the exact `#937` defect class — reported as success. The asserts-live guard is therefore a **fan-in**: each shard records the node ids its own `$SHARD_SELECT` collects, uploads them, and the union job checks those recordings against a collection it takes fresh and unfiltered (`sum == union == full` ⇒ complete and disjoint). The pure cell's guard carries the same blind spot; its comment claimed otherwise and is **corrected in place** — porting the fan-in shape there is a tracked follow-up against a working 6-shard gate, not part of this change.
+
+**The gate was then fired in CI, on purpose** — `-k genome` planted in `$SHARD_SELECT` and pushed (run 31859207920), reverted in the next commit. The four shards **passed** on 309/309/309/307 nodes while `asserts-live shard coverage-union` went **red**: `full=14971`, `sum=union=1234`, 13,737 dropped ids enumerated, 0 drifted. The shards passing is correct rather than a miss — their own `executed == recorded` check compares the run against the *same* narrowed recording, so it agrees. A filter in the shared variable is the union job's to catch; a filter welded onto the run line is the per-shard junitxml check's. Two mechanisms, two holes.
+
+**A second trap, also measured.** pytest-split's `--durations-path` defaults to `$CWD/.test_durations`, and `docs/srmech/python/.test_durations` **is committed** (the pure cell's `#T1007` bootstrap). Adding `--splits/--group` alone would have silently time-balanced this cell against the *pure* cost profile — wrong here, because the pure shards are imbalanced by `#T1051`'s five atomic Python heavyweights and in this cell those ops dispatch to C and vanish:
+
+| durations source | group sizes (N=4) | spread |
+|---|---|---|
+| committed `.test_durations` | 3785 / 4158 / 3441 / 3587 | **717 nodes (19%)** |
+| absent → equal-count | 3743 / 3743 / 3743 / 3742 | **1 node** |
+
+The shards therefore name a `--durations-path` that does not exist, on purpose, and the union job asserts the resulting group sizes differ by ≤ 1 so the drift cannot return silently.
+
+**What the sharded runs falsified — twice, and the second time it falsified me.** Equal-count is not equal-time. Job wall, identical selection every run:
+
+| shard | 31858558122 | 31859722143 | 31860852158 | mean |
+|---|---|---|---|---|
+| 1 | 11:12 | 8:41 | **11:05** | 10:19 |
+| 2 | 7:30 | 7:49 | 6:50 | 7:23 |
+| 3 | 6:42 | 8:25 | 8:52 | 8:00 |
+| 4 | **11:46** | **11:36** | 8:35 | 10:39 |
+
+After runs 1 and 2 the obvious reading was "shard 4 is the max in both, so it is a property of that shard", and that is what the run-2 commit said. **Run 3 refuted it** — shard 4 came in at 8:35 and shard 1 took the max. What survives three runs is weaker and truer: a per-shard cost **tendency** (shards 1 and 4 mean ~10.3–10.7 min, shards 2 and 3 ~7.4–8.0) plus **runner variance of ±2.5 min that reorders them**. No single run's ordering is structure, and neither is two runs' agreement. Run 1's suite-step sum was 32.6 min against 29.2 unsharded — ~11% fixed-cost overhead from paying pytest startup and collection four times. The cell still goes **30.4 → ~11.7 min** wall. But the "~14,900 uniform fork spawns" premise is only approximately true, so the per-shard `timeout-minutes` is **22**, derived from the largest of the twelve observations above — 11:46 (`ceil(11.77) + max(ceil(5.88), 10)`) — not from the projection and not from "the slow shard", since there is no stable one — a projected 19 would have shipped a guard at 62% budget use on its first run, which is the rc432 failure shape. The follow-up this points at is harvesting *this* cell's own durations the way `fallback-durations-merge` does for the pure one; adopting the pure cell's file remains wrong for the reason measured above.
+
+Every shard keeps the full liveness check — `HAS_NATIVE` plus `nm -u "$LIB" | grep -q __assert_fail`, against the library `_find_library()` actually resolves. Dropping it per-shard to save seconds would make the whole cell vacuous. Each shard additionally compares the test-case count its `--junitxml` reports against the ids it recorded, which closes the one hole a shared variable leaves open (a filter welded onto the run line, bypassing it).
+
 **#693 determination (documentation only — NO version bump; no behavior change).** Investigated whether the `ThetaSum.is_zero` interpolation degree bound can be tightened from **Σe²** to **Σ|e|**. **Verdict: UNSOUND — NOT adopted; the conservative Σe² is retained** at both bound sites (`thetasum._struct_one_var` base-case p-order band + `thetasum._structural_is_zero._deg` node count) and the C peer (`srmech_thetasum_interp.c` `ti_deg`). Rationale: the node count / p-band must bound the **true elliptic degree** of a theta-product in the interpolation variable = the quasi-period index = zeros-per-annulus, which is **Σe²** (a factor `θ(c·vᵉ;p)` gains multiplier `v^{−e²}` under `v↦p·v`, from Rosengren Eq. 1.6 / `ellbase.Theta.canonicalize`; confirmed by an independent explicit root count). Since `e² > |e|` for `|e| ≥ 2`, `Σ|e|` sits **below** the true degree and under-provisions the prover → a genuinely non-zero elliptic function can be falsely proved `≡ 0` (a **false theorem**). Explicit witness (single var, e=3): `N(x) = 2·θ(2x³) −27·θ(3x³) +120·θ(4x³) −250·θ(5x³) +270·θ(6x³) −147·θ(7x³) +32·θ(8x³)` (all `;p`) is exactly non-zero (lowest q-expansion coeff `(p⁶,x⁻⁹)=−1/112`; stable `0.180756` at `p=½,x=¾`), yet Σ|e| (band `k=5`) misses the `p⁶` term while Σe² (band `k=11`) correctly returns `False`. (Distinct from #692, which sized the **arena/ws_bound memory** band — this is the **soundness** degree band.) Full analysis: `docs/srmech/notes/thetasum_is_zero_degree_bound_693.md`; standing regression guard: `tests/test_thetasum_degree_bound_soundness_693.py`.
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
+
+## [0.9.0rc434]
+
+### The prose that promises an exception the code never raises (`#T1130`, `#T1134`)
+
+**Registry stays 655. ABI stays 14. GENOME_FORMAT_VERSION stays 19.** No callable is registered. One code path changes (`parse_catalog_chains`); everything else is a declaration brought into line with measured behaviour, plus the gate that keeps it there.
+
+#### The shape of the defect
+
+A `Raises:` block is prose. Nothing computes over it, so it can be false for as long as nobody fires the input it names. rc434 fired them: an AST walk over **4762 callables** found **181** declaring a `Raises:` block across **254** clauses, and **111 probes** were executed against the shipped ops.
+
+The load-bearing finding is **where** the falsehood lives:
+
+> `ValueError: ... for negative inputs **or** inputs exceeding the uint64 parity surface.`
+
+Two clauses, one exception name, and only the first clause is true. Any instrument comparing the SET OF NAMES a docstring declares against the SET OF NAMES a body raises sees `{ValueError}` on both sides and reports CLEAN. **Name-level comparison is structurally blind to a false clause.**
+
+A static gate was therefore built, measured and **rejected**: precision **0/7** (every flag a false positive, cleared by execution) and recall **0/1** (it missed the real defect entirely). What ships instead is the execution corpus, under a coverage **FLOOR that rises** — `tests/declared_raises_covered_rc434.txt`, **83 of 254 clauses** today. Not a defect CEIL: a CEIL would imply the defect population is knowable, and would go green by deleting probes.
+
+#### Family 1 — rc167 removed a cap and left four pieces of prose false
+
+rc167 (gh #765) removed `cyclic.gcd`'s compiled-in `2**64` rejection under the standalone-honor no-compiled-in-caps discipline. `cyclic_gcd(2**64, 5)` returns `1`, confirmed at three magnitudes up to `2**200`. Four surfaces still claimed a `ValueError`:
+
+| Surface | Kind |
+|---|---|
+| `srmech/cascade/composites.py` `cyclic_gcd` — `Raises:` block + body prose | authored |
+| `srmech/introspect/_tool_docs_curated.py:1789` (`cascade.cyclic_gcd`) | authored |
+| `srmech/introspect/_tool_docs_curated.py:1965` (`math.cyclic.gcd`) | authored |
+| `_tool_docs.py` + `c/src/srmech_tool_registry.c` | regenerated |
+
+**Why editing prose to match code is the right call here and is not a document-away.** `gcd`'s own docstring already states *"No upper cap (arbitrary precision)"*, so the registry was contradicting the same op's docstring — the docstring is the witness that the registry is stale, not the other way round. Re-adding the cap would break the ~100-digit `One`-scale rationals that depend on the big-int Euclid. The removal was a deliberate design decision with its own rc; only the prose failed to follow.
+
+#### Family 2 — declarations that were missing, not wrong (ruling: ADD)
+
+Ten ops raise from their own body what no `Raises:` block declared. Each is measured, not adopted from the registry's word:
+
+`math.cyclic.gcd` · `cascade.exact_dft.exact_idft` · `biology.genome.centromere` · `cascade.cyclic_mod_mul` · `cascade.cyclic_mod_mul_wide` · `cascade.hamming_syndrome` · `math.qpoly.qpoly_from_coeffs` · `math.qbipoly.qbipoly_from_coeffs` · `music.normal_order` · `music.common_period`
+
+`common_period` is the sharpest: it raises `OverflowError("lcm(614889782588491410, 53) overflows uint64")` on a **harmonic** 30-partial spectrum while declaring only `ValueError`/`TypeError`. `_CLASS_I_PARITY_MAX` is a real C-parity contract the module documents and does not relax, and a non-raising sibling (`_period_multiplier_or_unavailable`) exists precisely to report the condition instead — so the code is right and the declaration was incomplete.
+
+`math.rational.continued_fraction` joins them for the opposite reason: it DOES cap at `2**64`, and its undeclared second clause raises the SAME `ValueError` as its declared one — the exact clause-level blindness above, in a single docstring.
+
+#### Two claims that did NOT survive re-measurement
+
+Both were filed as defects and are **not**:
+
+* **`introspect.tool_schema.tool_schema_view`** — filed as raising an undeclared `TypeError`. It takes **zero arguments** and raises nothing; the observed `TypeError` was CPython's arity error from the probe passing an argument. The registry sentence is about `json.dumps(get_tool_schema())` — a claim about the *sibling* op. Same false-positive MODE as the `feynman_scalar_propagator` sentence *"writing `1j/(k2 - m*m)` yourself produces a ZeroDivisionError"*, which describes the naive alternative, not a contract.
+* **`math.rational.best_rational`** — flagged for an oversize claim. The sentence is about the sibling `continued_fraction`, and it is **true** (measured: `ValueError` at `rational.py:112`).
+
+The filed scope was **15 mismatches in 4 families**; measured, it is **5 defects in 2 families** plus the additions above. Both retractions are encoded as negative controls in the gate.
+
+#### `#T1134` — a public entry point leaking `AttributeError` (ruling: FIX THE CODE)
+
+`parse_catalog_chains("...")` reached `.get` on a `str` and leaked `AttributeError: 'str' object has no attribute 'get'`. This is the ambush direction *with a type that misattributes a caller's malformed input to an internal fault in srmech*. Now `ChainSpecError` (the module's own class, already a `ValueError` subclass, so `except ValueError` callers are unaffected), with a matching guard on a non-table `[catalog]`.
+
+#### Also fixed: a generator writing to a path ADR-0010 retired
+
+`tools/gen_tool_docs.py` derived `out_path` as `srmech/amsc/_tool_docs.py` — a directory that exists with no such file in it. rc404 (`#T1069`) fixed exactly this in the sibling `gen_c_claims.py` and missed this site. `regen_all.py` reads the authoritative path from `codegen_manifest.py`, so the shipped tree was never mis-written; the damage was confined to running the script directly, where `load_committed` on a non-existent file returns empty — silently disarming the un-rederivable-prose guard — and the write mints a phantom file nothing imports.
+
+#### The gate (`tests/test_declared_raises_execution_rc434.py`)
+
+- **111 probes**, each firing one declared trigger against the shipped op. Five pin an ABSENCE — the rc167 no-upper-cap contract — because that is the half four pieces of prose contradicted.
+- **Coverage FLOOR as a SET**, not a cardinal (following `test_invocable_returned_floor_rc431.py`): *counts are not sets*, and a cardinal cannot name which clause lost coverage. Coverage is intersected with the declared population by construction, so the floor cannot be grown by writing probes instead of declarations.
+- **BIN-1 strict-zero**: a declared name that resolves to no exception class is a typo. One allowlist entry — `TOMLDecodeError`, a real `tomllib`/`tomli` class — with a paired test asserting the entry is still *real* and still *load-bearing*, so the allowlist cannot silently accumulate masks.
+- It is an **srmech-local** invariant and is deliberately NOT numbered as an eleventh Power-of-Ten rule; Holzmann has exactly ten and `test_jpl_audit.py` iterates `range(1, 11)`.
+- Six negative controls, including the two retracted instruments above and an empty-corpus mutation (*an instrument that cannot return otherwise is not a measurement*).
+
+## [0.9.0rc433]
+
+### The guard that is not there when it counts (`#T1131`)
+
+**Registry stays 655. ABI stays 14. GENOME_FORMAT_VERSION stays 19.** No op is registered and no `ToolEntry` field is added; `c/include/srmech.h` moves only its two version macros. Every change is a promoted guard, a test, or a gate.
+
+#### The mechanism
+
+**Pytest's assertion rewriter defeats `python -O`, and it defeats it asymmetrically.** Pytest compiles test modules itself, replacing each `assert` with explicit raising bytecode; package modules get no such treatment. So under `-O`:
+
+| Where the `assert` lives | Under `python -O` |
+|---|---|
+| a **TEST** module | **SURVIVES** — pytest rewrote it |
+| a **PACKAGE** module | **VANISHES** — `-O` stripped it |
+
+The consequence is the defect class this rc closes. A test written as `with pytest.raises(AssertionError): shipped_op(bad_input)` certifies a guard **that does not exist in an optimized interpreter** — while the test's own asserts keep working, so the suite looks fine.
+
+Two silent-wrong-answers measured at rc432, pure path:
+
+```
+python3 -O:  v[-5] on a 3-vector                  -> 20.0   (== v[1]; no error)
+python3 -O:  Mat.from_rows([[1.0],[2.0,3.0]])     -> shape (2,1), [[1.0],[2.0]]
+                                                     (3.0 SILENTLY DROPPED)
+```
+
+Both raise `AssertionError` in the default mode. Silent-wrong-answer is the top defect class in this project, so this rc removes it rather than tidying style.
+
+#### The twelve promoted guards
+
+Exception types follow **grepped tree precedent**, not invention. `IndexError` for `Vec.__getitem__` follows `QMat._norm_row` (`qmat.py:260`), the exact structural twin — same `i += n` then range check — which already raises `IndexError`. `ZeroDivisionError` for a zero denominator is the standing ruling.
+
+| Op | `-O` behaviour at rc432 | Now raises |
+|---|---|---|
+| `Mat.from_rows` (ragged) | short-row-first → shape (2,1), **value dropped**; long-row-first → crash in `tolist()` | `ValueError` |
+| `Vec.__getitem__` | `v[-5]` on n=3 **returned `v[1]`**; `v[3]` crashed | `IndexError` |
+| `loop_bind_hd` / `loop_unbind_hd` / `loop_conj_hd` / `loop_inv_hd` / `loop_runbind_hd` (length) | **silent truncation** 25 → 24 | `ValueError` |
+| `loop_bind_hd` / `loop_unbind_hd` / `loop_runbind_hd` (equal length) | `IndexError` from the block loop | `ValueError` |
+| `loop_inv_hd` / `loop_inv` (zero norm) | already `ZeroDivisionError` — the assert **masked** it in the default mode | `ZeroDivisionError` |
+| `register_catalog_dir` | **returned cleanly** and appended the bad path to the module-global `_USER_CATALOG_DIRS` | `FileNotFoundError` |
+| `mat_matmul` (non-`Mat`) | `AttributeError: 'list' object has no attribute 'n_rows'` | `TypeError` |
+| `operator_norm` (non-square) | already `ValueError` — assert **deleted**, not re-typed | `ValueError` (downstream) |
+| `operator_norm` (`ndim == 1`) | genuine 1-D → `TypeError`; **lying** ndim → **returned 1.0** | `TypeError` |
+
+Two of these are the **third instance of the rc431 inversion**: the assert broke the contract in the DEFAULT mode while `-O` behaved correctly. The square-matrix guard in `operator_norm` is therefore **deleted** — `mat_hermitian_eigendecompose` already raises a `ValueError` that names the offending shape — and what is pinned is the `-O` INVARIANCE, not either mode's behaviour.
+
+#### The ten siblings no test pinned
+
+Fixing only what a test pins is the failure mode this project keeps hitting: **the test coverage decides what gets repaired.** `assert isinstance(..., Mat)` appears identically in six Class-L ops and only `mat_matmul` was pinned. All six are promoted to `TypeError`, with tests for the five that had none.
+
+| Sibling | Was pinned? | Now |
+|---|---|---|
+| `mat_solve`, `mat_lstsq`, `mat_hermitian_eigendecompose`, `mat_eigvals`, `mat_svd` | **no** | `TypeError` + tests |
+| `loop_bind_hd` / `loop_unbind_hd` equal-length | **no** (only `loop_runbind_hd` was) | `ValueError` + tests |
+| `loop_inv` (single-element zero) | **no** (only `loop_inv_hd` was) | `ZeroDivisionError` + test |
+| `bigq_reduce_c` (`den != 0`), `bigq_div_c` (`b_num != 0`) | **no** | `ZeroDivisionError` + tests |
+
+The two big-ℚ checks were additionally **hoisted above the `has_native_bigq()` early return**: whether an argument is valid cannot depend on whether an accelerator happens to be loaded, and below that return the guard was unreachable — and therefore untestable — in any native-absent environment. Stated openly: both public entry points (`_reduce_rational`, `rational_div`) already raise `ZeroDivisionError` for this input before dispatching, so this is defense-in-depth at a directly-callable module entry point rather than a reachable-from-the-API defect.
+
+#### The gates
+
+`tests/test_assert_contract_gate_rc433.py` — a **strict-zero** AST gate over `tests/`, discriminating by **subject resolution**: a guarded body whose subject resolves to package code is a defect; one whose subjects are all test-local is a legitimate meta-gate. **An unresolvable subject counts as PACKAGE**, so a new spelling turns the gate red rather than silently exempting a defect. The `try: … except AssertionError:` evasion route is covered under the identical rule — that is why the real population is **19**, not the 16 a `pytest.raises`-only scan reports. The exemption pragma is `# t1131-exempt: <reason>`; a pragma with **no reason does not exempt**, and **the exemption table ships empty**.
+
+Eight controls ship with it, spanning both directions — including a synthetic meta-gate the gate must **NOT** catch, without which "flag everything" would score perfectly.
+
+`CEIL_INPUT_SHAPED_PACKAGE_ASSERTS = 41` — a **down-only** ratchet on the ungated remainder: a package `assert` in the prologue of a public callable that names one of its own parameters. That shape IS an input contract and every one evaporates under `-O`. rc432 measured **49**; the twelve promotions took it to **41**. This is **debt being drained, not an accepted level.**
+
+Both are **srmech-local invariants**. Neither is "Rule 11" — Holzmann's Power of Ten has exactly ten rules and `tests/test_jpl_audit.py` iterates `range(1, 11)`.
+
+`tests/test_input_contracts_rc431.py` §1 gains **25 rows** (6 → 31), one per promoted contract, on the shipped `-O`-invariance roster that already carries a passing negative control. No new whole-suite `-O` CI cell was added: CI already runs the full suite three times, and the roster covers the entire population such a cell would exercise.
+
+#### Correction to the brief
+
+`_tool_docs_curated.py` is **hand-curated, not generated** — it is an *input* to `gen_tool_docs.py`, not an output of it. The generated set is `_tool_docs.py`, `_c_claims.py`, and four C registries.
 
 ## [0.9.0rc432]
 

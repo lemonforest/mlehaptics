@@ -69,8 +69,24 @@ def test_equality_against_mat_and_list():
 
 
 def test_ragged_rows_rejected():
-    with pytest.raises(AssertionError):
-        Mat.from_rows([[1.0, 2.0], [3.0]])
+    """BOTH orientations, and a real ``ValueError`` (rc433, `#T1131`).
+
+    This pinned ``AssertionError`` through rc432 and drove ONLY the long-row-
+    first orientation. That mattered: under ``python -O`` the assert vanished
+    and the two orientations behaved COMPLETELY differently —
+
+    * long-row-first  ``[[1.0, 2.0], [3.0]]`` → shape (2,2) over a 3-element
+      buffer, which crashed noisily in ``tolist()``;
+    * short-row-first ``[[1.0], [2.0, 3.0]]`` → shape (2,1), ``tolist()``
+      ``[[1.0], [2.0]]``, **no error, 3.0 silently dropped**.
+
+    The shipped test drove the harmless half only, so the corrupting half was
+    invisible. Both are asserted here for that reason.
+    """
+    with pytest.raises(ValueError, match="ragged"):
+        Mat.from_rows([[1.0, 2.0], [3.0]])       # long row first
+    with pytest.raises(ValueError, match="ragged"):
+        Mat.from_rows([[1.0], [2.0, 3.0]])       # short row first — the silent one
 
 
 def test_buffer_is_contiguous_array_d():
