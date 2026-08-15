@@ -1410,16 +1410,43 @@ jobs:
           # committed .test_durations describes the PURE cell's cost profile and
           # would mis-balance this one by ~19%. If the shards ever silently pick it
           # up — the default --durations-path is $CWD/.test_durations, which EXISTS
-          # — the group sizes stop being near-equal, and this catches that drift
-          # before it shows up as one shard timing out.
-          MIN=$FULL; MAX=0
+          # — the group sizes stop matching equal-count, and this catches that
+          # drift before it shows up as one shard timing out.
+          #
+          # THE EXPECTATION IS DERIVED, NOT A TOLERANCE. This check read
+          # `spread <= 1` until `#T1137`, and that bound was an ACCIDENT of the
+          # tree's test count rather than a property of the splitter. With no
+          # durations file pytest-split's DurationBasedChunks gives every test
+          # weight 1 and sets time_per_group = T/N, then opens a new group only
+          # once the current one has reached it (`if duration[g] >= tpg`), so
+          # groups 1..N-1 take ceil(T/N) and the LAST takes the remainder. For
+          # N=4 that makes the spread a function of T mod 4 alone:
+          #
+          #     T mod 4    group sizes                     spread   old check
+          #     0          m,   m,   m,   m                0        pass
+          #     1          m+1, m+1, m+1, m-2              3        FAIL
+          #     2          m+1, m+1, m+1, m-1              2        FAIL
+          #     3          m+1, m+1, m+1, m                1        pass
+          #
+          # So the gate passed only while T was ≡0 or ≡3 (mod 4) — a coin flip
+          # that nothing maintained. MEASURED: it went red on a 9-test doc-gate
+          # addition that moved T from 14992 (≡0, spread 0) to 15001 (≡1,
+          # spread 3), with the partition itself PERFECT (full=sum=union=15001).
+          # The old message then misdiagnosed it as "pytest-split found a
+          # durations file", which was false and sends the reader to the wrong
+          # file. Widening the tolerance to 3 would have hidden the next real
+          # drift, so instead the exact sizes are DERIVED from the same
+          # algorithm and compared elementwise — strictly stronger than any
+          # spread bound, and independent of T mod N.
+          CEIL=$(( (FULL + 4 - 1) / 4 ))
+          LAST=$(( FULL - 3 * CEIL ))
+          FAILED=0
           for K in 1 2 3 4; do
             N=$(wc -l < "$GITHUB_WORKSPACE/shard-ids/asserts-live-shard-$K.ids")
-            [ "$N" -lt "$MIN" ] && MIN=$N || true
-            [ "$N" -gt "$MAX" ] && MAX=$N || true
+            if [ "$K" -eq 4 ]; then WANT=$LAST; else WANT=$CEIL; fi
+            echo "shard $K: $N node ids (equal-count expectation $WANT)"
+            [ "$N" -eq "$WANT" ] || { echo "::error::shard $K holds $N node ids but equal-count splitting of $FULL into 4 predicts $WANT. This cell splits by equal COUNT, so a mismatch means pytest-split time-balanced instead — almost always because it found a durations file (the default --durations-path is \$CWD/.test_durations, which EXISTS). Check --durations-path in \$SHARD_SELECT."; FAILED=1; }
           done
-          echo "group sizes: min=$MIN max=$MAX spread=$((MAX - MIN))"
-          [ "$((MAX - MIN))" -le 1 ] \
-            || { echo "::error::group sizes differ by $((MAX - MIN)) (min=$MIN max=$MAX) — this cell is meant to split by equal COUNT, so a spread >1 means pytest-split found a durations file and time-balanced against the PURE cell's profile. Check --durations-path in \$SHARD_SELECT."; exit 1; }
+          [ "$FAILED" -eq 0 ] || exit 1
 
-          echo "OK: the 4 asserts-live shards partition the full collection ($FULL nodes) — complete, disjoint, and equal-count."
+          echo "OK: the 4 asserts-live shards partition the full collection ($FULL nodes) — complete, disjoint, and equal-count ($CEIL/$CEIL/$CEIL/$LAST)."
