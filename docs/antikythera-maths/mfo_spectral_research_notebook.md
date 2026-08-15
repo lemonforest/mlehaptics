@@ -7005,7 +7005,7 @@ The document should be self-sufficient for regenerating these scripts without co
 
 ---
 
-## §XIV — The MFO world-kernel + the navigation triality (RBS-LM PR #687 sweep, F627–F688) + the resonant-BODY close-out (§XIV.8; F1179–F1186; #243 / F1070)
+## §XIV — The MFO world-kernel + the navigation triality (RBS-LM PR #687 sweep, F627–F688) + the resonant-BODY close-out (§XIV.8; F1179–F1186; #243 / F1070) + the composition-law entry (§XIV.9; F1350/F1351)
 
 *Swept 2026-06-08 (breadcrumb-web discipline; landed-where). This notebook had lagged the rolling RBS-LM PR ([#687](https://github.com/lemonforest/mlehaptics/pull/687)) at ~F369; this section lands the recent MFO-world-kernel + navigation-triality arc. The fuller back-sweep (F370–F626) remains the **CL-1 closeout audit** (queued).*
 
@@ -7082,6 +7082,62 @@ Cross-arc anchors: §VII.1.1 (substrate↔excitation two-level ontology — the 
 Backlinks: `R-RBS-LM-FINDING_{1179,1180,1181,1182,1183,1184,1185,1186}_*.md`; `F118{0..6}_*.py` (the srmech-native / numpy-free generating scripts). *Research trail followed; nothing forgotten; landed-where.*
 
 
+
+### XIV.9 Two composition laws reach dimension 8 — and dimension is the invariant that records neither; plus the ℍ-only bijection bound on "real and rotation are one object" (F1350 / F1351, 2026-08-15)
+
+**Ontology-side reading only.** The censuses live in the srmech notebook §3.57 / §3.57.1 and are not restated here; this section takes what the result means for the substrate framing and says where it stops.
+
+**The result.** Two different composition laws both arrive at dimension 8, and they sacrifice **opposite** Hurwitz properties on the way:
+
+| | ℂ⊗ℍ (tensor) | 𝕆 (Cayley–Dickson) |
+|---|---|---|
+| associativity | **kept** | **lost** |
+| division | **lost** (zero divisors present) | **kept** (none) |
+| `Der` | 6 | 14 (g₂) |
+
+The mechanism is one structural fact, available before any physics is attached: **the tensor product glues on a commuting direction, the ladder an anti-commuting one.** A commuting `i` gives `(i⊗i)² = +1`, a non-central square root of unity, and the zero divisor is *constructed* at the first application rather than searched for.
+
+**Why this belongs in MFO and not only in srmech.** `dim(ℂ⊗ℍ) = 2×4 = 8 = dim(𝕆)` invites the reading that the two are the same object reached two ways. They are not — and the guard that would normally catch such a claim never fires, because **dimension is precisely the invariant that carries no structure.** A numeric `2:4:8` agreement is not a correspondence. This is `[[user_stance_cascade_matching_substrate_blind_form_not_identity]]` in its most easily-missed form: matching on the one feature that records nothing about the law that produced it.
+
+**And one English word was carrying two arithmetics.** Nesting is **additive** — `2 + 4 + 8 = 14`, `BLOCK_DIMS`, the A–N count (§1 of the srmech notebook). Tensoring is **multiplicative** — `2 × 4 × 8 = 64`. Both are real operations; "transform" named both, and the ambiguity is what let a dimension count stand in for a structural claim.
+
+**The ontology-relevant half: one object, two reads.** The change from an even-count rung list to an odd-anchored one is not a product at all — it is the **eigenspace split of the ladder's own Class-K involution**. `cd_conjugate` fixes exactly the real anchor and negates exactly the imaginaries, so its eigenspaces *are* `1 + (n−1)`: measured **(1,1), (1,3), (1,7), (1,15)**, fixed + anti-fixed covering the whole basis at every rung. So `2:4:8` and `1+1:1+3:1+7` are **one rung list read before and after the conjugation eigensplit** — one object, two reads, no new information. The earlier search failed because it hunted an operation that *builds* when what was needed only *reads*.
+
+This is the substrate-side statement of "the real part and the rotation part are representations of the same thing": they are the two eigenspaces of a single involution, not two separately-constituted objects that happen to sit together.
+
+#### The `ab:bc:ca ‖ c:a:b` duality — real, and bijective ONLY at ℍ
+
+A second and *independent* sense in which "real and rotation are one thing" is available, and it needs a bound stated with it or it will be over-read.
+
+**Measured** on the canonical basis via `srmech.cascade.cayley_dickson.cd_basis_product` (srmech 0.9.0rc434, exact):
+
+| | unordered imaginary pairs | `ab` lands on a **third** imaginary | and `bc ≈ a` **and** `ca ≈ b` | pairs : imaginaries |
+|---|---|---|---|---|
+| ℍ | 3 | 3/3 | **3/3** | **1 : 1 — a bijection** |
+| 𝕆 | 21 | 21/21 | **21/21** | 3 : 1 |
+| 𝕊 | 105 | 105/105 | **105/105** | 7 : 1 |
+
+ℍ explicitly: `(1,2)→(3,+1)`, `(2,3)→(1,+1)`, `(3,1)→(2,+1)` — the familiar `ij=k, jk=i, ki=j`. The closure is cyclic and sign-positive on the canonical basis at every rung tested.
+
+**Two bounds, and both matter.**
+
+1. **It is not the division property.** The closure holds 105/105 at 𝕊, where division has already failed. So the pair↔singleton correspondence is a property of the Cayley–Dickson basis construction, and it cannot be what distinguishes ℍ and 𝕆 from what lies above them.
+2. **It is a bijection only at ℍ.** Count, do not merely check closure: at ℍ there are 3 pairs and 3 imaginaries; at 𝕆, 21 pairs onto 7; at 𝕊, 105 onto 15. Only at ℍ does "the pair" determine "the singleton" uniquely — which is the classical statement that in three dimensions a rotation **plane** and a rotation **axis** carry the same information. Above ℍ the correspondence is many-to-one and the identification fails.
+
+**So "real and rotation are representations of the same thing" is supported twice, at two different grains, and only one of them is dimension-3 special:**
+
+- the **conjugation eigensplit** — universal, holds at every rung, and is the sense in which the anchor and the imaginaries are one object;
+- the **pair↔singleton duality** — a *bijection* at ℍ alone, and the reason ℍ is the rotation algebra while 𝕆 is not.
+
+Conflating the two would carry a 3-dimensional coincidence up the ladder as if it were structural. Keeping them apart is the whole content of this subsection.
+
+**Honest scope.** The eigensplit censuses and the pair-closure table are measured in exact ℚ on the **canonical basis**; basis-level closure is not by itself a claim about every element of the algebra. The `Der(ℂ⊗ℍ) = 6` figure quoted above is an assembled two-sided argument, not a single measurement — see srmech §3.57's own scope note. **Nothing here touches the primary source's physics**: the Cl(6) ladder operators, the SU(3)c×U(1)em structure and the ΛC⁵ binary code are untouched and uncited, and this section must never be read as assessing them.
+
+**Cross-arc anchors:** srmech §3.57 / §3.57.1 (the censuses, the primary-source rule, and the ℂ⊗𝕆 ≇ 𝕊 decision) · srmech §1 (the `2+4+8 = 14` / `1+3+7+3` two-grouping note this sharpens) · §XIV.6 (the duality/triality + hypercomplex-ontology arc) · `[[user_stance_cascade_matching_substrate_blind_form_not_identity]]` (the epistemic ceiling this instantiates) · `[[user_stance_observation_is_a_shadow_irrep_under_perspective_shift]]` (one object, two reads).
+
+**Backlinks:** findings **F1350**, **F1351**; generating scripts `R-RBS-LM-TENSORVSCD_ladder_vs_tensor_product.py` (40 checks) and `R-RBS-LM-FUREYALG_the_tensor_product_from_the_thesis_body_and_the_sedenion_decision.py` (13 checks); attestation `R-RBS-LM-ATTEST_furey_1611_09182.md`. The bijection-bound table above was measured in this repository against srmech 0.9.0rc434.
+
+---
 
 ## How to cite this notebook
 
