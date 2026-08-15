@@ -7977,6 +7977,50 @@ All three read as contracts to a regex and none is one. The third is the instruc
 **Provenance.** `notes/_p1_declared_vs_enforced_rc434.{py,ndjson}` (the 4762-callable AST census + its ten-case control corpus) · `notes/_p2_declared_trigger_text_rc434.{py,ndjson}` · `notes/_p3_execute_declared_rc434.{py,ndjson}` (82 probes; 80 ENFORCED) · `notes/_p4_refined_probes_rc434.{py,ndjson}` (the retracted-probe redux + the three-magnitude gcd sweep) · `notes/_p5_surfaces_and_overlap_rc434.{py,ndjson}` (the `common_period` OverflowError) · `notes/_p6_cross_surface_rc434.{py,ndjson}` (docstring-vs-registry) · `notes/_p7_uint64_family_sweep_rc434.{py,ndjson}` · `notes/_p8_gate_prototype_rc434.{py,ndjson}` (the REJECTED static gate + its three bins) · `notes/_p9_costed_spec_rc434.{py,ndjson}`. Gate: `tests/test_declared_raises_execution_rc434.py` (111 probes, the set-valued coverage floor, BIN-1 strict-zero, six negative controls) + `tests/declared_raises_covered_rc434.txt`. **Status:** MEASURED, shipped v0.9.0rc434.
 
 **Cross-references.** §3.55 (the immediately-preceding round — same theme from the other side: there the guard was absent from the shipped code, here the guard is documented and absent from the code). Memory: `[[feedback_an_instrument_that_cannot_return_otherwise_is_not_a_measurement]]`, `[[feedback_false_green_comments_and_dead_instrumentation_seams]]`, `[[feedback_good_tests_of_the_wrong_verb]]`, `[[feedback_a_zero_census_is_basis_free_a_nonzero_one_is_gauge]]`, `[[feedback_fix_falsehoods_when_found_latency_by_surface]]`, `[[feedback_introspect_before_assert]]`.
+## §3.57 Two composition laws that both reach dimension 8, and sacrifice OPPOSITE Hurwitz properties — the ladder is not the tensor product (2026-08-15; F1350 / F1351; MEASURED on srmech 0.9.0rc434)
+
+A session-long hypothesis held that "fibration" is an **m×n transform** carrying `2:4:8` into `1+1:1+3:1+7`. It is worth recording because the falsification did not end in a dead end — it relocated the operator, and the relocation is the finding.
+
+**The operator exists and was shipped all along: `cd_conjugate`.** The ladder's own Class-K involution fixes exactly the real anchor and negates exactly the imaginaries, so its eigenspaces *are* `1 + (n−1)`. Measured rung by rung: **(1,1), (1,3), (1,7), (1,15)**, fixed + anti-fixed covering the whole basis at every dimension.
+
+> **The change from even-count to odd-anchored is an EIGENSPACE SPLIT, not a dimension-composing product.** `2:4:8` and `1+1:1+3:1+7` are one rung list read *before and after* the conjugation eigensplit — one object, two reads, no new information.
+
+The reason a search could fail to find it is worth carrying past this section: it was hunting the wrong **kind** of operation. Something that *builds*, when what was needed only *reads*.
+
+**And the m×n intuition names a real law — someone else's.** A tensor product multiplies dimensions where Cayley–Dickson doubling adds a rung, and `dim(ℂ⊗ℍ) = 2×4 = 8 = dim(𝕆)` invites exactly the conflation. They are **not** isomorphic, on two independent grounds:
+
+| | ℂ⊗ℍ | 𝕆 |
+|---|---|---|
+| ordered basis triples that **associate** | **512 / 512** | **344 / 512** (168 fail) |
+| zero divisors | **present** — `u = 1⊗1 + i⊗i`, `v = 1⊗1 − i⊗i`, `uv = 0` | **none** (`cd_zero_divisor_witness(8) → None`) |
+| `Der` dimension | **6** | **14** (g₂) |
+
+The mechanism is one line: **`(i⊗i)² = +1`**, a *non-central square root of unity*. On the ladder every imaginary unit squares to −1, so `1 − x² = 2` and never vanishes; the tensor product manufactures the zero divisor at its **first** application.
+
+> **The two laws sacrifice OPPOSITE Hurwitz properties at dimension 8.** ⊗ keeps associativity and loses division. CD keeps division and loses associativity. And the ladder *grows* exceptional symmetry (Der = g₂ = 14) where an associative tensor product only ever has what its own commutators generate (Der = 6).
+
+**Two arithmetics on the same rung list were being conflated by one word.** Nesting is **additive** — `2 + 4 + 8 = 14`, `BLOCK_DIMS`, the A–N count (§1). Tensoring is **multiplicative** — `2 × 4 × 8 = 64`. Both are real operations; "transform" named both.
+
+**The tensor product is structurally barred from the odd-anchored split.** Its natural involution is `conj ⊗ conj`, whose eigensplit multiplies: `(p,q) ⊗ (p′,q′) → (pp′+qq′, pq′+qp′)`, giving **(4,4)** at ℂ⊗ℍ and **(8,8)** at ℂ⊗𝕆. Once both factors have `q ≥ 1` it can never be `(1, n−1)`. *(The censuses are measured; the "never" is a one-line inference from the product law and is stated as one.)*
+
+### §3.57.1 The rule read from the primary source — and what it decides
+
+The tensor-product law above was inferred from how such a product must work. It is **stated outright** in the primary source, twice, as something the reader is explicitly asked to note (arXiv:1611.09182v1, §6.2 p. 37 and §7.2 p. 52): *the complex/quaternionic and octonionic imaginary units **commute** with each other*. Attestation: `docs/srmech/rbs_lm_research/R-RBS-LM-ATTEST_furey_1611_09182.md`.
+
+Rebuilt in srmech from that stated rule — an element is `a + i·b` with `i` **central** and **no conjugation anywhere**, which is precisely what separates it from the CD double:
+
+- `i` commutes with all **8/8** octonionic units, while the `eₙ` fail to commute on **42 of 49** pairs. **The centre grows.** The tensor product glues on a new *commuting* direction; the ladder glues on an *anti-commuting* one. Same dimension jump, opposite character.
+- It forces `(i·e₁)² = +1` and hands you `(1 + i·e₁)(1 − i·e₁) = 0` — a zero divisor **constructed, not searched**.
+
+**This decides a question left open one day earlier: ℂ⊗𝕆 ≇ 𝕊.** Both are dim 16, non-associative, with zero divisors — those three agree, which is why it was open. Two invariants separate them: the **centre** (2 basis directions vs 1) and the **square roots of +1** (`i·e₁` exists vs only ±1). The second closes by the quadratic relation `x² = 2·Re(x)·x − N(x)`, measured on **420/420** structured sedenion elements — if `x² = +1` then `2·Re(x)·x` is real, so either `Re(x) = 0` and `x² = −N(x) ≤ 0`, or `x` is real and `x = ±1`. An isomorphism preserves squares and preserves the centre.
+
+**The discipline point, which outlives both findings.** Every measurement in F1322 / F1326 / F1336 / F1338 / F1341 / F1342 / F1349 was taken on the **ladder**, and none of them is evidence about the tensor product. Numeric agreement — both reach 8, both reach 16, both can be written `2:4:8` — is **not** a correspondence when the composition laws differ. This is `[[user_stance_cascade_matching_substrate_blind_form_not_identity]]` in its most easily-missed form: the two objects agree on *dimension*, which is the one invariant that carries no structure.
+
+**Honest scope.** The headline censuses (§3.57) and the whole of §3.57.1 are measured in exact ℚ. `Der(ℂ⊗ℍ) = 6` is an assembled two-sided argument (GF(p) nullity at two primes for ≤ 6; six explicit independent inner derivations for ≥ 6; instrument cross-checked against the shipped `g2_subalgebra` answer of 14 first), **not** a single measurement. Inferred and not run: that basis-triple associativity decides algebra associativity (bilinearity); that rank mod p ≤ rank over ℚ; that basis-commuting implies full commuting. **Nothing here touches the source's physics** — the Cl(6) ladder operators, the SU(3)c×U(1)em structure and the ΛC⁵ binary code are untouched and uncited, and this section must never be read as assessing them.
+
+**Provenance.** `docs/srmech/rbs_lm_research/R-RBS-LM-TENSORVSCD_ladder_vs_tensor_product.py` (40 checks) · `R-RBS-LM-FUREYALG_the_tensor_product_from_the_thesis_body_and_the_sedenion_decision.py` (13 checks) · findings **F1350**, **F1351**; supersedes F1349 §4's first NOT-ESTABLISHED bullet.
+
+**Cross-references.** §1 (the `2+4+8 = 14` / `1+3+7+3` two-grouping note this sharpens) · §3.51 (centre / covering — the same "a local object cannot hold the global datum" shape) · CLAUDE.md §2's `(frame, lane)` adoption (F1338) · → extended by nothing yet.
 
 ---
 
