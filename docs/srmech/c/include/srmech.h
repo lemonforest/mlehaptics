@@ -3528,6 +3528,10 @@ srmech_status_t srmech_exp_series_truncate(int64_t   x_num,
  * range. Python wrappers (srmech.math.rational.rational_{add,mul,pow_uint})
  * fall through to bignum on overflow. C library is usable standalone
  * for inputs that fit u64 per [[feedback_no_binding_layer_carveout]].
+ *
+ * 0**0 is (1, 1) by DELIBERATE CONVENTION, not by derivation: the formula
+ * (p/q)^n = p^n/q^n does not determine it, and callers read the numerator of
+ * (0/1)^r as an exact r == 0 indicator. Do not "fix" it to 0.
  */
 srmech_status_t srmech_rational_add(int64_t   a_num,
                                     uint64_t  a_den,
@@ -9442,6 +9446,11 @@ srmech_status_t srmech_bessel_j_fixed_big(uint32_t order,
                                           srmech_bigint_t *out_num,
                                           void *ws, size_t ws_len);
 
+/* 0**0 is (1, 1) by DELIBERATE CONVENTION, not by derivation: the formula
+ * (p/q)^n = p^n/q^n does not determine it, and callers read the numerator of
+ * (0/1)^r as an exact r == 0 indicator. Do not "fix" it to 0. Here the value
+ * is INCIDENTAL — bigexp_pow seeds out = 1 and skips the loop at exp == 0 —
+ * so it is the site most likely to be tidied away; see the NOTE there. */
 srmech_status_t srmech_rational_pow_uint_big(const srmech_bigint_t *base_num,
                                              const srmech_bigint_t *base_den,
                                              uint32_t exp_val,

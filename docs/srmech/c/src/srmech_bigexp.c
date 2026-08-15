@@ -184,6 +184,15 @@ static srmech_status_t bigexp_pow(bigexp_ctx_t *c, srmech_bigint_t *out,
     uint32_t e = exp;
     assert(c != NULL && out != NULL && base != NULL);
     assert(out != &c->t0 && out != &c->pw);
+    /* NOTE — 0**0 == 1 IS A LOAD-BEARING CONVENTION, and here it is
+     * INCIDENTAL: exp == 0 leaves out at this seed and skips the loop, so
+     * base == 0 yields 1 with no special case anywhere in this function.
+     * It is deliberate. The formula (p/q)^n = p^n/q^n does not determine
+     * 0**0; callers read the numerator of (0/1)^r as an exact r == 0
+     * indicator, and srmech_rational_pow_uint / the Python wrapper both say
+     * 1 explicitly. Do NOT "tidy" this seed into a 0-base early return.
+     * Pinned by tests/test_c_bignum_transcendentals_rc35.py (_POW_CASES row
+     * (0, 1, 0) + test_zero_pow_convention_direct_c). */
     st = srmech_bigint_set_i64(out, 1);             /* out = 1 */
     if (st != SRMECH_OK) { return st; }
     st = srmech_bigint_copy(&c->pw, base);          /* pw = base */
