@@ -152,6 +152,12 @@ def hamming_syndrome(codeword: Sequence[int]) -> int:
 
     The syndrome is the binary number whose bit ``i`` is the recomputed parity
     of position ``2ⁱ`` — by Hamming's construction this IS the error position.
+
+    Raises:
+        ValueError: the codeword length is not of the form ``2**n - 1`` with
+            ``n`` in ``[2, 16]``, or an element is not ``0``/``1``. The parity-bit
+            count is INFERRED from the length, so a wrong length is not
+            recoverable (added 0.9.0rc434, `#T1130`).
     """
     code = _as_bits(codeword, "codeword")
     n = _infer_n(len(code))

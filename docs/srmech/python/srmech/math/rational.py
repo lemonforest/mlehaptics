@@ -130,6 +130,16 @@ def continued_fraction(numerator: int, denominator: int) -> List[int]:
     For ``p/q = [a_0; a_1, a_2, ...]``, returns ``[a_0, a_1, a_2, ...]``.
     Raises ``ValueError`` if ``denominator == 0``.
 
+    Raises:
+        ValueError: ``denominator == 0``, **or** either argument is outside
+            the uint64 parity surface. This op DOES carry a ``2**64`` cap —
+            the contrast with :func:`~srmech.math.cyclic.gcd`, which had its
+            cap removed in 0.9.0rc167, is deliberate and is why the sibling
+            :func:`best_rational` (uncapped) exists. The second clause was
+            enforced but undeclared through 0.9.0rc433; the name-level read
+            was CLEAN because both clauses raise ``ValueError``, which is
+            exactly the clause-level blindness `#T1130` measured.
+
     Both C and Python paths produce byte-exact identical results;
     pinned by ``tests/test_rational_parity.py``.
     """
