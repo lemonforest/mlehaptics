@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc437"
-#define SRMECH_VERSION       "0.9.0rc437"
+#define SRMECH_VERSION_PRE   "rc438"
+#define SRMECH_VERSION       "0.9.0rc438"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -276,8 +276,35 @@ extern "C" {
  *      width against that larger arena. Rejecting the stale lib is the only
  *      safe read, exactly as at v12. GENOME_FORMAT_VERSION stays 19 — no
  *      on-disk format is touched.
+ *
+ *  v15 (v0.9.0rc438, `#T1140`) is a bump of the ORDINARY kind — v9's and v13's
+ *      shape, an existing exported signature changed. srmech_klein4_from_one
+ *      gains `(int64_t w_saros, int64_t w_metonic, int64_t w_callippic)`: the
+ *      One's metacycle winding triad, which through rc437 had NO channel on
+ *      this wire at all. The op's own contract calls its output "a DECLARED
+ *      FUNCTION of the One's constructor integers", and since rc408 the winding
+ *      is a declared, pinned constructor parameter — so the projection was
+ *      silently dropping a quarter of its own operand. MEASURED at rc437 over
+ *      w in [-4,4]^3 (729 distinct windings, sigma/theta/terms fixed): the
+ *      Klein-4 coupling took ONE distinct value out of 729, as did BOTH planes
+ *      of the Q8 coupling composed over it. That zero has working controls on
+ *      the SAME ops — 40 distinct theta gave 40 couplings, 2 sigma gave 2, 20
+ *      terms gave 20 — so it is a measured zero, not a dead instrument. With
+ *      the triad on the wire it is 729/729 on all three surfaces.
+ *
+ *      Load-bearing rather than ceremonial: a stale rc437 .so reports ABI 14
+ *      and would otherwise LOAD into rc438 Python, which now passes NINE
+ *      arguments at a binding the stale lib compiled for SIX. The wire
+ *      mismatch is not the worst of it — the worst is that on the rest path
+ *      the stale lib would still return the CORRECT bytes, so the defect would
+ *      reappear exactly and only on wound Ones, silently, which is the
+ *      condition rc438 exists to remove. This pin is what rejects it.
+ *
+ *      GENOME_FORMAT_VERSION stays 19 — this is a change to the FUNCTION that
+ *      produces already-stored bytes, not to the storage. No new field, no new
+ *      byte, no manifest key; the coupling block keeps its existing width.
  */
-#define SRMECH_ABI_VERSION 14
+#define SRMECH_ABI_VERSION 15
 
 /* ------------------------------------------------------------------ *
  * Thread-local storage qualifier (reentrancy support; #772)
@@ -4104,12 +4131,32 @@ srmech_status_t srmech_klein4_role(const uint8_t *role,
  * Additive symbol. */
 srmech_status_t srmech_klein4_sector_frame(uint32_t D, uint8_t *out);
 
-/* klein4_from_one(sigma, theta_num, theta_den, terms, D): ONE-A14 — the One's
- * Klein-4 COUPLING projection. Builds the One's canonical serialisation
- * {"sigma":S,"terms":T,"theta":[N,D]} (sorted keys, no whitespace — byte-
- * identical to the Python json.dumps of One._to_jsonable()), takes its
- * klein4_address, and XORs the klein4_sector_frame. Derivable from the three
- * constructor integers alone: no stored bytes, no seed table, no label.
+/* klein4_from_one(sigma, theta_num, theta_den, terms, w_saros, w_metonic,
+ * w_callippic, D): ONE-A14 — the One's Klein-4 COUPLING projection. Builds the
+ * One's canonical serialisation {"sigma":S,"terms":T,"theta":[N,D]} (sorted
+ * keys, no whitespace — byte-identical to the Python json.dumps of
+ * One._to_jsonable()), takes its klein4_address, and XORs the
+ * klein4_sector_frame. Derivable from the constructor integers alone: no stored
+ * bytes, no seed table, no label.
+ *
+ * v0.9.0rc438 (`#T1140`, gh #1530 §G): the WINDING TRIAD is on the wire, and
+ * the serialisation gains ",\"winding\":[Ws,Wm,Wc]" (sorted last) EXACTLY when
+ * the triad is non-rest — One._to_jsonable()'s own branch. At rest the preimage
+ * is unchanged, so an unwound One's coupling is byte-identical to every prior
+ * release. Through rc437 this function had no winding channel and the Python
+ * peer built a winding-blind preimage: over w in [-4,4]^3 (729 windings, sigma/
+ * theta/terms fixed) BOTH projections returned ONE address — measured, against
+ * controls on the same op that DO move (40 theta -> 40, 2 sigma -> 2, 20 terms
+ * -> 20). Adding the three params changes an existing exported signature, so
+ * SRMECH_ABI_VERSION bumps 14 -> 15; see the v15 history entry above.
+ *
+ * WHAT THIS BUYS IS A COMMITMENT, NOT A READ. Nothing here lets any reader
+ * recover w from stored bytes, and that is information-theoretic rather than a
+ * difficulty claim: klein4_bind is a Hamming ISOMETRY, so the stored body is
+ * consistent with EVERY key (an explicit tB != t1 exists with tB ^ cB byte-
+ * identical to the stored strand). What it buys is that the coupling is finally
+ * a declared function of the One's WHOLE constructor state, and that a coupling
+ * compare stops reporting two genuinely different Ones as the same One.
  *
  * WHAT THIS IS FOR: it is a ROLE, not a representation. The genome's coupling
  * slot is consumed by quad_turn, which applies it as a uniform klein4_bind —
@@ -4133,6 +4180,9 @@ srmech_status_t srmech_klein4_from_one(int64_t   sigma,
                                        int64_t   theta_num,
                                        int64_t   theta_den,
                                        int64_t   terms,
+                                       int64_t   w_saros,
+                                       int64_t   w_metonic,
+                                       int64_t   w_callippic,
                                        uint32_t  D,
                                        uint8_t  *out);
 
