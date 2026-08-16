@@ -406,8 +406,21 @@ from srmech.math.text import fold_marks, glyph_stream
 #: on this digest with 690 / 661 / 29 on every build. Re-pinned LAST — after
 #: ``regen_all.py --check`` reported all six generated files up to date and
 #: both example ledgers were final.
+#:
+#: ⚠️ AND rc438 PINNED IT TWICE, which is this constant's own advice landing a
+#: FIFTH time and is worth reading before the sixth. The first rc438 value was
+#: taken after the op fix and before CI — and CI then went red on the
+#: cascade-catalog COUNT (a 21st descriptor), whose repair rewrote the
+#: LLM-facing ``list_catalog_ops`` summary in ``tool_schema`` to enumerate the
+#: new op by name and cite ``21 ops`` twice. That is ToolEntry prose, so the
+#: corpus moved again and this constant went red a second time in one rc. The
+#: lesson is not "re-pin twice"; it is that "the prose has settled" means AFTER
+#: the gates that can force more prose have run, and a local sweep that does
+#: not cover the changed count is not those gates. Determinism re-established
+#: a second time across FIVE fresh numpy-absent interpreters at this value,
+#: same 690 / 661 / 29 — still unchanged, because rc438 registers nothing.
 WITNESS_RC416 = (
-    "b7e5de9c11dff8adf57fff6095b734cb8ef63c09c9e3f2eac96513b48fd3d157")
+    "72ace7996a7d99aca134a67d1d28cfac03592ff6e417832a1a8090e6bc7df3f4")
 
 #: The ASCII control set. These four queries are the ops the tokenizer work is
 #: ABOUT, so a regression on them would be the change eating its own subject.

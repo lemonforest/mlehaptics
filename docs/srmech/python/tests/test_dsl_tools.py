@@ -69,6 +69,10 @@ _EXPECTED_CATALOG_OPS = {
     "cyclic_mod_pow",
     "cyclic_mod_inv",
     "cyclic_mod_mul_wide",
+    # rc438 (`#T1140`): ONE-A14, the One's Klein-4 coupling projection —
+    # srmech.math.hdc, re-exported into srmech.cascade for DSL resolution
+    # (the schur_complement pattern, not the dotted encode_loe_content one).
+    "klein4_from_one",
 }
 
 #: The FULL key set of a ``list_catalog_ops`` record — pinned ONCE, here.

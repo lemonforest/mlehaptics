@@ -280,7 +280,7 @@ docs/srmech/
     │   ├── cascade/                    ← ADR-0010's FIRST new top-level namespace (rc364)
     │   │   └── catalogs/               ← the built-in descriptor catalogs, moved out of amsc/_research/
     │   │       ├── class_catalog/      ←  4 [class] TOML descriptors, loaded by srmech.dsl.make_class
-    │   │       ├── cascade_catalog/    ← 20 [cascade] TOML descriptors, loaded by srmech.dsl
+    │   │       ├── cascade_catalog/    ← 21 [cascade] TOML descriptors, loaded by srmech.dsl
     │   │       ├── alias_catalog/      ←  2 alias descriptors ([[alias]] + [genome.type_aliases]); NEW rc364
     │   │       └── worked_instances/   ←  1 worked-instance descriptor
     │   └── _native/                   ← (wheel install only) libsrmech.so/.dll/.dylib

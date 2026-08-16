@@ -50,11 +50,21 @@ follow the callable through it. MEASURED at rc434:
   string is a registered ``ToolEntry`` — while
   ``resolve("srmech.cascade.leaves.seq_len")`` is ``None`` even though it
   is the SAME object as the registered ``srmech.cascade.seq_len``.
-  Measured over the 35 distinct dotted spellings in shipped
+  Measured over the 36 distinct dotted spellings in shipped
   ``[[cascade.chain]]`` steps: 2 resolve, 32 return ``None`` while their
   target is registered under its published ``srmech.cascade.<name>``
-  re-export, and 1 (the RBS-HDC ``mint_vector``) is registered under NO
-  spelling. Every one of the 32 has
+  re-export, and 2 (the RBS-HDC ``mint_vector`` and the Class-F
+  ``srmech.amsc.descriptor.render_template``) are registered under NO
+  spelling. The census moved 35 → 36 at rc438 (`#T1140`), when
+  ``klein4_from_one.toml`` landed and its Class-F render step named
+  ``render_template`` — an op that ships and runs but carries no
+  ``ToolEntry`` under any spelling, so it joins ``mint_vector`` in the
+  genuinely-unregistered bucket rather than the invisible-while-registered
+  one. That bucket is NOT the down-only census (the invisible set is, and it
+  is unchanged at 32 — the new descriptor's other steps all reuse spellings
+  already pinned there); registering ``render_template`` is a live
+  follow-up, deliberately not taken in an rc whose registry total is
+  otherwise unchanged. Every one of the 32 has
   a published spelling that BOTH runs through this same import arm AND
   resolves — prefer ``op = "srmech.cascade.chiral_flip"`` over
   ``op = "srmech.cascade.atoms.chiral_flip"`` when a dotted step should

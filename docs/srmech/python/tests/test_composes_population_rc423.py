@@ -88,8 +88,8 @@ Equality is the stronger claim, and the rows that can bear it do.
 **What no tier here claims is EXECUTION.** Value-threading equivalence — the
 chain actually runs and returns bit-identical output — is a real and stronger
 proof, and it already exists for a different population: ADR-0008's
-``tests/test_cascade_catalog_executable_rc420.py`` executes 91 proof cases
-over the 20 cascade descriptors. :func:`test_execution_proved_rows_are_named`
+``tests/test_cascade_catalog_executable_rc420.py`` executes 98 proof cases
+over the 21 cascade descriptors. :func:`test_execution_proved_rows_are_named`
 below records the overlap rather than claiming it, so "AST-reachable" is
 never read as "executed".
 
@@ -493,7 +493,7 @@ def test_execution_proved_rows_are_named() -> None:
     AST reachability says a call edge exists in the source. EXECUTION
     equivalence says the declared chain runs and returns bit-identical output
     — a strictly stronger claim, held by ADR-0008's cascade-descriptor
-    population (``test_cascade_catalog_executable_rc420.py``, 91 proof cases)
+    population (``test_cascade_catalog_executable_rc420.py``, 98 proof cases)
     and NOT by the tiers in this file.
 
     This prints the overlap so the difference stays visible. Without it,

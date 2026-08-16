@@ -518,3 +518,29 @@ tests/test_klein4_winding_preimage_rc438.py
 #    boundary-case coverage, both strict in BOTH directions.
 #    ~9 s, pure-Python.
 tests/test_cascade_catalog_executable_rc420.py
+
+# -- the CASCADE-CATALOG COUNT axis (added rc438, local task T1140) ---------
+#    ADDED BECAUSE ITS ABSENCE COST A RED CI. rc438 landed a 21st cascade
+#    descriptor. The manifest already covered the TOOL REGISTRY count (661,
+#    which correctly did not move — a descriptor is not a ToolEntry), so the
+#    local sweep was green while CI went red on eleven jobs across all three
+#    OS matrix cells. Those are TWO DIFFERENT NUMBERS and only one of them
+#    was gated here.
+#    The four files below are where the catalog count is pinned, and each
+#    pins a DIFFERENT surface, which is why one entry would not do:
+#      * test_dsl.py -- the loader count, the CLI `dsl ops` "N total" line,
+#        the --json record count, and the EXPECTED_OPS membership set.
+#      * test_dsl_tools.py -- the MCP-facing list_catalog_ops expected set.
+#      * test_dsl_tool_surface_descriptions.py -- the LLM-facing SUMMARY
+#        prose in tool_schema._register_dsl_tools, which enumerates every op
+#        BY NAME and cites the count twice ("N ops" and "the N-op cascade").
+#        Prose, so nothing else can catch it.
+#      * test_dsl_op_naming_boundaries.py -- `#T1145`'s doc-synced census of
+#        dotted chain-step spellings, which a new descriptor's steps move.
+#    A new descriptor moves ALL FOUR. Adding one is the check that a
+#    catalog-touching rc cannot again be locally green and remotely red.
+#    ~2 min total, pure-Python.
+tests/test_dsl.py
+tests/test_dsl_tools.py
+tests/test_dsl_tool_surface_descriptions.py
+tests/test_dsl_op_naming_boundaries.py

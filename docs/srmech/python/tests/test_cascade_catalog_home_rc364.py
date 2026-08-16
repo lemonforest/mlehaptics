@@ -60,7 +60,7 @@ _CATALOGS = _PKG / "cascade" / "catalogs"
 #: Counts are pinned so a descriptor cannot be lost in a later move without a red.
 _CATALOG_COUNTS = {
     "class_catalog": 4,
-    "cascade_catalog": 20,
+    "cascade_catalog": 21,   # rc438 (`#T1140`): + klein4_from_one (ONE-A14)
     "alias_catalog": 2,
     "worked_instances": 1,
 }
