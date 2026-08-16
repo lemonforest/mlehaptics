@@ -758,13 +758,20 @@ _UNDECLARED_SURFACE_GAPS: Dict[str, str] = {
 #: a row, never by narrowing the predicate that finds them.
 #: rc424 (`#T1113`): 75 -> 74 — the MUSIC DOA row DELETED, discharged by a
 #: real ToolEntry registration rather than by a narrowed predicate.
-CEIL_UNDECLARED_SURFACE = 34
+#: rc437 (local task T1142): 34 -> 33 — `left_mult_matrix`'s row DELETED. It
+#: had sat here since rc160 and was discharged the way this ceiling wants:
+#: the op got a real ToolEntry, alongside its new `right_mult_matrix` peer.
+#: The registration was not cosmetic — it is what let the rc437 division ops
+#: resolve to a registered sub-op at depth 1 and leave the composes residual.
+CEIL_UNDECLARED_SURFACE = 33
 
 #: DOWN-ONLY sub-ceiling on the DEBT bucket of the undeclared half. The mirror
 #: of :data:`CEIL_OPEN_REGISTRATION`, and the number slice 2 of this arc drains.
 #: rc424 (`#T1113`): 59 -> 58, the MUSIC DOA discharge — the first row this
 #: sub-ceiling has drained since it was seeded at rc419.
-CEIL_UNDECLARED_OPEN_REGISTRATION = 18
+#: rc437 (local task T1142): 18 -> 17, the `left_mult_matrix` discharge —
+#: a real registration, not a re-label.
+CEIL_UNDECLARED_OPEN_REGISTRATION = 17
 
 #: The union both the ratchet and every allowlist-honesty test are checked
 #: against. Keys are disjoint by construction (a module either declares

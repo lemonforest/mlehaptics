@@ -900,7 +900,7 @@ shape available, because nothing in the artifact reveals it.
   an op that shipped correct and has since gone stale, and a layer whose contract only fires at
   registration will drift exactly where nothing is landing. Measured cost of the omission, rc414:
   ADR-0009 §1.2 carries two rows verdicted **"Still open"** whose capabilities closed at rc281 and
-  rc306 — `srmech_genome_amplify` (`c/include/srmech.h:8812`) and the caller-arena
+  rc306 — `srmech_genome_amplify` (`c/include/srmech.h:8853`) and the caller-arena
   `srmech_genome_section_counts_arena_bytes` (`c/include/srmech.h:8583-8620`) — one of them
   contradicted by ADR-0009's own §8 four paragraphs later; and that §8 lists eight capabilities as
   open, all eight of which now have whole-op C entry points.

@@ -935,13 +935,27 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # never produced. The count going DOWN here is the correction landing, and
     # the carrier registry moved with it (both ops left `float`'s `produces`
     # list for `Q`'s), which is also what moved the rc416 search-corpus witness.
+    # rc437 (local task T1142) — 157 -> 164, POPULATION, and the move is +7 for
+    # FIVE registrations. The breakdown is MEASURED per op, not projected:
+    #   cd_left_divide            1   `table` types as list[list[list[int]]]
+    #   cd_right_divide           1     -> the `int` carrier token, one (op,
+    #   left_mult_matrix          1        carrier) row each; their `sequence`
+    #   right_mult_matrix         1        operands and tuple/list returns add
+    #                                      nothing, exactly as rc399 records.
+    #   walsh_hadamard_transform  3   it names list[int] on BOTH its parameter
+    #                                 and its return, so it lands in more than
+    #                                 one carrier back-index.
+    # This is the same consumes/produces multiplicity rc420 records for its +45
+    # over 27 registrations: the count is per (op, carrier), so "one row per new
+    # op" is the wrong prior and reading 5 here would have been a guess.
     cascade = joined.count("srmech.cascade.")
-    assert cascade == 157, (
-        f"expected 157 srmech.cascade op references inside the DECODED channel "
+    assert cascade == 164, (
+        f"expected 164 srmech.cascade op references inside the DECODED channel "
         f"(the rc377 move's 95 + rc380's 2 loop-defect ops + rc383's defect_ladder + "
         f"rc384's octonion_frame_read + rc386's cd_three_form + rc387's flip_pair / "
         f"group_algebra_table + rc395's cd_zero_divisor_witness / _witnesses + rc398's "
-        f"5 Moufang loop-completion ops + rc427's 5 arrow/census ops), found "
+        f"5 Moufang loop-completion ops + rc427's 5 arrow/census ops + rc437's "
+        f"division / regular-representation / Walsh-Hadamard slice), found "
         f"{cascade}. The rc377 amsc->cascade move "
         f"conserved 95 (amsc 97 -> 2); rc380 grew it by 2, rc383 by 1, rc384 by 1, "
         f"rc386 by 1, rc387 by 2, rc395 by 2, rc398 by 5; rc420 (local task T1114) by 45 — the 27 cascade leaf-inventory registrations (12 leaves + 7 composites + 8 DFT leaves) land 45 consumes/produces rows in the carrier back-index; rc427 (local task T1130) by 5; the rc430 repair (local task T1127) SHRANK it by 2, the first decrease — kuramoto_sin_term / kuramoto_gen_term stopped advertising the emitted `float` carrier once their returns were corrected to the un-emitted `Q`. If this is not 157, re-measure.")
