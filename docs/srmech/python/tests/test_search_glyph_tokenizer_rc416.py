@@ -377,8 +377,15 @@ from srmech.math.text import fold_marks, glyph_stream
 #: 685 / 656 / 29 identical on every build. The drift branch is ruled out by
 #: measurement, again.
 #:
+#: rc437 (local task T1142) re-pins it AGAIN, and again after re-establishing
+#: determinism rather than assuming it: FIVE fresh numpy-absent interpreters
+#: agreed on this digest with the frame counts 690 / 661 / 29 identical on every
+#: build. The corpus is BUILT FROM ToolEntry prose, so five registrations plus
+#: five curated explanations move it by construction; 690 = 661 ops + 29
+#: carriers, and the ops half is exactly the live registry total.
+#:
 WITNESS_RC416 = (
-    "5bc75ac156b85b6580cd47e8a1077fea67fa90e45c00e16f60be28b9482e4272")
+    "c48b00bcd3da8293c499d681e14074032cf163f0f46e8c2260662c3d428e2c25")
 
 #: The ASCII control set. These four queries are the ops the tokenizer work is
 #: ABOUT, so a regression on them would be the change eating its own subject.

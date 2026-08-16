@@ -8281,7 +8281,6 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
             'reach for that one instead when you want a Moufang loop rather '
             'than a group.'},
 
-
     # ── rc437 (local task T1142) ──────────────────────────────
     'srmech.cascade.walsh_hadamard.walsh_hadamard_transform': {'example': {'input': {'signal': 'the 3-bit parity truth table as +-1 (the '
                                  'extremal case for this transform), then '
@@ -8375,8 +8374,8 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
                        'smallest element for which\n'
                        '#   left and right multiplication are DIFFERENT '
                        'linear maps.\n'
-                       'from srmech.cascade.cayley_dickson import (\n'
-                       '    left_mult_matrix, right_mult_matrix, cd_mult)\n'
+                       'from srmech.cascade import left_mult_matrix, '
+                       'right_mult_matrix, cd_mult\n'
                        'x = [0, 1, 0, 0, 0, 0, 0, 0]              # e1 in O\n'
                        'L = left_mult_matrix(x)\n'
                        '[int(v) for v in L[0]]          # -> [0, -1, 0, 0, '
@@ -8386,7 +8385,9 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
                        'Lt = [[L[c][r] for c in range(8)] for r in '
                        'range(8)]\n'
                        'Lt == right_mult_matrix(x)      # -> False   and NOT '
-                       'its transpose either'},
+                       'its transpose either\n'
+                       'left_mult_matrix(x)             # -> the full 8x8 '
+                       'operator, exact Q entries'},
  'explanation': 'WHAT — the n x n exact-Q matrix of the LEFT-regular map u '
                 '-> x*u, column c being x*e_c, row-major; it returns nested '
                 'lists of exact Q, never floats. WHEN — reach for it '
@@ -8424,8 +8425,8 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
                        '#   rc437 — u -> u*x. Contracting it must reproduce '
                        'y*x, and it must NOT\n'
                        '#   coincide with the left operator.\n'
-                       'from srmech.cascade.cayley_dickson import (\n'
-                       '    right_mult_matrix, left_mult_matrix, cd_mult)\n'
+                       'from srmech.cascade import right_mult_matrix, '
+                       'left_mult_matrix, cd_mult\n'
                        'from srmech.math.q import Q\n'
                        'x = [0, 1, 0, 0, 0, 0, 0, 0]              # e1 in O\n'
                        'R = right_mult_matrix(x)\n'
@@ -8436,7 +8437,9 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
                        'tuple(sum((R[r][c] * Q(y[c]) for c in range(8)), '
                        'Q(0))\n'
                        '      for r in range(8)) == tuple(cd_mult(y, x))     '
-                       '# -> True'},
+                       '# -> True\n'
+                       'right_mult_matrix(x)            # -> the full 8x8 '
+                       'operator, exact Q entries'},
  'explanation': 'WHAT — the n x n exact-Q matrix of the RIGHT-regular map u '
                 '-> u*x, column c being e_c*x, row-major; it returns nested '
                 'lists of exact Q. WHEN — reach for it to ask a right-handed '
@@ -8480,13 +8483,14 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
              'worked': '# SUBJECT: division on O, then the dim-16 zero '
                        'divisor that breaks the\n'
                        '#   closed-form shortcut SILENTLY.\n'
-                       'from srmech.cascade.cayley_dickson import (\n'
-                       '    cd_left_divide, cd_right_divide, cd_mult, '
-                       'cd_norm_sq,\n'
-                       '    cd_zero_divisor_witness)\n'
+                       'from srmech.cascade import (cd_left_divide, '
+                       'cd_right_divide, cd_mult,\n'
+                       '                            cd_norm_sq, '
+                       'cd_zero_divisor_witness)\n'
                        'a = [1, 2, 0, 0, 3, 0, 0, 1]; b = [0, 1, 1, 0, 0, 2, '
                        '0, 0]\n'
-                       'c = cd_mult(a, b)\n'
+                       'c = [-2, 7, -1, 2, -4, 0, -4, 0]          # == '
+                       'cd_mult(a, b), written out\n'
                        '[int(v) for v in cd_left_divide(a, c)]    # -> [0, '
                        '1, 1, 0, 0, 2, 0, 0] == b\n'
                        '\n'
@@ -8497,6 +8501,10 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
                        "w = cd_zero_divisor_witness(16); x = w['x']\n"
                        "w['x_form'], cd_norm_sq(x)      # -> ('e1 + e10', "
                        '2)   a NONZERO norm\n'
+                       'cd_left_divide([1, 0, 0, 0, 0, 0, 0, 0], [0, 1, 1, '
+                       '0, 0, 2, 0, 0])\n'
+                       '                                # -> 1 \\ x == x, as '
+                       'exact Q\n'
                        'cd_left_divide(x, [1] * 16)     # -> ValueError: ... '
                        'is a left zero divisor'},
  'explanation': 'WHAT — a \\ c, the unique q with a*q = c, computed exactly '
@@ -8536,12 +8544,15 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
                     'side= flag on the first.',
              'worked': '# SUBJECT: the mirror question, and the proof it is '
                        'a DIFFERENT one.\n'
-                       'from srmech.cascade.cayley_dickson import (\n'
-                       '    cd_right_divide, cd_left_divide, cd_mult, '
+                       'from srmech.cascade import (cd_right_divide, '
+                       'cd_left_divide, cd_mult,\n'
+                       '                            '
                        'cd_zero_divisor_witness)\n'
                        'a = [1, 2, 0, 0, 3, 0, 0, 1]; b = [0, 1, 1, 0, 0, 2, '
                        '0, 0]\n'
-                       '[int(v) for v in cd_right_divide(cd_mult(b, a), a)]\n'
+                       'ba = [-2, -5, 3, -2, 4, 4, 4, 0]          # == '
+                       'cd_mult(b, a), written out\n'
+                       '[int(v) for v in cd_right_divide(ba, a)]\n'
                        '                                # -> [0, 1, 1, 0, 0, '
                        '2, 0, 0] == b\n'
                        '\n'
@@ -8552,6 +8563,10 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
                        '0, -2, 0, 0] != b\n'
                        '\n'
                        "y = cd_zero_divisor_witness(16)['y']\n"
+                       'cd_right_divide([0, 1, 1, 0, 0, 2, 0, 0], [1, 0, 0, '
+                       '0, 0, 0, 0, 0])\n'
+                       '                                # -> x / 1 == x, as '
+                       'exact Q\n'
                        'cd_right_divide([1] * 16, y)    # -> ValueError: ... '
                        'is a right zero divisor'},
  'explanation': 'WHAT — c / b, the unique q with q*b = c, computed exactly '
