@@ -99,6 +99,8 @@ from srmech.math.cyclic import (              # Class-I cyclic (native); NOT std
 from srmech.math.q import Q, to_q            # #845: the CD element carrier is Q
 from srmech.math.modular_linalg import gf_rref  # Class-I GF(2) solve — the zero-
 #                                          divisor support system (rc395, `#T1000`)
+from srmech.math.qmat import QMat             # rc437 (`#T1142`): the exact-ℚ solve
+#          the division pair inverts its operator with — srmech_qmat_solve's carrier
 
 from srmech import _native  # rc10: native srmech_cd_basis_product dispatch
 
@@ -3241,6 +3243,165 @@ def left_mult_is_invertible(x: Sequence[Any], table: Any = None) -> bool:
         if native is not None:
             return native
     return len(left_mult_kernel(el, table)) == 0
+
+
+def right_mult_matrix(x: Sequence[Any], table: Any = None) -> List[List[Q]]:
+    """The ``n×n`` rational matrix of the linear map ``u ↦ u·x`` (column ``c`` is
+    ``e_c·x``), row-major — the **right-regular** representation.
+
+    rc437 (`#T1142`): the peer :func:`left_mult_matrix` has had since rc160, and
+    the reason it was missing is worth stating. ``octonion_right_mult`` and
+    ``quaternion_right_mult`` (:mod:`srmech.physics.qm.octonion` /
+    :mod:`~srmech.physics.qm.quaternion`) ship the same object at dims 8 and 4
+    ONLY, over the fixed physics tables; nothing on the Cayley–Dickson ladder
+    built ``R(x)`` at all, so :func:`cd_right_divide` had no operator to invert.
+    Verified before building: ``grep -rn "right_mult_matrix"`` over ``srmech/``
+    at rc436 returned zero definitions.
+
+    **It is NOT ``left_mult_matrix`` transposed, and it is not its conjugate.**
+    Past ℝ the two representations are genuinely different maps — measured at
+    rc437, ``R(x) == L(x)`` on **0 of 40** random elements at every dim 4…32,
+    and ``R(x) == L(x)ᵀ`` on **0 of 40** as well. They coincide only where the
+    algebra is commutative (dims 1 and 2, where ``R(x) == L(x)`` on 40/40). That
+    non-coincidence IS the Class-C which-way content of division: it is why
+    ``a\\c`` and ``c/b`` are two ops rather than one op with a flag.
+
+    Same ``composition_of_c`` shape as its left peer: each column ``e_c·x`` is a
+    :func:`cd_mult` (the CD product) over the C-dispatched :func:`cd_basis` unit
+    vector, or a :func:`table_product` when ``table`` names a different algebra.
+    """
+    x = _as_elem(x)
+    n = len(x)
+    if table is None:
+        cols = [cd_mult(cd_basis(n, c), x) for c in range(n)]
+    else:
+        tbl = _structure_table(table)
+        if len(tbl) != n:
+            raise ValueError(
+                f"right_mult_matrix: the table is dim {len(tbl)} but the "
+                f"element has {n} components")
+        cols = [table_product(tbl, cd_basis(n, c), x) for c in range(n)]
+    return [[cols[c][r] for c in range(n)] for r in range(n)]
+
+
+def _divide_by_operator(mat: List[List[Q]], c: Tuple[Q, ...],
+                        op: str, den: str, side: str) -> Tuple[Q, ...]:
+    """Solve ``M·q = c`` exactly over ℚ and return ``q``, or raise with the
+    quasigroup-shaped message. Shared by both division halves — the ONLY
+    difference between them is which operator matrix arrives here.
+
+    The raise is the point of the op (rc437, `#T1142`): a singular operator
+    means the divisor kills a nonzero direction, so the quotient either does
+    not exist or is not unique, and either way there is no answer to return.
+    The rival closed form returns a number here."""
+    n = len(mat)
+    try:
+        sol = QMat.from_rows(mat).solve([[v] for v in c])
+    except ValueError as exc:
+        raise ValueError(
+            f"{op}: the divisor `{den}` is a {side} zero divisor (or zero) at "
+            f"dim {n} — the map u ↦ {'{den}·u'.format(den=den) if side == 'left' else 'u·{den}'.format(den=den)} "
+            f"is not invertible, so there is no unique quotient to return. "
+            f"This op REFUSES rather than answering; the conjugate closed form "
+            f"conj·c/N would have returned a non-solution here. Use "
+            f"left_mult_kernel / left_mult_is_invertible to see the failure "
+            f"directly. Underlying: {exc}") from exc
+    return tuple(sol[r, 0] for r in range(n))
+
+
+def cd_left_divide(a: Sequence[Any], c: Sequence[Any],
+                   table: Any = None) -> Tuple[Q, ...]:
+    """``a \\ c`` — the unique ``q`` with ``a·q = c``. Exact over ℚ at every
+    Cayley–Dickson rung; raises ``ValueError`` when ``a`` is a left zero divisor.
+
+    **Class C.** Left-versus-right IS the which-way choice, so this ships as two
+    named ops (:func:`cd_right_divide` is the other) and never as one op with a
+    ``side=`` flag. The quasigroup literature makes the identical move: defining
+    a quasigroup equationally requires ``\\`` and ``/`` as separate primitives,
+    because past commutativity neither one determines the other.
+
+    🔴 **NOT the conjugate formula, and the difference is a wrong ANSWER, not a
+    slower one.** The tempting closed form is ``conj(a)·c / N(a)``, justified by
+    ``conj(a)·(a·b) = b``. That justification is false as stated: the real
+    identity is ``conj(a)·(a·b) = N(a)·b``, so the un-normalised form is off by
+    the whole norm — MEASURED at rc437, it fails on **40/40** generic elements
+    at *every* dim 4/8/16/32 (worked instance: ``a = (1,2,0,0,3,0,0,1)`` has
+    ``N(a) = 15`` and returns ``15·b``). Normalising by ``N(a)`` fixes dims ≤ 8
+    and **nothing above**: with the division performed, the failure count is
+    0/40 at dims 2/4/8 and **40/40 at dims 16 and 32**, because the step
+    ``conj(a)·(a·b) = N(a)·b`` needs ALTERNATIVITY, which dies at 𝕊.
+
+    ⚠️ And it fails SILENTLY. On the shipped dim-16 zero-divisor witness
+    ``x = e₁+e₁₀`` (``N(x) = 2 ≠ 0``, left-kernel dim 4) the normalised
+    conjugate form divides by a perfectly good norm and RETURNS — a value which
+    then fails ``x·q == c``. This op raises instead. That is the whole reason it
+    is built on the operator rather than the norm.
+
+    ⚠️ A probe of the form ``a = 1 + eᵢ`` CANNOT see any of this: those elements
+    are near-unit and alternative enough that the normalised conjugate form
+    scores **0 failures out of 992** at dim 32. Any future re-measurement must
+    use GENERIC elements.
+
+    **The route.** ``q`` is read off the left-regular operator
+    :func:`left_mult_matrix` — ``L(a)·q = c`` — by the exact-ℚ
+    :meth:`~srmech.math.qmat.QMat.solve`. Measured exact (``q == b``) on
+    **20/20** random NONZERO pairs at each of dims 2/4/8/16/32/64, and it
+    REFUSES on the zero divisor rather than answering. ``composition_of_c``:
+    ``srmech_qmat_solve`` over the C-composed ``L(a)`` (``srmech_cd_mult`` /
+    ``srmech_cd_qbasis``) — verified present in ``c/include/srmech.h`` at rc437,
+    NO new C symbol, ABI stays 14.
+
+    ``table`` (the rc352 argument :func:`left_mult_matrix` already takes) names a
+    DIFFERENT algebra, so division on a split twist or a hand-built table is
+    reachable — and split-𝕆 refuses at dim 8, which the ladder's own wall does
+    not.
+
+    SSoT: Bruck, *A Survey of Binary Systems* (1958) §I.1 (a quasigroup's two
+    division operations as separate primitives); Schafer, *An Introduction to
+    Nonassociative Algebras* (1966) ch. III (alternativity, and its loss at 𝕊).
+    """
+    a_el = _as_elem(a)
+    c_el = _as_elem(c)
+    if len(a_el) != len(c_el):
+        raise ValueError(
+            f"cd_left_divide: a has {len(a_el)} components but c has "
+            f"{len(c_el)}; both operands must live in the same algebra")
+    return _divide_by_operator(left_mult_matrix(a_el, table), c_el,
+                               "cd_left_divide", "a", "left")
+
+
+def cd_right_divide(c: Sequence[Any], b: Sequence[Any],
+                    table: Any = None) -> Tuple[Q, ...]:
+    """``c / b`` — the unique ``q`` with ``q·b = c``. Exact over ℚ at every
+    Cayley–Dickson rung; raises ``ValueError`` when ``b`` is a right zero divisor.
+
+    The Class-C mirror of :func:`cd_left_divide`, and **not** obtainable from it:
+    the two answer different questions the moment the algebra stops commuting.
+    MEASURED at rc437, feeding this op the LEFT question — ``cd_right_divide(a·b,
+    a)``, asking whether it returns ``b`` — scores **0/40** at each of dims 4, 8
+    and 16, while its own question scores 20/20 there. The two can agree only
+    where the algebra commutes (dims 1–2, where they score 40/40 on the nonzero
+    draws). Handing one op a ``side=`` flag would hide that behind a default.
+
+    It solves against :func:`right_mult_matrix` — ``R(b)·q = c`` — which rc437
+    had to build first: nothing on the CD ladder held the right-regular
+    representation (``octonion_right_mult`` / ``quaternion_right_mult`` are
+    dim-8 / dim-4 physics-table ops, not ladder ops). Everything else — the
+    exact-ℚ solve, the zero-divisor refusal, the ``table`` argument, the
+    ``composition_of_c`` classification — is identical to the left half.
+
+    ⚠️ The refusal condition is the RIGHT zero-divisor one, which is a different
+    predicate from ``left_mult_is_invertible``. This op does not claim the two
+    coincide; it asks its own operator.
+    """
+    c_el = _as_elem(c)
+    b_el = _as_elem(b)
+    if len(c_el) != len(b_el):
+        raise ValueError(
+            f"cd_right_divide: c has {len(c_el)} components but b has "
+            f"{len(b_el)}; both operands must live in the same algebra")
+    return _divide_by_operator(right_mult_matrix(b_el, table), c_el,
+                               "cd_right_divide", "b", "right")
 
 
 # ──────────────────────────────────────────────────────────────────────
