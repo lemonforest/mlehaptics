@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc436"
-#define SRMECH_VERSION       "0.9.0rc436"
+#define SRMECH_VERSION_PRE   "rc437"
+#define SRMECH_VERSION       "0.9.0rc437"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -2215,6 +2215,47 @@ srmech_status_t srmech_exact_dft_i64(
     const int64_t  *im,
     int64_t        *out_re,
     int64_t        *out_im);
+
+/* Exact Walsh–Hadamard transform on the BOOLEAN CUBE (ℤ/2)ⁿ (v0.9.0rc437,
+ * local task T1142) — the native twin of
+ * srmech.cascade.walsh_hadamard.walsh_hadamard_transform, and a DIFFERENT
+ * GROUP from srmech_exact_dft_i64 above rather than a special case of it.
+ * srmech_exact_dft_i64 transforms over the CYCLIC group ℤ/N, whose characters
+ * are Nth roots of unity, so its exact answer needs the cyclotomic ring ℤ[ζ_N]
+ * and each output is a length-φ(N) integer VECTOR. The cube's characters are
+ *     χ_k(j) = (−1)^{popcount(j & k)}
+ * which take the values ±1 and NOTHING else, so this transform is exact in
+ * plain integers with no roots of unity, no field extension and no vector-
+ * valued coefficient — each output is a single int64:
+ *     X[k] = Σ_j data[j] · (−1)^{popcount(j & k)}
+ * The −1 is a Class-K pin-slot flip realised as a SUBTRACTION (never abs, never
+ * a stored sign table). H_{2ⁿ} = H_2 ⊗ … ⊗ H_2 factors the transform into
+ * log2(N) butterfly passes: N·log2(N) add/subtracts, ZERO multiplies, IN PLACE
+ * on `data` (length N int64) — so there is no scratch, no arena and no malloc,
+ * and the dense N×N sign matrix is deliberately never materialised (it would
+ * declare N² degrees of freedom for an operator that has N·log2(N)).
+ * N must be a power of two ≥ 1, else SRMECH_ERR_BAD_INPUT — a non-power-of-two
+ * is REFUSED, not silently zero-padded (exact_dft's refusal style). N == 1 is
+ * the trivial group and returns SRMECH_OK with `data` untouched. NO compiled-in
+ * size cap: the kernel writes only the caller's own buffer. The genuine domain
+ * limit is int64 element magnitude — one pass can double a coefficient, so keep
+ * N·max|data| int64-safe (the Python wrapper enforces this and routes larger
+ * magnitudes to its arbitrary-precision path).
+ * H·H = N·I exactly, so the inverse is this same call followed by an exact
+ * divide by N; the divide is NOT done here (it is exact in ℤ only when N
+ * divides every coefficient, and hiding that in an integer kernel would
+ * truncate silently — the same reason exact_idft leaves its 1/N to lift time).
+ * NON-CLAIM: the index law is XOR, and that is NOT the correctness argument —
+ * a project census measured 200/200 random XOR-lane sign tables satisfying
+ * every structural predicate while 0/200 were associative, so XOR refutes and
+ * never certifies. Correctness rests on the ±1 character values and is verified
+ * by round-trip and by differential test against the dense character sum.
+ * ABI-additive: new symbol, SRMECH_ABI_VERSION stays 14.
+ * SSoT: Walsh, Amer. J. Math. 45 (1923) 5–24; Fino & Algazi, IEEE Trans.
+ * Computers C-25 (1976) 1142–1146. */
+srmech_status_t srmech_walsh_hadamard_i64(
+    uint32_t   n,
+    int64_t   *data);
 
 /* Numeric complex128 FFT / IFFT (0.9.0rc139, #743/#747 Foundation F1) — the
  * numeric twin of srmech.cascade.spectral_cascades.fft/ifft that the
