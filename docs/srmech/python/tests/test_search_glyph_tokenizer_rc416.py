@@ -419,8 +419,22 @@ from srmech.math.text import fold_marks, glyph_stream
 #: not cover the changed count is not those gates. Determinism re-established
 #: a second time across FIVE fresh numpy-absent interpreters at this value,
 #: same 690 / 661 / 29 — still unchanged, because rc438 registers nothing.
+#:
+#: rc439 (`#T1140`) moved it again, and this one is the CLEAN case the block
+#: above describes: counts UNCHANGED at 690 / 661 / 29, so a pure-prose edit
+#: and not a registration. Two prose sources moved — ``centromere_of``'s
+#: docstring gained its dicentric SCOPE paragraph, and the curated
+#: ``genome.mint`` / ``genome.genome`` entries stopped presenting a
+#: cross-chromosome centromere blend as a real reading. Determinism
+#: re-established BEFORE re-pinning across FIVE fresh numpy-absent WSL2
+#: interpreters, and measured on a COMPLETE tree copy rather than the session
+#: worktree: ``citation_corpus`` excludes any path containing ``.claude`` or
+#: ``worktrees``, so in-worktree the corpus is EMPTY and a witness taken there
+#: would be a digest of nothing. Re-pinned LAST — after ``regen_all.py
+#: --check`` reported all six generated files up to date and both example
+#: ledgers were final.
 WITNESS_RC416 = (
-    "72ace7996a7d99aca134a67d1d28cfac03592ff6e417832a1a8090e6bc7df3f4")
+    "e838eb021de07086246e7d4a0bebc6211e886301662639b2bc8ffc09a5a5ca1e")
 
 #: The ASCII control set. These four queries are the ops the tokenizer work is
 #: ABOUT, so a regression on them would be the change eating its own subject.

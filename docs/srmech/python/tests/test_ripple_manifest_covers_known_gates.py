@@ -249,7 +249,7 @@ FROZEN_KNOWN_GATES = frozenset({
     #    changed, but on a REST One an rc437 lib still returns the correct
     #    bytes, so a mismatched build shows up only on WOUND Ones -- exactly
     #    the regime that had no coverage at all before this rc. This file
-    #    carries the EXPECTED_ABI_VERSION == 15 pin AND the only native/pure
+    #    carries the EXPECTED_ABI_VERSION == 16 pin AND the only native/pure
     #    differential over the new wire.
     "tests/test_klein4_winding_preimage_rc438.py",
 })
