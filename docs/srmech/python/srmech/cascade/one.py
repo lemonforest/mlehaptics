@@ -298,8 +298,42 @@ def winding_tower(w: int) -> Tuple[int, ...]:
     Sign is a **Class-K pin** (a retrograde/negative winding is the Class-C
     orientation reversal ``-w``, never an ALU ``abs()`` per
     ``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]``); the tower is
-    over the magnitude, its orientation carried by the caller (σ /
-    :meth:`One.sigma_effective`). ``w = 0`` → the empty tower ``()``.
+    over the magnitude, and the caller still holds the orientation — **in the
+    ``w`` it passed in (on a One, :attr:`One.winding`), NOT in σ and NOT in
+    :meth:`One.sigma_effective`**. ``w = 0`` → the empty tower ``()``.
+
+    ⚠️ **rc440 (`#T1147`) — that parenthetical was MEASURED FALSE and is
+    corrected here.** Through rc439 this sentence named ``σ /
+    One.sigma_effective`` as the carrier of the dropped orientation. Neither
+    carries it. Over ``w ∈ [-4,4]³`` (**729** windings, σ/θ/``terms`` fixed) the
+    triad-wide :meth:`One.winding_tower` takes **125** distinct values, and its
+    fibre relation is EXACTLY *"the per-component Class-K magnitudes agree"* —
+    verified as an identical set-partition, every fibre an exact ``(ℤ/2)^k``
+    sign orbit with ``fibre_size == 2^(nonzero components)``, sizes
+    ``{1:1, 2:12, 4:48, 8:64}``. That leaves **2092** within-fibre pairs: the
+    orientation the tower dropped. :meth:`One.sigma_effective` separates
+    **0 of 2092**. So do :attr:`One.spinor_sign`, :attr:`One.spinor` and
+    :meth:`One.trace_spinor`. The null is REFUTED, not empty — the same
+    ``sigma_effective`` read separates **132678** pairs overall on the same
+    grid, so it is a live instrument answering "no". And ``tower ⊕ spinor_sign
+    ⊕ sigma_effective`` is still **125**: those two reads add exactly zero
+    beyond the tower.
+
+    **The algebra says it can never work**, which is why this was a hypothesis
+    that measurement was owed. :func:`_sigma_effective_from_triad` is
+    ``σ·(−1)^popcount(winding_tower(w_k))`` — a pure function of *the tower's
+    own output*, hence constant on every fibre by construction. ``(−1)^Σw`` is
+    fibre-invariant for the same reason: flipping one component's sign moves
+    ``Σw`` by ``2·w_k``, an even step. And σ is an independent constructor
+    parameter with no relation to ``w``'s sign at all.
+
+    **Stated precisely, because the flat version would be its own falsehood:**
+    the orientation is *absent from this function's output* — a function taking
+    125 values cannot separate 729 inputs, so that is information-theoretic and
+    not a difficulty claim — but it is **fully recoverable from the ``One``**:
+    :attr:`One.winding` separates all **729/729** and resolves all 2092 of
+    these pairs, as does :meth:`One.unwrapped_phase`. Reach for the field, not
+    for a chirality readout, when you want the sign back.
 
     Bit order is LSB-first, so ``sum(bit << i for i, bit in enumerate(tower))``
     reconstructs the magnitude exactly (lossless).

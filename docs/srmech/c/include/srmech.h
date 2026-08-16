@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc439"
-#define SRMECH_VERSION       "0.9.0rc439"
+#define SRMECH_VERSION_PRE   "rc440"
+#define SRMECH_VERSION       "0.9.0rc440"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1348,6 +1348,14 @@ srmech_status_t srmech_parse_formula(const char *s, size_t len, void *ws,
  * never abs()) and writes the count to *n_bits_out. This KEEPS the Z/2 grading
  * (the anti-collapse of `w mod 2`: winding_tower(5)={1,0,1} is DISTINGUISHED
  * from winding_tower(7)={1,1,1}). w == 0 -> empty tower (*n_bits_out = 0).
+ *
+ * SCOPE (rc440, `#T1147`): the tower is over the MAGNITUDE and carries no
+ * orientation. Do not expect srmech_sigma_effective to supply it -- measured
+ * over w in [-4,4]^3, the triad-wide tower's 125 values leave 2092 sign-orbit
+ * pairs and sigma_effective separates 0 of them (it is sigma*(-1)^popcount of
+ * this very output, hence fibre-constant by construction). Read the orientation
+ * off the winding triad itself; it is fully present there.
+ *
  * Returns SRMECH_ERR_NULL_ARG (bits_out / n_bits_out NULL), SRMECH_ERR_BAD_INPUT
  * (bits_cap < 0), SRMECH_ERR_OVERFLOW (bits_cap too small; |w| needs up to 64). */
 srmech_status_t srmech_winding_tower(int64_t w, uint8_t *bits_out,

@@ -433,8 +433,20 @@ from srmech.math.text import fold_marks, glyph_stream
 #: would be a digest of nothing. Re-pinned LAST — after ``regen_all.py
 #: --check`` reported all six generated files up to date and both example
 #: ledgers were final.
+#: rc440 (`#T1147`) moved it again, and it is the CLEAN case as well: counts
+#: UNCHANGED at 690 / 661 / 29, so pure prose and no registration. Two curated
+#: entries moved — ``klein4_from_one``'s explanation stopped claiming the
+#: coupling is a function of "three canonical constructor integers" (rc438 made
+#: the winding a fourth, conditionally, and the promise was left behind), and
+#: ``q8_from_one``'s stopped enumerating the One's inputs flatly. Determinism
+#: re-established BEFORE re-pinning across FIVE fresh numpy-absent WSL2
+#: interpreters on a COMPLETE tree copy, and cross-checked against three more
+#: in the session worktree — the two agree here, because unlike
+#: ``citation_corpus`` this corpus is built from in-package ``ToolEntry`` prose
+#: and carries no path-based exclusion. Re-pinned LAST, after
+#: ``regen_all.py --check`` reported all six generated files up to date.
 WITNESS_RC416 = (
-    "e838eb021de07086246e7d4a0bebc6211e886301662639b2bc8ffc09a5a5ca1e")
+    "a27596db89dc1b5ae2f4c1098168750d1e3b5a1d7364989250ed86f48988a9d3")
 
 #: The ASCII control set. These four queries are the ops the tokenizer work is
 #: ABOUT, so a regression on them would be the change eating its own subject.

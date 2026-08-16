@@ -68,7 +68,21 @@ srmech_status_t srmech_winding_tower(int64_t w, uint8_t *bits_out,
         return SRMECH_ERR_BAD_INPUT;
     }
     /* Class-K magnitude of the WHOLE winding (no abs()); the tower is over the
-     * magnitude, its orientation carried by sigma / sigma_effective. */
+     * magnitude, and the caller still holds the orientation -- in the winding
+     * triad ITSELF, NOT in sigma and NOT in srmech_sigma_effective.
+     *
+     * rc440 (`#T1147`): this comment named sigma / sigma_effective as the
+     * carrier through rc439, and that was MEASURED FALSE. Over w in [-4,4]^3
+     * (729 windings) the triad-wide tower takes 125 values, its fibres being
+     * exactly the per-component magnitude classes -- 2092 within-fibre pairs,
+     * of which sigma_effective separates 0 (a REFUTED null: the same read
+     * separates 132678 pairs overall). It cannot work by construction:
+     * srmech_sigma_effective is sigma*(-1)^popcount(tower(w_k)), a pure
+     * function of THIS function's own output, so it is constant on every
+     * fibre; and sigma is an independent parameter unrelated to w's sign. The
+     * orientation is absent from this output (125 values cannot separate 729 --
+     * information-theoretic, not a difficulty claim) and fully present in the
+     * triad the caller passed in. */
     uint64_t m = (w >= 0) ? (uint64_t)w : ((uint64_t)0 - (uint64_t)w);
     int32_t n = 0;
     for (int i = 0; i < SRMECH_WINDING_INT64_BITS; i++) {

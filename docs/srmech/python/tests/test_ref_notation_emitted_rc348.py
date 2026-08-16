@@ -707,6 +707,16 @@ SCAN_ROOTS = {
     # so reaching into c/ is the POINT of the gate, not an accident of layout.
     "tests/test_citation_contradiction_rc436.py": (
         "docs/srmech/python", "docs/srmech/c"),
+    # rc440 (`#T1147`): the One-preimage CONTRACT gate governs every surface
+    # that ENUMERATES the coupling preimage's key set, and the two that mattered
+    # most are outside python/: the compiled-in `c/src/srmech_tool_registry.c`
+    # (served by `describe()` and the MCP tool list) alongside the generated
+    # `_tool_docs.py` and its curated SSoT. That is the rc348 lesson applied --
+    # the sweep that stopped at source left 15 false links live in the wheel --
+    # so reaching into c/ IS the point of this gate, exactly as for the
+    # citation-contradiction one above.
+    "tests/test_one_preimage_contract_rc440.py": (
+        "docs/srmech/python", "docs/srmech/c"),
     # THE WIDE ONE: rglobs the entire subtree to derive the `#TNNN` vocabulary.
     "tests/test_ref_notation_emitted_rc348.py": ("docs/srmech",),
     # rc407 (`#T1076`): the ADR-0009 MCP parity gate reads the C source to

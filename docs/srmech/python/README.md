@@ -147,7 +147,7 @@ To check which implementation is routing, call `srmech.native_status()` (top-lev
 import srmech
 srmech.native_status()
 # {'has_native': True, 'dispatching': True, 'abi_version': 16,
-#  'expected_abi': 16, 'native_version': '0.9.0rc439', 'load_error': None}
+#  'expected_abi': 16, 'native_version': '0.9.0rc440', 'load_error': None}
 ```
 
 | Home (under `srmech.`) | Class | Primitive operation |
@@ -423,7 +423,9 @@ from srmech.biology import genome as G
 from srmech.cascade.one import the_one
 from srmech.math.hdc import klein4_expand, klein4_from_one
 
-# rc290: the coupling is DERIVED from (sigma, theta, terms) — no magic seed.
+# rc290/rc438: the coupling is DERIVED — no magic seed. The One here is at
+# REST, so its preimage is exactly (sigma, theta, terms); a WOUND One adds
+# winding, on the same non-rest condition One._to_jsonable() branches on.
 coupling = klein4_from_one(the_one(1, 1, 4), 64)
 lv = lambda n, b: [klein4_expand(64, b + i) for i in range(n)]
 
@@ -437,6 +439,10 @@ print(census["topology"])   # nuclear-like
 print([(c["label"], c["type"]) for c in census["chromosomes"]])
 # [('small', 'plasmid'), ('large', 'nuclear')]
 ```
+
+**The coupling's preimage is a CONDITIONAL enumeration, and the condition is the whole point.** `klein4_from_one` builds its Class-A preimage as `{"sigma", "terms", "theta"}` — and adds `"winding"` **when and only when** the triad is non-rest, mirroring `One._to_jsonable()`'s own branch. That branch is why an unwound One's coupling is byte-identical to every release before rc438, and it is also why a blanket four-key sentence would be as wrong as the three-key one it replaced: for the One above, three is complete. Measured over `w ∈ [-4,4]³` (**729** windings, σ/θ/terms fixed) on the One in that snippet: the rc437 three-key preimage gave **1 distinct coupling out of 729**, the shipped one gives **729/729** — with the other axes moving normally throughout (40 θ → 40, 2 σ → 2, 20 `terms` → 20).
+
+**What the coupling buys is a COMMITMENT, not a READ — and that claim is about the STORED BYTES, not about the winding.** From the `One` itself the winding is fully recoverable, through public surfaces: `One.winding` and `One.unwrapped_phase()` each separate all **729/729**, and the JSON round-trip returns every triad exactly (`one_from_jsonable` ∘ the private `_to_jsonable`, **729/729** exact — an inverse, not merely an injection). (The *derived* reads are lossy on purpose and say so: `One.winding_tower()` collapses to **125/729** = 5³, because a per-component tower is orientation-blind — `winding_tower(3) == winding_tower(-3)`; `One.spinor_sign` is the order-2 shadow at **2/729**; the 2π-periodic adjoint `to_flat_rational()` is w-blind at **1/729**.) What you cannot do is read the winding back out of a *stored genome*: on the One above **49 of the 64** coupling symbols move between `w=(0,0,0)` and `w=(0,0,1)` (39–58 across the whole adjacent-winding sweep), so there is no local read; and `klein4_bind` is a Hamming isometry (measured 32/64 → 32/64 across a bind), so the stored body is consistent with **every** key — an explicit `tB ≠ t₁` exists whose bind under `cB` is byte-identical to the strand stored under `cA`.
 
 `genome_census(path)` rolls a genome up; `genome_registry(root)` censuses a whole directory of them (which genome is the nucleus, which is an organelle). `topology` is a structural **integer** read — `nuclear-like` / `organelle-like` / `plasmid/prokaryote-like` / `empty` — with no float anywhere.
 
