@@ -148,8 +148,33 @@ _DECLARING: Dict[str, Tuple[str, ...]] = {
 # order is precisely the drift this ratchet exists to catch; raising the
 # ceiling to admit it converts the ratchet into a comment, which is what the
 # `preserves` HOLD became (ADR-0013 §1.7.1) before rc423 adjudicated it.
+#
+# rc437 (local task T1142) re-ran the same census over a registry of 661, and
+# the ceiling comes DOWN to 181 — LOWERED by a trace, which the paragraph above
+# names as the only sanctioned way it moves:
+#
+#     DECLARED  45   SINGLE 164   LEAF 270   REFUSED 1   RESIDUAL 181
+#     adjudicated 480 / 661        composes population 209 / 661
+#
+# Worth recording because the first attempt WOULD have needed a raise, and the
+# fix was structural rather than numeric. rc437 registered five ops. Three
+# landed adjudicated at birth (walsh_hadamard_transform is a measured LEAF;
+# cd_left_divide / cd_right_divide are SINGLE). The other two — the left/right
+# REGULAR REPRESENTATIONS — each reach `cd_mult` and `table_product` on
+# MUTUALLY EXCLUSIVE branches, which is not ROSTER-eligible as a sequence and
+# has no tier of its own, so they arrived RESIDUAL and took the count to 183.
+#
+# Two things drained it, and neither was a ceiling bump. (a) Registering
+# `left_mult_matrix` / `right_mult_matrix` — which had carried an
+# OPEN_REGISTRATION gap row since rc160 — gave the two DIVISION ops a
+# registered sub-op at depth 1, moving them from RESIDUAL to SINGLE. (b) Both
+# representations were then TRACED and declared with a ONE-element tuple:
+# `table` SUBSTITUTES the product rather than adding a call, so declaring both
+# would assert a sequence that never occurs, and the selected branch is left
+# undeclared exactly as `dispatch` leaves its selected implementation
+# undeclared. See the rc437 block in test_composes_grain_rc412.py::ROSTER.
 # ──────────────────────────────────────────────────────────────────────
-CEIL_UNADJUDICATED = 182
+CEIL_UNADJUDICATED = 181
 
 #: How far the residual may drain below the ceiling before the ceiling itself
 #: must come down. Small on purpose — a ratchet with slack ratchets nothing.

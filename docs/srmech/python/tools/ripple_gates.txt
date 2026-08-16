@@ -446,3 +446,37 @@ tests/test_strand_shape_contract_rc436.py
 #    state. Carries a perturbation control (withhold one Fano line -> 168 -> 174
 #    and the SET diverges) so the set-equality claim cannot be vacuous. ~14 s.
 tests/test_octonion_associator_support_rc436.py
+
+# -- Cayley-Dickson DIVISION pair (rc437, local task T1142) ------------------
+#    Four registered ops move the count pins, but this file rides here for the
+#    gate the pins cannot express: the dim-16 ZERO-DIVISOR REFUSAL. That is the
+#    case the conjugate closed form `conj(a)*c/N(a)` gets SILENTLY WRONG -- the
+#    witness e1+e10 has a perfectly good norm 2, so the closed form divides
+#    happily and returns a non-solution -- and it is therefore the test that must
+#    go red if anyone "simplifies" the ops back to it. The rival is EXECUTED in a
+#    control beside it, so the refusal is provably a choice rather than an
+#    accident of degenerate input. It also pins that the near-unit probe
+#    a = 1+e_i is NON-DISCRIMINATING (0 rival failures out of 992 at dim 32), so
+#    a later re-measurement built on that shape is recognisable as blind.
+#    ~11 s, pure-Python, no native .so.
+tests/test_cd_divide_rc437.py
+
+# -- Walsh-Hadamard on (Z/2)^n (rc437, local task T1142) --------------------
+#    A new op with a NEW C SYMBOL (srmech_walsh_hadamard_i64, ABI-additive), so
+#    it moves the registry pins, the rosetta ledger and the c-claims manifest at
+#    once. Two entries here are worth naming because both were found by planting
+#    a defect and watching the obvious gate stay GREEN:
+#      * test_the_PURE_body_matches_the_oracle_on_EVERY_host -- with a native lib
+#        present the C peer PREEMPTS, so a dropped butterfly pass in the pure
+#        body left the oracle differential fully green (9 passed). The pure body
+#        is now measured directly, so neither co-equal projection is graded only
+#        against the other.
+#      * test_the_HV_carrier_bridge_promise_names_a_REACHABLE_op -- carrier_schema()
+#        answers from the COMPILED srmech_carrier_registry.c on a native host, so
+#        reverting the Python source alone left the gate green. It now asserts on
+#        the hand-written source table AND the live surface.
+#    Correctness is argued from the +-1 CHARACTER VALUES and verified against an
+#    independent O(N^2) character-sum oracle -- NOT from the XOR index law, which
+#    a project census showed is a valid refuter and an invalid certifier.
+#    ~18 s, pure-Python (the native differential self-skips without a .so).
+tests/test_walsh_hadamard_rc437.py

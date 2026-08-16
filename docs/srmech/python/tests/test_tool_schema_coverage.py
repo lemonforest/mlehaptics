@@ -379,6 +379,14 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     "srmech.cascade.cayley_dickson.left_mult_matrix",
     "srmech.cascade.cayley_dickson.left_mult_kernel",
     "srmech.cascade.cayley_dickson.left_mult_is_invertible",
+    # rc437 (`#T1142`): the DIVISION pair is registered under the flat names
+    # ``srmech.cascade.{cd_left_divide,cd_right_divide}``; these are the same
+    # objects. ``right_mult_matrix`` is the operator they invert and is exempt
+    # for exactly the reason ``left_mult_matrix`` directly above is — a
+    # building-block the registered entries are sugar over.
+    "srmech.cascade.cayley_dickson.right_mult_matrix",
+    "srmech.cascade.cayley_dickson.cd_left_divide",
+    "srmech.cascade.cayley_dickson.cd_right_divide",
     # rc349 (`#T987`): the ℝ→ℂ rung instrument, registered under the flat name
     # ``srmech.cascade.inertia_signature``; this is the same object.
     "srmech.cascade.cayley_dickson.inertia_signature",

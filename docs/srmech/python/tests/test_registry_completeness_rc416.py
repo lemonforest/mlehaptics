@@ -682,7 +682,12 @@ _UNDECLARED_SURFACE_GAPS: Dict[str, str] = {
     'srmech.cascade.cayley_dickson.cd_add': OPEN_REGISTRATION,
     'srmech.cascade.cayley_dickson.cd_basis': OPEN_REGISTRATION,
     'srmech.cascade.cayley_dickson.closure': OPEN_REGISTRATION,
-    'srmech.cascade.cayley_dickson.left_mult_matrix': OPEN_REGISTRATION,
+    # rc437 (`#T1142`): left_mult_matrix's OPEN_REGISTRATION row is REMOVED —
+    # the gap is CLOSED, not re-homed. It is now registered under the flat name
+    # `srmech.cascade.left_mult_matrix`, together with its new right-regular
+    # peer `right_mult_matrix`. Registering the pair is what lets the division
+    # ops built on them resolve to a registered sub-op at depth 1 (the
+    # composes-population SINGLE tier) instead of sitting in the residual.
     'srmech.cascade.cayley_dickson.left_orbit': OPEN_REGISTRATION,
     'srmech.cascade.cayley_dickson.min_generating_set': OPEN_REGISTRATION,
     # ── srmech.cli.klass ──

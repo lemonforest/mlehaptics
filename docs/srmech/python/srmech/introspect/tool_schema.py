@@ -3565,6 +3565,69 @@ def _register_primitive_class_tools() -> None:
                         P("scale", "int", False, "keyword-only; divide the lifted result (scale=N normalises an inverse); default 1")),
             returns=R("list[complex]", "lifted complex spectrum / samples"),
         ),
+        # rc437 (local task T1142): the same question on a DIFFERENT GROUP. The
+        # three entries above cover the CYCLIC group Z/N; nothing covered the
+        # boolean cube (Z/2)^n until now.
+        ToolEntry(
+            name="srmech.cascade.walsh_hadamard.walsh_hadamard_transform",
+            owner="srmech", category="cascade",
+            summary="Exact Walsh–Hadamard transform of an integer signal on the BOOLEAN "
+                    "CUBE (Z/2)^n — X[k] = sum_j x[j]·(-1)^popcount(j&k), in natural "
+                    "(Sylvester / Hadamard) order, returned as exact integers. It is a "
+                    "DIFFERENT GROUP from exact_dft, not a special case of it, and that "
+                    "is the whole point: exact_dft covers the cyclic Z/N, whose "
+                    "characters are Nth roots of unity, so its exact answer needs the "
+                    "ring Z[zeta_N] and each output is a length-phi(N) integer VECTOR "
+                    "(measured: phi(8)=4, phi(12)=4, phi(7)=6, all int, no float — that "
+                    "extension IS implemented and is not a gap). The cube's characters "
+                    "take the values +1 and -1 and NOTHING else, so this transform is "
+                    "exact in plain whole numbers: no roots of unity, no cyclotomic "
+                    "field, no extension ring, no vector-valued coefficient. Add, "
+                    "subtract, and the Class-K sign-flip. COST: n·log2(n) add/subtracts "
+                    "and ZERO multiplies, as log2(N) in-place butterfly passes. The "
+                    "dense N×N sign matrix is DELIBERATELY NOT materialised — "
+                    "kron(kron(H2,H2),H2) composes today and gives the same values, but "
+                    "it declares N^2 degrees of freedom for an operator that has "
+                    "N·log2(N), which is the container-over-declares-DoF defect. "
+                    "INVOLUTION, NOT A SECOND OP: H·H = N·I exactly, so wht(wht(x)) == "
+                    "[N*v for v in x] (gated at every dim through N=512); there is "
+                    "deliberately no inverse= flag and no inverse_* peer, because "
+                    "forward and inverse are the SAME map and a second name would "
+                    "assert a which-way distinction the mathematics does not have "
+                    "(contrast cd_left_divide / cd_right_divide in this same release, "
+                    "which ARE two ops precisely because there the directions differ). "
+                    "The 1/N is left to the caller for the reason exact_idft leaves its "
+                    "1/N to lift time. REFUSES a non-power-of-two length rather than "
+                    "zero-padding (padding would answer for a different group) and "
+                    "refuses float input — both matching exact_dft's shipped style. "
+                    "bool and integer-valued exact Q are accepted. SCOPE: natural / "
+                    "Sylvester order ONLY; sequency (Walsh) and dyadic (Paley) order are "
+                    "output permutations of this and are NOT shipped. ⚠️ NON-CLAIM: the "
+                    "index law is XOR, and that is NOT the correctness argument — a "
+                    "census measured 200/200 random XOR-lane sign tables satisfying "
+                    "every structural predicate while 0/200 were associative, so XOR "
+                    "REFUTES and never CERTIFIES. Correctness rests on the ±1 character "
+                    "values and is verified by round-trip and by differential test "
+                    "against the dense character sum (8/8 at every n = 0..8). Class L "
+                    "(spectral read) ∘ Class I (the butterfly stride arithmetic IS the "
+                    "cube's group structure). c_dispatched: same-rc C peer "
+                    "srmech_walsh_hadamard_i64 (in place, no scratch, no arena, no "
+                    "malloc), byte-identical on 66/66 differential draws across N=1..1024; "
+                    "past N·max|x| >= 2^62 the arbitrary-precision Python body runs, "
+                    "which is the COMPLETE alternative implementation, not a fallback. "
+                    "ABI-additive: new symbol, SRMECH_ABI_VERSION stays 14. SSoT: Walsh, "
+                    "*Amer. J. Math.* 45 (1923) 5–24; Fino & Algazi, *IEEE Trans. "
+                    "Computers* C-25 (1976) 1142–1146."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("signal", "list[int]", True,
+                  "exact-integer sequence of power-of-two length N = 2^n (bool and "
+                  "integer-valued exact Q accepted; float is refused)"),
+            ),
+            returns=R("list[int]",
+                      "the exact length-N integer spectrum on (Z/2)^n, natural "
+                      "(Sylvester) order"),
+        ),
         ToolEntry(
             name="srmech.cascade.matrix_cascades.qr", owner="srmech", category="cascade",
             summary="Householder QR factorization A = Q*R: Q a product (Class M) of elementary reflectors H = I - beta*v*v^H, each Class K (sign-flip across a hyperplane) + Class M (outer-product bind) + Class N (1/(v^H v) scale, with the column norm a rational.sqrt). numpy as CONTAINER only — no NumPy QR in the call graph. mode='reduced' (default, matching NumPy QR) or 'complete'. QR is unique only up to signs; the invariants (Q*R=A, Q^H Q=I, R upper-triangular) hold to round-off.",
@@ -10794,6 +10857,69 @@ def _register_primitive_class_tools() -> None:
                       "the (i, j, k, l, s) witness tuples in deterministic "
                       "(i, j, k, l) order; [] at dim ≤ 8"),
         ),
+        # rc437 (local task T1142): the two REGULAR REPRESENTATIONS. Both were
+        # unregistered until now — left_mult_matrix has shipped since rc160
+        # carrying an OPEN_REGISTRATION gap row, and right_mult_matrix did not
+        # exist at all. They are registered together because the division pair
+        # below is built on them and because a caller who has L(x) but not R(x)
+        # cannot ask the right-handed question at all.
+        ToolEntry(
+            name="srmech.cascade.left_mult_matrix", owner="srmech",
+            category="cascade",
+            summary="The n×n exact-ℚ matrix of the LEFT-regular map u ↦ x·u (column c "
+                    "is x·e_c), row-major — the operator whose kernel, invertibility "
+                    "and inverse the rest of this family read. Contracting L(x) "
+                    "against y reproduces cd_mult(x, y) (measured 200/200 on random "
+                    "dim-8 pairs), and building a matrix column-by-column then "
+                    "contracting it is a genuinely different route from a triple loop "
+                    "over a tensor — so L(x)·y versus table_product(table, x, y) is a "
+                    "real two-route check with ZERO duplicated code, which is why the "
+                    "`table` argument lives here. The contraction is written as an "
+                    "exact-ℚ sum, never a matmul: this surface is numpy-free and every "
+                    "entry is an exact Q that no numpy dtype can hold without "
+                    "rounding. composition_of_c — each column is a C-dispatched "
+                    "cd_mult over a C-dispatched cd_basis."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("x", "sequence", True, "a power-of-two-length element"),
+                P("table", "list[list[list[int]]] | None", False,
+                  "the dim × dim × dim structure-constant tensor naming the algebra "
+                  "(e.g. from algebra_table). None (default) is the shipped "
+                  "Cayley–Dickson product, unchanged"),
+            ),
+            returns=R("list", "n rows of n exact Q — L(x), row-major"),
+            composes=("srmech.cascade.cd_mult",),
+        ),
+        ToolEntry(
+            name="srmech.cascade.right_mult_matrix", owner="srmech",
+            category="cascade",
+            summary="The n×n exact-ℚ matrix of the RIGHT-regular map u ↦ u·x (column c "
+                    "is e_c·x), row-major — the peer left_mult_matrix has had since "
+                    "rc160 and which NOTHING on the Cayley–Dickson ladder held until "
+                    "rc437. Verified before building: octonion_right_mult and "
+                    "quaternion_right_mult (srmech.physics.qm.*) ship the same object "
+                    "at dims 8 and 4 ONLY over the fixed physics tables, and a grep "
+                    "for right_mult_matrix over srmech/ at rc436 returned zero "
+                    "definitions — so cd_right_divide had no operator to invert. ⚠️ IT "
+                    "IS NOT L(x) TRANSPOSED AND NOT ITS CONJUGATE: measured, "
+                    "R(x) == L(x) on 0/40 random elements at every dim 4/8/16/32 and "
+                    "R(x) == L(x)ᵀ on 0/40 as well; they coincide only where the "
+                    "algebra commutes (dims 1–2, 40/40). That non-coincidence IS the "
+                    "Class-C which-way content of division, and it is why cd_left_divide "
+                    "and cd_right_divide are two ops rather than one with a flag. Same "
+                    "composition_of_c shape as its left peer, and the same `table` "
+                    "argument."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("x", "sequence", True, "a power-of-two-length element"),
+                P("table", "list[list[list[int]]] | None", False,
+                  "the dim × dim × dim structure-constant tensor naming the algebra "
+                  "(e.g. from algebra_table). None (default) is the shipped "
+                  "Cayley–Dickson product, unchanged"),
+            ),
+            returns=R("list", "n rows of n exact Q — R(x), row-major"),
+            composes=("srmech.cascade.cd_mult",),
+        ),
         ToolEntry(
             name="srmech.cascade.left_mult_kernel", owner="srmech",
             category="cascade",
@@ -10817,6 +10943,9 @@ def _register_primitive_class_tools() -> None:
                   "Cayley–Dickson product, unchanged"),
             ),
             returns=R("list", "kernel-basis vectors (Q tuples); empty if invertible"),
+            # rc437 (local task T1142): now declarable — left_mult_matrix, the
+            # ONE registered op this body calls, gained a ToolEntry this rc.
+            composes=("srmech.cascade.left_mult_matrix",),
         ),
         ToolEntry(
             name="srmech.cascade.left_mult_is_invertible", owner="srmech",
@@ -10843,6 +10972,100 @@ def _register_primitive_class_tools() -> None:
                   "Cayley–Dickson product, unchanged"),
             ),
             returns=R("bool", "True iff multiply-by-x has a (two-sided) inverse map"),
+        ),
+        # rc437 (local task T1142): the named DIVISION pair the two ops above
+        # only ever answered the DECISION question about. Two named ops, never
+        # one with a side= flag — Class C, and the measurement backs the
+        # vocabulary rather than the vocabulary asserting the measurement.
+        ToolEntry(
+            name="srmech.cascade.cd_left_divide", owner="srmech",
+            category="cascade",
+            summary="a \\ c — the unique q with a·q = c on the Cayley–Dickson ladder, "
+                    "exact over ℚ at every rung, RAISING when a is a left zero divisor. "
+                    "Class C: left-vs-right IS the which-way choice, so this ships as "
+                    "two named ops (cd_right_divide is the other) and never as one op "
+                    "with a side= flag; the quasigroup literature makes the identical "
+                    "move, since defining a quasigroup equationally needs \\ and / as "
+                    "separate primitives. 🔴 IT IS NOT THE CONJUGATE CLOSED FORM, and "
+                    "the difference is a WRONG ANSWER rather than a slower one. The "
+                    "tempting conj(a)·c/N(a) rests on conj(a)·(a·b) = b, which is FALSE "
+                    "as stated — the identity is conj(a)·(a·b) = N(a)·b. Measured rc437: "
+                    "un-normalised it fails 40/40 on generic elements at EVERY dim "
+                    "4/8/16/32 (a = (1,2,0,0,3,0,0,1) has N(a) = 15 and it returns 15·b); "
+                    "normalised it is right at dims 2/4/8 (0/40 failures) and WRONG at "
+                    "dims 16 and 32 (40/40), because the step needs ALTERNATIVITY, which "
+                    "dies at 𝕊. ⚠️ It fails SILENTLY: on the shipped dim-16 zero-divisor "
+                    "witness x = e₁+e₁₀ (N(x) = 2 ≠ 0, left-kernel dim 4) the normalised "
+                    "form divides by a perfectly good norm and RETURNS a value that then "
+                    "fails x·q == c. This op raises instead. ⚠️ A probe of the form "
+                    "a = 1+eᵢ CANNOT see any of it — those elements are near-unit and the "
+                    "normalised form scores 0 failures out of 992 at dim 32; any "
+                    "re-measurement must use GENERIC elements. THE ROUTE: solve "
+                    "L(a)·q = c against left_mult_matrix with the exact-ℚ QMat.solve — "
+                    "measured q == b on 20/20 random nonzero pairs at each of dims "
+                    "2/4/8/16/32/64, and it refuses on the zero divisor rather than "
+                    "answering. composition_of_c over srmech_qmat_solve + the "
+                    "C-composed L(a) (srmech_cd_mult / srmech_cd_qbasis, all verified "
+                    "present in c/include/srmech.h at rc437): NO new C symbol, ABI stays "
+                    "14. `table` names a DIFFERENT algebra, so split-𝕆 refuses at dim 8 "
+                    "where the ladder's own wall has not yet arrived. SSoT: Bruck, *A "
+                    "Survey of Binary Systems* (1958) §I.1; Schafer (1966) ch. III."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("a", "sequence", True,
+                  "the DIVISOR — a power-of-two-length element (the left operand of "
+                  "a·q = c)"),
+                P("c", "sequence", True,
+                  "the DIVIDEND — same dimension as a"),
+                P("table", "list[list[list[int]]] | None", False,
+                  "the dim × dim × dim structure-constant tensor naming the algebra "
+                  "(e.g. from algebra_table). None (default) is the shipped "
+                  "Cayley–Dickson product, unchanged"),
+            ),
+            returns=R("tuple",
+                      "dim-tuple of exact Q — the unique q with a·q = c; raises "
+                      "ValueError when a is a left zero divisor (or zero)"),
+            composes=("srmech.cascade.left_mult_matrix",),
+        ),
+        ToolEntry(
+            name="srmech.cascade.cd_right_divide", owner="srmech",
+            category="cascade",
+            summary="c / b — the unique q with q·b = c on the Cayley–Dickson ladder, "
+                    "exact over ℚ at every rung, RAISING when b is a right zero divisor. "
+                    "The Class-C mirror of cd_left_divide and NOT obtainable from it: "
+                    "measured rc437, feeding this op the LEFT question — "
+                    "cd_right_divide(a·b, a), asking whether it returns b — scores 0/40 "
+                    "at each of dims 4, 8 and 16, while its own question scores 20/20 "
+                    "there. The two can agree only where the algebra commutes (dims 1–2). "
+                    "That is why the pair is two ops: a side= flag would hide a genuine "
+                    "difference of maps behind a default. It solves R(b)·q = c against "
+                    "right_mult_matrix, which rc437 had to BUILD first — nothing on the "
+                    "CD ladder held the right-regular representation "
+                    "(octonion_right_mult / quaternion_right_mult are dim-8 / dim-4 "
+                    "physics-table ops, not ladder ops), which is the whole reason this "
+                    "half cost more than its twin. ⚠️ Its refusal condition is the RIGHT "
+                    "zero-divisor one, a different predicate from left_mult_is_invertible; "
+                    "the op asks its own operator and claims no coincidence between them. "
+                    "Everything else — the exact-ℚ solve, the `table` argument, the "
+                    "composition_of_c classification, NO new C symbol, ABI 14 — is "
+                    "identical to the left half. SSoT: Bruck, *A Survey of Binary "
+                    "Systems* (1958) §I.1; Schafer (1966) ch. III."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("c", "sequence", True,
+                  "the DIVIDEND — a power-of-two-length element (the left side of "
+                  "q·b = c)"),
+                P("b", "sequence", True,
+                  "the DIVISOR — same dimension as c (the RIGHT operand of q·b = c)"),
+                P("table", "list[list[list[int]]] | None", False,
+                  "the dim × dim × dim structure-constant tensor naming the algebra "
+                  "(e.g. from algebra_table). None (default) is the shipped "
+                  "Cayley–Dickson product, unchanged"),
+            ),
+            returns=R("tuple",
+                      "dim-tuple of exact Q — the unique q with q·b = c; raises "
+                      "ValueError when b is a right zero divisor (or zero)"),
+            composes=("srmech.cascade.right_mult_matrix",),
         ),
         ToolEntry(
             name="srmech.cascade.is_division_algebra_dim", owner="srmech",
