@@ -275,8 +275,9 @@ def q8_from_one(one, D: int) -> "_HV":
     Q₈-valued coupling ``bytes ∈ {0..7}`` — so a downstream caller can build a
     SUBSTRATE (Q₈) genome (``chromosome`` / ``mint_strand`` / ``recall`` with
     ``element_type=ELEMENT_TYPE_Q8``) WITHOUT hand-constructing the OCT ``one``. Two
-    declared planes, both functions of the ``One``'s three canonical constructor
-    integers (``sigma`` / ``theta=(num, den)`` / ``terms``):
+    declared planes, both functions of the ``One``'s canonical constructor
+    integers (``sigma`` / ``theta=(num, den)`` / ``terms``, and — since rc438 —
+    the metacycle ``winding`` triad when the One is wound):
 
     1. **The V4 coset plane** (bits ``0..1``, ``q & 3``) — EXACTLY
        :func:`~srmech.math.hdc.klein4_from_one`'s output on the same ``one``. This is
@@ -294,18 +295,37 @@ def q8_from_one(one, D: int) -> "_HV":
        all-positive one living in the V4 subgroup). The sign is a group BIT computed
        by Class-A expansion + Class-I parity (``& 1``) — NEVER an ``abs()``.
 
-    **Native + pure by COMPOSITION (no dedicated C symbol; ABI stays 10).** Both
+    **Native + pure by COMPOSITION (no dedicated C symbol).** Both
     planes are the outputs of already-C-peered ops — ``srmech_klein4_from_one`` (the
     V4 plane) and ``srmech_klein4_address`` (the sign plane) — so when ``HAS_NATIVE``
     the heavy lifting runs in C and the only Python work is the trivial Class-I/M byte
     interleave ``(sign << 2) | coset``. A bare-C host mints the OCT ``one`` by the
     SAME composition (both sub-op symbols + the interleave loop), so genome-fully-in-C
     holds without a new export. Class A (both content-address planes) ∘ Class C (the
-    sign chirality) ∘ Class M (the byte bind). NO ``abs()``.
+    sign chirality) ∘ Class M (the byte bind). NO ``abs()``. This op adds no symbol of
+    its own at any ABI; ``srmech_klein4_from_one``'s OWN wire moved to ABI 15 at rc438
+    (the winding triad), which this composition inherits.
+
+    ⚠️ **BOTH planes carry the winding, and they had to move together**
+    (rc438, `#T1140`, gh #1530 §G). The V4 plane inherits it from
+    :func:`~srmech.math.hdc.klein4_from_one`; the Z₂ sign plane has its **own**
+    preimage and so needed its own ``"winding"`` key. Measured at rc437 over
+    ``w ∈ [-4,4]³`` (**729** windings, σ/θ/terms fixed), BOTH planes returned
+    **1 distinct value out of 729** — with the same-op controls moving normally
+    (40 θ → 40, 2 σ → 2, 20 ``terms`` → 20). Post-fix: **729/729 on both**, and
+    the backward-faithful bridge still holds byte-identically on all 729.
+    Fixing only the V4 plane would have produced a **half-wound Q₈ coupling** —
+    winding-bearing cosets over winding-blind signs — and, because
+    ``q8_project_v4(q8_from_one(one, D)) == klein4_from_one(one, D)`` would
+    still be TRUE, the documented bridge would have gone on certifying it.
+    As with the abelian peer, this buys a COMMITMENT and not a READ: nothing
+    here lets a reader recover ``w`` from stored bytes.
 
     Args:
         one: A :class:`~srmech.cascade.one.One` (read structurally: any object
-            exposing ``.sigma``, ``.theta`` as a ``(num, den)`` pair, and ``.terms``).
+            exposing ``.sigma``, ``.theta`` as a ``(num, den)`` pair, ``.terms``,
+            and optionally ``.winding`` as a length-3 int triad — absent reads
+            as at rest, malformed raises).
         D: Vector dimension (positive). Free — nothing requires, and nothing gains
             from, divisibility by 14 (see :func:`~srmech.math.hdc.klein4_sector_frame`).
 
@@ -322,7 +342,8 @@ def q8_from_one(one, D: int) -> "_HV":
         raise ValueError("q8.q8_from_one: D must be positive")
     # Lazy import (the same discipline _build_f_table uses for cd_basis_product): keeps
     # q8 importable before hdc is, and avoids any package-init ordering surprise.
-    from srmech.math.hdc import klein4_address, klein4_from_one
+    from srmech.math.hdc import (_ONE_REST_WINDING, _one_winding_triad,
+                                 klein4_address, klein4_from_one)
     # Plane 1 — the V4 coset plane IS klein4_from_one's output (backward-faithful by
     # construction; klein4_from_one also validates .sigma/.theta/.terms + theta_den != 0).
     v4 = klein4_from_one(one, D)                       # sectors=4 HV, cosets 0..3
@@ -337,9 +358,19 @@ def q8_from_one(one, D: int) -> "_HV":
     # Plane 2 — the Z2 sign plane: a DOMAIN-SEPARATED Class-A address of the same One
     # (the "q8_sign" tag separates it from klein4_from_one's own preimage), bit 0 per
     # slot. A declared function of the substrate parameters, never an undeclared draw.
+    # rc438 (`#T1140`, gh #1530 §G): this plane has its OWN preimage, so it needs its
+    # OWN winding key — the V4 plane moving alone would leave a HALF-WOUND Q8 coupling
+    # (winding-bearing cosets, winding-blind signs) whose documented q8_project_v4
+    # bridge would still hold, which is precisely why that is not detectable downstream.
+    # Emitted only when non-rest, exactly as One._to_jsonable() branches, so an unwound
+    # One's Q8 coupling is byte-identical to every release before rc438.
+    w = _one_winding_triad(one)
+    sign_fields = {"q8_sign": 1, "sigma": sigma, "terms": terms,
+                   "theta": [tn, td]}
+    if w != _ONE_REST_WINDING:
+        sign_fields["winding"] = [w[0], w[1], w[2]]
     sign_preimage = _json.dumps(
-        {"q8_sign": 1, "sigma": sigma, "terms": terms, "theta": [tn, td]},
-        sort_keys=True, separators=(",", ":")).encode("utf-8")
+        sign_fields, sort_keys=True, separators=(",", ":")).encode("utf-8")
     sign = klein4_address(D, sign_preimage)            # sectors=4 HV; bit 0 = the sign
     # The Class-I/M interleave: q[i] = (sign_bit[i] << 2) | v4_coset[i]. No abs(); the
     # sign is a group ⊕-bit, the coset the abelian V4 read — exactly the q8 byte layout.
