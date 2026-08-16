@@ -480,3 +480,41 @@ tests/test_cd_divide_rc437.py
 #    a project census showed is a valid refuter and an invalid certifier.
 #    ~18 s, pure-Python (the native differential self-skips without a .so).
 tests/test_walsh_hadamard_rc437.py
+
+# -- ONE-A14 winding preimage (rc438, local task T1140; gh #1530 sect. G) ---
+#    A DISPATCH-SURFACE gate twice over, which is why it is listed rather than
+#    left to the ordinary suite:
+#      * it pins EXPECTED_ABI_VERSION == 15. srmech_klein4_from_one's signature
+#        gained the winding triad, so a stale .so is the hazard -- and the
+#        hazard is quiet, because on the REST path a stale rc437 lib still
+#        returns correct bytes. The defect would come back on wound Ones only.
+#      * it drives BOTH projections over the new wire. The rc435 study that
+#        settled this design ran with HAS_NATIVE False, so the C half was never
+#        exercised at all until this gate.
+#    The measurement it holds: over w in [-4,4]^3 (729 windings, sigma/theta/
+#    terms fixed) all three coupling surfaces returned ONE address out of 729
+#    through rc437 -- klein4_from_one, the Q8 V4 plane, and the Q8 Z2 SIGN
+#    plane, which has its OWN preimage. The zero carries working controls on
+#    the same ops (40 theta -> 40, 2 sigma -> 2, 20 terms -> 20), so it is a
+#    measured zero rather than a dead dial, and both are gated here.
+#    It also gates the CEILING: SHA avalanche destroys adjacency and
+#    klein4_bind is a Hamming isometry, so the fix buys a COMMITMENT and not a
+#    READ -- written down as two executing tests so no reader has to take the
+#    disclaimer on trust.
+#    ~12 s, pure-Python (the two native tests self-skip without a .so).
+tests/test_klein4_winding_preimage_rc438.py
+
+# -- the cascade catalog, EXECUTED (rc420 local task T1114; listed rc438) ----
+#    Listed here at rc438 because that rc added the 21st descriptor
+#    (klein4_from_one) and this file is what EXECUTES every declared chain
+#    against its shipped op, bit-for-bit, on the pure projection. It is the
+#    anti-drift ratchet for the exact failure class rc438 fixed: a Class-A
+#    preimage that quietly stops reading one of its op's declared fields.
+#    Proven to fire -- re-planting the rc437 winding blindness reds all four
+#    wound proof cases while every rest case stays green, so it discriminates
+#    the REGIME rather than merely noticing that something moved.
+#    It also holds the no-third-state strict zero (executable or explicit
+#    leaf; silence is not a leaf declaration) and the per-descriptor
+#    boundary-case coverage, both strict in BOTH directions.
+#    ~9 s, pure-Python.
+tests/test_cascade_catalog_executable_rc420.py

@@ -243,6 +243,15 @@ FROZEN_KNOWN_GATES = frozenset({
     #    anyway, because "no rule required it" is exactly the shape in which the
     #    strongest gate in a release goes unlisted.
     "tests/test_acquire_before_validate_rc432.py",
+    # -- ABI-15 wire: the ONE-A14 winding triad (rc438, local task T1140) -----
+    #    Frozen because the stale-.so hazard it guards is SILENT on the half of
+    #    the input space most runs touch: srmech_klein4_from_one's signature
+    #    changed, but on a REST One an rc437 lib still returns the correct
+    #    bytes, so a mismatched build shows up only on WOUND Ones -- exactly
+    #    the regime that had no coverage at all before this rc. This file
+    #    carries the EXPECTED_ABI_VERSION == 15 pin AND the only native/pure
+    #    differential over the new wire.
+    "tests/test_klein4_winding_preimage_rc438.py",
 })
 
 
