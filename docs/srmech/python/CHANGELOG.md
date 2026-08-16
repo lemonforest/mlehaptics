@@ -50,6 +50,75 @@ Every shard keeps the full liveness check — `HAS_NATIVE` plus `nm -u "$LIB" | 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc439]
+
+Two live silent-wrong-answer defects in the shipped genome, surfaced by a v20 design study and fixed **inside v19**. Registry stays **661** (no public callable added, renamed or removed); **ABI 15 -> 16**; **`GENOME_FORMAT_VERSION` stays 19** — no cap, no field and no byte moves. This is NOT the v20 format change.
+
+One of the two reproduced. The other did not, and saying so is the point: the study's reading of it was wrong, and the tree had already gated the behaviour it feared.
+
+### The dicentric strand: three code paths, three answers, no error (`#T1140`)
+
+`centromere_of` answers a question about **one chromosome** — its global 4-way orientation and its p:q arm-split — while **scanning a whole strand**. Nothing bounded the scan to one chromosome, and nothing checked that it found only one `0x58` cap. **Measured at rc438** on a strand carrying two caps made deliberately different in every readable field:
+
+```
+[chrA telomere, t, t, t, cen(o=2,'cen',R=15), t, cen(o=1,'cen2',R=9), t, t]
+```
+
+| path | what it answered |
+|---|---|
+| C peer `srmech_genome_centromere_of` | keeps the **LAST** cap -> orientation **1** |
+| Python **native** branch | orientation/p/q from C (LAST) but `handle`/`repeats` **re-scanned to the FIRST** -> `{'orientation': 1, 'handle': 'cen', 'repeats': 15}` |
+| Python **pure** walk | every field from the LAST cap -> `{'orientation': 1, 'handle': 'cen2', 'repeats': 9}` |
+
+The answer depended on whether a `.so` happened to be loaded, and the native answer was **not even internally coherent** — one record assembled from two different caps, because the native branch's `next(hv for hv in strand if ...)` was a second scan with no agreement with the first.
+
+**It had never fired because no fixture in the tree minted two centromeres.** That absence is the finding; the missing instrument is worth more than the fix.
+
+**The state is not exotic — a shipped op writes it.** `mint()` over two nuclear kernels gives each chromosome its own centromere, and there rc438 answered `arm_ratio (9, 4)`: a turn count taken **across a chromosome boundary**, describing neither chromosome. `integrate(nuclear, nuclear)` reaches it too.
+
+**The contract: both projections REFUSE.** A dicentric chromosome is real in biology and **unstable** — the two centromeres attach to opposite spindle poles and the chromosome breaks (the breakage-fusion-bridge cycle) — so *"there is no single orientation / arm-split"* is the honest answer, not a limitation. It is also the contract the tree had **already chosen on the writing side**: `mint_strand` has always refused to splice a second centromere into a strand that has one (*"re-minting would double the arm-split anchor"*). rc439 gives the **reader** the contract the **writer** already had. Python raises `ValueError` naming the count; the C peer returns `SRMECH_ERR_BAD_INPUT` with `*found_out = 0`.
+
+The gate is checked in Python **before** dispatch, deliberately. The ctypes shim maps a non-OK status to `None`, and `None` is also its *"no fast path, use the pure walk"* signal — so recovering the refusal from the status would have fallen **through** to the pure walk, which would have answered. That collision has its own test.
+
+**Proven by execution, not by reading.** `tests/test_genome_dicentric_rc439.py` (14 tests) mints the two-centromere fixture and drives the native path, the pure path (`genome_centromere_of_c` monkeypatched to `None`) and the raw C symbol through ctypes. **Both guards were re-planted and shown to red**: disabling the Python guard reds 4 tests; disabling the C `n_cen > 1u` guard reds 2, and the failure output prints the rc438 defect verbatim — `assert (True, 1, 4, 2) is None`.
+
+The refusal is not a dead end: slicing at the chromosome-boundary cap gives each chromosome a correct read, and the test pins that `p + q` then equals **that** chromosome's data turns.
+
+**ABI 15 -> 16** is the fourth bump of the v10 / v12 / v14 kind — no signature changed shape, but the STATUS an exported function returns for a class of input did, and `srmech.h` states outright that non-zero status values "form part of the wire contract with the Python ctypes binding". Load-bearing rather than ceremonial: rc439 Python refuses before dispatch, so a stale rc438 `.so` would still give **Python** the right answer — but a **bare-C host on the stale lib gets the silent blend with no signal at all**, and the projections are co-equal.
+
+### Two shipped documentation falsehoods the same measurement exposed
+
+Both presented the cross-chromosome blend as a real reading, and both ship inside the wheel **and** inside the compiled `srmech_tool_registry.c`:
+
+1. `srmech.biology.genome.mint`'s worked example ran `G.centromere_of(G.mint(EIGHT, ONE))` and declared the output `{'orientation': 1, 'arm_ratio': (15, 15), 'handle': 'cen', 'repeats': 15}`. **Measured: that build carries THREE centromere caps** (the three 6-fold families L/S/R), so `(15, 15)` was 15 turns either side of the *last* of three anchors. Re-pointed at a single chromosome, whose real answer is `(3, 3)`.
+2. `srmech.biology.genome.genome`'s explanation asserted the same blend in prose. Corrected to state that the read is per-chromosome and refuses the umbrella build.
+
+### The defect that did NOT reproduce — `condense()` does not re-target the centromere
+
+The study reported that `condense()` silently moves the centromere's designation, ordinal 5 -> 6. **Measured: every field `centromere_of` returns is invariant across `condense()` / `decondense()`**, the `0x58` cap is byte-identical, and the round-trip is byte-identical to the original mint. §98's *"modify WITHOUT changing the DNA"* claim holds exactly as written.
+
+What moves is the **raw block ordinal** (0-based 4 -> 5; 1-based 5 -> 6, the study's number). It must move — a block was inserted before it — but **no shipped read designates the centromere by that ordinal**. Designation in v19 is by CONTENT: labels, and data-turn counts. `arm_ratio` counts DATA TURNS and a spliced cap is not a data turn, so it does not move. `condense(region=k)` and `mint_strand(centromere_at=)` are likewise in data turns; `integrate(at=)` is a chromosome index resolved fresh from a boundary scan on every call. The tree had **already** gated this: `test_condense_preserves_the_centromere_byte_identical` (rc268) asserts `centromere_of(cond) == info0` and has been green throughout.
+
+Recorded rather than "fixed", and the v19 contract is now written down instead of assumed (`test_the_block_ordinal_moves_and_that_is_not_a_designation`). The structural repair the study wants — designation by adjacency, no ordinals anywhere — remains v20's.
+
+### The population, bounded
+
+The sibling scan `chromatin_of` has the **same shape** — walk the strand for an interior cap — and carries **no** such divergence: its C peer `return`s on the first match, its Python native branch's re-scan takes the first, and its pure walk returns at the first. All three agree, and a test pins it. That bounds the first-vs-last population at exactly **one** op. `condense` / `decondense` / `integrate` / `mint_strand` and the partitioner were each checked, and none carries a positional designation that a splice invalidates.
+
+### What the change rippled into, and one more test it exposed
+
+* **Two existing tests were repaired, not just re-pinned.** `test_minted_centromere_survives_integration` (rc262) and its rc273 peer sliced `integrated[start:]` — from the minted chromosome's boundary cap to the **end of the strand** — believing that scoped the read to one chromosome. It did not: the host is a minted chromosome PLUS a diploid, and a diploid carries a centromere as its which-template mark, so both reads were two-cap blends. They passed only because the assertion was `orientation in (0, 1, 2, 3)`, which any cap satisfies. Both now bound the slice at the next boundary — the idiom the same file already used four lines below for the diploid — and assert the whole record, `arm_ratio == (6, 6)` included. A third instance of the defect class, found by the fix rather than by the study.
+* **The C suite gets the bare-C half of the gate** (`c/test/test_srmech_genome.c`): mint, splice a second cap with a different orientation AND repeat count, assert `SRMECH_ERR_BAD_INPUT` and `found == 0`. Re-planted and shown to red (2 checks) before restoring.
+* **22 ABI baseline pins** across 18 test files moved 15 -> 16. A `-k genome` run surfaced only 4 of them; the rest live in bus / dsl / klein4 / introspect files, which is the shared-module ripple a filtered run cannot see.
+* **Six ADR citations re-pointed.** The v16 narrative added 39 lines to `srmech.h` above `:7199` and the `centromere_of` contract 8 more below it, and `genome.py` grew 29 — so ADR-0011 / ADR-0012 / ADR-0013 line citations below those points drifted out of their evidence windows and `test_adr_citation_integrity_rc415` went 7 -> 14 against a down-only CEIL of 7. Each new line was VERIFIED by locating the token in both trees (+39 / +47 / +29 measured, not assumed); the ceiling is back at its baseline 7.
+* **`WITNESS_RC416` re-pinned** to `e838eb02…`. Counts unchanged at 690 / 661 / 29 — the pure-prose signature the constant's own comment block describes, not a registration. Determinism re-established across five fresh numpy-absent interpreters BEFORE re-pinning, and measured on a **complete tree copy**: `citation_corpus` excludes any path containing `.claude` or `worktrees`, so in-worktree the corpus is EMPTY (0 modules against 264) and a witness taken there would be a digest of nothing. The same exclusion made six gates look like failures until the copy included the repo root as well as `docs/srmech/`.
+* README (ABI header, the narrative bump sentence, and the `native_status()` worked block — captured output, so re-measured rather than edited), the notebook's four `Live at rc439:` stamps (each value re-verified: 661 / 661 / 21 descriptors / ABI 16), and the subtree `CLAUDE.md` ABI section.
+
+### Recorded, not fixed (each is its own rc)
+
+* **The JPL Rule-4 scanner counts braces TEXTUALLY, and it is worse than a length blind spot.** `_scan_functions` does `lines[j].count("{") - lines[j].count("}")` with no awareness of char literals, so `genome_json_object_span` (`srmech_genome.c:2440`) and `genome_find_attest_span` (`:2468`) — each containing `'{'` / `'}'` **char literals** — never bring the depth back to zero. **Measured: both report `lines=1`**, invisible to the Rule-4 ratchet. But the same runaway scan then continues to EOF counting `assert(` in every function below them, so they also report **`asserts=458` and `asserts=456`** — a Rule-5 pass borrowed from the rest of the file. The strict zero is therefore not a proof for *either* rule for any function containing brace literals.
+* **`srmech_tlv_unpack` does not exist in C.** Verified three ways: `nm -D libsrmech.so` shows `srmech_tlv_pack` and no `unpack`; `srmech.h` declares a prototype for the pack half only; no `c/src/*.c` defines it. Meanwhile `rosetta_classification.ndjson:172` classifies `srmech.math.tlv.tlv_unpack` as `non_compute` / **`composes_c`**, and the compiled tool registry advertises it as *"the ONLY correct way to read these frames back"* — while the body is `struct.unpack_from(">I", ...)` plus slicing. A shipped falsehood in a generated artifact; required work for v20.
+
 ## [0.9.0rc438]
 
 The ONE-A14 coupling projection reads the **whole** One. Registry stays **661** (no public callable added, renamed or removed); **ABI 14 -> 15**; **`GENOME_FORMAT_VERSION` stays 19**. USER-RULED after a read-only study settled the design; gh #1530 §G is closed.

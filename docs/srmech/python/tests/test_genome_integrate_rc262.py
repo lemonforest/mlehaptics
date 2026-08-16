@@ -59,13 +59,28 @@ def test_partition_recovers_all_three_chromosomes():
 
 # ── the COHERENCE PROOF: every mode still recovers post-integration ─────────
 
+def _chrom_slice(strand, marker):
+    """ONE chromosome's blocks — from its boundary cap to the NEXT boundary (rc439).
+
+    Slicing to the END of the strand instead — what this file did through rc438 — swept in
+    every LATER chromosome, so ``centromere_of`` saw the minted cap AND the diploid's mark.
+    It passed only because the assertion was ``orientation in (0, 1, 2, 3)``, which any of
+    them satisfies. The diploid case three tests down already sliced correctly."""
+    start = next(i for i, hv in enumerate(strand) if G._cap_kind(hv) == marker)
+    end = next((i for i in range(start + 1, len(strand))
+                if G._cap_kind(strand[i]) in G._CHROM_BOUNDARY_MARKERS), len(strand))
+    return strand[start:end]
+
+
 def test_minted_centromere_survives_integration():
     one = _one()
-    integrated = G.integrate(_host(one), _provirus(one))
-    start = next(i for i, hv in enumerate(integrated)
-                 if G._cap_kind(hv) == G.CHROM_CAP_MARKER)          # the minted chromosome
-    info = G.centromere_of(integrated[start:])
-    assert info is not None and info["orientation"] in (0, 1, 2, 3)
+    host = _host(one)
+    before = G.centromere_of(_chrom_slice(host, G.CHROM_CAP_MARKER))
+    integrated = G.integrate(host, _provirus(one))
+    after = G.centromere_of(_chrom_slice(integrated, G.CHROM_CAP_MARKER))
+    assert before is not None
+    assert after == before                       # SURVIVES: every field, not just "is a sector"
+    assert after["arm_ratio"] == (6, 6)          # the 12-leaf metacentric split
 
 
 def test_diploid_survives_integration():

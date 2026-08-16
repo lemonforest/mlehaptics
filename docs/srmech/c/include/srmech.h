@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc438"
-#define SRMECH_VERSION       "0.9.0rc438"
+#define SRMECH_VERSION_PRE   "rc439"
+#define SRMECH_VERSION       "0.9.0rc439"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -303,8 +303,47 @@ extern "C" {
  *      GENOME_FORMAT_VERSION stays 19 — this is a change to the FUNCTION that
  *      produces already-stored bytes, not to the storage. No new field, no new
  *      byte, no manifest key; the coupling block keeps its existing width.
+ *
+ *  v16 (v0.9.0rc439, `#T1140`) is the FOURTH bump of the v10 / v12 / v14 kind —
+ *      no signature changed shape, but the STATUS an existing exported function
+ *      returns for a class of input did. Through rc438
+ *      `srmech_genome_centromere_of` returned SRMECH_OK on a strand carrying two
+ *      or more 0x58 centromere caps; it now returns SRMECH_ERR_BAD_INPUT with
+ *      *found_out = 0. The status block below states outright that non-zero
+ *      values "form part of the wire contract with the Python ctypes binding",
+ *      so reinterpreting one is a wire-contract change — the same reasoning that
+ *      drove v12.
+ *
+ *      WHY THE CONTRACT MOVED. The op answers a question about ONE chromosome —
+ *      its global orientation and its p:q arm-ratio — while scanning a WHOLE
+ *      strand. On a multi-centromere strand it had no single subject, and the
+ *      two projections did not even blend it the same way. MEASURED at rc438 on
+ *      a strand carrying two caps (orientation 2 / handle 'cen' / R=15, then
+ *      orientation 1 / handle 'cen2' / R=9): this C peer keeps the LAST match,
+ *      so it reported orientation 1; the Python native branch re-scanned and
+ *      took the FIRST for handle/repeats, so it returned handle 'cen' with
+ *      R=15 — fields from two different caps inside one record — while the pure
+ *      Python path returned handle 'cen2' with R=9. Three paths, three answers,
+ *      no error. The state is not exotic: mint() over two nuclear kernels
+ *      produces it, and there it reported arm_ratio (9, 4), a turn count taken
+ *      across a chromosome boundary that describes neither chromosome.
+ *
+ *      A dicentric chromosome is real in biology and it is UNSTABLE — the two
+ *      centromeres attach to opposite spindle poles and the chromosome breaks
+ *      (the breakage-fusion-bridge cycle). "There is no single answer" is the
+ *      honest reading, and it is the reading srmech_genome_mint_strand already
+ *      took: it has always REFUSED to splice a second centromere into a strand
+ *      that has one. rc439 gives the READER the contract the WRITER already had.
+ *
+ *      Load-bearing rather than ceremonial: a stale rc438 .so reports ABI 15 and
+ *      would otherwise load into rc439 Python. rc439 Python refuses before it
+ *      dispatches, so the Python answer would still be right — but a bare-C host
+ *      on the stale lib gets the silent blend with no signal at all, and the
+ *      projections are co-equal. Rejecting the stale lib is the only safe read.
+ *      GENOME_FORMAT_VERSION stays 19 — no cap, no field and no byte moves; this
+ *      changes what a READ of already-stored bytes is willing to answer.
  */
-#define SRMECH_ABI_VERSION 15
+#define SRMECH_ABI_VERSION 16
 
 /* ------------------------------------------------------------------ *
  * Thread-local storage qualifier (reentrancy support; #772)
@@ -7196,9 +7235,17 @@ srmech_status_t srmech_genome_mint_progress(
  * blocks, majority-decodes the orientation from the interior 0x58 cap's α-satellite votes
  * (klein4_triality_correct's 2-of-3 generalised to R — a Class-K sector count + argmax, no abs),
  * and reads the p:q arm-ratio from the cap's POSITION (data turns before : after). Sets
- * *found_out = 1 and fills orientation/p/q iff a centromere is present, else *found_out = 0.
+ * *found_out = 1 and fills orientation/p/q iff EXACTLY ONE centromere is present, else
+ * *found_out = 0.
+ *
+ * SCOPE (rc439, ABI 15->16): the subject is ONE chromosome, so a strand carrying TWO OR MORE
+ * 0x58 caps is REFUSED rather than blended. Pass one chromosome's blocks — slice at the
+ * chromosome-boundary cap, or partition first. A whole multi-chromosome genome strand (what
+ * srmech_genome_mint writes for two nuclear kernels) is NOT a valid input here: through rc438 it
+ * returned a p:q counted across a chromosome boundary that described neither chromosome.
  *   SRMECH_ERR_NULL_ARG  — strand / found_out NULL (orientation/p/q may be NULL to skip).
- *   SRMECH_ERR_BAD_INPUT  — leaf_dim 0 / > 256, or a malformed centromere cap. */
+ *   SRMECH_ERR_BAD_INPUT  — leaf_dim 0 / > 256, a malformed centromere cap, or TWO OR MORE
+ *                          centromere caps (dicentric / multi-chromosome; *found_out = 0). */
 srmech_status_t srmech_genome_centromere_of(
     const unsigned char *strand, size_t n_blocks, uint32_t leaf_dim,
     unsigned char *orientation_out, size_t *p_out, size_t *q_out,

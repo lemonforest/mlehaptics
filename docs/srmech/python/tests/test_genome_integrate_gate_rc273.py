@@ -138,10 +138,15 @@ def test_minted_centromere_and_diploid_survive_compatible_integration():
     one = _one()
     integrated = G.integrate(_host(one), _provirus(one))
     assert integrated is not None
+    # rc439: bound the slice at the NEXT chromosome boundary — exactly as the diploid read
+    # four lines below already did. Slicing to the END of the strand swept in the diploid's
+    # centromere too, so this read was a two-cap blend that `in (0, 1, 2, 3)` could not see.
     start = next(i for i, hv in enumerate(integrated)
                  if G._cap_kind(hv) == G.CHROM_CAP_MARKER)
-    info = G.centromere_of(integrated[start:])
-    assert info is not None and info["orientation"] in (0, 1, 2, 3)
+    end = next((i for i in range(start + 1, len(integrated))
+                if G._cap_kind(integrated[i]) in G._CHROM_BOUNDARY_MARKERS), len(integrated))
+    info = G.centromere_of(integrated[start:end])
+    assert info is not None and info["arm_ratio"] == (6, 6)
     dstart = next(i for i, hv in enumerate(integrated)
                   if G._cap_kind(hv) == G.DIPLOID_TELOMERE_MARKER)
     dend = next((i for i in range(dstart + 1, len(integrated))
