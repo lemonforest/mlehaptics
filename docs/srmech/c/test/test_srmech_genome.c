@@ -1569,6 +1569,39 @@ int main(void)
                 tiny, sizeof(tiny), &nb5);
             check_true(ms5 == SRMECH_ERR_OVERFLOW, "rc277: out_cap too small -> OVERFLOW");
         }
+        /* rc439 (`#T1140`) — the DICENTRIC refusal, from the bare-C side.
+         *
+         * Re-mint M (which (b)/(c) left in an unknown state), then splice a SECOND
+         * 0x58 cap into a 9-block copy. Through rc438 srmech_genome_centromere_of
+         * returned SRMECH_OK here and reported the LAST cap, while the Python native
+         * branch re-scanned and took the FIRST for handle/repeats — one record built
+         * from two caps. The op answers about ONE chromosome, so with two anchors it
+         * has no single subject and must REFUSE. srmech_genome_mint_strand has always
+         * refused to CREATE this state ((c) above); this is the reader's half. */
+        {
+            unsigned char D[9u * 24u];
+            size_t dnb = 0u;
+            srmech_status_t rs = srmech_genome_mint_strand(
+                S, 7u, ld, one_m, -1L, 2u, 0, 15u, (const unsigned char *)"cen", 3u,
+                D, 8u * ld, &dnb);
+            check_true(rs == SRMECH_OK && dnb == 8u, "rc439: re-mint for the dicentric case");
+            /* second cap: distinct orientation AND repeats, so any blend is visible */
+            unsigned char cap2[24];
+            srmech_status_t c2 = srmech_genome_centromere(
+                1u, 9u, (const unsigned char *)"cn2", 3u, ld, cap2, sizeof(cap2));
+            check_true(c2 == SRMECH_OK, "rc439: second centromere cap writer OK");
+            memmove(D + 7u * ld, D + 6u * ld, 2u * (size_t)ld);   /* open a slot at [6] */
+            memcpy(D + 6u * ld, cap2, ld);
+            {
+                unsigned char o = 9u; size_t p = 7u, q = 7u; int found = 7;
+                srmech_status_t cs = srmech_genome_centromere_of(D, 9u, ld, &o, &p, &q,
+                                                                 &found);
+                check_true(cs == SRMECH_ERR_BAD_INPUT,
+                           "rc439: two centromere caps -> BAD_INPUT, not a blend");
+                check_true(found == 0,
+                           "rc439: dicentric refusal does not claim to have found one");
+            }
+        }
     }
 
     /* §102 / rc278 (F1252 STAGE 1 — EXTRACT) — srmech_genome_plasmid_extract:
