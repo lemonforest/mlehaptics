@@ -255,6 +255,13 @@ from .cayley_dickson import (
     left_mult_matrix,
     left_mult_kernel,
     left_mult_is_invertible,
+    # rc437 (`#T1142`): the right-regular representation (the peer
+    # left_mult_matrix has had since rc160 and nothing on the CD ladder held),
+    # and the Class-C division PAIR it makes reachable. Two named ops, never
+    # one with a side= flag — past dim 2 they are different maps.
+    right_mult_matrix,
+    cd_left_divide,
+    cd_right_divide,
     inertia_signature,
     algebra_table,
     flip_pair,
@@ -469,6 +476,10 @@ __all__ = [
     "left_mult_matrix",
     "left_mult_kernel",
     "left_mult_is_invertible",
+    # rc437 (`#T1142`) -- the right-regular peer + the Class-C division pair
+    "right_mult_matrix",
+    "cd_left_divide",
+    "cd_right_divide",
     "inertia_signature",
     # The gamma-parameterised CD control constructor (rc352; `#T997`)
     "ALGEBRA_TABLE_MAX_DIM",

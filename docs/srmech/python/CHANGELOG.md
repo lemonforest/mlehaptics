@@ -50,6 +50,77 @@ Every shard keeps the full liveness check — `HAS_NATIVE` plus `nm -u "$LIB" | 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc437]
+
+Two op families adjudicated in gh #1530, both **verified absent by execution** before anything was written, and both shipped with the measurement that motivated them rather than the one the tracker predicted. Registry **656 -> 661**; **ABI stays 14** (one new C symbol, additive); **GENOME_FORMAT_VERSION stays 19**.
+
+⚠️ **Two of the tracker's justifications were measurably false and are corrected below rather than built on.** Where the tree disagreed with the brief, the tree won.
+
+### The Cayley–Dickson division pair — `cd_left_divide` / `cd_right_divide` (`#T1142`)
+
+`a \ c` and `c / b` on the Cayley–Dickson ladder, exact over ℚ at every rung, **raising** when the divisor is a zero divisor. **Class C**: left-vs-right IS the which-way choice, so this ships as **two named ops and never as one op with a `side=` flag** — the same move the quasigroup literature makes, since defining a quasigroup equationally needs `\` and `/` as separate primitives (Bruck, *A Survey of Binary Systems*, 1958, §I.1).
+
+**The vocabulary is backed by measurement, not asserted.** `R(x)` and `L(x)` are genuinely different operators: measured on random elements, `R(x) == L(x)` on **0/40** at every dim 4/8/16/32 and `R(x) == L(x)ᵀ` on **0/40** as well; they coincide only where the algebra commutes (dims 1–2, 40/40). Feeding the right op the LEFT question — `cd_right_divide(a·b, a)`, asking whether it returns `b` — scores **0/40** at each of dims 4, 8, 16 while its own question scores 20/20 there.
+
+🔴 **NOT built from the conjugate closed form, and the tracker's justification for it was FALSE.** The tracker offered `conj(a)·(a·b) == b`. The real identity is `conj(a)·(a·b) = N(a)·b`, so the un-normalised form is off by the whole norm — measured, it fails **40/40** on generic elements at *every* dim 4/8/16/32 (worked: `a = (1,2,0,0,3,0,0,1)` has `N(a) = 15` and it returns `15·b`). The tracker's own failure counts ("0/40 at dim 8, 40/40 at 16 and 32") describe the **normalised** form `conj(a)·c/N(a)`, which this release measured separately: **0/40** failures at dims 2/4/8 and **40/40** at dims 16 and 32, because the step needs ALTERNATIVITY, which dies at 𝕊.
+
+⚠️ **And it fails SILENTLY, which is the reason the op exists.** On the shipped dim-16 zero-divisor witness `x = e₁+e₁₀` (`N(x) = 2 ≠ 0`, left-kernel dim 4) the normalised conjugate form divides by a perfectly good norm and RETURNS. The tracker said it returns all zeros; **measured, it returns a nonzero non-solution** — worse, because an all-zero answer is at least suspicious. `cd_left_divide` raises instead. `tests/test_cd_divide_rc437.py::test_the_dim16_zero_divisor_is_REFUSED` pins that case, with `test_the_conjugate_closed_form_control` executing the rival right beside it so the refusal is provably a choice.
+
+⚠️ **The obvious probe cannot see any of this.** A probe built from `a = 1 + eᵢ` scores **0 failures out of 992** for the rival at dim 32 — those elements are near-unit and the rival's error is a norm factor. Every generative test in this release draws GENERIC elements, and `test_the_near_unit_probe_is_non_discriminating` pins the naive probe's blindness so nobody re-derives it and concludes the rival is fine.
+
+**The asymmetry the tracker flagged is real, and confirmed.** `left_mult_matrix` has shipped since rc160; **`right_mult_matrix` did not exist anywhere on the CD ladder** — `grep -rn "right_mult_matrix"` over `srmech/` at rc436 returned zero definitions, and `octonion_right_mult` / `quaternion_right_mult` are dim-8 / dim-4 `physics.qm` table ops, not ladder ops. So `right_mult_matrix` ships here as the operator the right half inverts, and **`left_mult_matrix` is registered alongside it** — it had carried an `OPEN_REGISTRATION` gap row since rc160, and closing that gap is what let the division ops adjudicate (see the ceiling entry below). Both regular representations are now first-class ops rather than building-blocks reachable only through their consumers.
+
+**Route + projection.** Both halves solve their operator exactly: `L(a)·q = c` / `R(b)·q = c` through `QMat.solve`. Measured `q == b` on **20/20** random nonzero pairs at each of dims 2/4/8/16/32/64. `composition_of_c` over `srmech_qmat_solve` + the C-composed operator — `srmech_cd_mult`, `srmech_cd_qconjugate`, `srmech_cd_qnorm_sq`, `srmech_cd_qadd` and `srmech_qmat_solve` were each **verified present in `c/include/srmech.h`** rather than assumed, so **no new C symbol** and ABI stays 14. The `table=` argument carries through, so split-𝕆 refuses at dim 8 where the ladder's own wall has not yet arrived.
+
+### The Walsh–Hadamard transform on (ℤ/2)ⁿ — an unkept shipped promise, closed (`#T1142`)
+
+Verified absent at rc436: `walsh`, `hadamard`, `wht`, `fwht`, `sylvester`, `paley`, `sign_transform`, `cube_spectrum` and `parity_transform` scored **zero hits** across the public callable surface. The only "Hadamard" in the package is the elementwise product or the Hadamard *bound* in `modular_linalg` / `qmat`.
+
+🔴 **It was not merely a missing op — the wheel already promised it.** `introspect/carrier_schema.py` has told every reader of `describe()["carriers"]["HV"]` that the L↔M bridge is *"the reversible spectral basis-change (eigen / Walsh-Hadamard)"* while **zero public callables implemented the Walsh-Hadamard half** — a promise emitted through `describe()`, the MCP tool list and the compiled-in C carrier registry. The sentence is repaired in the same change and now names the op; `test_the_HV_carrier_bridge_promise_names_a_REACHABLE_op` keeps prose and op together.
+
+**The gap is a GROUP, and the tracker's framing overstated it.** The tracker argued the ordinary transform "is not exact in ℚ … an extension of degree φ(n) that has to be actually implemented". **Measured, srmech already implemented it**: `exact_dft` returns exact `ℤ[ζ_N]` with φ(N) basis degree — φ(8)=4, φ(12)=4, φ(7)=6, every coefficient an `int`, no float anywhere. So "the cheapest available exact spectrum is the one we don't have" is not true of this package. The real gap is narrower and cleaner: `exact_dft` covers the **cyclic** group ℤ/N; **nothing covered the cube (ℤ/2)ⁿ**. That is the framing shipped.
+
+**Why the cube is the cheaper object.** Its characters are `χ_k(j) = (−1)^popcount(j&k)` — **±1 and nothing else** — so the transform is exact in whole numbers with no roots of unity, no cyclotomic field and no extension ring at all. For a float-free package that is the reason the op belongs here.
+
+**The butterfly, not the dense matrix.** `kron(kron(H2,H2),H2)` composes today and is exact in ℤ, so the dense form was already reachable; it is still the wrong thing to ship, because it materialises an N×N sign matrix for an operator with only N·log2(N) degrees of freedom — the container-over-declares-DoF defect this same adjudication filed. Shipped as log2(N) in-place passes: **N·log2(N) add/subtracts, zero multiplies**. Non-power-of-two lengths are **REFUSED, not zero-padded** (padding answers for a different group), matching `exact_dft`'s style; float input is refused too; `bool` and integer-valued exact `Q` are accepted.
+
+**Involution, not a second op.** `H·H = N·I` exactly, gated through N=512. There is deliberately **no `inverse=` flag and no `inverse_*` peer** — forward and inverse are the SAME map, and a second name would assert a which-way distinction the mathematics does not have. That is the exact converse of the division pair above, and the two decisions in one release are the point: the vocabulary follows the measurement.
+
+⚠️ **NON-CLAIM.** The index law is XOR, and that is **not** the correctness argument. A census measured **200/200** random XOR-lane sign tables satisfying every structural predicate while **0/200** were associative — XOR **refutes** and never **certifies**. Correctness rests on the ±1 character values, verified against an independent O(N²) character-sum oracle that shares no code with the shipped butterfly, plus the round-trip.
+
+**The C question was UNVERIFIED in the tracker and is now MEASURED: a new symbol was needed, and it is built, not deferred.** `grep` over `c/src/` and `c/include/` found no Walsh/Hadamard transform of any kind; the only exact spectral C symbol is `srmech_exact_dft_i64`, which is the wrong group, and `kron` has no C symbol at all. So there was no honest `composition_of_c` route and ADR-0009 §5 forbids resolving that with a clean decline. **`srmech_walsh_hadamard_i64`** ships in `c/src/srmech_walsh.c` — in place on the caller's buffer, **no scratch, no arena, no malloc**, JPL-clean, warning-free under `-Werror`. It is **ABI-additive**, so `SRMECH_ABI_VERSION` **stays 14**, and it is `hasattr`-guarded in the ctypes shim. Native and pure measured **byte-identical on 66/66 draws across N = 1…1024**; past `N·max|x| ≥ 2⁶²` the arbitrary-precision Python body runs, which is the COMPLETE alternative implementation, not a fallback.
+
+### Two gates that did not fire until they were made to (`#T1142`)
+
+Both new test files were driven by planted defects, and **two perturbations came back GREEN** — both instances of grading an artifact that was not the one under test:
+
+- **A dropped butterfly pass in `_wht_pure` left the oracle differential fully green (9 passed)**, because with a native `libsrmech` present `_wht_native` preempts and the public op never reaches the pure body. Closed by `test_the_PURE_body_matches_the_oracle_on_EVERY_host`, which calls `_wht_pure` directly against the oracle so neither co-equal projection is graded only against the other (a defect in *both* would have survived the native-vs-pure differential alone). It now fails 8/9 under the same perturbation.
+- **Reverting the HV carrier sentence in the Python source left its gate green**, because `carrier_schema()` answers from the compiled `srmech_carrier_registry.c` on a native host. The gate now asserts on the hand-written source table **and** the live surface, so a source revert is caught against a stale `.so` and a regen-without-rebuild is caught too.
+
+The same shape bit once more during the build: the first `libsrmech.so` was compiled **before** `regen_all.py` ran, so the carrier gate was reading rc436 prose out of a fresh-looking library. Rebuild-after-regen, then measure.
+
+### A pre-existing defect this rc surfaced, and did not route around
+
+rc436 regenerated the worked-example ledger with `--only-stale`, so rows whose snippets had not changed kept their previous verdict. A **full** re-execution here found three of those carried-forward `ok` rows are actually FAILING, and the down-only ceiling (`unexpected_raise: 96`) made hiding them impossible:
+
+| op | documented | actually raises |
+|---|---|---|
+| `srmech.math.hdc.loop_bind_hd` | `AssertionError` | `ValueError: length must be a positive multiple of 8; got 12` |
+| `srmech.math.hdc.loop_inv` | `AssertionError` | `ZeroDivisionError: zero vector has no inverse (Moufang division)` |
+| `srmech.physics.qm.bell.operator_norm` | caught `AssertionError` | `ValueError` from `mat_hermitian_eigendecompose` (non-square) |
+
+All three are residue of the rc431 assert-to-raise arc: the validation moved out of `assert` and into a real exception, and the worked snippets kept documenting the old type. Repaired at the hand-written curated source, then regenerated; `unexpected_raise` is back to **96**. None of the three is touched by this rc's code — `srmech/math/hdc.py` and `srmech/physics/qm/bell.py` are unmodified — and `_tool_docs.py` moved by exactly the eight expected lines, so the one `--accept-seed-drift` run destroyed nothing.
+
+### The composes ceiling: a wrong first answer, reversed
+
+The `composes` population ratchet (`CEIL_UNADJUDICATED`, down-only, whose failure message says *"do not raise the ceiling"*) went to **183** against a ceiling of 182. The cause is real and has no tier: the two regular representations reach `cd_mult` and `table_product` on **mutually exclusive branches** (`table is None`), so no ordered tuple is true of both paths and ROSTER's linear-trace criterion excludes them.
+
+Raising the ceiling was the wrong answer and is not what shipped. Two structural moves drained it instead: **(a)** registering `left_mult_matrix` / `right_mult_matrix` gave both DIVISION ops a registered sub-op at depth 1, moving them RESIDUAL -> SINGLE; **(b)** both representations were traced and declared with a **one-element** tuple — `table` SUBSTITUTES the product rather than adding a call, so declaring both would assert a sequence that never occurs, and the selected branch is left undeclared exactly as `dispatch` leaves its selected implementation undeclared. Residual drained to **181** and the **ceiling comes DOWN to 181** in the same commit.
+
+### Ripple
+
+73 count pins across 66 test files (**re-measured, not inherited** — the rc436 figure held, and unlike rc436 **all 73 are genuine registry cardinals**, zero coincidental matches); `EXPECTED_N` + the sha256-pinned op-name manifest, rewritten and re-pinned in the same commit; six rosetta rows; the `_c_claims` entry, which the generator **derived** from the op body rather than taking a hand edit; `left_mult_matrix`'s `OPEN_REGISTRATION` gap row REMOVED (closed, not re-homed); five curated worked examples with captured output; the composes adjudication ledger re-censused; README registry cardinal + worked `native_status()` block; four notebook `Live at` stamps re-verified and moved (registry 656 -> 661, descriptors still 20, ABI still 14 at `srmech.h:280`). Both new gates are listed in `tools/ripple_gates.txt`. `regen_all.py --check` reports all six generated files up to date.
+
 ## [0.9.0rc436]
 
 Five items adjudicated in gh #1530, each verified by execution before it was written. Registry **655 -> 656**; **ABI stays 14**; **GENOME_FORMAT_VERSION stays 19**; no new C symbol.

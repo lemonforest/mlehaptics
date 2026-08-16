@@ -436,7 +436,16 @@ _CARRIERS: Dict[str, Dict[str, Any]] = {
             "BOUNDED (the ~24-bind span), gracefully decays; a transient "
             "holographic READ of the relational store (bundle is a lossy "
             "sketch), never the store itself. Bridge L↔M = the reversible "
-            "spectral basis-change (eigen / Walsh-Hadamard)."),
+            "spectral basis-change (eigen / Walsh-Hadamard). rc437 "
+            "(local task T1142): that sentence had named an op that did not "
+            "exist — a reader of describe()[\"carriers\"][\"HV\"] was told the "
+            "Walsh-Hadamard half of the bridge was reachable while zero "
+            "public callables implemented it. It is now "
+            "srmech.cascade.walsh_hadamard.walsh_hadamard_transform (exact "
+            "integers on the boolean cube (Z/2)^n, its own inverse up to the "
+            "2^n scale); the eigen half is the Class-L eigendecompose family. "
+            "Neither half is auto-applied to an HV — this names the bridge, "
+            "it does not wire it."),
         "ladder": None, "rung": None, "variables": [],
     },
     # ── the elliptic row carriers ─────────────────────────────────────────────

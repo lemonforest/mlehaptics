@@ -381,6 +381,7 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
         'srmech_fft_c128',
         'srmech_fft_c128_ws_bound',
     ),
+    'srmech.cascade.walsh_hadamard.walsh_hadamard_transform': ('srmech_walsh_hadamard_i64',),
     'srmech.chemistry.formula.parse_formula': (
         'srmech_parse_formula',
         'srmech_parse_formula_ws_bound',

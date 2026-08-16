@@ -280,7 +280,7 @@ def test_registration_tool_schema():
     from srmech.introspect.tool_schema import get_tool_schema, warmup_all
     warmup_all()
     schema = get_tool_schema()
-    assert len(schema.tools) == 656
+    assert len(schema.tools) == 661
     names = {t.name for t in schema.tools}
     for op in ("mass_normalized_laplacian", "cotangent_weights"):
         assert f"srmech.math.laplacian.{op}" in names, f"{op} ToolEntry missing"

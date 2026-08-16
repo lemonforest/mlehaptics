@@ -283,7 +283,7 @@ right than the "correction" that replaced it — it said `composes` was the home
 empty; the error there was only the *count*, not the *address*.
 
 **One consequence that is code, not prose, and must not be left implicit.**
-`tests/test_composes_grain_rc412.py:712` (`test_every_declared_sub_op_is_actually_called`, clause 2)
+`tests/test_composes_grain_rc412.py:737` (`test_every_declared_sub_op_is_actually_called`, clause 2)
 requires every declared sub-op to be **AST-call-reachable from the parent**. That is correct for the
 downward branch and **structurally wrong for the lateral one**: a declared cascade chains ops that
 the parent does not call. As written, the next attempt to populate the per-task grain fails CI and
@@ -634,7 +634,7 @@ a docs backlog, not a nice-to-have, and not a candidate for a `docs/` directory.
 
 Three measured facts make this a structural claim rather than a preference:
 
-1. **It crosses the C wire.** `srmech_tool_entry_t` carries `explanation` (`c/include/srmech.h:5522`)
+1. **It crosses the C wire.** `srmech_tool_entry_t` carries `explanation` (`c/include/srmech.h:5563`)
    and `example_json` (`:5520`). The gcd WHEN clause quoted in §1.1 is present in
    `c/src/srmech_tool_registry.c` as shipped text. For a bare-C / MCU host this prose IS the
    introspect layer — ADR-0012 §7.1 makes exactly that point about the generated registry.
@@ -645,7 +645,7 @@ Three measured facts make this a structural claim rather than a preference:
 3. **It is population-floored.** The coverage gates (§4) hold it at 100%, which is a contract, not a
    docs aspiration.
 
-**A vocabulary correction this ADR makes explicitly.** `c/include/srmech.h:5489` calls `example` /
+**A vocabulary correction this ADR makes explicitly.** `c/include/srmech.h:5530` calls `example` /
 `smoke_test_hint` the **"documentation-hint fields"**, and `:5522` describes `explanation` as a
 **"hint"**. That wording is the calculator framing of §1 written into the wire contract — a *hint* is
 something a caller may ignore, and a *documentation* field is something that lives elsewhere by right.
@@ -1277,7 +1277,7 @@ rewrite would target, and because §3 establishes that this payload is *inside t
 `srmech/mcp/_tools.py:395-402` (the `description` assembly that omits the prose) ·
 `srmech/cli/*.py` (the 57 hand-authored help strings; `cli/mcp.py:7` for the "nothing is
 hand-authored" docstring) ·
-`c/include/srmech.h:5509-5584` (`srmech_tool_entry_t`; the "documentation-hint fields" wording at
+`c/include/srmech.h:5550-5625` (`srmech_tool_entry_t`; the "documentation-hint fields" wording at
 `:5489`; `explanation` at `:5522`; the byte-identity/hash contract at `:5483-5493`) ·
 `c/tools/gen_tool_registry.py:265,:276,:277,:278` (where `summary` / `example` / `smoke_test_hint` /
 `explanation` are baked into C) ·

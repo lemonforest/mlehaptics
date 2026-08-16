@@ -831,3 +831,7 @@
 {"exposed_as": "srmech.cascade.reversal_law_census", "defined_at": "srmech.cascade.reversal.reversal_law_census", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.cascade.anti_automorphism_witnesses", "defined_at": "srmech.cascade.reversal.anti_automorphism_witnesses", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.cascade.octonion_associator_support", "defined_at": "srmech.cascade.cayley_dickson.octonion_associator_support", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.cascade.right_mult_matrix", "defined_at": "srmech.cascade.cayley_dickson.right_mult_matrix", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.cascade.cd_left_divide", "defined_at": "srmech.cascade.cayley_dickson.cd_left_divide", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.cascade.cd_right_divide", "defined_at": "srmech.cascade.cayley_dickson.cd_right_divide", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.cascade.walsh_hadamard.walsh_hadamard_transform", "defined_at": "srmech.cascade.walsh_hadamard.walsh_hadamard_transform", "bucket": "c_dispatched"}

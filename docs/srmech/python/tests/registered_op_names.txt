@@ -143,6 +143,7 @@ srmech.cascade.cd_conjugate
 srmech.cascade.cd_correct
 srmech.cascade.cd_couple_working
 srmech.cascade.cd_cycle_holonomy
+srmech.cascade.cd_left_divide
 srmech.cascade.cd_mult
 srmech.cascade.cd_navigate
 srmech.cascade.cd_navmap
@@ -151,6 +152,7 @@ srmech.cascade.cd_norm_sq
 srmech.cascade.cd_project
 srmech.cascade.cd_promote
 srmech.cascade.cd_register
+srmech.cascade.cd_right_divide
 srmech.cascade.cd_three_form
 srmech.cascade.cd_uncouple_working
 srmech.cascade.cd_zero_divisor_witness
@@ -204,6 +206,7 @@ srmech.cascade.kuramoto_sin_term
 srmech.cascade.kuramoto_step
 srmech.cascade.left_mult_is_invertible
 srmech.cascade.left_mult_kernel
+srmech.cascade.left_mult_matrix
 srmech.cascade.loop_invariants
 srmech.cascade.magnitude
 srmech.cascade.malcev_defect
@@ -233,6 +236,7 @@ srmech.cascade.qdft_summand
 srmech.cascade.quaternion_dft
 srmech.cascade.reorient
 srmech.cascade.reversal_law_census
+srmech.cascade.right_mult_matrix
 srmech.cascade.sedenion_register
 srmech.cascade.seq_get
 srmech.cascade.seq_len
@@ -250,6 +254,7 @@ srmech.cascade.unit_loop
 srmech.cascade.utf8_encode
 srmech.cascade.vec_add
 srmech.cascade.vec_scale
+srmech.cascade.walsh_hadamard.walsh_hadamard_transform
 srmech.cascade.winding_fold
 srmech.chemistry.balance_reaction
 srmech.chemistry.conservation_laws

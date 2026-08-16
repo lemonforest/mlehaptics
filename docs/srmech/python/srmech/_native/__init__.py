@@ -1400,6 +1400,24 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_exact_dft_i64.restype = ctypes.c_int
 
+    # int srmech_walsh_hadamard_i64(uint32_t n, int64_t *data)
+    # v0.9.0rc437 additive symbol (local task T1142): the exact Walsh–Hadamard
+    # transform on the BOOLEAN CUBE (Z/2)^n — a DIFFERENT GROUP from the cyclic
+    # srmech_exact_dft_i64 above, not a special case of it. The cube's
+    # characters are (-1)^popcount(j&k), i.e. ±1 and nothing else, so the
+    # transform is exact in plain int64 with no cyclotomic ring and no
+    # vector-valued coefficient. IN PLACE on `data` (length n): log2(n)
+    # butterfly passes, n·log2(n) add/subtracts, zero multiplies, no scratch
+    # and no arena. hasattr-guarded (EXPECTED_ABI_VERSION stays 14; a stale
+    # ABI-14 lib simply lacks the symbol and the arbitrary-precision Python
+    # body runs, which is the COMPLETE alternative implementation).
+    if hasattr(lib, "srmech_walsh_hadamard_i64"):
+        lib.srmech_walsh_hadamard_i64.argtypes = [
+            ctypes.c_uint32,                    # n (power of two >= 1)
+            ctypes.POINTER(ctypes.c_int64),     # data (n), transformed in place
+        ]
+        lib.srmech_walsh_hadamard_i64.restype = ctypes.c_int
+
     # 0.9.0rc139 (#743/#747 Foundation F1): the NUMERIC complex128 FFT / IFFT
     # the signal_processing fft-family dispatches to. in/out are interleaved
     # (re, im) length-2n double buffers; radix-2 for power-of-two n, Bluestein

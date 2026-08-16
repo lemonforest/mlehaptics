@@ -162,6 +162,31 @@ ROSTER: Dict[str, Tuple[str, ...]] = {
         "srmech.biology.genome.discrete_writhe",
         "srmech.physics.qm.quaternion.quaternion_cycle_holonomy",
     ),
+    # ── rc437 (local task T1142) ──────────────────────────────────
+    # The two REGULAR REPRESENTATIONS, and the declaration is deliberately
+    # ONE element on a two-element derived set. Saying why matters more than
+    # the row.
+    #
+    # Each builds its n columns by calling EITHER `cd_mult` (the default,
+    # `table is None`) OR `table_product` (when a `table` names a different
+    # algebra). The two are MUTUALLY EXCLUSIVE branches, so a two-element
+    # tuple would assert a SEQUENCE that never occurs in any single call —
+    # the `table` argument SUBSTITUTES the product, it does not add a second
+    # one. That is a SELECTION, not a composition, and it is the same
+    # distinction `dispatch` below already draws: it declares the two ops it
+    # calls BEFORE choosing, and does not declare the chosen one.
+    #
+    # So `cd_mult` is declared (it is what the op composes on the default and
+    # only-shipped-product path, and a one-element tuple carries no order
+    # claim at all) and `table_product` is not. Declared ⊂ derived, which is
+    # criterion (4), and the under-read is the conservative direction for an
+    # attribution claim.
+    "srmech.cascade.left_mult_matrix": (
+        "srmech.cascade.cd_mult",
+    ),
+    "srmech.cascade.right_mult_matrix": (
+        "srmech.cascade.cd_mult",
+    ),
     # ── rc436 (local task T1141) ──────────────────────────────────
     # TRACED, not inferred: the sweep calls `associator` once per ordered
     # distinct imaginary triple (210 calls, 168 of which land in the
