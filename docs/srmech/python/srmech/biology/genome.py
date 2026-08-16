@@ -3729,8 +3729,35 @@ def centromere_of(strand):
     (the short arm), ``q`` = data turns AFTER (the long arm). Position IS the arm-ratio
     (biology: the centromere position defines the arms), so nothing double-encodes.
 
-    Returns ``{"orientation", "arm_ratio": (p, q), "handle", "repeats"}`` or ``None``."""
+    Returns ``{"orientation", "arm_ratio": (p, q), "handle", "repeats"}`` or ``None``.
+
+    **SCOPE — ONE chromosome (rc439, `#T1140`).** The subject is a single chromosome, so a strand
+    carrying TWO OR MORE ``0x58`` caps RAISES :class:`ValueError` rather than answering. Slice at
+    the chromosome-boundary cap (or :func:`partition` first) and pass one chromosome. A whole
+    multi-chromosome genome strand — what :func:`mint` writes for two nuclear kernels — is NOT a
+    valid input: through rc438 it returned a ``p:q`` counted ACROSS a chromosome boundary that
+    described neither chromosome, and the three code paths disagreed about which cap the
+    ``handle``/``repeats`` came from (this C peer kept the LAST cap, the Python native branch
+    re-scanned and took the FIRST, the pure walk took the LAST — one record built from two caps).
+    A dicentric chromosome is real in biology and UNSTABLE: the two centromeres attach to opposite
+    spindle poles and the chromosome breaks (the breakage-fusion-bridge cycle), so "there is no
+    single orientation / arm-split" is the honest read, not a limitation. :func:`mint_strand` has
+    always REFUSED to splice a second centromere into a strand that has one; this is the same
+    contract on the reading side. Both projections refuse — the C peer returns
+    ``SRMECH_ERR_BAD_INPUT`` (ABI 15 -> 16)."""
     strand = list(strand)
+    # rc439 (`#T1140`): the DICENTRIC gate, BEFORE any dispatch — so the pure walk, the native
+    # branch and a bare-C host all refuse the same input. It is deliberately checked here rather
+    # than inferred from the C status: the ctypes shim maps a non-OK status to None, and None is
+    # the shim's "not applicable, use the pure path" signal, so leaning on it would fall THROUGH
+    # to the pure walk and return the blend this gate exists to remove.
+    cens = [hv for hv in strand if _cap_kind(hv) == CENTROMERE_CAP_MARKER]
+    if len(cens) > 1:
+        raise ValueError(
+            f"centromere_of: strand carries {len(cens)} centromere caps (0x58); the op reads ONE "
+            f"chromosome's global orientation + p:q arm-split and a dicentric / multi-chromosome "
+            f"strand has no single answer. Slice at the chromosome-boundary cap or partition() "
+            f"first, then pass one chromosome.")
     # rc258 (#1407): DISPATCH the orientation-majority + arm-ratio scan to the
     # srmech_genome_centromere_of C peer when HAS_NATIVE; the handle/repeats are read inline
     # in Python (the composition). The pure walk below is the numpy-free fallback + oracle.
@@ -3742,22 +3769,24 @@ def centromere_of(strand):
             found, orientation, p, q = native
             if not found:
                 return None
-            cen = next(hv for hv in strand if _cap_kind(hv) == CENTROMERE_CAP_MARKER)
+            # rc439: bind the ONE cap the gate above proved is there. This read used to be a
+            # `next(...)` re-scan for the FIRST cap while orientation/p/q came from the C peer's
+            # LAST — structurally a two-cap record, right only because nothing minted two.
+            cen = cens[0]
             return {"orientation": orientation, "arm_ratio": (p, q),
                     "handle": _unpack_cap(cen)[1],
                     "repeats": len(_centromere_votes(cen))}
+    if not cens:
+        return None
+    cen = cens[0]
     p = 0
     total_turns = 0
-    cen = None
     for hv in strand:
         kind = _cap_kind(hv)
         if kind == CENTROMERE_CAP_MARKER:
-            cen = hv
             p = total_turns                           # data turns so far = the short arm
         elif kind is None:
             total_turns += 1                          # a coupled data turn (not a cap)
-    if cen is None:
-        return None
     votes = _centromere_votes(cen)
     _marker, handle = _unpack_cap(cen)
     return {"orientation": _centromere_orientation(votes),

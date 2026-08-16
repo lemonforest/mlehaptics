@@ -205,7 +205,21 @@ from typing import Optional
 #        into this Python, which now pushes NINE args at a SIX-arg wire — and on
 #        the rest path it would still return the correct bytes, so the defect
 #        would come back on wound Ones ONLY, silently. This pin rejects it.
-EXPECTED_ABI_VERSION: int = 15
+#   v16 (rc439, `#T1140`) — the FOURTH bump of the v10/v12/v14 kind: no
+#        signature changed shape, but the STATUS an exported function returns
+#        for a class of input did. srmech_genome_centromere_of returned
+#        SRMECH_OK on a strand carrying two or more 0x58 centromere caps; it
+#        now returns SRMECH_ERR_BAD_INPUT. MEASURED at rc438 on a two-cap
+#        strand (orientation 2 / 'cen' / R=15, then 1 / 'cen2' / R=9): the C
+#        peer kept the LAST cap (orientation 1), this shim's caller re-scanned
+#        and took the FIRST for handle/repeats ('cen', R=15) — one record, two
+#        caps — and the pure path returned 'cen2'/R=9. Three paths, three
+#        answers, no error, and no fixture in the tree ever minted two.
+#        Load-bearing: a stale rc438 .so reports ABI 15; rc439 Python refuses
+#        BEFORE dispatch so the Python read stays right, but a bare-C host on
+#        the stale lib still gets the silent blend, and the projections are
+#        co-equal. This pin rejects it.
+EXPECTED_ABI_VERSION: int = 16
 
 # Back-compat alias: downstream code reading ``_native.ABI_VERSION`` gets the
 # expected (compiled-against) ABI == EXPECTED_ABI_VERSION (NOT the runtime-
@@ -20490,7 +20504,13 @@ def genome_centromere_of_c(strand_bytes: bytes, n_blocks: int, leaf_dim: int):
     the ``n_blocks`` ``leaf_dim``-byte blocks, majority-decode the interior 0x58 cap's
     orientation + read the p:q arm-ratio from its position. Returns
     ``(found, orientation, p, q)`` — ``found`` a bool, or ``None`` when the symbol is
-    absent OR the inputs do not fit the fast path."""
+    absent OR the inputs do not fit the fast path.
+
+    ⚠️ rc439 (`#T1140`): the peer REFUSES a strand with two or more centromere caps
+    (``SRMECH_ERR_BAD_INPUT``), which lands here as ``None`` — indistinguishable from
+    "no native peer". That is why :func:`srmech.biology.genome.centromere_of` gates the
+    dicentric case in Python BEFORE calling this, instead of reading the status back: a
+    ``None`` here means "use the pure path", and the pure path would answer."""
     if not has_native_genome_centromere_of():
         return None
     if (leaf_dim <= 0 or leaf_dim > 256

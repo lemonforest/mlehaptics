@@ -1353,7 +1353,17 @@ srmech_status_t srmech_genome_mint_progress(const unsigned char *labels,
 }
 
 /* §95a/v13 CENTROMERE READ — recover a nuclear chromosome's orientation + p:q arm-ratio (mirror
- * srmech.biology.genome.centromere_of). p = data turns before the 0x58 cap, q = after. */
+ * srmech.biology.genome.centromere_of). p = data turns before the 0x58 cap, q = after.
+ *
+ * rc439 (`#T1140`, ABI 15->16): a strand carrying TWO OR MORE centromere caps is REFUSED —
+ * *found_out = 0 and SRMECH_ERR_BAD_INPUT. The op answers about ONE chromosome (its global
+ * orientation, its p:q arm-split) while scanning a whole strand, so a second cap leaves it with
+ * no single subject. Through rc438 it silently kept the LAST match while the Python native
+ * branch re-scanned and took the FIRST for handle/repeats — one record built from two different
+ * caps, and a third answer again on the pure path. A dicentric chromosome is real in biology and
+ * UNSTABLE (the centromeres pull to opposite poles and it breaks — breakage-fusion-bridge), so
+ * "there is no single answer" is the honest read. srmech_genome_mint_strand has always refused
+ * to CREATE this state; this gives the reader the same contract. */
 srmech_status_t srmech_genome_centromere_of(const unsigned char *strand,
                                             size_t n_blocks, uint32_t leaf_dim,
                                             unsigned char *orientation_out,
@@ -1365,16 +1375,21 @@ srmech_status_t srmech_genome_centromere_of(const unsigned char *strand,
     if (leaf_dim == 0u || leaf_dim > 256u) { return SRMECH_ERR_BAD_INPUT; }
     assert(leaf_dim >= 1u && leaf_dim <= 256u);          /* the guard above holds here */
     const unsigned char *cen = NULL;
-    size_t p = 0u, total = 0u;
+    size_t p = 0u, total = 0u, n_cen = 0u;
     for (size_t i = 0; i < n_blocks; i++) {
         const unsigned char *block = strand + i * (size_t)leaf_dim;
         int kind = genome_cap_kind(block, leaf_dim);
         if (kind == (int)SRMECH_GENOME_CENTROMERE_CAP_MARKER) {
+            n_cen++;
             cen = block;
             p = total;                                   /* data turns so far = short arm */
         } else if (kind < 0) {
             total++;                                     /* a coupled data turn */
         }
+    }
+    if (n_cen > 1u) {                                    /* dicentric — no single subject */
+        *found_out = 0;
+        return SRMECH_ERR_BAD_INPUT;
     }
     *found_out = (cen != NULL) ? 1 : 0;
     if (cen == NULL) { return SRMECH_OK; }
