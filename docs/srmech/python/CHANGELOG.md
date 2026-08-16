@@ -50,6 +50,91 @@ Every shard keeps the full liveness check — `HAS_NATIVE` plus `nm -u "$LIB" | 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc438]
+
+The ONE-A14 coupling projection reads the **whole** One. Registry stays **661** (no public callable added, renamed or removed); **ABI 14 -> 15**; **`GENOME_FORMAT_VERSION` stays 19**. USER-RULED after a read-only study settled the design; gh #1530 §G is closed.
+
+### The coupling that dropped a quarter of its own operand (`#T1140`, gh #1530 §G)
+
+`hdc.klein4_from_one`'s shipped docstring promises its output is "a DECLARED FUNCTION of the `One`'s ... constructor integers". Since rc408 (`#T1078`) the metacycle **winding** triad has been a declared, *pinned* constructor parameter of `cascade.the_one`, and since rc414 (`#T1092`) `One._to_jsonable()` has serialised it. Through rc437 the coupling preimage carried three of the four fields and silently dropped the winding — so the promise was false of every wound One, with no error signal.
+
+**Measured at rc437** over `w ∈ [-4,4]³` — **729** distinct windings with σ/θ/terms held fixed — all three coupling surfaces returned **one distinct value out of 729**:
+
+| Surface | rc437 | rc438 |
+|---|---|---|
+| `klein4_from_one` | 1 / 729 | **729 / 729** |
+| `q8_from_one` — V4 coset plane | 1 / 729 | **729 / 729** |
+| `q8_from_one` — **Z₂ sign plane** (its own preimage) | 1 / 729 | **729 / 729** |
+
+That zero is a **measured** zero and not a dead dial, which is why the controls ship in the gate beside it: on the same ops, 40 distinct θ gave 40 couplings, 2 σ gave 2, and 20 `terms` gave 20 — before and after. The `±` pair the case turned on — `w=(1,0,0)` vs `w=(-1,0,0)`, which share `spinor_sign == -1` and so are *invisible* through that order-2 double-cover shadow — now separates at **14/64** match, i.e. at the orthogonality floor rather than at identity.
+
+**Both planes moved in one rc, and that was not optional.** The Q₈ sign plane has its **own** preimage. Fixing only the V4 plane would have produced a **half-wound Q₈ coupling** — winding-bearing cosets over winding-blind signs — and nothing downstream would have caught it, because the documented bridge `q8_project_v4(q8_from_one(one, D)) == klein4_from_one(one, D)` would still have held and gone on certifying the incoherent object. (It does still hold: byte-identical on all 729 windings, measured.)
+
+### ⚠️ What this does **NOT** buy — read this before assuming otherwise
+
+**It buys a COMMITMENT, not a READ.** Nothing in this rc gives any reader a way to recover `w` — or σ, θ, `terms` — from stored bytes. That is **information-theoretic, not a difficulty claim**, and two measurements say so rather than one argument:
+
+1. **SHA avalanche destroys adjacency.** **50 of the 64** coupling symbols differ between `w=(0,0,0)` and `w=(0,0,1)`, and `symbol[0]` alone takes **all four** Klein-4 values across `w₀ ∈ [-4,4]`. There is no local read to be had — not a hard one, none.
+2. **`klein4_bind` is a Hamming isometry**, measured 16/64 -> 16/64 (0.25 -> 0.25) across a bind, so **the stored body is consistent with every key**. An explicit witness `tB ≠ t₁` exists with `klein4_bind(tB, cB)` byte-identical to the strand stored under `cA`. **The strand carries ZERO bits about which key produced it.**
+
+Both are gated (`test_sha_avalanche_destroys_adjacency_so_no_local_read_exists`, `test_the_stored_strand_carries_zero_bits_about_its_key`) so no future reader has to take the disclaimer on trust.
+
+⚠️ **A tracker figure was off and the tree wins:** the study recorded **49** of 64 symbols differing at the one-step winding change; re-measured on this tree it is **50**. The conclusion is unchanged and the corrected number is what shipped.
+
+**What it DOES buy, and both are real.** (a) `klein4_from_one`'s own shipped claim becomes true of a wound One. (b) `genome_import`'s coupling compare stops reporting two genuinely different Ones as the same One.
+
+**Why this is not the LEAK `hdc.py` bans.** That directive exists because the naive slot projection scores **0.82** mutual similarity and reads one genome with another's key at **64/64**. The winding never enters the One's 14-D adjoint at all — the adjoint is w-invariant, which is the same 1/729 seen from the other side — so a winding-bearing *preimage* adds three declared integers to the Class-A digest exactly as σ/θ/terms do and **cannot reach the vector structure** the ban targets. Re-run against the **shipped** op at D=64, 120 members, 7140 pairs, exact rational means: θ census **113894/456960 ≈ 0.24924**, winding census **113850/456960 ≈ 0.24915**, mixed census **114501/456960 ≈ 0.25057** — **zero** identical pairs in each, closest non-identical pair 29 / 31 / 30 of 64, 120 distinct addresses each. No drift toward 0.82; no identical pair.
+
+### The cost, stated rather than left to be discovered — REGIME-SELECTIVE invalidation
+
+**In storage: none.** No new field, no new byte, no manifest key; the coupling block is already persisted at its existing width. This is a change to the *function that produces* already-stored bytes — a **mint** change, not a storage change — which is why `GENOME_FORMAT_VERSION` stays **19**.
+
+**In minting: a split by regime.** The `"winding"` key is emitted **only** when the triad is non-rest, mirroring `One._to_jsonable()`'s own branch. So:
+
+* an **unwound** One is byte-identical before and after — measured 120/120 against the rc437 preimage rebuilt from its literal shape;
+* a **wound** One mints differently — measured 0/120 agree with rc437.
+
+**Nothing on disk records that a genome was minted wound.** No audit can enumerate the affected set. That is permanent, and it follows from the no-sidecar discipline rather than from an oversight here. It is written down because the alternative is that somebody discovers it later.
+
+### ABI 14 -> 15 — an ORDINARY-kind bump, and it is load-bearing
+
+`srmech_klein4_from_one(sigma, theta_num, theta_den, terms, D, out)` had no winding channel, so it gains `(int64_t w_saros, int64_t w_metonic, int64_t w_callippic)`. An **existing exported signature changed** — v9's and v13's shape, not an additive symbol — so `SRMECH_ABI_VERSION` moves 14 -> 15, with the ctypes `argtypes` and `EXPECTED_ABI_VERSION` in lockstep and a v15 entry in the `srmech.h` ABI ledger.
+
+**Why the pin earns its keep.** A stale rc437 `.so` reports ABI 14 and would otherwise LOAD into rc438 Python, which now pushes nine arguments at a six-argument wire. The mismatch is not the dangerous part — the dangerous part is that on the **rest** path a stale lib still returns the *correct* bytes, so the defect would come back **on wound Ones only, silently**, which is precisely the condition this rc removes.
+
+**The C half was never exercised by the study**, which ran with `HAS_NATIVE` False — so it was built and driven here. Pedantic build (`-DSRMECH_PEDANTIC=ON`, `-Werror`) clean; the `.so` loads at ABI 15 and dispatches; **0** native/pure divergences over the 729-winding grid on both surfaces and over a 300-case σ/θ/terms/winding sweep. A winding outside int64 declines to the pure path rather than truncating, and still separates. JPL: the function is 57 lines (bound 60) with its two asserts; the preimage buffer grows 160 -> 224 for the worst-case 186-char wound render.
+
+### The oracle lands as the op's own declared chain — the permanent ratchet
+
+The design was settled by an out-of-tree **oracle**: a rebuild of the op's *declared* semantics from primitives **below** the ops the implementation calls (an explicit literal JSON template, the two-stage counter-mode SHA-256 from `sha256_bytes` + Class-B framing + Class-I modular reads, the `(1,3,7,3)` frame as a literal period-14 table, the Klein-4 bind as the literal V4 Cayley table — no `klein4_address` / `klein4_sector_frame` / `klein4_bind` / `json.dumps` call anywhere in it). It measured **120/120 bit-identical** to the shipped op along the σ/θ axis and diverged **exactly** on winding, which is what made the gap a measurable object instead of an argument.
+
+It ships as `cascade_catalog/klein4_from_one.toml` with **two `[[cascade.chain]]` variants** (`rest` / `wound`, each with `applies_when`), following the `kuramoto_step` precedent. A single chain with a **conditional step form** was considered and rejected: that is a discriminator widening, and `#T1141` measured that C implements 1 of the 3 existing step forms. `tests/test_cascade_catalog_executable_rc420.py` now executes both variants against the shipped op demanding bit-identity, which makes it the **permanent anti-drift ratchet for this exact failure class** — a Class-A preimage that quietly stops reading one of its op's declared fields. Proven to fire: re-planting the rc437 blindness reds all four wound proof cases while every rest case stays green, so it discriminates the **regime** rather than merely noticing that something moved. Cascade catalog **20 -> 21** descriptors (**18** executable + 3 leaf).
+
+### The number that was not the number I checked — a red CI, and the axis that now gates it
+
+Landing the oracle as a descriptor moved the **cascade-catalog count 20 → 21**. The **tool registry** count did not move (661), and that is the number the local sweep verified — correctly, since a descriptor is not a `ToolEntry`. **They are two different counts and only one of them was gated**, so `ripple_check.py` was green while CI went red on eleven jobs across all three OS matrix cells. The four files that pin the catalog count are now IN `tools/ripple_gates.txt` as a named axis, each covering a different surface (the loader + CLI counts, the MCP expected set, the LLM-facing summary *prose* that enumerates every op by name, and `#T1145`'s dotted-spelling census). A catalog-touching rc cannot be locally green and remotely red on this axis again.
+
+**One of the eleven was a real defect, not a pin:** `lookup_cascade_op("klein4_from_one")` raised `RuntimeError: ... srmech.cascade does not expose a matching callable (install integrity failure)`. The op lives in `srmech.math.hdc`, and the descriptor named a callable `srmech.cascade` did not re-export.
+
+Two fixes were available and the choice was made on evidence rather than on which went green first. `lookup_cascade_op` has **two arms**: a bare name resolved via `getattr(srmech.cascade, name)`, and a dotted `[cascade].op` resolved by import. Measured across the shipped catalog, **20 of 21** descriptors take the bare arm — *including* `schur_complement`, which also lives outside `srmech.cascade` (in `srmech.math.laplacian`) and is re-exported there for exactly this reason, with a comment saying so. The dotted arm has exactly **one** shipped user, `encode_loe_content`, a `signal_processing` text→instrument encoder — a *foreign domain* reached without claiming cascade citizenship. `klein4_from_one` is not that: its operand **is** `srmech.cascade.one.One` and its output is the genome's coupling slot. **So it takes the `schur_complement` route** — re-exported into `srmech.cascade` for DSL resolution only, deliberately **not** added to `__all__`, which is why the registry total stays 661.
+
+The dotted arm would also have grown `test_dsl_op_naming_boundaries`'s callable-less census **1 → 2**, and that census is **down-only** by `#T1145`'s re-aiming — a fix is not allowed to feed the ratchet it is meant to drain. With the re-export it **drains back to `["encode_loe_content"]`**, which is the outcome that gate documents as correct.
+
+`#T1145`'s doc-synced dotted-spelling census moved **35 → 36** and the `_catalog.py` figures are updated to match, honestly rather than conveniently: the **invisible** set (the down-only one) is **unchanged at 32** — the new descriptor's steps reuse spellings already pinned there — while the *genuinely unregistered* bucket goes 1 → 2, because the Class-F render step names `srmech.amsc.descriptor.render_template`, an op that ships and runs but carries **no `ToolEntry` under any spelling**. That bucket is not the down-only census. Registering `render_template` is a live follow-up, deliberately not taken in an rc whose registry total is otherwise unchanged.
+
+⚠️ **Two test NAMES say `fourteen` while asserting 21** (`test_ops_lists_fourteen`, `test_list_cascade_ops_returns_fourteen`). That drift predates this rc by many releases and is **left alone on purpose** — renaming a test is a separate change, and the pins now carry a comment saying so.
+
+The search-corpus witness was re-pinned **twice** in this rc, which is that constant's own advice arriving a fifth time: the CI repair rewrote ToolEntry prose (the summary enumerates the new op by name and cites the count twice), so the corpus moved again. "After the prose has settled" means *after the gates that can force more prose have run* — and a local sweep that does not cover the changed count is not those gates. Frame counts stayed **690 / 661 / 29** through both pins, which is the signature of a pure-prose edit.
+
+### Two observations recorded, not fixed here
+
+* **The octonion carrier has no `*_from_one` mint at all.** `ELEMENT_TYPE_OCTONION` has no minter, so the "declared function of the One" discipline covers **2 of 3** carriers. Noted; out of scope for this rc.
+* **`genome.py` cites `op_provenance` / `RecoverableFold` as its discipline at eight lines and imports `op_provenance` zero times.** Both `klein4_from_one` and `q8_from_one` are absent from that 11-op registry while `srmech.biology.coupling.resonant_spectrum` is present. Recorded as a follow-up.
+
+### Ripple
+
+Registry **unchanged at 661** — no public callable added to `__all__`, renamed or removed — so none of the 73 count pins across 66 test files, `EXPECTED_N`, the op-name manifest digest or the rosetta ledger moves. The **cascade-catalog** count is the one that does move (20 → 21), and its four pinning files are now a named ripple axis. What did move: the five-file version SSOT rc437 -> rc438; `SRMECH_ABI_VERSION` + `EXPECTED_ABI_VERSION` + **18 ABI pins across 15 test files** 14 -> 15 (measured with `grep -rn "ABI_VERSION == 15" tests/`, excluding the new gate's own pin and one prose mention in the ripple-manifest test); `_c_claims.py` regenerated (its prose names the current ABI); README ABI paragraph + worked `native_status()` block; four notebook `Live at` stamps re-verified and moved (registry still 661, descriptors **20 -> 21**, ABI **14 -> 15**); the rc420 catalog gate's pinned populations (`EXPECTED_EXECUTABLE` 17 -> 18, catalog 20 -> 21, chain variants 18 -> 20, a two-key `WRAPPER_LAYER_BOUNDARIES` row, an `_invoke_op` glue row); the notebook-currency gate's word-cardinal map and its `The catalog's <N> descriptors` regex, widened to admit the compound cardinal `twenty-one` rather than forcing the claim to a digit. The new gate **and** the rc420 catalog gate are both listed in `tools/ripple_gates.txt`, with the new gate frozen in `FROZEN_KNOWN_GATES`. `regen_all.py --check` reports all six generated files up to date.
+
 ## [0.9.0rc437]
 
 Two op families adjudicated in gh #1530, both **verified absent by execution** before anything was written, and both shipped with the measurement that motivated them rather than the one the tracker predicted. Registry **656 -> 661**; **ABI stays 14** (one new C symbol, additive); **GENOME_FORMAT_VERSION stays 19**.

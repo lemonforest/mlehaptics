@@ -1068,21 +1068,57 @@ def klein4_sector_frame(D: int):
                           for j in range(D))), sectors=4)
 
 
-def _klein4_from_one_native(sigma: int, tn: int, td: int, terms: int, D: int):
+#: The winding triad at REST — the value at which the ``"winding"`` preimage key
+#: is NOT emitted, so an unwound One's coupling stays byte-identical to every
+#: release before rc438. Mirrors ``srmech.cascade.one._ZERO_WINDING`` (kept local
+#: rather than imported: ``hdc`` sits BELOW ``cascade.one``, which reaches up into
+#: it, and this op reads its operand structurally rather than by type).
+_ONE_REST_WINDING = (0, 0, 0)
+
+
+def _one_winding_triad(one):
+    """The operand's metacycle winding as a 3-tuple of ``int``, ``(0, 0, 0)``
+    when the One is at rest **or** when a duck-typed operand carries no
+    ``winding`` attribute at all (rest is the only thing "no winding" can mean).
+
+    Raises ``TypeError`` on a ``.winding`` that is present but not a length-3
+    int triad: a malformed winding must not be silently read as rest, which is
+    exactly the failure class rc438 exists to close one level up.
+    """
+    w = getattr(one, "winding", None)
+    if w is None:
+        return _ONE_REST_WINDING
+    try:
+        triad = tuple(int(x) for x in w)
+    except (TypeError, ValueError) as exc:
+        raise TypeError(
+            "`one.winding` must be a length-3 triad of ints (the One's "
+            f"metacycle winding); got {w!r}") from exc
+    if len(triad) != 3:
+        raise TypeError(
+            "`one.winding` must be a length-3 triad of ints (the One's "
+            f"metacycle winding); got {w!r}")
+    return triad
+
+
+def _klein4_from_one_native(sigma: int, tn: int, td: int, terms: int,
+                            w, D: int):
     """Native ONE-A14 projection, or ``None`` when the C symbol is absent, the
     call fails, or a parameter exceeds the C int64 wire (the pure path is the
-    COMPLETE alternative, not a rescue)."""
+    COMPLETE alternative, not a rescue). ``w`` is the winding triad; the C peer
+    takes it on the wire (ABI 15) and applies the SAME non-rest branch."""
     if not (_native.HAS_NATIVE and _native.LIB is not None
             and hasattr(_native.LIB, "srmech_klein4_from_one")):
         return None
     lo, hi = -(2 ** 63), 2 ** 63 - 1
-    for v in (sigma, tn, td, terms):
+    for v in (sigma, tn, td, terms, w[0], w[1], w[2]):
         if v < lo or v > hi:
             return None          # arbitrary-precision θ: pure path handles it
     out = (ctypes.c_uint8 * D)()
     rc = _native.LIB.srmech_klein4_from_one(
         ctypes.c_int64(sigma), ctypes.c_int64(tn), ctypes.c_int64(td),
-        ctypes.c_int64(terms), ctypes.c_uint32(D), out)
+        ctypes.c_int64(terms), ctypes.c_int64(w[0]), ctypes.c_int64(w[1]),
+        ctypes.c_int64(w[2]), ctypes.c_uint32(D), out)
     if rc != _native.SRMECH_OK:
         return None
     return array("B", out)
@@ -1095,13 +1131,18 @@ def klein4_from_one(one, D: int):
     DECLARED FUNCTION of the ``One``'s three canonical constructor integers,
     with no stored bytes, no seed table and no label:
 
-    1. **Class A** — canonical serialisation of the One's three coupling
-       fields, assembled HERE as ``{"sigma": σ, "terms": n, "theta": [num,
-       den]}`` (sorted keys, no whitespace) → :func:`klein4_address`. This op
+    1. **Class A** — canonical serialisation of the One's coupling fields,
+       assembled HERE as ``{"sigma": σ, "terms": n, "theta": [num, den]}``
+       (sorted keys, no whitespace), **plus ``"winding": [w₀, w₁, w₂]`` when
+       and only when the triad is non-rest** → :func:`klein4_address`. This op
        does **not** call ``one._to_jsonable()``; it reads ``.sigma`` /
-       ``.theta`` / ``.terms`` off the operand and builds its own dict, which
-       is precisely why any object exposing those three attributes works (see
-       Args) rather than only a real :class:`~srmech.cascade.one.One`.
+       ``.theta`` / ``.terms`` / ``.winding`` off the operand and builds its own
+       dict, which is precisely why any object exposing those attributes works
+       (see Args) rather than only a real :class:`~srmech.cascade.one.One`. The
+       non-rest branch mirrors ``_to_jsonable()``'s own, so the two dicts agree
+       in BOTH regimes and an unwound One is byte-identical to every release
+       before rc438 (measured: 120/120 unwound Ones reproduce the rc437
+       preimage's coupling exactly; 0/120 wound ones do).
     2. **Class C** — XOR the period-14 :func:`klein4_sector_frame`, carrying the
        (1,3,7,3) partition as the substrate's own sector structure.
     3. **Class K/C** — σ enters through the ``One``'s own construction (the
@@ -1132,41 +1173,67 @@ def klein4_from_one(one, D: int):
     why the ``One``'s 14-D vector structure is inert for this purpose. A large
     bridge here would be a sign of something invented.
 
-    ⚠️ **The preimage and ``_to_jsonable()`` DIVERGE on a wound One, and
-    which side is the defective one is OPEN.** ``One._to_jsonable()`` emits a
-    FOURTH key
-    ``"winding"`` when the One is wound (rc414, `#T1092`) — measured: an
-    unwound One serialises to ``{sigma, terms, theta}`` and a wound one to
-    ``{sigma, terms, theta, winding}``. This preimage never carries it, so
-    ``klein4_from_one(rest, D) == klein4_from_one(wound, D)`` byte-for-byte for
-    two Ones differing only in ``w``. At rest the two dicts coincide exactly,
-    which is how the step-1 description above could name ``_to_jsonable()``
-    from rc414 to rc435 without anything ever diverging. The C peer
-    ``srmech_klein4_from_one`` takes ``(sigma, theta_num, theta_den, terms, D)``
-    and has no winding parameter either, so both projections agree on the flat
-    triple and changing that would change the wire format and cost an ABI bump.
+    **The rc436 divergence is CLOSED — the CODE was the defective side**
+    (rc438, `#T1140`, gh #1530 §G; USER-RULED). ``One._to_jsonable()`` has
+    emitted a FOURTH key ``"winding"`` for a wound One since rc414 (`#T1092`),
+    and rc408 (`#T1078`) had already made ``w`` a DECLARED, pinned constructor
+    parameter of ``cascade.the_one``. Through rc437 this preimage carried three
+    of the four, so the op's own promise above — "a DECLARED FUNCTION of the
+    ``One``'s ... constructor integers" — was false of every wound One.
+    **Measured at rc437** over ``w ∈ [-4,4]³`` (**729** distinct windings,
+    σ/θ/terms fixed): the coupling took **1 distinct value out of 729**. It is a
+    measured zero and not a dead instrument — the SAME op, on its other axes,
+    separated 40 distinct θ into 40 couplings, 2 σ into 2 and 20 ``terms`` into
+    20. rc438 puts the triad in the preimage (and on the C wire, ABI 14 → 15):
+    **729/729**, with those controls unchanged. The ``±`` pair the case turned
+    on — ``w=(1,0,0)`` vs ``w=(-1,0,0)``, which share a ``spinor_sign`` of −1
+    and so are indistinguishable through that order-2 shadow — now separates at
+    14/64 match, i.e. at the orthogonality floor rather than identity.
 
-    **Which side is wrong is NOT settled here, and this docstring does not
-    settle it.** The semantics the old step-1 text NAMED — serialise
-    ``_to_jsonable()``, winding included — were measured at rc435 against this
-    op's own acceptance bar and are statistically indistinguishable from the
-    ``theta`` axis (D=64, 7140 pairs, exact-rational means: theta control
-    0.24924, winding 0.24915, mixed 0.25057, ZERO identical pairs in every
-    census, against a ~0.25 bar where a structure-bearing leak reads 0.82 and
-    64/64). Structurally, winding never enters the ``One``'s 14-D adjoint at all
-    — the adjoint is w-invariant — so a winding-bearing preimage would add three
-    declared integers to the Class-A digest exactly as σ/θ/terms do and could
-    not reach the vector-structure tiling the directive above targets. So the
-    code may be the defective side rather than the docstring. **Whether the
-    coupling SHOULD read the winding is an open question, tracked at
-    gh #1530 §G.** rc436 (`#T1141`) is a doc-hygiene rc: it corrected the
-    DESCRIPTION to what the code does and changed no behaviour, deliberately
-    without ruling on which side should move.
+    ⚠️ **What this buys is a COMMITMENT, not a READ.** It gives no reader any
+    way to recover ``w`` — or σ, θ, ``terms`` — from stored bytes, and that is
+    information-theoretic, not a difficulty claim. Two independent measurements
+    say so. (1) SHA avalanche destroys adjacency: **50 of the 64** coupling
+    symbols differ between ``w=(0,0,0)`` and ``w=(0,0,1)``, and ``symbol[0]``
+    alone takes all four Klein-4 values across ``w₀ ∈ [-4,4]`` — there is no
+    local read, not a hard one. (2) :func:`klein4_bind` is a **Hamming
+    isometry**, measured 16/64 → 16/64 (0.25 → 0.25) across a bind, so the
+    stored body is consistent with EVERY key: an explicit ``tB ≠ t₁`` exists
+    with ``klein4_bind(tB, cB)`` byte-identical to the strand stored under
+    ``cA``. **The strand carries ZERO bits about which key produced it.** Do not
+    read this rc as adding recoverability; it adds none.
+
+    **What it DOES buy, and both are real.** (a) The op's shipped claim above
+    becomes true of a wound One. (b) ``genome_import``'s coupling compare stops
+    reporting two genuinely different Ones as the same One.
+
+    **Why this is not the LEAK the directive above bans.** The winding never
+    enters the ``One``'s 14-D adjoint at all — the adjoint is w-invariant, which
+    is the same 1/729 measured from the other side — so a winding-bearing
+    *preimage* adds three declared integers to the Class-A digest exactly as
+    σ/θ/terms do and **cannot reach the vector structure** the ban targets.
+    Re-run against the SHIPPED op at D=64 over 120 members / 7140 pairs, exact
+    rational means: θ census **113894/456960 ≈ 0.24924**, winding census
+    **113850/456960 ≈ 0.24915**, mixed census **114501/456960 ≈ 0.25057** —
+    ZERO identical pairs in each, closest non-identical pair 29 / 31 / 30 of 64,
+    120 distinct addresses each. The bar is ~0.25 with zero identical pairs; a
+    structure-bearing leak reads 0.82 and 64/64.
+
+    **COST, stated rather than left to be discovered — regime-selective
+    invalidation.** An unwound One is byte-identical before and after (120/120
+    measured), so nothing at rest moves. A **wound** One mints differently
+    (0/120 agree with the rc437 preimage). Nothing on disk records that a genome
+    was minted wound, so **no audit can enumerate the affected set**. That is
+    permanent and follows from the no-sidecar discipline, not from an oversight
+    here.
 
     Args:
         one: A :class:`~srmech.cascade.one.One` (read structurally: any
-            object exposing ``.sigma``, ``.theta`` as a ``(num, den)`` pair, and
-            ``.terms``). A wound One is accepted; its ``w`` is ignored (above).
+            object exposing ``.sigma``, ``.theta`` as a ``(num, den)`` pair,
+            ``.terms``, and optionally ``.winding`` as a length-3 int triad).
+            An operand with no ``.winding`` at all reads as at rest; a
+            ``.winding`` that is present but malformed raises ``TypeError``
+            rather than being silently read as rest.
         D: Vector dimension (positive). Free — nothing requires, and nothing
             gains from, divisibility by 14.
     """
@@ -1191,11 +1258,15 @@ def klein4_from_one(one, D: int):
         # kills the process).
         raise ValueError(
             "hdc.klein4_from_one: theta denominator must be non-zero")
-    buf = _klein4_from_one_native(sigma, tn, td, terms, D)
+    w = _one_winding_triad(one)
+    buf = _klein4_from_one_native(sigma, tn, td, terms, w, D)
     if buf is not None:
         return HV(buf, sectors=4)
-    preimage = _json.dumps({"sigma": sigma, "terms": terms, "theta": [tn, td]},
-                           sort_keys=True, separators=(",", ":")).encode("utf-8")
+    fields = {"sigma": sigma, "terms": terms, "theta": [tn, td]}
+    if w != _ONE_REST_WINDING:
+        fields["winding"] = [w[0], w[1], w[2]]
+    preimage = _json.dumps(fields, sort_keys=True,
+                           separators=(",", ":")).encode("utf-8")
     return klein4_bind(klein4_address(D, preimage), klein4_sector_frame(D))
 
 

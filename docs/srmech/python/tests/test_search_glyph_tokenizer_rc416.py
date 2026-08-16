@@ -393,8 +393,34 @@ from srmech.math.text import fold_marks, glyph_stream
 #: flight. Determinism re-verified at THIS value across five fresh
 #: interpreters, same 690 / 661 / 29.
 #:
+#: rc438 (local task T1140) re-pins it again, and this time the FRAME COUNTS DO
+#: NOT MOVE: 690 / 661 / 29, identical to rc437. That is the informative part.
+#: rc438 registers NOTHING — the registry stays at 661 — and the digest moved
+#: anyway, because the corpus is built from ToolEntry PROSE and rc438 rewrote
+#: the ``klein4_from_one`` and ``q8_from_one`` summaries to state the winding
+#: they now read. So a moved witness with UNCHANGED counts is the signature of
+#: a pure-prose edit, and a moved witness with changed counts is a
+#: registration; reading which one you have is the first thing to do when this
+#: constant goes red. Determinism re-established BEFORE re-pinning, as every
+#: prior entry here insisted: FIVE fresh numpy-absent WSL2 interpreters agreed
+#: on this digest with 690 / 661 / 29 on every build. Re-pinned LAST — after
+#: ``regen_all.py --check`` reported all six generated files up to date and
+#: both example ledgers were final.
+#:
+#: ⚠️ AND rc438 PINNED IT TWICE, which is this constant's own advice landing a
+#: FIFTH time and is worth reading before the sixth. The first rc438 value was
+#: taken after the op fix and before CI — and CI then went red on the
+#: cascade-catalog COUNT (a 21st descriptor), whose repair rewrote the
+#: LLM-facing ``list_catalog_ops`` summary in ``tool_schema`` to enumerate the
+#: new op by name and cite ``21 ops`` twice. That is ToolEntry prose, so the
+#: corpus moved again and this constant went red a second time in one rc. The
+#: lesson is not "re-pin twice"; it is that "the prose has settled" means AFTER
+#: the gates that can force more prose have run, and a local sweep that does
+#: not cover the changed count is not those gates. Determinism re-established
+#: a second time across FIVE fresh numpy-absent interpreters at this value,
+#: same 690 / 661 / 29 — still unchanged, because rc438 registers nothing.
 WITNESS_RC416 = (
-    "f4d9045cafc524641f9b52bf2b25e7658ccd02845c42f1f0a9f5b16aa2bae822")
+    "72ace7996a7d99aca134a67d1d28cfac03592ff6e417832a1a8090e6bc7df3f4")
 
 #: The ASCII control set. These four queries are the ops the tokenizer work is
 #: ABOUT, so a regression on them would be the change eating its own subject.

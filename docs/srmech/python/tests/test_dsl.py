@@ -81,13 +81,21 @@ class TestCatalogLoader:
         "cyclic_mod_pow",
         "cyclic_mod_inv",
         "cyclic_mod_mul_wide",
+        # rc438 (`#T1140`): ONE-A14, the One's Klein-4 coupling projection.
+        # Lives in srmech.math.hdc and is re-exported into srmech.cascade for
+        # DSL resolution — the schur_complement pattern, not the dotted-op
+        # encode_loe_content one.
+        "klein4_from_one",
     }
 
     def test_list_cascade_ops_matches_expected_set(self) -> None:
         assert set(list_cascade_ops()) == self.EXPECTED_OPS
 
     def test_list_cascade_ops_returns_fourteen(self) -> None:
-        assert len(list_cascade_ops()) == 20
+        # NOTE the test NAME says fourteen and the pin says 21 — the name
+        # has been stale since long before rc438 (it was 14 ops once).
+        # Left alone deliberately: renaming a test is a separate change.
+        assert len(list_cascade_ops()) == 21
 
     def test_list_cascade_ops_sorted(self) -> None:
         names = list_cascade_ops()
@@ -469,7 +477,7 @@ class TestCliDsl:
     def test_ops_lists_fourteen(self) -> None:
         result = _run_cli("dsl", "ops")
         assert result.returncode == 0, result.stderr
-        assert "20 total" in result.stdout
+        assert "21 total" in result.stdout
         # Each catalog name appears in the output.
         for name in ["chiral_flip", "magnitude", "cyclic_gcd",
                      "parallel_sector_dispatch", "kuramoto_step",
@@ -482,7 +490,7 @@ class TestCliDsl:
         assert result.returncode == 0, result.stderr
         records = json.loads(result.stdout)
         assert isinstance(records, list)
-        assert len(records) == 20
+        assert len(records) == 21
         for rec in records:
             assert "name" in rec
             assert "class_composition" in rec

@@ -1381,13 +1381,19 @@ srmech_status_t srmech_klein4_from_one(int64_t   sigma,
                                        int64_t   theta_num,
                                        int64_t   theta_den,
                                        int64_t   terms,
+                                       int64_t   w_saros,
+                                       int64_t   w_metonic,
+                                       int64_t   w_callippic,
                                        uint32_t  D,
                                        uint8_t  *out)
 {
     /* The One's canonical serialisation — byte-identical to Python's
      * json.dumps(One._to_jsonable(), sort_keys=True, separators=(",", ":")).
-     * Sorted keys put sigma, then terms, then theta. */
-    char            preimage[160];
+     * Sorted keys put sigma, terms, theta, winding; the winding key is emitted
+     * ONLY when the triad is non-rest (One._to_jsonable()'s own branch), so an
+     * unwound One stays byte-identical to every release before rc438. Worst
+     * case is 186 chars + NUL; 224 bounds it, the snprintf guard checks it. */
+    char            preimage[224];
     srmech_status_t st;
     uint32_t        j;
     int             n;
@@ -1399,10 +1405,19 @@ srmech_status_t srmech_klein4_from_one(int64_t   sigma,
     if (D == 0u || theta_den == 0) {
         return SRMECH_ERR_BAD_INPUT;
     }
-    n = snprintf(preimage, sizeof(preimage),
-                 "{\"sigma\":%" PRId64 ",\"terms\":%" PRId64
-                 ",\"theta\":[%" PRId64 ",%" PRId64 "]}",
-                 sigma, terms, theta_num, theta_den);
+    if (w_saros == 0 && w_metonic == 0 && w_callippic == 0) {
+        n = snprintf(preimage, sizeof(preimage),
+                     "{\"sigma\":%" PRId64 ",\"terms\":%" PRId64
+                     ",\"theta\":[%" PRId64 ",%" PRId64 "]}",
+                     sigma, terms, theta_num, theta_den);
+    } else {
+        n = snprintf(preimage, sizeof(preimage),
+                     "{\"sigma\":%" PRId64 ",\"terms\":%" PRId64
+                     ",\"theta\":[%" PRId64 ",%" PRId64 "]"
+                     ",\"winding\":[%" PRId64 ",%" PRId64 ",%" PRId64 "]}",
+                     sigma, terms, theta_num, theta_den,
+                     w_saros, w_metonic, w_callippic);
+    }
     if (n <= 0 || (size_t)n >= sizeof(preimage)) {
         return SRMECH_ERR_BAD_INPUT;
     }

@@ -480,3 +480,67 @@ tests/test_cd_divide_rc437.py
 #    a project census showed is a valid refuter and an invalid certifier.
 #    ~18 s, pure-Python (the native differential self-skips without a .so).
 tests/test_walsh_hadamard_rc437.py
+
+# -- ONE-A14 winding preimage (rc438, local task T1140; gh #1530 sect. G) ---
+#    A DISPATCH-SURFACE gate twice over, which is why it is listed rather than
+#    left to the ordinary suite:
+#      * it pins EXPECTED_ABI_VERSION == 15. srmech_klein4_from_one's signature
+#        gained the winding triad, so a stale .so is the hazard -- and the
+#        hazard is quiet, because on the REST path a stale rc437 lib still
+#        returns correct bytes. The defect would come back on wound Ones only.
+#      * it drives BOTH projections over the new wire. The rc435 study that
+#        settled this design ran with HAS_NATIVE False, so the C half was never
+#        exercised at all until this gate.
+#    The measurement it holds: over w in [-4,4]^3 (729 windings, sigma/theta/
+#    terms fixed) all three coupling surfaces returned ONE address out of 729
+#    through rc437 -- klein4_from_one, the Q8 V4 plane, and the Q8 Z2 SIGN
+#    plane, which has its OWN preimage. The zero carries working controls on
+#    the same ops (40 theta -> 40, 2 sigma -> 2, 20 terms -> 20), so it is a
+#    measured zero rather than a dead dial, and both are gated here.
+#    It also gates the CEILING: SHA avalanche destroys adjacency and
+#    klein4_bind is a Hamming isometry, so the fix buys a COMMITMENT and not a
+#    READ -- written down as two executing tests so no reader has to take the
+#    disclaimer on trust.
+#    ~12 s, pure-Python (the two native tests self-skip without a .so).
+tests/test_klein4_winding_preimage_rc438.py
+
+# -- the cascade catalog, EXECUTED (rc420 local task T1114; listed rc438) ----
+#    Listed here at rc438 because that rc added the 21st descriptor
+#    (klein4_from_one) and this file is what EXECUTES every declared chain
+#    against its shipped op, bit-for-bit, on the pure projection. It is the
+#    anti-drift ratchet for the exact failure class rc438 fixed: a Class-A
+#    preimage that quietly stops reading one of its op's declared fields.
+#    Proven to fire -- re-planting the rc437 winding blindness reds all four
+#    wound proof cases while every rest case stays green, so it discriminates
+#    the REGIME rather than merely noticing that something moved.
+#    It also holds the no-third-state strict zero (executable or explicit
+#    leaf; silence is not a leaf declaration) and the per-descriptor
+#    boundary-case coverage, both strict in BOTH directions.
+#    ~9 s, pure-Python.
+tests/test_cascade_catalog_executable_rc420.py
+
+# -- the CASCADE-CATALOG COUNT axis (added rc438, local task T1140) ---------
+#    ADDED BECAUSE ITS ABSENCE COST A RED CI. rc438 landed a 21st cascade
+#    descriptor. The manifest already covered the TOOL REGISTRY count (661,
+#    which correctly did not move — a descriptor is not a ToolEntry), so the
+#    local sweep was green while CI went red on eleven jobs across all three
+#    OS matrix cells. Those are TWO DIFFERENT NUMBERS and only one of them
+#    was gated here.
+#    The four files below are where the catalog count is pinned, and each
+#    pins a DIFFERENT surface, which is why one entry would not do:
+#      * test_dsl.py -- the loader count, the CLI `dsl ops` "N total" line,
+#        the --json record count, and the EXPECTED_OPS membership set.
+#      * test_dsl_tools.py -- the MCP-facing list_catalog_ops expected set.
+#      * test_dsl_tool_surface_descriptions.py -- the LLM-facing SUMMARY
+#        prose in tool_schema._register_dsl_tools, which enumerates every op
+#        BY NAME and cites the count twice ("N ops" and "the N-op cascade").
+#        Prose, so nothing else can catch it.
+#      * test_dsl_op_naming_boundaries.py -- `#T1145`'s doc-synced census of
+#        dotted chain-step spellings, which a new descriptor's steps move.
+#    A new descriptor moves ALL FOUR. Adding one is the check that a
+#    catalog-touching rc cannot again be locally green and remotely red.
+#    ~2 min total, pure-Python.
+tests/test_dsl.py
+tests/test_dsl_tools.py
+tests/test_dsl_tool_surface_descriptions.py
+tests/test_dsl_op_naming_boundaries.py

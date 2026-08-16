@@ -349,6 +349,35 @@ from .cd_register import (
 # See tests/test_schur_complement_dsl_stage.py.
 from ..math.laplacian import schur_complement  # noqa: F401  (DSL resolution alias)
 
+# ── Class-A DSL re-export: klein4_from_one / ONE-A14 (rc438, `#T1140`) ──
+# EXACTLY the schur_complement case above, and re-exported for exactly that
+# reason. ``klein4_from_one`` lives canonically in ``srmech.math.hdc`` (its
+# A–N home is Class A; the tool-schema entry is registered there), and rc438
+# landed its cascade-catalog descriptor — so ``lookup_cascade_op`` needs the
+# callable reachable at this flat name or the descriptor is an install
+# integrity failure, which is precisely what CI reported.
+#
+# The DOTTED arm (``[cascade].op = "srmech.math.hdc.klein4_from_one"``) would
+# also resolve, and was rejected deliberately. That arm's one shipped user is
+# ``encode_loe_content`` — a signal_processing text→instrument encoder, a
+# FOREIGN domain reached without claiming cascade citizenship. This op is not
+# that: its operand IS ``srmech.cascade.one.One`` and its output is the
+# genome's coupling slot, so it belongs to the cascade vocabulary the same way
+# ``schur_complement`` does. Taking the dotted arm would also have grown
+# ``test_dsl_op_naming_boundaries``'s callable-less census 1 → 2, and that
+# census is DOWN-ONLY by `#T1145`'s re-aiming — a fix is not allowed to feed
+# the ratchet it is supposed to drain.
+#
+# Re-exported for that resolution only — deliberately NOT added to ``__all__``
+# (it is the hdc-registered op reached for the chain contract, not a second
+# cascade-native primitive), so the registry total does not move. Read that
+# total live — ``len(get_tool_schema().by_owner('srmech'))`` — never as a
+# literal here; test_owner_axis_rc410 bans the literal in shipped source, and
+# it caught this comment stating it, which is the gate working as designed.
+# numpy-absent-safe: the klein4 path is pure ``array('B')`` integer work.
+# See tests/test_klein4_winding_preimage_rc438.py.
+from ..math.hdc import klein4_from_one  # noqa: F401  (DSL resolution alias)
+
 # ── Back-compat aliases (the precursor's call-site names) ──────────────
 # Existing cascade scripts in docs/unsolved-maths/ import these names; the
 # alias lets them migrate to ``from srmech.cascade import ...`` without

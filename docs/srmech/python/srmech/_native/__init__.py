@@ -188,7 +188,24 @@ from typing import Optional
 #        into this Python, which now sizes its scratch arena for A^L states —
 #        the stale lib would carve tup/ntup at the old width against the larger
 #        arena. This pin is what rejects it.
-EXPECTED_ABI_VERSION: int = 14
+# v15 — v0.9.0rc438 (`#T1140`, gh #1530 §G): the ONE-A14 WINDING bump — v9's and
+#        v13's ORDINARY kind, an existing exported signature changed.
+#        srmech_klein4_from_one gains (int64_t w_saros, int64_t w_metonic,
+#        int64_t w_callippic), the One's metacycle winding triad, which had NO
+#        channel on this wire through rc437. The op promises "a DECLARED
+#        FUNCTION of the One's constructor integers" and the winding has been a
+#        declared, pinned constructor parameter since rc408, so the projection
+#        was dropping part of its own operand. MEASURED at rc437 over
+#        w in [-4,4]^3 (729 windings, sigma/theta/terms fixed): klein4_from_one
+#        returned 1 distinct address out of 729, and so did BOTH planes of the
+#        Q8 coupling composed over it — against controls on the same ops that DO
+#        move (40 theta -> 40, 2 sigma -> 2, 20 terms -> 20). Post-fix: 729/729
+#        on all three. The argtypes below gain the three params in lockstep.
+#        Load-bearing: a stale rc437 .so reports ABI 14 and would otherwise load
+#        into this Python, which now pushes NINE args at a SIX-arg wire — and on
+#        the rest path it would still return the correct bytes, so the defect
+#        would come back on wound Ones ONLY, silently. This pin rejects it.
+EXPECTED_ABI_VERSION: int = 15
 
 # Back-compat alias: downstream code reading ``_native.ABI_VERSION`` gets the
 # expected (compiled-against) ABI == EXPECTED_ABI_VERSION (NOT the runtime-
@@ -3052,12 +3069,17 @@ def _bind(lib: ctypes.CDLL) -> None:
             lib.srmech_klein4_sector_frame.restype = ctypes.c_int
 
         # §102 / F1259: int srmech_klein4_from_one(int64_t sigma, int64_t
-        #     theta_num, int64_t theta_den, int64_t terms, uint32_t D,
+        #     theta_num, int64_t theta_den, int64_t terms, int64_t w_saros,
+        #     int64_t w_metonic, int64_t w_callippic, uint32_t D,
         #     uint8_t *out) — ONE-A14. The Python shim declines (returns None,
         # pure path runs) when any parameter exceeds the int64 wire, so an
-        # arbitrary-precision θ is not silently truncated.
+        # arbitrary-precision θ (or an out-of-int64 winding) is not silently
+        # truncated. The three winding params are the ABI-15 addition
+        # (rc438, `#T1140`); a stale ABI-14 lib is rejected by the version pin
+        # before it can be handed the nine-arg wire.
         if hasattr(lib, "srmech_klein4_from_one"):
             lib.srmech_klein4_from_one.argtypes = [
+                ctypes.c_int64, ctypes.c_int64, ctypes.c_int64,
                 ctypes.c_int64, ctypes.c_int64, ctypes.c_int64,
                 ctypes.c_int64, ctypes.c_uint32,
                 ctypes.POINTER(ctypes.c_uint8),

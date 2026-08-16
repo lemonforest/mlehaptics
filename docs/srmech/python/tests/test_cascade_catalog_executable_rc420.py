@@ -67,13 +67,18 @@ from srmech.math.laplacian import schur_complement
 #: The three explicit leaves — the atoms nothing lower-level composes.
 EXPECTED_LEAVES = frozenset({"chiral_flip", "pin_slot_at_zero", "reorient"})
 
-#: The seventeen executable descriptors.
+#: The eighteen executable descriptors (17 at rc420; ``klein4_from_one``
+#: added at rc438, `#T1140` — the ONE-A14 oracle, landed as the op's own
+#: declared chain at the rc that fixed the op, so this gate becomes the
+#: permanent anti-drift ratchet for a preimage that forgets a declared
+#: field).
 EXPECTED_EXECUTABLE = frozenset({
     "autocorrelation", "best_rational_signed", "chiral_dual",
     "cyclic_gcd", "cyclic_mod_add", "cyclic_mod_inv", "cyclic_mod_mul",
     "cyclic_mod_mul_wide", "cyclic_mod_pow", "encode_loe_content",
-    "kuramoto_step", "magnitude", "net_chirality", "octonion_dft",
-    "parallel_sector_dispatch", "quaternion_dft", "schur_complement",
+    "klein4_from_one", "kuramoto_step", "magnitude", "net_chirality",
+    "octonion_dft", "parallel_sector_dispatch", "quaternion_dft",
+    "schur_complement",
 })
 
 #: Boundary-case keys a VALUE-equivalence run cannot express, with the
@@ -100,6 +105,14 @@ WRAPPER_LAYER_BOUNDARIES = {
         "generator": "native-dispatch fallback note; the chain's fold "
                      "walks any iterable the same way the pure op does",
         "mixed_types": "native-dispatch fallback note",
+    },
+    "klein4_from_one": {
+        "dimension": "a SCOPE bound of the declared chain (its literal "
+                     "tables are sized for D = 64), not an input case of "
+                     "the shipped op — the op itself is free in D",
+        "theta_den_zero": "guard RAISES at the Python dispatch layer "
+                          "before any cascade step runs (and the C peer "
+                          "asserts it), so there is nothing to compare",
     },
     "kuramoto_step": {
         "length_mismatch": "guard RAISES at the Python dispatch layer",
@@ -285,6 +298,21 @@ def _invoke_op(name: str, variant: str, inp: dict):
                                   substrate=inp["substrate"])
     if name == "autocorrelation":
         return cascade.autocorrelation(inp["x"])
+    if name == "klein4_from_one":
+        # rc438 (`#T1140`): the descriptor's declared output is the CRUMB
+        # SEQUENCE — it says so in `[cascade].description` ("the carrier
+        # wrap (HV, sectors=4) is a representation concern left to the
+        # caller") — so unwrap the shipped op's HV here rather than teach
+        # the chain to build a carrier. The rest variant supplies no
+        # winding at all; the One's own default IS the rest triad, which
+        # is precisely the regime that variant declares.
+        from srmech.cascade.one import the_one
+        from srmech.math.hdc import klein4_from_one
+        one = the_one(inp["sigma"], inp["theta_num"], inp["theta_den"],
+                      inp["terms"],
+                      w=(inp.get("w_saros", 0), inp.get("w_metonic", 0),
+                         inp.get("w_callippic", 0)))
+        return [int(c) for c in klein4_from_one(one, 64)]
     if name == "kuramoto_step":
         if variant == "simple":
             return cascade.kuramoto_step(
@@ -340,14 +368,15 @@ def test_no_third_state_strict_zero():
 
 
 def test_population_witness():
-    """The 17/3 split, by NAME — drift is conscious, not incidental."""
+    """The 18/3 split, by NAME — drift is conscious, not incidental.
+    (17/3 at rc420; ``klein4_from_one`` joined at rc438, `#T1140`.)"""
     status = cascade_catalog_status()
     assert {n for n, s in status.items() if s == "leaf"} == EXPECTED_LEAVES
     assert {n for n, s in status.items()
             if s == "executable"} == EXPECTED_EXECUTABLE
-    assert len(status) == 20, (
+    assert len(status) == 21, (
         f"catalog holds {len(status)} descriptors; this witness pinned 20 "
-        f"at rc420 — update BOTH expected sets consciously")
+        f"at rc420 and 21 at rc438 — update BOTH expected sets consciously")
 
 
 def test_leaf_reasons_are_machine_readable():
@@ -392,14 +421,16 @@ def test_equivalence_population_floor():
     """The equivalence parametrization is not vacuous: rc420 authored
     proof cases across all 17 descriptors (18 variants) — a drop below
     the floor means a loader/parametrize seam went quiet, not that the
-    catalog shrank."""
+    catalog shrank. rc438 adds ``klein4_from_one`` with TWO variants
+    (rest / wound), so 18 -> 20."""
     cases = _executable_cases()
     assert len(cases) >= 80, (
         f"only {len(cases)} proof cases collected; rc420 authored >= 80")
     variants = {(n, v) for n, v, _s, _c, _i in cases}
-    assert len(variants) == 18, (
+    assert len(variants) == 20, (
         f"{len(variants)} chain variants collected; rc420 shipped 18 "
-        f"(17 descriptors, kuramoto_step twice)")
+        f"(17 descriptors, kuramoto_step twice) and rc438 shipped 20 "
+        f"(+ klein4_from_one rest/wound)")
 
 
 # ── 3. boundary-case coverage ──────────────────────────────────────────

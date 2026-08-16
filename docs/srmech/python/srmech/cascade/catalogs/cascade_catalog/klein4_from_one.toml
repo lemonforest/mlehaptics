@@ -1,0 +1,524 @@
+# Cascade catalog entry: klein4_from_one
+# v0.9.0rc438 (`#T1140`, gh #1530 §G) — ONE-A14, the One's Klein-4 COUPLING
+# projection (srmech/math/hdc.py, §102 / F1259), landed as an EXECUTABLE
+# descriptor at the same rc that fixed the op it describes.
+#
+# WHY THIS DESCRIPTOR EXISTS AT ALL. Through rc437 the shipped op built its
+# Class-A preimage from THREE of the One's four declared constructor fields —
+# sigma, theta, terms — and silently dropped the metacycle WINDING triad, which
+# `cascade.the_one` has taken as a declared, pinned parameter since rc408 and
+# which `One._to_jsonable()` has serialised since rc414. Measured at rc437 over
+# w in [-4,4]^3 (729 distinct windings, sigma/theta/terms fixed) the op returned
+# ONE distinct address out of 729, against controls on the same op that moved
+# normally (40 theta -> 40, 2 sigma -> 2, 20 terms -> 20). This descriptor was
+# first written as an out-of-tree ORACLE — a rebuild of the op's DECLARED
+# semantics from primitives BELOW the ops the implementation calls — precisely
+# so the divergence between claim and code was a measurable object rather than
+# an argument. It agreed with the shipped op on 120/120 cases along the
+# sigma/theta axis and disagreed on every wound one. rc438 fixed the op; the
+# oracle lands here as the op's own declared chain, where
+# tests/test_cascade_catalog_executable_rc420.py executes it against the
+# shipped op and demands bit-identity. That makes it the permanent anti-drift
+# ratchet for exactly this failure class: a future preimage edit that forgets a
+# declared field reds this gate instead of shipping a silent collision.
+#
+# NON-CIRCULARITY (what makes it an oracle rather than a restatement): the
+# chain does NOT call klein4_address / klein4_sector_frame / klein4_bind /
+# json.dumps. It rebuilds
+#   - the Class-F render as an EXPLICIT literal template, so the sorted-key
+#     separators-(",",":") JSON shape is visible IN THIS FILE;
+#   - the Class-A two-stage counter-mode SHA-256 from sha256_bytes + Class-B
+#     framing leaves + Class-I modular arithmetic (crumb extraction is exact
+#     division expressed as residue/quotient reads in Z/257 tables — no ALU
+#     shift, and no abs() anywhere);
+#   - the (1,3,7,3) sector frame as a LITERAL period-14 mask table
+#     [1,1,2,2,2,2,3,3,3,3,3,3,3,3] (C = 2 slots -> i-omega7, H = 4 -> gamma5,
+#     O = 8 -> CPT);
+#   - the Klein-4 bind as the LITERAL V4 Cayley table
+#     [[0,1,2,3],[1,0,3,2],[2,3,0,1],[3,2,1,0]], applied as the Class-C
+#     sector-flip involution through the seq_get lookup leaf.
+#
+# SCOPE BOUND, stated rather than implied: the literal tables are sized for
+# D = 64 (the acceptance-bar dimension). D <= 128 is reachable by extending the
+# two 64-entry tables; D > 128 needs counter blocks i >= 1, i.e. a decimal
+# render of the counter, which the leaf vocabulary does not currently carry.
+
+[cascade]
+name = "klein4_from_one"
+class_composition = "F∘A∘B∘I∘E∘C"
+# kind defaults to "stage" — a plain value→value op.
+purpose = "ONE-A14: the One's Klein-4 coupling projection — the canonical serialisation of the One's WHOLE constructor state (sigma, theta, terms, AND the winding triad when wound) -> two-stage counter-mode SHA-256 -> base-4 crumbs -> XOR the (1,3,7,3) sector frame — declared from primitives below the ops the implementation calls."
+description = """
+Maps (sigma, theta_num, theta_den, terms [, w_saros, w_metonic, w_callippic])
+to the D=64 Klein-4 coupling address SEQUENCE (64 crumbs, each 0..3). The
+carrier wrap (HV, sectors=4) is a REPRESENTATION concern left to the caller;
+the declared semantics is the crumb sequence, and the rc420 gate unwraps the
+shipped op's HV to compare against it.
+
+The winding triad is carried WHOLE and rung-ORDERED in the preimage
+(positional [ws, wm, wc] — the three R.1 grammar anchors B/H/N, one per
+Hurwitz rung; the Antikythera back-panel metacycle dials). It is NOT
+quotiented through the derived sign lane (-1)^Sum(w) — a Class-K order-2
+compensator that melds the +-1 winding pair, and precisely the shadow through
+which w=(1,0,0) and w=(-1,0,0) are indistinguishable — and NOT cyclically
+quotiented (MFO XIV.9: the global 3-cycle is an H-only structure; the anchors
+are a graded ladder, not one orbit).
+
+WHAT THE WINDING KEY BUYS, AND WHAT IT DOES NOT. It buys a COMMITMENT: the
+coupling becomes a declared function of the One's whole constructor state, and
+a coupling compare stops reporting two genuinely different Ones as the same
+One. It does NOT buy a READ, and that is information-theoretic rather than a
+difficulty claim — SHA avalanche destroys adjacency (50 of the 64 symbols
+differ between w=(0,0,0) and w=(0,0,1); symbol[0] alone takes all four Klein-4
+values across w0 in [-4,4]), and klein4_bind is a Hamming ISOMETRY, so a
+stored strand is consistent with EVERY key. Nothing here lets a reader recover
+w from stored bytes.
+
+NOT A STRUCTURE-BEARING LEAK. hdc.py's shipped directive bans "improving" this
+op toward structure-bearing (the naive slot projection scores 0.82 mutual
+similarity and reads one genome with another's key at 64/64). The winding
+never enters the One's 14-D adjoint at all — the adjoint is w-invariant — so a
+winding-bearing PREIMAGE adds three declared integers to the Class-A digest
+exactly as sigma/theta/terms do and cannot reach the vector structure the ban
+targets. Re-measured against the shipped op at D=64 over 120 members / 7140
+pairs, exact rational means: theta census 113894/456960 ~ 0.24924, winding
+census 113850/456960 ~ 0.24915, mixed census 114501/456960 ~ 0.25057 — ZERO
+identical pairs in each, closest non-identical pair 29 / 31 / 30 of 64.
+"""
+
+[cascade.signature]
+input = "sigma: int, theta_num: int, theta_den: int, terms: int [, w_saros: int, w_metonic: int, w_callippic: int]"
+output = "list[int] of length 64 — the Klein-4 coupling address crumbs (each 0..3)"
+operation = "crumbs = frame_xor(counter_sha256_expand(sha256(render(one_state))))"
+operation_variant_routing = "tuple(one.winding) == (0,0,0) -> the 'rest' chain (preimage {sigma,terms,theta}); otherwise the 'wound' chain (preimage gains \"winding\":[ws,wm,wc], sorted last). This is One._to_jsonable()'s own branch, mirrored in the op and in the C peer."
+parity = "bit-exact vs klein4_from_one(one, 64) in BOTH regimes as of rc438 (through rc437 the wound regime diverged, which is what this chain was written to measure)"
+
+[cascade.native]
+c_symbol = "srmech_klein4_from_one"
+abi_version = 15
+abi_note = "rc438 (`#T1140`) adds (int64_t w_saros, int64_t w_metonic, int64_t w_callippic) to the EXISTING exported signature — a wire-format change of an existing symbol, so SRMECH_ABI_VERSION bumps 14 -> 15 (an ADDITIVE new symbol would not have). The C peer applies the SAME non-rest branch, so both projections agree byte-for-byte in both regimes (measured: 0 mismatches over the 729-winding grid and a 300-case sigma/theta/terms/winding sweep). A winding outside int64 declines to the pure path rather than truncating."
+
+[cascade.composes]
+# A composition of existing class operations; NOT a new privileged primitive
+# (the cascade-honesty discipline). No abs() — the winding's sign rides the
+# render as a literal '-', never through a magnitude/re-application pair.
+class_f_render_stage = "the canonical serialisation as an explicit literal template — byte-identical to json.dumps(..., sort_keys=True, separators=(',', ':'))"
+class_b_framing_stage = "utf8_encode / byte_slice / int_parse_le / pair — the TLV-framing reads that move between str, bytes and int"
+class_a_address_stage = "the two-stage counter-mode SHA-256: fold the preimage to a digest, then expand sha256(h||'|'||i) into crumbs (the second stage is what gives the C projection a FIXED buffer at any content size)"
+class_i_cyclic_stage = "mod_add / mod_mul in Z/4, Z/14 and Z/257 — crumb slot, sector index and the bounded index arithmetic, as residue/quotient reads rather than ALU shifts"
+class_e_catalog_stage = "seq_get over the literal quotient / offset / hex-value / nibble tables — catalog lookup standing in for arithmetic the leaf vocabulary does not carry"
+class_c_frame_stage = "the (1,3,7,3) period-14 sector mask and the V4 Cayley table, both LITERAL, applied as the substrate's own Class-C involutions"
+
+[cascade.boundary_cases]
+rest = "winding == (0,0,0) -> the 'rest' variant; the preimage has NO winding key, so the address is bit-identical to every release before rc438 (measured 120/120 unwound Ones)"
+wound = "winding != (0,0,0) -> the 'wound' variant; the preimage carries \"winding\":[ws,wm,wc] and the address moves (measured 0/120 wound Ones agree with the rc437 preimage — the regime-selective invalidation, stated in the CHANGELOG)"
+pm_pair = "(1,0,0) vs (-1,0,0): both spinor_sign -1, so the order-2 double-cover shadow cannot tell them apart — DISTINCT preimages, distinct addresses (14/64 match, i.e. the orthogonality floor). The gh #1530 sect. G motivating case."
+dimension = "D = 64 fixed by the literal tables in this descriptor; D <= 128 by extending the two 64-entry tables; D > 128 needs counter blocks >= 1 (a decimal render of the counter, absent from the leaf vocabulary). A SCOPE bound of the declared chain, not of the shipped op."
+theta_den_zero = "theta_den == 0 -> the shipped op raises ValueError BEFORE dispatch (so both projections refuse the same input the same way; the C peer asserts it). Not validated in the chain — there is no conditional step form and adding one would be a discriminator widening."
+
+[cascade.attestation]
+author = "Steven Kirkland"
+license = "MIT"
+parser_version = "srmech-cascade 0.9.0rc438"
+canonical_landings = [
+  "srmech/math/hdc.py klein4_from_one — the shipped op this chain declares (§102 / F1259)",
+  "srmech/cascade/one.py One._to_jsonable — the serialisation whose wound/rest branch this chain mirrors (rc414, `#T1092`)",
+  "srmech/cascade/one.py the_one — where the winding triad became a declared, pinned constructor parameter (rc408, `#T1078`)",
+  "FIPS 180-4 — SHA-256, the Class-A content digest underneath klein4_address",
+  "feedback_sign_handling_is_class_k_pin_slot_not_alu_abs — no abs() inside cascade scripts; the winding's sign is a rendered literal, not a magnitude/re-application pair",
+  "MFO XIV.9 — why the winding triad is a GRADED LADDER (one anchor per Hurwitz rung) rather than one 3-cycle orbit, so the preimage carries it positionally",
+]
+
+# ── rc438 (`#T1140`): the EXECUTABLE chains — ADR-0008 §2 (schema v2).
+# TWO chains, following the kuramoto_step precedent exactly: the shipped op IS
+# two cascades behind a regime dispatch, because One._to_jsonable() itself
+# branches on wound-vs-rest, and declaring ONE chain would paper that over.
+# The alternative — a single chain with a conditional step form — was
+# considered and REJECTED: it is a discriminator widening, and `#T1141` already
+# measured that C implements 1 of the 3 existing step forms, so widening the
+# set is a cost paid in the compiled projection for no gain here. The dispatch
+# condition itself is wrapper-layer (`operation_variant_routing` above);
+# applies_when documents it and is not evaluated by the runner.
+
+# ── variant "rest": the unwound One — preimage {"sigma","terms","theta"} ──
+[[cascade.chain]]
+chain_schema_version = 2
+variant = "rest"
+applies_when = "tuple(one.winding) == (0, 0, 0) — one._to_jsonable() omits the winding key exactly here"
+summary = "ONE-A14 declared semantics at rest: render {sigma,terms,theta} -> sha256 -> counter block 0 -> 64 crumbs -> (1,3,7,3) frame XOR."
+returns = "list[int]  # 64 Klein-4 crumbs"
+
+# s0 — Class F render: the canonical serialisation as an EXPLICIT template.
+# Byte-identical to json.dumps({...}, sort_keys=True, separators=(",",":")).
+[[cascade.chain.steps]]
+class = "F"
+op = "srmech.amsc.descriptor.render_template"
+args = { template = '{"sigma":{sigma},"terms":{terms},"theta":[{tn},{td}]}', context = { sigma = "@input.sigma", terms = "@input.terms", tn = "@input.theta_num", td = "@input.theta_den" } }
+
+# s1 — Class B framing: str -> bytes.
+[[cascade.chain.steps]]
+class = "B"
+op = "srmech.cascade.leaves.utf8_encode"
+args = { text = "@step[0].output" }
+
+# s2 — Class A: stage-1 content digest h (64-char lowercase hex).
+[[cascade.chain.steps]]
+class = "A"
+op = "sha256_bytes"
+args = { data = "@step[1].output" }
+
+# s3/s4 — Class F: the counter-block preimage h || "|" || "0".
+[[cascade.chain.steps]]
+class = "F"
+op = "srmech.cascade.leaves.str_concat"
+args = { prefix = "@step[2].output", text = "|" }
+
+[[cascade.chain.steps]]
+class = "F"
+op = "srmech.cascade.leaves.str_concat"
+args = { prefix = "@step[3].output", text = "0" }
+
+# s5/s6 — Class B + A: counter block 0 digest (64 hex chars = 32 bytes =
+# 128 crumbs >= D=64, so counter 0 alone covers the declared dimension).
+[[cascade.chain.steps]]
+class = "B"
+op = "srmech.cascade.leaves.utf8_encode"
+args = { text = "@step[4].output" }
+
+[[cascade.chain.steps]]
+class = "A"
+op = "sha256_bytes"
+args = { data = "@step[5].output" }
+
+# s7 — Class B: the block-0 hex as ASCII bytes (the crumb source).
+[[cascade.chain.steps]]
+class = "B"
+op = "srmech.cascade.leaves.utf8_encode"
+args = { text = "@step[6].output" }
+
+# s8 — Class E literal-emit: the 64-entry j->j_div_4 table. Doubles as the
+# length-64 map carrier (the map's totality pin) and the byte-index lookup.
+[[cascade.chain.steps]]
+class = "E"
+op = "srmech.cascade.leaves.seq_get"
+args = { seq = [[0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3,4,4,4,4,5,5,5,5,6,6,6,6,7,7,7,7,8,8,8,8,9,9,9,9,10,10,10,10,11,11,11,11,12,12,12,12,13,13,13,13,14,14,14,14,15,15,15,15]], i = 0 }
+
+# s9 — the indexed map over positions j = 0..63: per-position crumb
+# extraction (Class I residue/quotient reads), frame mask (Class C, the
+# LITERAL (1,3,7,3) period-14 table), and the V4 Cayley-table XOR (Class C).
+[[cascade.chain.steps]]
+map_over = "@step[8].output"
+index = "j"
+
+[cascade.chain.steps.bind]
+hexb = "@step[7].output"
+jdiv4 = "@step[8].output"
+offt = [1, 1, 0, 0]
+divt = [0, 1, 0, 1]
+hexval = [0,1,2,3,4,5,6,7,8,9,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,10,11,12,13,14,15]
+nibdiv4 = [0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3]
+frame14 = [1,1,2,2,2,2,3,3,3,3,3,3,3,3]
+xor4 = [[0,1,2,3],[1,0,3,2],[2,3,0,1],[3,2,1,0]]
+
+# b0: byte index bi = j div 4 (literal quotient table).
+[[cascade.chain.steps.body]]
+class = "E"
+op = "srmech.cascade.leaves.seq_get"
+args = { seq = "@bind.jdiv4", i = "@idx.j" }
+
+# b1: crumb slot s = j mod 4 (Class I residue).
+[[cascade.chain.steps.body]]
+class = "I"
+op = "mod_add"
+args = { a = "@idx.j", b = 0, n = 4 }
+
+# b2: which hex char of the byte (low nibble for s in {0,1} -> offset 1).
+[[cascade.chain.steps.body]]
+class = "E"
+op = "srmech.cascade.leaves.seq_get"
+args = { seq = "@bind.offt", i = "@step[1].output" }
+
+# b3/b4/b5: char_idx = 2*bi + offset, and char_idx + 1 (Z/257 — bounded
+# index arithmetic on the cyclic surface; values <= 32 << 257, exact).
+[[cascade.chain.steps.body]]
+class = "I"
+op = "mod_mul"
+args = { a = "@step[0].output", b = 2, n = 257 }
+
+[[cascade.chain.steps.body]]
+class = "I"
+op = "mod_add"
+args = { a = "@step[3].output", b = "@step[2].output", n = 257 }
+
+[[cascade.chain.steps.body]]
+class = "I"
+op = "mod_add"
+args = { a = "@step[4].output", b = 1, n = 257 }
+
+# b6/b7: the one hex char, as its ASCII code (Class B framing reads).
+[[cascade.chain.steps.body]]
+class = "B"
+op = "srmech.cascade.leaves.byte_slice"
+args = { data = "@bind.hexb", start = "@step[4].output", stop = "@step[5].output" }
+
+[[cascade.chain.steps.body]]
+class = "B"
+op = "srmech.cascade.leaves.int_parse_le"
+args = { data = "@step[6].output" }
+
+# b8/b9: hex char -> nibble value (ascii - 48 = +209 in Z/257, then the
+# literal hexval table over indices 0..54; lowercase hex only, which is
+# the sha256_bytes contract).
+[[cascade.chain.steps.body]]
+class = "I"
+op = "mod_add"
+args = { a = "@step[7].output", b = 209, n = 257 }
+
+[[cascade.chain.steps.body]]
+class = "E"
+op = "srmech.cascade.leaves.seq_get"
+args = { seq = "@bind.hexval", i = "@step[8].output" }
+
+# b10/b11/b12/b13/b14: the two candidate crumbs of this nibble —
+# (nibble mod 4, nibble div 4) — and the s-driven selection between them.
+[[cascade.chain.steps.body]]
+class = "I"
+op = "mod_add"
+args = { a = "@step[9].output", b = 0, n = 4 }
+
+[[cascade.chain.steps.body]]
+class = "E"
+op = "srmech.cascade.leaves.seq_get"
+args = { seq = "@bind.nibdiv4", i = "@step[9].output" }
+
+[[cascade.chain.steps.body]]
+class = "B"
+op = "srmech.cascade.leaves.pair"
+args = { first = "@step[10].output", second = "@step[11].output" }
+
+[[cascade.chain.steps.body]]
+class = "E"
+op = "srmech.cascade.leaves.seq_get"
+args = { seq = "@bind.divt", i = "@step[1].output" }
+
+[[cascade.chain.steps.body]]
+class = "E"
+op = "srmech.cascade.leaves.seq_get"
+args = { seq = "@step[12].output", i = "@step[13].output" }
+
+# b15/b16: the (1,3,7,3) sector mask of position j — Class C structure
+# (the substrate's own period-14 sector flips), lookup-addressed.
+[[cascade.chain.steps.body]]
+class = "I"
+op = "mod_add"
+args = { a = "@idx.j", b = 0, n = 14 }
+
+[[cascade.chain.steps.body]]
+class = "C"
+op = "srmech.cascade.leaves.seq_get"
+args = { seq = "@bind.frame14", i = "@step[15].output" }
+
+# b17/b18: the Klein-4 bind — the V4 Cayley table applied as the Class C
+# sector-flip involution (XOR), declared as a LITERAL group table.
+[[cascade.chain.steps.body]]
+class = "C"
+op = "srmech.cascade.leaves.seq_get"
+args = { seq = "@bind.xor4", i = "@step[14].output" }
+
+[[cascade.chain.steps.body]]
+class = "C"
+op = "srmech.cascade.leaves.seq_get"
+args = { seq = "@step[17].output", i = "@step[16].output" }
+
+[[cascade.chain.proof_cases]]
+covers = "rest"
+inputs = { sigma = 1, theta_num = 1, theta_den = 1, terms = 24 }
+
+[[cascade.chain.proof_cases]]
+covers = "rest"
+inputs = { sigma = -1, theta_num = 3, theta_den = 7, terms = 24 }
+
+[[cascade.chain.proof_cases]]
+covers = "rest"
+inputs = { sigma = 1, theta_num = 223, theta_den = 444, terms = 6 }
+
+# ── variant "wound": the wound One — preimage adds "winding":[ws,wm,wc] ──
+# Identical pipeline; ONLY step s0's declared template differs, exactly as
+# One._to_jsonable() itself differs. The winding triad enters WHOLE and
+# ORDERED (rung-positional), never through (-1)^Sum(w).
+[[cascade.chain]]
+chain_schema_version = 2
+variant = "wound"
+applies_when = "tuple(one.winding) != (0, 0, 0) — one._to_jsonable() emits the winding key exactly here"
+summary = "ONE-A14 declared semantics wound: render {sigma,terms,theta,winding} -> sha256 -> counter block 0 -> 64 crumbs -> (1,3,7,3) frame XOR."
+returns = "list[int]  # 64 Klein-4 crumbs"
+
+[[cascade.chain.steps]]
+class = "F"
+op = "srmech.amsc.descriptor.render_template"
+args = { template = '{"sigma":{sigma},"terms":{terms},"theta":[{tn},{td}],"winding":[{ws},{wm},{wc}]}', context = { sigma = "@input.sigma", terms = "@input.terms", tn = "@input.theta_num", td = "@input.theta_den", ws = "@input.w_saros", wm = "@input.w_metonic", wc = "@input.w_callippic" } }
+
+[[cascade.chain.steps]]
+class = "B"
+op = "srmech.cascade.leaves.utf8_encode"
+args = { text = "@step[0].output" }
+
+[[cascade.chain.steps]]
+class = "A"
+op = "sha256_bytes"
+args = { data = "@step[1].output" }
+
+[[cascade.chain.steps]]
+class = "F"
+op = "srmech.cascade.leaves.str_concat"
+args = { prefix = "@step[2].output", text = "|" }
+
+[[cascade.chain.steps]]
+class = "F"
+op = "srmech.cascade.leaves.str_concat"
+args = { prefix = "@step[3].output", text = "0" }
+
+[[cascade.chain.steps]]
+class = "B"
+op = "srmech.cascade.leaves.utf8_encode"
+args = { text = "@step[4].output" }
+
+[[cascade.chain.steps]]
+class = "A"
+op = "sha256_bytes"
+args = { data = "@step[5].output" }
+
+[[cascade.chain.steps]]
+class = "B"
+op = "srmech.cascade.leaves.utf8_encode"
+args = { text = "@step[6].output" }
+
+[[cascade.chain.steps]]
+class = "E"
+op = "srmech.cascade.leaves.seq_get"
+args = { seq = [[0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3,4,4,4,4,5,5,5,5,6,6,6,6,7,7,7,7,8,8,8,8,9,9,9,9,10,10,10,10,11,11,11,11,12,12,12,12,13,13,13,13,14,14,14,14,15,15,15,15]], i = 0 }
+
+[[cascade.chain.steps]]
+map_over = "@step[8].output"
+index = "j"
+
+[cascade.chain.steps.bind]
+hexb = "@step[7].output"
+jdiv4 = "@step[8].output"
+offt = [1, 1, 0, 0]
+divt = [0, 1, 0, 1]
+hexval = [0,1,2,3,4,5,6,7,8,9,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,10,11,12,13,14,15]
+nibdiv4 = [0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3]
+frame14 = [1,1,2,2,2,2,3,3,3,3,3,3,3,3]
+xor4 = [[0,1,2,3],[1,0,3,2],[2,3,0,1],[3,2,1,0]]
+
+[[cascade.chain.steps.body]]
+class = "E"
+op = "srmech.cascade.leaves.seq_get"
+args = { seq = "@bind.jdiv4", i = "@idx.j" }
+
+[[cascade.chain.steps.body]]
+class = "I"
+op = "mod_add"
+args = { a = "@idx.j", b = 0, n = 4 }
+
+[[cascade.chain.steps.body]]
+class = "E"
+op = "srmech.cascade.leaves.seq_get"
+args = { seq = "@bind.offt", i = "@step[1].output" }
+
+[[cascade.chain.steps.body]]
+class = "I"
+op = "mod_mul"
+args = { a = "@step[0].output", b = 2, n = 257 }
+
+[[cascade.chain.steps.body]]
+class = "I"
+op = "mod_add"
+args = { a = "@step[3].output", b = "@step[2].output", n = 257 }
+
+[[cascade.chain.steps.body]]
+class = "I"
+op = "mod_add"
+args = { a = "@step[4].output", b = 1, n = 257 }
+
+[[cascade.chain.steps.body]]
+class = "B"
+op = "srmech.cascade.leaves.byte_slice"
+args = { data = "@bind.hexb", start = "@step[4].output", stop = "@step[5].output" }
+
+[[cascade.chain.steps.body]]
+class = "B"
+op = "srmech.cascade.leaves.int_parse_le"
+args = { data = "@step[6].output" }
+
+[[cascade.chain.steps.body]]
+class = "I"
+op = "mod_add"
+args = { a = "@step[7].output", b = 209, n = 257 }
+
+[[cascade.chain.steps.body]]
+class = "E"
+op = "srmech.cascade.leaves.seq_get"
+args = { seq = "@bind.hexval", i = "@step[8].output" }
+
+[[cascade.chain.steps.body]]
+class = "I"
+op = "mod_add"
+args = { a = "@step[9].output", b = 0, n = 4 }
+
+[[cascade.chain.steps.body]]
+class = "E"
+op = "srmech.cascade.leaves.seq_get"
+args = { seq = "@bind.nibdiv4", i = "@step[9].output" }
+
+[[cascade.chain.steps.body]]
+class = "B"
+op = "srmech.cascade.leaves.pair"
+args = { first = "@step[10].output", second = "@step[11].output" }
+
+[[cascade.chain.steps.body]]
+class = "E"
+op = "srmech.cascade.leaves.seq_get"
+args = { seq = "@bind.divt", i = "@step[1].output" }
+
+[[cascade.chain.steps.body]]
+class = "E"
+op = "srmech.cascade.leaves.seq_get"
+args = { seq = "@step[12].output", i = "@step[13].output" }
+
+[[cascade.chain.steps.body]]
+class = "I"
+op = "mod_add"
+args = { a = "@idx.j", b = 0, n = 14 }
+
+[[cascade.chain.steps.body]]
+class = "C"
+op = "srmech.cascade.leaves.seq_get"
+args = { seq = "@bind.frame14", i = "@step[15].output" }
+
+[[cascade.chain.steps.body]]
+class = "C"
+op = "srmech.cascade.leaves.seq_get"
+args = { seq = "@bind.xor4", i = "@step[14].output" }
+
+[[cascade.chain.steps.body]]
+class = "C"
+op = "srmech.cascade.leaves.seq_get"
+args = { seq = "@step[17].output", i = "@step[16].output" }
+
+[[cascade.chain.proof_cases]]
+covers = "wound"
+inputs = { sigma = 1, theta_num = 1, theta_den = 1, terms = 24, w_saros = 1, w_metonic = 0, w_callippic = 0 }
+
+[[cascade.chain.proof_cases]]
+covers = "pm_pair"
+inputs = { sigma = 1, theta_num = 1, theta_den = 1, terms = 24, w_saros = -1, w_metonic = 0, w_callippic = 0 }
+
+[[cascade.chain.proof_cases]]
+covers = "wound"
+inputs = { sigma = 1, theta_num = 1, theta_den = 1, terms = 24, w_saros = 2, w_metonic = 3, w_callippic = 5 }
+
+[[cascade.chain.proof_cases]]
+covers = "wound"
+inputs = { sigma = -1, theta_num = 3, theta_den = 7, terms = 6, w_saros = -4, w_metonic = 2, w_callippic = -1 }

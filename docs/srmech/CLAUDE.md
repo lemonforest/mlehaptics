@@ -280,7 +280,7 @@ docs/srmech/
     │   ├── cascade/                    ← ADR-0010's FIRST new top-level namespace (rc364)
     │   │   └── catalogs/               ← the built-in descriptor catalogs, moved out of amsc/_research/
     │   │       ├── class_catalog/      ←  4 [class] TOML descriptors, loaded by srmech.dsl.make_class
-    │   │       ├── cascade_catalog/    ← 20 [cascade] TOML descriptors, loaded by srmech.dsl
+    │   │       ├── cascade_catalog/    ← 21 [cascade] TOML descriptors, loaded by srmech.dsl
     │   │       ├── alias_catalog/      ←  2 alias descriptors ([[alias]] + [genome.type_aliases]); NEW rc364
     │   │       └── worked_instances/   ←  1 worked-instance descriptor
     │   └── _native/                   ← (wheel install only) libsrmech.so/.dll/.dylib
@@ -642,11 +642,12 @@ calls** — go through `sha256_bytes` (Phase B5 discipline).
 
 ### ABI compatibility
 
-C ABI version is currently **14** (`SRMECH_ABI_VERSION = 14` in
-`c/include/srmech.h`; `EXPECTED_ABI_VERSION = 14` in
-*(this line said 12 until rc420 and 13 until rc425 — one bump behind on both
-occasions, the exact staleness shape the rc404 note below records; the v13 bump
-was rc418's, the v14 bump is rc425's `srmech_mlse` wire-contract change)*
+C ABI version is currently **15** (`SRMECH_ABI_VERSION = 15` in
+`c/include/srmech.h`; `EXPECTED_ABI_VERSION = 15` in
+*(this line said 12 until rc420, 13 until rc425 and 14 until rc438 — one bump
+behind on each occasion, the exact staleness shape the rc404 note below records;
+the v13 bump was rc418's, the v14 bump is rc425's `srmech_mlse` wire-contract
+change, and the v15 bump is rc438's `srmech_klein4_from_one` winding triad)*
 `python/srmech/_native/__init__.py`). *(These three lines said ABI **9** and
 pointed at `python/srmech/amsc/_native.py` until rc404 (`#T1069`) — two stale
 facts in three lines: the version was three bumps behind, and ADR-0010 moved
@@ -719,6 +720,24 @@ zero Python/C divergence). Load-bearing rather than ceremonial: a stale rc424
 `.so` would still LOAD into rc425 Python, which now sizes its scratch arena for
 `A^L` states, and the stale lib would carve `tup`/`ntup` at the old width against
 that larger arena. `GENOME_FORMAT_VERSION` stays 19 — no on-disk format moves.
+
+**v15 (v0.9.0rc438, `#T1140`, gh #1530 §G)** is the THIRD bump of the ORDINARY
+kind — v9's and v13's shape, an existing exported signature changed.
+`srmech_klein4_from_one` gains `(int64_t w_saros, int64_t w_metonic, int64_t
+w_callippic)`: the One's metacycle winding triad, which its wire did not carry
+at all. The op's contract calls its output "a DECLARED FUNCTION of the One's
+constructor integers" and the winding has been a declared, pinned constructor
+parameter since rc408, so the projection was dropping part of its own operand.
+**Measured** over `w ∈ [-4,4]³` (729 distinct windings, σ/θ/terms fixed): the
+Klein-4 coupling took **1** distinct value out of 729, as did BOTH planes of the
+Q₈ coupling composed over it — against controls on the same ops that DO move
+(40 θ → 40, 2 σ → 2, 20 `terms` → 20). Post-fix: **729/729** on all three, with
+0 native/pure divergences over the same grid. Load-bearing rather than
+ceremonial: a stale rc437 `.so` reports ABI 14 and would otherwise load into
+rc438 Python, which now pushes nine args at a six-arg wire — and on the REST
+path the stale lib still returns CORRECT bytes, so the defect would reappear on
+wound Ones only, silently. `GENOME_FORMAT_VERSION` stays 19 — this changes the
+function that produces already-stored bytes, not the storage.
 
 **#772 reconciliation (rc306).** The "reentrant C core" claim (#772) rests
 on the `SRMECH_THREAD_LOCAL` thread-local-storage scratch. `srmech_genome_section_counts`
