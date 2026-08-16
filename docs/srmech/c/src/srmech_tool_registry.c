@@ -2342,7 +2342,7 @@ static const srmech_tool_param_t ts_params_241[] = {
     { "D", "int", 1, "dimension" },
 };
 static const srmech_tool_param_t ts_params_242[] = {
-    { "one", "One", 1, "a cascade One (exposes .sigma, .theta=(num, den), .terms)" },
+    { "one", "One", 1, "a cascade One (exposes .sigma, .theta=(num, den), .terms, and optionally .winding as a length-3 int triad \342\200\224 absent reads as at rest, malformed raises)" },
     { "D", "int", 1, "dimension \342\200\224 free; nothing requires or gains from divisibility by 14" },
 };
 static const srmech_tool_param_t ts_params_243[] = {
@@ -3139,7 +3139,7 @@ static const srmech_tool_param_t ts_params_420[] = {
     { "q", "bytes", 1, "a Q\342\202\210 byte buffer" },
 };
 static const srmech_tool_param_t ts_params_421[] = {
-    { "one", "One", 1, "a cascade One (exposes .sigma, .theta=(num, den), .terms)" },
+    { "one", "One", 1, "a cascade One (exposes .sigma, .theta=(num, den), .terms, and optionally .winding as a length-3 int triad \342\200\224 absent reads as at rest, malformed raises)" },
     { "D", "int", 1, "dimension \342\200\224 free; nothing requires or gains from divisibility by 14" },
 };
 static const srmech_tool_param_t ts_params_422[] = {
@@ -9866,7 +9866,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech.math.hdc.klein4_from_one",
         "srmech",
         "hdc",
-        "ONE-A14 \342\200\224 the One's Klein-4 COUPLING projection. Class-A address of the One's canonical (\317\203, \316\270, terms) serialisation, XORed with the period-14 (1,3,7,3) sector frame. Derivable from the three constructor integers alone: no stored bytes, no seed table, no label. THIS IS A ROLE, NOT A REPRESENTATION: genome.quad_turn applies the coupling as a uniform klein4_bind, and XOR-by-constant is a Hamming isometry, so a coupling MATHEMATICALLY CANNOT transmit structure into stored content. The 0.25 floor and incompressibility are therefore the CORRECT targets, and a structure-preserving coupling is a LEAK (the naive slot projection reads one genome with another's key at 64/64). At D=64 over 120 distinct \316\270 (7140 pairs): mean similarity 0.2501, ZERO identical pairs \342\200\224 statistically indistinguishable from the magic-integer draw it replaces (0.2498). The gain is a DECLARED FUNCTION of substrate parameters replacing an undeclared draw; it is not a quality improvement and is not offered as one.",
+        "ONE-A14 \342\200\224 the One's Klein-4 COUPLING projection. Class-A address of the One's canonical (\317\203, \316\270, terms) serialisation \342\200\224 plus the metacycle WINDING triad when the One is wound (rc438, `#T1140`) \342\200\224 XORed with the period-14 (1,3,7,3) sector frame. Derivable from the constructor integers alone: no stored bytes, no seed table, no label. Through rc437 the preimage dropped the winding, so over w in [-4,4]^3 (729 windings, \317\203/\316\270/terms fixed) the op returned 1 distinct address out of 729 while its other axes separated normally (40 \316\270 -> 40, 2 \317\203 -> 2, 20 terms -> 20); it is 729/729 from rc438, and an UNWOUND One is byte-identical to every earlier release. That buys a COMMITMENT, not a READ \342\200\224 no reader can recover w from stored bytes. THIS IS A ROLE, NOT A REPRESENTATION: genome.quad_turn applies the coupling as a uniform klein4_bind, and XOR-by-constant is a Hamming isometry, so a coupling MATHEMATICALLY CANNOT transmit structure into stored content. The 0.25 floor and incompressibility are therefore the CORRECT targets, and a structure-preserving coupling is a LEAK (the naive slot projection reads one genome with another's key at 64/64). At D=64 over 120 distinct \316\270 (7140 pairs): mean similarity 0.2501, ZERO identical pairs \342\200\224 statistically indistinguishable from the magic-integer draw it replaces (0.2498). The gain is a DECLARED FUNCTION of substrate parameters replacing an undeclared draw; it is not a quality improvement and is not offered as one.",
         ts_params_242, 2u,
         "HV",
         "uint8 in {0,1,2,3}",
@@ -13446,7 +13446,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech.biology.q8.q8_from_one",
         "srmech",
         "q8",
-        "ONE-OCT \342\200\224 the One's Q\342\202\210 COUPLING projection (the Q\342\202\210 analogue of hdc.klein4_from_one). Mints the sectors=8 (OCT) coupling one of leaf dim D (bytes 0..7) so a Q\342\202\210 (substrate) genome can be MINTED + read through the normal genome API with NO hand-construction. Two DECLARED planes of the One's (\317\203, \316\270, terms): the V4 COSET plane (bits 0..1) IS klein4_from_one's output \342\200\224 so q8_project_v4(q8_from_one(one,D)) == klein4_from_one(one,D) EXACTLY (the F380/R21 backward-faithful bridge, by construction); the Z\342\202\202 SIGN plane (bit 2) is a domain-separated Class-A klein4_address of the same One (bit 0 per slot) \342\200\224 a declared function, so the coupling is a GENUINE non-abelian Q\342\202\210 one, not a degenerate all-positive one. The sign is a group \342\212\225-bit (Class-I parity), never an abs(). Class A (both planes) \342\210\230 Class C (sign) \342\210\230 Class M (byte interleave). Native+pure BY COMPOSITION of the C-peered srmech_klein4_from_one + srmech_klein4_address (a bare-C host mints by the same composition) \342\200\224 no dedicated C symbol; ABI 10.",
+        "ONE-OCT \342\200\224 the One's Q\342\202\210 COUPLING projection (the Q\342\202\210 analogue of hdc.klein4_from_one). Mints the sectors=8 (OCT) coupling one of leaf dim D (bytes 0..7) so a Q\342\202\210 (substrate) genome can be MINTED + read through the normal genome API with NO hand-construction. Two DECLARED planes of the One's (\317\203, \316\270, terms, and \342\200\224 since rc438 \342\200\224 the winding triad when the One is WOUND): the V4 COSET plane (bits 0..1) IS klein4_from_one's output \342\200\224 so q8_project_v4(q8_from_one(one,D)) == klein4_from_one(one,D) EXACTLY (the F380/R21 backward-faithful bridge, by construction); the Z\342\202\202 SIGN plane (bit 2) is a domain-separated Class-A klein4_address of the same One (bit 0 per slot) \342\200\224 a declared function, so the coupling is a GENUINE non-abelian Q\342\202\210 one, not a degenerate all-positive one. The sign is a group \342\212\225-bit (Class-I parity), never an abs(). Class A (both planes) \342\210\230 Class C (sign) \342\210\230 Class M (byte interleave). Native+pure BY COMPOSITION of the C-peered srmech_klein4_from_one + srmech_klein4_address (a bare-C host mints by the same composition) \342\200\224 no dedicated C symbol of its own. BOTH planes carry the winding and had to move together: measured over w in [-4,4]^3 (729 windings, \317\203/\316\270/terms fixed) each returned 1 distinct value out of 729 through rc437 and 729/729 from rc438. It buys a COMMITMENT, not a READ \342\200\224 nothing lets a reader recover w from stored bytes.",
         ts_params_421, 2u,
         "HV",
         "the OCT coupling one, sectors=8, uint8 in {0..7}",

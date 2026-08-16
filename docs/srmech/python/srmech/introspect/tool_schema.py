@@ -5148,10 +5148,19 @@ def _register_primitive_class_tools() -> None:
             name="srmech.math.hdc.klein4_from_one", owner="srmech",
             category="hdc",
             summary="ONE-A14 — the One's Klein-4 COUPLING projection. Class-A "
-                    "address of the One's canonical (σ, θ, terms) serialisation, "
-                    "XORed with the period-14 (1,3,7,3) sector frame. Derivable "
-                    "from the three constructor integers alone: no stored bytes, "
-                    "no seed table, no label. THIS IS A ROLE, NOT A "
+                    "address of the One's canonical (σ, θ, terms) serialisation "
+                    "— plus the metacycle WINDING triad when the One is wound "
+                    "(rc438, `#T1140`) — XORed with the period-14 (1,3,7,3) "
+                    "sector frame. Derivable "
+                    "from the constructor integers alone: no stored bytes, "
+                    "no seed table, no label. Through rc437 the preimage dropped "
+                    "the winding, so over w in [-4,4]^3 (729 windings, σ/θ/terms "
+                    "fixed) the op returned 1 distinct address out of 729 while "
+                    "its other axes separated normally (40 θ -> 40, 2 σ -> 2, 20 "
+                    "terms -> 20); it is 729/729 from rc438, and an UNWOUND One "
+                    "is byte-identical to every earlier release. That buys a "
+                    "COMMITMENT, not a READ — no reader can recover w from stored "
+                    "bytes. THIS IS A ROLE, NOT A "
                     "REPRESENTATION: genome.quad_turn applies the coupling as a "
                     "uniform klein4_bind, and XOR-by-constant is a Hamming "
                     "isometry, so a coupling MATHEMATICALLY CANNOT transmit "
@@ -5167,7 +5176,8 @@ def _register_primitive_class_tools() -> None:
                     "quality improvement and is not offered as one.",
             parameters=(P("one", "One", True,
                           "a cascade One (exposes .sigma, .theta=(num, den), "
-                          ".terms)"),
+                          ".terms, and optionally .winding as a length-3 int "
+                          "triad — absent reads as at rest, malformed raises)"),
                         P("D", "int", True,
                           "dimension — free; nothing requires or gains from "
                           "divisibility by 14")),
@@ -10628,14 +10638,19 @@ def _register_primitive_class_tools() -> None:
         # through the normal genome API (mint_strand/genes/gene_express/partition
         # gained an element_type=ELEMENT_TYPE_Q8 path this rc) with NO hand-
         # construction of the coupling. Native+pure BY COMPOSITION of two already-
-        # C-peered ops (klein4_from_one + klein4_address) → no new C symbol, ABI 10.
+        # C-peered ops (klein4_from_one + klein4_address) → no new C symbol.
+        # rc438 (`#T1140`, gh #1530 §G): BOTH planes now carry the One's winding
+        # triad. The V4 plane inherits it; the Z₂ sign plane has its OWN preimage
+        # and needed its own key — fixing one alone yields a half-wound coupling
+        # the documented q8_project_v4 bridge would still certify.
         ToolEntry(
             name="srmech.biology.q8.q8_from_one", owner="srmech", category="q8",
             summary="ONE-OCT — the One's Q₈ COUPLING projection (the Q₈ analogue of "
                     "hdc.klein4_from_one). Mints the sectors=8 (OCT) coupling one of "
                     "leaf dim D (bytes 0..7) so a Q₈ (substrate) genome can be MINTED "
                     "+ read through the normal genome API with NO hand-construction. "
-                    "Two DECLARED planes of the One's (σ, θ, terms): the V4 COSET "
+                    "Two DECLARED planes of the One's (σ, θ, terms, and — since "
+                    "rc438 — the winding triad when the One is WOUND): the V4 COSET "
                     "plane (bits 0..1) IS klein4_from_one's output — so "
                     "q8_project_v4(q8_from_one(one,D)) == klein4_from_one(one,D) "
                     "EXACTLY (the F380/R21 backward-faithful bridge, by "
@@ -10647,10 +10662,15 @@ def _register_primitive_class_tools() -> None:
                     "(sign) ∘ Class M (byte interleave). Native+pure BY COMPOSITION of "
                     "the C-peered srmech_klein4_from_one + srmech_klein4_address (a "
                     "bare-C host mints by the same composition) — no dedicated C "
-                    "symbol; ABI 10.",
+                    "symbol of its own. BOTH planes carry the winding and had to move "
+                    "together: measured over w in [-4,4]^3 (729 windings, σ/θ/terms "
+                    "fixed) each returned 1 distinct value out of 729 through rc437 "
+                    "and 729/729 from rc438. It buys a COMMITMENT, not a READ — "
+                    "nothing lets a reader recover w from stored bytes.",
             parameters=(P("one", "One", True,
                           "a cascade One (exposes .sigma, .theta=(num, den), "
-                          ".terms)"),
+                          ".terms, and optionally .winding as a length-3 int "
+                          "triad — absent reads as at rest, malformed raises)"),
                         P("D", "int", True,
                           "dimension — free; nothing requires or gains from "
                           "divisibility by 14")),

@@ -184,7 +184,8 @@ def _live_rc_token() -> str:
 
 #: Only the words the notebook actually uses. Kept minimal on purpose — a
 #: general number-word parser would start matching prose that is not a claim.
-_WORD_CARDINAL = {"five": 5, "six": 6, "seven": 7, "ten": 10, "twenty": 20}
+_WORD_CARDINAL = {"five": 5, "six": 6, "seven": 7, "ten": 10, "twenty": 20,
+                  "twenty-one": 21}
 _WORD_ORDINAL = {"tenth": 10, "eleventh": 11, "twelfth": 12, "thirteenth": 13}
 
 
@@ -200,8 +201,11 @@ _PARTITION = re.compile(
 _CATALOG_LITERAL = re.compile(
     r'\{"total":\s*(\d+),\s*"executable":\s*(\d+),\s*"leaf":\s*(\d+)\}')
 
-#: §3.49.1 "The catalog's twenty descriptors partition"
-_CATALOG_WORD = re.compile(r"The catalog's (\w+) descriptors")
+#: §3.49.1 "The catalog's twenty descriptors partition". The character class
+#: admits a hyphen so a compound cardinal ("twenty-one", rc438) still MATCHES
+#: rather than silently failing the anchor assertion — the spelled-out twin is
+#: the whole point of this claim, so it must not be forced to a digit.
+_CATALOG_WORD = re.compile(r"The catalog's ([\w-]+) descriptors")
 
 #: §3.49.6 "carrying `{total, executable, leaf, status, run, enumerate}`"
 _CATALOG_KEYS = re.compile(r"carrying \**`?\{([a-z,\s>]+)\}")
