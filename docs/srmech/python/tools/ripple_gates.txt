@@ -228,6 +228,23 @@ tests/test_c_test_wiring_rc356.py
 #    pure-Python, no native .so.
 tests/test_readme_currency_rc419.py
 
+# -- One-preimage CONTRACT (rc440, `#T1147`) ---------------------------------
+#    The entry above is COUNT-shaped by construction -- registry cardinal, ABI
+#    integer, version string -- and that is exactly why it did not see this.
+#    `klein4_from_one` builds its Class-A preimage from a fixed KEY SET; rc438
+#    added a fourth key and no count moved, so every sentence enumerating those
+#    keys kept saying three for two releases, including the one on the PyPI
+#    project page and the one in the op's OWN docstring (which the same
+#    docstring's rc438 block already called false). This gate pins the
+#    ENUMERATION against the live key set, measured by EXECUTING the op with
+#    the JSON serialiser swapped for a recorder -- so it moves on any change to
+#    the One's constructor inputs, which is a dispatch-surface change by any
+#    reading. It governs the two GENERATED surfaces as well (`_tool_docs.py`
+#    and the compiled `srmech_tool_registry.c`), so it reds when the curated
+#    SSOT is edited without a regen -- which is precisely the state a rushed
+#    prose fix leaves behind. Whole file, ~13 s, pure-Python, no native .so.
+tests/test_one_preimage_contract_rc440.py
+
 # -- search-corpus witness (rc421, `#T1122`) ---------------------------------
 #    The introspect search corpus is BUILT FROM ToolEntry prose, so its
 #    content-address moves whenever an rc edits a summary, a parameter blurb or

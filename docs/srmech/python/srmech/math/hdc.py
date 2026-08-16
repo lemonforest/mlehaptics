@@ -1127,9 +1127,19 @@ def _klein4_from_one_native(sigma: int, tn: int, td: int, terms: int,
 def klein4_from_one(one, D: int):
     """**ONE-A14** — the ``One``'s Klein-4 coupling projection (§102 / F1259).
 
-    Projects ``S(σ,θ)`` to a Klein-4 hypervector of dimension ``D`` that is a
-    DECLARED FUNCTION of the ``One``'s three canonical constructor integers,
-    with no stored bytes, no seed table and no label:
+    Projects ``S(σ,θ,w)`` to a Klein-4 hypervector of dimension ``D`` that is a
+    DECLARED FUNCTION of the ``One``'s canonical constructor integers — σ, θ
+    and ``terms`` always, **plus the winding triad when and only when it is
+    non-rest** — with no stored bytes, no seed table and no label. The
+    enumeration is CONDITIONAL, and stating it any other way is wrong in one
+    regime or the other: three is the whole preimage of an unwound One and
+    four of a wound one. (Through rc439 this sentence read "three canonical
+    constructor integers" unconditionally — the very promise the rc438 block
+    below quotes as having been *"false of every wound One"*. rc438 moved the
+    code and left the promise behind, so the docstring contradicted itself for
+    two releases; rc440 (`#T1147`) closes it and
+    ``tests/test_one_preimage_contract_rc440.py`` pins the enumeration against
+    the LIVE preimage key set so a fifth constructor input reds the prose.)
 
     1. **Class A** — canonical serialisation of the One's coupling fields,
        assembled HERE as ``{"sigma": σ, "terms": n, "theta": [num, den]}``
@@ -1190,18 +1200,44 @@ def klein4_from_one(one, D: int):
     and so are indistinguishable through that order-2 shadow — now separates at
     14/64 match, i.e. at the orthogonality floor rather than identity.
 
-    ⚠️ **What this buys is a COMMITMENT, not a READ.** It gives no reader any
-    way to recover ``w`` — or σ, θ, ``terms`` — from stored bytes, and that is
+    ⚠️ **What this buys is a COMMITMENT, not a READ — and the scope of that
+    sentence is the STORED BYTES, never the ``One``.** It gives no reader any
+    way to recover ``w`` — or σ, θ, ``terms`` — *from stored bytes*, and that is
     information-theoretic, not a difficulty claim. Two independent measurements
-    say so. (1) SHA avalanche destroys adjacency: **50 of the 64** coupling
-    symbols differ between ``w=(0,0,0)`` and ``w=(0,0,1)``, and ``symbol[0]``
-    alone takes all four Klein-4 values across ``w₀ ∈ [-4,4]`` — there is no
-    local read, not a hard one. (2) :func:`klein4_bind` is a **Hamming
-    isometry**, measured 16/64 → 16/64 (0.25 → 0.25) across a bind, so the
-    stored body is consistent with EVERY key: an explicit ``tB ≠ t₁`` exists
-    with ``klein4_bind(tB, cB)`` byte-identical to the strand stored under
-    ``cA``. **The strand carries ZERO bits about which key produced it.** Do not
-    read this rc as adding recoverability; it adds none.
+    say so. (1) SHA avalanche destroys adjacency: on ``the_one(1, 1, 1, 24)``
+    at ``D=64``, **50 of the 64** coupling symbols differ between ``w=(0,0,0)``
+    and ``w=(0,0,1)``, and ``symbol[0]`` alone takes all four Klein-4 values
+    across ``w₀ ∈ [-4,4]`` — there is no local read, not a hard one. (The
+    fixture is named because the count is preimage-dependent: it ranges 46–54
+    across σ/θ/``terms``, so an unstated "50" is not reproducible. The
+    *conclusion* — no local read — holds at every fixture measured.)
+    (2) :func:`klein4_bind` is a **Hamming isometry**, measured 16/64 → 16/64
+    (0.25 → 0.25) across a bind, so the stored body is consistent with EVERY
+    key: an explicit ``tB ≠ t₁`` exists with ``klein4_bind(tB, cB)``
+    byte-identical to the strand stored under ``cA``. **The strand carries ZERO
+    bits about which key produced it.** Do not read this rc as adding
+    recoverability; it adds none.
+
+    ⚠️ **Do NOT restate that as "``w`` is unrecoverable".** rc440 (`#T1147`)
+    corrects a filing that had generalised it that way, which is its own
+    falsehood: **holding the ``One``, the winding is fully readable, and
+    lossless surfaces ship.** Measured over the same ``w ∈ [-4,4]³`` grid,
+    σ/θ/``terms`` fixed: the public :attr:`~srmech.cascade.one.One.winding`
+    field separates **729/729**, public
+    :meth:`~srmech.cascade.one.One.unwrapped_phase` separates **729/729**, and
+    the private-``_to_jsonable`` →
+    :func:`~srmech.cascade.one.one_from_jsonable` round-trip recovers the triad
+    **exactly on 729/729** — an inverse, not merely an injection. The
+    *derived* reads are lossy BY DESIGN and each says so:
+    :meth:`~srmech.cascade.one.One.winding_tower` gives **125/729** (= 5³ —
+    a per-component tower is orientation-blind, ``winding_tower(3) ==
+    winding_tower(-3)``), :attr:`~srmech.cascade.one.One.spinor_sign` the
+    order-2 shadow at **2/729**, and the 2π-periodic adjoint
+    :meth:`~srmech.cascade.one.One.to_flat_rational` **1/729**. The three
+    columns of the honest table are therefore: the ``One`` → recoverable;
+    ``winding_tower()`` → magnitude only; the stored coupling → a commitment
+    only. Collapsing them into one flat claim loses the only one that is
+    load-bearing for a caller.
 
     **What it DOES buy, and both are real.** (a) The op's shipped claim above
     becomes true of a wound One. (b) ``genome_import``'s coupling compare stops
