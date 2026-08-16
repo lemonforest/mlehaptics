@@ -384,8 +384,17 @@ from srmech.math.text import fold_marks, glyph_stream
 #: five curated explanations move it by construction; 690 = 661 ops + 29
 #: carriers, and the ops half is exactly the live registry total.
 #:
+#: ⚠️ AND THE FIRST rc437 VALUE WAS WRONG, which is this constant's own advice
+#: arriving a fourth time. It was pinned while the argument harvester still had
+#: two findings outstanding; fixing them rewrote four curated snippets, the
+#: corpus moved again, and the full sweep went red on exactly these three tests
+#: and nothing else. RE-PIN LAST — after regen_all --check is clean AND both
+#: example ledgers are final — or the pin is a snapshot of prose still in
+#: flight. Determinism re-verified at THIS value across five fresh
+#: interpreters, same 690 / 661 / 29.
+#:
 WITNESS_RC416 = (
-    "c48b00bcd3da8293c499d681e14074032cf163f0f46e8c2260662c3d428e2c25")
+    "f4d9045cafc524641f9b52bf2b25e7658ccd02845c42f1f0a9f5b16aa2bae822")
 
 #: The ASCII control set. These four queries are the ops the tokenizer work is
 #: ABOUT, so a regression on them would be the change eating its own subject.
