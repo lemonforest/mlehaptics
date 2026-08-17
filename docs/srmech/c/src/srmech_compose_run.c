@@ -894,6 +894,167 @@ size_t srmech_chain_run_arena_bytes(size_t chain_len, size_t ctx_len)
     return parse + run + writer;
 }
 
+/* ------------------------------------------------------------------
+ * THE SURFACE-A FOLD STEP FORM.
+ *
+ * `cr_run_steps` required every step to carry `op`, so a FOLD step (which
+ * carries `fold_op`) was rejected BAD_INPUT before dispatch was ever reached.
+ * That is a STEP-FORM gate, not an op-table gate: the grammar's own shape was
+ * unrecognised, so no amount of op work could reach it.
+ *
+ * Ported from notes/_1653_proto_fold.c (12/12 checks, JPL-clean) with its
+ * three named pieces kept intact: the form classifier, the bounded body table,
+ * and the fold arm itself. NO body step list => NO re-entry into the step
+ * loop => no recursion, so JPL Rule 1 holds without a frame stack (the MAP
+ * form needs one, which is why it is filed separately rather than done here).
+ * ------------------------------------------------------------------ */
+
+typedef enum {
+    CR_FORM_NONE = 0, CR_FORM_PLAIN, CR_FORM_FOLD, CR_FORM_MAP, CR_FORM_MIXED
+} cr_form_t;
+
+/* 1 iff `step` carries ANY of the `n` keys in `keys`. */
+static int cr_has_any(const srmech_json_value_t *step, const char *const *keys,
+                      uint32_t n)
+{
+    uint32_t i;
+    assert(step != NULL && keys != NULL);
+    assert(n > 0u && n <= 8u);
+    for (i = 0u; i < n; i++) {
+        if (srmech_json_object_get(step, keys[i]) != NULL) { return 1; }
+    }
+    return 0;
+}
+
+/* Classify one step. MIXED is a HARD reject — compose.py's mutual-exclusion
+ * rule — and is kept DISTINCT from NONE so a step carrying two discriminators
+ * can never be silently read as whichever one is tested first. The key lists
+ * mirror compose.py's _MAP_KEYS / _FOLD_KEYS plus the plain triple; a widening
+ * on either side must move both. */
+static cr_form_t cr_step_form(const srmech_json_value_t *step)
+{
+    static const char *const map_k[4] = {"map_over", "index", "bind", "body"};
+    static const char *const fold_k[5] = {"fold_class", "fold_op", "fold_init",
+                                          "over", "fold_args"};
+    static const char *const plain_k[3] = {"class", "op", "args"};
+    int m, f, p;
+    assert(step != NULL);
+    assert(step->type == SRMECH_JSON_OBJECT);
+    m = cr_has_any(step, map_k, 4u);
+    f = cr_has_any(step, fold_k, 5u);
+    p = cr_has_any(step, plain_k, 3u);
+    if ((m + f + p) > 1) { return CR_FORM_MIXED; }
+    if (m) { return CR_FORM_MAP; }
+    if (f) { return CR_FORM_FOLD; }
+    if (p) { return CR_FORM_PLAIN; }
+    return CR_FORM_NONE;
+}
+
+/* Read a CR_INT as a signed int64. Distinct from cr_as_u64, whose Class-I wire
+ * is unsigned by contract — an orientation is signed by nature. */
+static int cr_as_i64(const cr_value_t *v, int64_t *out)
+{
+    const srmech_bigint_t *bi; uint64_t mag;
+    assert(v != NULL);
+    assert(out != NULL);
+    if (v->kind != CR_INT || v->num == NULL) { return 0; }
+    bi = v->num;
+    if (bi->sign == 0) { *out = 0; return 1; }
+    if (bi->n > 2u) { return 0; }
+    mag = (uint64_t)bi->limbs[0];
+    if (bi->n == 2u) { mag |= ((uint64_t)bi->limbs[1]) << 32; }
+    if (mag > (uint64_t)INT64_MAX) { return 0; }
+    /* Class-K pin-slot reads the sign; Class-C re-applies it. Never the
+     * ALU-magnitude idiom. */
+    *out = (bi->sign < 0) ? -(int64_t)mag : (int64_t)mag;
+    return 1;
+}
+
+/* 1 iff `op` names orientation_compose — bare, or any dotted spelling ending
+ * `.orientation_compose` (descriptors write the dotted form). */
+static int cr_body_is_orient_compose(const char *op, uint32_t opl)
+{
+    static const char dotted[21] = ".orientation_compose";
+    assert(op != NULL);
+    assert(opl > 0u);
+    if (opl == 19u && memcmp(op, "orientation_compose", 19u) == 0) { return 1; }
+    if (opl > 20u && memcmp(op + (opl - 20u), dotted, 20u) == 0) { return 1; }
+    return 0;
+}
+
+/* One binary fold step. An op outside the table, or an operand outside the
+ * int64 shape, returns NOT_IMPL and the WHOLE chain defers to pure — the
+ * inform-don't-limit contract, never a wrong answer. */
+static srmech_status_t cr_fold_body(cr_bump_t *b, const char *op, uint32_t opl,
+                                    const cr_value_t *acc,
+                                    const cr_value_t *elem, cr_value_t **out)
+{
+    int64_t a, e, r; srmech_status_t st;
+    assert(b != NULL && op != NULL && out != NULL);
+    assert(acc != NULL && elem != NULL);
+    if (!cr_body_is_orient_compose(op, opl)) { return SRMECH_ERR_NOT_IMPL; }
+    if (!cr_as_i64(acc, &a) || !cr_as_i64(elem, &e)) { return SRMECH_ERR_NOT_IMPL; }
+    if (e < -128 || e > 127) { return SRMECH_ERR_NOT_IMPL; }
+    if (e == 0) {                        /* the ABSORBING zero — Class K     */
+        *out = cr_int_i64(b, 0);
+        return (*out == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+    }
+    st = srmech_cascade_reorient_i64((int8_t)e, a, &r);   /* Class C         */
+    if (st != SRMECH_OK) { return st; }
+    *out = cr_int_i64(b, r);
+    return (*out == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* acc = fold_init; for elem in resolve(over): acc = fold_op(acc, elem).
+ * compose.py's iteration contract for the fold_args-absent (positional) case.
+ * An empty sequence returns the seed unchanged — which is why the `[]` proof
+ * case is the one that proves the seed is read at all. */
+static srmech_status_t cr_run_fold(cr_ctx_t *c, const srmech_json_value_t *step,
+                                   cr_value_t **out)
+{
+    const srmech_json_value_t *fo = srmech_json_object_get(step, "fold_op");
+    const srmech_json_value_t *fi = srmech_json_object_get(step, "fold_init");
+    const srmech_json_value_t *ov = srmech_json_object_get(step, "over");
+    cr_value_t *acc, *seq; uint32_t i; srmech_status_t st;
+    assert(c != NULL && step != NULL && out != NULL);
+    assert(c->b != NULL);
+    /* `fold_args` selects the KEYWORD-named fold, a different iteration
+     * contract this arm does not implement. Decline rather than mis-run it. */
+    if (srmech_json_object_get(step, "fold_args") != NULL) { return SRMECH_ERR_NOT_IMPL; }
+    if (fo == NULL || fo->type != SRMECH_JSON_STRING) { return SRMECH_ERR_BAD_INPUT; }
+    if (ov == NULL) { return SRMECH_ERR_BAD_INPUT; }
+    if (fi == NULL || fi->type != SRMECH_JSON_INT) { return SRMECH_ERR_NOT_IMPL; }
+    acc = cr_int_i64(c->b, fi->u.i);
+    if (acc == NULL) { return SRMECH_ERR_OVERFLOW; }
+    seq = cr_resolve_arg(c, ov);
+    if (seq == NULL || seq->kind != CR_LIST) { return SRMECH_ERR_NOT_IMPL; }
+    for (i = 0u; i < seq->n; i++) {
+        cr_value_t *nxt = NULL;
+        if (seq->items[i] == NULL) { return SRMECH_ERR_BAD_INPUT; }
+        st = cr_fold_body(c->b, fo->u.str.ptr, fo->u.str.len,
+                          acc, seq->items[i], &nxt);
+        if (st != SRMECH_OK) { return st; }
+        acc = nxt;
+    }
+    *out = acc;
+    return SRMECH_OK;
+}
+
+/* One PLAIN step: validate the `op` / `args` shape, then dispatch. Split out
+ * of cr_run_steps so the loop can branch on step form and both stay < 60
+ * lines (JPL Rule 4). */
+static srmech_status_t cr_run_plain(cr_ctx_t *c, const srmech_json_value_t *step,
+                                    cr_value_t **out)
+{
+    const srmech_json_value_t *args = srmech_json_object_get(step, "args");
+    const srmech_json_value_t *o = srmech_json_object_get(step, "op");
+    assert(c != NULL && step != NULL && out != NULL);
+    assert(step->type == SRMECH_JSON_OBJECT);
+    if (o == NULL || o->type != SRMECH_JSON_STRING) { return SRMECH_ERR_BAD_INPUT; }
+    if (args == NULL || args->type != SRMECH_JSON_OBJECT) { return SRMECH_ERR_BAD_INPUT; }
+    return cr_dispatch(c, o->u.str.ptr, o->u.str.len, args, out);
+}
+
 /* Parse chain + ctx trees, then drive the steps (kept < 60 lines). */
 static srmech_status_t cr_run_steps(const srmech_json_value_t *chain,
                                     const srmech_json_value_t *ctx, cr_bump_t *b,
@@ -919,19 +1080,23 @@ static srmech_status_t cr_run_steps(const srmech_json_value_t *chain,
     if (c.step_out == NULL) { return SRMECH_ERR_OVERFLOW; }
     for (i = 0u; i < ns; i++) {
         const srmech_json_value_t *step = steps->u.arr.items[i];
-        const srmech_json_value_t *args, *so; const char *op; uint32_t opl;
+        const srmech_json_value_t *so;
         cr_value_t *out = NULL;
         if (step == NULL || step->type != SRMECH_JSON_OBJECT) { return SRMECH_ERR_BAD_INPUT; }
         so = srmech_json_object_get(step, "on_error");
         if (so != NULL && so->type != SRMECH_JSON_NULL) { return SRMECH_ERR_BAD_INPUT; }
-        args = srmech_json_object_get(step, "args");
-        op = NULL; opl = 0u;
-        { const srmech_json_value_t *o = srmech_json_object_get(step, "op");
-          if (o == NULL || o->type != SRMECH_JSON_STRING) { return SRMECH_ERR_BAD_INPUT; }
-          op = o->u.str.ptr; opl = o->u.str.len; }
-        if (args == NULL || args->type != SRMECH_JSON_OBJECT) { return SRMECH_ERR_BAD_INPUT; }
         c.cur = i;
-        st = cr_dispatch(&c, op, opl, args, &out);
+        switch (cr_step_form(step)) {
+        case CR_FORM_PLAIN: st = cr_run_plain(&c, step, &out); break;
+        case CR_FORM_FOLD:  st = cr_run_fold(&c, step, &out); break;
+        /* MAP needs an explicit frame stack (JPL Rule 1 bans the recursive
+         * body walk), so it is filed rather than half-done here. NOT_IMPL —
+         * a recognised form this projection does not yet run — is deliberately
+         * distinct from the BAD_INPUT that MIXED / NONE earn, which are
+         * malformed rather than unimplemented. */
+        case CR_FORM_MAP:   st = SRMECH_ERR_NOT_IMPL; break;
+        default:            st = SRMECH_ERR_BAD_INPUT; break;
+        }
         if (st != SRMECH_OK) { return st; }
         c.step_out[i] = out;
     }

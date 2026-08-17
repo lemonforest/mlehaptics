@@ -146,14 +146,45 @@ ROWS = [
                           "forms that exist today; a fourth is invisible until "
                           "someone writes one."),
     dict(id="step_form_fold", kind="gap",
-         missing="Surface A's FOLD form is unrecognised by C (BAD_INPUT=2).",
-         lacked_by="c", blocked_this_rc=True, new_type=True,
-         evidence="notes/_1653_step_forms_rc444.ndjson.",
-         probe="python3 notes/_1653_step_forms_rc444.py",
+         missing="Surface A's FOLD form was unrecognised by C (BAD_INPUT=2) — "
+                 "a fold step carries fold_op, and cr_run_steps demanded `op`.",
+         lacked_by="c", blocked_this_rc=True, new_type=False,
+         evidence="Was notes/_1653_step_forms_rc444.ndjson. Now: net_chirality "
+                  "runs in C byte-identical on all 7 proof cases.",
+         probe="pytest tests/test_c_fold_step_form_rc446.py",
+         disposition=CLOSED,
+         note="CLOSED as a FORM — cr_step_form + cr_run_fold ported from the "
+              "prototype; net_chirality is the 7th chain (ratchet 12 -> 11). No "
+              "frame stack needed: a fold has no body step list, so no re-entry "
+              "into the step loop and JPL Rule 1 holds without one. NOT a new "
+              "type — it adds no carrier kind. See fold_body_private_table for "
+              "what this deliberately does NOT close.",
+         ceiling_blind_to="Same as step_form_map — a fourth form nobody has "
+                          "written yet is invisible."),
+    dict(id="fold_body_private_table", kind="gap",
+         missing="The fold BODY dispatches through a PRIVATE single-entry table "
+                 "(cr_fold_body, orientation_compose only) rather than through "
+                 "the shared cr_dispatch op table, so a fold over any other op "
+                 "declines.",
+         lacked_by="c", blocked_this_rc=True, new_type=False,
+         evidence="A fold over `gcd` — an op the shared table DOES have — still "
+                  "returns non-zero. Asserted as a REQUIRED decline in "
+                  "test_c_fold_step_form_rc446.py so the limit cannot rot into "
+                  "an accident.",
+         probe="pytest tests/test_c_fold_step_form_rc446.py::"
+               "test_a_fold_over_ANOTHER_op_still_DECLINES",
          disposition=FILED,
-         note="PROTOTYPED: notes/_1653_proto_fold.c compiles and runs, 4/4 "
-              "negative-shape probes correct.",
-         ceiling_blind_to="Same as step_form_map."),
+         note="THE HONEST EDGE OF THE FOLD WORK, filed the same day it was "
+              "created. CEIL_SURFACE_A_UNSUPPORTED_FORMS deliberately still "
+              "counts `fold` as unsupported: lowering it on the strength of one "
+              "working chain would be the looks-done-isn't move — the form probe "
+              "would go green while every fold body but one stayed unreachable. "
+              "The real progress is recorded in the CHAIN count instead. The "
+              "shapes differ (cr_dispatch takes a JSON args object; a fold body "
+              "takes positional acc/elem), so unifying them is a real change.",
+         ceiling_blind_to="The form ceiling counts FORMS, so it cannot express "
+                          "'this form works for 1 of N body ops' at all — which "
+                          "is exactly why this row exists in prose."),
     dict(id="symbol_gap_ABSENT_6", kind="gap",
          missing="6 ops used by shipped descriptors have NO C symbol at ANY "
                  "granularity: bind, compensated_sum, dead_band, f64_add, "

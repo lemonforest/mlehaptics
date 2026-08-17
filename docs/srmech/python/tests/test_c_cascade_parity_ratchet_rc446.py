@@ -60,11 +60,25 @@ from srmech.dsl import _catalog as _cat
 # Re-measured at rc445 by notes/_1653_chain_census_rc444.py:
 #   "CENSUS of 18 executable chains (20 chain-variants): ...
 #    C srmech_chain_run ACCEPT=0 REJECT=18 ... UNATTRIBUTED=0"
-CEIL_C_REJECTED_CHAINS = 12            # of 18 executable. Target 0.
+CEIL_C_REJECTED_CHAINS = 11            # of 18 executable. Target 0.
 #   The rc445 baseline was 18, verified against a PRISTINE origin/main .so with
 #   THIS harness — so the drain is attributable to the code, not to the probe.
 #   The 6 Class-I cyclic chains closed by the cr_dispatch arm land it at 12.
 CEIL_SURFACE_A_UNSUPPORTED_FORMS = 2   # map + fold. plain executes. Target 0.
+#
+# ⚠️ ``fold`` STAYS COUNTED UNSUPPORTED even though ``net_chirality`` (a real
+# shipped fold chain) now runs in C. That is not an oversight — it is the
+# distinction this ceiling exists to hold. rc446 implements the fold FORM
+# (``cr_step_form`` classifies it, ``cr_run_fold`` executes it), but the fold
+# BODY dispatches through a PRIVATE single-entry table (``cr_fold_body``,
+# ``orientation_compose`` only) rather than through the shared ``cr_dispatch``
+# op table. So a fold over ANY other op still declines, which is exactly what
+# the probe below folds (``gcd``).
+#
+# Lowering this to 1 on the strength of one working chain would be the
+# looks-done-isn't move: the form probe would go green while every fold body
+# except one was unreachable. The chain count (CEIL_C_REJECTED_CHAINS, 12 -> 11)
+# is where rc446's real progress is recorded.
 
 SURFACE_A_STEP_FORMS = ("plain", "map", "fold")
 
@@ -95,7 +109,6 @@ BLOCKED = {
     "kuramoto_step":          {"gates": [GATE_STEP_FORM, GATE_OP_TABLE, GATE_CARRIER],
                                "disposition": "OPEN"},
     "magnitude":              {"gates": [GATE_OP_TABLE, GATE_REF_GRAMMAR], "disposition": "OPEN"},
-    "net_chirality":          {"gates": [GATE_STEP_FORM, GATE_OP_TABLE], "disposition": "OPEN"},
     "octonion_dft":           {"gates": [GATE_STEP_FORM, GATE_OP_TABLE, GATE_CARRIER],
                                "disposition": "OPEN"},
     "parallel_sector_dispatch": {"gates": [GATE_OP_TABLE], "disposition": "OPEN"},
@@ -225,7 +238,14 @@ def test_c_rejected_chain_count_is_tight():
 
 
 def test_surface_a_unsupported_step_forms_is_tight():
-    """Surface A has 3 step forms; C executes only ``plain``. Down-only."""
+    """Surface A has 3 step forms; C executes ``plain`` generally and ``fold``
+    only for one body op. Down-only.
+
+    The fold probe deliberately folds ``gcd`` — an op the shared dispatch table
+    DOES have — so a decline here isolates the fold BODY table from op
+    availability. If it used ``orientation_compose`` it would pass and this
+    gate would stop measuring anything.
+    """
     supported = set()
     for form, chain in (
         ("plain", {"name": "p", "steps": [
