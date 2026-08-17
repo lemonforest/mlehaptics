@@ -70,7 +70,7 @@ def elliptic_cauchy_determinant(t, xs: "Sequence", ys: "Sequence") -> EllRatio:
     ``t`` is a parameter and ``xs`` / ``ys`` are the two equal-length lists of distinct
     variables (all :class:`EllMonomial`). Raises ``ValueError`` if ``len(xs) != len(ys)``
     or the lists are empty. Constructive + exact over the modified-theta algebra (no float,
-    no ``abs()``, no numpy); see the module docstring for the MPM-verified reference. This
+    no ``abs()``); see the module docstring for the MPM-verified reference. This
     is the foundation of the multivariable-elliptic (root-system Cₙ) reduction row.
 
     DISPATCHES to the native ``srmech_elliptic_cauchy_determinant`` C peer when it is

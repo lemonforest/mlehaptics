@@ -62,7 +62,7 @@ bigint :class:`~srmech.math.q.Q` / :class:`~srmech.math.poly.Poly` /
 :class:`~srmech.apokatastasis.zeilberger.BiPoly` / :class:`~srmech.math.tripoly.TriPoly`
 carriers (no magnitude ceiling), every solve is exact Gauss-Jordan over ``ℚ``.
 There is NO float anywhere; sign is the **Class-K** pin-slot via the ``Q``
-sign-branch (never an ALU ``abs()``); no ``math`` module, no numpy.
+sign-branch (never an ALU ``abs()``); no ``math`` module.
 
 C peer: ``srmech_apagodu_zeilberger`` (``c/src/srmech_apagodu_zeilberger.c``)
 orchestrates the SAME existing C kernels — the ``srmech_tripoly_*`` /

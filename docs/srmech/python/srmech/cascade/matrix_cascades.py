@@ -245,7 +245,7 @@ def qr(a, *, mode: str = "reduced") -> Tuple["_Mat", "_Mat"]:
 
 
 def svd(a, *, full_matrices: bool = False) -> Tuple["_Mat", "_Vec", "_Mat"]:
-    """Singular value decomposition ``A = U·diag(s)·Vᴴ`` (numpy-free).
+    """Singular value decomposition ``A = U·diag(s)·Vᴴ``.
 
     Delegates to the Mat-carrier :func:`srmech.math.laplacian.mat_svd` (Gram
     ``AᴴA`` Hermitian-eigen route, native-dispatched, numpy-free) and slices its
@@ -341,7 +341,7 @@ def _qr_lstsq_real(a_real, b_real):
 
 
 def lstsq(a, b):
-    """Least-squares solution of ``A x = b`` (minimising ``‖A x − b‖``), numpy-free.
+    """Least-squares solution of ``A x = b`` (minimising ``‖A x − b‖``).
 
     Supports the overdetermined / square case ``m ≥ n`` (full column rank);
     ``b`` may be a vector ``(m,)`` or a stack of right-hand sides ``(m, k)``.
@@ -627,7 +627,7 @@ def _nd_set(o, idx: Tuple[int, ...], value) -> None:
 
 
 def eigvals(a, *, max_sweeps: int = 500) -> "_Vec":
-    """Eigenvalue MULTISET of a general (non-Hermitian) square matrix (numpy-free).
+    """Eigenvalue MULTISET of a general (non-Hermitian) square matrix.
 
     Delegates to the Mat-carrier :func:`srmech.math.laplacian.mat_eigvals` — the
     shifted-QR iteration (**Class K** iterate-to-convergence ∘ **Class L**

@@ -110,7 +110,7 @@ def _build_sign_table() -> Tuple[Tuple[int, ...], ...]:
 
 
 def _native_ready(symbol: str) -> bool:
-    """True iff the native lib is loaded AND exports ``symbol`` (numpy-free)."""
+    """True iff the native lib is loaded AND exports ``symbol``."""
     return bool(
         _native.HAS_NATIVE and _native.LIB is not None
         and hasattr(_native.LIB, symbol)
@@ -129,7 +129,7 @@ def _check_element(o: int, op: str) -> int:
 
 
 def _as_oct_buffer(buf: Sequence[int], op: str, name: str) -> bytes:
-    """Coerce ``buf`` to ``bytes`` of valid octonion elements (numpy-free).
+    """Coerce ``buf`` to ``bytes`` of valid octonion elements.
 
     Accepts any 1-D sequence of ints (``bytes`` / ``bytearray`` / ``list`` /
     ``tuple``); every element must be a valid octonion byte (``0..15``).

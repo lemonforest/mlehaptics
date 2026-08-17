@@ -507,7 +507,7 @@ def cd_promote(x: Sequence[Any], dim: int) -> Tuple[Q, ...]:
     ``cd_project(cd_promote(x, 2·d)) == x`` EXACT.
 
     Exact-rational; the padding is the exact ``Q(0)``. No float, no
-    ``abs()``, no numpy / ``math``."""
+    ``abs()``, no ``math``."""
     el = _as_elem(x)
     d = len(el)
     if not _is_pow2(dim) or dim > CD_MAX_DIM:
@@ -538,7 +538,7 @@ def cd_project(x: Sequence[Any]) -> Tuple[Q, ...]:
 
     ``cd_project(cd_promote(x, 2·d)) == x`` EXACT (promote zero-pads exactly the
     half this drops). Exact-rational; the vanishing test is a ``Q != 0``
-    Class-K comparison. No float, no ``abs()``, no numpy / ``math``."""
+    Class-K comparison. No float, no ``abs()``, no ``math``."""
     el = _as_elem(x)
     d = len(el)
     if d == 1:

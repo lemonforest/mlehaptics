@@ -1,4 +1,4 @@
-"""Canonical bound-state potentials: hydrogen radial + harmonic oscillator (numpy-free).
+"""Canonical bound-state potentials: hydrogen radial + harmonic oscillator.
 
 Per ``[[feedback_science_is_ssot_not_project]]``: textbook sources for
 both; chess-spectral / ephemerides-spectral are downstream consumers.

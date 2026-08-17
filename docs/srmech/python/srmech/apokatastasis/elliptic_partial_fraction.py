@@ -68,7 +68,7 @@ def elliptic_partial_fraction(x, zs: "Sequence", ys: "Sequence") -> ThetaSum:
     with ``Y = ∏ y_k`` and ``Z = ∏ z_k``. ``x`` is the variable and ``zs`` / ``ys`` are the
     two equal-length lists of distinct parameters (all :class:`EllMonomial`). Raises
     ``ValueError`` if ``len(zs) != len(ys)`` or the lists are empty. Constructive + exact over
-    the modified-theta algebra (no float, no ``abs()``, no numpy). This is the reduction engine
+    the modified-theta algebra (no float, no ``abs()``). This is the reduction engine
     of the multivariable (root-system Cₙ) elliptic reduction row — see the module docstring
     for the MPM-verified reference (the ``1/θ(Y/Z)`` factor is load-bearing).
 

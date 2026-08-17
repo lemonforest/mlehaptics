@@ -192,7 +192,7 @@ def just_limit(num: _RatioIn, den: _RatioIn = 1) -> Dict[str, object]:
     :returns: ``{'ratio', 'num', 'den', 'primes', 'limit', 'odd_limit',
         'monzo', 'class_n_anchor_at_10'}``.
 
-    Exact-ℚ; numpy-free; no ``abs()``.
+    Exact-ℚ; no ``abs()``.
     """
     if den == 1 and not isinstance(num, int):
         num, den = _as_ratio(num, "interval")
@@ -283,7 +283,7 @@ def comma_of_chain(gen: _RatioIn, n: int,
         already carries a 20-digit numerator). The comma itself stays exact
         there; only the prime-support enrichment is withheld.
 
-    Exact-ℚ; numpy-free; no ``abs()``.
+    Exact-ℚ; no ``abs()``.
     """
     if isinstance(n, bool) or not isinstance(n, int):
         raise TypeError(f"n must be int, got {type(n).__name__}")
@@ -395,7 +395,7 @@ def tempers_out(comma: _RatioIn, edo: int,
         (zero exactly when it is tempered out) and ``val`` is the patent val
         restricted to the primes the comma actually uses.
 
-    Exact integer; numpy-free; no ``abs()``.
+    Exact integer; no ``abs()``.
     """
     if isinstance(edo, bool) or not isinstance(edo, int):
         raise TypeError(f"edo must be int, got {type(edo).__name__}")
@@ -477,7 +477,7 @@ def interval_vector(pcs: Sequence[int]) -> Tuple[int, ...]:
     :param pcs: pitch classes; reduced mod 12 and de-duplicated.
     :returns: a 6-tuple of counts.
 
-    Exact integer; numpy-free; no ``abs()``.
+    Exact integer; no ``abs()``.
     """
     s = _as_pcs(pcs)
     v = [0] * (_EDO12 // 2)
@@ -527,7 +527,7 @@ def normal_order(pcs: Sequence[int], convention: str) -> Tuple[int, ...]:
     :returns: the pitch classes in normal order (NOT transposed to 0 — see
         :func:`prime_form` for that).
 
-    Exact integer; numpy-free; no ``abs()``.
+    Exact integer; no ``abs()``.
 
     Raises:
         TypeError: ``pcs`` is not a sequence of ``int`` (a ``str`` is a
@@ -599,7 +599,7 @@ def prime_form(pcs: Sequence[int], convention: str) -> Tuple[int, ...]:
     :param convention: ``"forte"`` or ``"rahn"``. **Required.**
     :returns: the prime form, starting at 0.
 
-    Exact integer; numpy-free; no ``abs()``.
+    Exact integer; no ``abs()``.
     """
     _check_convention(convention)
     s = _as_pcs(pcs)

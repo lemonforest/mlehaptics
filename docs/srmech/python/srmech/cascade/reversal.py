@@ -31,9 +31,7 @@ only legal value is absence, and 0 of the 12 shipped callable parameters are
 required.  A multiplication and an inversion are the SEMANTICS of these
 censuses and cannot be optional, so the table is the only honest carrier.
 :func:`srmech.cascade.unit_loop` and :func:`srmech.cascade.dihedral_group`
-both return exactly this shape.
-
-numpy-free; no ``abs()``.
+both return exactly this shape. No ``abs()``.
 """
 
 from __future__ import annotations

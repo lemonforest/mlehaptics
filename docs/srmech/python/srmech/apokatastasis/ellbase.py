@@ -364,7 +364,7 @@ class Theta:
 def _modified_theta_trunc(z_val, p_val, n_terms: int) -> Q:
     """The modified theta ``θ(z; p) = ∏_{j≥0}(1 − z·pʲ)(1 − z⁻¹·p^{j+1})``
     truncated to ``n_terms`` factor-pairs, in EXACT ℚ (the eval oracle; no float,
-    no ``math``, no numpy). ``z_val`` / ``p_val`` are exact scalars; ``z ≠ 0`` and
+    no ``math``). ``z_val`` / ``p_val`` are exact scalars; ``z ≠ 0`` and
     ``|p| < 1`` for the series to converge (convergence is the caller's concern —
     the truncation is exact whatever the magnitudes)."""
     z = _coerce_q(z_val)

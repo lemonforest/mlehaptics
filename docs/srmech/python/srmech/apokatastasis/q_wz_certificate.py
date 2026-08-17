@@ -76,7 +76,7 @@ The whole pipeline stays EXACT over ``ℚ[q]`` — every polynomial is a
 :class:`~srmech.math.qpoly.QPoly` over the bigint :class:`~srmech.math.poly.Poly`, no
 magnitude ceiling), the verify a coefficient-by-coefficient compare. There is NO
 float anywhere; sign is the **Class-K** pin-slot via the ``Q`` / ``Poly`` sign-branch
-(never an ALU ``abs()``); no ``math`` module, no numpy. This is the **q-row CLOSER**
+(never an ALU ``abs()``); no ``math`` module. This is the **q-row CLOSER**
 of the F929 closure-dispatch: q_gosper (indefinite) → q_zeilberger (recurrence) →
 q_wz_certificate (proof) — each built on the last.
 

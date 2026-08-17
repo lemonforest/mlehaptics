@@ -56,7 +56,7 @@ uses the carrier's own truncated-theta eval :meth:`~srmech.apokatastasis.ellbase
 eval_trunc`, an exact-ℚ truncated product — NOT a standalone numeric theta). Sign is the
 **Class-K** pin-slot via the ``Q`` / ``EllMonomial`` sign-branch (the ``|e| == 2``
 very-well-poised detection is a ``e == 2 or e == -2`` Class-K branch, never an ALU
-``abs()``); no ``math`` module, no numpy.
+``abs()``); no ``math`` module.
 
 C peer: ``srmech_elliptic_recurrence_8w7`` (``c/src/srmech_elliptic_recurrence.c``) is a
 1:1 mirror of this recognize-decompose-construct pipeline over the integer

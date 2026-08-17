@@ -1,4 +1,4 @@
-"""Gauge theory: Yang-Mills generators, structure constants, Casimirs, holonomies (numpy-free).
+"""Gauge theory: Yang-Mills generators, structure constants, Casimirs, holonomies.
 
 Per ``[[feedback_science_is_ssot_not_project]]``: each operation cites
 canonical gauge-theory literature.
@@ -113,7 +113,7 @@ def _eye(n: int) -> "Mat":
 
 
 def _trace(m: "Mat") -> complex:
-    """Matrix trace ``Σ_i M[i, i]`` as a plain ``complex`` (numpy-free)."""
+    """Matrix trace ``Σ_i M[i, i]`` as a plain ``complex``."""
     return sum(m[i, i] for i in range(m.n_rows))
 
 

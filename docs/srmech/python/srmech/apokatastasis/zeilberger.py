@@ -47,7 +47,7 @@ The whole pipeline stays EXACT over ``ℚ`` — every polynomial is built on the
 bigint :class:`~srmech.math.q.Q` / :class:`~srmech.math.poly.Poly` carriers (no
 magnitude ceiling), every solve is exact Gauss-Jordan over ``ℚ``. There is NO
 float anywhere; sign is the **Class-K** pin-slot via the ``Q`` sign-branch (never
-an ALU ``abs()``); no ``math`` module, no numpy.
+an ALU ``abs()``); no ``math`` module.
 
 C peer: ``srmech_zeilberger`` (``c/src/srmech_zeilberger.c``) orchestrates the
 SAME existing C kernels — the ``srmech_poly_*`` algebra (the bivariate handling
@@ -672,7 +672,7 @@ def bipoly_from_coeffs(coeffs) -> BiPoly:
 
     Ints only (a ``bool`` / ``float`` / ``str`` leaf is an honest
     ``TypeError`` — the exact-``ℚ`` prose discipline; integers are exact). No
-    float, no ``abs()``, no numpy / ``math``."""
+    float, no ``abs()``, no ``math``."""
     from ..math.poly import _prose_int
     if isinstance(coeffs, tuple):
         coeffs = list(coeffs)

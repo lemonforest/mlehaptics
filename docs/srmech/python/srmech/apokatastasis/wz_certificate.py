@@ -58,7 +58,7 @@ The whole pipeline stays EXACT over ``ℚ`` — every polynomial is a
 :class:`~srmech.math.poly.Poly` over the bigint :class:`~srmech.math.q.Q`, no
 magnitude ceiling), the verify a coefficient-by-coefficient compare. There is NO
 float anywhere; sign is the **Class-K** pin-slot via the ``Q`` sign-branch (never
-an ALU ``abs()``); no ``math`` module, no numpy. This is the **Σ-row closer** of
+an ALU ``abs()``); no ``math`` module. This is the **Σ-row closer** of
 the F929 closure-dispatch: gosper (indefinite) → zeilberger (recurrence) →
 wz_certificate (proof).
 

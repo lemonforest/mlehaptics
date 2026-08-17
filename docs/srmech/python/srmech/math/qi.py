@@ -24,7 +24,7 @@ identities over the Class-N ``Q`` arithmetic — ``(a+bi)(c+di) = (ac-bd)+(ad+bc
 norm ``c²+d²`` (Class N). ``complex(qi)`` is the one boundary collapse back to the
 builtin; ``abs(qi)`` rides the Class-N :func:`srmech.math.rational.sqrt`
 (exact ``Q`` when the squared modulus is a perfect rational square, else the
-stay-rational boundary). No ``math`` module, no numpy.
+stay-rational boundary). No ``math`` module.
 """
 
 from __future__ import annotations

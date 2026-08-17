@@ -56,7 +56,7 @@ rational function of ``q`` (the rc55 ``_Cq``: a reduced ``(num, den)`` pair of
 :class:`~srmech.math.poly.Poly` over ℚ, bigint, no magnitude ceiling), every solve is
 exact Gauss-Jordan over ``ℚ(q)``. There is NO float anywhere; sign is the **Class-K**
 pin-slot via the ``Q`` / ``Poly`` sign-branch (never an ALU ``abs()``); no ``math``
-module, no numpy. This op PARAMETRIZES the rc55 q-Gosper engine (it imports and
+module. This op PARAMETRIZES the rc55 q-Gosper engine (it imports and
 reuses the ``_Cq`` field + the ``_rref_cq`` ℚ(q) Gauss-Jordan rather than
 re-deriving them); the q-row continues with the q-WZ proof op (rc57), which reuses
 this op's order-1 path + the certificate/verify shape.

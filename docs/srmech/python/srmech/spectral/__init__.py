@@ -299,7 +299,7 @@ def _spectral_recompose_native(V, coeffs_bytes, n):
 
 def _eigenbasis(laplacian_mat: "Mat", desc_hash: str):
     """Return cached ``(eigvals_list, V_Mat)`` for ``laplacian_mat`` or compute
-    it via the numpy-free native Hermitian eigendecomposition and cache it.
+    it via the native Hermitian eigendecomposition and cache it.
 
     ``eigvals_list`` is the list of real eigenvalues; ``V_Mat`` is the
     eigenvector ``Mat`` (columns = eigenvectors).

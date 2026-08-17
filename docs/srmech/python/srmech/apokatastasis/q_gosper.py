@@ -47,7 +47,7 @@ The whole pipeline stays EXACT — every q-coefficient is an exact rational func
 of ``q`` (a reduced ``(num, den)`` pair of :class:`~srmech.math.poly.Poly` over ℚ,
 bigint, no magnitude ceiling), every solve is exact Gauss-Jordan over ``ℚ``. There
 is NO float anywhere; sign is the **Class-K** pin-slot via the ``Q`` / ``Poly``
-sign-branch (never an ALU ``abs()``); no ``math`` module, no numpy. This is the
+sign-branch (never an ALU ``abs()``); no ``math`` module. This is the
 **q-Gosper** rung of the q-hypergeometric F929 row (the row continues with the
 q-Zeilberger recurrence-finder rc56, which parametrizes THIS engine with unknown
 ``a_j(n)``); the internals are factored to be reused there.

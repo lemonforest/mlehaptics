@@ -281,7 +281,7 @@ class Mat:
     def _elementwise(self, other, op, *, reflected: bool = False):
         """``self ⊙ other`` (or ``other ⊙ self`` when reflected), elementwise,
         for ``other`` a scalar (numpy-broadcast), a :class:`Mat`, or a 2-D
-        sequence of the SAME shape. Numpy-free; format-preserving. Note ``*`` is
+        sequence of the SAME shape. Format-preserving. Note ``*`` is
         the **elementwise** (Hadamard) product, exactly like numpy — matrix
         multiply is ``@`` (:meth:`__matmul__`). Class-K sign lives in the values;
         no ``abs()``."""
@@ -439,7 +439,7 @@ def _is_matrix_like(x) -> bool:
 def _carrier_is_complex(x) -> bool:
     """``True`` if any element of ``x`` carries a non-zero imaginary part (or its
     carrier is complex-typed) — the dtype gate the carrier ``@`` uses to choose
-    the real vs complex Class-L peer. Numpy-free."""
+    the real vs complex Class-L peer."""
     if hasattr(x, "is_complex"):
         return bool(x.is_complex)
     try:

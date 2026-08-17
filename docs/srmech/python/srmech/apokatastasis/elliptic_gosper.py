@@ -84,7 +84,7 @@ lives in ``ThetaSum``, never a converging-eval witness):
 The public op returns the certificate ``R`` as its ``EllRatio`` operands —
 ``{"prefactor": EllMonomial-as-(coeff, exps), "num": [theta-arg, …], "den":
 [theta-arg, …]}`` — or ``None``. Sign is the **Class-K** pin-slot via the ``Q`` /
-``EllMonomial`` sign-branch (never an ALU ``abs()``); no ``math`` module, no numpy.
+``EllMonomial`` sign-branch (never an ALU ``abs()``); no ``math`` module.
 This is the **elliptic-Gosper** rung of the ELLIPTIC F929 row (the row continues
 with the elliptic-Zeilberger recurrence-finder rc62, which parametrizes THIS engine,
 then the elliptic-WZ proof op rc63); the internals are factored to be reused there.

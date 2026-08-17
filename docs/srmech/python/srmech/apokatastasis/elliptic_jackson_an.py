@@ -157,7 +157,7 @@ def multivariate_elliptic_jackson_an(z, a, q, N: int, *, verify: bool = False):
     :class:`EllMonomial`, and ``N ≥ 1`` the simplex ceiling. The balancing ``w`` is
     COMPUTED from ``z`` and ``a`` (never a free input). Raises ``TypeError`` /
     ``ValueError`` on a malformed operand. Constructive + exact over the
-    modified-theta algebra (no float, no ``abs()``, no numpy). This is the Aₙ member
+    modified-theta algebra (no float, no ``abs()``). This is the Aₙ member
     of the elliptic Σ-row — see the module docstring for the MPM-verified reference
     (source sha256 ``299d2738c4539a390a437c795a0b0084a5c82d403566c4f549db39482e3076ce``).
 
@@ -218,7 +218,7 @@ def an_vwp_multisum_lhs(z, a, q, N: int):
     an int. Raises ``TypeError`` / ``ValueError`` on a malformed operand. Each
     composition's summand is an :class:`~srmech.apokatastasis.ellbase.EllRatio`
     (theta-quotient); the compositions are summed into one exact ``ThetaSum`` in
-    ascending lexicographic order. No float, no numpy, no ``math``. NOTE the
+    ascending lexicographic order. No float, no ``math``. NOTE the
     term-count is ``C(N+n−1, n−1)`` — the build cost grows combinatorially, and
     DECIDING anything about the result (``is_zero``) has the measured feasibility
     frontier documented at :data:`_VERIFY_MAX_COMPOSITIONS`; the CONSTRUCTION
@@ -287,7 +287,7 @@ def _an_lhs_thetasum(zz, aa, qq: EllMonomial, N: int):
     is the :class:`EllRatio` prefactor (sign = Class-K via the ``EllMonomial``
     sign-branch, never ``abs()``); the balancing ``w = ∏zⱼ·∏aⱼ`` an
     :class:`EllMonomial`. The compositions are summed in ascending lexicographic
-    order. No float, no numpy, no ``abs()``."""
+    order. No float, no ``abs()``."""
     from .thetasum import ThetaSum
 
     n = len(zz)

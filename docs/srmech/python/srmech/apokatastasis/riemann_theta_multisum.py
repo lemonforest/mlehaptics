@@ -80,7 +80,7 @@ WHAT THIS ROW BUILDS (exact, following the Aₙ rc227 pattern)
   elliptic rows' ``p = 0`` oracle) for every ``n`` in the tested range.
 
 Exact over the theta-bracket algebra: no float, no ``abs()`` (the odd-theta
-antisymmetry sign is the Class-K pin-slot via the ``EllMonomial`` / ``Q`` sign-branch),
+antisymmetry sign is the Class-K pin-slot via the ``EllMonomial`` / ``Q`` sign-branch).
 :func:`riemann_theta_multisum_lhs` returns a ``ThetaBracketSum`` and
 :func:`multivariate_riemann_theta_sum` a ``{"closed_form": ThetaBracketSum,
 "verified": bool}`` mapping; each ``ThetaBracket`` wraps an ``EllMonomial`` whose
@@ -161,7 +161,7 @@ class ThetaBracket:
 
 
 class ThetaBracketSum:
-    """A numpy-free EXACT element of the free commutative ℤ-algebra over genus-``g``
+    """An EXACT element of the free commutative ℤ-algebra over genus-``g``
     odd-theta BRACKETS ``[u]`` — a ``ℤ``-linear SUM of bracket PRODUCTS
     ``coeff · [u_1]·[u_2]·…`` (each ``[u_i]`` :func:`_odd`-canonicalized, the antisymmetry
     ``±1`` folded into ``coeff``). Immutable, exact (integer/``Q`` coefficients, integer

@@ -42,7 +42,7 @@ Everything stays exact over ``ℚ[q]`` (each cell a bigint ``QPoly``); ``+`` / `
 ``*`` ride ``QPoly``'s exact ``ℚ[q]`` arithmetic; the q-shifts ride
 :meth:`QPoly.qshift` (σ_x) and a pure ``ℚ[q]`` ``Y``-degree monomial multiply (σ_y).
 Sign is the **Class-K** pin-slot via the ``QPoly`` / ``Poly`` / ``Q`` sign-branches
-(never an ALU ``abs()``). No ``math`` module, no numpy.
+(never an ALU ``abs()``). No ``math`` module.
 
 The carrier is internal-to-the-q-Zeilberger-arc (like ``BiPoly`` is to
 ``zeilberger`` — not a standalone ToolEntry); it is the q-row peer of ``BiPoly`` /
@@ -316,7 +316,7 @@ def qbipoly_from_coeffs(coeffs) -> QBiPoly:
     unreachable by prose. A **non_compute BUILDER** (the
     ``coupling.from_bodies`` / ``text.cooccurrence_edges`` precedent): it
     constructs an operand; every computation lives in the ops that consume it.
-    No float, no ``abs()``, no numpy / ``math``.
+    No float, no ``abs()``, no ``math``.
 
     Raises:
         TypeError: ``coeffs`` is not a Y-ascending list of x-cell lists. As in

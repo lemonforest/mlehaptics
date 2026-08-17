@@ -64,7 +64,7 @@ construction of ``ρ`` are Warnaar, *Constr. Approx.* 18 (2002) 479–502, Corol
 
 Exact over the modified-theta algebra (no float on the decision path; sign is the
 **Class-K** pin-slot via the ``Q`` / ``EllMonomial`` sign-branch, never an ALU ``abs()``;
-no ``math``, no numpy). C peer: ``srmech_elliptic_zeilberger`` (a 1:1 mirror that builds
+no ``math``). C peer: ``srmech_elliptic_zeilberger`` (a 1:1 mirror that builds
 the same recognize→ρ→certificate pipeline and decides the certificate via the shared
 ``srmech_thetasum_is_zero`` kernel; the Python dispatch trusts the native result only after
 re-deciding the certificate in exact ℚ). Caller-arena, malloc-free, JPL-clean.

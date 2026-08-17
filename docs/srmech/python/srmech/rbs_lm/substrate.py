@@ -45,7 +45,7 @@ def token_seed(name: str, hex_chars: int) -> int:
 
 def _sector_const(D: int, sector: int) -> bytes:
     """A length-``D`` Klein-4 constant vector with every position == ``sector``
-    (the (F₂)²-XOR sector key). numpy-free; ``hdc.klein4_bind`` coerces bytes."""
+    (the (F₂)²-XOR sector key). ``Hdc.klein4_bind`` coerces bytes."""
     return bytes([sector]) * D
 
 
@@ -199,7 +199,7 @@ def scale_signature(parts):
     every scale (byte→word→phrase→sentence); an incoherent fold (chained-bind)
     collapses toward chance. The returned exact :class:`Q` rational in ``[0, 1]``
     is the mean retained similarity; a tight spread across positions IS the
-    scale-invariance the byte/glyph LM is built on. numpy-free; composes
+    scale-invariance the byte/glyph LM is built on. Composes
     :func:`hdc.klein4_compose` + :func:`hdc.klein4_similarity` (both native)."""
     parts = list(parts)
     if len(parts) < 2:

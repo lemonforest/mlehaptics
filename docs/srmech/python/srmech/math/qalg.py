@@ -42,7 +42,7 @@ A ``_same_field`` guard requires equal ``m`` on every binary op (``ValueError``
 on mismatch). ``Qalg`` is NOT registered with ``numbers.Complex`` /
 ``numbers.Number`` — registering a numeric ABC obligates the FULL dunder protocol
 (the rc10/rc11 ``Fraction``-protocol trap), so ``Qalg`` stays a standalone exact
-carrier with just the dunders documented here. No ``math`` module, no numpy, no
+carrier with just the dunders documented here. No ``math`` module, no
 ``float`` in the algebra (only at the terminal projection).
 """
 

@@ -80,7 +80,7 @@ def _check_ba(b, a, where: str = ""):
 
 
 def _lfilter_direct(b: Sequence[float], a: Sequence[float], x: Sequence[float]):
-    """Direct-form-II transposed IIR filter (closed-form reference), numpy-free.
+    """Direct-form-II transposed IIR filter (closed-form reference).
 
     The Class-C recursive cascade of the Class-N ``b/a`` rational over a plain
     ``list`` carrier; ``y[i]`` and the state ``z`` are accumulated by explicit
