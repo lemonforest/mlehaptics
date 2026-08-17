@@ -31,7 +31,9 @@ This op CONSTRUCTS the closed form (the right-hand side) as an exact
 ``EllMonomial`` prefactor ``∏_{i<j} x_j y_j`` and the theta numerator / denominator above.
 It is a CONSTRUCTIVE elliptic identity op (the peer of :meth:`ThetaSum.three_term`), exact
 over the modified-theta algebra: no float, no ``abs()`` (sign is the Class-K pin-slot via
-the ``Q`` / ``EllMonomial`` sign-branch), no ``math`` / numpy. The identity is MPM-verified
+the ``Q`` / ``EllMonomial`` sign-branch). It returns a single ``EllRatio`` whose prefactor
+coefficient is an exact :class:`~srmech.math.q.Q` — closed-form on the ALU, with no
+evaluation step. The identity is MPM-verified
 at build (Rosengren Ex 1.6.6; numerically exact n=2,3,4 in high precision) and pinned by
 ``test_elliptic_determinant_rc94.py`` (the constructed closed form's exact-ℚ truncated-theta
 eval equals the determinant of the theta matrix, computed by cofactor expansion).

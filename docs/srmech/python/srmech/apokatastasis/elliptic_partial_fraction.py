@@ -31,7 +31,9 @@ product ``∏_k θ(x/z_k)/θ(x/y_k)`` — as an exact :class:`~srmech.apokatasta
 (a sum of ``n`` theta-quotient terms). It is a CONSTRUCTIVE elliptic identity op (the
 multivariable peer of :meth:`ThetaSum.three_term`), exact over the modified-theta algebra:
 no float, no ``abs()`` (sign is the Class-K pin-slot via the ``Q`` / ``EllMonomial``
-sign-branch), no ``math`` / numpy. The identity is MPM-verified at build (Rosengren Eq. 1.22;
+sign-branch). It returns a ``ThetaSum`` — the additive carrier, since the multiplicative
+``EllRatio`` is not additively closed — with exact :class:`~srmech.math.q.Q` coefficients.
+The identity is MPM-verified at build (Rosengren Eq. 1.22;
 numerically exact n=2,3,4 in high precision, INCLUDING the ``1/θ(Y/Z)`` factor) and pinned
 by ``test_elliptic_partial_fraction_rc95.py`` (the constructed sum's exact-ℚ truncated-theta
 eval equals the left-hand product).

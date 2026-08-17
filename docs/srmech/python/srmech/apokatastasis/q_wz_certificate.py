@@ -149,7 +149,10 @@ def q_wz_certificate(rn_num, rn_den, rk_num, rk_den) -> Optional[Dict[str, objec
     Returns ``{"certificate": {"num": QBiPoly, "den": QBiPoly}, "verified": True}``
     when a q-WZ certificate exists AND verifies, else ``None`` (the term is not
     q-WZ-summable). Exact over ``ℚ[q]`` (bigint, no magnitude ceiling); no float, no
-    ``abs()`` (the sign is the Class-K pin-slot), no ``math`` / numpy. See the module
+    ``abs()`` (the sign is the Class-K pin-slot). The certificate's ``num`` / ``den``
+    are :class:`~srmech.math.qbipoly.QBiPoly` in ``(X, Y) = (q**n, q**k)`` over exact
+    :class:`~srmech.math.q.Q`, and ``verified`` is a ``bool`` decided structurally —
+    closed-form on the ALU, never a converging witness. See the module
     docstring for the full q-WZ pipeline. ``rn_den`` / ``rk_den`` must be nonzero (a
     term ratio has a nonzero denominator) — ``ValueError`` otherwise."""
     rn_n = QBiPoly.coerce(rn_num)

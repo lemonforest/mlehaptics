@@ -98,7 +98,10 @@ class BiPoly:
     coefficients are :class:`~srmech.math.poly.Poly` in ``n``. Immutable, trimmed
     of trailing-zero ``k``-coefficients (the zero polynomial is the empty term
     list). The exact substrate the Zeilberger term-ratio ``r_n(n,k)`` / ``r_k(n,k)``
-    operands ride. No float, no ``abs()`` (Class-K sign), no ``math`` / numpy."""
+    operands ride. No float, no ``abs()`` (Class-K sign): ``terms`` is a tuple of
+    :class:`~srmech.math.poly.Poly`, each holding exact :class:`~srmech.math.q.Q`
+    coefficients, and every operator method (:meth:`shift_n`, :meth:`shift_k`,
+    :meth:`scale_n`) returns a new ``BiPoly`` — closed-form on the ALU."""
 
     __slots__ = ("_t",)
 
@@ -269,7 +272,10 @@ def zeilberger(rn_num, rn_den, rk_num, rk_den, max_order: int = 6
     ``None`` when no such recurrence of order ≤ ``max_order`` exists.
 
     Exact over ``ℚ`` (bigint, no magnitude ceiling); no float, no ``abs()`` (the
-    sign is the Class-K pin-slot), no ``math`` / numpy. See the module docstring
+    sign is the Class-K pin-slot). ``order`` comes back a plain ``int``; every
+    ``coeffs`` entry is a :class:`~srmech.math.poly.Poly` in ``n`` and ``certificate``
+    a :class:`BiPoly`, both bottoming out in exact :class:`~srmech.math.q.Q`
+    rationals — closed-form on the ALU. See the module docstring
     for the creative-telescoping pipeline. ``rn_den`` / ``rk_den`` must be nonzero
     (a term ratio has a nonzero denominator) — ``ValueError`` otherwise."""
     rn_n = BiPoly.coerce(rn_num)

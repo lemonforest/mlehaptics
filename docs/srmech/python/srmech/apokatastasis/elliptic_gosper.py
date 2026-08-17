@@ -100,7 +100,10 @@ algebra) + ``srmech_thetasum_*`` (is_zero) kernels (the everything-mirrors no-do
 copy discipline). A ``has = 0`` is never a definitive "no certificate" — the Python
 dispatch re-runs the COMPLETE pure-Python body (the parity oracle + full-coverage
 decider) and re-verifies any ``has = 1`` in exact ``ℚ`` before trusting it. Caller-
-arena, malloc-free, JPL-clean; no ``abs()`` (Class-K sign), no ``math`` / numpy.
+arena, malloc-free, JPL-clean; no ``abs()`` (Class-K sign). The certificate it hands
+back is the same exact :class:`~srmech.apokatastasis.ellbase.EllRatio` the Python body
+builds — an ``EllMonomial`` prefactor over exact :class:`~srmech.math.q.Q` plus theta
+numerator / denominator tuples.
 """
 
 from __future__ import annotations
@@ -341,7 +344,10 @@ def elliptic_gosper(r) -> Optional[Dict[str, object]]:
     structurally via the additive :attr:`~srmech.apokatastasis.thetasum.ThetaSum.is_zero`
     (the theta-quotient :class:`EllRatio` is multiplicatively but not additively
     closed, so the residual is formed in ``ThetaSum`` — never a converging-eval
-    witness). No float, no ``abs()`` (Class-K sign), no ``math`` / numpy. See the
+    witness). No float, no ``abs()`` (Class-K sign). On success the returned mapping
+    carries the certificate under ``"certificate"`` as an exact :class:`EllRatio`,
+    alongside its wire form (``"prefactor"`` / ``"num"`` / ``"den"``, integer
+    theta-exponent dicts) — closed-form on the ALU. See the
     module docstring for the full elliptic-Gosper / theta-Petkovšek pipeline + the
     verified Gasper–Schlosser reference.
     """

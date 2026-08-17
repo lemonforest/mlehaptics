@@ -78,7 +78,10 @@ class QBiPoly:
     (the zero polynomial is the empty term list). The q-analog of
     :class:`~srmech.apokatastasis.zeilberger.BiPoly`; the exact substrate the q-Zeilberger
     term-ratio ``r_n(X,Y)`` / ``r_k(X,Y)`` operands ride. No float, no ``abs()``
-    (Class-K sign), no ``math`` / numpy. See the module docstring."""
+    (Class-K sign): ``terms`` is a tuple of :class:`~srmech.math.qpoly.QPoly`, whose
+    cells are :class:`~srmech.math.poly.Poly` over exact :class:`~srmech.math.q.Q`,
+    and every operator method (:meth:`qshift_x`, :meth:`qshift_y`, :meth:`scale_x`)
+    returns a new ``QBiPoly`` — closed-form on the ALU. See the module docstring."""
 
     __slots__ = ("_t",)
 

@@ -103,7 +103,10 @@ def gosper(num, den) -> Optional[Dict[str, Poly]]:
       ratio ``k/(k+1)``), returns ``None``.
 
     Exact over ``ℚ`` (bigint, no magnitude ceiling); no float, no ``abs()`` (the
-    sign is the Class-K pin-slot), no ``math`` / numpy. See the module docstring
+    sign is the Class-K pin-slot). Both returned ``num`` and ``den`` are
+    :class:`~srmech.math.poly.Poly`, whose coefficients are exact
+    :class:`~srmech.math.q.Q` rationals — closed-form on the ALU, so ``R(k)`` can be
+    shifted and multiplied without ever leaving ``ℚ``. See the module docstring
     for the full Gosper / PWZ pipeline. ``den`` must not be the zero polynomial
     (a term ratio has a nonzero denominator) — ``ValueError`` otherwise.
     """

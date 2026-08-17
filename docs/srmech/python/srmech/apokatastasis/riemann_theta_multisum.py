@@ -81,7 +81,11 @@ WHAT THIS ROW BUILDS (exact, following the Aₙ rc227 pattern)
 
 Exact over the theta-bracket algebra: no float, no ``abs()`` (the odd-theta
 antisymmetry sign is the Class-K pin-slot via the ``EllMonomial`` / ``Q`` sign-branch),
-no ``math`` / numpy. 1:1 C peer ``srmech_riemann_theta_multisum_lhs`` /
+:func:`riemann_theta_multisum_lhs` returns a ``ThetaBracketSum`` and
+:func:`multivariate_riemann_theta_sum` a ``{"closed_form": ThetaBracketSum,
+"verified": bool}`` mapping; each ``ThetaBracket`` wraps an ``EllMonomial`` whose
+coefficient is an exact :class:`~srmech.math.q.Q`. 1:1 C peer
+``srmech_riemann_theta_multisum_lhs`` /
 ``srmech_riemann_theta_multisum_rhs`` build the SAME bracket products; the pure-Python
 body here is the COMPLETE alternative + the C peers' parity oracle.
 """
@@ -355,7 +359,9 @@ def riemann_theta_multisum_lhs(z, points):
     (the native ``ThetaBracketSum`` is trusted ONLY after it is rebuilt and confirmed ``==``
     the pure-Python one, which is the COMPLETE alternative + the C peer's parity oracle);
     otherwise the pure result is returned. Exact over the theta-bracket algebra — no float,
-    no ``abs()`` (Class-K odd-theta sign), no ``math`` / numpy."""
+    no ``abs()`` (Class-K odd-theta sign). Returns a :class:`ThetaBracketSum` whose terms
+    are :class:`ThetaBracket` products over ``EllMonomial`` with exact
+    :class:`~srmech.math.q.Q` coefficients — closed-form on the ALU."""
     zz, pts, n = _coerce_operand(z, points, "riemann_theta_multisum_lhs")
     pure = _lhs_py(zz, pts, n)
     native = _lhs_c(zz, pts, n)

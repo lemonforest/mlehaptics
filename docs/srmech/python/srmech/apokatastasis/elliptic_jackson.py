@@ -33,7 +33,11 @@ This op CONSTRUCTS the closed-form right-hand side — the reduced theta-quotien
 an exact :class:`~srmech.apokatastasis.ellbase.EllRatio`. It is the Cₙ member of the elliptic Σ-row of
 the F929 dispatch table (peer of the ₈ω₇ reducer one root-system rank up), exact over the
 modified-theta algebra: no float, no ``abs()`` (sign is the Class-K pin-slot via the ``Q`` /
-``EllMonomial`` sign-branch), no ``math`` / numpy. The parameters ``(a, b, c, d, x, q, N, n)``
+``EllMonomial`` sign-branch). :func:`multivariate_elliptic_jackson` returns that closed form
+as an ``EllRatio`` (or, with ``verify=True``, a ``{"closed_form": EllRatio, "verified":
+bool}`` mapping), while :func:`cn_vwp_multisum_lhs` returns the LEFT side as a ``ThetaSum``;
+both carry exact :class:`~srmech.math.q.Q` coefficients.
+The parameters ``(a, b, c, d, x, q, N, n)``
 define a BALANCED sum (``e`` is fixed by ``e = a²q^{N+1}/(bcd·x^{n-1})``, so the balancing
 holds by construction); the identity is MPM-verified at build (Rosengren Thm 2.1 Eq 5;
 numerically exact n=2,3 / small N in high precision) and the reduction (the n-fold sum equals

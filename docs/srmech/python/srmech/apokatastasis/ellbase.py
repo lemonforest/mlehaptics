@@ -788,7 +788,10 @@ def elliptic_lagrange_basis(points: "List[EllMonomial]",
     (the unknown elliptic certificate's numerator lives in such a ``V_t``). Returns the
     ``k`` basis :class:`EllRatio` theta-products (un-normalized; the ``c_i`` absorb the
     scale). Exact over the modified-theta algebra — no float, no ``abs()`` (sign is the
-    Class-K pin-slot), no ``math`` / numpy.
+    Class-K pin-slot). Each returned :class:`EllRatio` carries an
+    :class:`EllMonomial` prefactor whose coefficient is an exact
+    :class:`~srmech.math.q.Q` and whose theta numerator / denominator are tuples of
+    :class:`Theta`, so the whole basis is closed-form on the ALU.
 
     DISPATCHES to the native ``srmech_elliptic_lagrange_basis`` C peer when it is
     loaded (a 1:1 structural mirror of this exact construction — the C basis EQUALS

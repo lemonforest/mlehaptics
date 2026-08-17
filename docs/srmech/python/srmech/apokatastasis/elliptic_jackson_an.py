@@ -57,7 +57,11 @@ and :func:`multivariate_elliptic_jackson_an` constructs the RIGHT-hand side (the
 closed-form theta-quotient); ``(LHS − RHS).is_zero`` is the per-call proof.
 
 Exact over the modified-theta algebra: no float, no ``abs()`` (sign is the
-Class-K pin-slot via the ``EllMonomial`` sign-branch), no ``math`` / numpy.
+Class-K pin-slot via the ``EllMonomial`` sign-branch). :func:`an_vwp_multisum_lhs`
+returns the simplex sum as a ``ThetaSum``; :func:`multivariate_elliptic_jackson_an`
+returns the closed form as an ``EllRatio`` (or a ``{"closed_form": EllRatio,
+"verified": bool}`` mapping under ``verify=True``). Both carry exact
+:class:`~srmech.math.q.Q` coefficients — closed-form on the ALU.
 """
 
 from __future__ import annotations

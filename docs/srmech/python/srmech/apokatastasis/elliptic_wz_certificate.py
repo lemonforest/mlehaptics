@@ -126,7 +126,11 @@ def elliptic_wz_certificate(r) -> Optional[Dict[str, object]]:
     A literal Wilf–Zeilberger pair is provably dead for the elliptic case (the rc90
     finding); the proof is the literature's connection-coefficient induction, decided
     EXACTLY — never a converging witness. No float on the decision path, no ``abs()``
-    (Class-K sign), no ``math`` / numpy. See the module docstring for the full proof
+    (Class-K sign). The returned mapping is plain data — ``identity`` and the
+    ``certificate`` fields are ``str``, ``verified`` is a ``bool``, and ``closed_form``
+    holds the ₈ω₇ right-hand side in integer-exponent theta wire form (``num`` / ``den``
+    lists of ``{symbol: exponent}``) — so it serialises without an evaluation step.
+    See the module docstring for the full proof
     structure + the MPM-verified Rosengren reference.
     """
     r = _coerce_ratio(r)

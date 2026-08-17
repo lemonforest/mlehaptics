@@ -573,7 +573,10 @@ def q_gosper(rn_num, rn_den) -> Optional[Dict[str, QPoly]]:
       un-summable residue, like ``gosper`` on the harmonic term).
 
     Exact over ``ℚ(q)`` (bigint, no magnitude ceiling); no float, no ``abs()`` (the
-    sign is the Class-K pin-slot), no ``math`` / numpy. See the module docstring for
+    sign is the Class-K pin-slot). Both returned ``num`` and ``den`` are
+    :class:`~srmech.math.qpoly.QPoly` Laurent polynomials in ``x``, whose cells are
+    :class:`~srmech.math.poly.Poly` in ``q`` over exact :class:`~srmech.math.q.Q` —
+    closed-form on the ALU. See the module docstring for
     the full q-Gosper / q-Petkovšek pipeline. ``rn_den`` must not be the zero
     polynomial (a term ratio has a nonzero denominator) — ``ValueError`` otherwise.
     """

@@ -202,7 +202,11 @@ def q_zeilberger(rn_num, rn_den, rk_num, rk_den, max_order: int = 6
     D_P``).
 
     Exact over ``ℚ(q)`` (bigint, no magnitude ceiling); no float, no ``abs()`` (the
-    sign is the Class-K pin-slot), no ``math`` / numpy. ``rn_den`` / ``rk_den`` must
+    sign is the Class-K pin-slot). ``order`` comes back a plain ``int``; every
+    ``coeffs`` entry is a :class:`~srmech.math.qpoly.QPoly` and ``certificate`` a
+    :class:`~srmech.math.qbipoly.QBiPoly`, both bottoming out in exact
+    :class:`~srmech.math.q.Q` rationals — closed-form on the ALU.
+    ``rn_den`` / ``rk_den`` must
     be nonzero (a term ratio has a nonzero denominator) — ``ValueError`` otherwise."""
     rn_n = QBiPoly.coerce(rn_num)
     rn_d = QBiPoly.coerce(rn_den)
