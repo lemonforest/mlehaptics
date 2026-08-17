@@ -489,8 +489,25 @@ from srmech.math.text import fold_marks, glyph_stream
 #: witness was read off ``search("rank", k=1).witness``. The corpus carries no
 #: path-based exclusion, so unlike ``citation_corpus`` the worktree reading is
 #: trustworthy here.
+#: rc444 (`#T1152`) re-pins it again, for the same legitimate reason as rc442: a
+#: PROSE EDIT moved it. rc444 edits in-package ``ToolEntry`` prose at six sites
+#: — ``triality_companions`` gains an ``exact`` parameter and a reworded summary,
+#: and the stale "exact-rational **Fraction** solve" / "force the exact
+#: **Fraction** solve" claim is corrected to ``Q`` on ``dense_solve`` /
+#: ``schur_complement`` / ``dirichlet_to_neumann`` (measured false: the leaves
+#: are ``srmech.math.q.Q``). The corpus is built from that prose, so the digest
+#: MUST move — a witness that did NOT move here would mean the corrected prose
+#: never reached the corpus, i.e. the shipped falsehood was still live.
+#:
+#: Measured in the order this note prescribes: ``regen_all.py --check`` reported
+#: all six generated files up to date FIRST, then the witness was read off
+#: ``search("rank", k=1).witness``. CROSS-CHECKED AGAINST CI rather than only
+#: against itself, exactly as the rc440 note requires: the ``fallback
+#: (pure-Python, no native) • shard 6/6`` job of run 32032764725 reported this
+#: digest (prefix ``91501f9106d6``, suffix ``31f0d8a163781``) on all three of
+#: these tests before the re-pin, and the local reading matches on both ends.
 WITNESS_RC416 = (
-    "0f8cfa9dc4bf44d4d038a90fbe1e745a7fd8c955625293b52d7e6a90efd78a0a")
+    "91501f9106d6e972241faf31fe8a1d480982679fd107c99e94431f0d8a163781")
 
 #: The ASCII control set. These four queries are the ops the tokenizer work is
 #: ABOUT, so a regression on them would be the change eating its own subject.

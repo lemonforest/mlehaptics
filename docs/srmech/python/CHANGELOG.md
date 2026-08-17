@@ -50,6 +50,63 @@ Every shard keeps the full liveness check — `HAS_NATIVE` plus `nm -u "$LIB" | 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc444]
+
+**`triality_companions` computed exact ℚ and threw it away — `exact=` gives it back (`#T1152`).** ABI stays **17** (no C symbol changed or added), registry stays **663** (a parameter, not a new op), `GENOME_FORMAT_VERSION` stays **20**. Every number below is measured by execution on this tree.
+
+### The one-line defect
+
+```python
+sol = _exact_solve_normal_equations(g, c, nvar)   # exact ℚ  -> List[Q]
+b_companion = [[float(sol[i * _DIM + j]) ...]]    # discarded HERE
+```
+
+rc443 made the solver's *input* right-hand side exact ℚ. The *output* was still narrowed at a `float()` boundary with **no escape for the caller**. `exact=True` is `return sol` instead of `[float(x) for x in sol]` — no new computation, no new type, no new C symbol.
+
+`exact=` is a **shipped convention on four ops**, three of them Class-L linear algebra (the same family as this solve): `dense_solve` / `schur_complement` / `dirichlet_to_neumann` → `list[list[Q]]`, and `jacobi_eigvals` → the exact-arithmetic route. Measured over the 663-entry registry **at rc443**, **57 ops (8.6%) already carried a carrier/regime selector**: `element_type` 22, `table` 19, `mode` 9, `exact` 4, `gammas` 2, `with_path` 1. **After this rc: 58 ops (8.7%), `exact` 5.** Stated both ways on purpose — this tree has a documented history of counts going stale precisely because nothing re-measured them, and the gate re-measures this one. A keyword that switches the return carrier is not a new contract, and `Q` is not a new type — it ships with **12 `srmech_qmat_*` C symbols**, so the `#T1141` projection gap is already closed.
+
+### The census that set the scope
+
+Structural AST pass over the package: *"produces exact ℚ, narrows to `float`/`complex` at the return boundary, declares no `exact=`"*. **218** functions carry an exact-production signal; **4** declare `exact=`; **5 direct hits + 12 propagating callers**. Exactly **one** family is a genuine candidate, so the whole population ships here — nothing is filed.
+
+| Class | Count | Members |
+|---|---|---|
+| **(a) exactness available and DISCARDED** | **1 direct + 2 propagated** | `_solve_companions` → `triality_companions`, `_companion_maps` |
+| (b) float inherent to the contract | 4 direct + 10 propagated | `mat_solve` (+`mat_lstsq`, `construct_eta_from_eigendecomposition`, `lmmse`, `map_ml`, the two complex helpers); `Poly.from_floats` (+`QPoly.from_floats`); `_recover_op_spectral` (+`recover_check`, `recover_check_spectral`); `_decanon` (+`reproject`) |
+| (c) precedent | 4 | `dense_solve`, `schur_complement`, `dirichlet_to_neumann`, `jacobi_eigvals` |
+
+(5 direct = 1 + 4; 12 propagated = 2 + 10.) Of the (a) family only the **public** `triality_companions` takes the parameter. `_companion_maps` is private, memoised, and iterates the `±1` `E_pq` generators, whose companions are dyadic (`{1, 2}` denominators) and therefore float64-exact — **measured**, so its `float()` discards nothing and it correctly stays on the float path.
+
+Why each (b) is genuinely (b), not a deferral: **`mat_solve`**'s input is *already* a float64 `Mat` and its `_solve_exact` call is the no-native **complete implementation** of a float problem — and the caller-facing exact escape already exists one level up as `dense_solve(exact=True)`, the public Class-L op that composes over it; adding `exact=` there would mint a second spelling of a shipped capability. **`from_floats`**' `float()` is an *input promotion* (float → exact ℚ) — the opposite direction, a detector false positive. **`_recover_op_spectral`** snaps a *float* eigenvalue to ℚ for a threshold test and returns bools plus `round()`ed diagnostics; exactness never existed upstream. **`_decanon`** is deserialisation.
+
+**`so8.py` was the brief's prime suspect and is NOT a candidate** — it is `triality`'s direct sibling, sharing `_epq_basis` / `_epq_coords`, so it was checked explicitly rather than by the sweep alone. Measured: so8's only exact-ℚ use is `_rank_exact`, which takes **float** columns, snaps them to ℚ, and returns an **`int` rank** — there is no rational to preserve, and the exactness is manufactured *from* float input rather than derived from exact input. `g2_subalgebra()` entries are the 5 integers `{-4, -2, 0, 2, 4}` (float64-exact, nothing lost); `so7_subalgebra()` entries are genuinely irrational (`±√3/2`, `±1/√6`, `±1/√2`, from an orthonormalisation / SVD nullspace), so no exact ℚ exists to return. And so8 never consumes the companion solve — `triality` imports **from** so8, not the reverse.
+
+### Where the float path actually loses — 13 operator families, measured
+
+The pre-rc444 docstring called the `float()` *"the ONE inexact step"* and exact *"whenever that rational is a float64"* without ever saying when it is not. Reading the raw ℚ solution before the `float()`:
+
+* **Consistent (skew, `A ∈ so(8)`) operands lose NOTHING.** Exact denominators come back in `{1, 2}` × the operand's own — over a single `E_pq`, a 6-generator sum, an integer-weighted sum, all 28 slots at distinct primes, the op's own `±1/2` output fed back in, and `/3` / `/10` float scalings: **0 of 128** entries non-representable in every case. That is *why* `S_B` / `S_C` / `tau` / `Fix(tau) = g2` are bit-identical across platforms — and it means that on the whole in-tree path `exact=True` returns the **same values**: an honest carrier, not new information. Pinned, so it cannot later be mis-stated as a bigger claim.
+* **Inconsistent (non-skew) operands DO lose.** Off `so(8)` Cartan's relation has no solution, the gauge-pinned least-squares genuinely **mixes** right-hand-side entries through the integer Gram's rational RREF, and denominators grow past `{1, 2}` (measured `{1, 4}` and `{1, 8}` on integer operands). Compose that with a non-dyadic float operand and the numerator outruns the 53-bit significand: on `(1/7)·M` for a dense non-skew integer `M`, **8 of 128** entries were not float64-representable — exact `74631079539282503/144115188075855872`, whose `float()` re-promotes to a *different* rational, `1166110617801289/2251799813685248`.
+* **The real prize is the exact ℚ *input*, and finding it changed the shape of this rc.** `_as_8x8` ends in `float(x)`, so it narrows at the **input** boundary too: a caller's `Q(1, 3)` became `0.3333333333333333` *before the solve ran*. An `exact=` that still floated its own operand would be **exact about a different operator** — declared-but-hollow, the shape the introspect contract exists to prevent. So the exact path routes through a new `_as_8x8_exact` and is exact end to end. `to_q` is lossless on every spelling it accepts, so a float operand behaves exactly as before.
+
+Cartan's relation is **linear** in `(A, B, C)`, so `Q(1,3)·E_01` has companions exactly `±1/6` — and **neither `1/6` nor `1/3` is a float64**. So rc443's linearity law `companions(k·A) = k·companions(A)` now holds **exactly**, where the float path can only approach it. That is the assertion rc443 could not make.
+
+### A real find: the `fractions.Fraction` prose was stale, in the SHIPPED registry
+
+Three precedent docstrings said the exact solve happens *"in `fractions.Fraction`"* **while promising a `Q` return in the same sentence**, and **five `ToolEntry` prose sites** said *"exact-rational Fraction solve"* / *"force the exact Fraction solve"* — text that reaches users through `describe()`, the MCP `tools/list` catalog and the compiled-in C registry. #845 moved the carrier to srmech's own `Q` and the prose did not follow.
+
+Measured by execution: the leaves are `srmech.math.q.Q`, and `isinstance(leaf, fractions.Fraction)` is **`False`**. A `Fraction` *input* is still accepted (`to_q` coerces it), which is why the stale claim stayed plausible — but **"accepts" and "computes in / returns" are different claims and only the first was ever true.** Corrected at all eight sites, and leg 4 of the gate re-measures it so it cannot rot again. `#T1077` tracks the broader `fractions` adjudication; only the claim measured false was touched.
+
+### The gate
+
+`tests/test_exact_return_carrier_rc444.py` — **15 tests in five legs**: exactness survives `exact=True` and is demonstrably lost at `exact=False` (with the `8 of 64` unrepresentable-entry count pinned so the leg cannot go vacuous); the linearity law in exact arithmetic over five rational coefficients; the default byte-identical to rc443 on an integer **and** a fractional operand, pinned to literals captured from `origin/main` at `3982ef4bf`; Cartan's relation closing at **exactly zero** ℚ deviation over all 64 basis pairs × 8 components; precedent-consistency pins on the carrier shape; and non-vacuity three independent ways.
+
+Two **negative controls** keep the legs measurements rather than tautologies: the float path is shown *not* to close Cartan exactly on a non-dyadic operand (while closing exactly on the integer one — which is why nothing in-tree ever noticed), and the `exact=` population is pinned at five so a sixth cannot appear silently.
+
+**One contradiction found and recorded rather than smoothed over:** `jacobi_eigvals(exact=True)` does **not** return an exact carrier. Measured, it returns a `Vec` of **floats** — `exact=` there selects the exact-arithmetic *route* with one terminal float lift, while the three Class-L solves hand back the `Q` carrier. Two co-valid readings of `exact=` ship. `triality_companions` follows the Class-L one (its result is a matrix with an exact carrier that ships), and both readings are now pinned by name.
+
+Discipline: numpy-free; the Class-K pin-slot `srmech.cascade.magnitude` (which is `Q`-preserving) wherever a deviation magnitude is taken, never `abs()`; no stdlib `fractions` / `math` / `decimal` in package code (the gate imports `fractions` at exactly one site, to prove a negative).
+
 ## [0.9.0rc443]
 
 **`triality_companions` ROUNDED the caller's operator (`#T1151`). No ABI bump (ABI stays 17; there is no C symbol for this op), no registry change (663), no format change.** Every number below is measured by execution on this tree, before and after.

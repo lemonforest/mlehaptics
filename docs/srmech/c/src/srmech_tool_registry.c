@@ -1488,17 +1488,17 @@ static const srmech_tool_param_t ts_params_64[] = {
 static const srmech_tool_param_t ts_params_65[] = {
     { "A", "Mat", 1, "n \303\227 n coefficient matrix; nested JSON list over MCP" },
     { "B", "Mat | Vec", 1, "right-hand side: n \303\227 w matrix or length-n vector" },
-    { "exact", "bool", 0, "force the exact Fraction solve (default False)" },
+    { "exact", "bool", 0, "force the exact-\342\204\232 Q solve (default False)" },
 };
 static const srmech_tool_param_t ts_params_66[] = {
     { "L", "Mat", 1, "n \303\227 n SPD operator (a graph Laplacian); nested JSON list over MCP" },
     { "boundary_idx", "list[int]", 1, "boundary node indices \342\210\202 (1 \342\211\244 |\342\210\202| \342\211\244 n)" },
-    { "exact", "bool", 0, "force the exact Fraction solve (default False)" },
+    { "exact", "bool", 0, "force the exact-\342\204\232 Q solve (default False)" },
 };
 static const srmech_tool_param_t ts_params_67[] = {
     { "L", "Mat", 1, "n \303\227 n SPD operator (a graph Laplacian); nested JSON list over MCP" },
     { "boundary_idx", "list[int]", 1, "boundary node indices \342\210\202 (1 \342\211\244 |\342\210\202| \342\211\244 n)" },
-    { "exact", "bool", 0, "force the exact Fraction solve (default False)" },
+    { "exact", "bool", 0, "force the exact-\342\204\232 Q solve (default False)" },
 };
 static const srmech_tool_param_t ts_params_68[] = {
     { "H", "Mat", 1, "n \303\227 n complex Hermitian matrix" },
@@ -3619,6 +3619,7 @@ static const srmech_tool_param_t ts_params_563[] = {
 };
 static const srmech_tool_param_t ts_params_564[] = {
     { "g_v", "Mat", 1, "8\303\2278 so(8) generator" },
+    { "exact", "bool", 0, "return the exact-\342\204\232 companions as list[list[Q]] instead of the float64 Mat (default False)" },
 };
 static const srmech_tool_param_t ts_params_565[] = {
     { "g_v", "Mat", 1, "8\303\2278 generator" },
@@ -6337,7 +6338,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech.math.laplacian.dense_solve",
         "srmech",
         "laplacian",
-        "Class-L dense linear solve A\302\267X = B (A n\303\227n; B/X n\303\227w matrix or length-n vector). The reusable solve schur_complement composes over. Native C peer (Gauss\342\200\223Jordan, partial pivoting, n,w \342\211\244 256); float realization rides the numpy-free Mat engine; exact-rational Fraction solve (Class-N core, exact=True).",
+        "Class-L dense linear solve A\302\267X = B (A n\303\227n; B/X n\303\227w matrix or length-n vector). The reusable solve schur_complement composes over. Native C peer (Gauss\342\200\223Jordan, partial pivoting, n,w \342\211\244 256); float realization rides the numpy-free Mat engine; exact-rational Q solve (Class-N exact-\342\204\232 core, exact=True).",
         ts_params_65, 3u,
         "Mat | Vec | list[list[Q]] | list[Q]",
         "X solving A\302\267X = B (shape of B)",
@@ -6357,7 +6358,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech.math.laplacian.schur_complement",
         "srmech",
         "laplacian",
-        "Class-L Schur complement / discrete Dirichlet-to-Neumann map S = L_\342\210\202\342\210\202 \342\210\222 L_\342\210\202i\302\267L_ii\342\201\273\302\271\302\267L_i\342\210\202 (the bulk integrated out; the operator|operand FUSION op). Exact-rational Fraction solve (Class-N core, exact=True); the float realization rides the numpy-free Mat engine (dense_solve -> mat_solve).",
+        "Class-L Schur complement / discrete Dirichlet-to-Neumann map S = L_\342\210\202\342\210\202 \342\210\222 L_\342\210\202i\302\267L_ii\342\201\273\302\271\302\267L_i\342\210\202 (the bulk integrated out; the operator|operand FUSION op). Exact-rational Q solve (Class-N core, exact=True); the float realization rides the numpy-free Mat engine (dense_solve -> mat_solve).",
         ts_params_66, 3u,
         "Mat | list[list[Q]]",
         "|\342\210\202| \303\227 |\342\210\202| boundary effective operator (DtN map)",
@@ -16317,9 +16318,9 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech.physics.qm.triality.triality_companions",
         "srmech",
         "qm.triality",
-        "The (g_s, g_c) companions solving Cartan's relation g_v(x\302\267y) = g_s(x)\302\267y + x\302\267g_c(y) by deterministic least-squares; for a g2 derivation g_s = g_c = g_v. Class M. Baez (2002) \302\2472.4.",
-        ts_params_564, 1u,
-        "tuple[Mat, ...]",
+        "The (g_s, g_c) companions solving Cartan's relation g_v(x\302\267y) = g_s(x)\302\267y + x\302\267g_c(y) by deterministic least-squares; for a g2 derivation g_s = g_c = g_v. The solve is exact-rational over Q; exact=True returns that exact carrier (list[list[Q]]) instead of the float64 Mat, and keeps the OPERAND exact too. Class M. Baez (2002) \302\2472.4.",
+        ts_params_564, 2u,
+        "tuple[Mat, ...] | tuple[list[list[Q]], ...]",
         "(g_s, g_c) companions",
         1,
         NULL,

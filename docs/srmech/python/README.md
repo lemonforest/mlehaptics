@@ -149,7 +149,7 @@ The PRIOR bump, **15 → 16 at v0.9.0rc439**, is kept here because its reasoning
 import srmech
 srmech.native_status()
 # {'has_native': True, 'dispatching': True, 'abi_version': 17,
-#  'expected_abi': 17, 'native_version': '0.9.0rc443', 'load_error': None}
+#  'expected_abi': 17, 'native_version': '0.9.0rc444', 'load_error': None}
 ```
 
 | Home (under `srmech.`) | Class | Primitive operation |

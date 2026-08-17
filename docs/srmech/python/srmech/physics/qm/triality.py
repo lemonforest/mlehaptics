@@ -192,6 +192,40 @@ def _as_8x8(value, op: str) -> List[List[float]]:
     return [[float(x) for x in r] for r in rows]
 
 
+def _as_8x8_exact(value, op: str) -> List[List[Q]]:
+    """The ``exact=True`` peer of :func:`_as_8x8` — coerce to an ``8×8`` nested
+    ``list[list[Q]]`` instead of ``list[list[float]]``, raising the SAME
+    ``ValueError`` on the same bad shapes (rc444, `#T1152`).
+
+    Why the exact path needs its own coercer. :func:`_as_8x8` ends in
+    ``float(x)``, so it is a NARROWING at the INPUT boundary: a caller's exact
+    ``Q(1, 3)`` operator entry becomes ``0.3333333333333333`` *before* the solve
+    ever runs. rc443 made the right-hand side exact ℚ, which removed the
+    rounding INSIDE the solve — but an ``exact=`` that still floated its own
+    operand would be exact about the WRONG operator, and would return a ``Q``
+    carrying the companions of ``float(1/3)`` rather than of ``1/3``. That is
+    precisely the "declared-but-hollow" shape the introspect contract exists to
+    prevent, so the exact path is exact end-to-end or not offered at all.
+
+    :func:`srmech.math.q.to_q` is the Class-N promotion and is LOSSLESS on every
+    spelling it accepts — ``Q`` (returned unchanged), ``int``, an ``(num, den)``
+    pair, and ``float`` (via ``as_integer_ratio``, exact). So a float operand
+    behaves EXACTLY as it does today: it promotes to its own exact rational and
+    the companions come back over that rational, bit-for-bit the same values the
+    float path computes (measured; see :func:`_solve_companions`).
+    """
+    if isinstance(value, Mat):
+        if value.shape != (_DIM, _DIM):
+            raise ValueError(f"{op}: must be 8x8; got {value.shape}")
+        rows = value.tolist()
+    else:
+        rows = [list(r) for r in value]
+        if len(rows) != _DIM or any(len(r) != _DIM for r in rows):
+            shape = (len(rows), len(rows[0]) if rows else 0)
+            raise ValueError(f"{op}: must be 8x8; got {shape}")
+    return [[to_q(x) for x in r] for r in rows]
+
+
 def _table_float() -> List[List[List[float]]]:
     """The octonion structure-constant tensor as nested ``float`` (numpy-free —
     the prior ``octonion_mult_table().astype(float)``)."""
@@ -315,7 +349,7 @@ def _exact_solve_normal_equations(g: List[List[int]], c: List[Q],
     return sol
 
 
-def _solve_companions(operator) -> Tuple[List[List[float]], List[List[float]]]:
+def _solve_companions(operator, *, exact: bool = False):
     """Solve ``A(x*y) = B(x)*y + x*C(y)`` for ``(B, C)`` given ``A`` (``8x8``).
 
     Deterministic over the 64 basis pairs ``(e_i, e_j)`` and 8 output
@@ -361,15 +395,47 @@ def _solve_companions(operator) -> Tuple[List[List[float]], List[List[float]]]:
     so ``tau`` / ``S_B`` / ``S_C`` / ``Fix(tau) = g2`` are BIT-IDENTICAL across
     the fix — only the public entry point on non-integer input moves.
 
-    EXACTNESS OF THE RETURN. On an INTEGER operator the companion maps are exact
-    DYADIC rationals (denominators in ``{1, 2}``), which are bit-exact in
-    float64 — that is what makes the downstream ``S_B`` / ``S_C`` / ``tau``
-    BIT-IDENTICAL on every platform. On a general operator the solve is still
-    exact over ℚ, with denominator dividing ``2 ×`` the operator's own; the
-    ``float()`` at the boundary is the ONE inexact step, and it is exact
-    whenever that rational is a float64 (e.g. any float-scalar multiple of an
-    integer operator, and so every case the linearity law covers). The return
-    type stays :class:`Mat` (float64).
+    EXACTNESS OF THE RETURN — and ``exact=`` (rc444, `#T1152`). Through rc443 the
+    exact ℚ solution was computed and then DISCARDED at a ``float()`` boundary,
+    with no escape for the caller. ``exact=True`` returns it instead:
+    ``list[list[Q]]`` per companion, matching what the four shipped ``exact=``
+    ops return (:func:`srmech.math.laplacian.dense_solve` /
+    :func:`~srmech.math.laplacian.schur_complement` /
+    :func:`~srmech.math.laplacian.dirichlet_to_neumann` on a matrix right-hand
+    side). ``exact=False`` (the default) is the verbatim float path and every
+    existing caller is byte-identical.
+
+    WHERE THE FLOAT PATH ACTUALLY LOSES — measured, not assumed
+    (rc444, ``[[feedback_an_asserted_algebraic_property_is_not_a_measured_one]]``).
+    The pre-rc444 prose above claimed the ``float()`` was "the ONE inexact step"
+    and exact "whenever that rational is a float64", without saying WHEN it is
+    not. Census over 13 operator families, reading the raw ℚ solution before the
+    ``float()``:
+
+    * **Consistent (skew, ``A ∈ so(8)``) operators lose NOTHING.** Denominators
+      come back in ``{1, 2}`` × the operand's own, over a single E_pq generator,
+      a 6-generator sum, an integer-weighted sum, all 28 slots at distinct
+      primes, the op's own ``±1/2`` output fed back in, and ``/3`` / ``/10``
+      float scalings: **0 of 128 entries** non-representable in every case. That
+      is why ``S_B`` / ``S_C`` / ``tau`` / ``Fix(tau) = g2`` are bit-identical
+      across platforms, and why ``exact=True`` returns the SAME VALUES there —
+      an honest carrier, not new information.
+    * **Inconsistent (non-skew) operators DO lose.** Cartan's relation has no
+      solution off ``so(8)``, so the gauge-pinned least-squares genuinely MIXES
+      right-hand-side entries through the integer Gram's rational RREF and the
+      denominators grow past ``{1, 2}`` (measured ``{1, 4}`` and ``{1, 8}`` on
+      integer operands). Compose that with a non-dyadic float operand and the
+      numerator outruns the 53-bit significand: on ``(1/7)·M`` for a dense
+      non-skew integer ``M``, **8 of 128** entries were NOT float64-representable
+      — exact ``74631079539282503/144115188075855872``, whose ``float()``
+      re-promotes to a DIFFERENT rational, ``1166110617801289/2251799813685248``.
+    * **Exact ℚ INPUT is where the parameter earns most of its keep.** The
+      exact path coerces through :func:`_as_8x8_exact` rather than
+      :func:`_as_8x8`, so ``Q(1, 3) · E_01`` stays ``1/3`` instead of becoming
+      ``0.3333333333333333``. Cartan's relation is LINEAR in ``(A, B, C)``, so
+      the companions are then exactly ``±1/3`` / ``±1/6`` — and NEITHER is a
+      float64, so rc443's linearity law ``companions(k·A) = k·companions(A)``
+      holds EXACTLY on the exact path where the float path can only approach it.
 
     The 512×128 design ``A`` is never materialised: each equation row is SPARSE
     (``_DIM`` nonzeros in each of the ``vec(B)`` / ``vec(C)`` blocks, value an
@@ -377,7 +443,8 @@ def _solve_companions(operator) -> Tuple[List[List[float]], List[List[float]]]:
     accumulate over only ~16 nonzeros per row. The table is consumed as a nested
     list; ``operator`` is a :class:`Mat` / nested-list ``8×8``.
     """
-    op = _as_8x8(operator, "_solve_companions")
+    op = (_as_8x8_exact(operator, "_solve_companions") if exact
+          else _as_8x8(operator, "_solve_companions"))
     table = _table_float()
     basis = _eye(_DIM)
     nvar = 2 * _DIM * _DIM                               # 128 unknowns
@@ -388,7 +455,15 @@ def _solve_companions(operator) -> Tuple[List[List[float]], List[List[float]]]:
     c: List[Q] = [Q(0)] * nvar
     for i in range(_DIM):
         for j in range(_DIM):
-            target = _matvec(op, _octonion_mul(basis[i], basis[j]))
+            # e_i * e_j is a ±1 UNIT vector. On the exact path promote it through
+            # _exact_int, which RAISES on a non-integer rather than absorbing one
+            # (rc443's discipline), so `target` is an exact ℚ combination of the
+            # operand's own entries and no float re-enters the exact cascade.
+            unit = _octonion_mul(basis[i], basis[j])
+            if exact:
+                unit = [_exact_int(v, "octonion basis product (e_i * e_j)")
+                        for v in unit]
+            target = _matvec(op, unit)
             for m in range(_DIM):
                 # The nonzero (column, integer value) entries of this row. The
                 # values are structure constants, so _exact_int is a coercion
@@ -416,6 +491,16 @@ def _solve_companions(operator) -> Tuple[List[List[float]], List[List[float]]]:
                     for col_b, val_b in entries:
                         ga[col_b] += val_a * val_b
     sol = _exact_solve_normal_equations(g, c, nvar)      # exact ℚ
+    if exact:
+        # rc444: KEEP the exact carrier. `sol` is already the answer — this is a
+        # return, not a computation, which is why the exact path costs no new
+        # arithmetic, no new type (Q ships with 12 srmech_qmat_* C peers) and no
+        # new C symbol.
+        b_exact = [[sol[i * _DIM + j] for j in range(_DIM)]
+                   for i in range(_DIM)]
+        c_exact = [[sol[_DIM * _DIM + i * _DIM + j] for j in range(_DIM)]
+                   for i in range(_DIM)]
+        return b_exact, c_exact
     # Exact ℚ → float64 at the carrier boundary. On an integer operator the
     # entries are dyadic (denom ∈ {1, 2}) and this is bit-exact.
     b_companion = [[float(sol[i * _DIM + j]) for j in range(_DIM)]
@@ -600,7 +685,7 @@ def triality_apply(x: Sequence[float], from_frame: str, to_frame: str) -> List[f
     return out
 
 
-def triality_companions(g_v) -> Tuple[Mat, Mat]:
+def triality_companions(g_v, *, exact: bool = False):
     """The ``(g_s, g_c)`` companions solving Cartan's relation for ``g_v``.
 
     Solves ``g_v(x*y) = g_s(x)*y + x*g_c(y)`` for all ``x, y`` in ``O`` by
@@ -613,17 +698,45 @@ def triality_companions(g_v) -> Tuple[Mat, Mat]:
     rc123 (numpy-free): accepts an ``8×8`` :class:`Mat` / nested list; returns
     ``(g_s, g_c)`` as real ``8×8`` :class:`Mat`.
 
+    **rc444 (`#T1152`) — ``exact=``, the exact-ℚ return carrier.** The solve has
+    been exact-rational since rc33 and its right-hand side exact since rc443, but
+    the exact ℚ was computed and then thrown away at a ``float()`` boundary with
+    no escape for the caller. ``exact=True`` returns it: ``list[list[Q]]`` per
+    companion, the SAME carrier shape the four shipped ``exact=`` ops return
+    (:func:`srmech.math.laplacian.dense_solve` /
+    :func:`~srmech.math.laplacian.schur_complement` /
+    :func:`~srmech.math.laplacian.dirichlet_to_neumann` on a matrix right-hand
+    side; ``exact=`` is the established spelling, not a new contract). No new
+    computation, no new type — :class:`~srmech.math.q.Q` already carries 12
+    ``srmech_qmat_*`` C peers, so the projection gap is closed — and no new C
+    symbol, so the ABI is unchanged. The exact path also keeps the INPUT exact
+    (:func:`_as_8x8_exact` rather than :func:`_as_8x8`), because an ``exact=``
+    that floats its own operand would be exact about a different operator; see
+    :func:`_solve_companions` for the measured 13-family loss census.
+
     Canonical SSoT: Baez (2002) §2.4 (the triality relation); Cartan (1925).
 
     Args:
-        g_v: An ``8x8`` ``so(8)`` generator acting on ``8_v``.
+        g_v: An ``8x8`` ``so(8)`` generator acting on ``8_v``. Entries may be
+            ``float`` / ``int`` / exact :class:`~srmech.math.q.Q` / ``(num, den)``
+            pairs; on the exact path they are promoted losslessly by
+            :func:`srmech.math.q.to_q` instead of being floated.
+        exact: When ``True``, return the exact-ℚ companions as
+            ``list[list[Q]]`` instead of the float64 :class:`Mat`. Default
+            ``False`` — the verbatim pre-rc444 float path, byte-identical.
 
     Returns:
-        ``(g_s, g_c)`` — the ``8_s`` and ``8_c`` companion ``8x8`` ``Mat``.
+        ``(g_s, g_c)`` — the ``8_s`` and ``8_c`` companions, as real ``8x8``
+        :class:`Mat` (``exact=False``) or ``8x8`` ``list[list[Q]]``
+        (``exact=True``).
 
     Raises:
-        ValueError: if ``g_v`` is not shape ``(8, 8)``.
+        ValueError: if ``g_v`` is not shape ``(8, 8)`` — on BOTH paths, with the
+            same message.
     """
+    if exact:
+        rows = _as_8x8_exact(g_v, "triality_companions")
+        return _solve_companions(rows, exact=True)
     op = _as_8x8(g_v, "triality_companions")
     b, c = _solve_companions(op)
     return Mat.from_rows(b), Mat.from_rows(c)

@@ -1197,8 +1197,15 @@ def _validate_boundary(n: int, boundary_idx: Sequence[int]) -> Tuple[List[int], 
 
 def _solve_exact(A: List[list], B: List[list]) -> List[List[Q]]:
     """Exact-rational solve of ``A · X = B`` over the rationals — Gauss–Jordan
-    elimination in :class:`fractions.Fraction` (the Class-N exact-rational
-    primitive; division here is exact, never a float reciprocal — F392). ``A``
+    elimination in srmech's own exact-ℚ carrier :class:`~srmech.math.q.Q` (the
+    Class-N exact-rational primitive; division here is exact, never a float
+    reciprocal — F392). *This line said ``fractions.Fraction`` until rc444
+    (`#T1152`); #845 moved the carrier to* ``Q`` *and the prose did not follow.
+    Measured by execution: the returned leaves are* ``srmech.math.q.Q`` *and*
+    ``isinstance(leaf, fractions.Fraction)`` *is* ``False``. *A ``Fraction``
+    INPUT is still accepted — ``to_q`` coerces it — which is why the stale claim
+    was plausible, but "accepts" and "computes in / returns" are different
+    claims and only the first was ever true.* ``A``
     is m×m, ``B`` is m×w, the returned ``X`` is m×w. No numpy, no ``abs()``:
     the pivot is the FIRST nonzero at/below the diagonal (exact arithmetic
     needs no magnitude-based partial pivoting for stability — only a nonzero
@@ -1263,11 +1270,17 @@ def dense_solve(A, B, *, exact: bool = False):
     ``A`` is ``n×n``; ``B`` is ``n×w`` (a matrix → ``X`` is ``n×w``) or length
     ``n`` (a vector → ``X`` is length ``n``).
 
-    With ``exact=True`` the solve is **exact-rational** Gauss–Jordan in
-    :class:`fractions.Fraction` (the Class-N core — division is exact, never a
-    float reciprocal, F392) and ``X`` is ``list[list[Q]]`` (or
+    With ``exact=True`` the solve is **exact-rational** Gauss–Jordan in srmech's
+    own exact-ℚ carrier :class:`~srmech.math.q.Q` (the Class-N core — division is
+    exact, never a float reciprocal, F392) and ``X`` is ``list[list[Q]]`` (or
     ``list[Q]`` for a vector RHS) — the exact path keeps the rational
-    leaves. With ``exact=False`` (the default) the float realization rides the
+    leaves. (Until rc444 this sentence said the solve was in
+    :class:`fractions.Fraction` while the same sentence promised a ``Q`` return;
+    #845 moved the carrier and only half the prose followed. Measured:
+    ``isinstance(dense_solve(A, B, exact=True)[0][0], fractions.Fraction)`` is
+    ``False``, ``isinstance(..., Q)`` is ``True``.)
+
+    With ``exact=False`` (the default) the float realization rides the
     numpy-free Mat engine (:func:`mat_solve` — native ``srmech_dense_solve_f64_ws``
     Gauss–Jordan with partial pivoting, the Class-K magnitude pivot — a sign
     branch, not ``abs()``; else srmech's own exact Q fallback coerced to
@@ -1382,9 +1395,11 @@ def schur_complement(L, boundary_idx: Sequence[int], *, exact: bool = False):
 
     Cascade-honesty: the interior solve ``L_ii⁻¹`` is an inverse = Class C
     (conjugate) → Class K (``1/‖·‖²``); no ``abs()``. With ``exact=True`` the
-    solve is **exact-rational** Gauss–Jordan elimination in
-    :class:`fractions.Fraction` (the Class-N rational core — division is exact,
-    never a float reciprocal) and ``S`` is returned as ``list[list[Q]]``.
+    solve is **exact-rational** Gauss–Jordan elimination in srmech's own exact-ℚ
+    carrier :class:`~srmech.math.q.Q` (the Class-N rational core — division is
+    exact, never a float reciprocal) and ``S`` is returned as ``list[list[Q]]``
+    (rc444 `#T1152`: this said :class:`fractions.Fraction` while promising a ``Q``
+    return in the same sentence — measured stale, see :func:`_solve_exact`).
     With ``exact=False`` (the default) the float realization rides the numpy-free
     Mat engine (:func:`dense_solve` → :func:`mat_solve`) and ``S`` is returned in
     the numpy-free **carrier** — a ``|∂|×|∂|`` :class:`~srmech.math.mat.Mat`
@@ -1401,7 +1416,7 @@ def schur_complement(L, boundary_idx: Sequence[int], *, exact: bool = False):
     boundary_idx : sequence[int]
         The boundary node indices ``∂``; ``1 ≤ |∂| ≤ n``, no duplicates.
     exact : bool, default ``False``
-        Force the exact-rational :class:`~fractions.Fraction` solve (returns
+        Force the exact-rational :class:`~srmech.math.q.Q` solve (returns
         ``list[list[Q]]``).
 
     Returns
