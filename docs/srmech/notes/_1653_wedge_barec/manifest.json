@@ -1,0 +1,79 @@
+[
+  {
+    "base": "best_rational_signed__0",
+    "chain": "best_rational_signed",
+    "n_cases": 10,
+    "n_steps": 6,
+    "variant": "0"
+  },
+  {
+    "base": "chiral_dual__0",
+    "chain": "chiral_dual",
+    "n_cases": 4,
+    "n_steps": 3,
+    "variant": "0"
+  },
+  {
+    "base": "cyclic_gcd__0",
+    "chain": "cyclic_gcd",
+    "n_cases": 7,
+    "n_steps": 1,
+    "variant": "0"
+  },
+  {
+    "base": "cyclic_mod_add__0",
+    "chain": "cyclic_mod_add",
+    "n_cases": 4,
+    "n_steps": 1,
+    "variant": "0"
+  },
+  {
+    "base": "cyclic_mod_inv__0",
+    "chain": "cyclic_mod_inv",
+    "n_cases": 3,
+    "n_steps": 1,
+    "variant": "0"
+  },
+  {
+    "base": "cyclic_mod_mul__0",
+    "chain": "cyclic_mod_mul",
+    "n_cases": 3,
+    "n_steps": 1,
+    "variant": "0"
+  },
+  {
+    "base": "cyclic_mod_mul_wide__0",
+    "chain": "cyclic_mod_mul_wide",
+    "n_cases": 2,
+    "n_steps": 1,
+    "variant": "0"
+  },
+  {
+    "base": "cyclic_mod_pow__0",
+    "chain": "cyclic_mod_pow",
+    "n_cases": 4,
+    "n_steps": 1,
+    "variant": "0"
+  },
+  {
+    "base": "encode_loe_content__0",
+    "chain": "encode_loe_content",
+    "n_cases": 4,
+    "n_steps": 11,
+    "variant": "0"
+  },
+  {
+    "base": "magnitude__0",
+    "chain": "magnitude",
+    "n_cases": 8,
+    "n_steps": 2,
+    "variant": "0"
+  },
+  {
+    "base": "schur_complement__0",
+    "chain": "schur_complement",
+    "n_cases": 3,
+    "n_steps": 1,
+    "variant": "0"
+  }
+]

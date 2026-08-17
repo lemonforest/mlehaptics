@@ -1,0 +1,1 @@
+{"name": "cyclic_mod_add.0", "on_error": "raise", "returns": "int  # (a + b) mod n, in [0, n)", "steps": [{"args": {"a": "@input.a", "b": "@input.b", "n": "@input.n"}, "class": "I", "op": "mod_add"}], "summary": "Class-I delegation: cyclic_mod_add(a, b, n) IS srmech.math.cyclic.mod_add(a, b, n)."}

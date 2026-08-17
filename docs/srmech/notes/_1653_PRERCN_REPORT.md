@@ -449,6 +449,11 @@ and adds **zero** recursion cycles.
 
 ### 6.2 The MAP arm — four independent sub-problems
 
+> **DISCHARGED IN ROUND 2 — see §R2.1.** The map arm is now prototyped, compiled `-Werror`-clean and run; the
+> 60-line / 2-assert feasibility below is **measured and HOLDS**. Four figures in this subsection are corrected
+> there (frame headroom, "13 of 14", "16 distinct body ops / only 4 have a C symbol", and the arena crossover —
+> §R2.2).
+
 1. **JPL Rule 1 is the binding constraint, and it is STRICT.** A map body is a step list, so the obvious implementation
    is mutual recursion — exactly what `srmech_dsl_chain_run.c` does. **That cycle is one of the 9 SEEDED entries in
    `tests/test_jpl_audit.py:199-231 RULE_1_RECURSION_SEEDED`, and `test_rule_1_no_new_recursion` fails on any cycle not
@@ -652,6 +657,9 @@ Stated as findings, flagged as not independently re-measured here:
   function's **own asserted 128-byte-per-carrier upper bound**, not a measured `sizeof` — the real struct is smaller,
   so **n=256 is a LOWER bound on capacity; the true cliff is further out.** The *shape* (linear arena vs quadratic map)
   is exact regardless.
+  **→ MEASURED IN ROUND 2 (§R2.2): the real crossover is "fits through n=64, overflows from n=128" — this
+  round-1 figure is one power of two off, and round 2's own first replacement was four powers off. The
+  linear-vs-product shape stands.**
 - The #T1145 executor/builder/introspection 49-row probe (R1 49/49, R2 39/49, R3 12/49) and the `search()` recovery
   numbers (rank-1 19 of 32, top-5 26 of 32).
 - The #T1142 fix-probe 3×7 matrix and the adversarial extensions (3-node cycle, self-cycle, sub_chain nesting).
@@ -668,12 +676,15 @@ Stated as findings, flagged as not independently re-measured here:
   fires first at step 0 and **masks** everything downstream. **The 0-of-20 figure is therefore a FLOOR**, and whether
   widening `cr_dispatch` reveals wall 4 *and only* wall 4 cannot be known until the table is widened.
 - The map arm's explicit-frame-stack design: its 60-line / 2-assert feasibility is **reasoned from shipped idioms, not measured.**
+  **→ DISCHARGED IN ROUND 2 (§R2.1): built, compiled `-Werror`-clean, run; measured with the shipped ratchet's
+  own scanner at 45 functions / longest 37 lines / fewest 2 asserts / 0 recursion cycles. The claim HOLDS.**
 - That `#T1143` / `#T1144` denote what this report says they denote — those IDs appear **nowhere in the tree**; the
   reading comes from the brief's one-line descriptions plus the `lookup_cascade_op` code they must mean.
 
 ### 8.4 NOT ATTEMPTED
 
 - **No map prototype.** Specified but unbuilt.
+  **→ BUILT IN ROUND 2 (§R2.1): `notes/_1653_proto_map.c`, 64/64 crumbs bit-identical, 12/12 negatives.**
 - **`srmech_catalog_run_chain` was not driven from Python** (the bare-C host did drive it, 7/7). The Python-side census
   deliberately did not wrap chains for it, because inventing a catalog wrapper would not be the shipped surface.
 - **No macOS clang, no Windows MSVC cell.** Everything is Linux gcc, this worktree's `libsrmech.so` / `.a` at ABI 17.
@@ -909,3 +920,531 @@ cd python && python3 ../notes/_1653_barec_host_verify_rc444.py /tmp/barec.ndjson
 
 *Prepared as PRE-rcN research for gh #1653. No shipped source, tests, ABI constant, CHANGELOG, version SSOT file or
 rc tag was modified. Local task IDs are written `#T1142` / `#T1143` / `#T1144` / `#T1145`; the GitHub issue is `#1653`.*
+
+---
+
+## Round 2 — closing the five open gaps (rc444)
+
+Round 1 shipped five open gaps: the map arm was specified but unbuilt, the op-table wedge was sized but
+unrun, the closed-key-set check was a requirement with no mechanism, the ADR-0009 §5 declines were named
+but unfiled, and the README's capability prose was flagged but unaudited. All five now have compiled,
+executed artifacts. Same worktree, same **srmech 0.9.0rc444, native ABI 17, `has_native=True`**, Linux
+`gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0`. Still **zero shipped-source edits** — `git status --porcelain`
+over `python/srmech`, `c/src`, `c/include`, `python/tests` is empty.
+
+**Every round-2 result below was put through an independent adversarial verification pass, and six load-bearing
+claims were REFUTED. This section reports the refutations, not the original claims.** Where a refutation was
+re-derived by hand in this session it is marked **[re-verified here]**.
+
+### R2.0 The round-2 headline
+
+| gap | round-1 state | round-2 state | compiled | ran |
+|---|---|---|---|---|
+| **MAP arm** | specified only; JPL feasibility *"reasoned, not measured"* | prototyped, 64/64 bit-identical, 12/12 negatives | ✅ `-Werror -Wpedantic` clean | ✅ exit 0 |
+| **op-table wedge** | 11 chains "blocked ONLY by the op table" | **11 of 11 ran in bare C**; but only **6** are op-table-only | ✅ | ✅ exit 0 |
+| **closed-key-set check** | a requirement with no in-tree pattern | validator prototype, **55/55** probes green | ✅ gcc + clang `-Werror` | ✅ exit 0 |
+| **ADR-0009 §5 declines** | "file them"; no ledger exists | **11 decline rows + 8 exclusions**, each probe-backed | n/a | ✅ 3 scripts exit 0 |
+| **README truth audit** | flagged, unaudited | **24 anchored claims**, 6 wrong, all shipping in the wheel | n/a | ✅ exit 0, deterministic 3/3 |
+
+### R2.1 The MAP arm — the §6.2 "reasoned, not measured" admission is **DISCHARGED: the claim HOLDS**
+
+`notes/_1653_proto_map.c` (1316 lines, 45 functions) is an **explicit frame stack** trampoline — the remedy
+`test_jpl_audit.py:228` names — with no recursion anywhere. It builds under both round-1's recipe and
+`cc -std=c99 -Wall -Wextra -Wpedantic -Werror -O2` with **zero diagnostics**, and both binaries produce
+byte-identical output.
+
+**The JPL numbers were taken with the shipped ratchet's own scanner** (`test_jpl_audit.py::_scan_functions`),
+not a re-implementation. **[re-verified here]** — I imported that scanner and pointed it at all four prototypes:
+
+| file | functions the scanner sees | longest | fewest asserts | Rule-4 violations |
+|---|---|---|---|---|
+| `_1653_proto_map.c` | 45 | **37** (cap 60) | 2 (floor 2) | **0** |
+| `_1653_proto_fold.c` | 13 | 38 | 2 | 0 |
+| `_1653_proto_keyset_validator.c` | 13 | 35 | 2 | 0 |
+| `_1653_wedge_optable_rc444.c` | 44 | **61** | 2 | **1 — see R2.6** |
+
+**Verdict on §6.2's admission: the 60-line / 2-assert feasibility HOLDS in practice for the map arm.** The
+longest function needed exactly one split (`pm_push_map` → `pm_frame_open`) to get there — the only structural
+concession Rule 4 forced. Rules 1 (0 goto, 0 recursion cycles), 3 (0 allocations) and 8 (0 multi-line macros)
+are clean too.
+
+**What it actually computed.** Positive 1 is `klein4_from_one.toml`'s own variant-`rest` map step (index 9) —
+the catalog's largest, **19 body steps / 8 binds / 64 iterations** — transcribed by generator, not by hand,
+with the descriptor's sha256 `85d3dbc…` baked into the header. All **64 of 64** crumbs are bit-identical to
+`srmech.dsl.run_cascade_chain('klein4_from_one', variant='rest', …)`, which itself cross-checks `True`
+against the shipped op `srmech.math.hdc.klein4_from_one(the_one(…), 64)`. The verification pass proved the
+match is a real computation and not a tautology with three mutation tests: corrupting one expected crumb
+gives 63/64 FAIL; changing a chain constant gives rc=2; an in-range bind mutation gives 18/64 FAIL.
+
+Measured output, condensed (`notes/_1653_proto_map.out.txt`, reproduced in this session):
+
+```
+POSITIVE 1 — klein4_from_one rest, its OWN map step   rc=0  peak_frames=2  64 / 64 MATCH
+POSITIVE 2 — NESTED map depth 2 (autocorrelation's own body)  rc=0  peak_frames=3  16 / 16 MATCH
+POSITIVE 3 — TRIPLE-nested (frame-cap boundary, synthetic)    rc=0  peak_frames=4 (cap 4)  8 / 8 MATCH
+NEGATIVE   — 12 of 12 declined as stated
+0 failure(s)
+```
+
+The 12 negatives include the two rejection-parity firsts round 1 said had no in-tree pattern: `@idx.q` and
+`@bind.nope` unbound → `BAD_INPUT`, and the mixed v1+v2 closed-key-set reject → `BAD_INPUT`.
+
+**Frame budget, harvested from all 21 descriptors** (`_1653_map_frames_rc444.py`, iterative — a recursive
+harvester would hide the depth it measures): **14 map steps** across 5 descriptors, **max nesting depth 1**
+(two levels) → **3 frames needed**, confirmed at runtime. Max body length **19**, max binds **9**, index names
+`{i,j,k,m}`. **All 7 depth-1 inner maps resolve `map_over` through `@bind`**, so `@bind` must land in the
+*runner* (`cr_resolve_ref`), not only the parser — §6.2 sub-problem 4 said "both"; this makes the runner half
+unavoidable rather than optional.
+
+**⚠️ Correction to §6.2 sub-problem 1.** §6.2 says a frame cap of 8 gives "4× headroom". Measured
+`frames_needed = 3`, so a cap of 8 is **2.67×** on the frame count. A cap of **4** sufficed and its boundary
+declines cleanly with `NOT_IMPL` rather than corrupting the stack.
+
+**⚠️ Correction to §6.2 sub-problem 2.** §6.2 says "13 of 14 maps need a FLOAT kind". **Measured: 12 of 14.**
+All 14 maps' own bind/args *literals* are float-free — the float need is **data-side** (proof-case inputs),
+not literal-side. Two independent cuts (by uncovered body op, and by float-bearing proof inputs) agree on the
+same 12/2 split. The conclusion is unchanged; the figure must travel with its predicate.
+
+**⚠️ Correction to §6.2 sub-problem 4.** §6.2 says "of 16 distinct map/fold body ops … only 4 have any C
+symbol". **Measured: 17 distinct MAP body ops**, of which a closed 6-op body table
+(`seq_get`, `mod_add`, `mod_mul`, `byte_slice`, `int_parse_le`, `pair`) reaches 6 — `mod_add`/`mod_mul` route
+through the shipped `srmech_mod_add`/`srmech_mod_mul`; the other four are new but trivial.
+
+**Where the map arm genuinely stops.** That 6-op table **fully covers 2 of the 14 shipped map steps** — both
+`klein4_from_one` variants. The other 12 each need at least one of 11 uncovered composites
+(`correlation_product`, `compensated_sum`, `kuramoto_*`, `qdft_summand`/`odft_summand`, `as_quat4`/`as_oct8`,
+`vec_scale`), all float-carrying. **The ceiling is the FLOAT carrier kind, exactly as §6.2 sub-problem 2 said.**
+
+**And a sequencing wall the rcN must know: `compose._chain_has_v2_forms` also declines on any DOTTED op**
+(`compose.py:468-470`). `klein4_from_one`'s body is dotted throughout, so **even with the map arm landed the
+chain stays on the pure path until the `#T1145` dotted-spelling resolver lands too. The map arm alone unlocks
+0 of the 2 reachable map steps end-to-end.**
+
+#### R2.1a Design finding worth lifting: borrow, don't copy
+
+§6.2 sub-problem 3 sizes the arena from a per-iteration JSON→carrier copy, which is what makes it blow up.
+`klein4_from_one`'s map binds **eight literal tables** (one 64-entry, one 55-entry) across 64 iterations —
+copying them per iteration is a 64× waste on values that never change. The prototype adds a carrier kind
+`PM_JSON` that **borrows** the parsed node. That one choice removes the copy *and* removes the only place a
+JSON→carrier conversion would want to recurse. **`cr_value_t` has no such kind today.** If the rcN copies
+instead of borrowing, the arena numbers below are optimistic by a large factor.
+
+### R2.2 The arena bound — round 1 was CLOSER to the truth than round 2's first correction
+
+**This is the single most important round-2 correction, and it corrects a round-2 claim, not a round-1 one.**
+
+The measured growth **law** is solid and was reproduced:
+
+```
+carrier_bytes ≈ PRODUCT(n_i over nested map levels) × (carriers_per_body_step × sizeof(carrier))
+              + SUM(accumulator pointer arrays)
+```
+
+a **product**, not a sum, and every `n_i` is `len(resolve(map_over))` — a **runtime** datum. Measured
+bytes/cell converges to **176** (= 3 carriers × 56 + one 8-byte accumulator pointer). **So the arena bound
+cannot be a compile-time constant, and must not be one**; `SRMECH_ERR_OVERFLOW` (the retryable half, per
+rc404) is the correct signal.
+
+**What was REFUTED.** The round-2 map-arm deliverable stated the shipped sizing helper as
+`srmech_chain_run_arena_bytes(chain_len, ctx_len) = 128*chain_len + 128*ctx_len + 65536` and reported
+shortfall multiples of 1× / 6× / 19× / **54×**. **That is only the helper's local `parse` term.**
+**[re-verified here]** — I read `c/src/srmech_compose_run.c:677-688`; the function returns `parse + run + writer`,
+where `run = 4096*chain_len + (1u << 20)` — **a 1 MiB constant** — and `writer = 32768 + 16*(chain_len+ctx_len)`.
+Recomputing against the **full** return value with the same recorded `chain_len`/`ctx_len`:
+
+| n | full helper (bytes) | measured need (bytes) | verdict |
+|---|---|---|---|
+| 32 | 2 066 704 | 447 216 | **SUFFICIENT — 4.62× headroom** |
+| 64 | 2 080 528 | 989 936 | **SUFFICIENT — 2.10× headroom** |
+| 128 | 2 116 448 | 3 156 720 | short **1.49×** |
+| 256 | 2 190 176 | 11 815 664 | short **5.39×** |
+
+**The real crossover is "fits through n=64, overflows from n=128."** Round 1's inherited
+*"fits through n=128, overflows at n=256"* is **one power of two off**; round 2's replacement (a shortfall
+already at n=32) was **four powers off**. Round 1 was closer, and the round-2 "correction" of that figure
+should not have shipped. In the deliverable's favour, its generating script `_1653_map_arena_law_rc444.py` is
+internally honest — the field is named `shipped_arena_bytes_parse_term` and its docstring says so; the defect
+is that the prose dropped the qualifier.
+
+**The structural finding survives intact:** the helper is **linear** while the map need is a **product** over
+nested `map_over` lengths, the shortfall **grows with n**, and the helper's contract genuinely breaks on a
+nested map. Just from n≈128, and by ~5× at n=256 — not from n≈32 and 54×.
+
+> **Do not quote 54×, 19×, 6× or 1×.** Quote the law, the 176 bytes/cell constant, and the n≈128 crossover.
+
+### R2.3 The op-table wedge — 11 of 11 chains ran in bare C, and **no new math was written**
+
+`notes/_1653_wedge_optable_rc444.c` (1293 lines) is a bare-C executable — no Python, no ctypes, **no libm**
+(`ldd` shows libc only) — that ran all **11** round-1 wedge chains end-to-end from the shipped descriptor
+inputs, reproduced in this session.
+
+**The decisive number: 11 of 11 chains ran; 48 of 52 declared proof cases came back BYTE-IDENTICAL to the
+Python projection; 0 divergent.** The other 4 never reached an op — `srmech_json_parse` rejects their
+non-finite literals (`magnitude` cases 3/4/5 `NaN`/`±Infinity`, `best_rational_signed` case 4 `NaN`), the
+same root cause round 1 found on the TOML front end, now confirmed one layer down.
+
+**Of the 23 distinct ops those chains name: 14 DIRECT_SYMBOL_EXISTS, 2 COMPOSITION_OF_EXISTING_SYMBOLS,
+7 GENUINELY_ABSENT — so 16 dispatch to `srmech_*` exports that already exist, and 0 new math kernels were
+written.** The 14 exactly reproduces round 1's "14 already c_dispatched" from an **independent route**
+(`nm` over the 814-symbol archive vs the shipped Rosetta ledger) — an unforced cross-check that agreed. Each
+ABSENT verdict is proved by grepping the full symbol set, not asserted; the 7 are framing/comparison leaves
+(`dead_band`, `scale_round_half_even`, `pair`, `str_concat`, `utf8_encode`, `byte_slice`, `int_parse_le`),
+about 96 lines total.
+
+The parity is **not** a same-kernel echo: the verification pass forced `srmech._native.HAS_NATIVE = False` and
+re-ran all 52 cases — 0 differences native-vs-forced-pure, and 0 mismatches C-vs-forced-pure. It is a genuine
+Python-algorithm-vs-C-kernel comparison. `schur_complement` case 1 reproduces a **one-ULP** accumulation
+artifact (`0.33333333333333337`), which is a bit-level match, not a value match.
+
+#### **⚠️ This CORRECTS round 1 §3.3: the op table is NOT the only blocker**
+
+Round 1 called all 11 "blocked ONLY by the op table". **Measured too generous.** Ablating the *shipped*
+`srmech_chain_run` with chains built from **in-table ops only**, changing one thing at a time — independently
+reproduced by the verification pass with a from-scratch probe sharing no code:
+
+| ablation | shipped `srmech_chain_run` rc |
+|---|---|
+| arg `@step[0].output` (control) | **0 OK** |
+| arg `@step[0].output[0]` | **2 BAD_INPUT** |
+| arg `b: [1,3]` (control) | **0 OK** |
+| arg `b: [1.0,3]` | **2 BAD_INPUT** |
+
+Four independent C-side gates, each with its line:
+
+1. **op table** — `srmech_compose_run.c:616` `cr_dispatch` → `NOT_IMPL`. All 23 ops outside it. *(round 1's finding)*
+2. **ref grammar** — `srmech_compose_run.c:285` `if (rest != e) { return NULL; }  /* only bare .output supported */`. **2 of 11**.
+3. **real-number arg** — `srmech_compose_run.c:215` `cr_json_scalar` returns NULL for a JSON DOUBLE. **1 of 11** (`best_rational_signed`'s `band = 1e-12`).
+4. **carrier width** — `srmech_compose_run.c:92` `CR_NONE, CR_INT, CR_STR, CR_RATIONAL, CR_LIST`. No double, no byte-buffer, no dense-matrix kind. **5 of 11**.
+
+**Blocker split over the 11: op-table-ONLY = 6, wider carrier = 5, ref grammar = 2, real literal arg = 1.**
+
+**The cheap half is genuinely cheap.** The six `cyclic_*` chains need six dispatch entries over five existing
+exports plus one bignum composition — no carrier change, no grammar change — and all 23 of their proof cases
+came back byte-identical.
+
+> **Do not ship a table-only rc and claim the 11. Only 6 land.**
+
+Three parity details the rcN must preserve: `reorient` must switch on carrier type (Python is type-preserving —
+`best_rational_signed` feeds it an int, `magnitude` a float); `schur_complement`'s left-to-right `sum()`
+accumulation order is load-bearing (any reordering or FMA breaks the byte match); and `scale_round_half_even`'s
+arithmetic is in the archive but **inlined into a `static` helper with no exported symbol**
+(`c/src/srmech_cascade.c:477`) — the only arithmetic in the harness not reached through an export.
+
+### R2.4 The closed-key-set validator — and the SSOT answer
+
+`notes/_1653_proto_keyset_validator.c` (761 lines, 16 functions) compiles clean under
+`gcc -std=c11 -Werror -Wall -Wextra -Wconversion -Wshadow` and `clang -std=c99 -Werror`, and runs
+**55/55 probes green** (reproduced in this session, `TOTAL failures: 0`):
+
+- **Section 1 — all 24 round-1 `#T1146` defects now `REJECT(undeclared key)` at rc=5** (`NOT_IMPL` → defer to pure).
+- **Section 2 — 11/11 positive controls still ACCEPT**, including the three `best_rational_signed` shapes round 1 never had a clean control for.
+- **Section 3 — 20/20 whole-grammar rows match their measured Python verdict** (6 leaf, 9 fold, 2 reduce, 3 map).
+- **Section 0 — 663 registry rows, 10 link rows, 0 broken links.**
+
+**The piped-positional count is form-dependent, and a naive fix gets it wrong.** Measured on all four builders:
+leaf `.then` pipes **1** (`_chain.py:556` `value = op_fn(value, **kwargs)`); fold / reduce / map_indexed pipe
+**2**. A validator skipping only `params[0]` would ACCEPT `fold(1,'cyclic_gcd', b=5)`, which Python rejects.
+
+**A 25th defect this design surfaced.** `chain().then('magnitude', x=3).run(-3.5)` → Python
+`TypeError: magnitude() got multiple values for argument 'x'`; **native returns 3.5**. Round 1's bogus-kwarg
+list never included a *real* param name of the op under test, so it missed the class entirely.
+
+**Cost — answer the objection before it lands.** Measured per validated stage: **~66-71 ns** with the registry
+entry pointer already in hand, vs **microseconds** when the gate re-runs the 663-row
+`srmech_tool_registry_find` (the deliverable measured 2956-4824 ns; the verification pass measured
+6627-8840 ns over 5 runs — the absolute figure is unisolated `clock()` timing and does not reproduce in range,
+but the **ratio is ≥45× either way and the recommendation only strengthens**). **Ship the pointer-in-hand
+shape**: `dsl_leaf_dispatch` has already matched the op name by `memcmp` when it would call the gate.
+
+#### The source-of-truth answer: **the key NAMES need no new artifact**
+
+`srmech_tool_registry_find(name)->params[i].{name,required}` is a `const` table **generated** from
+`srmech.introspect.tool_schema` by `c/tools/gen_tool_registry.py`, written through `tools/regen_all.py`, with
+an idempotence test. The Python declaration it generates from is pinned to the live callable signature **in
+both directions** — `tests/test_mcp.py::test_schema_signature_alignment_no_drift` (declared ⊆ real) and
+`tests/test_declared_param_completeness_rc408.py` (declared ⊇ real). **Both measured green at rc444
+(5 passed).** Superset ∧ subset ⇒ equality, so **reading `params[]` in C is reading `inspect.signature`.**
+
+#### **⚠️ REFUTED: the "one genuinely new datum" framing was overstated**
+
+The deliverable claimed no string rule derives the op-name → registry-name link, at **2/48**.
+**[re-verified here]** — I measured all three rules over the 48 descriptor-referenced op names against the
+663-row registry:
+
+| rule | coverage |
+|---|---|
+| identity (name as-is) | **2 / 48** ← this is what "2/48" actually measured |
+| `"srmech.cascade." + WHOLE name` (the rule the text names) | **0 / 48** |
+| **`"srmech.cascade." + BASENAME`** | **32 / 48** |
+| Python callable-identity resolution | 35 / 48 |
+
+**A pure string rule reaches 32 of the 35 identity-resolvable names, with zero disagreements against the
+Python resolution.** So a generated table is still needed — but only for the ~16-name residue, not for the
+whole link. Size the work off 16, not 48.
+
+#### **⚠️ REFUTED: an in-tree pattern DOES exist**
+
+The prototype's header claims *"there is no in-tree pattern to copy."* `srmech_invoke.c:1580-1594`
+`iv_no_extra_keys` **is** a live closed-key-set validator — *"1 iff every key of the arguments object matches
+a registry param name"* — iterating `e->params[j].name` over the **same** generated registry, called at
+`:1641`, with the **same** defer-on-mismatch semantics. 15 lines, 2 asserts, JPL-clean, **directly copyable**.
+Round 1's narrower claim (no key-set validator in the C **leaf** surface) still holds; the broader novelty
+claim does not. **This makes the fix cheaper than round 1 or round 2 said.**
+
+**Generate from what Python accepts, never from what the C matchers accept.** `dsl_map_body_is_seq_get`
+(`srmech_dsl_chain_run.c:742`) matches bare `seq_get`; `lookup_cascade_op('seq_get')` raises
+`ValueError: unknown cascade op` (measured). Feeding the generator the C names re-opens round-1 divergence D3.
+
+**The Python half is a DECLINE, not a raise.** Declining routes to the pure runner, which calls the real
+callable and raises the real `TypeError` with its real text — so the fix adds no new exception type and no new
+message to keep in sync. Three gaps stay open and are named: 10 of 48 op names are class-scoped bare names
+needing the step's `class` too (surface A carries both, so a generator must key on the **pair**); 3 names have
+**no `tool_schema` row at all** (`srmech.amsc.descriptor.render_template`, `srmech.signal_processing.encode_loe_content`,
+`srmech.signal_processing.rbs_hdc_instrument.mint_vector`) — file that as its own declared-surface gap, never
+paper over it with a default-accept; and `fold_args`/`arg_names` is deliberately **deferred**, because
+rebinding the positionals makes the piped count data-dependent.
+
+### R2.5 The ADR-0009 §5 decline filing, and the README truth audit
+
+**`notes/_1653_adr0009_decline_list.md`** (627 lines) is the §5 filing, written to be lifted verbatim, with
+three scripts that make it self-checking. §5 lives at `adr/0009-…md` **lines 221-237**, 1145 chars,
+`sha256 fb781a79…c448f02` — **hashed over the section body, so a later edit to §5 invalidates this filing
+rather than silently outdating it.**
+
+- **11 decline rows** (9 time-boxed, 2 permanent-ish) + **8 explicit non-decline exclusions**, **10 down-only
+  ceilings**, 2 strict-zeros. Every one of the 11 decline rows carries capability / implementations present /
+  missing / boundary (file:line, re-read live) / permanence / why / what-closes-it / a probe id.
+- **The filing has nowhere to live yet.** Measured over **1,181 files**: `decline_ledger`, `capability_ledger`,
+  `parity_ledger`, `declines.ndjson` → **0 hits each**. `c/ROSETTA_LEDGER.md` is the recommended home (it is
+  already a down-only debt ledger with two documented-exclusion precedents) and mentions ADR-0009 **zero** times.
+- **`#T1146` is filed as a BUG, never as a decline** — and the reasoning is in the document so nobody launders
+  it: **nothing declines.** C *accepts* an input Python *refuses* and returns a value, so §5's predicate
+  ("declines an input the other implementation serves") is unsatisfied in **both** directions and §5 cannot be
+  used to defer it. A filed decline may persist across rcs; **this must not**, because it is the only item that
+  can hand a caller a wrong outcome instead of an error.
+- **D-11 `parallel_body` is not exempt.** `srmech_plat_has_threads()` returns **1** and the sector-dispatch op
+  is public and loadable; the blocker is that the **bump arena is not thread-safe**. "Declines by design" is
+  therefore not a valid terminal status.
+- **D-10 is strengthened:** `grep -c srmech_plat_ c/include/srmech.h` == **1**, and that one hit is prose in a
+  comment. `srmech_plat_dir_*` / `_file_read` / `_has_filesystem` / `_has_threads` are exported from the
+  library but declared only in the **internal** header. Closing the descriptor-lookup decline means
+  **exporting a new platform surface**, not calling an existing one.
+- **The wall the filing measured was methodological**: four first-pass probes returned a decline for the
+  *wrong reason* (wrong ctx/carrier shapes) and each looked like a confirming measurement. They were only
+  caught because **every probe was required to carry a live positive control**. A control-free decline census
+  cannot be trusted.
+
+**`notes/_1653_readme_truth_audit.md`** audits **24 anchored claims**: **4 FALSE, 2 MISLEADING**, all 6
+shipping in the wheel (`pyproject.toml:42` makes README.md the dynamic PyPI `long_description`).
+
+- **README:16 carries five claims, not one.** *"a host with no Python present can … run cascades"* is **TRUE of
+  Surface B and FALSE of Surface A**, and the sentence names neither. Re-measured live this session: Surface A
+  **11/20 parse-accept, 0/20 run-accept**; `_chain_c_eligible` True for **0/20**.
+- **A number has ALREADY rotted into the compiled binary.** The `srmech.dsl.run_cascade_chain` ToolEntry says
+  the catalog holds **17 executable**; live is **18**. Three sites — `_tool_docs_curated.py:3834`,
+  `_tool_docs.py:294`, and **`c/src/srmech_tool_registry.c`, i.e. compiled into `libsrmech`** — confirmed by a
+  bare-C host reading the compiled table with no Python in the process. **One edit, one regen, one rebuild —
+  not three edits.**
+- **The audit blocker the rcN must clear first.** `describe()["cascade_catalog"]` exposes only
+  `['enumerate','executable','leaf','run','status','total']` — **no `c_runnable`.** So there is **no live value
+  a corrected README:16 could be keyed to**; the corrected sentence and a new `describe()` field are **one
+  deliverable, not two**, or the rot simply recurs.
+
+**⚠️ REFUTED — two defects in the audit itself, both making it under-count.**
+
+1. **A fourth stale literal, in the very file the issue names, missed by all four audit passes.**
+   **[re-verified here]** — `python/README.md:238` reads *"(**20 descriptors**, loaded at runtime by
+   `srmech.dsl` …)"*. Live `describe()["cascade_catalog"]["total"]` is **21**, and there are **21** `.toml`
+   files on disk. Present-tense, ships in the wheel, wrong. It rotted from the *same commit* the audit's own
+   finding names (`klein4_from_one` at rc438 moved total 20→21 and executable 17→18 together) — **the audit
+   caught one half of that event and missed the other.** `git log -L 238,238` shows the sentence has already
+   rotted three times (10 → 15 → 20). **So `verdict_FALSE: 4` and the 3-site literal fix list both under-count.**
+2. **The audit's "55/55 prose-vs-measurement checks pass" does not mean what it says.** Only **9** of the 55
+   checks read the document at all; 46 are NDJSON-vs-NDJSON. A negative control mutating **six** load-bearing
+   prose figures still printed `55/55 pass, 0 FAIL`. **The anti-drift guarantee the file advertises about
+   itself does not hold for most of its figures** — which is exactly the failure class #1653 is about.
+
+Also flagged, unaudited and **PLAUSIBLE not proven**: README.md:238 further asserts every cascade in the
+catalog ships a **dedicated C symbol**, yet `schur_complement`, `encode_loe_content` and `cyclic_mod_mul_wide`
+have **no matching symbol among libsrmech.so's 814 exports** and no `C_CLAIMS` row.
+
+### R2.6 Bonus: the JPL Rule 4/5 gate has a hole, and it is WORSE than round 2 first reported
+
+Found while measuring, not looked for. `_scan_functions` / `_function_bodies` in `tests/test_jpl_audit.py` do
+not see every function in `c/src/`, so Rules 1, 4 and 5 are **vacuous** on the ones they miss.
+
+**The round-2 deliverable reported 24 invisible functions, 0 would-be Rule-4 violations, 0 would-be Rule-5, and
+concluded "the library is sound; the gate has a hole." All four of those numbers were REFUTED.**
+
+| claim | reported | measured in verification |
+|---|---|---|
+| functions invisible to the gate | 24 | **64** |
+| would-be Rule-4 violations hiding there | 0 | **12** |
+| would-be Rule-5 violations hiding there | 0 | **2** |
+| dominant cause | the `static const` skip | **the 10-line look-ahead window** |
+
+**[re-verified here]** — I hand-checked three of the twelve with `sed`, counting the shipped ratchet's own
+metric (definition line → closing brace, `RULE_4_MAX_LINES = 60`):
+
+```
+c/src/srmech_q_zeilberger.c   srmech_q_zeilberger        L293-433 = 141 lines,  2 asserts
+c/src/srmech_q_gosper.c       srmech_q_gosper            L491-613 = 123 lines,  4 asserts
+c/src/srmech_laplacian.c      srmech_graph_cycle_holonomy L857-959 = 103 lines, 1 assert  ← also Rule 5
+```
+
+**And the stated cause is the wrong one.** The `static const` skip (`test_jpl_audit.py:258` and `:614`) is
+real but accounts for a small minority. The dominant defect is a second, unreported one: the **10-line
+look-ahead window** for the opening brace (`for look in range(i, min(i + 10, len(lines)))`, `:614-620`,
+mirrored at `:258-264`). Any function whose parameter list pushes the brace more than 10 lines past the
+definition line is **never registered**. **[re-verified here]** — `srmech_q_zeilberger`'s definition is at
+line 293 and its opening brace at line **315**: a **22-line gap**, well past the window. Every one of the 12
+Rule-4 violations is a long-parameter-list function, not a `static const` one.
+
+**This cuts in the rcN's favour — the gate defect is more serious than reported — but "24 / 0 / 0 / library is
+sound" must not ship.** The honest statement is: **the gate cannot see 64 functions, 14 of which violate its
+own rules today.**
+
+**Why it matters here.** `srmech_compose_run.c` is the file the map arm edits, and
+`static const srmech_json_value_t *cr_something(...)` is the natural spelling for a JSON-node helper there —
+`cr_walk_json` and `cr_find_named_chain` already have it and are already invisible. A new helper written that
+way lands **unchecked on Rules 1, 4 and 5**. Same class as the two blind spots `#T1148` closed at rc441.
+
+**One live consequence for the rcN: `wo_schur` in the wedge harness measures 61 lines by the shipped
+ratchet's own metric — one over the cap.** **[re-verified here]** — I ran `_scan_functions` against the file:
+`('wo_schur', 61, 2)`. Claim-only today (`_C_SRC_DIR` is `c/src` and the ratchet never globs `notes/`), but
+**the whole point of the prototype is that the rcN lifts it into `c/src`, and `wo_schur` cannot be lifted
+unchanged.** Split it first.
+
+### R2.7 ABI verdict — round 2 sharpens §9, and finds a stale public comment
+
+**Verdict: bump 17 → 18, but not for the reason §9 gives.** §9 says the map arm forces it because the FLOAT
+carrier needs a new `{"k":"f"}` wire kind. Round 2 measured that the **list** output does *not* force a bump —
+and found the real load-bearing reason is the **closed-key-set half**, not the map half.
+
+- **The list output is additive, not new.** `srmech_compose_run.c:19` already documents **five** kinds
+  (`s`/`q`/`i`/`n`/**`l`**); `compose.py:1088` `_reconstruct_value` **already handles** `k == "l"` with an
+  `items` array, recursively. Only `cr_desc` (`:670`) declines to emit it —
+  *"CR_LIST as a final output is not produced by shipped ops"*. Emitting it fills a **declared-but-unexercised
+  branch**. (§9's `{"k":"f"}` FLOAT finding is untouched and still stands as a separate bump reason.)
+- **⚠️ A stale public comment to fix in the same rc.** `c/include/srmech.h:3336-3338` — the public prototype
+  comment on `srmech_chain_run` — lists only **FOUR** kinds (`s`/`q`/`i`/`n`), stale against both the `.c`
+  comment and the Python reader. **It will mislead the rcN author into minting a bump for the wrong reason.**
+  Bonus staleness in the same header block: it ends *"ABI-additive → `SRMECH_ABI_VERSION` stays 3"* while ABI
+  is actually 17.
+- **Why the bump is load-bearing rather than ceremonial.** On a well-formed map chain a stale ABI-17 `.so`
+  returns non-OK and the shipped contract is "non-OK → run the COMPLETE pure path" — correct answer, wrong
+  cost (the rc404 shape). The sharp hazard is elsewhere: round 1 measured that C's parse **accepts** a step
+  carrying *both* a plain skeleton and map/fold keys and **silently discards** the v2 half (rc=0 with the plain
+  step's value; Python raises). The only thing preventing that today is `compose._chain_has_v2_forms`
+  (`compose.py:455-473`), whose entire reason to exist is that C cannot do v2. **If the rcN relaxes that guard
+  because C now can, a stale ABI-17 `.so` returns `SRMECH_OK` with a WRONG value — and "non-OK → defer" cannot
+  catch an OK.** A version mismatch is the only remaining signal.
+- **Stated honestly:** if the rcN leaves that guard untouched, no stale lib can produce a wrong answer and the
+  bump is the cost-only kind — still bump-worthy by rc404 precedent, but **ceremonial**. Round 2 cannot decide
+  that; both branches are on the record.
+- `GENOME_FORMAT_VERSION` does **not** move — nothing on disk changes.
+
+### R2.8 What round 2 does NOT claim
+
+- **No shipped source, test, ratchet, ABI constant, CHANGELOG, version SSOT file or rc tag was touched.**
+  Every round-2 artifact is an untracked standalone file under `docs/srmech/notes/` linking `c/build/libsrmech.a`.
+- **The wedge harness reimplements the run loop LOCALLY** and its ref resolver is a **superset** of the shipped
+  one. "It ran here" is evidence the **math** is present — **not** evidence the shipped runner accepts the same
+  chains after a table-only edit. That distinction is the entire point of R2.3's ablation.
+- **The map prototype resumes `klein4_from_one` at step 9.** Steps 0-8 (`render_template` / `utf8_encode` /
+  `sha256_bytes` / `str_concat` / `seq_get`) are outside the map arm; their measured outputs are injected as
+  pre-seeded root step outputs. **The prototype does not execute those five stages in C.**
+- **`PM_JSON` (the borrowed-JSON carrier) is a DESIGN PROPOSAL** measured in the prototype, not something
+  `cr_value_t` has. The 176 bytes/cell constant is the prototype's `sizeof(pm_value_t) = 56`, not
+  `cr_value_t`'s — **the LAW transfers; the constant must be re-measured.**
+- **Positive 3 (triple-nested map) is a SYNTHETIC shape.** The deepest shipped map is depth 2.
+- **The keyset validator's 20 grammar rows** compare the C gate's verdict against Python verdicts measured
+  *separately in the same session*, not against a Python call made from inside the C process. Two measurements
+  joined by a table — which is why the parity ratchet must re-run the `#T1146` census **as a test**.
+- **The `chiral_dual` byte parity must not be generalised.** All 4 declared cases are small and
+  integral-valued; the residual risk is Neumaier-compensated vs plain accumulation. *(The round-2 deliverable
+  attributed this to an FFT-vs-direct-sum divergence; that was **REFUTED** — there is no FFT route in srmech's
+  Python since numpy was removed in the rc69-rc134 carrier arc. `composites.py:606` tries the native
+  direct-O(n²) peer first and falls back to the **same** direct O(n²) sum. The FFT language survives only as
+  stale prose at `c/include/srmech.h:1166` and `composites.py:548`. **The advice stands, the mechanism was
+  wrong** — do not send the rcN owner hunting a divergence class that does not exist here.)*
+- **The negative control behind the wedge's "2 of 2 planted divergences detected" has NO committed generating
+  code** — grep for `negative_control` / `planted` across the artifacts returns zero hits. The verification
+  pass **rebuilt the control itself and it does hold 2/2**, but as shipped that number violates
+  `[[feedback_computational_provenance_discipline]]`. **Either ship the control or drop the number.**
+- **A stale line reference in the keyset design note:** it cites `_chain.py:315-322` for `map_indexed`; the
+  real location is **`_chain.py:413`**, 98 lines away.
+- **6 of the 31 decline-ledger records carry no probe id** (X-4, X-5, X-6, X-8 and both strict-zero records).
+  All **11 decline rows proper** do carry one; the "every boundary probe-backed" claim is true of the decline
+  list and overstated for the 31-record set. Likewise **"0 stale source anchors" covers only the 8 anchors the
+  guard re-reads** — the prose cites 21; all 21 were hand-checked accurate at rc444, but the guard does not
+  cover 13 of them.
+- **`_chain_c_eligible` "False for 0/18" in the decline list is INVERTED.** Measured: it returns **True for
+  0/20 variants**, i.e. **False for 20/20**. The conclusion drawn from it ("widening C alone changes nothing
+  observable") is the one the real measurement supports; the number is backwards.
+- **`_1653_proto_fold.c` has 14 functions, not 13** — the shipped scanner's `static const` blind spot eats
+  `pf_resolve_ref`. Harmless on the merits (26 lines, ≥2 asserts) but it shows a scanner proven holed was
+  applied to an artifact without noticing it bit. `_1653_proto_map.c`'s 45 **is** complete.
+- **Round 2 built no macOS clang or Windows MSVC cell.** Everything is Linux gcc/clang at ABI 17.
+
+### R2.9 Reproduce round 2
+
+```bash
+WT=/home/skirklan/GitHub/mlehaptics/.claude/worktrees/srmech-1653-cparity
+cd $WT/docs/srmech
+
+# MAP arm — measurements, generated data header, prototype, JPL scan, arena law
+python3 notes/_1653_map_frames_rc444.py
+python3 notes/_1653_map_groundtruth_rc444.py
+python3 notes/_1653_map_emit_data_rc444.py
+cc -std=c99 -Wall -Wextra -Wpedantic -Werror -O2 -Ic/include \
+   notes/_1653_proto_map.c c/build/libsrmech.a -o /tmp/proto_map && /tmp/proto_map
+python3 notes/_1653_proto_map_jpl_rc444.py
+python3 notes/_1653_map_arena_law_rc444.py          # NOTE: reports the helper's PARSE TERM only — see R2.2
+python3 notes/_1653_jpl_scanner_blindspot_rc444.py  # NOTE: under-counts — see R2.6
+
+# OP-TABLE WEDGE — two-pass Python/C pipeline
+cd python && python3 ../notes/_1653_wedge_pycheck_rc444.py && cd ..
+gcc -std=c11 -O2 -Ic/include -o /tmp/wedge notes/_1653_wedge_optable_rc444.c c/build/libsrmech.a
+/tmp/wedge notes/_1653_wedge_barec > /tmp/wedge_out.txt
+cd python && python3 ../notes/_1653_wedge_pycheck_rc444.py /tmp/wedge_out.txt && cd ..
+
+# CLOSED-KEY-SET validator
+cc -std=c99 -Wall -Wextra -Wpedantic -O2 -Ic/include \
+   notes/_1653_proto_keyset_validator.c c/build/libsrmech.a -o /tmp/proto_keyset && /tmp/proto_keyset
+
+# ADR-0009 DECLINE filing + README truth audit
+python3 notes/_1653_adr0009_decline_verify.py
+python3 notes/_1653_adr0009_decline_rows.py
+python3 notes/_1653_adr0009_decline_check.py        # NOTE: 46 of its 55 checks never read the prose — see R2.5
+cd python && python3 ../notes/_1653_readme_truth_audit.py
+```
+
+### R2.10 Round-2 artifact index
+
+| artifact | what it is | status |
+|---|---|---|
+| `_1653_proto_map.c` + `_1653_proto_map_data.h` | the MAP arm, explicit frame stack, 45 functions | **compiled `-Werror`, ran, 0 failures** |
+| `_1653_proto_map.out.txt` | its committed stdout | — |
+| `_1653_map_frames_rc444.py` / `.ndjson` | frame budget from all 21 descriptors | ran |
+| `_1653_map_groundtruth_rc444.py` / `.ndjson` | the shipped-Python reference crumbs | ran |
+| `_1653_map_emit_data_rc444.py` | generates the data header from TOML + sha256 | ran |
+| `_1653_proto_map_jpl_rc444.py` / `.ndjson` | JPL scan using the **shipped ratchet's own scanner** | ran |
+| `_1653_map_arena_law_rc444.py` / `.ndjson` | the arena growth law ⚠️ **parse term only** | ran |
+| `_1653_jpl_scanner_blindspot_rc444.py` / `.ndjson` | the gate hole ⚠️ **under-counts, see R2.6** | ran |
+| `_1653_wedge_optable_rc444.c` | bare-C wedge harness, 44 functions ⚠️ `wo_schur` 61 lines | **compiled, ran, exit 0** |
+| `_1653_wedge_optable_rc444.ndjson` / `.out.txt` / `_1653_wedge_barec/` | 36 records, committed stdout, fixtures | — |
+| `_1653_wedge_pycheck_rc444.py` | the Python half of the two-pass pipeline | ran |
+| `_1653_proto_keyset_validator.c` | the closed-key-set gate, 16 functions | **compiled gcc + clang `-Werror`, 55/55** |
+| `_1653_adr0009_decline_list.md` | the ADR-0009 §5 filing, 627 lines, lift verbatim | — |
+| `_1653_adr0009_decline_verify.py` / `.ndjson` | 29 probes / 31 records, live ctypes + controls | ran |
+| `_1653_adr0009_decline_rows.py` / `.ndjson` | 11 decline rows machine-readable in §6a shape | ran |
+| `_1653_adr0009_decline_check.py` | the self-check ⚠️ **only 9 of 55 read the prose** | ran |
+| `_1653_readme_truth_audit.md` / `.py` / `.ndjson` | 24 anchored claims, 4 FALSE / 2 MISLEADING | ran, deterministic 3/3 |
+| `_1653_adv2_*` / `_1653_adv3_*` | independent verification harnesses (ctypes, ablation, forced-pure, recounts) | ran |
+
+---
+
+*Round 2 prepared as PRE-rcN research for gh #1653, on draft PR #1654. No shipped source, tests, ABI constant,
+CHANGELOG, version SSOT file or rc tag was modified in either round. Local task IDs are written `#T1142` /
+`#T1143` / `#T1144` / `#T1145` / `#T1146` / `#T1148`; the GitHub issue is `#1653` and the PR is `#1654`.*
