@@ -50,6 +50,52 @@ Every shard keeps the full liveness check — `HAS_NATIVE` plus `nm -u "$LIB" | 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc443]
+
+**`triality_companions` ROUNDED the caller's operator (`#T1151`). No ABI bump (ABI stays 17; there is no C symbol for this op), no registry change (663), no format change.** Every number below is measured by execution on this tree, before and after.
+
+### The defect
+
+`srmech/physics/qm/triality.py`'s `_solve_companions` built its normal equations with `rhs_m = int(round(target[m]))`, where `target = operator·(e_i * e_j)`. The two neighbouring `round` calls on the same lines take the octonion **structure constants** and are fine. This one takes **caller data**, inside a routine whose docstring claims *"exact-ℚ, native-independent … NO float `mat_solve`, NO Tikhonov ridge … BIT-IDENTICAL on every platform."*
+
+**The law, measured 9/9 rather than asserted:** the op returned the companions of the caller's operator with every entry **rounded half-to-even to an integer**. `companions(1.5·A)` was bit-identical to `companions(2.0·A)`; `companions(0.5·A)` to `companions(0.0·A)`, i.e. the all-zero 8×8; likewise `(2.5, 2.0)` and `(3.5, 4.0)`.
+
+Cartan's relation `A(x*y) = B(x)*y + x*C(y)` is **linear** in `(A, B, C)`, so `companions(k·A)` must equal `k·companions(A)` for every real `k`. Census over 20 coefficients through `triality_relation_residual`: the **5 integer** ones gave residual `0.0`; **all 15 fractional ones violated the relation** (residuals `1.6 … 8.0`), **7** of them by returning the zero matrix.
+
+It was **silent** — no exception, no warning, a well-formed real 8×8 `Mat` — and live since rc33.
+
+**It was reachable by pure API composition**, which is what makes it more than a corner case. The docstring stated the companions are exact dyadic rationals with denominators in `{1, 2}`; measured, **8 of 64** entries of `companions(E_pq)` are `±0.5`. So the op's own output is a fractional operator, and feeding it back in is ordinary composition: `residual(companions(companions(A)))` was **`32.0`**.
+
+**Why it survived.** Every in-tree caller passes an INTEGER operator — `_companion_maps()` iterates the `±1` `E_pq` generators — so `tau` / `S_B` / `S_C` / `Fix(tau) = g2` (dim 14) / `Fix(S_B) = so(7)` (dim 21) were never affected and the shipped theorems are correct. Only the public entry point on non-integer input was wrong, and nothing exercised it.
+
+### The fix, and why it is lossless
+
+`_octonion_mul(e_i, e_j)` is a `±1` unit vector, so `_matvec` performs a single `±1` multiply and adds zeros: **`target[m]` is exactly `±` an operator entry, already bit-exact as a float**. The Class-N `srmech.math.q.to_q` promotion therefore loses nothing — `int(round(...))` was the only lossy step. The right-hand side is now accumulated in exact `Q`; the Gram `G` is built from structure constants alone and **stays integer** (verified by execution).
+
+Measured after: **20 of 20** coefficients — dyadic *and* non-dyadic — give residual exactly `0.0` **and** entrywise deviation from `k·companions(A)` of exactly `0.0`. `residual(companions(companions(A)))` is `0.0`. The rc442 law is gone at **0 of 9** pairs, which is what shows the *mechanism* was removed rather than the symptom papered over.
+
+### Three claims that were ASSERTED and are now MEASURED
+
+* **The `{-1, 0, +1}` structure constants.** Per `[[feedback_an_asserted_algebraic_property_is_not_a_measured_one]]`: the tensor's 512 entries take exactly three distinct float values — `-1.0` (28×), `0.0` (448×), `+1.0` (36×) — and **none** is moved by `round`. So rounding them was a genuine no-op and those two sites were never the defect. They now coerce through a new `_exact_int`, which **raises** on a non-integer instead of absorbing it, so the property is enforced rather than assumed.
+* **The `srmech_qmat_rref` byte-identity.** `_exact_solve_normal_equations`'s docstring claims the whole solve is standalone-reproducible in a bare-C host by the `c_dispatched` `QMat.rref` over the same augmented `[G | c]`, byte-identically. That augmented column's type moves `int` → ℚ here, so the claim was **re-verified by execution** rather than left standing: `QMat` carries exact `Q` natively, and the mirror is byte-identical on an integer operator **and** on two fractional ones — inputs the rc442 spelling could not have reached at all. The docstring is updated to say what was re-measured.
+* **The "exact DYADIC rationals (denominators in `{1, 2}`)" claim.** True for INTEGER operators, which is what makes `S_B` / `S_C` / `tau` bit-identical across platforms — and the docstring now scopes it that way instead of stating it unconditionally. On a general operator the solve is still exact over ℚ, with denominator dividing `2 ×` the operator's own, and the `float()` at the carrier boundary is the one inexact step. The return type stays `Mat`; widening the contract to exact ℚ is **not** done here.
+
+### The gate
+
+`tests/test_triality_exact_rhs_rc443.py` — 42 tests in seven legs: linearity over 8 dyadic + 9 non-dyadic coefficients, composition, non-vacuity on the integer path (including the `g2`-derivation oracle `g_s = g_c = g_v`), a negative control on the rounding law, regression pins, the structure-constant measurement, and the `qmat_rref` mirror. Measured **31 failed / 11 passed** against `origin/main` and **42 passed** with the fix. 28 of the 31 are the defect itself; the other 3 fail on `_exact_int` not existing yet.
+
+The regression pins are literals **captured from `origin/main` at rc442** and re-measured identical after: `tau`, `S_B`, `S_C` and the integer generator's two companions, each content-addressed, plus `Fix(tau) == 14` and `Fix(S_B) == 21` with the rank taken exactly over ℚ. They are what stops the gate going green by breaking the theorems it exists to leave alone. The pin hashes are over the shortest round-tripping `repr` of every entry rather than `Mat.tobytes()`, because the `array('d')` memory image is byte-order dependent while `repr(float)` is unique per bit pattern — equally bit-exact, and portable.
+
+Discipline: numpy-free on both sides; the Class-K pin-slot `srmech.cascade.magnitude` wherever a deviation is measured, never `abs()`; no stdlib `fractions` / `math` / `decimal`.
+
+### Sibling census
+
+Every other `round(` site in the package was checked. All are documented deliberate contracts: banker's rounding matching the C peer (`cascade/composites.py:221`, `math/rational.py:313`), the exact integer identity `round(a/b) = floor((2a+b)/(2b))` (`cascade/matrix_cascades`), population-coding slot offsets (`math/hdc.py:1733`), fixed-point Q61 quantization (`cascade/hypercomplex_dft.py:150`), display rounding (`math/laplacian` diagnostics), the JPEG quantization step (which *is* the algorithm), and the explicit float→scaled-integer boundary feeding the Class-N `best_rational` (`biology/coupling.py:211`, where approximation is the contract).
+
+Two sites not previously catalogued turned up in `srmech/physics/qm/so9.py` — `_lmat` (line 280) and `_g2_diag_int` (line 751) — both `int(round(x))`. **Neither is a second instance of this defect:** both round internally-derived data, not caller data (`_lmat` takes an `int` index and rounds the octonion left-multiplication table; `_g2_diag_int` rounds the `g2_subalgebra()` derivations), and both were measured exactly integral — `{-1.0: 28, 0.0: 448, +1.0: 36}` and `{0.0: 812, ±2.0: 56, ±4.0: 28}` respectively, zero non-integral entries. They are the same class as triality's structure-constant sites. Tightening them to the `_exact_int` spelling is a follow-up, deliberately not folded in here.
+
+**The triality site was the only one rounding CALLER data inside a path that claims exactness.**
+
 ## [0.9.0rc442]
 
 **§GROUP/v20 — the genome wire format gains NESTING (`#T1150`). `GENOME_FORMAT_VERSION` 19 → 20; `SRMECH_ABI_VERSION` 16 → 17; registry **661 → 663**.** Every number below was re-measured on this tree; where a filed claim disagreed with the tree, the tree won and it is said so.
