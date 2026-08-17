@@ -35,11 +35,27 @@ OUT = os.path.join(HERE, "_1653_gate_matrix_rc445.ndjson")
 
 
 def c_table_ops():
-    """The ops cr_dispatch actually handles — read from the C source, not a list."""
+    """The ops the C dispatch actually handles — read from the C source, not a
+    list, so this cannot drift from what is compiled.
+
+    Spans cr_dispatch AND cr_dispatch_real: rc447 split the real-sequence arms
+    into the second function purely to keep the first under JPL Rule 4, and a
+    scanner anchored to one of them would silently under-report the table. It
+    also matches the SUFFIX form ``memcmp(op + (opl - N), "name", N)`` used by
+    ops whose descriptors write a dotted spelling — reading only the bare
+    ``memcmp(op, ...)`` form would miss every one of those.
+    """
     src = open(C_SRC, encoding="utf-8", errors="replace").read()
-    body = src[src.index("static srmech_status_t cr_dispatch"):]
-    body = body[:body.index("op not in the C dispatch table")]
-    return sorted(set(re.findall(r'memcmp\(op,\s*"([a-z0-9_]+)"', body)))
+    start = src.index("static srmech_status_t cr_dispatch_real")
+    body = src[start:]
+    end = body.find("static srmech_status_t cr_run_steps")
+    if end > 0:
+        body = body[:end]
+    ops = set(re.findall(r'memcmp\(op,\s*"([a-z0-9_]+)"', body))
+    ops |= set(re.findall(r'memcmp\(op \+ \([^)]*\),\s*"([a-z0-9_]+)"', body))
+    assert ops, "the C dispatch-table scan found NOTHING — the anchors have " \
+                "drifted from the source and every gate below would be wrong"
+    return sorted(ops)
 
 
 def walk_steps(steps, depth=0):
@@ -79,10 +95,24 @@ def has_real(node):
 
 INDEXED_REF = re.compile(r"@step\[\d+\]\.output\[")
 
+#: Namespaces cr_resolve_ref does NOT know. @op is the sharpest: it names an OP
+#: as a VALUE, which needs a callable registry in C, not a wider path walker.
+UNKNOWN_NS = re.compile(r"@(op|bind|idx|catalog)[.\[]")
+
 
 def has_indexed_ref(node):
+    """Any reference form C cannot resolve — an INDEXED @step[N].output[K],
+    or a namespace outside {row, input, step}.
+
+    ⚠️ This checked ONLY the indexed form until rc447, which is why
+    ``parallel_sector_dispatch`` scored as blocked by the op table ALONE and
+    read as the cheapest remaining chain. It is not: it also passes
+    ``@op.srmech.cascade.atoms.chiral_flip``, so it needs a namespace C has no
+    resolver for at all. A predicate that under-reports gates makes the hardest
+    chain look like the easiest.
+    """
     if isinstance(node, str):
-        return bool(INDEXED_REF.search(node))
+        return bool(INDEXED_REF.search(node)) or bool(UNKNOWN_NS.search(node))
     if isinstance(node, dict):
         return any(has_indexed_ref(v) for v in node.values())
     if isinstance(node, (list, tuple)):
@@ -100,11 +130,11 @@ def main():
 
     recs = []
     tally = {"op_table": 0, "carrier_width": 0, "ref_grammar": 0,
-             "real_literal_arg": 0, "step_form": 0}
+             "step_form": 0}
     only = {k: 0 for k in tally}
-    hdr = "%-26s %-9s %-9s %-9s %-9s %-9s  %s"
-    print(hdr % ("chain", "op_table", "carrier", "ref_gram", "real_lit",
-                 "stepform", "n_gates"))
+    hdr = "%-26s %-9s %-9s %-9s %-9s  %s"
+    print(hdr % ("chain", "op_table", "carrier", "ref_gram", "stepform",
+                 "n_gates"))
     print("-" * 92)
     for name in names:
         gates = set()
@@ -113,17 +143,20 @@ def main():
             for st, _d in walk_steps(entry.get("steps")):
                 ops_used |= set(step_ops(st))
                 if "map_over" in st or "body" in st:
-                    gates.add("step_form")
+                    gates.add("step_form")          # MAP: still unimplemented
+                # FOLD executes since rc446 — but only for the ONE body op in
+                # cr_fold_body. A fold over anything else is still a step_form
+                # block, so the predicate tests the BODY OP, not the form.
                 if "fold_op" in st or "fold_class" in st:
-                    gates.add("step_form")
-                a = st.get("args")
-                if has_real(a):
-                    gates.add("real_literal_arg")
-                if has_indexed_ref(a):
+                    fop = str(st.get("fold_op") or "").rpartition(".")[2]
+                    if fop != "orientation_compose":
+                        gates.add("step_form")
+                if has_indexed_ref(st.get("args")):
                     gates.add("ref_grammar")
-            for case in entry.get("proof_cases") or []:
-                if has_real(case.get("inputs")):
-                    gates.add("real_literal_arg")
+                # real_literal_arg is GONE as of rc447 — CR_DBL ingests a JSON
+                # double and marshals {"k":"f"} back, so a float in the args is
+                # no longer a block. The predicate is deleted rather than left
+                # scoring zero, so the column cannot quietly come back.
         outside = sorted(o for o in ops_used
                          if o.rpartition(".")[2] not in table and o not in table)
         if outside:
@@ -134,10 +167,13 @@ def main():
             e0 = _cc._chain_entries(catalog[name])[0]
             c0 = (e0.get("proof_cases") or [{}])[0]
             v = run_cascade_chain(name, **(c0.get("inputs") or {}))
-            if isinstance(v, float) or isinstance(v, (bytes, bytearray)) \
-               or hasattr(v, "tolist"):
-                gates.add("carrier_width")
-            elif isinstance(v, (list, tuple)) and any(isinstance(x, float) for x in v):
+            # CR_DBL + CR_LIST ship as of rc447, so a float / list-of-float
+            # result is CARRIED now. Bytes and dense matrices are still
+            # unrepresentable — those are the two carrier kinds left.
+            # ⚠️ dict was MISSING here until rc447 — parallel_sector_dispatch
+            # returns a 7-key dict and scored as carrier-clean, a second false
+            # negative on the same chain. C has no mapping carrier at all.
+            if isinstance(v, (bytes, bytearray, dict)) or hasattr(v, "tolist"):
                 gates.add("carrier_width")
         except Exception:
             pass
@@ -149,12 +185,48 @@ def main():
                      "X" if "op_table" in gates else ".",
                      "X" if "carrier_width" in gates else ".",
                      "X" if "ref_grammar" in gates else ".",
-                     "X" if "real_literal_arg" in gates else ".",
                      "X" if "step_form" in gates else ".",
                      len(gates)))
         recs.append({"record": "chain", "chain": name, "gates": sorted(gates),
                      "n_gates": len(gates), "ops_outside_c_table": outside,
                      "n_ops_used": len(ops_used)})
+
+    # ── CROSS-CHECK: the PREDICTION against what actually RUNS ──────────
+    #
+    # This whole table is a STATIC predictor, and a static predictor goes stale
+    # the moment a gate is closed — measured: after rc447 shipped CR_DBL it
+    # still scored `chiral_dual` as carrier+real_lit blocked while the chain
+    # was executing fine. Silent staleness in a diagnostic is how a closed gap
+    # keeps being reported as open, so the predictor now checks itself against
+    # execution and FAILS on disagreement rather than printing a stale row.
+    import ctypes as _ct, json as _json
+    from srmech.cascade import compose as _cmp
+    lib = _cmp._compose_lib("srmech_chain_run", "srmech_chain_run_arena_bytes")
+    disagree = []
+    if lib is not None:
+        for r in recs:
+            entry = _cc._chain_entries(catalog[r["chain"]])[0]
+            case = (entry.get("proof_cases") or [{}])[0]
+            cj = _json.dumps(entry).encode("utf-8")
+            xj = _json.dumps({"inputs": case.get("inputs") or {}}).encode("utf-8")
+            n = int(lib.srmech_chain_run_arena_bytes(len(cj), len(xj)))
+            ws = (_ct.c_char * n)(); cap = max(n // 2, 65536)
+            ob = (_ct.c_char * cap)(); ol = _ct.c_size_t()
+            rc = int(lib.srmech_chain_run(cj, len(cj), xj, len(xj), ws, n,
+                                          ob, cap, _ct.byref(ol)))
+            runs = (rc == 0)
+            r["c_runs"] = runs
+            if runs != (r["n_gates"] == 0):
+                disagree.append((r["chain"], r["gates"], rc))
+        print("cross-check: %d chains RUN in C; prediction disagreements: %d"
+              % (sum(1 for r in recs if r.get("c_runs")), len(disagree)))
+        for name, gates, rc in disagree:
+            print("   MISMATCH %-24s predicted gates=%s but C rc=%s"
+                  % (name, gates or "[]", rc))
+        assert not disagree, (
+            "the gate predicates disagree with actual execution on %d chain(s) "
+            "— a gate was closed (or opened) without updating this file, and "
+            "every row above is therefore suspect" % len(disagree))
 
     print()
     print("chains blocked BY GATE      :", json.dumps(tally, sort_keys=True))
