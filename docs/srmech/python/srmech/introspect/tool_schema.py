@@ -2670,7 +2670,7 @@ def _register_primitive_class_tools() -> None:
         # Schur/DtN float path composes over (its interior solve IS an
         # A·X = B). Native C peer srmech_dense_solve_f64_ws (Gauss–Jordan,
         # partial pivoting, augmented [A|B] scratch from a caller arena — no
-        # size cap, rc158 standalone-complete honor); exact-rational Fraction
+        # size cap, rc158 standalone-complete honor); exact-rational exact-ℚ Q
         # Gauss–Jordan numpy-absent / exact=True. Golub & Van Loan §3.
         ToolEntry(
             name="srmech.math.laplacian.dense_solve", owner="srmech",
@@ -2679,14 +2679,14 @@ def _register_primitive_class_tools() -> None:
                     "or length-n vector). The reusable solve schur_complement "
                     "composes over. Native C peer (Gauss–Jordan, partial "
                     "pivoting, n,w ≤ 256); float realization rides the numpy-free "
-                    "Mat engine; exact-rational Fraction solve (Class-N core, "
+                    "Mat engine; exact-rational Q solve (Class-N exact-ℚ core, "
                     "exact=True).",
             parameters=(P("A", "Mat", True,
                           "n × n coefficient matrix; nested JSON list over MCP"),
                         P("B", "Mat | Vec", True,
                           "right-hand side: n × w matrix or length-n vector"),
                         P("exact", "bool", False,
-                          "force the exact Fraction solve (default False)")),
+                          "force the exact-ℚ Q solve (default False)")),
             returns=R("Mat | Vec | list[list[Q]] | list[Q]",
                       "X solving A·X = B (shape of B)"),
         ),
@@ -2699,7 +2699,7 @@ def _register_primitive_class_tools() -> None:
             category="laplacian",
             summary="Class-L Schur complement / discrete Dirichlet-to-Neumann "
                     "map S = L_∂∂ − L_∂i·L_ii⁻¹·L_i∂ (the bulk integrated out; "
-                    "the operator|operand FUSION op). Exact-rational Fraction "
+                    "the operator|operand FUSION op). Exact-rational Q "
                     "solve (Class-N core, exact=True); the float realization "
                     "rides the numpy-free Mat engine (dense_solve -> mat_solve).",
             parameters=(P("L", "Mat", True,
@@ -2708,7 +2708,7 @@ def _register_primitive_class_tools() -> None:
                         P("boundary_idx", "list[int]", True,
                           "boundary node indices ∂ (1 ≤ |∂| ≤ n)"),
                         P("exact", "bool", False,
-                          "force the exact Fraction solve (default False)")),
+                          "force the exact-ℚ Q solve (default False)")),
             returns=R("Mat | list[list[Q]]",
                       "|∂| × |∂| boundary effective operator (DtN map)"),
         ),
@@ -2724,7 +2724,7 @@ def _register_primitive_class_tools() -> None:
                         P("boundary_idx", "list[int]", True,
                           "boundary node indices ∂ (1 ≤ |∂| ≤ n)"),
                         P("exact", "bool", False,
-                          "force the exact Fraction solve (default False)")),
+                          "force the exact-ℚ Q solve (default False)")),
             returns=R("Mat | list[list[Q]]",
                       "|∂| × |∂| boundary effective operator (DtN map)"),
         ),
@@ -13059,9 +13059,16 @@ def _register_qm_tools() -> None:
             summary="The (g_s, g_c) companions solving Cartan's relation "
                     "g_v(x·y) = g_s(x)·y + x·g_c(y) by deterministic "
                     "least-squares; for a g2 derivation g_s = g_c = g_v. "
+                    "The solve is exact-rational over Q; exact=True returns "
+                    "that exact carrier (list[list[Q]]) instead of the float64 "
+                    "Mat, and keeps the OPERAND exact too. "
                     "Class M. Baez (2002) §2.4.",
-            parameters=(P("g_v", "Mat", True, "8×8 so(8) generator"),),
-            returns=R("tuple[Mat, ...]", "(g_s, g_c) companions"),
+            parameters=(P("g_v", "Mat", True, "8×8 so(8) generator"),
+                        P("exact", "bool", False,
+                          "return the exact-ℚ companions as list[list[Q]] "
+                          "instead of the float64 Mat (default False)")),
+            returns=R("tuple[Mat, ...] | tuple[list[list[Q]], ...]",
+                      "(g_s, g_c) companions"),
         ),
         ToolEntry(
             name="srmech.physics.qm.triality.triality_relation_residual",
