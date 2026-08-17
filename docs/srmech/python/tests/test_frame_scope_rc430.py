@@ -137,8 +137,29 @@ CEIL_FRAME_UNADJUDICATED = {
     # is varied; an op with no inputs has nothing to vary, so it is genuinely
     # not frame-adjudicable. It joins an established class: 54 registered ops
     # are parameterless and all land here structurally.
-    "NO_ARG": 275,          # no harvested argument binding at all
-    "NO_INT_INPUT": 152,    # nothing translatable along a frame axis
+    #
+    # rc442 (local task T1150): 275 -> 276 for `srmech.biology.genome.genome_groups`,
+    # and for the same structural reason in its other form. The op takes exactly ONE
+    # parameter, `strand`, whose type is a sequence of HV carriers — MEASURED as
+    # `status: no_jsonable_arg, unserializable: ["strand"]` in
+    # tests/example_args_ledger.ndjson, from a worked example that DOES call it five
+    # times with a real strand. So the binding is not missing because the example is
+    # thin; it is missing because an HV sequence has no JSON encoding for the harvester
+    # to record, which is the same wall the existing population sits behind.
+    #
+    # And, as above, NO_ARG is the CORRECT verdict rather than a probe gap. The frame
+    # axis asks whether an op translates along a frame when an INTEGER INPUT is varied.
+    # `genome_groups` has no integer input at all: it reads block[0] of each block and
+    # returns container structure, so there is nothing to translate. Its sibling
+    # `genome_group` DID drain — it binds `label` and `dim` — which is what shows this
+    # raise is about the parameter's type and not about the pair being under-exampled.
+    "NO_ARG": 276,          # no harvested argument binding at all
+    # rc442 (local task T1150): 152 -> 153, `genome_group`. It DID drain out of NO_ARG
+    # (it binds `label` and `dim`), and landed one tier along in the same structural
+    # class: neither bound argument is an INTEGER the frame axis could translate —
+    # `label` is a string and `dim` is a block WIDTH, not a coordinate. A group is a
+    # container mark; there is no frame for it to move along.
+    "NO_INT_INPUT": 153,    # nothing translatable along a frame axis
     "BASE_RAISES": 56,      # harvested binding does not execute
     "SLOW_SKIP": 15,        # measured-slow, skipped BY NAME with a number
     # rc430 repair (`#T1127`): ops whose parameter carries a documented domain

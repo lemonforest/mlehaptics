@@ -172,6 +172,14 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
         'srmech_json_write_ws',
     ),
     'srmech.biology.genome.genome_fiber_holonomy': ('srmech_genome_fiber_holonomy',),
+    'srmech.biology.genome.genome_group': (
+        'srmech_genome_group_walk',
+        'srmech_genome_group_wrap',
+    ),
+    'srmech.biology.genome.genome_groups': (
+        'srmech_genome_group_walk',
+        'srmech_genome_group_wrap',
+    ),
     'srmech.biology.genome.genome_octonion_holonomy': ('srmech_genome_octonion_holonomy',),
     'srmech.biology.genome.integrate': ('srmech_genome_integrate',),
     'srmech.biology.genome.mint_strand': ('srmech_genome_mint_strand',),

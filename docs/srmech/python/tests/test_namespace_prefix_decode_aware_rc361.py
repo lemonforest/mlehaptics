@@ -872,11 +872,17 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # there is no 'bool' or 'dict' carrier. The back-index is now MORE correct: it
     # previously did not know that four ops taking an HV coupling take one. Growth,
     # not a move; no amsc pin shifts.
-    assert biology == 106, (
-        f"expected 106 srmech.biology op references inside the DECODED channel "
+    # rc442 (`#T1150`) — 106 -> 110, the §GROUP/v20 nesting pair. FOUR references, not
+    # two: genome_groups and genome_group each contribute their own registration AND the
+    # sibling cross-reference the other's explanation makes to it, which is the same
+    # accounting every prior pair-shaped addition here produced. The population is
+    # CONSERVED, which is what this pin measures — a rise that the diff explains is a
+    # surface that grew, not a channel that leaked.
+    assert biology == 110, (
+        f"expected 110 srmech.biology op references inside the DECODED channel "
         f"(the rc375 biology bucket's genome / q8 / coupling carrier back-index 99 + "
         f"rc390 split_defect 2 + rc408 coupling/int declarations 5), found {biology}. "
-        f"If this is not 106 the population is not conserved — re-measure.")
+        f"If this is not 110 the population is not conserved — re-measure.")
     # rc377 — THE srmech.cascade RECEIVING SIDE, the arc's FINAL and largest-carrier
     # population move. The 15 cascade modules folded amsc->srmech.cascade; their
     # carrier back-index refs (one / cayley_dickson / sedenion_register / cd_register

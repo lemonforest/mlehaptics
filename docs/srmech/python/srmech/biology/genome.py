@@ -9153,6 +9153,15 @@ def genome_groups(strand) -> List[dict]:
     arbitrary too (human numbering is by size), and F1206 measures the Laplacian carrying
     domains, hubs and bridges but not a sequence.
     """
+    # rc436 (`#T1141`) STRAND-SHAPE CONTRACT FIRST, above the native pre-check and not
+    # only inside the pure walk. MEASURED: with this guard below the dispatch, the native
+    # branch's _hv_bytes reached a nested-sequence strand first and raised a bare "'HV'
+    # object cannot be interpreted as an integer" — the exact message rc436 exists to
+    # replace, re-introduced by adding a fast path in front of the slow one. A targeted
+    # re-run of the group tests was green while the shape gate was red, which is why the
+    # rule is that a shared-module change gets the FULL sweep.
+    for hv in strand:
+        _cap_kind(hv)
     # §49/rc154 NATIVE-FIRST, the pattern every other genome op uses. The C peer
     # COMPUTES; the pure walk below EXPLAINS. A native non-OK status is not translated
     # here into a generic error — it falls through to the pure walk, which re-derives the
@@ -9170,14 +9179,6 @@ def genome_groups(strand) -> List[dict]:
                 return list(native[1])
     state = _ScanState()
     for hv in strand:
-        # rc436 (`#T1141`) STRAND-SHAPE CONTRACT, inherited rather than re-derived: asking
-        # _cap_kind FIRST is what makes a nested-sequence strand raise the guided "a strand
-        # must be a FLAT sequence of HVs -- did you mean to concatenate them?" error here
-        # too. Converting to bytes first would raise a bare "'HV' object cannot be
-        # interpreted as an integer" three frames down, and because genome_save now walks
-        # the grammar BEFORE splitting, this op sits in front of that message for all 30
-        # ops the rc436 guard covers.
-        _cap_kind(hv)
         blk = bytes(hv) if isinstance(hv, (bytes, bytearray)) else _hv_bytes(hv)
         state.fold(blk, blk)
     state.finish()
