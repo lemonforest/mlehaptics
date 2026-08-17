@@ -506,8 +506,29 @@ from srmech.math.text import fold_marks, glyph_stream
 #: (pure-Python, no native) • shard 6/6`` job of run 32032764725 reported this
 #: digest (prefix ``91501f9106d6``, suffix ``31f0d8a163781``) on all three of
 #: these tests before the re-pin, and the local reading matches on both ends.
+#:
+#: rc445 (`#T1153`) MOVES IT AGAIN, for the same reason and on a wider surface.
+#: The FALSE-tier prose pass rewrote **25 ToolEntry ``summary=`` fields** and
+#: **6 curated ``explanation`` blocks** — the false ``n <= 256`` native cap
+#: (measured: ``_can_dispatch_native`` never reads its ``n``; ``srmech.h:1536``
+#: says "No N cap"), the false "NumPy eigh fallback" on
+#: ``hermitian_eigendecompose`` and "via NumPy eigh" on
+#: ``symmetric_eigendecompose`` (both measured to run with numpy absent from
+#: ``sys.modules``), "numpy as CONTAINER only" on the four
+#: ``matrix_cascades`` factorisations, and the remaining ``Fraction`` -> ``Q``
+#: mechanism claims. The corpus is BUILT from that prose, so this digest MUST
+#: move; a witness that did not move would mean the corrected summaries never
+#: reached the corpus and the shipped falsehoods were still being served.
+#:
+#: Same order as above: ``regen_all.py --check`` reported all six generated
+#: files up to date FIRST (so the digest is taken against a regenerated tree,
+#: not a half-regenerated one), then the witness was read off
+#: ``search("rank", k=1).witness`` and independently re-derived as
+#: ``sha256_bytes(b"".join(f.blob for f in _build_frames("all")[0]))`` over
+#: 692 frames (663 ops + 29 carriers) — the two agree, which is the same
+#: cross-check ``test_scope_witnesses_agree_with_the_union`` performs.
 WITNESS_RC416 = (
-    "91501f9106d6e972241faf31fe8a1d480982679fd107c99e94431f0d8a163781")
+    "1f1c1325a28f26f6e123ee1c18306b9342d173b804172c81fb8ffb685d684f6f")
 
 #: The ASCII control set. These four queries are the ops the tokenizer work is
 #: ABOUT, so a regression on them would be the change eating its own subject.
