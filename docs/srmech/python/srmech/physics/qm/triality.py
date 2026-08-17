@@ -47,11 +47,16 @@ subset / SVD nullspace. **No RNG** anywhere (the clean-MCP no-RNG mandate).
 
 rc123/rc124 (numpy-free, #564): the whole module flips off numpy onto the
 framework-native carriers. ``28×28`` / ``8×8`` matrices are
-:class:`srmech.math.mat.Mat` (the public surfaces return ``Mat``); the
-companion least-squares rides :func:`~srmech.math.laplacian.mat_lstsq`, the
-matmuls :func:`~srmech.math.laplacian.mat_matmul`, the norms
+:class:`srmech.math.mat.Mat` — the public surfaces return ``Mat``, with ONE
+declared exception: :func:`triality_companions` under ``exact=True`` returns
+``list[list[Q]]`` (rc444). The companion solve is NOT a least-squares ride:
+since rc33 it is the exact-ℚ :func:`_exact_solve_normal_equations`
+(Gauss-Jordan over :class:`~srmech.math.q.Q`, no float least-squares, no
+Tikhonov ridge). The matmuls ride
+:func:`~srmech.math.laplacian.mat_matmul`, the norms
 :func:`~srmech.math.laplacian.mat_norm`, and the octonion table is consumed
-as a nested ``list`` (no ``.astype``).
+as a nested ``list`` (no ``.astype``) — as ``float`` entries, through
+:func:`_table_float`.
 
 Canonical SSoT:
 
@@ -695,8 +700,9 @@ def triality_companions(g_v, *, exact: bool = False):
 
     Class M (the companion binders).
 
-    rc123 (numpy-free): accepts an ``8×8`` :class:`Mat` / nested list; returns
-    ``(g_s, g_c)`` as real ``8×8`` :class:`Mat`.
+    rc123 (numpy-free): accepts an ``8×8`` :class:`Mat` / nested list.
+    ``exact=False`` (the default) returns ``(g_s, g_c)`` as real ``8×8``
+    :class:`Mat`; ``exact=True`` returns them as ``8×8`` ``list[list[Q]]``.
 
     **rc444 (`#T1152`) — ``exact=``, the exact-ℚ return carrier.** The solve has
     been exact-rational since rc33 and its right-hand side exact since rc443, but
@@ -749,8 +755,9 @@ def triality_relation_residual(g_v, g_s, g_c) -> float:
     when ``(g_s, g_c)`` are the correct companions of ``g_v``. The per-pair
     norms accumulate into a Python float, which is then reduced through the
     **scalar** Class K pin-slot magnitude
-    (:func:`srmech.cascade.magnitude`, which raises on an ndarray, so
-    the scalar reduction happens FIRST) — the cascade-honest replacement for
+    (:func:`srmech.cascade.magnitude` is SCALAR-only — a sequence or a
+    :class:`Mat` raises ``TypeError`` — so the scalar reduction happens
+    FIRST) — the cascade-honest replacement for
     ``abs()`` per
     ``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]``.
 
@@ -833,7 +840,8 @@ def _triality_order_residuals() -> Tuple[float, float, float]:
     element of ``S3 = Out(Spin(8))``). Each Frobenius norm is reduced to a
     SCALAR float FIRST (the numpy-free ``mat_norm`` of the nested-list
     difference), then through the scalar Class K
-    :func:`srmech.cascade.magnitude` (which raises on an ndarray).
+    :func:`srmech.cascade.magnitude` (SCALAR-only — a sequence or a
+    :class:`Mat` raises ``TypeError``).
     Numpy-free.
     """
     tau = triality_automorphism().tolist()

@@ -274,8 +274,12 @@ def _rank_exact(columns: Sequence[Sequence[Number]]) -> int:
 
     ``columns[c]`` is the c-th column (length ``n_rows``). The coords this
     module forms are EXACT rationals of small octonion structure constants
-    (``{-1, 0, +1}`` linear combinations), so a :class:`~fractions.Fraction`
-    Gaussian elimination is exact: the rank is the count of pivots.
+    (``{-1, 0, +1}`` linear combinations), so an exact-ℚ
+    :class:`~srmech.math.q.Q` Gaussian elimination is exact: the rank is the
+    count of pivots. The columns arrive as FLOAT and each coord is snapped to
+    denominator ≤ 10^12 by the signed Class-K∘N∘C cascade
+    :func:`~srmech.cascade.best_rational_signed` before the RREF; on this
+    module's data that snap recovers the exact value.
     """
     n_cols = len(columns)
     if n_cols == 0:
@@ -1176,7 +1180,10 @@ def an_embedding(imaginary_unit: int = 1) -> dict:
        EXACTLY 8-dim.
     2. **complement** — the 6-real-dim orthogonal su(3)-module (the
        "movers"); ``span[su3 | complement] == span(g2)`` (rank 14, both
-       directions: the bidirectional killer test, EXACT over ℚ).
+       directions: the bidirectional killer test). These generators are FLOAT
+       (g2 combinations carrying the SVD-nullspace coefficients), so this
+       check rides the float-tolerant :func:`_rank_float`, NOT the exact ℚ
+       RREF — which is reserved for the genuinely-exact g2-derivation rank.
     3. **complex_structure_J** — the su(3)-INVARIANT complex structure on
        the 6-dim complement. The commutant of the 6-dim real su(3)-rep is
        EXACTLY 2-dim ``{aI + bJ}``; ``J`` is its antisymmetric generator,
@@ -1732,9 +1739,12 @@ def quaternion_subalgebra_stabilizer(quaternion_index: int = 1) -> dict:
     1. **so(4) = the stabiliser** ``{D in g2 : D span(H_imag) ⊆
        span(H_imag)}`` via the SVD nullspace of the
        leak-into-``H^⊥`` constraint — EXACTLY 6-dim.
-    2. **Killing-form rank == 6** — the SEMISIMPLICITY certificate (full
-       rank over ℚ, by Cartan's criterion; rules out a solvable / abelian
-       factor). The two-triplet Killing SPECTRUM (two distinct eigenvalues,
+    2. **Killing-form rank == 6** — the SEMISIMPLICITY certificate (by
+       Cartan's criterion; rules out a solvable / abelian factor). The
+       Killing matrix is FLOAT (built from the SVD-derived so(4) generators),
+       so the rank rides the float-tolerant :func:`_rank_float` — a full-rank
+       semisimple form sits well clear of the float floor. The two-triplet
+       Killing SPECTRUM (two distinct eigenvalues,
        each multiplicity 3) is the su(2) ⊕ su(2) fingerprint and is
        ℍ-choice-invariant.
     3. **the two su(2) ideals** — the self-dual / anti-self-dual halves of
@@ -1743,7 +1753,8 @@ def quaternion_subalgebra_stabilizer(quaternion_index: int = 1) -> dict:
        as su(2) (``~1e-14``), the two commute (``[su2_+, su2_-] = 0``,
        ``~1e-14``), and each is a g2-ideal (``~1e-14``);
        ``span[su2_+ | su2_-] == span(so4)`` (rank 6, both directions: the
-       bidirectional killer test, EXACT over ℚ).
+       bidirectional killer test, on the float-tolerant :func:`_rank_float` —
+       these generators are SVD-derived, so they cannot be compared over ℚ).
 
     ℍ-CHOICE-INVARIANCE: the stabiliser of ANY quaternion subalgebra is the
     SAME algebra-type (so(4) = su(2) ⊕ su(2), dim 6, Killing rank 6, the

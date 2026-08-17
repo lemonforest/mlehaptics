@@ -6,7 +6,7 @@ eigendecomposition, matrix-vector multiplication, and elementwise
 operations on dense arrays". The graph-Laplacian-specific ops
 (``dense_adjacency``, ``dense_laplacian``, ``normalized_laplacian``,
 ``jacobi_eigvals``) remain specialisations of the general dense-matrix
-scope. Four new ops added to accommodate the closed-form TDSE
+scope. Six new ops added to accommodate the closed-form TDSE
 evolution ``ψ(t) = V·diag(exp(-iλt))·V^H·ψ(0)`` (Sakurai *Modern QM*
 §2.1.5 eq 2.1.40):
 
@@ -44,8 +44,10 @@ is pi-bearing and NOT shipped on the C surface per
 ``[[user_stance_pi_as_projection]]``; users computing cyclic-graph
 spectra should compose Class I (cyclic-group representation, pi-free
 modular arithmetic) with Class L's dense-Laplacian build + Jacobi
-eigvals, or use numpy/scipy at the Python layer for the trig-bearing
-shortcut.
+eigvals, or close the trig-bearing form with srmech's own Class-N
+cascades — :func:`srmech.math.rational.cos` over the ``4·atan(1)`` pi this
+module builds from :func:`srmech.math.rational.atan` (the module-private
+``_PI``), the same route :func:`magnetic_laplacian` takes.
 
 API
 ---
@@ -64,20 +66,28 @@ Phase 2 broadening (dense-matrix linear algebra):
 - :func:`elementwise_multiply_complex` — pointwise complex multiply.
 - :func:`elementwise_transcendental` — vectorised transcendentals.
 
-The module-level :data:`LAPLACIAN_OPS` constant exposes all available
-op names for the composition-engine registry.
+The module-level :data:`LAPLACIAN_OPS` constant exposes the op names
+registered with the composition-engine registry. It is NOT the full public
+surface: :func:`spectral_spine`, :func:`relational_structure`,
+:func:`three_fold_eigvec_groups`, :func:`eulerian_path`,
+:func:`eulerian_circuit`, :func:`order_fingerprint` and the
+``recover_check*`` family are exported from ``__all__`` without a registry
+entry.
 
 C-path bound
 ------------
 
-Most of the C native surface operates on ``n ≤ MAX_NATIVE_NODES`` (256),
-which caps the stack-allocated / static degree / row-scaling / augmented
-buffers (embedded-safe). When ``HAS_NATIVE`` and ``n ≤ 256`` the dense build
-+ ``jacobi_eigvals`` + ``dense_solve`` + ``mat_matvec``/``mat_matmul`` dispatch
-to the C symbol **with or without numpy** — the numpy-absent path marshals a
+The graph-build + eigen + solve native paths have **no node cap**
+(standalone-honor rc157/rc158): the C kernels write only into the caller's
+matrix or a caller-sized arena, so the bound is the caller's RAM.
+:data:`MAX_NATIVE_NODES` (256) survives as a live gate on exactly ONE op,
+:func:`spectral_block_dispatch` (4 × 256 = 1024); the Hermitian bound is the
+separate :data:`MAX_NATIVE_HERMITIAN_NODES` (2048). When ``HAS_NATIVE`` the
+dense build + ``jacobi_eigvals`` + ``dense_solve`` +
+``mat_matvec``/``mat_matmul`` dispatch to the C symbol — the marshal builds a
 flat ctypes buffer straight from Python ``list``s (UPSTREAM §38; ``jacobi``
-~49× faster than the pure-Python cascade). For ``n > 256`` (or no native lib)
-srmech's own pure-Python Class-L cascades run.
+~49× faster than the pure-Python cascade). With no native lib srmech's own
+pure-Python Class-L cascades run.
 
 The numpy-free Hermitian eigen**vector** decomposition
 (:func:`mat_hermitian_eigendecompose`) is the one path with a HIGHER native
@@ -1073,9 +1083,9 @@ def jacobi_eigvals(
     Numpy-free (rc129): the input is a :class:`~srmech.math.mat.Mat` /
     ``list[list[float]]`` (or any nested sequence) and the return is a 1-D
     :class:`~srmech.math.vec.Vec` of the ascending eigenvalues (``.shape == (n,)``
-    + scalar ``v[i]``), NOT a bare ``list[float]``. When ``HAS_NATIVE`` and
-    ``n ≤ 256`` the numpy-free list-marshal native path runs; else srmech's own
-    pure-Python Jacobi cascade.
+    + scalar ``v[i]``), NOT a bare ``list[float]``. When ``HAS_NATIVE`` the
+    list-marshal native path runs at any ``n`` (no node cap — see above); else
+    srmech's own pure-Python Jacobi cascade.
 
     Rotation-last exact route (rc-B, ``exact=``, keyword-only)
     ---------------------------------------------------------
@@ -1347,8 +1357,9 @@ def _dense_solve_complex(A, B):
         ⎡ Aᵣ  −Aᵢ ⎤ ⎡ u ⎤   ⎡ bᵣ ⎤
         ⎣ Aᵢ   Aᵣ ⎦ ⎣ v ⎦ = ⎣ bᵢ ⎦
 
-    so ``X = u + i v``. The embedding is exact (pure ``concatenate`` / slice —
-    NumPy a carrier only) and rides the shipped native real ``dense_solve``;
+    so ``X = u + i v``. The embedding is exact and is built inside
+    :func:`mat_solve` (via :func:`_mat_solve_complex`), which this function
+    rides directly;
     for a well-conditioned ``A`` (e.g. an HPD Gram matrix ``V·Vᴴ``) it is
     value-faithful to NumPy's complex solve / ``inv`` to ~1e-9. The complex
     inverse is just ``_dense_solve_complex(A, eye(n))`` (``A · X = I``).
@@ -1797,13 +1808,15 @@ def mat_matmul(a: "Mat", b: "Mat") -> "Mat":
     a complex operand feeds the kernel **zero-copy** (``from_buffer``), a real
     operand is interleaved ``(re, 0)`` once, and the output is a fresh
     ``array('d')`` wrapped back into a ``Mat`` (complex iff either input is). With
-    no native lib — or any dim > ``MAX_NATIVE_NODES`` (256) — the fallback is a
-    pure-Python triple loop over the ``Mat`` (a cascade, **never** numpy ``@``),
-    so the op is unconditionally numpy-free.
+    no native lib the fallback is a pure-Python triple loop over the ``Mat``
+    (a cascade, **never** numpy ``@``), so the op is unconditionally
+    numpy-free — and there is no size cap on the native path
+    (standalone-honor rc157): the C kernel writes only the caller's output
+    buffer, so the bound is the caller's RAM.
 
     rc69 built ``Mat``; rc71 made signal_processing import-reachable numpy-free;
-    this is the bridge the 2-D ``qm.*`` matmul callsites flip onto (rc73+) to
-    compute numpy-free on the native path.
+    this is the bridge the 2-D ``srmech.physics.qm.*`` matmul callsites flip
+    onto (rc73+) to compute numpy-free on the native path.
 
     Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
     Hopkins, 2013) §1.1 (textbook matrix multiplication).
@@ -2168,9 +2181,10 @@ def mat_hermitian_eigendecompose(h: "Mat") -> Tuple["Mat", "Mat"]:
     only up to a unit-modulus phase, and a degenerate eigenspace's basis is
     solver-chosen.
 
-    Once :func:`mat_matmul` + :func:`mat_solve` + this op exist, a ``qm.*`` module
-    can hold its working matrices in `Mat` and flip numpy-free — the first
-    ``CEIL_NUMPY_CARRIER`` decrement.
+    These three ops — :func:`mat_matmul`, :func:`mat_solve` and this one — are
+    what let a ``srmech.physics.qm.*`` module hold its working matrices in
+    `Mat` — the first ``CEIL_NUMPY_CARRIER`` decrement (the ratchet reached 0
+    and now pins the package-wide zero).
 
     Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
     Hopkins, 2013) §8.5 (Hermitian eigenproblem via unitary Jacobi rotations).
@@ -4533,7 +4547,7 @@ def _to_fraction(c) -> Q:
 
 def _cycle_holonomy_py(n, edge_list, charges):
     """Pure-Python complete alternative for :func:`cycle_holonomy` — exact
-    :class:`~fractions.Fraction` arithmetic (the odd channel). Spanning forest
+    :class:`~srmech.math.q.Q` arithmetic (the odd channel). Spanning forest
     by union-find (first-encountered edge = tree edge), pot[i] = tree-path
     charge (root → i), holonomy(u,v,c) = c + pot[u] − pot[v] mod 1. Returns
     ``(holonomies, cycle_edges)`` — the SAME spanning-tree choice as the C peer
@@ -4645,7 +4659,7 @@ def cycle_holonomy(
     gains (Zaslavsky's switching theory). This computes them exactly: a
     **spanning forest** (union-find; first-encountered edge = tree edge) → the
     **fundamental cycle** for each co-tree edge → that cycle's **net charge**
-    (per-edge ``charges`` in TURNS, exact :class:`~fractions.Fraction`, reduced
+    (per-edge ``charges`` in TURNS, exact :class:`~srmech.math.q.Q`, reduced
     **mod 1**). It is **Class I** (mod-1 cyclic) ∘ **Class L** (graph): exact
     integer/rational arithmetic, **NO eigensolve**.
 

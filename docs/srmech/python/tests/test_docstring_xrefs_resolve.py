@@ -24,6 +24,7 @@ concluding the docs are wrong.
 
 STRICT ZERO, and it is affordable: the population is 498 distinct ``srmech.*``
 cross-refs package-wide and exactly 2 were stale. This is not a CEIL class.
+(Re-measured at rc445: 510 distinct across 1445 sites, 0 unresolvable.)
 
 SCOPE — deliberately narrow, so the gate cannot go vacuously green:
   * only ``srmech.``-prefixed targets. A ``:class:`dict``` or a Sphinx-intersphinx
@@ -33,12 +34,37 @@ SCOPE — deliberately narrow, so the gate cannot go vacuously green:
     an attribute) without needing to know which part is the module.
   * an unresolvable target is a FAILURE, never a warning.
 
+THE SECOND ARM (rc445, `#T1153`) — UNQUALIFIED retired-namespace references.
+The check above can only see a target spelled ``srmech.<something>``. That is
+exactly why it stayed green through nine dead references to the ``qm``
+namespace: they are written UNQUALIFIED — ``qm.octonion`` rather than
+:mod:`srmech.physics.qm.octonion` — so the first arm never looks at them, and
+``import srmech.qm`` has raised ``ModuleNotFoundError`` since ADR-0010 removed
+the old path outright at rc382 (moved to ``srmech.physics.qm`` at rc381, no
+alias, per the no-legacy-path discipline).
+
+So the arm is: a backticked dotted token whose HEAD is a retired top-level
+srmech namespace must be fully qualified or removed. That set is finite and
+enumerable from the ADRs (:data:`RETIRED_TOP_LEVEL`), which is what keeps this
+decidable — it is a SET-membership check on a name, not a judgement about
+prose. Deleting a word cannot satisfy it; only deleting the whole reference
+can, and that is visible in review.
+
+⚠️ HISTORY NOTES ARE EXEMPT, and the exemption is not cosmetic: a move-note of
+the form ``old -> new`` is the CORRECT way to record that a path died, and a
+naive scanner false-positives on it. ``srmech/physics/__init__.py`` carries
+exactly such a note (``srmech.qm.spin`` -> ``srmech.physics.qm.spin``) and it
+must survive. :func:`_is_history_note` implements the carve-out, and
+``test_the_history_note_exemption_is_real`` proves it both ways so the
+exemption cannot silently widen into "any line mentioning qm".
+
 srmech-LOCAL invariant. This is not a JPL Power-of-Ten rule — Holzmann's list
 has exactly ten and ``tests/test_jpl_audit.py`` iterates ``range(1, 11)``.
 """
 
 from __future__ import annotations
 
+import ast
 import importlib
 import pathlib
 import re
@@ -122,6 +148,150 @@ def test_the_corpus_is_not_empty():
         f"only {len(distinct)} distinct srmech.* cross-refs found; expected at "
         f"least {MIN_DISTINCT_XREFS}. The walk collapsed — this is a broken "
         f"instrument, not a clean corpus."
+    )
+
+
+# ---------------------------------------------------------------------------
+# SECOND ARM — unqualified references to a RETIRED top-level srmech namespace.
+# ---------------------------------------------------------------------------
+
+#: Top-level names that WERE importable as ``srmech.<name>`` and are not any
+#: more. Enumerated from the ADRs, not guessed.
+#:
+#:   * ``qm`` — ADR-0010 (namespace declustering) moved the whole subpackage to
+#:     ``srmech.physics.qm`` at v0.9.0rc381 and REMOVED ``srmech.qm`` outright
+#:     at rc382 (clean break, no alias). MEASURED: ``import srmech.qm`` raises
+#:     ``ModuleNotFoundError``.
+#:
+#: ADR-0010's other moves (``apokatastasis`` / ``math`` / ``biology`` /
+#: ``cascade``) were ADDITIONS of a new parent, not retirements of an old
+#: top-level name, so nothing else belongs here yet. Add a name ONLY when
+#: ``srmech.<name>`` has actually stopped importing — the control test below
+#: asserts exactly that, so a wrong entry fails loudly instead of widening the
+#: gate into prose policing.
+RETIRED_TOP_LEVEL = ("qm",)
+
+#: A backticked dotted token headed by a retired namespace. Both the ``role``
+#: form (:mod:`qm.x`) and the bare double/single-backtick prose form.
+_RETIRED_ALT = "|".join(re.escape(n) for n in RETIRED_TOP_LEVEL)
+RETIRED_REF = re.compile(
+    r"(?::(?:func|meth|mod|class|attr|data|exc):)?"
+    r"``?((?:%s)\.[A-Za-z_][A-Za-z0-9_.]*)``?" % _RETIRED_ALT
+)
+
+#: ``old -> new`` (or ``old → new``) on the same line: a move NOTE, which is the
+#: correct way to record a dead path and must not be flagged.
+_HISTORY = re.compile(r"(?:->|→|=>)")
+
+
+def _is_history_note(line: str) -> bool:
+    """Is ``line`` a ``X -> Y`` move note rather than a live reference?"""
+    return bool(_HISTORY.search(line))
+
+
+def _docstring_lines():
+    """Yield ``(path, lineno_in_docstring_text, line)`` for every package docstring."""
+    for path in sorted(_PKG.rglob("*.py")):
+        if "__pycache__" in path.parts:
+            continue
+        src = path.read_text(encoding="utf-8", errors="replace")
+        try:
+            tree = ast.parse(src)
+        except SyntaxError:                       # pragma: no cover - loud below
+            raise AssertionError(f"{path} does not parse; the scan is broken")
+        holders = [tree] + [
+            n for n in ast.walk(tree)
+            if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+        ]
+        for holder in holders:
+            doc = ast.get_docstring(holder, clean=False)
+            if not doc:
+                continue
+            start = getattr(holder, "lineno", 1)
+            for offset, line in enumerate(doc.splitlines()):
+                yield path, start + offset, line
+
+
+def _retired_hits():
+    hits = []
+    for path, lineno, line in _docstring_lines():
+        if _is_history_note(line):
+            continue
+        for m in RETIRED_REF.finditer(line):
+            hits.append((path, lineno, m.group(1), line.strip()))
+    return hits
+
+
+def test_no_unqualified_reference_to_a_retired_namespace():
+    """STRICT ZERO. ``qm.octonion`` is not a name; ``srmech.qm`` does not exist.
+
+    This is the arm the fully-qualified check above CANNOT have: it never looks
+    at a token that does not start with ``srmech.``, which is precisely how nine
+    dead ``qm.*`` references survived it.
+    """
+    hits = _retired_hits()
+    assert not hits, (
+        "docstring references headed by a RETIRED top-level srmech namespace:\n"
+        + "\n".join(
+            f"  {p.relative_to(_PKG.parent)}:{ln}  ->  {tok}\n      {line}"
+            for p, ln, tok, line in hits
+        )
+        + "\n\nWrite the FULL live path (e.g. `srmech.physics.qm.octonion`) so "
+        "the resolution gate above can see it, or drop the reference. A "
+        "history note of the form `old -> new` is exempt and is the right way "
+        "to record that a path died."
+    )
+
+
+def test_every_retired_name_really_is_retired():
+    """The roster must name paths that ACTUALLY stopped importing.
+
+    Without this the roster is an opinion, and a wrong entry would turn a
+    name-resolution gate into prose policing.
+    """
+    for name in RETIRED_TOP_LEVEL:
+        with pytest.raises(ModuleNotFoundError):
+            importlib.import_module(f"srmech.{name}")
+
+
+def test_the_history_note_exemption_is_real():
+    """Both directions, so the carve-out cannot quietly widen.
+
+    ``srmech/physics/__init__.py`` carries a genuine move note. An instrument
+    that flags it is wrong; an instrument that exempts every line merely
+    MENTIONING the namespace is useless.
+    """
+    assert _is_history_note("``srmech.qm.spin`` -> ``srmech.physics.qm.spin``")
+    assert _is_history_note("qm.octonion → srmech.physics.qm.octonion")
+    assert not _is_history_note("``qm.octonion`` carries float64 octonions")
+
+
+def test_the_arm_would_have_fired_on_the_rc444_text():
+    """Retro-check against the verbatim rc444 lines, per this tree's pattern.
+
+    A gate that passes on the text it was written for is not the gate.
+    """
+    rc444 = [
+        "``qm.quaternion`` carries float64",
+        "the SAME generative cocycle ``qm.octonion`` builds its structure from",
+        "Composes the rc109 foundation: ``qm.quaternion.quaternion_twiddle``",
+        "``qm.single_particle`` used in rc117) — never numpy ``@``",
+    ]
+    for line in rc444:
+        assert not _is_history_note(line), line
+        assert RETIRED_REF.search(line), f"the arm would have MISSED: {line}"
+
+
+def test_the_retired_scan_is_not_vacuous():
+    """The docstring walk must actually visit a corpus.
+
+    Same non-vacuity reasoning as ``test_the_corpus_is_not_empty``: a collapsed
+    walk would make the strict zero above meaningless.
+    """
+    n = sum(1 for _ in _docstring_lines())
+    assert n >= 20_000, (
+        f"only {n} docstring lines visited; the AST walk collapsed. This is a "
+        f"broken instrument, not a clean corpus."
     )
 
 

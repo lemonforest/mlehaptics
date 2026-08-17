@@ -1,13 +1,33 @@
 # srmech
 
-`srmech` (Stored-Relationship Mechanism) is a research package shipping six load-bearing surfaces:
+`srmech` (Stored-Relationship Mechanism) is a research package. Since ADR-0010 (*namespace declustering*, v0.9.0rc364–rc377) its top level is a two-tier map: **DOMAINS** — what srmech knows about — and **FRAMEWORK** — how you reach it. **Every top-level subpackage appears in one of the two lists below**, and that claim is held against the installed package itself rather than against a number in this sentence.
+
+<!-- SURFACES:BEGIN -->
+
+### DOMAINS — what srmech knows about
 
 1. **14-class primitive vocabulary** (`srmech.math.*`, with content-addressing in `srmech.amsc.format` and catalog lookup in `srmech.introspect.naming`) — content-addressing, streaming, cyclic-group, graph-Laplacian, prime-factorisation, TLV, search, dispatch, catalog, templating, rational-approximation, equation-of-centre/Kepler, hyperdimensional-computing (HDC). Each class has both a Python wrapper and a native C symbol in `libsrmech.{so,dll,dylib}`.
-2. **The continuous-math cascade + the One** (`srmech.cascade.*`, `srmech.physics.qm.*`) — every "scientific" op (trig, exp, sqrt, FFT, SVD, eig, …) is a **composition of the 14**, not a separate primitive (numpy-free; the native build holds no libm). No particular math is privileged — it is all the same cascade. The same 14 are the graded blocks of **the One**, `S(σ,θ,w) = ⨁_{n=1}^{3}(ℝ·1 ⊕ σ·e^{Î_nθ}·Im 𝔸_n)`, `dim = 1+3+7+3 = 14` (`cascade.the_one(σ, θ, w)`, exact-rational + numpy-free; the bit-exact matrix peer `qm.hurwitz`) — `θ` the **epicycle** half-angle and the winding triad `w = (w_saros, w_metonic, w_callippic)` the **metacycle** grade (carrying the spinor double-cover sign `(−1)^Σw` + the divmod binary tower); the ℂ/ℍ/𝕆 Hurwitz ladder = the 28-generator `so(8)` adjoint + Spin(8) triality (`qm.{octonion, so8, triality}`; the order-3 outer automorphism `τ`, `Fix(τ) = g₂ = 14` = the A-N `1+3+7+3` partition).
+2. **The continuous-math cascade + the One** (`srmech.cascade.*`, `srmech.physics.qm.*`) — every "scientific" op (trig, exp, sqrt, FFT, SVD, eig, …) is a **composition of the 14**, not a separate primitive (numpy-free; the native build holds no libm). No particular math is privileged — it is all the same cascade. The same 14 are the graded blocks of **the One**, `S(σ,θ,w) = ⨁_{n=1}^{3}(ℝ·1 ⊕ σ·e^{Î_nθ}·Im 𝔸_n)`, `dim = 1+3+7+3 = 14` (`cascade.the_one(σ, θ, w)`, exact-rational + numpy-free; the bit-exact matrix peer `srmech.physics.qm.hurwitz`) — `θ` the **epicycle** half-angle and the winding triad `w = (w_saros, w_metonic, w_callippic)` the **metacycle** grade (carrying the spinor double-cover sign `(−1)^Σw` + the divmod binary tower); the ℂ/ℍ/𝕆 Hurwitz ladder = the 28-generator `so(8)` adjoint + Spin(8) triality (`srmech.physics.qm.{octonion, so8, triality}`; the order-3 outer automorphism `τ`, `Fix(τ) = g₂ = 14` = the A-N `1+3+7+3` partition).
 3. **Runtime spectral decomposition** (`srmech.spectral`) — eigenbasis projection, HDC delta encoding, spectral prediction, prediction-error gating, sparse-truncate compression.
 4. **Dual-path signal-processing surface** (`srmech.signal_processing`) — 41 closed-form algebra ops (Path A) + an RBS-HDC bound-vector instrument at D=8192 (Path B), with a cascade dispatcher routing per call.
-5. **AMSC provenance framework** (`srmech.amsc.format`, `srmech.amsc.catalog`, `srmech.amsc.adapters`) — every ground-proof datum carries a mandatory attestation block (`source_doi`, `source_url`, `license`, `retrieved_at`, `response_sha256`, `parser_version`, `parser_rule_hash`, `collector_descriptor_path`, `collector_descriptor_hash`).
-6. **The genome storage format** (`srmech.biology.genome`, `srmech.biology.plasmid`) — srmech's own self-describing on-disk store (wire format **v19**): O(1) append, a catalog derived from the body rather than a stored table of contents, centromere / diploid / chromatin / gene structure read back out of the bytes, and a two-stage extract-then-organize encode that makes adding a document incremental.
+5. **The genome storage format** (`srmech.biology.genome`, `srmech.biology.plasmid`) — srmech's own self-describing on-disk store (wire format **v20**): O(1) append, a catalog derived from the body rather than a stored table of contents, centromere / diploid / chromatin / gene structure read back out of the bytes, and a two-stage extract-then-organize encode that makes adding a document incremental.
+6. **The winding mathematics** (`srmech.apokatastasis`) — the elliptic / modular-forms / theta / q-series family: 25 modules (`elliptic_*`, `ellbase`, `modular_forms_ring`, `quasimodular_forms_ring`, `eisenstein`, `eta_quotient`, `harmonic_maass`, `riemann_theta`, `riemann_theta_multisum`, `thetasum`, `unary_theta`, and the certificate machinery `zeilberger` / `gosper` / `q_zeilberger` / `q_gosper` / `apagodu_zeilberger` / `wz_certificate` / `q_wz_certificate` / `elliptic_wz_certificate`). Named for ἀποκατάστασις (*return to the original position*) because these are the return-machinery of the winding grade `w` in `S(σ,θ,w)` — elliptic = doubly-periodic return, modular = the modular group's return, theta = quasi-periodic return, q-series = the nome's periodicity (ADR-0010).
+7. **Acoustic spectra and pitch relations** (`srmech.music`) — partial spectra (`bell_partials`, `membrane_partials`, `stiff_string_partials`, `equal_temperament_partials`), the exactness **tier tag** over them, a `commensurability_verdict` that can return *"inharmonic"*, and the pitch-set / comma surface (`just_limit`, `comma_of_chain`, `tempers_out`, `prime_form`, `normal_order`, `interval_vector`).
+8. **Reaction networks as exact-integer linear algebra** (`srmech.chemistry`) — `parse_formula`, `balance_reaction`, `conservation_laws`, `deficiency`. A chemical reaction read the way the rest of srmech reads everything: exact integers, no float stoichiometry.
+9. **The RBS-LM inference substrate** (`srmech.rbs_lm`) — the Relationship-Bound-State language-model substrate: the context / coherence-readout carriers and the L1–L3 encoders. Listed here so the map covers the whole top level; its promotion to a headline domain with a full API listing is an open scope question, not settled by this map.
+
+### FRAMEWORK — how you reach it
+
+- **`srmech.introspect`** — the self-recognition surface and, per ADR-0012, *the API contract itself*: `describe()`, the op registry (`tool_schema`), the operand carriers (`carrier_schema`), the responsion surface (`responsion_schema`), class-name lookup (`naming`), and the out-of-band "talk to a running srmech by PID" API (off by default; writes no file on import).
+- **`srmech.amsc`** — the AMSC provenance framework (`srmech.amsc.format`, `srmech.amsc.catalog`, `srmech.amsc.adapters`) — every ground-proof datum carries a mandatory attestation block (`source_doi`, `source_url`, `license`, `retrieved_at`, `response_sha256`, `parser_version`, `parser_rule_hash`, `collector_descriptor_path`, `collector_descriptor_hash`).
+- **`srmech.dsl`** — the cascade-chain interpreter: the fluent `chain()` builder and the TOML chain runner, reading the cascade-catalog descriptors and the `[class]` descriptors `make_class` binds.
+- **`srmech.mcp`** — the Model Context Protocol server (stdio + HTTP/SSE) that publishes the registry to Claude Code / Claude Desktop / any MCP host.
+- **`srmech.cli`** — the `srmech` command: five subcommands, `status` / `bus` / `dsl` / `mcp` / `class`.
+- **`srmech.bus`** — the cross-process bus: req/rep **and** pub/sub over AF_UNIX sockets / Windows named pipes, TLV-framed, with an optional encrypted wire.
+- **`srmech.llm`** — the *secondary* integration path: direct LLM-SDK adapters for scripting srmech outside an MCP host. For Claude Code users `srmech.mcp` is primary.
+- **`srmech._native`** — private binding infrastructure: the ctypes shim that loads `libsrmech.{so,dll,dylib}` and reports `HAS_NATIVE`. ADR-0010's fifth bucket — it knows every namespace, and registers nothing.
+
+<!-- SURFACES:END -->
 
 > **⚠️ BREAKING at v0.9.0rc287 — text is segmented into glyph clusters, not words.** `srmech.math.text.tokenize` and `DEFAULT_STOPLIST` are **removed** and replaced by `glyph_stream`. There is no shim and no compatibility flag. Every stored vocabulary, co-occurrence edge store and text-derived genome built before rc287 contains word tokens and must be **re-encoded** — the container format is unchanged, its contents are not. See [the glyph stream](#srmechmathtext--the-glyph-stream-uax-29) below before upgrading.
 
@@ -149,7 +169,7 @@ The PRIOR bump, **15 → 16 at v0.9.0rc439**, is kept here because its reasoning
 import srmech
 srmech.native_status()
 # {'has_native': True, 'dispatching': True, 'abi_version': 17,
-#  'expected_abi': 17, 'native_version': '0.9.0rc444', 'load_error': None}
+#  'expected_abi': 17, 'native_version': '0.9.0rc445', 'load_error': None}
 ```
 
 | Home (under `srmech.`) | Class | Primitive operation |
@@ -235,9 +255,9 @@ Two consequences worth stating plainly, because both were silent-wrong-answer de
 
 ### `srmech.cascade` — foundational cross-domain cascade catalog
 
-The cascades that recur across **every / most** domains, promoted so a named cascade is the default and a math-library call the exception (*being forced to reach for a math library is the signal that a cascade is waiting to be found*). Compositions over the 14-class A–N vocabulary — **no new primitive class.** Each cascade in this catalog ships with a **dedicated C symbol** in `libsrmech.{so,dll,dylib}` AND a TOML descriptor under `srmech/cascade/catalogs/cascade_catalog/` documenting the composition declaratively (**20 descriptors**, loaded at runtime by `srmech.dsl`; this read "15" until rc364 — re-counted at the move). No `abs()`: sign is the Class K pin-slot + Class C re-orientation.
+The cascades that recur across **every / most** domains, promoted so a named cascade is the default and a math-library call the exception (*being forced to reach for a math library is the signal that a cascade is waiting to be found*). Compositions over the 14-class A–N vocabulary — **no new primitive class.** Every cascade in this catalog ships a TOML descriptor under `srmech/cascade/catalogs/cascade_catalog/` documenting the composition declaratively, loaded at runtime by `srmech.dsl` and reported live by `describe()["cascade_catalog"]` — call `srmech.dsl.list_catalog_ops()` for the live set rather than trusting a number here (this sentence read "15" until rc364 and "20" until rc438, which is the argument for the pointer form). **Native backing is per-descriptor and each descriptor declares its own**: most carry a dedicated `c_symbol*` in `libsrmech.{so,dll,dylib}`; the `cyclic_mod_*` family declares `primitive_c_symbol` instead and delegates to the Class-I primitive (C-serviced, no dedicated cascade symbol); `schur_complement` is `status = "python-only"`; and `encode_loe_content` declares no `[cascade.native]` block at all. No `abs()`: sign is the Class K pin-slot + Class C re-orientation.
 
-As of **v0.6.0** the catalog is a **two-tier lean-ISA split** (`#751`): `srmech.cascade.atoms` holds the irreducible primitives and `srmech.cascade.compose` holds the composites that chain them — the same surface re-exported flat from `srmech.cascade`, so existing call sites are unchanged. The catalog grew two ops this line: `parallel_sector_dispatch` (Klein-4 four-sector orchestration) and `kuramoto_step` (the native coupled-oscillator step).
+As of **v0.6.0** the catalog is a **two-tier lean-ISA split** (`#751`): `srmech.cascade.atoms` holds the irreducible primitives, `srmech.cascade.composites` the composites that chain them, and `srmech.cascade.compose` the ADR-0008 chain engine that runs either from a TOML descriptor — the same surface re-exported flat from `srmech.cascade`, so existing call sites are unchanged. The catalog grew two ops this line: `parallel_sector_dispatch` (Klein-4 four-sector orchestration) and `kuramoto_step` (the native coupled-oscillator step).
 
 - `pin_slot_at_zero(x) -> (orientation, magnitude)` — **Class K** pin-slot at zero (the cascade-honest `abs()` split). *(C peer: v0.4.5rc2)*
 - `reorient(value, *, orientation)` — **Class C** orientation re-apply. *(C peer: v0.4.5rc4)*
@@ -249,6 +269,61 @@ As of **v0.6.0** the catalog is a **two-tier lean-ISA split** (`#751`): `srmech.
 - `net_chirality(orientations)` — **Class C** net handedness of a cascade (product of per-op orientations in `{-1,0,+1}`; `0` if any is neutral). *(C peer: v0.4.5rc5)*
 - `parallel_sector_dispatch(body, x, *, n_sectors=4, verify=False)` — **Class C** (Klein-4 `γ₅± × iω₇±` four-sector orchestration). Runs one cascade `body` across its ≤4 Klein-4 chirality sectors and returns a structured self-describing result; a GIL-releasing (native / IO) body lets the ≤4 sectors genuinely overlap. Higher-order (a body-callback orchestrator, not a unary `chain().then(...)` stage). *(C peer: `srmech_cascade_parallel_sector_dispatch`, body-callback ABI, v0.6.0; `n_sectors > 4` → `ValueError` — Klein-4 has no order-4+ element, 8+ needs the order-3 triality.)*
 - `kuramoto_step(theta, omega, *, coupling=1.0, dt=0.01)` — **Class I ∘ sin ∘ Σ ∘ C** one forward-Euler step of the canonical Kuramoto coupled-oscillator model (`θᵢ ← θᵢ + dt·(ωᵢ + (K/n)·Σⱼ sin(θⱼ − θᵢ))`). The O(n²) sin-coupling runs natively. *(C peer: `srmech_cascade_kuramoto_step_f64`, v0.6.0rc9; parity to the native trig-cascade tolerance — the C build holds no libm — same coupling-sum index order both sides; `n == 1` is pure drift.)*
+
+### The catalog IS the computation — the config-driven A–N oracle
+
+Every cascade in the catalog above is written **twice**: once as shipped code, and once as a TOML chain of the 14 A–N primitives. The two are then executed against each other and required to agree **bit-for-bit**. That is the oracle — not a doc-comment asserting the composition, but the composition *run*, with **disagreement as the finding** (ADR-0002 catalog-as-computation; ADR-0008 §2 the chain schema).
+
+A descriptor either declares its chain under `[[cascade.chain]]`, or declares itself an explicit **leaf** under `[cascade.leaf]` with a machine-readable `reason`. **Silence is not a leaf declaration** — the third state is held at strict zero.
+
+```toml
+# srmech/cascade/catalogs/cascade_catalog/magnitude.toml (verbatim)
+[[cascade.chain]]
+chain_schema_version = 2
+summary = "Class-K decomposition: magnitude(x) IS pin_slot_at_zero(x)[1], carried by the identity Class-C reorient."
+returns = "float  # |x| as the Class-K pin-slot magnitude (NaN -> 0.0 dead-band)"
+
+[[cascade.chain.steps]]
+class = "K"
+op = "srmech.cascade.atoms.pin_slot_at_zero"
+args = { x = "@input.x" }
+
+[[cascade.chain.steps]]
+class = "C"
+op = "srmech.cascade.atoms.reorient"
+args = { value = "@step[0].output[1]", orientation = 1 }
+
+[[cascade.chain.proof_cases]]
+covers = "negative"
+inputs = { x = -3.5 }
+```
+
+Read the live state — never hard-code these numbers:
+
+```python
+from srmech.introspect import describe
+from srmech.dsl import run_cascade_chain, list_catalog_ops
+
+describe()["cascade_catalog"]
+# {'total': 21, 'executable': 18, 'leaf': 3,
+#  'status': {'magnitude': 'executable', 'reorient': 'leaf', ...},
+#  'run': 'srmech.dsl.run_cascade_chain',
+#  'enumerate': 'srmech.dsl.list_catalog_ops'}
+
+run_cascade_chain("magnitude", inputs={"x": -3.5})   # -> 3.5, computed FROM the TOML
+[r for r in list_catalog_ops() if r["name"] == "magnitude"][0]
+# {'name': 'magnitude', 'class': 'K', 'kind': 'stage', 'status': 'executable', ...}
+```
+
+At v0.9.0rc445: **21 descriptors — 18 executable, 3 leaf** (`chiral_flip`, `pin_slot_at_zero`, `reorient`, each carrying a written irreducibility reason). The 18 carry **20 chain variants** — `kuramoto_step` (`simple` / `general`) and `klein4_from_one` (`rest` / `wound`) declare one chain per dispatch path, because two cascades are declared as two chains rather than papered over as one. The gate over them executes **98 authored proof cases** and compares each against the shipped op under a canonical byte encoding, in which NaN payloads and signed zeros still distinguish.
+
+The engine is `srmech.cascade.compose` — schema v2, v1 still accepted, `DEFAULT_CLASS_REGISTRY` exactly the fourteen classes A–N, error policy per chain or per step (`raise` / `warn_return_none` / `skip`). Step args resolve `@input.*`, `@row.*` and `@step[N].output`. Three step forms exist — plain, `map`, `fold`; the shipped chains currently use **63 plain and 9 map steps, and no fold**.
+
+**What this buys.** Declaring a cascade as config rather than code is how a domain surface is added without adding a primitive (ADR-0004): a chain is validated against the A–N registry at parse time, so an op that is not a composition of the fourteen cannot be spelled. And because the same computation exists in two independently-authored forms, drift in either is a red test rather than a silent wrong answer.
+
+**⚠️ One projection today — a declarative oracle whose executable projection is Python, with the C coverage enumerated rather than assumed.** This is a scripting-coherency result; it is **not** a co-equality claim. `run_cascade_chain` carries no C symbol of its own; it composes `srmech.cascade.compose.run_chain`, whose C peer `srmech_chain_run` (`c/src/srmech_compose_run.c`) reads only the `steps` key — **1 of the 3 step forms** — and dispatches a **10-op Class-N table** (`pi_cascade_digits`, the five `*_series_truncate`, `rational_add` / `_mul` / `_div` / `_pow_uint`). That table's intersection with the ops the shipped chains actually reference is **empty**, so a bare-C host can run **0 of the 18** chains from their descriptors today. The bit-identity gate itself runs with native dispatch forced off, for two reasons stated in its own module docstring: several ops dispatch whole-transform C kernels whose parity is a documented tolerance rather than bit-exactness, and the claim under test is about the *composition*, which is what the pure path is.
+
+The **ops** are compiled — 14 of the 21 descriptors name a dedicated `libsrmech` symbol in `[cascade.native]` (all 14 verified present in `c/include/srmech.h`), and 5 of the remaining 7 are `cyclic_mod_*` wrappers naming a Class-I primitive symbol. It is the **declarative path to them** that is Python-only. Closing that is [issue #1653](https://github.com/lemonforest/mlehaptics/issues/1653) — config-driven must work in C, per ADR-0003 and ADR-0009 — and until it lands, read the C projection's coverage as enumerated above rather than assumed.
 
 ### `srmech.signal_processing` — dual-path signal-processing surface
 
@@ -328,7 +403,7 @@ The front door for text: it turns a string into the units that everything downst
 | Length floor | 2 codepoints | none |
 | Stoplist | 146 English function words, by default, in every language | none |
 | Stored data | — | **every** pre-rc287 vocabulary / edge store / text-built genome must be re-encoded |
-| Format / ABI | — | `GENOME_FORMAT_VERSION` unchanged at **15** at that rc (later advanced 15 → 19); **ABI 6 → 7** |
+| Format / ABI | — | `GENOME_FORMAT_VERSION` unchanged at **15** at that rc (later advanced 15 → 20, as of v0.9.0rc442); **ABI 6 → 7** |
 
 The container is fine; its contents are not. `GENOME_FORMAT_VERSION` does not move because nothing about the byte layout changed — what changed is which strings went into it. ABI moves because the C surface lost an exported symbol (`srmech_text_tokenize`) and gained two (`srmech_text_glyph_stream`, `srmech_text_default_gb_table`), and a **removal always bumps**.
 
@@ -380,9 +455,9 @@ The 1093/1093 bar is held by the scripting-coherency body and the compiled-coher
 
 ### `srmech.biology.genome` / `srmech.biology.plasmid` — the genome storage format
 
-srmech's own on-disk store for coupled-turn content: a **self-describing** byte format (`turns.bin` + a head-only `manifest.json`) whose structure is read back out of the bytes rather than out of a sidecar table of contents. **Wire format v19.** The vocabulary is biology's because the structures are the ones biology already names — this is form-matching, not a claim about biochemistry.
+srmech's own on-disk store for coupled-turn content: a **self-describing** byte format (`turns.bin` + a head-only `manifest.json`) whose structure is read back out of the bytes rather than out of a sidecar table of contents. **Wire format v20.** The vocabulary is biology's because the structures are the ones biology already names — this is form-matching, not a claim about biochemistry.
 
-A genome is a sequence of **chromosomes**; each chromosome opens with a cap marker and carries interior caps. Every marker is one byte, distinct, and a reader that does not know a marker skips it by its self-described length — which is why v19 reads pre-v19 bodies unchanged.
+A genome is a sequence of **chromosomes**; each chromosome opens with a cap marker and carries interior caps. Every marker is one byte, distinct, and a reader that does not know a marker skips it by its self-described length — which is why v20 reads pre-v20 bodies unchanged.
 
 | Marker | Byte | Role |
 |---|---|---|

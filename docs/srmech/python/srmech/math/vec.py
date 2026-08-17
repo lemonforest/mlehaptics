@@ -3,9 +3,9 @@
 The 1-D peer of :class:`srmech.math.mat.Mat`. Where :class:`Mat` carries a dense
 2-D matrix over a flat ``array('d')``, :class:`Vec` carries a dense 1-D vector
 over the same flat ``array('d')`` buffer — the carrier the numpy-free Class-L
-ops (``fiedler_vector`` / ``dense_matvec_*`` / ``jacobi_eigvals`` eigenvalues /
-the eigenVALUES of the Hermitian/symmetric eigendecompose) return their working
-vectors in *once they are converted off numpy* (the carrier-removal arc, #564).
+ops (``fiedler_vector`` / ``mat_matvec`` / ``jacobi_eigvals`` eigenvalues /
+the eigenVALUES of the Hermitian/symmetric eigendecompose) return their
+working vectors in (the carrier-removal arc, #564, completed at rc134).
 
 Why a framework-native handle and not a bare Python ``list``: a ``list`` loses
 ``.shape``, the 1-D structure, AND has **no honest C representation** — a `Vec`

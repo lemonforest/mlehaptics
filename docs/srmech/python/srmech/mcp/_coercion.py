@@ -18,12 +18,11 @@ Encoding conventions (user decision 2026-05-29)
 * ``bytes``        <-> base64 ``str``  (unambiguous, binary-safe; the
   earlier hex convention was lossier to read and not what the rc14 wire
   format standardises on).
-* ``np.ndarray``   <-> nested JSON ``list`` (row-major, ``.tolist()``);
-  complex arrays carry each element as a ``[re, im]`` 2-list.
+* nested arrays   <-> nested JSON ``list`` (row-major); complex elements
+  carry as a ``[re, im]`` 2-list. ``Mat`` / ``Vec`` / ``HV`` serialise via
+  their own ``.tolist()``.
 * ``complex``      <-> ``[re, im]`` 2-list (a bare JSON number decodes to
   ``complex(n, 0)``).
-* numpy scalars (``np.int64`` / ``np.float64`` / ``np.uint8`` / ...) ->
-  plain Python ``int`` / ``float`` on the outbound path.
 * Container types recurse element-wise (see ``_PARAM_COERCERS``).
 
 The inbound table is keyed on the *declared* ToolEntry type-string so a
@@ -33,11 +32,11 @@ uncallable param type unnoticed. The outbound serialiser is *structural*
 (it walks the actual Python value) because a result's concrete type is
 not always pinned by the declared ``ToolReturn`` string (e.g. ``Any``).
 
-dtype inference (inbound ndarray) — the documented caveat
+dtype inference (inbound arrays) — the documented caveat
 ---------------------------------------------------------
-The generic inbound ``np.ndarray`` path builds a **real** array
-(``np.asarray`` — ``float64`` if any float is present, ``int64`` for
-all-ints). It deliberately does NOT auto-promote ``[re, im]`` leaves to a
+The generic inbound array path returns the nested Python ``list``
+unchanged — there is no array construction and no dtype inference. It
+deliberately does NOT auto-promote ``[re, im]`` leaves to a
 complex array, because a real 2-column matrix (``[[1, 2], [3, 4]]``) is
 shape-indistinguishable from a length-2 complex vector — guessing would
 silently corrupt the far more common real-matrix ops (graph-Laplacian,
@@ -45,10 +44,9 @@ real-symmetric eigendecomposition, real 3-/4-vectors). Consequences:
 
 * The real-array round-trip ``coerce_param(serialise_native(x)) == x`` is
   EXACT (values and shape).
-* Complex-input ops stay correct too: each casts internally via
-  ``np.ascontiguousarray(value, dtype=complex128)``, and a real symmetric
-  matrix IS a valid Hermitian input — the real→complex128 promotion is
-  lossless.
+* Complex-input ops stay correct too: each builds its own complex carrier
+  from the nested list, and a real symmetric matrix IS a valid Hermitian
+  input — the real→complex promotion is lossless.
 * The only input the generic path cannot express is an array carrying
   genuine *imaginary* parts. Single complex *scalars* ride as ``[re, im]``
   via the ``complex`` coercer; bulk complex *array* work is the

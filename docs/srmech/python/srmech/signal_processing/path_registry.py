@@ -17,9 +17,9 @@ Per the plan's §3.3 API surface:
     result_b = fft(signal_bytes, path="B")
     result = fft(signal_bytes, path="verify")
 
-The Phase 1 stub registers no operations — Phase 2 (Path A) and Phase 4
-(Path B) populate it. The API surface (`register`, `lookup`,
-`registered_ops`, `has_path`) is stable from Phase 1 onward.
+14 operations are registered today (``registered_ops()``); Path-A
+closed-form ops and Path-B RBS-HDC ops both populate it. The API surface
+(`register`, `lookup`, `registered_ops`, `has_path`) is stable.
 
 Discipline anchors:
 
@@ -168,8 +168,7 @@ def register(
     Idempotent on identical re-registration (same callable identity);
     raises :class:`DuplicateRegistrationError` on a different callable.
 
-    Phase 1 stub: callable storage works; Phase 5+ dispatcher reads
-    from here. Phase 1 itself registers no operations.
+    The dispatcher reads from here; 14 operations are registered today.
 
     Parameters
     ----------
@@ -249,8 +248,7 @@ def register(
 def lookup(op_name: str) -> OperationEntry:
     """Return the :class:`OperationEntry` for ``op_name``.
 
-    Phase 1 stub: no ops are registered; this raises for all callers.
-    Phase 2+ populates registrations as modules import.
+    Lazily-registrable ops materialise in the registry on first lookup.
 
     Raises
     ------
@@ -318,7 +316,7 @@ def registered_ops() -> Tuple[str, ...]:
     then any lazily-registrable ops not yet loaded.
 
     rc71: declarative — a lazily-registrable op (e.g. ``matched_filter``) is
-    listed as a known op without forcing its (numpy-pulling) import. The op
+    listed as a known op without forcing its import. The op
     materialises in ``_REGISTRY`` on first :func:`lookup` / :func:`has_path`.
 
     v0.9.0rc419 (`#T1110`): returns the concrete tuple rather than
