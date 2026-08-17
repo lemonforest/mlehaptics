@@ -13,10 +13,12 @@ Each module exports:
 - Module-level constants: ``OPERATION_NAME``, ``CLASS_COMPOSITION``,
   ``PERFORMANCE_HINT``, ``SSOT_CITATION``.
 - A single callable ``op(*args, **kwargs) -> result`` wrapping the existing
-  ``srmech.amsc.*`` primitive (or, for ops whose primitive is not yet in
-  srmech.amsc, the closed-form reference implementation via numpy/scipy).
+  ``srmech.amsc.*`` primitive (or, where no ``srmech.amsc`` primitive
+  exists, a substrate-native closed-form implementation — the only optional
+  external accelerator anywhere in the package is scipy's ``dpss`` in
+  ``multitaper``, which has a complete numpy-free fallback).
 
-The 38 ops cover the eight categories surveyed in Spike #178 §1:
+The 41 ops cover the eight categories surveyed in Spike #178 §1:
 
 - Spectral analysis: ``fft``, ``stft``, ``dct``, ``wavelet``, ``spectrogram``,
   ``cross_spectral``, ``multitaper``.
@@ -31,7 +33,7 @@ The 38 ops cover the eight categories surveyed in Spike #178 §1:
 - Adaptive / multi-signal: ``beamforming_fixed``, ``ica_jade``, ``music``,
   ``esprit``, ``lmmse``, ``map_ml``.
 
-Post-merge integration (Phase 1 work): a registration script iterates the 38
+Post-merge integration (Phase 1 work): a registration script iterates the 41
 modules and registers each in ``srmech.signal_processing.path_registry`` using
 the module-level constants.
 """

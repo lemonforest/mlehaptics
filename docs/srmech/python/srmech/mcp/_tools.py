@@ -359,9 +359,8 @@ def _parameter_to_schema_prop(p: ToolParameter) -> Dict[str, Any]:
     srmech type-string (so an LLM sees the richer hint even when the
     JSON-schema ``type`` lossily degraded), and (3) — for the non-JSON
     native types — the rc14 JSON-encoding hint (base64 for bytes,
-    nested array for ndarray, ``[re, im]`` for complex, the element
-    hint for containers), so an MCP / Anthropic consumer knows how to
-    encode the value.
+    ``[re, im]`` for complex, the element hint for containers), so an
+    MCP / Anthropic consumer knows how to encode the value.
     """
     base = (
         f"{p.summary} (srmech-type: {p.type})"
@@ -647,10 +646,10 @@ def serialise_result(result: Any) -> str:
 
     v0.5.0rc14: the result is first walked through
     :func:`srmech.mcp._coercion.serialise_native` (the outbound half of
-    the bidirectional coercion) so ``bytes`` -> base64, ``np.ndarray`` ->
-    nested list (complex elements as ``[re, im]``), ``complex`` ->
-    ``[re, im]``, numpy scalars -> Python scalars, and tuples/sets ->
-    lists — round-trippable with the inbound :func:`_coerce_arguments`.
+    the bidirectional coercion) so ``bytes`` -> base64, ``Mat`` / ``Vec`` /
+    ``HV`` -> nested or flat list, ``Q`` -> ``[num, den]``, ``complex`` ->
+    ``[re, im]``, and tuples/sets -> lists — round-trippable with the
+    inbound :func:`_coerce_arguments`.
     Anything ``serialise_native`` leaves untouched is handed to
     ``json.dumps`` with the :func:`_json_fallback` ``default=`` for the
     last-resort cases (dataclasses, exotic objects). Falls back to
@@ -665,12 +664,12 @@ def serialise_result(result: Any) -> str:
 
 def _json_fallback(obj: Any) -> Any:
     """``json.dumps`` ``default=`` for objects ``serialise_native`` left
-    untouched (it handles bytes / ndarray / complex / numpy-scalars /
-    tuples / dicts / Path). This catches the remaining structured cases —
+    untouched (it handles bytes / complex / Q / Mat / Vec / HV /
+    array.array / tuples / dicts / Path). This catches the remaining structured cases —
     dataclasses — and degrades anything else to ``repr`` so an LLM
     consumer still sees the value without losing the call."""
-    # serialise_native already covers ndarray / numpy-scalar / bytes /
-    # complex / tuple / set / Path; re-run it defensively in case a
+    # serialise_native already covers bytes / complex / Q / Mat / Vec / HV /
+    # array.array / tuple / set / Path; re-run it defensively in case a
     # nested ``default=`` invocation surfaces one of those. Since rc414 it
     # also covers the framework carriers (the ``$srmech_carrier`` envelope),
     # so most of what used to reach the ``repr`` line below no longer does.

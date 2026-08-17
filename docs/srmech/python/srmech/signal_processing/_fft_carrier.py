@@ -9,14 +9,13 @@ exact-until-rotation).
 
 **Carrier-removal (task #564):** the common **1-D / default-axis** case runs
 **numpy-free** — a stdlib list flows straight through the substrate-native
-cascade and comes back a list (the framework-native carrier when numpy is
-absent; for API parity an ``ndarray`` when numpy is present). Only the
-**n-D / non-default-axis** case still needs numpy as a carrier (``moveaxis`` /
-``reshape`` / zero-pad), and it imports numpy **lazily** — so this module is
-loadable AND 1-D-runnable with no numpy installed.
+cascade and comes back a ``List[complex]`` — the framework-native carrier,
+unconditionally. The **n-D / non-default-axis** case is not supported: it
+raises a clean ``ValueError`` (#564). This module is loadable and fully
+runnable with no numpy installed.
 
 Bit-faithful to the NumPy FFT family (forward / inverse / real / freq-bins),
-verified across real + complex, 1-D + n-D, every axis, and ``n``
+verified across real + complex 1-D input on the default axis, with ``n``
 pad/truncate (~1e-9). ``rfft`` mirrors NumPy by rejecting complex input
 (NumPy raises ``TypeError``). The transform values are identical on both
 paths — only the carrier shaping differs — because both ride the same

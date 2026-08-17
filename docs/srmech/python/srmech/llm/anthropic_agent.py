@@ -14,8 +14,8 @@ SECONDARY for users who:
 * Need programmatic control of the tool-use message-loop.
 * Don't have Claude Code in their workflow.
 
-Same tool catalog as MCP (the ~149 :class:`ToolEntry` registrations
-in :mod:`srmech.introspect.tool_schema`); same MPR attestation discipline
+Same tool catalog as MCP (the :class:`ToolEntry` registrations
+in :mod:`srmech.introspect.tool_schema` — 663 at v0.9.0rc445); same MPR attestation discipline
 per tool call (re-uses :func:`srmech.mcp._server.build_attestation`
 so the two adapters emit byte-identical attestation envelopes for
 the same tool/result pair).
@@ -25,9 +25,11 @@ Name mapping
 The Anthropic tool-name grammar is ``^[a-zA-Z0-9_-]{1,64}$``. srmech
 tool names contain dots (``srmech.amsc.format.sha256_bytes``); the
 adapter substitutes ``_`` for ``.`` when handing the tool catalog to
-Claude, and reverses the substitution when invoking. Per-tool name
-length stays well under the 64-char ceiling for the
-``srmech.amsc.*`` catalog (the longest is currently 47 chars).
+Claude and reverses it through a name map built at catalog time. A name
+whose swapped form exceeds the 64-char ceiling is deterministically
+shortened to a prefix plus an 8-hex sha256 tag of the full name (see
+:func:`_to_anthropic_name`); 12 of the 663 live names take that path
+today, the longest being 74 chars.
 
 Optional dep
 ------------
@@ -90,7 +92,7 @@ def _to_anthropic_name(srmech_name: str) -> str:
     because the reverse map is rebuilt by applying THIS SAME function to every
     live registry name (the synthesised string is the reverse-map key); two
     distinct names collide only if their (prefix, 32-bit sha256 tag) coincide
-    — negligible across the ~400-tool surface."""
+    — negligible across the 663-tool surface."""
     assert srmech_name, "name must be non-empty"
     out = srmech_name.replace(".", "_")
     if len(out) > ANTHROPIC_TOOL_NAME_MAX_LEN:

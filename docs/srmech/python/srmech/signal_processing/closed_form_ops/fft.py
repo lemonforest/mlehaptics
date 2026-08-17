@@ -42,13 +42,13 @@ def op(signal, *, n: Optional[int] = None, axis: int = -1, D: int = 8192):
     axis:
         Axis over which to compute the FFT. Default last axis.
     D:
-        Path B dimensionality (retained for cross-path API consistency; not
-        used by the Path A closed-form numpy backend).
+        Path B dimensionality (retained for cross-path API consistency;
+        unused on the Path A closed-form path).
 
     Returns
     -------
-    numpy.ndarray | list
-        Complex DFT coefficients (``list`` when numpy is absent — ``_fc``
-        coerces the input, so no numpy is needed at this layer).
+    list
+        Complex DFT coefficients as a ``List[complex]`` — ``_fc`` coerces the
+        input, so no numpy is involved at any layer.
     """
     return _fc.fft(signal, n=n, axis=axis)
