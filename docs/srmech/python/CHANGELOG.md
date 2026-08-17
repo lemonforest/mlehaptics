@@ -52,7 +52,7 @@ Every shard keeps the full liveness check — `HAS_NATIVE` plus `nm -u "$LIB" | 
 
 ## [0.9.0rc442]
 
-**§GROUP/v20 — the genome wire format gains NESTING (`#T1150`). `GENOME_FORMAT_VERSION` 19 → 20; `SRMECH_ABI_VERSION` 16 → 17. Registry stays 661.** Every number below was re-measured on this tree; where a filed claim disagreed with the tree, the tree won and it is said so.
+**§GROUP/v20 — the genome wire format gains NESTING (`#T1150`). `GENOME_FORMAT_VERSION` 19 → 20; `SRMECH_ABI_VERSION` 16 → 17; registry **661 → 663**.** Every number below was re-measured on this tree; where a filed claim disagreed with the tree, the tree won and it is said so.
 
 ### What v20 is
 
@@ -149,8 +149,15 @@ Nothing reads the position. Advertising ordered membership as a derivable fact w
 | C | `srmech_genome_group_t` — the record POD; every field derived, none read off the wire |
 | Python | `genome_groups(strand)` · `genome_group(label, units)` · `GenomeGroupError` · `GROUP_OPEN_MARKER` · `GROUP_CLOSE_MARKER` · `MAX_GROUP_DEPTH` |
 | ctypes | `has_native_genome_group` · `genome_group_walk_c` · `genome_group_wrap_c` · `SrmechGenomeGroup` |
+| C test | `c/test/test_srmech_genome_group_rc442.c` — 34 checks, wired into `ctest` on arrival |
 
 Both new Python ops are carrier-FREE by construction (they read `block[0]` and never decode a turn), so `CEIL_GENOME_CARRIER_GAP_PY` moves 50 → 52 under the sanctioned "raise only alongside a new carrier-free op" clause, with the accepts FLOORS held at 22/22 — surface growth, not coverage regression.
+
+**Both Python ops are REGISTERED, and that was not optional.** They join `genome.__all__`, and `test_registry_completeness_rc416` fails a public `__all__` callable that resolves to no `ToolEntry` — the fold-identity shape: importable and invisible to `describe()`, `search()` and the MCP tool list. The allowlist route exists and is deliberately expensive (a reason code *plus* a RAISED down-only ceiling, i.e. recording a regression rather than fixing one), so: registry 661 → 663, 73 count pins across 66 files, the op-name witness manifest rewritten and its sha256 re-pinned in the same commit (the two edits its own header demands), and `_tool_docs.py` / `srmech_tool_registry.c` regenerated.
+
+Registering them forced a decision the Rosetta ledger would not let us dodge. `composes_c` carries a transitive-reachability assert the pure walkers could not satisfy — they reach no C op — and `c_dispatched` would have been a false claim about ops that never called C. **So the ops now dispatch**, on the §49/rc154 pattern every other genome op uses: the C peer COMPUTES and the pure walk EXPLAINS. A native non-OK status is not translated here; it falls through to the pure walk, because C has one `SRMECH_ERR_BAD_INPUT` for four distinct malformed classes and a caller is owed the precise one of five `GenomeGroupError` messages. That also makes the C peers live rather than test-only.
+
+Both new ctypes wrappers initially tripped rc431's overloaded-`None` ceiling (25 → 27): they returned `None` from an input-shape predicate their C peers treat as an error, which destroys the invalidity signal at the boundary. That gate says explicitly *do not raise the number*, so they now return the REFUSAL — `(SRMECH_ERR_BAD_INPUT, …)` — and `None` means exactly one thing: the symbol is not loaded.
 
 ### Why the ABI moves
 
@@ -161,6 +168,10 @@ The fourth bump of the v10 / v12 / v14 kind: no exported signature changed shape
 `tests/test_genome_group_v20_rc442.py` (38 cases): the SY14 discriminator (sixteen loose units / sixteen grouped / one fused unit are three distinct `body_sha256` values, and the grouped reading keeps BOTH facts); each malformed class refused; the depth cap refused at exactly `MAX_GROUP_DEPTH` and legal at it; a v19 reader (the leaf-wide set minus the two frame markers) refusing a grouped body with `unrecognised block kind byte 91` **and still reading an ungrouped v20 body**, which is what makes the break precise rather than sweeping; regions tiling exactly across flat / grouped / nested; `n_content` invariant under regrouping with both projections agreeing; and a C↔Python differential over 8 seeds of randomly-nested strands plus all five malformed cases. Each gate ships with the mutation that turns it red — strip the frame markers and the SY14 discriminator collapses onto the ungrouped body; perturb one opener label byte and the differential's answer moves.
 
 `tests/test_implicit_close_rc441.py` is rewritten rather than deleted: it records that the rc441 pin fired as designed, moves the pin forward to the v20 vocabulary, and adds the four measurements that hold each re-derived splice site.
+
+`c/test/test_srmech_genome_group_rc442.c` (34 checks) is the other half, and a different claim: the Python differential proves the two projections AGREE, which is not the same statement as "the C surface is usable on its own, with no oracle to compare against". Wired into `ctest` on arrival rather than added to the rc356 unwired residual, which is down-only.
+
+**Three JPL Rule-4 extractions the group branch forced.** `genome_scan_chroms` reached 93 lines once the frame branch and the region carve landed in it, and `srmech_genome_mint_strand` reached 61 once its guard learned about group openers. Rule 4 caps a function at 60 and the ratchet is down-only, so: `genome_scan_frame_block`, `genome_scan_open_chrom`, `genome_opens_a_unit`. Measured after — scan_chroms 58, mint_strand 60, and every one of the sixteen functions this rc touches or adds is ≤ 60 lines with ≥ 2 asserts.
 
 ## [0.9.0rc441]
 
