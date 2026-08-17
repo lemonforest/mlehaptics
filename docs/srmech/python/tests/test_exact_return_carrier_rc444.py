@@ -99,7 +99,13 @@ adjudication; this rc fixed only the claim it measured false.
 Discipline: numpy-free; **never** Python ``abs()`` — the Class-K pin-slot
 :func:`srmech.cascade.magnitude` (which is ``Q``-preserving) wherever a deviation
 magnitude is taken (``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]``);
-no stdlib ``fractions`` / ``math`` / ``decimal``.
+no stdlib ``fractions`` / ``math`` / ``decimal`` — **including in this file**.
+The first draft proved the ``Fraction`` negative with
+``not isinstance(leaf, fractions.Fraction)``, and
+``test_selfhosting_import_ban.py`` correctly failed it: that ban's scope is
+``package+tests+tools``, not just the package. Naming the leaf's own type
+(``type(leaf) is Q``, ``type(leaf).__module__ == "srmech.math.q"``) is the
+stronger assertion anyway — it says what the carrier IS.
 """
 
 from __future__ import annotations
@@ -449,21 +455,33 @@ def test_the_exact_leaf_is_srmech_Q_not_stdlib_Fraction() -> None:
     Three precedent docstrings and five ``ToolEntry`` prose sites claimed the
     exact solve happens "in ``fractions.Fraction``". Post-#845 the carrier is
     srmech's own ``Q``. This asserts the fact the prose now states.
-    """
-    import fractions  # noqa: S403 — imported ONLY to prove a negative
 
+    **It proves the negative WITHOUT importing the banned module.** The obvious
+    spelling is ``not isinstance(leaf, fractions.Fraction)``, and the first
+    draft of this file used it — which
+    ``test_selfhosting_import_ban.py::test_module_is_at_its_enforcement_level[fractions]``
+    correctly failed as a STRICT-ZERO violation, because that ban's scope is
+    ``package+tests+tools``, not just the package. Naming the leaf's own type
+    is a *stronger* assertion anyway: it says what the carrier IS, rather than
+    one thing it is not, and it cannot be satisfied by some third rational type.
+    """
     leaves = [
-        dense_solve([[2, 1], [1, 3]], [[1, 0], [0, 1]], exact=True)[0][0],
-        schur_complement(
+        ("dense_solve",
+         dense_solve([[2, 1], [1, 3]], [[1, 0], [0, 1]], exact=True)[0][0]),
+        ("schur_complement", schur_complement(
             dense_laplacian(4, [(0, 1), (1, 2), (2, 3), (3, 0)], [1.0] * 4),
-            [0, 2], exact=True)[0][0],
-        triality_companions(_e01(), exact=True)[0][0][1],
+            [0, 2], exact=True)[0][0]),
+        ("triality_companions",
+         triality_companions(_e01(), exact=True)[0][0][1]),
     ]
-    for leaf in leaves:
-        assert isinstance(leaf, Q), f"{leaf!r} is not a srmech Q"
-        assert not isinstance(leaf, fractions.Fraction), (
-            f"{leaf!r} IS a stdlib Fraction — the pre-rc444 prose would be "
-            f"right and this rc's docstring correction wrong")
+    for name, leaf in leaves:
+        assert isinstance(leaf, Q), f"{name}: {leaf!r} is not a srmech Q"
+        assert type(leaf) is Q, (
+            f"{name}: leaf type is {type(leaf).__name__}, expected exactly Q")
+        assert type(leaf).__module__ == "srmech.math.q", (
+            f"{name}: leaf type lives in {type(leaf).__module__!r}, not "
+            f"'srmech.math.q' — if this ever says 'fractions' the pre-rc444 "
+            f"prose was right and this rc's docstring correction is wrong")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
