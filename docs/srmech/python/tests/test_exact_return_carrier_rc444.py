@@ -25,12 +25,17 @@ selector** (``element_type`` 22, ``table`` 19, ``mode`` 9, ``exact`` 4,
 THE CENSUS THAT SET THE SCOPE (rc444, structural AST pass over the package —
 "produces exact ℚ, narrows to float/complex at the return boundary, declares no
 ``exact=``"). 218 functions carry an exact-production signal; 4 declare
-``exact=``; **5 direct hits + 12 propagating callers**, of which exactly ONE
-family is a genuine candidate:
+``exact=``; **5 direct hits + 12 propagating callers** (5 = 1 + 4, 12 = 2 + 10),
+of which exactly ONE family is a genuine candidate:
 
-* **(a) exactness available and discarded** — ``_solve_companions`` →
-  ``triality_companions``. THIS rc.
-* **(b) float inherent to the contract** — ``mat_solve`` (+ ``mat_lstsq`` /
+* **(a) exactness available and discarded** — 1 direct + 2 propagated:
+  ``_solve_companions`` → ``triality_companions`` / ``_companion_maps``. THIS rc.
+  Only the PUBLIC ``triality_companions`` takes the parameter: ``_companion_maps``
+  is private, memoised, and iterates the ``±1`` ``E_pq`` generators, whose
+  companions are dyadic (``{1, 2}`` denominators) and so float64-exact —
+  measured, so its ``float()`` discards nothing.
+* **(b) float inherent to the contract** — 4 direct + 10 propagated.
+  ``mat_solve`` (+ ``mat_lstsq`` /
   ``construct_eta_from_eigendecomposition`` / ``lmmse`` / ``map_ml``): its input
   is ALREADY a float64 ``Mat`` and its ``_solve_exact`` call is the no-native
   COMPLETE implementation of a float problem; the caller-facing exact escape

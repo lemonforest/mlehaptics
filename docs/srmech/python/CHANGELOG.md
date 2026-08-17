@@ -71,9 +71,11 @@ Structural AST pass over the package: *"produces exact ℚ, narrows to `float`/`
 
 | Class | Count | Members |
 |---|---|---|
-| **(a) exactness available and DISCARDED** | **1 family** | `_solve_companions` → `triality_companions` |
-| (b) float inherent to the contract | 4 direct + 9 propagated | `mat_solve` (+`mat_lstsq`, `construct_eta_from_eigendecomposition`, `lmmse`, `map_ml`, the two complex helpers); `Poly.from_floats` / `QPoly.from_floats`; `_recover_op_spectral` (+`recover_check`, `recover_check_spectral`); `_decanon` (+`reproject`) |
+| **(a) exactness available and DISCARDED** | **1 direct + 2 propagated** | `_solve_companions` → `triality_companions`, `_companion_maps` |
+| (b) float inherent to the contract | 4 direct + 10 propagated | `mat_solve` (+`mat_lstsq`, `construct_eta_from_eigendecomposition`, `lmmse`, `map_ml`, the two complex helpers); `Poly.from_floats` (+`QPoly.from_floats`); `_recover_op_spectral` (+`recover_check`, `recover_check_spectral`); `_decanon` (+`reproject`) |
 | (c) precedent | 4 | `dense_solve`, `schur_complement`, `dirichlet_to_neumann`, `jacobi_eigvals` |
+
+(5 direct = 1 + 4; 12 propagated = 2 + 10.) Of the (a) family only the **public** `triality_companions` takes the parameter. `_companion_maps` is private, memoised, and iterates the `±1` `E_pq` generators, whose companions are dyadic (`{1, 2}` denominators) and therefore float64-exact — **measured**, so its `float()` discards nothing and it correctly stays on the float path.
 
 Why each (b) is genuinely (b), not a deferral: **`mat_solve`**'s input is *already* a float64 `Mat` and its `_solve_exact` call is the no-native **complete implementation** of a float problem — and the caller-facing exact escape already exists one level up as `dense_solve(exact=True)`, the public Class-L op that composes over it; adding `exact=` there would mint a second spelling of a shipped capability. **`from_floats`**' `float()` is an *input promotion* (float → exact ℚ) — the opposite direction, a detector false positive. **`_recover_op_spectral`** snaps a *float* eigenvalue to ℚ for a threshold test and returns bools plus `round()`ed diagnostics; exactness never existed upstream. **`_decanon`** is deserialisation.
 
