@@ -377,12 +377,12 @@ ROWS = [
          missing="C validates REQUIRED keys and never a CLOSED KEY SET, so it "
                  "silently ACCEPTS and COMPUTES declarations Python REJECTS.",
          lacked_by="both", blocked_this_rc=False, new_type=False,
-         evidence="24 of 34 probes: pure raises, native returns a value; 0 of 34 in "
-                  "the 'C lacks a capability' cell. 5 ops affected. And there is NO "
-                  "key-set validator anywhere in the C leaf surface to copy — the 2 "
-                  "apparently clean ops reject via a PYTHON TypeError on both paths.",
+         evidence="WAS 24 of 34 probes (pure raises, native returns a value; 5 ops). "
+                  "NOW 0 of 34, with the valid-call control still nativizing — a "
+                  "fix that deferred everything would also score zero and would "
+                  "have silently deleted the native path.",
          probe="python3 notes/_1653_t1146_rejection_parity_rc444.py",
-         disposition=FILED,
+         disposition=CLOSED,
          note="`#T1146`. A BUG, NOT A DECLINE — it must never be totalled with the "
               "decline rows. Co-equal projections means REJECTION parity, not only "
               "acceptance parity, and a capability-only fix leaves this open while "
