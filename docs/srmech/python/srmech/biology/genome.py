@@ -119,6 +119,8 @@ __all__ = [
     "ACTIVE_TELOMERE_MARKER", "ELEMENT_TYPE_KLEIN4", "ELEMENT_TYPE_Q8",
     "ELEMENT_TYPE_OCTONION", "OCTONION_SECTORS", "ELEMENT_TYPE_CAPABILITY",
     "FIBER_CAP_MARKER", "OCT_FIBER_CAP_MARKER",
+    "GROUP_OPEN_MARKER", "GROUP_CLOSE_MARKER", "MAX_GROUP_DEPTH",
+    "GenomeGroupError", "genome_group", "genome_groups",
     "CHROMATIN_MARKER", "CHROMATIN_TYPE_BINARY", "CHROMATIN_TYPE_GRADED",
     "CHROMATIN_GATE_NONE", "CHROMATIN_GATE_KLEIN4", "CHROMATIN_GATE_BOOLEAN",
     "CHROMATIN_GATE_THRESHOLD",
@@ -615,6 +617,64 @@ THRESHOLD_GENE_MARKER = 0x77
 #: version-INDEPENDENT, so every pre-rc132 genome still reads identically.
 GRADED_GENE_MARKER = 0x64
 
+#: §GROUP/v20 (rc442, ``#T1150``) — the group OPENER. ``0x5B`` = ASCII ``'['``.
+#:
+#: Through v19 a strand was a FLAT sequence of chromosomes. A genome that wanted to say
+#: "these sixteen units are ONE thing" had nowhere to say it, so it either FUSED them
+#: (losing the sixteen) or kept them apart (losing the one). The opener/closer pair is the
+#: smallest addition that closes that gap, and it buys four axes at once: **GROUPING**
+#: (store-level), **CLOSURE**, **PARTITION-COUPLING**, and **DESIGNATION** (per unit).
+#:
+#: An ordinary ``leaf_dim``-wide cap block: :func:`_pack_cap` writes it, :func:`_cap_kind`
+#: classifies it, and every ``leaf_dim`` stride site keeps working unchanged because a cap
+#: is exactly one block. It carries the group's LABEL inline, in the same bytes ``[1:]``-to-
+#: first-NUL layout every other cap uses. ``> 3``, so it can never be read as a Klein-4 data
+#: turn, and verified FREE against all 17 live markers before minting.
+#:
+#: The grammar it participates in::
+#:
+#:     strand := unit*
+#:     unit   := chrom | group
+#:     group  := '[' unit+ ']'          (arity >= 1; arity 0 is malformed)
+#:     chrom  := leaf-opener block*
+#:
+#: **R1** ``[`` implicitly closes the open chromosome and pushes a frame. **R2** ``]``
+#: implicitly closes the open chromosome, then pops the innermost frame. **R3** a data turn
+#: or interior cap is legal ONLY inside a chromosome — a turn at group scope is a
+#: ``ValueError`` (the v19 "turns before the first CHROM cap" rule generalised from block 0
+#: to EVERY scope). **R4** R1–R3 jointly make CROSSED NESTING *unrepresentable*, because a
+#: group cannot open "inside" a chromosome — ``[`` closes it.
+#:
+#: R4 is the load-bearing rule. Without R3, a ``[`` opening in one chromosome and closing in
+#: the next SAVED, HASHED and ROUND-TRIPPED carrying two mutually inconsistent readings, with
+#: no error at any layer. That was measured, and R3 is the repair.
+#:
+#: Mirrors ``SRMECH_GENOME_GROUP_OPEN_MARKER`` in the C header.
+GROUP_OPEN_MARKER = 0x5B
+
+#: §GROUP/v20 (rc442, ``#T1150``) — the group CLOSER. ``0x5D`` = ASCII ``']'``.
+#:
+#: **It carries NO label and NO depth.** Both are derivable from the walker's own stack, so a
+#: written copy would be a sidecar field living inside the object — the one thing the format
+#: refuses. Carrying the label back would be actively worse than redundant: it would make
+#: crossed nesting EXPRESSIBLE again (a closer could name a group other than the innermost
+#: one) and it would mint a FOURTH malformed class, label-mismatch-at-pop, that exists only
+#: because the field exists. A group's label lives on its opener, once.
+#:
+#: Mirrors ``SRMECH_GENOME_GROUP_CLOSE_MARKER`` in the C header.
+GROUP_CLOSE_MARKER = 0x5D
+
+#: §GROUP/v20 the group-nesting DEPTH cap. A compiled-in structural bound, mirroring the
+#: in-tree precedents ``SRMECH_JSON_MAX_DEPTH`` (64), ``SRMECH_TOML_MAX_DEPTH`` (64) and
+#: ``DCR_MAX_SUBCHAIN_DEPTH`` (16). Both projections walk an EXPLICIT stack of at most this
+#: many frames and NEITHER recurses — JPL Rule 1 bans direct and indirect recursion, and a
+#: recursive walker would relocate the unbounded allocation to the call stack where failure
+#: has no return code at all. Exceeding it raises :class:`GenomeGroupError` in Python and
+#: returns ``SRMECH_ERR_LIMIT`` (never ``SRMECH_ERR_OVERFLOW``) in C: rc404 defines LIMIT as
+#: "a compiled-in structural cap; retrying is futile BY CONSTRUCTION", whereas OVERFLOW would
+#: send a caller's grow-loop into futile doubling against a bound no buffer can move.
+MAX_GROUP_DEPTH = 32
+
 #: **THE marker set — the ONE place it may be spelled** (rc351, task ``#T1004``).
 #:
 #: Every block-kind marker byte that keys a LEAF-WIDE (``leaf_dim``-byte) on-disk block:
@@ -649,7 +709,21 @@ _LEAF_WIDE_BLOCK_MARKERS = (
     KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER,
     CENTROMERE_CAP_MARKER, DIPLOID_TELOMERE_MARKER,
     CHROMATIN_MARKER, FIBER_CAP_MARKER, OCT_FIBER_CAP_MARKER,
+    GROUP_OPEN_MARKER, GROUP_CLOSE_MARKER,
 )
+
+#: §GROUP/v20 — the two FRAME markers, as their OWN named module-level subset (rc442,
+#: ``#T1150``). It is deliberately a new tuple rather than an extension of
+#: :data:`_CHROM_BOUNDARY_MARKERS`: a frame block does NOT open a chromosome, it opens or
+#: closes a container, and the two questions have different answers everywhere they are asked.
+#:
+#: The un-merge of ``_CHROM_BOUNDARY_MARKERS`` that an earlier v20 draft proposed was
+#: WITHDRAWN. The draft flagged a ``body_sha256`` double-fold as its own highest-risk line;
+#: an adversarial pass REFUTED it — :func:`_scan_body_to_chrom_specs` and the C
+#: ``genome_scan_chroms`` assign every block to exactly ONE region, so an overlap is
+#: structurally unrepresentable and there is nothing to double-fold. That tuple is
+#: UNCHANGED in v20 (leaf-unit openers only).
+_GROUP_MARKERS = (GROUP_OPEN_MARKER, GROUP_CLOSE_MARKER)
 
 #: The chromosome-BOUNDARY cap markers — a cap in this set OPENS a chromosome (carries a
 #: label inline), as opposed to the interior caps (gene / centromere / chromatin / fiber)
@@ -1075,6 +1149,11 @@ GENOME_CARRIER_SURFACE: Dict[str, Tuple[str, str]] = {
     "genome_pack": ("derived", "rebuilds the manifest by scanning the packed body"),
     "genome_explode": ("derived", "each written sub-genome re-derives its own carrier"),
     "genome_export": ("derived", "copies a region verbatim; markers ride along"),
+    # §GROUP/v20 (rc442, `#T1150`): a frame block is a fixed-width cap, so the two
+    # nesting ops are carrier-BLIND in exactly the way genome_content is — the walk
+    # reads block[0] and never decodes a turn, so no rung reaches it.
+    "genome_groups": ("derived", "reads frame markers only; a cap is a cap at any rung"),
+    "genome_group": ("derived", "wraps blocks it never decodes; takes the strand's width"),
     "upgrade_v15_to_v16": ("derived", "the v16 head's `carrier` IS what it computes"),
     # ── fixed: the carrier is the op's identity, not a parameter ────────────
     "genome_fiber_holonomy": ("fixed", "Q8 by construction — the non-abelian fold IS the op"),
@@ -4279,13 +4358,40 @@ def _implicit_unit_end(strand):
     ``len(strand)`` came back either way — so there was no place for v20 to hook and nothing to
     assert against.
 
-    The C peer of this statement is the ``§v19 IMPLICIT CLOSE`` block above
+    The C peer of this statement is the ``§GROUP/v20`` block above
     ``genome_nth_data_turn`` in ``c/src/srmech_genome.c``; the flag is the ``at_unit_end`` /
-    ``end_is_implicit`` out-parameter there. ``tests/test_implicit_close_rc441.py`` pins the
-    cap-marker vocabulary, so adding a closer marker turns that gate red and routes its author
-    to both projections at once.
+    ``end_is_implicit`` out-parameter there. ``tests/test_implicit_close_rc441.py`` pinned the
+    cap-marker vocabulary so that adding a closer marker would turn that gate red and route its
+    author to all four splice sites at once — **which is exactly what happened at rc442**. The
+    gate worked; this function is one of the four it routed to.
+
+    rc442 (``#T1150``): the closer now EXISTS, so the inference is replaced by a READ. The
+    buffer end is still the answer for a strand that ends at top level (there is nothing to
+    read there), which is why this rule survives rather than being deleted — but a strand that
+    ends INSIDE one or more groups now defers to :func:`_unit_end_before_closers`.
     """
     return len(strand)
+
+
+def _unit_end_before_closers(strand):
+    """§GROUP/v20 — THE EXPLICIT CLOSE (rc442, ``#T1150``). Splice site 3 of the four.
+
+    "Where does the unit that runs to the end of the strand actually END?" Under v19 the answer
+    was ``len(strand)``, and it was INFERRED: there was no closer to read, so the end of the
+    unit and the end of the buffer were the same index. Under v20 they part company exactly
+    when the strand ends inside one or more groups — the trailing ``]`` blocks belong to the
+    ENCLOSING frames, not to the chromosome, so a splice computed at ``len(strand)`` lands on
+    the wrong side of them and produces a well-formed strand that means something else.
+
+    The rule is READ, not inferred: walk back over the trailing closers. An ungrouped strand
+    has none, so this returns ``len(strand)`` and every v19 answer is byte-for-byte unchanged.
+
+    The C peer is ``genome_unit_end_before_closers``. No ``abs()`` — a block index is a
+    position, not a magnitude, so there is no Class-K pin-slot here."""
+    end = len(strand)
+    while end > 0 and _cap_kind(strand[end - 1]) == GROUP_CLOSE_MARKER:
+        end -= 1
+    return end
 
 
 def _chrom_range(strand, label, *, op):
@@ -4302,6 +4408,13 @@ def _chrom_range(strand, label, *, op):
     ``genome_label_range(..., int *end_is_implicit)`` out-parameter. Additive: ``start`` and
     ``end`` are byte-for-byte what they were."""
     bounds = [i for i, hv in enumerate(strand) if _cap_kind(hv) in _CHROM_BOUNDARY_MARKERS]
+    # §GROUP/v20 (rc442, `#T1150`) — splice site 4 of the four the rc441 pin named. R1/R2 say
+    # a `[` and a `]` each implicitly CLOSE the open chromosome, so either one ends this unit
+    # just as a next opener does. Through rc441 only an opener could end it, which meant a
+    # chromatin splice computed here ran PAST the closer of its own group. An ungrouped strand
+    # contains neither marker, so every v19 extent is unchanged.
+    enders = sorted(bounds + [i for i, hv in enumerate(strand)
+                              if _cap_kind(hv) in _GROUP_MARKERS])
     if not bounds or bounds[0] != 0:
         raise ValueError(
             f"{op}: strand does not open with a chromosome boundary cap (not a well-formed "
@@ -4316,11 +4429,12 @@ def _chrom_range(strand, label, *, op):
         start = next((b for b in bounds if _unpack_cap(strand[b])[1] == label), None)
         if start is None:
             raise ValueError(f"{op}: no chromosome labelled {label!r} in the strand")
-    nxt = [b for b in bounds if b > start]
-    # rc441: READ from a real next-boundary cap, or INFERRED from the strand end.
+    nxt = [b for b in enders if b > start]
+    # rc441: READ from a real next-boundary cap (or, since rc442, a group frame marker),
+    # or INFERRED from the strand end.
     if nxt:
         return start, nxt[0], False
-    return start, _implicit_unit_end(strand), True
+    return start, _unit_end_before_closers(strand), True
 
 
 def condense(strand, *, coupling=None, state=True, region=None, handle="chr", label=None):
@@ -7100,11 +7214,18 @@ def mint_strand(strand, coupling, *, orientation=None, centromere_at=None,
     strand = list(strand)
     if not strand:
         raise ValueError("mint_strand: strand is empty — nothing to mint")
-    if _cap_kind(strand[0]) not in _CHROM_BOUNDARY_MARKERS:
+    # §GROUP/v20 (rc442, `#T1150`): a strand is `unit*` and a GROUP is a unit, so a strand
+    # may legitimately OPEN with `[`. Refusing it here would make the append-at-end splice
+    # repair unreachable on exactly the strands that need it — the guard would reject the
+    # input before the fixed splice could ever run. Found by the test that holds the repair.
+    if (_cap_kind(strand[0]) not in _CHROM_BOUNDARY_MARKERS
+            and _cap_kind(strand[0]) != GROUP_OPEN_MARKER):
         raise ValueError(
-            "mint_strand: strand must OPEN with a chromosome-boundary cap (a CHROM / kernel / "
-            "active / diploid telomere) — pass an ALREADY-PACKED strand (chromosome / kernel_pack "
-            "/ graph_to_kernel), NOT raw leaves (raw leaves go through mint / chromosome(centromere=))"
+            "mint_strand: strand must OPEN a unit — a chromosome-boundary cap (a CHROM / "
+            "kernel / active / diploid telomere) or a §GROUP/v20 group opener. Pass an "
+            "ALREADY-PACKED strand (chromosome / kernel_pack / graph_to_kernel / "
+            "genome_group), NOT raw leaves (raw leaves go through mint / "
+            "chromosome(centromere=))"
         )
     if any(_cap_kind(hv) == CENTROMERE_CAP_MARKER for hv in strand):
         raise ValueError(
@@ -7164,14 +7285,16 @@ def mint_strand(strand, coupling, *, orientation=None, centromere_at=None,
     # Native-dispatched cap-writer (byte-identical C peer srmech_genome_centromere); the splice is
     # pure block concatenation, so the minted strand is byte-identical to a C-produced one.
     cen_cap = centromere(orientation, repeats=repeats, handle=handle, dim=dim)
-    # rc441 (`#T1148`): the append-at-end case is the §v19 IMPLICIT CLOSE (see
-    # _implicit_unit_end) — with no closer cap, "the end of the unit" IS the end of the strand.
-    # `at_unit_end` names that inference rather than leaving it as a bare `len(strand)` that
-    # reads identically to a found position; under v20 this is the branch that must place the
-    # cap BEFORE the closer. Mirrors the C `genome_nth_data_turn(..., int *at_unit_end)`.
+    # §GROUP/v20 (rc442, `#T1150`): rc441 named this branch precisely so that v20 could
+    # find it, and this is v20 doing so. The append-at-end extent is now READ from the
+    # closers (_unit_end_before_closers) instead of inferred from the strand running out, so
+    # the centromere lands BEFORE the closer — inside the group that owns it. Mirrors the C
+    # `genome_nth_data_turn(..., int *at_unit_end)`.
     at_unit_end = split >= n_turns
-    insert_at = _implicit_unit_end(strand) if at_unit_end else data_positions[split]
-    assert not at_unit_end or insert_at == len(strand)
+    insert_at = _unit_end_before_closers(strand) if at_unit_end else data_positions[split]
+    # §GROUP/v20: the v19 assertion was `insert_at == len(strand)`, true only because no
+    # closer existed. The surviving invariant is the weaker, still-checkable one.
+    assert not at_unit_end or insert_at <= len(strand)
     return strand[:insert_at] + [cen_cap] + strand[insert_at:]
 
 
@@ -8068,7 +8191,19 @@ def telomere_tick(strand):
 #: prior turn markers), so v2..v18 bodies read UNCHANGED; klein4/Q₈ on-disk turns are
 #: BYTE-IDENTICAL to v18. A v19 writer stamps 19. The mirror of the v15→v16 Q₈ on-disk migration
 #: (rc312), ONE Cayley–Dickson rung up.
-GENOME_FORMAT_VERSION = 19
+#: v20 (§GROUP/rc442, ``#T1150``): the strand gains NESTING. Two new markers —
+#: :data:`GROUP_OPEN_MARKER` (0x5B) and :data:`GROUP_CLOSE_MARKER` (0x5D) — both ordinary
+#: ``leaf_dim``-wide cap blocks packed by the same :func:`_pack_cap` and classified by the
+#: same :func:`_cap_kind`, so ``genome_block_len``'s stride needed ZERO new lines. See the
+#: :data:`GROUP_OPEN_MARKER` note for the grammar and the four rules R1–R4.
+#:
+#: **An object that never groups writes zero extra bytes and is BYTE-IDENTICAL to v19** — only
+#: the manifest ``format_version`` moves. v2..v19 bodies read UNCHANGED (two more
+#: self-describing markers in the SAME walk). What BREAKS is the other direction, and
+#: deliberately: a v19 reader meets 0x5B and fails with ``unrecognised block kind byte 91``.
+#: There is no dual-format reader and no shim; migration is a REWRITER op, not a reader branch.
+#: A v20 writer stamps 20.
+GENOME_FORMAT_VERSION = 20
 
 #: rc115 (#1245 ask (b)) — the empty-body chain seed H₀ = sha256(b"") (a derived
 #: constant, not magic: THE well-known empty-string digest). The whole-body
@@ -8496,17 +8631,31 @@ def _split_into_chromosomes(strand, labels=None) -> List[Tuple[str, list]]:
     """
     if not strand:
         raise ValueError("genome persistence: empty strand has no chromosomes")
-    chroms: List[Tuple[str, list]] = []
+    genome_groups(strand)                # §GROUP/v20: refuse a malformed grammar UP FRONT
+    chroms: List[Tuple[Optional[str], list]] = []
     current_label: Optional[str] = None
     current_blocks: Optional[list] = None
     for hv in strand:
-        if _cap_kind(hv) in _CHROM_BOUNDARY_MARKERS:
+        kind = _cap_kind(hv)
+        if kind in _GROUP_MARKERS:
+            # §GROUP/v20 (rc442, `#T1150`) — R1/R2: a frame block implicitly CLOSES the open
+            # chromosome and is its OWN one-block unit. A `None` label marks it as a frame
+            # rather than a chromosome; genome_save gives it a region and no chromosome row.
+            if current_label is not None:
+                chroms.append((current_label, current_blocks))
+                current_label, current_blocks = None, None
+            chroms.append((None, [hv]))
+            continue
+        if kind in _CHROM_BOUNDARY_MARKERS:
             if current_label is not None:
                 chroms.append((current_label, current_blocks))
             _marker, current_label = _unpack_cap(hv)
             current_blocks = [hv]            # the cap leads the chromosome region
         else:
             if current_label is None:
+                # §GROUP/v20 R3: this is the v19 message generalised from block 0 to every
+                # scope. genome_groups above already raises the precise group-scope error,
+                # so reaching here means the strand simply opens with a turn.
                 raise ValueError(
                     "genome persistence: strand has turns before its first CHROM "
                     "cap — not a well-formed §44 genome strand"
@@ -8514,7 +8663,7 @@ def _split_into_chromosomes(strand, labels=None) -> List[Tuple[str, list]]:
             current_blocks.append(hv)        # a data turn OR an intra-chrom GENE cap
     if current_label is not None:
         chroms.append((current_label, current_blocks))
-    seen = [lbl for lbl, _ in chroms]
+    seen = [lbl for lbl, _ in chroms if lbl is not None]
     if labels is not None and sorted(seen) != sorted(set(labels)):
         raise ValueError(
             f"genome persistence: strand chromosomes {seen!r} do not match the "
@@ -8564,7 +8713,7 @@ def _carrier_name_from_body(body_bytes, leaf_dim) -> str:
 
 
 def _build_manifest_data(leaf_dim, coupling_blocks, chrom_specs, body_bytes,
-                         n_turns, carrier="klein4"):
+                         n_turns, carrier="klein4", region_specs=None):
     """Assemble the manifest ``data`` block — §44's optional DERIVED catalog.
 
     ``chrom_specs`` is a list of ``(label, cap_sha256, leaf_count, byte_offset,
@@ -8586,21 +8735,36 @@ def _build_manifest_data(leaf_dim, coupling_blocks, chrom_specs, body_bytes,
     provenance unit). ``body_sha256`` is the region CHAIN (:func:`_region_chain`),
     NOT the whole-body digest, so an append maintains it in O(1) (extend the head)
     while it stays re-verifiable from the file and body-derivable (§44)."""
+    region_specs = _region_specs_or_default(chrom_specs, region_specs)
     return _build_manifest_data_from_hexes(
         leaf_dim, coupling_blocks, chrom_specs,
-        _region_hexes_from_body(chrom_specs, body_bytes), n_turns, carrier)
+        _region_hexes_from_body(region_specs, body_bytes), n_turns, carrier,
+        region_specs)
 
 
-def _region_hexes_from_body(chrom_specs, body_bytes):
+def _region_specs_or_default(chrom_specs, region_specs):
+    """§GROUP/v20 — the region spans, defaulting to the chromosome spans (rc442, ``#T1150``).
+
+    Regions and chromosomes were the SAME list through v19 and still are for any body that
+    does not group, so ``region_specs=None`` reproduces the v19 derivation exactly. A caller
+    that scanned a grouped body passes the real list, which also carries the one-block frame
+    regions the chromosome list cannot represent."""
+    if region_specs is not None:
+        return list(region_specs)
+    return [(int(off), int(ln))
+            for (_label, _cap, _lc, off, ln, _ck) in chrom_specs]
+
+
+def _region_hexes_from_body(region_specs, body_bytes):
     """Each region's full digest, sliced out of an in-RAM body — the whole-body way to
     get what :func:`_scan_body_stream` folds incrementally (rc282). Same hexes, same
     order; this one needs every byte resident, which is why the head-only catalog read
     uses the streaming peer instead."""
     return [_sha256_bytes(bytes(body_bytes[int(off):int(off) + int(ln)]))
-            for (_label, _cap, _lc, off, ln, _ck) in chrom_specs]
+            for (off, ln) in region_specs]
 
 
-def _content_turns(n_turns, n_chromosomes) -> int:
+def _content_turns(n_turns, n_chromosomes, n_group_blocks=0) -> int:
     """The genome's CONTENT count — ``n_turns - n_chromosomes`` (rc345, task T964).
 
     WHY THE SUBTRACTION IS EXACT. Every chromosome opens with exactly ONE boundary
@@ -8640,12 +8804,23 @@ def _content_turns(n_turns, n_chromosomes) -> int:
     (one encoding per datum — a stored copy of an exactly-derivable value is a second
     encoding that can go stale). Class-N exact integer arithmetic: a count is never
     signed, so there is no ``abs()`` and no Class-K pin-slot here.
+
+    §GROUP/v20 (rc442, ``#T1150``) — ``n_group_blocks`` extends the same subtraction to the
+    frame markers, and for the same reason. A ``[``/``]`` pair is CONTAINER, exactly as a
+    boundary cap is: grouping sixteen units under one label changes how the content is
+    partitioned, not how much content there is. If the frame blocks were left in, ``n_content``
+    would move when a genome was regrouped — and "the quantity repartitioning leaves alone" is
+    the entire job of this number. The general law becomes
+    ``n_turns == n_chromosomes + n_group_blocks + n_content``, still exact, still with no
+    residual: one block per container, whichever kind of container it is. An ungrouped genome
+    passes 0 and is byte-identical to v19.
     """
-    return int(n_turns) - int(n_chromosomes)
+    return int(n_turns) - int(n_chromosomes) - int(n_group_blocks)
 
 
 def _build_manifest_data_from_hexes(leaf_dim, coupling_blocks, chrom_specs,
-                                    region_hexes, n_turns, carrier="klein4"):
+                                    region_hexes, n_turns, carrier="klein4",
+                                    region_specs=None):
     """Assemble the manifest ``data`` from ALREADY-COMPUTED per-region digests (rc282).
 
     The single assembly point for :func:`_build_manifest_data` (whole-body) and the
@@ -8669,18 +8844,22 @@ def _build_manifest_data_from_hexes(leaf_dim, coupling_blocks, chrom_specs,
     the scalar from the array), so the scalar name was already the convention; this makes
     the full catalog honour it too. ``n_chromosomes == len(data["chromosomes"])`` always.
     """
+    region_specs = _region_specs_or_default(chrom_specs, region_specs)
     regions = [
         {"byte_offset": int(off), "byte_len": int(ln), "sha256": rh}
-        for (_label, _cap, _lc, off, ln, _ck), rh in zip(chrom_specs, region_hexes)
+        for (off, ln), rh in zip(region_specs, region_hexes)
     ]
     n_chromosomes = len(chrom_specs)
+    # §GROUP/v20: every region that is not a chromosome is a one-block frame, so the
+    # difference IS the frame-block count — derived, never stored.
+    n_group_blocks = len(region_specs) - n_chromosomes
     return {
         "format_version": GENOME_FORMAT_VERSION,
         "carrier": carrier,
         "leaf_dim": int(leaf_dim),
         "n_turns": int(n_turns),
         "n_chromosomes": int(n_chromosomes),
-        "n_content": _content_turns(n_turns, n_chromosomes),
+        "n_content": _content_turns(n_turns, n_chromosomes, n_group_blocks),
         "coupling": {
             "sha256": _sha256_bytes(coupling_blocks),
             "hex": coupling_blocks.hex(),
@@ -8909,6 +9088,120 @@ def _read_manifest(path) -> dict:
 _ATTESTATION_CARRY_FIELDS: Tuple[str, ...] = (
     "source_doi", "source_url", "license", "retrieved_at",
 )
+
+
+class GenomeGroupError(ValueError):
+    """A strand's §GROUP/v20 nesting grammar is malformed (rc442, ``#T1150``).
+
+    A ``ValueError``, because it is a statement about the caller's strand rather than an
+    integrity failure of stored bytes (that is :class:`GenomeBoundingError`).
+
+    There are exactly FIVE malformed classes, and every one is decided in ONE forward pass:
+
+    ============================  ==================================================
+    closer-without-opener         a ``]`` with an empty frame stack
+    unclosed-opener               frames still open when the strand ends
+    turn-at-group-scope           R3 — a data turn or interior cap outside a chromosome
+    childless group               arity 0. **A group of ONE is legal** — banning arity 1
+                                  would be the same constraint error as banning arity 0,
+                                  only in the opposite direction
+    depth overflow                deeper than :data:`MAX_GROUP_DEPTH`
+    ============================  ==================================================
+
+    **Crossed nesting is not in that list, and its absence is the point.** R1–R3 make it
+    UNREPRESENTABLE rather than merely detectable: a group cannot open "inside" a chromosome
+    because ``[`` closes the chromosome, and a turn at group scope — the only remaining way to
+    spell a crossing — is refused by R3. Before R3 existed, a strand whose group opened in one
+    chromosome and closed in the next SAVED, HASHED and ROUND-TRIPPED while carrying two
+    mutually inconsistent readings, with no error raised at any layer.
+    """
+
+
+def genome_groups(strand) -> List[dict]:
+    """WALK a strand's §GROUP/v20 nesting and return one record per group (rc442, ``#T1150``).
+
+    Returns ``[{"label", "open_idx", "close_idx", "depth", "arity"}, …]``, ordered by CLOSE
+    position. Raises :class:`GenomeGroupError` on any of the five malformed classes; an
+    ungrouped strand returns ``[]`` and cannot raise.
+
+    Every field is DERIVED by the walk. None is read off the closer, because the closer
+    carries nothing: ``label`` comes from the opener, ``depth`` from the stack height,
+    ``arity`` from the units counted in the frame. Writing any of them into the closing block
+    would be a sidecar field inside the object — and the label especially, because a closer
+    that names a group could name one other than the innermost, making crossed nesting
+    expressible again and minting a sixth malformed class (label-mismatch-at-pop) that exists
+    only because the field exists.
+
+    ITERATIVE over an explicit stack bounded by :data:`MAX_GROUP_DEPTH`; NEVER recursive
+    (JPL Rule 1 bans indirect recursion too, and recursion would relocate the unbounded
+    allocation to the call stack where exhaustion has no return code). The C peer is
+    ``srmech_genome_group_walk``.
+
+    ``arity`` counts DIRECT members only — a group holding one group that holds three
+    chromosomes has arity 1, not 3.
+
+    **On ordinal membership.** A member's position within ``[open_idx, close_idx]`` is a
+    LINEARIZATION, not a designation: you cannot write a sequence to bytes without some order,
+    and no shipped instrument reads that order back. MEASURED at rc442
+    (``docs/srmech/notes/_v20_ordinal_designation_rc442.py``): of 29 public ``genome_*`` ops,
+    12 select a stored sub-unit and every one of them selects it by LABEL; ZERO accept an ordinal
+    (all three probed raise ``ValueError`` when handed an int where a label goes); and under a
+    permutation of chromosome order every per-unit fact — ``cap_sha256``, ``leaf_count``,
+    ``cap_kind`` and the region digest — is invariant when keyed by label, with only
+    ``byte_offset`` and the body-order ``body_sha256`` chain moving. So "the 3rd member of a
+    group" is NOT advertised as a derivable fact. Chromosome order in a real genome is
+    arbitrary too (human numbering is by size), and F1206 measures the Laplacian carrying
+    domains, hubs and bridges but not a sequence.
+    """
+    state = _ScanState()
+    for hv in strand:
+        blk = _hv_bytes(hv) if not isinstance(hv, (bytes, bytearray)) else bytes(hv)
+        state.fold(blk, blk)
+    state.finish()
+    return list(state.groups)
+
+
+def genome_group(label: str, units, *, dim=None) -> list:
+    """MINT a group — wrap ``units`` in one ``[`` label … ``]`` pair (rc442, ``#T1150``).
+
+    ``units`` is a strand (a flat list of ``HV`` blocks) or an iterable of strands, each a
+    well-formed unit: a chromosome (a boundary cap followed by its blocks) or another group.
+    Returns a new strand; the input is untouched.
+
+    The subject is VALIDATED before it is wrapped, so ``genome_group`` can never mint a
+    malformed body — arity >= 1 is enforced here rather than discovered later by a reader.
+    The result is re-walked too, so wrapping a strand already nested to
+    :data:`MAX_GROUP_DEPTH` raises rather than writing bytes no reader will accept.
+
+    ``dim`` defaults to the width of the first block. The C peer is
+    ``srmech_genome_group_wrap``.
+    """
+    flat: List[_HV] = []
+    seq = list(units)
+    if seq and isinstance(seq[0], (list, tuple)):
+        for unit in seq:
+            flat.extend(unit)
+    else:
+        flat.extend(seq)
+    if not flat:
+        raise GenomeGroupError(
+            "genome group: cannot wrap an EMPTY sequence — §GROUP/v20 requires arity >= 1. "
+            "(A group of ONE is legal; a group of none is not.)"
+        )
+    width = int(dim) if dim is not None else len(flat[0])
+    first = _cap_kind(flat[0])
+    if first not in _CHROM_BOUNDARY_MARKERS and first != GROUP_OPEN_MARKER:
+        raise GenomeGroupError(
+            "genome group: the wrapped strand does not OPEN a unit — its first block is "
+            f"{'a data turn' if first is None else 'cap 0x%02X' % first}, not a chromosome "
+            f"boundary cap or a group opener."
+        )
+    genome_groups(flat)                        # refuse a malformed subject before wrapping
+    opener = _pack_cap(GROUP_OPEN_MARKER, label, width)
+    closer = _pack_cap(GROUP_CLOSE_MARKER, "", width)   # carries NOTHING
+    out = [opener] + list(flat) + [closer]
+    genome_groups(out)                         # and refuse a malformed RESULT (depth cap)
+    return out
 
 
 class GenomeAttestationConflict(ValueError):
@@ -9148,6 +9441,12 @@ def genome_save(strand, path, coupling, labels=None, *, attestation=None,
 
     body = bytearray()
     chrom_specs: List[Tuple[str, str, int, int, int, str]] = []
+    # §GROUP/v20: regions are no longer 1:1 with chromosomes. A frame block is a real body
+    # byte belonging to NO chromosome, so it earns its own one-block region — otherwise the
+    # regions would stop tiling [0, len(body)) and _verify_body_integrity would refuse the
+    # very first grouped genome. For an ungrouped body this list is exactly the chromosome
+    # spans, in order, so the manifest and body_sha256 are byte-identical to v19.
+    region_specs: List[Tuple[int, int]] = []
     n_turns = 0
     for label, blocks in chroms:
         byte_offset = len(body)
@@ -9158,6 +9457,9 @@ def genome_save(strand, path, coupling, labels=None, *, attestation=None,
             body.extend(_disk_block(blk, leaf_dim, element_type))
         n_turns += len(leaf_blocks)
         byte_len = len(body) - byte_offset
+        region_specs.append((byte_offset, byte_len))
+        if label is None:
+            continue                              # §GROUP/v20: a frame block — region only
         cap_block = leaf_blocks[0]                # the CHROM cap leads the region
         cap_sha256 = _sha256_bytes(cap_block)
         # §44: leaf_count = DATA turns only — exclude the CHROM cap AND any inline
@@ -9186,7 +9488,7 @@ def genome_save(strand, path, coupling, labels=None, *, attestation=None,
     # The full DERIVED catalog — the RETURN value (callers get chromosomes/regions);
     # on disk only the v12 HEAD is written (the arrays are re-derivable, ADR-0003).
     data = _build_manifest_data(leaf_dim, coupling_block, chrom_specs, body_bytes,
-                                n_turns, carrier)
+                                n_turns, carrier, region_specs)
     head = _build_head_data(leaf_dim, coupling_block, n_turns, len(chrom_specs),
                             data["body_sha256"], carrier)
 
@@ -9337,12 +9639,14 @@ def _rebuild_manifest_from_body(body_bytes, leaf_dim, coupling):
         )
     if not body_bytes:
         raise ValueError("genome persistence: empty strand has no chromosomes")
-    chrom_specs, n_turns = _scan_body_to_chrom_specs(bytes(body_bytes), leaf_dim)
+    state = _scan_body_state(bytes(body_bytes), leaf_dim)
+    chrom_specs, n_turns = state.chrom_specs, state.n_turns
     one = coupling if isinstance(coupling, _HV) else _HV.from_sequence(coupling)
     coupling_block = _leaf_blocks([one])[0]
     carrier = _carrier_name_from_body(bytes(body_bytes), leaf_dim)   # §Q8/v16
     return _build_manifest_data(leaf_dim, coupling_block, chrom_specs,
-                                bytes(body_bytes), n_turns, carrier)
+                                bytes(body_bytes), n_turns, carrier,
+                                state.region_specs)
 
 
 def _scan_body_to_chrom_specs(body_bytes, leaf_dim):
@@ -9362,11 +9666,22 @@ def _scan_body_to_chrom_specs(body_bytes, leaf_dim):
     reads "nuclear" — the R-RBS-LM reference's centromere-first classify). rc271
     (F1251): the field's own names — plasmid (was "stick") / nuclear (was "minted").
     This rides the EXISTING scan (no extra pass, byte-identical to the C genome_scan_chroms)."""
+    state = _scan_body_state(body_bytes, leaf_dim)
+    return state.chrom_specs, state.n_turns
+
+
+def _scan_body_state(body_bytes, leaf_dim) -> "_ScanState":
+    """The FINISHED :class:`_ScanState` for a whole in-RAM body (rc442, ``#T1150``).
+
+    :func:`_scan_body_to_chrom_specs` is the two-value view of this; the state itself also
+    carries ``region_specs``, which since §GROUP/v20 is no longer recoverable from the
+    chromosome list (a frame block is a region with no chromosome)."""
     state = _ScanState()
     for raw, decoded in _walk_region_blocks(
             bytes(body_bytes), leaf_dim, context="genome rebuild-by-scan"):
         state.fold(raw, decoded)
-    return state.finish()
+    state.finish()
+    return state
 
 
 class _ScanState:
@@ -9383,12 +9698,39 @@ class _ScanState:
         self.cur: Optional[list] = None
         self.n_turns = 0
         self.offset = 0
+        # §GROUP/v20 (rc442, `#T1150`) — the region spans, which are NO LONGER 1:1 with
+        # chromosomes. Each frame block is a real body byte belonging to no chromosome and
+        # earns its own one-block region, so the regions keep tiling [0, body_len) exactly.
+        # An ungrouped body produces the chromosome spans, in order, unchanged.
+        self.region_specs: List[Tuple[int, int]] = []
+        # The explicit bounded frame stack. ITERATIVE, never recursive (JPL Rule 1 bans
+        # indirect recursion too, and recursion would move the unbounded allocation to the
+        # call stack where failure has no return code). Each frame is [open_block, arity].
+        self.stack: List[list] = []
+        # The finished group records, EMITTED ON POP -- never on push. A record emitted at
+        # the opener would be a claim the walk has not yet earned (that opener might never
+        # close), so emission order is by CLOSE position.
+        self.groups: List[dict] = []
+        self.n_blocks = 0
 
     def fold(self, raw, decoded):
         """Fold ONE on-disk block. Returns True iff it OPENED a new region (the signal
         a streaming caller uses to close the previous region's digest)."""
         opened = False
         self.n_turns += 1
+        blk = self.n_blocks
+        self.n_blocks += 1
+        if decoded[0] in _GROUP_MARKERS:
+            # §GROUP/v20 R1/R2 — a frame block implicitly CLOSES the open chromosome and
+            # becomes its own one-block region. Returning True is exactly right for the
+            # streaming caller: it closes the PREVIOUS region's digest and starts a new one
+            # at this block, and because the block after a frame marker is always another
+            # opener (a `[`, a `]` or a boundary cap), the region it starts is one block wide.
+            self._close_chrom()
+            self._frame_step(decoded[0], blk, decoded)
+            self.region_specs.append((self.offset, len(raw)))
+            self.offset += len(raw)
+            return True
         if decoded[0] in _CHROM_BOUNDARY_MARKERS:
             if self.cur is not None:
                 self.chrom_specs.append(tuple(self.cur))
@@ -9398,9 +9740,23 @@ class _ScanState:
                                   context="genome body scan")
             cap_kind = "diploid" if decoded[0] == DIPLOID_TELOMERE_MARKER else "plasmid"
             self.cur = [label, _sha256_bytes(raw), 0, self.offset, 0, cap_kind]
+            self.region_specs.append([self.offset, 0])       # §GROUP/v20: and a region
+            self._count_unit()
             opened = True
         elif self.cur is None:
-            raise ValueError(
+            # §GROUP/v20 R3 — a data turn or interior cap is legal ONLY inside a chromosome.
+            # The v19 rule said this about block 0; v20 says it about EVERY scope, which is
+            # what makes crossed nesting UNREPRESENTABLE (R4) rather than merely detectable.
+            # Because `[` closes the open chromosome, a turn at group scope is the only way a
+            # crossing could be spelled — and it is refused right here. MEASURED before the
+            # repair: a strand whose group opened inside one chromosome and closed inside the
+            # next SAVED, HASHED and ROUND-TRIPPED carrying two inconsistent readings.
+            raise GenomeGroupError(
+                f"genome persistence: block {blk} is a data turn or interior cap at GROUP "
+                f"scope (depth {len(self.stack)}), not inside a chromosome — §GROUP/v20 R3. "
+                f"A group holds UNITS (chromosomes or groups); turns live inside a "
+                f"chromosome. Open one with a boundary cap first."
+                if self.stack else
                 "genome persistence: strand has turns before its first CHROM "
                 "cap — not a well-formed §44 genome strand"
             )
@@ -9425,14 +9781,73 @@ class _ScanState:
                                               # the branches above, so "not a cap" IS
                                               # "a data turn".
         self.cur[4] += len(raw)
+        self.region_specs[-1][1] += len(raw)
         self.offset += len(raw)
         return opened
 
-    def finish(self):
-        """Close the last open region and return ``(chrom_specs, n_turns)``."""
+    def _close_chrom(self):
+        """§GROUP/v20 — close the open chromosome, if any (R1/R2's implicit close)."""
         if self.cur is not None:
             self.chrom_specs.append(tuple(self.cur))
             self.cur = None
+
+    def _count_unit(self):
+        """§GROUP/v20 — record that ONE unit closed at the current scope. A unit at depth 0
+        belongs to no frame, so nothing needs counting there."""
+        if self.stack:
+            self.stack[-1][1] += 1
+
+    def _frame_step(self, marker, blk, decoded):
+        """§GROUP/v20 — one push or pop, deciding every malformed class in this ONE pass.
+
+        closer-without-opener  the depth guard fires BEFORE the pop
+        childless group        arity 0 at pop. A group of ONE is LEGAL: banning arity 1 would
+                               be the same constraint error as banning arity 0, in the
+                               opposite direction
+        depth overflow         :data:`MAX_GROUP_DEPTH`, a compiled-in cap where retrying is
+                               futile by construction (the C peer returns SRMECH_ERR_LIMIT,
+                               never SRMECH_ERR_OVERFLOW, for exactly that reason)
+        """
+        if marker == GROUP_OPEN_MARKER:
+            if len(self.stack) >= MAX_GROUP_DEPTH:
+                raise GenomeGroupError(
+                    f"genome group: nesting deeper than MAX_GROUP_DEPTH={MAX_GROUP_DEPTH} at "
+                    f"block {blk}. This is a COMPILED-IN structural cap, not a buffer size — "
+                    f"retrying with more room is futile by construction; flatten the nesting."
+                )
+            # The label decode is the UNIFORM one every cap uses: bytes [1:] up to the
+            # first NUL. The opener is where a group's label lives, and the only place.
+            label = _decode_label(decoded[1:].split(b"\x00", 1)[0],
+                                  context="genome group opener")
+            self.stack.append([blk, 0, label])
+            return
+        if not self.stack:
+            raise GenomeGroupError(
+                f"genome group: closer at block {blk} with no open group — §GROUP/v20. "
+                f"Every ']' pops the innermost frame; there is none."
+            )
+        open_blk, arity, label = self.stack.pop()
+        if arity == 0:
+            raise GenomeGroupError(
+                f"genome group: the group opened at block {open_blk} and closed at block "
+                f"{blk} holds NO units — §GROUP/v20 requires arity >= 1. (A group of ONE is "
+                f"legal; a group of none is not.)"
+            )
+        self.groups.append({"label": label, "open_idx": open_blk, "close_idx": blk,
+                            "depth": len(self.stack), "arity": arity})
+        self._count_unit()          # the popped group IS a unit of its parent
+
+    def finish(self):
+        """Close the last open region and return ``(chrom_specs, n_turns)``."""
+        self._close_chrom()
+        if self.stack:
+            # §GROUP/v20 — unclosed opener. ONE pass suffices: the stack already names every
+            # offender by its open block, so no second pass is owed to report them.
+            raise GenomeGroupError(
+                f"genome group: {len(self.stack)} group(s) opened and never closed, at "
+                f"block(s) {[f[0] for f in self.stack]} — §GROUP/v20."
+            )
+        self.region_specs = [(int(o), int(n)) for (o, n) in self.region_specs]
         return self.chrom_specs, self.n_turns
 
 
@@ -9521,7 +9936,7 @@ def _scan_body_stream(f, leaf_dim, *, context="genome rebuild-by-scan"):
     if region:
         region_hexes.append(_sha256_bytes(bytes(region)))
     chrom_specs, n_turns = state.finish()
-    return chrom_specs, n_turns, region_hexes
+    return chrom_specs, n_turns, region_hexes, state.region_specs
 
 
 def _catalog_data(path, coupling=None) -> dict:
@@ -9558,12 +9973,14 @@ def _catalog_data(path, coupling=None) -> dict:
         # the whole file. Byte-identical catalog to the old whole-body slurp (both drive
         # the same _ScanState and the same _build_manifest_data_from_hexes assembly).
         with _open_body_ro(path / _BODY_NAME) as f:
-            chrom_specs, n_turns, region_hexes = _scan_body_stream(f, leaf_dim)
+            chrom_specs, n_turns, region_hexes, region_specs = _scan_body_stream(
+                f, leaf_dim)
         # §Q8/v16: the head stores the carrier (a pure function of the body at save
         # time); a v≤15 head predates the field → "klein4" (its turns are klein4).
         carrier = head.get("carrier", _ELEMENT_TYPE_NAMES[ELEMENT_TYPE_KLEIN4])
         data = _build_manifest_data_from_hexes(leaf_dim, coupling_block, chrom_specs,
-                                               region_hexes, n_turns, carrier)
+                                               region_hexes, n_turns, carrier,
+                                               region_specs)
         # INTEGRITY: the head stores the ``body_sha256`` region-CHAIN head (the Merkle
         # root of the body). A body corruption re-derives a DIFFERENT chain → mismatch
         # with the committed head → raise (whole-body granularity; the per-region
@@ -9946,7 +10363,14 @@ def genome_content(path, *, coupling=None) -> dict:
         "path": str(Path(path)),
         "n_turns": n_turns,
         "n_chromosomes": n_chromosomes,
-        "n_content": _content_turns(n_turns, n_chromosomes),
+        # §GROUP/v20 (rc442, `#T1150`): the canonical catalog already subtracted the frame
+        # blocks, and this projection must not re-derive a DIFFERENT number from two of the
+        # three inputs. Recomputing here would have made genome_content disagree with
+        # genome_catalog on exactly the grouped genomes v20 exists to carry -- the catalog's
+        # value is the one both projections owe. A v<=11 full manifest predates the scalar,
+        # so the ungrouped derivation stays as the fallback.
+        "n_content": int(data["n_content"]) if "n_content" in data
+        else _content_turns(n_turns, n_chromosomes),
     }
 
 
@@ -10835,7 +11259,7 @@ def gene_express_plan(strand_or_path, coupling, cell_state, *,
     being read. The STRAND variant has no on-disk object and nothing to bind.
     """
     _plan_validate_cell_state("gene_express_plan", cell_state)
-    assert GENOME_FORMAT_VERSION == 19      # a READ of existing caps/manifest
+    assert GENOME_FORMAT_VERSION == 20      # a READ of existing caps/manifest
     #  (v13 centromere 0x58 + v15 chromatin 0x48 are INTERIOR caps; BOTH the STRAND plan and —
     #   as of §98/rc269 — the PATH demand-load plan read the chromatin OUTER gate: a condensed
     #   region is skipped at plan time on a single head-slot seek, never touching its gene gate.
@@ -11023,7 +11447,7 @@ def genome_genes_expressed(path, coupling, cell_state):
     :func:`genome_census` for the two cases that pass through unbound on purpose.
     """
     _plan_validate_cell_state("genome_genes_expressed", cell_state)
-    assert GENOME_FORMAT_VERSION == 19      # a READ of existing caps/manifest
+    assert GENOME_FORMAT_VERSION == 20      # a READ of existing caps/manifest
     #  (the PATH demand-load reader's per-region chromatin single-seek skip (§98) is deferred to
     #   rc269; today it reads the §134 gene-gate-only plan — a chromatin-free genome is unaffected.
     #   §Q8/rc316: a Q8 GENE genome IS first-class (its gene caps are klein4-form but its DATA

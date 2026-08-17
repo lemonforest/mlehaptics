@@ -78,9 +78,21 @@
 /* The §41 manifest data_schema_id (== GENOME_MANIFEST_SCHEMA_ID). */
 #define SRMECH_GENOME_SCHEMA_ID "srmech://schema/genome_manifest/v1"
 
-/* The §41 parser_rule_hash pre-image (== f"genome_persistence/v{FORMAT_VERSION}" — tracks
- * SRMECH_GENOME_FORMAT_VERSION, mirroring the Python _manifest_record; v15->v16 §Q8 packer). */
-#define SRMECH_GENOME_RULE_PREIMAGE "genome_persistence/v19"
+/* The §41 parser_rule_hash pre-image (== f"genome_persistence/v{FORMAT_VERSION}", mirroring
+ * the Python _manifest_record).
+ *
+ * rc442 (`#T1150`): DERIVED from SRMECH_GENOME_FORMAT_VERSION by stringification instead of
+ * being a hand-kept literal. The comment above it has claimed since v16 that it "tracks
+ * SRMECH_GENOME_FORMAT_VERSION" — and it did not: bumping the format to 20 left this string
+ * at v19, so C and Python computed DIFFERENT parser_rule_hashes and every native-vs-pure
+ * manifest byte-identity test went red at once (measured: 93 failures, first divergence at
+ * manifest byte 210). The failure was loud only because those tests exist; on a surface
+ * without them a stale preimage would have silently mis-attested every genome the C wrote.
+ * Two single-line macros (JPL Rule 8 bans MULTI-line macros, not stringification), so the
+ * string is now a function of the version and the next bump cannot forget it. */
+#define SRMECH_GENOME_STR_(x) #x
+#define SRMECH_GENOME_STR(x) SRMECH_GENOME_STR_(x)
+#define SRMECH_GENOME_RULE_PREIMAGE "genome_persistence/v" SRMECH_GENOME_STR(SRMECH_GENOME_FORMAT_VERSION)
 
 /* ------------------------------------------------------------------ *
  * Path + file helpers (stdio — Rule 3 allows file I/O, bans malloc).
@@ -255,14 +267,30 @@ typedef struct {
     uint32_t *byte_len;                             /* [cap_chroms] */
     char (*label)[SRMECH_GENOME_MAX_LABEL];         /* [cap_chroms] inline label */
     uint32_t *leaf_count;                           /* [cap_chroms] DATA turns */
-    char (*region_sha)[65];                         /* [cap_chroms] full-region
+    /* §GROUP/v20 (rc442, `#T1150`): the REGION arrays are sized to cap_regions, NOT
+     * cap_chroms. Through rc441 the two counts were the same number and the manifest
+     * tiled the body one region per chromosome. A group frame block is a real body
+     * byte that belongs to NO chromosome, so if regions stayed 1:1 with chromosomes
+     * the tiling check in _verify_body_integrity would fail on the very first grouped
+     * genome ("the regions tile N bytes but turns.bin is M"). v20 therefore gives each
+     * frame block its own one-block region: the regions still tile [0, body_len)
+     * exactly, the chromosome regions still start at their own boundary cap (so every
+     * byte_offset seek is unmoved), and for an UNGROUPED body n_regions == n_chroms
+     * and every digest is byte-identical to v19. */
+    char (*region_sha)[65];                         /* [cap_regions] full-region
                                                      * digest (v4 regions[] +
                                                      * the body_sha256 chain) */
+    uint32_t *reg_offset;                           /* [cap_regions] region byte start */
+    uint32_t *reg_len;                              /* [cap_regions] region byte length */
     unsigned char *cap_kind;                        /* [cap_chroms] §96 cap-kind CODE
                                                      * (0 plasmid / 1 nuclear / 2 diploid),
                                                      * mapped to a string in
                                                      * genome_build_chrom */
     uint32_t cap_chroms;                            /* arena-allocated capacity */
+    uint32_t cap_regions;                           /* §GROUP/v20 region capacity
+                                                     * (== n_chroms + n_group_blocks) */
+    uint32_t n_regions;                             /* §GROUP/v20 regions found by scan */
+    uint32_t n_group_blocks;                        /* §GROUP/v20 0x5B + 0x5D blocks seen */
     uint32_t n_chroms;                              /* chromosomes found by scan */
     uint32_t n_blocks;                              /* §55/v3: strand BLOCK count
                                                      * (caps + turns) == n_turns */
@@ -303,6 +331,8 @@ static int genome_cap_kind(const unsigned char *block, size_t len)
         m == SRMECH_GENOME_CHROMATIN_MARKER ||         /* §98 interior chromatin cap */
         m == SRMECH_GENOME_FIBER_CAP_MARKER ||         /* §Q8-FIBER/v17 interior fiber cap */
         m == SRMECH_GENOME_OCT_FIBER_CAP_MARKER ||     /* §𝕆-FIBER/v18 interior octonion fiber cap */
+        m == SRMECH_GENOME_GROUP_OPEN_MARKER ||        /* §GROUP/v20 group opener (0x5B) */
+        m == SRMECH_GENOME_GROUP_CLOSE_MARKER ||       /* §GROUP/v20 group closer (0x5D) */
         m == SRMECH_GENOME_DIPLOID_TELOMERE_MARKER) {  /* §95b diploid boundary */
         return (int)m;
     }
@@ -480,11 +510,15 @@ static srmech_json_value_t *genome_build_region(srmech_json_builder_t *b,
                                                 uint32_t idx)
 {
     assert(b != NULL && s != NULL);
-    assert(idx < s->cap_chroms);
+    /* GROUP/v20: indexed over REGIONS, which since rc442 outnumber chromosomes by
+     * the frame-block count. Reading byte_offset/byte_len here would emit a
+     * `regions` array that no longer tiles the body, and genome_verify_body would
+     * refuse the very genome that had just been written. */
+    assert(idx < s->cap_regions);
     const char *keys[3] = { "byte_offset", "byte_len", "sha256" };
     srmech_json_value_t *vals[3];
-    vals[0] = srmech_json_new_int(b, (int64_t)s->byte_offset[idx]);
-    vals[1] = srmech_json_new_int(b, (int64_t)s->byte_len[idx]);
+    vals[0] = srmech_json_new_int(b, (int64_t)s->reg_offset[idx]);
+    vals[1] = srmech_json_new_int(b, (int64_t)s->reg_len[idx]);
     vals[2] = srmech_json_new_string(b, s->region_sha[idx],
                                      (uint32_t)strlen(s->region_sha[idx]));
     return srmech_json_new_object(b, keys, vals, 3u);
@@ -559,13 +593,20 @@ static srmech_json_value_t *genome_build_data(srmech_json_builder_t *b,
     assert(chrom_items != NULL || s->n_chroms == 0u);
     for (uint32_t i = 0; i < s->n_chroms; i++) {
         chrom_items[i] = genome_build_chrom(b, s, i);
+    }
+    /* GROUP/v20: the two arrays are no longer the same length. */
+    for (uint32_t i = 0; i < s->n_regions; i++) {
         region_items[i] = genome_build_region(b, s, i);
     }
     const char *carrier = genome_carrier_name(s);
     srmech_json_value_t *arr = srmech_json_new_array(b, chrom_items, s->n_chroms);
-    srmech_json_value_t *rarr = srmech_json_new_array(b, region_items, s->n_chroms);
+    srmech_json_value_t *rarr = srmech_json_new_array(b, region_items, s->n_regions);
     int64_t n_turns = (int64_t)s->n_blocks;
-    int64_t n_content = n_turns - (int64_t)s->n_chroms;
+    /* GROUP/v20: a frame block is CONTAINER, exactly as a boundary cap is, so it is
+     * subtracted for the same reason -- grouping changes how content is partitioned,
+     * not how much there is. n_content must survive a regrouping or it is not the
+     * quantity it claims to be. */
+    int64_t n_content = n_turns - (int64_t)s->n_chroms - (int64_t)s->n_group_blocks;
     const char *keys[10] = { "format_version", "carrier", "leaf_dim", "n_turns",
                              "n_chromosomes", "n_content",
                              "coupling", "body_sha256", "regions", "chromosomes" };
@@ -798,7 +839,7 @@ static srmech_status_t genome_build_manifest_tree(const genome_strings_t *s,
         chrom_items = genome_arena_alloc(&a,
                                          (size_t)s->n_chroms * sizeof(*chrom_items));
         region_items = genome_arena_alloc(&a,
-                                          (size_t)s->n_chroms * sizeof(*region_items));
+                                          (size_t)s->n_regions * sizeof(*region_items));
         if (chrom_items == NULL || region_items == NULL) {
             return SRMECH_ERR_OVERFLOW;
         }
@@ -2107,6 +2148,45 @@ static void genome_mint_strand_scan(const unsigned char *strand, size_t n_blocks
  * `tests/test_implicit_close_rc441.py` pins the cap-marker vocabulary, so
  * adding a closer marker turns that gate red and routes its author here. */
 
+/* §GROUP/v20 (rc442, `#T1150`) — is this block one of the two group frame markers?
+ * The ONE spelling; every "does this end a chromosome?" question asks it rather than
+ * re-deriving the pair. A READ; no abs, no mutation. */
+static int genome_is_group_marker(const unsigned char *block, size_t len)
+{
+    assert(block != NULL || len == 0u);
+    assert(len <= 256u);
+    int kind = genome_cap_kind(block, len);
+    return (kind == (int)SRMECH_GENOME_GROUP_OPEN_MARKER ||
+            kind == (int)SRMECH_GENOME_GROUP_CLOSE_MARKER) ? 1 : 0;
+}
+
+/* §GROUP/v20 (rc442, `#T1150`) — THE EXPLICIT CLOSE, replacing v19's implicit one.
+ *
+ * "Where does the unit that runs to the end of the strand actually END?" Under v19 the
+ * answer was `n_blocks` and it was INFERRED — there was no closer to read, so the end of the
+ * unit and the end of the buffer were the same index. Under v20 they part company exactly
+ * when the strand ends inside one or more groups: the trailing ']' blocks belong to the
+ * ENCLOSING frames, not to the chromosome, so a splice computed at `n_blocks` lands on the
+ * wrong side of them.
+ *
+ * The rule is READ, not inferred: walk back over the trailing closers. An ungrouped strand
+ * has none, so this returns `n_blocks` and every v19 answer is byte-for-byte unchanged.
+ *
+ * The C peer of srmech.biology.genome._unit_end_before_closers. A READ; no abs (a block index
+ * is a position, not a magnitude), no mutation, no recursion. */
+static size_t genome_unit_end_before_closers(const unsigned char *strand,
+                                             size_t n_blocks, uint32_t leaf_dim)
+{
+    assert(strand != NULL || n_blocks == 0u);
+    assert(leaf_dim > 0u);
+    size_t end = n_blocks;
+    while (end > 0u &&
+           strand[(end - 1u) * (size_t)leaf_dim] == SRMECH_GENOME_GROUP_CLOSE_MARKER) {
+        end--;
+    }
+    return end;
+}
+
 /* §100 GAP 1/v15 — the BLOCK index of the `split`-th (0-based) DATA turn, or n_blocks
  * when split == the data-turn count (the metacentric cap appends at the very end).
  * Mirror the Python `data_positions[split] if split < n_turns else len(strand)`. A READ;
@@ -2131,10 +2211,17 @@ static size_t genome_nth_data_turn(const unsigned char *strand, size_t n_blocks,
             seen++;
         }
     }
-    /* split == n_turns -> append at the end. INFERRED, not read: v19 has no
-     * closer, so "the end of the unit" is the end of the strand. */
+    /* split == n_turns -> append at the end of the OPEN UNIT. §GROUP/v20 (rc442,
+     * `#T1150`): this is splice site 1 of the four the rc441 vocabulary pin named,
+     * and it is the branch that had to move. v19 had no closer, so "the end of the
+     * unit" and "the end of the strand" were the same index and the inference was
+     * accidentally right. With a closer they are two different indices, and the
+     * v19 answer would splice the centromere OUTSIDE the group that owns it —
+     * silently, producing a well-formed strand that means something else. The
+     * extent is now READ from the closers rather than inferred from the buffer
+     * running out. */
     if (at_unit_end != NULL) { *at_unit_end = 1; }
-    return n_blocks;
+    return genome_unit_end_before_closers(strand, n_blocks, leaf_dim);
 }
 
 /* §100 GAP 1/v15 — resolve the GLOBAL orientation for a mint_strand. When
@@ -2188,8 +2275,14 @@ srmech_status_t srmech_genome_mint_strand(
     }
     assert(out != NULL && n_blocks_out != NULL && strand != NULL);
     if (leaf_dim == 0u || leaf_dim > 256u) { return SRMECH_ERR_BAD_INPUT; }
-    if (n_blocks == 0u || genome_is_boundary_cap(strand, dim) == 0) {
-        return SRMECH_ERR_BAD_INPUT;      /* empty / not opening with a boundary cap */
+    /* GROUP/v20 (rc442, task T1150): a strand is `unit*` and a GROUP is a unit, so a
+     * body may legitimately open with '['. Refusing it here would have made the whole
+     * append-at-end repair below unreachable on exactly the strands that need it --
+     * the guard would reject the input before the fixed splice could run. */
+    if (n_blocks == 0u ||
+        (genome_is_boundary_cap(strand, dim) == 0 &&
+         strand[0] != SRMECH_GENOME_GROUP_OPEN_MARKER)) {
+        return SRMECH_ERR_BAD_INPUT;      /* empty / does not open a unit */
     }
     genome_mint_strand_scan(strand, n_blocks, leaf_dim, &n_turns, &has_cen);
     if (has_cen != 0) { return SRMECH_ERR_BAD_INPUT; }   /* already minted (0x58) */
@@ -2211,16 +2304,197 @@ srmech_status_t srmech_genome_mint_strand(
     if (st != SRMECH_OK) { return st; }
     locus = genome_nth_data_turn(strand, n_blocks, leaf_dim, split, &at_unit_end);
     assert(locus <= n_blocks);
-    /* rc441 (`#T1148`): the append-at-end case rests on the §v19 IMPLICIT
-     * CLOSE inference — with no closer cap, "the end of the unit" IS the end
-     * of the strand, so the splice lands at n_blocks. Under v20 this is the
-     * branch that must place the cap BEFORE the closer instead. */
-    assert(at_unit_end == 0 || locus == n_blocks);
+    /* §GROUP/v20 (rc442, `#T1150`): the append-at-end case now READS its extent from
+     * the closers (genome_unit_end_before_closers) instead of inferring it from the
+     * buffer end, so the cap lands BEFORE the closer — inside the group that owns it.
+     * The v19 assertion `locus == n_blocks` was true only because no closer existed;
+     * the surviving invariant is the weaker, still-checkable one. */
+    assert(at_unit_end == 0 || locus <= n_blocks);
     memcpy(out, strand, locus * dim);                        /* strand[:locus] */
     memcpy(out + locus * dim, cap, dim);                     /* + centromere cap */
     memcpy(out + (locus + 1u) * dim, strand + locus * dim,
            (n_blocks - locus) * dim);                        /* + strand[locus:] */
     *n_blocks_out = total;
+    return SRMECH_OK;
+}
+
+/* ------------------------------------------------------------------ *
+ * GROUP/v20 (rc442, task T1150) -- the nesting walker.
+ *
+ * ITERATIVE over an EXPLICIT bounded stack. NEVER RECURSIVE: JPL Rule 1 bans
+ * direct AND indirect recursion, and a recursive walker would relocate the
+ * unbounded allocation to the call stack, where exhaustion has no return code at
+ * all. The bound is the compiled-in SRMECH_GENOME_MAX_GROUP_DEPTH, joining the
+ * in-tree precedents SRMECH_JSON_MAX_DEPTH / SRMECH_TOML_MAX_DEPTH /
+ * DCR_MAX_SUBCHAIN_DEPTH.
+ * ------------------------------------------------------------------ */
+
+/* One frame per open group: where it opened, and how many UNITS it has taken so
+ * far. `depth` is the live frame count; `units` counts units closed at TOP level
+ * (depth 0), which no frame owns. */
+typedef struct {
+    size_t open_idx[SRMECH_GENOME_MAX_GROUP_DEPTH];
+    uint32_t arity[SRMECH_GENOME_MAX_GROUP_DEPTH];
+    uint32_t depth;
+    uint32_t units;
+} genome_group_stack_t;
+
+/* Zero the stack. Two asserts (JPL R5) on a function whose whole job is a reset. */
+static void genome_group_stack_init(genome_group_stack_t *gs)
+{
+    assert(gs != NULL);
+    assert(SRMECH_GENOME_MAX_GROUP_DEPTH > 0u);
+    gs->depth = 0u;
+    gs->units = 0u;
+}
+
+/* Record that ONE unit closed at the current scope -- a chromosome opening, or a
+ * group popping into its parent. A unit at depth 0 belongs to no frame. */
+static void genome_group_count_unit(genome_group_stack_t *gs)
+{
+    assert(gs != NULL);
+    assert(gs->depth <= SRMECH_GENOME_MAX_GROUP_DEPTH);
+    if (gs->depth == 0u) {
+        if (gs->units != 0xFFFFFFFFu) { gs->units++; }
+        return;
+    }
+    if (gs->arity[gs->depth - 1u] != 0xFFFFFFFFu) { gs->arity[gs->depth - 1u]++; }
+}
+
+/* One frame step for the marker at BLOCK index `blk`. On a pop, `out` (nullable)
+ * receives the popped frame's open_idx / depth / arity; close_idx and label are the
+ * caller's to fill, because only it knows the bytes.
+ *
+ * Every malformed class is decided HERE, in the single forward pass:
+ *   closer-without-opener   the depth guard fires BEFORE the decrement
+ *   childless group         arity 0 at pop. A group of ONE is LEGAL -- banning
+ *                           arity 1 would be the same constraint error as banning
+ *                           arity 0, only in the opposite direction
+ *   depth overflow          SRMECH_ERR_LIMIT, never OVERFLOW: rc404 defines LIMIT
+ *                           as a compiled-in cap where retrying is futile BY
+ *                           CONSTRUCTION, whereas OVERFLOW would send a caller's
+ *                           grow-loop into futile doubling
+ * A READ over the marker byte; no abs (a block index is a position), no malloc,
+ * no goto, no recursion. */
+static srmech_status_t genome_group_step(genome_group_stack_t *gs,
+                                         unsigned char marker, size_t blk,
+                                         srmech_genome_group_t *out)
+{
+    assert(gs != NULL);
+    assert(marker == SRMECH_GENOME_GROUP_OPEN_MARKER ||
+           marker == SRMECH_GENOME_GROUP_CLOSE_MARKER);
+    if (marker == SRMECH_GENOME_GROUP_OPEN_MARKER) {
+        if (gs->depth >= SRMECH_GENOME_MAX_GROUP_DEPTH) { return SRMECH_ERR_LIMIT; }
+        gs->open_idx[gs->depth] = blk;
+        gs->arity[gs->depth] = 0u;
+        gs->depth++;
+        return SRMECH_OK;
+    }
+    if (gs->depth == 0u) { return SRMECH_ERR_BAD_INPUT; }   /* closer without opener */
+    gs->depth--;
+    if (gs->arity[gs->depth] == 0u) { return SRMECH_ERR_BAD_INPUT; }  /* childless */
+    if (out != NULL) {
+        out->open_idx = gs->open_idx[gs->depth];
+        out->close_idx = blk;
+        out->depth = gs->depth;
+        out->arity = gs->arity[gs->depth];
+    }
+    genome_group_count_unit(gs);          /* the popped group IS a unit of its parent */
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_genome_group_walk(
+    const unsigned char *strand, size_t n_blocks, uint32_t leaf_dim,
+    srmech_genome_group_t *out, uint32_t out_cap, uint32_t *n_out)
+{
+    genome_group_stack_t gs;
+    srmech_genome_group_t rec;
+    uint32_t found = 0u;
+    int in_chrom = 0;
+    assert(n_out != NULL);
+    assert(strand != NULL || n_blocks == 0u);
+    if (leaf_dim == 0u || leaf_dim > 256u || n_out == NULL) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    genome_group_stack_init(&gs);
+    *n_out = 0u;
+    for (size_t i = 0u; i < n_blocks; i++) {
+        const unsigned char *blk = strand + i * (size_t)leaf_dim;
+        srmech_status_t st = SRMECH_OK;
+        if (blk[0] == SRMECH_GENOME_GROUP_OPEN_MARKER ||
+            blk[0] == SRMECH_GENOME_GROUP_CLOSE_MARKER) {
+            in_chrom = 0;                              /* R1/R2: implicit close */
+            st = genome_group_step(&gs, blk[0], i, &rec);
+            if (st != SRMECH_OK) { return st; }
+            if (blk[0] == SRMECH_GENOME_GROUP_CLOSE_MARKER) {
+                /* EMITTED ON POP, never on push: a record emitted at the opener
+                 * would be a claim the walk has not yet earned (the opener might
+                 * never close). Emission order is therefore by CLOSE position. */
+                if (out != NULL) {
+                    if (found >= out_cap) { return SRMECH_ERR_OVERFLOW; }
+                    st = genome_decode_label(strand + rec.open_idx * (size_t)leaf_dim,
+                                             leaf_dim, rec.label);
+                    if (st != SRMECH_OK) { return st; }
+                    out[found] = rec;
+                }
+                found++;
+            }
+            continue;
+        }
+        if (genome_is_boundary_cap(blk, (size_t)leaf_dim) != 0) {
+            in_chrom = 1;
+            genome_group_count_unit(&gs);
+            continue;
+        }
+        /* R3 -- a data turn or an interior cap outside a chromosome. This is the
+         * rule that makes crossed nesting UNREPRESENTABLE rather than merely
+         * detectable (R4). */
+        if (in_chrom == 0) { return SRMECH_ERR_BAD_INPUT; }
+    }
+    /* Unclosed opener: ONE pass is enough -- gs.open_idx[0 .. depth-1] already
+     * names every offender, so no second pass is owed to report them. */
+    if (gs.depth != 0u) { return SRMECH_ERR_BAD_INPUT; }
+    *n_out = found;
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_genome_group_wrap(
+    const unsigned char *strand, size_t n_blocks, uint32_t leaf_dim,
+    const unsigned char *label, size_t label_len,
+    unsigned char *out, size_t out_cap, size_t *n_blocks_out)
+{
+    size_t dim = (size_t)leaf_dim;
+    uint32_t n_groups = 0u;
+    srmech_status_t st;
+    assert(out != NULL || out_cap == 0u);
+    assert(n_blocks_out != NULL || n_blocks == 0u);
+    if (leaf_dim == 0u || leaf_dim > 256u || n_blocks == 0u ||
+        strand == NULL || out == NULL || n_blocks_out == NULL) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    if (genome_is_boundary_cap(strand, dim) == 0 &&
+        strand[0] != SRMECH_GENOME_GROUP_OPEN_MARKER) {
+        return SRMECH_ERR_BAD_INPUT;               /* does not open a unit */
+    }
+    /* Validate the SUBJECT before wrapping it, so wrapping can never MINT a
+     * malformed body: arity >= 1 is enforced here rather than discovered later by
+     * a reader. Validate-only (out=NULL, cap=0) -- no arena needed. */
+    st = srmech_genome_group_walk(strand, n_blocks, leaf_dim, NULL, 0u, &n_groups);
+    if (st != SRMECH_OK) { return st; }
+    if (out_cap < (n_blocks + 2u) * dim) { return SRMECH_ERR_OVERFLOW; }
+    st = genome_pack_cap(SRMECH_GENOME_GROUP_OPEN_MARKER, label, label_len,
+                         leaf_dim, out, out_cap);
+    if (st != SRMECH_OK) { return st; }
+    memcpy(out + dim, strand, n_blocks * dim);
+    /* The closer carries NOTHING -- an empty label is the whole payload. */
+    st = genome_pack_cap(SRMECH_GENOME_GROUP_CLOSE_MARKER, NULL, 0u, leaf_dim,
+                         out + (n_blocks + 1u) * dim, dim);
+    if (st != SRMECH_OK) { return st; }
+    /* Re-walk the RESULT: the wrap added a frame, so if the subject already nested
+     * to the cap this is where LIMIT surfaces. */
+    st = srmech_genome_group_walk(out, n_blocks + 2u, leaf_dim, NULL, 0u, &n_groups);
+    if (st != SRMECH_OK) { return st; }
+    *n_blocks_out = n_blocks + 2u;
     return SRMECH_OK;
 }
 
@@ -2230,13 +2504,15 @@ srmech_status_t srmech_genome_mint_strand(
  * the block count IS n_turns). Validates every block parses and fits. */
 static srmech_status_t genome_count_chroms(const unsigned char *body,
                                            size_t body_len, uint32_t leaf_dim,
-                                           uint32_t *out_n, uint32_t *out_blocks)
+                                           uint32_t *out_n, uint32_t *out_blocks,
+                                           uint32_t *out_groups)
 {
     assert(out_n != NULL && out_blocks != NULL);
     assert(body != NULL || body_len == 0u);
-    if (leaf_dim == 0u) { return SRMECH_ERR_BAD_INPUT; }
+    if (leaf_dim == 0u || out_groups == NULL) { return SRMECH_ERR_BAD_INPUT; }
     uint32_t n = 0u;
     uint32_t blocks = 0u;
+    uint32_t groups = 0u;                  /* §GROUP/v20: 0x5B + 0x5D frame blocks */
     for (size_t off = 0u; off < body_len; ) {
         size_t blen = 0u;
         srmech_status_t st = genome_block_len(body, body_len, off, leaf_dim,
@@ -2251,12 +2527,20 @@ static srmech_status_t genome_count_chroms(const unsigned char *body,
             if (n == 0xFFFFFFFFu) { return SRMECH_ERR_OVERFLOW; }
             n++;
         }
+        /* §GROUP/v20: each frame block earns its OWN one-block region, so the
+         * region arrays are carved to n + groups. */
+        if (body[off] == SRMECH_GENOME_GROUP_OPEN_MARKER ||
+            body[off] == SRMECH_GENOME_GROUP_CLOSE_MARKER) {
+            if (groups == 0xFFFFFFFFu) { return SRMECH_ERR_OVERFLOW; }
+            groups++;
+        }
         if (blocks == 0xFFFFFFFFu) { return SRMECH_ERR_OVERFLOW; }
         blocks++;
         off += blen;
     }
     *out_n = n;
     *out_blocks = blocks;
+    *out_groups = groups;
     return SRMECH_OK;
 }
 
@@ -2264,7 +2548,8 @@ static srmech_status_t genome_count_chroms(const unsigned char *body,
  * the bound is the caller's arena, not a constant. SRMECH_ERR_OVERFLOW when the
  * arena cannot fit them. */
 static srmech_status_t genome_strings_alloc(genome_strings_t *s,
-                                            genome_arena_t *a, uint32_t n)
+                                            genome_arena_t *a, uint32_t n,
+                                            uint32_t n_regions)
 {
     assert(s != NULL && a != NULL);
     assert(n != 0xFFFFFFFFu);
@@ -2273,15 +2558,23 @@ static srmech_status_t genome_strings_alloc(genome_strings_t *s,
     s->byte_len = genome_arena_alloc(a, (size_t)n * sizeof(uint32_t));
     s->label = genome_arena_alloc(a, (size_t)n * SRMECH_GENOME_MAX_LABEL);
     s->leaf_count = genome_arena_alloc(a, (size_t)n * sizeof(uint32_t));
-    s->region_sha = genome_arena_alloc(a, (size_t)n * 65u);   /* v4 region digest */
+    /* §GROUP/v20: the region arrays are carved to n_regions (chromosomes PLUS one
+     * per group frame block), so the regions still tile [0, body_len) when a body
+     * nests. n_regions == n for every ungrouped body. */
+    s->region_sha = genome_arena_alloc(a, (size_t)n_regions * 65u);
+    s->reg_offset = genome_arena_alloc(a, (size_t)n_regions * sizeof(uint32_t));
+    s->reg_len = genome_arena_alloc(a, (size_t)n_regions * sizeof(uint32_t));
     s->cap_kind = genome_arena_alloc(a, (size_t)n);           /* §96 cap-kind code */
     if (s->cap_sha == NULL || s->byte_offset == NULL || s->byte_len == NULL ||
         s->label == NULL || s->leaf_count == NULL || s->region_sha == NULL ||
-        s->cap_kind == NULL) {
+        s->reg_offset == NULL || s->reg_len == NULL || s->cap_kind == NULL) {
         return SRMECH_ERR_OVERFLOW;
     }
     s->cap_chroms = n;
+    s->cap_regions = n_regions;
     s->n_chroms = 0u;
+    s->n_regions = 0u;
+    s->n_group_blocks = 0u;
     return SRMECH_OK;
 }
 
@@ -2328,12 +2621,41 @@ static srmech_status_t genome_scan_chroms(genome_strings_t *s,
     assert(s != NULL);
     assert(body != NULL || body_len == 0u);
     s->n_chroms = 0u;
+    s->n_regions = 0u;
+    s->n_group_blocks = 0u;
     int32_t cur = -1;
+    genome_group_stack_t gs;
+    genome_group_stack_init(&gs);
     for (size_t off = 0u; off < body_len; ) {
         size_t blen = 0u;
         srmech_status_t st = genome_block_len(body, body_len, off, leaf_dim,
                                               &blen);
         if (st != SRMECH_OK) { return st; }
+        /* GROUP/v20 (rc442, task T1150) -- THE PERSISTENCE-SCAN REPAIR.
+         *
+         * This branch is the half the in-memory group design never walked, and its
+         * absence was fatal rather than cosmetic: with the opener kept out of the
+         * opener chain, the `cur < 0` guard below rejected a block-0 opener as
+         * "turn before 1st cap", so of 36 placements of an open/close pair in a
+         * 3-chromosome strand the set (saveable AND containing a chromosome AND
+         * non-crossing) was EMPTY. The design could not persist any group that
+         * contained anything.
+         *
+         * A frame block CLOSES the open chromosome (R1/R2) and becomes its own
+         * one-block region, so the regions keep tiling the body exactly. */
+        if (body[off] == SRMECH_GENOME_GROUP_OPEN_MARKER ||
+            body[off] == SRMECH_GENOME_GROUP_CLOSE_MARKER) {
+            st = genome_group_step(&gs, body[off], off / (size_t)leaf_dim, NULL);
+            if (st != SRMECH_OK) { return st; }
+            if (s->n_regions >= s->cap_regions) { return SRMECH_ERR_OVERFLOW; }
+            s->reg_offset[s->n_regions] = (uint32_t)off;
+            s->reg_len[s->n_regions] = (uint32_t)blen;
+            s->n_regions++;
+            s->n_group_blocks++;
+            cur = -1;                 /* R1/R2: the open chromosome is closed */
+            off += blen;
+            continue;
+        }
         /* §89/§127: a CHROM cap, a §89 kernel telomere (0x6B), OR a §127 active
          * telomere (0x74) opens a chromosome. The label decode is UNIFORM (bytes [1:]
          * up to the first NUL) — the active telomere's count sits AFTER that NUL. */
@@ -2342,7 +2664,14 @@ static srmech_status_t genome_scan_chroms(genome_strings_t *s,
             body[off] == SRMECH_GENOME_ACTIVE_TELOMERE_MARKER ||
             body[off] == SRMECH_GENOME_DIPLOID_TELOMERE_MARKER) {  /* §95b diploid opens a chrom */
             if (s->n_chroms >= s->cap_chroms) { return SRMECH_ERR_OVERFLOW; }
+            if (s->n_regions >= s->cap_regions) { return SRMECH_ERR_OVERFLOW; }
             cur = (int32_t)s->n_chroms;
+            /* GROUP/v20: a chromosome opens a REGION too; its span accumulates
+             * below exactly as byte_len does. */
+            s->reg_offset[s->n_regions] = (uint32_t)off;
+            s->reg_len[s->n_regions] = 0u;
+            s->n_regions++;
+            genome_group_count_unit(&gs);
             s->n_chroms++;
             st = srmech_sha256_hex(body + off, leaf_dim, s->cap_sha[cur]);
             if (st != SRMECH_OK) { return st; }
@@ -2356,14 +2685,26 @@ static srmech_status_t genome_scan_chroms(genome_strings_t *s,
             s->cap_kind[cur] = (body[off] == SRMECH_GENOME_DIPLOID_TELOMERE_MARKER)
                 ? SRMECH_GENOME_CAP_KIND_DIPLOID : SRMECH_GENOME_CAP_KIND_PLASMID;
         } else {
-            if (cur < 0) { return SRMECH_ERR_BAD_INPUT; }   /* turn before 1st cap */
+            /* GROUP/v20 R3 -- a data turn or interior cap is legal ONLY inside a
+             * chromosome. This is the v19 "turn before the first CHROM cap" rule
+             * generalised from block 0 to EVERY scope, and it is what makes crossed
+             * nesting UNREPRESENTABLE (R4) rather than merely detectable: because an
+             * opener closes the open chromosome, a turn at group scope is the only
+             * way a crossing could be spelled, and it is refused here. Measured
+             * before the repair: a strand crossing a group boundary mid-chromosome
+             * SAVED and carried two mutually inconsistent readings. */
+            if (cur < 0) { return SRMECH_ERR_BAD_INPUT; }
             /* §55/v3 + §Q8/v16 + §96: fold the non-opener block (carrier flag,
              * cap-kind, data-turn count) — extracted to keep this scan ≤60 (JPL R4). */
             genome_scan_fold_block(s, body[off], cur);
         }
         s->byte_len[cur] += (uint32_t)blen;
+        s->reg_len[s->n_regions - 1u] += (uint32_t)blen;
         off += blen;
     }
+    /* GROUP/v20: an opener left unclosed at the end of the body is malformed, and
+     * ONE pass suffices -- gs.depth != 0 already names every offender by open_idx. */
+    if (gs.depth != 0u) { return SRMECH_ERR_BAD_INPUT; }
     return SRMECH_OK;
 }
 
@@ -2400,12 +2741,16 @@ static srmech_status_t genome_fill_regions_chain(genome_strings_t *s,
 {
     assert(s != NULL);
     assert(body != NULL || s->n_chroms == 0u);
-    for (uint32_t i = 0; i < s->n_chroms; i++) {
-        srmech_status_t st = srmech_sha256_hex(body + s->byte_offset[i],
-                                               s->byte_len[i], s->region_sha[i]);
+    /* GROUP/v20: fold over REGIONS. For an ungrouped body n_regions == n_chroms and
+     * reg_offset/reg_len equal byte_offset/byte_len entry-for-entry, so body_sha256
+     * is byte-identical to v19 -- that equality is the "zero extra bytes" claim's
+     * proof obligation and tests/test_genome_group_v20_rc442.py holds it. */
+    for (uint32_t i = 0; i < s->n_regions; i++) {
+        srmech_status_t st = srmech_sha256_hex(body + s->reg_offset[i],
+                                               s->reg_len[i], s->region_sha[i]);
         if (st != SRMECH_OK) { return st; }
     }
-    return genome_chain_regions(s->region_sha, s->n_chroms, s->body_sha);
+    return genome_chain_regions(s->region_sha, s->n_regions, s->body_sha);
 }
 
 /* Fill the per-build string block from the body + coupling: the hashes, the
@@ -2420,10 +2765,12 @@ static srmech_status_t genome_fill_strings(genome_strings_t *s,
     assert(a != NULL && leaf_dim > 0u);
     uint32_t n_chroms = 0u;                            /* count → carve arrays */
     uint32_t n_blocks = 0u;                            /* §55/v3: == n_turns */
+    uint32_t n_groups = 0u;                            /* GROUP/v20 frame blocks */
     srmech_status_t st = genome_count_chroms(body, body_len, leaf_dim,
-                                             &n_chroms, &n_blocks);
+                                             &n_chroms, &n_blocks, &n_groups);
     if (st != SRMECH_OK) { return st; }
-    st = genome_strings_alloc(s, a, n_chroms);
+    if (n_chroms > 0xFFFFFFFFu - n_groups) { return SRMECH_ERR_OVERFLOW; }
+    st = genome_strings_alloc(s, a, n_chroms, n_chroms + n_groups);
     if (st != SRMECH_OK) { return st; }
     s->n_blocks = n_blocks;
     st = srmech_sha256_hex(coupling, leaf_dim, s->one_sha);
@@ -4043,7 +4390,10 @@ static srmech_status_t genome_save_resolved(
     if (st != SRMECH_OK) { return st; }
     memcpy(strs.src_attest, src_attest,
            (size_t)SRMECH_GENOME_ATTEST_OVR_FIELDS * SRMECH_GENOME_ATTEST_MAX);
-    size_t man_cap = genome_manifest_cap(strs.n_chroms);
+    /* GROUP/v20: size for REGIONS, not chromosomes -- a grouped body emits more
+     * region entries than chromosome entries and would otherwise overrun. */
+    size_t man_cap = genome_manifest_cap(strs.n_regions > strs.n_chroms
+                                         ? strs.n_regions : strs.n_chroms);
     char *manifest = genome_arena_alloc(&a, man_cap + 1u);
     if (manifest == NULL) { return SRMECH_ERR_OVERFLOW; }
     void *tws = NULL;
@@ -4711,7 +5061,13 @@ static srmech_json_value_t *genome_content_root(
     assert(b != NULL && s != NULL);
     assert(path != NULL);
     int64_t n_turns = (int64_t)s->n_blocks;
-    int64_t n_content = n_turns - (int64_t)s->n_chroms;
+    /* GROUP/v20 (rc442, task T1150): subtract the frame blocks too, exactly as
+     * genome_build_data does. MEASURED before this line existed: a grouped genome
+     * came back n_content 6 from srmech_genome_content and 4 from the catalog --
+     * one op, two projections, two answers, no error. n_content's whole job is to
+     * be the quantity a regrouping leaves alone, so a container block must not
+     * count as content on either side. */
+    int64_t n_content = n_turns - (int64_t)s->n_chroms - (int64_t)s->n_group_blocks;
     const char *keys[4] = { "path", "n_turns", "n_chromosomes", "n_content" };
     srmech_json_value_t *vals[4];
     vals[0] = srmech_json_new_string(b, path, (uint32_t)strlen(path));
@@ -5062,12 +5418,15 @@ static srmech_status_t genome_verify_body(const unsigned char *body,
         if (st != SRMECH_OK) { return st; }
         return genome_str_eq(bsha, got) ? SRMECH_OK : SRMECH_ERR_BAD_INPUT;
     }
-    const srmech_json_value_t *arr = genome_data_get(manifest, "chromosomes");
-    if (arr == NULL || arr->type != SRMECH_JSON_ARRAY) {
-        return SRMECH_ERR_BAD_INPUT;
-    }
+    /* GROUP/v20 (rc442, task T1150): fold over the REGIONS array, which is what the
+     * chain is built from and what has to tile the body. Through rc441 this line read
+     * `chromosomes`, and it was RIGHT only because the two arrays held identical spans
+     * -- an equality the format never promised and v20 ends. The pure peer
+     * (_verify_body_integrity) has always read data["regions"], so this was also the
+     * one place where the two projections disagreed about their own subject. */
+    if (regions->type != SRMECH_JSON_ARRAY) { return SRMECH_ERR_BAD_INPUT; }
     char chain[65];
-    return genome_verify_body_chain(body, body_len, arr, bsha, chain);
+    return genome_verify_body_chain(body, body_len, regions, bsha, chain);
 }
 
 /* ------------------------------------------------------------------ *
@@ -5565,7 +5924,7 @@ static srmech_status_t genome_append_v4(const char *dir, const char *label,
     if (ld == NULL || ld->type != SRMECH_JSON_INT ||
         (uint32_t)ld->u.i != leaf_dim) { return SRMECH_ERR_BAD_INPUT; }
     genome_strings_t s;
-    st = genome_strings_alloc(&s, a, 1u);          /* ONE slot — the new region's scan */
+    st = genome_strings_alloc(&s, a, 1u, 1u);      /* ONE slot — the new region's scan */
     if (st != SRMECH_OK) { return st; }
     st = genome_append_head(&s, manifest, region, region_len, leaf_dim);
     if (st != SRMECH_OK) { return st; }
@@ -5916,7 +6275,11 @@ srmech_status_t srmech_genome_replace(const char *dir, const char *label,
 #define SRMECH_GENOME_CHR_SCHEMA_ID "srmech://schema/genome_chromosome/v1"
 /* The §43 parser_rule_hash pre-image (== f"genome_chromosome/v{FORMAT_VERSION}" — tracks
  * SRMECH_GENOME_FORMAT_VERSION, mirroring the Python _chr_record; v15->v16 §Q8 packer). */
-#define SRMECH_GENOME_CHR_RULE_PREIMAGE "genome_chromosome/v19"
+/* rc442 (`#T1150`): DERIVED, for the same reason as SRMECH_GENOME_RULE_PREIMAGE above —
+ * this was the SECOND hand-kept copy of the format version in a hash pre-image, and it
+ * went stale in the same bump, diverging the .chr export/import attestation at manifest
+ * byte 210 while claiming in its own comment to track the macro. */
+#define SRMECH_GENOME_CHR_RULE_PREIMAGE "genome_chromosome/v" SRMECH_GENOME_STR(SRMECH_GENOME_FORMAT_VERSION)
 /* The §43 rendering "purpose" — VERBATIM from genome.py _chr_record
  * (single-line #define; JPL Rule 8 forbids backslash line-continuation). */
 #define SRMECH_GENOME_CHR_PURPOSE "One self-contained, MPR-attested chromosome: its fixed-width region (CHROM cap + coupled turns) + coupling, re-importable self-verifying."
@@ -9531,8 +9894,15 @@ static srmech_status_t genome_label_range(
     } else if (start == n_blocks) {
         return SRMECH_ERR_BAD_INPUT;               /* no chromosome by that label */
     }
+    /* §GROUP/v20 (rc442, `#T1150`) — splice site 2 of the four. `end` is the next
+     * boundary cap after `start` OR the next GROUP marker, whichever comes first: R1/R2
+     * say a '[' and a ']' each implicitly CLOSE the open chromosome, so either one ends
+     * this unit just as a next opener does. Through rc441 only an opener could end it,
+     * which meant a chromatin splice computed here ran PAST the closer of its own group.
+     * An ungrouped strand contains neither marker, so every v19 extent is unchanged. */
     for (size_t j = start + 1u; j < n_blocks; j++) {   /* end = next boundary after start */
-        if (genome_is_boundary_cap(strand + j * dim, dim) != 0) {
+        if (genome_is_boundary_cap(strand + j * dim, dim) != 0 ||
+            genome_is_group_marker(strand + j * dim, dim) != 0) {
             end = j;
             /* READ from a real marker — not the implicit close. */
             if (end_is_implicit != NULL) { *end_is_implicit = 0; }
