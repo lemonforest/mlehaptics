@@ -297,6 +297,34 @@ typedef struct cr_ctx {
 } cr_ctx_t;
 
 /* Resolve a `@...` reference string to a value carrier. NULL → defer. */
+/* Index a step output: the `[K]` tail of `@step[N].output[K]`. Returns NULL
+ * (defer) for a non-list carrier, an out-of-range K, or any tail that is not
+ * exactly one bracketed decimal — a `.key` tail would need a MAPPING carrier,
+ * which does not exist, so it declines rather than pretending.
+ *
+ * Through rc447 the step arm accepted only a BARE `.output` and rejected this
+ * outright. Note the shapes differ from the @row / @input walk: those descend a
+ * parsed JSON tree, this indexes an already-computed cr_value_t, so cr_walk_json
+ * cannot be reused however similar the syntax looks. */
+static cr_value_t *cr_index_value(cr_value_t *v, const char *p, const char *e)
+{
+    uint32_t idx = 0u; int digits = 0;
+    assert(p != NULL && e != NULL);
+    assert(p <= e);
+    if (v == NULL || v->kind != CR_LIST) { return NULL; }
+    if (p >= e || *p != '[') { return NULL; }
+    p++;
+    while (p < e && *p >= '0' && *p <= '9') {
+        idx = idx * 10u + (uint32_t)(*p++ - '0');
+        digits++;
+        if (digits > 9) { return NULL; }        /* absurd index → defer */
+    }
+    if (digits == 0 || p >= e || *p != ']') { return NULL; }
+    if (p + 1 != e) { return NULL; }            /* a chained tail → defer */
+    if (idx >= v->n) { return NULL; }           /* out of range → defer, never wrap */
+    return v->items[idx];
+}
+
 static cr_value_t *cr_resolve_ref(cr_ctx_t *c, const char *ref, uint32_t len)
 {
     const char *e = ref + len; const char *p;
@@ -317,10 +345,10 @@ static cr_value_t *cr_resolve_ref(cr_ctx_t *c, const char *ref, uint32_t len)
         if (idx >= c->cur) { return NULL; }
         rest = k + 1;
         if (rest + 7 <= e && memcmp(rest, ".output", 7u) == 0) { rest += 7; }
-        if (rest != e) { return NULL; }   /* only bare `.output` supported */
-        return c->step_out[idx];
+        if (rest == e) { return c->step_out[idx]; }
+        return cr_index_value(c->step_out[idx], rest, e);
     }
-    return NULL;   /* @catalog or unknown → defer */
+    return NULL;   /* @catalog / @op / @bind / @idx or unknown → defer */
 }
 
 /* A list ELEMENT: a `@...` ref or a scalar literal (no nesting → no recursion). */
@@ -902,12 +930,77 @@ static srmech_status_t cr_op_dseq(cr_ctx_t *c, const srmech_json_value_t *args,
  * 60 lines. Unmatched returns NOT_IMPL, which is exactly what cr_dispatch's own
  * fall-through returns — so calling this last composes with no change in
  * semantics. */
+/* Read one arg as a double. A CR_INT widens (a JSON `1` and `1.0` name the same
+ * operand); anything else declines. */
+static int cr_arg_dbl(cr_ctx_t *c, const srmech_json_value_t *args,
+                      const char *key, double *out)
+{
+    cr_value_t *v; int64_t iv;
+    assert(c != NULL && args != NULL);
+    assert(key != NULL && out != NULL);
+    v = cr_arg(c, args, key);
+    if (v == NULL) { return 0; }
+    if (v->kind == CR_DBL) { *out = v->d; return 1; }
+    if (v->kind == CR_INT && cr_as_i64(v, &iv)) { *out = (double)iv; return 1; }
+    return 0;
+}
+
+/* pin_slot_at_zero: Class K — split a real into (orientation, magnitude).
+ * Returns a 2-element CR_LIST so `@step[N].output[0]` / `[1]` address the two
+ * halves, which is exactly how the shipped descriptors read it.
+ *
+ * This IS the sign-handling primitive: the pin-slot phase boundary, never an
+ * ALU-magnitude call. Class C re-applies the orientation downstream. */
+static srmech_status_t cr_op_pin_slot(cr_ctx_t *c, const srmech_json_value_t *args,
+                                      cr_value_t **out)
+{
+    double x = 0.0, mag = 0.0; int8_t ori = 0; srmech_status_t st;
+    cr_value_t *lst; cr_value_t **items;
+    assert(c != NULL && args != NULL);
+    assert(out != NULL);
+    if (!cr_arg_dbl(c, args, "x", &x)) { return SRMECH_ERR_NOT_IMPL; }
+    st = srmech_cascade_pin_slot_at_zero_f64(x, &ori, &mag);
+    if (st != SRMECH_OK) { return st; }
+    lst = cr_new_value(c->b, CR_LIST);
+    if (lst == NULL) { return SRMECH_ERR_OVERFLOW; }
+    items = (cr_value_t **)cr_carve(c->b, 2u * sizeof(void *));
+    if (items == NULL) { return SRMECH_ERR_OVERFLOW; }
+    items[0] = cr_int_i64(c->b, (int64_t)ori);
+    items[1] = cr_dbl(c->b, mag);
+    if (items[0] == NULL || items[1] == NULL) { return SRMECH_ERR_OVERFLOW; }
+    lst->items = items; lst->n = 2u;
+    *out = lst;
+    return SRMECH_OK;
+}
+
+/* reorient: Class C — re-apply an orientation to a real value. */
+static srmech_status_t cr_op_reorient(cr_ctx_t *c, const srmech_json_value_t *args,
+                                      cr_value_t **out)
+{
+    double value = 0.0, ori = 0.0, r = 0.0; srmech_status_t st;
+    assert(c != NULL && args != NULL);
+    assert(out != NULL);
+    if (!cr_arg_dbl(c, args, "value", &value)) { return SRMECH_ERR_NOT_IMPL; }
+    if (!cr_arg_dbl(c, args, "orientation", &ori)) { return SRMECH_ERR_NOT_IMPL; }
+    if (ori < -128.0 || ori > 127.0) { return SRMECH_ERR_NOT_IMPL; }
+    st = srmech_cascade_reorient_f64((int8_t)ori, value, &r);
+    if (st != SRMECH_OK) { return st; }
+    *out = cr_dbl(c->b, r);
+    return (*out == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
 static srmech_status_t cr_dispatch_real(cr_ctx_t *c, const char *op, uint32_t opl,
                                         const srmech_json_value_t *args,
                                         cr_value_t **out)
 {
     assert(c != NULL && op != NULL);
     assert(args != NULL && out != NULL);
+    if (opl >= 16u && memcmp(op + (opl - 16u), "pin_slot_at_zero", 16u) == 0) {
+        return cr_op_pin_slot(c, args, out);
+    }
+    if (opl >= 8u && memcmp(op + (opl - 8u), "reorient", 8u) == 0) {
+        return cr_op_reorient(c, args, out);
+    }
     if (opl >= 11u && memcmp(op + (opl - 11u), "chiral_flip", 11u) == 0) {
         return cr_op_dseq(c, args, "seq", srmech_cascade_chiral_flip_f64, out);
     }

@@ -145,16 +145,64 @@ ROWS = [
          probe="python3 notes/_1653_gate_matrix_rc445.py",
          disposition=FILED, note="NEW TYPE; same ABI reasoning as carrier_double.",
          ceiling_blind_to="Same class blindness as carrier_double."),
+    dict(id="non_finite_doubles_cannot_cross_json", kind="decline",
+         missing="nan / inf / -inf cannot reach the C runner: RFC 8259 has no "
+                 "non-finite literal, srmech_json_parse is strict and refuses "
+                 "them, and the writer DECLINES them for the matching reason.",
+         lacked_by="both", blocked_this_rc=False, new_type=False,
+         evidence="3 of magnitude's 8 proof cases are non-finite and return "
+                  "BAD_INPUT at the parse, while all 5 finite cases are "
+                  "bit-identical. Parser probed directly: {\"x\": NaN} -> rc=2, "
+                  "{\"x\": Infinity} -> rc=2, {\"x\": 1.5} -> rc=0.",
+         probe="pytest tests/test_c_ref_indexing_rc447.py::"
+               "test_a_NON_FINITE_input_is_DECLINED_at_the_json_wire",
+         disposition=DECLINED,
+         note="ADJUDICATED, not overlooked — rc403 D4 chose option (c) DECLINE "
+              "over emitting CPython's NaN / Infinity spellings, because a "
+              "canonical writer whose bytes go behind a sha256 must not emit a "
+              "document its own parser refuses: the attestation chain "
+              "(write -> hash -> parse -> re-hash) would break at the re-read, "
+              "and ADR-0003's bare-C host has no stdlib json to fall back to. So "
+              "writer-output is a subset of parser-input UNCONDITIONALLY and the "
+              "two halves agree. This bounds which INPUTS can cross the wire, "
+              "not which chains exist — magnitude runs, on 5 of its 8 cases.",
+         ceiling_blind_to="The chain-level ratchet sees a chain as RUNNING or "
+                          "not; it has no notion of an input DOMAIN, so a chain "
+                          "that runs on most inputs and is unreachable on some "
+                          "scores identically to one that runs on all."),
+    dict(id="proof_cases_were_fed_to_the_runner", kind="bug",
+         missing="The parity harness passed the WHOLE catalog entry to "
+                 "srmech_chain_run, coupling a chain's executability to its own "
+                 "test data.",
+         lacked_by="both", blocked_this_rc=False, new_type=False,
+         evidence="magnitude declares non-finite proof cases; json.dumps spells "
+                  "them as bare NaN / Infinity, which is not valid JSON, so the "
+                  "strict parser rejected the DOCUMENT and the chain read as "
+                  "BAD_INPUT — while every one of its steps ran correctly.",
+         probe="pytest tests/test_c_cascade_parity_ratchet_rc446.py",
+         disposition=CLOSED,
+         note="proof_cases / summary / returns are DOCUMENTATION; the runner "
+              "never reads them. Sending them was incidental and it made a "
+              "TEST-DATA property look like a capability gap — the same class as "
+              "the tautological-parity row, where the measuring apparatus rather "
+              "than the code was wrong. Closed by _chain_only().",
+         ceiling_blind_to="Nothing checks that the harness sends the runner only "
+                          "what the runner reads; this was found by reading a "
+                          "BAD_INPUT that should have been NOT_IMPL."),
     dict(id="ref_grammar_output_index", kind="gap",
          missing="cr_resolve_ref parses only a BARE `.output`; `@step[N].output[K]` "
                  "element indexing is rejected.",
          lacked_by="c", blocked_this_rc=True, new_type=False,
-         evidence="srmech_compose_run.c cr_resolve_ref: 'only bare `.output` "
-                  "supported'. Gate matrix: 2 chains.",
-         probe="python3 notes/_1653_gate_matrix_rc445.py",
-         disposition=FILED,
-         note="Not a new type — the walker already handles `.key`/`[N]` paths for "
-              "@row and @input; the step arm just does not call it.",
+         evidence="Was 'only bare `.output` supported'. Now: magnitude runs, "
+                  "reading @step[0].output[1] for the pin-slot magnitude half.",
+         probe="pytest tests/test_c_ref_indexing_rc447.py",
+         disposition=CLOSED,
+         note="Closed by cr_index_value. NOT by reusing cr_walk_json as first "
+              "assumed — the shapes differ: that walks a parsed JSON tree, this "
+              "indexes an already-computed cr_value_t, however similar the "
+              "syntax looks. Out-of-range and non-list both DEFER rather than "
+              "wrap or coerce, since a wrong element is a wrong answer. A `.key` "
+              "tail still declines because no MAPPING carrier exists.",
          ceiling_blind_to="A ref NAMESPACE nobody uses yet."),
     dict(id="ref_namespaces_bind_idx_op", kind="gap",
          missing="C resolves row/input/step/catalog; the shipped chains also use "

@@ -60,7 +60,7 @@ from srmech.dsl import _catalog as _cat
 # Re-measured at rc445 by notes/_1653_chain_census_rc444.py:
 #   "CENSUS of 18 executable chains (20 chain-variants): ...
 #    C srmech_chain_run ACCEPT=0 REJECT=18 ... UNATTRIBUTED=0"
-CEIL_C_REJECTED_CHAINS = 10            # of 18 executable. Target 0.
+CEIL_C_REJECTED_CHAINS = 9            # of 18 executable. Target 0.
 #   The rc445 baseline was 18, verified against a PRISTINE origin/main .so with
 #   THIS harness — so the drain is attributable to the code, not to the probe.
 #   The 6 Class-I cyclic chains closed by the cr_dispatch arm land it at 12.
@@ -82,14 +82,29 @@ CEIL_SURFACE_A_UNSUPPORTED_FORMS = 2   # map + fold. plain executes. Target 0.
 
 SURFACE_A_STEP_FORMS = ("plain", "map", "fold")
 
-# ── the four measured C-side gates (gh #1653, re-verified at rc445) ──────────
-GATE_OP_TABLE = "op_table"          # srmech_compose_run.c:616 cr_dispatch -> NOT_IMPL
-GATE_CARRIER = "carrier_width"      # srmech_compose_run.c:92  cr_value_t has no
-#                                     double / byte-buffer / dense-matrix kind
-GATE_REF_GRAMMAR = "ref_grammar"    # srmech_compose_run.c:285 "only bare .output"
-GATE_REAL_ARG = "real_literal_arg"  # srmech_compose_run.c:215 cr_json_scalar
-#                                     returns NULL for a JSON DOUBLE
-GATE_STEP_FORM = "step_form"        # the map / fold arms do not exist on surface A
+# ── the five measured C-side gates (gh #1653) ────────────────────────────────
+#
+# ⚠️ Line numbers are deliberately NOT cited here any more. They were, and every
+# one of them went stale within two rcs as the dispatch was split and the
+# resolver grew — a citation that drifts is worse than none, because it reads as
+# precise. Each gate names the FUNCTION instead, which survives an edit.
+GATE_OP_TABLE = "op_table"          # cr_dispatch / cr_dispatch_real -> NOT_IMPL.
+#                                     Still the widest gate: 10 of 18 chains.
+GATE_CARRIER = "carrier_width"      # cr_value_t kinds. NARROWED at rc447 —
+#                                     CR_DBL + CR_LIST now ship, so this is down
+#                                     to byte-buffer, dense-matrix and MAPPING
+#                                     (parallel_sector_dispatch returns a dict).
+GATE_REF_GRAMMAR = "ref_grammar"    # cr_resolve_ref. Element indexing
+#                                     @step[N].output[K] SHIPPED at rc447; what
+#                                     remains is the @op / @bind / @idx
+#                                     namespaces, which need a callable registry
+#                                     rather than a wider path walker.
+GATE_REAL_ARG = "real_literal_arg"  # CLOSED at rc447 by CR_DBL. Kept as a name
+#                                     so historical ndjson rows stay readable;
+#                                     it must score ZERO from here on.
+GATE_STEP_FORM = "step_form"        # surface-A forms. FOLD shipped at rc446 (for
+#                                     one body op); MAP still needs the explicit
+#                                     frame stack JPL Rule 1 forces.
 
 VALID_GATES = frozenset({GATE_OP_TABLE, GATE_CARRIER, GATE_REF_GRAMMAR,
                          GATE_REAL_ARG, GATE_STEP_FORM})
@@ -100,21 +115,21 @@ VALID_DISPOSITIONS = frozenset({"CLOSED_IN_THIS_RC", "FILED_AS_NEW_ITEM",
 #: ZERO ROWS MAY BE SILENT (ADR-0009 §5 forbids an unfiled decline, and this
 #: issue exists *because* one went unfiled). Delete a row only when C runs it.
 BLOCKED = {
-    "autocorrelation":        {"gates": [GATE_STEP_FORM, GATE_OP_TABLE], "disposition": "OPEN"},
-    "best_rational_signed":   {"gates": [GATE_OP_TABLE], "disposition": "OPEN"},
-    "encode_loe_content":     {"gates": [GATE_OP_TABLE, GATE_CARRIER], "disposition": "OPEN"},
-    "klein4_from_one":        {"gates": [GATE_STEP_FORM, GATE_OP_TABLE, GATE_CARRIER],
-                               "disposition": "OPEN"},
-    "kuramoto_step":          {"gates": [GATE_STEP_FORM, GATE_OP_TABLE, GATE_CARRIER],
-                               "disposition": "OPEN"},
-    "magnitude":              {"gates": [GATE_OP_TABLE, GATE_REF_GRAMMAR], "disposition": "OPEN"},
-    "octonion_dft":           {"gates": [GATE_STEP_FORM, GATE_OP_TABLE, GATE_CARRIER],
-                               "disposition": "OPEN"},
-    "parallel_sector_dispatch": {"gates": [GATE_OP_TABLE], "disposition": "OPEN"},
-    "quaternion_dft":         {"gates": [GATE_STEP_FORM, GATE_OP_TABLE, GATE_CARRIER],
-                               "disposition": "OPEN"},
-    "schur_complement":       {"gates": [GATE_OP_TABLE, GATE_CARRIER, GATE_REF_GRAMMAR,
-                                         GATE_REAL_ARG], "disposition": "OPEN"},
+    # ⚠️ GATES ARE SYNCED FROM notes/_1653_gate_matrix_rc445.ndjson, which is
+    # RE-MEASURED, not hand-maintained. They were hand-written and drifted:
+    # parallel_sector_dispatch read as "op_table" alone (i.e. the cheapest
+    # remaining chain) when it in fact also needs a MAPPING carrier and the
+    # @op namespace — one of the hardest. Re-run the matrix after any change
+    # here; it cross-checks itself against actual execution.
+    "autocorrelation":         {"gates": [GATE_OP_TABLE, GATE_REF_GRAMMAR, GATE_STEP_FORM], "disposition": "OPEN"},
+    "best_rational_signed":    {"gates": [GATE_OP_TABLE, GATE_REF_GRAMMAR], "disposition": "OPEN"},
+    "encode_loe_content":      {"gates": [GATE_CARRIER, GATE_OP_TABLE], "disposition": "OPEN"},
+    "klein4_from_one":         {"gates": [GATE_OP_TABLE, GATE_REF_GRAMMAR, GATE_STEP_FORM], "disposition": "OPEN"},
+    "kuramoto_step":           {"gates": [GATE_OP_TABLE, GATE_REF_GRAMMAR, GATE_STEP_FORM], "disposition": "OPEN"},
+    "octonion_dft":            {"gates": [GATE_OP_TABLE, GATE_REF_GRAMMAR, GATE_STEP_FORM], "disposition": "OPEN"},
+    "parallel_sector_dispatch": {"gates": [GATE_CARRIER, GATE_OP_TABLE, GATE_REF_GRAMMAR], "disposition": "OPEN"},
+    "quaternion_dft":          {"gates": [GATE_OP_TABLE, GATE_REF_GRAMMAR, GATE_STEP_FORM], "disposition": "OPEN"},
+    "schur_complement":        {"gates": [GATE_CARRIER, GATE_OP_TABLE], "disposition": "OPEN"},
 }
 
 _STATUS = {0: "SRMECH_OK", 2: "SRMECH_ERR_BAD_INPUT", 5: "SRMECH_ERR_NOT_IMPL"}
@@ -159,6 +174,29 @@ def _c_runs(chain_dict, ctx):
     return rc, _STATUS.get(rc, "rc=%d" % rc)
 
 
+def _chain_only(entry):
+    """The CHAIN-DEFINING keys, without the descriptor's test metadata.
+
+    ⚠️ Passing the whole catalog entry into the runner couples a chain's
+    executability to its own PROOF CASES, and rc447 measured that biting:
+    ``magnitude`` declares non-finite cases (``nan`` / ``inf`` / ``-inf``), and
+    ``json.dumps`` spells those as bare ``NaN`` / ``Infinity`` — which are NOT
+    valid JSON. srmech's parser is strict RFC 8259 and rejects the document, so
+    the whole chain returned BAD_INPUT and read as a grammar gap when every one
+    of its STEPS ran correctly.
+
+    ``proof_cases`` / ``summary`` / ``returns`` are documentation, not chain
+    definition; the runner never reads them. Sending them was incidental, and
+    it made a test-data property look like a capability gap.
+
+    (The non-finite limit itself is real and stays filed — see the gap ledger's
+    ``non_finite_doubles_cannot_cross_json`` row. It bounds which INPUTS can
+    reach C, not which chains exist.)
+    """
+    return {k: v for k, v in entry.items()
+            if k in ("name", "steps", "on_error", "chain_schema_version")}
+
+
 def _measure():
     """(rejected, accepted) chain-name sets, measured against the C run loop."""
     names, catalog = _executable_chains()
@@ -169,7 +207,7 @@ def _measure():
         for entry in entries:
             cases = entry.get("proof_cases") or [{}]
             ctx = dict((cases[0] or {}).get("inputs") or {})
-            rc, _ = _c_runs(entry, ctx)
+            rc, _ = _c_runs(_chain_only(entry), ctx)
             if rc == 0:
                 ok_any = True
         (accepted if ok_any else rejected).add(name)
