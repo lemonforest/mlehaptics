@@ -958,7 +958,8 @@ def _mag(x):
 
 def _isolate_real_roots(factor: List, bits: int) -> List[Tuple]:
     """Sturm-isolate the DISTINCT real roots of a square-free ``factor`` and
-    bisect each to width ``< 2^-bits``. Returns ``(lo, hi)`` Fraction intervals."""
+    bisect each to width ``< 2^-bits``. Returns ``(lo, hi)`` exact-ℚ
+    (:class:`~srmech.math.q.Q`) intervals."""
     chain = _sturm_chain(factor)
     lead = _mag(factor[-1])
     bound = _FR(1) + max((_mag(c) / lead for c in factor[:-1]), default=_FR(0))
@@ -992,7 +993,7 @@ def _isolate_real_roots(factor: List, bits: int) -> List[Tuple]:
 # (``_isolate_complex_roots_upper``), with NO float-QR candidate seeding: each box
 # is CERTIFIED with the argument principle — the number of roots of an integer
 # polynomial strictly inside an open rational box equals the winding number of p
-# around the box boundary, computed in EXACT ``Fraction`` arithmetic (no float in
+# around the box boundary, computed in EXACT ℚ (``Q``) arithmetic (no float in
 # the count). Along each edge ``p`` restricts to ``U(t)+iV(t)`` with U,V ∈ ℚ[t];
 # the boundary change-of-argument is the sum of the per-edge Cauchy indices of
 # ``V/U`` (a Sturm-style sign-variation count, the same machinery as the real
@@ -1004,7 +1005,8 @@ def _poly_real_imag_on_edge(p: List, x0, y0, dx, dy) -> Tuple[List, List]:
     polynomial ``p`` (low→high) and return ``(U, V)`` — the real/imag parts as
     polynomials in ``t`` over ℚ. Exact: ``z = a(t) + i·b(t)`` with
     ``a = x0 + dx·t``, ``b = y0 + dy·t``; powers of ``z`` are accumulated by
-    complex multiply of the (U, V) pair, all in ``Fraction``."""
+    complex multiply of the (U, V) pair, all in exact ℚ
+    (:class:`~srmech.math.q.Q`)."""
     a = [_FR(x0), _FR(dx)]                            # real part of z(t)
     b = [_FR(y0), _FR(dy)]                            # imag part of z(t)
     U = [_FR(0)]
@@ -1066,7 +1068,8 @@ def _cauchy_index_open(f: List, g: List, a, b) -> int:
 def _count_roots_in_box(p: List, x0, x1, y0, y1) -> int:
     """The number of roots (with multiplicity) of the integer/ℚ polynomial ``p``
     (coeffs **low→high**) STRICTLY inside the open rational box
-    ``(x0, x1) × (y0, y1)`` — the **argument principle** in EXACT ``Fraction``
+    ``(x0, x1) × (y0, y1)`` — the **argument principle** in EXACT ℚ
+    (:class:`~srmech.math.q.Q`)
     arithmetic (no float in the count). The winding number of ``p`` around the
     rectangular boundary (traversed counter-clockwise) equals that root count.
 
@@ -1166,7 +1169,7 @@ def _isolate_complex_roots_upper(p: List, want: int, bits: int) -> List[complex]
             # The only callers pass a SQUARE-FREE polynomial (rc28), whose roots are
             # all simple → subdivision always separates them well under this bound. A
             # non-square-free input (a coincident root) would spin forever here with
-            # exploding Fraction denominators, so fail FAST rather than hang.
+            # exploding ℚ denominators, so fail FAST rather than hang.
             raise ValueError("_isolate_complex_roots_upper: subdivision did not "
                              "terminate (input must be square-free)")
         bx0, bx1, by0, by1, cnt = stack.pop()
@@ -1230,11 +1233,11 @@ def _refine_box(p: List, x0, x1, y0, y1, bits: int) -> Tuple[Q, Q]:
     :func:`_count_roots_in_box` on the lower/left sub-box (count 1 → keep it, else
     keep the complement) — re-jittering only on the boundary-root guard. The cut
     is a low-denominator rational (the jitter is a coarse dyadic-ish fraction) so
-    the ``Fraction`` numerators stay small as the box shrinks."""
+    the ℚ numerators stay small as the box shrinks."""
     eps = _FR(1, 1 << bits)
     lo_x, hi_x, lo_y, hi_y = x0, x1, y0, y1
     # A short cycle of jitter fractions near 1/2 — generic enough to miss the root,
-    # low-denominator to keep the Fractions small.
+    # low-denominator to keep the ℚ denominators small.
     jitters = (_FR(1, 2), _FR(127, 256), _FR(129, 256), _FR(63, 128), _FR(65, 128),
                _FR(31, 64), _FR(33, 64), _FR(509, 1024), _FR(515, 1024))
     while (hi_x - lo_x) > eps or (hi_y - lo_y) > eps:
@@ -1277,8 +1280,8 @@ def eigvals_exact(a, *, bits: int = 64, return_intervals: bool = False,
     ``char_poly`` (exact integer) → Yun square-free factorisation (exact
     multiplicities) → **Sturm** sign-sequence isolation (**Class C** sign-count at
     **Class K** interval boundaries) → rational **bisection** (**Class N** anchors
-    → the algebraic asymptote), kept in exact ``Fraction`` arithmetic the whole
-    way. Each eigenvalue stays an exact algebraic number until the single FPU
+    → the algebraic asymptote), kept in exact ℚ (:class:`~srmech.math.q.Q`)
+    arithmetic the whole way. Each eigenvalue stays an exact algebraic number until the single FPU
     lift. ``bits`` sets the refinement precision; ``return_intervals=True`` yields
     the exact ``(lo, hi)`` rational isolating intervals (real eigenvalues only)
     instead of floats.
@@ -1294,7 +1297,7 @@ def eigvals_exact(a, *, bits: int = 64, return_intervals: bool = False,
     (:func:`_isolate_complex_roots_upper`), per square-free factor (rc28), with NO
     float-QR candidate seeding. Each box is CERTIFIED as holding exactly one root of
     the exact integer characteristic polynomial by the argument-principle count
-    :func:`_count_roots_in_box` (winding number in exact ``Fraction`` arithmetic —
+    :func:`_count_roots_in_box` (winding number in exact ℚ arithmetic —
     no float in the count), then refined to ``bits`` of precision; the emitted
     ``complex`` is the single terminal projection of the certified box center (the
     exact-substrate object is the integer char-poly + the certified isolating box).
@@ -1317,7 +1320,7 @@ def eigvals_exact(a, *, bits: int = 64, return_intervals: bool = False,
     # srmech_sturm_isolate — the C kernel that runs the SAME cascade (char_poly ->
     # Yun square-free -> Sturm sign-sequence isolation -> rational bisection) over
     # srmech_bigint + the exact-Q srmech_poly_* kernels, returning byte-identical
-    # isolating (lo, hi) Fraction intervals with multiplicity (per-factor discovery
+    # isolating (lo, hi) exact-ℚ intervals with multiplicity (per-factor discovery
     # order). The pure _square_free_factors + _isolate_real_roots below stay the
     # Pyodide / no-native fallback (and the parity oracle). The shared sort by
     # lo+hi below fixes the global order identically on both paths.
@@ -1636,7 +1639,7 @@ def eigvec_exact(a, lam):
             # (A·v)[i] = Σ_j a[i][j] · v[j]  — Qalg arithmetic (a[i][j] scalar).
             acc = None
             for j in range(n):
-                term = vec[j] * rows[i][j]             # Qalg · (int/Fraction scalar)
+                term = vec[j] * rows[i][j]             # Qalg · (int/Q scalar)
                 acc = term if acc is None else acc + term
             lhs = acc
             rhs = lam * vec[i]
@@ -2146,7 +2149,7 @@ def _jordan_chains_native(a, lam):
 #      p^k, take symmetric integer representatives, scale by the leading-coeff
 #      cofactor, and trial-divide f over ℤ; a clean division peels off a true
 #      irreducible factor.
-# All EXACT integer / Fraction arithmetic — no float, no ``math`` (gcd routes
+# All EXACT integer / ℚ (``Q``) arithmetic — no float, no ``math`` (gcd routes
 # through srmech.math.cyclic.gcd, sign-handled). Refs: D. E. Knuth, *TAOCP* Vol. 2
 # §4.6.2 (factorisation of polynomials); J. von zur Gathen & J. Gerhen, *Modern
 # Computer Algebra*, ch. 15 (factoring over finite fields) + ch. 16 (Hensel lifting
@@ -3051,7 +3054,7 @@ def factor_integer_poly(coeffs):
        knapsack declines — guarded by a subset-size cap so the worst case cannot
        hang; every phase emits byte-identically.
 
-    All EXACT integer / ``fractions.Fraction`` arithmetic — no float, no ``math``
+    All EXACT integer / ℚ (:class:`~srmech.math.q.Q`) arithmetic — no float, no ``math``
     module (gcd routes through ``srmech.math.cyclic.gcd``; primality through
     ``srmech.math.primes.is_prime``). Refs: D. E. Knuth, *The Art of Computer
     Programming* Vol. 2 §4.6.2; J. von zur Gathen & J. Gerhard, *Modern Computer
@@ -3138,8 +3141,8 @@ def _lll_round_q(num: int, den: int) -> int:
 def _lll_gso(b: List[List[int]], m: int, n: int):
     """Exact-ℚ Gram–Schmidt of the integer basis ``b`` (``m`` rows × ``n`` cols)
     via the Gram-matrix recurrence: returns ``(mu, B)`` with ``mu[i][j]`` the
-    exact ``Fraction`` GSO coefficient (``j < i``) and ``B[i]`` the exact squared
-    norm ``‖b*_i‖²`` (``Fraction``). Raises ``ValueError`` on a linearly dependent
+    exact ℚ (:class:`~srmech.math.q.Q`) GSO coefficient (``j < i``) and ``B[i]``
+    the exact squared norm ``‖b*_i‖²`` (``Q``). Raises ``ValueError`` on a linearly dependent
     (degenerate) basis (``B[j] == 0`` → the GSO coefficient is undefined)."""
     mu = [[_FR(0)] * m for _ in range(m)]
     B = [_FR(0)] * m
@@ -3311,7 +3314,8 @@ def lll_reduce(basis, delta=(3, 4)):
 
     The engine is the classical stack, EXACT throughout: a Gram-matrix
     Gram–Schmidt orthogonalization over ℚ (``μ_{k,j}``, ``‖b*_k‖²`` as exact
-    ``fractions.Fraction`` / arbitrary-precision srmech_bigint ℚ in the C peer),
+    exact ℚ (:class:`~srmech.math.q.Q`) / arbitrary-precision srmech_bigint ℚ in
+    the C peer),
     **size reduction** by exact nearest-integer rounding of ``μ``
     (``round(a/b) = floor((2a+b)/(2b))`` — never a float rint, never ``abs``: the
     ``|μ| ≤ 1/2`` guard is a Class-K sign branch on ``2·num`` vs ``den``), and the
