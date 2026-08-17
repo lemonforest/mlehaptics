@@ -50,6 +50,7 @@
 {"composes": [], "name": "srmech.biology.genome.genome_catalog", "tier": "LEAF"}
 {"composes": [], "name": "srmech.biology.genome.genome_census", "tier": "LEAF"}
 {"composes": [], "name": "srmech.biology.genome.genome_content", "tier": "LEAF"}
+{"composes": [], "name": "srmech.biology.genome.genome_groups", "tier": "LEAF"}
 {"composes": [], "name": "srmech.biology.genome.integrate", "tier": "LEAF"}
 {"composes": [], "name": "srmech.biology.genome.modulator_constraint", "tier": "LEAF"}
 {"composes": [], "name": "srmech.biology.genome.modulator_constraint_satisfies", "tier": "LEAF"}
@@ -285,6 +286,7 @@
 {"composes": ["srmech.biology.q8.q8_bind"], "name": "srmech.biology.genome.genome_fiber_holonomy", "tier": "SINGLE"}
 {"composes": ["srmech.biology.genome.genes"], "name": "srmech.biology.genome.genome_genes", "tier": "SINGLE"}
 {"composes": ["srmech.biology.genome.gene_express"], "name": "srmech.biology.genome.genome_genes_expressed", "tier": "SINGLE"}
+{"composes": ["srmech.biology.genome.genome_groups"], "name": "srmech.biology.genome.genome_group", "tier": "SINGLE"}
 {"composes": ["srmech.amsc.format.sha256_bytes"], "name": "srmech.biology.genome.genome_import", "tier": "SINGLE"}
 {"composes": ["srmech.amsc.format.sha256_bytes"], "name": "srmech.biology.genome.genome_load", "tier": "SINGLE"}
 {"composes": ["srmech.math.octonion.oct_bind"], "name": "srmech.biology.genome.genome_octonion_associator", "tier": "SINGLE"}

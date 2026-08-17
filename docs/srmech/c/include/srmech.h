@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc441"
-#define SRMECH_VERSION       "0.9.0rc441"
+#define SRMECH_VERSION_PRE   "rc442"
+#define SRMECH_VERSION       "0.9.0rc442"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -342,8 +342,26 @@ extern "C" {
  *      projections are co-equal. Rejecting the stale lib is the only safe read.
  *      GENOME_FORMAT_VERSION stays 19 — no cap, no field and no byte moves; this
  *      changes what a READ of already-stored bytes is willing to answer.
+ *
+ * v17 — v0.9.0rc442 (`#T1150`): the FOURTH bump of the v10 / v12 / v14 kind — no
+ *      exported signature changed shape, but the CONTRACT of every genome read did.
+ *      genome_cap_kind now classifies two new bytes (0x5B / 0x5D), so a body carrying
+ *      them changes status across the whole genome surface: through rc441 every such
+ *      body was SRMECH_ERR_BAD_INPUT at genome_block_len ("unrecognised kind byte"),
+ *      and from rc442 it parses. That is a status reinterpretation on already-storable
+ *      bytes, which is exactly what v10 and v12 bumped for.
+ *
+ *      Load-bearing rather than ceremonial, and in the direction that matters most.
+ *      A stale rc441 .so reports ABI 16, and rc442 Python writes grouped bodies. If the
+ *      stale lib still loaded, a bare-C host — and the native-authoritative Python path
+ *      that dispatches to it — would REFUSE a body rc442 considers well-formed, or worse
+ *      would walk one with the two markers unclassified and mis-stride every block after
+ *      them. The projections are co-equal, so rejecting the stale lib is the only safe
+ *      read. SRMECH_GENOME_FORMAT_VERSION moves 19 -> 20 in the same change: here the
+ *      on-disk format really does gain a marker, so both versions move together for the
+ *      first time since rc326.
  */
-#define SRMECH_ABI_VERSION 16
+#define SRMECH_ABI_VERSION 17
 
 /* ------------------------------------------------------------------ *
  * Thread-local storage qualifier (reentrancy support; #772)
@@ -6788,8 +6806,44 @@ size_t srmech_op_reproject_arena_bytes(size_t record_len, size_t inputs_len);
  * round-trips through a genome file. A body with NO 0x39 turn is BYTE-IDENTICAL to v18
  * (klein4/Q8 turns pack unchanged); only the manifest format_version moves. A v19 writer stamps
  * 19; v2..v18 bodies read UNCHANGED (one more self-describing marker in the SAME walk). The
- * mirror of the v15->v16 Q8 on-disk migration, ONE Cayley-Dickson rung up. */
-#define SRMECH_GENOME_FORMAT_VERSION 19
+ * mirror of the v15->v16 Q8 on-disk migration, ONE Cayley-Dickson rung up.
+ *
+ * v19->v20 (rc442, `#T1150`, §GROUP): the strand gains NESTING. Through v19 a body was a
+ * FLAT sequence of chromosomes; a genome that wanted to say "these sixteen units are one
+ * thing" had nowhere to say it, so it either fused them (losing the sixteen) or kept them
+ * apart (losing the one). v20 mints the smallest pair of markers that closes that gap:
+ * SRMECH_GENOME_GROUP_OPEN_MARKER (0x5B) and SRMECH_GENOME_GROUP_CLOSE_MARKER (0x5D), both
+ * ordinary leaf_dim-wide cap blocks packed by the SAME genome_pack_cap and classified by the
+ * SAME genome_cap_kind. The grammar is
+ *
+ *     strand := unit*
+ *     unit   := chrom | group
+ *     group  := '[' unit+ ']'          (arity >= 1; arity 0 is malformed)
+ *     chrom  := leaf-opener block*
+ *
+ * with four rules: R1 '[' implicitly closes the open chromosome and pushes a frame; R2 ']'
+ * implicitly closes the open chromosome, then pops the innermost frame; R3 a data turn or an
+ * interior cap is legal ONLY inside a chromosome (a turn at group scope is
+ * SRMECH_ERR_BAD_INPUT -- the generalisation of v19's "turns before the first CHROM cap" from
+ * block 0 to EVERY scope); R4 R1-R3 jointly make CROSSED NESTING UNREPRESENTABLE, because a
+ * group cannot open "inside" a chromosome -- '[' closes it.
+ *
+ * R4 is the load-bearing one. Without R3 a '[' opening in one chromosome and closing in the
+ * next SAVES, HASHES and ROUND-TRIPS carrying two mutually inconsistent readings, with no
+ * error at any layer; that was measured, and R3 is the repair.
+ *
+ * THE CLOSER CARRIES NO LABEL AND NO DEPTH. Both are derivable from the walker's stack, so a
+ * written copy would be a sidecar field inside the object -- and carrying the label back would
+ * make crossed nesting EXPRESSIBLE again plus mint a fourth malformed class
+ * (label-mismatch-at-pop). A group's label lives on its opener, once.
+ *
+ * A body with NO 0x5B/0x5D block is BYTE-IDENTICAL to v19 -- an object that never groups
+ * writes zero extra bytes. Only the manifest format_version moves. A v20 writer stamps 20;
+ * v2..v19 bodies read UNCHANGED (two more self-describing markers in the SAME walk). What
+ * BREAKS is the other direction, and deliberately: a v19 reader meets 0x5B and fails with
+ * "unrecognised block kind byte 91" -- there is no dual-format reader and no shim, and
+ * migration is a REWRITER op rather than a reader branch. */
+#define SRMECH_GENOME_FORMAT_VERSION 20
 
 /* §44 inline cap markers — the FIRST byte of a fixed-width cap leaf. Both are
  * > 3 so a cap is told apart from a Klein-4 data turn (bytes 0..3) by its
@@ -7077,6 +7131,40 @@ size_t srmech_op_reproject_arena_bytes(size_t record_len, size_t inputs_len);
  * 0x77 / graded 0x64 / centromere 0x58), so v2..v17 bodies read UNCHANGED. Mirrors
  * OCT_FIBER_CAP_MARKER in srmech.biology.genome. 0x4F = 'O' — Octonion fiber. */
 #define SRMECH_GENOME_OCT_FIBER_CAP_MARKER 0x4Fu /* 'O' — a §𝕆-FIBER interior octonion fiber cap */
+
+/* §GROUP/v20 (rc442, `#T1150`) — the NESTING pair. Both are ordinary leaf_dim-wide cap
+ * blocks (genome_pack_cap writes them, genome_cap_kind classifies them, genome_block_len
+ * gives them the leaf_dim stride for free at :325 because they are registered in the
+ * classifier). Both are > 3, so neither can be confused with a Klein-4 data turn, and both
+ * were verified FREE against all 17 live markers before minting.
+ *
+ * The OPENER carries the group's label inline, exactly like a CHROM cap. The CLOSER carries
+ * NOTHING: no label, no depth. Both are derivable from the walker's own stack, and writing
+ * either back would be a sidecar field inside the object — plus a written label would make
+ * crossed nesting expressible again and mint a fourth malformed class
+ * (label-mismatch-at-pop). See the §GROUP paragraph above SRMECH_GENOME_FORMAT_VERSION for
+ * the grammar and the four rules.
+ *
+ * WRITTEN AS HEX, NEVER AS CHAR LITERALS, on purpose: the JPL Rule-4/5 scanner counts braces
+ * over the raw text and a '{' / '}' inside a char literal runs its counter off the end of the
+ * file. Three functions in this tree already report lines=1 with runaway assert counts for
+ * exactly that reason; 0x5B/0x5D are '[' and ']', which are not braces, but the discipline is
+ * the point. Mirrors GROUP_OPEN_MARKER / GROUP_CLOSE_MARKER in srmech.biology.genome. */
+#define SRMECH_GENOME_GROUP_OPEN_MARKER  0x5Bu /* '[' — opens a group; carries the label */
+#define SRMECH_GENOME_GROUP_CLOSE_MARKER 0x5Du /* ']' — closes the innermost group; carries NOTHING */
+
+/* §GROUP/v20 the group-nesting DEPTH cap — a compiled-in structural bound, mirroring the
+ * in-tree precedents SRMECH_JSON_MAX_DEPTH (64), SRMECH_TOML_MAX_DEPTH (64) and
+ * DCR_MAX_SUBCHAIN_DEPTH (16). The walker is ITERATIVE over an explicit stack of exactly this
+ * many frames and is NEVER recursive: JPL Rule 1 bans direct AND indirect recursion, and
+ * recursion would relocate the unbounded allocation to the call stack, where failure has no
+ * return code at all.
+ *
+ * Exceeding it returns SRMECH_ERR_LIMIT, not SRMECH_ERR_OVERFLOW. rc404 defined
+ * SRMECH_ERR_LIMIT as "a compiled-in structural cap; retrying is futile BY CONSTRUCTION",
+ * which is this case verbatim — whereas OVERFLOW tells a caller its buffer was too small and
+ * would send a grow-loop into futile doubling against a bound no buffer can move. */
+#define SRMECH_GENOME_MAX_GROUP_DEPTH 32u
 
 /* §98/v15 chromatin TYPE enum (rc268). BINARY (0) = open (1,1) / condensed (0,1); GRADED (1) =
  * an arbitrary reduced-rational accessibility level in [0,1]. Single-line #defines (JPL Rule 8). */
@@ -9037,6 +9125,66 @@ srmech_status_t srmech_genome_amplify(
 srmech_status_t srmech_genome_copy_number(
     const unsigned char *strand, size_t n_blocks, uint32_t leaf_dim,
     const unsigned char *label, size_t label_len, uint64_t *count_out);
+
+/* §GROUP/v20 (rc442, `#T1150`) — ONE group record, as the walker reports it. A pure POD;
+ * every field is DERIVED by the walk, none is read off the wire (the closer carries no
+ * label and no depth, which is the whole point — see SRMECH_GENOME_GROUP_CLOSE_MARKER).
+ * Mirrors the dict srmech.biology.genome.genome_groups yields. */
+typedef struct {
+    size_t open_idx;        /* BLOCK index of this group's '[' */
+    size_t close_idx;       /* BLOCK index of its matching ']' */
+    uint32_t depth;         /* nesting depth of the '[' — 0 for a top-level group */
+    uint32_t arity;         /* how many UNITS (chrom | group) it directly contains; >= 1 */
+    char label[SRMECH_GENOME_MAX_LABEL];   /* the opener's inline label, NUL-terminated */
+} srmech_genome_group_t;
+
+/* §GROUP/v20 WALK — validate a strand's group grammar and report every group.
+ *
+ * ONE FORWARD PASS over an explicit bounded stack of SRMECH_GENOME_MAX_GROUP_DEPTH frames.
+ * NEVER RECURSIVE (JPL Rule 1 bans indirect recursion too, and a recursive walker would move
+ * the unbounded allocation to the call stack where failure has no return code).
+ *
+ * Every malformed class is decided in that single pass:
+ *   closer-without-opener  the depth guard fires BEFORE the decrement
+ *   unclosed-opener        depth != 0 after the loop — and st[0..depth-1].open_idx already
+ *                          names every offender, so no second pass is needed to report them
+ *   turn-at-group-scope    R3: a data turn or interior cap outside a chromosome
+ *   childless group        arity 0. A group of ONE is LEGAL — banning arity 1 would be the
+ *                          same constraint error as banning arity 0, in the other direction
+ *   depth overflow         SRMECH_ERR_LIMIT (not OVERFLOW — the cap is compiled in)
+ * CROSSED NESTING is absent from that list because R1-R4 make it UNREPRESENTABLE rather than
+ * merely detectable: '[' closes the open chromosome, so a group cannot open inside one.
+ *
+ * Records are EMITTED ON POP, never on push, so every record handed back is already verified
+ * (an emitted-on-push record for an opener that turns out to be unclosed would be a claim the
+ * walker had not yet earned). Emission order is therefore by CLOSE position.
+ *
+ * `out` may be NULL with out_cap 0 to VALIDATE ONLY; *n_out is still the group count.
+ * SRMECH_ERR_OVERFLOW iff out is non-NULL and out_cap is smaller than the group count.
+ * ADDITIVE plain symbol; the ABI bump this release rides is genome_cap_kind's status
+ * reinterpretation, not this signature. A READ — `strand` is untouched. No malloc, no goto,
+ * no recursion, no float, no abs (a block index is a position, not a magnitude). */
+srmech_status_t srmech_genome_group_walk(
+    const unsigned char *strand, size_t n_blocks, uint32_t leaf_dim,
+    srmech_genome_group_t *out, uint32_t out_cap, uint32_t *n_out);
+
+/* §GROUP/v20 WRAP — the mint: enclose `strand`'s n_blocks in one '[' label ... ']' pair.
+ *
+ * Writes (n_blocks + 2) leaf_dim-byte blocks to `out`: the labelled opener, the strand
+ * verbatim, then the empty closer. The strand must itself be a well-formed sequence of one or
+ * more units (srmech_genome_group_walk must accept it, and it must open with a boundary cap or
+ * a group opener), so wrapping can never MINT a malformed body — arity >= 1 is enforced here
+ * rather than discovered later by a reader.
+ *
+ * SRMECH_ERR_BAD_INPUT on an empty strand, a strand that does not open a unit, a label that
+ * does not fit leaf_dim - 1, or a strand whose own grammar is malformed. SRMECH_ERR_OVERFLOW
+ * when out_cap < (n_blocks + 2) * leaf_dim; SRMECH_ERR_LIMIT when wrapping would push the
+ * strand past SRMECH_GENOME_MAX_GROUP_DEPTH. ADDITIVE plain symbol. No malloc, no goto, no
+ * recursion, no float, no abs. */
+srmech_status_t srmech_genome_group_wrap(
+    const unsigned char *strand, size_t n_blocks, uint32_t leaf_dim,
+    const unsigned char *label, size_t label_len,
+    unsigned char *out, size_t out_cap, size_t *n_blocks_out);
 
 /* srmech_eulerian_walk — #1390 item 3: the Hierholzer Eulerian trail /
  * circuit over a DIRECTED integer-node edge multiset [0, n_nodes). start < 0

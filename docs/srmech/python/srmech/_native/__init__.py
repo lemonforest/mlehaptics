@@ -219,7 +219,7 @@ from typing import Optional
 #        BEFORE dispatch so the Python read stays right, but a bare-C host on
 #        the stale lib still gets the silent blend, and the projections are
 #        co-equal. This pin rejects it.
-EXPECTED_ABI_VERSION: int = 16
+EXPECTED_ABI_VERSION: int = 17
 
 # Back-compat alias: downstream code reading ``_native.ABI_VERSION`` gets the
 # expected (compiled-against) ABI == EXPECTED_ABI_VERSION (NOT the runtime-
@@ -525,6 +525,28 @@ PROGRESS_STRUCT_SIZE: int = ctypes.sizeof(_ProgressEv)
 # srmech_genome_graph_partition_result_t. Field ORDER + TYPES must match
 # c/include/srmech.h EXACTLY: 10 four-byte fields (6 uint32 + 4 int32) then 4
 # eight-byte fields — no internal padding, so 72 bytes total on any LP64/LLP64 ABI.
+#: §GROUP/v20 — the C ``SRMECH_GENOME_MAX_LABEL`` cap, mirrored so the group record
+#: struct below has the same layout the C header gives it.
+SRMECH_GENOME_MAX_LABEL = 256
+
+
+class SrmechGenomeGroup(ctypes.Structure):
+    """§GROUP/v20 (rc442, ``#T1150``) — the ctypes mirror of ``srmech_genome_group_t``.
+
+    A pure POD: every field is DERIVED by the walk, none is read off the wire. The closer
+    block carries neither a label nor a depth, so both come from the walker's own stack —
+    which is why a crossed nesting cannot be spelled and why there is no
+    label-mismatch-at-pop failure mode to handle here."""
+
+    _fields_ = [
+        ("open_idx", ctypes.c_size_t),
+        ("close_idx", ctypes.c_size_t),
+        ("depth", ctypes.c_uint32),
+        ("arity", ctypes.c_uint32),
+        ("label", ctypes.c_char * SRMECH_GENOME_MAX_LABEL),
+    ]
+
+
 class _GenomeGraphPartitionResult(ctypes.Structure):
     _fields_ = [
         ("struct_size", ctypes.c_uint32),   # == sizeof(the C struct)
@@ -4868,6 +4890,24 @@ def _bind(lib: ctypes.CDLL) -> None:
                 ctypes.POINTER(ctypes.c_uint64),                   # count_out
             ]
             lib.srmech_genome_copy_number.restype = ctypes.c_int
+        # §GROUP/v20 (rc442, `#T1150`) — the nesting pair's C peers.
+        if hasattr(lib, "srmech_genome_group_walk"):
+            lib.srmech_genome_group_walk.argtypes = [
+                ctypes.POINTER(ctypes.c_uint8), ctypes.c_size_t,   # strand, n_blocks
+                ctypes.c_uint32,                                   # leaf_dim
+                ctypes.POINTER(SrmechGenomeGroup), ctypes.c_uint32,  # out, out_cap
+                ctypes.POINTER(ctypes.c_uint32),                   # n_out
+            ]
+            lib.srmech_genome_group_walk.restype = ctypes.c_int
+        if hasattr(lib, "srmech_genome_group_wrap"):
+            lib.srmech_genome_group_wrap.argtypes = [
+                ctypes.POINTER(ctypes.c_uint8), ctypes.c_size_t,   # strand, n_blocks
+                ctypes.c_uint32,                                   # leaf_dim
+                ctypes.POINTER(ctypes.c_uint8), ctypes.c_size_t,   # label, label_len
+                ctypes.POINTER(ctypes.c_uint8), ctypes.c_size_t,   # out, out_cap
+                ctypes.POINTER(ctypes.c_size_t),                   # n_blocks_out
+            ]
+            lib.srmech_genome_group_wrap.restype = ctypes.c_int
         if hasattr(lib, "srmech_graph_kernel_decode"):
             lib.srmech_graph_kernel_decode.argtypes = [
                 ctypes.POINTER(ctypes.c_uint8), ctypes.c_size_t,   # syms, n_syms
@@ -20587,6 +20627,93 @@ def genome_amplify_c(strand_bytes: bytes, n_blocks: int, leaf_dim: int,
     if rc != SRMECH_OK:
         return None
     return bytes(out[:total])
+
+
+def has_native_genome_group() -> bool:
+    """True iff the §GROUP/v20 srmech_genome_group_walk + _wrap C peers are loaded and
+    bound: a bare-C host can WALK and MINT the nesting grammar with no Python present.
+    False on a no-C or pre-rc442 lib — the pure ``srmech.biology.genome.genome_groups`` /
+    ``genome_group`` bodies are the complete value-identical alternative and the parity
+    oracle."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_group_walk")
+                and hasattr(LIB, "srmech_genome_group_wrap"))
+
+
+def genome_group_walk_c(strand_bytes: bytes, n_blocks: int, leaf_dim: int):
+    """Native §GROUP/v20 grammar WALK (peer ``srmech_genome_group_walk``).
+
+    Returns ``(status, [record, …])`` where each record mirrors the dict
+    ``srmech.biology.genome.genome_groups`` yields. ``None`` means EXACTLY ONE THING —
+    the symbol is not loaded, so run the pure body; a shape the C peer would refuse comes
+    back as ``(SRMECH_ERR_BAD_INPUT, [])``, never as ``None`` (rc431's non-overloaded-None
+    contract: overloading it would destroy the invalidity signal at the boundary and leave
+    the C guard dead through the Python front door). The STATUS is handed back rather than
+    swallowed
+    because it is the whole point on the malformed inputs: the differential test needs to
+    see ``SRMECH_ERR_BAD_INPUT`` and ``SRMECH_ERR_LIMIT`` distinguished, exactly as the pure
+    projection distinguishes its five :class:`GenomeGroupError` messages."""
+    if not has_native_genome_group():
+        return None                       # native ABSENT -- and that alone
+    # rc431 (`#T1129`) NON-OVERLOADED None. `None` here means EXACTLY one thing:
+    # the symbol is not loaded, so run the pure body. A shape the C peer would
+    # refuse returns that REFUSAL, because returning None for it too would
+    # destroy the invalidity signal at the boundary -- the wrapper would say
+    # "native absent" about an input native had judged, and the C guard would be
+    # dead through the Python front door.
+    if (leaf_dim <= 0 or leaf_dim > 256 or n_blocks < 0
+            or len(strand_bytes) != n_blocks * leaf_dim):
+        return SRMECH_ERR_BAD_INPUT, []
+    n = ctypes.c_uint32(0)
+    # Pass 1 VALIDATES and counts (out=NULL is the documented validate-only shape), so the
+    # buffer is sized to the answer rather than guessed at.
+    rc = LIB.srmech_genome_group_walk(
+        _u8(strand_bytes), ctypes.c_size_t(n_blocks), ctypes.c_uint32(leaf_dim),
+        None, ctypes.c_uint32(0), ctypes.byref(n))
+    if rc != SRMECH_OK:
+        return int(rc), []
+    count = int(n.value)
+    if count == 0:
+        return int(rc), []
+    buf = (SrmechGenomeGroup * count)()
+    rc = LIB.srmech_genome_group_walk(
+        _u8(strand_bytes), ctypes.c_size_t(n_blocks), ctypes.c_uint32(leaf_dim),
+        buf, ctypes.c_uint32(count), ctypes.byref(n))
+    if rc != SRMECH_OK:
+        return int(rc), []
+    return int(rc), [
+        {"label": buf[i].label.decode("utf-8"), "open_idx": int(buf[i].open_idx),
+         "close_idx": int(buf[i].close_idx), "depth": int(buf[i].depth),
+         "arity": int(buf[i].arity)}
+        for i in range(int(n.value))
+    ]
+
+
+def genome_group_wrap_c(strand_bytes: bytes, n_blocks: int, leaf_dim: int, label):
+    """Native §GROUP/v20 MINT (peer ``srmech_genome_group_wrap``) — wrap a strand in one
+    labelled opener / empty closer pair.
+
+    Returns ``(status, bytes | None)``; a bare ``None`` means only that the symbol is not
+    loaded (rc431's non-overloaded-None contract — see :func:`genome_group_walk_c`). The
+    subject is validated before the wrap and the RESULT is validated after it, so this can
+    never emit a body a reader would refuse."""
+    if not has_native_genome_group():
+        return None                       # native ABSENT -- and that alone
+    raw = label.encode("utf-8") if isinstance(label, str) else bytes(label)
+    # rc431 (`#T1129`) NON-OVERLOADED None -- see genome_group_walk_c above.
+    if (leaf_dim <= 0 or leaf_dim > 256 or n_blocks <= 0
+            or len(strand_bytes) != n_blocks * leaf_dim or b"\x00" in raw):
+        return SRMECH_ERR_BAD_INPUT, None
+    out_cap = (n_blocks + 2) * leaf_dim
+    out = (ctypes.c_uint8 * out_cap)()
+    n_out = ctypes.c_size_t(0)
+    rc = LIB.srmech_genome_group_wrap(
+        _u8(strand_bytes), ctypes.c_size_t(n_blocks), ctypes.c_uint32(leaf_dim),
+        _u8(raw), ctypes.c_size_t(len(raw)),
+        out, ctypes.c_size_t(out_cap), ctypes.byref(n_out))
+    if rc != SRMECH_OK:
+        return int(rc), None
+    return int(rc), bytes(bytearray(out)[:int(n_out.value) * leaf_dim])
 
 
 def has_native_genome_copy_number() -> bool:

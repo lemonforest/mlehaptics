@@ -50,6 +50,129 @@ Every shard keeps the full liveness check — `HAS_NATIVE` plus `nm -u "$LIB" | 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc442]
+
+**§GROUP/v20 — the genome wire format gains NESTING (`#T1150`). `GENOME_FORMAT_VERSION` 19 → 20; `SRMECH_ABI_VERSION` 16 → 17; registry **661 → 663**.** Every number below was re-measured on this tree; where a filed claim disagreed with the tree, the tree won and it is said so.
+
+### What v20 is
+
+Through v19 a strand was a FLAT sequence of chromosomes. A genome that wanted to say *"these sixteen units are ONE thing"* had nowhere to say it: it either FUSED them (losing the sixteen) or kept them apart (losing the one). Two markers close that gap, and with them come four axes — **GROUPING** (store-level) · **CLOSURE** · **PARTITION-COUPLING** · **DESIGNATION** (per unit).
+
+```
+SRMECH_GENOME_GROUP_OPEN_MARKER   0x5B   /* opens a group; carries the label            */
+SRMECH_GENOME_GROUP_CLOSE_MARKER  0x5D   /* closes the innermost group; carries NOTHING */
+```
+
+Both are ordinary `leaf_dim`-wide cap blocks: the existing `_pack_cap` / `genome_pack_cap` writes them and `genome_cap_kind` / `_cap_kind` classifies them. **`genome_block_len` needed ZERO lines** — `srmech_genome.c:325` already routes any marker registered in the classifier to the `leaf_dim` stride. Both were verified free against the 17 live markers, and both are `> 3` so neither can collide with a Klein-4 data symbol.
+
+The grammar:
+
+```
+strand := unit*
+unit   := chrom | group
+group  := '[' unit+ ']'        (arity >= 1; arity 0 is malformed)
+chrom  := leaf-opener block*
+```
+
+- **R1** `[` implicitly closes the open chromosome and pushes a frame.
+- **R2** `]` implicitly closes the open chromosome, then pops the innermost frame.
+- **R3** A data turn or interior cap is legal **only inside a chromosome** — the v19 "turns before the first CHROM cap" rule (`genome_scan_chroms`) generalised from block 0 to **every scope**.
+- **R4** R1–R3 jointly make **crossed nesting unrepresentable**, not merely detectable.
+
+**The closer carries no label and no depth.** Both are derivable from the walker's stack, so a written copy would be a sidecar field living inside the object. A written *label* would be worse than redundant: it would make crossed nesting expressible again (a closer could name a group other than the innermost) and mint a sixth malformed class, label-mismatch-at-pop, that exists only because the field exists.
+
+**The walker is ITERATIVE over an explicit bounded stack, and NEVER recursive.** JPL Rule 1 bans direct *and* indirect recursion, and recursion would relocate the unbounded allocation to the call stack where exhaustion has no return code at all. `SRMECH_GENOME_MAX_GROUP_DEPTH = 32` joins six in-tree precedents (`SRMECH_JSON_MAX_DEPTH` 64, `SRMECH_TOML_MAX_DEPTH` 64, `DCR_MAX_SUBCHAIN_DEPTH` 16, …). Exceeding it returns **`SRMECH_ERR_LIMIT`**, which rc404 defined as *"a compiled-in structural cap; retrying is futile BY CONSTRUCTION"* — this case verbatim. Not `SRMECH_ERR_OVERFLOW`, which would tell a caller its buffer was too small and send a grow-loop into futile doubling against a bound no buffer can move.
+
+**Five malformed classes, all decided in ONE forward pass**: closer-without-opener (the depth guard fires before the decrement); unclosed-opener (`depth != 0` after the loop — one pass, not two, because `st[0..depth-1].open_idx` already names every offender); turn-at-group-scope (R3); childless group (arity 0 — but **a group of ONE is legal**; banning arity 1 would be the same constraint error in the opposite direction); depth overflow. Crossed nesting is absent from that list because R4 makes it *unrepresentable*. **Records are emitted on POP, never on push**, so every emitted record is already verified — emission order is by close position.
+
+### The two fatals in the submitted design, and their repairs
+
+**1. The design could not persist any group containing a unit.** Measured exhaustively: of 36 placements of a `[`/`]` pair in a 3-chromosome strand, the set "saveable ∧ contains a chromosome ∧ non-crossing" was **EMPTY**. The cause was that `[` was kept out of the manifest scan's opener chain, so `genome_scan_chroms`'s `cur < 0` guard rejected a block-0 `[` as "turn before 1st cap". **Repair: the persistence scan is now group-aware** — in both projections. This is the half the in-memory design never walked.
+
+That repair forced a second, larger one. A frame block is a real body byte belonging to **no chromosome**, so if `regions` had stayed 1:1 with `chromosomes` the tiling check in `_verify_body_integrity` would refuse the very first grouped genome. Each frame block now earns its **own one-block region**: the regions still tile `[0, body_len)` exactly, each chromosome region still starts at its own boundary cap (so every `byte_offset` seek is unmoved), and for an ungrouped body `n_regions == n_chroms` with every digest byte-identical to v19.
+
+**2. The two Class-B framings crossed silently.** A `[` opening in one chromosome and closing in the next saved, hashed and round-tripped with two mutually inconsistent readings, and no layer raised. **Repair: R3/R4.**
+
+### What was WITHDRAWN
+
+**The `_CHROM_BOUNDARY_MARKERS` un-merge is not done, deliberately.** The design flagged a `body_sha256` double-fold as its own highest-risk line; an adversarial pass **REFUTED** it — `genome_scan_chroms` assigns every block to exactly one region, so an overlap is structurally unrepresentable and there is nothing to double-fold. That tuple is **UNCHANGED** in v20 (leaf-unit openers only). The frame markers get their own module-level `_GROUP_MARKERS`, which also dissolves the `_ACCESS_RESET_MARKERS` propagation and the label=None concerns.
+
+### The rc441 tripwire fired, and it fired for the right reason
+
+rc441 shipped `tests/test_implicit_close_rc441.py` with a marker-vocabulary pin *designed to go red in rc442* and to route its author to four splice sites where "the end of a unit" was INFERRED rather than READ. It did exactly that, and all four were re-derived:
+
+| # | site | v19 answer | v20 answer |
+|---|---|---|---|
+| 1 | C `genome_nth_data_turn` | `n_blocks` | `genome_unit_end_before_closers(...)` |
+| 2 | C `genome_label_range` | next boundary, else `n_blocks` | next boundary **or frame marker**, else the same |
+| 3 | Py `mint_strand` `insert_at` | `_implicit_unit_end` | `_unit_end_before_closers` |
+| 4 | Py `_chrom_range` `end` | next boundary, else `len(strand)` | next boundary **or frame marker**, else the same |
+
+Measured consequence of site 3: an append-at-end centromere on a grouped strand landed **after** the closer — outside the chromosome that owns it — while still parsing as well-formed. The pin is not deleted; it is moved forward to the v20 vocabulary so it fires again for the next marker.
+
+Site 3's repair also exposed a guard that would have made it unreachable: `mint_strand` (both projections) refused any strand not opening with a chromosome-boundary cap, and a grouped strand opens with `[`. A strand is `unit*` and a group is a unit, so both guards now accept a frame opener.
+
+### Two stale hash pre-images, found by the bump and fixed so they cannot recur
+
+`SRMECH_GENOME_RULE_PREIMAGE` and `SRMECH_GENOME_CHR_RULE_PREIMAGE` were hand-kept literals (`"genome_persistence/v19"`, `"genome_chromosome/v19"`) whose own comments claimed since v16 that they "track `SRMECH_GENOME_FORMAT_VERSION`". They did not. Bumping the format left both at v19, so C and Python computed **different `parser_rule_hash` values** and every native-vs-pure manifest byte-identity test went red at once — **93 failures, first divergence at manifest byte 210**. Both are now DERIVED by stringification from the macro (two single-line helpers; JPL Rule 8 bans *multi-line* macros, not stringification), so the next bump cannot forget them. The failure was loud only because those tests exist; on a surface without them a stale pre-image would have silently mis-attested every genome the C wrote.
+
+### A third projection divergence, measured and closed
+
+`srmech_genome_content` computed `n_turns - n_chroms` while the catalog builder subtracted the frame blocks too. On a grouped genome that is **one op returning 6 from C and 4 from the catalog, with no error**. `n_content`'s entire job is to be the quantity a repartitioning leaves alone, so a container block must not count as content on either side. The general law is now `n_turns == n_chromosomes + n_group_blocks + n_content` — still exact, still with no residual, one block per container whichever kind it is. `genome_content`'s pure path now defers to the catalog's value rather than re-deriving a different one from two of the three inputs.
+
+`genome_verify_body` was a fourth, adjacent case: it folded the chain over `chromosomes` while its pure peer `_verify_body_integrity` read `regions`. The two arrays held identical spans through v19, so it was right by an equality the format never promised. It reads `regions` now.
+
+### What did NOT move — verified, not assumed
+
+**Zero of the 13 strand-export signatures move**, and every `strand + i * (size_t)leaf_dim` stride site stays valid, because a `leaf_dim`-wide closer is exactly one block. Re-measured with the stated predicate `grep -n "\* (size_t)leaf_dim\|\* leaf_dim\|\* (size_t)dim\|\* dim\b" c/src/*.c`: **160 matches, 99 of them genome-relevant** (`srmech_genome.c` 85 + `srmech_make_class.c` 14), **and all 99 are class (a)** — a stride over uniform blocks, unaffected by a new `leaf_dim`-wide marker. The remaining 61 are unrelated `dim` parameters (Cayley–Dickson, quaternion-matrix, Laplacian, HDC, modular forms, theta). This is the **third** independent pass; two earlier ones got 52 and 43 by different predicates, and all three found **zero movers**.
+
+**An object that never groups writes zero extra bytes and is byte-identical to v19** — held by test, two ways: the body equals the disk encoding of its leaf blocks with nothing inserted and carries neither frame byte, and the region tiling is still exactly one region per chromosome over the same spans.
+
+### The one open design question, decided by measurement
+
+§2.1 of the design listed *"ordered membership — 'the 3rd member of `sy`' is addressable by position within `[open_idx, close_idx]`, without a label"* among v20's new capabilities. **Verdict: that is a LINEARIZATION ARTIFACT, not a designation, and it is NOT advertised.** By the design's own DESIGNATION test — a mark that is SEPARABLE but never CONSULTED "is not a designation; it is a recorded answer no instrument reads" — the question is whether any instrument reads the ordinal. Measured (`docs/srmech/notes/_v20_ordinal_designation_rc442.py`, output NDJSON alongside):
+
+| probe | result |
+|---|---|
+| selector census | 29 public `genome_*` ops (v20's two included); **12 select a stored sub-unit and all 12 select by LABEL; 0 by ordinal**. The only two integer parameters in the surface are `genome_partition`/`genome_from_graph`'s `n`, a graph vertex COUNT — a constructor arity, not an address |
+| ordinal addressability | `genome_window` / `genome_genes` / `genome_export` handed an int where a label goes: **3/3 `ValueError`** |
+| permutation | reorder the chromosomes: `cap_sha256`, `leaf_count`, `cap_kind` and the region digest are **invariant keyed by label**; only `byte_offset` and the body-order `body_sha256` chain move |
+
+Nothing reads the position. Advertising ordered membership as a derivable fact would be a constraint-6 violation of exactly the kind v20 refuses elsewhere. (Chromosome order in a real genome is arbitrary too — human numbering is by size — and F1206 measures the Laplacian carrying domains, hubs and bridges but not a sequence.)
+
+### New surface
+
+| projection | symbol |
+|---|---|
+| C | `srmech_genome_group_walk` — validate + report every group; `out=NULL` validates only |
+| C | `srmech_genome_group_wrap` — mint; validates the subject **and** the result |
+| C | `srmech_genome_group_t` — the record POD; every field derived, none read off the wire |
+| Python | `genome_groups(strand)` · `genome_group(label, units)` · `GenomeGroupError` · `GROUP_OPEN_MARKER` · `GROUP_CLOSE_MARKER` · `MAX_GROUP_DEPTH` |
+| ctypes | `has_native_genome_group` · `genome_group_walk_c` · `genome_group_wrap_c` · `SrmechGenomeGroup` |
+| C test | `c/test/test_srmech_genome_group_rc442.c` — 34 checks, wired into `ctest` on arrival |
+
+Both new Python ops are carrier-FREE by construction (they read `block[0]` and never decode a turn), so `CEIL_GENOME_CARRIER_GAP_PY` moves 50 → 52 under the sanctioned "raise only alongside a new carrier-free op" clause, with the accepts FLOORS held at 22/22 — surface growth, not coverage regression.
+
+**Both Python ops are REGISTERED, and that was not optional.** They join `genome.__all__`, and `test_registry_completeness_rc416` fails a public `__all__` callable that resolves to no `ToolEntry` — the fold-identity shape: importable and invisible to `describe()`, `search()` and the MCP tool list. The allowlist route exists and is deliberately expensive (a reason code *plus* a RAISED down-only ceiling, i.e. recording a regression rather than fixing one), so: registry 661 → 663, 73 count pins across 66 files, the op-name witness manifest rewritten and its sha256 re-pinned in the same commit (the two edits its own header demands), and `_tool_docs.py` / `srmech_tool_registry.c` regenerated.
+
+Registering them forced a decision the Rosetta ledger would not let us dodge. `composes_c` carries a transitive-reachability assert the pure walkers could not satisfy — they reach no C op — and `c_dispatched` would have been a false claim about ops that never called C. **So the ops now dispatch**, on the §49/rc154 pattern every other genome op uses: the C peer COMPUTES and the pure walk EXPLAINS. A native non-OK status is not translated here; it falls through to the pure walk, because C has one `SRMECH_ERR_BAD_INPUT` for four distinct malformed classes and a caller is owed the precise one of five `GenomeGroupError` messages. That also makes the C peers live rather than test-only.
+
+Both new ctypes wrappers initially tripped rc431's overloaded-`None` ceiling (25 → 27): they returned `None` from an input-shape predicate their C peers treat as an error, which destroys the invalidity signal at the boundary. That gate says explicitly *do not raise the number*, so they now return the REFUSAL — `(SRMECH_ERR_BAD_INPUT, …)` — and `None` means exactly one thing: the symbol is not loaded.
+
+### Why the ABI moves
+
+The fourth bump of the v10 / v12 / v14 kind: no exported signature changed shape, but the CONTRACT of every genome read did. `genome_cap_kind` now classifies two new bytes, so a body carrying them changes status across the whole genome surface — through rc441 every such body was `SRMECH_ERR_BAD_INPUT` at `genome_block_len`, and from rc442 it parses. Load-bearing rather than ceremonial, in the direction that matters most: rc442 Python writes grouped bodies, so a stale rc441 `.so` that still loaded would make a bare-C host — and the native-authoritative Python path that dispatches to it — **refuse a body rc442 considers well-formed**, or walk one with the two markers unclassified and mis-stride every block after them.
+
+### Gates
+
+`tests/test_genome_group_v20_rc442.py` (38 cases): the SY14 discriminator (sixteen loose units / sixteen grouped / one fused unit are three distinct `body_sha256` values, and the grouped reading keeps BOTH facts); each malformed class refused; the depth cap refused at exactly `MAX_GROUP_DEPTH` and legal at it; a v19 reader (the leaf-wide set minus the two frame markers) refusing a grouped body with `unrecognised block kind byte 91` **and still reading an ungrouped v20 body**, which is what makes the break precise rather than sweeping; regions tiling exactly across flat / grouped / nested; `n_content` invariant under regrouping with both projections agreeing; and a C↔Python differential over 8 seeds of randomly-nested strands plus all five malformed cases. Each gate ships with the mutation that turns it red — strip the frame markers and the SY14 discriminator collapses onto the ungrouped body; perturb one opener label byte and the differential's answer moves.
+
+`tests/test_implicit_close_rc441.py` is rewritten rather than deleted: it records that the rc441 pin fired as designed, moves the pin forward to the v20 vocabulary, and adds the four measurements that hold each re-derived splice site.
+
+`c/test/test_srmech_genome_group_rc442.c` (34 checks) is the other half, and a different claim: the Python differential proves the two projections AGREE, which is not the same statement as "the C surface is usable on its own, with no oracle to compare against". Wired into `ctest` on arrival rather than added to the rc356 unwired residual, which is down-only.
+
+**Three JPL Rule-4 extractions the group branch forced.** `genome_scan_chroms` reached 93 lines once the frame branch and the region carve landed in it, and `srmech_genome_mint_strand` reached 61 once its guard learned about group openers. Rule 4 caps a function at 60 and the ratchet is down-only, so: `genome_scan_frame_block`, `genome_scan_open_chrom`, `genome_opens_a_unit`. Measured after — scan_chroms 58, mint_strand 60, and every one of the sixteen functions this rc touches or adds is ≤ 60 lines with ≥ 2 asserts.
+
 ## [0.9.0rc441]
 
 **The v20 prerequisites — three latent defects that become mandatory under a closer cap (`#T1148`). This is NOT v20.** `GENOME_FORMAT_VERSION` stays **19**; no new marker, no grammar, no walker. **ABI stays 16** (one new export, no wire-format change to any existing function, no new callback typedef). Registry stays **661**. Every number below was re-measured on this tree; where a filed claim disagreed with the tree, the tree won and it is said so.

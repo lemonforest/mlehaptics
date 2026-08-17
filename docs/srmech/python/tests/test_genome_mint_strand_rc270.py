@@ -208,7 +208,9 @@ def test_empty_strand_raises():
 
 def test_raw_leaves_raise_not_a_packed_strand():
     one = _one()
-    with pytest.raises(ValueError, match="must OPEN with a chromosome-boundary cap"):
+    # rc442 (`#T1150`): see test_genome_mint_strand_c_rc277 — the message widened to name
+    # the §GROUP/v20 opener as a second way to open a unit; raw leaves are still refused.
+    with pytest.raises(ValueError, match="strand must OPEN a unit"):
         G.mint_strand(_leaves(3), one)                     # raw leaves, no opening cap
 
 
@@ -247,7 +249,7 @@ def test_mint_strand_registered_and_total_matches_live():
     warmup_all()
     names = [t.name for t in get_tool_schema().tools]
     assert "srmech.biology.genome.mint_strand" in names
-    assert len(names) == 661
+    assert len(names) == 663
     assert "mint_strand" in G.__all__
 
 

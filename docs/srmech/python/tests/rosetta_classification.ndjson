@@ -509,6 +509,8 @@
 {"exposed_as": "srmech.biology.genome.upgrade_v15_to_v16", "defined_at": "srmech.biology.genome.upgrade_v15_to_v16", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.biology.genome.genome_load", "defined_at": "srmech.biology.genome.genome_load", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.biology.genome.genome_catalog", "defined_at": "srmech.biology.genome.genome_catalog", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.biology.genome.genome_groups", "defined_at": "srmech.biology.genome.genome_groups", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.biology.genome.genome_group", "defined_at": "srmech.biology.genome.genome_group", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.biology.genome.genome_census", "defined_at": "srmech.biology.genome.genome_census", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.biology.genome.genome_content", "defined_at": "srmech.biology.genome.genome_content", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.biology.genome.genome_registry", "defined_at": "srmech.biology.genome.genome_registry", "bucket": "non_compute", "non_compute_kind": "composes_c"}

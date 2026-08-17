@@ -66,13 +66,28 @@ from srmech.math.hv import HV
 #: octonion-associativity read over a word of basis letters, the order-carrying
 #: peer of genome_octonion_associator, itself already in this gap). Sanctioned
 #: raise per the note above ("raise one ONLY alongside a new carrier-free op").
-CEIL_GENOME_CARRIER_GAP_PY = 50
+#: rc442 (`#T1150`): 50 → 52 — ``genome_groups`` and ``genome_group``, the §GROUP/v20
+#: nesting pair, are two more CARRIER-FREE ops and the raise is sanctioned on the same
+#: terms. They are carrier-free by CONSTRUCTION rather than by omission: both read
+#: ``block[0]`` and neither ever decodes a data turn, so there is no rung for an
+#: ``element_type`` to select — a frame block is a fixed-width cap at klein4, Q₈ and
+#: octonion alike. The FLOORS are held at 22/22, which is what makes this a surface-growth
+#: raise rather than a coverage regression: the accepting count did not move.
+CEIL_GENOME_CARRIER_GAP_PY = 52
 
 #: Ops with NO ``element_type`` on the MCP / tool-schema surface. rc339: 65 (of 67
 #: registered entries — only kernel_pack + genome_append_kernel published it).
 #: rc340: 45. rc345: 46 (``genome_content``; see the note above). rc390: 47
 #: (split_defect — the same new carrier-free op, klein4-only over the wire).
-CEIL_GENOME_CARRIER_GAP_MCP = 47
+#: rc442 (`#T1150`): 47 → 49 — ``genome_groups`` and ``genome_group``, the §GROUP/v20
+#: nesting pair, REGISTERED on the tool surface in the same rc. The PY ceiling above
+#: moved 50 → 52 for the same two ops and on the same sanctioned terms; this is the
+#: MCP half of that one event, and it moves for a stronger reason than "the surface
+#: grew": these two ops are carrier-free by CONSTRUCTION rather than by omission, so
+#: publishing an ``element_type`` on the wire would advertise a choice that does not
+#: exist. Both read ``block[0]`` and neither ever decodes a data turn — a frame block
+#: is a fixed-width cap at klein4, Q₈ and octonion alike. The FLOORS hold at 22/22.
+CEIL_GENOME_CARRIER_GAP_MCP = 49
 
 #: Ops that DO accept ``element_type``. **UP ONLY** — this is the invariant the gap
 #: ceilings only approximate. rc340: 22. rc345: 22 (unchanged; the rc added a

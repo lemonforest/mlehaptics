@@ -10,7 +10,7 @@ Why the check matters: every native dispatch site is gated on
 the pure-Python path — correct answers, but the ``c_dispatched`` claim is FALSE
 and, before rc300, nothing said so. ABI matching does not cover this: the header
 adds symbols ABI-additively ("new symbols only, so SRMECH_ABI_VERSION stays N"),
-so a stale-but-ABI-16 library is a REACHABLE state with a correct pure
+so a stale-but-ABI-17 library is a REACHABLE state with a correct pure
 fallback and a silently false classification.
 
 Consumed by :func:`srmech._native.c_claim_report` and surfaced as
@@ -172,6 +172,14 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
         'srmech_json_write_ws',
     ),
     'srmech.biology.genome.genome_fiber_holonomy': ('srmech_genome_fiber_holonomy',),
+    'srmech.biology.genome.genome_group': (
+        'srmech_genome_group_walk',
+        'srmech_genome_group_wrap',
+    ),
+    'srmech.biology.genome.genome_groups': (
+        'srmech_genome_group_walk',
+        'srmech_genome_group_wrap',
+    ),
     'srmech.biology.genome.genome_octonion_holonomy': ('srmech_genome_octonion_holonomy',),
     'srmech.biology.genome.integrate': ('srmech_genome_integrate',),
     'srmech.biology.genome.mint_strand': ('srmech_genome_mint_strand',),

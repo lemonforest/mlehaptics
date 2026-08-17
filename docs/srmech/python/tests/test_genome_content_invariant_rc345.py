@@ -143,7 +143,7 @@ def test_content_is_derived_never_stored(tmp_path):
     path, _ret = _save_partitioned(tmp_path, 3)
     head = json.loads((path / "manifest.json").read_text(encoding="utf-8"))["data"]
     assert "n_content" not in head, "n_content must NOT be persisted"
-    assert head["format_version"] == G.GENOME_FORMAT_VERSION == 19
+    assert head["format_version"] == G.GENOME_FORMAT_VERSION == 20
     assert sorted(head) == ["body_sha256", "carrier", "coupling", "format_version",
                             "leaf_dim", "n_chromosomes", "n_turns"]
 

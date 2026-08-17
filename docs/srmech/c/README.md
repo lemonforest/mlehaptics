@@ -53,8 +53,12 @@ The two newest v0.6.0 C files:
 
 ### ABI
 
-C ABI version is **3** (`SRMECH_ABI_VERSION 3` in
-`c/include/srmech.h`). Bump it in lockstep only when the wire
+C ABI version is **17** (`SRMECH_ABI_VERSION 17` in
+`c/include/srmech.h`). *(This line read **3** from the v0.5.0 era until rc442 —
+fourteen bumps stale, and wrong long before this release touched it. No gate
+covers `c/README.md` at all, which is exactly why it drifted the furthest of any
+ABI statement in the tree; the SSoT is the macro, and the narrative SSoT is the
+"ABI compatibility" section of `docs/srmech/CLAUDE.md`.)* Bump it in lockstep only when the wire
 format of an existing exported function changes; adding a new
 symbol does not bump the ABI.
 

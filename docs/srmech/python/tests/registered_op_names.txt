@@ -78,6 +78,8 @@ srmech.biology.genome.genome_fiber_holonomy
 srmech.biology.genome.genome_from_graph
 srmech.biology.genome.genome_genes
 srmech.biology.genome.genome_genes_expressed
+srmech.biology.genome.genome_group
+srmech.biology.genome.genome_groups
 srmech.biology.genome.genome_import
 srmech.biology.genome.genome_load
 srmech.biology.genome.genome_octonion_associator

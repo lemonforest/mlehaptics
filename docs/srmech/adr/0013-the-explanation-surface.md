@@ -634,7 +634,7 @@ a docs backlog, not a nice-to-have, and not a candidate for a `docs/` directory.
 
 Three measured facts make this a structural claim rather than a preference:
 
-1. **It crosses the C wire.** `srmech_tool_entry_t` carries `explanation` (`c/include/srmech.h:5698`)
+1. **It crosses the C wire.** `srmech_tool_entry_t` carries `explanation` (`c/include/srmech.h:5716`)
    and `example_json` (`:5520`). The gcd WHEN clause quoted in §1.1 is present in
    `c/src/srmech_tool_registry.c` as shipped text. For a bare-C / MCU host this prose IS the
    introspect layer — ADR-0012 §7.1 makes exactly that point about the generated registry.
@@ -645,7 +645,7 @@ Three measured facts make this a structural claim rather than a preference:
 3. **It is population-floored.** The coverage gates (§4) hold it at 100%, which is a contract, not a
    docs aspiration.
 
-**A vocabulary correction this ADR makes explicitly.** `c/include/srmech.h:5665` calls `example` /
+**A vocabulary correction this ADR makes explicitly.** `c/include/srmech.h:5683` calls `example` /
 `smoke_test_hint` the **"documentation-hint fields"**, and `:5572` describes `explanation` as a
 **"hint"**. That wording is the calculator framing of §1 written into the wire contract — a *hint* is
 something a caller may ignore, and a *documentation* field is something that lives elsewhere by right.
@@ -1109,7 +1109,7 @@ one.
 
 **`affordance` was considered and rejected.** In this tree the word already carries a specific
 technical sense — **a host-language capability that cannot cross a wire** — and it is the single
-largest of its ~14 load-bearing uses. Verbatim, `c/include/srmech.h:7343-7344`:
+largest of its ~14 load-bearing uses. Verbatim, `c/include/srmech.h:7431-7432`:
 
 > The §101 `progress=` gate is a **Python-only affordance** (a splice has no meaningful partial;
 > **a callable cannot cross the C wire**).
@@ -1277,7 +1277,7 @@ rewrite would target, and because §3 establishes that this payload is *inside t
 `srmech/mcp/_tools.py:395-402` (the `description` assembly that omits the prose) ·
 `srmech/cli/*.py` (the 57 hand-authored help strings; `cli/mcp.py:7` for the "nothing is
 hand-authored" docstring) ·
-`c/include/srmech.h:5685-5760` (`srmech_tool_entry_t`; the "documentation-hint fields" wording at
+`c/include/srmech.h:5703-5778` (`srmech_tool_entry_t`; the "documentation-hint fields" wording at
 `:5539`; `explanation` at `:5572`; the byte-identity/hash contract at `:5533-5543`) ·
 `c/tools/gen_tool_registry.py:265,:276,:277,:278` (where `summary` / `example` / `smoke_test_hint` /
 `explanation` are baked into C) ·

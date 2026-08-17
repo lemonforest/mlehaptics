@@ -351,14 +351,14 @@ def test_expected_abi_is_15():
     would not have). The pin is what rejects a stale rc437 ``.so`` — which
     would still return CORRECT bytes on the rest path, and so would reintroduce
     the defect on wound Ones only, silently."""
-    assert _native.EXPECTED_ABI_VERSION == 16
+    assert _native.EXPECTED_ABI_VERSION == 17
 
 
 @requires_native
 def test_the_native_projection_agrees_byte_for_byte_in_BOTH_regimes():
     """Co-equal parity across the new wire — the half the rc435 study could not
     reach, because it ran with ``HAS_NATIVE`` False."""
-    assert _native.NATIVE_ABI_VERSION == 16
+    assert _native.NATIVE_ABI_VERSION == 17
 
     def pure(one):
         saved = _native.HAS_NATIVE
