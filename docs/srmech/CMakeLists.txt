@@ -259,6 +259,23 @@ if(SRMECH_SRCS)
         add_executable(test_srmech_tlv_unpack_rc441 c/test/test_srmech_tlv_unpack_rc441.c)
         target_link_libraries(test_srmech_tlv_unpack_rc441 PRIVATE srmech ${SRMECH_MATH_LIB})
 
+        # rc442 (`#T1150`): the §GROUP/v20 nesting grammar, from BARE C. ADR-0003
+        # says the C host stands alone, and a nesting grammar is exactly the kind
+        # of surface where that claim is easy to assert and easy to leave untested
+        # — the Python differential proves the two projections AGREE, which is a
+        # different statement from "the C surface is usable with no oracle to
+        # compare against". This exercises wrap-then-walk, the validate-only
+        # (out == NULL) shape, arity 1 legal / arity 0 refused, all four malformed
+        # classes including R4's unrepresentable crossing, the depth cap returning
+        # SRMECH_ERR_LIMIT rather than SRMECH_ERR_OVERFLOW, an ungrouped strand
+        # reporting zero groups, and emit-on-POP ordering under nesting.
+        # Public-API only (srmech.h), so it joins the -Werror//WX gate AND the
+        # ctest run on all three OSes. Wired on arrival: the rc356 unwired
+        # residual is DOWN-ONLY and a new test must not raise it. Run it:
+        #   ./build/test_srmech_genome_group_rc442   (exit 0 = all pass)
+        add_executable(test_srmech_genome_group_rc442 c/test/test_srmech_genome_group_rc442.c)
+        target_link_libraries(test_srmech_genome_group_rc442 PRIVATE srmech ${SRMECH_MATH_LIB})
+
         # rc402 (`#T1068`): the srmech_json number-scanner + integer-range
         # correctness gate. Before rc402 an out-of-int64 integer returned
         # SRMECH_OK with the value CLAMPED to INT64_MAX (strtoll's ERANGE was
@@ -327,7 +344,8 @@ if(SRMECH_SRCS)
             test_srmech_toml_float test_srmech_json_number_rc402
             test_srmech_ryu_repr_rc403
             test_srmech_status_discrimination_rc404
-            test_srmech_tlv_unpack_rc441)
+            test_srmech_tlv_unpack_rc441
+            test_srmech_genome_group_rc442)
             add_test(NAME ${t} COMMAND ${t})
         endforeach()
     endif()
