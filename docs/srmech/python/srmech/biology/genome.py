@@ -4262,12 +4262,45 @@ def _chromatin_info(chromatin_type, num, den, at, handle):
             "scope": "chromosome" if at == 0 else "stretch"}
 
 
+def _implicit_unit_end(strand):
+    """§v19 IMPLICIT CLOSE — the ONE statement of "where does a unit END?" (rc441, ``#T1148``).
+
+    A v19 strand has **no closer cap**. A chromosome opens with a boundary cap and simply RUNS
+    until the next opener, or off the end of the strand. So "the end of this unit" is never READ
+    — it is INFERRED, from what comes next or from the strand running out. Today that inference
+    is *accidentally* correct, because with no closer the end of a unit and the start of the next
+    are the SAME index. The moment a closer exists they are two different indices, and every
+    splice computed from the inferred one silently moves.
+
+    This rc does not invent the closer (that is v20's job, and inventing it here would be
+    shipping the format change under a prerequisite's name). It makes the inference VISIBLE:
+    both extent helpers report, alongside the extent, whether it was READ from a marker or
+    INFERRED from the strand end. Through rc440 a caller could not tell the two apart — a bare
+    ``len(strand)`` came back either way — so there was no place for v20 to hook and nothing to
+    assert against.
+
+    The C peer of this statement is the ``§v19 IMPLICIT CLOSE`` block above
+    ``genome_nth_data_turn`` in ``c/src/srmech_genome.c``; the flag is the ``at_unit_end`` /
+    ``end_is_implicit`` out-parameter there. ``tests/test_implicit_close_rc441.py`` pins the
+    cap-marker vocabulary, so adding a closer marker turns that gate red and routes its author
+    to both projections at once.
+    """
+    return len(strand)
+
+
 def _chrom_range(strand, label, *, op):
-    """``(start, end)`` block indices of the TARGET chromosome in ``strand`` (the §98 splice range).
+    """``(start, end, end_is_implicit)`` block indices of the TARGET chromosome in ``strand``
+    (the §98 splice range).
 
     A chromosome opens with a boundary cap (:data:`_CHROM_BOUNDARY_MARKERS`); ``label`` picks it by
     its inline label. ``label=None`` requires a single-chromosome strand (else it is ambiguous —
-    pass ``label=``). ``end`` is the next boundary index (or ``len(strand)``)."""
+    pass ``label=``). ``end`` is the next boundary index (or ``len(strand)``).
+
+    rc441 (``#T1148``): ``end_is_implicit`` is ``True`` exactly when ``end`` came from the strand
+    running out rather than from a next-boundary cap actually found — the §v19 IMPLICIT CLOSE
+    inference (see :func:`_implicit_unit_end`). The mirror of the C
+    ``genome_label_range(..., int *end_is_implicit)`` out-parameter. Additive: ``start`` and
+    ``end`` are byte-for-byte what they were."""
     bounds = [i for i, hv in enumerate(strand) if _cap_kind(hv) in _CHROM_BOUNDARY_MARKERS]
     if not bounds or bounds[0] != 0:
         raise ValueError(
@@ -4284,7 +4317,10 @@ def _chrom_range(strand, label, *, op):
         if start is None:
             raise ValueError(f"{op}: no chromosome labelled {label!r} in the strand")
     nxt = [b for b in bounds if b > start]
-    return start, (nxt[0] if nxt else len(strand))
+    # rc441: READ from a real next-boundary cap, or INFERRED from the strand end.
+    if nxt:
+        return start, nxt[0], False
+    return start, _implicit_unit_end(strand), True
 
 
 def condense(strand, *, coupling=None, state=True, region=None, handle="chr", label=None):
@@ -4336,7 +4372,12 @@ def condense(strand, *, coupling=None, state=True, region=None, handle="chr", la
         b"".join(hv.tobytes() for hv in strand), len(strand), dim, label, region)
     if native is not None:
         return strand[:native] + [cap] + strand[native:]
-    start, end = _chrom_range(strand, label, op="condense")
+    start, end, end_is_implicit = _chrom_range(strand, label, op="condense")
+    # rc441 (`#T1148`): `end` is either a real next-boundary index (READ) or the strand end
+    # (INFERRED — the §v19 IMPLICIT CLOSE, see _implicit_unit_end). The append-at-end branch
+    # below splices AT `end`, so under v20 the inferred case must resolve to the closer's
+    # index rather than the strand's. Mirrors the C assert in srmech_genome_condense.
+    assert not end_is_implicit or end == len(strand)
     if region is None:
         insert = start + 1                          # HEAD scope: right after the opening telomere
     elif isinstance(region, str):
@@ -4381,7 +4422,11 @@ def decondense(strand, *, coupling=None, label=None):
             return [hv for i, hv in enumerate(strand) if keep[i]]
     if label is None:
         return [hv for hv in strand if _cap_kind(hv) != CHROMATIN_MARKER]
-    start, end = _chrom_range(strand, label, op="decondense")
+    # rc441: the third element (the §v19 IMPLICIT-CLOSE flag) is discarded here on purpose —
+    # decondense uses [start, end) only as a MASK range and splices nothing, so whether the end
+    # was read or inferred does not change which caps it drops. The C peer passes NULL for the
+    # same reason.
+    start, end, _end_is_implicit = _chrom_range(strand, label, op="decondense")
     return [hv for i, hv in enumerate(strand)
             if not (start <= i < end and _cap_kind(hv) == CHROMATIN_MARKER)]
 
@@ -7119,7 +7164,14 @@ def mint_strand(strand, coupling, *, orientation=None, centromere_at=None,
     # Native-dispatched cap-writer (byte-identical C peer srmech_genome_centromere); the splice is
     # pure block concatenation, so the minted strand is byte-identical to a C-produced one.
     cen_cap = centromere(orientation, repeats=repeats, handle=handle, dim=dim)
-    insert_at = data_positions[split] if split < n_turns else len(strand)
+    # rc441 (`#T1148`): the append-at-end case is the §v19 IMPLICIT CLOSE (see
+    # _implicit_unit_end) — with no closer cap, "the end of the unit" IS the end of the strand.
+    # `at_unit_end` names that inference rather than leaving it as a bare `len(strand)` that
+    # reads identically to a found position; under v20 this is the branch that must place the
+    # cap BEFORE the closer. Mirrors the C `genome_nth_data_turn(..., int *at_unit_end)`.
+    at_unit_end = split >= n_turns
+    insert_at = _implicit_unit_end(strand) if at_unit_end else data_positions[split]
+    assert not at_unit_end or insert_at == len(strand)
     return strand[:insert_at] + [cen_cap] + strand[insert_at:]
 
 

@@ -169,7 +169,7 @@
 {"exposed_as": "srmech.math.q.to_q", "defined_at": "srmech.math.q.to_q", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.math.template.render", "defined_at": "srmech.math.template.render", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.math.tlv.tlv_pack", "defined_at": "srmech.math.tlv.tlv_pack", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.math.tlv.tlv_unpack", "defined_at": "srmech.math.tlv.tlv_unpack", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.math.tlv.tlv_unpack", "defined_at": "srmech.math.tlv.tlv_unpack", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.physics.qm.bell.operator_norm", "defined_at": "srmech.physics.qm.bell.operator_norm", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.math.hdc.klein4_bind", "defined_at": "srmech.math.hdc.klein4_bind", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.math.hdc.klein4_bundle", "defined_at": "srmech.math.hdc.klein4_bundle", "bucket": "c_dispatched"}

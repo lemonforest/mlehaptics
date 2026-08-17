@@ -27,8 +27,17 @@
  * the TLV format is wire-spec ordering (tag-first) per the format
  * definition above. That's the documented exception.
  *
- * JPL Power-of-Ten compliance: Rules 1/3/4/5/7/10 OK. Single function,
- * fixed prefix size, bounded by caller-supplied capacity.
+ * JPL Power-of-Ten compliance: Rules 1/3/4/5/7/10 OK. Two functions
+ * (pack + unpack), fixed prefix size, both bounded by a caller-supplied
+ * length — neither allocates, neither recurses, neither loops unbounded.
+ *
+ * rc441 (`#T1148`): the READER half landed. Through rc440 this file held
+ * srmech_tlv_pack alone and its header block said "Single function" — a
+ * writer with no reader, i.e. half a projection of a round-trip format.
+ * A bare-C host could emit a frame it had no way to walk back, while the
+ * compiled tool registry told its users that tlv_unpack was "the ONLY
+ * correct way to read these frames back". The claim is now true in both
+ * projections.
  *
  * License: MIT.
  */
@@ -72,5 +81,56 @@ srmech_status_t srmech_tlv_pack(uint8_t        tag,
         memcpy(out_buffer + SRMECH_TLV_PREFIX_BYTES, value, value_len);
     }
     *out_written = (uint32_t)total;
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_tlv_unpack(const uint8_t *buffer,
+                                  uint32_t       buffer_len,
+                                  uint32_t       offset,
+                                  uint8_t       *out_tag,
+                                  uint32_t      *out_value_offset,
+                                  uint32_t      *out_value_len,
+                                  uint32_t      *out_next_offset)
+{
+    uint32_t length;
+    uint32_t value_start;
+    uint64_t value_end;
+
+    assert(out_tag != NULL);
+    assert(out_next_offset != NULL);
+    if (out_tag == NULL || out_value_offset == NULL ||
+        out_value_len == NULL || out_next_offset == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (buffer == NULL && buffer_len != 0u) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    /* offset past the end of the buffer — a caller that walked off the tail. */
+    if (offset > buffer_len) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    /* Fewer than the 5 prefix bytes remain: a truncated / clipped frame. */
+    if ((uint64_t)buffer_len - (uint64_t)offset <
+            (uint64_t)SRMECH_TLV_PREFIX_BYTES) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    assert(buffer != NULL);
+    /* Read the big-endian u32 length back byte-by-byte — the same explicit
+     * shift ladder the writer lays down, so no host byte order is assumed. */
+    length = ((uint32_t)buffer[offset + 1u] << 24)
+           | ((uint32_t)buffer[offset + 2u] << 16)
+           | ((uint32_t)buffer[offset + 3u] <<  8)
+           |  (uint32_t)buffer[offset + 4u];
+    value_start = offset + (uint32_t)SRMECH_TLV_PREFIX_BYTES;
+    /* 64-bit end bound: a claimed length near UINT32_MAX must not wrap the
+     * comparison and admit an out-of-bounds span. */
+    value_end = (uint64_t)value_start + (uint64_t)length;
+    if (value_end > (uint64_t)buffer_len) {
+        return SRMECH_ERR_BAD_INPUT;   /* claimed length runs past the end */
+    }
+    *out_tag = buffer[offset];
+    *out_value_offset = value_start;
+    *out_value_len = length;
+    *out_next_offset = (uint32_t)value_end;
     return SRMECH_OK;
 }

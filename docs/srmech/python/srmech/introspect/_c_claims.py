@@ -712,6 +712,7 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
     'srmech.math.text.fold_marks': ('srmech_text_fold_marks',),
     'srmech.math.text.glyph_stream': ('srmech_text_glyph_stream',),
     'srmech.math.tlv.tlv_pack': ('srmech_tlv_pack',),
+    'srmech.math.tlv.tlv_unpack': ('srmech_tlv_unpack',),
     'srmech.music._bessel.bessel_j_fixed': (
         'srmech_bessel_j_fixed_big',
         'srmech_bessel_j_fixed_ws_bound',

@@ -1384,7 +1384,13 @@ COMPOSES_C_ZERO_REACH_PINNED = frozenset({
     "srmech.math.qbipoly.qbipoly_from_coeffs",
     "srmech.math.qpoly.qpoly_from_coeffs",
     "srmech.apokatastasis.quasimodular_forms_ring.quasimodular_forms_ring",
-    "srmech.math.tlv.tlv_unpack",
+    # rc441 (`#T1148`): srmech.math.tlv.tlv_unpack LEFT this pin — and the
+    # reason it was ever HERE is the finding. Its body was struct.unpack_from
+    # plus slicing: a self-contained pure kernel reaching zero ledger ops, so
+    # the composes_c transitive walk could not see it and it sat classified as
+    # a composition of C it never composed. That is the rc217 srmech.math.text
+    # hiding spot exactly. It earned a byte-identical C peer srmech_tlv_unpack
+    # this rc and moved to c_dispatched, so the pin entry is now stale.
     "srmech.introspect.tool_schema.get_tool_schema",
     "srmech.math.tripoly.tripoly_from_coeffs",
     "srmech.apokatastasis.zeilberger.bipoly_from_coeffs",

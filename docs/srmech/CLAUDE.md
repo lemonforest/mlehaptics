@@ -757,13 +757,32 @@ scratch remains single-thread-at-a-time until similarly converted.
 
 ### JPL Power-of-Ten audit
 
-The C library passes all 10 Holzmann Power-of-Ten rules
-(see [c/JPL_AUDIT.md](c/JPL_AUDIT.md)). Enforcement:
+The C library is clean on **eight** of the 10 Holzmann Power-of-Ten
+rules; **Rule 1 is PARTIAL** and Rule 9 carries one deliberate
+deviation (see [c/JPL_AUDIT.md](c/JPL_AUDIT.md)).
+
+⚠️ *This line said "passes all 10" until rc441 (`#T1148`), and the
+sentence survived because nothing measured the half of Rule 1 it was
+asserting: the ratchet grepped `goto|setjmp|longjmp` and never looked
+for recursion, which Rule 1 also bans. The first census found **9**
+recursion cycles (1 direct + 8 mutual) across 3092 functions. They are
+all depth-bounded, so the library is sound — but "sound" and "passes
+the rule" are different claims and only one of them was true. Two
+sibling blindnesses closed in the same rc: the function scanner counted
+braces inside `'{'`/`'}'` char literals, so three functions reported
+`lines=1` (Rule 4 could not see them) with assert counts running away
+to 458/456/35 (Rule 5 vacuous there too).*
+
+Enforcement:
 
 1. **`tests/test_jpl_audit.py`** — pytest ratchet, mechanically
-   detects Rules 1 (no goto), 3 (no malloc), 4 (≤60-line
-   functions), 5 (≥2 asserts per non-exempt function), 8 (no
-   multi-line macros). **Violations can only go DOWN**, never up.
+   detects Rules 1 (no goto **and, since rc441, no new direct/indirect
+   recursion — strict on novel cycles, down-only on the seeded
+   population of 9**), 3 (no malloc), 4 (≤60-line functions), 5 (≥2
+   asserts per non-exempt function), 8 (no multi-line macros).
+   **Violations can only go DOWN**, never up. Rules 4 and 5 now scan
+   literal-masked text so a brace inside a char literal cannot run the
+   counter off the end of the file.
 2. **`pedantic-build` CI job** (3-cell: Linux gcc / macOS clang /
    Windows MSVC) — `cmake -DSRMECH_PEDANTIC=ON` enables
    `-Werror` (POSIX) / `/WX` (MSVC). Any new warning fails CI.

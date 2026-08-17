@@ -43,7 +43,7 @@ DOWN but not UP.
 
 | Rule | Description                                       | Baseline | Status |
 | :--: | ------------------------------------------------- | -------- | ------ |
-|   1  | No goto / setjmp / longjmp / recursion            | 0        | ✅ pass |
+|   1  | No goto / setjmp / longjmp / recursion            | goto 0; **recursion 9** | ⚠️ **partial** — goto/setjmp/longjmp clean; 9 recursion cycles under a seeded down-only ratchet (rc441, `#T1148`; see Rule 1 below) |
 |   2  | All loops have fixed upper bounds                 | 0        | ✅ pass |
 |   3  | No dynamic allocation after init                  | 0        | ✅ pass |
 |   4  | Functions ≤ 60 lines                              | 0        | ✅ pass *(was 1; fixed in this ship by extracting `srmech_ndjson_process_chunk`)* |
@@ -58,10 +58,22 @@ DOWN but not UP.
 (`srmech_ndjson_line_cb`). This is a deliberate trade-off, see
 Rule 9 section below.
 
-**Headline:** All ten JPL Power-of-Ten rules satisfied for srmech's
-C surface, modulo one deliberate Rule 9 deviation (callback-based
-iterator). Phase B6 fixed the one mechanical violation surfaced by
-the audit (Rule 4 / function-length).
+**Headline (corrected at v0.9.0rc441, `#T1148`):** Eight of the ten rules are
+clean. **Rule 1 is PARTIAL** — the goto/setjmp/longjmp half is clean, the
+recursion half carries a measured population of 9 depth-bounded cycles under a
+down-only ratchet. Rule 9 carries one deliberate deviation (callback-based
+iterator).
+
+This headline read *"All ten JPL Power-of-Ten rules satisfied"* through rc440.
+It was **not** true, and the reason it survived is worth recording: the Rule 1
+ratchet never looked for recursion, so nothing contradicted the sentence. Two
+further blind spots were measured and closed in the same rc — the function
+scanner counted braces inside `'{'` / `'}'` **char literals**, which ran its
+brace depth off the end of the file and reported three real functions as
+`lines=1` (invisible to **Rule 4**) while their assert counts ran away to
+`458` / `456` / `35` (vacuously satisfying **Rule 5**). A rule whose
+instrument cannot return a finding is not a rule that passes; it is a rule
+nobody measured. See Rule 1, Rule 4 and Rule 5 below.
 
 ---
 
@@ -69,16 +81,55 @@ the audit (Rule 4 / function-length).
 
 > *"Restrict all code to very simple control flow constructs — do not use goto statements, setjmp or longjmp constructs, and direct or indirect recursion."*
 
-### Violations: 0
+### Violations: goto/setjmp/longjmp — 0. Recursion — **9 cycles, seeded down-only ratchet.**
 
 - `grep -n "goto" c/src/*.c` → no matches.
 - `grep -n "setjmp\|longjmp" c/src/*.c c/include/srmech.h` → no matches.
-- Manual review: no function in srmech calls itself directly or
-  indirectly. All control flow is straight-line, single-return
-  per function (modulo early-return-on-error which is loop-free
-  and allowed by the spirit of the rule).
 
-✅ **Pass.**
+⚠️ **Corrected at v0.9.0rc441 (`#T1148`).** Through rc440 this section read
+*"Manual review: no function in srmech calls itself directly or indirectly"*
+and claimed a clean pass. **That was false, and nothing could catch it**:
+`tests/test_jpl_audit.py::test_rule_1_no_goto` grepped for
+`goto|setjmp|longjmp` and **did not look for recursion at all**, so the half
+of Rule 1 that this line asserted was the half no instrument measured. The
+claim rested on a manual review that had long since gone stale — the C tree
+grew from three files to 138 — and a surface with no gate does not trickle,
+it is simply *believed absent*.
+
+The first mechanical census (rc441, whole tree: 138 files, **3092
+functions**) found **nine** recursion cycles — one direct, eight mutual:
+
+| Cycle | File | Kind | Depth bound |
+| --- | --- | --- | --- |
+| `iv_emit_node` | `srmech_invoke.c` | direct | explicit `depth` argument |
+| `dsl_run_combinator` ↔ `dsl_run_loop` ↔ `dsl_run_stage_array` | `srmech_dsl_chain_run.c` | mutual | chain nesting the descriptor declares |
+| `dv_from_desc` ↔ `dv_from_list` | `srmech_dsl_chain_run.c` | mutual | `DV_MAX_DEPTH` |
+| `dv_to_desc` ↔ `dv_list_to_desc` | `srmech_dsl_chain_run.c` | mutual | `DV_MAX_DEPTH` |
+| `mm_from_json` ↔ `mm_from_json_array` ↔ `mm_from_json_object` | `srmech_mcp_marshal.c` | mutual | JSON nesting cap |
+| `mm_serialise` ↔ `mm_serialise_dict` ↔ `mm_serialise_list` | `srmech_mcp_marshal.c` | mutual | JSON nesting cap |
+| `toml_to_json` ↔ `toml_tbl_to_json` ↔ `toml_arr_to_json` | `srmech_dsl_chain_run.c` | mutual | TOML nesting cap |
+| `toml_finalize_atable` ↔ `toml_finalize_btable` ↔ `toml_finalize_bvalue` | `srmech_toml.c` | mutual | TOML nesting cap |
+| `toml_parse_array` ↔ `toml_parse_inline_table` ↔ `toml_parse_value` | `srmech_toml.c` | mutual | TOML nesting cap |
+
+Every one is depth-bounded in the source, which is why the population was
+tolerable while it was invisible. Rule 1's objection is nevertheless to the
+**construct**: a bound enforced by a parameter rather than by the call
+structure is a bound a later edit can move, and on a fixed stack the cost of
+being wrong is not a wrong answer but a smashed frame.
+
+**Enforcement is now mechanical and one-way** — `test_rule_1_no_new_recursion`
+is *strict* on the decidable class (any cycle outside `RULE_1_RECURSION_SEEDED`,
+including an existing cycle that gained a member, fails outright) and
+*down-only* on the count via `CEIL_RULE_1_RECURSION = 9`.
+`test_rule_1_recursion_ceiling_is_not_slack` keeps the ceiling equal to the
+live measurement so no unclaimed headroom accumulates, and
+`test_rule_1_recursion_detector_is_not_vacuous` asserts the detector still
+returns a nonzero reading — an instrument that cannot report a finding is not
+a measurement.
+
+⚠️ **Pass on goto/setjmp/longjmp; recursion is a RECORDED DEBT under a
+down-only ratchet, not a pass.** Unwinding a cycle to an explicit bounded
+stack lowers the ceiling.
 
 ---
 
@@ -165,6 +216,30 @@ ZERO functions — a guard that the file stays data-only. Regenerate with
 
 ### Violations: 0 *(was 1 — fixed in Phase B6)*
 
+> ⚠️ **Scanner blindness closed at v0.9.0rc441 (`#T1148`).** This count was
+> measured by a scanner that could not see three of the functions it was
+> counting. `_scan_functions` locates a function's end by counting `{` and `}`
+> per line — and it counted them inside `'{'` / `'}'` **char literals** too. In
+> a JSON or TOML scanner written in C those literals are the whole point of the
+> code, so the brace depth never returned to zero, the scan ran to end-of-file,
+> and the function was reported as **`lines=1`**: comfortably under the 60-line
+> limit by an accident of arithmetic rather than by being short.
+>
+> Measured on rc440: `genome_json_object_span` and `genome_find_attest_span`
+> (`srmech_genome.c`) and `toml_parse_value` (`srmech_toml.c`) all reported
+> `lines=1`. Their true lengths are **24**, **20** and **35** — all genuinely
+> under 60, so the *verdict* was right; the *measurement* was not, and a
+> measurement that is right by luck cannot be relied on for the next function
+> that lands in one of those files.
+>
+> The fix masks comments, string literals and char literals before counting
+> (`_mask_c_literals`). Whole-tree effect (138 files, 3092 functions): the
+> detected function set is **unchanged** (0 added, 0 removed), exactly five
+> functions change their numbers, and **no new Rule 4 violation appears** — the
+> fourth change is `toml_parse_inline_table`, whose real length is **58**, not
+> the 54 the old counter reported. That one had four lines of headroom it did
+> not actually have.
+
 Per-function line counts (definition lines, body brace to body
 brace; counted by awk script in `tests/test_jpl_audit.py`):
 
@@ -228,6 +303,20 @@ the refactored code.
 > *"The assertion density of the code should average to a minimum of two assertions per function. Assertions are used to check for anomalous conditions that should never happen in real-life executions. Assertions must always be side-effect free."*
 
 ### Violations: 0 *(with documented exemptions)*
+
+> ⚠️ **The worse half of the rc441 scanner blindness landed HERE.** The same
+> runaway brace scan described under Rule 4 did not merely mis-report a length
+> — it kept counting `assert(` all the way to end-of-file. So the three blind
+> functions reported **458**, **456** and **35** assertions respectively, and
+> Rule 5's `>= 2` floor was satisfied *vacuously* in exactly the places the
+> scanner had lost its place. A floor cleared by a number the instrument
+> invented is not a floor.
+>
+> Post-fix the three report **2** assertions each, which genuinely clears the
+> floor. One further correction fell out: `srmech_bigint_pow_bound` drops from
+> 3 to 2 — one of its `assert(` occurrences was inside a comment. Still ≥ 2, so
+> **no new Rule 5 violation appears** and the strict-zero ratchet stays
+> strict-zero. Both counts are now measured over literal-masked text.
 
 Per-function assertion counts:
 
