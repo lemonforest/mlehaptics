@@ -339,6 +339,46 @@ ROWS = [
          ceiling_blind_to="No ratchet reads CLAUDE.md. This class of defect — "
                           "orientation prose asserting a capability the library "
                           "lacks — has no mechanical detector at all."),
+    dict(id="bigint_unreachable_from_a_json_literal", kind="gap",
+         missing="rc447 put gcd / mod_add / mod_mul / mod_pow on the full bigint "
+                 "carrier so no operand is narrowed — but an operand wider than "
+                 "int64 cannot ARRIVE: srmech_json_parse returns "
+                 "SRMECH_ERR_LIMIT for such a literal.",
+         lacked_by="c", blocked_this_rc=False, new_type=False,
+         evidence="Bare-C host proof: gcd(2^70, 18) returns status 8 "
+                  "(ERR_LIMIT), not a value. Asserted as a required DECLINE in "
+                  "test/test_srmech_chain_run.c.",
+         probe="./build/test_srmech_chain_run",
+         disposition=FILED,
+         note="The bigint WIDTH is real but currently reachable only by a "
+              "COMPUTED value — a @step[N].output carrying a big result — which "
+              "no shipped descriptor produces. So the widening is correct and "
+              "presently unexercised end-to-end, and saying so is the honest "
+              "form of the claim. ERR_LIMIT is deliberate (rc404): distinct "
+              "from OVERFLOW precisely because no arena can relieve it. Found "
+              "ONLY by the bare-C proof — every ctypes test passes operands "
+              "Python had already narrowed to int64.",
+         ceiling_blind_to="Nothing measures operand WIDTH. A chain passes on "
+                          "small operands and the ratchet cannot tell whether "
+                          "the wide path was ever taken."),
+    dict(id="arena_is_dominated_by_chain_length", kind="gap",
+         missing="srmech_chain_run_arena_bytes is dominated by 4096 * chain_len, "
+                 "so a ~400-byte 3-step descriptor already wants ~2.6 MiB.",
+         lacked_by="c", blocked_this_rc=False, new_type=False,
+         evidence="Bare-C host proof: a 1 MiB static arena returned "
+                  "SRMECH_ERR_OVERFLOW for chiral_dual; 8 MiB passes.",
+         probe="./build/test_srmech_chain_run",
+         disposition=FILED,
+         note="Not a defect — the formula is a generous static envelope and an "
+              "op that outgrows it correctly takes the pure path. It is filed "
+              "because it is a REAL CONSTRAINT ON THE ADR-0003 HOST: a firmware "
+              "target must call arena_bytes and honour it, and must not assume "
+              "a chain is small because its JSON is. Invisible to every ctypes "
+              "test, which allocates exactly what the formula asks for and so "
+              "never meets the ceiling.",
+         ceiling_blind_to="No gate measures arena headroom on a fixed-memory "
+                          "host; the pytest harness sizes to fit by "
+                          "construction."),
     dict(id="bigint_modinv", kind="gap",
          missing="No bigint extended-Euclid / modular-inverse export, so mod_inv "
                  "alone keeps the uint64 wire while its five siblings went bigint.",
