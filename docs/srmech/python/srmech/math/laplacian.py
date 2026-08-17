@@ -340,11 +340,16 @@ def _can_dispatch_native(n: int) -> bool:
 
 
 def _build_matrix_native_listmarshal(fn_name, n, edge_list, w_list):
-    """numpy-FREE native graph build (UPSTREAM §38): marshal Python lists into
+    """Native graph build (UPSTREAM §38): marshal Python lists into
     ctypes arrays (edge endpoints uint32, weights double) + reshape the flat
-    output to ``list[list[float]]`` — no numpy. Returns the matrix, or ``None``
-    on a non-OK status (caller then uses the pure-Python builder). Same C symbol
-    the numpy path calls; reachable on the numpy-absent install."""
+    output to ``list[list[float]]``. Returns the matrix, or ``None``
+    on a non-OK status (caller then uses the pure-Python builder).
+
+    This is the build that is reachable on the numpy-absent install — the
+    ``ctypes`` marshal below IS the whole carrier bridge, so the native kernels
+    stay available with nothing but the stdlib present. That is what makes this
+    function distinct from a native path that would need an array library to
+    hand the kernel its buffer."""
     n_edges = len(edge_list)
     out = (ctypes.c_double * (n * n))()
     null_u = ctypes.cast(None, ctypes.POINTER(ctypes.c_uint32))

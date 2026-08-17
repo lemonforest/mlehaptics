@@ -183,9 +183,12 @@ def _frob_norm(a_rows: List[List[float]]) -> float:
 
 
 def _as_8x8(value, op: str) -> List[List[float]]:
-    """Coerce ``value`` (a :class:`Mat` / nested list / ndarray) to an ``8×8``
-    nested ``list[list[float]]``; raise the prior ``ValueError`` on a bad
-    shape. Numpy-free."""
+    """Coerce ``value`` to an ``8×8`` nested ``list[list[float]]``; raise
+    ``ValueError`` on a bad shape. Accepts a :class:`Mat` (shape-checked via
+    ``.shape``) or ANY 2-D iterable of reals — a nested list, or a NumPy
+    ``ndarray`` if the caller happens to have one, since the fallback branch
+    only iterates rows and calls ``float()``. srmech itself imports no array
+    library, so the ``Mat`` route is the one that is always available."""
     if isinstance(value, Mat):
         if value.shape != (_DIM, _DIM):
             raise ValueError(f"{op}: must be 8x8; got {value.shape}")
