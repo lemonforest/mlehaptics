@@ -71,7 +71,7 @@ from __future__ import annotations
 import functools
 from typing import Dict, List, Sequence, Tuple
 
-from srmech.math.q import Q                    # #845: exact-ℚ solver carrier
+from srmech.math.q import Q, to_q              # #845: exact-ℚ solver carrier
 
 from srmech.math import rational as _srn
 
@@ -223,30 +223,69 @@ def _octonion_mul(x: Sequence[float], y: Sequence[float]) -> List[float]:
     return out
 
 
-def _exact_solve_normal_equations(g: List[List[int]], c: List[int],
+def _exact_int(value: float, what: str) -> int:
+    """The EXACT ``int`` of a float that is *already* integral — never a
+    rounding.
+
+    ``int(round(x))`` is the lossy spelling: it silently ABSORBS a non-integer
+    (``round(0.5) → 0``), which is precisely the rc443 defect this module was
+    carrying on its right-hand side. This coercion instead promotes through the
+    exact Class-N carrier (:func:`srmech.math.q.to_q`, exact via
+    ``as_integer_ratio``) and RAISES if the value was not integral, so a
+    non-integer can never be absorbed unnoticed.
+
+    rc443 measurement (``[[feedback_an_asserted_algebraic_property_is_not_a_measured_one]]``):
+    the octonion structure-constant tensor's 512 entries take exactly THREE
+    distinct float values — ``-1.0`` (28×), ``0.0`` (448×), ``+1.0`` (36×) —
+    so on the shipped table this raises for nothing. The claim was previously
+    only ASSERTED in prose; it is now measured, and enforced here.
+    """
+    exact = to_q(value)
+    if exact.denominator != 1:
+        raise ValueError(
+            f"{what}: expected an exact integer, got {value!r} "
+            f"(= {exact.numerator}/{exact.denominator}); refusing to round")
+    return exact.numerator
+
+
+def _exact_solve_normal_equations(g: List[List[int]], c: List[Q],
                                   n: int) -> List[Q]:
-    """Exact-ℚ particular solution of the consistent, rank-deficient INTEGER
-    normal equations ``G·x = c`` via :class:`~fractions.Fraction` Gauss-Jordan
-    elimination; non-pivot (free) columns are pinned to 0.
+    """Exact-ℚ particular solution of the consistent, rank-deficient normal
+    equations ``G·x = c`` (INTEGER Gram ``G``, exact-ℚ right-hand side ``c``)
+    via :class:`~srmech.math.q.Q` Gauss-Jordan elimination; non-pivot (free)
+    columns are pinned to 0.
 
     Native-INDEPENDENT (pure rational arithmetic — no float, no Tikhonov
     ridge), so the companion maps it returns are bit-identical on every
     platform. The system is consistent (``rhs ∈ range(A)``), so the free
     columns carry the gauge freedom and a residual-0 solution exists.
 
+    rc443: ``c`` was annotated ``List[int]`` and coerced with ``Q(c[r])``. The
+    Gram ``G`` is built from the ``{-1, 0, +1}`` structure constants alone and
+    stays INTEGER, but ``c = Aᵀ·rhs`` carries the CALLER's operator entries, so
+    it is exact ℚ — an integer annotation there is exactly what licensed the
+    right-hand-side rounding. ``to_q`` accepts both spellings, so an integer
+    ``c`` still coerces unchanged.
+
     rc146 (BATCH B8b — ``composition_of_c`` standalone-C basis): this exact-ℚ
     RREF-with-free-columns-pinned solve is standalone-reproducible in a bare-C
     host by the ``c_dispatched`` :func:`srmech.math.qmat.QMat.rref`
     (``srmech_qmat_rref``, the exact-ℚ RREF C peer) over the same augmented
     ``[G | c]`` — VERIFIED to return BYTE-IDENTICAL companion maps to this
-    routine. This sparse-Fraction path is kept as the fast one (the dense
-    128-unknown ``srmech_qmat_rref`` is ~2 s vs this sparse solve's sub-second),
-    but the standalone-C mirror is real: the whole triality family
-    (``triality_swap`` / ``triality_automorphism`` / ``triality_companions`` /
-    ``lean_isa_seventh_primitive``) composes ``srmech_qmat_rref`` (companion
-    solve) ∘ ``mat_matmul`` ∘ ``mat_norm`` — no new C symbol, ABI unchanged.
+    routine. rc443 RE-VERIFIED that claim after the augmented column's type
+    moved int → ℚ: :class:`~srmech.math.qmat.QMat` carries exact ``Q`` entries
+    natively (``QMat.from_rows`` accepts ``Q`` / ``int`` / ``(num, den)``), so
+    the mirror holds on FRACTIONAL operators too — measured byte-identical on
+    both an integer and a fractional right-hand side
+    (``tests/test_triality_exact_rhs_rc443.py``). This sparse path is kept as
+    the fast one (the dense 128-unknown ``srmech_qmat_rref`` is ~2 s vs this
+    sparse solve's sub-second), but the standalone-C mirror is real: the whole
+    triality family (``triality_swap`` / ``triality_automorphism`` /
+    ``triality_companions`` / ``lean_isa_seventh_primitive``) composes
+    ``srmech_qmat_rref`` (companion solve) ∘ ``mat_matmul`` ∘ ``mat_norm`` —
+    no new C symbol, ABI unchanged.
     """
-    rows = [[Q(g[r][col]) for col in range(n)] + [Q(c[r])]
+    rows = [[Q(g[r][col]) for col in range(n)] + [to_q(c[r])]
             for r in range(n)]
     pivot_cols: List[int] = []
     rank = 0
@@ -284,59 +323,101 @@ def _solve_companions(operator) -> Tuple[List[List[float]], List[List[float]]]:
     derivation in ``g2`` the solution is ``B = C = A``.
 
     rc33 (exact-ℚ, native-independent): the octonion structure constants are
-    ``{-1, 0, +1}`` integers, so the normal equations ``G·x = c``
-    (``G = AᵀA``, ``c = Aᵀ·rhs``) are an INTEGER system, solved EXACTLY over ℚ
+    ``{-1, 0, +1}`` integers, so the Gram ``G = AᵀA`` of the normal equations
+    ``G·x = c`` is an INTEGER matrix; the right-hand side ``c = Aᵀ·rhs`` carries
+    the CALLER's operator entries and is exact ℚ. Both are solved EXACTLY over ℚ
     by :func:`_exact_solve_normal_equations` — NO float ``mat_solve``, NO
     Tikhonov ridge. The Gram ``G`` is rank-deficient (the B/C companion split
     carries a gauge freedom, so ``A`` has a non-trivial nullspace); the system
     is CONSISTENT (``rhs ∈ range(A)``), so the free columns absorb the gauge
-    and a residual-0 particular solution exists. The resulting companion maps
-    are exact DYADIC rationals (denominators in ``{1, 2}``), so the downstream
-    ``S_B`` / ``S_C`` / ``tau`` are BIT-IDENTICAL on every platform — this is
-    what closes the so8 native-vs-pure rank divergence: the prior float
-    ``mat_solve`` applied a ~6e-11 Tikhonov ridge on the pure-Python (singular)
-    path, which the exact :func:`so8._rank_exact` then amplified into a wrong
-    ``Fix(tau)`` / ``Fix(S_B)`` dimension (28 instead of 14 / 21). The exact
-    solution reproduces the SAME gauge as the float construction (matches it to
-    ~2e-12), now bit-exact.
+    and a residual-0 particular solution exists. This is what closes the so8
+    native-vs-pure rank divergence: the prior float ``mat_solve`` applied a
+    ~6e-11 Tikhonov ridge on the pure-Python (singular) path, which the exact
+    :func:`so8._rank_exact` then amplified into a wrong ``Fix(tau)`` /
+    ``Fix(S_B)`` dimension (28 instead of 14 / 21). The exact solution
+    reproduces the SAME gauge as the float construction (matches it to ~2e-12),
+    now bit-exact.
+
+    **rc443 — the right-hand side is exact, not rounded.** Through rc442 this
+    routine spelled the right-hand side ``rhs_m = int(round(target[m]))``. The
+    structure constants genuinely ARE integers and rounding them is a no-op
+    (measured: their 512 table entries take exactly the three values ``-1.0`` /
+    ``0.0`` / ``+1.0``, none moved by ``round``) — but ``target`` is
+    ``operator·(e_i * e_j)``, i.e. CALLER data, and rounding it made every
+    non-integer operator return the companions of a DIFFERENT operator, silently
+    (measured law: the rounded-half-to-even one; ``companions(1.5·A)`` was
+    bit-identical to ``companions(2.0·A)``, and ``companions(0.5·A)`` returned
+    the all-zero matrix). Cartan's relation is LINEAR in ``(A, B, C)``, so
+    ``companions(k·A)`` MUST be ``k·companions(A)`` for every real ``k``; 15 of
+    20 sampled coefficients violated it, 7 of those by returning zero. It was
+    reachable by pure API composition, because this op's own output is
+    fractional: ``residual(companions(companions(A)))`` was ``32.0``.
+    ``target[m]`` needs no approximation at all — ``e_i * e_j`` is a ``±1`` unit
+    vector, so ``_matvec`` performs a single ``±1`` multiply and adds zeros, and
+    ``target[m]`` is exactly ``±`` an operator entry, bit-exact as a float. The
+    Class-N :func:`srmech.math.q.to_q` promotion is therefore LOSSLESS; the
+    rounding was the only lossy step. Every in-tree caller passed an INTEGER
+    operator (:func:`_companion_maps` iterates the ``±1`` ``E_pq`` generators),
+    so ``tau`` / ``S_B`` / ``S_C`` / ``Fix(tau) = g2`` are BIT-IDENTICAL across
+    the fix — only the public entry point on non-integer input moves.
+
+    EXACTNESS OF THE RETURN. On an INTEGER operator the companion maps are exact
+    DYADIC rationals (denominators in ``{1, 2}``), which are bit-exact in
+    float64 — that is what makes the downstream ``S_B`` / ``S_C`` / ``tau``
+    BIT-IDENTICAL on every platform. On a general operator the solve is still
+    exact over ℚ, with denominator dividing ``2 ×`` the operator's own; the
+    ``float()`` at the boundary is the ONE inexact step, and it is exact
+    whenever that rational is a float64 (e.g. any float-scalar multiple of an
+    integer operator, and so every case the linearity law covers). The return
+    type stays :class:`Mat` (float64).
 
     The 512×128 design ``A`` is never materialised: each equation row is SPARSE
     (``_DIM`` nonzeros in each of the ``vec(B)`` / ``vec(C)`` blocks, value an
-    integer structure constant), so the integer ``G`` and ``c`` accumulate over
-    only ~16 nonzeros per row. The table is consumed as a nested list;
-    ``operator`` is a :class:`Mat` / nested-list ``8×8``.
+    integer structure constant), so ``G`` (integer) and ``c`` (exact ℚ)
+    accumulate over only ~16 nonzeros per row. The table is consumed as a nested
+    list; ``operator`` is a :class:`Mat` / nested-list ``8×8``.
     """
     op = _as_8x8(operator, "_solve_companions")
     table = _table_float()
     basis = _eye(_DIM)
     nvar = 2 * _DIM * _DIM                               # 128 unknowns
-    # Sparse INTEGER normal equations: G = AᵀA (128×128), c = Aᵀ·rhs (128×1).
+    # Sparse normal equations: G = AᵀA (128×128, INTEGER — structure constants
+    # only), c = Aᵀ·rhs (128×1, exact ℚ — it carries the CALLER's operator).
     # Each row contributes a length-≤16 sparse pattern of (column, value) pairs.
     g = [[0] * nvar for _ in range(nvar)]
-    c = [0] * nvar
+    c: List[Q] = [Q(0)] * nvar
     for i in range(_DIM):
         for j in range(_DIM):
             target = _matvec(op, _octonion_mul(basis[i], basis[j]))
             for m in range(_DIM):
-                # The nonzero (column, integer value) entries of this row.
+                # The nonzero (column, integer value) entries of this row. The
+                # values are structure constants, so _exact_int is a coercion
+                # that RAISES rather than a rounding that absorbs (rc443).
                 entries: List[Tuple[int, int]] = []
                 for k in range(_DIM):
                     bval = table[k][j][m]
                     if bval != 0.0:
-                        entries.append((k * _DIM + i, int(round(bval))))
+                        entries.append((k * _DIM + i,
+                                        _exact_int(bval, "octonion structure "
+                                                   "constant C[k][j][m]")))
                     cval = table[i][k][m]
                     if cval != 0.0:
                         entries.append((_DIM * _DIM + k * _DIM + j,
-                                        int(round(cval))))
-                rhs_m = int(round(target[m]))
-                # Accumulate AᵀA and Aᵀ·rhs over the sparse pattern (integer).
+                                        _exact_int(cval, "octonion structure "
+                                                   "constant C[i][k][m]")))
+                # CALLER data — exact ℚ, NEVER rounded (rc443). e_i*e_j is a ±1
+                # unit vector, so target[m] is exactly ± an operator entry and
+                # the to_q promotion is lossless.
+                rhs_m = to_q(target[m])
+                # Accumulate AᵀA (integer) and Aᵀ·rhs (exact ℚ) over the pattern.
                 for col_a, val_a in entries:
-                    c[col_a] += val_a * rhs_m
+                    c[col_a] = c[col_a] + rhs_m * val_a
                     ga = g[col_a]
                     for col_b, val_b in entries:
                         ga[col_b] += val_a * val_b
-    sol = _exact_solve_normal_equations(g, c, nvar)      # exact ℚ; dyadic
-    # Dyadic rationals (denom ∈ {1, 2}) are bit-exact in float64.
+    sol = _exact_solve_normal_equations(g, c, nvar)      # exact ℚ
+    # Exact ℚ → float64 at the carrier boundary. On an integer operator the
+    # entries are dyadic (denom ∈ {1, 2}) and this is bit-exact.
     b_companion = [[float(sol[i * _DIM + j]) for j in range(_DIM)]
                    for i in range(_DIM)]
     c_companion = [[float(sol[_DIM * _DIM + i * _DIM + j]) for j in range(_DIM)]
