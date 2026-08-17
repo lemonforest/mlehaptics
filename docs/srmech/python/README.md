@@ -169,7 +169,7 @@ The PRIOR bump, **15 → 16 at v0.9.0rc439**, is kept here because its reasoning
 import srmech
 srmech.native_status()
 # {'has_native': True, 'dispatching': True, 'abi_version': 17,
-#  'expected_abi': 17, 'native_version': '0.9.0rc445', 'load_error': None}
+#  'expected_abi': 17, 'native_version': '0.9.0rc446', 'load_error': None}
 ```
 
 | Home (under `srmech.`) | Class | Primitive operation |
@@ -315,7 +315,7 @@ run_cascade_chain("magnitude", inputs={"x": -3.5})   # -> 3.5, computed FROM the
 # {'name': 'magnitude', 'class': 'K', 'kind': 'stage', 'status': 'executable', ...}
 ```
 
-At v0.9.0rc445: **21 descriptors — 18 executable, 3 leaf** (`chiral_flip`, `pin_slot_at_zero`, `reorient`, each carrying a written irreducibility reason). The 18 carry **20 chain variants** — `kuramoto_step` (`simple` / `general`) and `klein4_from_one` (`rest` / `wound`) declare one chain per dispatch path, because two cascades are declared as two chains rather than papered over as one. The gate over them executes **98 authored proof cases** and compares each against the shipped op under a canonical byte encoding, in which NaN payloads and signed zeros still distinguish.
+At v0.9.0rc446: **21 descriptors — 18 executable, 3 leaf** (`chiral_flip`, `pin_slot_at_zero`, `reorient`, each carrying a written irreducibility reason). The 18 carry **20 chain variants** — `kuramoto_step` (`simple` / `general`) and `klein4_from_one` (`rest` / `wound`) declare one chain per dispatch path, because two cascades are declared as two chains rather than papered over as one. The gate over them executes **98 authored proof cases** and compares each against the shipped op under a canonical byte encoding, in which NaN payloads and signed zeros still distinguish.
 
 The engine is `srmech.cascade.compose` — schema v2, v1 still accepted, `DEFAULT_CLASS_REGISTRY` exactly the fourteen classes A–N, error policy per chain or per step (`raise` / `warn_return_none` / `skip`). Step args resolve `@input.*`, `@row.*` and `@step[N].output`. Three step forms exist — plain, `map`, `fold`; the shipped chains currently use **63 plain and 9 map steps, and no fold**.
 
