@@ -112,7 +112,10 @@ def has_indexed_ref(node):
     chain look like the easiest.
     """
     if isinstance(node, str):
-        return bool(INDEXED_REF.search(node)) or bool(UNKNOWN_NS.search(node))
+        # The INDEXED form @step[N].output[K] SHIPPED at rc447 (cr_index_value),
+        # so it is no longer a gate. Only the unresolvable NAMESPACES remain.
+        # INDEXED_REF is kept for the ndjson history and must score zero.
+        return bool(UNKNOWN_NS.search(node))
     if isinstance(node, dict):
         return any(has_indexed_ref(v) for v in node.values())
     if isinstance(node, (list, tuple)):
@@ -207,7 +210,17 @@ def main():
         for r in recs:
             entry = _cc._chain_entries(catalog[r["chain"]])[0]
             case = (entry.get("proof_cases") or [{}])[0]
-            cj = _json.dumps(entry).encode("utf-8")
+            # CHAIN-DEFINING KEYS ONLY. Sending proof_cases couples the probe to
+            # test data: magnitude declares non-finite cases, json.dumps spells
+            # them as bare NaN, and the strict parser then rejects the whole
+            # DOCUMENT — so the probe reported a chain as not-running whose every
+            # step ran. Both halves of this file were stale in the SAME
+            # direction, which is exactly why the cross-check read 0
+            # disagreements while disagreeing with the ratchet by one chain.
+            chain_only = {k: v for k, v in entry.items()
+                          if k in ("name", "steps", "on_error",
+                                   "chain_schema_version")}
+            cj = _json.dumps(chain_only).encode("utf-8")
             xj = _json.dumps({"inputs": case.get("inputs") or {}}).encode("utf-8")
             n = int(lib.srmech_chain_run_arena_bytes(len(cj), len(xj)))
             ws = (_ct.c_char * n)(); cap = max(n // 2, 65536)
@@ -223,6 +236,28 @@ def main():
         for name, gates, rc in disagree:
             print("   MISMATCH %-24s predicted gates=%s but C rc=%s"
                   % (name, gates or "[]", rc))
+        # ⚠️ SELF-CONSISTENCY IS NOT ENOUGH, measured. Before this block existed
+        # BOTH halves of this file were stale in the SAME direction (the
+        # ref_grammar predicate still flagged an indexed ref that had shipped,
+        # and the probe still sent proof_cases), so the internal cross-check
+        # read 0 disagreements while the file disagreed with the RATCHET by one
+        # whole chain. A diagnostic that only checks itself will agree with
+        # itself. So tie it to the independent artifact:
+        ratchet = os.path.join(HERE, "..", "python", "tests",
+                               "test_c_cascade_parity_ratchet_rc446.py")
+        if os.path.exists(ratchet):
+            txt = open(ratchet, encoding="utf-8").read()
+            m = re.search(r"CEIL_C_REJECTED_CHAINS\s*=\s*(\d+)", txt)
+            if m:
+                ceil = int(m.group(1))
+                runs = sum(1 for r in recs if r.get("c_runs"))
+                print("ratchet tie-in: %d executable - %d running = %d rejected; "
+                      "ratchet ceiling %d" % (len(recs), runs, len(recs) - runs, ceil))
+                assert len(recs) - runs == ceil, (
+                    "this file measures %d rejected chains but the ratchet pins "
+                    "%d. The two harnesses have drifted apart — they duplicate "
+                    "the run setup, which is how they drift."
+                    % (len(recs) - runs, ceil))
         assert not disagree, (
             "the gate predicates disagree with actual execution on %d chain(s) "
             "— a gate was closed (or opened) without updating this file, and "
