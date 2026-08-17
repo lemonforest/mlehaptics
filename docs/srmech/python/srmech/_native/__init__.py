@@ -20644,16 +20644,26 @@ def genome_group_walk_c(strand_bytes: bytes, n_blocks: int, leaf_dim: int):
     """Native §GROUP/v20 grammar WALK (peer ``srmech_genome_group_walk``).
 
     Returns ``(status, [record, …])`` where each record mirrors the dict
-    ``srmech.biology.genome.genome_groups`` yields, or ``None`` to DECLINE (symbol absent /
-    bad shape) so the pure body runs. The STATUS is handed back rather than swallowed
+    ``srmech.biology.genome.genome_groups`` yields. ``None`` means EXACTLY ONE THING —
+    the symbol is not loaded, so run the pure body; a shape the C peer would refuse comes
+    back as ``(SRMECH_ERR_BAD_INPUT, [])``, never as ``None`` (rc431's non-overloaded-None
+    contract: overloading it would destroy the invalidity signal at the boundary and leave
+    the C guard dead through the Python front door). The STATUS is handed back rather than
+    swallowed
     because it is the whole point on the malformed inputs: the differential test needs to
     see ``SRMECH_ERR_BAD_INPUT`` and ``SRMECH_ERR_LIMIT`` distinguished, exactly as the pure
     projection distinguishes its five :class:`GenomeGroupError` messages."""
     if not has_native_genome_group():
-        return None
+        return None                       # native ABSENT -- and that alone
+    # rc431 (`#T1129`) NON-OVERLOADED None. `None` here means EXACTLY one thing:
+    # the symbol is not loaded, so run the pure body. A shape the C peer would
+    # refuse returns that REFUSAL, because returning None for it too would
+    # destroy the invalidity signal at the boundary -- the wrapper would say
+    # "native absent" about an input native had judged, and the C guard would be
+    # dead through the Python front door.
     if (leaf_dim <= 0 or leaf_dim > 256 or n_blocks < 0
             or len(strand_bytes) != n_blocks * leaf_dim):
-        return None
+        return SRMECH_ERR_BAD_INPUT, []
     n = ctypes.c_uint32(0)
     # Pass 1 VALIDATES and counts (out=NULL is the documented validate-only shape), so the
     # buffer is sized to the answer rather than guessed at.
@@ -20683,15 +20693,17 @@ def genome_group_wrap_c(strand_bytes: bytes, n_blocks: int, leaf_dim: int, label
     """Native §GROUP/v20 MINT (peer ``srmech_genome_group_wrap``) — wrap a strand in one
     labelled opener / empty closer pair.
 
-    Returns ``(status, bytes | None)``, or ``None`` to DECLINE. The subject is validated
-    before the wrap and the RESULT is validated after it, so this can never emit a body a
-    reader would refuse."""
+    Returns ``(status, bytes | None)``; a bare ``None`` means only that the symbol is not
+    loaded (rc431's non-overloaded-None contract — see :func:`genome_group_walk_c`). The
+    subject is validated before the wrap and the RESULT is validated after it, so this can
+    never emit a body a reader would refuse."""
     if not has_native_genome_group():
-        return None
+        return None                       # native ABSENT -- and that alone
     raw = label.encode("utf-8") if isinstance(label, str) else bytes(label)
+    # rc431 (`#T1129`) NON-OVERLOADED None -- see genome_group_walk_c above.
     if (leaf_dim <= 0 or leaf_dim > 256 or n_blocks <= 0
             or len(strand_bytes) != n_blocks * leaf_dim or b"\x00" in raw):
-        return None
+        return SRMECH_ERR_BAD_INPUT, None
     out_cap = (n_blocks + 2) * leaf_dim
     out = (ctypes.c_uint8 * out_cap)()
     n_out = ctypes.c_size_t(0)

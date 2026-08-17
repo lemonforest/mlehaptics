@@ -9153,9 +9153,32 @@ def genome_groups(strand) -> List[dict]:
     arbitrary too (human numbering is by size), and F1206 measures the Laplacian carrying
     domains, hubs and bridges but not a sequence.
     """
+    # §49/rc154 NATIVE-FIRST, the pattern every other genome op uses. The C peer
+    # COMPUTES; the pure walk below EXPLAINS. A native non-OK status is not translated
+    # here into a generic error — it falls through to the pure walk, which re-derives the
+    # same refusal and raises the precise one of five GenomeGroupError messages. That is
+    # what lets the C answer be authoritative without the C's coarser status vocabulary
+    # (one SRMECH_ERR_BAD_INPUT for four distinct malformed classes) reaching a caller.
+    if _native.has_native_genome_group():
+        blocks = [bytes(hv) if isinstance(hv, (bytes, bytearray)) else _hv_bytes(hv)
+                  for hv in strand] if strand else []
+        widths = {len(b) for b in blocks}
+        if len(widths) == 1:
+            native = _native.genome_group_walk_c(
+                b"".join(blocks), len(blocks), widths.pop())
+            if native is not None and native[0] == 0:
+                return list(native[1])
     state = _ScanState()
     for hv in strand:
-        blk = _hv_bytes(hv) if not isinstance(hv, (bytes, bytearray)) else bytes(hv)
+        # rc436 (`#T1141`) STRAND-SHAPE CONTRACT, inherited rather than re-derived: asking
+        # _cap_kind FIRST is what makes a nested-sequence strand raise the guided "a strand
+        # must be a FLAT sequence of HVs -- did you mean to concatenate them?" error here
+        # too. Converting to bytes first would raise a bare "'HV' object cannot be
+        # interpreted as an integer" three frames down, and because genome_save now walks
+        # the grammar BEFORE splitting, this op sits in front of that message for all 30
+        # ops the rc436 guard covers.
+        _cap_kind(hv)
+        blk = bytes(hv) if isinstance(hv, (bytes, bytearray)) else _hv_bytes(hv)
         state.fold(blk, blk)
     state.finish()
     return list(state.groups)
@@ -9197,6 +9220,18 @@ def genome_group(label: str, units, *, dim=None) -> list:
             f"boundary cap or a group opener."
         )
     genome_groups(flat)                        # refuse a malformed subject before wrapping
+    # §49/rc154 NATIVE-FIRST: the C peer writes the pair, and its bytes are the answer.
+    # It validates the subject AND the result itself, so a decline here is a shape the C
+    # cannot express (a non-uniform strand, a NUL in the label) and the pure path below is
+    # the complete alternative — never a silent second opinion, because the two are
+    # byte-identical (tests/test_genome_group_v20_rc442.py holds that).
+    if _native.has_native_genome_group():
+        raw = [_hv_bytes(hv) for hv in flat]
+        if len({len(b) for b in raw}) == 1 and len(raw[0]) == width:
+            native = _native.genome_group_wrap_c(b"".join(raw), len(raw), width, label)
+            if native is not None and native[0] == 0 and native[1] is not None:
+                return [_hv_from_block(native[1][i * width:(i + 1) * width])
+                        for i in range(len(native[1]) // width)]
     opener = _pack_cap(GROUP_OPEN_MARKER, label, width)
     closer = _pack_cap(GROUP_CLOSE_MARKER, "", width)   # carries NOTHING
     out = [opener] + list(flat) + [closer]
