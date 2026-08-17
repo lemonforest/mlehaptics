@@ -93,8 +93,41 @@ int main(void)
         "{\"inputs\":{\"a\":1180591620717411303424,\"b\":18}}",
         out, sizeof(out));
     check(st == SRMECH_ERR_LIMIT,
-          "an out-of-int64 LITERAL is ERR_LIMIT at the parser — the bigint "
-          "carrier is reachable only by a computed value");
+          "an out-of-int64 LITERAL is ERR_LIMIT at the parser (deliberate: a "
+          "clamped value would be a silent wrong answer)");
+
+    /* ...and the SAME operands DO reach the bigint carrier as decimal STRINGS —
+     * the rc176 transport srmech_carrier_marshal.c has used since it shipped.
+     * The chain runner was the one numeric surface not honouring it, which is
+     * what made the bigint widening unreachable from a descriptor. */
+    st = run_chain(
+        "{\"name\":\"g\",\"steps\":[{\"class\":\"I\",\"op\":\"gcd\","
+        "\"args\":{\"a\":\"@input.a\",\"b\":\"@input.b\"}}]}",
+        "{\"inputs\":{\"a\":\"1180591620717411303424\",\"b\":\"18\"}}",
+        out, sizeof(out));
+    check(st == SRMECH_OK && strstr(out, "\"v\": \"2\"") != NULL,
+          "gcd(2^70,18) == 2 via the decimal-STRING transport — the carrier is "
+          "bigint, not a machine word");
+
+    /* A result WIDER than int64: proves the whole path is arbitrary-precision,
+     * not just the operands. gcd(2^200, 2^100) == 2^100. */
+    st = run_chain(
+        "{\"name\":\"g\",\"steps\":[{\"class\":\"I\",\"op\":\"gcd\","
+        "\"args\":{\"a\":\"@input.a\",\"b\":\"@input.b\"}}]}",
+        "{\"inputs\":{\"a\":\"1606938044258990275541962092341162602522202993782792835301376\","
+        "\"b\":\"1267650600228229401496703205376\"}}", out, sizeof(out));
+    check(st == SRMECH_OK &&
+          strstr(out, "1267650600228229401496703205376") != NULL,
+          "gcd(2^200,2^100) == 2^100 — a RESULT wider than int64 marshals back");
+
+    /* The control: a genuine string must NOT be retyped as a number. */
+    st = run_chain(
+        "{\"name\":\"g\",\"steps\":[{\"class\":\"I\",\"op\":\"gcd\","
+        "\"args\":{\"a\":\"@input.a\",\"b\":\"@input.b\"}}]}",
+        "{\"inputs\":{\"a\":\"notanumber\",\"b\":\"18\"}}", out, sizeof(out));
+    check(st != SRMECH_OK,
+          "a non-numeric string is NOT coerced — the widening is at the point "
+          "of USE, so `combine=\"4\"` stays a mode name");
 
     /* ── the FOLD step form (rc446) ─────────────────────────────────────── */
     st = run_chain(

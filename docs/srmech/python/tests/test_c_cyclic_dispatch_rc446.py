@@ -115,3 +115,52 @@ def test_in_range_control_still_runs():
         {"class": "I", "op": "gcd", "args": {"a": "@input.a", "b": "@input.b"}}]}
     rc, raw = _c_run(chain, {"a": 12, "b": 18})
     assert rc == 0 and json.loads(raw)["v"] == "6", (rc, raw)
+
+
+# ── rc447: the rc176 decimal-STRING bignum transport ─────────────────────────
+#
+# The decline contract above is CORRECT but was, until rc447, the ONLY outcome
+# available for a wide operand — and that made rc447's bigint widening
+# unreachable from a descriptor: the carrier was arbitrary-precision while its
+# only input path was int64. srmech_json_parse declines an out-of-int64 LITERAL
+# (SRMECH_ERR_LIMIT, deliberate — a clamped value would be a silent wrong
+# answer), and the established in-tree answer is not to widen the parser but to
+# carry such a value as a DECIMAL STRING, exactly as
+# srmech_carrier_marshal.c's coefficient reader has since rc176.
+#
+# Found by the bare-C host proof, which is the only harness that passes an
+# operand Python has not already narrowed to int64.
+
+@pytest.mark.parametrize("a,b", [
+    (2 ** 70, 18),                     # operand wider than the uint64 wire
+    (2 ** 200, 2 ** 100),              # RESULT wider than int64 too
+    (10 ** 40 + 7, 21),
+    (12, 18),                          # in-range control, same code path
+])
+def test_a_WIDE_operand_reaches_the_bigint_carrier_as_a_decimal_string(a, b):
+    chain = {"name": "g", "steps": [
+        {"class": "I", "op": "gcd",
+         "args": {"a": "@input.a", "b": "@input.b"}}]}
+    rc, raw = _c_run(chain, {"a": str(a), "b": str(b)})
+    assert rc == 0, "C declined a decimal-string operand: rc=%s" % rc
+    assert str(json.loads(raw)["v"]) == str(run_cascade_chain("cyclic_gcd", a=a, b=b))
+
+
+def test_a_NON_NUMERIC_string_is_not_retyped():
+    """THE CONTROL. Widening happens at the point of USE, not at ingest — args
+    here are heterogeneous, so ``combine="4"`` must stay a mode name. A blanket
+    ingest-time conversion would silently retype it."""
+    chain = {"name": "g", "steps": [
+        {"class": "I", "op": "gcd",
+         "args": {"a": "@input.a", "b": "@input.b"}}]}
+    rc, _ = _c_run(chain, {"a": "notanumber", "b": "18"})
+    assert rc != 0, "a non-numeric string was coerced into an operand"
+
+
+def test_the_out_of_int64_LITERAL_still_declines():
+    """The transport is ADDITIVE — it does not weaken the literal contract."""
+    chain = {"name": "g", "steps": [
+        {"class": "I", "op": "gcd",
+         "args": {"a": "@input.a", "b": "@input.b"}}]}
+    rc, _ = _c_run(chain, {"a": 2 ** 70, "b": 18})
+    assert rc != 0, "an out-of-int64 numeric literal was accepted"

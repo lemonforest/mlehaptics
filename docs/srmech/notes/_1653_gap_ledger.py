@@ -349,15 +349,23 @@ ROWS = [
                   "(ERR_LIMIT), not a value. Asserted as a required DECLINE in "
                   "test/test_srmech_chain_run.c.",
          probe="./build/test_srmech_chain_run",
-         disposition=FILED,
-         note="The bigint WIDTH is real but currently reachable only by a "
-              "COMPUTED value — a @step[N].output carrying a big result — which "
-              "no shipped descriptor produces. So the widening is correct and "
-              "presently unexercised end-to-end, and saying so is the honest "
-              "form of the claim. ERR_LIMIT is deliberate (rc404): distinct "
-              "from OVERFLOW precisely because no arena can relieve it. Found "
-              "ONLY by the bare-C proof — every ctypes test passes operands "
-              "Python had already narrowed to int64.",
+         disposition=CLOSED,
+         note="CLOSED by applying the rc176 DECIMAL-STRING bignum transport, "
+              "which already shipped: srmech_carrier_marshal.c has read "
+              "coefficients as 'a JSON int64 OR a decimal STRING' since rc176, "
+              "and the chain runner was the ONE numeric surface not honouring "
+              "it. So this was never an architectural wall — it was a missing "
+              "arm on an existing convention, and the first framing "
+              "('unreachable') was wrong. cr_widen_dec converts AT THE POINT OF "
+              "USE, not at ingest, because args here are heterogeneous: "
+              "combine=\"4\" is a mode name, and an ingest-time conversion "
+              "would silently retype it. Measured: gcd(2^200, 2^100) returns "
+              "the full 31-digit result in C, bit-equal to Python. The "
+              "out-of-int64 LITERAL still declines — the transport is additive "
+              "and does not weaken that contract, which stays correct because a "
+              "clamped literal would be a silent wrong answer (rc402/rc404). "
+              "Found ONLY by the bare-C proof: every ctypes test passes "
+              "operands Python had already narrowed to int64.",
          ceiling_blind_to="Nothing measures operand WIDTH. A chain passes on "
                           "small operands and the ratchet cannot tell whether "
                           "the wide path was ever taken."),

@@ -666,6 +666,51 @@ static int cr_as_u64(const cr_value_t *v, uint64_t *out)
     return 1;
 }
 
+/* THE rc176 DECIMAL-STRING BIGNUM TRANSPORT, applied to the chain runner.
+ *
+ * srmech_json_parse DECLINES an integer literal wider than int64 with
+ * SRMECH_ERR_LIMIT — deliberately, since int64_t genuinely cannot hold it and a
+ * clamped value would be a silent wrong answer (rc402/rc404). The established
+ * in-tree answer is NOT to widen the parser but to carry such a value as a
+ * DECIMAL STRING: srmech_carrier_marshal.c has read coefficients that way since
+ * rc176 ("each scalar is a JSON int64 OR a decimal STRING ... a bignum
+ * coefficient rides as a decimal string, never clamped").
+ *
+ * The chain runner was the one numeric surface that did NOT honour that
+ * convention, which is why rc447's bigint widening was measurably unreachable
+ * from a descriptor: the carrier was arbitrary-precision while its only input
+ * path was int64. Found by the bare-C host proof.
+ *
+ * ⚠️ CONVERTED AT THE POINT OF USE, NOT AT INGEST. cr_json_scalar must keep
+ * building a CR_STR for a digit-shaped string, because args are heterogeneous
+ * here — `combine="4"` is a mode name, not a number — and auto-converting at
+ * ingest would silently retype it. Only an op that KNOWS it wants a number
+ * calls this, exactly as the marshal's coefficient reader does.
+ *
+ * Returns `v` unchanged when it is not a decimal string; NULL only on a real
+ * failure (bad digits / arena), so the caller declines rather than guesses. */
+static cr_value_t *cr_widen_dec(cr_bump_t *b, cr_value_t *v)
+{
+    cr_value_t *out; uint32_t i, start; size_t limbs;
+    assert(b != NULL);
+    assert(b->cur <= b->end);
+    if (v == NULL || v->kind != CR_STR || v->slen == 0u) { return v; }
+    start = (v->s[0] == '-') ? 1u : 0u;
+    if (v->slen == start) { return v; }              /* a bare "-" is not a number */
+    for (i = start; i < v->slen; i++) {
+        if (v->s[i] < '0' || v->s[i] > '9') { return v; }   /* a real string */
+    }
+    out = cr_new_value(b, CR_INT);
+    if (out == NULL) { return NULL; }
+    limbs = srmech_bigint_from_dec_bound((size_t)v->slen);
+    out->num = cr_new_bigint(b, (uint32_t)limbs);
+    if (out->num == NULL) { return NULL; }
+    if (srmech_bigint_from_dec(out->num, v->s, (size_t)v->slen) != SRMECH_OK) {
+        return NULL;
+    }
+    return out;
+}
+
 /* Read a CR_INT as a signed int64. Distinct from cr_as_u64, whose Class-I wire
  * is unsigned by contract — an orientation is signed by nature. */
 static int cr_as_i64(const cr_value_t *v, int64_t *out)
@@ -785,13 +830,17 @@ static srmech_status_t cr_op_cyclic(cr_ctx_t *c, const srmech_json_value_t *args
     cr_cyctx_t y; uint32_t lim; srmech_status_t st;
     assert(c != NULL && out != NULL);
     assert(which >= CR_CY_GCD && which <= CR_CY_POW);
-    va = cr_arg(c, args, "a");
-    vb = cr_arg(c, args, (which == CR_CY_POW) ? "k" : "b");
+    /* cr_widen_dec applies the rc176 decimal-string bignum transport: an
+     * operand wider than int64 cannot arrive as a JSON literal (the parser
+     * declines it, ERR_LIMIT), so it rides as a decimal STRING exactly as
+     * srmech_carrier_marshal.c's coefficient reader has taken it since rc176. */
+    va = cr_widen_dec(c->b, cr_arg(c, args, "a"));
+    vb = cr_widen_dec(c->b, cr_arg(c, args, (which == CR_CY_POW) ? "k" : "b"));
     if (va == NULL || vb == NULL) { return SRMECH_ERR_NOT_IMPL; }
     if (va->kind != CR_INT || vb->kind != CR_INT) { return SRMECH_ERR_NOT_IMPL; }
     A = va->num; B = vb->num;
     if (which != CR_CY_GCD) {
-        vn = cr_arg(c, args, "n");
+        vn = cr_widen_dec(c->b, cr_arg(c, args, "n"));
         if (vn == NULL || vn->kind != CR_INT) { return SRMECH_ERR_NOT_IMPL; }
         N = vn->num;
         if (N->sign <= 0) { return SRMECH_ERR_BAD_INPUT; }   /* n > 0 required */
