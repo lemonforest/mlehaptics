@@ -190,7 +190,7 @@ def _matmul_c(a: Sequence[Sequence[Number]], b: Sequence[Sequence[Number]]):
     ``g2`` / so8 derivations are EXACT-INTEGER ``{-1, 0, +1}`` combinations, whose
     matmul sums are exact in float64 REGARDLESS of accumulation order, so the
     native ``srmech_dense_matmul_complex`` result is BYTE-IDENTICAL to the pure
-    :func:`_matmul` fallback. Numpy-free."""
+    :func:`_matmul` fallback."""
     return mat_matmul(Mat.from_rows([list(r) for r in a]),
                       Mat.from_rows([list(r) for r in b])).tolist()
 
@@ -334,7 +334,7 @@ def _rank_float(columns: Sequence[Sequence[Number]], *, tol: float = 1e-6) -> in
     (``tol·scale``, default ``1e-6``) is needed so a genuinely-dependent
     (same-span) direction — whose Gram-Schmidt residual sits at the ~1e-7 floor
     — is NOT miscounted as independent. Counts the orthonormal directions whose
-    residual exceeds ``tol·scale``. Numpy-free.
+    residual exceeds ``tol·scale``.
     """
     if not columns:
         return 0
@@ -391,7 +391,7 @@ def _max_projection_residual(
 ) -> float:
     """Max ``‖v − P v‖`` projecting each column of ``vectors`` onto the span of
     ``onto`` (an orthonormal basis ``P = Σ qᵢ qᵢᴴ``). Reduced through the scalar
-    Class K magnitude (no ``abs()``). Numpy-free."""
+    Class K magnitude (no ``abs()``)."""
     basis = _orthonormalise(onto)
     is_complex = any(isinstance(x, complex) for col in vectors for x in col)
     worst = 0.0
@@ -531,7 +531,7 @@ def _epq_coords(matrix) -> List[Number]:
     """Project an antisymmetric ``8x8`` onto the 28-dim ``E_{pq}`` frame.
 
     Accepts a nested-list matrix or a :class:`Mat`. Returns a flat list of the
-    upper-triangular entries (real or complex), numpy-free."""
+    upper-triangular entries (real or complex)."""
     if isinstance(matrix, Mat):
         return [matrix[p, q] for (p, q) in _epq_pairs()]
     return [matrix[p][q] for (p, q) in _epq_pairs()]
@@ -613,7 +613,7 @@ def _thaw(frozen) -> Tuple[List[List[Number]], ...]:
 
 def _thaw_mats(frozen) -> Tuple[Mat, ...]:
     """Defensive copy-out as a tuple of fresh :class:`Mat` (the public 2-D
-    surface for the so(8) generator families). Numpy-free."""
+    surface for the so(8) generator families)."""
     return tuple(Mat.from_rows([list(row) for row in m]) for m in frozen)
 
 
@@ -724,7 +724,7 @@ def _fixed_space_matrices(operator: List[List[float]], dim: int) -> List[List[Li
 
     Deterministic SVD nullspace (the float :func:`mat_svd` GEOMETRY carrier; no
     RNG). Each returned 28-vector is mapped back to an antisymmetric ``8x8``
-    matrix via the shared ``E_{pq}`` frame. Numpy-free.
+    matrix via the shared ``E_{pq}`` frame.
     """
     n = len(operator)
     minus_i = _sub(operator, _eye(n))
@@ -775,7 +775,6 @@ def _epq_to_matrix(coeffs: Sequence[Number]) -> List[List[Number]]:
     The inverse of :func:`_epq_coords` — fills the upper triangle from
     ``coeffs`` and antisymmetrises. Accepts a real or complex coefficient
     vector (the complex path is used for the ``J``-eigenspace triplet).
-    Numpy-free.
     """
     is_complex = any(isinstance(c, complex) for c in coeffs)
     m = [[(0j if is_complex else 0.0) for _ in range(_DIM)] for _ in range(_DIM)]
@@ -797,7 +796,7 @@ def _su3_stabiliser(g2: List[List[List[float]]], k: int) -> List[List[List[float
     nullspace (the float :func:`mat_svd` GEOMETRY carrier) is EXACTLY 8-dim.
     Each null coefficient vector ``c`` rebuilds a stabiliser generator
     ``M = sum_a c_a g2[a]``. Asserts ``dim == 8`` and that each ``M``
-    annihilates ``e_K``. Numpy-free.
+    annihilates ``e_K``.
     """
     e_k = _basis_vectors()[k]
     # A is (8, 14): column a is g2[a]·e_K.
@@ -860,7 +859,7 @@ def _ad_on_complement(
     Column ``i`` is the 6-vector of ``[X, complement_i]`` re-expressed in the
     orthonormal complement coordinate basis. For ``X in su(3)`` the
     complement is ad-invariant, so the result is an exact ``6x6`` real
-    matrix. Numpy-free.
+    matrix.
     """
     cols = []
     for y in complement:
@@ -890,7 +889,7 @@ def _invariant_complex_structure(
     so ``J^2 = -I``, and pin the sign by a FIXED documented convention (first
     non-zero strict-upper-triangular entry positive — Class C chirality
     choice). Asserts commutant dim 2, ``J^2 = -I``, and ``[J, ad(X)] = 0`` for
-    every ``X in su(3)``. Numpy-free.
+    every ``X in su(3)``.
     """
     dim = _DIM_COMPLEMENT
     identity = _eye(dim)
@@ -956,7 +955,7 @@ def _triplet_from_eigenspace(
     over the complement frame) rebuild the 3 COMPLEX antisymmetric ``8x8``
     fundamental generators (the triplet); the ``-i`` eigenvectors rebuild
     the antitriplet (its conjugate). With this J-eigenspace fundamental,
-    ``[su3, triplet] ⊆ triplet`` is bit-exact (``~3e-14``). Numpy-free.
+    ``[su3, triplet] ⊆ triplet`` is bit-exact (``~3e-14``).
     """
     eigenvalues, cols = _real_skew_eig(j)   # J real-antisymmetric → iS-Hermitian route
     n = len(j)
@@ -992,7 +991,7 @@ def _rank2_cartan(su3: List[List[List[float]]]) -> List[List[List[float]]]:
     [X, R] = 0}`` is EXACTLY the rank-2 Cartan. Solve the centraliser as the
     deterministic nullspace of ``column_stack([coords([su3[a], R])])`` over
     the 8-dim coefficient space (the float :func:`mat_svd` carrier). Asserts
-    ``dim == 2``. Numpy-free.
+    ``dim == 2``.
     """
     regular = _lincomb([float(i + 1) for i in range(_DIM_SU3)], su3)
     # A is (28, 8): column a is coords([su3[a], R]).
@@ -1018,7 +1017,7 @@ def _complement_weights(
     ``ad(H)`` has eigenvalues ``+/- i * weight``. The two ``ad(H_k)`` commute,
     so they share eigenvectors; the weight of eigenvector ``v`` along Cartan
     ``k`` is ``-i * (v^H ad(H_k) v) / (v^H v)``. The six weights come in
-    ``+/-`` pairs (the su(3) ``3`` weights and their negatives). Numpy-free.
+    ``+/-`` pairs (the su(3) ``3`` weights and their negatives).
     """
     ad_cartan = [
         _ad_on_complement(h, complement, complement_coords) for h in cartan
@@ -1120,7 +1119,6 @@ def _build_an_embedding(imaginary_unit: int):
     + eigendecompositions) runs once per ``imaginary_unit`` and is memoised;
     :func:`an_embedding` copies out a fresh dict each call. Returned as frozen
     nested tuples so the cache cannot be mutated through a caller's reference.
-    Numpy-free.
     """
     k = imaginary_unit
     g2 = _g2_lists()
@@ -1172,7 +1170,7 @@ def an_embedding(imaginary_unit: int = 1) -> dict:
     3bar`` over the same su(3). Both branchings are computed bit-exact and
     returned with an MPR self-attestation.
 
-    CONSTRUCTION (deterministic, numpy-free, no RNG, no scipy; memoised via
+    CONSTRUCTION (deterministic, no RNG, no scipy; memoised via
     :func:`_build_an_embedding`, copied out fresh each call):
 
     1. **su(3) = the stabiliser** ``{D in g2 : D e_K = 0}`` (``e_K`` the
@@ -1393,7 +1391,7 @@ def _so4_stabiliser(
     coefficients; its right nullspace (the float :func:`mat_svd` GEOMETRY
     carrier) is EXACTLY 6-dim. Each null coefficient vector ``c`` rebuilds a
     stabiliser generator ``M = sum_c c_c g2[c]``. Asserts ``dim == 6`` and
-    that each ``M`` leaks nothing from ``H`` into ``H^⊥``. Numpy-free.
+    that each ``M`` leaks nothing from ``H`` into ``H^⊥``.
     """
     basis = _basis_vectors()
     rows: List[List[float]] = []
@@ -1441,7 +1439,7 @@ def _killing_form(generators: List[List[List[float]]]) -> List[List[float]]:
     coordinate stack — exact here, the brackets close in the span), then form
     ``K_{ab} = sum_{c,d} f_{ac}^d f_{bd}^c``. Returned as an ``(n, n)`` real
     symmetric nested list; its rank is the semisimplicity certificate (full
-    rank ``n`` iff semisimple, by Cartan's criterion). Numpy-free.
+    rank ``n`` iff semisimple, by Cartan's criterion).
     """
     n = len(generators)
     coords = [_epq_coords(m) for m in generators]         # n columns (length 28)
@@ -1475,7 +1473,7 @@ def _pinv(columns: List[List[Number]]) -> List[List[float]]:
     ``rcond = 1e-15``). The pseudoinverse is unique, so the per-factor U/V
     column-sign ambiguity of the SVD cancels — value-faithful for the
     full-column-rank generator stacks this module forms. Returns the
-    ``(n, 28)`` pseudoinverse as a real nested list. Numpy-free.
+    ``(n, 28)`` pseudoinverse as a real nested list.
     """
     A = _transpose(columns)                               # (28, n)
     U, S, Vh = mat_svd(Mat.from_rows(A))                  # U (28,28), S, Vh (n,n)
@@ -1512,7 +1510,7 @@ def _self_dual_bases() -> Tuple[List[List[float]], List[List[float]]]:
     ``E_01 + E_23, E_02 - E_13, E_03 + E_12`` and the anti-self-dual triple is
     ``E_01 - E_23, E_02 + E_13, E_03 - E_12`` (``E_ij`` the elementary
     antisymmetric generator). Returns the two ``(6, 3)`` coordinate frames as
-    column lists (3 length-6 vectors each). Numpy-free.
+    column lists (3 length-6 vectors each).
     """
     def e(i: int, j: int) -> List[List[float]]:
         m = _zeros(_DIM_COMP4, _DIM_COMP4)
@@ -1543,7 +1541,7 @@ def _two_su2_ideals(
     self-dual (the anti-self-dual projection of the block vanishes); the
     su(2)_- ideal = the purely anti-self-dual ones. Each is solved as the
     deterministic SVD nullspace of the cross-duality projection composed with
-    the block map. Asserts each ideal is 3-dim. Numpy-free.
+    the block map. Asserts each ideal is 3-dim.
     """
     idx = complement
 
@@ -1671,7 +1669,7 @@ def _build_quaternion_stabiliser(quaternion_index: int):
     The expensive deterministic chain (SVD nullspace + Killing form + the
     self-dual split) runs once per ``quaternion_index`` and is memoised;
     :func:`quaternion_subalgebra_stabilizer` copies out a fresh dict each call.
-    Returned as frozen nested tuples (the cache cannot be mutated). Numpy-free.
+    Returned as frozen nested tuples (the cache cannot be mutated).
     """
     fano_line = _FANO_LINES_SO4[quaternion_index - 1]
     h_imag = _quaternion_imaginary_units(fano_line)
@@ -1733,7 +1731,7 @@ def quaternion_subalgebra_stabilizer(quaternion_index: int = 1) -> dict:
     ``so(4) = su(2) ⊕ su(2)`` (F215). The result is returned with the
     invariant CERTIFICATE and an MPR self-attestation.
 
-    CONSTRUCTION (deterministic, numpy-free, no RNG, no scipy; memoised via
+    CONSTRUCTION (deterministic, no RNG, no scipy; memoised via
     :func:`_build_quaternion_stabiliser`, copied out fresh each call):
 
     1. **so(4) = the stabiliser** ``{D in g2 : D span(H_imag) ⊆

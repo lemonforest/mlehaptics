@@ -46,7 +46,7 @@ multiplicative identity). Construction is via the Class-J
   only when ``gcd(n, modulus) == 1`` (raises a clear ``ValueError`` otherwise).
 
 It is a CARRIER (a single-class module, ``__all__ = ["Qprime"]``, ``Q``-based),
-NOT a ToolEntry — mirroring ``Qi`` / ``Qalg``. No ``math`` module, no numpy; the
+NOT a ToolEntry — mirroring ``Qi`` / ``Qalg``. No ``math`` module; the
 whole body is exact integer / exact ``Q`` arithmetic over the existing Class-J
 (``primes``) + Class-I (``cyclic``) primitives, which already carry native C.
 

@@ -119,7 +119,7 @@ def poly_promote(p: Any, n_vars: Optional[int] = None) -> Any:
     ``Poly`` feed ``zeilberger``. Its inverse is :func:`poly_project`, so
     ``poly_project(poly_promote(x)) == x`` EXACT at every rung.
 
-    Exact-``ℚ``; no float, no ``abs()``, no numpy / ``math``."""
+    Exact-``ℚ``; no float, no ``abs()``, no ``math``."""
     cur = _ordinary_rung(p)
     if n_vars is None:
         n_vars = min(cur + 1, 3)
@@ -159,7 +159,7 @@ def poly_project(p: Any) -> Any:
     drop → ``ValueError``.
 
     ``poly_project(poly_promote(x)) == x`` EXACT at every rung. Exact-``ℚ``; no
-    float, no ``abs()``, no numpy / ``math``."""
+    float, no ``abs()``, no ``math``."""
     if isinstance(p, TriPoly):
         if p.j_degree <= 0:                          # trivial in j → drop it
             return p.block(0)                        # the j**0 BiPoly (zero-safe)
@@ -237,7 +237,7 @@ def qpoly_project(p: Any) -> Any:
     rung-1 ``QPoly`` has no higher variable to drop → ``ValueError``.
 
     ``qpoly_project(qpoly_promote(x)) == x`` EXACT. Exact over ``ℚ[q]``; no
-    float, no ``abs()``, no numpy / ``math``."""
+    float, no ``abs()``, no ``math``."""
     if isinstance(p, QBiPoly):
         if p.y_degree <= 0:                          # trivial in Y → drop it
             return p.coeff(0)                        # the Y**0 QPoly (zero-safe)

@@ -629,7 +629,7 @@ class Block:
 class One:
     """The One — ``S(σ,θ)``, the single generator of the 14-D substrate.
 
-    A numpy-free, exact-rational structured object. Build with
+    A exact-rational structured object. Build with
     :func:`the_one`. The three :class:`Block` instances tile the
     ``1+3+7+3 = 14`` A–N partition; :meth:`to_flat_rational` flattens to the
     14 exact rationals; :meth:`to_matrix` gives the opt-in float

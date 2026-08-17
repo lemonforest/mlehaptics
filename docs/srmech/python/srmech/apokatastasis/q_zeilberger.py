@@ -56,7 +56,7 @@ rational function of ``q`` (the rc55 ``_Cq``: a reduced ``(num, den)`` pair of
 :class:`~srmech.math.poly.Poly` over ℚ, bigint, no magnitude ceiling), every solve is
 exact Gauss-Jordan over ``ℚ(q)``. There is NO float anywhere; sign is the **Class-K**
 pin-slot via the ``Q`` / ``Poly`` sign-branch (never an ALU ``abs()``); no ``math``
-module, no numpy. This op PARAMETRIZES the rc55 q-Gosper engine (it imports and
+module. This op PARAMETRIZES the rc55 q-Gosper engine (it imports and
 reuses the ``_Cq`` field + the ``_rref_cq`` ℚ(q) Gauss-Jordan rather than
 re-deriving them); the q-row continues with the q-WZ proof op (rc57), which reuses
 this op's order-1 path + the certificate/verify shape.
@@ -202,7 +202,11 @@ def q_zeilberger(rn_num, rn_den, rk_num, rk_den, max_order: int = 6
     D_P``).
 
     Exact over ``ℚ(q)`` (bigint, no magnitude ceiling); no float, no ``abs()`` (the
-    sign is the Class-K pin-slot), no ``math`` / numpy. ``rn_den`` / ``rk_den`` must
+    sign is the Class-K pin-slot). ``order`` comes back a plain ``int``; every
+    ``coeffs`` entry is a :class:`~srmech.math.qpoly.QPoly` and ``certificate`` a
+    :class:`~srmech.math.qbipoly.QBiPoly`, both bottoming out in exact
+    :class:`~srmech.math.q.Q` rationals — closed-form on the ALU.
+    ``rn_den`` / ``rk_den`` must
     be nonzero (a term ratio has a nonzero denominator) — ``ValueError`` otherwise."""
     rn_n = QBiPoly.coerce(rn_num)
     rn_d = QBiPoly.coerce(rn_den)

@@ -589,7 +589,7 @@ def tripoly_from_coeffs(coeffs) -> "TriPoly":
 
     Ints only (a ``bool`` / ``float`` / ``str`` leaf is an honest
     ``TypeError`` — the exact-``ℚ`` prose discipline; integers are exact). No
-    float, no ``abs()``, no numpy / ``math``."""
+    float, no ``abs()``, no ``math``."""
     from .poly import _prose_int
     if isinstance(coeffs, tuple):
         coeffs = list(coeffs)

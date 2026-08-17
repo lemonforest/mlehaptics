@@ -180,7 +180,7 @@ def _full_convolve_matmul(a_lst, b_lst):
     ``M`` is the ``(na+nb-1) × nb`` convolution matrix ``M[i][k] = a[i-k]`` (0
     off the band) — narrow when ``nb`` (the tap count) is small, so this is the
     same ``O(na·nb)`` work as the direct sum with the multiply-add accumulation
-    done in C.  numpy-free; the Toeplitz build is a list-comprehension carrier.
+    done in C. The Toeplitz build is a list-comprehension carrier.
     """
     na = len(a_lst)
     nb = len(b_lst)

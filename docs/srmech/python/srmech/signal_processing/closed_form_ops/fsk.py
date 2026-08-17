@@ -55,7 +55,7 @@ def _exp_i(theta: float) -> complex:
 
     Bit-faithful to the prior ``elementwise_transcendental(·, 'exp_i')`` path
     (both run the same native libm-free ``rational.cos`` / ``rational.sin``
-    range-reduced cascade); numpy-free.
+    range-reduced cascade);
     """
     return complex(_srn.cos(theta), _srn.sin(theta))
 

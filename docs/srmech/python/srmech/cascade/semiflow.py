@@ -27,9 +27,7 @@ The real feeders are the maps that genuinely lose information:
 * ``x -> mod_pow(a, x, n)`` and ``x -> (c*x) mod n`` — the multiplicative
   arrows.  :func:`srmech.math.cyclic.mod_mul_arrow` gives the SAME two numbers
   in closed form for the specific ``(c*x) mod n`` family; this op is the
-  tabulated peer that takes any self-map at all and has to iterate.
-
-numpy-free; no ``abs()`` — every quantity here is a non-negative count.
+  tabulated peer that takes any self-map at all and has to iterate. No ``abs()`` — every quantity here is a non-negative count.
 """
 
 from __future__ import annotations

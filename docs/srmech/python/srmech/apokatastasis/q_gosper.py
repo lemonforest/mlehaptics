@@ -47,7 +47,7 @@ The whole pipeline stays EXACT — every q-coefficient is an exact rational func
 of ``q`` (a reduced ``(num, den)`` pair of :class:`~srmech.math.poly.Poly` over ℚ,
 bigint, no magnitude ceiling), every solve is exact Gauss-Jordan over ``ℚ``. There
 is NO float anywhere; sign is the **Class-K** pin-slot via the ``Q`` / ``Poly``
-sign-branch (never an ALU ``abs()``); no ``math`` module, no numpy. This is the
+sign-branch (never an ALU ``abs()``); no ``math`` module. This is the
 **q-Gosper** rung of the q-hypergeometric F929 row (the row continues with the
 q-Zeilberger recurrence-finder rc56, which parametrizes THIS engine with unknown
 ``a_j(n)``); the internals are factored to be reused there.
@@ -573,7 +573,10 @@ def q_gosper(rn_num, rn_den) -> Optional[Dict[str, QPoly]]:
       un-summable residue, like ``gosper`` on the harmonic term).
 
     Exact over ``ℚ(q)`` (bigint, no magnitude ceiling); no float, no ``abs()`` (the
-    sign is the Class-K pin-slot), no ``math`` / numpy. See the module docstring for
+    sign is the Class-K pin-slot). Both returned ``num`` and ``den`` are
+    :class:`~srmech.math.qpoly.QPoly` Laurent polynomials in ``x``, whose cells are
+    :class:`~srmech.math.poly.Poly` in ``q`` over exact :class:`~srmech.math.q.Q` —
+    closed-form on the ALU. See the module docstring for
     the full q-Gosper / q-Petkovšek pipeline. ``rn_den`` must not be the zero
     polynomial (a term ratio has a nonzero denominator) — ``ValueError`` otherwise.
     """

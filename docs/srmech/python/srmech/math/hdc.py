@@ -594,7 +594,7 @@ def polar_from_real(arr, threshold: float = 0.0, dead_band: float = 0.0):
     ``dead_band == 0`` the output is strict bipolar (ties favour +1 per
     ``sign_quantise``).
 
-    rc125 (numpy-free): ``sign_quantise.op`` returns a numpy-free list (the
+    rc125: ``sign_quantise.op`` returns a list (the
     rc94 flip); it is collected into an ``array('b')`` (was an int8 ndarray).
 
     rc154 (BATCH B10, ``composition_of_c``): the whole real→polar encode IS the
@@ -637,7 +637,7 @@ def _as_klein4_buf(v, op: str) -> "array":
 
     Accepts an :class:`HV`, ``bytes`` / ``bytearray`` / ``array('B')``, or a
     ``list`` / ``tuple`` / generator of ints (the carrier is agnostic about the
-    source shape). Elements must be in ``{0, 1, 2, 3}``. The numpy-free path —
+    source shape). Elements must be in ``{0, 1, 2, 3}``. The path —
     ``np`` is never imported or touched here."""
     src = v.buffer if isinstance(v, HV) else v
     # Fast path: an existing uint8 buffer (HV.buffer / array('B') / bytes /
@@ -676,7 +676,7 @@ def _as_klein4_buf(v, op: str) -> "array":
 def _store_buf(store, op: str) -> "array":
     """Copy a 1-D uint8 store (HV / bytes / array / list — agnostic source) into an
     ``array('B')`` — the lenient buffer used by the holographic decode (elements
-    are any uint8, not restricted to ``{0, 1, 2, 3}``). Numpy-free."""
+    are any uint8, not restricted to ``{0, 1, 2, 3}``)."""
     src = store.buffer if isinstance(store, HV) else store
     buf = array("B")
     try:
@@ -707,7 +707,7 @@ def _majority_buf(arrs) -> "array":
 
     Each Klein-4 element is two independent bits; a bit is set only when its
     1-count is strictly greater than ``len(arrs) // 2`` (an exact tie → 0).
-    The numpy-free kernel behind :func:`klein4_bundle` / the holographic +
+    The kernel behind :func:`klein4_bundle` / the holographic +
     triality majorities. No ``abs()``."""
     n = len(arrs[0])
     half = len(arrs) // 2
@@ -1864,7 +1864,7 @@ def klein4_chunk_bundle(vectors, capacity):
     chunks — the cleanup-memory that avoids the single-bundle crosstalk.
 
     ``capacity`` is exposed (a non-monotonic sweet-spot per tome, F839), not
-    hardcoded. numpy-free; carrier cost = ``ceil(len(vectors) / capacity)``
+    hardcoded. Carrier cost = ``ceil(len(vectors) / capacity)``
     bundles.
     """
     bufs = [_as_klein4_buf(v, "klein4_chunk_bundle") for v in vectors]
@@ -1963,7 +1963,7 @@ def klein4_encode_bytes(data, D):
     Klein-4 chance level, because the shared prefix bytes occupy the same
     positions — while stripping the word-atomic English/whitespace privilege
     (it hashes raw UTF-8, the universal-script alphabet). The language core is
-    byte-level; an English kernel sits on top (F764). numpy-free.
+    byte-level; an English kernel sits on top (F764).
 
     Args:
         data: The byte string to encode (``bytes`` / ``bytearray``; a ``str``
@@ -2820,7 +2820,7 @@ LOOP_DIM = 8  # the octonion / k=7 carrier (division holds at dim ≤ 8)
 def _loop_conj_raw(arr):
     """Bare octonion conjugate (no validation; for internal recursion).
 
-    rc125 (numpy-free): operates on a plain ``list[float]`` — negate the seven
+    rc125: operates on a plain ``list[float]`` — negate the seven
     imaginary axes, keep the real anchor ``arr[0]`` (Class C, no ``abs()``)."""
     return [arr[0]] + [-arr[i] for i in range(1, len(arr))]
 
@@ -2828,7 +2828,7 @@ def _loop_conj_raw(arr):
 def _loop_bind_raw(a_, b_):
     """Bare Cayley-Dickson product (no validation; the recursion engine).
 
-    rc125 (numpy-free): operates on plain ``list[float]`` — the half-splits are
+    rc125: operates on plain ``list[float]`` — the half-splits are
     list slices and the assembly is list ``+`` concatenation (the prior
     concatenation of two halves)."""
     n = len(a_) // 2
@@ -2842,23 +2842,23 @@ def _loop_bind_raw(a_, b_):
 
 
 def _vadd(u, v):
-    """Element-wise add of two equal-length float lists (numpy-free)."""
+    """Element-wise add of two equal-length float lists."""
     return [u[i] + v[i] for i in range(len(u))]
 
 
 def _vsub(u, v):
-    """Element-wise subtract of two equal-length float lists (numpy-free)."""
+    """Element-wise subtract of two equal-length float lists."""
     return [u[i] - v[i] for i in range(len(u))]
 
 
 def _vscale(u, s):
-    """Scalar-multiply a float list (numpy-free)."""
+    """Scalar-multiply a float list."""
     return [x * s for x in u]
 
 
 def _as_loop(v, op: str):
     """Coerce to a 1-D ``list[float]`` whose length is a power of two (the
-    Cayley-Dickson recursion bottoms out at length 1). Numpy-free."""
+    Cayley-Dickson recursion bottoms out at length 1)."""
     try:
         arr = [float(x) for x in v]
     except TypeError as exc:  # 0-D scalar / non-iterable
@@ -2886,7 +2886,7 @@ def _reject_hd_block_misuse(arr, op):
     would be treated as a single 2048-D element, so the GLOBAL conj/inv is NOT
     the per-block octonion result the HD layout means (err ≈ ‖·‖, no exception).
     Raise instead, and point at the per-block ``*_hd`` op. ``arr`` is a
-    ``list[float]`` (numpy-free)."""
+    ``list[float]``."""
     size = len(arr)
     if size > LOOP_DIM and size % LOOP_DIM == 0:
         raise ValueError(
@@ -3302,7 +3302,7 @@ def g2_three_form(x, y, z):
 
 def _as_hd(v, op: str) -> "list":
     """Coerce ``v`` to a flat ``list[float]`` whose length is a positive
-    multiple of LOOP_DIM (the HD block-octonion carrier). Numpy-free.
+    multiple of LOOP_DIM (the HD block-octonion carrier).
 
     Raises:
         ValueError: if the length is 0, or not a multiple of ``LOOP_DIM``.
@@ -3329,7 +3329,7 @@ def _hd_blocks(arr):
 
 def _concat(blocks):
     """Concatenate a list of float-list blocks into one flat ``list[float]``
-    (the numpy-free concatenation)."""
+    (the concatenation)."""
     out = []
     for b in blocks:
         out.extend(b)

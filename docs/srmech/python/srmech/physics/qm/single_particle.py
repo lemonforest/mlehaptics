@@ -1,4 +1,4 @@
-"""Canonical single-particle QM operations (numpy-free).
+"""Canonical single-particle QM operations.
 
 Per ``[[feedback_science_is_ssot_not_project]]``: each operation cites
 canonical physics literature.

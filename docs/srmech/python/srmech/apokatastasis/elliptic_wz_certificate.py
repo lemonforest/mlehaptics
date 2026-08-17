@@ -53,7 +53,7 @@ coefficient certificate are reused from :mod:`srmech.apokatastasis.elliptic_recu
 
 Exact over the modified-theta algebra (no float on the decision path; sign is the
 **Class-K** pin-slot via the ``Q`` / ``EllMonomial`` sign-branch, never an ALU ``abs()``;
-no ``math``, no numpy). C peer: ``srmech_elliptic_wz_certificate`` (a 1:1 mirror that runs
+no ``math``). C peer: ``srmech_elliptic_wz_certificate`` (a 1:1 mirror that runs
 the same recognize → closed-form → connection-coefficient-certificate pipeline and decides
 the certificate via the shared ``srmech_thetasum_is_zero`` kernel; the Python dispatch
 trusts the native result only after re-deciding the certificate in exact ℚ). Caller-arena,
@@ -126,7 +126,11 @@ def elliptic_wz_certificate(r) -> Optional[Dict[str, object]]:
     A literal Wilf–Zeilberger pair is provably dead for the elliptic case (the rc90
     finding); the proof is the literature's connection-coefficient induction, decided
     EXACTLY — never a converging witness. No float on the decision path, no ``abs()``
-    (Class-K sign), no ``math`` / numpy. See the module docstring for the full proof
+    (Class-K sign). The returned mapping is plain data — ``identity`` and the
+    ``certificate`` fields are ``str``, ``verified`` is a ``bool``, and ``closed_form``
+    holds the ₈ω₇ right-hand side in integer-exponent theta wire form (``num`` / ``den``
+    lists of ``{symbol: exponent}``) — so it serialises without an evaluation step.
+    See the module docstring for the full proof
     structure + the MPM-verified Rosengren reference.
     """
     r = _coerce_ratio(r)

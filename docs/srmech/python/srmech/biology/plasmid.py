@@ -209,7 +209,7 @@ def plasmid_extract(docs, section_store, coupling, *, vocab=None, window=2, k=20
 
     Returns ``{"section_store", "vocab", "section_count", "n_sections", "sections",
     "status"}`` — ``section_count`` the ``{global_id: n_sections}`` integer
-    accumulator stage-2 promotes on. numpy-free; no ``abs()``; the whole op is
+    accumulator stage-2 promotes on. No ``abs()``; the whole op is
     genome-native (no loose JSON). Byte-identical whether native or pure."""
     store = Path(section_store)
     dim = len(list(coupling))
@@ -374,7 +374,7 @@ def section_counts(section_store, *, coupling=None, progress=None) -> dict:
     against the on-disk SSoT. Dispatches the whole scan to the
     ``srmech_genome_section_counts`` C peer when ``HAS_NATIVE`` (a bare-C host derives
     the counts end-to-end); the pure body is the numpy-free alternative + byte-parity
-    oracle. Integer/exact (Class-N); no ``abs()``; numpy-free."""
+    oracle. Integer/exact (Class-N); no ``abs()``;"""
     store = Path(section_store)
     # ONE catalog derivation for the WHOLE scan (rc280 fix 1). Deriving it here and
     # paging every section against it is what removes the O(P × body) quadratic —
@@ -753,7 +753,7 @@ def genome_integrate_plasmids(section_store, coupling, *, section_count=None, k=
     "plasmid"}, "n_sections", "n_integrated", "histogram", "status"}``. Dispatches the
     mint + fold to the ``srmech_genome_integrate_plasmids`` C peer when ``HAS_NATIVE``
     (byte-identical to the pure fold — the parity contract); a bare-C host runs stage 2
-    end-to-end via that peer. numpy-free; integer/exact; no ``abs()``.
+    end-to-end via that peer. Integer/exact; no ``abs()``.
 
     **Honest scope:** the conservation criterion (section-count >= k) is a DIFFERENT
     discriminator from F1250's global participation antimode, and **their convergence
@@ -868,7 +868,7 @@ def add_plasmid(section_store, coupling, tokens, *, state, k=K_AUTO, window=2,
     :func:`genome_integrate_plasmids` over the same D sections. The incremental rule
     is EXACT, not an approximation: the core subgraph sums per-section edge
     multiplicities and emits them in canonical sorted order, so it is independent of
-    the order in which sections were accumulated. numpy-free; integer/exact; no
+    the order in which sections were accumulated. Integer/exact; no
     ``abs()``."""
     store = Path(section_store)
     dim = len(list(coupling))

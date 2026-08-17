@@ -204,7 +204,7 @@ class Vec:
     def _elementwise(self, other, op, *, reflected: bool = False):
         """``self ⊙ other`` (or ``other ⊙ self`` when reflected), elementwise,
         for ``other`` a scalar (numpy-broadcast), a :class:`Vec`, or a flat
-        sequence of the SAME length. Numpy-free; format-preserving; no ``abs()``
+        sequence of the SAME length. Format-preserving; no ``abs()``
         (Class-K sign lives in the values)."""
         if isinstance(other, (int, float, complex)):
             cplx = self._complex or (isinstance(other, complex) and other.imag != 0.0)
@@ -320,7 +320,7 @@ class Vec:
 
     # ── explicit conversions out ──────────────────────────────────────────
     def tolist(self) -> List[Number]:
-        """Flat ``list`` copy of plain numbers (numpy-free)."""
+        """Flat ``list`` copy of plain numbers."""
         return [self[i] for i in range(self._n)]
 
     def tobytes(self) -> bytes:

@@ -183,9 +183,12 @@ def _frob_norm(a_rows: List[List[float]]) -> float:
 
 
 def _as_8x8(value, op: str) -> List[List[float]]:
-    """Coerce ``value`` (a :class:`Mat` / nested list / ndarray) to an ``8×8``
-    nested ``list[list[float]]``; raise the prior ``ValueError`` on a bad
-    shape. Numpy-free."""
+    """Coerce ``value`` to an ``8×8`` nested ``list[list[float]]``; raise
+    ``ValueError`` on a bad shape. Accepts a :class:`Mat` (shape-checked via
+    ``.shape``) or ANY 2-D iterable of reals — a nested list, or a NumPy
+    ``ndarray`` if the caller happens to have one, since the fallback branch
+    only iterates rows and calls ``float()``. srmech itself imports no array
+    library, so the ``Mat`` route is the one that is always available."""
     if isinstance(value, Mat):
         if value.shape != (_DIM, _DIM):
             raise ValueError(f"{op}: must be 8x8; got {value.shape}")
@@ -656,7 +659,7 @@ def triality_apply(x: Sequence[float], from_frame: str, to_frame: str) -> List[f
     Class I + Class M (cyclic frame-transport composed with the companion
     binders).
 
-    rc123 (numpy-free): ``x`` is coerced to a plain ``list[float]``; the result
+    rc123: ``x`` is coerced to a plain ``list[float]``; the result
     is a ``list[float]`` (was an ndarray).
 
     Canonical SSoT: Baez (2002) §2.4; Cartan (1925).
@@ -842,7 +845,6 @@ def _triality_order_residuals() -> Tuple[float, float, float]:
     difference), then through the scalar Class K
     :func:`srmech.cascade.magnitude` (SCALAR-only — a sequence or a
     :class:`Mat` raises ``TypeError``).
-    Numpy-free.
     """
     tau = triality_automorphism().tolist()
     identity = _eye(_DIM_SO8)
@@ -1187,8 +1189,7 @@ def spin8_center() -> dict:
     :func:`srmech.math.covering.covering_catalog` — ``g₂ = Fix(τ)`` inherits no
     centre to carry.
 
-    Class A (the content-addressed carrier read) ∘ Class I (the sign group).
-    numpy-free; exact integers throughout; no ``abs()``.
+    Class A (the content-addressed carrier read) ∘ Class I (the sign group). Exact integers throughout; no ``abs()``.
 
     Canonical SSoT: Baez (2002) §2.4 (``Z(Spin(8)) = ℤ/2 × ℤ/2``, triality
     permuting ``8v``/``8s``/``8c``); Cartan (1925).

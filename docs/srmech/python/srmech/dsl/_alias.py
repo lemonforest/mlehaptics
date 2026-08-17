@@ -29,7 +29,7 @@ Two entry points::
 binds names to srmech's OWN surface, never arbitrary imports (a config file cannot be coaxed
 into importing / calling an unrelated module). Resolution reuses the robust dotted-name walk
 :func:`srmech._resolve.resolve_dotted_callable`; parsing reuses the DSL's native+tomllib
-TOML loader. numpy-free; no import cost until called. (Through rc412 that walk lived in
+TOML loader. No import cost until called. (Through rc412 that walk lived in
 ``srmech.mcp._tools``, so this core rung imported upward into the ADR-0009 §4 host-glue layer
 and ``rm -rf srmech/mcp`` took the alias rung with it; rc413 `#T1094` moved it to core.)
 

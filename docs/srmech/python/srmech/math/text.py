@@ -41,7 +41,7 @@ Retained from the rc43/§40 lineage (`R-RBS-LM-WIKIKERNEL…` / `build_edges_top
   is now counted in GLYPHS: ``window=5`` spans ~5 glyphs (under one word), not
   ~5 words. Window semantics need re-deriving per corpus, not rescaling.
 
-Numpy-free, deterministic. Class B/G text-segmentation (`glyph_stream`) ∘ the
+Deterministic. Class B/G text-segmentation (`glyph_stream`) ∘ the
 Class-L co-occurrence precursor (`cooccurrence_edges`) — no continuous math
 (the FPU sits idle; counts are exact integers). Retires the hand-rolled
 ``Counter()`` co-occurrence idiom the CLAUDE.md STOP-list flags: the output is
@@ -267,7 +267,7 @@ def glyph_stream(
     downstream rather than at the front door.
 
     Class B/G text-segmentation — framing of the text substrate, no numeric
-    compute. Numpy-free, deterministic. Dispatches to the byte-identical C peer
+    compute. Deterministic. Dispatches to the byte-identical C peer
     ``srmech_text_glyph_stream`` when the native lib is loaded; the pure-Python
     body below is the complete alternative (and the parity oracle). Scores
     1093/1093 on the official UAX #29 ``GraphemeBreakTest.txt`` in BOTH
@@ -455,7 +455,7 @@ def fold_marks(text: str) -> str:
     keeps both honest.
 
     Class B/G text-framing — framing of the text substrate, no numeric compute.
-    Numpy-free, deterministic, and calls no normalizer. Dispatches to the
+    Deterministic, and calls no normalizer. Dispatches to the
     byte-identical C peer ``srmech_text_fold_marks`` when the native lib is
     loaded; the pure-Python body below is the complete alternative (and the
     parity oracle).
@@ -767,7 +767,7 @@ def cooccurrence_edges(
         downstream walk-time re-weights, F714 — not stored here). When
         ``directed`` a fourth parallel **signed integer** ``charge`` list.
 
-    Numpy-free, deterministic. Retires the hand-rolled ``Counter()``
+    Deterministic. Retires the hand-rolled ``Counter()``
     co-occurrence idiom (the output is edges → ``dense_laplacian``, not a
     store). The windowed pair-count + edge sort dispatch to the byte-identical
     C peer ``srmech_text_cooccurrence_edges`` when the native lib is loaded
@@ -1053,7 +1053,7 @@ def cooccurrence_topk(
         node count + index→token list; ``(edges, weights)`` the bounded
         undirected sparse-graph triple (``u < v``, integer counts) for the
         Laplacian path; ``topk`` the ``{token: [(neighbour, weight), …≤k]}``
-        per-token view (the §52 contract). Numpy-free, deterministic. The
+        per-token view (the §52 contract). Deterministic. The
         chunk flush + final read-out dispatch to the byte-identical C peers
         ``srmech_text_cooccurrence_topk`` / ``…_topk_extract`` when the native
         lib is loaded (rc217); the pure-Python body is the complete alternative.

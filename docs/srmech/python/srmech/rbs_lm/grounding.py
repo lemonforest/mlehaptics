@@ -51,9 +51,7 @@ composition of the ``c_dispatched`` Klein-4 primitives
 Python SELECTION glue over which C-backed atoms get composed, exactly like the
 existing rbs_lm ladder. There is no dedicated ``srmech_rbs_lm_encode_aboutness``
 C symbol, so this is NOT ``c_dispatched`` — the honest narrow bucket is
-``composition_of_c`` (standalone-ready: every composed leaf reaches C).
-
-numpy-free; no ``abs()`` / ``Counter`` / bag.
+``composition_of_c`` (standalone-ready: every composed leaf reaches C). No ``abs()`` / ``Counter`` / bag.
 """
 from __future__ import annotations
 

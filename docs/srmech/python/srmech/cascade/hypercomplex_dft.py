@@ -248,7 +248,7 @@ def hypercomplex_exp(theta: float, k_axes: int) -> Tuple["_Q", ...]:
 
 def as_oct8(vec) -> List[float]:
     """Class M: coerce a 4- or 8-component quaternion/octonion sample to an
-    8-vector ``list[float]`` (numpy-free) — a quaternion is zero-extended
+    8-vector ``list[float]`` — a quaternion is zero-extended
     into ``ℍ ⊂ 𝕆``.
 
     The per-sample coercion step of :func:`octonion_dft` (public since
@@ -287,7 +287,7 @@ def _resolve_mu(mu_axis, *, octonion) -> List[float]:
       it is normalised to unit length, and ``e0`` (and, for a quaternion
       transform, ``e4..e7``) must be zero.
 
-    rc125 (numpy-free): a plain ``list[float]``.
+    rc125: a plain ``list[float]``.
     """
     if isinstance(mu_axis, str):
         if mu_axis in _MU_AXES:
@@ -323,7 +323,7 @@ def _pack_streams(streams) -> "tuple":
     pure-imaginary slots of a quaternion (resp. octonion) carrier (real/anchor
     = 0); a length-4 or length-8 sequence is taken as a **literal** quaternion
     / octonion carrier (so a bound result round-trips back through the coupler).
-    rc125 (numpy-free): a plain ``list[float]``.
+    rc125: a plain ``list[float]``.
     """
     a = [float(x) for x in streams]
     n = len(a)
@@ -470,7 +470,7 @@ _QDFT_N_MAX = 2 ** 32
 
 
 def as_quat4(v) -> List[float]:
-    """Class M: coerce one QDFT sample to a plain 4-list (numpy-free).
+    """Class M: coerce one QDFT sample to a plain 4-list.
 
     Accepts a 4-component quaternion or the rc31 octonion-embedded 8-vector
     form with ``e4..e7 == 0`` (a nonzero tail would silently leak ℍ, so it
@@ -990,7 +990,7 @@ _PCP_N_MAX = 2 ** 32
 
 def _pcp_components(sample) -> List[float]:
     """Coerce ONE per-rung sample to a plain real component vector
-    (numpy-free): a real scalar → ``[x]``; a complex scalar → ``[re, im]``;
+: a real scalar → ``[x]``; a complex scalar → ``[re, im]``;
     a sequence → its floats (a complex entry expands to its ``re, im`` pair,
     so a length-``d`` complex sequence becomes a ``2d`` real vector)."""
     if isinstance(sample, bool):
