@@ -173,11 +173,22 @@ def main():
             # CR_DBL + CR_LIST ship as of rc447, so a float / list-of-float
             # result is CARRIED now. Bytes and dense matrices are still
             # unrepresentable — those are the two carrier kinds left.
-            # ⚠️ dict was MISSING here until rc447 — parallel_sector_dispatch
-            # returns a 7-key dict and scored as carrier-clean, a second false
-            # negative on the same chain. C has no mapping carrier at all.
-            if isinstance(v, (bytes, bytearray, dict)) or hasattr(v, "tolist"):
+            # ⚠️ THIS PREDICATE HAS BEEN WRONG FOUR TIMES. It is the hardest
+            # one to get right because it must enumerate what the WIRE can
+            # express, and the wire's kind set is not written down in one place.
+            # Missing entries found so far: dict (parallel_sector_dispatch),
+            # tuple (best_rational_signed), nested list (o/qDFT).
+            #
+            # The chain-run value descriptor carries: n / i / q / s / f / l,
+            # and its `l` is FLAT BY CONSTRUCTION (cr_desc_list calls
+            # cr_desc_scalar, never itself — JPL Rule 1 bans the recursive
+            # walk). So a list[list[...]] is NOT expressible even though `l` is.
+            if isinstance(v, (bytes, bytearray, dict, tuple)) \
+               or hasattr(v, "tolist"):
                 gates.add("carrier_width")
+            elif isinstance(v, list) and any(isinstance(e, (list, tuple, dict))
+                                             for e in v):
+                gates.add("carrier_width")     # nested — the wire's list is flat
         except Exception:
             pass
         for g in gates:

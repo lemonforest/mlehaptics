@@ -129,6 +129,84 @@ ROWS = [
               "that branch for a kind C could never produce.",
          ceiling_blind_to="A carrier kind no shipped descriptor produces yet "
                           "(complex, interval) — the count is over TODAY's chains."),
+    dict(id="no_requested_return_type_mechanism", kind="gap",
+         missing="There is NO way for a caller to REQUEST a carrier type. Every "
+                 "surface is callee-declares: the callee decides the shape and "
+                 "reports it.",
+         lacked_by="both", blocked_this_rc=False, new_type=False,
+         evidence="Searched the package for return_type / returntype / out_type "
+                  "/ want_type / result_type: 0 hits. The three near-misses are "
+                  "not it — `out_kind` is the REVERSE direction (the callee "
+                  "reports which kind came back), `as_type` is genome type "
+                  "aliasing, and `carrier=` is genome-scoped "
+                  "(\"klein4\" / \"q8\").",
+         probe="grep -rn 'return_type\\|out_type\\|result_type' srmech/",
+         disposition=FILED,
+         note="Recorded because the stated direction is that every NEW op should "
+              "honour whichever carrier type is requested. That standard has no "
+              "mechanism yet, and gh #1653 did not create one: this issue WIDENED "
+              "one wire's kind set (adding f and l), which is a different thing "
+              "from letting a caller choose. Worth separating so the widening is "
+              "not mistaken for the standard.",
+         ceiling_blind_to="Nothing measures request-ability at all; a 100%% "
+                          "passing parity suite says nothing about whether a "
+                          "caller could have asked for a different carrier."),
+    dict(id="returns_field_is_unenforced_prose", kind="gap",
+         missing="Every cascade descriptor MUST declare `returns`, and nothing "
+                 "validates it against the value the chain actually produces.",
+         lacked_by="both", blocked_this_rc=False, new_type=False,
+         evidence="compose.py requires the key ('name','summary','returns',"
+                  "'steps') and then only stores it as a string. The declared "
+                  "values are prose with comments — \"int  # gcd(a, b) >= 0\", "
+                  "\"Mat\", \"dict  # sectors / combined / ...\". No validator "
+                  "found in tests/.",
+         probe="python3 notes/_1653_return_types.py",
+         disposition=FILED,
+         note="This is the natural attachment point for a requested-return-type "
+              "standard: the field is ALREADY MANDATORY on every descriptor, so "
+              "the declaration exists and only the enforcement is missing. "
+              "Measured across the 18 executable chains, every declared `returns` "
+              "does match the actual Python type — so turning it into a gate "
+              "would cost nothing today and would hold the line from here.",
+         ceiling_blind_to="A descriptor whose `returns` drifts from its steps: "
+                          "no gate reads the field, so it can say anything."),
+    dict(id="two_divergent_value_kind_vocabularies", kind="bug",
+         missing="TWO independent value-descriptor vocabularies exist, both "
+                 "spelled {\"k\": ..., \"v\": ...}, with DIFFERENT kind sets. "
+                 "The chain-run wire has `q` (rational) and no `t`; the DSL F1 "
+                 "wire has `t` (tuple) and no `q`.",
+         lacked_by="both", blocked_this_rc=True, new_type=False,
+         evidence="cascade/compose.py _reconstruct_value: f i l n q s. "
+                  "dsl/_chain.py _desc_to_value: f i l n s t. Consequence "
+                  "measured: best_rational_signed returns tuple[int,int], which "
+                  "the DSL wire can carry and the chain-run wire CANNOT.",
+         probe="python3 notes/_1653_return_types.py",
+         disposition=FILED,
+         note="Neither wire is a superset of the other, so the SAME Python value "
+              "has different expressibility depending on which surface runs it — "
+              "and the identical {\"k\":...} spelling makes them look like one "
+              "shared standard. If a requested-return-type contract is going to "
+              "exist, these two have to become ONE vocabulary first; otherwise "
+              "'the requested carrier' means different things per surface.",
+         ceiling_blind_to="Each surface tests only its own wire, so no gate "
+                          "compares the two kind sets. They can keep diverging "
+                          "indefinitely."),
+    dict(id="chain_run_list_is_flat_only", kind="gap",
+         missing="The chain-run `l` (list) kind is FLAT BY CONSTRUCTION — "
+                 "cr_desc_list calls cr_desc_scalar, never itself — so "
+                 "list[list[float]] is not expressible even though `l` exists.",
+         lacked_by="c", blocked_this_rc=True, new_type=False,
+         evidence="octonion_dft and quaternion_dft both declare (and return) "
+                  "list[list[float]]. cr_json_list / cr_desc_list are one level.",
+         probe="python3 notes/_1653_return_types.py",
+         disposition=FILED,
+         note="DELIBERATE, not an oversight: JPL Rule 1 bans the recursive walk, "
+              "so nesting needs an explicit frame stack exactly as the MAP step "
+              "form does. Filed because 'CR_LIST ships' is easy to read as "
+              "'lists work', and for these two chains it does not.",
+         ceiling_blind_to="The carrier gate looks at a chain's TOP-LEVEL return "
+                          "type; nesting depth is invisible to it — which is why "
+                          "this predicate has now been wrong four times."),
     dict(id="carrier_bytes", kind="gap",
          missing="cr_value_t has no BYTE-BUFFER kind.",
          lacked_by="c", blocked_this_rc=True, new_type=True,
