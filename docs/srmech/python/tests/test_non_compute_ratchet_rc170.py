@@ -364,11 +364,22 @@ _EXPECTED_SPLIT = {
     # descriptor's [[cascade.chain]] steps through the schema-v2 compose
     # engine and composes whatever registered ops the chain names, itself
     # computing nothing. Total 213 -> 214.
-    "composes_c": 140,
+    # rc441 (`#T1148`, the v20 prerequisites): -1 composes_c —
+    # srmech.math.tlv.tlv_unpack LEAVES non_compute for c_dispatched. It was
+    # never a composition: its body was `struct.unpack_from` plus slicing, a
+    # self-contained pure-Python kernel that reached no ledger op (the rc217
+    # srmech.math.text hiding spot, exactly). It earned a BYTE-IDENTICAL C
+    # peer `srmech_tlv_unpack` this rc — closing the half-projection where
+    # Class B shipped its WRITER in C and its reader in Python only, while the
+    # compiled registry told users tlv_unpack was "the ONLY correct way to
+    # read these frames back". The rc217 precedent (mis-classified composes_c
+    # kernels that earned C peers and moved to c_dispatched) is the shape.
+    # composes_c 140 -> 139; non_compute total 214 -> 213.
+    "composes_c": 139,
     "host_glue": 21,
     "dev_tooling": 53,
 }
-_TOTAL_NON_COMPUTE = 214          # rc420 (local task T1114): 213 -> 214, dsl.run_cascade_chain (composes_c; see the split note in the annex files)  # rc411 (`#T1086`): 212 -> 213, the introspect INDEX `srmech.introspect.search.search` (composes_c; see the split note above)  # rc407 (`#T1076`): 213 -> 212, srmech.introspect dropped the private `_maybe_auto_publish` from __all__ (see the split note above)  # rc364 (ADR-0010 first execution slice): 210 -> 213, the three srmech.dsl alias-catalog rows (resolve_alias_descriptor -> host_glue; list_alias_descriptors + register_alias_dir -> dev_tooling; see the split note above)  # rc325 (§𝕆-FIBER/v18): 205 -> 208, genome.genome_octonion_associator + genome_add_octonion_fiber + genome_read_octonion_fiber (rc322 §Q8-FIBER/v17: 203 -> 205, genome.genome_add_fiber + genome_read_fiber; rc312 §Q8/v16: 202 -> 203, genome.upgrade_v15_to_v16)  # rc345 (task T964): 208 -> 209, genome.genome_content
+_TOTAL_NON_COMPUTE = 213          # rc441 (local task T1141): 214 -> 213, srmech.math.tlv.tlv_unpack earned its C peer srmech_tlv_unpack and LEFT non_compute for c_dispatched (see the split note above)  # rc420 (local task T1114): 213 -> 214, dsl.run_cascade_chain (composes_c; see the split note in the annex files)  # rc411 (`#T1086`): 212 -> 213, the introspect INDEX `srmech.introspect.search.search` (composes_c; see the split note above)  # rc407 (`#T1076`): 213 -> 212, srmech.introspect dropped the private `_maybe_auto_publish` from __all__ (see the split note above)  # rc364 (ADR-0010 first execution slice): 210 -> 213, the three srmech.dsl alias-catalog rows (resolve_alias_descriptor -> host_glue; list_alias_descriptors + register_alias_dir -> dev_tooling; see the split note above)  # rc325 (§𝕆-FIBER/v18): 205 -> 208, genome.genome_octonion_associator + genome_add_octonion_fiber + genome_read_octonion_fiber (rc322 §Q8-FIBER/v17: 203 -> 205, genome.genome_add_fiber + genome_read_fiber; rc312 §Q8/v16: 202 -> 203, genome.upgrade_v15_to_v16)  # rc345 (task T964): 208 -> 209, genome.genome_content
 
 
 def _rows():

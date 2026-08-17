@@ -68,6 +68,90 @@ GENERATED_DATA_FILES: set[str] = {
 }
 
 
+def _mask_c_literals(text: str) -> str:
+    """Blank the CONTENT of comments, string literals and CHAR literals,
+    preserving every newline so line numbers and line counts are unchanged.
+
+    rc441 (``#T1148``) — this is the fix for the scanner's brace-literal
+    blindness. :func:`_scan_functions` finds a function's end by counting
+    ``{`` and ``}`` per line, and it counted them in ``'{'`` / ``'}'`` CHAR
+    LITERALS too. A JSON scanner written in C is full of those, so its brace
+    depth never returned to zero, the scan ran off the end of the file, and
+    the function was reported as ``lines=1`` — under Rule 4's 60-line limit by
+    an accident of arithmetic rather than by being short.
+
+    The second consequence was worse and is why this is not cosmetic: the
+    same runaway scan kept counting ``assert(`` all the way to EOF, so those
+    functions reported HUNDREDS of assertions. Rule 5 (>= 2 asserts) was
+    therefore vacuous exactly where the scanner had lost its place. Measured
+    on rc440: ``genome_json_object_span`` reported ``lines=1 asserts=458`` and
+    ``genome_find_attest_span`` reported ``lines=1 asserts=456``; the census
+    that produced this fix found a THIRD, ``toml_parse_value``
+    (``lines=1 asserts=35``), which no prior report had named.
+
+    Post-fix measurement, whole tree (138 files, 3092 functions): the detected
+    function SET is unchanged (0 added, 0 removed) and exactly FIVE functions
+    change their numbers -- the three above become
+    ``(24, 2)`` / ``(20, 2)`` / ``(35, 2)``, ``toml_parse_inline_table`` grows
+    ``54 -> 58`` lines (a real length the old counter under-reported), and
+    ``srmech_bigint_pow_bound`` drops ``3 -> 2`` asserts (one ``assert(`` was
+    inside a comment). NO new Rule 4 or Rule 5 violation appears, which is why
+    the strict-zero ratchets on both rules stay strict-zero.
+    """
+    out: list[str] = []
+    i, n = 0, len(text)
+    state = "code"                     # code | line_comment | block | str | chr
+    while i < n:
+        c = text[i]
+        nxt = text[i + 1] if i + 1 < n else ""
+        if state == "code":
+            if c == "/" and nxt == "/":
+                state, i = "line_comment", i + 2
+                out.append("  ")
+                continue
+            if c == "/" and nxt == "*":
+                state, i = "block", i + 2
+                out.append("  ")
+                continue
+            if c == '"':
+                state, i = "str", i + 1
+                out.append(" ")
+                continue
+            if c == "'":
+                state, i = "chr", i + 1
+                out.append(" ")
+                continue
+            out.append(c)
+            i += 1
+            continue
+        if state == "line_comment":
+            out.append("\n" if c == "\n" else " ")
+            if c == "\n":
+                state = "code"
+            i += 1
+            continue
+        if state == "block":
+            if c == "*" and nxt == "/":
+                state, i = "code", i + 2
+                out.append("  ")
+                continue
+            out.append("\n" if c == "\n" else " ")
+            i += 1
+            continue
+        # inside a string or char literal
+        if c == "\\":                  # an escape consumes its successor
+            out.append("  ")
+            i += 2
+            continue
+        if (state == "str" and c == '"') or (state == "chr" and c == "'"):
+            state, i = "code", i + 1
+            out.append(" ")
+            continue
+        out.append("\n" if c == "\n" else " ")
+        i += 1
+    return "".join(out)
+
+
 def test_rule_1_no_goto() -> None:
     """JPL Rule 1: no goto, no setjmp / longjmp."""
     pattern = re.compile(r"\b(goto|setjmp|longjmp)\b")
@@ -83,6 +167,240 @@ def test_rule_1_no_goto() -> None:
             f"{f.relative_to(_HERE.parent.parent)}: Rule 1 violation "
             f"— goto/setjmp/longjmp found: {matches}"
         )
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Rule 1, second half: RECURSION (rc441, `#T1148`)
+# ──────────────────────────────────────────────────────────────────────
+#
+# JPL Rule 1 bans "direct or indirect recursion". Through rc440 the Rule 1
+# test above grepped for `goto|setjmp|longjmp` and NOTHING ELSE — it did not
+# look for recursion at all, while `docs/srmech/c/JPL_AUDIT.md` stated that
+# all ten rules pass. The rule's own subject was unmeasured, so the surface
+# was BELIEVED ABSENT rather than known-clean.
+#
+# The census that closed it (whole tree: 138 files, 3092 functions) found
+# NINE recursion cycles — one direct, eight mutual. A prior report had named
+# two of the eight; the tree carries 4.5x that. So this ships as a SEEDED
+# DOWN-ONLY ratchet, not as strict zero: the population is real, it is
+# depth-bounded by construction in every case, and unwinding it is a
+# different piece of work from being able to SEE it.
+#
+# The gate is strict on the decidable class — a NEW cycle, or a cycle whose
+# membership changed, fails immediately — and down-only on the count.
+
+# The recursion population as measured at rc441. Each entry is a cycle: a
+# 1-tuple is direct self-recursion, an n-tuple is a mutual cycle (sorted).
+# Every one of these is depth-bounded in the source (an explicit depth
+# parameter checked against a compiled-in cap, or a bounded nesting level),
+# which is why they were tolerable while invisible — but Rule 1's objection
+# is to the CONSTRUCT, because a bound that is not enforced by the call
+# structure is a bound that a later edit can move.
+RULE_1_RECURSION_SEEDED: set = {
+    # srmech_invoke.c — the mval -> JSON emitter. Self-recurses on nested
+    # list/tuple items (`iv_emit_node(e, v->items[k], depth + 1u)`), bounded
+    # by an explicit `depth` argument.
+    ("iv_emit_node",),
+    # srmech_dsl_chain_run.c — the ADR-0008 chain engine's three arms
+    # (a stage array may hold a loop, which runs a combinator, which runs a
+    # stage array); bounded by the chain nesting the descriptor declares.
+    ("dsl_run_combinator", "dsl_run_loop", "dsl_run_stage_array"),
+    # srmech_dsl_chain_run.c — the F1 descriptor PARSE pair. Bounded by
+    # DV_MAX_DEPTH, checked in dv_from_desc before it descends.
+    ("dv_from_desc", "dv_from_list"),
+    # srmech_dsl_chain_run.c — the F1 descriptor EMIT pair, the mirror of the
+    # parse pair above. Same DV_MAX_DEPTH bound, checked in dv_to_desc.
+    ("dv_list_to_desc", "dv_to_desc"),
+    # srmech_mcp_marshal.c — JSON -> mval, over nested arrays and objects.
+    ("mm_from_json", "mm_from_json_array", "mm_from_json_object"),
+    # srmech_mcp_marshal.c — mval -> JSON, the mirror of the pair above.
+    ("mm_serialise", "mm_serialise_dict", "mm_serialise_list"),
+    # srmech_dsl_chain_run.c — the TOML -> JSON value bridge, over nested
+    # tables and arrays.
+    ("toml_arr_to_json", "toml_tbl_to_json", "toml_to_json"),
+    # srmech_toml.c — the deferred-table finalisers.
+    ("toml_finalize_atable", "toml_finalize_btable", "toml_finalize_bvalue"),
+    # srmech_toml.c — the inline-value parser: an array may hold an inline
+    # table, which holds a value, which may be an array.
+    ("toml_parse_array", "toml_parse_inline_table", "toml_parse_value"),
+}
+
+# Down-only. Unwinding any cycle above (to an explicit stack, the usual JPL
+# remedy) lowers this. It must NEVER go up: a new recursive construct is a
+# Rule 1 violation, and the strict half of the gate below rejects it outright.
+CEIL_RULE_1_RECURSION: int = 9
+
+_C_KEYWORDS_CALLLIKE = frozenset({
+    "if", "for", "while", "switch", "return", "sizeof", "do", "else",
+})
+_CALL_RE = re.compile(r"\b([a-zA-Z_][a-zA-Z_0-9]*)\s*\(")
+
+
+def _function_bodies(path: Path) -> "dict[str, str]":
+    """``{name: body-text}`` for every function defined in `path`.
+
+    The body starts AFTER the opening brace on purpose: including the
+    definition line would make every function appear to call itself through
+    its own signature, which is a self-loop in every node and not recursion.
+    """
+    text = _mask_c_literals(path.read_text(encoding="utf-8"))
+    lines = text.split("\n")
+    def_pat = re.compile(
+        r"^[a-zA-Z_][a-zA-Z_0-9 \t\*]+[ \t\*]([a-zA-Z_][a-zA-Z_0-9]+)\s*\("
+    )
+    starts: "list[tuple[str, int]]" = []
+    for i, line in enumerate(lines):
+        if line.rstrip().endswith(";"):
+            continue
+        m = def_pat.match(line)
+        if m is None:
+            continue
+        if line.lstrip().startswith(("typedef", "static const", "extern", "#")):
+            continue
+        for look in range(i, min(i + 10, len(lines))):
+            if "{" in lines[look]:
+                starts.append((m.group(1), i))
+                break
+    out: "dict[str, str]" = {}
+    for name, start_idx in starts:
+        body_start = start_idx
+        while body_start < len(lines) and "{" not in lines[body_start]:
+            body_start += 1
+        if body_start >= len(lines):
+            continue
+        depth = lines[body_start].count("{") - lines[body_start].count("}")
+        end = len(lines) - 1
+        for j in range(body_start + 1, len(lines)):
+            depth += lines[j].count("{") - lines[j].count("}")
+            if depth == 0:
+                end = j
+                break
+        chunk = "\n".join(lines[body_start:end + 1])
+        brace = chunk.find("{")
+        out[name] = chunk[brace + 1:] if brace >= 0 else chunk
+    return out
+
+
+def _recursion_cycles() -> "set[tuple[str, ...]]":
+    """Every direct + indirect recursion cycle in the C tree.
+
+    Builds the whole-tree call graph (a static helper is unit-local but a
+    public symbol is not, and a cycle can in principle cross files), then
+    reports self-loops and every strongly-connected component of size > 1.
+    """
+    bodies: "dict[str, str]" = {}
+    for f in sorted(_C_SRC_DIR.glob("*.c")):
+        bodies.update(_function_bodies(f))
+    graph = {
+        name: {c for c in (m.group(1) for m in _CALL_RE.finditer(body))
+               if c in bodies and c not in _C_KEYWORDS_CALLLIKE}
+        for name, body in bodies.items()
+    }
+    cycles = {(n,) for n in graph if n in graph[n]}     # direct self-calls
+
+    # Iterative Tarjan — the C tree has ~3k nodes, and a recursive SCC walk
+    # inside the test that bans recursion would be a poor joke.
+    index: "dict[str, int]" = {}
+    low: "dict[str, int]" = {}
+    on: "dict[str, bool]" = {}
+    stack: "list[str]" = []
+    counter = 0
+    for root in list(graph):
+        if root in index:
+            continue
+        work = [(root, iter(graph[root]))]
+        index[root] = low[root] = counter
+        counter += 1
+        stack.append(root)
+        on[root] = True
+        while work:
+            node, it = work[-1]
+            descended = False
+            for w in it:
+                if w not in index:
+                    index[w] = low[w] = counter
+                    counter += 1
+                    stack.append(w)
+                    on[w] = True
+                    work.append((w, iter(graph[w])))
+                    descended = True
+                    break
+                if on.get(w):
+                    low[node] = min(low[node], index[w])
+            if descended:
+                continue
+            work.pop()
+            if work:
+                low[work[-1][0]] = min(low[work[-1][0]], low[node])
+            if low[node] == index[node]:
+                comp = []
+                while True:
+                    w = stack.pop()
+                    on[w] = False
+                    comp.append(w)
+                    if w == node:
+                        break
+                if len(comp) > 1:
+                    cycles.add(tuple(sorted(comp)))
+    return cycles
+
+
+def test_rule_1_recursion_detector_is_not_vacuous() -> None:
+    """The detector must FIND the seeded population.
+
+    Without this, a detector that silently returned nothing — a bad regex, a
+    changed layout, a mask that ate every body — would make the ratchet below
+    pass while measuring zero, which is precisely the "believed absent" state
+    rc441 closed. An instrument that cannot return a nonzero reading is not
+    an instrument.
+    """
+    found = _recursion_cycles()
+    assert found, "the recursion detector found NOTHING — it is not looking"
+    known_direct = {c for c in found if len(c) == 1}
+    known_mutual = {c for c in found if len(c) > 1}
+    assert known_direct, "no direct recursion found; iv_emit_node self-calls"
+    assert len(known_mutual) >= 8, (
+        f"only {len(known_mutual)} mutual cycles found; rc441 measured 8"
+    )
+    assert ("dv_from_desc", "dv_from_list") in found
+    assert ("dv_list_to_desc", "dv_to_desc") in found
+
+
+def test_rule_1_no_new_recursion() -> None:
+    """JPL Rule 1, recursion half: strict on NEW cycles, down-only on count.
+
+    A cycle that is not in the seeded population — including an existing
+    cycle that GREW a member — fails outright. Recursion is banned; the
+    seeded set is a debt record, not a licence to add more.
+    """
+    found = _recursion_cycles()
+    novel = found - RULE_1_RECURSION_SEEDED
+    assert not novel, (
+        "Rule 1 violation — NEW direct/indirect recursion introduced: "
+        + "; ".join(" <-> ".join(c) for c in sorted(novel))
+        + ". JPL Rule 1 bans direct and indirect recursion; unwind it to an "
+          "explicit bounded stack, or justify it and extend "
+          "RULE_1_RECURSION_SEEDED with the depth bound that makes it safe."
+    )
+    assert len(found) <= CEIL_RULE_1_RECURSION, (
+        f"Rule 1 recursion population {len(found)} exceeds the down-only "
+        f"ceiling {CEIL_RULE_1_RECURSION}"
+    )
+
+
+def test_rule_1_recursion_ceiling_is_not_slack() -> None:
+    """The ceiling tracks the measurement — it may not drift above it.
+
+    A ceiling left higher than the live count is invisible slack that a
+    future cycle could be added into without any gate firing.
+    """
+    found = _recursion_cycles()
+    assert len(found) == CEIL_RULE_1_RECURSION, (
+        f"live recursion population is {len(found)} but "
+        f"CEIL_RULE_1_RECURSION is {CEIL_RULE_1_RECURSION} — if a cycle was "
+        f"unwound, LOWER the ceiling (it is down-only) and drop its entry "
+        f"from RULE_1_RECURSION_SEEDED"
+    )
 
 
 # Source files for which JPL Rule 3 (no malloc/free) is RELAXED at
@@ -271,8 +589,13 @@ def _scan_functions(path: Path) -> list[tuple[str, int, int]]:
     formatting conventions: function definitions are at column 0,
     parameter list opens on the definition line, body brace opens
     on the next line OR same line.
+
+    rc441 (``#T1148``): the scan now runs over :func:`_mask_c_literals` output
+    rather than the raw text, so a ``'{'`` / ``'}'`` CHAR LITERAL — or a brace
+    inside a string or a comment — can no longer run the brace counter off the
+    end of the file. See that function for the measured before/after.
     """
-    text = path.read_text(encoding="utf-8")
+    text = _mask_c_literals(path.read_text(encoding="utf-8"))
     lines = text.split("\n")
     # Track {definition_line_idx: (name, fn_body_open_idx)}
     fn_starts: list[tuple[str, int]] = []

@@ -2080,23 +2080,61 @@ static void genome_mint_strand_scan(const unsigned char *strand, size_t n_blocks
     *has_cen_out = has_cen;
 }
 
+/* §v19 IMPLICIT CLOSE — the ONE statement of "where does a unit END?" (rc441,
+ * `#T1148`). Read this before touching either extent helper below.
+ *
+ * A v19 strand has NO CLOSER CAP. A chromosome opens with a boundary cap and
+ * simply RUNS until the next opener, or off the end of the strand. So "the end
+ * of this unit" is never READ — it is INFERRED, from what comes next or from
+ * the buffer running out. Today that inference is accidentally correct,
+ * because with no closer the end of a unit and the start of the next are the
+ * SAME index. The moment a closer exists they are two different indices, and
+ * every splice computed from the inferred one silently moves.
+ *
+ * This rc does NOT invent the closer — that is v20's job, and inventing it
+ * here would be shipping the format change under a prerequisite's name. What
+ * it does is make the inference VISIBLE: both extent helpers now report,
+ * through an out-flag, whether the extent they returned was READ from a marker
+ * or INFERRED from the buffer end. Through rc440 a caller could not tell the
+ * two apart — a bare `n_blocks` came back either way — so there was no place
+ * for v20 to hook and nothing to assert against. The flag is that place.
+ *
+ * The invariant the flag makes checkable: `*end_is_implicit != 0` means the
+ * extent rests on the no-closer assumption. Under v20 exactly those cases must
+ * consult the closer instead. The v19 behaviour is UNCHANGED — the flag is
+ * additive and every existing return value is byte-for-byte what it was.
+ *
+ * `tests/test_implicit_close_rc441.py` pins the cap-marker vocabulary, so
+ * adding a closer marker turns that gate red and routes its author here. */
+
 /* §100 GAP 1/v15 — the BLOCK index of the `split`-th (0-based) DATA turn, or n_blocks
  * when split == the data-turn count (the metacentric cap appends at the very end).
  * Mirror the Python `data_positions[split] if split < n_turns else len(strand)`. A READ;
- * no abs. */
+ * no abs.
+ *
+ * rc441: `*at_unit_end` (nullable) is set to 1 exactly when the returned index
+ * is the IMPLICIT end of the unit — the append-at-end case, which under v19
+ * means the end of the strand and under v20 must mean "before the closer".
+ * 0 means the index is a real DATA turn that was actually found. See the
+ * §v19 IMPLICIT CLOSE block above. */
 static size_t genome_nth_data_turn(const unsigned char *strand, size_t n_blocks,
-                                   uint32_t leaf_dim, size_t split)
+                                   uint32_t leaf_dim, size_t split,
+                                   int *at_unit_end)
 {
     assert(strand != NULL || n_blocks == 0u);
     assert(leaf_dim > 0u);
     size_t seen = 0u;
+    if (at_unit_end != NULL) { *at_unit_end = 0; }
     for (size_t i = 0u; i < n_blocks; i++) {
         if (genome_cap_kind(strand + i * (size_t)leaf_dim, leaf_dim) < 0) {
             if (seen == split) { return i; }
             seen++;
         }
     }
-    return n_blocks;                       /* split == n_turns -> append at the end */
+    /* split == n_turns -> append at the end. INFERRED, not read: v19 has no
+     * closer, so "the end of the unit" is the end of the strand. */
+    if (at_unit_end != NULL) { *at_unit_end = 1; }
+    return n_blocks;
 }
 
 /* §100 GAP 1/v15 — resolve the GLOBAL orientation for a mint_strand. When
@@ -2140,6 +2178,7 @@ srmech_status_t srmech_genome_mint_strand(
 {
     size_t dim = (size_t)leaf_dim, n_turns = 0u, split, locus, total;
     int has_cen = 0;
+    int at_unit_end = 0;                  /* rc441: §v19 IMPLICIT CLOSE flag */
     unsigned char cap[256];
     unsigned char o = 0u;
     if (out == NULL || n_blocks_out == NULL || strand == NULL ||
@@ -2170,8 +2209,13 @@ srmech_status_t srmech_genome_mint_strand(
     if (st != SRMECH_OK) { return st; }
     st = srmech_genome_centromere(o, repeats, handle, handle_len, leaf_dim, cap, dim);
     if (st != SRMECH_OK) { return st; }
-    locus = genome_nth_data_turn(strand, n_blocks, leaf_dim, split);
+    locus = genome_nth_data_turn(strand, n_blocks, leaf_dim, split, &at_unit_end);
     assert(locus <= n_blocks);
+    /* rc441 (`#T1148`): the append-at-end case rests on the §v19 IMPLICIT
+     * CLOSE inference — with no closer cap, "the end of the unit" IS the end
+     * of the strand, so the splice lands at n_blocks. Under v20 this is the
+     * branch that must place the cap BEFORE the closer instead. */
+    assert(at_unit_end == 0 || locus == n_blocks);
     memcpy(out, strand, locus * dim);                        /* strand[:locus] */
     memcpy(out + locus * dim, cap, dim);                     /* + centromere cap */
     memcpy(out + (locus + 1u) * dim, strand + locus * dim,
@@ -9457,7 +9501,7 @@ static int genome_is_gene_cap(const unsigned char *block, size_t len)
 static srmech_status_t genome_label_range(
     const unsigned char *strand, size_t n_blocks, uint32_t leaf_dim,
     const unsigned char *label, size_t label_len, int label_is_none,
-    size_t *start_out, size_t *end_out)
+    size_t *start_out, size_t *end_out, int *end_is_implicit)
 {
     size_t dim = (size_t)leaf_dim;
     size_t n_bounds = 0u;
@@ -9465,6 +9509,10 @@ static srmech_status_t genome_label_range(
     size_t end = n_blocks;
     assert(start_out != NULL && end_out != NULL);
     assert(leaf_dim > 0u && leaf_dim <= 256u);
+    /* rc441 (`#T1148`): 1 until a real next-boundary is FOUND. `end` starting
+     * at n_blocks is the §v19 IMPLICIT CLOSE inference — see the block above
+     * genome_nth_data_turn. */
+    if (end_is_implicit != NULL) { *end_is_implicit = 1; }
     if (n_blocks == 0u || genome_is_boundary_cap(strand, dim) == 0) {
         return SRMECH_ERR_BAD_INPUT;               /* does not open with a boundary cap */
     }
@@ -9484,7 +9532,12 @@ static srmech_status_t genome_label_range(
         return SRMECH_ERR_BAD_INPUT;               /* no chromosome by that label */
     }
     for (size_t j = start + 1u; j < n_blocks; j++) {   /* end = next boundary after start */
-        if (genome_is_boundary_cap(strand + j * dim, dim) != 0) { end = j; break; }
+        if (genome_is_boundary_cap(strand + j * dim, dim) != 0) {
+            end = j;
+            /* READ from a real marker — not the implicit close. */
+            if (end_is_implicit != NULL) { *end_is_implicit = 0; }
+            break;
+        }
     }
     *start_out = start;
     *end_out = end;
@@ -9518,6 +9571,7 @@ srmech_status_t srmech_genome_condense(
 {
     size_t dim = (size_t)leaf_dim;
     size_t start = 0u, end = 0u;
+    int end_is_implicit = 0;              /* rc441: §v19 IMPLICIT CLOSE flag */
     srmech_status_t st;
     if (strand == NULL || insert_out == NULL ||
         (label == NULL && label_is_none == 0 && label_len != 0u) ||
@@ -9528,8 +9582,13 @@ srmech_status_t srmech_genome_condense(
     if (leaf_dim == 0u || leaf_dim > 256u) { return SRMECH_ERR_BAD_INPUT; }
     assert(leaf_dim >= 1u && leaf_dim <= 256u);
     st = genome_label_range(strand, n_blocks, leaf_dim, label, label_len,
-                            label_is_none, &start, &end);
+                            label_is_none, &start, &end, &end_is_implicit);
     if (st != SRMECH_OK) { return st; }
+    /* rc441 (`#T1148`): `end` is either a real next-boundary index (READ) or
+     * n_blocks (INFERRED — the §v19 IMPLICIT CLOSE). The append-at-end branch
+     * below splices AT `end`, so under v20 the inferred case must resolve to
+     * the closer's index rather than the strand's. */
+    assert(end_is_implicit == 0 || end == n_blocks);
     if (region_kind == 0) {                        /* None -> HEAD scope */
         *insert_out = start + 1u;
         return SRMECH_OK;
@@ -9591,7 +9650,12 @@ srmech_status_t srmech_genome_decondense(
         }
         return SRMECH_OK;
     }
-    st = genome_label_range(strand, n_blocks, leaf_dim, label, label_len, 0, &start, &end);
+    /* rc441: NULL for the §v19 IMPLICIT-CLOSE flag — decondense uses
+     * [start, end) only as a MASK range and splices nothing, so whether the
+     * end was read or inferred does not change which caps it drops. The flag
+     * is nullable exactly so a non-splicing reader need not carry it. */
+    st = genome_label_range(strand, n_blocks, leaf_dim, label, label_len, 0,
+                            &start, &end, NULL);
     if (st != SRMECH_OK) { return st; }
     for (size_t i = 0u; i < n_blocks; i++) {         /* drop only 0x48 caps in [start, end) */
         int drop = (i >= start && i < end &&

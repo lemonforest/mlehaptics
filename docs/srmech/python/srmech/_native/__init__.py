@@ -2636,6 +2636,27 @@ def _bind(lib: ctypes.CDLL) -> None:
     ]
     lib.srmech_tlv_pack.restype = ctypes.c_int
 
+    # rc441 (`#T1148`): the READER half. Through rc440 Class B shipped its
+    # writer only, so a bare-C host could emit a frame it could not walk
+    # back. The value comes out as a (offset, length) SPAN into the caller's
+    # own buffer — no copy, no arena.
+    # int srmech_tlv_unpack(const uint8_t *buffer, uint32_t buffer_len,
+    #                       uint32_t offset, uint8_t *out_tag,
+    #                       uint32_t *out_value_offset,
+    #                       uint32_t *out_value_len,
+    #                       uint32_t *out_next_offset)
+    if hasattr(lib, "srmech_tlv_unpack"):
+        lib.srmech_tlv_unpack.argtypes = [
+            ctypes.POINTER(ctypes.c_uint8),
+            ctypes.c_uint32,
+            ctypes.c_uint32,
+            ctypes.POINTER(ctypes.c_uint8),
+            ctypes.POINTER(ctypes.c_uint32),
+            ctypes.POINTER(ctypes.c_uint32),
+            ctypes.POINTER(ctypes.c_uint32),
+        ]
+        lib.srmech_tlv_unpack.restype = ctypes.c_int
+
     # ------------------------------------------------------------------
     # Class G (byte-pattern search) — Task #217 Phase C1 rc4.
     # ------------------------------------------------------------------

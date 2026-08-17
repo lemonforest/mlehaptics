@@ -50,6 +50,81 @@ Every shard keeps the full liveness check — `HAS_NATIVE` plus `nm -u "$LIB" | 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc441]
+
+**The v20 prerequisites — three latent defects that become mandatory under a closer cap (`#T1148`). This is NOT v20.** `GENOME_FORMAT_VERSION` stays **19**; no new marker, no grammar, no walker. **ABI stays 16** (one new export, no wire-format change to any existing function, no new callback typedef). Registry stays **661**. Every number below was re-measured on this tree; where a filed claim disagreed with the tree, the tree won and it is said so.
+
+Each item is independently justified as a defect that exists *today*. What v20 changes is only how expensive each one becomes.
+
+### 1. `srmech_tlv_unpack` — Class B shipped a writer with no reader
+
+`srmech_tlv_pack` has been in C since Task #217 Phase C1 rc4. Its reader half never was: `tlv_unpack` lived in Python only (`srmech/math/tlv.py`), while the **compiled** tool registry — which a C-hosted MCP server serves verbatim — advertised it as *"the ONLY correct way to read these frames back"*. That was advice **no C caller could take**. A wire format whose entire purpose is to round-trip had exactly one of its two halves projected.
+
+The reader now ships in C. It reports the value as a `(offset, length)` **span** into the caller's own buffer — no copy, no arena, JPL Rule 3 intact — and returns `SRMECH_ERR_BAD_INPUT` on every input the Python body raises `ValueError` on, so the pure body stays the oracle for the exact message text and nothing is duplicated in C.
+
+The end bound is computed in **64-bit** deliberately: `value_start + length` evaluated in 32 bits *wraps* on an attacker-supplied length near `UINT32_MAX` and the bound check then passes, handing back an out-of-bounds span. `tests/test_tlv_parity.py` and the new C gate both carry that row explicitly.
+
+**Rosetta consequence, and it is the interesting part.** `tlv_unpack` was classified `non_compute` / `composes_c` — a composition of C it never composed. Its body was `struct.unpack_from` plus slicing: a **self-contained pure kernel reaching zero ledger ops**, so the `composes_c` transitive walk could not see it. That is the rc217 `srmech.math.text` hiding spot exactly, and it was sitting in `COMPOSES_C_ZERO_REACH_PINNED` — the pin that exists to name precisely this. It moves to `c_dispatched`: `composes_c` **140 → 139**, non-compute total **214 → 213**, and the pin loses an entry.
+
+Also corrected while in that prose: `tlv_pack`'s shipped explanation cited its C peer as `c/include/srmech.h:2707`, and line 2707 had long since drifted onto unrelated text. A symbol name cannot go stale; a line offset does. Both entries now name the symbol.
+
+⚠️ **`srmech_tlv_pack`'s wire form is UNCHANGED.** The proposed uLEB128/Kraft conversion of its fixed 5-byte prefix belongs with v20; doing it here would break the one shipped call site for no benefit yet.
+
+### 2. JPL Rule 1 was not checking its own subject — and the scanner was blind twice
+
+`docs/srmech/c/JPL_AUDIT.md` claimed **all ten rules pass**. It was not true, and the reason it survived is the whole finding: `test_rule_1_no_goto` grepped `goto|setjmp|longjmp` **and nothing else**, while Rule 1 also bans *"direct or indirect recursion"*. The half of the rule the document asserted was the half no instrument measured — so the surface was not clean, it was **believed absent**.
+
+The first mechanical census (138 files, **3092 functions**) found **9** recursion cycles — 1 direct (`iv_emit_node`) and 8 mutual. A prior report had named two of the eight; the tree carries **4.5× that**. All nine are depth-bounded in source, which is why they were tolerable while invisible, so this ships as a **seeded down-only ratchet**: strict on any *novel* cycle (including an existing cycle that gained a member), `CEIL_RULE_1_RECURSION = 9` on the count, plus a non-vacuity gate asserting the detector still returns a nonzero reading and a no-slack gate keeping the ceiling equal to the live measurement.
+
+**The scanner blindness, which is worse than it first reads.** `_scan_functions` found a function's end by counting `{` / `}` per line — including inside `'{'` and `'}'` **char literals**. In a JSON or TOML scanner those literals *are* the code, so brace depth never returned to zero, the scan ran to EOF, and the function reported `lines=1`: under Rule 4's limit by an accident of arithmetic. The second consequence is the one that matters — the same runaway scan kept counting `assert(` to EOF, so **Rule 5 was vacuous there too**:
+
+| Function | rc440 reported | true |
+|---|---|---|
+| `genome_json_object_span` | `lines=1  asserts=458` | `lines=24  asserts=2` |
+| `genome_find_attest_span` | `lines=1  asserts=456` | `lines=20  asserts=2` |
+| `toml_parse_value` | `lines=1  asserts=35` | `lines=35  asserts=2` |
+
+The third was **not** in the filed report — the census found it. Two further corrections fell out: `toml_parse_inline_table` is **58** lines, not the 54 the old counter reported (four lines of headroom it did not have), and `srmech_bigint_pow_bound` drops 3 → 2 asserts (one `assert(` was inside a comment).
+
+Whole-tree effect of the fix: the detected function **set is unchanged** (0 added, 0 removed), exactly those five functions change their numbers, and **no new Rule 4 or Rule 5 violation appears** — both strict-zero ratchets stay strict-zero. `JPL_AUDIT.md` and `docs/srmech/CLAUDE.md` now say **eight of ten clean, Rule 1 partial**.
+
+### 3. The append-at-end idiom — made loud, not silently "fixed"
+
+Two shared helpers encode *"a unit ends where the next opener begins"*: `genome_nth_data_turn` returns `n_blocks` when `split == n_turns`, and `genome_label_range` computes `end` as the next boundary cap else `n_blocks` (Python twins: `mint_strand`'s `insert_at` and `_chrom_range`). Four splice sites inherit it. Today the inference is **accidentally correct** — with no closer, the end of a unit and the start of the next are the same index. It is wrong the moment a closer exists, and wrong *silently*: the splice lands on the far side of a cap and yields a well-formed strand that means something else.
+
+**The honest finding, stated plainly: the correct fix requires the closer to exist.** At v19 there is no closer marker to read, so "make the extent explicit" is not expressible without first minting v20's marker — which would be shipping the format change under a prerequisite's name. Per the brief's own fallback, the current behaviour is made **loud** instead, in the three ways that were missing:
+
+1. **One name per projection** — `_implicit_unit_end` (Python) and the `§v19 IMPLICIT CLOSE` block above `genome_nth_data_turn` (C). Through rc440 the rule was re-derived independently at four sites under no shared name, so a v20 author had nothing to grep for.
+2. **The extent reports its own provenance** — both helpers now return, alongside the extent, whether it was **READ** from a marker or **INFERRED** from the buffer end (`end_is_implicit` / `at_unit_end`, both nullable in C). Through rc440 a bare `n_blocks` came back either way and no caller could tell them apart, so there was nowhere for v20 to hook and nothing to assert against. **Every existing return value is byte-for-byte unchanged** — the flag is purely additive, and `test_extent_values_are_byte_for_byte_what_rc440_returned` pins that.
+3. **A guard that fires when the closer arrives** — `test_cap_marker_vocabulary_is_pinned` goes red on any new cap marker and its message enumerates all four splice sites. **It is designed to go red in rc442**; going red there is it working.
+
+`test_the_flag_is_not_constant` asserts both readings are reachable — a flag stuck on one value would let v20 hook a branch that never runs, which is the same class of defect as the extent it replaces.
+
+This does **not** re-touch rc439's centromere-designation fix; that was the same idiom's other consequence.
+
+### Every new gate proven to fire
+
+Re-planted, shown red, restored, verified byte-identical:
+
+| Gate | planted defect | result |
+|---|---|---|
+| `test_tlv_parity.py` | length read little-endian in C | **2 divergences** where native returned wrong data and pure raised |
+| `test_srmech_tlv_unpack_rc441.c` | same, built against a planted library | **5 failures**, exit 1 (0 against the shipped kernel) |
+| `test_jpl_audit.py` Rule 1 | a self-call added to `srmech_tlv_unpack` | both halves red (novel-cycle **and** ceiling) |
+| `test_implicit_close_rc441.py` | a 15th cap marker added | red, message routing to all four splice sites |
+
+### Files
+
+- `c/src/srmech_tlv.c`, `c/include/srmech.h` — `srmech_tlv_unpack`.
+- `c/test/test_srmech_tlv_unpack_rc441.c` — the bare-C round-trip / walk / truncation / wrap gate.
+- `c/src/srmech_genome.c` — the `§v19 IMPLICIT CLOSE` statement + the two extent flags.
+- `c/JPL_AUDIT.md` — Rule 1 corrected to partial; Rule 4 / Rule 5 scanner blindness recorded.
+- `srmech/math/tlv.py`, `srmech/_native/__init__.py` — native dispatch + ctypes binding.
+- `srmech/biology/genome.py` — `_implicit_unit_end`, `_chrom_range` provenance, `mint_strand`.
+- `srmech/introspect/_tool_docs_curated.py` (+ regenerated `_tool_docs.py`, `_c_claims.py`, `srmech_tool_registry.c`).
+- `tests/test_tlv_parity.py`, `tests/test_implicit_close_rc441.py` — new.
+- `tests/test_jpl_audit.py`, `tests/test_non_compute_ratchet_rc170.py`, `tests/test_rosetta_completeness.py`, `tests/rosetta_classification.ndjson` — ratchets moved with the measurements.
+
 ## [0.9.0rc440]
 
 **Four shipped-prose falsehoods on the surfaces a stranger reads first, and the gate that would have caught the whole class (`#T1147`).** Prose and one new test file only: **no wire format, no ABI, no new ops.** Registry stays **661**; **ABI stays 16**; `GENOME_FORMAT_VERSION` stays **19**. Every number below was re-measured on this tree against the shipped ops — where a filed claim disagreed with the tree, the tree won and it is said so.

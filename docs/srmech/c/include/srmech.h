@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc440"
-#define SRMECH_VERSION       "0.9.0rc440"
+#define SRMECH_VERSION_PRE   "rc441"
+#define SRMECH_VERSION       "0.9.0rc441"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -2975,10 +2975,19 @@ srmech_status_t srmech_gf_rref(int64_t  *matrix,
 
 /* ------------------------------------------------------------------ *
  * Class B — tagged-tuple TLV byte-canonical form (Task #217 Phase
- * C1 rc4 lightweight trio).
+ * C1 rc4 lightweight trio; the READER half added rc441, `#T1148`).
  *
- * Single operation: TLV pack. JSON-record parsing stays Python-side
- * per srmech CLAUDE.md operational-scope-clarification.
+ * TWO operations: TLV pack + TLV unpack. JSON-record parsing stays
+ * Python-side per srmech CLAUDE.md operational-scope-clarification.
+ *
+ * rc441 (`#T1148`): through rc440 this block shipped the WRITER ONLY and
+ * said so ("Single operation: TLV pack"). That was a half projection of a
+ * round-trip wire format: a bare-C host could EMIT a frame it could not
+ * READ. The Python side has had `tlv_unpack` since the frame was minted
+ * (srmech/math/tlv.py) and the compiled tool registry advertised it as
+ * "the ONLY correct way to read these frames back" — a claim no C caller
+ * could act on. Closed here; the two halves are now one wire format in
+ * both projections.
  * ------------------------------------------------------------------ */
 
 /* Pack (tag, value) into a [u8 tag][u32 length BE][value] byte sequence.
@@ -2993,6 +3002,43 @@ srmech_status_t srmech_tlv_pack(uint8_t        tag,
                                 uint8_t       *out_buffer,
                                 uint32_t       out_capacity,
                                 uint32_t      *out_written);
+
+/* Read ONE [u8 tag][u32 length BE][value] frame beginning at `offset` in
+ * `buffer` — the exact inverse of srmech_tlv_pack, and the C peer of
+ * srmech.math.tlv.tlv_unpack (rc441, `#T1148`).
+ *
+ * The value is reported as a (offset, length) SPAN INTO `buffer` rather than
+ * copied out: the frame's bytes are already contiguous and already owned by
+ * the caller, so a copy would be pure cost and would need an arena this op
+ * does not want (JPL Rule 3 — no malloc). `*out_next_offset` is the index
+ * just past this frame, so a concatenation of frames is WALKED by feeding it
+ * back in as the next `offset`:
+ *
+ *     uint32_t off = 0u;
+ *     while (off < len) {
+ *         st = srmech_tlv_unpack(buf, len, off, &tag, &voff, &vlen, &off);
+ *         if (st != SRMECH_OK) { break; }
+ *         ... buf + voff, vlen ...
+ *     }
+ *
+ * Returns SRMECH_ERR_BAD_INPUT — never partial data — when `offset` is past
+ * the end of `buffer`, when fewer than 5 bytes remain for the prefix, or when
+ * the frame's claimed length runs past the end of `buffer` (a clipped or
+ * malformed frame, including an attacker-supplied length). The end bound is
+ * computed in 64-bit precisely so a claimed length near UINT32_MAX cannot wrap
+ * the comparison and admit an out-of-bounds span. Each of those three is a
+ * ValueError on the Python side, so the Python projection DECLINES to its pure
+ * oracle on BAD_INPUT and the exact message surfaces unchanged.
+ *
+ * Adding this symbol does NOT bump SRMECH_ABI_VERSION (a new export, no
+ * wire-format change to any existing function, no new callback typedef). */
+srmech_status_t srmech_tlv_unpack(const uint8_t *buffer,
+                                  uint32_t       buffer_len,
+                                  uint32_t       offset,
+                                  uint8_t       *out_tag,
+                                  uint32_t      *out_value_offset,
+                                  uint32_t      *out_value_len,
+                                  uint32_t      *out_next_offset);
 
 /* ------------------------------------------------------------------ *
  * Class G — discovery / search (Task #217 Phase C1 rc4 lightweight trio).

@@ -96,10 +96,19 @@ def tlv_unpack(buffer: bytes, offset: int = 0) -> "tuple[int, bytes, int]":
             tag, value, off = tlv_unpack(buf, off)
             ...
 
-    ``tlv_pack`` ships the writer half; this is its missing reader. Exact
+    ``tlv_pack`` ships the writer half; this is its reader. Exact
     round-trip: ``tlv_unpack(tlv_pack(t, v)) == (t, v, 5 + len(v))``. Raises
     ``ValueError`` on a truncated prefix or a length that runs past the end of
     ``buffer`` (a malformed / clipped frame), never returning partial data.
+
+    Both C and Python paths produce byte-exact identical results; pinned by
+    ``tests/test_tlv_parity.py``. rc441 (``#T1148``) added the C peer
+    ``srmech_tlv_unpack`` — through rc440 Class B shipped its WRITER in C and
+    its reader in Python only, so a bare-C host could emit a frame it had no
+    way to walk back. The peer reports the value as a ``(offset, length)``
+    span into the same buffer (no copy, no arena) and DECLINES with
+    ``SRMECH_ERR_BAD_INPUT`` on every input this raises ``ValueError`` on, so
+    the pure body below remains the oracle for the exact message.
     """
     if not isinstance(buffer, (bytes, bytearray, memoryview)):
         raise TypeError(
@@ -108,6 +117,34 @@ def tlv_unpack(buffer: bytes, offset: int = 0) -> "tuple[int, bytes, int]":
     if not isinstance(offset, int) or isinstance(offset, bool):
         raise TypeError(f"offset must be a plain int; got {offset!r}")
     buf = bytes(buffer)
+    # rc441: DISPATCH the frame read to the C peer when HAS_NATIVE and both
+    # extents fit the u32 wire. A malformed frame comes back BAD_INPUT and
+    # falls THROUGH to the pure body, which raises the exact ValueError — the
+    # established typed-decline pattern, so no message is duplicated in C.
+    if (_native.HAS_NATIVE and _native.LIB is not None
+            and hasattr(_native.LIB, "srmech_tlv_unpack")
+            and 0 <= offset <= 0xFFFF_FFFF and len(buf) <= 0xFFFF_FFFF):
+        c_tag = ctypes.c_uint8(0)
+        c_voff = ctypes.c_uint32(0)
+        c_vlen = ctypes.c_uint32(0)
+        c_next = ctypes.c_uint32(0)
+        buf_ptr = (
+            (ctypes.c_uint8 * len(buf)).from_buffer_copy(buf)
+            if len(buf) > 0
+            else ctypes.cast(None, ctypes.POINTER(ctypes.c_uint8))
+        )
+        rc = _native.LIB.srmech_tlv_unpack(
+            buf_ptr,
+            ctypes.c_uint32(len(buf)),
+            ctypes.c_uint32(offset),
+            ctypes.byref(c_tag),
+            ctypes.byref(c_voff),
+            ctypes.byref(c_vlen),
+            ctypes.byref(c_next),
+        )
+        if rc == _native.SRMECH_OK:
+            start = c_voff.value
+            return c_tag.value, buf[start:start + c_vlen.value], c_next.value
     if offset < 0 or offset > len(buf):
         raise ValueError(f"offset {offset} out of range [0, {len(buf)}]")
     if len(buf) - offset < TLV_PREFIX_BYTES:
