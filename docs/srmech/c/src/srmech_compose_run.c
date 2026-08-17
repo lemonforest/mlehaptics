@@ -577,6 +577,89 @@ static srmech_status_t cr_op_rat(cr_ctx_t *c, const srmech_json_value_t *args,
     return SRMECH_OK;
 }
 
+/* ------------------------------------------------------------------
+ * Class-I cyclic-group ops (gh #1653). The chain carrier is arbitrary
+ * precision; the shipped Class-I exports take uint64. Where an operand does
+ * not fit that wire this DECLINES (SRMECH_ERR_NOT_IMPL, so the chain defers
+ * to the pure runner) rather than narrowing it — a narrower projection must
+ * REFUSE, never silently answer, or the two projections disagree on a value
+ * instead of on a capability.
+ * ------------------------------------------------------------------ */
+
+/* Read a non-negative CR_INT as uint64. 1 on success, 0 → caller declines.
+ * cr_as_uint above stops at ONE limb (32-bit); the Class-I wire is 64. */
+static int cr_as_u64(const cr_value_t *v, uint64_t *out)
+{
+    const srmech_bigint_t *bi;
+    assert(out != NULL);
+    assert(v != NULL);
+    if (v->kind != CR_INT || v->num == NULL) { return 0; }
+    bi = v->num;
+    if (bi->sign < 0) { return 0; }              /* Class-I wire is unsigned */
+    if (bi->sign == 0) { *out = 0u; return 1; }
+    if (bi->n > 2u) { return 0; }                /* exceeds the uint64 wire */
+    *out = (uint64_t)bi->limbs[0];
+    if (bi->n == 2u) { *out |= ((uint64_t)bi->limbs[1]) << 32; }
+    return 1;
+}
+
+/* A CR_INT carrier holding uint64 v, exact across the whole range. */
+static cr_value_t *cr_int_u64(cr_bump_t *b, uint64_t v)
+{
+    cr_value_t *out;
+    assert(b != NULL);
+    assert(sizeof(v) == 8u);
+    out = cr_new_value(b, CR_INT);
+    if (out == NULL) { return NULL; }
+    out->num = cr_new_bigint(b, 3u);
+    if (out->num == NULL) { return NULL; }
+    out->num->sign = (v == 0u) ? 0 : 1;
+    out->num->limbs[0] = (uint32_t)(v & 0xFFFFFFFFu);
+    out->num->limbs[1] = (uint32_t)(v >> 32);
+    out->num->n = (v == 0u) ? 0u : ((v >> 32) != 0u ? 2u : 1u);
+    return out;
+}
+
+enum { CR_CY_GCD = 0, CR_CY_ADD, CR_CY_MUL, CR_CY_POW, CR_CY_INV };
+
+/* gcd(a,b) / mod_add(a,b,n) / mod_mul(a,b,n) / mod_pow(a,k,n) / mod_inv(a,n).
+ * ``mod_mul_wide`` routes to CR_CY_MUL: srmech_mod_mul is Russian-peasant
+ * doubling, already overflow-safe across the full uint64 range, so the two
+ * differ only in the CAP — which cr_as_u64 enforces above. */
+static srmech_status_t cr_op_cyclic(cr_ctx_t *c, const srmech_json_value_t *args,
+                                    int which, cr_value_t **out)
+{
+    uint64_t a = 0u, b = 0u, n = 0u, r = 0u;
+    cr_value_t *va, *vb, *vn, *ov;
+    srmech_status_t st;
+    assert(c != NULL && out != NULL);
+    assert(which >= CR_CY_GCD && which <= CR_CY_INV);
+    va = cr_arg(c, args, "a");
+    if (va == NULL || !cr_as_u64(va, &a)) { return SRMECH_ERR_NOT_IMPL; }
+    if (which == CR_CY_INV) {
+        vn = cr_arg(c, args, "n");
+        if (vn == NULL || !cr_as_u64(vn, &n)) { return SRMECH_ERR_NOT_IMPL; }
+        st = srmech_mod_inv(a, n, &r);
+    } else {
+        vb = cr_arg(c, args, (which == CR_CY_POW) ? "k" : "b");
+        if (vb == NULL || !cr_as_u64(vb, &b)) { return SRMECH_ERR_NOT_IMPL; }
+        if (which == CR_CY_GCD) {
+            st = srmech_gcd(a, b, &r);
+        } else {
+            vn = cr_arg(c, args, "n");
+            if (vn == NULL || !cr_as_u64(vn, &n)) { return SRMECH_ERR_NOT_IMPL; }
+            st = (which == CR_CY_ADD) ? srmech_mod_add(a, b, n, &r)
+               : (which == CR_CY_MUL) ? srmech_mod_mul(a, b, n, &r)
+               : srmech_mod_pow(a, b, n, &r);
+        }
+    }
+    if (st != SRMECH_OK) { return st; }
+    ov = cr_int_u64(c->b, r);
+    if (ov == NULL) { return SRMECH_ERR_OVERFLOW; }
+    *out = ov;
+    return SRMECH_OK;
+}
+
 /* Dispatch one step by op name. Non-OK → the whole chain defers to pure. */
 static srmech_status_t cr_dispatch(cr_ctx_t *c, const char *op, uint32_t opl,
                                    const srmech_json_value_t *args, cr_value_t **out)
@@ -612,6 +695,25 @@ static srmech_status_t cr_dispatch(cr_ctx_t *c, const char *op, uint32_t opl,
     }
     if (opl == 12u && memcmp(op, "rational_div", 12u) == 0) {
         return cr_op_rat(c, args, '/', out);
+    }
+    /* Class-I cyclic group (gh #1653). Declines out-of-uint64 operands. */
+    if (opl == 3u && memcmp(op, "gcd", 3u) == 0) {
+        return cr_op_cyclic(c, args, CR_CY_GCD, out);
+    }
+    if (opl == 7u && memcmp(op, "mod_add", 7u) == 0) {
+        return cr_op_cyclic(c, args, CR_CY_ADD, out);
+    }
+    if (opl == 7u && memcmp(op, "mod_mul", 7u) == 0) {
+        return cr_op_cyclic(c, args, CR_CY_MUL, out);
+    }
+    if (opl == 12u && memcmp(op, "mod_mul_wide", 12u) == 0) {
+        return cr_op_cyclic(c, args, CR_CY_MUL, out);
+    }
+    if (opl == 7u && memcmp(op, "mod_pow", 7u) == 0) {
+        return cr_op_cyclic(c, args, CR_CY_POW, out);
+    }
+    if (opl == 7u && memcmp(op, "mod_inv", 7u) == 0) {
+        return cr_op_cyclic(c, args, CR_CY_INV, out);
     }
     return SRMECH_ERR_NOT_IMPL;   /* op not in the C dispatch table → pure */
 }

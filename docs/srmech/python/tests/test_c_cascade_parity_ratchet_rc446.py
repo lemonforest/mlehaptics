@@ -60,7 +60,10 @@ from srmech.dsl import _catalog as _cat
 # Re-measured at rc445 by notes/_1653_chain_census_rc444.py:
 #   "CENSUS of 18 executable chains (20 chain-variants): ...
 #    C srmech_chain_run ACCEPT=0 REJECT=18 ... UNATTRIBUTED=0"
-CEIL_C_REJECTED_CHAINS = 18            # of 18 executable. Target 0.
+CEIL_C_REJECTED_CHAINS = 12            # of 18 executable. Target 0.
+#   The rc445 baseline was 18, verified against a PRISTINE origin/main .so with
+#   THIS harness — so the drain is attributable to the code, not to the probe.
+#   The 6 Class-I cyclic chains closed by the cr_dispatch arm land it at 12.
 CEIL_SURFACE_A_UNSUPPORTED_FORMS = 2   # map + fold. plain executes. Target 0.
 
 SURFACE_A_STEP_FORMS = ("plain", "map", "fold")
@@ -86,12 +89,6 @@ BLOCKED = {
     "autocorrelation":        {"gates": [GATE_STEP_FORM, GATE_OP_TABLE], "disposition": "OPEN"},
     "best_rational_signed":   {"gates": [GATE_OP_TABLE], "disposition": "OPEN"},
     "chiral_dual":            {"gates": [GATE_OP_TABLE], "disposition": "OPEN"},
-    "cyclic_gcd":             {"gates": [GATE_OP_TABLE], "disposition": "OPEN"},
-    "cyclic_mod_add":         {"gates": [GATE_OP_TABLE], "disposition": "OPEN"},
-    "cyclic_mod_inv":         {"gates": [GATE_OP_TABLE], "disposition": "OPEN"},
-    "cyclic_mod_mul":         {"gates": [GATE_OP_TABLE], "disposition": "OPEN"},
-    "cyclic_mod_mul_wide":    {"gates": [GATE_OP_TABLE], "disposition": "OPEN"},
-    "cyclic_mod_pow":         {"gates": [GATE_OP_TABLE], "disposition": "OPEN"},
     "encode_loe_content":     {"gates": [GATE_OP_TABLE, GATE_CARRIER], "disposition": "OPEN"},
     "klein4_from_one":        {"gates": [GATE_STEP_FORM, GATE_OP_TABLE, GATE_CARRIER],
                                "disposition": "OPEN"},
@@ -121,16 +118,23 @@ def _executable_chains():
 def _c_runs(chain_dict, ctx):
     """Drive the shipped ``srmech_chain_run``. Returns (rc, status).
 
-    Same call convention the gh #1653 census used, whose harness is PROVEN: two
-    positive controls are C-accepted AND byte-identical to the Python projection,
-    so a rejection here is the C grammar, not this harness.
+    ⚠️ THE CTX MUST BE WRAPPED — ``{"row": …, "inputs": …}``. ``srmech_chain_run``
+    reads ``srmech_json_object_get(ctx, "inputs")`` (srmech_compose_run.c:809), so
+    a BARE ``{"a": 12}`` leaves ``c->inputs`` NULL and every ``@input.*`` ref
+    fails to resolve — the whole chain then returns NOT_IMPL and looks like a
+    grammar gap when it is a harness gap.
+
+    This bit the gh #1653 round-1 census, and its "harness proven" controls did
+    NOT catch it because both controls passed their args as LITERALS and so never
+    exercised the ref path at all. A positive control only proves the path it
+    actually walks. The controls below therefore use ``@input.*`` refs.
     """
     lib = _compose._compose_lib("srmech_chain_run", "srmech_chain_run_arena_bytes")
     if lib is None:
         pytest.skip("no native library — this gate measures the C projection")
     try:
         cj = json.dumps(chain_dict, ensure_ascii=False).encode("utf-8")
-        xj = json.dumps(ctx, ensure_ascii=False).encode("utf-8")
+        xj = json.dumps({"inputs": ctx}, ensure_ascii=False).encode("utf-8")
     except (TypeError, ValueError):
         return None, "PY_JSON_DUMPS_FAILED"
     ws_bytes = int(lib.srmech_chain_run_arena_bytes(len(cj), len(xj)))
@@ -158,6 +162,26 @@ def _measure():
                 ok_any = True
         (accepted if ok_any else rejected).add(name)
     return rejected, accepted
+
+
+def test_harness_resolves_input_refs():
+    """HARNESS CONTROL, and it walks the REF path deliberately.
+
+    Round 1's controls used literal args and therefore proved nothing about
+    ``@input.*`` resolution — the exact path a wrong ctx shape breaks. If this
+    fails, every rejection below is suspect and none of them is evidence.
+    """
+    # Deliberately uses rational_add — an op the C table has carried since long
+    # before gh #1653 — so this control isolates REF RESOLUTION from op
+    # availability. A control built on an op this same rc adds would pass or fail
+    # for the wrong reason and could not separate the two.
+    rc, status = _c_runs(
+        {"name": "ctl", "steps": [{"class": "N", "op": "rational_add",
+                                   "args": {"a": "@input.a", "b": "@input.b"}}]},
+        {"a": [1, 2], "b": [1, 3]})
+    assert rc == 0, (
+        "the harness cannot resolve @input.* refs (rc=%s %s) — fix the ctx shape "
+        "before trusting any rejection in this file" % (rc, status))
 
 
 def test_every_c_rejected_chain_is_enumerated():
