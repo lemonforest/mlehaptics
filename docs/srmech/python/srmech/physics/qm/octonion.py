@@ -10,7 +10,7 @@ automorphism ``tau``, the ``Fix(tau) = g2`` keystone).
 **0.9.0rc111 (issue #1234 Item 1c, re-raise of #863): the ODFT twiddle
 family** — :func:`octonion_exp` / :func:`octonion_twiddle` /
 :func:`octonion_exp_series_truncate`, the dim-8 mirror of the rc109
-``qm.quaternion`` foundation (same exactness convention, same same-rc C
+``srmech.physics.qm.quaternion`` foundation (same exactness convention, same same-rc C
 peers ``srmech_octonion_exp`` / ``srmech_octonion_twiddle``). The twiddle
 ``exp(μθ) = cos θ·1 + sin θ·μ̂`` for a UNIT pure imaginary ``μ̂`` (``μ̂² =
 −1``) lives in the commutative subalgebra ``ℝ[μ̂] ≅ ℂ`` — which is why the

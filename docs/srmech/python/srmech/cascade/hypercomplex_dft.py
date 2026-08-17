@@ -55,7 +55,7 @@ the octonion samples / twiddles / accumulators are plain ``list[float]`` of
 length 8, the ``octonion_{left,right}_mult`` operators are consumed as the
 numpy-free :class:`srmech.math.mat.Mat` they now return, and the per-term
 matvec rides a numpy-free :class:`Mat`-column ``mat_matmul`` (the pattern
-``qm.single_particle`` used in rc117) — never numpy ``@`` / ``dense_matvec``.
+``srmech.physics.qm.single_particle`` used in rc117) — never numpy ``@`` / ``dense_matvec``.
 ``import srmech.cascade`` and every transform import + run numpy-absent.
 
 Citations (verified PDFs —
@@ -756,7 +756,7 @@ def quaternion_dft(
     coefficient algebra MATCHES the object's value algebra, so BOTH axes
     survive the round-trip.
 
-    **THE CONVENTION (the in-repo SSOT — rc109 ``qm.quaternion`` + R21).**
+    **THE CONVENTION (the in-repo SSOT — rc109 ``srmech.physics.qm.quaternion`` + R21).**
     With ``W(θ) = exp(μθ) = cos θ·1 + sin θ·μ̂`` (``μ̂`` a unit pure imaginary,
     ``μ̂² = −1``) and the FORWARD sign ``σ = −1``:
 
@@ -780,7 +780,7 @@ def quaternion_dft(
     lightweight op (``phase_coherent_peak`` — the next rc, 1-d): do NOT run
     the full QDFT just to read one phase-coherent peak back out.
 
-    Composes the rc109 foundation: ``qm.quaternion.quaternion_twiddle``
+    Composes the rc109 foundation: ``srmech.physics.qm.quaternion.quaternion_twiddle``
     (Class I ∘ N ∘ C — exact ``kn mod N``, π as the ``4·atan(1)`` cascade,
     Q61 trig) + ``quaternion_left_mult`` / ``quaternion_right_mult`` (Class M).
     Dispatches the whole transform to the same-rc C peer
@@ -1228,7 +1228,7 @@ def hypercomplex_couple(
     ``form="left"``/``"right"`` and ``inverse`` are special discrete points of
     the same continuous ``(σ, θ, μ)`` family — exactly ``the_one``'s ``𝕊(σ,θ)``
     (F420) **plus the axis μ**. This exposes the axis + sign of the existing
-    ``exp(μθ)`` twiddle; **no new algebra** (composite over ``qm.octonion``).
+    ``exp(μθ)`` twiddle; **no new algebra** (composite over ``srmech.physics.qm.octonion``).
 
     Parameters
     ----------

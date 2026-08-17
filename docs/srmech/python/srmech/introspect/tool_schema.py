@@ -1655,8 +1655,9 @@ def _register_primitive_class_tools() -> None:
         ToolEntry(
             name="srmech.math.laplacian.dense_laplacian", owner="srmech",
             category="laplacian",
-            summary="Graph Laplacian L = D - A. Native C dispatch when "
-                    "n ≤ 256; numpy-free pure-Python fallback otherwise.",
+            summary="Graph Laplacian L = D - A. Native C dispatch at any n (no "
+                    "compiled node cap — the kernel writes only the caller's "
+                    "matrix); numpy-free pure-Python cascade otherwise.",
             # rc15: declare `edges` as list[tuple[int, int]] (matching the
             # shipped `dense_laplacian(n, edges: Iterable[Tuple[int, int]])`
             # signature + the sibling `dense_adjacency` entry). The earlier
@@ -1947,7 +1948,7 @@ def _register_primitive_class_tools() -> None:
                     "spanning forest (union-find; first-encountered edge = tree "
                     "edge) → the fundamental cycle per co-tree edge → that "
                     "cycle's NET charge (per-edge charges in TURNS, exact "
-                    "Fraction, reduced mod 1) — Class I (mod-1 cyclic) ∘ "
+                    "Q, reduced mod 1) — Class I (mod-1 cyclic) ∘ "
                     "Class L (graph); NO eigensolve. Invariant under node "
                     "re-gauging (a coboundary telescopes); 0 for every cycle "
                     "IFF balanced (Zaslavsky's criterion); distinguishes +c "
@@ -1955,7 +1956,7 @@ def _register_primitive_class_tools() -> None:
                     "spectra cannot. Pairs with klein4_gain_laplacian (even) "
                     "to complete the read. Native standalone-C "
                     "srmech_graph_cycle_holonomy (exact int64 rational, "
-                    "caller-arena); else the exact-Fraction cascade (handles "
+                    "caller-arena); else the exact-Q cascade (handles "
                     "any denominator). Zaslavsky, DAM 4 (1982) 47–74. "
                     "numpy-free; no abs().",
             parameters=(P("edges", "list[tuple[int, int]]", True,
@@ -2036,7 +2037,9 @@ def _register_primitive_class_tools() -> None:
                     "mod 1. A domain-free composition of shipped C-routed ops "
                     "(dense_laplacian / symmetric_eigendecompose / "
                     "magnetic_laplacian / responsion / cycle_holonomy) — the "
-                    "dense op/responsion need vocab_size<=256; use "
+                    "dense op/responsion are O(n^3)/O(n^2) dense reads, so they "
+                    "are practical only at modest vocab_size (there is no "
+                    "native cap); use "
                     "recover_check_structural / _spectral at corpus scale "
                     "(F1227). numpy-free; no abs().",
             parameters=(P("vocab_size", "int", True, "node count"),
@@ -2055,7 +2058,8 @@ def _register_primitive_class_tools() -> None:
                     "present / valid) + a SAMPLED curvature read (a cheap "
                     "triangle probe) — so a directed Class-L store is integrity-"
                     "checkable at ANY vocab size (the dense op/responsion "
-                    "faculties do not scale past the native n<=256 / O(n^3) wall). "
+                    "faculties do not scale past the O(n^3) dense-eigensolve "
+                    "wall — a COST wall, not a native node cap). "
                     "The F1227 sparse peer of recover_check_spectral (#1390 item "
                     "4). numpy-free; no abs() (Class-K magnitude).",
             parameters=(P("vocab_size", "int", True, "node count"),
@@ -2074,8 +2078,9 @@ def _register_primitive_class_tools() -> None:
             summary="The op + responsion (spectral) integrity faculties on a "
                     "BOUNDED principal submatrix — the first min(vocab_size, "
                     "max_dim) nodes + the edges within that block — so the dense "
-                    "n×n eigendecompose stays within the native n<=256 wall at "
-                    "ANY corpus vocab. The F1227 bounded-spectral peer of "
+                    "n×n eigendecompose stays inside a bounded O(n^3) block at "
+                    "ANY corpus vocab (max_dim is a CALLER bound, not a "
+                    "native node cap). The F1227 bounded-spectral peer of "
                     "recover_check_structural (#1390 item 4). numpy-free; no "
                     "abs().",
             parameters=(P("vocab_size", "int", True, "node count"),
@@ -2285,8 +2290,8 @@ def _register_primitive_class_tools() -> None:
                     "seam-folded Wick factor) computed by a CHEBYSHEV "
                     "polynomial of the operator applied with MATRIX-VECTOR "
                     "PRODUCTS ONLY — no eigendecomposition, no dense e^{−zL} "
-                    "— so it runs on a corpus-scale L past the n ≤ 256 "
-                    "dense-eigensolve cap (O(m·n_edges) time, O(n) memory, m "
+                    "— so it runs on a corpus-scale L past the O(n^3)/O(n^2) "
+                    "dense-eigensolve wall (O(m·n_edges) time, O(n) memory, m "
                     "= the Chebyshev degree). The operator is the SIGNED "
                     "graph Laplacian read off the edge list (the "
                     "signed_laplacian / fiedler_sparse sparse-input "
@@ -2470,7 +2475,7 @@ def _register_primitive_class_tools() -> None:
                     "Power iteration on B = I + D^-1/2 W D^-1/2 (= 2I - L_sym, "
                     "eigenvalues in [0,2]) deflating the √deg λ₀ mode; the "
                     "converged direction's SIGN is the normalized-cut bisection. "
-                    "Matvec-only (O(edges), n unbounded) — breaks the n≤256 "
+                    "Matvec-only (O(edges), n unbounded) — breaks the O(n^3)/O(n^2) "
                     "dense-eig wall for corpus-scale graph partitioning (spectral "
                     "clumping). Native standalone-C (caller-arena, no caps); "
                     "pure-Python is the complete alternative.",
@@ -2638,7 +2643,9 @@ def _register_primitive_class_tools() -> None:
             name="srmech.math.laplacian.jacobi_eigvals", owner="srmech",
             category="laplacian",
             summary="Symmetric Jacobi eigendecomposition; pi-free closed-form "
-                    "c/s computation. Native C dispatch when n ≤ 256.",
+                    "c/s computation. Native C dispatch at any n (the kernel "
+                    "rotates in place, so the bound is the caller's RAM, not a "
+                    "compiled cap); pure-Python Jacobi cascade otherwise.",
             parameters=(P("matrix", "Mat", True, "n × n symmetric"),
                         P("max_sweeps", "int", False, "default 100"),
                         P("tolerance", "float", False),
@@ -2678,7 +2685,9 @@ def _register_primitive_class_tools() -> None:
             summary="Class-L dense linear solve A·X = B (A n×n; B/X n×w matrix "
                     "or length-n vector). The reusable solve schur_complement "
                     "composes over. Native C peer (Gauss–Jordan, partial "
-                    "pivoting, n,w ≤ 256); float realization rides the numpy-free "
+                    "pivoting, NO compiled size cap — the augmented [A|B] is "
+                    "bump-carved from the caller arena, rc158); float "
+                    "realization rides the numpy-free "
                     "Mat engine; exact-rational Q solve (Class-N exact-ℚ core, "
                     "exact=True).",
             parameters=(P("A", "Mat", True,
@@ -2737,9 +2746,12 @@ def _register_primitive_class_tools() -> None:
             name="srmech.math.laplacian.hermitian_eigendecompose",
             owner="srmech", category="laplacian",
             summary="Hermitian eigendecomposition H = V diag(eigvals) V^H "
-                    "via complex-Jacobi rotations. Native C dispatch when "
-                    "n ≤ 256; NumPy eigh fallback. Sakurai §2.1.5; "
-                    "Golub & Van Loan §8.5.",
+                    "via complex-Jacobi rotations. Native C dispatch up to the "
+                    "configurable SRMECH_HERMITIAN_DEFAULT_MAX_NODES (2048), "
+                    "NOT 256; the fallback is srmech's own pure-Python "
+                    "complex-Jacobi cascade (there is no NumPy in the call "
+                    "graph — the package imports numpy nowhere). Sakurai "
+                    "§2.1.5; Golub & Van Loan §8.5.",
             parameters=(P("H", "Mat", True,
                           "n × n complex Hermitian matrix"),),
             returns=R("tuple[Vec, Mat]",
@@ -2749,7 +2761,9 @@ def _register_primitive_class_tools() -> None:
             name="srmech.math.laplacian.symmetric_eigendecompose",
             owner="srmech", category="laplacian",
             summary="Real-symmetric eigendecomposition L = V diag(eigvals) "
-                    "Vᵀ via NumPy eigh. Real-input specialisation of "
+                    "Vᵀ via srmech's own Jacobi cascade (native C peer when "
+                    "present; no NumPy in the call graph). Real-input "
+                    "specialisation of "
                     "hermitian_eigendecompose: guarantees real float64 "
                     "eigvals AND eigvecs (no ComplexWarning for a real "
                     "Laplacian). Golub & Van Loan §8.3.",
@@ -2872,8 +2886,7 @@ def _register_primitive_class_tools() -> None:
             summary="numpy-FREE Euclidean (2-norm) / Frobenius norm sqrt(sum "
                     "|x_i|^2) → float over the Mat / HV carrier: Class N (rational "
                     "sqrt) of the Class M self-bind sum|x|^2 (pure-Python reduction, "
-                    "complex |z|^2 = re^2+im^2, no abs). The numpy-absent peer of "
-                    "dense_norm (which is a numpy carrier). Golub & Van Loan §2.3.",
+                    "complex |z|^2 = re^2+im^2, no abs). Golub & Van Loan §2.3.",
             parameters=(P("x", "Mat", True,
                           "Mat / HV / flat real-or-complex sequence (flattened)"),),
             returns=R("float", "sqrt(sum |x_i|^2)"),
@@ -2944,8 +2957,9 @@ def _register_primitive_class_tools() -> None:
             summary="Array Euclidean magnitude sqrt(a_i^2 + b_i^2) via the "
                     "Class-N hypot cascade (per-element rational.hypot; native "
                     "srmech_rational_sqrt-dispatched). The numpy-free |z| = "
-                    "sqrt(re^2+im^2) op the DSP modules route through — numpy "
-                    "carries the array only. Golub & Van Loan §1.1.",
+                    "sqrt(re^2+im^2) op the DSP modules route through — "
+                    "rank-preserving over the Mat / Vec carrier. Golub & Van "
+                    "Loan §1.1.",
             parameters=(P("a", "Mat | Vec", True, "Mat (2-D) or Vec (1-D) real (e.g. z.real)"),
                         P("b", "Mat | Vec", True, "same-shape real (e.g. z.imag)")),
             returns=R("Mat | Vec",
@@ -2958,7 +2972,8 @@ def _register_primitive_class_tools() -> None:
                     "sqrt cascade (per-element rational.sqrt; native "
                     "srmech_rational_sqrt-dispatched). The numpy-free array "
                     "square-root op (companion to elementwise_hypot) for "
-                    "non-negative reals — numpy carries the array only. Rejects "
+                    "non-negative reals — rank-preserving over the Mat / Vec "
+                    "carrier. Rejects "
                     "arr_i < 0. Golub & Van Loan §1.1.",
             parameters=(P("arr", "Mat | Vec", True,
                           "Mat (2-D) or Vec (1-D) real, all entries >= 0"),),
@@ -3630,21 +3645,21 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.cascade.matrix_cascades.qr", owner="srmech", category="cascade",
-            summary="Householder QR factorization A = Q*R: Q a product (Class M) of elementary reflectors H = I - beta*v*v^H, each Class K (sign-flip across a hyperplane) + Class M (outer-product bind) + Class N (1/(v^H v) scale, with the column norm a rational.sqrt). numpy as CONTAINER only — no NumPy QR in the call graph. mode='reduced' (default, matching NumPy QR) or 'complete'. QR is unique only up to signs; the invariants (Q*R=A, Q^H Q=I, R upper-triangular) hold to round-off.",
+            summary="Householder QR factorization A = Q*R: Q a product (Class M) of elementary reflectors H = I - beta*v*v^H, each Class K (sign-flip across a hyperplane) + Class M (outer-product bind) + Class N (1/(v^H v) scale, with the column norm a rational.sqrt). The Mat carrier throughout — no NumPy QR in the call graph. mode='reduced' (default, matching NumPy QR) or 'complete'. QR is unique only up to signs; the invariants (Q*R=A, Q^H Q=I, R upper-triangular) hold to round-off.",
             parameters=(P("a", "Mat", True, "(m, n) real or complex 2-D matrix"),
                         P("mode", "str", False, "keyword-only; 'reduced' (default) or 'complete'")),
             returns=R("tuple[Mat, Mat]", "(Q, R): orthonormal-column Q + upper-triangular R"),
         ),
         ToolEntry(
             name="srmech.cascade.matrix_cascades.svd", owner="srmech", category="cascade",
-            summary="Singular value decomposition A = U*diag(s)*V^H via the Gram-matrix Hermitian eigendecomposition: Class L (eig of A^H A or A A^H, srmech's hermitian_eigendecompose) + Class N+K (s = sqrt(eigvals), via rational.sqrt) + Class M (U = A*V*Sigma^-1). numpy as CONTAINER only — no NumPy SVD. full_matrices=False (reduced form). Singular values match NumPy SVD to round-off for well-conditioned inputs (the Gram route squares the condition number); U/V unique only up to signs.",
+            summary="Singular value decomposition A = U*diag(s)*V^H via the Gram-matrix Hermitian eigendecomposition: Class L (eig of A^H A or A A^H, srmech's hermitian_eigendecompose) + Class N+K (s = sqrt(eigvals), via rational.sqrt) + Class M (U = A*V*Sigma^-1). The Mat carrier throughout — no NumPy SVD. full_matrices=False (reduced form). Singular values match NumPy SVD to round-off for well-conditioned inputs (the Gram route squares the condition number); U/V unique only up to signs.",
             parameters=(P("a", "Mat", True, "(m, n) real or complex 2-D matrix"),
                         P("full_matrices", "bool", False, "keyword-only; only False (reduced form) is supplied")),
             returns=R("tuple[Mat, Vec, Mat]", "(U, s, Vh): singular vectors + descending singular values"),
         ),
         ToolEntry(
             name="srmech.cascade.matrix_cascades.lstsq", owner="srmech", category="cascade",
-            summary="Least-squares solution of A x = b (minimising ||A x - b||): {QR} factorization + Class M (the Qᴴ b product) + Class I (back-substitution = the ordered triangular solve). Overdetermined/square m>=n, full column rank; b a vector or stack of RHS. numpy as CONTAINER only — no NumPy lstsq. Matches NumPy lstsq(a,b)[0] to round-off.",
+            summary="Least-squares solution of A x = b (minimising ||A x - b||): {QR} factorization + Class M (the Qᴴ b product) + Class I (back-substitution = the ordered triangular solve). Overdetermined/square m>=n, full column rank; b a vector or stack of RHS. The Mat carrier throughout — no NumPy lstsq. Matches NumPy lstsq(a,b)[0] to round-off.",
             parameters=(P("a", "Mat", True, "(m, n) coefficient matrix, m>=n"),
                         P("b", "Mat | Vec", True, "(m,) or (m, k) right-hand side(s)")),
             returns=R("Mat | Vec", "least-squares solution x, shape (n,) or (n, k)"),
@@ -3658,7 +3673,7 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.cascade.matrix_cascades.eigvals", owner="srmech", category="cascade",
-            summary="Eigenvalues of a general (non-Hermitian) square matrix via the shifted-QR iteration: Class K (iterate-to-convergence asymptotic-DoF) + Class L (spectral content) + {QR} (per-step Householder factorization) + Class C (Wilkinson spectral shifts). Runs in complex arithmetic so complex eigenvalues of real matrices fall out directly. numpy as CONTAINER only — no NumPy eig/eigvals. Eigenvalues unique as a SET; the multiset matches NumPy eigvals to ~1e-12 for moderate sizes.",
+            summary="Eigenvalues of a general (non-Hermitian) square matrix via the shifted-QR iteration: Class K (iterate-to-convergence asymptotic-DoF) + Class L (spectral content) + {QR} (per-step Householder factorization) + Class C (Wilkinson spectral shifts). Runs in complex arithmetic so complex eigenvalues of real matrices fall out directly. A plain list[complex] carrier — no NumPy eig/eigvals. Eigenvalues unique as a SET; the multiset matches NumPy eigvals to ~1e-12 for moderate sizes.",
             parameters=(P("a", "Mat", True, "(n, n) real or complex square matrix"),
                         P("max_sweeps", "int", False, "keyword-only; per-eigenvalue iteration cap factor (default 500)")),
             returns=R("Vec", "length-n complex eigenvalue array"),
@@ -3671,7 +3686,7 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.cascade.matrix_cascades.eigvals_exact", owner="srmech", category="cascade",
-            summary="Exact eigenvalues of an integer matrix — the well-conditioned exact-until-rotation cascade (no Wilkinson ill-conditioning, because the eigenvalues are ALGEBRAIC and we never leave exact arithmetic). char_poly (exact integer) + Yun square-free factorization (exact multiplicities) + Sturm sign-sequence isolation (Class C sign-count at Class K interval boundaries) + rational bisection (Class N anchors → the algebraic asymptote), all in exact Fraction arithmetic, then ONE FPU lift. bits sets refinement precision; return_intervals=True yields the exact (lo, hi) rational isolating intervals (real-only path). Returns the real eigenvalues ascending WITH multiplicity. With include_complex=True the COMPLEX eigenvalues are also returned, EXACTLY ISOLATED: a float-QR candidate is certified as a unique root of the exact integer char-poly in a rational box by the argument-principle root-count (winding number in exact Fraction arithmetic — no float in the count), refined to bits, the float being the single terminal projection of the certified box center — distinct from the unconditioned float-QR spectrum of mat_eigvals it merely seeds. Returns all n eigenvalues (reals first ascending as float, then complex sorted by (re, im) as complex; conjugate pairs).",
+            summary="Exact eigenvalues of an integer matrix — the well-conditioned exact-until-rotation cascade (no Wilkinson ill-conditioning, because the eigenvalues are ALGEBRAIC and we never leave exact arithmetic). char_poly (exact integer) + Yun square-free factorization (exact multiplicities) + Sturm sign-sequence isolation (Class C sign-count at Class K interval boundaries) + rational bisection (Class N anchors → the algebraic asymptote), all in exact ℚ on the Q carrier, then ONE FPU lift. bits sets refinement precision; return_intervals=True yields the exact (lo, hi) rational isolating intervals (real-only path). Returns the real eigenvalues ascending WITH multiplicity. With include_complex=True the COMPLEX eigenvalues are also returned, EXACTLY ISOLATED: a float-QR candidate is certified as a unique root of the exact integer char-poly in a rational box by the argument-principle root-count (winding number in exact ℚ on the Q carrier — no float in the count), refined to bits, the float being the single terminal projection of the certified box center — distinct from the unconditioned float-QR spectrum of mat_eigvals it merely seeds. Returns all n eigenvalues (reals first ascending as float, then complex sorted by (re, im) as complex; conjugate pairs).",
             parameters=(P("a", "Mat", True, "(n, n) integer square matrix"),
                         P("bits", "int", False, "keyword-only; bisection refinement precision in bits (default 64)"),
                         P("return_intervals", "bool", False, "keyword-only; return exact (lo, hi) rational intervals instead of floats (real-only path); default False"),
@@ -3680,7 +3695,7 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.cascade.matrix_cascades.lll_reduce", owner="srmech", category="cascade",
-            summary="EXACT-ℚ LLL lattice-basis reduction — the classic Lenstra–Lenstra–Lovász (1982) reduction of an integer lattice basis, in exact rational arithmetic (no float anywhere), and the foundation for a future van Hoeij polynomial-factorization knapsack (the LLL recombination that supersedes the exponential Zassenhaus subset search in factor_integer_poly). Input basis is m integer row-vectors (length n) spanning a rank-m lattice; delta=(num, den) is the Lovász parameter in (1/4, 1] (default 3/4). Returns the LLL-reduced basis (m integer row-vectors): SAME lattice (a unimodular change of basis, det = ±1), size-reduced (|μ_{k,j}| ≤ 1/2 for j<k), Lovász-satisfying (‖b*_k‖² ≥ (δ − μ²_{k,k−1})·‖b*_{k−1}‖²), so the first vector is provably short. The engine is exact throughout: a Gram-matrix Gram–Schmidt orthogonalization over ℚ (μ, ‖b*‖² as exact Fraction / arbitrary-precision srmech_bigint rationals in the C peer), size reduction by exact nearest-integer rounding of μ (round(a/b) = floor((2a+b)/(2b)) — never a float rint, never abs: the |μ| ≤ 1/2 guard is a Class-K sign branch on 2·num vs den), and the Lovász swap decided on the exact ℚ inequality. Integer-in, integer-out; rotation-last-trivial (no projection). Class L (the lattice / Gram–Schmidt spectral content) ∘ Class K (the size-reduction sign pin-slots + the swap-sign boundary — never an ALU abs) ∘ Class N (the exact nearest-integer rational rounding) ∘ Class I (the ordered integer vector row operations). Native-dispatched (srmech_lll_reduce, byte-identical to the pure body — both exact). Raises on a degenerate (linearly dependent) basis or a delta outside (1/4, 1]. Canonical SSoT: A. K. Lenstra, H. W. Lenstra Jr., L. Lovász, 'Factoring polynomials with rational coefficients', Math. Ann. 261 (1982), 515–534; algorithm as in H. Cohen, A Course in Computational Algebraic Number Theory (1993), Algorithm 2.6.3.",
+            summary="EXACT-ℚ LLL lattice-basis reduction — the classic Lenstra–Lenstra–Lovász (1982) reduction of an integer lattice basis, in exact rational arithmetic (no float anywhere), and the foundation for a future van Hoeij polynomial-factorization knapsack (the LLL recombination that supersedes the exponential Zassenhaus subset search in factor_integer_poly). Input basis is m integer row-vectors (length n) spanning a rank-m lattice; delta=(num, den) is the Lovász parameter in (1/4, 1] (default 3/4). Returns the LLL-reduced basis (m integer row-vectors): SAME lattice (a unimodular change of basis, det = ±1), size-reduced (|μ_{k,j}| ≤ 1/2 for j<k), Lovász-satisfying (‖b*_k‖² ≥ (δ − μ²_{k,k−1})·‖b*_{k−1}‖²), so the first vector is provably short. The engine is exact throughout: a Gram-matrix Gram–Schmidt orthogonalization over ℚ (μ, ‖b*‖² as exact Q / arbitrary-precision srmech_bigint rationals in the C peer), size reduction by exact nearest-integer rounding of μ (round(a/b) = floor((2a+b)/(2b)) — never a float rint, never abs: the |μ| ≤ 1/2 guard is a Class-K sign branch on 2·num vs den), and the Lovász swap decided on the exact ℚ inequality. Integer-in, integer-out; rotation-last-trivial (no projection). Class L (the lattice / Gram–Schmidt spectral content) ∘ Class K (the size-reduction sign pin-slots + the swap-sign boundary — never an ALU abs) ∘ Class N (the exact nearest-integer rational rounding) ∘ Class I (the ordered integer vector row operations). Native-dispatched (srmech_lll_reduce, byte-identical to the pure body — both exact). Raises on a degenerate (linearly dependent) basis or a delta outside (1/4, 1]. Canonical SSoT: A. K. Lenstra, H. W. Lenstra Jr., L. Lovász, 'Factoring polynomials with rational coefficients', Math. Ann. 261 (1982), 515–534; algorithm as in H. Cohen, A Course in Computational Algebraic Number Theory (1993), Algorithm 2.6.3.",
             parameters=(P("basis", "list", True, "a list of m integer row-vectors (each length n, arbitrary-precision ints) — an independent lattice basis"),
                         P("delta", "tuple[int, int]", False, "the Lovász parameter as an exact rational pair (num, den) in (1/4, 1]; default (3, 4)")),
             returns=R("list", "the LLL-reduced basis: m integer row-vectors (same lattice, size-reduced, Lovász-satisfying)"),
@@ -5770,14 +5785,14 @@ def _register_primitive_class_tools() -> None:
                     "streaming / out-of-core k-extreme-mode peer of "
                     "resonant_spectrum (issue #698). resonant_spectrum reads the "
                     "signature only through the DENSE Class-L eigensolve "
-                    "(native-capped at MAX_NATIVE_NODES=256; O(n²) RAM, O(n³) "
-                    "eig). This reads the SAME signature restricted to the k "
+                    "(O(n²) RAM, O(n³) eig — a cost wall; the native peer has no "
+                    "compiled node cap). This reads the SAME signature restricted to the k "
                     "EXTREME modes — the k lowest-tension + k highest-tension "
                     "eigenpairs of the COMBINATORIAL Laplacian L = D − W — via "
                     "streaming power iteration + Gram-Schmidt deflation on the "
                     "packed edge stream (bottom-k ride the shift σI − L, top-k "
                     "ride L; each mode deflates against all found). RAM O(k·n), "
-                    "time O(k·|E|·iters), n UNBOUNDED — breaks the n≤256 dense "
+                    "time O(k·|E|·iters), n UNBOUNDED — breaks the O(n³) dense "
                     "wall the way fiedler_sparse breaks it for the 2-way cut. The "
                     "k tensions feed the SAME _resonances_from_tensions lock/"
                     "libration read resonant_spectrum uses (Class-N best_rational "
@@ -9243,8 +9258,10 @@ def _register_primitive_class_tools() -> None:
                 P("table", "list[list[list[int]]]", True,
                   "the dim × dim × dim structure-constant tensor; table[i][j][k] is "
                   "the coefficient of e_k in e_i·e_j (basis 0 is the real "
-                  "direction). The shape qm.octonion_mult_table / "
-                  "qm.quaternion_mult_table already return"),
+                  "direction). The shape "
+                  "srmech.physics.qm.octonion.octonion_mult_table / "
+                  "srmech.physics.qm.quaternion.quaternion_mult_table "
+                  "already return"),
             ),
             returns=R("dict",
                       "{'dim', 'form' ('trace'), 'signature' (n₊,n₋,n₀), 'n_plus', "
@@ -9271,8 +9288,10 @@ def _register_primitive_class_tools() -> None:
                     "SPLIT from that rung up. THE DEFAULT IS THE SHIPPED ALGEBRA, "
                     "BIT-IDENTICALLY: gammas=None reproduces cd_basis_product at "
                     "every (dim, i, j) to dim 64, algebra_table(8) IS "
-                    "qm.octonion_mult_table() and algebra_table(4) IS "
-                    "qm.quaternion_mult_table(), and table_product over it "
+                    "srmech.physics.qm.octonion.octonion_mult_table() and "
+                    "algebra_table(4) IS "
+                    "srmech.physics.qm.quaternion.quaternion_mult_table(), "
+                    "and table_product over it "
                     "reproduces cd_mult 300/300 (int) + 200/200 (exact-ℚ) — the "
                     "same C cocycle engine, called with and without a γ vector. "
                     "MEASURED at dim 8 over all eight γ-triples: exactly TWO "
@@ -12937,7 +12956,8 @@ def _register_qm_tools() -> None:
             name="srmech.physics.qm.so8.g2_subalgebra", owner="srmech",
             category="qm.so8",
             summary="The 14 octonion derivations Der(O) = g2 (deterministic "
-                    "rank-revealing numpy subset of the 21 D_{e_i,e_j}; rank "
+                    "rank-revealing greedy-independent-column subset of the 21 "
+                    "D_{e_i,e_j}; rank "
                     "exactly 14). The Fix(τ) killer-test target. Class M. "
                     "Baez (2002) §4.1; Schafer (1966).",
             parameters=(),
