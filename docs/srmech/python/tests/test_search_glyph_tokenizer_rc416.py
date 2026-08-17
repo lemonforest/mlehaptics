@@ -445,8 +445,41 @@ from srmech.math.text import fold_marks, glyph_stream
 #: ``citation_corpus`` this corpus is built from in-package ``ToolEntry`` prose
 #: and carries no path-based exclusion. Re-pinned LAST, after
 #: ``regen_all.py --check`` reported all six generated files up to date.
+#:
+#: rc441 (`#T1148`) moves it again, and it is the CLEAN case a third time
+#: running: counts UNCHANGED at **690 / 661 / 29**, so pure prose and no
+#: registration — measured on both sides, rc440 and rc441 each build 690
+#: frames, and 690 = 661 ops + 29 carriers with the ops half still exactly the
+#: live registry total. Two curated entries moved, both Class-B TLV:
+#: ``tlv_pack``'s explanation stopped citing its C peer by LINE number
+#: (``c/include/srmech.h:2707`` had drifted onto unrelated prose — stale before
+#: this rc touched the header, and a symbol name cannot go stale where a line
+#: offset does) and now records that ``tlv_unpack`` has a C peer of its own;
+#: ``tlv_unpack``'s gained that peer's contract, because rc441 is the rc that
+#: SHIPPED it — through rc440 Class B had a writer in C and a reader in Python
+#: only, so the registry's own "the ONLY correct way to read these frames back"
+#: was advice no C caller could take.
+#:
+#: Determinism re-established BEFORE re-pinning, and more widely than usual
+#: because this rc changes a dispatch path: **eleven** builds agreed on this
+#: one digest — FIVE fresh numpy-absent WSL2 interpreters on a COMPLETE tree
+#: copy with NO ``.so`` (the pure projection, which is the cell that went red),
+#: THREE more on the same copy WITH ``libsrmech.so`` loaded (``HAS_NATIVE``
+#: True), and THREE in the session worktree. Pure and native agree, which is
+#: the check that matters here: a witness that differed between projections
+#: could not be pinned by a single constant at all. The rc440 note above is
+#: confirmed — this corpus is built from in-package ``ToolEntry`` prose and
+#: carries no path-based exclusion, so unlike ``citation_corpus`` the worktree
+#: reading is trustworthy.
+#:
+#: The value was ALSO cross-checked against CI rather than only against itself:
+#: the ``fallback (pure-Python, no native) • shard 6/6`` job of run
+#: 31981627025 reported exactly this digest on all three of these tests before
+#: the re-pin, so the local measurement and the authoritative cell agree.
+#: Re-pinned LAST, after ``regen_all.py --check`` reported all six generated
+#: files up to date.
 WITNESS_RC416 = (
-    "a27596db89dc1b5ae2f4c1098168750d1e3b5a1d7364989250ed86f48988a9d3")
+    "bdb9607397f2945e6ee2123b70e9554962791df5c76a1e1e7299f7b08de505a3")
 
 #: The ASCII control set. These four queries are the ops the tokenizer work is
 #: ABOUT, so a regression on them would be the change eating its own subject.
