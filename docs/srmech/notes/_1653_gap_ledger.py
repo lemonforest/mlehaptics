@@ -154,22 +154,72 @@ ROWS = [
          note="PROTOTYPED: notes/_1653_proto_fold.c compiles and runs, 4/4 "
               "negative-shape probes correct.",
          ceiling_blind_to="Same as step_form_map."),
-    dict(id="op_table_remaining_29", kind="gap",
-         missing="29 of the 43 ops named by the remaining 12 chains have NO C "
-                 "symbol under any spelling.",
+    dict(id="symbol_gap_ABSENT_6", kind="gap",
+         missing="6 ops used by shipped descriptors have NO C symbol at ANY "
+                 "granularity: bind, compensated_sum, dead_band, f64_add, "
+                 "scale_round_half_even, schur_complement.",
          lacked_by="c", blocked_this_rc=True, new_type=False,
-         evidence="nm over c/build/libsrmech.a (805 exported symbols): 6 match "
-                  "srmech_<op> exactly, 8 more under another spelling "
-                  "(srmech_cascade_chiral_flip_i64, srmech_hdc_permute, ...), 29 "
-                  "have none.",
-         probe="see this file's --scan mode",
+         evidence="notes/_1653_symbol_gap.ndjson — all 47 ops classified per-op "
+                  "against 805 exports, with every claimed symbol RE-VERIFIED at "
+                  "run time.",
+         probe="python3 notes/_1653_symbol_gap.py",
          disposition=FILED,
-         note="MIXED, and the mix is the point: several are pure FRAMING (seq_get, "
-              "seq_len, pair, str_concat) needing no export at all, while others "
-              "are real math (odft_summand, qdft_summand, the kuramoto terms, "
-              "schur_complement). Sizing the work as one number would be wrong.",
+         note="THE REAL PARITY HOLES. Enumerated per-op, never as a count: an "
+              "earlier draft of this ledger carried one lumped '29 missing' row, "
+              "and that row WAS the skip — a missing symbol IS the parity gap, "
+              "not a deferral note about one (user direction 2026-08-17).",
          ceiling_blind_to="An op added to a descriptor that already fails for "
-                          "another reason — the chain count does not move."),
+                          "another reason — the chain count does not move. The "
+                          "per-op file closes this: it asserts EVERY op used by a "
+                          "shipped descriptor is classified, so a new op fails it."),
+    dict(id="symbol_gap_COARSER_12", kind="gap",
+         missing="12 ops where C ships the WHOLE op but not the cascade STEP — "
+                 "the o/qDFT summands and mu-resolvers, the kuramoto per-term "
+                 "and per-oscillator steps, correlation_product.",
+         lacked_by="c", blocked_this_rc=True, new_type=False,
+         evidence="notes/_1653_symbol_gap.ndjson: e.g. srmech_octonion_dft exists "
+                  "while the descriptor decomposes it into odft_summand + "
+                  "odft_resolve_mu + dft_scale + dft_sigma.",
+         probe="python3 notes/_1653_symbol_gap.py",
+         disposition=FILED,
+         note="A GRANULARITY gap, not a capability gap — and the distinction is "
+              "load-bearing. gh #1653 asks for config-driven cascade execution IN "
+              "C, so calling the coarse symbol is NOT parity: it bypasses the "
+              "grammar the issue exists to make executable. Closing these means "
+              "exposing the STEP, not re-using the whole-op export.",
+         ceiling_blind_to="Nothing measures granularity. A chain could be made to "
+                          "'pass' by dispatching the coarse op, and every ratchet "
+                          "here would go green while the descriptor was ignored."),
+    dict(id="symbol_gap_FRAMING_7", kind="gap",
+         missing="7 ops carry no math at all (pair, str_concat, byte_slice, "
+                 "int_parse_le, utf8_encode, as_quat4, as_oct8).",
+         lacked_by="c", blocked_this_rc=True, new_type=False,
+         evidence="notes/_1653_symbol_gap.ndjson.",
+         probe="python3 notes/_1653_symbol_gap.py",
+         disposition=FILED,
+         note="These want an INTERPRETER PRIMITIVE inside the runner, NOT an "
+              "exported symbol. Filed separately so they are never counted as "
+              "missing exports — doing them as exports would be the wrong fix and "
+              "would inflate the C surface with structure ops.",
+         ceiling_blind_to="Same as the ABSENT row."),
+    dict(id="claude_md_claims_schur_parity", kind="bug",
+         missing="docs/srmech/CLAUDE.md lists 'the Schur-complement / "
+                 "Dirichlet-to-Neumann Class-L op' among what SHIPPED in the "
+                 "v0.7.x arc, against a stated commitment of 'full C parity for "
+                 "every primitive class, no exceptions'. No such C symbol exists.",
+         lacked_by="c", blocked_this_rc=False, new_type=False,
+         evidence="nm over 805 exports: zero symbols matching schur / dirichlet / "
+                  "neumann. The op is Python-only.",
+         probe="nm -g --defined-only c/build/libsrmech.a | grep -iE 'schur|dirichlet|neumann'",
+         disposition=FILED,
+         note="A DOC bug on top of a parity gap, and the doc bug is the worse "
+              "half: the orientation file every session reads asserts a parity "
+              "that does not hold, so the hole is invisible to exactly the reader "
+              "most likely to rely on it. That file is explicitly NOT "
+              "hygiene-gated, so nothing but a reader catches it.",
+         ceiling_blind_to="No ratchet reads CLAUDE.md. This class of defect — "
+                          "orientation prose asserting a capability the library "
+                          "lacks — has no mechanical detector at all."),
     dict(id="bigint_modinv", kind="gap",
          missing="No bigint extended-Euclid / modular-inverse export, so mod_inv "
                  "alone keeps the uint64 wire while its five siblings went bigint.",

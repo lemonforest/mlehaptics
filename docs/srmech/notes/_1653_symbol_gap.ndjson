@@ -1,0 +1,48 @@
+{"c_symbol": null, "note": "an 8-wide VIEW of a carrier, not a computation", "op": "as_oct8", "resolution": "FRAMING", "used_by": ["octonion_dft"]}
+{"c_symbol": null, "note": "a 4-wide VIEW of a carrier, not a computation", "op": "as_quat4", "resolution": "FRAMING", "used_by": ["quaternion_dft"]}
+{"c_symbol": "srmech_autocorrelation_f64", "note": "needs CR_DBL", "op": "autocorrelation", "resolution": "DIRECT", "used_by": ["chiral_dual"]}
+{"c_symbol": "srmech_best_rational", "note": "exact-name match", "op": "best_rational", "resolution": "DIRECT", "used_by": ["best_rational_signed"]}
+{"c_symbol": null, "note": "the chain's Class-M bind; srmech_ellbase_bind_* is the ELLBASE bind, a different op \u2014 a substring match pairs them wrongly", "op": "bind", "resolution": "ABSENT", "used_by": ["encode_loe_content"]}
+{"c_symbol": null, "note": "buffer window", "op": "byte_slice", "resolution": "FRAMING", "used_by": ["encode_loe_content", "klein4_from_one"]}
+{"c_symbol": "srmech_cascade_chiral_flip_i64", "note": "+_f64 peer", "op": "chiral_flip", "resolution": "DIRECT", "used_by": ["chiral_dual"]}
+{"c_symbol": null, "note": "Kahan/Neumaier summation; no C peer", "op": "compensated_sum", "resolution": "ABSENT", "used_by": ["autocorrelation"]}
+{"c_symbol": "srmech_autocorrelation_f64", "note": "step of the whole autocorr", "op": "correlation_product", "resolution": "COARSER", "used_by": ["autocorrelation"]}
+{"c_symbol": null, "note": "Class-K threshold; srmech_three_fold_bands is a DIFFERENT op, not this one", "op": "dead_band", "resolution": "ABSENT", "used_by": ["best_rational_signed"]}
+{"c_symbol": "srmech_octonion_dft", "note": "shared by o/q DFT chains", "op": "dft_scale", "resolution": "COARSER", "used_by": ["octonion_dft", "quaternion_dft"]}
+{"c_symbol": "srmech_octonion_dft", "note": "shared by o/q DFT chains", "op": "dft_sigma", "resolution": "COARSER", "used_by": ["octonion_dft", "quaternion_dft"]}
+{"c_symbol": null, "note": "needs CR_DBL before it can even be typed", "op": "f64_add", "resolution": "ABSENT", "used_by": ["kuramoto_step"]}
+{"c_symbol": "srmech_bigint_gcd", "note": "SHIPPED in this rc; bigint-native", "op": "gcd", "resolution": "DIRECT", "used_by": ["cyclic_gcd"]}
+{"c_symbol": null, "note": "little-endian read from a byte window", "op": "int_parse_le", "resolution": "FRAMING", "used_by": ["encode_loe_content", "klein4_from_one"]}
+{"c_symbol": "srmech_cascade_kuramoto_step_general_f64", "note": "per-osc out", "op": "kuramoto_gen_out", "resolution": "COARSER", "used_by": ["kuramoto_step"]}
+{"c_symbol": "srmech_cascade_kuramoto_step_general_f64", "note": "per-term step of the GENERAL kernel", "op": "kuramoto_gen_term", "resolution": "COARSER", "used_by": ["kuramoto_step"]}
+{"c_symbol": "srmech_cascade_kuramoto_step_f64", "note": "the 1/N factor", "op": "kuramoto_inv_n", "resolution": "COARSER", "used_by": ["kuramoto_step"]}
+{"c_symbol": "srmech_cascade_kuramoto_step_f64", "note": "per-osc out", "op": "kuramoto_out_simple", "resolution": "COARSER", "used_by": ["kuramoto_step"]}
+{"c_symbol": "srmech_cascade_kuramoto_step_f64", "note": "per-term step", "op": "kuramoto_sin_term", "resolution": "COARSER", "used_by": ["kuramoto_step"]}
+{"c_symbol": "srmech_mint_vector", "note": "exact-name match", "op": "mint_vector", "resolution": "DIRECT", "used_by": ["encode_loe_content"]}
+{"c_symbol": "srmech_mod_add", "note": "SHIPPED in this rc", "op": "mod_add", "resolution": "DIRECT", "used_by": ["autocorrelation", "cyclic_mod_add", "encode_loe_content", "klein4_from_one"]}
+{"c_symbol": "srmech_mod_inv", "note": "SHIPPED in this rc, but the ONLY cyclic op still on the uint64 wire \u2014 no bigint extended-Euclid exists. See the gap ledger's bigint_modinv row.", "op": "mod_inv", "resolution": "DIRECT", "used_by": ["cyclic_mod_inv"]}
+{"c_symbol": "srmech_mod_mul", "note": "SHIPPED in this rc", "op": "mod_mul", "resolution": "DIRECT", "used_by": ["cyclic_mod_mul", "klein4_from_one"]}
+{"c_symbol": "srmech_mod_mul", "note": "SHIPPED in this rc; SAME arm as mod_mul, because 'wide' named the absence of a cap and bigint has no cap", "op": "mod_mul_wide", "resolution": "DIRECT", "used_by": ["cyclic_mod_mul_wide"]}
+{"c_symbol": "srmech_mod_pow", "note": "SHIPPED in this rc (bigint square-and-multiply)", "op": "mod_pow", "resolution": "DIRECT", "used_by": ["cyclic_mod_pow"]}
+{"c_symbol": "srmech_octonion_dft", "note": "step of the whole DFT", "op": "odft_resolve_mu", "resolution": "COARSER", "used_by": ["octonion_dft"]}
+{"c_symbol": "srmech_octonion_dft", "note": "step of the whole DFT", "op": "odft_summand", "resolution": "COARSER", "used_by": ["octonion_dft"]}
+{"c_symbol": "srmech_cascade_reorient_i64", "note": "Class C sign compose over the reorient export", "op": "orientation_compose", "resolution": "DIRECT", "used_by": ["net_chirality"]}
+{"c_symbol": null, "note": "builds a 2-tuple; pure structure", "op": "pair", "resolution": "FRAMING", "used_by": ["best_rational_signed", "klein4_from_one"]}
+{"c_symbol": "srmech_cascade_parallel_sector_dispatch", "note": "Klein-4 four-sector", "op": "parallel_sector_dispatch", "resolution": "DIRECT", "used_by": ["parallel_sector_dispatch"]}
+{"c_symbol": "srmech_hdc_permute", "note": "Class M", "op": "permute", "resolution": "DIRECT", "used_by": ["encode_loe_content"]}
+{"c_symbol": "srmech_cascade_pin_slot_at_zero_f64", "note": "Class K pin-slot", "op": "pin_slot_at_zero", "resolution": "DIRECT", "used_by": ["best_rational_signed", "magnitude"]}
+{"c_symbol": "srmech_quaternion_dft", "note": "step of the whole DFT", "op": "qdft_resolve_mu", "resolution": "COARSER", "used_by": ["quaternion_dft"]}
+{"c_symbol": "srmech_quaternion_dft", "note": "step of the whole DFT", "op": "qdft_summand", "resolution": "COARSER", "used_by": ["quaternion_dft"]}
+{"c_symbol": "srmech_template_render", "note": "NAME TRANSPOSED \u2014 a spelling census files this as missing", "op": "render_template", "resolution": "DIRECT", "used_by": ["klein4_from_one"]}
+{"c_symbol": "srmech_cascade_reorient_i64", "note": "+_f64 peer", "op": "reorient", "resolution": "DIRECT", "used_by": ["best_rational_signed", "magnitude"]}
+{"c_symbol": null, "note": "banker's rounding; no C peer", "op": "scale_round_half_even", "resolution": "ABSENT", "used_by": ["best_rational_signed"]}
+{"c_symbol": null, "note": "\u26a0\ufe0f NO srmech_schur* / _dirichlet* / _neumann* symbol EXISTS. docs/srmech/CLAUDE.md lists 'the Schur-complement / Dirichlet-to-Neumann Class-L op' among what SHIPPED in the v0.7.x arc, against a stated commitment of 'full C parity for every primitive class, no exceptions'. This is a Class-L op that is Python-only, and the orientation brief does not say so.", "op": "schur_complement", "resolution": "ABSENT", "used_by": ["schur_complement"]}
+{"c_symbol": "srmech_vec_get", "note": "Vec carrier only; generic seq is FRAMING", "op": "seq_get", "resolution": "DIRECT", "used_by": ["klein4_from_one", "octonion_dft", "quaternion_dft"]}
+{"c_symbol": "srmech_vec_buf_len", "note": "Vec carrier only", "op": "seq_len", "resolution": "DIRECT", "used_by": ["autocorrelation", "kuramoto_step", "octonion_dft", "quaternion_dft"]}
+{"c_symbol": "srmech_sha256_hex", "note": "Class A; the anchor op", "op": "sha256_bytes", "resolution": "DIRECT", "used_by": ["klein4_from_one"]}
+{"c_symbol": "srmech_sha256_hex", "note": "same export, raw digest read", "op": "sha256_raw", "resolution": "DIRECT", "used_by": ["encode_loe_content"]}
+{"c_symbol": null, "note": "string join", "op": "str_concat", "resolution": "FRAMING", "used_by": ["encode_loe_content", "klein4_from_one"]}
+{"c_symbol": null, "note": "str -> bytes", "op": "utf8_encode", "resolution": "FRAMING", "used_by": ["encode_loe_content", "klein4_from_one"]}
+{"c_symbol": "srmech_vec_add", "note": "exact-name match", "op": "vec_add", "resolution": "DIRECT", "used_by": ["octonion_dft", "quaternion_dft"]}
+{"c_symbol": "srmech_vec_scale", "note": "exact-name match", "op": "vec_scale", "resolution": "DIRECT", "used_by": ["octonion_dft", "quaternion_dft"]}
+{"ops": 47, "record": "summary", "tally": {"ABSENT": 6, "COARSER": 12, "DIRECT": 22, "FRAMING": 7}}
