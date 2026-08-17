@@ -1,0 +1,9 @@
+[cascade]
+name = "t1142_fold_unknown"
+purpose = "planted: fold_op names a non-existent op (guarantee (a), CONTROL)"
+kind = "stage"
+
+[composite]
+[[composite.stage]]
+fold_init = 0
+fold_op = "t1142_no_such_op_planted"

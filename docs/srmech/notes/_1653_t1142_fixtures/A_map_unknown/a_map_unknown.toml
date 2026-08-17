@@ -1,0 +1,8 @@
+[cascade]
+name = "t1142_map_unknown"
+purpose = "planted: map_op names a non-existent op (guarantee (a), map_op)"
+kind = "stage"
+
+[composite]
+[[composite.stage]]
+map_op = "t1142_no_such_op_planted"

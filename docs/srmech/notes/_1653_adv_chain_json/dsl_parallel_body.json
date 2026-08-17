@@ -1,0 +1,1 @@
+{"chain": {"name": "probe"}, "stage": [{"combine": "bundle", "n_sectors": 4, "parallel_body": "chiral_flip"}]}

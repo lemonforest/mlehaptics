@@ -1,0 +1,1 @@
+{"name": "probe.sf1_plain_only", "summary": "plain form + in-table op: the C run loop's ONLY supported shape", "returns": "value", "on_error": "raise", "steps": [{"class": "N", "op": "rational_add", "args": {"a": [1, 2], "b": [1, 3]}}]}

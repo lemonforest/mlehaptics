@@ -1,0 +1,1 @@
+{"name": "cyclic_mod_pow.0", "returns": "int  # (a ** k) mod n, in [0, n)", "steps": [{"args": {"a": "@input.a", "k": "@input.k", "n": "@input.n"}, "class": "I", "op": "mod_pow"}], "summary": "Class-I delegation: cyclic_mod_pow(a, k, n) IS srmech.math.cyclic.mod_pow(a, k, n)."}

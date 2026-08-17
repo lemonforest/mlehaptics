@@ -1,0 +1,1 @@
+{"name": "net_chirality.0", "returns": "int  # +1 / -1 / 0 \u2014 the net handedness", "steps": [{"fold_class": "C", "fold_init": 1, "fold_op": "srmech.cascade.leaves.orientation_compose", "over": "@input.orientations"}], "summary": "Class-C catamorphism: fold orientation_compose over the orientations from the +1 seed."}

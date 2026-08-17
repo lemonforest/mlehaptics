@@ -1,0 +1,8 @@
+[cascade]
+name = "adv1142_reduce_unknown"
+purpose = "adversarial control 2: reduce_op names an absent op"
+kind = "stage"
+
+[composite]
+[[composite.stage]]
+reduce_op = "adv1142_absent_op"

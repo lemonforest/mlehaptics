@@ -1,0 +1,1 @@
+{"name": "probe.sf6_plain_unknown_ns", "summary": "plain + in-table op + @idx ref: is @idx a RUN gate or only a PARSE gate?", "returns": "value", "on_error": "raise", "steps": [{"class": "N", "op": "rational_add", "args": {"a": "@idx.i", "b": [1, 3]}}]}

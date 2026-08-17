@@ -1,0 +1,1 @@
+{"chain": {"name": "probe"}, "stage": [{"fold_args": ["a", "b"], "fold_init": 0, "fold_op": "cyclic_gcd"}]}

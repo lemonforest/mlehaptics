@@ -1,0 +1,9 @@
+[cascade]
+name = "adv1142_fold_unknown"
+purpose = "adversarial control: fold_op names an absent op"
+kind = "stage"
+
+[composite]
+[[composite.stage]]
+fold_init = 0
+fold_op = "adv1142_absent_op"

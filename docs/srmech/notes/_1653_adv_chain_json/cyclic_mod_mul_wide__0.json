@@ -1,0 +1,1 @@
+{"name": "cyclic_mod_mul_wide.0", "returns": "int  # (a * b) mod n with a 128-bit-wide intermediate, in [0, n)", "steps": [{"args": {"a": "@input.a", "b": "@input.b", "n": "@input.n"}, "class": "I", "op": "mod_mul_wide"}], "summary": "Class-I delegation: cyclic_mod_mul_wide(a, b, n) IS srmech.math.cyclic.mod_mul_wide(a, b, n)."}

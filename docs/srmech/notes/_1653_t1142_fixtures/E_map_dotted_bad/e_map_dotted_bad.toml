@@ -1,0 +1,8 @@
+[cascade]
+name = "t1142_map_dotted_bad"
+purpose = "dotted map_op body whose module is NOT importable (residual bound)"
+kind = "stage"
+
+[composite]
+[[composite.stage]]
+map_op = "t1142_no_such_module.no_such_attr"

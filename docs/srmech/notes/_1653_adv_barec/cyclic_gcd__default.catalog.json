@@ -1,0 +1,1 @@
+{"chain_schema_version": 1, "operator_chain": [{"name": "cyclic_gcd.default", "summary": "Class-I delegation: cyclic_gcd(a, b) IS srmech.math.cyclic.gcd(a, b).", "returns": "int  # gcd(a, b) >= 0", "on_error": "raise", "steps": [{"class": "I", "op": "gcd", "args": {"a": "@input.a", "b": "@input.b"}}]}]}

@@ -1,0 +1,10 @@
+[cascade]
+name = "adv1142_nested"
+purpose = "adversarial: absent map_op INSIDE a sub_chain (recursion arm)"
+kind = "stage"
+
+[composite]
+[[composite.stage]]
+loop_n = 2
+[[composite.stage.sub_chain]]
+map_op = "adv1142_absent_op"

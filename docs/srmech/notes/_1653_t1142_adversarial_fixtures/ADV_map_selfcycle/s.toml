@@ -1,0 +1,8 @@
+[cascade]
+name = "adv1142_self"
+purpose = "adversarial: map_op points at its OWN descriptor"
+kind = "stage"
+
+[composite]
+[[composite.stage]]
+map_op = "adv1142_self"

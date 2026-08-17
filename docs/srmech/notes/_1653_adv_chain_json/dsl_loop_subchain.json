@@ -1,0 +1,1 @@
+{"chain": {"name": "probe"}, "stage": [{"loop_n": 3, "sub_chain": [{"op": "magnitude"}]}]}

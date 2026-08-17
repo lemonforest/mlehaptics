@@ -1,0 +1,1 @@
+{"name": "probe.sf2_map_at_step0", "summary": "map form, in-table body op: isolates the STEP FORM from the op table", "returns": "value", "on_error": "raise", "steps": [{"map_over": "@input.xs", "index": "i", "bind": "x", "body": [{"class": "N", "op": "rational_add", "args": {"a": "@bind.x", "b": [1, 3]}}]}]}

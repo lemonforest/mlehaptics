@@ -1,0 +1,8 @@
+[cascade]
+name = "adv1142_map_unknown"
+purpose = "adversarial: map_op names an absent op"
+kind = "stage"
+
+[composite]
+[[composite.stage]]
+map_op = "adv1142_absent_op"
