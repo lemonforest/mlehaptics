@@ -66,7 +66,14 @@ from srmech.math.hv import HV
 #: octonion-associativity read over a word of basis letters, the order-carrying
 #: peer of genome_octonion_associator, itself already in this gap). Sanctioned
 #: raise per the note above ("raise one ONLY alongside a new carrier-free op").
-CEIL_GENOME_CARRIER_GAP_PY = 50
+#: rc442 (`#T1150`): 50 → 52 — ``genome_groups`` and ``genome_group``, the §GROUP/v20
+#: nesting pair, are two more CARRIER-FREE ops and the raise is sanctioned on the same
+#: terms. They are carrier-free by CONSTRUCTION rather than by omission: both read
+#: ``block[0]`` and neither ever decodes a data turn, so there is no rung for an
+#: ``element_type`` to select — a frame block is a fixed-width cap at klein4, Q₈ and
+#: octonion alike. The FLOORS are held at 22/22, which is what makes this a surface-growth
+#: raise rather than a coverage regression: the accepting count did not move.
+CEIL_GENOME_CARRIER_GAP_PY = 52
 
 #: Ops with NO ``element_type`` on the MCP / tool-schema surface. rc339: 65 (of 67
 #: registered entries — only kernel_pack + genome_append_kernel published it).

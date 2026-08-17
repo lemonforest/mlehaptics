@@ -120,7 +120,7 @@ def _save_native_and_pure(strand, one, element_type, tmp_path):
 
 # ── P0 — the format-version pin ──────────────────────────────────────────────
 def test_format_version_is_19():
-    assert GENOME_FORMAT_VERSION == 19
+    assert GENOME_FORMAT_VERSION == 20
 
 
 # ── P1 — octonion DATA-turn disk round-trip (the point) ──────────────────────
@@ -140,9 +140,9 @@ def test_octonion_data_turn_disk_round_trip():
                             element_type=ELEMENT_TYPE_OCTONION)
         path = Path(tempfile.mkdtemp()) / f"g_{trial}"
         data = genome_save(strand, path, one, element_type=ELEMENT_TYPE_OCTONION)
-        assert data["carrier"] == "octonion" and data["format_version"] == 19
+        assert data["carrier"] == "octonion" and data["format_version"] == 20
         man = json.loads((path / "manifest.json").read_text())["data"]
-        assert man["carrier"] == "octonion" and man["format_version"] == 19
+        assert man["carrier"] == "octonion" and man["format_version"] == 20
 
         st, _cp, _labs = genome_load(path, coupling=one)
         assert _lists(st) == _lists(strand)                        # byte-identical turns
@@ -206,7 +206,7 @@ def test_backward_compat_klein4_unchanged():
     strand = chromosome(leaves, one, label="k4")
     path = Path(tempfile.mkdtemp()) / "g"
     data = genome_save(strand, path, one)
-    assert data["carrier"] == "klein4" and data["format_version"] == 19
+    assert data["carrier"] == "klein4" and data["format_version"] == 20
     st, _cp, _labs = genome_load(path, coupling=one)
     assert _lists(st) == _lists(strand)
     assert _lists(recall(st, one, element_type=ELEMENT_TYPE_KLEIN4)) == _lists(leaves)
@@ -226,7 +226,7 @@ def test_backward_compat_q8_unchanged():
     strand = chromosome(leaves, one, label="q8", element_type=ELEMENT_TYPE_Q8)
     path = Path(tempfile.mkdtemp()) / "g"
     data = genome_save(strand, path, one, element_type=ELEMENT_TYPE_Q8)
-    assert data["carrier"] == "q8" and data["format_version"] == 19
+    assert data["carrier"] == "q8" and data["format_version"] == 20
     st, _cp, _labs = genome_load(path, coupling=one)
     assert _lists(st) == _lists(strand)
     assert _lists(recall(st, one, element_type=ELEMENT_TYPE_Q8)) == _lists(leaves)
@@ -295,7 +295,7 @@ def test_python_c_disk_parity_turns_bin_and_manifest():
     m_p = (pure_path / "manifest.json").read_bytes()
     assert m_n == m_p                                      # byte-identical manifest (C == json.dumps)
     assert b'"carrier": "octonion"' in m_n
-    assert b'"format_version": 19' in m_n
+    assert b'"format_version": 20' in m_n
     # native reload decodes byte-identically
     st, _cp, _labs = genome_load(native_path, coupling=one)
     assert _lists(st) == _lists(strand)
@@ -344,7 +344,7 @@ def test_octonion_rung_is_end_to_end_turns_and_fiber():
         chromosome(leaves, one, label="e2e", element_type=ELEMENT_TYPE_OCTONION))
     path = Path(tempfile.mkdtemp()) / "g"
     data = genome_save(strand, path, one, element_type=ELEMENT_TYPE_OCTONION)
-    assert data["carrier"] == "octonion" and data["format_version"] == 19
+    assert data["carrier"] == "octonion" and data["format_version"] == 20
     st, _cp, _labs = genome_load(path, coupling=one)
     assert _lists(st) == _lists(strand)
     assert genome_read_octonion_fiber(st) is not None

@@ -1,54 +1,43 @@
-"""§v19 IMPLICIT CLOSE — the inference every splice position rests on, made visible.
+"""§v19 IMPLICIT CLOSE → §GROUP/v20 EXPLICIT CLOSE — the inference, and its replacement.
 
-rc441 (``#T1148``) — the v20 prerequisites. ``GENOME_FORMAT_VERSION`` stays **19**;
-this file introduces no marker and no grammar.
+rc441 (``#T1148``) shipped this file as the v20 PREREQUISITES. rc442 (``#T1150``) is v20,
+and this file now records both halves of the story.
 
-THE DEFECT, STATED PRECISELY. A v19 strand has no CLOSER cap. A chromosome opens
-with a boundary cap and simply runs until the next opener, or off the end of the
-strand. So *"where does this unit end?"* is never READ — it is INFERRED. Two shared
-helpers encode that inference, and four call sites splice at the position it
-returns:
+THE DEFECT rc441 STATED. A v19 strand had no CLOSER cap. A chromosome opened with a
+boundary cap and simply ran until the next opener, or off the end of the strand. So
+*"where does this unit end?"* was never READ — it was INFERRED. Two shared helpers encoded
+that inference, and four call sites spliced at the position it returned:
 
 ======================================  =================================================
-``genome_nth_data_turn``                returns ``n_blocks`` when ``split == n_turns``
+``genome_nth_data_turn``                returned ``n_blocks`` when ``split == n_turns``
 ``genome_label_range``                  ``end`` = next boundary index, else ``n_blocks``
 ``mint_strand`` / ``_chrom_range``      the Python twins of the same two
 ======================================  =================================================
 
-Today the inference is **accidentally correct**: with no closer, the end of a unit
-and the start of the next are the SAME index. It stops being correct the moment a
-closer exists, and it stops silently — the splice simply lands on the wrong side of
-a cap and produces a well-formed strand that means something else.
+At v19 the inference was **accidentally correct**: with no closer, the end of a unit and
+the start of the next were the SAME index. rc441 predicted it would stop being correct the
+moment a closer existed, and that it would stop *silently* — the splice landing on the
+wrong side of a cap and producing a well-formed strand that means something else.
 
-WHAT THIS RC DID, AND WHAT IT DID NOT. It did **not** replace the inference with an
-explicit read, and that is a finding rather than a shortfall: at v19 there is no
-closer marker to read, so "make the extent explicit" is not expressible without
-first minting the closer — which is v20's format change, not a prerequisite for it.
-Shipping the marker here under a prerequisite's name would be the very thing the
-brief warns against.
+**THE PIN FIRED, AND IT FIRED FOR THE RIGHT REASON.** rc441's
+``test_cap_marker_vocabulary_is_pinned`` was written to go red in rc442 and to route its
+author to all four splice sites. That is exactly what happened: rc442 minted
+:data:`~srmech.biology.genome.GROUP_CLOSE_MARKER`, the pin went red, and all four sites
+were re-derived against the closer rather than the next opener. Going red there was it
+working, not it breaking — so the pin is not deleted here, it is MOVED FORWARD to the v20
+vocabulary, where it will fire again for the next marker.
 
-What it did instead is make the inference **loud**, in the three ways that were
-missing:
+WHAT REPLACED THE INFERENCE. ``_unit_end_before_closers`` (Python) and
+``genome_unit_end_before_closers`` (C): a unit that runs to the end of the strand ends
+BEFORE the trailing closers, which is READ from the markers rather than inferred from the
+buffer running out. ``_chrom_range`` / ``genome_label_range`` additionally stop at a group
+marker, because R1/R2 make ``[`` and ``]`` each implicitly close the open chromosome.
 
-1. **The rule has one name per projection.** ``_implicit_unit_end`` (Python) and the
-   ``§v19 IMPLICIT CLOSE`` block above ``genome_nth_data_turn`` (C). Through rc440 it
-   was re-derived independently at four sites with no shared name, so a v20 author
-   had nothing to grep for.
-2. **The extent now reports its own provenance.** Both helpers return, alongside the
-   extent, whether it was READ from a marker or INFERRED from the buffer end
-   (``end_is_implicit`` / ``at_unit_end``). Through rc440 a bare ``len(strand)`` came
-   back either way and the caller could not tell them apart — so there was no place
-   for v20 to hook and nothing to assert against. Every existing return value is
-   byte-for-byte unchanged; the flag is purely additive.
-3. **A guard that fires when the closer arrives** — the marker-vocabulary pin below.
+**An ungrouped strand has no frame markers, so every one of those extents is byte-for-byte
+what v19 returned** — which is the property the last test in this file holds.
 
-THE PIN IS THE POINT. ``test_cap_marker_vocabulary_is_pinned`` fails the moment v20
-adds a closer marker, and its message routes the author to all four splice sites.
-That is deliberate: this gate is *designed to go red in rc442*. Going red there is
-it working, not it breaking.
-
-No stdlib ``fractions`` / ``math`` / ``decimal`` / numpy. No ``abs()`` — a block index
-is a non-negative position, not a magnitude.
+No stdlib ``fractions`` / ``math`` / ``decimal`` / numpy. No ``abs()`` — a block index is a
+non-negative position, not a magnitude.
 """
 
 from __future__ import annotations
@@ -62,83 +51,88 @@ from srmech.biology import genome as G
 # 1. The version this reasoning is valid for
 # ──────────────────────────────────────────────────────────────────────
 
-def test_format_version_is_still_19():
-    """rc441 is the v20 PREREQUISITES, not v20. If this fails, the closer may
-    now exist and every implicit-close inference below needs re-deriving."""
-    assert G.GENOME_FORMAT_VERSION == 19, (
-        f"GENOME_FORMAT_VERSION is {G.GENOME_FORMAT_VERSION}, not 19 — if the "
-        f"format moved, revisit the four §v19 IMPLICIT CLOSE splice sites "
+def test_format_version_is_20():
+    """rc442 IS v20. If this moves again, re-derive the four splice sites once more —
+    a new marker is exactly the event that invalidates an extent rule."""
+    assert G.GENOME_FORMAT_VERSION == 20, (
+        f"GENOME_FORMAT_VERSION is {G.GENOME_FORMAT_VERSION}, not 20 — if the "
+        f"format moved, revisit the four EXPLICIT CLOSE splice sites "
         f"(mint_strand insert_at, _chrom_range end, and their C twins "
         f"genome_nth_data_turn / genome_label_range)"
     )
 
 
 # ──────────────────────────────────────────────────────────────────────
-# 2. The guard that fires when v20's closer arrives
+# 2. The guard, moved forward to the v20 vocabulary
 # ──────────────────────────────────────────────────────────────────────
 
-#: The v19 cap vocabulary, pinned by VALUE. A closer cap is a NEW marker byte, so
-#: minting one necessarily changes this set — which is exactly the event that
-#: invalidates the implicit-close inference at all four splice sites.
-_V19_CAP_MARKERS = frozenset({
+#: The v20 cap vocabulary, pinned by VALUE. rc441 pinned the v19 fourteen; rc442 adds the
+#: two frame markers and nothing else. A future closer-shaped cap is a NEW marker byte, so
+#: minting one necessarily changes this set — which is the event that invalidates an extent
+#: rule at all four splice sites.
+_V20_CAP_MARKERS = frozenset({
     G.CHROM_CAP_MARKER, G.GENE_CAP_MARKER, G.REGULATORY_GENE_MARKER,
     G.BOOLEAN_GENE_MARKER, G.THRESHOLD_GENE_MARKER, G.GRADED_GENE_MARKER,
     G.KERNEL_HEADER_MARKER, G.KERNEL_TELOMERE_MARKER, G.ACTIVE_TELOMERE_MARKER,
     G.CENTROMERE_CAP_MARKER, G.DIPLOID_TELOMERE_MARKER, G.CHROMATIN_MARKER,
     G.FIBER_CAP_MARKER, G.OCT_FIBER_CAP_MARKER,
+    G.GROUP_OPEN_MARKER, G.GROUP_CLOSE_MARKER,
 })
 
-#: The subset that OPENS a unit. Under v19 an opener is the only thing that can end
-#: the PREVIOUS unit — which is the whole inference.
-_V19_BOUNDARY_MARKERS = frozenset({
+#: The subset that OPENS a chromosome. Under v20 an opener is no longer the ONLY thing that
+#: can end the previous unit — a frame marker does too, which is the whole change.
+_V20_BOUNDARY_MARKERS = frozenset({
     G.CHROM_CAP_MARKER, G.KERNEL_TELOMERE_MARKER,
     G.ACTIVE_TELOMERE_MARKER, G.DIPLOID_TELOMERE_MARKER,
 })
 
 
 def test_cap_marker_vocabulary_is_pinned():
-    """A new cap marker — v20's closer above all — must trip this gate.
+    """A new cap marker must trip this gate.
 
-    THIS GATE IS MEANT TO GO RED IN rc442. When it does, the fix is not to add
-    the new byte to the set and move on: it is to revisit the four splice sites
-    named in the message, because a closer changes what "the end of a unit"
-    means at every one of them.
+    THIS GATE WENT RED IN rc442, BY DESIGN. The fix was not to add the new bytes to
+    the set and move on: it was to revisit the four splice sites named in the message,
+    because a closer changes what "the end of a unit" means at every one of them.
+    That work is done (see section 4 below); the pin now guards the v20 set.
     """
     live = frozenset(G._LEAF_WIDE_BLOCK_MARKERS)
-    added = live - _V19_CAP_MARKERS
-    removed = _V19_CAP_MARKERS - live
+    added = live - _V20_CAP_MARKERS
+    removed = _V20_CAP_MARKERS - live
     assert not added and not removed, (
         f"the genome cap-marker vocabulary moved (added={sorted(added)}, "
         f"removed={sorted(removed)}).\n"
-        f"If one of these is v20's CLOSER cap, the §v19 IMPLICIT CLOSE "
-        f"inference is now WRONG at four splice sites and each must be "
-        f"re-derived against the closer rather than the next opener:\n"
+        f"If one of these is a new CLOSER cap, the extent rule is now WRONG at four "
+        f"splice sites and each must be re-derived against it:\n"
         f"  1. C  genome_nth_data_turn  (srmech_genome.c) — append-at-end locus\n"
         f"  2. C  genome_label_range    (srmech_genome.c) — the `end` extent\n"
         f"  3. Py mint_strand insert_at (genome.py) — the centromere splice\n"
         f"  4. Py _chrom_range end      (genome.py) — the chromatin splice\n"
-        f"Each now reports whether its extent was READ or INFERRED; the "
-        f"INFERRED branch is the one that must change."
+        f"Each reports whether its extent was READ or INFERRED; the INFERRED branch "
+        f"is the one that must change."
     )
-    assert _V19_BOUNDARY_MARKERS <= live, "a boundary marker vanished"
+    assert _V20_BOUNDARY_MARKERS <= live, "a boundary marker vanished"
+    assert frozenset(G._GROUP_MARKERS) <= live, "a frame marker vanished"
 
 
-def test_no_marker_is_named_like_a_closer():
-    """v19 has no closer by construction. A constant whose NAME says otherwise
-    means the format moved without this file noticing."""
+def test_the_closer_is_the_only_marker_named_like_one():
+    """v19 had no closer by construction; v20 has EXACTLY one.
+
+    rc441's version of this test asserted NO marker was named like a closer. Inverting
+    it rather than deleting it keeps the same thing measurable: a SECOND closer-shaped
+    marker would be a genuinely new grammar and must not slip in unremarked."""
     suspicious = [
         n for n in dir(G)
         if n.endswith("_MARKER")
         and any(w in n.upper() for w in ("CLOSE", "CLOSER", "END_CAP", "TERMINATOR"))
     ]
-    assert not suspicious, (
-        f"marker constant(s) named like a closer: {suspicious} — v19 has none; "
-        f"see the four splice sites listed above"
+    assert suspicious == ["GROUP_CLOSE_MARKER"], (
+        f"closer-named marker constant(s): {suspicious} — v20 has exactly one "
+        f"(GROUP_CLOSE_MARKER). A second one is a new grammar; see the four splice sites."
     )
 
 
 # ──────────────────────────────────────────────────────────────────────
-# 3. The extent helpers now report their own provenance
+# 3. The extent helpers report their own provenance
 # ──────────────────────────────────────────────────────────────────────
 
 #: Wide enough that a default centromere cap (handle + the R=15 α-satellite array)
@@ -189,9 +183,69 @@ def test_the_flag_is_not_constant():
     )
 
 
+# ──────────────────────────────────────────────────────────────────────
+# 4. §GROUP/v20 — the extent is now READ, at all four sites
+# ──────────────────────────────────────────────────────────────────────
+
+def test_a_grouped_chromosome_ends_at_the_closer_not_the_strand_end():
+    """THE rc441 PREDICTION, now measured. Inside a group the last chromosome's end and
+    the strand end are DIFFERENT indices, and the extent must be the former."""
+    inner = _strand("a", "b")
+    grouped = G.genome_group("sy", inner, dim=_DIM)
+    # blocks: [ '[' , a-cap, t, t, b-cap, t, t, ']' ]
+    inner_view = grouped[1:]
+    start, end, implicit = G._chrom_range(inner_view, "b", op="condense")
+    assert implicit is False, (
+        "the extent must be READ from the closer, not inferred from the buffer end — "
+        "this is precisely the branch rc441 named"
+    )
+    assert end == len(inner_view) - 1, (
+        "chromosome 'b' ends BEFORE the ']' block, not at the end of the strand"
+    )
+
+
+def test_unit_end_walks_back_over_trailing_closers():
+    """``_unit_end_before_closers`` is the named rule. Nested closers all belong to their
+    enclosing frames, so the walk-back is over ALL of them, not just the last."""
+    strand = _strand("a")
+    assert G._unit_end_before_closers(strand) == len(strand), "ungrouped: unchanged"
+    g1 = G.genome_group("in", strand, dim=_DIM)
+    g2 = G.genome_group("out", g1, dim=_DIM)
+    assert G._unit_end_before_closers(g2) == len(g2) - 2, (
+        "two trailing closers belong to two frames; the unit ends before both"
+    )
+
+
+def test_mint_strand_append_at_end_lands_inside_the_group():
+    """Splice site 3. ``centromere_at == n_turns`` is the append-at-end case. Under v19 it
+    landed at ``len(strand)``; under v20 it must land BEFORE the closer, or the centromere
+    would sit outside the chromosome that owns it while still parsing as well-formed."""
+    coupling = G._HV.from_sequence(bytes([1] * _DIM), sectors=4)
+    strand = _strand("solo")
+    grouped = G.genome_group("sy", strand, dim=_DIM)
+    n_turns = sum(1 for hv in grouped if G._cap_kind(hv) is None)
+    minted = G.mint_strand(grouped, coupling=coupling, centromere_at=n_turns)
+    assert len(minted) == len(grouped) + 1
+    assert G._cap_kind(minted[-1]) == G.GROUP_CLOSE_MARKER, (
+        "the closer must remain the LAST block — the splice goes before it"
+    )
+    assert G._cap_kind(minted[-2]) == G.CENTROMERE_CAP_MARKER, (
+        "the append-at-end centromere lands inside the group, immediately before "
+        "the closer. Landing after it is the silent v19 answer this rc removes."
+    )
+
+
+@pytest.mark.parametrize("n_chroms", [1, 2, 3])
+def test_implicit_unit_end_is_the_strand_end_when_nothing_closes(n_chroms):
+    """The ungrouped rule survives: with no closer to read, the strand end IS the answer."""
+    strand = _strand(*[f"c{i}" for i in range(n_chroms)])
+    assert G._implicit_unit_end(strand) == len(strand)
+    assert G._unit_end_before_closers(strand) == len(strand)
+
+
 def test_extent_values_are_byte_for_byte_what_rc440_returned():
-    """The flag is ADDITIVE. Every (start, end) pair must equal the pre-rc441
-    derivation — `next boundary after start, else len(strand)` — exactly."""
+    """The v20 change is INVISIBLE to an ungrouped strand. Every ``(start, end)`` pair must
+    still equal the pre-rc441 derivation — `next boundary after start, else len(strand)`."""
     for labels in (("solo",), ("a", "b"), ("a", "b", "c")):
         strand = _strand(*labels)
         bounds = [i for i, hv in enumerate(strand)
@@ -201,34 +255,6 @@ def test_extent_values_are_byte_for_byte_what_rc440_returned():
             nxt = [x for x in bounds if x > start]
             assert start == b
             assert end == (nxt[0] if nxt else len(strand)), (
-                "the rc441 refactor changed an extent — it must not"
+                "the rc441/rc442 refactors changed an extent on an UNGROUPED strand — "
+                "they must not"
             )
-
-
-# ──────────────────────────────────────────────────────────────────────
-# 4. mint_strand's append-at-end splice
-# ──────────────────────────────────────────────────────────────────────
-
-def test_mint_strand_append_at_end_lands_at_the_strand_end():
-    """``centromere_at == n_turns`` is the append-at-end case: the §v19 implicit
-    close puts the cap at ``len(strand)``. Under v20 it must go BEFORE the
-    closer, which is why the branch is now named rather than inlined."""
-    coupling = G._HV.from_sequence(bytes([1] * _DIM), sectors=4)
-    strand = _strand("solo")
-    n_turns = sum(1 for hv in strand if G._cap_kind(hv) is None)
-    minted = G.mint_strand(strand, coupling=coupling, centromere_at=n_turns)
-    assert len(minted) == len(strand) + 1
-    assert G._cap_kind(minted[-1]) == G.CENTROMERE_CAP_MARKER, (
-        "the append-at-end centromere must land at the very end of the strand "
-        "under v19's implicit close"
-    )
-    # And an interior split still lands interior — the flag's other branch.
-    interior = G.mint_strand(strand, coupling=coupling, centromere_at=1)
-    assert G._cap_kind(interior[-1]) != G.CENTROMERE_CAP_MARKER
-
-
-@pytest.mark.parametrize("n_chroms", [1, 2, 3])
-def test_implicit_unit_end_is_the_strand_end(n_chroms):
-    """The named rule returns exactly what the four sites used to inline."""
-    strand = _strand(*[f"c{i}" for i in range(n_chroms)])
-    assert G._implicit_unit_end(strand) == len(strand)

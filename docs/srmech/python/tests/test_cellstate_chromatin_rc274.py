@@ -129,7 +129,7 @@ def test_t3_constitutive_cap_byte_identical_and_format_15():
         # and the gate decodes as NONE (the pre-rc274 read)
         assert G._chromatin_gate_spec(
             [hv for hv in s if G._cap_kind(hv) == G.CHROMATIN_MARKER][0]) == (G.CHROMATIN_GATE_NONE, None)
-    assert G.GENOME_FORMAT_VERSION == 19
+    assert G.GENOME_FORMAT_VERSION == 20
     import srmech.introspect as introspect
     assert introspect.describe()["tools"]["total"] == 661
 
