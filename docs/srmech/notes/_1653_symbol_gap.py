@@ -55,6 +55,43 @@ OUT = os.path.join(HERE, "_1653_symbol_gap.ndjson")
 
 DIRECT, COARSER, FRAMING, ABSENT = "DIRECT", "COARSER", "FRAMING", "ABSENT"
 
+CLOSED = "CLOSED_IN_THIS_RC"
+FILED = "FILED_AS_NEW_ITEM"
+DECLINED = "DECLINED_WITH_REASON"
+
+#: Ops whose closure would WIDEN A DISCRIMINATOR SET — a new carrier kind, a new
+#: descriptor value kind, a new step form. The standing rule is that such a
+#: change must close its projection gap IN THE SAME CHANGE, so the flag is what
+#: makes that cost visible at scoping time rather than at implementation time.
+#: Everything not listed is False: a dispatch arm over an existing carrier.
+NEW_TYPE = {
+    "schur_complement": True,      # dense-matrix carrier (Mat)
+    "byte_slice": True,            # byte-buffer carrier
+    "utf8_encode": True,           # byte-buffer carrier
+    "sha256_raw": True,            # raw digest is bytes, not the hex string
+    "as_quat4": True,              # a 4-wide carrier VIEW
+    "as_oct8": True,               # an 8-wide carrier VIEW
+    "pair": True,                  # the chain-run wire has no `t` (tuple) kind
+    "bind": True,                  # HV carrier
+    "odft_summand": True,          # list[list[float]] — the `l` kind is FLAT
+    "odft_resolve_mu": True,
+    "qdft_summand": True,
+    "qdft_resolve_mu": True,
+    "dft_scale": True,
+    "dft_sigma": True,
+    "parallel_sector_dispatch": True,   # mapping carrier + the @op namespace
+}
+
+#: Ops the review's Amendment-2 disposition is held elsewhere for, so this file
+#: does not claim them. schur_complement's DOC defect (docs/srmech/CLAUDE.md
+#: asserting C parity it does not have) is claimed by the docs/publish session
+#: for the next docs rc — explicitly "leave it out of the C build scope". The C
+#: SYMBOL remains this issue's to file, and does; only the doc fix is theirs.
+CLAIMED_ELSEWHERE = {
+    "schur_complement": "the CLAUDE.md parity claim is the docs session's "
+                        "(next docs rc); the missing C symbol stays filed here",
+}
+
 #: op -> (resolution, C symbol or the reason there is none, note)
 #: Hand-classified against `nm` output; the script RE-VERIFIES every named
 #: symbol below actually exists, so a rename upstream fails this file rather
@@ -178,18 +215,52 @@ def main():
                     if isinstance(val, str):
                         used.setdefault(val.rpartition(".")[2], set()).add(name)
 
+    # Dead config fails rather than sitting inert: a NEW_TYPE / CLAIMED_ELSEWHERE
+    # key naming something that is not an op used by a descriptor is a typo or a
+    # stale entry, and either way it silently flags nothing. (Caught one on the
+    # first run — `encode_loe_content`, which is a CHAIN, not an op.)
+    for label, table in (("NEW_TYPE", NEW_TYPE),
+                         ("CLAIMED_ELSEWHERE", CLAIMED_ELSEWHERE)):
+        phantom = sorted(set(table) - set(used))
+        assert not phantom, (
+            "%s names %s, which no shipped descriptor uses as an op — a stale "
+            "or mistyped key flags nothing and reads as though it does"
+            % (label, phantom))
+
     unclassified = sorted(set(used) - set(RESOLUTION))
     assert not unclassified, (
         "these ops are used by a shipped descriptor and are classified nowhere: "
         "%s — every op gets a row, that is the whole point of this file"
         % unclassified)
 
-    rows, tally = [], {}
+    # Which ops the C dispatch ACTUALLY handles now — read from the source, so
+    # `disposition` is measured rather than declared and cannot drift.
+    csrc = open(os.path.join(SRM, "c", "src", "srmech_compose_run.c"),
+                encoding="utf-8").read()
+    dispatched = set(re.findall(r'memcmp\(op,\s*"([a-z0-9_]+)"', csrc))
+    dispatched |= set(re.findall(r'memcmp\(op \+ \([^)]*\),\s*"([a-z0-9_]+)"', csrc))
+    dispatched |= set(re.findall(r'memcmp\(op \+ \(opl - \d+u\), "([a-z0-9_]+)"', csrc))
+    # the fold body table is a separate dispatch surface
+    dispatched |= {"orientation_compose"} if "orientation_compose" in csrc else set()
+
+    rows, tally, disp_tally = [], {}, {}
     for op in sorted(used):
         res, sym, note = RESOLUTION[op]
         tally[res] = tally.get(res, 0) + 1
-        rows.append(dict(op=op, resolution=res, c_symbol=sym, note=note,
-                         used_by=sorted(used[op])))
+        disposition = CLOSED if op in dispatched else FILED
+        row = dict(op=op, resolution=res, c_symbol=sym, note=note,
+                   used_by=sorted(used[op]),
+                   disposition=disposition,
+                   is_new_type=bool(NEW_TYPE.get(op, False)))
+        if op in CLAIMED_ELSEWHERE:
+            row["claimed_elsewhere"] = CLAIMED_ELSEWHERE[op]
+        disp_tally[disposition] = disp_tally.get(disposition, 0) + 1
+        rows.append(row)
+
+    # ADR-0009 §5: exactly one disposition per row, and only the three names.
+    for r in rows:
+        assert r["disposition"] in (CLOSED, FILED, DECLINED), r["op"]
+        assert isinstance(r["is_new_type"], bool), r["op"]
 
     print("gh #1653 SYMBOL GAP — %d ops used by shipped descriptors" % len(rows))
     print()
@@ -202,7 +273,11 @@ def main():
         for r in sel:
             print("    %-22s %s" % (r["op"], r["c_symbol"] or "—"))
         print()
-    print("tally:", json.dumps(tally, sort_keys=True))
+    print("tally by resolution:", json.dumps(tally, sort_keys=True))
+    print("tally by DISPOSITION:", json.dumps(disp_tally, sort_keys=True),
+          " (measured from the C dispatch source, not declared)")
+    print("is_new_type TRUE (closure widens a discriminator set):",
+          sum(1 for r in rows if r["is_new_type"]))
     print("NEEDS A NEW C SYMBOL (ABSENT only):",
           sorted(r["op"] for r in rows if r["resolution"] == ABSENT))
 
@@ -210,7 +285,10 @@ def main():
         for r in rows:
             fh.write(json.dumps(r, sort_keys=True) + "\n")
         fh.write(json.dumps({"record": "summary", "ops": len(rows),
-                             "tally": tally}, sort_keys=True) + "\n")
+                             "tally": tally, "by_disposition": disp_tally,
+                             "new_type_count": sum(1 for r in rows
+                                                   if r["is_new_type"])},
+                            sort_keys=True) + "\n")
     print("wrote", OUT)
     return 0
 
