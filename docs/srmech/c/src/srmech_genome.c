@@ -2160,6 +2160,22 @@ static int genome_is_group_marker(const unsigned char *block, size_t len)
             kind == (int)SRMECH_GENOME_GROUP_CLOSE_MARKER) ? 1 : 0;
 }
 
+/* §GROUP/v20 (rc442, `#T1150`) — does this block OPEN a unit?
+ *
+ * A strand is `unit*` and a GROUP is a unit, so a body may legitimately open with the
+ * group opener. Through rc441 srmech_genome_mint_strand demanded a chromosome-boundary
+ * cap here, which would have made the whole append-at-end splice repair UNREACHABLE on
+ * exactly the strands that need it — the guard would reject the input before the fixed
+ * splice could ever run. A READ; no abs, no mutation. */
+static int genome_opens_a_unit(const unsigned char *block, size_t len)
+{
+    assert(block != NULL || len == 0u);
+    assert(len <= 256u);
+    if (block == NULL || len == 0u) { return 0; }
+    return (genome_is_boundary_cap(block, len) != 0 ||
+            block[0] == SRMECH_GENOME_GROUP_OPEN_MARKER) ? 1 : 0;
+}
+
 /* §GROUP/v20 (rc442, `#T1150`) — THE EXPLICIT CLOSE, replacing v19's implicit one.
  *
  * "Where does the unit that runs to the end of the strand actually END?" Under v19 the
@@ -2275,13 +2291,7 @@ srmech_status_t srmech_genome_mint_strand(
     }
     assert(out != NULL && n_blocks_out != NULL && strand != NULL);
     if (leaf_dim == 0u || leaf_dim > 256u) { return SRMECH_ERR_BAD_INPUT; }
-    /* GROUP/v20 (rc442, task T1150): a strand is `unit*` and a GROUP is a unit, so a
-     * body may legitimately open with '['. Refusing it here would have made the whole
-     * append-at-end repair below unreachable on exactly the strands that need it --
-     * the guard would reject the input before the fixed splice could run. */
-    if (n_blocks == 0u ||
-        (genome_is_boundary_cap(strand, dim) == 0 &&
-         strand[0] != SRMECH_GENOME_GROUP_OPEN_MARKER)) {
+    if (n_blocks == 0u || genome_opens_a_unit(strand, dim) == 0) {
         return SRMECH_ERR_BAD_INPUT;      /* empty / does not open a unit */
     }
     genome_mint_strand_scan(strand, n_blocks, leaf_dim, &n_turns, &has_cen);
@@ -2607,6 +2617,69 @@ static void genome_scan_fold_block(genome_strings_t *s, unsigned char m, int32_t
     }
 }
 
+/* GROUP/v20 (rc442, task T1150) -- fold ONE frame block into the scan.
+ *
+ * THE PERSISTENCE-SCAN REPAIR, extracted so genome_scan_chroms stays <= 60 lines
+ * (JPL Rule 4). This branch is the half the in-memory group design never walked,
+ * and its absence was fatal rather than cosmetic: with the opener kept out of the
+ * opener chain, the `cur < 0` guard rejected a block-0 opener as "turn before 1st
+ * cap", so of 36 placements of an open/close pair in a 3-chromosome strand the set
+ * (saveable AND containing a chromosome AND non-crossing) was EMPTY. The design
+ * could not persist any group that contained anything.
+ *
+ * A frame block CLOSES the open chromosome (R1/R2) and becomes its OWN one-block
+ * region, so the regions keep tiling the body exactly. No abs, no malloc. */
+static srmech_status_t genome_scan_frame_block(genome_strings_t *s,
+                                               genome_group_stack_t *gs,
+                                               unsigned char marker, size_t off,
+                                               size_t blen, uint32_t leaf_dim)
+{
+    assert(s != NULL && gs != NULL);
+    assert(leaf_dim > 0u);
+    srmech_status_t st = genome_group_step(gs, marker, off / (size_t)leaf_dim, NULL);
+    if (st != SRMECH_OK) { return st; }
+    if (s->n_regions >= s->cap_regions) { return SRMECH_ERR_OVERFLOW; }
+    s->reg_offset[s->n_regions] = (uint32_t)off;
+    s->reg_len[s->n_regions] = (uint32_t)blen;
+    s->n_regions++;
+    s->n_group_blocks++;
+    return SRMECH_OK;
+}
+
+/* Open a chromosome at body[off]: carve its region, count it as a unit of the
+ * current frame, hash + decode its cap, and seed its per-chromosome fields.
+ * Extracted alongside genome_scan_frame_block for JPL Rule 4. No abs, no malloc. */
+static srmech_status_t genome_scan_open_chrom(genome_strings_t *s,
+                                              genome_group_stack_t *gs,
+                                              const unsigned char *body,
+                                              size_t off, uint32_t leaf_dim)
+{
+    assert(s != NULL && gs != NULL);
+    assert(body != NULL && leaf_dim > 0u);
+    if (s->n_chroms >= s->cap_chroms) { return SRMECH_ERR_OVERFLOW; }
+    if (s->n_regions >= s->cap_regions) { return SRMECH_ERR_OVERFLOW; }
+    uint32_t cur = s->n_chroms;
+    /* GROUP/v20: a chromosome opens a REGION too; its span accumulates in the
+     * caller exactly as byte_len does. */
+    s->reg_offset[s->n_regions] = (uint32_t)off;
+    s->reg_len[s->n_regions] = 0u;
+    s->n_regions++;
+    genome_group_count_unit(gs);
+    s->n_chroms++;
+    srmech_status_t st = srmech_sha256_hex(body + off, leaf_dim, s->cap_sha[cur]);
+    if (st != SRMECH_OK) { return st; }
+    st = genome_decode_label(body + off, leaf_dim, s->label[cur]);
+    if (st != SRMECH_OK) { return st; }
+    s->byte_offset[cur] = (uint32_t)off;
+    s->byte_len[cur] = 0u;                /* accumulated by the caller */
+    s->leaf_count[cur] = 0u;
+    /* §96: cap-kind PROVISIONAL on the opener (0x44 diploid else plasmid) -- an
+     * interior centromere later overwrites it to nuclear. */
+    s->cap_kind[cur] = (body[off] == SRMECH_GENOME_DIPLOID_TELOMERE_MARKER)
+        ? SRMECH_GENOME_CAP_KIND_DIPLOID : SRMECH_GENOME_CAP_KIND_PLASMID;
+    return SRMECH_OK;
+}
+
 /* §44 SCAN: walk the self-describing body block-by-block (§55/v3 dual-format
  * walker — caps and legacy turns are leaf_dim bytes, packed turns 1 +
  * ceil(leaf_dim/4)) and derive every chromosome's (label, cap_sha256,
@@ -2631,27 +2704,10 @@ static srmech_status_t genome_scan_chroms(genome_strings_t *s,
         srmech_status_t st = genome_block_len(body, body_len, off, leaf_dim,
                                               &blen);
         if (st != SRMECH_OK) { return st; }
-        /* GROUP/v20 (rc442, task T1150) -- THE PERSISTENCE-SCAN REPAIR.
-         *
-         * This branch is the half the in-memory group design never walked, and its
-         * absence was fatal rather than cosmetic: with the opener kept out of the
-         * opener chain, the `cur < 0` guard below rejected a block-0 opener as
-         * "turn before 1st cap", so of 36 placements of an open/close pair in a
-         * 3-chromosome strand the set (saveable AND containing a chromosome AND
-         * non-crossing) was EMPTY. The design could not persist any group that
-         * contained anything.
-         *
-         * A frame block CLOSES the open chromosome (R1/R2) and becomes its own
-         * one-block region, so the regions keep tiling the body exactly. */
         if (body[off] == SRMECH_GENOME_GROUP_OPEN_MARKER ||
             body[off] == SRMECH_GENOME_GROUP_CLOSE_MARKER) {
-            st = genome_group_step(&gs, body[off], off / (size_t)leaf_dim, NULL);
+            st = genome_scan_frame_block(s, &gs, body[off], off, blen, leaf_dim);
             if (st != SRMECH_OK) { return st; }
-            if (s->n_regions >= s->cap_regions) { return SRMECH_ERR_OVERFLOW; }
-            s->reg_offset[s->n_regions] = (uint32_t)off;
-            s->reg_len[s->n_regions] = (uint32_t)blen;
-            s->n_regions++;
-            s->n_group_blocks++;
             cur = -1;                 /* R1/R2: the open chromosome is closed */
             off += blen;
             continue;
@@ -2663,27 +2719,9 @@ static srmech_status_t genome_scan_chroms(genome_strings_t *s,
             body[off] == SRMECH_GENOME_KERNEL_TELOMERE_MARKER ||
             body[off] == SRMECH_GENOME_ACTIVE_TELOMERE_MARKER ||
             body[off] == SRMECH_GENOME_DIPLOID_TELOMERE_MARKER) {  /* §95b diploid opens a chrom */
-            if (s->n_chroms >= s->cap_chroms) { return SRMECH_ERR_OVERFLOW; }
-            if (s->n_regions >= s->cap_regions) { return SRMECH_ERR_OVERFLOW; }
-            cur = (int32_t)s->n_chroms;
-            /* GROUP/v20: a chromosome opens a REGION too; its span accumulates
-             * below exactly as byte_len does. */
-            s->reg_offset[s->n_regions] = (uint32_t)off;
-            s->reg_len[s->n_regions] = 0u;
-            s->n_regions++;
-            genome_group_count_unit(&gs);
-            s->n_chroms++;
-            st = srmech_sha256_hex(body + off, leaf_dim, s->cap_sha[cur]);
+            st = genome_scan_open_chrom(s, &gs, body, off, leaf_dim);
             if (st != SRMECH_OK) { return st; }
-            st = genome_decode_label(body + off, leaf_dim, s->label[cur]);
-            if (st != SRMECH_OK) { return st; }
-            s->byte_offset[cur] = (uint32_t)off;
-            s->byte_len[cur] = 0u;                /* accumulated below */
-            s->leaf_count[cur] = 0u;
-            /* §96: cap-kind PROVISIONAL on the opener (0x44 diploid else plasmid) —
-             * an interior centromere below overwrites it to nuclear. */
-            s->cap_kind[cur] = (body[off] == SRMECH_GENOME_DIPLOID_TELOMERE_MARKER)
-                ? SRMECH_GENOME_CAP_KIND_DIPLOID : SRMECH_GENOME_CAP_KIND_PLASMID;
+            cur = (int32_t)s->n_chroms - 1;
         } else {
             /* GROUP/v20 R3 -- a data turn or interior cap is legal ONLY inside a
              * chromosome. This is the v19 "turn before the first CHROM cap" rule
