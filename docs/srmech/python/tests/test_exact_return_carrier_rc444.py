@@ -519,8 +519,14 @@ def test_tool_entry_declares_exact_and_the_union_return() -> None:
         f"the declared return {entry.returns.type!r} must name BOTH carriers")
 
 
-def test_the_four_precedent_ops_are_still_exactly_four() -> None:
-    """The census cardinal, pinned.
+def test_the_exact_population_is_the_four_precedents_plus_this_one() -> None:
+    """The census cardinal, pinned: **4 precedent + 1 new = 5**.
+
+    Measured on the live registry — ``exact`` went ``4 → 5`` and the ops
+    carrying any carrier/regime selector went ``57 → 58`` (8.7% of 663). The
+    "57 / exact 4" figures quoted in the rc444 CHANGELOG are the **rc443
+    baseline**, stated that way on purpose: this tree has a documented history
+    of counts going stale because nothing re-measured them.
 
     If a fifth ``exact=`` op appears without this list moving, the next reader
     inherits a stale precedent count — the exact failure mode `#T1152`'s own
@@ -557,6 +563,35 @@ def test_the_four_precedent_ops_are_still_exactly_four() -> None:
         "srmech.math.laplacian.schur_complement",
         "srmech.physics.qm.triality.triality_companions",
     ], f"the exact= population moved: {sorted(declaring)}"
+
+
+def test_the_carrier_selector_census_figure_is_re_measured() -> None:
+    """The "57 ops carry a selector" figure, made executable.
+
+    The rc444 CHANGELOG quotes ``57 ops (8.6%)`` at rc443 and ``58 (8.7%)``
+    after. A quoted count with nothing re-measuring it is exactly how this tree
+    has repeatedly gone stale (the subtree ``CLAUDE.md`` records a "five
+    duplicated count-tests" line that was 12× under-scope, and a "10 TOML
+    descriptors" line that had doubled). So the figure is asserted here rather
+    than left as prose.
+    """
+    selectors = {"element_type", "table", "mode", "exact", "gammas", "with_path"}
+    schema = get_tool_schema()
+    per = {s: 0 for s in selectors}
+    ops = set()
+    for tool in schema.tools:
+        names = {p.name for p in tool.parameters}
+        for s in names & selectors:
+            per[s] += 1
+            ops.add(tool.name)
+    assert per["exact"] == 5, (
+        f"exact= is on {per['exact']} registry entries, expected 5 (the four "
+        f"precedents + triality_companions)")
+    assert len(ops) == 58, (
+        f"{len(ops)} ops carry a carrier/regime selector, expected 58 "
+        f"(57 at rc443 + triality_companions). Per-selector: {per}. If this "
+        f"moved for a good reason, update the CHANGELOG figure in the SAME "
+        f"change — do not just re-pin the number here.")
 
 
 def test_jacobi_eigvals_exact_returns_a_FLOAT_vec_not_a_Q_carrier() -> None:
