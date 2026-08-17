@@ -63,9 +63,13 @@ requires_native = pytest.mark.skipif(
 # ──────────────────────────────────────────────────────────────────────
 
 @requires_native
-def test_abi_is_5():
+def test_abi_is_pinned():
     """The pub/sub subscriber-delivery callback typedef bumped ABI 3 → 4;
     the rc242 progress-callback typedef bumped it 4 → 5 (#840)."""
+    # NAME CARRIES NO NUMBER ON PURPOSE. This pin tracks a value that MOVES;
+    # a name that spells the value is falsified by the next bump and was —
+    # 16 such tests were found tree-wide, one named for 367 asserting 663.
+    # See test_pinned_names_carry_no_value_rc447.py.
     assert _native.NATIVE_ABI_VERSION == 18, (
         f"ABI must be 15 (rc438 `#T1140` put the winding triad on the "
         f"srmech_klein4_from_one wire, 14 -> 15); "

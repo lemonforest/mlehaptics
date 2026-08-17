@@ -318,9 +318,13 @@ def test_descriptor_declares_the_graduation_and_c_peer():
 # (h) Registration / ledger — bucket moved, count unchanged
 # ────────────────────────────────────────────────────────────────────
 
-def test_tools_total_stays_367():
+def test_tools_total_is_pinned():
     """The quaternion_dft ToolEntry pre-existed (v0.7.0rc31) — graduation
     updates the entry + its Rosetta bucket, it does NOT add a tool."""
+    # NAME CARRIES NO NUMBER ON PURPOSE. This pin tracks a value that MOVES;
+    # a name that spells the value is falsified by the next bump and was —
+    # 16 such tests were found tree-wide, one named for 367 asserting 663.
+    # See test_pinned_names_carry_no_value_rc447.py.
     from srmech import introspect
     assert introspect.describe()["tools"]["total"] == 663
 

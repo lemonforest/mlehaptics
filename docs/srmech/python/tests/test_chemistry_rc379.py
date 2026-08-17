@@ -253,7 +253,11 @@ def test_ops_registered_in_tool_schema():
         assert op in names, op
 
 
-def test_describe_total_is_535():
+def test_describe_total_is_pinned():
+    # NAME CARRIES NO NUMBER ON PURPOSE. This pin tracks a value that MOVES;
+    # a name that spells the value is falsified by the next bump and was —
+    # 16 such tests were found tree-wide, one named for 367 asserting 663.
+    # See test_pinned_names_carry_no_value_rc447.py.
     import srmech
     assert srmech.describe()["tools"]["total"] == 663
 

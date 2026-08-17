@@ -1048,13 +1048,17 @@ def test_bus_handler_callback_typedef_constructible():
     assert trampoline is not None
 
 
-def test_abi_version_is_7():
+def test_abi_version_is_pinned():
     """v0.5.0rc2 ABI bump: 2 → 3 (bus req/rep C peer + handler typedef).
     v0.9.0rc180 ABI bump: 3 → 4 (bus pub/sub C peer + the new
     srmech_bus_subscriber_callback_t delivery typedef).
     v0.9.0rc242 ABI bump: 4 → 5 (the C progress / introspection callback +
     the new srmech_progress_cb_t dispatch-observer typedef, #840).
     """
+    # NAME CARRIES NO NUMBER ON PURPOSE. This pin tracks a value that MOVES;
+    # a name that spells the value is falsified by the next bump and was —
+    # 16 such tests were found tree-wide, one named for 367 asserting 663.
+    # See test_pinned_names_carry_no_value_rc447.py.
     from srmech import _native
     assert _native.EXPECTED_ABI_VERSION == 18, (
         f"EXPECTED_ABI_VERSION should be 15; got "

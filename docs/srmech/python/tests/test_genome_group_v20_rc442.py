@@ -65,9 +65,13 @@ def _blocks(strand):
 # 1. The version and the vocabulary
 # ═══════════════════════════════════════════════════════════════════════════
 
-def test_format_version_is_20_and_abi_is_17():
+def test_format_version_and_abi_are_pinned():
     """Both move in the same change, for the first time since rc326: the format really
     does gain a marker, AND every genome read's status contract is reinterpreted."""
+    # NAME CARRIES NO NUMBER ON PURPOSE. This pin tracks a value that MOVES;
+    # a name that spells the value is falsified by the next bump and was —
+    # 16 such tests were found tree-wide, one named for 367 asserting 663.
+    # See test_pinned_names_carry_no_value_rc447.py.
     assert G.GENOME_FORMAT_VERSION == 20
     assert _native.EXPECTED_ABI_VERSION == 18
 
