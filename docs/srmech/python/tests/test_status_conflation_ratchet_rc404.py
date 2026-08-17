@@ -141,7 +141,48 @@ DRAINED_EXACT = {
 #: (``n * sizeof(void *) + 1``) far below any size_t wrap. No conflation —
 #: the ceiling moved because the instrument counts volume, not because the
 #: residue grew (see "WHAT THE CEILING ACTUALLY COUNTS" above).
-CEIL_CONFLATING_RETURN_LINES = 706
+#: rc442 (`#T1150`) ADJUDICATED RAISE, 706 -> 712 — again never a silent bump.
+#: The §GROUP/v20 nesting work adds exactly SIX returns to
+#: ``c/src/srmech_genome.c``, and every one was read at its source against the
+#: rc404 definition. Named individually, because "six new lines in one file" is
+#: exactly the shape a silent bump would hide:
+#:
+#:   * ``srmech_genome_group_wrap``: ``out_cap < (n_blocks + 2u) * dim`` — the
+#:     CALLER's output buffer cannot hold the wrapped strand. Textbook status 4:
+#:     the required size is stated in the header, and growing ``out`` to it makes
+#:     the same call succeed.
+#:   * ``genome_strings_alloc``: the NULL check over the nine
+#:     ``genome_arena_alloc`` carves (three of them new: ``region_sha`` resized to
+#:     ``n_regions``, plus ``reg_offset`` / ``reg_len``). ``genome_arena_alloc``
+#:     returns NULL on exactly one condition — the request does not fit the
+#:     remaining bump arena, which is built on the caller-supplied ``ws``/``ws_len``.
+#:   * ``genome_build_manifest``'s ``region_items`` carve — the same arena, now
+#:     sized to ``n_regions`` rather than ``n_chroms`` because a frame block earns
+#:     its own region.
+#:   * ``genome_scan_frame_block``: ``s->n_regions >= s->cap_regions``, and
+#:     ``cap_regions`` is what ``genome_strings_alloc`` carved OFF THE CALLER ARENA.
+#:     A bigger ``ws`` carves more regions and the scan completes.
+#:   * ``genome_scan_open_chrom``: ``s->n_regions >= s->cap_regions``, the same
+#:     bound reached from the chromosome branch. (Its sibling ``n_chroms >=
+#:     cap_chroms`` on the line above is the pre-rc442 line, MOVED by the JPL
+#:     Rule-4 extraction, not a new one — the extraction is why this file's diff
+#:     looks larger than six.)
+#:
+#: TWO are counter-saturation guards rather than buffer failures, and they are
+#: called out rather than glossed: ``genome_count_chroms``'s ``groups ==
+#: 0xFFFFFFFFu`` and ``genome_fill_strings``'s ``n_chroms > 0xFFFFFFFFu -
+#: n_groups``. Under rc404's rule a compiled-in cap is ``SRMECH_ERR_LIMIT``, so
+#: the question is real. They stay status 4 because they are neither compiled-in
+#: nor structural: they guard the SAME uint32 count table the two lines beside
+#: them already guard (``n == 0xFFFFFFFFu``, ``blocks == 0xFFFFFFFFu``, both
+#: pre-existing status-4 in this ratchet's own baseline), the count is bounded by
+#: how many blocks the caller's body holds, and a caller with 2^32 frame blocks in
+#: one body has a size problem, not a policy one. Splitting a three-line guard
+#: family across two statuses would make the surrounding code lie about itself.
+#:
+#: No conflation: the ceiling moved because the instrument counts VOLUME, and this
+#: rc added volume to a file that already holds the largest share of it.
+CEIL_CONFLATING_RETURN_LINES = 712
 
 _RETURN_OVERFLOW = re.compile(r"return\s+SRMECH_ERR_OVERFLOW\s*;")
 

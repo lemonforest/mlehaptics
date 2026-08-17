@@ -561,3 +561,39 @@ tests/test_dsl.py
 tests/test_dsl_tools.py
 tests/test_dsl_tool_surface_descriptions.py
 tests/test_dsl_op_naming_boundaries.py
+
+# ── rc442 (`#T1150`) — the REGISTRY + ABI ripple family ───────────────────
+#    THE MEASUREMENT THAT PUT THESE HERE. rc442 registered two ops and bumped
+#    the ABI. This runner went GREEN (1344 passed, EXIT=0) on a clean full-tree
+#    copy, and CI then went red on NINE jobs across four cells — pure shards
+#    2/3/6, asserts-live 2/4 and 4/4, macos-14, ubuntu x2, windows — from SIX
+#    test files, not one of which this manifest named. That is the exact failure
+#    this file exists to prevent, one axis over: rc385 dropped gates by hand
+#    transcription, and rc442 dropped them because nobody had ever added the
+#    family a registration touches.
+#
+#    Each pins a DIFFERENT surface that a registration or an ABI bump moves,
+#    which is why one entry would not do:
+#      * test_genome_carrier_coverage_rc340.py -- the PY *and* MCP carrier-gap
+#        ceilings. A new public genome op moves both, and only the MCP half
+#        bounds a REMOTE caller; rc442 raised PY locally and missed MCP, and
+#        that single miss reddened five jobs.
+#      * test_introspect.py -- `status["expected_abi"]`, an ABI pin written in
+#        neither of the two spellings (`NATIVE_ABI_VERSION ==` /
+#        `EXPECTED_ABI_VERSION ==`) that an ABI-bump census greps for. It is
+#        the one pin a grep-based sweep structurally cannot find.
+#      * test_genome_mint_strand_rc270.py + test_genome_mint_strand_c_rc277.py
+#        -- the mint_strand ERROR-MESSAGE contract, pinned by regex in both
+#        projections. Any rc that widens what mint_strand accepts rewords it.
+#      * test_status_conflation_ratchet_rc404.py -- the tree-wide
+#        `SRMECH_ERR_OVERFLOW` volume ceiling, which every C-adding rc moves and
+#        which demands a written per-line adjudication rather than a bump.
+#      * test_genome_group_v20_rc442.py -- the v20 grammar itself, so the format
+#        gates ride the same one command as the surfaces they ripple into.
+#    ~2 min total.
+tests/test_genome_carrier_coverage_rc340.py
+tests/test_introspect.py
+tests/test_genome_mint_strand_rc270.py
+tests/test_genome_mint_strand_c_rc277.py
+tests/test_status_conflation_ratchet_rc404.py
+tests/test_genome_group_v20_rc442.py

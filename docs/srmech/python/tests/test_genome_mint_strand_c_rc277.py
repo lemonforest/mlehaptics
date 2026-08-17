@@ -166,7 +166,11 @@ def test_error_contract_unchanged():
     one = _one()
     with pytest.raises(ValueError, match="empty"):
         G.mint_strand([], one)
-    with pytest.raises(ValueError, match="OPEN with a chromosome-boundary cap"):
+    # rc442 (`#T1150`): the message widened — a strand is `unit*` and a GROUP is a unit,
+    # so mint_strand now accepts a §GROUP/v20 opener too and says so. The CONTRACT this
+    # test names is unchanged (raw leaves are still refused); only the enumeration of
+    # what DOES open a unit grew, so the regex tracks the stable half of the sentence.
+    with pytest.raises(ValueError, match="strand must OPEN a unit"):
         G.mint_strand([klein4_expand(_DIM, 1)], one)  # raw leaf, no boundary cap
     minted = G.mint_strand(G.chromosome(_leaves(6, 900), one, label="c"), one)
     with pytest.raises(ValueError, match="already carries an interior centromere"):
