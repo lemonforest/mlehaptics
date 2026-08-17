@@ -108,28 +108,52 @@ GATE_STEP_FORM = "step_form"        # surface-A forms. FOLD shipped at rc446 (fo
 
 VALID_GATES = frozenset({GATE_OP_TABLE, GATE_CARRIER, GATE_REF_GRAMMAR,
                          GATE_REAL_ARG, GATE_STEP_FORM})
+#: ⚠️ "OPEN" WAS HERE AND IS GONE (rc447). ADR-0009 §5 names THREE dispositions,
+#: and "OPEN" is not one of them — it is the unfiled decline spelled legally.
+#: Every BLOCKED row below carried it, which meant this ratchet enumerated the
+#: rejected chains (good) while permitting each one to say nothing about what
+#: was being DONE about it (not good). Enumeration without disposition is
+#: exactly the ADR-0009 §5 failure gh #1653 was opened to close, reproduced
+#: inside the instrument built to close it.
 VALID_DISPOSITIONS = frozenset({"CLOSED_IN_THIS_RC", "FILED_AS_NEW_ITEM",
-                                "DECLINED_WITH_REASON", "OPEN"})
+                                "DECLINED_WITH_REASON"})
 
 #: Every executable chain the C run loop cannot run, with its gate set.
 #: ZERO ROWS MAY BE SILENT (ADR-0009 §5 forbids an unfiled decline, and this
 #: issue exists *because* one went unfiled). Delete a row only when C runs it.
 BLOCKED = {
-    # ⚠️ GATES ARE SYNCED FROM notes/_1653_gate_matrix_rc445.ndjson, which is
-    # RE-MEASURED, not hand-maintained. They were hand-written and drifted:
-    # parallel_sector_dispatch read as "op_table" alone (i.e. the cheapest
-    # remaining chain) when it in fact also needs a MAPPING carrier and the
-    # @op namespace — one of the hardest. Re-run the matrix after any change
-    # here; it cross-checks itself against actual execution.
-    "autocorrelation":         {"gates": [GATE_OP_TABLE, GATE_REF_GRAMMAR, GATE_STEP_FORM], "disposition": "OPEN"},
-    "best_rational_signed":    {"gates": [GATE_OP_TABLE, GATE_REF_GRAMMAR], "disposition": "OPEN"},
-    "encode_loe_content":      {"gates": [GATE_CARRIER, GATE_OP_TABLE], "disposition": "OPEN"},
-    "klein4_from_one":         {"gates": [GATE_OP_TABLE, GATE_REF_GRAMMAR, GATE_STEP_FORM], "disposition": "OPEN"},
-    "kuramoto_step":           {"gates": [GATE_OP_TABLE, GATE_REF_GRAMMAR, GATE_STEP_FORM], "disposition": "OPEN"},
-    "octonion_dft":            {"gates": [GATE_OP_TABLE, GATE_REF_GRAMMAR, GATE_STEP_FORM], "disposition": "OPEN"},
-    "parallel_sector_dispatch": {"gates": [GATE_CARRIER, GATE_OP_TABLE, GATE_REF_GRAMMAR], "disposition": "OPEN"},
-    "quaternion_dft":          {"gates": [GATE_OP_TABLE, GATE_REF_GRAMMAR, GATE_STEP_FORM], "disposition": "OPEN"},
-    "schur_complement":        {"gates": [GATE_CARRIER, GATE_OP_TABLE], "disposition": "OPEN"},
+    # Each row: the measured gates, ONE ADR-0009 disposition, whether closing it
+    # is a NEW TYPE (which must close its projection gap in the SAME change), and
+    # the gap-ledger row that files it. Gates are synced from
+    # notes/_1653_gate_matrix_rc445.ndjson, which cross-checks itself against
+    # execution and against this file's ceiling.
+    "autocorrelation":          {"gates": [GATE_OP_TABLE, GATE_REF_GRAMMAR, GATE_STEP_FORM],
+                                "disposition": "FILED_AS_NEW_ITEM", "new_type": False,
+                                "ledger_row": "step_form_map"},
+    "best_rational_signed":     {"gates": [GATE_OP_TABLE, GATE_REF_GRAMMAR],
+                                "disposition": "FILED_AS_NEW_ITEM", "new_type": True,
+                                "ledger_row": "two_divergent_value_kind_vocabularies"},
+    "encode_loe_content":       {"gates": [GATE_CARRIER, GATE_OP_TABLE],
+                                "disposition": "FILED_AS_NEW_ITEM", "new_type": True,
+                                "ledger_row": "carrier_bytes"},
+    "klein4_from_one":          {"gates": [GATE_OP_TABLE, GATE_REF_GRAMMAR, GATE_STEP_FORM],
+                                "disposition": "FILED_AS_NEW_ITEM", "new_type": False,
+                                "ledger_row": "step_form_map"},
+    "kuramoto_step":            {"gates": [GATE_OP_TABLE, GATE_REF_GRAMMAR, GATE_STEP_FORM],
+                                "disposition": "FILED_AS_NEW_ITEM", "new_type": False,
+                                "ledger_row": "step_form_map"},
+    "octonion_dft":             {"gates": [GATE_OP_TABLE, GATE_REF_GRAMMAR, GATE_STEP_FORM],
+                                "disposition": "FILED_AS_NEW_ITEM", "new_type": True,
+                                "ledger_row": "chain_run_list_is_flat_only"},
+    "parallel_sector_dispatch": {"gates": [GATE_CARRIER, GATE_OP_TABLE, GATE_REF_GRAMMAR],
+                                "disposition": "FILED_AS_NEW_ITEM", "new_type": True,
+                                "ledger_row": "carrier_matrix"},
+    "quaternion_dft":           {"gates": [GATE_OP_TABLE, GATE_REF_GRAMMAR, GATE_STEP_FORM],
+                                "disposition": "FILED_AS_NEW_ITEM", "new_type": True,
+                                "ledger_row": "chain_run_list_is_flat_only"},
+    "schur_complement":         {"gates": [GATE_CARRIER, GATE_OP_TABLE],
+                                "disposition": "FILED_AS_NEW_ITEM", "new_type": True,
+                                "ledger_row": "carrier_matrix"},
 }
 
 _STATUS = {0: "SRMECH_OK", 2: "SRMECH_ERR_BAD_INPUT", 5: "SRMECH_ERR_NOT_IMPL"}
@@ -317,6 +341,68 @@ def test_all_executable_chains_run_in_c():
     assert not rejected, (
         "%d executable chains do not run in the C projection: %s"
         % (len(rejected), sorted(rejected)))
+
+
+def test_every_blocked_row_carries_a_REAL_disposition_and_a_new_type_flag():
+    """ADR-0009 §5: enumeration alone is not filing.
+
+    ⚠️ THIS IS THE FAILURE gh #1653 WAS OPENED TO CLOSE, AND IT WAS LIVE IN HERE.
+    Until rc447 ``VALID_DISPOSITIONS`` accepted ``"OPEN"`` and every row used it,
+    so the ratchet listed each rejected chain (which is the visibility half) while
+    letting every one of them say NOTHING about what was being done about it.
+    "OPEN" is the unfiled decline, spelled legally. It is gone; the only
+    admissible values are the three ADR-0009 names.
+
+    ``new_type`` is required per row for the same reason: the standing rule is
+    that a new type widens a discriminator set and closes its projection gap in
+    the SAME change, and a row that cannot express whether it IS one cannot be
+    checked against that rule. Six of the nine are.
+    """
+    for name, row in sorted(BLOCKED.items()):
+        assert set(row) == {"gates", "disposition", "new_type", "ledger_row"}, (
+            "%s: a BLOCKED row must carry exactly gates / disposition / "
+            "new_type / ledger_row; got %s" % (name, sorted(row)))
+        assert row["disposition"] in VALID_DISPOSITIONS, (
+            "%s has disposition %r. ADR-0009 §5 admits only %s — a row with no "
+            "real disposition is an UNFILED DECLINE, which is the defect this "
+            "whole issue exists to remove."
+            % (name, row["disposition"], sorted(VALID_DISPOSITIONS)))
+        assert isinstance(row["new_type"], bool), (
+            "%s: new_type must be an explicit bool, not %r — 'unknown' is not a "
+            "state the same-change rule can be checked against"
+            % (name, row["new_type"]))
+        assert row["ledger_row"], "%s: no gap-ledger row named" % name
+
+
+def test_every_blocked_row_is_ACTUALLY_FILED_in_the_gap_ledger():
+    """The disposition must be TRUE, not merely well-formed.
+
+    A row may say ``FILED_AS_NEW_ITEM`` and be filed nowhere — which would make
+    the field above a formality rather than a fact. So resolve each
+    ``ledger_row`` against notes/_1653_gap_ledger.ndjson and require it to
+    exist. This is the same cross-artifact tie the gate matrix uses against this
+    file's ceiling: a claim checked only within the artifact that makes it will
+    agree with itself.
+    """
+    import json
+    import os
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "..", "..", "notes", "_1653_gap_ledger.ndjson")
+    if not os.path.exists(path):
+        pytest.skip("gap ledger ndjson not generated in this tree")
+    ids = set()
+    with open(path, encoding="utf-8") as fh:
+        for line in fh:
+            rec = json.loads(line)
+            if rec.get("record") != "summary":
+                ids.add(rec.get("id"))
+    missing = sorted((n, r["ledger_row"]) for n, r in BLOCKED.items()
+                     if r["ledger_row"] not in ids)
+    assert not missing, (
+        "these BLOCKED rows claim FILED_AS_NEW_ITEM against a gap-ledger row "
+        "that does not exist: %s\nRegenerate the ledger "
+        "(python3 notes/_1653_gap_ledger.py) or fix the reference — a "
+        "disposition pointing at nothing is not a filing." % missing)
 
 
 def test_ratchet_reports_the_full_state(capsys):
