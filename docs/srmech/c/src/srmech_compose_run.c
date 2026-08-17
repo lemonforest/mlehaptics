@@ -622,37 +622,142 @@ static cr_value_t *cr_int_u64(cr_bump_t *b, uint64_t v)
 
 enum { CR_CY_GCD = 0, CR_CY_ADD, CR_CY_MUL, CR_CY_POW, CR_CY_INV };
 
-/* gcd(a,b) / mod_add(a,b,n) / mod_mul(a,b,n) / mod_pow(a,k,n) / mod_inv(a,n).
- * ``mod_mul_wide`` routes to CR_CY_MUL: srmech_mod_mul is Russian-peasant
- * doubling, already overflow-safe across the full uint64 range, so the two
- * differ only in the CAP — which cr_as_u64 enforces above. */
+/* Scratch for the bigint Class-I arm: two accumulators + a divmod/gcd arena. */
+typedef struct {
+    srmech_bigint_t *t0, *t1, *acc;
+    void *scr; size_t scr_len;
+} cr_cyctx_t;
+
+/* Carve the Class-I scratch sized for operands up to `lim` limbs. */
+static int cr_cyctx_init(cr_bump_t *b, cr_cyctx_t *y, uint32_t lim)
+{
+    uint32_t cap = lim * 2u + 8u;
+    assert(b != NULL && y != NULL);
+    assert(lim > 0u);
+    y->t0 = cr_new_bigint(b, cap); y->t1 = cr_new_bigint(b, cap);
+    y->acc = cr_new_bigint(b, cap);
+    y->scr_len = (size_t)cap * 8u + 4096u;
+    y->scr = cr_carve(b, y->scr_len);
+    return (y->t0 != NULL && y->t1 != NULL && y->acc != NULL && y->scr != NULL);
+}
+
+/* out = a mod n, Python-floor (0 <= out < n). srmech_bigint_divmod's own
+ * convention, so no sign fixup is layered on top of it here. */
+static srmech_status_t cr_bi_mod(cr_cyctx_t *y, srmech_bigint_t *out,
+                                 const srmech_bigint_t *a,
+                                 const srmech_bigint_t *n)
+{
+    assert(y != NULL && out != NULL);
+    assert(a != NULL && n != NULL);
+    return srmech_bigint_divmod(NULL, out, a, n, y->scr, y->scr_len);
+}
+
+/* acc = (a ** k) mod n by square-and-multiply, MSB first. The loop is bounded
+ * by k's bit count (<= 32 * k->n), so it is a BOUNDED loop with no recursion —
+ * a bigint_pow-then-mod would blow the arena for any real exponent. */
+static srmech_status_t cr_bi_modpow(cr_cyctx_t *y, srmech_bigint_t *out,
+                                    const srmech_bigint_t *a,
+                                    const srmech_bigint_t *k,
+                                    const srmech_bigint_t *n)
+{
+    uint32_t bit, top; srmech_status_t st;
+    assert(y != NULL && out != NULL);
+    assert(a != NULL && k != NULL && n != NULL);
+    st = srmech_bigint_set_i64(out, 1);
+    if (st != SRMECH_OK) { return st; }
+    st = cr_bi_mod(y, y->acc, out, n);            /* 1 mod n handles n == 1 */
+    if (st != SRMECH_OK) { return st; }
+    if (k->sign == 0) { return srmech_bigint_copy(out, y->acc); }
+    st = cr_bi_mod(y, y->t1, a, n);      /* the base as a RESIDUE, cyclic-native */
+    if (st != SRMECH_OK) { return st; }
+    top = k->n * 32u;
+    for (bit = top; bit-- > 0u; ) {
+        st = srmech_bigint_mul(y->t0, y->acc, y->acc);
+        if (st != SRMECH_OK) { return st; }
+        st = cr_bi_mod(y, y->acc, y->t0, n);
+        if (st != SRMECH_OK) { return st; }
+        if (((k->limbs[bit >> 5] >> (bit & 31u)) & 1u) != 0u) {
+            st = srmech_bigint_mul(y->t0, y->acc, y->t1);
+            if (st != SRMECH_OK) { return st; }
+            st = cr_bi_mod(y, y->acc, y->t0, n);
+            if (st != SRMECH_OK) { return st; }
+        }
+    }
+    return srmech_bigint_copy(out, y->acc);
+}
+
+/* gcd(a,b) / mod_add(a,b,n) / mod_mul(a,b,n) / mod_pow(a,k,n) — ALL on the
+ * FULL bigint carrier, no uint64 cap anywhere. ``mod_mul_wide`` and ``mod_mul``
+ * are the same arm here: "wide" named the absence of a cap, and there is no cap
+ * to be wide of once the arithmetic is bigint.
+ *
+ * CR_CY_INV is NOT handled here — see cr_op_cyclic_inv. There is no bigint
+ * extended-Euclid export, and inventing one is new math rather than a dispatch
+ * arm, so it keeps the uint64 wire and the decline contract. Filed, not silent:
+ * notes/_1653_gap_ledger.ndjson row `bigint_modinv`. */
 static srmech_status_t cr_op_cyclic(cr_ctx_t *c, const srmech_json_value_t *args,
                                     int which, cr_value_t **out)
 {
-    uint64_t a = 0u, b = 0u, n = 0u, r = 0u;
-    cr_value_t *va, *vb, *vn, *ov;
-    srmech_status_t st;
+    const srmech_bigint_t *A, *B, *N = NULL; cr_value_t *va, *vb, *vn, *ov;
+    cr_cyctx_t y; uint32_t lim; srmech_status_t st;
     assert(c != NULL && out != NULL);
-    assert(which >= CR_CY_GCD && which <= CR_CY_INV);
+    assert(which >= CR_CY_GCD && which <= CR_CY_POW);
     va = cr_arg(c, args, "a");
-    if (va == NULL || !cr_as_u64(va, &a)) { return SRMECH_ERR_NOT_IMPL; }
-    if (which == CR_CY_INV) {
+    vb = cr_arg(c, args, (which == CR_CY_POW) ? "k" : "b");
+    if (va == NULL || vb == NULL) { return SRMECH_ERR_NOT_IMPL; }
+    if (va->kind != CR_INT || vb->kind != CR_INT) { return SRMECH_ERR_NOT_IMPL; }
+    A = va->num; B = vb->num;
+    if (which != CR_CY_GCD) {
         vn = cr_arg(c, args, "n");
-        if (vn == NULL || !cr_as_u64(vn, &n)) { return SRMECH_ERR_NOT_IMPL; }
-        st = srmech_mod_inv(a, n, &r);
-    } else {
-        vb = cr_arg(c, args, (which == CR_CY_POW) ? "k" : "b");
-        if (vb == NULL || !cr_as_u64(vb, &b)) { return SRMECH_ERR_NOT_IMPL; }
-        if (which == CR_CY_GCD) {
-            st = srmech_gcd(a, b, &r);
-        } else {
-            vn = cr_arg(c, args, "n");
-            if (vn == NULL || !cr_as_u64(vn, &n)) { return SRMECH_ERR_NOT_IMPL; }
-            st = (which == CR_CY_ADD) ? srmech_mod_add(a, b, n, &r)
-               : (which == CR_CY_MUL) ? srmech_mod_mul(a, b, n, &r)
-               : srmech_mod_pow(a, b, n, &r);
-        }
+        if (vn == NULL || vn->kind != CR_INT) { return SRMECH_ERR_NOT_IMPL; }
+        N = vn->num;
+        if (N->sign <= 0) { return SRMECH_ERR_BAD_INPUT; }   /* n > 0 required */
     }
+    lim = A->n + B->n + (N != NULL ? N->n : 0u) + 4u;
+    if (!cr_cyctx_init(c->b, &y, lim)) { return SRMECH_ERR_OVERFLOW; }
+    ov = cr_new_value(c->b, CR_INT);
+    if (ov == NULL) { return SRMECH_ERR_OVERFLOW; }
+    ov->num = cr_new_bigint(c->b, lim * 2u + 8u);
+    if (ov->num == NULL) { return SRMECH_ERR_OVERFLOW; }
+    if (which == CR_CY_GCD) {
+        st = srmech_bigint_gcd(ov->num, A, B, y.scr, y.scr_len);
+    } else if (which == CR_CY_POW) {
+        st = cr_bi_modpow(&y, ov->num, A, B, N);
+    } else {
+        /* CYCLIC-NATIVE ORDER: reduce to RESIDUES first, then operate inside
+         * Z/nZ. Computing a*b in full and reducing afterwards is the
+         * PROJECTION-shaped order — it makes the intermediate grow with the
+         * OPERANDS when the algebra says every element is bounded by n. Reduce
+         * first and the intermediate is bounded by n^2 no matter how large the
+         * operands were, which is both the framework-correct order and the one
+         * that bounds the arena. */
+        st = cr_bi_mod(&y, y.t1, A, N);
+        if (st == SRMECH_OK) { st = cr_bi_mod(&y, y.acc, B, N); }
+        if (st == SRMECH_OK) {
+            st = (which == CR_CY_ADD) ? srmech_bigint_add(y.t0, y.t1, y.acc)
+                                      : srmech_bigint_mul(y.t0, y.t1, y.acc);
+        }
+        if (st == SRMECH_OK) { st = cr_bi_mod(&y, ov->num, y.t0, N); }
+    }
+    if (st != SRMECH_OK) { return st; }
+    *out = ov;
+    return SRMECH_OK;
+}
+
+/* mod_inv(a, n) — the ONE Class-I op still on the uint64 wire, because no
+ * bigint extended-Euclid ships. DECLINES an out-of-range operand rather than
+ * narrowing it: a narrower projection must refuse, never answer wrongly. */
+static srmech_status_t cr_op_cyclic_inv(cr_ctx_t *c, const srmech_json_value_t *args,
+                                        cr_value_t **out)
+{
+    uint64_t a = 0u, n = 0u, r = 0u;
+    cr_value_t *va, *vn, *ov; srmech_status_t st;
+    assert(c != NULL && out != NULL);
+    assert(args != NULL);
+    va = cr_arg(c, args, "a"); vn = cr_arg(c, args, "n");
+    if (va == NULL || vn == NULL) { return SRMECH_ERR_NOT_IMPL; }
+    if (!cr_as_u64(va, &a) || !cr_as_u64(vn, &n)) { return SRMECH_ERR_NOT_IMPL; }
+    st = srmech_mod_inv(a, n, &r);
     if (st != SRMECH_OK) { return st; }
     ov = cr_int_u64(c->b, r);
     if (ov == NULL) { return SRMECH_ERR_OVERFLOW; }
@@ -713,7 +818,7 @@ static srmech_status_t cr_dispatch(cr_ctx_t *c, const char *op, uint32_t opl,
         return cr_op_cyclic(c, args, CR_CY_POW, out);
     }
     if (opl == 7u && memcmp(op, "mod_inv", 7u) == 0) {
-        return cr_op_cyclic(c, args, CR_CY_INV, out);
+        return cr_op_cyclic_inv(c, args, out);
     }
     return SRMECH_ERR_NOT_IMPL;   /* op not in the C dispatch table → pure */
 }
