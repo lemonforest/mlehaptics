@@ -1087,6 +1087,16 @@ def _reconstruct_value(desc: Dict[str, Any]) -> Any:
         return None
     if k == "l":
         return [_reconstruct_value(it) for it in desc["items"]]
+    if k == "f":
+        # A real-valued result. EXACT, not approximate: the C writer formats
+        # doubles via ``srmech_double_repr`` (an integer-only Ryu matching
+        # CPython ``repr(float)`` byte for byte), so this round-trips with no
+        # last-bit drift and a bit-identical parity claim holds. Added in
+        # lockstep with the C-side ``CR_DBL`` — a new descriptor kind that
+        # reached this reader before the branch existed would raise below, so
+        # the two halves cannot ship apart (ABI 17 -> 18 enforces it for a
+        # stale ``.so`` paired with a current Python).
+        return float(desc["v"])
     raise ValueError(f"unknown chain-run value descriptor kind {k!r}")
 
 

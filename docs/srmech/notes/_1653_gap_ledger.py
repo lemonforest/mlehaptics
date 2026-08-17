@@ -74,19 +74,59 @@ ROWS = [
                           "put in _RESERVED_STAGE_KEYS is invisible to the "
                           "closure — the partition is only as complete as that tuple."),
     # ── open, filed ─────────────────────────────────────────────────────────
+    dict(id="parity_tests_are_tautological_for_native_dispatched_ops", kind="bug",
+         missing="The Python surface of autocorrelation / chiral_flip / reorient "
+                 "/ gcd / mod_add / mod_mul / mod_pow / mod_inv / best_rational "
+                 "ALL dispatch to the SAME C symbol when HAS_NATIVE. So the "
+                 "obvious C-vs-Python parity test compares C AGAINST C.",
+         lacked_by="both", blocked_this_rc=False, new_type=False,
+         evidence="Measured rc447 by source inspection of the dispatch guards. "
+                  "Consequences measured both ways: the 6 cyclic chains + "
+                  "net_chirality are 30/30 identical against a FORCED-PURE "
+                  "Python (so the tautology is harmless for EXACT ops), while "
+                  "autocorrelation C-vs-forced-pure differs in 8 of 9 cases, "
+                  "1.4e-17 (n=3) -> 1.0e-15 (n=64), and by 2.0 ABSOLUTE on a "
+                  "mixed-magnitude input (~1 ulp relative at 1e16).",
+         probe="pytest tests/test_c_real_carrier_rc447.py::"
+               "test_autocorrelation_C_vs_FORCED_PURE_is_close_but_NOT_bit_identical",
+         disposition=FILED,
+         note="A BUG in the TEST METHOD, not in either projection — which is why "
+              "it is filed rather than fixed by changing code. It splits cleanly: "
+              "for EXACT (integer / rational) ops both paths compute an exact "
+              "value, so agreement holds whatever the dispatch does and the "
+              "tautology costs only test strength. For FLOAT ops it HIDES A REAL "
+              "DIVERGENCE — C and pure-Python autocorrelation sum in different "
+              "orders. The pure path is exactly what runs in Pyodide / WASM, "
+              "where there is no .so at all, so the divergence is not "
+              "hypothetical. Same shape as the earlier harness trap where both "
+              "controls passed args as literals and never exercised the ref path.",
+         ceiling_blind_to="EVERY parity ratchet in this issue. They all compare "
+                          "C to the default Python path, so none of them can see "
+                          "this at all — a chain can be 'byte-identical' and the "
+                          "pure fallback still wrong. Only a forced-pure run "
+                          "detects it, and nothing forces pure by default."),
     dict(id="carrier_double", kind="gap",
          missing="cr_value_t has no DOUBLE kind, so a real-number literal in an "
                  "arg and a float-valued result are both unrepresentable in C.",
          lacked_by="c", blocked_this_rc=True, new_type=True,
-         evidence="gate matrix: real_literal_arg blocks 9 chains, carrier_width 4.",
-         probe="python3 notes/_1653_gate_matrix_rc445.py",
-         disposition=FILED,
-         note="NEW TYPE. Widening cr_value_t is exactly the 'a new type widens a "
-              "discriminator set and must close its projection gap in the SAME "
-              "change' rule. It very likely bumps ABI 17->18: the output value "
-              "descriptor gains a kind, which is a wire-format change, and a "
-              "stale .so would then mis-read a descriptor it still believes it "
-              "understands. Cost: every op that consumes or produces a value.",
+         evidence="gate matrix: real_literal_arg blocked 9 chains, carrier_width "
+                  "4. Now: chiral_dual runs in C, and a real literal round-trips "
+                  "bit-exactly including -0.0 and 5e-324.",
+         probe="pytest tests/test_c_real_carrier_rc447.py",
+         disposition=CLOSED,
+         note="NEW TYPE, and it closed its projection gap in the SAME change as "
+              "the rule requires: CR_DBL + the {\"k\":\"f\"} descriptor in C, the "
+              "matching `k == \"f\"` branch in Python's _reconstruct_value (which "
+              "matches CLOSED and RAISES on an unknown kind, so the halves "
+              "cannot ship apart), and ABI 17 -> 18. The bump is load-bearing in "
+              "the reverse direction from the obvious one: a stale .so merely "
+              "costs the native path, but a CURRENT .so emitting \"f\" into an "
+              "OLDER Python would raise mid-run on a chain that used to work. "
+              "The kind-bounds assert in cr_new_value caught CR_DBL on its first "
+              "run — a discriminator set has more members than the switches that "
+              "read it. Also emitted CR_LIST as {\"k\":\"l\"}, closing an "
+              "asymmetry pointing the OTHER way: Python's reader had ALWAYS had "
+              "that branch for a kind C could never produce.",
          ceiling_blind_to="A carrier kind no shipped descriptor produces yet "
                           "(complex, interval) — the count is over TODAY's chains."),
     dict(id="carrier_bytes", kind="gap",

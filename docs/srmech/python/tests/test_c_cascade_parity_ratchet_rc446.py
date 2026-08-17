@@ -60,7 +60,7 @@ from srmech.dsl import _catalog as _cat
 # Re-measured at rc445 by notes/_1653_chain_census_rc444.py:
 #   "CENSUS of 18 executable chains (20 chain-variants): ...
 #    C srmech_chain_run ACCEPT=0 REJECT=18 ... UNATTRIBUTED=0"
-CEIL_C_REJECTED_CHAINS = 11            # of 18 executable. Target 0.
+CEIL_C_REJECTED_CHAINS = 10            # of 18 executable. Target 0.
 #   The rc445 baseline was 18, verified against a PRISTINE origin/main .so with
 #   THIS harness — so the drain is attributable to the code, not to the probe.
 #   The 6 Class-I cyclic chains closed by the cr_dispatch arm land it at 12.
@@ -102,7 +102,6 @@ VALID_DISPOSITIONS = frozenset({"CLOSED_IN_THIS_RC", "FILED_AS_NEW_ITEM",
 BLOCKED = {
     "autocorrelation":        {"gates": [GATE_STEP_FORM, GATE_OP_TABLE], "disposition": "OPEN"},
     "best_rational_signed":   {"gates": [GATE_OP_TABLE], "disposition": "OPEN"},
-    "chiral_dual":            {"gates": [GATE_OP_TABLE], "disposition": "OPEN"},
     "encode_loe_content":     {"gates": [GATE_OP_TABLE, GATE_CARRIER], "disposition": "OPEN"},
     "klein4_from_one":        {"gates": [GATE_STEP_FORM, GATE_OP_TABLE, GATE_CARRIER],
                                "disposition": "OPEN"},
