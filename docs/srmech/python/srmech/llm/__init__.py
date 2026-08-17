@@ -7,8 +7,8 @@ users who script Claude (or other LLM SDKs) directly outside Claude
 Code: FastAPI servers, Jupyter notebooks, CI pipelines, etc.
 
 Same tool catalog as MCP (the
-:mod:`srmech.introspect.tool_schema` ToolEntries — 663 registered at
-v0.9.0rc445); same MPR attestation
+:mod:`srmech.introspect.tool_schema` ToolEntries — read the live count with
+``len(get_tool_schema().tools)``, never a literal); same MPR attestation
 discipline per tool call (the ``build_attestation`` helper from
 :mod:`srmech.mcp._server` is shared so the two adapters emit
 byte-identical attestation envelopes).
