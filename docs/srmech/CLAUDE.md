@@ -642,15 +642,17 @@ calls** — go through `sha256_bytes` (Phase B5 discipline).
 
 ### ABI compatibility
 
-C ABI version is currently **16** (`SRMECH_ABI_VERSION = 16` in
-`c/include/srmech.h`; `EXPECTED_ABI_VERSION = 16` in
-*(this line said 12 until rc420, 13 until rc425, 14 until rc438 and 15 until
-rc439 — one bump behind on each occasion, the exact staleness shape the rc404
-note below records; the v13 bump was rc418's, the v14 bump is rc425's
+C ABI version is currently **17** (`SRMECH_ABI_VERSION = 17` in
+`c/include/srmech.h`; `EXPECTED_ABI_VERSION = 17` in
+*(this line said 12 until rc420, 13 until rc425, 14 until rc438, 15 until
+rc439 and 16 until rc442 — one bump behind on each occasion, the exact staleness
+shape the rc404 note below records; the v13 bump was rc418's, the v14 bump is rc425's
 `srmech_mlse` wire-contract change, the v15 bump is rc438's
 `srmech_klein4_from_one` winding triad, and the v16 bump is rc439's
-`srmech_genome_centromere_of` dicentric refusal — a STATUS reinterpretation,
-the v10/v12/v14 shape)*
+`srmech_genome_centromere_of` dicentric refusal, and the v17 bump is rc442's
+§GROUP/v20 `genome_cap_kind` widening — all three STATUS reinterpretations,
+the v10/v12/v14 shape. rc442 is also the first bump since rc326 to move
+`SRMECH_GENOME_FORMAT_VERSION` alongside it, 19 → 20)*
 `python/srmech/_native/__init__.py`). *(These three lines said ABI **9** and
 pointed at `python/srmech/amsc/_native.py` until rc404 (`#T1069`) — two stale
 facts in three lines: the version was three bumps behind, and ADR-0010 moved
