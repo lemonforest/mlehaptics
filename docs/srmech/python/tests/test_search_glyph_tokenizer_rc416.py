@@ -478,8 +478,19 @@ from srmech.math.text import fold_marks, glyph_stream
 #: the re-pin, so the local measurement and the authoritative cell agree.
 #: Re-pinned LAST, after ``regen_all.py --check`` reported all six generated
 #: files up to date.
+#:
+#: rc442 (`#T1150`) re-pins it again, and for the reason this note says is the
+#: legitimate one: a PROSE EDIT moved it. The corpus is built from in-package
+#: ``ToolEntry`` prose, and rc442 registers two new entries (the §GROUP/v20
+#: ``genome_groups`` / ``genome_group`` pair), so the digest MUST move — a
+#: witness that did not move here would mean the new prose never reached the
+#: corpus. Measured in the same order the note prescribes: ``regen_all.py
+#: --check`` reported all six generated files up to date FIRST, then the
+#: witness was read off ``search("rank", k=1).witness``. The corpus carries no
+#: path-based exclusion, so unlike ``citation_corpus`` the worktree reading is
+#: trustworthy here.
 WITNESS_RC416 = (
-    "bdb9607397f2945e6ee2123b70e9554962791df5c76a1e1e7299f7b08de505a3")
+    "0f8cfa9dc4bf44d4d038a90fbe1e745a7fd8c955625293b52d7e6a90efd78a0a")
 
 #: The ASCII control set. These four queries are the ops the tokenizer work is
 #: ABOUT, so a regression on them would be the change eating its own subject.
