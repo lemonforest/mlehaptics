@@ -69,7 +69,7 @@ def test_format_version_is_20_and_abi_is_17():
     """Both move in the same change, for the first time since rc326: the format really
     does gain a marker, AND every genome read's status contract is reinterpreted."""
     assert G.GENOME_FORMAT_VERSION == 20
-    assert _native.EXPECTED_ABI_VERSION == 17
+    assert _native.EXPECTED_ABI_VERSION == 18
 
 
 def test_the_two_markers_are_distinct_leaf_wide_caps_above_the_klein4_range():
