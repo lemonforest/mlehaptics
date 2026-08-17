@@ -113,12 +113,17 @@ int main(void)
     uint8_t got_tag = 0u;
     uint32_t voff = 0u, vlen = 0u, next = 0u, written = 0u, total = 0u;
     srmech_status_t st;
-    unsigned i;
+    uint32_t i;                    /* uint32_t, not unsigned/size_t: every
+                                    * length it is compared against or passed
+                                    * as is uint32_t, so MSVC /WX sees no
+                                    * signed-unsigned or narrowing conversion */
 
     printf("srmech_tlv_unpack rc441 gate\n");
 
     /* ---- ROUND TRIP ------------------------------------------------- */
-    for (i = 0u; i < sizeof payload; i++) { payload[i] = (uint8_t)(i * 7u); }
+    for (i = 0u; i < (uint32_t)sizeof payload; i++) {
+        payload[i] = (uint8_t)(i * 7u);
+    }
     check(round_trip(0u, payload, 0u), "round trip: empty value, tag 0");
     check(round_trip(255u, payload, 1u), "round trip: 1-byte value, tag 255");
     check(round_trip(7u, payload, 64u), "round trip: 64-byte value");

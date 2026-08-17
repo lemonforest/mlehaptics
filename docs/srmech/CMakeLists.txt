@@ -242,6 +242,23 @@ if(SRMECH_SRCS)
         add_executable(test_srmech_toml_float c/test/test_srmech_toml_float.c)
         target_link_libraries(test_srmech_toml_float PRIVATE srmech ${SRMECH_MATH_LIB})
 
+        # rc441 (`#T1148`): Class B's READER half. Through rc440 srmech_tlv_pack
+        # shipped with NO reader anywhere in C — a round-trip wire format with
+        # one of its two halves projected — while the compiled tool registry told
+        # users tlv_unpack was "the ONLY correct way to read these frames back".
+        # This gate is the bare-C proof that a host can now walk back a frame it
+        # wrote: round trip, the next_offset walk over a 3-frame concatenation,
+        # big-endian length recovery, every truncation, and the UINT32_MAX
+        # length that WRAPS a 32-bit end bound into an out-of-bounds span.
+        # Public-API only (srmech.h), so it joins the -Werror//WX gate AND the
+        # ctest run and the wrap row is proven on all three OSes — MSVC included,
+        # which is where a 32-bit bound bug would be most tempting to write.
+        # Wired on arrival rather than added to the rc356 unwired residual: that
+        # ratchet is DOWN-ONLY and a new test must not raise it. Run it:
+        #   ./build/test_srmech_tlv_unpack_rc441   (exit 0 = all pass)
+        add_executable(test_srmech_tlv_unpack_rc441 c/test/test_srmech_tlv_unpack_rc441.c)
+        target_link_libraries(test_srmech_tlv_unpack_rc441 PRIVATE srmech ${SRMECH_MATH_LIB})
+
         # rc402 (`#T1068`): the srmech_json number-scanner + integer-range
         # correctness gate. Before rc402 an out-of-int64 integer returned
         # SRMECH_OK with the value CLAMPED to INT64_MAX (strtoll's ERANGE was
@@ -309,7 +326,8 @@ if(SRMECH_SRCS)
             test_srmech_text_fold test_srmech_genome test_srmech_toml_arena
             test_srmech_toml_float test_srmech_json_number_rc402
             test_srmech_ryu_repr_rc403
-            test_srmech_status_discrimination_rc404)
+            test_srmech_status_discrimination_rc404
+            test_srmech_tlv_unpack_rc441)
             add_test(NAME ${t} COMMAND ${t})
         endforeach()
     endif()
