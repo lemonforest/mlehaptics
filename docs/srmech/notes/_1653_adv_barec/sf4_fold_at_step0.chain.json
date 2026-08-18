@@ -1,0 +1,1 @@
+{"name": "probe.sf4_fold_at_step0", "summary": "fold form, in-table fold_op: isolates the STEP FORM from the op table", "returns": "value", "on_error": "raise", "steps": [{"fold_class": "N", "fold_op": "rational_add", "fold_init": [0, 1], "over": "@input.xs"}]}

@@ -1,0 +1,8 @@
+[cascade]
+name = "t1142_map_cycle_a"
+purpose = "planted: cycle leg 1 — map_op points at leg 2 (guarantee (b), map_op)"
+kind = "stage"
+
+[composite]
+[[composite.stage]]
+map_op = "t1142_map_cycle_b"

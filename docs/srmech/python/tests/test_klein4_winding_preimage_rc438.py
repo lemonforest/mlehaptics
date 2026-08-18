@@ -345,20 +345,24 @@ def test_a_malformed_winding_raises_rather_than_being_read_as_rest(bad):
 
 # ── 7. the ABI-15 wire, and both projections on it ────────────────────────
 
-def test_expected_abi_is_15():
+def test_expected_abi_is_pinned():
     """The winding triad on ``srmech_klein4_from_one``'s wire is a change to an
     EXISTING exported signature, so ABI moves 14 → 15 (an additive symbol
     would not have). The pin is what rejects a stale rc437 ``.so`` — which
     would still return CORRECT bytes on the rest path, and so would reintroduce
     the defect on wound Ones only, silently."""
-    assert _native.EXPECTED_ABI_VERSION == 17
+    # NAME CARRIES NO NUMBER ON PURPOSE. This pin tracks a value that MOVES;
+    # a name that spells the value is falsified by the next bump and was —
+    # 16 such tests were found tree-wide, one named for 367 asserting 663.
+    # See test_pinned_names_carry_no_value_rc447.py.
+    assert _native.EXPECTED_ABI_VERSION == 18
 
 
 @requires_native
 def test_the_native_projection_agrees_byte_for_byte_in_BOTH_regimes():
     """Co-equal parity across the new wire — the half the rc435 study could not
     reach, because it ran with ``HAS_NATIVE`` False."""
-    assert _native.NATIVE_ABI_VERSION == 17
+    assert _native.NATIVE_ABI_VERSION == 18
 
     def pure(one):
         saved = _native.HAS_NATIVE

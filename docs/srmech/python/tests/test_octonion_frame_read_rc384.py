@@ -260,7 +260,11 @@ def test_both_ops_in_laplacian_and_cascade_surfaces():
     assert hasattr(srmech.math.laplacian, "octonion_laplacian")
 
 
-def test_both_ops_registered_and_describe_total_is_535():
+def test_both_ops_registered_and_describe_total_is_pinned():
+    # NAME CARRIES NO NUMBER ON PURPOSE. This pin tracks a value that MOVES;
+    # a name that spells the value is falsified by the next bump and was —
+    # 16 such tests were found tree-wide, one named for 367 asserting 663.
+    # See test_pinned_names_carry_no_value_rc447.py.
     from srmech.introspect.tool_schema import get_tool_schema
     names = {e.name for e in get_tool_schema().tools}
     assert "srmech.cascade.octonion_frame_read" in names

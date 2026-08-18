@@ -549,7 +549,7 @@ from srmech.math.text import fold_marks, glyph_stream
 #: op, so a moved FRAME COUNT (rather than a moved digest) would have been the
 #: signal that something other than prose had changed.
 WITNESS_RC416 = (
-    "1f18265680bf81029fbca94e9fa2c0e7912cedee1311d26b1cdd958196e6f79e")
+    "eb9f7dd1d1a7f7d3766089362aafa7a3d4bacbe1498f9a0c2083ed0f43d0f9b2")
 
 #: The ASCII control set. These four queries are the ops the tokenizer work is
 #: ABOUT, so a regression on them would be the change eating its own subject.

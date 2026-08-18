@@ -1,0 +1,1 @@
+{"name": "c", "returns": "r", "steps": [{"body": [{"args": {}, "class": "N", "op": "rational_add"}], "index": "i", "map_over": "@input.xs"}], "summary": "s"}

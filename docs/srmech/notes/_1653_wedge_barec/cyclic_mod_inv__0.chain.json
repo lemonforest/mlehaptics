@@ -1,0 +1,1 @@
+{"name": "cyclic_mod_inv.0", "on_error": "raise", "returns": "int  # the multiplicative inverse of a mod n, in [1, n)", "steps": [{"args": {"a": "@input.a", "n": "@input.n"}, "class": "I", "op": "mod_inv"}], "summary": "Class-I delegation: cyclic_mod_inv(a, n) IS srmech.math.cyclic.mod_inv(a, n)."}

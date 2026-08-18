@@ -1,0 +1,8 @@
+[cascade]
+name = "t1142_op_dotted"
+purpose = "VALID dotted body on a COVERED key (op = a dotted shipped callable)"
+kind = "stage"
+
+[composite]
+[[composite.stage]]
+op = "srmech.cascade.magnitude"

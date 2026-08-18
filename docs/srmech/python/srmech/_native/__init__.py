@@ -219,7 +219,7 @@ from typing import Optional
 #        BEFORE dispatch so the Python read stays right, but a bare-C host on
 #        the stale lib still gets the silent blend, and the projections are
 #        co-equal. This pin rejects it.
-EXPECTED_ABI_VERSION: int = 17
+EXPECTED_ABI_VERSION: int = 18
 
 # Back-compat alias: downstream code reading ``_native.ABI_VERSION`` gets the
 # expected (compiled-against) ABI == EXPECTED_ABI_VERSION (NOT the runtime-

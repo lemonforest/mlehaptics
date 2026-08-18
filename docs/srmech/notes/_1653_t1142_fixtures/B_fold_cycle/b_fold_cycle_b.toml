@@ -1,0 +1,8 @@
+[cascade]
+name = "t1142_fold_cycle_b"
+purpose = "planted: cycle leg 2 — plain op points back at leg 1"
+kind = "stage"
+
+[composite]
+[[composite.stage]]
+op = "t1142_fold_cycle_a"

@@ -1,0 +1,1 @@
+{"chain": {"name": "probe"}, "stage": [{"reduce_op": "cyclic_gcd"}]}

@@ -176,6 +176,13 @@ tests/test_registry_completeness_rc416.py
 # registers/edits an op or a ToolEntry" is exactly the change that shifts line
 # numbers in every cited file below the insertion. ~39s, no server, no fixture.
 tests/test_adr_citation_integrity_rc415.py
+# rc447 (gh #1653): the ADR CLAUSE instrument, added because running the
+# manifest WHOLE could not catch what it caught in CI — this gate was not in
+# the manifest at all. Renaming a test broke an ADR-0008 clause that cites it
+# by pytest NODE ID, and the local ripple run was green while six CI jobs went
+# red. A node-id citation is a dispatch surface: it breaks on a rename, which
+# is exactly the kind of edit this list exists to ripple-check. 0.56s.
+tests/test_adr_clause_instrument_rc417.py
 
 # -- JPL Power-of-Ten C audit ratchet ----------------------------------------
 tests/test_jpl_audit.py

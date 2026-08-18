@@ -1,0 +1,8 @@
+[cascade]
+name = "adv1142_parallel_unknown"
+purpose = "adversarial control 3: parallel_body names an absent op"
+kind = "stage"
+
+[composite]
+[[composite.stage]]
+parallel_body = "adv1142_absent_op"

@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc446"
-#define SRMECH_VERSION       "0.9.0rc446"
+#define SRMECH_VERSION_PRE "rc447"
+#define SRMECH_VERSION "0.9.0rc447"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -360,8 +360,28 @@ extern "C" {
  *      read. SRMECH_GENOME_FORMAT_VERSION moves 19 -> 20 in the same change: here the
  *      on-disk format really does gain a marker, so both versions move together for the
  *      first time since rc326.
+ *
+ * v18 — v0.9.0rc447 (gh #1653): a NEW VALUE-DESCRIPTOR KIND on srmech_chain_run's
+ *      output wire. cr_value_t gains CR_DBL, so the marshalled descriptor can now
+ *      carry {"k":"f","v":<double>} — and CR_LIST can now be emitted as
+ *      {"k":"l","items":[...]}. Both are ADDITIONS to a discriminator set the Python
+ *      reader matches CLOSED: _reconstruct_value raises ValueError on an unknown "k",
+ *      so a kind it has no branch for is a hard failure, not a soft one.
+ *
+ *      Load-bearing rather than ceremonial, and the failure is loud in one direction
+ *      and silent in the other. A stale rc446 .so reports ABI 17 against rc447 Python;
+ *      rejecting it costs only the native path. The dangerous pairing is the reverse —
+ *      a current .so emitting "f" into an older Python, which would raise mid-run on a
+ *      chain that used to work. Bumping in lockstep makes the ABI check catch the
+ *      mismatch before either half runs.
+ *
+ *      ⚠️ The "l" half closes an asymmetry pointing the OTHER WAY from the one gh #1653
+ *      is about: Python's reader has ALWAYS had a `k == "l"` branch, so the scripting
+ *      projection could read a list descriptor the compiled one could never produce.
+ *      The reader was ahead of the writer, and nothing exercised it, so it went
+ *      unnoticed. SRMECH_GENOME_FORMAT_VERSION stays 20 — no on-disk format moves.
  */
-#define SRMECH_ABI_VERSION 17
+#define SRMECH_ABI_VERSION 18
 
 /* ------------------------------------------------------------------ *
  * Thread-local storage qualifier (reentrancy support; #772)

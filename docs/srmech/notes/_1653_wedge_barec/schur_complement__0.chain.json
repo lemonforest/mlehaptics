@@ -1,0 +1,1 @@
+{"name": "schur_complement.0", "on_error": "raise", "returns": "Mat  # the |boundary| x |boundary| Schur complement", "steps": [{"args": {"L": "@input.L", "boundary_idx": "@input.boundary_idx"}, "class": "L", "op": "schur_complement"}], "summary": "Class-L delegation: the Schur complement / Dirichlet-to-Neumann reduction onto the boundary index set."}

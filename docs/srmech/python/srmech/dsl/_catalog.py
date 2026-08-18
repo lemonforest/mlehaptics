@@ -148,7 +148,16 @@ _PROVENANCE_SHIPPED = "srmech"
 _USER_CATALOG_DIRS: List[Path] = []
 
 #: Stage-dict keys that name a referenced cascade op (for composite validation).
-_COMPOSITE_OP_KEYS = ("op", "fold_op", "reduce_op", "parallel_body")
+#: MUST list EVERY op-naming discriminator the stage grammar accepts. A key that
+#: is missing here does not merely skip one check — it silently lapses BOTH
+#: composite load-time guarantees at once, because :func:`_composite_op_refs`
+#: feeds both unknown-op validation and cycle detection from this one tuple.
+#: ``map_op`` was absent from rc? through rc445 (`#T1142`, gh #1653): a composite
+#: whose ``map_op`` named a non-existent op loaded clean, and a cycle routed
+#: through a ``map_op`` was undetectable. Both are gated now, with planted
+#: failures and covered-key controls in
+#: ``tests/test_composite_op_keys_closed_rc446.py``.
+_COMPOSITE_OP_KEYS = ("op", "fold_op", "reduce_op", "parallel_body", "map_op")
 
 
 def _env_catalog_dirs() -> List[Path]:

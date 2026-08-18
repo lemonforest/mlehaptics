@@ -1,0 +1,13 @@
+[cascade]
+name = "t1142_chain_unknown"
+purpose = "planted: an executable [[cascade.chain]] step names a non-existent op"
+kind = "stage"
+
+[[cascade.chain]]
+chain_schema_version = 2
+variant = "default"
+summary = "planted unknown-op chain step"
+returns = "nothing — the op does not exist"
+[[cascade.chain.steps]]
+op = "t1142_no_such_op_planted"
+out = "r"

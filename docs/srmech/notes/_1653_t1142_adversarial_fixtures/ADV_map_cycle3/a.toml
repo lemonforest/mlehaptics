@@ -1,0 +1,8 @@
+[cascade]
+name = "adv1142_c3_a"
+purpose = "adversarial: 3-node cycle leg 1 via map_op"
+kind = "stage"
+
+[composite]
+[[composite.stage]]
+map_op = "adv1142_c3_b"

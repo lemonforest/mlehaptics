@@ -1129,6 +1129,35 @@ def describe() -> Dict[str, Any]:
         1 for s in _cascade_status.values() if s == "executable")
     _cascade_leaf = sum(1 for s in _cascade_status.values() if s == "leaf")
 
+    # rc447 (gh #1653) — `c_runnable`: how many executable descriptors the C
+    # projection can run. The report said which chains EXIST and were
+    # executable, and nothing about which of them the compiled projection could
+    # actually drive; that half was unenumerable exactly as the whole catalog
+    # was before rc420.
+    #
+    # ⚠️ DERIVED FROM THE LIVE PREDICATE, never a literal — and that predicate
+    # was measured WRONG on every chain until rc447 (it required class_id "N",
+    # so it answered 0 while 9 descriptors demonstrably ran). Shipping this key
+    # against the old predicate would have published a 0 that was false the day
+    # it landed. tests/test_c_chain_eligibility_rc447.py pins the predicate to
+    # the C dispatch table so the number here cannot drift from the runner.
+    try:
+        from ..cascade import compose as _cmp
+        from ..dsl import _cascade_chain as _ccx
+        from ..dsl import _catalog as _ccat
+        _cat_raw = _ccat.load_catalog()
+        _c_runnable = 0
+        for _nm, _st in _cascade_status.items():
+            if _st != "executable":
+                continue
+            _e = _ccx._chain_entries(_cat_raw[_nm])[0]
+            _spec = _cmp.parse_chain_spec({**_e, "name": _nm,
+                                           "summary": _e.get("summary", ""),
+                                           "returns": _e.get("returns", "")})
+            _c_runnable += bool(_cmp._chain_c_eligible(_spec))
+    except Exception:  # pragma: no cover — degrade like the block above
+        _c_runnable = 0
+
     # Carriers (rc298 `#936`) — the OPERAND nouns. The registry has a 100%
     # construction-example floor and a compiled-in C peer table, and before
     # rc298 describe() could not see it at all: the same mechanism-2 defect the
@@ -1513,6 +1542,7 @@ def describe() -> Dict[str, Any]:
             "total": len(_cascade_status),
             "executable": _cascade_executable,
             "leaf": _cascade_leaf,
+            "c_runnable": _c_runnable,
             "status": _cascade_status,
             "run": "srmech.dsl.run_cascade_chain",
             "enumerate": "srmech.dsl.list_catalog_ops",

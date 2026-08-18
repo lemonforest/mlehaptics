@@ -1,0 +1,8 @@
+[cascade]
+name = "adv1142_self_op"
+purpose = "adversarial control: op points at its OWN descriptor"
+kind = "stage"
+
+[composite]
+[[composite.stage]]
+op = "adv1142_self_op"

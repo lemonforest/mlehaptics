@@ -1,0 +1,10 @@
+[cascade]
+name = "adv1142_nested_op"
+purpose = "adversarial control: absent op INSIDE a sub_chain"
+kind = "stage"
+
+[composite]
+[[composite.stage]]
+loop_n = 2
+[[composite.stage.sub_chain]]
+op = "adv1142_absent_op"

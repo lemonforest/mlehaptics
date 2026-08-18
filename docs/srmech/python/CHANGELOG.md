@@ -4,6 +4,93 @@ All notable changes to this package will be documented here. The format follows 
 
 **Reference notation.** `#T###` is a LOCAL task-tracker item (our session task list); `F####` is an RBS-LM finding; bare `#NNNN` is reserved for a REAL GitHub issue/PR (write `gh #1293` when you want it unambiguous). The `T` prefix exists because GitHub autolinks `#` followed immediately by digits, so a bare task ID silently mints a cross-link to whatever issue happens to hold that number — several of ours collide with unrelated merged issues. Never write a task ID as bare `#NNNN`. **Two clauses the root `CLAUDE.md` carries and this paragraph did not** (reconciled 2026-07-29, `#T994`): (1) a ref inside a **code span** — `` `#938` `` — does **not** autolink, so it is the legitimate way to *quote* a bad ref while documenting it, and any mechanical check must exempt code spans and bound the digit range or it will flag `UAX #29` / `MS #20` / `Spike #24`; (2) the rule binds **four** surfaces — file content (including docstrings and `ToolEntry` prose, which are emitted into generated files and ship in the wheel), commit messages, the PR body, and **the PR title, which becomes the merge-commit subject**. Existence proves nothing; **topicality decides** — read the surrounding prose, never batch-convert.
 
+
+## [0.9.0rc447] - gh #1653: config-driven cascade execution in C, and four instruments that could not see what was claimed from them
+
+### The C chain runner was unreachable from Python
+
+`_run_chain_native` returns `_NATIVE_MISS` — before the library is consulted — when
+`_chain_c_eligible(spec)` is False, and that predicate required `step.class_id == "N"`. Measured:
+it answered **C-runnable for 0** of the 18 executable descriptors while **9 of them demonstrably
+ran** under `srmech_chain_run`. Wrong on every one. The whole C chain runner was real, correct,
+parity-tested — and never invoked by the package.
+
+Nothing caught it because **every parity gate calls `srmech_chain_run` directly through ctypes**,
+which bypasses the exact predicate that was blocking it. A gate that reaches around the thing
+under test cannot see the thing under test.
+
+Fixed: the CLASS is no longer part of the test — C dispatches on the op NAME. Predicate 0 → 9,
+matching the runner; `run_cascade_chain` now drives C for **32 of 89 proof cases**, up from 0.
+`test_c_chain_eligibility_rc447` pins the agreement, including an end-to-end check through the
+PUBLIC surface rather than ctypes.
+
+### What now runs in C (9 of 18 executable chains)
+
+- **Class I cyclic** — `gcd` / `mod_add` / `mod_mul` / `mod_mul_wide` / `mod_pow` / `mod_inv`, on
+  the full **bigint** carrier with **cyclic-native ordering** (reduce to residues first, so the
+  intermediate is bounded by `n²` however large the operands). `mod_inv` alone keeps the uint64
+  wire — no bigint extended-Euclid ships.
+- **The Surface-A FOLD step form** → `net_chirality`, 7/7 bit-identical. No frame stack needed: a
+  fold has no body step list, so JPL Rule 1 holds without one.
+- **`CR_DBL` + the `{"k":"f"}` / `{"k":"l"}` descriptor kinds** → `chiral_dual`, 4/4 bit-identical.
+  Round-trips exactly including `-0.0` and `5e-324`.
+- **Indexed step refs** `@step[N].output[K]` + the Class-K pin-slot / Class-C reorient pair →
+  `magnitude`, 5/5 on its finite cases.
+
+### ABI 17 → 18
+
+A new value-descriptor kind on `srmech_chain_run`'s output wire. Load-bearing in the REVERSE
+direction from the usual case: a stale library merely costs the native path, but a CURRENT library
+emitting `"f"` into an OLDER Python would raise mid-run on a chain that used to work.
+
+⚠️ **An ABI bump is a ~20-file edit, not the 2-file one the docs describe.** Measured: **27
+hardcoded sites across 21 files**. Enumerated in `notes/ripple_gates.txt`.
+
+### Rejection parity (`#T1146`): 24 of 34 defects → 0
+
+`chain().then(op, bogus=1)` built a C stage that silently DROPPED the unknown key and computed,
+while pure raised `TypeError`. Co-equal projections must agree on what they REFUSE. Closed at the
+IR builder by DEFERRING, so Python's observable behaviour is unchanged — and the control that
+matters holds: valid calls still nativize, including `best_rational_signed`'s real keyword-only
+options.
+
+### The JPL scanner was blind to 66 functions, hiding 14 never-audited violations
+
+Two independent blind spots: an unconditional `static const` skip (24 functions returning a const
+pointer) and a 10-line brace look-ahead (42 more, braces up to +27 lines past the definition).
+Behind them, **12 Rule-4 and 2 Rule-5 violations that nothing had ever measured** —
+`srmech_q_zeilberger` at **141 lines** against a 60 cap. Seeded down-only, strict on novel; NOT
+fixed, because splitting twelve numerics kernels under a newly-red gate is how a scanner fix
+becomes a correctness incident. `test_c_resource_ownership_rc432`'s scanner had the identical two
+bugs — its agreement gate is what surfaced them.
+
+### One dispatch rule, and a segment boundary
+
+The C table had drifted into TWO matching rules: Class-N arms compared the bare name, the new arms
+a raw suffix. `cr_op_is` unifies them on the last DOTTED SEGMENT — so `srmech.math.rational.
+sin_series_truncate` runs, and `poly_gcd` does **not** answer to `gcd` (a raw suffix compare
+dispatches one op's chain to another). This is also what `#T1145`'s unlanded respelling needs.
+
+### Also
+
+- `describe()["cascade_catalog"]` gains **`c_runnable`**, live-derived. Shipped before the
+  predicate fix it would have published a `0` that was false the day it landed.
+- Stale literals: `17 executable` → 18 **and** `91 proof cases` → 98 (the second was unreported).
+- The ADR-0003 **bare-C host proof** (`test_srmech_chain_run.c`, 17 checks, wired into ctest). It
+  found two things ctypes cannot: an out-of-int64 literal declines at the parser, so the bigint
+  carrier needs the **rc176 decimal-string transport**; and the arena is dominated by
+  `4096 × chain_len`.
+- **The step-mutation witness** — byte-identity is necessary and NOT sufficient. Perturbing one
+  interior part must change the C output *to the predicted value*.
+- A **strict-zero gate on tests named for a value they do not assert** — 16 found tree-wide, one
+  named `stays_367` asserting 663.
+
+### Not done, filed with dispositions
+
+The gap ledger carries **32 rows** (10 closed / 2 declined / 20 filed). `#T1145`'s respelling,
+the map step form, the 6 ABSENT symbols, the bytes/matrix/mapping carriers, and carrier-spelling
+normalisation remain open — each with a disposition, none implicit.
+
 ## [Unreleased]
 
 _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffer (mmap, for >1k events/sec). It stays deferred until an op proves the need — no consumer in the RBS-LM pipeline yet exceeds the Tier-1 flush-per-write rate. (The C-side `srmech_progress_cb_t` callback ABI — the OTHER deferred half — shipped in rc242 below.)_

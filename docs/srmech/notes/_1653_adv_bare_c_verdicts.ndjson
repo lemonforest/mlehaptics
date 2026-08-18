@@ -1,0 +1,52 @@
+{"driver_version_line": "libsrmech 0.9.0rc444 abi=17", "record": "environment", "route": "static libsrmech.a, no ctypes, no CPython in lib"}
+{"c_parse_rc": "BAD_INPUT=2", "c_run_rc": "NOT_IMPL=5", "chain": "autocorrelation__0", "record": "chain_bare_c"}
+{"c_parse_rc": "SRMECH_OK=0", "c_run_rc": "NOT_IMPL=5", "chain": "best_rational_signed__0", "record": "chain_bare_c"}
+{"c_parse_rc": "SRMECH_OK=0", "c_run_rc": "NOT_IMPL=5", "chain": "chiral_dual__0", "record": "chain_bare_c"}
+{"c_parse_rc": "SRMECH_OK=0", "c_run_rc": "NOT_IMPL=5", "chain": "cyclic_gcd__0", "record": "chain_bare_c"}
+{"c_parse_rc": "SRMECH_OK=0", "c_run_rc": "NOT_IMPL=5", "chain": "cyclic_mod_add__0", "record": "chain_bare_c"}
+{"c_parse_rc": "SRMECH_OK=0", "c_run_rc": "NOT_IMPL=5", "chain": "cyclic_mod_inv__0", "record": "chain_bare_c"}
+{"c_parse_rc": "SRMECH_OK=0", "c_run_rc": "NOT_IMPL=5", "chain": "cyclic_mod_mul__0", "record": "chain_bare_c"}
+{"c_parse_rc": "SRMECH_OK=0", "c_run_rc": "NOT_IMPL=5", "chain": "cyclic_mod_mul_wide__0", "record": "chain_bare_c"}
+{"c_parse_rc": "SRMECH_OK=0", "c_run_rc": "NOT_IMPL=5", "chain": "cyclic_mod_pow__0", "record": "chain_bare_c"}
+{"c_parse_rc": "SRMECH_OK=0", "c_run_rc": "NOT_IMPL=5", "chain": "encode_loe_content__0", "record": "chain_bare_c"}
+{"c_parse_rc": "BAD_INPUT=2", "c_run_rc": "NOT_IMPL=5", "chain": "klein4_from_one__0", "record": "chain_bare_c"}
+{"c_parse_rc": "BAD_INPUT=2", "c_run_rc": "NOT_IMPL=5", "chain": "klein4_from_one__1", "record": "chain_bare_c"}
+{"c_parse_rc": "BAD_INPUT=2", "c_run_rc": "NOT_IMPL=5", "chain": "kuramoto_step__0", "record": "chain_bare_c"}
+{"c_parse_rc": "BAD_INPUT=2", "c_run_rc": "NOT_IMPL=5", "chain": "kuramoto_step__1", "record": "chain_bare_c"}
+{"c_parse_rc": "SRMECH_OK=0", "c_run_rc": "NOT_IMPL=5", "chain": "magnitude__0", "record": "chain_bare_c"}
+{"c_parse_rc": "BAD_INPUT=2", "c_run_rc": "BAD_INPUT=2", "chain": "net_chirality__0", "record": "chain_bare_c"}
+{"c_parse_rc": "BAD_INPUT=2", "c_run_rc": "NOT_IMPL=5", "chain": "octonion_dft__0", "record": "chain_bare_c"}
+{"c_parse_rc": "BAD_INPUT=2", "c_run_rc": "NOT_IMPL=5", "chain": "parallel_sector_dispatch__0", "record": "chain_bare_c"}
+{"c_parse_rc": "BAD_INPUT=2", "c_run_rc": "NOT_IMPL=5", "chain": "quaternion_dft__0", "record": "chain_bare_c"}
+{"c_parse_rc": "SRMECH_OK=0", "c_run_rc": "NOT_IMPL=5", "chain": "schur_complement__0", "record": "chain_bare_c"}
+{"denominator": 20, "parse_accept": 11, "parse_reject": 9, "record": "chain_tally", "run_ok": 0}
+{"c_parse_rc": "SRMECH_OK=0", "c_run_rc": "BAD_INPUT=2", "case": "control_plain", "record": "ablation"}
+{"c_parse_rc": "BAD_INPUT=2", "c_run_rc": "BAD_INPUT=2", "case": "control_one_fold", "record": "ablation"}
+{"c_parse_rc": "BAD_INPUT=2", "c_run_rc": "BAD_INPUT=2", "case": "control_one_map", "record": "ablation"}
+{"c_parse_rc": "BAD_INPUT=2", "c_run_rc": "BAD_INPUT=2", "case": "headless_plain", "record": "ablation"}
+{"c_parse_rc": "SRMECH_OK=0", "c_run_rc": "BAD_INPUT=2", "case": "ablate_netchir_foldstep_to_plain", "record": "ablation"}
+{"c_parse_rc": "BAD_INPUT=2", "c_run_rc": "NOT_IMPL=5", "case": "inject_cyclicgcd_extra_fold", "record": "ablation"}
+{"c_parse_rc": "BAD_INPUT=2", "c_run_rc": "NOT_IMPL=5", "case": "inject_cyclicgcd_extra_map", "record": "ablation"}
+{"c_parse_rc": "SRMECH_OK=0", "c_run_rc": "NOT_IMPL=5", "case": "pr_dotted_op", "record": "ablation"}
+{"c_parse_rc": "SRMECH_OK=0", "c_run_rc": "BAD_INPUT=2", "case": "pr_onerr_chain", "record": "ablation"}
+{"c_parse_rc": "SRMECH_OK=0", "c_run_rc": "BAD_INPUT=2", "case": "pr_onerr_step", "record": "ablation"}
+{"c_parse_rc": "SRMECH_OK=0", "c_run_rc": "BAD_INPUT=2", "case": "pr_catalog_ref", "record": "ablation"}
+{"c_parse_rc": "BAD_INPUT=2", "c_run_rc": "BAD_INPUT=2", "case": "pr_idx_ref", "record": "ablation"}
+{"c_parse_rc": "BAD_INPUT=2", "c_run_rc": "BAD_INPUT=2", "case": "pr_op_ref", "record": "ablation"}
+{"c_parse_rc": "SRMECH_OK=0", "c_run_rc": "SRMECH_OK=0", "case": "d4_mixed_plain_map", "record": "ablation"}
+{"c_run_rc": "SRMECH_OK=0", "case": "dsl_op_magnitude", "line": "DSL  rc=0  /home/skirklan/GitHub/mlehaptics/.claude/worktrees/srmech-1653-cparity/docs/srmech/notes/_1653_adv_chain_json/dsl_op_magnitude.json out[20]={\"k\": \"f\", \"v\": 3.5}", "record": "dsl_bare_c"}
+{"c_run_rc": "SRMECH_OK=0", "case": "dsl_loop_subchain", "line": "DSL  rc=0  /home/skirklan/GitHub/mlehaptics/.claude/worktrees/srmech-1653-cparity/docs/srmech/notes/_1653_adv_chain_json/dsl_loop_subchain.json out[20]={\"k\": \"f\", \"v\": 3.5}", "record": "dsl_bare_c"}
+{"c_run_rc": "SRMECH_OK=0", "case": "dsl_fold_cyclicgcd", "line": "DSL  rc=0  /home/skirklan/GitHub/mlehaptics/.claude/worktrees/srmech-1653-cparity/docs/srmech/notes/_1653_adv_chain_json/dsl_fold_cyclicgcd.json out[18]={\"k\": \"i\", \"v\": 6}", "record": "dsl_bare_c"}
+{"c_run_rc": "SRMECH_OK=0", "case": "dsl_reduce_cyclicgcd", "line": "DSL  rc=0  /home/skirklan/GitHub/mlehaptics/.claude/worktrees/srmech-1653-cparity/docs/srmech/notes/_1653_adv_chain_json/dsl_reduce_cyclicgcd.json out[18]={\"k\": \"i\", \"v\": 6}", "record": "dsl_bare_c"}
+{"c_run_rc": "NOT_IMPL=5", "case": "dsl_parallel_body", "line": "DSL  rc=5  /home/skirklan/GitHub/mlehaptics/.claude/worktrees/srmech-1653-cparity/docs/srmech/notes/_1653_adv_chain_json/dsl_parallel_body.json out[0]=", "record": "dsl_bare_c"}
+{"c_run_rc": "SRMECH_OK=0", "case": "dsl_map_op_seqget", "line": "DSL  rc=0  /home/skirklan/GitHub/mlehaptics/.claude/worktrees/srmech-1653-cparity/docs/srmech/notes/_1653_adv_chain_json/dsl_map_op_seqget.json out[57]={\"k\": \"l\", \"v\": [{\"k\": \"i\", \"v\": 1}, {\"k\": \"i\", \"v\": 2}]}", "record": "dsl_bare_c"}
+{"c_run_rc": "SRMECH_OK=0", "case": "dsl_fold_cyclicgcd_foldargs", "line": "DSL  rc=0  /home/skirklan/GitHub/mlehaptics/.claude/worktrees/srmech-1653-cparity/docs/srmech/notes/_1653_adv_chain_json/dsl_fold_cyclicgcd_foldargs.json out[18]={\"k\": \"i\", \"v\": 6}", "record": "dsl_bare_c"}
+{"c_run_rc": "SRMECH_OK=0", "case": "dsl_op_magnitude_bogus", "line": "DSL  rc=0  /home/skirklan/GitHub/mlehaptics/.claude/worktrees/srmech-1653-cparity/docs/srmech/notes/_1653_adv_chain_json/dsl_op_magnitude_bogus.json out[20]={\"k\": \"f\", \"v\": 3.5}", "record": "dsl_bare_c"}
+{"c_run_rc": "SRMECH_OK=0", "chain": "amsc_exp_series_truncate", "record": "amsc_bare_c"}
+{"c_run_rc": "SRMECH_OK=0", "chain": "amsc_sin_series_truncate", "record": "amsc_bare_c"}
+{"c_run_rc": "SRMECH_OK=0", "chain": "amsc_cos_series_truncate", "record": "amsc_bare_c"}
+{"c_run_rc": "SRMECH_OK=0", "chain": "amsc_log1p_series_truncate", "record": "amsc_bare_c"}
+{"c_run_rc": "SRMECH_OK=0", "chain": "amsc_atan_series_truncate", "record": "amsc_bare_c"}
+{"c_run_rc": "SRMECH_OK=0", "chain": "amsc_pi_cascade_digits", "record": "amsc_bare_c"}
+{"c_run_rc": "SRMECH_OK=0", "chain": "amsc_friedmann_dark_fraction", "note": "attributed: generic ctx -> BAD_INPUT=2 is a harness cause; with the chain's own @row keys it is SRMECH_OK", "record": "amsc_bare_c"}
+{"c_run_ok": 7, "denominator": 7, "record": "amsc_tally"}

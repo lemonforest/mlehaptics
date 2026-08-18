@@ -1,0 +1,1 @@
+{"name": "cyclic_gcd.0", "returns": "int  # gcd(a, b) >= 0", "steps": [{"args": {"a": "@input.a", "b": "@input.b"}, "class": "I", "op": "gcd"}], "summary": "Class-I delegation: cyclic_gcd(a, b) IS srmech.math.cyclic.gcd(a, b)."}

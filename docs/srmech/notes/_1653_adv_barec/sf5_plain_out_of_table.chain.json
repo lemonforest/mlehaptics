@@ -1,0 +1,1 @@
+{"name": "probe.sf5_plain_out_of_table", "summary": "plain form, OUT-of-table op: isolates the op table from the step form", "returns": "value", "on_error": "raise", "steps": [{"class": "I", "op": "gcd", "args": {"a": 12, "b": 18}}]}

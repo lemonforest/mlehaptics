@@ -1,0 +1,57 @@
+# gh #1653 round-2 — VERBATIM output of _1653_proto_map.c
+# build: cc -std=c99 -Wall -Wextra -Wpedantic -Werror -O2 -Ic/include ../notes/_1653_proto_map.c c/build/libsrmech.a -o /tmp/proto_map
+# (also compiles clean with gcc -std=c11 -O2; both builds give byte-identical output)
+# host: gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+
+srmech 0.9.0rc444  ABI 17  — #1653 surface-A MAP step-form prototype
+explicit frame stack, cap 4 frames; no recursion
+
+POSITIVE 1 — klein4_from_one variant=rest, its OWN map step
+  rc=0  peak_frames=2  arena_used=389008 bytes
+  crumbs matching the shipped Python projection: 64 / 64  MATCH
+
+POSITIVE 2 — NESTED map, depth 2 (autocorrelation's own inner body step)
+  rc=0  peak_frames=3  arena_used=268016 bytes
+  cells matching srmech's Class-I mod_add: 16 / 16  MATCH
+
+POSITIVE 3 — TRIPLE-nested map, depth 3 (frame-cap boundary)
+  rc=0  peak_frames=4 (cap 4)  arena_used=266736 bytes
+  cells matching (m + k) mod 2: 8 / 8  MATCH
+
+NEGATIVE — every one must DECLINE, with the stated status
+  [ 0] rc=2 (want 2)  mixed v1+v2 step (closed-key-set reject)     OK
+  [ 1] rc=2 (want 2)  map with no `body`                           OK
+  [ 2] rc=2 (want 2)  map with an EMPTY body                       OK
+  [ 3] rc=2 (want 2)  map_over resolves to an INT (unsized reject) OK
+  [ 4] rc=2 (want 2)  @idx.q — no enclosing map binds it         OK
+  [ 5] rc=2 (want 2)  @bind.nope — no enclosing map binds it     OK
+  [ 6] rc=5 (want 5)  float in a body arg (no FLOAT carrier kind)  OK
+  [ 7] rc=5 (want 5)  nesting one level past the frame cap         OK
+  [ 8] rc=5 (want 5)  body op outside the closed 6-op table        OK
+  [ 9] rc=5 (want 5)  @catalog namespace in map_over               OK
+  [10] rc=2 (want 2)  seq_get index out of range                   OK
+  [11] rc=2 (want 2)  forward @step reference inside a body        OK
+  12 of 12 declined as stated
+
+POSITIVE 4 — arena sweep on the depth-2 nested map (n outer x n inner)
+      n   rc   peak_frames   arena_used   bytes/cell
+      4    0             3       268016        16751
+      8    0             3       276720         4323
+     16    0             3       311024         1214
+     32    0             3       447216          436
+     64    0             3       989936          241
+    128    0             3      3156720          192
+    256    0             3     11815664          180
+  all n ran
+
+POSITIVE 4b — minimum TOTAL arena that runs the depth-2 map
+      n   min_arena_bytes
+     32            447216
+     64            989936
+    128           3156720
+    256          11815664
+  (264720 bytes of that is fixed: state + two 131072-byte JSON workspaces)
+
+0 failure(s)
+
+exit status: 0

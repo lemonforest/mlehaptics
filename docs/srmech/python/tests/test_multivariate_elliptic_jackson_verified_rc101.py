@@ -244,7 +244,11 @@ def test_router_malformed_params_route_to_open():
 
 
 # ── (5) scope — tools.total stays 362 (a flag + router gate, NOT a new ToolEntry) ───────
-def test_tools_total_stays_367():
+def test_tools_total_is_pinned():
+    # NAME CARRIES NO NUMBER ON PURPOSE. This pin tracks a value that MOVES;
+    # a name that spells the value is falsified by the next bump and was —
+    # 16 such tests were found tree-wide, one named for 367 asserting 663.
+    # See test_pinned_names_carry_no_value_rc447.py.
     assert introspect.describe()["tools"]["total"] == 663
 
 

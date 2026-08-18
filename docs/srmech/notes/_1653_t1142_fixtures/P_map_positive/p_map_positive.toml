@@ -1,0 +1,8 @@
+[cascade]
+name = "t1142_map_positive"
+purpose = "valid map_op composite: the indexed identity map (seq_get)"
+kind = "stage"
+
+[composite]
+[[composite.stage]]
+map_op = "srmech.cascade.leaves.seq_get"

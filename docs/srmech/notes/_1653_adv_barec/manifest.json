@@ -1,0 +1,45 @@
+[
+  {
+    "base": "cyclic_gcd__default",
+    "descriptor": "cyclic_gcd",
+    "n_steps_top": 1,
+    "step0_class": "I",
+    "step0_has_op": true,
+    "step0_keys": [
+      "args",
+      "class",
+      "op"
+    ],
+    "step0_op": "gcd",
+    "variant": "default"
+  },
+  {
+    "base": "net_chirality__default",
+    "descriptor": "net_chirality",
+    "n_steps_top": 1,
+    "step0_class": null,
+    "step0_has_op": false,
+    "step0_keys": [
+      "fold_class",
+      "fold_init",
+      "fold_op",
+      "over"
+    ],
+    "step0_op": null,
+    "variant": "default"
+  },
+  {
+    "base": "octonion_dft__default",
+    "descriptor": "octonion_dft",
+    "n_steps_top": 7,
+    "step0_class": "M",
+    "step0_has_op": true,
+    "step0_keys": [
+      "args",
+      "class",
+      "op"
+    ],
+    "step0_op": "srmech.cascade.hypercomplex_dft.odft_resolve_mu",
+    "variant": "default"
+  }
+]

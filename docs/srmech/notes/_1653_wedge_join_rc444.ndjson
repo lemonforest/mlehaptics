@@ -1,0 +1,53 @@
+{"c_value": "[22,7]", "case": 0, "chain": "best_rational_signed", "python_value": "[22,7]", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "[-22,7]", "case": 1, "chain": "best_rational_signed", "python_value": "[-22,7]", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "[0,1]", "case": 2, "chain": "best_rational_signed", "python_value": "[0,1]", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "[0,1]", "case": 3, "chain": "best_rational_signed", "python_value": "[0,1]", "verdict": "BYTE_IDENTICAL"}
+{"case": 4, "chain": "best_rational_signed", "detail": "srmech_json_parse rc=2", "verdict": "C_INGEST_REJECT"}
+{"c_value": "[0,1]", "case": 5, "chain": "best_rational_signed", "python_value": "[0,1]", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "[0,1]", "case": 6, "chain": "best_rational_signed", "python_value": "[0,1]", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "[0,1]", "case": 7, "chain": "best_rational_signed", "python_value": "[0,1]", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "[0,1]", "case": 8, "chain": "best_rational_signed", "python_value": "[0,1]", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "[-21,34]", "case": 9, "chain": "best_rational_signed", "python_value": "[-21,34]", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "[11,11,14]", "case": 0, "chain": "chiral_dual", "python_value": "[11,11,14]", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "[-15,13,-15,21]", "case": 1, "chain": "chiral_dual", "python_value": "[-15,13,-15,21]", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "[16]", "case": 2, "chain": "chiral_dual", "python_value": "[16]", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "[]", "case": 3, "chain": "chiral_dual", "python_value": "[]", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "6", "case": 0, "chain": "cyclic_gcd", "python_value": "6", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "6", "case": 1, "chain": "cyclic_gcd", "python_value": "6", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "7", "case": 2, "chain": "cyclic_gcd", "python_value": "7", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "7", "case": 3, "chain": "cyclic_gcd", "python_value": "7", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "0", "case": 4, "chain": "cyclic_gcd", "python_value": "0", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "1", "case": 5, "chain": "cyclic_gcd", "python_value": "1", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "41", "case": 6, "chain": "cyclic_gcd", "python_value": "41", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "3", "case": 0, "chain": "cyclic_mod_add", "python_value": "3", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "0", "case": 1, "chain": "cyclic_mod_add", "python_value": "0", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "10", "case": 2, "chain": "cyclic_mod_add", "python_value": "10", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "9", "case": 3, "chain": "cyclic_mod_add", "python_value": "9", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "5", "case": 0, "chain": "cyclic_mod_inv", "python_value": "5", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "5", "case": 1, "chain": "cyclic_mod_inv", "python_value": "5", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "1", "case": 2, "chain": "cyclic_mod_inv", "python_value": "1", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "8", "case": 0, "chain": "cyclic_mod_mul", "python_value": "8", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "0", "case": 1, "chain": "cyclic_mod_mul", "python_value": "0", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "1", "case": 2, "chain": "cyclic_mod_mul", "python_value": "1", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "8", "case": 0, "chain": "cyclic_mod_mul_wide", "python_value": "8", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "2", "case": 1, "chain": "cyclic_mod_mul_wide", "python_value": "2", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "7", "case": 0, "chain": "cyclic_mod_pow", "python_value": "7", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "1", "case": 1, "chain": "cyclic_mod_pow", "python_value": "1", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "1", "case": 2, "chain": "cyclic_mod_pow", "python_value": "1", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "0", "case": 3, "chain": "cyclic_mod_pow", "python_value": "0", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "323af819e8a22b3f28952628467b42f686f94896cf697f64f0f73fbfa0e955eba1d28e5fdcb9bc50ec67b68e28a4466119ed27582d99dfb8f0351e480e55c88a7999480d441ccda647ee735c4ae9279a1c4597c52f07c0d1aa3bf96002637590b1fc4b3db03d7712117fe41e3f38c4f6e29dc15f6a8ca4b96812b4945d5538f0ab5740684ec44a504f023c95a1c311aa7d3915493a935ac4cdd19f61f37e41cc970d22f354c0869e62ef646d9fbb68be98516d0350bf1f81e2ac33613e8947e74d86076fb780a42d551e26d134396e51bdd8fa53d923cf3befd2dacc693f473004214324e0815406de3ffeedba3510ea149f1868e0638449f2287e682581b44fbc6438676fd5c2675be486c6ac4496e1ac528bba85aba68fae270097e557822c14ebb0048229a52d353ee0b3c0b122ee3c09cff1cb5e404043152021ac07e550fee3b83d2970175b03aeca80850b246787beaec40b67c83e00e4af0d5901e8a7dd4344cbf46b7030f2343fefdc18c7db42bb28540196e7a5ad6c0c22755c5986243eb834dd11103c4d84c77693ca27ac305c350135efe1842af81b814a5ca7bbcbcda08ff1e40c090a2da0d1e3ac12150edbf4c601e121728bb7894f787144898766934e2615e28182faf1d01dfa4d9c0796c245864a802e3a63618a60ea70346b48f1f543d591a3430a4ac124daf3322b9d52ff793a0934202093461173c1ced2f6097bfd932c84abc66f30023308060f95c9e3b0ae6c41a6f56fffdadfc17f701b2c058e111c373619f34bb6c4f3aead4975d3decd5fda7063e84087e75a25966e9d23b971e1b352d7295871fcd64ae7d9a8667bc09b7a6277a80e3f3c206964e601354a229e4097836b25e0851a4e4b65a1a5331d956bd6bdd8f68bf8868a1a667ed688b3285fbfd3fbc03cbe708e51d007c9224318c64666a4d75243899c45fd53615f799ca0ce7647f1ec537d786df8f4919709645eb522ca120fe7ca4c2f0c953a5145c36c50b957ac3529a8a7ee847198af279e5816722f9c149f57adb5f3819745560cc73fea0c77929c43c05f0a90e891a3bac7c7eb29628f6bc3a16cc7f0c5ab11b70dcb1712ca76a6e98078c5ce9829df9b931eaf0c45d3b31c945ac2ec1fa8a3d2cdfcb5a097f0fe065119d1c7b7ee9cfcf932283d7de2821da345519191a0794fe6728ddb88b7a58dda3f7d456a8d920b926601e124e4f4c82d281f730f24803c532238f8f3c0f2d9413c75f78946db12511e29ffce31b3cb76726ee9f11f0a290a07bf7360a844d3bd36065a67f175533d9dd9e20c96b9a8285f56653f212c9024082fb2a998ed5392c66ed8520de3ef31ffb971d98aa9a709aa60494ef3599a8c64afd8ff36fcea1721a6ed033a0e019bbc8cbc025bc82c647749fd65176cae8664c9d51964bc8049d1d172514c7acf655f51c26244e71519", "case": 0, "chain": "encode_loe_content", "python_value": "\"323af819e8a22b3f28952628467b42f686f94896cf697f64f0f73fbfa0e955eba1d28e5fdcb9bc50ec67b68e28a4466119ed27582d99dfb8f0351e480e55c88a7999480d441ccda647ee735c4ae9279a1c4597c52f07c0d1aa3bf96002637590b1fc4b3db03d7712117fe41e3f38c4f6e29dc15f6a8ca4b96812b4945d5538f0ab5740684ec44a504f023c95a1c311aa7d3915493a935ac4cdd19f61f37e41cc970d22f354c0869e62ef646d9fbb68be98516d0350bf1f81e2ac33613e8947e74d86076fb780a42d551e26d134396e51bdd8fa53d923cf3befd2dacc693f473004214324e0815406de3ffeedba3510ea149f1868e0638449f2287e682581b44fbc6438676fd5c2675be486c6ac4496e1ac528bba85aba68fae270097e557822c14ebb0048229a52d353ee0b3c0b122ee3c09cff1cb5e404043152021ac07e550fee3b83d2970175b03aeca80850b246787beaec40b67c83e00e4af0d5901e8a7dd4344cbf46b7030f2343fefdc18c7db42bb28540196e7a5ad6c0c22755c5986243eb834dd11103c4d84c77693ca27ac305c350135efe1842af81b814a5ca7bbcbcda08ff1e40c090a2da0d1e3ac12150edbf4c601e121728bb7894f787144898766934e2615e28182faf1d01dfa4d9c0796c245864a802e3a63618a60ea70346b48f1f543d591a3430a4ac124daf3322b9d52ff793a0934202093461173c1ced2f6097bfd932c84abc66f30023308060f95c9e3b0ae6c41a6f56fffdadfc17f701b2c058e111c373619f34bb6c4f3aead4975d3decd5fda7063e84087e75a25966e9d23b971e1b352d7295871fcd64ae7d9a8667bc09b7a6277a80e3f3c206964e601354a229e4097836b25e0851a4e4b65a1a5331d956bd6bdd8f68bf8868a1a667ed688b3285fbfd3fbc03cbe708e51d007c9224318c64666a4d75243899c45fd53615f799ca0ce7647f1ec537d786df8f4919709645eb522ca120fe7ca4c2f0c953a5145c36c50b957ac3529a8a7ee847198af279e5816722f9c149f57adb5f3819745560cc73fea0c77929c43c05f0a90e891a3bac7c7eb29628f6bc3a16cc7f0c5ab11b70dcb1712ca76a6e98078c5ce9829df9b931eaf0c45d3b31c945ac2ec1fa8a3d2cdfcb5a097f0fe065119d1c7b7ee9cfcf932283d7de2821da345519191a0794fe6728ddb88b7a58dda3f7d456a8d920b926601e124e4f4c82d281f730f24803c532238f8f3c0f2d9413c75f78946db12511e29ffce31b3cb76726ee9f11f0a290a07bf7360a844d3bd36065a67f175533d9dd9e20c96b9a8285f56653f212c9024082fb2a998ed5392c66ed8520de3ef31ffb971d98aa9a709aa60494ef3599a8c64afd8ff36fcea1721a6ed033a0e019bbc8cbc025bc82c647749fd65176cae8664c9d51964bc8049d1d172514c7acf655f51c26244e71519\"", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "d8af098379aa193327f286d11b3cd48ae49f9414ce77da3203575d6a39cba9e5", "case": 1, "chain": "encode_loe_content", "python_value": "\"d8af098379aa193327f286d11b3cd48ae49f9414ce77da3203575d6a39cba9e5\"", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "63322bf3973f4ed9a3891f3bc481b781b69f941937d09aa0d32ace8c2e46b5bd", "case": 2, "chain": "encode_loe_content", "python_value": "\"63322bf3973f4ed9a3891f3bc481b781b69f941937d09aa0d32ace8c2e46b5bd\"", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "700d561a9175bbeaee82bb44b8c80102d467230ee68aa17af061cc479caaaf50", "case": 3, "chain": "encode_loe_content", "python_value": "\"700d561a9175bbeaee82bb44b8c80102d467230ee68aa17af061cc479caaaf50\"", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "3.5", "case": 0, "chain": "magnitude", "python_value": "3.5", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "0", "case": 1, "chain": "magnitude", "python_value": "0", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "0", "case": 2, "chain": "magnitude", "python_value": "0", "verdict": "BYTE_IDENTICAL"}
+{"case": 3, "chain": "magnitude", "detail": "srmech_json_parse rc=2", "verdict": "C_INGEST_REJECT"}
+{"case": 4, "chain": "magnitude", "detail": "srmech_json_parse rc=2", "verdict": "C_INGEST_REJECT"}
+{"case": 5, "chain": "magnitude", "detail": "srmech_json_parse rc=2", "verdict": "C_INGEST_REJECT"}
+{"c_value": "2.25", "case": 6, "chain": "magnitude", "python_value": "2.25", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "1e-13", "case": 7, "chain": "magnitude", "python_value": "1e-13", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "[[1.5,-0.5],[-0.5,1.5]]", "case": 0, "chain": "schur_complement", "python_value": "[[1.5,-0.5],[-0.5,1.5]]", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "[[0.33333333333333337,-0.33333333333333331],[-0.33333333333333331,0.33333333333333337]]", "case": 1, "chain": "schur_complement", "python_value": "[[0.33333333333333337,-0.3333333333333333],[-0.3333333333333333,0.33333333333333337]]", "verdict": "BYTE_IDENTICAL"}
+{"c_value": "[[2,-1],[-1,2]]", "case": 2, "chain": "schur_complement", "python_value": "[[2,-1],[-1,2]]", "verdict": "BYTE_IDENTICAL"}
+{"byte_identical": 48, "c_ran": 48, "cases": 52, "chains_any_case": 11, "chains_every_case": 9, "chains_total": 11, "divergent": 0, "ingest_rejected": 4, "python_raised": 0, "record": "summary", "srmech": "0.9.0rc444"}
