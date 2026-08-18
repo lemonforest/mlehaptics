@@ -8,17 +8,51 @@ its op does not have, and computing anyway.
 ⚠️ ANY OFFENDER IS A DESCRIPTOR DEFECT TO FIX IN THIS RC, NEVER A REASON TO LOOSEN
 THE VALIDATOR. That inversion is how a real finding becomes a widened rule.
 
-WHERE THE DESCRIPTORS ACTUALLY ARE — a correction to the rc449 brief, which
-expected "every packaged ``cascade_catalog`` descriptor (20)". Measured: there are
-21 ``.toml`` files under ``srmech/cascade/catalogs/cascade_catalog/`` (23 directory
-entries, of which one is ``__pycache__`` and one a ``.py``), and NONE of them is a
-chain descriptor. They are per-op catalog entries (``[cascade] name /
-class_composition / purpose``) with no ``steps`` and no ``args``, so the key-set
-rule cannot apply to them. A tree-wide search for TOML chain descriptors
-(``[[steps]]``) returns ZERO. Chain descriptors in this tree are Python dict
-literals, overwhelmingly in test fixtures — so those are the blast radius, and
-this script censuses them by AST rather than by import (importing a test module
-runs its collection side effects and would miss dicts built inside functions).
+WHERE THE DESCRIPTORS ACTUALLY ARE — there are TWO populations, and an earlier
+revision of this docstring got the first one flatly wrong.
+
+⚠️ RETRACTED at rc449 pre-merge review, and recorded rather than quietly deleted.
+This file previously claimed the 21 packaged ``cascade_catalog`` TOMLs carry "no
+``steps`` and no ``args``", that "NONE of them is a chain descriptor", and that a
+tree-wide search "returns ZERO". All three were false. The null came from
+searching ``[[steps]]`` — THE WRONG OPERATOR; the shipped form is
+``[[cascade.chain.steps]]``, and the tree's own notebook already records
+``describe()["cascade_catalog"] == {"total": 21, "executable": 18, "leaf": 3}``.
+Worse, the script did not parse a single TOML: it globbed them, printed that
+sentence as a HARDCODED LITERAL, and censused only ``.py`` files by AST. **An
+instrument that cannot return otherwise is not a measurement** — the exact
+failure class rc449 exists to close, reproduced inside rc449's own verification
+script. The earlier VERDICT (0 offenders) was correct; what was missing was the
+act of measuring.
+
+MEASURED NOW, parsing every file through srmech's own TOML front door
+(``srmech._toml.loads``, native-first — never ``tomllib``/``tomli``, which the
+self-hosting ban table lists FRONT_DOOR_ONLY):
+
+  * **TOML population** — 21 packaged descriptors, of which **18 carry
+    ``[[cascade.chain.steps]]``** with ``class`` / ``op`` / ``args`` (the
+    Surface-A shape); 3 are declared leaves. These ARE chain descriptors and the
+    key-set rule DOES apply to them. Recursively they hold **134 steps: 120
+    op-bearing, 115 args-bearing** — and the args-bearing figure is the one the
+    key-set rule actually ranges over.
+
+    ⚠️ **THE STEPS NEST, AND A FLAT WALK SEES 54% OF THEM.** A ``map_over`` step
+    carries no op-naming key itself; its ops live in a nested ``body`` list,
+    which may hold further map steps (``kuramoto_step.toml`` nests body-in-body).
+    Walking only ``chain["steps"]`` finds 72 of 134 steps and 62 of 115
+    args-bearing ones — and still prints ``VERDICT: CLEAN``, because absence of
+    offenders is indistinguishable from absence of looking. A first patch of this
+    script did exactly that; it was caught only because its 62 CONTRADICTED the
+    115 an independent verifier had measured. See ``_walk_steps``. The same
+    revision also skipped ``fold_op`` steps, so a fold-only file counted as
+    carrying no chain at all (17 files, not 18).
+  * **Python population** — chain descriptors as dict literals, overwhelmingly in
+    test fixtures. The Python half is censused by AST rather than
+by import, because importing a test module runs its collection side effects and
+would miss dicts built inside functions. Both halves are scanned below.
+
+RUN IT AS:  ``PYTHONPATH=. python ../notes/_t1158_blast_radius_rc449.py``  from
+``docs/srmech/python`` — ``sys.path[0]`` is the SCRIPT's directory, not the cwd.
 
 Both surfaces are covered:
   * compose steps  — ``{"op": ..., "args": {...}}``   legal set = params[*]
@@ -160,6 +194,59 @@ def _scan(path: Path) -> List[Tuple[str, str, str, List[str]]]:
     return found
 
 
+
+def _walk_steps(steps):
+    """Yield every step at EVERY nesting depth.
+
+    ``map_over`` / ``parallel`` steps carry no op-naming key of their own — the
+    ops live inside a nested ``body`` list, and that list may itself hold more
+    map steps (``kuramoto_step.toml`` nests body-in-body). A flat walk over
+    ``chain["steps"]`` therefore sees 72 of the tree's 134 steps and 62 of its
+    115 args-bearing ones, i.e. it is blind to 54% of its own subject while
+    reporting CLEAN. That is precisely the defect class rc449 exists to close,
+    so this walk recurses.
+    """
+    for step in steps or []:
+        yield step
+        body = step.get("body")
+        if isinstance(body, list):
+            yield from _walk_steps(body)
+
+
+def _scan_packaged_tomls(root):
+    """PARSE every packaged cascade_catalog descriptor; check each step's args.
+
+    Returns (offenders, n_tomls, n_steps, n_chain_files). An offender is a step
+    whose ``args`` names a key its op does not accept — the rc449 rule.
+    """
+    from srmech import _toml
+
+    tomls = sorted((root / "python" / "srmech").rglob("cascade_catalog/*.toml"))
+    offenders, n_steps, n_chain_files = [], 0, 0
+    for path in tomls:
+        doc = _toml.loads(path.read_text(encoding="utf-8"))
+        chains = (doc.get("cascade") or {}).get("chain") or []
+        if isinstance(chains, dict):
+            chains = [chains]
+        saw = False
+        for chain in chains:
+            for step in _walk_steps(chain.get("steps")):
+                saw = True
+                n_steps += 1
+                op = step.get("op") or step.get("fold_op")
+                if not op:
+                    continue
+                params = _params_of(str(op).rpartition(".")[2])
+                if params is None or params == ["**OPEN**"]:
+                    continue
+                extra = sorted(set(step.get("args") or {}) - set(params))
+                if extra:
+                    offenders.append(("toml", op, path.name, extra))
+        if saw:
+            n_chain_files += 1
+    return offenders, len(tomls), n_steps, n_chain_files
+
+
 def main() -> int:
     root = Path(__file__).resolve().parents[1]
     targets = sorted(
@@ -170,12 +257,12 @@ def main() -> int:
     print("== S8 blast radius: chain descriptors vs the rc449 key sets ==")
     print(f"   python files scanned : {len(targets)}")
 
-    tomls = list((root / "python" / "srmech").rglob(
-        "cascade_catalog/*.toml"))
-    print(f"   packaged cascade_catalog TOMLs : {len(tomls)} "
-          f"(none is a chain descriptor — see the module docstring)")
+    toml_off, n_tomls, n_steps, n_chain_files = _scan_packaged_tomls(root)
+    print(f"   packaged cascade_catalog TOMLs : {n_tomls} "
+          f"({n_chain_files} carry [[cascade.chain.steps]], "
+          f"{n_steps} steps parsed)")
 
-    offenders = []
+    offenders = list(toml_off)
     for p in targets:
         offenders.extend(_scan(p))
 
