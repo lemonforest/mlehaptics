@@ -16,7 +16,10 @@ python3 tools/ripple_check.py
 The gate set is the committed manifest **`tools/ripple_gates.txt`** (one pytest
 target per line; `#` comments and blank lines ignored). `ripple_check.py` reads
 that manifest and runs exactly those gates -- the FAST dispatch-surface subset,
-never the full ~10k-test suite. A meta-test,
+never the full ~14.5k-test suite. *(This said `~10k` until rc450; `tools/ripple_check.py`
+itself has said `~14.5k tests resolved in ~49 s` about the SAME suite since rc421,
+so two adjacent files in one feature disagreed by ~45% on the size of the thing
+they both describe. The runner's figure is the measured one and this now matches it.)* A meta-test,
 `tests/test_ripple_manifest_covers_known_gates.py`, guarantees the manifest can
 never silently shrink below the known families.
 
@@ -71,7 +74,7 @@ mirror):
 | MCP coercer + signature drift | `test_mcp.py::test_all_param_types_json_coercible`, `test_mcp.py::test_schema_signature_alignment_no_drift` (by NODE-ID) | the **novel param-type** axis: a new op declaring a param TYPE with no `_PARAM_COERCERS` handler, or declared params drifting from the signature (the rc273 / rc328 failure class). `test_mcpb_emit` does NOT cover coercion and the C-marshalling gates test the wire, not the Python coercer registry -- so these two carry the axis. They run pure (~sub-second, no server / no fixture). The rest of `test_mcp.py` (socket SSE server + subprocess round-trips) stays EXCLUDED -- as a whole file it hangs a fast runner (>90s, no clean exit) |
 | regen graph | `test_regen_all_rc346` | the codegen dependency graph + idempotence |
 | worked-example family | `test_worked_examples_strict_zero_rc353` (registry-only, strict-zero), `test_worked_examples_execute_rc354` (executed ledger -- needs `run_worked_examples.py --only-stale`) | the two DIFFERENT-regen worked-example gates that bit rc385 |
-| count-pin | `test_registry_smoke_rc127`, `test_rc15_describe_resolve` | representative `describe()["tools"]["total"]` pins (the full blast radius is ~55 files -- see note) |
+| count-pin | `test_registry_smoke_rc127`, `test_rc15_describe_resolve` | representative `describe()["tools"]["total"]` pins (the full blast radius is 67 files / 74 lines at rc450 -- see note) |
 | class-TOML op-ref | `test_class_catalog_oprefs_resolve_930` | the third generated C table (`srmech_class_registry.c`) op refs |
 | ref-notation | `test_ref_notation_emitted_rc348` | bare-`#NNN` autolink guard on emitted artifacts |
 | JPL audit | `test_jpl_audit` | C Power-of-Ten ratchet (any C-touching op) |
@@ -79,11 +82,22 @@ mirror):
 | non_compute / annex | `test_non_compute_ratchet_rc170`, `test_annex_ratchet_rc177`, `test_annex_ratchet_rc183` | the non_compute / annex classification ratchets |
 | self-hosting import ban | `test_selfhosting_import_ban` | the ONE table-driven ban list (`#T1073`): a new op-rc's **new test file** reaching for stdlib `fractions` (#845 / #870) — cost rc386 a full CI-red round because the runner omitted it — **and** a new package module reaching for `numpy` / `math` / `decimal`, or bypassing the `srmech._json` / `srmech._toml` front doors. Absorbed `test_no_stdlib_fractions_import` + `test_no_stdlib_math_import` + `test_numpy_carrier_ratchet` at rc405. Pure-Python, no native `.so` |
 | decode-aware population pin | `test_namespace_prefix_decode_aware_rc361` | a new **cascade op** bumps the `srmech.cascade` DECODED-channel population (the ratchet's population half, invisible to a text grep). rc387 had to run it manually (100 → 102). Pure-Python (reads regen'd artifacts + decodes their byte arrays), ~seconds; no native `.so` |
+| cascade / chain C-parity (rc450, gh #1653) | `test_c_cascade_parity_ratchet_rc446`, `test_c_cascade_value_parity_rc450`, `test_blocked_row_agrees_with_gate_matrix_rc450`, `test_step_mutation_witness_rc447`, `test_combinator_kernel_closure`, `test_t1146_rejection_parity_rc447`, `test_t1158_refusal_set_equality_rc449`, `test_abi_prose_currency_rc449` (frozen) + 16 more listed | the WHOLE FAMILY was unlisted until rc450. Predicate: the file's source references `srmech_chain_run`, `srmech_dsl_chain_run`, `_compose_lib`, `cascade_chain_specs`, `run_cascade_chain`, `cascade_catalog`, `compose.run_chain` or `dsl_chain` -- 47 files match, 20 were listed, **27 were not**, and the 27 included every gate gh #1653 items 3/4/5 move plus all three gates rc449 itself added. Measured cost of the 24 additions: ~230 s. Kept anyway -- a fast runner that omits the surface under change is fast about nothing |
 
 ### Note on the count-pin blast radius
 
-A tool-count bump ripples to **~55 test files** that assert
-`describe()["tools"]["total"] == N`. Running all 55 here would blur into the full
+A tool-count bump ripples to **67 test files across 74 lines** that assert
+`describe()["tools"]["total"] == N`. *(Measured at v0.9.0rc450, predicate
+stated: `git grep -c "== 663" -- tests/`, where 663 is the live
+`describe()["tools"]["total"]`. The `~55` written here was an rc362-era
+figure and had gone ~22% low; `docs/srmech/CLAUDE.md` separately carried
+`73 lines across 66 files`, so the tree stated two different numbers for one
+quantity and neither was current. Note also that this predicate CANNOT see
+three further shapes -- a bare `EXPECTED_N` assignment, derived arithmetic
+such as `692 frames (663 ops + 29 carriers)`, and percentage prose such as
+`8.7% of 663` -- plus an `"n": 663` field in a data file. A bare-word search
+finds 81 files against this predicate's 67, so the invisible class is ~14
+files, not the one file the CLAUDE.md note names.)* Running all 55 here would blur into the full
 suite, so the manifest carries two cheap `describe()`-based representatives; if
 they red on a count change, the fix is to update *all* the count-pins (CI runs
 the full suite and will confirm). The point of including them here is early
@@ -98,3 +112,14 @@ concurrently-running rcs editing those same files) or a `conftest`
 and editing the shared `conftest.py` is exactly the collision risk we want to
 avoid). A standalone `tools/ripple_check.py` reading `tools/ripple_gates.txt` is
 fully non-invasive: new files only, no edits to any existing gate test.
+
+### ⚠️ This table is a PARTIAL mirror, and says so as of rc450
+
+The manifest holds **101 targets across 98 files**; this table enumerates
+roughly a third of them by name. It is a reading aid for the FAMILIES, not a
+line-by-line mirror, and it was described as *"the human-readable mirror"* while
+carrying no entry at all for the 24-file cascade/chain C-parity family — which
+is the family gh #1653 has been moving for six releases. A mirror that is
+missing the surface under active change is worse than no mirror, because a
+reader checks it and concludes the family is not gated. `tools/ripple_gates.txt`
+is the SSOT; when the two disagree, the manifest wins and this file is the bug.

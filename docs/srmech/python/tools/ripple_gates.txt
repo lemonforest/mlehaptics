@@ -604,3 +604,51 @@ tests/test_genome_mint_strand_rc270.py
 tests/test_genome_mint_strand_c_rc277.py
 tests/test_status_conflation_ratchet_rc404.py
 tests/test_genome_group_v20_rc442.py
+
+# -- CASCADE / CHAIN / DISPATCH C-PARITY family (rc450, `#T1160`, gh #1653) ---
+#    THE WHOLE FAMILY WAS ABSENT until rc450. Measured at rc449 head with the
+#    predicate "the file's source references srmech_chain_run,
+#    srmech_dsl_chain_run, _compose_lib, cascade_chain_specs,
+#    run_cascade_chain, cascade_catalog, compose.run_chain or dsl_chain":
+#    47 files match, 20 were listed, 27 were not -- and the unlisted 27 include
+#    EVERY gate gh #1653 items 3/4/5 move, plus all three gates rc449 itself
+#    added. So the runner had no eyes on the arc at all: rc448 went red on six
+#    CI jobs for exactly this class of miss, one level up.
+#
+#    Of the 27, five are excluded on the manifest's own fast-subset grounds and
+#    named here rather than silently dropped -- test_compose.py and
+#    test_loop_bind_compose.py (pure-Python engine tests, no C surface),
+#    test_cascade_catalog_home_rc364.py (a package-layout gate),
+#    test_docstring_xrefs_resolve.py and test_ssot_coherence_scan.py (tree-wide
+#    prose scans, not a dispatch surface). The other 22 are below, with the two
+#    rc450 gates.
+#
+#    MEASURED COST, stated because this manifest sells itself as fast: the 24
+#    targets add ~230 s to a cold run (two of them, catalog_chain_infer_c_rc175
+#    and chain_run_c_rc174, are ~45 s and ~42 s alone). They are kept anyway:
+#    they are the srmech_chain_run gates, and a fast runner that omits the
+#    surface under change is fast about nothing.
+tests/test_c_cascade_parity_ratchet_rc446.py
+tests/test_c_cascade_value_parity_rc450.py
+tests/test_blocked_row_agrees_with_gate_matrix_rc450.py
+tests/test_step_mutation_witness_rc447.py
+tests/test_c_chain_eligibility_rc447.py
+tests/test_c_cyclic_dispatch_rc446.py
+tests/test_c_fold_step_form_rc446.py
+tests/test_c_real_carrier_rc447.py
+tests/test_c_ref_indexing_rc447.py
+tests/test_catalog_chain_infer_c_rc175.py
+tests/test_chain_run_c_rc174.py
+tests/test_chain_runner_c_rc173.py
+tests/test_combinator_kernel_closure.py
+tests/test_dsl_chain_c_rc181.py
+tests/test_dsl_combinators_c_rc182.py
+tests/test_dsl_encode_loe_content_u2_rc44.py
+tests/test_dsl_catalog_selfhost_rc392.py
+tests/test_schur_complement_dsl_stage.py
+tests/test_cyclic_modular_cascade_rc302.py
+tests/test_toml_dedup_parity_rc400.py
+tests/test_t1146_rejection_parity_rc447.py
+tests/test_t1158_refusal_set_equality_rc449.py
+tests/test_t1158_registry_param_order_rc449.py
+tests/test_abi_prose_currency_rc449.py

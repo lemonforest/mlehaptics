@@ -252,6 +252,36 @@ FROZEN_KNOWN_GATES = frozenset({
     #    carries the EXPECTED_ABI_VERSION == 16 pin AND the only native/pure
     #    differential over the new wire.
     "tests/test_klein4_winding_preimage_rc438.py",
+    # -- the CASCADE / CHAIN C-PARITY family (rc450, `#T1160`, gh #1653) ------
+    #    THE SIXTH — and widest — instance of the shape this frozen set exists
+    #    to prevent, and the first where the miss was an entire ARC rather than
+    #    a file. Measured at rc449 head: of 47 files whose source touches the
+    #    chain-run surface, 27 were unlisted, and the 27 included EVERY gate
+    #    gh #1653 items 3/4/5 move plus ALL THREE gates rc449 itself added. The
+    #    runner had no eyes on the surface under active change for four
+    #    consecutive releases.
+    #
+    #    Frozen rather than merely listed, for the reason the arc keeps
+    #    re-learning: these are the gates a FUTURE rc will be tempted to trim
+    #    when it wants a faster runner, and they are precisely the gates that
+    #    judge that rc's own work. Two of them
+    #    (test_c_cascade_value_parity_rc450, test_step_mutation_witness_rc447)
+    #    are the only instruments in the tree that can tell "the C run loop
+    #    executed these steps" from "some compiled symbol returned the right
+    #    answer for its own reasons"; test_blocked_row_agrees_with_gate_matrix
+    #    _rc450 is the only one that can tell the BLOCKED bookkeeping from a
+    #    comment claiming to be synced; test_abi_prose_currency_rc449 is the
+    #    only gate on two ABI prose surfaces that lagged six bumps in a row.
+    #    Dropping any of them restores a blindness that is invisible — the
+    #    suite stays green either way, which is the whole problem.
+    "tests/test_c_cascade_parity_ratchet_rc446.py",
+    "tests/test_c_cascade_value_parity_rc450.py",
+    "tests/test_blocked_row_agrees_with_gate_matrix_rc450.py",
+    "tests/test_step_mutation_witness_rc447.py",
+    "tests/test_combinator_kernel_closure.py",
+    "tests/test_t1146_rejection_parity_rc447.py",
+    "tests/test_t1158_refusal_set_equality_rc449.py",
+    "tests/test_abi_prose_currency_rc449.py",
 })
 
 
