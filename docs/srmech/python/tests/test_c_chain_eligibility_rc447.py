@@ -141,6 +141,12 @@ def test_the_shipped_api_ACTUALLY_drives_the_C_runner():
     can prove the C path is reachable at all.
     """
     from srmech.dsl import run_cascade_chain
+    if _compose._compose_lib("srmech_chain_run",
+                             "srmech_chain_run_arena_bytes") is None:
+        pytest.skip(
+            "no native library — with no .so there IS no C runner to drive, so "
+            "zero hits is CORRECT here, not the rc447 defect this asserts. The "
+            "pure-Python fallback CI cell runs exactly this configuration.")
     names, catalog = _executable()
     hits = {"n": 0}
     original = _compose._run_chain_native
