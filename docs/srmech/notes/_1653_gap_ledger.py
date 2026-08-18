@@ -1583,6 +1583,29 @@ ROWS = [
          ceiling_blind_to="Nothing checks a ledger row's prose against the "
                           "code it describes."),
 
+    dict(id="T1159_ripple_check_suite_size_is_stale", kind="bug",
+         missing="tools/ripple_check.py:49 and :148 both say the suite holds "
+                 "'~14.5k tests'.",
+         lacked_by="neither", blocked_this_rc=False, new_type=False,
+         evidence="Measured at rc450 by the runner's OWN collect-only sweep, "
+                  "printed in the run this rc executed: '15500 tests collected "
+                  "in 58.81s'. The ~14.5k is an rc421-era figure and is now "
+                  "~6% low.",
+         probe="python3 -m pytest tests/ --collect-only -q --no-header",
+         disposition=FILED,
+         note="Owned by `#T1159`. WORTH THE ROW FOR HOW IT WAS FOUND: rc450 "
+              "corrected tests/RIPPLE_GATES.md's '~10k' by copying THIS "
+              "number, and so replaced one stale figure with another. Caught "
+              "only because the ripple run printed the live count in the same "
+              "session. The lesson is the arc's own: a figure taken from "
+              "another file in the tree is a CITATION, not a measurement, and "
+              "the tree stating three different sizes for one suite is what "
+              "citations-of-citations produce. RIPPLE_GATES.md now carries the "
+              "measured 15.5k; ripple_check.py is not edited because rc450 has "
+              "no scoped reason to touch it.",
+         ceiling_blind_to="Nothing measures the suite size, so all three "
+                          "figures were free to drift independently."),
+
 ]
 
 

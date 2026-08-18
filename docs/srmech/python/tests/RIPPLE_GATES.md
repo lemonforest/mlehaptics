@@ -16,10 +16,13 @@ python3 tools/ripple_check.py
 The gate set is the committed manifest **`tools/ripple_gates.txt`** (one pytest
 target per line; `#` comments and blank lines ignored). `ripple_check.py` reads
 that manifest and runs exactly those gates -- the FAST dispatch-surface subset,
-never the full ~14.5k-test suite. *(This said `~10k` until rc450; `tools/ripple_check.py`
-itself has said `~14.5k tests resolved in ~49 s` about the SAME suite since rc421,
-so two adjacent files in one feature disagreed by ~45% on the size of the thing
-they both describe. The runner's figure is the measured one and this now matches it.)* A meta-test,
+never the full **15.5k**-test suite. *(Measured at v0.9.0rc450 by the runner's own
+collect-only sweep: `15500 tests collected in 58.81s`. This line said `~10k` until
+rc450 — but so did a first attempt at correcting it, which copied
+`tools/ripple_check.py`'s `~14.5k` rather than measuring. That figure is itself an
+rc421-era number and is now ~6% low, so `ripple_check.py:49` and `:148` are FILED to
+the `#T1159` bucket rather than fixed here. Three files, three different sizes for one
+suite, and the only defensible one is the number the run just printed.)* A meta-test,
 `tests/test_ripple_manifest_covers_known_gates.py`, guarantees the manifest can
 never silently shrink below the known families.
 
