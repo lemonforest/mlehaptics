@@ -65,7 +65,7 @@ returns = "int  # +1 / -1 / 0 — the net handedness"
 
 [[cascade.chain.steps]]
 fold_class = "C"
-fold_op = "srmech.cascade.leaves.orientation_compose"
+fold_op = "srmech.cascade.orientation_compose"
 fold_init = 1
 over = "@input.orientations"
 

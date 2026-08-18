@@ -130,7 +130,7 @@ returns = "list[list[float]]  # N quaternions (4-component lists)"
 
 [[cascade.chain.steps]]
 class = "M"
-op = "srmech.cascade.hypercomplex_dft.qdft_resolve_mu"
+op = "srmech.cascade.qdft_resolve_mu"
 args = { mu_axis = "@input.mu_axis" }
 
 [[cascade.chain.steps]]
@@ -139,27 +139,27 @@ index = "i"
 
 [[cascade.chain.steps.body]]
 class = "E"
-op = "srmech.cascade.leaves.seq_get"
+op = "srmech.cascade.seq_get"
 args = { seq = "@input.x", i = "@idx.i" }
 
 [[cascade.chain.steps.body]]
 class = "M"
-op = "srmech.cascade.hypercomplex_dft.as_quat4"
+op = "srmech.cascade.as_quat4"
 args = { v = "@step[0].output" }
 
 [[cascade.chain.steps]]
 class = "B"
-op = "srmech.cascade.leaves.seq_len"
+op = "srmech.cascade.seq_len"
 args = { seq = "@step[1].output" }
 
 [[cascade.chain.steps]]
 class = "C"
-op = "srmech.cascade.hypercomplex_dft.dft_sigma"
+op = "srmech.cascade.dft_sigma"
 args = { inverse = "@input.inverse" }
 
 [[cascade.chain.steps]]
 class = "N"
-op = "srmech.cascade.hypercomplex_dft.dft_scale"
+op = "srmech.cascade.dft_scale"
 args = { inverse = "@input.inverse", n = "@step[2].output" }
 
 [[cascade.chain.steps]]
@@ -173,18 +173,18 @@ index = "m"
 
 [[cascade.chain.steps.body.body]]
 class = "M"
-op = "srmech.cascade.hypercomplex_dft.qdft_summand"
+op = "srmech.cascade.qdft_summand"
 args = { xs = "@bind.xs", k = "@idx.k", m = "@idx.m", n = "@bind.n", left = "@bind.left", sigma = "@bind.sigma", mu_hat = "@bind.mu" }
 
 [[cascade.chain.steps.body]]
 fold_class = "M"
-fold_op = "srmech.cascade.leaves.vec_add"
+fold_op = "srmech.cascade.vec_add"
 fold_init = [0.0, 0.0, 0.0, 0.0]
 over = "@step[0].output"
 
 [[cascade.chain.steps.body]]
 class = "M"
-op = "srmech.cascade.leaves.vec_scale"
+op = "srmech.cascade.vec_scale"
 args = { v = "@step[1].output", s = "@bind.scale" }
 
 [[cascade.chain.proof_cases]]

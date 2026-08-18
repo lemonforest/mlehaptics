@@ -103,7 +103,7 @@ returns = "list[float]  # length n; out[0] is the signal energy"
 
 [[cascade.chain.steps]]
 class = "B"
-op = "srmech.cascade.leaves.seq_len"
+op = "srmech.cascade.seq_len"
 args = { seq = "@input.x" }
 
 [[cascade.chain.steps]]
@@ -122,12 +122,12 @@ args = { a = "@idx.i", b = "@idx.k", n = "@bind.n" }
 
 [[cascade.chain.steps.body.body]]
 class = "L"
-op = "srmech.cascade.composites.correlation_product"
+op = "srmech.cascade.correlation_product"
 args = { x = "@bind.x", i = "@idx.i", j = "@step[0].output" }
 
 [[cascade.chain.steps.body]]
 class = "M"
-op = "srmech.cascade.composites.compensated_sum"
+op = "srmech.cascade.compensated_sum"
 args = { values = "@step[0].output" }
 
 [[cascade.chain.proof_cases]]

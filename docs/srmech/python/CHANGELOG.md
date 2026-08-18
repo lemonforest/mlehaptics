@@ -5,6 +5,29 @@ All notable changes to this package will be documented here. The format follows 
 **Reference notation.** `#T###` is a LOCAL task-tracker item (our session task list); `F####` is an RBS-LM finding; bare `#NNNN` is reserved for a REAL GitHub issue/PR (write `gh #1293` when you want it unambiguous). The `T` prefix exists because GitHub autolinks `#` followed immediately by digits, so a bare task ID silently mints a cross-link to whatever issue happens to hold that number — several of ours collide with unrelated merged issues. Never write a task ID as bare `#NNNN`. **Two clauses the root `CLAUDE.md` carries and this paragraph did not** (reconciled 2026-07-29, `#T994`): (1) a ref inside a **code span** — `` `#938` `` — does **not** autolink, so it is the legitimate way to *quote* a bad ref while documenting it, and any mechanical check must exempt code spans and bound the digit range or it will flag `UAX #29` / `MS #20` / `Spike #24`; (2) the rule binds **four** surfaces — file content (including docstrings and `ToolEntry` prose, which are emitted into generated files and ship in the wheel), commit messages, the PR body, and **the PR title, which becomes the merge-commit subject**. Existence proves nothing; **topicality decides** — read the surrounding prose, never batch-convert.
 
 
+## [0.9.0rc448] - `#T1145`: the descriptors respelled, and three claims their own release had falsified
+
+### The `#T1145` census DRAINED 32 -> 0 — a data fix, not a mechanism change
+
+Every packaged descriptor named its chain-step ops by their **defining-module** path (`srmech.cascade.atoms.chiral_flip`) while a **published** re-export (`srmech.cascade.chiral_flip`) existed for all 32, imported to the same object, and resolved. `resolve()` is keyed by the SPELLING and never follows a callable to its other names, so the introspection surface could not name 32 of the 35 step ops its own shipped proofs used.
+
+**85 sites across 11 descriptor files respelled.** Verified before landing: all 32 confirmed same-object AND registered; the executable ratchet stays green (106 proof cases) and is proven non-vacuous by a planted bad spelling (9 failures); `describe()["cascade_catalog"]["c_runnable"]` is **9 before and after**, because C dispatches by SUFFIX (`step.op.rpartition(".")[2]`) and the last segment is unchanged. The mechanism did not move — only the data.
+
+`_INVISIBLE_WHILE_TARGET_REGISTERED_RC434` is now **empty**, which converts it from a 32-row allowance into a **strict zero**: a descriptor written the old way reopens the gap and goes red immediately. Proven by planting one (`srmech.cascade.leaves.orientation_compose` -> red, named exactly).
+
+### Three claims that rc447 falsified and nothing watched
+
+**(1) `_chain_c_eligible`'s own docstring** still promised *"every step is a 'raise'-policy, **Class-N**, in-table op"* — the Class-N conjunct being the rc447 defect itself, deleted in the loop twenty lines below with a comment explaining why. The contract named a test the body no longer performed.
+
+**(2) `_catalog.py`: "a dotted step evicts the whole chain from BOTH native run loops."** RETRACTED. Measured at rc448 head: **3 of the 9 C-eligible descriptors have steps that are 100% dotted** — `chiral_dual` (3/3), `magnitude` (2/2), `net_chirality` (1/1). Already false at *pristine* rc447, before this rc touched anything. The bullet's `chain().then(...)` half is a DIFFERENT engine and is **not** re-asserted here: it is unverified at rc448 and deliberately not carried forward on the strength of the half that was checked.
+
+**(3) The notebook's ABI currency stamp read `Live at rc447: SRMECH_ABI_VERSION is 17`** — in the release that bumped it 17 -> 18. `test_live_at_rc_stamps_name_the_pinned_release` compares stamp TOKENS (`stamps == [live_rc]`) and never reads the value, so it certified a fresh token on a stale number. **Freshness of the stamp and truth of the value are independent properties**; `test_live_at_abi_stamp_carries_the_LIVE_abi_not_just_a_fresh_rc_token` now asserts the second against `c/include/srmech.h`, and is proven red on exactly the rc447 state.
+
+### Unchanged
+
+`SRMECH_ABI_VERSION` stays **18** and `SRMECH_GENOME_FORMAT_VERSION` stays **20** — no C symbol added, no wire format touched. Registry total unchanged at 663; catalog unchanged at 21/18/3.
+
+
 ## [0.9.0rc447] - gh #1653: config-driven cascade execution in C, and four instruments that could not see what was claimed from them
 
 ### The C chain runner was unreachable from Python

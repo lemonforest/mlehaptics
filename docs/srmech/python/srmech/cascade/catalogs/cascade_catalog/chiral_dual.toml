@@ -95,17 +95,17 @@ returns = "list[float]  # chiral_flip(body(chiral_flip(x)))"
 
 [[cascade.chain.steps]]
 class = "C"
-op = "srmech.cascade.atoms.chiral_flip"
+op = "srmech.cascade.chiral_flip"
 args = { seq = "@input.x" }
 
 [[cascade.chain.steps]]
 class = "L"
-op = "srmech.cascade.composites.autocorrelation"
+op = "srmech.cascade.autocorrelation"
 args = { x = "@step[0].output" }
 
 [[cascade.chain.steps]]
 class = "C"
-op = "srmech.cascade.atoms.chiral_flip"
+op = "srmech.cascade.chiral_flip"
 args = { seq = "@step[1].output" }
 
 [[cascade.chain.proof_cases]]

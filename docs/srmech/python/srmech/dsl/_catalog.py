@@ -51,37 +51,49 @@ follow the callable through it. MEASURED at rc434:
   ``resolve("srmech.cascade.leaves.seq_len")`` is ``None`` even though it
   is the SAME object as the registered ``srmech.cascade.seq_len``.
   Measured over the 36 distinct dotted spellings in shipped
-  ``[[cascade.chain]]`` steps: 2 resolve, 32 return ``None`` while their
+  ``[[cascade.chain]]`` steps: 34 resolve, 0 return ``None`` while their
   target is registered under its published ``srmech.cascade.<name>``
   re-export, and 2 (the RBS-HDC ``mint_vector`` and the Class-F
   ``srmech.amsc.descriptor.render_template``) are registered under NO
-  spelling. The census moved 35 → 36 at rc438 (`#T1140`), when
-  ``klein4_from_one.toml`` landed and its Class-F render step named
-  ``render_template`` — an op that ships and runs but carries no
-  ``ToolEntry`` under any spelling, so it joins ``mint_vector`` in the
-  genuinely-unregistered bucket rather than the invisible-while-registered
-  one. That bucket is NOT the down-only census (the invisible set is, and it
-  is unchanged at 32 — the new descriptor's other steps all reuse spellings
-  already pinned there); registering ``render_template`` is a live
-  follow-up, deliberately not taken in an rc whose registry total is
-  otherwise unchanged. Every one of the 32 has
-  a published spelling that BOTH runs through this same import arm AND
-  resolves — prefer ``op = "srmech.cascade.chiral_flip"`` over
-  ``op = "srmech.cascade.atoms.chiral_flip"`` when a dotted step should
-  stay introspectable. (``describe()["cascade_catalog"]`` is a different
-  surface: it lists every DESCRIPTOR by bare name regardless of how its
-  chain steps are spelled.)
-- **A dotted step evicts the whole chain from BOTH native run loops.**
-  The op itself is ONE self-routing object under either spelling (its own
-  internal C kernel is unaffected) — but the chain-level engines key their
-  dispatch on the bare catalog spelling (``_RUN_C_OPS`` in
-  :mod:`srmech.cascade.compose`; ``dsl_leaf_dispatch`` /
-  ``cr_dispatch`` in C), so ONE dotted step makes the whole chain
-  ineligible and the pure loop runs. Measured at rc434 with an ABI-14
-  ``.so``: ``chain().then("magnitude")`` runs end-to-end in C;
-  ``chain().then("srmech.cascade.magnitude")`` is a native MISS with the
-  IDENTICAL value — the cost is the C fast path, never the answer (rc103
-  inform-don't-limit).
+  spelling.
+
+  ⚠️ **The invisible-while-registered census DRAINED 32 → 0 at rc448**
+  (`#T1145`), and the mechanism above did NOT change — only the shipped
+  data did. Every packaged descriptor was respelled from its
+  DEFINING-MODULE path to the PUBLISHED re-export (85 sites across 11
+  descriptor files: ``srmech.cascade.atoms.chiral_flip`` →
+  ``srmech.cascade.chiral_flip``, and so on). Resolution is still keyed by
+  the SPELLING and still never follows a callable to its other names; the
+  catalog simply stopped exercising that gap. **Prefer
+  ``op = "srmech.cascade.chiral_flip"`` over
+  ``op = "srmech.cascade.atoms.chiral_flip"``** — the guidance survives the
+  drain, because a NEW descriptor written the old way re-opens the gap and
+  is what the down-only census in
+  ``tests/test_dsl_op_naming_boundaries.py`` now guards against.
+
+  The 2 genuinely-unregistered rows are NOT the down-only census and did not
+  move: registering ``render_template`` and ``mint_vector`` is a live
+  follow-up. (``describe()["cascade_catalog"]`` is a different surface: it
+  lists every DESCRIPTOR by bare name regardless of how its chain steps are
+  spelled.)
+- **A dotted step does NOT evict a catalog chain from the C run loop.**
+  ⚠️ RETRACTED at rc448. This bullet read *"ONE dotted step makes the whole
+  chain ineligible and the pure loop runs"*, measured at rc434 against an
+  ABI-14 ``.so``. rc447 falsified it and nothing watched: ``_chain_c_eligible``
+  now matches by **suffix** (``step.op.rpartition(".")[2] in _RUN_C_OPS``), so
+  a dotted spelling whose last segment is in the table is eligible. Measured
+  at rc448 head — **3 of the 9 C-eligible descriptors have steps that are
+  100% dotted**: ``chiral_dual`` (3/3), ``magnitude`` (2/2),
+  ``net_chirality`` (1/1). The claim was already false at pristine rc447,
+  before the `#T1145` respelling touched anything.
+
+  What survives: the op itself is ONE self-routing object under either
+  spelling, and the cost of a spelling choice is never the answer (rc103
+  inform-don't-limit). What is NOT re-asserted here: the rc434 measurement of
+  the ``chain().then(...)`` DSL surface (``dsl_leaf_dispatch`` in C) — a
+  DIFFERENT engine from the catalog loop this bullet had merged with it. It
+  is unverified at rc448 and is deliberately not restated rather than carried
+  forward on the strength of the half that was checked.
 - **Nothing constrains the target to srmech at all.**
   ``chain().then("builtins.set")`` resolves and runs, and it re-imports
   hash-order nondeterminism into the cascade: over ``PYTHONHASHSEED`` 0–3 a

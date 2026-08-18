@@ -135,12 +135,12 @@ returns = "tuple[int, int]  # (signed_numerator, positive_denominator)"
 
 [[cascade.chain.steps]]
 class = "K"
-op = "srmech.cascade.atoms.pin_slot_at_zero"
+op = "srmech.cascade.pin_slot_at_zero"
 args = { x = "@input.x" }
 
 [[cascade.chain.steps]]
 class = "K"
-op = "srmech.cascade.leaves.dead_band"
+op = "srmech.cascade.dead_band"
 args = { value = "@step[0].output[1]", band = 1e-12 }
 
 [[cascade.chain.steps]]
@@ -155,12 +155,12 @@ args = { numerator = "@step[2].output", denominator = "@input.fine_scale", max_d
 
 [[cascade.chain.steps]]
 class = "C"
-op = "srmech.cascade.atoms.reorient"
+op = "srmech.cascade.reorient"
 args = { value = "@step[3].output[0]", orientation = "@step[0].output[0]" }
 
 [[cascade.chain.steps]]
 class = "B"
-op = "srmech.cascade.leaves.pair"
+op = "srmech.cascade.pair"
 args = { first = "@step[4].output", second = "@step[3].output[1]" }
 
 [[cascade.chain.proof_cases]]
