@@ -627,8 +627,18 @@ def _scan_functions(path: Path) -> list[tuple[str, int, int]]:
                           and "=" in line.split("(")[0])
         if _is_const_data or line.lstrip().startswith(("typedef", "extern", "#")):
             continue
-        # Confirm an open brace appears within the next ~5 lines
-        for look in range(i, min(i + 10, len(lines))):
+        # ⚠️ THIS LOOK-AHEAD WAS 10 LINES, AND THAT WAS THE THIRD BLIND SPOT IN
+        # THIS SCANNER. A function whose PARAMETER LIST is long pushes its
+        # opening brace past the window, and the scanner then never sees the
+        # function at all. Measured at rc447: 42 functions across the tree,
+        # with braces up to +27 lines past the definition —
+        # `srmech_q_zeilberger` at +22, and it is 141 LINES against a 60 cap.
+        # 12 Rule-4 and 2 Rule-5 violations had never been audited by anything.
+        #
+        # 40 covers the measured worst case (+27) with headroom. It is a window,
+        # not a parser: the scanner still documents itself as crude, and a
+        # fourth shape may exist.
+        for look in range(i, min(i + 40, len(lines))):
             if "{" in lines[look] and not lines[look].lstrip().startswith("/*"):
                 fn_starts.append((m.group(1), i))
                 break
@@ -658,16 +668,88 @@ def _scan_functions(path: Path) -> list[tuple[str, int, int]]:
     return out
 
 
+
+#: ⚠️ THE SEEDED RULE-4 POPULATION (rc447). Revealed when the brace look-ahead
+#: went 10 -> 40 lines; every one of these had been invisible to this audit for
+#: its whole life, so none is a regression and none was introduced by the rc
+#: that surfaced them.
+#:
+#: DOWN-ONLY, and STRICT ON NOVEL — exactly the shape `#T1148` used for the
+#: Rule-1 recursion census it seeded at 9. A function not in this dict that
+#: exceeds the cap FAILS; a function in it may only shrink. Removing an entry
+#: (by splitting the function) is the drain, and the entry must go with it.
+#:
+#: They are NOT fixed here on purpose. Splitting `srmech_q_zeilberger` (141
+#: lines), `srmech_q_gosper` (123) and ten more numerics kernels is a large,
+#: risky change in code this rc does not otherwise touch, and doing it under
+#: the pressure of a newly-red gate is how a scanner fix turns into a
+#: correctness incident. Made VISIBLE and DRAINABLE now; drained deliberately.
+RULE_4_SEEDED_OVER_CAP: dict[str, int] = {
+    "srmech_q_zeilberger": 141,
+    "srmech_q_gosper": 123,
+    "srmech_graph_cycle_holonomy": 103,
+    "srmech_apagodu_zeilberger": 102,
+    "srmech_q_wz_verify": 93,
+    "srmech_wz_verify": 84,
+    "srmech_template_render": 75,
+    "srmech_multivariate_elliptic_jackson": 73,
+    "srmech_cn_vwp_multisum_lhs": 72,
+    "srmech_zeilberger": 63,
+    "srmech_ellbase_theta_canon_full": 62,
+    "srmech_genome_graph_partition": 62,
+}
+
+#: The Rule-5 half of the same reveal. Same discipline: down-only, strict on
+#: novel. These carry ONE assert where two are required, so the fix is additive
+#: and small — but it is still a change to numerics this rc does not touch.
+RULE_5_SEEDED_UNDER_MIN: dict[str, int] = {
+    "srmech_graph_cycle_holonomy": 1,
+    "srmech_quaternion_cycle_holonomy": 1,
+}
+
 def test_rule_4_function_length_under_60() -> None:
     """JPL Rule 4: every function ≤ 60 lines."""
     violations: list[str] = []
     for f in sorted(_C_SRC_DIR.glob("*.c")):
         for name, lines, _ in _scan_functions(f):
-            if lines > RULE_4_MAX_LINES:
+            if lines <= RULE_4_MAX_LINES:
+                continue
+            seeded = RULE_4_SEEDED_OVER_CAP.get(name)
+            if seeded is None:
                 violations.append(
-                    f"{f.name}::{name} = {lines} lines (> {RULE_4_MAX_LINES})"
+                    f"{f.name}::{name} = {lines} lines (> {RULE_4_MAX_LINES}) "
+                    f"— NOT in the seeded population, so this is NEW"
+                )
+            elif lines > seeded:
+                violations.append(
+                    f"{f.name}::{name} GREW to {lines} lines (seeded at "
+                    f"{seeded}) — the seed is down-only"
                 )
     assert not violations, "Rule 4 violations: " + "; ".join(violations)
+
+
+def test_rule_4_seed_is_tight_and_drains():
+    """The seed must describe reality EXACTLY — no stale rows, no slack.
+
+    A seeded ceiling that is merely an upper bound stops measuring: a function
+    could shrink 141 -> 70 and the row would still 'pass' while claiming 141.
+    So each entry must match the CURRENT length, and an entry whose function is
+    now under the cap (or gone) must be deleted.
+    """
+    live = {}
+    for f in sorted(_C_SRC_DIR.glob("*.c")):
+        for name, lines, _ in _scan_functions(f):
+            if lines > RULE_4_MAX_LINES:
+                live[name] = lines
+    stale = sorted(n for n in RULE_4_SEEDED_OVER_CAP if n not in live)
+    assert not stale, (
+        "these seeded Rule-4 rows no longer exceed the cap (or no longer "
+        "exist) — delete them, that is the drain: %s" % stale)
+    drifted = sorted((n, RULE_4_SEEDED_OVER_CAP[n], live[n])
+                     for n in RULE_4_SEEDED_OVER_CAP if live[n] != RULE_4_SEEDED_OVER_CAP[n])
+    assert not drifted, (
+        "seeded length does not match measured length %s — a seed that is only "
+        "an upper bound has stopped measuring" % drifted)
 
 
 def test_rule_5_minimum_two_asserts_per_function() -> None:
@@ -677,6 +759,9 @@ def test_rule_5_minimum_two_asserts_per_function() -> None:
         for name, _, asserts in _scan_functions(f):
             if name in RULE_5_EXEMPT_FUNCTIONS:
                 continue
+            if name in RULE_5_SEEDED_UNDER_MIN and \
+                    asserts >= RULE_5_SEEDED_UNDER_MIN[name]:
+                continue          # seeded, down-only: may only gain asserts
             if asserts < RULE_5_MIN_ASSERTS:
                 violations.append(
                     f"{f.name}::{name} has {asserts} asserts "
