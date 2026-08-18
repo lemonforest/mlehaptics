@@ -105,6 +105,98 @@ ROWS = [
                           "this at all — a chain can be 'byte-identical' and the "
                           "pure fallback still wrong. Only a forced-pure run "
                           "detects it, and nothing forces pure by default."),
+    dict(id="t1145_descriptor_respelling_is_an_UNLANDED_prerequisite", kind="gap",
+         missing="32 shipped descriptor step-spellings resolve to None while the "
+                 "SAME object is registered under its published "
+                 "srmech.cascade.<name> re-export. `#T1145` RULED on this and "
+                 "flagged the fix as a follow-up; the follow-up is scheduled "
+                 "NOWHERE.",
+         lacked_by="python", blocked_this_rc=False, new_type=False,
+         evidence="tests/test_dsl_op_naming_boundaries.py's "
+                  "_INVISIBLE_WHILE_TARGET_REGISTERED_RC434 pins exactly 32, "
+                  "down-only, with the remedy stated in its own comment: "
+                  "'respelling descriptors to the published form, or "
+                  "object-aware resolution — DRAINS this set'.",
+         probe="python3 -c \"import tests.test_dsl_op_naming_boundaries as T; "
+               "print(len(T._INVISIBLE_WHILE_TARGET_REGISTERED_RC434))\"",
+         disposition=FILED,
+         note="SLICE 3 (the map arm) IS SEQUENCED AFTER THIS OR IT UNLOCKS "
+              "NOTHING END-TO-END, and the work exists on no plan. Filed here "
+              "so the dependency is not discovered at implementation time.\n"
+              "⚠️ MEASURED MITIGATION, so the blocker is not overstated: the C "
+              "dispatch is SPELLING-AGNOSTIC — it matches the op-name SUFFIX, "
+              "so srmech.cascade.atoms.chiral_flip, srmech.cascade.chiral_flip "
+              "and bare chiral_flip all dispatch identically. Respelling the "
+              "descriptors therefore does NOT break any C arm landed in this "
+              "rc. The dependency is on the PYTHON resolution path, not the "
+              "compiled one.",
+         ceiling_blind_to="Nothing in gh #1653 reads that census; the two "
+                          "ratchets share no constant, so slice 3 could be "
+                          "declared done against a Python surface that cannot "
+                          "resolve its own body ops."),
+    dict(id="c_dispatch_suffix_match_is_over_permissive", kind="bug",
+         missing="cr_dispatch matches the op-name SUFFIX, so a descriptor "
+                 "naming a DIFFERENT module's op dispatches to srmech's.",
+         lacked_by="c", blocked_this_rc=False, new_type=False,
+         evidence="Measured: a step with op "
+                  "'totally.different.prefix.chiral_flip' RUNS and returns "
+                  "srmech's chiral_flip result.",
+         probe="see the spelling table in this rc's notes",
+         disposition=FILED,
+         note="The permissiveness is what makes the arms survive `#T1145`'s "
+              "respelling (a genuine benefit, measured), and it is ALSO how a "
+              "foreign op name silently binds to a local implementation. Both "
+              "are consequences of the same choice, so it is filed rather than "
+              "tightened blind: narrowing it to an exact set of accepted "
+              "prefixes would couple the C table to the very spellings `#T1145` "
+              "is going to change. Sequence: respell first, then tighten.",
+         ceiling_blind_to="Every parity gate feeds C the SHIPPED descriptors, "
+                          "which never carry a foreign prefix, so no gate can "
+                          "see this."),
+    dict(id="jpl_scanner_blind_to_const_pointer_returns", kind="bug",
+         missing="The JPL Rule 4/5 scanner skipped every line starting "
+                 "`static const`, hiding all 24 functions that return a CONST "
+                 "POINTER from the length and assert-count audits.",
+         lacked_by="python", blocked_this_rc=True, new_type=False,
+         evidence="Measured across c/src/*.c: 24 functions in 9 files were "
+                  "invisible — cr_walk_json, cr_find_named_chain, "
+                  "genome_find_chrom, json_emit_step, mc_method_spec and 19 "
+                  "more. All 24 measured CLEAN on both rules when revealed, so "
+                  "closing it cost zero violations.",
+         probe="pytest tests/test_jpl_audit.py",
+         disposition=CLOSED,
+         note="The skip is meant for const DATA "
+              "(static const char *const map_k[4] = {...}); an INITIALIZER is "
+              "what distinguishes that from a function returning a const "
+              "pointer. Closed NOW rather than later on purpose: the map arm "
+              "adds ~45 functions to srmech_compose_run.c, which is one of the "
+              "two files with a known blind function, so those would have "
+              "landed unaudited. A blind spot is cheapest to fix while it is "
+              "still empty — and this one was, by exactly one rc.",
+         ceiling_blind_to="A function shape the regex still cannot see. The "
+                          "scanner is documented as 'crude ... not a real C "
+                          "parser', so the honest claim is that ONE known shape "
+                          "was closed, not that the scan is now complete."),
+    dict(id="wo_schur_over_the_jpl_line_in_notes", kind="bug",
+         missing="notes/_1653_wedge_optable_rc444.c's wo_schur measured 61 "
+                 "lines against JPL Rule 4's 60-line cap — by the ratchet's own "
+                 "metric, while living where the ratchet does not run.",
+         lacked_by="c", blocked_this_rc=False, new_type=False,
+         evidence="J._scan_functions over the notes file: wo_schur = 61 lines. "
+                  "Post-split: wo_schur 41 + wo_schur_correct 30, both clean; "
+                  "the prototype still compiles under -Wall -Wextra -Wpedantic.",
+         probe="cc -std=c99 -Wall -Wextra -Wpedantic -Iinclude "
+               "notes/_1653_wedge_optable_rc444.c c/build/libsrmech.a",
+         disposition=CLOSED,
+         note="Split BEFORE being lifted from notes/ into c/src/, which is the "
+              "cheap moment: after the lift it would red the ratchet, and the "
+              "split would then look like a fix-under-pressure rather than "
+              "prototype hygiene. Same reasoning as the scanner row above — "
+              "both are cases where the gate does not yet reach the code, and "
+              "the code is on its way to where the gate is.",
+         ceiling_blind_to="Nothing audits notes/ at all. Every prototype in "
+                          "that directory is unmeasured until the moment it is "
+                          "lifted, which is the worst moment to find out."),
     dict(id="carrier_double", kind="gap",
          missing="cr_value_t has no DOUBLE kind, so a real-number literal in an "
                  "arg and a float-valued result are both unrepresentable in C.",

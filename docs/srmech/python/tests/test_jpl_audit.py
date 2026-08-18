@@ -610,9 +610,22 @@ def _scan_functions(path: Path) -> list[tuple[str, int, int]]:
         m = def_pat.match(line)
         if m is None:
             continue
-        # Skip typedef / forward decl shapes
-        if line.lstrip().startswith(("typedef", "static const",
-                                     "extern", "#")):
+        # ⚠️ `static const` USED TO BE SKIPPED UNCONDITIONALLY HERE, and that
+        # hid every function returning a CONST POINTER from Rules 4 and 5.
+        # Measured at rc447: 24 functions across 9 files — cr_walk_json,
+        # cr_find_named_chain, genome_find_chrom, json_emit_step, mc_method_spec
+        # and 19 more — were scanned by nothing. The skip is meant for const
+        # DATA (`static const char *const map_k[4] = {...}`), and an initializer
+        # is what distinguishes the two: a definition has a parameter list and
+        # no `=` ahead of it.
+        #
+        # All 24 measured CLEAN on both rules when first revealed, so closing
+        # the hole cost zero violations — but it had to close BEFORE the map
+        # arm lands, which adds ~45 functions to srmech_compose_run.c. A blind
+        # spot is cheapest to fix while it is still empty.
+        _is_const_data = (line.lstrip().startswith("static const")
+                          and "=" in line.split("(")[0])
+        if _is_const_data or line.lstrip().startswith(("typedef", "extern", "#")):
             continue
         # Confirm an open brace appears within the next ~5 lines
         for look in range(i, min(i + 10, len(lines))):
