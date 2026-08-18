@@ -332,6 +332,22 @@ if(SRMECH_SRCS)
         target_link_libraries(test_srmech_status_discrimination_rc404
                               PRIVATE srmech ${SRMECH_MATH_LIB})
 
+        # gh #1653 rc447 — the ADR-0003 BARE-C HOST PROOF for config-driven
+        # cascade execution. Every OTHER gate for that reaches the library
+        # through ctypes, which proves the library computes but NOT that a host
+        # without Python can drive a cascade from a descriptor. It found two
+        # things ctypes could not: an out-of-int64 literal declines at the
+        # parser (so the bigint carrier needs the decimal-STRING transport), and
+        # the arena is dominated by 4096 * chain_len (a 3-step chain wants
+        # ~2.6 MiB). Wired here rather than raising CEIL_UNWIRED_C_TESTS,
+        # because an unwired C test is one nobody runs.
+        # Public-API only (srmech.h). ~0 s. Run it:
+        #   ./build/test_srmech_chain_run   (exit 0 = pass, 17 checks)
+        add_executable(test_srmech_chain_run
+                       c/test/test_srmech_chain_run.c)
+        target_link_libraries(test_srmech_chain_run
+                              PRIVATE srmech ${SRMECH_MATH_LIB})
+
         # THE RUN STEP. Every executable above is registered with ctest, so
         # `ctest --output-on-failure` in .github/workflows/srmech-ci.yml
         # actually executes them on all three OSes. Whole set = 551 ms wall on
@@ -345,7 +361,8 @@ if(SRMECH_SRCS)
             test_srmech_ryu_repr_rc403
             test_srmech_status_discrimination_rc404
             test_srmech_tlv_unpack_rc441
-            test_srmech_genome_group_rc442)
+            test_srmech_genome_group_rc442
+            test_srmech_chain_run)
             add_test(NAME ${t} COMMAND ${t})
         endforeach()
     endif()

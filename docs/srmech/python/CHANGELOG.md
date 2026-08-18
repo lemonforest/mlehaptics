@@ -50,6 +50,95 @@ Every shard keeps the full liveness check — `HAS_NATIVE` plus `nm -u "$LIB" | 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc446]
+
+**The RESIDUE/ORIENTATION half — the 21 `no ``math`` / numpy` sites become landing-place prose with the return type MEASURED, the `summary=` surface drains 175 → 49, and 229 docstrings are triaged clause-by-clause (`#T1154`).** ABI stays **17** (no C symbol changed or added), registry stays **663** (prose only — no op registered or removed), `GENOME_FORMAT_VERSION` stays **20**.
+
+rc445 shipped the FALSE tier. This rc ships the rest of the same census: 290 RESIDUE, 97 ORIENTATION and 25 STRENGTHEN rows. The governing test is the ruling set's: **a mention is ALLOWED when it NAMES BOTH SIDES** — the thing the reader reaches for AND the srmech carrier or op they land on. Naming only the foreign library is residue.
+
+### The 21 paired-boilerplate sites — rewritten, not deleted
+
+Per user ruling, the `no ``math`` / numpy` sites are **not** deleted; they are rewritten as landing-place prose naming what the op DOES use, because *"this change offers useful information about return type(s)."* Every return was **measured**, not read off an annotation: each op was wrapped and driven by its own test file under WSL2 with numpy absent, and the returned object walked to its scalar leaves.
+
+`gosper` → `dict{num, den: Poly}`; `zeilberger` → `dict{order: int, coeffs: [Poly], certificate: BiPoly}`; `wz_certificate` → `dict{certificate: {num, den: BiPoly}, verified: bool}`; `apagodu_zeilberger` → `certificate_j/k: TriPoly`; the q-row peers → `QPoly` / `QBiPoly`; `elliptic_cauchy_determinant` → `EllRatio`; `elliptic_partial_fraction` and the two `*_vwp_multisum_lhs` → `ThetaSum`; `riemann_theta_multisum_lhs` → `ThetaBracketSum`; `elliptic_lagrange_basis` → `list[EllRatio]` of length k. And the leaf carriers, measured by walking real returns: `Poly`, `QPoly`, `BiPoly`, `QBiPoly` and `TriPoly` **all bottom out in `srmech.math.q.Q`**; `EllRatio` carries an `EllMonomial` prefactor whose `.coeff` is a `Q`.
+
+The Class-K cascade-honesty clause is load-bearing and survives in all 21 — only the trailing library list is replaced.
+
+### The shipped ToolEntry surface
+
+* **13 `returns.shape` strings are REWRITES, not deletions.** An MCP client reads this field to decide whether to call srmech instead of the library it already has, so `(numpy-free 2-D carrier)` now names the carrier positively. Measured: `Mat._buf` is `array('d')`, `Mat.from_rows([[1,2],[3,4]])` lays out `[1.0,2.0,3.0,4.0]` (row-major), and `[[1+2j,0],[0,1]]` lays out `[1.0,2.0,0.0,0.0]` — interleaved `(re, im)`.
+* **`summary=` drains 175 → 49.** Triaged per CLAUSE, since one summary carries both kinds: 95 standalone `numpy-free;` clauses dropped, 35 library lists trimmed, **55 clauses KEPT** because they name both sides — `Substrate-native replacement for math.cos / np.cos`, `drop-in for NumPy fft at ANY length`, `The Mat carrier throughout — no NumPy QR in the call graph`, `Matches NumPy lstsq(a,b)[0] to round-off`.
+
+### Docstrings — 229 edited across 81 files
+
+462 clauses kept as orientation, 147 trimmed, 82 dropped, and **198 left alone** because they matched no form whose grammar repair could be stated. That last number is deliberate: a wrongly-deleted true statement is worse than an unconverted one.
+
+Two rows the sweep was narrowed to spare, both orientation: the accepted-input list `` `int` / `float` / `Fraction` / numpy real scalar `` (a generic rule turned it into `` `Fraction` real scalar ``, changing the meaning) and `a GIL-releasing body (native / IO / numpy)`, which is true and is the reason sector dispatch pays off.
+
+### Two shipped descriptor falsehoods, fixed by measurement
+
+* **`schur_complement.toml` advertised a numpy tier deleted at #564.** Both pyprojects carry `# (#564: the scientific = ["numpy"] extra is GONE)`, so this was one package contradicting itself. Measured numpy-absent: `schur_complement(L, [0,3])` → `Mat` of float, `exact=True` → `list[list[Q]]`, `numpy in sys.modules` → False after both. A fifth claim nobody had flagged fell out of running the documented boundary case: the descriptor promised `numpy.linalg.LinAlgError` on the float path; it raises **`ZeroDivisionError`** — there is no numpy to raise one. A `[cascade.boundary_cases]` entry naming an exception the op cannot raise tells a caller to catch the wrong thing.
+* **`hurwitz.toml` equated `G(sigma, theta)` with the whole One.** `G` is the θ-epicycle rotation part; the One is `S(sigma, theta, w)`, and the winding triad is load-bearing — measured, `w = (1,0,0)` sets `One.winding` and flips `One.spinor_sign` to −1. Same defect family as the PyPI Summary rc445 fixed.
+
+### Checked and found NOT to hold
+
+* **ADR-0008's "20 descriptors" is DATED and TRUE, not stale.** Both sites sit inside *Amendment A (v0.9.0rc420)*. Verified by history: `klein4_from_one.toml` was added at **rc438**, so the catalog held exactly 20 at rc420 and holds 21 now. Editing it would fabricate history.
+* **`test_equivalence_population_floor`'s docstring is coherent.** Read whole, it already carries its own reconciliation: *"rc438 adds `klein4_from_one` with TWO variants (rest / wound), so 18 -> 20."*
+* **ADR-0002's `⏳ Draft` is left alone.** It is not the parent of ADR-0008 — `adr/README.md` records that the operator-chain schema was *renumbered* to 0008 to resolve a filename collision on the number 0002. And ADR-0002's own header reads `**Clauses:** unaudited`; promoting a status whose clause table is explicitly unaudited would assert something nobody has measured.
+
+### The transform bugs, recorded because each is a silent-corruption shape
+
+Five defects were caught and fixed before anything landed: `ast` `col_offset` is a UTF-8 **byte** offset (non-ASCII docstrings misaligned every span on their line); a global empty-paren tidy rewrote ``no ``abs()``` → ``no ``abs```; a `[ \t]{2,}` collapse ate the leading indentation of wrapped continuation lines; docstring text returns from `ast` with `\n`, so re-emitting verbatim silently converted 82 CRLF files to LF; and `\s*` in a pattern spans a newline, so a removal JOINED two wrapped lines. The applier now converts byte columns, asserts each span lands on a `"`, re-parses before writing, refuses to write if the ToolEntry count moves, restores each file's own line ending, and confines every pattern to within-line whitespace. A 10-class regression sweep over the real diff reports **0 new regressions**.
+
+## [0.9.0rc445]
+
+**Shipped falsehoods, drained — 70 triaged FALSE docstring claims, the `ToolEntry` `summary=` surface a 12-agent census walked past, and the two doc items that had been filed and never shipped (`#T1153`).** ABI stays **17** (no C symbol changed or added), registry stays **663** (prose only — no op registered or removed), `GENOME_FORMAT_VERSION` stays **20**.
+
+This rc ships the **FALSE tier only**. The same census produced 290 RESIDUE deletions, 97 ORIENTATION keeps and 25 STRENGTHEN rows; none of them are here. A claim was written only after being re-derived by execution at this head, and four proposed replacements were **rejected** because the replacement was itself false — recorded below, because "the fix for a falsehood introduced a new one" is the failure mode a pass like this exists to prevent.
+
+### What was false
+
+* **The `n <= 256` native cap does not exist.** `_can_dispatch_native(n)` accepts `n` and never reads it (`return _native.HAS_NATIVE and _native.LIB is not None`), and `c/include/srmech.h:1536` states outright *"No N cap: srmech_graph_dense_laplacian / normalized_laplacian / jacobi_eigvals / dense_matmul_complex write only into the caller's matrix … not a compiled limit"*, with `srmech_dense_solve_f64_ws` carrying *"NO compiled-in size cap (rc158)"*. `MAX_NATIVE_NODES` (256) survives as a live gate on **exactly one** op — `spectral_block_dispatch` (4 × 256 = 1024) — and the Hermitian bound is the separate, configurable `MAX_NATIVE_HERMITIAN_NODES` (2048). Measured: `dense_laplacian(n=300, …)` returns a `(300, 300)` `Mat`.
+* **`hermitian_eigendecompose` does not have a "NumPy eigh fallback"**, and `symmetric_eigendecompose` is not "via NumPy eigh". Measured with `HAS_NATIVE=False` and `numpy` absent from `sys.modules`: both return `(Vec, Mat)` and numpy never loads. The fallback is srmech's own Jacobi cascade.
+* **`fractions.Fraction` is not the exact carrier anywhere.** Every "exact `Fraction` arithmetic" mechanism claim was re-run: `eigvals_exact`, `_lll_gso` / `lll_reduce`, `factor_integer_poly`, `_count_roots_in_box`, `_isolate_real_roots`, `cycle_holonomy` / `_cycle_holonomy_py`, `arithmetic_coding` — all return `srmech.math.q.Q` (`type(x).__module__ == 'srmech.math.q'`), and `fractions` never enters `sys.modules`.
+* **Dead module paths and dead op names.** `import srmech.qm` has raised `ModuleNotFoundError` since rc382; `laplacian.dense_matmul`, `dense_matvec_real/_complex` and `dense_norm` were removed by the carrier-consolidation arc.
+* **Three docstrings told the reader the function could not succeed.** `path_registry`'s `lookup` / `register` / module header all still said *"Phase 1 stub: no ops are registered; this raises for all callers"*. Measured: `registered_ops()` returns **14** and `cascade_dispatcher.dispatch("fft", …)` executes today.
+* **Stale tool counts, three different ones in one file.** `srmech.llm` said `~149`, `anthropic_agent` said `~149` in one place and `~400` in another, and the CLI `--name-filter` help said `~149`. Live: **663**. The same module claimed per-tool names stay "well under the 64-char ceiling (the longest is currently 47 chars)"; measured, **12 of 663** exceed 64 and the longest is 74, which is exactly why `_to_anthropic_name`'s sha256-tag shortening exists.
+
+### The surface the census missed
+
+The numpy census measured two `ToolEntry` *fields* — `parameters[].type` and `returns.type`, both legitimately 0 of 663 — and never looked at **`summary=`**, which is the field that compiles into `srmech_tool_registry.c` and the MCP tool list. Measured at rc444: **176 of 663** live tools carry `numpy`/`ndarray` in their summary, **188** in any serialised field, and the compiled registry held **280** `numpy|ndarray` occurrences. The false-cap and false-backend claims above were living there, un-swept, on the highest-reach prose surface in the package. **25** summary edits and **6** curated-`explanation` edits close that class; the registry drops to 276.
+
+### Rejected: four triage rows whose replacement was wrong
+
+* `triality.py:230` — the proposal said `_frob_norm` wants a float table and called `_table_float` "the float solve path". `_frob_norm` never touches the table (defined `:175`, called only on matrix *differences*), and `_solve_companions` calls `_table_float()` **unconditionally** — `exact=True` consumes the same float table and promotes back through `_exact_int`. Not applied.
+* `triality.py:48` — the proposal replaced *"consumed as a nested `list` (no `.astype`)"* with *"a nested `list` of `int`"*. Measured: consumption is `_table_float()` and the leaves are `float`; `octonion_mult_table()`'s are `int`. The original was **vague and true**; the replacement was precise and false. The line now says which one it is.
+* `triality.py:48` also preserved *"(the public surfaces return `Mat`)"* verbatim while the same triage marked the identical claim FALSE one row over — rc444's `exact=True` returns `list[list[Q]]`. The module header now carries the same conditional the function got.
+* `laplacian.py:47` — the proposal hard-coded *"`_PI` at line 170"*. It is at 169, and this pass moves it. **A docstring that cites a line number in its own file is a rot machine**; the replacement names `_PI` and `srmech.math.rational.atan` instead.
+
+### Two doc items, filed and never shipped
+
+* **The PyPI Summary dropped the winding.** `S(sigma,theta)` -> `S(sigma,theta,w)` in `pyproject.toml` and `pyproject-pure.toml` (byte-identical, ASCII, 436 chars — 76 under the hard 512 cap, 44 under the CI soft cap of 480). `w` is notation-bearing, not decorative: `w=(1,0,0)` gives `One.spinor_sign == -1` against `+1` at rest — the `(-1)^Σw` double-cover sign. The ~12 other `S(sigma, theta)` sites in the tree name the **w-blind adjoint generator** and are correct as-is; they were not touched. The same edit window carried a second stale line — the readme hook is described as slicing the Changelog to the *"CURRENT-MINOR (0.7.0)"* entries at package version 0.9.0.
+* **The README front matter opened "six load-bearing surfaces" and the six named 7 of 18 subpackages.** `srmech.apokatastasis` — ADR-0010's own "LARGEST" reclassified block, 25 modules, 28 registered ops — had **zero** occurrences in the whole file, as did `chemistry`, `rbs_lm`, `llm` and the dotted `srmech.cli`. It is now the ADR-0010 two-tier map (DOMAINS / FRAMEWORK) with **no count in the sentence**, and `tests/test_readme_names_every_subpackage_rc445.py` holds the coverage claim against `srmech.__path__` instead. The genome wire format read **v19** at three sites while the rc442 narration fifteen lines above correctly said *"moves 19 → 20"* — the file contradicted itself on PyPI.
+
+### The cascade catalog is executable, and the README never said so
+
+New section: **the catalog IS the computation**. Every cascade is written twice — as shipped code and as a TOML chain of the 14 A–N primitives — and the two are executed against each other under a canonical byte encoding in which NaN payloads and signed zeros still distinguish. At this head: **21 descriptors, 18 executable, 3 leaf, 20 chain variants, 98 authored proof cases, 63 plain + 9 map + 0 fold steps.**
+
+It ships with its projection gap stated rather than assumed. `run_cascade_chain` carries **no C symbol of its own**; the C peer `srmech_chain_run` reads only the `steps` key (**1 of 3 step forms**) and dispatches a **10-op Class-N table**, whose intersection with the ops the shipped chains reference is **empty** — so a bare-C host runs **0 of the 18** chains from their descriptors today. The bit-identity gate itself runs with native dispatch forced off. Closing this is [issue #1653](https://github.com/lemonforest/mlehaptics/issues/1653). This is a **declarative oracle with a Python projection and enumerated C coverage** — never a co-equality claim.
+
+The README also mis-named the module that section runs on: `srmech.cascade.compose` was described as holding "the composites that chain them". It is the ADR-0008 chain **engine**; the composites are in `srmech.cascade.composites`.
+
+### The gate: name resolution, not prose truth
+
+`tests/test_docstring_xrefs_resolve.py` gains a **second arm**. The existing strict-zero check resolves every fully-qualified `srmech.*` cross-reference — re-measured here at **1445 sites / 510 distinct, 0 unresolvable**. It could not see nine **dead** references, because they are written **unqualified**: `` `qm.octonion` `` rather than :mod:`srmech.physics.qm.octonion`. The arm is strict zero on a backticked dotted token whose head is a **retired top-level namespace** (`RETIRED_TOP_LEVEL`, enumerated from the ADRs and control-tested to actually raise `ModuleNotFoundError`), with a deliberate exemption for `X -> Y` history notes — `srmech/physics/__init__.py`'s move-note is the correct way to record a dead path and must survive.
+
+This is legitimate under the no-gate-on-prose ruling because it decides **set membership on a name**. Deleting a word cannot satisfy it; only deleting the whole cross-reference can, and that is visible in review. Nineteen unqualified `qm.*` references were qualified across six source files, two of them inside shipped `ToolEntry` prose.
+
+### Ripple
+
+`_tool_docs.py` and `srmech_tool_registry.c` regenerated (`tools/regen_all.py`, idempotent across two passes). The `Live at rcNNN` notebook stamps and the README's worked `native_status()` transcript moved with the version, as their currency gates require.
+
 ## [0.9.0rc444]
 
 **`triality_companions` computed exact ℚ and threw it away — `exact=` gives it back (`#T1152`).** ABI stays **17** (no C symbol changed or added), registry stays **663** (a parameter, not a new op), `GENOME_FORMAT_VERSION` stays **20**. Every number below is measured by execution on this tree.

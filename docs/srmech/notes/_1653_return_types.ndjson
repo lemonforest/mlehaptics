@@ -1,0 +1,19 @@
+{"chain_run_only": ["q"], "dsl_f1_only": ["t"], "kinds": {"chain_run": ["f", "i", "l", "n", "q", "s"], "dsl_f1": ["f", "i", "l", "n", "s", "t"]}, "record": "wires"}
+{"actual": "list", "chain": "autocorrelation", "chain_run_carriable": "yes", "declared": "list[float]", "record": "chain"}
+{"actual": "tuple", "chain": "best_rational_signed", "chain_run_carriable": "yes \u2014 as kind `q` (a rational), not `t`", "declared": "tuple[int, int]", "record": "chain"}
+{"actual": "list", "chain": "chiral_dual", "chain_run_carriable": "yes", "declared": "list[float]", "record": "chain"}
+{"actual": "int", "chain": "cyclic_gcd", "chain_run_carriable": "yes", "declared": "int", "record": "chain"}
+{"actual": "int", "chain": "cyclic_mod_add", "chain_run_carriable": "yes", "declared": "int", "record": "chain"}
+{"actual": "int", "chain": "cyclic_mod_inv", "chain_run_carriable": "yes", "declared": "int", "record": "chain"}
+{"actual": "int", "chain": "cyclic_mod_mul", "chain_run_carriable": "yes", "declared": "int", "record": "chain"}
+{"actual": "int", "chain": "cyclic_mod_mul_wide", "chain_run_carriable": "yes", "declared": "int", "record": "chain"}
+{"actual": "int", "chain": "cyclic_mod_pow", "chain_run_carriable": "yes", "declared": "int", "record": "chain"}
+{"actual": "bytes", "chain": "encode_loe_content", "chain_run_carriable": "NO \u2014 no byte kind", "declared": "bytes", "record": "chain"}
+{"actual": "<ValueError>", "chain": "klein4_from_one", "chain_run_carriable": "unknown (chain raised)", "declared": "list[int]", "record": "chain"}
+{"actual": "<ValueError>", "chain": "kuramoto_step", "chain_run_carriable": "unknown (chain raised)", "declared": "list[float]", "record": "chain"}
+{"actual": "float", "chain": "magnitude", "chain_run_carriable": "yes", "declared": "float", "record": "chain"}
+{"actual": "int", "chain": "net_chirality", "chain_run_carriable": "yes", "declared": "int", "record": "chain"}
+{"actual": "list", "chain": "octonion_dft", "chain_run_carriable": "NO \u2014 `l` is FLAT; nesting needs a frame stack", "declared": "list[list[float]]", "record": "chain"}
+{"actual": "dict", "chain": "parallel_sector_dispatch", "chain_run_carriable": "NO \u2014 no mapping kind", "declared": "dict", "record": "chain"}
+{"actual": "list", "chain": "quaternion_dft", "chain_run_carriable": "NO \u2014 `l` is FLAT; nesting needs a frame stack", "declared": "list[list[float]]", "record": "chain"}
+{"actual": "Mat", "chain": "schur_complement", "chain_run_carriable": "NO \u2014 no dense-matrix kind", "declared": "Mat", "record": "chain"}

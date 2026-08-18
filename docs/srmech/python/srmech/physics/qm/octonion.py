@@ -10,7 +10,7 @@ automorphism ``tau``, the ``Fix(tau) = g2`` keystone).
 **0.9.0rc111 (issue #1234 Item 1c, re-raise of #863): the ODFT twiddle
 family** — :func:`octonion_exp` / :func:`octonion_twiddle` /
 :func:`octonion_exp_series_truncate`, the dim-8 mirror of the rc109
-``qm.quaternion`` foundation (same exactness convention, same same-rc C
+``srmech.physics.qm.quaternion`` foundation (same exactness convention, same same-rc C
 peers ``srmech_octonion_exp`` / ``srmech_octonion_twiddle``). The twiddle
 ``exp(μθ) = cos θ·1 + sin θ·μ̂`` for a UNIT pure imaginary ``μ̂`` (``μ̂² =
 −1``) lives in the commutative subalgebra ``ℝ[μ̂] ≅ ℂ`` — which is why the
@@ -210,7 +210,7 @@ def octonion_mult_table() -> List[List[List[int]]]:
 
 
 def _table_int8_bytes() -> bytes:
-    """C-order int8 serialization of the structure-constant tensor (numpy-free).
+    """C-order int8 serialization of the structure-constant tensor.
 
     Bit-identical to the prior numpy ``int8`` ``tobytes()`` serialization: 512
     bytes, one signed two's-complement byte per entry in C (row-major i, j, k)
@@ -291,7 +291,7 @@ def octonion_table_attestation() -> dict:
 
 
 def _as_octonion(v: Sequence[float], op: str) -> List[float]:
-    """Coerce ``v`` to a plain ``list[float]`` of length 8 (numpy-free).
+    """Coerce ``v`` to a plain ``list[float]`` of length 8.
 
     Accepts any 1-D sequence (list / tuple / ndarray); a 2-D / wrong-length
     input raises the same ``ValueError`` the prior numpy ``asarray(...).shape``
@@ -309,7 +309,7 @@ def _as_octonion(v: Sequence[float], op: str) -> List[float]:
 
 
 def _loop_op_native_ready(symbol: str) -> bool:
-    """True iff the native lib is loaded AND exports ``symbol`` (numpy-free)."""
+    """True iff the native lib is loaded AND exports ``symbol``."""
     return bool(
         _native.HAS_NATIVE and _native.LIB is not None
         and hasattr(_native.LIB, symbol)
@@ -415,7 +415,7 @@ def octonion_conjugate(x: Sequence[float]) -> List[float]:
 
     Canonical SSoT: Baez (2002) §2.1 (conjugation and the norm form).
 
-    rc122 (numpy-free): the Class-C imaginary-axis sign flip is a plain list
+    rc122: the Class-C imaginary-axis sign flip is a plain list
     comprehension (``-x_i`` for ``i >= 1``; no ``abs()``); returns a
     ``list[float]`` (was an ndarray).
 
@@ -488,7 +488,7 @@ def octonion_norm(x: Sequence[float]) -> float:
 
 
 def _native_ready(symbol: str) -> bool:
-    """True iff the native lib is loaded AND exports ``symbol`` (numpy-free).
+    """True iff the native lib is loaded AND exports ``symbol``.
     The twiddle-family readiness gate (the loop-op gate above is separate so
     each family can be force-pured independently in tests)."""
     return bool(

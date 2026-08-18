@@ -364,7 +364,7 @@ class Theta:
 def _modified_theta_trunc(z_val, p_val, n_terms: int) -> Q:
     """The modified theta ``θ(z; p) = ∏_{j≥0}(1 − z·pʲ)(1 − z⁻¹·p^{j+1})``
     truncated to ``n_terms`` factor-pairs, in EXACT ℚ (the eval oracle; no float,
-    no ``math``, no numpy). ``z_val`` / ``p_val`` are exact scalars; ``z ≠ 0`` and
+    no ``math``). ``z_val`` / ``p_val`` are exact scalars; ``z ≠ 0`` and
     ``|p| < 1`` for the series to converge (convergence is the caller's concern —
     the truncation is exact whatever the magnitudes)."""
     z = _coerce_q(z_val)
@@ -788,7 +788,10 @@ def elliptic_lagrange_basis(points: "List[EllMonomial]",
     (the unknown elliptic certificate's numerator lives in such a ``V_t``). Returns the
     ``k`` basis :class:`EllRatio` theta-products (un-normalized; the ``c_i`` absorb the
     scale). Exact over the modified-theta algebra — no float, no ``abs()`` (sign is the
-    Class-K pin-slot), no ``math`` / numpy.
+    Class-K pin-slot). Each returned :class:`EllRatio` carries an
+    :class:`EllMonomial` prefactor whose coefficient is an exact
+    :class:`~srmech.math.q.Q` and whose theta numerator / denominator are tuples of
+    :class:`Theta`, so the whole basis is closed-form on the ALU.
 
     DISPATCHES to the native ``srmech_elliptic_lagrange_basis`` C peer when it is
     loaded (a 1:1 structural mirror of this exact construction — the C basis EQUALS

@@ -102,8 +102,7 @@ def _flat_scalars(hv) -> List:
 
     A :class:`~srmech.math.mat.Mat` iterates ROW-WISE (``mat.py:192`` yields
     lists), so a rank-2 carrier has to be descended one level; a
-    :class:`~srmech.math.vec.Vec` (``vec.py:127``) already yields scalars.
-    Numpy-free; ``.tolist()`` is a carrier convert, not an ndarray hop.
+    :class:`~srmech.math.vec.Vec` (``vec.py:127``) already yields scalars. ``.Tolist()`` is a carrier convert, not an ndarray hop.
 
     rc354 defect note: before this helper existed the module read ``[float(v)
     for v in hv]`` directly, so the docstring's advertised ``Mat`` input raised

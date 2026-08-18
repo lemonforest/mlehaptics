@@ -6,8 +6,9 @@ Claude Code Max plan. This subpackage is the SECONDARY adapter for
 users who script Claude (or other LLM SDKs) directly outside Claude
 Code: FastAPI servers, Jupyter notebooks, CI pipelines, etc.
 
-Same ~149 tool catalog as MCP (the
-:mod:`srmech.introspect.tool_schema` ToolEntries); same MPR attestation
+Same tool catalog as MCP (the
+:mod:`srmech.introspect.tool_schema` ToolEntries — read the live count with
+``len(get_tool_schema().tools)``, never a literal); same MPR attestation
 discipline per tool call (the ``build_attestation`` helper from
 :mod:`srmech.mcp._server` is shared so the two adapters emit
 byte-identical attestation envelopes).

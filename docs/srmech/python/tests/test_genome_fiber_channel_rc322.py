@@ -195,7 +195,11 @@ def test_f3_native_save_load_roundtrips_the_fiber():
     assert r_loaded["holonomy"] == r_orig["holonomy"]   # survives save/load + the walker
 
 
-def test_f3_format_version_is_17():
+def test_f3_format_version_is_pinned():
+    # NAME CARRIES NO NUMBER ON PURPOSE. This pin tracks a value that MOVES;
+    # a name that spells the value is falsified by the next bump and was —
+    # 16 such tests were found tree-wide, one named for 367 asserting 663.
+    # See test_pinned_names_carry_no_value_rc447.py.
     assert GENOME_FORMAT_VERSION == 20
 
 

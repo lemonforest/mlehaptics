@@ -56,7 +56,7 @@ uses the carrier's own truncated-theta eval :meth:`~srmech.apokatastasis.ellbase
 eval_trunc`, an exact-ℚ truncated product — NOT a standalone numeric theta). Sign is the
 **Class-K** pin-slot via the ``Q`` / ``EllMonomial`` sign-branch (the ``|e| == 2``
 very-well-poised detection is a ``e == 2 or e == -2`` Class-K branch, never an ALU
-``abs()``); no ``math`` module, no numpy.
+``abs()``); no ``math`` module.
 
 C peer: ``srmech_elliptic_recurrence_8w7`` (``c/src/srmech_elliptic_recurrence.c``) is a
 1:1 mirror of this recognize-decompose-construct pipeline over the integer
@@ -68,7 +68,9 @@ canonicalize) + ``er_build`` (the EllRatio constructor) kernels (the everything-
 no-double-copy discipline). The Python dispatch trusts a native result ONLY after
 re-verifying ``ρ`` byte-for-byte against the pure-Python construction AND re-running the
 ₈ω₇ verification GATE in exact ℚ. Caller-arena, malloc-free, JPL-clean; no ``abs()``
-(Class-K sign), no ``math`` / numpy.
+(Class-K sign). The ``ρ`` it emits is an exact
+:class:`~srmech.apokatastasis.ellbase.EllRatio`, byte-identical to the Python one —
+an ``EllMonomial`` prefactor over exact :class:`~srmech.math.q.Q` plus theta tuples.
 """
 
 from __future__ import annotations
@@ -345,7 +347,10 @@ def elliptic_recurrence_8w7(r) -> Optional[Dict[str, object]]:
 
     The construction IS the answer (decompose-and-compute, NOT enumerate-and-test); the
     gate uses the carrier's own exact-ℚ truncated-theta eval (no standalone numeric theta).
-    No float, no ``abs()`` (Class-K sign), no ``math`` / numpy. See the module docstring
+    No float, no ``abs()`` (Class-K sign). On success the returned mapping's ``rho`` and
+    each entry of ``coeffs`` are exact :class:`EllRatio` objects (``prefactor`` / ``num``
+    / ``den`` are that same ``ρ`` in integer-exponent wire form) — closed-form on the ALU.
+    See the module docstring
     for the full recognize-decompose-construct pipeline + the verified Warnaar reference.
     """
     r = _coerce_ratio(r)

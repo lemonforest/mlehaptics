@@ -2,13 +2,13 @@
 
 The 2-D peer of :class:`srmech.math.hv.HV`. Where ``HV`` carries a 1-D
 hypervector over ``array('B')``, :class:`Mat` carries a dense 2-D matrix over a
-flat ``array('d')`` — the carrier the numpy-using ``qm`` / ``signal_processing``
-modules hold their working matrices in *once they are converted off numpy*
-(the carrier-removal arc, task #564).
+flat ``array('d')`` — the carrier the ``srmech.physics.qm`` /
+``signal_processing`` modules hold their working matrices in (the
+carrier-removal arc, task #564, completed at rc134).
 
 Why a framework-native handle and not ``numpy.ndarray``: a numpy-typed value
 invites ``np.linalg`` / ``@`` on it; a ``Mat`` handle **forces the srmech
-cascade** (``laplacian.dense_matmul`` / ``dense_solve`` /
+cascade** (``laplacian.mat_matmul`` / ``dense_solve`` /
 ``hermitian_eigendecompose`` and the native C kernels) and keeps the value
 inside the framework until you convert out *on purpose* — the same boundary-type
 lever ``HV`` applies in 1-D (UPSTREAM_NOTES §22 / §22b).
@@ -281,7 +281,7 @@ class Mat:
     def _elementwise(self, other, op, *, reflected: bool = False):
         """``self ⊙ other`` (or ``other ⊙ self`` when reflected), elementwise,
         for ``other`` a scalar (numpy-broadcast), a :class:`Mat`, or a 2-D
-        sequence of the SAME shape. Numpy-free; format-preserving. Note ``*`` is
+        sequence of the SAME shape. Format-preserving. Note ``*`` is
         the **elementwise** (Hadamard) product, exactly like numpy — matrix
         multiply is ``@`` (:meth:`__matmul__`). Class-K sign lives in the values;
         no ``abs()``."""
@@ -439,7 +439,7 @@ def _is_matrix_like(x) -> bool:
 def _carrier_is_complex(x) -> bool:
     """``True`` if any element of ``x`` carries a non-zero imaginary part (or its
     carrier is complex-typed) — the dtype gate the carrier ``@`` uses to choose
-    the real vs complex Class-L peer. Numpy-free."""
+    the real vs complex Class-L peer."""
     if hasattr(x, "is_complex"):
         return bool(x.is_complex)
     try:

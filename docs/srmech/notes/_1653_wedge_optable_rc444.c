@@ -645,12 +645,52 @@ static srmech_status_t wo_schur_solve(wa_bump_t *b, uint32_t ni, uint32_t nb,
     return srmech_dense_solve_f64_ws(ni, nb, Lii, Lib, X, ws, need);
 }
 
+/* The interior correction: S -= L_bi * (L_ii \\ L_ib). Split out of wo_schur
+ * because that function measured 61 lines against JPL Rule 4's 60-line cap by
+ * the ratchet's own metric — and it measured that WITHOUT being gated, since it
+ * lives under notes/ where the audit does not run. Splitting it here, before it
+ * is ever lifted into c/src/, is cheaper than splitting it after it lands and
+ * reds the ratchet. (The same reasoning as fixing the scanner's `static const`
+ * blind spot while it still held zero violations.)
+ *
+ * `S` is updated IN PLACE — it is the caller's boundary block. */
+static srmech_status_t wo_schur_correct(wa_bump_t *b, uint32_t n, uint32_t nb,
+                                        uint32_t ni, const uint32_t *bidx,
+                                        const uint32_t *iidx, const double *L,
+                                        double *S)
+{
+    double *Lii, *Lib, *Lbi, *X = NULL; uint32_t r, cc, k; srmech_status_t st;
+    assert(b != NULL && L != NULL && S != NULL);
+    assert(bidx != NULL && iidx != NULL && ni > 0u);
+    Lii = (double *)wa_carve(b, (size_t)ni * ni * sizeof(double) + 8u);
+    Lib = (double *)wa_carve(b, (size_t)ni * nb * sizeof(double) + 8u);
+    Lbi = (double *)wa_carve(b, (size_t)nb * ni * sizeof(double) + 8u);
+    if (Lii == NULL || Lib == NULL || Lbi == NULL) { return SRMECH_ERR_OVERFLOW; }
+    for (r = 0u; r < ni; r++) {
+        for (cc = 0u; cc < ni; cc++) { Lii[r * ni + cc] = L[iidx[r] * n + iidx[cc]]; }
+        for (cc = 0u; cc < nb; cc++) { Lib[r * nb + cc] = L[iidx[r] * n + bidx[cc]]; }
+    }
+    for (r = 0u; r < nb; r++) {
+        for (cc = 0u; cc < ni; cc++) { Lbi[r * ni + cc] = L[bidx[r] * n + iidx[cc]]; }
+    }
+    st = wo_schur_solve(b, ni, nb, Lii, Lib, &X);
+    if (st != SRMECH_OK) { return st; }
+    for (r = 0u; r < nb; r++) {
+        for (cc = 0u; cc < nb; cc++) {
+            double acc = 0.0;
+            for (k = 0u; k < ni; k++) { acc += Lbi[r * ni + k] * X[k * nb + cc]; }
+            S[r * nb + cc] = S[r * nb + cc] - acc;
+        }
+    }
+    return SRMECH_OK;
+}
+
 static srmech_status_t wo_schur(wr_ctx_t *c, const srmech_json_value_t *args,
                                  wv_t **out)
 {
     wv_t *vL, *vb; uint32_t n, nb, ni = 0u, r, k, cc;
-    uint32_t bidx[64], iidx[64]; const double *L; double *S = NULL, *X = NULL;
-    double *Lii, *Lib, *Lbi; srmech_status_t st; wv_t *res;
+    uint32_t bidx[64], iidx[64]; const double *L; double *S = NULL;
+    srmech_status_t st; wv_t *res;
     assert(c != NULL && args != NULL);
     assert(out != NULL);
     vL = wr_arg(c, args, "L"); vb = wr_arg(c, args, "boundary_idx");
@@ -677,28 +717,8 @@ static srmech_status_t wo_schur(wr_ctx_t *c, const srmech_json_value_t *args,
         for (cc = 0u; cc < nb; cc++) { S[r * nb + cc] = L[bidx[r] * n + bidx[cc]]; }
     }
     if (ni > 0u) {
-        Lii = (double *)wa_carve(c->b, (size_t)ni * ni * sizeof(double) + 8u);
-        Lib = (double *)wa_carve(c->b, (size_t)ni * nb * sizeof(double) + 8u);
-        Lbi = (double *)wa_carve(c->b, (size_t)nb * ni * sizeof(double) + 8u);
-        if (Lii == NULL || Lib == NULL || Lbi == NULL) {
-            return SRMECH_ERR_OVERFLOW;
-        }
-        for (r = 0u; r < ni; r++) {
-            for (cc = 0u; cc < ni; cc++) { Lii[r * ni + cc] = L[iidx[r] * n + iidx[cc]]; }
-            for (cc = 0u; cc < nb; cc++) { Lib[r * nb + cc] = L[iidx[r] * n + bidx[cc]]; }
-        }
-        for (r = 0u; r < nb; r++) {
-            for (cc = 0u; cc < ni; cc++) { Lbi[r * ni + cc] = L[bidx[r] * n + iidx[cc]]; }
-        }
-        st = wo_schur_solve(c->b, ni, nb, Lii, Lib, &X);
+        st = wo_schur_correct(c->b, n, nb, ni, bidx, iidx, L, S);
         if (st != SRMECH_OK) { return st; }
-        for (r = 0u; r < nb; r++) {
-            for (cc = 0u; cc < nb; cc++) {
-                double acc = 0.0;
-                for (k = 0u; k < ni; k++) { acc += Lbi[r * ni + k] * X[k * nb + cc]; }
-                S[r * nb + cc] = S[r * nb + cc] - acc;
-            }
-        }
     }
     res = wv_new(c->b, WV_MAT);
     if (res == NULL) { return SRMECH_ERR_OVERFLOW; }

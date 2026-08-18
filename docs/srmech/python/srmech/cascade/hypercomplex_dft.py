@@ -55,7 +55,7 @@ the octonion samples / twiddles / accumulators are plain ``list[float]`` of
 length 8, the ``octonion_{left,right}_mult`` operators are consumed as the
 numpy-free :class:`srmech.math.mat.Mat` they now return, and the per-term
 matvec rides a numpy-free :class:`Mat`-column ``mat_matmul`` (the pattern
-``qm.single_particle`` used in rc117) — never numpy ``@`` / ``dense_matvec``.
+``srmech.physics.qm.single_particle`` used in rc117) — never numpy ``@`` / ``dense_matvec``.
 ``import srmech.cascade`` and every transform import + run numpy-absent.
 
 Citations (verified PDFs —
@@ -248,7 +248,7 @@ def hypercomplex_exp(theta: float, k_axes: int) -> Tuple["_Q", ...]:
 
 def as_oct8(vec) -> List[float]:
     """Class M: coerce a 4- or 8-component quaternion/octonion sample to an
-    8-vector ``list[float]`` (numpy-free) — a quaternion is zero-extended
+    8-vector ``list[float]`` — a quaternion is zero-extended
     into ``ℍ ⊂ 𝕆``.
 
     The per-sample coercion step of :func:`octonion_dft` (public since
@@ -287,7 +287,7 @@ def _resolve_mu(mu_axis, *, octonion) -> List[float]:
       it is normalised to unit length, and ``e0`` (and, for a quaternion
       transform, ``e4..e7``) must be zero.
 
-    rc125 (numpy-free): a plain ``list[float]``.
+    rc125: a plain ``list[float]``.
     """
     if isinstance(mu_axis, str):
         if mu_axis in _MU_AXES:
@@ -323,7 +323,7 @@ def _pack_streams(streams) -> "tuple":
     pure-imaginary slots of a quaternion (resp. octonion) carrier (real/anchor
     = 0); a length-4 or length-8 sequence is taken as a **literal** quaternion
     / octonion carrier (so a bound result round-trips back through the coupler).
-    rc125 (numpy-free): a plain ``list[float]``.
+    rc125: a plain ``list[float]``.
     """
     a = [float(x) for x in streams]
     n = len(a)
@@ -470,7 +470,7 @@ _QDFT_N_MAX = 2 ** 32
 
 
 def as_quat4(v) -> List[float]:
-    """Class M: coerce one QDFT sample to a plain 4-list (numpy-free).
+    """Class M: coerce one QDFT sample to a plain 4-list.
 
     Accepts a 4-component quaternion or the rc31 octonion-embedded 8-vector
     form with ``e4..e7 == 0`` (a nonzero tail would silently leak ℍ, so it
@@ -756,7 +756,7 @@ def quaternion_dft(
     coefficient algebra MATCHES the object's value algebra, so BOTH axes
     survive the round-trip.
 
-    **THE CONVENTION (the in-repo SSOT — rc109 ``qm.quaternion`` + R21).**
+    **THE CONVENTION (the in-repo SSOT — rc109 ``srmech.physics.qm.quaternion`` + R21).**
     With ``W(θ) = exp(μθ) = cos θ·1 + sin θ·μ̂`` (``μ̂`` a unit pure imaginary,
     ``μ̂² = −1``) and the FORWARD sign ``σ = −1``:
 
@@ -780,7 +780,7 @@ def quaternion_dft(
     lightweight op (``phase_coherent_peak`` — the next rc, 1-d): do NOT run
     the full QDFT just to read one phase-coherent peak back out.
 
-    Composes the rc109 foundation: ``qm.quaternion.quaternion_twiddle``
+    Composes the rc109 foundation: ``srmech.physics.qm.quaternion.quaternion_twiddle``
     (Class I ∘ N ∘ C — exact ``kn mod N``, π as the ``4·atan(1)`` cascade,
     Q61 trig) + ``quaternion_left_mult`` / ``quaternion_right_mult`` (Class M).
     Dispatches the whole transform to the same-rc C peer
@@ -990,7 +990,7 @@ _PCP_N_MAX = 2 ** 32
 
 def _pcp_components(sample) -> List[float]:
     """Coerce ONE per-rung sample to a plain real component vector
-    (numpy-free): a real scalar → ``[x]``; a complex scalar → ``[re, im]``;
+: a real scalar → ``[x]``; a complex scalar → ``[re, im]``;
     a sequence → its floats (a complex entry expands to its ``re, im`` pair,
     so a length-``d`` complex sequence becomes a ``2d`` real vector)."""
     if isinstance(sample, bool):
@@ -1228,7 +1228,7 @@ def hypercomplex_couple(
     ``form="left"``/``"right"`` and ``inverse`` are special discrete points of
     the same continuous ``(σ, θ, μ)`` family — exactly ``the_one``'s ``𝕊(σ,θ)``
     (F420) **plus the axis μ**. This exposes the axis + sign of the existing
-    ``exp(μθ)`` twiddle; **no new algebra** (composite over ``qm.octonion``).
+    ``exp(μθ)`` twiddle; **no new algebra** (composite over ``srmech.physics.qm.octonion``).
 
     Parameters
     ----------

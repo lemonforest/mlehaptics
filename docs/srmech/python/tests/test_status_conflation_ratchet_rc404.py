@@ -182,7 +182,39 @@ DRAINED_EXACT = {
 #:
 #: No conflation: the ceiling moved because the instrument counts VOLUME, and this
 #: rc added volume to a file that already holds the largest share of it.
-CEIL_CONFLATING_RETURN_LINES = 712
+#:
+#: ── rc447 (gh #1653): 712 -> 721. NINE new lines, ALL in srmech_compose_run.c,
+#: ALL verified caller-arena failures. Named individually per this ratchet's own
+#: rule, with the NULL provenance for each:
+#:
+#:   cr_op_cyclic          ov->num == NULL          <- cr_new_bigint -> cr_carve
+#:   cr_op_cyclic_inv      ov == NULL               <- cr_new_value  -> cr_carve
+#:   cr_op_dseq            res == NULL              <- cr_carve (result vector)
+#:   cr_op_pin_slot        lst == NULL              <- cr_new_value  -> cr_carve
+#:   cr_op_pin_slot        items == NULL            <- cr_carve (2-slot item array)
+#:   cr_op_pin_slot        items[0]/items[1] == NULL <- cr_int_i64 / cr_dbl -> cr_carve
+#:   cr_run_fold           acc == NULL              <- cr_int_i64   -> cr_carve
+#:   cr_op_dseq            *out == NULL             <- cr_dvec_value -> cr_carve
+#:   cr_op_reorient        *out == NULL             <- cr_dbl       -> cr_carve
+#:
+#: EVERY ONE is `X == NULL` where X came from cr_carve, the chain runner's bump
+#: allocator over the CALLER-SUPPLIED workspace. cr_carve returns NULL for
+#: exactly one reason — the remaining arena is smaller than the request — so
+#: status 4 is the correct status under rc404's rule and a caller's grow-loop
+#: terminates: srmech_chain_run_arena_bytes reports a larger figure and the call
+#: succeeds. None of the nine is a value outside a representable range, a
+#: compiled-in cap, or a non-convergent iteration, so none of them is LIMIT.
+#:
+#: ⚠️ THE CONTRAST IS LIVE IN THE SAME rc, which is why this is not a rubber
+#: stamp: rc447 ALSO added a genuine SRMECH_ERR_LIMIT path — an out-of-int64
+#: integer LITERAL declines at srmech_json_parse, and no arena relieves it. That
+#: value rides the rc176 decimal-STRING transport instead. So this rc placed
+#: lines on BOTH sides of the rc404 distinction, deliberately.
+#:
+#: No conflation: the ceiling moved because the instrument counts VOLUME, and
+#: this rc added a real-sequence arm, a fold arm and a Class-K/C pair to the file
+#: that already holds the largest share of it.
+CEIL_CONFLATING_RETURN_LINES = 721
 
 _RETURN_OVERFLOW = re.compile(r"return\s+SRMECH_ERR_OVERFLOW\s*;")
 

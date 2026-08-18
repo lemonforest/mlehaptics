@@ -2,7 +2,7 @@
 4-bit bytes (0.9.0rc324): the Cayley–Dickson rung ABOVE the Q₈ group
 (:mod:`srmech.biology.q8`), the byte-exact discrete peer of the CONTINUOUS ``𝕆``
 surface in :mod:`srmech.physics.qm.octonion` (the float64 ODFT twiddle). Where
-``qm.octonion`` carries float64 octonions, this module carries one signed basis
+``srmech.physics.qm.octonion`` carries float64 octonions, this module carries one signed basis
 unit in a single ``uint8`` and multiplies it in pure INTEGER bit-arithmetic —
 no floats, so no FMA / FP-contraction concern.
 
@@ -90,7 +90,7 @@ def _build_sign_table() -> Tuple[Tuple[int, ...], ...]:
     ``F[x_a][x_b] = 1`` iff the basis product ``e_{x_a} · e_{x_b}`` carries the
     ``−1`` sign — DERIVED from
     :func:`srmech.cascade.cayley_dickson.cd_basis_product` at ``dim=8``
-    (the SAME generative cocycle ``qm.octonion`` builds its structure from), so
+    (the SAME generative cocycle ``srmech.physics.qm.octonion`` builds its structure from), so
     there is no hand-entered constant to drift. The result index is always
     ``x_a ⊕ x_b`` (the Fano ⊕-structure), which this module relies on for the
     index lane; the sign is the only non-trivial content, and it is exactly
@@ -110,7 +110,7 @@ def _build_sign_table() -> Tuple[Tuple[int, ...], ...]:
 
 
 def _native_ready(symbol: str) -> bool:
-    """True iff the native lib is loaded AND exports ``symbol`` (numpy-free)."""
+    """True iff the native lib is loaded AND exports ``symbol``."""
     return bool(
         _native.HAS_NATIVE and _native.LIB is not None
         and hasattr(_native.LIB, symbol)
@@ -129,7 +129,7 @@ def _check_element(o: int, op: str) -> int:
 
 
 def _as_oct_buffer(buf: Sequence[int], op: str, name: str) -> bytes:
-    """Coerce ``buf`` to ``bytes`` of valid octonion elements (numpy-free).
+    """Coerce ``buf`` to ``bytes`` of valid octonion elements.
 
     Accepts any 1-D sequence of ints (``bytes`` / ``bytearray`` / ``list`` /
     ``tuple``); every element must be a valid octonion byte (``0..15``).

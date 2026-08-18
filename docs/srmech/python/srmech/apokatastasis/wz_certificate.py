@@ -58,7 +58,7 @@ The whole pipeline stays EXACT over ``ℚ`` — every polynomial is a
 :class:`~srmech.math.poly.Poly` over the bigint :class:`~srmech.math.q.Q`, no
 magnitude ceiling), the verify a coefficient-by-coefficient compare. There is NO
 float anywhere; sign is the **Class-K** pin-slot via the ``Q`` sign-branch (never
-an ALU ``abs()``); no ``math`` module, no numpy. This is the **Σ-row closer** of
+an ALU ``abs()``); no ``math`` module. This is the **Σ-row closer** of
 the F929 closure-dispatch: gosper (indefinite) → zeilberger (recurrence) →
 wz_certificate (proof).
 
@@ -124,7 +124,10 @@ def wz_certificate(rn_num, rn_den, rk_num, rk_den) -> Optional[Dict[str, object]
     Returns ``{"certificate": {"num": BiPoly, "den": BiPoly}, "verified": True}``
     when a WZ certificate exists AND verifies, else ``None`` (the term is not
     WZ-summable). Exact over ``ℚ`` (bigint, no magnitude ceiling); no float, no
-    ``abs()`` (the sign is the Class-K pin-slot), no ``math`` / numpy. See the
+    ``abs()`` (the sign is the Class-K pin-slot). The certificate's ``num`` / ``den``
+    are :class:`~srmech.apokatastasis.zeilberger.BiPoly` in ``(n, k)`` over exact
+    :class:`~srmech.math.q.Q`, and ``verified`` is a ``bool`` decided as an exact
+    rational-function identity — closed-form on the ALU. See the
     module docstring for the full WZ pipeline. ``rn_den`` / ``rk_den`` must be
     nonzero (a term ratio has a nonzero denominator) — ``ValueError`` otherwise."""
     rn_n = BiPoly.coerce(rn_num)

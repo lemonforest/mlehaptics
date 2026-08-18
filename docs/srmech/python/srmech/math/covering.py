@@ -69,9 +69,7 @@ census.
 
 Class homes: **I** (cyclic reduction, the projection to the centre) ∘ **K**
 (pin-slot magnitude — the sign is NEVER ``abs()``) ∘ **C** (orientation
-re-application) ∘ **N** (exact rational, the CWF sum) ∘ **E** (the catalog).
-
-numpy-free; no stdlib ``math`` / ``fractions`` / ``decimal``; no ``abs()``.
+re-application) ∘ **N** (exact rational, the CWF sum) ∘ **E** (the catalog). No stdlib ``math`` / ``fractions`` / ``decimal``; no ``abs()``.
 """
 from __future__ import annotations
 

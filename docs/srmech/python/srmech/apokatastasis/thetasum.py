@@ -25,7 +25,7 @@ Concretely: the numerator is a list of TERMS, each a triple
 ``(EllMonomial prefactor, tuple-of-Theta factors)``. All exact — ``Q`` coeffs,
 ``Theta`` symbols over the ``q, p, x, y, param`` lattice; sign is the **Class-K**
 pin-slot via the ``Q`` / ``EllMonomial`` sign-branch, never an ALU ``abs()``; no
-``math`` module, no numpy, no float (the one place a number is materialised is the
+``math`` module, no float (the one place a number is materialised is the
 exact-``ℚ`` truncated modified-theta product, used ONLY inside the degree-bound
 ``is_zero`` test).
 

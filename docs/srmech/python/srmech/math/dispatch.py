@@ -937,7 +937,7 @@ def infer(relationship: Dict[str, Any]) -> Dict[str, Any]:
     orchestration over the already-C-mirrored reducers, so it ships **without**
     a dedicated public C op (``composes_c``: the ``srmech_infer`` router is the
     routing brain; the from_bodies / cooccurrence_edges ``non_compute``
-    precedent). numpy-free; no ``abs()`` (the spectral verdict is a bit-exact
+    precedent). No ``abs()`` (the spectral verdict is a bit-exact
     symmetry predicate — no magnitude is ever read). Cites F929 (the
     dispatch-table-of-reduction-theories frame).
     """

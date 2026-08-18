@@ -62,7 +62,7 @@ bigint :class:`~srmech.math.q.Q` / :class:`~srmech.math.poly.Poly` /
 :class:`~srmech.apokatastasis.zeilberger.BiPoly` / :class:`~srmech.math.tripoly.TriPoly`
 carriers (no magnitude ceiling), every solve is exact Gauss-Jordan over ``ℚ``.
 There is NO float anywhere; sign is the **Class-K** pin-slot via the ``Q``
-sign-branch (never an ALU ``abs()``); no ``math`` module, no numpy.
+sign-branch (never an ALU ``abs()``); no ``math`` module.
 
 C peer: ``srmech_apagodu_zeilberger`` (``c/src/srmech_apagodu_zeilberger.c``)
 orchestrates the SAME existing C kernels — the ``srmech_tripoly_*`` /
@@ -160,7 +160,10 @@ def apagodu_zeilberger(rn_num, rn_den, rj_num, rj_den, rk_num, rk_den,
     ≤ ``max_order`` exists.
 
     Exact over ``ℚ`` (bigint, no magnitude ceiling); no float, no ``abs()`` (the
-    sign is the Class-K pin-slot), no ``math`` / numpy. See the module docstring for
+    sign is the Class-K pin-slot). Every returned leaf is exact and closed-form on
+    the ALU: ``coeffs`` are :class:`~srmech.math.poly.Poly`, the two certificates
+    are :class:`~srmech.math.tripoly.TriPoly`, and both carriers bottom out in
+    :class:`~srmech.math.q.Q` rationals. See the module docstring for
     the two-certificate creative-telescoping pipeline. ``rn_den`` / ``rj_den`` /
     ``rk_den`` must be nonzero (a term ratio has a nonzero denominator) —
     ``ValueError`` otherwise."""

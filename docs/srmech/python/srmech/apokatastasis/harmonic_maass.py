@@ -499,7 +499,7 @@ def harmonic_maass(hol: "MockQSeries | str", shadow: UnaryTheta) -> HarmonicMaas
     :class:`MockQSeries` (there is no rule for it, so it cannot be built) rather
     than have this fabricate a decision — that boundary is the point of the carrier.
     Exact integers / exact-``ℚ`` coefficients + exact-``Q`` weight; no float, no
-    ``abs()`` (a sign is the Class-K pin-slot), no numpy / ``math``. The hol
+    ``abs()`` (a sign is the Class-K pin-slot), no ``math``. The hol
     Eulerian q-series DISPATCHES to the same-rc ``srmech_harmonic_maass`` C peer
     when loaded (re-verified against the pure body before trust); a native miss
     re-decides pure."""

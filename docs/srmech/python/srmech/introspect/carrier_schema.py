@@ -235,7 +235,7 @@ to this Python SSoT). A profile tool, a stale/absent lib, or a non-OK status
 falls back to the pure path (never a wrong answer).
 
 Pure data + a derivation over the live registry — no numerical kernel; no
-float math, no numpy, no ``abs()``.
+float math, no ``abs()``.
 """
 
 from __future__ import annotations

@@ -422,7 +422,7 @@ class UnaryTheta:
         where ``E(n) = (a·n² + b·n)/D − leading`` is the (non-negative integer)
         reduced exponent of term ``n``. Returns the integer coefficients to order
         ``N`` inclusive. Exact integers, no float, no ``abs()`` (the character
-        sign is the Class-K pin-slot), no numpy / ``math``.
+        sign is the Class-K pin-slot), no ``math``.
 
         For θ₃ this is ``[1, 2, 0, 0, 2, …]`` (= Σ q^{n²}); for the shadow g₃ it is
         ``[1, −5, −7, 0, 0, 11, 0, 13, …]`` (the Zagier coefficients, the #9
@@ -521,7 +521,7 @@ def unary_theta(char: CharSpec, j: int, a: int, b: int, D: int,
     table; ``j ≥ 0`` is the ``n^j`` degree; ``(a, b, D)`` (``a > 0``, ``D > 0``)
     is the quadratic exponent; ``support`` is ``'all'`` / ``'positive'`` /
     ``'nonneg'``. Exact integer q-series, exact-``Q`` weight; no float, no
-    ``abs()``, no numpy / ``math``."""
+    ``abs()``, no ``math``."""
     return UnaryTheta(char, j, a, b, D, support)
 
 
@@ -545,7 +545,7 @@ def theta_coefficients(theta: UnaryTheta, n_max: int) -> List[int]:
     mirror; a bare C host calls ``srmech_unary_theta`` directly) — no new C
     symbol is needed because the mirror already ships 1:1. Exact ints (each a
     ``Σ χ(n)·n^j`` bignum), the χ sign the Class-K pin-slot; no float, no
-    ``abs()``, no numpy / ``math``."""
+    ``abs()``, no ``math``."""
     if not isinstance(theta, UnaryTheta):
         raise TypeError(
             "theta_coefficients: theta must be a UnaryTheta (construct one "

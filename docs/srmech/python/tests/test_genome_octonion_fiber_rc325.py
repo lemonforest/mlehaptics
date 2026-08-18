@@ -206,7 +206,11 @@ def test_f3_base_is_a_strict_prefix_plus_one_oct_cap():
     assert len(appended) == 1 and _cap_kind(appended[0]) == OCT_FIBER_CAP_MARKER
 
 
-def test_f3_format_version_is_18():
+def test_f3_format_version_is_pinned():
+    # NAME CARRIES NO NUMBER ON PURPOSE. This pin tracks a value that MOVES;
+    # a name that spells the value is falsified by the next bump and was —
+    # 16 such tests were found tree-wide, one named for 367 asserting 663.
+    # See test_pinned_names_carry_no_value_rc447.py.
     assert GENOME_FORMAT_VERSION == 20
 
 

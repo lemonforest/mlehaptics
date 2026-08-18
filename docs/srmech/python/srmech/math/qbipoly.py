@@ -42,7 +42,7 @@ Everything stays exact over ``ℚ[q]`` (each cell a bigint ``QPoly``); ``+`` / `
 ``*`` ride ``QPoly``'s exact ``ℚ[q]`` arithmetic; the q-shifts ride
 :meth:`QPoly.qshift` (σ_x) and a pure ``ℚ[q]`` ``Y``-degree monomial multiply (σ_y).
 Sign is the **Class-K** pin-slot via the ``QPoly`` / ``Poly`` / ``Q`` sign-branches
-(never an ALU ``abs()``). No ``math`` module, no numpy.
+(never an ALU ``abs()``). No ``math`` module.
 
 The carrier is internal-to-the-q-Zeilberger-arc (like ``BiPoly`` is to
 ``zeilberger`` — not a standalone ToolEntry); it is the q-row peer of ``BiPoly`` /
@@ -78,7 +78,10 @@ class QBiPoly:
     (the zero polynomial is the empty term list). The q-analog of
     :class:`~srmech.apokatastasis.zeilberger.BiPoly`; the exact substrate the q-Zeilberger
     term-ratio ``r_n(X,Y)`` / ``r_k(X,Y)`` operands ride. No float, no ``abs()``
-    (Class-K sign), no ``math`` / numpy. See the module docstring."""
+    (Class-K sign): ``terms`` is a tuple of :class:`~srmech.math.qpoly.QPoly`, whose
+    cells are :class:`~srmech.math.poly.Poly` over exact :class:`~srmech.math.q.Q`,
+    and every operator method (:meth:`qshift_x`, :meth:`qshift_y`, :meth:`scale_x`)
+    returns a new ``QBiPoly`` — closed-form on the ALU. See the module docstring."""
 
     __slots__ = ("_t",)
 
@@ -313,7 +316,7 @@ def qbipoly_from_coeffs(coeffs) -> QBiPoly:
     unreachable by prose. A **non_compute BUILDER** (the
     ``coupling.from_bodies`` / ``text.cooccurrence_edges`` precedent): it
     constructs an operand; every computation lives in the ops that consume it.
-    No float, no ``abs()``, no numpy / ``math``.
+    No float, no ``abs()``, no ``math``.
 
     Raises:
         TypeError: ``coeffs`` is not a Y-ascending list of x-cell lists. As in

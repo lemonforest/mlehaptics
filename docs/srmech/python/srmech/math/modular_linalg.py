@@ -16,7 +16,7 @@ bignum — that bound is the whole point).
 :func:`srmech.math.cyclic.mod_inv` / :func:`~srmech.math.cyclic.mod_mul` /
 :func:`~srmech.math.cyclic.mod_add` over residues already reduced into ``[0, p)``.
 Sign/zero handling is **Class K** — every decision is a compare-to-0 over those
-non-negative residues; there is no ``abs()`` anywhere, no float, no numpy, no
+non-negative residues; there is no ``abs()`` anywhere, no float, no
 ``math``.
 
 The ``p < 2**31`` bound is load-bearing: with ``2 <= p < 2**31`` every ``a * b``
@@ -254,7 +254,7 @@ def gf_nullspace(A, p: int) -> List[List[int]]:
 
     Class I over the ``c_dispatched`` :func:`gf_rref`; Class-K compare-to-0
     sign handling (never ``abs()``). Exact ints, bounded machine-int
-    arithmetic, no float, no numpy, no ``fractions``. ``composition_of_c`` —
+    arithmetic, no float, no ``fractions``. ``composition_of_c`` —
     no new C symbol.
     """
     _check_field(p, "gf_nullspace")
@@ -335,7 +335,7 @@ def gf_solve(A, b, p: int) -> Dict[str, object]:
     eliminated ONCE — ``rank(A)`` is the count of pivots landing left of the
     augmented column, so no second elimination is needed to compare the two
     ranks) plus :func:`gf_nullspace`. Class-K compare-to-0 sign handling, never
-    ``abs()``. Exact ints, no float, no numpy, no ``fractions``.
+    ``abs()``. Exact ints, no float, no ``fractions``.
     ``composition_of_c`` — no new C symbol.
     """
     _check_field(p, "gf_solve")
@@ -455,7 +455,7 @@ def crt_combine(residues, moduli) -> Dict[str, int]:
     for ``k ≳ 3`` of the ~31-bit reduction primes, so the accumulator is
     **bignum** (Python ``int``, no ceiling); only the per-step inverse, taken
     modulo a single prime, stays inside ``uint64``. Sign/zero handling is
-    Class-K (Python's non-negative ``%``, never ``abs()``); no float, no numpy,
+    Class-K (Python's non-negative ``%``, never ``abs()``); no float,
     no ``math``.
 
     Dispatches to the native ``srmech_crt_combine`` (over ``srmech_bigint``)

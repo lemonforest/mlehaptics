@@ -70,7 +70,7 @@ def _abs(x: float) -> float:
 
 
 def _matmul(a: List[List[float]], b: List[List[float]]) -> List[List[float]]:
-    """Real dense matrix product ``a·b`` as an explicit triple-loop (numpy-free)."""
+    """Real dense matrix product ``a·b`` as an explicit triple-loop."""
     r = len(a)
     inner = len(b)
     cols = len(b[0]) if b else 0
@@ -91,7 +91,7 @@ def _matmul(a: List[List[float]], b: List[List[float]]) -> List[List[float]]:
 def _rotate_first_axis(
     cum: List[List[List[List[float]]]], g: List[List[float]], k: int
 ) -> List[List[List[List[float]]]]:
-    """``out[a,j,l,m] = Σ_i G[i,a]·cum[i,j,l,m]`` — the numpy-free equivalent of
+    """``out[a,j,l,m] = Σ_i G[i,a]·cum[i,j,l,m]`` — the equivalent of
     rotating the cumulant tensor's first axis by ``G.T`` (``G.T[a,i] = G[i,a]``)."""
     out = [[[[0.0] * k for _ in range(k)] for _ in range(k)] for _ in range(k)]
     for a in range(k):

@@ -172,7 +172,7 @@ def quaternion_mult_table() -> List[List[List[int]]]:
 
 
 def _table_int8_bytes() -> bytes:
-    """C-order int8 serialization of the (4,4,4) tensor (numpy-free).
+    """C-order int8 serialization of the (4,4,4) tensor.
 
     64 bytes, one signed two's-complement byte per entry in row-major
     (i, j, k) order (``-1 → 0xFF``, ``0 → 0x00``, ``+1 → 0x01``) — the same
@@ -244,7 +244,7 @@ def quaternion_table_attestation() -> dict:
 
 
 def _as_quaternion(v: Sequence[float], op: str) -> List[float]:
-    """Coerce ``v`` to a plain ``list[float]`` of length 4 (numpy-free).
+    """Coerce ``v`` to a plain ``list[float]`` of length 4.
 
     Accepts any 1-D sequence; a wrong-length / non-sequence input raises the
     same ``ValueError`` shape the octonion module's coercer produces.
@@ -286,7 +286,7 @@ def _resolve_mu4(mu, op: str) -> List[float]:
 
 
 def _native_ready(symbol: str) -> bool:
-    """True iff the native lib is loaded AND exports ``symbol`` (numpy-free)."""
+    """True iff the native lib is loaded AND exports ``symbol``."""
     return bool(
         _native.HAS_NATIVE and _native.LIB is not None
         and hasattr(_native.LIB, symbol)
@@ -1055,7 +1055,7 @@ def quaternion_cycle_holonomy(
 
     Dispatches to the standalone-C ``srmech_quaternion_cycle_holonomy`` (caller
     arena) when ``HAS_NATIVE``; else srmech's own quaternion cascade (the
-    complete alternative, byte-exact). numpy-free; no ``abs()`` (sign is
+    complete alternative, byte-exact). No ``abs()`` (sign is
     Class K ∘ Class C). Class M (quaternion bind) ∘ Class L (graph) ∘ Class C
     (orientation).
 

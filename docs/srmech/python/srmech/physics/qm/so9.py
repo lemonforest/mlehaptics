@@ -169,7 +169,7 @@ def _matmul(a: Sequence[Sequence[int]], b: Sequence[Sequence[int]]) -> List[List
 
 
 def _sub(a, b) -> List[List[int]]:
-    """Element-wise ``A − B`` (numpy-free)."""
+    """Element-wise ``A − B``."""
     return [[a[i][j] - b[i][j] for j in range(len(a[0]))] for i in range(len(a))]
 
 
@@ -179,12 +179,12 @@ def _scal(a, s: int) -> List[List[int]]:
 
 
 def _commutator(x, y) -> List[List[int]]:
-    """Integer matrix commutator ``[X, Y] = XY − YX`` (numpy-free)."""
+    """Integer matrix commutator ``[X, Y] = XY − YX``."""
     return _sub(_matmul(x, y), _matmul(y, x))
 
 
 def _block16(tl, tr, bl, br) -> List[List[int]]:
-    """Assemble a ``16x16`` from four ``8x8`` integer blocks (numpy-free)."""
+    """Assemble a ``16x16`` from four ``8x8`` integer blocks."""
     out = _zeros(_DIM_SPINOR, _DIM_SPINOR)
     for i in range(_DIM8):
         for j in range(_DIM8):

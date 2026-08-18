@@ -1,0 +1,63 @@
+gh #1653 — RIPPLE GATES for SRMECH_ABI_VERSION 17 -> 18
+==============================================================================
+
+The version SSOT is documented as FIVE files. THE ABI SSOT IS DOCUMENTED AS
+TWO (c/include/srmech.h, python/srmech/_native/__init__.py) — and that is
+the declaration, not the ripple. Measured blast radius:
+
+  python/README.md   (3 sites)
+      162   To check which implementation is routing, call `srmech.native_status()` (top-level; equi
+      164   `SRMECH_ABI_VERSION` moves **16 → 17** at **v0.9.0rc442**, and it is worth saying why. *
+      171   # {'has_native': True, 'dispatching': True, 'abi_version': 17,
+  python/srmech/cascade/compose.py   (1 site)
+      1097  # the two halves cannot ship apart (ABI 17 -> 18 enforces it for a
+  python/tests/test_bus.py   (2 sites)
+      1020  assert _native.NATIVE_ABI_VERSION == 17, (
+      1059  assert _native.EXPECTED_ABI_VERSION == 17, (
+  python/tests/test_bus_cipher_transport_c_rc179.py   (1 site)
+      63    assert _native.NATIVE_ABI_VERSION == 17, (
+  python/tests/test_bus_pubsub_c_rc180.py   (2 sites)
+      69    assert _native.NATIVE_ABI_VERSION == 17, (
+      74    assert _native.EXPECTED_ABI_VERSION == 17
+  python/tests/test_c_real_carrier_rc447.py   (1 site)
+      12    closes its projection gap in the same change), with ABI 17 -> 18.
+  python/tests/test_cooccurrence_directed_rc248.py   (1 site)
+      101   assert _native.NATIVE_ABI_VERSION == 17
+  python/tests/test_dsl_chain_c_rc181.py   (1 site)
+      71    assert _native.NATIVE_ABI_VERSION == 17
+  python/tests/test_dsl_combinators_c_rc182.py   (1 site)
+      116   assert _native.NATIVE_ABI_VERSION == 17
+  python/tests/test_eulerian_rc250.py   (1 site)
+      100   assert _native.NATIVE_ABI_VERSION == 17
+  python/tests/test_genome_cap_foundation_c_rc196.py   (1 site)
+      58    assert _native.EXPECTED_ABI_VERSION == 17
+  python/tests/test_genome_catalog_body_bound_rc337.py   (1 site)
+      656   assert _native.EXPECTED_ABI_VERSION == 17, (
+  python/tests/test_genome_group_v20_rc442.py   (1 site)
+      72    assert _native.EXPECTED_ABI_VERSION == 17
+  python/tests/test_genome_multikernel_c_rc198.py   (1 site)
+      77    assert _native.EXPECTED_ABI_VERSION == 17
+  python/tests/test_genome_read_bound_global_rc342.py   (1 site)
+      769   assert _native.EXPECTED_ABI_VERSION == 17, (
+  python/tests/test_graph_to_kernel_rc249.py   (1 site)
+      100   assert _native.NATIVE_ABI_VERSION == 17
+  python/tests/test_introspect.py   (1 site)
+      663   assert status["expected_abi"] == 17
+  python/tests/test_json_read_selfhost_rc401.py   (1 site)
+      442   assert _native.EXPECTED_ABI_VERSION == 17
+  python/tests/test_klein4_regime_split_rc290.py   (2 sites)
+      393   assert _native.EXPECTED_ABI_VERSION == 17
+      394   assert _native.NATIVE_ABI_VERSION == 17
+  python/tests/test_klein4_winding_preimage_rc438.py   (2 sites)
+      354   assert _native.EXPECTED_ABI_VERSION == 17
+      361   assert _native.NATIVE_ABI_VERSION == 17
+  python/tests/test_lightweight_parity.py   (1 site)
+      125   assert _native.NATIVE_ABI_VERSION == 17
+
+TOTAL: 27 assertion/doc sites across 21 files.
+
+None of this is in the orientation docs. docs/srmech/CLAUDE.md's ABI section
+explains WHEN to bump and names the two declaration sites; it does not say a
+bump reds ~20 hardcoded assertions. That is the same staleness shape the file
+warns about elsewhere ('this line said FOUR until rc358', 'five duplicated
+count-tests' -> measured 73). An ABI bump is a ~20-file edit, not a 2-file one.

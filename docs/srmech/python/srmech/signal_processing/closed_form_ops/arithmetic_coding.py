@@ -44,12 +44,12 @@ def _cumulative(freq: Dict[int, int]) -> Tuple[Dict[int, Tuple[int, int]], int]:
 
 
 def _encode_native(data_bytes, cum, total):
-    """Native exact-rational encode → the narrowed ``(lo, hi)`` Fraction pair
-    (byte-identical to the pure ``fractions.Fraction`` encode) or ``None`` (rc144
+    """Native exact-rational encode → the narrowed ``(lo, hi)`` ``Q`` pair
+    (byte-identical to the pure ``Q`` encode) or ``None`` (rc144
     §B6b). The C peer carries a COMMON DENOMINATOR ``total**k`` so the whole
     interval-narrowing loop is exact ``srmech_bigint`` integer arithmetic + a
     single terminal gcd reduction; a reduced fraction is canonical, so the
-    ``(num, den)`` pair equals the Python Fraction exactly. Returns ``None`` (→
+    ``(num, den)`` pair equals the pure-path ``Q`` exactly. Returns ``None`` (→
     pure) on an out-of-table symbol (the pure path raises the same ValueError),
     an unbuildable total, or an arena overflow on a pathologically long input."""
     from srmech.math.q import Q, to_q
@@ -99,15 +99,15 @@ def op(
 ):
     """Arithmetic encode or decode using integer rational-interval narrowing.
 
-    Phase 2 ships the simplest closed-form reference: rational-interval
-    narrowing using Python ``fractions.Fraction``. The output is a fraction
-    in the final narrowed interval; decode parses the fraction back into
-    symbols via the same frequency table.
+    The closed-form reference is rational-interval narrowing on srmech's
+    exact-ℚ :class:`~srmech.math.q.Q` carrier. The output is a ``Q`` in the
+    final narrowed interval; decode parses that rational back into symbols
+    via the same frequency table.
 
     Parameters
     ----------
     data:
-        Bytes-like (encode) or Fraction-or-tuple (decode).
+        Bytes-like (encode) or a ``Q``/(num, den)-tuple (decode).
     decode:
         If True, decode using ``freq`` + ``length``.
     freq:

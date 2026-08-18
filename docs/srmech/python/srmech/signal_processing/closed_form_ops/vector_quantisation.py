@@ -75,7 +75,7 @@ def op(
     decode: bool = False,
     D: int = 8192,
 ):
-    """Vector quantise ``vectors`` against ``codebook`` (numpy-free).
+    """Vector quantise ``vectors`` against ``codebook``.
 
     Encode: returns a ``list[int]`` of codebook indices (one per input vector).
     Decode: returns the reconstructed vectors (``[codebook[i] for i in idx]``).

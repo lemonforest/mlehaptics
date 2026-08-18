@@ -165,7 +165,7 @@ def _to_q(x) -> Q:
 def _qmul(a: Sequence[Q], b: Sequence[Q], n_terms: int) -> List[Q]:
     """Exact-:class:`~srmech.math.q.Q` truncated q-series convolution to
     ``n_terms`` terms: ``(a·b)[n] = Σ_{i+j=n} a[i]·b[j]`` for ``n < n_terms``. All
-    exact rational; no float, no numpy / ``math``."""
+    exact rational; no float, no ``math``."""
     out: List[Q] = [_Q_ZERO] * n_terms
     for i in range(min(len(a), n_terms)):
         ai = a[i]
@@ -274,7 +274,7 @@ class ModularFormsRing:
         DISPATCHES to the native ``srmech_modular_forms_ring_represent`` C peer when
         loaded (compared element-for-element, never trusted); else the pure-Python
         :meth:`_represent_py` body (the COMPLETE alternative + the parity oracle).
-        No float, no abs() (Class-K sign branch), no numpy / ``math``."""
+        No float, no abs() (Class-K sign branch), no ``math``."""
         if isinstance(k, bool) or not isinstance(k, int):
             raise TypeError(f"weight k must be an int; got {type(k).__name__}")
         f = [_to_q(c) for c in q_series]
@@ -315,7 +315,7 @@ class ModularFormsRing:
         subsystem exactly over ℚ (:class:`~srmech.math.qmat.QMat`), and VERIFY the
         solution against EVERY provided term. ``f`` is the coerced ``Q`` q-series,
         ``mono`` the weight-``k`` monomial basis. Returns ``{(a,b): Q}`` or
-        ``None``. All exact rational; no float / numpy / ``math`` / ``abs``."""
+        ``None``. All exact rational; no float / ``math`` / ``abs``."""
         n_terms = len(f)
         d = len(mono)
         # the empty basis (M_k = {0}, e.g. odd k or k=2): the only modular form is 0
@@ -532,5 +532,5 @@ def modular_forms_ring_represent(q_series, k: int, *,
     float); ``k`` the (even) claimed weight; at least ``dim(k) + 2`` terms are
     required (more is fine). Exact over ℚ; DISPATCHES to the native
     ``srmech_modular_forms_ring_represent`` C peer when loaded; no float, no abs(),
-    no numpy / ``math``."""
+    no ``math``."""
     return ModularFormsRing().represent(q_series, k, n_terms=n_terms)

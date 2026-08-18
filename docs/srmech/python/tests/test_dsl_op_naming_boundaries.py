@@ -536,7 +536,7 @@ def test_composite_descriptor_body_rejects_dotted_stage_ref(tmp_path):
     assert dsl.chain().then("srmech.cascade.leaves.seq_len").run([7, 7, 7]) == 3
 
 
-def test_dotted_spelling_evicts_chain_from_native_run_loop():
+def test_dotted_spelling_no_longer_evicts_a_chain_from_the_native_run_loop():
     """`srmech/dsl/_catalog.py`: the run-loop cost of a dotted spelling.
 
     The TRUE version of the adjudicated claim (b). The earlier pass measured
@@ -551,6 +551,26 @@ def test_dotted_spelling_evicts_chain_from_native_run_loop():
     (bare ran end-to-end in C, dotted was a native MISS, values identical).
     Value parity is asserted on whichever engine runs: inform-don't-limit
     means the eviction is a cost, never a wrong answer.
+
+    ⚠️ THE EVICTION IS GONE AS OF rc447 (gh #1653), AND THIS TEST NOW PINS ITS
+    ABSENCE. The finding above was TRUE when adjudicated: the C table matched
+    `memcmp(op, "name", N)`, an exact BARE compare, so a dotted step missed.
+    rc447 made the table match the last DOTTED SEGMENT uniformly (`cr_op_is`),
+    because it had drifted into using TWO rules — the Class-N arms compared
+    bare while the new Class-I/C/K/L arms compared by suffix, so
+    `srmech.math.rational.sin_series_truncate` was NOT_IMPL while
+    `srmech.cascade.atoms.chiral_flip` ran. Measured, and it put the Python
+    eligibility predicate out of agreement with the runner on any dotted
+    Class-N chain.
+
+    Two rules on one table is worse than either rule, so one rule ships. It is
+    ALSO the direction `#T1145` needs: that task's unlanded follow-up respells
+    descriptors to their published dotted forms, and under the old bare compare
+    every respelled chain would have silently left the C loop.
+
+    The boundary matters and is asserted below: `cr_op_is` requires a `.`
+    immediately before the match, so `poly_gcd` does NOT answer to `gcd`. A raw
+    suffix compare would have dispatched one op's chain to another.
     """
     from srmech.cascade import compose as C
 
@@ -573,9 +593,48 @@ def test_dotted_spelling_evicts_chain_from_native_run_loop():
                                   "srmech.math.rational.sin_series_truncate",
                                   C.DEFAULT_CLASS_REGISTRY))
 
-    # ...and yet only the bare spelling is C-run-eligible.
+    # ...and BOTH spellings are now C-run-eligible (rc447). The `is False`
+    # here was the adjudicated rc-`#T1137` behaviour; it is deliberately
+    # inverted, not deleted, so the change of contract is visible in the diff.
     assert C._chain_c_eligible(sb) is True
-    assert C._chain_c_eligible(sd) is False
+    assert C._chain_c_eligible(sd) is True
 
-    # the eviction never changes the VALUE (exact rational, both engines).
+    # the spelling never changes the VALUE (exact rational, either engine).
     assert C.run_chain(sb, inputs={}) == C.run_chain(sd, inputs={})
+
+
+def test_the_dotted_match_respects_the_SEGMENT_boundary():
+    """`poly_gcd` must not answer to `gcd`.
+
+    The uniform matcher compares the last dotted segment. A raw suffix compare
+    — which is what the rc447 arms used before this was generalised — matches
+    `poly_gcd` and `bigint_gcd` against `gcd`, dispatching one op's chain to a
+    DIFFERENT op. That is a wrong answer, not a capability gap, so it gets its
+    own gate rather than riding on the test above.
+    """
+    import ctypes
+    import json
+    from srmech.cascade import compose as _C
+    lib = _C._compose_lib("srmech_chain_run", "srmech_chain_run_arena_bytes")
+    if lib is None:
+        pytest.skip("no native library")
+
+    def _rc(op):
+        chain = {"name": "t", "steps": [
+            {"class": "I", "op": op, "args": {"a": 12, "b": 18}}]}
+        cj = json.dumps(chain).encode("utf-8")
+        xj = json.dumps({"inputs": {}}).encode("utf-8")
+        n = int(lib.srmech_chain_run_arena_bytes(len(cj), len(xj)))
+        ws = (ctypes.c_char * n)()
+        cap = max(n // 2, 65536)
+        out = (ctypes.c_char * cap)()
+        ol = ctypes.c_size_t()
+        return int(lib.srmech_chain_run(cj, len(cj), xj, len(xj), ws, n,
+                                        out, cap, ctypes.byref(ol)))
+
+    assert _rc("gcd") == 0, "the bare spelling must run"
+    assert _rc("srmech.math.cyclic.gcd") == 0, "the dotted spelling must run"
+    for impostor in ("poly_gcd", "bigint_gcd"):
+        assert _rc(impostor) != 0, (
+            "%r dispatched to `gcd` — the match is not respecting the dotted "
+            "segment boundary, so one op's chain runs another's" % impostor)

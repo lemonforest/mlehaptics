@@ -14,16 +14,20 @@
 name = "Hurwitz"
 kind = "generator"
 doc = """
-The Hurwitz generator G(sigma, theta) = "the One" S(sigma, theta) — the single
-exact-rational, numpy-free generator of the 1+3+7+3 = 14-D substrate. The
-ℝ,ℂ,ℍ,𝕆 Hurwitz ladder read as the octonion epicycle e^{Î_n θ} turning 0/1/3
-Fano planes. `generate` returns the exact One (the 14 exact (num,den) rationals
-via One.to_flat_rational); the opt-in float 14x14 realisation is One.to_matrix
-(the lossy [scientific] export — never the math path).
+The Hurwitz generator G(sigma, theta) is the θ-EPICYCLE ROTATION PART of the One
+— NOT the whole object. The One is S(sigma, theta, w): the winding triad w is a
+separate grade that G does not carry, and it is load-bearing (MEASURED: w =
+(1,0,0) gives One.winding == (1,0,0) and flips One.spinor_sign to -1, against +1
+at rest). The One is the single exact-rational generator of the 1+3+7+3 = 14-D
+substrate; the ℝ,ℂ,ℍ,𝕆 Hurwitz ladder read as the octonion epicycle
+e^{Î_n θ} turning 0/1/3 Fano planes. `generate` returns the exact One as 14
+exact (num,den) integer pairs via One.to_flat_rational — closed-form on the ALU;
+the opt-in float 14x14 realisation is One.to_matrix, which returns a Mat and is
+a lossy display-edge export, never the math path.
 """
 
 # A pure generator — no instance state; all binds come from the call kwargs.
 [class.method.generate]
 op = "srmech.cascade.the_one"
 binds = ["sigma", "theta_num", "theta_den"]
-doc = "Build the exact One S(sigma, theta) — numpy-free, exact-rational (terms= passes through for the Class-N cos/sin Taylor depth)."
+doc = "Build the exact One at REST: this method binds sigma/theta_num/theta_den only, so the winding triad w takes its (0,0,0) default and the result is S(sigma, theta, (0,0,0)). Exact-rational throughout (terms= passes through for the Class-N cos/sin Taylor depth)."

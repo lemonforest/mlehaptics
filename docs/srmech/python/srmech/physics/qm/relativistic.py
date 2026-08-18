@@ -1,4 +1,4 @@
-"""Relativistic QM: Dirac γ-matrix algebra + Klein-Gordon + Weyl + Majorana (numpy-free).
+"""Relativistic QM: Dirac γ-matrix algebra + Klein-Gordon + Weyl + Majorana.
 
 Per ``[[feedback_science_is_ssot_not_project]]``: each operation cites
 canonical relativistic QM / QFT literature.

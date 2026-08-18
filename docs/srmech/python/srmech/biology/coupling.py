@@ -197,7 +197,7 @@ def _resonances_from_tensions(lam: List[float], max_den: int) -> List[Dict[str, 
     the same tension values). The zero-mode floor is read relative to
     ``lam[-1]`` (the largest tension in the passed list), so a k-extreme list
     that includes the global-max tension floors the same way the full spectrum
-    does. numpy-free; no ``abs()`` (signs are read by comparison, Class-K)."""
+    does. No ``abs()`` (signs are read by comparison, Class-K)."""
     from ..math import primes as _primes
     from ..math import rational as _rational
 
@@ -327,7 +327,7 @@ def resonant_spectrum(
     ``rational.best_rational`` (Class N), ``primes.factor`` /
     ``qprime.Qprime`` (Class J) — so it is value-identical on the native and
     pure-Python paths (the C peer ``srmech_resonant_spectrum`` orchestrates the
-    same kernels). Numpy-free; no ``abs()`` (tension signs are read by
+    same kernels). No ``abs()`` (tension signs are read by
     comparison, Class-K).
 
     Raises:
@@ -405,7 +405,7 @@ def from_bodies(
     position gap. A zero / negative separation drops the edge.
 
     Returns ``(n, edges, weights)`` ready to feed
-    ``laplacian.dense_laplacian(n, edges, weights)``. Numpy-free; pure
+    ``laplacian.dense_laplacian(n, edges, weights)``. Pure
     arithmetic (the ``/r²`` is a coupling weight, not a libm call).
     """
     m = [float(x) for x in masses]
@@ -708,7 +708,7 @@ def resonant_spectrum_sparse(
     ``srmech_laplacian_k_extreme_modes_file`` when ``HAS_NATIVE`` (the matvec /
     power iteration / deflation run in C, streaming the packed file via the PAL,
     caller-arena, no node cap); else the pure-Python streaming read is the
-    complete alternative. numpy-free; no ``abs()`` (magnitudes are the Class-K
+    complete alternative. No ``abs()`` (magnitudes are the Class-K
     square, signs read by comparison).
 
     Accuracy envelope (honest): deflated power iteration resolves an extreme mode
@@ -887,8 +887,7 @@ def fractal_spectrum(R, branches, *, log_terms: int = 25) -> Dict[str, object]:
     ``best_rational`` (C-backed), and the F974 ``_octaves`` ``|q|``-meter — so it
     adds NO new numerical kernel and ships **non_compute** (no dedicated C peer;
     the ``from_bodies`` / ``cooccurrence_edges`` precedent — everything-mirrors is
-    satisfied because every underlying op is already C-mirrored). Exact-``Q``;
-    numpy-free; no ``abs()`` (the ``|q|``-meter is a Class-K comparison; ``log``
+    satisfied because every underlying op is already C-mirrored). Exact-``Q``; no ``abs()`` (the ``|q|``-meter is a Class-K comparison; ``log``
     is the Class-N float-projection surface reading the bit pattern exactly).
 
     Raises:
@@ -1077,8 +1076,7 @@ def fold_encode(R, branches, *, dim, seed=0):
           number of bound pairs (``degree + 2``).
 
     Pure orchestration over shipped Klein-4 ops → adds NO new numerical kernel,
-    ships **non_compute** (the cooccurrence_fold / from_bodies precedent).
-    numpy-free; no ``abs()``.
+    ships **non_compute** (the cooccurrence_fold / from_bodies precedent). No ``abs()``.
 
     Raises:
         ValueError: ``R`` not a Poly / coercible sequence, ``R.degree < 2``,
@@ -1207,7 +1205,7 @@ def fold_spectrum(fold, *, log_terms: int = 25,
         "UNKNOWN", "similarity", "confidence", "fold_consistency", "per_slot",
         "reason", "spectrum_open"}`` and NO decimation Poly / spectral params.
 
-    Pure orchestration over shipped ops → **non_compute**. numpy-free; no
+    Pure orchestration over shipped ops → **non_compute**. No
     ``abs()`` (the similarity/margin comparisons are exact-``Q`` Class-K reads).
 
     A :class:`RecoverableFold` (rc125) is ALSO accepted: when it carries an
@@ -1572,7 +1570,7 @@ def fold_encode_recoverable(R, branches, *, dim, seed=0) -> "RecoverableFold":
         A :class:`RecoverableFold` pair ``(lossy_bundle, exact_seed_R=R)``.
 
     Pure orchestration + data over shipped ops → NO new numerical kernel, NO new
-    C peer. numpy-free; no ``abs()``.
+    C peer. No ``abs()``.
 
     Raises:
         ValueError: ``R`` not a Poly / coercible sequence, ``R.degree < 2``,

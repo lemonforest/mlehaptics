@@ -1,6 +1,6 @@
 """Q8 — the DISCRETE quaternion group ``Q₈ = {±1, ±i, ±j, ±k}`` as 3-bit
 bytes (0.9.0rc310): the discrete peer of the CONTINUOUS ``ℍ`` surface in
-:mod:`srmech.physics.qm.quaternion`. Where ``qm.quaternion`` carries float64
+:mod:`srmech.physics.qm.quaternion`. Where ``srmech.physics.qm.quaternion`` carries float64
 quaternions (the 4×4 ``L_q``/``R_q`` operators, the ``exp(μθ)`` twiddle),
 this module carries a Q₈ element in a single ``uint8`` and multiplies it in
 pure INTEGER bit-arithmetic — no floats, so no FMA / FP-contraction concern.
@@ -78,7 +78,7 @@ def _build_f_table() -> Tuple[Tuple[int, ...], ...]:
     ``F[x_a][x_b] = 1`` iff the Cayley–Dickson basis product
     ``e_{x_a} · e_{x_b}`` carries the ``−1`` sign — DERIVED from
     :func:`srmech.cascade.cayley_dickson.cd_basis_product` at ``dim=4``
-    (the SAME generative cocycle ``qm.quaternion`` builds its structure table
+    (the SAME generative cocycle ``srmech.physics.qm.quaternion`` builds its structure table
     from), so there is no hand-entered constant to drift. The result index is
     always ``x_a ⊕ x_b`` (the ``V4`` XOR), which this module relies on for the
     abelian projection; the sign is the only non-trivial content, and it is
@@ -97,7 +97,7 @@ def _build_f_table() -> Tuple[Tuple[int, ...], ...]:
 
 
 def _native_ready(symbol: str) -> bool:
-    """True iff the native lib is loaded AND exports ``symbol`` (numpy-free)."""
+    """True iff the native lib is loaded AND exports ``symbol``."""
     return bool(
         _native.HAS_NATIVE and _native.LIB is not None
         and hasattr(_native.LIB, symbol)
@@ -115,7 +115,7 @@ def _check_element(q: int, op: str) -> int:
 
 
 def _as_q8_buffer(buf: Sequence[int], op: str, name: str) -> bytes:
-    """Coerce ``buf`` to ``bytes`` of valid Q8 elements (numpy-free).
+    """Coerce ``buf`` to ``bytes`` of valid Q8 elements.
 
     Accepts any 1-D sequence of ints (``bytes`` / ``bytearray`` / ``list`` /
     ``tuple``); every element must be a valid Q8 byte (0..7). Returns a

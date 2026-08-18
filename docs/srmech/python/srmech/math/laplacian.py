@@ -6,7 +6,7 @@ eigendecomposition, matrix-vector multiplication, and elementwise
 operations on dense arrays". The graph-Laplacian-specific ops
 (``dense_adjacency``, ``dense_laplacian``, ``normalized_laplacian``,
 ``jacobi_eigvals``) remain specialisations of the general dense-matrix
-scope. Four new ops added to accommodate the closed-form TDSE
+scope. Six new ops added to accommodate the closed-form TDSE
 evolution ``ψ(t) = V·diag(exp(-iλt))·V^H·ψ(0)`` (Sakurai *Modern QM*
 §2.1.5 eq 2.1.40):
 
@@ -44,8 +44,10 @@ is pi-bearing and NOT shipped on the C surface per
 ``[[user_stance_pi_as_projection]]``; users computing cyclic-graph
 spectra should compose Class I (cyclic-group representation, pi-free
 modular arithmetic) with Class L's dense-Laplacian build + Jacobi
-eigvals, or use numpy/scipy at the Python layer for the trig-bearing
-shortcut.
+eigvals, or close the trig-bearing form with srmech's own Class-N
+cascades — :func:`srmech.math.rational.cos` over the ``4·atan(1)`` pi this
+module builds from :func:`srmech.math.rational.atan` (the module-private
+``_PI``), the same route :func:`magnetic_laplacian` takes.
 
 API
 ---
@@ -64,20 +66,28 @@ Phase 2 broadening (dense-matrix linear algebra):
 - :func:`elementwise_multiply_complex` — pointwise complex multiply.
 - :func:`elementwise_transcendental` — vectorised transcendentals.
 
-The module-level :data:`LAPLACIAN_OPS` constant exposes all available
-op names for the composition-engine registry.
+The module-level :data:`LAPLACIAN_OPS` constant exposes the op names
+registered with the composition-engine registry. It is NOT the full public
+surface: :func:`spectral_spine`, :func:`relational_structure`,
+:func:`three_fold_eigvec_groups`, :func:`eulerian_path`,
+:func:`eulerian_circuit`, :func:`order_fingerprint` and the
+``recover_check*`` family are exported from ``__all__`` without a registry
+entry.
 
 C-path bound
 ------------
 
-Most of the C native surface operates on ``n ≤ MAX_NATIVE_NODES`` (256),
-which caps the stack-allocated / static degree / row-scaling / augmented
-buffers (embedded-safe). When ``HAS_NATIVE`` and ``n ≤ 256`` the dense build
-+ ``jacobi_eigvals`` + ``dense_solve`` + ``mat_matvec``/``mat_matmul`` dispatch
-to the C symbol **with or without numpy** — the numpy-absent path marshals a
+The graph-build + eigen + solve native paths have **no node cap**
+(standalone-honor rc157/rc158): the C kernels write only into the caller's
+matrix or a caller-sized arena, so the bound is the caller's RAM.
+:data:`MAX_NATIVE_NODES` (256) survives as a live gate on exactly ONE op,
+:func:`spectral_block_dispatch` (4 × 256 = 1024); the Hermitian bound is the
+separate :data:`MAX_NATIVE_HERMITIAN_NODES` (2048). When ``HAS_NATIVE`` the
+dense build + ``jacobi_eigvals`` + ``dense_solve`` +
+``mat_matvec``/``mat_matmul`` dispatch to the C symbol — the marshal builds a
 flat ctypes buffer straight from Python ``list``s (UPSTREAM §38; ``jacobi``
-~49× faster than the pure-Python cascade). For ``n > 256`` (or no native lib)
-srmech's own pure-Python Class-L cascades run.
+~49× faster than the pure-Python cascade). With no native lib srmech's own
+pure-Python Class-L cascades run.
 
 The numpy-free Hermitian eigen**vector** decomposition
 (:func:`mat_hermitian_eigendecompose`) is the one path with a HIGHER native
@@ -330,11 +340,16 @@ def _can_dispatch_native(n: int) -> bool:
 
 
 def _build_matrix_native_listmarshal(fn_name, n, edge_list, w_list):
-    """numpy-FREE native graph build (UPSTREAM §38): marshal Python lists into
+    """Native graph build (UPSTREAM §38): marshal Python lists into
     ctypes arrays (edge endpoints uint32, weights double) + reshape the flat
-    output to ``list[list[float]]`` — no numpy. Returns the matrix, or ``None``
-    on a non-OK status (caller then uses the pure-Python builder). Same C symbol
-    the numpy path calls; reachable on the numpy-absent install."""
+    output to ``list[list[float]]``. Returns the matrix, or ``None``
+    on a non-OK status (caller then uses the pure-Python builder).
+
+    This is the build that is reachable on the numpy-absent install — the
+    ``ctypes`` marshal below IS the whole carrier bridge, so the native kernels
+    stay available with nothing but the stdlib present. That is what makes this
+    function distinct from a native path that would need an array library to
+    hand the kernel its buffer."""
     n_edges = len(edge_list)
     out = (ctypes.c_double * (n * n))()
     null_u = ctypes.cast(None, ctypes.POINTER(ctypes.c_uint32))
@@ -450,7 +465,7 @@ def _jacobi_eigvals_py(
     that zeroes each off-diagonal in turn; the converged diagonal IS the
     spectrum. Returns the sorted (ascending) eigenvalues as a ``list[float]``.
     Matches the native-C / ``numpy.linalg.eigvalsh`` path to Jacobi round-off.
-    No LAPACK, no numpy. No ``abs()``: the off-diagonal magnitude is read as a
+    No LAPACK. No ``abs()``: the off-diagonal magnitude is read as a
     sum of squares (inherently non-negative) and the rotation tangent handles
     its sign explicitly via the ``tau >= 0`` branch (Class-K sign-handling, not
     an ALU ``abs()``).
@@ -518,7 +533,7 @@ def _jacobi_eig_py(
     Jacobi round-off. Same engine as :func:`_jacobi_eigvals_py` (the similarity
     transform ``A ← JᵀAJ``) plus the standard eigenvector accumulation
     ``V ← V·J`` — only columns ``p, q`` of ``V`` change per rotation. No LAPACK,
-    no numpy, no ``abs()`` (off-diagonal magnitude is a sum of squares; the
+    no ``abs()`` (off-diagonal magnitude is a sum of squares; the
     rotation tangent's sign is the explicit ``tau >= 0`` Class-K branch).
 
     Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
@@ -1073,9 +1088,9 @@ def jacobi_eigvals(
     Numpy-free (rc129): the input is a :class:`~srmech.math.mat.Mat` /
     ``list[list[float]]`` (or any nested sequence) and the return is a 1-D
     :class:`~srmech.math.vec.Vec` of the ascending eigenvalues (``.shape == (n,)``
-    + scalar ``v[i]``), NOT a bare ``list[float]``. When ``HAS_NATIVE`` and
-    ``n ≤ 256`` the numpy-free list-marshal native path runs; else srmech's own
-    pure-Python Jacobi cascade.
+    + scalar ``v[i]``), NOT a bare ``list[float]``. When ``HAS_NATIVE`` the
+    list-marshal native path runs at any ``n`` (no node cap — see above); else
+    srmech's own pure-Python Jacobi cascade.
 
     Rotation-last exact route (rc-B, ``exact=``, keyword-only)
     ---------------------------------------------------------
@@ -1206,7 +1221,7 @@ def _solve_exact(A: List[list], B: List[list]) -> List[List[Q]]:
     INPUT is still accepted — ``to_q`` coerces it — which is why the stale claim
     was plausible, but "accepts" and "computes in / returns" are different
     claims and only the first was ever true.* ``A``
-    is m×m, ``B`` is m×w, the returned ``X`` is m×w. No numpy, no ``abs()``:
+    is m×m, ``B`` is m×w, the returned ``X`` is m×w. No ``abs()``:
     the pivot is the FIRST nonzero at/below the diagonal (exact arithmetic
     needs no magnitude-based partial pivoting for stability — only a nonzero
     pivot). A wholly-zero pivot column ⇒ a singular interior block."""
@@ -1347,8 +1362,9 @@ def _dense_solve_complex(A, B):
         ⎡ Aᵣ  −Aᵢ ⎤ ⎡ u ⎤   ⎡ bᵣ ⎤
         ⎣ Aᵢ   Aᵣ ⎦ ⎣ v ⎦ = ⎣ bᵢ ⎦
 
-    so ``X = u + i v``. The embedding is exact (pure ``concatenate`` / slice —
-    NumPy a carrier only) and rides the shipped native real ``dense_solve``;
+    so ``X = u + i v``. The embedding is exact and is built inside
+    :func:`mat_solve` (via :func:`_mat_solve_complex`), which this function
+    rides directly;
     for a well-conditioned ``A`` (e.g. an HPD Gram matrix ``V·Vᴴ``) it is
     value-faithful to NumPy's complex solve / ``inv`` to ~1e-9. The complex
     inverse is just ``_dense_solve_complex(A, eye(n))`` (``A · X = I``).
@@ -1797,13 +1813,15 @@ def mat_matmul(a: "Mat", b: "Mat") -> "Mat":
     a complex operand feeds the kernel **zero-copy** (``from_buffer``), a real
     operand is interleaved ``(re, 0)`` once, and the output is a fresh
     ``array('d')`` wrapped back into a ``Mat`` (complex iff either input is). With
-    no native lib — or any dim > ``MAX_NATIVE_NODES`` (256) — the fallback is a
-    pure-Python triple loop over the ``Mat`` (a cascade, **never** numpy ``@``),
-    so the op is unconditionally numpy-free.
+    no native lib the fallback is a pure-Python triple loop over the ``Mat``
+    (a cascade, **never** numpy ``@``), so the op is unconditionally
+    numpy-free — and there is no size cap on the native path
+    (standalone-honor rc157): the C kernel writes only the caller's output
+    buffer, so the bound is the caller's RAM.
 
     rc69 built ``Mat``; rc71 made signal_processing import-reachable numpy-free;
-    this is the bridge the 2-D ``qm.*`` matmul callsites flip onto (rc73+) to
-    compute numpy-free on the native path.
+    this is the bridge the 2-D ``srmech.physics.qm.*`` matmul callsites flip
+    onto (rc73+) to compute numpy-free on the native path.
 
     Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
     Hopkins, 2013) §1.1 (textbook matrix multiplication).
@@ -2168,9 +2186,10 @@ def mat_hermitian_eigendecompose(h: "Mat") -> Tuple["Mat", "Mat"]:
     only up to a unit-modulus phase, and a degenerate eigenspace's basis is
     solver-chosen.
 
-    Once :func:`mat_matmul` + :func:`mat_solve` + this op exist, a ``qm.*`` module
-    can hold its working matrices in `Mat` and flip numpy-free — the first
-    ``CEIL_NUMPY_CARRIER`` decrement.
+    These three ops — :func:`mat_matmul`, :func:`mat_solve` and this one — are
+    what let a ``srmech.physics.qm.*`` module hold its working matrices in
+    `Mat` — the first ``CEIL_NUMPY_CARRIER`` decrement (the ratchet reached 0
+    and now pins the package-wide zero).
 
     Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
     Hopkins, 2013) §8.5 (Hermitian eigenproblem via unitary Jacobi rotations).
@@ -3326,7 +3345,7 @@ def elementwise_hypot(a, b):
     """Array Euclidean magnitude ``√(aᵢ² + bᵢ²)`` via the Class-N hypot cascade —
     SHAPE-POLYMORPHIC (rc129).
 
-    The numpy-free magnitude op the DSP modules' ``|z| = √(re² + im²)`` sites
+    The magnitude op the DSP modules' ``|z| = √(re² + im²)`` sites
     route through. Each element runs :func:`srmech.math.rational.hypot` (Class M
     sum-of-squares ∘ Class N∘K :func:`~srmech.math.rational.sqrt`; native
     ``srmech_rational_sqrt``-dispatched) — the math is the libm-free cascade.
@@ -3367,7 +3386,7 @@ def elementwise_sqrt(arr):
     """Array element-wise ``√arrᵢ`` via the Class-N rational sqrt cascade —
     SHAPE-POLYMORPHIC (rc129).
 
-    The numpy-free square-root op for non-negative real arrays — the companion
+    The square-root op for non-negative real arrays — the companion
     to :func:`elementwise_hypot`. Each element runs
     :func:`srmech.math.rational.sqrt` (Class-N∘K integer-``isqrt`` cascade;
     native ``srmech_rational_sqrt``-dispatched) — the math is the libm-free cascade.
@@ -3831,7 +3850,7 @@ def _quaternion_laplacian_blocks(
     gl: List[List[float]],
 ) -> List[List[float]]:
     """Assemble the ``4n×4n`` real-symmetric quaternion gain Laplacian as a
-    nested ``list[list[float]]`` (numpy-free).
+    nested ``list[list[float]]``.
 
     Per edge ``k = (u, v, w, g)`` (``g`` an already-unit quaternion): the
     ``(u, v)`` block accumulates ``−(w/2)·L(g)``, the ``(v, u)`` block
@@ -3914,9 +3933,7 @@ def quaternion_laplacian(
     ``gains=None`` (default) puts the identity gain ``e0`` on every edge — the
     undirected control ``½·(dense graph Laplacian) ⊗ I₄``. A supplied gain is
     normalised to ``Sp(1)`` via the Class-K+Class-C
-    :func:`srmech.physics.qm.quaternion.quaternion_norm` (never ``abs()``).
-
-    Numpy-free; **Class L** composing **Class-M** ``quaternion_left_mult`` atoms
+    :func:`srmech.physics.qm.quaternion.quaternion_norm` (never ``abs()``). **Class L** composing **Class-M** ``quaternion_left_mult`` atoms
     (native-dispatched to ``srmech_quaternion_left_mult``; ``conj`` is Class C).
     No new C symbol — a bare-C host assembles this matrix and eigendecomposes it
     (ABI stays 10). Attested SSoT (DERIVED, complex-unit-gain framing one
@@ -4044,7 +4061,7 @@ def _octonion_laplacian_blocks(
     gl: List[List[float]],
 ) -> List[List[float]]:
     """Assemble the ``8n×8n`` real-symmetric octonion gain Laplacian as a nested
-    ``list[list[float]]`` (numpy-free).
+    ``list[list[float]]``.
 
     Per edge ``k = (u, v, w, g)`` (``g`` an already-unit octonion): the
     ``(u, v)`` block accumulates ``−(w/2)·L(g)``, the ``(v, u)`` block
@@ -4138,9 +4155,7 @@ def octonion_laplacian(
     ``gains=None`` (default) puts the identity gain ``e0`` on every edge — the
     undirected control ``½·(dense graph Laplacian) ⊗ I₈``. A supplied gain is
     normalised via the Class-K+Class-C
-    :func:`srmech.physics.qm.octonion.octonion_norm` (never ``abs()``).
-
-    Numpy-free; **Class L** composing **Class-M**
+    :func:`srmech.physics.qm.octonion.octonion_norm` (never ``abs()``). **Class L** composing **Class-M**
     :func:`srmech.physics.qm.octonion.octonion_left_mult` atoms
     (native-dispatched to ``srmech_loop_left_op_f64``; ``conj`` is Class C). No
     new C symbol — a bare-C host assembles this matrix and eigendecomposes it
@@ -4430,7 +4445,7 @@ def klein4_gain_laplacian(
     Dispatches to the standalone-C ``srmech_graph_klein4_gain_laplacian`` (all
     four sectors in one call) when ``HAS_NATIVE``; else four
     :func:`signed_laplacian` builds on the χ-transformed weights (byte-identical
-    — integer sign × the same weights). numpy-free; no ``abs()``.
+    — integer sign × the same weights). No ``abs()``.
     """
     el, wl = _validate_edges_weights_py(n, edges, weights)
     gl = _normalize_gains_py(gains, len(el))
@@ -4472,7 +4487,7 @@ def klein4_relational_structure(
 
     Composes :func:`klein4_gain_laplacian` + :func:`symmetric_eigendecompose`
     (one eigensolve per sector) — a pure composition of the C-backed atoms, no
-    dedicated C symbol. numpy-free.
+    dedicated C symbol.
 
     Parameters
     ----------
@@ -4533,7 +4548,7 @@ def _to_fraction(c) -> Q:
 
 def _cycle_holonomy_py(n, edge_list, charges):
     """Pure-Python complete alternative for :func:`cycle_holonomy` — exact
-    :class:`~fractions.Fraction` arithmetic (the odd channel). Spanning forest
+    :class:`~srmech.math.q.Q` arithmetic (the odd channel). Spanning forest
     by union-find (first-encountered edge = tree edge), pot[i] = tree-path
     charge (root → i), holonomy(u,v,c) = c + pot[u] − pot[v] mod 1. Returns
     ``(holonomies, cycle_edges)`` — the SAME spanning-tree choice as the C peer
@@ -4645,7 +4660,7 @@ def cycle_holonomy(
     gains (Zaslavsky's switching theory). This computes them exactly: a
     **spanning forest** (union-find; first-encountered edge = tree edge) → the
     **fundamental cycle** for each co-tree edge → that cycle's **net charge**
-    (per-edge ``charges`` in TURNS, exact :class:`~fractions.Fraction`, reduced
+    (per-edge ``charges`` in TURNS, exact :class:`~srmech.math.q.Q`, reduced
     **mod 1**). It is **Class I** (mod-1 cyclic) ∘ **Class L** (graph): exact
     integer/rational arithmetic, **NO eigensolve**.
 
@@ -4692,7 +4707,7 @@ def cycle_holonomy(
     int64 range; else srmech's own exact-``Q`` cascade (the complete
     alternative — never a wrong answer, and it handles any denominator). The
     two paths use the SAME spanning-tree choice, so the fundamental-cycle basis
-    is identical. numpy-free; no ``abs()``.
+    is identical. No ``abs()``.
     """
     edge_list = [tuple(e) for e in edges]
     nn = _infer_n_from_edges(edge_list) if n is None else int(n)
@@ -5187,8 +5202,7 @@ def heat_trace(L, t):
     Native (rc108): dispatches to the composite C peer ``srmech_heat_trace``
     (ONE eigensolve — ``srmech_jacobi_eigvals`` real /
     ``srmech_hermitian_eigendecompose_ws`` Hermitian — then ``srmech_exp``
-    per term, summed ascending); pure Python is the complete alternative.
-    numpy-free; no ``abs()``.
+    per term, summed ascending); pure Python is the complete alternative. No ``abs()``.
 
     Raises:
         ValueError: non-square ``L``, an empty / non-finite ``t``.
@@ -5313,8 +5327,8 @@ def ground_state_flux_response(
     Native (rc108): the composite C peer
     ``srmech_ground_state_flux_response`` runs the same
     ``srmech_graph_magnetic_laplacian`` + ``srmech_hermitian_eigendecompose_ws``
-    kernels per flux; pure Python is the complete alternative. numpy-free;
-    no ``abs()``.
+    kernels per flux; pure Python is the complete alternative.
+    No ``abs()``.
 
     Raises:
         ValueError: ``n < 1``, a bad edge/weight/charge (the
@@ -5654,8 +5668,8 @@ def propagate(L, u0, z) -> "Vec":
     ``srmech_cos`` / ``srmech_sin`` per mode — the Q61 octant reduction is the
     2π fold in the fixed-point basis); pure Python is the complete
     alternative. The harvest is basis-invariant, so Python == C to the
-    eigensolve tolerance regardless of the eigenvector convention. numpy-free;
-    no ``abs()`` (Class-K magnitude / Class-C sign).
+    eigensolve tolerance regardless of the eigenvector convention.
+    No ``abs()`` (Class-K magnitude / Class-C sign).
 
     → extended by :func:`responsion` (rc208, F1186): ``propagate`` IS the
     time-domain member of the RESPONSION response-function family —
@@ -5716,7 +5730,7 @@ def eph_harvest(L, u0, z) -> dict:
         * ``harvest_re`` / ``harvest_im`` — the raw complex harvest components.
 
     Composes :func:`propagate` (c_dispatched) + the Born magnitude + rank — no
-    new C symbol. numpy-free; no ``abs()``.
+    new C symbol. No ``abs()``.
     """
     harvest = propagate(L, u0, z)
     n = harvest.shape[0]
@@ -5899,7 +5913,7 @@ def propagate_wound(L, u0, z) -> dict:
     ``srmech_winding_fold`` + the EXISTING ``srmech_sigma_effective`` /
     ``srmech_spinor_sign`` winding peers per mode); pure Python is the
     complete alternative (the same :func:`_eph_propagate_eig_py` +
-    :func:`_eph_seam_fold` cascade). numpy-free; no ``abs()`` (the winding
+    :func:`_eph_seam_fold` cascade). No ``abs()`` (the winding
     sign is the Class-K pin, retrograde is the Class-C negate — carried by
     the reused readouts).
 
@@ -6106,7 +6120,7 @@ def responsion(L, u0, z, *, kind: str = "propagator") -> "Vec":
     Native (rc208): the composite C peer ``srmech_responsion`` — kind 0
     delegates to ``srmech_eph_propagate``, kind 1 composes
     ``srmech_dense_solve_f64_ws`` via the block embedding — so a bare-C
-    host runs BOTH members. numpy-free; no ``abs()`` (the ``z − L``
+    host runs BOTH members. No ``abs()`` (the ``z − L``
     subtraction is Class-C signed arithmetic; the solve pivot is the
     composed kernel's Class-K sign branch).
     """
@@ -6475,8 +6489,7 @@ def propagate_sparse(
     coefficients + the vector recurrence all in C, caller-arena, no
     caps beyond the caller's ``max_degree``); pure Python is the complete
     alternative — same algorithm, same accumulation order, NUMERIC
-    (FPU-tol) within-tol parity (differential-tested), not byte-for-byte.
-    numpy-free; no ``abs()`` (Class-K sign branch / magnitude-squares).
+    (FPU-tol) within-tol parity (differential-tested), not byte-for-byte. No ``abs()`` (Class-K sign branch / magnitude-squares).
 
     Raises:
         ValueError: bad ``n`` / edge / weight (the
@@ -6675,7 +6688,7 @@ def spectral_spine(
     (:func:`signed_laplacian` + :func:`symmetric_eigendecompose` + top-k). NUMERIC
     (FPU-tol): the eigenvector basis is non-unique, so native == pure agrees
     WITHIN-TOL — the selected index set / order is stable for a non-degenerate
-    dominant eigenvalue, NOT byte-for-byte. numpy-free; no ``abs()``.
+    dominant eigenvalue, NOT byte-for-byte. No ``abs()``.
     """
     edge_list = [tuple(e) for e in edges]
     n = _infer_n_from_edges(edge_list)
@@ -6715,7 +6728,7 @@ def relational_structure(
     are the negative-Fiedler-sign nodes and ``right`` the non-negative (the
     :func:`normalized_cut_bisect` convention; a Class-K sign split, no ``abs()``).
     ``"coherence"`` is the second-smallest eigenvalue λ₂ (the algebraic
-    connectivity — small ⇒ a near-disconnected graph). numpy-free.
+    connectivity — small ⇒ a near-disconnected graph).
 
     Parameters
     ----------

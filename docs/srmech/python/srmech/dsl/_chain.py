@@ -25,6 +25,7 @@ introduced.
 from __future__ import annotations
 
 import functools
+import inspect as _inspect
 from typing import Any, Callable, Iterable, List, Optional, Tuple
 
 from ._catalog import cascade_op_kind, lookup_cascade_op
@@ -109,16 +110,68 @@ def _is_c_scalar(v: Any) -> bool:
     return type(v) in (int, float, str) and type(v) is not bool
 
 
-def _then_native_desc(op_name: str, kwargs: dict) -> Optional[dict]:
+def _op_accepts(op_fn: Any, key: str) -> bool:
+    """Does ``op_fn`` accept a keyword named ``key``?
+
+    ``True`` for any key when the signature has ``**kwargs``, and ``True`` when
+    the signature cannot be read at all — an unreadable signature is not
+    evidence of rejection, and guessing "no" there would defer valid chains.
+    """
+    try:
+        params = _inspect.signature(op_fn).parameters
+    except (TypeError, ValueError):
+        return True
+    for p in params.values():
+        if p.kind is _inspect.Parameter.VAR_KEYWORD:
+            return True
+    p = params.get(key)
+    return p is not None and p.kind in (_inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                                        _inspect.Parameter.KEYWORD_ONLY)
+
+
+def _then_native_desc(op_name: str, kwargs: dict,
+                      op_fn: Any = None) -> Optional[dict]:
     """Build the C build_chain_from_dict stage dict for a ``.then(op, **kwargs)``.
 
-    ``None`` if any kwarg is not a JSON scalar the C leaf-dispatch accepts (the
-    stage — and so the whole chain — then defers to the pure runner).
+    ``None`` if the stage is not C-nativizable — the stage, and so the whole
+    chain, then defers to the pure runner.
+
+    Two reasons to defer, and the second is `#T1146` (gh #1653):
+
+    1. A kwarg that is not a JSON scalar the C leaf-dispatch accepts.
+
+    2. ⚠️ A kwarg the OP DOES NOT ACCEPT. This built a C stage that silently
+       DROPPED the unknown key and computed an answer, while the pure path
+       raised ``TypeError`` from the callable's own signature. Measured at
+       rc444: 24 of 34 defect probes across 5 ops — ``chain().then(
+       'autocorrelation', bogus=1).run(...)`` RETURNED ``[14.0, ...]`` natively
+       and RAISED purely.
+
+       That is REJECTION parity, and it is the half a capability-only fix
+       leaves open while looking complete: co-equal projections must agree on
+       what they REFUSE, not only on what they compute. A projection that
+       accepts a declaration the other rejects does not have a capability gap —
+       it gives a WRONG ANSWER to a malformed program, which is worse, because
+       the malformed program looks like it worked.
+
+    Deferring (rather than raising here) is deliberate: it keeps Python's
+    OBSERVABLE behaviour identical — the pure path still raises the same
+    ``TypeError`` from the same place, at ``.run()``. Raising at ``.then()``
+    would fix parity by changing the shipped contract of the scripting
+    projection, which is not this issue's business.
+
+    ⚠️ ``op_fn`` defaults to ``None`` for callers that have not resolved the
+    callable; the key check is then SKIPPED rather than guessed. Every in-tree
+    caller passes it. A future caller that does not will silently lose the
+    check — so the parity test pins the behaviour through the public
+    ``.then()`` surface, not through this helper.
     """
     stage: dict = {"op": op_name}
     for kk, vv in kwargs.items():
         if not _is_c_scalar(vv):
             return None
+        if op_fn is not None and not _op_accepts(op_fn, kk):
+            return None          # `#T1146` — pure would raise; C must not run
         stage[kk] = vv
     return stage
 
@@ -246,7 +299,7 @@ class Chain:
             )
         op_fn = lookup_cascade_op(op_name)
         self._stages.append((op_name, op_fn, dict(kwargs)))
-        self._native_ir.append(_then_native_desc(op_name, kwargs))
+        self._native_ir.append(_then_native_desc(op_name, kwargs, op_fn))
         return self
 
     def loop(self, n_times: int, sub_chain: "Chain") -> "Chain":
