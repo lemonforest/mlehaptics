@@ -716,6 +716,25 @@ SCAN_ROOTS = {
     # unreachable from Python for as long as nobody compared them.
     "tests/test_c_chain_eligibility_rc447.py": (
         "docs/srmech/python", "docs/srmech/c"),
+    # rc450 (`#T1160`, gh #1653 item 5): the VALUE-parity gate reads
+    # `c/src/srmech_compose_run.c` to parse the kind strings the C writer
+    # actually EMITS, and pins them equal to the kinds
+    # `compose._reconstruct_value` reads. Deriving the C half from a fixture
+    # here would let the writer grow a kind the reader cannot reconstruct while
+    # the gate stayed green — a value crossing the wire and coming back as
+    # something else, which is the whole property. Reaching into c/ IS the
+    # point, exactly as for the eligibility gate above.
+    "tests/test_c_cascade_value_parity_rc450.py": (
+        "docs/srmech/python", "docs/srmech/c"),
+    # rc450 (`#T1160`): the BLOCKED-agreement gate reads two committed NDJSON
+    # artifacts under notes/ — the rc445 gate matrix and the gh #1653 gap
+    # ledger — and asserts the ratchet's BLOCKED table agrees with both. It has
+    # to read them from disk: the drift it exists to catch is precisely a table
+    # whose COMMENT claims to be synced from an artifact it was never compared
+    # against, and an in-tests copy of either artifact would reproduce that
+    # failure one level down.
+    "tests/test_blocked_row_agrees_with_gate_matrix_rc450.py": (
+        "docs/srmech/notes",),
     # rc440 (`#T1147`): the One-preimage CONTRACT gate governs every surface
     # that ENUMERATES the coupling preimage's key set, and the two that mattered
     # most are outside python/: the compiled-in `c/src/srmech_tool_registry.c`
