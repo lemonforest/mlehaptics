@@ -3797,7 +3797,7 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
                 'rather than a DFT bin.'},
     'srmech.dsl.run_cascade_chain': {"composes": ["srmech.cascade.compose.run_chain"], 'example': {'input': {'inputs': "{'a': 12, 'b': 18} — the chain's @input.* "
                                  'bindings',
-                       'op_name': "'cyclic_gcd' — any of the 17 executable "
+                       'op_name': "'cyclic_gcd' — any of the 18 executable "
                                   'descriptors'},
              'output': "run_cascade_chain('cyclic_gcd', {'a': 12, 'b': 18}) "
                        "= 6; run_cascade_chain('magnitude', x=-3.25) = 3.25; "
@@ -3835,7 +3835,7 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
                 'executable / 3 leaf), ``srmech.dsl.list_catalog_ops`` '
                 'carries per-descriptor ``status``, and this runs the '
                 'declared chain. Every shipped chain is proven BIT-identical '
-                'to its shipped op by the rc420 gate (91 proof cases '
+                'to its shipped op by the rc420 gate (98 proof cases '
                 "including each descriptor's documented boundary cases), so "
                 'this is not a second implementation to drift — it is the '
                 'same cascade, declared. A parameter-dispatched op with '
