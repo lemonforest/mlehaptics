@@ -982,12 +982,38 @@ def _resolve_args(
 _NATIVE_MISS = object()   # sentinel: C did NOT run (distinct from a None result)
 
 # The op names the C dispatch table covers — ALL Class N (srmech.math.rational).
+#: Ops the C chain runner's dispatch table handles. MUST track
+#: ``cr_dispatch`` / ``cr_dispatch_real`` in ``c/src/srmech_compose_run.c``;
+#: ``tests/test_c_chain_eligibility_rc447.py`` asserts the two agree, so a C
+#: arm added without updating this set fails there rather than going unreachable.
+#:
+#: ⚠️ THIS SET WAS CLASS-N ONLY, AND THE CLASS FILTER BESIDE IT MADE THE WHOLE C
+#: CHAIN RUNNER UNREACHABLE FROM PYTHON. ``_chain_c_eligible`` required
+#: ``step.class_id == "N"``, so every Class-I / C / K / L chain returned
+#: ``_NATIVE_MISS`` at the top of ``_run_chain_native`` — BEFORE the library was
+#: ever consulted. Measured at rc447: the predicate answered "C-runnable" for
+#: **0** of the 18 executable descriptors while **9** of them demonstrably run
+#: under ``srmech_chain_run``; it was wrong on all nine. The C work was real and
+#: correct and the package could not reach it, which no parity gate could see —
+#: those call ``srmech_chain_run`` directly through ctypes and so bypass exactly
+#: the predicate that was blocking it.
 _RUN_C_OPS = frozenset({
+    # Class N — the original set
     "pi_cascade_digits",
     "exp_series_truncate", "sin_series_truncate", "cos_series_truncate",
     "log1p_series_truncate", "atan_series_truncate",
     "rational_pow_uint", "rational_add", "rational_mul", "rational_div",
+    # Class I — cyclic (rc447), bigint-carried
+    "gcd", "mod_add", "mod_mul", "mod_mul_wide", "mod_pow", "mod_inv",
+    # Class C / K / L — the real-sequence and pin-slot arms (rc447)
+    "chiral_flip", "autocorrelation", "pin_slot_at_zero", "reorient",
+    "orientation_compose",
 })
+
+#: Fold-body ops the C runner dispatches (``cr_fold_body``). Deliberately its
+#: own set: the fold body is a PRIVATE single-entry table in C, not the shared
+#: op table, and conflating them would claim a generality C does not have.
+_RUN_C_FOLD_OPS = frozenset({"orientation_compose"})
 
 _I64_MAX = (1 << 63) - 1
 _I64_MIN = -(1 << 63)
@@ -1038,7 +1064,15 @@ def _run_ints_fit_i64(
                 _walk(x)
 
     for step in spec.steps:
-        _walk(step.args)
+        if isinstance(step, StepSpec):
+            _walk(step.args)
+        else:
+            # A FOLD step has no `args` — its literals live in `fold_init`
+            # (`over` is a reference, resolved from the ctx, which this walk
+            # covers separately). Guarding on the TYPE rather than hasattr so a
+            # future step form fails loudly here instead of silently skipping
+            # its int-width check.
+            _walk(getattr(step, "fold_init", None))
     return ok
 
 
@@ -1053,10 +1087,23 @@ def _chain_c_eligible(spec: ChainSpec) -> bool:
         return False
     for step in spec.steps:
         if not isinstance(step, StepSpec):
-            return False
+            # A v2 step (map / fold). C implements the FOLD form since rc446,
+            # for the single body op in cr_fold_body; MAP is still unimplemented
+            # (it needs the explicit frame stack JPL Rule 1 forces).
+            fold_op = getattr(step, "fold_op", None)
+            if fold_op is None:
+                return False
+            if str(fold_op).rpartition(".")[2] not in _RUN_C_FOLD_OPS:
+                return False
+            if getattr(step, "fold_args", None) is not None:
+                return False       # the keyword-named fold is a different arm
+            continue
         if step.on_error not in (None, "raise"):
             return False
-        if step.class_id != "N" or step.op not in _RUN_C_OPS:
+        # The CLASS is no longer part of the test — C dispatches on the op NAME
+        # (by suffix), and gating on class_id is what made every Class-I/C/K/L
+        # chain unreachable. The op set is the honest predicate.
+        if step.op.rpartition(".")[2] not in _RUN_C_OPS:
             return False
     return True
 
@@ -1064,11 +1111,26 @@ def _chain_c_eligible(spec: ChainSpec) -> bool:
 def _spec_to_chain_dict(spec: ChainSpec) -> Dict[str, Any]:
     """Serialise a ChainSpec back to the chain-dict shape srmech_chain_run reads
     (name / summary / returns / on_error / steps[{class, op, args}])."""
+    steps: list = []
+    for s in spec.steps:
+        if isinstance(s, StepSpec):
+            steps.append({"class": s.class_id, "op": s.op, "args": s.args})
+            continue
+        # A FOLD step (rc447). ``_chain_c_eligible`` admits these since C
+        # implements the form, so the marshaller must be able to spell one —
+        # it could not, and the predicate widening surfaced that immediately
+        # (AttributeError: 'FoldStepSpec' object has no attribute 'args').
+        # Key names mirror the ADR-0008 §2 fold step the C classifier reads.
+        steps.append({
+            "fold_class": getattr(s, "fold_class", None) or getattr(s, "class_id", "C"),
+            "fold_op": s.fold_op,
+            "fold_init": s.fold_init,
+            "over": s.over,
+        })
     return {
         "name": spec.name, "summary": spec.summary, "returns": spec.returns,
         "on_error": spec.on_error,
-        "steps": [{"class": s.class_id, "op": s.op, "args": s.args}
-                  for s in spec.steps],
+        "steps": steps,
     }
 
 
