@@ -149,10 +149,27 @@ beyond a single-file read.
   octonion / Cayley–Dickson + "the One" `S(σ,θ)` arc, the
   C-transpile of the transcendental cascade, the Hamming/GF(2)
   Rosetta pair, the Schur-complement / Dirichlet-to-Neumann Class-L
-  op, `sedenion_register`, and the **numpy→optional capstone**
+  op **(PYTHON PROJECTION ONLY — see ⚠️ below)**,
+  `sedenion_register`, and the **numpy→optional capstone**
   (`v0.7.0rc47`): numpy left `install_requires`. Every continuous-math
   op became a cascade of the 14 primitives; `libsrmech` carries no
   `libm`.
+
+  > ⚠️ **`schur_complement` / `dirichlet_to_neumann` have NO C peer, and
+  > this list read as though they did** (corrected 2026-08-17). Measured:
+  > **zero** `srmech_*schur*` / `*dirichlet*` / `*neumann*` symbols in
+  > `c/include/srmech.h` or any `c/src/*.c`; both ship Python-only at
+  > `srmech/math/laplacian.py:1389` and `:1514`. The op DID ship — the false
+  > half was the implied projection, because this same file commits below to
+  > *"full C parity for every primitive class, no exceptions"*. `schur_complement`
+  > is one of the **six ABSENT ops** in the [#1653](https://github.com/lemonforest/mlehaptics/issues/1653)
+  > symbol-gap census (`bind`, `compensated_sum`, `dead_band`, `f64_add`,
+  > `scale_round_half_even`, `schur_complement`) — no C at *any* granularity.
+  > **Why nothing caught it:** this file is explicitly NOT hygiene-gated and
+  > **no ratchet reads it**, so orientation prose asserting a capability the
+  > library lacks has no mechanical detector anywhere in the tree — and this
+  > file is what a session reads *first*. Found by the #1653 pre-rcN research,
+  > not by any gate.
 - **v0.7.5 (long rc run rc1 → rc134, TestPyPI; current dev head)** —
   the **carrier-removal arc (#564)**. numpy went from *optional* to
   *gone*: a numpy-free **`Mat`** (2-D, `srmech/amsc/mat.py`) + **`Vec`**
