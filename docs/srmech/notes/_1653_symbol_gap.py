@@ -237,9 +237,16 @@ def main():
     # `disposition` is measured rather than declared and cannot drift.
     csrc = open(os.path.join(SRM, "c", "src", "srmech_compose_run.c"),
                 encoding="utf-8").read()
-    dispatched = set(re.findall(r'memcmp\(op,\s*"([a-z0-9_]+)"', csrc))
+    # rc447 unified every arm onto `cr_op_is(op, opl, "name", N)`. The two
+    # older memcmp spellings are still read because the file documents both —
+    # and because a scanner that knows only the CURRENT form silently
+    # under-reports the moment an arm is written the old way. This one did:
+    # converting the arms dropped its CLOSED tally 11 -> 2 while nothing about
+    # the C table had changed. Third scanner this rc to go stale on the same
+    # edit (the eligibility gate and the gate matrix were the other two).
+    dispatched = set(re.findall(r'cr_op_is\(op,\s*opl,\s*"([a-z0-9_]+)"', csrc))
+    dispatched |= set(re.findall(r'memcmp\(op,\s*"([a-z0-9_]+)"', csrc))
     dispatched |= set(re.findall(r'memcmp\(op \+ \([^)]*\),\s*"([a-z0-9_]+)"', csrc))
-    dispatched |= set(re.findall(r'memcmp\(op \+ \(opl - \d+u\), "([a-z0-9_]+)"', csrc))
     # the fold body table is a separate dispatch surface
     dispatched |= {"orientation_compose"} if "orientation_compose" in csrc else set()
 
