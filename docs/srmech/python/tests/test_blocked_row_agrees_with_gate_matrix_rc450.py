@@ -351,8 +351,15 @@ def test_the_exempt_pin_would_notice_a_fourth_name():
 # ── 5. visibility ────────────────────────────────────────────────────────────
 
 def test_reports_the_agreement_state(capsys):
-    require_native("the BLOCKED/gate-matrix agreement report reads the same "
-                   "artifacts the C-parity ratchet measures")
+    # ⚠️ ONE LINE, ONE LITERAL — deliberately, and it must stay that way. The
+    # `fallback pure-by-design skip audit` fan-in builds its DECLARED set by
+    # scanning source for require_native(...) and its OBSERVED set from the
+    # runtime skip reasons, then compares them. An implicitly-concatenated
+    # multi-line argument makes those two disagree: the scanner reads only the
+    # first fragment while the skip carries the joined string, so ONE gate
+    # reports as both "DECLARED but never fired" and "fired with no call site".
+    # That is exactly what turned the audit red at rc450's first CI round.
+    require_native("the BLOCKED/gate-matrix agreement report reads the artifacts the C-parity ratchet measures")
     matrix = _matrix_rows()
     ledger = _ledger_rows()
     with capsys.disabled():

@@ -584,6 +584,13 @@ def test_descriptor_interior_literal_mutation_moves_the_C_output(
     document the C run loop actually reads. THIS is the witness shape rc451+
     must extend to every newly-unblocked chain.
     """
+    # ⚠️ THE GATE MUST PRECEDE :func:`_c_run`, whose own assert says "require_native
+    # passed but the chain-run symbols are absent". Without this call that message
+    # is FALSE — require_native never ran — and on the deliberately native-absent
+    # `fallback (pure-Python, no native)` cell the test FAILS where it should record
+    # a pure-by-design SKIP. That is what turned shard 1/6 red at rc450's first CI
+    # round: three tests reached _c_run ungated while their six siblings gated.
+    require_native("srmech_chain_run value parity (descriptor-interior mutation witness)")
     _variant, _spec, entry = cascade_chain_specs(name)[0]
     base_chain = _chain_only(entry)
 
@@ -619,6 +626,10 @@ def test_ctx_wire_control_is_labelled_as_what_it_is():
     ctx wire and ``srmech_gcd(12, 19)`` returns 1 for its own reasons. The
     assertion below is deliberately about REF RESOLUTION and says so.
     """
+    # Same reason as the mutation witness above: this reaches _c_run, so the gate
+    # has to run first or _c_run's assert message is a falsehood and the pure cell
+    # reds instead of skipping.
+    require_native("srmech_chain_run value parity (ctx-wire ref-resolution control)")
     _v, _s, entry = cascade_chain_specs("cyclic_gcd")[0]
     ch = _chain_only(entry)
     assert all(isinstance(a, str) and a.startswith("@")
