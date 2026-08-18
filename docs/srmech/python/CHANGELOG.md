@@ -5,6 +5,82 @@ All notable changes to this package will be documented here. The format follows 
 **Reference notation.** `#T###` is a LOCAL task-tracker item (our session task list); `F####` is an RBS-LM finding; bare `#NNNN` is reserved for a REAL GitHub issue/PR (write `gh #1293` when you want it unambiguous). The `T` prefix exists because GitHub autolinks `#` followed immediately by digits, so a bare task ID silently mints a cross-link to whatever issue happens to hold that number — several of ours collide with unrelated merged issues. Never write a task ID as bare `#NNNN`. **Two clauses the root `CLAUDE.md` carries and this paragraph did not** (reconciled 2026-07-29, `#T994`): (1) a ref inside a **code span** — `` `#938` `` — does **not** autolink, so it is the legitimate way to *quote* a bad ref while documenting it, and any mechanical check must exempt code spans and bound the digit range or it will flag `UAX #29` / `MS #20` / `Spike #24`; (2) the rule binds **four** surfaces — file content (including docstrings and `ToolEntry` prose, which are emitted into generated files and ship in the wheel), commit messages, the PR body, and **the PR title, which becomes the merge-commit subject**. Existence proves nothing; **topicality decides** — read the surrounding prose, never batch-convert.
 
 
+## [0.9.0rc450] - `#T1160`: the ratchet that never decoded the answer, and three instruments that could not return otherwise
+
+### rc450 ships ZERO C capability, on purpose, and the reason is one sentence
+
+**The instrument that makes the next ceiling decrement trustworthy has to predate the decrement it judges.** So this release moves neither `==` ceiling — `CEIL_C_REJECTED_CHAINS` stays 9, `CEIL_SURFACE_A_UNSUPPORTED_FORMS` stays 2 — and closes gh #1653 **item 5** by execution instead. Judged by ceiling movement alone that reads as a stall; the metric is stated up front so it cannot be re-litigated later.
+
+### What was actually wrong: "accepted" meant `rc == 0`, and nothing had ever read the answer
+
+The rc446 C-parity ratchet drove `srmech_chain_run`, read `out_len` at the call site, and **never decoded `out.raw`**. Nine chains were called *accepted* on that basis. A chain that RAN in C and returned a **different value** than the Python projection was indistinguishable from one that agreed — and every future decrement of the ceiling would have been unwitnessed the same way.
+
+`tests/test_c_cascade_value_parity_rc450.py` closes it. It decodes the wire with the **shipped** reader (`_srmech_json.loads` -> `srmech.cascade.compose._reconstruct_value`), compares bit-exactly against the pure Python projection, and does it over the **whole live population**: 18 executable descriptors, 20 chain variants, **98 declared proof cases**. Measured at rc450:
+
+| verdict | rows |
+|---|---|
+| `BYTE_IDENTICAL` | 39 |
+| `C_REJECTED_SRMECH_ERR_NOT_IMPL` | 55 |
+| `NONFINITE_CANNOT_CROSS_WIRE` | 4 |
+| `DIVERGENT` | **0** |
+
+So the nine C-accepted chains move from *`rc == 0`-green* to *byte-identical-**proven***. That is the epistemic ceiling this arc actually needed moved.
+
+**One half of item 5 is discharged by CONSTRUCTION, not by execution, and the ledger says so in those words.** Item 5's "shape 1" (bytes / `Mat` carriers have no JSON form) has no live witness at rc450, because every chain producing those carriers is C-rejected first. A `CARRIER_NOT_ON_WIRE` verdict could therefore never fire, so it was **removed from the verdict set** rather than shipped as a term pinned at zero by definition — which is exactly the defect this release exists to close.
+
+### The anti-gaming witness the plan asked for was the wrong witness
+
+The specified mutation was `cyclic_gcd`'s `b: 18 -> 19`, on the argument that *"a coarse compiled symbol cannot track a descriptor-interior literal it never parses"*. That premise is false for that mutation:
+
+* `cyclic_gcd`'s only step is `{"op": "gcd", "args": {"a": "@input.a", "b": "@input.b"}}` — **every argument is a `@ref`; there is no literal to mutate**;
+* `b = 18` lives in `proof_cases.inputs`, which `_chain_only` **strips** before C sees the document — it travels the separate ctx wire;
+* so an implementation that ignored `steps[]` entirely and called any gcd symbol on the ctx returns 1 for `b = 19` and passes perfectly.
+
+It proves `@input.*` **ref resolution**, which the rc446 ratchet already proved, while wearing a stronger name. It is kept, **relabelled as the ctx-wire control it is**. The real witnesses mutate a literal that lives inside the chain document and survives `_chain_only`, both measured:
+
+| chain | mutation | C wire |
+|---|---|---|
+| `magnitude` | `steps[1].args.orientation` `1 -> -1` | `{"k":"f","v":3.5}` -> `{"k":"f","v":-3.5}` |
+| `net_chirality` | `steps[0].fold_init` `1 -> -1` | `{"k":"i","v":"1"}` -> `{"k":"i","v":"-1"}` |
+
+Baseline-ran **and** mutant-ran are both asserted, so a decline cannot satisfy the witness vacuously. **This is the witness SHAPE rc451+ must extend to every newly-unblocked chain.**
+
+### Three instruments that could not return otherwise
+
+1. **The `BLOCKED` table had drifted from the artifact it claims to be synced from.** Measured by parsing both: three gate sets disagreed (`best_rational_signed`, `octonion_dft`, `quaternion_dft`) and six `new_type` flags contradicted the ledger row each cited. Nothing could report it — the existing cross-artifact test resolves each `ledger_row` id and asserts only that it **exists**. `tests/test_blocked_row_agrees_with_gate_matrix_rc450.py` now asserts the agreement, **bidirectionally**, with the population reconciled against `CEIL_C_REJECTED_CHAINS` so an empty parse cannot pass vacuously.
+
+   `new_type` is deliberately **NOT** synced to the cited row: the two fields have different subjects (per-CHAIN with 1–4 gates, versus per-GAP). Syncing would have written `new_type=False` onto `best_rational_signed` — the one chain whose closure definitionally introduces a new wire kind — and disarmed the same-change new-type rule at exactly the chain rc451 ships. Where the flags differ the row must now carry a written `new_type_reason`, so a contradiction is documented but never silent.
+
+2. **The ripple runner was blind to the entire arc.** Predicate stated: of 47 test files whose source touches the chain-run surface, **27 were unlisted** — including every gate gh #1653 items 3/4/5 move, and all three gates rc449 itself added. 24 targets added to `tools/ripple_gates.txt`; eight frozen into `FROZEN_KNOWN_GATES` so a future manifest trim cannot drop the family. Measured cost: ~230 s. Kept anyway — a fast runner that omits the surface under change is fast about nothing.
+
+3. **`notes/_1653_gap_ledger.py` would have DELETED 19 filed rows.** Its `ROWS` list held 32 against 51 rows on disk: rows had been appended to the `.ndjson` by hand and never passed through the generator's own asserts (13 of them carry values its vocabulary rejects). The prescribed regeneration command would have silently dropped them, and no gate would have noticed — every `BLOCKED`-cited id survives the deletion. All 19 are now **ported verbatim**; the two fields that were empty are marked `"unstated"` under a **down-only ceiling** rather than guessed, because inventing an attribution in a provenance ledger is fabrication. The summary writer now **re-reads what it wrote** and asserts against the bytes on disk: the shipped file said `{"rows": 39}` beside 51 rows.
+
+### Both new gates FAIL, never skip, when the library is absent
+
+They call `tests/_native_gate.require_native` (the tree's own rc351 / `#T843` contract). The rc446/447 family uses a bare `pytest.skip`, which means an absent or broken C build reports the whole cascade-parity family **green with nothing executed** — and rc450 adds those gates to the ripple manifest, so the runner would have inherited that vacuous green. The retrofit is **filed** (`native_parity_gates_use_bare_skip`), not done, because it is a behaviour change to gates this release already edits for other reasons.
+
+### Red proofs, executed and recorded
+
+`notes/_1653_rc450_red_proofs.py` -> `_1653_rc450_red_proofs.ndjson`. All five `RED_AS_EXPECTED`:
+
+| proof | what it drives into the red |
+|---|---|
+| P1 | the agreement gate against the **pre-sync rc449 table** — reports exactly the 3 gate-set drifts and 6 `new_type` contradictions two independent parses found |
+| P2 | the step-mutation **exempt-set pin** against a source copy carrying a fourth name (extracted by **AST** — it is a local inside a test function, so an attribute read would pin the empty set) |
+| P3 | the manifest **FROZEN floor** against a copy with one newly-frozen entry deleted |
+| P4 | the value comparator with `_bits` swapped for a **collapsing** encoder — every red witness stops being red, proving they are load-bearing |
+| P5 | the planted mutations **neutralised** — the witness must fail, proving it asserts MOVEMENT and not merely that two runs happened |
+
+### Also in this release
+
+* Falsehoods **fixed inline** in files edited for a scoped reason: `python/README.md` (the step-form census, now given for BOTH walks with the predicate named — flat 62/9/1, recursive 115/14/5 — and the C-coverage paragraph, which said a 10-op table and 0 of 18 chains against a live 20-op table and 9 of 18); `tests/RIPPLE_GATES.md` (`~55 files` -> 67 files / 74 lines; `~10k-test suite` -> ~14.5k, which `ripple_check.py` itself has said all along); the ratchet's own docstring, `GATE_OP_TABLE` comment and ceiling narrative, each of which was two drains stale.
+* Falsehoods **filed, not fixed**, to the item-11 bucket (`#T1159`) — nine rows, each with `file:line`, the claimed text, the measured live value and the predicate. Includes the most on-topic one: `c/src/srmech_compose_run.c:19` documents the value-descriptor wire as five kinds omitting `"f"`, and the next sentence still says any float returns non-OK — both stale since `CR_DBL` shipped at rc447, in the canonical description of the very wire this release's new gate decodes.
+* `notes/_1653_rc450_measure.py` — the generating code for every figure this entry quotes. Its own first draft mis-parsed `CR_OP_REG` and reported **1** op; it was caught because 1 contradicts the `[20]` printed one line above, and it now carries a declared-vs-parsed self-check.
+
+### ABI
+
+**Stays 19.** Zero C source changes: no wire format moved, no status contract changed, no symbol added or removed, no callback typedef. The comparator consumes the shipped rc449 wire through the shipped `_reconstruct_value` unchanged, so there is no reader/writer skew to guard. The gated ABI prose in `docs/srmech/CLAUDE.md` and `c/README.md` is untouched.
+
 ## [0.9.0rc449] - `#T1158`: C refuses what it should, on the host where Python does not exist
 
 ### The claim is NOT "the projections now agree" — rc448 already had that

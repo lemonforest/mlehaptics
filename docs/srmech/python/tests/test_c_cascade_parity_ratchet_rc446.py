@@ -2,8 +2,17 @@
 
 srmech is a MULTI-IMPLEMENTATION codebase (ADR-0009): the scripting-coherency
 projection (``python/srmech``) and the compiled-coherency projection (``c/src``)
-are CO-EQUAL. The config-driven cascade surface violates that today: of the 18
-executable ``[cascade]`` descriptors, the C run loop accepts **0**.
+are CO-EQUAL. The config-driven cascade surface violates that: of the 18
+executable ``[cascade]`` descriptors, the C run loop accepted **0** when this
+file landed at rc445, and accepts **9** as of rc450 — measured by this file's
+own ``_measure()``, and equal to :data:`CEIL_C_REJECTED_CHAINS` three screens
+down.
+
+*(This paragraph said "accepts **0**" in undated present tense through rc449,
+while the same file's ceiling said 9. Corrected at rc450 (`#T1160`) under the
+scoped-edit license, since the BLOCKED table below is being synced in the same
+change. A present-tense count in a docstring is a live claim, and nothing in
+this tree reads a docstring — so it went two drains stale with no detector.)*
 
 This file exists so that gap can never again be invisible or silently deferred.
 It lands BEFORE the fix on purpose — `#T1141`'s own finding is that the causal
@@ -63,7 +72,18 @@ from srmech.dsl import _catalog as _cat
 CEIL_C_REJECTED_CHAINS = 9            # of 18 executable. Target 0.
 #   The rc445 baseline was 18, verified against a PRISTINE origin/main .so with
 #   THIS harness — so the drain is attributable to the code, not to the probe.
-#   The 6 Class-I cyclic chains closed by the cr_dispatch arm land it at 12.
+#   The drain, in full: 18 (rc445) -> 12 when the cr_dispatch arm closed the 6
+#   Class-I cyclic chains -> 11 at rc446 (the fold FORM, for one body op) -> 9
+#   at rc447 (CR_DBL and @step[N].output[K] element indexing, which between them
+#   released `magnitude` and `chiral_dual`).
+#
+#   ⚠️ This narrative stopped at "12 -> 11" through rc449 and so explained a
+#   constant TWO decrements behind the literal it sits above. Extended at rc450
+#   (`#T1160`). rc450 itself moves it by ZERO, deliberately: it ships no C
+#   capability, on the reasoning that the instrument which makes the next
+#   decrement trustworthy has to predate the decrement it judges. That
+#   instrument is tests/test_c_cascade_value_parity_rc450.py — until it landed,
+#   "accepted" meant rc == 0 and nothing had ever decoded the returned VALUE.
 CEIL_SURFACE_A_UNSUPPORTED_FORMS = 2   # map + fold. plain executes. Target 0.
 #
 # ⚠️ ``fold`` STAYS COUNTED UNSUPPORTED even though ``net_chirality`` (a real
@@ -79,6 +99,13 @@ CEIL_SURFACE_A_UNSUPPORTED_FORMS = 2   # map + fold. plain executes. Target 0.
 # looks-done-isn't move: the form probe would go green while every fold body
 # except one was unreachable. The chain count (CEIL_C_REJECTED_CHAINS, 12 -> 11)
 # is where rc446's real progress is recorded.
+#
+# ⚠️ rc450 (`#T1160`) note for the README, which said the opposite twice. This
+# ceiling is the reason python/README.md must NOT be written as "C executes 2 of
+# 3 step forms": one working fold chain is not the form. The README now states
+# both facts together — plain runs generally, fold runs for exactly one body op,
+# map does not run — so the prose and this literal cannot be read as a
+# contradiction by anyone who meets only one of them.
 
 SURFACE_A_STEP_FORMS = ("plain", "map", "fold")
 
@@ -89,7 +116,11 @@ SURFACE_A_STEP_FORMS = ("plain", "map", "fold")
 # resolver grew — a citation that drifts is worse than none, because it reads as
 # precise. Each gate names the FUNCTION instead, which survives an edit.
 GATE_OP_TABLE = "op_table"          # cr_dispatch / cr_dispatch_real -> NOT_IMPL.
-#                                     Still the widest gate: 10 of 18 chains.
+#                                     Still the widest gate: it appears in ALL
+#                                     NINE BLOCKED rows, i.e. 9 of 18 chains.
+#                                     (Read "10 of 18" until rc450; the 10 was
+#                                     an rc446-era figure that the rc447
+#                                     closures moved and nothing re-measured.)
 GATE_CARRIER = "carrier_width"      # cr_value_t kinds. NARROWED at rc447 —
 #                                     CR_DBL + CR_LIST now ship, so this is down
 #                                     to byte-buffer, dense-matrix and MAPPING
@@ -121,6 +152,32 @@ VALID_DISPOSITIONS = frozenset({"CLOSED_IN_THIS_RC", "FILED_AS_NEW_ITEM",
 #: Every executable chain the C run loop cannot run, with its gate set.
 #: ZERO ROWS MAY BE SILENT (ADR-0009 §5 forbids an unfiled decline, and this
 #: issue exists *because* one went unfiled). Delete a row only when C runs it.
+#
+# ⚠️ SYNCED AT rc450 (`#T1160`), AND NOW GATED — read this before editing a row.
+#
+# The comment below has said "Gates are synced from
+# notes/_1653_gate_matrix_rc445.ndjson" since rc445. It was not true. Measured
+# at rc449 head by parsing both artifacts, THREE of the nine gate sets
+# disagreed with the matrix they claimed to be synced from:
+#   best_rational_signed   here [op_table, ref_grammar]   matrix [op_table]
+#   octonion_dft           here 3 gates                   matrix 4 (+carrier_width)
+#   quaternion_dft         here 3 gates                   matrix 4 (+carrier_width)
+# Nothing could report it: test_every_blocked_row_is_ACTUALLY_FILED checks that
+# each ``ledger_row`` id EXISTS and never that any field AGREES. So the sync was
+# a claim in a comment, which is the shape this whole arc exists to remove.
+# tests/test_blocked_row_agrees_with_gate_matrix_rc450.py now asserts the
+# agreement in both directions, so the sentence below is checkable.
+#
+# ⚠️ ``new_type`` IS NOT SYNCED TO THE CITED LEDGER ROW, DELIBERATELY. The two
+# fields have DIFFERENT SUBJECTS. A BLOCKED row is per-CHAIN and carries 1–4
+# gates while citing exactly ONE ledger row; a ledger row is per-GAP. Setting
+# the chain flag equal to one arbitrarily-chosen gap's flag would have written
+# ``new_type=False`` onto ``best_rational_signed`` — the one chain whose closure
+# definitionally introduces a new wire kind — and thereby disarmed the standing
+# "a new TYPE closes its projection gap in the SAME change" rule at exactly the
+# chain the next rc ships. Where the chain flag and the cited row's flag differ,
+# the row MUST carry ``new_type_reason`` saying why; the rc450 gate enforces
+# that, so a contradiction is expressible and documented but never silent.
 BLOCKED = {
     # Each row: the measured gates, ONE ADR-0009 disposition, whether closing it
     # is a NEW TYPE (which must close its projection gap in the SAME change), and
@@ -128,32 +185,48 @@ BLOCKED = {
     # notes/_1653_gate_matrix_rc445.ndjson, which cross-checks itself against
     # execution and against this file's ceiling.
     "autocorrelation":          {"gates": [GATE_OP_TABLE, GATE_REF_GRAMMAR, GATE_STEP_FORM],
-                                "disposition": "FILED_AS_NEW_ITEM", "new_type": False,
-                                "ledger_row": "step_form_map"},
-    "best_rational_signed":     {"gates": [GATE_OP_TABLE, GATE_REF_GRAMMAR],
                                 "disposition": "FILED_AS_NEW_ITEM", "new_type": True,
-                                "ledger_row": "two_divergent_value_kind_vocabularies"},
+                                "ledger_row": "step_form_map", "new_type_reason": ""},
+    "best_rational_signed":     {"gates": [GATE_OP_TABLE],
+                                "disposition": "FILED_AS_NEW_ITEM", "new_type": True,
+                                "ledger_row": "wire_tuple_kind_absent",
+                                "new_type_reason": ""},
     "encode_loe_content":       {"gates": [GATE_CARRIER, GATE_OP_TABLE],
                                 "disposition": "FILED_AS_NEW_ITEM", "new_type": True,
-                                "ledger_row": "carrier_bytes"},
+                                "ledger_row": "carrier_bytes", "new_type_reason": ""},
     "klein4_from_one":          {"gates": [GATE_OP_TABLE, GATE_REF_GRAMMAR, GATE_STEP_FORM],
-                                "disposition": "FILED_AS_NEW_ITEM", "new_type": False,
-                                "ledger_row": "step_form_map"},
-    "kuramoto_step":            {"gates": [GATE_OP_TABLE, GATE_REF_GRAMMAR, GATE_STEP_FORM],
-                                "disposition": "FILED_AS_NEW_ITEM", "new_type": False,
-                                "ledger_row": "step_form_map"},
-    "octonion_dft":             {"gates": [GATE_OP_TABLE, GATE_REF_GRAMMAR, GATE_STEP_FORM],
                                 "disposition": "FILED_AS_NEW_ITEM", "new_type": True,
-                                "ledger_row": "chain_run_list_is_flat_only"},
+                                "ledger_row": "step_form_map", "new_type_reason": ""},
+    "kuramoto_step":            {"gates": [GATE_OP_TABLE, GATE_REF_GRAMMAR, GATE_STEP_FORM],
+                                "disposition": "FILED_AS_NEW_ITEM", "new_type": True,
+                                "ledger_row": "step_form_map", "new_type_reason": ""},
+    "octonion_dft":             {"gates": [GATE_CARRIER, GATE_OP_TABLE, GATE_REF_GRAMMAR,
+                                           GATE_STEP_FORM],
+                                "disposition": "FILED_AS_NEW_ITEM", "new_type": True,
+                                "ledger_row": "chain_run_list_is_flat_only",
+                                "new_type_reason":
+                                    "The cited row is new_type=false because the `l` kind "
+                                    "ALREADY EXISTS and only NESTING is missing — a true "
+                                    "statement about that GAP. The CHAIN is new_type=True "
+                                    "anyway: octonion_dft returns list[list[float]] and "
+                                    "closing it requires the as_oct8 carrier, which the "
+                                    "gh #1653 symbol census classes as a new type. Chain "
+                                    "flag and gap flag differ because their subjects do."},
     "parallel_sector_dispatch": {"gates": [GATE_CARRIER, GATE_OP_TABLE, GATE_REF_GRAMMAR],
                                 "disposition": "FILED_AS_NEW_ITEM", "new_type": True,
-                                "ledger_row": "carrier_matrix"},
-    "quaternion_dft":           {"gates": [GATE_OP_TABLE, GATE_REF_GRAMMAR, GATE_STEP_FORM],
+                                "ledger_row": "carrier_mapping", "new_type_reason": ""},
+    "quaternion_dft":           {"gates": [GATE_CARRIER, GATE_OP_TABLE, GATE_REF_GRAMMAR,
+                                           GATE_STEP_FORM],
                                 "disposition": "FILED_AS_NEW_ITEM", "new_type": True,
-                                "ledger_row": "chain_run_list_is_flat_only"},
+                                "ledger_row": "chain_run_list_is_flat_only",
+                                "new_type_reason":
+                                    "As octonion_dft: the cited row is a true statement "
+                                    "about a GAP (nesting, not the `l` kind), while the "
+                                    "CHAIN is new_type=True because it returns "
+                                    "list[list[float]] and needs the as_quat4 carrier."},
     "schur_complement":         {"gates": [GATE_CARRIER, GATE_OP_TABLE],
                                 "disposition": "FILED_AS_NEW_ITEM", "new_type": True,
-                                "ledger_row": "carrier_matrix"},
+                                "ledger_row": "carrier_matrix", "new_type_reason": ""},
 }
 
 _STATUS = {0: "SRMECH_OK", 2: "SRMECH_ERR_BAD_INPUT", 5: "SRMECH_ERR_NOT_IMPL"}
@@ -356,12 +429,19 @@ def test_every_blocked_row_carries_a_REAL_disposition_and_a_new_type_flag():
     ``new_type`` is required per row for the same reason: the standing rule is
     that a new type widens a discriminator set and closes its projection gap in
     the SAME change, and a row that cannot express whether it IS one cannot be
-    checked against that rule. Six of the nine are.
+    checked against that rule. ALL NINE are, as of the rc450 sync — three rows
+    (autocorrelation / klein4_from_one / kuramoto_step) read False while citing
+    ``step_form_map``, whose own ledger row has said ``new_type: true`` all
+    along. Closing a map chain requires the MAP step form, and the MAP step form
+    is the new type; the rows said otherwise and nothing compared them.
     """
     for name, row in sorted(BLOCKED.items()):
-        assert set(row) == {"gates", "disposition", "new_type", "ledger_row"}, (
+        assert set(row) == {"gates", "disposition", "new_type", "ledger_row",
+                            "new_type_reason"}, (
             "%s: a BLOCKED row must carry exactly gates / disposition / "
-            "new_type / ledger_row; got %s" % (name, sorted(row)))
+            "new_type / ledger_row / new_type_reason; got %s"
+            % (name, sorted(row)))
+        assert isinstance(row["new_type_reason"], str), name
         assert row["disposition"] in VALID_DISPOSITIONS, (
             "%s has disposition %r. ADR-0009 §5 admits only %s — a row with no "
             "real disposition is an UNFILED DECLINE, which is the defect this "
