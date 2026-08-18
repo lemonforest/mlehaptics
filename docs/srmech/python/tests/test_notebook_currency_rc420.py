@@ -940,3 +940,45 @@ def test_the_notebook_is_reachable_at_all() -> None:
     assert len(_text()) > 100_000, (
         f"{_NOTEBOOK} is only {len(_text())} bytes — that is not the SSoT "
         f"notebook and every assertion above is measuring the wrong file.")
+
+
+# ── rc448 (`#T1145`): the stamp is not the claim ─────────────────────────────
+_LIVE_ABI = re.compile(r"Live at rc\d+: \*\*`SRMECH_ABI_VERSION` is (\d+)\*\*")
+
+
+def _header_abi() -> int:
+    """SRMECH_ABI_VERSION as the C header defines it — the SSoT."""
+    hdr = (_HERE.parents[2] / "c" / "include" / "srmech.h").read_text(
+        encoding="utf-8")
+    m = re.search(r"^#define SRMECH_ABI_VERSION (\d+)", hdr, re.M)
+    assert m, "no #define SRMECH_ABI_VERSION in c/include/srmech.h"
+    return int(m.group(1))
+
+
+def test_live_at_abi_stamp_carries_the_LIVE_abi_not_just_a_fresh_rc_token():
+    """A `Live at rcNNN:` stamp asserts a VALUE; pinning the token is not enough.
+
+    ⚠️ THIS GATE EXISTS BECAUSE ITS SIBLING WAS BLIND TO ITS OWN SUBJECT.
+    ``test_live_at_rc_stamps_name_the_pinned_release`` compares stamp TOKENS
+    (``stamps == [live_rc]``) and never reads the number the stamp certifies.
+    So a bump could move every stamp forward while the value went stale — and
+    that is exactly what happened at rc447: the ABI stamp read *"Live at
+    rc447: SRMECH_ABI_VERSION is 17"* in the very release that bumped
+    ``SRMECH_ABI_VERSION`` 17 → 18. The token was fresh, the claim was false,
+    and the currency gate reported green because it was only ever checking
+    that the stamps agreed with each other and with ``__version__``.
+
+    Freshness of the stamp and truth of the value are INDEPENDENT properties.
+    This asserts the second one against the C header, which is the SSoT.
+    """
+    m = _LIVE_ABI.search(_live_prose())
+    assert m, (
+        "the notebook's `Live at rcNNN: **`SRMECH_ABI_VERSION` is N**` stamp "
+        "is gone. It is the one live counterweight to the dated 'ABI version: "
+        "3' ledger bullet beside it; losing it leaves that bullet uncontested.")
+    claimed, live = int(m.group(1)), _header_abi()
+    assert claimed == live, (
+        f"the notebook's ABI currency stamp claims SRMECH_ABI_VERSION is "
+        f"{claimed}; c/include/srmech.h defines {live}. Moving the rcNNN token "
+        f"without re-reading the value is what shipped a false stamp at rc447 "
+        f"— re-verify the NUMBER, not just the release it is stamped against.")

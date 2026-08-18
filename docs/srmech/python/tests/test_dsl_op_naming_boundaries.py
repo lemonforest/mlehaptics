@@ -239,40 +239,20 @@ def _import_spelling(name):
 #: or object-aware resolution — DRAINS this set: the subset assert stays
 #: green, and only the doc-sync figures in ``srmech/dsl/_catalog.py`` go
 #: red, in the same commit, on purpose. A NEW invisible spelling fails here.
-_INVISIBLE_WHILE_TARGET_REGISTERED_RC434 = frozenset({
-    "srmech.cascade.atoms.chiral_flip",
-    "srmech.cascade.atoms.pin_slot_at_zero",
-    "srmech.cascade.atoms.reorient",
-    "srmech.cascade.composites.autocorrelation",
-    "srmech.cascade.composites.compensated_sum",
-    "srmech.cascade.composites.correlation_product",
-    "srmech.cascade.composites.kuramoto_gen_out",
-    "srmech.cascade.composites.kuramoto_gen_term",
-    "srmech.cascade.composites.kuramoto_inv_n",
-    "srmech.cascade.composites.kuramoto_out_simple",
-    "srmech.cascade.composites.kuramoto_sin_term",
-    "srmech.cascade.hypercomplex_dft.as_oct8",
-    "srmech.cascade.hypercomplex_dft.as_quat4",
-    "srmech.cascade.hypercomplex_dft.dft_scale",
-    "srmech.cascade.hypercomplex_dft.dft_sigma",
-    "srmech.cascade.hypercomplex_dft.odft_resolve_mu",
-    "srmech.cascade.hypercomplex_dft.odft_summand",
-    "srmech.cascade.hypercomplex_dft.qdft_resolve_mu",
-    "srmech.cascade.hypercomplex_dft.qdft_summand",
-    "srmech.cascade.leaves.byte_slice",
-    "srmech.cascade.leaves.dead_band",
-    "srmech.cascade.leaves.f64_add",
-    "srmech.cascade.leaves.int_parse_le",
-    "srmech.cascade.leaves.orientation_compose",
-    "srmech.cascade.leaves.pair",
-    "srmech.cascade.leaves.seq_get",
-    "srmech.cascade.leaves.seq_len",
-    "srmech.cascade.leaves.str_concat",
-    "srmech.cascade.leaves.utf8_encode",
-    "srmech.cascade.leaves.vec_add",
-    "srmech.cascade.leaves.vec_scale",
-    "srmech.cascade.parallel.parallel_sector_dispatch",
-})
+#: ⚠️ DRAINED TO EMPTY at rc448 (`#T1145`). It was seeded at 32 in rc434 and
+#: held every DEFINING-MODULE spelling the shipped descriptors used. rc448
+#: respelled all 85 sites across 11 descriptor files onto the published
+#: ``srmech.cascade.<name>`` re-exports, so the measured invisible set is now
+#: ``0`` and the census this pins is EMPTY — which is the outcome the re-aimed
+#: gate was built to produce (the fix drains the ratchet; only the stale
+#: ``_catalog.py`` figures go red, in the same commit, on purpose).
+#:
+#: EMPTY IS NOT VACUOUS. The subset assert below still fires on any NEW
+#: invisible spelling, and with the seed at ``0`` it is now a STRICT ZERO:
+#: a descriptor written with a defining-module path reopens the gap and goes
+#: red immediately, instead of being absorbed by a 32-row allowance. Do not
+#: re-seed it to "make room" for a new one — respell the descriptor.
+_INVISIBLE_WHILE_TARGET_REGISTERED_RC434 = frozenset()
 
 
 def test_dotted_visibility_is_spelling_keyed_and_the_shipped_gap_drains():

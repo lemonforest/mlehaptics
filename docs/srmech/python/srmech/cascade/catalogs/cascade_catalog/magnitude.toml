@@ -56,12 +56,12 @@ returns = "float  # |x| as the Class-K pin-slot magnitude (NaN -> 0.0 dead-band)
 
 [[cascade.chain.steps]]
 class = "K"
-op = "srmech.cascade.atoms.pin_slot_at_zero"
+op = "srmech.cascade.pin_slot_at_zero"
 args = { x = "@input.x" }
 
 [[cascade.chain.steps]]
 class = "C"
-op = "srmech.cascade.atoms.reorient"
+op = "srmech.cascade.reorient"
 args = { value = "@step[0].output[1]", orientation = 1 }
 
 [[cascade.chain.proof_cases]]

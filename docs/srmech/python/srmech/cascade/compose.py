@@ -1077,8 +1077,15 @@ def _run_ints_fit_i64(
 
 
 def _chain_c_eligible(spec: ChainSpec) -> bool:
-    """True iff every step is a "raise"-policy, Class-N, in-table op — the
+    """True iff every step is a "raise"-policy, in-table op — the
     precondition for the C run loop (else the complete pure path runs).
+
+    ⚠️ This line said "raise"-policy, **Class-N**, in-table until rc448. The
+    Class-N conjunct was the rc447 defect itself (`#T1141`): it refused every
+    Class-I/C/K/L chain at the door and answered 0 where 9 chains run. rc447
+    deleted the gate — see the comment in the loop below — but left this
+    docstring asserting it, so the function's contract still named a test its
+    body no longer performs. Membership is by op NAME, suffix-matched.
 
     rc420: a v2 step (map / fold — not a plain :class:`StepSpec`) is never
     C-run-eligible; the type check comes FIRST so the guard cannot

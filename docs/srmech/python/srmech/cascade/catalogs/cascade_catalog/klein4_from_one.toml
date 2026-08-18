@@ -158,7 +158,7 @@ args = { template = '{"sigma":{sigma},"terms":{terms},"theta":[{tn},{td}]}', con
 # s1 — Class B framing: str -> bytes.
 [[cascade.chain.steps]]
 class = "B"
-op = "srmech.cascade.leaves.utf8_encode"
+op = "srmech.cascade.utf8_encode"
 args = { text = "@step[0].output" }
 
 # s2 — Class A: stage-1 content digest h (64-char lowercase hex).
@@ -170,19 +170,19 @@ args = { data = "@step[1].output" }
 # s3/s4 — Class F: the counter-block preimage h || "|" || "0".
 [[cascade.chain.steps]]
 class = "F"
-op = "srmech.cascade.leaves.str_concat"
+op = "srmech.cascade.str_concat"
 args = { prefix = "@step[2].output", text = "|" }
 
 [[cascade.chain.steps]]
 class = "F"
-op = "srmech.cascade.leaves.str_concat"
+op = "srmech.cascade.str_concat"
 args = { prefix = "@step[3].output", text = "0" }
 
 # s5/s6 — Class B + A: counter block 0 digest (64 hex chars = 32 bytes =
 # 128 crumbs >= D=64, so counter 0 alone covers the declared dimension).
 [[cascade.chain.steps]]
 class = "B"
-op = "srmech.cascade.leaves.utf8_encode"
+op = "srmech.cascade.utf8_encode"
 args = { text = "@step[4].output" }
 
 [[cascade.chain.steps]]
@@ -193,14 +193,14 @@ args = { data = "@step[5].output" }
 # s7 — Class B: the block-0 hex as ASCII bytes (the crumb source).
 [[cascade.chain.steps]]
 class = "B"
-op = "srmech.cascade.leaves.utf8_encode"
+op = "srmech.cascade.utf8_encode"
 args = { text = "@step[6].output" }
 
 # s8 — Class E literal-emit: the 64-entry j->j_div_4 table. Doubles as the
 # length-64 map carrier (the map's totality pin) and the byte-index lookup.
 [[cascade.chain.steps]]
 class = "E"
-op = "srmech.cascade.leaves.seq_get"
+op = "srmech.cascade.seq_get"
 args = { seq = [[0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3,4,4,4,4,5,5,5,5,6,6,6,6,7,7,7,7,8,8,8,8,9,9,9,9,10,10,10,10,11,11,11,11,12,12,12,12,13,13,13,13,14,14,14,14,15,15,15,15]], i = 0 }
 
 # s9 — the indexed map over positions j = 0..63: per-position crumb
@@ -223,7 +223,7 @@ xor4 = [[0,1,2,3],[1,0,3,2],[2,3,0,1],[3,2,1,0]]
 # b0: byte index bi = j div 4 (literal quotient table).
 [[cascade.chain.steps.body]]
 class = "E"
-op = "srmech.cascade.leaves.seq_get"
+op = "srmech.cascade.seq_get"
 args = { seq = "@bind.jdiv4", i = "@idx.j" }
 
 # b1: crumb slot s = j mod 4 (Class I residue).
@@ -235,7 +235,7 @@ args = { a = "@idx.j", b = 0, n = 4 }
 # b2: which hex char of the byte (low nibble for s in {0,1} -> offset 1).
 [[cascade.chain.steps.body]]
 class = "E"
-op = "srmech.cascade.leaves.seq_get"
+op = "srmech.cascade.seq_get"
 args = { seq = "@bind.offt", i = "@step[1].output" }
 
 # b3/b4/b5: char_idx = 2*bi + offset, and char_idx + 1 (Z/257 — bounded
@@ -258,12 +258,12 @@ args = { a = "@step[4].output", b = 1, n = 257 }
 # b6/b7: the one hex char, as its ASCII code (Class B framing reads).
 [[cascade.chain.steps.body]]
 class = "B"
-op = "srmech.cascade.leaves.byte_slice"
+op = "srmech.cascade.byte_slice"
 args = { data = "@bind.hexb", start = "@step[4].output", stop = "@step[5].output" }
 
 [[cascade.chain.steps.body]]
 class = "B"
-op = "srmech.cascade.leaves.int_parse_le"
+op = "srmech.cascade.int_parse_le"
 args = { data = "@step[6].output" }
 
 # b8/b9: hex char -> nibble value (ascii - 48 = +209 in Z/257, then the
@@ -276,7 +276,7 @@ args = { a = "@step[7].output", b = 209, n = 257 }
 
 [[cascade.chain.steps.body]]
 class = "E"
-op = "srmech.cascade.leaves.seq_get"
+op = "srmech.cascade.seq_get"
 args = { seq = "@bind.hexval", i = "@step[8].output" }
 
 # b10/b11/b12/b13/b14: the two candidate crumbs of this nibble —
@@ -288,22 +288,22 @@ args = { a = "@step[9].output", b = 0, n = 4 }
 
 [[cascade.chain.steps.body]]
 class = "E"
-op = "srmech.cascade.leaves.seq_get"
+op = "srmech.cascade.seq_get"
 args = { seq = "@bind.nibdiv4", i = "@step[9].output" }
 
 [[cascade.chain.steps.body]]
 class = "B"
-op = "srmech.cascade.leaves.pair"
+op = "srmech.cascade.pair"
 args = { first = "@step[10].output", second = "@step[11].output" }
 
 [[cascade.chain.steps.body]]
 class = "E"
-op = "srmech.cascade.leaves.seq_get"
+op = "srmech.cascade.seq_get"
 args = { seq = "@bind.divt", i = "@step[1].output" }
 
 [[cascade.chain.steps.body]]
 class = "E"
-op = "srmech.cascade.leaves.seq_get"
+op = "srmech.cascade.seq_get"
 args = { seq = "@step[12].output", i = "@step[13].output" }
 
 # b15/b16: the (1,3,7,3) sector mask of position j — Class C structure
@@ -315,19 +315,19 @@ args = { a = "@idx.j", b = 0, n = 14 }
 
 [[cascade.chain.steps.body]]
 class = "C"
-op = "srmech.cascade.leaves.seq_get"
+op = "srmech.cascade.seq_get"
 args = { seq = "@bind.frame14", i = "@step[15].output" }
 
 # b17/b18: the Klein-4 bind — the V4 Cayley table applied as the Class C
 # sector-flip involution (XOR), declared as a LITERAL group table.
 [[cascade.chain.steps.body]]
 class = "C"
-op = "srmech.cascade.leaves.seq_get"
+op = "srmech.cascade.seq_get"
 args = { seq = "@bind.xor4", i = "@step[14].output" }
 
 [[cascade.chain.steps.body]]
 class = "C"
-op = "srmech.cascade.leaves.seq_get"
+op = "srmech.cascade.seq_get"
 args = { seq = "@step[17].output", i = "@step[16].output" }
 
 [[cascade.chain.proof_cases]]
@@ -360,7 +360,7 @@ args = { template = '{"sigma":{sigma},"terms":{terms},"theta":[{tn},{td}],"windi
 
 [[cascade.chain.steps]]
 class = "B"
-op = "srmech.cascade.leaves.utf8_encode"
+op = "srmech.cascade.utf8_encode"
 args = { text = "@step[0].output" }
 
 [[cascade.chain.steps]]
@@ -370,17 +370,17 @@ args = { data = "@step[1].output" }
 
 [[cascade.chain.steps]]
 class = "F"
-op = "srmech.cascade.leaves.str_concat"
+op = "srmech.cascade.str_concat"
 args = { prefix = "@step[2].output", text = "|" }
 
 [[cascade.chain.steps]]
 class = "F"
-op = "srmech.cascade.leaves.str_concat"
+op = "srmech.cascade.str_concat"
 args = { prefix = "@step[3].output", text = "0" }
 
 [[cascade.chain.steps]]
 class = "B"
-op = "srmech.cascade.leaves.utf8_encode"
+op = "srmech.cascade.utf8_encode"
 args = { text = "@step[4].output" }
 
 [[cascade.chain.steps]]
@@ -390,12 +390,12 @@ args = { data = "@step[5].output" }
 
 [[cascade.chain.steps]]
 class = "B"
-op = "srmech.cascade.leaves.utf8_encode"
+op = "srmech.cascade.utf8_encode"
 args = { text = "@step[6].output" }
 
 [[cascade.chain.steps]]
 class = "E"
-op = "srmech.cascade.leaves.seq_get"
+op = "srmech.cascade.seq_get"
 args = { seq = [[0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3,4,4,4,4,5,5,5,5,6,6,6,6,7,7,7,7,8,8,8,8,9,9,9,9,10,10,10,10,11,11,11,11,12,12,12,12,13,13,13,13,14,14,14,14,15,15,15,15]], i = 0 }
 
 [[cascade.chain.steps]]
@@ -414,7 +414,7 @@ xor4 = [[0,1,2,3],[1,0,3,2],[2,3,0,1],[3,2,1,0]]
 
 [[cascade.chain.steps.body]]
 class = "E"
-op = "srmech.cascade.leaves.seq_get"
+op = "srmech.cascade.seq_get"
 args = { seq = "@bind.jdiv4", i = "@idx.j" }
 
 [[cascade.chain.steps.body]]
@@ -424,7 +424,7 @@ args = { a = "@idx.j", b = 0, n = 4 }
 
 [[cascade.chain.steps.body]]
 class = "E"
-op = "srmech.cascade.leaves.seq_get"
+op = "srmech.cascade.seq_get"
 args = { seq = "@bind.offt", i = "@step[1].output" }
 
 [[cascade.chain.steps.body]]
@@ -444,12 +444,12 @@ args = { a = "@step[4].output", b = 1, n = 257 }
 
 [[cascade.chain.steps.body]]
 class = "B"
-op = "srmech.cascade.leaves.byte_slice"
+op = "srmech.cascade.byte_slice"
 args = { data = "@bind.hexb", start = "@step[4].output", stop = "@step[5].output" }
 
 [[cascade.chain.steps.body]]
 class = "B"
-op = "srmech.cascade.leaves.int_parse_le"
+op = "srmech.cascade.int_parse_le"
 args = { data = "@step[6].output" }
 
 [[cascade.chain.steps.body]]
@@ -459,7 +459,7 @@ args = { a = "@step[7].output", b = 209, n = 257 }
 
 [[cascade.chain.steps.body]]
 class = "E"
-op = "srmech.cascade.leaves.seq_get"
+op = "srmech.cascade.seq_get"
 args = { seq = "@bind.hexval", i = "@step[8].output" }
 
 [[cascade.chain.steps.body]]
@@ -469,22 +469,22 @@ args = { a = "@step[9].output", b = 0, n = 4 }
 
 [[cascade.chain.steps.body]]
 class = "E"
-op = "srmech.cascade.leaves.seq_get"
+op = "srmech.cascade.seq_get"
 args = { seq = "@bind.nibdiv4", i = "@step[9].output" }
 
 [[cascade.chain.steps.body]]
 class = "B"
-op = "srmech.cascade.leaves.pair"
+op = "srmech.cascade.pair"
 args = { first = "@step[10].output", second = "@step[11].output" }
 
 [[cascade.chain.steps.body]]
 class = "E"
-op = "srmech.cascade.leaves.seq_get"
+op = "srmech.cascade.seq_get"
 args = { seq = "@bind.divt", i = "@step[1].output" }
 
 [[cascade.chain.steps.body]]
 class = "E"
-op = "srmech.cascade.leaves.seq_get"
+op = "srmech.cascade.seq_get"
 args = { seq = "@step[12].output", i = "@step[13].output" }
 
 [[cascade.chain.steps.body]]
@@ -494,17 +494,17 @@ args = { a = "@idx.j", b = 0, n = 14 }
 
 [[cascade.chain.steps.body]]
 class = "C"
-op = "srmech.cascade.leaves.seq_get"
+op = "srmech.cascade.seq_get"
 args = { seq = "@bind.frame14", i = "@step[15].output" }
 
 [[cascade.chain.steps.body]]
 class = "C"
-op = "srmech.cascade.leaves.seq_get"
+op = "srmech.cascade.seq_get"
 args = { seq = "@bind.xor4", i = "@step[14].output" }
 
 [[cascade.chain.steps.body]]
 class = "C"
-op = "srmech.cascade.leaves.seq_get"
+op = "srmech.cascade.seq_get"
 args = { seq = "@step[17].output", i = "@step[16].output" }
 
 [[cascade.chain.proof_cases]]

@@ -132,12 +132,12 @@ returns = "list[float]  # the n phases after one forward-Euler step"
 
 [[cascade.chain.steps]]
 class = "B"
-op = "srmech.cascade.leaves.seq_len"
+op = "srmech.cascade.seq_len"
 args = { seq = "@input.theta" }
 
 [[cascade.chain.steps]]
 class = "N"
-op = "srmech.cascade.composites.kuramoto_inv_n"
+op = "srmech.cascade.kuramoto_inv_n"
 args = { coupling = "@input.coupling", n = "@step[0].output" }
 
 [[cascade.chain.steps]]
@@ -151,18 +151,18 @@ index = "j"
 
 [[cascade.chain.steps.body.body]]
 class = "N"
-op = "srmech.cascade.composites.kuramoto_sin_term"
+op = "srmech.cascade.kuramoto_sin_term"
 args = { theta = "@bind.theta", i = "@idx.i", j = "@idx.j" }
 
 [[cascade.chain.steps.body]]
 fold_class = "M"
-fold_op = "srmech.cascade.leaves.f64_add"
+fold_op = "srmech.cascade.f64_add"
 fold_init = 0.0
 over = "@step[0].output"
 
 [[cascade.chain.steps.body]]
 class = "C"
-op = "srmech.cascade.composites.kuramoto_out_simple"
+op = "srmech.cascade.kuramoto_out_simple"
 args = { theta = "@bind.theta", omega = "@bind.omega", i = "@idx.i", s = "@step[1].output", inv_n = "@bind.inv_n", dt = "@bind.dt" }
 
 [[cascade.chain.proof_cases]]
@@ -190,12 +190,12 @@ returns = "list[float]  # the n phases after one forward-Euler step"
 
 [[cascade.chain.steps]]
 class = "B"
-op = "srmech.cascade.leaves.seq_len"
+op = "srmech.cascade.seq_len"
 args = { seq = "@input.theta" }
 
 [[cascade.chain.steps]]
 class = "N"
-op = "srmech.cascade.composites.kuramoto_inv_n"
+op = "srmech.cascade.kuramoto_inv_n"
 args = { coupling = "@input.coupling", n = "@step[0].output" }
 
 [[cascade.chain.steps]]
@@ -209,18 +209,18 @@ index = "j"
 
 [[cascade.chain.steps.body.body]]
 class = "N"
-op = "srmech.cascade.composites.kuramoto_gen_term"
+op = "srmech.cascade.kuramoto_gen_term"
 args = { theta = "@bind.theta", adjacency = "@bind.adjacency", coupling = "@bind.coupling", inv_n = "@bind.inv_n", alpha = "@bind.alpha", i = "@idx.i", j = "@idx.j" }
 
 [[cascade.chain.steps.body]]
 fold_class = "M"
-fold_op = "srmech.cascade.leaves.f64_add"
+fold_op = "srmech.cascade.f64_add"
 fold_init = 0.0
 over = "@step[0].output"
 
 [[cascade.chain.steps.body]]
 class = "C"
-op = "srmech.cascade.composites.kuramoto_gen_out"
+op = "srmech.cascade.kuramoto_gen_out"
 args = { theta = "@bind.theta", omega = "@bind.omega", i = "@idx.i", s = "@step[1].output", psi = "@bind.psi", ps = "@bind.ps", dt = "@bind.dt" }
 
 [[cascade.chain.proof_cases]]

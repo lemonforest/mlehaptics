@@ -111,8 +111,8 @@ returns = "dict  # sectors / combined / z4_dispatch_slots / independence / colla
 
 [[cascade.chain.steps]]
 class = "C"
-op = "srmech.cascade.parallel.parallel_sector_dispatch"
-args = { body = "@op.srmech.cascade.atoms.chiral_flip", x = "@input.x", n_sectors = "@input.n_sectors", combine = "@input.combine" }
+op = "srmech.cascade.parallel_sector_dispatch"
+args = { body = "@op.srmech.cascade.chiral_flip", x = "@input.x", n_sectors = "@input.n_sectors", combine = "@input.combine" }
 
 [[cascade.chain.proof_cases]]
 covers = "sweep"
