@@ -53,12 +53,16 @@ The two newest v0.6.0 C files:
 
 ### ABI
 
-C ABI version is **17** (`SRMECH_ABI_VERSION 17` in
+C ABI version is **19** (`SRMECH_ABI_VERSION 19` in
 `c/include/srmech.h`). *(This line read **3** from the v0.5.0 era until rc442 —
-fourteen bumps stale, and wrong long before this release touched it. No gate
-covers `c/README.md` at all, which is exactly why it drifted the furthest of any
-ABI statement in the tree; the SSoT is the macro, and the narrative SSoT is the
-"ABI compatibility" section of `docs/srmech/CLAUDE.md`.)* Bump it in lockstep only when the wire
+fourteen bumps stale, and wrong long before that release touched it. It then went
+stale AGAIN five rcs later: rc447 bumped 17 → 18 and rc448 shipped over it, so by
+rc449 it was two behind. The note that used to sit here said "no gate covers
+`c/README.md` at all, which is exactly why it drifted the furthest" — and then it
+drifted again, which is the whole argument. rc449 (`#T1158`) closed that:
+`tests/test_abi_prose_currency_rc449.py` now reads this line and
+`docs/srmech/CLAUDE.md`'s "ABI compatibility" section against the macro. The SSoT
+is still the macro; the narrative SSoT is still that CLAUDE.md section.)* Bump it in lockstep only when the wire
 format of an existing exported function changes; adding a new
 symbol does not bump the ABI.
 

@@ -107,3 +107,17 @@ jobs:
       - name: Notebook currency gate (SSoT notebook vs the live surface)
         working-directory: docs/srmech/python
         run: python -m pytest tests/test_notebook_currency_rc420.py -q
+
+      # rc449 (`#T1158`) — FOURTH GUARD, and the same failure mode a fourth
+      # time. `docs/srmech/CLAUDE.md` is the NARRATIVE ABI SSoT — the section
+      # every other ABI note in the tree cites as authoritative — and
+      # `docs/srmech/c/README.md` is its sibling. Both sit outside
+      # srmech-ci.yml's `docs/srmech/python/**` trigger, and neither had ANY
+      # gate until this rc. Measured: both said ABI 17 against a live 18, and
+      # CLAUDE.md's own parenthetical enumerates five earlier lags before that
+      # one. A prose-only commit is exactly the commit that restates the ABI, so
+      # without this step the gate would be armed and silent on the only commits
+      # it exists to catch. ~8s pure, no native build.
+      - name: ABI prose currency gate (CLAUDE.md + c/README.md vs the macro)
+        working-directory: docs/srmech/python
+        run: python -m pytest tests/test_abi_prose_currency_rc449.py -q

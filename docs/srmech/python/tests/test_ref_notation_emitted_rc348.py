@@ -767,6 +767,26 @@ SCAN_ROOTS = {
     # rc361: reads the generated C registries + the two generated .py artifacts.
     "tests/test_namespace_prefix_decode_aware_rc361.py": (
         "docs/srmech/python", "docs/srmech/c"),
+    # rc449 (`#T1158`, gh #1653): the two DRIFT GATES under the C key-set
+    # validators read `c/src/srmech_dsl_chain_run.c` and
+    # `c/src/srmech_compose_run.c` directly, to parse each runner's op-name index
+    # AND its dispatch arms out of the source and assert the two agree. Deriving
+    # either half from anything but the C source would let an arm be added with no
+    # index entry — an op left UNVALIDATED, still silently dropping unknown keys,
+    # while every other op's tests stayed green. Reaching into c/ is the point of
+    # both gates, exactly as for the rc447 eligibility gate above.
+    "tests/test_t1158_registry_param_order_rc449.py": (
+        "docs/srmech/python", "docs/srmech/c"),
+    "tests/test_t1158_refusal_set_equality_rc449.py": (
+        "docs/srmech/python", "docs/srmech/c"),
+    # rc449 (`#T1158`): the ABI-PROSE currency gate reads the macro SSoT
+    # (`c/include/srmech.h`) and the two prose surfaces that had NO gate at all —
+    # `docs/srmech/CLAUDE.md`, the narrative ABI SSoT every other ABI note cites,
+    # and `docs/srmech/c/README.md`. CLAUDE.md sits one level ABOVE srmech-ci's
+    # python/+c/ trigger, which is part of why it lagged six bumps in a row, so
+    # the reach is declared here and covered by srmech-ref-guard.yml's
+    # `docs/srmech/**` trigger — the same arrangement the notebook gate uses.
+    "tests/test_abi_prose_currency_rc449.py": ("docs/srmech",),
     # The rest stay inside python/ + c/, i.e. inside srmech-ci's own trigger.
     "tests/test_regen_all_rc346.py": ("docs/srmech/python", "docs/srmech/c"),
     # rc362: reads c/src/srmech_tool_schema.c to compare the two HAND-MIRRORED

@@ -530,6 +530,120 @@ static srmech_status_t leaf_autocorrelation(dcr_bump_t *b, const dv_value_t *in,
 }
 
 /* ------------------------------------------------------------------
+ * STAGE KEY-SET REFUSAL (v0.9.0rc449, `#T1158` — the gh #1653 residual)
+ *
+ * Every leaf above reads its kwargs by PULL — srmech_json_object_get(stage,
+ * "orientation"), srmech_json_object_get(stage, "max_denominator"). Nothing ever
+ * ENUMERATES the stage object's keys, so there is no code path that "drops" an
+ * unknown one: the drop is the ABSENCE of an iteration. Worse, five of the seven
+ * leaves never receive `stage` at all (leaf_magnitude / leaf_pin_slot /
+ * leaf_chiral_flip / leaf_net_chirality / leaf_autocorrelation take (b, in, out)),
+ * so for those every kwarg is structurally unreachable. The check therefore MUST
+ * live at dispatch, not inside the leaves.
+ *
+ * MEASURED at rc448, bare C, best_rational_signed on 0.3333333333333333:
+ *   {"op":"best_rational_signed","max_denominator":2}  -> OK, (0, 1)
+ *   {"op":"best_rational_signed","max_denominatr":2}   -> OK, (1, 3)
+ * One dropped letter. No crash, no decline — the constraint is silently dropped,
+ * the default 100 is used, and a DIFFERENT NUMBER comes back, while Python raises
+ * TypeError from the callable's own signature.
+ *
+ * ⚠️ WHY IN C AND NOT (ONLY) IN PYTHON. rc447 closed this class at the Python IR
+ * builder: _then_native_desc now declines to emit a stage whose kwarg the op does
+ * not accept. That makes the two projections AGREE, but it leaves C's ACCEPTANCE
+ * behaviour untouched — and on a bare-C host there is no IR builder to decline,
+ * so the malformed declaration was still accepted and computed. "The projections
+ * agree" and "C refuses what it should" are different properties; only the second
+ * one protects the host that ADR-0003 makes a first-class deliverable.
+ *
+ * SRMECH_ERR_BAD_INPUT, never SRMECH_ERR_NOT_IMPL. In this file NOT_IMPL is the
+ * DEFER-TO-PURE channel (see the dispatch fall-through below), and saying "this
+ * projection doesn't do it yet; the other one might" is false on a bare-C host,
+ * where nothing will ever implement `max_denominatr`. An unknown key is malformed
+ * against the grammar, which is what BAD_INPUT means — the same side of the line
+ * the compose runner already puts its MIXED steps on.
+ * ------------------------------------------------------------------ */
+
+/* The C-runnable leaf ops, each paired with its tool-registry entry name.
+ *
+ * This is a NAME-to-NAME index, NOT a second copy of the key names — those come
+ * from the registry entry's own params, which two shipped gates already pin
+ * set-equal to the live Python signature from BOTH directions
+ * (tests/test_mcp.py::test_schema_signature_alignment_no_drift, rc13, declared
+ * subset-of bindable; tests/test_declared_param_completeness_rc408.py, declared
+ * superset-of live). A third independent notion of "accepted keys" is exactly the
+ * `#T1146` divergence in miniature, so this table does not carry one.
+ *
+ * Membership here is ALSO the validator's SCOPE. An op absent from this table is
+ * one this projection does not run; it must keep DEFERRING, never start refusing,
+ * or a bare-C host would reject chains a Python caller runs fine — the
+ * stricter-than-Python failure the whole output-parity corpus is blind to.
+ * .rodata, so JPL Rule 3 (no malloc) is untouched. */
+static const struct {
+    const char *bare;
+    uint32_t    len;
+    const char *full;
+} DSL_LEAF_REG[7] = {
+    { "magnitude",             9u, "srmech.cascade.magnitude" },
+    { "reorient",              8u, "srmech.cascade.reorient" },
+    { "pin_slot_at_zero",     16u, "srmech.cascade.pin_slot_at_zero" },
+    { "best_rational_signed", 20u, "srmech.cascade.best_rational_signed" },
+    { "chiral_flip",          11u, "srmech.cascade.chiral_flip" },
+    { "net_chirality",        13u, "srmech.cascade.net_chirality" },
+    { "autocorrelation",      15u, "srmech.cascade.autocorrelation" }
+};
+
+/* 1 iff `name` is the stage's own discriminator or a LEGAL kwarg of entry `e`.
+ *
+ * params[0] is the DATA CARRIER — threaded into the leaf as the chain value `in`,
+ * never spelled as a stage kwarg — so it is deliberately NOT legal here. Spelling
+ * it is the measured 7/7 residual (`.then('magnitude', x=5)` builds a stage the
+ * pure path rejects with "got multiple values for argument 'x'"). A params[*] rule
+ * would pass every existing test and still accept all seven, which is why
+ * test_srmech_chain_run.c pins {"op":"magnitude","x":5} by itself. */
+static int dsl_key_is_legal(const char *name, const srmech_tool_entry_t *e)
+{
+    uint32_t j;
+    assert(name != NULL && e != NULL);
+    assert(e->param_count > 0u);
+    if (strcmp(name, "op") == 0) { return 1; }
+    for (j = 1u; j < e->param_count; j++) {
+        if (strcmp(name, e->params[j].name) == 0) { return 1; }
+    }
+    return 0;
+}
+
+/* SRMECH_OK when every key of `stage` is legal for `op`, or when `op` is not a
+ * C-runnable leaf (the defer channel, untouched). BAD_INPUT on an unknown key. */
+static srmech_status_t dsl_leaf_keyset_ok(const char *op, uint32_t opl,
+                                          const srmech_json_value_t *stage)
+{
+    const srmech_tool_entry_t *e = NULL;
+    uint32_t i;
+    assert(op != NULL && stage != NULL);
+    assert(stage->type == SRMECH_JSON_OBJECT);
+    for (i = 0u; i < 7u; i++) {
+        if (opl == DSL_LEAF_REG[i].len &&
+            memcmp(op, DSL_LEAF_REG[i].bare, (size_t)opl) == 0) {
+            e = srmech_tool_registry_find(DSL_LEAF_REG[i].full);
+            break;
+        }
+    }
+    if (i == 7u) { return SRMECH_OK; }   /* not a C leaf → dispatch defers below */
+    /* ⚠️ NOT silent acceptance. A NULL here means an op this file DISPATCHES has
+     * no registry entry — a broken library invariant, not a caller error. Falling
+     * through to "accept" would let one typo in the table above disable the
+     * validator for that op forever while every other op's tests stayed green. */
+    if (e == NULL) { return SRMECH_ERR_INTERNAL; }
+    for (i = 0u; i < stage->u.obj.n; i++) {
+        if (!dsl_key_is_legal(stage->u.obj.keys[i], e)) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+    }
+    return SRMECH_OK;
+}
+
+/* ------------------------------------------------------------------
  * The leaf-dispatch table (lookup_cascade_op -> C kernel). An op NOT here → the
  * caller defers the whole chain to pure (rc103 inform-don't-limit).
  * ------------------------------------------------------------------ */
@@ -538,8 +652,14 @@ static srmech_status_t dsl_leaf_dispatch(dcr_bump_t *b, const char *op, uint32_t
                                          const srmech_json_value_t *stage,
                                          const dv_value_t *in, dv_value_t **out)
 {
+    srmech_status_t kst;
     assert(b != NULL && op != NULL && out != NULL);
     assert(stage != NULL && in != NULL);
+    /* `#T1158`: refuse a declared kwarg the op does not have, BEFORE any arm runs.
+     * A flat key walk on purpose — re-entering dsl_run_stage_array would mint a
+     * new Rule-1 recursion cycle beside the seeded one and fail the JPL audit. */
+    kst = dsl_leaf_keyset_ok(op, opl, stage);
+    if (kst != SRMECH_OK) { return kst; }
     if (opl == 9u && memcmp(op, "magnitude", 9u) == 0) {
         return leaf_magnitude(b, in, out);
     }

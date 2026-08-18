@@ -29,10 +29,40 @@ that already handled non-scalar kwargs (rc103 inform-don't-limit).
    the ops that ALREADY had parity had it INCIDENTALLY. ``cyclic_gcd`` and
    ``pin_slot_at_zero`` reject because the native stage-builder declined for an
    unrelated reason and PYTHON then raised — the error is a Python ``TypeError``
-   on both paths. There is NO key-set validator anywhere in the C leaf surface,
-   so there was no in-tree pattern to copy and none is added here: this closes
-   the gap at the point where the two projections diverge, which is the IR
-   builder, not inside C.
+   on both paths.
+
+⚠️⚠️ SUPERSEDED AT rc449 (`#T1158`) — TWO CLAIMS IN THIS DOCSTRING WERE WRONG, and
+   this module SHIPS, so they are corrected here rather than annotated elsewhere.
+
+   1. *"There is NO key-set validator anywhere in the C leaf surface, so there was
+      no in-tree pattern to copy."* The second half was false when written:
+      ``iv_no_extra_keys`` (``c/src/srmech_invoke.c:1580``) already walked an
+      arguments object against ``e->params[j].name`` and declined. It did not
+      match the greps that motivated the claim (``key_set|keyset|unknown_key|
+      validate_keys``) — a grep artifact reported as an absence. rc449 copied its
+      WALK; it deliberately did not copy its DEFER disposition, which is correct
+      only because its one bare-C consumer converts it to an explicit MCP error.
+      The first half is now false too: rc449 added ``dsl_leaf_keyset_ok``
+      (``c/src/srmech_dsl_chain_run.c``) and ``cr_args_keyset_ok``
+      (``c/src/srmech_compose_run.c``).
+
+   2. *"this closes the gap"* — it closed the DIVERGENCE, not the gap. Teaching
+      the IR builder to decline makes the two projections AGREE while leaving C's
+      ACCEPTANCE behaviour untouched, so on a bare-C host — where no IR builder
+      exists — the malformed declaration was still accepted and computed. Measured
+      at rc448 head: ``{"op":"best_rational_signed","max_denominatr":2}`` returned
+      ``SRMECH_OK`` and ``(1, 3)`` instead of the ``(0, 1)`` the correctly-spelled
+      stage gives. rc447 is also the release that shipped
+      ``c/test/test_srmech_chain_run.c``, so it demonstrated that consumers reach
+      exactly that host. "The projections agree" and "C refuses what it should"
+      are DIFFERENT PROPERTIES, and an output-comparing parity harness cannot tell
+      them apart — see ``test_t1158_refusal_set_equality_rc449.py``, which
+      compares STATUS rather than output.
+
+   The rc447 behaviour asserted BELOW is still correct and still required; only
+   the two claims above about its scope were overstated. Per
+   [[feedback_fix_falsehoods_when_found_latency_by_surface]] a false claim in
+   shipped text is repaired in the current rc.
 """
 from __future__ import annotations
 

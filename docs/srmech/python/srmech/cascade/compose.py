@@ -69,11 +69,13 @@ References
 from __future__ import annotations
 
 import importlib
+import inspect
 import json
 import logging
 import re
 import warnings
 from collections.abc import Mapping
+from functools import lru_cache
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Tuple
 from srmech import _json as _srmech_json
@@ -1112,7 +1114,89 @@ def _chain_c_eligible(spec: ChainSpec) -> bool:
         # chain unreachable. The op set is the honest predicate.
         if step.op.rpartition(".")[2] not in _RUN_C_OPS:
             return False
+        if not _step_args_are_bindable(step):
+            return False
     return True
+
+
+def _step_args_are_bindable(step: "StepSpec") -> bool:
+    """True unless the step declares an ``args`` key the op does not accept.
+
+    ⚠️ rc449 (`#T1158`, gh #1653). Until now NOTHING on this path compared
+    ``step.args`` keys to the op's signature — ``_chain_c_eligible`` gated on
+    ``on_error`` and membership in ``_RUN_C_OPS`` and nothing else, and there was
+    no ``_op_accepts`` equivalent anywhere in this module, while
+    ``_run_chain_native`` is tried FIRST. So a chain declaring ``gcd{a, b, bogus}``
+    went to C, which silently dropped the key and computed — measured bare-C at
+    rc448: ``OK`` and ``6``.
+
+    rc449's C validator now refuses that, and this predicate simply stops the
+    Python side proposing a chain it can already tell C will decline. It is the
+    Surface-A twin of ``srmech.dsl._chain._op_accepts``, and like it, it is a
+    builder-honesty edit rather than the thing that closes the gap: without it
+    the C refusal still collapses to ``_NATIVE_MISS`` and the pure path raises the
+    same ``TypeError``.
+
+    Conservative in the same two places as its DSL twin: an op whose callable
+    cannot be resolved or whose signature cannot be read is NOT judged (an
+    unreadable signature is not evidence of rejection), and ``**kwargs`` accepts
+    anything. Unlike the DSL twin there is no data-carrier exclusion — on this
+    surface every operand arrives BY NAME inside ``args``, so ``params[0]`` is a
+    perfectly legal key. That asymmetry is the same one the C validators encode
+    (``params[*]`` here, ``params[1..]`` there) and it is pinned in
+    ``c/test/test_srmech_chain_run.c``.
+    """
+    args = getattr(step, "args", None)
+    if not isinstance(args, dict) or not args:
+        return True
+    legal = _legal_arg_names(step.op, step.class_id)
+    if legal is None:                    # unreadable / open namespace → not judged
+        return True
+    return all(k in legal for k in args)
+
+
+@lru_cache(maxsize=512)
+def _legal_arg_names(op: str, class_id: str) -> Optional[frozenset]:
+    """Legal ``args`` key names for one step op, or ``None`` when not judgeable.
+
+    CACHED because ``_chain_c_eligible`` runs on the hot path — once per chain
+    run, per step — and ``inspect.signature`` is not cheap. The key is the pair
+    the resolution actually depends on, and both halves of the resolution
+    (dotted-import and the class-letter registry) are stable for a given pair
+    within a process, so this cannot go stale against anything a caller can
+    change mid-run.
+
+    ``None`` means "do not judge": an op whose callable will not resolve, whose
+    signature will not read, or which takes ``**kwargs``. Guessing "unbindable"
+    in any of those cases would defer a chain that runs perfectly well — the
+    stricter-than-Python failure, arriving from the Python side instead of C.
+    """
+    fn = None
+    if "." in op:
+        try:
+            fn = _resolve_dotted_callable(op, what="c-eligibility probe")
+        except Exception:
+            return None
+    else:
+        module_name = DEFAULT_CLASS_REGISTRY.get(class_id)
+        if module_name is None:
+            return None
+        try:
+            fn = getattr(importlib.import_module(module_name), op, None)
+        except Exception:
+            return None
+    if fn is None or not callable(fn):
+        return None
+    try:
+        params = inspect.signature(fn).parameters
+    except (TypeError, ValueError):
+        return None
+    if any(p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values()):
+        return None
+    return frozenset(
+        n for n, p in params.items()
+        if p.kind in (inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                      inspect.Parameter.KEYWORD_ONLY))
 
 
 def _spec_to_chain_dict(spec: ChainSpec) -> Dict[str, Any]:

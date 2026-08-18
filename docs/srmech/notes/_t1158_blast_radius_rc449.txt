@@ -1,0 +1,6 @@
+== S8 blast radius: chain descriptors vs the rc449 key sets ==
+   python files scanned : 940
+   packaged cascade_catalog TOMLs : 21 (none is a chain descriptor — see the module docstring)
+   OFFENDING descriptors : 0
+
+VERDICT: CLEAN — no in-tree chain descriptor declares a key its op does not have. The validators refuse nothing that ships.

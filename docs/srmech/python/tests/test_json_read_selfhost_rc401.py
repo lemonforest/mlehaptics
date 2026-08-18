@@ -439,7 +439,7 @@ def test_native_symbol_is_bound_when_native():
     assert hasattr(_native.LIB, "srmech_json_parse")
     assert hasattr(_native, "json_loads_c")
     # Binding an already-exported symbol adds no C surface.
-    assert _native.EXPECTED_ABI_VERSION == 18
+    assert _native.EXPECTED_ABI_VERSION == 19
 
 
 def test_pure_floor_is_reachable_and_correct():

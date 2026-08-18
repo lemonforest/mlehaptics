@@ -1017,7 +1017,7 @@ def test_native_bus_symbols_present():
     from srmech import _native
     if not _native.HAS_NATIVE:
         pytest.skip("native not loaded; nothing to verify")
-    assert _native.NATIVE_ABI_VERSION == 18, (
+    assert _native.NATIVE_ABI_VERSION == 19, (
         f"ABI 13 expected (rc418 `#T1108` gave the genome write ops + the catalog "
         f"audit a caller-attestation / descriptor channel, 12 -> 13); "
         f"got {_native.NATIVE_ABI_VERSION}"
@@ -1059,9 +1059,16 @@ def test_abi_version_is_pinned():
     # a name that spells the value is falsified by the next bump and was —
     # 16 such tests were found tree-wide, one named for 367 asserting 663.
     # See test_pinned_names_carry_no_value_rc447.py.
+    # ⚠️ rc449 (`#T1158`): the MESSAGE carried its own stale literal — it read
+    # "should be 15" beside an assert of 18, having been missed by every bump
+    # since v15. rc447's gate parses test NAMES; nothing reads assertion text,
+    # so this drifted in the one place a reader only sees when the test FAILS.
+    # Fixed by construction rather than by digit: the expected value is named
+    # once and interpolated, so the message cannot disagree with the assert.
     from srmech import _native
-    assert _native.EXPECTED_ABI_VERSION == 18, (
-        f"EXPECTED_ABI_VERSION should be 15; got "
+    want_abi = 19
+    assert _native.EXPECTED_ABI_VERSION == want_abi, (
+        f"EXPECTED_ABI_VERSION should be {want_abi}; got "
         f"{_native.EXPECTED_ABI_VERSION}"
     )
 
