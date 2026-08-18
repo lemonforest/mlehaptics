@@ -50,7 +50,7 @@ arithmetic; :meth:`eval` substitutes an exact ``(q, x)`` to a single exact ``Q``
 ``qshift(1) − self``. Sign is the **Class-K** pin-slot via ``Poly`` / ``Q``
 sign-branches (never an ALU ``abs()``). The ONE place a ``float`` appears is
 :meth:`to_floats` — the terminal ALU→FPU rotation (the exact analogue of
-:meth:`srmech.math.poly.Poly.to_floats`). No ``math`` module, no numpy.
+:meth:`srmech.math.poly.Poly.to_floats`). No ``math`` module.
 
 C peer: ``srmech_qpoly_*`` (``c/src/srmech_qpoly.c``) mirrors ``srmech_poly_*``'s
 add/sub/mul + the q-shift, over caller-arena bignum (no int64/Q61 ceiling). The
@@ -646,7 +646,7 @@ def qpoly_from_coeffs(coeffs, x_low: int = 0) -> QPoly:
     cell coercion: there a 2-int list is a ``(num, den)`` rational pair; HERE a
     list is ALWAYS ascending-q-degree ints (unambiguous prose grammar; exact
     rationals enter via the in-process constructor). No float, no ``abs()``,
-    no numpy / ``math``.
+    no ``math``.
 
     Raises:
         TypeError: ``coeffs`` is not an ascending-x list of integer cells

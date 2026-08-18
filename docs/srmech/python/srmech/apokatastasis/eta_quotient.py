@@ -226,7 +226,7 @@ class EtaQuotient:
         when loaded (a 1:1 exact-integer mirror — the C coefficients EQUAL the
         Python coefficients, trusted only on a native hit); else the pure-Python
         :meth:`_q_series_py` body (the COMPLETE alternative + the parity oracle).
-        No numpy / ``math``."""
+        No ``math``."""
         if not isinstance(n_terms, int) or n_terms < 1:
             raise ValueError(f"n_terms must be a positive int; got {n_terms!r}")
         nat = _native()
@@ -248,7 +248,7 @@ class EtaQuotient:
         factor: ``(1 − q^e)`` multiplies are a backward subtract-shift; the
         reciprocal ``1/(1 − q^e)`` is the forward add-shift geometric expansion
         (the Class-K sign branch chooses which, never an ALU ``abs()``). All exact
-        integer, no float / numpy / ``math``."""
+        integer, no float / ``math``."""
         res = [0] * n_terms
         res[0] = 1
         for d, r in self._exps:
@@ -374,5 +374,5 @@ def eta_quotient(exponents: Mapping[int, int]) -> EtaQuotient:
 
     ``exponents`` is a mapping ``{d: r_d}`` (each ``d ≥ 1`` int, each ``r_d``
     nonzero int). Exact-integer q-series, exact-``Q`` weight / leading power /
-    cusp orders; no float, no ``abs()``, no numpy / ``math``."""
+    cusp orders; no float, no ``abs()``, no ``math``."""
     return EtaQuotient(exponents)

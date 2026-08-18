@@ -50,6 +50,46 @@ Every shard keeps the full liveness check — `HAS_NATIVE` plus `nm -u "$LIB" | 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc446]
+
+**The RESIDUE/ORIENTATION half — the 21 `no ``math`` / numpy` sites become landing-place prose with the return type MEASURED, the `summary=` surface drains 175 → 49, and 229 docstrings are triaged clause-by-clause (`#T1154`).** ABI stays **17** (no C symbol changed or added), registry stays **663** (prose only — no op registered or removed), `GENOME_FORMAT_VERSION` stays **20**.
+
+rc445 shipped the FALSE tier. This rc ships the rest of the same census: 290 RESIDUE, 97 ORIENTATION and 25 STRENGTHEN rows. The governing test is the ruling set's: **a mention is ALLOWED when it NAMES BOTH SIDES** — the thing the reader reaches for AND the srmech carrier or op they land on. Naming only the foreign library is residue.
+
+### The 21 paired-boilerplate sites — rewritten, not deleted
+
+Per user ruling, the `no ``math`` / numpy` sites are **not** deleted; they are rewritten as landing-place prose naming what the op DOES use, because *"this change offers useful information about return type(s)."* Every return was **measured**, not read off an annotation: each op was wrapped and driven by its own test file under WSL2 with numpy absent, and the returned object walked to its scalar leaves.
+
+`gosper` → `dict{num, den: Poly}`; `zeilberger` → `dict{order: int, coeffs: [Poly], certificate: BiPoly}`; `wz_certificate` → `dict{certificate: {num, den: BiPoly}, verified: bool}`; `apagodu_zeilberger` → `certificate_j/k: TriPoly`; the q-row peers → `QPoly` / `QBiPoly`; `elliptic_cauchy_determinant` → `EllRatio`; `elliptic_partial_fraction` and the two `*_vwp_multisum_lhs` → `ThetaSum`; `riemann_theta_multisum_lhs` → `ThetaBracketSum`; `elliptic_lagrange_basis` → `list[EllRatio]` of length k. And the leaf carriers, measured by walking real returns: `Poly`, `QPoly`, `BiPoly`, `QBiPoly` and `TriPoly` **all bottom out in `srmech.math.q.Q`**; `EllRatio` carries an `EllMonomial` prefactor whose `.coeff` is a `Q`.
+
+The Class-K cascade-honesty clause is load-bearing and survives in all 21 — only the trailing library list is replaced.
+
+### The shipped ToolEntry surface
+
+* **13 `returns.shape` strings are REWRITES, not deletions.** An MCP client reads this field to decide whether to call srmech instead of the library it already has, so `(numpy-free 2-D carrier)` now names the carrier positively. Measured: `Mat._buf` is `array('d')`, `Mat.from_rows([[1,2],[3,4]])` lays out `[1.0,2.0,3.0,4.0]` (row-major), and `[[1+2j,0],[0,1]]` lays out `[1.0,2.0,0.0,0.0]` — interleaved `(re, im)`.
+* **`summary=` drains 175 → 49.** Triaged per CLAUSE, since one summary carries both kinds: 95 standalone `numpy-free;` clauses dropped, 35 library lists trimmed, **55 clauses KEPT** because they name both sides — `Substrate-native replacement for math.cos / np.cos`, `drop-in for NumPy fft at ANY length`, `The Mat carrier throughout — no NumPy QR in the call graph`, `Matches NumPy lstsq(a,b)[0] to round-off`.
+
+### Docstrings — 229 edited across 81 files
+
+462 clauses kept as orientation, 147 trimmed, 82 dropped, and **198 left alone** because they matched no form whose grammar repair could be stated. That last number is deliberate: a wrongly-deleted true statement is worse than an unconverted one.
+
+Two rows the sweep was narrowed to spare, both orientation: the accepted-input list `` `int` / `float` / `Fraction` / numpy real scalar `` (a generic rule turned it into `` `Fraction` real scalar ``, changing the meaning) and `a GIL-releasing body (native / IO / numpy)`, which is true and is the reason sector dispatch pays off.
+
+### Two shipped descriptor falsehoods, fixed by measurement
+
+* **`schur_complement.toml` advertised a numpy tier deleted at #564.** Both pyprojects carry `# (#564: the scientific = ["numpy"] extra is GONE)`, so this was one package contradicting itself. Measured numpy-absent: `schur_complement(L, [0,3])` → `Mat` of float, `exact=True` → `list[list[Q]]`, `numpy in sys.modules` → False after both. A fifth claim nobody had flagged fell out of running the documented boundary case: the descriptor promised `numpy.linalg.LinAlgError` on the float path; it raises **`ZeroDivisionError`** — there is no numpy to raise one. A `[cascade.boundary_cases]` entry naming an exception the op cannot raise tells a caller to catch the wrong thing.
+* **`hurwitz.toml` equated `G(sigma, theta)` with the whole One.** `G` is the θ-epicycle rotation part; the One is `S(sigma, theta, w)`, and the winding triad is load-bearing — measured, `w = (1,0,0)` sets `One.winding` and flips `One.spinor_sign` to −1. Same defect family as the PyPI Summary rc445 fixed.
+
+### Checked and found NOT to hold
+
+* **ADR-0008's "20 descriptors" is DATED and TRUE, not stale.** Both sites sit inside *Amendment A (v0.9.0rc420)*. Verified by history: `klein4_from_one.toml` was added at **rc438**, so the catalog held exactly 20 at rc420 and holds 21 now. Editing it would fabricate history.
+* **`test_equivalence_population_floor`'s docstring is coherent.** Read whole, it already carries its own reconciliation: *"rc438 adds `klein4_from_one` with TWO variants (rest / wound), so 18 -> 20."*
+* **ADR-0002's `⏳ Draft` is left alone.** It is not the parent of ADR-0008 — `adr/README.md` records that the operator-chain schema was *renumbered* to 0008 to resolve a filename collision on the number 0002. And ADR-0002's own header reads `**Clauses:** unaudited`; promoting a status whose clause table is explicitly unaudited would assert something nobody has measured.
+
+### The transform bugs, recorded because each is a silent-corruption shape
+
+Five defects were caught and fixed before anything landed: `ast` `col_offset` is a UTF-8 **byte** offset (non-ASCII docstrings misaligned every span on their line); a global empty-paren tidy rewrote ``no ``abs()``` → ``no ``abs```; a `[ \t]{2,}` collapse ate the leading indentation of wrapped continuation lines; docstring text returns from `ast` with `\n`, so re-emitting verbatim silently converted 82 CRLF files to LF; and `\s*` in a pattern spans a newline, so a removal JOINED two wrapped lines. The applier now converts byte columns, asserts each span lands on a `"`, re-parses before writing, refuses to write if the ToolEntry count moves, restores each file's own line ending, and confines every pattern to within-line whitespace. A 10-class regression sweep over the real diff reports **0 new regressions**.
+
 ## [0.9.0rc445]
 
 **Shipped falsehoods, drained — 70 triaged FALSE docstring claims, the `ToolEntry` `summary=` surface a 12-agent census walked past, and the two doc items that had been filed and never shipped (`#T1153`).** ABI stays **17** (no C symbol changed or added), registry stays **663** (prose only — no op registered or removed), `GENOME_FORMAT_VERSION` stays **20**.

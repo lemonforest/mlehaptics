@@ -90,7 +90,7 @@ rational ``{"__rational__": [num, den]}``, a complex ``{"__complex128__":
 never silently forked).
 
 srmech ops only: Class A ``sha256_bytes`` (content addressing), the
-registered Class-N / Class-L runners (re-projection). numpy-free; no
+registered Class-N / Class-L runners (re-projection). No
 ``abs()``; no raw ``hashlib``.
 """
 

@@ -164,7 +164,7 @@ def _native_decode(quant_blocks, bh, bw, qt, bs):
 
 
 def _quant_table(quality: int, quant_table) -> List[List[float]]:
-    """Build the 8x8 quantisation matrix (numpy-free)."""
+    """Build the 8x8 quantisation matrix."""
     if quant_table is not None:
         return [[float(v) for v in r] for r in _as_rows(quant_table)]
     # Wallace scaling factor.

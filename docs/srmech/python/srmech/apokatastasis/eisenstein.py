@@ -266,7 +266,7 @@ class Eisenstein:
         ``srmech_eisenstein_qseries`` C peer when loaded (a 1:1 exact-rational
         mirror — the C ``(num, den)`` pairs EQUAL the Python coefficients, trusted
         only on a native hit); else the pure-Python :meth:`_q_series_py` body (the
-        COMPLETE alternative + the parity oracle). No numpy / ``math`` / ``abs``."""
+        COMPLETE alternative + the parity oracle). No ``math`` / ``abs``."""
         if not isinstance(n_terms, int) or n_terms < 1:
             raise ValueError(f"n_terms must be a positive int; got {n_terms!r}")
         nat = _native()
@@ -285,7 +285,7 @@ class Eisenstein:
         ``1 − (2k/B_k)·Σ σ_{k−1}(n) qⁿ`` to ``n_terms`` terms. The prefactor
         ``−2k/B_k`` is computed ONCE (exact-``Q`` Bernoulli :func:`_bernoulli`);
         each ``c_n`` is ``prefactor · σ_{k−1}(n)`` (exact-int
-        :func:`_divisor_power_sum`). All exact rational; no float / numpy /
+        :func:`_divisor_power_sum`). All exact rational; no float /
         ``math`` / ``abs``."""
         e = self._k - 1
         pref = Q(-2 * self._k, 1) / _bernoulli(self._k)
@@ -346,5 +346,5 @@ def eisenstein(k: int) -> Eisenstein:
 
     ``k = 2`` is REJECTED as the QUASIMODULAR boundary (``E_2`` is not modular);
     odd ``k`` and ``k < 4`` are rejected. Exact-rational q-series; exact-``Q``
-    weight / prefactor; no float, no ``abs()``, no numpy / ``math``."""
+    weight / prefactor; no float, no ``abs()``, no ``math``."""
     return Eisenstein(k)

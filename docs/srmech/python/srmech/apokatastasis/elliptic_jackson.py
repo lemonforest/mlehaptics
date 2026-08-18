@@ -33,7 +33,11 @@ This op CONSTRUCTS the closed-form right-hand side — the reduced theta-quotien
 an exact :class:`~srmech.apokatastasis.ellbase.EllRatio`. It is the Cₙ member of the elliptic Σ-row of
 the F929 dispatch table (peer of the ₈ω₇ reducer one root-system rank up), exact over the
 modified-theta algebra: no float, no ``abs()`` (sign is the Class-K pin-slot via the ``Q`` /
-``EllMonomial`` sign-branch), no ``math`` / numpy. The parameters ``(a, b, c, d, x, q, N, n)``
+``EllMonomial`` sign-branch). :func:`multivariate_elliptic_jackson` returns that closed form
+as an ``EllRatio`` (or, with ``verify=True``, a ``{"closed_form": EllRatio, "verified":
+bool}`` mapping), while :func:`cn_vwp_multisum_lhs` returns the LEFT side as a ``ThetaSum``;
+both carry exact :class:`~srmech.math.q.Q` coefficients.
+The parameters ``(a, b, c, d, x, q, N, n)``
 define a BALANCED sum (``e`` is fixed by ``e = a²q^{N+1}/(bcd·x^{n-1})``, so the balancing
 holds by construction); the identity is MPM-verified at build (Rosengren Thm 2.1 Eq 5;
 numerically exact n=2,3 / small N in high precision) and the reduction (the n-fold sum equals
@@ -109,7 +113,7 @@ def multivariate_elliptic_jackson(a, b, c, d, x, q, N: int, n: int, *,
     ``n`` (rank / number of variables) are positive ints. The remaining parameter ``e`` is
     fixed by the balancing ``e = a²q^{N+1}/(bcd·x^{n-1})`` (so the sum is balanced by
     construction). Raises ``ValueError`` if ``N < 1`` or ``n < 1``. Constructive + exact over
-    the modified-theta algebra (no float, no ``abs()``, no numpy). This is the capstone Cₙ
+    the modified-theta algebra (no float, no ``abs()``). This is the capstone Cₙ
     member of the elliptic Σ-row — see the module docstring for the MPM-verified reference and
     the exact-verification frontier.
 
@@ -190,7 +194,7 @@ def cn_vwp_multisum_lhs(a, b, c, d, x, q, N: int, n: int):
     partition's summand is an :class:`~srmech.apokatastasis.ellbase.EllRatio` (theta-quotient; the
     per-term monomial prefactor ``∏ᵢ q^{λᵢ}·x^{2(i-1)λᵢ}`` carries sign in the Class-K
     ``EllMonomial`` coeff branch, never ``abs()``); the partitions are summed into one
-    exact ``ThetaSum``. No float, no numpy, no ``math``. NOTE the term-count is
+    exact ``ThetaSum``. No float, no ``math``. NOTE the term-count is
     ``C(N+n, n)`` — the build cost grows combinatorially, and DECIDING anything about the
     result (``is_zero``) has the measured feasibility frontier documented at
     :data:`_VERIFY_MAX_PARTITIONS`; the CONSTRUCTION itself is exact at any size you can
@@ -303,7 +307,7 @@ def _cn_lhs_thetasum(aa: EllMonomial, bb: EllMonomial, cc: EllMonomial, dd: EllM
     prefactor ``∏_i q^{λᵢ}·x^{2(i-1)λᵢ}`` folded into the :class:`EllRatio` prefactor (sign =
     Class-K via the ``EllMonomial`` sign-branch, never ``abs()``). Each partition's summand is
     an :class:`EllRatio` (theta-quotient); the partitions are summed into one ``ThetaSum``
-    over their common denominator. No float, no numpy, no ``abs()``."""
+    over their common denominator. No float, no ``abs()``."""
     from .thetasum import ThetaSum
 
     a, b, c, d, x, q = aa, bb, cc, dd, xx, qq

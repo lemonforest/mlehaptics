@@ -527,8 +527,29 @@ from srmech.math.text import fold_marks, glyph_stream
 #: ``sha256_bytes(b"".join(f.blob for f in _build_frames("all")[0]))`` over
 #: 692 frames (663 ops + 29 carriers) — the two agree, which is the same
 #: cross-check ``test_scope_witnesses_agree_with_the_union`` performs.
+#: rc446 (`#T1154`) MOVES IT AGAIN — the RESIDUE/ORIENTATION half of the same
+#: campaign, and a WIDER prose surface than rc445's. 130 ToolEntry ``summary=``
+#: fields were edited (the numpy/ndarray population there falls 175 -> 49), 13
+#: ``returns.shape`` strings were rewritten to name the carrier positively
+#: (``Mat``, ``array('d')`` row-major, interleaved ``(re, im)``), and 229
+#: docstrings across 81 files were triaged clause-by-clause. The corpus is BUILT
+#: from that prose, so this digest MUST move; a witness that did NOT move would
+#: mean the edited summaries never reached the corpus.
+#:
+#: Same order as the rc440/rc445 notes prescribe, and for the same reason:
+#: ``regen_all.py --check`` reported all six generated files up to date FIRST
+#: (71.6s, "all 6 generated files are up to date"), so the digest is taken
+#: against a fully regenerated tree rather than a half-regenerated one. THEN the
+#: witness was read off ``search("rank", k=1).witness`` and independently
+#: re-derived as ``sha256_bytes(b"".join(f.blob for f in _build_frames("all")[0]))``
+#: over 692 frames (663 ops + 29 carriers) — the two agree, which is the same
+#: cross-check :func:`test_scope_witnesses_agree_with_the_union` performs.
+#:
+#: The 663/29 split is unchanged from rc445: this rc registers and removes no
+#: op, so a moved FRAME COUNT (rather than a moved digest) would have been the
+#: signal that something other than prose had changed.
 WITNESS_RC416 = (
-    "1f1c1325a28f26f6e123ee1c18306b9342d173b804172c81fb8ffb685d684f6f")
+    "1f18265680bf81029fbca94e9fa2c0e7912cedee1311d26b1cdd958196e6f79e")
 
 #: The ASCII control set. These four queries are the ops the tokenizer work is
 #: ABOUT, so a regression on them would be the change eating its own subject.

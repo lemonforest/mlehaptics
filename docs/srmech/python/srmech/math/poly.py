@@ -58,7 +58,7 @@ via an explicit ``Q`` sign-branch (the ``Q`` reduced denominator is positive, so
 the numerator carries the sign), never an ALU ``abs()``. There is exactly ONE
 place a ``float`` appears — :meth:`to_floats`, the terminal ALU→FPU rotation
 (like :meth:`srmech.math.qmat.QMat.to_mat` / :meth:`srmech.math.q.Q.__float__`).
-No ``math`` module, no numpy; a future ``QiPoly`` would carry Gaussian-rational
+No ``math`` module; a future ``QiPoly`` would carry Gaussian-rational
 (``Qi``) coefficients.
 """
 
@@ -769,7 +769,7 @@ def poly_from_coeffs(coeffs) -> Poly:
 
     Ints only (a ``bool`` / ``float`` / ``str`` coefficient is an honest
     ``TypeError`` — the exact-ℚ discipline; integers are exact). No float, no
-    ``abs()``, no numpy / ``math``."""
+    ``abs()``, no ``math``."""
     if isinstance(coeffs, tuple):
         coeffs = list(coeffs)
     if not isinstance(coeffs, list):

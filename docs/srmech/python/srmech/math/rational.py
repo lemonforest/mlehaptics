@@ -375,7 +375,7 @@ def rational_reconstruct(residue: int, modulus: int, *,
     bounded-p/q* recovery, a distinct algorithm). Sign is Class-K (an explicit
     sign-branch, never ``abs()``); arbitrary-precision integer / bignum (the
     modulus and the recovered numerator/denominator can exceed ``2**64``); no
-    float, no numpy, no ``math``.
+    float, no ``math``.
 
     Dispatches to the native ``srmech_rational_reconstruct`` (over
     ``srmech_bigint``) when present; the pure-Python body is the complete,

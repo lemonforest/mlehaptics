@@ -2453,7 +2453,7 @@ def _codon_symbols(strand):
 
 
 def _codon_native_ready(symbol: str) -> bool:
-    """True iff the native lib is loaded AND exports ``symbol`` (numpy-free)."""
+    """True iff the native lib is loaded AND exports ``symbol``."""
     return bool(
         _native.HAS_NATIVE and _native.LIB is not None
         and hasattr(_native.LIB, symbol)
@@ -2646,7 +2646,7 @@ def quad_turn(turn, coupling, *, element_type=ELEMENT_TYPE_KLEIN4):
     **klein4 (``element_type=ELEMENT_TYPE_KLEIN4``, the default — UNCHANGED).** The turn
     is bound to ``coupling`` (the held invariant) by the **reversible** Klein-4 bind
     (``V4 = (F2)^2`` XOR, so ``quad_turn(quad_turn(t, one), one) == t``): the duality held
-    WITHOUT collapse, numpy-free. ``coupling`` is the shared invariant present in every
+    WITHOUT collapse. ``coupling`` is the shared invariant present in every
     turn — so a chromosome navigates across its turns through ``coupling`` and recovers any
     turn by re-binding it. ``turn`` / ``coupling`` are Klein-4 vectors (``sectors=4``, e.g.
     from :func:`srmech.math.hdc.klein4_from_one`); returns the coupled turn.
@@ -4315,7 +4315,7 @@ def _chromatin_cap(chromatin_type, num, den, dim, handle="chr", *,
                    access_gate_type=CHROMATIN_GATE_NONE, gate_fields=None):
     """Build the fixed-width CHROMATIN cap leaf — DISPATCH the byte-framing to the C peer when
     HAS_NATIVE (byte-identical bytes, wrapped in the same ``HV(sectors=256)``); the pure
-    :func:`_pack_chromatin` is the numpy-free fallback + oracle. A CONSTITUTIVE
+    :func:`_pack_chromatin` is the fallback + oracle. A CONSTITUTIVE
     (:data:`CHROMATIN_GATE_NONE`) cap routes through ``srmech_genome_chromatin`` UNCHANGED
     (byte-identical to a pre-rc274 cap); a §98.1/G1 FACULTATIVE cap serializes its
     :func:`_chromatin_gate_blob` and routes through ``srmech_genome_chromatin_gated`` (which appends
@@ -7206,7 +7206,7 @@ def mint_strand(strand, coupling, *, orientation=None, centromere_at=None,
     the strand is empty, does not OPEN with a chromosome-boundary cap (pass a :func:`chromosome` /
     :func:`kernel_pack` / :func:`graph_to_kernel` strand, NOT raw leaves), or ALREADY carries a
     centromere (re-minting would double the anchor). Class A (the content-address orientation) ∘
-    Class C (the which-way) ∘ Class K (position = p:q). numpy-free; no ``abs()``.
+    Class C (the which-way) ∘ Class K (position = p:q). No ``abs()``.
 
     §Q8/rc315: pass ``element_type=ELEMENT_TYPE_Q8`` to MINT a Q₈ (substrate) strand — the
     orientation-recall then uses the Q₈ group inverse (the klein4-XOR C peer is not taken);
@@ -7479,7 +7479,7 @@ def _partition_antimode(counts):
 
 def _reduce_pair(num, den):
     """A non-negative ``(num, den)`` reduced by the Class-I gcd; ``den == 0`` → ``(0, 1)``
-    (an isolated node has no participation). Numpy-free; no ``abs()`` (both non-negative)."""
+    (an isolated node has no participation). No ``abs()`` (both non-negative)."""
     if den <= 0:
         return (0, 1)
     g = _gcd(num, den) or 1
@@ -7729,7 +7729,7 @@ def _induced_subgraph(nodes, edge_list, weight_list, charge_list):
     induced sub-graph — it is represented by the bridge node's PLASMID classification),
     carrying its weight + signed charge. Returns ``{vocab_size, edges, weights, charges,
     node_ids}`` — ``node_ids`` is the original id table so :func:`kernel_to_graph` recovers
-    the mapping. O(|E|); numpy-free."""
+    the mapping. O(|E|);"""
     local = {orig: i for i, orig in enumerate(nodes)}
     edges = []
     weights = []
@@ -10119,7 +10119,7 @@ def load_type_aliases_toml(path) -> Dict[str, str]:
     A top-level ``[type_aliases]`` table is also accepted. Parsing routes through
     :func:`srmech._toml.loads` (native ``srmech_toml`` parser first, stdlib ``tomllib``
     / ``tomli`` floor — same dict, same decode error) — the rc261
-    :func:`load_aliases_toml` shape. numpy-free; no external libs.
+    :func:`load_aliases_toml` shape. No external libs.
 
     ``path`` may be a filesystem path OR the bare name of a shipped / registered alias
     descriptor (rc364; :func:`srmech.dsl.resolve_alias_descriptor`), so the documented
@@ -10306,7 +10306,7 @@ def genome_census(path, *, coupling=None) -> dict:
     ``cap_kind`` per chromosome, §96) — the TYPE rides the catalog's ONE body scan,
     no O(n) per-chromosome loads. srmech reads the SHAPE (the inline cap markers);
     the caller assigns the ROLE. ``coupling=`` is only needed for a manifest-less
-    genome (the catalog rebuild width). numpy-free.
+    genome (the catalog rebuild width).
 
     **INTEGRITY (rc342, #T969) — this read BOUNDS.** The derived inventory is held
     against the manifest head's committed ``body_sha256``; a ``turns.bin`` modified
@@ -10429,7 +10429,7 @@ def genome_registry(root, *, coupling=None) -> dict:
     This is the "cell": which genome is the NUCLEUS (nuclear / diploid chromosomes)
     vs an ORGANELLE (a small all-plasmid plasmid-like genome — a mitochondrion /
     chloroplast). A dir that OPENS but has no genome subdirs yields ``n_genomes``
-    0. ``coupling=`` is only needed for manifest-less genomes. numpy-free.
+    0. ``coupling=`` is only needed for manifest-less genomes.
 
     A ``root`` that CANNOT BE OPENED — absent, permission denied, or not a
     directory — raises :class:`GenomeBoundingError` (rc294), in BOTH projections

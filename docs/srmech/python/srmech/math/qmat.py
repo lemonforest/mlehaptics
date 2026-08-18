@@ -842,7 +842,7 @@ def _rref_crt_rows(src_rows, n_rows: int, n_cols: int, n_cols_left: int):
     caller then falls back to the dense path; not hit for a finite exact-ℚ
     answer). Composes the Class-I ``gf_rref`` / ``crt_combine`` over the Class-J
     descending prime field, with the Class-N ``rational_reconstruct`` closing each
-    entry; Class-K consensus + sign throughout. No float, no numpy, no ``math``."""
+    entry; Class-K consensus + sign throughout. No float, no ``math``."""
     from . import modular_linalg as _ml
     from . import rational as _rational
 

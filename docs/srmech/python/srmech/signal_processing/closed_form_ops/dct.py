@@ -108,7 +108,7 @@ def _transform(m: List[List[float]], x, n: int, dct_type: int) -> List[float]:
 
 
 def op(signal, *, dct_type: int = 2, axis: int = -1, D: int = 8192):
-    """Discrete cosine transform of ``signal`` (numpy-free).
+    """Discrete cosine transform of ``signal``.
 
     Parameters
     ----------

@@ -32,7 +32,7 @@ The whole pipeline stays EXACT over ``ℚ`` — every polynomial is a
 :class:`~srmech.math.poly.Poly` (two bigint :class:`~srmech.math.q.Q` integers per
 coefficient, no magnitude ceiling), every solve is exact Gauss-Jordan over ``ℚ``.
 There is NO float anywhere; sign is the **Class-K** pin-slot via ``Q`` sign-branch
-(never an ALU ``abs()``); no ``math`` module, no numpy. This is the **Σ-row** of
+(never an ALU ``abs()``); no ``math`` module. This is the **Σ-row** of
 the F929 closure-dispatch: the 14 A–N classes read as a dispatch table over
 closed-form reduction theories, and ``gosper`` is the indefinite-summation
 reduction (Class-N rational arithmetic over the Class-J prime-field, on the
@@ -103,7 +103,10 @@ def gosper(num, den) -> Optional[Dict[str, Poly]]:
       ratio ``k/(k+1)``), returns ``None``.
 
     Exact over ``ℚ`` (bigint, no magnitude ceiling); no float, no ``abs()`` (the
-    sign is the Class-K pin-slot), no ``math`` / numpy. See the module docstring
+    sign is the Class-K pin-slot). Both returned ``num`` and ``den`` are
+    :class:`~srmech.math.poly.Poly`, whose coefficients are exact
+    :class:`~srmech.math.q.Q` rationals — closed-form on the ALU, so ``R(k)`` can be
+    shifted and multiplied without ever leaving ``ℚ``. See the module docstring
     for the full Gosper / PWZ pipeline. ``den`` must not be the zero polynomial
     (a term ratio has a nonzero denominator) — ``ValueError`` otherwise.
     """

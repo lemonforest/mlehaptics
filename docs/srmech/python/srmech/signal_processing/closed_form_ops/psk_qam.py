@@ -60,7 +60,7 @@ def _exp_i(theta: float) -> complex:
 
     Bit-faithful to the prior ``elementwise_transcendental(·, 'exp_i')`` path
     (both run the same native libm-free ``rational.cos`` / ``rational.sin``
-    range-reduced cascade); numpy-free.
+    range-reduced cascade);
     """
     return complex(_srn.cos(theta), _srn.sin(theta))
 
@@ -71,12 +71,12 @@ def _as_list(v) -> list:
 
 
 def _psk_constellation(M: int) -> List[complex]:
-    """M-PSK constellation: ``exp(j·2π·k/M)`` for k in 0..M-1 (numpy-free)."""
+    """M-PSK constellation: ``exp(j·2π·k/M)`` for k in 0..M-1."""
     return [_exp_i(2.0 * _PI * k / M) for k in range(M)]
 
 
 def _qam_constellation(M: int) -> List[complex]:
-    """Square M-QAM constellation; requires sqrt(M) to be integer (numpy-free)."""
+    """Square M-QAM constellation; requires sqrt(M) to be integer."""
     sqrt_m = int(round(float(_srn.sqrt(float(M)))))   # √M → float before round()
     if sqrt_m * sqrt_m != M:
         raise ValueError(f"square QAM requires M = K^2; got M={M}")

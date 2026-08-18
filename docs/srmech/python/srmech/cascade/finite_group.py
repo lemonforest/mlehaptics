@@ -25,9 +25,7 @@ with no error signal.  Measured on the shipped unit loops, left bracketing::
 
 — silently wrong by 56 and by 360.  This op reports both numbers and the
 ``class_equation_agrees`` flag between them, so the disagreement is data
-rather than a trap.  That flag IS the non-group detector.
-
-numpy-free; no ``abs()``; exact ℚ via :class:`srmech.math.q.Q`.
+rather than a trap.  That flag IS the non-group detector. No ``abs()``; exact ℚ via :class:`srmech.math.q.Q`.
 """
 
 from __future__ import annotations

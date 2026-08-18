@@ -753,7 +753,7 @@ def _fay_linear_zero(terms, nvars: int) -> bool:
 
 
 class RiemannTheta:
-    """A numpy-free EXACT genus-2 Riemann theta-CONSTANT
+    """An EXACT genus-2 Riemann theta-CONSTANT
 
         θ[ε'; ε](0 | Ω) = Σ_{n ∈ ℤ²} (−1)^{ε·n} · Q₁^A Q₂^B Q₁₂^C ,
         A = 4n₁²+4n₁ε'₁+ε'₁², B = 4n₂²+4n₂ε'₂+ε'₂²,
@@ -840,7 +840,7 @@ class RiemannTheta:
         loaded (a 1:1 exact-integer mirror — the C lattice EQUALS the Python lattice,
         trusted only on a native hit); else the pure-Python :meth:`_lattice_py` body
         (the COMPLETE alternative + the parity oracle). No float, no ``abs()`` (the
-        ``(−1)^{ε·n}`` sign is the Class-K pin-slot), no numpy / ``math``."""
+        ``(−1)^{ε·n}`` sign is the Class-K pin-slot), no ``math``."""
         if not isinstance(box, int) or box < 0:
             raise ValueError(f"box must be a non-negative int; got {box!r}")
         nat = _native()
@@ -890,7 +890,7 @@ class RiemannTheta:
         ROOT OF UNITY (NO transcendental evaluation). The cyclotomic ring is REUSED from
         the rc29 exact-DFT engine (:func:`_cyclotomic_ring`); the ``(−1)^{ε·n}`` sign is
         the Class-K pin-slot, the phase ζ_m^e the Class-I cyclic exponent. No float, no
-        ``abs()``, no numpy.
+        ``abs()``.
 
         BRIDGES (the no-shell proof that this GENUINELY generalizes the carrier):
           * ``theta_at((0, 0), z_den, box)`` collapses BIT-EXACTLY to
@@ -1381,7 +1381,7 @@ class RiemannTheta:
             A = 2(2n₁+a₁)², B = 2(2n₂+a₂)², C = 2(2n₁+a₁)(2n₂+a₂)
 
         sign ``(−1)^{e·n}`` is the Class-K pin-slot (explicit ±1 branch, never
-        ``abs()``). Exact integer, no float / numpy / ``math``. ``a₁, a₂`` are the
+        ``abs()``). Exact integer, no float / ``math``. ``a₁, a₂`` are the
         DOUBLED upper characteristic (in {0,1} for an integer characteristic, but the
         helper accepts any integer so the right side's ``2r±(a∓b)`` cases work).
         DISPATCHES to the native ``srmech_riemann_theta_eighth_lattice`` (at Ω) when
@@ -2755,7 +2755,7 @@ def _native_g5():
 
 
 class RiemannThetaG3:
-    """A numpy-free EXACT genus-3 Riemann theta-CONSTANT
+    """An EXACT genus-3 Riemann theta-CONSTANT
 
         θ[ε'; ε](0 | Ω) = Σ_{n ∈ ℤ³} (−1)^{ε·n} · Q₁^{A₁} Q₂^{A₂} Q₃^{A₃}
                                        · Q₁₂^{C₁₂} Q₁₃^{C₁₃} Q₂₃^{C₂₃} ,
@@ -2977,7 +2977,7 @@ class RiemannThetaG3:
         ``exp(2πi (n+½ε')·z) = ζ_m^{Σᵢ (2nᵢ+ε'ᵢ) z_numᵢ}`` is a ROOT OF UNITY (no
         transcendental evaluation). The ring is REUSED from the rc29 exact-DFT engine
         (:func:`_cyclotomic_ring`); the ``(−1)^{ε·n}`` sign is the Class-K pin-slot. No
-        float, no ``abs()``, no numpy.
+        float, no ``abs()``.
 
         Same BRIDGES as the genus-2 :meth:`RiemannTheta.theta_at` (``z = 0`` →
         :meth:`lattice` bit-exact; half-period → characteristic-shift up to the global
@@ -3560,7 +3560,7 @@ class RiemannThetaG3:
             Aᵢ = 2(2nᵢ+aᵢ)²,   C_ij = 2(2nᵢ+aᵢ)(2nⱼ+aⱼ)
 
         sign ``(−1)^{e·n}`` is the Class-K pin-slot (explicit ±1 branch, never
-        ``abs()``). Exact integer, no float / numpy / ``math``. ``a₁, a₂, a₃`` are the
+        ``abs()``). Exact integer, no float / ``math``. ``a₁, a₂, a₃`` are the
         DOUBLED upper characteristic (the helper accepts any integer so the right
         side's ``2r±(a∓b)`` cases work). DISPATCHES to the native
         ``srmech_riemann_theta_g3_eighth_lattice`` (at Ω) when loaded — a 1:1
@@ -3957,7 +3957,7 @@ class RiemannThetaG3:
         leading diagonal slice (the monomials at ``Σ Aᵢ = wt(ε')``) and the 36 leading
         slices are convolved exactly (a bounded sparse multivariate multiply; JPL Rule
         2). The result is the exact leading part of χ₁₈ — NONZERO (so χ₁₈ ≠ 0 and its
-        leading order is exactly the sum). All-integer, no float / numpy / ``math`` /
+        leading order is exactly the sum). All-integer, no float / ``math`` /
         ``abs()``."""
         if not isinstance(box, int) or box < 1:
             raise ValueError(f"box must be an int ≥ 1 for χ₁₈; got {box!r}")
@@ -4387,7 +4387,7 @@ class RiemannThetaG3:
 
 
 class RiemannThetaG4:
-    """A numpy-free EXACT genus-4 Riemann theta-CONSTANT
+    """An EXACT genus-4 Riemann theta-CONSTANT
 
         θ[ε'; ε](0 | Ω) = Σ_{n ∈ ℤ⁴} (−1)^{ε·n}
                             · Q₁^{A₁} Q₂^{A₂} Q₃^{A₃} Q₄^{A₄}
@@ -4570,7 +4570,7 @@ class RiemannThetaG4:
         lattice EQUALS the Python lattice, trusted only on a native hit); else the
         pure-Python :meth:`_lattice_py` body (the COMPLETE alternative + the parity
         oracle). No float, no ``abs()`` (the ``(−1)^{ε·n}`` sign is the Class-K pin-slot),
-        no numpy / ``math``."""
+        no ``math``."""
         if not isinstance(box, int) or box < 0:
             raise ValueError(f"box must be a non-negative int; got {box!r}")
         nat = _native_g4()
@@ -5228,7 +5228,7 @@ class RiemannThetaG4:
             Aᵢ = 2(2nᵢ+aᵢ)²,   C_ij = 2(2nᵢ+aᵢ)(2nⱼ+aⱼ)
 
         sign ``(−1)^{e·n}`` is the Class-K pin-slot (explicit ±1 branch, never
-        ``abs()``). Exact integer, no float / numpy / ``math``. ``a₁..a₄`` are the
+        ``abs()``). Exact integer, no float / ``math``. ``a₁..a₄`` are the
         DOUBLED upper characteristic (the helper accepts any integer so the right side's
         ``2r±(a∓b)`` cases work). DISPATCHES to the native
         ``srmech_riemann_theta_g4_eighth_lattice`` (at Ω) when loaded — a 1:1
@@ -5769,7 +5769,7 @@ class SchottkyFormG4:
     Organized by the GRAM MATRIX ``T_ij = ⟨vᵢ,vⱼ⟩`` of the g-tuple, the coefficient of the
     monomial ``q^T`` is the EXACT INTEGER representation number ``r_L(T) =
     #{(v₁,…,v_g) ∈ L^g : Gram = T}``. So ``J``'s coefficient at ``T`` is the exact integer
-    ``r_{E₈⊕E₈}(T) − r_{E₁₆}(T)`` — a numpy-free integer count, never a float. (In the
+    ``r_{E₈⊕E₈}(T) − r_{E₁₆}(T)`` — an integer count, never a float. (In the
     RiemannThetaG4 quarter-nome base ``Qᵢ = qᵢ^{1/4}``, ``Q_ij = q_ij^{1/4}`` the exponents
     are ``Aᵢ = 4⟨vᵢ,vᵢ⟩``, ``C_ij = 4⟨vᵢ,vⱼ⟩`` — consistent with the rc80 carrier; the
     carrier works in the DOUBLED-vector integer model, where the doubled inner product
@@ -5948,7 +5948,7 @@ class SchottkyFormG4:
         ``(a₁₂,a₁₃,a₂₃)`` → g=3, ``(a₁₂,a₁₃,a₁₄,a₂₃,a₂₄,a₃₄)`` → g=4. Counts via the
         inner-value bitsets (intersection + popcount — the Class-L adjacency walk; the sign
         never enters, it is a pure non-negative integer count, so NO ``abs()``). Bounded
-        nested loops (JPL Rule 2), all-integer, no float / numpy / ``math``."""
+        nested loops (JPL Rule 2), all-integer, no float / ``math``."""
         pc = int.bit_count
         m = len(gram_off)
         if m == 0:                                       # genus 1: every minimal vector
@@ -6301,7 +6301,7 @@ class SchottkyFormG4:
 
 
 class RiemannThetaG5:
-    """A numpy-free EXACT genus-5 Riemann theta-CONSTANT
+    """An EXACT genus-5 Riemann theta-CONSTANT
 
         θ[ε'; ε](0 | Ω) = Σ_{n ∈ ℤ⁵} (−1)^{ε·n}
                             · Q₁^{A₁} Q₂^{A₂} Q₃^{A₃} Q₄^{A₄} Q₅^{A₅}
@@ -6489,7 +6489,7 @@ class RiemannThetaG5:
         mirror — the C lattice EQUALS the Python lattice, trusted only on a native hit);
         else the pure-Python :meth:`_lattice_py` body (the COMPLETE alternative + the
         parity oracle). No float, no ``abs()`` (the ``(−1)^{ε·n}`` sign is the Class-K
-        pin-slot), no numpy / ``math``. NOTE: ``(2·box+1)⁵`` grows FAST — keep box ≤ 2."""
+        pin-slot), no ``math``. NOTE: ``(2·box+1)⁵`` grows FAST — keep box ≤ 2."""
         if not isinstance(box, int) or box < 0:
             raise ValueError(f"box must be a non-negative int; got {box!r}")
         nat = _native_g5()
