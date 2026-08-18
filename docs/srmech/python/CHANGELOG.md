@@ -5,6 +5,112 @@ All notable changes to this package will be documented here. The format follows 
 **Reference notation.** `#T###` is a LOCAL task-tracker item (our session task list); `F####` is an RBS-LM finding; bare `#NNNN` is reserved for a REAL GitHub issue/PR (write `gh #1293` when you want it unambiguous). The `T` prefix exists because GitHub autolinks `#` followed immediately by digits, so a bare task ID silently mints a cross-link to whatever issue happens to hold that number — several of ours collide with unrelated merged issues. Never write a task ID as bare `#NNNN`. **Two clauses the root `CLAUDE.md` carries and this paragraph did not** (reconciled 2026-07-29, `#T994`): (1) a ref inside a **code span** — `` `#938` `` — does **not** autolink, so it is the legitimate way to *quote* a bad ref while documenting it, and any mechanical check must exempt code spans and bound the digit range or it will flag `UAX #29` / `MS #20` / `Spike #24`; (2) the rule binds **four** surfaces — file content (including docstrings and `ToolEntry` prose, which are emitted into generated files and ship in the wheel), commit messages, the PR body, and **the PR title, which becomes the merge-commit subject**. Existence proves nothing; **topicality decides** — read the surrounding prose, never batch-convert.
 
 
+## [0.9.0rc449] - `#T1158`: C refuses what it should, on the host where Python does not exist
+
+### The claim is NOT "the projections now agree" — rc448 already had that
+
+rc447 closed the `#T1146` unknown-kwarg divergence **at the Python IR builder**: `_then_native_desc` declines to emit a stage whose kwarg the op does not accept. Its own commit says so — *"CLOSED AT THE IR BUILDER, NOT INSIDE C, because that is where the two projections diverge."*
+
+That is a **divergence-only fix**, and it is the exact mirror of the shape gh #1653's DoD warned against (*"a capability-only fix does not satisfy this"*). Both make the projections agree without moving C's **acceptance** behaviour; they differ only in which side moved. On a bare-C host there is no IR builder to decline, so a malformed declaration was **still silently accepted and computed**. And rc447 is the same release that shipped `c/test/test_srmech_chain_run.c`, the ADR-0003 bare-C proof — so it demonstrated that consumers reach exactly the host where its own fix does not apply.
+
+**"The projections agree" and "C refuses what it should" are different properties, and a parity harness that compares only OUTPUTS cannot tell them apart.**
+
+### The witness, measured bare-C at rc448 head
+
+`best_rational_signed` on `0.3333333333333333`:
+
+| declaration | rc448 | rc449 |
+|---|---|---|
+| `{"op":"best_rational_signed","max_denominator":2}` | `OK`, `(0, 1)` | unchanged |
+| `{"op":"best_rational_signed","max_denominatr":2}` | `OK`, **`(1, 3)`** | `SRMECH_ERR_BAD_INPUT` |
+
+One dropped letter. No crash and no decline — the constraint is dropped, the default 100 is used, and **a different number comes back**. Python on the same call raises `TypeError: best_rational_signed() got an unexpected keyword argument 'max_denominatr'`.
+
+Measured across both surfaces at rc448: **all 7 malformed declarations in the planted-red probe returned `SRMECH_OK` and computed**; all 7 return `SRMECH_ERR_BAD_INPUT` at rc449. Generating code and transcript: `notes/_t1158_planted_red_rc449.{c,txt}`. The generated refusal-set corpus is wider — **62 probes, 46 of them refusal-expected** (34 DSL / 28 compose).
+
+### What shipped
+
+**Two C validators, both reading the compiled tool registry** — not a new table. `srmech_tool_registry_find` is already pinned set-equal to the live Python signatures from both directions (rc13 `test_schema_signature_alignment_no_drift`, rc408 `test_declared_param_completeness_rc408`), and `#T1146` existed *because* two independent notions of "accepted keys" had drifted. A third would be the defect in miniature.
+
+- `dsl_leaf_keyset_ok` (`c/src/srmech_dsl_chain_run.c`) — legal set `{"op"} ∪ params[1..]`. `params[0]` is the DATA CARRIER, threaded as the chain value, so it is **refused** as a stage kwarg.
+- `cr_args_keyset_ok` (`c/src/srmech_compose_run.c`) — legal set `params[*]`. Here every operand arrives BY NAME inside `args`, so `params[1..]` would refuse `gcd{a,b}`. **The asymmetry is deliberate and both directions are pinned**, so nobody "unifies" the two rules later.
+
+Both refuse with `SRMECH_ERR_BAD_INPUT`, never `SRMECH_ERR_NOT_IMPL`. In both runners `NOT_IMPL` is the **defer-to-pure channel**; returning it for an unknown key would say *"this projection doesn't do it yet, the other might"* — false on a bare-C host, where nothing will ever implement `max_denominatr`. That would be rc447's divergence-only shape rebuilt **inside** C with only the constants moved. The tree already draws this line (`MIXED` → `BAD_INPUT`, `MAP` → `NOT_IMPL`) and rc449 puts an unknown key on the `MIXED` side.
+
+A registry miss for an op the dispatch table really runs is `SRMECH_ERR_INTERNAL`, **never silent acceptance** — otherwise one typo in a name index would disable the validator for that op forever while every other op stayed green.
+
+### `pi_cascade_digits` had been reading a key Python removed 131 rcs ago
+
+Not predicted by the rc449 brief; **found while implementing it**, and forced into scope because the `params[*]` rule reads the registry.
+
+rc318 renamed the Python kwarg `precision_bits` → `precision` for the uniform Class-N precision contract (*"a pure rename, digits bit-identical"*). **`cr_op_pi` was never carried**, so the two projections disagreed on the key's NAME in both directions, silently:
+
+- **`precision`** — legal in Python, and *ignored* by C. `pi_cascade_digits(100, precision=64)` returns `3.1415926535897932370491360265507552185…` from Python, which honours the narrow precision and degrades after ~19 places, while C never read the key, auto-scaled to 1024 bits and returned the fully correct expansion. **Same declaration, two co-equal projections, different digits of π, no error anywhere.**
+- **`precision_bits`** — refused by Python (`TypeError`) and honoured by C.
+
+rc449 makes `cr_op_pi` read `precision`. ⚠️ **The value semantics are NOT closed**: C still clamps `prec < 512` up to 512 while Python honours `[64, 32768]`, so the projections still differ for precision in roughly `[64, 350)`. That is a wrong-VALUE divergence, a different class from this rc's wrong-KEY one, and it is **FILED** (`pi_cascade_digits_precision_clamp`) rather than folded in — the same reason G3 compares verdicts and not values.
+
+### The bare-C proof now touches its own subject
+
+Through rc448 `c/test/test_srmech_chain_run.c` drove `srmech_chain_run` only and touched `srmech_dsl_chain_run` — the surface the D1 finding was filed against — **exactly zero times**. rc449 adds a `run_dsl` helper beside `run_chain` (one shared 8 MiB arena, no second one) and **15 new rows**: 17 → **32 checks, 0 failed**, no Python and no ctypes in the process.
+
+Every refusal row ships with a clean twin differing by exactly one key, checked FIRST and **by value** — `max_denominator: 2` must not merely return `OK`, it must move the answer `(1,3)` → `(0,1)`, which is what separates "refuses unknown keys" from "refuses keys". Every row asserts a **literal status**, never `!= SRMECH_OK`: an op-table miss and a missing-required key both return `NOT_IMPL`, so the loose form would pass when the wrong mechanism fired. The pre-existing `an op outside the table DECLINES` row was tightened from `!= SRMECH_OK` to `== SRMECH_ERR_NOT_IMPL` for exactly that reason.
+
+### Gates, each proven able to go RED
+
+Sabotage arms run once and reverted, recorded in `notes/_t1158_sabotage_arms_rc449.txt`:
+
+| arm | change | result |
+|---|---|---|
+| params[*] on Surface B | `for (j = 1u; …)` → `j = 0u` | **31/32**, and the one red row is the data-carrier row minted for it |
+| refuse everything | both key predicates return 0 | **20/32** — twelve acceptance rows red |
+| registry miss | one character into `CR_OP_REG`'s `gcd` entry | **25/32** — acceptance *and* refusal rows red, so the typo cannot read as "that op got stricter" |
+| disable both validators (rc448 behaviour) | early `return SRMECH_OK` | `test_t1158_refusal_set_equality_rc449` red on every dirty probe, diagnosed *"C ACCEPTS what pure refuses (silent wrong answer)"* |
+
+⚠️ **The brief was wrong about the first arm** and the note records it: `params[*]` is strictly *more permissive*, so it can only turn a REFUSAL row red, never `B2`/`A3`. Those go red under the refuse-everything arm. Both arms are needed and they catch opposite mistakes.
+
+**`test_t1158_refusal_set_equality_rc449.py`** — the property rc447 left unproven. Drives C **via ctypes directly, not the public surface**, because `_chain.py` and `compose.py` collapse every non-OK status to a native-miss and fall through to pure: through the front door a refusal and a deferral are indistinguishable, which is the exact blindness the gate exists to remove. The corpus is **generated** from live signatures, not hand-picked — D1 was missed by *case selection* (`test_dsl_chain_c_rc181.py` has a real forced-pure arm and simply never fed it an invalid chain). Both directions are checked per probe, because C refusing what Python accepts is the **stricter-than-Python** failure that the whole output-parity corpus is blind to. Every `NOT_IMPL` must be classified or the gate fails, and anti-vacuity floors mean a corpus that silently emptied goes red rather than green.
+
+Two harness bugs surfaced during that build and were fixed in the generator, not the assertion: a "clean" probe that omitted a REQUIRED kwarg was measuring missing-required (a disjoint class that *defers*), and `rational_add` declines int literals for a VALUE reason. Every op now needs a working clean baseline before its dirty probes are believed, and the exclusion list is asserted rather than hidden.
+
+**`test_t1158_registry_param_order_rc449.py`** — registry param ORDER, which nothing pinned. Red on first run: **8 of 609** set-equal entries were reordered. Seven drifted only among keyword-only params. The eighth did not — `srmech.math.hdc.polar_random` declared `(D, seed, rng)` against a live `(D, rng, seed)`, all positionally bindable, so a consumer trusting the published contract and calling `polar_random(8192, 42)` binds **`rng`** and gets `AttributeError: 'int' object has no attribute 'randrange'` — an error naming neither parameter it wrote. Loud, but only by luck: any object with a `randrange` would have been accepted as the wrong argument. rc408 introduced that drift while closing a different gap. All 8 repaired. The gate also cross-pins both C name indexes against the dispatch arms and the registry, so an arm without an index entry (silently unvalidated) or an index entry without an arm is red.
+
+### ABI 18 → 19, and three sites rc447 left stale
+
+The fifth bump of the v10/v12/v14/v16/v17 kind: no signature changed shape, but the status an exported function returns for a class of input did. `srmech.h` states outright that non-zero status values *"form part of the wire contract with the Python ctypes binding"*, and **v16 is precedent for exactly this case** — a new refusal on never-promised input, which bumped. The pin is load-bearing rather than ceremonial: Python's native-miss collapse makes the C refusal invisible on the front door, so the ABI check is the **only** mechanism that rejects a stale rc448 library, on which a bare-C host would still get the silent drop. `SRMECH_GENOME_FORMAT_VERSION` stays 20 — neither interpreter touches a strand byte.
+
+The ripple was **regenerated, not taken from rc447's ledger**, which is measured wrong in three ways. Repaired in passing:
+
+- `docs/srmech/CLAUDE.md` — the **narrative ABI SSoT**, still saying **17**. Its own parenthetical enumerates five prior lags; rc447's bump made a **sixth**, and rc448 shipped over it without repair, so by rc449 it was **two bumps behind — the first time it was ever more than one**.
+- `c/README.md` — still **17**, under a note reading *"No gate covers `c/README.md` at all, which is exactly why it drifted the furthest."* It then drifted again, which is the whole argument.
+- `tests/test_bus.py` — an assertion **message** reading *"should be 15"* beside an assert of 18. rc447's gate parses test *names*; nothing reads assertion text. Fixed by construction (the value is named once and interpolated) rather than by bumping a digit.
+
+**`tests/test_abi_prose_currency_rc449.py`** now gates the two prose surfaces — the last two ABI **currency** statements in the tree with no gate (the CHANGELOG and `notes/*.md` also carry ABI numbers, but each is a dated record of its own release, historical by construction). Six consecutive lags is not an accident; it is *"ungated surfaces trickle; gated ones race to 100%"*.
+
+⚠️ **A gate is not covered until a workflow RUNS it.** `docs/srmech/CLAUDE.md` sits above `srmech-ci.yml`'s `docs/srmech/python/**` trigger, so a prose-only commit — precisely the commit that restates the ABI — would never have run the new gate. It gets its own step in `srmech-ref-guard.yml` (the fourth guard there, same reasoning as the notebook gate), and all three new test files are declared in `SCAN_ROOTS`, which is what forces the trigger check. The scan-root gate caught this itself: the three files were red as *undeclared reaches* before they were declared.
+
+### Python-side, and a claim scoped honestly
+
+`_op_accepts` excludes the first positional parameter when judging a stage kwarg (**7/7** measured closed: `magnitude x=`, `reorient value=`, `pin_slot_at_zero x=`, `best_rational_signed x=`, `chiral_flip seq=`, `net_chirality orientations=`, `autocorrelation x=`), and `_chain_c_eligible` gained the key-set check it never had — it gated on `on_error` and op membership and **never compared `step.args` keys to the signature**, while `_run_chain_native` is tried first.
+
+⚠️ **Neither is what closes the gap.** The C refusal is; these stop the builders proposing a chain they can already tell C will decline. End behaviour converges without them, and saying otherwise would overstate what a Python-side change can prove about a bare-C host.
+
+### `test_t1146_rejection_parity_rc447.py` said two false things, and it ships
+
+*"There is NO key-set validator anywhere in the C leaf surface, so there was no in-tree pattern to copy"* — the second half was false when written. `iv_no_extra_keys` (`c/src/srmech_invoke.c:1580`) already walked an arguments object against `e->params[j].name`; it simply did not match the greps behind the claim (`key_set|keyset|unknown_key|validate_keys`). **A grep artifact reported as an absence.** rc449 copied its walk and deliberately not its DEFER disposition, which is correct only because its one bare-C consumer converts it to an explicit MCP error. And *"this closes the gap"* — it closed the divergence.
+
+### Blast radius, measured before merge
+
+**0 offenders.** 940 Python files AST-scanned for chain descriptors on both surfaces. A correction to the brief, which expected "every packaged `cascade_catalog` descriptor (20)": there are **21** `.toml` files there and **none is a chain descriptor** — they are per-op catalog entries with no `steps` and no `args`. A tree-wide search for TOML chain descriptors returns zero; chain descriptors here are Python dict literals. Two apparent hits were scanner false positives and both are recorded: a multi-discriminator negative case (diverted by `dsl_stage_is_combinator` before the validator, the F5 surface this rc **files**), and an `invoke_tool` arguments payload that is not a stage at all.
+
+### What this rc does NOT claim
+
+1. **NOT "C rejection parity is closed."** Closed: the unknown **op-argument-key** class on the two chain interpreters. Open and filed: compose `class`-key/op agreement, chain-head keys, DSL multi-discriminator MIXED, the genome attestation unknown-key overlay (**flagged as the head item for rc450** — a durable wrong provenance record written by the one op whose purpose is provenance honesty), `make_class` fields/args/routes, the dotted-prefix over-permissive match.
+2. **NOT "a bare-C host cannot compute a malformed declaration."** Only the key-NAME class. Wrong-TYPE values, class/op mismatch and multi-discriminator stages still compute — as does `pi_cascade_digits` below its precision clamp.
+3. **NOT value parity.** The pure-vs-C `autocorrelation` divergence and the 16 doubly-blind parity files are pre-existing, filed and untouched.
+4. **NOT "the parity-harness corpus is fixed."** One non-tautological harness for two surfaces; the 30-of-45 no-forced-pure-arm census stands.
+5. **NOT** CI coverage beyond the `pedantic-build` job — C tests do not run in wheel builds, and no workflow invokes `c/Makefile`.
+
 ## [0.9.0rc448] - `#T1145`: the descriptors respelled, and three claims their own release had falsified
 
 ### The `#T1145` census DRAINED 32 -> 0 — a data fix, not a mechanism change

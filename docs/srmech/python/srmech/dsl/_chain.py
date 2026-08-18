@@ -116,11 +116,37 @@ def _op_accepts(op_fn: Any, key: str) -> bool:
     ``True`` for any key when the signature has ``**kwargs``, and ``True`` when
     the signature cannot be read at all — an unreadable signature is not
     evidence of rejection, and guessing "no" there would defer valid chains.
+
+    ⚠️ THE FIRST POSITIONAL PARAMETER IS NOT AN ACCEPTABLE STAGE KWARG (rc449,
+    `#T1158`). It is the DATA CARRIER: a chain THREADS its value into that slot
+    positionally, so naming it again in ``.then(...)`` gives the callable two
+    values for one parameter. MEASURED at rc448, 7/7 through the public surface —
+    ``chain().then('magnitude', x=5)`` had ``_op_accepts`` answer ``True``, emitted
+    the IR stage ``{'op': 'magnitude', 'x': 5}``, and the pure runner raised
+    ``TypeError: magnitude() got multiple values for argument 'x'``. Identically
+    for ``reorient value=``, ``pin_slot_at_zero x=``, ``best_rational_signed x=``,
+    ``chiral_flip seq=``, ``net_chirality orientations=`` and ``autocorrelation x=``.
+
+    This check is what stops the IR builder emitting a stage it can already tell
+    is doomed. It is NOT what closes the parity gap — the C validator
+    (``dsl_leaf_keyset_ok``) is, and end behaviour converges without this edit
+    because C now refuses, Python collapses that to a native-miss, and the pure
+    path raises the same ``TypeError`` from the same place. Saying otherwise would
+    overstate what a Python-side change can prove about a bare-C host.
+
+    It runs BEFORE the ``**kwargs`` early return deliberately: the conflict is
+    positional, so ``f(x, **kw)`` with a stage naming ``x`` still raises
+    "multiple values" and an open keyword namespace does not rescue it.
     """
     try:
         params = _inspect.signature(op_fn).parameters
     except (TypeError, ValueError):
         return True
+    names = list(params)
+    if names and key == names[0] and params[names[0]].kind in (
+            _inspect.Parameter.POSITIONAL_ONLY,
+            _inspect.Parameter.POSITIONAL_OR_KEYWORD):
+        return False
     for p in params.values():
         if p.kind is _inspect.Parameter.VAR_KEYWORD:
             return True

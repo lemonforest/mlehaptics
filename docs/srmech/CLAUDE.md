@@ -659,17 +659,26 @@ calls** — go through `sha256_bytes` (Phase B5 discipline).
 
 ### ABI compatibility
 
-C ABI version is currently **17** (`SRMECH_ABI_VERSION = 17` in
-`c/include/srmech.h`; `EXPECTED_ABI_VERSION = 17` in
+C ABI version is currently **19** (`SRMECH_ABI_VERSION = 19` in
+`c/include/srmech.h`; `EXPECTED_ABI_VERSION = 19` in
 *(this line said 12 until rc420, 13 until rc425, 14 until rc438, 15 until
-rc439 and 16 until rc442 — one bump behind on each occasion, the exact staleness
+rc439, 16 until rc442, 17 until rc449 and — the point — **17 through the whole of
+rc447 AND rc448**, so it was two bumps behind by the time rc449 read it: a SIXTH
+consecutive lag (rc448 bumped nothing, so it is not a lag of its own — it is the
+same one, uncorrected for a second release), and the first ever more than one. The exact staleness
 shape the rc404 note below records; the v13 bump was rc418's, the v14 bump is rc425's
 `srmech_mlse` wire-contract change, the v15 bump is rc438's
-`srmech_klein4_from_one` winding triad, and the v16 bump is rc439's
-`srmech_genome_centromere_of` dicentric refusal, and the v17 bump is rc442's
-§GROUP/v20 `genome_cap_kind` widening — all three STATUS reinterpretations,
-the v10/v12/v14 shape. rc442 is also the first bump since rc326 to move
-`SRMECH_GENOME_FORMAT_VERSION` alongside it, 19 → 20)*
+`srmech_klein4_from_one` winding triad, the v16 bump is rc439's
+`srmech_genome_centromere_of` dicentric refusal, the v17 bump is rc442's
+§GROUP/v20 `genome_cap_kind` widening, the v18 bump is rc447's `{"k":"f"}` /
+`{"k":"l"}` value-descriptor kinds on `srmech_chain_run`'s output wire, and the
+v19 bump is rc449's key-set refusal on both chain interpreters — all STATUS
+reinterpretations bar v18, the v10/v12/v14 shape. rc442 is also the first bump
+since rc326 to move `SRMECH_GENOME_FORMAT_VERSION` alongside it, 19 → 20.
+⚠️ **rc449 (`#T1158`) put this line under a gate** —
+`tests/test_abi_prose_currency_rc449.py` — precisely because six lags in a row
+is not an accident: "ungated surfaces trickle; gated ones race to 100%". It and
+`c/README.md` were the last two ABI statements in the tree with no gate on them.)*
 `python/srmech/_native/__init__.py`). *(These three lines said ABI **9** and
 pointed at `python/srmech/amsc/_native.py` until rc404 (`#T1069`) — two stale
 facts in three lines: the version was three bumps behind, and ADR-0010 moved

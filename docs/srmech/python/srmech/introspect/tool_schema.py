@@ -3878,7 +3878,6 @@ def _register_primitive_class_tools() -> None:
                         P("coupling", "HV", True, "the held invariant every turn is coupled through"),
                         P("label", "str", False, "keyword-only; the chromosome label for the telomere cap (default 'chromosome')"),
                         P("genes", "Sequence[tuple]", False, "keyword-only; multi-gene mode (F730): [(gene_label, gene_leaves), ...] inside one telomere-capped chromosome (pass leaves OR genes). §128/§129/§130 REGULATORY genes carry inline Class-I logic that gene_express filters on: a 4-tuple (gene_label, gene_leaves, activator_mask, repressor_mask) is the §129 two Klein-4 bit-planes / klein4_mask gate (require-present + require-absent conditions); a 3-tuple with an INT third element (gene_label, gene_leaves, activator_mask) is §128 activator-only (repressor 0, byte-identical to rc128); a 3-tuple with a DICT third element (gene_label, gene_leaves, {'gate':'boolean','dnf':[(act,rep),...]}) is a §130 BOOLEAN gene (arbitrary boolean logic as a DNF — an OR of (require-present, require-absent) AND-clauses; AND/OR/NOT/XOR; E1 klein4_mask subset E2 boolean); a 3-tuple with a DICT (gene_label, gene_leaves, {'gate':'threshold','weights':[w0,w1,...],'threshold':theta}) is a §131 THRESHOLD gene (E4 — a linear-threshold / perceptron gate: SIGNED integer weight per condition + an integer threshold; expresses iff Sum weight_i*bit_i(cell_state) >= theta; SIGNED weights = inhibitory inputs; GENUINELY DISTINCT from E2 — a MAJORITY-of-n / weighted dose-sum needs an exponential DNF, so linear-threshold subset-not small-DNF); a 3-tuple with a DICT (gene_label, gene_leaves, {'gate':'graded','weights':[w0,w1,...],'denom':D}) is a §132 GRADED gene (E3 — the ORTHOGONAL analog LEVEL axis / dose-response: a SIGNED integer level-weight per condition + a POSITIVE denominator; gene_express_levels reports the reduced exact-rational LEVEL Sum weight_i*bit_i(cell_state) / D clamped to [0,1]); a 2-tuple is UNREGULATED (always expressed)"),
-                        ET_PARAM,
                         P("kernel", "bool", False,
                           "keyword-only; when True the chromosome opens with a "
                           "§89 KERNEL telomere (0x6B) instead of the plain CHROM "
@@ -3914,7 +3913,8 @@ def _register_primitive_class_tools() -> None:
                           "arm-ratio (biology: the centromere position defines "
                           "the arms), so nothing double-encodes it. Requires "
                           "centromere= (passing it alone raises). Default None = "
-                          "the metacentric midpoint len(turns) // 2.")),
+                          "the metacentric midpoint len(turns) // 2."),
+                        ET_PARAM),
             returns=R("list", "the strand: [telomere_cap, coupled turn, ...] (single-kernel) or [telomere_cap, gene_header, coupled turn, ..., gene_header, ...] (multi-gene)"),
         ),
         ToolEntry(
@@ -3991,7 +3991,6 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("kernels", "dict", False, "{label: leaves} mapping OR [(label, leaves), ...] sequence (insertion order = strand order); pass kernels OR chromosomes"),
                         P("coupling", "HV", True, "the held invariant every turn is coupled through"),
                         P("chromosomes", "Sequence[tuple]", False, "keyword-only; the multi-gene form [(label, [(gene_label, gene_leaves), ...]), ...] — defers to plasmid() (all plasmids); pass kernels OR chromosomes"),
-                        ET_PARAM,
                         P("progress", "host_callable", False,
                           "keyword-only; the §101 / ABI-v6 per-call progress "
                           "HEARTBEAT + graceful-abort tick — an IN-PROCESS host "
@@ -4014,7 +4013,8 @@ def _register_primitive_class_tools() -> None:
                           "byte-parity against the pure loop. NOT the v5 "
                           "srmech_progress_cb_t process-global dispatch OBSERVER "
                           "(void return, no cancel channel). Default None = "
-                          "disabled.")),
+                          "disabled."),
+                        ET_PARAM),
             returns=R("list", "the genome strand (a flat list of Klein-4 vectors: per kernel a plasmid chromosome or a centromere-minted nuclear one), recovered with partition"),
         ),
         ToolEntry(
@@ -4086,7 +4086,6 @@ def _register_primitive_class_tools() -> None:
             summary="Build a genome — the BIOLOGY-AWARE UMBRELLA that lets the tooling PICK each chromosome's shape by modeling biology (rc260 rename, §95.2 / #1407). The umbrella noun + default smart constructor: per kernel the attested encode_shape criterion (F715, no magic number) decides plasmid-vs-nuclear — a plasmid-scale kernel (tome/mobius, <=4 leaves) stays a Tier-1 PLASMID chromosome (no centromere), a eukaryotic-chromosome-scale kernel (quad_strand, >=5 leaves) is MINTED as a Tier-2 NUCLEAR chromosome with an interior centromere carrying its global orientation (content-address folded to a sector). A genome strand IS a strand (list of Klein-4 vectors); recover with partition (the reader is format-agnostic). RC260 RENAME (breaking): genome was the pure all-plasmid builder — that is now plasmid(); mint() is the explicit alias of this umbrella. kernels is a dict {label: leaves} or (label, leaves) pairs. Composes chromosome + centromere (Class A + Class C + Class M).",
             parameters=(P("kernels", "dict", True, "{label: leaves} — each kernel's leaves are Klein-4 vectors (one tome each)"),
                         P("coupling", "HV", True, "the held invariant every turn of every chromosome is coupled through"),
-                        ET_PARAM,
                         P("chromosomes", "Sequence[tuple]", False,
                           "keyword-only; the multi-gene form "
                           "[(label, [(gene_label, gene_leaves), ...]), ...] — a "
@@ -4119,7 +4118,8 @@ def _register_primitive_class_tools() -> None:
                           "byte-parity against the pure loop. NOT the v5 "
                           "srmech_progress_cb_t process-global dispatch OBSERVER "
                           "(void return, no cancel channel). Default None = "
-                          "disabled.")),
+                          "disabled."),
+                        ET_PARAM),
             returns=R("list", "the flat genome strand: per kernel a plasmid chromosome or a centromere-minted nuclear one, recovered with partition"),
         ),
         ToolEntry(
@@ -4182,8 +4182,8 @@ def _register_primitive_class_tools() -> None:
                         P("path", "str", True, "the genome DIRECTORY to write (created if absent; gets manifest.json + turns.bin)"),
                         P("coupling", "HV", True, "the held invariant every turn is coupled through (content-addressed into the manifest)"),
                         P("labels", "list", False, "optional, back-compat; when given VALIDATES the scanned chromosome set (labels are discovered inline)"),
-                        ET_PARAM,
-                        P("attestation", "dict", False, "keyword-only; a caller MPR SOURCE-attestation whose provided fields OVERRIDE the srmech default written into manifest.json (override-only over the five source-identity fields source_doi / source_url / license / retrieved_at / response_sha256 — an ABSENT field keeps its default, so a partial dict never blanks one; the four ENCODER-identity fields parser_version / parser_rule_hash / collector_descriptor_path / collector_descriptor_hash stay srmech-owned). Records an attested corpus genome's REAL source (e.g. a simplewiki dump under CC-BY-SA-4.0) genome-natively — the genome directory is the SSoT, no sidecar files (§41/F1300), so the manifest is the only legitimate home for it. A malformed override (non-dict / unknown key such as a source_uri typo / a value that makes the merged block an invalid MPR) RAISES before any bytes hit disk, so the very misattribution this parameter exists to prevent cannot be introduced silently; omitted -> the srmech default (source srmech.net/genome/persistence) is written unchanged.")),
+                        P("attestation", "dict", False, "keyword-only; a caller MPR SOURCE-attestation whose provided fields OVERRIDE the srmech default written into manifest.json (override-only over the five source-identity fields source_doi / source_url / license / retrieved_at / response_sha256 — an ABSENT field keeps its default, so a partial dict never blanks one; the four ENCODER-identity fields parser_version / parser_rule_hash / collector_descriptor_path / collector_descriptor_hash stay srmech-owned). Records an attested corpus genome's REAL source (e.g. a simplewiki dump under CC-BY-SA-4.0) genome-natively — the genome directory is the SSoT, no sidecar files (§41/F1300), so the manifest is the only legitimate home for it. A malformed override (non-dict / unknown key such as a source_uri typo / a value that makes the merged block an invalid MPR) RAISES before any bytes hit disk, so the very misattribution this parameter exists to prevent cannot be introduced silently; omitted -> the srmech default (source srmech.net/genome/persistence) is written unchanged."),
+                        ET_PARAM),
             returns=R("dict", "the manifest data {format_version=4, leaf_dim, n_turns, coupling, body_sha256 (region chain), regions, chromosomes}"),
         ),
         ToolEntry(
@@ -5445,7 +5445,6 @@ def _register_primitive_class_tools() -> None:
                         P("centromere_at", "Optional[int]", False, "keyword-only; the arm-split index in DATA turns, 0..n_turns (default the metacentric midpoint n_turns//2 — position IS the p:q arm-ratio)"),
                         P("repeats", "int", False, "keyword-only; the alpha-satellite repeat-array size R (default 15; uint8 1..255)"),
                         P("handle", "str", False, "keyword-only; the inline CENP-A epigenetic handle (default 'cen')"),
-                        ET_PARAM,
                         P("progress", "host_callable", False,
                           "keyword-only; the §101 / ABI-v6 per-call progress "
                           "HEARTBEAT + graceful-abort tick — an IN-PROCESS host "
@@ -5466,7 +5465,8 @@ def _register_primitive_class_tools() -> None:
                           "concurrency, MCU-safe, no RTOS). NOT the v5 "
                           "srmech_progress_cb_t process-global dispatch OBSERVER "
                           "(void return, no cancel channel). Default None = "
-                          "disabled.")),
+                          "disabled."),
+                        ET_PARAM),
             returns=R("list", "the MINTED strand — the input strand with one interior centromere cap (0x58) spliced at the p:q arm-split; recover the orientation + arm-ratio with centromere_of, census as 'nuclear' after genome_save"),
         ),
         ToolEntry(
@@ -5569,8 +5569,6 @@ def _register_primitive_class_tools() -> None:
                         P("max_tome", "int", False, "keyword-only; forwarded to genome_partition (default 256)"),
                         P("n_bins", "int", False, "keyword-only; forwarded to genome_partition (default 16)"),
                         P("centromere_at", "int", False, "keyword-only; the nuclear arm-split forwarded to mint_strand (default the metacentric midpoint)"),
-                        P("attestation", "dict", False, "keyword-only; when path is given, a caller MPR SOURCE-attestation forwarded to genome_save whose fields OVERRIDE the srmech default written into manifest.json (override-only over the five source-identity fields source_doi / source_url / license / retrieved_at / response_sha256; the four ENCODER-identity fields parser_version / parser_rule_hash / collector_descriptor_path / collector_descriptor_hash stay srmech-owned). Records an attested corpus genome's REAL source (e.g. a simplewiki dump under CC-BY-SA-4.0) genome-natively — the genome directory is the SSoT, no sidecar files (§41/F1300), so the manifest is the only legitimate home for it. A malformed override (non-dict / unknown key / value that makes the merged block an invalid MPR) RAISES before any bytes hit disk; omitted -> the srmech default is written unchanged."),
-                        ET_PARAM,
                         P("progress", "host_callable", False,
                           "keyword-only; the §101 / ABI-v6 per-call progress "
                           "HEARTBEAT + graceful-abort tick — an IN-PROCESS host "
@@ -5597,7 +5595,9 @@ def _register_primitive_class_tools() -> None:
                           "encode thread (zero concurrency, MCU-safe, no RTOS). "
                           "NOT the v5 srmech_progress_cb_t process-global "
                           "dispatch OBSERVER (void return, no cancel channel). "
-                          "Default None = disabled.")),
+                          "Default None = disabled."),
+                        P("attestation", "dict", False, "keyword-only; when path is given, a caller MPR SOURCE-attestation forwarded to genome_save whose fields OVERRIDE the srmech default written into manifest.json (override-only over the five source-identity fields source_doi / source_url / license / retrieved_at / response_sha256; the four ENCODER-identity fields parser_version / parser_rule_hash / collector_descriptor_path / collector_descriptor_hash stay srmech-owned). Records an attested corpus genome's REAL source (e.g. a simplewiki dump under CC-BY-SA-4.0) genome-natively — the genome directory is the SSoT, no sidecar files (§41/F1300), so the manifest is the only legitimate home for it. A malformed override (non-dict / unknown key / value that makes the merged block an invalid MPR) RAISES before any bytes hit disk; omitted -> the srmech default is written unchanged."),
+                        ET_PARAM),
             returns=R("dict", "{strand, chromosomes:[{label,type,community,n_syms,nodes}], partition, counts:{nuclear,plasmid}, path?, census?} — genome_census reports the measured {nuclear, plasmid} when path is given"),
         ),
         ToolEntry(
@@ -5817,8 +5817,6 @@ def _register_primitive_class_tools() -> None:
             # client can only send null = absent, so the wire behaviour is
             # unchanged and `seed` remains the only fillable wire path.
             parameters=(P("D", "int", True, "dimension"),
-                        P("seed", "int", False,
-                          "integer seed for a deterministic vector"),
                         P("rng", "host_rng", False,
                           "a HOST-SIDE generator for in-process callers — a "
                           "random.Random, or a numpy Generator (duck-typed: "
@@ -5832,7 +5830,23 @@ def _register_primitive_class_tools() -> None:
                           "Anthropic callers pass the integer seed instead, which "
                           "gives a reproducible stream. Default None: the "
                           "generator is built internally as random.Random(seed) "
-                          "(seed=None then draws from urandom).")),
+                          "(seed=None then draws from urandom)."),
+                        # ⚠️ rc449 (`#T1158`): `seed` is declared AFTER `rng`
+                        # because that is the live signature order —
+                        # polar_random(D, rng=None, seed=None). rc408 added
+                        # `rng` to this tuple but appended it, so the published
+                        # contract read (D, seed, rng) while the callable read
+                        # (D, rng, seed). A consumer binding positionally from
+                        # the contract — polar_random(8192, 42) — lands 42 on
+                        # `rng` and raises AttributeError: 'int' object has no
+                        # attribute 'randrange', an error that names neither
+                        # parameter the caller wrote. Loud, but only by luck:
+                        # any host_rng-shaped value would have been ACCEPTED as
+                        # the wrong argument. It was the only one of the eight
+                        # rc449 order repairs that drifted among POSITIONALLY
+                        # BINDABLE parameters.
+                        P("seed", "int", False,
+                          "integer seed for a deterministic vector")),
             returns=R("array", "int8 in {-1,0,+1}"),
         ),
         ToolEntry(
@@ -12728,11 +12742,6 @@ def _register_primitive_class_tools() -> None:
                         P("n_sectors", "int", False,
                           "how many of the 4 Klein-4 sectors to dispatch "
                           "(1..4; default 4; hard-capped at 4)"),
-                        P("combine", "str", False,
-                          "rc12 recombine: None (default; leaf dict, combined "
-                          "None) | 'bundle'/'mean'/'sector0'/'concat' → one "
-                          "composable value at result['combined'] so the "
-                          "dispatch chains / nests"),
                         P("verify", "bool", False,
                           "keyword-only; when True, RE-CHECK the correctness "
                           "invariants at RUNTIME — recompute the serial "
@@ -12747,7 +12756,12 @@ def _register_primitive_class_tools() -> None:
                           "and turned the dispatch into a 2.6–7.7× slowdown "
                           "against serial (the rc8 fix). Whichever path ran is "
                           "reported back at "
-                          "result['independence']['runtime_verified'].")),
+                          "result['independence']['runtime_verified']."),
+                        P("combine", "str", False,
+                          "rc12 recombine: None (default; leaf dict, combined "
+                          "None) | 'bundle'/'mean'/'sector0'/'concat' → one "
+                          "composable value at result['combined'] so the "
+                          "dispatch chains / nests")),
             returns=R("dict",
                       "{sectors:{s:{label:(γ₅,iω₇), result}}, combined "
                       "(rc12: recombined value when combine= given, else None), "

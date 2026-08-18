@@ -518,8 +518,28 @@ static uint32_t cr_bigint_digits(const srmech_bigint_t *a)
     return d;
 }
 
-/* pi_cascade_digits(num_digits[, max_cascade_depth, precision_bits]) -> str.
- * Auto-scales depth/precision the same as rational.pi_cascade_digits. */
+/* pi_cascade_digits(num_digits[, max_cascade_depth, precision]) -> str.
+ * Auto-scales depth/precision the same as rational.pi_cascade_digits.
+ *
+ * ⚠️ rc449 (`#T1158`): this read "precision_bits" until now — the pre-rc318 name.
+ * rc318 renamed the Python kwarg to `precision` for the uniform Class-N precision
+ * contract ("a pure rename, digits bit-identical", rational.py) and the rename
+ * never reached this file, so the two projections had disagreed on the key's NAME
+ * for 131 rcs, in BOTH directions and silently:
+ *
+ *   * `precision` — legal in Python, and IGNORED here. MEASURED at rc448:
+ *     pi_cascade_digits(100, precision=64) returns
+ *     3.14159265358979323704913602655075521852... from Python (it honours the
+ *     narrow precision and degrades after ~19 places) while this runner never read
+ *     the key, auto-scaled to 1024 bits, and returned the fully correct expansion.
+ *     Same declaration, two co-equal projections, DIFFERENT DIGITS OF PI, no error.
+ *   * `precision_bits` — refused by Python (TypeError) and honoured here: the
+ *     `#T1158` divergence proper, on an op whose whole output is a number.
+ *
+ * Nothing in the tree passes `precision_bits` on a chain, so this is a rename, not
+ * a break. It also had to be settled before the params[*] validator above could
+ * ship: that rule reads the registry, the registry says `precision`, and leaving
+ * this line alone would have made the validator refuse the very key C reads. */
 static srmech_status_t cr_op_pi(cr_ctx_t *c, const srmech_json_value_t *args,
                                 cr_value_t **out)
 {
@@ -531,7 +551,7 @@ static srmech_status_t cr_op_pi(cr_ctx_t *c, const srmech_json_value_t *args,
     if (nd == NULL) { return SRMECH_ERR_BAD_INPUT; }
     num_digits = cr_as_uint(nd);
     if (num_digits < 1 || num_digits > 100000) { return SRMECH_ERR_BAD_INPUT; }
-    dep = cr_arg(c, args, "max_cascade_depth"); prc = cr_arg(c, args, "precision_bits");
+    dep = cr_arg(c, args, "max_cascade_depth"); prc = cr_arg(c, args, "precision");
     depth = dep ? cr_as_uint(dep) : (num_digits * 90 + 49) / 50;
     if (depth < 90) { depth = 90; }
     prec = prc ? cr_as_uint(prc) : (num_digits * 512 + 49) / 50;
@@ -1394,18 +1414,123 @@ static srmech_status_t cr_run_fold(cr_ctx_t *c, const srmech_json_value_t *step,
     return SRMECH_OK;
 }
 
+/* ------------------------------------------------------------------
+ * `args` KEY-SET REFUSAL (v0.9.0rc449, `#T1158` — the gh #1653 residual)
+ *
+ * The Surface-A twin of the stage-kwarg refusal in srmech_dsl_chain_run.c. Every
+ * cr_op_* above reads its arguments by PULL (cr_arg(c, args, "a")), so an `args`
+ * key naming nothing was silently ignored and the step computed anyway. MEASURED
+ * bare-C at rc448: gcd{a:12, b:18, bogus:99} returned OK and 6, and gcd{a, b, n:5}
+ * returned OK and 6 — `n` being a real key of the tree's vocabulary that is legal
+ * on mod_add and meaningless on gcd.
+ *
+ * ⚠️ THE LEGAL SET IS params[*] HERE, NOT params[1..]. On the DSL surface the data
+ * rides IMPLICITLY as the threaded chain value, so params[0] is not a legal stage
+ * kwarg. Here every operand arrives BY NAME inside `args`, so every declared param
+ * is legal — a params[1..] rule would refuse gcd{a, b}. The asymmetry is deliberate
+ * and both directions are pinned in c/test/test_srmech_chain_run.c, so that nobody
+ * "unifies" the two rules later.
+ * ------------------------------------------------------------------ */
+
+/* Bare op name -> tool-registry entry name, for the ops cr_dispatch actually runs.
+ *
+ * A NAME-to-NAME index, not a second copy of key names: the key names come from the
+ * registry entry's own params, which two shipped gates pin set-equal to the live
+ * Python signature in both directions. Order and membership mirror the cr_op_is
+ * chain in cr_dispatch / cr_dispatch_real one-for-one, and
+ * tests/test_t1158_registry_param_order_rc449.py parses BOTH out of this file and
+ * asserts they agree — an entry here with no arm, or an arm with no entry, is red.
+ * .rodata beside map_k / fold_k / plain_k / dotted[]; JPL Rule 3 is untouched. */
+static const struct {
+    const char *bare;
+    uint32_t    len;
+    const char *full;
+} CR_OP_REG[20] = {
+    { "pi_cascade_digits",     17u, "srmech.math.rational.pi_cascade_digits" },
+    { "exp_series_truncate",   19u, "srmech.math.rational.exp_series_truncate" },
+    { "sin_series_truncate",   19u, "srmech.math.rational.sin_series_truncate" },
+    { "cos_series_truncate",   19u, "srmech.math.rational.cos_series_truncate" },
+    { "log1p_series_truncate", 21u, "srmech.math.rational.log1p_series_truncate" },
+    { "atan_series_truncate",  20u, "srmech.math.rational.atan_series_truncate" },
+    { "rational_pow_uint",     17u, "srmech.math.rational.rational_pow_uint" },
+    { "rational_add",          12u, "srmech.math.rational.rational_add" },
+    { "rational_mul",          12u, "srmech.math.rational.rational_mul" },
+    { "rational_div",          12u, "srmech.math.rational.rational_div" },
+    { "gcd",                    3u, "srmech.math.cyclic.gcd" },
+    { "mod_add",                7u, "srmech.math.cyclic.mod_add" },
+    { "mod_mul",                7u, "srmech.math.cyclic.mod_mul" },
+    { "mod_mul_wide",          12u, "srmech.math.cyclic.mod_mul_wide" },
+    { "mod_pow",                7u, "srmech.math.cyclic.mod_pow" },
+    { "mod_inv",                7u, "srmech.math.cyclic.mod_inv" },
+    { "pin_slot_at_zero",      16u, "srmech.cascade.pin_slot_at_zero" },
+    { "reorient",               8u, "srmech.cascade.reorient" },
+    { "chiral_flip",           11u, "srmech.cascade.chiral_flip" },
+    { "autocorrelation",       15u, "srmech.cascade.autocorrelation" }
+};
+
+/* 1 iff `name` is a declared param of `e`. Every declared param is a legal `args`
+ * key on this surface — see the params[*] note above. */
+static int cr_key_is_legal(const char *name, const srmech_tool_entry_t *e)
+{
+    uint32_t j;
+    assert(name != NULL && e != NULL);
+    assert(e->param_count > 0u);
+    for (j = 0u; j < e->param_count; j++) {
+        if (strcmp(name, e->params[j].name) == 0) { return 1; }
+    }
+    return 0;
+}
+
+/* SRMECH_OK when every `args` key is legal for `op`, or when `op` is not an op this
+ * runner dispatches (the defer channel, untouched). BAD_INPUT on an unknown key.
+ * Matched with cr_op_is — the SAME predicate the dispatch uses, so the validator
+ * and the dispatch cannot disagree about which op a dotted spelling names. */
+static srmech_status_t cr_args_keyset_ok(const char *op, uint32_t opl,
+                                         const srmech_json_value_t *args)
+{
+    const srmech_tool_entry_t *e = NULL;
+    uint32_t i;
+    assert(op != NULL && args != NULL);
+    assert(args->type == SRMECH_JSON_OBJECT);
+    for (i = 0u; i < 20u; i++) {
+        if (cr_op_is(op, opl, CR_OP_REG[i].bare, CR_OP_REG[i].len)) {
+            e = srmech_tool_registry_find(CR_OP_REG[i].full);
+            break;
+        }
+    }
+    if (i == 20u) { return SRMECH_OK; }   /* not in the table → dispatch defers */
+    /* ⚠️ NOT silent acceptance — a dispatched op with no registry entry is a broken
+     * library invariant. Accepting here would let ONE typo in the table above
+     * disable the validator for that op forever, with every other op still green. */
+    if (e == NULL) { return SRMECH_ERR_INTERNAL; }
+    for (i = 0u; i < args->u.obj.n; i++) {
+        if (!cr_key_is_legal(args->u.obj.keys[i], e)) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+    }
+    return SRMECH_OK;
+}
+
 /* One PLAIN step: validate the `op` / `args` shape, then dispatch. Split out
  * of cr_run_steps so the loop can branch on step form and both stay < 60
- * lines (JPL Rule 4). */
+ * lines (JPL Rule 4).
+ *
+ * ⚠️ The key-set check lives HERE and not in cr_dispatch: that function is a
+ * 16-arm if-chain measured at 57 of JPL Rule 4's 60 lines, and it exists in its
+ * current split only because it hit the cap once already (see cr_dispatch_real).
+ * A per-op check inline there breaks the rule immediately. */
 static srmech_status_t cr_run_plain(cr_ctx_t *c, const srmech_json_value_t *step,
                                     cr_value_t **out)
 {
     const srmech_json_value_t *args = srmech_json_object_get(step, "args");
     const srmech_json_value_t *o = srmech_json_object_get(step, "op");
+    srmech_status_t kst;
     assert(c != NULL && step != NULL && out != NULL);
     assert(step->type == SRMECH_JSON_OBJECT);
     if (o == NULL || o->type != SRMECH_JSON_STRING) { return SRMECH_ERR_BAD_INPUT; }
     if (args == NULL || args->type != SRMECH_JSON_OBJECT) { return SRMECH_ERR_BAD_INPUT; }
+    kst = cr_args_keyset_ok(o->u.str.ptr, o->u.str.len, args);
+    if (kst != SRMECH_OK) { return kst; }
     return cr_dispatch(c, o->u.str.ptr, o->u.str.len, args, out);
 }
 

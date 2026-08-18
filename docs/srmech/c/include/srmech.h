@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE "rc448"
-#define SRMECH_VERSION "0.9.0rc448"
+#define SRMECH_VERSION_PRE "rc449"
+#define SRMECH_VERSION "0.9.0rc449"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -380,8 +380,45 @@ extern "C" {
  *      projection could read a list descriptor the compiled one could never produce.
  *      The reader was ahead of the writer, and nothing exercised it, so it went
  *      unnoticed. SRMECH_GENOME_FORMAT_VERSION stays 20 — no on-disk format moves.
+ *
+ * v19 — v0.9.0rc449 (`#T1158`, gh #1653 residual): the FIFTH bump of the
+ *      v10 / v12 / v14 / v16 / v17 kind. No signature changed shape, no symbol was
+ *      added or removed. What changed is the STATUS both chain interpreters return
+ *      for a class of input: a step / stage declaring an op-argument key the op does
+ *      not have is now SRMECH_ERR_BAD_INPUT where it used to be SRMECH_OK.
+ *
+ *      WHY THE CONTRACT MOVED. Through rc448 the key was SILENTLY DROPPED and the
+ *      chain computed anyway. Measured bare-C at rc448 head, best_rational_signed on
+ *      0.3333333333333333: {"op":"best_rational_signed","max_denominator":2} returns
+ *      (0,1), and the same stage with ONE LETTER GONE — "max_denominatr" — returns
+ *      SRMECH_OK and (1,3). No crash and no decline; the constraint is dropped, the
+ *      default 100 is used, and a DIFFERENT NUMBER comes back. Python on the same
+ *      call raises TypeError from the callable's own signature. Co-equal projections
+ *      must agree on what they REFUSE, not only on what they compute.
+ *
+ *      ⚠️ WHY IT IS A BUMP AND NOT MERELY A FIX. rc447 closed the same defect class
+ *      AT THE PYTHON IR BUILDER — _then_native_desc now declines to emit a stage whose
+ *      kwarg the op does not accept — so the two projections already agreed on the
+ *      front door. That is a DIVERGENCE-ONLY fix: it makes the projections agree by
+ *      teaching Python to decline earlier while C's ACCEPTANCE behaviour is untouched.
+ *      On a bare-C host there is no Python IR builder, so the malformed declaration was
+ *      still silently accepted and computed. "The projections agree" and "C refuses what
+ *      it should" are DIFFERENT PROPERTIES, and a parity harness comparing only outputs
+ *      cannot tell them apart. This bump is what makes the second property enforceable.
+ *
+ *      Load-bearing rather than ceremonial, and the reasoning is v16's word for word.
+ *      A stale rc448 .so reports ABI 18 and would otherwise load into rc449 Python.
+ *      rc449 Python defers at _then_native_desc, so the Python answer would still be
+ *      right — but a bare-C host on the stale lib gets the silent drop with no signal
+ *      at all, and the projections are co-equal. The ABI pin is the ONLY mechanism that
+ *      catches this pairing, because Python collapses every non-OK C status to a
+ *      native-miss and falls through to pure: the C refusal is INVISIBLE on the front
+ *      door. Rejecting the stale lib is the only safe read.
+ *
+ *      SRMECH_GENOME_FORMAT_VERSION stays 20 — neither chain interpreter touches a
+ *      strand byte, and nothing here writes one.
  */
-#define SRMECH_ABI_VERSION 18
+#define SRMECH_ABI_VERSION 19
 
 /* ------------------------------------------------------------------ *
  * Thread-local storage qualifier (reentrancy support; #772)
