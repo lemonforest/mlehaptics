@@ -44,6 +44,46 @@ CLOSED = "CLOSED_IN_THIS_RC"
 FILED = "FILED_AS_NEW_ITEM"
 DECLINED = "DECLINED_WITH_REASON"
 
+#: Which projection LACKS the capability the row describes.
+#:
+#: ⚠️ WIDENED AT rc450 (`#T1160`), and the reason is the whole point of this
+#: file. Through rc449 this vocabulary was the three-value set
+#: ``{"c", "python", "both"}`` — asserted in :func:`main` — while the SHIPPED
+#: ``.ndjson`` beside it held thirteen rows outside that set: twelve spelling it
+#: ``""`` and one ``"neither"``. They could coexist because the rows had been
+#: APPENDED TO THE NDJSON BY HAND and never passed through this generator's
+#: asserts at all (32 rows here against 51 on disk — see the ported block in
+#: ``ROWS``). Two honest options existed: invent an attribution for each, or say
+#: that none was ever stated. Inventing one is fabrication in a provenance
+#: ledger, so the value is named and COUNTED DOWN instead.
+LACKED_BY_VALUES = {
+    "c":        "the compiled projection lacks it; Python has it",
+    "python":   "the scripting projection lacks it; C has it",
+    "both":     "neither projection has it, or both are equally lax",
+    "neither":  "not a capability gap in either projection — e.g. a FALSE "
+                "CLAIM in prose, which is a defect with no missing capability "
+                "behind it",
+    "unstated": "PLACEHOLDER. The row never named a projection. Ported "
+                "verbatim at rc450 rather than guessed; drains under "
+                "CEIL_UNSTATED_LACKED_BY.",
+}
+
+#: DOWN-ONLY. The number of ported rows that never stated which projection
+#: lacked the capability. Seeded at the MEASURED rc450 population. Lower it when
+#: a row is attributed; a row added ``unstated`` from here on fails.
+CEIL_UNSTATED_LACKED_BY = 12
+
+#: DOWN-ONLY, same shape: rows carrying the rc450 placeholder in
+#: ``ceiling_blind_to`` because the hand-appended row never supplied one.
+CEIL_UNSTATED_CEILING_BLIND_TO = 12
+
+#: The exact placeholder text, so the count above is measured rather than
+#: pattern-matched on prose that could be reworded.
+UNSTATED_CEILING_BLIND_TO = (
+    "NOT STATED when this row was appended to the ndjson by hand (pre-rc450). "
+    "rc450 ports it VERBATIM rather than inventing a blindness claim the row "
+    "never made; draining these placeholders is the `#T1159` bucket.")
+
 ROWS = [
     # ── closed here ─────────────────────────────────────────────────────────
     dict(id="op_table_class_I", kind="gap",
@@ -646,6 +686,903 @@ ROWS = [
               "— they cannot be taken as small widenings.",
          ceiling_blind_to="A widening proposed in a future rc: nothing measures "
                           "'would this new type open a C hole' automatically."),
+    # ── PORTED AT rc450 (`#T1160`) FROM THE NDJSON ────────────────────────
+    # These 19 rows existed ONLY on disk: 51 rows in the .ndjson against 32
+    # in this list. Running this generator would have DELETED them, and
+    # nothing would have reported it — every BLOCKED-cited id survives the
+    # deletion, so test_every_blocked_row_is_ACTUALLY_FILED stays green.
+    # They are reproduced field-for-field. Two fields were EMPTY or outside
+    # this file's own vocabulary and are marked "unstated" rather than
+    # guessed; see LACKED_BY_VALUES and CEIL_UNSTATED_* below.
+    dict(
+        blocked_this_rc=False,
+        ceiling_blind_to=('NOT STATED when this row was appended to the ndjson by hand '
+ '(pre-rc450). rc450 ports it VERBATIM rather than inventing a '
+ 'blindness claim the row never made; draining these placeholders '
+ 'is the `#T1159` bucket.'),
+        disposition='CLOSED_IN_THIS_RC',
+        evidence=('rc449: refusal added, key set params[*], BAD_INPUT, plus the '
+ '~20-entry op name index.'),
+        id='F-1_compose_args_unknown_key',
+        kind='gap',
+        lacked_by='unstated',
+        missing="cr_run_plain accepted unknown keys inside a Surface-A step's args",
+        new_type=False,
+        note=('Second half of the rc449 subject; same class as F6 on the other '
+ 'grammar. Defined in notes/_rc449_leaf_keyset_spec.md §5 '
+ "(committed in rc449). Added to this ledger because PR #1659's "
+ "body disposes these F-ids and the spec's own §5 says 'Each gets "
+ "a ledger row in notes/_1653_gap_ledger.ndjson' — it did not, so "
+ 'the disposition pointed at a file no reader had. ADR-0009 §5 '
+ 'forbids the unfiled decline; a disposition resolving only '
+ 'against an untracked note IS that decline in a new costume, in '
+ 'the rc closing the issue that forbids it.'),
+        probe='',
+    ),
+    dict(
+        blocked_this_rc=False,
+        ceiling_blind_to=('NOT STATED when this row was appended to the ndjson by hand '
+ '(pre-rc450). rc450 ports it VERBATIM rather than inventing a '
+ 'blindness claim the row never made; draining these placeholders '
+ 'is the `#T1159` bucket.'),
+        disposition='FILED_AS_NEW_ITEM',
+        evidence=('cr_run_plain; the C PARSE peer co_build_step:287 / '
+ 'co_class_valid:300 validates exactly this.'),
+        id='F1_compose_class_key_never_read',
+        kind='gap',
+        lacked_by='unstated',
+        missing=("compose 'class' key never read — not presence, not A-N validity, "
+ 'not op/class agreement'),
+        new_type=False,
+        note=("Different class (required-key + enum). C's compose parse peer is "
+ 'already STRICTER than Python in the reverse direction (rejects '
+ 'v2 fold/map forms) — untangling that is its own adjudication. '
+ 'Rides the same later ABI bump as F2. Defined in '
+ 'notes/_rc449_leaf_keyset_spec.md §5 (committed in rc449). Added '
+ "to this ledger because PR #1659's body disposes these F-ids and "
+ "the spec's own §5 says 'Each gets a ledger row in "
+ "notes/_1653_gap_ledger.ndjson' — it did not, so the disposition "
+ 'pointed at a file no reader had. ADR-0009 §5 forbids the unfiled '
+ 'decline; a disposition resolving only against an untracked note '
+ 'IS that decline in a new costume, in the rc closing the issue '
+ 'that forbids it.'),
+        probe='',
+    ),
+    dict(
+        blocked_this_rc=False,
+        ceiling_blind_to=('NOT STATED when this row was appended to the ndjson by hand '
+ '(pre-rc450). rc450 ports it VERBATIM rather than inventing a '
+ 'blindness claim the row never made; draining these placeholders '
+ 'is the `#T1159` bucket.'),
+        disposition='FILED_AS_NEW_ITEM',
+        evidence='srmech_genome.c:726, 9 exports.',
+        id='F2_genome_attestation_overlay',
+        kind='gap',
+        lacked_by='unstated',
+        missing=('genome attestation overlay accepts unknown keys / non-string '
+ "values / a non-object root and silently writes srmech's DEFAULT "
+ 'provenance'),
+        new_type=False,
+        note=('HEAD ITEM FOR rc450 — highest stakes in the sweep: a durable '
+ 'WRONG PROVENANCE RECORD from the op whose purpose is provenance '
+ 'honesty. Must not trickle. Deferred because the mechanism '
+ "differs and Python's behaviour on a non-string value for a KNOWN "
+ 'key is unmeasured; mirroring must be exact, not invented. Named '
+ 'cost: ABI 19 -> 20 later. Defined in '
+ 'notes/_rc449_leaf_keyset_spec.md §5 (committed in rc449). Added '
+ "to this ledger because PR #1659's body disposes these F-ids and "
+ "the spec's own §5 says 'Each gets a ledger row in "
+ "notes/_1653_gap_ledger.ndjson' — it did not, so the disposition "
+ 'pointed at a file no reader had. ADR-0009 §5 forbids the unfiled '
+ 'decline; a disposition resolving only against an untracked note '
+ 'IS that decline in a new costume, in the rc closing the issue '
+ 'that forbids it.'),
+        probe='',
+    ),
+    dict(
+        blocked_this_rc=False,
+        ceiling_blind_to=('NOT STATED when this row was appended to the ndjson by hand '
+ '(pre-rc450). rc450 ports it VERBATIM rather than inventing a '
+ 'blindness claim the row never made; draining these placeholders '
+ 'is the `#T1159` bucket.'),
+        disposition='FILED_AS_NEW_ITEM',
+        evidence='mc_build_fields:331.',
+        id='F3_mc_build_fields_discards_unknown',
+        kind='gap',
+        lacked_by='unstated',
+        missing=('a supplied [class] field name not in the declared table is '
+ 'silently discarded'),
+        new_type=False,
+        note=('TOML-table mechanism, not JSON-object; refuse-vs-defer semantics '
+ 'unadjudicated on this surface. Defined in '
+ 'notes/_rc449_leaf_keyset_spec.md §5 (committed in rc449). Added '
+ "to this ledger because PR #1659's body disposes these F-ids and "
+ "the spec's own §5 says 'Each gets a ledger row in "
+ "notes/_1653_gap_ledger.ndjson' — it did not, so the disposition "
+ 'pointed at a file no reader had. ADR-0009 §5 forbids the unfiled '
+ 'decline; a disposition resolving only against an untracked note '
+ 'IS that decline in a new costume, in the rc closing the issue '
+ 'that forbids it.'),
+        probe='',
+    ),
+    dict(
+        blocked_this_rc=False,
+        ceiling_blind_to=('NOT STATED when this row was appended to the ndjson by hand '
+ '(pre-rc450). rc450 ports it VERBATIM rather than inventing a '
+ 'blindness claim the row never made; draining these placeholders '
+ 'is the `#T1159` bucket.'),
+        disposition='FILED_AS_NEW_ITEM',
+        evidence='mc_resolve_binds:350; mc_run_chain.',
+        id='F4_mc_resolve_binds_drops_args',
+        kind='gap',
+        lacked_by='unstated',
+        missing=("non-'binds' args keys silently dropped; mc_run_chain "
+ 'additionally drops static kwargs that CHANGE the answer'),
+        new_type=False,
+        note=("Literally D1 on the class-method surface. mc_run_chain's variant "
+ 'is a CAPABILITY gap wearing an acceptance costume — do not '
+ 'conflate the two when scoping. Defined in '
+ 'notes/_rc449_leaf_keyset_spec.md §5 (committed in rc449). Added '
+ "to this ledger because PR #1659's body disposes these F-ids and "
+ "the spec's own §5 says 'Each gets a ledger row in "
+ "notes/_1653_gap_ledger.ndjson' — it did not, so the disposition "
+ 'pointed at a file no reader had. ADR-0009 §5 forbids the unfiled '
+ 'decline; a disposition resolving only against an untracked note '
+ 'IS that decline in a new costume, in the rc closing the issue '
+ 'that forbids it.'),
+        probe='',
+    ),
+    dict(
+        blocked_this_rc=False,
+        ceiling_blind_to=('NOT STATED when this row was appended to the ndjson by hand '
+ '(pre-rc450). rc450 ports it VERBATIM rather than inventing a '
+ 'blindness claim the row never made; draining these placeholders '
+ 'is the `#T1159` bucket.'),
+        disposition='FILED_AS_NEW_ITEM',
+        evidence=('dsl_stage_is_combinator:635, dsl_run_combinator:785. '
+ "cr_step_form's CR_FORM_MIXED is the correct sibling and its own "
+ 'comment argues for it.'),
+        id='F5_dsl_multi_discriminator_first_arm_wins',
+        kind='gap',
+        lacked_by='unstated',
+        missing=('a DSL stage declaring two discriminators is silently read as '
+ 'whichever arm tests first'),
+        new_type=False,
+        note=('Different class (discriminator mutual exclusion). Python peer '
+ '(_toml_chain.py:232) READ, NOT EXECUTED — so the divergence '
+ 'direction is unproven. Defined in '
+ 'notes/_rc449_leaf_keyset_spec.md §5 (committed in rc449). Added '
+ "to this ledger because PR #1659's body disposes these F-ids and "
+ "the spec's own §5 says 'Each gets a ledger row in "
+ "notes/_1653_gap_ledger.ndjson' — it did not, so the disposition "
+ 'pointed at a file no reader had. ADR-0009 §5 forbids the unfiled '
+ 'decline; a disposition resolving only against an untracked note '
+ 'IS that decline in a new costume, in the rc closing the issue '
+ 'that forbids it.'),
+        probe='',
+    ),
+    dict(
+        blocked_this_rc=False,
+        ceiling_blind_to=('NOT STATED when this row was appended to the ndjson by hand '
+ '(pre-rc450). rc450 ports it VERBATIM rather than inventing a '
+ 'blindness claim the row never made; draining these placeholders '
+ 'is the `#T1159` bucket.'),
+        disposition='CLOSED_IN_THIS_RC',
+        evidence=("rc449: refusal added, key set {'op'} u params[1..], BAD_INPUT. "
+ 'Discrimination control: discarding the validator result turns '
+ 'exactly 7 rows red, clean twins green. Bare-C proven (no Python, '
+ 'no ctypes); ctest 18/18.'),
+        id='F6_dsl_leaf_unknown_kwarg',
+        kind='gap',
+        lacked_by='unstated',
+        missing='dsl_leaf_dispatch accepted any unknown stage key and computed',
+        new_type=False,
+        note=('THE SUBJECT of #T1158. Measured pre-fix: best_rational_signed '
+ 'fine_scale=10 -> 31/10, fine_scal=10 (one character) -> 22/7, '
+ 'both SRMECH_OK, through the full bare-C TOML path. Defined in '
+ 'notes/_rc449_leaf_keyset_spec.md §5 (committed in rc449). Added '
+ "to this ledger because PR #1659's body disposes these F-ids and "
+ "the spec's own §5 says 'Each gets a ledger row in "
+ "notes/_1653_gap_ledger.ndjson' — it did not, so the disposition "
+ 'pointed at a file no reader had. ADR-0009 §5 forbids the unfiled '
+ 'decline; a disposition resolving only against an untracked note '
+ 'IS that decline in a new costume, in the rc closing the issue '
+ 'that forbids it.'),
+        probe='10/10 malformed Surface-B declarations returned SRMECH_OK pre-fix',
+    ),
+    dict(
+        blocked_this_rc=False,
+        ceiling_blind_to=('NOT STATED when this row was appended to the ndjson by hand '
+ '(pre-rc450). rc450 ports it VERBATIM rather than inventing a '
+ 'blindness claim the row never made; draining these placeholders '
+ 'is the `#T1159` bucket.'),
+        disposition='FILED_AS_NEW_ITEM',
+        evidence='mc_run_method:1747.',
+        id='F7_mc_run_method_fixed_route_order',
+        kind='gap',
+        lacked_by='unstated',
+        missing=('state routes tested in fixed order; a descriptor declaring two '
+ 'silently gets one'),
+        new_type=False,
+        note=('As F3; three lines beside F3/F4 when that surface is done. '
+ 'Defined in notes/_rc449_leaf_keyset_spec.md §5 (committed in '
+ "rc449). Added to this ledger because PR #1659's body disposes "
+ "these F-ids and the spec's own §5 says 'Each gets a ledger row "
+ "in notes/_1653_gap_ledger.ndjson' — it did not, so the "
+ 'disposition pointed at a file no reader had. ADR-0009 §5 forbids '
+ 'the unfiled decline; a disposition resolving only against an '
+ 'untracked note IS that decline in a new costume, in the rc '
+ 'closing the issue that forbids it.'),
+        probe='',
+    ),
+    dict(
+        blocked_this_rc=False,
+        ceiling_blind_to=('NOT STATED when this row was appended to the ndjson by hand '
+ '(pre-rc450). rc450 ports it VERBATIM rather than inventing a '
+ 'blindness claim the row never made; draining these placeholders '
+ 'is the `#T1159` bucket.'),
+        disposition='FILED_AS_NEW_ITEM',
+        evidence='cr_run_steps:1413, while co_chain_head:325 checks them.',
+        id='F8_chain_head_fields_unchecked',
+        kind='gap',
+        lacked_by='unstated',
+        missing='chain-head name/summary/returns unchecked',
+        new_type=False,
+        note=("Same class as F1; fold into F1's fix. Defined in "
+ 'notes/_rc449_leaf_keyset_spec.md §5 (committed in rc449). Added '
+ "to this ledger because PR #1659's body disposes these F-ids and "
+ "the spec's own §5 says 'Each gets a ledger row in "
+ "notes/_1653_gap_ledger.ndjson' — it did not, so the disposition "
+ 'pointed at a file no reader had. ADR-0009 §5 forbids the unfiled '
+ 'decline; a disposition resolving only against an untracked note '
+ 'IS that decline in a new costume, in the rc closing the issue '
+ 'that forbids it.'),
+        probe='',
+    ),
+    dict(
+        blocked_this_rc=False,
+        ceiling_blind_to=('NOT STATED when this row was appended to the ndjson by hand '
+ '(pre-rc450). rc450 ports it VERBATIM rather than inventing a '
+ 'blindness claim the row never made; draining these placeholders '
+ 'is the `#T1159` bucket.'),
+        disposition='DECLINED_WITH_REASON',
+        evidence='cat_descriptor_kind:670.',
+        id='F9_cat_descriptor_kind_reads_one_key',
+        kind='decline',
+        lacked_by='unstated',
+        missing=('cat_descriptor_kind reads only [fetch].adapter of an AMSC '
+ 'descriptor'),
+        new_type=False,
+        note=("The Python peer's refusal is UNVERIFIED, and the two ops have "
+ 'different contracts (the C op audits a supplied blob rather than '
+ 'registering a source), so it may legitimately not refuse. It '
+ 'cannot be called a divergence until measured. Declined as a '
+ 'FINDING, not as work: promote to FILED the moment the Python '
+ 'peer is measured. Defined in notes/_rc449_leaf_keyset_spec.md §5 '
+ "(committed in rc449). Added to this ledger because PR #1659's "
+ "body disposes these F-ids and the spec's own §5 says 'Each gets "
+ "a ledger row in notes/_1653_gap_ledger.ndjson' — it did not, so "
+ 'the disposition pointed at a file no reader had. ADR-0009 §5 '
+ 'forbids the unfiled decline; a disposition resolving only '
+ 'against an untracked note IS that decline in a new costume, in '
+ 'the rc closing the issue that forbids it.'),
+        probe='',
+    ),
+    dict(
+        blocked_this_rc=False,
+        ceiling_blind_to=('The gate checks the ABI integer only; the surrounding rationale '
+ 'prose is deliberately unconstrained.'),
+        disposition='CLOSED_IN_THIS_RC',
+        evidence=('tests/test_abi_prose_currency_rc449.py, with a verbatim rc448 '
+ 'retro-check'),
+        id='abi_prose_ungated_on_two_surfaces',
+        kind='bug',
+        lacked_by='both',
+        missing=('docs/srmech/CLAUDE.md (the NARRATIVE ABI SSoT) and c/README.md '
+ 'had no gate. Both said 17 while the macro said 18.'),
+        new_type=False,
+        note=('Textbook ungated-surfaces-trickle. These were the last two ABI '
+ 'statements in the tree with no gate on them.'),
+        probe=("CLAUDE.md's own parenthetical lists five prior lags; rc447 made "
+ 'a sixth and rc448 a seventh — the first ever TWO bumps behind. '
+ 'c/README.md read 3 for fourteen bumps, was repaired at rc442, '
+ 'and was stale again five rcs later.'),
+        rc='0.9.0rc449',
+        task='#T1158',
+    ),
+    dict(
+        blocked_this_rc=False,
+        ceiling_blind_to=('NOT STATED when this row was appended to the ndjson by hand '
+ '(pre-rc450). rc450 ports it VERBATIM rather than inventing a '
+ 'blindness claim the row never made; draining these placeholders '
+ 'is the `#T1159` bucket.'),
+        disposition='FILED_AS_NEW_ITEM',
+        evidence="e.g. {'loop_n':..., 'sub_chain':..., 'bogus':1}.",
+        id='combinator_stage_key_sets',
+        kind='gap',
+        lacked_by='unstated',
+        missing='combinator-stage key sets unvalidated',
+        new_type=False,
+        note=('PYTHON SIDE UNMEASURED. Measure first; close in C only what '
+ 'Python refuses. If Python also accepts, this is SYMMETRIC '
+ 'LAXITY, which is not a divergence. Defined in '
+ 'notes/_rc449_leaf_keyset_spec.md §5 (committed in rc449). Added '
+ "to this ledger because PR #1659's body disposes these F-ids and "
+ "the spec's own §5 says 'Each gets a ledger row in "
+ "notes/_1653_gap_ledger.ndjson' — it did not, so the disposition "
+ 'pointed at a file no reader had. ADR-0009 §5 forbids the unfiled '
+ 'decline; a disposition resolving only against an untracked note '
+ 'IS that decline in a new costume, in the rc closing the issue '
+ 'that forbids it.'),
+        probe='',
+    ),
+    dict(
+        blocked_this_rc=False,
+        ceiling_blind_to=('Nothing measures whether a NEW cr_dispatch arm was added without '
+ 'a CR_OP_REG entry, except the closure test in '
+ 'test_t1158_registry_param_order_rc449.py.'),
+        disposition='CLOSED_IN_THIS_RC',
+        evidence=('notes/_t1158_planted_red_rc449.txt; '
+ 'c/test/test_srmech_chain_run.c rows A1-A4'),
+        id='compose_args_unknown_key_silently_dropped',
+        kind='bug',
+        lacked_by='c',
+        missing=('cr_run_plain handed `args` to cr_dispatch without comparing its '
+ "keys to the op's params; every cr_op_* reads by pull, so an "
+ 'unknown key was ignored.'),
+        new_type=False,
+        note=("Legal set is params[*] here, NOT the DSL surface's params[1..] — "
+ 'operands arrive by name. Both directions pinned so the asymmetry '
+ 'is not unified later.'),
+        probe=('bare-C: gcd{a:12,b:18,bogus:99} -> SRMECH_OK, 6; gcd{a,b,n:5} -> '
+ 'SRMECH_OK, 6 (`n` is real on mod_add, meaningless on gcd).'),
+        rc='0.9.0rc449',
+        task='#T1158',
+    ),
+    dict(
+        blocked_this_rc=False,
+        ceiling_blind_to=('Combinator-stage key sets and step-level keys outside `args` — '
+ 'both still symmetric-lax, both FILED.'),
+        disposition='CLOSED_IN_THIS_RC',
+        evidence=('notes/_t1158_planted_red_rc449.{c,txt}; '
+ 'c/test/test_srmech_chain_run.c rows B1-B8'),
+        id='dsl_leaf_unknown_kwarg_silently_dropped',
+        kind='bug',
+        lacked_by='c',
+        missing=('dsl_leaf_dispatch had no leaf that validated its key set, so a '
+ 'stage kwarg the op does not have was silently DROPPED and the '
+ 'chain computed anyway.'),
+        new_type=False,
+        note=('rc447 closed this AT THE PYTHON IR BUILDER, which does not exist '
+ 'on a bare-C host. Divergence-only fix; rc449 adds the refusal '
+ 'itself (dsl_leaf_keyset_ok, BAD_INPUT).'),
+        probe=('bare-C: {"op":"best_rational_signed","max_denominatr":2} on '
+ '0.3333333333333333 -> SRMECH_OK, (1,3); the correctly-spelled '
+ 'stage gives (0,1). Python raises TypeError.'),
+        rc='0.9.0rc449',
+        task='#T1158',
+    ),
+    dict(
+        blocked_this_rc=False,
+        ceiling_blind_to=('No gate compares the arg names C READS against the registry — '
+ 'only the names it DECLARES. A second cr_op_* reading an '
+ 'unregistered name would not be caught.'),
+        disposition='CLOSED_IN_THIS_RC',
+        evidence=('srmech/math/rational.py docstring (rc318: renamed from '
+ 'precision_bits); notes/_t1158_planted_red_rc449.txt rows P1-P3'),
+        id='pi_cascade_digits_precision_bits_never_renamed',
+        kind='bug',
+        lacked_by='c',
+        missing=('rc318 renamed the Python kwarg precision_bits -> precision (a '
+ 'pure rename, digits bit-identical). cr_op_pi was never carried, '
+ 'so for 131 rcs C read a key Python REFUSES and ignored the one '
+ 'Python accepts.'),
+        new_type=False,
+        note=('Forced into scope by the params[*] validator: the registry says '
+ '`precision`, so leaving the C read alone would have made the '
+ 'validator refuse the very key C used. Found by rc449, not '
+ 'predicted by its brief.'),
+        probe=('pi_cascade_digits(100, precision=64): Python -> '
+ '3.1415926535897932370491360265507552185...; C at rc448 -> the '
+ 'fully correct expansion, because it never read the key. '
+ 'precision_bits=64: Python raises TypeError, C honoured it.'),
+        rc='0.9.0rc449',
+        task='#T1158',
+    ),
+    dict(
+        blocked_this_rc=False,
+        ceiling_blind_to=('No gate compares pure-vs-C VALUES for pi_cascade_digits at '
+ 'non-default precision.'),
+        disposition='FILED_AS_NEW_ITEM',
+        evidence=("notes/_t1158_planted_red_rc449.c row P2, labelled 'read, but "
+ "CLAMPED'"),
+        id='pi_cascade_digits_precision_clamp',
+        kind='gap',
+        lacked_by='c',
+        missing=('cr_op_pi clamps prec < 512 up to 512; Python honours any '
+ 'precision in [64, 32768]. The two projections still return '
+ 'DIFFERENT DIGITS for precision in roughly [64, 350).'),
+        new_type=False,
+        note=('A wrong-VALUE divergence, NOT the wrong-KEY class rc449 closes. '
+ "Deliberately left open so this rc's refusal claim is not "
+ 'entangled with a numeric-semantics change — the same reason the '
+ 'autocorrelation value divergence is excluded from G3.'),
+        probe=('pi_cascade_digits(100, precision=64) -> Python degrades after '
+ '~19 places; C computes at 512 bits and returns the correct '
+ 'expansion.'),
+        rc='0.9.0rc449',
+        task='#T1158',
+    ),
+    dict(
+        blocked_this_rc=False,
+        ceiling_blind_to=('Nothing gates prose claims of ABSENCE; they surface only when '
+ 'someone re-greps.'),
+        disposition='CLOSED_IN_THIS_RC',
+        evidence=('the repaired docstring in '
+ 'tests/test_t1146_rejection_parity_rc447.py'),
+        id='rc447_confession_claimed_no_in_tree_pattern',
+        kind='bug',
+        lacked_by='neither',
+        missing=('test_t1146_rejection_parity_rc447.py asserted there is NO '
+ 'key-set validator anywhere in the C leaf surface so there was no '
+ 'in-tree pattern to copy, and that it closes the gap. Both were '
+ 'false, and the module ships.'),
+        new_type=False,
+        note=('rc449 copied that WALK and deliberately not its DEFER '
+ 'disposition, which is correct only because its one bare-C '
+ 'consumer converts it to an explicit MCP error.'),
+        probe=('iv_no_extra_keys (c/src/srmech_invoke.c:1580) already walked an '
+ 'args object against e->params[j].name. It simply did not match '
+ 'the greps behind the claim '
+ '(key_set|keyset|unknown_key|validate_keys) — a grep artifact '
+ 'reported as an absence.'),
+        rc='0.9.0rc449',
+        task='#T1158',
+    ),
+    dict(
+        blocked_this_rc=False,
+        ceiling_blind_to=('Order is pinned only where declared and live SETS already agree; '
+ "a set-drifted entry remains the rc13/rc408 gates' finding."),
+        disposition='CLOSED_IN_THIS_RC',
+        evidence=('tests/test_t1158_registry_param_order_rc449.py, incl. the '
+ 'verbatim rc448 retro-check'),
+        id='registry_declared_param_order_ungated',
+        kind='bug',
+        lacked_by='both',
+        missing=('The rc13 and rc408 gates pin registry param SETS from both '
+ "directions; nothing pinned ORDER, while rc449's params[1..] rule "
+ 'and every positional caller depend on it.'),
+        new_type=False,
+        note=('7 of the 8 drifted only among keyword-only params (contract '
+ 'misstated, binding unaffected). polar_random was the '
+ 'consequential one, and rc408 introduced it while fixing a '
+ 'different gap.'),
+        probe=('8 of 609 set-equal entries were reordered at rc448. '
+ 'srmech.math.hdc.polar_random declared (D, seed, rng) against a '
+ 'live (D, rng, seed), all POSITIONALLY BINDABLE, so '
+ 'polar_random(8192, 42) binds rng and raises AttributeError about '
+ 'randrange.'),
+        rc='0.9.0rc449',
+        task='#T1158',
+    ),
+    dict(
+        blocked_this_rc=False,
+        ceiling_blind_to=('NOT STATED when this row was appended to the ndjson by hand '
+ '(pre-rc450). rc450 ports it VERBATIM rather than inventing a '
+ 'blindness claim the row never made; draining these placeholders '
+ 'is the `#T1159` bucket.'),
+        disposition='DECLINED_WITH_REASON',
+        evidence='_parse_step accepts them; cr_step_form accepts them.',
+        id='surface_a_step_level_unknown_keys',
+        kind='decline',
+        lacked_by='unstated',
+        missing='step-level unknown keys on Surface A, outside args',
+        new_type=False,
+        note=('SYMMETRIC LAXITY. Closing only in C would MINT THE REVERSE '
+ 'DIVERGENCE — C refusing what Python accepts — and that direction '
+ 'is invisible to the whole output-parity corpus. Defined in '
+ 'notes/_rc449_leaf_keyset_spec.md §5 (committed in rc449). Added '
+ "to this ledger because PR #1659's body disposes these F-ids and "
+ "the spec's own §5 says 'Each gets a ledger row in "
+ "notes/_1653_gap_ledger.ndjson' — it did not, so the disposition "
+ 'pointed at a file no reader had. ADR-0009 §5 forbids the unfiled '
+ 'decline; a disposition resolving only against an untracked note '
+ 'IS that decline in a new costume, in the rc closing the issue '
+ 'that forbids it.'),
+        probe='',
+    ),
+    # -- rc450 (`#T1160`) -- CLOSED here -------------------------------------
+    dict(id="chain_run_output_value_never_decoded", kind="gap",
+         missing="The C-parity ratchet measured srmech_chain_run by rc == 0 "
+                 "ALONE. It read out_len at the call site and never decoded "
+                 "out.raw, so a chain that RAN in C and returned a DIFFERENT "
+                 "VALUE than the Python projection was indistinguishable from "
+                 "one that agreed. Nine chains were 'accepted' on that basis.",
+         lacked_by="both", blocked_this_rc=True, new_type=False,
+         evidence="tests/test_c_cascade_parity_ratchet_rc446.py::_c_runs "
+                  "returns (rc, status) and discards `out`; _measure sets "
+                  "ok_any on `rc == 0`. Verified by reading both at rc449 head "
+                  "before writing the replacement.",
+         probe="pytest tests/test_c_cascade_value_parity_rc450.py",
+         disposition=CLOSED,
+         note="Closed by tests/test_c_cascade_value_parity_rc450.py: the C wire "
+              "is decoded with the SHIPPED _srmech_json.loads + "
+              "_reconstruct_value and compared bit-exactly against the pure "
+              "Python projection over every declared proof case. ONE HALF IS "
+              "DISCHARGED BY CONSTRUCTION, NOT BY EXECUTION: gh #1653 item 5's "
+              "shape 1 (bytes / Mat carriers have no JSON form) has no live "
+              "witness at rc450, because every chain producing those carriers "
+              "is C-REJECTED -- CARRIER_NOT_ON_WIRE is a typed reader branch "
+              "with no population row to exercise it until items 3/4 land. "
+              "Said plainly rather than counted as a measured closure.",
+         ceiling_blind_to="A divergence on a chain the C loop does not yet run: "
+                          "the comparator's population is the ACCEPTED set, so "
+                          "every newly-unblocked chain arrives unmeasured until "
+                          "it is accepted, and the count reconciliation is what "
+                          "makes that arrival visible rather than silent."),
+
+    # -- rc450 (`#T1160`) -- FILED --------------------------------------------
+    dict(id="carrier_mapping", kind="gap",
+         missing="cr_value_t has no MAPPING kind. parallel_sector_dispatch "
+                 "returns a 7-key dict, which the chain-run wire cannot "
+                 "express at all -- there is no {\"k\": ...} spelling for it.",
+         lacked_by="c", blocked_this_rc=False, new_type=True,
+         evidence="The descriptor's [cascade.signature] output and the chain's "
+                  "`returns` both name a dict; measured keys: cap, "
+                  "collapse_lattice, combined, framework_thread_ladder_reading, "
+                  "independence, sectors, z4_dispatch_slots. The C writer "
+                  "(srmech_compose_run.c) emits exactly n/i/s/q/f/l.",
+         probe="python3 notes/_1653_rc450_measure.py",
+         disposition=FILED,
+         note="NEW TYPE. Split out of carrier_matrix at rc450 because that row "
+              "says 'cr_value_t has no DENSE-MATRIX kind' and its evidence line "
+              "is about schur_complement returning a Mat -- a different type. "
+              "The ratchet's BLOCKED row for parallel_sector_dispatch cited "
+              "carrier_matrix while the same file's GATE_CARRIER comment two "
+              "screens up said MAPPING; rc450 repoints it here.",
+         ceiling_blind_to="A second dict-returning descriptor: the chain ceiling "
+                          "counts chains, so the SECOND one to need MAPPING "
+                          "moves no literal at all."),
+
+    dict(id="wire_l_payload_key_divergence", kind="gap",
+         missing="The two value-descriptor wires disagree on the PAYLOAD KEY "
+                 "for kind `l`, not only on the kind set. The chain-run wire "
+                 "writes and reads {\"k\": \"l\", \"items\": [...]}; the DSL wire "
+                 "reads desc[\"v\"].",
+         lacked_by="both", blocked_this_rc=False, new_type=False,
+         evidence="c/src/srmech_compose_run.c writes the `items` key; "
+                  "srmech/cascade/compose.py::_reconstruct_value reads "
+                  "desc[\"items\"] for k == \"l\"; srmech/dsl/_chain.py reads "
+                  "desc[\"v\"]. Three artifacts, two spellings.",
+         probe="grep the three sites named in `evidence`",
+         disposition=FILED,
+         note="The THIRD divergence, which the two_divergent_value_kind_"
+              "vocabularies row does not record -- that row says both wires are "
+              "'spelled {k, v}', and for kind `l` on the chain-run wire that is "
+              "false. The unify-or-decline decision belongs to the rc that next "
+              "changes a wire, so that it is decided WITH a gate rather than on "
+              "paper.",
+         ceiling_blind_to="Nothing counts wire spellings; both ceilings count "
+                          "chains and forms, so a third and fourth divergence "
+                          "would arrive with no literal to move."),
+
+    dict(id="carrier_hv_encode_loe", kind="gap",
+         missing="encode_loe_content needs TWO carriers the C run loop lacks, "
+                 "not one: a BYTE BUFFER (utf8_encode / byte_slice / "
+                 "sha256_raw) AND a HYPERVECTOR (mint_vector / permute / bind).",
+         lacked_by="c", blocked_this_rc=False, new_type=True,
+         evidence="The carrier_bytes row names only the byte buffer, so costing "
+                  "the chain from that row alone under-scopes it by a whole "
+                  "type; `bind` is additionally absent in C at ANY granularity "
+                  "per the gh #1653 symbol-gap census.",
+         probe="read the encode_loe_content descriptor's step ops against "
+               "CR_OP_REG (notes/_1653_rc450_measure.py section 2)",
+         disposition=FILED,
+         note="NEW TYPE. Filed as its own row rather than as a sentence inside "
+              "carrier_bytes, because a row is what a costing exercise reads "
+              "and a sentence inside another row is what it misses.",
+         ceiling_blind_to="The chain ceiling records ONE blocked chain for what "
+                          "is two independent carrier gaps; closing either alone "
+                          "moves nothing."),
+
+    dict(id="wire_tuple_kind_absent", kind="gap",
+         missing="The chain-run wire has no TUPLE kind. A Class-N pair rides "
+                 "CR_LIST, so C would return [n, d] where Python returns "
+                 "(n, d) -- equal under any collapsing comparator and different "
+                 "under a typed one.",
+         lacked_by="c", blocked_this_rc=False, new_type=True,
+         evidence="The C writer emits n/i/s/q/f/l only. `q` spells a RATIONAL "
+                  "(n/d fields), not a general pair, so a 2-tuple that is not a "
+                  "rational has no spelling. Today this is unobservable: every "
+                  "accepted chain's tuple output IS a rational.",
+         probe="pytest tests/test_c_cascade_value_parity_rc450.py -k tuple",
+         disposition=FILED,
+         note="NEW TYPE, and the reason best_rational_signed's BLOCKED row keeps "
+              "new_type=True. rc450 files this row because the row that BLOCKED "
+              "cited (two_divergent_value_kind_vocabularies) is new_type=false "
+              "and describes a DIFFERENT gap -- syncing the chain flag to it "
+              "would have written new_type=False onto the one chain whose "
+              "closure is definitionally a new wire kind, disarming the "
+              "same-change rule exactly where the next rc needs it.",
+         ceiling_blind_to="No current chain distinguishes tuple from list "
+                          "end-to-end, so a comparator that collapses them is "
+                          "GREEN over the whole rc450 population and stays green "
+                          "until the first non-rational pair crosses the wire."),
+
+    dict(id="ripple_manifest_no_growth_obligation", kind="gap",
+         missing="tools/ripple_gates.txt cannot self-heal. FROZEN_KNOWN_GATES is "
+                 "a FLOOR (an entry may not be dropped) and nothing enumerates "
+                 "tests/*.py to notice a gate that was never added.",
+         lacked_by="both", blocked_this_rc=False, new_type=False,
+         evidence="Measured at rc449 head: all 21 cascade/chain/dispatch "
+                  "C-parity gates were absent from the manifest, including "
+                  "every gate gh #1653 items 3/4/5 move. rc449 itself added "
+                  "three gates and listed zero of them.",
+         probe="python3 tools/ripple_check.py --list",
+         disposition=FILED,
+         note="rc450 closes THIS arc's blind spot by hand (23 targets added, the "
+              "load-bearing subset frozen) but does NOT invent the general "
+              "mechanism: the predicate must neither over-capture (most test "
+              "files are legitimately unlisted -- the manifest is a deliberate "
+              "fast subset) nor under-capture, and designing it inside a "
+              "gate-landing rc is how a bad predicate becomes permanent.",
+         ceiling_blind_to="A gate added after rc450 and not listed: the manifest "
+                          "floor forbids REMOVAL, and silence about ADDITION is "
+                          "precisely the state this row files."),
+
+    dict(id="dsl_wire_value_parity_unmeasured", kind="gap",
+         missing="The rc450 value comparator covers SURFACE A "
+                 "(srmech_chain_run) only. srmech_dsl_chain_run's wire is "
+                 "unmeasured for value parity, and the comparator does not "
+                 "transfer unchanged.",
+         lacked_by="both", blocked_this_rc=False, new_type=False,
+         evidence="The DSL wire carries a `t` kind the chain-run wire does not "
+                  "and lacks `q`, and reads desc[\"v\"] where the chain-run wire "
+                  "reads desc[\"items\"] for `l` (see "
+                  "wire_l_payload_key_divergence).",
+         probe="n/a -- filed BEFORE a probe exists, which is the point",
+         disposition=FILED,
+         note="Stated in-file in the rc450 comparator as well, so the scope "
+              "limit is visible to a reader of the gate and not only to a "
+              "reader of this ledger. An untested assumption gets a row, not a "
+              "silence.",
+         ceiling_blind_to="Surface B has no chain ceiling at all; its coverage "
+                          "is asserted in the ratchet's docstring ('C executes 5 "
+                          "of 6') and measured by nothing in this arc."),
+
+    dict(id="native_parity_gates_use_bare_skip", kind="gap",
+         missing="The rc446/rc447 cascade C-parity family gates itself with "
+                 "bare pytest.skip when the library is absent, instead of "
+                 "tests/_native_gate.require_native.",
+         lacked_by="both", blocked_this_rc=False, new_type=False,
+         evidence="tests/test_c_cascade_parity_ratchet_rc446.py::_c_runs and "
+                  "tests/test_step_mutation_witness_rc447.py both call "
+                  "pytest.skip directly; tests/_native_gate.py (rc351, `#T843`) "
+                  "fails instead unless SRMECH_EXPECT_PURE=1, AND its skips are "
+                  "COUNTED by the CI pure-cell audit against the set of files "
+                  "calling require_native -- so a bare skip evades the audit "
+                  "too.",
+         probe="pytest tests/test_c_cascade_parity_ratchet_rc446.py on a host "
+               "with no libsrmech: it reports skipped, not failed",
+         disposition=FILED,
+         note="Consequence, stated: on a stale-or-absent .so the whole cascade "
+              "C-parity family reports GREEN with nothing executed -- and rc450 "
+              "adds those gates to the ripple manifest, so the runner would "
+              "inherit the same vacuous green. BOTH rc450 gates therefore call "
+              "require_native; the retrofit of the rc446/447 family is filed "
+              "rather than done, because converting them is a behaviour change "
+              "to gates this rc is already changing for other reasons and the "
+              "two should not be entangled in one diff.",
+         ceiling_blind_to="A ceiling reads a number the gate produced; it cannot "
+                          "see that the gate did not run."),
+
+    # -- rc450 (`#T1160`) -- the ITEM-11 FALSEHOOD HARVEST -------------------
+    #
+    # gh #1653 item 11 (`#T1159`) is the DELIBERATE last-position bucket: every
+    # falsehood found while working items 3/4/5 is FILED here with file:line,
+    # the claimed text, the measured live value and the PREDICATE used to
+    # measure it -- and NOT fixed, unless the file was already being edited for
+    # a scoped reason. Opportunistic inline fixes outside scoped files are the
+    # defect this sequencing exists to prevent.
+    #
+    # FIXED INLINE at rc450 instead of filed, because their files WERE edited
+    # for a scoped reason (version bump / BLOCKED sync / manifest growth), and
+    # each is named here so the harvest is complete rather than convenient:
+    #   python/README.md:324  "63 plain and 9 map steps, and no fold"
+    #   python/README.md:328  "1 of the 3 step forms" / "10-op Class-N table" /
+    #                         "0 of the 18"
+    #   tests/test_c_cascade_parity_ratchet_rc446.py  docstring "accepts 0",
+    #                         GATE_OP_TABLE "10 of 18", the 18->12->11 ceiling
+    #                         narrative, 3 gate sets, 6 new_type flags, and
+    #                         parallel_sector_dispatch's carrier_matrix citation
+    #   tests/RIPPLE_GATES.md "~55 files" and "~10k-test suite"
+    dict(id="T1159_claude_md_count_pin_paragraph", kind="bug",
+         missing="docs/srmech/CLAUDE.md's count-pin warning paragraph says "
+                 "'73 lines across 66 test files' and names EXPECTED_N as THE "
+                 "singular blind spot of its own predicate.",
+         lacked_by="neither", blocked_this_rc=False, new_type=False,
+         evidence="Measured at rc450, same predicate the paragraph states "
+                  "(`git grep -c \"== 663\" -- tests/`, 663 being the live "
+                  "describe()[\"tools\"][\"total\"]): 74 lines across 67 files. "
+                  "And the invisible class is THREE shapes plus a data-file "
+                  "field, not one: (1) the bare EXPECTED_N assignment, "
+                  "tests/test_op_name_set_witness_rc361.py; (2) DERIVED "
+                  "arithmetic, '692 frames (663 ops + 29 carriers)' in "
+                  "tests/test_search_glyph_tokenizer_rc416.py; (3) PERCENTAGE "
+                  "prose, '8.7% of 663' in tests/test_exact_return_carrier_"
+                  "rc444.py; plus '\"n\": 663' in "
+                  "tests/example_args_ledger.ndjson. A bare-word search finds "
+                  "81 files against the stated predicate's 67 -- a ~14-file "
+                  "gap, not a one-file one.",
+         probe="git grep -c '== 663' -- tests/  (stated in the paragraph "
+               "itself, which is why it is reproducible at all)",
+         disposition=FILED,
+         note="Owned by `#T1159`. NOT fixed at rc450: docs/srmech/CLAUDE.md is "
+              "not edited in this rc for any scoped reason. Note the paragraph "
+              "is self-aware about staleness and STILL went stale, which is "
+              "the argument for the gate rather than for another warning.",
+         ceiling_blind_to="This file is explicitly NOT hygiene-gated and no "
+                          "ratchet reads it, so nothing but a reader catches "
+                          "it -- and it is what a session reads FIRST."),
+
+    dict(id="T1159_compose_run_c_wire_doc_omits_f", kind="bug",
+         missing="c/src/srmech_compose_run.c:19 documents the value descriptor "
+                 "as {\"k\":\"s\"/\"q\"/\"i\"/\"n\"/\"l\", ...} -- omitting "
+                 "\"f\" -- and :21-22 still says 'any float / unsupported arg "
+                 "... the peer returns non-OK'.",
+         lacked_by="neither", blocked_this_rc=False, new_type=False,
+         evidence="Both halves went stale when CR_DBL shipped at rc447. The "
+                  "same file emits srmech_json_new_string(bd, \"f\", 1u) at "
+                  "cr_desc_scalar, and `magnitude` returns "
+                  "{\"k\": \"f\", \"v\": 3.5} with rc=0 -- measured at rc450.",
+         probe="pytest tests/test_c_cascade_value_parity_rc450.py -k bijection",
+         disposition=FILED,
+         note="Owned by `#T1159`. THE MOST ON-TOPIC ONE: this is the canonical "
+              "in-file description of the very wire the rc450 value-parity "
+              "gate decodes, so a reader who follows the gate to the wire's "
+              "own documentation is told the wire cannot carry a float. NOT "
+              "fixed here because rc450 ships ZERO C source changes by design "
+              "and a comment-only .c edit would break that claim.",
+         ceiling_blind_to="No gate reads C comments; the rc450 bijection pin "
+                          "reads the CODE (the emitted kind strings), which is "
+                          "why it is right while the comment beside it is "
+                          "wrong."),
+
+    dict(id="T1159_tool_docs_17_executable_vs_live_18", kind="bug",
+         missing="The run_cascade_chain explanation says describe()"
+                 "['cascade_catalog'] counts the catalog '(17 executable / 3 "
+                 "leaf)' while the live value is 18 executable / 3 leaf.",
+         lacked_by="neither", blocked_this_rc=False, new_type=False,
+         evidence="Live at rc450: describe()['cascade_catalog'] == {'total': "
+                  "21, 'executable': 18, 'leaf': 3} (klein4_from_one joined at "
+                  "rc438). The claim is in srmech/introspect/_tool_docs.py and "
+                  "in the compiled c/src/srmech_tool_registry.c, whose own "
+                  "adjacent example says 18.",
+         probe="python3 -c \"import srmech; "
+               "print(srmech.describe()['cascade_catalog'])\"",
+         disposition=FILED,
+         note="Owned by `#T1159`, and ALREADY KNOWN before rc450 -- carried "
+              "here so the bucket is one list rather than two. This one SHIPS: "
+              "_tool_docs.py is emitted into the wheel and the C registry is "
+              "compiled in, so it reaches users through describe() and the MCP "
+              "tool list.",
+         ceiling_blind_to="Generated-artifact prose has no currency gate; the "
+                          "regen reproduces whatever the source says."),
+
+    dict(id="T1159_abi_prose_22_files_vs_22_lines", kind="bug",
+         missing="tests/test_abi_prose_currency_rc449.py:5 says 'twenty-two "
+                 "test files pin the literal'.",
+         lacked_by="neither", blocked_this_rc=False, new_type=False,
+         evidence="PLAUSIBLE, not CONFIRMED, and the predicate is stated so it "
+                  "can be refuted: `git grep -nE "
+                  "'(EXPECTED_ABI_VERSION|abi_version|ABI_VERSION|ABI)"
+                  "[^0-9]{0,40}\\b19\\b' -- tests/` yields 22 LINES across 18 "
+                  "FILES. The gate's own prose appears to have counted lines "
+                  "and written 'files'. A different predicate could reach 22 "
+                  "files; mine is written out rather than implied.",
+         probe="the git grep above",
+         disposition=FILED,
+         note="Owned by `#T1159`. Filed rather than fixed BECAUSE it is "
+              "predicate-sensitive: correcting a number whose predicate is "
+              "unstated would just mint a second unstated number.",
+         ceiling_blind_to="The gate pins the ABI VALUE across surfaces; it "
+                          "does not pin its own prose about how many surfaces "
+                          "there are."),
+
+    dict(id="T1159_example_args_ledger_stale_version_stamp", kind="bug",
+         missing="tests/example_args_ledger.ndjson's meta record stamps "
+                 "\"srmech_version\": \"0.9.0rc442\" beside a CURRENT payload "
+                 "(\"n\": 663).",
+         lacked_by="neither", blocked_this_rc=False, new_type=False,
+         evidence="Live version is 0.9.0rc450; n=663 is current. So the stamp "
+                  "is eight releases behind while the data it stamps is not, "
+                  "and a reader judging currency BY the stamp would wrongly "
+                  "discard a live figure -- the failure direction that is "
+                  "worse than a stale number, because it discredits good data.",
+         probe="head -1 tests/example_args_ledger.ndjson",
+         disposition=FILED,
+         note="Owned by `#T1159`. The real fix is not a newer stamp but a "
+              "regen-time stamp that cannot lag the payload -- the same shape "
+              "as the rc450 gap-ledger summary re-read.",
+         ceiling_blind_to="Nothing compares a data file's version stamp to the "
+                          "tree's version."),
+
+    dict(id="T1159_notes_ripple_gates_filename_collision", kind="bug",
+         missing="docs/srmech/notes/ripple_gates.txt is a TRACKED file wearing "
+                 "the manifest's name while being a gh #1653 ABI 17->18 "
+                 "blast-radius NOTE (59 non-comment lines).",
+         lacked_by="neither", blocked_this_rc=False, new_type=False,
+         evidence="The real manifest is python/tools/ripple_gates.txt (101 "
+                  "targets at rc450). The two bodies are wholly disjoint. A "
+                  "brief citing 'docs/srmech/tools/ripple_gates.txt' resolves "
+                  "to NEITHER path and lands a reader on the decoy -- which "
+                  "happened to this rc's own briefing.",
+         probe="diff docs/srmech/notes/ripple_gates.txt "
+               "docs/srmech/python/tools/ripple_gates.txt",
+         disposition=FILED,
+         note="Owned by `#T1159`. RENAME, do not delete -- the note is a "
+              "useful ABI-ripple precedent and the defect is only its name.",
+         ceiling_blind_to="No gate reads notes/ filenames."),
+
+    dict(id="T1159_wedge_join_row51_self_contradiction", kind="bug",
+         missing="notes/_1653_wedge_join_rc444.ndjson row 51 stores a c_value "
+                 "and a python_value that differ VISIBLY as strings, under "
+                 "verdict BYTE_IDENTICAL, with nothing in the row saying the "
+                 "verdict was computed on NORMALISED forms.",
+         lacked_by="neither", blocked_this_rc=False, new_type=False,
+         evidence="The join script computes norm(json.loads(payload)) vs "
+                  "norm(py) while the record stores the RAW C payload. To any "
+                  "reader of the artifact ALONE -- which is what an ndjson is "
+                  "for -- the row contradicts itself.",
+         probe="sed -n 51p notes/_1653_wedge_join_rc444.ndjson",
+         disposition=FILED,
+         note="Owned by `#T1159`. Low stakes (a committed notes artifact), but "
+              "it is the exact reason the rc450 comparator refuses a "
+              "normalising encoder AND stores no normalised form: a verdict "
+              "whose inputs are not the stored fields is not reproducible from "
+              "the record.",
+         ceiling_blind_to="Nothing re-derives a notes ndjson's verdicts from "
+                          "its own stored fields."),
+
+    dict(id="T1159_cr_op_reg_length_is_a_bare_literal_x3", kind="gap",
+         missing="CR_OP_REG's length is the bare literal 20, written in three "
+                 "places (the array declaration and two loop bounds in "
+                 "cr_args_keyset_ok) with no sizeof-derived bound.",
+         lacked_by="c", blocked_this_rc=False, new_type=False,
+         evidence="Correct today -- 20 entries, 20 arms, symmetric difference "
+                  "against the arms empty, self-checked by "
+                  "notes/_1653_rc450_measure.py, which prints declared vs "
+                  "parsed and says AGREE. But every op this arc adds must edit "
+                  "all three, and a declared-20 against a loop-bound-19 would "
+                  "SILENTLY DISABLE the key-set validator for the tail of the "
+                  "table -- the exact failure the function's own comment says "
+                  "it refuses to permit.",
+         probe="python3 notes/_1653_rc450_measure.py  (section 2)",
+         disposition=FILED,
+         note="Owned by `#T1159`. Filed rather than fixed because rc450 ships "
+              "zero C source changes; the fix is a sizeof-derived bound and it "
+              "belongs to the next rc that touches the table, which is rc451.",
+         ceiling_blind_to="A short loop bound produces NO symptom: the "
+                          "validator simply stops validating the tail, and "
+                          "every existing test still passes."),
+
+    dict(id="T1159_two_divergent_row_says_both_wires_spell_k_v", kind="bug",
+         missing="The two_divergent_value_kind_vocabularies ledger row says "
+                 "the two wires are 'both spelled {\"k\": ..., \"v\": ...}'.",
+         lacked_by="neither", blocked_this_rc=False, new_type=False,
+         evidence="False for kind `l` on the chain-run wire, which is spelled "
+                  "{\"k\": \"l\", \"items\": [...]}. Measured in three "
+                  "artifacts; recorded in full as the separate row "
+                  "wire_l_payload_key_divergence.",
+         probe="see the wire_l_payload_key_divergence row's evidence",
+         disposition=FILED,
+         note="Owned by `#T1159`. The ROW ITSELF is not edited at rc450, "
+              "because rewriting a filed row's text in place erases what it "
+              "said when it was filed; the correction is carried as its own "
+              "row instead, which is what an append-only ledger is for.",
+         ceiling_blind_to="Nothing checks a ledger row's prose against the "
+                          "code it describes."),
+
 ]
 
 
@@ -660,12 +1597,34 @@ def scan_op_exports():
 
 
 def main():
+    ids = [r["id"] for r in ROWS]
+    assert len(ids) == len(set(ids)), (
+        "duplicate row id(s): %s"
+        % sorted({i for i in ids if ids.count(i) > 1}))
     for r in ROWS:
         assert r["disposition"] in (CLOSED, FILED, DECLINED), r["id"]
         assert r["kind"] in ("gap", "bug", "decline"), r["id"]
-        assert r["lacked_by"] in ("c", "python", "both"), r["id"]
+        assert r["lacked_by"] in LACKED_BY_VALUES, (
+            "%s: lacked_by=%r is outside the documented vocabulary %s"
+            % (r["id"], r["lacked_by"], sorted(LACKED_BY_VALUES)))
         assert r["ceiling_blind_to"], "%s: every row must say what a seeded " \
                                       "ceiling cannot detect" % r["id"]
+    # Down-only on the two rc450 placeholders. A ceiling that only forbids
+    # GROWTH would let the placeholders sit forever; `==` forces the number to
+    # be lowered consciously when a row is attributed.
+    n_unstated_lacked = sum(1 for r in ROWS if r["lacked_by"] == "unstated")
+    assert n_unstated_lacked == CEIL_UNSTATED_LACKED_BY, (
+        "%d row(s) carry lacked_by='unstated'; the ceiling is %d. If you "
+        "ATTRIBUTED one, lower CEIL_UNSTATED_LACKED_BY to %d. If this grew, a "
+        "new row was written without naming a projection, which is the state "
+        "the placeholder exists to drain rather than to normalise."
+        % (n_unstated_lacked, CEIL_UNSTATED_LACKED_BY, n_unstated_lacked))
+    n_unstated_cbt = sum(1 for r in ROWS
+                         if r["ceiling_blind_to"] == UNSTATED_CEILING_BLIND_TO)
+    assert n_unstated_cbt == CEIL_UNSTATED_CEILING_BLIND_TO, (
+        "%d row(s) carry the rc450 ceiling_blind_to placeholder; the ceiling "
+        "is %d. Same rule as above."
+        % (n_unstated_cbt, CEIL_UNSTATED_CEILING_BLIND_TO))
     by = {}
     for r in ROWS:
         by[r["disposition"]] = by.get(r["disposition"], 0) + 1
@@ -691,13 +1650,53 @@ def main():
     syms = scan_op_exports()
     if syms:
         print("live C export count:", len(syms))
+    try:
+        from srmech.version import __version__ as _rc
+    except Exception:                                   # pragma: no cover
+        _rc = None
+    summary = {"record": "summary", "rows": len(ROWS), "rc": _rc,
+               "by_disposition": by, "by_kind": kinds,
+               "c_exports": len(syms) if syms else None}
     with open(OUT, "w", encoding="utf-8") as fh:
         for r in ROWS:
             fh.write(json.dumps(r, sort_keys=True) + "\n")
-        fh.write(json.dumps({"record": "summary", "rows": len(ROWS),
-                             "by_disposition": by, "by_kind": kinds,
-                             "c_exports": len(syms) if syms else None},
-                            sort_keys=True) + "\n")
+        fh.write(json.dumps(summary, sort_keys=True) + "\n")
+
+    # ── THE SUMMARY CANNOT DISAGREE WITH WHAT IT SUMMARISES ─────────────────
+    # rc450 (`#T1160`). The shipped .ndjson said {"rows": 39} beside 51 rows,
+    # with 16/2/21 by disposition against a real 18/4/29 — and it carried an
+    # "rc" key this writer never emitted. That is not a stale count: it is
+    # proof the file had been written by something other than this function
+    # and never re-checked. The fix is not a bigger number, it is a RE-READ:
+    # parse back what was just written and assert the summary against it. A
+    # summary computed from ROWS and checked against ROWS would agree with
+    # itself; this one is checked against the BYTES ON DISK.
+    disk_rows, disk_summary = [], None
+    with open(OUT, encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            rec = json.loads(line)
+            (disk_rows.append(rec) if rec.get("record") != "summary"
+             else None)
+            if rec.get("record") == "summary":
+                disk_summary = rec
+    assert disk_summary is not None, "no summary record was written"
+    assert len(disk_rows) == disk_summary["rows"] == len(ROWS), (
+        "the summary says rows=%s, the file holds %d parsed rows, and ROWS "
+        "holds %d — this is the rc449 defect, live again."
+        % (disk_summary.get("rows"), len(disk_rows), len(ROWS)))
+    disk_by = {}
+    for rec in disk_rows:
+        disk_by[rec["disposition"]] = disk_by.get(rec["disposition"], 0) + 1
+    assert disk_by == disk_summary["by_disposition"] == by, (
+        "by_disposition disagrees: on disk %s, in summary %s, from ROWS %s"
+        % (disk_by, disk_summary["by_disposition"], by))
+    assert set(disk_by) <= {CLOSED, FILED, DECLINED}, (
+        "a FOURTH disposition reached disk: %s" % sorted(disk_by))
+    print("re-read %d rows from disk; summary agrees on rows and dispositions"
+          % len(disk_rows))
     print("wrote", OUT)
     return 0
 
