@@ -269,15 +269,24 @@ ROWS = [
                  "wire has `t` (tuple) and no `q`.",
          lacked_by="both", blocked_this_rc=True, new_type=False,
          evidence="cascade/compose.py _reconstruct_value: f i l n q s. "
-                  "dsl/_chain.py _desc_to_value: f i l n s t. Consequence "
-                  "measured: best_rational_signed returns tuple[int,int], which "
-                  "the DSL wire can carry and the chain-run wire CANNOT.",
+                  "dsl/_chain.py _desc_to_value: f i l n s t. AND the payload "
+                  "KEY diverges too: chain-run reads desc['v'] for `i`, "
+                  "desc['n']/desc['d'] for `q`, desc['items'] for `l`, while "
+                  "the DSL wire uses desc['v'] for its list.",
          probe="python3 notes/_1653_return_types.py",
          disposition=FILED,
          note="Neither wire is a superset of the other, so the SAME Python value "
-              "has different expressibility depending on which surface runs it — "
-              "and the identical {\"k\":...} spelling makes them look like one "
-              "shared standard. If a requested-return-type contract is going to "
+              "has different expressibility depending on which surface runs it.\n"
+              "⚠️ CORRECTED rc447, TWICE, by an adversarial review of this row. "
+              "(a) This cited best_rational_signed as the exemplar of a value "
+              "the chain-run wire CANNOT carry. It can: `(22, 7)` is a "
+              "RATIONAL, carried natively as kind `q`. Only a non-rational "
+              "tuple needs the absent `t`. The blocked set was over-stated by "
+              "one chain, and it was this row's headline evidence. (b) The "
+              "claim that both wires spell themselves {\"k\":...,\"v\":...} "
+              "was never measured and is false — see the evidence field. The "
+              "kind-set scan is a regex over `k == \"<x>\"`, which structurally "
+              "cannot see key names, so it could not have caught it. If a requested-return-type contract is going to "
               "exist, these two have to become ONE vocabulary first; otherwise "
               "'the requested carrier' means different things per surface.",
          ceiling_blind_to="Each surface tests only its own wire, so no gate "

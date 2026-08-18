@@ -183,8 +183,15 @@ def main():
             # and its `l` is FLAT BY CONSTRUCTION (cr_desc_list calls
             # cr_desc_scalar, never itself — JPL Rule 1 bans the recursive
             # walk). So a list[list[...]] is NOT expressible even though `l` is.
-            if isinstance(v, (bytes, bytearray, dict, tuple)) \
-               or hasattr(v, "tolist"):
+            # ⚠️ `tuple` WAS UNCONDITIONAL HERE AND THAT WAS WRONG (rc447).
+            # A (num, den) RATIONAL is carried natively by the chain-run wire
+            # as kind `q` — _reconstruct_value returns exactly that tuple — so
+            # best_rational_signed was scored carrier-blocked when its carrier
+            # is fine. Only a NON-rational tuple needs the absent `t` kind.
+            _rational = (isinstance(v, tuple) and len(v) == 2
+                         and all(type(x) is int for x in v))
+            if (isinstance(v, (bytes, bytearray, dict)) or hasattr(v, "tolist")
+                    or (isinstance(v, tuple) and not _rational)):
                 gates.add("carrier_width")
             elif isinstance(v, list) and any(isinstance(e, (list, tuple, dict))
                                              for e in v):

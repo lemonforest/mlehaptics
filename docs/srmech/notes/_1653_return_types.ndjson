@@ -1,6 +1,6 @@
 {"chain_run_only": ["q"], "dsl_f1_only": ["t"], "kinds": {"chain_run": ["f", "i", "l", "n", "q", "s"], "dsl_f1": ["f", "i", "l", "n", "s", "t"]}, "record": "wires"}
 {"actual": "list", "chain": "autocorrelation", "chain_run_carriable": "yes", "declared": "list[float]", "record": "chain"}
-{"actual": "tuple", "chain": "best_rational_signed", "chain_run_carriable": "NO \u2014 chain-run has no `t` (the DSL wire DOES)", "declared": "tuple[int, int]", "record": "chain"}
+{"actual": "tuple", "chain": "best_rational_signed", "chain_run_carriable": "yes \u2014 as kind `q` (a rational), not `t`", "declared": "tuple[int, int]", "record": "chain"}
 {"actual": "list", "chain": "chiral_dual", "chain_run_carriable": "yes", "declared": "list[float]", "record": "chain"}
 {"actual": "int", "chain": "cyclic_gcd", "chain_run_carriable": "yes", "declared": "int", "record": "chain"}
 {"actual": "int", "chain": "cyclic_mod_add", "chain_run_carriable": "yes", "declared": "int", "record": "chain"}

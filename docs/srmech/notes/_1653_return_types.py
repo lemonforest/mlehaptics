@@ -25,8 +25,14 @@ THREE FINDINGS, each checkable below.
 3. ⚠️ THERE ARE TWO VALUE-DESCRIPTOR VOCABULARIES AND THEY DIVERGE.
        chain-run  (cascade/compose.py)   n i q s f l      has `q`, NO `t`
        DSL F1     (dsl/_chain.py)        n i s f l t      has `t`, NO `q`
-   Both spell themselves ``{"k": ..., "v": ...}``, so they LOOK like one shared
-   standard. Neither is a superset of the other, so the same Python value has
+
+   ⚠️ AND THE PAYLOAD KEY IS NOT UNIFORM EITHER, which an earlier draft of this
+   file asserted without measuring. On the chain-run wire only some kinds use
+   ``v``: ``i`` reads ``desc["v"]``, ``q`` reads ``desc["n"]`` / ``desc["d"]``,
+   and ``l`` reads ``desc["items"]`` — while the DSL wire uses ``desc["v"]`` for
+   its list. The kind-set scan below is a regex over ``k == "<x>"``, which
+   STRUCTURALLY CANNOT see key names, so it could never have caught that. The
+   divergence is one notch worse than "different kind sets". Neither is a superset of the other, so the same Python value has
    different expressibility depending on which surface runs it —
    ``best_rational_signed`` returns ``tuple[int,int]``, which the DSL wire
    carries and the chain-run wire cannot.
@@ -106,7 +112,17 @@ def main():
         elif isinstance(val, dict):
             verdict = "NO — no mapping kind"
         elif isinstance(val, tuple):
-            verdict = "NO — chain-run has no `t` (the DSL wire DOES)"
+            # ⚠️ CORRECTED rc447. This said "NO — chain-run has no `t`", and it
+            # was WRONG for the one chain it named. The chain-run wire carries a
+            # (num, den) RATIONAL natively as kind `q` — `_reconstruct_value`
+            # returns `(int(desc["n"]), int(desc["d"]))`, a tuple — so
+            # best_rational_signed's `(22, 7)` is expressible today. Only a
+            # NON-rational tuple (arity != 2, or a non-int member) needs the `t`
+            # kind the chain-run wire lacks.
+            if len(val) == 2 and all(type(x) is int for x in val):
+                verdict = "yes — as kind `q` (a rational), not `t`"
+            else:
+                verdict = "NO — chain-run has no `t` (the DSL wire DOES)"
         elif isinstance(val, list) and any(
                 isinstance(e, (list, tuple, dict)) for e in val):
             verdict = "NO — `l` is FLAT; nesting needs a frame stack"
